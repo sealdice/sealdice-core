@@ -32,18 +32,21 @@ func lagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	return workDir
 }
 
-func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
+func NewLagrangeConnectInfoItem(account string, isGocq bool) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
 	conn.ProtocolType = "onebot"
 	conn.Enable = false
 	conn.RelWorkDir = "extra/lagrange-qq" + account
-
 	conn.Adapter = &PlatformAdapterGocq{
 		EndPoint:        conn,
 		UseInPackClient: true,
 		BuiltinMode:     "lagrange",
+	}
+	if isGocq {
+		conn.RelWorkDir = "extra/lagrange-gocq-qq" + account
+		conn.Adapter.(*PlatformAdapterGocq).BuiltinMode = "lagrange-gocq"
 	}
 	return conn
 }
@@ -340,23 +343,21 @@ var defaultLagrangeConfig = `
 `
 
 // 在构建时注入
-var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
-var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
+// var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
+// var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
+
+// 此处添加内置sign地址及对应标识字符串
+var signServers = map[string]string{
+	"sealdice": `https://lwxmagic.sealdice.com/api/sign`,
+	"lagrange": "https://sign.lagrangecore.org/api/sign",
+}
 
 func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion string, info *EndPointInfo) string {
-	switch signServerUrl {
-	case "":
-		signServerUrl = defaultNTSignServer
-		if signServerVersion != "" && signServerVersion != "13107" {
-			signServerUrl += "/" + signServerVersion
-		}
-	case "sealdice":
-		signServerUrl = defaultNTSignServer
-		if signServerVersion != "" && signServerVersion != "13107" {
-			signServerUrl += "/" + signServerVersion
-		}
-	case "lagrange":
-		signServerUrl = lagrangeNTSignServer
+	if signServerUrl == "" {
+		signServerUrl = "sealdice"
+	}
+	if url, exists := signServers[signServerUrl]; exists {
+		signServerUrl = url
 		if signServerVersion != "" && signServerVersion != "13107" {
 			signServerUrl += "/" + signServerVersion
 		}
@@ -386,14 +387,11 @@ func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
 }
 
 func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl string, w bool, signServerVersion string) (string, string) {
-	switch signServerUrl {
-	case "sealdice":
-		signServerUrl = defaultNTSignServer
-		if signServerVersion != "" && signServerVersion != "13107" {
-			signServerUrl += "/" + signServerVersion
-		}
-	case "lagrange":
-		signServerUrl = "https://sign.lagrangecore.org/api/sign"
+	if signServerUrl == "" {
+		signServerUrl = "sealdice"
+	}
+	if url, exists := signServers[signServerUrl]; exists {
+		signServerUrl = url
 		if signServerVersion != "" && signServerVersion != "13107" {
 			signServerUrl += "/" + signServerVersion
 		}
@@ -418,14 +416,20 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 				}
 
 				var version string
-				if strings.HasPrefix(val, defaultNTSignServer) {
-					version, _ = strings.CutPrefix(val, defaultNTSignServer)
-					version, _ = strings.CutPrefix(version, "/")
-					val = "sealdice"
-				} else if strings.HasPrefix(val, lagrangeNTSignServer) {
-					version, _ = strings.CutPrefix(val, lagrangeNTSignServer)
-					version, _ = strings.CutPrefix(version, "/")
-					val = "lagrange"
+				for key, value := range signServers {
+					if strings.HasPrefix(val, value) {
+						version, _ = strings.CutPrefix(val, value)
+						version, _ = strings.CutPrefix(version, "/")
+						val = key
+					}
+				}
+				if _, exists := signServers[val]; !exists {
+					// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
+					version = "25765"
+				}
+				if version == "" {
+					// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
+					version = "13107"
 				}
 				return val, version
 			}
