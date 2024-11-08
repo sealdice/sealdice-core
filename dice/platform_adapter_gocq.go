@@ -399,7 +399,7 @@ func (pa *PlatformAdapterGocq) SendSegmentToPerson(ctx *MsgContext, userID strin
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
-	if pa.BuiltinMode == "lagrange" {
+	if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 		pa.Implementation = "lagrange"
 	} else {
 		pa.Implementation = "gocq"
@@ -1221,7 +1221,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		if pa.InPackGoCqhttpDisconnectedCH != nil {
 			pa.InPackGoCqhttpDisconnectedCH <- -1
 		}
-		if pa.BuiltinMode == "lagrange" {
+		if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInit
@@ -1268,7 +1268,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		c.Enable = true
 
 		if pa.UseInPackClient {
-			if pa.BuiltinMode == "lagrange" {
+			if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
 				LagrangeServe(d, c, LagrangeLoginInfo{
