@@ -230,10 +230,12 @@ func (d *Dice) registerCoreCommands() {
 			var (
 				useGroupSearch bool
 				group          string
+				text           string = cmdArgs.CleanArgs
 			)
-			if _group := cmdArgs.GetArgN(1); strings.HasPrefix(_group, "#") {
+			if rawGroup := cmdArgs.GetArgN(1); strings.HasPrefix(rawGroup, "#") {
 				useGroupSearch = true
-				fakeGroup := strings.TrimPrefix(_group, "#")
+				fakeGroup := strings.TrimPrefix(rawGroup, "#")
+				text = strings.TrimPrefix(text, rawGroup+" ")
 
 				// 转换 group 别名
 				if _g, ok := d.Parent.Help.GroupAliases[fakeGroup]; ok {
@@ -279,14 +281,16 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			var val string
-			if useGroupSearch {
-				val = cmdArgs.GetArgN(2)
-			} else {
-				val = cmdArgs.GetArgN(1)
-			}
-			if val == "" {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			{ // 判断是否关键字缺失
+				var val string
+				if useGroupSearch {
+					val = cmdArgs.GetArgN(2)
+				} else {
+					val = cmdArgs.GetArgN(1)
+				}
+				if val == "" {
+					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
 			}
 
 			numLimit := 4
@@ -305,8 +309,6 @@ func (d *Dice) registerCoreCommands() {
 					page = int(_page)
 				}
 			}
-
-			text := strings.TrimPrefix(cmdArgs.CleanArgs, "#"+group+" ")
 
 			if numLimit <= 0 {
 				numLimit = 1
