@@ -463,7 +463,6 @@ func LagrangeServeRemoveSession(dice *Dice, conn *EndPointInfo) {
 	if _, err := os.Stat(file); err == nil {
 		_ = os.Remove(file)
 	}
-
 }
 
 // 清理内置客户端配置文件目录
@@ -490,66 +489,74 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	workDir := lagrangeGetWorkDir(dice, conn)
 	configFilePath := filepath.Join(workDir, "appsettings.json")
 	pa := conn.Adapter.(*PlatformAdapterGocq)
+
 	if pa.BuiltinMode == "lagrange-gocq" {
 		configFilePath = filepath.Join(workDir, "config.yml")
 	}
-	file, err := os.ReadFile(configFilePath)
+
 	currentSignServerUrl := ""
-	if err == nil {
-		var result map[string]interface{}
-		if pa.BuiltinMode == "lagrange" {
-			if err = json.Unmarshal(file, &result); err == nil {
-				if val, ok := result["SignServerUrl"].(string); ok {
-					currentSignServerUrl = val
-					if w {
-						result["SignServerUrl"] = signServerUrl
-						var c []byte
-						if c, err = json.MarshalIndent(result, "", "    "); err == nil {
-							_ = os.WriteFile(configFilePath, c, 0o644)
-						} else {
-							dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
-						}
-					}
-				}
-			}
-		} else {
-			if err = yaml.Unmarshal(file, &result); err == nil {
-				if val, ok := result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"].(string); ok {
-					currentSignServerUrl = val
-					if w {
-						result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"] = signServerUrl
-						var c []byte
-						if c, err = yaml.Marshal(&result); err == nil {
-							_ = os.WriteFile(configFilePath, c, 0o644)
-						} else {
-							dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
-						}
-					}
-				}
-			}
-		}
-		if currentSignServerUrl == "" {
-			currentSignServerUrl = signServers["sealdice"] + "/25765"
-		}
-		var version string
-		for key, value := range signServers {
-			if strings.HasPrefix(currentSignServerUrl, value) {
-				version, _ = strings.CutPrefix(currentSignServerUrl, value)
-				version, _ = strings.CutPrefix(version, "/")
-				currentSignServerUrl = key
-				break
-			}
-		}
-		if _, exists := signServers[currentSignServerUrl]; !exists {
-			// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
-			version = "25765"
-		}
-		if version == "" {
-			// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
-			version = "13107"
-		}
-		return currentSignServerUrl, version
+	file, err := os.ReadFile(configFilePath)
+	if err != nil {
+		dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
+		return "", ""
 	}
-	dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
-	return "", ""
+
+	var result map[string]interface{}
+	if pa.BuiltinMode == "lagrange" {
+		err = json.Unmarshal(file, &result)
+		if err != nil {
+			dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
+			return "", ""
+		}
+		if val, ok := result["SignServerUrl"].(string); ok {
+			currentSignServerUrl = val
+			if w {
+				result["SignServerUrl"] = signServerUrl
+				c, err := json.MarshalIndent(result, "", "    ")
+				if err != nil {
+					dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
+				}
+				_ = os.WriteFile(configFilePath, c, 0o644)
+			}
+		}
+	} else {
+		err = yaml.Unmarshal(file, &result)
+		if err != nil {
+			dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
+			return "", ""
+		}
+		if val, ok := result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"].(string); ok {
+			currentSignServerUrl = val
+			if w {
+				result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"] = signServerUrl
+				c, err := yaml.Marshal(&result)
+				if err != nil {
+					dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
+				}
+				_ = os.WriteFile(configFilePath, c, 0o644)
+			}
+		}
+
+	}
+	if currentSignServerUrl == "" {
+		currentSignServerUrl = signServers["sealdice"] + "/25765"
+	}
+	var version string
+	for key, value := range signServers {
+		if strings.HasPrefix(currentSignServerUrl, value) {
+			version, _ = strings.CutPrefix(currentSignServerUrl, value)
+			version, _ = strings.CutPrefix(version, "/")
+			currentSignServerUrl = key
+			break
+		}
+	}
+	if _, exists := signServers[currentSignServerUrl]; !exists {
+		// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
+		version = "25765"
+	}
+	if version == "" {
+		// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
+		version = "13107"
+	}
+	return currentSignServerUrl, version
 }
