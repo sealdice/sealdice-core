@@ -512,7 +512,8 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 			currentSignServerUrl = val
 			if w {
 				result["SignServerUrl"] = signServerUrl
-				c, err := json.MarshalIndent(result, "", "    ")
+				var c []byte
+				c, err = json.MarshalIndent(result, "", "    ")
 				if err != nil {
 					dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
 				}
@@ -529,14 +530,14 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 			currentSignServerUrl = val
 			if w {
 				result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"] = signServerUrl
-				c, err := yaml.Marshal(&result)
+				var c []byte
+				c, err = yaml.Marshal(&result)
 				if err != nil {
 					dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
 				}
 				_ = os.WriteFile(configFilePath, c, 0o644)
 			}
 		}
-
 	}
 	if currentSignServerUrl == "" {
 		currentSignServerUrl = signServers["sealdice"] + "/25765"
