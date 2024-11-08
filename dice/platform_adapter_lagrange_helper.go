@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gopkg.in/yaml.v3"
 
 	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
@@ -58,11 +59,15 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
 
-	if pa.UseInPackClient && pa.BuiltinMode == "lagrange" { //nolint:nestif
+	if pa.UseInPackClient && (pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq") { //nolint:nestif
 		helper := log.NewCustomHelper(log.LOG_LAGR, false, nil)
 
 		if dice.ContainerMode {
-			helper.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
+			if pa.BuiltinMode == "lagrange" {
+				helper.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
+			} else {
+				helper.Warn("onebot: 尝试启动内置gocq，但内置gocq在容器模式下被禁用")
+			}
 			conn.State = 3
 			pa.GoCqhttpState = StateCodeLoginFailed
 			dice.Save(false)
@@ -73,22 +78,23 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		_ = os.MkdirAll(workDir, 0o755)
 		wd, _ := os.Getwd()
 		exeFilePath, _ := filepath.Abs(filepath.Join(wd, "lagrange/Lagrange.OneBot"))
+		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
+		configFilePath := filepath.Join(workDir, "appsettings.json")
+
+		if pa.BuiltinMode == "lagrange-gocq" {
+			exeFilePath, _ = filepath.Abs(filepath.Join(wd, "lagrange/go-cqhttp"))
+			qrcodeFilePath = filepath.Join(workDir, "qrcode.png")
+			configFilePath = filepath.Join(workDir, "config.yml")
+		}
+
 		exeFilePath = filepath.ToSlash(exeFilePath) // windows平台需要这个替换
 		if runtime.GOOS == "windows" {
 			exeFilePath += ".exe"
 		}
-		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
-		configFilePath := filepath.Join(workDir, "appsettings.json")
 
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
 			// 如果已经存在二维码文件，将其删除
 			_ = os.Remove(qrcodeFilePath)
-		} else {
-			// 如果找不到二维码文件，有一种可能是用户添加账号时写错了账号，这里做个兼容让错误的账号依旧能获取到二维码
-			qrcodeFilePath = filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.RelWorkDir[17:]))
-			if _, err := os.Stat(qrcodeFilePath); err == nil {
-				_ = os.Remove(qrcodeFilePath)
-			}
 		}
 		helper.Info("onebot: 删除已存在的二维码文件")
 
@@ -96,9 +102,17 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		pa.ConnectURL = ""
 		if file, err := os.ReadFile(configFilePath); err == nil {
 			var result map[string]interface{}
-			if err := json.Unmarshal(file, &result); err == nil {
-				if val, ok := result["Implementations"].([]interface{})[0].(map[string]interface{})["Port"].(float64); ok {
-					pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
+			if pa.BuiltinMode == "lagrange" {
+				if err := json.Unmarshal(file, &result); err == nil {
+					if val, ok := result["Implementations"].([]interface{})[0].(map[string]interface{})["Port"].(float64); ok {
+						pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", int(val))
+					}
+				}
+			} else {
+				if err := yaml.Unmarshal(file, &result); err == nil {
+					if val, ok := result["servers"].([]interface{})[0].(map[string]interface{})["ws"].(map[string]interface{})["address"].(string); ok {
+						pa.ConnectURL = fmt.Sprintf("ws://%s", val)
+					}
 				}
 			}
 		}
@@ -158,13 +172,21 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 
 			// 登录中
 			if pa.IsInLogin() {
+				qrcodeSignal := "QrCode Fetched"
+				onlineSignal := "Bot Online: "
+				qrcodeExpiredSignal := "QrCode Expired, Please Fetch QrCode Again"
+				if pa.BuiltinMode == "lagrange-gocq" {
+					qrcodeSignal = "qrcode.png"
+					onlineSignal = "登录成功"
+					qrcodeExpiredSignal = "QrCode Expired, Please Fetch QrCode Again"
+				}
 				// 读取二维码
-				if strings.Contains(line, "QrCode Fetched") {
+				if strings.Contains(line, qrcodeSignal) {
 					chQrCode <- 1
 				}
 
 				// 登录成功
-				if strings.Contains(line, "Success") || strings.Contains(line, "Bot Online: ") {
+				if strings.Contains(line, "Success") || strings.Contains(line, onlineSignal) {
 					pa.GoCqhttpState = StateCodeLoginSuccessed
 					pa.GoCqhttpLoginSucceeded = true
 					helper.Infof("onebot: 登录成功，账号：<%s>(%s)", conn.Nickname, conn.UserID)
@@ -177,7 +199,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 					go ServeQQ(dice, conn)
 				}
 
-				if strings.Contains(line, "QrCode Expired, Please Fetch QrCode Again") {
+				if strings.Contains(line, qrcodeExpiredSignal) {
 					// 二维码过期，登录失败，杀掉进程
 					pa.GoCqhttpState = StateCodeLoginFailed
 					helper.Infof("onebot: 二维码过期，登录失败，账号：%s", conn.UserID)
@@ -341,6 +363,65 @@ var defaultLagrangeConfig = `
     ]
 }
 `
+var defaultLagrangeGocqConfig = `
+account:
+  relogin:
+    delay: 3
+    interval: 3
+    max-times: 0
+  use-sso-address: true
+  allow-temp-session: false
+  sign-servers: 
+    - url: '{NTSignServer地址}'
+    - url: 'https://sign.lagrangecore.org/api/sign/25765'
+
+  max-check-count: 0
+  sign-server-timeout: 60
+
+heartbeat:
+  interval: 5
+
+message:
+  post-format: string
+  ignore-invalid-cqcode: false
+  force-fragment: false
+  fix-url: false
+  proxy-rewrite: ''
+  report-self-message: false
+  remove-reply-at: false
+  extra-reply-data: false
+  skip-mime-scan: false
+  convert-webp-image: false
+  http-timeout: 15
+
+output:
+  log-level: warn
+  log-aging: 15
+  log-force-new: true
+  log-colorful: true
+  debug: false
+
+default-middlewares: &default
+  access-token: ''
+  filter: ''
+  rate-limit:
+    enabled: false 
+    frequency: 1  
+    bucket: 1     
+
+database: 
+  leveldb:
+    enable: true
+  sqlite3:
+    enable: false
+    cachettl: 3600000000000 # 1h
+
+servers:
+  - ws:
+      address: 127.0.0.1:{WS端口}
+      middlewares:
+        <<: *default 
+`
 
 // 在构建时注入
 // var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
@@ -362,7 +443,11 @@ func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion st
 			signServerUrl += "/" + signServerVersion
 		}
 	}
+	pa := info.Adapter.(*PlatformAdapterGocq)
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", strconv.Itoa(port))
+	if pa.BuiltinMode == "lagrange-gocq" {
+		conf = strings.ReplaceAll(defaultLagrangeGocqConfig, "{WS端口}", strconv.Itoa(port))
+	}
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
 	return conf
@@ -370,9 +455,15 @@ func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion st
 
 func LagrangeServeRemoveSession(dice *Dice, conn *EndPointInfo) {
 	workDir := gocqGetWorkDir(dice, conn)
-	if _, err := os.Stat(filepath.Join(workDir, "keystore.json")); err == nil {
-		_ = os.Remove(filepath.Join(workDir, "keystore.json"))
+	file := filepath.Join(workDir, "keystore.json")
+	pa := conn.Adapter.(*PlatformAdapterGocq)
+	if pa.BuiltinMode == "lagrange-gocq" {
+		file = filepath.Join(workDir, "session.token")
 	}
+	if _, err := os.Stat(file); err == nil {
+		_ = os.Remove(file)
+	}
+
 }
 
 // 清理内置客户端配置文件目录
@@ -398,43 +489,66 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	}
 	workDir := lagrangeGetWorkDir(dice, conn)
 	configFilePath := filepath.Join(workDir, "appsettings.json")
+	pa := conn.Adapter.(*PlatformAdapterGocq)
+	if pa.BuiltinMode == "lagrange-gocq" {
+		configFilePath = filepath.Join(workDir, "config.yml")
+	}
 	file, err := os.ReadFile(configFilePath)
+	currentSignServerUrl := ""
 	if err == nil {
 		var result map[string]interface{}
-		err = json.Unmarshal(file, &result)
-		if err == nil {
-			if val, ok := result["SignServerUrl"].(string); ok {
-				if w {
-					result["SignServerUrl"] = signServerUrl
-					result["SignServerVersion"] = signServerVersion
-					var c []byte
-					if c, err = json.MarshalIndent(result, "", "    "); err == nil {
-						_ = os.WriteFile(configFilePath, c, 0o644)
-					} else {
-						dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
+		if pa.BuiltinMode == "lagrange" {
+			if err = json.Unmarshal(file, &result); err == nil {
+				if val, ok := result["SignServerUrl"].(string); ok {
+					currentSignServerUrl = val
+					if w {
+						result["SignServerUrl"] = signServerUrl
+						var c []byte
+						if c, err = json.MarshalIndent(result, "", "    "); err == nil {
+							_ = os.WriteFile(configFilePath, c, 0o644)
+						} else {
+							dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
+						}
 					}
 				}
-
-				var version string
-				for key, value := range signServers {
-					if strings.HasPrefix(val, value) {
-						version, _ = strings.CutPrefix(val, value)
-						version, _ = strings.CutPrefix(version, "/")
-						val = key
-					}
-				}
-				if _, exists := signServers[val]; !exists {
-					// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
-					version = "25765"
-				}
-				if version == "" {
-					// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
-					version = "13107"
-				}
-				return val, version
 			}
-			err = errors.New("SignServerUrl字段无法正常读取")
+		} else {
+			if err = yaml.Unmarshal(file, &result); err == nil {
+				if val, ok := result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"].(string); ok {
+					currentSignServerUrl = val
+					if w {
+						result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"] = signServerUrl
+						var c []byte
+						if c, err = yaml.Marshal(&result); err == nil {
+							_ = os.WriteFile(configFilePath, c, 0o644)
+						} else {
+							dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
+						}
+					}
+				}
+			}
 		}
+		if currentSignServerUrl == "" {
+			currentSignServerUrl = signServers["sealdice"] + "/25765"
+		}
+		var version string
+		for key, value := range signServers {
+			if strings.HasPrefix(currentSignServerUrl, value) {
+				version, _ = strings.CutPrefix(currentSignServerUrl, value)
+				version, _ = strings.CutPrefix(version, "/")
+				currentSignServerUrl = key
+				break
+			}
+		}
+		if _, exists := signServers[currentSignServerUrl]; !exists {
+			// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
+			version = "25765"
+		}
+		if version == "" {
+			// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
+			version = "13107"
+		}
+		return currentSignServerUrl, version
 	}
 	dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
 	return "", ""
