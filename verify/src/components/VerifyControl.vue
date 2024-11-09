@@ -5,6 +5,7 @@ import { useThemeVars } from 'naive-ui'
 const themeVars = useThemeVars()
 
 const isDark = useDark({
+  disableTransition: false,
   valueDark: 'dark',
   valueLight: 'light'
 })

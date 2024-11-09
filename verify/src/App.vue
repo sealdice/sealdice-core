@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { darkTheme, lightTheme } from 'naive-ui'
 
-const isDark = useDark()
+const isDark = useDark({ disableTransition: false })
 </script>
 
 <template>
