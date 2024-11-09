@@ -2,9 +2,7 @@ import type { Config } from 'tailwindcss'
 import { themeVariants } from 'tailwindcss-theme-variants'
 
 export default {
-  content: [
-    './src/**/*.{html,js,ts,jsx,tsx,vue}'
-  ],
+  content: ['./src/**/*.{html,js,ts,jsx,tsx,vue}'],
   darkMode: 'class',
   theme: {
     extend: {}
@@ -13,13 +11,12 @@ export default {
     themeVariants({
       themes: {
         light: {
-          selector: ".light",
+          selector: '.light'
         },
         dark: {
-          selector: ".dark",
-        },
+          selector: '.dark'
+        }
       }
     })
   ]
 } satisfies Config
-

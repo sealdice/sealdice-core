@@ -85,7 +85,7 @@ const verify = async () => {
     }
   }
 
-  let payload: VerifyPayload = unpack(data.payload)
+  const payload: VerifyPayload = unpack(data.payload)
   result.value = {
     success: true,
     ...payload
@@ -129,7 +129,7 @@ const getTimeTagType = (t: dayjs.Dayjs) => {
     <template v-if="result.success">
       <n-text
         :type="getTimeDiffLevel(time!) >= 2 ? 'warning' : 'success'"
-        class="my-4 text-xl flex items-center gap-2"
+        class="my-4 flex items-center gap-2 text-xl"
       >
         <n-icon size="32"><i-carbon-checkmark-filled /></n-icon>
         校验通过
@@ -155,7 +155,7 @@ const getTimeTagType = (t: dayjs.Dayjs) => {
       </n-flex>
     </template>
     <template v-else>
-      <n-text type="error" class="text-lg flex items-center gap-2">
+      <n-text type="error" class="flex items-center gap-2 text-lg">
         <n-icon size="32"><i-carbon-error-filled /></n-icon>
         校验失败！{{ result.err }}
       </n-text>

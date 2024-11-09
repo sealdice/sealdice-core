@@ -1,5 +1,4 @@
-import { fileURLToPath, URL } from 'node:url'
-
+import { resolve } from 'path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
@@ -9,6 +8,10 @@ import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 import IconsResolver from 'unplugin-icons/resolver'
 import Icons from 'unplugin-icons/vite'
 import legacy from '@vitejs/plugin-legacy'
+
+function pathResolve(dir: string) {
+  return resolve(process.cwd(), '.', dir)
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -25,9 +28,6 @@ export default defineConfig({
       imports: ['vue', '@vueuse/core'],
       dts: true,
       vueTemplate: true,
-      eslintrc: {
-        enabled: true
-      },
       resolvers: [NaiveUiResolver(), IconsResolver()]
     }),
     Components({
@@ -42,12 +42,24 @@ export default defineConfig({
       autoInstall: true
     }),
     legacy({
-      targets: ['defaults', 'not IE 11']
+      targets: ['defaults']
     })
   ],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+    alias: [
+      {
+        find: '@',
+        replacement: pathResolve('src') + '/'
+      }
+    ]
+  },
+  build: {
+    sourcemap: false,
+    chunkSizeWarningLimit: 1024
+  },
+  server: {
+    fs: {
+      strict: false
     }
   }
 })
