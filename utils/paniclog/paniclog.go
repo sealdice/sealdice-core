@@ -14,7 +14,7 @@ func InitPanicLog() {
 	if err := os.MkdirAll("./data", 0755); err != nil {
 		log.Fatalf("未发现data文件夹，且未能创建data文件夹，请检查写入权限: %v", err)
 	}
-	f, err := os.OpenFile("./data/panic.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0640)
+	f, err := os.OpenFile("./data/panic.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatalf("未能创建panic日志文件，请检查写入权限: %v", err)
 	}
