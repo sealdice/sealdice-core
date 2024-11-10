@@ -5,7 +5,7 @@ import { useStore } from '~/store';
 const option_store = useStore().exportOptions
 import { useDark, useToggle } from '@vueuse/core'
 
-const isDark = useDark()
+const isDark = useDark({ disableTransition: false })
 
 interface Option {
   label: string

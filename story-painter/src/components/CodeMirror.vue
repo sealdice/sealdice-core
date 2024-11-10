@@ -26,7 +26,7 @@ import { basicSetup } from "codemirror";
 
 const editor = ref<HTMLDivElement>()
 const store = useStore()
-const isDark = useDark()
+const isDark = useDark({ disableTransition: false })
 
 const emit = defineEmits<(e: 'change', v: ViewUpdate) => void>();
 

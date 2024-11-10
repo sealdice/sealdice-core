@@ -4,7 +4,7 @@ import { darkTheme, lightTheme } from "naive-ui";
 
 import { useDark } from '@vueuse/core'
 
-const isDark = useDark()
+const isDark = useDark({ disableTransition: false })
 </script>
 
 <template>

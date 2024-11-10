@@ -4,7 +4,7 @@
       <n-flex class="py-3 text-2xl" size="large" align="center" justify="center" wrap>
         <n-flex align="center" justify="center">
           <strong>海豹TRPG跑团Log着色器</strong>
-          <n-tag type="success" size="small" :bordered="false">v2.5.0</n-tag>
+          <n-tag type="success" size="small" :bordered="false">v2.5.1</n-tag>
         </n-flex>
         <n-flex align="center" justify="center">
           <n-icon>
@@ -137,7 +137,7 @@ import randomColor from "randomcolor";
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const notMobile = breakpoints.greater('sm')
 
-const isDark = useDark()
+const isDark = useDark({ disableTransition: false })
 const toggleDark = useToggle(isDark)
 
 // 不用他了 虽然很不错，但是没有屏幕取色
