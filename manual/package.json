@@ -16,7 +16,7 @@
   "author": "Sealdice Team",
   "license": "MIT",
   "devDependencies": {
-    "markdownlint-cli2": "^0.14.0",
+    "markdownlint-cli2": "^0.15.0",
     "autocorrect-node": "^2.13.0",
     "mermaid": "^11.4.0",
     "sass": "^1.80.6",
