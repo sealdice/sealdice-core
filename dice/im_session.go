@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
@@ -80,6 +81,7 @@ type GroupPlayerInfo model.GroupPlayerInfoBase
 type GroupInfo struct {
 	Active           bool                               `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
 	ActivatedExtList []*ExtInfo                         `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
+	ExtListSnapshot  []string                           `yaml:"-" json:"-"`                                    // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
 	Players          *SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
 
 	GroupID         string                 `yaml:"groupId" json:"groupId" jsbind:"groupId"`
@@ -125,6 +127,35 @@ func (group *GroupInfo) ExtActive(ei *ExtInfo) {
 	lst := []*ExtInfo{ei}
 	oldLst := group.ActivatedExtList
 	group.ActivatedExtList = append(lst, oldLst...) //nolint:gocritic
+	group.ExtClear()
+}
+
+// ExtActiveBySnapshotOrder 按照快照顺序开启扩展
+func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bool) {
+	// 这个机制用于解决js插件指令会覆盖原生扩展的指令的问题
+	// 与之相关的问题是插件的自动激活，最好能够检测插件是否为首次加载
+	orderLst := group.ExtListSnapshot
+	m := map[string]*ExtInfo{}
+	for _, i := range group.ActivatedExtList {
+		m[i.Name] = i
+	}
+	m[ei.Name] = ei
+
+	var newLst []*ExtInfo
+	for _, i := range orderLst {
+		if m[i] != nil {
+			newLst = append(newLst, m[i])
+		}
+	}
+
+	// 当首次加载，如果快照列表中没有，将其新增
+	if isFirstTimeLoad {
+		if !lo.Contains(orderLst, ei.Name) {
+			newLst = append(newLst, ei)
+		}
+	}
+
+	group.ActivatedExtList = newLst
 	group.ExtClear()
 }
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	wr "github.com/mroth/weightedrand"
+	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/model"
@@ -2133,6 +2134,9 @@ func (d *Dice) loads() {
 		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
+			groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
+				return item.Name
+			})
 			for _, i := range groupInfo.ActivatedExtList {
 				if m[i.Name] != nil {
 					tmp = append(tmp, m[i.Name])

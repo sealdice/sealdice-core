@@ -623,9 +623,10 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 }
 
-// GameSystemTemplateAdd 应用一个角色模板
-func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
-	if _, exists := d.GameSystemMap.Load(tmpl.Name); !exists {
+// GameSystemTemplateAddEx 应用一个角色模板
+func (d *Dice) GameSystemTemplateAddEx(tmpl *GameSystemTemplate, overwrite bool) bool {
+	_, exists := d.GameSystemMap.Load(tmpl.Name)
+	if !exists || overwrite {
 		d.GameSystemMap.Store(tmpl.Name, tmpl)
 		// sn 从这里读取
 		// set 时从这里读取对应System名字的模板
@@ -642,6 +643,11 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 		return true
 	}
 	return false
+}
+
+// GameSystemTemplateAdd 应用一个角色模板，当已存在时返回false
+func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
+	return d.GameSystemTemplateAddEx(tmpl, false)
 }
 
 // var randSource = rand2.NewSource(uint64(time.Now().Unix()))
