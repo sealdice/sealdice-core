@@ -203,7 +203,7 @@ func (d *Dice) JsInit() {
 			// Pinenutn: Range模板 ServiceAtNew重构代码
 			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 				// Pinenutn: ServiceAtNew重构
-				groupInfo.ExtActive(ei)
+				groupInfo.ExtActiveBySnapshotOrder(ei, true)
 				return true
 			})
 		})
@@ -784,6 +784,23 @@ func (d *Dice) JsReload() {
 		d.JsScriptCron.Stop()
 		d.JsScriptCron = nil
 	}
+
+	// 记录扩展快照
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
+			//if item == nil {
+			//	// 2024.11.11 为什么会有nil的项呢？？
+			//	return ""
+			//}
+			return item.Name
+		})
+
+		//groupInfo.ExtListSnapshot = lo.Filter(groupInfo.ExtListSnapshot, func(item string, _ int) bool {
+		//	return item != ""
+		//})
+		return true
+	})
+
 	d.JsInit()
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
