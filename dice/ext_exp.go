@@ -644,7 +644,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				rRestIput := ctx.vm.RestInput
+				rRestIput := mctx.vm.RestInput
 
 				// 处理直接设置属性
 				var text string
