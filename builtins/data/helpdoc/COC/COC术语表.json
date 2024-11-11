@@ -4,7 +4,7 @@
     "brief": "COC术语表查询功能",
     "comment": "可以方便查询原版规则书的COC术语表。",
     "helpdoc": {
-        "1D100": "{百分骰(Percentage, Percentile Dice.)}",
+        "1D100": "{百分骰(Percentage, Percentage Dice)}",
         "1D4, 1D6; 1D8; 1D10,等": "标识骰子的数量及面数。",
         "冒险(Adventure)": "{模组(Scenario)}",
         "APP": "外貌(Appearance)，属性的一种。",
