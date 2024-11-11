@@ -684,7 +684,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			detailArr = append(detailArr, d.V())
 		}
 
-		detailStr := string(detailResult)
+		// TODO: 此时加了TrimSpace表现正常，但深层原因是ds在处理"d3 x"这个表达式时多吃了一个空格，修复后取消trim
+		detailStr := strings.TrimSpace(string(detailResult))
 		if detailStr == ctx.Ret.ToString() {
 			detailStr = "" // 如果detail和结果值完全一致，那么将其置空
 		}
