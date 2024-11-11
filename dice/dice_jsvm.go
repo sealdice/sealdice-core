@@ -511,7 +511,7 @@ func (d *Dice) JsInit() {
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}
-			ret := d.GameSystemTemplateAdd(tmpl)
+			ret := d.GameSystemTemplateAddEx(tmpl, true)
 			if !ret {
 				return errors.New("已存在同名模板")
 			}
@@ -523,7 +523,7 @@ func (d *Dice) JsInit() {
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}
-			ret := d.GameSystemTemplateAdd(tmpl)
+			ret := d.GameSystemTemplateAddEx(tmpl, true)
 			if !ret {
 				return errors.New("已存在同名模板")
 			}
@@ -788,16 +788,8 @@ func (d *Dice) JsReload() {
 	// 记录扩展快照
 	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 		groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
-			//if item == nil {
-			//	// 2024.11.11 为什么会有nil的项呢？？
-			//	return ""
-			//}
 			return item.Name
 		})
-
-		//groupInfo.ExtListSnapshot = lo.Filter(groupInfo.ExtListSnapshot, func(item string, _ int) bool {
-		//	return item != ""
-		//})
 		return true
 	})
 
