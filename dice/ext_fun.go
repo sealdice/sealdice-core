@@ -1006,15 +1006,26 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			addNum := int64(10)
+			wodAdd := int64(10)
 			if adding, exists := groupAttrs.LoadX("wodAdd"); exists {
 				addNumX, _ := adding.ReadInt()
-				addNum = int64(addNumX)
+				wodAdd = int64(addNumX)
+			}
+			wodFace := int64(10)
+			if face, exists := groupAttrs.LoadX("wodPoints"); exists {
+				faceNumX, _ := face.ReadInt()
+				wodFace = int64(faceNumX)
+			}
+			wodSucc := int64(8)
+			if succ, exists := groupAttrs.LoadX("wodThreshold"); exists {
+				succNumX, _ := succ.ReadInt()
+				wodSucc = int64(succNumX)
 			}
 
-			txt := readNumber(cmdArgs.CleanArgs, fmt.Sprintf("a%d", addNum))
+			exprWoDicenum := fmt.Sprintf("a%dk%dm%d", wodAdd, wodSucc, wodFace)
+			txt := readNumber(cmdArgs.CleanArgs, exprWoDicenum)
 			if txt == "" {
-				txt = fmt.Sprintf("10a%d", addNum)
+				txt = "10" + exprWoDicenum
 				cmdArgs.Args = []string{txt}
 			}
 			cmdArgs.CleanArgs = txt
