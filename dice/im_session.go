@@ -152,6 +152,7 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 	if isFirstTimeLoad {
 		if !lo.Contains(orderLst, ei.Name) {
 			newLst = append(newLst, ei)
+			group.ExtListSnapshot = append(group.ExtListSnapshot, ei.Name)
 		}
 	}
 

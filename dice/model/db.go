@@ -153,10 +153,6 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 	if err != nil {
 		return nil, nil, err
 	}
-	err = dataDB.Exec("VACUUM").Error
-	if err != nil {
-		return nil, nil, err
-	}
 	logsDB, err = LogDBInit(dataDir)
 	return
 }
@@ -169,14 +165,102 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 		return
 	}
 	// logs建表
-	if err = logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
+	if err = logsDB.AutoMigrate(&LogInfo{}); err != nil {
 		return nil, err
 	}
-	err = logsDB.Exec("VACUUM").Error
+
+	itemsAutoMigrate := false
+	dialect := logsDB.Dialector.Name()
+	if dialect != "sqlite" {
+		itemsAutoMigrate = true
+	} else {
+		if logsDB.Migrator().HasTable(&LogOneItem{}) {
+			if err = logItemsSQLiteMigrate(logsDB); err != nil {
+				return nil, err
+			}
+		} else {
+			itemsAutoMigrate = true
+		}
+	}
+
+	if itemsAutoMigrate {
+		if err = logsDB.AutoMigrate(&LogOneItem{}); err != nil {
+			return nil, err
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}
 	return logsDB, nil
+}
+
+func logItemsSQLiteMigrate(db *gorm.DB) error {
+	type DBColumn struct {
+		Name string
+		Type string
+	}
+
+	// 获取当前列信息
+	var currentColumns []DBColumn
+	err := db.Raw("PRAGMA table_info(log_items)").Scan(&currentColumns).Error
+	if err != nil {
+		return err
+	}
+
+	// 获取模型定义的列信息
+	var modelColumns []DBColumn
+	stmt := &gorm.Statement{DB: db}
+	err = stmt.Parse(&LogOneItem{})
+	if err != nil {
+		return err
+	}
+	for _, field := range stmt.Schema.Fields {
+		if field.DBName != "" {
+			x := db.Migrator().FullDataTypeOf(field)
+			col := strings.SplitN(x.SQL, " ", 2)[0]
+			modelColumns = append(modelColumns, DBColumn{field.DBName, strings.ToLower(col)})
+		}
+	}
+
+	// 比较列是否有变化
+	needMigrate := false
+	if len(currentColumns) != len(modelColumns) {
+		needMigrate = true
+	} else {
+		columnMap := make(map[string]string)
+		for _, col := range currentColumns {
+			columnMap[col.Name] = strings.ToLower(col.Type)
+		}
+
+		for _, col := range modelColumns {
+			newType := col.Type
+			currentType := columnMap[col.Name]
+
+			// 特殊处理 is_dice 列,允许 bool 或 numeric 类型
+			if col.Name == "is_dice" {
+				if currentType != "bool" && currentType != "numeric" {
+					needMigrate = true
+					break
+				}
+				continue
+			}
+
+			if currentType != newType {
+				needMigrate = true
+				break
+			}
+		}
+	}
+
+	// 如果需要迁移则执行
+	if needMigrate {
+		log.Info("现在进行log_items表的迁移，如果数据库较大，会花费较长时间，请耐心等待")
+		log.Info("若是迁移后观察到数据库体积显著膨胀，可以关闭骰子使用 sealdice-core --vacuum 进行数据库整理，这同样会花费较长时间")
+		return db.AutoMigrate()
+	}
+
+	return nil
 }
 
 func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
@@ -190,10 +274,6 @@ func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
 	}
 	// 创建基本的表结构，并通过标签定义索引
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
-		return nil, err
-	}
-	err = censorDB.Exec("VACUUM").Error
-	if err != nil {
 		return nil, err
 	}
 	return censorDB, nil
