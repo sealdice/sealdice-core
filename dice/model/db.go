@@ -169,7 +169,7 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 		return
 	}
 	// logs建表
-	if err = logsDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
+	if err = logsDB.AutoMigrate(&LogInfo{}); err != nil {
 		return nil, err
 	}
 
@@ -179,7 +179,7 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 		itemsAutoMigrate = true
 	} else {
 		if logsDB.Migrator().HasTable(&LogOneItem{}) {
-			if err = LogItemsSQLiteMigrate(logsDB); err != nil {
+			if err = logItemsSQLiteMigrate(logsDB); err != nil {
 				return nil, err
 			}
 		} else {
@@ -200,21 +200,32 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 	return logsDB, nil
 }
 
-func LogItemsSQLiteMigrate(db *gorm.DB) error {
-	// 获取当前列信息
-	var currentColumns []struct {
+func logItemsSQLiteMigrate(db *gorm.DB) error {
+	type DBColumn struct {
 		Name string
 		Type string
 	}
+
+	// 获取当前列信息
+	var currentColumns []DBColumn
 	err := db.Raw("PRAGMA table_info(log_items)").Scan(&currentColumns).Error
 	if err != nil {
 		return err
 	}
 
 	// 获取模型定义的列信息
-	modelColumns, err := db.Migrator().ColumnTypes(&LogOneItem{})
+	var modelColumns []DBColumn
+	stmt := &gorm.Statement{DB: db}
+	err = stmt.Parse(&LogOneItem{})
 	if err != nil {
 		return err
+	}
+	for _, field := range stmt.Schema.Fields {
+		if field.DBName != "" {
+			x := db.Migrator().FullDataTypeOf(field)
+			col := strings.SplitN(x.SQL, " ", 2)[0]
+			modelColumns = append(modelColumns, DBColumn{field.DBName, strings.ToLower(col)})
+		}
 	}
 
 	// 比较列是否有变化
@@ -224,15 +235,15 @@ func LogItemsSQLiteMigrate(db *gorm.DB) error {
 	} else {
 		columnMap := make(map[string]string)
 		for _, col := range currentColumns {
-			columnMap[col.Name] = col.Type
+			columnMap[col.Name] = strings.ToLower(col.Type)
 		}
 
 		for _, col := range modelColumns {
-			dbType := col.DatabaseTypeName()
+			newType := col.Type
+			currentType := columnMap[col.Name]
 
 			// 特殊处理 is_dice 列,允许 bool 或 numeric 类型
-			if col.Name() == "is_dice" {
-				currentType := columnMap[col.Name()]
+			if col.Name == "is_dice" {
 				if currentType != "bool" && currentType != "numeric" {
 					needMigrate = true
 					break
@@ -240,7 +251,7 @@ func LogItemsSQLiteMigrate(db *gorm.DB) error {
 				continue
 			}
 
-			if columnMap[col.Name()] != dbType {
+			if currentType != newType {
 				needMigrate = true
 				break
 			}
