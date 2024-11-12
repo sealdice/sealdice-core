@@ -153,10 +153,6 @@ func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) 
 	if err != nil {
 		return nil, nil, err
 	}
-	// err = dataDB.Exec("VACUUM").Error
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
 	logsDB, err = LogDBInit(dataDir)
 	return
 }
@@ -193,7 +189,6 @@ func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
 		}
 	}
 
-	// err = logsDB.Exec("VACUUM").Error
 	if err != nil {
 		return nil, err
 	}
@@ -281,9 +276,5 @@ func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
 		return nil, err
 	}
-	// err = censorDB.Exec("VACUUM").Error
-	// if err != nil {
-	// 	return nil, err
-	// }
 	return censorDB, nil
 }
