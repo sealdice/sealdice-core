@@ -87,13 +87,13 @@ CREATE TABLE attrs__temp (
     id TEXT PRIMARY KEY,
     data BYTEA,
     attrs_type TEXT,
-	binding_sheet_id TEXT default '',
+    binding_sheet_id TEXT default '',
     name TEXT default '',
     owner_id TEXT default '',
     sheet_type TEXT default '',
     is_hidden BOOLEAN default FALSE,
     created_at INTEGER default 0,
-    updated_at INTEGER  default 0
+    updated_at INTEGER default 0
 );
 `
 
