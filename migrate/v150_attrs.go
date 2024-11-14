@@ -426,13 +426,13 @@ CREATE TABLE IF NOT EXISTS attrs (
     id TEXT PRIMARY KEY,
     data BYTEA,
     attrs_type TEXT,
-	binding_sheet_id TEXT default '',
+    binding_sheet_id TEXT default '',
     name TEXT default '',
     owner_id TEXT default '',
     sheet_type TEXT default '',
     is_hidden BOOLEAN default FALSE,
     created_at INTEGER default 0,
-    updated_at INTEGER  default 0
+    updated_at INTEGER default 0
 );
 `,
 		`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
