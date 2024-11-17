@@ -40,7 +40,7 @@
 
 此工具对于代码开发**不是**必要的。但是，本项目的 CI 流程中配置了 linter 检查，不符合规范的代码不能被合入。
 
-因此，强烈推荐开发者在本地安装此工具，请参考[这份文档](https://golangci-lint.run/usage/install/#local-installation)。分析器的相关配置位于 `.golangci.yml` 文件中。
+因此，强烈推荐开发者在本地安装此工具，请参考[这份文档](https://golangci-lint.run/welcome/install/#local-installation)。分析器的相关配置位于 `.golangci.yml` 文件中。
 
 你可能需要调整编辑器的相关配置，使用 golangci-lint 为默认的分析工具，并开启自动检查。
 
