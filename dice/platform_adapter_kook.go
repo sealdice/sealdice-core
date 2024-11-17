@@ -412,6 +412,9 @@ func (pa *PlatformAdapterKook) SendSegmentToPerson(ctx *MsgContext, userID strin
 }
 
 func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	if !pa.EndPoint.Enable || pa.IntentSession == nil || pa.EndPoint.State != 1 {
+		return
+	}
 	channel, err := pa.IntentSession.UserChatCreate(ExtractKookUserID(userID))
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("创建Kook用户#%s的私聊频道时出错:%s", userID, err)
@@ -430,6 +433,9 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userID string, text
 }
 
 func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	if !pa.EndPoint.Enable || pa.IntentSession == nil || pa.EndPoint.State != 1 {
+		return
+	}
 	pa.SendToChannelRaw(ExtractKookChannelID(groupID), text, false)
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "KOOK",
@@ -444,6 +450,9 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupID string, text
 }
 
 func (pa *PlatformAdapterKook) SendFileToPerson(_ *MsgContext, userID string, path string, _ string) {
+	if !pa.EndPoint.Enable || pa.IntentSession == nil || pa.EndPoint.State != 1 {
+		return
+	}
 	channel, err := pa.IntentSession.UserChatCreate(ExtractKookUserID(userID))
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("创建Kook用户#%s的私聊频道时出错:%s", userID, err)
@@ -453,6 +462,9 @@ func (pa *PlatformAdapterKook) SendFileToPerson(_ *MsgContext, userID string, pa
 }
 
 func (pa *PlatformAdapterKook) SendFileToGroup(_ *MsgContext, groupID string, path string, _ string) {
+	if !pa.EndPoint.Enable || pa.IntentSession == nil || pa.EndPoint.State != 1 {
+		return
+	}
 	pa.SendFileToChannelRaw(ExtractKookChannelID(groupID), path, false)
 }
 
@@ -474,6 +486,9 @@ func (pa *PlatformAdapterKook) EditMessage(ctx *MsgContext, msgID, message strin
 
 func (pa *PlatformAdapterKook) RecallMessage(ctx *MsgContext, msgID string) {
 	// TODO: not tested
+	if !pa.EndPoint.Enable || pa.IntentSession == nil || pa.EndPoint.State != 1 {
+		return
+	}
 	_ = pa.IntentSession.MessageDelete(msgID)
 }
 
