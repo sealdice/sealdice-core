@@ -16,15 +16,15 @@ import (
 	log "sealdice-core/utils/kratos"
 )
 
-type BotLoggerWarraper struct {
+type BotLoggerWrapper struct {
 	Logger *log.Helper
 }
 
-func (b *BotLoggerWarraper) Println(v ...interface{}) {
+func (b *BotLoggerWrapper) Println(v ...interface{}) {
 	b.Logger.Error(v...)
 }
 
-func (b *BotLoggerWarraper) Printf(format string, v ...interface{}) {
+func (b *BotLoggerWrapper) Printf(format string, v ...interface{}) {
 	b.Logger.Errorf(format, v...)
 }
 
@@ -69,7 +69,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	var bot *tgbotapi.BotAPI
 	var err error
 
-	_ = tgbotapi.SetLogger(&BotLoggerWarraper{Logger: logger})
+	_ = tgbotapi.SetLogger(&BotLoggerWrapper{Logger: logger})
 	if len(pa.ProxyURL) > 0 {
 		var u *url.URL
 		u, err = url.Parse(pa.ProxyURL)
