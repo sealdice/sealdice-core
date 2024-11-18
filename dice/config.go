@@ -78,72 +78,63 @@ type ConfigItem struct {
 }
 
 func (i *ConfigItem) UnmarshalJSON(data []byte) error {
-	raw := map[string]any{}
+	raw := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	var ok bool
-	if i.Key, ok = raw["key"].(string); !ok {
-		return errors.New("'key' must be a string")
+	if err := json.Unmarshal(raw["key"], &i.Key); err != nil {
+		return fmt.Errorf("ConfigItem: unmarshal 'key' failed as %w", err)
 	}
-	if i.Type, ok = raw["type"].(string); !ok {
-		return errors.New("'type' must be a string")
+	if err := json.Unmarshal(raw["type"], &i.Type); err != nil {
+		return fmt.Errorf("ConfigItem: unmarshal 'type' failed as %w", err)
 	}
-	if i.Description, ok = raw["description"].(string); !ok {
-		return errors.New("'description' must be a string")
+	if err := json.Unmarshal(raw["description"], &i.Description); err != nil {
+		return fmt.Errorf("ConfigItem: unmarshal 'description' failed as %w", err)
 	}
 	if v, ok := raw["deprecated"]; ok {
-		if i.Deprecated, ok = v.(bool); !ok {
-			return errors.New("'deprecated' must be a bool")
+		if err := json.Unmarshal(v, &i.Deprecated); err != nil {
+			return fmt.Errorf("ConfigItem: unmarshal 'deprecated' failed as %w", err)
 		}
 	}
 
 	switch i.Type {
-	case "string", "bool", "float":
-		i.DefaultValue = raw["defaultValue"]
-		i.Value = raw["value"]
+	case "string", "task:cron", "task:daily":
+		i.DefaultValue = ""
+		i.Value = ""
+	case "bool":
+		i.DefaultValue = false
+		i.Value = false
+	case "float":
+		i.DefaultValue = float64(0.0)
+		i.Value = float64(0.0)
 	case "int":
-		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
-		if v, ok := raw["defaultValue"].(float64); ok {
-			i.DefaultValue = int64(v)
-		} else if v, ok := raw["defaultValue"].(int64); ok {
-			i.DefaultValue = v
-		}
-		if v, ok := raw["value"]; ok {
-			if v2, ok := v.(float64); ok {
-				i.Value = int64(v2)
-			} else if v2, ok := v.(int64); ok {
-				i.Value = v2
-			}
+		i.DefaultValue = int64(0)
+		if _, ok := raw["value"]; ok {
+			i.Value = int64(0)
 		}
 	case "template":
-		{
-			v := raw["defaultValue"].([]interface{})
-			strarr := make([]string, len(v))
-			for i, vv := range v {
-				strarr[i] = vv.(string)
-			}
-			i.DefaultValue = strarr
-		}
-		if v, ok := raw["value"]; ok {
-			vv := v.([]interface{})
-			strarr := make([]string, len(vv))
-			for i, vv := range vv {
-				strarr[i] = vv.(string)
-			}
-			i.Value = strarr
+		i.DefaultValue = []string(nil)
+		if _, ok := raw["value"]; ok {
+			i.Value = []string(nil)
 		}
 	case "option":
-		i.DefaultValue = raw["defaultValue"]
-		i.Value = raw["value"]
-		v := raw["option"].([]interface{})
-		strarr := make([]string, len(v))
-		for i, vv := range v {
-			strarr[i] = vv.(string)
+		i.DefaultValue = ""
+		i.Value = ""
+		i.Option = []string(nil)
+		if err := json.Unmarshal(raw["option"], &i.Option); err != nil {
+			return fmt.Errorf("ConfigItem: unmarshal 'option' failed as %w", err)
 		}
-		i.Option = strarr
 	default:
 		return errors.New("unsupported type " + i.Type)
+	}
+
+	if err := json.Unmarshal(raw["defaultValue"], &i.DefaultValue); err != nil {
+		return fmt.Errorf("ConfigItem: unmarshal 'defaultValue' failed as %w", err)
+	}
+	if v, ok := raw["value"]; ok {
+		if err := json.Unmarshal(v, &i.Value); err != nil {
+			return fmt.Errorf("ConfigItem: unmarshal 'value' failed as %w", err)
+		}
 	}
 
 	return nil
