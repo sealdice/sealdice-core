@@ -23,7 +23,7 @@ func initVerify() {
 	key := os.Getenv("SEAL_TRUSTED_PRIVATE_KEY")
 	if len(key) > 0 {
 		SealTrustedClientPrivateKey = key
-	} else {
+	} else if len(SealTrustedClientPrivateKey) == 0 {
 		log.Warn("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development mode")
 	}
 }
