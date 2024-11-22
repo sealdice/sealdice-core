@@ -765,7 +765,7 @@ func (d *Dice) PublicDiceInfoRegister() {
 		return
 	}
 	// 两种可能: 1. 原本ID为空 2. ID 无效，这里会自动变成新的
-	if cfg.ID != pd.Item.ID {
+	if pd.Item.ID != "" && cfg.ID != pd.Item.ID {
 		cfg.ID = pd.Item.ID
 	}
 }
@@ -804,11 +804,7 @@ func (d *Dice) PublicDiceSetupTick() {
 		doTickUpdate()
 	}()
 
-	var err error
-	d.PublicDiceTimerId, err = d.Cron.AddFunc("@every 3min", doTickUpdate)
-	if err != nil {
-		return
-	}
+	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3min", doTickUpdate)
 }
 
 func (d *Dice) PublicDiceSetup() {
