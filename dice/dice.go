@@ -804,7 +804,7 @@ func (d *Dice) PublicDiceSetupTick() {
 		doTickUpdate()
 	}()
 
-	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3min", doTickUpdate)
+	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3m", doTickUpdate)
 }
 
 func (d *Dice) PublicDiceSetup() {
