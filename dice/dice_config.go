@@ -41,6 +41,8 @@ type Config struct {
 	NewsConfig `yaml:",inline"`
 	// 敏感词设置
 	CensorConfig `yaml:",inline"`
+	// 公骰设置
+	PublicDiceConfig `yaml:",inline"`
 
 	// 其它设置，包含由于被导出无法从 Dice 上迁移过来的配置项，为了在 DefaultConfig 上统一设置默认值增加此结构
 	DirtyConfig `yaml:",inline"`
@@ -221,6 +223,15 @@ type MailConfig struct {
 
 type NewsConfig struct {
 	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
+}
+
+type PublicDiceConfig struct {
+	Enable bool   `json:"publicDiceEnable" yaml:"publicDiceEnable"`
+	ID     string `json:"publicDiceID" yaml:"publicDiceID"`
+	Name   string `json:"publicDiceName" yaml:"publicDiceName"`
+	Brief  string `json:"publicDiceBrief" yaml:"publicDiceBrief"`
+	Note   string `json:"publicDiceNote" yaml:"publicDiceNote"`
+	Avatar string `json:"publicDiceAvatar" yaml:"publicDiceAvatar"`
 }
 
 type CensorConfig struct {

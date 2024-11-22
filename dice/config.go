@@ -193,7 +193,7 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 			newKeys[item.Key] = true
 		}
 
-		// Update or add new config items
+		// DiceUpdate or add new config items
 		for _, newItem := range configItems {
 			// if isValidType(newItem.Type) {
 			if existingItem, itemExists := existingPlugin.Configs[newItem.Key]; itemExists {
