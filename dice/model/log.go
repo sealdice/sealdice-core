@@ -42,6 +42,11 @@ type LogOneItem struct {
 	ParentID *int `gorm:"column:parent_id" json:"-"`
 }
 
+// 兼容旧版本的数据库设计
+func (*LogOneItem) TableName() string {
+	return "log_items"
+}
+
 // BeforeSave 钩子函数: 查询前,interface{}转换为json
 func (item *LogOneItem) BeforeSave(_ *gorm.DB) (err error) {
 	// 将 CommandInfo 转换为 JSON 字符串保存到 CommandInfoStr
@@ -97,11 +102,6 @@ type LogInfo struct {
 	// 原本标记为：测试版特供，由于原代码每次都会执行，故直接启用此处column记录。
 	UploadURL  string `json:"-" gorm:"column:upload_url"`  // 测试版特供
 	UploadTime int    `json:"-" gorm:"column:upload_time"` // 测试版特供
-}
-
-// 兼容旧版本的数据库设计
-func (*LogOneItem) TableName() string {
-	return "log_items"
 }
 
 func (*LogInfo) TableName() string {
@@ -294,7 +294,7 @@ func LogGetAllLines(db *gorm.DB, groupID string, logName string) ([]*LogOneItem,
 		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
 		Where("log_id = ?", logID).
 		Order("time ASC").
-		Scan(&items).Error
+		Find(&items).Error
 
 	if err != nil {
 		return nil, err
