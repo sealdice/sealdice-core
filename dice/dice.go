@@ -746,7 +746,7 @@ func (d *Dice) PublicDiceEndpointRefresh() {
 		Endpoints: endpointItems,
 	}, GenerateVerificationKeyForPublicDice)
 	if code != 200 {
-		log.Info("[公骰]无法通过服务器校验，不再进行更新")
+		log.Warn("[公骰]无法通过服务器校验，不再进行更新")
 		return
 	}
 }
@@ -761,7 +761,7 @@ func (d *Dice) PublicDiceInfoRegister() {
 		Note:  cfg.Note,
 	}, GenerateVerificationKeyForPublicDice)
 	if code != 200 {
-		log.Info("[公骰]无法通过服务器校验，不再进行骰号注册")
+		log.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
 		return
 	}
 	// 两种可能: 1. 原本ID为空 2. ID 无效，这里会自动变成新的

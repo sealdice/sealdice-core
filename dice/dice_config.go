@@ -227,7 +227,7 @@ type NewsConfig struct {
 
 type PublicDiceConfig struct {
 	Enable bool   `json:"publicDiceEnable" yaml:"publicDiceEnable"`
-	ID     string `json:"publicDiceID" yaml:"publicDiceID"`
+	ID     string `json:"publicDiceId" yaml:"publicDiceId"`
 	Name   string `json:"publicDiceName" yaml:"publicDiceName"`
 	Brief  string `json:"publicDiceBrief" yaml:"publicDiceBrief"`
 	Note   string `json:"publicDiceNote" yaml:"publicDiceNote"`

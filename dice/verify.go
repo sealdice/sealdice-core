@@ -73,7 +73,7 @@ func GenerateVerificationCode(platform string, userID string, username string, u
 	}
 }
 
-type payload2 struct {
+type payloadPublicDice struct {
 	Version string `msgpack:"version,omitempty"`
 	Sign    []byte `msgpack:"sign,omitempty"`
 }
@@ -95,7 +95,7 @@ func GenerateVerificationKeyForPublicDice(data any) string {
 		sign = h.Sum(nil)
 	}
 
-	d := payload2{
+	d := payloadPublicDice{
 		Version: VERSION.String(),
 		Sign:    sign,
 	}
