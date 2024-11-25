@@ -118,13 +118,16 @@ func jsDelete(c echo.Context) error {
 	}
 
 	v := struct {
-		Index int `json:"index"`
+		Filename string `json:"filename"`
 	}{}
 	err := c.Bind(&v)
 
-	if err == nil {
-		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
-			dice.JsDelete(myDice, myDice.JsScriptList[v.Index])
+	if err == nil && v.Filename != "" {
+		for _, js := range myDice.JsScriptList {
+			if js.Filename == v.Filename {
+				dice.JsDelete(myDice, js)
+				break
+			}
 		}
 	}
 
@@ -303,24 +306,27 @@ func jsCheckUpdate(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 	v := struct {
-		Index int `json:"index"`
+		Filename string `json:"filename"`
 	}{}
 	err := c.Bind(&v)
 
-	if err == nil {
-		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
-			jsScript := myDice.JsScriptList[v.Index]
-			oldJs, newJs, tempFileName, errUpdate := myDice.JsCheckUpdate(jsScript)
-			if errUpdate != nil {
-				return Error(&c, errUpdate.Error(), Response{})
+	if err == nil && v.Filename != "" {
+		for _, jsScript := range myDice.JsScriptList {
+			if jsScript.Filename == v.Filename {
+				oldJs, newJs, tempFileName, errUpdate := myDice.JsCheckUpdate(jsScript)
+				if errUpdate != nil {
+					return Error(&c, errUpdate.Error(), Response{})
+				}
+				return Success(&c, Response{
+					"old":          oldJs,
+					"new":          newJs,
+					"format":       "javascript",
+					"filename":     jsScript.Filename,
+					"tempFileName": tempFileName,
+				})
 			}
-			return Success(&c, Response{
-				"old":          oldJs,
-				"new":          newJs,
-				"format":       "javascript",
-				"tempFileName": tempFileName,
-			})
 		}
+		return Error(&c, "未找到脚本", Response{})
 	}
 	return Success(&c, Response{})
 }
@@ -337,18 +343,21 @@ func jsUpdate(c echo.Context) error {
 	}
 
 	v := struct {
-		Index        int    `json:"index"`
+		Filename     string `json:"filename"`
 		TempFileName string `json:"tempFileName"`
 	}{}
 	err := c.Bind(&v)
 
-	if err == nil {
-		if v.Index >= 0 && v.Index < len(myDice.JsScriptList) {
-			err = myDice.JsUpdate(myDice.JsScriptList[v.Index], v.TempFileName)
-			if err != nil {
-				return Error(&c, err.Error(), Response{})
+	if err == nil && v.Filename != "" {
+		for _, jsScript := range myDice.JsScriptList {
+			if jsScript.Filename == v.Filename {
+				err = myDice.JsUpdate(jsScript, v.TempFileName)
+				if err != nil {
+					return Error(&c, err.Error(), Response{})
+				}
+				myDice.MarkModified()
+				break
 			}
-			myDice.MarkModified()
 		}
 	}
 	return Success(&c, Response{})
