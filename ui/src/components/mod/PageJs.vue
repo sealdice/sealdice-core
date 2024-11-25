@@ -126,24 +126,24 @@
                   type="success"
                   size="small"
                   plain
-                  :loading="diffLoading"
-                  >更新</el-button
-                >
+                  :loading="diffLoading">
+                  更新
+                </el-button>
                 <el-popconfirm
                   v-else-if="i.updateUrls && i.updateUrls.length > 0"
                   confirm-button-text="确认"
                   cancel-button-text="取消"
                   title="更新地址由插件作者提供，是否确认要检查该插件更新？"
-                  @confirm="doCheckUpdate(i, index)">
+                  @confirm="doCheckUpdate(i)">
                   <template #reference>
                     <el-button
                       :icon="Download"
                       type="success"
                       size="small"
                       plain
-                      :loading="diffLoading"
-                      >更新</el-button
-                    >
+                      :loading="diffLoading">
+                      更新
+                    </el-button>
                   </template>
                 </el-popconfirm>
                 <!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
@@ -153,18 +153,18 @@
                   type="danger"
                   size="small"
                   plain
-                  @click="doDelete(i, index)"
-                  >卸载更新</el-button
-                >
+                  @click="doDelete(i)">
+                  卸载更新
+                </el-button>
                 <el-button
                   v-if="!i.builtin"
                   :icon="Delete"
                   type="danger"
                   size="small"
                   plain
-                  @click="doDelete(i, index)"
-                  >删除</el-button
-                >
+                  @click="doDelete(i)">
+                  删除
+                </el-button>
               </template>
 
               <template #title-extra-error>
@@ -175,18 +175,18 @@
                     type="danger"
                     size="small"
                     plain
-                    @click="doDelete(i, index)"
-                    >卸载更新</el-button
-                  >
+                    @click="doDelete(i)">
+                    卸载更新
+                  </el-button>
                   <el-button
                     v-else-if="!i.builtin"
                     :icon="Delete"
                     type="danger"
                     size="small"
                     plain
-                    @click="doDelete(i, index)"
-                    >删除</el-button
-                  >
+                    @click="doDelete(i)">
+                    删除
+                  </el-button>
                 </el-space>
               </template>
 
@@ -1104,7 +1104,7 @@ const beforeUpload = async (file: UploadRawFile) => {
   needReload.value = true;
 };
 
-const doDelete = async (data: JsScriptInfo, index: number) => {
+const doDelete = async (data: JsScriptInfo) => {
   ElMessageBox.confirm(
     data.official
       ? `卸载官方插件《${data.name}》的更新，确定吗？`
@@ -1116,8 +1116,8 @@ const doDelete = async (data: JsScriptInfo, index: number) => {
       type: 'warning',
     },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  ).then(async data => {
-    await deleteJs(index);
+  ).then(async _data => {
+    await deleteJs(data.filename);
     setTimeout(() => {
       // 稍等等再重载，以免出现没删掉
       refreshList();
@@ -1171,23 +1171,23 @@ const diffLoading = ref<boolean>(false);
 interface JsCheckResult {
   old: string;
   new: string;
+  filename: string;
   tempFileName: string;
-  index: number;
 }
 
 const jsCheck = ref<JsCheckResult>({
   old: '',
   new: '',
+  filename: '',
   tempFileName: '',
-  index: -1,
 });
 
-const doCheckUpdate = async (data: any, index: number) => {
+const doCheckUpdate = async (data: any) => {
   diffLoading.value = true;
-  const checkResult = await checkJsUpdate(index);
+  const checkResult = await checkJsUpdate(data.filename);
   diffLoading.value = false;
   if (checkResult.result) {
-    jsCheck.value = { ...checkResult, index };
+    jsCheck.value = { ...checkResult, filename: data.filename };
     showDiff.value = true;
   } else {
     ElMessage.error('检查更新失败！' + checkResult.err);
@@ -1195,7 +1195,7 @@ const doCheckUpdate = async (data: any, index: number) => {
 };
 
 const jsUpdate = async () => {
-  const res = await updateJs(jsCheck.value.tempFileName, jsCheck.value.index);
+  const res = await updateJs(jsCheck.value.tempFileName, jsCheck.value.filename);
   if (res.result) {
     showDiff.value = false;
     needReload.value = true;

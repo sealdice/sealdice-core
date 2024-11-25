@@ -45,8 +45,8 @@ export function uploadJs(file: UploadRawFile | Blob) {
   return request('post', 'upload', { file }, 'formdata');
 }
 
-export function deleteJs(index: number) {
-  return request('post', 'delete', { index });
+export function deleteJs(filename: string) {
+  return request('post', 'delete', { filename });
 }
 
 export function reloadJS() {
@@ -73,7 +73,7 @@ export function disableJS(name: string) {
   return request('post', 'disable', { name });
 }
 
-export function checkJsUpdate(index: number) {
+export function checkJsUpdate(filename: string) {
   return request<
     | { result: false; err: string }
     | {
@@ -82,14 +82,14 @@ export function checkJsUpdate(index: number) {
         new: string;
         tempFileName: string;
       }
-  >('post', 'check_update', { index });
+  >('post', 'check_update', { filename });
 }
 
-export function updateJs(tempFileName: string, index: number) {
+export function updateJs(tempFileName: string, filename: string) {
   return request<
     | { result: false; err: string }
     | {
         result: true;
       }
-  >('post', 'update', { tempFileName, index });
+  >('post', 'update', { tempFileName, filename });
 }

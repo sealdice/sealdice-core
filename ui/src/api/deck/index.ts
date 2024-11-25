@@ -12,19 +12,19 @@ export function reloadDeck() {
   return request<{ testMode: boolean }>('post', 'reload');
 }
 
-export function enableDeck(index: number, enable: boolean) {
-  return request('post', 'enable', { index, enable });
+export function enableDeck(filename: string, enable: boolean) {
+  return request('post', 'enable', { filename, enable });
 }
 
-export function deleteDeck(index: number) {
-  return request('post', 'delete', { index });
+export function deleteDeck(filename: string) {
+  return request('post', 'delete', { filename });
 }
 
 export function uploadDeck(file: Blob | UploadRawFile) {
   return request('post', 'upload', { file }, 'formdata');
 }
 
-export function checkDeckUpdate(index: number) {
+export function checkDeckUpdate(filename: string) {
   return request<
     | { result: false; err: string }
     | {
@@ -34,16 +34,16 @@ export function checkDeckUpdate(index: number) {
         format: 'json' | 'yaml' | 'toml';
         tempFileName: string;
       }
-  >('post', 'check_update', { index });
+  >('post', 'check_update', { filename });
 }
 
-export function updateDeck(index: number, tempFileName: string) {
+export function updateDeck(filename: string, tempFileName: string) {
   return request<
     | { result: false; err: string }
     | {
         result: true;
       }
-  >('post', 'update', { index, tempFileName });
+  >('post', 'update', { filename, tempFileName });
 }
 
 type DeckConfig = {

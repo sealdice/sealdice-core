@@ -71,22 +71,22 @@
               confirm-button-text="确认"
               cancel-button-text="取消"
               title="更新地址由牌堆作者提供，是否确认要检查该牌堆更新？"
-              @confirm="doCheckUpdate(i, index)">
+              @confirm="doCheckUpdate(i)">
               <template #reference>
                 <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading"
                   >更新</el-button
                 >
               </template>
             </el-popconfirm>
-            <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i, index)"
-              >删除</el-button
-            >
+            <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i)">
+              删除
+            </el-button>
           </template>
 
           <template #title-extra-error>
-            <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i, index)"
-              >删除</el-button
-            >
+            <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i)">
+              删除
+            </el-button>
           </template>
 
           <template #description>
@@ -160,9 +160,9 @@
             v-if="!(deckCheck.old === deckCheck.new)"
             type="success"
             :icon="DocumentChecked"
-            @click="deckUpdate"
-            >确认更新</el-button
-          >
+            @click="deckUpdate">
+            确认更新
+          </el-button>
         </el-space>
       </template>
     </el-dialog>
@@ -239,14 +239,14 @@ const doBackup = async () => {
   }
 };
 
-const doDelete = async (data: any, index: number) => {
+const doDelete = async (data: any) => {
   ElMessageBox.confirm(`删除牌堆《${data.name}》，确定吗？`, '删除', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  }).then(async data => {
-    await deleteDeck(index);
+  }).then(async _data => {
+    await deleteDeck(data.filename);
     await reloadDeck();
     await refreshList();
     ElMessage.success('牌堆已删除');
@@ -287,24 +287,24 @@ interface DeckCheckResult {
   old: string;
   new: string;
   format: 'json' | 'yaml' | 'toml';
+  filename: string;
   tempFileName: string;
-  index: number;
 }
 
 const deckCheck = ref<DeckCheckResult>({
   old: '',
   new: '',
   format: 'json',
+  filename: '',
   tempFileName: '',
-  index: -1,
 });
 
-const doCheckUpdate = async (data: any, index: number) => {
+const doCheckUpdate = async (data: any) => {
   diffLoading.value = true;
-  const checkResult = await checkDeckUpdate(index);
+  const checkResult = await checkDeckUpdate(data.filename);
   diffLoading.value = false;
   if (checkResult.result) {
-    deckCheck.value = { ...checkResult, index };
+    deckCheck.value = { ...checkResult, filename: data.filename };
     showDiff.value = true;
   } else {
     ElMessage.error('检查更新失败！' + checkResult.err);
@@ -312,7 +312,7 @@ const doCheckUpdate = async (data: any, index: number) => {
 };
 
 const deckUpdate = async () => {
-  const res = await updateDeck(deckCheck.value.index, deckCheck.value.tempFileName);
+  const res = await updateDeck(deckCheck.value.filename, deckCheck.value.tempFileName);
   if (res.result) {
     showDiff.value = false;
     ElMessage.success('更新成功，即将自动重载牌堆');
