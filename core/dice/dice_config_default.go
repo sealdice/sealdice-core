@@ -97,6 +97,9 @@ var DefaultConfig = Config{
 		CensorMatchPinyin:    false,
 		CensorFilterRegexStr: "",
 	},
+	PublicDiceConfig{
+		Enable: false,
+	},
 	DirtyConfig{
 		DeckList: nil,
 		CommandPrefix: []string{

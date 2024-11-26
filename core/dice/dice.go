@@ -25,6 +25,7 @@ import (
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 	log "sealdice-core/utils/kratos"
+	"sealdice-core/utils/public_dice"
 )
 
 type CmdExecuteResult struct {
@@ -183,11 +184,14 @@ type Dice struct {
 
 	CensorManager *CensorManager `json:"-" yaml:"-"`
 
-	Config Config `json:"-" yaml:"-"`
-
 	AttrsManager *AttrsManager `json:"-" yaml:"-"`
 
+	Config Config `json:"-" yaml:"-"`
+
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
+
+	PublicDice        *public_dice.PublicDiceClient `json:"-" yaml:"-"`
+	PublicDiceTimerId cron.EntryID                  `json:"-" yaml:"-"`
 
 	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
@@ -262,6 +266,8 @@ func (d *Dice) Init() {
 	if d.Config.EnableCensor {
 		d.NewCensorManager()
 	}
+
+	go d.PublicDiceSetup()
 
 	// 创建js运行时
 	if d.Config.JsEnable {
@@ -718,4 +724,97 @@ func (d *Dice) ResetQuitInactiveCron() {
 		}))
 		d.Logger.Infof("退群功能已启动，每 %s 执行一次退群判定", duration.String())
 	}
+}
+
+func (d *Dice) PublicDiceEndpointRefresh() {
+	cfg := &d.Config.PublicDiceConfig
+
+	var endpointItems []*public_dice.Endpoint
+	for _, i := range d.ImSession.EndPoints {
+		if !i.IsPublic {
+			continue
+		}
+		endpointItems = append(endpointItems, &public_dice.Endpoint{
+			Platform: i.Platform,
+			UID:      i.UserID,
+			IsOnline: i.State == 1,
+		})
+	}
+
+	_, code := d.PublicDice.EndpointUpdate(&public_dice.EndpointUpdateRequest{
+		DiceID:    cfg.ID,
+		Endpoints: endpointItems,
+	}, GenerateVerificationKeyForPublicDice)
+	if code != 200 {
+		log.Warn("[公骰]无法通过服务器校验，不再进行更新")
+		return
+	}
+}
+
+func (d *Dice) PublicDiceInfoRegister() {
+	cfg := &d.Config.PublicDiceConfig
+
+	pd, code := d.PublicDice.Register(&public_dice.RegisterRequest{
+		ID:    cfg.ID,
+		Name:  cfg.Name,
+		Brief: cfg.Brief,
+		Note:  cfg.Note,
+	}, GenerateVerificationKeyForPublicDice)
+	if code != 200 {
+		log.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
+		return
+	}
+	// 两种可能: 1. 原本ID为空 2. ID 无效，这里会自动变成新的
+	if pd.Item.ID != "" && cfg.ID != pd.Item.ID {
+		cfg.ID = pd.Item.ID
+	}
+}
+
+func (d *Dice) PublicDiceSetupTick() {
+	cfg := &d.Config.PublicDiceConfig
+
+	doTickUpdate := func() {
+		if !cfg.Enable {
+			d.Cron.Remove(d.PublicDiceTimerId)
+			return
+		}
+		var tickEndpointItems []*public_dice.TickEndpoint
+		for _, i := range d.ImSession.EndPoints {
+			if !i.IsPublic {
+				continue
+			}
+			tickEndpointItems = append(tickEndpointItems, &public_dice.TickEndpoint{
+				UID:      i.UserID,
+				IsOnline: i.State == 1,
+			})
+		}
+		d.PublicDice.TickUpdate(&public_dice.TickUpdateRequest{
+			ID:        cfg.ID,
+			Endpoints: tickEndpointItems,
+		}, GenerateVerificationKeyForPublicDice)
+	}
+
+	if d.PublicDiceTimerId != 0 {
+		d.Cron.Remove(d.PublicDiceTimerId)
+	}
+
+	go func() {
+		// 20s后进行第一次调用，此后3min进行一次更新
+		time.Sleep(20 * time.Second)
+		doTickUpdate()
+	}()
+
+	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3m", doTickUpdate)
+}
+
+func (d *Dice) PublicDiceSetup() {
+	d.PublicDice = public_dice.NewClient("https://dice.weizaima.com", "")
+
+	cfg := &d.Config.PublicDiceConfig
+	if !cfg.Enable {
+		return
+	}
+	d.PublicDiceInfoRegister()
+	d.PublicDiceEndpointRefresh()
+	d.PublicDiceSetupTick()
 }
