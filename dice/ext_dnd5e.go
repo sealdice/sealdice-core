@@ -408,10 +408,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Help:          "DND5E 检定:\n" + helpRc,
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.DelegateText = ctx.DelegateText
 			mctx.Player.TempValueAlias = &ac.Alias
-
+			// 参数确认
 			val := cmdArgs.GetArgN(1)
 			switch val {
 			case "", "help":
@@ -427,15 +428,20 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 				expr := fmt.Sprintf("d20%s + %s", m, restText)
 				mctx.CreateVmIfNotExists()
+				// 获取角色模板
 				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+				// 执行预订的code
 				mctx.Eval(tmpl.PreloadCode, nil)
+				// 为rc设定属性豁免
 				mctx.setDndReadForVM(true)
-
+				// 感觉是不是执行了一次的意思
 				r := mctx.Eval(expr, nil)
+				// 执行出错就丢出去
 				if r.vm.Error != nil {
 					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				// 拿到执行的结果
 				reason := r.vm.RestInput
 				if reason == "" {
 					reason = restText
