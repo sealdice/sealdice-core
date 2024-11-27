@@ -86,14 +86,14 @@ func (i *ConfigItem) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("ConfigItem: unmarshal 'key' failed as %w", err)
 	}
 	if err := json.Unmarshal(raw["type"], &i.Type); err != nil {
-		return fmt.Errorf("ConfigItem: unmarshal 'type' failed as %w", err)
+		return fmt.Errorf("ConfigItem (%s): unmarshal 'type' failed as %w", i.Key, err)
 	}
 	if err := json.Unmarshal(raw["description"], &i.Description); err != nil {
-		return fmt.Errorf("ConfigItem: unmarshal 'description' failed as %w", err)
+		return fmt.Errorf("ConfigItem (%s): unmarshal 'description' failed as %w", i.Key, err)
 	}
 	if v, ok := raw["deprecated"]; ok {
 		if err := json.Unmarshal(v, &i.Deprecated); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'deprecated' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s): unmarshal 'deprecated' failed as %w", i.Key, err)
 		}
 	}
 
@@ -101,70 +101,70 @@ func (i *ConfigItem) UnmarshalJSON(data []byte) error {
 	case "string", "task:cron", "task:daily":
 		var stringVal string
 		if err := json.Unmarshal(raw["defaultValue"], &stringVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'defaultValue' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
 		i.DefaultValue = stringVal
 		if err := json.Unmarshal(raw["value"], &stringVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'value' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
 		i.Value = stringVal
 	case "bool":
 		var boolVal bool
 		if err := json.Unmarshal(raw["defaultValue"], &boolVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'defaultValue' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
 		i.DefaultValue = boolVal
 		if err := json.Unmarshal(raw["value"], &boolVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'value' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
 		i.Value = boolVal
 	case "float":
 		var floatVal float64
 		if err := json.Unmarshal(raw["defaultValue"], &floatVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'defaultValue' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
 		i.DefaultValue = floatVal
 		if err := json.Unmarshal(raw["value"], &floatVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'value' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
 		i.Value = floatVal
 	case "int":
 		var intVal int64
 		if err := json.Unmarshal(raw["defaultValue"], &intVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'defaultValue' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
 		i.DefaultValue = intVal
 		if err := json.Unmarshal(raw["value"], &intVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'value' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
 		i.Value = intVal
 	case "template":
 		var templateVal []string
 		if err := json.Unmarshal(raw["defaultValue"], &templateVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'defaultValue' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
 		i.DefaultValue = templateVal
 		if err := json.Unmarshal(raw["value"], &templateVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'value' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
 		i.Value = templateVal
 	case "option":
 		var stringVal string
 		var optionVal []string
 		if err := json.Unmarshal(raw["defaultValue"], &stringVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'defaultValue' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
 		i.DefaultValue = stringVal
 		if err := json.Unmarshal(raw["value"], &stringVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'value' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
 		i.Value = stringVal
 		if err := json.Unmarshal(raw["option"], &optionVal); err != nil {
-			return fmt.Errorf("ConfigItem: unmarshal 'option' failed as %w", err)
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'option' failed as %w", i.Key, i.Type, err)
 		}
 		i.Option = optionVal
 	default:
-		return errors.New("unsupported type " + i.Type)
+		return errors.New("ConfigItem.UnmarshalJSON: unsupported type " + i.Type)
 	}
 	return nil
 }
