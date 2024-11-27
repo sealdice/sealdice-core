@@ -403,10 +403,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".rc <表达式> @某人 // 对某人做检定"
 
 	cmdRc := &CmdItemInfo{
-		Name:          "rc",
-		ShortHelp:     helpRc,
-		Help:          "DND5E 检定:\n" + helpRc,
-		AllowDelegate: true,
+		// Pinenutn: 从这里添加是否检查有多次检定，很隐蔽，通过简单研究cmdArgs是看不出来的，尚未清楚此处逻辑来源
+		EnableExecuteTimesParse: true,
+		Name:                    "rc",
+		ShortHelp:               helpRc,
+		Help:                    "DND5E 检定:\n" + helpRc,
+		AllowDelegate:           true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
@@ -418,7 +420,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			case "", "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
+				// 获取参数
 				restText := cmdArgs.CleanArgs
+				// 检查是否符合要求
 				re := regexp.MustCompile(`^(优势|劣势|優勢|劣勢)`)
 				m := re.FindString(restText)
 				if m != "" {
@@ -426,48 +430,86 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					m = strings.Replace(m, "劣勢", "劣势", 1)
 					restText = strings.TrimSpace(restText[len(m):])
 				}
+				// 准备要处理的函数
 				expr := fmt.Sprintf("d20%s + %s", m, restText)
+				// 初始化VM
 				mctx.CreateVmIfNotExists()
 				// 获取角色模板
 				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
-				// 执行预订的code
-				mctx.Eval(tmpl.PreloadCode, nil)
-				// 为rc设定属性豁免
-				mctx.setDndReadForVM(true)
-				// 感觉是不是执行了一次的意思
-				r := mctx.Eval(expr, nil)
-				// 执行出错就丢出去
-				if r.vm.Error != nil {
-					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+				// Pinenutn: 根据COC代码，插入多轮检定判断代码。没有用函数封装，显得不太优雅。
+				// 初始化多轮检定结果保存数组
+				textList := make([]string, 0)
+				commandInfoList := make([]map[string]interface{}, 0)
+				// 循环多轮检定，此处如果不定义的话默认是0，是我考虑不周，所以才要添加这个丑陋的判断
+				if cmdArgs.SpecialExecuteTimes < 1 {
+					cmdArgs.SpecialExecuteTimes = 1
+				}
+				// 从COC复制来的轮数检查
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) {
+					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:检定_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				// 拿到执行的结果
-				reason := r.vm.RestInput
-				if reason == "" {
-					reason = restText
-				}
-				detail := r.vm.GetDetailText()
-
-				VarSetValueStr(ctx, "$t技能", reason)
-				VarSetValueStr(ctx, "$t检定过程文本", detail)
-				VarSetValueStr(ctx, "$t检定结果", r.ToString())
-
-				text := DiceFormatTmpl(ctx, "DND:检定")
-				// 指令信息
-				commandInfo := map[string]interface{}{
-					"cmd":    "rc",
-					"rule":   "dnd5e",
-					"pcName": mctx.Player.Name,
-					"items": []interface{}{
-						map[string]interface{}{
-							"expr":   expr,
-							"reason": reason,
-							"result": r.Value,
+				for range cmdArgs.SpecialExecuteTimes {
+					// 执行预订的code
+					mctx.Eval(tmpl.PreloadCode, nil)
+					// 为rc设定属性豁免
+					mctx.setDndReadForVM(true)
+					// 执行了一次
+					r := mctx.Eval(expr, nil)
+					// 执行出错就丢出去
+					if r.vm.Error != nil {
+						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					// 拿到执行的结果
+					reason := r.vm.RestInput
+					if reason == "" {
+						reason = restText
+					}
+					detail := r.vm.GetDetailText()
+					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了，
+					VarSetValueStr(ctx, "$t技能", reason)
+					VarSetValueStr(ctx, "$t检定过程文本", detail)
+					VarSetValueStr(ctx, "$t检定结果", r.ToString())
+					// 添加对应结果文本
+					textList = append(textList, DiceFormatTmpl(ctx, "DND:检定"))
+					// 添加对应commandInfoList
+					commandInfoList = append(commandInfoList, map[string]interface{}{
+						"cmd":    "rc",
+						"rule":   "dnd5e",
+						"pcName": mctx.Player.Name,
+						"items": []interface{}{
+							map[string]interface{}{
+								"expr":   expr,
+								"reason": reason,
+								"result": r.Value,
+							},
 						},
-					},
+					})
 				}
-				mctx.CommandInfo = commandInfo
-
+				// 拼接文本
+				// 由于循环内保留了最后一次的部分技能文本，所以这里不需要再初始化一次技能
+				var text string
+				if cmdArgs.SpecialExecuteTimes > 1 {
+					VarSetValueStr(ctx, "$t批结果文本", strings.Join(textList, "\n"))
+					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
+					text = DiceFormatTmpl(ctx, "DND:检定_多轮")
+				} else {
+					text = textList[0]
+				}
+				// 指令信息应该要同步更改，多轮检定下，似乎要保存一个多轮检定数组，单轮检定下，返回原本的数组状态
+				if len(commandInfoList) > 1 {
+					mctx.CommandInfo = commandInfoList[0]
+				} else {
+					mctx.CommandInfo = map[string]interface{}{
+						"cmd":    "rc",
+						"rule":   "dnd5e",
+						"pcName": mctx.Player.Name,
+						"items":  commandInfoList,
+					}
+				}
+				// 这部分存疑，莫非是调试部分？先不管了，回头问问
 				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
 					info, err := json.Marshal(mctx.CommandInfo)
 					if err == nil {
@@ -484,7 +526,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						ReplyToSender(ctx, msg, "QQ频道内尚不支持暗骰")
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-
 					if ctx.Group != nil {
 						if ctx.IsPrivate {
 							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
@@ -501,7 +542,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 				ReplyToSender(mctx, msg, text)
 			}
-
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
