@@ -398,6 +398,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".rc <属性> // .rc 力量\n" +
 		".rc <属性>豁免 // .rc 力量豁免\n" +
 		".rc <表达式> // .rc 力量+3\n" +
+		".rc 3# <表达式> // 多重检定\n" +
 		".rc 优势 <表达式> // .rc 优势 力量+4\n" +
 		".rc 劣势 <表达式> [<原因>] // .rc 劣势 力量+4 推一下试试\n" +
 		".rc <表达式> @某人 // 对某人做检定"
@@ -439,18 +440,28 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// Pinenutn: 根据COC代码，插入多轮检定判断代码。没有用函数封装，显得不太优雅。
 				// 初始化多轮检定结果保存数组
 				textList := make([]string, 0)
-				commandInfoList := make([]map[string]interface{}, 0)
-				// 循环多轮检定，此处如果不定义的话默认是0，是我考虑不周，所以才要添加这个丑陋的判断
-				if cmdArgs.SpecialExecuteTimes < 1 {
-					cmdArgs.SpecialExecuteTimes = 1
+				// 多轮检定判断
+				round := 1
+				if cmdArgs.SpecialExecuteTimes > 1 {
+					round = cmdArgs.SpecialExecuteTimes
 				}
-				// 从COC复制来的轮数检查
-				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) {
+				// 从COC复制来的轮数检查，同时特判一次的情况，防止完全骰不出去点
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) && cmdArgs.SpecialExecuteTimes != 1 {
 					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:检定_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				for range cmdArgs.SpecialExecuteTimes {
+				// commandInfo配置
+				var commandInfo = map[string]interface{}{
+					"cmd":    "rc",
+					"rule":   "dnd5e",
+					"pcName": mctx.Player.Name,
+					// items的赋值转移到下面
+					// "items":  []interface{}{},
+				}
+				var commandItems = make([]interface{}, 0)
+				// 循环N轮
+				for range round {
 					// 执行预订的code
 					mctx.Eval(tmpl.PreloadCode, nil)
 					// 为rc设定属性豁免
@@ -468,48 +479,38 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						reason = restText
 					}
 					detail := r.vm.GetDetailText()
-					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了，
+					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了
 					VarSetValueStr(ctx, "$t技能", reason)
 					VarSetValueStr(ctx, "$t检定过程文本", detail)
 					VarSetValueStr(ctx, "$t检定结果", r.ToString())
-					// 添加对应结果文本
-					textList = append(textList, DiceFormatTmpl(ctx, "DND:检定"))
-					// 添加对应commandInfoList
-					commandInfoList = append(commandInfoList, map[string]interface{}{
-						"cmd":    "rc",
-						"rule":   "dnd5e",
-						"pcName": mctx.Player.Name,
-						"items": []interface{}{
-							map[string]interface{}{
-								"expr":   expr,
-								"reason": reason,
-								"result": r.Value,
-							},
-						},
+					// 添加对应结果文本，若只执行一次，则使用DND检定，否则使用单项文本初始化
+					if round == 1 {
+						textList = append(textList, DiceFormatTmpl(ctx, "DND:检定"))
+					} else {
+						textList = append(textList, DiceFormatTmpl(ctx, "DND:检定_单项结果文本"))
+					}
+					// 添加对应commandItems
+					commandItems = append(commandItems, map[string]interface{}{
+						"expr":   expr,
+						"reason": reason,
+						"result": r.Value,
 					})
 				}
 				// 拼接文本
 				// 由于循环内保留了最后一次的部分技能文本，所以这里不需要再初始化一次技能
 				var text string
-				if cmdArgs.SpecialExecuteTimes > 1 {
-					VarSetValueStr(ctx, "$t批结果文本", strings.Join(textList, "\n"))
+				if round > 1 {
+					VarSetValueStr(ctx, "$t结果文本", strings.Join(textList, "\n"))
 					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
 					text = DiceFormatTmpl(ctx, "DND:检定_多轮")
 				} else {
+					// 是单轮检定，不需要组装成多轮的描述
 					text = textList[0]
 				}
-				// 指令信息应该要同步更改，多轮检定下，似乎要保存一个多轮检定数组，单轮检定下，返回原本的数组状态
-				if len(commandInfoList) > 1 {
-					mctx.CommandInfo = commandInfoList[0]
-				} else {
-					mctx.CommandInfo = map[string]interface{}{
-						"cmd":    "rc",
-						"rule":   "dnd5e",
-						"pcName": mctx.Player.Name,
-						"items":  commandInfoList,
-					}
-				}
-				// 这部分存疑，莫非是调试部分？先不管了，回头问问
+				// 赋值commandItems
+				commandInfo["items"] = commandItems
+				// 设置对应的Command
+				mctx.CommandInfo = commandInfo
 				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
 					info, err := json.Marshal(mctx.CommandInfo)
 					if err == nil {
