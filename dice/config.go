@@ -2334,12 +2334,7 @@ func (d *Dice) loads() {
 	}
 
 	if len(d.CommandPrefix) == 0 {
-		d.CommandPrefix = []string{
-			"!",
-			".",
-			"。",
-			"/",
-		}
+		d.CommandPrefix = DefaultConfig.CommandPrefix
 	}
 
 	d.LogWriter.LogLimit = d.Config.UILogLimit
