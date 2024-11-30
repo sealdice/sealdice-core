@@ -45,6 +45,7 @@ func NewLagrangeConnectInfoItem(account string, isGocq bool) *EndPointInfo {
 		UseInPackClient: true,
 		BuiltinMode:     "lagrange",
 	}
+
 	if isGocq {
 		conn.RelWorkDir = "extra/lagrange-gocq-qq" + account
 		conn.Adapter.(*PlatformAdapterGocq).BuiltinMode = "lagrange-gocq"
@@ -176,9 +177,9 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 				onlineSignal := "Bot Online: "
 				qrcodeExpiredSignal := "QrCode Expired, Please Fetch QrCode Again"
 				if pa.BuiltinMode == "lagrange-gocq" {
-					qrcodeSignal = "qrcode.png"
+					qrcodeSignal = "请使用手机QQ扫描二维码"
 					onlineSignal = "登录成功"
-					qrcodeExpiredSignal = "QrCode Expired, Please Fetch QrCode Again"
+					qrcodeExpiredSignal = "二维码过期"
 				}
 				// 读取二维码
 				if strings.Contains(line, qrcodeSignal) {
@@ -365,16 +366,18 @@ var defaultLagrangeConfig = `
 `
 var defaultLagrangeGocqConfig = `
 account:
+  uin: {账号UIN}
+  password: ''
+  encrypt: false
+  status: 0
   relogin:
     delay: 3
     interval: 3
-    max-times: 0
+    max-times: 0 
   use-sso-address: true
   allow-temp-session: false
-  sign-servers: 
+  sign-servers:
     - url: '{NTSignServer地址}'
-    - url: 'https://sign.lagrangecore.org/api/sign/25765'
-
   max-check-count: 0
   sign-server-timeout: 60
 
@@ -382,7 +385,7 @@ heartbeat:
   interval: 5
 
 message:
-  post-format: string
+  post-format: array
   ignore-invalid-cqcode: false
   force-fragment: false
   fix-url: false
@@ -405,22 +408,22 @@ default-middlewares: &default
   access-token: ''
   filter: ''
   rate-limit:
-    enabled: false 
-    frequency: 1  
-    bucket: 1     
+    enabled: false
+    frequency: 1
+    bucket: 1
 
-database: 
+database:
   leveldb:
     enable: true
   sqlite3:
     enable: false
-    cachettl: 3600000000000 # 1h
+    cachettl: 3600000000000
 
 servers:
   - ws:
       address: 127.0.0.1:{WS端口}
       middlewares:
-        <<: *default 
+        <<: *default
 `
 
 // 在构建时注入
@@ -523,7 +526,7 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	} else {
 		err = yaml.Unmarshal(file, &result)
 		if err != nil {
-			dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
+			dice.Logger.Infof("读取内置gocq配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
 			return "", ""
 		}
 		if val, ok := result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"].(string); ok {
