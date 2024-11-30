@@ -2333,6 +2333,15 @@ func (d *Dice) loads() {
 		i.AdapterSetup()
 	}
 
+	if len(d.CommandPrefix) == 0 {
+		d.CommandPrefix = []string{
+			"!",
+			".",
+			"。",
+			"/",
+		}
+	}
+
 	d.LogWriter.LogLimit = d.Config.UILogLimit
 
 	// 设置扩展选项
