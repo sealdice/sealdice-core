@@ -2316,8 +2316,10 @@ func (d *Dice) loads() {
 	} else {
 		d.Logger.Info("serve.yaml not found")
 		// 这里是没有加载到配置文件，所以写默认设置项
-		d.DiceMasters = config.DiceMasters
+		d.DeckList = config.DeckList
 		d.CommandPrefix = config.CommandPrefix
+		d.DiceMasters = config.DiceMasters
+		d.Config = config
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
