@@ -26,7 +26,7 @@ type LogOneItem struct {
 	IMUserID       string      `json:"IMUserId" gorm:"column:im_userid"`
 	Time           int64       `json:"time" gorm:"column:time"`
 	Message        string      `json:"message"  gorm:"column:message"`
-	IsDice         bool        `json:"isDice"  gorm:"column:is_dice;type:bool"`
+	IsDice         bool        `json:"isDice"  gorm:"column:is_dice"`
 	CommandID      int64       `json:"commandId"  gorm:"column:command_id"`
 	CommandInfo    interface{} `json:"commandInfo" gorm:"-"`
 	CommandInfoStr string      `json:"-" gorm:"column:command_info"`
@@ -40,6 +40,11 @@ type LogOneItem struct {
 	// 允许default=NULL
 	Removed  *int `gorm:"column:removed" json:"-"`
 	ParentID *int `gorm:"column:parent_id" json:"-"`
+}
+
+// 兼容旧版本的数据库设计
+func (*LogOneItem) TableName() string {
+	return "log_items"
 }
 
 // BeforeSave 钩子函数: 查询前,interface{}转换为json
@@ -97,11 +102,6 @@ type LogInfo struct {
 	// 原本标记为：测试版特供，由于原代码每次都会执行，故直接启用此处column记录。
 	UploadURL  string `json:"-" gorm:"column:upload_url"`  // 测试版特供
 	UploadTime int    `json:"-" gorm:"column:upload_time"` // 测试版特供
-}
-
-// 兼容旧版本的数据库设计
-func (*LogOneItem) TableName() string {
-	return "log_items"
 }
 
 func (*LogInfo) TableName() string {
@@ -294,7 +294,7 @@ func LogGetAllLines(db *gorm.DB, groupID string, logName string) ([]*LogOneItem,
 		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
 		Where("log_id = ?", logID).
 		Order("time ASC").
-		Scan(&items).Error
+		Find(&items).Error
 
 	if err != nil {
 		return nil, err

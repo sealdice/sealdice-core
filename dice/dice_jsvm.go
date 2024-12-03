@@ -203,7 +203,7 @@ func (d *Dice) JsInit() {
 			// Pinenutn: Range模板 ServiceAtNew重构代码
 			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 				// Pinenutn: ServiceAtNew重构
-				groupInfo.ExtActive(ei)
+				groupInfo.ExtActiveBySnapshotOrder(ei, true)
 				return true
 			})
 		})
@@ -511,7 +511,7 @@ func (d *Dice) JsInit() {
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}
-			ret := d.GameSystemTemplateAdd(tmpl)
+			ret := d.GameSystemTemplateAddEx(tmpl, true)
 			if !ret {
 				return errors.New("已存在同名模板")
 			}
@@ -523,7 +523,7 @@ func (d *Dice) JsInit() {
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}
-			ret := d.GameSystemTemplateAdd(tmpl)
+			ret := d.GameSystemTemplateAddEx(tmpl, true)
 			if !ret {
 				return errors.New("已存在同名模板")
 			}
@@ -784,6 +784,15 @@ func (d *Dice) JsReload() {
 		d.JsScriptCron.Stop()
 		d.JsScriptCron = nil
 	}
+
+	// 记录扩展快照
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
+			return item.Name
+		})
+		return true
+	})
+
 	d.JsInit()
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()

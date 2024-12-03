@@ -14,6 +14,7 @@ import (
 	"time"
 
 	wr "github.com/mroth/weightedrand"
+	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/model"
@@ -77,74 +78,94 @@ type ConfigItem struct {
 }
 
 func (i *ConfigItem) UnmarshalJSON(data []byte) error {
-	raw := map[string]any{}
+	raw := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	var ok bool
-	if i.Key, ok = raw["key"].(string); !ok {
-		return errors.New("'key' must be a string")
+	if err := json.Unmarshal(raw["key"], &i.Key); err != nil {
+		return fmt.Errorf("ConfigItem: unmarshal 'key' failed as %w", err)
 	}
-	if i.Type, ok = raw["type"].(string); !ok {
-		return errors.New("'type' must be a string")
+	if err := json.Unmarshal(raw["type"], &i.Type); err != nil {
+		return fmt.Errorf("ConfigItem (%s): unmarshal 'type' failed as %w", i.Key, err)
 	}
-	if i.Description, ok = raw["description"].(string); !ok {
-		return errors.New("'description' must be a string")
+	if err := json.Unmarshal(raw["description"], &i.Description); err != nil {
+		return fmt.Errorf("ConfigItem (%s): unmarshal 'description' failed as %w", i.Key, err)
 	}
 	if v, ok := raw["deprecated"]; ok {
-		if i.Deprecated, ok = v.(bool); !ok {
-			return errors.New("'deprecated' must be a bool")
+		if err := json.Unmarshal(v, &i.Deprecated); err != nil {
+			return fmt.Errorf("ConfigItem (%s): unmarshal 'deprecated' failed as %w", i.Key, err)
 		}
 	}
 
 	switch i.Type {
-	case "string", "bool", "float":
-		i.DefaultValue = raw["defaultValue"]
-		i.Value = raw["value"]
+	case "string", "task:cron", "task:daily":
+		var stringVal string
+		if err := json.Unmarshal(raw["defaultValue"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
+		}
+		i.DefaultValue = stringVal
+		if err := json.Unmarshal(raw["value"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = stringVal
+	case "bool":
+		var boolVal bool
+		if err := json.Unmarshal(raw["defaultValue"], &boolVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
+		}
+		i.DefaultValue = boolVal
+		if err := json.Unmarshal(raw["value"], &boolVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = boolVal
+	case "float":
+		var floatVal float64
+		if err := json.Unmarshal(raw["defaultValue"], &floatVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
+		}
+		i.DefaultValue = floatVal
+		if err := json.Unmarshal(raw["value"], &floatVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = floatVal
 	case "int":
-		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
-		if v, ok := raw["defaultValue"].(float64); ok {
-			i.DefaultValue = int64(v)
-		} else if v, ok := raw["defaultValue"].(int64); ok {
-			i.DefaultValue = v
+		var intVal int64
+		if err := json.Unmarshal(raw["defaultValue"], &intVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
-		if v, ok := raw["value"]; ok {
-			if v2, ok := v.(float64); ok {
-				i.Value = int64(v2)
-			} else if v2, ok := v.(int64); ok {
-				i.Value = v2
-			}
+		i.DefaultValue = intVal
+		if err := json.Unmarshal(raw["value"], &intVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
+		i.Value = intVal
 	case "template":
-		{
-			v := raw["defaultValue"].([]interface{})
-			strarr := make([]string, len(v))
-			for i, vv := range v {
-				strarr[i] = vv.(string)
-			}
-			i.DefaultValue = strarr
+		var templateVal []string
+		if err := json.Unmarshal(raw["defaultValue"], &templateVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
-		if v, ok := raw["value"]; ok {
-			vv := v.([]interface{})
-			strarr := make([]string, len(vv))
-			for i, vv := range vv {
-				strarr[i] = vv.(string)
-			}
-			i.Value = strarr
+		i.DefaultValue = templateVal
+		if err := json.Unmarshal(raw["value"], &templateVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
+		i.Value = templateVal
 	case "option":
-		i.DefaultValue = raw["defaultValue"]
-		i.Value = raw["value"]
-		v := raw["option"].([]interface{})
-		strarr := make([]string, len(v))
-		for i, vv := range v {
-			strarr[i] = vv.(string)
+		var stringVal string
+		var optionVal []string
+		if err := json.Unmarshal(raw["defaultValue"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
-		i.Option = strarr
+		i.DefaultValue = stringVal
+		if err := json.Unmarshal(raw["value"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = stringVal
+		if err := json.Unmarshal(raw["option"], &optionVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'option' failed as %w", i.Key, i.Type, err)
+		}
+		i.Option = optionVal
 	default:
-		return errors.New("unsupported type " + i.Type)
+		return errors.New("ConfigItem.UnmarshalJSON: unsupported type " + i.Type)
 	}
-
 	return nil
 }
 
@@ -2133,6 +2154,9 @@ func (d *Dice) loads() {
 		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
+			groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
+				return item.Name
+			})
 			for _, i := range groupInfo.ActivatedExtList {
 				if m[i.Name] != nil {
 					tmp = append(tmp, m[i.Name])
