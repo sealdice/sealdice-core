@@ -543,7 +543,7 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						if pa.BuiltinMode == "lagrange" {
+						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 							dice.LagrangeServe(d, conn, dice.LagrangeLoginInfo{
 								IsAsyncRun: true,
 							})

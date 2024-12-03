@@ -165,7 +165,7 @@ func ImConnectionsRWSignServerUrl(c echo.Context) error {
 		}
 		if i.ProtocolType == "onebot" {
 			pa := i.Adapter.(*dice.PlatformAdapterGocq)
-			if pa.BuiltinMode == "lagrange" {
+			if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 				signServerUrl, signServerVersion := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W, v.SignServerVersion)
 				if signServerUrl != "" {
 					return Success(&c, Response{
@@ -207,7 +207,7 @@ func ImConnectionsDel(c echo.Context) error {
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					if i.ProtocolType == "onebot" {
 						pa := i.Adapter.(*dice.PlatformAdapterGocq)
-						if pa.BuiltinMode == "lagrange" {
+						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 							dice.BuiltinQQServeProcessKillBase(myDice, i, true)
 							// 经测试，若不延时，可能导致清理对应目录失败（原因：文件被占用）
 							time.Sleep(1 * time.Second)
@@ -969,6 +969,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		Account           string `yaml:"account" json:"account"`
 		SignServerUrl     string `yaml:"signServerUrl" json:"signServerUrl"`
 		SignServerVersion string `yaml:"signServerVersion" json:"signServerVersion"`
+		IsGocq            bool   `yaml:"isGocq" json:"isGocq"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -977,7 +978,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 			return nil
 		}
 
-		conn := dice.NewLagrangeConnectInfoItem(v.Account)
+		conn := dice.NewLagrangeConnectInfoItem(v.Account, v.IsGocq)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)

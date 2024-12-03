@@ -148,6 +148,8 @@ func checkUidExists(c echo.Context, uid string) bool {
 			var relWorkDir string
 			if pa.BuiltinMode == "lagrange" {
 				relWorkDir = "extra/lagrange-qq" + uid
+			} else if pa.BuiltinMode == "lagrange-gocq" {
+				relWorkDir = "extra/lagrange-gocq-qq" + uid
 			} else {
 				// 默认为gocq
 				relWorkDir = "extra/go-cqhttp-qq" + uid
