@@ -437,7 +437,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				mctx.CreateVmIfNotExists()
 				// 获取角色模板
 				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
-				// Pinenutn: 根据COC代码，插入多轮检定判断代码。没有用函数封装，显得不太优雅。
 				// 初始化多轮检定结果保存数组
 				textList := make([]string, 0)
 				// 多轮检定判断
