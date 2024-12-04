@@ -407,6 +407,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueInt64(mctx, "$tD100", outcome)
 				VarSetValueInt64(mctx, "$t判定值", checkVal)
 				VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
+				VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
 
 				var suffix string
 				var suffixFull string
@@ -447,12 +448,10 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				commandInfoItems = append(commandInfoItems, infoItem)
 
 				VarSetValueStr(mctx, "$t检定表达式文本", expr1Text)
-				VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
 				VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
 				VarSetValueStr(mctx, "$t计算过程", detailWrap)
 
 				SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
-				VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
 				return nil
 			}
 
@@ -1131,7 +1130,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 	cmdTi := &CmdItemInfo{
 		Name:      "ti",
 		ShortHelp: ".ti // 抽取一个临时性疯狂症状",
-		Help:      "抽取临时性疯狂症状:\n.li // 抽取一个临时性疯狂症状",
+		Help:      "抽取临时性疯狂症状:\n.ti // 抽取一个临时性疯狂症状",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "help") {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}

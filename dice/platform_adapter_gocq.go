@@ -957,6 +957,18 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
+			// 这个就是要删除的部分，离开这个群组=群组退出=删除对应的群聊绑定信息（也就是用户的骰子和这个群聊无关了）
+			// 同时考虑到：QQ群团队发布公告称，由于业务调整，“恢复QQ群”功能将于2023年10月13日起正式下线，届时涉及QQ群相关的恢复功能都将无法使用，可以安心删除群聊对应绑定信息。
+			group, exists := session.ServiceAtNew[msg.GroupID]
+			if !exists {
+				txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, msgQQ.GroupID)
+				log.Error(txtErr)
+				ctx.Notice(txtErr)
+				return
+			}
+			// TODO：存疑，根据DISMISS的代码复制而来
+			group.DiceIDExistsMap.Delete(ep.UserID)
+			group.UpdatedAtTime = time.Now().Unix()
 			log.Info(txt)
 			ctx.Notice(txt)
 			return
