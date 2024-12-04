@@ -13,7 +13,20 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"sealdice-core/message"
+	log "sealdice-core/utils/kratos"
 )
+
+type BotLoggerWrapper struct {
+	Logger *log.Helper
+}
+
+func (b *BotLoggerWrapper) Println(v ...interface{}) {
+	b.Logger.Error(v...)
+}
+
+func (b *BotLoggerWrapper) Printf(format string, v ...interface{}) {
+	b.Logger.Errorf(format, v...)
+}
 
 type PlatformAdapterTelegram struct {
 	Session       *IMSession       `yaml:"-" json:"-"`
@@ -56,6 +69,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	var bot *tgbotapi.BotAPI
 	var err error
 
+	_ = tgbotapi.SetLogger(&BotLoggerWrapper{Logger: logger})
 	if len(pa.ProxyURL) > 0 {
 		var u *url.URL
 		u, err = url.Parse(pa.ProxyURL)

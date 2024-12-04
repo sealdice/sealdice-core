@@ -626,7 +626,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			}
 
 			if strings.EqualFold(deckName, "list") { //nolint:nestif
-				text := "载入并开启的牌堆:\n"
+				text := ""
 				for _, i := range ctx.Dice.DeckList {
 					if i.Enable {
 						author := fmt.Sprintf(" 作者:%s", i.Author)
@@ -640,7 +640,8 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, count)
 					}
 				}
-				ReplyToSender(ctx, msg, text)
+				VarSetValueStr(ctx, "$t牌堆列表", text)
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_牌堆列表"))
 			} else if strings.EqualFold(deckName, "desc") {
 				// 查看详情
 				text := cmdArgs.GetArgN(2)
