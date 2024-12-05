@@ -168,11 +168,16 @@ export function postAddSatori(platform: string, host: string, port: string, toke
   });
 }
 
-export function postAddLagrange(account: string, signServerUrl: string, signServerVersion: string) {
+export function postAddLagrange(
+  account: string,
+  signServerUrl: string,
+  signServerVersion: string,
+  isGocq: boolean,
+) {
   return request<DiceConnection>(
     'post',
     'addLagrange',
-    { account, signServerUrl, signServerVersion },
+    { account, signServerUrl, signServerVersion, isGocq },
     'json',
     {
       timeout: 65000,
@@ -278,7 +283,7 @@ interface AdapterQQ {
   appID: number;
   isReverse: boolean;
   reverseAddr: string;
-  builtinMode: 'gocq' | 'lagrange';
+  builtinMode: 'gocq' | 'lagrange' | 'lagrange-gocq';
 }
 enum goCqHttpStateCode {
   Init = 0,

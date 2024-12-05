@@ -65,7 +65,7 @@ export interface AdapterQQ {
   appID: number;
   isReverse: boolean;
   reverseAddr: string;
-  builtinMode: 'gocq' | 'lagrange';
+  builtinMode: 'gocq' | 'lagrange' | 'lagrange-gocq';
 }
 
 interface TalkLogItem {
@@ -361,7 +361,16 @@ export const useStore = defineStore('main', {
             if (signServerUrl === 'sealdice' || signServerUrl === 'lagrange') {
               version = signServerVersion;
             }
-            info = await postAddLagrange(account, signServerUrl, version);
+            info = await postAddLagrange(account, signServerUrl, version, false);
+          }
+          break;
+        case 16:
+          {
+            let version = '';
+            if (signServerUrl === 'sealdice' || signServerUrl === 'lagrange') {
+              version = signServerVersion;
+            }
+            info = await postAddLagrange(account, signServerUrl, version, true);
           }
           break;
       }

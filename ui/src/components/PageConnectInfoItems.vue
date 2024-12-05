@@ -176,7 +176,7 @@
             v-if="
               i.platform === 'QQ' &&
               (i.protocolType === 'onebot' || i.protocolType === 'walle-q') &&
-              i.adapter.builtinMode !== 'lagrange'
+              i.adapter.builtinMode === 'gocq'
             ">
             <!-- <el-form-item label="忽略好友请求">
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
@@ -249,6 +249,32 @@
             </el-form-item>
           </template>
 
+          <template
+            v-if="
+              i.platform === 'QQ' &&
+              i.protocolType === 'onebot' &&
+              i.adapter.builtinMode === 'lagrange-gocq'
+            ">
+            <el-form-item label="接入方式">
+              <div>内置gocq</div>
+            </el-form-item>
+            <el-form-item label="签名地址">
+              <el-tooltip
+                class="item"
+                effect="dark"
+                :content="i.enable ? '禁用账号后方可修改签名服务地址' : '单击修改签名服务地址'"
+                placement="bottom">
+                <el-button
+                  :icon="Edit"
+                  size="small"
+                  circle
+                  :disabled="i.enable"
+                  style="margin-left: 0.5rem"
+                  @click="showSetSignServerDialog(i)" />
+              </el-tooltip>
+            </el-form-item>
+          </template>
+
           <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
             <el-form-item label="协议">
               <div>[已弃用]Red</div>
@@ -272,9 +298,7 @@
 
           <template
             v-if="
-              i.platform === 'QQ' &&
-              i.protocolType === 'onebot' &&
-              i.adapter.builtinMode !== 'lagrange'
+              i.platform === 'QQ' && i.protocolType === 'onebot' && i.adapter.builtinMode === 'gocq'
             ">
             <el-form-item label="其他">
               <el-tooltip content="导出gocq设置，用于转分离部署" placement="top-start">
@@ -774,6 +798,17 @@
         class="mb-6">
         当前为容器模式，内置客户端被禁用。
       </el-alert>
+      <el-alert
+        v-if="
+          store.diceServers.length > 0 &&
+          store.diceServers[0].baseInfo.containerMode &&
+          (form.accountType === 16 || form.accountType === 0)
+        "
+        type="warning"
+        :closable="false"
+        class="mb-6">
+        当前为容器模式，内置 gocq 被禁用。
+      </el-alert>
 
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
@@ -781,6 +816,12 @@
             <el-option
               label="QQ(内置客户端)"
               :value="15"
+              :disabled="
+                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
+              "></el-option>
+            <el-option
+              label="QQ(内置gocq)"
+              :value="16"
               :disabled="
                 store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
               "></el-option>
@@ -796,12 +837,6 @@
             <el-option label="Dodo语音" :value="5"></el-option>
             <el-option label="钉钉" :value="8"></el-option>
             <el-option label="Slack" :value="9"></el-option>
-            <el-option
-              label="[已弃用]QQ(内置gocq)"
-              :value="0"
-              :disabled="
-                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
-              "></el-option>
             <el-option label="[已弃用]QQ(red协议)" :value="7"></el-option>
           </el-select>
         </el-form-item>
@@ -854,14 +889,14 @@
         </el-form-item> -->
 
         <el-form-item
-          v-if="form.accountType === 15"
+          v-if="form.accountType === 15 || form.accountType === 16"
           label="账号"
           :label-width="formLabelWidth"
           required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
         </el-form-item>
         <el-form-item
-          v-if="form.accountType === 15"
+          v-if="form.accountType === 15 || form.accountType === 16"
           label="签名服务"
           :label-width="formLabelWidth"
           required>
@@ -872,14 +907,14 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item
-          v-if="form.accountType === 15 && form.signServerType === 2"
+          v-if="(form.accountType === 15 || form.accountType === 16) && form.signServerType === 2"
           label="自定义签名地址"
           :label-width="formLabelWidth"
           required>
           <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
         </el-form-item>
         <el-form-item
-          v-else-if="form.accountType === 15"
+          v-else-if="form.accountType === 15 || form.accountType === 16"
           label="签名版本"
           :label-width="formLabelWidth"
           required>
@@ -1756,7 +1791,7 @@
               (form.accountType === 9 && (form.botToken === '' || form.appToken === '')) ||
               (form.accountType === 11 && (form.account === '' || form.reverseAddr === '')) ||
               (form.accountType === 13 && (form.token === '' || form.url === '')) ||
-              (form.accountType === 15 &&
+              ((form.accountType === 15 || form.accountType === 16) &&
                 (form.account === '' || (form.signServerType === 2 && form.signServerUrl === '')))
             "
             @click="goStepTwo">
@@ -2024,7 +2059,7 @@ const goStepTwo = async () => {
   setRecentLogin();
   duringRelogin.value = false;
 
-  if (form.accountType === 15) {
+  if (form.accountType === 15 || form.accountType === 16) {
     switch (form.signServerType) {
       case 0:
         form.signServerUrl = 'sealdice';
@@ -2315,10 +2350,8 @@ const handleSignServerDelete = (url: string) => {
 
 const supportedQQVersions = ref<string[]>([]);
 
-const defaultAccountType: number =
-  store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode ? 6 : 15;
 const form = reactive({
-  accountType: defaultAccountType,
+  accountType: 15,
   step: 1,
   isEnd: false,
   account: '',
@@ -2396,6 +2429,19 @@ onBeforeMount(async () => {
   const versionsRes = await getConnectQQVersion();
   if (versionsRes.result) {
     supportedQQVersions.value = ['', ...versionsRes.versions];
+  }
+
+  // form.accountType默认账号类型，在android与mac系统中，默认账号类型为内置gocq，其余系统为内置客户端
+  if (store.diceServers.length > 0) {
+    if (
+      store.diceServers[0].baseInfo.OS === 'android' ||
+      store.diceServers[0].baseInfo.OS === 'darwin'
+    ) {
+      form.accountType = 16;
+    }
+    if (store.diceServers[0].baseInfo.containerMode) {
+      form.accountType = 6;
+    }
   }
 
   timerId = setInterval(async () => {
