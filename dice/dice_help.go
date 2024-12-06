@@ -172,14 +172,19 @@ func (m *HelpManager) loadSearchEngine() {
 }
 
 func (m *HelpManager) Close() {
+	// 关闭Bucket，并删除所有数据
+	err := m.TextMap.Close()
+	if err != nil {
+		return
+	}
 	if m.EngineType == 0 {
 		if m.Index != nil {
 			_ = m.Index.Close()
 			m.Index = nil
 
-			_ = os.RemoveAll("./_help_cache")
 		}
 	}
+	_ = os.RemoveAll("./_help_cache")
 }
 
 func (m *HelpManager) Load() {
@@ -508,14 +513,17 @@ func (m *HelpManager) AddItem(item HelpTextItem) error {
 	}
 
 	id := m.GetNextID()
-	m.TextMap.Store(id, &item)
+	err := m.TextMap.Store(id, &item)
+	if err != nil {
+		return err
+	}
 
 	if m.EngineType == 0 {
 		if m.batch == nil {
 			m.batch = m.Index.NewBatch()
 		}
 		if m.batchNum >= 50 {
-			err := m.Index.Batch(m.batch)
+			err = m.Index.Batch(m.batch)
 			if err != nil {
 				return err
 			}
