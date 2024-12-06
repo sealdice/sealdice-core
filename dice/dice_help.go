@@ -599,11 +599,14 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageS
 	items := HelpTextItems{}
 	var idLst []string
 
-	m.TextMap.Range(func(id string, v *HelpTextItem) bool {
+	err = m.TextMap.Range(func(id string, v *HelpTextItem) bool {
 		items = append(items, v)
 		idLst = append(idLst, id)
 		return true
 	})
+	if err != nil {
+		return nil, 0, 0, 0, err
+	}
 
 	hits := search.DocumentMatchCollection{}
 	matches := fuzzy.FindFrom(text, items)
@@ -698,7 +701,7 @@ func (m *HelpManager) GetContent(item *HelpTextItem, depth int) string {
 		name := txt[left+1 : right-1]
 		matched := false
 		// 注意: 效率更加不高
-		m.TextMap.Range(func(key string, v *HelpTextItem) bool {
+		err := m.TextMap.Range(func(key string, v *HelpTextItem) bool {
 			if v.Title == name {
 				result.WriteString(m.GetContent(v, depth+1))
 				matched = true
@@ -706,6 +709,9 @@ func (m *HelpManager) GetContent(item *HelpTextItem, depth int) string {
 			}
 			return true
 		})
+		if err != nil {
+			return ""
+		}
 		if !matched {
 			result.WriteByte('{')
 			result.WriteString(name)
@@ -977,7 +983,7 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 		return 0, HelpTextVos{}
 	}
 	temp := make(HelpTextVos, 0, m.TextMap.Len())
-	m.TextMap.Range(func(i string, item *HelpTextItem) bool {
+	err := m.TextMap.Range(func(i string, item *HelpTextItem) bool {
 		if strings.Contains(item.Group, group) &&
 			strings.Contains(item.From, from) &&
 			strings.Contains(item.Title, title) {
@@ -994,6 +1000,9 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 		}
 		return true
 	})
+	if err != nil {
+		return 0, nil
+	}
 
 	sort.Sort(temp)
 

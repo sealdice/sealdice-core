@@ -42,7 +42,7 @@ func NewHelpDocMap[K comparable, V any](dbPath string) (*HelpDocMap[K, V], error
 
 	// 确保创建默认桶
 	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("default"))
+		_, err = tx.CreateBucketIfNotExists([]byte("default"))
 		return err
 	})
 	if err != nil {
