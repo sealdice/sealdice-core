@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	log "sealdice-core/utils/kratos"
 
@@ -74,7 +75,7 @@ func (e HelpTextItems) Len() int {
 type HelpManager struct {
 	CurID        uint64
 	Index        bleve.Index
-	TextMap      SyncMap[string, *HelpTextItem] // map[string]*HelpTextItem
+	TextMap      *HelpDocMap[string, *HelpTextItem] // map[string]*HelpTextItem
 	Parent       *DiceManager
 	EngineType   int
 	batch        *bleve.Batch
@@ -122,6 +123,20 @@ func (m *HelpManager) loadSearchEngine() {
 	mapping := bleve.NewIndexMapping()
 	indexDir = "./_help_cache"
 	_ = os.RemoveAll(indexDir)
+
+	// 不知道这个文件夹什么时候创建出来的
+	if _, err := os.Stat(indexDir); os.IsNotExist(err) {
+		// 尝试创建文件夹，确保目录结构完整
+		err := os.MkdirAll(indexDir, os.ModePerm)
+		if err != nil {
+			log.Fatalf("无法创建文件夹,请检查读写权限! %s: %v", indexDir, err)
+		}
+	}
+	docMap, err := NewHelpDocMap[string, *HelpTextItem]("_help_cache/HELP_TEXTMAP.bolt")
+	if err != nil {
+		log.Fatalf("创建HelpDoc 缓存数据失败! 帮助文档不可用!")
+	}
+	m.TextMap = docMap
 
 	// if m.Parent.UseDictForTokenizer {
 	// 这些代码封存，看起来不怎么需要
@@ -225,7 +240,11 @@ func (m *HelpManager) Load() {
 	if err != nil {
 		log.Errorf("unable to read helpdoc folder: %v", err)
 	}
-	for _, entry := range entries {
+	start := time.Now() // 获取当前时间
+	totalEntries := len(entries)
+	for i, entry := range entries {
+		progress := float64(i+1) / float64(totalEntries) * 100
+		log.Infof("处理帮助文档组[文件夹]: 当前帮助文档加载总进度: %s %.2f%% (%d/%d)", entry.Name(), progress, i+1, totalEntries)
 		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
@@ -259,6 +278,8 @@ func (m *HelpManager) Load() {
 		m.HelpDocTree = append(m.HelpDocTree, &child)
 	}
 	_ = m.AddItemApply()
+	elapsed := time.Since(start) // 计算执行时间
+	log.Infof("帮助文档加载完毕，共耗费时间: %s\n", elapsed)
 }
 
 func (m *HelpManager) loadHelpConfig() {
@@ -700,45 +721,56 @@ func generateHelpDocKey() string {
 	return key
 }
 
+// 修改 buildHelpDocTree 函数签名，添加进度参数
 func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
-	p, err := os.Stat(node.Path)
-	if err != nil {
-		return
-	}
+	// 收集所有节点
+	allNodes := []*HelpDoc{node}
 
-	fn(node)
+	for i := 0; i < len(allNodes); i++ {
+		current := allNodes[i]
 
-	if !p.IsDir() {
-		return
-	}
-
-	subs, err := os.ReadDir(node.Path)
-	if err != nil {
-		return
-	}
-
-	for _, sub := range subs {
-		if strings.HasPrefix(sub.Name(), ".") {
+		p, err := os.Stat(current.Path)
+		if err != nil {
 			continue
 		}
-		var child HelpDoc
-		child.Key = generateHelpDocKey()
-		child.Name = sub.Name()
-		child.Path = path.Join(node.Path, sub.Name())
-		child.Group = node.Group
-		child.IsDir = sub.IsDir()
-		if sub.IsDir() {
-			child.Type = "dir"
-			child.Children = make([]*HelpDoc, 0)
-		} else {
-			child.Type = filepath.Ext(sub.Name())
+
+		if !p.IsDir() {
+			continue
 		}
 
-		fn(&child)
-		if sub.IsDir() {
-			buildHelpDocTree(&child, fn)
+		subs, err := os.ReadDir(current.Path)
+		if err != nil {
+			continue
 		}
-		node.Children = append(node.Children, &child)
+
+		current.Children = make([]*HelpDoc, 0)
+
+		for _, sub := range subs {
+			if strings.HasPrefix(sub.Name(), ".") {
+				continue
+			}
+
+			var child HelpDoc
+			child.Key = generateHelpDocKey()
+			child.Name = sub.Name()
+			child.Path = path.Join(current.Path, sub.Name())
+			child.Group = current.Group
+			child.IsDir = sub.IsDir()
+
+			if sub.IsDir() {
+				child.Type = "dir"
+				child.Children = make([]*HelpDoc, 0)
+			} else {
+				child.Type = filepath.Ext(sub.Name())
+			}
+
+			allNodes = append(allNodes, &child)
+			current.Children = append(current.Children, &child)
+		}
+	}
+	for _, current := range allNodes {
+		// 调用处理函数
+		fn(current)
 	}
 }
 
