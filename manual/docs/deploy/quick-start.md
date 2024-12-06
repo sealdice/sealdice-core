@@ -82,6 +82,7 @@ chmod +x ./sealdice-core
 ```zsh
 chmod +x ./sealdice-core && xattr -rd com.apple.quarantine ./sealdice-core
 chmod +x ./lagrange/Lagrange.OneBot && xattr -rd com.apple.quarantine ./lagrange/Lagrange.OneBot
+chmod +x ./lagrange/go-cqhttp && xattr -rd com.apple.quarantine ./lagrange/go-cqhttp
 ```
 
 这两条命令移除海豹核心程序和 Lagrange 的 [隔离属性](https://zhuanlan.zhihu.com/p/611471192)，并给予其足够的运行权限。
