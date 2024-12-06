@@ -61,7 +61,7 @@ func (h *HelpDocMap[K, V]) encode(value V) ([]byte, error) {
 	}
 
 	// 使用 zstd 编码数据
-	zEnc, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedBetterCompression))
+	zEnc, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedFastest))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create zstd encoder: %w", err)
 	}
