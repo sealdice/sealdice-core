@@ -181,7 +181,6 @@ func (m *HelpManager) Close() {
 		if m.Index != nil {
 			_ = m.Index.Close()
 			m.Index = nil
-
 		}
 	}
 	_ = os.RemoveAll("./_help_cache")
