@@ -1,12 +1,12 @@
 package main
 
+// _ "net/http/pprof"
 import (
 	"errors"
 	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
-	// _ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
