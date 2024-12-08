@@ -101,7 +101,7 @@ type HelpDocFormat struct {
 func (m *HelpManager) loadSearchEngine() {
 	if runtime.GOARCH == "arm64" {
 		// 等木落测试，测试之前先不实现这个Clover模式，如果直接就能用，那也不必再实现他了
-		m.EngineType = Clover
+		m.EngineType = BleveSearch
 	}
 	// 删除旧版本数据，这里先不改，先集中精力测试BleveSearch
 	indexDir := "./data/_index"
