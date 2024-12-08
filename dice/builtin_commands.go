@@ -348,21 +348,16 @@ func (d *Dice) registerCoreCommands() {
 				Content:     fmt.Sprintf("%v", bestRaw["content"]),
 				PackageName: fmt.Sprintf("%v", bestRaw["package"]),
 				// 这俩是什么东西？！
-				KeyWords:   "",
-				RelatedExt: nil,
+				// KeyWords:   "",
+				// RelatedExt: nil,
 			}
 			others := ""
 
 			for _, i := range search.Hits {
 				t := &docengine.HelpTextItem{
 					Group:       fmt.Sprintf("%v", i.Fields["group"]),
-					From:        fmt.Sprintf("%v", i.Fields["from"]),
 					Title:       fmt.Sprintf("%v", i.Fields["title"]),
-					Content:     fmt.Sprintf("%v", i.Fields["content"]),
 					PackageName: fmt.Sprintf("%v", i.Fields["package"]),
-					// 这俩是什么东西？！
-					KeyWords:   "",
-					RelatedExt: nil,
 				}
 				if t.Group != "" && t.Group != HelpBuiltinGroup {
 					others += fmt.Sprintf("[%s][%s]【%s:%s】 匹配度%.2f\n", i.ID, t.Group, t.PackageName, t.Title, i.Score)

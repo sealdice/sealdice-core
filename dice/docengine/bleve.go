@@ -73,9 +73,6 @@ func (d *BleveSearchEngine) Init() error {
 	d.Index = i
 	// 初始化新的batch
 	d.batch = d.Index.NewBatch()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 

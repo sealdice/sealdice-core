@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
-	_ "net/http/pprof"
+	// _ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -485,9 +485,9 @@ func main() {
 	}
 
 	// pprof
-	go func() {
-		http.ListenAndServe("0.0.0.0:8899", nil)
-	}()
+	// go func() {
+	//	http.ListenAndServe("0.0.0.0:8899", nil)
+	// }()
 
 	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	// OOM分析工具

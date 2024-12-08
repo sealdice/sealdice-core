@@ -128,7 +128,6 @@ func (m *HelpManager) Close() {
 	// TODO:暂时先不动删除逻辑
 	m.searchEngine.Close()
 	_ = os.RemoveAll("./_help_cache")
-
 }
 
 func (m *HelpManager) Load() {
@@ -511,24 +510,15 @@ func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string
 		result.WriteString(txt[formattedIdx:left])
 		formattedIdx = right
 		name := txt[left+1 : right-1]
-		matched := false
-		// 注意: 效率更加不高
-		// TODO: 换成Search的
-		// 猜测是搜索TitleOnly，严格匹配Title的情形
-		// 如果查询到对应数据，那么就调用m.GetContent，可以，我明白了
+		// 搜索TitleOnly，严格匹配Title的情形
+		// 如果查询到对应数据，那么就调用m.GetContent
 		valueResult, err := m.searchEngine.GetHelpTextItemByTermTitle(name)
 		if err != nil {
-			return ""
-		}
-		result.WriteString(m.GetContent(valueResult, depth+1))
-		matched = true
-		if err != nil {
-			return ""
-		}
-		if !matched {
 			result.WriteByte('{')
 			result.WriteString(name)
 			result.WriteString(" - 未能找到}")
+		} else {
+			result.WriteString(m.GetContent(valueResult, depth+1))
 		}
 	}
 	result.WriteString(txt[formattedIdx:])
