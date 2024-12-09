@@ -72,6 +72,7 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
 				i.Save(true)
+				i.AttrsManager.Stop()
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
 						// 关闭
