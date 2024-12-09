@@ -1,5 +1,6 @@
 package main
 
+// _ "net/http/pprof"
 import (
 	"errors"
 	"fmt"
@@ -15,8 +16,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	// _ "net/http/pprof"
 
 	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
