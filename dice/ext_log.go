@@ -26,7 +26,16 @@ var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 
-	v := ctx.EvalFString(tmpl, nil)
+	var config ds.RollConfig
+	if ctx.vm != nil {
+		config = ctx.vm.Config
+	} else {
+		config = *ctx.GenDefaultRollVmConfig()
+	}
+	config.HookFuncValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+		return nil, true
+	}
+	v := ctx.EvalFString(tmpl, &config)
 	if v.vm.Error != nil {
 		ctx.Dice.Logger.Infof("SN指令模板错误: %v", v.vm.Error.Error())
 		return "", v.vm.Error
