@@ -542,22 +542,10 @@ func diceServe(d *dice.Dice) {
 						dice.WalleQServe(d, conn, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, false)
 					}
 					if conn.EndPointInfoBase.ProtocolType == "onebot" {
-						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
-							dice.LagrangeServe(d, conn, dice.LagrangeLoginInfo{
-								IsAsyncRun: true,
-							})
-							return
-						} else {
-							dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
-								Password:         pa.InPackGoCqhttpPassword,
-								Protocol:         pa.InPackGoCqhttpProtocol,
-								AppVersion:       pa.InPackGoCqhttpAppVersion,
-								IsAsyncRun:       true,
-								UseSignServer:    pa.UseSignServer,
-								SignServerConfig: pa.SignServerConfig,
-							})
-						}
+						dice.LagrangeServe(d, conn, dice.LagrangeLoginInfo{
+							IsAsyncRun: true,
+						})
+
 					}
 					if conn.EndPointInfoBase.ProtocolType == "red" {
 						dice.ServeRed(d, conn)
