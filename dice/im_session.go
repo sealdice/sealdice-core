@@ -1531,8 +1531,13 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	}
 
 	banQuitGroup := func() {
-		banListInfoItem, _ := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
-		reasontext := FormatBlacklistReasons(banListInfoItem)
+		banListInfoItem, ok := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
+		var reasontext string
+		if ok {
+			reasontext = FormatBlacklistReasons(banListInfoItem)
+		} else {
+			reasontext = "黑名单原因：\n未找到"
+		}
 		groupID := msg.GroupID
 		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		log.Info(noticeMsg)
@@ -1550,8 +1555,13 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		groupLevel := ctx.GroupRoleLevel
 		if d.Config.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
-			banListInfoItem, _ := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
-			reasontext := FormatBlacklistReasons(banListInfoItem)
+			banListInfoItem, ok := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
+			var reasontext string
+			if ok {
+				reasontext = FormatBlacklistReasons(banListInfoItem)
+			} else {
+				reasontext = "黑名单原因：\n未找到"
+			}
 			groupID := msg.GroupID
 			notReply = true
 			if groupLevel >= 40 {
@@ -1573,7 +1583,6 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					notReply = true
 					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 					log.Info(noticeMsg)
-
 					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
 					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
@@ -1598,8 +1607,13 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.Config.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
-			banListInfoItem, _ := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
-			reasontext := FormatBlacklistReasons(banListInfoItem)
+			banListInfoItem, ok := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
+			var reasontext string
+			if ok {
+				reasontext = FormatBlacklistReasons(banListInfoItem)
+			} else {
+				reasontext = "黑名单原因：\n未找到"
+			}
 			groupID := msg.GroupID
 			if isWhiteGroup {
 				log.Infof("群(%s)处于黑名单中，但在信任群所以不尝试退群", groupID)
