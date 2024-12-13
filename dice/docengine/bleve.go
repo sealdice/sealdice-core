@@ -15,9 +15,10 @@ import (
 )
 
 type BleveSearchEngine struct {
-	Index bleve.Index
-	batch *bleve.Batch
-	CurID uint64
+	Index     bleve.Index
+	batch     *bleve.Batch
+	batchSize int
+	CurID     uint64
 }
 
 var indexDir = "./data/_index"
@@ -58,10 +59,10 @@ func (d *BleveSearchEngine) Init() error {
 	contentFieldMapping := bleve.NewTextFieldMapping()
 	keywordMapping := bleve.NewKeywordFieldMapping()
 	// 注意： 这里group,from,title，package都是keywordMapping，这样就能进行精确搜索。
-	// 文本才是真正的文档
 	docMapping.AddFieldMappingsAt("group", keywordMapping)
 	docMapping.AddFieldMappingsAt("from", keywordMapping)
-	docMapping.AddFieldMappingsAt("title", keywordMapping)
+	docMapping.AddFieldMappingsAt("title", contentFieldMapping)
+	// Content才是真正的文档
 	docMapping.AddFieldMappingsAt("content", contentFieldMapping)
 	docMapping.AddFieldMappingsAt("package", keywordMapping)
 	mapping.AddDocumentMapping("helpdoc", docMapping)
@@ -71,6 +72,8 @@ func (d *BleveSearchEngine) Init() error {
 		return err
 	}
 	d.Index = i
+	// 初始化ID列表
+	d.CurID = 0
 	// 初始化新的batch
 	d.batch = d.Index.NewBatch()
 	return nil
@@ -101,6 +104,15 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 		"content": item.Content,
 		"package": item.PackageName,
 		"_type":   "helpdoc",
+	}
+	d.batchSize++
+	// 五十一次执行
+	if d.batchSize >= 50 {
+		err := d.AddItemApply(false)
+		d.batchSize = 0
+		if err != nil {
+			return "", err
+		}
 	}
 	return id, d.batch.Index(id, data)
 }
@@ -275,6 +287,7 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 			item.Content = value
 		case "package":
 			item.PackageName = value
+			// 好像会碰到Type的参数？
 		default:
 			log.Debugf("这是个什么参数 %s", name)
 		}

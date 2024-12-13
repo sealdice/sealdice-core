@@ -49,6 +49,6 @@ type SearchEngine interface {
 	GetItemByID(id string) (*HelpTextItem, error)
 	// PaginateDocuments 分页获取数据
 	PaginateDocuments(pageSize, pageNum int, group, from, title string) (uint64, []*HelpTextItem, error)
-	// GetTotalID()
+	// GetTotalID 获取当前ID总数，注意，ID必须是顺序排列的
 	GetTotalID() uint64
 }

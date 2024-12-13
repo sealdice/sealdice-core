@@ -24,9 +24,6 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// 分词器封存了，看起来不太需要
-// _ "github.com/leopku/bleve-gse-tokenizer/v2"
-
 const HelpBuiltinGroup = "builtin"
 
 const (
@@ -83,11 +80,6 @@ const HelpConfigFilename = "help_config.yaml"
 
 type HelpConfig struct {
 	Aliases map[string][]string `yaml:"aliases" json:"aliases"`
-}
-
-func (m *HelpManager) GetNextID() string {
-	m.CurID++
-	return strconv.FormatUint(m.CurID, 10)
 }
 
 type HelpDocFormat struct {
@@ -230,7 +222,7 @@ func (m *HelpManager) Load() {
 	_ = m.AddItemApply(true)
 	m.CurID = m.searchEngine.GetTotalID()
 	elapsed := time.Since(start) // 计算执行时间
-	log.Infof("帮助文档加载完毕，共耗费时间: %s\n", elapsed)
+	log.Infof("帮助文档加载完毕，共耗费时间: %s 共计加载条目:%d\n", elapsed, m.CurID)
 }
 
 func (m *HelpManager) loadHelpConfig() {
@@ -465,7 +457,6 @@ func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageS
 	return m.searchEngine.Search(ctx.Group.HelpPackages, text, titleOnly, pageSize, pageNum, group)
 }
 
-// TODO: 这些到时候写在Engine里
 func (m *HelpManager) GetSuffixText() string {
 	return m.searchEngine.GetSuffixText()
 }
