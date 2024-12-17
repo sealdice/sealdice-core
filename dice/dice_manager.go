@@ -113,7 +113,7 @@ func (dm *DiceManager) InitHelp() {
 	_ = os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
 	dm.Help.Parent = dm
-	dm.Help.EngineType = dm.HelpDocEngineType
+	dm.Help.EngineType = EngineType(dm.HelpDocEngineType)
 	dm.Help.Load()
 	dm.IsHelpReloading = false
 }

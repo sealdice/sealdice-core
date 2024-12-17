@@ -1,5 +1,6 @@
 package main
 
+// _ "net/http/pprof"
 import (
 	"errors"
 	"fmt"
@@ -15,8 +16,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	// _ "net/http/pprof"
 
 	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
@@ -72,6 +71,7 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
 				i.Save(true)
+				i.AttrsManager.Stop()
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
 						// 关闭
