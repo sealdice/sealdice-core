@@ -1,8 +1,6 @@
 package model
 
 import (
-	"time"
-
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -74,7 +72,9 @@ func GroupInfoSave(db *gorm.DB, groupID string, updatedAt int64, data []byte) er
 
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
-	Name   string `yaml:"name" jsbind:"name" gorm:"column:name"` // 玩家昵称
+	// 补充这个字段，从而保证包含主键ID
+	ID     uint   `yaml:"-" jsbind:"-" gorm:"column:id;primaryKey;autoIncrement"` // 主键ID字段，自增
+	Name   string `yaml:"name" jsbind:"name" gorm:"column:name"`                  // 玩家昵称
 	UserID string `yaml:"userId" jsbind:"userId" gorm:"column:user_id;index:idx_group_player_info_user_id; uniqueIndex:idx_group_player_info_group_user"`
 	// 非数据库信息：是否在群内
 	InGroup         bool  `yaml:"inGroup" gorm:"-"`                                                         // 是否在群内，有时一个人走了，信息还暂时残留
@@ -156,15 +156,11 @@ func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlay
 }
 
 // GroupPlayerInfoSave 保存玩家信息，不再使用 REPLACE INTO 语句
-func GroupPlayerInfoSave(db *gorm.DB, groupID string, playerID string, info *GroupPlayerInfoBase) error {
+func GroupPlayerInfoSave(db *gorm.DB, info *GroupPlayerInfoBase) error {
 	// 考虑到info是指针，为了防止可能info还会被用到其他地方，这里的给info指针赋值也是有意义的
 	// 但强烈建议将这段去除掉，数据库层面理论上不应该混杂业务层逻辑？
-	now := int(time.Now().Unix())
-	info.UserID = playerID
-	info.GroupID = groupID
-	info.UpdatedAt = now // 更新当前时间为 UpdatedAt
-
 	// 判断条件：联合主键相同
+	// TODO: 那自增的ID是干嘛的……
 	conditions := map[string]any{
 		"user_id":  info.UserID,
 		"group_id": info.GroupID,
