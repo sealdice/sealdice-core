@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -15,7 +16,13 @@ import (
 type AttrsManager struct {
 	db     *gorm.DB
 	logger *log.Helper
+	cancel context.CancelFunc
 	m      SyncMap[string, *AttributesItem]
+}
+
+func (am *AttrsManager) Stop() {
+	log.Info("结束数据库保存程序...")
+	am.cancel()
 }
 
 // LoadByCtx 获取当前角色，如有绑定，则获取绑定的角色，若无绑定，获取群内默认卡
@@ -148,14 +155,25 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 func (am *AttrsManager) Init(d *Dice) {
 	am.db = d.DBData
 	am.logger = d.Logger
+	// 创建一个 context 用于取消 goroutine
+	ctx, cancel := context.WithCancel(context.Background())
+	// 确保程序退出时取消上下文
 	go func() {
 		// NOTE(Xiangze Li): 这种不退出的goroutine不利于平稳结束程序
 		for {
-			am.CheckForSave()
-			am.CheckAndFreeUnused()
-			time.Sleep(15 * time.Second)
+			select {
+			case <-ctx.Done():
+				// 检测到取消信号后退出循环
+				return
+			default:
+				// 正常工作
+				am.CheckForSave()
+				am.CheckAndFreeUnused()
+				time.Sleep(15 * time.Second)
+			}
 		}
 	}()
+	am.cancel = cancel
 }
 
 func (am *AttrsManager) CheckForSave() (int, int) {
@@ -200,15 +218,22 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 
 	prepareToFree := map[string]int{}
 	currentTime := time.Now().Unix()
+	tx := db.Begin()
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if value.LastUsedTime-currentTime > 60*10 {
 			prepareToFree[key] = 1
 			// 直接保存
-			value.SaveToDB(am.db)
+			value.SaveToDB(tx)
 		}
 		return true
 	})
-
+	err := tx.Commit().Error
+	if err != nil {
+		if am.logger != nil {
+			am.logger.Errorf("定期清理无用用户数据出错(提交事务): %v", err)
+		}
+		_ = tx.Rollback()
+	}
 	for key := range prepareToFree {
 		am.m.Delete(key)
 	}
