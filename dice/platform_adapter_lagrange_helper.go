@@ -429,6 +429,7 @@ servers:
 // 在构建时注入
 // var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 // var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
+// var newproxyyNTSignServer = "https://seal.sign.lorana-aurelia.tech/api/sign/"
 
 // 此处添加内置sign地址及对应标识字符串
 var signServers = map[string]string{
@@ -440,6 +441,8 @@ var signServers = map[string]string{
 func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion string, info *EndPointInfo) string {
 	if signServerUrl == "" {
 		signServerUrl = "sealdice"
+	} else if signServerUrl != "sealdice" && signServerUrl != "newProxy" {
+		signServerUrl = "newProxy"
 	}
 	if url, exists := signServers[signServerUrl]; exists {
 		signServerUrl = url
