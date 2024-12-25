@@ -427,12 +427,12 @@ servers:
 `
 
 // 在构建时注入
-// var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
+// var defaultNTSignServer = `https://seal.sign.la2.xuetao.online/api/sign`
 // var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
 
 // 此处添加内置sign地址及对应标识字符串
 var signServers = map[string]string{
-	"sealdice": `https://lwxmagic.sealdice.com/api/sign`,
+	"sealdice": `https://seal.sign.la2.xuetao.online/api/sign`,
 	"lagrange": "https://sign.lagrangecore.org/api/sign",
 }
 
@@ -556,11 +556,12 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	}
 	if _, exists := signServers[currentSignServerUrl]; !exists {
 		// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
-		version = "25765"
+		version = "30366"
 	}
 	if version == "" {
 		// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
-		version = "13107"
+		// kenichiLyon:截至2024年12月26日，13107版本已不可用，此处更改为25765
+		version = "25765"
 	}
 	return currentSignServerUrl, version
 }
