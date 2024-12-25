@@ -427,13 +427,14 @@ servers:
 `
 
 // 在构建时注入
-// var defaultNTSignServer = `https://seal.sign.la2.xuetao.online/api/sign`
+// var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 // var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
 
 // 此处添加内置sign地址及对应标识字符串
 var signServers = map[string]string{
-	"sealdice": `https://seal.sign.la2.xuetao.online/api/sign`,
+	"sealdice": `https://lwxmagic.sealdice.com/api/sign`,
 	"lagrange": "https://sign.lagrangecore.org/api/sign",
+	"newProxy": "https://seal.sign.lorana-aurelia.tech/api/sign/",
 }
 
 func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion string, info *EndPointInfo) string {
@@ -442,7 +443,7 @@ func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion st
 	}
 	if url, exists := signServers[signServerUrl]; exists {
 		signServerUrl = url
-		if signServerVersion != "" && signServerVersion != "13107" {
+		if signServerVersion != "" && signServerVersion != "25765" {
 			signServerUrl += "/" + signServerVersion
 		}
 	}
@@ -485,7 +486,7 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	}
 	if url, exists := signServers[signServerUrl]; exists {
 		signServerUrl = url
-		if signServerVersion != "" && signServerVersion != "13107" {
+		if signServerVersion != "" && signServerVersion != "25765" {
 			signServerUrl += "/" + signServerVersion
 		}
 	}
@@ -543,7 +544,7 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 		}
 	}
 	if currentSignServerUrl == "" {
-		currentSignServerUrl = signServers["sealdice"] + "/25765"
+		currentSignServerUrl = signServers["sealdice"] + "/30366"
 	}
 	var version string
 	for key, value := range signServers {
