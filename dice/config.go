@@ -2310,11 +2310,11 @@ func (d *Dice) loads() {
 			if i.ProtocolType == "onebot" {
 				pa := i.Adapter.(*PlatformAdapterGocq)
 				if pa.BuiltinMode == "lagrange" {
-					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "25765")
+					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "30366")
 					if signServerUrl != "" {
-						// 版本为空，覆写为 "25765"
+						// 版本为空，覆写为 "30366"
 						if signServerVersion == "" {
-							RWLagrangeSignServerUrl(d, i, "sealdice", true, "25765")
+							RWLagrangeSignServerUrl(d, i, "sealdice", true, "30366")
 						}
 					}
 				}
