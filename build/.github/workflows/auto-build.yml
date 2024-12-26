@@ -650,6 +650,12 @@ jobs:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./lagrange/
 
+      - name: Get Lagrange-Gocq
+        uses: actions/download-artifact@v4
+        with:
+          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./lagrange/
+
       - name: Get Core
         uses: actions/download-artifact@v4
         with:
