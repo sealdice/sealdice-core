@@ -256,7 +256,7 @@
               i.adapter.builtinMode === 'lagrange-gocq'
             ">
             <el-form-item label="接入方式">
-              <div>内置gocq</div>
+              <div>内置 gocq</div>
             </el-form-item>
             <el-form-item label="签名地址">
               <el-tooltip
@@ -712,7 +712,8 @@
       <el-radio-group v-model="form.signServerType">
         <el-radio :value="0">海豹</el-radio>
         <el-radio :value="1">Lagrange</el-radio>
-        <el-radio :value="2">自定义地址</el-radio>
+        <el-radio :value="2">雪桃代理</el-radio>
+        <el-radio :value="3">自定义地址</el-radio>
       </el-radio-group>
     </el-form-item>
     <el-form-item
@@ -725,8 +726,8 @@
     <el-form-item v-else label="签名版本" :label-width="formLabelWidth" required>
       <el-space direction="vertical" alignment="flex-start">
         <el-radio-group v-model="form.signServerVersion">
-          <el-radio value="13107">13107</el-radio>
           <el-radio value="25765">25765</el-radio>
+          <el-radio value="30366">30366</el-radio>
         </el-radio-group>
         <el-text type="warning" size="small">如果不知道这是什么，请保持默认选中的最新版本</el-text>
       </el-space>
@@ -903,7 +904,8 @@
           <el-radio-group v-model="form.signServerType">
             <el-radio :value="0">海豹</el-radio>
             <el-radio :value="1">Lagrange</el-radio>
-            <el-radio :value="2">自定义地址</el-radio>
+            <el-radio :value="2">newProxy</el-radio>
+            <el-radio :value="3">自定义地址</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item
@@ -920,8 +922,8 @@
           required>
           <el-space direction="vertical" alignment="flex-start">
             <el-radio-group v-model="form.signServerVersion">
-              <el-radio value="13107">13107</el-radio>
               <el-radio value="25765">25765</el-radio>
+              <el-radio value="30366">30366</el-radio>
             </el-radio-group>
             <el-text type="warning" size="small"
               >如果不知道这是什么，请保持默认选中的最新版本</el-text
@@ -2404,7 +2406,7 @@ const form = reactive({
   signServerType: 0,
   signServerUrl: '',
   signServerKey: '',
-  signServerVersion: '25765',
+  signServerVersion: '30366',
 
   reverseAddr: ':4001',
   platform: 'QQ',
@@ -2431,7 +2433,7 @@ onBeforeMount(async () => {
     supportedQQVersions.value = ['', ...versionsRes.versions];
   }
 
-  // form.accountType默认账号类型，在android与mac系统中，默认账号类型为内置gocq，其余系统为内置客户端
+  // form.accountType 默认账号类型，在 android 与 mac 系统中，默认账号类型为内置 gocq，其余系统为内置客户端
   if (store.diceServers.length > 0) {
     if (
       store.diceServers[0].baseInfo.OS === 'android' ||
