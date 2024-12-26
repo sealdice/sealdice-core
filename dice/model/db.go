@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	engine      DatabaseOperator
-	once        sync.Once
-	engineError error
+	engine            DatabaseOperator
+	once              sync.Once
+	errEngineInstance error
 )
 
 // initEngine 初始化数据库引擎，仅执行一次
@@ -33,16 +33,16 @@ func initEngine() {
 		engine = &SQLiteEngine{}
 	}
 
-	engineError = engine.Init()
-	if engineError != nil {
-		log.Error("数据库引擎初始化失败:", engineError)
+	errEngineInstance = engine.Init()
+	if errEngineInstance != nil {
+		log.Error("数据库引擎初始化失败:", errEngineInstance)
 	}
 }
 
 // getEngine 获取数据库引擎，确保只初始化一次
 func getEngine() (DatabaseOperator, error) {
 	once.Do(initEngine)
-	return engine, engineError
+	return engine, errEngineInstance
 }
 
 // DatabaseInit 初始化数据和日志数据库
