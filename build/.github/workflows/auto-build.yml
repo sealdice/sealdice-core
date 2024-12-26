@@ -83,6 +83,29 @@ jobs:
           name: lagrange
           path: ./lag
 
+  lagrange-gocq-download:
+    name: Download Lagrange-Gocq
+    runs-on: ubuntu-latest
+    needs: commit-num-check
+    if: ${{ needs.commit-num-check.outputs.commit-count > 0 }}
+    steps:
+      - name: Download
+        run: |
+          mkdir lag
+          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480718/lagrange-gocq.linux-arm64.zip > lag/lagrange-gocq.linux-arm64.zip
+          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480559/lagrange-gocq.linux-amd64.zip > lag/lagrange-gocq.linux-amd64.zip
+          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950481063/lagrange-gocq.windows-amd64.zip > lag/lagrange-gocq.windows-amd64.zip
+          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480866/lagrange-gocq.windows-386.zip > lag/lagrange-gocq.windows-386.zip
+          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950568799/lagrange-gocq.darwin-arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
+          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950568970/lagrange-gocq.darwin-amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
+          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480718/lagrange-gocq.linux-arm64.zip> lag/lagrange-gocq.android-arm64.zip
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: lagrange-gocq
+          path: ./lag
+
   lagrange-setup:
     name: Download Lagrange
     runs-on: ubuntu-latest
@@ -124,6 +147,48 @@ jobs:
         with:
           name: lagrange.${{ matrix.goos }}-${{ matrix.goarch }}
           path: ./extract/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}
+
+  lagrange-gocq-setup:
+    name: Download Lagrange-Gocq
+    runs-on: ubuntu-latest
+    needs: lagrange-gocq-download
+    strategy:
+      matrix:
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
+        goos: [ linux, windows, darwin, android ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: windows
+            goarch: '386'
+          - goos: darwin
+            goarch: '386'
+          - goos: android
+            goarch: amd64
+          - goos: android
+            goarch: '386'
+    steps:
+      - name: Get Lagrange-Gocq
+        uses: actions/download-artifact@v4
+        with:
+          name: lagrange-gocq
+          path: ./lagrange
+
+      - name: Extract
+        run: |
+          mkdir extract
+          ls ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          file ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          unzip ./lagrange/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ./extract/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}
 
   ui-build:
     name: Build UI
