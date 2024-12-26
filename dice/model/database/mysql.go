@@ -14,8 +14,6 @@ import (
 
 func MySQLDBInit(dsn string) (*gorm.DB, error) {
 	// 构建 MySQL DSN (Data Source Name)
-	// dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, dbName)
-
 	// 使用 GORM 连接 MySQL
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
@@ -28,6 +26,7 @@ func MySQLDBInit(dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 存疑，MYSQL是否需要使用缓存
 	cacheDB, err := cache.GetBuntCacheDB(db)
 	if err != nil {
 		return nil, err

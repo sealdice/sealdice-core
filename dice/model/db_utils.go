@@ -4,9 +4,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -44,46 +41,6 @@ func (j BYTE) Value() (driver.Value, error) {
 	}
 	// 返回原始的 []byte
 	return []byte(j), nil
-}
-
-// DBCacheDelete 删除SQLite数据库缓存文件
-// TODO: 判断缓存是否应该被删除
-func DBCacheDelete() bool {
-	dataDir := "./data/default"
-
-	tryDelete := func(fn string) bool {
-		fnPath, _ := filepath.Abs(filepath.Join(dataDir, fn))
-		if _, err := os.Stat(fnPath); err != nil {
-			// 文件不在了，就当作删除成功
-			return true
-		}
-		return os.Remove(fnPath) == nil
-	}
-
-	// 非 Windows 系统不删除缓存
-	if runtime.GOOS != "windows" {
-		return true
-	}
-	ok := true
-	if ok {
-		ok = tryDelete("data.db-shm")
-	}
-	if ok {
-		ok = tryDelete("data.db-wal")
-	}
-	if ok {
-		ok = tryDelete("data-logs.db-shm")
-	}
-	if ok {
-		ok = tryDelete("data-logs.db-wal")
-	}
-	if ok {
-		ok = tryDelete("data-censor.db-shm")
-	}
-	if ok {
-		ok = tryDelete("data-censor.db-wal")
-	}
-	return ok
 }
 
 // DBVacuum 整理数据库
