@@ -69,13 +69,13 @@ jobs:
       - name: Download
         run: |
           mkdir lag
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-arm64_7.0.zip?v=1 > lag/Lagrange.OneBot.linux-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-x64_7.0.zip?v=1 > lag/Lagrange.OneBot.linux-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x64_7.0.zip?v=1 > lag/Lagrange.OneBot.windows-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x86_7.0.zip?v=1 > lag/Lagrange.OneBot.windows-386.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-arm64_7.0.zip?v=1 > lag/Lagrange.OneBot.darwin-arm64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-x64_7.0.zip?v=1 > lag/Lagrange.OneBot.darwin-amd64.zip
-          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-musl-arm64_7.0.zip?v=1 > lag/Lagrange.OneBot.android-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-arm64_7.0.zip?v=2 > lag/Lagrange.OneBot.linux-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-x64_7.0.zip?v=2 > lag/Lagrange.OneBot.linux-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x64_7.0.zip?v=2 > lag/Lagrange.OneBot.windows-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_win-x86_7.0.zip?v=2 > lag/Lagrange.OneBot.windows-386.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-arm64_7.0.zip?v=2 > lag/Lagrange.OneBot.darwin-arm64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_osx-x64_7.0.zip?v=2 > lag/Lagrange.OneBot.darwin-amd64.zip
+          curl https://d1.sealdice.com/lagrange/0.0.4/Lagrange.OneBot_linux-musl-arm64_7.0.zip?v=2 > lag/Lagrange.OneBot.android-arm64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -92,12 +92,13 @@ jobs:
       - name: Download
         run: |
           mkdir lag
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/linux_arm64.zip > lag/linux_arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/linux_amd64.zip > lag/linux_amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/windows_amd64.zip > lag/windows_amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/windows_386.zip > lag/windows_386.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/darwin_arm64.zip > lag/darwin_arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/darwin_amd64.zip > lag/darwin_amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.android-arm64.zip > lag/lagrange-gocq.android-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.linux-arm64.zip > lag/lagrange-gocq.linux-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.linux-amd64.zip > lag/lagrange-gocq.linux-amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.windows-amd64.zip > lag/lagrange-gocq.windows-amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.windows-386.zip > lag/lagrange-gocq.windows-386.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.darwin-arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.darwin-amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
