@@ -46,7 +46,7 @@ func (s *SQLiteEngine) Init() error {
 func (s *SQLiteEngine) DBCheck() {
 	dataDir := s.DataDir
 	checkDB := func(db *gorm.DB) bool {
-		rows, err := db.Exec("PRAGMA integrity_check").Rows()
+		rows, err := db.Raw("PRAGMA integrity_check").Rows()
 		if err != nil {
 			return false
 		}
