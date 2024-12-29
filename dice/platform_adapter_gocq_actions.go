@@ -244,7 +244,6 @@ func (pa *PlatformAdapterGocq) FriendPoke(userId string) {
 }
 
 func (pa *PlatformAdapterGocq) GroupPoke(ctx *MsgContext, userId string) {
-
 	groupId := strings.ReplaceAll(ctx.Group.GroupID, "QQ-Group:", "")
 	groupID, _ := strconv.ParseInt(groupId, 10, 64)
 	userID, _ := strconv.ParseInt(userId, 10, 64)
