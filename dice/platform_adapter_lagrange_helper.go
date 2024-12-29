@@ -429,20 +429,24 @@ servers:
 // 在构建时注入
 // var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 // var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
+// var newproxyyNTSignServer = "https://seal.sign.lorana-aurelia.tech/api/sign/"
 
 // 此处添加内置sign地址及对应标识字符串
 var signServers = map[string]string{
 	"sealdice": `https://lwxmagic.sealdice.com/api/sign`,
 	"lagrange": "https://sign.lagrangecore.org/api/sign",
+	"newProxy": "https://seal.sign.lorana-aurelia.tech/api/sign/",
 }
 
 func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion string, info *EndPointInfo) string {
 	if signServerUrl == "" {
 		signServerUrl = "sealdice"
+	} else if signServerUrl != "sealdice" && signServerUrl != "newProxy" {
+		signServerUrl = "newProxy"
 	}
 	if url, exists := signServers[signServerUrl]; exists {
 		signServerUrl = url
-		if signServerVersion != "" && signServerVersion != "13107" {
+		if signServerVersion != "" && signServerVersion != "25765" {
 			signServerUrl += "/" + signServerVersion
 		}
 	}
@@ -485,7 +489,7 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	}
 	if url, exists := signServers[signServerUrl]; exists {
 		signServerUrl = url
-		if signServerVersion != "" && signServerVersion != "13107" {
+		if signServerVersion != "" && signServerVersion != "25765" {
 			signServerUrl += "/" + signServerVersion
 		}
 	}
@@ -543,7 +547,7 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 		}
 	}
 	if currentSignServerUrl == "" {
-		currentSignServerUrl = signServers["sealdice"] + "/25765"
+		currentSignServerUrl = signServers["sealdice"] + "/30366"
 	}
 	var version string
 	for key, value := range signServers {
@@ -556,11 +560,12 @@ func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl strin
 	}
 	if _, exists := signServers[currentSignServerUrl]; !exists {
 		// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
-		version = "25765"
+		version = "30366"
 	}
 	if version == "" {
 		// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
-		version = "13107"
+		// kenichiLyon:截至2024年12月26日，13107版本已不可用，此处更改为25765
+		version = "25765"
 	}
 	return currentSignServerUrl, version
 }
