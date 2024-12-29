@@ -229,7 +229,7 @@ func (d *Dice) Init() {
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 
 	var err error
-	d.DBData, d.DBLogs, err = model.SQLiteDBInit(d.BaseConfig.DataDir)
+	d.DBData, d.DBLogs, err = model.DatabaseInit()
 	if err != nil {
 		d.Logger.Errorf("Failed to init database: %v", err)
 	}

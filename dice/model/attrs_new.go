@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tidwall/gjson"
 	"gorm.io/gorm"
 
 	"sealdice-core/utils"
@@ -119,10 +118,8 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 		Attrs(map[string]any{
 			// 第一次全量建表
 			"id": id,
-			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
-			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
-			// TODO: 是否在这里string(data)更快更合理？
-			"data":             gjson.ParseBytes(data).String(),
+			// 使用BYTE规避无法插入的问题
+			"data":             BYTE(data),
 			"is_hidden":        true,
 			"binding_sheet_id": "",
 			"name":             name,
@@ -132,7 +129,7 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 		}).
 		// 如果是更新的情况，更新下面这部分，则需要被更新的为：
 		Assign(map[string]any{
-			"data":       gjson.ParseBytes(data).String(),
+			"data":       BYTE(data),
 			"updated_at": now,
 			"name":       name,
 			"sheet_type": sheetType,
@@ -229,7 +226,7 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 			"id": id,
 			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
 			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
-			"data":      gjson.ParseBytes(json).String(),
+			"data":      BYTE(json),
 			"is_hidden": true,
 			// 如果插入成功，原版代码接下来更新这个值，那么现在就是等价的
 			"binding_sheet_id": charId,

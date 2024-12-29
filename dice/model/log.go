@@ -85,8 +85,8 @@ func (item *LogOneItem) AfterFind(_ *gorm.DB) (err error) {
 
 type LogInfo struct {
 	ID        uint64 `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	Name      string `json:"name" gorm:"index:idx_log_group_id_name,unique;size:200"`
-	GroupID   string `json:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name,unique;size:200"`
+	Name      string `json:"name" gorm:"index:idx_log_group_id_name,unique"`
+	GroupID   string `json:"groupId" gorm:"index:idx_logs_group;index:idx_log_group_id_name,unique"`
 	CreatedAt int64  `json:"createdAt" gorm:"column:created_at"`
 	UpdatedAt int64  `json:"updatedAt" gorm:"column:updated_at;index:idx_logs_update_at"`
 	// 允许数据库NULL值
@@ -95,7 +95,7 @@ type LogInfo struct {
 	// 使用GORM:<-:false 无写入权限，这样它就不会建库，但请注意，下面LogGetLogPage处，如果你查询出的名称不是size
 	// 不能在这里绑定column，因为column会给你建立那一列。
 	// TODO: 将这个字段使用上会不会比后台查询就JOIN更合适？
-	Size *int `json:"size" gorm:"<-:false"`
+	Size *int `json:"size" gorm:"column:size"`
 	// 数据库里有，json不展示的
 	// 允许数据库NULL值（该字段当前不使用）
 	Extra *string `json:"-" gorm:"column:extra"`
@@ -168,10 +168,8 @@ type QueryLogPage struct {
 func LogGetLogPage(db *gorm.DB, param *QueryLogPage) (int, []*LogInfo, error) {
 	var lst []*LogInfo
 
-	// 构建查询
-	query := db.Model(&LogInfo{}).Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at, COUNT(log_items.id) as size").
-		Joins("LEFT JOIN log_items ON logs.id = log_items.log_id")
-
+	// 构建基础查询
+	query := db.Model(&LogInfo{}).Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at,COALESCE(logs.size, 0) as size").Order("logs.updated_at desc")
 	// 添加条件
 	if param.Name != "" {
 		query = query.Where("logs.name LIKE ?", "%"+param.Name+"%")
@@ -258,7 +256,6 @@ func LogGetUploadInfo(db *gorm.DB, groupID string, logName string) (url string, 
 	updateTime = logInfo.UpdatedAt
 	url = logInfo.UploadURL
 	uploadTime = logInfo.UploadTime
-
 	return
 }
 
@@ -447,8 +444,13 @@ func LogAppend(db *gorm.DB, groupID string, logName string, logItem *LogOneItem)
 		return false
 	}
 
-	// 更新 logs 表中的 updated_at 字段
-	if err = tx.Model(&LogInfo{}).Where("id = ?", logID).Update("updated_at", nowTimestamp).Error; err != nil {
+	// 更新 logs 表中的 updated_at 字段 和 size 字段
+	if err = tx.Model(&LogInfo{}).
+		Where("id = ?", logID).
+		Updates(map[string]interface{}{
+			"updated_at": nowTimestamp,
+			"size":       gorm.Expr("COALESCE(size, 0) + ?", 1),
+		}).Error; err != nil {
 		return false
 	}
 
@@ -465,13 +467,26 @@ func LogMarkDeleteByMsgID(db *gorm.DB, groupID string, logName string, rawID int
 		return err
 	}
 	rid := fmt.Sprintf("%v", rawID)
-	// TODO：如果索引工作不理想，我们或许要在这里使用Index Hint指定索引，目前好像还没出问题。
-	if err = db.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
+	tx := db.Begin()
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+	if err = tx.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&LogOneItem{}).Error; err != nil {
 		log.Errorf("log delete error %s", err.Error())
 		return err
 	}
-
-	return nil
+	// 更新 logs 表中的 updated_at 字段 和 size 字段
+	// 真的有默认为NULL还能触发删除的情况吗？！
+	if err = tx.Model(&LogInfo{}).Where("id = ?", logID).Updates(map[string]interface{}{
+		"updated_at": time.Now().Unix(),
+		"size":       gorm.Expr("COALESCE(size, 0) - ?", 1),
+	}).Error; err != nil {
+		return err
+	}
+	err = tx.Commit().Error
+	return err
 }
 
 // LogEditByMsgID 编辑日志

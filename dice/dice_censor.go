@@ -59,7 +59,7 @@ type CensorManager struct {
 }
 
 func (d *Dice) NewCensorManager() {
-	db, err := model.SQLiteCensorDBInit(d.BaseConfig.DataDir)
+	db, err := model.CensorDBInit()
 	if err != nil {
 		panic(err)
 	}
