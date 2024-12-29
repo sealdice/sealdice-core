@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -125,7 +126,8 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	}
 
 	backup := func(d *Dice, fn string) {
-		data, err := os.ReadFile(fn)
+		file, err := os.Open(fn)
+		defer file.Close()
 		if err != nil && !strings.Contains(fn, "session.token") {
 			if d != nil {
 				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
@@ -145,7 +147,15 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			}
 			return
 		}
-		_, _ = fileWriter.Write(data)
+
+		_, err = io.Copy(fileWriter, file)
+		if err != nil {
+			if d != nil {
+				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+			} else {
+				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+			}
+		}
 	}
 
 	backupDir := func(path string, info fs.FileInfo, _ error) error {
