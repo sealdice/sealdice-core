@@ -92,13 +92,12 @@ jobs:
       - name: Download
         run: |
           mkdir lag
-          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480718/lagrange-gocq.linux-arm64.zip > lag/lagrange-gocq.linux-arm64.zip
-          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480559/lagrange-gocq.linux-amd64.zip > lag/lagrange-gocq.linux-amd64.zip
-          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950481063/lagrange-gocq.windows-amd64.zip > lag/lagrange-gocq.windows-amd64.zip
-          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480866/lagrange-gocq.windows-386.zip > lag/lagrange-gocq.windows-386.zip
-          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950568799/lagrange-gocq.darwin-arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
-          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950568970/lagrange-gocq.darwin-amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
-          curl https://fs-im-kefu.7moor-fs1.com/ly/4d2c3f00-7d4c-11e5-af15-41bf63ae4ea0/1732950480718/lagrange-gocq.linux-arm64.zip> lag/lagrange-gocq.android-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/linux_arm64.zip > lag/linux_arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/linux_amd64.zip > lag/linux_amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/windows_amd64.zip > lag/windows_amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/windows_386.zip > lag/windows_386.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/darwin_arm64.zip > lag/darwin_arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/darwin_amd64.zip > lag/darwin_amd64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
