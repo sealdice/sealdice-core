@@ -215,11 +215,7 @@ func main() {
 		ContainerMode          bool   `long:"container-mode" description:"容器模式，该模式下禁用内置客户端"`
 	}
 	// 读取env参数
-	err := godotenv.Load()
-	if err != nil {
-		log.Errorf("未读取到.env参数，若您未使用docker或第三方数据库，可安全忽略。")
-	}
-	_, err = flags.ParseArgs(&opts, os.Args)
+	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
 	}
@@ -230,8 +226,12 @@ func main() {
 	paniclog.InitPanicLog()
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
+	// 数据库加载env相关
+	err = godotenv.Load()
+	if err != nil {
+		log.Errorf("未读取到.env参数，若您未使用docker或第三方数据库，可安全忽略。")
+	}
 	// 初始化文件加锁系统
-
 	locked, err := sealLock.TryLock()
 	// 如果有错误，或者未能取到锁
 	if err != nil || !locked {
