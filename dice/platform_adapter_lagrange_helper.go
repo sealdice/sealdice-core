@@ -429,7 +429,7 @@ servers:
 // 在构建时注入
 // var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 // var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
-// var newproxyyNTSignServer = "https://seal.sign.lorana-aurelia.tech/api/sign/"
+// var newproxyyNTSignServer = "https://seal.sign.lorana-aurelia.tech/api/sign"
 
 // 此处添加内置sign地址及对应标识字符串
 var signServers = map[string]string{
