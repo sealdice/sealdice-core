@@ -214,7 +214,7 @@ func main() {
 		LogLevel               int8   `long:"log-level" description:"设置日志等级" default:"0" choice:"-1" choice:"0" choice:"1" choice:"2" choice:"3" choice:"4" choice:"5"`
 		ContainerMode          bool   `long:"container-mode" description:"容器模式，该模式下禁用内置客户端"`
 	}
-	// 读取env参数
+	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
@@ -226,7 +226,7 @@ func main() {
 	paniclog.InitPanicLog()
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
-	// 数据库加载env相关
+	// 加载env相关
 	err = godotenv.Load()
 	if err != nil {
 		log.Errorf("未读取到.env参数，若您未使用docker或第三方数据库，可安全忽略。")
