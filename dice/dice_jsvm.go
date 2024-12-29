@@ -599,9 +599,11 @@ func (d *Dice) JsInit() {
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
 	go func() {
-		if r := recover(); r != nil {
-			log.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
 		loop.StartInForeground()
 	}()
 	// loop.Start()
