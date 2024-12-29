@@ -737,7 +737,7 @@
         <el-button @click="dialogSetSignServerVisible = false">取消</el-button>
         <el-button
           type="primary"
-          :disabled="form.signServerType === 2 && isEmpty(trim(form.signServerUrl))"
+          :disabled="form.signServerType === 3 && isEmpty(trim(form.signServerUrl))"
           @click="doSetSignServer"
           >确定</el-button
         >
