@@ -438,8 +438,11 @@ func main() {
 		log.Fatalf("移除旧帮助文档时出错，%v", migrateErr)
 	}
 	// v150升级
-	if !migrate.V150Upgrade() {
-		return
+	err = migrate.V150Upgrade()
+	if err != nil {
+		// Fatalf将会退出程序...或许应该用Errorf一类的吗？
+		log.Fatalf("您的146数据库可能存在问题，为保护数据，已经停止执行150升级命令。请尝试联系开发者，并提供你的日志。\n"+
+			"数据已回滚，您可暂时使用旧版本等待进一步的修复和更新。您的报错内容为: %v", err)
 	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {

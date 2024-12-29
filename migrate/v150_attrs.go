@@ -15,6 +15,7 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 )
 
 func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*model.AttributesItemModel, error) {
@@ -391,37 +392,10 @@ func checkTableExists(db *sqlx.DB, tableName string) (bool, error) {
 	}
 }
 
-func V150Upgrade() bool {
-	dbDataPath, _ := filepath.Abs("./data/default/data.db")
-	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
-		return true
-	}
-
-	db, err := openDB(dbDataPath)
-	if err != nil {
-		fmt.Fprintln(os.Stdout, "升级失败，无法打开数据库:", err)
-		return false
-	}
-	defer func() {
-		_ = db.Close()
-	}()
-
-	exists, err := checkTableExists(db, "attrs")
-	if err != nil {
-		fmt.Fprintln(os.Stdout, "V150数据转换未知错误:", err.Error())
-		return false
-	}
-	if exists {
-		// 表格已经存在，说明转换完成，退出
-		return true
-	}
-
-	fmt.Fprintln(os.Stdout, "1.5 数据迁移")
-	sheetIdBindByGroupUserId = map[string]string{}
-	// Pinenutn: 2024-10-28 我要把这个注释全文背诵，它扰乱了GORM的初始化逻辑
-	// -- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
-	sqls := []string{
-		`
+// Pinenutn: 2024-10-28 我要把这个注释全文背诵，它扰乱了GORM的初始化逻辑
+// -- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
+var v150sqls = []string{
+	`
 CREATE TABLE IF NOT EXISTS attrs (
     id TEXT PRIMARY KEY,
     data BYTEA,
@@ -435,63 +409,106 @@ CREATE TABLE IF NOT EXISTS attrs (
     updated_at INTEGER default 0
 );
 `,
-		`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
-		`create index if not exists idx_attrs_owner_id_id on attrs (owner_id);`,
-		`create index if not exists idx_attrs_attrs_type_id on attrs (attrs_type);`,
+	`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
+	`create index if not exists idx_attrs_owner_id_id on attrs (owner_id);`,
+	`create index if not exists idx_attrs_attrs_type_id on attrs (attrs_type);`,
+}
+
+func V150Upgrade() error {
+	dbDataPath, _ := filepath.Abs("./data/default/data.db")
+	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
+		return errors.New("未能查找到旧版本数据库")
 	}
-	for _, i := range sqls {
-		_, _ = db.Exec(i)
+
+	db, err := openDB(dbDataPath)
+	if err != nil {
+		return fmt.Errorf("升级失败，无法打开数据库: %w", err)
 	}
+	defer db.Close()
 
 	tx, err := db.Beginx()
 	if err != nil {
-		fmt.Fprintln(os.Stdout, "V150数据转换创建事务失败:", err.Error())
-		return false
+		return fmt.Errorf("创建事务失败: %w", err)
 	}
-
-	if exists, _ := checkTableExists(db, "attrs_user"); exists {
-		count, countSheetsNum, countFailed, err2 := attrsUserMigrate(tx)
-		fmt.Fprintf(os.Stdout, "数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
-		if err2 != nil {
-			fmt.Fprintln(os.Stdout, "异常", err2.Error())
-			return false
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // 继续传播 panic
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				log.Errorf("提交事务时出错: %v", err)
+			}
 		}
-	}
+	}()
 
-	if exists, _ := checkTableExists(db, "attrs_group_user"); exists {
-		count, countFailed, err2 := attrsGroupUserMigrate(tx)
-		fmt.Fprintf(os.Stdout, "数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
-		if err2 != nil {
-			fmt.Fprintln(os.Stdout, "异常", err2.Error())
-			return false
-		}
-	}
-
-	if exists, _ := checkTableExists(db, "attrs_group"); exists {
-		count, countFailed, err2 := attrsGroupMigrate(tx)
-		fmt.Fprintf(os.Stdout, "数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
-		if err2 != nil {
-			fmt.Fprintln(os.Stdout, "异常", err2.Error())
-			return false
-		}
-	}
-
-	// 删档
-	fmt.Fprintln(os.Stdout, "删除旧版本数据")
-	_, _ = tx.Exec("drop table attrs_group")
-	_, _ = tx.Exec("drop table attrs_group_user")
-	_, _ = tx.Exec("drop table attrs_user")
-	_, _ = db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
-	_, _ = tx.Exec("VACUUM;") // 收尾
-
-	sheetIdBindByGroupUserId = nil
-
-	err = tx.Commit()
+	exists, err := checkTableExists(db, "attrs")
 	if err != nil {
-		fmt.Fprintln(os.Stdout, "V150 数据转换失败:", err.Error())
-		return false
+		return fmt.Errorf("检查表是否存在时出错: %w", err)
+	}
+	// 特判146->150的倒霉蛋
+	exists146, err := checkTableExists(db, "attrs_group")
+
+	if exists {
+		if exists146 {
+			log.Errorf("1.4.6的数据部分迁移！您可能是150部分版本的受害者，请联系开发者")
+			return errors.New("150和146的数据库共同存在，请联系开发者")
+		}
+		// 表格已经存在，说明转换完成
+		return nil
 	}
 
-	fmt.Fprintln(os.Stdout, "V150 数据转换完成")
-	return true
+	log.Info("1.5 数据迁移")
+	sheetIdBindByGroupUserId = map[string]string{}
+
+	for _, singleSql := range v150sqls {
+		if _, err := tx.Exec(singleSql); err != nil {
+			return fmt.Errorf("执行 SQL 出错: %w", err)
+		}
+	}
+
+	if exists, _ = checkTableExists(db, "attrs_user"); exists {
+		count, countSheetsNum, countFailed, err0 := attrsUserMigrate(tx)
+		log.Infof("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
+		if err0 != nil {
+			return fmt.Errorf("角色卡转换出错: %w", err0)
+		}
+	}
+
+	if exists, _ = checkTableExists(db, "attrs_group_user"); exists {
+		count, countFailed, err1 := attrsGroupUserMigrate(tx)
+		log.Infof("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
+		if err1 != nil {
+			return fmt.Errorf("群组个人数据转换出错: %w", err1)
+		}
+	}
+
+	if exists, _ = checkTableExists(db, "attrs_group"); exists {
+		count, countFailed, err2 := attrsGroupMigrate(tx)
+		log.Infof("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
+		if err2 != nil {
+			return fmt.Errorf("群数据转换出错: %w", err2)
+		}
+	}
+
+	// 删除旧版本数据
+	log.Info("删除旧版本数据")
+	deleteSQLs := []string{
+		"drop table attrs_group",
+		"drop table attrs_group_user",
+		"drop table attrs_user",
+	}
+	for _, deleteSQL := range deleteSQLs {
+		if _, err = tx.Exec(deleteSQL); err != nil {
+			return fmt.Errorf("删除旧数据时出错: %w", err)
+		}
+	}
+	// 放在这里保证能执行
+	_, _ = db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
+	_, _ = db.Exec("VACUUM;")
+	sheetIdBindByGroupUserId = nil
+	log.Info("V150 数据转换完成")
+	return nil
 }
