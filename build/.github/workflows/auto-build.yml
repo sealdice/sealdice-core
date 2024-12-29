@@ -553,6 +553,12 @@ jobs:
           name: lagrange.android-arm64
           path: ./sealdice-android/app/src/main/assets/sealdice/lagrange/
 
+      - name: Get Gocq-lagr
+        uses: actions/download-artifact@v4
+        with:
+          name: lagrange-gocq.android-arm64
+          path: ./sealdice-android/app/src/main/assets/sealdice/lagrange/
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
