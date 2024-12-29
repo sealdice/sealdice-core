@@ -1,280 +1,119 @@
 package model
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
+	"sync"
 
 	"gorm.io/gorm"
 
 	log "sealdice-core/utils/kratos"
 )
 
-func DBCheck(dataDir string) {
-	checkDB := func(db *gorm.DB) bool {
-		rows, err := db.Exec("PRAGMA integrity_check").Rows()
-		if err != nil {
-			return false
-		}
-		defer rows.Close()
-		var ok bool
-		for rows.Next() {
-			var s string
-			if errR := rows.Scan(&s); errR != nil {
-				ok = false
-				break
-			}
-			fmt.Fprintln(os.Stdout, s)
-			if s == "ok" {
-				ok = true
-			}
-		}
+var (
+	engine            DatabaseOperator
+	once              sync.Once
+	errEngineInstance error
+)
 
-		if errR := rows.Err(); errR != nil {
-			ok = false
-		}
-		return ok
+// initEngine 初始化数据库引擎，仅执行一次
+func initEngine() {
+	dbType := os.Getenv("DB_TYPE")
+	switch dbType {
+	case SQLITE:
+		log.Info("当前选择使用: SQLITE数据库")
+		engine = &SQLiteEngine{}
+	case MYSQL:
+		log.Info("当前选择使用: MYSQL数据库")
+		engine = &MYSQLEngine{}
+	case POSTGRESQL:
+		log.Info("当前选择使用: POSTGRESQL数据库")
+		engine = &PGSQLEngine{}
+	default:
+		log.Warn("未配置数据库类型，默认使用: SQLITE数据库")
+		engine = &SQLiteEngine{}
 	}
 
-	var ok1, ok2, ok3 bool
-	var dataDB *gorm.DB
-	var logsDB *gorm.DB
-	var censorDB *gorm.DB
-	var err error
-
-	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
-	dataDB, err = _SQLiteDBInit(dbDataPath, false)
-	if err != nil {
-		fmt.Fprintln(os.Stdout, "数据库 data.db 无法打开")
-	} else {
-		ok1 = checkDB(dataDB)
-		db, _ := dataDB.DB()
-		// 关闭
-		db.Close()
+	errEngineInstance = engine.Init()
+	if errEngineInstance != nil {
+		log.Error("数据库引擎初始化失败:", errEngineInstance)
 	}
-
-	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
-	logsDB, err = _SQLiteDBInit(dbDataLogsPath, false)
-	if err != nil {
-		fmt.Fprintln(os.Stdout, "数据库 data-logs.db 无法打开")
-	} else {
-		ok2 = checkDB(logsDB)
-		db, _ := logsDB.DB()
-		// 关闭db
-		db.Close()
-	}
-
-	dbDataCensorPath, _ := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
-	censorDB, err = _SQLiteDBInit(dbDataCensorPath, false)
-	if err != nil {
-		fmt.Fprintln(os.Stdout, "数据库 data-censor.db 无法打开")
-	} else {
-		ok3 = checkDB(censorDB)
-		db, _ := censorDB.DB()
-		// 关闭db
-		db.Close()
-	}
-
-	fmt.Fprintln(os.Stdout, "数据库检查结果：")
-	fmt.Fprintln(os.Stdout, "data.db:", ok1)
-	fmt.Fprintln(os.Stdout, "data-logs.db:", ok2)
-	fmt.Fprintln(os.Stdout, "data-censor.db:", ok3)
 }
 
-var createSql = `
-CREATE TABLE attrs__temp (
-    id TEXT PRIMARY KEY,
-    data BYTEA,
-    attrs_type TEXT,
-    binding_sheet_id TEXT default '',
-    name TEXT default '',
-    owner_id TEXT default '',
-    sheet_type TEXT default '',
-    is_hidden BOOLEAN default FALSE,
-    created_at INTEGER default 0,
-    updated_at INTEGER default 0
-);
-`
+// getEngine 获取数据库引擎，确保只初始化一次
+func getEngine() (DatabaseOperator, error) {
+	once.Do(initEngine)
+	return engine, errEngineInstance
+}
 
-func SQLiteDBInit(dataDir string) (dataDB *gorm.DB, logsDB *gorm.DB, err error) {
-	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
-	dataDB, err = _SQLiteDBInit(dbDataPath, true)
+// DatabaseInit 初始化数据和日志数据库
+func DatabaseInit() (dataDB *gorm.DB, logsDB *gorm.DB, err error) {
+	engine, err = getEngine()
 	if err != nil {
 		return nil, nil, err
 	}
-	// 特殊情况建表语句处置
-	if strings.Contains(dataDB.Dialector.Name(), "sqlite") {
-		tx := dataDB.Begin()
-		// 检查是否有这个影响的注释
-		var count int64
-		err = dataDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
+
+	dataDB, err = engine.DataDBInit()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logsDB, err = engine.LogDBInit()
+	if err != nil {
+		return nil, nil, err
+	}
+	// TODO: 将这段逻辑挪移到Migrator上
+	var ids []uint64
+	var logItemSums []struct {
+		LogID uint64
+		Count int64
+	}
+	logsDB.Model(&LogInfo{}).Where("size IS NULL").Pluck("id", &ids)
+	if len(ids) > 0 {
+		// 根据 LogInfo 表中的 IDs 查找对应的 LogOneItem 记录
+		err = logsDB.Model(&LogOneItem{}).
+			Where("log_id IN ?", ids).
+			Group("log_id").
+			Select("log_id, COUNT(*) AS count"). // 如果需要求和其他字段，可以使用 Sum
+			Scan(&logItemSums).Error
 		if err != nil {
-			tx.Rollback()
+			// 错误处理
+			log.Infof("Error querying LogOneItem: %v", err)
 			return nil, nil, err
 		}
-		if count > 0 {
-			log.Warn("数据库 attrs 表结构为前置测试版本150,重建中")
-			// 创建临时表
-			err = tx.Exec(createSql).Error
+
+		// 2. 更新 LogInfo 表的 Size 字段
+		for _, sum := range logItemSums {
+			// 将求和结果更新到对应的 LogInfo 的 Size 字段
+			err = logsDB.Model(&LogInfo{}).
+				Where("id = ?", sum.LogID).
+				UpdateColumn("size", sum.Count).Error // 或者是 sum.Time 等，如果要是其他字段的求和
 			if err != nil {
-				tx.Rollback()
+				// 错误处理
+				log.Errorf("Error updating LogInfo: %v", err)
 				return nil, nil, err
 			}
-			// 迁移数据
-			err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
-			if err != nil {
-				tx.Rollback()
-				return nil, nil, err
-			}
-			// 删除旧的表
-			err = tx.Exec("DROP TABLE `attrs`").Error
-			if err != nil {
-				tx.Rollback()
-				return nil, nil, err
-			}
-			// 改名
-			err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
-			if err != nil {
-				tx.Rollback()
-				return nil, nil, err
-			}
-			tx.Commit()
 		}
 	}
-	// data建表
-	err = dataDB.AutoMigrate(
-		&GroupPlayerInfoBase{},
-		&GroupInfo{},
-		&BanInfo{},
-		&EndpointInfo{},
-		&AttributesItemModel{},
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	logsDB, err = LogDBInit(dataDir)
-	return
+	return dataDB, logsDB, nil
 }
 
-// LogDBInit SQLITE初始化
-func LogDBInit(dataDir string) (logsDB *gorm.DB, err error) {
-	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
-	logsDB, err = _SQLiteDBInit(dbDataLogsPath, true)
+// DBCheck 检查数据库状态
+func DBCheck() {
+	dbEngine, err := getEngine()
 	if err != nil {
+		log.Error("数据库引擎获取失败:", err)
 		return
 	}
-	// logs建表
-	if err = logsDB.AutoMigrate(&LogInfo{}); err != nil {
-		return nil, err
-	}
 
-	itemsAutoMigrate := false
-	dialect := logsDB.Dialector.Name()
-	if dialect != "sqlite" {
-		itemsAutoMigrate = true
-	} else {
-		if logsDB.Migrator().HasTable(&LogOneItem{}) {
-			if err = logItemsSQLiteMigrate(logsDB); err != nil {
-				return nil, err
-			}
-		} else {
-			itemsAutoMigrate = true
-		}
-	}
-
-	if itemsAutoMigrate {
-		if err = logsDB.AutoMigrate(&LogOneItem{}); err != nil {
-			return nil, err
-		}
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	return logsDB, nil
+	dbEngine.DBCheck()
 }
 
-func logItemsSQLiteMigrate(db *gorm.DB) error {
-	type DBColumn struct {
-		Name string
-		Type string
-	}
-
-	// 获取当前列信息
-	var currentColumns []DBColumn
-	err := db.Raw("PRAGMA table_info(log_items)").Scan(&currentColumns).Error
-	if err != nil {
-		return err
-	}
-
-	// 获取模型定义的列信息
-	var modelColumns []DBColumn
-	stmt := &gorm.Statement{DB: db}
-	err = stmt.Parse(&LogOneItem{})
-	if err != nil {
-		return err
-	}
-	for _, field := range stmt.Schema.Fields {
-		if field.DBName != "" {
-			x := db.Migrator().FullDataTypeOf(field)
-			col := strings.SplitN(x.SQL, " ", 2)[0]
-			modelColumns = append(modelColumns, DBColumn{field.DBName, strings.ToLower(col)})
-		}
-	}
-
-	// 比较列是否有变化
-	needMigrate := false
-	if len(currentColumns) != len(modelColumns) {
-		needMigrate = true
-	} else {
-		columnMap := make(map[string]string)
-		for _, col := range currentColumns {
-			columnMap[col.Name] = strings.ToLower(col.Type)
-		}
-
-		for _, col := range modelColumns {
-			newType := col.Type
-			currentType := columnMap[col.Name]
-
-			// 特殊处理 is_dice 列,允许 bool 或 numeric 类型
-			if col.Name == "is_dice" {
-				if currentType != "bool" && currentType != "numeric" {
-					needMigrate = true
-					break
-				}
-				continue
-			}
-
-			if currentType != newType {
-				needMigrate = true
-				break
-			}
-		}
-	}
-
-	// 如果需要迁移则执行
-	if needMigrate {
-		log.Info("现在进行log_items表的迁移，如果数据库较大，会花费较长时间，请耐心等待")
-		log.Info("若是迁移后观察到数据库体积显著膨胀，可以关闭骰子使用 sealdice-core --vacuum 进行数据库整理，这同样会花费较长时间")
-		return db.AutoMigrate()
-	}
-
-	return nil
-}
-
-func SQLiteCensorDBInit(dataDir string) (censorDB *gorm.DB, err error) {
-	path, err := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
+// CensorDBInit 初始化敏感词数据库
+func CensorDBInit() (censorDB *gorm.DB, err error) {
+	censorEngine, err := getEngine()
 	if err != nil {
 		return nil, err
 	}
-	censorDB, err = _SQLiteDBInit(path, true)
-	if err != nil {
-		return nil, err
-	}
-	// 创建基本的表结构，并通过标签定义索引
-	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
-		return nil, err
-	}
-	return censorDB, nil
+
+	return censorEngine.CensorDBInit()
 }

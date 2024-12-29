@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/tidwall/gjson"
 	"gorm.io/gorm"
 )
 
@@ -31,17 +30,16 @@ func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, da
 	if err := db.Where("id = ?", id).Attrs(map[string]any{
 		"id":             id,
 		"updated_at":     int(updatedAt),
-		"ban_updated_at": int(banUpdatedAt),               // 只在创建时设置的字段
-		"data":           gjson.ParseBytes(data).String(), // 禁用项数据
+		"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
+		"data":           BYTE(data),        // 禁用项数据
 	}).
 		Assign(map[string]any{
 			"updated_at":     int(updatedAt),
-			"ban_updated_at": int(banUpdatedAt),               // 只在创建时设置的字段
-			"data":           gjson.ParseBytes(data).String(), // 禁用项数据
+			"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
+			"data":           BYTE(data),        // 禁用项数据
 		}).FirstOrCreate(&BanInfo{}).Error; err != nil {
 		return err // 返回错误
 	}
-
 	return nil // 操作成功，返回 nil
 }
 

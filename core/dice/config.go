@@ -2521,7 +2521,12 @@ func (d *Dice) Save(isAuto bool) {
 		if groupInfo.Players != nil {
 			groupInfo.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
-					_ = model.GroupPlayerInfoSave(d.DBData, groupInfo.GroupID, key, (*model.GroupPlayerInfoBase)(value))
+					// 解离数据库层的操作到调用处，设置对应的信息
+					now := int(time.Now().Unix())
+					value.UserID = key
+					value.GroupID = groupInfo.GroupID
+					value.UpdatedAt = now // 更新当前时间为 UpdatedAt
+					_ = model.GroupPlayerInfoSave(d.DBData, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 				return true

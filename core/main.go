@@ -19,6 +19,7 @@ import (
 
 	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
+	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap/zapcore"
@@ -213,8 +214,12 @@ func main() {
 		LogLevel               int8   `long:"log-level" description:"设置日志等级" default:"0" choice:"-1" choice:"0" choice:"1" choice:"2" choice:"3" choice:"4" choice:"5"`
 		ContainerMode          bool   `long:"container-mode" description:"容器模式，该模式下禁用内置客户端"`
 	}
-
-	_, err := flags.ParseArgs(&opts, os.Args)
+	// 读取env参数
+	err := godotenv.Load()
+	if err != nil {
+		log.Errorf("未读取到.env参数，若您未使用docker或第三方数据库，可安全忽略。")
+	}
+	_, err = flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		return
 	}
@@ -248,7 +253,7 @@ func main() {
 		return
 	}
 	if opts.DBCheck {
-		model.DBCheck("data/default")
+		model.DBCheck()
 		return
 	}
 	if opts.VacuumDB {
