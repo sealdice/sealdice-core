@@ -717,7 +717,7 @@
       </el-radio-group>
     </el-form-item>
     <el-form-item
-      v-if="form.signServerType === 2"
+      v-if="form.signServerType === 3"
       label="自定义签名地址"
       :label-width="formLabelWidth"
       required>
@@ -909,7 +909,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item
-          v-if="(form.accountType === 15 || form.accountType === 16) && form.signServerType === 2"
+          v-if="(form.accountType === 15 || form.accountType === 16) && form.signServerType === 3"
           label="自定义签名地址"
           :label-width="formLabelWidth"
           required>
