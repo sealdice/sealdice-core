@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/vmihailenco/msgpack"
 
 	"sealdice-core/utils/crypto"
+	log "sealdice-core/utils/kratos"
 )
 
 var (
@@ -22,8 +24,8 @@ func initVerify() {
 	key := os.Getenv("SEAL_TRUSTED_PRIVATE_KEY")
 	if len(key) > 0 {
 		SealTrustedClientPrivateKey = key
-	} else {
-		fmt.Println("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development mode")
+	} else if len(SealTrustedClientPrivateKey) == 0 {
+		log.Warn("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development mode")
 	}
 }
 
@@ -69,4 +71,38 @@ func GenerateVerificationCode(platform string, userID string, username string, u
 	} else {
 		return fmt.Sprintf("SEAL%%%s", base2048.DefaultEncoding.EncodeToString(dp))
 	}
+}
+
+type payloadPublicDice struct {
+	Version string `msgpack:"version,omitempty"`
+	Sign    []byte `msgpack:"sign,omitempty"`
+}
+
+func GenerateVerificationKeyForPublicDice(data any) string {
+	doEcdsaSign := len(SealTrustedClientPrivateKey) > 0
+	pp, _ := msgpack.Marshal(data)
+
+	var sign []byte
+	if doEcdsaSign {
+		var err error
+		sign, err = crypto.EcdsaSignRow(pp, SealTrustedClientPrivateKey)
+		if err != nil {
+			return ""
+		}
+	} else {
+		h := sha256.New()
+		h.Write(pp)
+		sign = h.Sum(nil)
+	}
+
+	d := payloadPublicDice{
+		Version: VERSION.String(),
+		Sign:    sign,
+	}
+
+	dp, _ := msgpack.Marshal(d)
+	if doEcdsaSign {
+		return fmt.Sprintf("SEAL#%s", base64.StdEncoding.EncodeToString(dp))
+	}
+	return fmt.Sprintf("SEAL~%s", base64.StdEncoding.EncodeToString(dp))
 }

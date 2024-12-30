@@ -166,7 +166,7 @@ func forceStop(c echo.Context) error {
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
-				i.BanList.SaveChanged(i)
+				i.Config.BanList.SaveChanged(i)
 				i.AttrsManager.CheckForSave()
 				i.Save(true)
 				for _, j := range i.ExtList {
@@ -190,7 +190,11 @@ func forceStop(c echo.Context) error {
 				dbData := d.DBData
 				if dbData != nil {
 					d.DBData = nil
-					_ = dbData.Close()
+					db, err := dbData.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -201,7 +205,11 @@ func forceStop(c echo.Context) error {
 				dbLogs := d.DBLogs
 				if dbLogs != nil {
 					d.DBLogs = nil
-					_ = dbLogs.Close()
+					db, err := dbLogs.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 
@@ -213,7 +221,11 @@ func forceStop(c echo.Context) error {
 				if cm != nil && cm.DB != nil {
 					dbCensor := cm.DB
 					cm.DB = nil
-					_ = dbCensor.Close()
+					db, err := dbCensor.DB()
+					if err != nil {
+						return
+					}
+					_ = db.Close()
 				}
 			})()
 		}
@@ -626,8 +638,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/dice/cmdList", DiceAllCommand)
 	e.POST(prefix+"/dice/upload_to_upgrade", DiceNewVersionUpload)
 
-	e.POST(prefix+"/dice/config/vm-version-for-reply-set", vmVersionForReplySet)
-	e.POST(prefix+"/dice/config/vm-version-for-deck-set", vmVersionForDeckSet)
+	e.POST(prefix+"/dice/config/vm-version-set", vmVersionSet)
 
 	e.POST(prefix+"/signin", doSignIn)
 	e.GET(prefix+"/signin/salt", doSignInGetSalt)

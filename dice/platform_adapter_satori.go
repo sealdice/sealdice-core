@@ -440,7 +440,7 @@ func (pa *PlatformAdapterSatori) SendToGroup(ctx *MsgContext, groupID string, te
 	pa.sendMsgRaw(ctx, UserIDExtract(groupID), text, flag, "group")
 }
 
-func (pa *PlatformAdapterSatori) sendMsgRaw(ctx *MsgContext, channelID string, text string, flag string, msgType string) {
+func (pa *PlatformAdapterSatori) sendMsgRaw( /* ctx */ _ *MsgContext, channelID string, text string /* flag */, _ string, msgType string) {
 	log := pa.Session.Parent.Logger
 	req, err := json.Marshal(map[string]interface{}{
 		"channel_id": channelID,
@@ -554,6 +554,7 @@ func (pa *PlatformAdapterSatori) post(resource string, body io.Reader) ([]byte, 
 		request.Header.Add("Authorization", "Bearer "+pa.Token)
 	}
 	request.Header.Add("X-Platform", pa.Platform)
+	//nolint:canonicalheader
 	request.Header.Add("X-Self-ID", UserIDExtract(pa.EndPoint.UserID))
 	resp, err := client.Do(request)
 	if err != nil {
@@ -809,21 +810,21 @@ func (pa *PlatformAdapterSatori) guildRequestHandle(e *SatoriEvent) {
 
 	eid := e.ID.String()
 	// 邀请人在黑名单上
-	banInfo, ok := d.BanList.GetByID(uid)
+	banInfo, ok := d.Config.BanList.GetByID(uid)
 	if ok {
-		if banInfo.Rank == BanRankBanned && d.BanList.BanBehaviorRefuseInvite {
+		if banInfo.Rank == BanRankBanned && d.Config.BanList.BanBehaviorRefuseInvite {
 			pa.sendGuildRequestResult(eid, false, "黑名单")
 			return
 		}
 	}
 	// 信任模式，如果不是信任，又不是 master 则拒绝拉群邀请
 	isMaster := d.IsMaster(uid)
-	if d.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
+	if d.Config.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
 		pa.sendGuildRequestResult(eid, false, "只允许骰主设置信任的人拉群")
 		return
 	}
 	// 群在黑名单上
-	banInfo, ok = d.BanList.GetByID(guildID)
+	banInfo, ok = d.Config.BanList.GetByID(guildID)
 	if ok {
 		if banInfo.Rank == BanRankBanned {
 			pa.sendGuildRequestResult(eid, false, "群黑名单")
@@ -831,7 +832,7 @@ func (pa *PlatformAdapterSatori) guildRequestHandle(e *SatoriEvent) {
 		}
 	}
 	// 拒绝加群
-	if d.RefuseGroupInvite {
+	if d.Config.RefuseGroupInvite {
 		pa.sendGuildRequestResult(eid, false, "设置拒绝加群")
 		return
 	}
@@ -870,15 +871,15 @@ func (pa *PlatformAdapterSatori) friendRequestHandle(e *SatoriEvent) {
 
 	eid := e.ID.String()
 	// 申请人在黑名单上
-	banInfo, ok := d.BanList.GetByID(uid)
+	banInfo, ok := d.Config.BanList.GetByID(uid)
 	if ok {
-		if banInfo.Rank == BanRankBanned && d.BanList.BanBehaviorRefuseInvite {
+		if banInfo.Rank == BanRankBanned && d.Config.BanList.BanBehaviorRefuseInvite {
 			pa.sendGuildRequestResult(eid, false, "为被禁止用户，准备自动拒绝")
 			return
 		}
 	}
 
-	if strings.TrimSpace(d.FriendAddComment) == "" {
+	if strings.TrimSpace(d.Config.FriendAddComment) == "" {
 		pa.sendFriendRequestResult(eid, true, "")
 	} else {
 		pa.sendFriendRequestResult(eid, false, "存在好友问题校验，准备自动拒绝，请联系骰主")

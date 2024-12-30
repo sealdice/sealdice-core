@@ -24,18 +24,20 @@ type PlatformAdapterSealChat struct {
 	EchoMap    SyncMap[string, chan any] `yaml:"-" json:"-"`
 	UserID     string                    `yaml:"-" json:"-"`
 
-	Reconnecting bool `yaml:"-" json:"-"`
-	RetryTimes   int  `yaml:"-" json:"-"`
+	Reconnecting    bool `yaml:"-" json:"-"`
+	RetryTimes      int  `yaml:"-" json:"-"`
+	RetryTimesLimit int  `yaml:"-" json:"-"`
 }
 
 func (pa *PlatformAdapterSealChat) Serve() int {
-	if !strings.HasPrefix(pa.ConnectURL, "ws://") {
+	if !strings.HasPrefix(pa.ConnectURL, "ws://") && !strings.HasPrefix(pa.ConnectURL, "wss://") {
 		pa.ConnectURL = "ws://" + pa.ConnectURL
 	}
 	socket := gowebsocket.New(pa.ConnectURL)
 	pa.Socket = &socket
 	pa.EndPoint.Nickname = "SealChat Bot"
 	pa.EndPoint.UserID = "SEALCHAT:BOT"
+	pa.RetryTimesLimit = 1
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -62,7 +64,6 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		pa.Reconnecting = true
 		ep.State = 2
 		ep.Enable = true
-		pa.RetryTimes = 0
 
 		d := pa.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
@@ -75,7 +76,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 			},
 		})
 
-		log.Info("SealChat 已连接，正在发送身份验证信息")
+		log.Info("SealChat 建立连接，正在发送身份验证信息")
 		pa.Reconnecting = false
 	}
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
@@ -109,6 +110,10 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 						ep.Nickname = data.Body.User.Nick
 						ep.State = 1
 						log.Infof("SealChat 连接成功: %s", ep.Nickname)
+
+						// 握手成功，通过验证
+						pa.RetryTimes = 0
+						pa.RetryTimesLimit = 15
 					}
 
 					go func() {
@@ -143,6 +148,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		log.Errorf("SealChat websocket出现错误: %s", err)
 		if !socket.IsConnected && !pa.Reconnecting {
 			// socket.Close()
+			time.Sleep(time.Duration(10) * time.Second)
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
 				ep.State = 3
@@ -150,11 +156,11 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		}
 	}
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
-		log.Errorf("与SealChat服务器断开连接")
+		log.Info("与SealChat服务器断开连接，尝试进行重连")
 		time.Sleep(time.Duration(2) * time.Second)
 		if !pa.tryReconnect(*pa.Socket) {
-			log.Errorf("尝试进行重连")
 			ep.State = 3
+			log.Errorf("到达连接次数上限，不再进行重连")
 		}
 	}
 	pa.Socket = socket
@@ -162,25 +168,26 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 
 func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool {
 	log := pa.Session.Parent.Logger
-	if pa.Reconnecting {
-		return false
+	if socket.IsConnected {
+		return true
 	}
 	pa.Reconnecting = true
-	pa.RetryTimes = 0
-	allTimes := 500
-	for pa.RetryTimes <= allTimes && !socket.IsConnected {
-		if !pa.EndPoint.Enable {
-			return false
-		}
 
-		pa.RetryTimes++
-		log.Infof("尝试重新连接SealChat中[%d/%d]", pa.RetryTimes, allTimes)
-		socket = gowebsocket.New(pa.ConnectURL)
-		pa.Socket = &socket
-		pa.socketSetup()
-		socket.Connect()
-		time.Sleep(time.Duration(10) * time.Second)
+	if !pa.EndPoint.Enable {
+		return true
 	}
+
+	if pa.RetryTimes >= pa.RetryTimesLimit {
+		return false
+	}
+
+	pa.RetryTimes++
+	log.Infof("尝试重新连接SealChat中[%d/%d]", pa.RetryTimes, pa.RetryTimesLimit)
+	socket = gowebsocket.New(pa.ConnectURL)
+	pa.Socket = &socket
+	pa.socketSetup()
+	socket.Connect()
+
 	pa.Reconnecting = false
 	return true
 }
@@ -378,7 +385,7 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 	ev := satori.Event{}
 	err := json.Unmarshal([]byte(msg), &ev)
 	if err != nil {
-		fmt.Println(err)
+		pa.Session.Parent.Logger.Error("PlatformAdapterSealChat.dispatchMessage", err)
 		return
 	}
 

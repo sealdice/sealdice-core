@@ -92,19 +92,22 @@ func deckEnable(c echo.Context) error {
 	}
 
 	v := struct {
-		Index  int  `json:"index"`
-		Enable bool `json:"enable"`
+		Filename string `json:"filename"`
+		Enable   bool   `json:"enable"`
 	}{}
 	err := c.Bind(&v)
 
 	if err == nil {
-		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
-			myDice.DeckList[v.Index].Enable = v.Enable
-			myDice.MarkModified()
+		for _, deck := range myDice.DeckList {
+			if deck.Filename == v.Filename {
+				deck.Enable = v.Enable
+				myDice.MarkModified()
+				break
+			}
 		}
 	}
 
-	return c.JSON(http.StatusOK, myDice.BanList)
+	return c.JSON(http.StatusOK, myDice.Config.BanList)
 }
 
 func deckDelete(c echo.Context) error {
@@ -118,14 +121,17 @@ func deckDelete(c echo.Context) error {
 	}
 
 	v := struct {
-		Index int `json:"index"`
+		Filename string `json:"filename"`
 	}{}
 	err := c.Bind(&v)
 
-	if err == nil {
-		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
-			dice.DeckDelete(myDice, myDice.DeckList[v.Index])
-			myDice.MarkModified()
+	if err == nil && v.Filename != "" {
+		for _, deck := range myDice.DeckList {
+			if deck.Filename == v.Filename {
+				dice.DeckDelete(myDice, deck)
+				myDice.MarkModified()
+				break
+			}
 		}
 	}
 
@@ -140,23 +146,25 @@ func deckCheckUpdate(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 	v := struct {
-		Index int `json:"index"`
+		Filename string `json:"filename"`
 	}{}
 	err := c.Bind(&v)
 
-	if err == nil {
-		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
-			deck := myDice.DeckList[v.Index]
-			oldDeck, newDeck, tempFileName, err := myDice.DeckCheckUpdate(deck)
-			if err != nil {
-				return Error(&c, err.Error(), Response{})
+	if err == nil && v.Filename != "" {
+		for _, deck := range myDice.DeckList {
+			if deck.Filename == v.Filename {
+				oldDeck, newDeck, tempFileName, err := myDice.DeckCheckUpdate(deck)
+				if err != nil {
+					return Error(&c, err.Error(), Response{})
+				}
+				return Success(&c, Response{
+					"old":          oldDeck,
+					"new":          newDeck,
+					"format":       deck.FileFormat,
+					"filename":     deck.Filename,
+					"tempFileName": tempFileName,
+				})
 			}
-			return Success(&c, Response{
-				"old":          oldDeck,
-				"new":          newDeck,
-				"format":       deck.FileFormat,
-				"tempFileName": tempFileName,
-			})
 		}
 	}
 	return Success(&c, Response{})
@@ -170,18 +178,21 @@ func deckUpdate(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 	v := struct {
-		Index        int    `json:"index"`
+		Filename     string `json:"filename"`
 		TempFileName string `json:"tempFileName"`
 	}{}
 	err := c.Bind(&v)
 
-	if err == nil {
-		if v.Index >= 0 && v.Index < len(myDice.DeckList) {
-			err := myDice.DeckUpdate(myDice.DeckList[v.Index], v.TempFileName)
-			if err != nil {
-				return Error(&c, err.Error(), Response{})
+	if err == nil && v.Filename != "" {
+		for _, deck := range myDice.DeckList {
+			if deck.Filename == v.Filename {
+				err := myDice.DeckUpdate(deck, v.TempFileName)
+				if err != nil {
+					return Error(&c, err.Error(), Response{})
+				}
+				myDice.MarkModified()
+				break
 			}
-			myDice.MarkModified()
 		}
 	}
 	return Success(&c, Response{})

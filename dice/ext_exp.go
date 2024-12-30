@@ -590,7 +590,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 
 				// 进行简化卡的尝试解析
 				input := cmdArgs.CleanArgs
-				re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))([^=\s\d]+\d+)`)
+				re := regexp.MustCompile(`^(([^\s\-#]{1,25})([-#]))([^=\s\d(\[{\-+]+\d+)`)
 				matches := re.FindStringSubmatch(input)
 				if len(matches) > 0 {
 					flag := matches[3]
@@ -644,7 +644,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				rRestIput := ctx.vm.RestInput
+				rRestIput := mctx.vm.RestInput
 
 				// 处理直接设置属性
 				var text string

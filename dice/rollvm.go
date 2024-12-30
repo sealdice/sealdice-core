@@ -559,7 +559,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			num := int(code.Value)
 
 			outStr := ""
-			for index := 0; index < num; index++ {
+			for index := range num {
 				var val VMStack
 				if top-num+index < 0 {
 					return nil, "", errors.New("E3:无效的表达式")
@@ -733,7 +733,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				return nil, "", getE5()
 			}
 
-			for i := int64(0); i < t.Value.(int64); i++ {
+			for range t.Value.(int64) {
 				n := DiceRoll64x(ctx._v1Rand, 10)
 
 				if n == 10 {
@@ -1269,7 +1269,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			checkDice(&code)
 			text := ""
 			sum := int64(0)
-			for i := 0; i < 4; i++ {
+			for range 4 {
 				n := rand.Int63()%3 - 1
 				sum += n
 				switch n {
@@ -1313,7 +1313,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				}
 
 				var nums []int64
-				for i := int64(0); i < aInt; i++ {
+				for range aInt {
 					if e.flags.BigFailDiceOn {
 						nums = append(nums, bInt)
 					} else {
@@ -1328,7 +1328,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				}
 
 				num := int64(0)
-				for i := int64(0); i < diceKQ; i++ {
+				for i := range diceKQ {
 					// 当取数大于上限 跳过
 					if i >= int64(len(nums)) {
 						continue
@@ -1337,8 +1337,8 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				}
 
 				text := "{"
-				for i := int64(0); i < int64(len(nums)); i++ {
-					if i == diceKQ {
+				for i := range nums {
+					if int64(i) == diceKQ {
 						text += "| "
 					}
 					text += fmt.Sprintf("%d ", nums[i])
@@ -1355,7 +1355,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 				// XXX Dice YYY, 如 3d100
 				var num int64
 				text := ""
-				for i := int64(0); i < aInt; i++ {
+				for range aInt {
 					var curNum int64
 					if e.flags.BigFailDiceOn {
 						curNum = bInt
@@ -1439,7 +1439,7 @@ func DiceDCRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int6
 		var detailsOne []string
 		maxDice := int64(0)
 
-		for i := int64(0); i < pool; i++ {
+		for range pool {
 			one := DiceRoll64x(randSrc, points)
 			if one > maxDice {
 				maxDice = one
@@ -1496,7 +1496,7 @@ func DiceWodRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int
 		addCount := int64(0)
 		var detailsOne []string
 
-		for i := int64(0); i < pool; i++ {
+		for range pool {
 			var reachSuccess bool
 			var reachAddRound bool
 			one := DiceRoll64x(randSrc, points)

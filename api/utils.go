@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +16,7 @@ import (
 	"github.com/monaco-io/request"
 
 	"sealdice-core/dice"
+	log "sealdice-core/utils/kratos"
 )
 
 type Response map[string]interface{}
@@ -39,7 +39,7 @@ func Int64ToBytes(i int64) []byte {
 }
 
 func doAuth(c echo.Context) bool {
-	token := c.Request().Header.Get("token")
+	token := c.Request().Header.Get("token") //nolint:canonicalheader // private header
 	if token == "" {
 		token = c.QueryParam("token")
 	}
@@ -74,11 +74,11 @@ func GetHexData(c echo.Context, method string, name string) (value []byte, finis
 	return value, false
 }
 
-var times = 0
+var getAvatarCounter = 0
 
 func getGithubAvatar(c echo.Context) error {
-	times++
-	if times > 500 {
+	getAvatarCounter++
+	if getAvatarCounter > 500 {
 		// 请求次数过多
 		return c.JSON(http.StatusNotFound, "")
 	}
@@ -110,10 +110,10 @@ func packGocqConfig(relWorkDir string) *bytes.Buffer {
 	zipWriter := zip.NewWriter(buf)
 
 	if err := compressFile(filepath.Join(rootPath, "config.yml"), "config.yml", zipWriter); err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 	if err := compressFile(filepath.Join(rootPath, "device.json"), "device.json", zipWriter); err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 	_ = compressFile(filepath.Join(rootPath, "data/versions/1.json"), "data/versions/6.json", zipWriter)
 	_ = compressFile(filepath.Join(rootPath, "data/versions/6.json"), "data/versions/6.json", zipWriter)
@@ -148,11 +148,12 @@ func checkUidExists(c echo.Context, uid string) bool {
 			var relWorkDir string
 			if pa.BuiltinMode == "lagrange" {
 				relWorkDir = "extra/lagrange-qq" + uid
+			} else if pa.BuiltinMode == "lagrange-gocq" {
+				relWorkDir = "extra/lagrange-gocq-qq" + uid
 			} else {
 				// 默认为gocq
 				relWorkDir = "extra/go-cqhttp-qq" + uid
 			}
-			fmt.Println(relWorkDir, i.RelWorkDir)
 			if relWorkDir == i.RelWorkDir {
 				// 不允许工作路径重复
 				_ = c.JSON(CodeAlreadyExists, i)
@@ -169,7 +170,45 @@ func checkUidExists(c echo.Context, uid string) bool {
 	return false
 }
 
-var timeout = 5 * time.Second
+const (
+	checkTimes   = 3
+	checkTimeout = 5 * time.Second
+)
+
+func checkHTTPConnectivity(url string) bool {
+	client := http.Client{
+		Timeout: checkTimeout,
+	}
+	rsChan := make(chan bool, checkTimes)
+	once := func(wg *sync.WaitGroup, url string) {
+		defer wg.Done()
+		resp, err := client.Get(url)
+		log.Debugf("check http connectivity, url=%s", url)
+		if err == nil {
+			_ = resp.Body.Close()
+			rsChan <- true
+		} else {
+			log.Debugf("url can't be connected, error: %s", err)
+			rsChan <- false
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(checkTimes)
+	for range checkTimes {
+		go once(&wg, url)
+	}
+	go func() {
+		wg.Wait()
+		close(rsChan)
+	}()
+
+	ok := true
+	for res := range rsChan {
+		ok = ok && res
+	}
+	return ok
+}
 
 func checkNetworkHealth(c echo.Context) error {
 	total := 5 // baidu, seal, sign, google, github
@@ -178,25 +217,20 @@ func checkNetworkHealth(c echo.Context) error {
 	wg.Add(total)
 	rsChan := make(chan string, 5)
 
-	checkHTTPConnectivity := func(target string, urls []string) {
+	checkUrls := func(target string, urls []string) {
 		defer wg.Done()
-		client := http.Client{
-			Timeout: timeout,
-		}
 		for _, url := range urls {
-			resp, err := client.Get(url)
-			if err == nil {
-				_ = resp.Body.Close()
+			if checkHTTPConnectivity(url) {
 				rsChan <- target
 				break
 			}
 		}
 	}
-	go checkHTTPConnectivity("baidu", []string{"https://baidu.com"})
-	go checkHTTPConnectivity("seal", dice.BackendUrls)
-	go checkHTTPConnectivity("sign", []string{"https://sign.lagrangecore.org/api/sign/ping"})
-	go checkHTTPConnectivity("google", []string{"https://google.com"})
-	go checkHTTPConnectivity("github", []string{"https://github.com"})
+	go checkUrls("baidu", []string{"https://baidu.com"})
+	go checkUrls("seal", dice.BackendUrls)
+	go checkUrls("sign", []string{"https://sign.lagrangecore.org/api/sign/ping"})
+	go checkUrls("google", []string{"https://google.com"})
+	go checkUrls("github", []string{"https://github.com"})
 
 	go func() {
 		wg.Wait()

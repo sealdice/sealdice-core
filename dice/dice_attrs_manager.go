@@ -1,22 +1,28 @@
 package dice
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	ds "github.com/sealdice/dicescript"
-	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 type AttrsManager struct {
-	db     *sqlx.DB
-	logger *zap.SugaredLogger
+	db     *gorm.DB
+	logger *log.Helper
+	cancel context.CancelFunc
 	m      SyncMap[string, *AttributesItem]
+}
+
+func (am *AttrsManager) Stop() {
+	log.Info("结束数据库保存程序...")
+	am.cancel()
 }
 
 // LoadByCtx 获取当前角色，如有绑定，则获取绑定的角色，若无绑定，获取群内默认卡
@@ -149,14 +155,25 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 func (am *AttrsManager) Init(d *Dice) {
 	am.db = d.DBData
 	am.logger = d.Logger
+	// 创建一个 context 用于取消 goroutine
+	ctx, cancel := context.WithCancel(context.Background())
+	// 确保程序退出时取消上下文
 	go func() {
 		// NOTE(Xiangze Li): 这种不退出的goroutine不利于平稳结束程序
 		for {
-			am.CheckForSave()
-			am.CheckAndFreeUnused()
-			time.Sleep(15 * time.Second)
+			select {
+			case <-ctx.Done():
+				// 检测到取消信号后退出循环
+				return
+			default:
+				// 正常工作
+				am.CheckForSave()
+				am.CheckAndFreeUnused()
+				time.Sleep(15 * time.Second)
+			}
 		}
 	}()
+	am.cancel = cancel
 }
 
 func (am *AttrsManager) CheckForSave() (int, int) {
@@ -169,24 +186,18 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 		return 0, 0
 	}
 
-	tx, err := db.Begin()
-	if err != nil {
-		if am.logger != nil {
-			am.logger.Errorf("定期写入用户数据出错(创建事务): %v", err)
-		}
-		return 0, 0
-	}
+	tx := db.Begin()
 
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
 			saved += 1
-			value.SaveToDB(db, tx)
+			value.SaveToDB(tx)
 		}
 		times += 1
 		return true
 	})
 
-	err = tx.Commit()
+	err := tx.Commit().Error
 	if err != nil {
 		if am.logger != nil {
 			am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
@@ -207,14 +218,22 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 
 	prepareToFree := map[string]int{}
 	currentTime := time.Now().Unix()
+	tx := db.Begin()
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if value.LastUsedTime-currentTime > 60*10 {
 			prepareToFree[key] = 1
-			value.SaveToDB(am.db, nil)
+			// 直接保存
+			value.SaveToDB(tx)
 		}
 		return true
 	})
-
+	err := tx.Commit().Error
+	if err != nil {
+		if am.logger != nil {
+			am.logger.Errorf("定期清理无用用户数据出错(提交事务): %v", err)
+		}
+		_ = tx.Rollback()
+	}
 	for key := range prepareToFree {
 		am.m.Delete(key)
 	}
@@ -279,15 +298,15 @@ type AttributesItem struct {
 	SheetType        string
 }
 
-func (i *AttributesItem) SaveToDB(db *sqlx.DB, tx *sql.Tx) {
+func (i *AttributesItem) SaveToDB(db *gorm.DB) {
 	// 使用事务写入
 	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
 	if err != nil {
 		return
 	}
-	err = model.AttrsPutById(db, tx, i.ID, rawData, i.Name, i.SheetType)
+	err = model.AttrsPutById(db, i.ID, rawData, i.Name, i.SheetType)
 	if err != nil {
-		fmt.Println("保存数据失败", err.Error())
+		log.Error("保存数据失败", err.Error())
 		return
 	}
 	i.IsSaved = true

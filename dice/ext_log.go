@@ -26,7 +26,11 @@ var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
 	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 
-	v := ctx.EvalFString(tmpl, nil)
+	config := ctx.GenDefaultRollVmConfig()
+	config.HookFuncValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+		return nil, true
+	}
+	v := ctx.EvalFString(tmpl, config)
 	if v.vm.Error != nil {
 		ctx.Dice.Logger.Infof("SN指令模板错误: %v", v.vm.Error.Error())
 		return "", v.vm.Error
@@ -294,7 +298,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				group.UpdatedAtTime = time.Now().Unix()
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
-				getAndUpload(group.GroupID, group.LogCurName)
+				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
+				go getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
 				group.UpdatedAtTime = time.Now().Unix()
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -880,11 +885,11 @@ func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.L
 	if ok {
 		if size, okCount := model.LogLinesCountGet(ctx.Dice.DBLogs, groupID, logName); okCount {
 			// 默认每记录500条发出提示
-			if ctx.Dice.LogSizeNoticeEnable {
-				if ctx.Dice.LogSizeNoticeCount == 0 {
-					ctx.Dice.LogSizeNoticeCount = 500
+			if ctx.Dice.Config.LogSizeNoticeEnable {
+				if ctx.Dice.Config.LogSizeNoticeCount == 0 {
+					ctx.Dice.Config.LogSizeNoticeCount = DefaultConfig.LogSizeNoticeCount
 				}
-				if size > 0 && int(size)%ctx.Dice.LogSizeNoticeCount == 0 {
+				if size > 0 && int(size)%ctx.Dice.Config.LogSizeNoticeCount == 0 {
 					VarSetValueInt64(ctx, "$t条数", size)
 					text := DiceFormatTmpl(ctx, "日志:记录_条数提醒")
 					// text := fmt.Sprintf("提示: 当前故事的文本已经记录了 %d 条", size)

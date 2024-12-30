@@ -12,15 +12,16 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
 
@@ -74,7 +75,7 @@ func RandString(n int) string {
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 
 	bytes := make([]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		b := r.Intn(26) + 65
 		bytes[i] = byte(b)
 	}
@@ -380,8 +381,8 @@ servers:
 `
 
 func GenerateConfig(qq int64, port int, info GoCqhttpLoginInfo) string {
-	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", fmt.Sprintf("%d", port))
-	ret = strings.Replace(ret, "{QQ帐号}", fmt.Sprintf("%d", qq), 1)
+	ret := strings.ReplaceAll(defaultConfig, "{WS端口}", strconv.Itoa(port))
+	ret = strings.Replace(ret, "{QQ帐号}", strconv.FormatInt(qq, 10), 1)
 	ret = strings.Replace(ret, "{QQ密码}", info.Password, 1)
 
 	if info.UseSignServer && info.SignServerConfig != nil {
@@ -820,7 +821,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 							pa.GoCqhttpLoginCaptcha = ""
 							go func() {
 								// 检查是否有短信验证码
-								for i := 0; i < 100; i++ {
+								for range 100 {
 									if pa.GoCqhttpState != GoCqhttpStateCodeInLoginBar {
 										break
 									}
@@ -844,7 +845,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					pa.GoCqhttpLoginVerifyCode = ""
 					go func() {
 						// 检查是否有短信验证码
-						for i := 0; i < 100; i++ {
+						for range 100 {
 							if pa.GoCqhttpState != GoCqhttpStateCodeInLoginVerifyCode {
 								break
 							}
@@ -881,7 +882,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 			if strings.Contains(line, "请使用手机QQ扫描二维码以继续登录") {
 				// TODO
-				fmt.Println("请使用手机QQ扫描二维码以继续登录")
+				log.Info("请使用手机QQ扫描二维码以继续登录")
 			}
 
 			if (pa.IsLoginSuccessed() && strings.Contains(line, "[ERROR]:") && strings.Contains(line, "Protocol -> sendPacket msg error: 120")) || strings.Contains(line, "账号可能被风控####2测试触发语句") {
@@ -930,11 +931,11 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					if !skip {
 						dice.Logger.Infof("onebot | %s", stripansi.Strip(line))
 					} else if strings.HasSuffix(line, "\n") {
-						fmt.Printf("onebot | %s", line)
+						dice.Logger.Infof("onebot | %s", line[:len(line)-1])
 					}
 				} else {
 					if strings.HasSuffix(line, "\n") {
-						fmt.Printf("onebot | %s", line)
+						dice.Logger.Infof("onebot | %s", line[:len(line)-1])
 					}
 
 					skip := false
@@ -963,7 +964,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			<-chQrCode
 			if _, err := os.Stat(qrcodeFile); err == nil {
 				dice.Logger.Info("onebot: 二维码已经就绪")
-				fmt.Println("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
+				fmt.Fprintln(os.Stdout, "如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
 				qrdata, err := os.ReadFile(qrcodeFile)
 				if err == nil {
 					pa.GoCqhttpState = StateCodeInLoginQrCode
@@ -1036,7 +1037,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 var isGocqDownloading = false
 
-func downloadGoCqhttp(logger *zap.SugaredLogger) {
+func downloadGoCqhttp(logger *log.Helper) {
 	fn := "go-cqhttp/go-cqhttp"
 	if runtime.GOOS == "windows" {
 		fn += ".exe"

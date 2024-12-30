@@ -9,6 +9,8 @@ import (
 
 	wr "github.com/mroth/weightedrand"
 	"github.com/xuri/excelize/v2"
+
+	log "sealdice-core/utils/kratos"
 )
 
 type NamesGenerator struct {
@@ -24,7 +26,7 @@ func (ng *NamesGenerator) Load() {
 	for _, fn := range []string{"./data/names/names.xlsx", "./data/names/names-dnd.xlsx"} {
 		f, err := excelize.OpenFile(fn)
 		if err != nil {
-			fmt.Println("加载names信息出错", fn, err)
+			log.Warn("加载names信息出错", fn, err)
 			continue
 		}
 
@@ -53,7 +55,7 @@ func (ng *NamesGenerator) Load() {
 		}
 
 		if err := f.Close(); err != nil {
-			fmt.Println(err)
+			log.Error("NamesGenerator.Load", err)
 		}
 	}
 }
@@ -112,7 +114,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 				length = length2
 			}
 
-			for index := 0; index < length; index++ {
+			for index := range length {
 				choices = append(choices, wr.NewChoice(index, uint(weightLst[index])))
 			}
 			restText = sp[0]

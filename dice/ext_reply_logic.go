@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	log "sealdice-core/utils/kratos"
+
 	"github.com/antlabs/strsim"
 	"gopkg.in/yaml.v3"
 )
@@ -148,7 +150,7 @@ func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, 
 	// r := ctx.Eval(m.Value, ds.RollConfig{})
 	flags := RollExtraFlags{
 		V2Only: true,
-		V1Only: ctx.Dice.VMVersionForReply == "v1",
+		V1Only: ctx.Dice.getTargetVmEngineVersion(VMVersionReply) == "v1",
 	}
 
 	r, _, err := DiceExprEvalBase(ctx, m.Value, flags)
@@ -182,7 +184,7 @@ func formatExprForReply(ctx *MsgContext, expr string) string {
 	var text string
 	var err error
 
-	if ctx.Dice.VMVersionForReply == "v1" {
+	if ctx.Dice.getTargetVmEngineVersion(VMVersionReply) == "v1" {
 		text, err = DiceFormatV1(ctx, expr)
 		if err != nil {
 			// text = fmt.Sprintf("执行出错V1: %s", err.Error())
@@ -260,7 +262,7 @@ func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	flags := RollExtraFlags{
 		V2Only: true,
-		V1Only: ctx.Dice.VMVersionForReply == "v1",
+		V1Only: ctx.Dice.getTargetVmEngineVersion(VMVersionReply) == "v1",
 	}
 	_, _, _ = DiceExprTextBase(ctx, m.Message, flags)
 }
@@ -303,7 +305,7 @@ func (c *ReplyConfig) Save(dice *Dice) {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", c.Filename)
 	buf, err := yaml.Marshal(c)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("ReplyConfig.Save", err)
 	} else {
 		_ = os.WriteFile(attrConfigFn, buf, 0644)
 	}

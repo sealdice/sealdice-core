@@ -139,6 +139,7 @@ func socketSendText(socket *gowebsocket.Socket, s string) {
 	}()
 
 	if socket != nil {
+		// 什么也不做，这样就能用来做不发话的测试
 		socket.SendText(s)
 	}
 }
@@ -159,8 +160,8 @@ func socketSendBinary(socket *gowebsocket.Socket, data []byte) { //nolint
 func doSleepQQ(ctx *MsgContext) {
 	if ctx.Dice != nil {
 		d := ctx.Dice
-		offset := d.MessageDelayRangeEnd - d.MessageDelayRangeStart
-		time.Sleep(time.Duration((d.MessageDelayRangeStart + rand.Float64()*offset) * float64(time.Second)))
+		offset := d.Config.MessageDelayRangeEnd - d.Config.MessageDelayRangeStart
+		time.Sleep(time.Duration((d.Config.MessageDelayRangeStart + rand.Float64()*offset) * float64(time.Second)))
 	} else {
 		time.Sleep(time.Duration((0.4 + rand.Float64()/2) * float64(time.Second)))
 	}
@@ -197,6 +198,18 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text
 
 	text = textAssetsConvert(text)
 	texts := textSplit(text)
+
+	for index, subText := range texts {
+		re := regexp.MustCompile(`\[CQ:poke,qq=(\d+)\]`)
+
+		if re.MatchString(subText) {
+			re = regexp.MustCompile(`\d+`)
+			qq := re.FindStringSubmatch(subText)
+			pa.FriendPoke(qq[0])
+			texts = append(texts[:index], texts[index+1:]...)
+		}
+	}
+
 	for _, subText := range texts {
 		a, _ := json.Marshal(oneBotCommand{
 			Action: "send_msg",
@@ -209,6 +222,41 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text
 		doSleepQQ(ctx)
 		socketSendText(pa.Socket, string(a))
 	}
+}
+
+type PokeStruct struct {
+	UserID  int64 `json:"user_id"`
+	GroupID int64 `json:"group_id,omitempty"`
+}
+
+func (pa *PlatformAdapterGocq) FriendPoke(userId string) {
+	userID, _ := strconv.ParseInt(userId, 10, 64)
+
+	text, _ := json.Marshal(oneBotCommand{
+		Action: "friend_poke",
+		Params: PokeStruct{
+			UserID: userID,
+		},
+	})
+	s := string(text)
+
+	socketSendText(pa.Socket, s)
+}
+
+func (pa *PlatformAdapterGocq) GroupPoke(ctx *MsgContext, userId string) {
+	groupId := strings.ReplaceAll(ctx.Group.GroupID, "QQ-Group:", "")
+	groupID, _ := strconv.ParseInt(groupId, 10, 64)
+	userID, _ := strconv.ParseInt(userId, 10, 64)
+
+	text, _ := json.Marshal(oneBotCommand{
+		Action: "group_poke",
+		Params: PokeStruct{
+			UserID:  userID,
+			GroupID: groupID,
+		},
+	})
+	s := string(text)
+	socketSendText(pa.Socket, s)
 }
 
 func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
@@ -253,6 +301,17 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 
 	text = textAssetsConvert(text)
 	texts := textSplit(text)
+
+	for index, subText := range texts {
+		re := regexp.MustCompile(`\[CQ:poke,qq=(\d+)\]`)
+
+		if re.MatchString(subText) {
+			re = regexp.MustCompile(`\d+`)
+			qq := re.FindStringSubmatch(subText)
+			pa.GroupPoke(ctx, qq[0])
+			texts = append(texts[:index], texts[index+1:]...)
+		}
+	}
 
 	for index, subText := range texts {
 		var a []byte
@@ -626,7 +685,6 @@ func textSplit(input string) []string {
 			input = input[0:span[0]] + input[span[1]:]
 		}
 	}
-
 	splits := utils.SplitLongText(input, 2000, utils.DefaultSplitPaginationHint)
 	splits = append(splits, poke...)
 

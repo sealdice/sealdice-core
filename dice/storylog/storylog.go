@@ -9,16 +9,16 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 type UploadEnv struct {
 	Dir      string
-	Db       *sqlx.DB
-	Log      *zap.SugaredLogger
+	Db       *gorm.DB
+	Log      *log.Helper
 	Backends []string
 	Version  StoryVersion
 

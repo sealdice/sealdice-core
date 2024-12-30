@@ -14,11 +14,11 @@ import (
 	"time"
 
 	wr "github.com/mroth/weightedrand"
-	"golang.org/x/time/rate"
+	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/model"
-	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -78,74 +78,94 @@ type ConfigItem struct {
 }
 
 func (i *ConfigItem) UnmarshalJSON(data []byte) error {
-	raw := map[string]any{}
+	raw := map[string]json.RawMessage{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	var ok bool
-	if i.Key, ok = raw["key"].(string); !ok {
-		return errors.New("'key' must be a string")
+	if err := json.Unmarshal(raw["key"], &i.Key); err != nil {
+		return fmt.Errorf("ConfigItem: unmarshal 'key' failed as %w", err)
 	}
-	if i.Type, ok = raw["type"].(string); !ok {
-		return errors.New("'type' must be a string")
+	if err := json.Unmarshal(raw["type"], &i.Type); err != nil {
+		return fmt.Errorf("ConfigItem (%s): unmarshal 'type' failed as %w", i.Key, err)
 	}
-	if i.Description, ok = raw["description"].(string); !ok {
-		return errors.New("'description' must be a string")
+	if err := json.Unmarshal(raw["description"], &i.Description); err != nil {
+		return fmt.Errorf("ConfigItem (%s): unmarshal 'description' failed as %w", i.Key, err)
 	}
 	if v, ok := raw["deprecated"]; ok {
-		if i.Deprecated, ok = v.(bool); !ok {
-			return errors.New("'deprecated' must be a bool")
+		if err := json.Unmarshal(v, &i.Deprecated); err != nil {
+			return fmt.Errorf("ConfigItem (%s): unmarshal 'deprecated' failed as %w", i.Key, err)
 		}
 	}
 
 	switch i.Type {
-	case "string", "bool", "float":
-		i.DefaultValue = raw["defaultValue"]
-		i.Value = raw["value"]
+	case "string", "task:cron", "task:daily":
+		var stringVal string
+		if err := json.Unmarshal(raw["defaultValue"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
+		}
+		i.DefaultValue = stringVal
+		if err := json.Unmarshal(raw["value"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = stringVal
+	case "bool":
+		var boolVal bool
+		if err := json.Unmarshal(raw["defaultValue"], &boolVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
+		}
+		i.DefaultValue = boolVal
+		if err := json.Unmarshal(raw["value"], &boolVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = boolVal
+	case "float":
+		var floatVal float64
+		if err := json.Unmarshal(raw["defaultValue"], &floatVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
+		}
+		i.DefaultValue = floatVal
+		if err := json.Unmarshal(raw["value"], &floatVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = floatVal
 	case "int":
-		// 2024.08.09 1.4.6首发版本unmarshal产生类型报错修复
-		if v, ok := raw["defaultValue"].(float64); ok {
-			i.DefaultValue = int64(v)
-		} else if v, ok := raw["defaultValue"].(int64); ok {
-			i.DefaultValue = v
+		var intVal int64
+		if err := json.Unmarshal(raw["defaultValue"], &intVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
-		if v, ok := raw["value"]; ok {
-			if v2, ok := v.(float64); ok {
-				i.Value = int64(v2)
-			} else if v2, ok := v.(int64); ok {
-				i.Value = v2
-			}
+		i.DefaultValue = intVal
+		if err := json.Unmarshal(raw["value"], &intVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
+		i.Value = intVal
 	case "template":
-		{
-			v := raw["defaultValue"].([]interface{})
-			strarr := make([]string, len(v))
-			for i, vv := range v {
-				strarr[i] = vv.(string)
-			}
-			i.DefaultValue = strarr
+		var templateVal []string
+		if err := json.Unmarshal(raw["defaultValue"], &templateVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
-		if v, ok := raw["value"]; ok {
-			vv := v.([]interface{})
-			strarr := make([]string, len(vv))
-			for i, vv := range vv {
-				strarr[i] = vv.(string)
-			}
-			i.Value = strarr
+		i.DefaultValue = templateVal
+		if err := json.Unmarshal(raw["value"], &templateVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
 		}
+		i.Value = templateVal
 	case "option":
-		i.DefaultValue = raw["defaultValue"]
-		i.Value = raw["value"]
-		v := raw["option"].([]interface{})
-		strarr := make([]string, len(v))
-		for i, vv := range v {
-			strarr[i] = vv.(string)
+		var stringVal string
+		var optionVal []string
+		if err := json.Unmarshal(raw["defaultValue"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'defaultValue' failed as %w", i.Key, i.Type, err)
 		}
-		i.Option = strarr
+		i.DefaultValue = stringVal
+		if err := json.Unmarshal(raw["value"], &stringVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'value' failed as %w", i.Key, i.Type, err)
+		}
+		i.Value = stringVal
+		if err := json.Unmarshal(raw["option"], &optionVal); err != nil {
+			return fmt.Errorf("ConfigItem (%s-%s): unmarshal 'option' failed as %w", i.Key, i.Type, err)
+		}
+		i.Option = optionVal
 	default:
-		return errors.New("unsupported type " + i.Type)
+		return errors.New("ConfigItem.UnmarshalJSON: unsupported type " + i.Type)
 	}
-
 	return nil
 }
 
@@ -326,16 +346,16 @@ func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
-	fmt.Println("try reset config to default", pluginName, key)
+	log.Debug("try reset config to default", pluginName, key)
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
-		fmt.Println("plugin not found", pluginName)
+		log.Debug("plugin not found", pluginName)
 		return
 	}
 
 	configItem, exists := plugin.Configs[key]
 	if exists {
-		fmt.Println("reset config to default", pluginName, key)
+		log.Debug("reset config to default", pluginName, key)
 		configItem.Value = configItem.DefaultValue
 		plugin.Configs[key] = configItem
 		if strings.HasPrefix(configItem.Type, "task:") {
@@ -755,8 +775,18 @@ func setupBaseTextTemplate(d *Dice) {
 			"制卡_分隔符": {
 				{`\n`, 1},
 			},
+			"检定_单项结果文本": {
+				{`{$t检定过程文本} = {$t检定结果}`, 1},
+			},
 			"检定": {
 				{`{$t玩家}的"{$t技能}"检定（DND5E）结果为: {$t检定过程文本} = {$t检定结果}`, 1},
+			},
+			"检定_多轮": {
+				{`对{$t玩家}的"{$t技能}"进行了{$t次数}次检定（DND5E），结果为:\n{$t结果文本}`, 1},
+			},
+			"检定_轮数过多警告": {
+				{`你真的需要这么多轮检定？{核心:骰子名字}将对你提高警惕！`, 1},
+				{`不支持连续检定{$t次数}次，{核心:骰子名字}觉得这太多了。`, 1},
 			},
 		},
 		"核心": {
@@ -1003,6 +1033,9 @@ func setupBaseTextTemplate(d *Dice) {
 			"鸽子理由": guguReason,
 		},
 		"其它": {
+			"抽牌_牌堆列表": {
+				{"载入并开启的牌堆:\n{$t牌堆列表}", 1},
+			},
 			"抽牌_列表": {
 				{"{$t原始列表}", 1},
 			},
@@ -1463,8 +1496,17 @@ func setupBaseTextTemplate(d *Dice) {
 				SubType:   ".dndx",
 				ExtraText: "带属性名",
 			},
+			"检定_单项结果文本": {
+				SubType: ".rc",
+			},
 			"检定": {
 				SubType: ".rc 力量",
+			},
+			"检定_多轮": {
+				SubType: ".rc 3#力量",
+			},
+			"检定_轮数过多警告": {
+				SubType: ".rc 30#",
 			},
 		},
 		"核心": {
@@ -1724,6 +1766,9 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 		},
 		"其它": {
+			"抽牌_牌堆列表": {
+				SubType: ".draw list",
+			},
 			"抽牌_列表": {
 				SubType: ".draw keys",
 			},
@@ -2057,156 +2102,32 @@ func getNumVal(i interface{}) uint {
 }
 
 func (d *Dice) loads() {
+	config := NewConfig(d)
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
-
-	// 配置这块弄得比较屎，有机会换个方案。。。
-	// TODO(Xiangze Li): 不管谁都好 赶紧重写吧, 谁能想起来加了配置还要在这里添一行才能Load出来哇
 	if err == nil { //nolint:nestif
+		err3 := config.LoadYamlConfig(data)
+		if err3 != nil {
+			d.Logger.Error("serve.yaml parse failed")
+			panic(err3)
+		}
+
+		// 有一些配置项被用 jsbind 导出了，只能先留在 Dice 不迁移了
 		dNew := Dice{}
 		err2 := yaml.Unmarshal(data, &dNew)
 		if err2 != nil {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
-		d.CommandCompatibleMode = true // 一直为true即可
 		d.ImSession.EndPoints = dNew.ImSession.EndPoints
-		d.CommandPrefix = dNew.CommandPrefix
 		d.DiceMasters = dNew.DiceMasters
-		d.VersionCode = dNew.VersionCode
-		d.MessageDelayRangeStart = dNew.MessageDelayRangeStart
-		d.MessageDelayRangeEnd = dNew.MessageDelayRangeEnd
-		d.WorkInQQChannel = dNew.WorkInQQChannel
-		d.QQChannelLogMessage = dNew.QQChannelLogMessage
-		d.QQChannelAutoOn = dNew.QQChannelAutoOn
-		d.QQEnablePoke = dNew.QQEnablePoke
-		d.TextCmdTrustOnly = dNew.TextCmdTrustOnly
-		d.IgnoreUnaddressedBotCmd = dNew.IgnoreUnaddressedBotCmd
-		d.UILogLimit = dNew.UILogLimit
-		d.FriendAddComment = dNew.FriendAddComment
-		d.NoticeIDs = dNew.NoticeIDs
-		d.ExtDefaultSettings = dNew.ExtDefaultSettings
-		d.CustomReplyConfigEnable = dNew.CustomReplyConfigEnable
-		d.RefuseGroupInvite = dNew.RefuseGroupInvite
-		d.DefaultCocRuleIndex = dNew.DefaultCocRuleIndex
-		d.UpgradeWindowID = dNew.UpgradeWindowID
-		d.UpgradeEndpointID = dNew.UpgradeEndpointID
-		d.BotExtFreeSwitch = dNew.BotExtFreeSwitch
-		d.RateLimitEnabled = dNew.RateLimitEnabled
-		d.TrustOnlyMode = dNew.TrustOnlyMode
-		d.AliveNoticeEnable = dNew.AliveNoticeEnable
-		d.AliveNoticeValue = dNew.AliveNoticeValue
-		d.ReplyDebugMode = dNew.ReplyDebugMode
-		d.LogSizeNoticeCount = dNew.LogSizeNoticeCount
-		d.LogSizeNoticeEnable = dNew.LogSizeNoticeEnable
-		d.PlayerNameWrapEnable = dNew.PlayerNameWrapEnable
-		d.MailEnable = dNew.MailEnable
-		d.MailFrom = dNew.MailFrom
-		d.MailPassword = dNew.MailPassword
-		d.MailSMTP = dNew.MailSMTP
-		d.JsEnable = dNew.JsEnable
-		d.DisabledJsScripts = dNew.DisabledJsScripts
-		d.NewsMark = dNew.NewsMark
-
-		d.QuitInactiveThreshold = dNew.QuitInactiveThreshold
-		d.QuitInactiveBatchSize = dNew.QuitInactiveBatchSize
-		if d.QuitInactiveBatchSize == 0 {
-			d.QuitInactiveBatchSize = 10
+		if len(d.DiceMasters) == 0 {
+			d.DiceMasters = DefaultConfig.DiceMasters
 		}
-		d.QuitInactiveBatchWait = dNew.QuitInactiveBatchWait
-		if d.QuitInactiveBatchWait == 0 {
-			d.QuitInactiveBatchWait = 30
+		d.CommandPrefix = dNew.CommandPrefix
+		if len(d.CommandPrefix) == 0 {
+			d.CommandPrefix = DefaultConfig.CommandPrefix
 		}
-
-		d.EnableCensor = dNew.EnableCensor
-		d.CensorMode = dNew.CensorMode
-		d.CensorThresholds = dNew.CensorThresholds
-		d.CensorHandlers = dNew.CensorHandlers
-		d.CensorScores = dNew.CensorScores
-		d.CensorCaseSensitive = dNew.CensorCaseSensitive
-		d.CensorMatchPinyin = dNew.CensorMatchPinyin
-		d.CensorFilterRegexStr = dNew.CensorFilterRegexStr
-
-		d.VMVersionForDeck = dNew.VMVersionForDeck
-		d.VMVersionForReply = dNew.VMVersionForReply
-
-		if d.VMVersionForDeck == "" {
-			d.VMVersionForDeck = "v2"
-		}
-
-		if d.VMVersionForReply == "" {
-			d.VMVersionForReply = "v1"
-		}
-
-		if dNew.BanList != nil {
-			d.BanList.BanBehaviorRefuseReply = dNew.BanList.BanBehaviorRefuseReply
-			d.BanList.BanBehaviorRefuseInvite = dNew.BanList.BanBehaviorRefuseInvite
-			d.BanList.BanBehaviorQuitLastPlace = dNew.BanList.BanBehaviorQuitLastPlace
-			d.BanList.BanBehaviorQuitPlaceImmediately = dNew.BanList.BanBehaviorQuitPlaceImmediately
-			d.BanList.BanBehaviorQuitIfAdmin = dNew.BanList.BanBehaviorQuitIfAdmin
-
-			d.BanList.ScoreReducePerMinute = dNew.BanList.ScoreReducePerMinute
-
-			d.BanList.ThresholdWarn = dNew.BanList.ThresholdWarn
-			d.BanList.ThresholdBan = dNew.BanList.ThresholdBan
-			d.BanList.ScoreGroupMuted = dNew.BanList.ScoreGroupMuted
-			d.BanList.ScoreGroupKicked = dNew.BanList.ScoreGroupKicked
-			d.BanList.ScoreTooManyCommand = dNew.BanList.ScoreTooManyCommand
-
-			d.BanList.JointScorePercentOfGroup = dNew.BanList.JointScorePercentOfGroup
-			d.BanList.JointScorePercentOfInviter = dNew.BanList.JointScorePercentOfInviter
-		}
-
-		d.MaxExecuteTime = dNew.MaxExecuteTime
-		if d.MaxExecuteTime == 0 {
-			d.MaxExecuteTime = 12
-		}
-
-		d.MaxCocCardGen = dNew.MaxCocCardGen
-		if d.MaxCocCardGen == 0 {
-			d.MaxCocCardGen = 5
-		}
-
-		d.PersonalReplenishRateStr = dNew.PersonalReplenishRateStr
-		if d.PersonalReplenishRateStr == "" {
-			d.PersonalReplenishRateStr = "@every 3s"
-			d.PersonalReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(d.PersonalReplenishRateStr); errParse == nil {
-				d.PersonalReplenishRate = parsed
-			} else {
-				d.Logger.Errorf("解析PersonalReplenishRate失败: %v", errParse)
-				d.PersonalReplenishRateStr = "@every 3s"
-				d.PersonalReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		d.PersonalBurst = dNew.PersonalBurst
-		if d.PersonalBurst == 0 {
-			d.PersonalBurst = 3
-		}
-
-		d.GroupReplenishRateStr = dNew.GroupReplenishRateStr
-		if d.GroupReplenishRateStr == "" {
-			d.GroupReplenishRateStr = "@every 3s"
-			d.GroupReplenishRate = rate.Every(time.Second * 3)
-		} else {
-			if parsed, errParse := utils.ParseRate(d.GroupReplenishRateStr); errParse == nil {
-				d.GroupReplenishRate = parsed
-			} else {
-				d.Logger.Errorf("解析GroupReplenishRate失败: %v", errParse)
-				d.GroupReplenishRateStr = "@every 3s"
-				d.GroupReplenishRate = rate.Every(time.Second * 3)
-			}
-		}
-
-		d.GroupBurst = dNew.GroupBurst
-		if d.GroupBurst == 0 {
-			d.GroupBurst = 3
-		}
-
-		if d.DiceMasters == nil || len(d.DiceMasters) == 0 {
-			d.DiceMasters = []string{"UI:1001"}
-		}
+		d.DeckList = dNew.DeckList
 		var newDiceMasters []string
 		for _, i := range d.DiceMasters {
 			if i != "<平台,如QQ>:<帐号,如QQ号>" {
@@ -2252,6 +2173,9 @@ func (d *Dice) loads() {
 		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
+			groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
+				return item.Name
+			})
 			for _, i := range groupInfo.ActivatedExtList {
 				if m[i.Name] != nil {
 					tmp = append(tmp, m[i.Name])
@@ -2277,22 +2201,7 @@ func (d *Dice) loads() {
 			return true
 		})
 
-		if d.VersionCode != 0 && d.VersionCode < 10000 {
-			d.CustomReplyConfigEnable = false
-		}
-
-		if d.VersionCode != 0 && d.VersionCode < 10001 {
-			d.AliveNoticeValue = "@every 3h"
-		}
-
-		if d.VersionCode != 0 && d.VersionCode < 10003 {
-			d.Logger.Infof("进行配置文件版本升级: %d -> %d", d.VersionCode, 10003)
-			d.LogSizeNoticeCount = 500
-			d.LogSizeNoticeEnable = true
-			d.CustomReplyConfigEnable = true
-		}
-
-		if d.VersionCode != 0 && d.VersionCode < 10005 {
+		if config.VersionCode != 0 && config.VersionCode < 10005 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				d.Logger.Info("正在自动升级自定义文案文件")
 				for index, text := range d.TextMapRaw["核心"]["昵称_重置"] {
@@ -2315,10 +2224,10 @@ func (d *Dice) loads() {
 		}
 
 		// 1.2 版本
-		if d.VersionCode != 0 && d.VersionCode < 10200 {
-			d.TextCmdTrustOnly = true
-			d.QQEnablePoke = true
-			d.PlayerNameWrapEnable = true
+		if config.VersionCode != 0 && config.VersionCode < 10200 {
+			config.TextCmdTrustOnly = DefaultConfig.TextCmdTrustOnly
+			config.QQEnablePoke = DefaultConfig.QQEnablePoke
+			config.PlayerNameWrapEnable = DefaultConfig.PlayerNameWrapEnable
 
 			isUI1001Master := false
 			for _, i := range d.DiceMasters {
@@ -2346,7 +2255,7 @@ func (d *Dice) loads() {
 		}
 
 		// 1.2 版本
-		if d.VersionCode != 0 && d.VersionCode < 10203 {
+		if config.VersionCode != 0 && config.VersionCode < 10203 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				// 更正写反的部分
 				d.Logger.Info("正在自动升级自定义文案文件")
@@ -2362,8 +2271,8 @@ func (d *Dice) loads() {
 		}
 
 		// 1.3 版本
-		if d.VersionCode != 0 && d.VersionCode < 10300 {
-			d.JsEnable = true
+		if config.VersionCode != 0 && config.VersionCode < 10300 {
+			config.JsEnable = DefaultConfig.JsEnable
 
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
 				// 更正写反的部分
@@ -2394,16 +2303,18 @@ func (d *Dice) loads() {
 			d.SaveText()
 		})
 
+		d.Config = config
+
 		// 1.4.5 版本 - 覆写lagrange配置
 		for _, i := range d.ImSession.EndPoints {
 			if i.ProtocolType == "onebot" {
 				pa := i.Adapter.(*PlatformAdapterGocq)
 				if pa.BuiltinMode == "lagrange" {
-					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "25765")
+					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "30366")
 					if signServerUrl != "" {
-						// 版本为空，覆写为 "25765"
+						// 版本为空，覆写为 "30366"
 						if signServerVersion == "" {
-							RWLagrangeSignServerUrl(d, i, "sealdice", true, "25765")
+							RWLagrangeSignServerUrl(d, i, "sealdice", true, "30366")
 						}
 					}
 				}
@@ -2422,34 +2333,12 @@ func (d *Dice) loads() {
 		})
 		d.Logger.Info("serve.yaml loaded")
 	} else {
-		// 这里是没有加载到配置文件，所以写默认设置项
-		d.WorkInQQChannel = true
-		d.CustomReplyConfigEnable = false
-		d.AliveNoticeValue = "@every 3h"
 		d.Logger.Info("serve.yaml not found")
-
-		d.LogSizeNoticeCount = 500
-		d.LogSizeNoticeEnable = true
-
-		// 1.2
-		d.QQEnablePoke = true
-		d.TextCmdTrustOnly = true
-		d.PlayerNameWrapEnable = true
-		d.DiceMasters = []string{"UI:1001"}
-
-		// 1.3
-		d.JsEnable = true
-
-		// 1.4
-		d.MaxExecuteTime = 12
-		d.MaxCocCardGen = 5
-
-		d.QuitInactiveBatchSize = 10
-		d.QuitInactiveBatchWait = 30
-
-		// 1.5
-		d.VMVersionForDeck = "v2"
-		d.VMVersionForReply = "v1"
+		// 这里是没有加载到配置文件，所以写默认设置项
+		d.DeckList = config.DeckList
+		d.CommandPrefix = config.CommandPrefix
+		d.DiceMasters = config.DiceMasters
+		d.Config = config
 	}
 
 	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
@@ -2457,7 +2346,7 @@ func (d *Dice) loads() {
 		err := json.Unmarshal(data, &v)
 		if err == nil {
 			v.BanUpdatedAt = banUpdatedAt
-			d.BanList.Map.Store(id, &v)
+			(&d.Config).BanList.Map.Store(id, &v)
 		}
 	})
 
@@ -2466,21 +2355,7 @@ func (d *Dice) loads() {
 		i.AdapterSetup()
 	}
 
-	if d.NoticeIDs == nil {
-		d.NoticeIDs = []string{}
-	}
-
-	if len(d.CommandPrefix) == 0 {
-		d.CommandPrefix = []string{
-			"!",
-			".",
-			"。",
-			"/",
-		}
-	}
-
-	d.VersionCode = 10300 // TODO: 记得修改！！！
-	d.LogWriter.LogLimit = d.UILogLimit
+	d.LogWriter.LogLimit = d.Config.UILogLimit
 
 	// 设置扩展选项
 	d.ApplyExtDefaultSettings()
@@ -2518,7 +2393,7 @@ func (d *Dice) loadAdvanced() {
 func (d *Dice) SaveText() {
 	buf, err := yaml.Marshal(d.TextMapRaw)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("Dice.SaveText", err)
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
@@ -2536,7 +2411,7 @@ func (d *Dice) SaveText() {
 func (d *Dice) ApplyExtDefaultSettings() {
 	// 遍历两个列表
 	exts1 := map[string]*ExtDefaultSettingItem{}
-	for _, i := range d.ExtDefaultSettings {
+	for _, i := range d.Config.ExtDefaultSettings {
 		exts1[i.Name] = i
 	}
 
@@ -2549,7 +2424,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 	for k, v := range exts2 {
 		if _, exists := exts1[k]; !exists {
 			item := &ExtDefaultSettingItem{Name: k, AutoActive: v.AutoActive, DisabledCommand: map[string]bool{}}
-			d.ExtDefaultSettings = append(d.ExtDefaultSettings, item)
+			(&d.Config).ExtDefaultSettings = append((&d.Config).ExtDefaultSettings, item)
 			exts1[k] = item
 		}
 	}
@@ -2597,7 +2472,24 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 func (d *Dice) Save(isAuto bool) {
 	if d.LastUpdatedTime != 0 {
-		a, err1 := yaml.Marshal(d)
+		totalConf := &struct {
+			// copy from Dice
+			ImSession     *IMSession  `yaml:"imSession" jsbind:"imSession" json:"-"`
+			DeckList      []*DeckInfo `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
+			CommandPrefix []string    `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
+			DiceMasters   []string    `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
+
+			Config `yaml:",inline"`
+		}{
+			// 这些都是由于导出到 goja 无法拆分的字段
+			d.ImSession,
+			d.DeckList,
+			d.CommandPrefix,
+			d.DiceMasters,
+
+			d.Config,
+		}
+		a, err1 := yaml.Marshal(totalConf)
 		advancedData, err2 := yaml.Marshal(d.AdvancedConfig)
 
 		if err1 == nil && err2 == nil {
@@ -2605,7 +2497,7 @@ func (d *Dice) Save(isAuto bool) {
 			err2 := os.WriteFile(filepath.Join(d.BaseConfig.DataDir, "advanced.yaml"), advancedData, 0o644)
 			if err1 == nil && err2 == nil {
 				now := time.Now()
-				d.LastSavedTime = &now
+				d.Config.LastSavedTime = &now
 				if isAuto {
 					d.Logger.Info("自动保存")
 				} else {
@@ -2613,11 +2505,11 @@ func (d *Dice) Save(isAuto bool) {
 				}
 				d.LastUpdatedTime = 0
 			} else if err1 != nil && err2 != nil {
-				d.Logger.Errorln("保存 serve.yaml 和 advanced.yaml 出错", err2)
+				d.Logger.Error("保存 serve.yaml 和 advanced.yaml 出错", err2)
 			} else if err1 != nil {
-				d.Logger.Errorln("保存 serve.yaml 出错", err1)
+				d.Logger.Error("保存 serve.yaml 出错", err1)
 			} else {
-				d.Logger.Errorln("保存 advanced.yaml 出错", err2)
+				d.Logger.Error("保存 advanced.yaml 出错", err2)
 			}
 		}
 	}
@@ -2629,7 +2521,12 @@ func (d *Dice) Save(isAuto bool) {
 		if groupInfo.Players != nil {
 			groupInfo.Players.Range(func(key string, value *GroupPlayerInfo) bool {
 				if value.UpdatedAtTime != 0 {
-					_ = model.GroupPlayerInfoSave(d.DBData, groupInfo.GroupID, key, (*model.GroupPlayerInfoBase)(value))
+					// 解离数据库层的操作到调用处，设置对应的信息
+					now := int(time.Now().Unix())
+					value.UserID = key
+					value.GroupID = groupInfo.GroupID
+					value.UpdatedAt = now // 更新当前时间为 UpdatedAt
+					_ = model.GroupPlayerInfoSave(d.DBData, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 				return true
@@ -2654,7 +2551,7 @@ func (d *Dice) Save(isAuto bool) {
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
-	// model.BanMapSet(d.DBData, d.BanList.MapToJSON())
+	// model.BanMapSet(d.DBData, d.Config.BanList.MapToJSON())
 
 	// endpoint数据额外更新到数据库
 	for _, ep := range d.ImSession.EndPoints {

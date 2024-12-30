@@ -72,7 +72,7 @@ func setupConfigDND(_ *Dice) AttributeConfigs {
 }
 
 func getPlayerNameTempFunc(mctx *MsgContext) string {
-	if mctx.Dice.PlayerNameWrapEnable {
+	if mctx.Dice.Config.PlayerNameWrapEnable {
 		return fmt.Sprintf("<%s>", mctx.Player.Name)
 	}
 	return mctx.Player.Name
@@ -398,26 +398,32 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		".rc <属性> // .rc 力量\n" +
 		".rc <属性>豁免 // .rc 力量豁免\n" +
 		".rc <表达式> // .rc 力量+3\n" +
+		".rc 3# <表达式> // 多重检定\n" +
 		".rc 优势 <表达式> // .rc 优势 力量+4\n" +
 		".rc 劣势 <表达式> [<原因>] // .rc 劣势 力量+4 推一下试试\n" +
 		".rc <表达式> @某人 // 对某人做检定"
 
 	cmdRc := &CmdItemInfo{
-		Name:          "rc",
-		ShortHelp:     helpRc,
-		Help:          "DND5E 检定:\n" + helpRc,
-		AllowDelegate: true,
+		// Pinenutn: 从这里添加是否检查有多次检定，很隐蔽，通过简单研究cmdArgs是看不出来的，尚未清楚此处逻辑来源
+		EnableExecuteTimesParse: true,
+		Name:                    "rc",
+		ShortHelp:               helpRc,
+		Help:                    "DND5E 检定:\n" + helpRc,
+		AllowDelegate:           true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.DelegateText = ctx.DelegateText
 			mctx.Player.TempValueAlias = &ac.Alias
-
+			// 参数确认
 			val := cmdArgs.GetArgN(1)
 			switch val {
 			case "", "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
+				// 获取参数
 				restText := cmdArgs.CleanArgs
+				// 检查是否符合要求
 				re := regexp.MustCompile(`^(优势|劣势|優勢|劣勢)`)
 				m := re.FindString(restText)
 				if m != "" {
@@ -425,43 +431,85 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					m = strings.Replace(m, "劣勢", "劣势", 1)
 					restText = strings.TrimSpace(restText[len(m):])
 				}
-				expr := fmt.Sprintf("D20%s + %s", m, restText)
+				// 准备要处理的函数
+				expr := fmt.Sprintf("d20%s + %s", m, restText)
+				// 初始化VM
 				mctx.CreateVmIfNotExists()
+				// 获取角色模板
 				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
-				mctx.Eval(tmpl.PreloadCode, nil)
-				mctx.setDndReadForVM(true)
-
-				r := mctx.Eval(expr, nil)
-				if r.vm.Error != nil {
-					ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+				// 初始化多轮检定结果保存数组
+				textList := make([]string, 0)
+				// 多轮检定判断
+				round := 1
+				if cmdArgs.SpecialExecuteTimes > 1 {
+					round = cmdArgs.SpecialExecuteTimes
+				}
+				// 从COC复制来的轮数检查，同时特判一次的情况，防止完全骰不出去点
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) && cmdArgs.SpecialExecuteTimes != 1 {
+					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
+					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:检定_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				reason := r.vm.RestInput
-				if reason == "" {
-					reason = restText
-				}
-				detail := r.vm.GetDetailText()
-
-				VarSetValueStr(ctx, "$t技能", reason)
-				VarSetValueStr(ctx, "$t检定过程文本", detail)
-				VarSetValueStr(ctx, "$t检定结果", r.ToString())
-
-				text := DiceFormatTmpl(ctx, "DND:检定")
-				// 指令信息
-				commandInfo := map[string]interface{}{
+				// commandInfo配置
+				var commandInfo = map[string]interface{}{
 					"cmd":    "rc",
 					"rule":   "dnd5e",
 					"pcName": mctx.Player.Name,
-					"items": []interface{}{
-						map[string]interface{}{
-							"expr":   expr,
-							"reason": reason,
-							"result": r.Value,
-						},
-					},
+					// items的赋值转移到下面
+					// "items":  []interface{}{},
 				}
+				var commandItems = make([]interface{}, 0)
+				// 循环N轮
+				for range round {
+					// 执行预订的code
+					mctx.Eval(tmpl.PreloadCode, nil)
+					// 为rc设定属性豁免
+					mctx.setDndReadForVM(true)
+					// 执行了一次
+					r := mctx.Eval(expr, nil)
+					// 执行出错就丢出去
+					if r.vm.Error != nil {
+						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					// 拿到执行的结果
+					reason := r.vm.RestInput
+					if reason == "" {
+						reason = restText
+					}
+					detail := r.vm.GetDetailText()
+					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了
+					VarSetValueStr(ctx, "$t技能", reason)
+					VarSetValueStr(ctx, "$t检定过程文本", detail)
+					VarSetValueStr(ctx, "$t检定结果", r.ToString())
+					// 添加对应结果文本，若只执行一次，则使用DND检定，否则使用单项文本初始化
+					if round == 1 {
+						textList = append(textList, DiceFormatTmpl(ctx, "DND:检定"))
+					} else {
+						textList = append(textList, DiceFormatTmpl(ctx, "DND:检定_单项结果文本"))
+					}
+					// 添加对应commandItems
+					commandItems = append(commandItems, map[string]interface{}{
+						"expr":   expr,
+						"reason": reason,
+						"result": r.Value,
+					})
+				}
+				// 拼接文本
+				// 由于循环内保留了最后一次的部分技能文本，所以这里不需要再初始化一次技能
+				var text string
+				if round > 1 {
+					VarSetValueStr(ctx, "$t结果文本", strings.Join(textList, "\n"))
+					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
+					text = DiceFormatTmpl(ctx, "DND:检定_多轮")
+				} else {
+					// 是单轮检定，不需要组装成多轮的描述
+					text = textList[0]
+				}
+				// 赋值commandItems
+				commandInfo["items"] = commandItems
+				// 设置对应的Command
 				mctx.CommandInfo = commandInfo
-
 				if kw := cmdArgs.GetKwarg("ci"); kw != nil {
 					info, err := json.Marshal(mctx.CommandInfo)
 					if err == nil {
@@ -470,9 +518,30 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						text += "\n" + "指令信息无法序列化"
 					}
 				}
+
+				isHide := cmdArgs.Command == "rah" || cmdArgs.Command == "rch"
+
+				if isHide {
+					if msg.Platform == "QQ-CH" {
+						ReplyToSender(ctx, msg, "QQ频道内尚不支持暗骰")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					if ctx.Group != nil {
+						if ctx.IsPrivate {
+							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+						} else {
+							ctx.CommandHideFlag = ctx.Group.GroupID
+							prefix := DiceFormatTmpl(ctx, "核心:暗骰_私聊_前缀")
+							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
+							ReplyPerson(ctx, msg, prefix+text)
+						}
+					} else {
+						ReplyToSender(ctx, msg, text)
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				ReplyToSender(mctx, msg, text)
 			}
-
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
@@ -1011,7 +1080,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				if m != "" {
 					restText = strings.TrimSpace(restText[len(m):])
 				}
-				expr := fmt.Sprintf("D20%s%s", m, restText)
+				expr := fmt.Sprintf("d20%s%s", m, restText)
 				mctx.CreateVmIfNotExists()
 				mctx.setDndReadForVM(true)
 				r := mctx.Eval(expr, nil)
@@ -1172,7 +1241,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				if strings.HasPrefix(text, "+") {
 					// 加值情况1，D20+
-					r := ctx.Eval("D20"+text, nil)
+					r := ctx.Eval("d20"+text, nil)
 					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1183,7 +1252,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "-") {
 					// 加值情况1.1，D20-
-					r := ctx.Eval("D20"+text, nil)
+					r := ctx.Eval("d20"+text, nil)
 					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1205,7 +1274,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "优势") || strings.HasPrefix(text, "劣势") {
 					// 优势/劣势
-					r := ctx.Eval("D20"+text, nil)
+					r := ctx.Eval("d20"+text, nil)
 					if r.vm.Error != nil {
 						// 优势劣势输入错误
 						return 2, name, val, detail, ""
@@ -1234,6 +1303,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					text = strings.TrimPrefix(text, "，")
 					// 情况1，名字是自己
 					name = mctx.Player.Name
+					// replace any space or \n with _
+					name = strings.ReplaceAll(name, " ", "_")
+					name = strings.ReplaceAll(name, "\n", "_")
 					// 情况2，名字是自己，没有加值
 					if !exprExists {
 						val = int64(ds.Roll(nil, 20, 0))
@@ -1349,61 +1421,67 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				setInitNextRoundVars(ctx, lst, round)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
-				names := cmdArgs.Args[1:]
-				riList := (RIList{}).LoadByCurGroup(ctx)
-				newList := RIList{}
+				tryDeleteMembersInInitList := func(deleteNames []string, riList RIList) (newList RIList, textOut strings.Builder, ok bool) {
+					round, _ := VarGetValueInt64(ctx, "$g回合数")
+					round %= int64(len(riList))
+					toDeleted := map[string]bool{}
+					for _, i := range deleteNames {
+						toDeleted[i] = true
+					}
 
-				round, _ := VarGetValueInt64(ctx, "$g回合数")
-				round %= int64(len(riList))
+					delCounter := 0
 
-				toDeleted := map[string]bool{}
-				for _, i := range names {
-					toDeleted[i] = true
-				}
+					preCurrent := 0 // 每有一个在当前单位前面的单位被删除, 当前单位下标需要减 1
+					for index, i := range riList {
+						if !toDeleted[i.name] {
+							newList = append(newList, i)
+						} else {
+							delCounter++
+							textOut.WriteString(fmt.Sprintf("%2d. %s\n", delCounter, i.name))
 
-				textOut := strings.Builder{}
-				textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_移除_前缀"))
-				delCounter := 0
-
-				preCurrent := 0 // 每有一个在当前单位前面的单位被删除, 当前单位下标需要减 1
-				for index, i := range riList {
-					if !toDeleted[i.name] {
-						newList = append(newList, i)
-					} else {
-						delCounter++
-						textOut.WriteString(fmt.Sprintf("%2d. %s\n", delCounter, i.name))
-
-						if int64(index) < round {
-							preCurrent++
+							if int64(index) < round {
+								preCurrent++
+							}
 						}
 					}
-				}
-				current := *riList[round]
-				currentDeleted := toDeleted[current.name]
+					current := *riList[round]
+					currentDeleted := toDeleted[current.name]
 
-				round -= int64(preCurrent)
-				if round >= int64(len(newList)) {
-					round = 0
-				}
-				VarSetValueInt64(ctx, "$g回合数", round)
-
-				if delCounter == 0 {
-					textOut.WriteString("- 没有找到任何单位\n")
-				}
-
-				newList.SaveToGroup(ctx)
-				if currentDeleted {
-					if len(newList) == 0 {
-						textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
-					} else {
-						setInitNextRoundVars(ctx, newList, round)
-						// Note(Xiangze Li): 这是为了让回合结束的角色显示为被删除的角色，而不是当前角色的上一个
-						VarSetValueStr(ctx, "$t当前回合角色名", current.name)
-						VarSetValueStr(ctx, "$t当前回合at", AtBuild(current.uid))
-						textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
+					round -= int64(preCurrent)
+					if round >= int64(len(newList)) {
+						round = 0
 					}
+					VarSetValueInt64(ctx, "$g回合数", round)
+
+					if delCounter == 0 {
+						textOut.WriteString("- 没有找到任何单位\n")
+						return newList, textOut, false
+					}
+
+					newList.SaveToGroup(ctx)
+					if currentDeleted {
+						if len(newList) == 0 {
+							textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
+						} else {
+							setInitNextRoundVars(ctx, newList, round)
+							// Note(Xiangze Li): 这是为了让回合结束的角色显示为被删除的角色，而不是当前角色的上一个
+							VarSetValueStr(ctx, "$t当前回合角色名", current.name)
+							VarSetValueStr(ctx, "$t当前回合at", AtBuild(current.uid))
+							textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
+						}
+					}
+					return newList, textOut, true
 				}
-				ReplyToSender(ctx, msg, textOut.String())
+
+				nameWithSpace, _ := cmdArgs.EatPrefixWith("del", "rm")
+				riList := (RIList{}).LoadByCurGroup(ctx)
+				_, textOut, ok := tryDeleteMembersInInitList([]string{nameWithSpace}, riList)
+				if !ok {
+					_, textOut, _ = tryDeleteMembersInInitList(cmdArgs.Args[1:], riList)
+				}
+				textToSend := DiceFormatTmpl(ctx, "DND:先攻_移除_前缀") + textOut.String()
+
+				ReplyToSender(ctx, msg, textToSend)
 			case "set":
 				name := cmdArgs.GetArgN(2)
 				exists := name != ""
@@ -1473,6 +1551,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			"dst":        cmdSt,
 			"rc":         cmdRc,
 			"ra":         cmdRc,
+			"rah":        cmdRc,
+			"rch":        cmdRc,
 			"drc":        cmdRc,
 			"buff":       cmdBuff,
 			"dbuff":      cmdBuff,

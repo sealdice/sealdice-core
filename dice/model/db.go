@@ -1,258 +1,119 @@
 package model
 
 import (
-	"fmt"
-	"path/filepath"
+	"os"
+	"sync"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
+
+	log "sealdice-core/utils/kratos"
 )
 
-func DBCheck(dataDir string) {
-	checkDB := func(db *sqlx.DB) bool {
-		rows, err := db.Query("PRAGMA integrity_check") //nolint:execinquery
+var (
+	engine            DatabaseOperator
+	once              sync.Once
+	errEngineInstance error
+)
+
+// initEngine 初始化数据库引擎，仅执行一次
+func initEngine() {
+	dbType := os.Getenv("DB_TYPE")
+	switch dbType {
+	case SQLITE:
+		log.Info("当前选择使用: SQLITE数据库")
+		engine = &SQLiteEngine{}
+	case MYSQL:
+		log.Info("当前选择使用: MYSQL数据库")
+		engine = &MYSQLEngine{}
+	case POSTGRESQL:
+		log.Info("当前选择使用: POSTGRESQL数据库")
+		engine = &PGSQLEngine{}
+	default:
+		log.Warn("未配置数据库类型，默认使用: SQLITE数据库")
+		engine = &SQLiteEngine{}
+	}
+
+	errEngineInstance = engine.Init()
+	if errEngineInstance != nil {
+		log.Error("数据库引擎初始化失败:", errEngineInstance)
+	}
+}
+
+// getEngine 获取数据库引擎，确保只初始化一次
+func getEngine() (DatabaseOperator, error) {
+	once.Do(initEngine)
+	return engine, errEngineInstance
+}
+
+// DatabaseInit 初始化数据和日志数据库
+func DatabaseInit() (dataDB *gorm.DB, logsDB *gorm.DB, err error) {
+	engine, err = getEngine()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dataDB, err = engine.DataDBInit()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	logsDB, err = engine.LogDBInit()
+	if err != nil {
+		return nil, nil, err
+	}
+	// TODO: 将这段逻辑挪移到Migrator上
+	var ids []uint64
+	var logItemSums []struct {
+		LogID uint64
+		Count int64
+	}
+	logsDB.Model(&LogInfo{}).Where("size IS NULL").Pluck("id", &ids)
+	if len(ids) > 0 {
+		// 根据 LogInfo 表中的 IDs 查找对应的 LogOneItem 记录
+		err = logsDB.Model(&LogOneItem{}).
+			Where("log_id IN ?", ids).
+			Group("log_id").
+			Select("log_id, COUNT(*) AS count"). // 如果需要求和其他字段，可以使用 Sum
+			Scan(&logItemSums).Error
 		if err != nil {
-			return false
+			// 错误处理
+			log.Infof("Error querying LogOneItem: %v", err)
+			return nil, nil, err
 		}
-		var ok bool
-		for rows.Next() {
-			var s string
-			if errR := rows.Scan(&s); errR != nil {
-				ok = false
-				break
+
+		// 2. 更新 LogInfo 表的 Size 字段
+		for _, sum := range logItemSums {
+			// 将求和结果更新到对应的 LogInfo 的 Size 字段
+			err = logsDB.Model(&LogInfo{}).
+				Where("id = ?", sum.LogID).
+				UpdateColumn("size", sum.Count).Error // 或者是 sum.Time 等，如果要是其他字段的求和
+			if err != nil {
+				// 错误处理
+				log.Errorf("Error updating LogInfo: %v", err)
+				return nil, nil, err
 			}
-			fmt.Println(s)
-			if s == "ok" {
-				ok = true
-			}
 		}
-
-		if errR := rows.Err(); errR != nil {
-			ok = false
-		}
-		return ok
 	}
-
-	var ok1, ok2, ok3 bool
-	var dataDB *sqlx.DB
-	var logsDB *sqlx.DB
-	var censorDB *sqlx.DB
-	var err error
-
-	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
-	dataDB, err = _SQLiteDBInit(dbDataPath, false)
-	if err != nil {
-		fmt.Println("数据库 data.db 无法打开")
-	} else {
-		ok1 = checkDB(dataDB)
-		dataDB.Close()
-	}
-
-	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
-	logsDB, err = _SQLiteDBInit(dbDataLogsPath, false)
-	if err != nil {
-		fmt.Println("数据库 data-logs.db 无法打开")
-	} else {
-		ok2 = checkDB(logsDB)
-		logsDB.Close()
-	}
-
-	dbDataCensorPath, _ := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
-	censorDB, err = _SQLiteDBInit(dbDataCensorPath, false)
-	if err != nil {
-		fmt.Println("数据库 data-censor.db 无法打开")
-	} else {
-		ok3 = checkDB(censorDB)
-		censorDB.Close()
-	}
-
-	fmt.Println("数据库检查结果：")
-	fmt.Println("data.db:", ok1)
-	fmt.Println("data-logs.db:", ok2)
-	fmt.Println("data-censor.db:", ok3)
+	return dataDB, logsDB, nil
 }
 
-func SQLiteDBInit(dataDir string) (dataDB *sqlx.DB, logsDB *sqlx.DB, err error) {
-	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
-	dataDB, err = _SQLiteDBInit(dbDataPath, true)
+// DBCheck 检查数据库状态
+func DBCheck() {
+	dbEngine, err := getEngine()
 	if err != nil {
+		log.Error("数据库引擎获取失败:", err)
 		return
 	}
 
-	dbDataLogsPath, _ := filepath.Abs(filepath.Join(dataDir, "data-logs.db"))
-	logsDB, err = _SQLiteDBInit(dbDataLogsPath, true)
-	if err != nil {
-		return
-	}
-
-	// data建表
-	texts := []string{
-		`
-create table if not exists group_player_info
-(
-    id                     INTEGER
-        primary key autoincrement,
-    group_id               TEXT,
-    user_id                TEXT,
-    name                   TEXT,
-    created_at             INTEGER,
-    updated_at             INTEGER,
-    last_command_time      INTEGER,
-    auto_set_name_template TEXT,
-    dice_side_num          TEXT
-);`,
-		`create index if not exists idx_group_player_info_group_id on group_player_info (group_id);`,
-		`create index if not exists idx_group_player_info_user_id on group_player_info (user_id);`,
-		`create unique index if not exists idx_group_player_info_group_user on group_player_info (group_id, user_id);`,
-		`
-create table if not exists group_info
-(
-    id         TEXT primary key,
-    created_at INTEGER,
-    updated_at INTEGER,
-    data       BLOB
-);`,
-
-		`
-create table if not exists ban_info
-(
-    id         TEXT primary key,
-    ban_updated_at INTEGER,
-    updated_at INTEGER,
-    data       BLOB
-);`,
-		`create index if not exists idx_ban_info_updated_at on ban_info (updated_at);`,
-		`create index if not exists idx_ban_info_ban_updated_at on ban_info (ban_updated_at);`,
-
-		`CREATE TABLE IF NOT EXISTS endpoint_info (
-user_id TEXT PRIMARY KEY,
-cmd_num INTEGER,
-cmd_last_time INTEGER,
-online_time INTEGER,
-updated_at INTEGER
-);`,
-
-		`
-CREATE TABLE IF NOT EXISTS attrs (
-    id TEXT PRIMARY KEY,
-    data BYTEA,
-    attrs_type TEXT,
-
-	-- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
-	binding_sheet_id TEXT default '',
-
-    name TEXT default '',
-    owner_id TEXT default '',
-    sheet_type TEXT default '',
-    is_hidden BOOLEAN default FALSE,
-
-    created_at INTEGER default 0,
-    updated_at INTEGER  default 0
-);
-`,
-		`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
-		`create index if not exists idx_attrs_owner_id_id on attrs (owner_id);`,
-		`create index if not exists idx_attrs_attrs_type_id on attrs (attrs_type);`,
-	}
-	for _, i := range texts {
-		_, _ = dataDB.Exec(i)
-	}
-
-	// logs建表
-	texts = []string{
-		`
-create table if not exists logs
-(
-    id         INTEGER  primary key autoincrement,
-    name       TEXT,
-    group_id   TEXT,
-    extra      TEXT,
-    created_at INTEGER,
-    updated_at INTEGER,
-    upload_url TEXT,
-    upload_time INTEGER
-);`,
-		`
-create index if not exists idx_logs_group
-    on logs (group_id);`,
-		`
-create index if not exists idx_logs_update_at
-    on logs (updated_at);`,
-		`
-create unique index if not exists idx_log_group_id_name
-    on logs (group_id, name);`,
-		// 如果log_items有更改，需同步检查migrate/convert_logs.go
-		`
-create table if not exists log_items
-(
-    id              INTEGER primary key autoincrement,
-    log_id          INTEGER,
-    group_id        TEXT,
-    nickname        TEXT,
-    im_userid       TEXT,
-    time            INTEGER,
-    message         TEXT,
-    is_dice         INTEGER,
-    command_id      INTEGER,
-    command_info    TEXT,
-    raw_msg_id      TEXT,
-    user_uniform_id TEXT,
-    removed         INTEGER,
-    parent_id       INTEGER
-);`,
-		`
-create index if not exists idx_log_items_group_id
-    on log_items (log_id);`,
-		`
-create index if not exists idx_log_items_log_id
-    on log_items (log_id);`,
-
-		`alter table logs add upload_url text;`, // 测试版特供
-		`alter table logs add upload_time integer;`,
-	}
-
-	for _, i := range texts {
-		_, _ = logsDB.Exec(i)
-	}
-
-	return
+	dbEngine.DBCheck()
 }
 
-func SQLiteCensorDBInit(dataDir string) (censorDB *sqlx.DB, err error) {
-	path, err := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
+// CensorDBInit 初始化敏感词数据库
+func CensorDBInit() (censorDB *gorm.DB, err error) {
+	censorEngine, err := getEngine()
 	if err != nil {
-		return
-	}
-	censorDB, err = _SQLiteDBInit(path, true)
-	if err != nil {
-		return
+		return nil, err
 	}
 
-	texts := []string{`
-CREATE TABLE IF NOT EXISTS censor_log
-(
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    msg_type 		TEXT,
-    user_id         TEXT,
-    group_id 		TEXT,
-    content         TEXT,
-    sensitive_words TEXT,
-    highest_level   INTEGER,
-    created_at 		INTEGER,
-    clear_mark		BOOLEAN
-);
-`,
-		`
-CREATE INDEX IF NOT EXISTS idx_censor_log_user_id
-    ON censor_log (user_id);
-`,
-		`
-CREATE INDEX IF NOT EXISTS idx_censor_log_level
-    ON censor_log (highest_level);
-`,
-	}
-
-	for _, i := range texts {
-		_, _ = censorDB.Exec(i)
-	}
-	return
+	return censorEngine.CensorDBInit()
 }

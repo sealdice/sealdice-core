@@ -420,6 +420,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueInt64(mctx, "$tD100", outcome)
 				VarSetValueInt64(mctx, "$t判定值", checkVal)
 				VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
+				VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
 
 				var suffix string
 				var suffixFull string
@@ -460,24 +461,22 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				commandInfoItems = append(commandInfoItems, infoItem)
 
 				VarSetValueStr(mctx, "$t检定表达式文本", expr1Text)
-				VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
 				VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
 				VarSetValueStr(mctx, "$t计算过程", detailWrap)
 
 				SetTempVars(mctx, mctx.Player.Name) // 信息里没有QQ昵称，用这个顶一下
-				VarSetValueStr(mctx, "$t结果文本", DiceFormatTmpl(mctx, "COC:检定_单项结果文本"))
 				return nil
 			}
 
 			var text string
 			if cmdArgs.SpecialExecuteTimes > 1 {
 				VarSetValueInt64(mctx, "$t次数", int64(cmdArgs.SpecialExecuteTimes))
-				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.MaxExecuteTime) {
+				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) {
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:检定_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				texts := []string{}
-				for i := 0; i < cmdArgs.SpecialExecuteTimes; i++ {
+				for range cmdArgs.SpecialExecuteTimes {
 					ret := rollOne(true)
 					if ret != nil {
 						return *ret
@@ -599,7 +598,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				ReplyToSender(ctx, msg, text)
 			case "details":
 				help := "当前有coc7规则如下:\n"
-				for i := 0; i < 6; i++ {
+				for i := range 6 {
 					basicStr := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
 					help += fmt.Sprintf(".setcoc %d // %s\n", i, basicStr)
 				}
@@ -907,12 +906,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				increment   int64
 				newVarValue int64
 			}
-			RuleNotMatch := fmt.Errorf("rule not match")
-			FormatMismatch := fmt.Errorf("format mismatch")
-			SkillNotEntered := fmt.Errorf("skill not entered")
-			SkillTypeError := fmt.Errorf("skill value type error")
-			SuccessExprFormatError := fmt.Errorf("success expr format error")
-			FailExprFormatError := fmt.Errorf("fail expr format error")
+			RuleNotMatch := errors.New("rule not match")
+			FormatMismatch := errors.New("format mismatch")
+			SkillNotEntered := errors.New("skill not entered")
+			SkillTypeError := errors.New("skill value type error")
+			SuccessExprFormatError := errors.New("success expr format error")
+			FailExprFormatError := errors.New("fail expr format error")
 			singleRe := regexp.MustCompile(`([a-zA-Z_\p{Han}]+)\s*(\d+)?\s*(\+(([^/]+)/)?\s*(.+))?`)
 			check := func(skill string) (checkResult enCheckResult) {
 				checkResult.valid = true
@@ -1520,13 +1519,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 			}
-			if val > ctx.Dice.MaxCocCardGen {
-				val = ctx.Dice.MaxCocCardGen
+			if val > ctx.Dice.Config.MaxCocCardGen {
+				val = ctx.Dice.Config.MaxCocCardGen
 			}
-			var i int64
 
 			var ss []string
-			for i = 0; i < val; i++ {
+			for range val {
 				result := ctx.EvalFString(`力量:{力量=3d6*5} 敏捷:{敏捷=3d6*5} 意志:{意志=3d6*5}\n体质:{体质=3d6*5} 外貌:{外貌=3d6*5} 教育:{教育=(2d6+6)*5}\n体型:{体型=(2d6+6)*5} 智力:{智力=(2d6+6)*5} 幸运:{幸运=3d6*5}\nHP:{(体质+体型)/10} <DB:{(力量 + 体型) < 65 ? -2, (力量 + 体型) < 85 ? -1, (力量 + 体型) < 125 ? 0, (力量 + 体型) < 165 ? '1d4', (力量 + 体型) < 205 ? '1d6'}> [{力量+敏捷+意志+体质+外貌+教育+体型+智力}/{力量+敏捷+意志+体质+外貌+教育+体型+智力+幸运}]`, nil)
 				if result.vm.Error != nil {
 					break

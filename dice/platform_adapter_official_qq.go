@@ -2,6 +2,7 @@ package dice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -42,7 +43,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	d := pa.Session.Parent
 
 	log.Debug("official qq server")
-	qqbot.SetLogger(NewDummyLogger(log.Desugar()))
+	qqbot.SetLogger(NewDummyLogger())
 	token := qqtoken.BotToken(pa.AppID, pa.Token)
 	pa.Api = qqbot.NewOpenAPI(token).WithTimeout(3 * time.Second)
 	pa.Ctx, pa.CancelFunc = context.WithCancel(context.Background())
@@ -241,9 +242,9 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 	pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, text)
 }
 
-func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel(ctx *MsgContext, guildID, userID string) (string, string, error) {
+func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel( /* ctx */ _ *MsgContext, guildID, userID string) (string, string, error) {
 	if guildID == "" || userID == "" {
-		err := fmt.Errorf("创建私信频道的参数不全")
+		err := errors.New("创建私信频道的参数不全")
 		pa.Session.Parent.Logger.Error("official qq 创建私信频道失败：" + err.Error())
 		return "", "", err
 	}
@@ -260,7 +261,7 @@ func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel(ctx *MsgContext,
 	return info.GuildID, info.ChannelID, nil
 }
 
-func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw(ctx *MsgContext, rowMsgID string, guildID, channelID string, text string) {
+func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgContext, rowMsgID string, guildID, channelID string, text string) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
@@ -308,7 +309,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	}
 }
 
-func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID, groupID string, text string) {
+func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext, rowMsgID, groupID string, text string) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
@@ -383,7 +384,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	}
 }
 
-func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw(ctx *MsgContext, rowMsgID, channelID string, text string) {
+func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContext, rowMsgID, channelID string, text string) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (

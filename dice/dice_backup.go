@@ -2,7 +2,9 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,6 +18,7 @@ import (
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
 	"sealdice-core/utils/crypto"
+	log "sealdice-core/utils/kratos"
 )
 
 const BackupDir = "./backups"
@@ -123,7 +126,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	}
 
 	backup := func(d *Dice, fn string) {
-		data, err := os.ReadFile(fn)
+		file, err := os.Open(fn)
 		if err != nil && !strings.Contains(fn, "session.token") {
 			if d != nil {
 				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
@@ -132,6 +135,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			}
 			return
 		}
+		defer file.Close()
 
 		h := &zip.FileHeader{Name: fn, Method: zip.Deflate, Flags: 0x800}
 		fileWriter, err := writer.CreateHeader(h)
@@ -143,7 +147,15 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			}
 			return
 		}
-		_, _ = fileWriter.Write(data)
+
+		_, err = io.Copy(fileWriter, file)
+		if err != nil {
+			if d != nil {
+				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+			} else {
+				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+			}
+		}
 	}
 
 	backupDir := func(path string, info fs.FileInfo, _ error) error {
@@ -226,20 +238,20 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 
 		err := model.FlushWAL(d.DBData)
 		if err != nil {
-			d.Logger.Warnln("备份时data数据库flush出错", err.Error())
+			d.Logger.Errorf("备份时data数据库flush出错 错误为:%v", err.Error())
 		} else {
 			backup(d, filepath.Join(dataDir, "data.db"))
 		}
 		err = model.FlushWAL(d.DBLogs)
 		if err != nil {
-			d.Logger.Warnln("备份时logs数据库flush出错", err.Error())
+			d.Logger.Errorf("备份时logs数据库flush出错 错误为:%v", err.Error())
 		} else {
 			backup(d, filepath.Join(dataDir, "data-logs.db"))
 		}
 		if d.CensorManager != nil && d.CensorManager.DB != nil {
 			err = model.FlushWAL(d.CensorManager.DB)
 			if err != nil {
-				d.Logger.Warnln("备份时censor数据库flush出错", err.Error())
+				d.Logger.Errorf("备份时censor数据库flush出错 %v", err.Error())
 			} else {
 				backup(d, filepath.Join(dataDir, "data-censor.db"))
 			}
@@ -340,7 +352,7 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		return nil
 	}
 
-	// fmt.Println("开始定时清理备份", fromAuto)
+	log.Info("开始清理备份文件")
 
 	backupDir, err := os.Open(BackupDir)
 	if err != nil {
@@ -369,31 +381,42 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 	sort.Sort(utils.ByModtime(fileInfos))
 
 	var fileInfoOld []os.FileInfo
+
+	logMsg := strings.Builder{}
+	logMsg.WriteString(fmt.Sprintf("现有备份文件 %d 个, 清理模式为 ", len(fileInfos)))
+
 	switch dm.BackupCleanStrategy {
 	case BackupCleanStrategyByCount:
+		logMsg.WriteString(fmt.Sprintf("保留一定数量(%d)", dm.BackupCleanKeepCount))
 		if len(fileInfos) > dm.BackupCleanKeepCount {
 			fileInfoOld = fileInfos[:len(fileInfos)-dm.BackupCleanKeepCount]
 		}
 	case BackupCleanStrategyByTime:
 		threshold := time.Now().Add(-dm.BackupCleanKeepDur)
+		logMsg.WriteString(fmt.Sprintf("保留一定时间(%v, %s)", dm.BackupCleanKeepDur, threshold.Format(time.DateTime)))
 		idx, _ := sort.Find(len(fileInfos), func(i int) int {
 			return threshold.Compare(fileInfos[i].ModTime())
 		})
-		fileInfoOld = fileInfos[:idx+1]
+		fileInfoOld = fileInfos[:idx]
 	default:
 		// no-op
 	}
 
+	logMsg.WriteString(fmt.Sprintf(", 有以下 %d 个将要被删除", len(fileInfoOld)))
+
 	errDel := []string{}
-	for _, fi := range fileInfoOld {
+	for i, fi := range fileInfoOld {
+		logMsg.WriteString(fmt.Sprintf("\n%d. %s", i+1, fi.Name()))
 		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name()))
 		if errDelete != nil {
 			errDel = append(errDel, errDelete.Error())
 		}
 	}
 
+	log.Info(logMsg.String())
+
 	if len(errDel) > 0 {
-		return fmt.Errorf("error(s) occured when deleting files:\n" + strings.Join(errDel, "\n"))
+		return errors.New("error(s) occured when deleting files:\n" + strings.Join(errDel, "\n"))
 	}
 	return nil
 }

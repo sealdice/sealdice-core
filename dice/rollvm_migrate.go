@@ -12,7 +12,208 @@ import (
 
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
+
+	log "sealdice-core/utils/kratos"
 )
+
+func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
+	config := ds.RollConfig{}
+
+	// 根据当前规则开语法 - 暂时是都开
+	config.EnableDiceWoD = true
+	config.EnableDiceCoC = true
+	config.EnableDiceFate = true
+	config.EnableDiceDoubleCross = true
+	config.OpCountLimit = 30000
+
+	am := ctx.Dice.AttrsManager
+	config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+		// 临时变量
+		if strings.HasPrefix(name, "$t") {
+			if ctx.Player.ValueMapTemp == nil {
+				ctx.Player.ValueMapTemp = &ds.ValueMap{}
+			}
+			ctx.Player.ValueMapTemp.Store(name, v)
+			// 继续存入local 因此solved为false
+			return nil, false
+		}
+
+		// 个人变量
+		if strings.HasPrefix(name, "$m") {
+			if ctx.Session != nil && ctx.Player != nil {
+				playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+				playerAttrs.Store(name, v)
+			}
+			return nil, true
+		}
+
+		// 群变量
+		if ctx.Group != nil && strings.HasPrefix(name, "$g") {
+			groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+			groupAttrs.Store(name, v)
+			return nil, true
+		}
+		return nil, false
+	}
+
+	reSimpleBP := regexp.MustCompile(`^[bpBP]\d*$`)
+	mctx := ctx
+	config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte, parsedOffset int) string {
+		detailResult := dataBuffer[:parsedOffset]
+
+		var curPoint ds.IntType
+		lastEnd := ds.IntType(-1) //nolint:ineffassign
+
+		type Group struct {
+			begin ds.IntType
+			end   ds.IntType
+			tag   string
+			spans []ds.BufferSpan
+			val   *ds.VMValue
+		}
+
+		// 特殊机制: 从模板读取detail进行覆盖
+		for index, i := range details {
+			if i.Tag == "load" && mctx.SystemTemplate != nil && ctx.UpCtx == nil {
+				expr := string(detailResult[i.Begin:i.End])
+				detailExpr := mctx.SystemTemplate.DetailOverwrite[expr]
+				if detailExpr == "" {
+					// 如果没有，尝试使用通配
+					detailExpr = mctx.SystemTemplate.DetailOverwrite["*"]
+					if detailExpr != "" {
+						// key 应该是等于expr的
+						ctx.StoreNameLocal("name", ds.NewStrVal(expr))
+					}
+				}
+				if detailExpr != "" {
+					v, err := ctx.RunExpr(detailExpr, true)
+					if v != nil {
+						details[index].Text = v.ToString()
+					}
+					if err != nil {
+						details[index].Text = err.Error()
+					}
+				}
+			}
+		}
+
+		var m []Group
+		for _, i := range details {
+			// fmt.Println("?", i, lastEnd)
+			if i.Begin > lastEnd {
+				curPoint = i.Begin
+				m = append(m, Group{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}, val: i.Ret})
+			} else {
+				m[len(m)-1].spans = append(m[len(m)-1].spans, i)
+				if i.End > m[len(m)-1].end {
+					m[len(m)-1].end = i.End
+				}
+			}
+
+			if i.End > lastEnd {
+				lastEnd = i.End
+			}
+		}
+
+		var detailArr []*ds.VMValue
+		for i := len(m) - 1; i >= 0; i-- {
+			buf := bytes.Buffer{}
+			writeBuf := func(p []byte) {
+				buf.Write(p)
+			}
+			writeBufStr := func(s string) {
+				buf.WriteString(s)
+			}
+
+			item := m[i]
+			size := len(item.spans)
+			sort.Sort(spanByEnd(item.spans))
+			last := item.spans[size-1]
+
+			subDetailsText := ""
+			if size > 1 {
+				// 次级结果，如 (10d3)d5 中，此处为10d3的结果
+				// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
+				for j := range len(item.spans) - 1 {
+					span := item.spans[j]
+					subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
+				}
+			}
+
+			exprText := last.Expr
+			baseExprText := string(detailResult[item.begin:item.end])
+			if last.Expr == "" {
+				exprText = baseExprText
+			}
+
+			writeBuf(detailResult[:item.begin])
+
+			// 主体结果部分，如 (10d3)d5=63[(10d3)d5=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
+			partRet := last.Ret.ToString()
+
+			detail := "[" + exprText
+			if last.Text != "" && partRet != last.Text { // 规则1.1
+				detail += "=" + last.Text
+			}
+
+			switch item.tag {
+			case "dnd-rc":
+				detail = "[" + last.Text
+			case "load":
+				detail = "[" + exprText
+				if last.Text != "" {
+					detail += "," + last.Text
+				}
+			case "dice-coc-bonus", "dice-coc-penalty":
+				// 对简单式子进行结果简化，未来或许可以做成通配规则(给左式加个规则进行消除)
+				if reSimpleBP.MatchString(exprText) {
+					detail = "[" + last.Text[1:len(last.Text)-1]
+				}
+			case "load.computed":
+				detail += "=" + partRet
+			}
+
+			detail += subDetailsText + "]"
+			if len(m) == 1 && detail == "["+baseExprText+"]" {
+				detail = "" // 规则1.3
+			}
+			if len(detail) > 400 {
+				detail = "[略]"
+			}
+			writeBufStr(partRet + detail)
+			writeBuf(detailResult[item.end:])
+			detailResult = buf.Bytes()
+
+			d := ds.NewDictValWithArrayMust(
+				ds.NewStrVal("tag"), ds.NewStrVal(item.tag),
+				ds.NewStrVal("expr"), ds.NewStrVal(exprText),
+				ds.NewStrVal("val"), item.val,
+			)
+			detailArr = append(detailArr, d.V())
+		}
+
+		// TODO: 此时加了TrimSpace表现正常，但深层原因是ds在处理"d3 x"这个表达式时多吃了一个空格，修复后取消trim
+		detailStr := strings.TrimSpace(string(detailResult))
+		if detailStr == ctx.Ret.ToString() {
+			detailStr = "" // 如果detail和结果值完全一致，那么将其置空
+		}
+		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr)))
+		return detailStr
+	}
+
+	// 设置默认骰子面数
+	if ctx.Group != nil {
+		// 情况不明，在sealchat的第一次测试中出现Group为nil
+		config.DefaultDiceSideExpr = strconv.FormatInt(ctx.Group.DiceSideNum, 10)
+		if config.DefaultDiceSideExpr == "0" {
+			config.DefaultDiceSideExpr = "100"
+		}
+	} else {
+		config.DefaultDiceSideExpr = "100"
+	}
+
+	return &config
+}
 
 func (v *VMValue) ConvertToV2() *ds.VMValue {
 	switch v.TypeID {
@@ -78,13 +279,19 @@ func DiceFormatV1(ctx *MsgContext, s string) (string, error) { //nolint:revive
 }
 
 func DiceFormat(ctx *MsgContext, s string) string {
-	ret, err := DiceFormatV2(ctx, s)
-	if err != nil {
-		// 遇到异常，尝试一下V1
-		ret, _ = DiceFormatV1(ctx, s)
+	engineVersion := ctx.Dice.getTargetVmEngineVersion(VmVersionMsg)
+	if engineVersion == "v2" {
+		ret, err := DiceFormatV2(ctx, s)
+		if err != nil {
+			// 遇到异常，尝试一下V1
+			ret, _ = DiceFormatV1(ctx, s)
+			return ret
+		}
+		return ret
+	} else {
+		ret, _ := DiceFormatV1(ctx, s)
 		return ret
 	}
-	return ret
 }
 
 func DiceFormatTmpl(ctx *MsgContext, s string) string {
@@ -96,7 +303,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 		text = ctx.Dice.TextMap[s].PickSource(randSourceDrawAndTmplSelect).(string)
 
 		// 找出其兼容情况，以决定使用什么版本的引擎
-		engineVersion := "v2"
+		engineVersion := ctx.Dice.getTargetVmEngineVersion(VMVersionCustomText)
 		if items, exists := ctx.Dice.TextMapCompatible.Load(s); exists {
 			if info, exists := items.Load(text); exists {
 				if info.Version == "v1" {
@@ -108,7 +315,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 		if engineVersion == "v2" {
 			ret, _ := DiceFormatV2(ctx, text)
 			return ret
-		} else if engineVersion == "v1" {
+		} else {
 			ret, _ := DiceFormatV1(ctx, text)
 			return ret
 		}
@@ -120,10 +327,12 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 func (ctx *MsgContext) Eval(expr string, flags *ds.RollConfig) *VMResultV2 {
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
+	prevConfig := vm.Config
 	if flags != nil {
 		vm.Config = *flags
 	}
 	err := vm.Run(expr)
+	vm.Config = prevConfig
 
 	if err != nil {
 		return &VMResultV2{vm: vm}
@@ -138,7 +347,7 @@ func (ctx *MsgContext) EvalFString(expr string, flags *ds.RollConfig) *VMResultV
 	// 隐藏的内置字符串符号 \x1e
 	r := ctx.Eval("\x1e"+expr+"\x1e", flags)
 	if r.vm.Error != nil {
-		fmt.Println("脚本执行出错: ", expr, "->", r.vm.Error)
+		log.Error("脚本执行出错: ", expr, "->", r.vm.Error)
 	}
 	return r
 }
@@ -235,7 +444,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 		if flags.V2Only {
 			return nil, "", err
 		}
-		fmt.Println("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
+		log.Error("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
 		errV2 := err // 某种情况下没有这个值，很奇怪
 
 		// 尝试一下V1
@@ -426,43 +635,9 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	// 初始化骰子
 	ctx.vm = ds.NewVM()
 
-	// 根据当前规则开语法 - 暂时是都开
-	ctx.vm.Config.EnableDiceWoD = true
-	ctx.vm.Config.EnableDiceCoC = true
-	ctx.vm.Config.EnableDiceFate = true
-	ctx.vm.Config.EnableDiceDoubleCross = true
-	ctx.vm.Config.OpCountLimit = 30000
+	ctx.vm.Config = *ctx.GenDefaultRollVmConfig()
 
 	am := ctx.Dice.AttrsManager
-	ctx.vm.Config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
-		// 临时变量
-		if strings.HasPrefix(name, "$t") {
-			if ctx.Player.ValueMapTemp == nil {
-				ctx.Player.ValueMapTemp = &ds.ValueMap{}
-			}
-			ctx.Player.ValueMapTemp.Store(name, v)
-			// 继续存入local 因此solved为false
-			return nil, false
-		}
-
-		// 个人变量
-		if strings.HasPrefix(name, "$m") {
-			if ctx.Session != nil && ctx.Player != nil {
-				playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
-				playerAttrs.Store(name, v)
-			}
-			return nil, true
-		}
-
-		// 群变量
-		if ctx.Group != nil && strings.HasPrefix(name, "$g") {
-			groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
-			groupAttrs.Store(name, v)
-			return nil, true
-		}
-		return nil, false
-	}
-
 	ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
 		// 临时变量
 		if strings.HasPrefix(name, "$t") {
@@ -537,162 +712,6 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		}
 
 		return curVal
-	}
-
-	reSimpleBP := regexp.MustCompile(`^[bpBP]\d*$`)
-
-	mctx := ctx
-	ctx.vm.Config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte, parsedOffset int) string {
-		detailResult := dataBuffer[:parsedOffset]
-
-		var curPoint ds.IntType
-		lastEnd := ds.IntType(-1) //nolint:ineffassign
-
-		type Group struct {
-			begin ds.IntType
-			end   ds.IntType
-			tag   string
-			spans []ds.BufferSpan
-			val   *ds.VMValue
-		}
-
-		// 特殊机制: 从模板读取detail进行覆盖
-		for index, i := range details {
-			if i.Tag == "load" && mctx.SystemTemplate != nil && ctx.UpCtx == nil {
-				expr := string(detailResult[i.Begin:i.End])
-				detailExpr := mctx.SystemTemplate.DetailOverwrite[expr]
-				if detailExpr == "" {
-					// 如果没有，尝试使用通配
-					detailExpr = mctx.SystemTemplate.DetailOverwrite["*"]
-					if detailExpr != "" {
-						// key 应该是等于expr的
-						ctx.StoreNameLocal("name", ds.NewStrVal(expr))
-					}
-				}
-				if detailExpr != "" {
-					v, err := ctx.RunExpr(detailExpr, true)
-					if v != nil {
-						details[index].Text = v.ToString()
-					}
-					if err != nil {
-						details[index].Text = err.Error()
-					}
-				}
-			}
-		}
-
-		var m []Group
-		for _, i := range details {
-			// fmt.Println("?", i, lastEnd)
-			if i.Begin > lastEnd {
-				curPoint = i.Begin
-				m = append(m, Group{begin: curPoint, end: i.End, tag: i.Tag, spans: []ds.BufferSpan{i}, val: i.Ret})
-			} else {
-				m[len(m)-1].spans = append(m[len(m)-1].spans, i)
-				if i.End > m[len(m)-1].end {
-					m[len(m)-1].end = i.End
-				}
-			}
-
-			if i.End > lastEnd {
-				lastEnd = i.End
-			}
-		}
-
-		var detailArr []*ds.VMValue
-		for i := len(m) - 1; i >= 0; i-- {
-			buf := bytes.Buffer{}
-			writeBuf := func(p []byte) {
-				buf.Write(p)
-			}
-			writeBufStr := func(s string) {
-				buf.WriteString(s)
-			}
-
-			item := m[i]
-			size := len(item.spans)
-			sort.Sort(spanByEnd(item.spans))
-			last := item.spans[size-1]
-
-			subDetailsText := ""
-			if size > 1 {
-				// 次级结果，如 (10d3)d5 中，此处为10d3的结果
-				// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
-				for j := 0; j < len(item.spans)-1; j++ {
-					span := item.spans[j]
-					subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
-				}
-			}
-
-			exprText := last.Expr
-			baseExprText := string(detailResult[item.begin:item.end])
-			if last.Expr == "" {
-				exprText = baseExprText
-			}
-
-			writeBuf(detailResult[:item.begin])
-
-			// 主体结果部分，如 (10d3)d5=63[(10d3)d5=2+2+2+5+2+5+5+4+1+3+4+1+4+5+4+3+4+5+2,10d3=19]
-			partRet := last.Ret.ToString()
-
-			detail := "[" + exprText
-			if last.Text != "" && partRet != last.Text { // 规则1.1
-				detail += "=" + last.Text
-			}
-
-			switch item.tag {
-			case "dnd-rc":
-				detail = "[" + last.Text
-			case "load":
-				detail = "[" + exprText
-				if last.Text != "" {
-					detail += "," + last.Text
-				}
-			case "dice-coc-bonus", "dice-coc-penalty":
-				// 对简单式子进行结果简化，未来或许可以做成通配规则(给左式加个规则进行消除)
-				if reSimpleBP.MatchString(exprText) {
-					detail = "[" + last.Text[1:len(last.Text)-1]
-				}
-			case "load.computed":
-				detail += "=" + partRet
-			}
-
-			detail += subDetailsText + "]"
-			if len(m) == 1 && detail == "["+baseExprText+"]" {
-				detail = "" // 规则1.3
-			}
-			if len(detail) > 400 {
-				detail = "[略]"
-			}
-			writeBufStr(partRet + detail)
-			writeBuf(detailResult[item.end:])
-			detailResult = buf.Bytes()
-
-			d := ds.NewDictValWithArrayMust(
-				ds.NewStrVal("tag"), ds.NewStrVal(item.tag),
-				ds.NewStrVal("expr"), ds.NewStrVal(exprText),
-				ds.NewStrVal("val"), item.val,
-			)
-			detailArr = append(detailArr, d.V())
-		}
-
-		detailStr := string(detailResult)
-		if detailStr == ctx.Ret.ToString() {
-			detailStr = "" // 如果detail和结果值完全一致，那么将其置空
-		}
-		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr)))
-		return detailStr
-	}
-
-	// 设置默认骰子面数
-	if ctx.Group != nil {
-		// 情况不明，在sealchat的第一次测试中出现Group为nil
-		ctx.vm.Config.DefaultDiceSideExpr = fmt.Sprintf("%d", ctx.Group.DiceSideNum)
-		if ctx.vm.Config.DefaultDiceSideExpr == "0" {
-			ctx.vm.Config.DefaultDiceSideExpr = "100"
-		}
-	} else {
-		ctx.vm.Config.DefaultDiceSideExpr = "100"
 	}
 }
 

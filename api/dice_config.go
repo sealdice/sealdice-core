@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,64 +12,21 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 )
 
 type DiceConfigInfo struct {
-	// 注：form其实不需要
-	CommandPrefix           []string `json:"commandPrefix" form:"commandPrefix"`                     // 指令前缀
-	DiceMasters             []string `json:"diceMasters" form:"diceMasters"`                         // 骰主设置，需要格式: 平台:帐号
-	NoticeIds               []string `json:"noticeIds"`                                              // 通知设置，需要格式: 平台:帐号
-	OnlyLogCommandInGroup   bool     `json:"onlyLogCommandInGroup" form:"onlyLogCommandInGroup"`     // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool     `json:"onlyLogCommandInPrivate" form:"onlyLogCommandInPrivate"` // 日志中仅记录命令
-	WorkInQQChannel         bool     `json:"workInQQChannel"`                                        // 在QQ频道中开启
-	MessageDelayRangeStart  float64  `json:"messageDelayRangeStart" form:"messageDelayRangeStart"`   // 指令延迟区间
-	MessageDelayRangeEnd    float64  `json:"messageDelayRangeEnd" form:"messageDelayRangeEnd"`
-	UIPassword              string   `json:"uiPassword" form:"uiPassword"`
-	HelpDocEngineType       int      `json:"helpDocEngineType"`
-	MasterUnlockCode        string   `json:"masterUnlockCode" form:"masterUnlockCode"`
-	ServeAddress            string   `json:"serveAddress" form:"serveAddress"`
-	MasterUnlockCodeTime    int64    `json:"masterUnlockCodeTime"`
-	LogPageItemLimit        int64    `json:"logPageItemLimit"`
-	FriendAddComment        string   `json:"friendAddComment"`
-	QQChannelAutoOn         bool     `json:"QQChannelAutoOn"`
-	QQChannelLogMessage     bool     `json:"QQChannelLogMessage"`
-	RefuseGroupInvite       bool     `json:"refuseGroupInvite"` // 拒绝群组邀请
+	dice.Config
 
-	QuitInactiveThreshold float64 `json:"quitInactiveThreshold"` // 退出不活跃群组阈值(天)
-	QuitInactiveBatchSize int64   `json:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
-	QuitInactiveBatchWait int64   `json:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
-
-	DefaultCocRuleIndex string `json:"defaultCocRuleIndex"` // 默认coc index
-	MaxExecuteTime      string `json:"maxExecuteTime"`      // 最大骰点次数
-	MaxCocCardGen       string `json:"maxCocCardGen"`       // 最大coc制卡数
-
-	ExtDefaultSettings []*dice.ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
-	BotExtFreeSwitch   bool                          `json:"botExtFreeSwitch"`
-	TrustOnlyMode      bool                          `json:"trustOnlyMode"`
-	AliveNoticeEnable  bool                          `json:"aliveNoticeEnable"`
-	AliveNoticeValue   string                        `json:"aliveNoticeValue"`
-	ReplyDebugMode     bool                          `json:"replyDebugMode"`
-
-	CustomReplyConfigEnable bool `json:"customReplyConfigEnable"` // 是否开启reply
-
-	LogSizeNoticeEnable bool `json:"logSizeNoticeEnable"` // 开启日志数量提示
-	LogSizeNoticeCount  int  `json:"logSizeNoticeCount"`  // 日志数量提示阈值，默认500
-
-	TextCmdTrustOnly        bool `json:"textCmdTrustOnly"`        // text命令只允许信任用户和master
-	IgnoreUnaddressedBotCmd bool `json:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
-	QQEnablePoke            bool `json:"QQEnablePoke"`            // QQ允许戳一戳
-	PlayerNameWrapEnable    bool `json:"playerNameWrapEnable"`    // 玩家名外框
-
-	MailEnable   bool   `json:"mailEnable"`
-	MailFrom     string `json:"mailFrom"`     // 邮箱来源
-	MailPassword string `json:"mailPassword"` // 邮箱密钥/密码
-	MailSMTP     string `json:"mailSmtp"`     // 邮箱 smtp 地址
-
-	RateLimitEnabled       bool   `json:"rateLimitEnabled"`      // 是否开启限速
-	PersonalReplenishRate  string `json:"personalReplenishRate"` // 个人自定义速率
-	PersonalReplenishBurst int64  `json:"personalBurst"`         // 个人自定义上限
-	GroupReplenishRate     string `json:"groupReplenishRate"`    // 群组自定义速率
-	GroupReplenishBurst    int64  `json:"groupBurst"`            // 群组自定义上限
+	CommandPrefix       []string `json:"commandPrefix" form:"commandPrefix"`
+	DiceMasters         []string `json:"diceMasters" form:"diceMasters"`
+	UIPassword          string   `json:"uiPassword" form:"uiPassword"`
+	LogPageItemLimit    int64    `json:"logPageItemLimit"`
+	DefaultCocRuleIndex string   `json:"defaultCocRuleIndex"` // 默认coc index
+	MaxExecuteTime      string   `json:"maxExecuteTime"`      // 最大骰点次数
+	MaxCocCardGen       string   `json:"maxCocCardGen"`       // 最大coc制卡数
+	ServerAddress       string   `json:"serveAddress" form:"serveAddress"`
+	HelpDocEngineType   int      `json:"helpDocEngineType"`
 }
 
 func DiceConfig(c echo.Context) error {
@@ -83,93 +39,53 @@ func DiceConfig(c echo.Context) error {
 		password = "------"
 	}
 
-	limit := myDice.UILogLimit
+	limit := myDice.Config.UILogLimit
 	if limit == 0 {
 		limit = 100
 	}
 	myDice.UnlockCodeUpdate(false)
 
-	cocRule := strconv.FormatInt(myDice.DefaultCocRuleIndex, 10)
-	if myDice.DefaultCocRuleIndex == 11 {
+	cocRule := strconv.FormatInt(myDice.Config.DefaultCocRuleIndex, 10)
+	if myDice.Config.DefaultCocRuleIndex == 11 {
 		cocRule = "dg"
 	}
 
-	maxExec := strconv.FormatInt(myDice.MaxExecuteTime, 10)
+	maxExec := strconv.FormatInt(myDice.Config.MaxExecuteTime, 10)
 
-	maxCard := strconv.FormatInt(myDice.MaxCocCardGen, 10)
+	maxCard := strconv.FormatInt(myDice.Config.MaxCocCardGen, 10)
 
 	emailPasswordMasked := ""
-	if myDice.MailPassword != "" {
+	if myDice.Config.MailPassword != "" {
 		emailPasswordMasked = "******"
 	}
 
 	// 过滤掉未加载的: 包括关闭的和已经删除的
 	// TODO(Xiangze Li): 如果前端能支持区分显示未加载插件的配置(.loaded字段), 这里就的过滤就可以去掉
-	extDefaultSettings := make([]*dice.ExtDefaultSettingItem, 0, len(myDice.ExtDefaultSettings))
-	for _, i := range myDice.ExtDefaultSettings {
+	extDefaultSettings := make([]*dice.ExtDefaultSettingItem, 0, len(myDice.Config.ExtDefaultSettings))
+	for _, i := range myDice.Config.ExtDefaultSettings {
 		if i.Loaded {
 			extDefaultSettings = append(extDefaultSettings, i)
 		}
 	}
 
 	info := DiceConfigInfo{
-		CommandPrefix:           myDice.CommandPrefix,
-		DiceMasters:             myDice.DiceMasters,
-		NoticeIds:               myDice.NoticeIDs,
-		OnlyLogCommandInPrivate: myDice.OnlyLogCommandInPrivate,
-		OnlyLogCommandInGroup:   myDice.OnlyLogCommandInGroup,
-		MessageDelayRangeStart:  myDice.MessageDelayRangeStart,
-		MessageDelayRangeEnd:    myDice.MessageDelayRangeEnd,
-		UIPassword:              password,
-		MasterUnlockCode:        myDice.MasterUnlockCode,
-		MasterUnlockCodeTime:    myDice.MasterUnlockCodeTime,
-		WorkInQQChannel:         myDice.WorkInQQChannel,
-		LogPageItemLimit:        limit,
-		FriendAddComment:        myDice.FriendAddComment,
-		QQChannelAutoOn:         myDice.QQChannelAutoOn,
-		QQChannelLogMessage:     myDice.QQChannelLogMessage,
-		RefuseGroupInvite:       myDice.RefuseGroupInvite,
-		RateLimitEnabled:        myDice.RateLimitEnabled,
+		Config: myDice.Config,
 
-		ExtDefaultSettings:  extDefaultSettings,
+		CommandPrefix:       myDice.CommandPrefix,
+		DiceMasters:         myDice.DiceMasters,
+		UIPassword:          password,
+		LogPageItemLimit:    limit,
 		DefaultCocRuleIndex: cocRule,
-
-		QuitInactiveThreshold: myDice.QuitInactiveThreshold.Hours() / 24,
-		QuitInactiveBatchSize: myDice.QuitInactiveBatchSize,
-		QuitInactiveBatchWait: myDice.QuitInactiveBatchWait,
-
-		BotExtFreeSwitch:  myDice.BotExtFreeSwitch,
-		TrustOnlyMode:     myDice.TrustOnlyMode,
-		AliveNoticeEnable: myDice.AliveNoticeEnable,
-		AliveNoticeValue:  myDice.AliveNoticeValue,
-		ReplyDebugMode:    myDice.ReplyDebugMode,
-
-		ServeAddress:      myDice.Parent.ServeAddress,
-		HelpDocEngineType: myDice.Parent.HelpDocEngineType,
-
-		// 1.0 正式
-		LogSizeNoticeEnable:     myDice.LogSizeNoticeEnable,
-		LogSizeNoticeCount:      myDice.LogSizeNoticeCount,
-		CustomReplyConfigEnable: myDice.CustomReplyConfigEnable,
-
-		// 1.2
-		TextCmdTrustOnly:     myDice.TextCmdTrustOnly,
-		QQEnablePoke:         myDice.QQEnablePoke,
-		PlayerNameWrapEnable: myDice.PlayerNameWrapEnable,
-
-		// 1.3?
-		MailEnable:              myDice.MailEnable,
-		MailFrom:                myDice.MailFrom,
-		MailPassword:            emailPasswordMasked,
-		MailSMTP:                myDice.MailSMTP,
-		MaxExecuteTime:          maxExec,
-		MaxCocCardGen:           maxCard,
-		PersonalReplenishRate:   myDice.PersonalReplenishRateStr,
-		PersonalReplenishBurst:  myDice.PersonalBurst,
-		GroupReplenishRate:      myDice.GroupReplenishRateStr,
-		GroupReplenishBurst:     myDice.GroupBurst,
-		IgnoreUnaddressedBotCmd: myDice.IgnoreUnaddressedBotCmd,
+		ServerAddress:       myDice.Parent.ServeAddress,
+		HelpDocEngineType:   myDice.Parent.HelpDocEngineType,
+		MaxExecuteTime:      maxExec,
+		MaxCocCardGen:       maxCard,
 	}
+	info.ExtDefaultSettings = extDefaultSettings
+	info.DefaultCocRuleIndex = cocRule
+	info.MailPassword = emailPasswordMasked
+	info.Config.QuitInactiveThresholdDays = info.QuitInactiveThreshold.Hours() / 24
+
 	return c.JSON(http.StatusOK, info)
 }
 
@@ -193,7 +109,7 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	if err != nil {
-		fmt.Println(err)
+		log.Error("DiceConfigSet", err)
 		return c.JSON(http.StatusOK, nil)
 	}
 	if val, ok := jsonMap["commandPrefix"]; ok {
@@ -217,8 +133,9 @@ func DiceConfigSet(c echo.Context) error {
 		myDice.DiceMasters = masters
 	}
 
+	config := &myDice.Config
 	if val, ok := jsonMap["noticeIds"]; ok {
-		myDice.NoticeIDs = stringConvert(val)
+		config.NoticeIDs = stringConvert(val)
 	}
 
 	if val, ok := jsonMap["defaultCocRuleIndex"]; ok { //nolint:nestif
@@ -226,12 +143,12 @@ func DiceConfigSet(c echo.Context) error {
 		if ok {
 			valStr = strings.TrimSpace(valStr)
 			if strings.EqualFold(valStr, "dg") {
-				myDice.DefaultCocRuleIndex = 11
+				config.DefaultCocRuleIndex = 11
 			} else {
-				myDice.DefaultCocRuleIndex, err = strconv.ParseInt(valStr, 10, 64)
+				config.DefaultCocRuleIndex, err = strconv.ParseInt(valStr, 10, 64)
 				if err == nil {
-					if myDice.DefaultCocRuleIndex > 5 || myDice.DefaultCocRuleIndex < 0 {
-						myDice.DefaultCocRuleIndex = 0
+					if config.DefaultCocRuleIndex > 5 || config.DefaultCocRuleIndex < 0 {
+						config.DefaultCocRuleIndex = dice.DefaultConfig.DefaultCocRuleIndex
 					}
 				}
 			}
@@ -245,7 +162,7 @@ func DiceConfigSet(c echo.Context) error {
 			var valInt int64
 			valInt, err = strconv.ParseInt(valStr, 10, 64)
 			if err == nil && valInt > 0 {
-				myDice.MaxExecuteTime = valInt
+				config.MaxExecuteTime = valInt
 			} /* else {
 				Should return some error?
 			} */
@@ -259,7 +176,7 @@ func DiceConfigSet(c echo.Context) error {
 			var valInt int64
 			valInt, err = strconv.ParseInt(valStr, 10, 64)
 			if err == nil && valInt > 0 {
-				myDice.MaxCocCardGen = valInt
+				config.MaxCocCardGen = valInt
 			} /* else {
 				Should return some error?
 			} */
@@ -271,7 +188,7 @@ func DiceConfigSet(c echo.Context) error {
 		if ok {
 			customBurst := int64(valStr)
 			if customBurst >= 1 {
-				myDice.PersonalBurst = customBurst
+				config.PersonalBurst = customBurst
 			}
 		}
 	}
@@ -282,8 +199,8 @@ func DiceConfigSet(c echo.Context) error {
 			valStr = strings.TrimSpace(valStr)
 			newRate, errParse := utils.ParseRate(valStr)
 			if errParse == nil && newRate != rate.Limit(0) {
-				myDice.PersonalReplenishRate = newRate
-				myDice.PersonalReplenishRateStr = valStr
+				config.PersonalReplenishRate = newRate
+				config.PersonalReplenishRateStr = valStr
 			}
 		}
 	}
@@ -293,7 +210,7 @@ func DiceConfigSet(c echo.Context) error {
 		if ok {
 			customBurst := int64(valStr)
 			if customBurst >= 1 {
-				myDice.GroupBurst = customBurst
+				config.GroupBurst = customBurst
 			}
 		}
 	}
@@ -304,54 +221,54 @@ func DiceConfigSet(c echo.Context) error {
 			valStr = strings.TrimSpace(valStr)
 			newRate, errParse := utils.ParseRate(valStr)
 			if errParse == nil && newRate != rate.Limit(0) {
-				myDice.GroupReplenishRate = newRate
-				myDice.GroupReplenishRateStr = valStr
+				config.GroupReplenishRate = newRate
+				config.GroupReplenishRateStr = valStr
 			}
 		}
 	}
 
 	if val, ok := jsonMap["onlyLogCommandInGroup"]; ok {
-		myDice.OnlyLogCommandInGroup = val.(bool)
+		config.OnlyLogCommandInGroup = val.(bool)
 	}
 
 	if val, ok := jsonMap["onlyLogCommandInPrivate"]; ok {
-		myDice.OnlyLogCommandInPrivate = val.(bool)
+		config.OnlyLogCommandInPrivate = val.(bool)
 	}
 
 	if val, ok := jsonMap["refuseGroupInvite"]; ok {
-		myDice.RefuseGroupInvite = val.(bool)
+		config.RefuseGroupInvite = val.(bool)
 	}
 
 	if val, ok := jsonMap["workInQQChannel"]; ok {
-		myDice.WorkInQQChannel = val.(bool)
+		config.WorkInQQChannel = val.(bool)
 	}
 
 	if val, ok := jsonMap["QQChannelLogMessage"]; ok {
-		myDice.QQChannelLogMessage = val.(bool)
+		config.QQChannelLogMessage = val.(bool)
 	}
 
 	if val, ok := jsonMap["QQChannelAutoOn"]; ok {
-		myDice.QQChannelAutoOn = val.(bool)
+		config.QQChannelAutoOn = val.(bool)
 	}
 
 	if val, ok := jsonMap["botExtFreeSwitch"]; ok {
-		myDice.BotExtFreeSwitch = val.(bool)
+		config.BotExtFreeSwitch = val.(bool)
 	}
 	if val, ok := jsonMap["rateLimitEnabled"]; ok {
-		myDice.RateLimitEnabled = val.(bool)
+		config.RateLimitEnabled = val.(bool)
 	}
 	if val, ok := jsonMap["trustOnlyMode"]; ok {
-		myDice.TrustOnlyMode = val.(bool)
+		config.TrustOnlyMode = val.(bool)
 	}
 
 	aliveNoticeMod := false
 	if val, ok := jsonMap["aliveNoticeEnable"]; ok {
-		myDice.AliveNoticeEnable = val.(bool)
+		config.AliveNoticeEnable = val.(bool)
 		aliveNoticeMod = true
 	}
 
 	if val, ok := jsonMap["aliveNoticeValue"]; ok {
-		myDice.AliveNoticeValue = val.(string)
+		config.AliveNoticeValue = val.(string)
 		aliveNoticeMod = true
 	}
 	if aliveNoticeMod {
@@ -373,10 +290,10 @@ func DiceConfigSet(c echo.Context) error {
 			if f < 0 {
 				f = 0
 			}
-			if myDice.MessageDelayRangeEnd < f {
-				myDice.MessageDelayRangeEnd = f
+			if config.MessageDelayRangeEnd < f {
+				config.MessageDelayRangeEnd = f
 			}
-			myDice.MessageDelayRangeStart = f
+			config.MessageDelayRangeStart = f
 		}
 	}
 
@@ -387,14 +304,14 @@ func DiceConfigSet(c echo.Context) error {
 				f = 0
 			}
 
-			if f >= myDice.MessageDelayRangeStart {
-				myDice.MessageDelayRangeEnd = f
+			if f >= config.MessageDelayRangeStart {
+				config.MessageDelayRangeEnd = f
 			}
 		}
 	}
 
 	if val, ok := jsonMap["friendAddComment"]; ok {
-		myDice.FriendAddComment = strings.TrimSpace(val.(string))
+		config.FriendAddComment = strings.TrimSpace(val.(string))
 	}
 
 	if val, ok := jsonMap["uiPassword"]; ok {
@@ -409,7 +326,7 @@ func DiceConfigSet(c echo.Context) error {
 			var items []*dice.ExtDefaultSettingItem
 			err := json.Unmarshal(data, &items)
 			if err == nil {
-				myDice.ExtDefaultSettings = items
+				config.ExtDefaultSettings = items
 				myDice.ApplyExtDefaultSettings()
 			}
 		}
@@ -434,57 +351,57 @@ func DiceConfigSet(c echo.Context) error {
 	// }
 
 	if val, ok := jsonMap["logSizeNoticeEnable"]; ok {
-		myDice.LogSizeNoticeEnable = val.(bool)
+		config.LogSizeNoticeEnable = val.(bool)
 	}
 
 	if val, ok := jsonMap["logSizeNoticeCount"]; ok {
 		count, ok := val.(float64)
 		if ok {
-			myDice.LogSizeNoticeCount = int(count)
+			config.LogSizeNoticeCount = int(count)
 		}
 		if !ok {
 			if v, ok := val.(string); ok {
 				v2, _ := strconv.ParseInt(v, 10, 64)
-				myDice.LogSizeNoticeCount = int(v2)
+				config.LogSizeNoticeCount = int(v2)
 			}
 		}
-		if myDice.LogSizeNoticeCount == 0 {
+		if config.LogSizeNoticeCount == 0 {
 			// 不能为零
-			myDice.LogSizeNoticeCount = 500
+			config.LogSizeNoticeCount = dice.DefaultConfig.LogSizeNoticeCount
 		}
 	}
 
 	if val, ok := jsonMap["customReplyConfigEnable"]; ok {
-		myDice.CustomReplyConfigEnable = val.(bool)
+		config.CustomReplyConfigEnable = val.(bool)
 	}
 
 	if val, ok := jsonMap["textCmdTrustOnly"]; ok {
-		myDice.TextCmdTrustOnly = val.(bool)
+		config.TextCmdTrustOnly = val.(bool)
 	}
 
 	if val, ok := jsonMap["ignoreUnaddressedBotCmd"]; ok {
-		myDice.IgnoreUnaddressedBotCmd = val.(bool)
+		config.IgnoreUnaddressedBotCmd = val.(bool)
 	}
 
 	if val, ok := jsonMap["QQEnablePoke"]; ok {
-		myDice.QQEnablePoke = val.(bool)
+		config.QQEnablePoke = val.(bool)
 	}
 
 	if val, ok := jsonMap["playerNameWrapEnable"]; ok {
-		myDice.PlayerNameWrapEnable = val.(bool)
+		config.PlayerNameWrapEnable = val.(bool)
 	}
 
 	if val, ok := jsonMap["mailEnable"]; ok {
-		myDice.MailEnable = val.(bool)
+		config.MailEnable = val.(bool)
 	}
 	if val, ok := jsonMap["mailFrom"]; ok {
-		myDice.MailFrom = val.(string)
+		config.MailFrom = val.(string)
 	}
 	if val, ok := jsonMap["mailPassword"]; ok {
-		myDice.MailPassword = val.(string)
+		config.MailPassword = val.(string)
 	}
 	if val, ok := jsonMap["mailSmtp"]; ok {
-		myDice.MailSMTP = val.(string)
+		config.MailSMTP = val.(string)
 	}
 
 	if val, ok := jsonMap["quitInactiveThreshold"]; ok {
@@ -492,14 +409,14 @@ func DiceConfigSet(c echo.Context) error {
 		switch v := val.(type) {
 		case string:
 			if vv, err := strconv.ParseFloat(v, 64); err == nil {
-				myDice.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * vv)
+				config.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * vv)
 				set = true
 			}
 		case float64:
-			myDice.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * v)
+			config.QuitInactiveThreshold = time.Duration(float64(24*time.Hour) * v)
 			set = true
 		case int64:
-			myDice.QuitInactiveThreshold = 24 * time.Hour * time.Duration(v)
+			config.QuitInactiveThreshold = 24 * time.Hour * time.Duration(v)
 			set = true
 		default:
 			// ignore
@@ -512,7 +429,7 @@ func DiceConfigSet(c echo.Context) error {
 	if val, ok := jsonMap["quitInactiveBatchSize"]; ok {
 		if v, ok := val.(float64); ok {
 			if vv := int64(v); vv > 0 {
-				myDice.QuitInactiveBatchSize = vv
+				config.QuitInactiveBatchSize = vv
 			}
 		}
 	}
@@ -520,7 +437,7 @@ func DiceConfigSet(c echo.Context) error {
 	if val, ok := jsonMap["quitInactiveBatchWait"]; ok {
 		if v, ok := val.(float64); ok {
 			if vv := int64(v); vv > 0 {
-				myDice.QuitInactiveBatchWait = vv
+				config.QuitInactiveBatchWait = vv
 			}
 		}
 	}
@@ -546,7 +463,7 @@ func DiceMailTest(c echo.Context) error {
 	return Success(&c, Response{})
 }
 
-func vmVersionForExtSetBase(c echo.Context, callback func(val string)) error {
+func vmVersionSet(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
@@ -554,29 +471,42 @@ func vmVersionForExtSetBase(c echo.Context, callback func(val string)) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 
-	var data struct {
+	var req []struct {
+		Type  string `json:"type"`
 		Value string `json:"value"`
 	}
 
-	err := c.Bind(&data)
+	err := c.Bind(&req)
 	if err != nil {
 		return Error(&c, err.Error(), nil)
 	}
+	if len(req) == 0 {
+		return Error(&c, "缺少设置vm版本的参数", Response{})
+	}
 
-	callback(data.Value)
+	var failTypes []string
+	for _, data := range req {
+		if data.Type == "" || data.Value == "" {
+			failTypes = append(failTypes, data.Type)
+			continue
+		}
+		switch data.Type {
+		case dice.VMVersionReply:
+			(&myDice.Config).VMVersionForReply = data.Value
+		case dice.VMVersionDeck:
+			(&myDice.Config).VMVersionForDeck = data.Value
+		case dice.VMVersionCustomText:
+			(&myDice.Config).VMVersionForCustomText = data.Value
+		case dice.VmVersionMsg:
+			(&myDice.Config).VMVersionForMsg = data.Value
+		default:
+			failTypes = append(failTypes, data.Type)
+		}
+	}
 	myDice.MarkModified()
-	myDice.Parent.Save()
-	return Success(&c, Response{})
-}
+	myDice.Save(false)
 
-func vmVersionForReplySet(c echo.Context) error {
-	return vmVersionForExtSetBase(c, func(val string) {
-		myDice.VMVersionForReply = val
-	})
-}
-
-func vmVersionForDeckSet(c echo.Context) error {
-	return vmVersionForExtSetBase(c, func(val string) {
-		myDice.VMVersionForDeck = val
+	return Success(&c, Response{
+		"failTypes": failTypes,
 	})
 }

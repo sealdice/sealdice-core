@@ -232,7 +232,7 @@ create table if not exists ban_info
 	now := time.Now()
 	nowTimestamp := now.Unix()
 
-	fmt.Println("处理serve.yaml")
+	fmt.Fprintln(os.Stdout, "处理serve.yaml")
 
 	times := 0
 	dNew := &Dice{}
@@ -240,7 +240,7 @@ create table if not exists ban_info
 		tx := dbSql.MustBegin()
 
 		for k, v := range dNew.ImSession.ServiceAtNew {
-			fmt.Println("群组", k)
+			fmt.Fprintln(os.Stdout, "群组", k)
 			times += len(v.Players)
 			for _, playerInfo := range v.Players {
 				args := map[string]interface{}{
@@ -271,13 +271,13 @@ create table if not exists ban_info
 
 		errTx := tx.Commit()
 		if errTx != nil {
-			fmt.Println("???", errTx)
+			fmt.Fprintln(os.Stdout, "???", errTx)
 			_ = tx.Rollback()
 		}
 
-		fmt.Println("群组信息处理完成")
-		fmt.Println("群数量", len(dNew.ImSession.ServiceAtNew))
-		fmt.Println("群成员数量", times)
+		fmt.Fprintln(os.Stdout, "群组信息处理完成")
+		fmt.Fprintln(os.Stdout, "群数量", len(dNew.ImSession.ServiceAtNew))
+		fmt.Fprintln(os.Stdout, "群成员数量", times)
 	}
 
 	_ = os.WriteFile("./data/default/serve.yaml.old", data, 0644)
@@ -289,7 +289,7 @@ create table if not exists ban_info
 		_ = db.Close()
 	}(db)
 
-	fmt.Println("处理属性部分")
+	fmt.Fprintln(os.Stdout, "处理属性部分")
 	copyByName := func(table string) {
 		times = 0
 		tx2 := dbSql.MustBegin()
@@ -308,7 +308,7 @@ create table if not exists ban_info
 			})
 		})
 
-		fmt.Println("条目数量"+table, times)
+		fmt.Fprintln(os.Stdout, "条目数量"+table, times)
 
 		if tx2.Commit() != nil {
 			_ = tx2.Rollback()
@@ -319,7 +319,7 @@ create table if not exists ban_info
 	copyByName("attrs_group")
 	copyByName("attrs_user")
 	copyByName("attrs_group_user")
-	fmt.Println("完成")
+	fmt.Fprintln(os.Stdout, "完成")
 
 	times = 0
 	tx2 := dbSql.MustBegin()
@@ -356,8 +356,8 @@ create table if not exists ban_info
 		_ = tx2.Rollback()
 	}
 
-	fmt.Println("黑名单条目数量", times)
-	fmt.Println("完成")
+	fmt.Fprintln(os.Stdout, "黑名单条目数量", times)
+	fmt.Fprintln(os.Stdout, "完成")
 
 	return nil
 }
