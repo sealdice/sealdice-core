@@ -432,10 +432,18 @@ func V150Upgrade() error {
 	}
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf("回滚事务时出错: %v", err)
+			}
 			panic(p) // 继续传播 panic
 		} else if err != nil {
-			tx.Rollback()
+			log.Errorf("日志处理时出现异常行为: %v", err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf("回滚事务时出错: %v", err)
+				return
+			}
 		} else {
 			err = tx.Commit()
 			if err != nil {
@@ -464,7 +472,7 @@ func V150Upgrade() error {
 	sheetIdBindByGroupUserId = map[string]string{}
 
 	for _, singleSql := range v150sqls {
-		if _, err := tx.Exec(singleSql); err != nil {
+		if _, err = tx.Exec(singleSql); err != nil {
 			return fmt.Errorf("执行 SQL 出错: %w", err)
 		}
 	}

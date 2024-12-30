@@ -331,7 +331,7 @@ func main() {
 			log.Warn("检测到 auto_update.exe，即将自动退出当前程序并进行升级")
 			log.Warn("程序目录下会出现“升级日志.log”，这代表升级正在进行中，如果失败了请检查此文件。")
 
-			err := CheckUpdater(diceManager)
+			err = CheckUpdater(diceManager)
 			if err != nil {
 				log.Error("升级程序检查失败: ", err.Error())
 			} else {
@@ -353,7 +353,7 @@ func main() {
 		}
 
 		if doNext {
-			err := CheckUpdater(diceManager)
+			err = CheckUpdater(diceManager)
 			if err != nil {
 				log.Error("升级程序检查失败: ", err.Error())
 			} else {
@@ -368,7 +368,7 @@ func main() {
 	removeUpdateFiles()
 
 	if opts.UpdateTest {
-		err := CheckUpdater(diceManager)
+		err = CheckUpdater(diceManager)
 		if err != nil {
 			log.Error("升级程序检查失败: ", err.Error())
 		} else {
@@ -378,7 +378,7 @@ func main() {
 
 	// 先临时放这里，后面再整理一下升级模块
 	diceManager.UpdateSealdiceByFile = func(packName string, log *log.Helper) bool {
-		err := CheckUpdater(diceManager)
+		err = CheckUpdater(diceManager)
 		if err != nil {
 			log.Error("升级程序检查失败: ", err.Error())
 			return false
@@ -399,7 +399,8 @@ func main() {
 
 	useBuiltinUI := false
 	checkFrontendExists := func() bool {
-		stat, err := os.Stat("./frontend_overwrite")
+		var stat os.FileInfo
+		stat, err = os.Stat("./frontend_overwrite")
 		return err == nil && stat.IsDir()
 	}
 	if !checkFrontendExists() {
