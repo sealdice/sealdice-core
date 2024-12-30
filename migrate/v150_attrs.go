@@ -417,8 +417,9 @@ CREATE TABLE IF NOT EXISTS attrs (
 func V150Upgrade() error {
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
-		return errors.New("未能查找到旧版本数据库")
-	}
+    	log.Error("未找到旧版本数据库，若您启动全新海豹，可安全忽略。")
+        return nil
+    }
 
 	db, err := openDB(dbDataPath)
 	if err != nil {
