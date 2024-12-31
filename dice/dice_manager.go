@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"fmt"
 	"os"
 	"sync/atomic"
 	"time"
@@ -114,7 +113,7 @@ func (dm *DiceManager) InitHelp() {
 	_ = os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
 	dm.Help.Parent = dm
-	dm.Help.EngineType = dm.HelpDocEngineType
+	dm.Help.EngineType = EngineType(dm.HelpDocEngineType)
 	dm.Help.Load()
 	dm.IsHelpReloading = false
 }
@@ -153,7 +152,7 @@ func (dm *DiceManager) LoadDice() {
 	var dc Configs
 	err = yaml.Unmarshal(data, &dc)
 	if err != nil {
-		fmt.Println("读取 data/dice.yaml 发生错误: 配置文件格式不正确")
+		log.Error("读取 data/dice.yaml 发生错误: 配置文件格式不正确", err)
 		panic(err)
 	}
 
@@ -237,7 +236,7 @@ func (dm *DiceManager) InitDice() {
 
 	g, err := NewProcessExitGroup()
 	if err != nil {
-		fmt.Println("进程组创建失败，若进程崩溃，gocqhttp进程可能需要手动结束。")
+		log.Warn("进程组创建失败，若进程崩溃，gocqhttp进程可能需要手动结束。")
 	} else {
 		dm.progressExitGroupWin = g
 	}
@@ -250,9 +249,9 @@ func (dm *DiceManager) InitDice() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Println("帮助文档加载失败。可能是由于退出程序过快，帮助文档还未加载完成所致", r)
+				log.Warn("帮助文档加载失败。可能是由于退出程序过快，帮助文档还未加载完成所致", r)
 				if dm.Help != nil {
-					fmt.Println("帮助文件加载失败:", dm.Help.LoadingFn)
+					log.Warn("帮助文件加载失败:", dm.Help.LoadingFn)
 				}
 			}
 		}()
@@ -278,17 +277,15 @@ func (dm *DiceManager) ResetAutoBackup() {
 		dm.backupEntryID, err = dm.Cron.AddFunc(dm.AutoBackupTime, func() {
 			errBackup := dm.BackupAuto()
 			if errBackup != nil {
-				fmt.Println("自动备份失败: ", errBackup.Error())
+				log.Errorf("自动备份失败: %v", errBackup)
 				return
 			}
 			if errBackup = dm.BackupClean(true); errBackup != nil {
-				fmt.Println("滚动清理备份失败: ", errBackup.Error())
+				log.Errorf("滚动清理备份失败: %v", errBackup)
 			}
 		})
 		if err != nil {
-			if len(dm.Dice) > 0 {
-				dm.Dice[0].Logger.Errorf("设定的自动备份间隔有误: %v", err.Error())
-			}
+			log.Errorf("设定的自动备份间隔有误: %v", err)
 			return
 		}
 	}

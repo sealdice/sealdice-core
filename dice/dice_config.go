@@ -41,6 +41,11 @@ type Config struct {
 	NewsConfig `yaml:",inline"`
 	// 敏感词设置
 	CensorConfig `yaml:",inline"`
+	// 公骰设置
+	PublicDiceConfig `yaml:",inline"`
+
+	// 其它设置，包含由于被导出无法从 Dice 上迁移过来的配置项，为了在 DefaultConfig 上统一设置默认值增加此结构
+	DirtyConfig `yaml:",inline"`
 }
 
 func NewConfig(d *Dice) Config {
@@ -183,8 +188,8 @@ type QuitInactiveConfig struct {
 
 	QuitInactiveThresholdDays float64 `yaml:"-" json:"quitInactiveThreshold"` // 为了和前端通信
 
-	QuitInactiveBatchSize int64 `yaml:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
-	QuitInactiveBatchWait int64 `yaml:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
+	QuitInactiveBatchSize int64 `yaml:"quitInactiveBatchSize" json:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
+	QuitInactiveBatchWait int64 `yaml:"quitInactiveBatchWait" json:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
 }
 
 type ExtConfig struct {
@@ -220,6 +225,15 @@ type NewsConfig struct {
 	NewsMark string `json:"newsMark" yaml:"newsMark"` // 已读新闻的md5
 }
 
+type PublicDiceConfig struct {
+	Enable bool   `json:"publicDiceEnable" yaml:"publicDiceEnable"`
+	ID     string `json:"publicDiceId" yaml:"publicDiceId"`
+	Name   string `json:"publicDiceName" yaml:"publicDiceName"`
+	Brief  string `json:"publicDiceBrief" yaml:"publicDiceBrief"`
+	Note   string `json:"publicDiceNote" yaml:"publicDiceNote"`
+	Avatar string `json:"publicDiceAvatar" yaml:"publicDiceAvatar"`
+}
+
 type CensorConfig struct {
 	EnableCensor         bool                   `json:"enableCensor" yaml:"enableCensor"` // 启用敏感词审查
 	CensorMode           CensorMode             `json:"censorMode" yaml:"censorMode"`
@@ -229,4 +243,10 @@ type CensorConfig struct {
 	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
+}
+
+type DirtyConfig struct {
+	DeckList      []*DeckInfo `yaml:"-"` // 牌堆信息
+	CommandPrefix []string    `yaml:"-"` // 指令前导
+	DiceMasters   []string    `yaml:"-"` // 骰主设置，需要格式: 平台:帐号
 }

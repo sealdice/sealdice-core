@@ -9,10 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
+	log "sealdice-core/utils/kratos"
 )
 
 type CensorMode int
@@ -53,12 +54,12 @@ type CensorManager struct {
 	IsLoading           bool
 	Parent              *Dice
 	Censor              *censor.Censor
-	DB                  *sqlx.DB
+	DB                  *gorm.DB
 	SensitiveWordsFiles map[string]*censor.WordFile
 }
 
 func (d *Dice) NewCensorManager() {
-	db, err := model.SQLiteCensorDBInit(d.BaseConfig.DataDir)
+	db, err := model.CensorDBInit()
 	if err != nil {
 		panic(err)
 	}
@@ -95,7 +96,7 @@ func (cm *CensorManager) Load(_ *Dice) {
 			cm.Parent.Logger.Infof("正在读取敏感词文件：%s\n", path)
 			fileInfo, e := cm.Censor.PreloadFile(path)
 			if e != nil {
-				fmt.Printf("censor: unable to read %s, %s\n", path, e.Error())
+				log.Errorf("censor: unable to read %s, %v", path, e)
 			}
 			if cm.SensitiveWordsFiles == nil {
 				cm.SensitiveWordsFiles = make(map[string]*censor.WordFile)
@@ -106,7 +107,7 @@ func (cm *CensorManager) Load(_ *Dice) {
 	})
 	err := cm.Censor.Load()
 	if err != nil {
-		fmt.Printf("censor: load fail, %s\n", err.Error())
+		log.Errorf("censor: load fail, %v", err)
 	}
 	cm.IsLoading = false
 }

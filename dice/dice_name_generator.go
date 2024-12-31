@@ -55,7 +55,7 @@ func (ng *NamesGenerator) Load() {
 		}
 
 		if err := f.Close(); err != nil {
-			fmt.Println(err)
+			log.Error("NamesGenerator.Load", err)
 		}
 	}
 }

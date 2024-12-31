@@ -14,17 +14,18 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
-	"github.com/jmoiron/sqlx"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
+	"gorm.io/gorm"
 
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
 	log "sealdice-core/utils/kratos"
+	"sealdice-core/utils/public_dice"
 )
 
 type CmdExecuteResult struct {
@@ -133,8 +134,8 @@ type Dice struct {
 	LastUpdatedTime int64                  `yaml:"-"`
 	TextMap         map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig      BaseConfig             `yaml:"-"`
-	DBData          *sqlx.DB               `yaml:"-"` // 数据库对象
-	DBLogs          *sqlx.DB               `yaml:"-"` // 数据库对象
+	DBData          *gorm.DB               `yaml:"-"` // 数据库对象
+	DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	Logger          *log.Helper            `yaml:"-"` // 日志
 	LogWriter       *log.WriterX           `yaml:"-"` // 用于api的log对象
 	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
@@ -160,10 +161,11 @@ type Dice struct {
 	AliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
 	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
-	JsLoop           *eventloop.EventLoop   `yaml:"-" json:"-"`
-	JsScriptList     []*JsScriptInfo        `yaml:"-" json:"-"`
-	JsScriptCron     *cron.Cron             `yaml:"-" json:"-"`
-	JsScriptCronLock *sync.Mutex            `yaml:"-" json:"-"`
+
+	JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
+	JsScriptList     []*JsScriptInfo      `yaml:"-" json:"-"`
+	JsScriptCron     *cron.Cron           `yaml:"-" json:"-"`
+	JsScriptCronLock *sync.Mutex          `yaml:"-" json:"-"`
 	// 重载使用的互斥锁
 	JsReloadLock sync.Mutex `yaml:"-" json:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
@@ -182,11 +184,14 @@ type Dice struct {
 
 	CensorManager *CensorManager `json:"-" yaml:"-"`
 
-	Config Config `json:"-" yaml:"-"`
-
 	AttrsManager *AttrsManager `json:"-" yaml:"-"`
 
+	Config Config `json:"-" yaml:"-"`
+
 	AdvancedConfig AdvancedConfig `json:"-" yaml:"-"`
+
+	PublicDice        *public_dice.PublicDiceClient `json:"-" yaml:"-"`
+	PublicDiceTimerId cron.EntryID                  `json:"-" yaml:"-"`
 
 	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
@@ -224,9 +229,8 @@ func (d *Dice) Init() {
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 
 	var err error
-	d.DBData, d.DBLogs, err = model.SQLiteDBInit(d.BaseConfig.DataDir)
+	d.DBData, d.DBLogs, err = model.DatabaseInit()
 	if err != nil {
-		fmt.Println(err)
 		d.Logger.Errorf("Failed to init database: %v", err)
 	}
 
@@ -262,6 +266,8 @@ func (d *Dice) Init() {
 	if d.Config.EnableCensor {
 		d.NewCensorManager()
 	}
+
+	go d.PublicDiceSetup()
 
 	// 创建js运行时
 	if d.Config.JsEnable {
@@ -467,7 +473,7 @@ func (d *Dice) _ExprTextBaseV1(buffer string, ctx *MsgContext, flags RollExtraFl
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d._ExprEvalBaseV1("\x1e"+buffer+"\x1e", ctx, flags)
 	if err != nil {
-		fmt.Println("脚本执行出错: ", buffer, "->", err)
+		log.Warnf("脚本执行出错: %s -> %v", buffer, err)
 	}
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
@@ -623,9 +629,10 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 }
 
-// GameSystemTemplateAdd 应用一个角色模板
-func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
-	if _, exists := d.GameSystemMap.Load(tmpl.Name); !exists {
+// GameSystemTemplateAddEx 应用一个角色模板
+func (d *Dice) GameSystemTemplateAddEx(tmpl *GameSystemTemplate, overwrite bool) bool {
+	_, exists := d.GameSystemMap.Load(tmpl.Name)
+	if !exists || overwrite {
 		d.GameSystemMap.Store(tmpl.Name, tmpl)
 		// sn 从这里读取
 		// set 时从这里读取对应System名字的模板
@@ -642,6 +649,11 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 		return true
 	}
 	return false
+}
+
+// GameSystemTemplateAdd 应用一个角色模板，当已存在时返回false
+func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
+	return d.GameSystemTemplateAddEx(tmpl, false)
 }
 
 // var randSource = rand2.NewSource(uint64(time.Now().Unix()))
@@ -684,25 +696,125 @@ func ErrorLogAndContinue(d *Dice) {
 }
 
 var chsS2T = sat.DefaultDict()
+var taskId cron.EntryID
+var quitMutex sync.Mutex
 
 func (d *Dice) ResetQuitInactiveCron() {
+	// TODO: 这里加锁是否有必要？
+	quitMutex.Lock()
+	defer quitMutex.Unlock()
 	dm := d.Parent
 	if d.Config.quitInactiveCronEntry > 0 {
 		dm.Cron.Remove(d.Config.quitInactiveCronEntry)
 		(&d.Config).quitInactiveCronEntry = DefaultConfig.quitInactiveCronEntry
 	}
-
+	// 如果退群功能开启，那么设定退群的Cron
 	if d.Config.QuitInactiveThreshold > 0 {
-		var err error
-		(&d.Config).quitInactiveCronEntry, err = dm.Cron.AddFunc("0 4 * * *", func() {
-			thr := time.Now().Add(-d.Config.QuitInactiveThreshold)
-			hint := thr.Add(d.Config.QuitInactiveThreshold / 10) // 进入退出判定线的9/10开始提醒
-			d.ImSession.LongTimeQuitInactiveGroup(thr, hint,
-				int(d.Config.QuitInactiveBatchWait),
-				int(d.Config.QuitInactiveBatchSize))
-		})
-		if err != nil {
-			d.Logger.Errorf("创建自动清理群聊cron任务失败: %v", err)
+		duration := time.Duration(d.Config.QuitInactiveBatchWait) * time.Minute
+		// 每隔上面的退群时间，执行一次函数
+		if taskId != 0 {
+			dm.Cron.Remove(taskId)
 		}
+		taskId = dm.Cron.Schedule(cron.Every(duration), cron.FuncJob(func() {
+			thr := time.Now().Add(-d.Config.QuitInactiveThreshold)
+			// 进入退出判定线的9/10开始提醒, 但是目前来看，原版退群只有一个提示，提示会被大量刷屏然后消失不见。同时并没有告知对应的群
+			// 或许也不应该告知对应的群，因为群可能被解散了，大量告知容易出问题？
+			// hint := thr.Add(d.Config.QuitInactiveThreshold / 10)
+			d.ImSession.LongTimeQuitInactiveGroupReborn(thr, int(d.Config.QuitInactiveBatchSize))
+		}))
+		d.Logger.Infof("退群功能已启动，每 %s 执行一次退群判定", duration.String())
 	}
+}
+
+func (d *Dice) PublicDiceEndpointRefresh() {
+	cfg := &d.Config.PublicDiceConfig
+
+	var endpointItems []*public_dice.Endpoint
+	for _, i := range d.ImSession.EndPoints {
+		if !i.IsPublic {
+			continue
+		}
+		endpointItems = append(endpointItems, &public_dice.Endpoint{
+			Platform: i.Platform,
+			UID:      i.UserID,
+			IsOnline: i.State == 1,
+		})
+	}
+
+	_, code := d.PublicDice.EndpointUpdate(&public_dice.EndpointUpdateRequest{
+		DiceID:    cfg.ID,
+		Endpoints: endpointItems,
+	}, GenerateVerificationKeyForPublicDice)
+	if code != 200 {
+		log.Warn("[公骰]无法通过服务器校验，不再进行更新")
+		return
+	}
+}
+
+func (d *Dice) PublicDiceInfoRegister() {
+	cfg := &d.Config.PublicDiceConfig
+
+	pd, code := d.PublicDice.Register(&public_dice.RegisterRequest{
+		ID:    cfg.ID,
+		Name:  cfg.Name,
+		Brief: cfg.Brief,
+		Note:  cfg.Note,
+	}, GenerateVerificationKeyForPublicDice)
+	if code != 200 {
+		log.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
+		return
+	}
+	// 两种可能: 1. 原本ID为空 2. ID 无效，这里会自动变成新的
+	if pd.Item.ID != "" && cfg.ID != pd.Item.ID {
+		cfg.ID = pd.Item.ID
+	}
+}
+
+func (d *Dice) PublicDiceSetupTick() {
+	cfg := &d.Config.PublicDiceConfig
+
+	doTickUpdate := func() {
+		if !cfg.Enable {
+			d.Cron.Remove(d.PublicDiceTimerId)
+			return
+		}
+		var tickEndpointItems []*public_dice.TickEndpoint
+		for _, i := range d.ImSession.EndPoints {
+			if !i.IsPublic {
+				continue
+			}
+			tickEndpointItems = append(tickEndpointItems, &public_dice.TickEndpoint{
+				UID:      i.UserID,
+				IsOnline: i.State == 1,
+			})
+		}
+		d.PublicDice.TickUpdate(&public_dice.TickUpdateRequest{
+			ID:        cfg.ID,
+			Endpoints: tickEndpointItems,
+		}, GenerateVerificationKeyForPublicDice)
+	}
+
+	if d.PublicDiceTimerId != 0 {
+		d.Cron.Remove(d.PublicDiceTimerId)
+	}
+
+	go func() {
+		// 20s后进行第一次调用，此后3min进行一次更新
+		time.Sleep(20 * time.Second)
+		doTickUpdate()
+	}()
+
+	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3m", doTickUpdate)
+}
+
+func (d *Dice) PublicDiceSetup() {
+	d.PublicDice = public_dice.NewClient("https://dice.weizaima.com", "")
+
+	cfg := &d.Config.PublicDiceConfig
+	if !cfg.Enable {
+		return
+	}
+	d.PublicDiceInfoRegister()
+	d.PublicDiceEndpointRefresh()
+	d.PublicDiceSetupTick()
 }

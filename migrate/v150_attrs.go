@@ -15,6 +15,7 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
+	log "sealdice-core/utils/kratos"
 )
 
 func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*model.AttributesItemModel, error) {
@@ -121,8 +122,8 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		_, userIdPart, ok := dice.UnpackGroupUserId(id)
 		if !ok {
 			countFailed += 1
-			fmt.Println("数据库读取出错，退出转换")
-			fmt.Println("ID解析失败: ", id)
+			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
+			fmt.Fprintln(os.Stdout, "ID解析失败: ", id)
 			continue
 		}
 
@@ -131,7 +132,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 
 		if err != nil {
 			countFailed += 1
-			fmt.Println("解析失败: ", string(data))
+			fmt.Fprintln(os.Stdout, "解析失败: ", string(data))
 			continue
 		}
 
@@ -156,11 +157,10 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Printf("群-用户 %s 的数据无法转换\n", id)
+			fmt.Fprintf(os.Stdout, "群-用户 %s 的数据无法转换\n", id)
 			continue
 		}
 
-		// fmt.Println("UnpackID:", id, " UserPart:", userIdPart, " Sheet:", sheetIdBindByGroupUserId[id])
 		item := &model.AttributesItemModel{
 			Id:        id,
 			Data:      rawData,
@@ -212,7 +212,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 		)
 
 		if err != nil {
-			fmt.Println("数据库读取出错，退出转换")
+			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
 			return count, countFailed, err
 		}
 
@@ -221,7 +221,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 
 		if err != nil {
 			countFailed += 1
-			fmt.Println("解析失败: ", string(data))
+			fmt.Fprintln(os.Stdout, "解析失败: ", string(data))
 			continue
 		}
 
@@ -234,7 +234,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Printf("群 %s 的数据无法转换\n", id)
+			fmt.Fprintf(os.Stdout, "群 %s 的数据无法转换\n", id)
 			continue
 		}
 
@@ -283,7 +283,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		)
 
 		if err != nil {
-			fmt.Println("数据库读取出错，退出转换")
+			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
 			return count, countSheetsNum, countFailed, err
 		}
 
@@ -295,7 +295,6 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 			continue
 		}
 
-		// fmt.Println("数据转换-用户:", ownerId)
 		var newSheetsList []*model.AttributesItemModel
 		var sheetNameBindByGroupId = map[string]string{}
 
@@ -314,7 +313,6 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 				groupId := k[len("$:group-bind:"):]
 				name, _ := v.ReadString()
 				sheetNameBindByGroupId[groupId] = name
-				// fmt.Println("绑卡关联:", groupId, name)
 				continue
 			}
 			if strings.HasPrefix(k, "$ch:") {
@@ -324,7 +322,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 
 				toNew, err = convertToNew(name, ownerId, []byte(v.ToString()), updatedAt)
 				if err != nil {
-					fmt.Printf("用户 %s 的角色卡 %s 无法转换", ownerId, name)
+					fmt.Fprintf(os.Stdout, "用户 %s 的角色卡 %s 无法转换", ownerId, name)
 					continue
 				}
 				newSheetsList = append(newSheetsList, toNew)
@@ -337,7 +335,6 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 			// 一次性，双循环罢
 			for groupID, j := range sheetNameBindByGroupId {
 				if j == i.Name {
-					// fmt.Println("GUID:", fmt.Sprintf("%s-%s", groupID, ownerId), " sheetID:", i.Id)
 					sheetIdBindByGroupUserId[fmt.Sprintf("%s-%s", groupID, ownerId)] = i.Id
 				}
 			}
@@ -347,7 +344,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		for _, i := range newSheetsList {
 			_, err = AttrsNewItem(db, i)
 			if err != nil {
-				fmt.Printf("用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
+				fmt.Fprintf(os.Stdout, "用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
 			}
 		}
 
@@ -355,7 +352,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Printf("用户 %s 的个人数据无法转换\n", ownerId)
+			fmt.Fprintf(os.Stdout, "用户 %s 的个人数据无法转换\n", ownerId)
 			continue
 		}
 
@@ -395,110 +392,132 @@ func checkTableExists(db *sqlx.DB, tableName string) (bool, error) {
 	}
 }
 
-func V150Upgrade() bool {
-	dbDataPath, _ := filepath.Abs("./data/default/data.db")
-	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
-		return true
-	}
-
-	db, err := openDB(dbDataPath)
-	if err != nil {
-		fmt.Println("升级失败，无法打开数据库:", err)
-		return false
-	}
-	defer func() {
-		_ = db.Close()
-	}()
-
-	exists, err := checkTableExists(db, "attrs")
-	if err != nil {
-		fmt.Println("V150数据转换未知错误:", err.Error())
-		return false
-	}
-	if exists {
-		// 表格已经存在，说明转换完成，退出
-		return true
-	}
-
-	fmt.Println("1.5 数据迁移")
-	sheetIdBindByGroupUserId = map[string]string{}
-
-	sqls := []string{
-		`
+// Pinenutn: 2024-10-28 我要把这个注释全文背诵，它扰乱了GORM的初始化逻辑
+// -- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
+var v150sqls = []string{
+	`
 CREATE TABLE IF NOT EXISTS attrs (
     id TEXT PRIMARY KEY,
     data BYTEA,
     attrs_type TEXT,
-
-	-- 坏，Get这个方法太严格了，所有的字段都要有默认值，不然无法反序列化
-	binding_sheet_id TEXT default '',
-
+    binding_sheet_id TEXT default '',
     name TEXT default '',
     owner_id TEXT default '',
     sheet_type TEXT default '',
     is_hidden BOOLEAN default FALSE,
-
     created_at INTEGER default 0,
-    updated_at INTEGER  default 0
+    updated_at INTEGER default 0
 );
 `,
-		`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
-		`create index if not exists idx_attrs_owner_id_id on attrs (owner_id);`,
-		`create index if not exists idx_attrs_attrs_type_id on attrs (attrs_type);`,
+	`create index if not exists idx_attrs_binding_sheet_id on attrs (binding_sheet_id);`,
+	`create index if not exists idx_attrs_owner_id_id on attrs (owner_id);`,
+	`create index if not exists idx_attrs_attrs_type_id on attrs (attrs_type);`,
+}
+
+func V150Upgrade() error {
+	dbDataPath, _ := filepath.Abs("./data/default/data.db")
+	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
+    	log.Error("未找到旧版本数据库，若您启动全新海豹，可安全忽略。")
+        return nil
+    }
+
+	db, err := openDB(dbDataPath)
+	if err != nil {
+		return fmt.Errorf("升级失败，无法打开数据库: %w", err)
 	}
-	for _, i := range sqls {
-		_, _ = db.Exec(i)
-	}
+	defer db.Close()
 
 	tx, err := db.Beginx()
 	if err != nil {
-		fmt.Println("V150数据转换创建事务失败:", err.Error())
-		return false
+		return fmt.Errorf("创建事务失败: %w", err)
 	}
-
-	if exists, _ := checkTableExists(db, "attrs_user"); exists {
-		count, countSheetsNum, countFailed, err2 := attrsUserMigrate(tx)
-		fmt.Printf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
-		if err2 != nil {
-			fmt.Println("异常", err2.Error())
-			return false
+	defer func() {
+		if p := recover(); p != nil {
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf("回滚事务时出错: %v", err)
+			}
+			panic(p) // 继续传播 panic
+		} else if err != nil {
+			log.Errorf("日志处理时出现异常行为: %v", err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf("回滚事务时出错: %v", err)
+				return
+			}
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				log.Errorf("提交事务时出错: %v", err)
+			}
 		}
-	}
+	}()
 
-	if exists, _ := checkTableExists(db, "attrs_group_user"); exists {
-		count, countFailed, err2 := attrsGroupUserMigrate(tx)
-		fmt.Printf("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
-		if err2 != nil {
-			fmt.Println("异常", err2.Error())
-			return false
-		}
-	}
-
-	if exists, _ := checkTableExists(db, "attrs_group"); exists {
-		count, countFailed, err2 := attrsGroupMigrate(tx)
-		fmt.Printf("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
-		if err2 != nil {
-			fmt.Println("异常", err2.Error())
-			return false
-		}
-	}
-
-	// 删档
-	fmt.Println("删除旧版本数据")
-	_, _ = tx.Exec("drop table attrs_group")
-	_, _ = tx.Exec("drop table attrs_group_user")
-	_, _ = tx.Exec("drop table attrs_user")
-	_, _ = db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
-	_, _ = tx.Exec("VACUUM;") // 收尾
-
-	sheetIdBindByGroupUserId = nil
-
-	err = tx.Commit()
+	exists, err := checkTableExists(db, "attrs")
 	if err != nil {
-		fmt.Println("V150 数据转换失败:", err.Error())
-		return false
+		return fmt.Errorf("检查表是否存在时出错: %w", err)
+	}
+	// 特判146->150的倒霉蛋
+	exists146, err := checkTableExists(db, "attrs_group")
+
+	if exists {
+		if exists146 {
+			log.Errorf("1.4.6的数据部分迁移！您可能是150部分版本的受害者，请联系开发者")
+			return errors.New("150和146的数据库共同存在，请联系开发者")
+		}
+		// 表格已经存在，说明转换完成
+		return nil
 	}
 
-	fmt.Println("V150 数据转换完成")
-	return true
+	log.Info("1.5 数据迁移")
+	sheetIdBindByGroupUserId = map[string]string{}
+
+	for _, singleSql := range v150sqls {
+		if _, err = tx.Exec(singleSql); err != nil {
+			return fmt.Errorf("执行 SQL 出错: %w", err)
+		}
+	}
+
+	if exists, _ = checkTableExists(db, "attrs_user"); exists {
+		count, countSheetsNum, countFailed, err0 := attrsUserMigrate(tx)
+		log.Infof("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
+		if err0 != nil {
+			return fmt.Errorf("角色卡转换出错: %w", err0)
+		}
+	}
+
+	if exists, _ = checkTableExists(db, "attrs_group_user"); exists {
+		count, countFailed, err1 := attrsGroupUserMigrate(tx)
+		log.Infof("数据卡转换 - 群组个人数据，成功%d 失败 %d\n", count, countFailed)
+		if err1 != nil {
+			return fmt.Errorf("群组个人数据转换出错: %w", err1)
+		}
+	}
+
+	if exists, _ = checkTableExists(db, "attrs_group"); exists {
+		count, countFailed, err2 := attrsGroupMigrate(tx)
+		log.Infof("数据卡转换 - 群数据，成功%d 失败 %d\n", count, countFailed)
+		if err2 != nil {
+			return fmt.Errorf("群数据转换出错: %w", err2)
+		}
+	}
+
+	// 删除旧版本数据
+	log.Info("删除旧版本数据")
+	deleteSQLs := []string{
+		"drop table attrs_group",
+		"drop table attrs_group_user",
+		"drop table attrs_user",
+	}
+	for _, deleteSQL := range deleteSQLs {
+		if _, err = tx.Exec(deleteSQL); err != nil {
+			return fmt.Errorf("删除旧数据时出错: %w", err)
+		}
+	}
+	// 放在这里保证能执行
+	_, _ = db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
+	_, _ = db.Exec("VACUUM;")
+	sheetIdBindByGroupUserId = nil
+	log.Info("V150 数据转换完成")
+	return nil
 }
