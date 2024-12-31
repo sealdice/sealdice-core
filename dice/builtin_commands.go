@@ -274,6 +274,8 @@ func (d *Dice) registerCoreCommands() {
 			if id != "" {
 				text, err := d.Parent.Help.searchEngine.GetItemByID(id)
 				if err == nil {
+					// Copied from 支援换行符 By Fripine #963
+					text.Content = ctx.TranslateSplit(text.Content)
 					content := d.Parent.Help.GetContent(text, 0)
 					ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, content))
 				} else {
@@ -385,6 +387,8 @@ func (d *Dice) registerCoreCommands() {
 
 			var bestResult string
 			if showBest {
+				// Copied from 支援换行符 By Fripine #963
+				best.Content = ctx.TranslateSplit(best.Content)
 				content := d.Parent.Help.GetContent(best, 0)
 				bestResult = fmt.Sprintf("最优先结果%s:\n词条: %s:%s\n%s\n\n", groupStr, best.PackageName, best.Title, content)
 			}
@@ -477,10 +481,11 @@ func (d *Dice) registerCoreCommands() {
 			if err == nil {
 				if len(search.Hits) > 0 {
 					a := &docengine.HelpTextItem{
-						Group:       fmt.Sprintf("%v", search.Hits[0].Fields["group"]),
-						From:        fmt.Sprintf("%v", search.Hits[0].Fields["from"]),
-						Title:       fmt.Sprintf("%v", search.Hits[0].Fields["title"]),
-						Content:     fmt.Sprintf("%v", search.Hits[0].Fields["content"]),
+						Group: fmt.Sprintf("%v", search.Hits[0].Fields["group"]),
+						From:  fmt.Sprintf("%v", search.Hits[0].Fields["from"]),
+						Title: fmt.Sprintf("%v", search.Hits[0].Fields["title"]),
+						// Edited. Original change from 支援换行符 By Fripine #963
+						Content:     ctx.TranslateSplit(fmt.Sprintf("%v", search.Hits[0].Fields["content"])),
 						PackageName: fmt.Sprintf("%v", search.Hits[0].Fields["package"]),
 						// 这俩是什么东西？！
 						KeyWords:   "",
