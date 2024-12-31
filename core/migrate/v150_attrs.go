@@ -15,6 +15,7 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
+
 	log "sealdice-core/utils/kratos"
 )
 
@@ -417,9 +418,9 @@ CREATE TABLE IF NOT EXISTS attrs (
 func V150Upgrade() error {
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
-    	log.Error("未找到旧版本数据库，若您启动全新海豹，可安全忽略。")
-        return nil
-    }
+		log.Error("未找到旧版本数据库，若您启动全新海豹，可安全忽略。")
+		return nil
+	}
 
 	db, err := openDB(dbDataPath)
 	if err != nil {
