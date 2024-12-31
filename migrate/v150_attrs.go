@@ -419,8 +419,7 @@ func V150Upgrade() error {
 	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
 		log.Error("未找到旧版本数据库，若您启动全新海豹，可安全忽略。")
 		return nil
-    }
-
+	}
 	db, err := openDB(dbDataPath)
 	if err != nil {
 		return fmt.Errorf("升级失败，无法打开数据库: %w", err)
