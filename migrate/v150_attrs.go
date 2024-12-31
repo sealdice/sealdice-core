@@ -15,6 +15,7 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/model"
 	"sealdice-core/utils"
+
 	log "sealdice-core/utils/kratos"
 )
 
@@ -420,6 +421,7 @@ func V150Upgrade() error {
 		log.Error("未找到旧版本数据库，若您启动全新海豹，可安全忽略。")
 		return nil
 	}
+
 	db, err := openDB(dbDataPath)
 	if err != nil {
 		return fmt.Errorf("升级失败，无法打开数据库: %w", err)
