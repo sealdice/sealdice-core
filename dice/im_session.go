@@ -1500,6 +1500,11 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 func FormatBlacklistReasons(v *BanListInfoItem) string {
 	var sb strings.Builder
 	sb.WriteString("黑名单原因：")
+	if v == nil {
+		sb.WriteString("\n")
+		sb.WriteString("原因未知，请联系开发者获取进一步信息")
+		return sb.String()
+	}
 	for i, reason := range v.Reasons {
 		sb.WriteString("\n")
 		sb.WriteString(carbon.CreateFromTimestamp(v.Times[i]).ToDateTimeString())
@@ -1531,7 +1536,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	}
 
 	banQuitGroup := func() {
-		banListInfoItem, _ := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
+		banListInfoItem, _ := ctx.Dice.Config.BanList.GetByID(msg.Sender.UserID)
 		reasontext := FormatBlacklistReasons(banListInfoItem)
 		groupID := msg.GroupID
 		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
@@ -1550,7 +1555,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		groupLevel := ctx.GroupRoleLevel
 		if d.Config.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
-			banListInfoItem, _ := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
+			banListInfoItem, _ := ctx.Dice.Config.BanList.GetByID(msg.Sender.UserID)
 			reasontext := FormatBlacklistReasons(banListInfoItem)
 			groupID := msg.GroupID
 			notReply = true
@@ -1598,7 +1603,8 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		if d.Config.BanList.BanBehaviorQuitPlaceImmediately && !isWhiteGroup {
 			notReply = true
 			// 黑名单群 - 立即退出
-			banListInfoItem, _ := ctx.Dice.Config.BanList.Map.Load(msg.Sender.UserID)
+			// 退群使用GroupID进行判断
+			banListInfoItem, _ := ctx.Dice.Config.BanList.GetByID(msg.GroupID)
 			reasontext := FormatBlacklistReasons(banListInfoItem)
 			groupID := msg.GroupID
 			if isWhiteGroup {
