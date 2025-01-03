@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"runtime/debug"
 	"strconv"
@@ -18,7 +17,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-	"gopkg.in/yaml.v3"
 
 	"sealdice-core/message"
 	log "sealdice-core/utils/kratos"
@@ -69,33 +67,21 @@ type PlatformAdapterGocq struct {
 	GoCqhttpProcess           *procs.Process `yaml:"-" json:"-"`
 	GocqhttpLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
 
-	GoCqhttpLoginCaptcha       string `yaml:"-" json:"goCqHttpLoginCaptcha"`
-	GoCqhttpLoginVerifyCode    string `yaml:"-" json:"goCqHttpLoginVerifyCode"`
-	GoCqhttpLoginDeviceLockURL string `yaml:"-" json:"goCqHttpLoginDeviceLockUrl"`
-	GoCqhttpQrcodeData         []byte `yaml:"-" json:"-"` // 二维码数据
-	GoCqhttpSmsNumberTip       string `yaml:"-" json:"goCqHttpSmsNumberTip"`
+	GoCqhttpQrcodeData   []byte `yaml:"-" json:"-"` // 二维码数据
+	GoCqhttpSmsNumberTip string `yaml:"-" json:"goCqHttpSmsNumberTip"`
 
-	GoCqLastAutoLoginTime      int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                             // 上次自动重新登录的时间
-	GoCqhttpLoginSucceeded     bool  `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"`                            // 是否登录成功过
-	GoCqhttpLastRestrictedTime int64 `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
-	ForcePrintLog              bool  `yaml:"forcePrintLog" json:"forcePrintLog"`                               // 是否一定输出日志，隐藏配置项
-	reconnectTimes             int   // 重连次数
+	GoCqLastAutoLoginTime  int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`  // 上次自动重新登录的时间
+	GoCqhttpLoginSucceeded bool  `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"` // 是否登录成功过
+	ForcePrintLog          bool  `yaml:"forcePrintLog" json:"forcePrintLog"`    // 是否一定输出日志，隐藏配置项
+	reconnectTimes         int   // 重连次数
 
-	InPackGoCqhttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
-	InPackGoCqhttpAppVersion     string   `yaml:"inPackGoCqHttpAppVersion" json:"inPackGoCqHttpAppVersion"`
-	InPackGoCqhttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
 	diceServing                  bool     `yaml:"-"`                                              // 特指 diceServing 是否正在运行
 	InPackGoCqhttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	customEcho     int64                          `yaml:"-"` // 自定义返回标记
-	echoMap        *SyncMap[any, chan *MessageQQ] `yaml:"-"`
-	echoMap2       *SyncMap[any, *echoMapInfo]    `yaml:"-"`
-	Implementation string                         `yaml:"implementation" json:"implementation"`
-
-	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
-	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
-	ExtraArgs        string            `yaml:"extraArgs" json:"extraArgs"`
+	customEcho int64                          `yaml:"-"` // 自定义返回标记
+	echoMap    *SyncMap[any, chan *MessageQQ] `yaml:"-"`
+	echoMap2   *SyncMap[any, *echoMapInfo]    `yaml:"-"`
 
 	riskAlertShieldCount int  // 风控警告屏蔽次数，一个临时变量
 	useArrayMessage      bool `yaml:"-"` // 使用分段消息
@@ -399,11 +385,6 @@ func (pa *PlatformAdapterGocq) SendSegmentToPerson(ctx *MsgContext, userID strin
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
-	if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
-		pa.Implementation = "lagrange"
-	} else {
-		pa.Implementation = "gocq"
-	}
 	ep := pa.EndPoint
 	s := pa.Session
 	log := s.Parent.Logger
@@ -1229,31 +1210,11 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			go BuiltinQQServeProcessKill(myDice, ep)
 			time.Sleep(10 * time.Second)           // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
 			LagrangeServeRemoveSession(myDice, ep) // 删除 keystore
-			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
 			ep.Enable = true
 			myDice.LastUpdatedTime = time.Now().Unix()
 			myDice.Save(false)
 			LagrangeServe(myDice, ep, LagrangeLoginInfo{
 				IsAsyncRun: true,
-			})
-			return true
-		} else {
-			myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-			pa.CurLoginIndex++
-			pa.GoCqhttpState = StateCodeInit
-			go BuiltinQQServeProcessKill(myDice, ep)
-			time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
-			GoCqhttpServeRemoveSessionToken(myDice, ep) // 删除session.token
-			pa.GoCqhttpLastRestrictedTime = 0           // 重置风控时间
-			myDice.LastUpdatedTime = time.Now().Unix()
-			myDice.Save(false)
-			GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
-				Password:         pa.InPackGoCqhttpPassword,
-				Protocol:         pa.InPackGoCqhttpProtocol,
-				AppVersion:       pa.InPackGoCqhttpAppVersion,
-				IsAsyncRun:       true,
-				UseSignServer:    pa.UseSignServer,
-				SignServerConfig: pa.SignServerConfig,
 			})
 			return true
 		}
@@ -1268,25 +1229,11 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		c.Enable = true
 
 		if pa.UseInPackClient {
-			if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
-				BuiltinQQServeProcessKill(d, c)
-				time.Sleep(1 * time.Second)
-				LagrangeServe(d, c, LagrangeLoginInfo{
-					IsAsyncRun: true,
-				})
-			} else {
-				BuiltinQQServeProcessKill(d, c)
-				time.Sleep(1 * time.Second)
-				GoCqhttpServe(d, c, GoCqhttpLoginInfo{
-					Password:         pa.InPackGoCqhttpPassword,
-					Protocol:         pa.InPackGoCqhttpProtocol,
-					AppVersion:       pa.InPackGoCqhttpAppVersion,
-					IsAsyncRun:       true,
-					UseSignServer:    pa.UseSignServer,
-					SignServerConfig: pa.SignServerConfig,
-				})
-				go ServeQQ(d, c)
-			}
+			BuiltinQQServeProcessKill(d, c)
+			time.Sleep(1 * time.Second)
+			LagrangeServe(d, c, LagrangeLoginInfo{
+				IsAsyncRun: true,
+			})
 		} else {
 			pa.GoCqhttpState = StateCodeLoginSuccessed
 			go ServeQQ(d, c)
@@ -1304,61 +1251,6 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-}
-
-func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
-	// oldProtocol := pa.InPackGoCqHttpProtocol
-	pa.InPackGoCqhttpProtocol = protocol
-
-	// ep.Session.Parent.GetDiceDataPath(ep.RelWorkDir)
-	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
-	deviceFilePath := filepath.Join(workDir, "device.json")
-	if _, err := os.Stat(deviceFilePath); err == nil {
-		configFile, _ := os.ReadFile(deviceFilePath)
-		info := map[string]interface{}{}
-		err = json.Unmarshal(configFile, &info)
-
-		if err == nil {
-			info["protocol"] = protocol
-			data, err := json.Marshal(info)
-			if err == nil {
-				_ = os.WriteFile(deviceFilePath, data, 0644)
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig) bool {
-	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
-	configFilePath := filepath.Join(workDir, "config.yml")
-	if _, err := os.Stat(configFilePath); err == nil {
-		configFile, _ := os.ReadFile(configFilePath)
-		info := map[string]interface{}{}
-		err = yaml.Unmarshal(configFile, &info)
-
-		if err == nil {
-			if signServerConfig.SignServers != nil {
-				mainServer := signServerConfig.SignServers[0]
-				(info["account"]).(map[string]interface{})["sign-server"] = mainServer.URL
-				(info["account"]).(map[string]interface{})["key"] = mainServer.Key
-				(info["account"]).(map[string]interface{})["sign-servers"] = signServerConfig.SignServers
-				(info["account"]).(map[string]interface{})["ruleChangeSignServer"] = signServerConfig.RuleChangeSignServer
-				(info["account"]).(map[string]interface{})["maxCheckCount"] = signServerConfig.MaxCheckCount
-				(info["account"]).(map[string]interface{})["signServerTimeout"] = signServerConfig.SignServerTimeout
-				(info["account"]).(map[string]interface{})["autoRegister"] = signServerConfig.AutoRegister
-				(info["account"]).(map[string]interface{})["autoRefreshToken"] = signServerConfig.AutoRefreshToken
-				(info["account"]).(map[string]interface{})["refreshInterval"] = signServerConfig.RefreshInterval
-			}
-			data, err := yaml.Marshal(info)
-			if err == nil {
-				_ = os.WriteFile(configFilePath, data, 0644)
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (pa *PlatformAdapterGocq) IsInLogin() bool {

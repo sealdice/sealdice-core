@@ -1,13 +1,11 @@
 package api
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -99,34 +97,6 @@ func getGithubAvatar(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, "")
 }
 
-func packGocqConfig(relWorkDir string) *bytes.Buffer {
-	// workDir := "extra/go-cqhttp-qq" + account
-	rootPath := filepath.Join(myDice.BaseConfig.DataDir, relWorkDir)
-
-	// 创建一个内存缓冲区，用于保存 Zip 文件内容
-	buf := new(bytes.Buffer)
-
-	// 创建 Zip Writer，将 Zip 文件内容写入内存缓冲区
-	zipWriter := zip.NewWriter(buf)
-
-	if err := compressFile(filepath.Join(rootPath, "config.yml"), "config.yml", zipWriter); err != nil {
-		log.Error(err)
-	}
-	if err := compressFile(filepath.Join(rootPath, "device.json"), "device.json", zipWriter); err != nil {
-		log.Error(err)
-	}
-	_ = compressFile(filepath.Join(rootPath, "data/versions/1.json"), "data/versions/6.json", zipWriter)
-	_ = compressFile(filepath.Join(rootPath, "data/versions/6.json"), "data/versions/6.json", zipWriter)
-
-	// 关闭 Zip Writer
-	if err := zipWriter.Close(); err != nil {
-		log.Fatal(err)
-	}
-
-	// 将 Zip 文件保存在内存中
-	return buf
-}
-
 func compressFile(fn string, zipFn string, zipWriter *zip.Writer) error {
 	data, err := os.ReadFile(fn)
 	if err != nil {
@@ -148,11 +118,8 @@ func checkUidExists(c echo.Context, uid string) bool {
 			var relWorkDir string
 			if pa.BuiltinMode == "lagrange" {
 				relWorkDir = "extra/lagrange-qq" + uid
-			} else if pa.BuiltinMode == "lagrange-gocq" {
-				relWorkDir = "extra/lagrange-gocq-qq" + uid
 			} else {
-				// 默认为gocq
-				relWorkDir = "extra/go-cqhttp-qq" + uid
+				relWorkDir = "extra/lagrange-gocq-qq" + uid
 			}
 			if relWorkDir == i.RelWorkDir {
 				// 不允许工作路径重复

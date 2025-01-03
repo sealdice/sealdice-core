@@ -10,7 +10,6 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
-	log "sealdice-core/utils/kratos"
 )
 
 func ImConnections(c echo.Context) error {
@@ -38,20 +37,6 @@ func ImConnectionsGet(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusNotFound, nil)
-}
-
-func ImConnectionsGetQQVersions(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	versions := make([]string, 0, len(dice.GocqAppVersionMap))
-	for version := range dice.GocqAppVersionMap {
-		versions = append(versions, version)
-	}
-	sort.Strings(versions)
-	return Success(&c, Response{
-		"versions": versions,
-	})
 }
 
 func ImConnectionsSetEnable(c echo.Context) error {
@@ -83,60 +68,6 @@ func ImConnectionsSetEnable(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
-func ImConnectionsSetData(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	if dm.JustForTest {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"testMode": true,
-		})
-	}
-
-	v := struct {
-		ID                  string `form:"id" json:"id"`
-		Protocol            int    `form:"protocol" json:"protocol"`
-		AppVersion          string `form:"appVersion" json:"appVersion"`
-		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
-		UseSignServer       bool   `json:"useSignServer"`
-		ExtraArgs           string `json:"extraArgs"`
-		SignServerConfig    *dice.SignServerConfig
-	}{}
-
-	err := c.Bind(&v)
-	if err != nil {
-		myDice.Save(false)
-		return c.JSON(http.StatusNotFound, nil)
-	}
-	for _, i := range myDice.ImSession.EndPoints {
-		if i.ID != v.ID {
-			continue
-		}
-		if i.ProtocolType == "walle-q" {
-			ad := i.Adapter.(*dice.PlatformAdapterWalleQ)
-			ad.SetQQProtocol(v.Protocol)
-			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
-		} else {
-			ad := i.Adapter.(*dice.PlatformAdapterGocq)
-			if i.ProtocolType != "onebot" {
-				i.ProtocolType = "onebot"
-			}
-			ad.SetQQProtocol(v.Protocol)
-			ad.InPackGoCqhttpAppVersion = v.AppVersion
-			if v.UseSignServer {
-				ad.SetSignServer(v.SignServerConfig)
-				ad.UseSignServer = v.UseSignServer
-				ad.SignServerConfig = v.SignServerConfig
-			}
-			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
-			ad.ExtraArgs = v.ExtraArgs
-		}
-		return c.JSON(http.StatusOK, i)
-	}
-	myDice.Save(false)
-	return c.JSON(http.StatusNotFound, nil)
-}
-
 func ImConnectionsRWSignServerUrl(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -164,15 +95,12 @@ func ImConnectionsRWSignServerUrl(c echo.Context) error {
 			continue
 		}
 		if i.ProtocolType == "onebot" {
-			pa := i.Adapter.(*dice.PlatformAdapterGocq)
-			if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
-				signServerUrl, signServerVersion := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W, v.SignServerVersion)
-				if signServerUrl != "" {
-					return Success(&c, Response{
-						"signServerUrl":     signServerUrl,
-						"signServerVersion": signServerVersion,
-					})
-				}
+			signServerUrl, signServerVersion := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W, v.SignServerVersion)
+			if signServerUrl != "" {
+				return Success(&c, Response{
+					"signServerUrl":     signServerUrl,
+					"signServerVersion": signServerVersion,
+				})
 			}
 		}
 	}
@@ -206,15 +134,10 @@ func ImConnectionsDel(c echo.Context) error {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
 					if i.ProtocolType == "onebot" {
-						pa := i.Adapter.(*dice.PlatformAdapterGocq)
-						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
-							dice.BuiltinQQServeProcessKillBase(myDice, i, true)
-							// 经测试，若不延时，可能导致清理对应目录失败（原因：文件被占用）
-							time.Sleep(1 * time.Second)
-							dice.LagrangeServeRemoveConfig(myDice, i)
-						} else {
-							dice.BuiltinQQServeProcessKill(myDice, i)
-						}
+						dice.BuiltinQQServeProcessKillBase(myDice, i, true)
+						// 经测试，若不延时，可能导致清理对应目录失败（原因：文件被占用）
+						time.Sleep(1 * time.Second)
+						dice.LagrangeServeRemoveConfig(myDice, i)
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
@@ -303,149 +226,6 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
-func ImConnectionsCaptchaSet(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-
-	v := struct {
-		ID   string `form:"id" json:"id"`
-		Code string `form:"code" json:"code"`
-	}{}
-	err := c.Bind(&v)
-	if err != nil {
-		return err
-	}
-
-	for _, i := range myDice.ImSession.EndPoints {
-		if i.ID == v.ID {
-			switch i.ProtocolType {
-			case "onebot", "":
-				pa := i.Adapter.(*dice.PlatformAdapterGocq)
-				if pa.GoCqhttpState == dice.GoCqhttpStateCodeInLoginBar {
-					pa.GoCqhttpLoginCaptcha = v.Code
-					return c.String(http.StatusOK, "")
-				}
-			}
-		}
-	}
-	return c.String(http.StatusNotFound, "")
-}
-
-func ImConnectionsSmsCodeSet(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-
-	v := struct {
-		ID   string `form:"id" json:"id"`
-		Code string `form:"code" json:"code"`
-	}{}
-	err := c.Bind(&v)
-
-	if err == nil {
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.ID == v.ID {
-				switch i.ProtocolType {
-				case "onebot", "":
-					pa := i.Adapter.(*dice.PlatformAdapterGocq)
-					if pa.GoCqhttpState == dice.GoCqhttpStateCodeInLoginVerifyCode {
-						pa.GoCqhttpLoginVerifyCode = v.Code
-						return c.JSON(http.StatusOK, map[string]string{})
-					}
-				}
-				return c.JSON(http.StatusOK, i)
-			}
-		}
-	}
-	return c.JSON(http.StatusNotFound, nil)
-}
-
-func ImConnectionsSmsCodeGet(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-
-	v := struct {
-		ID string `form:"id" json:"id"`
-	}{}
-	err := c.Bind(&v)
-
-	if err == nil {
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.ID == v.ID {
-				switch i.ProtocolType {
-				case "onebot", "":
-					pa := i.Adapter.(*dice.PlatformAdapterGocq)
-					return c.JSON(http.StatusOK, map[string]string{"tip": pa.GoCqhttpSmsNumberTip})
-				}
-				return c.JSON(http.StatusOK, i)
-			}
-		}
-	}
-	return c.JSON(http.StatusNotFound, nil)
-}
-
-func ImConnectionsAddWalleQ(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	v := struct {
-		Account  string `yaml:"account" json:"account"`
-		Password string `yaml:"password" json:"password"`
-		Protocol int    `json:"protocol"`
-	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		uid := v.Account
-		if checkUidExists(c, uid) {
-			return nil
-		}
-
-		conn := dice.NewWqConnectInfoItem(v.Account)
-		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
-		conn.ProtocolType = "walle-q"
-		pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
-		pa.InPackWalleQProtocol = v.Protocol
-		pa.InPackWalleQPassword = v.Password
-		pa.Session = myDice.ImSession
-
-		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		go dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
-		myDice.LastUpdatedTime = time.Now().Unix()
-		myDice.Save(false)
-		return c.JSON(http.StatusOK, conn)
-	}
-	return c.String(430, "")
-}
-
-func ImConnectionsGocqhttpRelogin(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	if dm.JustForTest {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"testMode": true,
-		})
-	}
-
-	v := struct {
-		ID string `form:"id" json:"id"`
-	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		for _, i := range myDice.ImSession.EndPoints {
-			if i.ID == v.ID {
-				log.Warnf("relogin %s", v.ID)
-				i.Adapter.DoRelogin()
-				return c.JSON(http.StatusOK, nil)
-			}
-		}
-	}
-	return c.JSON(http.StatusNotFound, nil)
-}
-
 func ImConnectionsWalleQRelogin(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -464,27 +244,6 @@ func ImConnectionsWalleQRelogin(c echo.Context) error {
 		}
 	}
 	return c.JSON(http.StatusNotFound, nil)
-}
-
-func ImConnectionsGocqConfigDownload(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	if dm.JustForTest {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"testMode": true,
-		})
-	}
-
-	id := c.QueryParam("id")
-	for _, i := range myDice.ImSession.EndPoints {
-		if i.ID == id {
-			buf := packGocqConfig(i.RelWorkDir)
-			return c.Blob(http.StatusOK, "", buf.Bytes())
-		}
-	}
-
-	return c.String(http.StatusNotFound, "")
 }
 
 type AddDiscordEcho struct {
@@ -719,66 +478,6 @@ func ImConnectionsAddSlack(c echo.Context) error {
 	return c.String(430, "")
 }
 
-func ImConnectionsAddBuiltinGocq(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	if dm.JustForTest {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"testMode": true,
-		})
-	}
-
-	v := struct {
-		Account          string                 `yaml:"account" json:"account"`
-		Password         string                 `yaml:"password" json:"password"`
-		Protocol         int                    `json:"protocol"`
-		AppVersion       string                 `json:"appVersion"`
-		UseSignServer    bool                   `json:"useSignServer"`
-		SignServerConfig *dice.SignServerConfig `json:"signServerConfig"`
-		// ConnectUrl        string `yaml:"connectUrl" json:"connectUrl"`               // 连接地址
-		// Platform          string `yaml:"platform" json:"platform"`                   // 平台，如QQ、QQ频道
-		// Enable            bool   `yaml:"enable" json:"enable"`                       // 是否启用
-		// Type              string `yaml:"type" json:"type"`                           // 协议类型，如onebot、koishi等
-		// UseInPackGoCqhttp bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
-	}{}
-
-	err := c.Bind(&v)
-	if err == nil {
-		uid := v.Account
-		if checkUidExists(c, uid) {
-			return nil
-		}
-
-		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
-		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-		pa.InPackGoCqhttpProtocol = v.Protocol
-		pa.InPackGoCqhttpPassword = v.Password
-		pa.InPackGoCqhttpAppVersion = v.AppVersion
-		pa.Session = myDice.ImSession
-		pa.UseSignServer = v.UseSignServer
-		pa.SignServerConfig = v.SignServerConfig
-
-		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		myDice.LastUpdatedTime = time.Now().Unix()
-
-		dice.GoCqhttpServe(myDice, conn, dice.GoCqhttpLoginInfo{
-			Password:         v.Password,
-			Protocol:         v.Protocol,
-			AppVersion:       v.AppVersion,
-			IsAsyncRun:       true,
-			UseSignServer:    v.UseSignServer,
-			SignServerConfig: v.SignServerConfig,
-		})
-		myDice.LastUpdatedTime = time.Now().Unix()
-		myDice.Save(false)
-		return c.JSON(http.StatusOK, conn)
-	}
-	return c.String(430, "")
-}
-
 func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -1001,6 +700,52 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 	}
 
 	return c.String(430, "")
+}
+
+func ImConnectionsAddWalleQ(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	v := struct {
+		Account  string `yaml:"account" json:"account"`
+		Password string `yaml:"password" json:"password"`
+		Protocol int    `json:"protocol"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		uid := v.Account
+		if checkUidExists(c, uid) {
+			return nil
+		}
+
+		conn := dice.NewWqConnectInfoItem(v.Account)
+		conn.UserID = dice.FormatDiceIDQQ(uid)
+		conn.Session = myDice.ImSession
+		conn.ProtocolType = "walle-q"
+		pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
+		pa.InPackWalleQProtocol = v.Protocol
+		pa.InPackWalleQPassword = v.Password
+		pa.Session = myDice.ImSession
+
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		go dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		return c.JSON(http.StatusOK, conn)
+	}
+	return c.String(430, "")
+}
+
+// gocq弃用
+func ImConnectionsGetQQVersions(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	versions := []string{"0"}
+	sort.Strings(versions)
+	return Success(&c, Response{
+		"versions": versions,
+	})
 }
 
 // func ImConnectionsAddLagrangeGO(c echo.Context) error {

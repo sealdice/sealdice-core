@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"runtime"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/monaco-io/request"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
 
@@ -529,27 +527,6 @@ func handleResetConfig(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
-func getToken(c echo.Context) error {
-	if dm.JustForTest {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"testMode": true,
-		})
-	}
-
-	key := c.QueryParam("key")
-	req := request.Client{
-		URL:    fmt.Sprintf("https://gocqhelper.sealdice.com/code_query?key=%s", key),
-		Method: "GET",
-	}
-
-	resp := req.Send()
-	if resp.OK() {
-		text := resp.String()
-		return c.String(http.StatusOK, text)
-	}
-	return c.JSON(http.StatusOK, map[string]interface{}{})
-}
-
 func checkCronExpr(c echo.Context) error {
 	req := make(map[string]string)
 	err := c.Bind(&req)
@@ -581,15 +558,10 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.GET(prefix+"/im_connections/qq/get_versions", ImConnectionsGetQQVersions)
 	e.POST(prefix+"/im_connections/qrcode", ImConnectionsQrcodeGet)
-	e.POST(prefix+"/im_connections/sms_code_get", ImConnectionsSmsCodeGet)
-	e.POST(prefix+"/im_connections/sms_code_set", ImConnectionsSmsCodeSet)
-	e.POST(prefix+"/im_connections/gocq_captcha_set", ImConnectionsCaptchaSet)
 
 	// 这些都是与QQ/OneBot直接相关
-	e.POST(prefix+"/im_connections/add", ImConnectionsAddBuiltinGocq) // 逐步弃用此链接
-	e.POST(prefix+"/im_connections/addGocq", ImConnectionsAddBuiltinGocq)
-	e.POST(prefix+"/im_connections/addOnebot11ReverseWs", ImConnectionsAddReverseWs)
 	e.POST(prefix+"/im_connections/addGocqSeparate", ImConnectionsAddGocqSeparate)
+	e.POST(prefix+"/im_connections/addOnebot11ReverseWs", ImConnectionsAddReverseWs)
 	e.POST(prefix+"/im_connections/addWalleQ", ImConnectionsAddWalleQ)
 	e.POST(prefix+"/im_connections/addLagrange", ImConnectionsAddBuiltinLagrange)
 	// e.POST(prefix+"/im_connections/addLagrangeGo", ImConnectionsAddLagrangeGO)
@@ -608,11 +580,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
-	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
 	e.POST(prefix+"/im_connections/set_sign_server", ImConnectionsRWSignServerUrl)
-	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
+
 	e.POST(prefix+"/im_connections/walleQRelogin", ImConnectionsWalleQRelogin)
-	e.GET(prefix+"/im_connections/gocq_config_download.zip", ImConnectionsGocqConfigDownload)
 
 	e.GET(prefix+"/configs/customText", customText)
 	e.POST(prefix+"/configs/customText/save", customTextSave)
@@ -719,7 +689,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/utils/ga/:uid", getGithubAvatar)
 	e.GET(prefix+"/utils/news", getNews)
 	e.POST(prefix+"/utils/check_news", checkNews)
-	e.GET(prefix+"/utils/get_token", getToken)
 	e.POST(prefix+"/utils/check_cron_expr", checkCronExpr)
 	e.GET(prefix+"/utils/check_network_health", checkNetworkHealth)
 
