@@ -116,7 +116,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 				}
 			} else {
 				if err := yaml.Unmarshal(file, &result); err == nil {
-					if val, ok := result["servers"].([]interface{})[0].(map[string]interface{})["address"].(string); ok {
+					if val, ok := result["servers"].([]interface{})[0].(map[string]interface{})["ws"].(map[string]interface{})["address"].(string); ok {
 						pa.ConnectURL = fmt.Sprintf("ws://%s", val)
 					}
 				}
@@ -724,7 +724,7 @@ database:
 
 servers:
   - ws:
-    address: 127.0.0.1:{WS端口}
-    middlewares:
-      <<: *default
+      address: 127.0.0.1:{WS端口}
+      middlewares:
+        <<: *default
 `
