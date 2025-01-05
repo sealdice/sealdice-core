@@ -399,8 +399,10 @@ func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
 type SignServerInfo struct {
 	Name     string `json:"name"`
 	Url      string `json:"url"`
-	Latency  string `json:"latency"`
+	Latency  int    `json:"latency"`
 	Selected bool   `json:"selected"`
+	Ignored  bool   `json:"ignored"`
+	Note     string `json:"note"`
 }
 
 // 云端SignInfo结构
@@ -409,31 +411,34 @@ type SignInfo struct {
 	Appinfo  map[string]interface{} `json:"appinfo"`
 	Servers  []*SignServerInfo      `json:"servers"`
 	Selected bool                   `json:"selected"`
+	Ignored  bool                   `json:"ignored"`
+	Note     string                 `json:"note"`
 }
 
 // 小概率出现并发读写，需上锁
 var mu sync.Mutex
-var signInfoGlobal []SignInfo
+var signInfoGlobal []*SignInfo
 
-func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
+func LagrangeGetSignInfo(dice *Dice) ([]*SignInfo, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	cachePath := filepath.Join(dice.BaseConfig.DataDir, "extra/SignInfo.cache")
 	signInfo, err := lagrangeGetSignInfoFromCloud(cachePath)
-	if err == nil {
+	if err == nil && len(signInfo) > 0 {
 		signInfoGlobal = signInfo
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从云端获取SignInfo，即将读取本地缓存数据, 原因: %s", err.Error())
 
 	signInfo, err = lagrangeGetSignInfoFromCache(cachePath)
-	if err == nil {
+	if err == nil && len(signInfo) > 0 {
 		signInfoGlobal = signInfo
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从本地缓存获取SignInfo，即将读取内置数据, 原因: %s", err.Error())
 
 	if err = json.Unmarshal([]byte(signInfoJson), &signInfo); err == nil {
+		lagrangeGetSignServerLatency(signInfo)
 		signInfoGlobal = signInfo
 		return signInfo, nil
 	}
@@ -441,8 +446,8 @@ func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
 	return nil, errors.New("内置SignInfo信息有误")
 }
 
-func lagrangeGetSignInfoFromCloud(cachePath string) ([]SignInfo, error) {
-	url := "https://127.0.0.1:1234/api/signinfo"
+func lagrangeGetSignInfoFromCloud(cachePath string) ([]*SignInfo, error) {
+	url := "https://d1.sealdice.com/sealsign/signinfo.json"
 	c := http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -455,22 +460,24 @@ func lagrangeGetSignInfoFromCloud(cachePath string) ([]SignInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	var signInfo []SignInfo
+	var signInfo []*SignInfo
 	err = json.Unmarshal(body, &signInfo)
 	if err != nil {
 		return nil, err
 	}
 	_ = os.WriteFile(cachePath, body, 0o644)
+	lagrangeGetSignServerLatency(signInfo)
 	return signInfo, nil
 }
 
-func lagrangeGetSignInfoFromCache(cachePath string) ([]SignInfo, error) {
+func lagrangeGetSignInfoFromCache(cachePath string) ([]*SignInfo, error) {
 	var err error
 	if _, err = os.Stat(cachePath); err == nil {
 		var file []byte
 		if file, err = os.ReadFile(cachePath); err == nil {
-			var signInfo []SignInfo
+			var signInfo []*SignInfo
 			if err = json.Unmarshal(file, &signInfo); err == nil {
+				lagrangeGetSignServerLatency(signInfo)
 				return signInfo, nil
 			}
 		}
@@ -493,6 +500,38 @@ func lagrangeGetSignSeverFromInfo(serverVer string, serverName string) ([]byte, 
 		}
 	}
 	return nil, ""
+}
+
+func lagrangeGetSignServerLatency(signInfo []*SignInfo) {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	c := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+	for _, si := range signInfo {
+		for _, server := range si.Servers {
+			wg.Add(1)
+			go func(server *SignServerInfo) {
+				defer wg.Done()
+				latency := testLatency(c, server.Url)
+				mu.Lock()
+				server.Latency = latency
+				mu.Unlock()
+			}(server)
+		}
+	}
+	wg.Wait()
+}
+
+func testLatency(c *http.Client, url string) int {
+	start := time.Now()
+	resp, err := c.Get(url)
+	if err != nil {
+		return 999
+	}
+	defer resp.Body.Close()
+	duration := time.Since(start)
+	return int(duration.Milliseconds())
 }
 
 // 当自定义签名地址时，从/appinfo路径获取appinfo信息
@@ -573,7 +612,9 @@ var signInfoJson string = `
     "servers": [
       {
         "name": "海豹",
-        "url": "https://lwxmagic.sealdice.com/api/sign/30366"
+        "url": "https://lwxmagic.sealdice.com/api/sign/30366",
+		"selected": true,
+		"note": "部分地区用户可能无法连接"
       },
 	  {
         "name": "Lagrange",
