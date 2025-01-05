@@ -344,7 +344,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 func GenerateLagrangeConfig(port int, signServerName string, signServerVersion string, dice *Dice, info *EndPointInfo) ([]byte, []byte) {
 	pa := info.Adapter.(*PlatformAdapterGocq)
 	if len(signInfoGlobal) == 0 {
-		LagrangeGetSignInfo(dice)
+		_, _ = LagrangeGetSignInfo(dice)
 	}
 	signServerAppinfo, signServerUrl := lagrangeGetSignSeverFromInfo(signServerVersion, signServerName)
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", strconv.Itoa(port))
@@ -407,20 +407,21 @@ func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	cachePath := filepath.Join(dice.BaseConfig.DataDir, "extra/SignInfo.cache")
-	js, err := lagrangeGetSignInfoFromCloud(cachePath)
+	signInfo, err := lagrangeGetSignInfoFromCloud(cachePath)
 	if err == nil {
-		return js, nil
+		signInfoGlobal = signInfo
+		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从云端获取SignInfo，即将读取本地缓存数据, 原因: %s", err.Error())
 
-	js, err = lagrangeGetSignInfoFromCache(cachePath)
+	signInfo, err = lagrangeGetSignInfoFromCache(cachePath)
 	if err == nil {
-		return js, nil
+		signInfoGlobal = signInfo
+		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从本地缓存获取SignInfo，即将读取内置数据, 原因: %s", err.Error())
 
-	var signInfo []SignInfo
-	if err := json.Unmarshal([]byte(signInfoJson), &signInfo); err == nil {
+	if err = json.Unmarshal([]byte(signInfoJson), &signInfo); err == nil {
 		signInfoGlobal = signInfo
 		return signInfo, nil
 	}
@@ -429,7 +430,7 @@ func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
 }
 
 func lagrangeGetSignInfoFromCloud(cachePath string) ([]SignInfo, error) {
-	url := "https://127.0.0.1:1234/api/signinfo1"
+	url := "https://127.0.0.1:1234/api/signinfo"
 	c := http.Client{
 		Timeout: 3 * time.Second,
 	}
