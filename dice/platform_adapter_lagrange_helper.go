@@ -90,7 +90,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			exeFilePath, _ = filepath.Abs(filepath.Join(wd, "lagrange/go-cqhttp"))
 			qrcodeFilePath = filepath.Join(workDir, "qrcode.png")
 			configFilePath = filepath.Join(workDir, "config.yml")
-			appinfoFilePath = filepath.Join(workDir, "versions/7.json")
+			appinfoFilePath = filepath.Join(workDir, "data/versions/7.json")
 		}
 
 		exeFilePath = filepath.ToSlash(exeFilePath) // windows平台需要这个替换
@@ -116,7 +116,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 				}
 			} else {
 				if err := yaml.Unmarshal(file, &result); err == nil {
-					if val, ok := result["servers"].([]interface{})[0].(map[string]interface{})["ws"].(map[string]interface{})["address"].(string); ok {
+					if val, ok := result["servers"].([]interface{})[0].(map[string]interface{})["address"].(string); ok {
 						pa.ConnectURL = fmt.Sprintf("ws://%s", val)
 					}
 				}
@@ -135,6 +135,10 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			// 生成appinfo和signserverurl写入文件
 			a, c := GenerateLagrangeConfig(p, loginInfo.SignServerName, loginInfo.SignServerVersion, dice, conn)
 			if a != nil {
+				dir := filepath.Dir(appinfoFilePath)
+				if _, err := os.Stat(dir); err != nil {
+					_ = os.MkdirAll(dir, 0o755)
+				}
 				_ = os.WriteFile(appinfoFilePath, a, 0o644)
 			}
 			_ = os.WriteFile(configFilePath, c, 0o644)
@@ -664,63 +668,63 @@ var defaultLagrangeConfig = `
 	}
 	`
 var defaultLagrangeGocqConfig = `
-	account:
-	  uin: {账号UIN}
-	  password: ''
-	  encrypt: false
-	  status: 0
-	  relogin:
-		delay: 3
-		interval: 3
-		max-times: 0 
-	  use-sso-address: true
-	  allow-temp-session: false
-	  sign-servers:
-		- url: '{NTSignServer地址}'
-	  max-check-count: 0
-	  sign-server-timeout: 60
-	
-	heartbeat:
-	  interval: 5
-	
-	message:
-	  post-format: array
-	  ignore-invalid-cqcode: false
-	  force-fragment: false
-	  fix-url: false
-	  proxy-rewrite: ''
-	  report-self-message: false
-	  remove-reply-at: false
-	  extra-reply-data: false
-	  skip-mime-scan: false
-	  convert-webp-image: false
-	  http-timeout: 15
-	
-	output:
-	  log-level: warn
-	  log-aging: 15
-	  log-force-new: true
-	  log-colorful: true
-	  debug: false
-	
-	default-middlewares: &default
-	  access-token: ''
-	  filter: ''
-	  rate-limit:
-		enabled: false
-		frequency: 1
-		bucket: 1
-	
-	database:
-	  leveldb:
-		enable: true
-	  sqlite3:
-		enable: false
-		cachettl: 3600000000000
-	
-	servers:
-	  - ws:
-		  address: 127.0.0.1:{WS端口}
-		  middlewares:
-			<<: *default
-	`
+account:
+  uin: {账号UIN}
+  password: ''
+  encrypt: false
+  status: 0
+  relogin:
+    delay: 3
+    interval: 3
+    max-times: 0 
+  use-sso-address: true
+  allow-temp-session: false
+  sign-servers:
+    - url: '{NTSignServer地址}'
+  max-check-count: 0
+  sign-server-timeout: 60
+
+heartbeat:
+  interval: 5
+
+message:
+  post-format: array
+  ignore-invalid-cqcode: false
+  force-fragment: false
+  fix-url: false
+  proxy-rewrite: ''
+  report-self-message: false
+  remove-reply-at: false
+  extra-reply-data: false
+  skip-mime-scan: false
+  convert-webp-image: false
+  http-timeout: 15
+
+output:
+  log-level: warn
+  log-aging: 15
+  log-force-new: true
+  log-colorful: true
+  debug: false
+
+default-middlewares: &default
+  access-token: ''
+  filter: ''
+  rate-limit:
+    enabled: false
+    frequency: 1
+    bucket: 1
+
+database:
+  leveldb:
+    enable: true
+  sqlite3:
+    enable: false
+    cachettl: 3600000000000
+
+servers:
+  - ws:
+    address: 127.0.0.1:{WS端口}
+    middlewares:
+      <<: *default
+`
