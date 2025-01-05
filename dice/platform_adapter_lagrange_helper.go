@@ -447,7 +447,9 @@ func LagrangeGetSignInfo(dice *Dice) ([]*SignInfo, error) {
 }
 
 func lagrangeGetSignInfoFromCloud(cachePath string) ([]*SignInfo, error) {
-	url := "https://d1.sealdice.com/sealsign/signinfo.json"
+	now := time.Now()
+	unixTimestamp := now.Unix()
+	url := fmt.Sprintf("https://d1.sealdice.com/sealsign/signinfo.json?v=%v", unixTimestamp)
 	c := http.Client{
 		Timeout: 3 * time.Second,
 	}
