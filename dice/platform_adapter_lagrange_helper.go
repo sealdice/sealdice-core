@@ -429,7 +429,7 @@ func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
 }
 
 func lagrangeGetSignInfoFromCloud(cachePath string) ([]SignInfo, error) {
-	url := "https://127.0.0.1:1234/api/signinfo"
+	url := "https://127.0.0.1:1234/api/signinfo1"
 	c := http.Client{
 		Timeout: 3 * time.Second,
 	}
