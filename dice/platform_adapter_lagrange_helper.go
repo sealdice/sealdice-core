@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,7 +26,7 @@ import (
 
 type LagrangeLoginInfo struct {
 	UIN               int64
-	SignServerUrl     string
+	SignServerName    string
 	SignServerVersion string
 	IsAsyncRun        bool
 }
@@ -81,11 +84,13 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		exeFilePath, _ := filepath.Abs(filepath.Join(wd, "lagrange/Lagrange.OneBot"))
 		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
+		appinfoFilePath := filepath.Join(workDir, "appinfo.json")
 
 		if pa.BuiltinMode == "lagrange-gocq" {
 			exeFilePath, _ = filepath.Abs(filepath.Join(wd, "lagrange/go-cqhttp"))
 			qrcodeFilePath = filepath.Join(workDir, "qrcode.png")
 			configFilePath = filepath.Join(workDir, "config.yml")
+			appinfoFilePath = filepath.Join(workDir, "versions/7.json")
 		}
 
 		exeFilePath = filepath.ToSlash(exeFilePath) // windows平台需要这个替换
@@ -120,8 +125,11 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
-			c := GenerateLagrangeConfig(p, loginInfo.SignServerUrl, loginInfo.SignServerVersion, conn)
-			_ = os.WriteFile(configFilePath, []byte(c), 0o644)
+			a, c := GenerateLagrangeConfig(p, loginInfo.SignServerName, loginInfo.SignServerVersion, dice, conn)
+			if a != nil {
+				_ = os.WriteFile(appinfoFilePath, a, 0o644)
+			}
+			_ = os.WriteFile(configFilePath, c, 0o644)
 		}
 
 		if pa.GoCqhttpProcess != nil {
@@ -187,7 +195,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 				}
 
 				// 登录成功
-				if strings.Contains(line, "Success") || strings.Contains(line, onlineSignal) {
+				if strings.Contains(line, "Success") || strings.Contains(line, onlineSignal) || strings.Contains(line, "Bot Uin:") {
 					pa.GoCqhttpState = StateCodeLoginSuccessed
 					pa.GoCqhttpLoginSucceeded = true
 					helper.Infof("onebot: 登录成功，账号：<%s>(%s)", conn.Nickname, conn.UserID)
@@ -329,137 +337,29 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 	}
 }
 
-var defaultLagrangeConfig = `
-{
-    "Logging": {
-        "LogLevel": {
-            "Default": "Information",
-            "Microsoft": "Warning",
-            "Microsoft.Hosting.Lifetime": "Information"
-        }
-    },
-    "SignServerUrl": "{NTSignServer地址}",
-    "Account": {
-        "Uin": {账号UIN},
-        "Password": "",
-        "Protocol": "Linux",
-        "AutoReconnect": true,
-        "GetOptimumServer": true
-    },
-    "Message": {
-        "IgnoreSelf": true,
-        "StringPost": false
-    },
-    "QrCode": {
-        "ConsoleCompatibilityMode": false
-    },
-    "Implementations": [
-        {
-            "Type": "ForwardWebSocket",
-            "Host": "127.0.0.1",
-            "Port": {WS端口},
-            "HeartBeatInterval": 5000,
-            "AccessToken": ""
-        }
-    ]
-}
-`
-var defaultLagrangeGocqConfig = `
-account:
-  uin: {账号UIN}
-  password: ''
-  encrypt: false
-  status: 0
-  relogin:
-    delay: 3
-    interval: 3
-    max-times: 0 
-  use-sso-address: true
-  allow-temp-session: false
-  sign-servers:
-    - url: '{NTSignServer地址}'
-  max-check-count: 0
-  sign-server-timeout: 60
-
-heartbeat:
-  interval: 5
-
-message:
-  post-format: array
-  ignore-invalid-cqcode: false
-  force-fragment: false
-  fix-url: false
-  proxy-rewrite: ''
-  report-self-message: false
-  remove-reply-at: false
-  extra-reply-data: false
-  skip-mime-scan: false
-  convert-webp-image: false
-  http-timeout: 15
-
-output:
-  log-level: warn
-  log-aging: 15
-  log-force-new: true
-  log-colorful: true
-  debug: false
-
-default-middlewares: &default
-  access-token: ''
-  filter: ''
-  rate-limit:
-    enabled: false
-    frequency: 1
-    bucket: 1
-
-database:
-  leveldb:
-    enable: true
-  sqlite3:
-    enable: false
-    cachettl: 3600000000000
-
-servers:
-  - ws:
-      address: 127.0.0.1:{WS端口}
-      middlewares:
-        <<: *default
-`
-
 // 在构建时注入
 // var defaultNTSignServer = `https://lwxmagic.sealdice.com/api/sign`
 // var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
-// var newproxyyNTSignServer = "https://seal.sign.lorana-aurelia.tech/api/sign"
 
-// 此处添加内置sign地址及对应标识字符串
-var signServers = map[string]string{
-	"sealdice": `https://lwxmagic.sealdice.com/api/sign`,
-	"lagrange": "https://sign.lagrangecore.org/api/sign",
-	"newProxy": "https://seal.sign.lorana-aurelia.tech/api/sign",
-}
-
-func GenerateLagrangeConfig(port int, signServerUrl string, signServerVersion string, info *EndPointInfo) string {
-	if signServerUrl == "" {
-		signServerUrl = "sealdice"
-	} else if signServerUrl != "sealdice" && signServerUrl != "newProxy" {
-		signServerUrl = "newProxy"
-	}
-	if url, exists := signServers[signServerUrl]; exists {
-		signServerUrl = url
-		if signServerVersion != "" && signServerVersion != "25765" {
-			signServerUrl += "/" + signServerVersion
-		}
-	}
+func GenerateLagrangeConfig(port int, signServerName string, signServerVersion string, dice *Dice, info *EndPointInfo) ([]byte, []byte) {
 	pa := info.Adapter.(*PlatformAdapterGocq)
+	if len(signInfoGlobal) == 0 {
+		LagrangeGetSignInfo(dice)
+	}
+	signServerAppinfo, signServerUrl := lagrangeGetSignSeverFromInfo(signServerVersion, signServerName)
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", strconv.Itoa(port))
 	if pa.BuiltinMode == "lagrange-gocq" {
 		conf = strings.ReplaceAll(defaultLagrangeGocqConfig, "{WS端口}", strconv.Itoa(port))
 	}
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
-	return conf
+	if appinfo, err := json.Marshal(signServerAppinfo); err == nil {
+		return appinfo, []byte(conf)
+	}
+	return nil, []byte(conf)
 }
 
+// 该函数后续考虑优化掉
 func LagrangeServeRemoveSession(dice *Dice, conn *EndPointInfo) {
 	workDir := gocqGetWorkDir(dice, conn)
 	file := filepath.Join(workDir, "keystore.json")
@@ -483,89 +383,257 @@ func LagrangeServeRemoveConfig(dice *Dice, conn *EndPointInfo) {
 	}
 }
 
-func RWLagrangeSignServerUrl(dice *Dice, conn *EndPointInfo, signServerUrl string, w bool, signServerVersion string) (string, string) {
-	if signServerUrl == "" {
-		signServerUrl = "sealdice"
-	}
-	if url, exists := signServers[signServerUrl]; exists {
-		signServerUrl = url
-		if signServerVersion != "" && signServerVersion != "25765" {
-			signServerUrl += "/" + signServerVersion
-		}
-	}
-	workDir := lagrangeGetWorkDir(dice, conn)
-	configFilePath := filepath.Join(workDir, "appsettings.json")
-	pa := conn.Adapter.(*PlatformAdapterGocq)
-
-	if pa.BuiltinMode == "lagrange-gocq" {
-		configFilePath = filepath.Join(workDir, "config.yml")
-	}
-
-	currentSignServerUrl := ""
-	file, err := os.ReadFile(configFilePath)
-	if err != nil {
-		dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
-		return "", ""
-	}
-
-	var result map[string]interface{}
-	if pa.BuiltinMode == "lagrange" {
-		err = json.Unmarshal(file, &result)
-		if err != nil {
-			dice.Logger.Infof("读取内置客户端配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
-			return "", ""
-		}
-		if val, ok := result["SignServerUrl"].(string); ok {
-			currentSignServerUrl = val
-			if w {
-				result["SignServerUrl"] = signServerUrl
-				var c []byte
-				c, err = json.MarshalIndent(result, "", "    ")
-				if err != nil {
-					dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
-				}
-				_ = os.WriteFile(configFilePath, c, 0o644)
-			}
-		}
-	} else {
-		err = yaml.Unmarshal(file, &result)
-		if err != nil {
-			dice.Logger.Infof("读取内置gocq配置失败，账号：%s, 原因: %s", conn.UserID, err.Error())
-			return "", ""
-		}
-		if val, ok := result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"].(string); ok {
-			currentSignServerUrl = val
-			if w {
-				result["account"].(map[string]interface{})["sign-servers"].([]interface{})[0].(map[string]interface{})["url"] = signServerUrl
-				var c []byte
-				c, err = yaml.Marshal(&result)
-				if err != nil {
-					dice.Logger.Infof("SignServerUrl字段无法正常覆写，账号：%s, 原因: %s", conn.UserID, err.Error())
-				}
-				_ = os.WriteFile(configFilePath, c, 0o644)
-			}
-		}
-	}
-	if currentSignServerUrl == "" {
-		currentSignServerUrl = signServers["sealdice"] + "/30366"
-	}
-	var version string
-	for key, value := range signServers {
-		if strings.HasPrefix(currentSignServerUrl, value) {
-			version, _ = strings.CutPrefix(currentSignServerUrl, value)
-			version, _ = strings.CutPrefix(version, "/")
-			currentSignServerUrl = key
-			break
-		}
-	}
-	if _, exists := signServers[currentSignServerUrl]; !exists {
-		// 此处填写signServer最新版本号，修复前端部分由自定义地址切换至其他选项时无法自动选中sign最新版本
-		version = "30366"
-	}
-	if version == "" {
-		// 此处填写sign版本号为空时默认版本号，修复前端部分由于signServerVersion丢失导致13107版本不会处于选中状态
-		// kenichiLyon:截至2024年12月26日，13107版本已不可用，此处更改为25765
-		version = "25765"
-	}
-	return currentSignServerUrl, version
+// 云端SignInfo.Servers结构
+type SignServerInfo struct {
+	Name     string `json:"name"`
+	Url      string `json:"url"`
+	Latency  string `json:"latency"`
+	Selected bool   `json:"selected"`
 }
+
+// 云端SignInfo结构
+type SignInfo struct {
+	Version  string                 `json:"version"`
+	Appinfo  map[string]interface{} `json:"appinfo"`
+	Servers  []*SignServerInfo      `json:"servers"`
+	Selected bool                   `json:"selected"`
+}
+
+// 小概率出现并发读写，需上锁
+var mu sync.Mutex
+var signInfoGlobal []SignInfo
+
+func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
+	mu.Lock()
+	defer mu.Unlock()
+	cachePath := filepath.Join(dice.BaseConfig.DataDir, "extra/SignInfo.cache")
+	js, err := lagrangeGetSignInfoFromCloud(cachePath)
+	if err == nil {
+		return js, nil
+	}
+	dice.Logger.Infof("无法从云端获取SignInfo，即将读取本地缓存数据, 原因: %s", err.Error())
+
+	js, err = lagrangeGetSignInfoFromCache(cachePath)
+	if err == nil {
+		return js, nil
+	}
+	dice.Logger.Infof("无法从本地缓存获取SignInfo，即将读取内置数据, 原因: %s", err.Error())
+
+	var signInfo []SignInfo
+	if err := json.Unmarshal([]byte(signInfoJson), &signInfo); err == nil {
+		signInfoGlobal = signInfo
+		return signInfo, nil
+	}
+	dice.Logger.Infof("无法从内置数据获取SignInfo，请联系开发者上报问题, 原因: %s", err.Error())
+	return nil, errors.New("内置SignInfo信息有误")
+}
+
+func lagrangeGetSignInfoFromCloud(cachePath string) ([]SignInfo, error) {
+	url := "https://127.0.0.1:1234/api/signinfo"
+	c := http.Client{
+		Timeout: 3 * time.Second,
+	}
+	resp, err := c.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var signInfo []SignInfo
+	err = json.Unmarshal(body, &signInfo)
+	if err != nil {
+		return nil, err
+	}
+	_ = os.WriteFile(cachePath, body, 0o644)
+	return signInfo, nil
+}
+
+func lagrangeGetSignInfoFromCache(cachePath string) ([]SignInfo, error) {
+	var err error
+	if _, err = os.Stat(cachePath); err == nil {
+		var file []byte
+		if file, err = os.ReadFile(cachePath); err == nil {
+			var signInfo []SignInfo
+			if err = json.Unmarshal(file, &signInfo); err == nil {
+				return signInfo, nil
+			}
+		}
+	}
+	return nil, err
+}
+
+func lagrangeGetSignSeverFromInfo(serverVer string, serverName string) (map[string]interface{}, string) {
+	mu.Lock()
+	defer mu.Unlock()
+	for _, info := range signInfoGlobal {
+		if info.Version == serverVer {
+			for _, server := range info.Servers {
+				if server.Name == serverName {
+					return info.Appinfo, server.Url
+				}
+			}
+		}
+	}
+	return nil, ""
+}
+
+var signInfoJson string = `
+[
+  {
+    "version": "25765",
+    "appinfo": {
+      "AppClientVersion": 25765,
+      "AppId": 1600001615,
+      "AppIdQrCode": 13697054,
+      "CurrentVersion": "3.2.10-25765",
+      "Kernel": "Linux",
+      "MainSigMap": 169742560,
+      "MiscBitmap": 32764,
+      "NTLoginType": 1,
+      "Os": "Linux",
+      "PackageName": "com.tencent.qq",
+      "PtVersion": "2.0.0",
+      "SsoVersion": 19,
+      "SubAppId": 537234773,
+      "SubSigMap": 0,
+      "VendorOs": "linux",
+      "WtLoginSdk": "nt.wtlogin.0.0.1"
+    },
+    "servers": [
+      {
+        "name": "aaa1",
+        "url": "https://lagrmagic.cblkseal.tech/api/sign/25765"
+      }
+    ]
+  },
+  {
+    "version": "30366",
+    "appinfo": {
+      "AppClientVersion": 30366,
+      "AppId": 1600001615,
+      "AppIdQrCode": 13697054,
+      "CurrentVersion": "3.2.15-30366",
+      "Kernel": "Linux",
+      "MainSigMap": 169742560,
+      "MiscBitmap": 32764,
+      "NTLoginType": 1,
+      "Os": "Linux",
+      "PackageName": "com.tencent.qq",
+      "PtVersion": "2.0.0",
+      "SsoVersion": 19,
+      "SubAppId": 537258424,
+      "SubSigMap": 0,
+      "VendorOs": "linux",
+      "WtLoginSdk": "nt.wtlogin.0.0.1"
+    },
+    "servers": [
+      {
+        "name": "aaa2",
+        "url": "https://lagrmagic.cblkseal.tech/api/sign/30366",
+        "selected": true
+      }
+    ],
+    "selected": true
+  }
+]
+	`
+
+var defaultLagrangeConfig = `
+	{
+		"Logging": {
+			"LogLevel": {
+				"Default": "Information",
+				"Microsoft": "Warning",
+				"Microsoft.Hosting.Lifetime": "Information"
+			}
+		},
+		"SignServerUrl": "{NTSignServer地址}",
+		"Account": {
+			"Uin": {账号UIN},
+			"Password": "",
+			"Protocol": "Linux",
+			"AutoReconnect": true,
+			"GetOptimumServer": true
+		},
+		"Message": {
+			"IgnoreSelf": true,
+			"StringPost": false
+		},
+		"QrCode": {
+			"ConsoleCompatibilityMode": false
+		},
+		"Implementations": [
+			{
+				"Type": "ForwardWebSocket",
+				"Host": "127.0.0.1",
+				"Port": {WS端口},
+				"HeartBeatInterval": 5000,
+				"AccessToken": ""
+			}
+		]
+	}
+	`
+var defaultLagrangeGocqConfig = `
+	account:
+	  uin: {账号UIN}
+	  password: ''
+	  encrypt: false
+	  status: 0
+	  relogin:
+		delay: 3
+		interval: 3
+		max-times: 0 
+	  use-sso-address: true
+	  allow-temp-session: false
+	  sign-servers:
+		- url: '{NTSignServer地址}'
+	  max-check-count: 0
+	  sign-server-timeout: 60
+	
+	heartbeat:
+	  interval: 5
+	
+	message:
+	  post-format: array
+	  ignore-invalid-cqcode: false
+	  force-fragment: false
+	  fix-url: false
+	  proxy-rewrite: ''
+	  report-self-message: false
+	  remove-reply-at: false
+	  extra-reply-data: false
+	  skip-mime-scan: false
+	  convert-webp-image: false
+	  http-timeout: 15
+	
+	output:
+	  log-level: warn
+	  log-aging: 15
+	  log-force-new: true
+	  log-colorful: true
+	  debug: false
+	
+	default-middlewares: &default
+	  access-token: ''
+	  filter: ''
+	  rate-limit:
+		enabled: false
+		frequency: 1
+		bucket: 1
+	
+	database:
+	  leveldb:
+		enable: true
+	  sqlite3:
+		enable: false
+		cachettl: 3600000000000
+	
+	servers:
+	  - ws:
+		  address: 127.0.0.1:{WS端口}
+		  middlewares:
+			<<: *default
+	`
