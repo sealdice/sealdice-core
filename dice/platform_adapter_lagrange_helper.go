@@ -125,6 +125,14 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		if pa.ConnectURL == "" {
 			p, _ := GetRandomFreePort()
 			pa.ConnectURL = fmt.Sprintf("ws://127.0.0.1:%d", p)
+			// 这里是为了防止用户手动删除配置，但数据库里还存有账号
+			if loginInfo.SignServerName == "" {
+				loginInfo.SignServerName = pa.SignServerName
+			}
+			if loginInfo.SignServerVersion == "" {
+				loginInfo.SignServerVersion = pa.SignServerVer
+			}
+			// 生成appinfo和signserverurl写入文件
 			a, c := GenerateLagrangeConfig(p, loginInfo.SignServerName, loginInfo.SignServerVersion, dice, conn)
 			if a != nil {
 				_ = os.WriteFile(appinfoFilePath, a, 0o644)
@@ -342,21 +350,25 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 // var lagrangeNTSignServer = "https://sign.lagrangecore.org/api/sign"
 
 func GenerateLagrangeConfig(port int, signServerName string, signServerVersion string, dice *Dice, info *EndPointInfo) ([]byte, []byte) {
+	var appinfo []byte
+	var signServerUrl string
 	pa := info.Adapter.(*PlatformAdapterGocq)
-	if len(signInfoGlobal) == 0 {
-		_, _ = LagrangeGetSignInfo(dice)
+	if signServerVersion == "自定义" {
+		appinfo, _ = lagrangeGetAppinfoFromSignServer(signServerName)
+		signServerUrl = signServerName
+	} else {
+		if len(signInfoGlobal) == 0 {
+			_, _ = LagrangeGetSignInfo(dice)
+		}
+		appinfo, signServerUrl = lagrangeGetSignSeverFromInfo(signServerVersion, signServerName)
 	}
-	signServerAppinfo, signServerUrl := lagrangeGetSignSeverFromInfo(signServerVersion, signServerName)
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", strconv.Itoa(port))
 	if pa.BuiltinMode == "lagrange-gocq" {
 		conf = strings.ReplaceAll(defaultLagrangeGocqConfig, "{WS端口}", strconv.Itoa(port))
 	}
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
-	if appinfo, err := json.Marshal(signServerAppinfo); err == nil {
-		return appinfo, []byte(conf)
-	}
-	return nil, []byte(conf)
+	return appinfo, []byte(conf)
 }
 
 // 该函数后续考虑优化掉
@@ -466,19 +478,43 @@ func lagrangeGetSignInfoFromCache(cachePath string) ([]SignInfo, error) {
 	return nil, err
 }
 
-func lagrangeGetSignSeverFromInfo(serverVer string, serverName string) (map[string]interface{}, string) {
+func lagrangeGetSignSeverFromInfo(serverVer string, serverName string) ([]byte, string) {
 	mu.Lock()
 	defer mu.Unlock()
 	for _, info := range signInfoGlobal {
 		if info.Version == serverVer {
 			for _, server := range info.Servers {
 				if server.Name == serverName {
-					return info.Appinfo, server.Url
+					if appinfo, err := json.Marshal(info.Appinfo); err == nil {
+						return appinfo, server.Url
+					}
 				}
 			}
 		}
 	}
 	return nil, ""
+}
+
+// 当自定义签名地址时，从/appinfo路径获取appinfo信息
+func lagrangeGetAppinfoFromSignServer(serverName string) ([]byte, error) {
+	c := http.Client{
+		Timeout: 3 * time.Second,
+	}
+	resp, err := c.Get(serverName + "/appinfo")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var test map[string]interface{}
+	err = json.Unmarshal(body, &test)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }
 
 var signInfoJson string = `
@@ -505,8 +541,12 @@ var signInfoJson string = `
     },
     "servers": [
       {
-        "name": "aaa1",
-        "url": "https://lagrmagic.cblkseal.tech/api/sign/25765"
+        "name": "海豹",
+        "url": "https://lwxmagic.sealdice.com/api/sign/25765"
+      },
+	  {
+        "name": "Lagrange",
+        "url": "https://sign.lagrangecore.org/api/sign/25765"
       }
     ]
   },
@@ -532,9 +572,12 @@ var signInfoJson string = `
     },
     "servers": [
       {
-        "name": "aaa2",
-        "url": "https://lagrmagic.cblkseal.tech/api/sign/30366",
-        "selected": true
+        "name": "海豹",
+        "url": "https://lwxmagic.sealdice.com/api/sign/30366"
+      },
+	  {
+        "name": "Lagrange",
+        "url": "https://sign.lagrangecore.org/api/sign/30366"
       }
     ],
     "selected": true
