@@ -421,36 +421,36 @@ type SignInfo struct {
 
 // 小概率出现并发读写，需上锁
 var mu sync.Mutex
-var signInfoGlobal []*SignInfo
+var signInfoGlobal []SignInfo
 
-func LagrangeGetSignInfo(dice *Dice) ([]*SignInfo, error) {
+func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	cachePath := filepath.Join(dice.BaseConfig.DataDir, "extra/SignInfo.cache")
 	signInfo, err := lagrangeGetSignInfoFromCloud(cachePath)
 	if err == nil && len(signInfo) > 0 {
-		signInfoGlobal = signInfo
+		copy(signInfoGlobal, signInfo)
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从云端获取SignInfo，即将读取本地缓存数据, 原因: %s", err.Error())
 
 	signInfo, err = lagrangeGetSignInfoFromCache(cachePath)
 	if err == nil && len(signInfo) > 0 {
-		signInfoGlobal = signInfo
+		copy(signInfoGlobal, signInfo)
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从本地缓存获取SignInfo，即将读取内置数据, 原因: %s", err.Error())
 
 	if err = json.Unmarshal([]byte(signInfoJson), &signInfo); err == nil {
 		lagrangeGetSignServerLatency(signInfo)
-		signInfoGlobal = signInfo
+		copy(signInfoGlobal, signInfo)
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从内置数据获取SignInfo，请联系开发者上报问题, 原因: %s", err.Error())
 	return nil, errors.New("内置SignInfo信息有误")
 }
 
-func lagrangeGetSignInfoFromCloud(cachePath string) ([]*SignInfo, error) {
+func lagrangeGetSignInfoFromCloud(cachePath string) ([]SignInfo, error) {
 	now := time.Now()
 	unixTimestamp := now.Unix()
 	url := fmt.Sprintf("https://d1.sealdice.com/sealsign/signinfo.json?v=%v", unixTimestamp)
@@ -466,7 +466,7 @@ func lagrangeGetSignInfoFromCloud(cachePath string) ([]*SignInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	var signInfo []*SignInfo
+	var signInfo []SignInfo
 	err = json.Unmarshal(body, &signInfo)
 	if err != nil {
 		return nil, err
@@ -476,12 +476,12 @@ func lagrangeGetSignInfoFromCloud(cachePath string) ([]*SignInfo, error) {
 	return signInfo, nil
 }
 
-func lagrangeGetSignInfoFromCache(cachePath string) ([]*SignInfo, error) {
+func lagrangeGetSignInfoFromCache(cachePath string) ([]SignInfo, error) {
 	var err error
 	if _, err = os.Stat(cachePath); err == nil {
 		var file []byte
 		if file, err = os.ReadFile(cachePath); err == nil {
-			var signInfo []*SignInfo
+			var signInfo []SignInfo
 			if err = json.Unmarshal(file, &signInfo); err == nil {
 				lagrangeGetSignServerLatency(signInfo)
 				return signInfo, nil
@@ -508,7 +508,7 @@ func lagrangeGetSignSeverFromInfo(serverVer string, serverName string) ([]byte, 
 	return nil, ""
 }
 
-func lagrangeGetSignServerLatency(signInfo []*SignInfo) {
+func lagrangeGetSignServerLatency(signInfo []SignInfo) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	c := &http.Client{
