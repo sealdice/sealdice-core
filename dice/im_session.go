@@ -1579,10 +1579,10 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					if d.Config.BanList.BanBehaviorQuitIfAdmin {
 						noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 						log.Info(noticeMsg)
-	
+
 						text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
 						ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-	
+
 						ctx.Notice(noticeMsg)
 					} else {
 						noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，忽略黑名单用户信息，不做其他操作\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
