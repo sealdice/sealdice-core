@@ -232,20 +232,11 @@
             <el-form-item label="接入方式">
               <div>内置客户端</div>
             </el-form-item>
-            <el-form-item label="签名地址">
-              <el-tooltip
-                class="item"
-                effect="dark"
-                :content="i.enable ? '禁用账号后方可修改签名服务地址' : '单击修改签名服务地址'"
-                placement="bottom">
-                <el-button
-                  :icon="Edit"
-                  size="small"
-                  circle
-                  :disabled="i.enable"
-                  style="margin-left: 0.5rem"
-                  @click="showSetSignServerDialog(i)" />
-              </el-tooltip>
+            <el-form-item label="签名版本">
+              <div>{{ i.adapter.signServerVer }}</div>
+            </el-form-item>
+            <el-form-item label="签名服务">
+              <div>{{ i.adapter.signServerName }}</div>
             </el-form-item>
           </template>
 
@@ -258,20 +249,11 @@
             <el-form-item label="接入方式">
               <div>内置 gocq</div>
             </el-form-item>
-            <el-form-item label="签名地址">
-              <el-tooltip
-                class="item"
-                effect="dark"
-                :content="i.enable ? '禁用账号后方可修改签名服务地址' : '单击修改签名服务地址'"
-                placement="bottom">
-                <el-button
-                  :icon="Edit"
-                  size="small"
-                  circle
-                  :disabled="i.enable"
-                  style="margin-left: 0.5rem"
-                  @click="showSetSignServerDialog(i)" />
-              </el-tooltip>
+            <el-form-item label="签名版本">
+              <div>{{ i.adapter.signServerVer }}</div>
+            </el-form-item>
+            <el-form-item label="签名服务">
+              <div>{{ i.adapter.signServerName }}</div>
             </el-form-item>
           </template>
 
@@ -702,49 +684,6 @@
     </template>
   </el-dialog>
   <el-dialog
-    v-model="dialogSetSignServerVisible"
-    title="签名地址修改"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :show-close="false"
-    class="the-dialog">
-    <el-form-item label="签名地址" :label-width="formLabelWidth" required>
-      <el-radio-group v-model="form.signServerType">
-        <el-radio :value="0">海豹</el-radio>
-        <el-radio :value="1">Lagrange</el-radio>
-        <el-radio :value="2">雪桃代理</el-radio>
-        <el-radio :value="3">自定义地址</el-radio>
-      </el-radio-group>
-    </el-form-item>
-    <el-form-item
-      v-if="form.signServerType === 3"
-      label="自定义签名地址"
-      :label-width="formLabelWidth"
-      required>
-      <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
-    </el-form-item>
-    <el-form-item v-else label="签名版本" :label-width="formLabelWidth" required>
-      <el-space direction="vertical" alignment="flex-start">
-        <el-radio-group v-model="form.signServerVersion">
-          <el-radio value="25765">25765</el-radio>
-          <el-radio value="30366">30366</el-radio>
-        </el-radio-group>
-        <el-text type="warning" size="small">如果不知道这是什么，请保持默认选中的最新版本</el-text>
-      </el-space>
-    </el-form-item>
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="dialogSetSignServerVisible = false">取消</el-button>
-        <el-button
-          type="primary"
-          :disabled="form.signServerType === 3 && isEmpty(trim(form.signServerUrl))"
-          @click="doSetSignServer"
-          >确定</el-button
-        >
-      </span>
-    </template>
-  </el-dialog>
-  <el-dialog
     v-model="dialogFormVisible"
     title="帐号登录"
     :close-on-click-modal="false"
@@ -898,39 +837,133 @@
         </el-form-item>
         <el-form-item
           v-if="form.accountType === 15 || form.accountType === 16"
-          label="签名服务"
-          :label-width="formLabelWidth"
-          required>
-          <el-radio-group v-model="form.signServerType">
-            <el-radio :value="0">海豹</el-radio>
-            <el-radio :value="1">Lagrange</el-radio>
-            <el-radio :value="2">雪桃代理</el-radio>
-            <el-radio :value="3">自定义地址</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item
-          v-if="(form.accountType === 15 || form.accountType === 16) && form.signServerType === 3"
-          label="自定义签名地址"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.signServerUrl" type="text" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-else-if="form.accountType === 15 || form.accountType === 16"
           label="签名版本"
           :label-width="formLabelWidth"
           required>
-          <el-space direction="vertical" alignment="flex-start">
-            <el-radio-group v-model="form.signServerVersion">
-              <el-radio value="25765">25765</el-radio>
-              <el-radio value="30366">30366</el-radio>
-            </el-radio-group>
-            <el-text type="warning" size="small"
-              >如果不知道这是什么，请保持默认选中的最新版本</el-text
+          <template #label>
+            <span>
+              签名版本
+              <el-tooltip content="如果不知道这是什么，请保持默认选中">
+                <el-icon><question-filled /></el-icon>
+              </el-tooltip>
+            </span>
+          </template>
+          <el-select
+            v-model="form.signServerVersion"
+            :disabled="!signInfoLoaded"
+            @change="signServerVersionChange"
+            placeholder="请选择签名版本">
+            <template v-for="info in signInfos">
+              <el-option
+                v-if="!info.ignored"
+                :key="info.version"
+                :label="info.version"
+                :value="info.version">
+                <div style="display: flex; align-items: center">
+                  <span style="float: left; margin-right: 0.5rem">{{ info.version }}</span>
+                  <el-tag v-if="info.selected" type="success">最新</el-tag>
+                </div></el-option
+              ></template
             >
-          </el-space>
+            <el-option key="custom" label="自定义" value="自定义"></el-option>
+            <template #label>
+              <template v-for="info in signInfos">
+                <div
+                  :key="info.version"
+                  v-if="info.version === form.signServerVersion && info.selected"
+                  style="display: flex; align-items: center">
+                  <span style="float: left; margin-right: 0.5rem">{{
+                    form.signServerVersion
+                  }}</span>
+                  <el-tag type="success">最新</el-tag>
+                </div>
+              </template>
+            </template>
+          </el-select>
+          <el-text v-if="signVerWarningText !== ''" type="warning" size="small">{{
+            signVerWarningText
+          }}</el-text>
         </el-form-item>
-
+        <el-form-item
+          v-if="form.accountType === 15 || form.accountType === 16"
+          label="签名服务"
+          :label-width="formLabelWidth"
+          required>
+          <template #label>
+            <span>
+              签名服务
+              <el-tooltip content="如果不知道这是什么，请保持默认选中">
+                <el-icon><question-filled /></el-icon>
+              </el-tooltip>
+            </span>
+          </template>
+          <el-select
+            v-if="form.signServerVersion !== '自定义'"
+            v-model="form.signServerName"
+            :disabled="!signInfoLoaded"
+            @change="signServerServerChange"
+            placeholder="请选择签名服务">
+            <template v-for="info in signInfos">
+              <template v-if="info.version === form.signServerVersion && !info.ignored">
+                <template v-for="server in info.servers">
+                  <el-option
+                    v-if="!server.ignored"
+                    :key="server.name"
+                    :label="server.name"
+                    :value="server.name">
+                    <div style="display: flex; align-items: center">
+                      <span style="float: left; margin-right: 0.5rem">{{ server.name }}</span>
+                      <el-tag v-if="server.latency < 120" type="success"
+                        >{{ server.latency }}ms</el-tag
+                      >
+                      <el-tag
+                        v-else-if="server.latency >= 120 && server.latency < 360"
+                        type="warning"
+                        >{{ server.latency }}ms</el-tag
+                      >
+                      <el-tag v-else-if="server.latency >= 360" type="danger"
+                        >{{ server.latency }}ms</el-tag
+                      >
+                    </div>
+                  </el-option>
+                </template>
+              </template>
+            </template>
+            <template #label>
+              <template v-for="info in signInfos">
+                <template v-if="info.version === form.signServerVersion && !info.ignored">
+                  <template v-for="server in info.servers">
+                    <div
+                      :key="server.name"
+                      v-if="server.name === form.signServerName"
+                      style="display: flex; align-items: center">
+                      <span style="float: left; margin-right: 0.5rem">{{ server.name }}</span>
+                      <el-tag v-if="server.latency < 120" type="success"
+                        >{{ server.latency }}ms</el-tag
+                      >
+                      <el-tag
+                        v-else-if="server.latency >= 120 && server.latency < 360"
+                        type="warning"
+                        >{{ server.latency }}ms</el-tag
+                      >
+                      <el-tag v-else-if="server.latency >= 360" type="danger"
+                        >{{ server.latency }}ms</el-tag
+                      >
+                    </div>
+                  </template>
+                </template>
+              </template>
+            </template>
+          </el-select>
+          <el-input
+            v-else
+            v-model="form.signServerName"
+            autocomplete="off"
+            placeholder="请输入自定义签名地址"></el-input>
+          <el-text v-if="signServerWarningText !== ''" type="warning" size="small">{{
+            signServerWarningText
+          }}</el-text>
+        </el-form-item>
         <el-form-item
           v-if="form.accountType === 0"
           label="账号"
@@ -1794,7 +1827,9 @@
               (form.accountType === 11 && (form.account === '' || form.reverseAddr === '')) ||
               (form.accountType === 13 && (form.token === '' || form.url === '')) ||
               ((form.accountType === 15 || form.accountType === 16) &&
-                (form.account === '' || (form.signServerType === 3 && form.signServerUrl === '')))
+                (form.account === '' ||
+                  form.signServerVersion === '' ||
+                  form.signServerName === ''))
             "
             @click="goStepTwo">
             下一步</el-button
@@ -1860,17 +1895,17 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { urlBase } from '~/backend';
 import {
   getConnectQQVersion,
+  getLagrangeSignInfo,
   postConnectionDel,
   postConnectionQrcode,
   postConnectSetData,
   postConnectSetEnable,
   postGoCqCaptchaSet,
   postGoCqHttpRelogin,
-  postSetSignServer,
   postSmsCodeSet,
+  type SignInfo,
 } from '~/api/im_connections';
 import { postToolOnebot } from '~/api/others';
-import { isEmpty, trim } from 'lodash-es';
 
 dayjs.extend(relativeTime);
 
@@ -1919,7 +1954,6 @@ const isRecentLogin = ref(false);
 const duringRelogin = ref(false);
 const dialogFormVisible = ref(false);
 const dialogSetDataFormVisible = ref(false);
-const dialogSetSignServerVisible = ref(false);
 const dialogSlideVisible = ref(false);
 const formLabelWidth = '120px';
 const isTestMode = ref(false);
@@ -1931,6 +1965,11 @@ const slideBottomShow = ref(false);
 const curConn = ref({} as DiceConnection);
 const curConnId = ref('');
 const smsCode = ref('');
+
+const signInfoLoaded = ref(false);
+const signInfos = ref({} as SignInfo[]);
+const signVerWarningText = ref('');
+const signServerWarningText = ref('');
 
 let captchaTimer = null as any;
 const captchaUrlSet = (i: DiceConnection, url: string) => {
@@ -2061,20 +2100,6 @@ const goStepTwo = async () => {
   setRecentLogin();
   duringRelogin.value = false;
 
-  if (form.accountType === 15 || form.accountType === 16) {
-    switch (form.signServerType) {
-      case 0:
-        form.signServerUrl = 'sealdice';
-        break;
-      case 1:
-        form.signServerUrl = 'lagrange';
-        break;
-      case 2:
-        form.signServerUrl = 'newProxy';
-        break;
-    }
-  }
-
   store
     .addImConnection(form as any)
     .then(conn => {
@@ -2091,8 +2116,8 @@ const goStepTwo = async () => {
     });
   if (form.accountType > 0) {
     dialogFormVisible.value = false;
+    form.account = '';
     form.step = 1;
-    form.signServerUrl = '';
     return;
   }
   activities.value = [];
@@ -2180,60 +2205,6 @@ const doSetData = async () => {
   }
   ElMessage.success('修改完成，请手动重新登录');
   dialogSetDataFormVisible.value = false;
-};
-const showSetSignServerDialog = async (i: DiceConnection) => {
-  form.endpoint = i;
-  const ret = await postSetSignServer(form.endpoint.id, '', false, form.signServerVersion);
-  if (ret.result) {
-    form.signServerUrl = ret.signServerUrl;
-    switch (form.signServerUrl) {
-      case 'sealdice':
-        form.signServerType = 0;
-        form.signServerUrl = '';
-        break;
-      case 'lagrange':
-        form.signServerType = 1;
-        form.signServerUrl = '';
-        break;
-      case 'newProxy':
-        form.signServerType = 2;
-        form.signServerUrl = '';
-        break;
-      default:
-        form.signServerType = 3;
-        break;
-    }
-    form.signServerVersion = ret.signServerVersion;
-    dialogSetSignServerVisible.value = true;
-  } else {
-    ElMessage.error(ret.err);
-  }
-};
-
-const doSetSignServer = async () => {
-  switch (form.signServerType) {
-    case 0:
-      form.signServerUrl = 'sealdice';
-      break;
-    case 1:
-      form.signServerUrl = 'lagrange';
-      break;
-    case 2:
-      form.signServerUrl = 'newProxy';
-      break;
-  }
-  const ret = await postSetSignServer(
-    form.endpoint.id,
-    trim(form.signServerUrl),
-    true,
-    form.signServerVersion,
-  );
-  if (ret.result) {
-    ElMessage.success('修改完成，请手动启用账号以生效');
-  } else {
-    ElMessage.error(ret.err);
-  }
-  dialogSetSignServerVisible.value = false;
 };
 
 const askSetEnable = async (i: DiceConnection, val: boolean) => {
@@ -2344,6 +2315,72 @@ const signConfigTypeChange = (value: any) => {
   }
 };
 
+const signServerVersionChange = () => {
+  switch (form.signServerVersion) {
+    case '自定义':
+      form.signServerName = '';
+      signVerWarningText.value = '';
+      signServerWarningText.value = '';
+      break;
+    case '':
+      signInfos.value.forEach(info => {
+        if (signInfos.value.length > 0) {
+          form.signServerVersion = signInfos.value[0].version;
+        }
+        if (info.selected) {
+          form.signServerVersion = info.version;
+          signServerVersionChange();
+        }
+      });
+      break;
+    default:
+      signInfos.value.forEach(info => {
+        if (form.signServerVersion === info.version) {
+          if (info.servers.length > 0) {
+            form.signServerName = info.servers[0].name;
+          }
+          info.servers.forEach(server => {
+            if (server.selected) {
+              form.signServerName = server.name;
+            }
+          });
+        }
+      });
+      break;
+  }
+  signServerServerChange();
+};
+
+const signServerServerChange = () => {
+  signInfos.value.forEach(info => {
+    if (info.version === form.signServerVersion) {
+      signVerWarningText.value = info.note;
+    }
+    info.servers.forEach(server => {
+      if (server.name === form.signServerName) {
+        signServerWarningText.value = server.note;
+      }
+    });
+  });
+};
+
+const getSignInfo = async () => {
+  form.account = '';
+  form.signServerVersion = '';
+  form.signServerName = '';
+  try {
+    const res = await getLagrangeSignInfo();
+    signInfoLoaded.value = res.result;
+    // 理论上不会有false出现所以前端不进行通知，若出现则为后端代码问题
+    if (res.result !== false) {
+      signInfos.value = res.data;
+      signServerVersionChange();
+    }
+  } catch {
+    signInfoLoaded.value = false;
+  }
+};
+
 const handleSignServerAdd = () => {
   form.signServerConfig?.signServers?.push({
     url: '',
@@ -2413,10 +2450,9 @@ const form = reactive({
     autoRefreshToken: false,
     refreshInterval: 40,
   },
-  signServerType: 0,
-  signServerUrl: '',
+  signServerName: '',
   signServerKey: '',
-  signServerVersion: '30366',
+  signServerVersion: '',
 
   reverseAddr: ':4001',
   platform: 'QQ',
@@ -2424,10 +2460,14 @@ const form = reactive({
 
 export type addImConnectionForm = typeof form;
 
+// 添加一个新账号
 const addOne = () => {
   dialogFormVisible.value = true;
   form.protocol = 6;
   form.implementation = 'gocq';
+
+  // 从后端读取signInfo，动态填充到页面
+  getSignInfo();
 };
 
 let timerId: number;
