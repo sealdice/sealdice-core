@@ -137,46 +137,18 @@ func ImConnectionsSetData(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
-func ImConnectionsRWSignServerUrl(c echo.Context) error {
+func ImConnectionsGetSignInfo(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	if dm.JustForTest {
-		return c.JSON(http.StatusOK, map[string]interface{}{
-			"testMode": true,
-		})
-	}
 
-	v := struct {
-		ID                string `form:"id" json:"id"`
-		SignServerUrl     string `form:"signServerUrl" json:"signServerUrl"`
-		W                 bool   `form:"w" json:"w"`
-		SignServerVersion string `form:"signServerVersion" json:"signServerVersion"`
-	}{}
-
-	err := c.Bind(&v)
+	data, err := dice.LagrangeGetSignInfo(myDice)
 	if err != nil {
-		myDice.Save(false)
-		return c.JSON(http.StatusNotFound, nil)
+		return Error(&c, "读取SignInfo失败", Response{})
 	}
-	for _, i := range myDice.ImSession.EndPoints {
-		if i.ID != v.ID {
-			continue
-		}
-		if i.ProtocolType == "onebot" {
-			pa := i.Adapter.(*dice.PlatformAdapterGocq)
-			if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
-				signServerUrl, signServerVersion := dice.RWLagrangeSignServerUrl(myDice, i, v.SignServerUrl, v.W, v.SignServerVersion)
-				if signServerUrl != "" {
-					return Success(&c, Response{
-						"signServerUrl":     signServerUrl,
-						"signServerVersion": signServerVersion,
-					})
-				}
-			}
-		}
-	}
-	return Error(&c, "读取signServerUrl字段失败", Response{})
+	return Success(&c, Response{
+		"data": data,
+	})
 }
 
 func ImConnectionsDel(c echo.Context) error {
@@ -967,7 +939,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 
 	v := struct {
 		Account           string `yaml:"account" json:"account"`
-		SignServerUrl     string `yaml:"signServerUrl" json:"signServerUrl"`
+		SignServerName    string `yaml:"signServerName" json:"signServerName"`
 		SignServerVersion string `yaml:"signServerVersion" json:"signServerVersion"`
 		IsGocq            bool   `yaml:"isGocq" json:"isGocq"`
 	}{}
@@ -991,9 +963,11 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		pa.SignServerName = v.SignServerName
+		pa.SignServerVer = v.SignServerVersion
 		dice.LagrangeServe(myDice, conn, dice.LagrangeLoginInfo{
 			UIN:               uin,
-			SignServerUrl:     v.SignServerUrl,
+			SignServerName:    v.SignServerName,
 			SignServerVersion: v.SignServerVersion,
 			IsAsyncRun:        true,
 		})

@@ -100,6 +100,8 @@ type PlatformAdapterGocq struct {
 	riskAlertShieldCount int  // 风控警告屏蔽次数，一个临时变量
 	useArrayMessage      bool `yaml:"-"` // 使用分段消息
 	lagrangeRebootTimes  int
+	SignServerVer        string `yaml:"signServerVer" json:"signServerVer"`   // 用于前端显示
+	SignServerName       string `yaml:"signServerName" json:"signServerName"` // 用于前端显示
 }
 
 type Sender struct {

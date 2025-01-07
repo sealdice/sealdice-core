@@ -2306,20 +2306,20 @@ func (d *Dice) loads() {
 		d.Config = config
 
 		// 1.4.5 版本 - 覆写lagrange配置
-		for _, i := range d.ImSession.EndPoints {
-			if i.ProtocolType == "onebot" {
-				pa := i.Adapter.(*PlatformAdapterGocq)
-				if pa.BuiltinMode == "lagrange" {
-					signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "30366")
-					if signServerUrl != "" {
-						// 版本为空，覆写为 "30366"
-						if signServerVersion == "" {
-							RWLagrangeSignServerUrl(d, i, "sealdice", true, "30366")
-						}
-					}
-				}
-			}
-		}
+		// for _, i := range d.ImSession.EndPoints {
+		// 	if i.ProtocolType == "onebot" {
+		// 		pa := i.Adapter.(*PlatformAdapterGocq)
+		// 		if pa.BuiltinMode == "lagrange" {
+		// 			signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "30366")
+		// 			if signServerUrl != "" {
+		// 				// 版本为空，覆写为 "30366"
+		// 				if signServerVersion == "" {
+		// 					RWLagrangeSignServerUrl(d, i, "sealdice", true, "30366")
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
 
 		// 设置全局群名缓存和用户名缓存
 		dm := d.Parent
