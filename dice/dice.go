@@ -753,7 +753,6 @@ func (d *Dice) PublicDiceEndpointRefresh() {
 
 func (d *Dice) PublicDiceInfoRegister() {
 	cfg := &d.Config.PublicDiceConfig
-
 	pd, code := d.PublicDice.Register(&public_dice.RegisterRequest{
 		ID:    cfg.ID,
 		Name:  cfg.Name,
@@ -764,8 +763,8 @@ func (d *Dice) PublicDiceInfoRegister() {
 		log.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
 		return
 	}
-	// 两种可能: 1. 原本ID为空 2. ID 无效，这里会自动变成新的
-	if pd.Item.ID != "" && cfg.ID != pd.Item.ID {
+	// ID为空时才将注册好的ID覆写配置
+	if pd.Item.ID != "" && cfg.ID == "" {
 		cfg.ID = pd.Item.ID
 	}
 }
