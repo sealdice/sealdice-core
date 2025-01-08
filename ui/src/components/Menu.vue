@@ -89,6 +89,10 @@
         <span>黑白名单</span>
       </el-menu-item>
 
+      <el-menu-item index="/misc/dice-public">
+        <span>公骰设置</span>
+      </el-menu-item>
+
       <el-menu-item index="/misc/backup">
         <span>备份</span>
       </el-menu-item>

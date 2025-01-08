@@ -15,6 +15,7 @@ import PageMiscSettings from '~/components/misc/PageMiscSettings.vue';
 import PageMiscBackup from '~/components/misc/PageMiscBackup.vue';
 import PageMiscGroup from '~/components/misc/PageMiscGroup.vue';
 import PageMiscBan from '~/components/misc/PageMiscBan.vue';
+import PageMiscDicePublic from '~/components/misc/PageMiscDicePublic.vue';
 import PageMiscAdvancedSettings from '~/components/misc/PageMiscAdvancedSettings.vue';
 
 const router = createRouter({
@@ -48,6 +49,7 @@ const router = createRouter({
         { path: 'backup', component: PageMiscBackup },
         { path: 'group', component: PageMiscGroup },
         { path: 'ban', component: PageMiscBan },
+        { path: 'dice-public', component: PageMiscDicePublic },
         { path: 'advanced-setting', component: PageMiscAdvancedSettings },
       ],
     },
