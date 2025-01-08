@@ -48,6 +48,7 @@ func banConfigSet(c echo.Context) error {
 	config.BanList.BanBehaviorQuitLastPlace = v.BanBehaviorQuitLastPlace
 	config.BanList.BanBehaviorQuitPlaceImmediately = v.BanBehaviorQuitPlaceImmediately
 	config.BanList.BanBehaviorQuitIfAdmin = v.BanBehaviorQuitIfAdmin
+	config.BanList.BanBehaviorQuitIfAdminSilentIfNotAdmin = v.BanBehaviorQuitIfAdminSilentIfNotAdmin
 	config.BanList.ScoreReducePerMinute = v.ScoreReducePerMinute
 	config.BanList.ThresholdWarn = v.ThresholdWarn
 	config.BanList.ThresholdBan = v.ThresholdBan

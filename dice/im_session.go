@@ -1553,7 +1553,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 
 	if ctx.PrivilegeLevel == -30 {
 		groupLevel := ctx.GroupRoleLevel
-		if d.Config.BanList.BanBehaviorQuitIfAdmin && msg.MessageType == "group" {
+		if (d.Config.BanList.BanBehaviorQuitIfAdmin || d.Config.BanList.BanBehaviorQuitIfAdminSilentIfNotAdmin) && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
 			banListInfoItem, _ := ctx.Dice.Config.BanList.GetByID(msg.Sender.UserID)
 			reasontext := FormatBlacklistReasons(banListInfoItem)
@@ -1576,13 +1576,18 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 					log.Infof("收到群(%s)内普通群员黑名单用户<%s>(%s)的消息，但在信任群所以不做其他操作", groupID, msg.Sender.Nickname, msg.Sender.UserID)
 				} else {
 					notReply = true
-					noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
-					log.Info(noticeMsg)
+					if d.Config.BanList.BanBehaviorQuitIfAdmin {
+						noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
+						log.Info(noticeMsg)
 
-					text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
-					ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+						text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
+						ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
-					ctx.Notice(noticeMsg)
+						ctx.Notice(noticeMsg)
+					} else {
+						noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，忽略黑名单用户信息，不做其他操作\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
+						log.Info(noticeMsg)
+					}
 				}
 			}
 		} else if d.Config.BanList.BanBehaviorQuitPlaceImmediately && msg.MessageType == "group" {
