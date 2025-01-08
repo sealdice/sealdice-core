@@ -53,6 +53,9 @@ watch(
     <el-checkbox v-model="banConfig.banBehaviorQuitIfAdmin"
       >使用者为管理员立即退群，为普通群员进行通告</el-checkbox
     >
+    <el-checkbox v-model="banConfig.banBehaviorQuitIfAdminSilentIfNotAdmin"
+      >使用者为管理员立即退群，为普通群员仅拒绝回复</el-checkbox
+    >
   </el-space>
 
   <h4>怒气值设置</h4>
