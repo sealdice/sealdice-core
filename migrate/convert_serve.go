@@ -69,7 +69,7 @@ type EndPointInfoBase struct {
 	Enable       bool   `yaml:"enable" json:"enable"`         // 是否启用
 	ProtocolType string `yaml:"protocolType"`                 // 协议类型，如onebot、koishi等
 
-	IsPublic bool `yaml:"isPublic"`
+	IsPublic bool `yaml:"isPublic" json:"isPublic"`
 }
 
 type EndPointInfo struct {
