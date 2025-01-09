@@ -13,21 +13,24 @@ import (
 )
 
 type OtterDBCacher struct {
-	otter *otter.Cache[string, caches.Query[any]]
+	otter *otter.Cache[string, []byte]
 }
 
+// 定义一个基于 string 的新类型 cacheKey
+type cacheKey string
+
 const (
-	CacheKey          = "gorm_cache"
-	LogsDBCacheKey    = "logs-db::"
-	DataDBCacheKey    = "data-db::"
-	CensorsDBCacheKey = "censor-db::"
+	CacheKey          cacheKey = "gorm_cache"
+	LogsDBCacheKey    cacheKey = "logs-db::"
+	DataDBCacheKey    cacheKey = "data-db::"
+	CensorsDBCacheKey cacheKey = "censor-db::"
 )
 
 func (c *OtterDBCacher) getKeyWithCtx(ctx context.Context, key string) string {
 	// 获取ctx中的key字段
-	ctxCacheKey := fmt.Sprintf("%v", ctx.Value("gorm_cache"))
+	ctxCacheKey := fmt.Sprintf("%v", ctx.Value(CacheKey))
 	if ctxCacheKey == "" {
-		ctxCacheKey = caches.IdentifierPrefix //gorm-caches::
+		ctxCacheKey = caches.IdentifierPrefix // gorm-caches::
 	}
 	storeCacheKey := fmt.Sprintf("%s%s", ctxCacheKey, key)
 	return storeCacheKey
@@ -39,13 +42,16 @@ func (c *OtterDBCacher) getKeyWithCtx(ctx context.Context, key string) string {
 // 如果键不存在于数据库中，则返回nil, nil。
 // 如果存在错误，将返回错误信息。
 // 如果成功获取数据，将返回填充了数据的查询对象。
+// TODO: 有点奇怪的逻辑，或许我应该直接存储Byte？
 func (c *OtterDBCacher) Get(ctx context.Context, key string, q *caches.Query[any]) (*caches.Query[any], error) {
 	result, ok := c.otter.Get(c.getKeyWithCtx(ctx, key))
 	if !ok {
 		// 设计如此
 		return nil, nil //nolint:nilnil
 	}
-	q = &result
+	if err := q.Unmarshal(result); err != nil {
+		return nil, err
+	}
 	return q, nil
 }
 
@@ -63,7 +69,11 @@ func (c *OtterDBCacher) Get(ctx context.Context, key string, q *caches.Query[any
 //
 //	error: 在序列化或存储过程中遇到的错误，如果没有错误则返回nil。
 func (c *OtterDBCacher) Store(ctx context.Context, key string, val *caches.Query[any]) error {
-	ok := c.otter.Set(c.getKeyWithCtx(ctx, key), *val)
+	storeBytes, err := val.Marshal()
+	if err != nil {
+		return err
+	}
+	ok := c.otter.Set(c.getKeyWithCtx(ctx, key), storeBytes)
 	if !ok {
 		return errors.New("cache store in otter failed")
 	}
@@ -83,7 +93,7 @@ func (c *OtterDBCacher) Invalidate(ctx context.Context) error {
 	// 查看插入的是哪个链接的，删除对应的数据项
 	prefix := c.getKeyWithCtx(ctx, "")
 	// 删除所有以prefix开头的键
-	c.otter.DeleteByFunc(func(key string, _ caches.Query[any]) bool {
+	c.otter.DeleteByFunc(func(key string, _ []byte) bool {
 		return strings.HasPrefix(key, prefix)
 	})
 	return nil
@@ -93,7 +103,7 @@ func (c *OtterDBCacher) Invalidate(ctx context.Context) error {
 // 提供一个查询函数打印日志，该函数可以查询缓存的状态（缓存库提供了）
 // 这样的话就需要稍微改动一下
 func GetOtterCacheDB(db *gorm.DB) (*gorm.DB, error) {
-	cacheInstance, err := otter.MustBuilder[string, caches.Query[any]](10_000).
+	cacheInstance, err := otter.MustBuilder[string, []byte](10_000).
 		CollectStats().
 		WithTTL(time.Hour).
 		Build()
