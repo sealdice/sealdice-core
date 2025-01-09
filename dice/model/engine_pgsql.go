@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,9 +14,14 @@ import (
 type PGSQLEngine struct {
 	DSN string
 	DB  *gorm.DB
+	ctx context.Context
 }
 
-func (s *PGSQLEngine) Init() error {
+func (s *PGSQLEngine) Init(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("ctx is missing")
+	}
+	s.ctx = ctx
 	s.DSN = os.Getenv("DB_DSN")
 	if s.DSN == "" {
 		return errors.New("DB_DSN is missing")
@@ -36,7 +42,9 @@ func (s *PGSQLEngine) DBCheck() {
 // DataDBInit 初始化
 func (s *PGSQLEngine) DataDBInit() (*gorm.DB, error) {
 	// data建表
-	err := s.DB.AutoMigrate(
+	dataContext := context.WithValue(s.ctx, "gorm_cache", "data-db::")
+	dataDB := s.DB.WithContext(dataContext)
+	err := dataDB.AutoMigrate(
 		&GroupPlayerInfoBase{},
 		&GroupInfo{},
 		&BanInfo{},
@@ -46,21 +54,25 @@ func (s *PGSQLEngine) DataDBInit() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.DB, nil
+	return dataDB, nil
 }
 
 func (s *PGSQLEngine) LogDBInit() (*gorm.DB, error) {
 	// logs建表
-	if err := s.DB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
+	logsContext := context.WithValue(s.ctx, "gorm_cache", "logs-db::")
+	logDB := s.DB.WithContext(logsContext)
+	if err := logDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
 		return nil, err
 	}
-	return s.DB, nil
+	return logDB, nil
 }
 
 func (s *PGSQLEngine) CensorDBInit() (*gorm.DB, error) {
+	censorContext := context.WithValue(s.ctx, "gorm_cache", "censor-db::")
+	censorDB := s.DB.WithContext(censorContext)
 	// 创建基本的表结构，并通过标签定义索引
-	if err := s.DB.AutoMigrate(&CensorLog{}); err != nil {
+	if err := censorDB.AutoMigrate(&CensorLog{}); err != nil {
 		return nil, err
 	}
-	return s.DB, nil
+	return censorDB, nil
 }

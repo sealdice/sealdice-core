@@ -3,22 +3,29 @@ package cache
 import (
 	"context"
 	"errors"
-	"strconv"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-gorm/caches/v4"
-	"github.com/spaolacci/murmur3"
-	"github.com/tidwall/buntdb"
+	"github.com/maypok86/otter"
 	"gorm.io/gorm"
 )
 
-type buntDBCacher struct {
-	db *buntdb.DB
+// TODO: 采用context传参的方式，区分三种（四种？）不同的DB，从而细化缓存粒度
+// TODO: 切换为otter缓存，那个缓存比这个好
+type OtterDBCacher struct {
+	otter *otter.Cache[string, caches.Query[any]]
 }
 
-func generateHashKey(key string) string {
-	hash := murmur3.Sum64([]byte(key))
-	return strconv.FormatUint(hash, 16) // 返回十六进制字符串
+func (c *OtterDBCacher) getKeyWithCtx(ctx context.Context, key string) string {
+	// 获取ctx中的key字段
+	ctxCacheKey := fmt.Sprintf("%v", ctx.Value("gorm_cache"))
+	if ctxCacheKey == "" {
+		ctxCacheKey = caches.IdentifierPrefix //gorm-caches::
+	}
+	storeCacheKey := fmt.Sprintf("%s%s", ctxCacheKey, key)
+	return storeCacheKey
 }
 
 // Get 从缓存中获取与给定键关联的数据。
@@ -27,34 +34,13 @@ func generateHashKey(key string) string {
 // 如果键不存在于数据库中，则返回nil, nil。
 // 如果存在错误，将返回错误信息。
 // 如果成功获取数据，将返回填充了数据的查询对象。
-func (c *buntDBCacher) Get(_ context.Context, key string, q *caches.Query[any]) (*caches.Query[any], error) {
-	// 生成哈希键以确定缓存的位置。
-	hashedKey := generateHashKey(key)
-
-	// 尝试查找对应的关联值
-	var res string
-	err := c.db.View(func(tx *buntdb.Tx) error {
-		var err error
-		// 从事务中获取与哈希键关联的值。
-		res, err = tx.Get(hashedKey)
-		return err
-	})
-
-	// 如果键在数据库中不存在，记录信息并返回nil, nil。
-	if errors.Is(err, buntdb.ErrNotFound) {
-		// 此处不得不忽略，因为这个cache的实现机理就是如此，除非修改gorm cache的源码。
+func (c *OtterDBCacher) Get(ctx context.Context, key string, q *caches.Query[any]) (*caches.Query[any], error) {
+	result, ok := c.otter.Get(c.getKeyWithCtx(ctx, key))
+	if !ok {
+		// 设计如此
 		return nil, nil //nolint:nilnil
 	}
-
-	// 如果发生其他错误，返回错误信息。
-	if err != nil {
-		return nil, err
-	}
-	// 将获取到的值解码为查询对象。
-	if err = q.Unmarshal([]byte(res)); err != nil {
-		return nil, err
-	}
-
+	q = &result
 	return q, nil
 }
 
@@ -71,22 +57,12 @@ func (c *buntDBCacher) Get(_ context.Context, key string, q *caches.Query[any]) 
 // 返回值:
 //
 //	error: 在序列化或存储过程中遇到的错误，如果没有错误则返回nil。
-func (c *buntDBCacher) Store(_ context.Context, key string, val *caches.Query[any]) error {
-	// 生成哈希键以确保键的均匀分布和避免潜在的键冲突。
-	hashedKey := generateHashKey(key)
-	// 将查询对象序列化为字节切片，以便存储到缓存中。
-	res, err := val.Marshal()
-	if err != nil {
-		return err
+func (c *OtterDBCacher) Store(ctx context.Context, key string, val *caches.Query[any]) error {
+	ok := c.otter.Set(c.getKeyWithCtx(ctx, key), *val)
+	if !ok {
+		return errors.New("cache store in otter failed")
 	}
-	// 使用数据库的Update方法来原子地设置数据。
-	err = c.db.Update(func(tx *buntdb.Tx) error {
-		// 设置键值对，并指定数据过期时间为5秒。
-		_, _, err = tx.Set(hashedKey, string(res), &buntdb.SetOptions{Expires: true, TTL: time.Second * 5})
-		return err
-	})
-
-	return err
+	return nil
 }
 
 // Invalidate 使缓存器中的所有缓存项失效。
@@ -98,30 +74,28 @@ func (c *buntDBCacher) Store(_ context.Context, key string, val *caches.Query[an
 // 返回值:
 //
 //	error: 如果在使缓存项失效的过程中发生错误，则返回该错误。
-func (c *buntDBCacher) Invalidate(_ context.Context) error {
-	// 清理所有缓存
-	err := c.db.Update(func(tx *buntdb.Tx) error {
-		err := tx.DeleteAll()
-		if err != nil {
-			return err
-		}
-		return nil
+func (c *OtterDBCacher) Invalidate(ctx context.Context) error {
+	// 查看插入的是哪个链接的，删除对应的数据项
+	prefix := c.getKeyWithCtx(ctx, "")
+	// 删除所有以prefix开头的键
+	c.otter.DeleteByFunc(func(key string, _ caches.Query[any]) bool {
+		return strings.HasPrefix(key, prefix)
 	})
-	return err
+	return nil
 }
 
-func GetBuntCacheDB(db *gorm.DB) (*gorm.DB, error) {
-	open, err := buntdb.Open(":memory:")
-	if err != nil {
-		return nil, err
-	}
-	// Easer参数：使用ServantGo任务执行与合并库
-	// ServantGo提供了一种简单且惯用的方法来合并同时运行的相同类型的任务。
-	// 可以先尝试一下easer=true是否可以加速
+// GetOtterCacheDB 思路：查询使用的DB全部使用WithContext处理 保底一个，如果取不到数据就放在默认内，以避免报错等。
+// 提供一个查询函数打印日志，该函数可以查询缓存的状态（缓存库提供了）
+// 这样的话就需要稍微改动一下
+func GetOtterCacheDB(db *gorm.DB) (*gorm.DB, error) {
+	cacheInstance, err := otter.MustBuilder[string, caches.Query[any]](10_000).
+		CollectStats().
+		WithTTL(time.Hour).
+		Build()
 	cachesPlugin := &caches.Caches{Conf: &caches.Config{
 		Easer: true,
-		Cacher: &buntDBCacher{
-			db: open,
+		Cacher: &OtterDBCacher{
+			otter: &cacheInstance,
 		},
 	}}
 	err = db.Use(cachesPlugin)

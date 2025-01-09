@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"os"
 	"sync"
 
@@ -32,8 +33,8 @@ func initEngine() {
 		log.Warn("未配置数据库类型，默认使用: SQLITE数据库")
 		engine = &SQLiteEngine{}
 	}
-
-	errEngineInstance = engine.Init()
+	// TODO: 使用统一管理的context，以确保在程序关闭时，可以正确销毁数据库的context从而优雅退出
+	errEngineInstance = engine.Init(context.Background())
 	if errEngineInstance != nil {
 		log.Error("数据库引擎初始化失败:", errEngineInstance)
 	}

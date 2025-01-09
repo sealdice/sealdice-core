@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 type MYSQLEngine struct {
 	DSN string
 	DB  *gorm.DB
+	ctx context.Context
 }
 
 type LogInfoHookMySQL struct {
@@ -103,7 +105,11 @@ func createIndexForLogOneItem(db *gorm.DB) (err error) {
 	return nil
 }
 
-func (s *MYSQLEngine) Init() error {
+func (s *MYSQLEngine) Init(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("ctx is missing")
+	}
+	s.ctx = ctx
 	s.DSN = os.Getenv("DB_DSN")
 	if s.DSN == "" {
 		return errors.New("DB_DSN is missing")
@@ -123,7 +129,9 @@ func (s *MYSQLEngine) DBCheck() {
 
 // DataDBInit 初始化
 func (s *MYSQLEngine) DataDBInit() (*gorm.DB, error) {
-	err := s.DB.AutoMigrate(
+	dataContext := context.WithValue(s.ctx, "gorm_cache", "data-db::")
+	dataDB := s.DB.WithContext(dataContext)
+	err := dataDB.AutoMigrate(
 		// TODO: 这个的索引有没有必要进行修改
 		&GroupPlayerInfoBase{},
 		&GroupInfo{},
@@ -134,30 +142,33 @@ func (s *MYSQLEngine) DataDBInit() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.DB, nil
+	return dataDB, nil
 }
 
 func (s *MYSQLEngine) LogDBInit() (*gorm.DB, error) {
 	// logs特殊建表
-	if err := s.DB.AutoMigrate(&LogInfoHookMySQL{}, &LogOneItemHookMySQL{}); err != nil {
+	logsContext := context.WithValue(s.ctx, "gorm_cache", "logs-db::")
+	logDB := s.DB.WithContext(logsContext)
+	if err := logDB.AutoMigrate(&LogInfoHookMySQL{}, &LogOneItemHookMySQL{}); err != nil {
 		return nil, err
 	}
 	// logs建立索引
-	err := createIndexForLogInfo(s.DB)
+	err := createIndexForLogInfo(logDB)
 	if err != nil {
 		return nil, err
 	}
-	err = createIndexForLogOneItem(s.DB)
+	err = createIndexForLogOneItem(logDB)
 	if err != nil {
 		return nil, err
 	}
-	return s.DB, nil
+	return logDB, nil
 }
 
 func (s *MYSQLEngine) CensorDBInit() (*gorm.DB, error) {
-	// 创建基本的表结构，并通过标签定义索引
-	if err := s.DB.AutoMigrate(&CensorLog{}); err != nil {
+	censorContext := context.WithValue(s.ctx, "gorm_cache", "censor-db::")
+	censorDB := s.DB.WithContext(censorContext)
+	if err := censorDB.AutoMigrate(&CensorLog{}); err != nil {
 		return nil, err
 	}
-	return s.DB, nil
+	return censorDB, nil
 }
