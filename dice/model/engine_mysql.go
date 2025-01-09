@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model/database"
+	"sealdice-core/dice/model/database/cache"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -129,7 +130,7 @@ func (s *MYSQLEngine) DBCheck() {
 
 // DataDBInit 初始化
 func (s *MYSQLEngine) DataDBInit() (*gorm.DB, error) {
-	dataContext := context.WithValue(s.ctx, "gorm_cache", "data-db::")
+	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
 	dataDB := s.DB.WithContext(dataContext)
 	err := dataDB.AutoMigrate(
 		// TODO: 这个的索引有没有必要进行修改
@@ -147,7 +148,7 @@ func (s *MYSQLEngine) DataDBInit() (*gorm.DB, error) {
 
 func (s *MYSQLEngine) LogDBInit() (*gorm.DB, error) {
 	// logs特殊建表
-	logsContext := context.WithValue(s.ctx, "gorm_cache", "logs-db::")
+	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
 	logDB := s.DB.WithContext(logsContext)
 	if err := logDB.AutoMigrate(&LogInfoHookMySQL{}, &LogOneItemHookMySQL{}); err != nil {
 		return nil, err
@@ -165,7 +166,7 @@ func (s *MYSQLEngine) LogDBInit() (*gorm.DB, error) {
 }
 
 func (s *MYSQLEngine) CensorDBInit() (*gorm.DB, error) {
-	censorContext := context.WithValue(s.ctx, "gorm_cache", "censor-db::")
+	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	censorDB := s.DB.WithContext(censorContext)
 	if err := censorDB.AutoMigrate(&CensorLog{}); err != nil {
 		return nil, err

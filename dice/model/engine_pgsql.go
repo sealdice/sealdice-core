@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model/database"
+	"sealdice-core/dice/model/database/cache"
 )
 
 type PGSQLEngine struct {
@@ -42,7 +43,7 @@ func (s *PGSQLEngine) DBCheck() {
 // DataDBInit 初始化
 func (s *PGSQLEngine) DataDBInit() (*gorm.DB, error) {
 	// data建表
-	dataContext := context.WithValue(s.ctx, "gorm_cache", "data-db::")
+	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
 	dataDB := s.DB.WithContext(dataContext)
 	err := dataDB.AutoMigrate(
 		&GroupPlayerInfoBase{},
@@ -59,7 +60,7 @@ func (s *PGSQLEngine) DataDBInit() (*gorm.DB, error) {
 
 func (s *PGSQLEngine) LogDBInit() (*gorm.DB, error) {
 	// logs建表
-	logsContext := context.WithValue(s.ctx, "gorm_cache", "logs-db::")
+	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
 	logDB := s.DB.WithContext(logsContext)
 	if err := logDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
 		return nil, err
@@ -68,7 +69,7 @@ func (s *PGSQLEngine) LogDBInit() (*gorm.DB, error) {
 }
 
 func (s *PGSQLEngine) CensorDBInit() (*gorm.DB, error) {
-	censorContext := context.WithValue(s.ctx, "gorm_cache", "censor-db::")
+	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	censorDB := s.DB.WithContext(censorContext)
 	// 创建基本的表结构，并通过标签定义索引
 	if err := censorDB.AutoMigrate(&CensorLog{}); err != nil {

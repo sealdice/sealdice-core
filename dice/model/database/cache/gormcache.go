@@ -12,11 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO: 采用context传参的方式，区分三种（四种？）不同的DB，从而细化缓存粒度
-// TODO: 切换为otter缓存，那个缓存比这个好
 type OtterDBCacher struct {
 	otter *otter.Cache[string, caches.Query[any]]
 }
+
+const (
+	CacheKey          = "gorm_cache"
+	LogsDBCacheKey    = "logs-db::"
+	DataDBCacheKey    = "data-db::"
+	CensorsDBCacheKey = "censor-db::"
+)
 
 func (c *OtterDBCacher) getKeyWithCtx(ctx context.Context, key string) string {
 	// 获取ctx中的key字段
@@ -92,6 +97,9 @@ func GetOtterCacheDB(db *gorm.DB) (*gorm.DB, error) {
 		CollectStats().
 		WithTTL(time.Hour).
 		Build()
+	if err != nil {
+		return nil, err
+	}
 	cachesPlugin := &caches.Caches{Conf: &caches.Config{
 		Easer: true,
 		Cacher: &OtterDBCacher{

@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model/database"
+	"sealdice-core/dice/model/database/cache"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -130,7 +131,7 @@ func (s *SQLiteEngine) DataDBInit() (*gorm.DB, error) {
 		return nil, err
 	}
 	// 添加并设置context
-	dataContext := context.WithValue(s.ctx, "gorm_cache", "data-db::")
+	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
 	dataDB = dataDB.WithContext(dataContext)
 	// 特殊情况建表语句处置
 	tx := dataDB.Begin()
@@ -191,7 +192,7 @@ func (s *SQLiteEngine) LogDBInit() (*gorm.DB, error) {
 		return nil, err
 	}
 	// 添加并设置context
-	logsContext := context.WithValue(s.ctx, "gorm_cache", "logs-db::")
+	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
 	logsDB = logsDB.WithContext(logsContext)
 	// logs建表
 	if err = logsDB.AutoMigrate(&LogInfo{}); err != nil {
@@ -225,7 +226,7 @@ func (s *SQLiteEngine) CensorDBInit() (*gorm.DB, error) {
 		return nil, err
 	}
 	// 添加并设置context
-	censorContext := context.WithValue(s.ctx, "gorm_cache", "censor-db::")
+	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	censorDB = censorDB.WithContext(censorContext)
 	// 创建基本的表结构，并通过标签定义索引
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
