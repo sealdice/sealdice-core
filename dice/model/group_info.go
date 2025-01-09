@@ -132,19 +132,18 @@ func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlay
 
 	// 使用 GORM 查询数据并绑定到结构体中
 	// db.Table("表名").Where("条件").First(&ret) 查询一条数据并映射到结构体
-	err := db.Model(&GroupPlayerInfoBase{}).
+	result := db.Model(&GroupPlayerInfoBase{}).
 		Where("group_id = ? AND user_id = ?", groupID, playerID).
 		Select("name, last_command_time, auto_set_name_template, dice_side_num").
-		Scan(&ret).Error
-
+		First(&ret)
+	err := result.Error
 	// 如果查询发生错误，打印错误并返回 nil
 	if err != nil {
 		log.Errorf("error getting group player info: %s", err.Error())
 		return nil
 	}
 
-	// 如果查询到的数据为空，返回 nil
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return nil
 	}
 
