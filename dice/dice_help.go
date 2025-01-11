@@ -219,7 +219,13 @@ func (m *HelpManager) Load() {
 		})
 		m.HelpDocTree = append(m.HelpDocTree, &child)
 	}
-	_ = m.AddItemApply(true)
+	// TODO: Hack mode。此处是故意为之，因为帮助文档还包含对于指令的帮助部分，他们在帮助文档之后加载。如果在此处设置true，后续将无法加载
+	// TODO: 或许可以考虑提供一个函数专门加载指令，或者不再提供AddItemApply函数 end=true，直接循环使用同一个batch。
+	// TODO: 不修改下层逻辑的原因是可以以后开发复用我封装的模块。
+	err = m.AddItemApply(false)
+	if err != nil {
+		log.Errorf("unable to add item apply to search engine: %v", err)
+	}
 	m.CurID = m.searchEngine.GetTotalID()
 	elapsed := time.Since(start) // 计算执行时间
 	log.Infof("帮助文档加载完毕，共耗费时间: %s 共计加载条目:%d\n", elapsed, m.CurID)
@@ -418,12 +424,15 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 			if content == "" {
 				content = v.ShortHelp
 			}
-			_ = m.AddItem(docengine.HelpTextItem{
+			err := m.AddItem(docengine.HelpTextItem{
 				Group:       HelpBuiltinGroup,
 				Title:       k,
 				Content:     content,
 				PackageName: packageName,
 			})
+			if err != nil {
+				log.Errorf("AddHelpWithDice AddItem err:%v", err)
+			}
 		}
 	}
 
@@ -437,7 +446,10 @@ func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
 		})
 		addCmdMap(i.Name, i.CmdMap)
 	}
-	_ = m.AddItemApply(false)
+	err := m.AddItemApply(false)
+	if err != nil {
+		log.Errorf("AddHelpWithDice AddItemApply err:%v", err)
+	}
 }
 
 func (m *HelpManager) AddItem(item docengine.HelpTextItem) error {
