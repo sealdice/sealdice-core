@@ -163,6 +163,9 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pdfcpu/pdfcpu v0.8.1 // indirect
+	github.com/philippgille/gokv v0.7.0 // indirect
+	github.com/philippgille/gokv/encoding v0.7.0 // indirect
+	github.com/philippgille/gokv/util v0.7.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
