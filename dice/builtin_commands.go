@@ -1191,7 +1191,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				err := ClearExtStorage(ctx.Dice, ext, extName)
+				err := ClearExtStorage(ext)
 				if err != nil {
 					ctx.Dice.Logger.Errorf("jsclear: %v", err)
 					ReplyToSender(ctx, msg, "清除数据失败，请查看日志")

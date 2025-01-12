@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"sort"
 
 	"github.com/dop251/goja"
-	"github.com/tidwall/buntdb"
 )
 
 func (d *Dice) RegisterBuiltinExt() {
@@ -62,23 +60,8 @@ func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 // ClearExtStorage closes the extension's storage connections, deletes the extension's
 // storage.db file and restarts the database. It does not return an error if the file
 // does not exist.
-func ClearExtStorage(d *Dice, ext *ExtInfo, name string) error {
-	err := ext.StorageClose()
-	if err != nil {
-		return err
-	}
-
-	dbPath := filepath.Join(d.BaseConfig.DataDir, "extensions", name, "storage.db")
-	err = os.Remove(dbPath)
-	if errors.Is(err, os.ErrNotExist) {
-		err = nil
-	}
-	if err != nil {
-		return err
-	}
-
-	err = ext.StorageInit()
-	return err
+func ClearExtStorage(ext *ExtInfo) error {
+	return ext.StorageClear()
 }
 
 func GetExtensionDesc(ei *ExtInfo) string {
@@ -132,6 +115,7 @@ func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	}
 }
 
+// StorageInit实在是解离不出来这个ExtInfo的来源，所以选择使用dice来中转
 func (i *ExtInfo) StorageInit() error {
 	var err error
 	if i.dice == nil {
@@ -143,22 +127,19 @@ func (i *ExtInfo) StorageInit() error {
 	i.dbMu.Lock()
 	defer i.dbMu.Unlock()
 	if i.init {
-		// 如果已经初始化，则直接返回
 		return nil
 	}
 
-	dir := d.GetExtDataDir(i.Name)
-	fn := path.Join(dir, "storage.db")
-	i.Storage, err = buntdb.Open(fn)
+	i.Storage, err = d.PluginStorage.GetStorageInstance(i.Name)
 	if err != nil {
-		d.Logger.Errorf("[扩展]:初始化扩展数据库失败，原因：%v，路径为：%s", err, fn)
+		d.Logger.Errorf("[扩展]:初始化扩展数据库失败，原因：%v", err)
 		return err
 	}
-	// 否则初始化后使用
 	i.init = true
 	return nil
 }
 
+// StorageClose 关闭当前实例 TODO: 这个可以不提供
 func (i *ExtInfo) StorageClose() error {
 	// 先上锁
 	i.dbMu.Lock()
@@ -179,11 +160,16 @@ func (i *ExtInfo) StorageClose() error {
 		i.dice.Logger.Errorf("[扩展]:关闭扩展数据库失败，原因：%v", err)
 		return err
 	}
-	// 关闭成功，将Storage放空（实际我也不清楚是否需要该操作），返回nil.
+	// 关闭成功，将Storage放空
 	i.Storage = nil
 	// 将init放为初始值false
 	i.init = false
 	return nil
+}
+
+// 清空ExtStorage
+func (i *ExtInfo) StorageClear() error {
+	return i.Storage.Clear()
 }
 
 func (i *ExtInfo) StorageSet(k, v string) error {
@@ -191,28 +177,22 @@ func (i *ExtInfo) StorageSet(k, v string) error {
 		return err
 	}
 	db := i.Storage
-	return db.Update(func(tx *buntdb.Tx) error {
-		_, _, err := tx.Set(k, v, nil)
-		return err
-	})
+	return db.Set(k, v)
 }
 
 func (i *ExtInfo) StorageGet(k string) (string, error) {
 	if err := i.StorageInit(); err != nil {
 		return "", err
 	}
-
-	var val string
-	var err error
-
-	db := i.Storage
-	err = db.View(func(tx *buntdb.Tx) error {
-		val, err = tx.Get(k)
-		if err != nil && !errors.Is(err, buntdb.ErrNotFound) {
-			return err
-		}
-		return nil
-	})
-
-	return val, err
+	var v *string
+	found, err := i.Storage.Get(k, v)
+	// 有错误先报错
+	if err != nil {
+		return "", err
+	}
+	// 没找到不报错
+	if !found {
+		return "", nil
+	}
+	return *v, nil
 }

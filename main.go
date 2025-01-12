@@ -73,19 +73,16 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				i.Config.BanList.SaveChanged(i)
 				i.Save(true)
 				i.AttrsManager.Stop()
-				for _, j := range i.ExtList {
-					if j.Storage != nil {
-						// 关闭
-						err := j.StorageClose()
-						if err != nil {
-							showWindow()
-							log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
-							// 木落没有加该检查 补充上
-							if runtime.GOOS == "windows" {
-								exec.Command("pause") // windows专属
-							}
-						}
+				// 关闭整个的Storage
+				err = i.PluginStorage.StorageClose()
+				if err != nil {
+					showWindow()
+					log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
+					// 木落没有加该检查 补充上
+					if runtime.GOOS == "windows" {
+						exec.Command("pause") // windows专属
 					}
+					return
 				}
 				i.IsAlreadyLoadConfig = false
 			}

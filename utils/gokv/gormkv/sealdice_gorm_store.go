@@ -37,6 +37,7 @@ type BaseModel struct {
 	CreatedAt utils.Time
 	UpdatedAt utils.Time
 	// 保持和原本的BuntDB一样的方案，留存删除痕迹
+	// TODO: 似乎现在的更新还是会替换
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
@@ -122,11 +123,7 @@ func (s Store) Delete(k string) error {
 
 // Close 关闭对应Store的数据库连接 在上层封装的时候进行处理
 func (s Store) Close() error {
-	db, err := s.DB.DB()
-	if err != nil {
-		return err
-	}
-	return db.Close()
+	return nil
 }
 
 // Clear 清理插件存储

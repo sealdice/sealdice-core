@@ -81,11 +81,14 @@ require (
 
 require (
 	github.com/blevesearch/bleve_index_api v1.1.13
+	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/gofrs/flock v0.12.1
-	github.com/gonutz/w32/v2 v2.11.1
 	github.com/joho/godotenv v1.5.1
-	github.com/spaolacci/murmur3 v1.1.0
+	github.com/maypok86/otter v1.2.4
+	github.com/philippgille/gokv v0.7.0
+	github.com/philippgille/gokv/encoding v0.7.0
+	github.com/philippgille/gokv/util v0.7.0
 	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.5
 	gorm.io/driver/mysql v1.5.7
@@ -157,7 +160,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/maypok86/otter v1.2.4 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -166,9 +168,6 @@ require (
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pdfcpu/pdfcpu v0.8.1 // indirect
-	github.com/philippgille/gokv v0.7.0 // indirect
-	github.com/philippgille/gokv/encoding v0.7.0 // indirect
-	github.com/philippgille/gokv/util v0.7.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
