@@ -1,4 +1,4 @@
-package utils
+package gormkv
 
 import (
 	"errors"
@@ -135,6 +135,7 @@ func (s Store) Clear() error {
 	return s.DB.Where("plugin_name = ?", s.PluginName).Delete(&KVRecord{}).Error
 }
 
+// NewStore result.DB.AutoMigrate(&KVRecord{}) 自动建表移动到初始化数据库处 此处仅获取GOKV
 func NewStore(options Options) (Store, error) {
 	if options.DB == nil {
 		return Store{}, errors.New("db is nil, you must write it before")
@@ -150,5 +151,5 @@ func NewStore(options Options) (Store, error) {
 		PluginName: options.PluginName,
 		Codec:      encoding.JSON,
 	}
-	return result, nil // result.DB.AutoMigrate(&KVRecord{}) 自动建表移动到初始化数据库处
+	return result, nil
 }

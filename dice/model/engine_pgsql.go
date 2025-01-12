@@ -10,7 +10,7 @@ import (
 
 	"sealdice-core/dice/model/database"
 	"sealdice-core/dice/model/database/cache"
-	utils "sealdice-core/utils/gokv"
+	utils "sealdice-core/utils/gokv/gormkv"
 )
 
 type PGSQLEngine struct {

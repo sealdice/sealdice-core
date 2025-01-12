@@ -24,6 +24,7 @@ import (
 
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
+	"sealdice-core/dice/plugin_store"
 	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/public_dice"
 )
@@ -77,8 +78,9 @@ type ExtInfo struct {
 	dice    *Dice
 	IsJsExt bool          `json:"-"`
 	Source  *JsScriptInfo `yaml:"-" json:"-"`
-	Storage *buntdb.DB    `yaml:"-"  json:"-"`
-	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
+	// 为Storage使用互斥锁，并切换成封装
+	Storage *buntdb.DB `yaml:"-"  json:"-"`
+
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
@@ -173,6 +175,8 @@ type Dice struct {
 	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
 	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
 	JsLoadingScript *JsScriptInfo `yaml:"-" json:"-"`
+	// 插件存储KV系统，下面初始化
+	PluginStorage *plugin_store.PluginStorage `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
 	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
@@ -234,7 +238,7 @@ func (d *Dice) Init() {
 	if err != nil {
 		d.Logger.Errorf("Failed to init database: %v", err)
 	}
-	// 增加插件数据库初始化
+	// 增加（若需要的话）插件数据库初始化
 	d.DBPlugins, err = model.PluginsDBInit()
 	if err != nil {
 		d.Logger.Errorf("Failed to init plugins database: %v", err)
