@@ -57,7 +57,6 @@ func (e HelpTextItems) Len() int {
 
 type HelpManager struct {
 	CurID        uint64
-	Parent       *DiceManager
 	EngineType   EngineType
 	LoadingFn    string
 	HelpDocTree  []*HelpDoc
@@ -122,7 +121,7 @@ func (m *HelpManager) Close() {
 	_ = os.RemoveAll("./_help_cache")
 }
 
-func (m *HelpManager) Load() {
+func (m *HelpManager) Load(internal CmdMapCls, extList []*ExtInfo) {
 	m.loadSearchEngine()
 
 	_ = m.AddItem(docengine.HelpTextItem{
@@ -184,7 +183,7 @@ func (m *HelpManager) Load() {
 	totalEntries := len(entries)
 	for i, entry := range entries {
 		progress := float64(i+1) / float64(totalEntries) * 100
-		log.Infof("处理帮助文档组[文件夹]: 当前帮助文档加载总进度: %s %.2f%% (%d/%d)", entry.Name(), progress, i+1, totalEntries)
+		log.Infof("[帮助文档] 处理用户定义帮助文档组[文件夹]: 当前帮助文档加载进度: %s %.2f%% (%d/%d)", entry.Name(), progress, i+1, totalEntries)
 		if strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
@@ -219,13 +218,29 @@ func (m *HelpManager) Load() {
 		})
 		m.HelpDocTree = append(m.HelpDocTree, &child)
 	}
-	// TODO: Hack mode。此处是故意为之，因为帮助文档还包含对于指令的帮助部分，他们在帮助文档之后加载。如果在此处设置true，后续将无法加载
-	// TODO: 或许可以考虑提供一个函数专门加载指令，或者不再提供AddItemApply函数 end=true，直接循环使用同一个batch。
-	// TODO: 不修改下层逻辑的原因是可以以后开发复用我封装的模块。
 	err = m.AddItemApply(false)
 	if err != nil {
-		log.Errorf("unable to add item apply to search engine: %v", err)
+		log.Errorf("加载用户自定义帮助文档出现异常!: %v", err)
 	}
+	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
+	log.Infof("[帮助文档] 正在处理指令相关（含插件）帮助文档组")
+	err = m.addInternalCmdHelp(internal)
+	if err != nil {
+		log.Errorf("加载内置指令帮助文档出现异常: %v", err)
+	}
+	err = m.AddItemApply(false)
+	if err != nil {
+		log.Errorf("加载内置指令帮助文档出现异常: %v", err)
+	}
+	err = m.addExternalCmdHelp(extList)
+	if err != nil {
+		log.Errorf("加载插件指令帮助文档出现异常: %v", err)
+	}
+	err = m.AddItemApply(true)
+	if err != nil {
+		log.Errorf("加载插件指令帮助文档出现异常: %v", err)
+	}
+	log.Infof("[帮助文档] 指令相关（含插件）帮助文档组已加载完成!")
 	m.CurID = m.searchEngine.GetTotalID()
 	elapsed := time.Since(start) // 计算执行时间
 	log.Infof("帮助文档加载完毕，共耗费时间: %s 共计加载条目:%d\n", elapsed, m.CurID)
@@ -415,41 +430,51 @@ out:
 	return synonymCount, nil
 }
 
-func (dm *DiceManager) AddHelpWithDice(dice *Dice) {
-	m := dm.Help
-
-	addCmdMap := func(packageName string, cmdMap CmdMapCls) {
-		for k, v := range cmdMap {
-			content := v.Help
-			if content == "" {
-				content = v.ShortHelp
-			}
-			err := m.AddItem(docengine.HelpTextItem{
-				Group:       HelpBuiltinGroup,
-				Title:       k,
-				Content:     content,
-				PackageName: packageName,
-			})
-			if err != nil {
-				log.Errorf("AddHelpWithDice AddItem err:%v", err)
-			}
+func (m *HelpManager) addCmdMap(packageName string, cmdMap CmdMapCls) error {
+	for k, v := range cmdMap {
+		content := v.Help
+		if content == "" {
+			content = v.ShortHelp
+		}
+		err := m.AddItem(docengine.HelpTextItem{
+			Group:       HelpBuiltinGroup,
+			Title:       k,
+			Content:     content,
+			PackageName: packageName,
+		})
+		if err != nil {
+			log.Errorf("AddCmdMapItem err:%v", err)
+			return err
 		}
 	}
+	return nil
+}
 
-	addCmdMap("核心指令", dice.CmdMap)
-	for _, i := range dice.ExtList {
-		_ = m.AddItem(docengine.HelpTextItem{
+func (m *HelpManager) addInternalCmdHelp(cmdMap CmdMapCls) error {
+	err := m.addCmdMap("核心指令", cmdMap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *HelpManager) addExternalCmdHelp(ext []*ExtInfo) error {
+	for _, i := range ext {
+		err := m.AddItem(docengine.HelpTextItem{
 			Group:       HelpBuiltinGroup,
 			Title:       i.Name,
 			Content:     i.GetDescText(i),
 			PackageName: "扩展模块",
 		})
-		addCmdMap(i.Name, i.CmdMap)
+		if err != nil {
+			return err
+		}
+		err = m.addCmdMap(i.Name, i.CmdMap)
+		if err != nil {
+			return err
+		}
 	}
-	err := m.AddItemApply(false)
-	if err != nil {
-		log.Errorf("AddHelpWithDice AddItemApply err:%v", err)
-	}
+	return nil
 }
 
 func (m *HelpManager) AddItem(item docengine.HelpTextItem) error {
