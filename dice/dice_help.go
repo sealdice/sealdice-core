@@ -121,7 +121,7 @@ func (m *HelpManager) Close() {
 	_ = os.RemoveAll("./_help_cache")
 }
 
-func (m *HelpManager) Load(internal CmdMapCls, extList []*ExtInfo) {
+func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	m.loadSearchEngine()
 
 	_ = m.AddItem(docengine.HelpTextItem{
@@ -224,7 +224,7 @@ func (m *HelpManager) Load(internal CmdMapCls, extList []*ExtInfo) {
 	}
 	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
 	log.Infof("[帮助文档] 正在处理指令相关（含插件）帮助文档组")
-	err = m.addInternalCmdHelp(internal)
+	err = m.addInternalCmdHelp(internalCmdMap)
 	if err != nil {
 		log.Errorf("加载内置指令帮助文档出现异常: %v", err)
 	}
