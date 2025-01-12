@@ -231,7 +231,8 @@ func (group *GroupInfo) PlayerGet(db *gorm.DB, id string) *GroupPlayerInfo {
 	}
 	p, exists := group.Players.Load(id)
 	if !exists {
-		p = (*GroupPlayerInfo)(model.GroupPlayerInfoGet(db, group.GroupID, id))
+		basePtr := model.GroupPlayerInfoGet(db, group.GroupID, id)
+		p = (*GroupPlayerInfo)(basePtr)
 		if p != nil {
 			group.Players.Store(id, p)
 		}
