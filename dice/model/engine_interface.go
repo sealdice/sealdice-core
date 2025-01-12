@@ -14,6 +14,7 @@ type DatabaseOperator interface {
 	DataDBInit() (*gorm.DB, error)
 	LogDBInit() (*gorm.DB, error)
 	CensorDBInit() (*gorm.DB, error)
+	PluginDBInit() (*gorm.DB, error)
 }
 
 // 实现检查 copied from platform

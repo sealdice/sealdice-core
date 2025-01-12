@@ -118,3 +118,12 @@ func CensorDBInit() (censorDB *gorm.DB, err error) {
 
 	return censorEngine.CensorDBInit()
 }
+
+func PluginsDBInit() (pluginsDB *gorm.DB, err error) {
+	censorEngine, err := getEngine()
+	if err != nil {
+		return nil, err
+	}
+
+	return censorEngine.PluginDBInit()
+}

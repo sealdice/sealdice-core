@@ -12,6 +12,7 @@ import (
 
 	"sealdice-core/dice/model/database"
 	"sealdice-core/dice/model/database/cache"
+	utils "sealdice-core/utils/gokv"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -233,6 +234,24 @@ func (s *SQLiteEngine) CensorDBInit() (*gorm.DB, error) {
 		return nil, err
 	}
 	return censorDB, nil
+}
+
+func (s *SQLiteEngine) PluginDBInit() (*gorm.DB, error) {
+	path, err := filepath.Abs(filepath.Join(s.DataDir, "data-plugins.db"))
+	if err != nil {
+		return nil, err
+	}
+	pluginsDB, err := database.SQLiteDBInit(path, true)
+	if err != nil {
+		return nil, err
+	}
+	// 添加并设置context
+	pluginsContext := context.WithValue(s.ctx, cache.CacheKey, cache.PluginsDBCacheKey)
+	pluginsDB = pluginsDB.WithContext(pluginsContext)
+	if err = pluginsDB.AutoMigrate(&utils.KVRecord{}); err != nil {
+		return nil, err
+	}
+	return pluginsDB, nil
 }
 
 func logItemsSQLiteMigrate(db *gorm.DB) error {

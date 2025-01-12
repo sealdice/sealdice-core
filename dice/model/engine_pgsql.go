@@ -10,6 +10,7 @@ import (
 
 	"sealdice-core/dice/model/database"
 	"sealdice-core/dice/model/database/cache"
+	utils "sealdice-core/utils/gokv"
 )
 
 type PGSQLEngine struct {
@@ -76,4 +77,13 @@ func (s *PGSQLEngine) CensorDBInit() (*gorm.DB, error) {
 		return nil, err
 	}
 	return censorDB, nil
+}
+
+func (s *PGSQLEngine) PluginDBInit() (*gorm.DB, error) {
+	pluginsContext := context.WithValue(s.ctx, cache.CacheKey, cache.PluginsDBCacheKey)
+	pluginsDB := s.DB.WithContext(pluginsContext)
+	if err := pluginsDB.AutoMigrate(&utils.KVRecord{}); err != nil {
+		return nil, err
+	}
+	return pluginsDB, nil
 }

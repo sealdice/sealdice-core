@@ -136,6 +136,7 @@ type Dice struct {
 	BaseConfig      BaseConfig             `yaml:"-"`
 	DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
+	DBPlugins       *gorm.DB               `yaml:"-"` // 增加插件数据库对象
 	Logger          *log.Helper            `yaml:"-"` // 日志
 	LogWriter       *log.WriterX           `yaml:"-"` // 用于api的log对象
 	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
@@ -232,6 +233,11 @@ func (d *Dice) Init() {
 	d.DBData, d.DBLogs, err = model.DatabaseInit()
 	if err != nil {
 		d.Logger.Errorf("Failed to init database: %v", err)
+	}
+	// 增加插件数据库初始化
+	d.DBPlugins, err = model.PluginsDBInit()
+	if err != nil {
+		d.Logger.Errorf("Failed to init plugins database: %v", err)
 	}
 
 	d.AttrsManager = &AttrsManager{}

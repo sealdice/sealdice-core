@@ -24,6 +24,7 @@ const (
 	LogsDBCacheKey    cacheKey = "logs-db::"
 	DataDBCacheKey    cacheKey = "data-db::"
 	CensorsDBCacheKey cacheKey = "censor-db::"
+	PluginsDBCacheKey cacheKey = "plugin-db::"
 )
 
 func (c *OtterDBCacher) getKeyWithCtx(ctx context.Context, key string) string {

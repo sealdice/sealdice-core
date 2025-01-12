@@ -120,9 +120,13 @@ func (s Store) Delete(k string) error {
 		Delete(&KVRecord{}).Error
 }
 
-// Close 我们不允许关闭数据库，因为数据库是全局的，我们考虑在最后统一关闭gorm.DB
+// Close 关闭对应Store的数据库连接 在上层封装的时候进行处理
 func (s Store) Close() error {
-	return nil
+	db, err := s.DB.DB()
+	if err != nil {
+		return err
+	}
+	return db.Close()
 }
 
 // Clear 清理插件存储
