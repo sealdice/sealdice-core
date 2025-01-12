@@ -120,7 +120,6 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 // AddItemApply 这里认为是真正执行插入文档的逻辑
 // 由于现在已经将执行函数改为了可按文件执行，所以可以按文件进行Apply，这应当不会有太大的量级。
 // end代表是否是最后一次执行，一般用在所有的数据都处理完之后，关闭逻辑的时候使用，如bleve batch重复利用后最后销毁
-// TODO: 似乎很奇怪，这家伙貌似不会回收内存的吗？
 func (d *BleveSearchEngine) AddItemApply(end bool) error {
 	if d.batch != nil {
 		// 执行batch
@@ -130,11 +129,10 @@ func (d *BleveSearchEngine) AddItemApply(end bool) error {
 		}
 		// 如果是最后一批
 		if end {
-			// 销毁batch
 			d.batch.Reset()
 			d.batch = nil
 		} else {
-			// 否则重置batch
+			// 否则仅重置batch
 			d.batch.Reset()
 		}
 		return err

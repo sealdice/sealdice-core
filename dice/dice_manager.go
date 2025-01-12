@@ -112,9 +112,12 @@ func (dm *DiceManager) InitHelp() {
 	dm.IsHelpReloading = true
 	_ = os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
-	dm.Help.Parent = dm
 	dm.Help.EngineType = EngineType(dm.HelpDocEngineType)
-	dm.Help.Load()
+	if len(dm.Dice) == 0 {
+		log.Fatalf("Dice实例不存在!")
+		return
+	}
+	dm.Help.Load(dm.Dice[0].CmdMap, dm.Dice[0].ExtList)
 	dm.IsHelpReloading = false
 }
 
@@ -255,12 +258,8 @@ func (dm *DiceManager) InitDice() {
 				}
 			}
 		}()
-
 		// 加载帮助
 		dm.InitHelp()
-		if len(dm.Dice) >= 1 {
-			dm.AddHelpWithDice(dm.Dice[0])
-		}
 	}()
 
 	dm.ResetAutoBackup()
