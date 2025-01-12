@@ -135,7 +135,8 @@ func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlay
 	result := db.Model(&GroupPlayerInfoBase{}).
 		Where("group_id = ? AND user_id = ?", groupID, playerID).
 		Select("name, last_command_time, auto_set_name_template, dice_side_num").
-		First(&ret)
+		Limit(1).
+		Find(&ret)
 	err := result.Error
 	// 如果查询发生错误，打印错误并返回 nil
 	if err != nil {
