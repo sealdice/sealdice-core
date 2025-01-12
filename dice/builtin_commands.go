@@ -442,7 +442,6 @@ func (d *Dice) registerCoreCommands() {
 						dm.Help.Close()
 
 						dm.InitHelp()
-						dm.AddHelpWithDice(dm.Dice[0])
 						ReplyToSender(ctx, msg, "帮助文档已经重新装载")
 					} else {
 						ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
@@ -1122,7 +1121,6 @@ func (d *Dice) registerCoreCommands() {
 						dm.IsHelpReloading = true
 						dm.Help.Close()
 						dm.InitHelp()
-						dm.AddHelpWithDice(dice)
 						ReplyToSender(ctx, msg, "帮助文档已重载")
 					} else {
 						ReplyToSender(ctx, msg, "帮助文档正在重新装载")
