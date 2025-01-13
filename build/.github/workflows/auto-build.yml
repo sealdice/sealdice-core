@@ -92,13 +92,13 @@ jobs:
       - name: Download
         run: |
           mkdir lag
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.android-arm64.zip > lag/lagrange-gocq.android-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.linux-arm64.zip > lag/lagrange-gocq.linux-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.linux-amd64.zip > lag/lagrange-gocq.linux-amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.windows-amd64.zip > lag/lagrange-gocq.windows-amd64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.windows-386.zip > lag/lagrange-gocq.windows-386.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.darwin-arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
-          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.1/lagrange-gocq.darwin-amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_android_arm64.zip > lag/lagrange-gocq.android-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_linux_arm64.zip > lag/lagrange-gocq.linux-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_linux_amd64.zip > lag/lagrange-gocq.linux-amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_windows_amd64.zip > lag/lagrange-gocq.windows-amd64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_windows_386.zip > lag/lagrange-gocq.windows-386.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_darwin_arm64.zip > lag/lagrange-gocq.darwin-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_darwin_amd64.zip > lag/lagrange-gocq.darwin-amd64.zip
 
       - name: Upload
         uses: actions/upload-artifact@v4
