@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"sealdice-core/dice"
 
@@ -41,5 +42,7 @@ func dicePublicSet(c echo.Context) error {
 	myDice.PublicDiceInfoRegister()
 	myDice.PublicDiceEndpointRefresh()
 	myDice.PublicDiceSetupTick()
+	myDice.LastUpdatedTime = time.Now().Unix()
+	myDice.Save(false)
 	return Success(&c, Response{})
 }
