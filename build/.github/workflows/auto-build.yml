@@ -224,8 +224,9 @@ jobs:
         uses: pnpm/action-setup@v4
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
         with:
-          version: 9
+          version: 10
           run_install: false
+
       - name: Install Node
         uses: actions/setup-node@v4
         if: ${{ steps.cache-ui-dist.outputs.cache-hit != 'true' }}
