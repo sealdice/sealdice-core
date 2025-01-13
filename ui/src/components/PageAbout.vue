@@ -99,11 +99,11 @@
           :size="50"
           :src="urlBase + '/sd-api/utils/ga/bugtower100'" />Bugtower100</el-link
       >
-      <el-link :underline="false" href="https://github.com/-" target="_blank"
+      <el-link :underline="false" href="https://github.com/charyflys" target="_blank"
         ><el-avatar
           shape="circle"
           :size="50"
-          :src="urlBase + '/sd-api/utils/ga/-'" />大概不全，下版本纠正……</el-link
+          :src="urlBase + '/sd-api/utils/ga/charyflys'" />希望潇洒的风：Ceeling (UI)</el-link
       >
     </div>
     <div style="margin-top: 2rem" class="subtitle">V1.5.0 特别致谢</div>
@@ -114,6 +114,38 @@
           shape="circle"
           :size="50"
           :src="urlBase + '/sd-api/utils/ga/LoranaAurelia'" />雪桃 - 提供新的魔法阵代理</el-link
+      >
+      <el-link
+        :underline="false"
+        href="https://dice.weizaima.com/public-dice"
+        target="_blank"
+        style="color: var(--el-link-text-color); transition: color 3s"
+        onmouseover="this.style.color='red'"
+        onmouseout="this.style.color='var(--el-link-text-color)'"
+        ><el-avatar
+          shape="circle"
+          :size="50"
+          src="https://d1.sealdice.com/images/bird.jpg" />[骰]诺扣提 - 公骰 (协助测试)</el-link
+      >
+
+      <el-link :underline="false" href="https://github.com/kenichiLyon" target="_blank"
+        ><el-avatar
+          shape="circle"
+          :size="50"
+          src="https://d1.sealdice.com/images/kenichiLyon.jpg" />山本健一 - 协助测试</el-link
+      >
+
+      <el-link :underline="false" href="https://github.com/baiyu-yu" target="_blank"
+        ><el-avatar shape="circle" :size="50" :src="urlBase + '/sd-api/utils/ga/baiyu-yu'" />白鱼 -
+        协助测试</el-link
+      >
+
+      <el-link :underline="false" href="#/about" target="_blank"
+        ><el-avatar
+          shape="circle"
+          :size="50"
+          src="https://firehomework.top/img/6819CBB71F64D7BBFC90DCF4432B76BC.jpg" />[骰]Gaza(3658887052)
+        - 协助测试</el-link
       >
     </div>
 
@@ -465,7 +497,7 @@
         ><el-avatar
           shape="circle"
           :size="50"
-          :src="urlBase + '/sd-api/utils/ga/kenichiLyon'" />山本健一</el-link
+          src="https://d1.sealdice.com/images/kenichiLyon.jpg" />山本健一</el-link
       >
       <el-link :underline="false" href="https://github.com/MintCider" target="_blank"
         ><el-avatar
