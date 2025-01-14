@@ -104,9 +104,9 @@ func (s Store) Get(k string, v any) (bool, error) {
 	if result.Error != nil {
 		return false, result.Error
 	}
-	// 如果查询不到 报错
+	// 如果查询不到 返回查询不到就行了
 	if result.RowsAffected == 0 {
-		return false, errors.New("record not found")
+		return false, nil
 	}
 	// 否则返回
 	return true, s.Codec.Unmarshal(record.Value, v)

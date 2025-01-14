@@ -2,17 +2,15 @@ package bunt
 
 import (
 	"errors"
+	"fmt"
 
-	"github.com/philippgille/gokv/encoding"
 	"github.com/philippgille/gokv/util"
 	"github.com/tidwall/buntdb"
 )
 
-// Store is a gokv.Store implementation for bbolt (formerly known as Bolt / Bolt DB).
+// Store 注: 由于原本的存储方式是纯KV，只能抛弃序列化设计，直接存储原本的值。
 type Store struct {
-	db         *buntdb.DB
-	bucketName string
-	codec      encoding.Codec
+	db *buntdb.DB
 }
 
 // Set stores the given value for the given key.
@@ -22,15 +20,9 @@ func (s Store) Set(k string, v any) error {
 	if err := util.CheckKeyAndValue(k, v); err != nil {
 		return err
 	}
-
-	// First turn the passed object into something that bbolt can handle
-	data, err := s.codec.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	err = s.db.Update(func(tx *buntdb.Tx) error {
-		_, _, err2 := tx.Set(k, string(data), nil)
+	res := fmt.Sprintf("%v", v)
+	err := s.db.Update(func(tx *buntdb.Tx) error {
+		_, _, err2 := tx.Set(k, res, nil)
 		return err2
 	})
 	return err
@@ -46,12 +38,17 @@ func (s Store) Get(k string, v any) (found bool, err error) {
 	if err = util.CheckKeyAndValue(k, v); err != nil {
 		return false, err
 	}
-
-	var rawData string //[]byte
+	var res string
 	err = s.db.View(func(tx *buntdb.Tx) error {
-		rawData, err = tx.Get(k)
+		res, err = tx.Get(k)
 		return err
 	})
+	// 一些抽象的断言赋值
+	if strPtr, ok := v.(*string); ok {
+		*strPtr = res
+	} else {
+		return false, fmt.Errorf("v must be a *string, got %T", v)
+	}
 	// 特判找不到的情况
 	if err != nil && errors.Is(err, buntdb.ErrNotFound) {
 		return false, nil
@@ -59,7 +56,7 @@ func (s Store) Get(k string, v any) (found bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	return true, s.codec.Unmarshal([]byte(rawData), v)
+	return true, nil
 }
 
 // Delete deletes the stored value for the given key.
@@ -124,16 +121,11 @@ type Options struct {
 	// Path of the DB file. Must have
 	// Optional ("bbolt.db" by default).
 	Path string
-	// Encoding format.
-	// Optional (encoding.JSON by default).
-	Codec encoding.Codec
 }
 
 // DefaultOptions is an Options object with default values.
 // BucketName: "default", Path: "bbolt.db", Codec: encoding.JSON
-var DefaultOptions = Options{
-	Codec: encoding.JSON,
-}
+var DefaultOptions = Options{}
 
 // NewStore creates a new bbolt store.
 // Note: bbolt uses an exclusive write lock on the database file so it cannot be shared by multiple processes.
@@ -146,9 +138,6 @@ func NewStore(options Options) (Store, error) {
 	if options.Path == "" {
 		return result, errors.New("path is nil, you must write it before")
 	}
-	if options.Codec == nil {
-		options.Codec = DefaultOptions.Codec
-	}
 
 	// Open DB
 	db, err := buntdb.Open(options.Path)
@@ -157,7 +146,6 @@ func NewStore(options Options) (Store, error) {
 	}
 
 	result.db = db
-	result.codec = options.Codec
 
 	return result, nil
 }

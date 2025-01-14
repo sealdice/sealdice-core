@@ -551,6 +551,7 @@ func (d *Dice) ExtAliasToName(s string) string {
 	return s
 }
 
+// TODO: 8是，这函数根本没有被正确使用啊?!
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
 	// Pinenutn: Range模板 ServiceAtNew重构代码
 	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {

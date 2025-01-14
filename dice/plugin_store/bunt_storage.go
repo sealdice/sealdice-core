@@ -29,7 +29,7 @@ func (b *BuntDBPluginStorage) GetStorageInstance(pluginName string) (sealkv.Seal
 	}
 	// 尝试进行初始化
 	options := bunt.Options{
-		Path: path.Join(b.Path, "storage.db"),
+		Path: path.Join(b.Path, pluginName, "storage.db"),
 	}
 	store, err := bunt.NewStore(options)
 	if err != nil {
@@ -41,8 +41,11 @@ func (b *BuntDBPluginStorage) GetStorageInstance(pluginName string) (sealkv.Seal
 }
 
 func (b *BuntDBPluginStorage) StorageClose() error {
+	log.Infof("closing buntdb plugin storage")
 	b.KVMap.Range(func(key string, value *bunt.Store) bool {
-		err := value.Close()
+		v := value
+		value = nil
+		err := v.Close()
 		if err != nil {
 			log.Errorf("close buntdb error: %v", err)
 			return true

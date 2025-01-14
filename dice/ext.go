@@ -177,15 +177,16 @@ func (i *ExtInfo) StorageSet(k, v string) error {
 		return err
 	}
 	db := i.Storage
-	return db.Set(k, v)
+	err := db.Set(k, v)
+	return err
 }
 
 func (i *ExtInfo) StorageGet(k string) (string, error) {
 	if err := i.StorageInit(); err != nil {
 		return "", err
 	}
-	var v *string
-	found, err := i.Storage.Get(k, v)
+	var v string
+	found, err := i.Storage.Get(k, &v)
 	// 有错误先报错
 	if err != nil {
 		return "", err
@@ -194,5 +195,5 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 	if !found {
 		return "", nil
 	}
-	return *v, nil
+	return v, nil
 }
