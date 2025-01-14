@@ -17,13 +17,14 @@ import (
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
-	"github.com/tidwall/buntdb"
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
+	"sealdice-core/dice/plugin_store"
+	sealkv "sealdice-core/utils/gokv"
 	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/public_dice"
 )
@@ -77,8 +78,9 @@ type ExtInfo struct {
 	dice    *Dice
 	IsJsExt bool          `json:"-"`
 	Source  *JsScriptInfo `yaml:"-" json:"-"`
-	Storage *buntdb.DB    `yaml:"-"  json:"-"`
-	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
+	// 为Storage使用互斥锁，并切换成封装
+	Storage sealkv.SealDiceKVStore `yaml:"-"  json:"-"`
+
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
@@ -136,6 +138,7 @@ type Dice struct {
 	BaseConfig      BaseConfig             `yaml:"-"`
 	DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
+	DBPlugins       *gorm.DB               `yaml:"-"` // 增加插件数据库对象
 	Logger          *log.Helper            `yaml:"-"` // 日志
 	LogWriter       *log.WriterX           `yaml:"-"` // 用于api的log对象
 	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
@@ -172,6 +175,8 @@ type Dice struct {
 	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
 	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
 	JsLoadingScript *JsScriptInfo `yaml:"-" json:"-"`
+	// 插件存储KV系统，下面初始化
+	PluginStorage plugin_store.PluginStorage `yaml:"-" json:"-"`
 
 	// 游戏系统规则模板
 	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
@@ -232,6 +237,26 @@ func (d *Dice) Init() {
 	d.DBData, d.DBLogs, err = model.DatabaseInit()
 	if err != nil {
 		d.Logger.Errorf("Failed to init database: %v", err)
+	}
+	// 增加（若需要的话）插件数据库初始化
+	// TODO: 规范化
+	pluginDB := os.Getenv("PLUGINDB")
+	switch pluginDB {
+	case "gorm":
+		d.Logger.Info("插件数据库初始化：Gorm")
+		d.DBPlugins, err = model.PluginsDBInit()
+		if err != nil {
+			d.Logger.Errorf("Failed to init plugins database: %v", err)
+		}
+		d.PluginStorage, err = plugin_store.NewGormPluginStorage(d.DBPlugins)
+		if err != nil {
+			d.Logger.Errorf("Failed to init plugins storage: %v", err)
+		}
+		// 默认使用buntdb
+	default:
+		d.Logger.Info("插件数据库初始化：BuntDB")
+		// 不需要定义名称
+		d.PluginStorage, err = plugin_store.NewBuntDBPluginStorage(d.GetExtDataDir(""))
 	}
 
 	d.AttrsManager = &AttrsManager{}
@@ -526,6 +551,7 @@ func (d *Dice) ExtAliasToName(s string) string {
 	return s
 }
 
+// TODO: 8是，这函数根本没有被正确使用啊?!
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
 	// Pinenutn: Range模板 ServiceAtNew重构代码
 	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {

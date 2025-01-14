@@ -169,13 +169,10 @@ func forceStop(c echo.Context) error {
 				i.Config.BanList.SaveChanged(i)
 				i.AttrsManager.CheckForSave()
 				i.Save(true)
-				for _, j := range i.ExtList {
-					if j.Storage != nil {
-						err := j.StorageClose()
-						if err != nil {
-							logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
-						}
-					}
+				err := i.PluginStorage.StorageClose()
+				if err != nil {
+					logger.Errorf("关闭时出现异常: %v\n", err)
+					return
 				}
 				i.IsAlreadyLoadConfig = false
 			}

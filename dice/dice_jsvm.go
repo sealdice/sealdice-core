@@ -623,7 +623,7 @@ func (d *Dice) JsShutdown() {
 
 func (d *Dice) jsClear() {
 	// 清理js扩展
-	prepareRemove := []*ExtInfo{}
+	var prepareRemove []*ExtInfo
 	for _, i := range d.ExtList {
 		if i.IsJsExt {
 			prepareRemove = append(prepareRemove, i)

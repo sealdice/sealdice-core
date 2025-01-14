@@ -81,11 +81,14 @@ require (
 
 require (
 	github.com/blevesearch/bleve_index_api v1.1.13
+	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/gofrs/flock v0.12.1
-	github.com/gonutz/w32/v2 v2.11.1
 	github.com/joho/godotenv v1.5.1
-	github.com/spaolacci/murmur3 v1.1.0
+	github.com/maypok86/otter v1.2.4
+	github.com/philippgille/gokv v0.7.0
+	github.com/philippgille/gokv/encoding v0.7.0
+	github.com/philippgille/gokv/util v0.7.0
 	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.5
 	gorm.io/driver/mysql v1.5.7
@@ -117,9 +120,11 @@ require (
 	github.com/blevesearch/zapx/v16 v16.1.8 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/dolthub/maphash v0.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20230808193330-2592e75ae04a // indirect
+	github.com/gammazero/deque v1.0.0 // indirect
 	github.com/getlantern/context v0.0.0-20190109183933-c447772a6520 // indirect
 	github.com/getlantern/errors v0.0.0-20190325191628-abdb3e3e36f7 // indirect
 	github.com/getlantern/golog v0.0.0-20190830074920-4ef2e798c2d7 // indirect

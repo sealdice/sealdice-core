@@ -176,6 +176,7 @@ func (group *GroupInfo) ExtClear() {
 
 func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 	if ei.Storage != nil {
+		// 扩展关闭时，应该关闭扩展对应的Storage
 		err := ei.StorageClose()
 		if err != nil {
 			// 经过指点使用了ei的logger
@@ -231,7 +232,8 @@ func (group *GroupInfo) PlayerGet(db *gorm.DB, id string) *GroupPlayerInfo {
 	}
 	p, exists := group.Players.Load(id)
 	if !exists {
-		p = (*GroupPlayerInfo)(model.GroupPlayerInfoGet(db, group.GroupID, id))
+		basePtr := model.GroupPlayerInfoGet(db, group.GroupID, id)
+		p = (*GroupPlayerInfo)(basePtr)
 		if p != nil {
 			group.Players.Store(id, p)
 		}
