@@ -19,7 +19,7 @@ import (
 
 func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	// 使用即时事务
-	path = fmt.Sprintf("%v?_txlock=immediate&_busy_timeout=99999", path)
+	path = fmt.Sprintf("%v?_txlock=immediate&_busy_timeout=15000", path)
 	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
 		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
 		Logger: logger.Default.LogMode(logger.Info),
@@ -29,7 +29,6 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	}
 	// Enable Cache Mode
 	open, err = cache.GetOtterCacheDB(open)
-	// 所有优化增加
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +42,8 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 }
 
 func createReadDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
+	// _txlock=immediate 解决BEGIN IMMEDIATELY
+	path = fmt.Sprintf("%v?_txlock=immediate", path)
 	// ---- 创建读连接 -----
 	readDB, err := gorm.Open(sqlite.Open(path), gormConf)
 	if err != nil {
@@ -112,18 +113,22 @@ func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
 // https://highperformancesqlite.com/articles/sqlite-recommended-pragmas
 // https://litestream.io/tips/
 // copied from https://github.com/bihe/monorepo
+// add PRAGMA optimize=0x10002; from https://github.com/Palats/mastopoof
 func SetDefaultPragmas(db *sql.DB) error {
 	var (
 		stmt string
 		val  string
 	)
+	// 外键的暂时弃用，反正咱也不用外键536870912
+	// "foreign_keys": "1",     // 1(bool) --> https://www.sqlite.org/pragma.html#pragma_foreign_keys
 	defaultPragmas := map[string]string{
 		"journal_mode": "wal",   // https://www.sqlite.org/pragma.html#pragma_journal_mode
-		"busy_timeout": "5000",  // https://www.sqlite.org/pragma.html#pragma_busy_timeout
-		"synchronous":  "1",     // NORMAL --> https://www.sqlite.org/pragma.html#pragma_synchronous
-		"cache_size":   "10000", // 10000 pages = 40MB --> https://www.sqlite.org/pragma.html#pragma_cache_size
-		// 外键的暂时弃用，反正咱也不用外键（乐）
-		// "foreign_keys": "1",     // 1(bool) --> https://www.sqlite.org/pragma.html#pragma_foreign_keys
+		"busy_timeout": "15000", // https://www.sqlite.org/pragma.html#pragma_busy_timeout
+		// 在 WAL 模式下使用 synchronous=NORMAL 提交的事务可能会在断电或系统崩溃后回滚。
+		// 无论同步设置或日志模式如何，事务在应用程序崩溃时都是持久的。
+		// 对于在 WAL 模式下运行的大多数应用程序来说，synchronous=NORMAL 设置是一个不错的选择。
+		"synchronous": "1",         // NORMAL --> https://www.sqlite.org/pragma.html#pragma_synchronous
+		"cache_size":  "536870912", // 536870912 = 512MB --> https://www.sqlite.org/pragma.html#pragma_cache_size
 	}
 
 	// set the pragmas
@@ -144,6 +149,12 @@ func SetDefaultPragmas(db *sql.DB) error {
 		if val != defaultPragmas[k] {
 			return fmt.Errorf("could not set pragma %s to %s", k, defaultPragmas[k])
 		}
+	}
+	// 这个不能在上面，因为他没有任何返回值
+	// Setup some regular optimization according to sqlite doc:
+	//  https://www.sqlite.org/lang_analyze.html
+	if _, err := db.Exec("PRAGMA optimize=0x10002;"); err != nil {
+		return fmt.Errorf("unable set optimize pragma: %w", err)
 	}
 
 	return nil

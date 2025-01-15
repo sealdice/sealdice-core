@@ -183,10 +183,7 @@ func forceStop(c echo.Context) error {
 
 		for _, i := range diceManager.Dice {
 			d := i
-			err := d.DBOperator.Close()
-			if err != nil {
-				return
-			}
+			d.DBOperator.Close()
 		}
 
 		// 清理gocqhttp

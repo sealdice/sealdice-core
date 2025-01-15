@@ -2,27 +2,27 @@ package model
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model/database"
 	"sealdice-core/dice/model/database/cache"
-	"sealdice-core/utils"
 	log "sealdice-core/utils/kratos"
 )
 
 type SQLiteEngine struct {
 	DataDir string
 	ctx     context.Context
-	// 注册到里面
-	readList  utils.SyncMap[dbName, *gorm.DB]
-	writeList utils.SyncMap[dbName, *gorm.DB]
+	// 用于控制readList和writeList的读写锁
+	mu        sync.RWMutex
+	readList  map[dbName]*gorm.DB
+	writeList map[dbName]*gorm.DB
 }
 
 // 定义一个基于 string 的新类型 dbName
@@ -34,35 +34,47 @@ const (
 	CensorsDBKey dbName = "censor"
 )
 
-func (s *SQLiteEngine) Close() error {
-	var db *sql.DB
-	var err error
-	s.readList.Range(func(key dbName, value *gorm.DB) bool {
-		db, err = value.DB()
+func (s *SQLiteEngine) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 关闭 readList 中的连接
+	for name, db := range s.readList {
+		sqlDB, err := db.DB()
 		if err != nil {
-			return true
+			log.Errorf("failed to get sql.DB for %s: %v", name, err)
+			continue
 		}
-		err = db.Close()
+		if err = sqlDB.Close(); err != nil {
+			log.Errorf("failed to close db %s: %v", name, err)
+		}
+	}
+
+	// 关闭 writeList 中的连接
+	for name, db := range s.writeList {
+		sqlDB, err := db.DB()
 		if err != nil {
-			return true
+			log.Errorf("failed to get sql.DB for %s: %v", name, err)
+			continue
 		}
-		return true
-	})
-	return err
+		if err = sqlDB.Close(); err != nil {
+			log.Errorf("failed to close db %s: %v", name, err)
+		}
+	}
 }
 
 func (s *SQLiteEngine) getDBByModeAndKey(mode DBMode, key dbName) *gorm.DB {
+	// 取读者锁，从而允许同时获取大量的DB
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	switch mode {
 	case WRITE:
-		db, _ := s.writeList.Load(key)
-		return db
+		return s.writeList[key]
 	case READ:
-		db, _ := s.writeList.Load(key)
-		return db
+		return s.writeList[key]
 	default:
-		// 默认获取写的，牺牲性能不爆炸
-		db, _ := s.writeList.Load(key)
-		return db
+		// 默认获取写的，牺牲性能为代价，防止多个写
+		return s.writeList[key]
 	}
 }
 
@@ -105,6 +117,9 @@ func (s *SQLiteEngine) Init(ctx context.Context) error {
 		log.Debug("未能发现SQLITE定义位置，使用默认data地址")
 		s.DataDir = defaultDataDir
 	}
+	// map初始化
+	s.readList = make(map[dbName]*gorm.DB)
+	s.writeList = make(map[dbName]*gorm.DB)
 	err := s.dataDBInit()
 	if err != nil {
 		return err
@@ -120,7 +135,6 @@ func (s *SQLiteEngine) Init(ctx context.Context) error {
 	return nil
 }
 
-// DB检查 BUG FIXME
 func (s *SQLiteEngine) DBCheck() {
 	dataDir := s.DataDir
 	checkDB := func(db *gorm.DB) bool {
@@ -253,8 +267,8 @@ func (s *SQLiteEngine) dataDBInit() error {
 	if err != nil {
 		return err
 	}
-	s.readList.Store(DataDBKey, readDB)
-	s.writeList.Store(DataDBKey, writeDB)
+	s.readList[DataDBKey] = readDB
+	s.writeList[DataDBKey] = writeDB
 	return nil
 }
 
@@ -287,8 +301,8 @@ func (s *SQLiteEngine) LogDBInit() error {
 			return err
 		}
 	}
-	s.readList.Store(LogsDBKey, readDB)
-	s.writeList.Store(LogsDBKey, writeDB)
+	s.readList[LogsDBKey] = readDB
+	s.writeList[LogsDBKey] = writeDB
 	return nil
 }
 
@@ -309,8 +323,8 @@ func (s *SQLiteEngine) CensorDBInit() error {
 	if err = writeDB.AutoMigrate(&CensorLog{}); err != nil {
 		return err
 	}
-	s.readList.Store(CensorsDBKey, readDB)
-	s.writeList.Store(CensorsDBKey, writeDB)
+	s.readList[CensorsDBKey] = readDB
+	s.writeList[CensorsDBKey] = writeDB
 	return nil
 }
 

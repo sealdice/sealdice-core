@@ -93,11 +93,7 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 
 		for _, i := range diceManager.Dice {
 			d := i
-			err = d.DBOperator.Close()
-			if err != nil {
-				// 打日志
-				log.Errorf("数据库关闭出现异常 %v", err)
-			}
+			d.DBOperator.Close()
 		}
 
 		// 清理gocqhttp

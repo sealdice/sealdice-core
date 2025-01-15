@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"sealdice-core/utils"
-
 	ds "github.com/sealdice/dicescript"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"sealdice-core/utils"
 )
 
 const (
@@ -139,6 +141,70 @@ func AttrsPutById(operator DatabaseOperator, id string, data []byte, name, sheet
 		return err // 返回错误
 	}
 	return nil // 操作成功，返回 nil
+}
+
+type AttributesBatchUpsertModel struct {
+	Id        string `json:"id"`
+	Data      []byte `json:"data"`
+	Name      string `json:"name"`
+	SheetType string `json:"sheetType"`
+}
+
+// AttrsPutsByIDBatch 特殊入库函数 因为它
+func AttrsPutsByIDBatch(operator DatabaseOperator, saveList []*AttributesBatchUpsertModel) error {
+	db := operator.GetDataDB(WRITE)
+	now := time.Now().Unix() // 获取当前时间
+	trulySaveList := make([]map[string]any, 0)
+	for _, singleSave := range saveList {
+		trulySaveList = append(trulySaveList, map[string]any{
+			// 第一次全量建表
+			"id": singleSave.Id,
+			// 使用BYTE规避无法插入的问题
+			"data":             BYTE(singleSave.Data),
+			"is_hidden":        true,
+			"binding_sheet_id": "",
+			"name":             singleSave.Name,
+			"sheet_type":       singleSave.SheetType,
+			"created_at":       now,
+			"updated_at":       now,
+		})
+	}
+	// 保守的调整一次插入1K条，这应该足够应对大部分场景，这种情况下，相当于有1K个人在60s内绑定了角色卡？
+	batchSize := 1000
+	// TODO: 只能手动分批次插入，原因看下面
+	// 由于传入的就是tx，所以这里如果插入失败，会自动回滚
+	err := db.Transaction(func(tx *gorm.DB) error {
+		for i := 0; i < len(trulySaveList); i += batchSize {
+			end := i + batchSize
+			if end > len(trulySaveList) {
+				end = len(trulySaveList)
+			}
+			batch := trulySaveList[i:end]
+			res := tx.Debug().Clauses(clause.OnConflict{
+				// 冲突列判断
+				Columns: []clause.Column{
+					{Name: "id"},
+				},
+				DoUpdates: clause.Assignments(map[string]interface{}{
+					"data":       clause.Column{Name: "data"},       // 更新 data 字段
+					"updated_at": now,                               // 更新时设置 updated_at
+					"name":       clause.Column{Name: "name"},       // 更新 name 字段
+					"sheet_type": clause.Column{Name: "sheet_type"}, // 更新 sheet_type 字段
+				}),
+			}).
+				Model(&AttributesItemModel{}).
+				// 注意! 这里有坑，不能使用CreateInBatches + map[string]interface{}。
+				// CreateInBatches会设置结果接收位置为：subtx.Statement.Dest = reflectValue.Slice(i, ends).Interface()
+				// 指向map[string]interface{}，导致数据没办法正确放入。
+				// 只能用Create,同时千万别设置Create的BatchSize，否则会导致它使用上面那个函数，还是会报错。
+				Create(&batch)
+			if res.Error != nil {
+				return res.Error
+			}
+		}
+		return nil
+	})
+	return err
 }
 
 func AttrsDeleteById(operator DatabaseOperator, id string) error {

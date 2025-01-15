@@ -21,7 +21,7 @@ type DatabaseOperator interface {
 	GetDataDB(mode DBMode) *gorm.DB
 	GetLogDB(mode DBMode) *gorm.DB
 	GetCensorDB(mode DBMode) *gorm.DB
-	Close() error
+	Close()
 }
 
 // 实现检查 copied from platform

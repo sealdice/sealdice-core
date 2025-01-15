@@ -168,55 +168,99 @@ func (am *AttrsManager) Init(d *Dice) {
 				// 正常工作
 				am.CheckForSave()
 				am.CheckAndFreeUnused()
-				time.Sleep(15 * time.Second)
+				time.Sleep(60 * time.Second)
 			}
 		}
 	}()
 	am.cancel = cancel
 }
 
-func (am *AttrsManager) CheckForSave() (int, int) {
-	times := 0
-	saved := 0
-
-	db := am.db
-	if db == nil {
+func (am *AttrsManager) CheckForSave() error {
+	if am.db == nil {
 		// 尚未初始化
-		return 0, 0
+		return errors.New("数据库尚未初始化")
 	}
-
+	var resultList []*model.AttributesBatchUpsertModel
+	prepareToSave := map[string]int{}
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
-			saved += 1
-			value.SaveToDB(db)
+			saveModel, err := value.GetBatchSaveModel()
+			if err != nil {
+				// 打印日志
+				log.Errorf("定期写入用户数据出错(获取批量保存模型): %v", err)
+				return true
+			}
+			prepareToSave[key] = 1
+			resultList = append(resultList, saveModel)
 		}
-		times += 1
 		return true
 	})
-	return times, saved
+	// 整体落盘
+	if len(resultList) == 0 {
+		log.Infof("[松子调试用]定期写入用户数据(批量保存) %v 条", len(resultList))
+		return nil
+	}
+
+	if err := model.AttrsPutsByIDBatch(am.db, resultList); err != nil {
+		log.Errorf("定期写入用户数据出错(批量保存): %v", err)
+		return err
+	}
+	for key := range prepareToSave {
+		// 理应不存在这个数据没有的情况
+		v, _ := am.m.Load(key)
+		v.IsSaved = true
+	}
+	// 输出日志本次落盘了几个数据
+	log.Infof("[松子调试用]定期写入用户数据(批量保存) %v 条", len(resultList))
+
+	return nil
 }
 
 // CheckAndFreeUnused 此函数会被定期调用，释放最近不用的对象
-func (am *AttrsManager) CheckAndFreeUnused() {
-	db := am.db
+func (am *AttrsManager) CheckAndFreeUnused() error {
+	db := am.db.GetDataDB(model.WRITE)
 	if db == nil {
 		// 尚未初始化
-		return
+		return errors.New("数据库尚未初始化")
 	}
 
 	prepareToFree := map[string]int{}
-	currentTime := time.Now().Unix()
+	currentTime := time.Now()
+	var resultList []*model.AttributesBatchUpsertModel
 	am.m.Range(func(key string, value *AttributesItem) bool {
-		if value.LastUsedTime-currentTime > 60*10 {
+		lastUsedTime := time.Unix(value.LastUsedTime, 0)
+		if lastUsedTime.Sub(currentTime) > 10*time.Minute {
+			saveModel, err := value.GetBatchSaveModel()
+			if err != nil {
+				// 打印日志
+				log.Errorf("定期清理用户数据出错(获取批量保存模型): %v", err)
+				return true
+			}
 			prepareToFree[key] = 1
-			// 直接保存
-			value.SaveToDB(db)
+			resultList = append(resultList, saveModel)
 		}
 		return true
 	})
-	for key := range prepareToFree {
-		am.m.Delete(key)
+
+	// 整体落盘
+	if len(resultList) == 0 {
+		log.Infof("[松子调试用]定期清理用户数据(批量保存) %v 条", len(resultList))
+		return nil
 	}
+
+	if err := model.AttrsPutsByIDBatch(am.db, resultList); err != nil {
+		log.Errorf("定期清理写入用户数据出错(批量保存): %v", err)
+		return err
+	}
+
+	for key := range prepareToFree {
+		// 理应不存在这个数据没有的情况
+		v, _ := am.m.LoadAndDelete(key)
+		v.IsSaved = true
+	}
+	// 输出日志本次落盘了几个数据
+	log.Infof("[松子调试用]定期清理用户数据(批量保存) %v 条", len(resultList))
+	return nil
 }
 
 func (am *AttrsManager) CharBind(charId string, groupId string, userId string) error {
@@ -290,6 +334,19 @@ func (i *AttributesItem) SaveToDB(db model.DatabaseOperator) {
 		return
 	}
 	i.IsSaved = true
+}
+
+func (i *AttributesItem) GetBatchSaveModel() (*model.AttributesBatchUpsertModel, error) {
+	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
+	if err != nil {
+		return nil, err
+	}
+	return &model.AttributesBatchUpsertModel{
+		Id:        i.ID,
+		Data:      rawData,
+		Name:      i.Name,
+		SheetType: i.SheetType,
+	}, nil
 }
 
 func (i *AttributesItem) Load(name string) *ds.VMValue {
