@@ -2140,7 +2140,7 @@ func (d *Dice) loads() {
 		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 		err = model.GroupInfoListGet(d.DBOperator, func(id string, updatedAt int64, data []byte) {
 			var groupInfo GroupInfo
-			err := json.Unmarshal(data, &groupInfo)
+			err = json.Unmarshal(data, &groupInfo)
 			if err == nil {
 				groupInfo.GroupID = id
 				groupInfo.UpdatedAtTime = 0

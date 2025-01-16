@@ -166,8 +166,14 @@ func (am *AttrsManager) Init(d *Dice) {
 				return
 			default:
 				// 正常工作
-				am.CheckForSave()
-				am.CheckAndFreeUnused()
+				err := am.CheckForSave()
+				if err != nil {
+					log.Errorf("数据库保存程序出错: %v", err)
+				}
+				err = am.CheckAndFreeUnused()
+				if err != nil {
+					log.Errorf("数据库保存-清理程序出错: %v", err)
+				}
 				time.Sleep(60 * time.Second)
 			}
 		}
@@ -197,7 +203,6 @@ func (am *AttrsManager) CheckForSave() error {
 	})
 	// 整体落盘
 	if len(resultList) == 0 {
-		log.Infof("[松子调试用]定期写入用户数据(批量保存) %v 条", len(resultList))
 		return nil
 	}
 
@@ -211,7 +216,6 @@ func (am *AttrsManager) CheckForSave() error {
 		v.IsSaved = true
 	}
 	// 输出日志本次落盘了几个数据
-	log.Infof("[松子调试用]定期写入用户数据(批量保存) %v 条", len(resultList))
 
 	return nil
 }
@@ -244,7 +248,6 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 
 	// 整体落盘
 	if len(resultList) == 0 {
-		log.Infof("[松子调试用]定期清理用户数据(批量保存) %v 条", len(resultList))
 		return nil
 	}
 
@@ -258,8 +261,6 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 		v, _ := am.m.LoadAndDelete(key)
 		v.IsSaved = true
 	}
-	// 输出日志本次落盘了几个数据
-	log.Infof("[松子调试用]定期清理用户数据(批量保存) %v 条", len(resultList))
 	return nil
 }
 

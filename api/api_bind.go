@@ -18,6 +18,7 @@ import (
 	"github.com/samber/lo"
 
 	"sealdice-core/dice"
+	log "sealdice-core/utils/kratos"
 )
 
 const CodeAlreadyExists = 602
@@ -167,7 +168,10 @@ func forceStop(c echo.Context) error {
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
-				i.AttrsManager.CheckForSave()
+				err = i.AttrsManager.CheckForSave()
+				if err != nil {
+					log.Errorf("异常: %v", err)
+				}
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
