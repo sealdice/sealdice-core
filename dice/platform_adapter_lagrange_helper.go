@@ -429,21 +429,21 @@ func LagrangeGetSignInfo(dice *Dice) ([]SignInfo, error) {
 	cachePath := filepath.Join(dice.BaseConfig.DataDir, "extra/SignInfo.cache")
 	signInfo, err := lagrangeGetSignInfoFromCloud(cachePath)
 	if err == nil && len(signInfo) > 0 {
-		copy(signInfoGlobal, signInfo)
+		signInfoGlobal = append([]SignInfo(nil), signInfo...)
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从云端获取SignInfo，即将读取本地缓存数据, 原因: %s", err.Error())
 
 	signInfo, err = lagrangeGetSignInfoFromCache(cachePath)
 	if err == nil && len(signInfo) > 0 {
-		copy(signInfoGlobal, signInfo)
+		signInfoGlobal = append([]SignInfo(nil), signInfo...)
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从本地缓存获取SignInfo，即将读取内置数据, 原因: %s", err.Error())
 
 	if err = json.Unmarshal([]byte(signInfoJson), &signInfo); err == nil {
 		lagrangeGetSignServerLatency(signInfo)
-		copy(signInfoGlobal, signInfo)
+		signInfoGlobal = append([]SignInfo(nil), signInfo...)
 		return signInfo, nil
 	}
 	dice.Logger.Infof("无法从内置数据获取SignInfo，请联系开发者上报问题, 原因: %s", err.Error())
