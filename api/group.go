@@ -21,8 +21,7 @@ func groupList(c echo.Context) error {
 		if !strings.HasPrefix(item.GroupID, "PG-") {
 			if item != nil {
 				var exts []string
-				item.TmpPlayerNum, _ = model.GroupPlayerNumGet(myDice.DBData, item.GroupID)
-				// item.TmpPlayerNum = int64(len(i.Players))
+				item.TmpPlayerNum, _ = model.GroupPlayerNumGet(myDice.DBOperator, item.GroupID)
 				for _, i := range item.ActivatedExtList {
 					exts = append(exts, i.Name)
 				}

@@ -7,14 +7,13 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
-	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
 	log "sealdice-core/utils/kratos"
 )
 
 type AttrsManager struct {
-	db     *gorm.DB
+	db     model.DatabaseOperator
 	logger *log.Helper
 	cancel context.CancelFunc
 	m      SyncMap[string, *AttributesItem]
@@ -153,7 +152,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 }
 
 func (am *AttrsManager) Init(d *Dice) {
-	am.db = d.DBData
+	am.db = d.DBOperator
 	am.logger = d.Logger
 	// 创建一个 context 用于取消 goroutine
 	ctx, cancel := context.WithCancel(context.Background())
@@ -186,25 +185,14 @@ func (am *AttrsManager) CheckForSave() (int, int) {
 		return 0, 0
 	}
 
-	tx := db.Begin()
-
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
 			saved += 1
-			value.SaveToDB(tx)
+			value.SaveToDB(db)
 		}
 		times += 1
 		return true
 	})
-
-	err := tx.Commit().Error
-	if err != nil {
-		if am.logger != nil {
-			am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
-		}
-		_ = tx.Rollback()
-		return times, 0
-	}
 	return times, saved
 }
 
@@ -218,22 +206,14 @@ func (am *AttrsManager) CheckAndFreeUnused() {
 
 	prepareToFree := map[string]int{}
 	currentTime := time.Now().Unix()
-	tx := db.Begin()
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if value.LastUsedTime-currentTime > 60*10 {
 			prepareToFree[key] = 1
 			// 直接保存
-			value.SaveToDB(tx)
+			value.SaveToDB(db)
 		}
 		return true
 	})
-	err := tx.Commit().Error
-	if err != nil {
-		if am.logger != nil {
-			am.logger.Errorf("定期清理无用用户数据出错(提交事务): %v", err)
-		}
-		_ = tx.Rollback()
-	}
 	for key := range prepareToFree {
 		am.m.Delete(key)
 	}
@@ -298,7 +278,7 @@ type AttributesItem struct {
 	SheetType        string
 }
 
-func (i *AttributesItem) SaveToDB(db *gorm.DB) {
+func (i *AttributesItem) SaveToDB(db model.DatabaseOperator) {
 	// 使用事务写入
 	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
 	if err != nil {

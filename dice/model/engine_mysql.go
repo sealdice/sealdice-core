@@ -19,6 +19,26 @@ type MYSQLEngine struct {
 	ctx context.Context
 }
 
+func (s *MYSQLEngine) Close() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *MYSQLEngine) GetDataDB(mode DBMode) *gorm.DB {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *MYSQLEngine) GetLogDB(mode DBMode) *gorm.DB {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *MYSQLEngine) GetCensorDB(mode DBMode) *gorm.DB {
+	//TODO implement me
+	panic("implement me")
+}
+
 type LogInfoHookMySQL struct {
 	ID         uint64  `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	Name       string  `json:"name" gorm:"column:name"`

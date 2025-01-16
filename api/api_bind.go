@@ -183,51 +183,10 @@ func forceStop(c echo.Context) error {
 
 		for _, i := range diceManager.Dice {
 			d := i
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				dbData := d.DBData
-				if dbData != nil {
-					d.DBData = nil
-					db, err := dbData.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
-
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				dbLogs := d.DBLogs
-				if dbLogs != nil {
-					d.DBLogs = nil
-					db, err := dbLogs.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
-
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				cm := d.CensorManager
-				if cm != nil && cm.DB != nil {
-					dbCensor := cm.DB
-					cm.DB = nil
-					db, err := dbCensor.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
+			err := d.DBOperator.Close()
+			if err != nil {
+				return
+			}
 		}
 
 		// 清理gocqhttp

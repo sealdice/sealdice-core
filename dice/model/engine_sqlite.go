@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -12,12 +13,69 @@ import (
 
 	"sealdice-core/dice/model/database"
 	"sealdice-core/dice/model/database/cache"
+	"sealdice-core/utils"
 	log "sealdice-core/utils/kratos"
 )
 
 type SQLiteEngine struct {
 	DataDir string
 	ctx     context.Context
+	// 注册到里面
+	readList  utils.SyncMap[dbName, *gorm.DB]
+	writeList utils.SyncMap[dbName, *gorm.DB]
+}
+
+// 定义一个基于 string 的新类型 dbName
+type dbName string
+
+const (
+	LogsDBKey    dbName = "logs"
+	DataDBKey    dbName = "data"
+	CensorsDBKey dbName = "censor"
+)
+
+func (s *SQLiteEngine) Close() error {
+	var db *sql.DB
+	var err error
+	s.readList.Range(func(key dbName, value *gorm.DB) bool {
+		db, err = value.DB()
+		if err != nil {
+			return true
+		}
+		err = db.Close()
+		if err != nil {
+			return true
+		}
+		return true
+	})
+	return err
+}
+
+func (s *SQLiteEngine) getDBByModeAndKey(mode DBMode, key dbName) *gorm.DB {
+	switch mode {
+	case WRITE:
+		db, _ := s.writeList.Load(key)
+		return db
+	case READ:
+		db, _ := s.writeList.Load(key)
+		return db
+	default:
+		// 默认获取写的，牺牲性能不爆炸
+		db, _ := s.writeList.Load(key)
+		return db
+	}
+}
+
+func (s *SQLiteEngine) GetDataDB(mode DBMode) *gorm.DB {
+	return s.getDBByModeAndKey(mode, DataDBKey)
+}
+
+func (s *SQLiteEngine) GetLogDB(mode DBMode) *gorm.DB {
+	return s.getDBByModeAndKey(mode, LogsDBKey)
+}
+
+func (s *SQLiteEngine) GetCensorDB(mode DBMode) *gorm.DB {
+	return s.getDBByModeAndKey(mode, CensorsDBKey)
 }
 
 const defaultDataDir = "./data/default"
@@ -46,6 +104,18 @@ func (s *SQLiteEngine) Init(ctx context.Context) error {
 	if s.DataDir == "" {
 		log.Debug("未能发现SQLITE定义位置，使用默认data地址")
 		s.DataDir = defaultDataDir
+	}
+	err := s.dataDBInit()
+	if err != nil {
+		return err
+	}
+	err = s.LogDBInit()
+	if err != nil {
+		return err
+	}
+	err = s.CensorDBInit()
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -124,55 +194,56 @@ func (s *SQLiteEngine) DBCheck() {
 }
 
 // 初始化
-func (s *SQLiteEngine) DataDBInit() (*gorm.DB, error) {
+func (s *SQLiteEngine) dataDBInit() error {
 	dbDataPath, _ := filepath.Abs(filepath.Join(s.DataDir, "data.db"))
-	dataDB, err := database.SQLiteDBInit(dbDataPath, true)
+	readDB, writeDB, err := database.SQLiteDBRWInit(dbDataPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// 添加并设置context
 	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
-	dataDB = dataDB.WithContext(dataContext)
-	// 特殊情况建表语句处置
-	tx := dataDB.Begin()
+	readDB = readDB.WithContext(dataContext)
+	writeDB = writeDB.WithContext(dataContext)
+
 	// 检查是否有这个影响的注释
 	var count int64
-	err = dataDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
+	err = readDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
 	if err != nil {
-		tx.Rollback()
-		return nil, err
+		return err
 	}
 	if count > 0 {
-		log.Warn("数据库 attrs 表结构为前置测试版本150,重建中")
-		// 创建临时表
-		err = tx.Exec(createSql).Error
+		// 特殊情况建表语句处置
+		err = writeDB.Transaction(func(tx *gorm.DB) error {
+			log.Warn("数据库 attrs 表结构为前置测试版本150,重建中")
+			// 创建临时表
+			err = tx.Exec(createSql).Error
+			if err != nil {
+				return err
+			}
+			// 迁移数据
+			err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
+			if err != nil {
+				return err
+			}
+			// 删除旧的表
+			err = tx.Exec("DROP TABLE `attrs`").Error
+			if err != nil {
+				return err
+			}
+			// 改名
+			err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 		if err != nil {
-			tx.Rollback()
-			return nil, err
+			return err
 		}
-		// 迁移数据
-		err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
-		if err != nil {
-			tx.Rollback()
-			return nil, err
-		}
-		// 删除旧的表
-		err = tx.Exec("DROP TABLE `attrs`").Error
-		if err != nil {
-			tx.Rollback()
-			return nil, err
-		}
-		// 改名
-		err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
-		if err != nil {
-			tx.Rollback()
-			return nil, err
-		}
-		tx.Commit()
 	}
 
 	// data建表
-	err = dataDB.AutoMigrate(
+	err = writeDB.AutoMigrate(
 		&GroupPlayerInfoBase{},
 		&GroupInfo{},
 		&BanInfo{},
@@ -180,59 +251,67 @@ func (s *SQLiteEngine) DataDBInit() (*gorm.DB, error) {
 		&AttributesItemModel{},
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return dataDB, nil
+	s.readList.Store(DataDBKey, readDB)
+	s.writeList.Store(DataDBKey, writeDB)
+	return nil
 }
 
-func (s *SQLiteEngine) LogDBInit() (*gorm.DB, error) {
+func (s *SQLiteEngine) LogDBInit() error {
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(s.DataDir, "data-logs.db"))
-	logsDB, err := database.SQLiteDBInit(dbDataLogsPath, true)
+	readDB, writeDB, err := database.SQLiteDBRWInit(dbDataLogsPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// 添加并设置context
 	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
-	logsDB = logsDB.WithContext(logsContext)
+	readDB = readDB.WithContext(logsContext)
+	writeDB = writeDB.WithContext(logsContext)
 	// logs建表
-	if err = logsDB.AutoMigrate(&LogInfo{}); err != nil {
-		return nil, err
+	if err = writeDB.AutoMigrate(&LogInfo{}); err != nil {
+		return err
 	}
 
 	itemsAutoMigrate := false
 	// 用于确认是否需要重建LogOneItem数据库
-	if logsDB.Migrator().HasTable(&LogOneItem{}) {
-		if err = logItemsSQLiteMigrate(logsDB); err != nil {
-			return nil, err
+	if writeDB.Migrator().HasTable(&LogOneItem{}) {
+		if err = logItemsSQLiteMigrate(writeDB); err != nil {
+			return err
 		}
 	} else {
 		itemsAutoMigrate = true
 	}
 	if itemsAutoMigrate {
-		if err = logsDB.AutoMigrate(&LogOneItem{}); err != nil {
-			return nil, err
+		if err = writeDB.AutoMigrate(&LogOneItem{}); err != nil {
+			return err
 		}
 	}
-	return logsDB, nil
+	s.readList.Store(LogsDBKey, readDB)
+	s.writeList.Store(LogsDBKey, writeDB)
+	return nil
 }
 
-func (s *SQLiteEngine) CensorDBInit() (*gorm.DB, error) {
+func (s *SQLiteEngine) CensorDBInit() error {
 	path, err := filepath.Abs(filepath.Join(s.DataDir, "data-censor.db"))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	censorDB, err := database.SQLiteDBInit(path, true)
+	readDB, writeDB, err := database.SQLiteDBRWInit(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// 添加并设置context
 	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
-	censorDB = censorDB.WithContext(censorContext)
+	readDB = readDB.WithContext(censorContext)
+	writeDB = writeDB.WithContext(censorContext)
 	// 创建基本的表结构，并通过标签定义索引
-	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
-		return nil, err
+	if err = writeDB.AutoMigrate(&CensorLog{}); err != nil {
+		return err
 	}
-	return censorDB, nil
+	s.readList.Store(CensorsDBKey, readDB)
+	s.writeList.Store(CensorsDBKey, writeDB)
+	return nil
 }
 
 func logItemsSQLiteMigrate(db *gorm.DB) error {

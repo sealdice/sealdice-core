@@ -18,6 +18,26 @@ type PGSQLEngine struct {
 	ctx context.Context
 }
 
+func (s *PGSQLEngine) Close() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *PGSQLEngine) GetDataDB(mode DBMode) *gorm.DB {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *PGSQLEngine) GetLogDB(mode DBMode) *gorm.DB {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *PGSQLEngine) GetCensorDB(mode DBMode) *gorm.DB {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (s *PGSQLEngine) Init(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("ctx is missing")

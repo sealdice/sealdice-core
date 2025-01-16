@@ -93,51 +93,11 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 
 		for _, i := range diceManager.Dice {
 			d := i
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				dbData := d.DBData
-				if dbData != nil {
-					d.DBData = nil
-					db, err := dbData.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
-
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				dbLogs := d.DBLogs
-				if dbLogs != nil {
-					d.DBLogs = nil
-					db, err := dbLogs.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
-
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				cm := d.CensorManager
-				if cm != nil && cm.DB != nil {
-					dbCensor := cm.DB
-					cm.DB = nil
-					db, err := dbCensor.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
+			err = d.DBOperator.Close()
+			if err != nil {
+				// 打日志
+				log.Errorf("数据库关闭出现异常 %v", err)
+			}
 		}
 
 		// 清理gocqhttp

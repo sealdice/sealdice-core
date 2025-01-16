@@ -68,7 +68,7 @@ func (pa *PlatformAdapterGocq) QQChannelTrySolve(message string) {
 			groupInfo, ok := session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
 				if groupInfo.LogOn {
-					_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, groupInfo.GroupID, groupInfo.LogCurName, msgQQ.MessageID)
+					_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, msgQQ.MessageID)
 				}
 			}
 			return

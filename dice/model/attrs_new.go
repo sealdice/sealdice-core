@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-
 	"sealdice-core/utils"
 
 	ds "github.com/sealdice/dicescript"
@@ -63,8 +61,9 @@ type PlatformMappingModel struct {
 	IMUserID string `json:"IMUserID" gorm:"column:im_user_id"` // IM平台的用户ID
 }
 
-func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
+func AttrsGetById(operator DatabaseOperator, id string) (*AttributesItemModel, error) {
 	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
+	db := operator.GetDataDB(READ)
 	var item AttributesItemModel
 	err := db.Model(&AttributesItemModel{}).
 		Select("id, data, COALESCE(attrs_type, '') as attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at").
@@ -79,9 +78,10 @@ func AttrsGetById(db *gorm.DB, id string) (*AttributesItemModel, error) {
 }
 
 // AttrsGetBindingSheetIdByGroupId 获取当前正在绑定的ID
-func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
+func AttrsGetBindingSheetIdByGroupId(operator DatabaseOperator, id string) (string, error) {
 	// 这里必须使用AttributesItemModel结构体，如果你定义一个只有ID属性的结构体去接收，居然能接收到值，这样就会豹错
 	var item AttributesItemModel
+	db := operator.GetDataDB(READ)
 	err := db.Model(&AttributesItemModel{}).
 		Select("binding_sheet_id").
 		Where("id = ?", id).
@@ -94,10 +94,11 @@ func AttrsGetBindingSheetIdByGroupId(db *gorm.DB, id string) (string, error) {
 	return item.BindingSheetId, nil
 }
 
-func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, error) {
+func AttrsGetIdByUidAndName(operator DatabaseOperator, userId string, name string) (string, error) {
 	// 这里必须使用AttributesItemModel结构体
 	// 如果你定义一个只有ID属性的结构体去接收，居然有概率能接收到值，这样就会和之前的行为不一致了
 	var item AttributesItemModel
+	db := operator.GetDataDB(READ)
 	err := db.Model(&AttributesItemModel{}).
 		Select("id").
 		Where("owner_id = ? AND name = ?", userId, name).
@@ -110,7 +111,8 @@ func AttrsGetIdByUidAndName(db *gorm.DB, userId string, name string) (string, er
 	return item.Id, nil
 }
 
-func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) error {
+func AttrsPutById(operator DatabaseOperator, id string, data []byte, name, sheetType string) error {
+	db := operator.GetDataDB(WRITE)
 	now := time.Now().Unix() // 获取当前时间
 	// 这里的原本逻辑是：第一次全量创建，第二次修改部分属性
 	// 所以使用了Attrs和Assign配合使用
@@ -139,7 +141,8 @@ func AttrsPutById(db *gorm.DB, id string, data []byte, name, sheetType string) e
 	return nil // 操作成功，返回 nil
 }
 
-func AttrsDeleteById(db *gorm.DB, id string) error {
+func AttrsDeleteById(operator DatabaseOperator, id string) error {
+	db := operator.GetDataDB(WRITE)
 	// 使用 GORM 的 Delete 方法删除指定 id 的记录
 	if err := db.Where("id = ?", id).Delete(&AttributesItemModel{}).Error; err != nil {
 		return err // 返回错误
@@ -147,7 +150,8 @@ func AttrsDeleteById(db *gorm.DB, id string) error {
 	return nil // 操作成功，返回 nil
 }
 
-func AttrsCharGetBindingList(db *gorm.DB, id string) ([]string, error) {
+func AttrsCharGetBindingList(operator DatabaseOperator, id string) ([]string, error) {
+	db := operator.GetDataDB(READ)
 	// 定义一个切片用于存储结果
 	var lst []string
 
@@ -162,7 +166,8 @@ func AttrsCharGetBindingList(db *gorm.DB, id string) ([]string, error) {
 	return lst, nil // 返回结果切片
 }
 
-func AttrsCharUnbindAll(db *gorm.DB, id string) (int64, error) {
+func AttrsCharUnbindAll(operator DatabaseOperator, id string) (int64, error) {
+	db := operator.GetDataDB(WRITE)
 	// 使用 GORM 更新绑定的记录，将 binding_sheet_id 设为空字符串
 	result := db.Model(&AttributesItemModel{}).
 		Where("binding_sheet_id = ?", id).
@@ -175,7 +180,8 @@ func AttrsCharUnbindAll(db *gorm.DB, id string) (int64, error) {
 }
 
 // AttrsNewItem 新建一个角色卡/属性容器
-func AttrsNewItem(db *gorm.DB, item *AttributesItemModel) (*AttributesItemModel, error) {
+func AttrsNewItem(operator DatabaseOperator, item *AttributesItemModel) (*AttributesItemModel, error) {
+	db := operator.GetDataDB(WRITE)
 	id := utils.NewID()                       // 生成新的 ID
 	now := time.Now().Unix()                  // 获取当前时间
 	item.CreatedAt, item.UpdatedAt = now, now // 设置创建和更新时间
@@ -193,34 +199,20 @@ func AttrsNewItem(db *gorm.DB, item *AttributesItemModel) (*AttributesItemModel,
 	return item, nil // 返回新创建的项
 }
 
-func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
-	// 开始事务
-	tx := db.Begin()
-	if tx.Error != nil {
-		return tx.Error // 返回错误
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback() // 发生恐慌时回滚
-		}
-	}()
-
+func AttrsBindCharacter(operator DatabaseOperator, charId string, id string) error {
+	db := operator.GetDataDB(WRITE)
 	// 将新字典值转换为 JSON
 	now := time.Now().Unix()
 	json, err := ds.NewDictVal(nil).V().ToJSON()
 	if err != nil {
-		tx.Rollback() // 返回错误时回滚
 		return err
 	}
-
 	// 原本代码为：
 	//	_, _ = db.Exec(`insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at)
 	//					       values ($1, $3, true, '', $2, $2)`, id, time.Now().Unix(), json)
 	//
 	//	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
-
-	result := tx.Where("id = ?", id).
+	result := db.Where("id = ?", id).
 		// 按照木落的原版代码，应该是这么个逻辑：查不到的时候能正确执行，查到了就不执行了，所以用Attrs而不是Assign
 		Attrs(map[string]any{
 			"id": id,
@@ -233,30 +225,21 @@ func AttrsBindCharacter(db *gorm.DB, charId string, id string) error {
 			"created_at":       now,
 			"updated_at":       now,
 		}).
-		// 按照原版代码，无论是不是能插入成功，都要更新这个值，所以这么写就是等价的了
 		Assign(map[string]any{
 			"binding_sheet_id": charId,
 		}).
 		FirstOrCreate(&AttributesItemModel{})
 	if result.Error != nil {
-		tx.Rollback() // 返回错误时回滚
 		return result.Error
 	}
-	// 四种情况：没有数据->初始化成功->返回1条
-	// 没有数据->更新失败->返回0条
-	// 有数据->更新成功->返回1条
-	// 有数据->更新失败->返回0条，但理论上所有返回0条的情况应该都会被丢出去
-	// 对于FirstOrCreate来说应该不会遇到下面的情况，但是保底一下
 	if result.RowsAffected == 0 {
-		tx.Rollback()
 		return errors.New("群信息不存在或发生更新异常: " + id)
 	}
-
-	// 提交事务
-	return tx.Commit().Error
+	return nil
 }
 
-func AttrsGetCharacterListByUserId(db *gorm.DB, userId string) ([]*AttributesItemModel, error) {
+func AttrsGetCharacterListByUserId(operator DatabaseOperator, userId string) ([]*AttributesItemModel, error) {
+	db := operator.GetDataDB(READ)
 	// Pinenutn: 在Gorm中，如果gorm:"-"，优先级似乎很高，经过我自己测试：
 	// 结构体内若使用gorm="-" ，Scan将无法映射到结果中（GPT胡说八道说可以映射上，我试了半天，被骗。）
 	// 如果不带任何标签: GORM对结构体名称进行转换，如BindingGroupNum对应映射:binding_group_num，结果里有binding_group_num自动映射
