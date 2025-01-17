@@ -47,7 +47,6 @@ func helpDocReload(c echo.Context) error {
 		dm.Help.Close()
 
 		dm.InitHelp()
-		dm.AddHelpWithDice(dm.Dice[0])
 		return Success(&c, Response{})
 	}
 	return Error(&c, "帮助文档正在重新装载", Response{})
