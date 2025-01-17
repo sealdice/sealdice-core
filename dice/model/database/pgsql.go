@@ -20,8 +20,8 @@ func PostgresDBInit(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// GetBuntCacheDB 逻辑保持不变
-	cacheDB, err := cache.GetBuntCacheDB(db)
+	// GetOtterCacheDB 逻辑保持不变
+	cacheDB, err := cache.GetOtterCacheDB(db)
 	if err != nil {
 		return nil, err
 	}
