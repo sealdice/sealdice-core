@@ -19,7 +19,7 @@ import (
 
 func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	// 使用即时事务
-	path = fmt.Sprintf("%v?_txlock=immediate&_busy_timeout=15000", path)
+	path = fmt.Sprintf("file:%v?_txlock=immediate&_busy_timeout=15000", path)
 	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
 		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
 		Logger: logger.Default.LogMode(logger.Info),
@@ -43,7 +43,7 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 
 func createReadDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
 	// _txlock=immediate 解决BEGIN IMMEDIATELY
-	path = fmt.Sprintf("%v?_txlock=immediate", path)
+	path = fmt.Sprintf("file:%v?_txlock=immediate", path)
 	// ---- 创建读连接 -----
 	readDB, err := gorm.Open(sqlite.Open(path), gormConf)
 	if err != nil {
@@ -63,6 +63,7 @@ func createReadDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
 
 func createWriteDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
 	// ---- 创建写连接 -----
+	path = fmt.Sprintf("file:%v?_txlock=immediate", path)
 	writeDB, err := gorm.Open(sqlite.Open(path), gormConf)
 	if err != nil {
 		return nil, err

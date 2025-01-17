@@ -22,8 +22,6 @@ require (
 	github.com/fy0/systray v1.2.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/gen2brain/beeep v0.0.0-20230907135156-1a38885a97fc
-	github.com/glebarez/go-sqlite v1.22.0
-	github.com/glebarez/sqlite v1.11.0
 	github.com/go-creed/sat v1.0.3
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-module/carbon v1.7.3
@@ -67,9 +65,9 @@ require (
 	github.com/yuin/goldmark v1.7.4
 	go.etcd.io/bbolt v1.3.11
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.29.0
+	golang.org/x/crypto v0.32.0
 	golang.org/x/exp v0.0.0-20240604190554-fc45aab8b7f8
-	golang.org/x/sys v0.27.0
+	golang.org/x/sys v0.29.0
 	golang.org/x/text v0.21.0
 	golang.org/x/time v0.5.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
@@ -81,11 +79,11 @@ require (
 
 require (
 	github.com/blevesearch/bleve_index_api v1.1.13
+	github.com/glebarez/sqlite v1.11.0
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/gofrs/flock v0.12.1
-	github.com/gonutz/w32/v2 v2.11.1
 	github.com/joho/godotenv v1.5.1
-	github.com/spaolacci/murmur3 v1.1.0
+	github.com/maypok86/otter v1.2.4
 	github.com/tidwall/gjson v1.17.0
 	github.com/tidwall/sjson v1.2.5
 	gorm.io/driver/mysql v1.5.7
@@ -128,6 +126,7 @@ require (
 	github.com/getlantern/hex v0.0.0-20190417191902-c6586a6fe0b7 // indirect
 	github.com/getlantern/hidden v0.0.0-20190325191715-f02dbb02be55 // indirect
 	github.com/getlantern/ops v0.0.0-20190325191751-d70cb0d6f85f // indirect
+	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-resty/resty/v2 v2.11.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
@@ -157,12 +156,14 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/maypok86/otter v1.2.4 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
+	github.com/ncruces/go-sqlite3 v0.22.0 // indirect
+	github.com/ncruces/go-sqlite3/gormlite v0.22.0 // indirect
+	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pdfcpu/pdfcpu v0.8.1 // indirect
@@ -177,6 +178,7 @@ require (
 	github.com/sunshineplan/tiff v0.0.0-20220128141034-29b9d69bd906 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.7.15 // indirect
+	github.com/tetratelabs/wazero v1.8.2 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
@@ -192,17 +194,16 @@ require (
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.31.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/term v0.26.0 // indirect
+	golang.org/x/term v0.28.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gorm.io/plugin/dbresolver v1.5.3 // indirect
-	modernc.org/libc v1.37.6 // indirect
-	modernc.org/mathutil v1.6.0 // indirect
-	modernc.org/memory v1.7.2 // indirect
-	modernc.org/sqlite v1.28.0 // indirect
+	modernc.org/libc v1.22.5 // indirect
+	modernc.org/mathutil v1.5.0 // indirect
+	modernc.org/memory v1.5.0 // indirect
+	modernc.org/sqlite v1.23.1 // indirect
 )
 
 replace (
