@@ -18,7 +18,7 @@ func MySQLDBInit(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 	// 存疑，MYSQL是否需要使用缓存
-	cacheDB, err := cache.GetBuntCacheDB(db)
+	cacheDB, err := cache.GetOtterCacheDB(db)
 	if err != nil {
 		return nil, err
 	}
