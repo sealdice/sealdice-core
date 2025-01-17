@@ -1,6 +1,8 @@
 package model
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,11 +11,13 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/dice/model/database"
+	"sealdice-core/dice/model/database/cache"
 	log "sealdice-core/utils/kratos"
 )
 
 type SQLiteEngine struct {
 	DataDir string
+	ctx     context.Context
 }
 
 const defaultDataDir = "./data/default"
@@ -33,7 +37,11 @@ CREATE TABLE attrs__temp (
 );
 `
 
-func (s *SQLiteEngine) Init() error {
+func (s *SQLiteEngine) Init(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("ctx is missing")
+	}
+	s.ctx = ctx
 	s.DataDir = os.Getenv("DATADIR")
 	if s.DataDir == "" {
 		log.Debug("未能发现SQLITE定义位置，使用默认data地址")
@@ -122,6 +130,9 @@ func (s *SQLiteEngine) DataDBInit() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 添加并设置context
+	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
+	dataDB = dataDB.WithContext(dataContext)
 	// 特殊情况建表语句处置
 	tx := dataDB.Begin()
 	// 检查是否有这个影响的注释
@@ -180,6 +191,9 @@ func (s *SQLiteEngine) LogDBInit() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 添加并设置context
+	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
+	logsDB = logsDB.WithContext(logsContext)
 	// logs建表
 	if err = logsDB.AutoMigrate(&LogInfo{}); err != nil {
 		return nil, err
@@ -203,11 +217,7 @@ func (s *SQLiteEngine) LogDBInit() (*gorm.DB, error) {
 }
 
 func (s *SQLiteEngine) CensorDBInit() (*gorm.DB, error) {
-	dataDir := os.Getenv("DATA_DIR")
-	if dataDir == "" {
-		dataDir = defaultDataDir
-	}
-	path, err := filepath.Abs(filepath.Join(dataDir, "data-censor.db"))
+	path, err := filepath.Abs(filepath.Join(s.DataDir, "data-censor.db"))
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +225,9 @@ func (s *SQLiteEngine) CensorDBInit() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 添加并设置context
+	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
+	censorDB = censorDB.WithContext(censorContext)
 	// 创建基本的表结构，并通过标签定义索引
 	if err = censorDB.AutoMigrate(&CensorLog{}); err != nil {
 		return nil, err
