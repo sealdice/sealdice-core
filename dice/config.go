@@ -2549,7 +2549,10 @@ func (d *Dice) Save(isAuto bool) {
 	})
 
 	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
-	d.AttrsManager.CheckForSave()
+	err := d.AttrsManager.CheckForSave()
+	if err != nil {
+		log.Errorf("保存属性数据失败 %v", err)
+	}
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
