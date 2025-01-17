@@ -171,6 +171,7 @@ func AttrsPutsByIDBatch(operator DatabaseOperator, saveList []*AttributesBatchUp
 	}
 	// 保守的调整一次插入1K条，这应该足够应对大部分场景，这种情况下，相当于有1K个人在60s内绑定了角色卡？
 	batchSize := 1000
+	tableName := (&AttributesItemModel{}).TableName()
 	// TODO: 只能手动分批次插入，原因看下面
 	// 由于传入的就是tx，所以这里如果插入失败，会自动回滚
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -186,10 +187,10 @@ func AttrsPutsByIDBatch(operator DatabaseOperator, saveList []*AttributesBatchUp
 					{Name: "id"},
 				},
 				DoUpdates: clause.Assignments(map[string]interface{}{
-					"data":       clause.Column{Name: "data"},       // 更新 data 字段
-					"updated_at": now,                               // 更新时设置 updated_at
-					"name":       clause.Column{Name: "name"},       // 更新 name 字段
-					"sheet_type": clause.Column{Name: "sheet_type"}, // 更新 sheet_type 字段
+					"data":       clause.Column{Name: "data", Table: tableName},       // 更新 data 字段
+					"updated_at": now,                                                 // 更新时设置 updated_at
+					"name":       clause.Column{Name: "name", Table: tableName},       // 更新 name 字段
+					"sheet_type": clause.Column{Name: "sheet_type", Table: tableName}, // 更新 sheet_type 字段
 				}),
 			}).
 				Model(&AttributesItemModel{}).
