@@ -11,6 +11,8 @@ import (
 
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
+
+	log "sealdice-core/utils/kratos"
 )
 
 // 如果参数中存在指定的属性，将其选出作为展示项
@@ -403,7 +405,11 @@ func cmdStCharFormat(mctx *MsgContext, tmpl *GameSystemTemplate) {
 
 	if tmpl != nil {
 		cmdStCharFormat1(mctx, tmpl, attrs.valueMap) // 这里不标记值改动，因为SetSheetType会做
-		mctx.Dice.AttrsManager.CheckAndFreeUnused()
+		err := mctx.Dice.AttrsManager.CheckAndFreeUnused()
+		if err != nil {
+			log.Errorf("check and free unused attrs error: %v", err)
+			return
+		}
 	}
 
 	attrs.SetSheetType(mctx.Group.System)

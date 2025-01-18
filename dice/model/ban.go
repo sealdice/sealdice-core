@@ -1,9 +1,5 @@
 package model
 
-import (
-	"gorm.io/gorm"
-)
-
 // BanInfo 模型
 // GORM STRUCT
 type BanInfo struct {
@@ -18,14 +14,16 @@ func (*BanInfo) TableName() string {
 }
 
 // BanItemDel 删除指定 ID 的禁用项
-func BanItemDel(db *gorm.DB, id string) error {
+func BanItemDel(operator DatabaseOperator, id string) error {
+	db := operator.GetDataDB(WRITE)
 	// 使用 GORM 的 Delete 方法删除指定 ID 的记录
 	result := db.Where("id = ?", id).Delete(&BanInfo{})
 	return result.Error // 返回错误
 }
 
 // BanItemSave 保存或替换禁用项 这里的[]byte也是json反序列化产物
-func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
+func BanItemSave(operator DatabaseOperator, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
+	db := operator.GetDataDB(WRITE)
 	// 使用 FirstOrCreate ，这里显然，第一次初始化的时候替换ID，而剩余的时候只换ID以外的数据
 	if err := db.Where("id = ?", id).Attrs(map[string]any{
 		"id":             id,
@@ -44,9 +42,9 @@ func BanItemSave(db *gorm.DB, id string, updatedAt int64, banUpdatedAt int64, da
 }
 
 // BanItemList 列出所有禁用项并调用回调函数处理
-func BanItemList(db *gorm.DB, callback func(id string, banUpdatedAt int64, data []byte)) error {
+func BanItemList(operator DatabaseOperator, callback func(id string, banUpdatedAt int64, data []byte)) error {
 	var items []BanInfo
-
+	db := operator.GetDataDB(READ)
 	// 使用 GORM 查询所有禁用项
 	if err := db.Order("ban_updated_at DESC").Find(&items).Error; err != nil {
 		return err // 返回错误

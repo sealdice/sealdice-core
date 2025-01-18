@@ -64,11 +64,12 @@ func censorStop(c echo.Context) error {
 
 	(&myDice.Config).EnableCensor = false
 	myDice.MarkModified()
-	db, err2 := myDice.CensorManager.DB.DB()
-	if err2 != nil {
-		return Error(&c, "关闭拦截引擎失败", Response{})
-	}
-	err = db.Close()
+	// 数据库统一管理，不再单独管理
+	// db, err2 := myDice.CensorManager.DB.DB()
+	// if err2 != nil {
+	//	return Error(&c, "关闭拦截引擎失败", Response{})
+	// }
+	// err = db.Close()
 	if err != nil {
 		return err
 	}
@@ -530,7 +531,7 @@ func censorGetLogPage(c echo.Context) error {
 		v.PageSize = 20
 	}
 
-	total, page, err := model.CensorGetLogPage(myDice.CensorManager.DB, v)
+	total, page, err := model.CensorGetLogPage(myDice.DBOperator, v)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}

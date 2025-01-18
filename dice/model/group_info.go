@@ -2,7 +2,6 @@ package model
 
 import (
 	"golang.org/x/time/rate"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	ds "github.com/sealdice/dicescript"
@@ -23,7 +22,8 @@ func (*GroupInfo) TableName() string {
 }
 
 // GroupInfoListGet 使用 GORM 实现，遍历 group_info 表中的数据并调用回调函数
-func GroupInfoListGet(db *gorm.DB, callback func(id string, updatedAt int64, data []byte)) error {
+func GroupInfoListGet(operator DatabaseOperator, callback func(id string, updatedAt int64, data []byte)) error {
+	db := operator.GetDataDB(READ)
 	// 创建一个保存查询结果的结构体
 	var results []struct {
 		ID        string `gorm:"column:id"`         // 字段 id
@@ -56,7 +56,9 @@ func GroupInfoListGet(db *gorm.DB, callback func(id string, updatedAt int64, dat
 }
 
 // GroupInfoSave 保存群组信息
-func GroupInfoSave(db *gorm.DB, groupID string, updatedAt int64, data []byte) error {
+func GroupInfoSave(operator DatabaseOperator, groupID string, updatedAt int64, data []byte) error {
+	// 使用写数据库
+	db := operator.GetDataDB(WRITE)
 	// 使用 gorm 的 Upsert 功能实现插入或更新
 	groupInfo := GroupInfo{
 		ID:        groupID,
@@ -110,7 +112,9 @@ func (GroupPlayerInfoBase) TableName() string {
 }
 
 // GroupPlayerNumGet 获取指定群组的玩家数量
-func GroupPlayerNumGet(db *gorm.DB, groupID string) (int64, error) {
+func GroupPlayerNumGet(operator DatabaseOperator, groupID string) (int64, error) {
+	// 使用读数据库
+	db := operator.GetDataDB(READ)
 	var count int64
 
 	// 使用 GORM 的 Table 方法指定表名进行查询
@@ -127,7 +131,9 @@ func GroupPlayerNumGet(db *gorm.DB, groupID string) (int64, error) {
 }
 
 // GroupPlayerInfoGet 获取指定群组中的玩家信息
-func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlayerInfoBase {
+func GroupPlayerInfoGet(operator DatabaseOperator, groupID string, playerID string) *GroupPlayerInfoBase {
+	// 使用读数据库
+	db := operator.GetDataDB(READ)
 	var ret GroupPlayerInfoBase
 
 	// 使用 GORM 查询数据并绑定到结构体中
@@ -156,7 +162,9 @@ func GroupPlayerInfoGet(db *gorm.DB, groupID string, playerID string) *GroupPlay
 }
 
 // GroupPlayerInfoSave 保存玩家信息，不再使用 REPLACE INTO 语句
-func GroupPlayerInfoSave(db *gorm.DB, info *GroupPlayerInfoBase) error {
+func GroupPlayerInfoSave(operator DatabaseOperator, info *GroupPlayerInfoBase) error {
+	// 使用读数据库
+	db := operator.GetDataDB(WRITE)
 	// 考虑到info是指针，为了防止可能info还会被用到其他地方，这里的给info指针赋值也是有意义的
 	// 但强烈建议将这段去除掉，数据库层面理论上不应该混杂业务层逻辑？
 	// 判断条件：联合主键相同

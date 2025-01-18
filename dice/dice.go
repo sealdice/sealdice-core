@@ -20,7 +20,6 @@ import (
 	"github.com/tidwall/buntdb"
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
-	"gorm.io/gorm"
 
 	"sealdice-core/dice/logger"
 	"sealdice-core/dice/model"
@@ -134,11 +133,12 @@ type Dice struct {
 	LastUpdatedTime int64                  `yaml:"-"`
 	TextMap         map[string]*wr.Chooser `yaml:"-"`
 	BaseConfig      BaseConfig             `yaml:"-"`
-	DBData          *gorm.DB               `yaml:"-"` // 数据库对象
-	DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
-	Logger          *log.Helper            `yaml:"-"` // 日志
-	LogWriter       *log.WriterX           `yaml:"-"` // 用于api的log对象
-	IsDeckLoading   bool                   `yaml:"-"` // 正在加载中
+	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
+	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
+	DBOperator    model.DatabaseOperator
+	Logger        *log.Helper  `yaml:"-"` // 日志
+	LogWriter     *log.WriterX `yaml:"-"` // 用于api的log对象
+	IsDeckLoading bool         `yaml:"-"` // 正在加载中
 
 	// 由于被导出的原因，暂时不迁移至 config
 	DeckList      []*DeckInfo `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
@@ -229,11 +229,11 @@ func (d *Dice) Init() {
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 
 	var err error
-	d.DBData, d.DBLogs, err = model.DatabaseInit()
+	operator, err := model.GetDatabaseOperator()
 	if err != nil {
 		d.Logger.Errorf("Failed to init database: %v", err)
 	}
-
+	d.DBOperator = operator
 	d.AttrsManager = &AttrsManager{}
 	d.AttrsManager.Init(d)
 
@@ -304,19 +304,19 @@ func (d *Dice) Init() {
 			if d.IsAlreadyLoadConfig {
 				count++
 				d.Save(true)
-				if count%2 == 0 {
-					if err := model.FlushWAL(d.DBData); err != nil {
-						d.Logger.Error("Failed to flush WAL: ", err)
-					}
-					if err := model.FlushWAL(d.DBLogs); err != nil {
-						d.Logger.Error("Failed to flush WAL: ", err)
-					}
-					if d.CensorManager != nil && d.CensorManager.DB != nil {
-						if err := model.FlushWAL(d.CensorManager.DB); err != nil {
-							d.Logger.Error("Failed to flush WAL: ", err)
-						}
-					}
-				}
+				// if count%2 == 0 {
+				//	if err := model.FlushWAL(d.DBData); err != nil {
+				//		d.Logger.Error("Failed to flush WAL: ", err)
+				//	}
+				//	if err := model.FlushWAL(d.DBLogs); err != nil {
+				//		d.Logger.Error("Failed to flush WAL: ", err)
+				//	}
+				//	if d.CensorManager != nil && d.CensorManager.DB != nil {
+				//		if err := model.FlushWAL(d.CensorManager.DB); err != nil {
+				//			d.Logger.Error("Failed to flush WAL: ", err)
+				//		}
+				//	}
+				// }
 			}
 		}
 	}

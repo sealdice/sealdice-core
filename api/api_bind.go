@@ -18,6 +18,7 @@ import (
 	"github.com/samber/lo"
 
 	"sealdice-core/dice"
+	log "sealdice-core/utils/kratos"
 )
 
 const CodeAlreadyExists = 602
@@ -167,7 +168,10 @@ func forceStop(c echo.Context) error {
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
-				i.AttrsManager.CheckForSave()
+				err = i.AttrsManager.CheckForSave()
+				if err != nil {
+					log.Errorf("异常: %v", err)
+				}
 				i.Save(true)
 				for _, j := range i.ExtList {
 					if j.Storage != nil {
@@ -183,51 +187,7 @@ func forceStop(c echo.Context) error {
 
 		for _, i := range diceManager.Dice {
 			d := i
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				dbData := d.DBData
-				if dbData != nil {
-					d.DBData = nil
-					db, err := dbData.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
-
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				dbLogs := d.DBLogs
-				if dbLogs != nil {
-					d.DBLogs = nil
-					db, err := dbLogs.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
-
-			(func() {
-				defer func() {
-					_ = recover()
-				}()
-				cm := d.CensorManager
-				if cm != nil && cm.DB != nil {
-					dbCensor := cm.DB
-					cm.DB = nil
-					db, err := dbCensor.DB()
-					if err != nil {
-						return
-					}
-					_ = db.Close()
-				}
-			})()
+			d.DBOperator.Close()
 		}
 
 		// 清理gocqhttp

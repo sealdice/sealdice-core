@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"gorm.io/gorm"
-
 	"sealdice-core/dice/censor"
 	log "sealdice-core/utils/kratos"
 )
@@ -28,7 +26,8 @@ func (CensorLog) TableName() string {
 }
 
 // 添加一个敏感词记录
-func CensorAppend(db *gorm.DB, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
+func CensorAppend(operator DatabaseOperator, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
+	db := operator.GetCensorDB(WRITE)
 	// 获取当前时间的 Unix 时间戳
 	nowTimestamp := time.Now().Unix()
 
@@ -56,7 +55,8 @@ func CensorAppend(db *gorm.DB, msgType string, userID string, groupID string, co
 	return true
 }
 
-func CensorCount(db *gorm.DB, userID string) map[censor.Level]int {
+func CensorCount(operator DatabaseOperator, userID string) map[censor.Level]int {
+	db := operator.GetCensorDB(READ)
 	// 定义要查询的不同敏感级别
 	levels := [5]censor.Level{censor.Ignore, censor.Notice, censor.Caution, censor.Warning, censor.Danger}
 	var temp int64
@@ -79,7 +79,8 @@ func CensorCount(db *gorm.DB, userID string) map[censor.Level]int {
 	return res
 }
 
-func CensorClearLevelCount(db *gorm.DB, userID string, level censor.Level) {
+func CensorClearLevelCount(operator DatabaseOperator, userID string, level censor.Level) {
+	db := operator.GetCensorDB(WRITE)
 	// 使用 GORM 的链式查询执行批量更新
 	err := db.Model(&CensorLog{}).
 		Where("user_id = ? AND highest_level = ?", userID, level).
@@ -98,7 +99,8 @@ type QueryCensorLog struct {
 }
 
 // CensorGetLogPage 使用 GORM 进行分页查询
-func CensorGetLogPage(db *gorm.DB, params QueryCensorLog) (int64, []CensorLog, error) {
+func CensorGetLogPage(operator DatabaseOperator, params QueryCensorLog) (int64, []CensorLog, error) {
+	db := operator.GetCensorDB(READ)
 	var total int64
 	var logs []CensorLog
 

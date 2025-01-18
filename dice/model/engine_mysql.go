@@ -14,9 +14,37 @@ import (
 )
 
 type MYSQLEngine struct {
-	DSN string
-	DB  *gorm.DB
-	ctx context.Context
+	DSN      string
+	DB       *gorm.DB
+	dataDB   *gorm.DB
+	logsDB   *gorm.DB
+	censorDB *gorm.DB
+	ctx      context.Context
+}
+
+func (s *MYSQLEngine) Close() {
+	db, err := s.DB.DB()
+	if err != nil {
+		log.Errorf("failed to close db: %v", err)
+		return
+	}
+	err = db.Close()
+	if err != nil {
+		log.Errorf("failed to close db: %v", err)
+		return
+	}
+}
+
+func (s *MYSQLEngine) GetDataDB(_ DBMode) *gorm.DB {
+	return s.dataDB
+}
+
+func (s *MYSQLEngine) GetLogDB(_ DBMode) *gorm.DB {
+	return s.logsDB
+}
+
+func (s *MYSQLEngine) GetCensorDB(_ DBMode) *gorm.DB {
+	return s.censorDB
 }
 
 type LogInfoHookMySQL struct {
@@ -120,6 +148,18 @@ func (s *MYSQLEngine) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.dataDB, err = s.dataDBInit()
+	if err != nil {
+		return err
+	}
+	s.logsDB, err = s.logDBInit()
+	if err != nil {
+		return err
+	}
+	s.censorDB, err = s.censorDBInit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -129,7 +169,7 @@ func (s *MYSQLEngine) DBCheck() {
 }
 
 // DataDBInit 初始化
-func (s *MYSQLEngine) DataDBInit() (*gorm.DB, error) {
+func (s *MYSQLEngine) dataDBInit() (*gorm.DB, error) {
 	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
 	dataDB := s.DB.WithContext(dataContext)
 	err := dataDB.AutoMigrate(
@@ -146,7 +186,7 @@ func (s *MYSQLEngine) DataDBInit() (*gorm.DB, error) {
 	return dataDB, nil
 }
 
-func (s *MYSQLEngine) LogDBInit() (*gorm.DB, error) {
+func (s *MYSQLEngine) logDBInit() (*gorm.DB, error) {
 	// logs特殊建表
 	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
 	logDB := s.DB.WithContext(logsContext)
@@ -165,7 +205,7 @@ func (s *MYSQLEngine) LogDBInit() (*gorm.DB, error) {
 	return logDB, nil
 }
 
-func (s *MYSQLEngine) CensorDBInit() (*gorm.DB, error) {
+func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
 	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	censorDB := s.DB.WithContext(censorContext)
 	if err := censorDB.AutoMigrate(&CensorLog{}); err != nil {

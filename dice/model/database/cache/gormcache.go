@@ -103,6 +103,18 @@ func (c *OtterDBCacher) Invalidate(ctx context.Context) error {
 // 提供一个查询函数打印日志，该函数可以查询缓存的状态（缓存库提供了）
 // 这样的话就需要稍微改动一下
 func GetOtterCacheDB(db *gorm.DB) (*gorm.DB, error) {
+	plugin, err := GetOtterCacheDBPluginInstance()
+	if err != nil {
+		return nil, err
+	}
+	err = db.Use(plugin)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func GetOtterCacheDBPluginInstance() (*caches.Caches, error) {
 	cacheInstance, err := otter.MustBuilder[string, []byte](10_000).
 		CollectStats().
 		WithTTL(time.Hour).
@@ -110,15 +122,10 @@ func GetOtterCacheDB(db *gorm.DB) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	cachesPlugin := &caches.Caches{Conf: &caches.Config{
+	return &caches.Caches{Conf: &caches.Config{
 		Easer: true,
 		Cacher: &OtterDBCacher{
 			otter: &cacheInstance,
 		},
-	}}
-	err = db.Use(cachesPlugin)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
+	}}, nil
 }

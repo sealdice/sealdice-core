@@ -6,14 +6,22 @@ import (
 	"gorm.io/gorm"
 )
 
+type DBMode string
+
+const (
+	READ  DBMode = "read"
+	WRITE DBMode = "write"
+)
+
 // DatabaseOperator 本来是单独放了个文件夹的，但是由于现在所有的model都和处理逻辑在一起，如果放在单独文件夹必然会循环依赖
-// 只能放在外面，或许我们
+// 为了完善逻辑，去除Init，改为Init后，使用函数获取readDB和WriteDB
 type DatabaseOperator interface {
 	Init(ctx context.Context) error
 	DBCheck()
-	DataDBInit() (*gorm.DB, error)
-	LogDBInit() (*gorm.DB, error)
-	CensorDBInit() (*gorm.DB, error)
+	GetDataDB(mode DBMode) *gorm.DB
+	GetLogDB(mode DBMode) *gorm.DB
+	GetCensorDB(mode DBMode) *gorm.DB
+	Close()
 }
 
 // 实现检查 copied from platform

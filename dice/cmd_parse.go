@@ -39,7 +39,7 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 	mctx := &c1 // 复制一个ctx，用于其他用途
 	mctx.vm = nil
 	if ctx.Group != nil {
-		p := ctx.Group.PlayerGet(ctx.Dice.DBData, i.UserID)
+		p := ctx.Group.PlayerGet(ctx.Dice.DBOperator, i.UserID)
 		if p != nil {
 			mctx.Player = p
 		} else {

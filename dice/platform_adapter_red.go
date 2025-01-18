@@ -687,7 +687,7 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 			userID := formatDiceIDRed(member.Uin)
 			groupMemberMap.Store(userID, member)
 			if ok {
-				p := groupInfo.PlayerGet(d.DBData, userID)
+				p := groupInfo.PlayerGet(d.DBOperator, userID)
 				if p == nil {
 					name := member.CardName
 					if name == "" {
