@@ -9,8 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"gorm.io/gorm"
-
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/model"
 	log "sealdice-core/utils/kratos"
@@ -54,22 +52,18 @@ type CensorManager struct {
 	IsLoading           bool
 	Parent              *Dice
 	Censor              *censor.Censor
-	DB                  *gorm.DB
+	DB                  model.DatabaseOperator
 	SensitiveWordsFiles map[string]*censor.WordFile
 }
 
 func (d *Dice) NewCensorManager() {
-	db, err := model.CensorDBInit()
-	if err != nil {
-		panic(err)
-	}
 	cm := CensorManager{
 		Censor: &censor.Censor{
 			CaseSensitive:  d.Config.CensorCaseSensitive,
 			MatchPinyin:    d.Config.CensorMatchPinyin,
 			FilterRegexStr: d.Config.CensorFilterRegexStr,
 		},
-		DB: db,
+		DB: d.DBOperator,
 	}
 	cm.Parent = d
 	d.CensorManager = &cm

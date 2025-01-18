@@ -7,14 +7,13 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
-	"gorm.io/gorm"
 
 	"sealdice-core/dice/model"
 	log "sealdice-core/utils/kratos"
 )
 
 type AttrsManager struct {
-	db     *gorm.DB
+	db     model.DatabaseOperator
 	logger *log.Helper
 	cancel context.CancelFunc
 	m      SyncMap[string, *AttributesItem]
@@ -153,7 +152,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 }
 
 func (am *AttrsManager) Init(d *Dice) {
-	am.db = d.DBData
+	am.db = d.DBOperator
 	am.logger = d.Logger
 	// 创建一个 context 用于取消 goroutine
 	ctx, cancel := context.WithCancel(context.Background())
@@ -167,76 +166,102 @@ func (am *AttrsManager) Init(d *Dice) {
 				return
 			default:
 				// 正常工作
-				am.CheckForSave()
-				am.CheckAndFreeUnused()
-				time.Sleep(15 * time.Second)
+				err := am.CheckForSave()
+				if err != nil {
+					log.Errorf("数据库保存程序出错: %v", err)
+				}
+				err = am.CheckAndFreeUnused()
+				if err != nil {
+					log.Errorf("数据库保存-清理程序出错: %v", err)
+				}
+				time.Sleep(60 * time.Second)
 			}
 		}
 	}()
 	am.cancel = cancel
 }
 
-func (am *AttrsManager) CheckForSave() (int, int) {
-	times := 0
-	saved := 0
-
-	db := am.db
-	if db == nil {
+func (am *AttrsManager) CheckForSave() error {
+	if am.db == nil {
 		// 尚未初始化
-		return 0, 0
+		return errors.New("数据库尚未初始化")
 	}
-
-	tx := db.Begin()
-
+	var resultList []*model.AttributesBatchUpsertModel
+	prepareToSave := map[string]int{}
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
-			saved += 1
-			value.SaveToDB(tx)
+			saveModel, err := value.GetBatchSaveModel()
+			if err != nil {
+				// 打印日志
+				log.Errorf("定期写入用户数据出错(获取批量保存模型): %v", err)
+				return true
+			}
+			prepareToSave[key] = 1
+			resultList = append(resultList, saveModel)
 		}
-		times += 1
 		return true
 	})
-
-	err := tx.Commit().Error
-	if err != nil {
-		if am.logger != nil {
-			am.logger.Errorf("定期写入用户数据出错(提交事务): %v", err)
-		}
-		_ = tx.Rollback()
-		return times, 0
+	// 整体落盘
+	if len(resultList) == 0 {
+		return nil
 	}
-	return times, saved
+
+	if err := model.AttrsPutsByIDBatch(am.db, resultList); err != nil {
+		log.Errorf("定期写入用户数据出错(批量保存): %v", err)
+		return err
+	}
+	for key := range prepareToSave {
+		// 理应不存在这个数据没有的情况
+		v, _ := am.m.Load(key)
+		v.IsSaved = true
+	}
+	// 输出日志本次落盘了几个数据
+
+	return nil
 }
 
 // CheckAndFreeUnused 此函数会被定期调用，释放最近不用的对象
-func (am *AttrsManager) CheckAndFreeUnused() {
-	db := am.db
+func (am *AttrsManager) CheckAndFreeUnused() error {
+	db := am.db.GetDataDB(model.WRITE)
 	if db == nil {
 		// 尚未初始化
-		return
+		return errors.New("数据库尚未初始化")
 	}
 
 	prepareToFree := map[string]int{}
-	currentTime := time.Now().Unix()
-	tx := db.Begin()
+	currentTime := time.Now()
+	var resultList []*model.AttributesBatchUpsertModel
 	am.m.Range(func(key string, value *AttributesItem) bool {
-		if value.LastUsedTime-currentTime > 60*10 {
+		lastUsedTime := time.Unix(value.LastUsedTime, 0)
+		if lastUsedTime.Sub(currentTime) > 10*time.Minute {
+			saveModel, err := value.GetBatchSaveModel()
+			if err != nil {
+				// 打印日志
+				log.Errorf("定期清理用户数据出错(获取批量保存模型): %v", err)
+				return true
+			}
 			prepareToFree[key] = 1
-			// 直接保存
-			value.SaveToDB(tx)
+			resultList = append(resultList, saveModel)
 		}
 		return true
 	})
-	err := tx.Commit().Error
-	if err != nil {
-		if am.logger != nil {
-			am.logger.Errorf("定期清理无用用户数据出错(提交事务): %v", err)
-		}
-		_ = tx.Rollback()
+
+	// 整体落盘
+	if len(resultList) == 0 {
+		return nil
 	}
+
+	if err := model.AttrsPutsByIDBatch(am.db, resultList); err != nil {
+		log.Errorf("定期清理写入用户数据出错(批量保存): %v", err)
+		return err
+	}
+
 	for key := range prepareToFree {
-		am.m.Delete(key)
+		// 理应不存在这个数据没有的情况
+		v, _ := am.m.LoadAndDelete(key)
+		v.IsSaved = true
 	}
+	return nil
 }
 
 func (am *AttrsManager) CharBind(charId string, groupId string, userId string) error {
@@ -298,7 +323,7 @@ type AttributesItem struct {
 	SheetType        string
 }
 
-func (i *AttributesItem) SaveToDB(db *gorm.DB) {
+func (i *AttributesItem) SaveToDB(db model.DatabaseOperator) {
 	// 使用事务写入
 	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
 	if err != nil {
@@ -310,6 +335,19 @@ func (i *AttributesItem) SaveToDB(db *gorm.DB) {
 		return
 	}
 	i.IsSaved = true
+}
+
+func (i *AttributesItem) GetBatchSaveModel() (*model.AttributesBatchUpsertModel, error) {
+	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
+	if err != nil {
+		return nil, err
+	}
+	return &model.AttributesBatchUpsertModel{
+		Id:        i.ID,
+		Data:      rawData,
+		Name:      i.Name,
+		SheetType: i.SheetType,
+	}, nil
 }
 
 func (i *AttributesItem) Load(name string) *ds.VMValue {

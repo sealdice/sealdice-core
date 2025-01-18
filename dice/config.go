@@ -2138,9 +2138,9 @@ func (d *Dice) loads() {
 		// 装载ServiceAtNew
 		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
 		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
-		_ = model.GroupInfoListGet(d.DBData, func(id string, updatedAt int64, data []byte) {
+		err = model.GroupInfoListGet(d.DBOperator, func(id string, updatedAt int64, data []byte) {
 			var groupInfo GroupInfo
-			err := json.Unmarshal(data, &groupInfo)
+			err = json.Unmarshal(data, &groupInfo)
 			if err == nil {
 				groupInfo.GroupID = id
 				groupInfo.UpdatedAtTime = 0
@@ -2163,7 +2163,9 @@ func (d *Dice) loads() {
 				d.Logger.Errorf("加载群信息失败: %s", id)
 			}
 		})
-
+		if err != nil {
+			d.Logger.Errorf("加载群信息失败 %s", err)
+		}
 		m := map[string]*ExtInfo{}
 		for _, i := range d.ExtList {
 			m[i.Name] = i
@@ -2341,7 +2343,7 @@ func (d *Dice) loads() {
 		d.Config = config
 	}
 
-	_ = model.BanItemList(d.DBData, func(id string, banUpdatedAt int64, data []byte) {
+	_ = model.BanItemList(d.DBOperator, func(id string, banUpdatedAt int64, data []byte) {
 		var v BanListInfoItem
 		err := json.Unmarshal(data, &v)
 		if err == nil {
@@ -2526,7 +2528,7 @@ func (d *Dice) Save(isAuto bool) {
 					value.UserID = key
 					value.GroupID = groupInfo.GroupID
 					value.UpdatedAt = now // 更新当前时间为 UpdatedAt
-					_ = model.GroupPlayerInfoSave(d.DBData, (*model.GroupPlayerInfoBase)(value))
+					_ = model.GroupPlayerInfoSave(d.DBOperator, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 				return true
@@ -2536,7 +2538,7 @@ func (d *Dice) Save(isAuto bool) {
 		if groupInfo.UpdatedAtTime != 0 {
 			data, err := json.Marshal(groupInfo)
 			if err == nil {
-				err := model.GroupInfoSave(d.DBData, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
+				err := model.GroupInfoSave(d.DBOperator, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
 				if err != nil {
 					d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
 				}
@@ -2547,7 +2549,10 @@ func (d *Dice) Save(isAuto bool) {
 	})
 
 	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
-	d.AttrsManager.CheckForSave()
+	err := d.AttrsManager.CheckForSave()
+	if err != nil {
+		log.Errorf("保存属性数据失败 %v", err)
+	}
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
@@ -2563,4 +2568,5 @@ func (d *Dice) Save(isAuto bool) {
 			ep.StatsDump(d)
 		}
 	}
+	log.Info("自动保存完毕")
 }

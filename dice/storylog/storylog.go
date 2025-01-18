@@ -9,15 +9,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"gorm.io/gorm"
-
 	"sealdice-core/dice/model"
 	log "sealdice-core/utils/kratos"
 )
 
 type UploadEnv struct {
 	Dir      string
-	Db       *gorm.DB
+	Db       model.DatabaseOperator
 	Log      *log.Helper
 	Backends []string
 	Version  StoryVersion

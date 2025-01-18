@@ -128,7 +128,7 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupInfo.ChannelID = msg.ChannelID
 	}
 
-	p := groupInfo.PlayerGet(ctx.Dice.DBData, msg.Sender.UserID)
+	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)
 	if p == nil {
 		p = &GroupPlayerInfo{
 			Name:          msg.Sender.Nickname,
