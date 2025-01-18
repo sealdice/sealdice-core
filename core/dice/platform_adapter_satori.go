@@ -364,7 +364,7 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 			mem := member
 			userID := formatDiceIDSatori(pa.Platform, mem.User.ID)
 			if ok {
-				p := groupInfo.PlayerGet(d.DBData, userID)
+				p := groupInfo.PlayerGet(d.DBOperator, userID)
 				if p == nil {
 					name := mem.Nick
 					if name == "" {

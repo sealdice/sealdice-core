@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 var ErrEndpointInfoUIDEmpty = errors.New("user id is empty")
@@ -22,7 +21,8 @@ func (EndpointInfo) TableName() string {
 	return "endpoint_info"
 }
 
-func (e *EndpointInfo) Query(db *gorm.DB) error {
+func (e *EndpointInfo) Query(operator DatabaseOperator) error {
+	db := operator.GetDataDB(READ)
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
 	}
@@ -33,7 +33,8 @@ func (e *EndpointInfo) Query(db *gorm.DB) error {
 	err := db.Model(&EndpointInfo{}).
 		Where("user_id = ?", e.UserID).
 		Select("cmd_num", "cmd_last_time", "online_time", "updated_at").
-		Scan(&e).Error
+		Limit(1).
+		Find(&e).Error
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
@@ -42,18 +43,22 @@ func (e *EndpointInfo) Query(db *gorm.DB) error {
 	return nil
 }
 
-func (e *EndpointInfo) Save(db *gorm.DB) error {
+func (e *EndpointInfo) Save(operator DatabaseOperator) error {
+	db := operator.GetDataDB(WRITE)
 	// 检查 user_id 是否为空
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
 	}
-	// 检查user_id冲突时更新，否则进行创建
-	result := db.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "user_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"cmd_num", "cmd_last_time", "online_time", "updated_at",
-		}),
-	}).Create(e)
-
-	return result.Error
+	// 使用 FirstOrCreate 来插入或更新
+	if err := db.Where("user_id = ?", e.UserID).Assign(
+		"cmd_num", e.CmdNum,
+		"cmd_last_time", e.CmdLastTime,
+		"online_time", e.OnlineTime,
+		"updated_at", e.UpdatedAt,
+	). // 奇怪的想法，映射回自身？
+		FirstOrCreate(&e).Error; err != nil {
+		// 处理查询或创建时的错误
+		return err
+	}
+	return nil
 }

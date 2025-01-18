@@ -439,7 +439,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 				if ok {
 					if groupInfo.LogOn {
-						_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBLogs, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
+						_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
 					}
 				}
 				return

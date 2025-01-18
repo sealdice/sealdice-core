@@ -4,9 +4,11 @@
 package migrate
 
 import (
-	_ "github.com/glebarez/go-sqlite"
-	"github.com/glebarez/sqlite"
+	"fmt"
+
 	"github.com/jmoiron/sqlx"
+	_ "github.com/ncruces/go-sqlite3/embed"
+	sqlite "github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
@@ -14,6 +16,7 @@ import (
 )
 
 func openDB(path string) (*sqlx.DB, error) {
+	path = fmt.Sprintf("file:%v?_txlock=immediate&_busy_timeout=15000", path)
 	gdb, err := gorm.Open(sqlite.Open(path), &gorm.Config{
 		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
 		Logger: logger.Default.LogMode(logger.Info),
