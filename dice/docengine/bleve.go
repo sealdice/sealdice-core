@@ -58,13 +58,14 @@ func (d *BleveSearchEngine) Init() error {
 	docMapping := bleve.NewDocumentMapping()
 	contentFieldMapping := bleve.NewTextFieldMapping()
 	keywordMapping := bleve.NewKeywordFieldMapping()
-	// 注意： 这里group,from,title，package都是keywordMapping
+	// 注意： 这里group,from,package都是keywordMapping
+	// 琢磨了一下，title还要做分词匹配，这个不能是keywordMapping
 	// 下面这些GPT说的，如果不对，随便改。
 	// 不需要分词，只需要支持模糊匹配（类似 SQL 中的 LIKE），那么 keyword 类型的字段 是最合适的选择。
 	// keyword 类型的字段会将整个字段值作为一个整体存储，适合精确匹配和通配符匹配（如 NewWildcardQuery）。
 	docMapping.AddFieldMappingsAt("group", keywordMapping)
 	docMapping.AddFieldMappingsAt("from", keywordMapping)
-	docMapping.AddFieldMappingsAt("title", keywordMapping)
+	docMapping.AddFieldMappingsAt("title", contentFieldMapping)
 	// Content才是真正的文档
 	docMapping.AddFieldMappingsAt("content", contentFieldMapping)
 	docMapping.AddFieldMappingsAt("package", keywordMapping)
