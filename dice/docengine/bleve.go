@@ -58,10 +58,13 @@ func (d *BleveSearchEngine) Init() error {
 	docMapping := bleve.NewDocumentMapping()
 	contentFieldMapping := bleve.NewTextFieldMapping()
 	keywordMapping := bleve.NewKeywordFieldMapping()
-	// 注意： 这里group,from,title，package都是keywordMapping，这样就能进行精确搜索。
+	// 注意： 这里group,from,title，package都是keywordMapping
+	// 下面这些GPT说的，如果不对，随便改。
+	// 不需要分词，只需要支持模糊匹配（类似 SQL 中的 LIKE），那么 keyword 类型的字段 是最合适的选择。
+	// keyword 类型的字段会将整个字段值作为一个整体存储，适合精确匹配和通配符匹配（如 NewWildcardQuery）。
 	docMapping.AddFieldMappingsAt("group", keywordMapping)
 	docMapping.AddFieldMappingsAt("from", keywordMapping)
-	docMapping.AddFieldMappingsAt("title", contentFieldMapping)
+	docMapping.AddFieldMappingsAt("title", keywordMapping)
 	// Content才是真正的文档
 	docMapping.AddFieldMappingsAt("content", contentFieldMapping)
 	docMapping.AddFieldMappingsAt("package", keywordMapping)
@@ -207,17 +210,17 @@ func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from
 	// 只有Keyword才支持NewTermQuery
 	conjunctionQuery := bleve.NewConjunctionQuery()
 	if group != "" {
-		groupQuery := bleve.NewTermQuery(group)
+		groupQuery := bleve.NewWildcardQuery(fmt.Sprintf("*%s*", group))
 		groupQuery.SetField("group")
 		conjunctionQuery.AddQuery(groupQuery)
 	}
 	if from != "" {
-		fromQuery := bleve.NewTermQuery(from)
+		fromQuery := bleve.NewWildcardQuery(fmt.Sprintf("*%s*", from))
 		fromQuery.SetField("from")
 		conjunctionQuery.AddQuery(fromQuery)
 	}
 	if title != "" {
-		titleQuery := bleve.NewTermQuery(title)
+		titleQuery := bleve.NewWildcardQuery(fmt.Sprintf("*%s*", title))
 		titleQuery.SetField("title")
 		conjunctionQuery.AddQuery(titleQuery)
 	}
