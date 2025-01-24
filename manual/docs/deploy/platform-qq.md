@@ -194,6 +194,106 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 请按照 [Lagrange 手册](https://lagrangedev.github.io/Lagrange.Doc/Lagrange.OneBot/Config/)自行部署 Lagrange，并按照手册和自己的需求填写配置文件。
 
+::: warning Config
+
+海豹的反向 ws 连接仅连接 `ws://{HOST}:{PORT}/ws` 地址。
+
+以下的 `appsettings.json` 适合海豹连接。
+
+> **正向** ws 连接
+
+``` json
+
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",  
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information",
+    },
+  },
+  "SignServerUrl": "https://sign.lagrangecore.org/api/sign",
+  "SignProxyUrl": "", 
+  "Account": {
+    "Uin": 0,  
+    "Password": "", 
+    "Protocol": "Linux",  
+    "AutoReconnect": true,
+    "GetOptimumServer": true,
+  },
+  "Message": {
+    "IgnoreSelf": true,  
+    "StringPost": false,
+  },
+  "QrCode": {
+    "ConsoleCompatibilityMode": false,
+  },
+  "Implementations": [ 
+    {
+      "Type": "ForwardWebSocket",
+      "Host": "127.0.0.1",
+      "Port": 8101,
+      "HeartBeatInterval": 5000,
+      "HeartBeatEnable": true,
+      "AccessToken": "",
+    }
+  ],
+}
+
+
+```
+
+按照以下配置登陆的 `Lagrange`，在海豹的 UI 中新增账号中，「账号类型」选择 `OneBot11 正向 WS`，连接地址填写 `ws://127.0.0.1:8101`。
+
+>**反向** ws 连接
+
+``` json
+
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",  
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information",
+    },
+  },
+  "SignServerUrl": "https://sign.lagrangecore.org/api/sign",
+  "SignProxyUrl": "", 
+  "Account": {
+    "Uin": 0,  
+    "Password": "", 
+    "Protocol": "Linux",  
+    "AutoReconnect": true,
+    "GetOptimumServer": true,
+  },
+  "Message": {
+    "IgnoreSelf": true,  
+    "StringPost": false,
+  },
+  "QrCode": {
+    "ConsoleCompatibilityMode": false,
+  },
+  "Implementations": [ 
+    {
+      "Type": "ReverseWebSocket",
+      "Host": "127.0.0.1",
+      "Port": 8100,
+      "Suffix": "/ws",
+      "ReconnectInterval": 5000,
+      "HeartBeatInterval": 5000,
+      "HeartBeatEnable": true,
+      "AccessToken": "",
+    }
+  ],
+}
+
+
+```
+
+按照以下配置登陆的 `Lagrange`，在海豹的 UI 中新增账号中，「账号类型」选择 `OneBot11 反向 WS`，连接地址填写 `:8100`。
+
+:::
+
 #### 海豹连接 Lagrange
 
 进入海豹 Web UI 的「账号设置」新增链接，按照自己的 Lagrange 配置文件选择 onebot11 账号类型，填写 QQ 号和「连接地址」。
