@@ -85,7 +85,7 @@ require (
 	github.com/maypok86/otter v1.2.4
 	github.com/ncruces/go-sqlite3 v0.22.0
 	github.com/ncruces/go-sqlite3/gormlite v0.22.0
-	github.com/tidwall/gjson v1.17.0
+	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/driver/postgres v1.5.11
