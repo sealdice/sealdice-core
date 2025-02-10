@@ -2568,5 +2568,4 @@ func (d *Dice) Save(isAuto bool) {
 			ep.StatsDump(d)
 		}
 	}
-	log.Info("自动保存完毕")
 }
