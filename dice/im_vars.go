@@ -21,6 +21,10 @@ func VarSetValueInt64(ctx *MsgContext, s string, v int64) {
 	VarSetValue(ctx, s, ds.NewIntVal(ds.IntType(v)))
 }
 
+func VarSetValueComputed(ctx *MsgContext, s string, v string) {
+	VarSetValue(ctx, s, ds.NewComputedVal(v))
+}
+
 func _VarSetValueV1(ctx *MsgContext, s string, v *VMValue) {
 	VarSetValue(ctx, s, v.ConvertToV2())
 }
@@ -110,6 +114,14 @@ func VarGetValueStr(ctx *MsgContext, s string) (string, bool) {
 	v, exists := _VarGetValueV1(ctx, s)
 	if exists && v.TypeID == VMTypeString {
 		return v.Value.(string), true
+	}
+	return "", false
+}
+
+func VarGetValueComputed(ctx *MsgContext, s string) (string, bool) {
+	v, exists := VarGetValue(ctx, s)
+	if exists && v.TypeId == ds.VMTypeComputedValue {
+		return v.Value.(*ds.ComputedData).Expr, true
 	}
 	return "", false
 }
