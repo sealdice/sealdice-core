@@ -8,12 +8,13 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
+	"sealdice-core/model"
 	log "sealdice-core/utils/kratos"
 )
 
 func storyGetInfo(c echo.Context) error {
-	info, err := model.LogGetInfo(myDice.DBOperator)
+	info, err := dao.LogGetInfo(myDice.DBOperator)
 	if err != nil {
 		log.Error("storyGetInfo", err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -26,7 +27,7 @@ func storyGetLogs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	logs, err := model.LogGetLogs(myDice.DBOperator)
+	logs, err := dao.LogGetLogs(myDice.DBOperator)
 	if err != nil {
 		log.Error("storyGetLogs", err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -38,7 +39,7 @@ func storyGetLogPage(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	v := model.QueryLogPage{}
+	v := dao.QueryLogPage{}
 	err := c.Bind(&v)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
@@ -51,7 +52,7 @@ func storyGetLogPage(c echo.Context) error {
 		v.PageSize = 20
 	}
 
-	total, page, err := model.LogGetLogPage(myDice.DBOperator, &v)
+	total, page, err := dao.LogGetLogPage(myDice.DBOperator, &v)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
@@ -69,7 +70,7 @@ func storyGetItems(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	lines, err := model.LogGetAllLines(myDice.DBOperator, c.QueryParam("groupId"), c.QueryParam("name"))
+	lines, err := dao.LogGetAllLines(myDice.DBOperator, c.QueryParam("groupId"), c.QueryParam("name"))
 	if err != nil {
 		log.Error("storyGetItems", err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -82,7 +83,7 @@ func storyGetItemPage(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	v := model.QueryLogLinePage{}
+	v := dao.QueryLogLinePage{}
 	err := c.Bind(&v)
 	if err != nil {
 		log.Error("storyGetItemPage", err)
@@ -95,7 +96,7 @@ func storyGetItemPage(c echo.Context) error {
 		v.PageSize = 10
 	}
 
-	lines, err := model.LogGetLinePage(myDice.DBOperator, &v)
+	lines, err := dao.LogGetLinePage(myDice.DBOperator, &v)
 	if err != nil {
 		log.Error("storyGetItemPage", err)
 		return c.JSON(http.StatusInternalServerError, err)
@@ -113,7 +114,7 @@ func storyDelLog(c echo.Context) error {
 		log.Error("storyDelLog", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
-	is := model.LogDelete(myDice.DBOperator, v.GroupID, v.Name)
+	is := dao.LogDelete(myDice.DBOperator, v.GroupID, v.Name)
 	if !is {
 		log.Error("storyDelLog", "failed to delete")
 		return c.JSON(http.StatusInternalServerError, false)

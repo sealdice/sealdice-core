@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
 )
 
 type SenderChannel struct {
@@ -68,7 +68,7 @@ func (pa *PlatformAdapterGocq) QQChannelTrySolve(message string) {
 			groupInfo, ok := session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
 				if groupInfo.LogOn {
-					_ = model.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, msgQQ.MessageID)
+					_ = dao.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, msgQQ.MessageID)
 				}
 			}
 			return

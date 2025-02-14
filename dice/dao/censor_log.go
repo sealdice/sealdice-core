@@ -1,33 +1,19 @@
-package model
+package dao
 
 import (
 	"encoding/json"
 	"time"
 
 	"sealdice-core/dice/censor"
+	"sealdice-core/model"
+	"sealdice-core/utils/constant"
+	engine2 "sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
 )
 
-type CensorLog struct {
-	ID           uint64 `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
-	MsgType      string `json:"msgType" gorm:"column:msg_type"`
-	UserID       string `json:"userId" gorm:"index:idx_censor_log_user_id;column:user_id"`
-	GroupID      string `json:"groupId" gorm:"column:group_id"`
-	Content      string `json:"content" gorm:"column:content"`
-	HighestLevel int    `json:"highestLevel" gorm:"index:idx_censor_log_level;column:highest_level"`
-	CreatedAt    int    `json:"createdAt" gorm:"column:created_at"`
-	// 补充gorm有的部分：
-	SensitiveWords string `json:"-" gorm:"column:sensitive_words"`
-	ClearMark      bool   `json:"-" gorm:"column:clear_mark;type:bool"`
-}
-
-func (CensorLog) TableName() string {
-	return "censor_log"
-}
-
 // 添加一个敏感词记录
-func CensorAppend(operator DatabaseOperator, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
-	db := operator.GetCensorDB(WRITE)
+func CensorAppend(operator engine2.DatabaseOperator, msgType string, userID string, groupID string, content string, sensitiveWords interface{}, highestLevel int) bool {
+	db := operator.GetCensorDB(constant.WRITE)
 	// 获取当前时间的 Unix 时间戳
 	nowTimestamp := time.Now().Unix()
 
@@ -38,7 +24,7 @@ func CensorAppend(operator DatabaseOperator, msgType string, userID string, grou
 	}
 
 	// 创建 CensorLog 实例，手动设置 CreatedAt
-	censorLog := CensorLog{
+	censorLog := model.CensorLog{
 		MsgType:        msgType,
 		UserID:         userID,
 		GroupID:        groupID,
@@ -55,8 +41,8 @@ func CensorAppend(operator DatabaseOperator, msgType string, userID string, grou
 	return true
 }
 
-func CensorCount(operator DatabaseOperator, userID string) map[censor.Level]int {
-	db := operator.GetCensorDB(READ)
+func CensorCount(operator engine2.DatabaseOperator, userID string) map[censor.Level]int {
+	db := operator.GetCensorDB(constant.READ)
 	// 定义要查询的不同敏感级别
 	levels := [5]censor.Level{censor.Ignore, censor.Notice, censor.Caution, censor.Warning, censor.Danger}
 	var temp int64
@@ -65,7 +51,7 @@ func CensorCount(operator DatabaseOperator, userID string) map[censor.Level]int 
 	// 遍历每个敏感级别并执行查询
 	for _, level := range levels {
 		// 使用 GORM 的链式查询
-		err := db.Model(&CensorLog{}).Where("user_id = ? AND highest_level = ? AND clear_mark = ?", userID, level, false).
+		err := db.Model(&model.CensorLog{}).Where("user_id = ? AND highest_level = ? AND clear_mark = ?", userID, level, false).
 			Count(&temp).Error
 
 		// 如果查询出现错误，忽略并赋值为 0
@@ -79,10 +65,10 @@ func CensorCount(operator DatabaseOperator, userID string) map[censor.Level]int 
 	return res
 }
 
-func CensorClearLevelCount(operator DatabaseOperator, userID string, level censor.Level) {
-	db := operator.GetCensorDB(WRITE)
+func CensorClearLevelCount(operator engine2.DatabaseOperator, userID string, level censor.Level) {
+	db := operator.GetCensorDB(constant.WRITE)
 	// 使用 GORM 的链式查询执行批量更新
-	err := db.Model(&CensorLog{}).
+	err := db.Model(&model.CensorLog{}).
 		Where("user_id = ? AND highest_level = ?", userID, level).
 		Update("clear_mark", true).Error
 	if err != nil {
@@ -99,13 +85,13 @@ type QueryCensorLog struct {
 }
 
 // CensorGetLogPage 使用 GORM 进行分页查询
-func CensorGetLogPage(operator DatabaseOperator, params QueryCensorLog) (int64, []CensorLog, error) {
-	db := operator.GetCensorDB(READ)
+func CensorGetLogPage(operator engine2.DatabaseOperator, params QueryCensorLog) (int64, []model.CensorLog, error) {
+	db := operator.GetCensorDB(constant.READ)
 	var total int64
-	var logs []CensorLog
+	var logs []model.CensorLog
 
 	// 首先统计总记录数
-	query := db.Model(&CensorLog{})
+	query := db.Model(&model.CensorLog{})
 
 	// 如果传入了 UserID 和 Level，则添加查询条件
 	if params.UserID != "" {
