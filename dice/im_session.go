@@ -13,8 +13,10 @@ import (
 
 	"github.com/samber/lo"
 
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
 	"sealdice-core/message"
+	"sealdice-core/model"
+	"sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
 
 	"github.com/golang-module/carbon"
@@ -224,13 +226,13 @@ func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
 	return false
 }
 
-func (group *GroupInfo) PlayerGet(operator model.DatabaseOperator, id string) *GroupPlayerInfo {
+func (group *GroupInfo) PlayerGet(operator engine.DatabaseOperator, id string) *GroupPlayerInfo {
 	if group.Players == nil {
 		group.Players = new(SyncMap[string, *GroupPlayerInfo])
 	}
 	p, exists := group.Players.Load(id)
 	if !exists {
-		basePtr := model.GroupPlayerInfoGet(operator, group.GroupID, id)
+		basePtr := dao.GroupPlayerInfoGet(operator, group.GroupID, id)
 		p = (*GroupPlayerInfo)(basePtr)
 		if p != nil {
 			group.Players.Store(id, p)
@@ -458,7 +460,7 @@ func (ep *EndPointInfo) StatsRestore(d *Dice) {
 	}
 
 	m := model.EndpointInfo{UserID: ep.UserID}
-	err := m.Query(d.DBOperator)
+	err := dao.Query(d.DBOperator, &m)
 	if err != nil {
 		d.Logger.Errorf("恢复endpoint统计数据失败 %v : %v", ep.UserID, err)
 		return
@@ -488,7 +490,7 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 	}
 
 	m := model.EndpointInfo{UserID: ep.UserID, CmdNum: ep.CmdExecutedNum, CmdLastTime: ep.CmdExecutedLastTime, OnlineTime: ep.OnlineTotalTime}
-	err := m.Save(d.DBOperator)
+	err := dao.Save(d.DBOperator, &m)
 	if err != nil {
 		d.Logger.Errorf("保存endpoint数据到数据库失败 %v : %v", ep.UserID, err)
 	}

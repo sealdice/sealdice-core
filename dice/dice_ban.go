@@ -8,7 +8,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
 )
 
 type BanRankType int
@@ -119,7 +119,7 @@ func (i *BanListInfo) AfterLoads() {
 		})
 		for _, j := range toDelete {
 			i.Map.Delete(j)
-			_ = model.BanItemDel(d.DBOperator, j)
+			_ = dao.BanItemDel(d.DBOperator, j)
 		}
 
 		(&d.Config).BanList.SaveChanged(d)
@@ -393,7 +393,7 @@ func (i *BanListInfo) SetTrustByID(uid string, place string, reason string) {
 
 func (d *Dice) GetBanList() []*BanListInfoItem {
 	var lst []*BanListInfoItem
-	_ = model.BanItemList(d.DBOperator, func(id string, banUpdatedAt int64, data []byte) {
+	_ = dao.BanItemList(d.DBOperator, func(id string, banUpdatedAt int64, data []byte) {
 		var v BanListInfoItem
 		err := json.Unmarshal(data, &v)
 		if err != nil {
@@ -409,7 +409,7 @@ func (i *BanListInfo) SaveChanged(d *Dice) {
 		if v.UpdatedAt != 0 {
 			data, err := json.Marshal(v)
 			if err == nil {
-				_ = model.BanItemSave(d.DBOperator, k, v.UpdatedAt, v.BanUpdatedAt, data)
+				_ = dao.BanItemSave(d.DBOperator, k, v.UpdatedAt, v.BanUpdatedAt, data)
 				v.UpdatedAt = 0
 			}
 		}
@@ -419,5 +419,5 @@ func (i *BanListInfo) SaveChanged(d *Dice) {
 
 func (i *BanListInfo) DeleteByID(d *Dice, id string) {
 	i.Map.Delete(id)
-	_ = model.BanItemDel(d.DBOperator, id)
+	_ = dao.BanItemDel(d.DBOperator, id)
 }

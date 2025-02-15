@@ -10,7 +10,8 @@ import (
 	"strings"
 
 	"sealdice-core/dice/censor"
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
+	"sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -52,7 +53,7 @@ type CensorManager struct {
 	IsLoading           bool
 	Parent              *Dice
 	Censor              *censor.Censor
-	DB                  model.DatabaseOperator
+	DB                  engine.DatabaseOperator
 	SensitiveWordsFiles map[string]*censor.WordFile
 }
 
@@ -113,9 +114,9 @@ func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent strin
 	res := cm.Censor.Check(checkContent)
 	if !ctx.Censored && res.HighestLevel > censor.Ignore {
 		// 敏感词命中记录保存
-		model.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, res.SensitiveWords, int(res.HighestLevel))
+		dao.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, res.SensitiveWords, int(res.HighestLevel))
 	}
-	count := model.CensorCount(cm.DB, msg.Sender.UserID)
+	count := dao.CensorCount(cm.DB, msg.Sender.UserID)
 
 	var words []string
 	for word := range res.SensitiveWords {
@@ -183,7 +184,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			// 需要终止后续动作
 			needToTerminate = true
 			// 清空此用户该等级计数
-			model.CensorClearLevelCount(d.CensorManager.DB, msg.Sender.UserID, level)
+			dao.CensorClearLevelCount(d.CensorManager.DB, msg.Sender.UserID, level)
 			// 该等级敏感词超过阈值，执行操作
 			handler := d.Config.CensorHandlers[level]
 			levelText := censor.LevelText[level]
