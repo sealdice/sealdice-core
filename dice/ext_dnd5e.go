@@ -1500,11 +1500,16 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				riList := (RIList{}).LoadByCurGroup(ctx)
+				added := false
 				for _, i := range riList {
 					if i.name == name {
 						i.val = int64(r.MustReadInt())
+						added = true
 						break
 					}
+				}
+				if !added {
+					riList = append(riList, &RIListItem{name, int64(r.MustReadInt()), "", ""})
 				}
 				sort.Sort(riList)
 
