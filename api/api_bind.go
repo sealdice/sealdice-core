@@ -463,16 +463,22 @@ func handleSetConfigs(c echo.Context) error {
 	return c.JSON(http.StatusOK, nil)
 }
 
-func handleDeleteUnusedConfig(c echo.Context) error {
+func handleDeleteUnusedConfigs(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	var data map[string]string
+	type handleDeleteUnusedConfigsReq struct {
+		PluginName string   `json:"pluginName"`
+		Keys       []string `json:"keys"`
+	}
+	var data handleDeleteUnusedConfigsReq
 	err := c.Bind(&data)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Failed to parse data")
 	}
-	myDice.ConfigManager.UnregisterConfig(data["pluginName"], data["key"])
+	for _, key := range data.Keys {
+		myDice.ConfigManager.UnregisterConfig(data.PluginName, key)
+	}
 	return c.JSON(http.StatusOK, nil)
 }
 
@@ -655,7 +661,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/update", jsUpdate)
 	e.GET(prefix+"/js/get_configs", handleGetConfigs)
 	e.POST(prefix+"/js/set_configs", handleSetConfigs)
-	e.POST(prefix+"/js/delete_unused_config", handleDeleteUnusedConfig)
+	e.POST(prefix+"/js/delete_unused_configs", handleDeleteUnusedConfigs)
 	e.POST(prefix+"/js/reset_config", handleResetConfig)
 
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
