@@ -31,8 +31,8 @@ export function resetJsConfig(pluginName: string, key: string) {
   return request('post', 'reset_config', { pluginName, key });
 }
 
-export function deleteUnusedJsConfig(pluginName: string, key: string) {
-  return request('post', 'delete_unused_config', { pluginName, key });
+export function deleteUnusedJsConfigs(pluginName: string, keys: string[]) {
+  return request('post', 'delete_unused_configs', { pluginName, keys });
 }
 
 export function getJsRecord() {

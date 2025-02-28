@@ -248,6 +248,26 @@
                         (config as unknown as JsPluginConfig)['pluginName']
                       }}</el-text>
                     </el-space>
+                    <el-space>
+                      <template
+                        v-if="getDeprecatedKeys(config as unknown as JsPluginConfig).length > 0">
+                        <el-tooltip
+                          content="移除 - 当前插件存在暂未使用的配置项，<br />点击以移除此插件全部暂未使用的配置项。"
+                          raw-content
+                          placement="bottom-end">
+                          <el-icon
+                            style="float: right; margin-left: 1rem"
+                            @click="
+                              doDeleteUnusedConfigs(
+                                (config as unknown as JsPluginConfig)['pluginName'],
+                                getDeprecatedKeys(config as unknown as JsPluginConfig),
+                              )
+                            ">
+                            <delete-filled />
+                          </el-icon>
+                        </el-tooltip>
+                      </template>
+                    </el-space>
                   </div>
                 </template>
                 <el-card shadow="never" style="border: 0">
@@ -810,7 +830,7 @@ import { postUtilsCheckCronExpr } from '~/api/utils';
 import {
   checkJsUpdate,
   deleteJs,
-  deleteUnusedJsConfig,
+  deleteUnusedJsConfigs,
   disableJS,
   enableJS,
   executeJS,
@@ -934,7 +954,38 @@ const doDeleteUnusedConfig = (pluginName: any, key: any, isTask: boolean) => {
     },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ).then(async data => {
-    await deleteUnusedJsConfig(pluginName, key);
+    await deleteUnusedJsConfigs(pluginName, [key]);
+    setTimeout(() => {
+      // 稍等等再重载，以免出现没删掉
+      refreshConfig();
+    }, 1000);
+    ElMessage.success('配置项已删除');
+  });
+};
+
+const getDeprecatedKeys = (config: JsPluginConfig): string[] => {
+  const configs = config.configs || [];
+  const result: string[] = [];
+  for (const c of configs) {
+    if (c.deprecated) {
+      result.push(c.key);
+    }
+  }
+  return result;
+};
+
+const doDeleteUnusedConfigs = (pluginName: string, keys: string[]) => {
+  ElMessageBox.confirm(
+    `删除插件 ${pluginName} 的共 ${keys.length} 个暂未使用的配置项/定时任务，确定吗？`,
+    '删除',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  ).then(async data => {
+    await deleteUnusedJsConfigs(pluginName, keys);
     setTimeout(() => {
       // 稍等等再重载，以免出现没删掉
       refreshConfig();
