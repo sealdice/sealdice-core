@@ -12,14 +12,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
 	"sealdice-core/utils"
 )
 
 func uploadV1(env UploadEnv) (string, error) {
 	_ = os.MkdirAll(env.Dir, 0o755)
 
-	url, uploadTS, updateTS, _ := model.LogGetUploadInfo(env.Db, env.GroupID, env.LogName)
+	url, uploadTS, updateTS, _ := dao.LogGetUploadInfo(env.Db, env.GroupID, env.LogName)
 	if len(url) > 0 && uploadTS > updateTS {
 		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
 		env.Log.Infof(
@@ -42,7 +42,7 @@ func uploadV1(env UploadEnv) (string, error) {
 		)
 	}
 
-	lines, err := model.LogGetAllLines(env.Db, env.GroupID, env.LogName)
+	lines, err := dao.LogGetAllLines(env.Db, env.GroupID, env.LogName)
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +62,7 @@ func uploadV1(env UploadEnv) (string, error) {
 	_ = w.Close()
 
 	url = uploadToSealBackends(env, &zlibBuffer)
-	if errDB := model.LogSetUploadInfo(env.Db, env.GroupID, env.LogName, url); errDB != nil {
+	if errDB := dao.LogSetUploadInfo(env.Db, env.GroupID, env.LogName, url); errDB != nil {
 		env.Log.Errorf("记录Log上传信息失败: %v", errDB)
 	}
 	if len(url) == 0 {

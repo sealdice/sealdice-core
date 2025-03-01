@@ -16,8 +16,9 @@ import (
 	ds "github.com/sealdice/dicescript"
 	"go.uber.org/zap"
 
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
 	"sealdice-core/dice/storylog"
+	"sealdice-core/model"
 	"sealdice-core/utils"
 )
 
@@ -157,7 +158,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if group.LogOn {
 					onText = "开启"
 				}
-				lines, _ := model.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
+				lines, _ := dao.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
 				text := fmt.Sprintf("当前故事: %s\n当前状态: %s\n已记录文本%d条", group.LogCurName, onText, lines)
 				ReplyToSender(ctx, msg, text)
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -200,7 +201,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				if name != "" {
-					lines, exists := model.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, name)
+					lines, exists := dao.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, name)
 
 					if exists {
 						if groupNotActiveCheck() {
@@ -226,7 +227,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if group.LogCurName != "" && group.LogOn {
 					group.LogOn = false
 					group.UpdatedAtTime = time.Now().Unix()
-					lines, _ := model.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
+					lines, _ := dao.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					VarSetValueInt64(ctx, "$t当前记录条数", lines)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_成功"))
@@ -244,7 +245,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if name == group.LogCurName {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_正在进行"))
 				} else {
-					ok := model.LogDelete(ctx.Dice.DBOperator, group.GroupID, name)
+					ok := dao.LogDelete(ctx.Dice.DBOperator, group.GroupID, name)
 					if ok {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_成功"))
 					} else {
@@ -285,7 +286,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				lines, _ := model.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
+				lines, _ := dao.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
 				VarSetValueInt64(ctx, "$t当前记录条数", lines)
 				VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
@@ -305,7 +306,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
 				if len(group.LogCurName) > 0 {
-					lines, _ := model.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
+					lines, _ := dao.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
 					VarSetValueInt64(ctx, "$t当前记录条数", lines)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 				}
@@ -325,7 +326,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 
 				text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
-				lst, err := model.LogGetList(ctx.Dice.DBOperator, groupID)
+				lst, err := dao.LogGetList(ctx.Dice.DBOperator, groupID)
 				if err == nil {
 					for _, i := range lst {
 						text += "- " + i + "\n"
@@ -373,7 +374,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			} else if cmdArgs.IsArgEqual(1, "stat") {
 				// group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
-				items, err := model.LogGetAllLines(ctx.Dice.DBOperator, group.GroupID, name)
+				items, err := dao.LogGetAllLines(ctx.Dice.DBOperator, group.GroupID, name)
 				if err == nil && len(items) > 0 {
 					// showDetail := cmdArgs.GetKwarg("detail")
 					// var showDetail *Kwarg
@@ -488,7 +489,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "log":
 				group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
-				items, err := model.LogGetAllLines(ctx.Dice.DBOperator, group.GroupID, name)
+				items, err := dao.LogGetAllLines(ctx.Dice.DBOperator, group.GroupID, name)
 				if err == nil && len(items) > 0 {
 					// showDetail := cmdArgs.GetKwarg("detail")
 					// var showDetail *Kwarg
@@ -881,9 +882,9 @@ func FilenameReplace(name string) string {
 }
 
 func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.LogOneItem) bool {
-	ok := model.LogAppend(ctx.Dice.DBOperator, groupID, logName, logItem)
+	ok := dao.LogAppend(ctx.Dice.DBOperator, groupID, logName, logItem)
 	if ok {
-		if size, okCount := model.LogLinesCountGet(ctx.Dice.DBOperator, groupID, logName); okCount {
+		if size, okCount := dao.LogLinesCountGet(ctx.Dice.DBOperator, groupID, logName); okCount {
 			// 默认每记录500条发出提示
 			if ctx.Dice.Config.LogSizeNoticeEnable {
 				if ctx.Dice.Config.LogSizeNoticeCount == 0 {
@@ -902,7 +903,7 @@ func LogAppend(ctx *MsgContext, groupID string, logName string, logItem *model.L
 }
 
 func LogDeleteByID(ctx *MsgContext, groupID string, logName string, messageID interface{}) bool {
-	err := model.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupID, logName, messageID)
+	err := dao.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupID, logName, messageID)
 	if err != nil {
 		ctx.Dice.Logger.Error("LogDeleteById:", zap.Error(err))
 		return false
@@ -913,7 +914,7 @@ func LogDeleteByID(ctx *MsgContext, groupID string, logName string, messageID in
 // LogEditByID finds the log item under logName with messageID and replace it with content.
 // If the log item cannot be found or an error happens, it returns false.
 func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID interface{}) bool {
-	err := model.LogEditByMsgID(ctx.Dice.DBOperator, groupID, logName, content, messageID)
+	err := dao.LogEditByMsgID(ctx.Dice.DBOperator, groupID, logName, content, messageID)
 	if err != nil {
 		ctx.Dice.Logger.Error("LogEditByID:", zap.Error(err))
 		return false
@@ -935,7 +936,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 		}
 	}()
 
-	lines, err := model.LogGetAllLines(ctx.Dice.DBOperator, groupID, logName)
+	lines, err := dao.LogGetAllLines(ctx.Dice.DBOperator, groupID, logName)
 	if len(lines) == 0 {
 		err = errors.New("此log不存在，或条目数为空，名字是否正确？")
 		return nil, err

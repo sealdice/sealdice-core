@@ -1,11 +1,11 @@
-package database
+package mysql
 
 import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"sealdice-core/dice/model/database/cache"
+	"sealdice-core/utils/cache"
 )
 
 func MySQLDBInit(dsn string) (*gorm.DB, error) {

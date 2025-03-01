@@ -9,13 +9,14 @@ import (
 	"net/http"
 	"strconv"
 
-	"sealdice-core/dice/model"
+	"sealdice-core/model"
+	"sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
 )
 
 type UploadEnv struct {
 	Dir      string
-	Db       model.DatabaseOperator
+	Db       engine.DatabaseOperator
 	Log      *log.Helper
 	Backends []string
 	Version  StoryVersion

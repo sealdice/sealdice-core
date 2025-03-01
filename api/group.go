@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/dao"
 )
 
 func groupList(c echo.Context) error {
@@ -21,7 +21,7 @@ func groupList(c echo.Context) error {
 		if !strings.HasPrefix(item.GroupID, "PG-") {
 			if item != nil {
 				var exts []string
-				item.TmpPlayerNum, _ = model.GroupPlayerNumGet(myDice.DBOperator, item.GroupID)
+				item.TmpPlayerNum, _ = dao.GroupPlayerNumGet(myDice.DBOperator, item.GroupID)
 				for _, i := range item.ActivatedExtList {
 					exts = append(exts, i.Name)
 				}
