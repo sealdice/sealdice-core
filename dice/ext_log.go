@@ -695,6 +695,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 			default:
 				ok := false
+				last := ctx.Player.AutoSetNameTemplate
+
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 					var t NameTemplateItem
 					var exists bool
@@ -708,7 +710,18 @@ func RegisterBuiltinExtLog(self *Dice) {
 						return true
 					}
 
-					text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+					// 增加使用sn设置自定义规则的名片模板时的错误反馈
+					text, err := SetPlayerGroupCardByTemplate(ctx, t.Template)
+					if errors.Is(err, ErrGroupCardOverlong) {
+						handleOverlong(ctx, msg, text)
+						ok = true
+						return false
+					} else if err != nil {
+						ctx.Player.AutoSetNameTemplate = last
+						ReplyToSender(ctx, msg, fmt.Sprintf("%q模板sn格式错误，已自动还原之前模板", val))
+						ok = true
+						return false
+					}
 					ctx.Player.AutoSetNameTemplate = t.Template
 					VarSetValueStr(ctx, "$t名片格式", val)
 					VarSetValueStr(ctx, "$t名片预览", text)
