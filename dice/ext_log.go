@@ -695,7 +695,6 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 			default:
 				ok := false
-				last := ctx.Player.AutoSetNameTemplate
 
 				ctx.Dice.GameSystemMap.Range(func(key string, value *GameSystemTemplate) bool {
 					var t NameTemplateItem
@@ -717,8 +716,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						ok = true
 						return false
 					} else if err != nil {
-						ctx.Player.AutoSetNameTemplate = last
-						ReplyToSender(ctx, msg, fmt.Sprintf("%q模板sn格式错误，已自动还原之前模板", val))
+						ReplyToSender(ctx, msg, fmt.Sprintf("%q模板格式错误或不存在，请更改插件模板设置", val))
 						ok = true
 						return false
 					}
