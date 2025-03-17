@@ -4,7 +4,7 @@
       <n-flex class="py-3 text-2xl" size="large" align="center" justify="center" wrap>
         <n-flex align="center" justify="center">
           <strong>海豹TRPG跑团Log着色器</strong>
-          <n-tag type="success" size="small" :bordered="false">v2.5.1</n-tag>
+          <n-tag type="success" size="small" :bordered="false">v2.5.0</n-tag>
         </n-flex>
         <n-flex align="center" justify="center">
           <n-icon>
@@ -59,6 +59,7 @@
               <!-- <n-button secondary type="primary" v-show="false" @click="exportRecordQQ">下载QQ风格记录</n-button>-->
               <!-- <n-button secondary type="primary" v-show="false" @click="exportRecordIRC">下载IRC风格记录</n-button>-->
               <n-button secondary type="primary" @click="exportRecordDOC">下载Word</n-button>
+              <n-button secondary type="primary" @click="exportRecordTalkDOC">下载对话Word</n-button>
             </n-flex>
             <!-- <n-button @click="showPreview">预览</n-button> -->
             <div>
@@ -125,6 +126,7 @@ import previewMain from "./components/previews/preview-main.vue";
 import previewBbs from "./components/previews/preview-bbs.vue";
 import previewTrg from "./components/previews/preview-trg.vue";
 import PreviewItem from './components/previews/preview-main-item.vue'
+import PreviewTableTR from './components/previews/preview-table-tr.vue'
 import { LogItem, CharItem, packNameId } from "./logManager/types";
 import { setCharInfo } from './logManager/importers/_logImpoter'
 import { msgCommandFormat, msgImageFormat, msgIMUseridFormat, msgOffTopicFormat, msgAtFormat } from "./utils";
@@ -137,7 +139,7 @@ import randomColor from "randomcolor";
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const notMobile = breakpoints.greater('sm')
 
-const isDark = useDark({ disableTransition: false })
+const isDark = useDark()
 const toggleDark = useToggle(isDark)
 
 // 不用他了 虽然很不错，但是没有屏幕取色
@@ -385,6 +387,50 @@ function exportRecordDOC() {
 
   exportFileDoc(items.join('\n'));
 }
+
+function exportRecordTalkDOC() {
+  browserAlert()
+  if (isMobile.value) {
+    message.warning('你当前处于移动端环境，已知只有WPS能够查看生成的Word文件，且无法看图！使用PC打开可以查看图片。')
+  }
+
+  const solveImg = (el: Element) => {
+    if (el.tagName === 'IMG') {
+      let width = el.clientWidth;
+      let height = el.clientHeight;
+      if (width === 0) {
+        width = 300;
+        height = 300;
+      }
+      el.setAttribute('width', `${width}`)
+      el.setAttribute('height', `${height}`)
+    }
+    for (let i = 0; i < el.children.length; i += 1) {
+      solveImg(el.children[i])
+    }
+  }
+
+  const map = store.pcMap;
+  const el = document.createElement('span');
+  const elRoot = document.createElement('div');
+  const items = [];
+
+  showPreview()
+  for (let i of previewItems.value) {
+    if (i.isRaw) continue;
+    const id = packNameId(i);
+    if (map.get(id)?.role === '隐藏') continue;
+
+    const html = h(PreviewTableTR, { source: i });
+    render(html, el);
+
+    const c = el;
+    solveImg(c);
+    items.push(c.innerHTML);
+  }
+  exportFileDoc(`<table style="border-collapse: collapse;"><tbody>${items.join('\n')}</tbody></table>`);
+}
+
 
 const previewItems = ref<LogItem[]>([])
 
