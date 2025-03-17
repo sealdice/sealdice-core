@@ -31,6 +31,7 @@ declare module 'vue' {
     PreviewBbsItem: typeof import('./components/previews/preview-bbs-item.vue')['default']
     PreviewMain: typeof import('./components/previews/preview-main.vue')['default']
     PreviewMainItem: typeof import('./components/previews/preview-main-item.vue')['default']
+    PreviewTableTr: typeof import('./components/previews/preview-table-tr.vue')['default']
     PreviewTrg: typeof import('./components/previews/preview-trg.vue')['default']
     PreviewTrgItem: typeof import('./components/previews/preview-trg-item.vue')['default']
   }

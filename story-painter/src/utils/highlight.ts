@@ -130,7 +130,7 @@ export function generateLang(pcList: CharItem[], options: any = undefined): Exte
           }
 
           // let m = /\[CQ:image,[^\]]+\]/g.exec(state.text) as RegExpMatchArray
-          m = stream.match(/^\[CQ:(image|face),[^\]]+\]/g) as RegExpMatchArray
+          m = stream.match(/^\[CQ:(image|face)(,summary=\[动画表情\])?,[^\]]+\]/g) as RegExpMatchArray
           if (m) {
             // stream.pos -= m[0].length
             // stream.start -= m[0].length

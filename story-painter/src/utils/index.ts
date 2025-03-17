@@ -33,9 +33,13 @@ export function getCanvasFontSize(el = document.body) {
 export function msgImageFormat(msg: string, options: any, htmlText = false) {
   // 替换图片、表情
   if (options.imageHide) {
-    msg = msg.replaceAll(/\[CQ:(image|face),[^\]]+\]/g, '')
+    msg = msg.replaceAll(/\[CQ:(image|face)(,summary=\[动画表情\])?,[^\]]+\]/g, '')
   } else {
     if (htmlText) {
+      // [CQ:image,summary=[动画表情],...,file_unique=...]
+      msg = msg.replaceAll(/\[CQ:image(,summary=\[动画表情\])?,[^\]]+?file_unique=([a-zA-Z0-9]{32})\]/g, '<img style="max-width: 300px" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$2/0?term=2" crossorigin="anonymous" />')
+      // [CQ:image,summary=[动画表情],file=...,url=...]
+      msg = msg.replaceAll(/\[CQ:image,summary=\[动画表情\],[^\]]+?url=([^\]]+)\]/g, '<img style="max-width: 300px" src="$1" />')
       // [CQ:image,file=...,url=...]
       msg = msg.replaceAll(/\[CQ:image,[^\]]+?url=([^\]]+)\]/g, '<img style="max-width: 300px" src="$1" />')
       // [CQ:image,file=https?://...]

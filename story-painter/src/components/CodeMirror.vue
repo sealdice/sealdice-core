@@ -100,8 +100,9 @@ function imagePreviews(view: EditorView): DecorationSet {
         if (node.name.startsWith("image-")) {
           const text = view.state.doc.sliceString(from, to)
           // ob11 - gocq
-          let m = /url=([^\]]+)]/.exec(text) as RegExpExecArray
-          if (m) {
+          // 因为与新napcat的格式冲突，所以加了一点匹配内容
+          let m = /url=(https?\:\/\/gchat\.qpic\.cn[^\]]+)]/.exec(text) as RegExpExecArray
+          if (m && !text.includes('file_unique')) {
             let deco = Decoration.widget({
               widget: new ImagePreviewWidget(m[1]),
               side: 0
@@ -116,6 +117,19 @@ function imagePreviews(view: EditorView): DecorationSet {
               side: 0
             })
             widgets.push(deco.range(to))
+          }
+
+          // ob11 - napcat 20250317
+          if (!m) {
+          m = /file_unique=([a-zA-Z0-9]{32})\]/.exec(text) as RegExpExecArray
+            if (m) {
+              // 注: 观察到与ob11冲突情况
+              let deco = Decoration.widget({
+                widget: new ImagePreviewWidget(`https://gchat.qpic.cn/gchatpic_new/0/0-0-${m[1]}/0?term=2,subType=1`),
+                side: 0
+              })
+              widgets.push(deco.range(to))
+            }
           }
 
           // ob11 - lagrange
@@ -260,27 +274,27 @@ const createEditor = (editorContainer: any, doc: any) => {
 <木落>掷出了 D20=7
 
 木落(303451945) 2022/03/21 19:14:02
-.nn 折影
+.nn 芝士雪豹
 
 海豹一号机(2589922907) 2022/03/21 19:14:02
-<木落>(303451945)的昵称被设定为<折影>
+<木落>(303451945)的昵称被设定为<芝士雪豹>
 
-折影(303451945) 2022/03/21 19:14:05
+芝士雪豹(303451945) 2022/03/21 19:14:05
 ,r
 
-折影(303451945) 2022/03/21 19:14:12
+芝士雪豹(303451945) 2022/03/21 19:14:12
 .r
 
 海豹一号机(2589922907) 2022/03/21 19:14:12
-<折影>掷出了 D20=15
+<芝士雪豹>掷出了 D20=15
 
-折影(303451945) 2022/03/21 19:14:24
+芝士雪豹(303451945) 2022/03/21 19:14:24
 就这样吧
 
-折影(303451945) 2022/03/21 19:14:29
+芝士雪豹(303451945) 2022/03/21 19:14:29
 草草结束
 
-折影(303451945) 2022/03/21 19:14:35
+芝士雪豹(303451945) 2022/03/21 19:14:35
 .log end
 
 海豹一号机(2589922907) 2022/03/21 19:14:35
