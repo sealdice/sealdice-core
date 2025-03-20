@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/analysis/analyzer/simple"
 	"github.com/blevesearch/bleve/v2/search/query"
 	index "github.com/blevesearch/bleve_index_api"
 
@@ -57,15 +58,18 @@ func (d *BleveSearchEngine) Init() error {
 	mapping := bleve.NewIndexMapping()
 	docMapping := bleve.NewDocumentMapping()
 	contentFieldMapping := bleve.NewTextFieldMapping()
+	titleFieldMapping := bleve.NewTextFieldMapping()
 	keywordMapping := bleve.NewKeywordFieldMapping()
+	// 试图：不区分大小写的搜索方案
+	keywordMapping.Analyzer = simple.Name
 	// 注意： 这里group,from,package都是keywordMapping
-	// 琢磨了一下，title还要做分词匹配，这个不能是keywordMapping
+	// title既要做分词匹配，又要做精确匹配，需要特殊配置它
 	// 下面这些GPT说的，如果不对，随便改。
 	// 不需要分词，只需要支持模糊匹配（类似 SQL 中的 LIKE），那么 keyword 类型的字段 是最合适的选择。
 	// keyword 类型的字段会将整个字段值作为一个整体存储，适合精确匹配和通配符匹配（如 NewWildcardQuery）。
 	docMapping.AddFieldMappingsAt("group", keywordMapping)
 	docMapping.AddFieldMappingsAt("from", keywordMapping)
-	docMapping.AddFieldMappingsAt("title", contentFieldMapping)
+	docMapping.AddFieldMappingsAt("title", titleFieldMapping)
 	// Content才是真正的文档
 	docMapping.AddFieldMappingsAt("content", contentFieldMapping)
 	docMapping.AddFieldMappingsAt("package", keywordMapping)
@@ -203,9 +207,6 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 	return &responseResult, total, pageStart, pageEnd, nil
 }
 
-// 下面的代码都应该重构，因为它们返回的不是我们想要的结果
-// PaginateAllDocuments 分页查询所有文档
-// TODO:这里坏了，没有办法用，本来应该是精确匹配NewMatchQuery
 func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from, title string) (uint64, []*HelpTextItem, error) {
 	var items []*HelpTextItem
 	// 只有Keyword才支持NewTermQuery
@@ -299,7 +300,7 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 
 // 精确查询title
 func (d *BleveSearchEngine) GetHelpTextItemByTermTitle(title string) (*HelpTextItem, error) {
-	newTermQuery := query.NewTermQuery(title)
+	newTermQuery := query.NewMatchQuery(title)
 	newTermQuery.SetField("title") // 精确匹配title
 	req := bleve.NewSearchRequest(newTermQuery)
 	req.Fields = []string{"*"}
