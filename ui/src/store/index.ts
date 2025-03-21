@@ -89,7 +89,6 @@ export interface DiceConnection {
   groupNum: number;
   cmdExecutedNum: number;
   cmdExecutedLastTime: number;
-  onlineTotalTime: number;
   isPublic: boolean;
 
   adapter: AdapterQQ;

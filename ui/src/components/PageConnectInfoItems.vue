@@ -143,10 +143,6 @@
             </el-space>
           </el-form-item>
 
-          <el-form-item label="在线时长">
-            <div>{{ i.onlineTotalTime }} 未实现</div>
-          </el-form-item>
-
           <el-form-item label="群组数量">
             <div>{{ i.groupNum }}</div>
           </el-form-item>
