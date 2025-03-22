@@ -315,7 +315,12 @@ func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *Mess
 			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
 			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
 		case "record":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
+			// 兼容NC情况, 此时file字段只有文件名, 完整路径在path字段
+			if !hasURLScheme(dataObj.Get("file").String()) && dataObj.Get("path").String() != "" {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("path").String()))
+			} else {
+				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
+			}
 		case "at":
 			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
 		case "poke":
@@ -367,8 +372,14 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 				arr = append(arr, i)
 			}
 		case "record":
-			i := OneBotV11ArrMsgItem[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
-			arr = append(arr, i)
+			// 兼容NC情况, 此时file字段只有文件名, 完整路径在path字段
+			if !hasURLScheme(cq.Args["file"]) && cq.Args["path"] != "" {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemImageType]{Type: "record", Data: OneBotV11MsgItemImageType{File: cq.Args["path"]}}
+				arr = append(arr, i)
+			} else {
+				i := OneBotV11ArrMsgItem[OneBotV11MsgItemRecordType]{Type: "record", Data: OneBotV11MsgItemRecordType{File: cq.Args["file"]}}
+				arr = append(arr, i)
+			}
 		case "at":
 			// [CQ:at,qq=10001000]
 			i := OneBotV11ArrMsgItem[OneBotV11MsgItemAtType]{Type: "at", Data: OneBotV11MsgItemAtType{QQ: cq.Args["qq"]}}
