@@ -17,7 +17,7 @@ import (
 	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 
-	"sealdice-core/dice/dao"
+	"sealdice-core/dice/service"
 	"sealdice-core/model"
 	log "sealdice-core/utils/kratos"
 )
@@ -2139,7 +2139,7 @@ func (d *Dice) loads() {
 		// 装载ServiceAtNew
 		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
 		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
-		err = dao.GroupInfoListGet(d.DBOperator, func(id string, updatedAt int64, data []byte) {
+		err = service.GroupInfoListGet(d.DBOperator, func(id string, updatedAt int64, data []byte) {
 			var groupInfo GroupInfo
 			err = json.Unmarshal(data, &groupInfo)
 			if err == nil {
@@ -2344,7 +2344,7 @@ func (d *Dice) loads() {
 		d.Config = config
 	}
 
-	_ = dao.BanItemList(d.DBOperator, func(id string, banUpdatedAt int64, data []byte) {
+	_ = service.BanItemList(d.DBOperator, func(id string, banUpdatedAt int64, data []byte) {
 		var v BanListInfoItem
 		err := json.Unmarshal(data, &v)
 		if err == nil {
@@ -2529,7 +2529,7 @@ func (d *Dice) Save(isAuto bool) {
 					value.UserID = key
 					value.GroupID = groupInfo.GroupID
 					value.UpdatedAt = now // 更新当前时间为 UpdatedAt
-					_ = dao.GroupPlayerInfoSave(d.DBOperator, (*model.GroupPlayerInfoBase)(value))
+					_ = service.GroupPlayerInfoSave(d.DBOperator, (*model.GroupPlayerInfoBase)(value))
 					value.UpdatedAtTime = 0
 				}
 				return true
@@ -2539,7 +2539,7 @@ func (d *Dice) Save(isAuto bool) {
 		if groupInfo.UpdatedAtTime != 0 {
 			data, err := json.Marshal(groupInfo)
 			if err == nil {
-				err := dao.GroupInfoSave(d.DBOperator, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
+				err := service.GroupInfoSave(d.DBOperator, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
 				if err != nil {
 					d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
 				}

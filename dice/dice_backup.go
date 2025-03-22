@@ -15,7 +15,7 @@ import (
 
 	"github.com/alexmullins/zip"
 
-	"sealdice-core/dice/dao"
+	"sealdice-core/dice/service"
 	"sealdice-core/utils"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/crypto"
@@ -237,20 +237,20 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			backup(d, fn)
 		}
 
-		err := dao.FlushWAL(d.DBOperator.GetDataDB(constant.WRITE))
+		err := service.FlushWAL(d.DBOperator.GetDataDB(constant.WRITE))
 		if err != nil {
 			d.Logger.Errorf("备份时data数据库flush出错 错误为:%v", err.Error())
 		} else {
 			backup(d, filepath.Join(dataDir, "data.db"))
 		}
-		err = dao.FlushWAL(d.DBOperator.GetLogDB(constant.WRITE))
+		err = service.FlushWAL(d.DBOperator.GetLogDB(constant.WRITE))
 		if err != nil {
 			d.Logger.Errorf("备份时logs数据库flush出错 错误为:%v", err.Error())
 		} else {
 			backup(d, filepath.Join(dataDir, "data-logs.db"))
 		}
 		if d.CensorManager != nil && d.CensorManager.DB != nil {
-			err = dao.FlushWAL(d.DBOperator.GetCensorDB(constant.WRITE))
+			err = service.FlushWAL(d.DBOperator.GetCensorDB(constant.WRITE))
 			if err != nil {
 				d.Logger.Errorf("备份时censor数据库flush出错 %v", err.Error())
 			} else {

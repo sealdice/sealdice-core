@@ -16,7 +16,7 @@ import (
 
 	"github.com/sacOO7/gowebsocket"
 
-	"sealdice-core/dice/dao"
+	"sealdice-core/dice/service"
 	"sealdice-core/message"
 	"sealdice-core/utils/procs"
 )
@@ -439,7 +439,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 				if ok {
 					if groupInfo.LogOn {
-						_ = dao.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
+						_ = service.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
 					}
 				}
 				return

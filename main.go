@@ -26,7 +26,7 @@ import (
 
 	"sealdice-core/api"
 	"sealdice-core/dice"
-	"sealdice-core/dice/dao"
+	"sealdice-core/dice/service"
 	"sealdice-core/migrate"
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
@@ -214,7 +214,7 @@ func main() {
 		return
 	}
 	if opts.VacuumDB {
-		dao.DBVacuum()
+		service.DBVacuum()
 		return
 	}
 	if opts.ShowEnv {

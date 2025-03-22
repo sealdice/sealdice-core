@@ -1,4 +1,4 @@
-package dao
+package service
 
 import (
 	"encoding/json"

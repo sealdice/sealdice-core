@@ -13,7 +13,7 @@ import (
 
 	"github.com/samber/lo"
 
-	"sealdice-core/dice/dao"
+	"sealdice-core/dice/service"
 	"sealdice-core/message"
 	"sealdice-core/model"
 	"sealdice-core/utils/dboperator/engine"
@@ -232,7 +232,7 @@ func (group *GroupInfo) PlayerGet(operator engine.DatabaseOperator, id string) *
 	}
 	p, exists := group.Players.Load(id)
 	if !exists {
-		basePtr := dao.GroupPlayerInfoGet(operator, group.GroupID, id)
+		basePtr := service.GroupPlayerInfoGet(operator, group.GroupID, id)
 		p = (*GroupPlayerInfo)(basePtr)
 		if p != nil {
 			group.Players.Store(id, p)
@@ -460,7 +460,7 @@ func (ep *EndPointInfo) StatsRestore(d *Dice) {
 	}
 
 	m := model.EndpointInfo{UserID: ep.UserID}
-	err := dao.Query(d.DBOperator, &m)
+	err := service.Query(d.DBOperator, &m)
 	if err != nil {
 		d.Logger.Errorf("恢复endpoint统计数据失败 %v : %v", ep.UserID, err)
 		return
@@ -490,7 +490,7 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 	}
 
 	m := model.EndpointInfo{UserID: ep.UserID, CmdNum: ep.CmdExecutedNum, CmdLastTime: ep.CmdExecutedLastTime, OnlineTime: ep.OnlineTotalTime}
-	err := dao.Save(d.DBOperator, &m)
+	err := service.Save(d.DBOperator, &m)
 	if err != nil {
 		d.Logger.Errorf("保存endpoint数据到数据库失败 %v : %v", ep.UserID, err)
 	}

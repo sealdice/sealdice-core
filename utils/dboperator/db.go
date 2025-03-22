@@ -7,10 +7,9 @@ import (
 
 	"gorm.io/gorm"
 
-	"sealdice-core/dice/dao"
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
-	engine2 "sealdice-core/utils/dboperator/engine"
+	operator "sealdice-core/utils/dboperator/engine"
 	"sealdice-core/utils/dboperator/engine/mysql"
 	"sealdice-core/utils/dboperator/engine/pgsql"
 	"sealdice-core/utils/dboperator/engine/sqlite"
@@ -18,7 +17,7 @@ import (
 )
 
 var (
-	engine            engine2.DatabaseOperator
+	engine            operator.DatabaseOperator
 	once              sync.Once
 	errEngineInstance error
 )
@@ -27,13 +26,13 @@ var (
 func initEngine() {
 	dbType := os.Getenv("DB_TYPE")
 	switch dbType {
-	case dao.SQLITE:
+	case constant.SQLITE:
 		log.Info("当前选择使用: SQLITE数据库")
 		engine = &sqlite.SQLiteEngine{}
-	case dao.MYSQL:
+	case constant.MYSQL:
 		log.Info("当前选择使用: MYSQL数据库")
 		engine = &mysql.MYSQLEngine{}
-	case dao.POSTGRESQL:
+	case constant.POSTGRESQL:
 		log.Info("当前选择使用: POSTGRESQL数据库")
 		engine = &pgsql.PGSQLEngine{}
 	default:
@@ -53,18 +52,18 @@ func initEngine() {
 }
 
 // getEngine 获取数据库引擎，确保只初始化一次
-func getEngine() (engine2.DatabaseOperator, error) {
+func getEngine() (operator.DatabaseOperator, error) {
 	once.Do(initEngine)
 	return engine, errEngineInstance
 }
 
 // GetDatabaseOperator 初始化数据和日志数据库
-func GetDatabaseOperator() (engine2.DatabaseOperator, error) {
+func GetDatabaseOperator() (operator.DatabaseOperator, error) {
 	return getEngine()
 }
 
 func hackMigrator(logsDB *gorm.DB) error {
-	// TODO: 将这段逻辑挪移到Migrator上
+	// TODO: 将这段逻辑挪移到Migrator上 现在暂时没空动它
 	var ids []uint64
 	var logItemSums []struct {
 		LogID uint64

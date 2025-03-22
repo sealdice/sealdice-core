@@ -13,7 +13,7 @@ import (
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/dice"
-	"sealdice-core/dice/dao"
+	"sealdice-core/dice/service"
 	"sealdice-core/model"
 	"sealdice-core/utils"
 
@@ -56,7 +56,7 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 		item := &model.AttributesItemModel{
 			Id:        utils.NewID(),
 			Data:      rawData,
-			AttrsType: dao.AttrsTypeCharacter,
+			AttrsType: service.AttrsTypeCharacter,
 
 			// 这些是角色卡专用的
 			Name:      name,
@@ -166,7 +166,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		item := &model.AttributesItemModel{
 			Id:        id,
 			Data:      rawData,
-			AttrsType: dao.AttrsTypeGroupUser,
+			AttrsType: service.AttrsTypeGroupUser,
 
 			// 当前组内绑定的卡
 			BindingSheetId: sheetIdBindByGroupUserId[id],
@@ -243,7 +243,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 		item := &model.AttributesItemModel{
 			Id:        id,
 			Data:      rawData,
-			AttrsType: dao.AttrsTypeGroup,
+			AttrsType: service.AttrsTypeGroup,
 
 			IsHidden: true,
 
@@ -361,7 +361,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		item := &model.AttributesItemModel{
 			Id:        ownerId,
 			Data:      rawData,
-			AttrsType: dao.AttrsTypeUser,
+			AttrsType: service.AttrsTypeUser,
 
 			IsHidden:  true,
 			CreatedAt: updatedAt,
