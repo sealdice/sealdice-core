@@ -708,7 +708,17 @@ func RegisterBuiltinExtLog(self *Dice) {
 						return true
 					}
 
-					text, _ := SetPlayerGroupCardByTemplate(ctx, t.Template)
+					// 增加使用sn设置自定义规则的名片模板时的错误反馈
+					text, err := SetPlayerGroupCardByTemplate(ctx, t.Template)
+					if errors.Is(err, ErrGroupCardOverlong) {
+						handleOverlong(ctx, msg, text)
+						ok = true
+						return false
+					} else if err != nil {
+						ReplyToSender(ctx, msg, "命名模版错误或不存在，请使用.sn help查看使用说明")
+						ok = true
+						return false
+					}
 					ctx.Player.AutoSetNameTemplate = t.Template
 					VarSetValueStr(ctx, "$t名片格式", val)
 					VarSetValueStr(ctx, "$t名片预览", text)
