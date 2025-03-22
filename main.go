@@ -26,10 +26,11 @@ import (
 
 	"sealdice-core/api"
 	"sealdice-core/dice"
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/service"
 	"sealdice-core/migrate"
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
+	"sealdice-core/utils/dboperator"
 	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/oschecker"
 	"sealdice-core/utils/paniclog"
@@ -209,11 +210,11 @@ func main() {
 		return
 	}
 	if opts.DBCheck {
-		model.DBCheck()
+		dboperator.DBCheck()
 		return
 	}
 	if opts.VacuumDB {
-		model.DBVacuum()
+		service.DBVacuum()
 		return
 	}
 	if opts.ShowEnv {
@@ -236,7 +237,16 @@ func main() {
 	_ = os.MkdirAll("./data", 0o755)
 
 	// 提早初始化是为了读取ServiceName
-	diceManager := &dice.DiceManager{}
+
+	// diceManager初始化数据库
+	operator, err := dboperator.GetDatabaseOperator()
+	if err != nil {
+		log.Errorf("Failed to init database: %v", err)
+		return
+	}
+	diceManager := &dice.DiceManager{
+		Operator: operator,
+	}
 
 	if opts.ContainerMode {
 		log.Info("当前为容器模式，内置适配器与更新功能已被禁用")
