@@ -9,6 +9,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
+	"sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -29,6 +30,7 @@ type GroupNameCacheItem struct {
 
 type DiceManager struct { //nolint:revive
 	Dice                 []*Dice
+	Operator             engine.DatabaseOperator
 	ServeAddress         string
 	Help                 *HelpManager
 	IsHelpReloading      bool
@@ -246,7 +248,7 @@ func (dm *DiceManager) InitDice() {
 
 	for _, i := range dm.Dice {
 		i.Parent = dm
-		i.Init()
+		i.Init(dm.Operator)
 	}
 
 	go func() {

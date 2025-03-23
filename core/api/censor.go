@@ -18,7 +18,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/dice/censor"
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/service"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -518,7 +518,7 @@ func censorGetLogPage(c echo.Context) error {
 		return err
 	}
 
-	v := model.QueryCensorLog{}
+	v := service.QueryCensorLog{}
 	err = c.Bind(&v)
 	if err != nil {
 		log.Error("censorGetLogPage", err)
@@ -531,7 +531,7 @@ func censorGetLogPage(c echo.Context) error {
 		v.PageSize = 20
 	}
 
-	total, page, err := model.CensorGetLogPage(myDice.DBOperator, v)
+	total, page, err := service.CensorGetLogPage(myDice.DBOperator, v)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
