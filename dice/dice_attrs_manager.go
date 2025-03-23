@@ -8,12 +8,15 @@ import (
 
 	ds "github.com/sealdice/dicescript"
 
-	"sealdice-core/dice/model"
+	"sealdice-core/dice/service"
+	"sealdice-core/model"
+	"sealdice-core/utils/constant"
+	"sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
 )
 
 type AttrsManager struct {
-	db     model.DatabaseOperator
+	db     engine.DatabaseOperator
 	logger *log.Helper
 	cancel context.CancelFunc
 	m      SyncMap[string, *AttributesItem]
@@ -44,7 +47,7 @@ func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, er
 
 	//	1. 首先获取当前群+用户所绑定的卡
 	// 绑定卡的id是nanoid
-	id, err := model.AttrsGetBindingSheetIdByGroupId(am.db, gid)
+	id, err := service.AttrsGetBindingSheetIdByGroupId(am.db, gid)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +67,7 @@ func (am *AttrsManager) UIDConvert(userId string) string {
 
 func (am *AttrsManager) GetCharacterList(userId string) ([]*model.AttributesItemModel, error) {
 	userId = am.UIDConvert(userId)
-	lst, err := model.AttrsGetCharacterListByUserId(am.db, userId)
+	lst, err := service.AttrsGetCharacterListByUserId(am.db, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +83,7 @@ func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*
 		return nil, err
 	}
 
-	return model.AttrsNewItem(am.db, &model.AttributesItemModel{
+	return service.AttrsNewItem(am.db, &model.AttributesItemModel{
 		Name:      name,
 		OwnerId:   userId,
 		AttrsType: "character",
@@ -90,7 +93,7 @@ func (am *AttrsManager) CharNew(userId string, name string, sheetType string) (*
 }
 
 func (am *AttrsManager) CharDelete(id string) error {
-	if err := model.AttrsDeleteById(am.db, id); err != nil {
+	if err := service.AttrsDeleteById(am.db, id); err != nil {
 		return err
 	}
 	// 从缓存中删除
@@ -112,7 +115,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	}
 
 	// 2. 从新数据库加载
-	data, err := model.AttrsGetById(am.db, id)
+	data, err := service.AttrsGetById(am.db, id)
 	if err == nil {
 		if data.IsDataExists() {
 			var v *ds.VMValue
@@ -186,7 +189,7 @@ func (am *AttrsManager) CheckForSave() error {
 		// 尚未初始化
 		return errors.New("数据库尚未初始化")
 	}
-	var resultList []*model.AttributesBatchUpsertModel
+	var resultList []*service.AttributesBatchUpsertModel
 	prepareToSave := map[string]int{}
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		if !value.IsSaved {
@@ -206,7 +209,7 @@ func (am *AttrsManager) CheckForSave() error {
 		return nil
 	}
 
-	if err := model.AttrsPutsByIDBatch(am.db, resultList); err != nil {
+	if err := service.AttrsPutsByIDBatch(am.db, resultList); err != nil {
 		log.Errorf("定期写入用户数据出错(批量保存): %v", err)
 		return err
 	}
@@ -222,7 +225,7 @@ func (am *AttrsManager) CheckForSave() error {
 
 // CheckAndFreeUnused 此函数会被定期调用，释放最近不用的对象
 func (am *AttrsManager) CheckAndFreeUnused() error {
-	db := am.db.GetDataDB(model.WRITE)
+	db := am.db.GetDataDB(constant.WRITE)
 	if db == nil {
 		// 尚未初始化
 		return errors.New("数据库尚未初始化")
@@ -230,7 +233,7 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 
 	prepareToFree := map[string]int{}
 	currentTime := time.Now()
-	var resultList []*model.AttributesBatchUpsertModel
+	var resultList []*service.AttributesBatchUpsertModel
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		lastUsedTime := time.Unix(value.LastUsedTime, 0)
 		if lastUsedTime.Sub(currentTime) > 10*time.Minute {
@@ -251,7 +254,7 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 		return nil
 	}
 
-	if err := model.AttrsPutsByIDBatch(am.db, resultList); err != nil {
+	if err := service.AttrsPutsByIDBatch(am.db, resultList); err != nil {
 		log.Errorf("定期清理写入用户数据出错(批量保存): %v", err)
 		return err
 	}
@@ -267,18 +270,18 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 func (am *AttrsManager) CharBind(charId string, groupId string, userId string) error {
 	userId = am.UIDConvert(userId)
 	id := fmt.Sprintf("%s-%s", groupId, userId)
-	return model.AttrsBindCharacter(am.db, charId, id)
+	return service.AttrsBindCharacter(am.db, charId, id)
 }
 
 // CharGetBindingId 获取当前群绑定的角色ID
 func (am *AttrsManager) CharGetBindingId(groupId string, userId string) (string, error) {
 	userId = am.UIDConvert(userId)
 	id := fmt.Sprintf("%s-%s", groupId, userId)
-	return model.AttrsGetBindingSheetIdByGroupId(am.db, id)
+	return service.AttrsGetBindingSheetIdByGroupId(am.db, id)
 }
 
 func (am *AttrsManager) CharIdGetByName(userId string, name string) (string, error) {
-	return model.AttrsGetIdByUidAndName(am.db, userId, name)
+	return service.AttrsGetIdByUidAndName(am.db, userId, name)
 }
 
 func (am *AttrsManager) CharCheckExists(userId string, name string) bool {
@@ -287,7 +290,7 @@ func (am *AttrsManager) CharCheckExists(userId string, name string) bool {
 }
 
 func (am *AttrsManager) CharGetBindingGroupIdList(id string) []string {
-	all, err := model.AttrsCharGetBindingList(am.db, id)
+	all, err := service.AttrsCharGetBindingList(am.db, id)
 	if err != nil {
 		return []string{}
 	}
@@ -305,7 +308,7 @@ func (am *AttrsManager) CharGetBindingGroupIdList(id string) []string {
 
 func (am *AttrsManager) CharUnbindAll(id string) []string {
 	all := am.CharGetBindingGroupIdList(id)
-	_, err := model.AttrsCharUnbindAll(am.db, id)
+	_, err := service.AttrsCharUnbindAll(am.db, id)
 	if err != nil {
 		return []string{}
 	}
@@ -323,13 +326,13 @@ type AttributesItem struct {
 	SheetType        string
 }
 
-func (i *AttributesItem) SaveToDB(db model.DatabaseOperator) {
+func (i *AttributesItem) SaveToDB(db engine.DatabaseOperator) {
 	// 使用事务写入
 	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
 	if err != nil {
 		return
 	}
-	err = model.AttrsPutById(db, i.ID, rawData, i.Name, i.SheetType)
+	err = service.AttrsPutById(db, i.ID, rawData, i.Name, i.SheetType)
 	if err != nil {
 		log.Error("保存数据失败", err.Error())
 		return
@@ -337,12 +340,12 @@ func (i *AttributesItem) SaveToDB(db model.DatabaseOperator) {
 	i.IsSaved = true
 }
 
-func (i *AttributesItem) GetBatchSaveModel() (*model.AttributesBatchUpsertModel, error) {
+func (i *AttributesItem) GetBatchSaveModel() (*service.AttributesBatchUpsertModel, error) {
 	rawData, err := ds.NewDictVal(i.valueMap).V().ToJSON()
 	if err != nil {
 		return nil, err
 	}
-	return &model.AttributesBatchUpsertModel{
+	return &service.AttributesBatchUpsertModel{
 		Id:        i.ID,
 		Data:      rawData,
 		Name:      i.Name,

@@ -22,7 +22,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"sealdice-core/dice/logger"
-	"sealdice-core/dice/model"
+	"sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/public_dice"
 )
@@ -135,7 +135,7 @@ type Dice struct {
 	BaseConfig      BaseConfig             `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
-	DBOperator    model.DatabaseOperator
+	DBOperator    engine.DatabaseOperator
 	Logger        *log.Helper  `yaml:"-"` // 日志
 	LogWriter     *log.WriterX `yaml:"-"` // 用于api的log对象
 	IsDeckLoading bool         `yaml:"-"` // 正在加载中
@@ -210,7 +210,7 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 	return true
 }
 
-func (d *Dice) Init() {
+func (d *Dice) Init(operator engine.DatabaseOperator) {
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
 	_ = os.MkdirAll(d.BaseConfig.DataDir, 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0o755)
@@ -229,10 +229,6 @@ func (d *Dice) Init() {
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 
 	var err error
-	operator, err := model.GetDatabaseOperator()
-	if err != nil {
-		d.Logger.Errorf("Failed to init database: %v", err)
-	}
 	d.DBOperator = operator
 	d.AttrsManager = &AttrsManager{}
 	d.AttrsManager.Init(d)
