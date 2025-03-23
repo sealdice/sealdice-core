@@ -1,4 +1,4 @@
-package model
+package mysql
 
 import (
 	"context"
@@ -8,8 +8,9 @@ import (
 
 	"gorm.io/gorm"
 
-	"sealdice-core/dice/model/database"
-	"sealdice-core/dice/model/database/cache"
+	"sealdice-core/model"
+	"sealdice-core/utils/cache"
+	"sealdice-core/utils/constant"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -35,15 +36,15 @@ func (s *MYSQLEngine) Close() {
 	}
 }
 
-func (s *MYSQLEngine) GetDataDB(_ DBMode) *gorm.DB {
+func (s *MYSQLEngine) GetDataDB(_ constant.DBMode) *gorm.DB {
 	return s.dataDB
 }
 
-func (s *MYSQLEngine) GetLogDB(_ DBMode) *gorm.DB {
+func (s *MYSQLEngine) GetLogDB(_ constant.DBMode) *gorm.DB {
 	return s.logsDB
 }
 
-func (s *MYSQLEngine) GetCensorDB(_ DBMode) *gorm.DB {
+func (s *MYSQLEngine) GetCensorDB(_ constant.DBMode) *gorm.DB {
 	return s.censorDB
 }
 
@@ -144,7 +145,7 @@ func (s *MYSQLEngine) Init(ctx context.Context) error {
 		return errors.New("DB_DSN is missing")
 	}
 	var err error
-	s.DB, err = database.MySQLDBInit(s.DSN)
+	s.DB, err = MySQLDBInit(s.DSN)
 	if err != nil {
 		return err
 	}
@@ -174,11 +175,11 @@ func (s *MYSQLEngine) dataDBInit() (*gorm.DB, error) {
 	dataDB := s.DB.WithContext(dataContext)
 	err := dataDB.AutoMigrate(
 		// TODO: 这个的索引有没有必要进行修改
-		&GroupPlayerInfoBase{},
-		&GroupInfo{},
-		&BanInfo{},
-		&EndpointInfo{},
-		&AttributesItemModel{},
+		&model.GroupPlayerInfoBase{},
+		&model.GroupInfo{},
+		&model.BanInfo{},
+		&model.EndpointInfo{},
+		&model.AttributesItemModel{},
 	)
 	if err != nil {
 		return nil, err
@@ -208,7 +209,7 @@ func (s *MYSQLEngine) logDBInit() (*gorm.DB, error) {
 func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
 	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	censorDB := s.DB.WithContext(censorContext)
-	if err := censorDB.AutoMigrate(&CensorLog{}); err != nil {
+	if err := censorDB.AutoMigrate(&model.CensorLog{}); err != nil {
 		return nil, err
 	}
 	return censorDB, nil

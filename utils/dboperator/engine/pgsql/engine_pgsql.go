@@ -1,4 +1,4 @@
-package model
+package pgsql
 
 import (
 	"context"
@@ -8,8 +8,9 @@ import (
 
 	"gorm.io/gorm"
 
-	"sealdice-core/dice/model/database"
-	"sealdice-core/dice/model/database/cache"
+	"sealdice-core/model"
+	"sealdice-core/utils/cache"
+	"sealdice-core/utils/constant"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -35,15 +36,15 @@ func (s *PGSQLEngine) Close() {
 	}
 }
 
-func (s *PGSQLEngine) GetDataDB(_ DBMode) *gorm.DB {
+func (s *PGSQLEngine) GetDataDB(_ constant.DBMode) *gorm.DB {
 	return s.dataDB
 }
 
-func (s *PGSQLEngine) GetLogDB(_ DBMode) *gorm.DB {
+func (s *PGSQLEngine) GetLogDB(_ constant.DBMode) *gorm.DB {
 	return s.logsDB
 }
 
-func (s *PGSQLEngine) GetCensorDB(_ DBMode) *gorm.DB {
+func (s *PGSQLEngine) GetCensorDB(_ constant.DBMode) *gorm.DB {
 	return s.censorDB
 }
 
@@ -57,7 +58,7 @@ func (s *PGSQLEngine) Init(ctx context.Context) error {
 		return errors.New("DB_DSN is missing")
 	}
 	var err error
-	s.DB, err = database.PostgresDBInit(s.DSN)
+	s.DB, err = PostgresDBInit(s.DSN)
 	if err != nil {
 		return err
 	}
@@ -88,11 +89,11 @@ func (s *PGSQLEngine) dataDBInit() (*gorm.DB, error) {
 	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
 	dataDB := s.DB.WithContext(dataContext)
 	err := dataDB.AutoMigrate(
-		&GroupPlayerInfoBase{},
-		&GroupInfo{},
-		&BanInfo{},
-		&EndpointInfo{},
-		&AttributesItemModel{},
+		&model.GroupPlayerInfoBase{},
+		&model.GroupInfo{},
+		&model.BanInfo{},
+		&model.EndpointInfo{},
+		&model.AttributesItemModel{},
 	)
 	if err != nil {
 		return nil, err
@@ -104,7 +105,7 @@ func (s *PGSQLEngine) logDBInit() (*gorm.DB, error) {
 	// logs建表
 	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
 	logDB := s.DB.WithContext(logsContext)
-	if err := logDB.AutoMigrate(&LogInfo{}, &LogOneItem{}); err != nil {
+	if err := logDB.AutoMigrate(&model.LogInfo{}, &model.LogOneItem{}); err != nil {
 		return nil, err
 	}
 	return logDB, nil
@@ -114,7 +115,7 @@ func (s *PGSQLEngine) censorDBInit() (*gorm.DB, error) {
 	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	censorDB := s.DB.WithContext(censorContext)
 	// 创建基本的表结构，并通过标签定义索引
-	if err := censorDB.AutoMigrate(&CensorLog{}); err != nil {
+	if err := censorDB.AutoMigrate(&model.CensorLog{}); err != nil {
 		return nil, err
 	}
 	return censorDB, nil

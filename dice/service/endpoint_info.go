@@ -1,28 +1,19 @@
-package model
+package service
 
 import (
 	"errors"
 
 	"gorm.io/gorm"
+
+	"sealdice-core/model"
+	"sealdice-core/utils/constant"
+	engine2 "sealdice-core/utils/dboperator/engine"
 )
 
 var ErrEndpointInfoUIDEmpty = errors.New("user id is empty")
 
-// 仅修改为gorm格式
-type EndpointInfo struct {
-	UserID      string `gorm:"column:user_id;primaryKey"`
-	CmdNum      int64  `gorm:"column:cmd_num;"`
-	CmdLastTime int64  `gorm:"column:cmd_last_time;"`
-	OnlineTime  int64  `gorm:"column:online_time;"`
-	UpdatedAt   int64  `gorm:"column:updated_at;"`
-}
-
-func (EndpointInfo) TableName() string {
-	return "endpoint_info"
-}
-
-func (e *EndpointInfo) Query(operator DatabaseOperator) error {
-	db := operator.GetDataDB(READ)
+func Query(operator engine2.DatabaseOperator, e *model.EndpointInfo) error {
+	db := operator.GetDataDB(constant.READ)
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
 	}
@@ -30,7 +21,7 @@ func (e *EndpointInfo) Query(operator DatabaseOperator) error {
 		return errors.New("db is nil")
 	}
 
-	err := db.Model(&EndpointInfo{}).
+	err := db.Model(&model.EndpointInfo{}).
 		Where("user_id = ?", e.UserID).
 		Select("cmd_num", "cmd_last_time", "online_time", "updated_at").
 		Limit(1).
@@ -43,8 +34,8 @@ func (e *EndpointInfo) Query(operator DatabaseOperator) error {
 	return nil
 }
 
-func (e *EndpointInfo) Save(operator DatabaseOperator) error {
-	db := operator.GetDataDB(WRITE)
+func Save(operator engine2.DatabaseOperator, e *model.EndpointInfo) error {
+	db := operator.GetDataDB(constant.WRITE)
 	// 检查 user_id 是否为空
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
