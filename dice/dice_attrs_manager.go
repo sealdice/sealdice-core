@@ -236,7 +236,7 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 	var resultList []*service.AttributesBatchUpsertModel
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		lastUsedTime := time.Unix(value.LastUsedTime, 0)
-		if lastUsedTime.Sub(currentTime) > 10*time.Minute {
+		if currentTime.Sub(lastUsedTime) > 10*time.Minute {
 			saveModel, err := value.GetBatchSaveModel()
 			if err != nil {
 				// 打印日志
