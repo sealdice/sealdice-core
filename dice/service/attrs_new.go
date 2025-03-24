@@ -7,7 +7,6 @@ import (
 
 	ds "github.com/sealdice/dicescript"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"sealdice-core/model"
 	"sealdice-core/utils"
@@ -121,63 +120,85 @@ type AttributesBatchUpsertModel struct {
 }
 
 // AttrsPutsByIDBatch 特殊入库函数 因为它
+// AttrsPutsByIDBatch 特殊入库函数
+// https://github.com/go-gorm/gorm/issues/6047 混合的更新疑似仍然有问题，所以手动拆分逻辑
 func AttrsPutsByIDBatch(operator engine2.DatabaseOperator, saveList []*AttributesBatchUpsertModel) error {
-	db := operator.GetDataDB(constant.WRITE)
-	now := time.Now().Unix() // 获取当前时间
-	trulySaveList := make([]map[string]any, 0)
-	for _, singleSave := range saveList {
-		trulySaveList = append(trulySaveList, map[string]any{
-			// 第一次全量建表
-			"id": singleSave.Id,
-			// 使用BYTE规避无法插入的问题
-			"data":             dbutil.BYTE(singleSave.Data),
-			"is_hidden":        true,
-			"binding_sheet_id": "",
-			"name":             singleSave.Name,
-			"sheet_type":       singleSave.SheetType,
-			"created_at":       now,
-			"updated_at":       now,
-		})
-	}
-	// 保守的调整一次插入1K条，这应该足够应对大部分场景，这种情况下，相当于有1K个人在60s内绑定了角色卡？
-	batchSize := 1000
-	tableName := (&model.AttributesItemModel{}).TableName()
-	// TODO: 只能手动分批次插入，原因看下面
-	// 由于传入的就是tx，所以这里如果插入失败，会自动回滚
-	err := db.Transaction(func(tx *gorm.DB) error {
-		for i := 0; i < len(trulySaveList); i += batchSize {
-			end := i + batchSize
-			if end > len(trulySaveList) {
-				end = len(trulySaveList)
-			}
-			batch := trulySaveList[i:end]
-			res := tx.Debug().Clauses(clause.OnConflict{
-				// 冲突列判断
-				Columns: []clause.Column{
-					{Name: "id"},
-				},
-				DoUpdates: clause.Assignments(map[string]interface{}{
-					"data":       clause.Column{Name: "data", Table: tableName},       // 更新 data 字段
-					"updated_at": now,                                                 // 更新时设置 updated_at
-					"name":       clause.Column{Name: "name", Table: tableName},       // 更新 name 字段
-					"sheet_type": clause.Column{Name: "sheet_type", Table: tableName}, // 更新 sheet_type 字段
-				}),
-			}).
-				Model(&model.AttributesItemModel{}).
-				// 注意! 这里有坑，不能使用CreateInBatches + map[string]interface{}。
-				// CreateInBatches会设置结果接收位置为：subtx.Statement.Dest = reflectValue.Slice(i, ends).Interface()
-				// 指向map[string]interface{}，导致数据没办法正确放入。
-				// 只能用Create,同时千万别设置Create的BatchSize，否则会导致它使用上面那个函数，还是会报错。
-				Create(&batch)
-			if res.Error != nil {
-				return res.Error
-			}
-		}
-		return nil
-	})
-	return err
-}
+	writeDB := operator.GetDataDB(constant.WRITE)
+	readDB := operator.GetDataDB(constant.READ)
+	now := time.Now().Unix()
 
+	// 收集所有ID用于查询已存在记录
+	ids := make([]string, 0, len(saveList))
+	for _, value := range saveList {
+		ids = append(ids, value.Id)
+	}
+
+	// 查询已存在的ID
+	var existingIDs []string
+	if len(ids) > 0 {
+		err := readDB.Model(&model.AttributesItemModel{}).Where("id IN (?)", ids).Pluck("id", &existingIDs).Error
+		if err != nil {
+			return err
+		}
+	}
+
+	// 将现有ID转换为map加速查找
+	existingMap := make(map[string]bool)
+	for _, id := range existingIDs {
+		existingMap[id] = true
+	}
+
+	// 拆分更新和新建列表
+	var updateList []*AttributesBatchUpsertModel
+	createList := make([]*model.AttributesItemModel, 0, len(saveList))
+
+	for _, value := range saveList {
+		if existingMap[value.Id] {
+			updateList = append(updateList, value)
+		} else {
+			createList = append(createList, &model.AttributesItemModel{
+				Id:             value.Id,
+				Data:           value.Data,
+				IsHidden:       true,
+				BindingSheetId: "",
+				Name:           value.Name,
+				SheetType:      value.SheetType,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			})
+		}
+	}
+
+	// 批量创建新记录 能批量就批量，更新不能批量没办法。
+	if len(createList) > 0 {
+		if err := writeDB.Create(&createList).Error; err != nil {
+			return err
+		}
+	}
+
+	// 批量更新现有记录
+	if len(updateList) > 0 {
+		err := writeDB.Transaction(func(tx *gorm.DB) error {
+			for _, item := range updateList {
+				if err := tx.Model(&model.AttributesItemModel{}).
+					Where("id = ?", item.Id).
+					Updates(map[string]interface{}{
+						"data":       dbutil.BYTE(item.Data),
+						"updated_at": now,
+						"name":       item.Name,
+						"sheet_type": item.SheetType,
+					}).Error; err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func AttrsDeleteById(operator engine2.DatabaseOperator, id string) error {
 	db := operator.GetDataDB(constant.WRITE)
 	// 使用 GORM 的 Delete 方法删除指定 id 的记录
