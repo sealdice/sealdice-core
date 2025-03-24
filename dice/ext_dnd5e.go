@@ -60,6 +60,8 @@ var dndAttrParent = map[string]string{
 	"表演": "魅力",
 }
 
+const NULL_INIT_VAL = math.MaxInt32 // 不使用 MAX_INT64 以保证 JS 环境使用时不会出现潜在问题
+
 func setupConfigDND(_ *Dice) AttributeConfigs {
 	// 如果不存在，新建
 	defaultVals := AttributeConfigs{
@@ -1353,7 +1355,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
 				sort.Sort(items)
 				if riList.Len() == 0 {
-					VarSetValueInt64(ctx, "$g当前回合先攻值", math.MaxInt32)
+					VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
 				}
 				for order, i := range items {
 					var detail string
@@ -1481,7 +1483,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					newList.SaveToGroup(ctx)
 					if currentDeleted {
 						if len(newList) == 0 {
-							VarSetValueInt64(ctx, "$g当前回合先攻值", math.MaxInt32) // 不使用 MAX_INT64 以保证 JS 环境使用时不会出现潜在问题
+							VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
 							textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 						} else {
 							setInitNextRoundVars(ctx, newList, round)
@@ -1531,7 +1533,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 				if !added {
 					if len(riList) == 0 {
-						VarSetValueInt64(ctx, "$g当前回合先攻值", math.MaxInt32)
+						VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
 					} else {
 						curInitVal, _ := VarGetValueInt64(ctx, "$g当前回合先攻值")
 						if int64(r.MustReadInt()) > curInitVal {
@@ -1554,7 +1556,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, textOut)
 			case "clr", "clear":
 				(RIList{}).SaveToGroup(ctx)
-				VarSetValueInt64(ctx, "$g当前回合先攻值", math.MaxInt32)
+				VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 				VarSetValueInt64(ctx, "$g回合数", 0)
 			case "help":
