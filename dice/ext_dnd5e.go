@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -58,6 +59,8 @@ var dndAttrParent = map[string]string{
 	"威吓": "魅力",
 	"表演": "魅力",
 }
+
+const NULL_INIT_VAL = math.MaxInt32 // 不使用 MAX_INT64 以保证 JS 环境使用时不会出现潜在问题
 
 func setupConfigDND(_ *Dice) AttributeConfigs {
 	// 如果不存在，新建
@@ -1351,6 +1354,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
 				sort.Sort(items)
+				if riList.Len() == 0 {
+					VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
+				}
 				for order, i := range items {
 					var detail string
 					if i.detail != "" {
@@ -1360,6 +1366,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 					item := riList.GetExists(i.name)
 					if item == nil {
+						curInitVal, _ := VarGetValueInt64(ctx, "$g当前回合先攻值")
+						if i.val > curInitVal {
+							round, _ := VarGetValueInt64(ctx, "$g回合数")
+							// 当前先攻值不变，修改回合数
+							VarSetValueInt64(ctx, "$g回合数", round+1)
+						}
 						riList = append(riList, i)
 					} else {
 						item.val = i.val
@@ -1376,6 +1388,16 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		},
 	}
 
+	/**
+	Note(Szzrain) at 2025-3-23:
+	这里解释一下战斗轮机制运行的原理。
+	1，首先，在先攻列表为空时，添加任何单位会将 {$g当前回合先攻值} 设定为 INT_MAX 但如果先攻列表不为空，那么添加任何单位都不会更改 {$g当前回合先攻值}
+	2. 只有在进行 .init ed 时才会将 {$g当前回合先攻值} 设定为新单位的先攻值
+	3. 在进行 .init del 时，如果删除的单位是当前回合的单位，那么 {$g当前回合先攻值} 会设定为下一个单位的先攻值，如果删除的单位不是当前回合的单位，那么 {$g当前回合先攻值} 不会改变
+	4. 在新一轮时，会将 {$g当前回合先攻值} 设定为下一个单位的先攻值，而不是 INT_MAX
+	5. 在进行 .init clr 时，会将 {$g当前回合先攻值} 设定为 INT_MAX 如果 .init del 删除了最后一个单位，那么 {$g当前回合先攻值} 会设定为 INT_MAX
+	6. {$g回合数} 会记录当前是第几回合，用于先攻值相同时的辅助处理。但是在添加/删除单位时 {$g当前回合先攻值} 的判断优先度更高
+	*/
 	cmdInit := &CmdItemInfo{
 		Name: "init",
 		ShortHelp: ".init // 查看先攻列表\n" +
@@ -1461,6 +1483,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					newList.SaveToGroup(ctx)
 					if currentDeleted {
 						if len(newList) == 0 {
+							VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
 							textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 						} else {
 							setInitNextRoundVars(ctx, newList, round)
@@ -1509,6 +1532,16 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 				}
 				if !added {
+					if len(riList) == 0 {
+						VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
+					} else {
+						curInitVal, _ := VarGetValueInt64(ctx, "$g当前回合先攻值")
+						if int64(r.MustReadInt()) > curInitVal {
+							round, _ := VarGetValueInt64(ctx, "$g回合数")
+							// 当前先攻值不变，修改回合数
+							VarSetValueInt64(ctx, "$g回合数", round+1)
+						}
+					}
 					riList = append(riList, &RIListItem{name, int64(r.MustReadInt()), "", ""})
 				}
 				sort.Sort(riList)
@@ -1523,6 +1556,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, textOut)
 			case "clr", "clear":
 				(RIList{}).SaveToGroup(ctx)
+				VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_清除列表"))
 				VarSetValueInt64(ctx, "$g回合数", 0)
 			case "help":
@@ -1669,6 +1703,7 @@ func setInitNextRoundVars(ctx *MsgContext, lst RIList, round int64) {
 		VarSetValueStr(ctx, "$t当前回合角色名", lst[round-1].name)
 		VarSetValueStr(ctx, "$t当前回合at", AtBuild(lst[round-1].uid))
 	}
+	VarSetValueInt64(ctx, "$g当前回合先攻值", lst[round].val)
 	VarSetValueStr(ctx, "$t下一回合角色名", lst[round].name)
 	VarSetValueStr(ctx, "$t下一回合at", AtBuild(lst[round].uid))
 
