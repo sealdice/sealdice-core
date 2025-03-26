@@ -26,7 +26,7 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-module/carbon v1.7.3
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jmoiron/sqlx v1.4.0
@@ -78,7 +78,9 @@ require (
 )
 
 require (
+	github.com/PaienNate/SealSocketIO v0.0.0-20250325055346-e2a91196eb5e
 	github.com/blevesearch/bleve_index_api v1.1.13
+	github.com/bytedance/sonic v1.12.8
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/gofrs/flock v0.12.1
 	github.com/joho/godotenv v1.5.1
@@ -114,7 +116,6 @@ require (
 	github.com/blevesearch/zapx/v14 v14.3.10 // indirect
 	github.com/blevesearch/zapx/v15 v15.3.16 // indirect
 	github.com/blevesearch/zapx/v16 v16.1.8 // indirect
-	github.com/bytedance/sonic v1.12.8 // indirect
 	github.com/bytedance/sonic/loader v0.2.2 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
