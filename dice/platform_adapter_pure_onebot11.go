@@ -10,6 +10,8 @@ import (
 
 	"github.com/PaienNate/SealSocketIO/socketio"
 	"github.com/bytedance/sonic"
+	"github.com/gorilla/websocket"
+	"github.com/labstack/echo/v4"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 
@@ -23,8 +25,8 @@ import (
 
 type PlatformAdapterPureOnebot11 struct {
 	// TODO: 缺少TreeSupervisor和GracefulShutdown的实现，得等govnr
-	Instance *socketio.SocketInstance
-	Logger   *log.Helper // 自带的LOGGER
+	Instance *socketio.SocketInstance `yaml:"-" json:"-"`
+	Logger   *log.Helper              `yaml:"-" json:"-"` // 自带的LOGGER
 	// 特有的数据 -> 考虑一下，将它分开！
 	ConnectURL                   string   `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
 	AccessToken                  string   `yaml:"accessToken" json:"accessToken"` // 访问令牌
@@ -33,14 +35,16 @@ type PlatformAdapterPureOnebot11 struct {
 	IsReverse                    bool     `yaml:"isReverse" json:"isReverse" `    // 是否是反向（服务端连接）
 	ReverseAddr                  string   `yaml:"reverseAddr" json:"reverseAddr"` // 反向时，反向绑定的地址
 	// 连接模式
-	Mode LinkerMode `yaml:"linkerMode" json:"linkerMode"`
+	Mode LinkerMode `yaml:"-" json:"linkerMode"`
 	// App版本信息，连上获取。可以用来做判断用。不保证一定能拿到，没有就是空。
-	AppVersion AppVersionInfo `yaml:"appVersion" json:"appVersion"`
+	AppVersion AppVersionInfo `yaml:"-" json:"appVersion"`
 
 	IgnoreFriendRequest bool `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
 	// 一般做处理用的到的公共数据 TMD，这玩意怎么在另外的地方赋值的？
-	Session  *IMSession
-	EndPoint *EndPointInfo
+	Session     *IMSession    `yaml:"-" json:"-"`
+	EndPoint    *EndPointInfo `yaml:"-" json:"-"`
+	DiceServing bool          `yaml:"-"`
+	FuckYouFlag string        `yaml:"FuckYouFlag" json:"FuckYouFlag"`
 	// 一些本来在MsgContext里，但是实在不知道这有个什么B用的东西
 }
 
@@ -63,16 +67,17 @@ const (
 // 这里需要一个ONEBOT的事件对应关系码表
 // OnebotEventPostTypeCode
 const (
-	OnebotEventPostTypeMessage = "message"
+	// 这里有一个算是坑的地方吧，他们的数据默认的什么ping啊，pong啊居然是明文的……这个感觉得改改。
+	OnebotEventPostTypeMessage = "onebot_message"
 	// OnebotEventPostTypeCodeMessageSent 是bot发出的消息
-	OnebotEventPostTypeMessageSent = "message_sent"
-	OnebotEventPostTypeRequest     = "request"
-	OnebotEventPostTypeNotice      = "notice"
-	OnebotEventPostTypeMetaEvent   = "meta_event"
+	OnebotEventPostTypeMessageSent = "onebot_message_sent"
+	OnebotEventPostTypeRequest     = "onebot_request"
+	OnebotEventPostTypeNotice      = "onebot_notice"
+	OnebotEventPostTypeMetaEvent   = "onebot_meta_event"
 )
 
 const (
-	OnebotReceiveMessage = "echo"
+	OnebotReceiveMessage = "onebot_echo"
 )
 
 // 定义参数
@@ -87,7 +92,7 @@ const (
 )
 
 // PreloadInstance 初始化Onebot适合的绑定关系
-func (p PlatformAdapterPureOnebot11) PreloadInstance() error {
+func (p *PlatformAdapterPureOnebot11) PreloadInstance() error {
 	p.Instance = socketio.NewSocketInstance()
 	// TODO: 连接绑定
 	// 总接收事件
@@ -97,11 +102,11 @@ func (p PlatformAdapterPureOnebot11) PreloadInstance() error {
 	p.Instance.On(OnebotEventPostTypeMessage, p.onOnebotMessageEvent)
 	// GOCQ 特有的自身消息，目前没啥用
 	// p.Instance.On(OnebotEventPostTypeMessageSent, nil)
-	p.Instance.On(OnebotEventPostTypeRequest, nil)
-	p.Instance.On(OnebotEventPostTypeNotice, nil)
-	p.Instance.On(OnebotEventPostTypeMetaEvent, nil)
-	// 响应类型为一种事件
-	p.Instance.On(OnebotReceiveMessage, nil)
+	//p.Instance.On(OnebotEventPostTypeRequest, nil)
+	//p.Instance.On(OnebotEventPostTypeNotice, nil)
+	//p.Instance.On(OnebotEventPostTypeMetaEvent, nil)
+	//// 响应类型为一种事件
+	//p.Instance.On(OnebotReceiveMessage, nil)
 	// TODO：针对断联的处理 -> 暂时先不做
 	return nil
 }
@@ -122,7 +127,7 @@ func (pa *PlatformAdapterPureOnebot11) GetLoginInfo() {
 // 消息处理函数们
 
 // request 类型
-func (p PlatformAdapterPureOnebot11) onOnebotRequestEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterPureOnebot11) onOnebotRequestEvent(ep *socketio.EventPayload) {
 	// 请求分为好友请求和加群/邀请请求
 	// TODO: 以此为例，我们考虑一下，要不要err?
 	req := gjson.ParseBytes(ep.Data)
@@ -135,7 +140,7 @@ func (p PlatformAdapterPureOnebot11) onOnebotRequestEvent(ep *socketio.EventPayl
 }
 
 // 编写一个检查是否在黑名单的函数体
-func (p PlatformAdapterPureOnebot11) checkPassBlackList(userId string, ctx *MsgContext) bool {
+func (p *PlatformAdapterPureOnebot11) checkPassBlackList(userId string, ctx *MsgContext) bool {
 	uid := FormatDiceIDQQ(userId)
 	banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
 	if ok {
@@ -147,7 +152,7 @@ func (p PlatformAdapterPureOnebot11) checkPassBlackList(userId string, ctx *MsgC
 }
 
 // 编写一个多验证消息检查函数
-func (p PlatformAdapterPureOnebot11) checkMultiFriendAddVerify(comment string, toMatch string) bool {
+func (p *PlatformAdapterPureOnebot11) checkMultiFriendAddVerify(comment string, toMatch string) bool {
 	// 根据GPT的描述，这里干的事情是：从评论中提取回答内容，并与目标字符串进行逐项匹配，最终决定是否接受。
 	// 我只是从木落那里拆了过来，太热闹了。
 	var willAccept bool
@@ -179,7 +184,7 @@ func (p PlatformAdapterPureOnebot11) checkMultiFriendAddVerify(comment string, t
 	return willAccept
 }
 
-func (p PlatformAdapterPureOnebot11) handleReqFriendAction(req gjson.Result, ep *socketio.EventPayload) error {
+func (p *PlatformAdapterPureOnebot11) handleReqFriendAction(req gjson.Result, ep *socketio.EventPayload) error {
 	// 只有一种情况 就是好友添加
 	// 获取请求详情
 	var comment string
@@ -229,24 +234,26 @@ func (p PlatformAdapterPureOnebot11) handleReqFriendAction(req gjson.Result, ep 
 	return nil
 }
 
-func (p PlatformAdapterPureOnebot11) handleReqGroupAction(req gjson.Result, ep *socketio.EventPayload) error {
+func (p *PlatformAdapterPureOnebot11) handleReqGroupAction(req gjson.Result, ep *socketio.EventPayload) error {
 	return nil
 }
 
 // MESSAGE 类型
-func (p PlatformAdapterPureOnebot11) onOnebotMessageEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterPureOnebot11) onOnebotMessageEvent(ep *socketio.EventPayload) {
 	// 进行进一步的下一层解析，从而获取值
 	// 如果是普通消息(群消息/私聊消息)
 	// Note(Pinenutn): 我真是草了，这个Execute又是依托答辩，代码长的完全不忍阅读
 	// 总之分发到这里的数据肯定都能序列化成Message的罢，对的罢？
 	msg := p.convertStringMessage(gjson.ParseBytes(ep.Data))
 	if msg.MessageType == "private" || msg.MessageType == "group" {
+		msg.UUID = ep.SocketUUID
 		p.Session.Execute(p.EndPoint, msg, false)
 	}
 	// DO NOTHING
 }
 
-func (p PlatformAdapterPureOnebot11) serveOnebotEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterPureOnebot11) serveOnebotEvent(ep *socketio.EventPayload) {
+	fmt.Printf("Message event - User: %s - Message: %s", ep.Kws.GetStringAttribute("user_id"), string(ep.Data))
 	var err error
 	if !gjson.ValidBytes(ep.Data) {
 		// TODO：错误处理
@@ -274,6 +281,7 @@ func (p PlatformAdapterPureOnebot11) serveOnebotEvent(ep *socketio.EventPayload)
 	eventType := resp.Get("post_type").String()
 	if eventType != "" {
 		// 分发事件
+		eventType = fmt.Sprintf("onebot_%s", eventType)
 		ep.Kws.Fire(eventType, []byte(resp.String()))
 	} else {
 		// 如果没有post_type，说明不是上报信息，而是API的返回信息
@@ -283,7 +291,7 @@ func (p PlatformAdapterPureOnebot11) serveOnebotEvent(ep *socketio.EventPayload)
 }
 
 // 操作性质的函数们
-func (p PlatformAdapterPureOnebot11) SetFriendAddRequest(flag string, approve bool, remark string, reason string, ep *socketio.EventPayload) {
+func (p *PlatformAdapterPureOnebot11) SetFriendAddRequest(flag string, approve bool, remark string, reason string, ep *socketio.EventPayload) {
 	type DetailParams struct {
 		Flag    string `json:"flag"`
 		Remark  string `json:"remark"` // 备注名
@@ -310,7 +318,7 @@ func (p PlatformAdapterPureOnebot11) SetFriendAddRequest(flag string, approve bo
 // UTILS函数们
 
 // 完全重写的Message转换逻辑，采用gjson实现
-func (p PlatformAdapterPureOnebot11) convertStringMessage(operator gjson.Result) *Message {
+func (p *PlatformAdapterPureOnebot11) convertStringMessage(operator gjson.Result) *Message {
 	msg := new(Message)
 
 	msg.Time = operator.Get("time").Int()
@@ -349,7 +357,7 @@ func (p PlatformAdapterPureOnebot11) convertStringMessage(operator gjson.Result)
 	return msg
 }
 
-func (p PlatformAdapterPureOnebot11) parseOB11ArrayToStringMessage(parseContent gjson.Result) (gjson.Result, error) {
+func (p *PlatformAdapterPureOnebot11) parseOB11ArrayToStringMessage(parseContent gjson.Result) (gjson.Result, error) {
 	arrayContent := parseContent.Get("message").Array()
 	cqMessage := strings.Builder{}
 
@@ -395,76 +403,166 @@ func (p PlatformAdapterPureOnebot11) parseOB11ArrayToStringMessage(parseContent 
 
 // 编写一堆handle，用来管理六种事件
 
-func (p PlatformAdapterPureOnebot11) Serve() int {
+func (p *PlatformAdapterPureOnebot11) Serve() int {
 	// TODO: seal的SocketIO整体需要补充逻辑！
-	// 先做服务器模式，客户端模式需要移植部分gowebsocket的代码
+	// 先做服务器模式，客户端模式需要移植部分 gowebsocket 的代码
 	err := p.PreloadInstance()
-	// 出问题时
 	if err != nil {
-		return 0
+		return -1
 	}
+	// 如果是反向服务器的初始化
 	if p.IsReverse {
+		var upgrader = websocket.Upgrader{}
+		// 启动反向服务器
+		go func() {
+			e := echo.New()
+
+			e.GET("/echo", func(c echo.Context) error {
+				// Upgrade to WebSocket
+				conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+				if err != nil {
+					log.Error("upgrade:", err)
+					return err
+				}
+
+				handler := p.Instance.New(func(kws *socketio.WebsocketWrapper) {
+					// Broadcast to all connected users about the newcomer
+					kws.Broadcast([]byte(fmt.Sprintf("New user connected: and UUID: %s", kws.UUID)), true, socketio.TextMessage)
+					// Write welcome message
+					kws.Emit([]byte(fmt.Sprintf("Hello user: with UUID: %s", kws.UUID)), socketio.TextMessage)
+				}, conn)
+
+				// Since Echo handles the request/response cycle differently,
+				// we need to call the handler directly
+				handler(c.Response(), c.Request())
+
+				return nil
+			})
+
+			log.Fatal(e.Start("0.0.0.0:3002"))
+		}()
+
 	}
+	// TODO: 缺少代码
+
 	return 0
 }
 
-func (p PlatformAdapterPureOnebot11) DoRelogin() bool {
+func (p *PlatformAdapterPureOnebot11) DoRelogin() bool {
 	// 什么都不做，我们无法控制重新登录
 	return true
 }
 
-func (p PlatformAdapterPureOnebot11) SetEnable(enable bool) {
+func (p *PlatformAdapterPureOnebot11) SetEnable(enable bool) {
 	// 设置是否启用 通过通断控制
 }
 
-func (p PlatformAdapterPureOnebot11) QuitGroup(ctx *MsgContext, ID string) {
+func (p *PlatformAdapterPureOnebot11) QuitGroup(ctx *MsgContext, ID string) {
 	// 退群
 }
 
-func (p PlatformAdapterPureOnebot11) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
-	// 给倒霉蛋发消息
+// 这下上下文真有用了，需要上下文里面带上客户端/服务端的UUID。
+// 给倒霉蛋发消息 这里就能拿上UUID给用户发数据
+// btw：虽然但是真有反向连接一次连俩的情况？似乎是个伪命题
+// TODO: 考虑移除多连接，连接数 > 1时，自动踹掉前面那个连接。
+func (p *PlatformAdapterPureOnebot11) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	//
+	//rawID, idType := pa.mustExtractID(userID)
+	//
+	//if idType != QQUidPerson {
+	//	return
+	//}
+	//
+	//for _, i := range ctx.Dice.ExtList {
+	//	if i.OnMessageSend != nil {
+	//		i.callWithJsCheck(ctx.Dice, func() {
+	//			i.OnMessageSend(ctx, &Message{
+	//				Message:     text,
+	//				MessageType: "private",
+	//				Platform:    pa.EndPoint.Platform,
+	//				Sender: SenderBase{
+	//					Nickname: pa.EndPoint.Nickname,
+	//					UserID:   pa.EndPoint.UserID,
+	//				},
+	//			}, flag)
+	//		})
+	//	}
+	//}
+	//
+	//type GroupMessageParams struct {
+	//	MessageType string `json:"message_type"`
+	//	UserID      int64  `json:"user_id"`
+	//	Message     string `json:"message"`
+	//}
+	//
+	//text = textAssetsConvert(text)
+	//texts := textSplit(text)
+	//
+	//for index, subText := range texts {
+	//	re := regexp.MustCompile(`\[CQ:poke,qq=(\d+)\]`)
+	//
+	//	if re.MatchString(subText) {
+	//		re = regexp.MustCompile(`\d+`)
+	//		qq := re.FindStringSubmatch(subText)
+	//		pa.FriendPoke(qq[0])
+	//		texts = append(texts[:index], texts[index+1:]...)
+	//	}
+	//}
+	//
+	//for _, subText := range texts {
+	//	a, _ := json.Marshal(oneBotCommand{
+	//		Action: "send_msg",
+	//		Params: GroupMessageParams{
+	//			MessageType: "private",
+	//			UserID:      rawID,
+	//			Message:     subText,
+	//		},
+	//	})
+	//	doSleepQQ(ctx)
+	//	socketSendText(pa.Socket, string(a))
+	//}
 }
 
-func (p PlatformAdapterPureOnebot11) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+func (p *PlatformAdapterPureOnebot11) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
 	// 给群发消息
 }
 
-func (p PlatformAdapterPureOnebot11) SetGroupCardName(ctx *MsgContext, name string) {
+func (p *PlatformAdapterPureOnebot11) SetGroupCardName(ctx *MsgContext, name string) {
 	// 发送群卡片消息？
 }
 
-func (p PlatformAdapterPureOnebot11) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+func (p *PlatformAdapterPureOnebot11) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 	// 什么J8？
 }
 
-func (p PlatformAdapterPureOnebot11) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+func (p *PlatformAdapterPureOnebot11) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 	// 什么J8？
 }
 
-func (p PlatformAdapterPureOnebot11) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
+func (p *PlatformAdapterPureOnebot11) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
 	// 给人发文件
 }
 
-func (p PlatformAdapterPureOnebot11) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
+func (p *PlatformAdapterPureOnebot11) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
 	// 给组发文件
 }
 
-func (p PlatformAdapterPureOnebot11) MemberBan(groupID string, userID string, duration int64) {
+func (p *PlatformAdapterPureOnebot11) MemberBan(groupID string, userID string, duration int64) {
 	// Ban人？
 }
 
-func (p PlatformAdapterPureOnebot11) MemberKick(groupID string, userID string) {
+func (p *PlatformAdapterPureOnebot11) MemberKick(groupID string, userID string) {
 	// Ban人？
 }
 
-func (p PlatformAdapterPureOnebot11) GetGroupInfoAsync(groupID string) {
+func (p *PlatformAdapterPureOnebot11) GetGroupInfoAsync(groupID string) {
 	// 获取群信息
 }
 
-func (p PlatformAdapterPureOnebot11) EditMessage(ctx *MsgContext, msgID, message string) {
+func (p *PlatformAdapterPureOnebot11) EditMessage(ctx *MsgContext, msgID, message string) {
 	// 改信息？
 }
 
-func (p PlatformAdapterPureOnebot11) RecallMessage(ctx *MsgContext, msgID string) {
+func (p *PlatformAdapterPureOnebot11) RecallMessage(ctx *MsgContext, msgID string) {
 	// 重新发信息？
 }

@@ -1,0 +1,14 @@
+报错: interface conversion: dice.PlatformAdapter is *dice.PlatformAdapterPureOnebot11, not *dice.PlatformAdapterGocq
+堆栈: goroutine 164 [running]:
+runtime/debug.Stack()
+	D:/yingyong/GoData/GO122/src/runtime/debug/stack.go:24 +0x6b
+sealdice-core/dice.CrashLog()
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/dice.go:680 +0x49
+panic({0x7ff670910100?, 0xc001110000?})
+	D:/yingyong/GoData/GO122/src/runtime/panic.go:770 +0x136
+sealdice-core/dice.ServeQQ(0xc000520308, 0xc000b26160)
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/platform_adapter_qq_helper.go:33 +0x629
+main.diceServe.func1(0xc000b26160)
+	C:/Users/Administrator/Documents/sealdice-core_fix/main.go:551 +0x102a
+created by main.diceServe in goroutine 63
+	C:/Users/Administrator/Documents/sealdice-core_fix/main.go:510 +0x4c5

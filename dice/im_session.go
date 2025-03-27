@@ -53,6 +53,8 @@ type Message struct {
 	TmpUID      string      `json:"-" yaml:"-"`
 	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 LagrangeGo 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
 	Segment []message.IMessageElement `json:"-" yaml:"-" jsbind:"segment"`
+	// Note(Pinenutn): TODO: 这是UUID标记段，用于在事件中传递对应的请求体UUID 放这合适吗？
+	UUID string `json:"-" jsbind:"-"`
 }
 
 // GroupPlayerInfoBase 群内玩家信息
@@ -511,6 +513,7 @@ type MsgContext struct {
 	Session         *IMSession    // 对应的IMSession
 	Dice            *Dice         // 对应的 Dice
 	IsCurGroupBotOn bool          `jsbind:"isCurGroupBotOn"` // 在群内是否bot on
+	ClientUUID      string        `jsbind:"clientUUID"`      // TODO: 放在这里合适吗 用来标识消息来源的UUID
 
 	IsPrivate       bool        `jsbind:"isPrivate"` // 是否私聊
 	CommandID       int64       // 指令ID
@@ -588,6 +591,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	mctx.IsPrivate = mctx.MessageType == "private"
 	mctx.Session = s
 	mctx.EndPoint = ep
+	mctx.ClientUUID = msg.UUID
 	log := d.Logger
 
 	// 处理命令
@@ -1900,6 +1904,7 @@ func (ep *EndPointInfo) AdapterSetup() {
 	case "QQ":
 		switch ep.ProtocolType {
 		case "onebot":
+			// FIXME: 记得换回去————现在只是测试——
 			pa := ep.Adapter.(*PlatformAdapterGocq)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
@@ -1919,10 +1924,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa := ep.Adapter.(*PlatformAdapterSatori)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
-			// case "LagrangeGo":
-			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
-			//	pa.Session = ep.Session
-			//	pa.EndPoint = ep
+		case "pure_onebot":
+			pa := ep.Adapter.(*PlatformAdapterPureOnebot11)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
 		}
 	case "DISCORD":
 		pa := ep.Adapter.(*PlatformAdapterDiscord)

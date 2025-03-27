@@ -26,6 +26,9 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 	case "official":
 		conn := ep.Adapter.(*PlatformAdapterOfficialQQ)
 		serverOfficialQQ(d, ep, conn)
+	case "pure_onebot":
+		conn := ep.Adapter.(*PlatformAdapterPureOnebot11)
+		serverOnebotPure(d, ep, conn)
 
 	case "onebot":
 		fallthrough
@@ -230,6 +233,38 @@ func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) {
 }
 
 func serverOfficialQQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterOfficialQQ) {
+	if conn.DiceServing {
+		return
+	}
+	conn.DiceServing = true
+
+	ep.Enable = true
+	ep.State = 2 // 连接中
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
+	waitTimes := 0
+
+	for {
+		// 骰子开始连接
+		d.Logger.Infof("开始连接 official qq，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
+		ret := ep.Adapter.Serve()
+
+		if ret == 0 {
+			break
+		}
+
+		waitTimes += 1
+		if waitTimes > 5 {
+			d.Logger.Infof("official qq 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
+			conn.DiceServing = false
+			break
+		}
+
+		time.Sleep(15 * time.Second)
+	}
+}
+
+func serverOnebotPure(d *Dice, ep *EndPointInfo, conn *PlatformAdapterPureOnebot11) {
 	if conn.DiceServing {
 		return
 	}
