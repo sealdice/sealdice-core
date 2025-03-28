@@ -10,8 +10,8 @@ import { completeFromList } from "@codemirror/autocomplete"
 import { CharItem } from "~/logManager/types"
 import { Extension } from "@codemirror/state";
 import * as twColors from 'tailwindcss/colors'
-
-export const reNameLine = /^([^(<\n]+)(\([^(\n]+\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/
+export const reNameLine = /^([^(<\n]+(\((?!\d+\))[^(\n]+\))?)(\(\d+\))?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/
+// export const reNameLine = /^([^(<\n]+)(\([^(\n]+\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/
 export const reNameLine2 = /([^(<\n]+)(\([^(\n]+\)|\<[^(\n]+\>)?(\s+)(\d{4}\/\d{1,2}\/\d{1,2} )?(\d{1,2}:\d{1,2}:\d{2})( #\d+)?/g
 
 let nameReplace = (n: string) => {
@@ -47,7 +47,7 @@ export function generateLang(pcList: CharItem[], options: any = undefined): Exte
   const pcMap: { [name: string]: CharItem } = {}
 
   for (let i of pcList) {
-    i.name = i.name.replaceAll('(', '（').replaceAll(')', '）');
+    // i.name = i.name.replaceAll('(', '（').replaceAll(')', '）');
     const theName = nameReplace(i.name)
     const tag = Tag.define()
     const tag2 = Tag.define()
