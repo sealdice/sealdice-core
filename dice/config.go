@@ -2355,14 +2355,9 @@ func (d *Dice) loads() {
 
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
-		i.Adapter = &PlatformAdapterPureOnebot11{
-			IsReverse:   true,
-			ReverseAddr: ":4001",
-		}
 		result, _ := yaml.Marshal(i.Adapter)
 		fmt.Println(result)
 		i.AdapterSetup()
-
 	}
 
 	d.LogWriter.LogLimit = d.Config.UILogLimit

@@ -2,6 +2,13 @@ package dice
 
 import (
 	"time"
+
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill-bolt/pkg/bolt"
+	waterMQ "github.com/ThreeDotsLabs/watermill/message"
+	"github.com/maypok86/otter"
+	"github.com/tidwall/gjson"
+	"go.etcd.io/bbolt"
 )
 
 func ServeQQ(d *Dice, ep *EndPointInfo) {
@@ -269,6 +276,35 @@ func serverOnebotPure(d *Dice, ep *EndPointInfo, conn *PlatformAdapterPureOnebot
 		return
 	}
 	conn.DiceServing = true
+	// 初始化关于Otter的一切
+	conn.GroupInfoCache = nil
+	build, err := otter.MustBuilder[string, gjson.Result](500).CollectStats().
+		WithTTL(5 * time.Minute).
+		Build()
+	if err != nil {
+		d.Logger.Errorf("otter初始化失败")
+		return
+	}
+	conn.GroupInfoCache = &build
+	// 初始化关于watermill的一切
+	commonConfig := bolt.CommonConfig{
+		Bucket: []bolt.BucketName{
+			bolt.BucketName("watermill"),
+		},
+		Logger: watermill.NewStdLogger(true, true),
+	}
+	db, _ := bbolt.Open("test.bbolt", 0600, &bbolt.Options{Timeout: 5 * time.Second})
+	logger := watermill.NewStdLogger(false, false)
+	conn.MQRouter, _ = waterMQ.NewRouter(waterMQ.RouterConfig{}, logger)
+	publisher, _ := bolt.NewPublisher(db, bolt.PublisherConfig{
+		Common: commonConfig,
+	})
+	subscriber, _ := bolt.NewSubscriber(db, bolt.SubscriberConfig{
+		Common: commonConfig,
+	})
+	conn.Publisher = &publisher
+	conn.Subscriber = subscriber
+	conn.Logger = d.Logger
 
 	ep.Enable = true
 	ep.State = 2 // 连接中
@@ -278,7 +314,7 @@ func serverOnebotPure(d *Dice, ep *EndPointInfo, conn *PlatformAdapterPureOnebot
 
 	for {
 		// 骰子开始连接
-		d.Logger.Infof("开始连接 official qq，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
+		d.Logger.Infof("开始连接 PureOnebotQQ，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
 		ret := ep.Adapter.Serve()
 
 		if ret == 0 {
@@ -287,7 +323,7 @@ func serverOnebotPure(d *Dice, ep *EndPointInfo, conn *PlatformAdapterPureOnebot
 
 		waitTimes += 1
 		if waitTimes > 5 {
-			d.Logger.Infof("official qq 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
+			d.Logger.Infof("PureOnebotQQ 连接重试次数过多，先行中断: <%s>(%s)", ep.Nickname, ep.UserID)
 			conn.DiceServing = false
 			break
 		}

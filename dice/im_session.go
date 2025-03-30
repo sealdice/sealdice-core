@@ -369,6 +369,16 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 			ep.Adapter = val.Adapter
+		case "pure_onebot":
+			var val struct {
+				Adapter *PlatformAdapterPureOnebot11 `yaml:"adapter"`
+			}
+
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
 			// case "LagrangeGo":
 			//	var val struct {
 			//		Adapter *PlatformAdapterLagrangeGo `yaml:"adapter"`
@@ -513,7 +523,6 @@ type MsgContext struct {
 	Session         *IMSession    // 对应的IMSession
 	Dice            *Dice         // 对应的 Dice
 	IsCurGroupBotOn bool          `jsbind:"isCurGroupBotOn"` // 在群内是否bot on
-	ClientUUID      string        `jsbind:"clientUUID"`      // TODO: 放在这里合适吗 用来标识消息来源的UUID
 
 	IsPrivate       bool        `jsbind:"isPrivate"` // 是否私聊
 	CommandID       int64       // 指令ID
@@ -591,7 +600,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	mctx.IsPrivate = mctx.MessageType == "private"
 	mctx.Session = s
 	mctx.EndPoint = ep
-	mctx.ClientUUID = msg.UUID
 	log := d.Logger
 
 	// 处理命令
@@ -937,7 +945,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 // 这个 ExcuteNew 方法优化了对消息段的解析，其他平台应当尽快实现消息段解析并使用这个方法
 func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	d := s.Parent
-
+                                                                                                                                                                                                                              
 	mctx := &MsgContext{}
 	mctx.Dice = d
 	mctx.MessageType = msg.MessageType
@@ -1904,7 +1912,6 @@ func (ep *EndPointInfo) AdapterSetup() {
 	case "QQ":
 		switch ep.ProtocolType {
 		case "onebot":
-			// FIXME: 记得换回去————现在只是测试——
 			pa := ep.Adapter.(*PlatformAdapterGocq)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
