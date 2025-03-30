@@ -53,6 +53,8 @@ type Message struct {
 	TmpUID      string      `json:"-" yaml:"-"`
 	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 LagrangeGo 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
 	Segment []message.IMessageElement `json:"-" yaml:"-" jsbind:"segment"`
+	// Note(Pinenutn): TODO: 这是UUID标记段，用于在事件中传递对应的请求体UUID 放这合适吗？
+	UUID string `json:"-" jsbind:"-"`
 }
 
 // GroupPlayerInfoBase 群内玩家信息
@@ -362,6 +364,16 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 			var val struct {
 				Adapter *PlatformAdapterSatori `yaml:"adapter"`
 			}
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
+		case "pure_onebot":
+			var val struct {
+				Adapter *PlatformAdapterPureOnebot11 `yaml:"adapter"`
+			}
+
 			err = value.Decode(&val)
 			if err != nil {
 				return err
@@ -933,7 +945,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 // 这个 ExcuteNew 方法优化了对消息段的解析，其他平台应当尽快实现消息段解析并使用这个方法
 func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	d := s.Parent
-
+                                                                                                                                                                                                                              
 	mctx := &MsgContext{}
 	mctx.Dice = d
 	mctx.MessageType = msg.MessageType
@@ -1919,10 +1931,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa := ep.Adapter.(*PlatformAdapterSatori)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
-			// case "LagrangeGo":
-			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
-			//	pa.Session = ep.Session
-			//	pa.EndPoint = ep
+		case "pure_onebot":
+			pa := ep.Adapter.(*PlatformAdapterPureOnebot11)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
 		}
 	case "DISCORD":
 		pa := ep.Adapter.(*PlatformAdapterDiscord)
