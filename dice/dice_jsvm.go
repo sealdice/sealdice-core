@@ -117,6 +117,8 @@ func (d *Dice) JsInit() {
 		_ = vars.Set("intSet", VarSetValueInt64)
 		_ = vars.Set("strGet", VarGetValueStr)
 		_ = vars.Set("strSet", VarSetValueStr)
+		_ = vars.Set("computedSet", VarSetValueComputed)
+		_ = vars.Set("computedGet", VarGetValueComputed)
 
 		ban := vm.NewObject()
 		_ = seal.Set("ban", ban)
