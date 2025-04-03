@@ -288,13 +288,13 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 
 		// theChoosen := i.UID
 		mctx, _ := i.CopyCtx(ctx)
-		// if exists {
-		if mctx.Player != ctx.Player {
-			if setTempVar {
+		if setTempVar {
+			if mctx.Player != ctx.Player {
 				SetTempVars(mctx, "???")
+			} else {
+				SetTempVars(mctx, mctx.Player.Name)
 			}
 		}
-		// }
 
 		if mctx.Player.UserID == ctx.Player.UserID {
 			// 并非代骰
