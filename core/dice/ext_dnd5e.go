@@ -1444,6 +1444,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "DND:先攻_下一回合"))
 			case "del", "rm":
 				tryDeleteMembersInInitList := func(deleteNames []string, riList RIList) (newList RIList, textOut strings.Builder, ok bool) {
+					if len(riList) == 0 {
+						textOut.WriteString("- 没有找到任何单位[先攻列表为空]\n")
+						return riList, textOut, false
+					}
 					round, _ := VarGetValueInt64(ctx, "$g回合数")
 					round %= int64(len(riList))
 					toDeleted := map[string]bool{}
