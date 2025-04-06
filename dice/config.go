@@ -2355,6 +2355,8 @@ func (d *Dice) loads() {
 
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
+		result, _ := yaml.Marshal(i.Adapter)
+		fmt.Println(result)
 		i.AdapterSetup()
 	}
 
