@@ -243,7 +243,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		ToMod: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate) bool {
 			over := args.GetKwarg("over")
 			attrName := tmpl.GetAlias(i.name)
-			if attrName == "hp" && over != nil {
+			if attrName == "hp" && over == nil {
 				hpBuff := attrs.Load("$buff_hp")
 				if hpBuff == nil {
 					hpBuff = ds.NewIntVal(0)
