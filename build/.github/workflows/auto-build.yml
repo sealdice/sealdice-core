@@ -17,7 +17,7 @@ env:
 jobs:
   commit-num-check:
     name: Check Commit Num
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -249,7 +249,7 @@ jobs:
 
   core-build:
     name: Build Core
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: ui-build
     strategy:
       matrix:
@@ -445,7 +445,7 @@ jobs:
 
   core-android-build:
     name: Build Core (android, arm64)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: ui-build
     steps:
       - name: Code
@@ -509,7 +509,7 @@ jobs:
 
   android-build:
     name: Build Android Apk
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs:
       - core-android-build
       - resources-download
@@ -681,7 +681,7 @@ jobs:
 
   preparation:
     name: Compressed Files Preparation
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs:
       - pc-pack
       - android-build
