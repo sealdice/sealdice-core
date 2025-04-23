@@ -716,9 +716,18 @@ func (d *Dice) ResetQuitInactiveCron() {
 			// 进入退出判定线的9/10开始提醒, 但是目前来看，原版退群只有一个提示，提示会被大量刷屏然后消失不见。同时并没有告知对应的群
 			// 或许也不应该告知对应的群，因为群可能被解散了，大量告知容易出问题？
 			// hint := thr.Add(d.Config.QuitInactiveThreshold / 10)
-			d.ImSession.LongTimeQuitInactiveGroupReborn(thr, int(d.Config.QuitInactiveBatchSize))
+			// Threshold > 0 时才应当进行退群，不然改了设置之后会疯狂
+			if d.Config.QuitInactiveThreshold > 0 {
+				d.ImSession.LongTimeQuitInactiveGroupReborn(thr, int(d.Config.QuitInactiveBatchSize))
+			}
 		}))
 		d.Logger.Infof("退群功能已启动，每 %s 执行一次退群判定", duration.String())
+	} else {
+		// Cancel the task
+		if taskId != 0 {
+			dm.Cron.Remove(taskId)
+			taskId = 0
+		}
 	}
 }
 
