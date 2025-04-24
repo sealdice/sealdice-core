@@ -722,12 +722,10 @@ func (d *Dice) ResetQuitInactiveCron() {
 			}
 		}))
 		d.Logger.Infof("退群功能已启动，每 %s 执行一次退群判定", duration.String())
-	} else {
 		// Cancel the task
-		if taskId != 0 {
-			dm.Cron.Remove(taskId)
-			taskId = 0
-		}
+	} else if taskId != 0 {
+		dm.Cron.Remove(taskId)
+		taskId = 0
 	}
 }
 
