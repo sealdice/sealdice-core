@@ -17,7 +17,7 @@ func (*GroupInfo) TableName() string {
 	return "group_info"
 }
 
-// GroupPlayerInfoBase 群内玩家信息
+// GroupPlayerInfoBase 群内玩家信息 迁移自 im_session.go
 type GroupPlayerInfoBase struct {
 	// 补充这个字段，从而保证包含主键ID
 	ID     uint   `yaml:"-" jsbind:"-" gorm:"column:id;primaryKey;autoIncrement"` // 主键ID字段，自增

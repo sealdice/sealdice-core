@@ -62,18 +62,6 @@ var dndAttrParent = map[string]string{
 
 const NULL_INIT_VAL = math.MaxInt32 // 不使用 MAX_INT64 以保证 JS 环境使用时不会出现潜在问题
 
-func setupConfigDND(_ *Dice) AttributeConfigs {
-	// 如果不存在，新建
-	defaultVals := AttributeConfigs{
-		Alias: map[string][]string{},
-		Order: AttributeOrder{
-			Top:    []string{"力量", "敏捷", "体质", "体型", "魅力", "智力", "感知", "hp", "ac", "熟练"},
-			Others: AttributeOrderOthers{SortBy: "Name"},
-		},
-	}
-	return defaultVals
-}
-
 func getPlayerNameTempFunc(mctx *MsgContext) string {
 	if mctx.Dice.Config.PlayerNameWrapEnable {
 		return fmt.Sprintf("<%s>", mctx.Player.Name)
@@ -95,8 +83,6 @@ func stpFormat(attrName string) string {
 }
 
 func RegisterBuiltinExtDnd5e(self *Dice) {
-	ac := setupConfigDND(self)
-
 	deathSavingStable := func(ctx *MsgContext) {
 		VarDelValue(ctx, "DSS")
 		VarDelValue(ctx, "DSF")
@@ -417,7 +403,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.DelegateText = ctx.DelegateText
-			mctx.Player.TempValueAlias = &ac.Alias
+			mctx.Player.TempValueAlias = &_dnd5eTmpl.Alias
 			// 参数确认
 			val := cmdArgs.GetArgN(1)
 			switch val {

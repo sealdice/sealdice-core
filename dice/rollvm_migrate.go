@@ -582,6 +582,8 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 			curVal, _ = tryLoadByBuff(ctx, varname, curVal, false, detail)
 		}
 
+		realVarName := ctx.SystemTemplate.GetAlias(varname)
+
 		if !skip && rcMode {
 			// rc时将属性替换为调整值，只在0级起作用，避免在函数调用等地方造成影响
 			if isAbilityScores(varname) && vm.Depth() == 0 && vm.UpCtx == nil {
@@ -595,8 +597,8 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 					}
 					return v
 				}
-			} else if dndAttrParent[varname] != "" && curVal.TypeId == ds.VMTypeInt {
-				name := dndAttrParent[varname]
+			} else if dndAttrParent[realVarName] != "" && curVal.TypeId == ds.VMTypeInt {
+				name := dndAttrParent[realVarName]
 				base, err := ctx.SystemTemplate.GetRealValue(ctx, name)
 				v := curVal.MustReadInt()
 				if err == nil {
