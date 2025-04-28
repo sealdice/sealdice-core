@@ -118,6 +118,14 @@ func (s *SQLiteEngine) Init(ctx context.Context) error {
 		log.Debug("未能发现SQLITE定义位置，使用默认data地址")
 		s.DataDir = defaultDataDir
 	}
+	// 检查s.DataDir是否存在，不存在则新建
+	if _, err := os.Stat(s.DataDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(s.DataDir, 0755); err != nil {
+			// 打个日志
+			log.Errorf("创建数据库文件目录失败，请检查是否有可写入权限：%v", err)
+			return err
+		}
+	}
 	// map初始化
 	s.readList = make(map[dbName]*gorm.DB)
 	s.writeList = make(map[dbName]*gorm.DB)
