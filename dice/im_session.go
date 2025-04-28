@@ -55,22 +55,6 @@ type Message struct {
 	Segment []message.IMessageElement `json:"-" yaml:"-" jsbind:"segment"`
 }
 
-// GroupPlayerInfoBase 群内玩家信息
-type GroupPlayerInfoBase struct {
-	Name                string `yaml:"name" jsbind:"name"` // 玩家昵称
-	UserID              string `yaml:"userId" jsbind:"userId"`
-	InGroup             bool   `yaml:"inGroup"`                                          // 是否在群内，有时一个人走了，信息还暂时残留
-	LastCommandTime     int64  `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
-	AutoSetNameTemplate string `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
-
-	DiceSideNum  int    `yaml:"diceSideNum"`  // 面数，为0时等同于d100
-	DiceSideExpr string `yaml:"diceSideExpr"` // 面数，准备替代数字版本
-
-	TempValueAlias *map[string][]string `yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
-
-	UpdatedAtTime int64 `yaml:"-" json:"-"`
-}
-
 // GroupPlayerInfo 这是一个YamlWrapper，没有实际作用
 // 原因见 https://github.com/go-yaml/yaml/issues/712
 // type GroupPlayerInfo struct {
