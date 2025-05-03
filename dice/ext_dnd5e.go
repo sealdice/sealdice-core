@@ -464,7 +464,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					// d20结果
 					d20Result, _ := r.ReadInt()
 					// 设置变量
-					VarSetValueInt64(ctx, "$tD20")
+					VarSetValueInt64(ctx, "$tD20", d20Result)
 					// 拿到执行的结果
 					reason := r.vm.RestInput
 					if reason == "" {
