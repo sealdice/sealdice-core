@@ -461,6 +461,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
+					// d20结果
+					d20Result, _ := r.ReadInt()
+					// 设置变量
+					VarSetValueInt64(ctx, "$tD20")
 					// 拿到执行的结果
 					reason := r.vm.RestInput
 					if reason == "" {
