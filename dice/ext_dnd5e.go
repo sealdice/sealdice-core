@@ -420,8 +420,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					m = strings.Replace(m, "劣勢", "劣势", 1)
 					restText = strings.TrimSpace(restText[len(m):])
 				}
-				// 准备要处理的函数
-				expr := fmt.Sprintf("d20%s + %s", m, restText)
+				// 准备要处理的函数，为了能够读取到 d20 的出目，先不加上加值
+				// expr := fmt.Sprintf("d20%s + %s", m, restText)
+				expr := fmt.Sprintf("d20%s", m)
 				// 初始化VM
 				mctx.CreateVmIfNotExists()
 				// 获取角色模板
@@ -464,17 +465,26 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					// d20结果
 					d20Result, _ := r.ReadInt()
 					// 设置变量
-					VarSetValueInt64(ctx, "$tD20", int64(d20Result))
+					VarSetValueInt64(ctx, "$t骰子出目", int64(d20Result))
+					// 新的表达式，加上加值 etc.
+					expr = fmt.Sprintf("%d + %s", d20Result, restText)
+					r = mctx.Eval(expr, nil)
+					// 执行出错就再丢出去
+					if r.vm.Error != nil {
+						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
 					// 拿到执行的结果
 					reason := r.vm.RestInput
 					if reason == "" {
 						reason = restText
 					}
+					checkResult, _ := r.ReadInt()
 					detail := r.vm.GetDetailText()
 					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了
 					VarSetValueStr(ctx, "$t技能", reason)
 					VarSetValueStr(ctx, "$t检定过程文本", detail)
-					VarSetValueStr(ctx, "$t检定结果", r.ToString())
+					VarSetValueInt64(ctx, "$t检定结果", int64(checkResult))
 					// 添加对应结果文本，若只执行一次，则使用DND检定，否则使用单项文本初始化
 					if round == 1 {
 						textList = append(textList, DiceFormatTmpl(ctx, "DND:检定"))
