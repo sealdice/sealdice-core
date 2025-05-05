@@ -261,8 +261,10 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 
 	for key := range prepareToFree {
 		// 理应不存在这个数据没有的情况
-		v, _ := am.m.LoadAndDelete(key)
-		v.IsSaved = true
+		v, ok := am.m.LoadAndDelete(key)
+		if ok {
+			v.IsSaved = true
+		}
 	}
 	return nil
 }
