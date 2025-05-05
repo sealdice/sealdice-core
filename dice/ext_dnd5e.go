@@ -468,7 +468,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					VarSetValueInt64(ctx, "$t骰子出目", int64(d20Result))
 					diceDetail := r.vm.GetDetailText()
 					// 新的表达式，加上加值 etc.
-					expr = fmt.Sprintf("%s", restText)
+					expr = restText
 					r2 := mctx.Eval(expr, nil)
 					// 执行出错就再丢出去
 					if r2.vm.Error != nil {
