@@ -420,9 +420,6 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					m = strings.Replace(m, "劣勢", "劣势", 1)
 					restText = strings.TrimSpace(restText[len(m):])
 				}
-				// 准备要处理的函数，为了能够读取到 d20 的出目，先不加上加值
-				// expr := fmt.Sprintf("d20%s + %s", m, restText)
-				expr := fmt.Sprintf("d20%s", m)
 				// 初始化VM
 				mctx.CreateVmIfNotExists()
 				// 获取角色模板
@@ -455,7 +452,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					mctx.Eval(tmpl.PreloadCode, nil)
 					// 为rc设定属性豁免
 					mctx.setDndReadForVM(true)
+					// 准备要处理的函数，为了能够读取到 d20 的出目，先不加上加值
 					// 执行了一次
+					expr := fmt.Sprintf("d20%s", m)
 					r := mctx.Eval(expr, nil)
 					// 执行出错就丢出去
 					if r.vm.Error != nil {
