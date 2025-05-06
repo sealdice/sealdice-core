@@ -33,6 +33,9 @@ func V131DeprecatedConfig2CustomText() error {
 
 	customTextPath := filepath.Clean("./data/default/configs/text-template.yaml")
 	customTextBakPath := filepath.Clean("./data/default/configs/text-template.yaml.bak")
+	if _, err := os.Stat(customTextPath); err != nil {
+		return nil //nolint:nilerr
+	}
 	confData, err := os.ReadFile(confPath)
 	if err != nil {
 		return err

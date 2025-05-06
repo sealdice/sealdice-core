@@ -418,6 +418,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					checkVal = criticalSuccessValue
 				}
 				VarSetValueInt64(mctx, "$tD100", outcome)
+				// $tD100是为了兼容旧的模板，$t骰子出目 和 $t检定结果 是新的，coc 与 dnd 都可以用
+				VarSetValueInt64(mctx, "$t骰子出目", outcome)
+				VarSetValueInt64(mctx, "$t检定结果", outcome)
 				VarSetValueInt64(mctx, "$t判定值", checkVal)
 				VarSetValueInt64(mctx, "$tSuccessRank", int64(successRank))
 				VarSetValueStr(mctx, "$t属性表达式文本", expr2Text)
@@ -1035,6 +1038,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				checkResult := check(skills[0])
 				VarSetValueStr(mctx, "$t技能", checkResult.varName)
 				VarSetValueInt64(mctx, "$tD100", checkResult.rollValue)
+				VarSetValueInt64(mctx, "$t骰子出目", checkResult.rollValue)
+				VarSetValueInt64(mctx, "$t检定结果", checkResult.rollValue)
 				VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
 				VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
 				VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
@@ -1089,6 +1094,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				for _, checkResult := range checkResults {
 					VarSetValueStr(mctx, "$t技能", checkResult.varName)
 					VarSetValueInt64(mctx, "$tD100", checkResult.rollValue)
+					VarSetValueInt64(mctx, "$t骰子出目", checkResult.rollValue)
+					VarSetValueInt64(mctx, "$t检定结果", checkResult.rollValue)
 					VarSetValueInt64(mctx, "$t判定值", checkResult.varValue)
 					VarSetValueStr(mctx, "$t判定结果", checkResult.resultText)
 					VarSetValueInt64(mctx, "$tSuccessRank", int64(checkResult.successRank))
@@ -1397,6 +1404,8 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				VarSetValueStr(mctx, "$t检定计算过程", detailWrap)
 
 				VarSetValueInt64(mctx, "$tD100", d100)
+				VarSetValueInt64(mctx, "$t骰子出目", d100)
+				VarSetValueInt64(mctx, "$t检定结果", d100)
 				VarSetValueInt64(mctx, "$t判定值", san)
 				VarSetValueStr(mctx, "$t判定结果", suffix)
 				VarSetValueStr(mctx, "$t判定结果_详细", suffix)
