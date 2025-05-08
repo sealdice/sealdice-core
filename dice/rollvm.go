@@ -553,7 +553,9 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			}
 			continue
 		case TypePop:
-			top--
+			if top > 0 {
+				top--
+			}
 			continue
 		case TypeLoadFormatString:
 			num := int(code.Value)
