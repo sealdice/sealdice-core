@@ -433,7 +433,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 				// 从COC复制来的轮数检查，同时特判一次的情况，防止完全骰不出去点
 				if cmdArgs.SpecialExecuteTimes > int(ctx.Dice.Config.MaxExecuteTime) && cmdArgs.SpecialExecuteTimes != 1 {
-					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
+					VarSetValueStr(mctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
 					ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "DND:检定_轮数过多警告"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
@@ -487,14 +487,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					// 这里只能手动格式化，为了保证不丢信息
 					detail := fmt.Sprintf("%s + %s", diceDetail, r2.vm.GetDetailText())
 					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了
-					VarSetValueStr(ctx, "$t技能", reason)
-					VarSetValueStr(ctx, "$t检定过程文本", detail)
-					VarSetValueInt64(ctx, "$t检定结果", int64(d20Result+modifier))
+					VarSetValueStr(mctx, "$t技能", reason)
+					VarSetValueStr(mctx, "$t检定过程文本", detail)
+					VarSetValueInt64(mctx, "$t检定结果", int64(d20Result+modifier))
 					// 添加对应结果文本，若只执行一次，则使用DND检定，否则使用单项文本初始化
 					if round == 1 {
-						textList = append(textList, DiceFormatTmpl(ctx, "DND:检定"))
+						textList = append(textList, DiceFormatTmpl(mctx, "DND:检定"))
 					} else {
-						textList = append(textList, DiceFormatTmpl(ctx, "DND:检定_单项结果文本"))
+						textList = append(textList, DiceFormatTmpl(mctx, "DND:检定_单项结果文本"))
 					}
 					// 添加对应commandItems
 					commandItems = append(commandItems, map[string]interface{}{
@@ -507,9 +507,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// 由于循环内保留了最后一次的部分技能文本，所以这里不需要再初始化一次技能
 				var text string
 				if round > 1 {
-					VarSetValueStr(ctx, "$t结果文本", strings.Join(textList, "\n"))
-					VarSetValueStr(ctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
-					text = DiceFormatTmpl(ctx, "DND:检定_多轮")
+					VarSetValueStr(mctx, "$t结果文本", strings.Join(textList, "\n"))
+					VarSetValueStr(mctx, "$t次数", strconv.Itoa(cmdArgs.SpecialExecuteTimes))
+					text = DiceFormatTmpl(mctx, "DND:检定_多轮")
 				} else {
 					// 是单轮检定，不需要组装成多轮的描述
 					text = textList[0]
@@ -536,11 +536,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 					if ctx.Group != nil {
 						if ctx.IsPrivate {
-							ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+							ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "核心:提示_私聊不可用"))
 						} else {
 							ctx.CommandHideFlag = ctx.Group.GroupID
-							prefix := DiceFormatTmpl(ctx, "核心:暗骰_私聊_前缀")
-							ReplyGroup(ctx, msg, DiceFormatTmpl(ctx, "核心:暗骰_群内"))
+							prefix := DiceFormatTmpl(mctx, "核心:暗骰_私聊_前缀")
+							ReplyGroup(ctx, msg, DiceFormatTmpl(mctx, "核心:暗骰_群内"))
 							ReplyPerson(ctx, msg, prefix+text)
 						}
 					} else {
