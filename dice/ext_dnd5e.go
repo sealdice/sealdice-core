@@ -464,8 +464,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					// d20结果
 					d20Result, _ := r.ReadInt()
 					// 设置变量
-					VarSetValueInt64(ctx, "$t骰子出目", int64(d20Result))
+					VarSetValueInt64(mctx, "$t骰子出目", int64(d20Result))
 					diceDetail := r.vm.GetDetailText()
+					// 非常非常非常变态，神秘的 diceScript 能够做到同一份代码，运行出不同的结果。如果 diceScript 什么时候行为统一了可以删掉这个 if
+					if diceDetail == "" || diceDetail == strconv.Itoa(int(d20Result)) {
+						diceDetail = fmt.Sprintf("%d[d20]", d20Result)
+					}
 					// 新的表达式，加上加值 etc.
 					expr = restText
 					r2 := mctx.Eval(expr, nil)
