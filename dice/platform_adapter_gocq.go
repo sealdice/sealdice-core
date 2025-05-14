@@ -1082,6 +1082,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					}
 				}
 			}()
+
+			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
+				// 自己戳自己，防止循环触发
+				return
+			}
+			msg.Message = "[CQ:poke,qq=" + string(msgQQ.TargetID) + "]"
+			session.Execute(ep, msg, false)
 			return
 		}
 
