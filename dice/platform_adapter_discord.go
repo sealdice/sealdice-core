@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"sealdice-core/message"
+	log "sealdice-core/utils/kratos"
 )
 
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
@@ -94,6 +95,13 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 		regenerateDiscordEndPointCDN(pa.ReverseProxyCDNUrl)
 	}
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		// 在 https://github.com/bwmarrin/discordgo/issues/1562 解决之前必须要这么做
+		defer func() {
+			errr := recover()
+			if errr != nil {
+				log.Errorf("[Discord Adapter]: Error while handling message: %v", errr)
+			}
+		}()
 		// 忽略自己的消息……以及其他机器人的消息和系统消息
 		if m.Author.Bot || m.Author.System {
 			return
