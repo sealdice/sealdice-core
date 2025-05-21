@@ -184,7 +184,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 ::: info Lagrange
 
-[Lagrange](https://github.com/KonataDev/Lagrange.Core)（拉格兰）是一个 NTQQ 协议相关的开源项目。其包括目前实现了 Linux NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 API 的 Lagrange.Onebot 两部分。
+[Lagrange](https://github.com/LagrangeDev/Lagrange.Core)（拉格兰）是一个 NTQQ 协议相关的开源项目。其包括目前实现了 Linux NTQQ 协议的 Lagrange.Core，和提供 OneBot-V11 API 的 Lagrange.Onebot 两部分。
 
 与 GoCqhttp 类似，Lagrange 可以很方便的在多个平台（Windows、Linux、Mac）部署，海豹核心可以对接其提供的 OneBot-V11 API 来提供 QQ 骰子服务。
 
@@ -192,7 +192,7 @@ Windows Server 2012 可能会缺少部分运行库，需要自行下载安装。
 
 #### 登录 Lagrange
 
-请按照 [Lagrange 手册](https://lagrangedev.github.io/Lagrange.Doc/Lagrange.OneBot/Config/)自行部署 Lagrange，并按照手册和自己的需求填写配置文件。
+请按照 [Lagrange 手册](https://lagrangedev.github.io/Lagrange.Doc/v1/Lagrange.OneBot/Config/)自行部署 Lagrange，并按照手册和自己的需求填写配置文件。
 
 ::: warning Config
 
