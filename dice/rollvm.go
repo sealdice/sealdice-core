@@ -553,7 +553,11 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			}
 			continue
 		case TypePop:
-			top--
+			if top > 0 {
+				top--
+			} else {
+				return nil, "", errors.New("E99:栈溢出，无法弹出元素")
+			}
 			continue
 		case TypeLoadFormatString:
 			num := int(code.Value)
