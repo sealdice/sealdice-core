@@ -145,6 +145,175 @@ docker compose up -d
 
 当任一镜像有更新时，以上命令会完成容器更新。
 
+## 通过 `docker-compose` 部署海豹与 NapCat
+
+通过此方式快速部署的海豹与 NapCat 容器并集中管理。
+
+### 创建 `docker-compose.yml`
+
+首先，在工作目录下创建 `docker-compose.yml` 文件，并填入以下内容：
+
+```yaml
+services:
+  sealdice:
+    image: ghcr.io/sealdice/sealdice:edge
+    container_name: sealdice
+    ports:
+      - "3211:3211"
+    volumes:
+      - "./data:/data"
+      - "./backups:/backups"
+    networks:
+      - sealdice_network
+    depends_on:
+      - napcat
+
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    ports:
+      - "6099:6099"
+    volumes:
+      - "./napcat/config:/app/napcat/config"
+      - "./napcat/QQ_DATA:/app/.config/QQ"
+      - "./data:/data"
+      - "./backups:/backups"
+    environment:
+      - NAPCAT_UID=${NAPCAT_UID:-1000}
+      - NAPCAT_GID=${NAPCAT_GID:-1000}
+      - MODE=sealdice
+      - ACCOUNT=${ACCOUNT}
+    networks:
+      - sealdice_network
+    mac_address: "02:42:ac:11:00:02"
+
+networks:
+  sealdice_network:
+    driver: bridge
+```
+
+该示例文件中，映射海豹容器的 WebUI 端口 `3211` 到宿主机的 `3211`，映射 NapCat 容器的 WebUI `6099` 端口为 6099。
+
+为保证海豹数据的持久化，以及图片语音等资源的正常发送，映射 `./data` 和 `./backups` 目录到宿主机，且映射到 NapCat 容器内的相同位置。
+
+为确保 NapCat 能够持久化配置文件和 QQ 数据，映射 `./napcat/config` 和 `./napcat/QQ_DATA` 目录到宿主机。
+
+`mac_address` 用于指定容器 MAC 地址，用于固化 QQ 识别的设备信息，推荐自行修改 `mac_address`，注意必须是 `02:42` 开头的 MAC 地址，否则无法正常启动。
+
+### 首次启动容器
+
+根据示例文件定制完毕后，通过以下命令行来启动容器。（你也可以选择不修改任何内容直接尝试启动）
+
+```bash
+echo 'ACCOUNT=123456' > .env # 请将 ACCOUNT 的数字替换为骰娘的 QQ 号
+NAPCAT_UID=$(id -u) NAPCAT_GID=$(id -g) docker-compose up -d
+
+```
+
+### 海豹连接 NapCat
+
+以示例 `docker-compose.yml` 文件的默认设置为例，访问 NapCat 的 WebUI：`http://宿主机IP:6099` 。
+
+在 NapCat 的 WebUI 登录页面输入 TOKEN `napcat`，然后选择右侧的扫码登录按钮，扫描二维码登录。
+
+随后访问海豹的 WebUI：`http://宿主机IP:3211` 。
+
+在「账号设置」中新增账号，「账号类型」选择 `QQ(onebot11正向WS)`，「连接地址」填写 `ws://{Host}:{Port}`，其中 `{Host}` 填写为 `napcat` 即可。 `{Port}` 则填写 `1234`，这是 `NapCat` 运行在 `MODE=sealdice` 模式下的预置端口，无需再另行设置。
+
+以示例 `docker-compose.yml` 文件的默认设置为例，此处应填写 `ws://napcat:1234`。
+
+::: details 补充：多个账号连接同一个海豹
+
+如果配置了多个 NapCat 容器，则 `{Host}` 填入对应服务的名称，`docker compose` 会自动处理主机名解析。
+
+关于登录多个 QQ 号的 `docker-compose.yml` 文件修改方法，请参考上一节 [通过-docker-compose-同时部署海豹与-lagrange](platform-qq-docker.html#通过-docker-compose-同时部署海豹与-lagrange) 中的 `补充：登录多个 QQ 号` 部分。
+
+:::
+
+::: details 补充：多个账号连接不同的海豹
+
+如果想要配置多个独立的海豹，可以直接在 **另一个文件目录** 中创建 `docker-compose.yml` 文件，然后再次从头设置并启动容器。
+
+建议在 `docker-compose.yml` 文件中，将 `container_name` 、`ports` 、 `network` 、 `mac_address`等关键设置修改为不同的值，以区分不同的海豹。
+
+例如：
+
+```yaml
+services:
+  sealdice:
+    image: ghcr.io/sealdice/sealdice:edge
+    container_name: sealdice-114514  # 为容器指定个性化的名称方便管理
+    ports:
+      - "13211:3211"  # 为容器指定新的宿主机端口，冒号左侧是宿主机端口，冒号右侧是容器端口
+    volumes:
+      - "./data:/data"
+      - "./backups:/backups"
+    networks:
+      - sealdice_114514  # 为容器指定新的网络
+    depends_on:
+      - napcat
+
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat-114514   # 为容器指定个性化的名称方便管理
+    ports:
+      - "16099:6099"  # 为容器指定新的宿主机端口
+    volumes:
+      - "./napcat/config:/app/napcat/config"
+      - "./napcat/QQ_DATA:/app/.config/QQ"
+      - "./data:/data"
+      - "./backups:/backups"
+    environment:
+      - NAPCAT_UID=${NAPCAT_UID:-1000}
+      - NAPCAT_GID=${NAPCAT_GID:-1000}
+      - MODE=sealdice
+      - ACCOUNT=${ACCOUNT}
+    networks:
+      - sealdice_114514  # 保持和上面容器同一个网络
+    mac_address: "02:42:ac:22:00:01"  # 为容器指定新的 MAC 地址
+
+networks:
+  sealdice_114514:  # 定义新的网络
+    driver: bridge
+```
+
+海豹内「账号设置」中新增账号时的 `{Host}` 无需修改，`docker compose` 会自动处理主机名解析。
+
+:::
+
+### 管理容器
+
+- 启动所有服务
+
+  ```bash
+  docker-compose up -d
+  ```
+
+- 查看容器状态
+
+  ```bash
+  docker-compose ps
+  ```
+
+- 停止服务
+
+  ```bash
+  docker-compose down
+  ```
+
+- 更新服务
+
+  ```bash
+  docker-compose pull
+  docker-compose up -d
+  ```
+
+- 重新创建容器
+
+  ```bash
+  docker-compose up -d --force-recreate
+  ```
+
 ## 连接到宿主机上的 QQ 后端
 
 ::: warning 注意：此种部署方式可能不能正常发送本地图片。
