@@ -277,7 +277,7 @@ jobs:
       - name: Install Cross-compiler for Linux Amd64 Musl
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         run: sudo apt-get -y install musl-tools
-      - name:
+      - name: Install Cross-compiler for Linux Arm64 Musl
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: |
           wget https://github.com/sealdice/tooolchain/releases/download/1/aarch64-linux-musl-cross.tgz;
