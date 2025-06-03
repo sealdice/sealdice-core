@@ -277,14 +277,11 @@ jobs:
       - name: Install Cross-compiler for Linux Amd64 Musl
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         run: sudo apt-get -y install musl-tools
-      - name: Install Cross-compiler for Linux Arm64 Musl
+      - name:
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
-        uses: actions/checkout@v4
-        with:
-          repository: "sealdice/toolchain"
-      - name: Extract Cross-compiler for Linux Arm64 Musl
-        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
-        run: tar zxf aarch64-linux-musl-cross.tgz;
+        run: |
+          curl -O https://github.com/sealdice/tooolchain/releases/download/1/aarch64-linux-musl-cross.tgz;
+          tar zxf aarch64-linux-musl-cross.tgz;
       - name: Install Go
         uses: actions/setup-go@v5
         with:
