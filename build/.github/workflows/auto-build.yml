@@ -280,7 +280,7 @@ jobs:
       - name:
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: |
-          curl -O https://github.com/sealdice/tooolchain/releases/download/1/aarch64-linux-musl-cross.tgz;
+          wget https://github.com/sealdice/tooolchain/releases/download/1/aarch64-linux-musl-cross.tgz;
           tar zxf aarch64-linux-musl-cross.tgz;
       - name: Install Go
         uses: actions/setup-go@v5
