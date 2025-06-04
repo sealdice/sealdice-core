@@ -547,6 +547,10 @@ func diceServe(d *dice.Dice) {
 						// dice.ServeLagrangeGo(d, conn)
 						return
 					}
+					if conn.EndPointInfoBase.ProtocolType == "milky" {
+						dice.ServeMilky(d, conn)
+						return
+					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接
 					dice.ServeQQ(d, conn)
 				case "DISCORD":

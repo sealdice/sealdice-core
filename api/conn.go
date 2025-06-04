@@ -691,6 +691,39 @@ func ImConnectionsAddSlack(c echo.Context) error {
 	return c.String(430, "")
 }
 
+func ImConnectionsAddMilky(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		WsGateway   string `yaml:"wsGateway" json:"wsGateway"`
+		RestGateway string `yaml:"restGateway" json:"restGateway"`
+		Token       string `yaml:"token" json:"token"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		conn := dice.NewMilkyConnItem(dice.AddMilkyEcho{
+			Token:       v.Token,
+			WsGateway:   v.WsGateway,
+			RestGateway: v.RestGateway,
+		})
+		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServeMilky(myDice, conn)
+		return c.JSON(http.StatusOK, conn)
+	}
+	return c.String(430, "")
+}
+
 func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
