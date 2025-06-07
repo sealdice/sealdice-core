@@ -15,6 +15,7 @@ import (
 // 为了完善逻辑，去除Init，改为Init后，使用函数获取readDB和WriteDB
 type DatabaseOperator interface {
 	Init(ctx context.Context) error
+	Type() string
 	DBCheck()
 	GetDataDB(mode constant.DBMode) *gorm.DB
 	GetLogDB(mode constant.DBMode) *gorm.DB
