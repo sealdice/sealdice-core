@@ -214,3 +214,7 @@ func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
 	}
 	return censorDB, nil
 }
+
+func (s *MYSQLEngine) Type() string {
+	return "mysql"
+}
