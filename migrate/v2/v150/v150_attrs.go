@@ -106,7 +106,7 @@ func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
 	for rows.Next() {
 		var row V146RawStruct
 		// ScanRows每次扫描一行。（反正他是这么说的……）
-		if err := db.ScanRows(rows, &row); err != nil {
+		if err = db.ScanRows(rows, &row); err != nil {
 			log.Warnf("[损坏数据] 跳过一行数据，扫描失败: %v", err)
 			countFailed++
 			continue
@@ -208,7 +208,7 @@ func attrsGroupMigrate(db *gorm.DB) (int, int, error) {
 	for rows.Next() {
 		var row V146RawStruct
 		// ScanRows每次扫描一行。（反正他是这么说的……）
-		if err := db.ScanRows(rows, &row); err != nil {
+		if err = db.ScanRows(rows, &row); err != nil {
 			log.Warnf("[损坏数据] 跳过一行数据，扫描失败: %v", err)
 			countFailed++
 			continue
@@ -238,8 +238,8 @@ func attrsGroupMigrate(db *gorm.DB) (int, int, error) {
 		for k, v := range mapData {
 			m.Store(k, v.ConvertToV2())
 		}
-
-		rawData, err := ds.NewDictVal(m).V().ToJSON()
+		var rawData []byte
+		rawData, err = ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
 			fmt.Fprintf(os.Stdout, "群 %s 的数据无法转换\n", row.ID)
@@ -284,7 +284,7 @@ func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
 	for rows.Next() {
 		var row V146RawStruct
 		// ScanRows每次扫描一行。（反正他是这么说的……）
-		if err := db.ScanRows(rows, &row); err != nil {
+		if err = db.ScanRows(rows, &row); err != nil {
 			log.Warnf("[损坏数据] 跳过一行数据，扫描失败: %v", err)
 			countFailed++
 			continue
@@ -362,7 +362,8 @@ func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
 		}
 
 		countSheetsNum += len(newSheetsList)
-		rawData, err := ds.NewDictVal(m).V().ToJSON()
+		var rawData []byte
+		rawData, err = ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
 			fmt.Fprintf(os.Stdout, "用户 %s 的个人数据无法转换\n", row.ID)

@@ -52,12 +52,12 @@ func (m *Manager) ApplyAll() error {
 			rec.Message = err.Error()
 		}
 
-		if err := m.Store.SaveRecord(rec); err != nil {
-			return fmt.Errorf("保存升级记录失败: %v", err)
+		if err2 := m.Store.SaveRecord(rec); err2 != nil {
+			return fmt.Errorf("保存升级记录失败: %w", err)
 		}
 
 		if err != nil {
-			return fmt.Errorf("因无法忽略的错误，升级 %s 失败: %v，请联系海豹开发者", up.ID, err)
+			return fmt.Errorf("因无法忽略的错误，升级 %s 失败: %w，请联系海豹开发者", up.ID, err)
 		}
 	}
 	return nil

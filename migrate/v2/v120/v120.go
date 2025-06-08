@@ -6,7 +6,7 @@ import (
 	"sealdice-core/utils"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/dboperator/engine"
-	"sealdice-core/utils/upgrader"
+	upgrade "sealdice-core/utils/upgrader"
 )
 
 var V120Migration = upgrade.Upgrade{
