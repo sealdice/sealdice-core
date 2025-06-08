@@ -1190,7 +1190,6 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 				continue
 			}
 		}
-
 	}
 
 	if !showAll {

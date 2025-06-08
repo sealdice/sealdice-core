@@ -80,7 +80,7 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 					counter++
 				}
 				// ========== 新增：每批写入后强制同步 ==========
-				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
+				if err = tempLog.Sync(); err != nil { // 确保批次数据落盘
 					resultCh <- fmt.Errorf("批次同步失败: %w", err)
 				}
 
@@ -103,7 +103,7 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	}()
 
 	// 等待 goroutine 完成或超时
-	if err := <-resultCh; err != nil {
+	if err = <-resultCh; err != nil {
 		return nil, nil, err
 	}
 
@@ -115,7 +115,7 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	compressOption := parquet.Compression(&zstd.Codec{})
 	writer := parquet.NewGenericWriter[model.LogOneItemParquet](buf, compressOption)
 	// 2. 确保文件指针回到开头
-	if _, err := tempLog.Seek(0, 0); err != nil {
+	if _, err = tempLog.Seek(0, 0); err != nil {
 		return nil, nil, fmt.Errorf("重置文件指针失败: %w", err)
 	}
 	// 写入到writer中
@@ -167,7 +167,7 @@ func uploadV105(env UploadEnv) (string, error) {
 		return "", err
 	}
 
-	url = uploadToSealBackends(env, b)
+	url = parquetUploadToSealBackends(env, b)
 	if errDB := service.LogSetUploadInfo(env.Db, env.GroupID, env.LogName, url); errDB != nil {
 		env.Log.Errorf("记录Log上传信息失败: %v", errDB)
 	}
@@ -197,7 +197,7 @@ func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Bu
 	// 写入文本TXT文件
 
 	fileWriter, _ := writer.Create(ExportTxtFilename)
-	if _, err := io.Copy(fileWriter, tempLog); err != nil {
+	if _, err = io.Copy(fileWriter, tempLog); err != nil {
 		return fmt.Errorf("写入文本日志文件失败: %w", err)
 	}
 
@@ -206,7 +206,7 @@ func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Bu
 	if err != nil {
 		return fmt.Errorf("创建Parquet文件失败: %w", err)
 	}
-	if _, err := parquetWriter.Write(parquetFile.Bytes()); err != nil {
+	if _, err = parquetWriter.Write(parquetFile.Bytes()); err != nil {
 		return fmt.Errorf("写入Parquet文件失败: %w", err)
 	}
 
