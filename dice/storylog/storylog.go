@@ -34,6 +34,9 @@ func Upload(env UploadEnv) (string, error) {
 	if env.Version == StoryVersionV1 {
 		return uploadV1(env)
 	}
+	if env.Version == StoryVersionV105 {
+		return uploadV105(env)
+	}
 	return "", errors.New("未指定日志版本")
 }
 
