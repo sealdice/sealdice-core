@@ -1,8 +1,10 @@
 package dice
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -881,18 +883,28 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 						if i.OnNotCommandReceived != nil {
 							notCommandReceiveCall := func() {
 								if i.IsJsExt {
-									waitRun := make(chan int, 1)
+									waitRun := make(chan struct{}, 1) // 使用 struct{} 更节省内存
+									timeout := 10 * time.Second       // 设置 3 秒超时
+									contextCancel, cancel := context.WithTimeout(context.Background(), timeout)
+									defer cancel() // 确保 context 资源被释放
 									d.JsLoop.RunOnLoop(func(runtime *goja.Runtime) {
 										defer func() {
 											if r := recover(); r != nil {
 												mctx.Dice.Logger.Errorf("扩展<%s>处理非指令消息异常: %v 堆栈: %v", i.Name, r, string(debug.Stack()))
 											}
-											waitRun <- 1
+											waitRun <- struct{}{} // 发送完成信号
 										}()
-
 										i.OnNotCommandReceived(mctx, msg)
 									})
-									<-waitRun
+									// 等待完成信号
+									select {
+									case <-waitRun:
+										// 正常执行完成
+									case <-contextCancel.Done():
+										if errors.Is(contextCancel.Err(), context.DeadlineExceeded) {
+											d.Logger.Errorf("JS脚本执行非指令消息超时(超过 %v)，可能是插件出现诡秘BUG，请注意!: <%v>", timeout, i.Name)
+										}
+									}
 								} else {
 									i.OnNotCommandReceived(mctx, msg)
 								}
@@ -1149,18 +1161,30 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 					if i.OnNotCommandReceived != nil {
 						notCommandReceiveCall := func() {
 							if i.IsJsExt {
-								waitRun := make(chan int, 1)
+								waitRun := make(chan struct{}, 1) // 使用 struct{} 更节省内存
+								timeout := 10 * time.Second       // 设置 3 秒超时
+
+								contextCancel, cancel := context.WithTimeout(context.Background(), timeout)
+								defer cancel() // 确保 context 资源被释放
 								d.JsLoop.RunOnLoop(func(runtime *goja.Runtime) {
 									defer func() {
 										if r := recover(); r != nil {
 											mctx.Dice.Logger.Errorf("扩展<%s>处理非指令消息异常: %v 堆栈: %v", i.Name, r, string(debug.Stack()))
 										}
-										waitRun <- 1
+										waitRun <- struct{}{} // 发送完成信号
 									}()
 
 									i.OnNotCommandReceived(mctx, msg)
 								})
-								<-waitRun
+								// 等待完成信号
+								select {
+								case <-waitRun:
+									// 正常执行完成
+								case <-contextCancel.Done():
+									if errors.Is(contextCancel.Err(), context.DeadlineExceeded) {
+										d.Logger.Errorf("JS脚本处理非指令消息执行超时(超过 %v)，可能是插件出现诡秘BUG，请注意!: <%v>", timeout, i.Name)
+									}
+								}
 							} else {
 								i.OnNotCommandReceived(mctx, msg)
 							}
@@ -1717,19 +1741,31 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		var ret CmdExecuteResult
 		// 如果是js命令，那么加锁
 		if item.IsJsSolveFunc {
-			waitRun := make(chan int, 1)
+			waitRun := make(chan struct{}, 1) // 使用 struct{} 更节省内存
+			timeout := 10 * time.Second       // 设置 3 秒超时
+			contextCancel, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel() // 确保 context 资源被释放
 			s.Parent.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
 				defer func() {
 					if r := recover(); r != nil {
 						// log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
 						ReplyToSender(ctx, msg, fmt.Sprintf("JS执行异常，请反馈给该扩展的作者：\n%v", r))
 					}
-					waitRun <- 1
+					waitRun <- struct{}{} // 发送完成信号
 				}()
-
 				ret = item.Solve(ctx, msg, cmdArgs)
 			})
-			<-waitRun
+			// 等待完成信号
+			select {
+			case <-waitRun:
+				// 正常执行完成
+			case <-contextCancel.Done():
+				// 收到超时信号
+				if errors.Is(contextCancel.Err(), context.DeadlineExceeded) {
+					s.Parent.Logger.Errorf("JS脚本执行注册指令超时(超过 %v)，可能是插件出现诡秘BUG，请注意!: <%v>", timeout, item.Name)
+					ReplyToSender(ctx, msg, fmt.Sprintf("JS脚本执行注册指令超时(超过 %v)，可能是插件出现诡秘BUG，请注意!: <%v>", timeout, item.Name))
+				}
+			}
 		} else {
 			ret = item.Solve(ctx, msg, cmdArgs)
 		}

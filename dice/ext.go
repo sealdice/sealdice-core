@@ -1,12 +1,14 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/tidwall/buntdb"
@@ -111,19 +113,30 @@ func GetExtensionDesc(ei *ExtInfo) string {
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	if i.IsJsExt {
 		if d.Config.JsEnable {
-			waitRun := make(chan int, 1)
+			waitRun := make(chan struct{}, 1) // 使用 struct{} 更节省内存
+			timeout := 10 * time.Second       // 设置 10 秒超时
+
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel() // 确保 context 资源被释放
+
 			d.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
 				defer func() {
-					// 防止崩掉进程
 					if r := recover(); r != nil {
 						d.Logger.Error("JS脚本报错:", r)
 					}
-					waitRun <- 1
+					waitRun <- struct{}{} // 发送完成信号
 				}()
-
 				f()
 			})
-			<-waitRun
+			// 等待完成信号
+			select {
+			case <-waitRun:
+				// 正常执行完成
+			case <-ctx.Done():
+				if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+					d.Logger.Errorf("JS脚本执行超时(超过 %v)，可能是插件出现诡秘BUG，请注意!: <%v>", timeout, i.Name)
+				}
+			}
 		} else {
 			d.Logger.Infof("当前已关闭js，跳过<%v>", i.Name)
 		}
