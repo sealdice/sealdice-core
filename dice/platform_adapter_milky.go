@@ -21,9 +21,7 @@ type PlatformAdapterMilky struct {
 	IntentSession *milky.Session `yaml:"-" json:"-"`
 }
 
-type loggerWrapper struct {
-	logger *milky.Logger
-}
+type loggerWrapper struct{}
 
 func (l *loggerWrapper) Log(level milky.Level, keyvals ...interface{}) error {
 	log.Log(log.Level(level), keyvals...)
