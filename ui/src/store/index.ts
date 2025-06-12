@@ -15,6 +15,7 @@ import {
   postAddGocqSeparate,
   postAddKook,
   postAddLagrange,
+  postAddMilky,
   postAddMinecraft,
   postAddOfficialQQ,
   postAddOnebot11ReverseWs,
@@ -293,6 +294,8 @@ export const useStore = defineStore('main', {
         reverseAddr,
         onlyQQGuild,
         platform,
+        wsGateway,
+        restGateway,
       } = form;
 
       let info = null;
@@ -365,6 +368,11 @@ export const useStore = defineStore('main', {
         case 16:
           {
             info = await postAddLagrange(account, signServerName, signServerVersion, true);
+          }
+          break;
+        case 17:
+          {
+            info = await postAddMilky(token, wsGateway, restGateway);
           }
           break;
       }

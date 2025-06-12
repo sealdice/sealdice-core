@@ -192,6 +192,12 @@ export function postAddLagrange(
   );
 }
 
+export function postAddMilky(token: string, wsGateway: string, restGateway: string) {
+  return request<DiceConnection>('post', 'addMilky', { token, wsGateway, restGateway }, 'json', {
+    timeout: 65000,
+  });
+}
+
 export function postConnectionDel(id: string) {
   return request<DiceConnection>('post', 'del', { id });
 }

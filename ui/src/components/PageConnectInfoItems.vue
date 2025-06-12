@@ -761,6 +761,7 @@
               :disabled="
                 store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
               "></el-option>
+            <el-option label="QQ(Milky)" :value="17"></el-option>
             <el-option label="QQ(onebot11正向WS)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="QQ(官方机器人)" :value="10"></el-option>
@@ -1660,6 +1661,32 @@
           </small>
         </el-form-item>
       </el-form>
+
+      <el-form-item v-if="form.accountType === 17" label="Token" :label-width="formLabelWidth">
+        <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+      </el-form-item>
+      <el-form-item
+        v-if="form.accountType === 17"
+        label="Websocket Gateway"
+        :label-width="formLabelWidth"
+        required>
+        <el-input
+          v-model="form.wsGateway"
+          type="string"
+          autocomplete="off"
+          placeholder="ws://127.0.0.1:3000/event"></el-input>
+      </el-form-item>
+      <el-form-item
+        v-if="form.accountType === 17"
+        label="REST Gateway"
+        :label-width="formLabelWidth"
+        required>
+        <el-input
+          v-model="form.restGateway"
+          type="string"
+          autocomplete="off"
+          placeholder="http://127.0.0.1:3000 (注意，不要加上/api的后缀)"></el-input>
+      </el-form-item>
     </template>
     <template v-else-if="form.step === 2">
       <el-timeline style="min-height: 260px">
@@ -1825,7 +1852,8 @@
               ((form.accountType === 15 || form.accountType === 16) &&
                 (form.account === '' ||
                   form.signServerVersion === '' ||
-                  form.signServerName === ''))
+                  form.signServerName === '')) ||
+              (form.accountType === 17 && (form.wsGateway === '' || form.restGateway === ''))
             "
             @click="goStepTwo">
             下一步</el-button
@@ -2452,6 +2480,9 @@ const form = reactive({
 
   reverseAddr: ':4001',
   platform: 'QQ',
+  // milky
+  wsGateway: '',
+  restGateway: '',
 });
 
 export type addImConnectionForm = typeof form;
