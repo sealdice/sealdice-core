@@ -351,15 +351,24 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 			ep.Adapter = val.Adapter
-			// case "LagrangeGo":
-			//	var val struct {
-			//		Adapter *PlatformAdapterLagrangeGo `yaml:"adapter"`
-			//	}
-			//	err = value.Decode(&val)
-			//	if err != nil {
-			//		return err
-			//	}
-			//	ep.Adapter = val.Adapter
+		// case "LagrangeGo":
+		//	var val struct {
+		//		Adapter *PlatformAdapterLagrangeGo `yaml:"adapter"`
+		//	}
+		//	err = value.Decode(&val)
+		//	if err != nil {
+		//		return err
+		//	}
+		//	ep.Adapter = val.Adapter
+		case "milky":
+			var val struct {
+				Adapter *PlatformAdapterMilky `yaml:"adapter"`
+			}
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
 		}
 	case "DISCORD":
 		var val struct {
