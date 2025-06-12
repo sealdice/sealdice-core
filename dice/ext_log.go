@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,9 @@ import (
 	"time"
 
 	"github.com/golang-module/carbon"
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	ds "github.com/sealdice/dicescript"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/service"
@@ -374,7 +377,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			} else if cmdArgs.IsArgEqual(1, "stat") {
 				// group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
-				items, err := service.LogGetAllLines(ctx.Dice.DBOperator, group.GroupID, name)
+				items, err := service.LogGetCommandInfoStrList(ctx.Dice.DBOperator, group.GroupID, name)
 				if err == nil && len(items) > 0 {
 					// showDetail := cmdArgs.GetKwarg("detail")
 					// var showDetail *Kwarg
@@ -389,7 +392,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 					} else */{
 						isShowAll := showAll != nil
-						text := LogRollBriefByPC(ctx, items, isShowAll, ctx.Player.Name)
+						text := LogRollBriefByPCV2(ctx, items, isShowAll, ctx.Player.Name)
 						if text == "" {
 							if isShowAll {
 								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
@@ -489,7 +492,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "log":
 				group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
-				items, err := service.LogGetAllLines(ctx.Dice.DBOperator, group.GroupID, name)
+				items, err := service.LogGetCommandInfoStrList(ctx.Dice.DBOperator, group.GroupID, name)
 				if err == nil && len(items) > 0 {
 					// showDetail := cmdArgs.GetKwarg("detail")
 					// var showDetail *Kwarg
@@ -504,7 +507,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 					} else */{
 						isShowAll := showAll != nil
-						text := LogRollBriefByPC(ctx, items, isShowAll, ctx.Player.Name)
+						text := LogRollBriefByPCV2(ctx, items, isShowAll, ctx.Player.Name)
 						if text == "" {
 							if isShowAll {
 								ReplyToSender(ctx, msg, fmt.Sprintf("没有找到故事“%s”的检定记录", name))
@@ -933,6 +936,7 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (*os.File, error) {
+	// 创建临时文件
 	tempLog, err := os.CreateTemp("", fmt.Sprintf(
 		"%s(*).txt",
 		utils.FilenameClean(fileNamePrefix),
@@ -946,20 +950,69 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 		}
 	}()
 
-	lines, err := service.LogGetAllLines(ctx.Dice.DBOperator, groupID, logName)
-	if len(lines) == 0 {
-		err = errors.New("此log不存在，或条目数为空，名字是否正确？")
+	counter := 0
+	currentCursor := paginator.Cursor{} // 初始游标为空
+
+	// 腾讯元宝: 创建带10秒超时的 context
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel() // 确保 context 被正确取消
+
+	// 腾讯元宝: 使用 channel 接收 goroutine 的结果
+	resultCh := make(chan error, 1)
+	go func() {
+		defer close(resultCh) // 确保 channel 被关闭
+
+		for {
+			select {
+			case <-ctxWithTimeout.Done(): // 检查是否超时或被取消
+				resultCh <- errors.New("日志导出超时（10秒限制），请尝试减少数据量或联系管理员")
+				return
+			default:
+				// 获取当前游标对应的数据
+				cursorLines, cursor, err := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
+				if err != nil {
+					resultCh <- err
+					return
+				}
+
+				// 写入当前批次的数据
+				for _, line := range cursorLines {
+					timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
+					text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
+					_, _ = tempLog.WriteString(text)
+					counter++
+				}
+				// ========== 新增：每批写入后强制同步 ==========
+				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
+					resultCh <- fmt.Errorf("批次同步失败: %w", err)
+				}
+
+				// 如果没有下一页，则成功完成
+				if cursor.After == nil {
+					resultCh <- nil
+					return
+				}
+
+				// 更新游标，继续获取下一页
+				currentCursor.After = cursor.After
+			}
+		}
+	}()
+
+	// 等待 goroutine 完成或超时
+	if err := <-resultCh; err != nil {
 		return nil, err
 	}
-	if err != nil {
-		return nil, err
+	// 2. 确保文件指针回到开头
+	if _, err := tempLog.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("重置文件指针失败: %w", err)
 	}
 
-	for _, line := range lines {
-		timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
-		text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
-		_, _ = tempLog.WriteString(text)
+	// 如果没有任何数据，返回错误
+	if counter == 0 {
+		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
+
 	return tempLog, nil
 }
 
@@ -990,9 +1043,17 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 		unofficial = true
 		uploadCtx.Backends = []string{dice.AdvancedConfig.StoryLogBackendUrl}
 		uploadCtx.Token = dice.AdvancedConfig.StoryLogBackendToken
-
-		// 现在只有一个版本的 api，未来这里根据 advancedConfig.StoryLogBackendToken 切换
-		uploadCtx.Version = storylog.StoryVersionV1
+	}
+	// 原则上1.5支持兼容V1的上传接口，只是需要木落改改代码
+	if dice.AdvancedConfig.Enable && dice.AdvancedConfig.StoryLogApiVersion != "" {
+		switch dice.AdvancedConfig.StoryLogApiVersion {
+		case storylog.StoryVersionV1Str:
+			uploadCtx.Version = storylog.StoryVersionV1
+		case storylog.StoryVersionV105Str:
+			uploadCtx.Version = storylog.StoryVersionV105
+		default:
+			uploadCtx.Version = storylog.StoryVersionV1
+		}
 	}
 
 	url, err := storylog.Upload(uploadCtx)
@@ -1003,6 +1064,223 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 		return unofficial, "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
 	return unofficial, url, nil
+}
+
+// LogRollBriefByPCV2 根据log生成骰点简报 采用gjson进行解析 拒绝一次性加载所有数据库数据
+func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name string) string {
+	pcInfo := map[string]map[string]int{}
+	// 加载同义词
+	tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
+
+	getName := func(s string) string {
+		re := regexp.MustCompile(`^([^\d\s]+)(\d+)?$`)
+		m := re.FindStringSubmatch(s)
+		if len(m) > 0 {
+			s = m[1]
+		}
+
+		return tmpl.GetAlias(s)
+	}
+
+	for _, i := range items {
+		// 使用gjson进行解析
+		info := gjson.Parse(i)
+
+		setupName := func(name string) {
+			if _, exists := pcInfo[name]; !exists {
+				pcInfo[name] = map[string]int{}
+			}
+		}
+
+		if !info.Get("rule").Exists() {
+			switch info.Get("cmd").String() {
+			case "roll":
+				if !info.Get("items").IsArray() {
+					continue
+				}
+				nickname := info.Get("pcName").String()
+				setupName(nickname)
+				pcInfo[nickname]["骰点"] += len(info.Get("items").Array())
+			}
+			continue
+		}
+		if info.Get("rule").String() == "coc7" {
+			switch info.Get("cmd").String() {
+			case "ra":
+				ok2 := info.Get("items").IsArray()
+				if !ok2 {
+					continue
+				}
+				nickname := info.Get("pcName").String()
+				setupName(nickname)
+
+				for _, j := range info.Get("items").Array() {
+					rank := j.Get("rank").Float()
+					attr := getName(j.Get("expr2").String())
+					if rank > 0 {
+						key := fmt.Sprintf("%v:%v", attr, "成功")
+						pcInfo[nickname][key]++
+					} else if rank < 0 {
+						key := fmt.Sprintf("%v:%v", attr, "失败")
+						pcInfo[nickname][key]++
+					}
+				}
+				continue
+			case "sc":
+				ok2 := info.Get("items").IsArray()
+				if !ok2 {
+					continue
+				}
+				nickname := info.Get("pcName").String()
+				setupName(nickname)
+
+				for _, j := range info.Get("items").Array() {
+					rank := j.Get("rank").Float()
+					if rank > 0 {
+						key := fmt.Sprintf("%v:%v", "理智", "成功")
+						pcInfo[nickname][key]++
+					} else if rank < 0 {
+						key := fmt.Sprintf("%v:%v", "理智", "失败")
+						pcInfo[nickname][key]++
+					}
+
+					// 如果没有旧值，弄一个
+					key := "理智:旧值"
+					if pcInfo[nickname][key] == 0 {
+						pcInfo[nickname][key] = int(j.Get("sanOld").Int())
+					}
+
+					key2 := "理智:新值"
+					// if pcInfo[nickname][key2] == 0 {
+					pcInfo[nickname][key2] = int(j.Get("sanNew").Int())
+					// }
+				}
+				continue
+			case "st":
+				ok2 := info.Get("items").IsArray()
+				if !ok2 {
+					continue
+				}
+				for _, j := range info.Get("items").Array() {
+					nickname := info.Get("pcName").String()
+					setupName(nickname)
+
+					if j.Get("type").String() == "mod" {
+						readNum := func(item gjson.Result, dataKey, key string) {
+							// 直接使用 gjson 的 Int() 方法提取整数值
+							if val := item.Get(dataKey); val.Exists() {
+								pcInfo[nickname][key] = int(val.Int()) // 自动处理 float/int/string 数字
+							}
+							// 如果字段不存在或非数字，pcInfo[nickname][key] 不会被修改
+						}
+
+						attr := getName(j.Get("attr").String())
+						// 如果没有旧值，弄一个
+						key := fmt.Sprintf("%v:旧值", attr)
+						if pcInfo[nickname][key] == 0 {
+							readNum(j, "valOld", key)
+						}
+
+						key2 := fmt.Sprintf("%v:新值", attr)
+						// if pcInfo[nickname][key2] == 0 {
+						readNum(j, "valNew", key2)
+						// }
+					}
+				}
+				continue
+			}
+		}
+	}
+
+	if !showAll {
+		pcInfo2 := map[string]map[string]int{}
+		if pcInfo[name] != nil {
+			pcInfo2[name] = pcInfo[name]
+		}
+		pcInfo = pcInfo2
+	}
+
+	texts := ""
+	for k, v := range pcInfo {
+		if len(v) == 0 {
+			continue
+		}
+		texts += fmt.Sprintf("<%v>当前团内检定情况:\n", k)
+		success := map[string]int{}
+		failed := map[string]int{}
+		var others []string
+
+		oldVal := map[string]int{}
+		newVal := map[string]int{}
+
+		for k2, v2 := range v {
+			if strings.HasSuffix(k2, ":成功") {
+				success[k2] = v2
+			} else if strings.HasSuffix(k2, ":失败") {
+				failed[k2] = v2
+			} else if strings.HasSuffix(k2, ":旧值") {
+				oldVal[k2[:len(k2)-len(":旧值")]] = v2
+			} else if strings.HasSuffix(k2, ":新值") {
+				newVal[k2[:len(k2)-len(":新值")]] = v2
+			} else {
+				others = append(others, k2)
+			}
+		}
+
+		// 排序: 一次挑选一个最大的，直到结束
+		doSort := func(m map[string]int) []string {
+			var ret []string
+			for len(m) > 0 {
+				val := -1
+				theKey := ""
+				for k2, v2 := range m {
+					if v2 > val {
+						theKey = k2
+						val = v2
+					}
+				}
+				ret = append(ret, theKey)
+				delete(m, theKey)
+			}
+			return ret
+		}
+		successList := doSort(success)
+		failedList := doSort(failed)
+
+		if len(successList) > 0 {
+			text := "成功: "
+			for _, j := range successList {
+				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":成功")], v[j])
+			}
+			texts += strings.TrimSpace(text) + "\n"
+		}
+
+		if len(failedList) > 0 {
+			text := "失败: "
+			for _, j := range failedList {
+				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":失败")], v[j])
+			}
+			texts += strings.TrimSpace(text) + "\n"
+		}
+
+		if len(oldVal) > 0 {
+			text := ""
+			for k2, v2 := range oldVal {
+				text += fmt.Sprintf("%v[%v➯%v] ", k2, v2, newVal[k2])
+			}
+			texts += "属性: " + strings.TrimSpace(text) + "\n"
+		}
+
+		if len(others) > 0 {
+			text := "其他: "
+			for _, j := range others {
+				text += fmt.Sprintf("%v%d ", j, v[j])
+			}
+			texts += strings.TrimSpace(text) + "\n"
+		}
+		texts += "\n"
+	}
+	return strings.TrimSpace(texts)
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
@@ -1249,6 +1527,7 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 }
 
 // LogRollBriefDetail 根据log生成骰点简报
+// TODO：新逻辑下它不可用
 func LogRollBriefDetail(items []*model.LogOneItem) []string {
 	var texts []string
 	for _, i := range items {
