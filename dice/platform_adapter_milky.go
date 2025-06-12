@@ -68,13 +68,21 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				log.Warnf("Received group message without group info: %v", m)
 				return // 无法处理的消息
 			}
+		} else if m.MessageScene == "friend" {
+			if m.Friend != nil {
+				msg.MessageType = "private"
+				msg.Sender.Nickname = m.Friend.Nickname
+			} else {
+				log.Warnf("Received friend message without friend info: %v", m)
+				return // 无法处理的消息
+			}
 		} else {
-			return // TODO
+			return // 临时对话消息，不处理
 		}
 		if m.Segments != nil {
 			for _, segment := range m.Segments {
 				switch seg := segment.(type) {
-				case *milky.ReceiveTextElement:
+				case *milky.TextElement:
 					log.Debugf(" Text: %s", seg.Text)
 					msg.Segment = append(msg.Segment, &message.TextElement{
 						Content: seg.Text,
@@ -84,7 +92,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 					msg.Segment = append(msg.Segment, &message.ImageElement{
 						URL: seg.TempURL,
 					})
-				case *milky.ReceiveAtElement:
+				case *milky.AtElement:
 					log.Debugf(" At: %d", seg.UserID)
 					msg.Segment = append(msg.Segment, &message.AtElement{
 						Target: strconv.FormatInt(seg.UserID, 10),
@@ -125,23 +133,18 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 
 func (pa *PlatformAdapterMilky) SetEnable(_ bool) {}
 
-func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-
-}
-
-func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
-	send := message.ConvertStringMessage(text)
+func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {
 	var elements []milky.IMessageElement
 	for _, elem := range send {
 		switch e := elem.(type) {
 		case *message.TextElement:
-			elements = append(elements, &milky.ReceiveTextElement{Text: e.Content})
+			elements = append(elements, &milky.TextElement{Text: e.Content})
 		case *message.ImageElement:
 			elements = append(elements, &milky.ImageElement{URI: e.URL})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
 			if uid, err := strconv.ParseInt(e.Target, 10, 64); err == nil {
-				elements = append(elements, &milky.ReceiveAtElement{UserID: uid})
+				elements = append(elements, &milky.AtElement{UserID: uid})
 			}
 		case *message.ReplyElement:
 			if seq, err := strconv.ParseInt(e.ReplySeq, 10, 64); err == nil {
@@ -151,6 +154,27 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 			log.Warnf("Unsupported message element type: %T", elem)
 		}
 	}
+	return elements
+}
+
+func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	send := message.ConvertStringMessage(text)
+	elements := ParseMessageToMilky(send)
+	id, err := strconv.ParseInt(ExtractQQUserID(uid), 10, 64)
+	if err != nil {
+		log.Errorf("Invalid user ID %s: %v", uid, err)
+		return
+	}
+	_, err = pa.IntentSession.SendPrivateMessage(id, &elements)
+	if err != nil {
+		log.Errorf("Failed to send private message to %s: %v", uid, err)
+		return
+	}
+}
+
+func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	send := message.ConvertStringMessage(text)
+	elements := ParseMessageToMilky(send)
 	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)

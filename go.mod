@@ -96,7 +96,7 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/RoaringBitmap/roaring v1.9.3 // indirect
-	github.com/Szzrain/Milky-go-sdk v0.1.1 // indirect
+	github.com/Szzrain/Milky-go-sdk v0.1.2 // indirect
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
 	github.com/blevesearch/geo v0.1.20 // indirect
