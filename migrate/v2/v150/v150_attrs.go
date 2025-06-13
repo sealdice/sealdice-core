@@ -75,7 +75,7 @@ func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*m
 }
 
 // Key: GUID, Value: CardBindingID
-var sheetIdBindByGroupUserId map[string]string
+var sheetIdBindByGroupUserId = map[string]string{}
 
 // AttrsNewItem 新建一个角色卡/属性容器
 func AttrsNewItem(db *gorm.DB, item *model.AttributesItemModel) (*model.AttributesItemModel, error) {
@@ -437,7 +437,7 @@ func V150AttrsMigrate(dboperator operator.DatabaseOperator, logf func(string)) e
 		return err
 	}
 
-	// 如果是SQLITE，还可以执行
+	// 如果是SQLITE，还需要执行
 	if dboperator.Type() == "sqlite" {
 		dataDB.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
 		dataDB.Exec("VACUUM;")
@@ -448,5 +448,4 @@ func V150AttrsMigrate(dboperator operator.DatabaseOperator, logf func(string)) e
 }
 
 func V150LogsMigrate(dboperator operator.DatabaseOperator, logf func(string)) {
-	// TODO
 }
