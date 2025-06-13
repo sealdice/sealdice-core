@@ -1,15 +1,19 @@
 package dice
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
@@ -652,8 +656,34 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return d.GameSystemTemplateAddEx(tmpl, false)
 }
 
-// var randSource = rand2.NewSource(uint64(time.Now().Unix()))
-var randSource = &rand2.PCGSource{}
+// generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID和堆栈信息组成
+func generateRandSeed() uint64 {
+	timestamp := time.Now().UnixNano()
+
+	type tempObj struct{ val int }
+	obj := tempObj{val: 42}
+	objPtr := uint64(uintptr(unsafe.Pointer(&obj)))
+
+	pid := uint64(os.Getpid())
+
+	buf := make([]byte, 1024)
+	n := runtime.Stack(buf, true)
+	stackInfo := buf[:n]
+
+	h := fnv.New64a()
+
+	_ = binary.Write(h, binary.LittleEndian, timestamp)
+
+	_ = binary.Write(h, binary.LittleEndian, objPtr)
+
+	_ = binary.Write(h, binary.LittleEndian, pid)
+
+	_, _ = h.Write(stackInfo)
+
+	return h.Sum64()
+}
+
+var randSource = rand2.NewSource(generateRandSeed()).(*rand2.PCGSource)
 
 func DiceRoll(dicePoints int) int { //nolint:revive
 	if dicePoints <= 0 {
