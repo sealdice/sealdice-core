@@ -58,6 +58,10 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderId, 10)),
 			},
 		}
+		if msg.Sender.UserID == pa.EndPoint.UserID {
+			log.Debugf("Ignoring self message: %v", m)
+			return // 忽略自己的消息
+		}
 		if m.MessageScene == "group" {
 			if m.Group != nil || m.GroupMember != nil {
 				msg.GroupID = FormatDiceIDQQGroup(strconv.FormatInt(m.Group.GroupId, 10))
@@ -193,7 +197,7 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 		case *message.TextElement:
 			elements = append(elements, &milky.TextElement{Text: e.Content})
 		case *message.ImageElement:
-			elements = append(elements, &milky.ImageElement{URI: e.URL})
+			elements = append(elements, &milky.ImageElement{URI: e.URL, SubType: "normal"})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
 			if uid, err := strconv.ParseInt(e.Target, 10, 64); err == nil {
