@@ -123,7 +123,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	if err != nil {
 		log.Errorf("Failed to get login info: %v", err)
 	} else {
-		log.Infof("Milky 服务连接成功，账号<%s>(%s)", info.Nickname, info.UIN)
+		log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
 		pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
 		pa.EndPoint.Nickname = info.Nickname
 	}
@@ -175,7 +175,7 @@ func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 		} else {
 			pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
 			pa.EndPoint.Nickname = info.Nickname
-			log.Infof("Milky 服务连接成功，账号<%s>(%s)", info.Nickname, info.UIN)
+			log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
 		}
 		pa.EndPoint.State = 1
 		pa.EndPoint.Enable = true
