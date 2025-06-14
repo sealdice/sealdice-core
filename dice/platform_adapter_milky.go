@@ -123,7 +123,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	if err != nil {
 		log.Errorf("Failed to get login info: %v", err)
 	} else {
-		log.Infof("Milky login info: UserId %d, Nickname %s", info.UIN, info.Nickname)
+		log.Infof("Milky 服务连接成功，账号<%s>(%s)", info.Nickname, info.UIN)
 		pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
 		pa.EndPoint.Nickname = info.Nickname
 	}
@@ -143,7 +143,7 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 	_ = pa.IntentSession.Close()
 	err := pa.IntentSession.Open()
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("Milky Connect Error:%s", err.Error())
+		log.Errorf("Milky Connect Error:%s", err.Error())
 		pa.EndPoint.State = 0
 		return false
 	}
@@ -157,14 +157,14 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 
 func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 	if enable {
-		pa.Session.Parent.Logger.Infof("正在启用Milky服务……")
+		log.Infof("正在启用Milky服务……")
 		if pa.IntentSession == nil {
 			pa.Serve()
 			return
 		}
 		err := pa.IntentSession.Open()
 		if err != nil {
-			pa.Session.Parent.Logger.Errorf("与Milky服务进行连接时出错:%s", err.Error())
+			log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
 			pa.EndPoint.State = 3
 			pa.EndPoint.Enable = false
 			return
@@ -173,11 +173,10 @@ func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 		if err != nil {
 			log.Errorf("Failed to get login info: %v", err)
 		} else {
-			log.Infof("Milky login info: UserId %d, Nickname %s", info.UIN, info.Nickname)
 			pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
 			pa.EndPoint.Nickname = info.Nickname
+			log.Infof("Milky 服务连接成功，账号<%s>(%s)", info.Nickname, info.UIN)
 		}
-		pa.Session.Parent.Logger.Infof("Milky 服务连接成功，账号<%s>(%s)", info.Nickname, info.UIN)
 		pa.EndPoint.State = 1
 		pa.EndPoint.Enable = true
 	} else {
