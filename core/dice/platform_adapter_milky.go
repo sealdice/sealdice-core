@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	milky "github.com/Szzrain/Milky-go-sdk"
 
@@ -56,6 +57,10 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			Sender: SenderBase{
 				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderId, 10)),
 			},
+		}
+		if msg.Sender.UserID == pa.EndPoint.UserID {
+			log.Debugf("Ignoring self message: %v", m)
+			return // 忽略自己的消息
 		}
 		if m.MessageScene == "group" {
 			if m.Group != nil || m.GroupMember != nil {
@@ -118,57 +123,70 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	if err != nil {
 		log.Errorf("Failed to get login info: %v", err)
 	} else {
-		log.Infof("Milky login info: UserId %d, Nickname %s", info.UIN, info.Nickname)
+		log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
 		pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
 		pa.EndPoint.Nickname = info.Nickname
 	}
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	return 0
 }
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
-	if pa.IntentSession != nil {
-		log.Infof("Reconnecting Milky session...")
-		if err := pa.IntentSession.Close(); err != nil {
-			log.Errorf("Failed to close Milky session: %v", err)
-		}
-		if err := pa.IntentSession.Open(); err != nil {
-			log.Errorf("Failed to reopen Milky session: %v", err)
-			return false
-		}
-		log.Infof("Milky session reconnected successfully")
-		return true
-	} else {
-		log.Warnf("No Milky session to reconnect, reinitializing...")
-		if pa.Serve() != 0 {
-			log.Errorf("Failed to reinitialize Milky session")
-			return false
-		}
-		log.Infof("Milky session reinitialized successfully")
-		return true
+	if pa.IntentSession == nil {
+		success := pa.Serve()
+		return success == 0
 	}
+	_ = pa.IntentSession.Close()
+	err := pa.IntentSession.Open()
+	if err != nil {
+		log.Errorf("Milky Connect Error:%s", err.Error())
+		pa.EndPoint.State = 0
+		return false
+	}
+	pa.EndPoint.State = 1
+	pa.EndPoint.Enable = true
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
+	return true
 }
 
 func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
-	if pa.EndPoint != nil {
-		pa.EndPoint.Enable = true
-	}
-	if pa.IntentSession != nil {
-		if enable {
-			if err := pa.IntentSession.Open(); err != nil {
-				log.Errorf("Failed to open Milky session: %v", err)
-			} else {
-				log.Infof("Milky session opened successfully")
-			}
-		} else {
-			if err := pa.IntentSession.Close(); err != nil {
-				log.Errorf("Failed to close Milky session: %v", err)
-			} else {
-				log.Infof("Milky session closed successfully")
-			}
+	if enable {
+		log.Infof("正在启用Milky服务……")
+		if pa.IntentSession == nil {
+			pa.Serve()
+			return
 		}
+		err := pa.IntentSession.Open()
+		if err != nil {
+			log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
+			pa.EndPoint.State = 3
+			pa.EndPoint.Enable = false
+			return
+		}
+		info, err := pa.IntentSession.GetLoginInfo()
+		if err != nil {
+			log.Errorf("Failed to get login info: %v", err)
+		} else {
+			pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
+			pa.EndPoint.Nickname = info.Nickname
+			log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
+		}
+		pa.EndPoint.State = 1
+		pa.EndPoint.Enable = true
+	} else {
+		pa.EndPoint.State = 0
+		pa.EndPoint.Enable = false
+		_ = pa.IntentSession.Close()
 	}
+	d := pa.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 }
 
 func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {
@@ -178,7 +196,7 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 		case *message.TextElement:
 			elements = append(elements, &milky.TextElement{Text: e.Content})
 		case *message.ImageElement:
-			elements = append(elements, &milky.ImageElement{URI: e.URL})
+			elements = append(elements, &milky.ImageElement{URI: e.URL, SubType: "normal"})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
 			if uid, err := strconv.ParseInt(e.Target, 10, 64); err == nil {
