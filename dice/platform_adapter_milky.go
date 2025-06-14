@@ -22,13 +22,6 @@ type PlatformAdapterMilky struct {
 	IntentSession *milky.Session `yaml:"-" json:"-"`
 }
 
-type loggerWrapper struct{}
-
-func (l *loggerWrapper) Log(level milky.Level, keyvals ...interface{}) error {
-	log.Log(log.Level(level), keyvals...)
-	return nil
-}
-
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 }
 
@@ -39,7 +32,7 @@ func (pa *PlatformAdapterMilky) GetGroupInfoAsync(_ string) {}
 
 func (pa *PlatformAdapterMilky) Serve() int {
 	pa.EndPoint.State = 2 // 设置状态为连接中
-	session, err := milky.New(pa.WsGateway, pa.RestGateway, &loggerWrapper{})
+	session, err := milky.New(pa.WsGateway, pa.RestGateway, log.NewHelper(log.GetLogger(), log.WithMessageKey("msg")))
 	if err != nil {
 		log.Errorf("Milky SDK initialization failed: %v", err)
 		return 1
@@ -196,7 +189,8 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 		case *message.TextElement:
 			elements = append(elements, &milky.TextElement{Text: e.Content})
 		case *message.ImageElement:
-			elements = append(elements, &milky.ImageElement{URI: e.URL, SubType: "normal"})
+			log.Infof(" Image: %s", e.URL)
+			elements = append(elements, &milky.ImageElement{URI: e.URL, Summary: e.File.File, SubType: "normal"})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
 			if uid, err := strconv.ParseInt(e.Target, 10, 64); err == nil {
@@ -269,7 +263,19 @@ func (pa *PlatformAdapterMilky) SendFileToGroup(ctx *MsgContext, uid string, pat
 	pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
 }
 
-func (pa *PlatformAdapterMilky) QuitGroup(_ *MsgContext, _ string) {}
+func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
+	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
+	if err != nil {
+		log.Errorf("Invalid group ID %s: %v", groupID, err)
+		return
+	}
+	err = pa.IntentSession.QuitGroup(id)
+	if err != nil {
+		log.Errorf("Failed to quit group %s: %v", groupID, err)
+		return
+	}
+	log.Infof("Successfully quit group %s", groupID)
+}
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(_ *MsgContext, _ string) {}
 

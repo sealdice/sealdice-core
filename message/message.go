@@ -274,7 +274,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 			Stream:      bytes.NewReader(content),
 			ContentType: contenttype,
 			File:        info.Name(),
-			URL:         afn,
+			URL:         "file://" + afn,
 		}
 		return r, nil
 	}
