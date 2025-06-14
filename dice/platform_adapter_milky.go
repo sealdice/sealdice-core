@@ -128,10 +128,48 @@ func (pa *PlatformAdapterMilky) Serve() int {
 }
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
-	return false
+	if pa.IntentSession != nil {
+		log.Infof("Reconnecting Milky session...")
+		if err := pa.IntentSession.Close(); err != nil {
+			log.Errorf("Failed to close Milky session: %v", err)
+		}
+		if err := pa.IntentSession.Open(); err != nil {
+			log.Errorf("Failed to reopen Milky session: %v", err)
+			return false
+		}
+		log.Infof("Milky session reconnected successfully")
+		return true
+	} else {
+		log.Warnf("No Milky session to reconnect, reinitializing...")
+		if pa.Serve() != 0 {
+			log.Errorf("Failed to reinitialize Milky session")
+			return false
+		}
+		log.Infof("Milky session reinitialized successfully")
+		return true
+	}
 }
 
-func (pa *PlatformAdapterMilky) SetEnable(_ bool) {}
+func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
+	if pa.EndPoint != nil {
+		pa.EndPoint.Enable = true
+	}
+	if pa.IntentSession != nil {
+		if enable {
+			if err := pa.IntentSession.Open(); err != nil {
+				log.Errorf("Failed to open Milky session: %v", err)
+			} else {
+				log.Infof("Milky session opened successfully")
+			}
+		} else {
+			if err := pa.IntentSession.Close(); err != nil {
+				log.Errorf("Failed to close Milky session: %v", err)
+			} else {
+				log.Infof("Milky session closed successfully")
+			}
+		}
+	}
+}
 
 func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {
 	var elements []milky.IMessageElement
@@ -170,6 +208,15 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 		log.Errorf("Failed to send private message to %s: %v", uid, err)
 		return
 	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "QQ",
+		MessageType: "private",
+		Message:     text,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
@@ -185,6 +232,15 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
 	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "QQ",
+		MessageType: "group",
+		Message:     text,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterMilky) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
