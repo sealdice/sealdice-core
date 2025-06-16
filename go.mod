@@ -26,7 +26,7 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-module/carbon v1.7.3
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/grokify/html-strip-tags-go v0.0.1
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jmoiron/sqlx v1.4.0
@@ -99,6 +99,7 @@ require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/RoaringBitmap/roaring v1.9.3 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/Szzrain/Milky-go-sdk v0.2.0
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
 	github.com/blevesearch/geo v0.1.20 // indirect
