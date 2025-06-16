@@ -120,3 +120,6 @@ func (s *PGSQLEngine) censorDBInit() (*gorm.DB, error) {
 	}
 	return censorDB, nil
 }
+func (s *PGSQLEngine) Type() string {
+	return "pgsql"
+}
