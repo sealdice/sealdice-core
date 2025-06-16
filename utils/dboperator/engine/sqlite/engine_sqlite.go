@@ -26,6 +26,10 @@ type SQLiteEngine struct {
 	writeList map[dbName]*gorm.DB
 }
 
+func (s *SQLiteEngine) Type() string {
+	return "sqlite"
+}
+
 // 定义一个基于 string 的新类型 dbName
 type dbName string
 
