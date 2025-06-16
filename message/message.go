@@ -235,6 +235,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 			Stream:      bytes.NewReader(content),
 			ContentType: http.DetectContentType(content),
 			File:        fmt.Sprintf("%x%s", result, suffix),
+			URL:         fp,
 		}
 		return r, nil
 	} else {
@@ -273,6 +274,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 			Stream:      bytes.NewReader(content),
 			ContentType: contenttype,
 			File:        info.Name(),
+			URL:         "file://" + afn,
 		}
 		return r, nil
 	}
@@ -287,7 +289,7 @@ func toElement(t string, dMap map[string]string) (IMessageElement, error) {
 			return FilepathToFileElement(p)
 		} else {
 			// 当 url 不为空时，绕过读取直接发送 url
-			return &ImageElement{File: &FileElement{URL: u}}, nil
+			return &FileElement{URL: u}, nil
 		}
 	case "record":
 		t = "file"
@@ -311,7 +313,7 @@ func toElement(t string, dMap map[string]string) (IMessageElement, error) {
 		}
 		switch node := f.(type) {
 		case *FileElement:
-			return &ImageElement{File: node}, nil
+			return &ImageElement{File: node, URL: node.URL}, nil
 		case *ImageElement:
 			return node, nil
 		}
