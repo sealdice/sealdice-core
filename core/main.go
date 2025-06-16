@@ -27,7 +27,7 @@ import (
 	"sealdice-core/api"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
-	"sealdice-core/migrate"
+	v2 "sealdice-core/migrate/v2"
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 	"sealdice-core/utils/dboperator"
@@ -176,6 +176,17 @@ func main() {
 	if err != nil {
 		return
 	}
+	// 防止输出
+	if opts.Version {
+		fmt.Fprintln(os.Stdout, dice.VERSION.String())
+		return
+	}
+	if opts.ShowEnv {
+		for i, e := range os.Environ() {
+			fmt.Fprintln(os.Stdout, i, e)
+		}
+		return
+	}
 	// 提前到最开始初始化所有日志
 	// 1. 初始化全局Kartos日志
 	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
@@ -205,22 +216,12 @@ func main() {
 	if judge {
 		log.Info(osr)
 	}
-	if opts.Version {
-		fmt.Fprintln(os.Stdout, dice.VERSION.String())
-		return
-	}
 	if opts.DBCheck {
 		dboperator.DBCheck()
 		return
 	}
 	if opts.VacuumDB {
 		service.DBVacuum()
-		return
-	}
-	if opts.ShowEnv {
-		for i, e := range os.Environ() {
-			fmt.Fprintln(os.Stdout, i, e)
-		}
 		return
 	}
 	deleteOldWrongFile()
@@ -376,40 +377,37 @@ func main() {
 		log.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
 	}
 
-	// 删除遗留的shm和wal文件
-	//  if !model.DBCacheDelete() {
-	//	  log.Error("数据库缓存文件删除失败")
-	//	  showMsgBox("数据库缓存文件删除失败", "为避免数据损坏，拒绝继续启动。请检查是否启动多份程序，或有其他程序正在使用数据库文件！")
-	//	  return
-	//  }
-
-	// 尝试进行升级
-	migrate.TryMigrateToV12()
-	// 尝试修正log_items表的message字段类型
-	if migrateErr := migrate.LogItemFixDatatype(); migrateErr != nil {
-		log.Fatalf("修正log_items表时出错，%s", migrateErr.Error())
-		return
-	}
-	// v131迁移历史设置项到自定义文案
-	if migrateErr := migrate.V131DeprecatedConfig2CustomText(); migrateErr != nil {
-		log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
-		return
-	}
-	// v141重命名刷屏警告字段
-	if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
-		log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
-		return
-	}
-	// v144删除旧的帮助文档
-	if migrateErr := migrate.V144RemoveOldHelpdoc(); migrateErr != nil {
-		log.Fatalf("移除旧帮助文档时出错，%v", migrateErr)
-	}
-	// v150升级
-	err = migrate.V150Upgrade()
+	// // 尝试进行升级
+	// migrate.TryMigrateToV12()
+	// // 尝试修正log_items表的message字段类型
+	// if migrateErr := migrate.LogItemFixDatatype(); migrateErr != nil {
+	//	log.Fatalf("修正log_items表时出错，%s", migrateErr.Error())
+	//	return
+	// }
+	// // v131迁移历史设置项到自定义文案
+	// if migrateErr := migrate.V131DeprecatedConfig2CustomText(); migrateErr != nil {
+	//	log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
+	//	return
+	// }
+	// // v141重命名刷屏警告字段
+	// if migrateErr := migrate.V141DeprecatedConfigRename(); migrateErr != nil {
+	//	log.Fatalf("迁移历史设置项时出错，%s", migrateErr.Error())
+	//	return
+	// }
+	// // v144删除旧的帮助文档
+	// if migrateErr := migrate.V144RemoveOldHelpdoc(); migrateErr != nil {
+	//	log.Fatalf("移除旧帮助文档时出错，%v", migrateErr)
+	// }
+	// // v150升级
+	// err = migrate.V150Upgrade()
+	// if err != nil {
+	//	// Fatalf将会退出程序...或许应该用Errorf一类的吗？
+	//	log.Fatalf("您的146数据库可能存在问题，为保护数据，已经停止执行150升级命令。请尝试联系开发者，并提供你的日志。\n"+
+	//		"数据已回滚，您可暂时使用旧版本等待进一步的修复和更新。您的报错内容为: %v", err)
+	// }
+	err = v2.InitUpgrader(operator)
 	if err != nil {
-		// Fatalf将会退出程序...或许应该用Errorf一类的吗？
-		log.Fatalf("您的146数据库可能存在问题，为保护数据，已经停止执行150升级命令。请尝试联系开发者，并提供你的日志。\n"+
-			"数据已回滚，您可暂时使用旧版本等待进一步的修复和更新。您的报错内容为: %v", err)
+		log.Warnf("升级流程出现问题，请检查，问题为: %v", err)
 	}
 
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
