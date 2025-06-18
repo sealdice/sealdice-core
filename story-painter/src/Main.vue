@@ -136,6 +136,11 @@ import { breakpointsTailwind, useBreakpoints, useDark, useToggle } from '@vueuse
 import OptionView from "./components/OptionView.vue";
 import randomColor from "randomcolor";
 
+import { parquetReadObjects } from 'hyparquet'
+import { asyncBufferFrom } from 'hyperparam'
+import { compressors } from 'hyparquet-compressors'
+
+
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const notMobile = breakpoints.greater('sm')
 
@@ -279,26 +284,62 @@ onMounted(async () => {
   if (key && password) {
     loading.value = true
     try {
-      const record = await store.tryFetchLog(key, password)
-      // await new Promise<void>((resolve) => {
-      //   new setTimeout(() => { resolve() }, 1000)
-      // })
-      const log = unzlibSync(Uint8Array.from(atob(record.data), c => c.charCodeAt(0)))
+      const record = await store.tryFetchLog(key, password) as {
+        client: 'SealDice' | 'Parquet',
+        created_at: string,
+        data: string,
+        name: string,
+        note: string,
+        updated_at: string,
+      }
 
-      nextTick(() => {
-        const text = strFromU8(log)
-        store.pcList.length = 0
+      switch(record.client) {
+        case 'Parquet' : {
+          const uint8 = Uint8Array.from(atob(record.data), c => c.charCodeAt(0))
+          const asyncBuffer = await asyncBufferFrom({file: new Blob([uint8]),byteLength:uint8.byteLength})
+          const res = await parquetReadObjects({
+            file:asyncBuffer,
+            compressors,
+          })
+          nextTick(() => {
+            const text = JSON.stringify({
+              items: res.map(v => {
+                v.id = Number(v.id)
+                v.time = Number(v.time)
+                v.commandId = Number(v.commandId)
+                return v
+              }),
+              version: 105
+            })
+            store.pcList.length = 0
+    
+            logMan.lastText = '';
+            logMan.syncChange(text, [0, store.editor.state.doc.length], [0, text.length])
+          });
+        }
+        break
+        case 'SealDice': 
+        default:
+        {
+          const log = unzlibSync(Uint8Array.from(atob(record.data), c => c.charCodeAt(0)));
 
-        logMan.lastText = '';
-        logMan.syncChange(text, [0, store.editor.state.doc.length], [0, text.length])
-        // store.editor.dispatch({
-        //   changes: { from: 0, to: store.editor.state.doc.length, insert: text }
-        // })
-      });
+          nextTick(() => {
+            const text = strFromU8(log)
+            store.pcList.length = 0
+    
+            logMan.lastText = '';
+            logMan.syncChange(text, [0, store.editor.state.doc.length], [0, text.length])
+
+          });
+        }
+        break
+      }
+
 
       loading.value = false
       showHl()
     } catch (e) {
+      console.log(e)
       notification['error']({
         content: '错误',
         meta: '加载日志失败，可能是序号或密码不正确',
