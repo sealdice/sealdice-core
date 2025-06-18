@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	"gorm.io/gorm"
 
 	"sealdice-core/model"
@@ -196,6 +197,29 @@ func LogSetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 }
 
 // LogGetAllLines 获取log的所有行数据
+func CreateLoggerPaginator(
+	cursor paginator.Cursor,
+	order *paginator.Order,
+) *paginator.Paginator {
+	opts := []paginator.Option{
+		&paginator.Config{
+			Keys:  []string{"ID", "Time"}, // 这里设置的是结构体的字段名称，而不是gorm里的名称……
+			Limit: 4000,
+			Order: paginator.ASC,
+		},
+	}
+	if order != nil {
+		opts = append(opts, paginator.WithOrder(*order))
+	}
+	if cursor.After != nil {
+		opts = append(opts, paginator.WithAfter(*cursor.After))
+	}
+	if cursor.Before != nil {
+		opts = append(opts, paginator.WithBefore(*cursor.Before))
+	}
+	return paginator.New(opts...)
+}
+
 func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName string) ([]*model.LogOneItem, error) {
 	db := operator.GetLogDB(constant.READ)
 	// 获取log的ID
@@ -217,6 +241,78 @@ func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName s
 		return nil, err
 	}
 	return items, nil
+}
+
+func LogGetCommandInfoStrList(operator engine2.DatabaseOperator, groupID string, logName string) ([]string, error) {
+	db := operator.GetLogDB(constant.READ)
+	// 获取log的ID
+	logID, err := getIDByGroupIDAndName(db, groupID, logName)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []string
+
+	// 查询行数据
+	err = db.Model(&model.LogOneItem{}).
+		Where("log_id = ?", logID).
+		Order("time ASC").
+		Pluck("command_info", &items).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func LogGetCursorLines(operator engine2.DatabaseOperator, groupID string, logName string, cursor paginator.Cursor) ([]model.LogOneItem, paginator.Cursor, error) {
+	db := operator.GetLogDB(constant.READ)
+	// 获取log的ID
+	logID, err := getIDByGroupIDAndName(db, groupID, logName)
+	if err != nil {
+		return nil, paginator.Cursor{}, err
+	}
+	var items []model.LogOneItem
+	stmt := db.Model(&model.LogOneItem{}).
+		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
+		Where("log_id = ?", logID)
+	// 获取游标分页器
+	p := CreateLoggerPaginator(cursor, nil)
+	// 进行游标分页
+	result, cursor, err := p.Paginate(stmt, &items)
+	if err != nil {
+		return nil, paginator.Cursor{}, err
+	}
+	// this is gorm error
+	if result.Error != nil {
+		return nil, paginator.Cursor{}, result.Error
+	}
+	return items, cursor, nil
+}
+
+func LogGetExportCursorLines(operator engine2.DatabaseOperator, groupID string, logName string, cursor paginator.Cursor) ([]model.LogOneItemParquet, paginator.Cursor, error) {
+	db := operator.GetLogDB(constant.READ)
+	// 获取log的ID
+	logID, err := getIDByGroupIDAndName(db, groupID, logName)
+	if err != nil {
+		return nil, paginator.Cursor{}, err
+	}
+	var items []model.LogOneItemParquet
+	stmt := db.Model(&model.LogOneItemParquet{}).
+		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
+		Where("log_id = ?", logID)
+	// 获取游标分页器
+	p := CreateLoggerPaginator(cursor, nil)
+	// 进行游标分页
+	result, cursor, err := p.Paginate(stmt, &items)
+	if err != nil {
+		return nil, paginator.Cursor{}, err
+	}
+	// this is gorm error
+	if result.Error != nil {
+		return nil, paginator.Cursor{}, result.Error
+	}
+	return items, cursor, nil
 }
 
 type QueryLogLinePage struct {
