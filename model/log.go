@@ -7,6 +7,23 @@ import (
 	"gorm.io/gorm"
 )
 
+type LogOneItemParquet struct {
+	ID             uint64 `json:"id" gorm:"column:id" parquet:"id, type=UINT_64"`
+	Nickname       string `json:"nickname" gorm:"column:nickname" parquet:"nickname, type=UTF8"`
+	IMUserID       string `json:"IMUserId" gorm:"column:im_userid" parquet:"IMUserId, type=UTF8"`
+	Time           int64  `json:"time" gorm:"column:time" parquet:"time, type=INT_64"`
+	Message        string `json:"message" gorm:"column:message" parquet:"message, type=UTF8"`
+	IsDice         bool   `json:"isDice" gorm:"column:is_dice" parquet:"isDice, type=BOOLEAN"`
+	CommandID      int64  `json:"commandId" gorm:"column:command_id" parquet:"commandId, type=INT_64"`
+	CommandInfoStr string `json:"-" gorm:"column:command_info" parquet:"commandInfo, type=UTF8"`
+	UniformID      string `json:"uniformId" gorm:"column:user_uniform_id" parquet:"uniformId, type=UTF8"`
+}
+
+// 兼容旧版本的数据库设计
+func (*LogOneItemParquet) TableName() string {
+	return "log_items"
+}
+
 type LogOneItem struct {
 	ID             uint64      `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
 	LogID          uint64      `json:"-" gorm:"column:log_id;index:idx_log_items_log_id"`
@@ -17,10 +34,10 @@ type LogOneItem struct {
 	Message        string      `json:"message"  gorm:"column:message"`
 	IsDice         bool        `json:"isDice"  gorm:"column:is_dice"`
 	CommandID      int64       `json:"commandId"  gorm:"column:command_id"`
-	CommandInfo    interface{} `json:"commandInfo" gorm:"-"`
+	CommandInfo    interface{} `json:"commandInfo" gorm:"-" parquet:"-"`
 	CommandInfoStr string      `json:"-" gorm:"column:command_info"`
 	// 这里的RawMsgID 真的什么都有可能
-	RawMsgID    interface{} `json:"rawMsgId" gorm:"-"`
+	RawMsgID    interface{} `json:"rawMsgId" gorm:"-" parquet:"-"`
 	RawMsgIDStr string      `json:"-" gorm:"column:raw_msg_id;index:idx_raw_msg_id;index:idx_log_delete_by_id"`
 	UniformID   string      `json:"uniformId" gorm:"column:user_uniform_id"`
 	// 数据库里没有的
