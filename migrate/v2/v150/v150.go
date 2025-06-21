@@ -21,3 +21,20 @@ var V150UpgradeAttrsMigration = upgrade.Upgrade{
 		return nil
 	},
 }
+
+var V150FixGroupInfoMigration = upgrade.Upgrade{
+	ID: "007_V150FixGroupInfoMigration", // TODO：需要合理的生成逻辑，这个等提交了PR再后续讨论
+	Description: `
+# 升级说明
+清理掉在Ver1.4.6内，SQLX会导致的GroupInfo出现列错乱的问题。
+`,
+	Apply: func(logf func(string), operator engine.DatabaseOperator) error {
+		logf("[INFO] V150 GroupInfo数据库修复开始")
+		err := V150FixGroupInfoMigrate(operator, logf)
+		if err != nil {
+			return err
+		}
+		logf("[INFO] V150 GroupInfo数据库修复开始")
+		return nil
+	},
+}
