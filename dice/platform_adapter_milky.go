@@ -18,7 +18,7 @@ type PlatformAdapterMilky struct {
 	EndPoint      *EndPointInfo  `yaml:"-" json:"-"`
 	WsGateway     string         `yaml:"ws_gateway" json:"ws_gateway"`
 	RestGateway   string         `yaml:"rest_gateway" json:"rest_gateway"`
-	Token         string         `yaml:"token" json:"token"` // 暂时没支持
+	Token         string         `yaml:"token" json:"token"`
 	IntentSession *milky.Session `yaml:"-" json:"-"`
 }
 
@@ -32,7 +32,14 @@ func (pa *PlatformAdapterMilky) GetGroupInfoAsync(_ string) {}
 
 func (pa *PlatformAdapterMilky) Serve() int {
 	pa.EndPoint.State = 2 // 设置状态为连接中
-	session, err := milky.New(pa.WsGateway, pa.RestGateway, log.NewHelper(log.GetLogger(), log.WithMessageKey("msg")))
+
+	if pa.RestGateway[len(pa.RestGateway)-1] == '/' {
+		pa.RestGateway = pa.RestGateway[:len(pa.RestGateway)-1] // 去掉末尾的斜杠
+	}
+	if pa.WsGateway[len(pa.WsGateway)-1] == '/' {
+		pa.WsGateway = pa.WsGateway[:len(pa.WsGateway)-1]
+	}
+	session, err := milky.New(pa.WsGateway, pa.RestGateway, pa.Token, log.NewHelper(log.GetLogger(), log.WithMessageKey("MILKY")))
 	if err != nil {
 		log.Errorf("Milky SDK initialization failed: %v", err)
 		return 1
@@ -107,14 +114,26 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		}
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
 	})
+	d := pa.Session.Parent
 	err = pa.IntentSession.Open()
 	if err != nil {
 		log.Errorf("Failed to open Milky session: %v", err)
+		pa.EndPoint.State = 3 // 设置状态为连接失败
+		pa.EndPoint.Enable = false
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
 		return 1
 	}
 	info, err := session.GetLoginInfo()
 	if err != nil {
+		// 获取登录信息失败，视为连接失败
 		log.Errorf("Failed to get login info: %v", err)
+		_ = pa.IntentSession.Close()
+		pa.EndPoint.State = 3
+		pa.EndPoint.Enable = false
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return 1
 	} else {
 		log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
 		pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
@@ -122,7 +141,6 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	}
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
-	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	return 0
