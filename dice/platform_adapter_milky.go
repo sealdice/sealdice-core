@@ -39,7 +39,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	if pa.WsGateway[len(pa.WsGateway)-1] == '/' {
 		pa.WsGateway = pa.WsGateway[:len(pa.WsGateway)-1]
 	}
-	session, err := milky.New(pa.WsGateway, pa.RestGateway, pa.Token, log.NewHelper(log.GetLogger(), log.WithMessageKey("MILKY")))
+	session, err := milky.New(pa.WsGateway, pa.RestGateway, pa.Token, log.NewHelper(log.GetLogger()))
 	if err != nil {
 		log.Errorf("Milky SDK initialization failed: %v", err)
 		return 1
