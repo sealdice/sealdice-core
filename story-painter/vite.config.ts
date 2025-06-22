@@ -37,7 +37,7 @@ export default defineConfig({
 
       '/api': {
           changeOrigin: true,
-          target: 'https://painter.firehomework.top/dice/api',
+          target: 'https://worker.firehomework.top/dice/api',
           // target: 'http://8.130.140.128:8082',
           // target: 'http://localhost:8088',
 
