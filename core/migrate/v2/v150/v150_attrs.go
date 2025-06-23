@@ -111,9 +111,9 @@ func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
 			countFailed++
 			continue
 		}
-		// 判断data是否为正常JSON字符串，以及ID是否存在，若不行的话也需要跳过
-		if !gjson.Valid(string(row.Data)) || row.ID == "" {
-			log.Warnf("[损坏数据] 跳过一行数据，用户核心数据已经损坏: %v", err)
+		// 跳过：① 无效 JSON ② 不是 JSON 对象 ③ ID 为空
+		if res := gjson.ParseBytes(row.Data); !res.IsObject() || row.ID == "" {
+			log.Warnf("[损坏数据] 跳过一行数据 (%v)-(%s)，用户GroupUser核心数据已经损坏", row.ID, string(row.Data))
 			countFailed++
 			continue
 		}
@@ -213,9 +213,9 @@ func attrsGroupMigrate(db *gorm.DB) (int, int, error) {
 			countFailed++
 			continue
 		}
-		// 判断data是否为正常JSON字符串，以及ID是否存在，若不行的话也需要跳过
-		if !gjson.Valid(string(row.Data)) || row.ID == "" {
-			log.Warnf("[损坏数据] 跳过一行数据，用户核心数据已经损坏: %v", err)
+		// 跳过：① 无效 JSON ② 不是 JSON 对象 ③ ID 为空
+		if res := gjson.ParseBytes(row.Data); !res.IsObject() || row.ID == "" {
+			log.Warnf("[损坏数据] 跳过一行数据 (%v)-(%s)，用户Group核心数据已经损坏", row.ID, string(row.Data))
 			countFailed++
 			continue
 		}
@@ -289,9 +289,9 @@ func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
 			countFailed++
 			continue
 		}
-		// 判断data是否为正常JSON字符串，以及ID是否存在，若不行的话也需要跳过
-		if !gjson.Valid(string(row.Data)) || row.ID == "" {
-			log.Warnf("[损坏数据] 跳过一行数据，用户核心数据已经损坏: %v", err)
+		// 跳过：① 无效 JSON ② 不是 JSON 对象 ③ ID 为空
+		if res := gjson.ParseBytes(row.Data); !res.IsObject() || row.ID == "" {
+			log.Warnf("[损坏数据] 跳过一行数据 (%v)-(%s)，用户核心数据已经损坏", row.ID, string(row.Data))
 			countFailed++
 			continue
 		}
@@ -393,8 +393,23 @@ func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
 }
 
 func V150AttrsMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
+	err := dataDBInit(dboperator, logf)
+	if err != nil {
+		logf(fmt.Sprintf("数据表初始化失败: %v", err))
+		return err
+	}
+	err = censorDBInit(dboperator, logf)
+	if err != nil {
+		logf(fmt.Sprintf("数据表初始化失败: %v", err))
+		return err
+	}
+	err = logDBInit(dboperator, logf)
+	if err != nil {
+		logf(fmt.Sprintf("数据表初始化失败: %v", err))
+		return err
+	}
 	dataDB := dboperator.GetDataDB(constant.WRITE)
-	err := dataDB.Transaction(func(tx *gorm.DB) error {
+	err = dataDB.Transaction(func(tx *gorm.DB) error {
 		if tx.Migrator().HasTable("attrs_user") {
 			count, countSheetsNum, countFailed, err0 := attrsUserMigrate(tx)
 			log.Infof("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum)
@@ -403,7 +418,7 @@ func V150AttrsMigrate(dboperator operator.DatabaseOperator, logf func(string)) e
 			}
 			logf(fmt.Sprintf("数据卡转换 - 角色卡，成功人数%d 失败人数 %d 卡数 %d\n", count, countFailed, countSheetsNum))
 		} else {
-			logf("attrs_group_user表不存在，可能已经升级过！")
+			logf("attrs_user表不存在，可能已经升级过！")
 		}
 		if tx.Migrator().HasTable("attrs_group_user") {
 			count, countFailed, err1 := attrsGroupUserMigrate(tx)
@@ -447,5 +462,199 @@ func V150AttrsMigrate(dboperator operator.DatabaseOperator, logf func(string)) e
 	return nil
 }
 
-func V150LogsMigrate(dboperator operator.DatabaseOperator, logf func(string)) {
+const createSql = `
+CREATE TABLE attrs__temp (
+    id TEXT PRIMARY KEY,
+    data BYTEA,
+    attrs_type TEXT,
+    binding_sheet_id TEXT default '',
+    name TEXT default '',
+    owner_id TEXT default '',
+    sheet_type TEXT default '',
+    is_hidden BOOLEAN default FALSE,
+    created_at INTEGER default 0,
+    updated_at INTEGER default 0
+);
+`
+
+// 初始化逻辑移动
+func dataDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
+	writeDB := dboperator.GetDataDB(constant.WRITE)
+	readDB := dboperator.GetDataDB(constant.READ)
+	// 检查是否有这个影响的注释
+	var count int64
+	err := readDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		// 特殊情况建表语句处置
+		err = writeDB.Transaction(func(tx *gorm.DB) error {
+			logf("数据库 attrs 表结构为前置测试版本150,重建中")
+			// 创建临时表
+			err = tx.Exec(createSql).Error
+			if err != nil {
+				return err
+			}
+			// 迁移数据
+			err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
+			if err != nil {
+				return err
+			}
+			// 删除旧的表
+			err = tx.Exec("DROP TABLE `attrs`").Error
+			if err != nil {
+				return err
+			}
+			// 改名
+			err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+	// AutoMigrate初始化 TODO: 用CreateTable是不是更合适呢？
+	// data建表
+	err = writeDB.AutoMigrate(
+		&model.GroupPlayerInfoBase{},
+		&model.GroupInfo{},
+		&model.BanInfo{},
+		&model.EndpointInfo{},
+		&model.AttributesItemModel{},
+	)
+	if err != nil {
+		return err
+	}
+	logf("DataDB 数据表初始化完成")
+	return nil
+}
+
+// 利用前缀索引，规避索引BUG
+// 创建不出来也没关系，反正MYSQL数据库
+func createMySQLIndexForLogInfo(db *gorm.DB) (err error) {
+	// 创建前缀索引
+	// 检查并创建索引
+	if !db.Migrator().HasIndex(&model.LogInfoHookMySQL{}, "idx_log_name") {
+		err = db.Exec("CREATE INDEX idx_log_name ON logs (name(20));").Error
+		if err != nil {
+			log.Errorf("创建idx_log_name索引失败,原因为 %v", err)
+		}
+	}
+
+	if !db.Migrator().HasIndex(&model.LogInfoHookMySQL{}, "idx_logs_group") {
+		err = db.Exec("CREATE INDEX idx_logs_group ON logs (group_id(20));").Error
+		if err != nil {
+			log.Errorf("创建idx_logs_group索引失败,原因为 %v", err)
+		}
+	}
+
+	if !db.Migrator().HasIndex(&model.LogInfoHookMySQL{}, "idx_logs_updated_at") {
+		err = db.Exec("CREATE INDEX idx_logs_updated_at ON logs (updated_at);").Error
+		if err != nil {
+			log.Errorf("创建idx_logs_updated_at索引失败,原因为 %v", err)
+		}
+	}
+	return nil
+}
+
+func createMySQLIndexForLogOneItem(db *gorm.DB) (err error) {
+	// 创建前缀索引
+	// 检查并创建索引
+	if !db.Migrator().HasIndex(&model.LogOneItemHookMySQL{}, "idx_log_items_group_id") {
+		err = db.Exec("CREATE INDEX idx_log_items_group_id ON log_items(group_id(20))").Error
+		if err != nil {
+			log.Errorf("创建idx_logs_group索引失败,原因为 %v", err)
+		}
+	}
+	if !db.Migrator().HasIndex(&model.LogOneItemHookMySQL{}, "idx_raw_msg_id") {
+		err = db.Exec("CREATE INDEX idx_raw_msg_id ON log_items(raw_msg_id(20))").Error
+		if err != nil {
+			log.Errorf("创建idx_log_group_id_name索引失败,原因为 %v", err)
+		}
+	}
+	// MYSQL似乎不能创建前缀联合索引，放弃所有的前缀联合索引
+	return nil
+}
+
+func logDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
+	// 获取LogDB的
+	writeDB := dboperator.GetLogDB(constant.WRITE)
+	if dboperator.Type() != "mysql" {
+		// logs建表
+		if err := writeDB.AutoMigrate(&model.LogInfo{}); err != nil {
+			return err
+		}
+		err := writeDB.AutoMigrate(&model.LogOneItem{})
+		if err != nil {
+			return err
+		}
+		logf("LOGS 记录日志表初始化完成")
+		return nil
+	}
+	// MYSQL 特化 logs建立索引
+	err := createMySQLIndexForLogInfo(writeDB)
+	if err != nil {
+		return err
+	}
+	err = createMySQLIndexForLogOneItem(writeDB)
+	if err != nil {
+		return err
+	}
+	err = calculateLogSize(writeDB)
+	if err != nil {
+		return err
+	}
+	logf("LOGS 记录日志表初始化完成")
+	return nil
+}
+
+func calculateLogSize(logsDB *gorm.DB) error {
+	// TODO: 将这段逻辑挪移到Migrator上 现在暂时没空动它
+	var ids []uint64
+	var logItemSums []struct {
+		LogID uint64
+		Count int64
+	}
+	logsDB.Model(&model.LogInfo{}).Pluck("id", &ids) // 获取所有 LogInfo 的 IDs，由于是一次性的，所以不需要再判断了
+	if len(ids) > 0 {
+		// 根据 LogInfo 表中的 IDs 查找对应的 LogOneItem 记录
+		err := logsDB.Model(&model.LogOneItem{}).
+			Where("log_id IN ?", ids).
+			Group("log_id").
+			Select("log_id, COUNT(*) AS count"). // 如果需要求和其他字段，可以使用 Sum
+			Scan(&logItemSums).Error
+		if err != nil {
+			// 错误处理
+			log.Infof("Error querying LogOneItem: %v", err)
+			return err
+		}
+		// 2. 更新 LogInfo 表的 Size 字段
+		for _, sum := range logItemSums {
+			// 将求和结果更新到对应的 LogInfo 的 Size 字段
+			err = logsDB.Model(&model.LogInfo{}).
+				Where("id = ?", sum.LogID).
+				UpdateColumn("size", sum.Count).Error // 或者是 sum.Time 等，如果要是其他字段的求和
+			if err != nil {
+				// 错误处理
+				log.Errorf("Error updating LogInfo: %v", err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func censorDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
+	// 获取LogDB的
+	writeDB := dboperator.GetLogDB(constant.WRITE)
+	// 创建基本的表结构，并通过标签定义索引
+	if err := writeDB.AutoMigrate(&model.CensorLog{}); err != nil {
+		return err
+	}
+	logf("censorDB记录日志表初始化完成")
+	return nil
 }
