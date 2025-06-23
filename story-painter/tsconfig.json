@@ -12,6 +12,7 @@
     "esModuleInterop": true,
     "lib": ["esnext", "dom"],
     "paths": {
+      "hyperparam":["node_modules/hyperparam/lib/index.d.ts"],
       "~/*": ["src/*"]
     },
     "skipLibCheck": true
