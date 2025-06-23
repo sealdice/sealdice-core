@@ -27,6 +27,7 @@ func InitUpgrader(operator operator.DatabaseOperator) error {
 	mgr.Register(v144.V144RemoveOldHelpDocMigration)
 	// v150注册
 	mgr.Register(v150.V150UpgradeAttrsMigration)
+	mgr.Register(v150.V150FixGroupInfoMigration)
 	err := mgr.ApplyAll()
 	if err != nil {
 		return err

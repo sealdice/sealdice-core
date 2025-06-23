@@ -10,6 +10,7 @@ type Upgrade struct {
 	ID          string
 	Description string
 	// TODO: 有更好的想法吗，需要啥就从这里传是不是太抽象了
+	// 或许可以在这放一个logger，这个logger会在使用时注入，这样会好看些
 	Apply func(logf func(string), operator engine.DatabaseOperator) error
 }
 

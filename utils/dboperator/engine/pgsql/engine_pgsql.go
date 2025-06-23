@@ -8,7 +8,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"sealdice-core/model"
 	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
 	log "sealdice-core/utils/kratos"
@@ -88,16 +87,6 @@ func (s *PGSQLEngine) dataDBInit() (*gorm.DB, error) {
 	// data建表
 	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
 	dataDB := s.DB.WithContext(dataContext)
-	err := dataDB.AutoMigrate(
-		&model.GroupPlayerInfoBase{},
-		&model.GroupInfo{},
-		&model.BanInfo{},
-		&model.EndpointInfo{},
-		&model.AttributesItemModel{},
-	)
-	if err != nil {
-		return nil, err
-	}
 	return dataDB, nil
 }
 
@@ -105,19 +94,12 @@ func (s *PGSQLEngine) logDBInit() (*gorm.DB, error) {
 	// logs建表
 	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
 	logDB := s.DB.WithContext(logsContext)
-	if err := logDB.AutoMigrate(&model.LogInfo{}, &model.LogOneItem{}); err != nil {
-		return nil, err
-	}
 	return logDB, nil
 }
 
 func (s *PGSQLEngine) censorDBInit() (*gorm.DB, error) {
 	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	censorDB := s.DB.WithContext(censorContext)
-	// 创建基本的表结构，并通过标签定义索引
-	if err := censorDB.AutoMigrate(&model.CensorLog{}); err != nil {
-		return nil, err
-	}
 	return censorDB, nil
 }
 func (s *PGSQLEngine) Type() string {

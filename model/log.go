@@ -113,3 +113,45 @@ type LogInfo struct {
 func (*LogInfo) TableName() string {
 	return "logs"
 }
+
+// ADD FROM MYSQL
+
+type LogInfoHookMySQL struct {
+	ID         uint64  `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
+	Name       string  `json:"name" gorm:"column:name"`
+	GroupID    string  `json:"groupId" gorm:"column:group_id"`
+	CreatedAt  int64   `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt  int64   `json:"updatedAt" gorm:"column:updated_at"`
+	Size       *int    `json:"size" gorm:"<-:false"`
+	Extra      *string `json:"-" gorm:"column:extra"`
+	UploadURL  string  `json:"-" gorm:"column:upload_url"`
+	UploadTime int     `json:"-" gorm:"column:upload_time"`
+}
+
+func (*LogInfoHookMySQL) TableName() string {
+	return "logs"
+}
+
+type LogOneItemHookMySQL struct {
+	ID             uint64      `json:"id" gorm:"primaryKey;autoIncrement;column:id"`
+	LogID          uint64      `json:"-" gorm:"column:log_id"`
+	GroupID        string      `gorm:"column:group_id"`
+	Nickname       string      `json:"nickname" gorm:"column:nickname"`
+	IMUserID       string      `json:"IMUserId" gorm:"column:im_userid"`
+	Time           int64       `json:"time" gorm:"column:time"`
+	Message        string      `json:"message"  gorm:"column:message"`
+	IsDice         bool        `json:"isDice"  gorm:"column:is_dice"`
+	CommandID      int64       `json:"commandId"  gorm:"column:command_id"`
+	CommandInfo    interface{} `json:"commandInfo" gorm:"-"`
+	CommandInfoStr string      `json:"-" gorm:"column:command_info"`
+	RawMsgID       interface{} `json:"rawMsgId" gorm:"-"`
+	RawMsgIDStr    string      `json:"-" gorm:"column:raw_msg_id"`
+	UniformID      string      `json:"uniformId" gorm:"column:user_uniform_id"`
+	Channel        string      `json:"channel" gorm:"-"`
+	Removed        *int        `gorm:"column:removed" json:"-"`
+	ParentID       *int        `gorm:"column:parent_id" json:"-"`
+}
+
+func (*LogOneItemHookMySQL) TableName() string {
+	return "log_items"
+}
