@@ -481,45 +481,47 @@ CREATE TABLE attrs__temp (
 func dataDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 	writeDB := dboperator.GetDataDB(constant.WRITE)
 	readDB := dboperator.GetDataDB(constant.READ)
-	// 检查是否有这个影响的注释
-	var count int64
-	err := readDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		// 特殊情况建表语句处置
-		err = writeDB.Transaction(func(tx *gorm.DB) error {
-			logf("数据库 attrs 表结构为前置测试版本150,重建中")
-			// 创建临时表
-			err = tx.Exec(createSql).Error
-			if err != nil {
-				return err
-			}
-			// 迁移数据
-			err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
-			if err != nil {
-				return err
-			}
-			// 删除旧的表
-			err = tx.Exec("DROP TABLE `attrs`").Error
-			if err != nil {
-				return err
-			}
-			// 改名
-			err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
-			if err != nil {
-				return err
-			}
-			return nil
-		})
+	// 如果是SQLITE建表，检查是否有这个影响的注释
+	if dboperator.Type() == "sqlite" {
+		var count int64
+		err := readDB.Raw("SELECT count(*) FROM `sqlite_master` WHERE tbl_name = 'attrs' AND `sql` LIKE '%这个方法太严格了%'").Count(&count).Error
 		if err != nil {
 			return err
+		}
+		if count > 0 {
+			// 特殊情况建表语句处置
+			err = writeDB.Transaction(func(tx *gorm.DB) error {
+				logf("数据库 attrs 表结构为前置测试版本150,重建中")
+				// 创建临时表
+				err = tx.Exec(createSql).Error
+				if err != nil {
+					return err
+				}
+				// 迁移数据
+				err = tx.Exec("INSERT INTO `attrs__temp` SELECT * FROM `attrs`").Error
+				if err != nil {
+					return err
+				}
+				// 删除旧的表
+				err = tx.Exec("DROP TABLE `attrs`").Error
+				if err != nil {
+					return err
+				}
+				// 改名
+				err = tx.Exec("ALTER TABLE `attrs__temp` RENAME TO `attrs`").Error
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 	// AutoMigrate初始化 TODO: 用CreateTable是不是更合适呢？
 	// data建表
-	err = writeDB.AutoMigrate(
+	err := writeDB.AutoMigrate(
 		&model.GroupPlayerInfoBase{},
 		&model.GroupInfo{},
 		&model.BanInfo{},
