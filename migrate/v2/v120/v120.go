@@ -62,13 +62,18 @@ var V120LogMessageMigration = upgrade.Upgrade{
 	Description: "V120到V131内，有一个被应用的数据库修正，旨在将错误的message字段类型修改为正确的",
 	Apply: func(logf func(string), operator engine.DatabaseOperator) error {
 		logf("[INFO] 尝试检查数据库状态")
+		if operator.Type() != "sqlite" {
+			logf("[INFO] 仅sqlite数据库部分情况下需要处理，您无需处理")
+			return nil
+		}
 		logDB, err := utils.GetSQLXDB(operator.GetLogDB(constant.WRITE))
 		if err != nil {
 			return err
 		}
 		err = LogItemFixDatatype(logDB)
 		if err != nil {
-			return err
+			logf("[INFO] 升级失败，请检查数据库状态")
+			return nil
 		}
 		logf("[INFO] 升级完毕")
 		return nil
