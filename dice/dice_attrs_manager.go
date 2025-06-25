@@ -130,6 +130,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 					Name:         data.Name,
 					SheetType:    data.SheetType,
 					LastUsedTime: time.Now().Unix(),
+					IsSaved:      true,
 				}
 				am.m.Store(id, i)
 				return i, nil
@@ -146,9 +147,13 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	// 3. 创建一个新的
 	// 注: 缺 created_at、updated_at、sheet_type、owner_id、is_hidden、nickname等各项
 	// 可能需要ctx了
+	now := time.Now().Unix()
 	i = &AttributesItem{
-		ID:       id,
-		valueMap: &ds.ValueMap{},
+		ID:               id,
+		valueMap:         &ds.ValueMap{},
+		LastModifiedTime: now,
+		LastUsedTime:     now,
+		IsSaved:          false,
 	}
 	am.m.Store(id, i)
 	return i, nil
@@ -236,7 +241,9 @@ func (am *AttrsManager) CheckAndFreeUnused() error {
 	var resultList []*service.AttributesBatchUpsertModel
 	am.m.Range(func(key string, value *AttributesItem) bool {
 		lastUsedTime := time.Unix(value.LastUsedTime, 0)
-		if currentTime.Sub(lastUsedTime) > 10*time.Minute {
+		lastModifiedTime := time.Unix(value.LastModifiedTime, 0)
+		// 当且仅当上次修改时间超过10分钟，且上次使用时间超过10分钟的数据才会被释放。
+		if currentTime.Sub(lastUsedTime) > 10*time.Minute && currentTime.Sub(lastModifiedTime) > 10*time.Minute {
 			saveModel, err := value.GetBatchSaveModel()
 			if err != nil {
 				// 打印日志
@@ -430,6 +437,7 @@ func (i *AttributesItem) Range(f func(key string, value *ds.VMValue) bool) {
 func (i *AttributesItem) SetSheetType(system string) {
 	i.SheetType = system
 	i.LastModifiedTime = time.Now().Unix()
+	i.IsSaved = false
 }
 
 func (i *AttributesItem) Len() int {
