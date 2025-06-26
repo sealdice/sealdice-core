@@ -789,6 +789,9 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
 
 		setupTestAttrs := func(ctx *MsgContext) {
+			// 标记为兼容性测试环境，跳过不必要的数据库查询
+			ctx.IsCompatibilityTest = true
+			
 			// $g
 			if attrs, _ := am.LoadById("UI-Group:2101"); attrs != nil {
 				attrs.Clear()

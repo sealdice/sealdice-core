@@ -500,6 +500,8 @@ type MsgContext struct {
 	Group       *GroupInfo       `jsbind:"group"`  // 当前群信息
 	Player      *GroupPlayerInfo `jsbind:"player"` // 当前群的玩家数据
 
+	IsCompatibilityTest bool // 是否为兼容性测试环境，用于跳过不必要的数据库查询
+
 	EndPoint        *EndPointInfo `jsbind:"endPoint"` // 对应的Endpoint
 	Session         *IMSession    // 对应的IMSession
 	Dice            *Dice         // 对应的 Dice
