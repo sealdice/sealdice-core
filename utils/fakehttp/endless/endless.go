@@ -1,5 +1,7 @@
 package endless
 
+// fork from https://github.com/g-utils/endless
+
 import (
 	"crypto/tls"
 	"errors"

@@ -1,5 +1,7 @@
 //go:build windows
 
+// fork from https://github.com/g-utils/endless
+
 package signals
 
 import "syscall"
