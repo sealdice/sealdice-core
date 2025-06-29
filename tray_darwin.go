@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -136,8 +137,8 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	if err != nil {
 		log.Warnf("获取当前工作目录失败: %v", err)
 	}
-	certPath := path2.Join(getwd, "data", "cert.pem")
-	keyPath := path2.Join(getwd, "data", "cert.key")
+	certPath := path.Join(getwd, "data", "cert.pem")
+	keyPath := path.Join(getwd, "data", "cert.key")
 	err = endlessServer.ListenAndServeTLS(certPath, keyPath)
 	if err != nil {
 		log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
