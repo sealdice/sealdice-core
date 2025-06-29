@@ -596,22 +596,31 @@ func logDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 		}
 		logf("LOGS 记录日志表初始化完成")
 		return nil
+	} else {
+		// MySQL logs 特化建表
+		if err := writeDB.AutoMigrate(&model.LogInfoHookMySQL{}); err != nil {
+			return err
+		}
+		err := writeDB.AutoMigrate(&model.LogOneItemHookMySQL{})
+		if err != nil {
+			return err
+		}
+		// MYSQL 特化 logs建立索引
+		err = createMySQLIndexForLogInfo(writeDB)
+		if err != nil {
+			return err
+		}
+		err = createMySQLIndexForLogOneItem(writeDB)
+		if err != nil {
+			return err
+		}
+		err = calculateLogSize(writeDB)
+		if err != nil {
+			return err
+		}
+		logf("LOGS 记录日志表初始化完成")
+		return nil
 	}
-	// MYSQL 特化 logs建立索引
-	err := createMySQLIndexForLogInfo(writeDB)
-	if err != nil {
-		return err
-	}
-	err = createMySQLIndexForLogOneItem(writeDB)
-	if err != nil {
-		return err
-	}
-	err = calculateLogSize(writeDB)
-	if err != nil {
-		return err
-	}
-	logf("LOGS 记录日志表初始化完成")
-	return nil
 }
 
 func calculateLogSize(logsDB *gorm.DB) error {
