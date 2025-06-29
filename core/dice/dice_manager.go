@@ -44,7 +44,7 @@ type DiceManager struct { //nolint:revive
 
 	UIPasswordHash string
 	UIPasswordSalt string
-	AccessTokens   map[string]bool
+	AccessTokens   SyncMap[string, bool]
 	IsReady        bool
 
 	AutoBackupEnable    bool
@@ -140,7 +140,7 @@ func (dm *DiceManager) LoadDice() {
 	dm.Cron = cron.New()
 	dm.Cron.Start()
 
-	dm.AccessTokens = map[string]bool{}
+	dm.AccessTokens = SyncMap[string, bool]{}
 	if dm.UIPasswordSalt == "" {
 		// 旧版本升级，或新用户
 		dm.UIPasswordSalt = RandStringBytesMaskImprSrcSB2(32)
@@ -188,7 +188,7 @@ func (dm *DiceManager) LoadDice() {
 	dm.BackupCleanCron = dc.BackupClean.Cron
 
 	for _, i := range dc.AccessTokens {
-		dm.AccessTokens[i] = true
+		dm.AccessTokens.Store(i, true)
 	}
 
 	for _, i := range dc.DiceConfigs {
@@ -217,9 +217,10 @@ func (dm *DiceManager) Save() {
 	dc.ServiceName = dm.ServiceName
 	dc.ConfigVersion = 9914
 
-	for k := range dm.AccessTokens {
+	dm.AccessTokens.Range(func(k string, v bool) bool {
 		dc.AccessTokens = append(dc.AccessTokens, k)
-	}
+		return true
+	})
 
 	for _, i := range dm.Dice {
 		dc.DiceConfigs = append(dc.DiceConfigs, i.BaseConfig)
