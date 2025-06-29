@@ -1,0 +1,34 @@
+报错: Error 1146 (42S02): Table 'test.attrs' doesn't exist
+堆栈: goroutine 90 [running]:
+runtime/debug.Stack()
+	D:/yingyong/GoData/GO122/src/runtime/debug/stack.go:24 +0x6b
+sealdice-core/dice.CrashLog()
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/dice.go:710 +0x49
+panic({0x7ff654951900?, 0xc0008d66d0?})
+	D:/yingyong/GoData/GO122/src/runtime/panic.go:770 +0x136
+github.com/samber/lo.must({0x7ff654a64d80, 0xc000882f30}, {0x0, 0x0, 0x0})
+	D:/yingyong/GoData/GoPath/pkg/mod/github.com/samber/lo@v1.44.0/errors.go:53 +0x29c
+github.com/samber/lo.Must[...](0x0, {0x7ff654a64d80, 0xc000882f30}, {0x0, 0x0, 0x0})
+	D:/yingyong/GoData/GoPath/pkg/mod/github.com/samber/lo@v1.44.0/errors.go:65 +0x58
+sealdice-core/dice.VarGetValue(0xc000fc0780, {0xc001679dfe, 0x14})
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/im_vars.go:167 +0x78a
+sealdice-core/dice._VarGetValueV1(0xc000fc0780, {0xc001679dfe, 0x14})
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/im_vars.go:175 +0x4c
+sealdice-core/dice.(*RollExpression).Evaluate(0xc0000a7808, 0xc0006ce308, 0xc000fc0780)
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/rollvm.go:976 +0x7e70
+sealdice-core/dice.(*Dice)._ExprEvalBaseV1(0xc0006ce308, {0xc0000592d0, 0x63}, 0xc000fc0780, {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/dice.go:448 +0x2ae
+sealdice-core/dice.(*Dice)._ExprTextBaseV1(0xc0006ce308, {0xc000059260, 0x61}, 0xc000fc0780, {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, ...})
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/dice.go:474 +0x11e
+sealdice-core/dice.(*Dice)._ExprTextV1(0xc0006ce308, {0xc000059180, 0x61}, 0xc000fc0780)
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/dice.go:487 +0xa5
+sealdice-core/dice.DiceFormatV1(0xc000fc0780, {0xc000059180, 0x61})
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/rollvm_migrate.go:277 +0xb6
+sealdice-core/dice.TextMapCompatibleCheck(0xc0006ce308, {0x7ff654d6844e, 0x6}, {0xc0005ba558, 0x14}, {0xc000154ff0, 0x1, 0x1})
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/rollvm_migrate.go:851 +0xe0c
+sealdice-core/dice.TextMapCompatibleCheckAll(0xc0006ce308)
+	C:/Users/Administrator/Documents/sealdice-core_fix/dice/rollvm_migrate.go:910 +0x36d
+main.diceServe(0xc0006ce308)
+	C:/Users/Administrator/Documents/sealdice-core_fix/main.go:504 +0x332
+created by main.main in goroutine 1
+	C:/Users/Administrator/Documents/sealdice-core_fix/main.go:458 +0x2779

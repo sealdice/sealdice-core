@@ -19,6 +19,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/icon"
+	"sealdice-core/utils/fakehttp/endless"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -128,7 +129,16 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 
 	// exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
 	log.Infof("如果浏览器没有自动打开，请手动访问:\nhttp://localhost:%s", portStr)
-	err = e.Start(dm.ServeAddress)
+	endlessServer := endless.NewServer(dm.ServeAddress, e, endless.HTTPS_AND_HTTP_BOTH)
+	// 将Logger换成echo的logger，之后重走原本的日志记录路线
+	endlessServer.ErrorLog = e.StdLogger
+	getwd, err := os.Getwd()
+	if err != nil {
+		log.Warnf("获取当前工作目录失败: %v", err)
+	}
+	certPath := path2.Join(getwd, "data", "cert.pem")
+	keyPath := path2.Join(getwd, "data", "cert.key")
+	err = endlessServer.ListenAndServeTLS(certPath, keyPath)
 	if err != nil {
 		log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
 		return

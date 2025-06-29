@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	path2 "path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -25,6 +26,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/icon"
+	"sealdice-core/utils/fakehttp/endless"
 	log "sealdice-core/utils/kratos"
 )
 
@@ -228,9 +230,16 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 			portStr = m[1]
 			_trayPortStr = portStr
 		}
-
-		err := e.Start(dm.ServeAddress)
-
+		endlessServer := endless.NewServer(dm.ServeAddress, e, endless.HTTPS_AND_HTTP_BOTH)
+		getwd, err := os.Getwd()
+		if err != nil {
+			log.Warnf("获取当前工作目录失败: %v", err)
+		}
+		certPath := path2.Join(getwd, "data", "cert.pem")
+		keyPath := path2.Join(getwd, "data", "cert.key")
+		err = endlessServer.ListenAndServeTLS(certPath, keyPath)
+		// 将Logger换成echo的logger，之后重走原本的日志记录路线
+		endlessServer.ErrorLog = e.StdLogger
 		if err != nil {
 			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
 			s2, _ := syscall.UTF16PtrFromString(fmt.Sprintf("端口 %s 已被占用，点“是”随机换一个端口，点“否”退出\n注意，此端口将被自动写入配置，后续可用启动参数改回", portStr))
