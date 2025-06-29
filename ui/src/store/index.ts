@@ -390,6 +390,9 @@ export const useStore = defineStore('main', {
 
     async diceConfigSet(data: DiceConfig) {
       await setDiceConfig(data);
+      if (data.uiPassword) {
+        window.location.reload();
+      }
       await this.diceConfigGet();
     },
 

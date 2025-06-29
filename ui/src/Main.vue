@@ -251,7 +251,7 @@ onBeforeMount(async () => {
         dialogLostConnectionVisible.value = false;
       }
     } catch (e: any) {
-      if (!e.response) {
+      if (!e.response || e.response.status === 403) {
         // 此时是连接不上，404
         // e.response.status 有可能为 403
         dialogLostConnectionVisible.value = true;
