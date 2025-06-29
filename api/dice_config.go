@@ -317,6 +317,8 @@ func DiceConfigSet(c echo.Context) error {
 	if val, ok := jsonMap["uiPassword"]; ok {
 		if !dm.JustForTest {
 			myDice.Parent.UIPasswordHash = val.(string)
+			// 清空所有现有的访问令牌，强制重新登录
+			myDice.Parent.AccessTokens = dice.SyncMap[string, bool]{}
 		}
 	}
 

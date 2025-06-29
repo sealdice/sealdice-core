@@ -246,7 +246,7 @@ func doSignIn(c echo.Context) error {
 		head := hex.EncodeToString(Int64ToBytes(now))
 		token := dice.RandStringBytesMaskImprSrcSB2(64) + ":" + head
 
-		myDice.Parent.AccessTokens[token] = true
+		myDice.Parent.AccessTokens.Store(token, true)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Parent.Save()
 		return c.JSON(http.StatusOK, map[string]string{

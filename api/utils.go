@@ -43,10 +43,7 @@ func doAuth(c echo.Context) bool {
 	if token == "" {
 		token = c.QueryParam("token")
 	}
-	if myDice.Parent.AccessTokens[token] {
-		return true
-	}
-	return false
+	return myDice.Parent.AccessTokens.Exists(token)
 }
 
 func GetHexData(c echo.Context, method string, name string) (value []byte, finished bool) {
