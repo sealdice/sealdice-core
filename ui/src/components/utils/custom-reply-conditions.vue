@@ -10,7 +10,6 @@ interface ReplyCondition {
 }
 
 const listModel = defineModel<ReplyCondition[]>();
-const data = listModel.value;
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const notMobile = breakpoints.greater('sm');
@@ -21,7 +20,10 @@ const deleteByIndex = (index: number) => {
 </script>
 
 <template>
-  <div v-for="(cond, index) in data" :key="index" class="mb-3 pl-2 border-l-2 border-orange-500">
+  <div
+    v-for="(cond, index) in listModel"
+    :key="index"
+    class="mb-3 pl-2 border-l-2 border-orange-500">
     <div class="pb-2 flex justify-between border-b">
       <el-space>
         <el-text>模式</el-text>
