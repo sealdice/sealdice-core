@@ -23,12 +23,73 @@ type PlatformAdapterMilky struct {
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
+	if err != nil {
+		log.Errorf("Invalid group ID %s: %v", groupID, err)
+		return
+	}
+	elements := ParseMessageToMilky(msg)
+	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
+	if err != nil {
+		log.Errorf("Failed to send group message to %s: %v", groupID, err)
+		return
+	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "QQ",
+		MessageType: "group",
+		Segment:     msg,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+		RawID: ret.MessageSeq,
+	}, flag)
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	id, err := strconv.ParseInt(ExtractQQUserID(userID), 10, 64)
+	if err != nil {
+		log.Errorf("Invalid user ID %s: %v", userID, err)
+		return
+	}
+	elements := ParseMessageToMilky(msg)
+	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
+	if err != nil {
+		log.Errorf("Failed to send private message to %s: %v", userID, err)
+		return
+	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "QQ",
+		MessageType: "private",
+		Segment:     msg,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+		RawID: ret.MessageSeq,
+	}, flag)
 }
 
-func (pa *PlatformAdapterMilky) GetGroupInfoAsync(_ string) {}
+func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
+	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
+	if err != nil {
+		log.Errorf("Invalid group ID %s: %v", groupID, err)
+		return
+	}
+	groupInfo, err := pa.IntentSession.GetGroupInfo(id, true)
+	if err != nil {
+		log.Errorf("Failed to get group info for %s: %v", groupID, err)
+		return
+	}
+	if groupInfo == nil {
+		log.Warnf("Group info for %s is nil", groupID)
+		return
+	}
+	pa.Session.Parent.Parent.GroupNameCache.Store(groupID, &GroupNameCacheItem{
+		Name: groupInfo.Name,
+		time: time.Now().Unix(),
+	})
+}
 
 func (pa *PlatformAdapterMilky) Serve() int {
 	pa.EndPoint.State = 2 // 设置状态为连接中
@@ -233,7 +294,7 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 		log.Errorf("Invalid user ID %s: %v", uid, err)
 		return
 	}
-	_, err = pa.IntentSession.SendPrivateMessage(id, &elements)
+	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send private message to %s: %v", uid, err)
 		return
@@ -246,6 +307,7 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: ret.MessageSeq,
 	}, flag)
 }
 
@@ -257,7 +319,7 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
-	_, err = pa.IntentSession.SendGroupMessage(id, &elements)
+	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
@@ -270,6 +332,7 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: ret.MessageSeq,
 	}, flag)
 }
 
