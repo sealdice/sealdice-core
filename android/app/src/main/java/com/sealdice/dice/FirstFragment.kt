@@ -166,14 +166,16 @@ class FirstFragment : Fragment() {
                 }
                 alertDialogBuilder?.create()?.show()
             } else {
-                if (!isPortAvailable(3211)) {
+                val port = sharedPreferences.getString("launch_args", "")
+                    ?.let { it1 -> Utils.extractPortFromArguments(it1) }
+                if (port != null && !isPortAvailable(port)) {
                     val alertDialogBuilder = context?.let { it1 ->
                         AlertDialog.Builder(
                             it1, R.style.Theme_Mshell_DialogOverlay
                         )
                     }
                     alertDialogBuilder?.setTitle("警告")
-                    alertDialogBuilder?.setMessage("默认端口3211被占用，点击“确定”随机设置一个新的端口并修改UI地址（会改变启动参数设置）")
+                    alertDialogBuilder?.setMessage("端口${port}被占用，点击“确定”随机设置一个新的端口并修改UI地址（会改变启动参数设置）")
                     alertDialogBuilder?.setPositiveButton("确定") { _: DialogInterface, _: Int ->
                         val editor = sharedPreferences?.edit()
                         val newPort = (1024..65535).random()

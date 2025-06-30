@@ -102,5 +102,18 @@ object Utils {
         }
     }
     fun isNull(any: Any?): Boolean = any == null
+    fun extractPortFromArguments(args: String): Int? {
+        // 使用正则表达式匹配 --address=IP:PORT 格式
+        val regex = """--address=(?:\d{1,3}\.){3}\d{1,3}:(\d+)""".toRegex()
 
+        // 分割参数并查找匹配项
+        args.split(" ").forEach { arg ->
+            regex.matchEntire(arg)?.let { match ->
+                // 提取端口部分并转换为Int
+                val portStr = match.groupValues[1]
+                return portStr.toIntOrNull()
+            }
+        }
+        return null // 如果没有找到匹配项返回null
+    }
 }
