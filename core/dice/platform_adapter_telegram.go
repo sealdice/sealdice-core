@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -402,8 +403,11 @@ func (pa *PlatformAdapterTelegram) SendSegmentToGroup(ctx *MsgContext, groupID s
 func (pa *PlatformAdapterTelegram) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 }
 
-func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	pa.SendToChatRaw(ExtractTelegramUserID(uid), text)
+func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	resp, err := pa.SendToChatRaw(ExtractTelegramUserID(userID), text)
+	if err != nil {
+		return
+	}
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "private",
@@ -412,11 +416,15 @@ func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, uid string, tex
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: resp.MessageID,
 	}, flag)
 }
 
 func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	pa.SendToChatRaw(ExtractTelegramGroupID(uid), text)
+	resp, err := pa.SendToChatRaw(ExtractTelegramGroupID(uid), text)
+	if err != nil {
+		return
+	}
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "group",
@@ -426,10 +434,11 @@ func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: resp.MessageID,
 	}, flag)
 }
 
-func (pa *PlatformAdapterTelegram) SendFileToPerson(_ *MsgContext, uid string, path string, _ string) {
+func (pa *PlatformAdapterTelegram) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
 	userID := ExtractTelegramUserID(uid)
 	id, _ := strconv.ParseInt(userID, 10, 64)
 	bot := pa.IntentSession
@@ -442,14 +451,28 @@ func (pa *PlatformAdapterTelegram) SendFileToPerson(_ *MsgContext, uid string, p
 	}
 
 	f := tgbotapi.NewDocument(id, &RequestFileDataImpl{File: e.File, Reader: e.Stream})
-	_, err = bot.Send(f)
+	resp, err := bot.Send(f)
 	if err != nil {
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
 	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "TG",
+		MessageType: "private",
+		Segment: []message.IMessageElement{
+			&message.FileElement{
+				File: path,
+			},
+		},
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+		RawID: resp.MessageID,
+	}, flag)
 }
 
-func (pa *PlatformAdapterTelegram) SendFileToGroup(_ *MsgContext, uid string, path string, _ string) {
+func (pa *PlatformAdapterTelegram) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
 	groupID := ExtractTelegramGroupID(uid)
 	id, _ := strconv.ParseInt(groupID, 10, 64)
 	bot := pa.IntentSession
@@ -462,11 +485,26 @@ func (pa *PlatformAdapterTelegram) SendFileToGroup(_ *MsgContext, uid string, pa
 	}
 
 	f := tgbotapi.NewDocument(id, &RequestFileDataImpl{File: e.File, Reader: e.Stream})
-	_, err = bot.Send(f)
+	resp, err := bot.Send(f)
 	if err != nil {
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
 	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "TG",
+		MessageType: "group",
+		Segment: []message.IMessageElement{
+			&message.FileElement{
+				File: path,
+			},
+		},
+		GroupID: uid,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+		RawID: resp.MessageID,
+	}, flag)
 }
 
 func (pa *PlatformAdapterTelegram) EditMessage(_ *MsgContext, _, _ string) {}
@@ -487,7 +525,7 @@ func (r *RequestFileDataImpl) UploadData() (string, io.Reader, error) {
 func (r *RequestFileDataImpl) SendData() string {
 	return r.File
 }
-func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
+func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) (*tgbotapi.Message, error) {
 	bot := pa.IntentSession
 	id, _ := strconv.ParseInt(uid, 10, 64)
 	elem := message.ConvertStringMessage(text)
@@ -505,18 +543,19 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			msg.Text += data
 			entity := tgbotapi.MessageEntity{Type: "text_mention", Offset: leng, Length: len(data), User: user}
 			msg.Entities = append(msg.Entities, entity)
-		case *message.FileElement:
-			if msg.Text != "" {
-				_, err = bot.Send(msg)
-			}
-			if err != nil {
-				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
-				return
-			}
-			msg = tgbotapi.NewMessage(id, "")
-			data := &RequestFileDataImpl{File: e.File, Reader: e.Stream}
-			f := tgbotapi.NewDocument(id, data)
-			_, err = bot.Send(f)
+			// 安全性问题禁用
+		// case *message.FileElement:
+		//	if msg.Text != "" {
+		//		_, err = bot.Send(msg)
+		//	}
+		//	if err != nil {
+		//		pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+		//		return
+		//	}
+		//	msg = tgbotapi.NewMessage(id, "")
+		//	data := &RequestFileDataImpl{File: e.File, Reader: e.Stream}
+		//	f := tgbotapi.NewDocument(id, data)
+		//	_, err = bot.Send(f)
 		case *message.ImageElement:
 			fi := e.File
 			data := &RequestFileDataImpl{File: fi.File, Reader: fi.Stream}
@@ -530,7 +569,7 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 			_, err = bot.Send(f)
 			if err != nil {
 				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
-				return
+				return nil, err
 			}
 		case *message.TTSElement:
 			msg.Text += e.Content
@@ -544,16 +583,17 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) {
 		}
 		if err != nil {
 			pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
-			return
+			return nil, err
 		}
 	}
-	if msg.Text != "" {
-		_, err = bot.Send(msg)
+	if msg.Text != "" || len(msg.Entities) > 0 {
+		resp, err := bot.Send(msg)
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+		}
+		return &resp, err
 	}
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
-		return
-	}
+	return nil, errors.New("empty message")
 }
 
 func (pa *PlatformAdapterTelegram) QuitGroup(_ *MsgContext, id string) {
