@@ -760,7 +760,6 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
 				if _, exists := privateCommandListen[ctx.CommandID]; exists {
 					session := ctx.Session
-					// TODO： 这里的OK被忽略了，没问题？
 					groupInfo, ok := session.ServiceAtNew.Load(ctx.CommandHideFlag)
 					if !ok {
 						ctx.Dice.Logger.Warn("ServiceAtNew ext_log加载groupInfo异常")
@@ -775,6 +774,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IsDice:      true,
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
+						RawMsgID:    msg.RawID,
 					}
 
 					LogAppend(ctx, groupInfo.GroupID, groupInfo.LogCurName, &a)
@@ -804,6 +804,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IsDice:      true,
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
+						RawMsgID:    msg.RawID,
 					}
 					LogAppend(ctx, groupInfo.GroupID, groupInfo.LogCurName, &a)
 				}

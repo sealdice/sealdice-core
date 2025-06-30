@@ -8,6 +8,7 @@ require (
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/Szzrain/dodo-open-go v0.2.8
+	github.com/Szzrain/Milky-go-sdk v0.3.4 
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/antlabs/strsim v0.0.3
@@ -99,7 +100,6 @@ require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/RoaringBitmap/roaring v1.9.3 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
-	github.com/Szzrain/Milky-go-sdk v0.3.1
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.2.0 // indirect
 	github.com/blevesearch/geo v0.1.20 // indirect

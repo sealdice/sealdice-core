@@ -327,7 +327,10 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userID string, t
 		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userID, err)
 		return
 	}
-	pa.sendToChannelRaw(ch.ID, text)
+	resp, err := pa.sendToChannelRaw(ch.ID, text)
+	if err != nil {
+		return
+	}
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DISCORD",
 		MessageType: "private",
@@ -336,13 +339,17 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userID string, t
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: resp.ID,
 	}, flag)
 }
 
 // SendToGroup 发送群聊（实际上是频道）消息
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
 	// _, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
-	pa.sendToChannelRaw(groupID, text)
+	resp, err := pa.sendToChannelRaw(groupID, text)
+	if err != nil {
+		return
+	}
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DISCORD",
 		MessageType: "group",
@@ -352,30 +359,66 @@ func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupID string, t
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: resp.ID,
 	}, flag)
 }
 
-func (pa *PlatformAdapterDiscord) SendFileToPerson(_ *MsgContext, userID string, path string, _ string) {
+func (pa *PlatformAdapterDiscord) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
 	is := pa.IntentSession
 	ch, err := is.UserChannelCreate(ExtractDiscordUserID(userID))
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userID, err)
 		return
 	}
-	pa.sendFileToChannelRaw(ch.ID, path)
+	resp, err := pa.sendFileToChannelRaw(ch.ID, path)
+	if err != nil {
+		return
+	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "DISCORD",
+		MessageType: "private",
+		Segment: []message.IMessageElement{
+			&message.FileElement{
+				File: path,
+			},
+		},
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+		RawID: resp.ID,
+	}, flag)
 }
 
-func (pa *PlatformAdapterDiscord) SendFileToGroup(_ *MsgContext, groupID string, path string, _ string) {
-	pa.sendFileToChannelRaw(groupID, path)
+func (pa *PlatformAdapterDiscord) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
+	resp, err := pa.sendFileToChannelRaw(groupID, path)
+	if err != nil {
+		return
+	}
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "DISCORD",
+		MessageType: "group",
+		Segment: []message.IMessageElement{
+			&message.FileElement{
+				File: path,
+			},
+		},
+		GroupID: groupID,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+		RawID: resp.ID,
+	}, flag)
 }
 
-func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelID string, path string) {
+func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelID string, path string) (*discordgo.Message, error) {
 	dice := pa.Session.Parent
 	e, err := message.FilepathToFileElement(path)
 	id := ExtractDiscordChannelID(channelID)
 	if err != nil {
 		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
-		return
+		return nil, err
 	}
 
 	var files []*discordgo.File
@@ -386,14 +429,14 @@ func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelID string, path st
 	})
 	msgSend := &discordgo.MessageSend{Content: ""}
 	msgSend.Files = files
-	_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+	resp, err := pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 	if err != nil {
 		dice.Logger.Errorf("向Discord频道#%s发送文件[path=%s]时出错:%s", id, path, err)
-		return
 	}
+	return resp, err
 }
 
-func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string) {
+func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string) (*discordgo.Message, error) {
 	logger := pa.Session.Parent.Logger
 	elem := message.ConvertStringMessage(text)
 	id := ExtractDiscordChannelID(channelID)
@@ -474,16 +517,19 @@ func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string
 		}
 		if err != nil {
 			pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
-			return
+			return nil, err
 		}
 	}
 	if msgSend.Content != "" || msgSend.Files != nil || msgSend.Embeds != nil {
-		_, err = pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
+		info, err := pa.IntentSession.ChannelMessageSendComplex(id, msgSend)
 		// pa.Session.Parent.Logger.Infof("真的向Discord频道#%s发送消息:%s", id, msgSend.Content)
+		if err != nil {
+			pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
+			return nil, err
+		}
+		return info, err
 	}
-	if err != nil {
-		pa.Session.Parent.Logger.Errorf("向Discord频道#%s发送消息时出错:%s", id, err)
-	}
+	return nil, errors.New("empty message")
 }
 
 // QuitGroup 退出服务器

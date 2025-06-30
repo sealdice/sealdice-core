@@ -51,7 +51,7 @@ type Message struct {
 	Platform    string      `json:"platform" jsbind:"platform"` // 当前平台
 	GroupName   string      `json:"groupName"`
 	TmpUID      string      `json:"-" yaml:"-"`
-	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 LagrangeGo 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
+	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 Milky 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
 	Segment []message.IMessageElement `json:"-" yaml:"-" jsbind:"segment"`
 }
 
