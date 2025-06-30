@@ -80,7 +80,7 @@ func (pa *PlatformAdapterDingTalk) SendSegmentToPerson(ctx *MsgContext, userID s
 func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	msg := dingtalk.MessageSampleText{Content: text}
 	rawUserID := ExtractDingTalkUserID(uid)
-	_, err := pa.IntentSession.MessagePrivateSend(rawUserID, pa.RobotCode, &msg)
+	messageID, err := pa.IntentSession.MessagePrivateSend(rawUserID, pa.RobotCode, &msg)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("Dingtalk SendToPerson Error: ", err)
 		return
@@ -93,13 +93,14 @@ func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, tex
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: messageID,
 	}, flag)
 }
 
 func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	msg := dingtalk.MessageSampleText{Content: text}
 	rawGroupID := ExtractDingTalkGroupID(uid)
-	_, err := pa.IntentSession.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msg)
+	messageID, err := pa.IntentSession.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msg)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("Dingtalk SendToGroup Error: ", err)
 		return
@@ -113,6 +114,7 @@ func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
+		RawID: messageID,
 	}, flag)
 }
 

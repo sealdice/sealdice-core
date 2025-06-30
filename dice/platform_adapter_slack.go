@@ -267,9 +267,9 @@ func (pa *PlatformAdapterSlack) RecallMessage(_ *MsgContext, _ string) {}
 func (pa *PlatformAdapterSlack) send(_ *MsgContext, id string, text string, _ string) {
 	// pa.Client.PostMessage 没看懂 Post 和 Send 有什么区别 先用语义更好的一个好了
 	// 频道以 C 开头 用户以 U 开头 老粗暴了
-	message, s, s2, err := pa.Client.SendMessage(id, slack.MsgOptionText(text, false))
+	messageCtx, s, s2, err := pa.Client.SendMessage(id, slack.MsgOptionText(text, false))
 	if err != nil {
-		pa.Session.Parent.Logger.Error("Slack 发送消息失败", message, s, s2, err.Error())
+		pa.Session.Parent.Logger.Error("Slack 发送消息失败", messageCtx, s, s2, err.Error())
 	}
 }
 
