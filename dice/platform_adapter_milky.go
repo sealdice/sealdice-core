@@ -336,12 +336,21 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 	}, flag)
 }
 
-func (pa *PlatformAdapterMilky) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-	pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
+func (pa *PlatformAdapterMilky) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
+	pa.SendToPerson(ctx, userID, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
 }
 
-func (pa *PlatformAdapterMilky) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", filepath.Base(path)), flag)
+func (pa *PlatformAdapterMilky) SendFileToGroup(_ *MsgContext, groupID string, path string, _ string) {
+	id := ExtractQQGroupID(groupID)
+	rawID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		log.Errorf("Invalid group ID %s: %v", groupID, err)
+		return
+	}
+	_, err = pa.IntentSession.UploadGroupFile(rawID, path, filepath.Base(path), "")
+	if err != nil {
+		return
+	}
 }
 
 func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
