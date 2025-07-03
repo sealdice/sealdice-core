@@ -367,7 +367,26 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 	log.Infof("Successfully quit group %s", groupID)
 }
 
-func (pa *PlatformAdapterMilky) SetGroupCardName(_ *MsgContext, _ string) {}
+func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {
+	groupID := ctx.Group.GroupID
+	rawGroupID := ExtractQQGroupID(groupID)
+	rawGroupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)
+	if err != nil {
+		log.Errorf("Invalid group ID %s: %v", groupID, err)
+		return
+	}
+	userID := ctx.Player.UserID
+	rawUserID := ExtractQQUserID(userID)
+	rawUserIDInt, err := strconv.ParseInt(rawUserID, 10, 64)
+	if err != nil {
+		log.Errorf("Invalid user ID %s: %v", userID, err)
+		return
+	}
+	err = pa.IntentSession.SetGroupMemberCard(rawGroupIDInt, rawUserIDInt, cardName)
+	if err != nil {
+		log.Errorf("Failed to set group card name for %s in group %s: %v", userID, groupID, err)
+	}
+}
 
 func (pa *PlatformAdapterMilky) MemberBan(_ string, _ string, _ int64) {}
 
