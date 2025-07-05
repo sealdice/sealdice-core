@@ -245,6 +245,10 @@ onBeforeMount(async () => {
   }
 
   timerId = setInterval(async () => {
+    // 没输入密码，先不心跳
+    if (!store.canAccess) {
+      return;
+    }
     try {
       await store.getBaseInfo();
       if (dialogLostConnectionVisible.value) {
