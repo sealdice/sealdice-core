@@ -6,7 +6,7 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
-	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"sealdice-core/model"
 	"sealdice-core/utils"
@@ -119,85 +119,34 @@ type AttributesBatchUpsertModel struct {
 	SheetType string `json:"sheetType"`
 }
 
-// AttrsPutsByIDBatch 特殊入库函数 因为它
 // AttrsPutsByIDBatch 特殊入库函数
 // https://github.com/go-gorm/gorm/issues/6047 混合的更新疑似仍然有问题，所以手动拆分逻辑
 func AttrsPutsByIDBatch(operator engine2.DatabaseOperator, saveList []*AttributesBatchUpsertModel) error {
 	writeDB := operator.GetDataDB(constant.WRITE)
-	readDB := operator.GetDataDB(constant.READ)
 	now := time.Now().Unix()
 
-	// 收集所有ID用于查询已存在记录
-	ids := make([]string, 0, len(saveList))
+	// 构建要插入/更新的记录列表
+	records := make([]*model.AttributesItemModel, 0, len(saveList))
 	for _, value := range saveList {
-		ids = append(ids, value.Id)
-	}
-
-	// 查询已存在的ID
-	var existingIDs []string
-	if len(ids) > 0 {
-		err := readDB.Model(&model.AttributesItemModel{}).Where("id IN (?)", ids).Pluck("id", &existingIDs).Error
-		if err != nil {
-			return err
-		}
-	}
-
-	// 将现有ID转换为map加速查找
-	existingMap := make(map[string]bool)
-	for _, id := range existingIDs {
-		existingMap[id] = true
-	}
-
-	// 拆分更新和新建列表
-	var updateList []*AttributesBatchUpsertModel
-	createList := make([]*model.AttributesItemModel, 0, len(saveList))
-
-	for _, value := range saveList {
-		if existingMap[value.Id] {
-			updateList = append(updateList, value)
-		} else {
-			createList = append(createList, &model.AttributesItemModel{
-				Id:             value.Id,
-				Data:           value.Data,
-				IsHidden:       true,
-				BindingSheetId: "",
-				Name:           value.Name,
-				SheetType:      value.SheetType,
-				CreatedAt:      now,
-				UpdatedAt:      now,
-			})
-		}
-	}
-
-	// 批量创建新记录 能批量就批量，更新不能批量没办法。
-	if len(createList) > 0 {
-		if err := writeDB.Create(&createList).Error; err != nil {
-			return err
-		}
-	}
-
-	// 批量更新现有记录
-	if len(updateList) > 0 {
-		err := writeDB.Transaction(func(tx *gorm.DB) error {
-			for _, item := range updateList {
-				if err := tx.Model(&model.AttributesItemModel{}).
-					Where("id = ?", item.Id).
-					Updates(map[string]interface{}{
-						"data":       dbutil.BYTE(item.Data),
-						"updated_at": now,
-						"name":       item.Name,
-						"sheet_type": item.SheetType,
-					}).Error; err != nil {
-					return err
-				}
-			}
-			return nil
+		records = append(records, &model.AttributesItemModel{
+			Id:             value.Id,
+			Data:           value.Data,
+			IsHidden:       true,
+			BindingSheetId: "",
+			Name:           value.Name,
+			SheetType:      value.SheetType,
+			CreatedAt:      now,
+			UpdatedAt:      now,
 		})
-		if err != nil {
-			return err
-		}
 	}
-	return nil
+
+	// 使用GORM Upsert进行批量插入/更新
+	err := writeDB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"data", "name", "sheet_type", "updated_at"}),
+	}).Create(&records).Error
+
+	return err
 }
 func AttrsDeleteById(operator engine2.DatabaseOperator, id string) error {
 	db := operator.GetDataDB(constant.WRITE)
