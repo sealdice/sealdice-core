@@ -173,6 +173,9 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				}
 			}
 		}
+		if len(msg.Segment) == 0 {
+			return // 如果没有消息内容，忽略
+		}
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
 	})
 	d := pa.Session.Parent
