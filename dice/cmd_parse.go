@@ -175,7 +175,7 @@ func (cmdArgs *CmdArgs) GetRestArgsFrom(index int) string {
 // RevokeExecuteTimesParse 因为次数解析进行的太早了，影响太大无法还原，这里干脆重新解析一遍
 func (cmdArgs *CmdArgs) RevokeExecuteTimesParse(ctx *MsgContext, msg *Message) {
 	// 对于使用消息段的信息，使用新的解析方式
-	if msg.Segment != nil && len(msg.Segment) > 0 {
+	if len(msg.Segment) > 0 {
 		cmdArgs.commandParseNew(ctx, msg, true)
 	} else {
 		cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, true)
