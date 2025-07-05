@@ -1668,7 +1668,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 		// Note(Szzrain): TODO: 意义不明，需要想办法干掉
 		if item.EnableExecuteTimesParse {
-			cmdArgs.RevokeExecuteTimesParse()
+			cmdArgs.RevokeExecuteTimesParse(ctx, msg)
 		}
 
 		if ctx.Player != nil {
@@ -1910,6 +1910,10 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa.EndPoint = ep
 		case "satori":
 			pa := ep.Adapter.(*PlatformAdapterSatori)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+		case "milky":
+			pa := ep.Adapter.(*PlatformAdapterMilky)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
 			// case "LagrangeGo":
