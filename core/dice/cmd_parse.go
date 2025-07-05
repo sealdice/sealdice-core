@@ -172,10 +172,15 @@ func (cmdArgs *CmdArgs) GetRestArgsFrom(index int) string {
 	return strings.Join(txt, " ")
 }
 
-func (cmdArgs *CmdArgs) RevokeExecuteTimesParse() {
-	// 因为次数解析进行的太早了，影响太大无法还原，这里干脆重新解析一遍
-	cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, true)
-	cmdArgs.SetupAtInfo(cmdArgs.uidForAtInfo)
+// RevokeExecuteTimesParse 因为次数解析进行的太早了，影响太大无法还原，这里干脆重新解析一遍
+func (cmdArgs *CmdArgs) RevokeExecuteTimesParse(ctx *MsgContext, msg *Message) {
+	// 对于使用消息段的信息，使用新的解析方式
+	if len(msg.Segment) > 0 {
+		cmdArgs.commandParseNew(ctx, msg, true)
+	} else {
+		cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, true)
+		cmdArgs.SetupAtInfo(cmdArgs.uidForAtInfo)
+	}
 }
 
 func (cmdArgs *CmdArgs) SetupAtInfo(uid string) {
