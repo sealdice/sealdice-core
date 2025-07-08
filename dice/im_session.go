@@ -13,6 +13,7 @@ import (
 
 	"github.com/samber/lo"
 
+	"sealdice-core/dice/events"
 	"sealdice-core/dice/service"
 	"sealdice-core/message"
 	"sealdice-core/model"
@@ -1833,6 +1834,19 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
 				i.OnMessageSend(ctx, msg, flag)
+			})
+		}
+	}
+}
+
+func (s *IMSession) OnPoke(ctx *MsgContext, event *events.PokeEvent) {
+	if !ctx.Group.IsActive(ctx) {
+		return
+	}
+	for _, i := range ctx.Group.ActivatedExtList {
+		if i.OnPoke != nil {
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnPoke(ctx, event)
 			})
 		}
 	}

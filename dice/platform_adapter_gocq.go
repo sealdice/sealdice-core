@@ -20,6 +20,7 @@ import (
 	"github.com/tidwall/sjson"
 	"gopkg.in/yaml.v3"
 
+	"sealdice-core/dice/events"
 	"sealdice-core/message"
 	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
@@ -1058,29 +1059,16 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// 戳一戳
 		if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
-
-			// 检查设置中是否开启
-			if !ctx.Dice.Config.QQEnablePoke {
-				return
-			}
-
 			go func() {
 				defer ErrorLogAndContinue(pa.Session.Parent)
 				ctx := pa.packTempCtx(msgQQ, msg)
-
-				if string(msgQQ.TargetID) == string(msgQQ.SelfID) {
-					// 如果在戳自己
-					text := DiceFormatTmpl(ctx, "其它:戳一戳")
-					for _, i := range ctx.SplitText(text) {
-						doSleepQQ(ctx)
-						switch msg.MessageType {
-						case "group":
-							pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
-						case "private":
-							pa.SendToPerson(ctx, msg.Sender.UserID, strings.TrimSpace(i), "")
-						}
-					}
-				}
+				isPrivate := msgQQ.MessageType == "private"
+				pa.Session.OnPoke(ctx, &events.PokeEvent{
+					GroupID:   msg.GroupID,
+					SenderID:  FormatDiceIDQQ(string(msgQQ.Sender.UserID)),
+					TargetID:  FormatDiceIDQQ(string(msgQQ.TargetID)),
+					IsPrivate: isPrivate,
+				})
 			}()
 			return
 		}

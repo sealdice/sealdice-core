@@ -13,6 +13,8 @@ import (
 	"github.com/samber/lo"
 
 	ds "github.com/sealdice/dicescript"
+
+	"sealdice-core/dice/events"
 )
 
 var guguText = `
@@ -1349,6 +1351,31 @@ func RegisterBuiltinExtFun(self *Dice) {
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 		},
 		OnLoad: func() {
+		},
+		OnPoke: func(ctx *MsgContext, event *events.PokeEvent) {
+			// 检查设置中是否开启
+			if !ctx.Dice.Config.QQEnablePoke {
+				return
+			}
+			if event.TargetID == ctx.EndPoint.UserID && event.SenderID != ctx.EndPoint.UserID {
+				// 如果在戳自己
+				text := DiceFormatTmpl(ctx, "其它:戳一戳")
+				messageType := "group"
+				if event.IsPrivate {
+					messageType = "private"
+				}
+				for _, i := range ctx.SplitText(text) {
+					doSleepQQ(ctx)
+					ReplyToSender(ctx, &Message{
+						Platform:    ctx.EndPoint.Platform,
+						GroupID:     event.GroupID,
+						MessageType: messageType,
+						Sender: SenderBase{
+							UserID: event.SenderID,
+						},
+					}, i)
+				}
+			}
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{

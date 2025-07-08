@@ -9,6 +9,7 @@ import (
 
 	milky "github.com/Szzrain/Milky-go-sdk"
 
+	"sealdice-core/dice/events"
 	"sealdice-core/message"
 	log "sealdice-core/utils/kratos"
 )
@@ -177,6 +178,26 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			return // 如果没有消息内容，忽略
 		}
 		pa.Session.ExecuteNew(pa.EndPoint, msg)
+	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.GroupNudge) {
+		if m == nil {
+			return
+		}
+		log.Debugf("Received group nudge: Group %d, Sender %d", m.GroupID, m.SenderID)
+		msg := &Message{
+			Platform:    "QQ",
+			GroupID:     FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10)),
+			MessageType: "group",
+			Sender: SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderID, 10)),
+			},
+		}
+		pa.Session.OnPoke(CreateTempCtx(pa.EndPoint, msg), &events.PokeEvent{
+			GroupID:   msg.GroupID,
+			SenderID:  msg.Sender.UserID,
+			TargetID:  FormatDiceIDQQ(strconv.FormatInt(m.ReceiverID, 10)),
+			IsPrivate: false,
+		})
 	})
 	d := pa.Session.Parent
 	err = pa.IntentSession.Open()

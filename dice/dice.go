@@ -25,6 +25,7 @@ import (
 	rand2 "golang.org/x/exp/rand"
 	"golang.org/x/exp/slices"
 
+	"sealdice-core/dice/events"
 	"sealdice-core/dice/logger"
 	"sealdice-core/utils/dboperator/engine"
 	log "sealdice-core/utils/kratos"
@@ -100,6 +101,7 @@ type ExtInfo struct {
 	OnGroupMemberJoined func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupMemberJoined"`
 	OnGuildJoined       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
 	OnBecomeFriend      func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`
+	OnPoke              func(ctx *MsgContext, event *events.PokeEvent)        `yaml:"-" json:"-" jsbind:"onPoke"` // 戳一戳
 	GetDescText         func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
 	IsLoaded            bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
 	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
