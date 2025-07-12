@@ -101,7 +101,8 @@ type ExtInfo struct {
 	OnGroupMemberJoined func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupMemberJoined"`
 	OnGuildJoined       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
 	OnBecomeFriend      func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`
-	OnPoke              func(ctx *MsgContext, event *events.PokeEvent)        `yaml:"-" json:"-" jsbind:"onPoke"` // 戳一戳
+	OnPoke              func(ctx *MsgContext, event *events.PokeEvent)        `yaml:"-" json:"-" jsbind:"onPoke"`       // 戳一戳
+	OnGroupLeave        func(ctx *MsgContext, event *events.GroupLeaveEvent)  `yaml:"-" json:"-" jsbind:"onGroupLeave"` // 群成员被踢出
 	GetDescText         func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
 	IsLoaded            bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
 	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
@@ -497,31 +498,65 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 }
 
 // ExtFind 根据名称或别名查找扩展
-func (d *Dice) ExtFind(s string) *ExtInfo {
-	for _, i := range d.ExtList {
-		// 名字匹配，优先级最高
-		if i.Name == s {
-			return i
+func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
+	find := func(name string) *ExtInfo {
+		for _, i := range d.ExtList {
+			// 名字匹配，优先级最高
+			if i.Name == s {
+				return i
+			}
+		}
+		for _, i := range d.ExtList {
+			// 别名匹配，优先级次之
+			if slices.Contains(i.Aliases, s) {
+				return i
+			}
+		}
+		for _, i := range d.ExtList {
+			// 忽略大小写匹配，优先级最低
+			if strings.EqualFold(i.Name, s) || slices.Contains(i.Aliases, strings.ToLower(s)) {
+				return i
+			}
+		}
+		return nil
+	}
+	ext := find(s)
+	if ext.Official && fromJS {
+		// return a copy of the official extension
+		cmdMap := make(CmdMapCls, len(ext.CmdMap))
+		for s2, info := range ext.CmdMap {
+			cmdMap[s2] = &CmdItemInfo{
+				Name:                    info.Name,
+				ShortHelp:               info.ShortHelp,
+				Help:                    info.Help,
+				HelpFunc:                info.HelpFunc,
+				AllowDelegate:           info.AllowDelegate,
+				DisabledInPrivate:       info.DisabledInPrivate,
+				EnableExecuteTimesParse: info.EnableExecuteTimesParse,
+				IsJsSolveFunc:           info.IsJsSolveFunc,
+				Solve:                   info.Solve,
+				Raw:                     info.Raw,
+				CheckCurrentBotOn:       info.CheckCurrentBotOn,
+				CheckMentionOthers:      info.CheckMentionOthers,
+			}
+		}
+		return &ExtInfo{
+			Name:       ext.Name,
+			Aliases:    ext.Aliases,
+			Author:     ext.Author,
+			Version:    ext.Version,
+			AutoActive: ext.AutoActive,
+			CmdMap:     cmdMap,
+			Brief:      ext.Brief,
+			Official:   ext.Official,
 		}
 	}
-	for _, i := range d.ExtList {
-		// 别名匹配，优先级次之
-		if slices.Contains(i.Aliases, s) {
-			return i
-		}
-	}
-	for _, i := range d.ExtList {
-		// 忽略大小写匹配，优先级最低
-		if strings.EqualFold(i.Name, s) || slices.Contains(i.Aliases, strings.ToLower(s)) {
-			return i
-		}
-	}
-	return nil
+	return ext
 }
 
 // ExtAliasToName 将扩展别名转换成主用名, 如果没有找到则返回原值
 func (d *Dice) ExtAliasToName(s string) string {
-	ext := d.ExtFind(s)
+	ext := d.ExtFind(s, false)
 	if ext != nil {
 		return ext.Name
 	}

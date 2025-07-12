@@ -964,36 +964,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_decrease" && msgQQ.SubType == "kick_me" {
 			// 被踢
 			//  {"group_id":111,"notice_type":"group_decrease","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"kick_me","time":1646689414 ,"user_id":333}
-			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
-				opUID := FormatDiceIDQQ(string(msgQQ.OperatorID))
-				groupName := dm.TryGetGroupName(msg.GroupID)
-				userName := dm.TryGetUserName(opUID)
-
-				skip := false
-				skipReason := ""
-				banInfo, ok := ctx.Dice.Config.BanList.GetByID(opUID)
-				if ok {
-					if banInfo.Rank == 30 {
-						skip = true
-						skipReason = "信任用户"
-					}
-				}
-				if ctx.Dice.IsMaster(opUID) {
-					skip = true
-					skipReason = "Master"
-				}
-
-				var extra string
-				if skip {
-					extra = fmt.Sprintf("\n取消处罚，原因为%s", skipReason)
-				} else {
-					ctx.Dice.Config.BanList.AddScoreByGroupKicked(opUID, msg.GroupID, ctx)
-				}
-
-				txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, msgQQ.GroupID, userName, msgQQ.OperatorID, extra)
-				log.Info(txt)
-				ctx.Notice(txt)
-			}
+			session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
+				GroupID:    FormatDiceIDQQGroup(string(msgQQ.GroupID)),
+				UserID:     FormatDiceIDQQ(string(msgQQ.UserID)),
+				OperatorID: FormatDiceIDQQ(string(msgQQ.OperatorID)),
+			})
 			return
 		}
 
