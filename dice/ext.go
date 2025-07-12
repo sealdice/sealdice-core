@@ -21,6 +21,7 @@ func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtDnd5e(d)
 	RegisterBuiltinStory(d)
 	RegisterBuiltinExtExp(d)
+	RegisterBuiltinExtCore(d)
 
 	d.RegisterBuiltinSystemTemplate()
 }
@@ -35,7 +36,7 @@ func (d *Dice) RegisterBuiltinSystemTemplate() {
 // panic 如果扩展的Name或Aliases冲突
 func (d *Dice) RegisterExtension(extInfo *ExtInfo) {
 	for _, name := range append(extInfo.Aliases, extInfo.Name) {
-		if collide := d.ExtFind(name); collide != nil {
+		if collide := d.ExtFind(name, false); collide != nil {
 			panicMsg := fmt.Sprintf("扩展<%s>的名字%q与现存扩展<%s>冲突", extInfo.Name, name, collide.Name)
 			panic(panicMsg)
 		}

@@ -1179,7 +1179,7 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 
-				ext := ctx.Dice.ExtFind(extName)
+				ext := ctx.Dice.ExtFind(extName, false)
 				if ext == nil {
 					ReplyToSender(ctx, msg, "没有找到插件"+extName)
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -1543,7 +1543,7 @@ func (d *Dice) registerCoreCommands() {
 				var conflictsAll []string
 				for index := range len(cmdArgs.Args) {
 					extName := strings.ToLower(cmdArgs.Args[index])
-					if i := d.ExtFind(extName); i != nil {
+					if i := d.ExtFind(extName, false); i != nil {
 						extNames = append(extNames, extName)
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
 						ctx.Group.ExtActive(i)
@@ -1590,7 +1590,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				extName := cmdArgs.Args[0]
-				if i := d.ExtFind(extName); i != nil {
+				if i := d.ExtFind(extName, false); i != nil {
 					text := fmt.Sprintf("> [%s] 版本%s 作者%s\n", i.Name, i.Version, i.Author)
 					i.callWithJsCheck(d, func() {
 						ReplyToSender(ctx, msg, text+i.GetDescText(i))
@@ -1727,7 +1727,7 @@ func (d *Dice) registerCoreCommands() {
 
 					for _, name := range tmpl.SetConfig.RelatedExt {
 						// 开启相关扩展
-						ei := ctx.Dice.ExtFind(name)
+						ei := ctx.Dice.ExtFind(name, false)
 						if ei != nil {
 							ctx.Group.ExtActive(ei)
 						}
@@ -2138,7 +2138,7 @@ func (d *Dice) registerCoreCommands() {
 				if ctx.Group.ExtGetActive("reply") == nil {
 					onText = "关"
 				}
-				extReply := ctx.Dice.ExtFind("reply")
+				extReply := ctx.Dice.ExtFind("reply", false)
 				ctx.Group.ExtActive(extReply)
 				ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群开启自定义回复(%s➯开)。\n此指令等价于.ext reply on", onText))
 			case "off":
@@ -2199,7 +2199,7 @@ func setRuleByName(ctx *MsgContext, name string) {
 
 			for _, name := range tmpl.SetConfig.RelatedExt {
 				// 开启相关扩展
-				ei := ctx.Dice.ExtFind(name)
+				ei := ctx.Dice.ExtFind(name, false)
 				if ei != nil {
 					ctx.Group.ExtActive(ei)
 				}
