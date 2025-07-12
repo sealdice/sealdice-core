@@ -14,6 +14,7 @@ func RegisterBuiltinExtCore(dice *Dice) {
 		Brief:       "核心逻辑模块，该扩展即使被关闭也会依然生效",
 		Author:      "SealDice-Team",
 		AutoActive:  true, // 是否自动开启
+		Official:    true,
 		GetDescText: GetExtensionDesc,
 		OnGroupLeave: func(ctx *MsgContext, event *events.GroupLeaveEvent) {
 			if event.UserID == ctx.EndPoint.UserID {
