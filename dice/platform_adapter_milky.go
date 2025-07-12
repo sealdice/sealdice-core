@@ -348,6 +348,19 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
 	}
+	go func() {
+		for _, element := range send {
+			if poke, ok := element.(*message.PokeElement); ok {
+				log.Debugf("Sending group Nudge: %s", poke.Target)
+				usrid, err2 := strconv.ParseInt(poke.Target, 10, 64)
+				err2 = pa.IntentSession.SendGroupNudge(id, usrid)
+				if err2 != nil {
+					return
+				}
+				doSleepQQ(ctx)
+			}
+		}
+	}()
 	pa.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
