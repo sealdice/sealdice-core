@@ -182,7 +182,7 @@ func (d *Dice) JsInit() {
 			}
 		})
 		_ = ext.Set("find", func(name string) *ExtInfo {
-			return d.ExtFind(name)
+			return d.ExtFind(name, true)
 		})
 		_ = ext.Set("register", func(ei *ExtInfo) {
 			// NOTE(Xiangze Li): 移动到dice.RegisterExtension里去检查

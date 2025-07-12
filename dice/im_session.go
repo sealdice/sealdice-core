@@ -1852,6 +1852,16 @@ func (s *IMSession) OnPoke(ctx *MsgContext, event *events.PokeEvent) {
 	}
 }
 
+func (s *IMSession) OnGroupLeave(ctx *MsgContext, event *events.GroupLeaveEvent) {
+	for _, i := range s.Parent.ExtList {
+		if i.OnGroupLeave != nil {
+			i.callWithJsCheck(ctx.Dice, func() {
+				i.OnGroupLeave(ctx, event)
+			})
+		}
+	}
+}
+
 // OnMessageEdit 消息编辑事件
 //
 // msg.Message 应为更新后的消息, msg.Time 应为更新时间而非发送时间，同时

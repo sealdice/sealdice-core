@@ -313,7 +313,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			_ = filepath.WalkDir(extDataDir, func(path string, info fs.DirEntry, err error) error {
 				if info.IsDir() {
 					if filepath.Dir(path) == extDataDir {
-						if ext := d.ExtFind(info.Name()); ext == nil || !ext.IsJsExt {
+						if ext := d.ExtFind(info.Name(), false); ext == nil || !ext.IsJsExt {
 							return filepath.SkipDir
 						}
 					}

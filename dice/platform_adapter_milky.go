@@ -199,6 +199,38 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			IsPrivate: false,
 		})
 	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.GroupMemberDecrease) {
+		if m == nil {
+			return
+		}
+		log.Debugf("Group member decrease: Group %d, User %d, Operator %d", m.GroupID, m.UserID, m.OperatorID)
+		msg := &Message{
+			Platform:    "QQ",
+			GroupID:     FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10)),
+			MessageType: "group",
+			Sender: SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.OperatorID, 10)),
+			},
+		}
+		if FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10)) == pa.EndPoint.UserID {
+			log.Infof("Bot has left group %s", msg.GroupID)
+			if m.OperatorID == 0 {
+				log.Debugf("Bot left group %s without an operator ID, treating as a normal leave", msg.GroupID)
+				pa.Session.OnGroupLeave(CreateTempCtx(pa.EndPoint, msg), &events.GroupLeaveEvent{
+					GroupID:    msg.GroupID,
+					UserID:     pa.EndPoint.UserID,
+					OperatorID: "",
+				})
+			} else {
+				log.Debugf("Bot left group %s with operator ID %d", msg.GroupID, m.OperatorID)
+				pa.Session.OnGroupLeave(CreateTempCtx(pa.EndPoint, msg), &events.GroupLeaveEvent{
+					GroupID:    msg.GroupID,
+					UserID:     pa.EndPoint.UserID,
+					OperatorID: FormatDiceIDQQ(strconv.FormatInt(m.OperatorID, 10)),
+				})
+			}
+		}
+	})
 	d := pa.Session.Parent
 	err = pa.IntentSession.Open()
 	if err != nil {
