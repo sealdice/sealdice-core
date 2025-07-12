@@ -521,7 +521,7 @@ func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
 		return nil
 	}
 	ext := find(s)
-	if ext.Official && fromJS {
+	if ext != nil && ext.Official && fromJS {
 		// return a copy of the official extension
 		cmdMap := make(CmdMapCls, len(ext.CmdMap))
 		for s2, info := range ext.CmdMap {
