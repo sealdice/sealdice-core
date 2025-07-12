@@ -324,7 +324,7 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 		case *message.TextElement:
 			elements = append(elements, &milky.TextElement{Text: e.Content})
 		case *message.ImageElement:
-			log.Infof(" Image: %s", e.URL)
+			log.Debugf("Image: %s", e.URL)
 			elements = append(elements, &milky.ImageElement{URI: e.URL, Summary: e.File.File, SubType: "normal"})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
@@ -335,6 +335,11 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 			if seq, err := strconv.ParseInt(e.ReplySeq, 10, 64); err == nil {
 				elements = append(elements, &milky.ReplyElement{MessageSeq: seq})
 			}
+		case *message.RecordElement:
+			log.Debugf("Record: %s", e.File.URL)
+			elements = append(elements, &milky.RecordElement{URI: e.File.URL})
+		case *message.PokeElement:
+			continue
 		default:
 			log.Warnf("Unsupported message element type: %T", elem)
 		}
@@ -375,7 +380,13 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
-	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
+	var ret *milky.MessageRet
+	if len(elements) == 0 {
+		log.Debugf("No valid message elements to send to group %s", groupID)
+		ret = &milky.MessageRet{}
+	} else {
+		ret, err = pa.IntentSession.SendGroupMessage(id, &elements)
+	}
 	if err != nil {
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
