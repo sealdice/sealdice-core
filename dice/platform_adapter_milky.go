@@ -352,11 +352,11 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		for _, element := range send {
 			if poke, ok := element.(*message.PokeElement); ok {
 				log.Debugf("Sending group Nudge: %s", poke.Target)
-				usrid, err2 := strconv.ParseInt(poke.Target, 10, 64)
-				err2 = pa.IntentSession.SendGroupNudge(id, usrid)
+				userid, err2 := strconv.ParseInt(poke.Target, 10, 64)
 				if err2 != nil {
 					return
 				}
+				_ = pa.IntentSession.SendGroupNudge(id, userid)
 				doSleepQQ(ctx)
 			}
 		}
