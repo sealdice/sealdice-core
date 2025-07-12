@@ -54,6 +54,7 @@ const (
 	Reply                     // 回复
 	Record                    // 语音
 	Face                      // 表情
+	Poke                      // 戳一戳
 )
 
 const maxFileSize = 1024 * 1024 * 50 // 50MB
@@ -127,6 +128,14 @@ type FaceElement struct {
 
 func (f *FaceElement) Type() ElementType {
 	return Face
+}
+
+type PokeElement struct {
+	Target string `jsbind:"target"` // 戳一戳的目标ID
+}
+
+func (p *PokeElement) Type() ElementType {
+	return Poke
 }
 
 func newText(s string) *TextElement {
@@ -323,6 +332,9 @@ func toElement(t string, dMap map[string]string) (IMessageElement, error) {
 	case "reply":
 		target := dMap["id"]
 		return &ReplyElement{ReplySeq: target}, nil
+	case "poke":
+		target := dMap["qq"]
+		return &PokeElement{Target: target}, nil
 	}
 	return CQToText(t, dMap), nil
 }
