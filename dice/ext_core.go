@@ -8,16 +8,13 @@ import (
 )
 
 func RegisterBuiltinExtCore(dice *Dice) {
-
 	theExt := &ExtInfo{
-		Name:       "core",
-		Version:    "1.0.0",
-		Brief:      "核心逻辑模块，该扩展即使被关闭也会依然生效",
-		Author:     "SealDice-Team",
-		AutoActive: true, // 是否自动开启
-		GetDescText: func(i *ExtInfo) string {
-			return GetExtensionDesc(i)
-		},
+		Name:        "core",
+		Version:     "1.0.0",
+		Brief:       "核心逻辑模块，该扩展即使被关闭也会依然生效",
+		Author:      "SealDice-Team",
+		AutoActive:  true, // 是否自动开启
+		GetDescText: GetExtensionDesc,
 		OnGroupLeave: func(ctx *MsgContext, event *events.GroupLeaveEvent) {
 			if event.UserID == ctx.EndPoint.UserID {
 				opUID := event.OperatorID
