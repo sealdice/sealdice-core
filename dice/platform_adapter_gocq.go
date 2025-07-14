@@ -1031,25 +1031,15 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			}
 		}
 
-		// 拉格朗日无Sender缓存，采用最低修改的方式修补对接以解决私聊无法回复的问题
-		if msgQQ.MessageType == "private" {
-			if msg.Sender.UserID == "QQ:" {
-				msg.Sender.UserID = "QQ:" + string(msgQQ.UserID)
-			}
-			if msg.Sender.Nickname == "" {
-				msg.Sender.Nickname = "未知用户"
-			}
-		}
-
 		// 戳一戳
 		if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 			go func() {
 				defer ErrorLogAndContinue(pa.Session.Parent)
 				isPrivate := msgQQ.MessageType == "private"
-				pa.Session.OnPoke(ctx, &events.PokeEvent{
+				pa.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
 					GroupID:   msg.GroupID,
-					SenderID:  FormatDiceIDQQ(string(msgQQ.Sender.UserID)),
+					SenderID:  FormatDiceIDQQ(string(msgQQ.UserID)),
 					TargetID:  FormatDiceIDQQ(string(msgQQ.TargetID)),
 					IsPrivate: isPrivate,
 				})
@@ -1069,6 +1059,15 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				return
 			}
 			// fmt.Println("Recieved message1 " + message)
+			// 拉格朗日无Sender缓存，采用最低修改的方式修补对接以解决私聊无法回复的问题
+			if msgQQ.MessageType == "private" {
+				if msg.Sender.UserID == "QQ:" {
+					msg.Sender.UserID = "QQ:" + string(msgQQ.UserID)
+				}
+				if msg.Sender.Nickname == "" {
+					msg.Sender.Nickname = "未知用户"
+				}
+			}
 			session.Execute(ep, msg, false)
 		} else {
 			log.Debug("Received message " + message)
