@@ -6,8 +6,7 @@ const themeVars = useThemeVars()
 
 const isDark = useDark({
   disableTransition: false,
-  valueDark: 'dark',
-  valueLight: 'light'
+  valueDark: 'dark'
 })
 const toggleDark = useToggle(isDark)
 
