@@ -26,7 +26,6 @@
 <script setup lang="tsx">
 import { useCensorStore } from '~/components/mod/censor/censor';
 import type { Column } from 'element-plus';
-import type { CellRendererParams } from 'element-plus/es/components/table-v2/src/types';
 import { getCensorWords } from '~/api/censor';
 
 const columns: Column<any>[] = [
@@ -37,7 +36,7 @@ const columns: Column<any>[] = [
     width: 60,
     minWidth: 60,
     align: 'center',
-    cellRenderer: ({ cellData: level }: CellRendererParams<number>) => {
+    cellRenderer: ({ cellData: level }: any) => {
       switch (level) {
         case 1:
           return (
@@ -77,11 +76,11 @@ const columns: Column<any>[] = [
     title: '匹配词汇',
     dataKey: 'related',
     width: 800,
-    cellRenderer: ({ cellData: related, rowData }: CellRendererParams<SensitiveRelatedWord[]>) => {
+    cellRenderer: ({ cellData: related, rowData }: any) => {
       if (related) {
         return (
           <el-space size="small" wrap>
-            {related.map(word => (
+            {related.map((word: { word: string }) => (
               <el-text key={word.word}>{word.word}</el-text>
             ))}
           </el-space>

@@ -12,13 +12,16 @@
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {
     "composite": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "baseUrl": ".",
-    "esModuleInterop": true,
     "jsx": "preserve",
     "jsxImportSource": "vue",
+    "lib": [
+      "ESNext"
+    ],
     "paths": {
       "~/*": ["./src/*"]
-    }
+    },
+    "strict": true,
+    "target": "ESNext",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   }
 }

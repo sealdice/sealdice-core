@@ -8,8 +8,8 @@ export function sleep(duration: number) {
 }
 
 const _passwordResultToText = function (
-  keyBuffer: ArrayBuffer,
-  saltUint8: ArrayBuffer,
+  keyBuffer: ArrayBufferLike,
+  saltUint8: ArrayBufferLike,
   iterations: number,
 ): string {
   const keyArray = Array.from(new Uint8Array(keyBuffer)); // key as byte array
@@ -41,7 +41,7 @@ export async function passwordHashAsmCrypto(
   const pwUtf8 = enc.encode(password); // encode pw as UTF-8
   const saltUint8 = enc.encode(salt);
   const keyBuffer = asmCrypto.Pbkdf2HmacSha512(pwUtf8, saltUint8, iterations, 32);
-  return _passwordResultToText(keyBuffer, saltUint8, iterations);
+  return _passwordResultToText(keyBuffer.buffer, saltUint8.buffer, iterations);
 }
 
 export async function passwordHashNative(
@@ -62,7 +62,7 @@ export async function passwordHashNative(
     iterations: iterations,
   }; // pbkdf2 params
   const keyBuffer = await crypto.subtle.deriveBits(params, pwKey, 256); // derive key
-  return _passwordResultToText(keyBuffer, saltUint8, iterations);
+  return _passwordResultToText(keyBuffer, saltUint8.buffer, iterations);
 }
 
 export async function passwordHash(salt: string, password: string): Promise<string> {

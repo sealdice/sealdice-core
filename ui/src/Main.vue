@@ -388,8 +388,9 @@ body {
 }
 
 #app {
-  font-family: 'PingFang SC', 'Helvetica Neue', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei',
-    '微软雅黑', sans-serif;
+  font-family:
+    'PingFang SC', 'Helvetica Neue', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei', '微软雅黑',
+    sans-serif;
   /* font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; */
   text-align: center;
   color: #2c3e50;

@@ -16,7 +16,6 @@ import '~/styles/index.css';
 // import "element-plus/es/components/message-box/style/css"
 // import "element-plus/es/components/dialog/style/css"
 // import 'element-plus/theme-chalk/display.css'
-import './str.polyfill';
 
 import { useStore } from '~/store';
 const loading = useStorage('router-view-loading', true);
