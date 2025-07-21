@@ -946,6 +946,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 		return "", errors.New("log导出出现未知错误")
 	}
 	defer func() {
+		_ = tempLog.Close()
 		if err != nil {
 			_ = os.Remove(tempLog.Name())
 		}
@@ -1008,9 +1009,6 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	if _, err := tempLog.Seek(0, 0); err != nil {
 		return "", fmt.Errorf("重置文件指针失败: %w", err)
 	}
-
-	// 3. 确保文件被正确关闭
-	_ = tempLog.Close()
 
 	// 如果没有任何数据，返回错误
 	if counter == 0 {
