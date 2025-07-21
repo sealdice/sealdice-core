@@ -430,7 +430,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				defer os.Remove(logFile.Name())
+				defer os.Remove(logFile)
 
 				var emails []string
 				if len(cmdArgs.Args) > 2 {
@@ -451,7 +451,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 								fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
 								rightEmails,
 								emailMsg,
-								[]string{logFile.Name()},
+								[]string{logFile},
 							)
 							text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
 							ReplyToSenderRaw(ctx, msg, text, "skip")
@@ -464,9 +464,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 				var uri string
 				if runtime.GOOS == "windows" {
-					uri = "files:///" + logFile.Name()
+					uri = "files:///" + logFile
 				} else {
-					uri = "files://" + logFile.Name()
+					uri = "files://" + logFile
 				}
 				SendFileToSenderRaw(ctx, msg, uri, "skip")
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
@@ -936,14 +936,14 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 	return true
 }
 
-func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (*os.File, error) {
+func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, error) {
 	// 创建临时文件
 	tempLog, err := os.CreateTemp("", fmt.Sprintf(
 		"%s(*).txt",
 		utils.FilenameClean(fileNamePrefix),
 	))
 	if err != nil {
-		return nil, errors.New("log导出出现未知错误")
+		return "", errors.New("log导出出现未知错误")
 	}
 	defer func() {
 		if err != nil {
@@ -1002,19 +1002,22 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 
 	// 等待 goroutine 完成或超时
 	if err := <-resultCh; err != nil {
-		return nil, err
+		return "", err
 	}
 	// 2. 确保文件指针回到开头
 	if _, err := tempLog.Seek(0, 0); err != nil {
-		return nil, fmt.Errorf("重置文件指针失败: %w", err)
+		return "", fmt.Errorf("重置文件指针失败: %w", err)
 	}
+
+	// 3. 确保文件被正确关闭
+	_ = tempLog.Close()
 
 	// 如果没有任何数据，返回错误
 	if counter == 0 {
-		return nil, errors.New("此log不存在，或条目数为空，名字是否正确？")
+		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
 
-	return tempLog, nil
+	return tempLog.Name(), nil
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
