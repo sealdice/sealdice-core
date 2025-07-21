@@ -427,8 +427,13 @@ func (pa *PlatformAdapterMilky) SendFileToGroup(_ *MsgContext, groupID string, p
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
-	_, err = pa.IntentSession.UploadGroupFile(rawID, path, filepath.Base(path), "")
+	filename := filepath.Base(path)
+	if strings.HasPrefix(path, "files://") {
+		path = "file://" + path[len("files://"):]
+	}
+	_, err = pa.IntentSession.UploadGroupFile(rawID, path, filename, "")
 	if err != nil {
+		log.Errorf("Failed to send file to group %s: %v", groupID, err)
 		return
 	}
 }
