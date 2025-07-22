@@ -29,14 +29,11 @@ func (am *AttrsManager) Stop() {
 
 // LoadByCtx 获取当前角色，如有绑定，则获取绑定的角色，若无绑定，获取群内默认卡
 func (am *AttrsManager) LoadByCtx(ctx *MsgContext) (*AttributesItem, error) {
+	// 如果是兼容性测试环境，跳过绑定查询以避免不必要的数据库操作
+	if ctx.IsCompatibilityTest {
+		return am.LoadByIdDirect(ctx.Group.GroupID, ctx.Player.UserID)
+	}
 	return am.Load(ctx.Group.GroupID, ctx.Player.UserID)
-	// if ctx.AttrsCurCache == nil {
-	// 	var err error
-	// 	ctx.AttrsCurC
-	//	ache, err = am.Load(ctx.Group.GroupID, ctx.Player.UserID)
-	// 	return ctx.AttrsCurCache, err
-	// }
-	// return ctx.AttrsCurCache, nil
 }
 
 func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, error) {
@@ -57,6 +54,14 @@ func (am *AttrsManager) Load(groupId string, userId string) (*AttributesItem, er
 		id = gid
 	}
 
+	return am.LoadById(id)
+}
+
+// LoadByIdDirect 直接使用组合ID加载数据，跳过绑定查询（用于兼容性测试）
+func (am *AttrsManager) LoadByIdDirect(groupId string, userId string) (*AttributesItem, error) {
+	userId = am.UIDConvert(userId)
+	// 直接使用组合ID，跳过绑定查询
+	id := fmt.Sprintf("%s-%s", groupId, userId)
 	return am.LoadById(id)
 }
 
@@ -164,25 +169,28 @@ func (am *AttrsManager) Init(d *Dice) {
 	am.logger = d.Logger
 	// 创建一个 context 用于取消 goroutine
 	ctx, cancel := context.WithCancel(context.Background())
-	// 确保程序退出时取消上下文
+	// 启动后台定时任务
 	go func() {
-		// NOTE(Xiangze Li): 这种不退出的goroutine不利于平稳结束程序
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case <-ctx.Done():
-				// 检测到取消信号后退出循环
+				// 检测到取消信号，执行最后一次保存后退出
+				log.Info("正在执行最后一次数据保存...")
+				if err := am.CheckForSave(); err != nil {
+					log.Errorf("最终数据保存失败: %v", err)
+				}
 				return
-			default:
-				// 正常工作
-				err := am.CheckForSave()
-				if err != nil {
+			case <-ticker.C:
+				// 定时执行保存和清理任务
+				if err := am.CheckForSave(); err != nil {
 					log.Errorf("数据库保存程序出错: %v", err)
 				}
-				err = am.CheckAndFreeUnused()
-				if err != nil {
+				if err := am.CheckAndFreeUnused(); err != nil {
 					log.Errorf("数据库保存-清理程序出错: %v", err)
 				}
-				time.Sleep(60 * time.Second)
 			}
 		}
 	}()
