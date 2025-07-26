@@ -4,13 +4,13 @@ import type { Theme } from 'vitepress'
 import DefaultTheme from 'vitepress/theme'
 import './style.css'
 import { enhanceAppWithTabs } from "vitepress-plugin-tabs/client";
-// @ts-ignore
 import ChatBox from "../components/ChatBox.vue";
+import Layout from './Layout.vue';
 
 export default {
   extends: DefaultTheme,
   Layout: () => {
-    return h(DefaultTheme.Layout, null, {
+    return h(Layout, null, {
       // https://vitepress.dev/guide/extending-default-theme#layout-slots
     })
   },
