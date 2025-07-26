@@ -6,7 +6,7 @@ hero:
   name: 海豹手册
   tagline: ✨海豹骰官方使用手册
   image:
-    src: /images/sealdice.svg
+    src: /images/seal.png
     alt: SealDice
   actions:
     - theme: brand
@@ -43,7 +43,7 @@ features:
 <!-- markdownlint-disable-next-line MD041 -->
 ## 海豹核心
 
-![海豹核心](/images/seal.png)
+![海豹核心](/images/seal2.png){width=25%}
 
 一个简单易用的跑团骰子系统。可以被叫做 海豹骰、豹骰，豹子骰。
 
