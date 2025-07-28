@@ -35,6 +35,7 @@ import (
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 	log "sealdice-core/utils/kratos"
+	"sealdice-core/utils/plugin/websocket"
 )
 
 var (
@@ -74,6 +75,32 @@ func (p *PrinterFunc) Warn(s string) { p.doRecord("warn", s); p.d.Logger.Warn(s)
 
 func (p *PrinterFunc) Error(s string) { p.doRecord("error", s); p.d.Logger.Error(s) }
 
+type CustomLogger struct {
+	logger *log.Helper
+}
+
+func NewWebSocketLogger(helper *log.Helper) *CustomLogger {
+	return &CustomLogger{
+		logger: helper,
+	}
+}
+
+func (l *CustomLogger) Debug(msg string, args ...interface{}) {
+	l.logger.Debugf(msg, args...)
+}
+
+func (l *CustomLogger) Info(msg string, args ...interface{}) {
+	l.logger.Infof(msg, args...)
+}
+
+func (l *CustomLogger) Warn(msg string, args ...interface{}) {
+	l.logger.Warnf(msg, args...)
+}
+
+func (l *CustomLogger) Error(msg string, args ...interface{}) {
+	l.logger.Errorf(msg, args...)
+}
+
 func (d *Dice) JsInit() {
 	// 读取官方 Mod 公钥
 	if pub, err := static.Scripts.ReadFile("scripts/seal_mod.public.pem"); err == nil && len(pub) > 0 {
@@ -99,12 +126,18 @@ func (d *Dice) JsInit() {
 	d.JsScriptCron = cron.New()
 	d.JsScriptCronLock = &sync.Mutex{}
 	d.JsScriptCron.Start()
+	// 单独给WebSocket一个Logger
+	websocket.SetLogger(NewWebSocketLogger(d.Logger))
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
 
 		// console 模块
 		console.Enable(vm)
+
+		// 注册loop全局变量，提供给websocket
+		_ = vm.Set("__eventloop__", loop)
+		websocket.Enable(vm)
 
 		// require 模块
 		d.JsRequire = reg.Enable(vm)
