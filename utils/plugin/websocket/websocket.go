@@ -1,12 +1,12 @@
+package sealws
+
 // Package websocket 提供了一个与goja兼容的WebSocket客户端实现
 // 这个包提供了标准的WebSocket API，可以在任何goja环境中使用
-package sealws
 
 import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -14,29 +14,45 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/gorilla/websocket"
+
+	log "sealdice-core/utils/kratos"
 )
 
-// Logger 日志接口，允许用户注入自己的日志实现
+// Logger 日志接口，与helper.go中的Helper方法签名一致
 type Logger interface {
-	Debug(msg string, args ...interface{})
-	Info(msg string, args ...interface{})
-	Warn(msg string, args ...interface{})
-	Error(msg string, args ...interface{})
+	Debug(a ...interface{})
+	Debugf(format string, a ...interface{})
+	Info(a ...interface{})
+	Infof(format string, a ...interface{})
+	Warn(a ...interface{})
+	Warnf(format string, a ...interface{})
+	Error(a ...interface{})
+	Errorf(format string, a ...interface{})
 }
 
 // defaultLogger 默认日志实现（无操作）
 type defaultLogger struct{}
 
-func (l *defaultLogger) Debug(_ string, _ ...interface{}) {}
-func (l *defaultLogger) Info(_ string, _ ...interface{})  {}
-func (l *defaultLogger) Warn(_ string, _ ...interface{})  {}
-func (l *defaultLogger) Error(msg string, args ...interface{}) {
+func (l *defaultLogger) Debug(_ ...interface{})            {}
+func (l *defaultLogger) Debugf(_ string, _ ...interface{}) {}
+func (l *defaultLogger) Info(_ ...interface{})             {}
+func (l *defaultLogger) Infof(_ string, _ ...interface{})  {}
+func (l *defaultLogger) Warn(_ ...interface{})             {}
+func (l *defaultLogger) Warnf(_ string, _ ...interface{})  {}
+func (l *defaultLogger) Error(args ...interface{}) {
 	// 默认情况下只输出错误日志到标准错误
-	fmt.Printf("[WebSocket ERROR] "+msg+"\n", args...)
+	log.Errorf("[WebSocket ERROR] %v", args...)
+}
+func (l *defaultLogger) Errorf(format string, args ...interface{}) {
+	// 默认情况下只输出错误日志到标准错误
+	log.Errorf("[WebSocket ERROR] "+format, args...)
 }
 
 // WebSocketLogger 全局日志实例，用户可以通过SetLogger函数替换
 var WebSocketLogger Logger = &defaultLogger{}
+
+// GlobalConnManager 是一个全局的WebSocket管理器 用来最后优雅销毁的
+var GlobalConnManager = &WebSocketManager{}
 
 // SetLogger 设置全局日志实例
 func SetLogger(logger Logger) {
@@ -51,7 +67,50 @@ type (
 	WebSocket struct {
 		rt *goja.Runtime
 	}
+	WebSocketManager struct {
+		connections []*WebSocketConnection
+		mutex       sync.Mutex
+	}
 )
+
+// Register 注册连接
+func (m *WebSocketManager) Register(conn *WebSocketConnection) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.connections = append(m.connections, conn)
+}
+
+// CloseAll 关闭所有连接
+func (m *WebSocketManager) CloseAll() {
+	// 获取连接副本并清空原列表
+	m.mutex.Lock()
+	connsCopy := make([]*WebSocketConnection, len(m.connections))
+	copy(connsCopy, m.connections)
+	m.connections = m.connections[:0]
+	m.mutex.Unlock()
+
+	// 在锁外关闭连接，避免死锁
+	for _, conn := range connsCopy {
+		if conn != nil {
+			conn.closeWithoutUnregister() // 使用新方法避免重复注销
+		}
+	}
+}
+
+// Unregister 移除已关闭的连接
+func (m *WebSocketManager) Unregister(conn *WebSocketConnection) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	for i, c := range m.connections {
+		if c == conn {
+			m.connections = append(m.connections[:i], m.connections[i+1:]...)
+			break
+		}
+	}
+}
+
+// Manager方法结束
 
 // New 返回一个新的WebSocketModule实例
 func New() *WebSocketModule {
@@ -198,6 +257,8 @@ func (ws *WebSocket) NewWebSocketConnection(call goja.FunctionCall) goja.Value {
 		onclose:    goja.Undefined(),
 		onerror:    goja.Undefined(),
 	}
+	// 注册到全局管理器
+	GlobalConnManager.Register(conn)
 
 	// 创建JavaScript对象并绑定属性和方法
 	conn.bindWebSocketMethods()
@@ -283,7 +344,7 @@ func parseWebSocketOptions(_ *goja.Runtime, protocolsVal goja.Value) *webSocketO
 			if protocolsArray := protocolsVal.Export(); protocolsArray != nil {
 				if protocolSlice, ok := protocolsArray.([]interface{}); ok {
 					for _, p := range protocolSlice {
-						if str, ok := p.(string); ok {
+						if str, ok2 := p.(string); ok2 {
 							options.protocols = append(options.protocols, str)
 						}
 					}
@@ -300,7 +361,7 @@ func (conn *WebSocketConnection) connect(options *webSocketOptions) {
 	ctx := context.Background()
 	conn.ctx = ctx
 
-	WebSocketLogger.Debug("开始建立WebSocket连接", "url", conn.url, "protocols", options.protocols)
+	WebSocketLogger.Debugf("开始建立WebSocket连接 url=%s protocols=%v", conn.url, options.protocols)
 
 	// 使用现有的dial逻辑
 	dialer := &websocket.Dialer{
@@ -309,27 +370,27 @@ func (conn *WebSocketConnection) connect(options *webSocketOptions) {
 		Subprotocols:      options.protocols,
 		// 允许WSS连接
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, //nolint:gosec 这个是因为我们没法配置信任证书，所以只能给用户高高的权限
 		},
 	}
 
 	// 建立连接
 	wsConn, resp, err := dialer.Dial(conn.url, options.headers)
 	if err != nil {
-		WebSocketLogger.Error("WebSocket连接失败", "url", conn.url, "error", err.Error())
+		WebSocketLogger.Errorf("WebSocket连接失败 url=%s error=%s", conn.url, err.Error())
 		conn.readyState = CLOSED
 		// 直接触发错误事件，triggerError内部会处理事件循环
 		conn.triggerError(err)
 		return
 	}
 
-	WebSocketLogger.Info("WebSocket连接建立成功", "url", conn.url)
+	WebSocketLogger.Infof("WebSocket连接建立成功 url=%s", conn.url)
 
 	if resp != nil {
 		// 设置选择的子协议
 		conn.protocol = resp.Header.Get("Sec-WebSocket-Protocol")
 		if conn.protocol != "" {
-			WebSocketLogger.Debug("选择的子协议", "protocol", conn.protocol)
+			WebSocketLogger.Debugf("选择的子协议 protocol=%s", conn.protocol)
 		}
 		_ = resp.Body.Close()
 	}
@@ -355,7 +416,7 @@ func (conn *WebSocketConnection) triggerOpen() {
 					_ = event.Set("type", "open")
 					_, err := fn(goja.Undefined(), event)
 					if err != nil {
-						WebSocketLogger.Error("处理WebSocket打开事件失败", "url", conn.url, "error", err.Error())
+						WebSocketLogger.Errorf("处理WebSocket打开事件失败 url=%s error=%s", conn.url, err.Error())
 					}
 				})
 			}
@@ -375,7 +436,7 @@ func (conn *WebSocketConnection) triggerMessage(data interface{}) {
 					_ = event.Set("type", "message")
 					_, err := fn(goja.Undefined(), event)
 					if err != nil {
-						WebSocketLogger.Error("处理WebSocket消息事件失败", "url", conn.url, "error", err.Error())
+						WebSocketLogger.Errorf("处理WebSocket消息事件失败 url=%s error=%s", conn.url, err.Error())
 					}
 				})
 			}
@@ -398,7 +459,7 @@ func (conn *WebSocketConnection) triggerClose(code int, reason string) {
 					_ = event.Set("type", "close")
 					_, err := fn(goja.Undefined(), event)
 					if err != nil {
-						WebSocketLogger.Error("处理WebSocket关闭事件失败", "url", conn.url, "error", err.Error())
+						WebSocketLogger.Errorf("处理WebSocket关闭事件失败 url=%s error=%s", conn.url, err.Error())
 					}
 				})
 			}
@@ -408,7 +469,7 @@ func (conn *WebSocketConnection) triggerClose(code int, reason string) {
 
 // triggerError 触发onerror事件
 func (conn *WebSocketConnection) triggerError(err error) {
-	WebSocketLogger.Error("触发WebSocket错误事件", "url", conn.url, "error", err.Error())
+	WebSocketLogger.Errorf("触发WebSocket错误事件 url=%s error=%s", conn.url, err.Error())
 
 	if !goja.IsUndefined(conn.onerror) && !goja.IsNull(conn.onerror) {
 		if fn, ok := goja.AssertFunction(conn.onerror); ok {
@@ -420,13 +481,13 @@ func (conn *WebSocketConnection) triggerError(err error) {
 					_ = event.Set("type", "error")
 					_, err = fn(goja.Undefined(), event)
 					if err != nil {
-						WebSocketLogger.Error("处理WebSocket错误事件失败", "url", conn.url, "error", err.Error())
+						WebSocketLogger.Errorf("处理WebSocket错误事件失败 url=%s error=%s", conn.url, err.Error())
 					}
 				})
 			}
 		}
 	} else {
-		WebSocketLogger.Warn("没有设置onerror处理器", "url", conn.url)
+		WebSocketLogger.Warnf("没有设置onerror处理器 url=%s", conn.url)
 	}
 }
 
@@ -434,28 +495,51 @@ func (conn *WebSocketConnection) triggerError(err error) {
 func (conn *WebSocketConnection) Send(message string) error {
 	if conn.readyState != OPEN {
 		err := errors.New("connection is not open")
-		WebSocketLogger.Warn("尝试在非开放连接上发送消息", "readyState", conn.readyState, "url", conn.url)
+		WebSocketLogger.Warnf("尝试在非开放连接上发送消息 readyState=%d url=%s", conn.readyState, conn.url)
 		return err
 	}
 
-	WebSocketLogger.Debug("发送WebSocket消息", "url", conn.url, "messageLength", len(message))
+	WebSocketLogger.Debugf("发送WebSocket消息 url=%s messageLength=%d", conn.url, len(message))
 
 	err := conn.conn.SetWriteDeadline(time.Now().Add(writeWait))
 	if err != nil {
-		WebSocketLogger.Error("设置WebSocket写入超时失败", "url", conn.url, "error", err.Error())
+		WebSocketLogger.Errorf("设置WebSocket写入超时失败 url=%s error=%s", conn.url, err.Error())
 		return err
 	}
 	err = conn.conn.WriteMessage(websocket.TextMessage, []byte(message))
 	if err != nil {
-		WebSocketLogger.Error("发送WebSocket消息失败", "url", conn.url, "error", err.Error())
+		WebSocketLogger.Errorf("发送WebSocket消息失败 url=%s error=%s", conn.url, err.Error())
 	}
 	return err
 }
 
 // Close 关闭WebSocket连接
 func (conn *WebSocketConnection) Close(args ...interface{}) {
+	code := CloseNormalClosure
+	reason := ""
+	if len(args) > 0 {
+		if c, ok := args[0].(int); ok {
+			code = c
+		}
+	}
+	if len(args) > 1 {
+		if r, ok := args[1].(string); ok {
+			reason = r
+		}
+	}
+	WebSocketLogger.Infof("关闭WebSocket连接 url=%s code=%d reason=%s", conn.url, code, reason)
+	conn.closeInternal(true, args...)
+}
+
+// closeWithoutUnregister 关闭连接但不从管理器注销（用于CloseAll）
+func (conn *WebSocketConnection) closeWithoutUnregister(args ...interface{}) {
+	conn.closeInternal(false, args...)
+}
+
+// closeInternal 内部关闭方法
+func (conn *WebSocketConnection) closeInternal(shouldUnregister bool, args ...interface{}) {
 	if conn.readyState == CLOSED || conn.readyState == CLOSING {
-		WebSocketLogger.Debug("连接已经关闭或正在关闭", "readyState", conn.readyState, "url", conn.url)
+		WebSocketLogger.Debugf("连接已经关闭或正在关闭 readyState=%d url=%s", conn.readyState, conn.url)
 		return
 	}
 
@@ -476,39 +560,49 @@ func (conn *WebSocketConnection) Close(args ...interface{}) {
 		}
 	}
 
-	WebSocketLogger.Info("主动关闭WebSocket连接", "url", conn.url, "code", code, "reason", reason)
+	WebSocketLogger.Infof("主动关闭WebSocket连接 url=%s code=%d reason=%s", conn.url, code, reason)
 
 	if conn.conn != nil {
 		err := conn.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, reason))
 		if err != nil {
-			WebSocketLogger.Warn("发送关闭消息失败", "url", conn.url, "error", err.Error())
+			WebSocketLogger.Warnf("发送关闭消息失败 url=%s error=%s", conn.url, err.Error())
 		}
 		_ = conn.conn.Close()
 	}
 
 	conn.triggerClose(code, reason)
-	conn.webSocketCloseConnection()
+	if shouldUnregister {
+		conn.webSocketCloseConnection()
+	} else {
+		// 只关闭资源，不从管理器注销
+		conn.shutdownOnce.Do(func() {
+			close(conn.done)
+			if conn.conn != nil {
+				_ = conn.conn.Close()
+			}
+		})
+	}
 }
 
 // readPump 读取WebSocket消息
 func (conn *WebSocketConnection) readPump() {
 	defer conn.webSocketCloseConnection()
 
-	WebSocketLogger.Debug("开始WebSocket消息读取循环", "url", conn.url)
+	WebSocketLogger.Debugf("开始WebSocket消息读取循环 url=%s", conn.url)
 
 	for {
 		select {
 		case <-conn.done:
-			WebSocketLogger.Debug("WebSocket消息读取循环结束", "url", conn.url)
+			WebSocketLogger.Debugf("WebSocket消息读取循环结束 url=%s", conn.url)
 			return
 		default:
 			messageType, message, err := conn.conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					WebSocketLogger.Error("WebSocket意外关闭错误", "url", conn.url, "error", err.Error())
+					WebSocketLogger.Errorf("WebSocket意外关闭错误 url=%s error=%s", conn.url, err.Error())
 					conn.triggerError(err)
 				} else {
-					WebSocketLogger.Info("WebSocket连接正常关闭", "url", conn.url, "error", err.Error())
+					WebSocketLogger.Infof("WebSocket连接正常关闭 url=%s error=%s", conn.url, err.Error())
 				}
 				conn.triggerClose(CloseAbnormalClosure, "connection lost")
 				return
@@ -516,13 +610,13 @@ func (conn *WebSocketConnection) readPump() {
 
 			switch messageType {
 			case websocket.TextMessage:
-				WebSocketLogger.Debug("接收到文本消息", "url", conn.url, "messageLength", len(message))
+				WebSocketLogger.Debugf("接收到文本消息 url=%s messageLength=%d", conn.url, len(message))
 				conn.triggerMessage(string(message))
 			case websocket.BinaryMessage:
-				WebSocketLogger.Debug("接收到二进制消息", "url", conn.url, "messageLength", len(message))
+				WebSocketLogger.Debugf("接收到二进制消息 url=%s messageLength=%d", conn.url, len(message))
 				conn.triggerMessage(message)
 			default:
-				WebSocketLogger.Warn("接收到未知类型消息", "url", conn.url, "messageType", messageType)
+				WebSocketLogger.Warnf("接收到未知类型消息 url=%s messageType=%d", conn.url, messageType)
 			}
 		}
 	}
@@ -531,10 +625,14 @@ func (conn *WebSocketConnection) readPump() {
 // webSocketCloseConnection 关闭连接并清理资源
 func (conn *WebSocketConnection) webSocketCloseConnection() {
 	conn.shutdownOnce.Do(func() {
+		WebSocketLogger.Debugf("清理WebSocket连接资源 url=%s", conn.url)
+		// 从全局管理器中注销
+		GlobalConnManager.Unregister(conn)
 		close(conn.done)
 		if conn.conn != nil {
 			_ = conn.conn.Close()
 		}
+		WebSocketLogger.Debugf("WebSocket连接资源清理完成 url=%s", conn.url)
 	})
 }
 
