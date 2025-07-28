@@ -1,6 +1,6 @@
 // Package websocket 提供了一个与goja兼容的WebSocket客户端实现
 // 这个包提供了标准的WebSocket API，可以在任何goja环境中使用
-package websocket
+package sealws
 
 import (
 	"context"
@@ -27,9 +27,9 @@ type Logger interface {
 // defaultLogger 默认日志实现（无操作）
 type defaultLogger struct{}
 
-func (l *defaultLogger) Debug(msg string, args ...interface{}) {}
-func (l *defaultLogger) Info(msg string, args ...interface{})  {}
-func (l *defaultLogger) Warn(msg string, args ...interface{})  {}
+func (l *defaultLogger) Debug(_ string, _ ...interface{}) {}
+func (l *defaultLogger) Info(_ string, _ ...interface{})  {}
+func (l *defaultLogger) Warn(_ string, _ ...interface{})  {}
 func (l *defaultLogger) Error(msg string, args ...interface{}) {
 	// 默认情况下只输出错误日志到标准错误
 	fmt.Printf("[WebSocket ERROR] "+msg+"\n", args...)
@@ -84,14 +84,14 @@ func (ws *WebSocket) Exports() goja.Value {
 	constructorObj := webSocketConstructor.ToObject(ws.rt)
 
 	// 设置静态常量到构造函数上
-	constructorObj.Set("CONNECTING", CONNECTING)
-	constructorObj.Set("OPEN", OPEN)
-	constructorObj.Set("CLOSING", CLOSING)
-	constructorObj.Set("CLOSED", CLOSED)
+	_ = constructorObj.Set("CONNECTING", CONNECTING)
+	_ = constructorObj.Set("OPEN", OPEN)
+	_ = constructorObj.Set("CLOSING", CLOSING)
+	_ = constructorObj.Set("CLOSED", CLOSED)
 
 	// 设置prototype属性
 	prototypeObj := ws.rt.NewObject()
-	constructorObj.Set("prototype", prototypeObj)
+	_ = constructorObj.Set("prototype", prototypeObj)
 
 	return webSocketConstructor
 }
@@ -214,51 +214,51 @@ func (conn *WebSocketConnection) bindWebSocketMethods() {
 	obj := rt.NewObject()
 
 	// 绑定WebSocket标准属性
-	obj.DefineAccessorProperty("readyState", rt.ToValue(func() int {
+	_ = obj.DefineAccessorProperty("readyState", rt.ToValue(func() int {
 		return conn.readyState
 	}), goja.Undefined(), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
-	obj.DefineAccessorProperty("url", rt.ToValue(func() string {
+	_ = obj.DefineAccessorProperty("url", rt.ToValue(func() string {
 		return conn.url
 	}), goja.Undefined(), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
 	// WebSocket 标准中有 protocol 属性
-	obj.DefineAccessorProperty("protocol", rt.ToValue(func() string {
+	_ = obj.DefineAccessorProperty("protocol", rt.ToValue(func() string {
 		return conn.protocol
 	}), goja.Undefined(), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
 	// 绑定事件处理器属性
-	obj.DefineAccessorProperty("onopen", rt.ToValue(func() goja.Value {
+	_ = obj.DefineAccessorProperty("onopen", rt.ToValue(func() goja.Value {
 		return conn.onopen
 	}), rt.ToValue(func(val goja.Value) {
 		conn.onopen = val
 	}), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
-	obj.DefineAccessorProperty("onmessage", rt.ToValue(func() goja.Value {
+	_ = obj.DefineAccessorProperty("onmessage", rt.ToValue(func() goja.Value {
 		return conn.onmessage
 	}), rt.ToValue(func(val goja.Value) {
 		conn.onmessage = val
 	}), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
-	obj.DefineAccessorProperty("onclose", rt.ToValue(func() goja.Value {
+	_ = obj.DefineAccessorProperty("onclose", rt.ToValue(func() goja.Value {
 		return conn.onclose
 	}), rt.ToValue(func(val goja.Value) {
 		conn.onclose = val
 	}), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
-	obj.DefineAccessorProperty("onerror", rt.ToValue(func() goja.Value {
+	_ = obj.DefineAccessorProperty("onerror", rt.ToValue(func() goja.Value {
 		return conn.onerror
 	}), rt.ToValue(func(val goja.Value) {
 		conn.onerror = val
 	}), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
 	// 绑定WebSocket标准方法
-	obj.Set("send", rt.ToValue(func(message string) {
+	_ = obj.Set("send", rt.ToValue(func(message string) {
 		if err := conn.Send(message); err != nil {
 			conn.triggerError(err)
 		}
 	}))
-	obj.Set("close", rt.ToValue(func(args ...interface{}) {
+	_ = obj.Set("close", rt.ToValue(func(args ...interface{}) {
 		conn.Close(args...)
 	}))
 
@@ -267,8 +267,8 @@ func (conn *WebSocketConnection) bindWebSocketMethods() {
 	conn.jsObject = obj
 }
 
-// parseWebSocketOptions 解析WebSocket选项参数
-func parseWebSocketOptions(rt *goja.Runtime, protocolsVal goja.Value) *webSocketOptions {
+// parseWebSocketOptions 解析WebSocket选项参数 TODO: 这个gojaRunTime是不是没用了
+func parseWebSocketOptions(_ *goja.Runtime, protocolsVal goja.Value) *webSocketOptions {
 	options := &webSocketOptions{
 		headers: make(http.Header),
 	}
@@ -331,7 +331,7 @@ func (conn *WebSocketConnection) connect(options *webSocketOptions) {
 		if conn.protocol != "" {
 			WebSocketLogger.Debug("选择的子协议", "protocol", conn.protocol)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 
 	conn.conn = wsConn
@@ -352,8 +352,11 @@ func (conn *WebSocketConnection) triggerOpen() {
 				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
 					// 创建Event对象
 					event := vm.NewObject()
-					event.Set("type", "open")
-					fn(goja.Undefined(), event)
+					_ = event.Set("type", "open")
+					_, err := fn(goja.Undefined(), event)
+					if err != nil {
+						WebSocketLogger.Error("处理WebSocket打开事件失败", "url", conn.url, "error", err.Error())
+					}
 				})
 			}
 		}
@@ -368,9 +371,12 @@ func (conn *WebSocketConnection) triggerMessage(data interface{}) {
 				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
 					// 创建MessageEvent对象
 					event := vm.NewObject()
-					event.Set("data", data)
-					event.Set("type", "message")
-					fn(goja.Undefined(), event)
+					_ = event.Set("data", data)
+					_ = event.Set("type", "message")
+					_, err := fn(goja.Undefined(), event)
+					if err != nil {
+						WebSocketLogger.Error("处理WebSocket消息事件失败", "url", conn.url, "error", err.Error())
+					}
 				})
 			}
 		}
@@ -386,11 +392,14 @@ func (conn *WebSocketConnection) triggerClose(code int, reason string) {
 				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
 					// 创建CloseEvent对象
 					event := vm.NewObject()
-					event.Set("code", code)
-					event.Set("reason", reason)
-					event.Set("wasClean", code == CloseNormalClosure) // 正常关闭
-					event.Set("type", "close")
-					fn(goja.Undefined(), event)
+					_ = event.Set("code", code)
+					_ = event.Set("reason", reason)
+					_ = event.Set("wasClean", code == CloseNormalClosure) // 正常关闭
+					_ = event.Set("type", "close")
+					_, err := fn(goja.Undefined(), event)
+					if err != nil {
+						WebSocketLogger.Error("处理WebSocket关闭事件失败", "url", conn.url, "error", err.Error())
+					}
 				})
 			}
 		}
@@ -407,9 +416,12 @@ func (conn *WebSocketConnection) triggerError(err error) {
 				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
 					// 创建ErrorEvent对象
 					event := vm.NewObject()
-					event.Set("error", err.Error())
-					event.Set("type", "error")
-					fn(goja.Undefined(), event)
+					_ = event.Set("error", err.Error())
+					_ = event.Set("type", "error")
+					_, err = fn(goja.Undefined(), event)
+					if err != nil {
+						WebSocketLogger.Error("处理WebSocket错误事件失败", "url", conn.url, "error", err.Error())
+					}
 				})
 			}
 		}
@@ -428,8 +440,12 @@ func (conn *WebSocketConnection) Send(message string) error {
 
 	WebSocketLogger.Debug("发送WebSocket消息", "url", conn.url, "messageLength", len(message))
 
-	conn.conn.SetWriteDeadline(time.Now().Add(writeWait))
-	err := conn.conn.WriteMessage(websocket.TextMessage, []byte(message))
+	err := conn.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	if err != nil {
+		WebSocketLogger.Error("设置WebSocket写入超时失败", "url", conn.url, "error", err.Error())
+		return err
+	}
+	err = conn.conn.WriteMessage(websocket.TextMessage, []byte(message))
 	if err != nil {
 		WebSocketLogger.Error("发送WebSocket消息失败", "url", conn.url, "error", err.Error())
 	}
@@ -467,7 +483,7 @@ func (conn *WebSocketConnection) Close(args ...interface{}) {
 		if err != nil {
 			WebSocketLogger.Warn("发送关闭消息失败", "url", conn.url, "error", err.Error())
 		}
-		conn.conn.Close()
+		_ = conn.conn.Close()
 	}
 
 	conn.triggerClose(code, reason)
@@ -517,7 +533,7 @@ func (conn *WebSocketConnection) webSocketCloseConnection() {
 	conn.shutdownOnce.Do(func() {
 		close(conn.done)
 		if conn.conn != nil {
-			conn.conn.Close()
+			_ = conn.conn.Close()
 		}
 	})
 }
@@ -527,5 +543,5 @@ func (conn *WebSocketConnection) webSocketCloseConnection() {
 func Enable(rt *goja.Runtime) {
 	module := New()
 	instance := module.NewInstance(rt)
-	rt.Set("WebSocket", instance.Exports())
+	_ = rt.Set("WebSocket", instance.Exports())
 }

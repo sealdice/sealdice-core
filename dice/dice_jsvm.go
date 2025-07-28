@@ -127,7 +127,7 @@ func (d *Dice) JsInit() {
 	d.JsScriptCronLock = &sync.Mutex{}
 	d.JsScriptCron.Start()
 	// 单独给WebSocket一个Logger
-	websocket.SetLogger(NewWebSocketLogger(d.Logger))
+	sealws.SetLogger(NewWebSocketLogger(d.Logger))
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
@@ -137,7 +137,7 @@ func (d *Dice) JsInit() {
 
 		// 注册loop全局变量，提供给websocket
 		_ = vm.Set("__eventloop__", loop)
-		websocket.Enable(vm)
+		sealws.Enable(vm)
 
 		// require 模块
 		d.JsRequire = reg.Enable(vm)
