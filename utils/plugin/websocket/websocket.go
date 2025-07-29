@@ -370,7 +370,7 @@ func (conn *WebSocketConnection) connect(options *webSocketOptions) {
 		Subprotocols:      options.protocols,
 		// 允许WSS连接
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec 这个是因为我们没法配置信任证书，所以只能给用户高高的权限
+			InsecureSkipVerify: true, //nolint:gosec
 		},
 	}
 
