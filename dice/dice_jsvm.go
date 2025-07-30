@@ -80,9 +80,6 @@ func (d *Dice) JsInit() {
 	if pub, err := static.Scripts.ReadFile("scripts/seal_mod.public.pem"); err == nil && len(pub) > 0 {
 		OfficialModPublicKey = string(pub)
 	}
-
-	// 装载数据库(如果是初次运行)
-
 	// 清理目前的js相关
 	d.jsClear()
 
@@ -114,7 +111,6 @@ func (d *Dice) JsInit() {
 		// 注册loop全局变量，提供给websocket
 		_ = vm.Set("__eventloop__", loop)
 		sealws.Enable(vm)
-
 		// require 模块
 		d.JsRequire = reg.Enable(vm)
 
