@@ -48,6 +48,9 @@ func (d *Dice) StoreQueryInfo(backend string) (StoreBackend, error) {
 	if err != nil {
 		return StoreBackend{}, err
 	}
+	if resp.StatusCode != 200 {
+		return StoreBackend{}, fmt.Errorf("%s", string(respData))
+	}
 
 	respResult := StoreBackend{}
 	err = json.Unmarshal(respData, &respResult)
@@ -60,7 +63,7 @@ func (d *Dice) StoreQueryInfo(backend string) (StoreBackend, error) {
 }
 
 type StoreExt struct {
-	ID        string `json:"id"` // @<namespace>/<key>@<version>, e.g. @seal/example@1.0.0
+	ID        string `json:"id"` // <namespace>@<key>@<version>, e.g. seal@example@1.0.0
 	Key       string `json:"key"`
 	Namespace string `json:"namespace"`
 	Version   string `json:"version"`
@@ -120,6 +123,9 @@ func (d *Dice) getRecommendFromBackend(backend string) ([]*StoreExt, error) {
 	err = json.Unmarshal(respData, &respResult)
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("%s", string(respData))
 	}
 	if !respResult.Result {
 		return nil, fmt.Errorf("%s", respResult.Err)
@@ -196,6 +202,9 @@ func (d *Dice) getStorePageFromBackend(backend string, params StoreQueryPagePara
 	respData, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("%s", string(respData))
 	}
 
 	var respResult struct {
