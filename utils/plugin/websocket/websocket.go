@@ -65,7 +65,8 @@ type (
 
 	// WebSocket 表示WebSocket模块的一个实例
 	WebSocket struct {
-		rt *goja.Runtime
+		rt   *goja.Runtime
+		loop *eventloop.EventLoop
 	}
 	WebSocketManager struct {
 		connections []*WebSocketConnection
@@ -118,11 +119,11 @@ func New() *WebSocketModule {
 }
 
 // NewInstance 为给定的goja运行时创建一个新的WebSocket实例
-func (m *WebSocketModule) NewInstance(rt *goja.Runtime) *WebSocket {
-	ws := &WebSocket{
-		rt: rt,
+func (m *WebSocketModule) NewInstance(rt *goja.Runtime, loop *eventloop.EventLoop) *WebSocket {
+	return &WebSocket{
+		rt:   rt,
+		loop: loop,
 	}
-	return ws
 }
 
 // Exports 返回模块的导出对象 - 直接返回WebSocket构造函数
@@ -232,21 +233,15 @@ func (ws *WebSocket) NewWebSocketConnection(call goja.FunctionCall) goja.Value {
 		}
 	}
 
-	// 强制要求事件循环
-	var loop *eventloop.EventLoop
-	if loopVal := rt.Get("__eventloop__"); loopVal != nil && !goja.IsUndefined(loopVal) {
-		if l, ok := loopVal.Export().(*eventloop.EventLoop); ok {
-			loop = l
-		}
-	}
-	if loop == nil {
-		panic(rt.NewTypeError("WebSocket requires goja_nodejs event loop. Please use eventloop.Run() and set __eventloop__ variable."))
+	// 使用WebSocket实例中的eventloop
+	if ws.loop == nil {
+		panic(rt.NewTypeError("WebSocket requires event loop. Please provide eventloop when calling Enable()."))
 	}
 
 	// 创建WebSocketConnection实例
 	conn := &WebSocketConnection{
 		rt:         rt,
-		loop:       loop,
+		loop:       ws.loop,
 		url:        url,
 		protocol:   "", // 协议将在连接建立后设置
 		readyState: CONNECTING,
@@ -638,8 +633,8 @@ func (conn *WebSocketConnection) webSocketCloseConnection() {
 
 // Enable 为给定的goja运行时启用WebSocket模块
 // 这是一个便利函数，用于快速设置WebSocket模块
-func Enable(rt *goja.Runtime) {
+func Enable(rt *goja.Runtime, loop *eventloop.EventLoop) {
 	module := New()
-	instance := module.NewInstance(rt)
+	instance := module.NewInstance(rt, loop)
 	_ = rt.Set("WebSocket", instance.Exports())
 }

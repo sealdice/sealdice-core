@@ -108,9 +108,7 @@ func (d *Dice) JsInit() {
 		// console 模块
 		console.Enable(vm)
 
-		// 注册loop全局变量，提供给websocket
-		_ = vm.Set("__eventloop__", loop)
-		sealws.Enable(vm)
+		sealws.Enable(vm, loop)
 		// require 模块
 		d.JsRequire = reg.Enable(vm)
 
