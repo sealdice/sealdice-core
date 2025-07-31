@@ -1,38 +1,74 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
 )
 
-var storeCache = make(map[string]*dice.StoreExt)
-
-func checkInstalled(exts []*dice.StoreExt) {
-	for _, ext := range exts {
-		switch ext.Type {
-		case dice.StoreExtTypeDeck:
-			ext.Installed = myDice.InstalledDecks[ext.ID]
-		case dice.StoreExtTypePlugin:
-			ext.Installed = myDice.InstalledPlugins[ext.ID]
-		default:
-			// pass
-		}
-		if len(ext.ID) > 0 {
-			storeCache[ext.ID] = ext
-		}
-	}
+func storeBackendList(c echo.Context) error {
+	backends := myDice.StoreManager.StoreBackendList()
+	return Success(&c, Response{
+		"data": backends,
+	})
 }
 
-func storeRecommend(c echo.Context) error {
-	data, err := myDice.StoreQueryRecommend()
+func storeAddBackend(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	if dm.JustForTest {
+		return Success(&c, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+	var params struct {
+		Url string `json:"url"`
+	}
+	err := c.Bind(&params)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
-	checkInstalled(data)
-	for _, elem := range data {
-		storeCache[elem.ID] = elem
+
+	err = myDice.StoreManager.StoreAddBackend(params.Url)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
 	}
+	return Success(&c, Response{})
+}
+
+func storeRemoveBackend(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	if dm.JustForTest {
+		return Success(&c, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+	var params struct {
+		ID string `query:"id"`
+	}
+	err := c.Bind(&params)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	err = myDice.StoreManager.StoreRemoveBackend(params.ID)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	return Success(&c, Response{})
+}
+
+func storeRecommend(c echo.Context) error {
+	data, err := myDice.StoreManager.StoreQueryRecommend()
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	myDice.StoreManager.RefreshInstalled(data)
 	return Success(&c, Response{
 		"data": data,
 	})
@@ -45,15 +81,12 @@ func storeGetPage(c echo.Context) error {
 		return Error(&c, err.Error(), Response{})
 	}
 
-	page, err := myDice.StoreQueryPage(params)
+	page, err := myDice.StoreManager.StoreQueryPage(params)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
 	data := page.Data
-	checkInstalled(data)
-	for _, elem := range data {
-		storeCache[elem.ID] = elem
-	}
+	myDice.StoreManager.RefreshInstalled(data)
 	return Success(&c, Response{
 		"data":     data,
 		"pageNum":  page.PageNum,
@@ -71,8 +104,8 @@ func storeDownload(c echo.Context) error {
 		return Error(&c, err.Error(), Response{})
 	}
 
-	target := storeCache[params.ID]
-	if target.Installed {
+	target, ok := myDice.StoreManager.FindExt(params.ID)
+	if ok && target.Installed {
 		return Error(&c, "请勿重复安装", Response{})
 	}
 	switch target.Type {
