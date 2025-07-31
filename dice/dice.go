@@ -260,7 +260,9 @@ type Dice struct {
 	SaveDatabaseInsertCheckMapFlag sync.Once                `json:"-" yaml:"-"`
 	SaveDatabaseInsertCheckMap     *SyncMap[string, string] `json:"-" yaml:"-"`
 
-	/* 已安装的商店扩展。记录各扩展读取时识别到的商店ID，用于扩展商店判断是否已安装对应扩展（用 map 代替 set） */
+	/* 扩展商店 */
+	StoreManager *StoreManager `yaml:"-" json:"-"`
+	/* 安装的商店扩展。记录各扩展读取时识别到的商店ID，用于扩展商店判断是否已安装对应扩展（用 map 代替 set） */
 	InstalledPlugins map[string]bool `yaml:"-" json:"-"`
 	InstalledDecks   map[string]bool `yaml:"-" json:"-"`
 	InstalledReplies map[string]bool `yaml:"-" json:"-"`
@@ -335,6 +337,8 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	}
 
 	go d.PublicDiceSetup()
+
+	go d.StoreSetup()
 
 	// 创建js运行时
 	if d.Config.JsEnable {
@@ -951,4 +955,8 @@ func (d *Dice) PublicDiceSetup() {
 	d.PublicDiceInfoRegister()
 	d.PublicDiceEndpointRefresh()
 	d.PublicDiceSetupTick()
+}
+
+func (d *Dice) StoreSetup() {
+	d.StoreManager = NewStoreManager(d)
 }
