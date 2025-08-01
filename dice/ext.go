@@ -112,8 +112,14 @@ func GetExtensionDesc(ei *ExtInfo) string {
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	if i.IsJsExt {
 		if d.Config.JsEnable {
+			loop, err := d.ExtLoopManager.GetLoop(i.JSLoopVersion)
+			if err != nil {
+				// 打个DEBUG日志？
+				i.dice.Logger.Errorf("扩展<%s>运行环境已经过期: %v", i.Name, err)
+				return
+			}
 			waitRun := make(chan int, 1)
-			d.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
+			loop.RunOnLoop(func(vm *goja.Runtime) {
 				defer func() {
 					// 防止崩掉进程
 					if r := recover(); r != nil {

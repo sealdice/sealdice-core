@@ -893,8 +893,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 						if i.OnNotCommandReceived != nil {
 							notCommandReceiveCall := func() {
 								if i.IsJsExt {
+									// 先判断运行环境
+									loop, err := d.ExtLoopManager.GetLoop(i.JSLoopVersion)
+									if err != nil {
+										// 打个DEBUG日志？
+										mctx.Dice.Logger.Errorf("扩展<%s>运行环境已经过期: %v", i.Name, err)
+										return
+									}
 									waitRun := make(chan int, 1)
-									d.JsLoop.RunOnLoop(func(runtime *goja.Runtime) {
+									loop.RunOnLoop(func(runtime *goja.Runtime) {
 										defer func() {
 											if r := recover(); r != nil {
 												mctx.Dice.Logger.Errorf("扩展<%s>处理非指令消息异常: %v 堆栈: %v", i.Name, r, string(debug.Stack()))
@@ -1161,15 +1168,20 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 					if i.OnNotCommandReceived != nil {
 						notCommandReceiveCall := func() {
 							if i.IsJsExt {
+								loop, err := d.ExtLoopManager.GetLoop(i.JSLoopVersion)
+								if err != nil {
+									// 打个DEBUG日志？
+									i.dice.Logger.Errorf("扩展<%s>运行环境已经过期: %v", i.Name, err)
+									return
+								}
 								waitRun := make(chan int, 1)
-								d.JsLoop.RunOnLoop(func(runtime *goja.Runtime) {
+								loop.RunOnLoop(func(runtime *goja.Runtime) {
 									defer func() {
 										if r := recover(); r != nil {
 											mctx.Dice.Logger.Errorf("扩展<%s>处理非指令消息异常: %v 堆栈: %v", i.Name, r, string(debug.Stack()))
 										}
 										waitRun <- 1
 									}()
-
 									i.OnNotCommandReceived(mctx, msg)
 								})
 								<-waitRun
@@ -1729,8 +1741,14 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		var ret CmdExecuteResult
 		// 如果是js命令，那么加锁
 		if item.IsJsSolveFunc {
+			loop, err := s.Parent.ExtLoopManager.GetLoop(item.JSLoopVersion)
+			if err != nil {
+				// 打个DEBUG日志？
+				s.Parent.Logger.Errorf("扩展注册的指令<%s>运行环境已经过期: %v", item.Name, err)
+				return false
+			}
 			waitRun := make(chan int, 1)
-			s.Parent.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
+			loop.RunOnLoop(func(vm *goja.Runtime) {
 				defer func() {
 					if r := recover(); r != nil {
 						// log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))

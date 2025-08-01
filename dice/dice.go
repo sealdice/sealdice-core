@@ -48,6 +48,7 @@ type CmdItemInfo struct {
 	EnableExecuteTimesParse bool                      `jsbind:"enableExecuteTimesParse"` // 启用执行次数解析，也就是解析3#这样的文本
 
 	IsJsSolveFunc bool
+	JSLoopVersion int64                                                                  // Loop版本号
 	Solve         func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult `jsbind:"solve"`
 
 	Raw                bool `jsbind:"raw"`                // 高级模式。默认模式下行为是：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
@@ -78,10 +79,11 @@ type ExtInfo struct {
 	ConflictWith []string `yaml:"-" json:"-"`
 	Official     bool     `yaml:"-" json:"-"` // 官方插件
 
-	dice    *Dice
-	IsJsExt bool          `json:"-"`
-	Source  *JsScriptInfo `yaml:"-" json:"-"`
-	Storage *buntdb.DB    `yaml:"-"  json:"-"`
+	dice          *Dice
+	IsJsExt       bool          `json:"-"`
+	JSLoopVersion int64         `json:"-"`
+	Source        *JsScriptInfo `yaml:"-" json:"-"`
+	Storage       *buntdb.DB    `yaml:"-"  json:"-"`
 	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
@@ -123,6 +125,55 @@ type ExtDefaultSettingItem struct {
 }
 
 type ExtDefaultSettingItemSlice []*ExtDefaultSettingItem
+
+type JsLoopManager struct {
+	loop     *eventloop.EventLoop
+	loopLock sync.RWMutex
+	version  int64
+}
+
+func NewJsLoopManager() *JsLoopManager {
+	return &JsLoopManager{
+		loop:     nil,
+		loopLock: sync.RWMutex{},
+		version:  0,
+	}
+}
+
+// GetLoop 通过版本号获取 loop，如果版本号不匹配则返回错误
+func (m *JsLoopManager) GetLoop(expectedVersion int64) (*eventloop.EventLoop, error) {
+	m.loopLock.RLock()
+	defer m.loopLock.RUnlock()
+
+	if m.version != expectedVersion {
+		return nil, fmt.Errorf("version mismatch: expected %d, current %d", expectedVersion, m.version)
+	}
+
+	return m.loop, nil
+}
+
+func (m *JsLoopManager) GetWebLoop() *eventloop.EventLoop {
+	m.loopLock.RLock()
+	defer m.loopLock.RUnlock()
+	// 给WEB用，不需要管是哪个版本的Loop，是最新的就行
+	return m.loop
+}
+
+// SetLoop 写入新的 loop 并自动递增版本号
+func (m *JsLoopManager) SetLoop(newLoop *eventloop.EventLoop) int64 {
+	m.loopLock.Lock()
+	defer m.loopLock.Unlock()
+
+	// 停止旧的 loop（如果存在）
+	if m.loop != nil {
+		m.loop.Terminate()
+	}
+
+	// 设置新的 loop 并递增版本号
+	m.loop = newLoop
+	m.version++
+	return m.version
+}
 
 // 强制coc7排序在较前位置
 
@@ -169,10 +220,11 @@ type Dice struct {
 	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
 	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
 
-	JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
-	JsScriptList     []*JsScriptInfo      `yaml:"-" json:"-"`
-	JsScriptCron     *cron.Cron           `yaml:"-" json:"-"`
-	JsScriptCronLock *sync.Mutex          `yaml:"-" json:"-"`
+	// JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
+	ExtLoopManager   *JsLoopManager  `yaml:"-" json:"-"`
+	JsScriptList     []*JsScriptInfo `yaml:"-" json:"-"`
+	JsScriptCron     *cron.Cron      `yaml:"-" json:"-"`
+	JsScriptCronLock *sync.Mutex     `yaml:"-" json:"-"`
 	// 重载使用的互斥锁
 	JsReloadLock sync.Mutex `yaml:"-" json:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
@@ -275,6 +327,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	// 创建js运行时
 	if d.Config.JsEnable {
 		d.Logger.Info("js扩展支持：开启")
+		d.ExtLoopManager = NewJsLoopManager() // 此时不初始化loop，Init才初始化哦
 		d.JsInit()
 	} else {
 		d.Logger.Info("js扩展支持：关闭")
