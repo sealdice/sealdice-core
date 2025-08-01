@@ -15,7 +15,7 @@ require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.4.3
 	github.com/bwmarrin/discordgo v0.28.1
-	github.com/dop251/goja v0.0.0-20241024094426-79f3a7efcdbd
+	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
 	github.com/evanw/esbuild v0.23.1
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
@@ -168,6 +168,7 @@ require (
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
+	github.com/panjf2000/ants/v2 v2.11.3 // indirect
 	github.com/pdfcpu/pdfcpu v0.8.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
@@ -175,7 +176,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/sunshineplan/pdf v1.0.7 // indirect
 	github.com/sunshineplan/tiff v0.0.0-20220128141034-29b9d69bd906 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
@@ -195,7 +195,7 @@ require (
 	golang.org/x/image v0.19.0 // indirect
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/term v0.28.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
@@ -208,6 +208,7 @@ replace (
 	github.com/Szzrain/dodo-open-go v0.2.7 => github.com/sealdice/dodo-open-go v0.2.8
 	// Try to fix arm64 bug with better snappy.
 	github.com/blevesearch/zapx/v16 v16.1.8 => github.com/PaienNate/zapx/v16 v16.1.9
+	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc => github.com/PaienNate/goja_nodejs v0.0.0-20250801061551-03d1264ca4eb
 	// Try to fix sqlite in cgofree
 	// github.com/glebarez/sqlite v1.11.0 => github.com/PaienNate/sqlite v0.0.0-20241102151933-067d82f14685
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
