@@ -43,12 +43,12 @@ func jsExec(c echo.Context) error {
 	}
 
 	source := "(function(exports, require, module) {" + v.Value + "\n})()"
-
+	loop := myDice.ExtLoopManager.GetWebLoop()
 	waitRun := make(chan int, 1)
 
 	var ret goja.Value
 	myDice.JsPrinter.RecordStart()
-	myDice.JsLoop.RunOnLoop(func(vm *goja.Runtime) {
+	loop.RunOnLoop(func(vm *goja.Runtime) {
 		defer func() {
 			// 防止崩掉进程
 			if r := recover(); r != nil {
