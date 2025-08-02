@@ -88,7 +88,7 @@ func (d *Dice) JsInit() {
 
 	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
 	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
-	d.JsLoop = loop
+	versionID := d.ExtLoopManager.SetLoop(loop)
 
 	printer := &PrinterFunc{d, false, []string{}}
 	d.JsPrinter = printer
@@ -160,7 +160,7 @@ func (d *Dice) JsInit() {
 		ext := vm.NewObject()
 		_ = seal.Set("ext", ext)
 		_ = ext.Set("newCmdItemInfo", func() *CmdItemInfo {
-			return &CmdItemInfo{IsJsSolveFunc: true}
+			return &CmdItemInfo{IsJsSolveFunc: true, JSLoopVersion: versionID}
 		})
 		_ = ext.Set("newCmdExecuteResult", func(solved bool) CmdExecuteResult {
 			return CmdExecuteResult{
@@ -175,13 +175,14 @@ func (d *Dice) JsInit() {
 			}
 			return &ExtInfo{
 				Name: name, Author: author, Version: version,
-				GetDescText: GetExtensionDesc,
-				AutoActive:  true,
-				IsJsExt:     true,
-				Brief:       "一个JS自定义扩展",
-				Official:    official,
-				CmdMap:      CmdMapCls{},
-				Source:      d.JsLoadingScript,
+				GetDescText:   GetExtensionDesc,
+				AutoActive:    true,
+				IsJsExt:       true,
+				Brief:         "一个JS自定义扩展",
+				Official:      official,
+				CmdMap:        CmdMapCls{},
+				Source:        d.JsLoadingScript,
+				JSLoopVersion: versionID,
 			}
 		})
 		_ = ext.Set("find", func(name string) *ExtInfo {
@@ -204,6 +205,9 @@ func (d *Dice) JsInit() {
 			if ei.OnLoad != nil {
 				ei.OnLoad()
 			}
+			// 设置本次loop的版本，用于比较
+			ei.JSLoopVersion = versionID
+
 			d.ApplyExtDefaultSettings()
 			// Pinenutn: Range模板 ServiceAtNew重构代码
 			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
@@ -645,11 +649,7 @@ func (d *Dice) jsClear() {
 	// Pinenutn: 由于切换成了其他的syncMap，所以初始化策略需要修改
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.RegisterBuiltinSystemTemplate()
-	// 关闭js vm
-	if d.JsLoop != nil {
-		d.JsLoop.Terminate()
-		d.JsLoop = nil
-	}
+	d.ExtLoopManager.SetLoop(nil)
 }
 
 func isScriptFile(filename string) bool {
