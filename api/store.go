@@ -49,7 +49,7 @@ func storeRemoveBackend(c echo.Context) error {
 		})
 	}
 	var params struct {
-		ID string `query:"id"`
+		ID string `json:"id"`
 	}
 	err := c.Bind(&params)
 	if err != nil {
@@ -96,6 +96,9 @@ func storeGetPage(c echo.Context) error {
 }
 
 func storeDownload(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
 	var params struct {
 		ID string `json:"id"`
 	}
@@ -129,5 +132,8 @@ func storeDownload(c echo.Context) error {
 }
 
 func storeRating(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
 	return Error(&c, "not implemented", Response{})
 }

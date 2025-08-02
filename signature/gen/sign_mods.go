@@ -54,14 +54,18 @@ func signDir(dir string, privateKey string) {
 		ext := filepath.Ext(entry.Name())
 		switch ext {
 		case ".js", ".json", ".jsonc":
-			signModFile(dir, privateKey, entry.Name(), pureName, "// sign ")
+			signModFile(dir, privateKey, sealcrypto.RSASign256, entry.Name(), pureName, "// sign ")
 		case ".yml", ".yaml", ".toml":
-			signModFile(dir, privateKey, entry.Name(), pureName, "# sign ")
+			signModFile(dir, privateKey, sealcrypto.RSASign256, entry.Name(), pureName, "# sign ")
+		case ".txt":
+			signModFile(dir, privateKey, sealcrypto.RSASign256, entry.Name(), pureName, "signed: ")
 		}
 	}
 }
 
-func signModFile(root, privateKey string, path, name string, signStrTmpl string) {
+type signFn func(data []byte, privateKey string) (string, error)
+
+func signModFile(root, privateKey string, signFn signFn, path, name string, signStrTmpl string) {
 	if privateKey == "" {
 		return
 	}
@@ -71,7 +75,7 @@ func signModFile(root, privateKey string, path, name string, signStrTmpl string)
 		log.Printf("%s 文件为空，跳过\n", name)
 		return
 	}
-	sign, err := sealcrypto.RSASign(data, privateKey)
+	sign, err := signFn(data, privateKey)
 	if err != nil {
 		log.Printf("%s 文件签名失败，跳过\n", name)
 		return
@@ -88,5 +92,5 @@ func signModFile(root, privateKey string, path, name string, signStrTmpl string)
 	if err != nil {
 		return
 	}
-	log.Printf("完成对 %s 的签名，签名后的文件为 [signed]%s\n", name, name)
+	log.Printf("完成对 %s 的签名，签名后的文件为 signed/%s\n", name, name)
 }
