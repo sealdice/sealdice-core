@@ -34,6 +34,11 @@ func TryGetBackendURL() {
 		ret = _tryGetBackendBase("http://test1.sealdice.com/list.txt")
 	}
 	if ret != "" {
-		BackendUrls = append(backendUrlsRaw, strings.Split(ret, "\n")...) //nolint:gocritic
+		splits := strings.Split(ret, "\n")
+		for _, s := range splits {
+			if s != "" {
+				BackendUrls = append(BackendUrls, s)
+			}
+		}
 	}
 }

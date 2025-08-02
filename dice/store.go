@@ -10,6 +10,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"sealdice-core/static"
+	"sealdice-core/utils/crypto"
+)
+
+var (
+	// OfficialStorePublicKey 官方商店公钥
+	OfficialStorePublicKey = ``
 )
 
 type StoreExtType string
@@ -36,7 +44,8 @@ type StoreBackend struct {
 	Type             StoreBackendType `json:"type"`
 	ProtocolVersions []string         `json:"protocolVersions"`
 	Announcement     string           `json:"announcement"`
-	Health           bool
+	Health           bool             `json:"health"`
+	Sign             string           `json:"sign"`
 }
 
 type StoreManager struct {
@@ -51,6 +60,11 @@ type StoreManager struct {
 }
 
 func NewStoreManager(parent *Dice) *StoreManager {
+	// 官方商店公钥
+	if pub, err := static.Scripts.ReadFile("scripts/seal_store.public.pem"); err == nil && len(pub) > 0 {
+		OfficialStorePublicKey = string(pub)
+	}
+
 	m := &StoreManager{
 		lock:       new(sync.RWMutex),
 		parent:     parent,
@@ -66,7 +80,8 @@ func (m *StoreManager) refreshStoreBackends() {
 
 	official := 0
 	for i, backend := range BackendUrls {
-		if backendSet[backend] {
+		u := backend + "/dice/api/store"
+		if backendSet[u] {
 			continue
 		}
 		id := "official"
@@ -76,27 +91,29 @@ func (m *StoreManager) refreshStoreBackends() {
 			name += fmt.Sprintf("[线路%d]", official+1)
 		}
 		backends = append(backends, &StoreBackend{
-			Url:  backend + "/dice/api/store",
+			Url:  u,
 			ID:   id,
 			Name: name,
 			Type: StoreBackendTypeOfficial,
 		})
-		backendSet[id] = true
+		backendSet[u] = true
 		official++
 	}
 
 	extraBackends := m.parent.Config.StoreConfig.BackendUrls
 	if len(extraBackends) > 0 {
-		for _, backend := range extraBackends {
-			if backendSet[backend] {
+		for _, u := range extraBackends {
+			if backendSet[u] {
 				continue
 			}
-			id := "extra:" + base64.StdEncoding.EncodeToString([]byte(backend))
-			backends = append(backends, &StoreBackend{
-				Url:  backend,
+			id := "extra:" + base64.StdEncoding.EncodeToString([]byte(u))
+			backend := &StoreBackend{
+				Url:  u,
 				ID:   id,
 				Type: StoreBackendTypeExtra,
-			})
+			}
+
+			backends = append(backends, backend)
 			backendSet[id] = true
 		}
 	}
@@ -112,6 +129,16 @@ func (m *StoreManager) refreshStoreBackends() {
 			}
 			if backend.Type != StoreBackendTypeOfficial {
 				backend.Name = info.Name
+				if info.Sign != "" && OfficialStorePublicKey != "" {
+					u, err := url.Parse(backend.Url)
+					if err == nil {
+						err = crypto.RSAVerify256([]byte(u.Hostname()), info.Sign, OfficialStorePublicKey)
+						if err == nil {
+							backend.Type = StoreBackendTypeTrusted
+							backend.Sign = info.Sign
+						}
+					}
+				}
 			}
 			backend.ProtocolVersions = info.ProtocolVersions
 			backend.Announcement = info.Announcement
@@ -149,6 +176,7 @@ func (m *StoreManager) storeQueryInfo(backend StoreBackend) (StoreBackend, error
 	backend.ProtocolVersions = respResult.ProtocolVersions
 	backend.Announcement = respResult.Announcement
 	backend.Health = true
+	backend.Sign = respResult.Sign
 	return backend, nil
 }
 
@@ -186,14 +214,19 @@ func (m *StoreManager) StoreQueryRecommend() ([]*StoreExt, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	backends := m.backends
-	if len(backends) == 0 {
+	healthyBackends := make([]*StoreBackend, 0, len(m.backends))
+	for _, backend := range m.backends {
+		if backend.Health && (backend.Type == StoreBackendTypeOfficial || backend.Type == StoreBackendTypeTrusted) {
+			healthyBackends = append(healthyBackends, backend)
+		}
+	}
+	if len(healthyBackends) == 0 {
 		return []*StoreExt{}, nil
 	}
 
 	var result []*StoreExt
 	var err error
-	for _, backend := range backends {
+	for _, backend := range healthyBackends {
 		if !backend.Health {
 			continue
 		}
@@ -260,6 +293,8 @@ func (m *StoreManager) StoreBackendList() []*StoreBackend {
 func (m *StoreManager) StoreAddBackend(url string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	url = strings.TrimSpace(url)
+	url = strings.TrimLeft(url, "/")
 
 	backends := m.parent.Config.StoreConfig.BackendUrls
 	for _, backend := range backends {
@@ -269,9 +304,10 @@ func (m *StoreManager) StoreAddBackend(url string) error {
 	}
 	backends = append(backends, url)
 
-	m.parent.Config.StoreConfig = StoreConfig{
+	(&m.parent.Config).StoreConfig = StoreConfig{
 		BackendUrls: backends,
 	}
+	m.parent.MarkModified()
 	return nil
 }
 
@@ -302,14 +338,24 @@ func (m *StoreManager) StoreQueryPage(params StoreQueryPageParams) (*StoreExtPag
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	backends := m.backends
-	if len(backends) == 0 {
-		return &StoreExtPage{}, nil
+	healthyBackends := make([]*StoreBackend, 0, len(m.backends))
+	for _, backend := range m.backends {
+		if backend.Health {
+			healthyBackends = append(healthyBackends, backend)
+		}
+	}
+	if len(healthyBackends) == 0 {
+		return &StoreExtPage{
+			Data:     []*StoreExt{},
+			PageNum:  0,
+			PageSize: 0,
+			Next:     false,
+		}, nil
 	}
 
 	var result *StoreExtPage
 	var err error
-	for _, backend := range backends {
+	for _, backend := range healthyBackends {
 		if !backend.Health {
 			continue
 		}
