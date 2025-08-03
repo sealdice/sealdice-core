@@ -438,7 +438,7 @@ func DeckTryParse(d *Dice, fn string) {
 
 	d.DeckList = append(d.DeckList, deckInfo)
 	if len(deckInfo.StoreID) > 0 {
-		d.InstalledDecks[deckInfo.StoreID] = true
+		d.StoreManager.InstalledDecks[deckInfo.StoreID] = true
 	}
 	d.MarkModified()
 }
@@ -575,7 +575,9 @@ func DeckReload(d *Dice) {
 	}
 	d.IsDeckLoading = true
 	d.DeckList = d.DeckList[:0]
-	d.InstalledDecks = map[string]bool{}
+	if d.StoreManager != nil {
+		d.StoreManager.InstalledDecks = map[string]bool{}
+	}
 	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
 	DecksDetect(d)
 	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))

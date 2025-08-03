@@ -67,9 +67,12 @@ func NewStoreManager(parent *Dice) *StoreManager {
 	}
 
 	m := &StoreManager{
-		lock:       new(sync.RWMutex),
-		parent:     parent,
-		storeCache: make(map[string]*StoreExt),
+		lock:             new(sync.RWMutex),
+		parent:           parent,
+		storeCache:       make(map[string]*StoreExt),
+		InstalledPlugins: map[string]bool{},
+		InstalledDecks:   map[string]bool{},
+		InstalledReplies: map[string]bool{},
 	}
 	m.refreshStoreBackends()
 	return m

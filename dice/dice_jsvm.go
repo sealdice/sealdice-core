@@ -646,7 +646,9 @@ func (d *Dice) jsClear() {
 	// Pinenutn: 由于切换成了其他的syncMap，所以初始化策略需要修改
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.RegisterBuiltinSystemTemplate()
-	d.InstalledPlugins = map[string]bool{}
+	if d.StoreManager != nil {
+		d.StoreManager.InstalledPlugins = map[string]bool{}
+	}
 	d.ExtLoopManager.SetLoop(nil)
 }
 
@@ -704,7 +706,7 @@ func (d *Dice) JsLoadScripts() {
 				}
 				jsInfos = append(jsInfos, jsInfo)
 				if len(jsInfo.StoreID) > 0 {
-					d.InstalledPlugins[jsInfo.StoreID] = true
+					d.StoreManager.InstalledPlugins[jsInfo.StoreID] = true
 				}
 			} else {
 				d.Logger.Warnf("内置脚本「%s」校验未通过，拒绝加载", path)
@@ -732,7 +734,7 @@ func (d *Dice) JsLoadScripts() {
 			}
 			jsInfos = append(jsInfos, jsInfo)
 			if len(jsInfo.StoreID) > 0 {
-				d.InstalledPlugins[jsInfo.StoreID] = true
+				d.StoreManager.InstalledPlugins[jsInfo.StoreID] = true
 			}
 		}
 		return nil
