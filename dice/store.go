@@ -3,6 +3,7 @@ package dice
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -163,7 +164,7 @@ func (m *StoreManager) storeQueryInfo(backend StoreBackend) (StoreBackend, error
 	if err != nil {
 		return backend, err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return backend, fmt.Errorf("%s", string(respData))
 	}
 
@@ -257,7 +258,7 @@ func (m *StoreManager) getRecommendFromBackend(backend StoreBackend) ([]*StoreEx
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s", string(respData))
 	}
 	if !respResult.Result {
@@ -311,8 +312,8 @@ func (m *StoreManager) StoreAddBackend(url string) error {
 }
 
 func (m *StoreManager) StoreRemoveBackend(id string) error {
-	if strings.HasPrefix("official:", id) {
-		return fmt.Errorf("cannot remove official backend")
+	if strings.HasPrefix(id, "official:") {
+		return errors.New("cannot remove official backend")
 	}
 
 	m.lock.Lock()
@@ -393,7 +394,7 @@ func (m *StoreManager) getStorePageFromBackend(backend StoreBackend, params Stor
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s", string(respData))
 	}
 
