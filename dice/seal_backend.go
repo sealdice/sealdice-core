@@ -20,6 +20,7 @@ func _tryGetBackendBase(url string) string {
 	return ""
 }
 
+// nolint:unused // historical code
 var backendUrlsRaw = []string{
 	"http://dice.weizaima.com",
 }
