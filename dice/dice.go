@@ -262,10 +262,6 @@ type Dice struct {
 
 	/* 扩展商店 */
 	StoreManager *StoreManager `yaml:"-" json:"-"`
-	/* 安装的商店扩展。记录各扩展读取时识别到的商店ID，用于扩展商店判断是否已安装对应扩展（用 map 代替 set） */
-	InstalledPlugins map[string]bool `yaml:"-" json:"-"`
-	InstalledDecks   map[string]bool `yaml:"-" json:"-"`
-	InstalledReplies map[string]bool `yaml:"-" json:"-"`
 }
 
 func (d *Dice) MarkModified() {
@@ -297,9 +293,6 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	d.Cron.Start()
 
 	d.CocExtraRules = map[int]*CocRuleInfo{}
-	d.InstalledPlugins = map[string]bool{}
-	d.InstalledDecks = map[string]bool{}
-	d.InstalledReplies = map[string]bool{}
 
 	var err error
 	d.DBOperator = operator

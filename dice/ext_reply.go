@@ -35,7 +35,7 @@ func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 		rc.Conditions = []ReplyConditionBase{}
 	}
 	if len(rc.StoreID) > 0 {
-		dice.InstalledReplies[rc.StoreID] = true
+		dice.StoreManager.InstalledReplies[rc.StoreID] = true
 	}
 
 	return rc, nil
@@ -118,7 +118,6 @@ func ReplyReload(dice *Dice) {
 		return nil
 	})
 
-	dice.InstalledReplies = map[string]bool{}
 	for _, i := range filenames {
 		rc, err := CustomReplyConfigRead(dice, i)
 		if err == nil {
