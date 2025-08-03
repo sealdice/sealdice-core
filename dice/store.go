@@ -181,6 +181,7 @@ func (m *StoreManager) storeQueryInfo(backend StoreBackend) (StoreBackend, error
 }
 
 type StoreExt struct {
+	BackendID string `json:"backendID"`
 	ID        string `json:"id"` // <namespace>@<key>@<version>, e.g. seal@example@1.0.0
 	Key       string `json:"key"`
 	Namespace string `json:"namespace"`
@@ -227,9 +228,6 @@ func (m *StoreManager) StoreQueryRecommend() ([]*StoreExt, error) {
 	var result []*StoreExt
 	var err error
 	for _, backend := range healthyBackends {
-		if !backend.Health {
-			continue
-		}
 		result, err = m.getRecommendFromBackend(*backend)
 		if err == nil {
 			return result, nil
@@ -269,13 +267,14 @@ func (m *StoreManager) getRecommendFromBackend(backend StoreBackend) ([]*StoreEx
 }
 
 type StoreQueryPageParams struct {
-	Type     string `query:"type"`
-	PageNum  int    `query:"pageNum"`
-	PageSize int    `query:"pageSize"`
-	Author   string `query:"author"`
-	Name     string `query:"name"`
-	SortBy   string `query:"sortBy"`
-	Order    string `query:"order"`
+	BackendID string `query:"backendID"`
+	Type      string `query:"type"`
+	PageNum   int    `query:"pageNum"`
+	PageSize  int    `query:"pageSize"`
+	Author    string `query:"author"`
+	Name      string `query:"name"`
+	SortBy    string `query:"sortBy"`
+	Order     string `query:"order"`
 }
 
 type StoreExtPage struct {
@@ -333,38 +332,25 @@ func (m *StoreManager) StoreRemoveBackend(id string) error {
 }
 
 func (m *StoreManager) StoreQueryPage(params StoreQueryPageParams) (*StoreExtPage, error) {
-	m.refreshStoreBackends()
-
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	healthyBackends := make([]*StoreBackend, 0, len(m.backends))
 	for _, backend := range m.backends {
-		if backend.Health {
-			healthyBackends = append(healthyBackends, backend)
-		}
-	}
-	if len(healthyBackends) == 0 {
-		return &StoreExtPage{
-			Data:     []*StoreExt{},
-			PageNum:  0,
-			PageSize: 0,
-			Next:     false,
-		}, nil
-	}
-
-	var result *StoreExtPage
-	var err error
-	for _, backend := range healthyBackends {
-		if !backend.Health {
-			continue
-		}
-		result, err = m.getStorePageFromBackend(*backend, params)
-		if err == nil {
+		if backend.Health && backend.ID == params.BackendID {
+			result, err := m.getStorePageFromBackend(*backend, params)
+			if err != nil {
+				m.refreshStoreBackends()
+				return nil, fmt.Errorf("%w", err)
+			}
 			return result, nil
 		}
 	}
-	return nil, fmt.Errorf("%w", err)
+	return &StoreExtPage{
+		Data:     []*StoreExt{},
+		PageNum:  1,
+		PageSize: 0,
+		Next:     false,
+	}, nil
 }
 
 func (m *StoreManager) getStorePageFromBackend(backend StoreBackend, params StoreQueryPageParams) (*StoreExtPage, error) {
