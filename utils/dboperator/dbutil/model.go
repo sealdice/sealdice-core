@@ -23,11 +23,11 @@ func (j *BYTE) Scan(value interface{}) error {
 }
 
 // Value 实现 driver.Valuer 接口，用于将 JSON 类型存储到数据库中
-func (j BYTE) Value() (driver.Value, error) {
+func (j *BYTE) Value() (driver.Value, error) {
 	// 如果 BYTE 数据为空，则返回 nil
-	if len(j) == 0 {
+	if len(*j) == 0 {
 		return nil, nil //nolint:nilnil
 	}
 	// 返回原始的 []byte
-	return []byte(j), nil
+	return []byte(*j), nil
 }

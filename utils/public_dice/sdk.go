@@ -36,31 +36,31 @@ func doReq[T any](c *PublicDiceClient, method string, path string, data any, par
 
 // Endpoint 公骰终端信息
 type Endpoint struct {
-	Platform  string `json:"platform" msgpack:",omitempty"`
-	UID       string `json:"uid" msgpack:",omitempty"`
+	Platform  string `json:"platform"  msgpack:",omitempty"`
+	UID       string `json:"uid"       msgpack:",omitempty"`
 	InviteURL string `json:"inviteUrl" msgpack:",omitempty"`
-	IsOnline  bool   `json:"isOnline" msgpack:",omitempty"`
+	IsOnline  bool   `json:"isOnline"  msgpack:",omitempty"`
 
-	ID           string `json:"id" msgpack:",omitempty"`
-	CreatedAt    string `json:"createdAt" msgpack:",omitempty"`
-	UpdatedAt    string `json:"updatedAt" msgpack:",omitempty"`
+	ID           string `json:"id"           msgpack:",omitempty"`
+	CreatedAt    string `json:"createdAt"    msgpack:",omitempty"`
+	UpdatedAt    string `json:"updatedAt"    msgpack:",omitempty"`
 	LastTickTime int64  `json:"lastTickTime" msgpack:",omitempty"`
 }
 
 // DiceInfo 公骰信息
 type DiceInfo struct {
-	ID                string      `json:"id" msgpack:",omitempty"`
-	CreatedAt         string      `json:"createdAt" msgpack:",omitempty"`
-	UpdatedAt         string      `json:"updatedAt" msgpack:",omitempty"`
-	Name              string      `json:"name" msgpack:",omitempty"`
-	Brief             string      `json:"brief" msgpack:",omitempty"`
-	Note              string      `json:"note" msgpack:",omitempty"`
-	Avatar            string      `json:"avatar" msgpack:",omitempty"`
-	Version           string      `json:"version" msgpack:",omitempty"`
+	ID                string      `json:"id"                msgpack:",omitempty"`
+	CreatedAt         string      `json:"createdAt"         msgpack:",omitempty"`
+	UpdatedAt         string      `json:"updatedAt"         msgpack:",omitempty"`
+	Name              string      `json:"name"              msgpack:",omitempty"`
+	Brief             string      `json:"brief"             msgpack:",omitempty"`
+	Note              string      `json:"note"              msgpack:",omitempty"`
+	Avatar            string      `json:"avatar"            msgpack:",omitempty"`
+	Version           string      `json:"version"           msgpack:",omitempty"`
 	IsOfficialVersion bool        `json:"isOfficialVersion" msgpack:",omitempty"`
-	UpdateTickCount   int         `json:"updateTickCount" msgpack:",omitempty"`
-	LastTickTime      int64       `json:"lastTickTime" msgpack:",omitempty"`
-	Endpoints         []*Endpoint `json:"endpoints" msgpack:",omitempty"`
+	UpdateTickCount   int         `json:"updateTickCount"   msgpack:",omitempty"`
+	LastTickTime      int64       `json:"lastTickTime"      msgpack:",omitempty"`
+	Endpoints         []*Endpoint `json:"endpoints"         msgpack:",omitempty"`
 }
 
 // ListResponse 公骰列表响应
@@ -79,12 +79,12 @@ func (c *PublicDiceClient) ListGet(keyFunc func(data any) string) (*ListResponse
 
 // RegisterRequest 注册公骰请求
 type RegisterRequest struct {
-	ID     string `json:"ID,omitempty" msgpack:",omitempty"`
-	Name   string `json:"name,omitempty" msgpack:",omitempty"` // 15字
-	Brief  string `json:"brief,omitempty" msgpack:",omitempty"`
-	Note   string `json:"note,omitempty" msgpack:",omitempty"`
+	ID     string `json:"ID,omitempty"     msgpack:",omitempty"`
+	Name   string `json:"name,omitempty"   msgpack:",omitempty"` // 15字
+	Brief  string `json:"brief,omitempty"  msgpack:",omitempty"`
+	Note   string `json:"note,omitempty"   msgpack:",omitempty"`
 	Avatar string `json:"avatar,omitempty" msgpack:",omitempty"` // 头像？还是用另一个api进行注册比较好？可以省略
-	Key    string `json:"key,omitempty" msgpack:",omitempty"`
+	Key    string `json:"key,omitempty"    msgpack:",omitempty"`
 }
 
 // RegisterResponse 注册公骰响应
@@ -102,11 +102,11 @@ func (c *PublicDiceClient) Register(req *RegisterRequest, keyFunc func(data any)
 
 // DiceUpdateRequest 更新公骰请求
 type DiceUpdateRequest struct {
-	ID    string `json:"id" msgpack:",omitempty"`
-	Name  string `json:"name" msgpack:",omitempty"`
+	ID    string `json:"id"    msgpack:",omitempty"`
+	Name  string `json:"name"  msgpack:",omitempty"`
 	Brief string `json:"brief" msgpack:",omitempty"`
-	Note  string `json:"note" msgpack:",omitempty"`
-	Key   string `json:"key" msgpack:",omitempty"`
+	Note  string `json:"note"  msgpack:",omitempty"`
+	Key   string `json:"key"   msgpack:",omitempty"`
 }
 
 // DiceUpdateResponse 更新公骰响应
@@ -124,8 +124,8 @@ func (c *PublicDiceClient) DiceUpdate(req *DiceUpdateRequest, keyFunc func(data 
 
 // EndpointUpdateRequest 更新公骰SNS账号信息请求
 type EndpointUpdateRequest struct {
-	DiceID    string      `json:"diceId" msgpack:",omitempty"`
-	Key       string      `json:"key" msgpack:",omitempty"`
+	DiceID    string      `json:"diceId"    msgpack:",omitempty"`
+	Key       string      `json:"key"       msgpack:",omitempty"`
 	Endpoints []*Endpoint `json:"endpoints" msgpack:",omitempty"`
 }
 
@@ -142,14 +142,14 @@ func (c *PublicDiceClient) EndpointUpdate(req *EndpointUpdateRequest, keyFunc fu
 
 // TickUpdateRequest 更新公骰心跳请求
 type TickUpdateRequest struct {
-	ID        string          `json:"ID" msgpack:",omitempty"`
-	Key       string          `json:"key" msgpack:",omitempty"`
+	ID        string          `json:"ID"        msgpack:",omitempty"`
+	Key       string          `json:"key"       msgpack:",omitempty"`
 	Endpoints []*TickEndpoint `json:"Endpoints" msgpack:",omitempty"`
 }
 
 // TickEndpoint 公骰心跳端点信息
 type TickEndpoint struct {
-	UID      string `json:"uid" msgpack:",omitempty"`
+	UID      string `json:"uid"      msgpack:",omitempty"`
 	IsOnline bool   `json:"isOnline" msgpack:",omitempty"`
 }
 

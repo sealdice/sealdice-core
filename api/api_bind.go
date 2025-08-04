@@ -227,7 +227,7 @@ func checkSecurity(c echo.Context) error {
 	isPublicService := strings.HasPrefix(myDice.Parent.ServeAddress, "0.0.0.0") || myDice.Parent.ServeAddress == ":3211"
 	isEmptyPassword := myDice.Parent.UIPasswordHash == ""
 	return c.JSON(200, map[string]bool{
-		"isOk": !(isEmptyPassword && isPublicService),
+		"isOk": !isEmptyPassword || !isPublicService,
 	})
 }
 
@@ -285,7 +285,7 @@ func DiceExec(c echo.Context) error {
 	}
 
 	v := struct {
-		ID          string `form:"id" json:"id"`
+		ID          string `form:"id"          json:"id"`
 		Message     string `form:"message"`
 		MessageType string `form:"messageType"`
 	}{}
@@ -406,7 +406,7 @@ func onebotTool(c echo.Context) error {
 
 type apiPluginConfig struct {
 	PluginName string             `json:"pluginName"`
-	Configs    []*dice.ConfigItem `json:"configs" jsbind:"configs"`
+	Configs    []*dice.ConfigItem `jsbind:"configs"  json:"configs"`
 }
 
 type getConfigResp map[string]*apiPluginConfig

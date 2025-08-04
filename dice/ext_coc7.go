@@ -318,7 +318,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					} else { // if !(unicode.IsNumber(r) || r == '(')
 						// 将 .rab测试 切开为 "b 测试"
 						for index, i := range restText[1:] {
-							if !(unicode.IsNumber(i) || i == '(') {
+							if !unicode.IsNumber(i) && i != '(' {
 								restText = restText[:index+1] + " " + restText[index+1:]
 								break
 							}
@@ -923,13 +923,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				if tmpl == nil {
 					checkResult.valid = false
 					checkResult.invalidReason = RuleNotMatch
-					return
+					return checkResult
 				}
 
 				if m == nil {
 					checkResult.valid = false
 					checkResult.invalidReason = FormatMismatch
-					return
+					return checkResult
 				}
 
 				varName := m[1]     // 技能名称
@@ -957,12 +957,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					if !exists {
 						checkResult.valid = false
 						checkResult.invalidReason = SkillNotEntered
-						return
+						return checkResult
 					}
 					if val.TypeId != ds.VMTypeInt {
 						checkResult.valid = false
 						checkResult.invalidReason = SkillTypeError
-						return
+						return checkResult
 					}
 					varValue = int64(val.MustReadInt())
 				}
@@ -1000,7 +1000,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					if err != nil {
 						checkResult.valid = false
 						checkResult.invalidReason = SuccessExprFormatError
-						return
+						return checkResult
 					}
 
 					increment := int64(r.MustReadInt())
@@ -1016,7 +1016,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						if err != nil {
 							checkResult.valid = false
 							checkResult.invalidReason = FailExprFormatError
-							return
+							return checkResult
 						}
 
 						increment := int64(r.MustReadInt())
@@ -1024,7 +1024,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						checkResult.newVarValue = varValue + increment
 					}
 				}
-				return
+				return checkResult
 			}
 
 			VarSetValueInt64(mctx, "$t数量", int64(len(skills)))

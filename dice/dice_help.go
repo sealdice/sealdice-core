@@ -78,7 +78,7 @@ const (
 const HelpConfigFilename = "help_config.yaml"
 
 type HelpConfig struct {
-	Aliases map[string][]string `yaml:"aliases" json:"aliases"`
+	Aliases map[string][]string `json:"aliases" yaml:"aliases"`
 }
 
 type HelpDocFormat struct {

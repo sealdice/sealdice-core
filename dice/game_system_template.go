@@ -25,53 +25,53 @@ type AttributeConfigs struct {
 // ---------
 
 type AttrConfig struct {
-	Display string `yaml:"display" json:"display"` // 展示形式，即st show时格式，默认为顺序展示
+	Display string `json:"display" yaml:"display"` // 展示形式，即st show时格式，默认为顺序展示
 
 	Top          []string          `yaml:"top,flow" json:"top,flow"`         //nolint
 	SortBy       string            `yaml:"sortBy" json:"sortBy"`             // time | Name | value desc
-	Ignores      []string          `yaml:"ignores" json:"ignores"`           // 这里面的属性将不被显示
-	ShowAs       map[string]string `yaml:"showAs" json:"showAs"`             // 展示形式，即st show时格式
-	ShowAsKey    map[string]string `yaml:"showAsKey" json:"showAsKey"`       // 展示形式，即st show时格式
-	Setter       map[string]string `yaml:"setter" json:"setter"`             // st写入时执行这个，未实装
-	ItemsPerLine int               `yaml:"itemsPerLine" json:"itemsPerLine"` // 每行显示几个属性，默认4
+	Ignores      []string          `json:"ignores"      yaml:"ignores"`      // 这里面的属性将不被显示
+	ShowAs       map[string]string `json:"showAs"       yaml:"showAs"`       // 展示形式，即st show时格式
+	ShowAsKey    map[string]string `json:"showAsKey"    yaml:"showAsKey"`    // 展示形式，即st show时格式
+	Setter       map[string]string `json:"setter"       yaml:"setter"`       // st写入时执行这个，未实装
+	ItemsPerLine int               `json:"itemsPerLine" yaml:"itemsPerLine"` // 每行显示几个属性，默认4
 }
 
 type NameTemplateItem struct {
-	Template string `yaml:"template" json:"template"`
-	HelpText string `yaml:"helpText" json:"helpText"`
+	Template string `json:"template" yaml:"template"`
+	HelpText string `json:"helpText" yaml:"helpText"`
 }
 
 type SetConfig struct {
-	RelatedExt    []string `yaml:"relatedExt" json:"relatedExt"`       // 关联扩展
-	DiceSides     int64    `yaml:"diceSides" json:"diceSides"`         // 骰子面数
-	DiceSidesExpr string   `yaml:"diceSidesExpr" json:"diceSidesExpr"` // 骰子面数表达式
-	Keys          []string `yaml:"keys" json:"keys"`                   // 可用于 .set xxx 的key
-	EnableTip     string   `yaml:"enableTip" json:"enableTip"`         // 启用提示
+	RelatedExt    []string `json:"relatedExt"    yaml:"relatedExt"`    // 关联扩展
+	DiceSides     int64    `json:"diceSides"     yaml:"diceSides"`     // 骰子面数
+	DiceSidesExpr string   `json:"diceSidesExpr" yaml:"diceSidesExpr"` // 骰子面数表达式
+	Keys          []string `json:"keys"          yaml:"keys"`          // 可用于 .set xxx 的key
+	EnableTip     string   `json:"enableTip"     yaml:"enableTip"`     // 启用提示
 }
 
 type GameSystemTemplate struct {
-	Name         string                      `yaml:"name" json:"name"`                 // 模板名字
-	FullName     string                      `yaml:"fullName" json:"fullName"`         // 全名
-	Authors      []string                    `yaml:"authors" json:"authors"`           // 作者
-	Version      string                      `yaml:"version" json:"version"`           // 版本
-	UpdatedTime  string                      `yaml:"updatedTime" json:"updatedTime"`   // 更新日期
-	TemplateVer  string                      `yaml:"templateVer" json:"templateVer"`   // 模板版本
-	NameTemplate map[string]NameTemplateItem `yaml:"nameTemplate" json:"nameTemplate"` // 名片模板
-	AttrConfig   AttrConfig                  `yaml:"attrConfig" json:"attrConfig"`     // 默认展示顺序
-	SetConfig    SetConfig                   `yaml:"setConfig" json:"setConfig"`       // .set 命令设置
+	Name         string                      `json:"name"         yaml:"name"`         // 模板名字
+	FullName     string                      `json:"fullName"     yaml:"fullName"`     // 全名
+	Authors      []string                    `json:"authors"      yaml:"authors"`      // 作者
+	Version      string                      `json:"version"      yaml:"version"`      // 版本
+	UpdatedTime  string                      `json:"updatedTime"  yaml:"updatedTime"`  // 更新日期
+	TemplateVer  string                      `json:"templateVer"  yaml:"templateVer"`  // 模板版本
+	NameTemplate map[string]NameTemplateItem `json:"nameTemplate" yaml:"nameTemplate"` // 名片模板
+	AttrConfig   AttrConfig                  `json:"attrConfig"   yaml:"attrConfig"`   // 默认展示顺序
+	SetConfig    SetConfig                   `json:"setConfig"    yaml:"setConfig"`    // .set 命令设置
 
-	Defaults         map[string]int64    `yaml:"defaults" json:"defaults"`                 // 默认值
-	DefaultsComputed map[string]string   `yaml:"defaultsComputed" json:"defaultsComputed"` // 计算类型
-	DetailOverwrite  map[string]string   `yaml:"detailOverwrite" json:"detailOverwrite"`   // 计算过程，如果有的话附加在st show或者计算中。用例见dnd5e模板
-	Alias            map[string][]string `yaml:"alias" json:"alias"`                       // 别名/同义词
+	Defaults         map[string]int64    `json:"defaults"         yaml:"defaults"`         // 默认值
+	DefaultsComputed map[string]string   `json:"defaultsComputed" yaml:"defaultsComputed"` // 计算类型
+	DetailOverwrite  map[string]string   `json:"detailOverwrite"  yaml:"detailOverwrite"`  // 计算过程，如果有的话附加在st show或者计算中。用例见dnd5e模板
+	Alias            map[string][]string `json:"alias"            yaml:"alias"`            // 别名/同义词
 
-	TextMap         *TextTemplateWithWeightDict `yaml:"textMap" json:"textMap"` // UI文本
-	TextMapHelpInfo *TextTemplateWithHelpDict   `yaml:"TextMapHelpInfo" json:"textMapHelpInfo"`
+	TextMap         *TextTemplateWithWeightDict `json:"textMap"         yaml:"textMap"` // UI文本
+	TextMapHelpInfo *TextTemplateWithHelpDict   `json:"textMapHelpInfo" yaml:"TextMapHelpInfo"`
 
-	PreloadCode string `yaml:"preloadCode" json:"preloadCode"` // 预加载代码
+	PreloadCode string `json:"preloadCode" yaml:"preloadCode"` // 预加载代码
 	// BasedOn           string                 `yaml:"based-on"`           // 基于规则
 
-	AliasMap *SyncMap[string, string] `yaml:"-" json:"-"` // 别名/同义词
+	AliasMap *SyncMap[string, string] `json:"-" yaml:"-"` // 别名/同义词
 }
 
 func (t *GameSystemTemplate) GetAlias(varname string) string {

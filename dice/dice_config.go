@@ -19,7 +19,7 @@ const (
 
 type Config struct {
 	d             *Dice `yaml:"-"`
-	ConfigVersion int   `yaml:"configVersion" json:"configVersion"` // 配置版本
+	ConfigVersion int   `json:"configVersion" yaml:"configVersion"` // 配置版本
 
 	// 基础设置
 	BaseConfig `yaml:",inline"`
@@ -134,38 +134,38 @@ func (c *Config) migrateOld2Version1() {
 }
 
 type BaseConfig struct {
-	CommandCompatibleMode   bool       `yaml:"commandCompatibleMode" json:"-"`
-	LastSavedTime           *time.Time `yaml:"lastSavedTime" json:"-"`
-	NoticeIDs               []string   `yaml:"noticeIds" json:"noticeIds"`                             // 通知ID
-	OnlyLogCommandInGroup   bool       `yaml:"onlyLogCommandInGroup" json:"onlyLogCommandInGroup"`     // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool       `yaml:"onlyLogCommandInPrivate" json:"onlyLogCommandInPrivate"` // 日志中仅记录命令
-	VersionCode             int        `yaml:"versionCode" json:"versionCode"`                         // 版本ID(配置文件)
-	MessageDelayRangeStart  float64    `yaml:"messageDelayRangeStart" json:"messageDelayRangeStart"`   // 指令延迟区间
-	MessageDelayRangeEnd    float64    `yaml:"messageDelayRangeEnd" json:"messageDelayRangeEnd"`
-	WorkInQQChannel         bool       `yaml:"workInQQChannel" json:"workInQQChannel"`
-	QQChannelAutoOn         bool       `yaml:"QQChannelAutoOn" json:"QQChannelAutoOn"`                 // QQ频道中自动开启(默认不开)
-	QQChannelLogMessage     bool       `yaml:"QQChannelLogMessage" json:"QQChannelLogMessage"`         // QQ频道中记录消息(默认不开)
-	QQEnablePoke            bool       `yaml:"QQEnablePoke" json:"QQEnablePoke"`                       // 启用戳一戳
-	TextCmdTrustOnly        bool       `yaml:"textCmdTrustOnly" json:"textCmdTrustOnly"`               // 只允许信任用户或master使用text指令
-	IgnoreUnaddressedBotCmd bool       `yaml:"ignoreUnaddressedBotCmd" json:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
-	UILogLimit              int64      `yaml:"UILogLimit" json:"-"`
-	FriendAddComment        string     `yaml:"friendAddComment" json:"friendAddComment"` // 加好友验证信息
-	CustomReplyConfigEnable bool       `yaml:"customReplyConfigEnable" json:"customReplyConfigEnable"`
-	AutoReloginEnable       bool       `yaml:"autoReloginEnable" json:"autoReloginEnable"`       // 启用自动重新登录
-	RefuseGroupInvite       bool       `yaml:"refuseGroupInvite" json:"refuseGroupInvite"`       // 拒绝加入新群
-	UpgradeWindowID         string     `yaml:"upgradeWindowId" json:"-"`                         // 执行升级指令的窗口
-	UpgradeEndpointID       string     `yaml:"upgradeEndpointId" json:"-"`                       // 执行升级指令的端点
-	BotExtFreeSwitch        bool       `yaml:"botExtFreeSwitch" json:"botExtFreeSwitch"`         // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
-	TrustOnlyMode           bool       `yaml:"trustOnlyMode" json:"trustOnlyMode"`               // 只有信任的用户/master可以拉群和使用
-	AliveNoticeEnable       bool       `yaml:"aliveNoticeEnable" json:"aliveNoticeEnable"`       // 定时通知
-	AliveNoticeValue        string     `yaml:"aliveNoticeValue" json:"aliveNoticeValue"`         // 定时通知间隔
-	ReplyDebugMode          bool       `yaml:"replyDebugMode" json:"replyDebugMode"`             // 回复调试
-	PlayerNameWrapEnable    bool       `yaml:"playerNameWrapEnable" json:"playerNameWrapEnable"` // 启用玩家名称外框
+	CommandCompatibleMode   bool       `json:"-"                       yaml:"commandCompatibleMode"`
+	LastSavedTime           *time.Time `json:"-"                       yaml:"lastSavedTime"`
+	NoticeIDs               []string   `json:"noticeIds"               yaml:"noticeIds"`               // 通知ID
+	OnlyLogCommandInGroup   bool       `json:"onlyLogCommandInGroup"   yaml:"onlyLogCommandInGroup"`   // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool       `json:"onlyLogCommandInPrivate" yaml:"onlyLogCommandInPrivate"` // 日志中仅记录命令
+	VersionCode             int        `json:"versionCode"             yaml:"versionCode"`             // 版本ID(配置文件)
+	MessageDelayRangeStart  float64    `json:"messageDelayRangeStart"  yaml:"messageDelayRangeStart"`  // 指令延迟区间
+	MessageDelayRangeEnd    float64    `json:"messageDelayRangeEnd"    yaml:"messageDelayRangeEnd"`
+	WorkInQQChannel         bool       `json:"workInQQChannel"         yaml:"workInQQChannel"`
+	QQChannelAutoOn         bool       `json:"QQChannelAutoOn"         yaml:"QQChannelAutoOn"`         // QQ频道中自动开启(默认不开)
+	QQChannelLogMessage     bool       `json:"QQChannelLogMessage"     yaml:"QQChannelLogMessage"`     // QQ频道中记录消息(默认不开)
+	QQEnablePoke            bool       `json:"QQEnablePoke"            yaml:"QQEnablePoke"`            // 启用戳一戳
+	TextCmdTrustOnly        bool       `json:"textCmdTrustOnly"        yaml:"textCmdTrustOnly"`        // 只允许信任用户或master使用text指令
+	IgnoreUnaddressedBotCmd bool       `json:"ignoreUnaddressedBotCmd" yaml:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
+	UILogLimit              int64      `json:"-"                       yaml:"UILogLimit"`
+	FriendAddComment        string     `json:"friendAddComment"        yaml:"friendAddComment"` // 加好友验证信息
+	CustomReplyConfigEnable bool       `json:"customReplyConfigEnable" yaml:"customReplyConfigEnable"`
+	AutoReloginEnable       bool       `json:"autoReloginEnable"       yaml:"autoReloginEnable"`    // 启用自动重新登录
+	RefuseGroupInvite       bool       `json:"refuseGroupInvite"       yaml:"refuseGroupInvite"`    // 拒绝加入新群
+	UpgradeWindowID         string     `json:"-"                       yaml:"upgradeWindowId"`      // 执行升级指令的窗口
+	UpgradeEndpointID       string     `json:"-"                       yaml:"upgradeEndpointId"`    // 执行升级指令的端点
+	BotExtFreeSwitch        bool       `json:"botExtFreeSwitch"        yaml:"botExtFreeSwitch"`     // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
+	TrustOnlyMode           bool       `json:"trustOnlyMode"           yaml:"trustOnlyMode"`        // 只有信任的用户/master可以拉群和使用
+	AliveNoticeEnable       bool       `json:"aliveNoticeEnable"       yaml:"aliveNoticeEnable"`    // 定时通知
+	AliveNoticeValue        string     `json:"aliveNoticeValue"        yaml:"aliveNoticeValue"`     // 定时通知间隔
+	ReplyDebugMode          bool       `json:"replyDebugMode"          yaml:"replyDebugMode"`       // 回复调试
+	PlayerNameWrapEnable    bool       `json:"playerNameWrapEnable"    yaml:"playerNameWrapEnable"` // 启用玩家名称外框
 
-	VMVersionForReply      string `json:"VMVersionForReply" yaml:"VMVersionForReply"`           // 自定义回复使用的vm版本
-	VMVersionForDeck       string `json:"VMVersionForDeck" yaml:"VMVersionForDeck"`             // 牌堆使用的vm版本
+	VMVersionForReply      string `json:"VMVersionForReply"      yaml:"VMVersionForReply"`      // 自定义回复使用的vm版本
+	VMVersionForDeck       string `json:"VMVersionForDeck"       yaml:"VMVersionForDeck"`       // 牌堆使用的vm版本
 	VMVersionForCustomText string `json:"VMVersionForCustomText" yaml:"VMVersionForCustomText"` // 自定义文案使用的vm版本
-	VMVersionForMsg        string `json:"VMVersionForMsg" yaml:"VMVersionForMsg"`               // 消息里使用的vm版本，也包括可能的一些边角类型的执行选择
+	VMVersionForMsg        string `json:"VMVersionForMsg"        yaml:"VMVersionForMsg"`        // 消息里使用的vm版本，也包括可能的一些边角类型的执行选择
 
 	// TODO: 历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
 	Name    string `yaml:"name"`    // 名称，默认为default
@@ -173,52 +173,52 @@ type BaseConfig struct {
 }
 
 type RateLimitConfig struct {
-	RateLimitEnabled         bool       `yaml:"rateLimitEnabled" json:"rateLimitEnabled"`           // 启用频率限制 (刷屏限制)
-	PersonalReplenishRateStr string     `yaml:"personalReplenishRate" json:"personalReplenishRate"` // 个人刷屏警告速率，字符串格式
-	PersonalReplenishRate    rate.Limit `yaml:"-" json:"-"`                                         // 个人刷屏警告速率
-	GroupReplenishRateStr    string     `yaml:"groupReplenishRate" json:"groupReplenishRate"`       // 群组刷屏警告速率，字符串格式
-	GroupReplenishRate       rate.Limit `yaml:"-" json:"-"`                                         // 群组刷屏警告速率
-	PersonalBurst            int64      `yaml:"personalBurst" json:"personalBurst"`                 // 个人自定义上限
-	GroupBurst               int64      `yaml:"groupBurst" json:"groupBurst"`                       // 群组自定义上限
+	RateLimitEnabled         bool       `json:"rateLimitEnabled"      yaml:"rateLimitEnabled"`      // 启用频率限制 (刷屏限制)
+	PersonalReplenishRateStr string     `json:"personalReplenishRate" yaml:"personalReplenishRate"` // 个人刷屏警告速率，字符串格式
+	PersonalReplenishRate    rate.Limit `json:"-"                     yaml:"-"`                     // 个人刷屏警告速率
+	GroupReplenishRateStr    string     `json:"groupReplenishRate"    yaml:"groupReplenishRate"`    // 群组刷屏警告速率，字符串格式
+	GroupReplenishRate       rate.Limit `json:"-"                     yaml:"-"`                     // 群组刷屏警告速率
+	PersonalBurst            int64      `json:"personalBurst"         yaml:"personalBurst"`         // 个人自定义上限
+	GroupBurst               int64      `json:"groupBurst"            yaml:"groupBurst"`            // 群组自定义上限
 }
 
 type QuitInactiveConfig struct {
-	QuitInactiveThreshold time.Duration `yaml:"quitInactiveThreshold" json:"-"` // 退出不活跃群组的时间阈值
+	QuitInactiveThreshold time.Duration `json:"-" yaml:"quitInactiveThreshold"` // 退出不活跃群组的时间阈值
 	quitInactiveCronEntry cron.EntryID
 
-	QuitInactiveThresholdDays float64 `yaml:"-" json:"quitInactiveThreshold"` // 为了和前端通信
+	QuitInactiveThresholdDays float64 `json:"quitInactiveThreshold" yaml:"-"` // 为了和前端通信
 
-	QuitInactiveBatchSize int64 `yaml:"quitInactiveBatchSize" json:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
-	QuitInactiveBatchWait int64 `yaml:"quitInactiveBatchWait" json:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
+	QuitInactiveBatchSize int64 `json:"quitInactiveBatchSize" yaml:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
+	QuitInactiveBatchWait int64 `json:"quitInactiveBatchWait" yaml:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
 }
 
 type ExtConfig struct {
-	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" json:"-" jsbind:"defaultCocRuleIndex"` // 默认coc index
-	MaxExecuteTime      int64 `yaml:"maxExecuteTime" json:"-" jsbind:"maxExecuteTime"`           // 最大骰点次数
-	MaxCocCardGen       int64 `yaml:"maxCocCardGen" json:"-" jsbind:"maxCocCardGen"`             // 最大coc制卡数
+	DefaultCocRuleIndex int64 `jsbind:"defaultCocRuleIndex" json:"-" yaml:"defaultCocRuleIndex"` // 默认coc index
+	MaxExecuteTime      int64 `jsbind:"maxExecuteTime"      json:"-" yaml:"maxExecuteTime"`      // 最大骰点次数
+	MaxCocCardGen       int64 `jsbind:"maxCocCardGen"       json:"-" yaml:"maxCocCardGen"`       // 最大coc制卡数
 
-	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings" json:"extDefaultSettings"` // 新群扩展按此顺序加载
+	ExtDefaultSettings []*ExtDefaultSettingItem `json:"extDefaultSettings" yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 }
 
 type BanConfig struct {
-	BanList *BanListInfo `yaml:"banList" json:"-"`
+	BanList *BanListInfo `json:"-" yaml:"banList"`
 }
 
 type JsConfig struct {
-	JsEnable          bool            `yaml:"jsEnable" json:"jsEnable"`
-	DisabledJsScripts map[string]bool `yaml:"disabledJsScripts" json:"disabledJsScripts"` // 作为set
+	JsEnable          bool            `json:"jsEnable"          yaml:"jsEnable"`
+	DisabledJsScripts map[string]bool `json:"disabledJsScripts" yaml:"disabledJsScripts"` // 作为set
 }
 
 type StoryLogConfig struct {
-	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable" json:"logSizeNoticeEnable"` // 开启日志数量提示
-	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount" json:"logSizeNoticeCount"`   // 日志数量提示阈值，默认500
+	LogSizeNoticeEnable bool `json:"logSizeNoticeEnable" yaml:"logSizeNoticeEnable"` // 开启日志数量提示
+	LogSizeNoticeCount  int  `json:"logSizeNoticeCount"  yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
 }
 
 type MailConfig struct {
-	MailEnable   bool   `json:"mailEnable" yaml:"mailEnable"`     // 是否启用
-	MailFrom     string `json:"mailFrom" yaml:"mailFrom"`         // 邮箱来源
+	MailEnable   bool   `json:"mailEnable"   yaml:"mailEnable"`   // 是否启用
+	MailFrom     string `json:"mailFrom"     yaml:"mailFrom"`     // 邮箱来源
 	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码
-	MailSMTP     string `json:"mailSmtp" yaml:"mailSmtp"`         // 邮箱 smtp 地址
+	MailSMTP     string `json:"mailSmtp"     yaml:"mailSmtp"`     // 邮箱 smtp 地址
 }
 
 type NewsConfig struct {
@@ -227,21 +227,21 @@ type NewsConfig struct {
 
 type PublicDiceConfig struct {
 	Enable bool   `json:"publicDiceEnable" yaml:"publicDiceEnable"`
-	ID     string `json:"publicDiceId" yaml:"publicDiceId"`
-	Name   string `json:"publicDiceName" yaml:"publicDiceName"`
-	Brief  string `json:"publicDiceBrief" yaml:"publicDiceBrief"`
-	Note   string `json:"publicDiceNote" yaml:"publicDiceNote"`
+	ID     string `json:"publicDiceId"     yaml:"publicDiceId"`
+	Name   string `json:"publicDiceName"   yaml:"publicDiceName"`
+	Brief  string `json:"publicDiceBrief"  yaml:"publicDiceBrief"`
+	Note   string `json:"publicDiceNote"   yaml:"publicDiceNote"`
 	Avatar string `json:"publicDiceAvatar" yaml:"publicDiceAvatar"`
 }
 
 type CensorConfig struct {
-	EnableCensor         bool                   `json:"enableCensor" yaml:"enableCensor"` // 启用敏感词审查
-	CensorMode           CensorMode             `json:"censorMode" yaml:"censorMode"`
-	CensorThresholds     map[censor.Level]int   `json:"censorThresholds" yaml:"censorThresholds"` // 敏感词阈值
-	CensorHandlers       map[censor.Level]uint8 `json:"censorHandlers" yaml:"censorHandlers"`
-	CensorScores         map[censor.Level]int   `json:"censorScores" yaml:"censorScores"`                 // 敏感词怒气值
-	CensorCaseSensitive  bool                   `json:"censorCaseSensitive" yaml:"censorCaseSensitive"`   // 敏感词大小写敏感
-	CensorMatchPinyin    bool                   `json:"censorMatchPinyin" yaml:"censorMatchPinyin"`       // 敏感词匹配拼音
+	EnableCensor         bool                   `json:"enableCensor"         yaml:"enableCensor"` // 启用敏感词审查
+	CensorMode           CensorMode             `json:"censorMode"           yaml:"censorMode"`
+	CensorThresholds     map[censor.Level]int   `json:"censorThresholds"     yaml:"censorThresholds"` // 敏感词阈值
+	CensorHandlers       map[censor.Level]uint8 `json:"censorHandlers"       yaml:"censorHandlers"`
+	CensorScores         map[censor.Level]int   `json:"censorScores"         yaml:"censorScores"`         // 敏感词怒气值
+	CensorCaseSensitive  bool                   `json:"censorCaseSensitive"  yaml:"censorCaseSensitive"`  // 敏感词大小写敏感
+	CensorMatchPinyin    bool                   `json:"censorMatchPinyin"    yaml:"censorMatchPinyin"`    // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
 }
 

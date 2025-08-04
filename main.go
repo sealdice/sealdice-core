@@ -146,30 +146,30 @@ func fixTimezone() {
 	if err != nil {
 		return
 	}
-	time.Local = z
+	time.Local = z //nolint:reassign // old code
 }
 
 func main() {
 	var opts struct {
-		Version                bool   `long:"version" description:"显示版本号"`
-		Install                bool   `short:"i" long:"install" description:"安装为系统服务"`
-		Uninstall              bool   `long:"uninstall" description:"删除系统服务"`
-		ShowConsole            bool   `long:"show-console" description:"Windows上显示控制台界面"`
-		HideUIWhenBoot         bool   `long:"hide-ui" description:"启动时不弹出UI"`
-		ServiceUser            string `long:"service-user" description:"用于启动服务的用户"`
-		ServiceName            string `long:"service-name" description:"自定义服务名，默认为sealdice"`
-		MultiInstanceOnWindows bool   `short:"m" long:"multi-instance" description:"允许在Windows上运行多个海豹"`
-		Address                string `long:"address" description:"将UI的http服务地址改为此值，例: 0.0.0.0:3211"`
-		DoUpdateWin            bool   `long:"do-update-win" description:"windows自动升级用，不要在任何情况下主动调用"`
-		DoUpdateOthers         bool   `long:"do-update-others" description:"linux/mac自动升级用，不要在任何情况下主动调用"`
+		Version                bool   `description:"显示版本号"                                                           long:"version"`
+		Install                bool   `description:"安装为系统服务"                                                         long:"install"          short:"i"`
+		Uninstall              bool   `description:"删除系统服务"                                                          long:"uninstall"`
+		ShowConsole            bool   `description:"Windows上显示控制台界面"                                                 long:"show-console"`
+		HideUIWhenBoot         bool   `description:"启动时不弹出UI"                                                        long:"hide-ui"`
+		ServiceUser            string `description:"用于启动服务的用户"                                                       long:"service-user"`
+		ServiceName            string `description:"自定义服务名，默认为sealdice"                                              long:"service-name"`
+		MultiInstanceOnWindows bool   `description:"允许在Windows上运行多个海豹"                                               long:"multi-instance"   short:"m"`
+		Address                string `description:"将UI的http服务地址改为此值，例: 0.0.0.0:3211"                                long:"address"`
+		DoUpdateWin            bool   `description:"windows自动升级用，不要在任何情况下主动调用"                                       long:"do-update-win"`
+		DoUpdateOthers         bool   `description:"linux/mac自动升级用，不要在任何情况下主动调用"                                     long:"do-update-others"`
 		Delay                  int64  `long:"delay"`
 		JustForTest            bool   `long:"just-for-test"`
-		DBCheck                bool   `long:"db-check" description:"检查数据库是否有问题"`
-		ShowEnv                bool   `long:"show-env" description:"显示环境变量"`
-		VacuumDB               bool   `long:"vacuum" description:"对数据库进行整理, 使其收缩到最小尺寸"`
-		UpdateTest             bool   `long:"update-test" description:"更新测试"`
-		LogLevel               int8   `long:"log-level" description:"设置日志等级" default:"0" choice:"-1" choice:"0" choice:"1" choice:"2" choice:"3" choice:"4" choice:"5"`
-		ContainerMode          bool   `long:"container-mode" description:"容器模式，该模式下禁用内置客户端"`
+		DBCheck                bool   `description:"检查数据库是否有问题"                                                      long:"db-check"`
+		ShowEnv                bool   `description:"显示环境变量"                                                          long:"show-env"`
+		VacuumDB               bool   `description:"对数据库进行整理, 使其收缩到最小尺寸"                                             long:"vacuum"`
+		UpdateTest             bool   `description:"更新测试"                                                            long:"update-test"`
+		LogLevel               int8   `choice:"-1"                                                                   choice:"0"              choice:"1" choice:"2" choice:"3" choice:"4" choice:"5" default:"0" description:"设置日志等级"             long:"log-level"`
+		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
 	}
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -510,11 +510,11 @@ func diceServe(d *dice.Dice) {
 
 				switch conn.Platform {
 				case "QQ":
-					if conn.EndPointInfoBase.ProtocolType == "walle-q" {
+					if conn.ProtocolType == "walle-q" {
 						pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
 						dice.WalleQServe(d, conn, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, false)
 					}
-					if conn.EndPointInfoBase.ProtocolType == "onebot" {
+					if conn.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 							dice.LagrangeServe(d, conn, dice.LagrangeLoginInfo{
@@ -532,20 +532,20 @@ func diceServe(d *dice.Dice) {
 							})
 						}
 					}
-					if conn.EndPointInfoBase.ProtocolType == "red" {
+					if conn.ProtocolType == "red" {
 						dice.ServeRed(d, conn)
 					}
-					if conn.EndPointInfoBase.ProtocolType == "official" {
+					if conn.ProtocolType == "official" {
 						dice.ServerOfficialQQ(d, conn)
 					}
-					if conn.EndPointInfoBase.ProtocolType == "satori" {
+					if conn.ProtocolType == "satori" {
 						dice.ServeSatori(d, conn)
 					}
-					if conn.EndPointInfoBase.ProtocolType == "LagrangeGo" {
+					if conn.ProtocolType == "LagrangeGo" {
 						// dice.ServeLagrangeGo(d, conn)
 						return
 					}
-					if conn.EndPointInfoBase.ProtocolType == "milky" {
+					if conn.ProtocolType == "milky" {
 						dice.ServeMilky(d, conn)
 						return
 					}

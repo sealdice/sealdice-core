@@ -108,8 +108,8 @@ func censorGetConfig(c echo.Context) error {
 
 type LevelConfig struct {
 	Threshold int      `json:"threshold" mapstructure:"threshold"`
-	Handlers  []string `json:"handlers" mapstructure:"handlers"`
-	Score     int      `json:"score" mapstructure:"score"`
+	Handlers  []string `json:"handlers"  mapstructure:"handlers"`
+	Score     int      `json:"score"     mapstructure:"score"`
 }
 
 func getLevelConfig(

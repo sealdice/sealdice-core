@@ -71,11 +71,7 @@ func serverGocq(d *Dice, ep *EndPointInfo, conn *PlatformAdapterGocq) {
 	}
 
 	conn.reconnectTimes = 0
-	for {
-		if checkQuit() {
-			break
-		}
-
+	for !checkQuit() {
 		// 骰子开始连接
 		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, conn.reconnectTimes, 5)
 		ret := ep.Adapter.Serve()
@@ -134,11 +130,7 @@ func serverWalleQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterWalleQ) {
 	}
 
 	waitTimes := 0
-	for {
-		if checkQuit() {
-			break
-		}
-
+	for !checkQuit() {
 		// 骰子开始连接
 		d.Logger.Infof("开始连接 onebot 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
 		ret := ep.Adapter.Serve()
@@ -206,10 +198,7 @@ func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) {
 	d.Save(false)
 	waitTimes := 0
 
-	for {
-		if ep.State != 2 {
-			break
-		}
+	for ep.State == 2 {
 		// 骰子开始连接
 		d.Logger.Infof("开始连接 satori 服务，帐号 <%s>(%s)，重试计数[%d/%d]", ep.Nickname, ep.UserID, waitTimes, 5)
 		ret := ep.Adapter.Serve()

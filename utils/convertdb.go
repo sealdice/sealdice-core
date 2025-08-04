@@ -14,7 +14,7 @@ func GetSQLXDB(db *gorm.DB) (*sqlx.DB, error) {
 	}
 
 	// 获取 GORM 使用的驱动名称
-	driverName := db.Dialector.Name()
+	driverName := db.Name()
 
 	// 使用 sqlx.NewDb 传递现有的 *sql.DB 和驱动名称
 	sqlxDB := sqlx.NewDb(sqlDB, driverName)

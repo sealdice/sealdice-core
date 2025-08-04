@@ -98,7 +98,7 @@ func AttrsNewItem(db *sqlx.Tx, item *model.AttributesItemModel) (*model.Attribut
 // 群组个人数据转换
 func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_group_user", map[string]any{})
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return 0, 0, err
 	}
 	defer rows.Close()
@@ -195,7 +195,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 // 群数据转换
 func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_group", map[string]any{})
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return 0, 0, err
 	}
 	defer rows.Close()
@@ -265,7 +265,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 // 全局个人数据转换、对应attrs_user和玩家人物卡
 func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_user where length(data) < 9000000", map[string]any{})
-	if err != nil {
+	if err != nil || rows.Err() != nil {
 		return 0, 0, 0, err
 	}
 	defer rows.Close()

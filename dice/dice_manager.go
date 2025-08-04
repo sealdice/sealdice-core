@@ -14,13 +14,13 @@ import (
 )
 
 type VersionInfo struct {
-	VersionLatest           string `yaml:"versionLatest" json:"versionLatest"`
-	VersionLatestDetail     string `yaml:"versionLatestDetail" json:"versionLatestDetail"`
-	VersionLatestCode       int64  `yaml:"versionLatestCode" json:"versionLatestCode"`
-	VersionLatestNote       string `yaml:"versionLatestNote" json:"versionLatestNote"`
-	MinUpdateSupportVersion int64  `yaml:"minUpdateSupportVersion" json:"minUpdateSupportVersion"`
-	NewVersionURLPrefix     string `yaml:"newVersionUrlPrefix" json:"newVersionUrlPrefix"`
-	UpdaterURLPrefix        string `yaml:"updaterUrlPrefix" json:"updaterUrlPrefix"`
+	VersionLatest           string `json:"versionLatest"           yaml:"versionLatest"`
+	VersionLatestDetail     string `json:"versionLatestDetail"     yaml:"versionLatestDetail"`
+	VersionLatestCode       int64  `json:"versionLatestCode"       yaml:"versionLatestCode"`
+	VersionLatestNote       string `json:"versionLatestNote"       yaml:"versionLatestNote"`
+	MinUpdateSupportVersion int64  `json:"minUpdateSupportVersion" yaml:"minUpdateSupportVersion"`
+	NewVersionURLPrefix     string `json:"newVersionUrlPrefix"     yaml:"newVersionUrlPrefix"`
+	UpdaterURLPrefix        string `json:"updaterUrlPrefix"        yaml:"updaterUrlPrefix"`
 }
 
 type GroupNameCacheItem struct {

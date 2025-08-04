@@ -15,12 +15,12 @@ import (
 )
 
 type PlatformAdapterMilky struct {
-	Session       *IMSession     `yaml:"-" json:"-"`
-	EndPoint      *EndPointInfo  `yaml:"-" json:"-"`
-	WsGateway     string         `yaml:"ws_gateway" json:"ws_gateway"`
-	RestGateway   string         `yaml:"rest_gateway" json:"rest_gateway"`
-	Token         string         `yaml:"token" json:"token"`
-	IntentSession *milky.Session `yaml:"-" json:"-"`
+	Session       *IMSession     `json:"-"            yaml:"-"`
+	EndPoint      *EndPointInfo  `json:"-"            yaml:"-"`
+	WsGateway     string         `json:"ws_gateway"   yaml:"ws_gateway"`
+	RestGateway   string         `json:"rest_gateway" yaml:"rest_gateway"`
+	Token         string         `json:"token"        yaml:"token"`
+	IntentSession *milky.Session `json:"-"            yaml:"-"`
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
@@ -124,7 +124,8 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			log.Debugf("Ignoring self message: %v", m)
 			return // 忽略自己的消息
 		}
-		if m.MessageScene == "group" {
+		switch m.MessageScene {
+		case "group":
 			if m.Group != nil || m.GroupMember != nil {
 				msg.GroupID = FormatDiceIDQQGroup(strconv.FormatInt(m.Group.GroupId, 10))
 				msg.MessageType = "group"
@@ -135,7 +136,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				log.Warnf("Received group message without group info: %v", m)
 				return // 无法处理的消息
 			}
-		} else if m.MessageScene == "friend" {
+		case "friend":
 			if m.Friend != nil {
 				msg.MessageType = "private"
 				msg.Sender.Nickname = m.Friend.Nickname
@@ -143,7 +144,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				log.Warnf("Received friend message without friend info: %v", m)
 				return // 无法处理的消息
 			}
-		} else {
+		default:
 			return // 临时对话消息，不处理
 		}
 		if m.Segments != nil {

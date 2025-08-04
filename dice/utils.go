@@ -465,13 +465,14 @@ func CheckDialErr(err error) syscall.Errno {
 
 	switch t := err.(type) { //nolint:errorlint
 	case *net.OpError:
-		if t.Op == "dial" {
+		switch t.Op {
+		case "dial":
 			// 但好像也可能是 unknown host 之类
 			if strings.Contains(err.Error(), "the target machine actively refused it") {
 				return syscall.ECONNREFUSED
 			}
 			return 1
-		} else if t.Op == "read" {
+		case "read":
 			return syscall.ECONNREFUSED
 		}
 

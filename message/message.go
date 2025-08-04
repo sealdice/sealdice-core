@@ -426,7 +426,7 @@ func ConvertStringMessage(raw string) (r []IMessageElement) {
 
 	for text != "" {
 		i := 0
-		for i < len(text) && !(text[i] == '[' && i+4 < len(text) && text[i:i+4] == "[CQ:") {
+		for i < len(text) && (text[i] != '[' || i+4 >= len(text) || text[i:i+4] != "[CQ:") {
 			i++
 		}
 		if i > 0 {
@@ -434,7 +434,7 @@ func ConvertStringMessage(raw string) (r []IMessageElement) {
 		}
 
 		if i+4 > len(text) {
-			return
+			return r
 		}
 		text = text[i+4:]
 		i = 0
@@ -442,7 +442,7 @@ func ConvertStringMessage(raw string) (r []IMessageElement) {
 			i++
 		}
 		if i+1 > len(text) {
-			return
+			return r
 		}
 		arg = text[:i]
 		for k := range dMap {
@@ -462,7 +462,7 @@ func ConvertStringMessage(raw string) (r []IMessageElement) {
 				i++
 			}
 			if i+1 > len(text) {
-				return
+				return r
 			}
 			key = text[:i]
 			text = text[i+1:]
@@ -472,12 +472,12 @@ func ConvertStringMessage(raw string) (r []IMessageElement) {
 			}
 
 			if i+1 > len(text) {
-				return
+				return r
 			}
 			dMap[key] = text[:i]
 			text = text[i:]
 			i = 0
 		}
 	}
-	return
+	return r
 }

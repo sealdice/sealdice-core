@@ -230,7 +230,7 @@ func (d *Dice) registerCoreCommands() {
 			var (
 				useGroupSearch bool
 				group          string
-				text           string = cmdArgs.CleanArgs
+				text           = cmdArgs.CleanArgs
 			)
 			if rawGroup := cmdArgs.GetArgN(1); strings.HasPrefix(rawGroup, "#") {
 				useGroupSearch = true
@@ -545,7 +545,7 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				if cmdArgs.IsArgEqual(1, "on") {
-					if !(msg.Platform == "QQ-CH" || ctx.Dice.Config.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+					if msg.Platform != "QQ-CH" && !ctx.Dice.Config.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -568,7 +568,7 @@ func (d *Dice) registerCoreCommands() {
 
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "off") {
-					if !(msg.Platform == "QQ-CH" || ctx.Dice.Config.BotExtFreeSwitch || ctx.PrivilegeLevel >= 40) {
+					if msg.Platform != "QQ-CH" && !ctx.Dice.Config.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
@@ -1746,9 +1746,10 @@ func (d *Dice) registerCoreCommands() {
 				if isSetGroup {
 					ctx.Group.DiceSideNum = num
 					if !modSwitch {
-						if num == 20 {
+						switch num {
+						case 20:
 							tipText += "20面骰。如果要进行DND游戏，建议执行.set dnd以确保开启dnd5e指令"
-						} else if num == 100 {
+						case 100:
 							tipText += "100面骰。如果要进行COC游戏，建议执行.set coc以确保开启coc7指令"
 						}
 					}
@@ -2216,9 +2217,10 @@ func setRuleByName(ctx *MsgContext, name string) {
 	if err == nil {
 		ctx.Group.DiceSideNum = num
 		if !modSwitch {
-			if num == 20 {
+			switch num {
+			case 20:
 				tipText += "20面骰。如果要进行DND游戏，建议执行.set dnd以确保开启dnd5e指令"
-			} else if num == 100 {
+			case 100:
 				tipText += "100面骰。如果要进行COC游戏，建议执行.set coc以确保开启coc7指令"
 			}
 		}

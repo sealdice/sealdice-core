@@ -51,58 +51,58 @@ type echoMapInfo struct {
 }
 
 type PlatformAdapterGocq struct {
-	EndPoint *EndPointInfo `yaml:"-" json:"-"`
-	Session  *IMSession    `yaml:"-" json:"-"`
+	EndPoint *EndPointInfo `json:"-" yaml:"-"`
+	Session  *IMSession    `json:"-" yaml:"-"`
 
-	IsReverse   bool       `yaml:"isReverse" json:"isReverse" `
-	ReverseAddr string     `yaml:"reverseAddr" json:"reverseAddr"`
-	reverseApp  *echo.Echo `yaml:"-" json:"-"`
+	IsReverse   bool       `json:"isReverse"   yaml:"isReverse"`
+	ReverseAddr string     `json:"reverseAddr" yaml:"reverseAddr"`
+	reverseApp  *echo.Echo `json:"-"           yaml:"-"`
 
-	Socket      *gowebsocket.Socket `yaml:"-" json:"-"`
-	ConnectURL  string              `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
-	AccessToken string              `yaml:"accessToken" json:"accessToken"` // 访问令牌
+	Socket      *gowebsocket.Socket `json:"-"           yaml:"-"`
+	ConnectURL  string              `json:"connectUrl"  yaml:"connectUrl"`  // 连接地址
+	AccessToken string              `json:"accessToken" yaml:"accessToken"` // 访问令牌
 
-	UseInPackClient bool   `yaml:"useInPackGoCqhttp" json:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
-	BuiltinMode     string `yaml:"builtinMode" json:"builtinMode"`             // 分为 lagrange 和 gocq
-	GoCqhttpState   int    `yaml:"-" json:"loginState"`                        // 当前状态
-	CurLoginIndex   int    `yaml:"-" json:"curLoginIndex"`                     // 当前登录序号，如果正在进行的登录不是该Index，证明过时
+	UseInPackClient bool   `json:"useInPackGoCqhttp" yaml:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
+	BuiltinMode     string `json:"builtinMode"       yaml:"builtinMode"`       // 分为 lagrange 和 gocq
+	GoCqhttpState   int    `json:"loginState"        yaml:"-"`                 // 当前状态
+	CurLoginIndex   int    `json:"curLoginIndex"     yaml:"-"`                 // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
-	GoCqhttpProcess           *procs.Process `yaml:"-" json:"-"`
-	GocqhttpLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
+	GoCqhttpProcess           *procs.Process `json:"-"                    yaml:"-"`
+	GocqhttpLoginFailedReason string         `json:"curLoginFailedReason" yaml:"-"` // 当前登录失败原因
 
-	GoCqhttpLoginCaptcha       string `yaml:"-" json:"goCqHttpLoginCaptcha"`
-	GoCqhttpLoginVerifyCode    string `yaml:"-" json:"goCqHttpLoginVerifyCode"`
-	GoCqhttpLoginDeviceLockURL string `yaml:"-" json:"goCqHttpLoginDeviceLockUrl"`
-	GoCqhttpQrcodeData         []byte `yaml:"-" json:"-"` // 二维码数据
-	GoCqhttpSmsNumberTip       string `yaml:"-" json:"goCqHttpSmsNumberTip"`
+	GoCqhttpLoginCaptcha       string `json:"goCqHttpLoginCaptcha"       yaml:"-"`
+	GoCqhttpLoginVerifyCode    string `json:"goCqHttpLoginVerifyCode"    yaml:"-"`
+	GoCqhttpLoginDeviceLockURL string `json:"goCqHttpLoginDeviceLockUrl" yaml:"-"`
+	GoCqhttpQrcodeData         []byte `json:"-"                          yaml:"-"` // 二维码数据
+	GoCqhttpSmsNumberTip       string `json:"goCqHttpSmsNumberTip"       yaml:"-"`
 
-	GoCqLastAutoLoginTime      int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                             // 上次自动重新登录的时间
-	GoCqhttpLoginSucceeded     bool  `yaml:"inPackGoCqHttpLoginSucceeded" json:"-"`                            // 是否登录成功过
-	GoCqhttpLastRestrictedTime int64 `yaml:"inPackGoCqHttpLastRestricted" json:"inPackGoCqHttpLastRestricted"` // 上次风控时间
-	ForcePrintLog              bool  `yaml:"forcePrintLog" json:"forcePrintLog"`                               // 是否一定输出日志，隐藏配置项
+	GoCqLastAutoLoginTime      int64 `json:"-"                            yaml:"inPackGoCqLastAutoLoginTime"`  // 上次自动重新登录的时间
+	GoCqhttpLoginSucceeded     bool  `json:"-"                            yaml:"inPackGoCqHttpLoginSucceeded"` // 是否登录成功过
+	GoCqhttpLastRestrictedTime int64 `json:"inPackGoCqHttpLastRestricted" yaml:"inPackGoCqHttpLastRestricted"` // 上次风控时间
+	ForcePrintLog              bool  `json:"forcePrintLog"                yaml:"forcePrintLog"`                // 是否一定输出日志，隐藏配置项
 	reconnectTimes             int   // 重连次数
 
-	InPackGoCqhttpProtocol       int      `yaml:"inPackGoCqHttpProtocol" json:"inPackGoCqHttpProtocol"`
-	InPackGoCqhttpAppVersion     string   `yaml:"inPackGoCqHttpAppVersion" json:"inPackGoCqHttpAppVersion"`
-	InPackGoCqhttpPassword       string   `yaml:"inPackGoCqHttpPassword" json:"-"`
-	diceServing                  bool     `yaml:"-"`                                              // 特指 diceServing 是否正在运行
-	InPackGoCqhttpDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
-	IgnoreFriendRequest          bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
+	InPackGoCqhttpProtocol       int      `json:"inPackGoCqHttpProtocol"   yaml:"inPackGoCqHttpProtocol"`
+	InPackGoCqhttpAppVersion     string   `json:"inPackGoCqHttpAppVersion" yaml:"inPackGoCqHttpAppVersion"`
+	InPackGoCqhttpPassword       string   `json:"-"                        yaml:"inPackGoCqHttpPassword"`
+	diceServing                  bool     `yaml:"-"`                                                   // 特指 diceServing 是否正在运行
+	InPackGoCqhttpDisconnectedCH chan int `json:"-"                        yaml:"-"`                   // 信号量，用于关闭连接
+	IgnoreFriendRequest          bool     `json:"ignoreFriendRequest"      yaml:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
 	customEcho     int64                          `yaml:"-"` // 自定义返回标记
 	echoMap        *SyncMap[any, chan *MessageQQ] `yaml:"-"`
 	echoMap2       *SyncMap[any, *echoMapInfo]    `yaml:"-"`
-	Implementation string                         `yaml:"implementation" json:"implementation"`
+	Implementation string                         `json:"implementation" yaml:"implementation"`
 
-	UseSignServer    bool              `yaml:"useSignServer" json:"useSignServer"`
-	SignServerConfig *SignServerConfig `yaml:"signServerConfig" json:"signServerConfig"`
-	ExtraArgs        string            `yaml:"extraArgs" json:"extraArgs"`
+	UseSignServer    bool              `json:"useSignServer"    yaml:"useSignServer"`
+	SignServerConfig *SignServerConfig `json:"signServerConfig" yaml:"signServerConfig"`
+	ExtraArgs        string            `json:"extraArgs"        yaml:"extraArgs"`
 
 	riskAlertShieldCount int  // 风控警告屏蔽次数，一个临时变量
 	useArrayMessage      bool `yaml:"-"` // 使用分段消息
 	lagrangeRebootTimes  int
-	SignServerVer        string `yaml:"signServerVer" json:"signServerVer"`   // 用于前端显示
-	SignServerName       string `yaml:"signServerName" json:"signServerName"` // 用于前端显示
+	SignServerVer        string `json:"signServerVer"  yaml:"signServerVer"`  // 用于前端显示
+	SignServerName       string `json:"signServerName" yaml:"signServerName"` // 用于前端显示
 }
 
 type Sender struct {
@@ -403,7 +403,7 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 		arr = append(arr, i)
 	}
 
-	return lo.Reverse(arr)
+	return lo.Reverse(arr) //nolint:staticcheck // old code
 }
 
 func (pa *PlatformAdapterGocq) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {

@@ -15,11 +15,11 @@ import (
 )
 
 type PlatformAdapterSlack struct {
-	Session   *IMSession    `yaml:"-" json:"-"`
-	EndPoint  *EndPointInfo `yaml:"-" json:"-"`
-	Client    *sm.Client    `yaml:"-" json:"-"`
-	BotToken  string        `yaml:"botToken" json:"botToken"`
-	AppToken  string        `yaml:"appToken" json:"appToken"`
+	Session   *IMSession    `json:"-"        yaml:"-"`
+	EndPoint  *EndPointInfo `json:"-"        yaml:"-"`
+	Client    *sm.Client    `json:"-"        yaml:"-"`
+	BotToken  string        `json:"botToken" yaml:"botToken"`
+	AppToken  string        `json:"appToken" yaml:"appToken"`
 	cancel    func()
 	userCache *SyncMap[string, *slack.User]
 	// msgCache  *SyncMap[string, int]

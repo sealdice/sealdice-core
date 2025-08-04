@@ -131,7 +131,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 		if len(choices) != 0 {
 			c, err = wr.NewChooser(choices...)
 		}
-		return
+		return c, restText, err
 	}
 
 	parseInner := func(inner string, c *wr.Chooser) string {

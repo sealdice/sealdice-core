@@ -18,13 +18,13 @@ import (
 
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
 type PlatformAdapterDiscord struct {
-	Session            *IMSession         `yaml:"-" json:"-"`
-	Token              string             `yaml:"token" json:"token"`
-	ProxyURL           string             `yaml:"proxyURL" json:"proxyURL"`
-	ReverseProxyUrl    string             `yaml:"reverseProxyUrl" json:"reverseProxyUrl"`
-	ReverseProxyCDNUrl string             `yaml:"reverseProxyCDNUrl" json:"reverseProxyCDNUrl"`
-	EndPoint           *EndPointInfo      `yaml:"-" json:"-"`
-	IntentSession      *discordgo.Session `yaml:"-" json:"-"`
+	Session            *IMSession         `json:"-"                  yaml:"-"`
+	Token              string             `json:"token"              yaml:"token"`
+	ProxyURL           string             `json:"proxyURL"           yaml:"proxyURL"`
+	ReverseProxyUrl    string             `json:"reverseProxyUrl"    yaml:"reverseProxyUrl"`
+	ReverseProxyCDNUrl string             `json:"reverseProxyCDNUrl" yaml:"reverseProxyCDNUrl"`
+	EndPoint           *EndPointInfo      `json:"-"                  yaml:"-"`
+	IntentSession      *discordgo.Session `json:"-"                  yaml:"-"`
 }
 
 // GetGroupInfoAsync 同步一下群组信息

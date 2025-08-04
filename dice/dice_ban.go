@@ -21,14 +21,14 @@ const (
 )
 
 type BanListInfoItem struct {
-	ID      string      `json:"ID" jsbind:"id"`
-	Name    string      `json:"name" jsbind:"name"`
-	Score   int64       `json:"score" jsbind:"score"`     // 怒气值
-	Rank    BanRankType `json:"rank" jsbind:"rank"`       // 0 没事 -10警告 -30禁止 30信任
-	Times   []int64     `json:"times" jsbind:"times"`     // 事发时间
-	Reasons []string    `json:"reasons" jsbind:"reasons"` // 拉黑原因
-	Places  []string    `json:"places" jsbind:"places"`   // 发生地点
-	BanTime int64       `json:"banTime" jsbind:"banTime"` // 上黑名单时间
+	ID      string      `jsbind:"id"      json:"ID"`
+	Name    string      `jsbind:"name"    json:"name"`
+	Score   int64       `jsbind:"score"   json:"score"`   // 怒气值
+	Rank    BanRankType `jsbind:"rank"    json:"rank"`    // 0 没事 -10警告 -30禁止 30信任
+	Times   []int64     `jsbind:"times"   json:"times"`   // 事发时间
+	Reasons []string    `jsbind:"reasons" json:"reasons"` // 拉黑原因
+	Places  []string    `jsbind:"places"  json:"places"`  // 发生地点
+	BanTime int64       `jsbind:"banTime" json:"banTime"` // 上黑名单时间
 
 	BanUpdatedAt int64 `json:"-"` // 排序依据，不过可能和bantime重复？
 	UpdatedAt    int64 `json:"-"` // 数据更新时间
@@ -53,25 +53,25 @@ func (i *BanListInfoItem) toText(_ *Dice) string {
 }
 
 type BanListInfo struct {
-	Parent                                 *Dice                              `yaml:"-" json:"-"`
-	Map                                    *SyncMap[string, *BanListInfoItem] `yaml:"-" json:"-"`
-	BanBehaviorRefuseReply                 bool                               `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`                                 // 拉黑行为: 拒绝回复
-	BanBehaviorRefuseInvite                bool                               `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`                               // 拉黑行为: 拒绝邀请
-	BanBehaviorQuitLastPlace               bool                               `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"`                             // 拉黑行为: 退出事发群
-	BanBehaviorQuitPlaceImmediately        bool                               `yaml:"banBehaviorQuitPlaceImmediately" json:"banBehaviorQuitPlaceImmediately"`               // 拉黑行为: 使用时立即退出群
-	BanBehaviorQuitIfAdmin                 bool                               `yaml:"banBehaviorQuitIfAdmin" json:"banBehaviorQuitIfAdmin"`                                 // 拉黑行为: 邀请者以上权限使用时立即退群，否则发出警告信息
-	BanBehaviorQuitIfAdminSilentIfNotAdmin bool                               `yaml:"banBehaviorQuitIfAdminSilentIfNotAdmin" json:"banBehaviorQuitIfAdminSilentIfNotAdmin"` // 拉黑行为: 邀请者以上权限使用时立即退群，否则仅拒绝回复
-	ThresholdWarn                          int64                              `yaml:"thresholdWarn" json:"thresholdWarn"`                                                   // 警告阈值
-	ThresholdBan                           int64                              `yaml:"thresholdBan" json:"thresholdBan"`                                                     // 错误阈值
-	AutoBanMinutes                         int64                              `yaml:"autoBanMinutes" json:"autoBanMinutes"`                                                 // 自动禁止时长
+	Parent                                 *Dice                              `json:"-"                                      yaml:"-"`
+	Map                                    *SyncMap[string, *BanListInfoItem] `json:"-"                                      yaml:"-"`
+	BanBehaviorRefuseReply                 bool                               `json:"banBehaviorRefuseReply"                 yaml:"banBehaviorRefuseReply"`                 // 拉黑行为: 拒绝回复
+	BanBehaviorRefuseInvite                bool                               `json:"banBehaviorRefuseInvite"                yaml:"banBehaviorRefuseInvite"`                // 拉黑行为: 拒绝邀请
+	BanBehaviorQuitLastPlace               bool                               `json:"banBehaviorQuitLastPlace"               yaml:"banBehaviorQuitLastPlace"`               // 拉黑行为: 退出事发群
+	BanBehaviorQuitPlaceImmediately        bool                               `json:"banBehaviorQuitPlaceImmediately"        yaml:"banBehaviorQuitPlaceImmediately"`        // 拉黑行为: 使用时立即退出群
+	BanBehaviorQuitIfAdmin                 bool                               `json:"banBehaviorQuitIfAdmin"                 yaml:"banBehaviorQuitIfAdmin"`                 // 拉黑行为: 邀请者以上权限使用时立即退群，否则发出警告信息
+	BanBehaviorQuitIfAdminSilentIfNotAdmin bool                               `json:"banBehaviorQuitIfAdminSilentIfNotAdmin" yaml:"banBehaviorQuitIfAdminSilentIfNotAdmin"` // 拉黑行为: 邀请者以上权限使用时立即退群，否则仅拒绝回复
+	ThresholdWarn                          int64                              `json:"thresholdWarn"                          yaml:"thresholdWarn"`                          // 警告阈值
+	ThresholdBan                           int64                              `json:"thresholdBan"                           yaml:"thresholdBan"`                           // 错误阈值
+	AutoBanMinutes                         int64                              `json:"autoBanMinutes"                         yaml:"autoBanMinutes"`                         // 自动禁止时长
 
-	ScoreReducePerMinute int64 `yaml:"scoreReducePerMinute" json:"scoreReducePerMinute"` // 每分钟下降
-	ScoreGroupMuted      int64 `yaml:"scoreGroupMuted" json:"scoreGroupMuted"`           // 群组禁言
-	ScoreGroupKicked     int64 `yaml:"scoreGroupKicked" json:"scoreGroupKicked"`         // 群组踢出
-	ScoreTooManyCommand  int64 `yaml:"scoreTooManyCommand" json:"scoreTooManyCommand"`   // 刷指令
+	ScoreReducePerMinute int64 `json:"scoreReducePerMinute" yaml:"scoreReducePerMinute"` // 每分钟下降
+	ScoreGroupMuted      int64 `json:"scoreGroupMuted"      yaml:"scoreGroupMuted"`      // 群组禁言
+	ScoreGroupKicked     int64 `json:"scoreGroupKicked"     yaml:"scoreGroupKicked"`     // 群组踢出
+	ScoreTooManyCommand  int64 `json:"scoreTooManyCommand"  yaml:"scoreTooManyCommand"`  // 刷指令
 
-	JointScorePercentOfGroup   float64 `yaml:"jointScorePercentOfGroup" json:"jointScorePercentOfGroup"`     // 群组连带责任
-	JointScorePercentOfInviter float64 `yaml:"jointScorePercentOfInviter" json:"jointScorePercentOfInviter"` // 邀请人连带责任
+	JointScorePercentOfGroup   float64 `json:"jointScorePercentOfGroup"   yaml:"jointScorePercentOfGroup"`   // 群组连带责任
+	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
 
 	cronID cron.EntryID
 }
@@ -237,7 +237,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 	}
 
 	curRank := item.Rank
-	if oldRank == curRank || !(curRank == BanRankWarn || curRank == BanRankBanned) {
+	if oldRank == curRank || (curRank != BanRankWarn && curRank != BanRankBanned) {
 		return 0
 	}
 

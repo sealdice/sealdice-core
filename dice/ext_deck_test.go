@@ -1,10 +1,12 @@
-package dice
+package dice_test
 
 import (
 	"encoding/json"
 	"fmt"
 	"math"
 	"testing"
+
+	"sealdice-core/dice"
 )
 
 func TestDeck(t *testing.T) {
@@ -13,7 +15,7 @@ func TestDeck(t *testing.T) {
 	for i := 1; i <= lim; i++ {
 		var deck []string
 		_ = json.Unmarshal([]byte(`["::10::1","::10::2","::10::3","::10::4","::10::5","::10::6","::40::7"]`), &deck)
-		s := DeckToShuffleRandomPool(deck)
+		s := dice.DeckToShuffleRandomPool(deck)
 		k := s.Pick().(string)
 		m[k] += 1
 	}
@@ -27,7 +29,7 @@ func TestDeckLast(t *testing.T) {
 	for i := 1; i <= lim; i++ {
 		var deck []string
 		_ = json.Unmarshal([]byte(`["1","2","3","4","5","6","7"]`), &deck)
-		s := DeckToShuffleRandomPool(deck)
+		s := dice.DeckToShuffleRandomPool(deck)
 		var k string
 		// 抽空牌组
 		for range deck {

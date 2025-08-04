@@ -44,13 +44,13 @@ type DeckDiceEFormat struct {
 }
 
 type DeckSinaNyaFormat struct {
-	Name    string   `json:"name" yaml:"name"`
-	Author  string   `json:"author" yaml:"author"`
+	Name    string   `json:"name"    yaml:"name"`
+	Author  string   `json:"author"  yaml:"author"`
 	Version int      `json:"version" yaml:"version"`
 	Command string   `json:"command" yaml:"command"`
 	License string   `json:"license" yaml:"license"`
-	Desc    string   `json:"desc" yaml:"desc"`
-	Info    []string `json:"info" yaml:"info"`
+	Desc    string   `json:"desc"    yaml:"desc"`
+	Info    []string `json:"info"    yaml:"info"`
 	Default []string `json:"default" yaml:"default"`
 	// 一组牌        []string `json:"一组牌"`
 
@@ -75,18 +75,18 @@ type SealMeta struct {
 }
 
 type SealComplexSingleDeck struct {
-	Export  bool     `toml:"export" mapstructure:"export"`
-	Visible bool     `toml:"visible" mapstructure:"visible"`
-	Aliases []string `toml:"aliases" mapstructure:"aliases"`
-	Replace bool     `toml:"replace" mapstructure:"replace"` // 是否放回
+	Export  bool     `mapstructure:"export"  toml:"export"`
+	Visible bool     `mapstructure:"visible" toml:"visible"`
+	Aliases []string `mapstructure:"aliases" toml:"aliases"`
+	Replace bool     `mapstructure:"replace" toml:"replace"` // 是否放回
 
 	// 文本牌组项
-	Options []string `toml:"options" mapstructure:"options"`
+	Options []string `mapstructure:"options" toml:"options"`
 
 	// 云牌组项
-	CloudExtra  bool     `toml:"cloud_extra" mapstructure:"cloud_extra"`
-	Distinct    bool     `toml:"distinct" mapstructure:"distinct"`
-	OptionsUrls []string `toml:"options_urls" mapstructure:"options_urls"`
+	CloudExtra  bool     `mapstructure:"cloud_extra"  toml:"cloud_extra"`
+	Distinct    bool     `mapstructure:"distinct"     toml:"distinct"`
+	OptionsUrls []string `mapstructure:"options_urls" toml:"options_urls"`
 }
 
 type DeckSealFormat struct {
@@ -100,27 +100,27 @@ type CloudDeckItemInfo struct {
 }
 
 type DeckInfo struct {
-	Enable             bool                          `json:"enable" yaml:"enable"`
-	ErrText            string                        `json:"errText" yaml:"errText"`
-	Filename           string                        `json:"filename" yaml:"filename"`
-	Format             string                        `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“ "Seal"
+	Enable             bool                          `json:"enable"        yaml:"enable"`
+	ErrText            string                        `json:"errText"       yaml:"errText"`
+	Filename           string                        `json:"filename"      yaml:"filename"`
+	Format             string                        `json:"format"        yaml:"format"`        // 几种：“SinaNya” ”Dice!“ "Seal"
 	FormatVersion      int64                         `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
-	FileFormat         string                        `json:"fileFormat" yaml:"-" `               // json / yaml / toml / jsonc
-	Name               string                        `json:"name" yaml:"name"`
-	Version            string                        `json:"version" yaml:"-"`
-	Author             string                        `json:"author" yaml:"-"`
-	License            string                        `json:"license" yaml:"-"` // 许可协议，如cc-by-nc等
-	Command            map[string]bool               `json:"command" yaml:"-"` // 牌堆命令名
-	DeckItems          map[string][]string           `yaml:"-" json:"-"`
-	Date               string                        `json:"date" yaml:"-" `
-	UpdateDate         string                        `json:"updateDate" yaml:"-" `
-	Desc               string                        `yaml:"-" json:"desc"`
-	Info               []string                      `yaml:"-" json:"-"`
-	RawData            *map[string][]string          `yaml:"-" json:"-"`
-	UpdateUrls         []string                      `yaml:"updateUrls" json:"updateUrls"`
-	Etag               string                        `yaml:"etag" json:"etag"`
-	Cloud              bool                          `yaml:"cloud" json:"cloud"` // 含有云端内容
-	CloudDeckItemInfos map[string]*CloudDeckItemInfo `yaml:"-" json:"-"`
+	FileFormat         string                        `json:"fileFormat"    yaml:"-"`             // json / yaml / toml / jsonc
+	Name               string                        `json:"name"          yaml:"name"`
+	Version            string                        `json:"version"       yaml:"-"`
+	Author             string                        `json:"author"        yaml:"-"`
+	License            string                        `json:"license"       yaml:"-"` // 许可协议，如cc-by-nc等
+	Command            map[string]bool               `json:"command"       yaml:"-"` // 牌堆命令名
+	DeckItems          map[string][]string           `json:"-"             yaml:"-"`
+	Date               string                        `json:"date"          yaml:"-"`
+	UpdateDate         string                        `json:"updateDate"    yaml:"-"`
+	Desc               string                        `json:"desc"          yaml:"-"`
+	Info               []string                      `json:"-"             yaml:"-"`
+	RawData            *map[string][]string          `json:"-"             yaml:"-"`
+	UpdateUrls         []string                      `json:"updateUrls"    yaml:"updateUrls"`
+	Etag               string                        `json:"etag"          yaml:"etag"`
+	Cloud              bool                          `json:"cloud"         yaml:"cloud"` // 含有云端内容
+	CloudDeckItemInfos map[string]*CloudDeckItemInfo `json:"-"             yaml:"-"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
@@ -519,10 +519,7 @@ func DeckDelete(_ *Dice, deck *DeckInfo) {
 	dirName := filepath.Base(dirPath)
 
 	var topPath, topName string
-	for {
-		if filepath.ToSlash(dirPath) == "data/decks" || dirPath == "." {
-			break
-		}
+	for filepath.ToSlash(dirPath) != "data/decks" && dirPath != "." {
 		if strings.HasPrefix(dirName, "_") && strings.HasSuffix(dirName, ".deck") {
 			topPath = dirPath
 			topName = dirName
@@ -1008,23 +1005,23 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 func getDeckGroup(deckInfo *DeckInfo, deckName string) (deckGroup []string) {
 	deckGroup = deckInfo.DeckItems[deckName]
 	if !deckInfo.Cloud {
-		return
+		return deckGroup
 	}
 
 	// 含有云端内容时，查看是否需要补充
 	cloudInfo, ok := deckInfo.CloudDeckItemInfos[deckName]
 	if !ok {
-		return
+		return deckGroup
 	}
 
 	statusCode, newData, err := GetCloudContent(cloudInfo.OptionsUrls, "")
 	if err != nil || statusCode != http.StatusOK {
-		return
+		return deckGroup
 	}
 	cloudItems := make([]string, 0)
 	err = json.Unmarshal(newData, &cloudItems)
 	if err != nil {
-		return
+		return deckGroup
 	}
 	deckGroup = append(deckGroup, cloudItems...)
 	if cloudInfo.Distinct {
@@ -1039,7 +1036,7 @@ func getDeckGroup(deckInfo *DeckInfo, deckName string) (deckGroup []string) {
 		}
 		deckGroup = temp
 	}
-	return
+	return deckGroup
 }
 
 func extractWeight(s string) (uint, string) {

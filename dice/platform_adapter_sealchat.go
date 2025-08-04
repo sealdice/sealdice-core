@@ -15,18 +15,18 @@ import (
 )
 
 type PlatformAdapterSealChat struct {
-	Session  *IMSession    `yaml:"-" json:"-"`
-	EndPoint *EndPointInfo `yaml:"-" json:"-"`
+	Session  *IMSession    `json:"-" yaml:"-"`
+	EndPoint *EndPointInfo `json:"-" yaml:"-"`
 
-	ConnectURL string                    `yaml:"connectUrl" json:"connectUrl"` // 连接地址
-	Token      string                    `yaml:"token" json:"token"`
-	Socket     *gowebsocket.Socket       `yaml:"-" json:"-"`
-	EchoMap    SyncMap[string, chan any] `yaml:"-" json:"-"`
-	UserID     string                    `yaml:"-" json:"-"`
+	ConnectURL string                    `json:"connectUrl" yaml:"connectUrl"` // 连接地址
+	Token      string                    `json:"token"      yaml:"token"`
+	Socket     *gowebsocket.Socket       `json:"-"          yaml:"-"`
+	EchoMap    SyncMap[string, chan any] `json:"-"          yaml:"-"`
+	UserID     string                    `json:"-"          yaml:"-"`
 
-	Reconnecting    bool `yaml:"-" json:"-"`
-	RetryTimes      int  `yaml:"-" json:"-"`
-	RetryTimesLimit int  `yaml:"-" json:"-"`
+	Reconnecting    bool `json:"-" yaml:"-"`
+	RetryTimes      int  `json:"-" yaml:"-"`
+	RetryTimesLimit int  `json:"-" yaml:"-"`
 }
 
 func (pa *PlatformAdapterSealChat) Serve() int {

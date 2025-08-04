@@ -28,29 +28,29 @@ type ReplyResultBase interface {
 
 // ReplyConditionTextMatch 文本匹配 // textMatch
 type ReplyConditionTextMatch struct {
-	CondType  string `yaml:"condType" json:"condType"`
-	MatchType string `yaml:"matchType" json:"matchType"` // matchExact 精确  matchRegex 正则 matchFuzzy 模糊 matchContains 包含
-	Value     string `yaml:"value" json:"value"`
+	CondType  string `json:"condType"  yaml:"condType"`
+	MatchType string `json:"matchType" yaml:"matchType"` // matchExact 精确  matchRegex 正则 matchFuzzy 模糊 matchContains 包含
+	Value     string `json:"value"     yaml:"value"`
 }
 
 // ReplyConditionMultiMatch 文本多重匹配
 type ReplyConditionMultiMatch struct {
-	CondType  string `yaml:"condType" json:"condType"`
-	MatchType string `yaml:"matchType" json:"matchType"`
-	Value     string `yaml:"value" json:"value"`
+	CondType  string `json:"condType"  yaml:"condType"`
+	MatchType string `json:"matchType" yaml:"matchType"`
+	Value     string `json:"value"     yaml:"value"`
 }
 
 // ReplyConditionExprTrue 表达式为真 // exprTrue
 type ReplyConditionExprTrue struct {
-	CondType string `yaml:"condType" json:"condType"`
-	Value    string `yaml:"value" json:"value"`
+	CondType string `json:"condType" yaml:"condType"`
+	Value    string `json:"value"    yaml:"value"`
 }
 
 // ReplyConditionTextLenLimit 文本长度限制 // textLenLimit
 type ReplyConditionTextLenLimit struct {
-	CondType string `yaml:"condType" json:"condType"`
-	MatchOp  string `yaml:"matchOp" json:"matchOp"` // 其实是ge或le
-	Value    int    `yaml:"value" json:"value"`
+	CondType string `json:"condType" yaml:"condType"`
+	MatchOp  string `json:"matchOp"  yaml:"matchOp"` // 其实是ge或le
+	Value    int    `json:"value"    yaml:"value"`
 }
 
 // Jaro 和 hamming 平均，阈值设为0.7，别问我为啥，玄学决策的
@@ -171,9 +171,9 @@ func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, 
 
 // ReplyResultReplyToSender replyToSender
 type ReplyResultReplyToSender struct {
-	ResultType string               `yaml:"resultType" json:"resultType"`
-	Delay      float64              `yaml:"delay" json:"delay"`
-	Message    TextTemplateItemList `yaml:"message" json:"message"`
+	ResultType string               `json:"resultType" yaml:"resultType"`
+	Delay      float64              `json:"delay"      yaml:"delay"`
+	Message    TextTemplateItemList `json:"message"    yaml:"message"`
 }
 
 func (m *ReplyResultReplyToSender) Clean() {
@@ -213,9 +213,9 @@ func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *Cmd
 
 // ReplyResultReplyPrivate 回复到私人 replyPrivate
 type ReplyResultReplyPrivate struct {
-	ResultType string               `yaml:"resultType" json:"resultType"`
-	Delay      float64              `yaml:"delay" json:"delay"`
-	Message    TextTemplateItemList `yaml:"message" json:"message"`
+	ResultType string               `json:"resultType" yaml:"resultType"`
+	Delay      float64              `json:"delay"      yaml:"delay"`
+	Message    TextTemplateItemList `json:"message"    yaml:"message"`
 }
 
 func (m *ReplyResultReplyPrivate) Clean() {
@@ -232,9 +232,9 @@ func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdA
 
 // ReplyResultReplyGroup 回复到群组 replyGroup
 type ReplyResultReplyGroup struct {
-	ResultType string                `yaml:"resultType" json:"resultType"`
-	Delay      float64               `yaml:"delay" json:"delay"`
-	Message    *TextTemplateItemList `yaml:"message" json:"message"`
+	ResultType string                `json:"resultType" yaml:"resultType"`
+	Delay      float64               `json:"delay"      yaml:"delay"`
+	Message    *TextTemplateItemList `json:"message"    yaml:"message"`
 }
 
 func (m *ReplyResultReplyGroup) Clean() {
@@ -253,9 +253,9 @@ func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArg
 
 // ReplyResultRunText 同.text，但无输出  runText
 type ReplyResultRunText struct {
-	ResultType string  `yaml:"resultType" json:"resultType"`
-	Delay      float64 `yaml:"delay" json:"delay"`
-	Message    string  `yaml:"message" json:"message"`
+	ResultType string  `json:"resultType" yaml:"resultType"`
+	Delay      float64 `json:"delay"      yaml:"delay"`
+	Message    string  `json:"message"    yaml:"message"`
 }
 
 func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
@@ -273,32 +273,32 @@ var _ json.Unmarshaler = (*ReplyConditions)(nil)
 var _ yaml.Unmarshaler = (*ReplyConditions)(nil)
 
 type ReplyItem struct {
-	Enable     bool              `yaml:"enable" json:"enable"`
-	Conditions ReplyConditions   `yaml:"conditions" json:"conditions"`
-	Results    []ReplyResultBase `yaml:"results" json:"results"`
+	Enable     bool              `json:"enable"     yaml:"enable"`
+	Conditions ReplyConditions   `json:"conditions" yaml:"conditions"`
+	Results    []ReplyResultBase `json:"results"    yaml:"results"`
 }
 
 var _ json.Unmarshaler = (*ReplyItem)(nil)
 var _ yaml.Unmarshaler = (*ReplyItem)(nil)
 
 type ReplyConfig struct {
-	Enable   bool         `yaml:"enable" json:"enable"`
-	Interval float64      `yaml:"interval" json:"interval"` // 响应间隔，最少为5
-	Items    []*ReplyItem `yaml:"items" json:"items"`
+	Enable   bool         `json:"enable"   yaml:"enable"`
+	Interval float64      `json:"interval" yaml:"interval"` // 响应间隔，最少为5
+	Items    []*ReplyItem `json:"items"    yaml:"items"`
 
 	// 作者信息
-	Name            string   `yaml:"name" json:"name"`
-	Author          []string `yaml:"author" json:"author"`
-	Version         string   `yaml:"version" json:"version"`
-	CreateTimestamp int64    `yaml:"createTimestamp" json:"createTimestamp"`
-	UpdateTimestamp int64    `yaml:"updateTimestamp" json:"updateTimestamp"`
-	Desc            string   `yaml:"desc" json:"desc"`
+	Name            string   `json:"name"            yaml:"name"`
+	Author          []string `json:"author"          yaml:"author"`
+	Version         string   `json:"version"         yaml:"version"`
+	CreateTimestamp int64    `json:"createTimestamp" yaml:"createTimestamp"`
+	UpdateTimestamp int64    `json:"updateTimestamp" yaml:"updateTimestamp"`
+	Desc            string   `json:"desc"            yaml:"desc"`
 
 	// 文件级别执行条件
-	Conditions ReplyConditions `yaml:"conditions" json:"conditions"`
+	Conditions ReplyConditions `json:"conditions" yaml:"conditions"`
 
 	// web专用
-	Filename string `yaml:"-" json:"filename"`
+	Filename string `json:"filename" yaml:"-"`
 }
 
 func (c *ReplyConfig) Save(dice *Dice) {

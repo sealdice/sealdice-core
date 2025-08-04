@@ -26,7 +26,7 @@
 
 ### golang 开发环境
 
-编译的 golang 版本为 1.22。在 [构建](https://github.com/sealdice/sealdice-build) 仓库中采用对 go 1.22 进行修补的方式以支持 Windows 7 等低版本系统。
+编译的 golang 版本为 1.24.5。在 [构建](https://github.com/sealdice/sealdice-build) 仓库中采用对 go 进行修补的方式以支持 Windows 7 等低版本系统。
 
 因部分依赖库的需求，可能需要配置国内镜像，个人使用 <https://goproxy.cn/> 镜像。
 

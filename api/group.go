@@ -51,9 +51,9 @@ func groupSetOne(c echo.Context) error {
 	}
 
 	v := struct {
-		Active  bool   `yaml:"active" json:"active"`
-		GroupID string `yaml:"groupId" json:"groupId"`
-		DiceID  string `yaml:"diceId" json:"diceId"`
+		Active  bool   `json:"active"  yaml:"active"`
+		GroupID string `json:"groupId" yaml:"groupId"`
+		DiceID  string `json:"diceId"  yaml:"diceId"`
 	}{}
 	err := c.Bind(&v)
 
@@ -86,10 +86,10 @@ func groupQuit(c echo.Context) error {
 		})
 	}
 	v := struct {
-		GroupID   string `yaml:"groupId" json:"groupId"`
-		DiceID    string `yaml:"diceId" json:"diceId"`
-		Silence   bool   `yaml:"silence" json:"silence"`
-		ExtraText string `yaml:"extraText" json:"extraText"`
+		GroupID   string `json:"groupId"   yaml:"groupId"`
+		DiceID    string `json:"diceId"    yaml:"diceId"`
+		Silence   bool   `json:"silence"   yaml:"silence"`
+		ExtraText string `json:"extraText" yaml:"extraText"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {

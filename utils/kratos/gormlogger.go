@@ -48,6 +48,7 @@ func NewGormLogger(zapLogger *Helper) GORMLogger {
 }
 
 func (l GORMLogger) SetAsDefault() {
+	//nolint:reassign // old code
 	gormlogger.Default = l
 }
 

@@ -21,19 +21,19 @@ import (
 )
 
 type PlatformAdapterOfficialQQ struct {
-	Session     *IMSession    `yaml:"-" json:"-"`
-	EndPoint    *EndPointInfo `yaml:"-" json:"-"`
+	Session     *IMSession    `json:"-" yaml:"-"`
+	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
 	DiceServing bool          `yaml:"-"`
 
-	AppID       uint64 `yaml:"appID" json:"appID"`
-	AppSecret   string `yaml:"appSecret" json:"appSecret"`
-	Token       string `yaml:"token" json:"token"`
-	OnlyQQGuild bool   `yaml:"onlyQQGuild" json:"onlyQQGuild"`
+	AppID       uint64 `json:"appID"       yaml:"appID"`
+	AppSecret   string `json:"appSecret"   yaml:"appSecret"`
+	Token       string `json:"token"       yaml:"token"`
+	OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
 
-	Api            qqapi.OpenAPI        `yaml:"-" json:"-"`
-	SessionManager qqbot.SessionManager `yaml:"-" json:"-"`
-	Ctx            context.Context      `yaml:"-" json:"-"`
-	CancelFunc     context.CancelFunc   `yaml:"-" json:"-"`
+	Api            qqapi.OpenAPI        `json:"-" yaml:"-"`
+	SessionManager qqbot.SessionManager `json:"-" yaml:"-"`
+	Ctx            context.Context      `json:"-" yaml:"-"`
+	CancelFunc     context.CancelFunc   `json:"-" yaml:"-"`
 }
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
@@ -299,11 +299,12 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 		return
 	}
 	groupId, idType := pa.mustExtractID(uid)
-	if idType == OpenQQGroupOpenid {
+	switch idType {
+	case OpenQQGroupOpenid:
 		pa.sendQQGroupMsgRaw(ctx, rowID, groupId, text)
-	} else if idType == OpenQQCHChannel {
+	case OpenQQCHChannel:
 		pa.sendQQChannelMsgRaw(ctx, rowID, groupId, text)
-	} else {
+	default:
 		pa.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
 		return
 	}

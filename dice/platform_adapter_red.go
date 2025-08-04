@@ -26,14 +26,14 @@ import (
 )
 
 type PlatformAdapterRed struct {
-	Session     *IMSession    `yaml:"-" json:"-"`
-	EndPoint    *EndPointInfo `yaml:"-" json:"-"`
+	Session     *IMSession    `json:"-" yaml:"-"`
+	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
 	DiceServing bool          `yaml:"-"` // 是否正在连接中
 
-	Host       string `yaml:"host" json:"host"`
-	Port       int    `yaml:"port" json:"port"`
-	Token      string `yaml:"token" json:"token"`
-	RedVersion string `yaml:"-" json:"redVersion"`
+	Host       string `json:"host"       yaml:"host"`
+	Port       int    `json:"port"       yaml:"port"`
+	Token      string `json:"token"      yaml:"token"`
+	RedVersion string `json:"redVersion" yaml:"-"`
 
 	wsUrl   *url.URL
 	httpUrl *url.URL
@@ -788,7 +788,7 @@ func (pa *PlatformAdapterRed) getMemberList(group string, size int) (members []*
 	groupID, err := strconv.ParseInt(group, 10, 64)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
-		return
+		return members
 	}
 	paramData, err := json.Marshal(map[string]interface{}{
 		"group": groupID,
@@ -796,12 +796,12 @@ func (pa *PlatformAdapterRed) getMemberList(group string, size int) (members []*
 	})
 	if err != nil {
 		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
-		return
+		return members
 	}
 	data, err := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
 	if err != nil {
 		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
-		return
+		return members
 	}
 	type memberInfo struct {
 		Index  int          `json:"index"`
@@ -1058,9 +1058,10 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 		if ok && groupMemberInfo != nil {
 			memberInfo, ok := groupMemberInfo.Load(send.UserID)
 			if ok && memberInfo != nil {
-				if memberInfo.Role == 4 {
+				switch memberInfo.Role {
+				case 4:
 					send.GroupRole = "owner"
-				} else if memberInfo.Role == 3 {
+				case 3:
 					send.GroupRole = "admin"
 				}
 			}

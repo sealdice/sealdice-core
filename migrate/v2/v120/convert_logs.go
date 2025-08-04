@@ -35,16 +35,16 @@ type IMSession struct {
 
 type Dice struct {
 	DB        *bbolt.DB  `yaml:"-"` // 数据库对象
-	ImSession *IMSession `yaml:"imSession" jsbind:"imSession"`
+	ImSession *IMSession `jsbind:"imSession" yaml:"imSession"`
 }
 
 // GroupPlayerInfoBase 群内玩家信息
 type GroupPlayerInfoBase struct {
-	Name                string `yaml:"name" jsbind:"name"` // 玩家昵称
-	UserID              string `yaml:"userId" jsbind:"userId"`
+	Name                string `jsbind:"name"                yaml:"name"` // 玩家昵称
+	UserID              string `jsbind:"userId"              yaml:"userId"`
 	InGroup             bool   `yaml:"inGroup"`                                          // 是否在群内，有时一个人走了，信息还暂时残留
-	LastCommandTime     int64  `yaml:"lastCommandTime" jsbind:"lastCommandTime"`         // 上次发送指令时间
-	AutoSetNameTemplate string `yaml:"autoSetNameTemplate" jsbind:"autoSetNameTemplate"` // 名片模板
+	LastCommandTime     int64  `jsbind:"lastCommandTime"     yaml:"lastCommandTime"`     // 上次发送指令时间
+	AutoSetNameTemplate string `jsbind:"autoSetNameTemplate" yaml:"autoSetNameTemplate"` // 名片模板
 
 	// level int 权限
 	DiceSideNum int `yaml:"diceSideNum"` // 面数，为0时等同于d100
@@ -55,36 +55,36 @@ type GroupPlayerInfo struct {
 }
 
 type ExtInfo struct {
-	Name string `yaml:"name" json:"name" jsbind:"name"` // 名字
+	Name string `jsbind:"name" json:"name" yaml:"name"` // 名字
 }
 
 type GroupInfo struct {
-	GroupID   string `yaml:"groupId" json:"groupId" jsbind:"groupId"`
-	GroupName string `yaml:"groupName" json:"groupName" jsbind:"groupName"`
+	GroupID   string `jsbind:"groupId"   json:"groupId"   yaml:"groupId"`
+	GroupName string `jsbind:"groupName" json:"groupName" yaml:"groupName"`
 
-	LogCurName string `yaml:"logCurFile" json:"logCurName" jsbind:"logCurName"`
-	LogOn      bool   `yaml:"logOn" json:"logOn" jsbind:"logOn"`
+	LogCurName string `jsbind:"logCurName" json:"logCurName" yaml:"logCurFile"`
+	LogOn      bool   `jsbind:"logOn"      json:"logOn"      yaml:"logOn"`
 
 	// ============================
-	Active           bool                        `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                  `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
-	Players          map[string]*GroupPlayerInfo `yaml:"players" json:"-"`                              // 群员角色数据
-	NotInGroup       bool                        `yaml:"notInGroup" json:"notInGroup"`                  // 是否已经离开群 - 准备处理单骰多号情况
+	Active           bool                        `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList []*ExtInfo                  `json:"activatedExtList" yaml:"activatedExtList,flow"`               // 当前群开启的扩展列表
+	Players          map[string]*GroupPlayerInfo `json:"-"                yaml:"players"`                             // 群员角色数据
+	NotInGroup       bool                        `json:"notInGroup"       yaml:"notInGroup"`                          // 是否已经离开群 - 准备处理单骰多号情况
 
-	ActiveDiceIds   map[string]bool `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	DiceIDExistsMap map[string]bool `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
-	BotList         map[string]bool `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
-	DiceSideNum     int64           `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
-	System          string          `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
+	ActiveDiceIds   map[string]bool `json:"diceIdActiveMap" yaml:"diceIds,flow"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	DiceIDExistsMap map[string]bool `json:"diceIdExistsMap" yaml:"-"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
+	BotList         map[string]bool `json:"botList"         yaml:"botList,flow"` // 其他骰子列表
+	DiceSideNum     int64           `json:"diceSideNum"     yaml:"diceSideNum"`  // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	System          string          `json:"system"          yaml:"system"`       // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
-	CocRuleIndex int `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
+	CocRuleIndex int `jsbind:"cocRuleIndex" json:"cocRuleIndex" yaml:"cocRuleIndex"`
 
-	RecentCommandTime   int64  `yaml:"recentCommandTime" json:"recentCommandTime" jsbind:"recentCommandTime"` // 最近一次发送有效指令的时间
-	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome" jsbind:"showGroupWelcome"`    // 是否迎新
-	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage" jsbind:"groupWelcomeMessage"`
+	RecentCommandTime   int64  `jsbind:"recentCommandTime"   json:"recentCommandTime"   yaml:"recentCommandTime"` // 最近一次发送有效指令的时间
+	ShowGroupWelcome    bool   `jsbind:"showGroupWelcome"    json:"showGroupWelcome"    yaml:"showGroupWelcome"`  // 是否迎新
+	GroupWelcomeMessage string `jsbind:"groupWelcomeMessage" json:"groupWelcomeMessage" yaml:"groupWelcomeMessage"`
 
-	EnteredTime  int64  `yaml:"enteredTime" json:"enteredTime" jsbind:"enteredTime"`    // 入群时间
-	InviteUserID string `yaml:"inviteUserId" json:"inviteUserId" jsbind:"inviteUserId"` // 邀请人
+	EnteredTime  int64  `jsbind:"enteredTime"  json:"enteredTime"  yaml:"enteredTime"`  // 入群时间
+	InviteUserID string `jsbind:"inviteUserId" json:"inviteUserId" yaml:"inviteUserId"` // 邀请人
 }
 
 type MsgContext struct {

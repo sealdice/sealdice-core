@@ -48,6 +48,7 @@ func ServeDiscord(d *Dice, ep *EndPointInfo) {
 	}
 }
 
+//nolint:reassign // old code
 func regenerateDiscordEndPoint(endPointDiscord string) {
 	discordgo.EndpointDiscord = endPointDiscord
 	discordgo.EndpointAPI = discordgo.EndpointDiscord + "api/v" + discordgo.APIVersion + "/"
@@ -70,6 +71,7 @@ func regenerateDiscordEndPoint(endPointDiscord string) {
 	discordgo.EndpointOAuth2Applications = discordgo.EndpointOAuth2 + "applications"
 }
 
+//nolint:reassign // old code
 func regenerateDiscordEndPointCDN(endPointDiscordCDN string) {
 	discordgo.EndpointCDN = endPointDiscordCDN
 	discordgo.EndpointCDNAttachments = discordgo.EndpointCDN + "attachments/"
