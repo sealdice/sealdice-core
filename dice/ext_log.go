@@ -271,6 +271,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 				getAndUpload(groupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "get") {
+				// 仿照 log on 为 log get 添加了 IsPrivate 判断
+				if ctx.IsPrivate {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				logName := group.LogCurName
 				if newName := cmdArgs.GetArgN(2); newName != "" {
 					logName = newName
@@ -411,6 +417,12 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ReplyToSender(ctx, msg, "没有发现可供统计的信息，请确保记录名正确，且有进行骰点/检定行为")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "export") {
+				if ctx.IsPrivate {
+					// 仿照 log on 为 log get 添加了 IsPrivate 判断
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				logName := group.LogCurName
 				if newName := cmdArgs.GetArgN(2); newName != "" {
 					logName = newName
