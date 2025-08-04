@@ -22,9 +22,7 @@ var cmdTeam = &CmdItemInfo{
 .team <团队名> add/del <@成员...> // 增减队伍列表，若无团队会自动新建
 .team <团队名> clear // 清空队伍
 .team <团队名> call // 艾特队伍
-.team <团队名> <属性> // 列出队内成员属性
-.team <团队名> st <属性表达式> // 设置全队属性
-.team <团队名> ra/rc <属性> // 群体检定`,
+.team <团队名> <属性> // 列出队内成员属性`,
 	DisabledInPrivate: true,
 	AllowDelegate:     true,
 	Solve: func(context *MsgContext, message *Message, arguments *CmdArgs) CmdExecuteResult {
@@ -110,20 +108,6 @@ var cmdTeam = &CmdItemInfo{
 				cqCodes = append(cqCodes, fmt.Sprintf("[CQ:at,qq=%s]", id))
 			}
 			ReplyToSender(context, message, fmt.Sprintf("呼叫%s：%s", groupName, strings.Join(cqCodes, " ")))
-		case "ra", "rc":
-			if !groupExists {
-				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的团队", groupName))
-				break
-			}
-
-			if int64(len(playerGroup)) > context.Dice.Config.MaxExecuteTime {
-				ReplyToSender(context, message, "队伍过大，检验可能造成刷屏，请手动操作")
-				break
-			}
-
-			// TODO: 这里重新造一个表达式解析，还是调用cmdRc.Solve，还是用别的方法？
-		case "st":
-			// TODO
 		default:
 			if !groupExists {
 				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的团队", groupName))
@@ -142,7 +126,6 @@ var cmdTeam = &CmdItemInfo{
 
 			containers := make([]attributeContainer, 0, len(playerGroup))
 			for _, userID := range playerGroup {
-				// Load defaults to default values of current rule system
 				characterAttributes, err := attributeManager.Load(group.GroupID, userID)
 				if err != nil {
 					// Most likely, no such user
@@ -163,7 +146,12 @@ var cmdTeam = &CmdItemInfo{
 				})
 			}
 
-			switch defaultAttributeValue.TypeId {
+			attributeType := ds.VMTypeNull
+			if defaultAttributeValue != nil {
+				attributeType = defaultAttributeValue.TypeId
+			}
+
+			switch attributeType {
 			case ds.VMTypeInt:
 				slices.SortFunc(containers, func(a, b attributeContainer) int {
 					v1 := a.Value.MustReadInt()
