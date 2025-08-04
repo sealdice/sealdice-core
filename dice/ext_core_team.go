@@ -53,9 +53,8 @@ var cmdTeam = &CmdItemInfo{
 				if userID == context.EndPoint.UserID {
 					continue
 				}
-				player := group.PlayerGet(context.Dice.DBOperator, userID)
-				if !slices.Contains(playerGroup, player) {
-					playerGroup = append(playerGroup, player)
+				if !slices.Contains(playerGroup, userID) {
+					playerGroup = append(playerGroup, userID)
 					count++
 				}
 			}
@@ -77,8 +76,7 @@ var cmdTeam = &CmdItemInfo{
 				if userID == context.EndPoint.UserID {
 					continue
 				}
-				player := group.PlayerGet(context.Dice.DBOperator, userID)
-				if idx := slices.Index(playerGroup, player); idx > -1 {
+				if idx := slices.Index(playerGroup, userID); idx > -1 {
 					playerGroup = append(playerGroup[:idx], playerGroup[idx+1:]...)
 					count++
 				}
@@ -104,9 +102,9 @@ var cmdTeam = &CmdItemInfo{
 			attributeManager := context.Dice.AttrsManager
 
 			containers := make([]attributeContainer, 0, len(playerGroup))
-			for _, player := range playerGroup {
+			for _, userID := range playerGroup {
 				// Load defaults to default values of current rule system
-				characterAttributes, err := attributeManager.Load(group.GroupID, player.UserID)
+				characterAttributes, err := attributeManager.Load(group.GroupID, userID)
 				if err != nil {
 					context.Dice.Logger.Error(err)
 					tmpl := DiceFormatTmpl(context, "核心:骰子执行异常")
@@ -117,7 +115,7 @@ var cmdTeam = &CmdItemInfo{
 				// val will be 0 if attr is not of int type
 				val, _ := attr.ReadInt()
 				containers = append(containers, attributeContainer{
-					UserID: player.UserID,
+					UserID: userID,
 					Value:  int(val),
 				})
 			}
@@ -144,10 +142,10 @@ func teamStripPlatformPrefix(userID string) string {
 }
 
 // teamExtractRawIDsFromGroup extracts user IDs from AtInfo. The platform prefix is kept.
-func teamExtractRawIDsFromGroup(players []*GroupPlayerInfo) []string {
-	userIDs := make([]string, 0, len(players))
-	for _, player := range players {
-		rawID := teamStripPlatformPrefix(player.UserID)
+func teamExtractRawIDsFromGroup(ids []string) []string {
+	userIDs := make([]string, 0, len(ids))
+	for _, userID := range ids {
+		rawID := teamStripPlatformPrefix(userID)
 		userIDs = append(userIDs, rawID)
 	}
 	return userIDs
