@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
-
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/dice/events"
@@ -98,40 +96,40 @@ var guguText = `
 今天发大水，脑子被水淹了，跑不了团啦！|蜜瓜包结合实际经历创作
 `
 var emokloreAttrParent = map[string][]string{
-	"检索":     {"知力"},
-	"洞察":     {"知力"},
-	"识路":     {"灵巧", "五感"},
-	"直觉":     {"精神", "运势"},
-	"鉴定":     {"五感", "知力"},
-	"观察":     {"五感"},
-	"聆听":     {"五感"},
-	"鉴毒":     {"五感"},
+	"检索":   {"知力"},
+	"洞察":   {"知力"},
+	"识路":   {"灵巧", "五感"},
+	"直觉":   {"精神", "运势"},
+	"鉴定":   {"五感", "知力"},
+	"观察":   {"五感"},
+	"聆听":   {"五感"},
+	"鉴毒":   {"五感"},
 	"危机察觉": {"五感", "运势"},
-	"灵感":     {"精神", "运势"},
-	"社交术":   {"社会"},
-	"辩论":     {"知力"},
-	"心理":     {"精神", "知力"},
-	"魅惑":     {"魅力"},
+	"灵感":   {"精神", "运势"},
+	"社交术":  {"社会"},
+	"辩论":   {"知力"},
+	"心理":   {"精神", "知力"},
+	"魅惑":   {"魅力"},
 	"专业知识": {"知力"},
-	"万事通":   {"五感", "社会"},
-	"业界":     {"社会", "魅力"},
-	"速度":     {"身体"},
-	"力量":     {"身体"},
+	"万事通":  {"五感", "社会"},
+	"业界":   {"社会", "魅力"},
+	"速度":   {"身体"},
+	"力量":   {"身体"},
 	"特技动作": {"身体", "灵巧"},
-	"潜泳":     {"身体"},
-	"武术":     {"身体"},
-	"奥义":     {"身体", "精神", "灵巧"},
-	"射击":     {"灵巧", "五感"},
-	"耐久":     {"身体"},
-	"毅力":     {"精神"},
-	"医术":     {"灵巧", "知力"},
-	"技巧":     {"灵巧"},
-	"艺术":     {"灵巧", "精神", "五感"},
-	"操纵":     {"灵巧", "五感", "知力"},
-	"暗号":     {"知力"},
-	"电脑":     {"知力"},
-	"隐匿":     {"灵巧", "社会", "运势"},
-	"强运":     {"运势"},
+	"潜泳":   {"身体"},
+	"武术":   {"身体"},
+	"奥义":   {"身体", "精神", "灵巧"},
+	"射击":   {"灵巧", "五感"},
+	"耐久":   {"身体"},
+	"毅力":   {"精神"},
+	"医术":   {"灵巧", "知力"},
+	"技巧":   {"灵巧"},
+	"艺术":   {"灵巧", "精神", "五感"},
+	"操纵":   {"灵巧", "五感", "知力"},
+	"暗号":   {"知力"},
+	"电脑":   {"知力"},
+	"隐匿":   {"灵巧", "社会", "运势"},
+	"强运":   {"运势"},
 }
 
 var emokloreAttrParent2 = map[string][]string{
@@ -1341,102 +1339,6 @@ func RegisterBuiltinExtFun(self *Dice) {
 		},
 	}
 
-	cmdPc := &CmdItemInfo{
-		Name:              "pc",
-		ShortHelp:         ".pc add/del/clear/call/<attr>",
-		Help:              "PC管理指令:\n.pc add/del <@成员> // 管理PC列表\n.pc clear // 清空PC列表\n.pc call // 艾特全体PC\n.pc <属性> // 列出PC属性",
-		DisabledInPrivate: true,
-		Solve: func(context *MsgContext, message *Message, arguments *CmdArgs) CmdExecuteResult {
-			execResult := CmdExecuteResult{Matched: true, Solved: true}
-			// Check is in group because DisabledInPrivate can be unreliable
-			if !context.IsPrivate {
-				s := DiceFormatTmpl(context, "核心:提示_私聊不可用")
-				ReplyToSender(context, message, s)
-				return execResult
-			}
-			group := context.Group
-			switch subcommand := arguments.GetArgN(1); subcommand {
-			case "add":
-				if len(arguments.At) == 0 {
-					ReplyToSender(context, message, "用法：.pc add @成员1 @成员2 ...")
-					break
-				}
-				var count int
-				for _, id := range arguments.At {
-					if !slices.Contains(group.PCList, id.UserID) {
-						group.PCList = append(group.PCList, id.UserID)
-						count++
-					}
-				}
-				ReplyToSender(context, message, fmt.Sprintf("共添加%d名新成员至PC列表", count))
-			case "del":
-				if len(arguments.At) == 0 {
-					ReplyToSender(context, message, "用法：.pc del @成员1 @成员2 ...")
-					break
-				}
-				var count int
-				for _, id := range arguments.At {
-					if i := slices.Index(group.PCList, id.UserID); i > -1 {
-						group.PCList = append(group.PCList[:i], group.PCList[i+1:]...)
-						count++
-					}
-				}
-				ReplyToSender(context, message, fmt.Sprintf("共从PC列表移除%d名成员", count))
-			case "clear":
-				count := len(group.PCList)
-				group.PCList = nil
-				ReplyToSender(context, message, fmt.Sprintf("已清空PC列表，共移除%d名成员", count))
-			case "call":
-				if len(arguments.At) == 0 {
-					ReplyToSender(context, message, "当前PC列表中无成员，请先使用.pc add添加")
-					break
-				}
-				callList := make([]string, 0, len(group.PCList))
-				for _, id := range group.PCList {
-					rawID := strings.SplitN(id, ":", 2)[1]
-					callList = append(callList, fmt.Sprintf("[CQ:at,qq=%s]", rawID))
-				}
-				ReplyToSender(context, message, fmt.Sprintf("呼叫PC：%s", strings.Join(callList, " ")))
-			case "help":
-				execResult.ShowHelp = true
-			default:
-				if len(arguments.At) == 0 {
-					ReplyToSender(context, message, "当前PC列表中无成员，请先使用.pc add添加")
-					break
-				}
-				type listItem struct {
-					UserID string
-					Value  int
-				}
-				var list []listItem
-				attr := subcommand
-				for _, id := range group.PCList {
-					am := context.Dice.AttrsManager
-					attributes, err := am.Load(group.GroupID, id)
-					if err != nil {
-						ReplyToSender(context, message, fmt.Sprintf("获取角色属性时出错，该成员可能尚未绑卡：%s", err))
-						break
-					}
-					a := attributes.Load(attr)
-					v, _ := a.ReadInt()
-					list = append(list, listItem{UserID: id, Value: int(v)})
-				}
-				slices.SortFunc(list, func(a, b listItem) int {
-					// Descending
-					return b.Value - a.Value
-				})
-				sendList := make([]string, 0, len(list))
-				for _, item := range list {
-					rawID := strings.SplitN(item.UserID, ":", 2)[1]
-					sendList = append(sendList, fmt.Sprintf("[CQ:at,qq=%s]: %d", rawID, item.Value))
-				}
-				ReplyToSender(context, message, fmt.Sprintf("PC的%s属性:\n%s", attr, strings.Join(sendList, "\n")))
-			}
-
-			return execResult
-		},
-	}
-
 	self.RegisterExtension(&ExtInfo{
 		Name:            "fun", // 扩展的名称，需要用于指令中，写简短点      2024.05.10: 目前被看成是 function 的缩写了（
 		Version:         "1.1.0",
@@ -1483,7 +1385,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"send":    &cmdSend,
 			"welcome": &cmdWelcome,
 			"gugu":    &cmdGugu,
-			"咕咕":    &cmdGugu,
+			"咕咕":      &cmdGugu,
 			"jrrp":    &cmdJrrp,
 			"text":    &cmdText,
 			"rsr":     &cmdRsr,
@@ -1499,7 +1401,6 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"drl":     &cmdDrl,
 			"drlh":    &cmdDrl,
 			"check":   &cmdCheck,
-			"pc":      cmdPc,
 		},
 	})
 }

@@ -30,7 +30,7 @@ func (kwa *Kwarg) String() string {
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserID string `json:"userId" jsbind:"userId"`
+	UserID string `json:"userId" jsbind:"userId"` // 包括平台前缀
 	// UID    string `json:"uid"`
 }
 
