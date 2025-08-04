@@ -56,7 +56,9 @@ func RegisterBuiltinExtCore(dice *Dice) {
 		},
 	}
 
-	theExt.CmdMap["team"] = cmdTeam
+	theExt.CmdMap = map[string]*CmdItemInfo{
+		"team": cmdTeam,
+	}
 
 	dice.RegisterExtension(theExt)
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/sealdice/dicescript"
 )
 
 type attributeContainer struct {
@@ -22,10 +23,12 @@ var cmdTeam = &CmdItemInfo{
 .team <团队名> call // 艾特队伍
 .team <团队名> <属性> // 列出队内成员属性`,
 	DisabledInPrivate: true,
+	AllowDelegate:     true,
 	Solve: func(context *MsgContext, message *Message, arguments *CmdArgs) CmdExecuteResult {
+		context.DelegateText = ""
 		execResult := CmdExecuteResult{Matched: true, Solved: true}
 		// Check is in group because DisabledInPrivate can be unreliable
-		if !context.IsPrivate {
+		if context.IsPrivate {
 			s := DiceFormatTmpl(context, "核心:提示_私聊不可用")
 			ReplyToSender(context, message, s)
 			return execResult
@@ -38,6 +41,9 @@ var cmdTeam = &CmdItemInfo{
 		}
 
 		group := context.Group
+		if group.PlayerGroups == nil {
+			group.PlayerGroups = new(SyncMap[string, []string])
+		}
 		playerGroup, groupExists := group.PlayerGroups.Load(groupName)
 
 		switch subcommand := arguments.GetArgN(2); subcommand {
@@ -90,7 +96,11 @@ var cmdTeam = &CmdItemInfo{
 			}
 			group.PlayerGroups.Delete(groupName)
 			ReplyToSender(context, message, fmt.Sprintf("清空了团队%s", groupName))
-		case "call":
+		case "call", "":
+			if !groupExists {
+				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的群组", groupName))
+				break
+			}
 			rawUserIDs := teamExtractRawIDsFromGroup(playerGroup)
 			cqCodes := make([]string, 0, len(rawUserIDs))
 			for _, id := range rawUserIDs {
@@ -98,7 +108,18 @@ var cmdTeam = &CmdItemInfo{
 			}
 			ReplyToSender(context, message, fmt.Sprintf("呼叫%s：%s", groupName, strings.Join(cqCodes, " ")))
 		default:
-			attributeName := subcommand
+			if !groupExists {
+				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的群组", groupName))
+				break
+			}
+
+			currentGameSystem, exists := context.Dice.GameSystemMap.Load(context.Group.System)
+			if !exists {
+				context.Dice.Logger.Errorf("Group game system %s not found", context.Group.System)
+				ReplyToSender(context, message, DiceFormatTmpl(context, "核心:骰子执行异常"))
+				break
+			}
+			attributeName := currentGameSystem.GetAlias(subcommand)
 			attributeManager := context.Dice.AttrsManager
 
 			containers := make([]attributeContainer, 0, len(playerGroup))
@@ -113,8 +134,11 @@ var cmdTeam = &CmdItemInfo{
 					break
 				}
 				attr := characterAttributes.Load(attributeName)
-				// val will be 0 if attr is not of int type
-				val, _ := attr.ReadInt()
+				var val dicescript.IntType
+				if attr != nil {
+					// val will be 0 if attr is not of int type
+					val, _ = attr.ReadInt()
+				}
 				containers = append(containers, attributeContainer{
 					UserID: userID,
 					Value:  int(val),
@@ -127,6 +151,8 @@ var cmdTeam = &CmdItemInfo{
 			})
 			formatList := make([]string, 0, len(containers))
 			for _, c := range containers {
+				// STR 50 @木落 SAN65 HP11/11 DEX50
+				// This format postpones username, which can be long and irregular
 				s := fmt.Sprintf("%s %d [CQ:at,qq=%s]", attributeName, c.Value, teamStripPlatformPrefix(c.UserID))
 				formatList = append(formatList, s)
 			}
