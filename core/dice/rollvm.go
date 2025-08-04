@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	rand2 "golang.org/x/exp/rand"
+	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
 )
 
 type Type uint8

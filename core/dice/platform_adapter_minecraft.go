@@ -12,12 +12,12 @@ import (
 )
 
 type PlatformAdapterMinecraft struct {
-	Session      *IMSession          `yaml:"-" json:"-"`
-	EndPoint     *EndPointInfo       `yaml:"-" json:"-"`
-	Socket       *gowebsocket.Socket `yaml:"-" json:"-"`
-	RetryTimes   int                 `yaml:"-" json:"-"`
-	Reconnecting bool                `yaml:"-" json:"-"`
-	ConnectURL   string              `yaml:"connectUrl" json:"connectUrl"` // 连接地址
+	Session      *IMSession          `json:"-"          yaml:"-"`
+	EndPoint     *EndPointInfo       `json:"-"          yaml:"-"`
+	Socket       *gowebsocket.Socket `json:"-"          yaml:"-"`
+	RetryTimes   int                 `json:"-"          yaml:"-"`
+	Reconnecting bool                `json:"-"          yaml:"-"`
+	ConnectURL   string              `json:"connectUrl" yaml:"connectUrl"` // 连接地址
 }
 
 type MessageMinecraft struct {

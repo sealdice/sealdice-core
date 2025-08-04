@@ -72,12 +72,12 @@ func LogGetLogs(operator engine2.DatabaseOperator) ([]*model.LogInfo, error) {
 }
 
 type QueryLogPage struct {
-	PageNum          int    `db:"page_num" query:"pageNum"`
-	PageSize         int    `db:"page_siz" query:"pageSize"`
-	Name             string `db:"name" query:"name"`
-	GroupID          string `db:"group_id" query:"groupId"`
+	PageNum          int    `db:"page_num"           query:"pageNum"`
+	PageSize         int    `db:"page_siz"           query:"pageSize"`
+	Name             string `db:"name"               query:"name"`
+	GroupID          string `db:"group_id"           query:"groupId"`
 	CreatedTimeBegin string `db:"created_time_begin" query:"createdTimeBegin"`
-	CreatedTimeEnd   string `db:"created_time_end" query:"createdTimeEnd"`
+	CreatedTimeEnd   string `db:"created_time_end"   query:"createdTimeEnd"`
 }
 
 // LogGetLogPage 获取分页
@@ -175,7 +175,7 @@ func LogGetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 	updateTime = logInfo.UpdatedAt
 	url = logInfo.UploadURL
 	uploadTime = logInfo.UploadTime
-	return
+	return url, uploadTime, updateTime, err
 }
 
 // LogSetUploadInfo 设置上传信息
