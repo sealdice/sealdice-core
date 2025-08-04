@@ -106,6 +106,8 @@ type GroupInfo struct {
 	UpdatedAtTime int64 `json:"-" yaml:"-"`
 
 	DefaultHelpGroup string `json:"defaultHelpGroup" yaml:"defaultHelpGroup"` // 当前群默认的帮助文档分组
+
+	PlayerGroups *SyncMap[string, []string] `json:"playerGroups" yaml:"playerGroups"` // 供team指令使用并由其管理，与Players不同步
 }
 
 // ExtActive 开启扩展
