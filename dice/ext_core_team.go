@@ -112,7 +112,7 @@ var cmdTeam = &CmdItemInfo{
 			ReplyToSender(context, message, fmt.Sprintf("呼叫%s：%s", groupName, strings.Join(cqCodes, " ")))
 		case "ra", "rc":
 			if !groupExists {
-				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的群组", groupName))
+				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的团队", groupName))
 				break
 			}
 
@@ -121,12 +121,12 @@ var cmdTeam = &CmdItemInfo{
 				break
 			}
 
-			// TODO
+			// TODO: 这里重新造一个表达式解析，还是调用cmdRc.Solve，还是用别的方法？
 		case "st":
 			// TODO
 		default:
 			if !groupExists {
-				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的群组", groupName))
+				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的团队", groupName))
 				break
 			}
 
@@ -139,9 +139,6 @@ var cmdTeam = &CmdItemInfo{
 			attributeName := currentGameSystem.GetAlias(subcommand)
 			attributeManager := context.Dice.AttrsManager
 			defaultAttributeValue := currentGameSystem.GetDefaultValueEx(context, attributeName)
-
-			context.Dice.Logger.Info(defaultAttributeValue)
-			context.Dice.Logger.Info(currentGameSystem.Defaults)
 
 			containers := make([]attributeContainer, 0, len(playerGroup))
 			for _, userID := range playerGroup {
