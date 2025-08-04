@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/sealdice/dicescript"
+	ds "github.com/sealdice/dicescript"
 )
 
 type attributeContainer struct {
 	UserID string
-	Value  int
+	Value  *ds.VMValue
 }
 
 var cmdTeam = &CmdItemInfo{
@@ -121,6 +121,10 @@ var cmdTeam = &CmdItemInfo{
 			}
 			attributeName := currentGameSystem.GetAlias(subcommand)
 			attributeManager := context.Dice.AttrsManager
+			defaultAttributeValue := currentGameSystem.GetDefaultValueEx(context, attributeName)
+
+			context.Dice.Logger.Info(defaultAttributeValue)
+			context.Dice.Logger.Info(currentGameSystem.Defaults)
 
 			containers := make([]attributeContainer, 0, len(playerGroup))
 			for _, userID := range playerGroup {
@@ -134,26 +138,42 @@ var cmdTeam = &CmdItemInfo{
 					break
 				}
 				attr := characterAttributes.Load(attributeName)
-				var val dicescript.IntType
-				if attr != nil {
-					// val will be 0 if attr is not of int type
-					val, _ = attr.ReadInt()
+				if attr == nil || ds.ValueEqual(attr, ds.NewIntVal(0), false) {
+					if defaultAttributeValue != nil {
+						attr = defaultAttributeValue
+					}
 				}
 				containers = append(containers, attributeContainer{
 					UserID: userID,
-					Value:  int(val),
+					Value:  attr,
 				})
 			}
 
-			slices.SortFunc(containers, func(a, b attributeContainer) int {
-				// descending
-				return b.Value - a.Value
-			})
+			switch defaultAttributeValue.TypeId {
+			case ds.VMTypeInt:
+				slices.SortFunc(containers, func(a, b attributeContainer) int {
+					v1 := a.Value.MustReadInt()
+					v2 := b.Value.MustReadInt()
+					return int(v2) - int(v1)
+				})
+			case ds.VMTypeFloat:
+				slices.SortFunc(containers, func(a, b attributeContainer) int {
+					v1 := a.Value.MustReadFloat()
+					v2 := b.Value.MustReadFloat()
+					if v2-v1 > 0 {
+						return 1
+					} else if v2-v1 == 0 {
+						return 0
+					}
+					return -1
+				})
+			}
+
 			formatList := make([]string, 0, len(containers))
 			for _, c := range containers {
 				// STR 50 @木落 SAN65 HP11/11 DEX50
 				// This format postpones username, which can be long and irregular
-				s := fmt.Sprintf("%s %d [CQ:at,qq=%s]", attributeName, c.Value, teamStripPlatformPrefix(c.UserID))
+				s := fmt.Sprintf("%s %s [CQ:at,qq=%s]", attributeName, c.Value.ToString(), teamStripPlatformPrefix(c.UserID)) // ToString is by no means Go-idiomatic
 				formatList = append(formatList, s)
 			}
 
