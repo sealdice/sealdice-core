@@ -41,11 +41,11 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	return open, err
 }
 
-func createReadDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
+func createReadDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 	// _txlock=immediate 解决BEGIN IMMEDIATELY
 	path = fmt.Sprintf("file:%v?_txlock=immediate", path)
 	// ---- 创建读连接 -----
-	readDB, err := gorm.Open(sqlite.Open(path), gormConf)
+	readDB, err := gorm.Open(sqlite.Open(path), &gormConf)
 	if err != nil {
 		return nil, err
 	}
@@ -61,10 +61,10 @@ func createReadDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
 	return readDB, nil
 }
 
-func createWriteDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
+func createWriteDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 	// ---- 创建写连接 -----
 	path = fmt.Sprintf("file:%v?_txlock=immediate", path)
-	writeDB, err := gorm.Open(sqlite.Open(path), gormConf)
+	writeDB, err := gorm.Open(sqlite.Open(path), &gormConf)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func createWriteDB(path string, gormConf *gorm.Config) (*gorm.DB, error) {
 
 func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
 	// 由于现在我们只有一个写入连接，所以不需要使用事务
-	gormConf := &gorm.Config{
+	gormConf := gorm.Config{
 		Logger:                 logger.Default.LogMode(logger.Info),
 		SkipDefaultTransaction: true,
 	}
