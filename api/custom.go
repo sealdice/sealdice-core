@@ -28,7 +28,7 @@ func customTextSave(c echo.Context) error {
 
 	v := struct {
 		Category string                      `form:"category" json:"category"`
-		Data     dice.TextTemplateWithWeight `form:"data" json:"data"`
+		Data     dice.TextTemplateWithWeight `form:"data"     json:"data"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {

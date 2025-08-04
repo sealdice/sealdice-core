@@ -590,19 +590,19 @@ type GoCqhttpLoginInfo struct {
 }
 
 type SignServerConfig struct {
-	SignServers          []*SignServer `yaml:"signServers" json:"signServers"`
-	RuleChangeSignServer int           `yaml:"ruleChangeSignServer" json:"ruleChangeSignServer"`
-	MaxCheckCount        int           `yaml:"maxCheckCount" json:"maxCheckCount"`
-	SignServerTimeout    int           `yaml:"signServerTimeout" json:"signServerTimeout"`
-	AutoRegister         bool          `yaml:"autoRegister" json:"autoRegister"`
-	AutoRefreshToken     bool          `yaml:"autoRefreshToken" json:"autoRefreshToken"`
-	RefreshInterval      int           `yaml:"refreshInterval" json:"refreshInterval"`
+	SignServers          []*SignServer `json:"signServers"          yaml:"signServers"`
+	RuleChangeSignServer int           `json:"ruleChangeSignServer" yaml:"ruleChangeSignServer"`
+	MaxCheckCount        int           `json:"maxCheckCount"        yaml:"maxCheckCount"`
+	SignServerTimeout    int           `json:"signServerTimeout"    yaml:"signServerTimeout"`
+	AutoRegister         bool          `json:"autoRegister"         yaml:"autoRegister"`
+	AutoRefreshToken     bool          `json:"autoRefreshToken"     yaml:"autoRefreshToken"`
+	RefreshInterval      int           `json:"refreshInterval"      yaml:"refreshInterval"`
 }
 
 type SignServer struct {
-	URL           string `yaml:"url" json:"url"`
-	Key           string `yaml:"key" json:"key"`
-	Authorization string `yaml:"authorization" json:"authorization"`
+	URL           string `json:"url"           yaml:"url"`
+	Key           string `json:"key"           yaml:"key"`
+	Authorization string `json:"authorization" yaml:"authorization"`
 }
 
 func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {

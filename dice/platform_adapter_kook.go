@@ -126,10 +126,10 @@ type CardMessageModuleFile struct {
 
 // PlatformAdapterKook 与 PlatformAdapterDiscord 基本相同的实现，因此不详细写注释了，可以去参考隔壁的实现
 type PlatformAdapterKook struct {
-	Session       *IMSession    `yaml:"-" json:"-"`
-	Token         string        `yaml:"token" json:"token"`
-	EndPoint      *EndPointInfo `yaml:"-" json:"-"`
-	IntentSession *kook.Session `yaml:"-" json:"-"`
+	Session       *IMSession    `json:"-"     yaml:"-"`
+	Token         string        `json:"token" yaml:"token"`
+	EndPoint      *EndPointInfo `json:"-"     yaml:"-"`
+	IntentSession *kook.Session `json:"-"     yaml:"-"`
 }
 
 func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
@@ -849,7 +849,7 @@ func (pa *PlatformAdapterKook) memberPermissions(guildID *string, _ *string, use
 	}
 	if userID == guild.MasterID {
 		apermissions = int64(RolePermissionAll)
-		return
+		return apermissions
 	}
 	for _, role := range roles {
 		if strconv.FormatInt(role, 10) == guild.ID {

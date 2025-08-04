@@ -417,7 +417,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 			"> 指令.userid可以查看当前群的ID",
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
-			if val == "to" { //nolint:nestif // TODO
+			switch val {
+			case "to":
 				if ctx.PrivilegeLevel >= 100 {
 					uid := cmdArgs.GetArgN(2)
 					txt := cmdArgs.GetRestArgsFrom(3)
@@ -435,9 +436,9 @@ func RegisterBuiltinExtFun(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 				}
 				ReplyToSender(ctx, msg, "你不具备Master权限")
-			} else if val == "help" || val == "" {
+			case "help", "":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			} else {
+			default:
 				if self.Config.MailEnable {
 					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
@@ -1276,13 +1277,14 @@ func RegisterBuiltinExtFun(self *Dice) {
 			VarSetValueStr(ctx, "$t结果文本", result)
 			reply := DiceFormatTmpl(ctx, "核心:骰点")
 
-			if cmdArgs.Command == "drl" {
+			switch cmdArgs.Command {
+			case "drl":
 				if len(tryLoad.Pool) == 0 {
 					reply += "\n骰池已经抽空，现在关闭。"
 					tryLoad = singleRoulette{}
 				}
 				ReplyToSender(ctx, msg, reply)
-			} else if cmdArgs.Command == "drlh" {
+			case "drlh":
 				announce := msg.Sender.Nickname + "进行了抽取。"
 				reply += fmt.Sprintf("\n来自群%s(%s)",
 					ctx.Group.GroupName, ctx.Group.GroupID)

@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang-module/carbon"
 	ds "github.com/sealdice/dicescript"
-	rand2 "golang.org/x/exp/rand"
+	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
 
 	"github.com/dop251/goja"
 	"golang.org/x/time/rate"
@@ -30,8 +30,8 @@ import (
 )
 
 type SenderBase struct {
-	Nickname  string `json:"nickname" jsbind:"nickname"`
-	UserID    string `json:"userId" jsbind:"userId"`
+	Nickname  string `jsbind:"nickname" json:"nickname"`
+	UserID    string `jsbind:"userId"   json:"userId"`
 	GroupRole string `json:"-"` // 群内角色 admin管理员 owner群主
 }
 
@@ -41,19 +41,19 @@ type SenderBase struct {
 // 人物(是谁发的)
 // 内容
 type Message struct {
-	Time        int64       `json:"time" jsbind:"time"`               // 发送时间
-	MessageType string      `json:"messageType" jsbind:"messageType"` // group private
-	GroupID     string      `json:"groupId" jsbind:"groupId"`         // 群号，如果是群聊消息
-	GuildID     string      `json:"guildId" jsbind:"guildId"`         // 服务器群组号，会在discord,kook,dodo等平台见到
-	ChannelID   string      `json:"channelId" jsbind:"channelId"`
-	Sender      SenderBase  `json:"sender" jsbind:"sender"`     // 发送者
-	Message     string      `json:"message" jsbind:"message"`   // 消息内容
-	RawID       interface{} `json:"rawId" jsbind:"rawId"`       // 原始信息ID，用于处理撤回等
-	Platform    string      `json:"platform" jsbind:"platform"` // 当前平台
+	Time        int64       `jsbind:"time"        json:"time"`        // 发送时间
+	MessageType string      `jsbind:"messageType" json:"messageType"` // group private
+	GroupID     string      `jsbind:"groupId"     json:"groupId"`     // 群号，如果是群聊消息
+	GuildID     string      `jsbind:"guildId"     json:"guildId"`     // 服务器群组号，会在discord,kook,dodo等平台见到
+	ChannelID   string      `jsbind:"channelId"   json:"channelId"`
+	Sender      SenderBase  `jsbind:"sender"      json:"sender"`   // 发送者
+	Message     string      `jsbind:"message"     json:"message"`  // 消息内容
+	RawID       interface{} `jsbind:"rawId"       json:"rawId"`    // 原始信息ID，用于处理撤回等
+	Platform    string      `jsbind:"platform"    json:"platform"` // 当前平台
 	GroupName   string      `json:"groupName"`
-	TmpUID      string      `json:"-" yaml:"-"`
+	TmpUID      string      `json:"-"             yaml:"-"`
 	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 Milky 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
-	Segment []message.IMessageElement `json:"-" yaml:"-" jsbind:"segment"`
+	Segment []message.IMessageElement `jsbind:"segment" json:"-" yaml:"-"`
 }
 
 // GroupPlayerInfo 这是一个YamlWrapper，没有实际作用
@@ -65,47 +65,47 @@ type Message struct {
 type GroupPlayerInfo model.GroupPlayerInfoBase
 
 type GroupInfo struct {
-	Active           bool                               `json:"active" yaml:"active" jsbind:"active"`          // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                         `yaml:"activatedExtList,flow" json:"activatedExtList"` // 当前群开启的扩展列表
-	ExtListSnapshot  []string                           `yaml:"-" json:"-"`                                    // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
-	Players          *SyncMap[string, *GroupPlayerInfo] `yaml:"-" json:"-"`                                    // 群员角色数据
+	Active           bool                               `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList []*ExtInfo                         `json:"activatedExtList" yaml:"activatedExtList,flow"`               // 当前群开启的扩展列表
+	ExtListSnapshot  []string                           `json:"-"                yaml:"-"`                                   // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
+	Players          *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
 
-	GroupID         string                 `yaml:"groupId" json:"groupId" jsbind:"groupId"`
-	GuildID         string                 `yaml:"guildId" json:"guildId" jsbind:"guildId"`
-	ChannelID       string                 `yaml:"channelId" json:"channelId" jsbind:"channelId"`
-	GroupName       string                 `yaml:"groupName" json:"groupName" jsbind:"groupName"`
-	DiceIDActiveMap *SyncMap[string, bool] `yaml:"diceIds,flow" json:"diceIdActiveMap"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
-	DiceIDExistsMap *SyncMap[string, bool] `yaml:"-" json:"diceIdExistsMap"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
-	BotList         *SyncMap[string, bool] `yaml:"botList,flow" json:"botList"`         // 其他骰子列表
-	DiceSideNum     int64                  `yaml:"diceSideNum" json:"diceSideNum"`      // 以后可能会支持 1d4 这种默认面数，暂不开放给js
-	DiceSideExpr    string                 `yaml:"diceSideExpr" json:"diceSideExpr"`    //
-	System          string                 `yaml:"system" json:"system"`                // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
+	GroupID         string                 `jsbind:"groupId"       json:"groupId"      yaml:"groupId"`
+	GuildID         string                 `jsbind:"guildId"       json:"guildId"      yaml:"guildId"`
+	ChannelID       string                 `jsbind:"channelId"     json:"channelId"    yaml:"channelId"`
+	GroupName       string                 `jsbind:"groupName"     json:"groupName"    yaml:"groupName"`
+	DiceIDActiveMap *SyncMap[string, bool] `json:"diceIdActiveMap" yaml:"diceIds,flow"` // 对应的骰子ID(格式 平台:ID)，对应单骰多号情况，例如骰A B都加了群Z，A退群不会影响B在群内服务
+	DiceIDExistsMap *SyncMap[string, bool] `json:"diceIdExistsMap" yaml:"-"`            // 对应的骰子ID(格式 平台:ID)是否存在于群内
+	BotList         *SyncMap[string, bool] `json:"botList"         yaml:"botList,flow"` // 其他骰子列表
+	DiceSideNum     int64                  `json:"diceSideNum"     yaml:"diceSideNum"`  // 以后可能会支持 1d4 这种默认面数，暂不开放给js
+	DiceSideExpr    string                 `json:"diceSideExpr"    yaml:"diceSideExpr"` //
+	System          string                 `json:"system"          yaml:"system"`       // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
-	HelpPackages []string `yaml:"-" json:"helpPackages"`
-	CocRuleIndex int      `yaml:"cocRuleIndex" json:"cocRuleIndex" jsbind:"cocRuleIndex"`
-	LogCurName   string   `yaml:"logCurFile" json:"logCurName" jsbind:"logCurName"`
-	LogOn        bool     `yaml:"logOn" json:"logOn" jsbind:"logOn"`
+	HelpPackages []string `json:"helpPackages"   yaml:"-"`
+	CocRuleIndex int      `jsbind:"cocRuleIndex" json:"cocRuleIndex" yaml:"cocRuleIndex"`
+	LogCurName   string   `jsbind:"logCurName"   json:"logCurName"   yaml:"logCurFile"`
+	LogOn        bool     `jsbind:"logOn"        json:"logOn"        yaml:"logOn"`
 
-	QuitMarkAutoClean   bool   `yaml:"-" json:"-"` // 自动清群 - 播报，即将自动退出群组
-	QuitMarkMaster      bool   `yaml:"-" json:"-"` // 骰主命令退群 - 播报，即将自动退出群组
-	RecentDiceSendTime  int64  `json:"recentDiceSendTime" jsbind:"recentDiceSendTime"`
-	ShowGroupWelcome    bool   `yaml:"showGroupWelcome" json:"showGroupWelcome" jsbind:"showGroupWelcome"` // 是否迎新
-	GroupWelcomeMessage string `yaml:"groupWelcomeMessage" json:"groupWelcomeMessage" jsbind:"groupWelcomeMessage"`
+	QuitMarkAutoClean   bool   `json:"-"                     yaml:"-"` // 自动清群 - 播报，即将自动退出群组
+	QuitMarkMaster      bool   `json:"-"                     yaml:"-"` // 骰主命令退群 - 播报，即将自动退出群组
+	RecentDiceSendTime  int64  `jsbind:"recentDiceSendTime"  json:"recentDiceSendTime"`
+	ShowGroupWelcome    bool   `jsbind:"showGroupWelcome"    json:"showGroupWelcome"    yaml:"showGroupWelcome"` // 是否迎新
+	GroupWelcomeMessage string `jsbind:"groupWelcomeMessage" json:"groupWelcomeMessage" yaml:"groupWelcomeMessage"`
 	// FirstSpeechMade     bool   `yaml:"firstSpeechMade"` // 是否做过进群发言
-	LastCustomReplyTime float64 `yaml:"-" json:"-"` // 上次自定义回复时间
+	LastCustomReplyTime float64 `json:"-" yaml:"-"` // 上次自定义回复时间
 
-	RateLimiter     *rate.Limiter `yaml:"-" json:"-"`
-	RateLimitWarned bool          `yaml:"-" json:"-"`
+	RateLimiter     *rate.Limiter `json:"-" yaml:"-"`
+	RateLimitWarned bool          `json:"-" yaml:"-"`
 
-	EnteredTime  int64  `yaml:"enteredTime" json:"enteredTime" jsbind:"enteredTime"`    // 入群时间
-	InviteUserID string `yaml:"inviteUserId" json:"inviteUserId" jsbind:"inviteUserId"` // 邀请人
+	EnteredTime  int64  `jsbind:"enteredTime"  json:"enteredTime"  yaml:"enteredTime"`  // 入群时间
+	InviteUserID string `jsbind:"inviteUserId" json:"inviteUserId" yaml:"inviteUserId"` // 邀请人
 	// 仅用于http接口
-	TmpPlayerNum int64    `yaml:"-" json:"tmpPlayerNum"`
-	TmpExtList   []string `yaml:"-" json:"tmpExtList"`
+	TmpPlayerNum int64    `json:"tmpPlayerNum" yaml:"-"`
+	TmpExtList   []string `json:"tmpExtList"   yaml:"-"`
 
-	UpdatedAtTime int64 `yaml:"-" json:"-"`
+	UpdatedAtTime int64 `json:"-" yaml:"-"`
 
-	DefaultHelpGroup string `yaml:"defaultHelpGroup" json:"defaultHelpGroup"` // 当前群默认的帮助文档分组
+	DefaultHelpGroup string `json:"defaultHelpGroup" yaml:"defaultHelpGroup"` // 当前群默认的帮助文档分组
 }
 
 // ExtActive 开启扩展
@@ -264,28 +264,28 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 }
 
 type EndPointInfoBase struct {
-	ID                  string `yaml:"id" json:"id" jsbind:"id"` // uuid
-	Nickname            string `yaml:"nickname" json:"nickname" jsbind:"nickname"`
-	State               int    `yaml:"state" json:"state" jsbind:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
-	UserID              string `yaml:"userId" json:"userId" jsbind:"userId"`
-	GroupNum            int64  `yaml:"groupNum" json:"groupNum" jsbind:"groupNum"`                                  // 拥有群数
-	CmdExecutedNum      int64  `yaml:"cmdExecutedNum" json:"cmdExecutedNum" jsbind:"cmdExecutedNum"`                // 指令执行次数
-	CmdExecutedLastTime int64  `yaml:"cmdExecutedLastTime" json:"cmdExecutedLastTime" jsbind:"cmdExecutedLastTime"` // 指令执行次数
-	OnlineTotalTime     int64  `yaml:"onlineTotalTime" json:"onlineTotalTime" jsbind:"onlineTotalTime"`             // 在线时长
+	ID                  string `jsbind:"id"                  json:"id"                  yaml:"id"` // uuid
+	Nickname            string `jsbind:"nickname"            json:"nickname"            yaml:"nickname"`
+	State               int    `jsbind:"state"               json:"state"               yaml:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
+	UserID              string `jsbind:"userId"              json:"userId"              yaml:"userId"`
+	GroupNum            int64  `jsbind:"groupNum"            json:"groupNum"            yaml:"groupNum"`            // 拥有群数
+	CmdExecutedNum      int64  `jsbind:"cmdExecutedNum"      json:"cmdExecutedNum"      yaml:"cmdExecutedNum"`      // 指令执行次数
+	CmdExecutedLastTime int64  `jsbind:"cmdExecutedLastTime" json:"cmdExecutedLastTime" yaml:"cmdExecutedLastTime"` // 指令执行次数
+	OnlineTotalTime     int64  `jsbind:"onlineTotalTime"     json:"onlineTotalTime"     yaml:"onlineTotalTime"`     // 在线时长
 
-	Platform     string `yaml:"platform" json:"platform" jsbind:"platform"` // 平台，如QQ等
-	RelWorkDir   string `yaml:"relWorkDir" json:"relWorkDir"`               // 工作目录
-	Enable       bool   `yaml:"enable" json:"enable" jsbind:"enable"`       // 是否启用
-	ProtocolType string `yaml:"protocolType" json:"protocolType"`           // 协议类型，如onebot、koishi等
+	Platform     string `jsbind:"platform"   json:"platform"     yaml:"platform"` // 平台，如QQ等
+	RelWorkDir   string `json:"relWorkDir"   yaml:"relWorkDir"`                   // 工作目录
+	Enable       bool   `jsbind:"enable"     json:"enable"       yaml:"enable"`   // 是否启用
+	ProtocolType string `json:"protocolType" yaml:"protocolType"`                 // 协议类型，如onebot、koishi等
 
-	IsPublic bool       `yaml:"isPublic" json:"isPublic"`
-	Session  *IMSession `yaml:"-" json:"-"`
+	IsPublic bool       `json:"isPublic" yaml:"isPublic"`
+	Session  *IMSession `json:"-"        yaml:"-"`
 }
 
 type EndPointInfo struct {
-	EndPointInfoBase `yaml:"baseInfo" jsbind:"baseInfo"`
+	EndPointInfoBase `jsbind:"baseInfo" yaml:"baseInfo"`
 
-	Adapter PlatformAdapter `yaml:"adapter" json:"adapter"`
+	Adapter PlatformAdapter `json:"adapter" yaml:"adapter"`
 }
 
 func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
@@ -954,7 +954,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		}
 	}
 
-	if !(msg.MessageType == "group" || msg.MessageType == "private") {
+	if msg.MessageType != "group" && msg.MessageType != "private" {
 		return
 	}
 
@@ -1641,7 +1641,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 			log.Infof("忽略黑名单群消息: 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 		}
 	}
-	return
+	return notReply
 }
 
 func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
@@ -1659,7 +1659,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 		if item.Raw { //nolint:nestif
 			if item.CheckCurrentBotOn {
-				if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
+				if !ctx.IsCurGroupBotOn && !ctx.IsPrivate {
 					return false
 				}
 			}
@@ -1671,7 +1671,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			}
 		} else { //nolint:gocritic
 			// 默认模式行为：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
-			if !(ctx.IsCurGroupBotOn || ctx.IsPrivate) {
+			if !ctx.IsCurGroupBotOn && !ctx.IsPrivate {
 				return false
 			}
 		}
