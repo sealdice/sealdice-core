@@ -28,7 +28,7 @@ jobs:
       - run: go get
       - run: go generate ./...
       - name: Set Up GolangCI-Lint
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.61.0
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.3.1
       - uses: reviewdog/action-setup@v1
         with:
           reviewdog_version: latest
