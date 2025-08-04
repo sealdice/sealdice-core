@@ -107,8 +107,7 @@ type GroupInfo struct {
 
 	DefaultHelpGroup string `yaml:"defaultHelpGroup" json:"defaultHelpGroup"` // 当前群默认的帮助文档分组
 
-	PlayerGroups        *SyncMap[string, []*GroupPlayerInfo] `yaml:"pcList" json:"pcList"`                   // 供team指令使用并由其管理，与Players不同步
-	LastPlayerGroupName string                               `yaml:"lastPlayerGroup" json:"lastPlayerGroup"` // 最后操作的玩家团队
+	PlayerGroups *SyncMap[string, []*GroupPlayerInfo] `yaml:"pcList" json:"pcList"` // 供team指令使用并由其管理，与Players不同步
 }
 
 // ExtActive 开启扩展
