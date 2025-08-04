@@ -1214,13 +1214,13 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 			if argCap != nil {
 				if lossCap, errParseInt := strconv.ParseInt(argCap.Value, 10, 64); errParseInt == nil {
-					if lossCap >= 0 && sanLoss > lossCap {
+					if lossCap > 0 && sanLoss > lossCap {
 						sanLoss = lossCap
 					}
 				}
 			}
 
-			var sanNew int64 = san - sanLoss
+			sanNew := san - sanLoss
 			if sanNew < 0 {
 				sanNew = 0
 			}
