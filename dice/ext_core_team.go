@@ -2,10 +2,10 @@ package dice
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/samber/lo"
-	"golang.org/x/exp/slices"
 )
 
 type attributeContainer struct {
@@ -106,6 +106,7 @@ var cmdTeam = &CmdItemInfo{
 				// Load defaults to default values of current rule system
 				characterAttributes, err := attributeManager.Load(group.GroupID, userID)
 				if err != nil {
+					// Most likely, no such user
 					context.Dice.Logger.Error(err)
 					tmpl := DiceFormatTmpl(context, "核心:骰子执行异常")
 					ReplyToSender(context, message, tmpl)
