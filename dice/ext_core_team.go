@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -16,12 +17,14 @@ type attributeContainer struct {
 
 var cmdTeam = &CmdItemInfo{
 	Name:      "team",
-	ShortHelp: ".team <团队名> add/del/clear/call/<attr>",
+	ShortHelp: ".team <团队名> add/del/clear/call/st/ra/rc [attr-expr]",
 	Help: `队伍管理指令:
 .team <团队名> add/del <@成员...> // 增减队伍列表，若无团队会自动新建
 .team <团队名> clear // 清空队伍
 .team <团队名> call // 艾特队伍
-.team <团队名> <属性> // 列出队内成员属性`,
+.team <团队名> <属性> // 列出队内成员属性
+.team <团队名> st <属性表达式> // 设置全队属性
+.team <团队名> ra/rc <属性> // 群体检定`,
 	DisabledInPrivate: true,
 	AllowDelegate:     true,
 	Solve: func(context *MsgContext, message *Message, arguments *CmdArgs) CmdExecuteResult {
@@ -107,6 +110,20 @@ var cmdTeam = &CmdItemInfo{
 				cqCodes = append(cqCodes, fmt.Sprintf("[CQ:at,qq=%s]", id))
 			}
 			ReplyToSender(context, message, fmt.Sprintf("呼叫%s：%s", groupName, strings.Join(cqCodes, " ")))
+		case "ra", "rc":
+			if !groupExists {
+				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的群组", groupName))
+				break
+			}
+
+			if int64(len(playerGroup)) > context.Dice.Config.MaxExecuteTime {
+				ReplyToSender(context, message, "队伍过大，检验可能造成刷屏，请手动操作")
+				break
+			}
+
+			// TODO
+		case "st":
+			// TODO
 		default:
 			if !groupExists {
 				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的群组", groupName))
@@ -160,13 +177,11 @@ var cmdTeam = &CmdItemInfo{
 				slices.SortFunc(containers, func(a, b attributeContainer) int {
 					v1 := a.Value.MustReadFloat()
 					v2 := b.Value.MustReadFloat()
-					if v2-v1 > 0 {
-						return 1
-					} else if v2-v1 == 0 {
-						return 0
-					}
-					return -1
+					return cmp.Compare(v2, v1)
 				})
+			default:
+				// We don't sort types that are too complex or incomparable
+				// Do not delete this default branch. LINT might break.
 			}
 
 			formatList := make([]string, 0, len(containers))
