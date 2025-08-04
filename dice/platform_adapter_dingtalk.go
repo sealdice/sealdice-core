@@ -12,13 +12,13 @@ import (
 )
 
 type PlatformAdapterDingTalk struct {
-	Session       *IMSession        `yaml:"-" json:"-"`
-	ClientID      string            `yaml:"clientID" json:"clientID"`
-	Token         string            `yaml:"token" json:"token"`
-	RobotCode     string            `yaml:"robotCode" json:"robotCode"`
-	CoolAppCode   string            `yaml:"coolAppCode" json:"coolAppCode"`
-	EndPoint      *EndPointInfo     `yaml:"-" json:"-"`
-	IntentSession *dingtalk.Session `yaml:"-" json:"-"`
+	Session       *IMSession        `json:"-"           yaml:"-"`
+	ClientID      string            `json:"clientID"    yaml:"clientID"`
+	Token         string            `json:"token"       yaml:"token"`
+	RobotCode     string            `json:"robotCode"   yaml:"robotCode"`
+	CoolAppCode   string            `json:"coolAppCode" yaml:"coolAppCode"`
+	EndPoint      *EndPointInfo     `json:"-"           yaml:"-"`
+	IntentSession *dingtalk.Session `json:"-"           yaml:"-"`
 }
 
 func (pa *PlatformAdapterDingTalk) DoRelogin() bool {

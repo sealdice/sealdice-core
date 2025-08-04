@@ -148,27 +148,27 @@ func (c *Censor) tryPreloadTxtFile(path string) (*WordFile, error) {
 }
 
 type TomlMeta struct {
-	Name       string    `toml:"name" comment:"词库名称"`
-	Author     string    `toml:"author" comment:"作者，和 authors 存在一个即可"`
-	Authors    []string  `toml:"authors" comment:"作者（多个），和 author 存在一个即可，同时存在时优先级高于 author"`
-	Version    string    `toml:"version" comment:"版本，建议使用语义化版本号"`
-	Desc       string    `toml:"desc" comment:"简介"`
-	License    string    `toml:"license" comment:"协议"`
-	Date       time.Time `toml:"date" comment:"创建日期，使用 RFC 3339 格式"`
-	UpdateDate time.Time `toml:"updateDate" comment:"更新日期，使用 RFC 3339 格式"`
+	Name       string    `comment:"词库名称"                                                                                       toml:"name"`
+	Author     string    `comment:"作者，和 authors 存在一个即可"                                                                        toml:"author"`
+	Authors    []string  `comment:"作者（多个），和 author 存在一个即可，同时存在时优先级高于 author"                                                   toml:"authors"`
+	Version    string    `comment:"版本，建议使用语义化版本号"                                                                              toml:"version"`
+	Desc       string    `comment:"简介"                                                                                         toml:"desc"`
+	License    string    `comment:"协议"                                                                                         toml:"license"`
+	Date       time.Time `comment:"创建日期，使用 RFC 3339 格式"                                                                        toml:"date"`
+	UpdateDate time.Time `comment:"更新日期，使用 RFC 3339 格式"                                                                        toml:"updateDate"`
 }
 
 type TomlWords struct {
-	Ignore  []string `toml:"ignore" comment:"忽略级词表，没有实际作用"`
-	Notice  []string `toml:"notice" comment:"提醒级词表"`
-	Caution []string `toml:"caution" comment:"注意级词表"`
-	Warning []string `toml:"warning" comment:"警告级词表"`
-	Danger  []string `toml:"danger" comment:"危险级词表"`
+	Ignore  []string `comment:"忽略级词表，没有实际作用"                         toml:"ignore"`
+	Notice  []string `comment:"提醒级词表"                                toml:"notice"`
+	Caution []string `comment:"注意级词表"                                toml:"caution"`
+	Warning []string `comment:"警告级词表"                                toml:"warning"`
+	Danger  []string `comment:"危险级词表"                                toml:"danger"`
 }
 
 type TomlCensorWordFile struct {
-	Meta  TomlMeta  `toml:"meta" comment:"元信息，用于填写一些额外的展示内容"`
-	Words TomlWords `toml:"words" comment:"词表，出现相同词汇时按最高级别判断"`
+	Meta  TomlMeta  `comment:"元信息，用于填写一些额外的展示内容"                                   toml:"meta"`
+	Words TomlWords `comment:"词表，出现相同词汇时按最高级别判断"                                   toml:"words"`
 }
 
 func (c *Censor) tryPreloadTomlFile(path string) (*WordFile, error) {

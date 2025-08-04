@@ -12,70 +12,70 @@ import (
 )
 
 type DeckInfo struct {
-	Enable        bool                 `json:"enable" yaml:"enable"`
-	Filename      string               `json:"filename" yaml:"filename"`
-	Format        string               `json:"format" yaml:"format"`               // 几种：“SinaNya” ”Dice!“
+	Enable        bool                 `json:"enable"        yaml:"enable"`
+	Filename      string               `json:"filename"      yaml:"filename"`
+	Format        string               `json:"format"        yaml:"format"`        // 几种：“SinaNya” ”Dice!“
 	FormatVersion int64                `json:"formatVersion" yaml:"formatVersion"` // 格式版本，默认都是1
-	FileFormat    string               `json:"fileFormat" yaml:"-" `               // json / yaml
-	Name          string               `json:"name" yaml:"name"`
-	Version       string               `json:"version" yaml:"-"`
-	Author        string               `json:"author" yaml:"-"`
-	Command       map[string]bool      `json:"command" yaml:"-"` // 牌堆命令名
-	DeckItems     map[string][]string  `yaml:"-" json:"-"`
-	Date          string               `json:"date" yaml:"-" `
-	UpdateDate    string               `json:"updateDate" yaml:"-" `
-	Desc          string               `yaml:"-" json:"desc"`
-	Info          []string             `yaml:"-" json:"-"`
-	RawData       *map[string][]string `yaml:"-" json:"-"`
+	FileFormat    string               `json:"fileFormat"    yaml:"-"`             // json / yaml
+	Name          string               `json:"name"          yaml:"name"`
+	Version       string               `json:"version"       yaml:"-"`
+	Author        string               `json:"author"        yaml:"-"`
+	Command       map[string]bool      `json:"command"       yaml:"-"` // 牌堆命令名
+	DeckItems     map[string][]string  `json:"-"             yaml:"-"`
+	Date          string               `json:"date"          yaml:"-"`
+	UpdateDate    string               `json:"updateDate"    yaml:"-"`
+	Desc          string               `json:"desc"          yaml:"-"`
+	Info          []string             `json:"-"             yaml:"-"`
+	RawData       *map[string][]string `json:"-"             yaml:"-"`
 }
 
 type ExtDefaultSettingItem struct {
-	Name            string          `yaml:"name" json:"name"`
-	AutoActive      bool            `yaml:"autoActive" json:"autoActive"`                // 是否自动开启
-	DisabledCommand map[string]bool `yaml:"disabledCommand,flow" json:"disabledCommand"` // 实际为set
-	ExtItem         *ExtInfo        `yaml:"-" json:"-"`
+	Name            string          `json:"name"            yaml:"name"`
+	AutoActive      bool            `json:"autoActive"      yaml:"autoActive"`           // 是否自动开启
+	DisabledCommand map[string]bool `json:"disabledCommand" yaml:"disabledCommand,flow"` // 实际为set
+	ExtItem         *ExtInfo        `json:"-"               yaml:"-"`
 }
 
 type BanListInfo struct {
-	BanBehaviorRefuseReply   bool  `yaml:"banBehaviorRefuseReply" json:"banBehaviorRefuseReply"`     // 拉黑行为: 拒绝回复
-	BanBehaviorRefuseInvite  bool  `yaml:"banBehaviorRefuseInvite" json:"banBehaviorRefuseInvite"`   // 拉黑行为: 拒绝邀请
-	BanBehaviorQuitLastPlace bool  `yaml:"banBehaviorQuitLastPlace" json:"banBehaviorQuitLastPlace"` // 拉黑行为: 退出事发群
-	ThresholdWarn            int64 `yaml:"thresholdWarn" json:"thresholdWarn"`                       // 警告阈值
-	ThresholdBan             int64 `yaml:"thresholdBan" json:"thresholdBan"`                         // 错误阈值
-	AutoBanMinutes           int64 `yaml:"autoBanMinutes" json:"autoBanMinutes"`                     // 自动禁止时长
+	BanBehaviorRefuseReply   bool  `json:"banBehaviorRefuseReply"   yaml:"banBehaviorRefuseReply"`   // 拉黑行为: 拒绝回复
+	BanBehaviorRefuseInvite  bool  `json:"banBehaviorRefuseInvite"  yaml:"banBehaviorRefuseInvite"`  // 拉黑行为: 拒绝邀请
+	BanBehaviorQuitLastPlace bool  `json:"banBehaviorQuitLastPlace" yaml:"banBehaviorQuitLastPlace"` // 拉黑行为: 退出事发群
+	ThresholdWarn            int64 `json:"thresholdWarn"            yaml:"thresholdWarn"`            // 警告阈值
+	ThresholdBan             int64 `json:"thresholdBan"             yaml:"thresholdBan"`             // 错误阈值
+	AutoBanMinutes           int64 `json:"autoBanMinutes"           yaml:"autoBanMinutes"`           // 自动禁止时长
 
-	ScoreReducePerMinute int64 `yaml:"scoreReducePerMinute" json:"scoreReducePerMinute"` // 每分钟下降
-	ScoreGroupMuted      int64 `yaml:"scoreGroupMuted" json:"scoreGroupMuted"`           // 群组禁言
-	ScoreGroupKicked     int64 `yaml:"scoreGroupKicked" json:"scoreGroupKicked"`         // 群组踢出
-	ScoreTooManyCommand  int64 `yaml:"scoreTooManyCommand" json:"scoreTooManyCommand"`   // 刷指令
+	ScoreReducePerMinute int64 `json:"scoreReducePerMinute" yaml:"scoreReducePerMinute"` // 每分钟下降
+	ScoreGroupMuted      int64 `json:"scoreGroupMuted"      yaml:"scoreGroupMuted"`      // 群组禁言
+	ScoreGroupKicked     int64 `json:"scoreGroupKicked"     yaml:"scoreGroupKicked"`     // 群组踢出
+	ScoreTooManyCommand  int64 `json:"scoreTooManyCommand"  yaml:"scoreTooManyCommand"`  // 刷指令
 
-	JointScorePercentOfGroup   float64 `yaml:"jointScorePercentOfGroup" json:"jointScorePercentOfGroup"`     // 群组连带责任
-	JointScorePercentOfInviter float64 `yaml:"jointScorePercentOfInviter" json:"jointScorePercentOfInviter"` // 邀请人连带责任
+	JointScorePercentOfGroup   float64 `json:"jointScorePercentOfGroup"   yaml:"jointScorePercentOfGroup"`   // 群组连带责任
+	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
 }
 
 type EndPointInfoBase struct {
-	Id                  string `yaml:"id" json:"id"` // uuid
-	Nickname            string `yaml:"nickname" json:"nickname"`
-	State               int    `yaml:"state" json:"state"` // 状态 0 断开 1已连接 2连接中 3连接失败
-	UserId              string `yaml:"userId" json:"userId"`
-	GroupNum            int64  `yaml:"groupNum" json:"groupNum"`                       // 拥有群数
-	CmdExecutedNum      int64  `yaml:"cmdExecutedNum" json:"cmdExecutedNum"`           // 指令执行次数
-	CmdExecutedLastTime int64  `yaml:"cmdExecutedLastTime" json:"cmdExecutedLastTime"` // 指令执行次数
-	OnlineTotalTime     int64  `yaml:"onlineTotalTime" json:"onlineTotalTime"`         // 在线时长
+	Id                  string `json:"id"                  yaml:"id"` // uuid
+	Nickname            string `json:"nickname"            yaml:"nickname"`
+	State               int    `json:"state"               yaml:"state"` // 状态 0 断开 1已连接 2连接中 3连接失败
+	UserId              string `json:"userId"              yaml:"userId"`
+	GroupNum            int64  `json:"groupNum"            yaml:"groupNum"`            // 拥有群数
+	CmdExecutedNum      int64  `json:"cmdExecutedNum"      yaml:"cmdExecutedNum"`      // 指令执行次数
+	CmdExecutedLastTime int64  `json:"cmdExecutedLastTime" yaml:"cmdExecutedLastTime"` // 指令执行次数
+	OnlineTotalTime     int64  `json:"onlineTotalTime"     yaml:"onlineTotalTime"`     // 在线时长
 
-	Platform     string `yaml:"platform" json:"platform"`     // 平台，如QQ等
-	RelWorkDir   string `yaml:"relWorkDir" json:"relWorkDir"` // 工作目录
-	Enable       bool   `yaml:"enable" json:"enable"`         // 是否启用
-	ProtocolType string `yaml:"protocolType"`                 // 协议类型，如onebot、koishi等
+	Platform     string `json:"platform"     yaml:"platform"`   // 平台，如QQ等
+	RelWorkDir   string `json:"relWorkDir"   yaml:"relWorkDir"` // 工作目录
+	Enable       bool   `json:"enable"       yaml:"enable"`     // 是否启用
+	ProtocolType string `yaml:"protocolType"`                   // 协议类型，如onebot、koishi等
 
-	IsPublic bool `yaml:"isPublic" json:"isPublic"`
+	IsPublic bool `json:"isPublic" yaml:"isPublic"`
 }
 
 type EndPointInfo struct {
 	EndPointInfoBase `yaml:"baseInfo"`
 
 	// 下面这个能保留全部数据结构吗？
-	Adapter interface{} `yaml:"adapter" json:"adapter"`
+	Adapter interface{} `json:"adapter" yaml:"adapter"`
 }
 
 type IMSessionServe struct {
@@ -83,20 +83,20 @@ type IMSessionServe struct {
 }
 
 type DiceServe struct {
-	ImSession               *IMSessionServe `yaml:"imSession" jsbind:"imSession"`
+	ImSession               *IMSessionServe `jsbind:"imSession"             yaml:"imSession"`
 	ExtList                 []*ExtInfo      `yaml:"-"`
 	CommandCompatibleMode   bool            `yaml:"commandCompatibleMode"`
 	LastSavedTime           *time.Time      `yaml:"lastSavedTime"`
 	LastUpdatedTime         *time.Time      `yaml:"-"`
-	IsDeckLoading           bool            `yaml:"-"`                                    // 正在加载中
-	DeckList                []*DeckInfo     `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
-	CommandPrefix           []string        `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
-	DiceMasters             []string        `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
-	NoticeIds               []string        `yaml:"noticeIds"`                            // 通知ID
-	OnlyLogCommandInGroup   bool            `yaml:"onlyLogCommandInGroup"`                // 日志中仅记录命令
-	OnlyLogCommandInPrivate bool            `yaml:"onlyLogCommandInPrivate"`              // 日志中仅记录命令
-	VersionCode             int             `json:"versionCode"`                          // 版本ID(配置文件)
-	MessageDelayRangeStart  float64         `yaml:"messageDelayRangeStart"`               // 指令延迟区间
+	IsDeckLoading           bool            `yaml:"-"`                                            // 正在加载中
+	DeckList                []*DeckInfo     `jsbind:"deckList"              yaml:"deckList"`      // 牌堆信息
+	CommandPrefix           []string        `jsbind:"commandPrefix"         yaml:"commandPrefix"` // 指令前导
+	DiceMasters             []string        `jsbind:"diceMasters"           yaml:"diceMasters"`   // 骰主设置，需要格式: 平台:帐号
+	NoticeIds               []string        `yaml:"noticeIds"`                                    // 通知ID
+	OnlyLogCommandInGroup   bool            `yaml:"onlyLogCommandInGroup"`                        // 日志中仅记录命令
+	OnlyLogCommandInPrivate bool            `yaml:"onlyLogCommandInPrivate"`                      // 日志中仅记录命令
+	VersionCode             int             `json:"versionCode"`                                  // 版本ID(配置文件)
+	MessageDelayRangeStart  float64         `yaml:"messageDelayRangeStart"`                       // 指令延迟区间
 	MessageDelayRangeEnd    float64         `yaml:"messageDelayRangeEnd"`
 	WorkInQQChannel         bool            `yaml:"workInQQChannel"`
 	QQChannelAutoOn         bool            `yaml:"QQChannelAutoOn"`     // QQ频道中自动开启(默认不开)
@@ -115,13 +115,13 @@ type DiceServe struct {
 	AliveNoticeValue        string          `yaml:"aliveNoticeValue"`  // 定时通知间隔
 	ReplyDebugMode          bool            `yaml:"replyDebugMode"`    // 回复调试
 
-	DefaultCocRuleIndex int64 `yaml:"defaultCocRuleIndex" jsbind:"defaultCocRuleIndex"` // 默认coc index
+	DefaultCocRuleIndex int64 `jsbind:"defaultCocRuleIndex" yaml:"defaultCocRuleIndex"` // 默认coc index
 
 	ExtDefaultSettings []*ExtDefaultSettingItem `yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 
 	BanList *BanListInfo `yaml:"banList"` //
 
-	RunAfterLoaded []func() `yaml:"-" json:"-"`
+	RunAfterLoaded []func() `json:"-" yaml:"-"`
 
 	LogSizeNoticeEnable bool `yaml:"logSizeNoticeEnable"` // 开启日志数量提示
 	LogSizeNoticeCount  int  `yaml:"LogSizeNoticeCount"`  // 日志数量提示阈值，默认500
