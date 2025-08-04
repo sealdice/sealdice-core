@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/dice/events"
