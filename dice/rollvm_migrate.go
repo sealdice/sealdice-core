@@ -198,7 +198,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 		if detailStr == ctx.Ret.ToString() {
 			detailStr = "" // 如果detail和结果值完全一致，那么将其置空
 		}
-		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr)))
+		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr))) //nolint:staticcheck // old code
 		return detailStr
 	}
 
@@ -882,9 +882,10 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		m := reEngineVersionMark.FindStringSubmatch(formatExpr)
 		if len(m) > 0 {
 			v := m[1]
-			if v == "v1" {
+			switch v {
+			case "v1":
 				ver = "v1" // 强制v1
-			} else if v == "v2" {
+			case "v2":
 				ver = "v2" // 强制v2
 			}
 		}

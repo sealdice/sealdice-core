@@ -14,10 +14,10 @@ import (
 )
 
 type Kwarg struct {
-	Name        string `json:"name" jsbind:"name"`
-	ValueExists bool   `json:"valueExists" jsbind:"valueExists"`
-	Value       string `json:"value" jsbind:"value"`
-	AsBool      bool   `json:"asBool" jsbind:"asBool"`
+	Name        string `jsbind:"name"        json:"name"`
+	ValueExists bool   `jsbind:"valueExists" json:"valueExists"`
+	Value       string `jsbind:"value"       json:"value"`
+	AsBool      bool   `jsbind:"asBool"      json:"asBool"`
 }
 
 func (kwa *Kwarg) String() string {
@@ -30,7 +30,7 @@ func (kwa *Kwarg) String() string {
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserID string `json:"userId" jsbind:"userId"` // 包括平台前缀
+	UserID string `jsbind:"userId" json:"userId"`
 	// UID    string `json:"uid"`
 }
 
@@ -63,13 +63,13 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 }
 
 type CmdArgs struct {
-	Command                    string    `json:"command" jsbind:"command"`
-	Args                       []string  `json:"args" jsbind:"args"`
-	Kwargs                     []*Kwarg  `json:"kwargs" jsbind:"kwargs"`
-	At                         []*AtInfo `json:"atInfo" jsbind:"at"`
-	RawArgs                    string    `json:"rawArgs" jsbind:"rawArgs"`
-	AmIBeMentioned             bool      `json:"amIBeMentioned" jsbind:"amIBeMentioned"`
-	AmIBeMentionedFirst        bool      `json:"amIBeMentionedFirst" jsbind:"amIBeMentionedFirst"` // 同上，但要求是第一个被@的
+	Command                    string    `jsbind:"command"                  json:"command"`
+	Args                       []string  `jsbind:"args"                     json:"args"`
+	Kwargs                     []*Kwarg  `jsbind:"kwargs"                   json:"kwargs"`
+	At                         []*AtInfo `jsbind:"at"                       json:"atInfo"`
+	RawArgs                    string    `jsbind:"rawArgs"                  json:"rawArgs"`
+	AmIBeMentioned             bool      `jsbind:"amIBeMentioned"           json:"amIBeMentioned"`
+	AmIBeMentionedFirst        bool      `jsbind:"amIBeMentionedFirst"      json:"amIBeMentionedFirst"` // 同上，但要求是第一个被@的
 	SomeoneBeMentionedButNotMe bool      `json:"someoneBeMentionedButNotMe"`
 	IsSpaceBeforeArgs          bool      `json:"isSpaceBeforeArgs"`     // 命令前面是否有空格，用于区分rd20和rd 20
 	CleanArgs                  string    `jsbind:"cleanArgs"`           // 一种格式化后的参数，也就是中间所有分隔符都用一个空格替代

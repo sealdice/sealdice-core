@@ -46,8 +46,8 @@ func customReplyGet(c echo.Context) error {
 }
 
 type ReplyConfigInfo struct {
-	Enable   bool   `yaml:"enable" json:"enable"`
-	Filename string `yaml:"-" json:"filename"`
+	Enable   bool   `json:"enable"   yaml:"enable"`
+	Filename string `json:"filename" yaml:"-"`
 }
 
 func customReplyFileList(c echo.Context) error {

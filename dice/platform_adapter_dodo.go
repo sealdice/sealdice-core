@@ -19,14 +19,14 @@ import (
 )
 
 type PlatformAdapterDodo struct {
-	Session           *IMSession                                              `yaml:"-" json:"-"`
-	ClientID          string                                                  `yaml:"clientID" json:"clientID"`
-	Token             string                                                  `yaml:"token" json:"token"`
-	EndPoint          *EndPointInfo                                           `yaml:"-" json:"-"`
-	Client            client.Client                                           `yaml:"-" json:"-"`
-	WebSocket         websocket.Client                                        `yaml:"-" json:"-"`
-	UserPermCache     *SyncMap[string, *SyncMap[string, *GuildPermCacheItem]] `yaml:"-" json:"-"`
-	RetryConnectTimes int                                                     `yaml:"-" json:"-"` // 重连次数
+	Session           *IMSession                                              `json:"-"        yaml:"-"`
+	ClientID          string                                                  `json:"clientID" yaml:"clientID"`
+	Token             string                                                  `json:"token"    yaml:"token"`
+	EndPoint          *EndPointInfo                                           `json:"-"        yaml:"-"`
+	Client            client.Client                                           `json:"-"        yaml:"-"`
+	WebSocket         websocket.Client                                        `json:"-"        yaml:"-"`
+	UserPermCache     *SyncMap[string, *SyncMap[string, *GuildPermCacheItem]] `json:"-"        yaml:"-"`
+	RetryConnectTimes int                                                     `json:"-"        yaml:"-"` // 重连次数
 }
 
 const (
@@ -241,14 +241,14 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 	})
 	if err != nil {
 		pa.Session.Parent.Logger.Errorf("Dodo获取权限列表失败:%s", err.Error())
-		return
+		return aperm
 	}
 
 	for _, role := range list {
 		num, err := strconv.ParseInt(role.Permission, 16, 64) // 16 表示这是一个十六进制数
 		if err != nil {
 			pa.Session.Parent.Logger.Errorf("Dodo权限转换错误:%s", err.Error())
-			return
+			return aperm
 		}
 		aperm |= num
 	}
@@ -264,7 +264,7 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 		})
 		if err != nil {
 			pa.Session.Parent.Logger.Errorf("Dodo获取群信息失败:%s", err.Error())
-			return
+			return aperm
 		}
 
 		guildIDMap := new(SyncMap[string, *GuildPermCacheItem])
@@ -280,7 +280,7 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 			aperm = -1
 		}
 	}
-	return
+	return aperm
 }
 
 func (pa *PlatformAdapterDodo) DoRelogin() bool {

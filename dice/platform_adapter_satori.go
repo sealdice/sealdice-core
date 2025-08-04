@@ -24,22 +24,22 @@ import (
 const SatoriProtocolVersion = "v1"
 
 type PlatformAdapterSatori struct {
-	Session     *IMSession    `yaml:"-" json:"-"`
-	EndPoint    *EndPointInfo `yaml:"-" json:"-"`
+	Session     *IMSession    `json:"-" yaml:"-"`
+	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
 	DiceServing bool          `yaml:"-"`
 
-	Version  string `yaml:"version" json:"version"`
-	Platform string `yaml:"platform" json:"platform"`
-	Host     string `yaml:"host" json:"host"`
-	Port     int    `yaml:"port" json:"port"`
-	Token    string `yaml:"token" json:"token"`
+	Version  string `json:"version"  yaml:"version"`
+	Platform string `json:"platform" yaml:"platform"`
+	Host     string `json:"host"     yaml:"host"`
+	Port     int    `json:"port"     yaml:"port"`
+	Token    string `json:"token"    yaml:"token"`
 
 	wsUrl   *url.URL
 	httpUrl *url.URL
 
 	conn       *websocket.Conn
-	Ctx        context.Context    `yaml:"-" json:"-"`
-	CancelFunc context.CancelFunc `yaml:"-" json:"-"`
+	Ctx        context.Context    `json:"-" yaml:"-"`
+	CancelFunc context.CancelFunc `json:"-" yaml:"-"`
 }
 
 func (pa *PlatformAdapterSatori) Serve() int {

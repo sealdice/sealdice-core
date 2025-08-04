@@ -32,7 +32,7 @@ func DBVacuum() {
 		// 使用 GORM 初始化数据库
 		vacuumDB, err := sqlite.SQLiteDBInit(path, true)
 		// 数据库类型不是 SQLite 直接返回
-		if !strings.Contains(vacuumDB.Dialector.Name(), "sqlite") {
+		if !strings.Contains(vacuumDB.Name(), "sqlite") {
 			return
 		}
 		defer func() {

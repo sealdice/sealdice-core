@@ -1,8 +1,8 @@
 package events
 
 type PokeEvent struct {
-	GroupID   string `json:"group_id" jsbind:"groupId"`
-	SenderID  string `json:"sender_id" jsbind:"senderId"`
-	TargetID  string `json:"target_id" jsbind:"targetId"`
-	IsPrivate bool   `json:"is_private" jsbind:"isPrivate"`
+	GroupID   string `jsbind:"groupId"   json:"group_id"`
+	SenderID  string `jsbind:"senderId"  json:"sender_id"`
+	TargetID  string `jsbind:"targetId"  json:"target_id"`
+	IsPrivate bool   `jsbind:"isPrivate" json:"is_private"`
 }
