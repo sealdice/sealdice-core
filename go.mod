@@ -208,7 +208,7 @@ replace (
 	github.com/Szzrain/dodo-open-go v0.2.7 => github.com/sealdice/dodo-open-go v0.2.8
 	// Try to fix arm64 bug with better snappy.
 	github.com/blevesearch/zapx/v16 v16.1.8 => github.com/PaienNate/zapx/v16 v16.1.9
-	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc => github.com/PaienNate/goja_nodejs v0.0.0-20250801061551-03d1264ca4eb
+	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc => github.com/PaienNate/goja_nodejs v0.0.0-20250804035750-9252982cc4d8
 	// Try to fix sqlite in cgofree
 	// github.com/glebarez/sqlite v1.11.0 => github.com/PaienNate/sqlite v0.0.0-20241102151933-067d82f14685
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3

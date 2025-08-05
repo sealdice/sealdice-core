@@ -7,8 +7,8 @@ github.com/Masterminds/semver/v3 v3.3.0 h1:B8LGeaivUe71a5qox1ICM/JLl0NqZSW5CHyL+
 github.com/Masterminds/semver/v3 v3.3.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Milly/go-base2048 v0.1.0 h1:7ZgpCR3cjcAAVqIo+B8Q3P1+VFHRS8zilzAq062rUUk=
 github.com/Milly/go-base2048 v0.1.0/go.mod h1:kl6eYBwGnoIjv8k9UmgS+bekm6870ojptcVnT11e3jE=
-github.com/PaienNate/goja_nodejs v0.0.0-20250801061551-03d1264ca4eb h1:Wifzwde71FyYYCT26e0rkXszsT8WhiOZ/VutnGewvis=
-github.com/PaienNate/goja_nodejs v0.0.0-20250801061551-03d1264ca4eb/go.mod h1:Sa6JX5IrB4An9o76Y8bw61JBca9sxnkodg2J6UFV7lw=
+github.com/PaienNate/goja_nodejs v0.0.0-20250804035750-9252982cc4d8 h1:fCEh24BxhSoKCxjQR4jijwbFKRTGHFDfxWb7nNdLWSk=
+github.com/PaienNate/goja_nodejs v0.0.0-20250804035750-9252982cc4d8/go.mod h1:Sa6JX5IrB4An9o76Y8bw61JBca9sxnkodg2J6UFV7lw=
 github.com/PaienNate/zapx/v16 v16.1.9 h1:GA4jIOx9OPFqTGym7ucqKNNSw01BaIyOIjDPxR3w47A=
 github.com/PaienNate/zapx/v16 v16.1.9/go.mod h1:zuxVgVaLZ0g4lZvrv06xDc24N6nLCOzXYHVkXI7LMHM=
 github.com/RoaringBitmap/roaring v1.9.3 h1:t4EbC5qQwnisr5PrP9nt0IRhRTb9gMUgQF4t4S2OByM=

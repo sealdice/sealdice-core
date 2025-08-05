@@ -91,7 +91,7 @@ func (d *Dice) JsInit() {
 	loop := eventloop.NewEventLoop(eventloop.WithLogger(d.Logger),
 		eventloop.WithPoolSize(1000),
 		eventloop.EnableConsole(false),
-		eventloop.WithDebugLog(false),
+		eventloop.WithDebugLog(true), // 暂时打开调试日志
 		eventloop.WithRegistry(reg))
 	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	versionID := d.ExtLoopManager.SetLoop(loop)
