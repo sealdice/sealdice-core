@@ -143,12 +143,12 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 	if err != nil {
 		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
 		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserID)
-		return
+		return hit, hitWords, needToTerminate, newContent
 	}
 	newContent = sendContent
 
 	if checkResult.Level <= censor.Ignore {
-		return
+		return hit, hitWords, needToTerminate, newContent
 	}
 
 	hit = true
@@ -160,7 +160,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 	// }
 
 	if mctx.Censored {
-		return
+		return hit, hitWords, needToTerminate, newContent
 	}
 
 	mctx.Censored = true
@@ -195,7 +195,8 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			if handler&(1<<SendNotice) != 0 {
 				// 向通知列表/邮件发送通知
 				var text string
-				if msg.MessageType == "group" {
+				switch msg.MessageType {
+				case "group":
 					text = fmt.Sprintf(
 						"群(%s)内<%s>(%s)触发<%s>敏感词拦截",
 						groupInfo.GroupID,
@@ -203,7 +204,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 						msg.Sender.UserID,
 						levelText,
 					)
-				} else if msg.MessageType == "private" {
+				case "private":
 					text = fmt.Sprintf(
 						"<%s>(%s)触发<%s>敏感词拦截",
 						msg.Sender.Nickname,
@@ -275,7 +276,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			break
 		}
 	}
-	return
+	return hit, hitWords, needToTerminate, newContent
 }
 
 func (cm *CensorManager) DeleteCensorWordFiles(keys []string) {

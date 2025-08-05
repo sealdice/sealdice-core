@@ -4,7 +4,7 @@ type Channel struct {
 	ID       string      `json:"id"`
 	Type     ChannelType `json:"type"`
 	Name     string      `json:"name"`
-	ParentID string      `json:"parent_id" gorm:"null"`
+	ParentID string      `gorm:"null" json:"parent_id"`
 }
 
 type ChannelType int

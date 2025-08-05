@@ -51,9 +51,10 @@ func GetHexData(c echo.Context, method string, name string) (value []byte, finis
 	var strValue string
 	// var exists bool
 
-	if method == "GET" {
+	switch method {
+	case "GET":
 		strValue = c.Param(name)
-	} else if method == "POST" {
+	case "POST":
 		strValue = c.FormValue(name)
 	}
 
@@ -143,11 +144,12 @@ func checkUidExists(c echo.Context, uid string) bool {
 	for _, i := range myDice.ImSession.EndPoints {
 		if pa, ok := i.Adapter.(*dice.PlatformAdapterGocq); ok && pa.UseInPackClient {
 			var relWorkDir string
-			if pa.BuiltinMode == "lagrange" {
+			switch pa.BuiltinMode {
+			case "lagrange":
 				relWorkDir = "extra/lagrange-qq" + uid
-			} else if pa.BuiltinMode == "lagrange-gocq" {
+			case "lagrange-gocq":
 				relWorkDir = "extra/lagrange-gocq-qq" + uid
-			} else {
+			default:
 				// 默认为gocq
 				relWorkDir = "extra/go-cqhttp-qq" + uid
 			}

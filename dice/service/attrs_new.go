@@ -28,8 +28,8 @@ const (
 
 // PlatformMappingModel 虚拟ID - 平台用户ID 映射表
 type PlatformMappingModel struct {
-	Id       string `json:"id" gorm:"column:id"`               // 虚拟ID，格式为 U:nanoid 意为 User / Uniform / Universal
-	IMUserID string `json:"IMUserID" gorm:"column:im_user_id"` // IM平台的用户ID
+	Id       string `gorm:"column:id"         json:"id"`       // 虚拟ID，格式为 U:nanoid 意为 User / Uniform / Universal
+	IMUserID string `gorm:"column:im_user_id" json:"IMUserID"` // IM平台的用户ID
 }
 
 func AttrsGetById(operator engine2.DatabaseOperator, id string) (*model.AttributesItemModel, error) {

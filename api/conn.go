@@ -65,7 +65,7 @@ func ImConnectionsSetEnable(c echo.Context) error {
 	}
 
 	v := struct {
-		ID     string `form:"id" json:"id"`
+		ID     string `form:"id"     json:"id"`
 		Enable bool   `form:"enable" json:"enable"`
 	}{}
 	err := c.Bind(&v)
@@ -94,9 +94,9 @@ func ImConnectionsSetData(c echo.Context) error {
 	}
 
 	v := struct {
-		ID                  string `form:"id" json:"id"`
-		Protocol            int    `form:"protocol" json:"protocol"`
-		AppVersion          string `form:"appVersion" json:"appVersion"`
+		ID                  string `form:"id"                  json:"id"`
+		Protocol            int    `form:"protocol"            json:"protocol"`
+		AppVersion          string `form:"appVersion"          json:"appVersion"`
 		IgnoreFriendRequest bool   `json:"ignoreFriendRequest"` // 忽略好友请求
 		UseSignServer       bool   `json:"useSignServer"`
 		ExtraArgs           string `json:"extraArgs"`
@@ -281,7 +281,7 @@ func ImConnectionsCaptchaSet(c echo.Context) error {
 	}
 
 	v := struct {
-		ID   string `form:"id" json:"id"`
+		ID   string `form:"id"   json:"id"`
 		Code string `form:"code" json:"code"`
 	}{}
 	err := c.Bind(&v)
@@ -310,7 +310,7 @@ func ImConnectionsSmsCodeSet(c echo.Context) error {
 	}
 
 	v := struct {
-		ID   string `form:"id" json:"id"`
+		ID   string `form:"id"   json:"id"`
 		Code string `form:"code" json:"code"`
 	}{}
 	err := c.Bind(&v)
@@ -363,8 +363,8 @@ func ImConnectionsAddWalleQ(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 	v := struct {
-		Account  string `yaml:"account" json:"account"`
-		Password string `yaml:"password" json:"password"`
+		Account  string `json:"account"  yaml:"account"`
+		Password string `json:"password" yaml:"password"`
 		Protocol int    `json:"protocol"`
 	}{}
 	err := c.Bind(&v)
@@ -503,7 +503,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 	}
 
 	v := struct {
-		Token string `yaml:"token" json:"token"`
+		Token string `json:"token" yaml:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -531,8 +531,8 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 	}
 
 	v := struct {
-		Token    string `yaml:"token" json:"token"`
-		ProxyURL string `yaml:"proxyURL" json:"proxyURL"`
+		Token    string `json:"token"    yaml:"token"`
+		ProxyURL string `json:"proxyURL" yaml:"proxyURL"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -562,7 +562,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 	}
 
 	v := struct {
-		URL string `yaml:"url" json:"url"`
+		URL string `json:"url" yaml:"url"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -590,8 +590,8 @@ func ImConnectionsAddSealChat(c echo.Context) error {
 	}
 
 	v := struct {
-		URL   string `yaml:"url" json:"url"`
-		Token string `yaml:"token" json:"token"`
+		URL   string `json:"url"   yaml:"url"`
+		Token string `json:"token" yaml:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -619,8 +619,8 @@ func ImConnectionsAddDodo(c echo.Context) error {
 	}
 
 	v := struct {
-		ClientID string `yaml:"clientID" json:"clientID"`
-		Token    string `yaml:"token" json:"token"`
+		ClientID string `json:"clientID" yaml:"clientID"`
+		Token    string `json:"token"    yaml:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -643,10 +643,10 @@ func ImConnectionsAddDingTalk(c echo.Context) error {
 	}
 
 	v := struct {
-		ClientID  string `yaml:"clientID" json:"clientID"`
-		Token     string `yaml:"token" json:"token"`
-		Nickname  string `yaml:"nickname" json:"nickname"`
-		RobotCode string `yaml:"robotCode" json:"robotCode"`
+		ClientID  string `json:"clientID"  yaml:"clientID"`
+		Token     string `json:"token"     yaml:"token"`
+		Nickname  string `json:"nickname"  yaml:"nickname"`
+		RobotCode string `json:"robotCode" yaml:"robotCode"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -674,7 +674,7 @@ func ImConnectionsAddSlack(c echo.Context) error {
 	}
 
 	v := struct {
-		BotToken string `yaml:"botToken" json:"botToken"`
+		BotToken string `json:"botToken" yaml:"botToken"`
 		AppToken string `json:"appToken"`
 	}{}
 	err := c.Bind(&v)
@@ -702,9 +702,9 @@ func ImConnectionsAddMilky(c echo.Context) error {
 	}
 
 	v := struct {
-		WsGateway   string `yaml:"wsGateway" json:"wsGateway"`
-		RestGateway string `yaml:"restGateway" json:"restGateway"`
-		Token       string `yaml:"token" json:"token"`
+		WsGateway   string `json:"wsGateway"   yaml:"wsGateway"`
+		RestGateway string `json:"restGateway" yaml:"restGateway"`
+		Token       string `json:"token"       yaml:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -735,8 +735,8 @@ func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 	}
 
 	v := struct {
-		Account          string                 `yaml:"account" json:"account"`
-		Password         string                 `yaml:"password" json:"password"`
+		Account          string                 `json:"account"          yaml:"account"`
+		Password         string                 `json:"password"         yaml:"password"`
 		Protocol         int                    `json:"protocol"`
 		AppVersion       string                 `json:"appVersion"`
 		UseSignServer    bool                   `json:"useSignServer"`
@@ -795,9 +795,9 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	}
 
 	v := struct {
-		Account     string `yaml:"account" json:"account"`
-		ConnectURL  string `yaml:"connectUrl" json:"connectUrl"`   // 连接地址
-		AccessToken string `yaml:"accessToken" json:"accessToken"` // 访问令牌
+		Account     string `json:"account"     yaml:"account"`
+		ConnectURL  string `json:"connectUrl"  yaml:"connectUrl"`  // 连接地址
+		AccessToken string `json:"accessToken" yaml:"accessToken"` // 访问令牌
 	}{}
 
 	err := c.Bind(&v)
@@ -842,8 +842,8 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 	}
 
 	v := struct {
-		Account     string `yaml:"account" json:"account"`
-		ReverseAddr string `yaml:"reverseAddr" json:"reverseAddr"`
+		Account     string `json:"account"     yaml:"account"`
+		ReverseAddr string `json:"reverseAddr" yaml:"reverseAddr"`
 	}{}
 
 	err := c.Bind(&v)
@@ -884,9 +884,9 @@ func ImConnectionsAddRed(c echo.Context) error {
 	}
 
 	v := struct {
-		Host  string `yaml:"host" json:"host"`
-		Port  int    `yaml:"port" json:"port"`
-		Token string `yaml:"token" json:"token"`
+		Host  string `json:"host"  yaml:"host"`
+		Port  int    `json:"port"  yaml:"port"`
+		Token string `json:"token" yaml:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -912,10 +912,10 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID       uint64 `yaml:"appID" json:"appID"`
-		Token       string `yaml:"token" json:"token"`
-		AppSecret   string `yaml:"appSecret" json:"appSecret"`
-		OnlyQQGuild bool   `yaml:"onlyQQGuild" json:"onlyQQGuild"`
+		AppID       uint64 `json:"appID"       yaml:"appID"`
+		Token       string `json:"token"       yaml:"token"`
+		AppSecret   string `json:"appSecret"   yaml:"appSecret"`
+		OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -941,10 +941,10 @@ func ImConnectionsAddSatori(c echo.Context) error {
 	}
 
 	v := struct {
-		Platform string `yaml:"platform" json:"platform"`
-		Host     string `yaml:"host" json:"host"`
-		Port     int    `yaml:"port" json:"port"`
-		Token    string `yaml:"token" json:"token"`
+		Platform string `json:"platform" yaml:"platform"`
+		Host     string `json:"host"     yaml:"host"`
+		Port     int    `json:"port"     yaml:"port"`
+		Token    string `json:"token"    yaml:"token"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -971,10 +971,10 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 	}
 
 	v := struct {
-		Account           string `yaml:"account" json:"account"`
-		SignServerName    string `yaml:"signServerName" json:"signServerName"`
-		SignServerVersion string `yaml:"signServerVersion" json:"signServerVersion"`
-		IsGocq            bool   `yaml:"isGocq" json:"isGocq"`
+		Account           string `json:"account"           yaml:"account"`
+		SignServerName    string `json:"signServerName"    yaml:"signServerName"`
+		SignServerVersion string `json:"signServerVersion" yaml:"signServerVersion"`
+		IsGocq            bool   `json:"isGocq"            yaml:"isGocq"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {

@@ -24,34 +24,34 @@ import (
 /* 定义结构体 */
 
 type PlatformAdapterWalleQ struct {
-	EndPoint        *EndPointInfo       `yaml:"-" json:"-"`
-	Session         *IMSession          `yaml:"-" json:"-"`
-	Socket          *gowebsocket.Socket `yaml:"-" json:"-"`
-	ConnectURL      string              `yaml:"connectUrl" json:"connectUrl"`           // 连接地址
-	UseInPackWalleQ bool                `yaml:"useInPackWalleQ" json:"useInPackWalleQ"` // 是否使用内置的WalleQ
-	WalleQState     int                 `yaml:"-" json:"loginState"`                    // 当前状态
-	CurLoginIndex   int                 `yaml:"-" json:"curLoginIndex"`                 // 当前登录序号，如果正在进行的登录不是该Index，证明过时
+	EndPoint        *EndPointInfo       `json:"-"               yaml:"-"`
+	Session         *IMSession          `json:"-"               yaml:"-"`
+	Socket          *gowebsocket.Socket `json:"-"               yaml:"-"`
+	ConnectURL      string              `json:"connectUrl"      yaml:"connectUrl"`      // 连接地址
+	UseInPackWalleQ bool                `json:"useInPackWalleQ" yaml:"useInPackWalleQ"` // 是否使用内置的WalleQ
+	WalleQState     int                 `json:"loginState"      yaml:"-"`               // 当前状态
+	CurLoginIndex   int                 `json:"curLoginIndex"   yaml:"-"`               // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
-	WalleQProcess           *procs.Process `yaml:"-" json:"-"`
-	WalleQLoginFailedReason string         `yaml:"-" json:"curLoginFailedReason"` // 当前登录失败原因
+	WalleQProcess           *procs.Process `json:"-"                    yaml:"-"`
+	WalleQLoginFailedReason string         `json:"curLoginFailedReason" yaml:"-"` // 当前登录失败原因
 
-	WalleQLoginVerifyCode    string `yaml:"-" json:"WalleQLoginVerifyCode"`
-	WalleQLoginDeviceLockURL string `yaml:"-" json:"WalleQLoginDeviceLockUrl"`
-	WalleQQrcodeData         []byte `yaml:"-" json:"-"` // 二维码数据
+	WalleQLoginVerifyCode    string `json:"WalleQLoginVerifyCode"    yaml:"-"`
+	WalleQLoginDeviceLockURL string `json:"WalleQLoginDeviceLockUrl" yaml:"-"`
+	WalleQQrcodeData         []byte `json:"-"                        yaml:"-"` // 二维码数据
 
-	WalleQLastAutoLoginTime  int64 `yaml:"inPackGoCqLastAutoLoginTime" json:"-"`                         // 上次自动重新登录的时间
-	WalleQLoginSucceeded     bool  `yaml:"inPackWalleQLoginSucceeded" json:"-"`                          // 是否登录成功过
-	WalleQLastRestrictedTime int64 `yaml:"inPackWalleQLastRestricted" json:"inPackWalleQLastRestricted"` // 上次风控时间
+	WalleQLastAutoLoginTime  int64 `json:"-"                          yaml:"inPackGoCqLastAutoLoginTime"` // 上次自动重新登录的时间
+	WalleQLoginSucceeded     bool  `json:"-"                          yaml:"inPackWalleQLoginSucceeded"`  // 是否登录成功过
+	WalleQLastRestrictedTime int64 `json:"inPackWalleQLastRestricted" yaml:"inPackWalleQLastRestricted"`  // 上次风控时间
 
-	InPackWalleQProtocol       int      `yaml:"inPackWalleQProtocol" json:"inPackWalleQProtocol"`
-	InPackWalleQPassword       string   `yaml:"inPackWalleQPassword" json:"-"`
-	DiceServing                bool     `yaml:"-"`                                              // 是否正在连接中
-	InPackWalleQDisconnectedCH chan int `yaml:"-" json:"-"`                                     // 信号量，用于关闭连接
-	IgnoreFriendRequest        bool     `yaml:"ignoreFriendRequest" json:"ignoreFriendRequest"` // 忽略好友请求处理开关
+	InPackWalleQProtocol       int      `json:"inPackWalleQProtocol" yaml:"inPackWalleQProtocol"`
+	InPackWalleQPassword       string   `json:"-"                    yaml:"inPackWalleQPassword"`
+	DiceServing                bool     `yaml:"-"`                                               // 是否正在连接中
+	InPackWalleQDisconnectedCH chan int `json:"-"                    yaml:"-"`                   // 信号量，用于关闭连接
+	IgnoreFriendRequest        bool     `json:"ignoreFriendRequest"  yaml:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
 	echoMap        *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
 	FileMap        *SyncMap[string, string]                // 记录上传文件后得到的 id
-	Implementation string                                  `yaml:"implementation" json:"implementation"`
+	Implementation string                                  `json:"implementation" yaml:"implementation"`
 }
 
 type EventWalleQBase struct {
