@@ -1036,7 +1036,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 			go func() {
 				defer ErrorLogAndContinue(pa.Session.Parent)
-				isPrivate := msgQQ.MessageType == "private"
+				isPrivate := msg.MessageType == "private"
 				pa.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
 					GroupID:   msg.GroupID,
 					SenderID:  FormatDiceIDQQ(string(msgQQ.UserID)),
