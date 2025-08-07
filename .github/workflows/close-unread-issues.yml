@@ -27,7 +27,7 @@ jobs:
             return new RegExp(`- \\[x\\]\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(context.payload.issue.body);
 
       - name: Close issue
-        if: steps.unread-checkbox-check.outputs.result == 'true' || steps.blank-issue-check.outputs.result == 'false'
+        if: steps.unread-checkbox-check.outputs.result == 'true' || steps.blank-issue-check.outputs.result == 'false' && !contains( github.event.issue.labels.*.name, 'issue-checker-ignore')
         uses: actions/github-script@v7
         with:
           script: |
