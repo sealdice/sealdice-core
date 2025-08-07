@@ -203,15 +203,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 	}
 
 	// 设置默认骰子面数
-	if ctx.Group != nil {
-		// 情况不明，在sealchat的第一次测试中出现Group为nil
-		config.DefaultDiceSideExpr = strconv.FormatInt(ctx.Group.DiceSideNum, 10)
-		if config.DefaultDiceSideExpr == "0" {
-			config.DefaultDiceSideExpr = "100"
-		}
-	} else {
-		config.DefaultDiceSideExpr = "100"
-	}
+	config.DefaultDiceSideExpr = strconv.FormatInt(getDefaultDicePoints(ctx), 10)
 
 	return &config
 }
@@ -422,6 +414,9 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
 	vm.Config.DiceMaxMode = flags.BigFailDiceOn
+	if vm.Config.DefaultDiceSideExpr == "" {
+		vm.Config.DefaultDiceSideExpr = strconv.FormatInt(flags.DefaultDiceSideNum, 10)
+	}
 
 	var cocFlagVarPrefix string
 	if flags.CocVarNumberMode {
