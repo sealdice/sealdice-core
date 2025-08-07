@@ -414,7 +414,9 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
 	vm.Config.DiceMaxMode = flags.BigFailDiceOn
-	vm.Config.DefaultDiceSideExpr = strconv.FormatInt(flags.DefaultDiceSideNum, 10)
+	if vm.Config.DefaultDiceSideExpr == "" {
+		vm.Config.DefaultDiceSideExpr = strconv.FormatInt(flags.DefaultDiceSideNum, 10)
+	}
 
 	var cocFlagVarPrefix string
 	if flags.CocVarNumberMode {
