@@ -57,9 +57,9 @@ type DeckSinaNyaFormat struct {
 	// 一组牌        []string `json:"一组牌"`
 
 	// 更新支持字段
-	StoreID    string   `json:"store_id" yaml:"store_id"`
+	StoreID    string   `json:"store_id"    yaml:"store_id"`
 	UpdateUrls []string `json:"update_urls" yaml:"update_urls"`
-	Etag       string   `json:"etag" yaml:"etag"`
+	Etag       string   `json:"etag"        yaml:"etag"`
 }
 
 type SealMeta struct {
@@ -125,7 +125,7 @@ type DeckInfo struct {
 	Etag               string                        `json:"etag"          yaml:"etag"`
 	Cloud              bool                          `json:"cloud"         yaml:"cloud"` // 含有云端内容
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `json:"-"             yaml:"-"`
-	StoreID            string                        `yaml:"storeID" json:"storeID"`
+	StoreID            string                        `json:"storeID"       yaml:"storeID"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {

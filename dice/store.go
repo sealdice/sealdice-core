@@ -55,9 +55,9 @@ type StoreManager struct {
 	backends   []*StoreBackend
 	storeCache map[string]*StoreExt
 
-	InstalledPlugins map[string]bool `yaml:"-" json:"-"`
-	InstalledDecks   map[string]bool `yaml:"-" json:"-"`
-	InstalledReplies map[string]bool `yaml:"-" json:"-"`
+	InstalledPlugins map[string]bool `json:"-" yaml:"-"`
+	InstalledDecks   map[string]bool `json:"-" yaml:"-"`
+	InstalledReplies map[string]bool `json:"-" yaml:"-"`
 }
 
 func NewStoreManager(parent *Dice) *StoreManager {
@@ -104,7 +104,7 @@ func (m *StoreManager) refreshStoreBackends() {
 		official++
 	}
 
-	extraBackends := m.parent.Config.StoreConfig.BackendUrls
+	extraBackends := m.parent.Config.BackendUrls
 	if len(extraBackends) > 0 {
 		for _, u := range extraBackends {
 			if backendSet[u] {
@@ -299,7 +299,7 @@ func (m *StoreManager) StoreAddBackend(url string) error {
 	url = strings.TrimSpace(url)
 	url = strings.TrimLeft(url, "/")
 
-	backends := m.parent.Config.StoreConfig.BackendUrls
+	backends := m.parent.Config.BackendUrls
 	for _, backend := range backends {
 		if backend == url {
 			return fmt.Errorf("backend `%s` already exists", backend)

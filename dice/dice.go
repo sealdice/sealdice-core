@@ -261,7 +261,7 @@ type Dice struct {
 	SaveDatabaseInsertCheckMap     *SyncMap[string, string] `json:"-" yaml:"-"`
 
 	/* 扩展商店 */
-	StoreManager *StoreManager `yaml:"-" json:"-"`
+	StoreManager *StoreManager `json:"-" yaml:"-"`
 }
 
 func (d *Dice) MarkModified() {
