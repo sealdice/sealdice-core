@@ -253,9 +253,9 @@ func (m *StoreManager) getRecommendFromBackend(backend StoreBackend) ([]*StoreEx
 	}
 
 	var respResult struct {
-		Result bool
-		Data   []*StoreExt
-		Err    string
+		Result bool        `json:"result"`
+		Data   []*StoreExt `json:"data"`
+		Err    string      `json:"err"`
 	}
 	err = json.Unmarshal(respData, &respResult)
 	if err != nil {
@@ -282,10 +282,10 @@ type StoreQueryPageParams struct {
 }
 
 type StoreExtPage struct {
-	Data     []*StoreExt
-	PageNum  int
-	PageSize int
-	Next     bool
+	Data     []*StoreExt `json:"data"`
+	PageNum  int         `json:"pageNum"`
+	PageSize int         `json:"pageSize"`
+	Next     bool        `json:"next"`
 }
 
 func (m *StoreManager) StoreBackendList() []*StoreBackend {
@@ -402,9 +402,9 @@ func (m *StoreManager) getStorePageFromBackend(backend StoreBackend, params Stor
 	}
 
 	var respResult struct {
-		Result bool
-		Data   *StoreExtPage
-		Err    string
+		Result bool          `json:"result"`
+		Data   *StoreExtPage `json:"data"`
+		Err    string        `json:"err"`
 	}
 	err = json.Unmarshal(respData, &respResult)
 	if err != nil {
