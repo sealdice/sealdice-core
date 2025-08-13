@@ -139,14 +139,14 @@ func GetOSVersion(currentBuild int, currentVersion float64, server bool) (os byt
 	}
 
 	log.Debugf("OS Version: %s\n", osNameMap[os])
-	return
+	return os
 }
 
 func getOSVersionBuild() (build int, version float64, server bool, err error) {
 	hSubKey, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
 	if err != nil {
 		log.Errorf("Failed to open registry key CurrentVersion with error: %v\n", err)
-		return
+		return build, version, server, err
 	}
 	defer func(hSubKey registry.Key) {
 		err = hSubKey.Close()
@@ -158,23 +158,23 @@ func getOSVersionBuild() (build int, version float64, server bool, err error) {
 	buildStr, _, err := hSubKey.GetStringValue("CurrentBuild")
 	if err != nil {
 		log.Error(err)
-		return
+		return build, version, server, err
 	}
 	build, err = strconv.Atoi(buildStr)
 	if err != nil {
 		log.Error(err)
-		return
+		return build, version, server, err
 	}
 	versionStr, _, err := hSubKey.GetStringValue("CurrentVersion")
 	if err != nil {
 		log.Error(err)
-		return
+		return build, version, server, err
 	}
 
 	version, err = strconv.ParseFloat(versionStr, 32)
 	if err != nil {
 		log.Errorf("Failed to get CurrentVersion with error: %v\n", err)
-		return
+		return build, version, server, err
 	}
 	// 二次判断：由于有Win8升级成Win10的情况，这个参数不准确。这个参数只有Win10往上有，所以下面
 	majorVersionStr, _, err := hSubKey.GetIntegerValue("CurrentMajorVersionNumber")
@@ -189,18 +189,18 @@ func getOSVersionBuild() (build int, version float64, server bool, err error) {
 	hSubKey, err = registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control\ProductOptions`, registry.QUERY_VALUE)
 	if err != nil {
 		log.Errorf("Failed to open registry key ProductOptions with error: %v\n", err)
-		return
+		return build, version, server, err
 	}
 
 	serverFlag, _, err := hSubKey.GetStringValue("ProductType")
 	if err != nil {
 		log.Error(err)
-		return
+		return build, version, server, err
 	}
 
 	if strings.Compare(serverFlag, "ServerNT") == 0 {
 		server = true
 	}
 
-	return
+	return build, version, server, err
 }
