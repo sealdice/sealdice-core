@@ -1,4 +1,4 @@
-package log
+package logger
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	gormlogger "gorm.io/gorm/logger"
 )
@@ -24,7 +25,7 @@ type ContextFn func(ctx context.Context) []zapcore.Field
 
 type GORMLogger struct {
 	// 要被传入的KartosLogger
-	ZapLogger *Helper
+	ZapLogger *zap.SugaredLogger
 	// 原本的Logger有
 	LogLevel gormlogger.LogLevel
 	// 原本的logger有
@@ -37,7 +38,7 @@ type GORMLogger struct {
 	Context              ContextFn
 }
 
-func NewGormLogger(zapLogger *Helper) GORMLogger {
+func newGormLogger(zapLogger *zap.SugaredLogger) GORMLogger {
 	return GORMLogger{
 		ZapLogger:                 zapLogger,
 		LogLevel:                  gormlogger.Warn,

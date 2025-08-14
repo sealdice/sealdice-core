@@ -23,12 +23,12 @@ import (
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
+	"go.uber.org/zap"
 	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
 
 	"sealdice-core/dice/events"
-	"sealdice-core/dice/logger"
+	logger "sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/public_dice"
 )
 
@@ -194,9 +194,9 @@ type Dice struct {
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
-	Logger        *log.Helper  `yaml:"-"` // 日志
-	LogWriter     *log.WriterX `yaml:"-"` // 用于api的log对象
-	IsDeckLoading bool         `yaml:"-"` // 正在加载中
+	Logger        *zap.SugaredLogger `yaml:"-"` // 日志
+	LogWriter     *logger.UIWriter   `yaml:"-"` // 用于api的log对象
+	IsDeckLoading bool               `yaml:"-"` // 正在加载中
 
 	// 由于被导出的原因，暂时不迁移至 config
 	DeckList      []*DeckInfo `jsbind:"deckList"      yaml:"deckList"`      // 牌堆信息
@@ -269,7 +269,11 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 	return true
 }
 
-func (d *Dice) Init(operator engine.DatabaseOperator) {
+func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter) {
+	log := logger.M()
+	d.Logger = log
+	d.LogWriter = uiWriter
+
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
 	_ = os.MkdirAll(d.BaseConfig.DataDir, 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0o755)
@@ -277,10 +281,6 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "log-exports"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
-
-	log := logger.Init()
-	d.Logger = log.Logger
-	d.LogWriter = log.WX
 
 	d.Cron = cron.New()
 	d.Cron.Start()
@@ -307,7 +307,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
 	if err != nil {
-		d.Logger.Error("Failed to load plugin configs: ", err)
+		log.Error("Failed to load plugin configs: ", err)
 	}
 
 	d.registerCoreCommands()
@@ -326,11 +326,11 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 
 	// 创建js运行时
 	if d.Config.JsEnable {
-		d.Logger.Info("js扩展支持：开启")
+		log.Info("js扩展支持：开启")
 		d.ExtLoopManager = NewJsLoopManager() // 此时不初始化loop，Init才初始化哦
 		d.JsInit()
 	} else {
-		d.Logger.Info("js扩展支持：关闭")
+		log.Info("js扩展支持：关闭")
 	}
 
 	for _, i := range d.ExtList {
@@ -345,7 +345,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				d.Logger.Error("RunAfterLoaded 报错: ", r)
+				log.Error("RunAfterLoaded 报错: ", r)
 			}
 		}()
 		i()
@@ -362,14 +362,14 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 				d.Save(true)
 				// if count%2 == 0 {
 				//	if err := model.FlushWAL(d.DBData); err != nil {
-				//		d.Logger.Error("Failed to flush WAL: ", err)
+				//		log.Error("Failed to flush WAL: ", err)
 				//	}
 				//	if err := model.FlushWAL(d.DBLogs); err != nil {
-				//		d.Logger.Error("Failed to flush WAL: ", err)
+				//		log.Error("Failed to flush WAL: ", err)
 				//	}
 				//	if d.CensorManager != nil && d.CensorManager.DB != nil {
 				//		if err := model.FlushWAL(d.CensorManager.DB); err != nil {
-				//			d.Logger.Error("Failed to flush WAL: ", err)
+				//			log.Error("Failed to flush WAL: ", err)
 				//		}
 				//	}
 				// }
@@ -383,7 +383,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				d.Logger.Error(r)
+				log.Error(r)
 			}
 		}()
 
@@ -422,7 +422,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 		d.JsBuiltinDigestSet = make(map[string]bool)
 		d.JsLoadScripts()
 	} else {
-		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
+		log.Info("js扩展支持已关闭，跳过js脚本的加载")
 	}
 
 	if d.Config.UpgradeWindowID != "" {
@@ -460,7 +460,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.Config.UpgradeWindowID}}, text)
 				}
 
-				d.Logger.Infof("升级完成，当前版本: %s", VERSION.String())
+				log.Infof("升级完成，当前版本: %s", VERSION.String())
 				(&d.Config).UpgradeWindowID = ""
 				(&d.Config).UpgradeEndpointID = ""
 				d.MarkModified()
@@ -529,7 +529,7 @@ func (d *Dice) _ExprTextBaseV1(buffer string, ctx *MsgContext, flags RollExtraFl
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d._ExprEvalBaseV1("\x1e"+buffer+"\x1e", ctx, flags)
 	if err != nil {
-		log.Warnf("脚本执行出错: %s -> %v", buffer, err)
+		d.Logger.Warnf("脚本执行出错: %s -> %v", buffer, err)
 	}
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
@@ -869,7 +869,7 @@ func (d *Dice) PublicDiceEndpointRefresh() {
 		Endpoints: endpointItems,
 	}, GenerateVerificationKeyForPublicDice)
 	if code != 200 {
-		log.Warn("[公骰]无法通过服务器校验，不再进行更新")
+		d.Logger.Warn("[公骰]无法通过服务器校验，不再进行更新")
 		return
 	}
 }
@@ -883,7 +883,7 @@ func (d *Dice) PublicDiceInfoRegister() {
 		Note:  cfg.Note,
 	}, GenerateVerificationKeyForPublicDice)
 	if code != 200 {
-		log.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
+		d.Logger.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
 		return
 	}
 	// ID为空时才将注册好的ID覆写配置

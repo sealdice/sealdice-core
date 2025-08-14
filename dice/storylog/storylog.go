@@ -9,15 +9,16 @@ import (
 	"net/http"
 	"strconv"
 
+	"go.uber.org/zap"
+
 	"sealdice-core/model"
 	"sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 )
 
 type UploadEnv struct {
 	Dir      string
 	Db       engine.DatabaseOperator
-	Log      *log.Helper
+	Log      *zap.SugaredLogger
 	Backends []string
 	Version  StoryVersion
 
