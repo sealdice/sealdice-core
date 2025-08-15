@@ -27,13 +27,12 @@ import (
 	"sealdice-core/api"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	v2 "sealdice-core/migrate/v2"
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 	"sealdice-core/utils/dboperator"
-	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/oschecker"
-	"sealdice-core/utils/paniclog"
 )
 
 /*
@@ -49,6 +48,7 @@ var sealLock = flock.New("sealdice-lock.lock")
 
 func cleanupCreate(diceManager *dice.DiceManager) func() {
 	return func() {
+		log := logger.M()
 		log.Info("程序即将退出，进行清理……")
 		err := recover()
 		if err != nil {
@@ -188,10 +188,9 @@ func main() {
 		return
 	}
 	// 提前到最开始初始化所有日志
-	// 1. 初始化全局Kartos日志
-	log.InitZapWithKartosLog(zapcore.Level(opts.LogLevel))
-	// 2. 初始化全局panic捕获日志
-	paniclog.InitPanicLog()
+	uiWriter := logger.NewUIWriter()
+	log := logger.InitLogger(zapcore.Level(opts.LogLevel), uiWriter).Named(logger.LogKeyMain)
+
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
 	// 加载env相关
@@ -344,7 +343,7 @@ func main() {
 	}
 
 	// 先临时放这里，后面再整理一下升级模块
-	diceManager.UpdateSealdiceByFile = func(packName string, log *log.Helper) bool {
+	diceManager.UpdateSealdiceByFile = func(packName string) bool {
 		err = CheckUpdater(diceManager)
 		if err != nil {
 			log.Error("升级程序检查失败: ", err.Error())
@@ -422,7 +421,7 @@ func main() {
 
 	// 初始化核心
 	diceManager.TryCreateDefault()
-	diceManager.InitDice()
+	diceManager.InitDice(uiWriter)
 
 	if opts.JustForTest {
 		diceManager.JustForTest = true
@@ -487,6 +486,7 @@ func removeUpdateFiles() {
 }
 
 func diceServe(d *dice.Dice) {
+	log := d.Logger
 	defer dice.CrashLog()
 	if len(d.ImSession.EndPoints) == 0 {
 		log.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
@@ -576,13 +576,13 @@ func diceServe(d *dice.Dice) {
 }
 
 func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
+	log := logger.M()
 	log.Info("即将启动webui")
 	// Echo instance
 	e := echo.New()
 
 	// 为UI添加日志，以echo方式输出
-	echoHelper := log.GetWebLogger()
-	e.Use(log.EchoMiddleLogger(echoHelper))
+	e.Use(logger.EchoLogMiddleware())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},

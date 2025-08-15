@@ -14,7 +14,7 @@ import (
 	"github.com/lxn/win"
 	"golang.org/x/sys/windows/registry"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 const (
@@ -87,6 +87,7 @@ func showNoticeBox(title string, message string) {
 }
 
 func GetOSVersion(currentBuild int, currentVersion float64, server bool) (os byte) {
+	log := logger.M()
 	currentVersionStr := strconv.FormatFloat(currentVersion, 'f', 1, 64)
 	if server {
 		switch {
@@ -143,6 +144,7 @@ func GetOSVersion(currentBuild int, currentVersion float64, server bool) (os byt
 }
 
 func getOSVersionBuild() (build int, version float64, server bool, err error) {
+	log := logger.M()
 	hSubKey, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
 	if err != nil {
 		log.Errorf("Failed to open registry key CurrentVersion with error: %v\n", err)

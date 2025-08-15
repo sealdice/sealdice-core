@@ -12,7 +12,6 @@ import (
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/service"
 	"sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 )
 
 type CensorMode int
@@ -81,7 +80,8 @@ func (d *Dice) NewCensorManager() {
 }
 
 // Load 审查加载
-func (cm *CensorManager) Load(_ *Dice) {
+func (cm *CensorManager) Load(d *Dice) {
+	log := d.Logger
 	fileDir := "./data/censor"
 	cm.IsLoading = true
 	cm.Censor.SensitiveKeys = make(map[string]censor.WordInfo)
