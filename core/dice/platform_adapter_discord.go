@@ -11,9 +11,10 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 
+	"sealdice-core/logger"
 	"sealdice-core/message"
-	log "sealdice-core/utils/kratos"
 )
 
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
@@ -68,6 +69,7 @@ func (pa *PlatformAdapterDiscord) updateChannelNum() {
 
 // Serve 启动服务，返回0就是成功，1就是失败
 func (pa *PlatformAdapterDiscord) Serve() int {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	dg, err := discordgo.New("Bot " + pa.Token)
 	// 这里出错很大概率是token不对
 	if err != nil {

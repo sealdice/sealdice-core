@@ -11,13 +11,13 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	ds "github.com/sealdice/dicescript"
+	"go.uber.org/zap"
 
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	"sealdice-core/model"
 	"sealdice-core/utils"
-
-	log "sealdice-core/utils/kratos"
 )
 
 func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*model.AttributesItemModel, error) {
@@ -97,6 +97,7 @@ func AttrsNewItem(db *sqlx.Tx, item *model.AttributesItemModel) (*model.Attribut
 
 // 群组个人数据转换
 func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_group_user", map[string]any{})
 	if err != nil || rows.Err() != nil {
 		return 0, 0, err
@@ -124,8 +125,8 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		_, userIdPart, ok := dice.UnpackGroupUserId(id)
 		if !ok {
 			countFailed += 1
-			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
-			fmt.Fprintln(os.Stdout, "ID解析失败: ", id)
+			log.Error("数据库读取出错，退出转换")
+			log.Errorf("ID解析失败: %s", id)
 			continue
 		}
 
@@ -134,7 +135,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 
 		if err != nil {
 			countFailed += 1
-			fmt.Fprintln(os.Stdout, "解析失败: ", string(data))
+			log.Errorf("解析失败: %s", string(data))
 			continue
 		}
 
@@ -159,7 +160,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Fprintf(os.Stdout, "群-用户 %s 的数据无法转换\n", id)
+			log.Errorf("群-用户 %s 的数据无法转换\n", id)
 			continue
 		}
 
@@ -194,6 +195,7 @@ func attrsGroupUserMigrate(db *sqlx.Tx) (int, int, error) {
 
 // 群数据转换
 func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_group", map[string]any{})
 	if err != nil || rows.Err() != nil {
 		return 0, 0, err
@@ -214,7 +216,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 		)
 
 		if err != nil {
-			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
+			log.Errorf("数据库读取出错，退出转换")
 			return count, countFailed, err
 		}
 
@@ -223,7 +225,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 
 		if err != nil {
 			countFailed += 1
-			fmt.Fprintln(os.Stdout, "解析失败: ", string(data))
+			log.Errorf("解析失败: %s", string(data))
 			continue
 		}
 
@@ -236,7 +238,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Fprintf(os.Stdout, "群 %s 的数据无法转换\n", id)
+			log.Errorf("群 %s 的数据无法转换\n", id)
 			continue
 		}
 
@@ -264,6 +266,7 @@ func attrsGroupMigrate(db *sqlx.Tx) (int, int, error) {
 
 // 全局个人数据转换、对应attrs_user和玩家人物卡
 func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	rows, err := db.NamedQuery("select id, updated_at, data from attrs_user where length(data) < 9000000", map[string]any{})
 	if err != nil || rows.Err() != nil {
 		return 0, 0, 0, err
@@ -285,7 +288,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		)
 
 		if err != nil {
-			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
+			log.Errorf("数据库读取出错，退出转换")
 			return count, countSheetsNum, countFailed, err
 		}
 
@@ -324,7 +327,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 
 				toNew, err = convertToNew(name, ownerId, []byte(v.ToString()), updatedAt)
 				if err != nil {
-					fmt.Fprintf(os.Stdout, "用户 %s 的角色卡 %s 无法转换", ownerId, name)
+					log.Errorf("用户 %s 的角色卡 %s 无法转换", ownerId, name)
 					continue
 				}
 				newSheetsList = append(newSheetsList, toNew)
@@ -346,7 +349,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		for _, i := range newSheetsList {
 			_, err = AttrsNewItem(db, i)
 			if err != nil {
-				fmt.Fprintf(os.Stdout, "用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
+				log.Errorf("用户 %s 的角色卡 %s 无法写入数据库: %s\n", ownerId, i.Name, err.Error())
 			}
 		}
 
@@ -354,7 +357,7 @@ func attrsUserMigrate(db *sqlx.Tx) (int, int, int, error) {
 		rawData, err := ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
-			fmt.Fprintf(os.Stdout, "用户 %s 的个人数据无法转换\n", ownerId)
+			log.Errorf("用户 %s 的个人数据无法转换\n", ownerId)
 			continue
 		}
 
@@ -417,6 +420,7 @@ CREATE TABLE IF NOT EXISTS attrs (
 }
 
 func V150Upgrade() error {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	dbDataPath, _ := filepath.Abs("./data/default/data.db")
 	if _, err := os.Stat(dbDataPath); errors.Is(err, os.ErrNotExist) {
 		log.Error("未找到旧版本数据库，若您启动全新海豹，可安全忽略。")

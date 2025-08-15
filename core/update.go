@@ -14,14 +14,16 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"sealdice-core/dice"
+	"sealdice-core/logger"
 	"sealdice-core/utils"
-	log "sealdice-core/utils/kratos"
 )
 
 var binPrefix = "https://sealdice.coding.net/p/sealdice/d/sealdice-binaries/git/raw/master"
 
-func downloadUpdate(dm *dice.DiceManager, log *log.Helper) (string, error) {
+func downloadUpdate(dm *dice.DiceManager, log *zap.SugaredLogger) (string, error) {
 	var packFn string
 	if dm.AppVersionOnline != nil {
 		ver := dm.AppVersionOnline
@@ -95,7 +97,7 @@ func UpdateRequestListen(dm *dice.DiceManager) {
 		time.Sleep(2 * time.Second)
 		log.Info("进行升级准备工作")
 
-		dm.UpdateSealdiceByFile(updatePackFn, log)
+		dm.UpdateSealdiceByFile(updatePackFn)
 		// 旧版本行为: 将新升级包里的主程序复制到当前目录，命名为 auto_update.exe 或 auto_update
 		// 然后重启主程序
 	} else {
@@ -104,6 +106,7 @@ func UpdateRequestListen(dm *dice.DiceManager) {
 }
 
 func doReboot(dm *dice.DiceManager) {
+	log := logger.M()
 	executablePath, err := filepath.Abs(os.Args[0])
 	if err != nil {
 		return

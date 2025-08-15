@@ -12,13 +12,14 @@ import (
 	"unicode/utf16"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"go.uber.org/zap"
 
+	"sealdice-core/logger"
 	"sealdice-core/message"
-	log "sealdice-core/utils/kratos"
 )
 
 type BotLoggerWrapper struct {
-	Logger *log.Helper
+	Logger *zap.SugaredLogger
 }
 
 func (b *BotLoggerWrapper) Println(v ...interface{}) {
@@ -63,14 +64,14 @@ func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterTelegram) Serve() int {
-	logger := pa.Session.Parent.Logger
+	log := zap.S().Named(logger.LogKeyAdapter)
 	ep := pa.EndPoint
-	logger.Info("尝试连接Telegram服务……")
+	log.Info("尝试连接Telegram服务……")
 
 	var bot *tgbotapi.BotAPI
 	var err error
 
-	_ = tgbotapi.SetLogger(&BotLoggerWrapper{Logger: logger})
+	_ = tgbotapi.SetLogger(&BotLoggerWrapper{Logger: log})
 	if len(pa.ProxyURL) > 0 {
 		var u *url.URL
 		u, err = url.Parse(pa.ProxyURL)

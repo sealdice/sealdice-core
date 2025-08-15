@@ -18,11 +18,11 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/events"
 	"sealdice-core/message"
-	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 
 	"github.com/gorilla/websocket"
@@ -287,7 +287,7 @@ func hasURLScheme(text string) bool {
 	return match
 }
 
-func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
+func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeTo *MessageQQ) error {
 	// 不合法的信息体
 	if !gjson.Valid(message) {
 		log.Warn("无法解析 onebot11 字段:", message)

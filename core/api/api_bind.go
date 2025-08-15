@@ -18,7 +18,6 @@ import (
 	"github.com/samber/lo"
 
 	"sealdice-core/dice"
-	log "sealdice-core/utils/kratos"
 )
 
 const CodeAlreadyExists = 602
@@ -159,10 +158,10 @@ func forceStop(c echo.Context) error {
 	}
 	defer func() {
 		// Same with main.go `cleanUpCreate()` 由于无法导入 main.go 中的函数，所以这里直接复制过来了
-		logger := myDice.Logger
-		logger.Info("程序即将退出，进行清理……")
+		log := myDice.Logger
+		log.Info("程序即将退出，进行清理……")
 		err := recover()
-		logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
+		log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
 		diceManager := dm
 
 		for _, i := range diceManager.Dice {
@@ -177,7 +176,7 @@ func forceStop(c echo.Context) error {
 					if j.Storage != nil {
 						err := j.StorageClose()
 						if err != nil {
-							logger.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
+							log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
 						}
 					}
 				}
@@ -208,7 +207,7 @@ func forceStop(c echo.Context) error {
 		if diceManager.Cron != nil {
 			diceManager.Cron.Stop()
 		}
-		logger.Info("清理完成，程序即将退出")
+		log.Info("清理完成，程序即将退出")
 		os.Exit(0)
 	}()
 	return c.JSON(http.StatusOK, nil)

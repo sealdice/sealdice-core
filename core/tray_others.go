@@ -14,7 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 func trayInit(dm *dice.DiceManager) {
@@ -32,14 +32,15 @@ func TestRunning() bool {
 }
 
 func tempDirWarn() {
-	log.Warn("当前工作路径为临时目录，因此拒绝继续执行。")
+	logger.M().Warn("当前工作路径为临时目录，因此拒绝继续执行。")
 }
 
 func showMsgBox(title string, message string) {
-	log.Info(title, message)
+	logger.M().Info(title, message)
 }
 
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
+	log := logger.M()
 	portStr := "3211"
 	rePort := regexp.MustCompile(`:(\d+)$`)
 	m := rePort.FindStringSubmatch(dm.ServeAddress)
