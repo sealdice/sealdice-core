@@ -88,7 +88,11 @@ func (d *Dice) JsInit() {
 	// 重建js vm
 	reg := new(require.Registry)
 
-	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
+	loop := eventloop.NewEventLoop(eventloop.WithLogger(d.Logger),
+		eventloop.WithPoolSize(1000),
+		eventloop.EnableConsole(false),
+		eventloop.WithDebugLog(true), // 暂时打开调试日志
+		eventloop.WithRegistry(reg))
 	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	versionID := d.ExtLoopManager.SetLoop(loop)
 
