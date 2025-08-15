@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/samber/lo"
+	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	"sealdice-core/message"
 	"sealdice-core/model"
 	"sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 
 	"github.com/golang-module/carbon"
 	ds "github.com/sealdice/dicescript"
@@ -1476,6 +1477,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 	// 循环完毕，要不然是因为够了要退的数量，要不就是遍历完毕了，但是不够，总之要进行退群活动了
 	go func() {
 		if r := recover(); r != nil {
+			log := zap.S().Named(logger.LogKeyAdapter)
 			log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
 		}
 		for i, pair := range selectedGroupEndpoints {
@@ -1502,7 +1504,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			msgCtx.Notice(hint)
 			// 生成一个随机值（8~11秒随机）
 			randomSleep := time.Duration(rand.Intn(3000)+8000) * time.Millisecond
-			log.Infof("退群等待，等待 %f 秒后继续", randomSleep.Seconds())
+			logger.M().Infof("退群等待，等待 %f 秒后继续", randomSleep.Seconds())
 			time.Sleep(randomSleep)
 		}
 	}()

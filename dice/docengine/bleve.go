@@ -12,7 +12,7 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	index "github.com/blevesearch/bleve_index_api"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 type BleveSearchEngine struct {
@@ -265,6 +265,7 @@ func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from
 }
 
 func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
+	log := logger.M()
 	document, err := d.Index.Document(id)
 	if err != nil {
 		return nil, err

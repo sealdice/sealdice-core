@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"os"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
-	log "sealdice-core/utils/kratos"
 )
 
 type PGSQLEngine struct {
@@ -24,6 +25,7 @@ type PGSQLEngine struct {
 }
 
 func (s *PGSQLEngine) Close() {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	db, err := s.DB.DB()
 	if err != nil {
 		log.Errorf("failed to close db: %v", err)

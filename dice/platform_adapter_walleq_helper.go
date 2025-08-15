@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
 
-	log2 "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
 
@@ -134,7 +133,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	pa.CurLoginIndex++
 	loginIndex := pa.CurLoginIndex
 	pa.WalleQState = WqStateCodeInLogin
-	log2.Debug("WalleQServe begin")
+	dice.Logger.Debug("WalleQServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
 	_ = os.MkdirAll(workDir, 0o755)
 	log := dice.Logger

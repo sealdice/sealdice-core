@@ -12,7 +12,6 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/utils"
-	log "sealdice-core/utils/kratos"
 )
 
 type DiceConfigInfo struct {
@@ -109,7 +108,7 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	if err != nil {
-		log.Error("DiceConfigSet", err)
+		myDice.Logger.Error("DiceConfigSet", err)
 		return c.JSON(http.StatusOK, nil)
 	}
 	if val, ok := jsonMap["commandPrefix"]; ok {

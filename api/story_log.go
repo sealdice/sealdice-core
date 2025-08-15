@@ -10,13 +10,12 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
 	"sealdice-core/model"
-	log "sealdice-core/utils/kratos"
 )
 
 func storyGetInfo(c echo.Context) error {
 	info, err := service.LogGetInfo(myDice.DBOperator)
 	if err != nil {
-		log.Error("storyGetInfo", err)
+		myDice.Logger.Error("storyGetInfo", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, info)
@@ -29,7 +28,7 @@ func storyGetLogs(c echo.Context) error {
 	}
 	logs, err := service.LogGetLogs(myDice.DBOperator)
 	if err != nil {
-		log.Error("storyGetLogs", err)
+		myDice.Logger.Error("storyGetLogs", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, logs)
@@ -72,7 +71,7 @@ func storyGetItems(c echo.Context) error {
 	}
 	lines, err := service.LogGetAllLines(myDice.DBOperator, c.QueryParam("groupId"), c.QueryParam("name"))
 	if err != nil {
-		log.Error("storyGetItems", err)
+		myDice.Logger.Error("storyGetItems", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, lines)
@@ -86,7 +85,7 @@ func storyGetItemPage(c echo.Context) error {
 	v := service.QueryLogLinePage{}
 	err := c.Bind(&v)
 	if err != nil {
-		log.Error("storyGetItemPage", err)
+		myDice.Logger.Error("storyGetItemPage", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	if v.PageNum < 1 {
@@ -98,7 +97,7 @@ func storyGetItemPage(c echo.Context) error {
 
 	lines, err := service.LogGetLinePage(myDice.DBOperator, &v)
 	if err != nil {
-		log.Error("storyGetItemPage", err)
+		myDice.Logger.Error("storyGetItemPage", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, lines)
@@ -111,12 +110,12 @@ func storyDelLog(c echo.Context) error {
 	v := &model.LogInfo{}
 	err := c.Bind(&v)
 	if err != nil {
-		log.Error("storyDelLog", err)
+		myDice.Logger.Error("storyDelLog", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	is := service.LogDelete(myDice.DBOperator, v.GroupID, v.Name)
 	if !is {
-		log.Error("storyDelLog", "failed to delete")
+		myDice.Logger.Error("storyDelLog", "failed to delete")
 		return c.JSON(http.StatusInternalServerError, false)
 	}
 	return c.JSON(http.StatusOK, true)
@@ -130,7 +129,7 @@ func storyUploadLog(c echo.Context) error {
 	_ = c.Bind(&v)
 	unofficial, url, err := logSendToBackend(v.GroupID, v.Name)
 	if err != nil {
-		log.Error("storyUploadLog", err)
+		myDice.Logger.Error("storyUploadLog", err)
 		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 	ret := fmt.Sprintf("跑团日志已上传服务器，链接如下：<br/>%s", url)

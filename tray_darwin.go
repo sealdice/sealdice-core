@@ -19,7 +19,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/icon"
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 var theDm *dice.DiceManager
@@ -41,11 +41,11 @@ func TestRunning() bool {
 }
 
 func tempDirWarn() {
-	log.Info("当前工作路径为临时目录，因此拒绝继续执行。")
+	logger.M().Info("当前工作路径为临时目录，因此拒绝继续执行。")
 }
 
 func showMsgBox(title string, message string) {
-	log.Info(title, message)
+	logger.M().Info(title, message)
 }
 
 func executeWin(name string, arg ...string) *exec.Cmd {
@@ -99,6 +99,7 @@ func onExit() {
 }
 
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
+	log := logger.M()
 	portStr := "3211"
 
 	go func() {

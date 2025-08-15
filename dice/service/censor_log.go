@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"sealdice-core/dice/censor"
+	"sealdice-core/logger"
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
 	engine2 "sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 )
 
 // 添加一个敏感词记录
@@ -72,7 +72,7 @@ func CensorClearLevelCount(operator engine2.DatabaseOperator, userID string, lev
 		Where("user_id = ? AND highest_level = ?", userID, level).
 		Update("clear_mark", true).Error
 	if err != nil {
-		log.Error(err)
+		logger.M().Error(err)
 	}
 }
 

@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"os"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"sealdice-core/logger"
 	"sealdice-core/model"
 	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
-	log "sealdice-core/utils/kratos"
 )
 
 type MYSQLEngine struct {
@@ -24,6 +25,8 @@ type MYSQLEngine struct {
 }
 
 func (s *MYSQLEngine) Close() {
+	log := zap.S().Named(logger.LogKeyDatabase)
+
 	db, err := s.DB.DB()
 	if err != nil {
 		log.Errorf("failed to close db: %v", err)

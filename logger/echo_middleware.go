@@ -1,17 +1,17 @@
-// Package middleware provides echo request and response output log
-package log
+package logger
 
 import (
 	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
-// Zlogger returns a middleware that logs HTTP requests.
-func EchoMiddleLogger(elogger *Helper) echo.MiddlewareFunc {
+func EchoLogMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			log := zap.S().Named(LogKeyWeb)
 			req := c.Request()
 			res := c.Response()
 			start := time.Now()
@@ -32,7 +32,7 @@ func EchoMiddleLogger(elogger *Helper) echo.MiddlewareFunc {
 			}
 
 			// 特殊情况下，需要输出DEBUG日志
-			elogger.Debugf("%s %s [%v] %s %-7s %s %3d %s %s %13v %s %s",
+			log.Debugf("%s %s [%v] %s %-7s %s %3d %s %s %13v %s %s",
 				id,
 				c.RealIP(),
 				stop.Format(time.RFC3339),

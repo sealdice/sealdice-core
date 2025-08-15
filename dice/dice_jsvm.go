@@ -29,12 +29,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
+	"go.uber.org/zap"
 	"gopkg.in/elazarl/goproxy.v1"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
-	log "sealdice-core/utils/kratos"
 )
 
 var (
@@ -573,7 +573,7 @@ func (d *Dice) JsInit() {
 		})
 		// 1.2新增结束
 		_ = seal.Set("setPlayerGroupCard", SetPlayerGroupCardByTemplate)
-		_ = seal.Set("base64ToImage", Base64ToImageFunc(d.Logger))
+		_ = seal.Set("base64ToImage", Base64ToImageFunc())
 
 		// Note: Szzrain 暴露dice对象给js会导致js可以调用dice的所有Export的方法
 		// 这是不安全的, 所有需要用到dice实例的函数都可以以传入ctx作为替代
@@ -607,7 +607,7 @@ func (d *Dice) JsInit() {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))
+				d.Logger.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))
 			}
 		}()
 		loop.StartInForeground()
@@ -1364,7 +1364,7 @@ type JsScriptTask struct {
 	entryID  *cron.EntryID
 	lock     *sync.Mutex
 
-	logger *log.Helper
+	logger *zap.SugaredLogger
 }
 
 type JsScriptTaskCtx struct {

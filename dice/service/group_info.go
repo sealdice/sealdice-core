@@ -1,12 +1,13 @@
 package service
 
 import (
+	"go.uber.org/zap"
 	"gorm.io/gorm/clause"
 
+	"sealdice-core/logger"
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
 	engine2 "sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 )
 
 // GroupInfoListGet 使用 GORM 实现，遍历 group_info 表中的数据并调用回调函数
@@ -95,7 +96,7 @@ func GroupPlayerInfoGet(operator engine2.DatabaseOperator, groupID string, playe
 	err := result.Error
 	// 如果查询发生错误，打印错误并返回 nil
 	if err != nil {
-		log.Errorf("error getting group player info: %s", err.Error())
+		zap.S().Named(logger.LogKeyDatabase).Errorf("error getting group player info: %s", err.Error())
 		return nil
 	}
 

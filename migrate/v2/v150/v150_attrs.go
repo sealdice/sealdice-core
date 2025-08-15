@@ -8,16 +8,16 @@ import (
 
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/gjson"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	"sealdice-core/model"
 	"sealdice-core/utils"
 	"sealdice-core/utils/constant"
 	operator "sealdice-core/utils/dboperator/engine"
-
-	log "sealdice-core/utils/kratos"
 )
 
 func convertToNew(name string, ownerId string, data []byte, updatedAt int64) (*model.AttributesItemModel, error) {
@@ -95,6 +95,7 @@ type V146RawStruct struct {
 
 // 群组个人数据转换
 func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	rows, err := db.Table("attrs_group_user").Select("id, updated_at, data").Rows()
 	if err != nil {
 		return 0, 0, err
@@ -126,8 +127,8 @@ func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
 		_, userIdPart, ok := dice.UnpackGroupUserId(row.ID)
 		if !ok {
 			countFailed += 1
-			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
-			fmt.Fprintln(os.Stdout, "ID解析失败: ", row.ID)
+			log.Errorf("数据库读取出错，退出转换")
+			log.Errorf("ID解析失败: %s", row.ID)
 			continue
 		}
 
@@ -196,6 +197,8 @@ func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
 
 // 群数据转换
 func attrsGroupMigrate(db *gorm.DB) (int, int, error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
+
 	// V146RawStruct
 	rows, err := db.Table("attrs_group").Select("id, updated_at, data").Rows()
 	if err != nil {
@@ -270,6 +273,7 @@ func attrsGroupMigrate(db *gorm.DB) (int, int, error) {
 
 // 全局个人数据转换、对应attrs_user和玩家人物卡
 func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	// 使用rows是因为146有莫名其妙的数据损坏问题，直接扫可能会把数据不小心丢进去
 	rows, err := db.Table("attrs_user").Select("id,updated_at,data").Rows()
 	if err != nil {
@@ -393,6 +397,7 @@ func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
 }
 
 func V150AttrsMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	err := dataDBInit(dboperator, logf)
 	if err != nil {
 		logf(fmt.Sprintf("数据表初始化失败: %v", err))
@@ -538,6 +543,7 @@ func dataDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 // 利用前缀索引，规避索引BUG
 // 创建不出来也没关系，反正MYSQL数据库
 func createMySQLIndexForLogInfo(db *gorm.DB) (err error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	// 创建前缀索引
 	// 检查并创建索引
 	if !db.Migrator().HasIndex(&model.LogInfoHookMySQL{}, "idx_log_name") {
@@ -564,6 +570,7 @@ func createMySQLIndexForLogInfo(db *gorm.DB) (err error) {
 }
 
 func createMySQLIndexForLogOneItem(db *gorm.DB) (err error) {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	// 创建前缀索引
 	// 检查并创建索引
 	if !db.Migrator().HasIndex(&model.LogOneItemHookMySQL{}, "idx_log_items_group_id") {
@@ -624,6 +631,7 @@ func logDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 }
 
 func calculateLogSize(logsDB *gorm.DB) error {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	// TODO: 将这段逻辑挪移到Migrator上 现在暂时没空动它
 	var ids []uint64
 	var logItemSums []struct {

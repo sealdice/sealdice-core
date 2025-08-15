@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"strings"
 
-	log "sealdice-core/utils/kratos"
-
 	"github.com/fyrchik/go-shlex"
+
+	"sealdice-core/logger"
 )
 
 type OutHandler func(string, string) string
@@ -88,7 +88,7 @@ func (p *Process) Start() error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Errorf("Recovered from panic: %v", r)
+				logger.M().Errorf("Recovered from panic: %v", r)
 			}
 		}()
 
@@ -108,7 +108,7 @@ func (p *Process) Start() error {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Errorf("Recovered from panic: %v", r)
+				logger.M().Errorf("Recovered from panic: %v", r)
 			}
 		}()
 

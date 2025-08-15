@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"sealdice-core/dice/docengine"
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 
 	"gopkg.in/yaml.v3"
 
@@ -104,7 +104,7 @@ func (m *HelpManager) loadSearchEngine() {
 	case BleveSearch:
 		engine, err := docengine.NewBleveSearchEngine()
 		if err != nil {
-			log.Errorf("初始化帮助文档失败，帮助文档不可用!")
+			logger.M().Errorf("初始化帮助文档失败，帮助文档不可用!")
 			return
 		}
 		m.searchEngine = engine
@@ -122,6 +122,7 @@ func (m *HelpManager) Close() {
 }
 
 func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
+	log := logger.M()
 	m.loadSearchEngine()
 
 	_ = m.AddItem(docengine.HelpTextItem{
@@ -288,6 +289,7 @@ func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
 }
 
 func (m *HelpManager) loadHelpDoc(group string, path string) bool {
+	log := logger.M()
 	fileExt := filepath.Ext(path)
 
 	switch fileExt {
@@ -431,6 +433,7 @@ out:
 }
 
 func (m *HelpManager) addCmdMap(packageName string, cmdMap CmdMapCls) error {
+	log := logger.M()
 	for k, v := range cmdMap {
 		content := v.Help
 		if content == "" {

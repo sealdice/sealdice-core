@@ -8,11 +8,12 @@ import (
 	"os"
 	"path/filepath"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
-func Base64ToImageFunc(logger *log.Helper) func(string) (string, error) {
+func Base64ToImageFunc() func(string) (string, error) {
 	return func(b64 string) (string, error) {
+		log := logger.M()
 		// 解码 Base64 值
 		data, e := base64.StdEncoding.DecodeString(b64)
 		if e != nil {
@@ -34,14 +35,14 @@ func Base64ToImageFunc(logger *log.Helper) func(string) (string, error) {
 		defer func(fi *os.File) {
 			errClose := fi.Close()
 			if errClose != nil {
-				logger.Errorf("关闭文件出错:%s", errClose.Error())
+				log.Errorf("关闭文件出错:%s", errClose.Error())
 			}
 		}(fi)
 		_, err = fi.Write(data)
 		if err != nil {
 			return "", errors.New("写入文件出错:" + err.Error())
 		}
-		logger.Info("File saved to:", imageurlPath)
+		log.Info("File saved to:", imageurlPath)
 		return "file://" + imageurlPath, nil
 	}
 }

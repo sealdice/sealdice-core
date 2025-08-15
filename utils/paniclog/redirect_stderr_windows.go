@@ -13,7 +13,7 @@ import (
 	"os"
 	"syscall"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 var (
@@ -36,7 +36,7 @@ func setStdHandle(stdhandle int32, handle syscall.Handle) error {
 func redirectStderr(f *os.File) {
 	err := setStdHandle(syscall.STD_ERROR_HANDLE, syscall.Handle(f.Fd()))
 	if err != nil {
-		log.Fatalf("Failed to redirect stderr to file: %v", err)
+		logger.M().Fatalf("Failed to redirect stderr to file: %v", err)
 	}
 	// https://stackoverflow.com/questions/34772012/capturing-panic-in-golang rclone can't get some
 	// I did some more experimenting and on window's you must also do os.Stderr = f since SetStdHandle does not affect the prior reference to stderr.
