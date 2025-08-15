@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"moul.io/zapfilter"
+	"moul.io/zapgorm2"
 )
 
 const (
@@ -24,19 +24,18 @@ func InitLogger(level zapcore.Level, ui *UIWriter) *zap.SugaredLogger {
 	consoleEncoder := newEncoder(true)
 	jsonEncoder := newEncoder(false)
 
-	consoleWriter := zapfilter.NewFilteringCore(
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level),
-		zapfilter.All(
-			zapfilter.MinimumLevel(level),
-			zapfilter.ByNamespaces("*,-database"),
-		),
-	)
-	uiWriter := zapfilter.NewFilteringCore(
-		zapcore.NewCore(jsonEncoder, zapcore.AddSync(ui), zapcore.InfoLevel),
-		zapfilter.ByNamespaces("*,-database"),
-	)
+	consoleWriter := zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level)
+	uiWriter := zapcore.NewCore(jsonEncoder, zapcore.AddSync(ui), level)
+
+	levelConfig := map[string]zapcore.Level{
+		LogKeyMain:     level,
+		LogKeyDatabase: zapcore.DebugLevel,
+		LogKeyWeb:      zapcore.DebugLevel,
+		LogKeyAdapter:  level,
+	}
+
 	core := zapcore.NewTee(
-		newDynamicFileCore("data", level, consoleEncoder),
+		newDynamicFileCore("data", consoleEncoder, levelConfig, level),
 		consoleWriter,
 		uiWriter,
 	)
@@ -44,7 +43,9 @@ func InitLogger(level zapcore.Level, ui *UIWriter) *zap.SugaredLogger {
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
 	zap.ReplaceGlobals(logger)
 
-	newGormLogger(logger.Sugar().Named(LogKeyDatabase)).SetAsDefault()
+	gormLogger := zapgorm2.New(logger.Named(LogKeyDatabase))
+	gormLogger.SetAsDefault()
+
 	return logger.Sugar()
 }
 
@@ -53,24 +54,34 @@ func M() *zap.SugaredLogger {
 }
 
 type dynamicFileCore struct {
-	zapcore.LevelEnabler
-	rootDir     string
-	encoder     zapcore.Encoder
-	mu          sync.RWMutex
-	writerMap   map[string]zapcore.WriteSyncer
-	defaultName string
+	rootDir        string
+	encoder        zapcore.Encoder
+	mu             sync.RWMutex
+	writerMap      map[string]zapcore.WriteSyncer
+	levelEnablers  map[string]zapcore.LevelEnabler
+	defaultName    string
+	defaultEnabler zapcore.LevelEnabler
 }
 
 var _ zapcore.Core = (*dynamicFileCore)(nil)
 
-func newDynamicFileCore(rootDir string, enabler zapcore.LevelEnabler, encoder zapcore.Encoder) *dynamicFileCore {
-	return &dynamicFileCore{
-		LevelEnabler: enabler,
-		rootDir:      rootDir,
-		encoder:      encoder,
-		writerMap:    make(map[string]zapcore.WriteSyncer),
-		defaultName:  LogKeyMain,
+func newDynamicFileCore(rootDir string, encoder zapcore.Encoder, levelConfig map[string]zapcore.Level, defaultEnabler zapcore.LevelEnabler) *dynamicFileCore {
+	enablers := make(map[string]zapcore.LevelEnabler)
+	for name, level := range levelConfig {
+		enablers[strings.ToLower(name)] = level
 	}
+	return &dynamicFileCore{
+		rootDir:        rootDir,
+		encoder:        encoder,
+		writerMap:      make(map[string]zapcore.WriteSyncer),
+		levelEnablers:  enablers,
+		defaultName:    LogKeyMain,
+		defaultEnabler: defaultEnabler,
+	}
+}
+
+func (c *dynamicFileCore) Enabled(level zapcore.Level) bool {
+	return true // the actual logic is in `Check` method
 }
 
 func (c *dynamicFileCore) With(_ []zapcore.Field) zapcore.Core {
@@ -78,20 +89,33 @@ func (c *dynamicFileCore) With(_ []zapcore.Field) zapcore.Core {
 }
 
 func (c *dynamicFileCore) Check(entry zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
-	if c.Enabled(entry.Level) {
+	loggerName := c.getLoggerName(entry)
+
+	c.mu.RLock()
+	enabler, ok := c.levelEnablers[loggerName]
+	c.mu.RUnlock()
+	if !ok {
+		enabler = c.defaultEnabler
+	}
+
+	if enabler.Enabled(entry.Level) {
 		return ce.AddCore(entry, c)
 	}
 	return nil
 }
 
-func (c *dynamicFileCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
+func (c *dynamicFileCore) getLoggerName(entry zapcore.Entry) string {
 	var loggerName string
 	if entry.LoggerName != "" {
 		loggerName = entry.LoggerName
 	} else {
 		loggerName = c.defaultName
 	}
-	loggerName = strings.ToLower(loggerName)
+	return strings.ToLower(loggerName)
+}
+
+func (c *dynamicFileCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
+	loggerName := c.getLoggerName(entry)
 
 	c.mu.RLock()
 	writer, ok := c.writerMap[loggerName]
