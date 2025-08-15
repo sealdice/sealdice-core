@@ -255,6 +255,13 @@ type Dice struct {
 	ContainerMode bool `json:"-" yaml:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
 	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
+
+	// 用于检查是否需要插入到数据库的哈希表 150因为没有对应插入 到时候这个就没用了
+	SaveDatabaseInsertCheckMapFlag sync.Once                `json:"-" yaml:"-"`
+	SaveDatabaseInsertCheckMap     *SyncMap[string, string] `json:"-" yaml:"-"`
+
+	/* 扩展商店 */
+	StoreManager *StoreManager `json:"-" yaml:"-"`
 }
 
 func (d *Dice) MarkModified() {
@@ -323,6 +330,8 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	}
 
 	go d.PublicDiceSetup()
+
+	go d.StoreSetup()
 
 	// 创建js运行时
 	if d.Config.JsEnable {
@@ -939,4 +948,8 @@ func (d *Dice) PublicDiceSetup() {
 	d.PublicDiceInfoRegister()
 	d.PublicDiceEndpointRefresh()
 	d.PublicDiceSetupTick()
+}
+
+func (d *Dice) StoreSetup() {
+	d.StoreManager = NewStoreManager(d)
 }
