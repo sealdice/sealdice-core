@@ -27,7 +27,7 @@ import (
 	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
 
 	"sealdice-core/dice/events"
-	logger "sealdice-core/logger"
+	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
 	"sealdice-core/utils/public_dice"
 )
@@ -270,8 +270,8 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 }
 
 func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter) {
-	log := logger.M()
-	d.Logger = log
+	loggerInstance := logger.M()
+	d.Logger = loggerInstance
 	d.LogWriter = uiWriter
 
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
@@ -307,7 +307,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
 	if err != nil {
-		log.Error("Failed to load plugin configs: ", err)
+		loggerInstance.Error("Failed to load plugin configs: ", err)
 	}
 
 	d.registerCoreCommands()
@@ -326,11 +326,11 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 
 	// 创建js运行时
 	if d.Config.JsEnable {
-		log.Info("js扩展支持：开启")
+		loggerInstance.Info("js扩展支持：开启")
 		d.ExtLoopManager = NewJsLoopManager() // 此时不初始化loop，Init才初始化哦
 		d.JsInit()
 	} else {
-		log.Info("js扩展支持：关闭")
+		loggerInstance.Info("js扩展支持：关闭")
 	}
 
 	for _, i := range d.ExtList {
@@ -345,7 +345,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				log.Error("RunAfterLoaded 报错: ", r)
+				loggerInstance.Error("RunAfterLoaded 报错: ", r)
 			}
 		}()
 		i()
@@ -383,7 +383,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				log.Error(r)
+				loggerInstance.Error(r)
 			}
 		}()
 
@@ -422,7 +422,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		d.JsBuiltinDigestSet = make(map[string]bool)
 		d.JsLoadScripts()
 	} else {
-		log.Info("js扩展支持已关闭，跳过js脚本的加载")
+		loggerInstance.Info("js扩展支持已关闭，跳过js脚本的加载")
 	}
 
 	if d.Config.UpgradeWindowID != "" {
@@ -460,7 +460,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.Config.UpgradeWindowID}}, text)
 				}
 
-				log.Infof("升级完成，当前版本: %s", VERSION.String())
+				loggerInstance.Infof("升级完成，当前版本: %s", VERSION.String())
 				(&d.Config).UpgradeWindowID = ""
 				(&d.Config).UpgradeEndpointID = ""
 				d.MarkModified()

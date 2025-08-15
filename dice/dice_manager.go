@@ -9,7 +9,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
-	logger "sealdice-core/logger"
+	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
 )
 

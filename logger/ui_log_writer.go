@@ -44,6 +44,7 @@ func (l *UIWriter) Write(p []byte) (int, error) {
 		ts, _ := time.Parse(time.RFC3339Nano, a.Time)
 		l.Items = append(l.Items, &LogItem{
 			Level:  a.Level.String(),
+			Module: a.Module,
 			TS:     float64(ts.Unix()),
 			Caller: "",
 			Msg:    a.Msg,

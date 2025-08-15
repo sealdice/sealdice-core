@@ -127,8 +127,8 @@ func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
 		_, userIdPart, ok := dice.UnpackGroupUserId(row.ID)
 		if !ok {
 			countFailed += 1
-			fmt.Fprintln(os.Stdout, "数据库读取出错，退出转换")
-			fmt.Fprintln(os.Stdout, "ID解析失败: ", row.ID)
+			log.Errorf("数据库读取出错，退出转换")
+			log.Errorf("ID解析失败: %s", row.ID)
 			continue
 		}
 
