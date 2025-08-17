@@ -231,10 +231,6 @@ if (!ext) {
 
   // 将命令注册到扩展中
   ext.cmdMap['seal'] = cmdSeal;
-
-  // 无实际意义，用于消除编译报错
-  export {}
-
   seal.ext.register(ext);
 }
 
