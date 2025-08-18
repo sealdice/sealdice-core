@@ -14,7 +14,7 @@ require (
 	github.com/antlabs/strsim v0.0.3
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.5.2
-	github.com/blevesearch/bleve_index_api v1.2.8
+	github.com/blevesearch/bleve_index_api v1.2.9
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
@@ -48,7 +48,6 @@ require (
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/mroth/weightedrand v1.0.0
-	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/ncruces/go-sqlite3 v0.27.1
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
@@ -84,12 +83,13 @@ require (
 	golang.org/x/time v0.12.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.30.1
-	moul.io/zapfilter v1.7.0
+	moul.io/zapgorm2 v1.3.0
 )
 
 require (
@@ -205,9 +205,7 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	moul.io/zapgorm2 v1.3.0 // indirect
 )
 
 replace (
