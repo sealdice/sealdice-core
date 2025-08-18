@@ -159,7 +159,11 @@ title: 基础设置
 >
 > 问题 2：你是否已阅读使用说明  
 
-则在 WebUI 应填写为：`dismiss 是`  
+则在 WebUI 应填写为：
+
+```txt
+dismiss 是
+```
 
 ## 自动退出不活跃群组 <Badge type="tip" text="v1.4.2" />  
 

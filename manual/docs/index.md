@@ -69,6 +69,5 @@ features:
 - QQ 三群：715664650
 - QQ 四群：917654757
 - QQ 五群：747114944
-- [DODO 群](https://imdodo.com/s/246716)
 - [KOOK 群](https://kook.top/Cmr0Fy)
 - [Discord Server](https://discord.gg/HxuZ72T67C)

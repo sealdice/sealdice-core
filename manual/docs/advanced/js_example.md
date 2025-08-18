@@ -265,7 +265,7 @@ if (!ext) {
 // @homepageURL  https://github.com/sealdice/javascript
 // ==/UserScript==
 
-// 本脚本用于演示如何抽取牌堆, 共有两种实现方式
+// 本脚本用于演示如何抽取牌堆，共有两种实现方式
 if (!seal.ext.find('draw-decks-example')) {
   const ext = seal.ext.new('draw-decks-example', 'SzzRain', '1.0.0');
   // 创建一个命令

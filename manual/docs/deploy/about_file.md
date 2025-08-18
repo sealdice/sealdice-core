@@ -24,15 +24,15 @@ title: 海豹的本地文件
 |  |  |  ├─coc7
 |  |  |  ├─dnd5e
 |  |  |  └─reply             // 比如你的自定义回复文件
-|  |  ├─extra                // 放置你使用的QQ客户端配置文件
-|  |  |  └─lagrange-qq123456 // 此处 123456 代指你骰子的QQ，是内置客户端的配置文件夹。
+|  |  ├─extra                // 放置你使用的 QQ 客户端配置文件
+|  |  |  └─lagrange-qq123456 // 此处 123456 代指你骰子的 QQ，是内置客户端的配置文件夹。
 |  |  ├─log-exports          // log end 后导出的 log 文件
 |  |  └─scripts              // 插件脚本
 |  ├─helpdoc                 // 查询文档放置位置
 |  ├─images                  // 放置图片资源的文件夹，海豹为了安全不允许调用非海豹文件夹内的图片
 |  └─names                   // 姓名文件 . name 指令无法使用可以看看
 ├─_help_cache                // 全文搜索索引缓存
-└─lagrange                   // 内置客户端的二进制文件
+└─lagrange                   // 内置客户端/内置 gocq 的二进制文件
 ```
 
 ## 常用文件
@@ -40,6 +40,8 @@ title: 海豹的本地文件
 - `./data/dice.yaml` 配置核心文件。
 
 - `./data/main.log` 核心日志，可以查看报错消息。
+
+- `./data/panic.log` 崩溃日志，可以查看崩溃消息。
 
 - `./data/default/serve.yaml` 账号协议配置文件。
 
