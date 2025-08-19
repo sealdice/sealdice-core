@@ -35,8 +35,7 @@ import (
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
-  
-	log "sealdice-core/utils/kratos"
+
 	sealws "sealdice-core/utils/plugin/websocket"
 )
 

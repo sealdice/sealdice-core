@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/gorilla/websocket"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 // Logger 日志接口，与helper.go中的Helper方法签名一致
@@ -41,11 +42,11 @@ func (l *defaultLogger) Warn(_ ...interface{})             {}
 func (l *defaultLogger) Warnf(_ string, _ ...interface{})  {}
 func (l *defaultLogger) Error(args ...interface{}) {
 	// 默认情况下只输出错误日志到标准错误
-	log.Errorf("[WebSocket ERROR] %v", args...)
+	logger.M().Errorf("[WebSocket ERROR] %v", args...)
 }
 func (l *defaultLogger) Errorf(format string, args ...interface{}) {
 	// 默认情况下只输出错误日志到标准错误
-	log.Errorf("[WebSocket ERROR] "+format, args...)
+	logger.M().Errorf("[WebSocket ERROR] "+format, args...)
 }
 
 // WebSocketLogger 全局日志实例，用户可以通过SetLogger函数替换
@@ -226,7 +227,7 @@ func (ws *WebSocket) NewWebSocketConnection(call goja.FunctionCall) goja.Value {
 
 	// 第二个参数是 protocols (可选)
 	if len(args) > 1 && !goja.IsUndefined(args[1]) && !goja.IsNull(args[1]) {
-		options = parseWebSocketOptions(rt, args[1])
+		options = parseWebSocketOptions(args[1])
 	} else {
 		options = &webSocketOptions{
 			headers: make(http.Header),
@@ -323,15 +324,15 @@ func (conn *WebSocketConnection) bindWebSocketMethods() {
 	conn.jsObject = obj
 }
 
-// parseWebSocketOptions 解析WebSocket选项参数 TODO: 这个gojaRunTime是不是没用了
-func parseWebSocketOptions(_ *goja.Runtime, protocolsVal goja.Value) *webSocketOptions {
+// parseWebSocketOptions 解析WebSocket选项参数
+func parseWebSocketOptions(protocolsVal goja.Value) *webSocketOptions {
 	options := &webSocketOptions{
 		headers: make(http.Header),
 	}
 
 	// 处理protocols参数，可以是字符串或字符串数组
 	if !goja.IsUndefined(protocolsVal) && !goja.IsNull(protocolsVal) {
-		if protocolsVal.ExportType().Kind().String() == "string" {
+		if protocolsVal.ExportType().Kind() == reflect.String {
 			// 单个协议字符串
 			options.protocols = []string{protocolsVal.String()}
 		} else {
