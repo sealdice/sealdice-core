@@ -171,7 +171,7 @@ type WebSocketConnection struct {
 	// WebSocket API 属性
 	url        string
 	protocol   string
-	readyState int
+	readyState WebSocketReadyState
 
 	// 事件处理器 (WebSocket标准)
 	onopen    goja.Value
@@ -279,7 +279,7 @@ func (conn *WebSocketConnection) bindWebSocketMethods() {
 
 	// 绑定WebSocket标准属性
 	_ = obj.DefineAccessorProperty("readyState", rt.ToValue(func() int {
-		return conn.readyState
+		return int(conn.readyState)
 	}), goja.Undefined(), goja.FLAG_FALSE, goja.FLAG_TRUE)
 
 	_ = obj.DefineAccessorProperty("url", rt.ToValue(func() string {
