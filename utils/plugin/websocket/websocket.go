@@ -145,10 +145,10 @@ func (ws *WebSocket) Exports() goja.Value {
 	constructorObj := webSocketConstructor.ToObject(ws.rt)
 
 	// 设置静态常量到构造函数上
-	_ = constructorObj.Set("CONNECTING", CONNECTING)
-	_ = constructorObj.Set("OPEN", OPEN)
-	_ = constructorObj.Set("CLOSING", CLOSING)
-	_ = constructorObj.Set("CLOSED", CLOSED)
+	_ = constructorObj.Set("CONNECTING", Connecting)
+	_ = constructorObj.Set("OPEN", Open)
+	_ = constructorObj.Set("CLOSING", Closing)
+	_ = constructorObj.Set("CLOSED", Closed)
 
 	// 设置prototype属性
 	prototypeObj := ws.rt.NewObject()
@@ -184,12 +184,14 @@ type WebSocketConnection struct {
 	listenerMutex  sync.RWMutex
 }
 
+type WebSocketReadyState int
+
 // WebSocket readyState 常量
 const (
-	CONNECTING = 0
-	OPEN       = 1
-	CLOSING    = 2
-	CLOSED     = 3
+	Connecting WebSocketReadyState = 0
+	Open       WebSocketReadyState = 1
+	Closing    WebSocketReadyState = 2
+	Closed     WebSocketReadyState = 3
 )
 
 // WebSocket 关闭状态码常量 (RFC 6455)
@@ -249,7 +251,7 @@ func (ws *WebSocket) NewWebSocketConnection(call goja.FunctionCall) goja.Value {
 		loop:           ws.loop,
 		url:            url,
 		protocol:       "", // 协议将在连接建立后设置
-		readyState:     CONNECTING,
+		readyState:     Connecting,
 		scheduled:      make(chan goja.Callable),
 		done:           make(chan struct{}),
 		onopen:         goja.Undefined(),
@@ -399,7 +401,7 @@ func (conn *WebSocketConnection) connect(options *webSocketOptions) {
 	wsConn, resp, err := dialer.Dial(conn.url, options.headers)
 	if err != nil {
 		WebSocketLogger.Errorf("WebSocket连接失败 url=%s error=%s", conn.url, err.Error())
-		conn.readyState = CLOSED
+		conn.readyState = Closed
 		// 直接触发错误事件，triggerError内部会处理事件循环
 		conn.triggerError(err)
 		return
@@ -417,7 +419,7 @@ func (conn *WebSocketConnection) connect(options *webSocketOptions) {
 	}
 
 	conn.conn = wsConn
-	conn.readyState = OPEN
+	conn.readyState = Open
 
 	// 触发onopen事件
 	conn.triggerOpen()
@@ -443,7 +445,7 @@ func (conn *WebSocketConnection) triggerMessage(data interface{}) {
 
 // triggerClose 触发onclose事件
 func (conn *WebSocketConnection) triggerClose(code int, reason string) {
-	conn.readyState = CLOSED
+	conn.readyState = Closed
 	conn.dispatchEvent("close", func(vm *goja.Runtime, event *goja.Object) {
 		_ = event.Set("code", code)
 		_ = event.Set("reason", reason)
@@ -464,7 +466,7 @@ func (conn *WebSocketConnection) triggerError(err error) {
 
 // Send 向WebSocket连接发送消息
 func (conn *WebSocketConnection) Send(message string) error {
-	if conn.readyState != OPEN {
+	if conn.readyState != Open {
 		err := errors.New("connection is not open")
 		WebSocketLogger.Warnf("尝试在非开放连接上发送消息 readyState=%d url=%s", conn.readyState, conn.url)
 		return err
@@ -509,12 +511,12 @@ func (conn *WebSocketConnection) closeWithoutUnregister(args ...interface{}) {
 
 // closeInternal 内部关闭方法
 func (conn *WebSocketConnection) closeInternal(shouldUnregister bool, args ...interface{}) {
-	if conn.readyState == CLOSED || conn.readyState == CLOSING {
+	if conn.readyState == Closed || conn.readyState == Closing {
 		WebSocketLogger.Debugf("连接已经关闭或正在关闭 readyState=%d url=%s", conn.readyState, conn.url)
 		return
 	}
 
-	conn.readyState = CLOSING
+	conn.readyState = Closing
 
 	code := CloseNormalClosure // 正常关闭
 	reason := ""
