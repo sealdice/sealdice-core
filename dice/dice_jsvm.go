@@ -35,6 +35,8 @@ import (
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
+
+	sealws "sealdice-core/utils/plugin/websocket"
 )
 
 var (
@@ -79,9 +81,6 @@ func (d *Dice) JsInit() {
 	if pub, err := static.Scripts.ReadFile("scripts/seal_mod.public.pem"); err == nil && len(pub) > 0 {
 		OfficialModPublicKey = string(pub)
 	}
-
-	// 装载数据库(如果是初次运行)
-
 	// 清理目前的js相关
 	d.jsClear()
 
@@ -99,6 +98,10 @@ func (d *Dice) JsInit() {
 	d.JsScriptCron = cron.New()
 	d.JsScriptCronLock = &sync.Mutex{}
 	d.JsScriptCron.Start()
+	// 单独给WebSocket一个Logger
+	sealws.SetLogger(d.Logger)
+	// 关闭之前的所有WebSocket
+	sealws.GlobalConnManager.CloseAll()
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
@@ -106,6 +109,7 @@ func (d *Dice) JsInit() {
 		// console 模块
 		console.Enable(vm)
 
+		sealws.Enable(vm, loop)
 		// require 模块
 		d.JsRequire = reg.Enable(vm)
 
