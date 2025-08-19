@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,13 +23,12 @@ import (
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
-	rand2 "golang.org/x/exp/rand"
-	"golang.org/x/exp/slices"
+	"go.uber.org/zap"
+	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
 
 	"sealdice-core/dice/events"
-	"sealdice-core/dice/logger"
+	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/public_dice"
 )
 
@@ -63,51 +63,51 @@ type CmdMapCls map[string]*CmdItemInfo
 // }
 
 type ExtInfo struct {
-	Name    string   `yaml:"name" json:"name" jsbind:"name"`    // 名字
-	Aliases []string `yaml:"-" json:"aliases" jsbind:"aliases"` // 别名
-	Version string   `yaml:"-" json:"version" jsbind:"version"` // 版本
+	Name    string   `jsbind:"name"    json:"name"    yaml:"name"` // 名字
+	Aliases []string `jsbind:"aliases" json:"aliases" yaml:"-"`    // 别名
+	Version string   `jsbind:"version" json:"version" yaml:"-"`    // 版本
 	// 作者
 	// 更新时间
-	AutoActive      bool      `yaml:"-" json:"-" jsbind:"autoActive"` // 是否自动开启
-	CmdMap          CmdMapCls `yaml:"-" json:"-" jsbind:"cmdMap"`     // 指令集合
-	Brief           string    `yaml:"-" json:"-"`
-	ActiveOnPrivate bool      `yaml:"-" json:"-"`
+	AutoActive      bool      `jsbind:"autoActive" json:"-" yaml:"-"` // 是否自动开启
+	CmdMap          CmdMapCls `jsbind:"cmdMap"     json:"-" yaml:"-"` // 指令集合
+	Brief           string    `json:"-"            yaml:"-"`
+	ActiveOnPrivate bool      `json:"-"            yaml:"-"`
 
-	DefaultSetting *ExtDefaultSettingItem `yaml:"-" json:"-"` // 默认配置
+	DefaultSetting *ExtDefaultSettingItem `json:"-" yaml:"-"` // 默认配置
 
-	Author       string   `yaml:"-" json:"-" jsbind:"author"`
-	ConflictWith []string `yaml:"-" json:"-"`
-	Official     bool     `yaml:"-" json:"-"` // 官方插件
+	Author       string   `jsbind:"author" json:"-" yaml:"-"`
+	ConflictWith []string `json:"-"        yaml:"-"`
+	Official     bool     `json:"-"        yaml:"-"` // 官方插件
 
 	dice          *Dice
 	IsJsExt       bool          `json:"-"`
 	JSLoopVersion int64         `json:"-"`
-	Source        *JsScriptInfo `yaml:"-" json:"-"`
-	Storage       *buntdb.DB    `yaml:"-"  json:"-"`
+	Source        *JsScriptInfo `json:"-" yaml:"-"`
+	Storage       *buntdb.DB    `json:"-" yaml:"-"`
 	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
 
 	// 定时任务列表，用于避免 task 失去引用
-	taskList []*JsScriptTask `yaml:"-" json:"-"`
+	taskList []*JsScriptTask `json:"-" yaml:"-"`
 
-	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `yaml:"-" json:"-" jsbind:"onNotCommandReceived"` // 指令过滤后剩下的
-	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `yaml:"-" json:"-"`                               // 覆盖指令行为
+	OnNotCommandReceived func(ctx *MsgContext, msg *Message)                        `jsbind:"onNotCommandReceived" json:"-" yaml:"-"` // 指令过滤后剩下的
+	OnCommandOverride    func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool `json:"-"                      yaml:"-"`          // 覆盖指令行为
 
-	OnCommandReceived   func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) `yaml:"-" json:"-" jsbind:"onCommandReceived"`
-	OnMessageReceived   func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageReceived"`
-	OnMessageSend       func(ctx *MsgContext, msg *Message, flag string)      `yaml:"-" json:"-" jsbind:"onMessageSend"`
-	OnMessageDeleted    func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageDeleted"`
-	OnMessageEdit       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onMessageEdit"`
-	OnGroupJoined       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupJoined"`
-	OnGroupMemberJoined func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGroupMemberJoined"`
-	OnGuildJoined       func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onGuildJoined"`
-	OnBecomeFriend      func(ctx *MsgContext, msg *Message)                   `yaml:"-" json:"-" jsbind:"onBecomeFriend"`
-	OnPoke              func(ctx *MsgContext, event *events.PokeEvent)        `yaml:"-" json:"-" jsbind:"onPoke"`       // 戳一戳
-	OnGroupLeave        func(ctx *MsgContext, event *events.GroupLeaveEvent)  `yaml:"-" json:"-" jsbind:"onGroupLeave"` // 群成员被踢出
-	GetDescText         func(i *ExtInfo) string                               `yaml:"-" json:"-" jsbind:"getDescText"`
-	IsLoaded            bool                                                  `yaml:"-" json:"-" jsbind:"isLoaded"`
-	OnLoad              func()                                                `yaml:"-" json:"-" jsbind:"onLoad"`
+	OnCommandReceived   func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) `jsbind:"onCommandReceived"   json:"-" yaml:"-"`
+	OnMessageReceived   func(ctx *MsgContext, msg *Message)                   `jsbind:"onMessageReceived"   json:"-" yaml:"-"`
+	OnMessageSend       func(ctx *MsgContext, msg *Message, flag string)      `jsbind:"onMessageSend"       json:"-" yaml:"-"`
+	OnMessageDeleted    func(ctx *MsgContext, msg *Message)                   `jsbind:"onMessageDeleted"    json:"-" yaml:"-"`
+	OnMessageEdit       func(ctx *MsgContext, msg *Message)                   `jsbind:"onMessageEdit"       json:"-" yaml:"-"`
+	OnGroupJoined       func(ctx *MsgContext, msg *Message)                   `jsbind:"onGroupJoined"       json:"-" yaml:"-"`
+	OnGroupMemberJoined func(ctx *MsgContext, msg *Message)                   `jsbind:"onGroupMemberJoined" json:"-" yaml:"-"`
+	OnGuildJoined       func(ctx *MsgContext, msg *Message)                   `jsbind:"onGuildJoined"       json:"-" yaml:"-"`
+	OnBecomeFriend      func(ctx *MsgContext, msg *Message)                   `jsbind:"onBecomeFriend"      json:"-" yaml:"-"`
+	OnPoke              func(ctx *MsgContext, event *events.PokeEvent)        `jsbind:"onPoke"              json:"-" yaml:"-"` // 戳一戳
+	OnGroupLeave        func(ctx *MsgContext, event *events.GroupLeaveEvent)  `jsbind:"onGroupLeave"        json:"-" yaml:"-"` // 群成员被踢出
+	GetDescText         func(i *ExtInfo) string                               `jsbind:"getDescText"         json:"-" yaml:"-"`
+	IsLoaded            bool                                                  `jsbind:"isLoaded"            json:"-" yaml:"-"`
+	OnLoad              func()                                                `jsbind:"onLoad"              json:"-" yaml:"-"`
 }
 
 // RootConfig TODO：历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
@@ -117,11 +117,11 @@ type RootConfig struct { //nolint:revive
 }
 
 type ExtDefaultSettingItem struct {
-	Name            string          `yaml:"name" json:"name"`
-	AutoActive      bool            `yaml:"autoActive" json:"autoActive"`                // 是否自动开启
-	DisabledCommand map[string]bool `yaml:"disabledCommand,flow" json:"disabledCommand"` // 实际为set
-	ExtItem         *ExtInfo        `yaml:"-" json:"-"`
-	Loaded          bool            `yaml:"-" json:"loaded"` // 当前插件是否正确加载. serve.yaml不保存, 前端请求时提供
+	Name            string          `json:"name"            yaml:"name"`
+	AutoActive      bool            `json:"autoActive"      yaml:"autoActive"`           // 是否自动开启
+	DisabledCommand map[string]bool `json:"disabledCommand" yaml:"disabledCommand,flow"` // 实际为set
+	ExtItem         *ExtInfo        `json:"-"               yaml:"-"`
+	Loaded          bool            `json:"loaded"          yaml:"-"` // 当前插件是否正确加载. serve.yaml不保存, 前端请求时提供
 }
 
 type ExtDefaultSettingItemSlice []*ExtDefaultSettingItem
@@ -183,9 +183,9 @@ func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i
 
 type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
-	ImSession *IMSession `yaml:"imSession" jsbind:"imSession" json:"-"`
+	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
 
-	CmdMap          CmdMapCls              `yaml:"-" json:"-"`
+	CmdMap          CmdMapCls              `json:"-" yaml:"-"`
 	ExtList         []*ExtInfo             `yaml:"-"`
 	RollParser      *DiceRollParser        `yaml:"-"`
 	LastUpdatedTime int64                  `yaml:"-"`
@@ -194,18 +194,18 @@ type Dice struct {
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
-	Logger        *log.Helper  `yaml:"-"` // 日志
-	LogWriter     *log.WriterX `yaml:"-"` // 用于api的log对象
-	IsDeckLoading bool         `yaml:"-"` // 正在加载中
+	Logger        *zap.SugaredLogger `yaml:"-"` // 日志
+	LogWriter     *logger.UIWriter   `yaml:"-"` // 用于api的log对象
+	IsDeckLoading bool               `yaml:"-"` // 正在加载中
 
 	// 由于被导出的原因，暂时不迁移至 config
-	DeckList      []*DeckInfo `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
-	CommandPrefix []string    `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
-	DiceMasters   []string    `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
+	DeckList      []*DeckInfo `jsbind:"deckList"      yaml:"deckList"`      // 牌堆信息
+	CommandPrefix []string    `jsbind:"commandPrefix" yaml:"commandPrefix"` // 指令前导
+	DiceMasters   []string    `jsbind:"diceMasters"   yaml:"diceMasters"`   // 骰主设置，需要格式: 平台:帐号
 
-	MasterUnlockCode     string         `yaml:"-" json:"masterUnlockCode"` // 解锁码，每20分钟变化一次，使用后立即变化
-	MasterUnlockCodeTime int64          `yaml:"-" json:"masterUnlockCodeTime"`
-	CustomReplyConfig    []*ReplyConfig `yaml:"-" json:"-"`
+	MasterUnlockCode     string         `json:"masterUnlockCode"     yaml:"-"` // 解锁码，每20分钟变化一次，使用后立即变化
+	MasterUnlockCodeTime int64          `json:"masterUnlockCodeTime" yaml:"-"`
+	CustomReplyConfig    []*ReplyConfig `json:"-"                    yaml:"-"`
 
 	TextMapRaw        TextTemplateWithWeightDict `yaml:"-"`
 	TextMapHelpInfo   TextTemplateWithHelpDict   `yaml:"-"`
@@ -214,32 +214,32 @@ type Dice struct {
 	ConfigManager *ConfigManager `yaml:"-"`
 	Parent        *DiceManager   `yaml:"-"`
 
-	CocExtraRules    map[int]*CocRuleInfo   `yaml:"-" json:"cocExtraRules"`
-	Cron             *cron.Cron             `yaml:"-" json:"-"`
-	AliveNoticeEntry cron.EntryID           `yaml:"-" json:"-"`
-	JsPrinter        *PrinterFunc           `yaml:"-" json:"-"`
-	JsRequire        *require.RequireModule `yaml:"-" json:"-"`
+	CocExtraRules    map[int]*CocRuleInfo   `json:"cocExtraRules" yaml:"-"`
+	Cron             *cron.Cron             `json:"-"             yaml:"-"`
+	AliveNoticeEntry cron.EntryID           `json:"-"             yaml:"-"`
+	JsPrinter        *PrinterFunc           `json:"-"             yaml:"-"`
+	JsRequire        *require.RequireModule `json:"-"             yaml:"-"`
 
 	// JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
-	ExtLoopManager   *JsLoopManager  `yaml:"-" json:"-"`
-	JsScriptList     []*JsScriptInfo `yaml:"-" json:"-"`
-	JsScriptCron     *cron.Cron      `yaml:"-" json:"-"`
-	JsScriptCronLock *sync.Mutex     `yaml:"-" json:"-"`
+	ExtLoopManager   *JsLoopManager  `json:"-" yaml:"-"`
+	JsScriptList     []*JsScriptInfo `json:"-" yaml:"-"`
+	JsScriptCron     *cron.Cron      `json:"-" yaml:"-"`
+	JsScriptCronLock *sync.Mutex     `json:"-" yaml:"-"`
 	// 重载使用的互斥锁
-	JsReloadLock sync.Mutex `yaml:"-" json:"-"`
+	JsReloadLock sync.Mutex `json:"-" yaml:"-"`
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
-	JsBuiltinDigestSet map[string]bool `yaml:"-" json:"-"`
+	JsBuiltinDigestSet map[string]bool `json:"-" yaml:"-"`
 	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
-	JsLoadingScript *JsScriptInfo `yaml:"-" json:"-"`
+	JsLoadingScript *JsScriptInfo `json:"-" yaml:"-"`
 
 	// 游戏系统规则模板
-	GameSystemMap *SyncMap[string, *GameSystemTemplate] `yaml:"-" json:"-"`
+	GameSystemMap *SyncMap[string, *GameSystemTemplate] `json:"-" yaml:"-"`
 
-	RunAfterLoaded []func() `yaml:"-" json:"-"`
+	RunAfterLoaded []func() `json:"-" yaml:"-"`
 
 	deckCommandItemsList DeckCommandListItems // 牌堆key信息，辅助作为模糊搜索使用
 
-	UIEndpoint *EndPointInfo `yaml:"-" json:"-"` // UI Endpoint
+	UIEndpoint *EndPointInfo `json:"-" yaml:"-"` // UI Endpoint
 
 	CensorManager *CensorManager `json:"-" yaml:"-"`
 
@@ -252,7 +252,7 @@ type Dice struct {
 	PublicDice        *public_dice.PublicDiceClient `json:"-" yaml:"-"`
 	PublicDiceTimerId cron.EntryID                  `json:"-" yaml:"-"`
 
-	ContainerMode bool `yaml:"-" json:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	ContainerMode bool `json:"-" yaml:"-"` // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 
 	IsAlreadyLoadConfig bool `yaml:"-"` // 如果在loads前崩溃，那么不写入配置，防止覆盖为空的
 }
@@ -269,7 +269,11 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 	return true
 }
 
-func (d *Dice) Init(operator engine.DatabaseOperator) {
+func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter) {
+	loggerInstance := logger.M()
+	d.Logger = loggerInstance
+	d.LogWriter = uiWriter
+
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
 	_ = os.MkdirAll(d.BaseConfig.DataDir, 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "configs"), 0o755)
@@ -277,10 +281,6 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "log-exports"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
-
-	log := logger.Init()
-	d.Logger = log.Logger
-	d.LogWriter = log.WX
 
 	d.Cron = cron.New()
 	d.Cron.Start()
@@ -307,7 +307,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
 	if err != nil {
-		d.Logger.Error("Failed to load plugin configs: ", err)
+		loggerInstance.Error("Failed to load plugin configs: ", err)
 	}
 
 	d.registerCoreCommands()
@@ -326,11 +326,11 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 
 	// 创建js运行时
 	if d.Config.JsEnable {
-		d.Logger.Info("js扩展支持：开启")
+		loggerInstance.Info("js扩展支持：开启")
 		d.ExtLoopManager = NewJsLoopManager() // 此时不初始化loop，Init才初始化哦
 		d.JsInit()
 	} else {
-		d.Logger.Info("js扩展支持：关闭")
+		loggerInstance.Info("js扩展支持：关闭")
 	}
 
 	for _, i := range d.ExtList {
@@ -345,7 +345,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				d.Logger.Error("RunAfterLoaded 报错: ", r)
+				loggerInstance.Error("RunAfterLoaded 报错: ", r)
 			}
 		}()
 		i()
@@ -362,14 +362,14 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 				d.Save(true)
 				// if count%2 == 0 {
 				//	if err := model.FlushWAL(d.DBData); err != nil {
-				//		d.Logger.Error("Failed to flush WAL: ", err)
+				//		log.Error("Failed to flush WAL: ", err)
 				//	}
 				//	if err := model.FlushWAL(d.DBLogs); err != nil {
-				//		d.Logger.Error("Failed to flush WAL: ", err)
+				//		log.Error("Failed to flush WAL: ", err)
 				//	}
 				//	if d.CensorManager != nil && d.CensorManager.DB != nil {
 				//		if err := model.FlushWAL(d.CensorManager.DB); err != nil {
-				//			d.Logger.Error("Failed to flush WAL: ", err)
+				//			log.Error("Failed to flush WAL: ", err)
 				//		}
 				//	}
 				// }
@@ -383,7 +383,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
-				d.Logger.Error(r)
+				loggerInstance.Error(r)
 			}
 		}()
 
@@ -422,7 +422,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 		d.JsBuiltinDigestSet = make(map[string]bool)
 		d.JsLoadScripts()
 	} else {
-		d.Logger.Info("js扩展支持已关闭，跳过js脚本的加载")
+		loggerInstance.Info("js扩展支持已关闭，跳过js脚本的加载")
 	}
 
 	if d.Config.UpgradeWindowID != "" {
@@ -460,7 +460,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator) {
 					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: d.Config.UpgradeWindowID}}, text)
 				}
 
-				d.Logger.Infof("升级完成，当前版本: %s", VERSION.String())
+				loggerInstance.Infof("升级完成，当前版本: %s", VERSION.String())
 				(&d.Config).UpgradeWindowID = ""
 				(&d.Config).UpgradeEndpointID = ""
 				d.MarkModified()
@@ -489,7 +489,7 @@ type VMResultV2 struct {
 
 func (d *Dice) _ExprEvalBaseV1(buffer string, ctx *MsgContext, flags RollExtraFlags) (*VMResult, string, error) {
 	parser := d.rebuildParser(buffer)
-	parser.RollExpression.flags = flags // 千万记得在parse之前赋值
+	parser.flags = flags // 千万记得在parse之前赋值
 	err := parser.Parse()
 
 	if flags.vmDepth > 64 {
@@ -529,7 +529,7 @@ func (d *Dice) _ExprTextBaseV1(buffer string, ctx *MsgContext, flags RollExtraFl
 	// 隐藏的内置字符串符号 \x1e
 	val, detail, err := d._ExprEvalBaseV1("\x1e"+buffer+"\x1e", ctx, flags)
 	if err != nil {
-		log.Warnf("脚本执行出错: %s -> %v", buffer, err)
+		d.Logger.Warnf("脚本执行出错: %s -> %v", buffer, err)
 	}
 
 	if err == nil && (val.TypeID == VMTypeString || val.TypeID == VMTypeNone) {
@@ -552,7 +552,7 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 
 // ExtFind 根据名称或别名查找扩展
 func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
-	find := func(name string) *ExtInfo {
+	find := func(_ string) *ExtInfo {
 		for _, i := range d.ExtList {
 			// 名字匹配，优先级最高
 			if i.Name == s {
@@ -869,7 +869,7 @@ func (d *Dice) PublicDiceEndpointRefresh() {
 		Endpoints: endpointItems,
 	}, GenerateVerificationKeyForPublicDice)
 	if code != 200 {
-		log.Warn("[公骰]无法通过服务器校验，不再进行更新")
+		d.Logger.Warn("[公骰]无法通过服务器校验，不再进行更新")
 		return
 	}
 }
@@ -883,7 +883,7 @@ func (d *Dice) PublicDiceInfoRegister() {
 		Note:  cfg.Note,
 	}, GenerateVerificationKeyForPublicDice)
 	if code != 200 {
-		log.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
+		d.Logger.Warn("[公骰]无法通过服务器校验，不再进行骰号注册")
 		return
 	}
 	// ID为空时才将注册好的ID覆写配置

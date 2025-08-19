@@ -16,7 +16,6 @@ import (
 	"github.com/monaco-io/request"
 
 	"sealdice-core/dice"
-	log "sealdice-core/utils/kratos"
 )
 
 type Response map[string]interface{}
@@ -51,9 +50,10 @@ func GetHexData(c echo.Context, method string, name string) (value []byte, finis
 	var strValue string
 	// var exists bool
 
-	if method == "GET" {
+	switch method {
+	case "GET":
 		strValue = c.Param(name)
-	} else if method == "POST" {
+	case "POST":
 		strValue = c.FormValue(name)
 	}
 
@@ -107,17 +107,17 @@ func packGocqConfig(relWorkDir string) *bytes.Buffer {
 	zipWriter := zip.NewWriter(buf)
 
 	if err := compressFile(filepath.Join(rootPath, "config.yml"), "config.yml", zipWriter); err != nil {
-		log.Error(err)
+		myDice.Logger.Error(err)
 	}
 	if err := compressFile(filepath.Join(rootPath, "device.json"), "device.json", zipWriter); err != nil {
-		log.Error(err)
+		myDice.Logger.Error(err)
 	}
 	_ = compressFile(filepath.Join(rootPath, "data/versions/1.json"), "data/versions/6.json", zipWriter)
 	_ = compressFile(filepath.Join(rootPath, "data/versions/6.json"), "data/versions/6.json", zipWriter)
 
 	// 关闭 Zip Writer
 	if err := zipWriter.Close(); err != nil {
-		log.Fatal(err)
+		myDice.Logger.Fatal(err)
 	}
 
 	// 将 Zip 文件保存在内存中
@@ -143,11 +143,12 @@ func checkUidExists(c echo.Context, uid string) bool {
 	for _, i := range myDice.ImSession.EndPoints {
 		if pa, ok := i.Adapter.(*dice.PlatformAdapterGocq); ok && pa.UseInPackClient {
 			var relWorkDir string
-			if pa.BuiltinMode == "lagrange" {
+			switch pa.BuiltinMode {
+			case "lagrange":
 				relWorkDir = "extra/lagrange-qq" + uid
-			} else if pa.BuiltinMode == "lagrange-gocq" {
+			case "lagrange-gocq":
 				relWorkDir = "extra/lagrange-gocq-qq" + uid
-			} else {
+			default:
 				// 默认为gocq
 				relWorkDir = "extra/go-cqhttp-qq" + uid
 			}
@@ -180,12 +181,12 @@ func checkHTTPConnectivity(url string) bool {
 	once := func(wg *sync.WaitGroup, url string) {
 		defer wg.Done()
 		resp, err := client.Get(url)
-		log.Debugf("check http connectivity, url=%s", url)
+		myDice.Logger.Debugf("check http connectivity, url=%s", url)
 		if err == nil {
 			_ = resp.Body.Close()
 			rsChan <- true
 		} else {
-			log.Debugf("url can't be connected, error: %s", err)
+			myDice.Logger.Debugf("url can't be connected, error: %s", err)
 			rsChan <- false
 		}
 	}

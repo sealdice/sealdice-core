@@ -18,8 +18,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	"sealdice-core/model"
-	log "sealdice-core/utils/kratos"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -66,14 +66,14 @@ type (
 
 // ConfigItem 供插件使用的配置项
 type ConfigItem struct {
-	Key          string      `json:"key" jsbind:"key"`
-	Type         string      `json:"type" jsbind:"type"`
-	DefaultValue interface{} `json:"defaultValue" jsbind:"defaultValue"`
-	Value        interface{} `json:"value,omitempty" jsbind:"value"`
-	Option       interface{} `json:"option,omitempty" jsbind:"option"`
-	Deprecated   bool        `json:"deprecated,omitempty" jsbind:"deprecated"`
+	Key          string      `jsbind:"key"          json:"key"`
+	Type         string      `jsbind:"type"         json:"type"`
+	DefaultValue interface{} `jsbind:"defaultValue" json:"defaultValue"`
+	Value        interface{} `jsbind:"value"        json:"value,omitempty"`
+	Option       interface{} `jsbind:"option"       json:"option,omitempty"`
+	Deprecated   bool        `jsbind:"deprecated"   json:"deprecated,omitempty"`
 
-	Description string `json:"description" jsbind:"description"`
+	Description string `jsbind:"description" json:"description"`
 
 	task *JsScriptTask
 }
@@ -174,8 +174,8 @@ var _ json.Unmarshaler = (*ConfigItem)(nil)
 
 type PluginConfig struct {
 	PluginName        string                 `json:"pluginName"`
-	Configs           map[string]*ConfigItem `json:"configs" jsbind:"configs"`
-	OrderedConfigKeys []string               `json:"orderedConfigKeys" jsbind:"orderedConfigKeys"`
+	Configs           map[string]*ConfigItem `jsbind:"configs"           json:"configs"`
+	OrderedConfigKeys []string               `jsbind:"orderedConfigKeys" json:"orderedConfigKeys"`
 }
 
 type ConfigManager struct {
@@ -347,6 +347,7 @@ func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
+	log := logger.M()
 	log.Debug("try reset config to default", pluginName, key)
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
@@ -2398,7 +2399,7 @@ func (d *Dice) loadAdvanced() {
 func (d *Dice) SaveText() {
 	buf, err := yaml.Marshal(d.TextMapRaw)
 	if err != nil {
-		log.Error("Dice.SaveText", err)
+		d.Logger.Error("Dice.SaveText", err)
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
@@ -2479,10 +2480,10 @@ func (d *Dice) Save(isAuto bool) {
 	if d.LastUpdatedTime != 0 {
 		totalConf := &struct {
 			// copy from Dice
-			ImSession     *IMSession  `yaml:"imSession" jsbind:"imSession" json:"-"`
-			DeckList      []*DeckInfo `yaml:"deckList" jsbind:"deckList"`           // 牌堆信息
-			CommandPrefix []string    `yaml:"commandPrefix" jsbind:"commandPrefix"` // 指令前导
-			DiceMasters   []string    `yaml:"diceMasters" jsbind:"diceMasters"`     // 骰主设置，需要格式: 平台:帐号
+			ImSession     *IMSession  `jsbind:"imSession"     json:"-"             yaml:"imSession"`
+			DeckList      []*DeckInfo `jsbind:"deckList"      yaml:"deckList"`      // 牌堆信息
+			CommandPrefix []string    `jsbind:"commandPrefix" yaml:"commandPrefix"` // 指令前导
+			DiceMasters   []string    `jsbind:"diceMasters"   yaml:"diceMasters"`   // 骰主设置，需要格式: 平台:帐号
 
 			Config `yaml:",inline"`
 		}{
@@ -2554,7 +2555,7 @@ func (d *Dice) Save(isAuto bool) {
 	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
 	err := d.AttrsManager.CheckForSave()
 	if err != nil {
-		log.Errorf("保存属性数据失败 %v", err)
+		d.Logger.Errorf("保存属性数据失败 %v", err)
 	}
 
 	// 保存黑名单数据

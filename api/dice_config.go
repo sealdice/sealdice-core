@@ -12,20 +12,19 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/utils"
-	log "sealdice-core/utils/kratos"
 )
 
 type DiceConfigInfo struct {
 	dice.Config
 
-	CommandPrefix       []string `json:"commandPrefix" form:"commandPrefix"`
-	DiceMasters         []string `json:"diceMasters" form:"diceMasters"`
-	UIPassword          string   `json:"uiPassword" form:"uiPassword"`
+	CommandPrefix       []string `form:"commandPrefix"       json:"commandPrefix"`
+	DiceMasters         []string `form:"diceMasters"         json:"diceMasters"`
+	UIPassword          string   `form:"uiPassword"          json:"uiPassword"`
 	LogPageItemLimit    int64    `json:"logPageItemLimit"`
 	DefaultCocRuleIndex string   `json:"defaultCocRuleIndex"` // 默认coc index
 	MaxExecuteTime      string   `json:"maxExecuteTime"`      // 最大骰点次数
 	MaxCocCardGen       string   `json:"maxCocCardGen"`       // 最大coc制卡数
-	ServerAddress       string   `json:"serveAddress" form:"serveAddress"`
+	ServerAddress       string   `form:"serveAddress"        json:"serveAddress"`
 	HelpDocEngineType   int      `json:"helpDocEngineType"`
 }
 
@@ -84,7 +83,7 @@ func DiceConfig(c echo.Context) error {
 	info.ExtDefaultSettings = extDefaultSettings
 	info.DefaultCocRuleIndex = cocRule
 	info.MailPassword = emailPasswordMasked
-	info.Config.QuitInactiveThresholdDays = info.QuitInactiveThreshold.Hours() / 24
+	info.QuitInactiveThresholdDays = info.QuitInactiveThreshold.Hours() / 24
 
 	return c.JSON(http.StatusOK, info)
 }
@@ -109,7 +108,7 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	if err != nil {
-		log.Error("DiceConfigSet", err)
+		myDice.Logger.Error("DiceConfigSet", err)
 		return c.JSON(http.StatusOK, nil)
 	}
 	if val, ok := jsonMap["commandPrefix"]; ok {

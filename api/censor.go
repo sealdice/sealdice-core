@@ -19,7 +19,6 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/service"
-	log "sealdice-core/utils/kratos"
 )
 
 func check(c echo.Context) (bool, error) {
@@ -108,8 +107,8 @@ func censorGetConfig(c echo.Context) error {
 
 type LevelConfig struct {
 	Threshold int      `json:"threshold" mapstructure:"threshold"`
-	Handlers  []string `json:"handlers" mapstructure:"handlers"`
-	Score     int      `json:"score" mapstructure:"score"`
+	Handlers  []string `json:"handlers"  mapstructure:"handlers"`
+	Score     int      `json:"score"     mapstructure:"score"`
 }
 
 func getLevelConfig(
@@ -160,7 +159,7 @@ func censorSetConfig(c echo.Context) error {
 	jsonMap := make(map[string]interface{})
 	err = json.NewDecoder(c.Request().Body).Decode(&jsonMap)
 	if err != nil {
-		log.Error("censorSetConfig", err)
+		myDice.Logger.Error("censorSetConfig", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
@@ -446,7 +445,7 @@ func censorDeleteWordFiles(c echo.Context) error {
 	}{}
 	err = c.Bind(&v)
 	if err != nil {
-		log.Error("censorDeleteWordFiles", err)
+		myDice.Logger.Error("censorDeleteWordFiles", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
@@ -521,7 +520,7 @@ func censorGetLogPage(c echo.Context) error {
 	v := service.QueryCensorLog{}
 	err = c.Bind(&v)
 	if err != nil {
-		log.Error("censorGetLogPage", err)
+		myDice.Logger.Error("censorGetLogPage", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	if v.PageNum < 1 {

@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"sealdice-core/dice"
+	"sealdice-core/logger"
 	"sealdice-core/utils"
-	log "sealdice-core/utils/kratos"
 )
 
 const updaterVersion = "0.1.1"
@@ -68,6 +68,7 @@ func getUpdaterFn() string {
 }
 
 func CheckUpdater(dm *dice.DiceManager) error {
+	log := logger.M()
 	// 检查updater是否存在
 	exists := false
 	fn := getUpdaterFn()
@@ -145,6 +146,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 }
 
 func UpdateByFile(dm *dice.DiceManager, packName string, syncMode bool) bool {
+	log := logger.M()
 	// 注意: 当执行完就立即退进程的情况下，需要使用 syncMode 为true
 	fn := getUpdaterFn()
 	err := os.Chmod(fn, 0o755)

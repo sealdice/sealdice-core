@@ -16,10 +16,10 @@ import (
 	"github.com/alexmullins/zip"
 
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	"sealdice-core/utils"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/crypto"
-	log "sealdice-core/utils/kratos"
 )
 
 const BackupDir = "./backups"
@@ -353,6 +353,7 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		return nil
 	}
 
+	log := logger.M()
 	log.Info("开始清理备份文件")
 
 	backupDir, err := os.Open(BackupDir)

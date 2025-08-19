@@ -8,11 +8,11 @@ package paniclog
 import (
 	"os"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 // redirectStderr to the file passed in
 func redirectStderr(f *os.File) {
 	// 安卓当前还暂时没有什么头绪，看上去rclone也没头绪。
-	log.Error("Can't redirect stderr to file")
+	logger.M().Error("Can't redirect stderr to file")
 }

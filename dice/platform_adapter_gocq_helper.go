@@ -19,9 +19,10 @@ import (
 	"github.com/ShiraazMoollatjie/goluhn"
 	"github.com/acarl005/stripansi"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils"
-	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 )
 
@@ -590,19 +591,19 @@ type GoCqhttpLoginInfo struct {
 }
 
 type SignServerConfig struct {
-	SignServers          []*SignServer `yaml:"signServers" json:"signServers"`
-	RuleChangeSignServer int           `yaml:"ruleChangeSignServer" json:"ruleChangeSignServer"`
-	MaxCheckCount        int           `yaml:"maxCheckCount" json:"maxCheckCount"`
-	SignServerTimeout    int           `yaml:"signServerTimeout" json:"signServerTimeout"`
-	AutoRegister         bool          `yaml:"autoRegister" json:"autoRegister"`
-	AutoRefreshToken     bool          `yaml:"autoRefreshToken" json:"autoRefreshToken"`
-	RefreshInterval      int           `yaml:"refreshInterval" json:"refreshInterval"`
+	SignServers          []*SignServer `json:"signServers"          yaml:"signServers"`
+	RuleChangeSignServer int           `json:"ruleChangeSignServer" yaml:"ruleChangeSignServer"`
+	MaxCheckCount        int           `json:"maxCheckCount"        yaml:"maxCheckCount"`
+	SignServerTimeout    int           `json:"signServerTimeout"    yaml:"signServerTimeout"`
+	AutoRegister         bool          `json:"autoRegister"         yaml:"autoRegister"`
+	AutoRefreshToken     bool          `json:"autoRefreshToken"     yaml:"autoRefreshToken"`
+	RefreshInterval      int           `json:"refreshInterval"      yaml:"refreshInterval"`
 }
 
 type SignServer struct {
-	URL           string `yaml:"url" json:"url"`
-	Key           string `yaml:"key" json:"key"`
-	Authorization string `yaml:"authorization" json:"authorization"`
+	URL           string `json:"url"           yaml:"url"`
+	Key           string `json:"key"           yaml:"key"`
+	Authorization string `json:"authorization" yaml:"authorization"`
 }
 
 func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
@@ -636,6 +637,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 }
 
 func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 	loginIndex := pa.CurLoginIndex
 
@@ -1037,7 +1039,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 var isGocqDownloading = false
 
-func downloadGoCqhttp(logger *log.Helper) {
+func downloadGoCqhttp(logger *zap.SugaredLogger) {
 	fn := "go-cqhttp/go-cqhttp"
 	if runtime.GOOS == "windows" {
 		fn += ".exe"

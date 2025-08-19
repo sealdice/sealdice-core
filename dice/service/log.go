@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"sealdice-core/logger"
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
 	engine2 "sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 )
 
 type LogOne struct {
@@ -72,12 +73,12 @@ func LogGetLogs(operator engine2.DatabaseOperator) ([]*model.LogInfo, error) {
 }
 
 type QueryLogPage struct {
-	PageNum          int    `db:"page_num" query:"pageNum"`
-	PageSize         int    `db:"page_siz" query:"pageSize"`
-	Name             string `db:"name" query:"name"`
-	GroupID          string `db:"group_id" query:"groupId"`
+	PageNum          int    `db:"page_num"           query:"pageNum"`
+	PageSize         int    `db:"page_siz"           query:"pageSize"`
+	Name             string `db:"name"               query:"name"`
+	GroupID          string `db:"group_id"           query:"groupId"`
 	CreatedTimeBegin string `db:"created_time_begin" query:"createdTimeBegin"`
-	CreatedTimeEnd   string `db:"created_time_end" query:"createdTimeEnd"`
+	CreatedTimeEnd   string `db:"created_time_end"   query:"createdTimeEnd"`
 }
 
 // LogGetLogPage 获取分页
@@ -175,7 +176,7 @@ func LogGetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 	updateTime = logInfo.UpdatedAt
 	url = logInfo.UploadURL
 	uploadTime = logInfo.UploadTime
-	return
+	return url, uploadTime, updateTime, err
 }
 
 // LogSetUploadInfo 设置上传信息
@@ -458,7 +459,7 @@ func LogMarkDeleteByMsgID(operator engine2.DatabaseOperator, groupID string, log
 	rid := fmt.Sprintf("%v", rawID)
 	err = db.Transaction(func(tx *gorm.DB) error {
 		if err = tx.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&model.LogOneItem{}).Error; err != nil {
-			log.Errorf("log delete error %s", err.Error())
+			zap.S().Named(logger.LogKeyDatabase).Errorf("log delete error %s", err.Error())
 			return err
 		}
 		// 更新 logs 表中的 updated_at 字段 和 size 字段

@@ -11,20 +11,21 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 
+	"sealdice-core/logger"
 	"sealdice-core/message"
-	log "sealdice-core/utils/kratos"
 )
 
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
 type PlatformAdapterDiscord struct {
-	Session            *IMSession         `yaml:"-" json:"-"`
-	Token              string             `yaml:"token" json:"token"`
-	ProxyURL           string             `yaml:"proxyURL" json:"proxyURL"`
-	ReverseProxyUrl    string             `yaml:"reverseProxyUrl" json:"reverseProxyUrl"`
-	ReverseProxyCDNUrl string             `yaml:"reverseProxyCDNUrl" json:"reverseProxyCDNUrl"`
-	EndPoint           *EndPointInfo      `yaml:"-" json:"-"`
-	IntentSession      *discordgo.Session `yaml:"-" json:"-"`
+	Session            *IMSession         `json:"-"                  yaml:"-"`
+	Token              string             `json:"token"              yaml:"token"`
+	ProxyURL           string             `json:"proxyURL"           yaml:"proxyURL"`
+	ReverseProxyUrl    string             `json:"reverseProxyUrl"    yaml:"reverseProxyUrl"`
+	ReverseProxyCDNUrl string             `json:"reverseProxyCDNUrl" yaml:"reverseProxyCDNUrl"`
+	EndPoint           *EndPointInfo      `json:"-"                  yaml:"-"`
+	IntentSession      *discordgo.Session `json:"-"                  yaml:"-"`
 }
 
 // GetGroupInfoAsync 同步一下群组信息
@@ -68,6 +69,7 @@ func (pa *PlatformAdapterDiscord) updateChannelNum() {
 
 // Serve 启动服务，返回0就是成功，1就是失败
 func (pa *PlatformAdapterDiscord) Serve() int {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	dg, err := discordgo.New("Bot " + pa.Token)
 	// 这里出错很大概率是token不对
 	if err != nil {

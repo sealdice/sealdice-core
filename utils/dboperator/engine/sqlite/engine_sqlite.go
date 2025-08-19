@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"sync"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
-	log "sealdice-core/utils/kratos"
 )
 
 type SQLiteEngine struct {
@@ -38,6 +39,8 @@ const (
 )
 
 func (s *SQLiteEngine) Close() {
+	log := zap.S().Named(logger.LogKeyDatabase)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -96,6 +99,7 @@ func (s *SQLiteEngine) GetCensorDB(mode constant.DBMode) *gorm.DB {
 const defaultDataDir = "./data/default"
 
 func (s *SQLiteEngine) Init(ctx context.Context) error {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	if ctx == nil {
 		return errors.New("ctx is missing")
 	}

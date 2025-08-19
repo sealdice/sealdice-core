@@ -12,13 +12,14 @@ import (
 	"unicode/utf16"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"go.uber.org/zap"
 
+	"sealdice-core/logger"
 	"sealdice-core/message"
-	log "sealdice-core/utils/kratos"
 )
 
 type BotLoggerWrapper struct {
-	Logger *log.Helper
+	Logger *zap.SugaredLogger
 }
 
 func (b *BotLoggerWrapper) Println(v ...interface{}) {
@@ -30,12 +31,12 @@ func (b *BotLoggerWrapper) Printf(format string, v ...interface{}) {
 }
 
 type PlatformAdapterTelegram struct {
-	Session       *IMSession       `yaml:"-" json:"-"`
-	Token         string           `yaml:"token" json:"token"`
-	ProxyURL      string           `yaml:"proxyURL" json:"proxyURL"`
-	EndPoint      *EndPointInfo    `yaml:"-" json:"-"`
-	IntentSession *tgbotapi.BotAPI `yaml:"-" json:"-"`
-	ActiveTime    time.Time        `yaml:"-" json:"-"` // 用于区分adapter关闭时堆积的消息，不进入配置文件
+	Session       *IMSession       `json:"-"        yaml:"-"`
+	Token         string           `json:"token"    yaml:"token"`
+	ProxyURL      string           `json:"proxyURL" yaml:"proxyURL"`
+	EndPoint      *EndPointInfo    `json:"-"        yaml:"-"`
+	IntentSession *tgbotapi.BotAPI `json:"-"        yaml:"-"`
+	ActiveTime    time.Time        `json:"-"        yaml:"-"` // 用于区分adapter关闭时堆积的消息，不进入配置文件
 }
 
 func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
@@ -63,14 +64,14 @@ func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterTelegram) Serve() int {
-	logger := pa.Session.Parent.Logger
+	log := zap.S().Named(logger.LogKeyAdapter)
 	ep := pa.EndPoint
-	logger.Info("尝试连接Telegram服务……")
+	log.Info("尝试连接Telegram服务……")
 
 	var bot *tgbotapi.BotAPI
 	var err error
 
-	_ = tgbotapi.SetLogger(&BotLoggerWrapper{Logger: logger})
+	_ = tgbotapi.SetLogger(&BotLoggerWrapper{Logger: log})
 	if len(pa.ProxyURL) > 0 {
 		var u *url.URL
 		u, err = url.Parse(pa.ProxyURL)
@@ -579,7 +580,7 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) (*tgbo
 				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, errParse)
 				break
 			}
-			msg.BaseChat.ReplyToMessageID = int(parseInt)
+			msg.ReplyToMessageID = int(parseInt)
 		}
 		if err != nil {
 			pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)

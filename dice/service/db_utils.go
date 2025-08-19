@@ -4,10 +4,14 @@ import (
 	"strings"
 	"sync"
 
+	"go.uber.org/zap"
+
+	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine/sqlite"
-	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/spinner"
 )
+
+var log = zap.S().Named(logger.LogKeyDatabase)
 
 // BYTES类
 // 如果我们使用FirstOrCreate,不可避免的会遇到这样的问题：
@@ -32,7 +36,7 @@ func DBVacuum() {
 		// 使用 GORM 初始化数据库
 		vacuumDB, err := sqlite.SQLiteDBInit(path, true)
 		// 数据库类型不是 SQLite 直接返回
-		if !strings.Contains(vacuumDB.Dialector.Name(), "sqlite") {
+		if !strings.Contains(vacuumDB.Name(), "sqlite") {
 			return
 		}
 		defer func() {

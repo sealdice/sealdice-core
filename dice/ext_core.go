@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"sealdice-core/dice/events"
-	log "sealdice-core/utils/kratos"
 )
 
 func RegisterBuiltinExtCore(dice *Dice) {
@@ -23,7 +22,7 @@ func RegisterBuiltinExtCore(dice *Dice) {
 				userName := ctx.Dice.Parent.TryGetUserName(opUID)
 				if opUID == "" {
 					txt := fmt.Sprintf("退出群组<%s>(%s)，但操作者ID为空，停止继续处理", groupName, event.GroupID)
-					log.Info(txt)
+					dice.Logger.Info(txt)
 					ctx.Notice(txt)
 					return
 				}
@@ -50,10 +49,14 @@ func RegisterBuiltinExtCore(dice *Dice) {
 				}
 
 				txt := fmt.Sprintf("被踢出群: 在群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, event.GroupID, userName, event.OperatorID, extra)
-				log.Info(txt)
+				dice.Logger.Info(txt)
 				ctx.Notice(txt)
 			}
 		},
+	}
+
+	theExt.CmdMap = map[string]*CmdItemInfo{
+		"team": cmdTeam,
 	}
 
 	dice.RegisterExtension(theExt)

@@ -18,9 +18,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
-	log "sealdice-core/utils/kratos"
+	logger "sealdice-core/logger"
 	"sealdice-core/utils/procs"
 )
 
@@ -64,7 +65,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 	pa.GoCqhttpState = StateCodeInLogin
 
 	if pa.UseInPackClient && (pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq") { //nolint:nestif
-		helper := log.NewCustomHelper(log.LOG_LAGR, false, nil)
+		helper := zap.S().Named(logger.LogKeyAdapter)
 
 		if dice.ContainerMode {
 			if pa.BuiltinMode == "lagrange" {

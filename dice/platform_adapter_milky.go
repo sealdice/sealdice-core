@@ -8,22 +8,24 @@ import (
 	"time"
 
 	milky "github.com/Szzrain/Milky-go-sdk"
+	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
+	logger "sealdice-core/logger"
 	"sealdice-core/message"
-	log "sealdice-core/utils/kratos"
 )
 
 type PlatformAdapterMilky struct {
-	Session       *IMSession     `yaml:"-" json:"-"`
-	EndPoint      *EndPointInfo  `yaml:"-" json:"-"`
-	WsGateway     string         `yaml:"ws_gateway" json:"ws_gateway"`
-	RestGateway   string         `yaml:"rest_gateway" json:"rest_gateway"`
-	Token         string         `yaml:"token" json:"token"`
-	IntentSession *milky.Session `yaml:"-" json:"-"`
+	Session       *IMSession     `json:"-"            yaml:"-"`
+	EndPoint      *EndPointInfo  `json:"-"            yaml:"-"`
+	WsGateway     string         `json:"ws_gateway"   yaml:"ws_gateway"`
+	RestGateway   string         `json:"rest_gateway" yaml:"rest_gateway"`
+	Token         string         `json:"token"        yaml:"token"`
+	IntentSession *milky.Session `json:"-"            yaml:"-"`
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
@@ -48,6 +50,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	id, err := strconv.ParseInt(ExtractQQUserID(userID), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid user ID %s: %v", userID, err)
@@ -72,6 +75,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID stri
 }
 
 func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
@@ -93,6 +97,7 @@ func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterMilky) Serve() int {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	pa.EndPoint.State = 2 // 设置状态为连接中
 
 	if pa.RestGateway[len(pa.RestGateway)-1] == '/' {
@@ -101,7 +106,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	if pa.WsGateway[len(pa.WsGateway)-1] == '/' {
 		pa.WsGateway = pa.WsGateway[:len(pa.WsGateway)-1]
 	}
-	session, err := milky.New(pa.WsGateway, pa.RestGateway, pa.Token, log.NewHelper(log.GetLogger()))
+	session, err := milky.New(pa.WsGateway, pa.RestGateway, pa.Token, log.Named(logger.LogKeyAdapter))
 	if err != nil {
 		log.Errorf("Milky SDK initialization failed: %v", err)
 		return 1
@@ -124,7 +129,8 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			log.Debugf("Ignoring self message: %v", m)
 			return // 忽略自己的消息
 		}
-		if m.MessageScene == "group" {
+		switch m.MessageScene {
+		case "group":
 			if m.Group != nil || m.GroupMember != nil {
 				msg.GroupID = FormatDiceIDQQGroup(strconv.FormatInt(m.Group.GroupId, 10))
 				msg.MessageType = "group"
@@ -135,7 +141,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				log.Warnf("Received group message without group info: %v", m)
 				return // 无法处理的消息
 			}
-		} else if m.MessageScene == "friend" {
+		case "friend":
 			if m.Friend != nil {
 				msg.MessageType = "private"
 				msg.Sender.Nickname = m.Friend.Nickname
@@ -143,7 +149,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				log.Warnf("Received friend message without friend info: %v", m)
 				return // 无法处理的消息
 			}
-		} else {
+		default:
 			return // 临时对话消息，不处理
 		}
 		if m.Segments != nil {
@@ -264,6 +270,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 }
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	if pa.IntentSession == nil {
 		success := pa.Serve()
 		return success == 0
@@ -284,6 +291,7 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	if enable {
 		log.Infof("正在启用Milky服务……")
 		if pa.IntentSession == nil {
@@ -318,6 +326,7 @@ func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 }
 
 func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	var elements []milky.IMessageElement
 	for _, elem := range send {
 		switch e := elem.(type) {
@@ -348,6 +357,7 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 }
 
 func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	send := message.ConvertStringMessage(text)
 	elements := ParseMessageToMilky(send)
 	id, err := strconv.ParseInt(ExtractQQUserID(uid), 10, 64)
@@ -373,6 +383,7 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 }
 
 func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	send := message.ConvertStringMessage(text)
 	elements := ParseMessageToMilky(send)
 	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
@@ -421,6 +432,7 @@ func (pa *PlatformAdapterMilky) SendFileToPerson(ctx *MsgContext, userID string,
 }
 
 func (pa *PlatformAdapterMilky) SendFileToGroup(_ *MsgContext, groupID string, path string, _ string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	id := ExtractQQGroupID(groupID)
 	rawID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -439,6 +451,7 @@ func (pa *PlatformAdapterMilky) SendFileToGroup(_ *MsgContext, groupID string, p
 }
 
 func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
@@ -453,6 +466,7 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 }
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
 	groupID := ctx.Group.GroupID
 	rawGroupID := ExtractQQGroupID(groupID)
 	rawGroupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)

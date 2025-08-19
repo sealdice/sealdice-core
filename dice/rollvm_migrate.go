@@ -13,7 +13,7 @@ import (
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
@@ -25,6 +25,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 	config.EnableDiceFate = true
 	config.EnableDiceDoubleCross = true
 	config.OpCountLimit = 30000
+	config.ParseExprLimit = 10000000 // kenichiLyon: 限制解析算力，防止递归过深，这里以建议值1000万设置。
 
 	am := ctx.Dice.AttrsManager
 	config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
@@ -197,20 +198,12 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 		if detailStr == ctx.Ret.ToString() {
 			detailStr = "" // 如果detail和结果值完全一致，那么将其置空
 		}
-		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr)))
+		ctx.StoreNameLocal("details", ds.NewArrayValRaw(lo.Reverse(detailArr))) //nolint:staticcheck // old code
 		return detailStr
 	}
 
 	// 设置默认骰子面数
-	if ctx.Group != nil {
-		// 情况不明，在sealchat的第一次测试中出现Group为nil
-		config.DefaultDiceSideExpr = strconv.FormatInt(ctx.Group.DiceSideNum, 10)
-		if config.DefaultDiceSideExpr == "0" {
-			config.DefaultDiceSideExpr = "100"
-		}
-	} else {
-		config.DefaultDiceSideExpr = "100"
-	}
+	config.DefaultDiceSideExpr = strconv.FormatInt(getDefaultDicePoints(ctx), 10)
 
 	return &config
 }
@@ -347,7 +340,7 @@ func (ctx *MsgContext) EvalFString(expr string, flags *ds.RollConfig) *VMResultV
 	// 隐藏的内置字符串符号 \x1e
 	r := ctx.Eval("\x1e"+expr+"\x1e", flags)
 	if r.vm.Error != nil {
-		log.Error("脚本执行出错: ", expr, "->", r.vm.Error)
+		logger.M().Error("脚本执行出错: ", expr, "->", r.vm.Error)
 	}
 	return r
 }
@@ -421,6 +414,9 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
 	vm.Config.DiceMaxMode = flags.BigFailDiceOn
+	if vm.Config.DefaultDiceSideExpr == "" {
+		vm.Config.DefaultDiceSideExpr = strconv.FormatInt(flags.DefaultDiceSideNum, 10)
+	}
 
 	var cocFlagVarPrefix string
 	if flags.CocVarNumberMode {
@@ -444,7 +440,7 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 		if flags.V2Only {
 			return nil, "", err
 		}
-		log.Error("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
+		logger.M().Error("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
 		errV2 := err // 某种情况下没有这个值，很奇怪
 
 		// 尝试一下V1
@@ -881,9 +877,10 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		m := reEngineVersionMark.FindStringSubmatch(formatExpr)
 		if len(m) > 0 {
 			v := m[1]
-			if v == "v1" {
+			switch v {
+			case "v1":
 				ver = "v1" // 强制v1
-			} else if v == "v2" {
+			case "v2":
 				ver = "v2" // 强制v2
 			}
 		}

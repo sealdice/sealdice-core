@@ -10,7 +10,7 @@ import (
 	wr "github.com/mroth/weightedrand"
 	"github.com/xuri/excelize/v2"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 type NamesGenerator struct {
@@ -26,7 +26,7 @@ func (ng *NamesGenerator) Load() {
 	for _, fn := range []string{"./data/names/names.xlsx", "./data/names/names-dnd.xlsx"} {
 		f, err := excelize.OpenFile(fn)
 		if err != nil {
-			log.Warn("加载names信息出错", fn, err)
+			logger.M().Warn("加载names信息出错", fn, err)
 			continue
 		}
 
@@ -55,7 +55,7 @@ func (ng *NamesGenerator) Load() {
 		}
 
 		if err := f.Close(); err != nil {
-			log.Error("NamesGenerator.Load", err)
+			logger.M().Error("NamesGenerator.Load", err)
 		}
 	}
 }
@@ -131,7 +131,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 		if len(choices) != 0 {
 			c, err = wr.NewChooser(choices...)
 		}
-		return
+		return c, restText, err
 	}
 
 	parseInner := func(inner string, c *wr.Chooser) string {
