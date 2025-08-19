@@ -2159,7 +2159,10 @@ func (d *Dice) registerCoreCommands() {
 }
 
 func getDefaultDicePoints(ctx *MsgContext) int64 {
-	diceSides := int64(ctx.Player.DiceSideNum)
+	diceSides := int64(0)
+	if ctx.Player != nil {
+		diceSides = int64(ctx.Player.DiceSideNum)
+	}
 	if diceSides == 0 && ctx.Group != nil {
 		diceSides = ctx.Group.DiceSideNum
 	}
