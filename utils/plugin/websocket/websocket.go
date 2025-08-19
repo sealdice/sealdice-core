@@ -178,6 +178,10 @@ type WebSocketConnection struct {
 	onmessage goja.Value
 	onclose   goja.Value
 	onerror   goja.Value
+
+	// 事件监听器（addEventListener 支持）
+	eventListeners map[string][]goja.Value
+	listenerMutex  sync.RWMutex
 }
 
 // WebSocket readyState 常量
@@ -241,17 +245,18 @@ func (ws *WebSocket) NewWebSocketConnection(call goja.FunctionCall) goja.Value {
 
 	// 创建WebSocketConnection实例
 	conn := &WebSocketConnection{
-		rt:         rt,
-		loop:       ws.loop,
-		url:        url,
-		protocol:   "", // 协议将在连接建立后设置
-		readyState: CONNECTING,
-		scheduled:  make(chan goja.Callable),
-		done:       make(chan struct{}),
-		onopen:     goja.Undefined(),
-		onmessage:  goja.Undefined(),
-		onclose:    goja.Undefined(),
-		onerror:    goja.Undefined(),
+		rt:             rt,
+		loop:           ws.loop,
+		url:            url,
+		protocol:       "", // 协议将在连接建立后设置
+		readyState:     CONNECTING,
+		scheduled:      make(chan goja.Callable),
+		done:           make(chan struct{}),
+		onopen:         goja.Undefined(),
+		onmessage:      goja.Undefined(),
+		onclose:        goja.Undefined(),
+		onerror:        goja.Undefined(),
+		eventListeners: make(map[string][]goja.Value),
 	}
 	// 注册到全局管理器
 	GlobalConnManager.Register(conn)
@@ -317,6 +322,26 @@ func (conn *WebSocketConnection) bindWebSocketMethods() {
 	}))
 	_ = obj.Set("close", rt.ToValue(func(args ...interface{}) {
 		conn.Close(args...)
+	}))
+
+	// 添加符合MDN的事件监听API
+	_ = obj.Set("addEventListener", rt.ToValue(func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) < 2 {
+			return goja.Undefined()
+		}
+		eventType := call.Argument(0).String()
+		listener := call.Argument(1)
+		conn.addEventListener(eventType, listener)
+		return goja.Undefined()
+	}))
+	_ = obj.Set("removeEventListener", rt.ToValue(func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) < 2 {
+			return goja.Undefined()
+		}
+		eventType := call.Argument(0).String()
+		listener := call.Argument(1)
+		conn.removeEventListener(eventType, listener)
+		return goja.Undefined()
 	}))
 
 	// 注意：常量在构造函数上，不在实例上
@@ -403,88 +428,38 @@ func (conn *WebSocketConnection) connect(options *webSocketOptions) {
 
 // triggerOpen 触发onopen事件
 func (conn *WebSocketConnection) triggerOpen() {
-	if !goja.IsUndefined(conn.onopen) && !goja.IsNull(conn.onopen) {
-		if fn, ok := goja.AssertFunction(conn.onopen); ok {
-			if conn.loop != nil {
-				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
-					// 创建Event对象
-					event := vm.NewObject()
-					_ = event.Set("type", "open")
-					_, err := fn(goja.Undefined(), event)
-					if err != nil {
-						WebSocketLogger.Errorf("处理WebSocket打开事件失败 url=%s error=%s", conn.url, err.Error())
-					}
-				})
-			}
-		}
-	}
+	conn.dispatchEvent("open", func(vm *goja.Runtime, event *goja.Object) {
+		_ = event.Set("type", "open")
+	})
 }
 
 // triggerMessage 触发onmessage事件
 func (conn *WebSocketConnection) triggerMessage(data interface{}) {
-	if !goja.IsUndefined(conn.onmessage) && !goja.IsNull(conn.onmessage) {
-		if fn, ok := goja.AssertFunction(conn.onmessage); ok {
-			if conn.loop != nil {
-				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
-					// 创建MessageEvent对象
-					event := vm.NewObject()
-					_ = event.Set("data", data)
-					_ = event.Set("type", "message")
-					_, err := fn(goja.Undefined(), event)
-					if err != nil {
-						WebSocketLogger.Errorf("处理WebSocket消息事件失败 url=%s error=%s", conn.url, err.Error())
-					}
-				})
-			}
-		}
-	}
+	conn.dispatchEvent("message", func(vm *goja.Runtime, event *goja.Object) {
+		_ = event.Set("data", data)
+		_ = event.Set("type", "message")
+	})
 }
 
 // triggerClose 触发onclose事件
 func (conn *WebSocketConnection) triggerClose(code int, reason string) {
 	conn.readyState = CLOSED
-	if !goja.IsUndefined(conn.onclose) && !goja.IsNull(conn.onclose) {
-		if fn, ok := goja.AssertFunction(conn.onclose); ok {
-			if conn.loop != nil {
-				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
-					// 创建CloseEvent对象
-					event := vm.NewObject()
-					_ = event.Set("code", code)
-					_ = event.Set("reason", reason)
-					_ = event.Set("wasClean", code == CloseNormalClosure) // 正常关闭
-					_ = event.Set("type", "close")
-					_, err := fn(goja.Undefined(), event)
-					if err != nil {
-						WebSocketLogger.Errorf("处理WebSocket关闭事件失败 url=%s error=%s", conn.url, err.Error())
-					}
-				})
-			}
-		}
-	}
+	conn.dispatchEvent("close", func(vm *goja.Runtime, event *goja.Object) {
+		_ = event.Set("code", code)
+		_ = event.Set("reason", reason)
+		_ = event.Set("wasClean", code == CloseNormalClosure)
+		_ = event.Set("type", "close")
+	})
 }
 
 // triggerError 触发onerror事件
 func (conn *WebSocketConnection) triggerError(err error) {
 	WebSocketLogger.Errorf("触发WebSocket错误事件 url=%s error=%s", conn.url, err.Error())
 
-	if !goja.IsUndefined(conn.onerror) && !goja.IsNull(conn.onerror) {
-		if fn, ok := goja.AssertFunction(conn.onerror); ok {
-			if conn.loop != nil {
-				conn.loop.RunOnLoop(func(vm *goja.Runtime) {
-					// 创建ErrorEvent对象
-					event := vm.NewObject()
-					_ = event.Set("error", err.Error())
-					_ = event.Set("type", "error")
-					_, err = fn(goja.Undefined(), event)
-					if err != nil {
-						WebSocketLogger.Errorf("处理WebSocket错误事件失败 url=%s error=%s", conn.url, err.Error())
-					}
-				})
-			}
-		}
-	} else {
-		WebSocketLogger.Warnf("没有设置onerror处理器 url=%s", conn.url)
-	}
+	conn.dispatchEvent("error", func(vm *goja.Runtime, event *goja.Object) {
+		_ = event.Set("error", err.Error())
+		_ = event.Set("type", "error")
+	})
 }
 
 // Send 向WebSocket连接发送消息
@@ -638,4 +613,95 @@ func Enable(rt *goja.Runtime, loop *eventloop.EventLoop) {
 	module := New()
 	instance := module.NewInstance(rt, loop)
 	_ = rt.Set("WebSocket", instance.Exports())
+}
+
+// --- 事件监听工具方法 ---
+
+func (conn *WebSocketConnection) addEventListener(eventType string, listener goja.Value) {
+	if goja.IsUndefined(listener) || goja.IsNull(listener) {
+		return
+	}
+	if _, ok := goja.AssertFunction(listener); !ok {
+		return
+	}
+	conn.listenerMutex.Lock()
+	defer conn.listenerMutex.Unlock()
+	lst := conn.eventListeners[eventType]
+	for _, l := range lst {
+		if l == listener {
+			return
+		}
+	}
+	conn.eventListeners[eventType] = append(lst, listener)
+}
+
+func (conn *WebSocketConnection) removeEventListener(eventType string, listener goja.Value) {
+	if goja.IsUndefined(listener) || goja.IsNull(listener) {
+		return
+	}
+	conn.listenerMutex.Lock()
+	defer conn.listenerMutex.Unlock()
+	lst := conn.eventListeners[eventType]
+	for i, l := range lst {
+		if l == listener {
+			conn.eventListeners[eventType] = append(lst[:i], lst[i+1:]...)
+			break
+		}
+	}
+}
+
+func (conn *WebSocketConnection) snapshotListeners(eventType string) []goja.Value {
+	conn.listenerMutex.RLock()
+	defer conn.listenerMutex.RUnlock()
+	lst := conn.eventListeners[eventType]
+	if len(lst) == 0 {
+		return nil
+	}
+	cp := make([]goja.Value, len(lst))
+	copy(cp, lst)
+	return cp
+}
+
+// dispatchEvent 在事件循环中派发事件，兼容 onxxx 和 addEventListener
+func (conn *WebSocketConnection) dispatchEvent(eventType string, populate func(vm *goja.Runtime, event *goja.Object)) {
+	if conn.loop == nil {
+		return
+	}
+	conn.loop.RunOnLoop(func(vm *goja.Runtime) {
+		event := vm.NewObject()
+		// 标准事件 target/ currentTarget
+		_ = event.Set("target", conn.jsObject)
+		_ = event.Set("currentTarget", conn.jsObject)
+		populate(vm, event)
+
+		// 先调用属性处理器
+		var handler goja.Value
+		switch eventType {
+		case "open":
+			handler = conn.onopen
+		case "message":
+			handler = conn.onmessage
+		case "close":
+			handler = conn.onclose
+		case "error":
+			handler = conn.onerror
+		}
+		if !goja.IsUndefined(handler) && !goja.IsNull(handler) {
+			if fn, ok := goja.AssertFunction(handler); ok {
+				if _, err := fn(conn.jsObject, event); err != nil {
+					WebSocketLogger.Errorf("处理WebSocket%s事件失败 url=%s error=%s", eventType, conn.url, err.Error())
+				}
+			}
+		}
+
+		// 再调用通过 addEventListener 注册的监听器
+		listeners := conn.snapshotListeners(eventType)
+		for _, l := range listeners {
+			if fn, ok := goja.AssertFunction(l); ok {
+				if _, err := fn(conn.jsObject, event); err != nil {
+					WebSocketLogger.Errorf("处理WebSocket%s事件监听失败 url=%s error=%s", eventType, conn.url, err.Error())
+				}
+			}
+		}
+	})
 }
