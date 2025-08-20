@@ -17,7 +17,6 @@ import (
 	"unsafe"
 
 	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
@@ -152,7 +151,7 @@ func (m *JsLoopManager) GetLoop(expectedVersion int64) (*eventloop.EventLoop, er
 	return m.loop, nil
 }
 
-func (m *JsLoopManager) GetWebLoop() *eventloop.EventLoop {
+func (m *JsLoopManager) GetNewestLoop() *eventloop.EventLoop {
 	m.loopLock.RLock()
 	defer m.loopLock.RUnlock()
 	// 给WEB用，不需要管是哪个版本的Loop，是最新的就行
@@ -214,11 +213,11 @@ type Dice struct {
 	ConfigManager *ConfigManager `yaml:"-"`
 	Parent        *DiceManager   `yaml:"-"`
 
-	CocExtraRules    map[int]*CocRuleInfo   `json:"cocExtraRules" yaml:"-"`
-	Cron             *cron.Cron             `json:"-"             yaml:"-"`
-	AliveNoticeEntry cron.EntryID           `json:"-"             yaml:"-"`
-	JsPrinter        *PrinterFunc           `json:"-"             yaml:"-"`
-	JsRequire        *require.RequireModule `json:"-"             yaml:"-"`
+	CocExtraRules    map[int]*CocRuleInfo `json:"cocExtraRules" yaml:"-"`
+	Cron             *cron.Cron           `json:"-"             yaml:"-"`
+	AliveNoticeEntry cron.EntryID         `json:"-"             yaml:"-"`
+	JsPrinter        *PrinterFunc         `json:"-"             yaml:"-"`
+	// JsRequire        *require.RequireModule `json:"-"             yaml:"-"`
 
 	// JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
 	ExtLoopManager   *JsLoopManager  `json:"-" yaml:"-"`

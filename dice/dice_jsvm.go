@@ -88,7 +88,6 @@ func (d *Dice) JsInit() {
 	reg := new(require.Registry)
 
 	loop := eventloop.NewEventLoop(eventloop.WithLogger(d.Logger),
-		eventloop.WithPoolSize(1000),
 		eventloop.EnableConsole(false),
 		eventloop.WithDebugLog(true), // 暂时打开调试日志
 		eventloop.WithRegistry(reg))
@@ -114,8 +113,8 @@ func (d *Dice) JsInit() {
 		console.Enable(vm)
 
 		sealws.Enable(vm, loop)
-		// require 模块
-		d.JsRequire = reg.Enable(vm)
+		// require 模块不再显式暴露，而是挪动到eventloop来调用它维护的Require模块
+		// d.JsRequire = reg.Enable(vm)
 
 		seal := vm.NewObject()
 
@@ -1061,7 +1060,8 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 			if absErr != nil {
 				err = absErr
 			} else {
-				_, err = d.JsRequire.Require(absPath)
+				// 通过EventLoop内置的Module进行加载
+				_, err = d.ExtLoopManager.GetNewestLoop().RequireModule(absPath)
 			}
 		}
 		d.JsLoadingScript = nil

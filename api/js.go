@@ -43,7 +43,7 @@ func jsExec(c echo.Context) error {
 	}
 
 	source := "(function(exports, require, module) {" + v.Value + "\n})()"
-	loop := myDice.ExtLoopManager.GetWebLoop()
+	loop := myDice.ExtLoopManager.GetNewestLoop()
 	waitRun := make(chan int, 1)
 
 	var ret goja.Value
