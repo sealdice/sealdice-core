@@ -5,12 +5,14 @@ import (
 	"os"
 	"sync"
 
+	"go.uber.org/zap"
+
+	"sealdice-core/logger"
 	"sealdice-core/utils/constant"
 	operator "sealdice-core/utils/dboperator/engine"
 	"sealdice-core/utils/dboperator/engine/mysql"
 	"sealdice-core/utils/dboperator/engine/pgsql"
 	"sealdice-core/utils/dboperator/engine/sqlite"
-	log "sealdice-core/utils/kratos"
 )
 
 var (
@@ -21,6 +23,8 @@ var (
 
 // initEngine 初始化数据库引擎，仅执行一次
 func initEngine() {
+	log := zap.S().Named(logger.LogKeyDatabase)
+
 	dbType := os.Getenv("DB_TYPE")
 	switch dbType {
 	case constant.SQLITE:
@@ -56,6 +60,7 @@ func GetDatabaseOperator() (operator.DatabaseOperator, error) {
 
 // DBCheck 检查数据库状态
 func DBCheck() {
+	log := zap.S().Named(logger.LogKeyDatabase)
 	dbEngine, err := getEngine()
 	if err != nil {
 		log.Error("数据库引擎获取失败:", err)

@@ -10,8 +10,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"go.etcd.io/bbolt"
+	"go.uber.org/zap"
 
-	log "sealdice-core/utils/kratos"
+	"sealdice-core/logger"
 )
 
 type LogOneItem struct {
@@ -300,6 +301,8 @@ func itob(v uint64) []byte {
 }
 
 func ConvertLogs(dbSQL *sqlx.DB) error {
+	log := zap.S().Named(logger.LogKeyDatabase)
+
 	texts := []string{
 		`
 create table if not exists logs

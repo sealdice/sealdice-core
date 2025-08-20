@@ -68,7 +68,7 @@ require (
 	github.com/slack-go/slack v0.17.3
 	github.com/sunshineplan/imgconv v1.1.14
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
-	github.com/tdewolff/minify/v2 v2.23.10
+	github.com/tdewolff/minify/v2 v2.23.11
 	github.com/tidwall/buntdb v1.3.2
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5
@@ -77,10 +77,10 @@ require (
 	github.com/yuin/goldmark v1.7.13
 	go.etcd.io/bbolt v1.4.2
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.40.0
+	golang.org/x/crypto v0.41.0
 	golang.org/x/exp v0.0.0-20250718183923-645b1fa84792
-	golang.org/x/sys v0.34.0
-	golang.org/x/text v0.27.0
+	golang.org/x/sys v0.35.0
+	golang.org/x/text v0.28.0
 	golang.org/x/time v0.12.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -180,7 +180,7 @@ require (
 	github.com/sergeymakinen/go-ico v1.0.0-beta.0 // indirect
 	github.com/sunshineplan/pdf v1.0.8 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
-	github.com/tdewolff/parse/v2 v2.8.1 // indirect
+	github.com/tdewolff/parse/v2 v2.8.2-0.20250806174018-50048bb39781 // indirect
 	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/tidwall/btree v1.8.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
@@ -202,12 +202,13 @@ require (
 	golang.org/x/mod v0.26.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/term v0.33.0 // indirect
+	golang.org/x/term v0.34.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	moul.io/zapgorm2 v1.3.0 // indirect
 )
 
 replace (

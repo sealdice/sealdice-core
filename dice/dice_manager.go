@@ -9,8 +9,8 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 )
 
 type VersionInfo struct {
@@ -77,7 +77,7 @@ type DiceManager struct { //nolint:revive
 	ServiceName          string
 	JustForTest          bool
 	JsRegistry           *require.Registry
-	UpdateSealdiceByFile func(packName string, log *log.Helper) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
+	UpdateSealdiceByFile func(packName string) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 
 	ContainerMode bool          // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 	CleanupFlag   atomic.Uint32 // 1 为正在清理，0为普通状态
@@ -111,6 +111,7 @@ type Configs struct { //nolint:revive
 }
 
 func (dm *DiceManager) InitHelp() {
+	log := logger.M()
 	dm.IsHelpReloading = true
 	_ = os.MkdirAll("./data/helpdoc", 0755)
 	dm.Help = new(HelpManager)
@@ -125,6 +126,7 @@ func (dm *DiceManager) InitHelp() {
 
 // LoadDice 初始化函数
 func (dm *DiceManager) LoadDice() {
+	log := logger.M()
 	dm.AppVersionCode = VERSION_CODE
 	dm.AppBootTime = time.Now().Unix()
 
@@ -232,7 +234,8 @@ func (dm *DiceManager) Save() {
 	}
 }
 
-func (dm *DiceManager) InitDice() {
+func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
+	log := logger.M()
 	dm.UpdateRequestChan = make(chan *Dice, 1)
 	dm.RebootRequestChan = make(chan int, 1)
 	dm.UpdateCheckRequestChan = make(chan int, 1)
@@ -249,7 +252,7 @@ func (dm *DiceManager) InitDice() {
 
 	for _, i := range dm.Dice {
 		i.Parent = dm
-		i.Init(dm.Operator)
+		i.Init(dm.Operator, writer)
 	}
 
 	go func() {
@@ -270,6 +273,7 @@ func (dm *DiceManager) InitDice() {
 }
 
 func (dm *DiceManager) ResetAutoBackup() {
+	log := logger.M()
 	if dm.backupEntryID != 0 {
 		dm.Cron.Remove(dm.backupEntryID)
 		dm.backupEntryID = 0
@@ -294,6 +298,7 @@ func (dm *DiceManager) ResetAutoBackup() {
 }
 
 func (dm *DiceManager) ResetBackupClean() {
+	log := logger.M()
 	if dm.backupCleanCronID > 0 {
 		dm.Cron.Remove(dm.backupCleanCronID)
 		dm.backupCleanCronID = 0

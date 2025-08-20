@@ -10,8 +10,8 @@ import (
 	"github.com/Milly/go-base2048"
 	"github.com/vmihailenco/msgpack"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/crypto"
-	log "sealdice-core/utils/kratos"
 )
 
 var (
@@ -20,6 +20,7 @@ var (
 )
 
 func initVerify() {
+	log := logger.M()
 	// 优先读取环境变量中的可信客户端私钥
 	key := os.Getenv("SEAL_TRUSTED_PRIVATE_KEY")
 	if len(key) > 0 {

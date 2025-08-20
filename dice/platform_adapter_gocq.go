@@ -18,11 +18,11 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/events"
 	"sealdice-core/message"
-	log "sealdice-core/utils/kratos"
 	"sealdice-core/utils/procs"
 
 	"github.com/gorilla/websocket"
@@ -287,7 +287,7 @@ func hasURLScheme(text string) bool {
 	return match
 }
 
-func tryParseOneBot11ArrayMessage(log *log.Helper, message string, writeTo *MessageQQ) error {
+func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeTo *MessageQQ) error {
 	// 不合法的信息体
 	if !gjson.Valid(message) {
 		log.Warn("无法解析 onebot11 字段:", message)
@@ -1036,7 +1036,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 			go func() {
 				defer ErrorLogAndContinue(pa.Session.Parent)
-				isPrivate := msgQQ.MessageType == "private"
+				isPrivate := msg.MessageType == "private"
 				pa.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
 					GroupID:   msg.GroupID,
 					SenderID:  FormatDiceIDQQ(string(msgQQ.UserID)),

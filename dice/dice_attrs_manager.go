@@ -7,23 +7,24 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
+	"go.uber.org/zap"
 
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/dboperator/engine"
-	log "sealdice-core/utils/kratos"
 )
 
 type AttrsManager struct {
 	db     engine.DatabaseOperator
-	logger *log.Helper
+	logger *zap.SugaredLogger
 	cancel context.CancelFunc
 	m      SyncMap[string, *AttributesItem]
 }
 
 func (am *AttrsManager) Stop() {
-	log.Info("结束数据库保存程序...")
+	logger.M().Info("结束数据库保存程序...")
 	am.cancel()
 }
 
@@ -178,18 +179,18 @@ func (am *AttrsManager) Init(d *Dice) {
 			select {
 			case <-ctx.Done():
 				// 检测到取消信号，执行最后一次保存后退出
-				log.Info("正在执行最后一次数据保存...")
+				d.Logger.Info("正在执行最后一次数据保存...")
 				if err := am.CheckForSave(); err != nil {
-					log.Errorf("最终数据保存失败: %v", err)
+					d.Logger.Errorf("最终数据保存失败: %v", err)
 				}
 				return
 			case <-ticker.C:
 				// 定时执行保存和清理任务
 				if err := am.CheckForSave(); err != nil {
-					log.Errorf("数据库保存程序出错: %v", err)
+					d.Logger.Errorf("数据库保存程序出错: %v", err)
 				}
 				if err := am.CheckAndFreeUnused(); err != nil {
-					log.Errorf("数据库保存-清理程序出错: %v", err)
+					d.Logger.Errorf("数据库保存-清理程序出错: %v", err)
 				}
 			}
 		}
@@ -198,6 +199,7 @@ func (am *AttrsManager) Init(d *Dice) {
 }
 
 func (am *AttrsManager) CheckForSave() error {
+	log := logger.M()
 	if am.db == nil {
 		// 尚未初始化
 		return errors.New("数据库尚未初始化")
@@ -238,6 +240,7 @@ func (am *AttrsManager) CheckForSave() error {
 
 // CheckAndFreeUnused 此函数会被定期调用，释放最近不用的对象
 func (am *AttrsManager) CheckAndFreeUnused() error {
+	log := logger.M()
 	db := am.db.GetDataDB(constant.WRITE)
 	if db == nil {
 		// 尚未初始化
@@ -351,7 +354,7 @@ func (i *AttributesItem) SaveToDB(db engine.DatabaseOperator) {
 	}
 	err = service.AttrsPutById(db, i.ID, rawData, i.Name, i.SheetType)
 	if err != nil {
-		log.Error("保存数据失败", err.Error())
+		logger.M().Error("保存数据失败", err.Error())
 		return
 	}
 	i.IsSaved = true

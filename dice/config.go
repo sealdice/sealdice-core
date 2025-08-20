@@ -18,8 +18,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
+	"sealdice-core/logger"
 	"sealdice-core/model"
-	log "sealdice-core/utils/kratos"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -347,6 +347,7 @@ func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
+	log := logger.M()
 	log.Debug("try reset config to default", pluginName, key)
 	plugin, ok := cm.Plugins[pluginName]
 	if !ok {
@@ -2398,7 +2399,7 @@ func (d *Dice) loadAdvanced() {
 func (d *Dice) SaveText() {
 	buf, err := yaml.Marshal(d.TextMapRaw)
 	if err != nil {
-		log.Error("Dice.SaveText", err)
+		d.Logger.Error("Dice.SaveText", err)
 	} else {
 		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
@@ -2554,7 +2555,7 @@ func (d *Dice) Save(isAuto bool) {
 	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
 	err := d.AttrsManager.CheckForSave()
 	if err != nil {
-		log.Errorf("保存属性数据失败 %v", err)
+		d.Logger.Errorf("保存属性数据失败 %v", err)
 	}
 
 	// 保存黑名单数据
