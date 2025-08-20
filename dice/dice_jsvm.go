@@ -1052,7 +1052,13 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 			targetPath = jsInfo.Filename
 		}
 		if err == nil {
-			_, err = d.JsRequire.Require(targetPath)
+			// 将相对路径转换为绝对路径
+			absPath, absErr := filepath.Abs(targetPath)
+			if absErr != nil {
+				err = absErr
+			} else {
+				_, err = d.JsRequire.Require(absPath)
+			}
 		}
 		d.JsLoadingScript = nil
 	} else {
