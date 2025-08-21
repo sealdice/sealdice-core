@@ -8,7 +8,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var logLimitDefault int64 = 100
+const (
+	logLimitDefault   = 100
+	timeFormatISO8601 = "2006-01-02T15:04:05.000Z0700"
+)
 
 type LogItem struct {
 	Level  string  `json:"level"`
@@ -19,7 +22,7 @@ type LogItem struct {
 }
 
 type UIWriter struct {
-	LogLimit int64
+	LogLimit int
 	Items    []*LogItem
 }
 
@@ -41,7 +44,7 @@ func (l *UIWriter) Write(p []byte) (int, error) {
 	}
 	err := json.Unmarshal(p, &a)
 	if err == nil {
-		ts, _ := time.Parse(time.RFC3339Nano, a.Time)
+		ts, _ := time.Parse(timeFormatISO8601, a.Time)
 		l.Items = append(l.Items, &LogItem{
 			Level:  a.Level.String(),
 			Module: a.Module,
@@ -49,11 +52,10 @@ func (l *UIWriter) Write(p []byte) (int, error) {
 			Caller: "",
 			Msg:    a.Msg,
 		})
-		limit := l.LogLimit
-		if limit == 0 {
+		if l.LogLimit == 0 {
 			l.LogLimit = logLimitDefault
 		}
-		if len(l.Items) > int(limit) {
+		if len(l.Items) > l.LogLimit {
 			l.Items = l.Items[1:]
 		}
 	}
