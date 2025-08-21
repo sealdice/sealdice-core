@@ -26,4 +26,4 @@ public class Auth {
 
 ## 关于 issue 和 pull request
 你可以通过 fork 本项目并提交 pull request 的形式贡献代码
-关于手机版的功能需求和 bug 反馈请在本仓库内提交
+此仓库的 Issue 已关闭，请在 [后端仓库](https://github.com/sealdice/sealdice-core) 中统一提交功能需求和 Bug 反馈
