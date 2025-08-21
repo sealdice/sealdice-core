@@ -22,7 +22,7 @@ type LogItem struct {
 }
 
 type UIWriter struct {
-	LogLimit int64
+	LogLimit int
 	Items    []*LogItem
 }
 
@@ -52,12 +52,10 @@ func (l *UIWriter) Write(p []byte) (int, error) {
 			Caller: "",
 			Msg:    a.Msg,
 		})
-		limit := l.LogLimit
-		if limit == 0 {
+		if l.LogLimit == 0 {
 			l.LogLimit = logLimitDefault
-			limit = logLimitDefault
 		}
-		if len(l.Items) > int(limit) {
+		if len(l.Items) > l.LogLimit {
 			l.Items = l.Items[1:]
 		}
 	}

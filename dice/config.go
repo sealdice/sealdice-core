@@ -2361,7 +2361,7 @@ func (d *Dice) loads() {
 		i.AdapterSetup()
 	}
 
-	d.LogWriter.LogLimit = d.Config.UILogLimit
+	d.LogWriter.LogLimit = int(d.Config.UILogLimit)
 
 	// 设置扩展选项
 	d.ApplyExtDefaultSettings()
