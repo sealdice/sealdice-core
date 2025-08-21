@@ -226,7 +226,7 @@ func checkNetworkHealth(c echo.Context) error {
 	}
 	go checkUrls("baidu", []string{"https://baidu.com"})
 	go checkUrls("seal", dice.BackendUrls)
-	go checkUrls("sign", []string{"https://sign.lagrangecore.org/api/sign/ping"})
+	go checkUrls("sign", []string{"https://sign.lagrangecore.org/api/sign/30366"})
 	go checkUrls("google", []string{"https://google.com"})
 	go checkUrls("github", []string{"https://github.com"})
 
