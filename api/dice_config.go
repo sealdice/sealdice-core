@@ -278,7 +278,7 @@ func DiceConfigSet(c echo.Context) error {
 		val, err := strconv.ParseInt(val.(string), 10, 64)
 		if err == nil {
 			if val >= 0 {
-				myDice.LogWriter.LogLimit = val
+				myDice.LogWriter.LogLimit = int(val)
 			}
 		}
 	}
