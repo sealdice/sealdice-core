@@ -606,7 +606,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 					detail.Text = fmt.Sprintf("%s调整值%d", name, mod)
 					v -= mod
 
-					exprProficiency := fmt.Sprintf("&%s.factor * 熟练", varname)
+					exprProficiency := fmt.Sprintf("floor(&%s.factor * 熟练)", varname)
 					skip = true
 					if ret2, _ := ctx.vm.RunExpr(exprProficiency, false); ret2 != nil {
 						// 注意: 这个值未必总能读到，如果ret2为nil，那么我们可以忽略这个加值的存在
