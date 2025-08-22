@@ -43,6 +43,8 @@ type Config struct {
 	CensorConfig `yaml:",inline"`
 	// 公骰设置
 	PublicDiceConfig `yaml:",inline"`
+	// 商店设置
+	StoreConfig `yaml:",inline"`
 
 	// 其它设置，包含由于被导出无法从 Dice 上迁移过来的配置项，为了在 DefaultConfig 上统一设置默认值增加此结构
 	DirtyConfig `yaml:",inline"`
@@ -249,4 +251,8 @@ type DirtyConfig struct {
 	DeckList      []*DeckInfo `yaml:"-"` // 牌堆信息
 	CommandPrefix []string    `yaml:"-"` // 指令前导
 	DiceMasters   []string    `yaml:"-"` // 骰主设置，需要格式: 平台:帐号
+}
+
+type StoreConfig struct {
+	BackendUrls []string `json:"backendUrls" yaml:"backendUrls"`
 }
