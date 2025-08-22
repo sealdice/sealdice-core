@@ -87,7 +87,10 @@ func (d *Dice) JsInit() {
 	// 重建js vm
 	reg := new(require.Registry)
 
-	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
+	loop := eventloop.NewEventLoop(eventloop.WithLogger(d.Logger),
+		eventloop.EnableConsole(false),
+		eventloop.WithDebugLog(true), // 暂时打开调试日志
+		eventloop.WithRegistry(reg))
 	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	versionID := d.ExtLoopManager.SetLoop(loop)
 
@@ -110,8 +113,8 @@ func (d *Dice) JsInit() {
 		console.Enable(vm)
 
 		sealws.Enable(vm, loop)
-		// require 模块
-		d.JsRequire = reg.Enable(vm)
+		// require 模块不再显式暴露，而是挪动到eventloop来调用它维护的Require模块
+		// d.JsRequire = reg.Enable(vm)
 
 		seal := vm.NewObject()
 
@@ -1052,7 +1055,14 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 			targetPath = jsInfo.Filename
 		}
 		if err == nil {
-			_, err = d.JsRequire.Require(targetPath)
+			// 将相对路径转换为绝对路径
+			absPath, absErr := filepath.Abs(targetPath)
+			if absErr != nil {
+				err = absErr
+			} else {
+				// 通过EventLoop内置的Module进行加载
+				_, err = d.ExtLoopManager.GetNewestLoop().RequireModule(absPath)
+			}
 		}
 		d.JsLoadingScript = nil
 	} else {
