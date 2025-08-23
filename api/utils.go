@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -88,7 +92,6 @@ func getGithubAvatar(c echo.Context) error {
 
 	resp := req.Send()
 	if resp.OK() {
-		// 设置缓存时间为3天
 		c.Response().Header().Set("Cache-Control", "max-age=259200")
 
 		return c.Blob(http.StatusOK, resp.ContentType(), resp.Bytes())
@@ -173,6 +176,10 @@ const (
 	checkTimeout = 5 * time.Second
 )
 
+var strictSignHTTPClient = &http.Client{
+	Timeout: 15 * time.Second,
+}
+
 func checkHTTPConnectivity(url string) bool {
 	client := http.Client{
 		Timeout: checkTimeout,
@@ -208,12 +215,218 @@ func checkHTTPConnectivity(url string) bool {
 	return ok
 }
 
+var (
+	signURLsCache      []string
+	signURLsCacheAt    time.Time
+	signURLsCacheMutex sync.Mutex
+	signURLsTTL        = 10 * time.Minute
+)
+
+func getSignProbeURLs() []string {
+	signURLsCacheMutex.Lock()
+	defer signURLsCacheMutex.Unlock()
+
+	if time.Since(signURLsCacheAt) < signURLsTTL && len(signURLsCache) > 0 {
+		myDice.Logger.Debugf("sign urls from cache, count=%d", len(signURLsCache))
+		return append([]string(nil), signURLsCache...)
+	}
+	urls := fetchSignProbeURLsFromConn()
+	urls = normalizeAndUniqURLs(urls)
+	myDice.Logger.Debugf("sign urls fetched fresh, count=%d", len(urls))
+
+	if len(urls) > 0 {
+		signURLsCache = urls
+		signURLsCacheAt = time.Now()
+		return append([]string(nil), urls...)
+	}
+	return nil
+}
+
+func versionInt(s string) int {
+	i, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return -1
+	}
+	return i
+}
+
+type signServer struct {
+	Name    string `json:"name"`
+	URL     string `json:"url"`
+	Ignored bool   `json:"ignored"`
+}
+
+type signBlock struct {
+	Version  string       `json:"version"`
+	Selected bool         `json:"selected"`
+	Servers  []signServer `json:"servers"`
+}
+
+func fetchSignProbeURLsFromConn() []string {
+	raw, err := dice.LagrangeGetSignInfo(myDice)
+	if err != nil || raw == nil {
+		myDice.Logger.Debugf("LagrangeGetSignInfo failed: %v", err)
+		return nil
+	}
+
+	data, err := json.Marshal(raw)
+	if err != nil {
+		myDice.Logger.Debugf("sign info marshal failed: %v", err)
+		return nil
+	}
+	var blocks []signBlock
+	if err := json.Unmarshal(data, &blocks); err != nil || len(blocks) == 0 {
+		myDice.Logger.Debugf("sign info unmarshal error or empty: %v", err)
+		return nil
+	}
+	myDice.Logger.Debugf("sign info total blocks=%d", len(blocks))
+
+	var chosen *signBlock
+	for i := range blocks {
+		if blocks[i].Selected {
+			chosen = &blocks[i]
+			myDice.Logger.Debugf("sign info choose block by selected=true")
+			break
+		}
+	}
+	if chosen == nil {
+		maxIdx, maxVer := -1, -1
+		for i := range blocks {
+			if v := versionInt(blocks[i].Version); v > maxVer {
+				maxVer, maxIdx = v, i
+			}
+		}
+		if maxIdx >= 0 {
+			chosen = &blocks[maxIdx]
+			myDice.Logger.Debugf("sign info choose block by max version=%s", blocks[maxIdx].Version)
+		}
+	}
+	if chosen == nil {
+		chosen = &blocks[len(blocks)-1]
+		myDice.Logger.Debugf("sign info choose last block as fallback")
+	}
+
+	var urls []string
+	for _, s := range chosen.Servers {
+		if s.Ignored {
+			continue
+		}
+		u := strings.TrimSpace(s.URL)
+		if u == "" {
+			continue
+		}
+		urls = append(urls, u)
+	}
+	urls = normalizeAndUniqURLs(urls)
+	myDice.Logger.Debugf("sign servers extracted, count=%d", len(urls))
+	return urls
+}
+
+func ensureScheme(s string) string {
+	if s == "" {
+		return s
+	}
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		return s
+	}
+	return "https://" + s
+}
+
+func normalizeAndUniqURLs(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	var out []string
+	for _, u := range in {
+		u = strings.TrimSpace(u)
+		if u == "" {
+			continue
+		}
+		u = ensureScheme(u)
+		for strings.Contains(u, "///") {
+			u = strings.ReplaceAll(u, "///", "/")
+		}
+		if _, ok := seen[u]; !ok {
+			seen[u] = struct{}{}
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
+func anySignOK(urls []string, attempts, maxParallel int) bool {
+	if maxParallel <= 0 {
+		maxParallel = 4
+	}
+	sem := make(chan struct{}, maxParallel)
+	found := make(chan struct{}, 1)
+	var wg sync.WaitGroup
+
+	for _, u := range urls {
+		wg.Add(1)
+		go func(u string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			ok := checkStrictSignURL(u, attempts)
+			<-sem
+			if ok {
+				select {
+				case found <- struct{}{}:
+				default:
+				}
+			}
+		}(u)
+	}
+
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+
+	select {
+	case <-found:
+		return true
+	case <-done:
+		return false
+	}
+}
+
+func checkStrictSignURL(url string, attempts int) bool {
+	if attempts <= 0 {
+		attempts = 1
+	}
+
+	for i := range attempts {
+		resp, err := strictSignHTTPClient.Get(url)
+		myDice.Logger.Debugf("sign probe: %s (try %d/%d)", url, i+1, attempts)
+		if err != nil {
+			myDice.Logger.Debugf("sign probe error: %v", err)
+			return false
+		}
+
+		n, _ := io.CopyN(io.Discard, resp.Body, 1)
+		_ = resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			myDice.Logger.Debugf("sign probe bad status: %d", resp.StatusCode)
+			return false
+		}
+		if n == 0 {
+			myDice.Logger.Debugf("sign probe empty body")
+			return false
+		}
+		if strings.HasPrefix(url, "https://") {
+			if resp.TLS == nil || len(resp.TLS.VerifiedChains) == 0 {
+				myDice.Logger.Debugf("sign probe tls not verified")
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func checkNetworkHealth(c echo.Context) error {
 	total := 5 // baidu, seal, sign, google, github
 	var ok []string
 	var wg sync.WaitGroup
 	wg.Add(total)
-	rsChan := make(chan string, 5)
+	rsChan := make(chan string, total)
 
 	checkUrls := func(target string, urls []string) {
 		defer wg.Done()
@@ -226,7 +439,17 @@ func checkNetworkHealth(c echo.Context) error {
 	}
 	go checkUrls("baidu", []string{"https://baidu.com"})
 	go checkUrls("seal", dice.BackendUrls)
-	go checkUrls("sign", []string{"https://sign.lagrangecore.org/api/sign/ping"})
+	go func() {
+		defer wg.Done()
+		urls := getSignProbeURLs()
+		if len(urls) == 0 {
+			myDice.Logger.Debugf("no sign endpoints were delivered")
+			return
+		}
+		if anySignOK(urls, checkTimes, 4) {
+			rsChan <- "sign"
+		}
+	}()
 	go checkUrls("google", []string{"https://google.com"})
 	go checkUrls("github", []string{"https://github.com"})
 
