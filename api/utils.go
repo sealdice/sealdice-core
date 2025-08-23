@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -179,8 +180,6 @@ var strictSignHTTPClient = &http.Client{
 	Timeout: 15 * time.Second,
 }
 
-const SignTargetVersion = "30366"
-
 func checkHTTPConnectivity(url string) bool {
 	client := http.Client{
 		Timeout: checkTimeout,
@@ -243,6 +242,14 @@ func getSignProbeURLs() []string {
 	return nil
 }
 
+func versionInt(s string) int {
+	i, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return -1
+	}
+	return i
+}
+
 type signServer struct {
 	Name    string `json:"name"`
 	URL     string `json:"url"`
@@ -276,19 +283,22 @@ func fetchSignProbeURLsFromConn() []string {
 
 	var chosen *signBlock
 	for i := range blocks {
-		if blocks[i].Version == SignTargetVersion {
+		if blocks[i].Selected {
 			chosen = &blocks[i]
-			myDice.Logger.Debugf("sign info choose block by version=%s", SignTargetVersion)
+			myDice.Logger.Debugf("sign info choose block by selected=true")
 			break
 		}
 	}
 	if chosen == nil {
+		maxIdx, maxVer := -1, -1
 		for i := range blocks {
-			if blocks[i].Selected {
-				chosen = &blocks[i]
-				myDice.Logger.Debugf("sign info choose block by selected=true")
-				break
+			if v := versionInt(blocks[i].Version); v > maxVer {
+				maxVer, maxIdx = v, i
 			}
+		}
+		if maxIdx >= 0 {
+			chosen = &blocks[maxIdx]
+			myDice.Logger.Debugf("sign info choose block by max version=%s", blocks[maxIdx].Version)
 		}
 	}
 	if chosen == nil {
