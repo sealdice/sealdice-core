@@ -15,7 +15,9 @@ title: 核心指令
 
 ## `.master` 骰主指令
 
-此指令只能由具有 Master 权限的用户使用。
+此指令通常只能由具有 Master 权限的用户使用。
+
+`.master add me` 为指令发送者添加 Master 权限（仅没有添加过 Master 时可用）。
 
 `.master add @A` 为 A 添加 Master 权限。
 
