@@ -34,6 +34,9 @@ func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 	if rc.Conditions == nil {
 		rc.Conditions = []ReplyConditionBase{}
 	}
+	if len(rc.StoreID) > 0 {
+		dice.StoreManager.InstalledReplies[rc.StoreID] = true
+	}
 
 	return rc, nil
 }

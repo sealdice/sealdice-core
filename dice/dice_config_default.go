@@ -100,6 +100,9 @@ var DefaultConfig = Config{
 	PublicDiceConfig{
 		Enable: false,
 	},
+	StoreConfig{
+		BackendUrls: []string{},
+	},
 	DirtyConfig{
 		DeckList: nil,
 		CommandPrefix: []string{

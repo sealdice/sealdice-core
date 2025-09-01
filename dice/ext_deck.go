@@ -4,6 +4,7 @@
 package dice
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +40,7 @@ type DeckDiceEFormat struct {
 	// 一组牌        []string `json:"一组牌"`
 
 	// 更新支持字段
+	StoreID    []string `json:"_storeID"`
 	UpdateUrls []string `json:"_updateUrls"`
 	Etag       []string `json:"_etag"`
 }
@@ -55,8 +57,9 @@ type DeckSinaNyaFormat struct {
 	// 一组牌        []string `json:"一组牌"`
 
 	// 更新支持字段
-	UpdateUrls []string `json:"update_urls"`
-	Etag       string   `json:"etag"`
+	StoreID    string   `json:"store_id"    yaml:"store_id"`
+	UpdateUrls []string `json:"update_urls" yaml:"update_urls"`
+	Etag       string   `json:"etag"        yaml:"etag"`
 }
 
 type SealMeta struct {
@@ -70,6 +73,7 @@ type SealMeta struct {
 	Desc          string    `toml:"desc"`
 	FormatVersion int64     `toml:"format_version"`
 
+	StoreID    string   `toml:"store_id"`
 	UpdateUrls []string `toml:"update_urls"`
 	Etag       string   `toml:"etag"`
 }
@@ -121,6 +125,7 @@ type DeckInfo struct {
 	Etag               string                        `json:"etag"          yaml:"etag"`
 	Cloud              bool                          `json:"cloud"         yaml:"cloud"` // 含有云端内容
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `json:"-"             yaml:"-"`
+	StoreID            string                        `json:"storeID"       yaml:"storeID"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
@@ -221,6 +226,9 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error
 		deckInfo.FileFormat = "jsonc"
 	}
 	deckInfo.Enable = true
+	if len(jsonData2.StoreID) > 0 {
+		deckInfo.StoreID = jsonData2.StoreID[0]
+	}
 	deckInfo.UpdateUrls = jsonData2.UpdateUrls
 	if len(jsonData2.Etag) > 0 {
 		deckInfo.Etag = jsonData2.Etag[0]
@@ -290,6 +298,7 @@ func tryParseSinaNya(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.FormatVersion = 1
 	deckInfo.FileFormat = "yaml"
 	deckInfo.Enable = true
+	deckInfo.StoreID = yamlData2.StoreID
 	deckInfo.UpdateUrls = yamlData2.UpdateUrls
 	deckInfo.Etag = yamlData2.Etag
 	return nil
@@ -393,6 +402,7 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.FormatVersion = meta.FormatVersion
 	deckInfo.FileFormat = "toml"
 	deckInfo.Enable = true
+	deckInfo.StoreID = meta.StoreID
 	deckInfo.UpdateUrls = meta.UpdateUrls
 	deckInfo.Etag = meta.Etag
 	deckInfo.RawData = &tomlDataFix
@@ -427,6 +437,9 @@ func DeckTryParse(d *Dice, fn string) {
 	}
 
 	d.DeckList = append(d.DeckList, deckInfo)
+	if len(deckInfo.StoreID) > 0 {
+		d.StoreManager.InstalledDecks[deckInfo.StoreID] = true
+	}
 	d.MarkModified()
 }
 
@@ -562,6 +575,9 @@ func DeckReload(d *Dice) {
 	}
 	d.IsDeckLoading = true
 	d.DeckList = d.DeckList[:0]
+	if d.StoreManager != nil {
+		d.StoreManager.InstalledDecks = map[string]bool{}
+	}
 	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
 	DecksDetect(d)
 	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
@@ -1225,5 +1241,44 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return err
 	}
 	d.Logger.Infof("牌堆“%s”更新成功", deckInfo.Name)
+	return nil
+}
+
+func (d *Dice) DeckDownload(name string, ext string, url string, hash map[string]string) error {
+	if len(url) == 0 {
+		return errors.New("未提供下载链接")
+	}
+	statusCode, data, err := GetCloudContent([]string{url}, "")
+	if err != nil {
+		return err
+	}
+	if statusCode != http.StatusOK {
+		return errors.New("无法获取牌堆内容")
+	}
+
+	// TODO 检查 hash
+
+	// 内容预处理
+	if isPrefixWithUtf8Bom(data) {
+		data = data[3:]
+	}
+	deck := bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+
+	// TODO 检查签名
+
+	target := filepath.Join("data/decks", name+ext)
+	_, err = os.Stat(target)
+	if !errors.Is(err, os.ErrNotExist) {
+		d.Logger.Errorf("牌堆“%s”下载时检查到同名文件", name)
+		return errors.New("存在文件名相同的牌堆")
+	}
+	err = os.WriteFile(target, deck, 0755)
+	if err != nil {
+		d.Logger.Errorf("牌堆“%s”下载时保存文件出错，%s", name, err.Error())
+		return err
+	}
+	d.Logger.Infof("牌堆“%s”下载成功", name)
+	DeckReload(d)
+	d.MarkModified()
 	return nil
 }
