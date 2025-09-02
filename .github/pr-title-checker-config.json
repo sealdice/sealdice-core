@@ -1,0 +1,15 @@
+{
+  "LABEL": {
+    "name": "title-needs-formatting",
+    "color": "FF0000"
+  },
+  "CHECKS": {
+    "regexp": "(?:fix|feat|build|chore|ci|docs|style|refactor|perf|test)(?:\\(\\S+\\))?!?: \\S+",
+    "ignoreLabels" : ["pr-checker-ignore"]
+  },
+  "MESSAGES": {
+    "success": "All OK",
+    "failure": "Failing CI test",
+    "notice": ""
+  }
+}
