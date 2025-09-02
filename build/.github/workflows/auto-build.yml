@@ -285,12 +285,12 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache-dependency-path: sealdice-core/go.sum
 
       # copy from https://github.com/MetaCubeX/mihomo/blob/dbb002a5ba2e0e79158fd6e3264ac44aedf0bf72/.github/workflows/build.yml#L157-L173
       # modify from https://github.com/restic/restic/issues/4636#issuecomment-1896455557
-      # this patch file only works on golang1.24.x
+      # this patch file only works on golang1.25.x
       # that means after golang1.25 release it must be changed
       # revert:
       # 693def151adff1af707d82d28f55dba81ceb08e1: "crypto/rand,runtime: switch RtlGenRandom for ProcessPrng"
@@ -299,11 +299,11 @@ jobs:
       # a17d959debdb04cd550016a3501dd09d50cd62e7: "runtime: always use LoadLibraryEx to load system libraries"
       # 534d6a1a9c81b25bdad1052e736b2f072caa3903: "crypto/rand: prevent Read argument from escaping to heap"
       # see:https://github.com/XTLS/go-win7/blob/dc94f3421137d9a6327b281dd401c2c489b04cbb/README-zho-hans.md
-      - name: Revert Golang1.24 commit for Windows7/8
+      - name: Revert Golang1.25 commit for Windows7/8
         if: ${{ matrix.goos == 'windows' }}
         run: |
           cd $(go env GOROOT)
-          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch_go/unified-1-24-patch.diff
+          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch_go/unified-1-25-patch.diff
 
       - name: Install Dependencies
         working-directory: ./sealdice-core
@@ -399,7 +399,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache-dependency-path: sealdice-core/go.sum
       - name: Install dependencies
         working-directory: ./sealdice-core
@@ -463,7 +463,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache-dependency-path: sealdice-core/go.sum
       - name: Install dependencies
         working-directory: ./sealdice-core
