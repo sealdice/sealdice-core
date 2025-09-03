@@ -238,11 +238,9 @@ func checkNetworkHealth(c echo.Context) error {
 	rsChan := make(chan rs, total)
 
 	checkUrls := func(target string, urls []string) {
-		mark := false
 		for _, url := range urls {
 			ok, duration := checkHTTPConnectivity(url)
 			if ok {
-				mark = true
 				rsChan <- rs{
 					Target:   target,
 					Ok:       true,
@@ -251,12 +249,10 @@ func checkNetworkHealth(c echo.Context) error {
 				return
 			}
 		}
-		if !mark {
-			rsChan <- rs{
-				Target:   target,
-				Ok:       false,
-				Duration: 0,
-			}
+		rsChan <- rs{
+			Target:   target,
+			Ok:       false,
+			Duration: 0,
 		}
 	}
 
