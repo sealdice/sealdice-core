@@ -2,10 +2,12 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -14,6 +16,7 @@ import (
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
+	"github.com/samber/lo"
 
 	"sealdice-core/dice"
 )
@@ -169,79 +172,125 @@ func checkUidExists(c echo.Context, uid string) bool {
 }
 
 const (
-	checkTimes   = 3
-	checkTimeout = 5 * time.Second
+	checkTimes                 = 3
+	checkTimeout time.Duration = 5 * time.Second
 )
 
-func checkHTTPConnectivity(url string) bool {
-	client := http.Client{
-		Timeout: checkTimeout,
+func checkHTTPConnectivity(url string) (bool, time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	defer cancel()
+
+	type rs struct {
+		ok       bool
+		duration time.Duration
 	}
-	rsChan := make(chan bool, checkTimes)
-	once := func(wg *sync.WaitGroup, url string) {
-		defer wg.Done()
-		resp, err := client.Get(url)
+	rsChan := make(chan rs, checkTimes)
+	once := func(url string) {
 		myDice.Logger.Debugf("check http connectivity, url=%s", url)
+		start := time.Now()
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		resp, err := http.DefaultClient.Do(req)
+		duration := time.Since(start)
 		if err == nil {
 			_ = resp.Body.Close()
-			rsChan <- true
+			rsChan <- rs{true, duration}
 		} else {
 			myDice.Logger.Debugf("url can't be connected, error: %s", err)
-			rsChan <- false
+			rsChan <- rs{false, duration}
 		}
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(checkTimes)
 	for range checkTimes {
-		go once(&wg, url)
+		wg.Go(func() { once(url) })
 	}
-	go func() {
-		wg.Wait()
-		close(rsChan)
-	}()
+	wg.Wait()
+	close(rsChan)
 
 	ok := true
+	var (
+		totalDuration int64 = 0
+		count         int64 = 0
+		duration      int64 = 0
+	)
 	for res := range rsChan {
-		ok = ok && res
+		ok = ok && res.ok
+		if res.ok {
+			count++
+			totalDuration += int64(res.duration)
+		}
 	}
-	return ok
+	if count != 0 {
+		duration = totalDuration / count
+	}
+	return ok, time.Duration(duration)
 }
 
 func checkNetworkHealth(c echo.Context) error {
 	total := 5 // baidu, seal, sign, google, github
-	var ok []string
 	var wg sync.WaitGroup
-	wg.Add(total)
-	rsChan := make(chan string, 5)
+
+	type rs struct {
+		Target   string        `json:"target"`
+		Ok       bool          `json:"ok"`
+		Duration time.Duration `json:"duration"`
+	}
+	rsChan := make(chan rs, total)
 
 	checkUrls := func(target string, urls []string) {
-		defer wg.Done()
+		mark := false
 		for _, url := range urls {
-			if checkHTTPConnectivity(url) {
-				rsChan <- target
-				break
+			ok, duration := checkHTTPConnectivity(url)
+			if ok {
+				mark = true
+				rsChan <- rs{
+					Target:   target,
+					Ok:       true,
+					Duration: duration,
+				}
+				return
+			}
+		}
+		if !mark {
+			rsChan <- rs{
+				Target:   target,
+				Ok:       false,
+				Duration: 0,
 			}
 		}
 	}
-	go checkUrls("baidu", []string{"https://baidu.com"})
-	go checkUrls("seal", dice.BackendUrls)
-	go checkUrls("sign", []string{"https://sign.lagrangecore.org/api/sign/ping"})
-	go checkUrls("google", []string{"https://google.com"})
-	go checkUrls("github", []string{"https://github.com"})
 
-	go func() {
-		wg.Wait()
-		close(rsChan)
-	}()
+	signGroups, err := dice.LagrangeGetSignInfo(myDice)
+	if err == nil && len(signGroups) > 0 {
+		signServers := signGroups[len(signGroups)-1].Servers // 取下发列表中 version 最新的签名服务器组，即最后一条
+		urls := lo.Map(signServers, func(signServerInfo *dice.SignServerInfo, _ int) string {
+			ping, _ := url.JoinPath(signServerInfo.Url, "/ping")
+			return ping
+		})
+		wg.Go(func() { checkUrls("sign", urls) })
+	}
 
-	for targetOk := range rsChan {
-		ok = append(ok, targetOk)
+	wg.Go(func() { checkUrls("baidu", []string{"https://baidu.com"}) })
+	wg.Go(func() { checkUrls("seal", dice.BackendUrls) })
+	wg.Go(func() { checkUrls("google", []string{"https://google.com"}) })
+	wg.Go(func() { checkUrls("github", []string{"https://github.com"}) })
+
+	wg.Wait()
+	close(rsChan)
+
+	var ok []string
+	var targets []rs
+	for target := range rsChan {
+		targets = append(targets, target)
+		if target.Ok {
+			ok = append(ok, target.Target)
+		}
 	}
 
 	return Success(&c, Response{
 		"total":     total,
-		"ok":        ok,
+		"ok":        ok, // 被 targets 代替，可废弃，但先为接口兼容保留
+		"targets":   targets,
 		"timestamp": time.Now().Unix(),
 	})
 }
