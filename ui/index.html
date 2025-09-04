@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <title></title>
+  <link rel="icon" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'unsafe-inline' *;
+      img-src * 'self' http: https: data: blob:;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' *;
+      style-src  'self' 'unsafe-inline' *">
+  <!-- element css cdn, if you use custom theme, remove it. -->
+  <!-- <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css"
+    /> -->
+  <!-- <script src="//cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script> -->
+</head>
+
+<body>
+  <div id="ie-warn" style="display: none;"></div>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+
+  <script src="/ie-compat.js"></script>
+</body>
+
+</html>

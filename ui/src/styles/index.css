@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .title-main {
+    @apply text-2xl font-bold my-8;
+  }
+
+  .title-sub {
+    @apply text-xl font-semibold my-6;
+  }
+
+  .title-tertiary {
+    @apply text-lg font-semibold my-4;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+
+h2 {
+  @apply title-main;
+}
+
+h3 {
+  @apply title-sub;
+}
+
+h4 {
+  @apply title-tertiary;
+}
+
+p {
+  @apply my-3;
+}
+
+/*:root {*/
+/*  --el-color-primary: red;*/
+/*}*/
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--el-color-primary);
+}
+
+code {
+  border-radius: 2px;
+  padding: 2px 4px;
+  background-color: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+}
+
+.tip-danger {
+  > .title {
+    font-weight: 700;
+  }
+  padding: 8px 16px;
+  background-color: var(--el-color-danger-light-9);
+  border-radius: 4px;
+  border-left: 3px solid var(--el-color-danger);
+  margin: 20px 0;
+}
+
+.tip {
+  > .title {
+    font-weight: 700;
+  }
+  padding: 8px 16px;
+  border-radius: 4px;
+  /*border: 1px solid #dadada;*/
+  border-left: 3px solid var(--el-color-primary);
+  margin: 0px 0;
+}
+
+/* 弹窗优化 */
+@media screen and (max-width: 750px) {
+  .el-message-box {
+    width: 80% !important;
+  }
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+
+  .el-switch {
+    --el-switch-on-color: var(--el-color-success);
+    --el-switch-off-color: var(--el-color-danger);
+  }
+}

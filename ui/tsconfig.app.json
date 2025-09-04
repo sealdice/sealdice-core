@@ -1,0 +1,27 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": [
+    "env.d.ts",
+    "src/**/*",
+    "src/**/*.vue",
+    "src/**/*.tsx",
+    "tailwind.config.ts",
+    "auto-imports.d.ts",
+    "components.d.ts"
+  ],
+  "exclude": ["src/**/__tests__/*"],
+  "compilerOptions": {
+    "composite": true,
+    "jsx": "preserve",
+    "jsxImportSource": "vue",
+    "lib": [
+      "ESNext"
+    ],
+    "paths": {
+      "~/*": ["./src/*"]
+    },
+    "strict": true,
+    "target": "ESNext",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
+  }
+}
