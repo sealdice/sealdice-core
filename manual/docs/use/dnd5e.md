@@ -1,0 +1,453 @@
+---
+lang: zh-cn
+title: 龙与地下城 5E
+---
+
+# 龙与地下城 5E
+
+::: info 本节内容
+
+本节将展示 **D&D 5E** 玩家所需指令，请善用侧边栏和搜索，按需阅读文档。
+
+我们假定你已对 D&D 规则有适当了解，本节只涉及如何使用海豹核心完成规则中指定的操作。
+
+:::
+
+::: info 龙与地下城
+
+**「龙与地下城」**（Dungeons & Dragons, D&D, DnD）是一款剑与魔法奇幻背景的叙事性角色扮演游戏。与孩提时代的过家家扮演游戏相似，D&D 依靠的是玩家无穷的想象力。
+
+你所需要做的，即是描述场景如暴风骤雨里，夜空下的某座高耸古堡。然后想象奇幻世界中的冒险者们会如何迎接即将到来的挑战。
+
+:::
+
+## `.dnd` / `.dndx` 生成随机属性（制卡）
+
+`.dnd [<数量>]` 随机生成指定组数的待分配属性，如果省略数量将生成 1 组。
+
+`.dndx [<数量>]` 随机生成带属性名的结果。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.dnd 5', send: true},
+{content: '<木落>的DnD5e人物作成(自由分配模式):\n[16, 16, 14, 11, 10, 9] = 76\n[16, 15, 15, 12, 9, 9] = 76\n[16, 15, 14, 13, 13, 12] = 83\n[18, 17, 15, 14, 13, 8] = 85\n[15, 14, 13, 13, 10, 8] = 73\n获取带属性名的预设请用.dndx'},
+{content: '.dndx 5', send: true},
+{content: '<木落>的DnD5e人物作成(预设模式):\n力量:16 体质:9 敏捷:14 智力:10 感知:13 魅力:10 共计:72\n力量:13 体质:12 敏捷:8 智力:8 感知:14 魅力:9 共计:64\n力量:16 体质:10 敏捷:11 智力:14 感知:12 魅力:10 共计:73\n力量:9 体质:17 敏捷:15 智力:9 感知:10 魅力:13 共计:73\n力量:12 体质:6 敏捷:8 智力:13 感知:10 魅力:8 共计:57\n自由分配模式请用.dnd'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+## `.ri` 先攻设置
+
+`.ri <先攻值> [<角色名>]` 为指定角色设定先攻值。如果省略角色名则默认为当前角色，以下的角色名部分相同。
+
+其中，先攻值部分支持以下四种写法
+
+1. `.ri 12` 固定值 12；
+2. `.ri +2` 掷骰 D20+2；
+3. `.ri =D20+3` 掷骰 D20+3；
+4. `.ri +1D8` 掷骰 D20+1D8。
+
+`.ri <单项>, <单项>, ...` 批量设定多个角色的先攻值，每个单项都是 `<先攻值> <角色名>` 形式。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.ri +2', send: true},
+{content: '<木落>对先攻点数设置如下:\n1. 木落: 15[1d20=15] + 2=17'},
+{content: '.ri +3 狗头人1', send: true},
+{content: '<木落>对先攻点数设置如下:\n1. 狗头人1: 15[1d20=15] + 3=18'},
+{content: '.ri =D20+2 狗头人1', send: true},
+{content: '<木落>对先攻点数设置如下:\n1. 狗头人1: 13'},
+{content: '.ri 30 狗头人1', send: true},
+{content: '<木落>对先攻点数设置如下:\n1. 狗头人1: 30'},
+{content: '.ri 优势+2 狗头人2', send: true},
+{content: '<木落>对先攻点数设置如下:\n1. 狗头人2: 13[{13 | 11 }] + 2=15'},
+{content: '.ri +2 狗头人1, 3 狗头人2, =d30 狗头人3, +3', send: true},
+{content: '<木落>对先攻点数设置如下:\n1. 木落: 19[1d20=19] + 3=22\n2. 狗头人3: 17\n3. 狗头人1: 15[1d20=15] + 2=17\n4. 狗头人2: 3'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+## `.init` 先攻列表
+
+`.init` 查看先攻列表。
+
+`.init del <单位1> <单位2> ...` 从先攻列表中删除指定单位。
+
+`.init set <单位名称> <先攻表达式>` 为指定单位设定先攻值。
+
+`.init clr` 清除先攻列表。
+
+`.init end` 结束当前的回合，并开始下一回合；如果轮到玩家行动，会 at 将要行动的玩家。
+
+`.init help` 显示帮助。
+
+::: info 示例
+
+已经设置了先攻列表的情况
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.init', send: true},
+{content: '当前先攻列表为:\n1. 木落: 22\n2. 狗头人3: 17\n3. 狗头人1: 17\n4. 狗头人2: 3\n当前回合：木落'},
+{content: '.init del 狗头人2', send: true},
+{content: '<木落>将以下单位从先攻列表中移除:\n1. 狗头人2'},
+{content: '.init set 狗头人3 16', send: true},
+{content: '<木落>已设置 狗头人3 的先攻点为16 16'},
+{content: '.init end', send: true},
+{content: '【木落】戏份结束了，下面该【狗头人1】出场了！'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+## `.st` 操作角色卡
+
+### `.st help` 获取帮助信息
+
+### 列出属性
+
+`.st show` 列出角色卡所有属性。
+
+`.st show <属性1> <属性2> ...` 列出指定的属性数值。
+
+`.st show <数值>` 列出高于指定数值的属性。
+
+`.st export` 导出属性值和法术位。
+
+### 删除属性
+
+`.st (clr|clear)` 删除所有属性数值和法术位。
+
+`.st del <属性1> <属性2> ...` 删除指定属性。
+
+### 更新属性值
+
+`.st 模板` 获取角色卡录入模板。
+
+`.st <属性>:<值>` 设置指定属性，技能加值会自动计算。
+
+`.st <属性>=<值>` 与前一用法相同，可避免中英文冒号的识别问题。
+
+`.st <属性>±<表达式>` 将指定属性增加或减去表达式的计算结果。表达式中可以包含骰点。如 `.st 生命+1d4`
+
+`.st hp-1d6 --over` 前一用法的特殊情况，不计算临时生命扣血。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.st 模板', send: true},
+{content: '人物卡模板(第二行文本):\n.dst 力量:10 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax: 10 熟练:2 运动:0 特技:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯养:0 医疗:0 生存:0 说服:0 欺诈:0 威吓:0 表演:0\n注意: 技能只填写修正值即可，属性调整值会自动计算。熟练写为“运动*:0”'},
+{content: '.st 力量:12 体质:10 敏捷:10 智力:10 感知:10 魅力:10 hp:10 hpmax: 10 熟练:2 运动*:3 特技:1 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯养:0 医疗:0 生存:0 说服:0 欺诈:0 威吓:0 表演:0', send: true},
+{content: '<木落>的dnd5e人物属性设置如下:\n读入: 力量:12, 体质:10, 敏捷:10, 智力:10, 感知:10, 魅力:10, hp:10, hpmax:10, 熟练:2, 运动:3[技能, 熟练], 特技:1[技能], 巧手:0[技能], 隐匿:0[技能], 调查:0[技能], 奥秘:0[技能], 历史:0[技能], 自然:0[技能], 宗教:0[技能], 察觉:0[技能], 洞悉:0[技能], 驯养:0[技能], 医疗:0[技能], 生存:0[技能], 说服:0[技能], 欺诈:0[技能], 威吓:0[技能], 表演:0[技能]'},
+{content: '.st show', send: true},
+{content: '<木落>的个人属性为:\n力量: 12  敏捷: 10  体质: 10  智力: 10\n感知: 10  魅力: 10  hp: 10  hpmax: 10\nEXP: 0  熟练: 2   特技: 1[基础值1] 运动: 6[基础值3]\n(下略)'},
+{content: '.st show 力量 运动 熟练', send: true},
+{content: '<木落>的个人属性为:\n力量: 12  熟练: 2   运动: 6[基础值3]'},
+{content: '.st 力量 + 2', send: true},
+{content: '人物属性设置如下:\n修改: 力量(12 ➯ 14)'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+属性修改后，属性调整值会自动变更。不用再行关注。
+
+::: info 对生命值的特殊支持
+
+- 当存在临时生命 (buff 血量)，自动优先消耗。若临时生命不足以抵挡伤害，剩余会扣减血量；
+- 当生命值归零，若伤害大于等于血量上限，判定人物死亡；
+- 当生命值归零，若伤害小于血量上限，人物昏迷；
+- 当人物已经昏迷，不足致死的伤害自动折算为死亡豁免失败。
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.st hp-3 hp-3 hp-3', send: true},
+{content: '<木落>的dnd5e人物属性设置如下:\n修改: hp(2 ➯ 0), hp(0 ➯ 0), hp(0 ➯ 0)\n<木落>遭受了1点过量伤害，生命值降至0，陷入了昏迷！\n<木落>在昏迷状态下遭受了3点过量伤害，死亡豁免失败+1！\n<木落>在昏迷状态下遭受了3点过量伤害，死亡豁免失败+1！'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+**退游小技巧，黑暗录卡：**
+
+```text
+.st 力量:4d6k3 体质:4d6k3 敏捷:4d6k3 智力:4d6k3 感知:4d6k3 魅力:4d6k3 hp:10 hpmax: 10 熟练:2 运动:0 特技:0 巧手:0 隐匿:0 调查:0 奥秘:0 历史:0 自然:0 宗教:0 察觉:0 洞悉:0 驯养:0 医疗:0 生存:0 说服:0 欺诈:0 威吓:0 表演:0
+```
+
+### 代骰
+
+以上功能均可以通过附加 `@其他人` 来操作对方的属性值。
+
+## `.rc` 检定
+
+`.rc <属性>` 进行检定。
+
+`.rc <属性>豁免` 进行豁免检定。
+
+`.rc <表达式>` 使用可带调整值的表达式进行检定，如 `力量+3`。
+
+`.rc (优势|劣势) <表达式>` 进行优势或劣势检定。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.rc 运动', send: true},
+{content: '<木落>的“运动”检定结果为:\n8[1d20=8] + 6[运动=6] = 14'},
+{content: '.rc 优势 力量+4', send: true},
+{content: '<木落>的“力量+4”检定结果为:\n17[{17 | 11 }] + 12[力量=12] + 4 = 33'},
+{content: '.rc 劣势 力量+4 推一下试试', send: true},
+{content: '<木落>的“推一下试试”检定结果为:\n17[{17 | 18 }] + 12[力量=12] + 4 = 33'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+### 代骰
+
+以上功能均可以通过附加 `@其他人` 来使用对方的技能进行检定。
+
+### 奇妙运用
+
+你可以通过如下方式记录武器的熟练项。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.st 长剑=4', send: true},
+{content: '<木落>的属性录入完成，本次录入了1条数据。'},
+{content: '.rc 长剑', send: true},
+{content: '<木落>的“长剑”检定(dnd5e)结果为:\n16[1d20=16] + 4[长剑=4] = 20'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+## `.buff` 临时属性
+
+`.buff help` 显示帮助。
+
+`.buff` 展示当前 buff。
+
+`.buff clr` 清除 buff。
+
+`.buff del <属性1> <属性2> ...` 删除指定属性的 buff。
+
+`.buff <属性>:<值>` 为指定属性设定 buff。
+
+`.buff <属性>±<表达式>` 修改指定属性的 buff。
+
+用于设置临时属性，例如虚假生命：
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.st hp:10', send: true},
+{content: '<木落>的dnd5e人物属性设置如下:\n读入: hp:10'},
+{content: '.buff hp : 1d4+4', send: true},
+{content: '<木落>的dnd5e人物Buff属性设置如下:\n读入: hp:7'},
+{content: '.st show hp', send: true},
+{content: '<木落>的个人属性为:\nhp:17[10]'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+也可以用来设置其他属性：
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.st 力量:10  运动:0', send: true},
+{content: '<木落>的dnd5e人物属性设置如下:\n读入: 力量:10, 运动:0[技能]'},
+{content: '.buff 力量:6', send: true},
+{content: '<木落>的dnd5e人物Buff属性设置如下:\n读入: 力量:6'},
+{content: '.st show 力量 运动', send: true},
+{content: '<木落>的个人属性为:\n力量:16[10] 运动:3[0]'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+临时的技能熟练（装备或法术效果）：
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.st 力量:10  运动:0 熟练:3', send: true},
+{content: '<木落>的dnd5e人物属性设置如下:\n读入: 力量:10, 运动:0[技能], 熟练:3'},
+{content: '.buff 运动*:0', send: true},
+{content: '<木落>的dnd5e人物Buff属性设置如下:\n读入: 运动:0[技能, 熟练*]'},
+{content: '.st show 力量 运动', send: true},
+{content: '<木落>的个人属性为:\n力量:16[10] 运动:6[0]'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+删除和清空
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.buff del hp', send: true},
+{content: '<木落>的如下buff属性被成功删除:hp，失败0项'},
+{content: '.buff clr', send: true},
+{content: '<木落>的BUFF数据已经清除，共计0条'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+### 代骰
+
+以上功能均可以通过附加 `@其他人` 来操作对方的 buff。
+
+## `.ss` 法术位 (spell slots)
+
+`.ss` 查看当前法术位状况。
+
+`.ss init 4 3 2` 设置 1 2 3 环的法术位上限，以此类推，上不封顶。
+
+`.ss set 2环 4` 单独设置某一环的法术位上限，可用逗号分隔地连写多组。
+
+`.ss clr` 清除法术位设置。
+
+`.ss rest` 恢复所有法术位 (不回复 hp)。
+
+`.ss 3环 +1` 增加一个 3 环法术位（不会超过上限）。
+
+`.ss lv3 +1` 同上，另一种写法。
+
+`.ss 3环 -1` 消耗一个 3 环法术位。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.ss init 3 4 5', send: true},
+{content: '为<木落>设置法术位: 1环3个, 2环4个, 3环5个'},
+{content: '.ss 1环 -1', send: true},
+{content: '<木落>的1环法术位消耗至2个，上限3个'},
+{content: '.ss', send: true},
+{content: '<木落>的法术位状况: 1环:2/3, 2环:4/4, 3环:5/5'},
+{content: '.ss rest', send: true},
+{content: '<木落>的法术位已经完全恢复'},
+{content: '.ss set 4环 3', send: true},
+{content: '为<木落>设置法术位: 4环3个'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+### 代骰
+
+以上功能均可以通过附加 `@其他人` 来操作对方的法术位。
+
+## `.cast` 使用法术位
+
+`.cast <环数> [<消耗数量>]` 消耗指定数量的指定法术位，省略消耗数量时，消耗 1 个。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.cast 2', send: true},
+{content: '<木落>的2环法术位消耗至3个，上限4个'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+### 代骰
+
+以上功能均可以通过附加 `@其他人` 来消耗对方的法术位。
+
+## `.longrest` / `.长休`
+
+`.longrest` 恢复生命值和法术位。当前角色需已设定最大生命值且当前生命值大于 0。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.长休', send: true},
+{content: '<木落>的长休: hp得到了恢复，现为12 法术位得到了恢复'},
+{content: '.长休', send: true},
+{content: '<木落>的长休: 没有设置hpmax，无法回复hp'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+### 代骰
+
+以上功能均可以通过附加 `@其他人` 来令对方进行长休。
+
+## `.ds` / `.死亡豁免`
+
+`.ds help` 查看帮助。
+
+`.ds` 进行一次死亡豁免检定，此时角色 hp 必须为 0。
+
+`.ds +1d4` 检定时添加 1d4 的加值。
+
+`.ds (成功|失败)±<变化值>` 死亡豁免的成功或失败数量增加或减少指定值。成功和失败可分别简写为 `s` 与 `f`。
+
+`.ds stat` 查看当前死亡豁免情况。
+
+st 指令对 hp 的操作也会自动触发死亡豁免。
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.st hp:3 hpmax:12', send: true},
+{content: '<木落>的dnd5e人物属性设置如下:\n读入: hp:3, hpmax:12'},
+{content: '.st hp-10', send: true},
+{content: '<木落>的dnd5e人物属性设置如下:\n修改: hp(3 ➯ 0)\n<木落>遭受了7点过量伤害，生命值降至0，陷入了昏迷！'},
+]" />
+<!-- autocorrect-enable -->
+
+昏迷后被攻击：
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '<木落>的dnd5e人物属性设置如下:\n修改: hp(0 ➯ 0)\n<木落>在昏迷状态下遭受了1点过量伤害，死亡豁免失败+1！'},
+]" />
+<!-- autocorrect-enable -->
+
+死亡：
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '<木落>的死亡豁免检定: [1d20=3]=3 有些不妙！死亡豁免失败+1\n你获得了3次死亡豁免检定失败，不幸去世了！'},
+]" />
+<!-- autocorrect-enable -->
+
+医学奇迹：
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '<木落>的死亡豁免检定: [1d20=20]=20 你觉得你还可以抢救一下！HP回复1点！'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+### 代骰
+
+以上功能均可以通过附加 `@其他人` 来令对方进行死亡豁免。

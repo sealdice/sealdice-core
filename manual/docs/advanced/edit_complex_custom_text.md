@@ -1,0 +1,115 @@
+---
+lang: zh-cn
+title: 编写复杂文案
+---
+
+# 编写复杂文案
+
+::: info 本节内容
+
+本节将展示复杂文案的编写技巧，请善用侧边栏和搜索，按需阅读文档。
+
+:::
+
+## 示例
+
+### 根据骰点结果展示不同文案
+
+在文案中通常会有结果变量，通过对结果变量的判断来实现展示不同文案。如修改 `.r 骰点_单项结果文本` 文案为例
+
+```text
+{$t表达式文本}{$t计算过程}={$t计算结果}{%
+$t计算结果 == 100 ? " 乐！",
+$t计算结果 == 1 ? " 啧！"
+%}
+```
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: '.r', send: true},
+{content: '<木落>掷出了 D100=1 啧！'},
+{content: '.r', send: true},
+{content: '<木落>掷出了 D100=100 乐！'},
+]" />
+<!-- autocorrect-enable -->
+
+:::
+
+### 多套文案的实现
+
+::: tip 提示：了解自定义回复的编写
+
+多套文案的实现一般需要用到「自定义回复」来提供切换命令，见 [编写自定义回复](./edit_reply.md)。
+
+如果你想使用 JS 插件实现也是可以的，不过示例以更简单的自定义回复为例。
+
+:::
+
+#### 切换命令实现
+
+正则匹配：`mode switch(.*)`
+回复：
+
+```text
+{%
+if $t1==""||$t1==" 默认" {$g文案模式 = 0; $t输出="默认模式启用"};
+if $t1==" 模式1" {$g文案模式 = 1; $t输出="模式1启用"};
+if $t1==" 模式2" {$g文案模式 = 2; $t输出="模式2启用"};
+if $t1!=""&&$t1!=" 默认"&&$t1!=" 模式1"&&$t1!=" 模式2" {$t输出=`不存在指定模式{$t1}`};
+$t输出
+%}
+```
+
+精确匹配：`mode show`
+回复：
+
+```text
+{%
+$g文案模式==0 ? "当前在默认模式",
+$g文案模式==1 ? "当前在模式1" ,
+$g文案模式==2 ? "当前在模式2"
+%}
+```
+
+#### 文案调整
+
+按如下模式调整你的自定义文案项：
+
+```text
+{
+if $g文案模式 == 0 {$t目标文案 = `（这里填你个性化的默认模式文案）`};
+if $g文案模式 == 1 {$t目标文案 = `（这里填你个性化的模式1文案）`};
+if $g文案模式 == 2 {$t目标文案 = `（这里填你个性化的模式2文案）`}
+}{$t目标文案}
+```
+
+#### 展示
+
+以修改了 `.jrrp` 的文案为例：
+
+::: info 示例
+
+<!-- autocorrect-disable -->
+<ChatBox :messages="[
+{content: 'mode show', send: true},
+{content: '默认模式启用'},
+{content: 'mode switch 模式1', send: true},
+{content: '模式1启用'},
+{content: 'mode show', send: true},
+{content: '当前在模式1'},
+{content: '.jrrp', send: true},
+{content: '（这里填你个性化的模式1文案）'},
+{content: 'mode switch 模式2', send: true},
+{content: '模式2启用'},
+{content: '.jrrp', send: true},
+{content: '（这里填你个性化的模式2文案）'},
+{content: 'mode switch', send: true},
+{content: '默认模式启用'},
+{content: '.jrrp', send: true},
+{content: '（这里填你个性化的默认模式文案）'},
+]" />
+<!-- autocorrect-enable -->
+
+:::

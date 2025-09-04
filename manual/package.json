@@ -1,0 +1,35 @@
+{
+  "name": "sealdice-manual-next",
+  "version": "1.0.0",
+  "description": "海豹骰官方使用手册。",
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\"",
+    "lint:md:fix": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" --fix",
+    "lint:autocorrect": "autocorrect --lint --strict",
+    "lint:autocorrect:fix": "autocorrect --fix --strict"
+  },
+  "keywords": [],
+  "author": "Sealdice Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@braintree/sanitize-url": "^7.1.1",
+    "@types/node": "^24.1.0",
+    "autocorrect-node": "^2.14.0",
+    "cytoscape": "^3.32.1",
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "dayjs": "^1.11.13",
+    "debug": "^4.4.1",
+    "markdownlint-cli2": "^0.18.1",
+    "mermaid": "^11.9.0",
+    "sass": "^1.89.2",
+    "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vitepress-plugin-tabs": "^0.7.1",
+    "vue": "^3.5.18"
+  }
+}
