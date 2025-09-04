@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <androidx.preference.PreferenceCategory
+        android:title="一般">
+
+<!--        <androidx.preference.SwitchPreferenceCompat-->
+<!--            android:key="alive_notification"-->
+<!--            android:title="保活策略：通知栏"-->
+<!--            android:summary="通过通知栏进行保活"-->
+<!--            android:defaultValue="true" />-->
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_wakelock"
+            android:title="保活策略：唤醒锁"
+            android:summary="通过构造唤醒锁确保息屏后运行，可能会增加耗电量"
+            android:defaultValue="true" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_floatwindow"
+            android:title="保活策略：悬浮窗"
+            android:summary="添加一个悬浮窗进行保活，第一次使用会跳转到权限设置"
+            android:defaultValue="false" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_media"
+            android:title="保活策略：无声音频"
+            android:summary="通过循环播放无声音频进行保活"
+            android:defaultValue="false" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="alive_excluderecents"
+            android:title="保活策略：最近任务列表不显示"
+            android:summary="豹豹通过在最近任务列表里潜水，有效避免某些系统划后台强行扬了可爱的豹豹的人间惨剧。"
+            android:defaultValue="false" />
+
+    </androidx.preference.PreferenceCategory>
+
+    <androidx.preference.PreferenceCategory
+        android:title="高级">
+        <androidx.preference.SwitchPreferenceCompat
+            android:layout="@layout/danger_preference_layout"
+            android:key="sync_mode"
+            android:title="文件同步模式"
+            android:summary="开启后，导入/导出数据时将会先清理目标文件夹，请务必明白此操作的作用再开启"
+            android:defaultValue="false" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="use_internal_webview"
+            android:title="使用内置WebView"
+            android:summary="关闭后将使用系统浏览器打开UI界面"
+            android:defaultValue="true" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="auto_launch_ui"
+            android:title="自动启动UI界面"
+            android:summary="关闭后将不会自动启动UI界面"
+            android:defaultValue="true" />
+        <androidx.preference.SwitchPreferenceCompat
+            android:key="extract_on_start"
+            android:title="启动时提取资源"
+            android:summary="关闭后启动时将不再提取资源文件\n可能导致无法启动或无法更新\n如果你不清楚此操作的作用请不要关闭"
+            android:defaultValue="true" />
+        <androidx.preference.EditTextPreference
+            android:key="ui_address"
+            android:title="UI界面地址"
+            android:summary="点击更改启动时打开的链接"
+            android:defaultValue="http://127.0.0.1:3211" />
+        <androidx.preference.EditTextPreference
+            android:key="launch_args"
+            android:title="启动参数"
+            android:summary="点击输入启动参数"
+            android:defaultValue="--address=127.0.0.1:3211" />
+
+    </androidx.preference.PreferenceCategory>
+</PreferenceScreen>
