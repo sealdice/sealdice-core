@@ -213,7 +213,15 @@ func (d *Dice) registerCoreCommands() {
 						}
 					} else {
 						// 为设置默认分组
-						ctx.Group.SetDefaultHelpGroup(defaultGroup)
+						// 修复别名查询问题：在设置默认分组时，需要将别名转换为原名
+						// 这样确保存储的始终是原名，避免后续查询时出现别名无法识别的问题
+						realGroup := defaultGroup
+						if _g, ok := d.Parent.Help.GroupAliases[defaultGroup]; ok {
+							// 如果输入的是别名，转换为对应的原名
+							realGroup = _g
+						}
+						// 使用转换后的原名设置默认分组
+						ctx.Group.SetDefaultHelpGroup(realGroup)
 						if oldDefault != "" {
 							ReplyToSender(ctx, msg, fmt.Sprintf("默认搜索分组由%s切换到%s", oldDefault, defaultGroup))
 						} else {
