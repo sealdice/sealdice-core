@@ -1093,6 +1093,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			defaultSuccessExpr := "0"
 			argText := cmdArgs.CleanArgs
 			argCap := cmdArgs.GetKwarg("cap")
+			argHalf := cmdArgs.GetKwarg("half")
 
 			diceExpr, lossSucc, lossFail, status := func() (string, string, string, int) {
 				expr1 := "d100" // 先假设为常见情况，也就是D100
@@ -1205,11 +1206,16 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				textExpr = lossFail
 			}
 
-			var sanLoss int64
+			var sanLossOri, sanLoss int64
 			r, _, err = DiceExprEvalBase(mctx, textExpr, RollExtraFlags{BigFailDiceOn: successRank == -2, DisableBlock: true})
 			if err == nil {
 				v, _ := r.ReadInt()
-				sanLoss = int64(v)
+				sanLossOri = int64(v)
+				sanLoss = sanLossOri
+			}
+
+			if argHalf != nil {
+				sanLoss /= 2
 			}
 
 			if argCap != nil {
@@ -1246,7 +1252,9 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			// 输出结果
 			VarSetValueInt64(mctx, "$t新值", sanNew)
 			VarSetValueStr(mctx, "$t表达式文本", textExpr)
-			VarSetValueInt64(mctx, "$t表达式值", sanLoss)
+			VarSetValueInt64(mctx, "$t表达式值", sanLoss) // For Compatibility
+			VarSetValueInt64(mctx, "$t表达式原始值", sanLossOri)
+			VarSetValueInt64(mctx, "$t表达式调整值", sanLoss)
 
 			var crazyTip string
 			if sanNew == 0 {
