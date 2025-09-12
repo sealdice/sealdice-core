@@ -1495,7 +1495,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			// 发送退群消息
 			msgText := DiceFormatTmpl(msgCtx, "核心:骰子自动退群告别语")
 			ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
-			//退群在退群消息延迟两秒后发送，确保消息发送完成
+			// 退群在退群消息延迟两秒后发送，确保消息发送完成
 			time.Sleep(2 * time.Second)
 			// 删除群聊绑定信息，更新群处理时间
 			grp.DiceIDExistsMap.Delete(ep.UserID)
