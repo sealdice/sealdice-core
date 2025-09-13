@@ -1253,7 +1253,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				if strings.HasPrefix(text, "+") {
 					// 加值情况1，D20+
-					r := ctx.Eval("d20"+text, nil)
+					r := mctx.Eval("d20"+text, nil)
 					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1264,7 +1264,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "-") {
 					// 加值情况1.1，D20-
-					r := ctx.Eval("d20"+text, nil)
+					r := mctx.Eval("d20"+text, nil)
 					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1275,7 +1275,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "=") {
 					// 加值情况1，=表达式
-					r := ctx.Eval(text[1:], nil)
+					r := mctx.Eval(text[1:], nil)
 					if r.vm.Error != nil {
 						// 情况1，加值输入错误
 						return 1, name, val, detail, ""
@@ -1286,7 +1286,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					exprExists = true
 				} else if strings.HasPrefix(text, "优势") || strings.HasPrefix(text, "劣势") {
 					// 优势/劣势
-					r := ctx.Eval("d20"+text, nil)
+					r := mctx.Eval("d20"+text, nil)
 					if r.vm.Error != nil {
 						// 优势劣势输入错误
 						return 2, name, val, detail, ""
