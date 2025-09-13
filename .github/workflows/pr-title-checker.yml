@@ -39,13 +39,3 @@ jobs:
               - `chore: fixing build pipeline`
               - etc.
               More information can be found [here](https://www.conventionalcommits.org/zh-hans/v1.0.0/).
-
-      - name: Add comment that PR title is fixed
-        if: ${{ steps.check.outputs.success == 'true'}}
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: 'PR Title Check'
-          recreate: true
-          message: |
-              ### ✅ PR Title Formatted Correctly
-              The title of this PR matches the correct format.
