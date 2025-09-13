@@ -247,7 +247,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					} else {
 						// 没有充足的盾，盾扣到0，剩下的继续造成伤害
 						attrs.Delete("$buff_hp")
-						i.value = ds.NewIntVal(val)
+						// 传入 -val, 因为 op 是减法，不然会变成加血
+						i.value = ds.NewIntVal(-val)
 					}
 				}
 			}
