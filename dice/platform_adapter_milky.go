@@ -41,6 +41,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		Platform:    "QQ",
 		MessageType: "group",
 		Segment:     msg,
+		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -419,6 +420,7 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		Platform:    "QQ",
 		MessageType: "group",
 		Message:     text,
+		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
