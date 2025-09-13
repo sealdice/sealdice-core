@@ -237,8 +237,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				// 如果是生命值，先试图扣虚血
 				vHpBuffVal := hpBuff.MustReadInt()
-				// 正盾才做反馈
-				if vHpBuffVal > 0 {
+				// 正盾并且扣血才做反馈
+				if vHpBuffVal > 0 && i.op == "-" {
 					val := vHpBuffVal - i.value.MustReadInt()
 					if val >= 0 {
 						// 有充足的盾，扣掉，当前伤害改为0
