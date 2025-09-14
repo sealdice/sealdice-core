@@ -210,12 +210,6 @@ func (d *Dice) JsInit() {
 			ei.JSLoopVersion = versionID
 
 			d.ApplyExtDefaultSettings()
-			// Pinenutn: Range模板 ServiceAtNew重构代码
-			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-				// Pinenutn: ServiceAtNew重构
-				groupInfo.ExtActiveBySnapshotOrder(ei, true)
-				return true
-			})
 		})
 		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
 			if ei.dice == nil {
@@ -804,7 +798,7 @@ func (d *Dice) JsReload() {
 
 	// 记录扩展快照
 	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-		groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
+		groupInfo.ExtActiveListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
 			return item.Name
 		})
 		return true

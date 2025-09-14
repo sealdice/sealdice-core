@@ -66,10 +66,10 @@ type Message struct {
 type GroupPlayerInfo model.GroupPlayerInfoBase
 
 type GroupInfo struct {
-	Active           bool                               `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList []*ExtInfo                         `json:"activatedExtList" yaml:"activatedExtList,flow"`               // 当前群开启的扩展列表
-	ExtListSnapshot  []string                           `json:"-"                yaml:"-"`                                   // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
-	Players          *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
+	Active                bool                               `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
+	ActivatedExtList      []*ExtInfo                         `json:"activatedExtList" yaml:"activatedExtList,flow"`               // 当前群开启的扩展列表
+	ExtActiveListSnapshot []string                           `json:"-"                yaml:"-"`                                   // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
+	Players               *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
 
 	GroupID         string                 `jsbind:"groupId"       json:"groupId"      yaml:"groupId"`
 	GuildID         string                 `jsbind:"guildId"       json:"guildId"      yaml:"guildId"`
@@ -123,7 +123,7 @@ func (group *GroupInfo) ExtActive(ei *ExtInfo) {
 func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bool) {
 	// 这个机制用于解决js插件指令会覆盖原生扩展的指令的问题
 	// 与之相关的问题是插件的自动激活，最好能够检测插件是否为首次加载
-	orderLst := group.ExtListSnapshot
+	orderLst := group.ExtActiveListSnapshot
 	m := map[string]*ExtInfo{}
 	for _, i := range group.ActivatedExtList {
 		m[i.Name] = i
@@ -141,7 +141,7 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 	if isFirstTimeLoad {
 		if !lo.Contains(orderLst, ei.Name) {
 			newLst = append(newLst, ei)
-			group.ExtListSnapshot = append(group.ExtListSnapshot, ei.Name)
+			group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, ei.Name)
 		}
 	}
 

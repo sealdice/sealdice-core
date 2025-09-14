@@ -2180,7 +2180,7 @@ func (d *Dice) loads() {
 		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
 			// Pinenutn: ServiceAtNew重构
 			var tmp []*ExtInfo
-			groupInfo.ExtListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
+			groupInfo.ExtActiveListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
 				return item.Name
 			})
 			for _, i := range groupInfo.ActivatedExtList {
@@ -2414,7 +2414,7 @@ func (d *Dice) SaveText() {
 	}
 }
 
-// ApplyExtDefaultSettings 应用扩展默认配置
+// ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
 func (d *Dice) ApplyExtDefaultSettings() {
 	// 遍历两个列表
 	exts1 := map[string]*ExtDefaultSettingItem{}
@@ -2427,12 +2427,23 @@ func (d *Dice) ApplyExtDefaultSettings() {
 		exts2[i.Name] = i
 	}
 
-	// 如果存在于扩展列表，但不存在于默认列表中的，那么放入末尾
+	// 如果存在于扩展列表，但不存在于默认列表中的，视为第一次加载并放入末尾
 	for k, v := range exts2 {
 		if _, exists := exts1[k]; !exists {
 			item := &ExtDefaultSettingItem{Name: k, AutoActive: v.AutoActive, DisabledCommand: map[string]bool{}}
 			(&d.Config).ExtDefaultSettings = append((&d.Config).ExtDefaultSettings, item)
 			exts1[k] = item
+			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+				// Pinenutn: ServiceAtNew重构
+				groupInfo.ExtActiveBySnapshotOrder(v, true)
+				return true
+			})
+		} else {
+			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+				// Pinenutn: ServiceAtNew重构
+				groupInfo.ExtActiveBySnapshotOrder(v, false)
+				return true
+			})
 		}
 	}
 
