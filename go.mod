@@ -48,7 +48,7 @@ require (
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/mroth/weightedrand v1.0.0
-	github.com/ncruces/go-sqlite3 v0.28.0
+	github.com/ncruces/go-sqlite3 v0.29.0
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/otiai10/copy v1.14.1
@@ -78,7 +78,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.41.0
 	golang.org/x/exp v0.0.0-20250718183923-645b1fa84792
-	golang.org/x/sys v0.35.0
+	golang.org/x/sys v0.36.0
 	golang.org/x/text v0.29.0
 	golang.org/x/time v0.13.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
