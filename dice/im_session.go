@@ -513,7 +513,7 @@ type MsgContext struct {
 
 	IsPrivate       bool        `jsbind:"isPrivate"` // 是否私聊
 	CommandID       int64       // 指令ID
-	CommandHideFlag string      // 暗骰标记
+	CommandHideFlag string      `jsbind:"commandHideFlag"` // 暗骰来源群号
 	CommandInfo     interface{} // 命令信息
 	PrivilegeLevel  int         `jsbind:"privilegeLevel"` // 权限等级 -30ban 40邀请者 50管理 60群主 70信任 100master
 	GroupRoleLevel  int         // 群内权限 40邀请者 50管理 60群主 70信任 100master，相当于不考虑ban的权限等级
