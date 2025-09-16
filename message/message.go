@@ -87,7 +87,7 @@ func (t *ReplyElement) Type() ElementType {
 }
 
 type TTSElement struct {
-	Content string
+	Content string `jsbind:"content"`
 }
 
 func (t *TTSElement) Type() ElementType {
@@ -95,10 +95,10 @@ func (t *TTSElement) Type() ElementType {
 }
 
 type FileElement struct {
-	ContentType string
+	ContentType string `jsbind:"contentType"`
 	Stream      io.Reader
-	File        string
-	URL         string
+	File        string `jsbind:"file"`
+	URL         string `jsbind:"url"`
 }
 
 func (l *FileElement) Type() ElementType {
@@ -106,8 +106,8 @@ func (l *FileElement) Type() ElementType {
 }
 
 type ImageElement struct {
-	File *FileElement
-	URL  string
+	File *FileElement `jsbind:"file"`
+	URL  string       `jsbind:"url"`
 }
 
 func (l *ImageElement) Type() ElementType {
@@ -115,7 +115,7 @@ func (l *ImageElement) Type() ElementType {
 }
 
 type RecordElement struct {
-	File *FileElement
+	File *FileElement `jsbind:"file"`
 }
 
 func (r *RecordElement) Type() ElementType {
