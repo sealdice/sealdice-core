@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/tidwall/buntdb"
@@ -222,4 +223,46 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 	})
 
 	return val, err
+}
+
+func (i *ExtInfo) TryRegisterLock(k string) bool {
+	if ok := i.lockRWMu.TryLock(); !ok {
+		return false
+	}
+	defer i.lockRWMu.Unlock()
+
+	if i.locks == nil {
+		i.locks = make(map[string]*sync.Mutex)
+	}
+
+	if _, ok := i.locks[k]; !ok {
+		i.locks[k] = &sync.Mutex{}
+	}
+
+	return true
+}
+
+func (i *ExtInfo) TryRunLocked(k string, f func()) bool {
+	if ok := i.lockRWMu.TryRLock(); !ok {
+		return false
+	}
+	defer i.lockRWMu.RUnlock()
+
+	if i.locks == nil {
+		i.dice.Logger.Debugf("[扩展]：%s 试图获取的锁 %s 不存在", i.Name, k)
+		return false
+	}
+	if _, ok := i.locks[k]; !ok {
+		i.dice.Logger.Debugf("[扩展]：%s 试图获取的锁 %s 不存在", i.Name, k)
+		return false
+	}
+
+	if ok := i.locks[k].TryLock(); !ok {
+		return false
+	}
+	defer i.locks[k].Unlock()
+
+	f()
+
+	return true
 }
