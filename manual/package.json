@@ -23,7 +23,7 @@
     "cytoscape": "^3.32.1",
     "cytoscape-cose-bilkent": "^4.1.0",
     "dayjs": "^1.11.18",
-    "debug": "^4.4.1",
+    "debug": "^4.4.3",
     "markdownlint-cli2": "^0.18.1",
     "mermaid": "^11.9.0",
     "sass": "^1.92.1",
