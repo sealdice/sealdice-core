@@ -38,7 +38,7 @@
     "lodash-es": "^4.17.21",
     "pinia": "^3.0.3",
     "randomcolor": "^0.6.2",
-    "ua-parser-js": "^1.0.39",
+    "ua-parser-js": "^2.0.5",
     "vue": "^3.5.21",
     "vue-color-kit": "^1.0.6",
     "vue3-virtual-scroll-list": "^0.2.1"
