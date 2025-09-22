@@ -1,0 +1,36 @@
+import{_ as p,C as n,c as u,o as b,a8 as s,j as o,a as e,G as a,w as d}from"./chunks/framework.bOCt8wBo.js";const y=JSON.parse('{"title":"克苏鲁的呼唤 7 版","description":"","frontmatter":{"lang":"zh-cn","title":"克苏鲁的呼唤 7 版"},"headers":[],"relativePath":"use/coc7.md","filePath":"use/coc7.md","lastUpdated":1758531130000}'),h={name:"use/coc7.md"},m={class:"info custom-block"},k={class:"info custom-block"},g={class:"info custom-block"},P={class:"info custom-block"},f={class:"info custom-block"},q={class:"info custom-block"},T={class:"info custom-block"},v={class:"info custom-block"},_={class:"info custom-block"},x={class:"info custom-block"},S={class:"info custom-block"},C={class:"info custom-block"},z={class:"info custom-block"},A={class:"info custom-block"};function D(V,t,I,N,B,E){const i=n("Badge"),l=n("ChatBox"),r=n("PluginTabsTab"),c=n("PluginTabs");return b(),u("div",null,[t[23]||(t[23]=s("",18)),o("p",null,[t[0]||(t[0]=e("从 ",-1)),a(i,{type:"tip",text:"v1.4.2"}),t[1]||(t[1]=e(" 开始，海豹核心兼容了简化卡格式 ",-1)),t[2]||(t[2]=o("code",null,".st <角色名>-<属性><表达式>",-1)),t[3]||(t[3]=e("，这相当于分别使用 ",-1)),t[4]||(t[4]=o("code",null,".nn",-1)),t[5]||(t[5]=e(" 指令设置角色名，然后设定属性值。",-1))]),t[24]||(t[24]=s("",6)),o("div",m,[t[6]||(t[6]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".st &手枪伤害=1d6+1",send:!0},{content:"<木落>的coc7属性录入完成，本次录入了1条数据"},{content:".r 手枪伤害",send:!0},{content:"<木落>掷出了 手枪伤害=[手枪伤害=5[1d6=5] + 1]=6"}]})]),t[25]||(t[25]=o("h3",{id:"导出属性值",tabindex:"-1"},[e("导出属性值 "),o("a",{class:"header-anchor",href:"#导出属性值","aria-label":'Permalink to "导出属性值"'},"​")],-1)),t[26]||(t[26]=o("p",null,[o("code",null,".st export")],-1)),t[27]||(t[27]=o("p",null,"将保存的属性数值以 st 指令格式列出，可以直接复制到其他骰子使用。",-1)),t[28]||(t[28]=o("h3",{id:"代骰",tabindex:"-1"},[e("代骰 "),o("a",{class:"header-anchor",href:"#代骰","aria-label":'Permalink to "代骰"'},"​")],-1)),t[29]||(t[29]=o("p",null,"以上功能均可以通过附加 @其他人 来操作对方的属性值。",-1)),o("div",k,[t[7]||(t[7]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".st 侦查80 @Szz",send:!0},{content:`由<木落>代骰:
+<Szz>的coc7属性录入完成，本次录入了1条数据`},{content:".st hp-1 @Szz",send:!0},{content:`由<木落>代骰:
+<Szz>的属性变化:
+生命值: 10 ➯ 9 (扣除-1=-1)`},{content:".st show hp @Szz",send:!0},{content:`由<木落>代骰:
+<Szz>的个人属性为:
+生命值:9/10`}]})]),t[30]||(t[30]=s("",7)),o("div",g,[t[8]||(t[8]=o("p",{class:"custom-block-title"},"示例",-1)),t[9]||(t[9]=o("p",null,"假设角色的侦查技能是40",-1)),a(l,{messages:[{content:".ra 侦查",send:!0},{content:'<木落>的"侦查"检定结果为: D100=64/40 失败'},{content:".ra 侦查+10",send:!0},{content:'<木落>的"侦查"检定结果为: D100=15/50 困难成功'},{content:".ra 侦查99",send:!0},{content:'<木落>的"侦查"检定结果为: D100=30/99 困难成功'}]})]),t[31]||(t[31]=o("h3",{id:"多轮检定",tabindex:"-1"},[e("多轮检定 "),o("a",{class:"header-anchor",href:"#多轮检定","aria-label":'Permalink to "多轮检定"'},"​")],-1)),t[32]||(t[32]=o("p",null,[o("code",null,".ra <次数># <属性表达式>")],-1)),t[33]||(t[33]=o("p",null,"重复进行指定次数的相同检定。",-1)),o("div",P,[t[10]||(t[10]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".ra 3# 侦查",send:!0},{content:`对<木落>的"侦查"进行了3次检定，结果为:
+D100=87/40 失败
+D100=24/40 成功
+D100=1/40 大成功`}]})]),t[34]||(t[34]=o("h3",{id:"要求一定难度的检定",tabindex:"-1"},[e("要求一定难度的检定 "),o("a",{class:"header-anchor",href:"#要求一定难度的检定","aria-label":'Permalink to "要求一定难度的检定"'},"​")],-1)),t[35]||(t[35]=o("p",null,[o("code",null,".ra <难度><属性表达式>")],-1)),t[36]||(t[36]=o("p",null,[e("进行检定，但只有成功等级达到要求的难度才判定为成功。可以指定的难度有 "),o("code",null,"困难"),e("（当前判定线的二分之一）、"),o("code",null,"极难"),e("（当前判定线的五分之一）、"),o("code",null,"大成功"),e("（根据当前房规确定）")],-1)),o("div",f,[t[11]||(t[11]=o("p",{class:"custom-block-title"},"示例",-1)),t[12]||(t[12]=o("p",null,"假设角色的侦查技能是40",-1)),a(l,{messages:[{content:".ra 困难侦查+10",send:!0},{content:'<木落>的"困难侦查+10"检定结果为: D100=30/25 失败'}]})]),t[37]||(t[37]=o("h3",{id:"奖励骰和惩罚骰",tabindex:"-1"},[e("奖励骰和惩罚骰 "),o("a",{class:"header-anchor",href:"#奖励骰和惩罚骰","aria-label":'Permalink to "奖励骰和惩罚骰"'},"​")],-1)),t[38]||(t[38]=o("p",null,[o("code",null,".ra (b|p)[<个数>] <属性表达式>")],-1)),t[39]||(t[39]=o("p",null,[e("进行检定，并且使用指定个数（如果不指定，为 1 个）的奖励骰（"),o("code",null,"b"),e("）或惩罚骰（"),o("code",null,"p"),e("）。")],-1)),o("div",q,[t[13]||(t[13]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".ra b2 侦查",send:!0},{content:'<木落>的"侦查"检定结果为: b2=1/40, ([D100=51, 奖励 0 2]) 大成功!'}]})]),t[40]||(t[40]=o("h3",{id:"代骰-1",tabindex:"-1"},[e("代骰 "),o("a",{class:"header-anchor",href:"#代骰-1","aria-label":'Permalink to "代骰"'},"​")],-1)),t[41]||(t[41]=o("p",null,[e("以上功能均可以通过附加 "),o("code",null,"@其他人"),e(" 来使用对方的技能进行检定。")],-1)),o("div",T,[t[14]||(t[14]=o("p",{class:"custom-block-title"},"示例",-1)),t[15]||(t[15]=o("p",null,"假定 Szz 的侦查技能是80",-1)),a(l,{messages:[{content:".ra 侦查 @Szz",send:!0},{content:`由<木落>代骰:
+<Szz>的"侦查"检定结果为: D100=65/80 成功`}]})]),t[42]||(t[42]=o("h3",{id:"以上功能可以组合使用",tabindex:"-1"},[e("以上功能可以组合使用 "),o("a",{class:"header-anchor",href:"#以上功能可以组合使用","aria-label":'Permalink to "以上功能可以组合使用"'},"​")],-1)),o("div",v,[t[16]||(t[16]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".ra 3# p 困难侦查+10 @Szz",send:!0},{content:`由<木落>代骰:
+对<Szz>的"困难侦查+10"进行了3次检定，结果为:
+p=36/45, ([D100=16, 惩罚 3]) 成功
+p=91/45, ([D100=91, 惩罚 8]) 失败
+p=75/45, ([D100=5, 惩罚 7]) 失败`}]})]),t[43]||(t[43]=s("",6)),o("div",_,[t[17]||(t[17]=o("p",{class:"custom-block-title"},"示例",-1)),a(c,null,{default:d(()=>[a(r,{label:"跑团群"},{default:d(()=>[a(l,{messages:[{username:"PL",avatar:"user1",content:"我要对这个 NPC 使用心理学"},{username:"KP",avatar:"user3",content:"可以",send:!0},{username:"KP",avatar:"user3",content:".rah 心理学 @PL",send:!0},{content:`由<KP>代骰:
+<PL>悄悄进行了一项心理学检定`}]})]),_:1}),a(r,{label:"KP 收到的私聊信息"},{default:d(()=>[a(l,{messages:[{content:`来自群<跑团群>(群号)的暗中检定:
+<PL>的"心理学"检定结果为：D100=70/70 成功`}]})]),_:1})]),_:1})]),t[44]||(t[44]=s("",6)),o("div",x,[t[18]||(t[18]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".rav 侦查+10 @Szz",send:!0},{content:`对抗检定:
+木落 侦查+10-> 属性值:35 判定值:3 极难成功
+Szz 侦查+10-> 属性值:90 判定值:23 困难成功
+木落胜出！`}]})]),t[45]||(t[45]=o("h3",{id:"使用不同技能对抗",tabindex:"-1"},[e("使用不同技能对抗 "),o("a",{class:"header-anchor",href:"#使用不同技能对抗","aria-label":'Permalink to "使用不同技能对抗"'},"​")],-1)),t[46]||(t[46]=o("p",null,[o("code",null,".rav <自己的属性表达式> <对手的属性表达式> @对手")],-1)),t[47]||(t[47]=o("p",null,"使用自己的一个属性/技能对抗对手的另一属性/技能，或者相同属性/技能应用不同调整值。",-1)),o("div",S,[t[19]||(t[19]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".rav 潜行,b 侦查 @Szz",send:!0},{content:`对抗检定:
+木落 潜行-> 属性值:20 判定值:7[[D100=97, 奖励 0]] 困难成功
+Szz 侦查-> 属性值:80 判定值:28 困难成功
+平手！请自行根据场景(如属性比较、攻击对反击，攻击对闪避)做出判断`}]})]),t[48]||(t[48]=s("",9)),o("div",C,[t[20]||(t[20]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".sc 1/1D4+1",send:!0},{content:`<木落>的理智检定:
+d100=9/60 极难成功
+理智变化: 60 ➯ 59 (扣除1=1点)`}]})]),t[49]||(t[49]=s("",8)),o("div",z,[t[21]||(t[21]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".sc 0/1 @Szz",send:!0},{content:`由<木落>代骰：
+<Szz>的理智检定:
+d100=82/60 失败！
+理智变化: 60 ➯ 59 (扣除1=1点)`}]})]),t[50]||(t[50]=s("",26)),o("div",A,[t[22]||(t[22]=o("p",{class:"custom-block-title"},"示例",-1)),a(l,{messages:[{content:".coc 2",send:!0},{content:`<木落>的七版COC人物作成:
+力量:65 敏捷:80 意志:55
+体质:50 外貌:45 教育:90
+体型:70 智力:75
+HP:12 幸运:45 [530/575]
+
+力量:40 敏捷:60 意志:65
+体质:60 外貌:75 教育:60
+体型:50 智力:75
+HP:11 幸运:55 [485/540]`}]})]),t[51]||(t[51]=s("",12))])}const K=p(h,[["render",D]]);export{y as __pageData,K as default};
