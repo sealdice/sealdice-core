@@ -1,0 +1,7 @@
+node_modules
+
+/.idea
+!/.idea/**/codeStyleConfig.xml
+!/.idea/**/Project.xml
+
+/.task/

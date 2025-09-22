@@ -1,0 +1,5 @@
+packages:
+  - ui
+  - manual
+  - story-painter
+  - verify

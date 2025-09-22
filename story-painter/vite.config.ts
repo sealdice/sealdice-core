@@ -32,6 +32,9 @@ export default defineConfig({
     //   targets: ['defaults', 'not IE 11']
     // })
   ],
+  build: {
+    sourcemap: false,
+  },
   server: {
     proxy: {
 
