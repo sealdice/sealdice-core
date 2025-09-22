@@ -34,7 +34,7 @@
     "grapheme-splitter": "^1.0.4",
     "hyparquet": "^1.15.0",
     "hyparquet-compressors": "^1.1.1",
-    "hyperparam": "^0.2.49",
+    "hyperparam": "^0.3.19",
     "lodash-es": "^4.17.21",
     "pinia": "^3.0.3",
     "randomcolor": "^0.6.2",
