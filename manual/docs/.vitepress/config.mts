@@ -4,7 +4,7 @@ import { tabsMarkdownPlugin } from "vitepress-plugin-tabs"
 import { withMermaid } from "vitepress-plugin-mermaid"
 import { theme } from "./theme"
 
-const base: any = process.env.BASE_PATH ?? "/sealdice-manual-next/";
+const base: any = process.env.BASE_PATH ?? "/sealdice-core/";
 
 // https://vitepress.dev/reference/site-config
 export default withMermaid(defineConfig({

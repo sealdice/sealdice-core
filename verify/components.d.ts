@@ -23,6 +23,8 @@ declare module 'vue' {
     NSwitch: typeof import('naive-ui')['NSwitch']
     NTag: typeof import('naive-ui')['NTag']
     NText: typeof import('naive-ui')['NText']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
     VerifyControl: typeof import('./src/components/VerifyControl.vue')['default']
     VerifyHeader: typeof import('./src/components/VerifyHeader.vue')['default']
     VerifyInput: typeof import('./src/components/VerifyInput.vue')['default']

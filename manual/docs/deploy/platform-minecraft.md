@@ -121,7 +121,7 @@ eula=true  # 请把该项修改为 true
 
 ### 放入 `sealdice-minecraft` 插件
 
-前往 [Sealdice Minecraft GitHub Release](https://github.com/sealdice/sealdice-minecraft/releases) 下载 `jar` 文件放进 `plugins` 文件夹。
+前往 [SealDice Minecraft GitHub Release](https://github.com/sealdice/sealdice-minecraft/releases) 下载 `jar` 文件放进 `plugins` 文件夹。
 
 再次运行脚本 `start.bat` 以启动服务器。
 

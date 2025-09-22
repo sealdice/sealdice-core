@@ -1,0 +1,49 @@
+{
+  "folders": [
+    {
+      "name": "sealdice",
+      "path": "../"
+    },
+    {
+      "name": "core",
+      "path": "../core"
+    },
+    {
+      "name": "ui",
+      "path": "../ui"
+    },
+    {
+      "name": "android",
+      "path": "../android"
+    },
+    {
+      "name": "builtins",
+      "path": "../builtins"
+    },
+    {
+      "name": "manual",
+      "path": "../manual"
+    },
+    {
+      "name": "story-painter",
+      "path": "../story-painter"
+    },
+    {
+      "name": "verify",
+      "path": "../verify"
+    },
+  ],
+  "settings": {
+    "files.exclude": {
+      "node_modules/": true,
+      "dist/": true,
+    },
+  },
+  "extensions": {
+    "recommendations": [
+      "davidanson.vscode-markdownlint",
+      "huacnlee.autocorrect",
+      "task.vscode-task",
+    ],
+  },
+}

@@ -27,7 +27,7 @@ export const decode = (src: string): Uint8Array => {
       continue
     }
     residue = (residue + 11) % 8
-    const c = src[si].charCodeAt(0)
+    const c = src[si]?.charCodeAt(0) ?? 0
     let newBitsCount = 0
     let newBits = decodeMap.get(c)
     if (newBits === undefined) {

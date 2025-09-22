@@ -1,0 +1,622 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - .github/**
+      - '!.github/workflows/build.yml'
+      - '!.github/patch_go/**'
+      - .idea
+      - .vscode
+      - builtins/**
+      - manual/**
+      - story-painter/**
+      - verify/**
+      - README.md
+      - taskfile.yml
+  workflow_dispatch:
+
+env:
+  ANDROID_NDK_VERSION: r25c
+  APP_CHANNEL: dev  # stable, dev
+  COMMIT_ID: ${{ github.sha }}
+  NT_SIGN_URL: ${{ secrets.NT_SIGN_URL }}
+  SEAL_TRUSTED_PRIVATE_KEY: ${{ secrets.SEAL_TRUSTED_PRIVATE_KEY }}
+
+jobs:
+  build-and-pack-ui:
+    name: Build And Pack UI
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    # Set Project Env
+    - name: Get current time
+      uses: Kaven-Universe/github-action-current-date-time@v1
+      id: currentTime
+      with:
+        format: YYYYMMDD
+        timezone-offset: -480
+    - name: Set Project Env
+      env:
+        CUR_TIME: ${{ steps.currentTime.outputs.time }}
+        COMMIT_ID: ${{ github.sha }}
+      run: |
+        echo "PROJECT_VERSION=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+
+    - name: Restore UI Dist
+      id: restore-ui-dist
+      uses: actions/cache/restore@v4
+      with:
+        path: ui/dist
+        key: sealdice-ui-${{ hashFiles('ui/**', '!ui/dist/**', '!ui/node_modules/**') }}
+    - uses: pnpm/action-setup@v4
+      if: steps.restore-ui-dist.outputs.cache-hit != 'true'
+      with:
+        version: 10
+        run_install: false
+    - uses: actions/setup-node@v5
+      if: steps.restore-ui-dist.outputs.cache-hit != 'true'
+      with:
+        node-version: 22
+        cache: 'pnpm'
+    - name: Install pnpm dependencies
+      if: steps.restore-ui-dist.outputs.cache-hit != 'true'
+      run: pnpm install
+    - name: Build UI
+      if: steps.restore-ui-dist.outputs.cache-hit != 'true'
+      run: pnpm run build:ui
+    - name: Cache UI Dist
+      if: steps.restore-ui-dist.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ui/dist
+        key: sealdice-ui-${{ hashFiles('ui/**', '!ui/dist/**', '!ui/node_modules/**') }}
+
+    - name: Compress
+      run: |
+        cd ui/dist
+        find . -type f
+        zip -r ../sealdice-ui_${PROJECT_VERSION}.zip .
+
+    - name: Upload UI Dist
+      uses: actions/upload-artifact@v4
+      with:
+        name: sealdice-ui_${{ env.PROJECT_VERSION }}
+        path: ui/sealdice-ui_${{ env.PROJECT_VERSION }}.zip
+
+  build-core:
+    name: Build Core
+    runs-on: ${{ matrix.goos == 'darwin' && 'macos-latest' || 'ubuntu-latest' }}
+    needs: build-and-pack-ui
+    strategy:
+      matrix:
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64, android/arm64
+        goos: [ linux, windows, darwin ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: darwin
+            goarch: '386'
+        include:
+          - goos: android
+            goarch: arm64
+      fail-fast: true
+    steps:
+      - uses: actions/checkout@v5
+
+      # Restore UI Dist
+      - name: Restore UI Dist
+        id: restore-ui-dist
+        uses: actions/cache/restore@v4
+        with:
+          path: ui/dist
+          key: sealdice-ui-${{ hashFiles('ui/**', '!ui/dist/**', '!ui/node_modules/**') }}
+      - name: Move UI Dist
+        run: mv ui/dist core/static/frontend
+
+      # Prepare Go Env
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: 'core/go.mod'
+          cache-dependency-path: |
+            core/go.sum
+      ## Install Cgo Cross-compiler
+      - name: Install Cgo Cross-compiler for Windows
+        if: matrix.goos == 'windows'
+        run: sudo apt-get -y install mingw-w64
+      - name: Install Cgo Cross-compiler for Linux Amd64 Musl
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: sudo apt-get -y install musl-tools
+      - name: Install Cgo Cross-compiler for Linux Arm64 Musl
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
+        run: |
+          wget https://github.com/sealdice/tooolchain/releases/download/1/aarch64-linux-musl-cross.tgz;
+          tar zxf aarch64-linux-musl-cross.tgz;
+      - name: Setup Android NDK
+        id: setup-ndk
+        if: matrix.goos == 'android'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          link-to-sdk: true
+          local-cache: false
+      ## Revert Golang1.25 commit for Windows7/8
+      # copy from https://github.com/MetaCubeX/mihomo/blob/dbb002a5ba2e0e79158fd6e3264ac44aedf0bf72/.github/workflows/build.yml#L157-L173
+      # modify from https://github.com/restic/restic/issues/4636#issuecomment-1896455557
+      # this patch file only works on golang1.25.x
+      # that means after golang1.25 release it must be changed
+      # revert:
+      # 693def151adff1af707d82d28f55dba81ceb08e1: "crypto/rand,runtime: switch RtlGenRandom for ProcessPrng"
+      # 7c1157f9544922e96945196b47b95664b1e39108: "net: remove sysSocket fallback for Windows 7"
+      # 48042aa09c2f878c4faa576948b07fe625c4707a: "syscall: remove Windows 7 console handle workaround"
+      # a17d959debdb04cd550016a3501dd09d50cd62e7: "runtime: always use LoadLibraryEx to load system libraries"
+      # 534d6a1a9c81b25bdad1052e736b2f072caa3903: "crypto/rand: prevent Read argument from escaping to heap"
+      # see:https://github.com/XTLS/go-win7/blob/dc94f3421137d9a6327b281dd401c2c489b04cbb/README-zho-hans.md
+      - name: Revert Golang1.25 commit for Windows7/8
+        if: ${{ matrix.goos == 'windows' }}
+        run: |
+          cd $(go env GOROOT)
+          patch --verbose -p 1 < $GITHUB_WORKSPACE/.github/patch_go/unified-1-25-patch.diff
+      ## Install Go Dependencies
+      - name: Go install
+        working-directory: ./core
+        run: |
+          go mod tidy
+          go get .
+
+      # Set Project Env
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Set Project Env
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          COMMIT_ID: ${{ github.sha }}
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          echo "CUR_TIME=${CUR_TIME}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_DOT=${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
+          if [ APP_CHANNEL = 'stable' ]; then
+            echo "PROJECT_VERSION_PRERELEASE=" >> $GITHUB_ENV;
+          else
+            echo "PROJECT_VERSION_PRERELEASE=-${APP_CHANNEL}" >> $GITHUB_ENV;
+          fi
+          if [ $GOOS = 'windows' ]; then
+            echo "BINARY_NAME=sealdice-core.exe" >> $GITHUB_ENV;
+          else
+            echo "BINARY_NAME=sealdice-core" >> $GITHUB_ENV;
+          fi
+          if [ $GOOS = 'windows' ] && [ $GOARCH = '386' ]; then
+            echo "CC=i686-w64-mingw32-gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'windows' ] && [ $GOARCH = 'amd64' ]; then
+            echo "CC=x86_64-w64-mingw32-gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'linux' ] && [ $GOARCH = 'amd64' ]; then
+            echo "CC=musl-gcc" >> $GITHUB_ENV;
+          elif [ $GOOS = 'linux' ] && [ $GOARCH = 'arm64' ]; then
+            echo "CC=$(readlink -f ./aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc)" >> $GITHUB_ENV;
+          elif [ $GOOS = 'android' ]; then
+            echo "CC=${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang" >> $GITHUB_ENV;
+          fi
+
+      # Build Core Binary
+      - name: Build Core Binary
+        if: matrix.goos != 'linux' && matrix.goos != 'darwin'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO111MODULE: on
+          CGO_ENABLED: 1
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+        working-directory: ./core
+        run: go build -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=${PROJECT_VERSION_PRERELEASE} -X sealdice-core/dice.VERSION_BUILD_METADATA=+${PROJECT_VERSION_DOT} -X sealdice-core/dice.APP_CHANNEL=${APP_CHANNEL} -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+      - name: Build Core Binary (linux musl)
+        if: matrix.goos == 'linux'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO111MODULE: on
+          CGO_ENABLED: 1
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -H=windowsgui
+        working-directory: ./core
+        run: go build -tags musl -o "output/$BINARY_NAME" -trimpath -ldflags "-s -w -linkmode external -extldflags '-static' -X sealdice-core/dice.VERSION_PRERELEASE=${PROJECT_VERSION_PRERELEASE} -X sealdice-core/dice.VERSION_BUILD_METADATA=+${PROJECT_VERSION_DOT} -X sealdice-core/dice.APP_CHANNEL=${APP_CHANNEL} -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+      - name: Build Core Binary (darwin)
+        if: matrix.goos == 'darwin'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GO111MODULE: on
+          CGO_ENABLED: 1
+          CGO_FLAGS: -Werror=unused-variable -Werror=implicit-function-declaration -O2 -mmacosx-version-min=10.12
+          CGO_CFLAGS: -mmacosx-version-min=10.12
+        working-directory: ./core
+        run: go build -o "output/sealdice-core" -trimpath -ldflags "-s -w -X sealdice-core/dice.VERSION_PRERELEASE=${PROJECT_VERSION_PRERELEASE} -X sealdice-core/dice.VERSION_BUILD_METADATA=+${PROJECT_VERSION_DOT} -X sealdice-core/dice.APP_CHANNEL=${APP_CHANNEL} -X 'sealdice-core/dice.DefaultSignUrl=${NT_SIGN_URL}' -X 'sealdice-core/dice.SealTrustedClientPrivateKey=${SEAL_TRUSTED_PRIVATE_KEY}'" .
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v3
+        if: matrix.goos == 'windows' || matrix.goos == 'linux'
+        with:
+          version: latest
+          files: ./core/output/${{ env.BINARY_NAME }}
+          args: -9 -fq
+      - name: Upload Core
+        uses: actions/upload-artifact@v4
+        with:
+          name: core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ./core/output
+
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    needs: build-core
+    strategy:
+      matrix:
+        # target: linux/amd64, linux/arm64, windows/amd64, darwin/amd64, darwin/arm64
+        goos: [ linux, windows, darwin ]
+        goarch: [ '386', amd64, arm64 ]
+        exclude:
+          - goos: linux
+            goarch: '386'
+          - goos: windows
+            goarch: '386'
+          - goos: windows
+            goarch: arm64
+          - goos: darwin
+            goarch: '386'
+      fail-fast: true
+    steps:
+      - uses: actions/checkout@v5
+
+      # Set Project Env
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Set Project Env
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          COMMIT_ID: ${{ github.sha }}
+        run: |
+          echo "CUR_TIME=${CUR_TIME}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_DOT=${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
+          
+          if [ $GOOS = 'windows' ] && [ $GOARCH = '386' ]; then
+            echo "LAGRANGE_SOURCE_FILE=win-x86" >> $GITHUB_ENV;
+          elif [ $GOOS = 'windows' ] && [ $GOARCH = 'amd64' ]; then
+            echo "LAGRANGE_SOURCE_FILE=win-x64" >> $GITHUB_ENV;
+          elif [ $GOOS = 'linux' ] && [ $GOARCH = 'amd64' ]; then
+            echo "LAGRANGE_SOURCE_FILE=linux-x64" >> $GITHUB_ENV;
+          elif [ $GOOS = 'darwin' ] && [ $GOARCH = 'amd64' ]; then
+            echo "LAGRANGE_SOURCE_FILE=osx-x64" >> $GITHUB_ENV;
+          elif [ $GOOS = 'darwin' ] && [ $GOARCH = 'arm64' ]; then
+            echo "LAGRANGE_SOURCE_FILE=osx-arm64" >> $GITHUB_ENV;
+          else
+            echo "LAGRANGE_SOURCE_FILE=$GOOS-$GOARCH" >> $GITHUB_ENV;
+          fi
+
+      - name: Get Core
+        uses: actions/download-artifact@v4
+        with:
+          name: core_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ./temp/
+
+      - name: Download Lagrange & Lagrange-Gocq
+        run: |
+          mkdir download
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_${{ env.LAGRANGE_SOURCE_FILE }}_8.0.zip?v=2 > download/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          ls ./download/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          file ./download/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_${{ matrix.goos }}_${{ matrix.goarch }}.zip > download/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          ls ./download/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+          file ./download/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip
+
+          mkdir -p ./temp/lagrange
+          unzip ./download/Lagrange.OneBot.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./temp/lagrange/
+          unzip ./download/lagrange-gocq.${{ matrix.goos }}-${{ matrix.goarch }}.zip -d ./temp/lagrange/
+
+      - name: Set Execute Attribute
+        if: matrix.goos != 'windows'
+        run: |
+          chmod +x ./temp/sealdice-core
+          chmod +x ./temp/lagrange/Lagrange.OneBot
+          chmod +x ./temp/lagrange/go-cqhttp
+
+      - name: Move Resources
+        run: |
+          mkdir -p ./temp/data
+          mv builtins/data ./temp/
+
+      - name: Compress (default)
+        if: matrix.goos != 'windows'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd ./temp && find . -type f | cut -c 3- | tar -zcvf ../sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz -T -;
+          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.tar.gz" >> $GITHUB_ENV;
+      - name: Compress (windows)
+        if: matrix.goos == 'windows'
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd ./temp
+          find . -type f
+          zip -r ../sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip .
+          echo "DIST=sealdice_${PROJECT_VERSION}_${GOOS}_${GOARCH}.zip" >> $GITHUB_ENV;
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: ${{ env.DIST }}
+
+  pack-android-apk:
+    name: Pack Android Apk
+    runs-on: ubuntu-latest
+    needs: build-core
+    steps:
+      - uses: actions/checkout@v5
+
+      # Set Project Env
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Set Project Env
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          COMMIT_ID: ${{ github.sha }}
+        run: |
+          echo "CUR_TIME=${CUR_TIME}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_DOT=${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
+
+      - name: Get Core-android
+        uses: actions/download-artifact@v4
+        with:
+          name: core_${{ env.PROJECT_VERSION }}_android_arm64
+          path: ./android/app/src/main/assets/sealdice
+
+      - name: Get App-Runner
+        run: |
+          curl https://d1.sealdice.com/lagrange/app-runner-std-arm64.tar.gz > ./android/app/src/main/assets/app-runner-arm64.tar.gz
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Inject ARCA Config
+        working-directory: ./android/app/src/main/java/com/sealdice/dice
+        if: ${{ github.repository_owner == 'sealdice' }}
+        run: |
+          mkdir -p ./secrets;
+          echo "package com.sealdice.dice.secrets;\n" > ./secrets/Auth.java;
+          echo "public class Auth {\n" >> ./secrets/Auth.java;
+          echo "public static String ACRA_URL = \"${{ secrets.ACRA_URL }}\";\n" >> ./secrets/Auth.java;
+          echo "public static String ACRA_BASIC_AUTH = \"${{ secrets.ACRA_BASIC_AUTH }}\";\n" >> ./secrets/Auth.java;
+          echo "public static String ACRA_LOGIN_PASS = \"${{ secrets.ACRA_LOGIN_PASS }}\";\n" >> ./secrets/Auth.java;
+          echo "}\n" >> ./secrets/Auth.java;
+      - name: Remove ARCA Config
+        working-directory: ./android/app/src/main/java/com/sealdice/dice
+        if: ${{ github.repository_owner != 'sealdice' }}
+        run: |
+          sed -i '/secrets.Auth.*/d' MyApplication.kt
+          sed -i '/httpSender {/,/}/d' MyApplication.kt
+
+      - name: Set Version
+        working-directory: ./android/app
+        run: |
+          sed -i 's/versionName ".*"/versionName "${{ env.APP_CHANNEL }}-${{ env.PROJECT_VERSION_DOT }}"/g' build.gradle
+
+      - name: Move Resources
+        run: |
+          mv builtins/data ./android/app/src/main/assets/sealdice/
+
+      - name: Download Lagrange & Lagrange-Gocq
+        run: |
+          mkdir download
+          curl https://d1.sealdice.com/lagrange/0.0.6/Lagrange.OneBot_linux-musl-arm64_8.0.zip?v=2 > download/Lagrange.OneBot.android-arm64.zip
+          ls ./download/Lagrange.OneBot.android-arm64.zip
+          file ./download/Lagrange.OneBot.android-arm64.zip
+          curl https://d1.sealdice.com/go-cqhttp-largrange/0.0.2/lagrange-gocq_android_arm64.zip > download/lagrange-gocq.android-arm64.zip
+          ls ./download/lagrange-gocq.android-arm64.zip
+          file ./download/lagrange-gocq.android-arm64.zip
+
+          mkdir -p ./temp/lagrange
+          unzip ./download/Lagrange.OneBot.android-arm64.zip -d ./android/app/src/main/assets/sealdice/lagrange/
+          unzip ./download/lagrange-gocq.android-arm64.zip -d ./android/app/src/main/assets/sealdice/lagrange/
+
+      - name: Build Apk
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          bash ./gradlew assembleDebug --stacktrace
+
+      - name: Sign Android release
+        uses: r0adkll/sign-android-release@v1
+        # ID used to access action output
+        id: sign_app
+        if: ${{ github.repository_owner == 'sealdice' }}
+        with:
+          releaseDirectory: ./android/app/build/outputs/apk/debug
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          # override default build-tools version (29.0.3) -- optional
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Rename Apk
+        working-directory: ./android
+        env:
+          APK_NAME: ${{ github.repository_owner == 'sealdice' && 'app-debug-signed' || 'app-debug' }}
+        run: |
+          mv ./app/build/outputs/apk/debug/${{ env.APK_NAME }}.apk ./app/build/outputs/apk/debug/sealdice-android_${{ env.PROJECT_VERSION }}_arm64.APK
+
+      - name: Upload Apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: sealdice-android_${{ env.PROJECT_VERSION }}_android_arm64
+          path: ./android/app/build/outputs/apk/debug/sealdice-android_${{ env.PROJECT_VERSION }}_arm64.APK
+  
+  prerelease:
+    name: Prerelease
+    runs-on: ubuntu-latest
+    # if: ${{ github.repository_owner == 'sealdice' }}
+    needs:
+      - pack
+      - pack-android-apk
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get Files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sealdice*
+          path: ./dist/
+          merge-multiple: true
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Update Prerelease tag
+        run: |
+          git tag -f pre-release
+          git push -f origin pre-release
+      - name: Update Prerelease
+        uses: ncipollo/release-action@v1
+        with:
+          tag: pre-release
+          name: 'Latest Dev Build ${{ steps.currentTime.outputs.time }}'
+          prerelease: true
+          body: '> ⚠️注意️️：这是自动构建的预发布版本，非正式版本！'
+          artifacts: | 
+            dist/sealdice*
+          allowUpdates: true
+          removeArtifacts: true
+
+      # 可以使用，但因为文件名都是 sealdice_dev-aea89ca_20230919_linux_arm64.tar.gz
+      # 这种形式 有一点捉急。就先屏蔽了
+      # - uses: ryand56/r2-upload-action@latest
+      #   continue-on-error: true
+      #   with:
+      #     r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+      #     r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+      #     r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      #     r2-bucket: ${{ secrets.R2_BUCKET }}
+      #     source-dir: ./dist
+      #     destination-dir: ./dev
+
+  docker-push:
+    name: Docker Push
+    runs-on: ubuntu-latest
+    needs:
+      - pack
+    if: ${{ github.repository_owner == 'sealdice' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Get current time
+        uses: Kaven-Universe/github-action-current-date-time@v1
+        id: currentTime
+        with:
+          format: YYYYMMDD
+          timezone-offset: -480
+      - name: Set Env
+        env:
+          CUR_TIME: ${{ steps.currentTime.outputs.time }}
+          COMMIT_ID: ${{ github.sha }}
+        run: |
+          echo "CUR_TIME=${CUR_TIME}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION=${CUR_TIME}-${COMMIT_ID::7}" >> $GITHUB_ENV;
+          echo "PROJECT_VERSION_DOT=${CUR_TIME}.${COMMIT_ID::7}" >> $GITHUB_ENV;
+
+      - name: Get Amd64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_linux_amd64
+          path: ./amd64/
+      - name: Get Arm64 Files
+        uses: actions/download-artifact@v4
+        with:
+          name: sealdice_${{ env.PROJECT_VERSION }}_linux_arm64
+          path: ./arm64/
+
+      - name: Chmod
+        run:
+          chmod +x ./amd64/sealdice-core && chmod +x ./arm64/sealdice-core
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/sealdice
+          tags: |
+            type=edge
+            type=sha,event=branch
+            type=ref,event=tag
+      - name: Docker Build
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./scripts/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            AUTHOR=${{ github.repository_owner }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  clear-temp-artifact:
+    name: Clear Temp Artifacts
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - prerelease
+      - docker-push
+    permissions:
+      actions: write
+    steps:
+      - uses: geekyeggo/delete-artifact@v4
+        with:
+          token: ${{ github.token }}
+          name: |
+            core*

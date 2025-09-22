@@ -1,0 +1,162 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  CORE_DIR: core
+  UI_DIR: ui
+  ANDROID_DIR: android
+  MANUAL_DIR: manual
+  STORY_PAINTER_DIR: story-painter
+  VERIFY_DIR: verify
+
+  CORE_BINARY_NAME: sealdice-core
+  CORE_BINARY_PATH: "{{.CORE_DIR}}/{{.BACKEND_BINARY_NAME}}"
+  UI_BUILD_DIR: dist
+
+tasks:
+  default:
+    desc: "显示所有可用任务"
+    cmds:
+      - task --list-all
+    silent: true
+
+  doctor:
+    desc: "检测必需的开发工具是否已安装"
+    summary: |
+      此命令会检查以下工具是否在 PATH 中可用：
+        - git
+        - go
+        - golangci-lint
+        - pnpm
+        # - lefthook
+    cmds:
+      # 暂时先不引入 lefthook
+      # - defer: { task: doctor:lefthook, silent: true }
+      - defer: { task: doctor:pnpm, silent: true }
+      - defer: { task: doctor:golangci-lint, silent: true }
+      - defer: { task: doctor:go, silent: true }
+      - defer: { task: doctor:git, silent: true }
+
+  doctor:git:
+    internal: true
+    preconditions:
+      - sh: "command -v git"
+        msg: |
+          🔴 git 未安装！
+    cmds:
+      - cmd: 'echo "🟢 git 已安装 ($(git version))"'
+
+  doctor:go:
+    internal: true
+    preconditions:
+      - sh: "command -v go"
+        msg: |
+          🔴 go 未安装！请参考 https://go.dev/doc/install 进行安装
+    cmds:
+      - cmd: 'echo "🟢 go 已安装 ($(go version))"'
+
+  doctor:golangci-lint:
+    internal: true
+    preconditions:
+      - sh: "command -v golangci-lint"
+        msg: |
+          🔴 golangci-lint 未安装！请参考 https://golangci-lint.run/docs/welcome/install/ 进行安装
+        silent: true
+    cmds:
+      - cmd: 'echo "🟢 golangci-lint 已安装 ($(golangci-lint version))"'
+
+  doctor:pnpm:
+    internal: true
+    preconditions:
+      - sh: "command -v pnpm"
+        msg: |
+          🔴 pnpm 未安装！请参考 https://pnpm.io/zh/installation 进行安装
+    cmds:
+      - cmd: 'echo "🟢 pnpm 已安装 (version: v$(pnpm --version))"'
+  
+  doctor:lefthook:
+    internal: true
+    preconditions:
+      - sh: "command -v lefthook"
+        msg: |
+          🔴 lefthook 未安装！请参考 https://lefthook.dev/installation/ 进行安装
+    cmds:
+      - cmd: 'echo "🟢 lefthook 已安装 (version: v$(lefthook version))"'
+
+  install:
+    desc: "安装项目依赖"
+    cmds:
+      - task: install:go
+      - task: install:pnpm
+
+  install:go:
+    desc: "安装 go 依赖"
+    dir: "{{.CORE_DIR}}"
+    sources:
+      - go.mod
+      - go.sum
+    cmds:
+      - go mod tidy
+      - go mod download
+    
+  install:pnpm:
+    desc: "安装 pnpm 依赖"
+    sources:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+    generates:
+      - node_modules/**
+    cmds:
+      - pnpm install
+
+  dev:core:
+    desc: "启动 core 开发进程"
+    deps: [ install:go, build:ui ]
+    dir: "{{.CORE_DIR}}"
+    cmds:
+      - go run {{.CORE_BINARY_NAME}}
+
+  dev:ui:
+    desc: "启动 ui 开发进程"
+    deps: [ install:pnpm ]
+    cmds:
+      - pnpm run dev:ui
+
+  dev:manual:
+    desc: "启动 manual 开发进程"
+    deps: [ install:pnpm ]
+    cmds:
+      - pnpm run dev:manual
+
+  dev:story-painter:
+    desc: "启动 story-painter 开发进程"
+    deps: [ install:pnpm ]
+    cmds:
+      - pnpm run dev:story-painter
+  
+  dev:verify:
+    desc: "启动 verify 开发进程"
+    deps: [ install:pnpm ]
+    cmds:
+      - pnpm run dev:verify
+
+  build:ui:
+    desc: "构建 ui 静态资源"
+    cmds:
+      - pnpm build:ui
+      - rm -rf core/static/frontend
+      - mkdir -p core/static/frontend
+      - cp -r ui/dist/ core/static/frontend/
+    sources:
+      - ui/src/**
+      - ui/public/**
+      - ui/index.html
+      - ui/postcss.config.*
+      - ui/package.json
+      - ui/tsconfig.**
+      - ui/vite.config.*
+    generates:
+      - ui/dist/**
+      - core/static/frontend/**

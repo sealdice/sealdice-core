@@ -1,0 +1,51 @@
+name: Build Manual
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - manual/**
+  workflow_dispatch:
+
+jobs:
+  build-manual:
+    name: Build Manual
+    runs-on: ubuntu-latest
+    if: (github.repository_owner == 'sealdice' && github.ref_name == 'master') || github.repository_owner != 'sealdice'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Pnpm install
+        run: pnpm install
+      - name: Build Manual VuePress site
+        run: pnpm run build:manual
+      - name: Deploy to GitHub Pages
+        uses: crazy-max/ghaction-github-pages@v4
+        with:
+          target_branch: manual/gh-pages
+          build_dir: manual/docs/.vitepress/dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push changes
+        if: github.repository_owner == 'sealdice' && github.event_name != 'pull_request'
+        env:
+          KEY: ${{ secrets.KEY }}
+          URL: ${{ secrets.URL }}
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$KEY" > ~/.ssh/id_rsa
+          sudo chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+          git push "$URL" manual/gh-pages -f
