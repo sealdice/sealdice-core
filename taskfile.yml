@@ -74,7 +74,7 @@ tasks:
           🔴 pnpm 未安装！请参考 https://pnpm.io/zh/installation 进行安装
     cmds:
       - cmd: 'echo "🟢 pnpm 已安装 (version: v$(pnpm --version))"'
-  
+
   doctor:lefthook:
     internal: true
     preconditions:
@@ -99,7 +99,7 @@ tasks:
     cmds:
       - go mod tidy
       - go mod download
-    
+
   install:pnpm:
     desc: "安装 pnpm 依赖"
     sources:
@@ -135,7 +135,7 @@ tasks:
     deps: [ install:pnpm ]
     cmds:
       - pnpm run dev:story-painter
-  
+
   dev:verify:
     desc: "启动 verify 开发进程"
     deps: [ install:pnpm ]
@@ -148,7 +148,7 @@ tasks:
       - pnpm build:ui
       - rm -rf core/static/frontend
       - mkdir -p core/static/frontend
-      - cp -r ui/dist/ core/static/frontend/
+      - cp -r ui/dist/* core/static/frontend/
     sources:
       - ui/src/**
       - ui/public/**

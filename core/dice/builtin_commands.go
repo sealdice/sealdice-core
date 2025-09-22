@@ -1808,6 +1808,7 @@ func (d *Dice) registerCoreCommands() {
 		".pc rename <角色名|序号> <新角色名> // 将指定角色改名 \n" +
 		// ".ch group // 列出各群当前绑卡\n" +
 		".pc save [<角色名>] // [不绑卡]保存角色，角色名可省略\n" +
+		".pc update // [不绑卡]更新已经保存的角色，要求保存角色名和当前角色名一致\n" +
 		".pc load (<角色名> | <角色序号>) // [不绑卡]加载角色\n" +
 		".pc del/rm (<角色名> | <角色序号>) // 删除角色 角色序号可用pc list查询\n" +
 		"> 注: 海豹各群数据独立(多张空白卡)，单群游戏不需要存角色。"
@@ -1817,7 +1818,7 @@ func (d *Dice) registerCoreCommands() {
 		ShortHelp: helpCh,
 		Help:      "角色管理:\n" + helpCh,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) (result CmdExecuteResult) {
-			cmdArgs.ChopPrefixToArgsWith("list", "lst", "load", "save", "del", "rm", "new", "tag", "untagAll", "rename")
+			cmdArgs.ChopPrefixToArgsWith("list", "lst", "load", "save", "update", "del", "rm", "new", "tag", "untagAll", "rename")
 			val1 := cmdArgs.GetArgN(1)
 			am := d.AttrsManager
 
@@ -2048,6 +2049,26 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					ReplyToSender(ctx, msg, "此角色名已存在")
 				}
+				return CmdExecuteResult{Matched: true, Solved: true}
+			case "update":
+				name := getNickname()
+				savedID, _ := am.CharIdGetByName(ctx.Player.UserID, name)
+				if savedID == "" {
+					ReplyToSender(ctx, msg, "此角色名不存在")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				attrsCurr := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
+				attrsSave := lo.Must(am.LoadById(savedID))
+
+				attrsSave.Clear()
+				attrsCurr.Range(func(key string, value *ds.VMValue) bool {
+					attrsSave.Store(key, value)
+					return true
+				})
+
+				VarSetValueStr(ctx, "$t角色名", name)
+				VarSetValueStr(ctx, "$t新角色名", fmt.Sprintf("<%s>", name))
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "untagAll":
 				var charId string
