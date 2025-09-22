@@ -18,7 +18,7 @@ require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
-	github.com/evanw/esbuild v0.25.9
+	github.com/evanw/esbuild v0.25.10
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
 	github.com/fy0/systray v1.2.2
