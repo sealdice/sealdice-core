@@ -39,7 +39,7 @@ require (
 	github.com/kardianos/service v1.2.4
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/lonelyevil/kook v0.0.31
-	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
+	github.com/lonelyevil/kook/log_adapter/plog v0.0.34
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/mattn/go-sqlite3 v1.14.32
