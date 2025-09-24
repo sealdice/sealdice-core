@@ -17,7 +17,6 @@ import (
 	"unsafe"
 
 	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
@@ -214,11 +213,10 @@ type Dice struct {
 	ConfigManager *ConfigManager `yaml:"-"`
 	Parent        *DiceManager   `yaml:"-"`
 
-	CocExtraRules    map[int]*CocRuleInfo   `json:"cocExtraRules" yaml:"-"`
-	Cron             *cron.Cron             `json:"-"             yaml:"-"`
-	AliveNoticeEntry cron.EntryID           `json:"-"             yaml:"-"`
-	JsPrinter        *PrinterFunc           `json:"-"             yaml:"-"`
-	JsRequire        *require.RequireModule `json:"-"             yaml:"-"`
+	CocExtraRules    map[int]*CocRuleInfo `json:"cocExtraRules" yaml:"-"`
+	Cron             *cron.Cron           `json:"-"             yaml:"-"`
+	AliveNoticeEntry cron.EntryID         `json:"-"             yaml:"-"`
+	JsPrinter        *PrinterFunc         `json:"-"             yaml:"-"`
 
 	// JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
 	ExtLoopManager   *JsLoopManager  `json:"-" yaml:"-"`
