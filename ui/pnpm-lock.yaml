@@ -8,9 +8,15 @@ importers:
 
   .:
     dependencies:
+      alova:
+        specifier: ^3.3.4
+        version: 3.3.4
       dayjs:
         specifier: ^1.11.18
         version: 1.11.18
+      es-toolkit:
+        specifier: ^1.39.10
+        version: 1.39.10
       filesize:
         specifier: ^11.0.13
         version: 11.0.13
@@ -1334,6 +1340,9 @@ packages:
 
   error-stack-parser-es@1.0.5:
     resolution: {integrity: sha512-5qucVt2XcuGMcEGgWI7i+yZpmpByQ8J1lHhcL7PwqCwu9FPP3VUXzT4ltHe5i2z9dePwEHcDVOAfSnHsOlCXRA==}
+
+  es-toolkit@1.39.10:
+    resolution: {integrity: sha512-E0iGnTtbDhkeczB0T+mxmoVlT4YNweEKBLq7oaU4p11mecdsZpNWOglI4895Vh4usbQ+LsJiuLuI2L0Vdmfm2w==}
 
   es6-promise@3.3.1:
     resolution: {integrity: sha512-SOp9Phqvqn7jtEUxPWdWfWoLmyt2VaJ6MpvP9Comy1MceMXqE6bxvaTu4iaxpYYPzhny28Lc+M87/c2cPK6lDg==}
@@ -3753,6 +3762,8 @@ snapshots:
   entities@4.5.0: {}
 
   error-stack-parser-es@1.0.5: {}
+
+  es-toolkit@1.39.10: {}
 
   es6-promise@3.3.1: {}
 
