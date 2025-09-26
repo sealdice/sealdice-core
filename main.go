@@ -595,10 +595,10 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	}))
 	mimePatch()
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
-		XSSProtection:         "1; mode=block",
-		ContentTypeNosniff:    "nosniff",
-		HSTSMaxAge:            3600,
-		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
+		XSSProtection:      "1; mode=block",
+		ContentTypeNosniff: "nosniff",
+		HSTSMaxAge:         3600,
+		// ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
 		// XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
 	// X-Content-Type-Options: nosniff
