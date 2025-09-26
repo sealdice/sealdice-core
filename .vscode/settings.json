@@ -15,5 +15,9 @@
   "go.formatFlags": [
     "fmt",
     "--stdin"
-  ]
+  ],
+  // 排除 ui 目录的文件监视，提升后端开发性能
+  "files.watcherExclude": {
+    "**/ui/**": true
+  }
 }
