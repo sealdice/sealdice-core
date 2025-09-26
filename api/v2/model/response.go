@@ -1,4 +1,4 @@
-package model
+package resp
 
 // ErrorResponse 基础错误响应结构
 type ErrorResponse struct {

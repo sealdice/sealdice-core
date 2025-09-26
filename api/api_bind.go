@@ -19,6 +19,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
 
+	v2 "sealdice-core/api/v2"
 	"sealdice-core/dice"
 )
 
@@ -540,7 +541,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	prefix := "/sd-api"
 
 	// 挂载 humaecho 到 echo 实例
-	_ = humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))
+	apier := humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))
+	v2.InitV2Router(apier, myDice)
 
 	e.GET(prefix+"/preInfo", preInfo)
 	e.GET(prefix+"/baseInfo", baseInfo)
