@@ -628,7 +628,6 @@ var signInfoJson string = `
         "url": "https://sign.lagrangecore.org/api/sign/30366"
       }
     ],
-    "selected": true
   },
   {
     "version": "39038",
