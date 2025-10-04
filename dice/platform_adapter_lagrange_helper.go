@@ -628,6 +628,37 @@ var signInfoJson string = `
         "url": "https://sign.lagrangecore.org/api/sign/30366"
       }
     ],
+  },
+  {
+    "version": "39038",
+    "appinfo": {
+      "AppClientVersion": 309038,
+      "AppId": 1600001615,
+      "AppIdQrCode": 537313942,
+      "CurrentVersion": "3.2.19-39038",
+      "Kernel": "Linux",
+      "MainSigMap": 169742560,
+      "MiscBitmap": 32764,
+      "NTLoginType": 1,
+      "Os": "Linux",
+      "PackageName": "com.tencent.qq",
+      "PtVersion": "2.0.0",
+      "SsoVersion": 19,
+      "SubAppId": 537313942,
+      "SubSigMap": 0,
+      "VendorOs": "linux",
+      "WtLoginSdk": "nt.wtlogin.0.0.1"
+    },
+	"servers": [
+      {
+        "name": "海豹",
+        "url": "https://lwxmagic.sealdice.com/api/sign/39038"
+      },
+	  {
+        "name": "Lagrange",
+        "url": "https://sign.lagrangecore.org/api/sign/39038"
+      }
+    ],
     "selected": true
   }
 ]
