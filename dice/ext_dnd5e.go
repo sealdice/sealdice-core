@@ -404,7 +404,11 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
 			mctx.DelegateText = ctx.DelegateText
-			mctx.Player.TempValueAlias = &_dnd5eTmpl.Alias
+			if ctx != nil && ctx.Dice != nil {
+				if baseTmpl, ok := ctx.Dice.GameSystemMap.Load("dnd5e"); ok && baseTmpl != nil {
+					mctx.SystemTemplate = baseTmpl
+				}
+			}
 			// 参数确认
 			val := cmdArgs.GetArgN(1)
 			switch val {
@@ -425,6 +429,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				mctx.CreateVmIfNotExists()
 				// 获取角色模板
 				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+				if tmpl != nil {
+					mctx.SystemTemplate = tmpl
+				}
 				// 初始化多轮检定结果保存数组
 				textList := make([]string, 0)
 				// 多轮检定判断
@@ -450,7 +457,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// 循环N轮
 				for range round {
 					// 执行预订的code
-					mctx.Eval(tmpl.PreloadCode, nil)
+					mctx.Eval(tmpl.InitScript, nil)
 					// 为rc设定属性豁免
 					mctx.setDndReadForVM(true)
 					// 准备要处理的函数，为了能够读取到 d20 的出目，先不加上加值
@@ -985,8 +992,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
-			mctx.Player.TempValueAlias = &tmpl.Alias // 防止找不到hpmax
+			tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+			if tmpl != nil {
+				mctx.SystemTemplate = tmpl
+			}
 
 			switch val {
 			case "":
@@ -1029,8 +1038,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
-			mctx.Player.TempValueAlias = &tmpl.Alias
+			tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+			if tmpl != nil {
+				mctx.SystemTemplate = tmpl
+			}
 
 			restText := cmdArgs.CleanArgs
 			re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-＋－])`)

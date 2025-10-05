@@ -100,7 +100,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if tmpl == nil {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			mctx.Player.TempValueAlias = &tmpl.Alias // 兼容性支持
+			// alias resolution now relies on the active system template set above
 
 			reBP := regexp.MustCompile(`^[bBpP(]`)
 			re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
@@ -1083,7 +1083,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			mctx.Player.TempValueAlias = &tmpl.Alias
+			mctx.SystemTemplate = tmpl
 
 			// 首先读取一个值
 			// 试图读取 /: 读到了，当前是成功值，转入读取单项流程，试图读取失败值
@@ -1365,8 +1365,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			tmpl := getCoc7CharTemplate()
-			ctx.Player.TempValueAlias = &tmpl.Alias
+			if ctx != nil && ctx.Dice != nil {
+				if tmpl, ok := ctx.Dice.GameSystemMap.Load("coc7"); ok && tmpl != nil {
+					ctx.SystemTemplate = tmpl
+				}
+			}
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{

@@ -475,9 +475,9 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 			}
 
-			mctx.Eval(tmpl.PreloadCode, nil)
+			mctx.Eval(tmpl.InitScript, nil)
 			if tmplShow != tmpl {
-				mctx.Eval(tmplShow.PreloadCode, nil)
+				mctx.Eval(tmplShow.InitScript, nil)
 			}
 
 			if soi.CommandSolve != nil {
@@ -753,7 +753,7 @@ func RegisterBuiltinExtExp(_ *Dice) {
 	// 	AutoActive: false, // 是否自动开启
 	// 	OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	// 		//p := getPlayerInfoBySender(session, msg)
-	// 		//p.TempValueAlias = &ac.Alias;
+	// 		// alias mapping handled via system template.
 	// 	},
 	// 	GetDescText: func(i *ExtInfo) string {
 	// 		return GetExtensionDesc(i)

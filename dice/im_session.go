@@ -239,11 +239,12 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 		}
 		// 返回这个单纯是为了不让st将其覆盖
 		// 这种情况属于卡片的规则模板被删除了
-		return &GameSystemTemplate{
+		tmpl := &GameSystemTemplate{
 			Name:     group.System,
 			FullName: "空白模板",
-			AliasMap: new(SyncMap[string, string]),
 		}
+		tmpl.Init()
+		return tmpl
 	}
 	// 没有system，查看扩展的启动情况
 	if group.ExtGetActive("coc7") != nil {
@@ -261,8 +262,8 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	blankTmpl := &GameSystemTemplate{
 		Name:     "空白模板",
 		FullName: "空白模板",
-		AliasMap: new(SyncMap[string, string]),
 	}
+	blankTmpl.Init()
 	return blankTmpl
 }
 
@@ -1737,7 +1738,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		// TODO: 注意一下这里使用群模板还是个人卡模板，目前群模板，可有情况特殊？
 		tmpl := ctx.SystemTemplate
 		if tmpl != nil {
-			ctx.Eval(tmpl.PreloadCode, nil)
+			ctx.Eval(tmpl.InitScript, nil)
 			if tmpl.Name == "dnd5e" {
 				// 这里面有buff机制的代码，所以需要加载
 				ctx.setDndReadForVM(false)
