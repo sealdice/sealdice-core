@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -31,7 +30,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"gopkg.in/elazarl/goproxy.v1"
-	"gopkg.in/yaml.v3"
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
@@ -510,8 +508,7 @@ func (d *Dice) JsInit() {
 		})
 		gameSystem := vm.NewObject()
 		_ = gameSystem.Set("newTemplate", func(data string) error {
-			tmpl := &GameSystemTemplate{}
-			err := json.Unmarshal([]byte(data), tmpl)
+			tmpl, err := loadGameSystemTemplateFromData([]byte(data), "json")
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}
@@ -522,8 +519,7 @@ func (d *Dice) JsInit() {
 			return nil
 		})
 		_ = gameSystem.Set("newTemplateByYaml", func(data string) error {
-			tmpl := &GameSystemTemplate{}
-			err := yaml.Unmarshal([]byte(data), tmpl)
+			tmpl, err := loadGameSystemTemplateFromData([]byte(data), "yaml")
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}

@@ -240,8 +240,10 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 		// 返回这个单纯是为了不让st将其覆盖
 		// 这种情况属于卡片的规则模板被删除了
 		tmpl := &GameSystemTemplate{
-			Name:     group.System,
-			FullName: "空白模板",
+			GameSystemTemplateV2: &GameSystemTemplateV2{
+				Name:     group.System,
+				FullName: "空白模板",
+			},
 		}
 		tmpl.Init()
 		return tmpl
@@ -260,8 +262,10 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	// 啥都没有，返回空，还是白卡？
 	// 返回个空白模板好了
 	blankTmpl := &GameSystemTemplate{
-		Name:     "空白模板",
-		FullName: "空白模板",
+		GameSystemTemplateV2: &GameSystemTemplateV2{
+			Name:     "空白模板",
+			FullName: "空白模板",
+		},
 	}
 	blankTmpl.Init()
 	return blankTmpl

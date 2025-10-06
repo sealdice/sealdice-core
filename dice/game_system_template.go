@@ -15,47 +15,49 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// GameTemplateAttrs keeps attribute defaults and computed expressions.
-type GameTemplateAttrs struct {
-	Defaults         map[string]int64  `yaml:"defaults"`
+// Attrs keeps attribute defaults and computed expressions.
+type Attrs struct {
+	Defaults         map[string]int    `yaml:"defaults"`
 	DefaultsComputed map[string]string `yaml:"defaultsComputed"`
 	DetailOverwrite  map[string]string `yaml:"detailOverwrite"`
+
+	DefaultsComputedReal map[string]*ds.VMValue `json:"-" yaml:"-"`
 }
 
 // Alias defines alias dictionary for attributes.
 type Alias map[string][]string
 
-// GameTemplateCommands wraps command-related configuration.
-type GameTemplateCommands struct {
-	Set GameTemplateSetConfig `yaml:"set"`
-	Sn  GameTemplateSnConfig  `yaml:"sn"`
-	St  GameTemplateStConfig  `yaml:"st"`
+// Commands wraps command-related configuration.
+type Commands struct {
+	Set SetConfig `yaml:"set"`
+	Sn  SnConfig  `yaml:"sn"`
+	St  StConfig  `yaml:"st"`
 }
 
-// GameTemplateSetConfig configures the set command.
-type GameTemplateSetConfig struct {
+// SetConfig configures the set command.
+type SetConfig struct {
 	DiceSideExpr string   `yaml:"diceSideExpr"`
 	EnableTip    string   `yaml:"enableTip"`
 	Keys         []string `yaml:"keys"`
 	RelatedExt   []string `yaml:"relatedExt"`
 }
 
-// GameTemplateSnConfig configures name templates.
-type GameTemplateSnConfig map[string]GameTemplateSnTemplate
+// SnConfig configures name templates.
+type SnConfig map[string]SnTemplate
 
-// GameTemplateSnTemplate describes a single sn entry.
-type GameTemplateSnTemplate struct {
+// SnTemplate describes a single sn entry.
+type SnTemplate struct {
 	Template string `yaml:"template"`
 	HelpText string `yaml:"helpText"`
 }
 
-// GameTemplateStConfig configures st command.
-type GameTemplateStConfig struct {
-	Show GameTemplateStShowConfig `yaml:"show"`
+// StConfig configures st command.
+type StConfig struct {
+	Show StShowConfig `yaml:"show"`
 }
 
-// GameTemplateStShowConfig controls st show behaviour.
-type GameTemplateStShowConfig struct {
+// StShowConfig controls st show behaviour.
+type StShowConfig struct {
 	Top          []string          `yaml:"top"`
 	SortBy       string            `yaml:"sortBy"`
 	Ignores      []string          `yaml:"ignores"`
@@ -80,8 +82,8 @@ type NameTemplateItem struct {
 	HelpText string `json:"helpText" yaml:"helpText"`
 }
 
-// SetConfig keeps backward compatible view of set configuration.
-type SetConfig struct {
+// LegacySetConfig keeps backward compatible view of set configuration.
+type LegacySetConfig struct {
 	DiceSideExpr string
 	DiceSides    int64
 	EnableTip    string
@@ -90,7 +92,8 @@ type SetConfig struct {
 }
 
 // GameSystemTemplate is the core template definition compatible with the smallseal format.
-type GameSystemTemplate struct {
+// GameSystemTemplateV2 mirrors the template definition used in smallseal.
+type GameSystemTemplateV2 struct {
 	Name        string   `yaml:"name"`
 	FullName    string   `yaml:"fullName"`
 	Authors     []string `yaml:"authors"`
@@ -98,27 +101,27 @@ type GameSystemTemplate struct {
 	UpdatedTime string   `yaml:"updatedTime"`
 	TemplateVer string   `yaml:"templateVer"`
 	InitScript  string   `yaml:"initScript"`
+	Attrs       Attrs    `yaml:"attrs"`
+	Alias       Alias    `yaml:"alias"`
+	Commands    Commands `yaml:"commands"`
 
-	Attrs    GameTemplateAttrs    `yaml:"attrs"`
-	Alias    Alias                `yaml:"alias"`
-	Commands GameTemplateCommands `yaml:"commands"`
+	AliasMap          *SyncMap[string, string]                                                                                                                  `json:"-" yaml:"-"`
+	HookValueLoadPost func(ctx *ds.Context, name string, curVal *ds.VMValue, doCompute func(curVal *ds.VMValue) *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue `json:"-" yaml:"-"`
+}
+
+// GameSystemTemplate extends GameSystemTemplateV2 with compatibility helpers.
+type GameSystemTemplate struct {
+	*GameSystemTemplateV2 `yaml:",inline"`
 
 	TextMap         *TextTemplateWithWeightDict `yaml:"textMap"`
 	TextMapHelpInfo *TextTemplateWithHelpDict   `yaml:"textMapHelpInfo"`
 
-	AliasMap *SyncMap[string, string] `yaml:"-"`
-
-	HookValueLoadPost func(ctx *ds.Context, name string, curVal *ds.VMValue, doCompute func(curVal *ds.VMValue) *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue `yaml:"-"`
-
 	AttrConfig   AttrConfig                  `yaml:"-"`
-	SetConfig    SetConfig                   `yaml:"-"`
+	SetConfig    LegacySetConfig             `yaml:"-"`
 	NameTemplate map[string]NameTemplateItem `yaml:"-"`
 }
 
-var errTemplateValueNotFound = errors.New("template value not found")
-
-// Init prepares runtime caches for the template.
-func (t *GameSystemTemplate) Init() {
+func (t *GameSystemTemplateV2) Init() {
 	if t == nil {
 		return
 	}
@@ -133,6 +136,125 @@ func (t *GameSystemTemplate) Init() {
 	}
 	t.AliasMap = aliasMap
 
+	t.Attrs.DefaultsComputedReal = make(map[string]*ds.VMValue)
+	for k, v := range t.Attrs.DefaultsComputed {
+		t.Attrs.DefaultsComputedReal[k] = ds.NewComputedVal(v)
+	}
+}
+
+func (t *GameSystemTemplateV2) GetAlias(varname string) string {
+	if t == nil {
+		return varname
+	}
+	k := strings.ToLower(varname)
+	if t.AliasMap != nil {
+		if v, ok := t.AliasMap.Load(k); ok {
+			return v
+		}
+	}
+	return varname
+}
+
+func (t *GameSystemTemplateV2) GetDefaultValue(varname string) (*ds.VMValue, string, bool, bool) {
+	if t == nil {
+		return nil, "", false, false
+	}
+	if computed, exists := t.Attrs.DefaultsComputedReal[varname]; exists {
+		return computed, "", true, true
+	}
+	if val, exists := t.Attrs.Defaults[varname]; exists {
+		return ds.NewIntVal(ds.IntType(val)), "", false, true
+	}
+	return nil, "", false, false
+}
+
+func (t *GameSystemTemplateV2) GetShowKeyAs(ctx *MsgContext, k string) (string, error) {
+	if t == nil || ctx == nil {
+		return k, nil
+	}
+	if expr, exists := t.Commands.St.Show.ShowKeyAs[k]; exists && expr != "" {
+		res := ctx.EvalFString(expr, &ds.RollConfig{
+			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
+		})
+		if res != nil && res.vm.Error == nil {
+			return res.VMValue.ToString(), nil
+		}
+		if res != nil && res.vm.Error != nil {
+			return k, res.vm.Error
+		}
+	}
+	return k, nil
+}
+
+func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VMValue, error) {
+	if t == nil || ctx == nil {
+		return nil, nil
+	}
+	if expr, exists := t.Commands.St.Show.ShowValueAs[k]; exists && expr != "" {
+		res := ctx.EvalFString(expr, &ds.RollConfig{
+			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
+		})
+		if res != nil && res.vm.Error == nil {
+			return &res.VMValue, nil
+		}
+		if res != nil && res.vm.Error != nil {
+			return nil, res.vm.Error
+		}
+	}
+	if expr, exists := t.Commands.St.Show.ShowValueAs["*"]; exists && expr != "" {
+		ctx.CreateVmIfNotExists()
+		ctx.vm.StoreNameLocal("name", ds.NewStrVal(k))
+		res := ctx.EvalFString(expr, nil)
+		if res != nil && res.vm.Error == nil {
+			return &res.VMValue, nil
+		}
+		if res != nil && res.vm.Error != nil {
+			return ds.NewIntVal(0), res.vm.Error
+		}
+		return ds.NewIntVal(0), nil
+	}
+	return t.GetRealValue(ctx, k)
+}
+
+func (t *GameSystemTemplateV2) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
+	if t == nil || ctx == nil {
+		return nil, nil
+	}
+	if ctx.Dice != nil {
+		curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+		if v, exists := curAttrs.LoadX(k); exists {
+			return v, nil
+		}
+	}
+	if v, _, _, exists := t.GetDefaultValue(k); exists {
+		return v, nil
+	}
+	return nil, nil
+}
+
+func (t *GameSystemTemplateV2) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
+	v, err := t.GetRealValueBase(ctx, k)
+	if v == nil && err == nil {
+		return ds.NewIntVal(0), nil
+	}
+	return v, err
+}
+
+var errTemplateValueNotFound = errors.New("template value not found")
+
+// Init prepares runtime caches for the template.
+func (t *GameSystemTemplate) Init() {
+	if t == nil {
+		return
+	}
+
+	if t.GameSystemTemplateV2 == nil {
+		// ensure the embedded template is always available
+		t.GameSystemTemplateV2 = &GameSystemTemplateV2{}
+	}
+
+	t.GameSystemTemplateV2.Init()
+
 	show := t.Commands.St.Show
 	t.AttrConfig = AttrConfig{
 		Top:          append([]string(nil), show.Top...),
@@ -143,7 +265,7 @@ func (t *GameSystemTemplate) Init() {
 		ItemsPerLine: show.ItemsPerLine,
 	}
 
-	t.SetConfig = SetConfig{
+	t.SetConfig = LegacySetConfig{
 		DiceSideExpr: t.Commands.Set.DiceSideExpr,
 		EnableTip:    t.Commands.Set.EnableTip,
 		Keys:         append([]string(nil), t.Commands.Set.Keys...),
@@ -164,7 +286,7 @@ func (t *GameSystemTemplate) Init() {
 	}
 
 	if t.Attrs.Defaults == nil {
-		t.Attrs.Defaults = map[string]int64{}
+		t.Attrs.Defaults = map[string]int{}
 	}
 	if t.Attrs.DefaultsComputed == nil {
 		t.Attrs.DefaultsComputed = map[string]string{}
@@ -176,7 +298,7 @@ func (t *GameSystemTemplate) Init() {
 
 func (t *GameSystemTemplate) GetAlias(varname string) string {
 	k := strings.ToLower(varname)
-	if t == nil {
+	if t == nil || t.GameSystemTemplateV2 == nil || t.AliasMap == nil {
 		return varname
 	}
 
@@ -193,7 +315,7 @@ func (t *GameSystemTemplate) GetAlias(varname string) string {
 }
 
 func (t *GameSystemTemplate) runInitScript(ctx *MsgContext) {
-	if ctx == nil || t == nil {
+	if ctx == nil || t == nil || t.GameSystemTemplateV2 == nil {
 		return
 	}
 	ctx.SystemTemplate = t
@@ -205,7 +327,7 @@ func (t *GameSystemTemplate) runInitScript(ctx *MsgContext) {
 
 // GetDefaultValueEx0 获取默认值 四个返回值 val, detail, computed, exists
 func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string) (*ds.VMValue, string, bool, bool) {
-	if t == nil {
+	if t == nil || t.GameSystemTemplateV2 == nil {
 		return ds.NewIntVal(0), "", false, false
 	}
 
@@ -232,7 +354,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx0(ctx *MsgContext, varname string)
 
 // GetDefaultValueEx0V1 获取默认值，与现行版本不同的是里面调用了 getShowAs0，唯一的使用地点是 RollVM v1
 func (t *GameSystemTemplate) GetDefaultValueEx0V1(ctx *MsgContext, varname string) (*ds.VMValue, string, bool, bool) {
-	if t == nil {
+	if t == nil || t.GameSystemTemplateV2 == nil {
 		return ds.NewIntVal(0), "", false, false
 	}
 
@@ -272,7 +394,7 @@ func (t *GameSystemTemplate) GetDefaultValueEx(ctx *MsgContext, varname string) 
 }
 
 func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
-	if t == nil {
+	if t == nil || t.GameSystemTemplateV2 == nil {
 		return k, nil, nil
 	}
 
@@ -337,7 +459,7 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (string, *ds.V
 }
 
 func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
-	if t == nil {
+	if t == nil || t.GameSystemTemplateV2 == nil {
 		return nil, errTemplateValueNotFound
 	}
 
@@ -358,6 +480,9 @@ func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VM
 }
 
 func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
+	if t == nil || t.GameSystemTemplateV2 == nil {
+		return ds.NewIntVal(0), nil
+	}
 	v, err := t.GetRealValueBase(ctx, k)
 	if errors.Is(err, errTemplateValueNotFound) {
 		return ds.NewIntVal(0), nil
@@ -370,12 +495,20 @@ func loadGameSystemTemplateFromData(data []byte, format string) (*GameSystemTemp
 		return nil, errors.New("empty template data")
 	}
 
-	tmpl := &GameSystemTemplate{}
 	format = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(format), "."))
 	if format == "" {
 		format = "yaml"
 	}
 
+	if isLegacyTemplateData(data) {
+		legacy, err := convertLegacyTemplate(data, format)
+		if err != nil {
+			return nil, err
+		}
+		return legacy, nil
+	}
+
+	tmpl := &GameSystemTemplate{}
 	switch format {
 	case "yaml", "yml":
 		if err := yaml.Unmarshal(data, tmpl); err != nil {
@@ -389,8 +522,37 @@ func loadGameSystemTemplateFromData(data []byte, format string) (*GameSystemTemp
 		return nil, fmt.Errorf("unsupported template format: %s", format)
 	}
 
+	if tmpl.GameSystemTemplateV2 == nil {
+		tmpl.GameSystemTemplateV2 = &GameSystemTemplateV2{}
+	}
 	tmpl.Init()
 	return tmpl, nil
+}
+
+func isLegacyTemplateData(data []byte) bool {
+	var probe struct {
+		TemplateVer      string         `yaml:"templateVer" json:"templateVer"`
+		Attrs            map[string]any `yaml:"attrs" json:"attrs"`
+		Defaults         map[string]any `yaml:"defaults" json:"defaults"`
+		DefaultsComputed map[string]any `yaml:"defaultsComputed" json:"defaultsComputed"`
+	}
+	if err := yaml.Unmarshal(data, &probe); err != nil {
+		return false
+	}
+	ver := strings.TrimSpace(strings.ToLower(probe.TemplateVer))
+	if ver != "" {
+		if strings.HasPrefix(ver, "2") || strings.HasPrefix(ver, "v2") {
+			return false
+		}
+		return true
+	}
+	if len(probe.Attrs) > 0 {
+		return false
+	}
+	if len(probe.Defaults) > 0 || len(probe.DefaultsComputed) > 0 {
+		return true
+	}
+	return false
 }
 
 // LoadGameSystemTemplateFromReader loads a template from an io.Reader with the given format.
