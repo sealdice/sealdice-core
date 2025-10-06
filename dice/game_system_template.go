@@ -177,7 +177,7 @@ func (t *GameSystemTemplateV2) GetShowKeyAs(ctx *MsgContext, k string) (string, 
 			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
 		})
 		if res != nil && res.vm.Error == nil {
-			return res.VMValue.ToString(), nil
+			return res.ToString(), nil
 		}
 		if res != nil && res.vm.Error != nil {
 			return k, res.vm.Error
@@ -525,10 +525,10 @@ func loadGameSystemTemplateFromData(data []byte, format string) (*GameSystemTemp
 
 func isLegacyTemplateData(data []byte) bool {
 	var probe struct {
-		TemplateVer      string         `yaml:"templateVer" json:"templateVer"`
-		Attrs            map[string]any `yaml:"attrs" json:"attrs"`
-		Defaults         map[string]any `yaml:"defaults" json:"defaults"`
-		DefaultsComputed map[string]any `yaml:"defaultsComputed" json:"defaultsComputed"`
+		TemplateVer      string         `json:"templateVer"      yaml:"templateVer"`
+		Attrs            map[string]any `json:"attrs"            yaml:"attrs"`
+		Defaults         map[string]any `json:"defaults"         yaml:"defaults"`
+		DefaultsComputed map[string]any `json:"defaultsComputed" yaml:"defaultsComputed"`
 	}
 	if err := yaml.Unmarshal(data, &probe); err != nil {
 		return false

@@ -18,41 +18,41 @@ type legacyNameTemplateItem struct {
 
 // legacyAttrConfig mirrors the v1 attrConfig block.
 type legacyAttrConfig struct {
-	Top          []string          `json:"top" yaml:"top,flow"`
-	SortBy       string            `json:"sortBy" yaml:"sortBy"`
-	Ignores      []string          `json:"ignores" yaml:"ignores"`
-	ShowAs       map[string]string `json:"showAs" yaml:"showAs"`
-	ShowAsKey    map[string]string `json:"showAsKey" yaml:"showAsKey"`
+	Top          []string          `json:"top"          yaml:"top,flow"`
+	SortBy       string            `json:"sortBy"       yaml:"sortBy"`
+	Ignores      []string          `json:"ignores"      yaml:"ignores"`
+	ShowAs       map[string]string `json:"showAs"       yaml:"showAs"`
+	ShowAsKey    map[string]string `json:"showAsKey"    yaml:"showAsKey"`
 	ItemsPerLine int               `json:"itemsPerLine" yaml:"itemsPerLine"`
 }
 
 // legacySetConfig mirrors the v1 setConfig block.
 type legacySetConfig struct {
-	RelatedExt    []string `json:"relatedExt" yaml:"relatedExt"`
-	DiceSides     int      `json:"diceSides" yaml:"diceSides"`
+	RelatedExt    []string `json:"relatedExt"    yaml:"relatedExt"`
+	DiceSides     int      `json:"diceSides"     yaml:"diceSides"`
 	DiceSidesExpr string   `json:"diceSidesExpr" yaml:"diceSidesExpr"`
-	Keys          []string `json:"keys" yaml:"keys"`
-	EnableTip     string   `json:"enableTip" yaml:"enableTip"`
+	Keys          []string `json:"keys"          yaml:"keys"`
+	EnableTip     string   `json:"enableTip"     yaml:"enableTip"`
 }
 
 // legacyTemplate captures the v1 template layout.
 type legacyTemplate struct {
-	Name             string                            `json:"name" yaml:"name"`
-	FullName         string                            `json:"fullName" yaml:"fullName"`
-	Authors          []string                          `json:"authors" yaml:"authors"`
-	Version          string                            `json:"version" yaml:"version"`
-	UpdatedTime      string                            `json:"updatedTime" yaml:"updatedTime"`
-	TemplateVer      string                            `json:"templateVer" yaml:"templateVer"`
-	NameTemplate     map[string]legacyNameTemplateItem `json:"nameTemplate" yaml:"nameTemplate"`
-	AttrConfig       legacyAttrConfig                  `json:"attrConfig" yaml:"attrConfig"`
-	SetConfig        legacySetConfig                   `json:"setConfig" yaml:"setConfig"`
-	Defaults         map[string]int                    `json:"defaults" yaml:"defaults"`
+	Name             string                            `json:"name"             yaml:"name"`
+	FullName         string                            `json:"fullName"         yaml:"fullName"`
+	Authors          []string                          `json:"authors"          yaml:"authors"`
+	Version          string                            `json:"version"          yaml:"version"`
+	UpdatedTime      string                            `json:"updatedTime"      yaml:"updatedTime"`
+	TemplateVer      string                            `json:"templateVer"      yaml:"templateVer"`
+	NameTemplate     map[string]legacyNameTemplateItem `json:"nameTemplate"     yaml:"nameTemplate"`
+	AttrConfig       legacyAttrConfig                  `json:"attrConfig"       yaml:"attrConfig"`
+	SetConfig        legacySetConfig                   `json:"setConfig"        yaml:"setConfig"`
+	Defaults         map[string]int                    `json:"defaults"         yaml:"defaults"`
 	DefaultsComputed map[string]string                 `json:"defaultsComputed" yaml:"defaultsComputed"`
-	DetailOverwrite  map[string]string                 `json:"detailOverwrite" yaml:"detailOverwrite"`
-	Alias            map[string][]string               `json:"alias" yaml:"alias"`
-	TextMap          map[string]any                    `json:"textMap" yaml:"textMap"`
-	TextMapHelpInfo  map[string]any                    `json:"textMapHelpInfo" yaml:"TextMapHelpInfo"`
-	PreloadCode      string                            `json:"preloadCode" yaml:"preloadCode"`
+	DetailOverwrite  map[string]string                 `json:"detailOverwrite"  yaml:"detailOverwrite"`
+	Alias            map[string][]string               `json:"alias"            yaml:"alias"`
+	TextMap          map[string]any                    `json:"textMap"          yaml:"textMap"`
+	TextMapHelpInfo  map[string]any                    `json:"textMapHelpInfo"  yaml:"TextMapHelpInfo"`
+	PreloadCode      string                            `json:"preloadCode"      yaml:"preloadCode"`
 }
 
 var legacyDetailFuncExpr = regexp.MustCompile(`^[\p{L}_][\p{L}\p{N}_]*\s*\(.*\)$`)
@@ -114,20 +114,17 @@ func convertLegacyTemplate(data []byte, format string) (*GameSystemTemplate, err
 			},
 		},
 	}
-	if dst.GameSystemTemplateV2.TemplateVer == "" {
-		dst.GameSystemTemplateV2.TemplateVer = "2.0"
+	if dst.TemplateVer == "" {
+		dst.TemplateVer = "2.0"
 	}
 
-	assignLegacyDiceSideExpr(&dst.GameSystemTemplateV2.Commands.Set, legacy.SetConfig)
+	assignLegacyDiceSideExpr(&dst.Commands.Set, legacy.SetConfig)
 	for key, tmpl := range legacy.NameTemplate {
-		dst.GameSystemTemplateV2.Commands.Sn[key] = SnTemplate{
-			Template: tmpl.Template,
-			HelpText: tmpl.HelpText,
-		}
+		dst.Commands.Sn[key] = SnTemplate(tmpl)
 	}
 
-	if len(dst.GameSystemTemplateV2.Commands.Sn) == 0 {
-		dst.GameSystemTemplateV2.Commands.Sn = nil
+	if len(dst.Commands.Sn) == 0 {
+		dst.Commands.Sn = nil
 	}
 
 	textMap, err := convertLegacyTextMap(legacy.TextMap)
