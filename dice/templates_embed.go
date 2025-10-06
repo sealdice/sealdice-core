@@ -16,11 +16,3 @@ func loadBuiltinTemplate(name string) (*GameSystemTemplate, error) {
 	}
 	return loadGameSystemTemplateFromData(data, path.Ext(name))
 }
-
-func mustLoadBuiltinTemplate(name string) *GameSystemTemplate {
-	tmpl, err := loadBuiltinTemplate(name)
-	if err != nil {
-		panic(err)
-	}
-	return tmpl
-}

@@ -403,10 +403,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			mctx.DelegateText = ctx.DelegateText
-			if ctx != nil && ctx.Dice != nil {
-				if baseTmpl, ok := ctx.Dice.GameSystemMap.Load("dnd5e"); ok && baseTmpl != nil {
-					mctx.SystemTemplate = baseTmpl
+			if ctx != nil {
+				mctx.DelegateText = ctx.DelegateText
+				if ctx.Dice != nil {
+					if baseTmpl, ok := ctx.Dice.GameSystemMap.Load("dnd5e"); ok && baseTmpl != nil {
+						mctx.SystemTemplate = baseTmpl
+					}
 				}
 			}
 			// 参数确认

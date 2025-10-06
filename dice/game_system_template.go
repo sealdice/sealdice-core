@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -114,6 +115,8 @@ type GameSystemTemplate struct {
 	NameTemplate map[string]NameTemplateItem `yaml:"-"`
 }
 
+var errTemplateValueNotFound = errors.New("template value not found")
+
 // Init prepares runtime caches for the template.
 func (t *GameSystemTemplate) Init() {
 	if t == nil {
@@ -153,7 +156,7 @@ func (t *GameSystemTemplate) Init() {
 	t.NameTemplate = map[string]NameTemplateItem{}
 	for key, item := range t.Commands.Sn {
 		lower := strings.ToLower(key)
-		entry := NameTemplateItem{Template: item.Template, HelpText: item.HelpText}
+		entry := NameTemplateItem(item)
 		t.NameTemplate[key] = entry
 		if lower != key {
 			t.NameTemplate[lower] = entry
@@ -335,7 +338,11 @@ func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (string, *ds.V
 
 func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	if t == nil {
-		return nil, nil
+		return nil, errTemplateValueNotFound
+	}
+
+	if ctx == nil || ctx.Dice == nil {
+		return nil, errTemplateValueNotFound
 	}
 
 	curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
@@ -347,12 +354,12 @@ func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VM
 		return v, nil
 	}
 
-	return nil, nil
+	return nil, errTemplateValueNotFound
 }
 
 func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	v, err := t.GetRealValueBase(ctx, k)
-	if v == nil && err == nil {
+	if errors.Is(err, errTemplateValueNotFound) {
 		return ds.NewIntVal(0), nil
 	}
 	return v, err
@@ -360,7 +367,7 @@ func (t *GameSystemTemplate) GetRealValue(ctx *MsgContext, k string) (*ds.VMValu
 
 func loadGameSystemTemplateFromData(data []byte, format string) (*GameSystemTemplate, error) {
 	if len(data) == 0 {
-		return nil, fmt.Errorf("empty template data")
+		return nil, errors.New("empty template data")
 	}
 
 	tmpl := &GameSystemTemplate{}
