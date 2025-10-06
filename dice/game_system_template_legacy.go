@@ -18,41 +18,41 @@ type legacyNameTemplateItem struct {
 
 // legacyAttrConfig mirrors the v1 attrConfig block.
 type legacyAttrConfig struct {
-	Top          []string `json:"top" yaml:"top,flow"`
-	SortBy       string `json:"sortBy" yaml:"sortBy"`
-	Ignores      []string `json:"ignores" yaml:"ignores"`
+	Top          []string          `json:"top" yaml:"top,flow"`
+	SortBy       string            `json:"sortBy" yaml:"sortBy"`
+	Ignores      []string          `json:"ignores" yaml:"ignores"`
 	ShowAs       map[string]string `json:"showAs" yaml:"showAs"`
 	ShowAsKey    map[string]string `json:"showAsKey" yaml:"showAsKey"`
-	ItemsPerLine int `json:"itemsPerLine" yaml:"itemsPerLine"`
+	ItemsPerLine int               `json:"itemsPerLine" yaml:"itemsPerLine"`
 }
 
 // legacySetConfig mirrors the v1 setConfig block.
 type legacySetConfig struct {
 	RelatedExt    []string `json:"relatedExt" yaml:"relatedExt"`
-	DiceSides     int `json:"diceSides" yaml:"diceSides"`
-	DiceSidesExpr string `json:"diceSidesExpr" yaml:"diceSidesExpr"`
+	DiceSides     int      `json:"diceSides" yaml:"diceSides"`
+	DiceSidesExpr string   `json:"diceSidesExpr" yaml:"diceSidesExpr"`
 	Keys          []string `json:"keys" yaml:"keys"`
-	EnableTip     string `json:"enableTip" yaml:"enableTip"`
+	EnableTip     string   `json:"enableTip" yaml:"enableTip"`
 }
 
 // legacyTemplate captures the v1 template layout.
 type legacyTemplate struct {
-	Name             string `json:"name" yaml:"name"`
-	FullName         string `json:"fullName" yaml:"fullName"`
-	Authors          []string `json:"authors" yaml:"authors"`
-	Version          string `json:"version" yaml:"version"`
-	UpdatedTime      string `json:"updatedTime" yaml:"updatedTime"`
-	TemplateVer      string `json:"templateVer" yaml:"templateVer"`
+	Name             string                            `json:"name" yaml:"name"`
+	FullName         string                            `json:"fullName" yaml:"fullName"`
+	Authors          []string                          `json:"authors" yaml:"authors"`
+	Version          string                            `json:"version" yaml:"version"`
+	UpdatedTime      string                            `json:"updatedTime" yaml:"updatedTime"`
+	TemplateVer      string                            `json:"templateVer" yaml:"templateVer"`
 	NameTemplate     map[string]legacyNameTemplateItem `json:"nameTemplate" yaml:"nameTemplate"`
-	AttrConfig       legacyAttrConfig `json:"attrConfig" yaml:"attrConfig"`
-	SetConfig        legacySetConfig `json:"setConfig" yaml:"setConfig"`
-	Defaults         map[string]int `json:"defaults" yaml:"defaults"`
-	DefaultsComputed map[string]string `json:"defaultsComputed" yaml:"defaultsComputed"`
-	DetailOverwrite  map[string]string `json:"detailOverwrite" yaml:"detailOverwrite"`
-	Alias            map[string][]string `json:"alias" yaml:"alias"`
-	TextMap          map[string]any `json:"textMap" yaml:"textMap"`
-	TextMapHelpInfo  map[string]any `json:"textMapHelpInfo" yaml:"TextMapHelpInfo"`
-	PreloadCode      string `json:"preloadCode" yaml:"preloadCode"`
+	AttrConfig       legacyAttrConfig                  `json:"attrConfig" yaml:"attrConfig"`
+	SetConfig        legacySetConfig                   `json:"setConfig" yaml:"setConfig"`
+	Defaults         map[string]int                    `json:"defaults" yaml:"defaults"`
+	DefaultsComputed map[string]string                 `json:"defaultsComputed" yaml:"defaultsComputed"`
+	DetailOverwrite  map[string]string                 `json:"detailOverwrite" yaml:"detailOverwrite"`
+	Alias            map[string][]string               `json:"alias" yaml:"alias"`
+	TextMap          map[string]any                    `json:"textMap" yaml:"textMap"`
+	TextMapHelpInfo  map[string]any                    `json:"textMapHelpInfo" yaml:"TextMapHelpInfo"`
+	PreloadCode      string                            `json:"preloadCode" yaml:"preloadCode"`
 }
 
 var legacyDetailFuncExpr = regexp.MustCompile(`^[\p{L}_][\p{L}\p{N}_]*\s*\(.*\)$`)
@@ -165,7 +165,7 @@ func assignLegacyDiceSideExpr(dst *SetConfig, legacy legacySetConfig) {
 
 func convertLegacyTextMap(raw map[string]any) (*TextTemplateWithWeightDict, error) {
 	if len(raw) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	buf, err := yaml.Marshal(raw)
 	if err != nil {
@@ -180,7 +180,7 @@ func convertLegacyTextMap(raw map[string]any) (*TextTemplateWithWeightDict, erro
 
 func convertLegacyTextMapHelp(raw map[string]any) (*TextTemplateWithHelpDict, error) {
 	if len(raw) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	buf, err := yaml.Marshal(raw)
 	if err != nil {

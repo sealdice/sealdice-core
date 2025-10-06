@@ -187,9 +187,6 @@ func (t *GameSystemTemplateV2) GetShowKeyAs(ctx *MsgContext, k string) (string, 
 }
 
 func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VMValue, error) {
-	if t == nil || ctx == nil {
-		return nil, nil
-	}
 	if expr, exists := t.Commands.St.Show.ShowValueAs[k]; exists && expr != "" {
 		res := ctx.EvalFString(expr, &ds.RollConfig{
 			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
@@ -217,9 +214,6 @@ func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VM
 }
 
 func (t *GameSystemTemplateV2) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
-	if t == nil || ctx == nil {
-		return nil, nil
-	}
 	if ctx.Dice != nil {
 		curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
 		if v, exists := curAttrs.LoadX(k); exists {
@@ -229,7 +223,7 @@ func (t *GameSystemTemplateV2) GetRealValueBase(ctx *MsgContext, k string) (*ds.
 	if v, _, _, exists := t.GetDefaultValue(k); exists {
 		return v, nil
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (t *GameSystemTemplateV2) GetRealValue(ctx *MsgContext, k string) (*ds.VMValue, error) {
