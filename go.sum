@@ -467,8 +467,8 @@ github.com/schollz/progressbar/v3 v3.18.0 h1:uXdoHABRFmNIjUfte/Ex7WtuyVslrw2wVPQ
 github.com/schollz/progressbar/v3 v3.18.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 h1:s/jzCGYlM/0+TYTXwva5574EFnIv/ggPCoXHFpdbSUw=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083/go.mod h1:MGtR0REQDslBwQE+Rln4P9iDjH/ZInlu5qzOLdvBWJU=
-github.com/sealdice/dicescript v0.0.0-20240927083134-65269b7d051c h1:Z+H+yMma3IcZfX2nLF7nOP50XWmOytLVlaIkT7QgbsA=
-github.com/sealdice/dicescript v0.0.0-20240927083134-65269b7d051c/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
+github.com/sealdice/dicescript v0.0.0-20250903023101-e8c6e09caab2 h1:D0Xl1BiPfDsP7+d+uWjD+Zv2l61e9rF7TUNLL2/n4Ig=
+github.com/sealdice/dicescript v0.0.0-20250903023101-e8c6e09caab2/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=
 github.com/sealdice/kook v0.0.3/go.mod h1:WjHC7AmbmNjInT/U/etBVOmAw7T6EqdCwApceRGs1sk=
 github.com/sergeymakinen/go-bmp v1.0.0 h1:SdGTzp9WvCV0A1V0mBeaS7kQAwNLdVJbmHlqNWq0R+M=

@@ -202,8 +202,6 @@ func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *Cmd
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
-	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-
 	expr := p.Pick().(string)
 	ReplyToSender(ctx, msg, formatExprForReply(ctx, expr))
 	// }()

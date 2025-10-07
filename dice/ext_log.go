@@ -28,10 +28,11 @@ import (
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
-	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-
+	if ctx.SystemTemplate == nil {
+		ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
+	}
 	config := ctx.GenDefaultRollVmConfig()
-	config.HookFuncValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+	config.HookValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
 		return nil, true
 	}
 	v := ctx.EvalFString(tmpl, config)

@@ -39,9 +39,6 @@ type GroupPlayerInfoBase struct {
 	// ValueMapTemp map[string]*VMValue  `yaml:"-"`           // 玩家的群内临时变量
 
 	// 非数据库信息
-	TempValueAlias *map[string][]string `gorm:"-" yaml:"-"` // 群内临时变量别名 - 其实这个有点怪的，为什么在这里？
-
-	// 非数据库信息
 	UpdatedAtTime int64 `gorm:"-" json:"-" yaml:"-"`
 	// 非数据库信息
 	RecentUsedTime int64 `gorm:"-" json:"-" yaml:"-"`

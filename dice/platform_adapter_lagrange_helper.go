@@ -651,8 +651,8 @@ var signInfoJson string = `
     },
 	"servers": [
       {
-        "name": "海豹",
-        "url": "https://lwxmagic.sealdice.com/api/sign/39038"
+        "name": "海豹V2",
+        "url": "https://lwxmagic3.sealdice.com/api/sign/39038"
       },
 	  {
         "name": "Lagrange",

@@ -27,8 +27,16 @@ func (d *Dice) RegisterBuiltinExt() {
 }
 
 func (d *Dice) RegisterBuiltinSystemTemplate() {
-	d.GameSystemTemplateAdd(getCoc7CharTemplate())
-	d.GameSystemTemplateAdd(_dnd5eTmpl)
+	for _, asset := range []string{"coc7.yaml", "dnd5e.yaml"} {
+		tmpl, err := loadBuiltinTemplate(asset)
+		if err != nil {
+			if d.Logger != nil {
+				d.Logger.Errorf("failed to load builtin game template %s: %v", asset, err)
+			}
+			continue
+		}
+		d.GameSystemTemplateAdd(tmpl)
+	}
 }
 
 // RegisterExtension 注册扩展

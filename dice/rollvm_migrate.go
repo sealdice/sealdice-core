@@ -28,7 +28,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 	config.ParseExprLimit = 10000000 // kenichiLyon: 限制解析算力，防止递归过深，这里以建议值1000万设置。
 
 	am := ctx.Dice.AttrsManager
-	config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+	config.HookValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
 		// 临时变量
 		if strings.HasPrefix(name, "$t") {
 			if ctx.Player.ValueMapTemp == nil {
@@ -77,10 +77,11 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 		for index, i := range details {
 			if i.Tag == "load" && mctx.SystemTemplate != nil && ctx.UpCtx == nil {
 				expr := string(detailResult[i.Begin:i.End])
-				detailExpr := mctx.SystemTemplate.DetailOverwrite[expr]
+				overwrites := mctx.SystemTemplate.Attrs.DetailOverwrite
+				detailExpr := overwrites[expr]
 				if detailExpr == "" {
 					// 如果没有，尝试使用通配
-					detailExpr = mctx.SystemTemplate.DetailOverwrite["*"]
+					detailExpr = overwrites["*"]
 					if detailExpr != "" {
 						// key 应该是等于expr的
 						ctx.StoreNameLocal("name", ds.NewStrVal(expr))
@@ -470,7 +471,7 @@ func (a spanByEnd) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a spanByEnd) Less(i, j int) bool { return a[i].End < a[j].End }
 
 func (ctx *MsgContext) setCocPrefixReadForVM(cb func(cocFlagVarPrefix string)) {
-	ctx.vm.Config.HookFuncValueLoad = func(ctx *ds.Context, name string) (string, *ds.VMValue) {
+	ctx.vm.Config.HookValueLoadPre = func(ctx *ds.Context, name string) (string, *ds.VMValue) {
 		re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败|困難|極難|常規|失敗)?([^\d]+)(\d+)?$`)
 		m := re.FindStringSubmatch(name)
 
@@ -552,38 +553,49 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 	var skip bool
 	loadBuff := true
 
-	ctx.vm.Config.HookFuncValueLoadOverwrite = func(vm *ds.Context, varname string, curVal *ds.VMValue, doCompute func(curVal *ds.VMValue) *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
-		if ctx.SystemTemplate == nil {
-			curVal = doCompute(curVal)
-			return curVal
-		}
+	handler := func(vm *ds.Context, varname string, curVal *ds.VMValue, doCompute func(curVal *ds.VMValue) *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
+		var working = curVal
 
 		if strings.HasPrefix(varname, "$org_") {
 			varname, _ = strings.CutPrefix(varname, "$org_")
-			curVal = vm.LoadName(varname, true, false)
-			return curVal
+			return vm.LoadName(varname, true, false)
 		}
 
 		if loadBuff {
-			// 这里只处理一种情况：原值是computed，buff也是computed
-			curVal, _ = tryLoadByBuff(ctx, varname, curVal, true, detail)
+			working, _ = tryLoadByBuff(ctx, varname, working, true, detail)
 		}
 
-		curVal = doCompute(curVal)
+		doComputeWrapped := func(val *ds.VMValue) *ds.VMValue {
+			value := doCompute(val)
+			if value == nil {
+				return nil
+			}
+			if loadBuff {
+				value, _ = tryLoadByBuff(ctx, varname, value, false, detail)
+			}
+			return value
+		}
+
+		if ctx.SystemTemplate == nil {
+			curVal = doComputeWrapped(working)
+		} else if ctx.SystemTemplate.HookValueLoadPost != nil {
+			curVal = ctx.SystemTemplate.HookValueLoadPost(vm, varname, working, doComputeWrapped, detail)
+		} else {
+			curVal = doComputeWrapped(working)
+		}
+
 		if curVal == nil {
 			return nil
 		}
 
-		if loadBuff {
-			curVal, _ = tryLoadByBuff(ctx, varname, curVal, false, detail)
+		realVarName := varname
+		if ctx.SystemTemplate != nil {
+			realVarName = ctx.SystemTemplate.GetAlias(varname)
 		}
 
-		realVarName := ctx.SystemTemplate.GetAlias(varname)
-
 		if !skip && rcMode {
-			// rc时将属性替换为调整值，只在0级起作用，避免在函数调用等地方造成影响
 			if isAbilityScores(varname) && vm.Depth() == 0 && vm.UpCtx == nil {
-				if curVal != nil && curVal.TypeId == ds.VMTypeInt {
+				if curVal.TypeId == ds.VMTypeInt {
 					mod := curVal.MustReadInt()/2 - 5
 					v := ds.NewIntVal(mod)
 					if detail != nil {
@@ -593,37 +605,77 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 					}
 					return v
 				}
-			} else if dndAttrParent[realVarName] != "" && curVal.TypeId == ds.VMTypeInt {
-				name := dndAttrParent[realVarName]
-				base, err := ctx.SystemTemplate.GetRealValue(ctx, name)
+			} else if parent := dndAttrParent[realVarName]; parent != "" && curVal.TypeId == ds.VMTypeInt {
+				base, err := ctx.SystemTemplate.GetRealValue(ctx, parent)
 				v := curVal.MustReadInt()
 				if err == nil {
-					// ab := tryLoadByBuff(ctx, name, base)
-					ab := base
-					mod := ab.MustReadInt()/2 - 5
-
-					detail.Tag = "dnd-rc"
-					detail.Text = fmt.Sprintf("%s调整值%d", name, mod)
+					mod := base.MustReadInt()/2 - 5
+					if detail != nil {
+						detail.Tag = "dnd-rc"
+						detail.Text = fmt.Sprintf("%s调整值%d", parent, mod)
+					}
 					v -= mod
 
 					exprProficiency := fmt.Sprintf("floor(&%s.factor * 熟练)", varname)
 					skip = true
 					if ret2, _ := ctx.vm.RunExpr(exprProficiency, false); ret2 != nil {
-						// 注意: 这个值未必总能读到，如果ret2为nil，那么我们可以忽略这个加值的存在
-						detail.Text += fmt.Sprintf("+熟练%s", ret2.ToString())
+						if detail != nil {
+							detail.Text += fmt.Sprintf("+熟练%s", ret2.ToString())
+						}
 						if ret2.TypeId == ds.VMTypeInt {
 							v -= ret2.MustReadInt()
 						}
 					}
 					ctx.vm.Error = nil
 					skip = false
-					detail.Text += fmt.Sprintf("+%s%d", varname, v)
+					if detail != nil {
+						detail.Text += fmt.Sprintf("+%s%d", varname, v)
+					}
 				}
 			}
 		}
 
 		return curVal
 	}
+
+	ctx.vm.Config.HookValueLoadPost = handler
+}
+
+func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
+	resolved := name
+	tmpl := ctx.SystemTemplate
+	if tmpl != nil {
+		resolved = tmpl.GetAlias(name)
+	}
+
+	if ctx.Dice != nil {
+		attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+		if v, exists := attrs.LoadX(resolved); exists {
+			return v
+		}
+	}
+
+	if tmpl != nil {
+		ctx2 := *ctx
+		ctx2.vm = nil
+		ctx2.CreateVmIfNotExists()
+		ctx2.vm.UpCtx = ctx.vm
+		ctx2.vm.Attrs = ctx.vm.Attrs
+		ctx2.vm.Config = ctx.vm.Config
+
+		if v, _, _, exists := tmpl.GetDefaultValueEx0(&ctx2, resolved); exists {
+			return v
+		}
+	}
+
+	if ctx.Player != nil && ctx.Dice != nil {
+		playerAttrs := lo.Must(ctx.Dice.AttrsManager.LoadById(ctx.Player.UserID))
+		if v := playerAttrs.Load(resolved); v != nil {
+			return v
+		}
+	}
+
+	return nil
 }
 
 func (ctx *MsgContext) CreateVmIfNotExists() {
@@ -637,60 +689,41 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 
 	am := ctx.Dice.AttrsManager
 	ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, curVal *ds.VMValue) *ds.VMValue {
-		// 临时变量
-		if strings.HasPrefix(name, "$t") {
-			if ctx.Player.ValueMapTemp == nil {
-				ctx.Player.ValueMapTemp = &ds.ValueMap{}
-			}
-			if v, ok := ctx.Player.ValueMapTemp.Load(name); ok {
-				return v
-			}
+		if curVal != nil {
+			return curVal
 		}
 
-		if strings.HasPrefix(name, "$") {
-			// 个人变量
-			if strings.HasPrefix(name, "$m") {
-				if ctx.Session != nil && ctx.Player != nil {
-					playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
-					v := playerAttrs.Load(name)
-					if v == nil {
-						return ds.NewIntVal(0)
-					}
+		if strings.HasPrefix(name, "$t") {
+			if ctx.Player.ValueMapTemp != nil {
+				if v, ok := ctx.Player.ValueMapTemp.Load(name); ok {
 					return v
 				}
 			}
+			return ds.NewIntVal(0)
+		}
 
-			// 群变量
-			if ctx.Group != nil && strings.HasPrefix(name, "$g") {
-				groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
-				v := groupAttrs.Load(name)
-				if v == nil {
-					return ds.NewIntVal(0)
+		if strings.HasPrefix(name, "$") {
+			if strings.HasPrefix(name, "$m") {
+				if ctx.Session != nil && ctx.Player != nil {
+					playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
+					if v := playerAttrs.Load(name); v != nil {
+						return v
+					}
 				}
-				return v
+				return ds.NewIntVal(0)
+			}
+			if strings.HasPrefix(name, "$g") && ctx.Group != nil {
+				groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
+				if v := groupAttrs.Load(name); v != nil {
+					return v
+				}
+				return ds.NewIntVal(0)
 			}
 		}
 
-		var v *ds.VMValue
-		if ctx.SystemTemplate != nil {
-			// 从模板取值，模板中的设定是如果取不到获得0
-			// TODO: 目前没有好的方法去复制vm，实际上这个行为应当类似于ds中的函数调用
-			ctx2 := *ctx
-			ctx2.vm = nil
-			ctx2.CreateVmIfNotExists()
-			ctx2.vm.UpCtx = ctx.vm
-			ctx2.vm.Attrs = ctx.vm.Attrs
-			ctx2.vm.Config = ctx.vm.Config
+		value := ctx.loadAttrValueByName(name)
 
-			name = ctx.SystemTemplate.GetAlias(name)
-			v, _ = ctx.SystemTemplate.GetRealValueBase(&ctx2, name)
-		} else {
-			playerAttrs := lo.Must(am.LoadById(ctx.Player.UserID))
-			v = playerAttrs.Load(name)
-		}
-
-		// 注: 如果已经有值，就不再覆盖，因此v要判空
-		if v == nil && strings.Contains(name, ":") {
+		if value == nil && ctx.Dice != nil && strings.Contains(name, ":") {
 			textTmpl := ctx.Dice.TextMap[name]
 			if textTmpl != nil {
 				if v2, err := DiceFormatV2(ctx, textTmpl.PickSource(randSourceDrawAndTmplSelect).(string)); err == nil {
@@ -701,15 +734,11 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 			}
 		}
 
-		if v != nil {
-			return v
-		}
-
-		if curVal == nil {
+		if value == nil {
 			return ds.NewIntVal(0)
 		}
 
-		return curVal
+		return value
 	}
 }
 

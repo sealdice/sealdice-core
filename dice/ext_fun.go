@@ -1057,11 +1057,13 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 
 			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
-			ctx.Eval(tmpl.PreloadCode, nil)
+			if tmpl != nil {
+				ctx.SystemTemplate = tmpl
+				ctx.Eval(tmpl.InitScript, nil)
+			}
 			val := cmdArgs.GetArgN(1)
 
 			if val != "" {
-				ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
 				r, _, err := DiceExprTextBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{DisableBlock: false, V2Only: true})
 
 				if err == nil {
