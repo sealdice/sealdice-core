@@ -12,7 +12,7 @@ var (
 	VERSION = semver.MustParse(VERSION_MAIN + VERSION_PRERELEASE + VERSION_BUILD_METADATA)
 
 	// VERSION_MAIN 主版本号
-	VERSION_MAIN = "1.5.1"
+	VERSION_MAIN = "1.5.0"
 	// VERSION_PRERELEASE 先行版本号
 	VERSION_PRERELEASE = "-dev"
 	// VERSION_BUILD_METADATA 版本编译信息
@@ -21,10 +21,11 @@ var (
 	// APP_CHANNEL 更新频道，stable/dev，在 action 构建时自动注入
 	APP_CHANNEL = "dev" //nolint:revive
 
-	VERSION_CODE = int64(1005001) //nolint:revive
+	VERSION_CODE = int64(1005000) //nolint:revive
 
 	VERSION_JSAPI_COMPATIBLE = []*semver.Version{
 		VERSION,
+		semver.MustParse("1.5.0"),
 		semver.MustParse("1.4.7"),
 		semver.MustParse("1.4.6"),
 		semver.MustParse("1.4.5"),
