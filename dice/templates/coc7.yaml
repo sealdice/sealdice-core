@@ -239,7 +239,7 @@ alias: # 别名，所有数组中的别名，在读取和写入时将被替换�
 
 commands:
   set:
-    diceSideExpr: '100'
+    diceSides: '100'
     keys:
       - coc
       - coc7

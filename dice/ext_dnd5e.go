@@ -652,7 +652,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				// 每四个一行，拼起来
-				itemsPerLine := tmpl.AttrConfig.ItemsPerLine
+				itemsPerLine := tmpl.Commands.St.Show.ItemsPerLine
 				if itemsPerLine <= 1 {
 					itemsPerLine = 4
 				}

@@ -36,7 +36,7 @@ type Commands struct {
 
 // SetConfig configures the set command.
 type SetConfig struct {
-	DiceSideExpr string   `yaml:"diceSideExpr"`
+	DiceSideExpr string   `yaml:"diceSides"`
 	EnableTip    string   `yaml:"enableTip"`
 	Keys         []string `yaml:"keys"`
 	RelatedExt   []string `yaml:"relatedExt"`
@@ -64,16 +64,6 @@ type StShowConfig struct {
 	ShowValueAs  map[string]string `yaml:"showValueAs"`
 	ShowKeyAs    map[string]string `yaml:"showKeyAs"`
 	ItemsPerLine int               `yaml:"itemsPerLine"`
-}
-
-// AttrConfig keeps backward compatible view of show configuration.
-type AttrConfig struct {
-	Top          []string
-	SortBy       string
-	Ignores      []string
-	ShowAs       map[string]string
-	ShowAsKey    map[string]string
-	ItemsPerLine int
 }
 
 // NameTemplateItem describes an sn template entry.
@@ -113,10 +103,10 @@ type GameSystemTemplateV2 struct {
 type GameSystemTemplate struct {
 	*GameSystemTemplateV2 `yaml:",inline"`
 
+	// 这几个都是出于兼容目的，因为有一部分V1机制还在用这个
 	TextMap         *TextTemplateWithWeightDict `yaml:"textMap"`
 	TextMapHelpInfo *TextTemplateWithHelpDict   `yaml:"textMapHelpInfo"`
 
-	AttrConfig   AttrConfig                  `yaml:"-"`
 	SetConfig    LegacySetConfig             `yaml:"-"`
 	NameTemplate map[string]NameTemplateItem `yaml:"-"`
 }
@@ -248,16 +238,6 @@ func (t *GameSystemTemplate) Init() {
 	}
 
 	t.GameSystemTemplateV2.Init()
-
-	show := t.Commands.St.Show
-	t.AttrConfig = AttrConfig{
-		Top:          append([]string(nil), show.Top...),
-		SortBy:       show.SortBy,
-		Ignores:      append([]string(nil), show.Ignores...),
-		ShowAs:       show.ShowValueAs,
-		ShowAsKey:    show.ShowKeyAs,
-		ItemsPerLine: show.ItemsPerLine,
-	}
 
 	t.SetConfig = LegacySetConfig{
 		DiceSideExpr: t.Commands.Set.DiceSideExpr,
@@ -393,14 +373,14 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (string, *ds.
 	}
 
 	baseK := k
-	if expr, exists := t.AttrConfig.ShowAsKey[k]; exists && expr != "" {
+	if expr, exists := t.Commands.St.Show.ShowKeyAs[k]; exists && expr != "" {
 		t.runInitScript(ctx)
 		if r, _, err := DiceExprTextBase(ctx, expr, RollExtraFlags{DefaultDiceSideNum: getDefaultDicePoints(ctx), V2Only: true}); err == nil {
 			k = r.ToString()
 		}
 	}
 
-	if expr, exists := t.AttrConfig.ShowAs[baseK]; exists && expr != "" {
+	if expr, exists := t.Commands.St.Show.ShowValueAs[baseK]; exists && expr != "" {
 		t.runInitScript(ctx)
 		r, _, err := DiceExprTextBase(ctx, expr, RollExtraFlags{DefaultDiceSideNum: getDefaultDicePoints(ctx), V2Only: true})
 		if err == nil {
@@ -409,7 +389,7 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (string, *ds.
 		return k, nil, err
 	}
 
-	if expr, exists := t.AttrConfig.ShowAs["*"]; exists && expr != "" {
+	if expr, exists := t.Commands.St.Show.ShowValueAs["*"]; exists && expr != "" {
 		t.runInitScript(ctx)
 		ctx.CreateVmIfNotExists()
 		ctx.vm.StoreNameLocal("name", ds.NewStrVal(baseK))
@@ -421,35 +401,6 @@ func (t *GameSystemTemplate) getShowAs0(ctx *MsgContext, k string) (string, *ds.
 	}
 
 	return k, nil, nil
-}
-
-func (t *GameSystemTemplate) getShowAsBase(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
-	newK, v, err := t.getShowAs0(ctx, k)
-	if v != nil || err != nil {
-		return newK, v, err
-	}
-
-	curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
-	if v, exists := curAttrs.LoadX(k); exists {
-		return newK, v, nil
-	}
-
-	if v, _, _, exists := t.GetDefaultValueEx0(ctx, k); v != nil && exists {
-		return newK, v, nil
-	}
-
-	return k, nil, nil
-}
-
-func (t *GameSystemTemplate) GetShowAs(ctx *MsgContext, k string) (string, *ds.VMValue, error) {
-	k, v, err := t.getShowAsBase(ctx, k)
-	if err != nil {
-		return k, v, err
-	}
-	if v != nil {
-		return k, v, nil
-	}
-	return k, ds.NewIntVal(0), nil
 }
 
 func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {

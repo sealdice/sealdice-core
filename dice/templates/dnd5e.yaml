@@ -158,7 +158,7 @@ alias: # 别名
 
 commands: # 具体的指令设置
   set:
-    diceSideExpr: '20'
+    diceSides: '20'
     keys:
       - dnd
       - dnd5e
