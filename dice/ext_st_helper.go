@@ -50,7 +50,7 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 		// 按照配置文件排序
 		var attrKeys []string
 		used := map[string]bool{}
-		for _, key := range tmpl.AttrConfig.Top {
+		for _, key := range tmpl.Commands.St.Show.Top {
 			if used[key] {
 				continue
 			}
@@ -69,7 +69,7 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				return true
 			}
 			if !isExport {
-				for _, n := range tmpl.AttrConfig.Ignores {
+				for _, n := range tmpl.Commands.St.Show.Ignores {
 					// 跳过忽略项
 					if n == key {
 						return true
@@ -83,9 +83,9 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 
 		// 没有pickItem时，按照配置文件排序
 		if len(pickItems) == 0 {
-			switch tmpl.AttrConfig.SortBy {
+			switch tmpl.Commands.St.Show.SortBy {
 			case "value", "value desc":
-				isDesc := tmpl.AttrConfig.SortBy == "value desc"
+				isDesc := tmpl.Commands.St.Show.SortBy == "value desc"
 				// 首先变换为可排序形式
 				var vals []struct {
 					Key string
@@ -172,16 +172,51 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				}
 			}
 
+			mctx.CreateVmIfNotExists()
+			vm := mctx.vm
+
 			var v *ds.VMValue
-			k, v, err = tmpl.GetShowAs(mctx, k)
+			baseK := k
+			k, err = tmpl.GetShowKeyAs(mctx, k)
 			if err != nil {
-				return nil, 0, errors.New("模板卡异常, 属性: " + k + "\n报错: " + err.Error())
+				return nil, 0, errors.New("模板卡异常(key), 属性: " + k + "\n报错: " + err.Error())
+			}
+
+			// 注: 使用 baseK 的原因是 k 可能会被showAs更改，例如dnd5e会将”运动“修改为“运动*“，以代表熟练，此时k不再匹配
+			vm.Error = nil // 避免残留错误
+			v, err = tmpl.GetShowValueAs(mctx, baseK)
+
+			// NOTE: 注意，计算computed会引起 .st &手枪=1d3+1d5 这样的值被计算出来，但是像是 db 这样的值我们又希望不计算。在showValueAs里面写一下 db: {db} 可解决
+			// 这段可以用来获取实际值，用于一种情况，就是模板中未设定showAs，该value本身是个computed
+			// if err == nil && v.TypeId == ds.VMTypeComputedValue {
+			// 	vm.Error = nil // 好像可能残留错误
+			// 	v = v.ComputedExecute(vm, nil)
+			// 	err = vm.Error
+			// }
+
+			if err != nil {
+				return nil, 0, errors.New("模板卡异常(value), 属性: " + k + "\n报错: " + err.Error())
 			}
 
 			if index >= topNum {
-				if useLimit && v.TypeId == ds.VMTypeInt && int64(v.MustReadInt()) < limit {
-					limitSkipCount++
-					continue
+				if useLimit {
+					compareVal := ds.IntType(0)
+
+					if v.TypeId == ds.VMTypeInt {
+						compareVal = v.MustReadInt()
+					}
+
+					if v.TypeId == ds.VMTypeString {
+						// 如果是个字符串 试试转换
+						if _v, err := strconv.ParseInt(v.ToString(), 10, 64); err == nil {
+							compareVal = ds.IntType(_v)
+						}
+					}
+
+					if int64(compareVal) < limit {
+						limitSkipCount++
+						continue
+					}
 				}
 			}
 
@@ -247,7 +282,7 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 	// 获取当前值
 	curVal, _ := attrs.valueMap.Load(i.name)
 	if curVal == nil {
-		curVal = tmpl.GetDefaultValueEx(mctx, i.name)
+		curVal, _, _, _ = tmpl.GetDefaultValue(i.name)
 	}
 	if curVal == nil {
 		curVal = ds.NewIntVal(0)
@@ -475,9 +510,9 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 			}
 
-			mctx.Eval(tmpl.PreloadCode, nil)
+			mctx.Eval(tmpl.InitScript, nil)
 			if tmplShow != tmpl {
-				mctx.Eval(tmplShow.PreloadCode, nil)
+				mctx.Eval(tmplShow.InitScript, nil)
 			}
 
 			if soi.CommandSolve != nil {
@@ -500,7 +535,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 
 				// 每四个一行，拼起来
-				itemsPerLine := tmplShow.AttrConfig.ItemsPerLine
+				itemsPerLine := tmplShow.Commands.St.Show.ItemsPerLine
 				if itemsPerLine <= 1 {
 					itemsPerLine = 4
 				}
@@ -753,7 +788,7 @@ func RegisterBuiltinExtExp(_ *Dice) {
 	// 	AutoActive: false, // 是否自动开启
 	// 	OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	// 		//p := getPlayerInfoBySender(session, msg)
-	// 		//p.TempValueAlias = &ac.Alias;
+	// 		// alias mapping handled via system template.
 	// 	},
 	// 	GetDescText: func(i *ExtInfo) string {
 	// 		return GetExtensionDesc(i)

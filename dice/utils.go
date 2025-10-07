@@ -536,6 +536,11 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 		"UI-Group:":         "UI:",
 	}
 
+	// 遇到一个例子:
+	// QQ-CH-Group:33845581638279358-3047284-QQ-CH:144115218744389299
+	// OpenQQ-Group:102076784-89F06C35D4D418FE02BEFAEB8A6BAEB2-OpenQQ-Member:102076784-89F06C35D4D418FE02BEFAEB8A6BAEB2-FF4E7AAC8134661D05CF53E62F4037B4
+	// 应该是某一个测试版本，占比很少，这里忽略吧
+
 	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:456 ？
 	// 但是 KOOK 就例外了
 	for groupPrefix, userPrefix := range prefixMap {

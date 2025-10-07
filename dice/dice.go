@@ -730,21 +730,13 @@ func (d *Dice) ApplyAliveNotice() {
 
 // GameSystemTemplateAddEx 应用一个角色模板
 func (d *Dice) GameSystemTemplateAddEx(tmpl *GameSystemTemplate, overwrite bool) bool {
+	if tmpl == nil {
+		return false
+	}
 	_, exists := d.GameSystemMap.Load(tmpl.Name)
 	if !exists || overwrite {
+		tmpl.Init()
 		d.GameSystemMap.Store(tmpl.Name, tmpl)
-		// sn 从这里读取
-		// set 时从这里读取对应System名字的模板
-
-		// 同义词缓存
-		tmpl.AliasMap = new(SyncMap[string, string])
-		alias := tmpl.Alias
-		for k, v := range alias {
-			for _, i := range v {
-				tmpl.AliasMap.Store(strings.ToLower(i), k)
-			}
-			tmpl.AliasMap.Store(strings.ToLower(k), k)
-		}
 		return true
 	}
 	return false
