@@ -264,6 +264,7 @@ commands:
       showValueAs:
         生命值: '{生命值}/{生命值上限}'
         魔法值: '{魔法值}/{魔法值上限}'
+        db: '{db}'
       showKeyAs:
         生命值: '生命'
 

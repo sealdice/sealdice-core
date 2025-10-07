@@ -119,10 +119,17 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 						restText = restText[:1] + " " + re2.ReplaceAllString(restText[2:], "$1$2")
 					} else { // if !(unicode.IsNumber(r) || r == '(')
 						// 将 .rab测试 切开为 "b 测试"
-						for index, i := range restText[1:] {
-							if !unicode.IsNumber(i) && i != '(' {
-								restText = restText[:index+1] + " " + restText[index+1:]
-								break
+						// 注: 判断 ( 是为了 .ra(1)50 能够运行，除此之外还有 .rab3(1)50 等等
+						if restText[0] != '(' {
+							for index, i := range restText[1:] {
+								if i == '(' {
+									break
+								}
+
+								if !unicode.IsNumber(i) {
+									restText = restText[:index+1] + " " + restText[index+1:]
+									break
+								}
 							}
 						}
 					}

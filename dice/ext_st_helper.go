@@ -186,12 +186,14 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			vm.Error = nil // 避免残留错误
 			v, err = tmpl.GetShowValueAs(mctx, baseK)
 
+			// NOTE: 注意，计算computed会引起 .st &手枪=1d3+1d5 这样的值被计算出来，但是像是 db 这样的值我们又希望不计算。在showValueAs里面写一下 db: {db} 可解决
 			// 这段可以用来获取实际值，用于一种情况，就是模板中未设定showAs，该value本身是个computed
-			if err == nil && v.TypeId == ds.VMTypeComputedValue {
-				vm.Error = nil // 好像可能残留错误
-				v = v.ComputedExecute(vm, nil)
-				err = vm.Error
-			}
+			// if err == nil && v.TypeId == ds.VMTypeComputedValue {
+			// 	vm.Error = nil // 好像可能残留错误
+			// 	v = v.ComputedExecute(vm, nil)
+			// 	err = vm.Error
+			// }
+
 			if err != nil {
 				return nil, 0, errors.New("模板卡异常(value), 属性: " + k + "\n报错: " + err.Error())
 			}
