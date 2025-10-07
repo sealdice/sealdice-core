@@ -202,7 +202,12 @@ func checkHTTPConnectivity(url string) (bool, time.Duration) {
 
 	var wg sync.WaitGroup
 	for range checkTimes {
-		wg.Go(func() { once(url) })
+		// wg.Go(func() { once(url) }) // 1.25写法，但是编译后无法正常运行
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			once(url)
+		}()
 	}
 	wg.Wait()
 	close(rsChan)
@@ -263,13 +268,33 @@ func checkNetworkHealth(c echo.Context) error {
 			ping, _ := url.JoinPath(signServerInfo.Url, "/ping")
 			return ping
 		})
-		wg.Go(func() { checkUrls("sign", urls) })
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			checkUrls("sign", urls)
+		}()
 	}
 
-	wg.Go(func() { checkUrls("baidu", []string{"https://baidu.com"}) })
-	wg.Go(func() { checkUrls("seal", dice.BackendUrls) })
-	wg.Go(func() { checkUrls("google", []string{"https://google.com"}) })
-	wg.Go(func() { checkUrls("github", []string{"https://github.com"}) })
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		checkUrls("baidu", []string{"https://baidu.com"})
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		checkUrls("seal", dice.BackendUrls)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		checkUrls("google", []string{"https://google.com"})
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		checkUrls("github", []string{"https://github.com"})
+	}()
 
 	wg.Wait()
 	close(rsChan)

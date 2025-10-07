@@ -1,6 +1,6 @@
 module sealdice-core
 
-go 1.25.0
+go 1.24.6
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -16,6 +16,7 @@ require (
 	github.com/blevesearch/bleve/v2 v2.5.2
 	github.com/blevesearch/bleve_index_api v1.2.9
 	github.com/bwmarrin/discordgo v0.29.0
+	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/evanw/esbuild v0.25.9
@@ -116,7 +117,6 @@ require (
 	github.com/blevesearch/zapx/v14 v14.4.2 // indirect
 	github.com/blevesearch/zapx/v15 v15.4.2 // indirect
 	github.com/blevesearch/zapx/v16 v16.2.4 // indirect
-	github.com/danielgtaylor/huma/v2 v2.34.1 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
 	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
