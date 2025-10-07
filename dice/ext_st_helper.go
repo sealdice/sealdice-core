@@ -183,9 +183,12 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 			}
 
 			// 注: 使用 baseK 的原因是 k 可能会被showAs更改，例如dnd5e会将”运动“修改为“运动*“，以代表熟练，此时k不再匹配
+			vm.Error = nil // 避免残留错误
 			v, err = tmpl.GetShowValueAs(mctx, baseK)
+
 			// 这段可以用来获取实际值，用于一种情况，就是模板中未设定showAs，该value本身是个computed
 			if err == nil && v.TypeId == ds.VMTypeComputedValue {
+				vm.Error = nil // 好像可能残留错误
 				v = v.ComputedExecute(vm, nil)
 				err = vm.Error
 			}

@@ -28,7 +28,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 	config.ParseExprLimit = 10000000 // kenichiLyon: 限制解析算力，防止递归过深，这里以建议值1000万设置。
 
 	am := ctx.Dice.AttrsManager
-	config.HookFuncValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+	config.HookValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
 		// 临时变量
 		if strings.HasPrefix(name, "$t") {
 			if ctx.Player.ValueMapTemp == nil {
@@ -471,7 +471,7 @@ func (a spanByEnd) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a spanByEnd) Less(i, j int) bool { return a[i].End < a[j].End }
 
 func (ctx *MsgContext) setCocPrefixReadForVM(cb func(cocFlagVarPrefix string)) {
-	ctx.vm.Config.HookFuncValueLoad = func(ctx *ds.Context, name string) (string, *ds.VMValue) {
+	ctx.vm.Config.HookValueLoadPre = func(ctx *ds.Context, name string) (string, *ds.VMValue) {
 		re := regexp.MustCompile(`^(困难|极难|大成功|常规|失败|困難|極難|常規|失敗)?([^\d]+)(\d+)?$`)
 		m := re.FindStringSubmatch(name)
 
@@ -638,7 +638,7 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 		return curVal
 	}
 
-	ctx.vm.Config.HookFuncValueLoadOverwrite = handler
+	ctx.vm.Config.HookValueLoadPost = handler
 }
 
 func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {

@@ -109,6 +109,8 @@ type GameSystemTemplate struct {
 
 	SetConfig    LegacySetConfig             `yaml:"-"`
 	NameTemplate map[string]NameTemplateItem `yaml:"-"`
+
+	inited bool
 }
 
 func (t *GameSystemTemplateV2) Init() {
@@ -232,6 +234,11 @@ func (t *GameSystemTemplate) Init() {
 		return
 	}
 
+	// 我注意到有重复init
+	if t.inited {
+		return
+	}
+
 	if t.GameSystemTemplateV2 == nil {
 		// ensure the embedded template is always available
 		t.GameSystemTemplateV2 = &GameSystemTemplateV2{}
@@ -268,6 +275,8 @@ func (t *GameSystemTemplate) Init() {
 	if t.Attrs.DetailOverwrite == nil {
 		t.Attrs.DetailOverwrite = map[string]string{}
 	}
+
+	t.inited = true
 }
 
 func (t *GameSystemTemplate) GetAlias(varname string) string {
@@ -417,7 +426,13 @@ func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VM
 		return v, nil
 	}
 
-	if v, _, _, exists := t.GetDefaultValueEx0(ctx, k); exists {
+	// if v, _, _, exists := t.GetDefaultValueEx0(ctx, k); exists {
+	// 	return v, nil
+	// }
+
+	// 默认值
+	v, _, _, exists := t.GetDefaultValue(k)
+	if exists {
 		return v, nil
 	}
 

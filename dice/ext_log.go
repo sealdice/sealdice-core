@@ -32,7 +32,7 @@ func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) 
 		ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 	}
 	config := ctx.GenDefaultRollVmConfig()
-	config.HookFuncValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+	config.HookValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
 		return nil, true
 	}
 	v := ctx.EvalFString(tmpl, config)
