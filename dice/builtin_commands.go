@@ -1728,6 +1728,16 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Group.System = key
 					ctx.Group.DiceSideNum = tmpl.SetConfig.DiceSides
 					ctx.Group.UpdatedAtTime = time.Now().Unix()
+
+					// 兼容性设定
+					if tmpl.SetConfig.EnableTip == "" {
+						extNames := []string{}
+						for _, name := range tmpl.Commands.Set.RelatedExt {
+							extNames = append(extNames, name)
+						}
+						tmpl.SetConfig.EnableTip = fmt.Sprintf("已切换至 %s(%s) 规则，默认骰子面数 %s，自动启用关联扩展: %s", tmpl.FullName, tmpl.Name, tmpl.Commands.Set.DiceSideExpr, strings.Join(extNames, ", "))
+					}
+
 					tipText += tmpl.SetConfig.EnableTip
 
 					// TODO: 命令该要进步啦
