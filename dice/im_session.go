@@ -1324,7 +1324,9 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	ep := ctx.EndPoint
 	dm := d.Parent
 	// 判断进群的人是自己，自动启动
-	group := SetBotOnAtGroup(ctx, msg.GroupID)
+    group := SetBotOnAtGroup(ctx, msg.GroupID)
+    // Ensure context has group set for formatting and attrs access
+    ctx.Group = group
 	// 获取邀请人ID，Adapter 应当按照统一格式将邀请人 ID 放入 Sender 字段
 	group.InviteUserID = msg.Sender.UserID
 	group.DiceIDExistsMap.Store(ep.UserID, true)
@@ -1369,7 +1371,7 @@ var lastWelcome *LastWelcomeInfo
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	log := s.Parent.Logger
 
-	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+    groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 	// 进群的是别人，是否迎新？
 	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
@@ -1386,15 +1388,17 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 			Time:    msg.Time,
 		}
 
-		if !isDouble {
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
-					}
-				}()
+        if !isDouble {
+            func() {
+                defer func() {
+                    if r := recover(); r != nil {
+                        log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+                    }
+                }()
 
-				ctx.Player = &GroupPlayerInfo{}
+                // Ensure context has group set for formatting and attrs access
+                ctx.Group = groupInfo
+                ctx.Player = &GroupPlayerInfo{}
 				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
 				uidRaw := UserIDExtract(msg.Sender.UserID)
 				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)

@@ -232,6 +232,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 			// 判断进群的人是自己，自动启动
 			gi := SetBotOnAtGroup(ctx, msg.GroupID)
+			// Ensure context has group set for formatting and attrs access
+			ctx.Group = gi
 			if tempInviteMap2[msg.GroupID] != "" {
 				// 设置邀请人
 				gi.InviteUserID = tempInviteMap2[msg.GroupID]
@@ -384,6 +386,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 									}
 								}()
 
+								// Ensure context has group set for formatting and attrs access
+								ctx.Group = groupInfo
 								ctx.Player = &GroupPlayerInfo{}
 								VarSetValueStr(ctx, "$t帐号ID_RAW", event.GroupID)
 								VarSetValueStr(ctx, "$t账号ID_RAW", event.GroupID)
