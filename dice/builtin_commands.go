@@ -1551,7 +1551,7 @@ func (d *Dice) registerCoreCommands() {
 				var extNames []string
 				var conflictsAll []string
 
-				//判断是否是 .ext all on
+				// 判断是否是 .ext all on
 				if cmdArgs.IsArgEqual(1, "all") {
 					for _, ext := range ctx.Dice.ExtList {
 						isActive := false
