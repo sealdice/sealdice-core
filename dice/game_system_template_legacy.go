@@ -238,21 +238,7 @@ func cloneDetailOverwrite(src map[string]string) map[string]string {
 	}
 	dst := make(map[string]string, len(src))
 	for k, v := range src {
-		dst[k] = normalizeLegacyDetailOverwrite(v)
+		dst[k] = v
 	}
 	return dst
-}
-
-func normalizeLegacyDetailOverwrite(raw string) string {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return ""
-	}
-	if strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
-		return trimmed
-	}
-	if legacyDetailFuncExpr.MatchString(trimmed) {
-		return "{" + trimmed + "}"
-	}
-	return trimmed
 }
