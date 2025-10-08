@@ -3,6 +3,7 @@ package dice
 import (
 	"cmp"
 	"fmt"
+	"math/rand"
 	"slices"
 	"strings"
 
@@ -22,6 +23,7 @@ var cmdTeam = &CmdItemInfo{
 .team <团队名> add/del <@成员...> // 增减队伍列表，若无团队会自动新建
 .team <团队名> clear // 清空队伍
 .team <团队名> call // 艾特队伍
+.team <团队名> draw // 随机抽取队伍成员
 .team <团队名> <属性> // 列出队内成员属性`,
 	DisabledInPrivate: true,
 	AllowDelegate:     true,
@@ -108,6 +110,20 @@ var cmdTeam = &CmdItemInfo{
 				cqCodes = append(cqCodes, fmt.Sprintf("[CQ:at,qq=%s]", id))
 			}
 			ReplyToSender(context, message, fmt.Sprintf("呼叫%s：%s", groupName, strings.Join(cqCodes, " ")))
+		case "draw":
+			if !groupExists {
+				ReplyToSender(context, message, fmt.Sprintf("没有叫%s的团队或它已经被清除", groupName))
+				break
+			}
+			if len(playerGroup) == 0 {
+				ReplyToSender(context, message, fmt.Sprintf("团队%s中没有成员", groupName))
+				break
+			}
+			index := rand.Intn(len(playerGroup))
+			selectedUserID := playerGroup[index]
+			rawUserID := teamStripPlatformPrefix(selectedUserID)
+			cqCode := fmt.Sprintf("[CQ:at,qq=%s]", rawUserID)
+			ReplyToSender(context, message, fmt.Sprintf("从团队%s中随机抽取到：%s", groupName, cqCode))
 		default:
 			if !groupExists {
 				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的团队", groupName))
