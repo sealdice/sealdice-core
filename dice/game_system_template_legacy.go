@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -54,8 +53,6 @@ type legacyTemplate struct {
 	TextMapHelpInfo  map[string]any                    `json:"textMapHelpInfo"  yaml:"TextMapHelpInfo"`
 	PreloadCode      string                            `json:"preloadCode"      yaml:"preloadCode"`
 }
-
-var legacyDetailFuncExpr = regexp.MustCompile(`^[\p{L}_][\p{L}\p{N}_]*\s*\(.*\)$`)
 
 func parseLegacyTemplate(data []byte, format string) (*legacyTemplate, error) {
 	var tmpl legacyTemplate
