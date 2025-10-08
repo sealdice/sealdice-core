@@ -127,6 +127,7 @@ func (pa *PlatformAdapterGocq) SendToChannelGroup(ctx *MsgContext, userID string
 	text = strings.ReplaceAll(text, "www.", "www_")
 	text = strings.ReplaceAll(text, "log.sealdice", "log_sealdice")
 	text = strings.ReplaceAll(text, "dice.weizaima", "dice_weizaima")
+	text = strings.ReplaceAll(text, "api.weizaima", "api_weizaima")
 	text = strings.ReplaceAll(text, "log.weizaima", "log_weizaima")
 	text = strings.ReplaceAll(text, "://", "_//")
 	text = textAssetsConvert(text)

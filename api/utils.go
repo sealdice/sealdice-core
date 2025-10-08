@@ -15,7 +15,6 @@ import (
 
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
-	"github.com/monaco-io/request"
 	"github.com/samber/lo"
 
 	"sealdice-core/dice"
@@ -74,29 +73,25 @@ func GetHexData(c echo.Context, method string, name string) (value []byte, finis
 	return value, false
 }
 
-var getAvatarCounter = 0
-
 func getGithubAvatar(c echo.Context) error {
-	getAvatarCounter++
-	if getAvatarCounter > 500 {
-		// 请求次数过多
-		return c.JSON(http.StatusNotFound, "")
-	}
-
+	// 因为不明原因阻塞，会导致显示离线，先注释掉了
 	uid := c.Param("uid")
-	req := request.Client{
-		URL:    fmt.Sprintf("https://avatars.githubusercontent.com/%s?s=200", uid),
-		Method: "GET",
-	}
+	return c.Redirect(http.StatusFound, fmt.Sprintf("https://avatars.githubusercontent.com/%s?s=200", uid))
 
-	resp := req.Send()
-	if resp.OK() {
-		// 设置缓存时间为3天
-		c.Response().Header().Set("Cache-Control", "max-age=259200")
+	// uid := c.Param("uid")
+	// req := request.Client{
+	// 	URL:    fmt.Sprintf("https://avatars.githubusercontent.com/%s?s=200", uid),
+	// 	Method: "GET",
+	// }
 
-		return c.Blob(http.StatusOK, resp.ContentType(), resp.Bytes())
-	}
-	return c.JSON(http.StatusNotFound, "")
+	// resp := req.Send()
+	// if resp.OK() {
+	// 	// 设置缓存时间为3天
+	// 	c.Response().Header().Set("Cache-Control", "max-age=259200")
+
+	// 	return c.Blob(http.StatusOK, resp.ContentType(), resp.Bytes())
+	// }
+	// return c.JSON(http.StatusNotFound, "")
 }
 
 func packGocqConfig(relWorkDir string) *bytes.Buffer {

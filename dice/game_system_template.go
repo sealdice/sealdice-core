@@ -58,12 +58,13 @@ type StConfig struct {
 
 // StShowConfig controls st show behaviour.
 type StShowConfig struct {
-	Top          []string          `yaml:"top"`
-	SortBy       string            `yaml:"sortBy"`
-	Ignores      []string          `yaml:"ignores"`
-	ShowValueAs  map[string]string `yaml:"showValueAs"`
-	ShowKeyAs    map[string]string `yaml:"showKeyAs"`
-	ItemsPerLine int               `yaml:"itemsPerLine"`
+	Top               []string          `yaml:"top"`
+	SortBy            string            `yaml:"sortBy"`
+	Ignores           []string          `yaml:"ignores"`
+	ShowKeyAs         map[string]string `yaml:"showKeyAs"`
+	ShowValueAs       map[string]string `yaml:"showValueAs"`
+	ShowValueAsIfMiss map[string]string `yaml:"showValueAsIfMiss"` // 影响单个属性的右侧内容
+	ItemsPerLine      int               `yaml:"itemsPerLine"`
 }
 
 // NameTemplateItem describes an sn template entry.
@@ -179,6 +180,34 @@ func (t *GameSystemTemplateV2) GetShowKeyAs(ctx *MsgContext, k string) (string, 
 }
 
 func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VMValue, error) {
+	// 先看一下是否有值
+	_, exists := t.GetAttrValue(ctx, k)
+
+	getVal := func(expr string) (*VMResultV2, error) {
+		v := ctx.EvalFString(expr, &ds.RollConfig{
+			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
+		})
+		return v, nil
+	}
+
+	if !exists {
+		// 无值情况多一种匹配，用于虽然这个值有默认ShowValueAs，但是用户进行了赋值的情况
+		if expr, exists := t.Commands.St.Show.ShowValueAsIfMiss[k]; exists {
+			if r, err := getVal(expr); err == nil {
+				return &r.VMValue, nil
+			}
+		}
+		// 通配值
+		if expr, exists := t.Commands.St.Show.ShowValueAsIfMiss["*"]; exists {
+			// 这里存入k是因为接下来模板可能会用到原始key，例如 loadRaw(name)
+			ctx.vm.StoreNameLocal("name", ds.NewStrVal(k))
+			if r, err := getVal(expr); err == nil {
+				return &r.VMValue, nil
+			}
+			return ds.NewIntVal(0), nil
+		}
+	}
+
 	if expr, exists := t.Commands.St.Show.ShowValueAs[k]; exists && expr != "" {
 		res := ctx.EvalFString(expr, &ds.RollConfig{
 			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
@@ -202,7 +231,16 @@ func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VM
 		}
 		return ds.NewIntVal(0), nil
 	}
+
+	// 最后返回真实值
 	return t.GetRealValue(ctx, k)
+}
+
+// 获取用户录入的值
+func (t *GameSystemTemplateV2) GetAttrValue(ctx *MsgContext, k string) (*ds.VMValue, bool) {
+	am := ctx.Dice.AttrsManager
+	curAttrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
+	return curAttrs.LoadX(k)
 }
 
 func (t *GameSystemTemplateV2) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {

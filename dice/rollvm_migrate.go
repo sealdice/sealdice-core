@@ -62,6 +62,44 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 	config.CustomMakeDetailFunc = func(ctx *ds.Context, details []ds.BufferSpan, dataBuffer []byte, parsedOffset int) string {
 		detailResult := dataBuffer[:parsedOffset]
 
+		// 特殊机制: 从模板读取detail进行覆盖
+		for index, i := range details {
+			// && ctx.UpCtx == nil
+			tmpl := mctx.SystemTemplate
+			if (i.Tag == "load" || i.Tag == "load.computed") && tmpl != nil {
+				expr := strings.TrimSpace(string(detailResult[i.Begin:i.End]))
+				detailExpr, exists := tmpl.Attrs.DetailOverwrite[expr]
+				if !exists {
+					// 如果没有，尝试使用通配
+					detailExpr = tmpl.Attrs.DetailOverwrite["*"]
+					if detailExpr != "" {
+						// key 应该是等于expr的
+						ctx.StoreNameLocal("name", ds.NewStrVal(expr))
+					}
+				}
+				skip := false
+				if detailExpr != "" {
+					v, err := ctx.RunExpr(detailExpr, true)
+					if v != nil {
+						details[index].Text = v.ToString()
+					}
+					if err != nil {
+						details[index].Text = err.Error()
+					}
+					if v == nil || v.TypeId == ds.VMTypeNull {
+						skip = true
+					}
+				}
+
+				if !skip {
+					// 如果存在且为空，那么很明显意图就是置空
+					if exists && detailExpr == "" {
+						details[index].Text = ""
+					}
+				}
+			}
+		}
+
 		var curPoint ds.IntType
 		lastEnd := ds.IntType(-1) //nolint:ineffassign
 

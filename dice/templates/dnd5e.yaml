@@ -7,7 +7,7 @@ templateVer: '2.0'
 
 initScript: |
   func skillShowValueAs(val) {
-    return `{val}[{&val.base}]`
+    return `{val}[{&val.base??0}]`
   }
 
   func skillShowKeyAs(key, val) {
@@ -32,6 +32,12 @@ initScript: |
     return `调整值{abilityModifier(name)}+熟练{熟练 * load('$stp_'+name)}{buffPart}`
   }
 
+  func skillDetail(val, attrName) {
+    buffPart = load(`$buff_{attrName}豁免`) ?? 0;
+    buffPart = buffPart ? `+buff{buffPart}` : '';
+    return `基础{&val.base}+{attrName}调整值{abilityModifier(attrName)}+熟练{floor((熟练??0) * (&val.factor??0))}{buffPart}`
+  }
+
 attrs: # 属性
   defaults: # 默认值
     熟练: 2
@@ -46,6 +52,7 @@ attrs: # 属性
     感知调整值: abilityModifier('感知')
     魅力调整值: abilityModifier('魅力')
 
+    # 基础技能在没有进行设置的情况下等于调整值
     运动: 力量调整值
 
     体操: 敏捷调整值
@@ -77,42 +84,42 @@ attrs: # 属性
     魅力豁免: pbCalc(0, load('$stp_魅力') ?? 0, 魅力)
 
   detailOverwrite: # 计算过程提示重写
-    pp: "10 + 察觉"
+    pp: "'10+察觉'"
 
-    体质豁免: "{savingDetail('体质')}"
-    力量豁免: "{savingDetail('力量')}"
-    感知豁免: "{savingDetail('感知')}"
-    敏捷豁免: "{savingDetail('敏捷')}"
-    智力豁免: "{savingDetail('智力')}"
-    魅力豁免: "{savingDetail('魅力')}"
+    体质豁免: "savingDetail('体质')"
+    力量豁免: "savingDetail('力量')"
+    感知豁免: "savingDetail('感知')"
+    敏捷豁免: "savingDetail('敏捷')"
+    智力豁免: "savingDetail('智力')"
+    魅力豁免: "savingDetail('魅力')"
 
-    体操: 敏捷调整值
-    巧手: 敏捷调整值
-    隐匿: 敏捷调整值
+    体操: "skillDetail(&体操, '敏捷')"
+    巧手: "skillDetail(&巧手, '敏捷')"
+    隐匿: "skillDetail(&隐匿, '敏捷')"
 
-    调查: 智力调整值
-    奥秘: 智力调整值
-    历史: 智力调整值
-    自然: 智力调整值
-    宗教: 智力调整值
+    调查: "skillDetail(&调查, '智力')"
+    奥秘: "skillDetail(&奥秘, '智力')"
+    历史: "skillDetail(&历史, '智力')"
+    自然: "skillDetail(&自然, '智力')"
+    宗教: "skillDetail(&宗教, '智力')"
 
-    察觉: 感知调整值
-    洞悉: 感知调整值
-    驯兽: 感知调整值
-    医药: 感知调整值
-    求生: 感知调整值
+    察觉: "skillDetail(&察觉, '感知')"
+    洞悉: "skillDetail(&洞悉, '感知')"
+    驯兽: "skillDetail(&驯兽, '感知')"
+    医药: "skillDetail(&医药, '感知')"
+    求生: "skillDetail(&求生, '感知')"
 
-    游说: 魅力调整值
-    欺瞒: 魅力调整值
-    威吓: 魅力调整值
-    表演: 魅力调整值
+    游说: "skillDetail(&游说, '魅力')"
+    欺瞒: "skillDetail(&欺瞒, '魅力')"
+    威吓: "skillDetail(&威吓, '魅力')"
+    表演: "skillDetail(&表演, '魅力')"
 
-    力量调整值: ""
-    体质调整值: ""
-    敏捷调整值: ""
-    智力调整值: ""
-    感知调整值: ""
-    魅力调整值: ""
+    力量调整值: "''"
+    体质调整值: "''"
+    敏捷调整值: "''"
+    智力调整值: "''"
+    感知调整值: "''"
+    魅力调整值: "''"
 
 alias: # 别名
   力量: [str, Strength]

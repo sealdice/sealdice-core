@@ -931,7 +931,7 @@ func (d *Dice) PublicDiceSetupTick() {
 }
 
 func (d *Dice) PublicDiceSetup() {
-	d.PublicDice = public_dice.NewClient("https://dice.weizaima.com", "")
+	d.PublicDice = public_dice.NewClient("https://api.weizaima.com", "")
 
 	cfg := &d.Config.PublicDiceConfig
 	if !cfg.Enable {
