@@ -119,7 +119,7 @@ var cmdTeam = &CmdItemInfo{
 				ReplyToSender(context, message, fmt.Sprintf("团队%s中没有成员", groupName))
 				break
 			}
-			index := rand.Intn(len(playerGroup))
+			index := rand.IntN(len(playerGroup))
 			selectedUserID := playerGroup[index]
 			rawUserID := teamStripPlatformPrefix(selectedUserID)
 			cqCode := fmt.Sprintf("[CQ:at,qq=%s]", rawUserID)
