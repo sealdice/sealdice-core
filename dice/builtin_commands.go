@@ -1508,6 +1508,7 @@ func (d *Dice) registerCoreCommands() {
 					text += fmt.Sprintf("%d. [%s]%s%s %s - %s - %s\n", index+1, state, officialMark, i.Name, aliases, i.Version, author)
 				}
 				text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
+				text += "使用命令: .ext all on 可以在当前群开启全部扩展。\n"
 				text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
 				ReplyToSender(ctx, msg, text)
 			}
@@ -1549,6 +1550,37 @@ func (d *Dice) registerCoreCommands() {
 
 				var extNames []string
 				var conflictsAll []string
+
+				// 判断是否是 .ext all on
+				if cmdArgs.IsArgEqual(1, "all") {
+					for _, ext := range ctx.Dice.ExtList {
+						isActive := false
+						for _, activated := range ctx.Group.ActivatedExtList {
+							if ext.Name == activated.Name {
+								isActive = true
+								break
+							}
+						}
+						if !isActive {
+							extNames = append(extNames, ext.Name)
+							conflictsAll = append(conflictsAll, checkConflict(ext)...)
+							ctx.Group.ExtActive(ext)
+						}
+					}
+
+					if len(extNames) == 0 {
+						ReplyToSender(ctx, msg, "所有扩展已经处于开启状态，无需再次开启。")
+					} else {
+						text := fmt.Sprintf("已开启所有未激活的扩展: %s", strings.Join(extNames, ", "))
+						if len(conflictsAll) > 0 {
+							text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflictsAll, ",")
+							text += "\n对于扩展中存在的同名指令，则越晚开启的扩展，优先级越高。"
+						}
+						ReplyToSender(ctx, msg, text)
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				for index := range len(cmdArgs.Args) {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName, false); i != nil {
