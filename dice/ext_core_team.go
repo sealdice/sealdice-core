@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/samber/lo"
@@ -23,7 +24,7 @@ var cmdTeam = &CmdItemInfo{
 .team <团队名> add/del <@成员...> // 增减队伍列表，若无团队会自动新建
 .team <团队名> clear // 清空队伍
 .team <团队名> call // 艾特队伍
-.team <团队名> draw // 随机抽取队伍成员
+.team <团队名> draw [数量] // 随机抽取队伍成员
 .team <团队名> <属性> // 列出队内成员属性`,
 	DisabledInPrivate: true,
 	AllowDelegate:     true,
@@ -119,11 +120,39 @@ var cmdTeam = &CmdItemInfo{
 				ReplyToSender(context, message, fmt.Sprintf("团队%s中没有成员", groupName))
 				break
 			}
-			index := rand.IntN(len(playerGroup))
-			selectedUserID := playerGroup[index]
-			rawUserID := teamStripPlatformPrefix(selectedUserID)
-			cqCode := fmt.Sprintf("[CQ:at,qq=%s]", rawUserID)
-			ReplyToSender(context, message, fmt.Sprintf("从团队%s中随机抽取到：%s", groupName, cqCode))
+			countStr := arguments.GetArgN(3)
+			count := 1
+			if countStr != "" {
+				parsedCount, err := strconv.Atoi(countStr)
+				if err != nil || parsedCount < 1 {
+					ReplyToSender(context, message, "抽取数量必须是大于等于1的整数")
+					break
+				}
+				count = parsedCount
+				if count > len(playerGroup) {
+					ReplyToSender(context, message, fmt.Sprintf("抽取数量不能超过团队人数(%d)", len(playerGroup)))
+					break
+				}
+			}
+			availableMembers := make([]string, len(playerGroup))
+			copy(availableMembers, playerGroup)
+			selectedMembers := make([]string, 0, count)
+			for i := 0; i < count && len(availableMembers) > 0; i++ {
+				index := rand.IntN(len(availableMembers))
+				selectedUserID := availableMembers[index]
+				selectedMembers = append(selectedMembers, selectedUserID)
+				availableMembers = append(availableMembers[:index], availableMembers[index+1:]...)
+			}
+			cqCodes := make([]string, 0, len(selectedMembers))
+			for _, userID := range selectedMembers {
+				rawUserID := teamStripPlatformPrefix(userID)
+				cqCodes = append(cqCodes, fmt.Sprintf("[CQ:at,qq=%s]", rawUserID))
+			}
+			if count == 1 {
+				ReplyToSender(context, message, fmt.Sprintf("从团队%s中随机抽取到：%s", groupName, cqCodes[0]))
+			} else {
+				ReplyToSender(context, message, fmt.Sprintf("从团队%s中随机抽取%d名成员：%s", groupName, count, strings.Join(cqCodes, " ")))
+			}
 		default:
 			if !groupExists {
 				ReplyToSender(context, message, fmt.Sprintf("没有名叫%s的团队", groupName))
