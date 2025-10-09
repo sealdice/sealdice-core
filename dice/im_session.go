@@ -1325,6 +1325,8 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	dm := d.Parent
 	// 判断进群的人是自己，自动启动
 	group := SetBotOnAtGroup(ctx, msg.GroupID)
+	// Ensure context has group set for formatting and attrs access
+	ctx.Group = group
 	// 获取邀请人ID，Adapter 应当按照统一格式将邀请人 ID 放入 Sender 字段
 	group.InviteUserID = msg.Sender.UserID
 	group.DiceIDExistsMap.Store(ep.UserID, true)
@@ -1394,6 +1396,8 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 					}
 				}()
 
+				// Ensure context has group set for formatting and attrs access
+				ctx.Group = groupInfo
 				ctx.Player = &GroupPlayerInfo{}
 				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
 				uidRaw := UserIDExtract(msg.Sender.UserID)
