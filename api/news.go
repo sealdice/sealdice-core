@@ -13,7 +13,7 @@ import (
 
 func getNews(c echo.Context) error {
 	req := request.Client{
-		URL:    "https://dice.weizaima.com/dice/api/news",
+		URL:    "https://api.weizaima.com/dice/api/news",
 		Method: "GET",
 	}
 
