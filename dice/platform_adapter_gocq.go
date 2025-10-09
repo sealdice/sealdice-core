@@ -848,6 +848,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			// 判断进群的人是自己，自动启动
 			gi := SetBotOnAtGroup(ctx, msg.GroupID)
+			// Ensure context has group set for formatting and attrs access
+			ctx.Group = gi
 			// 获取邀请人ID
 			if tempInviteMap2[msg.GroupID] != "" {
 				// 设置邀请人
@@ -941,6 +943,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 								}
 							}()
 
+							// Ensure context has group set for formatting and attrs access
+							ctx.Group = group
 							ctx.Player = &GroupPlayerInfo{}
 							// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Name+">")
 							uidRaw := string(msgQQ.UserID)
