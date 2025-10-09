@@ -2086,7 +2086,32 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
 					}
 				} else {
-					ReplyToSender(ctx, msg, "此角色名已存在")
+					VarSetValueStr(ctx, "$t角色名", name)
+
+					charId, _ := am.CharIdGetByName(ctx.Player.UserID, name)
+					if charId == "" {
+						// 可能有点过于谨慎，因为已经判断过了，还是留着吧
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					bindingGroups := am.CharGetBindingGroupIdList(charId)
+					if len(bindingGroups) == 0 {
+						attrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
+						attrsExisting := lo.Must(am.LoadById(charId))
+
+						attrsExisting.Clear()
+						attrs.Range(func(key string, value *ds.VMValue) bool {
+							attrsExisting.Store(key, value)
+							return true
+						})
+
+						attrsExisting.Name = name
+						attrsExisting.SetSheetType(ctx.Group.System)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
+					}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "untagAll":
