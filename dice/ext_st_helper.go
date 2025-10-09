@@ -50,12 +50,14 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 		// 按照配置文件排序
 		var attrKeys []string
 		used := map[string]bool{}
-		for _, key := range tmpl.Commands.St.Show.Top {
-			if used[key] {
-				continue
+		if !isExport {
+			for _, key := range tmpl.Commands.St.Show.Top {
+				if used[key] {
+					continue
+				}
+				attrKeys = append(attrKeys, key)
+				used[key] = true
 			}
-			attrKeys = append(attrKeys, key)
-			used[key] = true
 		}
 
 		// 其余按字典序
