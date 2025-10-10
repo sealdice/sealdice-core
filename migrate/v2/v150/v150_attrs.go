@@ -3,6 +3,7 @@ package v150
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	gormLogger "gorm.io/gorm/logger"
 
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
@@ -610,7 +612,7 @@ const (
 	sqliteLogsTempTable     = "logs__tmp_v150"
 	sqliteAttrsTempTable    = "attrs__tmp_v150"
 	sqliteLogItemsTempTable = "log_items__tmp_v150"
-	sqliteLogItemsBatchSize = int64(2000)
+	sqliteCopyBatchSize     = int64(500)
 )
 
 type sqlitePragmaColumn struct {
@@ -647,7 +649,7 @@ var expectedSQLiteAttrsColumns = []sqliteExpectedColumn{
 	{Name: "name", Type: "TEXT"},
 	{Name: "owner_id", Type: "TEXT"},
 	{Name: "sheet_type", Type: "TEXT"},
-	{Name: "is_hidden", Type: "INTEGER"},
+	{Name: "is_hidden", Type: "NUMERIC"},
 	{Name: "created_at", Type: "INTEGER"},
 	{Name: "updated_at", Type: "INTEGER"},
 }
@@ -718,6 +720,9 @@ func ensureSQLiteLogsIndexes(db *gorm.DB) error {
 }
 
 func recreateSQLiteLogsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
+	if err := dropSQLiteIndexes(db, []string{"idx_logs_group", "idx_logs_updated_at", "idx_log_group_id_name"}); err != nil {
+		return err
+	}
 	actualMap := make(map[string]sqlitePragmaColumn, len(actual))
 	for _, col := range actual {
 		actualMap[strings.ToLower(col.Name)] = col
@@ -726,60 +731,35 @@ func recreateSQLiteLogsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
 		return fmt.Errorf("logs 表缺少 id 列，无法迁移")
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteLogsTempTable))).Error; err != nil {
-			return err
-		}
-		if err := createSQLiteLogsTable(tx, sqliteLogsTempTable); err != nil {
-			return err
-		}
+	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteLogsTempTable))).Error; err != nil {
+		return err
+	}
+	if err := createSQLiteLogsTable(db, sqliteLogsTempTable); err != nil {
+		return err
+	}
 
-		insertColumns := make([]string, 0, len(expectedSQLiteLogsColumns))
-		selectColumns := make([]string, 0, len(expectedSQLiteLogsColumns))
-		for _, exp := range expectedSQLiteLogsColumns {
-			insertColumns = append(insertColumns, quoteSQLiteIdentifier(exp.Name))
-			if _, ok := actualMap[strings.ToLower(exp.Name)]; ok {
-				selectColumns = append(selectColumns, quoteSQLiteIdentifier(exp.Name))
-			} else {
-				selectColumns = append(selectColumns, defaultValueForMissingColumn(exp.Name))
-			}
+	insertColumns := make([]string, 0, len(expectedSQLiteLogsColumns))
+	selectColumns := make([]string, 0, len(expectedSQLiteLogsColumns))
+	for _, exp := range expectedSQLiteLogsColumns {
+		insertColumns = append(insertColumns, quoteSQLiteIdentifier(exp.Name))
+		if _, ok := actualMap[strings.ToLower(exp.Name)]; ok {
+			selectColumns = append(selectColumns, quoteSQLiteIdentifier(exp.Name))
+		} else {
+			selectColumns = append(selectColumns, defaultValueForMissingColumn(exp.Name))
 		}
+	}
 
-		var total int64
-		countSQL := fmt.Sprintf("SELECT COUNT(1) FROM %s", quoteSQLiteIdentifier("logs"))
-		if err := tx.Raw(countSQL).Scan(&total).Error; err != nil {
-			return err
-		}
+	if err := bulkCopySQLiteTable(db, "logs", sqliteLogsTempTable, insertColumns, selectColumns); err != nil {
+		return err
+	}
 
-		copySQL := fmt.Sprintf(
-			"INSERT INTO %s (%s) SELECT %s FROM %s ORDER BY rowid LIMIT ? OFFSET ?",
-			quoteSQLiteIdentifier(sqliteLogsTempTable),
-			strings.Join(insertColumns, ","),
-			strings.Join(selectColumns, ","),
-			quoteSQLiteIdentifier("logs"),
-		)
-
-		for offset := int64(0); offset < total; offset += sqliteLogItemsBatchSize {
-			limit := sqliteLogItemsBatchSize
-			if remaining := total - offset; remaining < sqliteLogItemsBatchSize {
-				limit = remaining
-			}
-			if limit <= 0 {
-				break
-			}
-			if err := tx.Exec(copySQL, limit, offset).Error; err != nil {
-				return err
-			}
-		}
-
-		if err := tx.Exec(fmt.Sprintf("DROP TABLE %s", quoteSQLiteIdentifier("logs"))).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", quoteSQLiteIdentifier(sqliteLogsTempTable), quoteSQLiteIdentifier("logs"))).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	if err := db.Exec(fmt.Sprintf("DROP TABLE %s", quoteSQLiteIdentifier("logs"))).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", quoteSQLiteIdentifier(sqliteLogsTempTable), quoteSQLiteIdentifier("logs"))).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func ensureSQLiteLogItemsTable(db *gorm.DB) error {
@@ -843,6 +823,8 @@ func normalizeSQLiteType(t string) string {
 	n = strings.ReplaceAll(n, " UNSIGNED", "")
 	n = strings.TrimSpace(n)
 	switch n {
+	case "NUMERIC":
+		return "INTEGER"
 	case "BOOL", "BOOLEAN":
 		return "INTEGER"
 	default:
@@ -873,7 +855,9 @@ func ensureSQLiteSimpleTable(db *gorm.DB, model interface{}) error {
 		if field.IgnoreMigration {
 			continue
 		}
-		expected = append(expected, strings.ToLower(field.DBName))
+		if field.DBName != "" {
+			expected = append(expected, strings.ToLower(field.DBName))
+		}
 	}
 	if !sqliteColumnNamesMatch(columns, expected) {
 		return db.AutoMigrate(model)
@@ -898,6 +882,9 @@ func sqliteColumnNamesMatch(actual []sqlitePragmaColumn, expected []string) bool
 }
 
 func recreateSQLiteLogItemsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
+	if err := dropSQLiteIndexes(db, []string{"idx_log_items_group_id", "idx_log_items_log_id", "idx_raw_msg_id"}); err != nil {
+		return err
+	}
 	actualMap := make(map[string]sqlitePragmaColumn, len(actual))
 	for _, col := range actual {
 		actualMap[strings.ToLower(col.Name)] = col
@@ -906,60 +893,35 @@ func recreateSQLiteLogItemsTable(db *gorm.DB, actual []sqlitePragmaColumn) error
 		return fmt.Errorf("log_items 表缺少 id 列，无法迁移")
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteLogItemsTempTable))).Error; err != nil {
-			return err
-		}
-		if err := createSQLiteLogItemsTable(tx, sqliteLogItemsTempTable); err != nil {
-			return err
-		}
+	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteLogItemsTempTable))).Error; err != nil {
+		return err
+	}
+	if err := createSQLiteLogItemsTable(db, sqliteLogItemsTempTable); err != nil {
+		return err
+	}
 
-		insertColumns := make([]string, 0, len(expectedSQLiteLogItemsColumns))
-		selectColumns := make([]string, 0, len(expectedSQLiteLogItemsColumns))
-		for _, exp := range expectedSQLiteLogItemsColumns {
-			insertColumns = append(insertColumns, quoteSQLiteIdentifier(exp.Name))
-			if _, ok := actualMap[strings.ToLower(exp.Name)]; ok {
-				selectColumns = append(selectColumns, quoteSQLiteIdentifier(exp.Name))
-			} else {
-				selectColumns = append(selectColumns, defaultValueForMissingColumn(exp.Name))
-			}
+	insertColumns := make([]string, 0, len(expectedSQLiteLogItemsColumns))
+	selectColumns := make([]string, 0, len(expectedSQLiteLogItemsColumns))
+	for _, exp := range expectedSQLiteLogItemsColumns {
+		insertColumns = append(insertColumns, quoteSQLiteIdentifier(exp.Name))
+		if _, ok := actualMap[strings.ToLower(exp.Name)]; ok {
+			selectColumns = append(selectColumns, quoteSQLiteIdentifier(exp.Name))
+		} else {
+			selectColumns = append(selectColumns, defaultValueForMissingColumn(exp.Name))
 		}
+	}
 
-		var total int64
-		countSQL := fmt.Sprintf("SELECT COUNT(1) FROM %s", quoteSQLiteIdentifier("log_items"))
-		if err := tx.Raw(countSQL).Scan(&total).Error; err != nil {
-			return err
-		}
+	if err := bulkCopySQLiteTable(db, "log_items", sqliteLogItemsTempTable, insertColumns, selectColumns); err != nil {
+		return err
+	}
 
-		copySQL := fmt.Sprintf(
-			"INSERT INTO %s (%s) SELECT %s FROM %s ORDER BY rowid LIMIT ? OFFSET ?",
-			quoteSQLiteIdentifier(sqliteLogItemsTempTable),
-			strings.Join(insertColumns, ","),
-			strings.Join(selectColumns, ","),
-			quoteSQLiteIdentifier("log_items"),
-		)
-
-		for offset := int64(0); offset < total; offset += sqliteLogItemsBatchSize {
-			limit := sqliteLogItemsBatchSize
-			if remaining := total - offset; remaining < sqliteLogItemsBatchSize {
-				limit = remaining
-			}
-			if limit <= 0 {
-				break
-			}
-			if err := tx.Exec(copySQL, limit, offset).Error; err != nil {
-				return err
-			}
-		}
-
-		if err := tx.Exec(fmt.Sprintf("DROP TABLE %s", quoteSQLiteIdentifier("log_items"))).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", quoteSQLiteIdentifier(sqliteLogItemsTempTable), quoteSQLiteIdentifier("log_items"))).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	if err := db.Exec(fmt.Sprintf("DROP TABLE %s", quoteSQLiteIdentifier("log_items"))).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", quoteSQLiteIdentifier(sqliteLogItemsTempTable), quoteSQLiteIdentifier("log_items"))).Error; err != nil {
+		return err
+	}
+	return nil
 }
 func ensureSQLiteAttrsTable(db *gorm.DB) error {
 	if !db.Migrator().HasTable("attrs") {
@@ -998,6 +960,9 @@ func ensureSQLiteAttrsIndexes(db *gorm.DB) error {
 }
 
 func recreateSQLiteAttrsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
+	if err := dropSQLiteIndexes(db, []string{"idx_attrs_attrs_type_id", "idx_attrs_binding_sheet_id", "idx_attrs_owner_id_id"}); err != nil {
+		return err
+	}
 	actualMap := make(map[string]sqlitePragmaColumn, len(actual))
 	for _, col := range actual {
 		actualMap[strings.ToLower(col.Name)] = col
@@ -1006,60 +971,35 @@ func recreateSQLiteAttrsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
 		return fmt.Errorf("attrs 表缺少 id 列，无法迁移")
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteAttrsTempTable))).Error; err != nil {
-			return err
-		}
-		if err := createSQLiteAttrsTable(tx, sqliteAttrsTempTable); err != nil {
-			return err
-		}
+	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteAttrsTempTable))).Error; err != nil {
+		return err
+	}
+	if err := createSQLiteAttrsTable(db, sqliteAttrsTempTable); err != nil {
+		return err
+	}
 
-		insertColumns := make([]string, 0, len(expectedSQLiteAttrsColumns))
-		selectColumns := make([]string, 0, len(expectedSQLiteAttrsColumns))
-		for _, exp := range expectedSQLiteAttrsColumns {
-			insertColumns = append(insertColumns, quoteSQLiteIdentifier(exp.Name))
-			if _, ok := actualMap[strings.ToLower(exp.Name)]; ok {
-				selectColumns = append(selectColumns, quoteSQLiteIdentifier(exp.Name))
-			} else {
-				selectColumns = append(selectColumns, defaultValueForMissingColumn(exp.Name))
-			}
+	insertColumns := make([]string, 0, len(expectedSQLiteAttrsColumns))
+	selectColumns := make([]string, 0, len(expectedSQLiteAttrsColumns))
+	for _, exp := range expectedSQLiteAttrsColumns {
+		insertColumns = append(insertColumns, quoteSQLiteIdentifier(exp.Name))
+		if _, ok := actualMap[strings.ToLower(exp.Name)]; ok {
+			selectColumns = append(selectColumns, quoteSQLiteIdentifier(exp.Name))
+		} else {
+			selectColumns = append(selectColumns, defaultValueForMissingColumn(exp.Name))
 		}
+	}
 
-		var total int64
-		countSQL := fmt.Sprintf("SELECT COUNT(1) FROM %s", quoteSQLiteIdentifier("attrs"))
-		if err := tx.Raw(countSQL).Scan(&total).Error; err != nil {
-			return err
-		}
+	if err := bulkCopySQLiteTable(db, "attrs", sqliteAttrsTempTable, insertColumns, selectColumns); err != nil {
+		return err
+	}
 
-		copySQL := fmt.Sprintf(
-			"INSERT INTO %s (%s) SELECT %s FROM %s ORDER BY rowid LIMIT ? OFFSET ?",
-			quoteSQLiteIdentifier(sqliteAttrsTempTable),
-			strings.Join(insertColumns, ","),
-			strings.Join(selectColumns, ","),
-			quoteSQLiteIdentifier("attrs"),
-		)
-
-		for offset := int64(0); offset < total; offset += sqliteLogItemsBatchSize {
-			limit := sqliteLogItemsBatchSize
-			if remaining := total - offset; remaining < sqliteLogItemsBatchSize {
-				limit = remaining
-			}
-			if limit <= 0 {
-				break
-			}
-			if err := tx.Exec(copySQL, limit, offset).Error; err != nil {
-				return err
-			}
-		}
-
-		if err := tx.Exec(fmt.Sprintf("DROP TABLE %s", quoteSQLiteIdentifier("attrs"))).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", quoteSQLiteIdentifier(sqliteAttrsTempTable), quoteSQLiteIdentifier("attrs"))).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	if err := db.Exec(fmt.Sprintf("DROP TABLE %s", quoteSQLiteIdentifier("attrs"))).Error; err != nil {
+		return err
+	}
+	if err := db.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", quoteSQLiteIdentifier(sqliteAttrsTempTable), quoteSQLiteIdentifier("attrs"))).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func createSQLiteAttrsTable(db *gorm.DB, table string) error {
@@ -1084,6 +1024,76 @@ func createSQLiteLogItemsTable(db *gorm.DB, table string) error {
 		session = session.Table(table)
 	}
 	return session.Migrator().CreateTable(&model.LogOneItem{})
+}
+
+func bulkCopySQLiteTable(db *gorm.DB, src, dst string, insertColumns, selectColumns []string) error {
+	if len(insertColumns) == 0 || len(selectColumns) == 0 {
+		return nil
+	}
+
+	var minRow struct {
+		Value sql.NullInt64 `gorm:"column:value"`
+	}
+	var maxRow struct {
+		Value sql.NullInt64 `gorm:"column:value"`
+	}
+
+	minQuery := fmt.Sprintf("SELECT rowid AS value FROM %s ORDER BY rowid ASC LIMIT 1", quoteSQLiteIdentifier(src))
+	if err := db.Raw(minQuery).Scan(&minRow).Error; err != nil {
+		return err
+	}
+
+	maxQuery := fmt.Sprintf("SELECT rowid AS value FROM %s ORDER BY rowid DESC LIMIT 1", quoteSQLiteIdentifier(src))
+	if err := db.Raw(maxQuery).Scan(&maxRow).Error; err != nil {
+		return err
+	}
+
+	if !minRow.Value.Valid || !maxRow.Value.Valid {
+		return nil
+	}
+
+	insertClause := strings.Join(insertColumns, ",")
+	selectClause := strings.Join(selectColumns, ",")
+
+	silentButError := gormLogger.New(
+		log.New(os.Stderr, "", 0),
+		gormLogger.Config{
+			LogLevel: gormLogger.Error, // 只打印 ERROR 及以上
+		},
+	)
+
+	idDst := quoteSQLiteIdentifier(dst)
+	idSrc := quoteSQLiteIdentifier(src)
+	for startRow := minRow.Value.Int64; startRow <= maxRow.Value.Int64; startRow += sqliteCopyBatchSize {
+		endRow := startRow + sqliteCopyBatchSize - 1
+		copySQL := fmt.Sprintf(
+			"INSERT INTO %s (%s) SELECT %s FROM %s WHERE rowid BETWEEN ? AND ?",
+			idDst,
+			insertClause,
+			selectClause,
+			idSrc,
+		)
+		if err := db.Session(&gorm.Session{Logger: silentButError}).
+			Exec(copySQL, startRow, endRow).Error; err != nil {
+			return err
+		}
+
+		val1 := startRow - minRow.Value.Int64
+		val2 := maxRow.Value.Int64 - minRow.Value.Int64
+		fmt.Printf("已迁移 %d/%d 行到 %s - %.2f%%\n", val1, val2, idDst, float64(val1)/float64(val2)*100)
+	}
+
+	return nil
+}
+
+func dropSQLiteIndexes(db *gorm.DB, indexes []string) error {
+	for _, name := range indexes {
+		stmt := fmt.Sprintf("DROP INDEX IF EXISTS %s", quoteSQLiteIdentifier(name))
+		if err := db.Exec(stmt).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func ensureSQLiteLogItemsIndexes(db *gorm.DB) error {
