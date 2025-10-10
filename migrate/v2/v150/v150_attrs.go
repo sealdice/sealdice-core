@@ -163,7 +163,8 @@ func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
 			m.Store(k, v.ConvertToV2())
 		}
 
-		rawData, err := ds.NewDictVal(m).V().ToJSON()
+		var rawData []byte
+		rawData, err = ds.NewDictVal(m).V().ToJSON()
 		if err != nil {
 			countFailed += 1
 			fmt.Fprintf(os.Stdout, "群-用户 %s 的数据无法转换\n", row.ID)
