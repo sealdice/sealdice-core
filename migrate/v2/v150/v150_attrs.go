@@ -1065,6 +1065,7 @@ func bulkCopySQLiteTable(db *gorm.DB, src, dst string, insertColumns, selectColu
 
 	idDst := quoteSQLiteIdentifier(dst)
 	idSrc := quoteSQLiteIdentifier(src)
+	log := zap.S().Named(logger.LogKeyDatabase)
 	for startRow := minRow.Value.Int64; startRow <= maxRow.Value.Int64; startRow += sqliteCopyBatchSize {
 		endRow := startRow + sqliteCopyBatchSize - 1
 		copySQL := fmt.Sprintf(
@@ -1081,7 +1082,7 @@ func bulkCopySQLiteTable(db *gorm.DB, src, dst string, insertColumns, selectColu
 
 		val1 := startRow - minRow.Value.Int64
 		val2 := maxRow.Value.Int64 - minRow.Value.Int64
-		fmt.Printf("已迁移 %d/%d 行到 %s - %.2f%%\n", val1, val2, idDst, float64(val1)/float64(val2)*100)
+		log.Infof("已迁移 %d/%d 行到 %s - %.2f%%", val1, val2, idDst, float64(val1)/float64(val2)*100)
 	}
 
 	return nil
