@@ -66,7 +66,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 		for index, i := range details {
 			// && ctx.UpCtx == nil
 			tmpl := mctx.SystemTemplate
-			if (i.Tag == "load" || i.Tag == "load.computed") && tmpl != nil {
+			if (i.Tag == "load" || i.Tag == "load.computed") && tmpl != nil && ctx.UpCtx == nil {
 				expr := strings.TrimSpace(string(detailResult[i.Begin:i.End]))
 				detailExpr, exists := tmpl.Attrs.DetailOverwrite[expr]
 				if !exists {
@@ -572,7 +572,8 @@ func tryLoadByBuff(ctx *MsgContext, varname string, curVal *ds.VMValue, computed
 				return curVal, false
 			}
 
-			detail.Text += fmt.Sprintf("%s+buff%s", curVal.ToString(), buffVal.ToString())
+			detail.Text = fmt.Sprintf("%s+buff%s", curVal.ToString(), buffVal.ToString())
+			// detail.Text += fmt.Sprintf("%s+buff%s", curVal.ToString(), buffVal.ToString()) // TODO: 这是老的buff detail，感觉很奇怪，而且呈现效果是 15[hp,null+buff105+buff10]
 			newVal := curVal.OpAdd(ctx.vm, buffVal)
 			ctx.vm.Error = nil
 			if newVal != nil {
@@ -591,12 +592,20 @@ func (ctx *MsgContext) setDndReadForVM(rcMode bool) {
 	var skip bool
 	loadBuff := true
 
+	useHookTmp := true
 	handler := func(vm *ds.Context, varname string, curVal *ds.VMValue, doCompute func(curVal *ds.VMValue) *ds.VMValue, detail *ds.BufferSpan) *ds.VMValue {
 		var working = curVal
 
+		if !useHookTmp {
+			return doCompute(curVal)
+		}
+
 		if strings.HasPrefix(varname, "$org_") {
 			varname, _ = strings.CutPrefix(varname, "$org_")
-			return vm.LoadName(varname, true, false)
+			useHookTmp = false // 注: ds里面hook现在会跳过新的 HookValueLoadPost，临时手段，等补强后处理
+			v2 := vm.LoadName(varname, true, false)
+			useHookTmp = true
+			return v2
 		}
 
 		if loadBuff {

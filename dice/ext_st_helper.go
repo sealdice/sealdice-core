@@ -281,7 +281,11 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 }
 
 func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *AttributesItem, commandInfo map[string]any, i *stSetOrModInfoItem, cmdArgs *CmdArgs, stInfo *CmdStOverrideInfo) {
-	// 获取当前值
+	if stInfo.ToMod != nil {
+		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
+	}
+
+	// 获取当前值（在 ToMod 可能重定向名称后再读取）
 	curVal, _ := attrs.valueMap.Load(i.name)
 	if curVal == nil {
 		curVal, _, _, _ = tmpl.GetDefaultValue(i.name)
@@ -298,10 +302,6 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 			curVal = v
 			isSetNew = false
 		}
-	}
-
-	if stInfo.ToMod != nil {
-		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
 	}
 
 	// 进行变更
