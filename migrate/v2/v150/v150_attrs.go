@@ -2,6 +2,7 @@ package v150
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -728,7 +729,7 @@ func recreateSQLiteLogsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
 		actualMap[strings.ToLower(col.Name)] = col
 	}
 	if _, ok := actualMap["id"]; !ok {
-		return fmt.Errorf("logs 表缺少 id 列，无法迁移")
+		return errors.New("logs 表缺少 id 列，无法迁移")
 	}
 
 	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteLogsTempTable))).Error; err != nil {
@@ -890,7 +891,7 @@ func recreateSQLiteLogItemsTable(db *gorm.DB, actual []sqlitePragmaColumn) error
 		actualMap[strings.ToLower(col.Name)] = col
 	}
 	if _, ok := actualMap["id"]; !ok {
-		return fmt.Errorf("log_items 表缺少 id 列，无法迁移")
+		return errors.New("log_items 表缺少 id 列，无法迁移")
 	}
 
 	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteLogItemsTempTable))).Error; err != nil {
@@ -968,7 +969,7 @@ func recreateSQLiteAttrsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
 		actualMap[strings.ToLower(col.Name)] = col
 	}
 	if _, ok := actualMap["id"]; !ok {
-		return fmt.Errorf("attrs 表缺少 id 列，无法迁移")
+		return errors.New("attrs 表缺少 id 列，无法迁移")
 	}
 
 	if err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteAttrsTempTable))).Error; err != nil {
