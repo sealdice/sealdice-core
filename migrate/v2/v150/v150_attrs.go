@@ -525,18 +525,34 @@ func dataDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 			}
 		}
 	}
-	// AutoMigrate初始化 TODO: 用CreateTable是不是更合适呢？
-	// data建表
-	err := writeDB.AutoMigrate(
-		&model.GroupPlayerInfoBase{},
-		&model.GroupInfo{},
-		&model.BanInfo{},
-		&model.EndpointInfo{},
-		&model.AttributesItemModel{},
-	)
-	if err != nil {
-		return err
+	if dboperator.Type() == "sqlite" {
+		if err := ensureSQLiteSimpleTable(writeDB, &model.GroupPlayerInfoBase{}); err != nil {
+			return err
+		}
+		if err := ensureSQLiteSimpleTable(writeDB, &model.GroupInfo{}); err != nil {
+			return err
+		}
+		if err := ensureSQLiteSimpleTable(writeDB, &model.BanInfo{}); err != nil {
+			return err
+		}
+		if err := ensureSQLiteSimpleTable(writeDB, &model.EndpointInfo{}); err != nil {
+			return err
+		}
+		if err := ensureSQLiteAttrsTable(writeDB); err != nil {
+			return err
+		}
+	} else {
+		if err := writeDB.AutoMigrate(
+			&model.GroupPlayerInfoBase{},
+			&model.GroupInfo{},
+			&model.BanInfo{},
+			&model.EndpointInfo{},
+			&model.AttributesItemModel{},
+		); err != nil {
+			return err
+		}
 	}
+
 	logf("DataDB 数据表初始化完成")
 	return nil
 }
@@ -592,6 +608,7 @@ func createMySQLIndexForLogOneItem(db *gorm.DB) (err error) {
 
 const (
 	sqliteLogsTempTable     = "logs__tmp_v150"
+	sqliteAttrsTempTable    = "attrs__tmp_v150"
 	sqliteLogItemsTempTable = "log_items__tmp_v150"
 	sqliteLogItemsBatchSize = int64(2000)
 )
@@ -620,6 +637,19 @@ var expectedSQLiteLogsColumns = []sqliteExpectedColumn{
 	{Name: "extra", Type: "TEXT"},
 	{Name: "upload_url", Type: "TEXT"},
 	{Name: "upload_time", Type: "INTEGER"},
+}
+
+var expectedSQLiteAttrsColumns = []sqliteExpectedColumn{
+	{Name: "id", Type: "TEXT", PrimaryKey: true},
+	{Name: "data", Type: "BLOB"},
+	{Name: "attrs_type", Type: "TEXT"},
+	{Name: "binding_sheet_id", Type: "TEXT"},
+	{Name: "name", Type: "TEXT"},
+	{Name: "owner_id", Type: "TEXT"},
+	{Name: "sheet_type", Type: "TEXT"},
+	{Name: "is_hidden", Type: "INTEGER"},
+	{Name: "created_at", Type: "INTEGER"},
+	{Name: "updated_at", Type: "INTEGER"},
 }
 
 var expectedSQLiteLogItemsColumns = []sqliteExpectedColumn{
@@ -819,6 +849,53 @@ func normalizeSQLiteType(t string) string {
 		return n
 	}
 }
+func ensureSQLiteSimpleTable(db *gorm.DB, model interface{}) error {
+	stmt := &gorm.Statement{DB: db}
+	if err := stmt.Parse(model); err != nil {
+		return err
+	}
+	table := stmt.Schema.Table
+	if table == "" {
+		table = stmt.Table
+	}
+	if table == "" {
+		return fmt.Errorf("unable to determine table name for model %T", model)
+	}
+	if !db.Migrator().HasTable(table) {
+		return db.AutoMigrate(model)
+	}
+	columns, err := loadSQLiteTableColumns(db, table)
+	if err != nil {
+		return err
+	}
+	expected := make([]string, 0, len(stmt.Schema.Fields))
+	for _, field := range stmt.Schema.Fields {
+		if field.IgnoreMigration {
+			continue
+		}
+		expected = append(expected, strings.ToLower(field.DBName))
+	}
+	if !sqliteColumnNamesMatch(columns, expected) {
+		return db.AutoMigrate(model)
+	}
+	return nil
+}
+
+func sqliteColumnNamesMatch(actual []sqlitePragmaColumn, expected []string) bool {
+	if len(actual) != len(expected) {
+		return false
+	}
+	actualSet := make(map[string]struct{}, len(actual))
+	for _, col := range actual {
+		actualSet[strings.ToLower(col.Name)] = struct{}{}
+	}
+	for _, name := range expected {
+		if _, ok := actualSet[strings.ToLower(name)]; !ok {
+			return false
+		}
+	}
+	return true
+}
 
 func recreateSQLiteLogItemsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
 	actualMap := make(map[string]sqlitePragmaColumn, len(actual))
@@ -884,6 +961,114 @@ func recreateSQLiteLogItemsTable(db *gorm.DB, actual []sqlitePragmaColumn) error
 		return nil
 	})
 }
+func ensureSQLiteAttrsTable(db *gorm.DB) error {
+	if !db.Migrator().HasTable("attrs") {
+		if err := createSQLiteAttrsTable(db, "attrs"); err != nil {
+			return err
+		}
+		return ensureSQLiteAttrsIndexes(db)
+	}
+
+	columns, err := loadSQLiteTableColumns(db, "attrs")
+	if err != nil {
+		return err
+	}
+
+	if !sqliteColumnsMatch(columns, expectedSQLiteAttrsColumns) {
+		if err := recreateSQLiteAttrsTable(db, columns); err != nil {
+			return err
+		}
+	}
+
+	return ensureSQLiteAttrsIndexes(db)
+}
+
+func ensureSQLiteAttrsIndexes(db *gorm.DB) error {
+	stmts := []string{
+		"CREATE INDEX IF NOT EXISTS idx_attrs_attrs_type_id ON `attrs` (attrs_type)",
+		"CREATE INDEX IF NOT EXISTS idx_attrs_binding_sheet_id ON `attrs` (binding_sheet_id)",
+		"CREATE INDEX IF NOT EXISTS idx_attrs_owner_id_id ON `attrs` (owner_id)",
+	}
+	for _, stmt := range stmts {
+		if err := db.Exec(stmt).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func recreateSQLiteAttrsTable(db *gorm.DB, actual []sqlitePragmaColumn) error {
+	actualMap := make(map[string]sqlitePragmaColumn, len(actual))
+	for _, col := range actual {
+		actualMap[strings.ToLower(col.Name)] = col
+	}
+	if _, ok := actualMap["id"]; !ok {
+		return fmt.Errorf("attrs 表缺少 id 列，无法迁移")
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteSQLiteIdentifier(sqliteAttrsTempTable))).Error; err != nil {
+			return err
+		}
+		if err := createSQLiteAttrsTable(tx, sqliteAttrsTempTable); err != nil {
+			return err
+		}
+
+		insertColumns := make([]string, 0, len(expectedSQLiteAttrsColumns))
+		selectColumns := make([]string, 0, len(expectedSQLiteAttrsColumns))
+		for _, exp := range expectedSQLiteAttrsColumns {
+			insertColumns = append(insertColumns, quoteSQLiteIdentifier(exp.Name))
+			if _, ok := actualMap[strings.ToLower(exp.Name)]; ok {
+				selectColumns = append(selectColumns, quoteSQLiteIdentifier(exp.Name))
+			} else {
+				selectColumns = append(selectColumns, defaultValueForMissingColumn(exp.Name))
+			}
+		}
+
+		var total int64
+		countSQL := fmt.Sprintf("SELECT COUNT(1) FROM %s", quoteSQLiteIdentifier("attrs"))
+		if err := tx.Raw(countSQL).Scan(&total).Error; err != nil {
+			return err
+		}
+
+		copySQL := fmt.Sprintf(
+			"INSERT INTO %s (%s) SELECT %s FROM %s ORDER BY rowid LIMIT ? OFFSET ?",
+			quoteSQLiteIdentifier(sqliteAttrsTempTable),
+			strings.Join(insertColumns, ","),
+			strings.Join(selectColumns, ","),
+			quoteSQLiteIdentifier("attrs"),
+		)
+
+		for offset := int64(0); offset < total; offset += sqliteLogItemsBatchSize {
+			limit := sqliteLogItemsBatchSize
+			if remaining := total - offset; remaining < sqliteLogItemsBatchSize {
+				limit = remaining
+			}
+			if limit <= 0 {
+				break
+			}
+			if err := tx.Exec(copySQL, limit, offset).Error; err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Exec(fmt.Sprintf("DROP TABLE %s", quoteSQLiteIdentifier("attrs"))).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", quoteSQLiteIdentifier(sqliteAttrsTempTable), quoteSQLiteIdentifier("attrs"))).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func createSQLiteAttrsTable(db *gorm.DB, table string) error {
+	session := db.Session(&gorm.Session{})
+	if table != "" {
+		session = session.Table(table)
+	}
+	return session.Migrator().CreateTable(&model.AttributesItemModel{})
+}
 
 func createSQLiteLogsTable(db *gorm.DB, table string) error {
 	session := db.Session(&gorm.Session{})
@@ -927,6 +1112,10 @@ func defaultValueForMissingColumn(name string) string {
 	switch name {
 	case "log_id", "command_id", "time", "is_dice", "removed", "parent_id", "created_at", "updated_at", "size", "upload_time":
 		return "0"
+	case "name", "group_id", "attrs_type", "binding_sheet_id", "owner_id", "sheet_type", "upload_url":
+		return "''"
+	case "data", "extra":
+		return "NULL"
 	default:
 		return "NULL"
 	}
@@ -997,6 +1186,7 @@ func calculateLogSize(logsDB *gorm.DB) error {
 			log.Infof("Error querying LogOneItem: %v", err)
 			return err
 		}
+
 		// 2. 更新 LogInfo 表的 Size 字段
 		for _, sum := range logItemSums {
 			// 将求和结果更新到对应的 LogInfo 的 Size 字段
