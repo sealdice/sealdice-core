@@ -1,12 +1,12 @@
 package main
 
+// _ "net/http/pprof"
 import (
 	"errors"
 	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -172,9 +172,9 @@ func main() {
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
 	}
 	// pprof
-	go func() {
-		http.ListenAndServe("0.0.0.0:8899", nil)
-	}()
+	// go func() {
+	//	http.ListenAndServe("0.0.0.0:8899", nil)
+	// }()
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
