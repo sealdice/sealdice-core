@@ -184,9 +184,7 @@ func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VM
 	_, exists := t.GetAttrValue(ctx, k)
 
 	getVal := func(expr string) (*VMResultV2, error) {
-		v := ctx.EvalFString(expr, &ds.RollConfig{
-			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
-		})
+		v := ctx.EvalFString(expr, nil)
 		return v, nil
 	}
 
@@ -209,9 +207,7 @@ func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VM
 	}
 
 	if expr, exists := t.Commands.St.Show.ShowValueAs[k]; exists && expr != "" {
-		res := ctx.EvalFString(expr, &ds.RollConfig{
-			DefaultDiceSideExpr: strconv.FormatInt(getDefaultDicePoints(ctx), 10),
-		})
+		res := ctx.EvalFString(expr, nil)
 		if res != nil && res.vm.Error == nil {
 			return &res.VMValue, nil
 		}
