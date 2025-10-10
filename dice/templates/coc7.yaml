@@ -119,12 +119,19 @@ attrs: # 属性
     飞行器: 1
     骑术: 5
   defaultsComputed: # 计算默认值
-    db: (力量 + 体型) < 65 ? -2, (力量 + 体型) < 85 ? -1, (力量 + 体型) < 125 ? 0, (力量 + 体型) < 165 ? 1d4, (力量 + 体型) < 205 ? 1d6, 1 ? ((力量 + 体型 - 205) / 80 + 2)d6
+    $STR_SIZ_SUM: 力量 + 体型
+    db: $STR_SIZ_SUM < 65 ? -2, $STR_SIZ_SUM < 85 ? -1, $STR_SIZ_SUM < 125 ? 0, $STR_SIZ_SUM < 165 ? 1d4, $STR_SIZ_SUM < 205 ? 1d6, 1 ? (($STR_SIZ_SUM - 205) / 80 + 2)d6
+    体格: $STR_SIZ_SUM < 65 ? -2, $STR_SIZ_SUM < 85 ? -1, $STR_SIZ_SUM < 125 ? 0, $STR_SIZ_SUM < 165 ? 1, $STR_SIZ_SUM < 205 ? 2, 1 ? (($STR_SIZ_SUM - 205) / 80 + 3)
     母语: 教育
     生命值上限: (体质 + 体型) / 10
     魔法值上限: 意志 / 5
     语言: 教育 # 语言的默认值随着教育增长而增加，但也可以是不同的值
     闪避: 敏捷 / 2
+
+    dbText: $STR_SIZ_SUM < 65 ? -2, $STR_SIZ_SUM < 85 ? -1, $STR_SIZ_SUM < 125 ? 0, $STR_SIZ_SUM < 165 ? "1d4", $STR_SIZ_SUM < 205 ? "1d6", 1 ? str(($STR_SIZ_SUM - 205) / 80 + 2) + "d6"
+  # detailOverwrite:
+  #   db: 'dbText'
+  #   体格: '体格'
 
 alias: # 别名，所有数组中的别名，在读取和写入时将被替换成左边的名字
   db: [DB, 伤害加值]
@@ -264,7 +271,9 @@ commands:
       showValueAs:
         生命值: '{生命值}/{生命值上限}'
         魔法值: '{魔法值}/{魔法值上限}'
-        db: '{db}'
+      showValueAsIfMiss:
+        db: '{dbText}'
+        体格: '{体格}'
       showKeyAs:
         生命值: '生命'
 

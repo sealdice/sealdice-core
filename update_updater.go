@@ -122,7 +122,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 	platform := runtime.GOOS
 	arch := runtime.GOARCH
 
-	prefix := "http://dice.weizaima.com/u/v" + updaterVersion
+	prefix := "http://api.weizaima.com/u/v" + updaterVersion
 	if ver != nil {
 		prefix = ver.UpdaterURLPrefix
 	}
