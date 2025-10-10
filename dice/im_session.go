@@ -287,11 +287,14 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 		}
 		// 返回这个单纯是为了不让st将其覆盖
 		// 这种情况属于卡片的规则模板被删除了
-		return &GameSystemTemplate{
-			Name:     group.System,
-			FullName: "空白模板",
-			AliasMap: new(SyncMap[string, string]),
+		tmpl := &GameSystemTemplate{
+			GameSystemTemplateV2: &GameSystemTemplateV2{
+				Name:     group.System,
+				FullName: "空白模板",
+			},
 		}
+		tmpl.Init()
+		return tmpl
 	}
 	// 没有system，查看扩展的启动情况
 	if group.ExtGetActive("coc7") != nil {
@@ -307,10 +310,12 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	// 啥都没有，返回空，还是白卡？
 	// 返回个空白模板好了
 	blankTmpl := &GameSystemTemplate{
-		Name:     "空白模板",
-		FullName: "空白模板",
-		AliasMap: new(SyncMap[string, string]),
+		GameSystemTemplateV2: &GameSystemTemplateV2{
+			Name:     "空白模板",
+			FullName: "空白模板",
+		},
 	}
+	blankTmpl.Init()
 	return blankTmpl
 }
 
@@ -1368,6 +1373,8 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	dm := d.Parent
 	// 判断进群的人是自己，自动启动
 	group := SetBotOnAtGroup(ctx, msg.GroupID)
+	// Ensure context has group set for formatting and attrs access
+	ctx.Group = group
 	// 获取邀请人ID，Adapter 应当按照统一格式将邀请人 ID 放入 Sender 字段
 	group.InviteUserID = msg.Sender.UserID
 	group.DiceIDExistsMap.Store(ep.UserID, true)
@@ -1437,6 +1444,8 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 					}
 				}()
 
+				// Ensure context has group set for formatting and attrs access
+				ctx.Group = groupInfo
 				ctx.Player = &GroupPlayerInfo{}
 				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
 				uidRaw := UserIDExtract(msg.Sender.UserID)
@@ -1785,7 +1794,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		// TODO: 注意一下这里使用群模板还是个人卡模板，目前群模板，可有情况特殊？
 		tmpl := ctx.SystemTemplate
 		if tmpl != nil {
-			ctx.Eval(tmpl.PreloadCode, nil)
+			ctx.Eval(tmpl.InitScript, nil)
 			if tmpl.Name == "dnd5e" {
 				// 这里面有buff机制的代码，所以需要加载
 				ctx.setDndReadForVM(false)

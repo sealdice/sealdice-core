@@ -200,6 +200,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, text)
 				return &CmdExecuteResult{Matched: true, Solved: true}
 			}
+			ctx.CreateVmIfNotExists()
 			ctx.setDndReadForVM(false)
 			return nil
 		},
@@ -209,6 +210,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			// 对于带buff的值，st show值后面带上 [x] 其中x为本值
 			suffixText := ""
 			ctx.CreateVmIfNotExists()
+			ctx.setDndReadForVM(false)
 			orgV, err := ctx.vm.RunExpr("$org_"+k, true)
 			if orgV != nil {
 				if orgV.TypeId == ds.VMTypeComputedValue {
@@ -403,8 +405,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			mctx.DelegateText = ctx.DelegateText
-			mctx.Player.TempValueAlias = &_dnd5eTmpl.Alias
+			if ctx != nil {
+				mctx.DelegateText = ctx.DelegateText
+				if ctx.Dice != nil {
+					if baseTmpl, ok := ctx.Dice.GameSystemMap.Load("dnd5e"); ok && baseTmpl != nil {
+						mctx.SystemTemplate = baseTmpl
+					}
+				}
+			}
 			// 参数确认
 			val := cmdArgs.GetArgN(1)
 			switch val {
@@ -425,6 +433,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				mctx.CreateVmIfNotExists()
 				// 获取角色模板
 				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+				if tmpl != nil {
+					mctx.SystemTemplate = tmpl
+				}
 				// 初始化多轮检定结果保存数组
 				textList := make([]string, 0)
 				// 多轮检定判断
@@ -450,7 +461,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// 循环N轮
 				for range round {
 					// 执行预订的code
-					mctx.Eval(tmpl.PreloadCode, nil)
+					mctx.Eval(tmpl.InitScript, nil)
 					// 为rc设定属性豁免
 					mctx.setDndReadForVM(true)
 					// 准备要处理的函数，为了能够读取到 d20 的出目，先不加上加值
@@ -643,7 +654,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				// 每四个一行，拼起来
-				itemsPerLine := tmpl.AttrConfig.ItemsPerLine
+				itemsPerLine := tmpl.Commands.St.Show.ItemsPerLine
 				if itemsPerLine <= 1 {
 					itemsPerLine = 4
 				}
@@ -745,6 +756,33 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			}
 
 			return false
+		},
+		ToModResult: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate, theOldValue, theNewValue *ds.VMValue) *ds.VMValue {
+			if !strings.HasPrefix(i.name, "$buff_") {
+				return theNewValue
+			}
+
+			if i.op != "+" && i.op != "-" {
+				return theNewValue
+			}
+
+			delta := i.value
+
+			var buffValOld *ds.VMValue
+			if buffVal, exists := attrs.LoadX(i.name); exists {
+				buffValOld = buffVal
+			} else {
+				buffValOld = ds.NewIntVal(0)
+			}
+
+			switch i.op {
+			case "+":
+				return buffValOld.OpAdd(ctx.vm, delta)
+			case "-":
+				return buffValOld.OpSub(ctx.vm, delta)
+			default:
+				return theNewValue
+			}
 		},
 	})
 
@@ -985,8 +1023,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
-			mctx.Player.TempValueAlias = &tmpl.Alias // 防止找不到hpmax
+			tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+			if tmpl != nil {
+				mctx.SystemTemplate = tmpl
+			}
 
 			switch val {
 			case "":
@@ -1029,8 +1069,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
-			mctx.Player.TempValueAlias = &tmpl.Alias
+			tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+			if tmpl != nil {
+				mctx.SystemTemplate = tmpl
+			}
 
 			restText := cmdArgs.CleanArgs
 			re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-＋－])`)

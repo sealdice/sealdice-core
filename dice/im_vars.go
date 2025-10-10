@@ -13,6 +13,13 @@ import (
 	ds "github.com/sealdice/dicescript"
 )
 
+func aliasMapForCtx(ctx *MsgContext) map[string][]string {
+	if ctx != nil && ctx.SystemTemplate != nil {
+		return ctx.SystemTemplate.Alias
+	}
+	return nil
+}
+
 func VarSetValueStr(ctx *MsgContext, s string, v string) {
 	VarSetValue(ctx, s, ds.NewStrVal(v))
 }
@@ -32,7 +39,7 @@ func _VarSetValueV1(ctx *MsgContext, s string, v *VMValue) {
 func VarSetValue(ctx *MsgContext, s string, v *ds.VMValue) {
 	ctx.CreateVmIfNotExists()
 	am := ctx.Dice.AttrsManager
-	name := ctx.Player.GetValueNameByAlias(s, nil)
+	name := GetValueNameByAlias(s, aliasMapForCtx(ctx))
 	vClone := v.Clone()
 
 	// 临时变量
@@ -72,7 +79,7 @@ func VarSetValue(ctx *MsgContext, s string, v *ds.VMValue) {
 
 func VarDelValue(ctx *MsgContext, s string) {
 	am := ctx.Dice.AttrsManager
-	name := ctx.Player.GetValueNameByAlias(s, nil)
+	name := GetValueNameByAlias(s, aliasMapForCtx(ctx))
 
 	// 临时变量
 	if strings.HasPrefix(s, "$t") {
@@ -127,7 +134,7 @@ func VarGetValueComputed(ctx *MsgContext, s string) (string, bool) {
 }
 
 func VarGetValue(ctx *MsgContext, s string) (*ds.VMValue, bool) {
-	name := ctx.Player.GetValueNameByAlias(s, nil)
+	name := GetValueNameByAlias(s, aliasMapForCtx(ctx))
 	am := ctx.Dice.AttrsManager
 
 	// 临时变量
@@ -181,13 +188,6 @@ func _VarGetValueV1(ctx *MsgContext, s string) (*VMValue, bool) {
 func (i *GroupPlayerInfo) GetValueNameByAlias(s string, alias map[string][]string) string {
 	name := s
 
-	if alias == nil {
-		// 当私聊的时候，i就会是nil
-		if i != nil && i.TempValueAlias != nil {
-			alias = *i.TempValueAlias
-		}
-	}
-
 	for k, v := range alias {
 		if strings.EqualFold(s, k) {
 			name = k // 防止一手大小写不一致
@@ -209,8 +209,8 @@ func GetValueNameByAlias(s string, alias map[string][]string) string {
 
 	for k, v := range alias {
 		if strings.EqualFold(s, k) {
-			name = k // 防止一手大小写不一致
-			break    // 名字本身就是确定值，不用修改
+			name = k
+			break
 		}
 		for _, i := range v {
 			if strings.EqualFold(s, i) {

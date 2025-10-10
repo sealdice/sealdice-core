@@ -18,7 +18,7 @@ import (
 	"sealdice-core/utils"
 )
 
-const updaterVersion = "0.1.1"
+const updaterVersion = "0.1.7"
 
 func checkURLOne(url string, wg *sync.WaitGroup, resultChan chan string) {
 	defer wg.Done()
@@ -91,7 +91,7 @@ func CheckUpdater(dm *dice.DiceManager) error {
 		} else {
 			ver := strings.TrimSpace(string(out))
 			log.Info("升级程序版本：", ver)
-			if ver == "seal-updater "+updaterVersion {
+			if ver == "seal-updater "+updaterVersion || ver == "sealupd "+updaterVersion {
 				isUpdaterOk = true
 			}
 		}
@@ -122,7 +122,7 @@ func downloadUpdater(dm *dice.DiceManager) error {
 	platform := runtime.GOOS
 	arch := runtime.GOARCH
 
-	prefix := "http://dice.weizaima.com/u/v" + updaterVersion
+	prefix := "http://api.weizaima.com/u/v" + updaterVersion
 	if ver != nil {
 		prefix = ver.UpdaterURLPrefix
 	}

@@ -1223,7 +1223,6 @@ func (d *Dice) registerCoreCommands() {
 		Help:                    "骰点:\n" + helpRoll,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			var text string
-			var diceResult int64
 			var diceResultExists bool
 			var detail string
 
@@ -1251,6 +1250,7 @@ func (d *Dice) registerCoreCommands() {
 				forWhat := ""
 				var matched string
 
+				var diceResultX *ds.VMValue
 				if len(cmdArgs.Args) >= 1 { //nolint:nestif
 					var err error
 					r, detail, err = DiceExprEvalBase(ctx, cmdArgs.CleanArgs, RollExtraFlags{
@@ -1272,8 +1272,8 @@ func (d *Dice) registerCoreCommands() {
 						})
 					}
 
-					if r != nil && r.TypeId == ds.VMTypeInt {
-						diceResult = int64(r.MustReadInt())
+					if r != nil {
+						diceResultX = r.VMValue
 						diceResultExists = true
 					}
 
@@ -1317,9 +1317,20 @@ func (d *Dice) registerCoreCommands() {
 					// 指令信息标记
 					item := map[string]interface{}{
 						"expr":   matched,
-						"result": diceResult,
 						"reason": forWhat,
 					}
+
+					if diceResultX != nil {
+						switch diceResultX.TypeId {
+						case ds.VMTypeInt:
+							item["result"] = diceResultX.MustReadInt()
+						case ds.VMTypeFloat:
+							item["result"] = diceResultX.MustReadFloat()
+						default:
+							item["result"] = diceResultX.ToRepr()
+						}
+					}
+
 					if forWhat == "" {
 						delete(item, "reason")
 					}
@@ -1327,7 +1338,8 @@ func (d *Dice) registerCoreCommands() {
 
 					VarSetValueStr(ctx, "$t表达式文本", matched)
 					VarSetValueStr(ctx, "$t计算过程", detailWrap)
-					VarSetValueInt64(ctx, "$t计算结果", diceResult)
+					// VarSetValueInt64(ctx, "$t计算结果", diceResult)
+					VarSetValue(ctx, "$t计算结果", diceResultX)
 				} else {
 					var val int64
 					var detail string
@@ -1508,6 +1520,7 @@ func (d *Dice) registerCoreCommands() {
 					text += fmt.Sprintf("%d. [%s]%s%s %s - %s - %s\n", index+1, state, officialMark, i.Name, aliases, i.Version, author)
 				}
 				text += "使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n"
+				text += "使用命令: .ext all on 可以在当前群开启全部扩展。\n"
 				text += "命令: .ext <扩展名> 可以查看扩展介绍及帮助"
 				ReplyToSender(ctx, msg, text)
 			}
@@ -1549,6 +1562,37 @@ func (d *Dice) registerCoreCommands() {
 
 				var extNames []string
 				var conflictsAll []string
+
+				// 判断是否是 .ext all on
+				if cmdArgs.IsArgEqual(1, "all") {
+					for _, ext := range ctx.Dice.ExtList {
+						isActive := false
+						for _, activated := range ctx.Group.ActivatedExtList {
+							if ext.Name == activated.Name {
+								isActive = true
+								break
+							}
+						}
+						if !isActive {
+							extNames = append(extNames, ext.Name)
+							conflictsAll = append(conflictsAll, checkConflict(ext)...)
+							ctx.Group.ExtActive(ext)
+						}
+					}
+
+					if len(extNames) == 0 {
+						ReplyToSender(ctx, msg, "所有扩展已经处于开启状态，无需再次开启。")
+					} else {
+						text := fmt.Sprintf("已开启所有未激活的扩展: %s", strings.Join(extNames, ", "))
+						if len(conflictsAll) > 0 {
+							text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflictsAll, ",")
+							text += "\n对于扩展中存在的同名指令，则越晚开启的扩展，优先级越高。"
+						}
+						ReplyToSender(ctx, msg, text)
+					}
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				for index := range len(cmdArgs.Args) {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName, false); i != nil {
@@ -1728,6 +1772,14 @@ func (d *Dice) registerCoreCommands() {
 					ctx.Group.System = key
 					ctx.Group.DiceSideNum = tmpl.SetConfig.DiceSides
 					ctx.Group.UpdatedAtTime = time.Now().Unix()
+
+					// 兼容性设定
+					if tmpl.SetConfig.EnableTip == "" {
+						extNames := []string{}
+						extNames = append(extNames, tmpl.Commands.Set.RelatedExt...)
+						tmpl.SetConfig.EnableTip = fmt.Sprintf("已切换至 %s(%s) 规则，默认骰子面数 %s，自动启用关联扩展: %s", tmpl.FullName, tmpl.Name, tmpl.Commands.Set.DiceSideExpr, strings.Join(extNames, ", "))
+					}
+
 					tipText += tmpl.SetConfig.EnableTip
 
 					// TODO: 命令该要进步啦
@@ -2046,7 +2098,32 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
 					}
 				} else {
-					ReplyToSender(ctx, msg, "此角色名已存在")
+					VarSetValueStr(ctx, "$t角色名", name)
+
+					charId, _ := am.CharIdGetByName(ctx.Player.UserID, name)
+					if charId == "" {
+						// 可能有点过于谨慎，因为已经判断过了，还是留着吧
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_角色不存在"))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					bindingGroups := am.CharGetBindingGroupIdList(charId)
+					if len(bindingGroups) == 0 {
+						attrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
+						attrsExisting := lo.Must(am.LoadById(charId))
+
+						attrsExisting.Clear()
+						attrs.Range(func(key string, value *ds.VMValue) bool {
+							attrsExisting.Store(key, value)
+							return true
+						})
+
+						attrsExisting.Name = name
+						attrsExisting.SetSheetType(ctx.Group.System)
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存成功"))
+					} else {
+						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:角色管理_储存失败_已绑定"))
+					}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "untagAll":

@@ -100,7 +100,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if tmpl == nil {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			mctx.Player.TempValueAlias = &tmpl.Alias // 兼容性支持
+			// alias resolution now relies on the active system template set above
 
 			reBP := regexp.MustCompile(`^[bBpP(]`)
 			re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
@@ -117,10 +117,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					if unicode.IsSpace(r) { // 暂不考虑太过奇葩的空格
 						replaced = true
 						restText = restText[:1] + " " + re2.ReplaceAllString(restText[2:], "$1$2")
-					} else { // if !(unicode.IsNumber(r) || r == '(')
+					} else if restText[0] != '(' { // if !(unicode.IsNumber(r) || r == '(')
 						// 将 .rab测试 切开为 "b 测试"
+						// 注: 判断 ( 是为了 .ra(1)50 能够运行，除此之外还有 .rab3(1)50 等等
 						for index, i := range restText[1:] {
-							if !unicode.IsNumber(i) && i != '(' {
+							if i == '(' {
+								break
+							}
+
+							if !unicode.IsNumber(i) {
 								restText = restText[:index+1] + " " + restText[index+1:]
 								break
 							}
@@ -1083,7 +1088,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			mctx.Player.TempValueAlias = &tmpl.Alias
+			mctx.SystemTemplate = tmpl
 
 			// 首先读取一个值
 			// 试图读取 /: 读到了，当前是成功值，转入读取单项流程，试图读取失败值
@@ -1365,8 +1370,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			tmpl := getCoc7CharTemplate()
-			ctx.Player.TempValueAlias = &tmpl.Alias
+			if ctx != nil && ctx.Dice != nil {
+				if tmpl, ok := ctx.Dice.GameSystemMap.Load("coc7"); ok && tmpl != nil {
+					ctx.SystemTemplate = tmpl
+				}
+			}
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{

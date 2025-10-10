@@ -1,6 +1,6 @@
 module sealdice-core
 
-go 1.25.0
+go 1.24.6
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -16,6 +16,7 @@ require (
 	github.com/blevesearch/bleve/v2 v2.5.2
 	github.com/blevesearch/bleve_index_api v1.2.9
 	github.com/bwmarrin/discordgo v0.29.0
+	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/evanw/esbuild v0.25.9
@@ -63,7 +64,7 @@ require (
 	github.com/samber/lo v1.51.0
 	github.com/schollz/progressbar/v3 v3.18.0
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
-	github.com/sealdice/dicescript v0.0.0-20240927083134-65269b7d051c
+	github.com/sealdice/dicescript v0.0.0-20250903023101-e8c6e09caab2
 	github.com/slack-go/slack v0.17.3
 	github.com/sunshineplan/imgconv v1.1.14
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
