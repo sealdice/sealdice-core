@@ -200,6 +200,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, text)
 				return &CmdExecuteResult{Matched: true, Solved: true}
 			}
+			ctx.CreateVmIfNotExists()
 			ctx.setDndReadForVM(false)
 			return nil
 		},
@@ -209,6 +210,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			// 对于带buff的值，st show值后面带上 [x] 其中x为本值
 			suffixText := ""
 			ctx.CreateVmIfNotExists()
+			ctx.setDndReadForVM(false)
 			orgV, err := ctx.vm.RunExpr("$org_"+k, true)
 			if orgV != nil {
 				if orgV.TypeId == ds.VMTypeComputedValue {
@@ -754,6 +756,33 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			}
 
 			return false
+		},
+		ToModResult: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate, theOldValue, theNewValue *ds.VMValue) *ds.VMValue {
+			if !strings.HasPrefix(i.name, "$buff_") {
+				return theNewValue
+			}
+
+			if i.op != "+" && i.op != "-" {
+				return theNewValue
+			}
+
+			delta := i.value
+
+			var buffValOld *ds.VMValue
+			if buffVal, exists := attrs.LoadX(i.name); exists {
+				buffValOld = buffVal
+			} else {
+				buffValOld = ds.NewIntVal(0)
+			}
+
+			switch i.op {
+			case "+":
+				return buffValOld.OpAdd(ctx.vm, delta)
+			case "-":
+				return buffValOld.OpSub(ctx.vm, delta)
+			default:
+				return theNewValue
+			}
 		},
 	})
 
