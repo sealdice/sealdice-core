@@ -1168,6 +1168,8 @@ func logDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 	writeDB := dboperator.GetLogDB(constant.WRITE)
 	switch dboperator.Type() {
 	case "sqlite":
+		writeDB.Exec("PRAGMA mmap_size = 16777216") // 16 MB 窗口足够
+		writeDB.Exec("PRAGMA cache_size = -32768")  // 32 MB page cache
 		if err := ensureSQLiteLogSchema(writeDB); err != nil {
 			return err
 		}
