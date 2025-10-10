@@ -1023,7 +1023,12 @@ func createSQLiteAttrsTable(db *gorm.DB, table string) error {
 	if table != "" {
 		session = session.Table(table)
 	}
-	return session.Migrator().CreateTable(&model.AttributesItemModel{})
+	err := session.Migrator().CreateTable(&model.AttributesItemModel{})
+	if err != nil && strings.Contains(err.Error(), "already exists") {
+		// 忽略索引或表已存在的错误，这在迁移过程中是正常的
+		return nil
+	}
+	return err
 }
 
 func createSQLiteLogsTable(db *gorm.DB, table string) error {
@@ -1031,7 +1036,12 @@ func createSQLiteLogsTable(db *gorm.DB, table string) error {
 	if table != "" {
 		session = session.Table(table)
 	}
-	return session.Migrator().CreateTable(&model.LogInfo{})
+	err := session.Migrator().CreateTable(&model.LogInfo{})
+	if err != nil && strings.Contains(err.Error(), "already exists") {
+		// 忽略索引或表已存在的错误，这在迁移过程中是正常的
+		return nil
+	}
+	return err
 }
 
 func createSQLiteLogItemsTable(db *gorm.DB, table string) error {
@@ -1039,7 +1049,12 @@ func createSQLiteLogItemsTable(db *gorm.DB, table string) error {
 	if table != "" {
 		session = session.Table(table)
 	}
-	return session.Migrator().CreateTable(&model.LogOneItem{})
+	err := session.Migrator().CreateTable(&model.LogOneItem{})
+	if err != nil && strings.Contains(err.Error(), "already exists") {
+		// 忽略索引或表已存在的错误，这在迁移过程中是正常的
+		return nil
+	}
+	return err
 }
 
 func bulkCopySQLiteTable(db *gorm.DB, src, dst string, insertColumns, selectColumns []string) error {
