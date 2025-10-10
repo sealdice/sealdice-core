@@ -196,6 +196,11 @@ func attrsGroupUserMigrate(db *gorm.DB) (int, int, error) {
 		}
 	}
 
+	// 检查循环过程中是否发生了错误
+	if err = rows.Err(); err != nil {
+		return count, countFailed, err
+	}
+
 	return count, countFailed, nil
 }
 
@@ -270,6 +275,11 @@ func attrsGroupMigrate(db *gorm.DB) (int, int, error) {
 		} else {
 			count += 1
 		}
+	}
+
+	// 检查循环过程中是否发生了错误
+	if err = rows.Err(); err != nil {
+		return count, countFailed, err
 	}
 
 	return count, countFailed, nil
@@ -395,6 +405,11 @@ func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
 		} else {
 			count += 1
 		}
+	}
+
+	// 检查循环过程中是否发生了错误
+	if err = rows.Err(); err != nil {
+		return count, countSheetsNum, countFailed, err
 	}
 
 	return count, countSheetsNum, countFailed, nil
