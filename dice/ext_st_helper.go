@@ -50,12 +50,14 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 		// 按照配置文件排序
 		var attrKeys []string
 		used := map[string]bool{}
-		for _, key := range tmpl.Commands.St.Show.Top {
-			if used[key] {
-				continue
+		if !isExport {
+			for _, key := range tmpl.Commands.St.Show.Top {
+				if used[key] {
+					continue
+				}
+				attrKeys = append(attrKeys, key)
+				used[key] = true
 			}
-			attrKeys = append(attrKeys, key)
-			used[key] = true
 		}
 
 		// 其余按字典序
@@ -279,7 +281,11 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 }
 
 func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *AttributesItem, commandInfo map[string]any, i *stSetOrModInfoItem, cmdArgs *CmdArgs, stInfo *CmdStOverrideInfo) {
-	// 获取当前值
+	if stInfo.ToMod != nil {
+		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
+	}
+
+	// 获取当前值（在 ToMod 可能重定向名称后再读取）
 	curVal, _ := attrs.valueMap.Load(i.name)
 	if curVal == nil {
 		curVal, _, _, _ = tmpl.GetDefaultValue(i.name)
@@ -296,10 +302,6 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 			curVal = v
 			isSetNew = false
 		}
-	}
-
-	if stInfo.ToMod != nil {
-		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
 	}
 
 	// 进行变更
