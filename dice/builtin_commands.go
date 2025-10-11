@@ -604,7 +604,7 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					if !cmdArgs.AmIBeMentioned {
+					if !cmdArgs.AmIBeMentioned && !ctx.Dice.Config.BotExitWithoutAt {
 						// 裸指令，如果当前群内开启，予以提示
 						if ctx.IsCurGroupBotOn {
 							ReplyToSender(ctx, msg, "[退群指令] 请@我使用这个命令，以进行确认")
@@ -714,7 +714,7 @@ func (d *Dice) registerCoreCommands() {
 				// 如果是别人被at，置之不理
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			if !cmdArgs.AmIBeMentioned {
+			if !cmdArgs.AmIBeMentioned && !ctx.Dice.Config.BotExitWithoutAt {
 				// 裸指令，如果当前群内开启，予以提示
 				if ctx.IsCurGroupBotOn {
 					ReplyToSender(ctx, msg, "[退群指令] 请@我使用这个命令，以进行确认")

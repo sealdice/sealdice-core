@@ -34,6 +34,7 @@ var DefaultConfig = Config{
 		UpgradeWindowID:         "",
 		UpgradeEndpointID:       "",
 		BotExtFreeSwitch:        false,
+		BotExitWithoutAt:        false,
 		TrustOnlyMode:           false,
 		AliveNoticeEnable:       false,
 		AliveNoticeValue:        "@every 3h",
