@@ -171,6 +171,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		helper.Info("onebot: 正在启动 onebot 客户端…… ", command)
 		conn.State = 2
 		conn.Enable = true
+		conn.ConnectURL = pa.ConnectURL
 		p := procs.NewProcess(command)
 		p.Dir = workDir
 
