@@ -14,6 +14,7 @@ import (
 	"time"
 
 	wr "github.com/mroth/weightedrand"
+	"github.com/panjf2000/ants/v2"
 	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 
@@ -2427,23 +2428,63 @@ func (d *Dice) ApplyExtDefaultSettings() {
 		exts2[i.Name] = i
 	}
 
+	// 收集需要批量处理的扩展信息
+	var batchExtInfos []*ExtInfo
+	isFirstTimeLoadMap := map[string]bool{}
+
 	// 如果存在于扩展列表，但不存在于默认列表中的，视为第一次加载并放入末尾
 	for k, v := range exts2 {
 		if _, exists := exts1[k]; !exists {
 			item := &ExtDefaultSettingItem{Name: k, AutoActive: v.AutoActive, DisabledCommand: map[string]bool{}}
 			(&d.Config).ExtDefaultSettings = append((&d.Config).ExtDefaultSettings, item)
 			exts1[k] = item
-			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-				// Pinenutn: ServiceAtNew重构
-				groupInfo.ExtActiveBySnapshotOrder(v, true)
-				return true
-			})
+			batchExtInfos = append(batchExtInfos, v)
+			isFirstTimeLoadMap[v.Name] = true
 		} else {
-			d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-				// Pinenutn: ServiceAtNew重构
-				groupInfo.ExtActiveBySnapshotOrder(v, false)
-				return true
-			})
+			batchExtInfos = append(batchExtInfos, v)
+			isFirstTimeLoadMap[v.Name] = false
+		}
+	}
+
+	// 批量处理所有群组的扩展激活，使用ants池进行并发处理
+	if len(batchExtInfos) > 0 {
+		// 收集所有群组信息
+		var groups []*GroupInfo
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			groups = append(groups, groupInfo)
+			return true
+		})
+
+		// 使用ants池并发处理每个群组的扩展激活
+		if len(groups) > 0 {
+			const poolSize = 50 // 可根据实际情况调整
+			pool, err := ants.NewPool(poolSize)
+			if err != nil {
+				// 如果创建池失败，回退到串行处理
+				for _, group := range groups {
+					group.ExtActiveBatchBySnapshotOrder(batchExtInfos, isFirstTimeLoadMap)
+				}
+			} else {
+				defer pool.Release() // 确保池被正确释放
+
+				var wg sync.WaitGroup
+				for _, group := range groups {
+					wg.Add(1)
+					g := group // 避免闭包变量问题
+					err := pool.Submit(func() {
+						defer wg.Done()
+						// Pinenutn: ServiceAtNew重构
+						g.ExtActiveBatchBySnapshotOrder(batchExtInfos, isFirstTimeLoadMap)
+					})
+					if err != nil {
+						// 如果提交任务失败，直接执行并减少计数
+						wg.Done()
+						g.ExtActiveBatchBySnapshotOrder(batchExtInfos, isFirstTimeLoadMap)
+					}
+				}
+
+				wg.Wait() // 等待所有任务完成
+			}
 		}
 	}
 

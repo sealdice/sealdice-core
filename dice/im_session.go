@@ -149,6 +149,53 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 	group.ExtClear()
 }
 
+// ExtActiveBatchBySnapshotOrder 批量按照快照顺序开启扩展
+func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFirstTimeLoadMap map[string]bool) {
+	if len(extInfos) == 0 {
+		return
+	}
+	// 这个机制用于解决js插件指令会覆盖原生扩展的指令的问题
+	// 与之相关的问题是插件的自动激活，最好能够检测插件是否为首次加载
+	orderLst := group.ExtActiveListSnapshot
+	m := map[string]*ExtInfo{}
+
+	// 构建现有扩展的映射
+	for _, i := range group.ActivatedExtList {
+		m[i.Name] = i
+	}
+
+	// 添加新的扩展到映射
+	for _, ei := range extInfos {
+		m[ei.Name] = ei
+	}
+
+	var newLst []*ExtInfo
+	for _, i := range orderLst {
+		if m[i] != nil {
+			newLst = append(newLst, m[i])
+		}
+	}
+
+	// 处理首次加载的扩展
+	var newSnapshotItems []string
+	for _, ei := range extInfos {
+		if isFirstTimeLoad, exists := isFirstTimeLoadMap[ei.Name]; exists && isFirstTimeLoad {
+			if !lo.Contains(orderLst, ei.Name) {
+				newLst = append(newLst, ei)
+				newSnapshotItems = append(newSnapshotItems, ei.Name)
+			}
+		}
+	}
+
+	// 批量更新快照列表
+	if len(newSnapshotItems) > 0 {
+		group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, newSnapshotItems...)
+	}
+
+	group.ActivatedExtList = newLst
+	group.ExtClear()
+}
+
 // ExtClear 清除多余的扩展项
 func (group *GroupInfo) ExtClear() {
 	m := map[string]bool{}

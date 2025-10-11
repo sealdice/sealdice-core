@@ -85,7 +85,10 @@ func (d *Dice) JsInit() {
 	// 重建js vm
 	reg := new(require.Registry)
 
-	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
+	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false),
+		eventloop.WithRegistry(reg),
+		eventloop.WithDebugLog(true),
+		eventloop.WithLogger(d.Logger))
 	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	versionID := d.ExtLoopManager.SetLoop(loop)
 
@@ -109,7 +112,7 @@ func (d *Dice) JsInit() {
 
 		sealws.Enable(vm, loop)
 		// require 模块
-		d.JsRequire = reg.Enable(vm)
+		reg.Enable(vm)
 
 		seal := vm.NewObject()
 
@@ -1055,7 +1058,7 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 			targetPath = jsInfo.Filename
 		}
 		if err == nil {
-			_, err = d.JsRequire.Require(targetPath)
+			_, err = d.ExtLoopManager.GetWebLoop().RequireModule(targetPath)
 		}
 		d.JsLoadingScript = nil
 	} else {
