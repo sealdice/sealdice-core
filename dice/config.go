@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/panjf2000/ants/v2"
 	wr "github.com/mroth/weightedrand"
+	"github.com/panjf2000/ants/v2"
 	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 
@@ -2466,7 +2466,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 				}
 			} else {
 				defer pool.Release() // 确保池被正确释放
-				
+
 				var wg sync.WaitGroup
 				for _, group := range groups {
 					wg.Add(1)
@@ -2482,7 +2482,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 						g.ExtActiveBatchBySnapshotOrder(batchExtInfos, isFirstTimeLoadMap)
 					}
 				}
-				
+
 				wg.Wait() // 等待所有任务完成
 			}
 		}
