@@ -438,6 +438,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		ep.State = 1
 		ep.ConnectURL = pa.ConnectURL
+		ep.AccessToken = pa.AccessToken
 		if pa.IsReverse {
 			log.Info("onebot v11 反向ws连接成功")
 		} else {

@@ -281,6 +281,7 @@ type EndPointInfoBase struct {
 	CmdExecutedLastTime int64  `jsbind:"cmdExecutedLastTime" json:"cmdExecutedLastTime" yaml:"cmdExecutedLastTime"` // 指令执行次数
 	OnlineTotalTime     int64  `jsbind:"onlineTotalTime"     json:"onlineTotalTime"     yaml:"onlineTotalTime"`     // 在线时长
 	ConnectURL          string `jsbind:"connectURL"          json:"connectURL"          yaml:"connectURL"`          // 连接地址
+	AccessToken         string `jsbind:"accessToken"         json:"accessToken"         yaml:"accessToken"`         // 访问令牌
 
 	Platform     string `jsbind:"platform"   json:"platform"     yaml:"platform"` // 平台，如QQ等
 	RelWorkDir   string `json:"relWorkDir"   yaml:"relWorkDir"`                   // 工作目录

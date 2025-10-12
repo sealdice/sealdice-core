@@ -172,6 +172,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		conn.State = 2
 		conn.Enable = true
 		conn.ConnectURL = pa.ConnectURL
+		conn.AccessToken = pa.AccessToken
 		p := procs.NewProcess(command)
 		p.Dir = workDir
 
