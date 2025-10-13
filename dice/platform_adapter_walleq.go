@@ -186,6 +186,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		ep.State = 1
+		ep.ConnectURL = pa.ConnectURL
 		log.Info("onebot 连接成功")
 	}
 
