@@ -171,6 +171,10 @@ func main() {
 		LogLevel               int8   `choice:"-1"                                                                   choice:"0"              choice:"1" choice:"2" choice:"3" choice:"4" choice:"5" default:"0" description:"设置日志等级"             long:"log-level"`
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
 	}
+	// pprof
+	// go func() {
+	//	http.ListenAndServe("0.0.0.0:8899", nil)
+	// }()
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
@@ -456,11 +460,6 @@ func main() {
 	for _, d := range diceManager.Dice {
 		go diceServe(d)
 	}
-
-	// pprof
-	// go func() {
-	//	http.ListenAndServe("0.0.0.0:8899", nil)
-	// }()
 
 	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	// OOM分析工具
