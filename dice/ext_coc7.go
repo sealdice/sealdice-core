@@ -139,7 +139,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			}
 
 			cocRule := mctx.Group.CocRuleIndex
-			if cmdArgs.Command == "rc" {
+			if cmdArgs.Command == "rc" || cmdArgs.Command == "rch" {
 				// 强制规则书
 				cocRule = 0
 			}
