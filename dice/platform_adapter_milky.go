@@ -359,7 +359,6 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	} else {
 		pa.SetFriendAddRequest(event.InitiatorUID, false, "验证信息不符")
 	}
-	return
 }
 
 func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve bool, reason string) {
