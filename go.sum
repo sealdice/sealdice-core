@@ -17,8 +17,8 @@ github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVq
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a/go.mod h1:5LI6VqIHoGmWsR0EJLbct5bBrtM/0pTonaAyGKmFk9U=
 github.com/Szzrain/DingTalk-go v0.0.8-alpha h1:mSR/ORDDjtndoR12WrEdd3hdxxXXm9VMQ/r75NJkkkE=
 github.com/Szzrain/DingTalk-go v0.0.8-alpha/go.mod h1:j2+BnL67DfiCu6E1rhJDHy4up2drtGXJOrRohIHg5uo=
-github.com/Szzrain/Milky-go-sdk v0.4.0 h1:Tw6zNvl0nBgdJ5d2Em0c/p9DhOzENgU0Msggj815CXc=
-github.com/Szzrain/Milky-go-sdk v0.4.0/go.mod h1:vyl5G/6TQha+Ygf9ZWkDN//7dJFq2V0ezdk3Rm2kDKQ=
+github.com/Szzrain/Milky-go-sdk v0.4.1 h1:9lJIFL+pTS/3xDY6ILXTnypdJ8I8USVIt+8uamcs1ZY=
+github.com/Szzrain/Milky-go-sdk v0.4.1/go.mod h1:vyl5G/6TQha+Ygf9ZWkDN//7dJFq2V0ezdk3Rm2kDKQ=
 github.com/Szzrain/dodo-open-go v0.2.8 h1:a5p2/XOOyKZNFfowEdD7VsFaOClwIX6JziBpNIyzkvo=
 github.com/Szzrain/dodo-open-go v0.2.8/go.mod h1:Nk7ozwqQVvuQW2KubsVVXLM8fFqDo0TwN5UX7F4AR2w=
 github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d h1:licZJFw2RwpHMqeKTCYkitsPqHNxTmd4SNR5r94FGM8=

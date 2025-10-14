@@ -7,7 +7,7 @@ require (
 	github.com/Milly/go-base2048 v0.1.0
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
-	github.com/Szzrain/Milky-go-sdk v0.4.0
+	github.com/Szzrain/Milky-go-sdk v0.4.1
 	github.com/Szzrain/dodo-open-go v0.2.8
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
