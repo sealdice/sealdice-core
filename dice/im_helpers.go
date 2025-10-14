@@ -10,6 +10,9 @@ import (
 	"golang.org/x/time/rate"
 
 	ds "github.com/sealdice/dicescript"
+
+	"sealdice-core/logger"
+	"sealdice-core/utils/panicHandler"
 )
 
 var (
@@ -162,13 +165,24 @@ func replyToSenderRawNoCheck(ctx *MsgContext, msg *Message, text string, flag st
 		replyPersonRawNoCheck(ctx, msg, text, flag)
 	}
 }
-
 func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
-	go ReplyToSenderRaw(ctx, msg, text, "")
+	if ctx == nil || msg == nil || ctx.Dice == nil {
+		logger.M().Errorf("ReplyToSender 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
+		return
+	}
+	panicHandler.Once(logger.M(), func() {
+		ReplyToSenderRaw(ctx, msg, text, "")
+	})
 }
 
 func ReplyToSenderNoCheck(ctx *MsgContext, msg *Message, text string) {
-	go replyToSenderRawNoCheck(ctx, msg, text, "")
+	if ctx == nil || msg == nil || ctx.Dice == nil {
+		logger.M().Errorf("ReplyToSenderNoCheck 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
+		return
+	}
+	panicHandler.Once(logger.M(), func() {
+		replyToSenderRawNoCheck(ctx, msg, text, "")
+	})
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
