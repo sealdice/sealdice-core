@@ -627,7 +627,8 @@ func (d *Dice) ExtRemove(ei *ExtInfo) bool {
 	// Pinenutn: Range模板 ServiceAtNew重构代码
 	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
 		// Pinenutn: ServiceAtNew重构
-		groupInfo.ExtInactive(ei)
+		// 系统移除扩展时，不应记录为用户禁用或破坏快照
+		groupInfo.ExtInactiveSystem(ei)
 		return true
 	})
 
