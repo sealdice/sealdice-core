@@ -14,7 +14,7 @@ require (
 	github.com/antlabs/strsim v0.0.3
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/blevesearch/bleve/v2 v2.5.2
-	github.com/blevesearch/bleve_index_api v1.2.9
+	github.com/blevesearch/bleve_index_api v1.2.10
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
