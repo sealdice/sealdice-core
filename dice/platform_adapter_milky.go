@@ -22,8 +22,8 @@ type PlatformAdapterMilky struct {
 	EndPoint            *EndPointInfo  `json:"-"                     yaml:"-"`
 	IntentSession       *milky.Session `json:"-"                     yaml:"-"`
 	WsGateway           string         `json:"ws_gateway"            yaml:"ws_gateway"`
-	RestGateway         string         `json:"rest_gateway" 		 yaml:"rest_gateway"`
-	Token               string         `json:"token"        		 yaml:"token"`
+	RestGateway         string         `json:"rest_gateway"          yaml:"rest_gateway"`
+	Token               string         `json:"token"                 yaml:"token"`
 	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
 }
 
