@@ -58,7 +58,10 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 		if group.DiceIDExistsMap == nil {
-			group.DiceIDActiveMap = new(SyncMap[string, bool])
+			group.DiceIDExistsMap = new(SyncMap[string, bool])
+		}
+		if group.ExtDisabledByUser == nil {
+			group.ExtDisabledByUser = map[string]bool{}
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -75,14 +78,15 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		}
 
 		session.ServiceAtNew.Store(groupID, &GroupInfo{
-			Active:           true,
-			ActivatedExtList: extLst,
-			Players:          new(SyncMap[string, *GroupPlayerInfo]),
-			GroupID:          groupID,
-			DiceIDActiveMap:  new(SyncMap[string, bool]),
-			DiceIDExistsMap:  new(SyncMap[string, bool]),
-			CocRuleIndex:     int(session.Parent.Config.DefaultCocRuleIndex),
-			UpdatedAtTime:    time.Now().Unix(),
+			Active:            true,
+			ActivatedExtList:  extLst,
+			ExtDisabledByUser: map[string]bool{},
+			Players:           new(SyncMap[string, *GroupPlayerInfo]),
+			GroupID:           groupID,
+			DiceIDActiveMap:   new(SyncMap[string, bool]),
+			DiceIDExistsMap:   new(SyncMap[string, bool]),
+			CocRuleIndex:      int(session.Parent.Config.DefaultCocRuleIndex),
+			UpdatedAtTime:     time.Now().Unix(),
 		})
 		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
 		group, _ = session.ServiceAtNew.Load(groupID)
