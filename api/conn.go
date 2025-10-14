@@ -115,6 +115,9 @@ func ImConnectionsSetData(c echo.Context) error {
 			ad := i.Adapter.(*dice.PlatformAdapterWalleQ)
 			ad.SetQQProtocol(v.Protocol)
 			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+		} else if i.ProtocolType == "milky" {
+			ad := i.Adapter.(*dice.PlatformAdapterMilky)
+			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
 		} else {
 			ad := i.Adapter.(*dice.PlatformAdapterGocq)
 			if i.ProtocolType != "onebot" {
