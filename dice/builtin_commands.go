@@ -1791,7 +1791,6 @@ func (d *Dice) registerCoreCommands() {
 						// 开启相关扩展
 						ei := ctx.Dice.ExtFind(name, false)
 						if ei != nil {
-							ctx.Group.ClearUserDisabledFlag(ei.Name)
 							ctx.Group.ExtActive(ei)
 						}
 					}
@@ -2228,10 +2227,6 @@ func (d *Dice) registerCoreCommands() {
 					onText = "关"
 				}
 				extReply := ctx.Dice.ExtFind("reply", false)
-				// 开启扩展，应清除手动禁用标记
-				if ctx.Group.ExtDisabledByUser != nil {
-					delete(ctx.Group.ExtDisabledByUser, "reply")
-				}
 				ctx.Group.ExtActive(extReply)
 				ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群开启自定义回复(%s➯开)。\n此指令等价于.ext reply on", onText))
 			case "off":
@@ -2297,10 +2292,6 @@ func setRuleByName(ctx *MsgContext, name string) {
 				// 开启相关扩展
 				ei := ctx.Dice.ExtFind(name, false)
 				if ei != nil {
-					// 开启扩展，应清除手动禁用标记
-					if ctx.Group.ExtDisabledByUser != nil {
-						delete(ctx.Group.ExtDisabledByUser, ei.Name)
-					}
 					ctx.Group.ExtActive(ei)
 				}
 			}
