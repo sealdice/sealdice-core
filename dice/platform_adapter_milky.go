@@ -2,7 +2,9 @@ package dice
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -16,12 +18,13 @@ import (
 )
 
 type PlatformAdapterMilky struct {
-	Session       *IMSession     `json:"-"            yaml:"-"`
-	EndPoint      *EndPointInfo  `json:"-"            yaml:"-"`
-	WsGateway     string         `json:"ws_gateway"   yaml:"ws_gateway"`
-	RestGateway   string         `json:"rest_gateway" yaml:"rest_gateway"`
-	Token         string         `json:"token"        yaml:"token"`
-	IntentSession *milky.Session `json:"-"            yaml:"-"`
+	Session             *IMSession     `json:"-"                     yaml:"-"`
+	EndPoint            *EndPointInfo  `json:"-"                     yaml:"-"`
+	IntentSession       *milky.Session `json:"-"                     yaml:"-"`
+	WsGateway           string         `json:"ws_gateway"            yaml:"ws_gateway"`
+	RestGateway         string         `json:"rest_gateway"          yaml:"rest_gateway"`
+	Token               string         `json:"token"                 yaml:"token"`
+	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
@@ -238,6 +241,12 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			}
 		}
 	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
+		if m == nil {
+			ctx := &MsgContext{MessageType: "private", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+			pa.handelFriendRequest(ctx, m)
+		}
+	})
 	d := pa.Session.Parent
 	err = pa.IntentSession.Open()
 	if err != nil {
@@ -268,6 +277,101 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	return 0
+}
+
+func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milky.FriendRequest) {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	var comment string
+	if event.Comment != "" {
+		comment = strings.TrimSpace(event.Comment)
+		comment = strings.ReplaceAll(comment, "\u00a0", "")
+	}
+
+	toMatch := strings.TrimSpace(pa.Session.Parent.Config.FriendAddComment)
+	willAccept := comment == DiceFormat(ctx, toMatch)
+	if toMatch == "" {
+		willAccept = true
+	}
+
+	if !willAccept {
+		// 如果是问题校验，只填写回答即可
+		re := regexp.MustCompile(`\n回答:([^\n]+)`)
+		m := re.FindAllStringSubmatch(comment, -1)
+
+		var items []string
+		for _, i := range m {
+			items = append(items, i[1])
+		}
+
+		re2 := regexp.MustCompile(`\s+`)
+		m2 := re2.Split(toMatch, -1)
+
+		if len(m2) == len(items) {
+			ok := true
+			for i := range m2 {
+				if m2[i] != items[i] {
+					ok = false
+					break
+				}
+			}
+			willAccept = ok
+		}
+	}
+
+	if comment == "" {
+		comment = "(无)"
+	} else {
+		comment = strconv.Quote(comment)
+	}
+
+	// 检查黑名单
+	extra := ""
+	uid := FormatDiceIDQQ(strconv.FormatInt(event.InitiatorID, 10))
+	banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
+	if ok {
+		if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
+			if willAccept {
+				extra = "。回答正确，但为被禁止用户，准备自动拒绝"
+			} else {
+				extra = "。回答错误，且为被禁止用户，准备自动拒绝"
+			}
+			willAccept = false
+		}
+	}
+
+	if pa.IgnoreFriendRequest {
+		extra += "。由于设置了忽略邀请，此信息仅为通报"
+	}
+
+	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", strconv.FormatInt(event.InitiatorID, 10), comment, willAccept, extra)
+	log.Info(txt)
+	ctx.Notice(txt)
+
+	// 忽略邀请
+	if pa.IgnoreFriendRequest {
+		return
+	}
+
+	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+
+	if willAccept {
+		pa.SetFriendAddRequest(event.InitiatorUID, true, "")
+	} else {
+		pa.SetFriendAddRequest(event.InitiatorUID, false, "验证信息不符")
+	}
+}
+
+func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve bool, reason string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	if approve {
+		// 同意好友请求，目前都是 unfiltered 的
+		err := pa.IntentSession.AcceptFriendRequest(initiatorUid, false)
+		if err != nil {
+			log.Errorf("Failed to accept friend request: %v", err)
+			return
+		}
+	}
+	// 拒绝好友请求，目前直接忽略
 }
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
