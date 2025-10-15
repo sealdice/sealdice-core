@@ -60,6 +60,7 @@ func (p *PlatformAdapterOnebot) Serve() int {
 	p.websocketManager.On(OnebotEventPostTypeMessage, p.onOnebotMessageEvent)
 	p.websocketManager.On(OnebotEventPostTypeMetaEvent, p.onOnebotMetaDataEvent)
 	p.websocketManager.On(OnebotEventPostTypeRequest, p.onOnebotRequestEvent)
+	p.websocketManager.On(OnebotEventPostTypeNotice, p.OnebotNoticeEvent)
 	p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
 		var echo emitter.Response[json.RawMessage]
 		if err := sonic.Unmarshal(payload.Data, &echo); err != nil {

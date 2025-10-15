@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	socketio "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
@@ -99,6 +100,90 @@ func (p *PlatformAdapterOnebot) onOnebotRequestEvent(ep *socketio.EventPayload) 
 	case "group":
 		_ = p.handleReqGroupAction(req, ep)
 	}
+}
+func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
+	// 进群致辞
+	req := gjson.ParseBytes(ep.Data)
+	switch req.Get("notice_type").String() {
+	// 入群（强行拉群等）
+	case "group_increase":
+		_ = p.handleJoinGroupAction(req, ep)
+	case "":
+
+	}
+}
+
+func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *socketio.EventPayload) error {
+	// {"group_id":111,"notice_type":"group_increase","operator_id":0,"post_type":"notice","self_id":333,"sub_type":"approve","time":1646782012,"user_id":333}
+	// 入群要做的事情：
+	// 1. 如果发现进群的是自己，要和大家发入群致辞
+	// 2. 如果发现进群的不是自己，对他进行节流的迎新
+	// TODO：这个性能不是特别好，原因是来回转换。如果我一开始就选择使用msg进行参数传递，结果就不一样了。能不转换就不转换
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
+	if err != nil {
+		return err
+	}
+	userId := FormatOnebotDiceIDQQ(req.Get("user_id").String())
+	selfId := FormatOnebotDiceIDQQ(req.Get("self_id").String())
+	groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
+	// 迎新逻辑
+	// 发送入群致辞逻辑
+	if userId == selfId {
+		p.logger.Infof("收到自己的入群请求，准备发送入群致辞")
+		ctx.Group = SetBotOnAtGroup(ctx, groupId)
+		// TODO 补充注释，这是个他吗啥？
+		ctx.Group.DiceIDExistsMap.Store(ctx.EndPoint.UserID, true)
+		// 入群时间
+		ctx.Group.EnteredTime = time.Now().Unix()
+		// 更新时间
+		ctx.Group.UpdatedAtTime = time.Now().Unix()
+		// 获取群信息 并发送入群致辞
+		_ = p.antPool.Submit(func() {
+			time.Sleep(1 * time.Second)
+			cache := p.GetGroupCacheInfo(groupId)
+			ctx.Player = &GroupPlayerInfo{}
+			p.logger.Infof("发送入群致辞，群: <%s>(%s)", cache.GroupName, groupId)
+			text := DiceFormatTmpl(ctx, "核心:骰子进群")
+			for _, i := range ctx.SplitText(text) {
+				doSleepQQ(ctx)
+				p.SendToGroup(ctx, groupId, strings.TrimSpace(i), "")
+			}
+			groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
+			if ok {
+				for _, i := range groupInfo.ActivatedExtList {
+					if i.OnGroupJoined != nil {
+						i.callWithJsCheck(ctx.Dice, func() {
+							i.OnGroupJoined(ctx, msg)
+						})
+					}
+				}
+			}
+		})
+	} else {
+		p.logger.Infof("收到非自己的入群请求，准备迎新")
+		_ = p.antPool.Submit(func() {
+			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况，先等一下再取数据
+			group, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+			if ok {
+				ctx.Group = group
+				ctx.Player = &GroupPlayerInfo{}
+				uidRaw := req.Get("user_id").String()
+				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
+				VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
+				stdID := userId
+				VarSetValueStr(ctx, "$t帐号ID", stdID)
+				VarSetValueStr(ctx, "$t账号ID", stdID)
+				text := DiceFormat(ctx, group.GroupWelcomeMessage)
+				for _, i := range ctx.SplitText(text) {
+					doSleepQQ(ctx)
+					p.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
+				}
+			}
+		})
+	}
+
+	return nil
 }
 
 // 加群逻辑里比较复杂，列在这里
@@ -680,5 +765,6 @@ func ExtractQQEmitterGroupID(id string) int64 {
 		atoi, _ := strconv.ParseInt(id[len("QQ-Group:"):], 10, 64)
 		return atoi
 	}
-	return 0
+	atoi, _ := strconv.ParseInt(id[len("QQ-Group:"):], 10, 64)
+	return atoi
 }

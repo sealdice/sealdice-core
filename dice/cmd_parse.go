@@ -338,7 +338,7 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 	d := ctx.Session.Parent
 
 	// === 第一步：从消息段提取文本内容 ===
-	// 遍历消息段，提取所有文本元素的内容，替代原有的字符串解析
+	// 消息混合，但如果是指令，从第一个文本消息开始后面的一定是参数。
 	textMsg := extractResultFromSegments(msg.Segment)
 	rawCmd := strings.ReplaceAll(textMsg, "\r\n", "\n") // 统一换行符格式
 
@@ -383,6 +383,11 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 func extractResultFromSegments(segments []message.IMessageElement) string {
 	cqMessage := strings.Builder{}
 	for _, v := range segments {
+		// 警告，这个函数不要复用到其他地方，如果复用，请删掉下面这个代码
+		// 代码的意思是：从第一个有文本的元素开始，后面的全部认为是参数。
+		if v.Type() != message.Text {
+			continue
+		}
 		switch v.Type() {
 		case message.At:
 			res, ok := v.(*message.AtElement)
