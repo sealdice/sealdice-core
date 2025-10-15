@@ -425,6 +425,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 				return err
 			}
 			ep.Adapter = val.Adapter
+		case "pureonebot":
+			var val struct {
+				Adapter *PlatformAdapterOnebot `yaml:"adapter"`
+			}
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
 		}
 	case "DISCORD":
 		var val struct {
@@ -1001,11 +1010,12 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	log := d.Logger
 
 	// 处理消息段，如果 2.0 要完全抛弃依赖 Message.Message 的字符串解析，把这里删掉
-	msg.Message = ""
-	for _, elem := range msg.Segment {
-		// 类型断言
-		if e, ok := elem.(*message.TextElement); ok {
-			msg.Message += e.Content
+	if msg.Message == "" {
+		for _, elem := range msg.Segment {
+			// 类型断言
+			if e, ok := elem.(*message.TextElement); ok {
+				msg.Message += e.Content
+			}
 		}
 	}
 

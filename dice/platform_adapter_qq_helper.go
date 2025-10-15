@@ -26,7 +26,6 @@ func ServeQQ(d *Dice, ep *EndPointInfo) {
 	case "official":
 		conn := ep.Adapter.(*PlatformAdapterOfficialQQ)
 		serverOfficialQQ(d, ep, conn)
-
 	case "onebot":
 		fallthrough
 	default: // onebot 作为默认情况

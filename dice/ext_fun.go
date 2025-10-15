@@ -1198,7 +1198,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
 			if cmdArgs.IsArgEqual(1, "new") {
-				// Make mode
+				// Make Mode
 				roulette := singleRoulette{
 					Name: "",
 					Face: getDefaultDicePoints(ctx),
@@ -1254,7 +1254,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					roulette.Name, roulette.Face, roulette.Time))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			// Draw mode
+			// Draw Mode
 			var isRouletteEmpty = true
 			rouletteMap.Range(func(key string, value singleRoulette) bool {
 				isRouletteEmpty = false
