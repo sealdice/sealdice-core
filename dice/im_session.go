@@ -1073,7 +1073,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	for _, elem := range msg.Segment {
 		// 类型断言
 		if e, ok := elem.(*message.AtElement); ok {
-			if e.Target == ep.UserID {
+			if msg.Platform+":"+e.Target == ep.UserID {
 				amIBeMentioned = true
 				break
 			}
