@@ -518,7 +518,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 			}
 
 			if soi.CommandSolve != nil {
-				ret := soi.CommandSolve(ctx, msg, cmdArgs)
+				ret := soi.CommandSolve(mctx, msg, cmdArgs)
 				if ret != nil {
 					return *ret
 				}
