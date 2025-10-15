@@ -249,7 +249,7 @@ func (e *EmitterEVSocket) Raw(ctx context.Context, action Action, params any) ([
 				e.echo <- echo
 				continue
 			}
-			return json.Marshal(echo)
+			return sonic.Marshal(echo)
 		}
 	}
 }
