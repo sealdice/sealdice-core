@@ -304,6 +304,8 @@ func dsValueToRollVMv1(v *ds.VMValue) *VMValue {
 }
 
 func DiceFormatV1(ctx *MsgContext, s string) (string, error) { //nolint:revive
+	// 在进行格式化前刷新临时变量
+	SetTempVars(ctx, ctx.Player.Name)
 	s = CompatibleReplace(ctx, s)
 
 	r, _, err := ctx.Dice._ExprTextV1(s, ctx)
@@ -790,6 +792,8 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 }
 
 func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
+	// 在进行格式化前刷新临时变量
+	SetTempVars(ctx, ctx.Player.Name)
 	ctx.CreateVmIfNotExists()
 	ctx.vm.Ret = nil
 	ctx.vm.Error = nil
