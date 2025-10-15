@@ -10,6 +10,7 @@ import (
 
 	socketio "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
+	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
@@ -35,7 +36,7 @@ const (
 
 // serveOnebotEvent 消息分发函数。该函数将所有的传入参数，全部转换为array模式
 func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
-	// p.logger.Infof("Message event - User: %s - Message: %s", ep.Kws.GetStringAttribute("user_id"), string(ep.Data))
+	p.logger.Infof("Message event - User: %s - Message: %s", ep.Kws.GetStringAttribute("user_id"), string(ep.Data))
 	if !gjson.ValidBytes(ep.Data) {
 		return
 	}
@@ -89,8 +90,215 @@ func (p *PlatformAdapterOnebot) onOnebotMessageEvent(ep *socketio.EventPayload) 
 	p.Session.ExecuteNew(p.EndPoint, msg)
 }
 
+func (p *PlatformAdapterOnebot) onOnebotRequestEvent(ep *socketio.EventPayload) {
+	// 请求分为好友请求和加群/邀请请求
+	req := gjson.ParseBytes(ep.Data)
+	switch req.Get("request_type").String() {
+	case "friend":
+		_ = p.handleReqFriendAction(req, ep)
+	case "group":
+		_ = p.handleReqGroupAction(req, ep)
+	}
+}
+
+// 加群逻辑里比较复杂，列在这里
+// 加群：被好友邀请-> 获取群信息 -> 根据获取的群信息，判断是否应该加群
+func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *socketio.EventPayload) error {
+	// 创建虚拟Context
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	switch req.Get("sub_type").String() {
+	case "invite":
+		// 获取群信息
+		res := p.GetGroupCacheInfo(req.Get("group_id").String())
+		if res == nil {
+			// 没有群信息，默认群信息创建
+			res = &GroupCache{
+				GroupAllShut:   0,
+				GroupRemark:    "",
+				GroupId:        req.Get("group_id").String(),
+				GroupName:      "%未知群聊%",
+				MemberCount:    1,
+				MaxMemberCount: 2000,
+			}
+		}
+		// 先判断是否需要加群
+		ok, reason := checkPassBlackListGroup(req.Get("user_id").String(), req.Get("group_id").String(), ctx)
+		if !ok {
+			p.logger.Infof("群组 %s 加群请求被拒绝，原因为 %s", req.Get("group_id").String(), reason)
+			err := ants.Submit(func() {
+				err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), false, reason)
+				if err != nil {
+					p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
+				}
+			})
+			if err != nil {
+				return err
+			}
+		}
+		// 没问题，加群
+		_ = ants.Submit(func() {
+			err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), true, "")
+			if err != nil {
+				p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
+			}
+		})
+	default:
+		// DO NOTHING NOW
+	}
+	return nil
+}
+
+func checkPassBlackListGroup(userId string, groupID string, ctx *MsgContext) (bool, string) {
+	userAllow, reason := checkPassBlackList(userId, "user", ctx)
+	if !userAllow {
+		return false, reason
+	}
+	groupAllow, reason := checkPassBlackList(groupID, "group", ctx)
+	if !groupAllow {
+		return false, reason
+	}
+	return true, ""
+}
+
+func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *socketio.EventPayload) error {
+	// 只有一种情况 就是好友添加
+	// 获取请求详情
+	var comment string
+	if req.Get("comment").Exists() {
+		comment = strings.TrimSpace(req.Get("comment").String())
+		comment = strings.ReplaceAll(comment, "\u00a0", "")
+	}
+	// 将匹配的验证问题
+	toMatch := strings.TrimSpace(p.Session.Parent.Config.FriendAddComment)
+	// 创建虚构MsgContext
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	var extra string
+	// 匹配验证问题检查
+	var passQuestion bool
+	var passblackList bool
+	if comment != DiceFormat(ctx, toMatch) {
+		passQuestion = checkMultiFriendAddVerify(comment, toMatch)
+	}
+	// 匹配黑名单检查
+	passblackList, reason := checkPassBlackList(req.Get("user_id").String(), "user", ctx)
+	// 格式化请求的数据
+	comment = strconv.Quote(comment)
+	if comment == "" {
+		comment = "(无)"
+	}
+	if !passQuestion {
+		extra = "。回答错误"
+	} else {
+		extra = "。回答正确"
+	}
+	if !passblackList {
+		extra += "。（被禁止用户）"
+		extra += "，原因：" + reason
+	}
+	// TODO：暂时不做
+	// if p.IgnoreFriendRequest {
+	//	extra += "。由于设置了忽略邀请，此信息仅为通报"
+	// }
+
+	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && passblackList, extra)
+	p.logger.Info(txt)
+	ctx.Notice(txt)
+	err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), true, "")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// 检查加好友是否成功
+func checkMultiFriendAddVerify(comment string, toMatch string) bool {
+	// 根据GPT的描述，这里干的事情是：从评论中提取回答内容，并与目标字符串进行逐项匹配，最终决定是否接受。
+	// 我只是从木落那里拆了过来，太热闹了。
+	var willAccept bool
+	re := regexp.MustCompile(`\n回答:([^\n]+)`)
+	m := re.FindAllStringSubmatch(comment, -1)
+	// 要匹配的是空，说明不验证
+	if toMatch == "" {
+		willAccept = true
+		return willAccept
+	}
+	var items []string
+	for _, i := range m {
+		items = append(items, i[1])
+	}
+
+	re2 := regexp.MustCompile(`\s+`)
+	m2 := re2.Split(toMatch, -1)
+
+	if len(m2) == len(items) {
+		ok := true
+		for i := range m2 {
+			if m2[i] != items[i] {
+				ok = false
+				break
+			}
+		}
+		willAccept = ok
+	}
+	return willAccept
+}
+
+// 检查是否通过黑名单
+func checkPassBlackList(userId string, typeStr string, ctx *MsgContext) (bool, string) {
+	// 检查 userId 是否有效
+	if userId == "" {
+		return true, ""
+	}
+	var uid string
+	switch typeStr {
+	case "user":
+		uid = FormatOnebotDiceIDQQ(userId)
+	case "group":
+		uid = FormatOnebotDiceIDQQGroup(userId)
+	default:
+		uid = FormatOnebotDiceIDQQ(userId)
+	}
+
+	// 获取禁用信息
+	banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
+	if !ok || banInfo == nil {
+		return true, "" // 如果用户不在黑名单中，默认通过
+	}
+	switch typeStr {
+	case "user":
+		// 检查禁用等级和行为配置
+		if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
+			return false, "邀请人在黑名单上"
+		}
+	case "group":
+		// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
+		isMaster := ctx.Dice.IsMaster(uid)
+		if ctx.Dice.Config.TrustOnlyMode && banInfo.Rank != BanRankTrusted && !isMaster {
+			return false, "只允许信任的人拉群"
+		}
+		if banInfo.Rank == BanRankBanned {
+			return false, "群组在黑名单上"
+		}
+		if ctx.Dice.Config.RefuseGroupInvite {
+			return false, "拒绝拉群邀请"
+		}
+	default:
+	}
+
+	return true, "" // 其他情况默认通过
+}
+
 func (p *PlatformAdapterOnebot) onOnebotMetaDataEvent(ep *socketio.EventPayload) {
 
+}
+
+type GroupCache struct {
+	GroupAllShut   int    `json:"group_all_shut"`   // 是否全员禁言
+	GroupRemark    string `json:"group_remark"`     // 群备注
+	GroupId        string `json:"group_id"`         // 群ID
+	GroupName      string `json:"group_name"`       // 群名
+	MemberCount    int    `json:"member_count"`     // 群人数
+	MaxMemberCount int    `json:"max_member_count"` // 群最大人数
 }
 
 func FormatOnebotDiceIDQQ(diceQQ string) string {

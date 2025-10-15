@@ -11,6 +11,8 @@ import (
 
 	socketio "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
+	"github.com/maypok86/otter"
+	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 
@@ -37,14 +39,27 @@ type PlatformAdapterOnebot struct {
 	sendEmitter emitter.Emitter
 	emitterChan chan emitter.Response[json.RawMessage]
 	once        sync.Once
+
+	// 执行用池
+	antPool *ants.Pool
+	// 群缓存
+	groupCache otter.Cache[string, *GroupCache] // 群ID和群信息的缓存
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
+	p.antPool, _ = ants.NewPool(500, ants.WithPanicHandler(func(re any) {
+		p.logger.Errorf("执行发送数据任务异常 %v", re)
+	}))
+	p.groupCache, _ = otter.MustBuilder[string, *GroupCache](1000).
+		CollectStats().
+		WithTTL(time.Hour). // 一小时后过期
+		Build()
 	p.websocketManager = socketio.NewSocketInstance()
 	// 注册事件
 	p.websocketManager.On(socketio.EventMessage, p.serveOnebotEvent)
 	p.websocketManager.On(OnebotEventPostTypeMessage, p.onOnebotMessageEvent)
 	p.websocketManager.On(OnebotEventPostTypeMetaEvent, p.onOnebotMetaDataEvent)
+	p.websocketManager.On(OnebotEventPostTypeRequest, p.onOnebotRequestEvent)
 	p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
 		var echo emitter.Response[json.RawMessage]
 		if err := sonic.Unmarshal(payload.Data, &echo); err != nil {
@@ -208,18 +223,46 @@ func (p *PlatformAdapterOnebot) SendFileToGroup(ctx *MsgContext, groupID string,
 }
 
 func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
+	p.antPool.Submit(func() {
+		p.GetGroupInfoSync(groupID)
+	})
+}
+
+func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
 	res, err := p.sendEmitter.Raw(p.ctx, "get_group_info", map[string]interface{}{
 		"group_id": groupID,
 		"no_cache": true,
 	})
 	if err != nil {
 		p.logger.Errorf("获取群信息异常 %v", err)
+		return nil
 	}
-	name := gjson.ParseBytes(res).Get("group_name").String()
+	groupInfoRaw := gjson.ParseBytes(res)
+	result := &GroupCache{
+		GroupAllShut:   int(groupInfoRaw.Get("data.group_all_shut").Int()),
+		GroupRemark:    groupInfoRaw.Get("data.group_remark").String(),
+		GroupId:        groupID,
+		GroupName:      groupInfoRaw.Get("data.group_name").String(),
+		MemberCount:    int(groupInfoRaw.Get("data.member_count").Int()),
+		MaxMemberCount: int(groupInfoRaw.Get("data.max_member_count").Int()),
+	}
+	_ = p.groupCache.Set(groupID, result)
 	p.Session.Parent.Parent.GroupNameCache.Store(groupID, &GroupNameCacheItem{
-		Name: name,
+		Name: result.GroupName,
 		time: time.Now().Unix(),
 	})
+	return result
+}
+
+func (p *PlatformAdapterOnebot) GetGroupCacheInfo(groupID string) *GroupCache {
+	if strings.HasPrefix(groupID, "QQ-Group:") {
+		groupID = groupID[len("QQ-Group:"):]
+	}
+	res, ok := p.groupCache.Get(groupID)
+	if ok {
+		return res
+	}
+	return p.GetGroupInfoSync(groupID)
 }
 
 // 全是废弃的，TNND。
