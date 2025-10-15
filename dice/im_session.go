@@ -118,17 +118,28 @@ func (group *GroupInfo) IsUserDisabled(name string) bool {
 }
 
 func (group *GroupInfo) ClearUserDisabledFlag(name string) {
-	if group.ExtDisabledByUser == nil {
+	old := group.ExtDisabledByUser
+	if old == nil {
 		group.ExtDisabledByUser = map[string]bool{}
+		return
 	}
-	delete(group.ExtDisabledByUser, name)
+	m := make(map[string]bool, len(old))
+	for k, v := range old {
+		if k != name {
+			m[k] = v
+		}
+	}
+	group.ExtDisabledByUser = m
 }
 
 func (group *GroupInfo) SetUserDisabled(name string) {
-	if group.ExtDisabledByUser == nil {
-		group.ExtDisabledByUser = map[string]bool{}
+	old := group.ExtDisabledByUser
+	m := make(map[string]bool, len(old)+1)
+	for k, v := range old {
+		m[k] = v
 	}
-	group.ExtDisabledByUser[name] = true
+	m[name] = true
+	group.ExtDisabledByUser = m
 }
 
 // ExtActive 开启扩展
