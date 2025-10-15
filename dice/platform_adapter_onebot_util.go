@@ -14,7 +14,6 @@ import (
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 
-	emitter "sealdice-core/dice/utils/onebot"
 	"sealdice-core/dice/utils/onebot/schema"
 	"sealdice-core/message"
 )
@@ -43,8 +42,9 @@ func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
 	resp := gjson.ParseBytes(ep.Data)
 	if resp.Get("self_id").Int() != 0 {
 		p.once.Do(func() {
-			p.emitterChan = make(chan emitter.Response[json.RawMessage], 32)
-			p.sendEmitter = emitter.NewEVEmitter(ep.Kws, resp.Get("self_id").Int(), p.emitterChan)
+			if p.sendEmitter != nil {
+				_ = p.sendEmitter.SetSelfId(p.ctx, resp.Get("self_id").Int())
+			}
 		})
 	}
 
@@ -195,7 +195,7 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 	}
 	m := obMsg.toStdMessage()
 	arrayContent := parseContent.Get("message").Array()
-	seg := make([]message.IMessageElement, len(arrayContent))
+	seg := make([]message.IMessageElement, 0)
 	cqMessage := strings.Builder{}
 	for _, i := range arrayContent {
 		// 使用String()方法，如果为空，会自动产生空字符串
@@ -396,13 +396,12 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			if res.URL != "" {
-				rawMsg = rawMsg.Image(res.URL)
-			} else {
-				// 对，对吗？
-				rawMsg = rawMsg.Image(res.File.URL)
+			url := res.URL
+			if res.URL == "" {
+				url = res.File.URL
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", res.URL))
+			rawMsg = rawMsg.Image(url)
+			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", url))
 		case message.Record:
 			res, ok := v.(*message.RecordElement)
 			if !ok {

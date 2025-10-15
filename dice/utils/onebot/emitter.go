@@ -32,6 +32,7 @@ type Emitter interface {
 	GetStatus(ctx context.Context) (*types.Status, error)
 	GetVersionInfo(ctx context.Context) (*types.VersionInfo, error)
 	GetSelfId(ctx context.Context) (int64, error)
+	SetSelfId(ctx context.Context, selfId int64) error
 	SetFriendAddRequest(ctx context.Context, flag string, approve bool, remark string) error
 	SetGroupAddRequest(ctx context.Context, flag string, approve bool, reason string) error
 	SetGroupSpecialTitle(ctx context.Context, groupId int64, userId int64, specialTitle string, duration int) error
@@ -59,13 +60,19 @@ type EmitterEVSocket struct {
 	uuid   string
 }
 
-func NewEVEmitter(conn *socketio.WebsocketWrapper, selfid int64, echo chan Response[json.RawMessage]) *EmitterEVSocket {
+func NewEVEmitter(conn *socketio.WebsocketWrapper, echo chan Response[json.RawMessage]) *EmitterEVSocket {
 	emitter := &EmitterEVSocket{
-		conn:   conn,
-		echo:   echo,
-		selfId: selfid,
+		conn: conn,
+		echo: echo,
 	}
 	return emitter
+}
+
+func (e *EmitterEVSocket) SetSelfId(_ context.Context, selfId int64) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.selfId = selfId
+	return nil
 }
 
 func (e *EmitterEVSocket) SendPvtMsg(ctx context.Context, userId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
@@ -171,8 +178,7 @@ func (e *EmitterEVSocket) GetVersionInfo(ctx context.Context) (*types.VersionInf
 	return wsWait[types.VersionInfo](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) GetSelfId(ctx context.Context) (int64, error) {
-	//TODO implement me
+func (e *EmitterEVSocket) GetSelfId(_ context.Context) (int64, error) {
 	return e.selfId, nil
 }
 

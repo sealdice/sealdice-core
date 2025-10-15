@@ -3,6 +3,8 @@ package dice
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,7 +54,7 @@ func (p *PlatformAdapterOnebot) Serve() int {
 	})
 	p.logger = logger.M()
 	p.ctx, p.cancel = context.WithCancel(context.Background())
-
+	d := p.Session.Parent
 	switch p.Mode {
 	case "client":
 		options := socketio.ClientOptions{
@@ -66,12 +68,31 @@ func (p *PlatformAdapterOnebot) Serve() int {
 			p.logger.Errorf("连接失败原因： %v", err)
 		}
 		err := client.ClientConnect(func(kws *socketio.WebsocketWrapper) {
-			// 连接成功了，什么都不需要做
+			// 连接成功，获取当前登录状态
+			if p.emitterChan == nil {
+				p.emitterChan = make(chan emitter.Response[json.RawMessage], 32)
+			}
+			p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
+			info, err := p.sendEmitter.GetLoginInfo(p.ctx)
+			if err != nil {
+				p.logger.Errorf("获取登录信息异常 %v", err)
+				p.EndPoint.State = 3
+				return
+			}
+			p.logger.Infof("PureOnebot 服务连接成功，账号<%s>(%d)", info.NickName, info.UserId)
+			p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
+			p.EndPoint.Nickname = info.NickName
+			// 状态设置
 			p.EndPoint.State = 1
+			// 启动Endpoint
+			p.EndPoint.Enable = true
+			// 更新上次时间，并存储
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
 		})
 		if err != nil {
 			p.logger.Error(err)
-			return -1 // 连接失败
+			return 3 // 连接失败
 		}
 		return 0
 	}
@@ -91,7 +112,6 @@ func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, ID string) {
 			"group_id": ID,
 		})
 	}
-
 }
 
 // SendToPerson 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
@@ -107,6 +127,30 @@ func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, tex
 }
 
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	groupID := ctx.Group.GroupID
+	rawGroupID := ExtractQQGroupID(groupID)
+	rawGroupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)
+	if err != nil {
+		log.Errorf("Invalid group ID %s: %v", groupID, err)
+		return
+	}
+	userID := ctx.Player.UserID
+	rawUserID := ExtractQQUserID(userID)
+	rawUserIDInt, err := strconv.ParseInt(rawUserID, 10, 64)
+	if err != nil {
+		log.Errorf("Invalid user ID %s: %v", userID, err)
+		return
+	}
+	_, err = p.sendEmitter.Raw(p.ctx, "set_group_card", map[string]interface{}{
+		"group_id": rawGroupIDInt,
+		"user_id":  rawUserIDInt,
+		"card":     name,
+	})
+	if err != nil {
+		log.Errorf("Failed to set group card name: %v", err)
+		return
+	}
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
@@ -115,6 +159,7 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 	if err != nil {
 		return
 	}
+	// 支援插件发送调用
 	p.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
@@ -134,6 +179,7 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 	if err != nil {
 		return
 	}
+	// 支援插件发送调用
 	p.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "private",
@@ -148,15 +194,17 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 }
 
 func (p *PlatformAdapterOnebot) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
+	msg := []message.IMessageElement{
+		&message.FileElement{URL: path},
+	}
+	p.SendSegmentToPerson(ctx, userID, msg, flag)
 }
 
 func (p *PlatformAdapterOnebot) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
-}
-
-func (p *PlatformAdapterOnebot) MemberBan(groupID string, userID string, duration int64) {
-}
-
-func (p *PlatformAdapterOnebot) MemberKick(groupID string, userID string) {
+	msg := []message.IMessageElement{
+		&message.FileElement{URL: path},
+	}
+	p.SendSegmentToGroup(ctx, groupID, msg, flag)
 }
 
 func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
@@ -174,8 +222,15 @@ func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
 	})
 }
 
-func (p *PlatformAdapterOnebot) EditMessage(ctx *MsgContext, msgID, message string) {
-}
+// 全是废弃的，TNND。
+func (p *PlatformAdapterOnebot) EditMessage(ctx *MsgContext, msgID, message string) {}
 
 func (p *PlatformAdapterOnebot) RecallMessage(ctx *MsgContext, msgID string) {
+}
+
+func (p *PlatformAdapterOnebot) MemberBan(groupID string, userID string, duration int64) {
+}
+
+func (p *PlatformAdapterOnebot) MemberKick(groupID string, userID string) {
+
 }
