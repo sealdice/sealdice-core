@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"iter"
 
-	"sealdice-core/utils/onebot/schema"
+	"sealdice-core/dice/utils/onebot/schema"
 )
 
 var (

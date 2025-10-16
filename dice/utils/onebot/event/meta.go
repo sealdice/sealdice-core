@@ -1,6 +1,6 @@
 package event
 
-import "sealdice-core/utils/onebot/types"
+import "sealdice-core/dice/utils/onebot/types"
 
 type LifeMeta struct {
 	SubType string `json:"sub_type"` //enable disable connect
