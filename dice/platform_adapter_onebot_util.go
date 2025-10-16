@@ -118,7 +118,7 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 	case "group_ban":
 		_ = p.handleGroupBanAction(req, ep)
 	case "group_recall":
-		_ = p.handleGroupBanAction(req, ep)
+		_ = p.handleGroupRecallAction(req, ep)
 	case "notify":
 		switch req.Get("sub_type").String() {
 		case "poke":
