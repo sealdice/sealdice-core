@@ -113,6 +113,8 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 	// 入群（强行拉群等）
 	case "group_increase":
 		_ = p.handleJoinGroupAction(req, ep)
+	case "group_decrease":
+		_ = p.handleGroupDecreaseAction(req, ep)
 	case "friend_add":
 		_ = p.handleAddFriendAction(req, ep)
 	case "group_ban":
@@ -126,6 +128,35 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 			_ = p.handleGroupPokeAction(req, ep)
 		}
 	}
+}
+
+func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *socketio.EventPayload) error {
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	subType := req.Get("sub_type").String()
+	switch subType {
+	case "kick_me":
+		p.Session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
+			GroupID:    FormatOnebotDiceIDQQGroup(req.Get("group_id").String()),
+			UserID:     FormatOnebotDiceIDQQ(req.Get("user_id").String()),
+			OperatorID: FormatOnebotDiceIDQQ(req.Get("operator_id").String()),
+		})
+	case "leave", "disband":
+		groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
+		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
+		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
+		group, exists := p.Session.ServiceAtNew.Load(groupId)
+		if !exists {
+			txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, groupId)
+			p.logger.Error(txtErr)
+			ctx.Notice(txtErr)
+		}
+		group.DiceIDExistsMap.Delete(p.EndPoint.UserID)
+		group.UpdatedAtTime = time.Now().Unix()
+		p.logger.Info(txt)
+		ctx.Notice(txt)
+	}
+
+	return nil
 }
 
 func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *socketio.EventPayload) error {
