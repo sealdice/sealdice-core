@@ -13,6 +13,8 @@ github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231 h1:t9hBFiDTf
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231/go.mod h1:wQTmPSYoaXtXfBysiJ9XiLwVnoCdlNHwuxYfxO4I4uo=
 github.com/PaienNate/pineutil v0.0.0-20251014070632-4c5ebfdc92e5 h1:M8NYh4GxmHbjDDwRXubAl1m3ThFh6+NDZ+AhIm8hnW0=
 github.com/PaienNate/pineutil v0.0.0-20251014070632-4c5ebfdc92e5/go.mod h1:h/9Rd1W7RPjNAyDMXZgs/ChCVjb9aPN7k/RxYWJlpd0=
+github.com/PaienNate/pineutil v0.0.0-20251016130540-07aac598c93e h1:A+CPoLPNeoS2Q+WIHVmtH99To75h+UMrDbgusf6Ap/M=
+github.com/PaienNate/pineutil v0.0.0-20251016130540-07aac598c93e/go.mod h1:cg9EQoyBMyDIdRp9b5DuuJo8KBCjHL5JiDpJesIEsZw=
 github.com/RoaringBitmap/roaring/v2 v2.8.0 h1:y1rdtixfXvaITKzkfiKvScI0hlBJHe9sfzJp8cgeM7w=
 github.com/RoaringBitmap/roaring/v2 v2.8.0/go.mod h1:FiJcsfkGje/nZBZgCu0ZxCPOKD/hVXDS2dXi7/eUFE0=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=

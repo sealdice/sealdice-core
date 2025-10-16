@@ -26,7 +26,7 @@ func initVerify() {
 	if len(key) > 0 {
 		SealTrustedClientPrivateKey = key
 	} else if len(SealTrustedClientPrivateKey) == 0 {
-		log.Warn("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development Mode")
+		log.Warn("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development mode")
 	}
 }
 
