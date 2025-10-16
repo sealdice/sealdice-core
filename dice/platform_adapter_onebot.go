@@ -11,6 +11,7 @@ import (
 
 	socketio "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
+	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
@@ -26,9 +27,11 @@ import (
 type PlatformAdapterOnebot struct {
 	Session          *IMSession    `json:"-"        yaml:"-"`
 	EndPoint         *EndPointInfo `json:"-"        yaml:"-"`
-	Token            string        `json:"token"    yaml:"token"`        // 正向或者反向时，使用的Token
-	ConnectURL       string        `yaml:"connectUrl" json:"connectUrl"` // 正向时 连接地址
-	Mode             string        `yaml:"mode" json:"mode"`             // 什么模式 server是反向，client是正向，http
+	Token            string        `json:"token"    yaml:"token"`              // 正向或者反向时，使用的Token
+	ConnectURL       string        `yaml:"connectUrl" json:"connectUrl"`       // 正向时 连接地址
+	Mode             string        `yaml:"mode" json:"mode"`                   // 什么模式 server是反向，client是正向，http
+	ReverseUrl       string        `yaml:"reverseUrl" json:"reverseUrl"`       // 反向时 监听地址
+	ReverseSuffix    string        `yaml:"reverseSuffix" json:"reverseSuffix"` // 反向时 后缀是什么 默认是/ws
 	wsmode           string
 	websocketManager *socketio.SocketInstance
 	ctx              context.Context
@@ -111,6 +114,39 @@ func (p *PlatformAdapterOnebot) Serve() int {
 			return 3 // 连接失败
 		}
 		return 0
+	case "server":
+		// 反向WebSocket 我是服务器喵
+		e := echo.New()
+		// 注册Handler
+		e.GET("/ws", echo.WrapHandler(
+			p.websocketManager.New(func(kws *socketio.WebsocketWrapper) {
+				// 连接成功，获取当前登录状态
+				if p.emitterChan == nil {
+					p.emitterChan = make(chan emitter.Response[json.RawMessage], 32)
+				}
+				p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
+				info, err := p.sendEmitter.GetLoginInfo(p.ctx)
+				if err != nil {
+					p.logger.Errorf("获取登录信息异常 %v", err)
+					p.EndPoint.State = 3
+					return
+				}
+				p.logger.Infof("PureOnebot 服务连接成功，账号<%s>(%d)", info.NickName, info.UserId)
+				p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
+				p.EndPoint.Nickname = info.NickName
+				// 状态设置
+				p.EndPoint.State = 1
+				// 启动Endpoint
+				p.EndPoint.Enable = true
+				// 更新上次时间，并存储
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+			}),
+		))
+		err := e.Start(p.ReverseUrl)
+		if err != nil {
+			return 0
+		}
 	}
 	return 0
 }
