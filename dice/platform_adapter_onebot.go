@@ -71,7 +71,7 @@ func (p *PlatformAdapterOnebot) Serve() int {
 		}
 		p.emitterChan <- echo
 	})
-	p.logger = logger.M()
+	p.logger = zap.S().Named(logger.LogKeyAdapter)
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 	d := p.Session.Parent
 	switch p.Mode {
@@ -160,8 +160,8 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, ID string) {
 	if p.sendEmitter != nil {
-		p.sendEmitter.Raw(p.ctx, "set_group_leave", map[string]string{
-			"group_id": ID,
+		_, _ = p.sendEmitter.Raw(p.ctx, "set_group_leave", map[string]string{
+			"group_id": ExtractQQGroupID(ID),
 		})
 	}
 }
@@ -179,19 +179,18 @@ func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, tex
 }
 
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
-	log := zap.S().Named(logger.LogKeyAdapter)
 	groupID := ctx.Group.GroupID
 	rawGroupID := ExtractQQGroupID(groupID)
 	rawGroupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)
 	if err != nil {
-		log.Errorf("Invalid group ID %s: %v", groupID, err)
+		p.logger.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
 	userID := ctx.Player.UserID
 	rawUserID := ExtractQQUserID(userID)
 	rawUserIDInt, err := strconv.ParseInt(rawUserID, 10, 64)
 	if err != nil {
-		log.Errorf("Invalid user ID %s: %v", userID, err)
+		p.logger.Errorf("Invalid user ID %s: %v", userID, err)
 		return
 	}
 	_, err = p.sendEmitter.Raw(p.ctx, "set_group_card", map[string]interface{}{
@@ -200,7 +199,7 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 		"card":     name,
 	})
 	if err != nil {
-		log.Errorf("Failed to set group card name: %v", err)
+		p.logger.Errorf("Failed to set group card name: %v", err)
 		return
 	}
 }
