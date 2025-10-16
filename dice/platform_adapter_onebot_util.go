@@ -41,6 +41,7 @@ func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
 	if !gjson.ValidBytes(ep.Data) {
 		return
 	}
+	// 注册Emitter
 	resp := gjson.ParseBytes(ep.Data)
 	if resp.Get("self_id").Int() != 0 {
 		p.once.Do(func() {
@@ -49,7 +50,6 @@ func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
 			}
 		})
 	}
-
 	// 解析是string还是array
 	// TODO: 不知道是不是通过这种方式判断是string或者array的
 	switch resp.Get("message").Type {
@@ -88,6 +88,11 @@ func (p *PlatformAdapterOnebot) onOnebotMessageEvent(ep *socketio.EventPayload) 
 		p.logger.Errorf("收到消息但无法进行处理，原因为 %s", err)
 		return
 	}
+	// 注册消息发送人的缓存，以兼容dice_manager
+	if msg.Sender.UserID != "" && msg.Sender.Nickname != "" {
+		p.Session.Parent.Parent.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+	}
+
 	p.Session.ExecuteNew(p.EndPoint, msg)
 }
 
@@ -110,7 +115,32 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 		_ = p.handleJoinGroupAction(req, ep)
 	case "friend_add":
 		_ = p.handleAddFriendAction(req, ep)
+	case "group_ban":
+		_ = p.handleGroupBanAction(req, ep)
 	}
+}
+
+func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *socketio.EventPayload) error {
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	subType := req.Get("sub_type").String()
+	userID := FormatOnebotDiceIDQQ(req.Get("user_id").String())
+	selfID := FormatOnebotDiceIDQQ(req.Get("self_id").String())
+	groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
+	operatorID := FormatOnebotDiceIDQQ(req.Get("operator_id").String())
+	durationTime := int(req.Get("duration").Int())
+	duration := time.Duration(durationTime) * time.Second
+	switch subType {
+	case "ban":
+		if userID == selfID {
+			groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
+			userName := p.Session.Parent.Parent.TryGetUserName(operatorID)
+			ctx.Dice.Config.BanList.AddScoreByGroupMuted(operatorID, groupId, ctx)
+			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupId, duration, userName, operatorID)
+			p.logger.Info(txt)
+			ctx.Notice(txt)
+		}
+	}
+	return nil
 }
 
 func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *socketio.EventPayload) error {
