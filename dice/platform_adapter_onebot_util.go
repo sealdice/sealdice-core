@@ -117,7 +117,19 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 		_ = p.handleAddFriendAction(req, ep)
 	case "group_ban":
 		_ = p.handleGroupBanAction(req, ep)
+	case "group_recall":
+		_ = p.handleGroupBanAction(req, ep)
 	}
+}
+
+func (p *PlatformAdapterOnebot) handleGroupRecallAction(req gjson.Result, ep *socketio.EventPayload) error {
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	msg, err := arrayByte2SealdiceMessage(p.logger, ep.Data)
+	if err != nil {
+		return err
+	}
+	p.Session.OnMessageDeleted(ctx, msg)
+	return nil
 }
 
 func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *socketio.EventPayload) error {
