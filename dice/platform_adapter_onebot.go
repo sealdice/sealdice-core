@@ -193,6 +193,7 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 	rawMsg, msgText := convertSealMsgToMessageChain(msg)
 	rawId, err := p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
 	if err != nil {
+		p.logger.Errorf("发送消息异常 %v", err)
 		return
 	}
 	// 支援插件发送调用
@@ -224,14 +225,17 @@ func (p *PlatformAdapterOnebot) SendFileToGroup(ctx *MsgContext, groupID string,
 }
 
 func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
-	p.antPool.Submit(func() {
+	_ = p.antPool.Submit(func() {
 		p.GetGroupInfoSync(groupID)
 	})
 }
 
 func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
+	// TODO：去掉这个MsgContext的需求？
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	rawGroupID := ExtractQQEmitterGroupID(groupID)
 	res, err := p.sendEmitter.Raw(p.ctx, "get_group_info", map[string]interface{}{
-		"group_id": groupID,
+		"group_id": rawGroupID,
 		"no_cache": true,
 	})
 	if err != nil {
@@ -239,6 +243,7 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
 		return nil
 	}
 	groupInfoRaw := gjson.ParseBytes(res)
+	// GroupCache里放的ID也设置成Dice的群ID以免混乱
 	result := &GroupCache{
 		GroupAllShut:   int(groupInfoRaw.Get("data.group_all_shut").Int()),
 		GroupRemark:    groupInfoRaw.Get("data.group_remark").String(),
@@ -252,13 +257,50 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
 		Name: result.GroupName,
 		time: time.Now().Unix(),
 	})
+	// 存储群组相关信息
+	groupInfo, ok := p.Session.ServiceAtNew.Load(groupID)
+	if !ok {
+		return result
+	}
+	// 群名有更新的情况
+	if result.GroupName != groupInfo.GroupName {
+		groupInfo.GroupName = result.GroupName
+		groupInfo.UpdatedAtTime = time.Now().Unix()
+	}
+	// 群信息获取不到，可能退群的情况，删除群信息
+	if result.MaxMemberCount == 0 {
+		if _, exists := groupInfo.DiceIDExistsMap.Load(p.EndPoint.UserID); exists {
+			groupInfo.DiceIDExistsMap.Delete(p.EndPoint.UserID)
+			groupInfo.UpdatedAtTime = time.Now().Unix()
+		}
+	}
+	// 发现群情况不对，可能要退群的情况。 放在这里是因为可能这个群已经被邀请进入了
+	uid := groupInfo.InviteUserID
+	// 邀请人有问题
+	userResult := checkBlackList(uid, "user", ctx)
+	if !userResult.Passed {
+		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
+			text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
+			ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+			time.Sleep(1 * time.Second)
+			p.QuitGroup(ctx, groupID)
+		}
+	}
+	// 这群有问题
+	groupResult := checkBlackList(groupID, "group", ctx)
+	if !groupResult.Passed {
+		// 如果是被ban之后拉群，判定为强制拉群
+		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
+			text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", userResult.BanInfo.toText(ctx.Dice))
+			ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+			time.Sleep(1 * time.Second)
+			p.QuitGroup(ctx, groupID)
+		}
+	}
 	return result
 }
 
 func (p *PlatformAdapterOnebot) GetGroupCacheInfo(groupID string) *GroupCache {
-	if strings.HasPrefix(groupID, "QQ-Group:") {
-		groupID = groupID[len("QQ-Group:"):]
-	}
 	res, ok := p.groupCache.Get(groupID)
 	if ok {
 		return res

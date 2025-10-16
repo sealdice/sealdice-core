@@ -108,9 +108,40 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 	// 入群（强行拉群等）
 	case "group_increase":
 		_ = p.handleJoinGroupAction(req, ep)
-	case "":
-
+	case "friend_add":
+		_ = p.handleAddFriendAction(req, ep)
 	}
+}
+
+func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *socketio.EventPayload) error {
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
+	if err != nil {
+		return err
+	}
+	userId := FormatOnebotDiceIDQQ(req.Get("user_id").String())
+	// 先查看
+	ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+	welcomeStr := DiceFormatTmpl(ctx, "核心:骰子成为好友")
+	p.logger.Infof("与 %s 成为好友，发送好友致辞: %s", req.Get("user_id").String(), welcomeStr)
+	_ = p.antPool.Submit(func() {
+		time.Sleep(2 * time.Second)
+		for _, i := range ctx.SplitText(welcomeStr) {
+			doSleepQQ(ctx)
+			p.SendToPerson(ctx, userId, strings.TrimSpace(i), "")
+		}
+		groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+		if ok {
+			for _, i := range groupInfo.ActivatedExtList {
+				if i.OnBecomeFriend != nil {
+					i.callWithJsCheck(ctx.Dice, func() {
+						i.OnBecomeFriend(ctx, msg)
+					})
+				}
+			}
+		}
+	})
+	return nil
 }
 
 func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *socketio.EventPayload) error {
@@ -194,20 +225,22 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *socket
 	switch req.Get("sub_type").String() {
 	case "invite":
 		// 获取群信息
-		res := p.GetGroupCacheInfo(req.Get("group_id").String())
+		diceGroupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
+		diceUserId := FormatOnebotDiceIDQQ(req.Get("user_id").String())
+		res := p.GetGroupCacheInfo(diceGroupId)
 		if res == nil {
 			// 没有群信息，默认群信息创建
 			res = &GroupCache{
 				GroupAllShut:   0,
 				GroupRemark:    "",
-				GroupId:        req.Get("group_id").String(),
+				GroupId:        diceGroupId,
 				GroupName:      "%未知群聊%",
 				MemberCount:    1,
 				MaxMemberCount: 2000,
 			}
 		}
 		// 先判断是否需要加群
-		ok, reason := checkPassBlackListGroup(req.Get("user_id").String(), req.Get("group_id").String(), ctx)
+		ok, reason := checkPassBlackListGroup(diceUserId, diceGroupId, ctx)
 		if !ok {
 			p.logger.Infof("群组 %s 加群请求被拒绝，原因为 %s", req.Get("group_id").String(), reason)
 			err := ants.Submit(func() {
@@ -234,13 +267,13 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *socket
 }
 
 func checkPassBlackListGroup(userId string, groupID string, ctx *MsgContext) (bool, string) {
-	userAllow, reason := checkPassBlackList(userId, "user", ctx)
-	if !userAllow {
-		return false, reason
+	userResult := checkBlackList(userId, "user", ctx)
+	if !userResult.Passed {
+		return false, userResult.Reason
 	}
-	groupAllow, reason := checkPassBlackList(groupID, "group", ctx)
-	if !groupAllow {
-		return false, reason
+	groupResult := checkBlackList(groupID, "group", ctx)
+	if !groupResult.Passed {
+		return false, groupResult.Reason
 	}
 	return true, ""
 }
@@ -265,7 +298,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *socke
 		passQuestion = checkMultiFriendAddVerify(comment, toMatch)
 	}
 	// 匹配黑名单检查
-	passblackList, reason := checkPassBlackList(req.Get("user_id").String(), "user", ctx)
+	result := checkBlackList(req.Get("user_id").String(), "user", ctx)
 	// 格式化请求的数据
 	comment = strconv.Quote(comment)
 	if comment == "" {
@@ -276,9 +309,9 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *socke
 	} else {
 		extra = "。回答正确"
 	}
-	if !passblackList {
+	if !result.Passed {
 		extra += "。（被禁止用户）"
-		extra += "，原因：" + reason
+		extra += "，原因：" + result.Reason
 	}
 	// TODO：暂时不做
 	// if p.IgnoreFriendRequest {
@@ -328,49 +361,107 @@ func checkMultiFriendAddVerify(comment string, toMatch string) bool {
 	return willAccept
 }
 
-// 检查是否通过黑名单
-func checkPassBlackList(userId string, typeStr string, ctx *MsgContext) (bool, string) {
+// TODO
+
+// 					// 处理被强制拉群的情况
+//					uid := groupInfo.InviteUserID
+//					banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
+//					if ok {
+//						if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
+//							// 如果是被ban之后拉群，判定为强制拉群
+//							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
+//								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
+//								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+//								time.Sleep(1 * time.Second)
+//								pa.QuitGroup(ctx, groupID)
+//							}
+//							return
+//						}
+//					}
+//
+//					// 强制拉群情况2 - 群在黑名单
+//					banInfo, ok = ctx.Dice.Config.BanList.GetByID(groupID)
+//					if ok {
+//						if banInfo.Rank == BanRankBanned {
+//							// 如果是被ban之后拉群，判定为强制拉群
+//							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
+//								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
+//								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+//								time.Sleep(1 * time.Second)
+//								pa.QuitGroup(ctx, groupID)
+//							}
+//							return
+//						}
+//					}
+
+type BlackListCheckResult struct {
+	Passed      bool
+	FailureType string           // "user_banned", "group_banned", "trust_mode", "refuse_invite"
+	Reason      string           // 具体原因
+	BanInfo     *BanListInfoItem // 详细的封禁信息，用于后续逻辑
+}
+
+// checkBlackList 检查用户或群组是否通过黑名单检查
+// 参数:
+//   - userId: 用户ID或群组ID
+//   - checkType: 检查类型，"user"或"group"
+//   - ctx: 消息上下文
+//
+// 返回值:
+//   - BlackListCheckResult: 包含检查结果和详细信息
+func checkBlackList(userId string, checkType string, ctx *MsgContext) BlackListCheckResult {
+	result := BlackListCheckResult{
+		Passed: true,
+	}
+
 	// 检查 userId 是否有效
 	if userId == "" {
-		return true, ""
-	}
-	var uid string
-	switch typeStr {
-	case "user":
-		uid = FormatOnebotDiceIDQQ(userId)
-	case "group":
-		uid = FormatOnebotDiceIDQQGroup(userId)
-	default:
-		uid = FormatOnebotDiceIDQQ(userId)
+		return result
 	}
 
 	// 获取禁用信息
-	banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
+	banInfo, ok := ctx.Dice.Config.BanList.GetByID(userId)
 	if !ok || banInfo == nil {
-		return true, "" // 如果用户不在黑名单中，默认通过
-	}
-	switch typeStr {
-	case "user":
-		// 检查禁用等级和行为配置
-		if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
-			return false, "邀请人在黑名单上"
-		}
-	case "group":
-		// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
-		isMaster := ctx.Dice.IsMaster(uid)
-		if ctx.Dice.Config.TrustOnlyMode && banInfo.Rank != BanRankTrusted && !isMaster {
-			return false, "只允许信任的人拉群"
-		}
-		if banInfo.Rank == BanRankBanned {
-			return false, "群组在黑名单上"
-		}
-		if ctx.Dice.Config.RefuseGroupInvite {
-			return false, "拒绝拉群邀请"
-		}
-	default:
+		return result // 如果不在黑名单中，默认通过
 	}
 
-	return true, "" // 其他情况默认通过
+	result.BanInfo = banInfo
+
+	switch checkType {
+	case "user":
+		// 检查用户是否被ban且配置了拒绝邀请
+		if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
+			result.Passed = false
+			result.FailureType = "user_banned"
+			result.Reason = "邀请人在黑名单上"
+		}
+	case "group":
+		// 检查群组是否被ban
+		if banInfo.Rank == BanRankBanned {
+			result.Passed = false
+			result.FailureType = "group_banned"
+			result.Reason = "群组在黑名单上"
+			return result
+		}
+
+		// 信任模式检查
+		isMaster := ctx.Dice.IsMaster(userId)
+		if ctx.Dice.Config.TrustOnlyMode && banInfo.Rank != BanRankTrusted && !isMaster {
+			result.Passed = false
+			result.FailureType = "trust_mode"
+			result.Reason = "只允许信任的人拉群"
+			return result
+		}
+
+		// 拒绝所有群邀请的配置检查
+		if ctx.Dice.Config.RefuseGroupInvite {
+			result.Passed = false
+			result.FailureType = "refuse_invite"
+			result.Reason = "拒绝拉群邀请"
+		}
+	}
+
+	return result
 }
 
 func (p *PlatformAdapterOnebot) onOnebotMetaDataEvent(ep *socketio.EventPayload) {
