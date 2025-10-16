@@ -108,6 +108,24 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 
 // GetPlayerInfoBySender 获取玩家群内信息，没有就创建
 func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPlayerInfo) {
+	wrapper := MessageWrapper{
+		MessageType: msg.MessageType,
+		GroupID:     msg.GroupID,
+		Sender: struct {
+			UserID   string
+			Nickname string
+		}{
+			UserID:   msg.Sender.UserID,
+			Nickname: msg.Sender.Nickname,
+		},
+		GuildID:   msg.GuildID,
+		ChannelID: msg.ChannelID,
+	}
+	return GetPlayerInfoBySenderRaw(ctx, &wrapper)
+}
+
+// GetPlayerInfoBySenderRaw 获取玩家群内信息的轻量版，不依赖完整的msg信息，因为实质上，大部分数据并没什么卵用。
+func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo, *GroupPlayerInfo) {
 	session := ctx.Session
 	var groupID string
 	if msg.MessageType == "group" {
@@ -146,6 +164,17 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	}
 	p.InGroup = true
 	return groupInfo, p
+}
+
+type MessageWrapper struct {
+	MessageType string // "group" 或私聊
+	GroupID     string
+	Sender      struct {
+		UserID   string
+		Nickname string
+	}
+	GuildID   string // 可选
+	ChannelID string // 可选
 }
 
 func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {

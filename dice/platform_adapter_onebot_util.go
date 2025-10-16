@@ -16,6 +16,7 @@ import (
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 
+	"sealdice-core/dice/events"
 	"sealdice-core/dice/utils/onebot/schema"
 	"sealdice-core/message"
 )
@@ -37,7 +38,7 @@ const (
 
 // serveOnebotEvent 消息分发函数。该函数将所有的传入参数，全部转换为array模式
 func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
-	p.logger.Infof("Message event - User: %s - Message: %s", ep.Kws.GetStringAttribute("user_id"), string(ep.Data))
+	p.logger.Debugf("Message event - User: %s - Message: %s", ep.Kws.GetStringAttribute("user_id"), string(ep.Data))
 	if !gjson.ValidBytes(ep.Data) {
 		return
 	}
@@ -68,7 +69,6 @@ func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
 		}
 		resp = resp2
 	}
-
 	// 将数据转换为对应的事件event
 	eventType := resp.Get("post_type").String()
 	if eventType != "" {
@@ -119,10 +119,31 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 		_ = p.handleGroupBanAction(req, ep)
 	case "group_recall":
 		_ = p.handleGroupBanAction(req, ep)
+	case "notify":
+		switch req.Get("sub_type").String() {
+		case "poke":
+			// 戳一戳
+			_ = p.handleGroupPokeAction(req, ep)
+		}
 	}
 }
 
-func (p *PlatformAdapterOnebot) handleGroupRecallAction(req gjson.Result, ep *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *socketio.EventPayload) error {
+	go func() {
+		defer ErrorLogAndContinue(p.Session.Parent)
+		msgContext := p.makeCtx(req)
+		isPrivate := msgContext.MessageType == "private"
+		p.Session.OnPoke(msgContext, &events.PokeEvent{
+			GroupID:   FormatDiceIDQQGroup(req.Get("group_id").String()),
+			SenderID:  FormatDiceIDQQ(req.Get("user_id").String()),
+			TargetID:  FormatDiceIDQQ(req.Get("target_id").String()),
+			IsPrivate: isPrivate,
+		})
+	}()
+	return nil
+}
+
+func (p *PlatformAdapterOnebot) handleGroupRecallAction(_ gjson.Result, ep *socketio.EventPayload) error {
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, ep.Data)
 	if err != nil {
@@ -191,7 +212,6 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *socke
 	// 入群要做的事情：
 	// 1. 如果发现进群的是自己，要和大家发入群致辞
 	// 2. 如果发现进群的不是自己，对他进行节流的迎新
-	// TODO：这个性能不是特别好，原因是来回转换。如果我一开始就选择使用msg进行参数传递，结果就不一样了。能不转换就不转换
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
 	if err != nil {
@@ -900,4 +920,74 @@ func ExtractQQEmitterGroupID(id string) int64 {
 	}
 	atoi, _ := strconv.ParseInt(id[len("QQ-Group:"):], 10, 64)
 	return atoi
+}
+
+func (pa *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
+	ep := pa.EndPoint
+	session := pa.Session
+	var messageType = "private"
+	if req.Get("group_id").Exists() {
+		messageType = "group"
+	}
+	ctx := &MsgContext{MessageType: messageType, EndPoint: ep, Session: session, Dice: session.Parent}
+	wrapper := MessageWrapper{
+		MessageType: ctx.MessageType,
+		GroupID:     FormatOnebotDiceIDQQ(req.Get("group_id").String()),
+		Sender: struct {
+			UserID   string
+			Nickname string
+		}{},
+		// TODO: 这两个暂时不知道干啥的
+		GuildID:   "",
+		ChannelID: "",
+	}
+	switch ctx.MessageType {
+	case "private":
+		// 拿到ID
+		info, err := pa.sendEmitter.GetStrangerInfo(pa.ctx, req.Get("user_id").Int(), false)
+		if err != nil {
+			return ctx
+		}
+		// 设置名称
+		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(info.UserId, 10))
+		wrapper.Sender.Nickname = info.NickName
+		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
+		if ctx.Player.Name == "" {
+			ctx.Player.Name = info.NickName
+			ctx.Player.UpdatedAtTime = time.Now().Unix()
+		}
+		SetTempVars(ctx, info.NickName)
+	case "group":
+		resp, err := pa.sendEmitter.Raw(pa.ctx, "get_group_member_info", map[string]interface{}{
+			"group_id": req.Get("group_id").String(),
+			"user_id":  req.Get("user_id").String(),
+			"no_cache": false,
+		})
+		if err != nil {
+			return ctx
+		}
+		respResult := gjson.ParseBytes(resp)
+		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(respResult.Get("data.user_id").String())
+		wrapper.Sender.Nickname = respResult.Get("data.nickname").String()
+		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
+		if ctx.Group == nil {
+			gi := pa.GetGroupCacheInfo(FormatOnebotDiceIDQQGroup(req.Get("group_id").String()))
+			ctx.Group = &GroupInfo{GroupID: gi.GroupId, GroupName: gi.GroupName}
+			ctx.Group.UpdatedAtTime = time.Now().Unix()
+		}
+		if ctx.Player == nil {
+			ctx.Player = &GroupPlayerInfo{UserID: wrapper.Sender.UserID}
+		}
+		if ctx.Player.Name == "" {
+			if respResult.Get("data.card").String() == "" {
+				ctx.Player.Name = respResult.Get("data.nickname").String()
+			} else {
+				ctx.Player.Name = respResult.Get("data.card").String()
+			}
+			ctx.Player.UpdatedAtTime = time.Now().Unix()
+		}
+		SetTempVars(ctx, respResult.Get("data.nickname").String())
+	}
+
+	return ctx
 }
