@@ -42,6 +42,11 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	log := s.Parent.Logger
 	d := pa.Session.Parent
 
+	if pa.Ctx != nil {
+		log.Info("official qq session already running, skip Serve")
+		return 0
+	}
+
 	log.Debug("official qq server")
 	qqbot.SetLogger(NewDummyLogger())
 	token := qqtoken.BotToken(pa.AppID, pa.Token)
@@ -77,8 +82,14 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 			if r := recover(); r != nil {
 				log.Error("official qq 启动失败: ", r)
 			}
+			pa.Ctx = nil
+			pa.CancelFunc = nil
+			pa.SessionManager = nil
 		}()
 		_ = pa.SessionManager.Start(pa.Ctx, ws, token, &intent)
+		pa.Ctx = nil
+		pa.CancelFunc = nil
+		pa.SessionManager = nil
 	}()
 	ep.State = 1
 	ep.Enable = true
