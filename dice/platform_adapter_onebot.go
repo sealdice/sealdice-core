@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go"
 	socketio "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
 	"github.com/labstack/echo/v4"
@@ -21,8 +21,6 @@ import (
 	"sealdice-core/logger"
 	"sealdice-core/message"
 )
-
-// 2025-10-14 首先启用客户端模式
 
 type PlatformAdapterOnebot struct {
 	Session          *IMSession    `json:"-"        yaml:"-"`
@@ -47,6 +45,11 @@ type PlatformAdapterOnebot struct {
 	antPool *ants.Pool
 	// 群缓存
 	groupCache otter.Cache[string, *GroupCache] // 群ID和群信息的缓存
+	// 重试相关
+	client        *socketio.WebsocketWrapper `json:"-" yaml:"-"` // WebSocket客户端
+	retryAttempts uint                       `json:"-" yaml:"-"` // 当前重试次数
+	isRetrying    bool                       `json:"-" yaml:"-"` // 是否正在重试
+	retryMutex    sync.RWMutex               `json:"-" yaml:"-"` // 重试状态锁
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
@@ -65,11 +68,11 @@ func (p *PlatformAdapterOnebot) Serve() int {
 	p.websocketManager.On(OnebotEventPostTypeRequest, p.onOnebotRequestEvent)
 	p.websocketManager.On(OnebotEventPostTypeNotice, p.OnebotNoticeEvent)
 	p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
-		var echo emitter.Response[json.RawMessage]
-		if err := sonic.Unmarshal(payload.Data, &echo); err != nil {
+		var echoer emitter.Response[json.RawMessage]
+		if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
 			p.logger.Errorf("echo 数据传输异常 %v", err)
 		}
-		p.emitterChan <- echo
+		p.emitterChan <- echoer
 	})
 	p.logger = zap.S().Named(logger.LogKeyAdapter)
 	p.ctx, p.cancel = context.WithCancel(context.Background())
@@ -80,37 +83,24 @@ func (p *PlatformAdapterOnebot) Serve() int {
 			UseSSL: strings.Contains(p.ConnectURL, "wss://"),
 		}
 		client := p.websocketManager.NewClient(p.ConnectURL, options)
+		p.client = client // 保存client引用以便重连使用
 		if p.Token != "" {
 			client.RequestHeader.Set("Authorization", p.Token)
 		}
-		client.OnConnectFailed = func(err error) {
+		client.OnConnectError = func(err error) {
 			p.logger.Errorf("连接失败原因： %v", err)
+			p.EndPoint.State = 3
+			go p.retryConnect()
 		}
-		err := client.ClientConnect(func(kws *socketio.WebsocketWrapper) {
-			// 连接成功，获取当前登录状态
-			if p.emitterChan == nil {
-				p.emitterChan = make(chan emitter.Response[json.RawMessage], 32)
-			}
-			p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
-			info, err := p.sendEmitter.GetLoginInfo(p.ctx)
-			if err != nil {
-				p.logger.Errorf("获取登录信息异常 %v", err)
-				p.EndPoint.State = 3
-				return
-			}
-			p.logger.Infof("PureOnebot 服务连接成功，账号<%s>(%d)", info.NickName, info.UserId)
-			p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
-			p.EndPoint.Nickname = info.NickName
-			// 状态设置
-			p.EndPoint.State = 1
-			// 启动Endpoint
-			p.EndPoint.Enable = true
-			// 更新上次时间，并存储
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		})
+		client.OnDisconnected = func(err error) {
+			p.logger.Error("连接断开")
+			p.EndPoint.State = 3
+			go p.retryConnect()
+		}
+		err := client.ClientConnect(p.onConnected)
 		if err != nil {
 			p.logger.Error(err)
+			// 这个时候要尝试重连
 			return 3 // 连接失败
 		}
 		return 0
@@ -160,8 +150,8 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, ID string) {
 	if p.sendEmitter != nil {
-		_, _ = p.sendEmitter.Raw(p.ctx, "set_group_leave", map[string]string{
-			"group_id": ExtractQQGroupID(ID),
+		_, _ = p.sendEmitter.Raw(p.ctx, "set_group_leave", map[string]interface{}{
+			"group_id": ExtractQQEmitterGroupID(ID),
 		})
 	}
 }
@@ -180,22 +170,10 @@ func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, tex
 
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 	groupID := ctx.Group.GroupID
-	rawGroupID := ExtractQQGroupID(groupID)
-	rawGroupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)
-	if err != nil {
-		p.logger.Errorf("Invalid group ID %s: %v", groupID, err)
-		return
-	}
 	userID := ctx.Player.UserID
-	rawUserID := ExtractQQUserID(userID)
-	rawUserIDInt, err := strconv.ParseInt(rawUserID, 10, 64)
-	if err != nil {
-		p.logger.Errorf("Invalid user ID %s: %v", userID, err)
-		return
-	}
-	_, err = p.sendEmitter.Raw(p.ctx, "set_group_card", map[string]interface{}{
-		"group_id": rawGroupIDInt,
-		"user_id":  rawUserIDInt,
+	_, err := p.sendEmitter.Raw(p.ctx, "set_group_card", map[string]interface{}{
+		"group_id": ExtractQQEmitterGroupID(groupID),
+		"user_id":  ExtractQQEmitterUserID(userID),
 		"card":     name,
 	})
 	if err != nil {
@@ -266,7 +244,7 @@ func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
 }
 
 func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
-	// TODO：去掉这个MsgContext的需求？
+	// TODO：去掉这个MsgContext的需求 以及这个函数设计的一坨
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	rawGroupID := ExtractQQEmitterGroupID(groupID)
 	res, err := p.sendEmitter.Raw(p.ctx, "get_group_info", map[string]interface{}{
@@ -354,4 +332,92 @@ func (p *PlatformAdapterOnebot) MemberBan(groupID string, userID string, duratio
 
 func (p *PlatformAdapterOnebot) MemberKick(groupID string, userID string) {
 
+}
+
+// onConnected 连接成功的回调函数
+func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
+	// 连接成功，获取当前登录状态
+	if p.emitterChan == nil {
+		p.emitterChan = make(chan emitter.Response[json.RawMessage], 32)
+	}
+	p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
+	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
+	if err != nil {
+		p.logger.Errorf("获取登录信息异常 %v", err)
+		p.EndPoint.State = 3
+		return
+	}
+	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
+	p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
+	p.EndPoint.Nickname = info.NickName
+	// 状态设置
+	p.EndPoint.State = 1
+	// 启动Endpoint
+	p.EndPoint.Enable = true
+	// 更新上次时间，并存储
+	d := p.Session.Parent
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
+}
+
+// retryConnect 重试连接方法
+func (p *PlatformAdapterOnebot) retryConnect() {
+	p.retryMutex.Lock()
+	if p.isRetrying {
+		p.retryMutex.Unlock()
+		return // 已经在重试中，避免重复重试
+	}
+	p.isRetrying = true
+	p.retryMutex.Unlock()
+
+	defer func() {
+		p.retryMutex.Lock()
+		p.isRetrying = false
+		p.retryAttempts = 0
+		p.retryMutex.Unlock()
+	}()
+
+	const maxRetries = 5
+	const baseDelay = 2 * time.Second
+
+	err := retry.Do(
+		func() error {
+			p.retryMutex.Lock()
+			p.retryAttempts++
+			currentAttempt := p.retryAttempts
+			p.retryMutex.Unlock()
+
+			// 计算下次重试时间（指数退避）
+			nextRetryDelay := time.Duration(1<<(currentAttempt-1)) * baseDelay
+			if currentAttempt < maxRetries {
+				p.logger.Infof("尝试重新连接 OneBot [%d/%d]，下次重试间隔: %v", currentAttempt, maxRetries, nextRetryDelay)
+			} else {
+				p.logger.Infof("尝试重新连接 OneBot [%d/%d]，最后一次尝试", currentAttempt, maxRetries)
+			}
+			
+			// 直接使用接口方法，无需类型断言
+			if p.client != nil {
+				return p.client.ClientConnect(p.onConnected)
+			}
+			return fmt.Errorf("client未初始化")
+		},
+		retry.Attempts(maxRetries),
+		retry.Delay(baseDelay),
+		retry.DelayType(retry.BackOffDelay),
+		retry.OnRetry(func(n uint, err error) {
+			nextDelay := time.Duration(1<<n) * baseDelay
+			p.logger.Warnf("重连失败 (第%d次): %v，%v后进行下次重试", n+1, err, nextDelay)
+		}),
+	)
+
+	if err != nil {
+		p.logger.Errorf("重连最终失败，已达到最大重试次数 %d: %v", maxRetries, err)
+		p.EndPoint.State = 3
+	} else {
+		p.logger.Infof("OneBot 重连成功")
+		// 重置重试状态
+		p.retryMutex.Lock()
+		p.retryAttempts = 0
+		p.retryMutex.Unlock()
+	}
 }
