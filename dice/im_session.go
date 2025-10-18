@@ -318,15 +318,17 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	return blankTmpl
 }
 
+type EndpointState int
+
 type EndPointInfoBase struct {
-	ID                  string `jsbind:"id"                  json:"id"                  yaml:"id"` // uuid
-	Nickname            string `jsbind:"nickname"            json:"nickname"            yaml:"nickname"`
-	State               int    `jsbind:"state"               json:"state"               yaml:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
-	UserID              string `jsbind:"userId"              json:"userId"              yaml:"userId"`
-	GroupNum            int64  `jsbind:"groupNum"            json:"groupNum"            yaml:"groupNum"`            // 拥有群数
-	CmdExecutedNum      int64  `jsbind:"cmdExecutedNum"      json:"cmdExecutedNum"      yaml:"cmdExecutedNum"`      // 指令执行次数
-	CmdExecutedLastTime int64  `jsbind:"cmdExecutedLastTime" json:"cmdExecutedLastTime" yaml:"cmdExecutedLastTime"` // 指令执行次数
-	OnlineTotalTime     int64  `jsbind:"onlineTotalTime"     json:"onlineTotalTime"     yaml:"onlineTotalTime"`     // 在线时长
+	ID                  string        `jsbind:"id"                  json:"id"                  yaml:"id"` // uuid
+	Nickname            string        `jsbind:"nickname"            json:"nickname"            yaml:"nickname"`
+	State               EndpointState `jsbind:"state"               json:"state"               yaml:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
+	UserID              string        `jsbind:"userId"              json:"userId"              yaml:"userId"`
+	GroupNum            int64         `jsbind:"groupNum"            json:"groupNum"            yaml:"groupNum"`            // 拥有群数
+	CmdExecutedNum      int64         `jsbind:"cmdExecutedNum"      json:"cmdExecutedNum"      yaml:"cmdExecutedNum"`      // 指令执行次数
+	CmdExecutedLastTime int64         `jsbind:"cmdExecutedLastTime" json:"cmdExecutedLastTime" yaml:"cmdExecutedLastTime"` // 指令执行次数
+	OnlineTotalTime     int64         `jsbind:"onlineTotalTime"     json:"onlineTotalTime"     yaml:"onlineTotalTime"`     // 在线时长
 
 	Platform     string `jsbind:"platform"   json:"platform"     yaml:"platform"` // 平台，如QQ等
 	RelWorkDir   string `json:"relWorkDir"   yaml:"relWorkDir"`                   // 工作目录
@@ -336,6 +338,13 @@ type EndPointInfoBase struct {
 	IsPublic bool       `json:"isPublic" yaml:"isPublic"`
 	Session  *IMSession `json:"-"        yaml:"-"`
 }
+
+const (
+	StateDisconnected     EndpointState = iota // 0: 断开
+	StateConnected                             // 1: 已连接
+	StateConnecting                            // 2: 连接中
+	StateConnectionFailed                      // 3: 连接失败
+)
 
 type EndPointInfo struct {
 	EndPointInfoBase `jsbind:"baseInfo" yaml:"baseInfo"`

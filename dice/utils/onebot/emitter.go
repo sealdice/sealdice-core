@@ -2,7 +2,6 @@ package emitter
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -55,12 +54,12 @@ type Response[T any] struct {
 type EmitterEVSocket struct {
 	mu     sync.Mutex
 	conn   *socketio.WebsocketWrapper
-	echo   chan Response[json.RawMessage]
+	echo   chan Response[sonic.NoCopyRawMessage]
 	selfId int64
 	uuid   string
 }
 
-func NewEVEmitter(conn *socketio.WebsocketWrapper, echo chan Response[json.RawMessage]) *EmitterEVSocket {
+func NewEVEmitter(conn *socketio.WebsocketWrapper, echo chan Response[sonic.NoCopyRawMessage]) *EmitterEVSocket {
 	emitter := &EmitterEVSocket{
 		conn: conn,
 		echo: echo,
@@ -269,7 +268,7 @@ func wsAction[P any](w *socketio.WebsocketWrapper, action string, params P) (str
 	return echoid, nil
 }
 
-func wsWait[R any](ctx context.Context, echoId string, echoChan chan Response[json.RawMessage]) (*R, error) {
+func wsWait[R any](ctx context.Context, echoId string, echoChan chan Response[sonic.NoCopyRawMessage]) (*R, error) {
 	ctx, cancel := context.WithTimeout(ctx, EchoTimeOut)
 	defer cancel()
 	for {

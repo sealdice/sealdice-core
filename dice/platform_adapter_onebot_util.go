@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	socketio "github.com/PaienNate/pineutil/evsocket"
+	evsocket "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
@@ -37,7 +37,7 @@ const (
 )
 
 // serveOnebotEvent 消息分发函数。该函数将所有的传入参数，全部转换为array模式
-func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *evsocket.EventPayload) {
 	p.logger.Debugf("Message event - User: %s - Message: %s", ep.Kws.GetStringAttribute("user_id"), string(ep.Data))
 	if !gjson.ValidBytes(ep.Data) {
 		return
@@ -81,7 +81,7 @@ func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *socketio.EventPayload) {
 	}
 }
 
-func (p *PlatformAdapterOnebot) onOnebotMessageEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterOnebot) onOnebotMessageEvent(ep *evsocket.EventPayload) {
 	// 收到普通消息的时候：执行ExecuteNew函数
 	msg, err := arrayByte2SealdiceMessage(p.logger, ep.Data)
 	if err != nil {
@@ -96,7 +96,7 @@ func (p *PlatformAdapterOnebot) onOnebotMessageEvent(ep *socketio.EventPayload) 
 	p.Session.ExecuteNew(p.EndPoint, msg)
 }
 
-func (p *PlatformAdapterOnebot) onOnebotRequestEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterOnebot) onOnebotRequestEvent(ep *evsocket.EventPayload) {
 	// 请求分为好友请求和加群/邀请请求
 	req := gjson.ParseBytes(ep.Data)
 	switch req.Get("request_type").String() {
@@ -106,7 +106,7 @@ func (p *PlatformAdapterOnebot) onOnebotRequestEvent(ep *socketio.EventPayload) 
 		_ = p.handleReqGroupAction(req, ep)
 	}
 }
-func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *evsocket.EventPayload) {
 	// 进群致辞
 	req := gjson.ParseBytes(ep.Data)
 	switch req.Get("notice_type").String() {
@@ -130,7 +130,7 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *socketio.EventPayload) {
 	}
 }
 
-func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	subType := req.Get("sub_type").String()
 	switch subType {
@@ -159,7 +159,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *s
 	return nil
 }
 
-func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	go func() {
 		defer ErrorLogAndContinue(p.Session.Parent)
 		msgContext := p.makeCtx(req)
@@ -174,7 +174,7 @@ func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *socke
 	return nil
 }
 
-func (p *PlatformAdapterOnebot) handleGroupRecallAction(_ gjson.Result, ep *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleGroupRecallAction(_ gjson.Result, ep *evsocket.EventPayload) error {
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, ep.Data)
 	if err != nil {
@@ -184,7 +184,7 @@ func (p *PlatformAdapterOnebot) handleGroupRecallAction(_ gjson.Result, ep *sock
 	return nil
 }
 
-func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	subType := req.Get("sub_type").String()
 	userID := FormatOnebotDiceIDQQ(req.Get("user_id").String())
@@ -207,7 +207,7 @@ func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *socket
 	return nil
 }
 
-func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
 	if err != nil {
@@ -238,7 +238,7 @@ func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *socke
 	return nil
 }
 
-func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	// {"group_id":111,"notice_type":"group_increase","operator_id":0,"post_type":"notice","self_id":333,"sub_type":"approve","time":1646782012,"user_id":333}
 	// 入群要做的事情：
 	// 1. 如果发现进群的是自己，要和大家发入群致辞
@@ -311,7 +311,7 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *socke
 
 // 加群逻辑里比较复杂，列在这里
 // 加群：被好友邀请-> 获取群信息 -> 根据获取的群信息，判断是否应该加群
-func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	// 创建虚拟Context
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	switch req.Get("sub_type").String() {
@@ -370,7 +370,7 @@ func checkPassBlackListGroup(userId string, groupID string, ctx *MsgContext) (bo
 	return true, ""
 }
 
-func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *socketio.EventPayload) error {
+func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	// 只有一种情况 就是好友添加
 	// 获取请求详情
 	var comment string
@@ -523,7 +523,7 @@ func checkBlackList(userId string, checkType string, ctx *MsgContext) BlackListC
 	return result
 }
 
-func (p *PlatformAdapterOnebot) onOnebotMetaDataEvent(ep *socketio.EventPayload) {
+func (p *PlatformAdapterOnebot) onOnebotMetaDataEvent(ep *evsocket.EventPayload) {
 
 }
 
@@ -937,9 +937,9 @@ func ExtractQQEmitterGroupID(id string) int64 {
 	return atoi
 }
 
-func (pa *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
-	ep := pa.EndPoint
-	session := pa.Session
+func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
+	ep := p.EndPoint
+	session := p.Session
 	var messageType = "private"
 	if req.Get("group_id").Exists() {
 		messageType = "group"
@@ -959,7 +959,7 @@ func (pa *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	switch ctx.MessageType {
 	case "private":
 		// 拿到ID
-		info, err := pa.sendEmitter.GetStrangerInfo(pa.ctx, req.Get("user_id").Int(), false)
+		info, err := p.sendEmitter.GetStrangerInfo(p.ctx, req.Get("user_id").Int(), false)
 		if err != nil {
 			return ctx
 		}
@@ -973,7 +973,7 @@ func (pa *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		}
 		SetTempVars(ctx, info.NickName)
 	case "group":
-		resp, err := pa.sendEmitter.Raw(pa.ctx, "get_group_member_info", map[string]interface{}{
+		resp, err := p.sendEmitter.Raw(p.ctx, "get_group_member_info", map[string]interface{}{
 			"group_id": req.Get("group_id").String(),
 			"user_id":  req.Get("user_id").String(),
 			"no_cache": false,
@@ -986,7 +986,7 @@ func (pa *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		wrapper.Sender.Nickname = respResult.Get("data.nickname").String()
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Group == nil {
-			gi := pa.GetGroupCacheInfo(FormatOnebotDiceIDQQGroup(req.Get("group_id").String()))
+			gi := p.GetGroupCacheInfo(FormatOnebotDiceIDQQGroup(req.Get("group_id").String()))
 			ctx.Group = &GroupInfo{GroupID: gi.GroupId, GroupName: gi.GroupName}
 			ctx.Group.UpdatedAtTime = time.Now().Unix()
 		}
