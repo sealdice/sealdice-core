@@ -256,7 +256,6 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *socke
 	if userId == selfId {
 		p.logger.Infof("收到自己的入群请求，准备发送入群致辞")
 		ctx.Group = SetBotOnAtGroup(ctx, groupId)
-		// TODO 补充注释，这是个他吗啥？
 		ctx.Group.DiceIDExistsMap.Store(ctx.EndPoint.UserID, true)
 		// 入群时间
 		ctx.Group.EnteredTime = time.Now().Unix()
@@ -287,7 +286,7 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *socke
 	} else {
 		p.logger.Infof("收到非自己的入群请求，准备迎新")
 		_ = p.antPool.Submit(func() {
-			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况，先等一下再取数据
+			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况（此时会出现大量的迎新），先等一下再取数据
 			group, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
 				ctx.Group = group
@@ -453,39 +452,6 @@ func checkMultiFriendAddVerify(comment string, toMatch string) bool {
 	}
 	return willAccept
 }
-
-// TODO
-
-// 					// 处理被强制拉群的情况
-//					uid := groupInfo.InviteUserID
-//					banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
-//					if ok {
-//						if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
-//							// 如果是被ban之后拉群，判定为强制拉群
-//							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
-//								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
-//								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-//								time.Sleep(1 * time.Second)
-//								pa.QuitGroup(ctx, groupID)
-//							}
-//							return
-//						}
-//					}
-//
-//					// 强制拉群情况2 - 群在黑名单
-//					banInfo, ok = ctx.Dice.Config.BanList.GetByID(groupID)
-//					if ok {
-//						if banInfo.Rank == BanRankBanned {
-//							// 如果是被ban之后拉群，判定为强制拉群
-//							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
-//								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
-//								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-//								time.Sleep(1 * time.Second)
-//								pa.QuitGroup(ctx, groupID)
-//							}
-//							return
-//						}
-//					}
 
 type BlackListCheckResult struct {
 	Passed      bool
@@ -727,6 +693,20 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			seg = append(seg, &message.ReplyElement{
 				ReplySeq: dataObj.Get("id").String(),
 			})
+		default:
+			// 转换为CQ码
+			var cqParam string
+			dMap := dataObj.Map()
+			for paramStr, paramValue := range dMap {
+				// TODO：印象里，这里有个替换，或者反过来，反正是有个替换来着。
+				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+			}
+			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, cqParam))
+			// 生成对应的DefaultElement
+			seg = append(seg, &message.DefaultElement{
+				RawType: typeStr,
+				Data:    json.RawMessage(dataObj.String()),
+			})
 		}
 	}
 	// 获取Message
@@ -773,6 +753,13 @@ func array2string(parseContent gjson.Result) (gjson.Result, error) {
 			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", dataObj.Get("qq").String()))
 		case "reply":
 			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
+		default:
+			var cqParam string
+			dMap := dataObj.Map()
+			for paramStr, paramValue := range dMap {
+				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+			}
+			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, cqParam))
 		}
 	}
 	// 赋值对应的Message
@@ -897,23 +884,6 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			}
 			rawMsg = rawMsg.Reply(parseInt)
 			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", parseInt))
-		case message.TTS:
-			res, ok := v.(*message.TTSElement)
-			if !ok {
-				continue
-			}
-			m := map[string]string{
-				"text": res.Content,
-			}
-			marshal, err := sonic.Marshal(m)
-			if err != nil {
-				continue
-			}
-			rawMsg = rawMsg.Append(schema.Message{
-				Type: "tts",
-				Data: marshal,
-			})
-			cqMessage.WriteString(fmt.Sprintf("[CQ:tts,text=%v]", res.Content))
 		case message.Poke:
 			res, ok := v.(*message.PokeElement)
 			if !ok {
@@ -931,9 +901,29 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				Data: marshal,
 			})
 			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", res.Target))
+		default:
+			res, ok := v.(*message.DefaultElement)
+			if !ok {
+				continue
+			}
+			rawMsg = rawMsg.Append(schema.Message{
+				Type: res.RawType,
+				Data: res.Data,
+			})
+			// 将其转换为CQ码
+			var cqParam string
+			dMap := gjson.ParseBytes(res.Data).Map()
+			for paramStr, paramValue := range dMap {
+				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+			}
+			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, cqParam))
 		}
 	}
-	return rawMsg, cqMessage.String()
+	messageStr := cqMessage.String()
+	messageStr = strings.ReplaceAll(messageStr, "&#91;", "[")
+	messageStr = strings.ReplaceAll(messageStr, "&#93;", "]")
+	messageStr = strings.ReplaceAll(messageStr, "&amp;", "&")
+	return rawMsg, messageStr
 }
 
 func ExtractQQEmitterUserID(id string) int64 {

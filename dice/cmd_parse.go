@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	ds "github.com/sealdice/dicescript"
+	"github.com/tidwall/gjson"
 
 	"sealdice-core/message"
 )
@@ -451,6 +452,19 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 				continue
 			}
 			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", res.Target))
+		default:
+			// 不是标准类型的情况
+			res, ok := v.(*message.DefaultElement)
+			if !ok {
+				continue
+			}
+			// 将其转换为CQ码
+			var cqParam string
+			dMap := gjson.ParseBytes(res.Data).Map()
+			for paramStr, paramValue := range dMap {
+				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+			}
+			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, cqParam))
 		}
 	}
 	return cqMessage.String()

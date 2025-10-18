@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/avast/retry-go"
 	socketio "github.com/PaienNate/pineutil/evsocket"
+	"github.com/avast/retry-go"
 	"github.com/bytedance/sonic"
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
@@ -46,10 +46,10 @@ type PlatformAdapterOnebot struct {
 	// 群缓存
 	groupCache otter.Cache[string, *GroupCache] // 群ID和群信息的缓存
 	// 重试相关
-	client        *socketio.WebsocketWrapper `json:"-" yaml:"-"` // WebSocket客户端
-	retryAttempts uint                       `json:"-" yaml:"-"` // 当前重试次数
-	isRetrying    bool                       `json:"-" yaml:"-"` // 是否正在重试
-	retryMutex    sync.RWMutex               `json:"-" yaml:"-"` // 重试状态锁
+	client        *socketio.WebsocketWrapper // WebSocket客户端
+	retryAttempts uint                       // 当前重试次数
+	isRetrying    bool                       // 是否正在重试
+	retryMutex    sync.RWMutex               // 重试状态锁
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
@@ -304,7 +304,7 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
 	if !groupResult.Passed {
 		// 如果是被ban之后拉群，判定为强制拉群
 		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
-			text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", userResult.BanInfo.toText(ctx.Dice))
+			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", userResult.BanInfo.toText(ctx.Dice))
 			ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 			time.Sleep(1 * time.Second)
 			p.QuitGroup(ctx, groupID)
@@ -394,7 +394,7 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 			} else {
 				p.logger.Infof("尝试重新连接 OneBot [%d/%d]，最后一次尝试", currentAttempt, maxRetries)
 			}
-			
+
 			// 直接使用接口方法，无需类型断言
 			if p.client != nil {
 				return p.client.ClientConnect(p.onConnected)

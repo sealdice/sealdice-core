@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/bytedance/sonic"
 )
 
 type CQCommand struct {
@@ -47,33 +50,64 @@ type (
 )
 
 const (
-	Text   ElementType = iota // 文本
-	At                        // 艾特
-	File                      // 文件
-	Image                     // 图片
-	TTS                       // 文字转语音
-	Reply                     // 回复
-	Record                    // 语音
-	Face                      // 表情
-	Poke                      // 戳一戳
+	Text    ElementType = iota // 文本
+	At                         // 艾特
+	File                       // 文件
+	Image                      // 图片
+	TTS                        // 文字转语音
+	Reply                      // 回复
+	Record                     // 语音
+	Face                       // 表情
+	Poke                       // 戳一戳
+	Default = -1               // 一个兜底的情况，兜底所有不认识的类型
 )
+
+const maxFileSize = 1024 * 1024 * 50 // 50MB
 
 // ElementFactory 创建 IMessageElement 实例的工厂函数
 type ElementFactory func() IMessageElement
 
 // elementRegistry 全局注册表，存储类型名到工厂函数的映射
-var elementRegistry = map[string]IMessageElement{
-	"at":     &AtElement{},
-	"tts":    &TTSElement{},
-	"reply":  &ReplyElement{},
-	"poke":   &PokeElement{},
-	"face":   &FaceElement{},
-	"file":   &FileElement{},
-	"image":  &ImageElement{},
-	"record": &RecordElement{},
+var elementRegistry = map[string]ElementFactory{
+	"at":     func() IMessageElement { return &AtElement{} },
+	"tts":    func() IMessageElement { return &TTSElement{} },
+	"reply":  func() IMessageElement { return &ReplyElement{} },
+	"poke":   func() IMessageElement { return &PokeElement{} },
+	"face":   func() IMessageElement { return &FaceElement{} },
+	"file":   func() IMessageElement { return &FileElement{} },
+	"image":  func() IMessageElement { return &ImageElement{} },
+	"record": func() IMessageElement { return &RecordElement{} },
 }
 
-const maxFileSize = 1024 * 1024 * 50 // 50MB
+// GetElementFactory 获取指定类型的元素工厂函数
+func GetElementFactory(elementType string) ElementFactory {
+	factory, exists := elementRegistry[elementType]
+	if !exists {
+		// 构建成默认类型
+		return func() IMessageElement {
+			return &DefaultElement{RawType: elementType}
+		}
+	}
+	return factory
+}
+
+type DefaultElement struct {
+	RawType string          `jsbind:"type"`
+	Data    json.RawMessage `jsbind:"data"`
+}
+
+func (t *DefaultElement) Type() ElementType {
+	return Default
+}
+
+func (t *DefaultElement) FromCQData(dMap map[string]string) error {
+	marshal, err := sonic.Marshal(dMap)
+	if err != nil {
+		return err
+	}
+	t.Data = marshal
+	return nil
+}
 
 type TextElement struct {
 	Content string `jsbind:"content"`
@@ -379,12 +413,8 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 
 func toElement(t string, dMap map[string]string) (IMessageElement, error) {
 	// 从注册表查找工厂函数
-	elem, exists := elementRegistry[t]
-	if !exists {
-		// 未注册的类型，回退到文本处理
-		return CQToText(t, dMap), nil
-	}
-
+	elemFactory := GetElementFactory(t)
+	elem := elemFactory()
 	// 调用实例的转换方法
 	err := elem.FromCQData(dMap)
 	if err != nil {
