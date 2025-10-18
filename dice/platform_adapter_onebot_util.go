@@ -711,9 +711,6 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 	}
 	// 获取Message
 	m.Message = cqMessage.String()
-	m.Message = strings.ReplaceAll(m.Message, "&#91;", "[")
-	m.Message = strings.ReplaceAll(m.Message, "&#93;", "]")
-	m.Message = strings.ReplaceAll(m.Message, "&amp;", "&")
 	// 获取Segment
 	m.Segment = seg
 	return m, nil
@@ -920,9 +917,6 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 		}
 	}
 	messageStr := cqMessage.String()
-	messageStr = strings.ReplaceAll(messageStr, "&#91;", "[")
-	messageStr = strings.ReplaceAll(messageStr, "&#93;", "]")
-	messageStr = strings.ReplaceAll(messageStr, "&amp;", "&")
 	return rawMsg, messageStr
 }
 
