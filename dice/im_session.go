@@ -2041,6 +2041,12 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa := ep.Adapter.(*PlatformAdapterMilky)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
+		case "pureonebot":
+			pa := ep.Adapter.(*PlatformAdapterOnebot)
+			log := zap.S().Named(logger.LogKeyAdapter)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+			pa.logger = log
 			// case "LagrangeGo":
 			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
 			//	pa.Session = ep.Session
@@ -2241,7 +2247,12 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 
 		if !sent {
-			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			if len(ctx.Dice.Config.NoticeIDs) != 0 {
+				ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			} else {
+				ctx.Dice.Logger.Warnf("因为没有配置通知列表，无法发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			}
+
 		}
 	}
 	go foo()

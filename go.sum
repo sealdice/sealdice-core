@@ -11,8 +11,8 @@ github.com/Milly/go-base2048 v0.1.0 h1:7ZgpCR3cjcAAVqIo+B8Q3P1+VFHRS8zilzAq062rU
 github.com/Milly/go-base2048 v0.1.0/go.mod h1:kl6eYBwGnoIjv8k9UmgS+bekm6870ojptcVnT11e3jE=
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231 h1:t9hBFiDTfo4OfIpphUe/VNLOq55AaBf8g7X2bEfwaf4=
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231/go.mod h1:wQTmPSYoaXtXfBysiJ9XiLwVnoCdlNHwuxYfxO4I4uo=
-github.com/PaienNate/pineutil v0.0.0-20251016130540-07aac598c93e h1:A+CPoLPNeoS2Q+WIHVmtH99To75h+UMrDbgusf6Ap/M=
-github.com/PaienNate/pineutil v0.0.0-20251016130540-07aac598c93e/go.mod h1:cg9EQoyBMyDIdRp9b5DuuJo8KBCjHL5JiDpJesIEsZw=
+github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752 h1:LVVPZE5kFejqoTSzZGxXYF0Y+l1DjUX+RWb/uA2PllA=
+github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752/go.mod h1:cg9EQoyBMyDIdRp9b5DuuJo8KBCjHL5JiDpJesIEsZw=
 github.com/RoaringBitmap/roaring/v2 v2.8.0 h1:y1rdtixfXvaITKzkfiKvScI0hlBJHe9sfzJp8cgeM7w=
 github.com/RoaringBitmap/roaring/v2 v2.8.0/go.mod h1:FiJcsfkGje/nZBZgCu0ZxCPOKD/hVXDS2dXi7/eUFE0=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=

@@ -43,295 +43,83 @@ type PlatformAdapterOnebot struct {
 	// 执行用池
 	antPool *ants.Pool
 	// 群缓存
-	groupCache otter.Cache[string, *GroupCache] // 群ID和群信息的缓存
-	// 重试相关
-	client        *socketio.WebsocketWrapper // WebSocket客户端
-	retryAttempts uint                       // 当前重试次数
-	isRetrying    bool                       // 是否正在重试
-	retryMutex    sync.RWMutex               // 重试状态锁
-	// 反向相关
+	groupCache *otter.Cache[string, *GroupCache] // 群ID和群信息的缓存
+
+	retryAttempts  uint         // 当前重试次数
+	isRetrying     bool         // 是否正在重试
+	retryMutex     sync.RWMutex // 重试状态锁
+	isShuttingDown bool         // 是否正在主动关闭连接
+
+	// 连接建立互斥锁，确保同时只有一个连接建立过程
+	connectionMutex sync.Mutex
+	isConnecting    bool // 是否正在建立连接
+
 	echoServer *echo.Echo
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
-	p.antPool, _ = ants.NewPool(500, ants.WithPanicHandler(func(re any) {
-		p.logger.Errorf("执行发送数据任务异常 %v", re)
-	}))
-	p.groupCache, _ = otter.MustBuilder[string, *GroupCache](1000).
-		CollectStats().
-		WithTTL(time.Hour). // 一小时后过期
-		Build()
-	p.websocketManager = socketio.NewSocketInstance()
-	// 注册事件
-	p.websocketManager.On(socketio.EventMessage, p.serveOnebotEvent)
-	p.websocketManager.On(OnebotEventPostTypeMessage, p.onOnebotMessageEvent)
-	p.websocketManager.On(OnebotEventPostTypeMetaEvent, p.onOnebotMetaDataEvent)
-	p.websocketManager.On(OnebotEventPostTypeRequest, p.onOnebotRequestEvent)
-	p.websocketManager.On(OnebotEventPostTypeNotice, p.OnebotNoticeEvent)
-	p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
-		var echoer emitter.Response[sonic.NoCopyRawMessage]
-		if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
-			p.logger.Errorf("echo 数据传输异常 %v", err)
-		}
-		p.emitterChan <- echoer
-	})
-	p.logger = zap.S().Named(logger.LogKeyAdapter)
-	p.ctx, p.cancel = context.WithCancel(context.Background())
-	switch p.Mode {
-	case "client":
-		options := socketio.ClientOptions{
-			UseSSL: strings.Contains(p.ConnectURL, "wss://"),
-		}
-		client := p.websocketManager.NewClient(p.ConnectURL, options)
-		p.client = client // 保存client引用以便重连使用
-		if p.Token != "" {
-			client.RequestHeader.Set("Authorization", p.Token)
-		}
-		client.OnConnectError = func(err error) {
-			p.logger.Errorf("连接失败原因： %v", err)
-			p.EndPoint.State = StateConnecting
-			go p.retryConnect()
-		}
-		client.OnDisconnected = func(err error) {
-			p.logger.Error("连接异常断开")
-			p.EndPoint.State = StateConnecting
-			go p.retryConnect()
-		}
-		err := client.ClientConnect(p.onConnected)
-		if err != nil {
-			p.logger.Error(err)
-			// 这个时候要尝试重连
-			return 3 // 连接失败
-		}
-		return 0
-	case "server":
-		// 反向WebSocket 我是服务器喵
-		p.echoServer = echo.New()
-		// 注册Handler
-		p.echoServer.GET("/ws", echo.WrapHandler(
-			p.websocketManager.New(func(kws *socketio.WebsocketWrapper) {
-				// 先检查是否允许
-				if p.Token != "" {
-					token := kws.RequestHeader.Get("Authorization")
-					token = strings.TrimPrefix(token, "Bearer ")
-					if p.Token != token {
-						kws.Emit([]byte(`{
-							"status": "failed",
-							"retcode": 1403,
-							"data": null,
-							"message": "token验证失败",
-							"wording": "token验证失败",
-							"echo": null,
-							"stream": "normal-action"
-						}`))
-					}
-					kws.Close()
-				}
-				p.onConnected(kws)
-			}),
-		))
-		err := p.echoServer.Start(p.ReverseUrl)
-		if err != nil {
-			return 0
-		}
+	// 使用统一的连接启动逻辑
+	if err := p.startConnection(); err != nil {
+		p.logger.Errorf("启动连接失败: %v", err)
+		return 3 // 连接失败
 	}
 	return 0
 }
 
 // DoRelogin 重新登录/重连
 func (p *PlatformAdapterOnebot) DoRelogin() bool {
-	p.logger.Info("正在重新连接 OneBot 服务...")
-	
-	// 取消当前上下文，停止所有操作
-	if p.cancel != nil {
-		p.cancel()
-	}
-	
-	// 根据模式进行重连
-	switch p.Mode {
-	case "client":
-		// 客户端模式：关闭现有连接并重新连接
-		if p.client != nil {
-			p.client.Close()
-		}
-		
-		// 重置重试状态
-		p.retryMutex.Lock()
-		p.retryAttempts = 0
-		p.isRetrying = false
-		p.retryMutex.Unlock()
-		
-		// 重新创建上下文
-		p.ctx, p.cancel = context.WithCancel(context.Background())
-		
-		// 重新连接
-		options := socketio.ClientOptions{
-			UseSSL: strings.Contains(p.ConnectURL, "wss://"),
-		}
-		client := p.websocketManager.NewClient(p.ConnectURL, options)
-		p.client = client
-		
-		if p.Token != "" {
-			client.RequestHeader.Set("Authorization", p.Token)
-		}
-		
-		client.OnConnectError = func(err error) {
-			p.logger.Errorf("重连失败: %v", err)
-			p.EndPoint.State = StateConnecting
-			go p.retryConnect()
-		}
-		
-		client.OnDisconnected = func(err error) {
-			p.logger.Error("重连后连接异常断开")
-			p.EndPoint.State = StateConnecting
-			go p.retryConnect()
-		}
-		
-		err := client.ClientConnect(p.onConnected)
-		if err != nil {
-			p.logger.Errorf("重连失败: %v", err)
-			p.EndPoint.State = StateConnecting
-			go p.retryConnect()
-			return false
-		}
-		
-		p.logger.Info("OneBot 客户端重连成功")
-		return true
-		
-	case "server":
-		// 服务器模式：重启服务器
-		if p.echoServer != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := p.echoServer.Shutdown(ctx); err != nil {
-				p.logger.Errorf("关闭服务器失败: %v", err)
-			}
-			p.echoServer = nil
-		}
-		
-		// 重新创建上下文
-		p.ctx, p.cancel = context.WithCancel(context.Background())
-		
-		// 重新启动服务器
-		go func() {
-			if p.Serve() != 0 {
-				p.logger.Error("重启 OneBot 服务器失败")
-				p.EndPoint.State = StateConnecting
-			}
-		}()
-		
-		p.logger.Info("OneBot 服务器重启成功")
-		return true
-		
-	default:
-		p.logger.Errorf("未知的连接模式: %s", p.Mode)
+	// 检查适配器是否已启用
+	if !p.EndPoint.Enable {
+		p.logger.Info("适配器已禁用，跳过重新登录")
 		return false
 	}
+
+	p.logger.Info("开始重新登录...")
+
+	// 清理现有资源
+	p.cleanupResources()
+
+	// 重新启动连接
+	if err := p.startConnection(); err != nil {
+		p.logger.Errorf("重新登录失败: %v", err)
+		p.EndPoint.State = StateConnecting
+		go p.retryConnect()
+		return false
+	}
+
+	p.logger.Info("重新登录成功")
+	return true
 }
 
 // SetEnable 启用或禁用适配器
 func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 	d := p.Session.Parent
-	
+
 	if enable {
 		p.logger.Info("正在启用 OneBot 适配器...")
 		p.EndPoint.Enable = true
-		
-		// 重新创建上下文
-		p.ctx, p.cancel = context.WithCancel(context.Background())
-		
-		// 根据模式启动服务
-		switch p.Mode {
-		case "client":
-			// 客户端模式：连接到服务器
-			options := socketio.ClientOptions{
-				UseSSL: strings.Contains(p.ConnectURL, "wss://"),
-			}
-			client := p.websocketManager.NewClient(p.ConnectURL, options)
-			p.client = client
-			
-			if p.Token != "" {
-				client.RequestHeader.Set("Authorization", p.Token)
-			}
-			
-			client.OnConnectError = func(err error) {
-				p.logger.Errorf("连接失败: %v", err)
-				p.EndPoint.State = StateConnecting
-				go p.retryConnect()
-			}
-			
-			client.OnDisconnected = func(err error) {
-				p.logger.Error("连接异常断开")
-				p.EndPoint.State = StateConnecting
-				go p.retryConnect()
-			}
-			
-			err := client.ClientConnect(p.onConnected)
-			if err != nil {
-				p.logger.Errorf("启用失败: %v", err)
-				p.EndPoint.State = StateConnecting
-				p.EndPoint.Enable = false
-				go p.retryConnect()
-			} else {
-				p.logger.Info("OneBot 客户端启用成功")
-			}
-			
-		case "server":
-			// 服务器模式：启动服务器
-			go func() {
-				if p.Serve() != 0 {
-					p.logger.Error("启用 OneBot 服务器失败")
-					p.EndPoint.State = StateConnecting
-					p.EndPoint.Enable = false
-				} else {
-					p.logger.Info("OneBot 服务器启用成功")
-				}
-			}()
-			
-		default:
-			p.logger.Errorf("未知的连接模式: %s", p.Mode)
-			p.EndPoint.Enable = false
+
+		// 使用统一的连接启动逻辑
+		if err := p.startConnection(); err != nil {
+			p.logger.Errorf("启用失败: %v", err)
+			p.EndPoint.State = StateConnecting
+			// 启用失败时不应该禁用适配器，而是进入重连状态
+			go p.retryConnect()
+		} else {
+			p.logger.Info("OneBot 适配器启用成功")
 		}
-		
+
 	} else {
 		p.logger.Info("正在禁用 OneBot 适配器...")
 		p.EndPoint.Enable = false
 		p.EndPoint.State = StateDisconnected
-		
-		// 取消上下文，停止所有操作
-		if p.cancel != nil {
-			p.cancel()
-		}
-		
-		// 根据模式关闭连接
-		switch p.Mode {
-		case "client":
-			// 客户端模式：关闭客户端连接
-			if p.client != nil {
-				p.client.Close()
-				p.client = nil
-			}
-			
-		case "server":
-			// 服务器模式：关闭服务器
-			if p.echoServer != nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				if err := p.echoServer.Shutdown(ctx); err != nil {
-					p.logger.Errorf("关闭服务器失败: %v", err)
-				}
-				p.echoServer = nil
-			}
-		}
-		
-		// 关闭资源
-		if p.antPool != nil {
-			p.antPool.Release()
-		}
-		
+
+		// 清理资源
+		p.cleanupResources()
+
 		p.logger.Info("OneBot 适配器已禁用")
 	}
-	
+
 	// 更新状态并保存
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -550,8 +338,226 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	d.Save(false)
 }
 
+// initializeCommonResources 初始化公共资源（移除sync.Once限制，允许重新初始化）
+func (p *PlatformAdapterOnebot) initializeCommonResources() {
+	// 注意：这个方法已经在startConnection中被connectionMutex保护，所以不需要额外的锁
+
+	// 条件性初始化websocketManager
+	if p.websocketManager == nil {
+		p.websocketManager = socketio.NewSocketInstance()
+
+		// 注册事件处理器
+		p.websocketManager.On(socketio.EventMessage, p.serveOnebotEvent)
+		p.websocketManager.On(OnebotEventPostTypeMessage, p.onOnebotMessageEvent)
+		p.websocketManager.On(OnebotEventPostTypeMetaEvent, p.onOnebotMetaDataEvent)
+		p.websocketManager.On(OnebotEventPostTypeRequest, p.onOnebotRequestEvent)
+		p.websocketManager.On(OnebotEventPostTypeNotice, p.OnebotNoticeEvent)
+		p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
+			var echoer emitter.Response[sonic.NoCopyRawMessage]
+			if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
+				p.logger.Errorf("echo 数据传输异常 %v", err)
+			}
+			p.emitterChan <- echoer
+		})
+	}
+
+	// 每次都重新创建上下文
+	p.ctx, p.cancel = context.WithCancel(context.Background())
+
+	// 条件性初始化antPool
+	if p.antPool == nil {
+		p.antPool, _ = ants.NewPool(500, ants.WithPanicHandler(func(re any) {
+			p.logger.Errorf("执行发送数据任务异常 %v", re)
+		}))
+	}
+
+	// 条件性初始化groupCache
+	if p.groupCache == nil {
+		cacher, _ := otter.MustBuilder[string, *GroupCache](1000).
+			CollectStats().
+			WithTTL(time.Hour). // 一小时后过期
+			Build()
+		p.groupCache = &cacher
+	}
+}
+
+// setupClientConnection 设置客户端连接
+func (p *PlatformAdapterOnebot) setupClientConnection() error {
+	options := socketio.ClientOptions{
+		UseSSL: strings.Contains(p.ConnectURL, "wss://"),
+	}
+	client := p.websocketManager.NewClient(p.ConnectURL, options)
+
+	if p.Token != "" {
+		client.RequestHeader.Set("Authorization", p.Token)
+	}
+
+	client.OnConnectError = func(err error) {
+		p.logger.Errorf("连接失败: %v", err)
+		p.EndPoint.State = StateConnecting
+		go p.retryConnect()
+	}
+
+	client.OnDisconnected = func(err error) {
+		// 特判：只有在非主动关闭的情况下才记录为异常断开
+		if !p.isShuttingDown && p.EndPoint.Enable {
+			if err != nil {
+				p.logger.Errorf("连接异常断开: %v", err)
+			} else {
+				p.logger.Warn("连接意外断开")
+			}
+			p.EndPoint.State = StateConnecting
+			go p.retryConnect()
+		} else {
+			// 主动关闭或适配器已禁用的情况
+			if p.isShuttingDown {
+				p.logger.Info("连接已主动关闭")
+			} else {
+				p.logger.Info("适配器已禁用，连接断开")
+			}
+			p.EndPoint.State = StateDisconnected
+		}
+	}
+
+	return client.ClientConnect(p.onConnected)
+}
+
+// setupServerConnection 设置服务器连接
+func (p *PlatformAdapterOnebot) setupServerConnection() error {
+	p.echoServer = echo.New()
+
+	// 注册Handler
+	p.echoServer.GET(p.ReverseSuffix, echo.WrapHandler(
+		p.websocketManager.New(func(kws *socketio.WebsocketWrapper) {
+			// 先检查是否允许
+			if p.Token != "" {
+				token := kws.RequestHeader.Get("Authorization")
+				token = strings.TrimPrefix(token, "Bearer ")
+				if p.Token != token {
+					kws.Emit([]byte(`{
+						"status": "failed",
+						"retcode": 1403,
+						"data": null,
+						"message": "token验证失败",
+						"wording": "token验证失败",
+						"echo": null,
+						"stream": "normal-action"
+					}`))
+					kws.Close()
+					return
+				}
+			}
+			p.onConnected(kws)
+		}),
+	))
+
+	return p.echoServer.Start(p.ReverseUrl)
+}
+
+// cleanupResources 清理资源
+func (p *PlatformAdapterOnebot) cleanupResources() {
+	// 设置主动关闭标志
+	p.isShuttingDown = true
+
+	// 1. 首先关闭服务器，停止接收新的请求（避免在清理过程中崩溃）
+	if p.Mode == "server" && p.echoServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := p.echoServer.Shutdown(ctx); err != nil {
+			p.logger.Errorf("关闭服务器失败: %v", err)
+		}
+		p.echoServer = nil
+	}
+
+	// 2. 取消上下文，停止所有相关的goroutine
+	if p.cancel != nil {
+		p.cancel()
+	}
+
+	// 3. 关闭WebSocket管理器（生命周期控制移到SocketInstance层）
+	if p.websocketManager != nil {
+		err := p.websocketManager.Shutdown()
+		if err != nil {
+			p.logger.Errorf("关闭WebSocket管理器失败: %v", err)
+		}
+		// 重置WebSocket管理器，为重新初始化做准备
+		p.websocketManager = nil
+	}
+
+	// 4. 关闭资源池
+	if p.antPool != nil {
+		p.antPool.Release()
+		p.antPool = nil
+	}
+
+	// 5. 重置连接状态标志
+	p.connectionMutex.Lock()
+	p.isConnecting = false
+	p.EndPoint.State = StateDisconnected
+	p.connectionMutex.Unlock()
+
+	// 6. 重置主动关闭标志
+	p.isShuttingDown = false
+}
+
+// startConnection 启动连接（统一的连接启动逻辑）
+func (p *PlatformAdapterOnebot) startConnection() error {
+	// 使用互斥锁确保同时只有一个连接建立过程
+	p.connectionMutex.Lock()
+	defer p.connectionMutex.Unlock()
+	// 初始化logger 必须在最前初始化
+	if p.logger == nil {
+		p.logger = zap.S().Named(logger.LogKeyAdapter)
+	}
+
+	// 检查是否已经在连接中
+	if p.isConnecting {
+		p.logger.Info("连接建立过程已在进行中，跳过重复连接")
+		return fmt.Errorf("连接建立过程已在进行中")
+	}
+
+	// 检查是否已经连接
+	if p.EndPoint.State == StateConnected {
+		p.logger.Info("连接已建立（可能通过直接Serve方式建立）")
+		return nil
+	}
+
+	// 设置连接中状态
+	p.isConnecting = true
+	defer func() {
+		p.isConnecting = false
+	}()
+
+	p.logger.Info("开始建立连接...")
+
+	// 确保公共资源已初始化（包括上下文创建）
+	p.initializeCommonResources()
+
+	switch p.Mode {
+	case "client":
+		return p.setupClientConnection()
+	case "server":
+		// 服务器模式在 goroutine 中启动，避免阻塞
+		go func() {
+			if err := p.setupServerConnection(); err != nil {
+				p.logger.Errorf("启动服务器失败: %v", err)
+				p.EndPoint.State = StateConnecting
+			}
+		}()
+		return nil
+	default:
+		return fmt.Errorf("未知的连接模式: %s", p.Mode)
+	}
+}
+
 // retryConnect 重试连接方法
 func (p *PlatformAdapterOnebot) retryConnect() {
+	// 检查适配器是否已被禁用
+	if !p.EndPoint.Enable {
+		p.logger.Info("适配器已被禁用，取消重连")
+		return
+	}
+
 	p.retryMutex.Lock()
 	if p.isRetrying {
 		p.retryMutex.Unlock()
@@ -572,6 +578,11 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 
 	err := retry.Do(
 		func() error {
+			// 在每次重试前再次检查适配器是否已被禁用
+			if !p.EndPoint.Enable {
+				return fmt.Errorf("适配器已被禁用，停止重连")
+			}
+
 			p.retryMutex.Lock()
 			p.retryAttempts++
 			currentAttempt := p.retryAttempts
@@ -585,24 +596,31 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 				p.logger.Infof("尝试重新连接 OneBot [%d/%d]，最后一次尝试", currentAttempt, maxRetries)
 			}
 
-			// 直接使用接口方法，无需类型断言
-			if p.client != nil {
-				return p.client.ClientConnect(p.onConnected)
-			}
-			return fmt.Errorf("client未初始化")
+			// 调用startConnection重新建立连接，确保遵循连接互斥锁机制
+			return p.startConnection()
 		},
 		retry.Attempts(maxRetries),
 		retry.Delay(baseDelay),
 		retry.DelayType(retry.BackOffDelay),
 		retry.OnRetry(func(n uint, err error) {
+			// 在重试前再次检查适配器是否已被禁用
+			if !p.EndPoint.Enable {
+				p.logger.Info("适配器已被禁用，停止重试")
+				return
+			}
 			nextDelay := time.Duration(1<<n) * baseDelay
 			p.logger.Warnf("重连失败 (第%d次): %v，%v后进行下次重试", n+1, err, nextDelay)
 		}),
 	)
 
 	if err != nil {
-		p.logger.Errorf("重连最终失败，已达到最大重试次数 %d: %v", maxRetries, err)
-		p.EndPoint.State = 3
+		// 检查是否是因为适配器被禁用而失败
+		if strings.Contains(err.Error(), "适配器已被禁用") {
+			p.logger.Info("重连已停止：适配器被禁用")
+		} else {
+			p.logger.Errorf("重连最终失败，已达到最大重试次数 %d: %v", maxRetries, err)
+			p.EndPoint.State = 3
+		}
 	} else {
 		p.logger.Infof("OneBot 重连成功")
 		// 重置重试状态

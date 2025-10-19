@@ -5,7 +5,7 @@ go 1.24.6
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Milly/go-base2048 v0.1.0
-	github.com/PaienNate/pineutil v0.0.0-20251016130540-07aac598c93e
+	github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/Szzrain/Milky-go-sdk v0.4.1
@@ -14,6 +14,7 @@ require (
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
 	github.com/antlabs/strsim v0.0.3
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
+	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/blevesearch/bleve/v2 v2.5.2
 	github.com/blevesearch/bleve_index_api v1.2.10
 	github.com/bwmarrin/discordgo v0.29.0
@@ -103,7 +104,6 @@ require (
 	github.com/HugoSmits86/nativewebp v1.2.0 // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.8.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
-	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
 	github.com/bits-and-blooms/bloom/v3 v3.7.0 // indirect
 	github.com/blevesearch/geo v0.2.3 // indirect
