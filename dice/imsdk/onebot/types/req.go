@@ -43,3 +43,28 @@ type SpecialTitleReq struct {
 	UserId       int64  `json:"user_id"`
 	SpecialTitle string `json:"special_title"`
 }
+
+// QuitGroupReq 退群逻辑
+type QuitGroupReq struct {
+	GroupId int64 `json:"group_id"`
+}
+
+// SetGroupCardReq 设置群名片
+type SetGroupCardReq struct {
+	GroupId int64  `json:"group_id"`
+	UserId  int64  `json:"user_id"`
+	Card    string `json:"card"`
+}
+
+// GetGroupInfoReq 获取群信息
+type GetGroupInfoReq struct {
+	GroupId int64 `json:"group_id"`
+	NoCache bool  `json:"no_cache"`
+}
+
+// GetGroupMemberInfoReq 获取群成员信息
+type GetGroupMemberInfoReq struct {
+	GroupId int64 `json:"group_id"`
+	UserId  int64 `json:"user_id"`
+	NoCache bool  `json:"no_cache"`
+}

@@ -14,7 +14,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
-	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 
 	emitter "sealdice-core/dice/imsdk/onebot"
@@ -128,9 +127,7 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 	if p.sendEmitter != nil {
-		_, _ = p.sendEmitter.Raw(p.ctx, "set_group_leave", map[string]interface{}{
-			"group_id": ExtractQQEmitterGroupID(id),
-		})
+		_ = p.sendEmitter.QuitGroup(p.ctx, ExtractQQEmitterGroupID(id))
 	}
 }
 
@@ -149,11 +146,7 @@ func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, tex
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 	groupID := ctx.Group.GroupID
 	userID := ctx.Player.UserID
-	_, err := p.sendEmitter.Raw(p.ctx, "set_group_card", map[string]interface{}{
-		"group_id": ExtractQQEmitterGroupID(groupID),
-		"user_id":  ExtractQQEmitterUserID(userID),
-		"card":     name,
-	})
+	err := p.sendEmitter.SetGroupCard(p.ctx, ExtractQQEmitterGroupID(groupID), ExtractQQEmitterUserID(userID), name)
 	if err != nil {
 		p.logger.Errorf("Failed to set group card name: %v", err)
 		return
@@ -221,35 +214,31 @@ func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
 	})
 }
 
-func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
+func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache {
 	// TODO：去掉这个MsgContext的需求 以及这个函数设计的一坨
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
-	rawGroupID := ExtractQQEmitterGroupID(groupID)
-	res, err := p.sendEmitter.Raw(p.ctx, "get_group_info", map[string]interface{}{
-		"group_id": rawGroupID,
-		"no_cache": true,
-	})
+	rawGroupID := ExtractQQEmitterGroupID(diceGroupID)
+	groupInfoResp, err := p.sendEmitter.GetGroupInfo(p.ctx, rawGroupID, true)
 	if err != nil {
 		p.logger.Errorf("获取群信息异常 %v", err)
 		return nil
 	}
-	groupInfoRaw := gjson.ParseBytes(res)
 	// GroupCache里放的ID也设置成Dice的群ID以免混乱
 	result := &GroupCache{
-		GroupAllShut:   int(groupInfoRaw.Get("data.group_all_shut").Int()),
-		GroupRemark:    groupInfoRaw.Get("data.group_remark").String(),
-		GroupId:        groupID,
-		GroupName:      groupInfoRaw.Get("data.group_name").String(),
-		MemberCount:    int(groupInfoRaw.Get("data.member_count").Int()),
-		MaxMemberCount: int(groupInfoRaw.Get("data.max_member_count").Int()),
+		GroupAllShut:   groupInfoResp.GroupAllShut,
+		GroupRemark:    groupInfoResp.GroupRemark,
+		GroupId:        diceGroupID,
+		GroupName:      groupInfoResp.GroupName,
+		MemberCount:    groupInfoResp.MemberCount,
+		MaxMemberCount: groupInfoResp.MaxMemberCount,
 	}
-	_ = p.groupCache.Set(groupID, result)
-	p.Session.Parent.Parent.GroupNameCache.Store(groupID, &GroupNameCacheItem{
+	_ = p.groupCache.Set(diceGroupID, result)
+	p.Session.Parent.Parent.GroupNameCache.Store(diceGroupID, &GroupNameCacheItem{
 		Name: result.GroupName,
 		time: time.Now().Unix(),
 	})
 	// 存储群组相关信息
-	groupInfo, ok := p.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := p.Session.ServiceAtNew.Load(diceGroupID)
 	if !ok {
 		return result
 	}
@@ -272,20 +261,20 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(groupID string) *GroupCache {
 	if !userResult.Passed {
 		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
 			text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
-			ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
 			time.Sleep(1 * time.Second)
-			p.QuitGroup(ctx, groupID)
+			p.QuitGroup(ctx, diceGroupID)
 		}
 	}
 	// 这群有问题
-	groupResult := checkBlackList(groupID, "group", ctx)
+	groupResult := checkBlackList(diceGroupID, "group", ctx)
 	if !groupResult.Passed {
 		// 如果是被ban之后拉群，判定为强制拉群
 		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
 			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", userResult.BanInfo.toText(ctx.Dice))
-			ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
 			time.Sleep(1 * time.Second)
-			p.QuitGroup(ctx, groupID)
+			p.QuitGroup(ctx, diceGroupID)
 		}
 	}
 	return result

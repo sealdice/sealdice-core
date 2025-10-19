@@ -18,8 +18,8 @@ import (
 
 var _ Emitter = (*EmitterEVSocket)(nil)
 
-// ws onebot await echo message time out
-var EchoTimeOut = 5 * time.Second
+// EchoTimeOut ws onebot await echo message time out
+var EchoTimeOut = 10 * time.Second
 
 type Emitter interface {
 	SendPvtMsg(ctx context.Context, userId int64, msg schema.MessageChain) (*types.SendMsgRes, error)
@@ -35,6 +35,13 @@ type Emitter interface {
 	SetFriendAddRequest(ctx context.Context, flag string, approve bool, remark string) error
 	SetGroupAddRequest(ctx context.Context, flag string, approve bool, reason string) error
 	SetGroupSpecialTitle(ctx context.Context, groupId int64, userId int64, specialTitle string, duration int) error
+
+	// 并非Onebot11大典的逻辑，是补充逻辑
+
+	QuitGroup(ctx context.Context, groupId int64) error
+	SetGroupCard(ctx context.Context, groupId int64, userId int64, card string) error
+	GetGroupInfo(ctx context.Context, groupId int64, noCache bool) (*types.GroupInfo, error)
+	GetGroupMemberInfo(ctx context.Context, groupId int64, userId int64, noCache bool) (*types.GroupMemberInfo, error)
 	Raw(ctx context.Context, action Action, params any) ([]byte, error)
 }
 
@@ -225,6 +232,67 @@ func (e *EmitterEVSocket) SetGroupSpecialTitle(ctx context.Context, groupId int6
 	e.mu.Unlock()
 	_, err = wsWait[any](ctx, echoId, e.echo)
 	return err
+}
+
+// ADD 不存在于Onebot大典的内容
+
+func (e *EmitterEVSocket) QuitGroup(ctx context.Context, groupId int64) error {
+	e.mu.Lock()
+	echoId, err := wsAction(e.conn, ACTION_QUIT_GROUP, types.QuitGroupReq{
+		GroupId: groupId,
+	})
+	if err != nil {
+		e.mu.Unlock()
+		return err
+	}
+	e.mu.Unlock()
+	_, err = wsWait[any](ctx, echoId, e.echo)
+	return err
+}
+
+func (e *EmitterEVSocket) SetGroupCard(ctx context.Context, groupId int64, userId int64, card string) error {
+	e.mu.Lock()
+	echoId, err := wsAction(e.conn, ACTION_SET_GROUP_CARD, types.SetGroupCardReq{
+		GroupId: groupId,
+		UserId:  userId,
+		Card:    card,
+	})
+	if err != nil {
+		e.mu.Unlock()
+		return err
+	}
+	e.mu.Unlock()
+	_, err = wsWait[any](ctx, echoId, e.echo)
+	return err
+}
+
+func (e *EmitterEVSocket) GetGroupInfo(ctx context.Context, groupId int64, noCache bool) (*types.GroupInfo, error) {
+	e.mu.Lock()
+	echoId, err := wsAction(e.conn, ACTION_GET_GROUP_INFO, types.GetGroupInfoReq{
+		GroupId: groupId,
+		NoCache: noCache,
+	})
+	if err != nil {
+		e.mu.Unlock()
+		return nil, err
+	}
+	e.mu.Unlock()
+	return wsWait[types.GroupInfo](ctx, echoId, e.echo)
+}
+
+func (e *EmitterEVSocket) GetGroupMemberInfo(ctx context.Context, groupId int64, userId int64, noCache bool) (*types.GroupMemberInfo, error) {
+	e.mu.Lock()
+	echoId, err := wsAction(e.conn, ACTION_GET_GROUP_MEMBER_INFO, types.GetGroupMemberInfoReq{
+		GroupId: groupId,
+		UserId:  userId,
+		NoCache: noCache,
+	})
+	if err != nil {
+		e.mu.Unlock()
+		return nil, err
+	}
+	e.mu.Unlock()
+	return wsWait[types.GroupMemberInfo](ctx, echoId, e.echo)
 }
 
 func (e *EmitterEVSocket) Raw(ctx context.Context, action Action, params any) ([]byte, error) {

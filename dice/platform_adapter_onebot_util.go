@@ -978,17 +978,14 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		}
 		SetTempVars(ctx, info.NickName)
 	case "group":
-		resp, err := p.sendEmitter.Raw(p.ctx, "get_group_member_info", map[string]interface{}{
-			"group_id": req.Get("group_id").String(),
-			"user_id":  req.Get("user_id").String(),
-			"no_cache": false,
-		})
+		groupID, _ := strconv.ParseInt(req.Get("group_id").String(), 10, 64)
+		userID, _ := strconv.ParseInt(req.Get("user_id").String(), 10, 64)
+		memberInfo, err := p.sendEmitter.GetGroupMemberInfo(p.ctx, groupID, userID, false)
 		if err != nil {
 			return ctx
 		}
-		respResult := gjson.ParseBytes(resp)
-		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(respResult.Get("data.user_id").String())
-		wrapper.Sender.Nickname = respResult.Get("data.nickname").String()
+		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(memberInfo.UserId, 10))
+		wrapper.Sender.Nickname = memberInfo.Nickname
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Group == nil {
 			gi := p.GetGroupCacheInfo(FormatOnebotDiceIDQQGroup(req.Get("group_id").String()))
@@ -999,14 +996,14 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 			ctx.Player = &GroupPlayerInfo{UserID: wrapper.Sender.UserID}
 		}
 		if ctx.Player.Name == "" {
-			if respResult.Get("data.card").String() == "" {
-				ctx.Player.Name = respResult.Get("data.nickname").String()
+			if memberInfo.Card == "" {
+				ctx.Player.Name = memberInfo.Nickname
 			} else {
-				ctx.Player.Name = respResult.Get("data.card").String()
+				ctx.Player.Name = memberInfo.Card
 			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
 		}
-		SetTempVars(ctx, respResult.Get("data.nickname").String())
+		SetTempVars(ctx, memberInfo.Nickname)
 	}
 
 	return ctx
