@@ -23,7 +23,7 @@ func (m MessageChain) Text(text string) MessageChain {
 	})
 }
 
-func (m MessageChain) Br() MessageChain {
+func (m MessageChain) NewLine() MessageChain {
 	return m.Text("\n")
 }
 
