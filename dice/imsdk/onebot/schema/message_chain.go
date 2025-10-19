@@ -1,5 +1,7 @@
 package schema
 
+// fork from https://github.com/nsxdevx/nsxbot
+
 import (
 	"github.com/bytedance/sonic"
 )

@@ -1,5 +1,7 @@
 package types
 
+// fork from https://github.com/nsxdevx/nsxbot
+
 import "sealdice-core/dice/imsdk/onebot/schema"
 
 type SendMsgRes struct {

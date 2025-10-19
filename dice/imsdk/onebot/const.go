@@ -1,5 +1,7 @@
 package emitter
 
+// fork from https://github.com/nsxdevx/nsxbot
+
 type Action = string
 
 const (

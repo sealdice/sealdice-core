@@ -1,5 +1,7 @@
 package emitter
 
+// fork from https://github.com/nsxdevx/nsxbot
+
 import (
 	"context"
 	"fmt"

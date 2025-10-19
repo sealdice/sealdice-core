@@ -1,13 +1,9 @@
 package schema
 
-import (
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
+// fork from https://github.com/nsxdevx/nsxbot
 
+import (
 	"github.com/bytedance/sonic"
-	_ "golang.org/x/image/bmp"
-	_ "golang.org/x/image/webp"
 )
 
 type Message struct {
