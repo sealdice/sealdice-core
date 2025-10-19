@@ -43,10 +43,9 @@ type CommonFile struct {
 
 type Image struct {
 	CommonFile
-	Type     string `json:"type,omitzero"`
-	Summary  string `json:"summary,omitzero"`
-	SubType  int    `json:"sub_type,omitzero"`
-	realType string
+	Type    string `json:"type,omitzero"`
+	Summary string `json:"summary,omitzero"`
+	SubType int    `json:"sub_type,omitzero"`
 }
 
 type Record struct {
