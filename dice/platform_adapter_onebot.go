@@ -23,13 +23,13 @@ import (
 )
 
 type PlatformAdapterOnebot struct {
-	Session             *IMSession    `json:"-"        yaml:"-"`
-	EndPoint            *EndPointInfo `json:"-"        yaml:"-"`
-	Token               string        `json:"token"    yaml:"token"`                              // 正向或者反向时，使用的Token
-	ConnectURL          string        `json:"connectUrl" yaml:"connectUrl"`                       // 正向时 连接地址
-	Mode                string        `json:"mode" yaml:"mode"`                                   // 什么模式 server是反向，client是正向，http
-	ReverseUrl          string        `json:"reverseUrl" yaml:"reverseUrl"`                       // 反向时 监听地址
-	ReverseSuffix       string        `json:"reverseSuffix" yaml:"reverseSuffix"`                 // 反向时 后缀是什么 默认是/ws
+	Session             *IMSession    `json:"-"                     yaml:"-"`
+	EndPoint            *EndPointInfo `json:"-"                     yaml:"-"`
+	Token               string        `json:"token"                 yaml:"token"`                 // 正向或者反向时，使用的Token
+	ConnectURL          string        `json:"connectUrl"            yaml:"connectUrl"`            // 正向时 连接地址
+	Mode                string        `json:"mode"                  yaml:"mode"`                  // 什么模式 server是反向，client是正向，http
+	ReverseUrl          string        `json:"reverseUrl"            yaml:"reverseUrl"`            // 反向时 监听地址
+	ReverseSuffix       string        `json:"reverseSuffix"         yaml:"reverseSuffix"`         // 反向时 后缀是什么 默认是/ws
 	IgnoreFriendRequest bool          `json:"ignore_friend_request" yaml:"ignore_friend_request"` // 是否忽略好友请求
 	wsmode              string
 	websocketManager    *socketio.SocketInstance
