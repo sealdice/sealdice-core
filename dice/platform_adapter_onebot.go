@@ -2,6 +2,7 @@ package dice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -16,24 +17,25 @@ import (
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 
-	emitter "sealdice-core/dice/utils/onebot"
+	emitter "sealdice-core/dice/imsdk/onebot"
 	"sealdice-core/logger"
 	"sealdice-core/message"
 )
 
 type PlatformAdapterOnebot struct {
-	Session          *IMSession    `json:"-"        yaml:"-"`
-	EndPoint         *EndPointInfo `json:"-"        yaml:"-"`
-	Token            string        `json:"token"    yaml:"token"`              // 正向或者反向时，使用的Token
-	ConnectURL       string        `yaml:"connectUrl" json:"connectUrl"`       // 正向时 连接地址
-	Mode             string        `yaml:"mode" json:"mode"`                   // 什么模式 server是反向，client是正向，http
-	ReverseUrl       string        `yaml:"reverseUrl" json:"reverseUrl"`       // 反向时 监听地址
-	ReverseSuffix    string        `yaml:"reverseSuffix" json:"reverseSuffix"` // 反向时 后缀是什么 默认是/ws
-	wsmode           string
-	websocketManager *socketio.SocketInstance
-	ctx              context.Context
-	cancel           context.CancelFunc
-	logger           *zap.SugaredLogger
+	Session             *IMSession    `json:"-"        yaml:"-"`
+	EndPoint            *EndPointInfo `json:"-"        yaml:"-"`
+	Token               string        `json:"token"    yaml:"token"`                              // 正向或者反向时，使用的Token
+	ConnectURL          string        `json:"connectUrl" yaml:"connectUrl"`                       // 正向时 连接地址
+	Mode                string        `json:"mode" yaml:"mode"`                                   // 什么模式 server是反向，client是正向，http
+	ReverseUrl          string        `json:"reverseUrl" yaml:"reverseUrl"`                       // 反向时 监听地址
+	ReverseSuffix       string        `json:"reverseSuffix" yaml:"reverseSuffix"`                 // 反向时 后缀是什么 默认是/ws
+	IgnoreFriendRequest bool          `json:"ignore_friend_request" yaml:"ignore_friend_request"` // 是否忽略好友请求
+	wsmode              string
+	websocketManager    *socketio.SocketInstance
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	logger              *zap.SugaredLogger
 
 	// 保护这几个
 	sendEmitter emitter.Emitter
@@ -108,7 +110,6 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 		} else {
 			p.logger.Info("OneBot 适配器启用成功")
 		}
-
 	} else {
 		p.logger.Info("正在禁用 OneBot 适配器...")
 		p.EndPoint.Enable = false
@@ -125,10 +126,10 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 	d.Save(false)
 }
 
-func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, ID string) {
+func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 	if p.sendEmitter != nil {
 		_, _ = p.sendEmitter.Raw(p.ctx, "set_group_leave", map[string]interface{}{
-			"group_id": ExtractQQEmitterGroupID(ID),
+			"group_id": ExtractQQEmitterGroupID(id),
 		})
 	}
 }
@@ -513,7 +514,7 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 	// 检查是否已经在连接中
 	if p.isConnecting {
 		p.logger.Info("连接建立过程已在进行中，跳过重复连接")
-		return fmt.Errorf("连接建立过程已在进行中")
+		return errors.New("连接建立过程已在进行中")
 	}
 
 	// 检查是否已经连接
@@ -580,7 +581,7 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 		func() error {
 			// 在每次重试前再次检查适配器是否已被禁用
 			if !p.EndPoint.Enable {
-				return fmt.Errorf("适配器已被禁用，停止重连")
+				return errors.New("适配器已被禁用，停止重连")
 			}
 
 			p.retryMutex.Lock()

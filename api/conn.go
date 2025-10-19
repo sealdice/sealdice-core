@@ -119,6 +119,9 @@ func ImConnectionsSetData(c echo.Context) error {
 		case "milky":
 			ad := i.Adapter.(*dice.PlatformAdapterMilky)
 			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+		case "pureonebot":
+			ad := i.Adapter.(*dice.PlatformAdapterOnebot)
+			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
 		default:
 			ad := i.Adapter.(*dice.PlatformAdapterGocq)
 			if i.ProtocolType != "onebot" {

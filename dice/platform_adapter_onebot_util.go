@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
-	"sealdice-core/dice/utils/onebot/schema"
+	"sealdice-core/dice/imsdk/onebot/schema"
 	"sealdice-core/message"
 )
 
@@ -319,6 +319,7 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		// 获取群信息
 		diceGroupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
 		diceUserId := FormatOnebotDiceIDQQ(req.Get("user_id").String())
+		userName := p.Session.Parent.Parent.TryGetUserName(diceUserId)
 		res := p.GetGroupCacheInfo(diceGroupId)
 		if res == nil {
 			// 没有群信息，默认群信息创建
@@ -347,6 +348,9 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		}
 		// 没问题，加群
 		_ = ants.Submit(func() {
+			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
+			p.logger.Info(txt)
+			ctx.Notice(txt)
 			err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), true, "")
 			if err != nil {
 				p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
@@ -405,52 +409,54 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 		extra += "。（被禁止用户）"
 		extra += "，原因：" + result.Reason
 	}
-	// TODO：暂时不做
-	// if p.IgnoreFriendRequest {
-	//	extra += "。由于设置了忽略邀请，此信息仅为通报"
-	// }
-
+	if p.IgnoreFriendRequest {
+		extra += "。由于设置了忽略邀请，此信息仅为通报"
+	}
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && passblackList, extra)
 	p.logger.Info(txt)
 	ctx.Notice(txt)
-	err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), true, "")
-	if err != nil {
-		return err
+	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
+	if !p.IgnoreFriendRequest {
+		err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), result.Passed && passQuestion, "")
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // 检查加好友是否成功
 func checkMultiFriendAddVerify(comment string, toMatch string) bool {
-	// 根据GPT的描述，这里干的事情是：从评论中提取回答内容，并与目标字符串进行逐项匹配，最终决定是否接受。
-	// 我只是从木落那里拆了过来，太热闹了。
-	var willAccept bool
-	re := regexp.MustCompile(`\n回答:([^\n]+)`)
-	m := re.FindAllStringSubmatch(comment, -1)
-	// 要匹配的是空，说明不验证
+	// 如果目标匹配字符串为空，直接返回true
 	if toMatch == "" {
-		willAccept = true
-		return willAccept
-	}
-	var items []string
-	for _, i := range m {
-		items = append(items, i[1])
+		return true
 	}
 
-	re2 := regexp.MustCompile(`\s+`)
-	m2 := re2.Split(toMatch, -1)
+	// 提取评论中的所有回答
+	re := regexp.MustCompile(`\n回答:([^\n]+)`)
+	matches := re.FindAllStringSubmatch(comment, -1)
 
-	if len(m2) == len(items) {
-		ok := true
-		for i := range m2 {
-			if m2[i] != items[i] {
-				ok = false
-				break
-			}
+	// 提取回答内容
+	answers := make([]string, 0, len(matches))
+	for _, match := range matches {
+		answers = append(answers, match[1])
+	}
+
+	// 分割目标匹配字符串
+	expectedItems := regexp.MustCompile(`\s+`).Split(toMatch, -1)
+
+	// 比较长度和内容
+	if len(expectedItems) != len(answers) {
+		return false
+	}
+
+	for i, item := range expectedItems {
+		if item != answers[i] {
+			return false
 		}
-		willAccept = ok
 	}
-	return willAccept
+
+	return true
 }
 
 type BlackListCheckResult struct {
@@ -716,56 +722,56 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 	return m, nil
 }
 
-// 将OB11的Array数据转换为string字符串
-func array2string(parseContent gjson.Result) (gjson.Result, error) {
-	arrayContent := parseContent.Get("message").Array()
-	cqMessage := strings.Builder{}
-
-	for _, i := range arrayContent {
-		typeStr := i.Get("type").String()
-		dataObj := i.Get("data")
-		switch typeStr {
-		case "text":
-			cqMessage.WriteString(dataObj.Get("text").String())
-		case "image":
-			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
-			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
-			} else {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
-			}
-		case "face":
-			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
-		case "record":
-			// 兼容NC情况, 此时file字段只有文件名, 完整路径在path字段
-			if !hasURLScheme(dataObj.Get("file").String()) && dataObj.Get("path").String() != "" {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("path").String()))
-			} else {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
-			}
-		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
-		case "poke":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", dataObj.Get("qq").String()))
-		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
-		default:
-			var cqParam string
-			dMap := dataObj.Map()
-			for paramStr, paramValue := range dMap {
-				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
-			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, cqParam))
-		}
-	}
-	// 赋值对应的Message
-	tempStr, err := sjson.Set(parseContent.String(), "message", cqMessage.String())
-	if err != nil {
-		return gjson.Result{}, err
-	}
-	return gjson.Parse(tempStr), nil
-}
+// 将OB11的Array数据转换为string字符串 确实没在使用，但备份一下这个实用函数
+// func array2string(parseContent gjson.Result) (gjson.Result, error) {
+//	arrayContent := parseContent.Get("message").Array()
+//	cqMessage := strings.Builder{}
+//
+//	for _, i := range arrayContent {
+//		typeStr := i.Get("type").String()
+//		dataObj := i.Get("data")
+//		switch typeStr {
+//		case "text":
+//			cqMessage.WriteString(dataObj.Get("text").String())
+//		case "image":
+//			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
+//			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
+//				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
+//			} else {
+//				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
+//			}
+//		case "face":
+//			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
+//			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
+//		case "record":
+//			// 兼容NC情况, 此时file字段只有文件名, 完整路径在path字段
+//			if !hasURLScheme(dataObj.Get("file").String()) && dataObj.Get("path").String() != "" {
+//				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("path").String()))
+//			} else {
+//				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
+//			}
+//		case "at":
+//			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
+//		case "poke":
+//			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", dataObj.Get("qq").String()))
+//		case "reply":
+//			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
+//		default:
+//			var cqParam string
+//			dMap := dataObj.Map()
+//			for paramStr, paramValue := range dMap {
+//				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+//			}
+//			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, cqParam))
+//		}
+//	}
+//	// 赋值对应的Message
+//	tempStr, err := sjson.Set(parseContent.String(), "message", cqMessage.String())
+//	if err != nil {
+//		return gjson.Result{}, err
+//	}
+//	return gjson.Parse(tempStr), nil
+// }
 
 // 将CQ码字符串消息转换为OB11 Array格式
 func string2array(parseContent gjson.Result) (gjson.Result, error) {

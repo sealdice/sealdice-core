@@ -12,8 +12,8 @@ import (
 
 	socketio "github.com/PaienNate/pineutil/evsocket"
 
-	"sealdice-core/dice/utils/onebot/schema"
-	"sealdice-core/dice/utils/onebot/types"
+	"sealdice-core/dice/imsdk/onebot/schema"
+	"sealdice-core/dice/imsdk/onebot/types"
 )
 
 var _ Emitter = (*EmitterEVSocket)(nil)
@@ -56,7 +56,6 @@ type EmitterEVSocket struct {
 	conn   *socketio.WebsocketWrapper
 	echo   chan Response[sonic.NoCopyRawMessage]
 	selfId int64
-	uuid   string
 }
 
 func NewEVEmitter(conn *socketio.WebsocketWrapper, echo chan Response[sonic.NoCopyRawMessage]) *EmitterEVSocket {
@@ -166,7 +165,6 @@ func (e *EmitterEVSocket) GetStatus(ctx context.Context) (*types.Status, error) 
 }
 
 func (e *EmitterEVSocket) GetVersionInfo(ctx context.Context) (*types.VersionInfo, error) {
-	//TODO implement me
 	e.mu.Lock()
 	echoId, err := wsAction[any](e.conn, ACTION_GET_VERSION_INFO, nil)
 	if err != nil {

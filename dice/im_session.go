@@ -2252,7 +2252,6 @@ func (ctx *MsgContext) Notice(txt string) {
 			} else {
 				ctx.Dice.Logger.Warnf("因为没有配置通知列表，无法发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
 			}
-
 		}
 	}
 	go foo()

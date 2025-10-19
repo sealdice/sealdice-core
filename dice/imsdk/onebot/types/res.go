@@ -1,6 +1,6 @@
 package types
 
-import "sealdice-core/dice/utils/onebot/schema"
+import "sealdice-core/dice/imsdk/onebot/schema"
 
 type SendMsgRes struct {
 	MessageId int `json:"message_id"`

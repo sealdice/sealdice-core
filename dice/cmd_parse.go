@@ -376,8 +376,7 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 	}
 
 	// 构建最终的命令参数对象
-	return buildCmdArgs(cmdArgs, matched, restText, rawCmd, specialExecuteTimes,
-		prefixStr, msg.Platform, isSpaceBeforeArgs)
+	return buildCmdArgs(cmdArgs, matched, restText, rawCmd, specialExecuteTimes, prefixStr, msg.Platform, isSpaceBeforeArgs)
 }
 
 // extractResultFromSegments 从消息段中提取纯文本内容 部分文本使用了CQ码。问题的原因在于，CmdArgs的参数可能是图片等其他数据，但CmdArgs缺乏对这个功能的支持。
@@ -552,7 +551,6 @@ func findMatchingCommand(restText string, d *Dice, group *GroupInfo) (string, bo
 // buildCmdArgs 构建最终的命令参数对象
 func buildCmdArgs(cmdArgs *CmdArgs, matched, restText, rawCmd string,
 	specialExecuteTimes int, prefixStr, platform string, isSpaceBeforeArgs bool) *CmdArgs {
-
 	// 提取参数部分
 	runes := []rune(restText)
 	restParams := runes[len([]rune(matched)):]
@@ -580,7 +578,6 @@ func buildCmdArgs(cmdArgs *CmdArgs, matched, restText, rawCmd string,
 	cmdArgs.SpecialExecuteTimes = specialExecuteTimes
 	cmdArgs.prefixStr = prefixStr
 	cmdArgs.platformPrefix = platform
-
 	return cmdArgs
 }
 
