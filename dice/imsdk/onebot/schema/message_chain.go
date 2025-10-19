@@ -1,6 +1,8 @@
 package schema
 
-import "encoding/json"
+import (
+	"github.com/bytedance/sonic"
+)
 
 type MessageChain []Message
 
@@ -9,7 +11,7 @@ func (m MessageChain) Append(msg Message) MessageChain {
 }
 
 func (m MessageChain) Text(text string) MessageChain {
-	data, err := json.Marshal(Text{
+	data, err := sonic.Marshal(Text{
 		Text: text,
 	})
 	if err != nil {
@@ -26,7 +28,7 @@ func (m MessageChain) Br() MessageChain {
 }
 
 func (m MessageChain) Face(id string) MessageChain {
-	data, err := json.Marshal(Face{
+	data, err := sonic.Marshal(Face{
 		Id: id,
 	})
 	if err != nil {
@@ -39,7 +41,7 @@ func (m MessageChain) Face(id string) MessageChain {
 }
 
 func (m MessageChain) At(qq string) MessageChain {
-	data, err := json.Marshal(At{
+	data, err := sonic.Marshal(At{
 		QQ: qq,
 	})
 	if err != nil {
@@ -52,7 +54,7 @@ func (m MessageChain) At(qq string) MessageChain {
 }
 
 func (m MessageChain) Reply(id int) MessageChain {
-	data, err := json.Marshal(Reply{
+	data, err := sonic.Marshal(Reply{
 		Id: id,
 	})
 	if err != nil {
@@ -69,7 +71,7 @@ func (m MessageChain) Reply(id int) MessageChain {
 // local file:///C:\\Users\Richard\Pictures\1.png see rfc 8089
 // base64: base64://9j/4AAQSkZJRgABAQEAAAAAAAD/...
 func (m MessageChain) Image(file string) MessageChain {
-	data, err := json.Marshal(Image{
+	data, err := sonic.Marshal(Image{
 		CommonFile: CommonFile{
 			File: file,
 		},
@@ -87,7 +89,7 @@ func (m MessageChain) Image(file string) MessageChain {
 // network URL: https://www.example.com/image.png
 // local file:///C:\\Users\Richard\Pictures\1.png see rfc 8089
 func (m MessageChain) File(file string) MessageChain {
-	data, err := json.Marshal(CommonFile{
+	data, err := sonic.Marshal(CommonFile{
 		File: file,
 	})
 	if err != nil {
@@ -100,7 +102,7 @@ func (m MessageChain) File(file string) MessageChain {
 }
 
 func (m MessageChain) Record(file string) MessageChain {
-	data, err := json.Marshal(CommonFile{
+	data, err := sonic.Marshal(CommonFile{
 		File: file,
 	})
 	if err != nil {

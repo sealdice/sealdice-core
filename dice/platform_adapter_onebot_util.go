@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -551,43 +550,43 @@ func FormatOnebotDiceIDQQGroup(diceQQ string) string {
 }
 
 type MessageQQOBBase struct {
-	MessageID     int64           `json:"message_id"`   // QQ信息此类型为int64，频道中为string
-	MessageType   string          `json:"message_type"` // Group
-	Sender        *Sender         `json:"sender"`       // 发送者
-	RawMessage    string          `json:"raw_message"`
-	Time          int64           `json:"time"` // 发送时间
-	MetaEventType string          `json:"meta_event_type"`
-	OperatorID    json.RawMessage `json:"operator_id"`  // 操作者帐号
-	GroupID       json.RawMessage `json:"group_id"`     // 群号
-	PostType      string          `json:"post_type"`    // 上报类型，如group、notice
-	RequestType   string          `json:"request_type"` // 请求类型，如group
-	SubType       string          `json:"sub_type"`     // 子类型，如add invite
-	Flag          string          `json:"flag"`         // 请求 flag, 在调用处理请求的 API 时需要传入
-	NoticeType    string          `json:"notice_type"`
-	UserID        json.RawMessage `json:"user_id"`
-	SelfID        json.RawMessage `json:"self_id"`
-	Duration      int64           `json:"duration"`
-	Comment       string          `json:"comment"`
-	TargetID      json.RawMessage `json:"target_id"`
+	MessageID     int64                  `json:"message_id"`   // QQ信息此类型为int64，频道中为string
+	MessageType   string                 `json:"message_type"` // Group
+	Sender        *Sender                `json:"sender"`       // 发送者
+	RawMessage    string                 `json:"raw_message"`
+	Time          int64                  `json:"time"` // 发送时间
+	MetaEventType string                 `json:"meta_event_type"`
+	OperatorID    sonic.NoCopyRawMessage `json:"operator_id"`  // 操作者帐号
+	GroupID       sonic.NoCopyRawMessage `json:"group_id"`     // 群号
+	PostType      string                 `json:"post_type"`    // 上报类型，如group、notice
+	RequestType   string                 `json:"request_type"` // 请求类型，如group
+	SubType       string                 `json:"sub_type"`     // 子类型，如add invite
+	Flag          string                 `json:"flag"`         // 请求 flag, 在调用处理请求的 API 时需要传入
+	NoticeType    string                 `json:"notice_type"`
+	UserID        sonic.NoCopyRawMessage `json:"user_id"`
+	SelfID        sonic.NoCopyRawMessage `json:"self_id"`
+	Duration      int64                  `json:"duration"`
+	Comment       string                 `json:"comment"`
+	TargetID      sonic.NoCopyRawMessage `json:"target_id"`
 
 	Data *struct {
 		// 个人信息
-		Nickname string          `json:"nickname"`
-		UserID   json.RawMessage `json:"user_id"`
+		Nickname string                 `json:"nickname"`
+		UserID   sonic.NoCopyRawMessage `json:"user_id"`
 
 		// 群信息
-		GroupID         json.RawMessage `json:"group_id"`          // 群号
-		GroupCreateTime uint32          `json:"group_create_time"` // 群号
-		MemberCount     int64           `json:"member_count"`
-		GroupName       string          `json:"group_name"`
-		MaxMemberCount  int32           `json:"max_member_count"`
+		GroupID         sonic.NoCopyRawMessage `json:"group_id"`          // 群号
+		GroupCreateTime uint32                 `json:"group_create_time"` // 群号
+		MemberCount     int64                  `json:"member_count"`
+		GroupName       string                 `json:"group_name"`
+		MaxMemberCount  int32                  `json:"max_member_count"`
 
 		// 群成员信息
 		Card string `json:"card"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	// Status string `json:"status"`
-	Echo json.RawMessage `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
+	Echo sonic.NoCopyRawMessage `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
 
 	Msg string `json:"msg"`
 	// Status  interface{} `json:"status"`
@@ -711,7 +710,7 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			// 生成对应的DefaultElement
 			seg = append(seg, &message.DefaultElement{
 				RawType: typeStr,
-				Data:    json.RawMessage(dataObj.String()),
+				Data:    sonic.NoCopyRawMessage(dataObj.String()),
 			})
 		}
 	}

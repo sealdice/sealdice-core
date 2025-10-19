@@ -6,7 +6,6 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -92,8 +91,8 @@ func GetElementFactory(elementType string) ElementFactory {
 }
 
 type DefaultElement struct {
-	RawType string          `jsbind:"type"`
-	Data    json.RawMessage `jsbind:"data"`
+	RawType string                 `jsbind:"type"`
+	Data    sonic.NoCopyRawMessage `jsbind:"data"`
 }
 
 func (t *DefaultElement) Type() ElementType {
