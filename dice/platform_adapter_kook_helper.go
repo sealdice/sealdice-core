@@ -28,6 +28,7 @@ func ServeKook(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "KOOK" {
 		conn := ep.Adapter.(*PlatformAdapterKook)
+		ep.Session = d.ImSession
 		log.Infof("KOOK 尝试连接")
 		if conn.Serve() != 0 {
 			log.Errorf("连接KOOK服务失败")

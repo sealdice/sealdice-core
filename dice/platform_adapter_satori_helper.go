@@ -28,6 +28,7 @@ func ServeSatori(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	conn := ep.Adapter.(*PlatformAdapterSatori)
 	d.Logger.Infof("satori 尝试连接")
+	ep.Session = d.ImSession
 	if conn.Serve() == 0 {
 	} else {
 		d.Logger.Errorf("连接 satori 服务失败")

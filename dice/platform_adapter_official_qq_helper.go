@@ -35,6 +35,7 @@ func ServerOfficialQQ(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "QQ" && ep.ProtocolType == "official" {
 		conn := ep.Adapter.(*PlatformAdapterOfficialQQ)
+		ep.Session = d.ImSession
 		d.Logger.Infof("official qq 尝试连接")
 		if conn.Serve() != 0 {
 			d.Logger.Infof("official qq 连接失败")
