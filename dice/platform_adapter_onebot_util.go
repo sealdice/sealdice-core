@@ -287,7 +287,7 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 		_ = p.antPool.Submit(func() {
 			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况（此时会出现大量的迎新），先等一下再取数据
 			group, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-			if ok {
+			if ok && group.ShowGroupWelcome {
 				ctx.Group = group
 				ctx.Player = &GroupPlayerInfo{}
 				uidRaw := req.Get("user_id").String()
