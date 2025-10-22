@@ -382,10 +382,16 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 // extractResultFromSegments 从消息段中提取纯文本内容 部分文本使用了CQ码。问题的原因在于，CmdArgs的参数可能是图片等其他数据，但CmdArgs缺乏对这个功能的支持。
 func extractResultFromSegments(segments []message.IMessageElement) string {
 	cqMessage := strings.Builder{}
+	var foundFirstText bool
 	for _, v := range segments {
 		// 警告，这个函数不要复用到其他地方，如果复用，请删掉下面这个代码
 		// 代码的意思是：从第一个有文本的元素开始，后面的全部认为是参数。
-		if v.Type() != message.Text {
+		// 检查是否是文本元素
+		if v.Type() == message.Text {
+			foundFirstText = true
+		}
+		// 只有找到第一个文本元素后才开始将剩下的拼凑到结果中
+		if !foundFirstText {
 			continue
 		}
 		switch v.Type() {

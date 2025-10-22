@@ -506,12 +506,6 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 		return errors.New("连接建立过程已在进行中")
 	}
 
-	// 检查是否已经连接
-	if p.EndPoint.State == StateConnected {
-		p.logger.Info("连接已建立（可能通过直接Serve方式建立）")
-		return nil
-	}
-
 	// 设置连接中状态
 	p.isConnecting = true
 	defer func() {

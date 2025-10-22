@@ -1055,6 +1055,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 		txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, groupInfo.GroupID, autoOn)
 		// 意义不明，删掉
+		// 疑似是为了获取群信息然后塞到奇怪的地方
 		// ep.Adapter.GetGroupInfoAsync(msg.GroupID)
 		log.Info(txt)
 		mctx.Notice(txt)
