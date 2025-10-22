@@ -27,6 +27,7 @@ func ServeDingTalk(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "DINGTALK" {
 		conn := ep.Adapter.(*PlatformAdapterDingTalk)
+		ep.Session = d.ImSession
 		d.Logger.Infof("Dingtalk 尝试连接")
 		if conn.Serve() != 0 {
 			d.Logger.Errorf("连接Dingtalk 失败")
