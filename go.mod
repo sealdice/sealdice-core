@@ -28,7 +28,7 @@ require (
 	github.com/go-creed/sat v1.0.3
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
-	github.com/gofrs/flock v0.12.1
+	github.com/gofrs/flock v0.13.0
 	github.com/golang-module/carbon v1.7.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
