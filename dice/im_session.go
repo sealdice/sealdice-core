@@ -71,6 +71,8 @@ type GroupInfo struct {
 	ExtActiveListSnapshot []string                           `json:"-"                yaml:"-"`                                   // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
 	Players               *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
 
+	ExtDisabledByUser map[string]bool `json:"extDisabledByUser" yaml:"extDisabledByUser,flow"` // 用户在当前群手动关闭过的扩展
+
 	GroupID         string                 `jsbind:"groupId"       json:"groupId"      yaml:"groupId"`
 	GuildID         string                 `jsbind:"guildId"       json:"guildId"      yaml:"guildId"`
 	ChannelID       string                 `jsbind:"channelId"     json:"channelId"    yaml:"channelId"`
@@ -111,11 +113,44 @@ type GroupInfo struct {
 	PlayerGroups *SyncMap[string, []string] `json:"playerGroups" yaml:"playerGroups"` // 供team指令使用并由其管理，与Players不同步
 }
 
+func (group *GroupInfo) IsUserDisabled(name string) bool {
+	return group.ExtDisabledByUser != nil && group.ExtDisabledByUser[name]
+}
+
+func (group *GroupInfo) ClearUserDisabledFlag(name string) {
+	old := group.ExtDisabledByUser
+	if old == nil {
+		group.ExtDisabledByUser = map[string]bool{}
+		return
+	}
+	m := make(map[string]bool, len(old))
+	for k, v := range old {
+		if k != name {
+			m[k] = v
+		}
+	}
+	group.ExtDisabledByUser = m
+}
+
+func (group *GroupInfo) SetUserDisabled(name string) {
+	old := group.ExtDisabledByUser
+	m := make(map[string]bool, len(old)+1)
+	for k, v := range old {
+		m[k] = v
+	}
+	m[name] = true
+	group.ExtDisabledByUser = m
+}
+
 // ExtActive 开启扩展
 func (group *GroupInfo) ExtActive(ei *ExtInfo) {
 	lst := []*ExtInfo{ei}
 	oldLst := group.ActivatedExtList
 	group.ActivatedExtList = append(lst, oldLst...) //nolint:gocritic
+	if !lo.Contains(group.ExtActiveListSnapshot, ei.Name) {
+		group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, ei.Name)
+	}
+	group.UpdatedAtTime = time.Now().Unix()
 	group.ExtClear()
 }
 
@@ -132,7 +167,8 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 
 	var newLst []*ExtInfo
 	for _, i := range orderLst {
-		if m[i] != nil {
+		// 若被用户禁用，则跳过
+		if m[i] != nil && !group.IsUserDisabled(i) {
 			newLst = append(newLst, m[i])
 		}
 	}
@@ -145,7 +181,17 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 		}
 	}
 
+	// 非首次加载但扩展为自动激活：如果不在快照中（例如曾被禁用并移除），重新启用插件后应恢复
+	if ei.DefaultSetting != nil && ei.DefaultSetting.AutoActive {
+		// 若用户在当前群禁用过该扩展，则不恢复
+		if !lo.Contains(orderLst, ei.Name) && !group.IsUserDisabled(ei.Name) {
+			newLst = append(newLst, ei)
+			group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, ei.Name)
+		}
+	}
+
 	group.ActivatedExtList = newLst
+	group.UpdatedAtTime = time.Now().Unix()
 	group.ExtClear()
 }
 
@@ -172,15 +218,29 @@ func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFir
 	var newLst []*ExtInfo
 	for _, i := range orderLst {
 		if m[i] != nil {
-			newLst = append(newLst, m[i])
+			// 若被用户禁用，则跳过
+			if !group.IsUserDisabled(i) {
+				newLst = append(newLst, m[i])
+			}
 		}
 	}
 
-	// 处理首次加载的扩展
+	// 处理首次加载的扩展，以及在重新启用插件时需要自动恢复的扩展
 	var newSnapshotItems []string
 	for _, ei := range extInfos {
+		// 首次加载：不在快照中则追加并记录到快照
 		if isFirstTimeLoad, exists := isFirstTimeLoadMap[ei.Name]; exists && isFirstTimeLoad {
 			if !lo.Contains(orderLst, ei.Name) {
+				newLst = append(newLst, ei)
+				newSnapshotItems = append(newSnapshotItems, ei.Name)
+				continue
+			}
+		}
+
+		// 非首次加载但扩展为自动激活：如果不在快照中（例如曾被禁用并移除），重新启用插件后应恢复
+		if ei.DefaultSetting != nil && ei.DefaultSetting.AutoActive {
+			// 若用户在当前群禁用过该扩展，则不恢复
+			if !lo.Contains(orderLst, ei.Name) && !group.IsUserDisabled(ei.Name) {
 				newLst = append(newLst, ei)
 				newSnapshotItems = append(newSnapshotItems, ei.Name)
 			}
@@ -193,6 +253,7 @@ func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFir
 	}
 
 	group.ActivatedExtList = newLst
+	group.UpdatedAtTime = time.Now().Unix()
 	group.ExtClear()
 }
 
@@ -222,6 +283,35 @@ func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 	for index, i := range group.ActivatedExtList {
 		if ei == i {
 			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
+			// 记录用户禁用，并从快照中移除
+			group.SetUserDisabled(i.Name)
+			// 移除快照中的该项
+			var newSnap []string
+			for _, n := range group.ExtActiveListSnapshot {
+				if n != i.Name {
+					newSnap = append(newSnap, n)
+				}
+			}
+			group.ExtActiveListSnapshot = newSnap
+			group.UpdatedAtTime = time.Now().Unix()
+			group.ExtClear()
+			return i
+		}
+	}
+	return nil
+}
+
+// ExtInactiveSystem 系统级停用：不记录用户禁用，不修改快照
+// 用途：在脚本重载/JS环境清理等系统操作中暂时移除扩展，避免导致其他扩展被误认为用户手动关闭
+func (group *GroupInfo) ExtInactiveSystem(ei *ExtInfo) *ExtInfo {
+	if ei.Storage != nil {
+		_ = ei.StorageClose()
+	}
+	for index, i := range group.ActivatedExtList {
+		if ei == i {
+			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
+			// 不设置用户禁用标记，不移除快照，便于后续按快照顺序恢复
+			group.UpdatedAtTime = time.Now().Unix()
 			group.ExtClear()
 			return i
 		}
@@ -233,6 +323,16 @@ func (group *GroupInfo) ExtInactiveByName(name string) *ExtInfo {
 	for index, i := range group.ActivatedExtList {
 		if i.Name == name {
 			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
+			// 记录用户禁用，并从快照中移除
+			group.SetUserDisabled(i.Name)
+			var newSnap []string
+			for _, n := range group.ExtActiveListSnapshot {
+				if n != i.Name {
+					newSnap = append(newSnap, n)
+				}
+			}
+			group.ExtActiveListSnapshot = newSnap
+			group.UpdatedAtTime = time.Now().Unix()
 			group.ExtClear()
 			return i
 		}
