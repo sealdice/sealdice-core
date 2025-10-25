@@ -1250,7 +1250,7 @@ func calculateLogSize(logsDB *gorm.DB) error {
 
 func censorDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 	// 获取LogDB的
-	writeDB := dboperator.GetLogDB(constant.WRITE)
+	writeDB := dboperator.GetCensorDB(constant.WRITE)
 	// 创建基本的表结构，并通过标签定义索引
 	if err := writeDB.AutoMigrate(&model.CensorLog{}); err != nil {
 		return err
