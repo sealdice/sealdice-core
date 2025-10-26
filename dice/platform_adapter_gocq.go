@@ -436,6 +436,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	ep.State = 2
 	socket.OnConnected = func(socket gowebsocket.Socket) {
+		defer ErrorLogAndContinue(pa.Session.Parent)
 		ep.State = 1
 		if pa.IsReverse {
 			log.Info("onebot v11 反向ws连接成功")
@@ -449,6 +450,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
+		defer ErrorLogAndContinue(pa.Session.Parent)
 		// if CheckDialErr(err) != syscall.ECONNREFUSED {
 		// refused 不算大事
 		log.Error("onebot v11 connection error: ", err)
@@ -472,6 +474,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
+		defer ErrorLogAndContinue(pa.Session.Parent)
 		// if strings.Contains(message, `.`) {
 		//	log.Info("...", message)
 		// }

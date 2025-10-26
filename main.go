@@ -33,6 +33,7 @@ import (
 	"sealdice-core/utils/crypto"
 	"sealdice-core/utils/dboperator"
 	"sealdice-core/utils/oschecker"
+	"sealdice-core/utils/paniclog"
 )
 
 /*
@@ -194,6 +195,8 @@ func main() {
 	// 提前到最开始初始化所有日志
 	uiWriter := logger.NewUIWriter()
 	log := logger.InitLogger(zapcore.Level(opts.LogLevel), uiWriter).Named(logger.LogKeyMain)
+	// 初始化PanicLog
+	paniclog.InitPanicLog()
 
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
@@ -217,7 +220,7 @@ func main() {
 	judge, osr := oschecker.OldVersionCheck()
 	// 预留收集信息的接口，如果有需要可以考虑从这里拿数据。不从这里做提示的原因是Windows和Linux的展示方式不同。
 	if judge {
-		log.Info(osr)
+		log.Info(fmt.Sprintf("您当前使用的系统为: %s", osr))
 	}
 	if opts.DBCheck {
 		dboperator.DBCheck()
