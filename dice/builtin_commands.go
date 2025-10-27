@@ -1576,6 +1576,7 @@ func (d *Dice) registerCoreCommands() {
 						if !isActive {
 							extNames = append(extNames, ext.Name)
 							conflictsAll = append(conflictsAll, checkConflict(ext)...)
+							ctx.Group.ClearUserDisabledFlag(ext.Name)
 							ctx.Group.ExtActive(ext)
 						}
 					}
@@ -1598,6 +1599,7 @@ func (d *Dice) registerCoreCommands() {
 					if i := d.ExtFind(extName, false); i != nil {
 						extNames = append(extNames, extName)
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
+						ctx.Group.ClearUserDisabledFlag(i.Name)
 						ctx.Group.ExtActive(i)
 					}
 				}

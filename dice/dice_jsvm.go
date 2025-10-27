@@ -209,8 +209,6 @@ func (d *Dice) JsInit() {
 			}
 			// 设置本次loop的版本，用于比较
 			ei.JSLoopVersion = versionID
-
-			d.ApplyExtDefaultSettings()
 		})
 		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
 			if ei.dice == nil {
@@ -787,6 +785,8 @@ func (d *Dice) JsLoadScripts() {
 
 		d.JsLoadScriptRaw(jsInfo)
 	}
+	// 统一在所有脚本加载完后应用扩展默认设置
+	d.ApplyExtDefaultSettings()
 }
 
 func (d *Dice) JsReload() {

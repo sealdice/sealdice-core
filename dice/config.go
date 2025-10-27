@@ -2151,6 +2151,10 @@ func (d *Dice) loads() {
 				groupInfo.GroupID = id
 				groupInfo.UpdatedAtTime = 0
 
+				if groupInfo.ExtDisabledByUser == nil {
+					groupInfo.ExtDisabledByUser = map[string]bool{}
+				}
+
 				// 找出其中以群号开头的，这是1.2版本的bug
 				var toDelete []string
 				if groupInfo.DiceIDExistsMap != nil {
@@ -2205,6 +2209,9 @@ func (d *Dice) loads() {
 			}
 			if groupInfo.BotList == nil {
 				groupInfo.BotList = new(SyncMap[string, bool])
+			}
+			if groupInfo.ExtDisabledByUser == nil {
+				groupInfo.ExtDisabledByUser = map[string]bool{}
 			}
 			return true
 		})
@@ -2446,6 +2453,44 @@ func (d *Dice) ApplyExtDefaultSettings() {
 		}
 	}
 
+	// 先绑定默认设置到扩展，确保后续激活逻辑能读取AutoActive等
+	// 遍历设置表，将其插入扩展信息
+	for k, v := range exts1 {
+		extInfo, exists := exts2[k]
+		if exists {
+			v.ExtItem = extInfo
+			v.Loaded = true
+			extInfo.DefaultSetting = v
+
+			// 为了避免锁问题，这里做一个新的map
+			m := map[string]bool{}
+
+			// 将改扩展拥有的指令，塞入DisabledCommand
+			names := map[string]bool{}
+			for _, v := range extInfo.CmdMap {
+				names[v.Name] = true
+			}
+			// 去掉无效指令
+			for k, v := range v.DisabledCommand {
+				if names[k] {
+					m[k] = v
+				}
+			}
+			// 塞入之前没有的指令
+			for k := range names {
+				if _, exists := m[k]; !exists {
+					m[k] = false // false 因为默认不禁用
+				}
+			}
+			v.DisabledCommand = m
+		} else {
+			// 需要吗?
+			// 也许需要, 模糊地感觉可能造成内存泄漏
+			// v.ExtItem = nil
+			v.Loaded = false
+		}
+	}
+
 	// 批量处理所有群组的扩展激活，使用ants池进行并发处理
 	if len(batchExtInfos) > 0 {
 		// 收集所有群组信息
@@ -2485,43 +2530,6 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 				wg.Wait() // 等待所有任务完成
 			}
-		}
-	}
-
-	// 遍历设置表，将其插入扩展信息
-	for k, v := range exts1 {
-		extInfo, exists := exts2[k]
-		if exists {
-			v.ExtItem = extInfo
-			v.Loaded = true
-			extInfo.DefaultSetting = v
-
-			// 为了避免锁问题，这里做一个新的map
-			m := map[string]bool{}
-
-			// 将改扩展拥有的指令，塞入DisabledCommand
-			names := map[string]bool{}
-			for _, v := range extInfo.CmdMap {
-				names[v.Name] = true
-			}
-			// 去掉无效指令
-			for k, v := range v.DisabledCommand {
-				if names[k] {
-					m[k] = v
-				}
-			}
-			// 塞入之前没有的指令
-			for k := range names {
-				if _, exists := m[k]; !exists {
-					m[k] = false // false 因为默认不禁用
-				}
-			}
-			v.DisabledCommand = m
-		} else {
-			// 需要吗?
-			// 也许需要, 模糊地感觉可能造成内存泄漏
-			// v.ExtItem = nil
-			v.Loaded = false
 		}
 	}
 
