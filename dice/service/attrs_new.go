@@ -6,12 +6,12 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"sealdice-core/model"
 	"sealdice-core/utils"
 	"sealdice-core/utils/constant"
-	"sealdice-core/utils/dboperator/dbutil"
 	engine2 "sealdice-core/utils/dboperator/engine"
 )
 
@@ -84,32 +84,47 @@ func AttrsGetIdByUidAndName(operator engine2.DatabaseOperator, userId string, na
 
 func AttrsPutById(operator engine2.DatabaseOperator, id string, data []byte, name, sheetType string) error {
 	db := operator.GetDataDB(constant.WRITE)
-	now := time.Now().Unix() // 获取当前时间
-	// 这里的原本逻辑是：第一次全量创建，第二次修改部分属性
-	// 所以使用了Attrs和Assign配合使用
-	if err := db.Where("id = ?", id).
-		Attrs(map[string]any{
-			// 第一次全量建表
-			"id": id,
-			// 使用BYTE规避无法插入的问题
-			"data":             dbutil.BYTE(data),
-			"is_hidden":        true,
-			"binding_sheet_id": "",
-			"name":             name,
-			"sheet_type":       sheetType,
-			"created_at":       now,
-			"updated_at":       now,
-		}).
-		// 如果是更新的情况，更新下面这部分，则需要被更新的为：
-		Assign(map[string]any{
-			"data":       dbutil.BYTE(data),
-			"updated_at": now,
+	now := time.Now().Unix()
+
+	// 1. 先查询记录是否存在
+	var existing model.AttributesItemModel
+	err := db.Where("id = ?", id).First(&existing).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 记录不存在 → 插入新记录（全量数据）
+			newAttr := model.AttributesItemModel{
+				Id:             id,
+				Data:           data,
+				IsHidden:       true,
+				BindingSheetId: "",
+				Name:           name,
+				SheetType:      sheetType,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			}
+			if err := db.Create(&newAttr).Error; err != nil {
+				return err
+			}
+		} else {
+			// 其他查询错误
+			return err
+		}
+	} else {
+		// 记录存在 → 仅更新 data, name, sheet_type, updated_at
+		updates := map[string]interface{}{
+			"data":       data,
 			"name":       name,
 			"sheet_type": sheetType,
-		}).FirstOrCreate(&model.AttributesItemModel{}).Error; err != nil {
-		return err // 返回错误
+			"updated_at": now,
+		}
+		if err := db.Model(&model.AttributesItemModel{}).
+			Where("id = ?", id).
+			Updates(updates).Error; err != nil {
+			return err
+		}
 	}
-	return nil // 操作成功，返回 nil
+	return nil
 }
 
 type AttributesBatchUpsertModel struct {
@@ -208,39 +223,47 @@ func AttrsNewItem(operator engine2.DatabaseOperator, item *model.AttributesItemM
 
 func AttrsBindCharacter(operator engine2.DatabaseOperator, charId string, id string) error {
 	db := operator.GetDataDB(constant.WRITE)
-	// 将新字典值转换为 JSON
 	now := time.Now().Unix()
-	json, err := ds.NewDictVal(nil).V().ToJSON()
+
+	// 1. 尝试查询记录是否存在
+	var existingAttr model.AttributesItemModel
+	err := db.Where("id = ?", id).First(&existingAttr).Error
+
+	// 2. 处理查询结果
 	if err != nil {
-		return err
-	}
-	// 原本代码为：
-	//	_, _ = db.Exec(`insert into attrs (id, data, is_hidden, binding_sheet_id, created_at, updated_at)
-	//					       values ($1, $3, true, '', $2, $2)`, id, time.Now().Unix(), json)
-	//
-	//	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
-	result := db.Where("id = ?", id).
-		// 按照木落的原版代码，应该是这么个逻辑：查不到的时候能正确执行，查到了就不执行了，所以用Attrs而不是Assign
-		Attrs(map[string]any{
-			"id": id,
-			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
-			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
-			"data":      dbutil.BYTE(json),
-			"is_hidden": true,
-			// 如果插入成功，原版代码接下来更新这个值，那么现在就是等价的
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 记录不存在 → 插入新记录
+			jsonData, err0 := ds.NewDictVal(nil).V().ToJSON()
+			if err0 != nil {
+				return err0
+			}
+			newAttr := model.AttributesItemModel{
+				Id:             id,
+				Data:           jsonData,
+				IsHidden:       true,
+				BindingSheetId: charId,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			}
+
+			if err := db.Create(&newAttr).Error; err != nil {
+				return err
+			}
+		} else {
+			// 其他查询错误
+			return err
+		}
+	} else {
+		// 记录存在 → 更新 binding_sheet_id 和 updated_at
+		updates := map[string]interface{}{
 			"binding_sheet_id": charId,
-			"created_at":       now,
 			"updated_at":       now,
-		}).
-		Assign(map[string]any{
-			"binding_sheet_id": charId,
-		}).
-		FirstOrCreate(&model.AttributesItemModel{})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return errors.New("群信息不存在或发生更新异常: " + id)
+		}
+		if err := db.Model(&model.AttributesItemModel{}).
+			Where("id = ?", id).
+			Updates(updates).Error; err != nil {
+			return err
+		}
 	}
 	return nil
 }

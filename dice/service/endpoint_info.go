@@ -36,19 +36,12 @@ func Query(operator engine2.DatabaseOperator, e *model.EndpointInfo) error {
 
 func Save(operator engine2.DatabaseOperator, e *model.EndpointInfo) error {
 	db := operator.GetDataDB(constant.WRITE)
-	// 检查 user_id 是否为空
+	// 检查 UserID 是否为空
 	if len(e.UserID) == 0 {
 		return ErrEndpointInfoUIDEmpty
 	}
-	// 使用 FirstOrCreate 来插入或更新
-	if err := db.Where("user_id = ?", e.UserID).Assign(
-		"cmd_num", e.CmdNum,
-		"cmd_last_time", e.CmdLastTime,
-		"online_time", e.OnlineTime,
-		"updated_at", e.UpdatedAt,
-	). // 奇怪的想法，映射回自身？
-		FirstOrCreate(&e).Error; err != nil {
-		// 处理查询或创建时的错误
+	// 直接使用 Save() 方法（自动判断插入或更新）
+	if err := db.Save(e).Error; err != nil {
 		return err
 	}
 	return nil

@@ -1,9 +1,12 @@
 package service
 
 import (
+	"errors"
+
+	"gorm.io/gorm"
+
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
-	"sealdice-core/utils/dboperator/dbutil"
 	engine2 "sealdice-core/utils/dboperator/engine"
 )
 
@@ -15,24 +18,43 @@ func BanItemDel(operator engine2.DatabaseOperator, id string) error {
 	return result.Error // 返回错误
 }
 
-// BanItemSave 保存或替换禁用项 这里的[]byte也是json反序列化产物
 func BanItemSave(operator engine2.DatabaseOperator, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
 	db := operator.GetDataDB(constant.WRITE)
-	// 使用 FirstOrCreate ，这里显然，第一次初始化的时候替换ID，而剩余的时候只换ID以外的数据
-	if err := db.Where("id = ?", id).Attrs(map[string]any{
-		"id":             id,
-		"updated_at":     int(updatedAt),
-		"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
-		"data":           dbutil.BYTE(data), // 禁用项数据
-	}).
-		Assign(map[string]any{
-			"updated_at":     int(updatedAt),
-			"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
-			"data":           dbutil.BYTE(data), // 禁用项数据
-		}).FirstOrCreate(&model.BanInfo{}).Error; err != nil {
-		return err // 返回错误
+	readDB := operator.GetDataDB(constant.READ)
+
+	var banInfo model.BanInfo
+
+	// 先尝试查找记录
+	result := readDB.Where("id = ?", id).First(&banInfo)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			// 记录不存在，创建新记录
+			newBanInfo := model.BanInfo{
+				ID:           id,
+				UpdatedAt:    int(updatedAt),
+				BanUpdatedAt: int(banUpdatedAt),
+				Data:         data,
+			}
+			if err := db.Create(&newBanInfo).Error; err != nil {
+				return err
+			}
+		} else {
+			// 其他查询错误
+			return result.Error
+		}
+	} else {
+		// 记录存在，更新记录
+		updates := map[string]interface{}{
+			"updated_at":     updatedAt,
+			"ban_updated_at": banUpdatedAt,
+			"data":           data,
+		}
+		if err := db.Model(&model.BanInfo{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+			return err
+		}
 	}
-	return nil // 操作成功，返回 nil
+	return nil
 }
 
 // BanItemList 列出所有禁用项并调用回调函数处理

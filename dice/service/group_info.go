@@ -1,7 +1,10 @@
 package service
 
 import (
+	"errors"
+
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"sealdice-core/logger"
@@ -111,37 +114,28 @@ func GroupPlayerInfoGet(operator engine2.DatabaseOperator, groupID string, playe
 	return &ret
 }
 
-// GroupPlayerInfoSave 保存玩家信息，不再使用 REPLACE INTO 语句
 func GroupPlayerInfoSave(operator engine2.DatabaseOperator, info *model.GroupPlayerInfoBase) error {
-	// 使用读数据库
 	db := operator.GetDataDB(constant.WRITE)
-	// 考虑到info是指针，为了防止可能info还会被用到其他地方，这里的给info指针赋值也是有意义的
-	// 但强烈建议将这段去除掉，数据库层面理论上不应该混杂业务层逻辑？
-	// 判断条件：联合主键相同
-	// TODO: 那自增的ID是干嘛的……
-	conditions := map[string]any{
-		"user_id":  info.UserID,
-		"group_id": info.GroupID,
-	}
-	data := map[string]any{
-		"name":                   info.Name,
-		"user_id":                info.UserID,
-		"last_command_time":      info.LastCommandTime,
-		"auto_set_name_template": info.AutoSetNameTemplate,
-		"dice_side_num":          info.DiceSideNum,
-		"group_id":               info.GroupID,
-		"updated_at":             info.UpdatedAt,
-	}
-	// 原代码逻辑：
-	// REPLACE INTO group_player_info (name, updated_at, last_command_time, auto_set_name_template, dice_side_num, group_id, user_id)
-	// VALUES (:name, :updated_at, :last_command_time, :auto_set_name_template, :dice_side_num, :group_id, :user_id)
-	// 所以它是全局替换，使用Assign方法，无论如何都给我替换
-	if err := db.
-		Where(conditions).
-		Assign(data).FirstOrCreate(&model.GroupPlayerInfoBase{}).Error; err != nil {
+	// 1. 先查询记录是否存在
+	var existing model.GroupPlayerInfoBase
+	err := db.Where("user_id = ? AND group_id = ?", info.UserID, info.GroupID).First(&existing).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 记录不存在 → 插入新记录
+			return db.Create(info).Error
+		}
 		return err
 	}
-
-	// 返回 nil 表示操作成功
-	return nil
+	// 2. 记录存在 → 更新指定字段
+	updates := map[string]interface{}{
+		"name":                   info.Name,
+		"last_command_time":      info.LastCommandTime,
+		"auto_set_name_template": info.AutoSetNameTemplate,
+		"dice_side_num":          info.DiceSideNum, // 0值也会被更新
+		"updated_at":             info.UpdatedAt,
+	}
+	return db.Model(&model.GroupPlayerInfoBase{}).
+		Where("user_id = ? AND group_id = ?", info.UserID, info.GroupID).
+		Updates(updates).Error
 }
