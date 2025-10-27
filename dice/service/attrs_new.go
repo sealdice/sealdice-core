@@ -246,7 +246,7 @@ func AttrsBindCharacter(operator engine2.DatabaseOperator, charId string, id str
 				UpdatedAt:      now,
 			}
 
-			if err := db.Create(&newAttr).Error; err != nil {
+			if err = db.Create(&newAttr).Error; err != nil {
 				return err
 			}
 		} else {
@@ -259,7 +259,7 @@ func AttrsBindCharacter(operator engine2.DatabaseOperator, charId string, id str
 			"binding_sheet_id": charId,
 			"updated_at":       now,
 		}
-		if err := db.Model(&model.AttributesItemModel{}).
+		if err = db.Model(&model.AttributesItemModel{}).
 			Where("id = ?", id).
 			Updates(updates).Error; err != nil {
 			return err
