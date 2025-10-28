@@ -19,16 +19,17 @@ func BanItemDel(operator engine2.DatabaseOperator, id string) error {
 func BanItemSave(operator engine2.DatabaseOperator, id string, updatedAt int64, banUpdatedAt int64, data []byte) error {
 	db := operator.GetDataDB(constant.WRITE)
 	// 使用 FirstOrCreate ，这里显然，第一次初始化的时候替换ID，而剩余的时候只换ID以外的数据
+	bytePoint := dbutil.BYTE(data)
 	if err := db.Where("id = ?", id).Attrs(map[string]any{
 		"id":             id,
 		"updated_at":     int(updatedAt),
 		"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
-		"data":           dbutil.BYTE(data), // 禁用项数据
+		"data":           &bytePoint,        // 禁用项数据
 	}).
 		Assign(map[string]any{
 			"updated_at":     int(updatedAt),
 			"ban_updated_at": int(banUpdatedAt), // 只在创建时设置的字段
-			"data":           dbutil.BYTE(data), // 禁用项数据
+			"data":           &bytePoint,        // 禁用项数据
 		}).FirstOrCreate(&model.BanInfo{}).Error; err != nil {
 		return err // 返回错误
 	}
