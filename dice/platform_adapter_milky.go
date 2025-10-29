@@ -209,6 +209,29 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			IsPrivate: false,
 		})
 	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.FriendNudge) {
+		if m == nil {
+			return
+		}
+		log.Debugf("Received friend nudge: Sender %d", m.UserID)
+		msg := &Message{
+			Platform:    "QQ",
+			MessageType: "private",
+			Sender: SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10)),
+			},
+		}
+		event := &events.PokeEvent{
+			SenderID:  msg.Sender.UserID,
+			IsPrivate: true,
+		}
+		if m.IsSelfReceive {
+			event.TargetID = pa.EndPoint.UserID
+		} else {
+			event.TargetID = msg.Sender.UserID
+		}
+		pa.Session.OnPoke(CreateTempCtx(pa.EndPoint, msg), event)
+	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.GroupMemberDecrease) {
 		if m == nil {
 			return
@@ -239,6 +262,46 @@ func (pa *PlatformAdapterMilky) Serve() int {
 					OperatorID: FormatDiceIDQQ(strconv.FormatInt(m.OperatorID, 10)),
 				})
 			}
+		}
+	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.GroupMemberIncrease) {
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		inviterID := FormatDiceIDQQ(strconv.FormatInt(m.InvitorID, 10))
+		msg := &Message{
+			Time:        time.Now().Unix(),
+			MessageType: "group",
+			GroupID:     "QQ-Group:" + strconv.FormatInt(m.GroupID, 10),
+			Platform:    "QQ",
+			Sender: SenderBase{
+				UserID: inviterID,
+			},
+		}
+		newMemberUID := FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10))
+		// 自己加群
+		if newMemberUID == pa.EndPoint.UserID {
+			pa.Session.OnGroupJoined(ctx, msg)
+		} else {
+			// 其他人被邀请加群
+			msg.Sender.UserID = newMemberUID
+			pa.Session.OnGroupMemberJoined(ctx, msg)
+		}
+	})
+	session.AddHandler(func(session *milky.Session, m *milky.GroupMute) {
+		if m == nil {
+			return
+		}
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		dm := pa.Session.Parent.Parent
+		groupId := FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10))
+		if FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10)) == pa.EndPoint.UserID {
+			opUID := FormatDiceIDQQ(strconv.FormatInt(m.OperatorID, 10))
+			groupName := dm.TryGetGroupName(groupId)
+			userName := dm.TryGetUserName(opUID)
+
+			ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, groupId, ctx)
+			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupId, m.Duration, userName, m.OperatorID)
+			log.Info(txt)
+			ctx.Notice(txt)
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
