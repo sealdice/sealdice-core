@@ -299,7 +299,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			userName := dm.TryGetUserName(opUID)
 
 			ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, groupId, ctx)
-			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupId, m.Duration, userName, m.OperatorID)
+			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, groupId, m.Duration, userName, m.OperatorID)
 			log.Info(txt)
 			ctx.Notice(txt)
 		}
