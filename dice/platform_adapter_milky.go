@@ -247,6 +247,32 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			pa.handelFriendRequest(ctx, m)
 		}
 	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.MessageRecall) {
+		if m == nil {
+			return
+		}
+		msg := new(Message)
+		msg.Time = time.Now().Unix()
+		msg.Platform = "QQ"
+		msg.RawID = m.MessageSeq
+		switch m.MessageScene {
+		case "group":
+			msg.MessageType = "group"
+			msg.GroupID = FormatDiceIDQQGroup(strconv.FormatInt(m.PeerID, 10))
+			msg.Sender = SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderID, 10)),
+			}
+		case "friend":
+			msg.MessageType = "private"
+			msg.Sender = SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderID, 10)),
+			}
+		default:
+			return
+		}
+		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		pa.Session.OnMessageDeleted(mctx, msg)
+	})
 	d := pa.Session.Parent
 	err = pa.IntentSession.Open()
 	if err != nil {
@@ -370,8 +396,14 @@ func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve
 			log.Errorf("Failed to accept friend request: %v", err)
 			return
 		}
+	} else {
+		// 拒绝好友请求
+		err := pa.IntentSession.RejectFriendRequest(initiatorUid, false, reason)
+		if err != nil {
+			log.Errorf("Failed to refuse friend request: %v", err)
+			return
+		}
 	}
-	// 拒绝好友请求，目前直接忽略
 }
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
