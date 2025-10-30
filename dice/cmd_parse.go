@@ -418,7 +418,14 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 			if !ok {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:file,file=%v]", res.File))
+			fileVal := res.File
+			if fileVal == "" {
+				fileVal = res.URL
+			}
+			if fileVal == "" {
+				continue
+			}
+			cqMessage.WriteString(fmt.Sprintf("[CQ:file,file=%v]", fileVal))
 		case message.Image:
 			res, ok := v.(*message.ImageElement)
 			if !ok {
@@ -434,7 +441,17 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 			if !ok {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", res.File.URL))
+			var recordFile string
+			if res.File != nil {
+				recordFile = res.File.URL
+				if recordFile == "" {
+					recordFile = res.File.File
+				}
+			}
+			if recordFile == "" {
+				continue
+			}
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", recordFile))
 		case message.Reply:
 			res, ok := v.(*message.ReplyElement)
 			if !ok {
@@ -464,11 +481,14 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 				continue
 			}
 			// 将其转换为CQ码
-			var cqParam string
+			var (
+				cqParamParts []string
+			)
 			dMap := gjson.ParseBytes(res.Data).Map()
 			for paramStr, paramValue := range dMap {
-				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+				cqParamParts = append(cqParamParts, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
+			cqParam := strings.Join(cqParamParts, ",")
 			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, cqParam))
 		}
 	}

@@ -700,13 +700,12 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			})
 		default:
 			// 转换为CQ码
-			var cqParam string
+			var params []string
 			dMap := dataObj.Map()
 			for paramStr, paramValue := range dMap {
-				// TODO：印象里，这里有个替换，或者反过来，反正是有个替换来着。
-				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+				params = append(params, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, cqParam))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, strings.Join(params, ",")))
 			// 生成对应的DefaultElement
 			seg = append(seg, &message.DefaultElement{
 				RawType: typeStr,
@@ -855,8 +854,15 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			rawMsg = rawMsg.File(res.File)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:file,file=%v]", res.File))
+			fileVal := res.File
+			if fileVal == "" {
+				fileVal = res.URL
+			}
+			if fileVal == "" {
+				continue
+			}
+			rawMsg = rawMsg.File(fileVal)
+			cqMessage.WriteString(fmt.Sprintf("[CQ:file,file=%v]", fileVal))
 		case message.Image:
 			res, ok := v.(*message.ImageElement)
 			if !ok {
@@ -873,8 +879,18 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			rawMsg = rawMsg.Record(res.File.URL)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", res.File.URL))
+			var recordFile string
+			if res.File != nil {
+				recordFile = res.File.URL
+				if recordFile == "" {
+					recordFile = res.File.File
+				}
+			}
+			if recordFile == "" {
+				continue
+			}
+			rawMsg = rawMsg.Record(recordFile)
+			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", recordFile))
 		case message.Reply:
 			res, ok := v.(*message.ReplyElement)
 			if !ok {
@@ -913,12 +929,12 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				Data: res.Data,
 			})
 			// 将其转换为CQ码
-			var cqParam string
+			var params []string
 			dMap := gjson.ParseBytes(res.Data).Map()
 			for paramStr, paramValue := range dMap {
-				cqParam += fmt.Sprintf("%s=%s", paramStr, paramValue)
+				params = append(params, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, cqParam))
+			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, strings.Join(params, ",")))
 		}
 	}
 	messageStr := cqMessage.String()
