@@ -1182,9 +1182,17 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 
 					if j.Get("type").String() == "mod" {
 						readNum := func(item gjson.Result, dataKey, key string) {
-							// 直接使用 gjson 的 Int() 方法提取整数值
 							if val := item.Get(dataKey); val.Exists() {
-								pcInfo[nickname][key] = int(val.Int()) // 自动处理 float/int/string 数字
+								if val.Type == gjson.Number {
+									pcInfo[nickname][key] = int(val.Int()) // 自动处理 float/int/string 数字
+								} else {
+									// 保存的是 DiceScript 的 IntValue
+									if dsVal, dsErr := ds.VMValueFromJSON([]byte(val.Raw)); dsErr == nil {
+										if dsInt, dsOK := dsVal.ReadInt(); dsOK {
+											pcInfo[nickname][key] = int(dsInt)
+										}
+									}
+								}
 							}
 							// 如果字段不存在或非数字，pcInfo[nickname][key] 不会被修改
 						}
