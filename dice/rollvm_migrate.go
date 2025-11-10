@@ -699,7 +699,7 @@ func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
 		resolved = tmpl.GetAlias(name)
 	}
 
-	if ctx.Dice != nil {
+	if ctx.Dice != nil && ctx.Group != nil && ctx.Player != nil {
 		attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
 		if v, exists := attrs.LoadX(resolved); exists {
 			return v
@@ -745,7 +745,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		}
 
 		if strings.HasPrefix(name, "$t") {
-			if ctx.Player.ValueMapTemp != nil {
+			if ctx.Player != nil && ctx.Player.ValueMapTemp != nil {
 				if v, ok := ctx.Player.ValueMapTemp.Load(name); ok {
 					return v
 				}
