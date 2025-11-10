@@ -501,7 +501,12 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 					// 这里只能手动格式化，为了保证不丢信息
-					detail := fmt.Sprintf("%s + %s", diceDetail, r2.vm.GetDetailText())
+					modifierDetail := r2.vm.GetDetailText()
+					if modifierDetail == "" {
+						// 如果GetDetailText为空(例如自定义属性)，使用modifier值
+						modifierDetail = fmt.Sprintf("%d", modifier)
+					}
+					detail := fmt.Sprintf("%s + %s", diceDetail, modifierDetail)
 					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了
 					VarSetValueStr(mctx, "$t技能", reason)
 					VarSetValueStr(mctx, "$t检定过程文本", detail)
