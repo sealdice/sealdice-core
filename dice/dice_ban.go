@@ -244,6 +244,30 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 	txt := fmt.Sprintf("黑名单等级提升: %v", item.toText(i.Parent))
 	log.Info(txt)
 
+	// If user is banned and we should quit immediately, do it first before sending notifications
+	if curRank == BanRankBanned && i.BanBehaviorQuitLastPlace && ctx != nil {
+		var isWhiteGroup bool
+		d := ctx.Dice
+		value, exists := (&d.Config).BanList.Map.Load(place)
+		if exists {
+			if value.Rank == BanRankTrusted {
+				isWhiteGroup = true
+			}
+		}
+
+		if !isWhiteGroup {
+			// Quit group immediately before sending other notifications to avoid spam
+			ReplyGroupRaw(ctx,
+				&Message{GroupID: place},
+				DiceFormatTmpl(ctx, "核心:黑名单惩罚_退群"),
+				"")
+			time.Sleep(1 * time.Second)
+			ctx.EndPoint.Adapter.QuitGroup(ctx, place)
+			return 0
+		}
+		d.Logger.Infof("群<%s>触发\"退出事发群\"的拉黑惩罚，但该群是信任群所以未退群", place)
+	}
+
 	if ctx != nil {
 		// 做出通知
 		ctx.Notice(txt)
@@ -278,31 +302,6 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 		}
 	}
 
-	if curRank == BanRankBanned {
-		if i.BanBehaviorQuitLastPlace {
-			if ctx != nil {
-				var isWhiteGroup bool
-				d := ctx.Dice
-				value, exists := (&d.Config).BanList.Map.Load(place)
-				if exists {
-					if value.Rank == BanRankTrusted {
-						isWhiteGroup = true
-					}
-				}
-
-				if isWhiteGroup {
-					d.Logger.Infof("群<%s>触发“退出事发群”的拉黑惩罚，但该群是信任群所以未退群", place)
-				} else {
-					ReplyGroupRaw(ctx,
-						&Message{GroupID: place},
-						DiceFormatTmpl(ctx, "核心:黑名单惩罚_退群"),
-						"")
-					time.Sleep(1 * time.Second)
-					ctx.EndPoint.Adapter.QuitGroup(ctx, place)
-				}
-			}
-		}
-	}
 	return 0
 }
 
