@@ -485,6 +485,11 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 		return false
 	}
 
+	// Check if user is already banned to avoid sending multiple warnings in concurrent scenarios
+	if banItem, exists := ctx.Dice.Config.BanList.GetByID(ctx.Player.UserID); exists && banItem.Rank == BanRankBanned {
+		return true
+	}
+
 	if ctx.Player.RateLimitWarned {
 		ctx.Dice.Config.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
 	} else {
@@ -534,6 +539,11 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 	if ctx.Group.RateLimiter.Allow() {
 		ctx.Group.RateLimitWarned = false
 		return false
+	}
+
+	// Check if group is already banned to avoid sending multiple warnings in concurrent scenarios
+	if banItem, exists := ctx.Dice.Config.BanList.GetByID(ctx.Group.GroupID); exists && banItem.Rank == BanRankBanned {
+		return true
 	}
 
 	// If not allow
