@@ -699,10 +699,14 @@ func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
 		resolved = tmpl.GetAlias(name)
 	}
 
-	if ctx.Dice != nil && ctx.Group != nil && ctx.Player != nil {
-		attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
-		if v, exists := attrs.LoadX(resolved); exists {
-			return v
+	if ctx.Dice != nil {
+		if ctx.Group != nil && ctx.Player != nil {
+			attrs, err := ctx.Dice.AttrsManager.LoadByCtx(ctx)
+			if err == nil {
+				if v, exists := attrs.LoadX(resolved); exists {
+					return v
+				}
+			}
 		}
 	}
 
