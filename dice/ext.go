@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/tidwall/buntdb"
@@ -91,7 +92,10 @@ func ClearExtStorage(d *Dice, ext *ExtInfo, name string) error {
 }
 
 func GetExtensionDesc(ei *ExtInfo) string {
-	text := "> " + ei.Brief + "\n" + "提供命令:\n"
+	var text strings.Builder
+	text.WriteString("> ")
+	text.WriteString(ei.Brief)
+	text.WriteString("\n提供命令:\n")
 	keys := make([]string, 0, len(ei.CmdMap))
 
 	valueMap := map[*CmdItemInfo]bool{}
@@ -108,13 +112,16 @@ func GetExtensionDesc(ei *ExtInfo) string {
 		}
 		valueMap[i] = true
 		if i.ShortHelp == "" {
-			text += "." + i.Name + "\n"
+			text.WriteString(".")
+			text.WriteString(i.Name)
+			text.WriteString("\n")
 		} else {
-			text += i.ShortHelp + "\n"
+			text.WriteString(i.ShortHelp)
+			text.WriteString("\n")
 		}
 	}
 
-	return text
+	return text.String()
 }
 
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {

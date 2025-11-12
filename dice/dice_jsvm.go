@@ -1082,11 +1082,11 @@ func tsScriptCompile(path string) (string, error) {
 		Loader: esbuild.LoaderTS,
 	})
 	if len(compiled.Errors) > 0 {
-		var msg string
+		var msg strings.Builder
 		for _, e := range compiled.Errors {
-			msg += e.Text // FIXME 优化错误信息展示
+			msg.WriteString(e.Text) // FIXME 优化错误信息展示
 		}
-		return "", errors.New(msg)
+		return "", errors.New(msg.String())
 	}
 	compiledPath, err := os.CreateTemp("", "compiled-*-"+filepath.Base(path))
 	if err != nil {

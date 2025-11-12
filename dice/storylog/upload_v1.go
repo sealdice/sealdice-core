@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"sealdice-core/dice/service"
@@ -83,10 +84,10 @@ func formatAndBackup(env *UploadEnv) error {
 	)
 	writer := zip.NewWriter(fzip)
 
-	text := ""
+	var text strings.Builder
 	for _, i := range env.lines {
 		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-		text += fmt.Sprintf("%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
+		fmt.Fprintf(&text, "%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
 	}
 
 	{
@@ -95,7 +96,7 @@ func formatAndBackup(env *UploadEnv) error {
 	}
 	{
 		fileWriter, _ := writer.Create(ExportTxtFilename)
-		_, _ = fileWriter.Write([]byte(text))
+		_, _ = fileWriter.Write([]byte(text.String()))
 	}
 
 	data, err := json.Marshal(map[string]interface{}{
