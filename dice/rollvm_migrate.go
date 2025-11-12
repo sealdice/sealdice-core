@@ -177,7 +177,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 				for j := range len(item.spans) - 1 {
 					span := item.spans[j]
 					subDetailsText.WriteString(",")
-					subDetailsText.WriteString(string(detailResult[span.Begin:span.End]))
+					subDetailsText.Write(detailResult[span.Begin:span.End])
 					subDetailsText.WriteString("=")
 					subDetailsText.WriteString(span.Ret.ToString())
 				}
