@@ -543,29 +543,30 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 
 				tick := 0
-				info := ""
+				var infoBuilder strings.Builder
 				for _, i := range items {
 					tick++
-					info += i
+					infoBuilder.WriteString(i)
 					if tick%itemsPerLine == 0 {
-						info += "\n"
+						infoBuilder.WriteString("\n")
 					} else {
-						info += "\t"
+						infoBuilder.WriteString("\t")
 					}
 				}
 
 				// 再拼点附加信息，然后输出
-				if info == "" {
-					info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
+				if infoBuilder.Len() == 0 {
+					infoBuilder.WriteString(DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录"))
 				}
 
 				if limit > 0 {
 					VarSetValueInt64(mctx, "$t数量", int64(droppedByLimit))
 					VarSetValueInt64(mctx, "$t判定值", limit)
-					info += DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示")
+					infoBuilder.WriteString(DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示"))
 					// info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
 				}
 
+				info := infoBuilder.String()
 				VarSetValueStr(mctx, "$t属性信息", info)
 				extra := ReadCardTypeEx(mctx, tmpl.Name)
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
@@ -577,21 +578,24 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				info := "导出结果：\n.st clr\n.st "
+				var info strings.Builder
+				info.WriteString("导出结果：\n.st clr\n.st ")
 				for _, i := range items {
-					info += i
-					info += " "
+					info.WriteString(i)
+					info.WriteString(" ")
 				}
 				playerName := DiceFormat(mctx, "{$t玩家_RAW}")
 				if playerName != "" {
-					info += "\n.nn " + playerName
+					info.WriteString("\n.nn ")
+					info.WriteString(playerName)
 				}
 
+				out := info.String()
 				if len(items) == 0 {
-					info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
+					out = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
 				}
 
-				ReplyToSender(mctx, msg, info)
+				ReplyToSender(mctx, msg, out)
 
 			case "del", "rm":
 				var nums []string
