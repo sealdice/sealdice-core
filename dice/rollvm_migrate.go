@@ -170,13 +170,16 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 			sort.Sort(spanByEnd(item.spans))
 			last := item.spans[size-1]
 
-			subDetailsText := ""
+			var subDetailsText strings.Builder
 			if size > 1 {
 				// 次级结果，如 (10d3)d5 中，此处为10d3的结果
 				// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
 				for j := range len(item.spans) - 1 {
 					span := item.spans[j]
-					subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
+					subDetailsText.WriteString(",")
+					subDetailsText.WriteString(string(detailResult[span.Begin:span.End]))
+					subDetailsText.WriteString("=")
+					subDetailsText.WriteString(span.Ret.ToString())
 				}
 			}
 
@@ -213,7 +216,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 				detail += "=" + partRet
 			}
 
-			detail += subDetailsText + "]"
+			detail += subDetailsText.String() + "]"
 			if len(m) == 1 && detail == "["+baseExprText+"]" {
 				detail = "" // 规则1.3
 			}
