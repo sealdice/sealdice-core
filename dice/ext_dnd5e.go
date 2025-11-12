@@ -660,18 +660,19 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				tick := 0
-				info := ""
+				var infoBuilder strings.Builder
 				for _, i := range items {
 					tick++
-					info += i
+					infoBuilder.WriteString(i)
 					if tick%itemsPerLine == 0 {
-						info += "\n"
+						infoBuilder.WriteString("\n")
 					} else {
-						info += "\t"
+						infoBuilder.WriteString("\t")
 					}
 				}
 
 				// 再拼点附加信息，然后输出
+				info := infoBuilder.String()
 				if info == "" {
 					info = DiceFormatTmpl(ctx, "COC:属性设置_列出_未发现记录")
 				}
@@ -1404,7 +1405,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			if solved {
 				riList := (RIList{}).LoadByCurGroup(ctx)
 
-				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
+				var textOut strings.Builder
+				textOut.WriteString(DiceFormatTmpl(mctx, "DND:先攻_设置_前缀"))
 				sort.Sort(items)
 				if riList.Len() == 0 {
 					VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
@@ -1414,7 +1416,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if i.detail != "" {
 						detail = i.detail + "="
 					}
-					textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
+					fmt.Fprintf(&textOut, "%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
 
 					item := riList.GetExists(i.name)
 					if item == nil {
@@ -1432,7 +1434,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				sort.Sort(riList)
 				riList.SaveToGroup(ctx)
-				ReplyToSender(ctx, msg, textOut)
+				ReplyToSender(ctx, msg, textOut.String())
 			} else {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
 			}
@@ -1463,26 +1465,27 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			n := cmdArgs.GetArgN(1)
 			switch n {
 			case "", "list":
-				textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
+				var textOut strings.Builder
+				textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_查看_前缀"))
 				riList := (RIList{}).LoadByCurGroup(ctx)
 
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
 
 				for order, i := range riList {
-					textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
+					fmt.Fprintf(&textOut, "%2d. %s: %d\n", order+1, i.name, i.val)
 				}
 
 				if len(riList) == 0 {
-					textOut += "- 没有找到任何单位"
+					textOut.WriteString("- 没有找到任何单位")
 				} else {
 					if len(riList) <= int(round) || round < 0 {
 						round = 0
 					}
 					rounder := riList[round]
-					textOut += fmt.Sprintf("当前回合：%s", rounder.name)
+					fmt.Fprintf(&textOut, "当前回合：%s", rounder.name)
 				}
 
-				ReplyToSender(ctx, msg, textOut)
+				ReplyToSender(ctx, msg, textOut.String())
 			case "ed", "end":
 				lst := (RIList{}).LoadByCurGroup(ctx)
 				round, _ := VarGetValueInt64(ctx, "$g回合数")

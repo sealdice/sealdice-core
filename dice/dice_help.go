@@ -339,12 +339,15 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 					if len(row) < 3 {
 						continue
 					}
-					key := row[0]
+					var keyBuilder strings.Builder
+					keyBuilder.WriteString(row[0])
 					for j := range synonymCount {
 						if len(row[1+j]) > 0 {
-							key += "/" + row[1+j]
+							keyBuilder.WriteString("/")
+							keyBuilder.WriteString(row[1+j])
 						}
 					}
+					key := keyBuilder.String()
 					content := row[synonymCount+1]
 
 					_ = m.AddItem(docengine.HelpTextItem{
