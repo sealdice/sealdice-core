@@ -386,17 +386,6 @@ func (group *GroupInfo) getChainedActivations(dice *Dice, baseExtName string) []
 	return result
 }
 
-// getChainedDeactivations 获取连带关闭的扩展列表
-func (group *GroupInfo) getChainedDeactivations(dice *Dice, baseExtName string) []*ExtInfo {
-	var result []*ExtInfo
-	group.forEachFollower(dice, baseExtName, func(ext *ExtInfo) {
-		if group.ExtGetActive(ext.Name) != nil {
-			result = append(result, ext)
-		}
-	})
-	return result
-}
-
 func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 	group.deactivateChained(ei)
 
