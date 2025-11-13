@@ -703,9 +703,13 @@ func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
 	}
 
 	if ctx.Dice != nil {
-		attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
-		if v, exists := attrs.LoadX(resolved); exists {
-			return v
+		if ctx.Group != nil && ctx.Player != nil {
+			attrs, err := ctx.Dice.AttrsManager.LoadByCtx(ctx)
+			if err == nil {
+				if v, exists := attrs.LoadX(resolved); exists {
+					return v
+				}
+			}
 		}
 	}
 
@@ -748,7 +752,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		}
 
 		if strings.HasPrefix(name, "$t") {
-			if ctx.Player.ValueMapTemp != nil {
+			if ctx.Player != nil && ctx.Player.ValueMapTemp != nil {
 				if v, ok := ctx.Player.ValueMapTemp.Load(name); ok {
 					return v
 				}
