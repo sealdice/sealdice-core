@@ -142,16 +142,67 @@ func (group *GroupInfo) SetUserDisabled(name string) {
 	group.ExtDisabledByUser = m
 }
 
+func (group *GroupInfo) ensureInSnapshot(name string) {
+	if !lo.Contains(group.ExtActiveListSnapshot, name) {
+		group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, name)
+	}
+}
+
+func (group *GroupInfo) removeFromSnapshot(name string) {
+	if len(group.ExtActiveListSnapshot) == 0 {
+		return
+	}
+
+	newSnap := make([]string, 0, len(group.ExtActiveListSnapshot))
+	for _, item := range group.ExtActiveListSnapshot {
+		if item != name {
+			newSnap = append(newSnap, item)
+		}
+	}
+	group.ExtActiveListSnapshot = newSnap
+}
+
+func (group *GroupInfo) prependActivatedExt(ei *ExtInfo) {
+	group.ActivatedExtList = append([]*ExtInfo{ei}, group.ActivatedExtList...)
+	group.ensureInSnapshot(ei.Name)
+}
+
+func (group *GroupInfo) removeActivatedExt(ei *ExtInfo, disable bool) bool {
+	for index, item := range group.ActivatedExtList {
+		if item == ei || item.Name == ei.Name {
+			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
+			if disable {
+				group.SetUserDisabled(item.Name)
+			}
+			group.removeFromSnapshot(item.Name)
+			return true
+		}
+	}
+	return false
+}
+
 // ExtActive 开启扩展
 func (group *GroupInfo) ExtActive(ei *ExtInfo) {
-	lst := []*ExtInfo{ei}
-	oldLst := group.ActivatedExtList
-	group.ActivatedExtList = append(lst, oldLst...) //nolint:gocritic
-	if !lo.Contains(group.ExtActiveListSnapshot, ei.Name) {
-		group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, ei.Name)
-	}
+	group.prependActivatedExt(ei)
+
+	// 处理连带激活
+	group.activateChained(ei)
+
 	group.UpdatedAtTime = time.Now().Unix()
 	group.ExtClear()
+}
+
+// activateChained 迭代处理连带激活，避免深层递归
+func (group *GroupInfo) activateChained(ei *ExtInfo) {
+	if ei.dice == nil {
+		return
+	}
+
+	group.forEachFollower(ei.dice, ei.Name, func(follower *ExtInfo) {
+		if group.ExtGetActive(follower.Name) == nil {
+			group.prependActivatedExt(follower)
+		}
+	})
 }
 
 // ExtActiveBySnapshotOrder 按照快照顺序开启扩展
@@ -177,7 +228,7 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 	if isFirstTimeLoad {
 		if !lo.Contains(orderLst, ei.Name) {
 			newLst = append(newLst, ei)
-			group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, ei.Name)
+			group.ensureInSnapshot(ei.Name)
 		}
 	}
 
@@ -186,7 +237,20 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 		// 若用户在当前群禁用过该扩展，则不恢复
 		if !lo.Contains(orderLst, ei.Name) && !group.IsUserDisabled(ei.Name) {
 			newLst = append(newLst, ei)
-			group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, ei.Name)
+			group.ensureInSnapshot(ei.Name)
+		}
+	}
+
+	// 处理连带激活
+	if ei.dice != nil {
+		chainedExts := group.getChainedActivations(ei.dice, ei.Name)
+		for _, chainedExt := range chainedExts {
+			// 将连带扩展添加到映射和列表中
+			if m[chainedExt.Name] == nil {
+				m[chainedExt.Name] = chainedExt
+				newLst = append(newLst, chainedExt)
+				group.ensureInSnapshot(chainedExt.Name)
+			}
 		}
 	}
 
@@ -226,30 +290,21 @@ func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFir
 	}
 
 	// 处理首次加载的扩展，以及在重新启用插件时需要自动恢复的扩展
-	var newSnapshotItems []string
 	for _, ei := range extInfos {
-		// 首次加载：不在快照中则追加并记录到快照
 		if isFirstTimeLoad, exists := isFirstTimeLoadMap[ei.Name]; exists && isFirstTimeLoad {
 			if !lo.Contains(orderLst, ei.Name) {
 				newLst = append(newLst, ei)
-				newSnapshotItems = append(newSnapshotItems, ei.Name)
+				group.ensureInSnapshot(ei.Name)
 				continue
 			}
 		}
 
-		// 非首次加载但扩展为自动激活：如果不在快照中（例如曾被禁用并移除），重新启用插件后应恢复
 		if ei.DefaultSetting != nil && ei.DefaultSetting.AutoActive {
-			// 若用户在当前群禁用过该扩展，则不恢复
 			if !lo.Contains(orderLst, ei.Name) && !group.IsUserDisabled(ei.Name) {
 				newLst = append(newLst, ei)
-				newSnapshotItems = append(newSnapshotItems, ei.Name)
+				group.ensureInSnapshot(ei.Name)
 			}
 		}
-	}
-
-	// 批量更新快照列表
-	if len(newSnapshotItems) > 0 {
-		group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, newSnapshotItems...)
 	}
 
 	group.ActivatedExtList = newLst
@@ -271,34 +326,99 @@ func (group *GroupInfo) ExtClear() {
 	group.ActivatedExtList = lst
 }
 
+const (
+	// maxChainDepth ActiveWith 跟随关系的最大递归深度
+	maxChainDepth = 10
+)
+
+// forEachFollower 根据 ActiveWith 关系遍历需要跟随的扩展
+func (group *GroupInfo) forEachFollower(dice *Dice, baseExtName string, fn func(*ExtInfo)) {
+	visited := make(map[string]bool)
+	visiting := make(map[string]bool)
+
+	var dfs func(string, int)
+	dfs = func(extName string, depth int) {
+		if depth > maxChainDepth {
+			dice.Logger.Warnf("扩展 %s 的 ActiveWith 依赖链深度超过 %d，停止递归", extName, maxChainDepth)
+			return
+		}
+		if visited[extName] {
+			return
+		}
+		if visiting[extName] {
+			// 检测到循环依赖
+			dice.Logger.Warnf("检测到扩展 %s 的 ActiveWith 存在循环依赖，跳过连带操作", extName)
+			return
+		}
+
+		visiting[extName] = true
+
+		for _, ext := range dice.ExtList {
+			if lo.Contains(ext.ActiveWith, extName) {
+				dfs(ext.Name, depth+1)
+			}
+		}
+
+		visiting[extName] = false
+		visited[extName] = true
+
+		if extName == baseExtName {
+			return
+		}
+
+		ext := dice.ExtFind(extName, false)
+		if ext != nil {
+			fn(ext)
+		}
+	}
+
+	dfs(baseExtName, 0)
+}
+
+// getChainedActivations 获取连带激活的扩展列表（DFS后序遍历）
+func (group *GroupInfo) getChainedActivations(dice *Dice, baseExtName string) []*ExtInfo {
+	var result []*ExtInfo
+	group.forEachFollower(dice, baseExtName, func(ext *ExtInfo) {
+		if group.ExtGetActive(ext.Name) == nil {
+			result = append(result, ext)
+		}
+	})
+	return result
+}
+
 func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
+	group.deactivateChained(ei)
+
 	if ei.Storage != nil {
 		err := ei.StorageClose()
 		if err != nil {
-			// 经过指点使用了ei的logger
-			ei.dice.Logger.Error("扩展Inactive出现错误！")
+			ei.dice.Logger.Error("扩展Inactive处理错误")
 			return nil
 		}
 	}
-	for index, i := range group.ActivatedExtList {
-		if ei == i {
-			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
-			// 记录用户禁用，并从快照中移除
-			group.SetUserDisabled(i.Name)
-			// 移除快照中的该项
-			var newSnap []string
-			for _, n := range group.ExtActiveListSnapshot {
-				if n != i.Name {
-					newSnap = append(newSnap, n)
-				}
-			}
-			group.ExtActiveListSnapshot = newSnap
-			group.UpdatedAtTime = time.Now().Unix()
-			group.ExtClear()
-			return i
-		}
+	if group.removeActivatedExt(ei, true) {
+		group.UpdatedAtTime = time.Now().Unix()
+		group.ExtClear()
+		return ei
 	}
 	return nil
+}
+
+// deactivateChained 迭代处理连带关闭，避免深层递归
+func (group *GroupInfo) deactivateChained(ei *ExtInfo) {
+	if ei.dice == nil {
+		return
+	}
+
+	group.forEachFollower(ei.dice, ei.Name, func(follower *ExtInfo) {
+		if group.ExtGetActive(follower.Name) == nil {
+			return
+		}
+		if follower.Storage != nil {
+			_ = follower.StorageClose()
+		}
+		group.removeActivatedExt(follower, false)
+	})
 }
 
 // ExtInactiveSystem 系统级停用：不记录用户禁用，不修改快照
@@ -307,34 +427,19 @@ func (group *GroupInfo) ExtInactiveSystem(ei *ExtInfo) *ExtInfo {
 	if ei.Storage != nil {
 		_ = ei.StorageClose()
 	}
-	for index, i := range group.ActivatedExtList {
-		if ei == i {
-			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
-			// 不设置用户禁用标记，不移除快照，便于后续按快照顺序恢复
-			group.UpdatedAtTime = time.Now().Unix()
-			group.ExtClear()
-			return i
-		}
+	if group.removeActivatedExt(ei, false) {
+		group.UpdatedAtTime = time.Now().Unix()
+		group.ExtClear()
+		return ei
 	}
 	return nil
 }
 
 func (group *GroupInfo) ExtInactiveByName(name string) *ExtInfo {
-	for index, i := range group.ActivatedExtList {
+	for _, i := range group.ActivatedExtList {
 		if i.Name == name {
-			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
-			// 记录用户禁用，并从快照中移除
-			group.SetUserDisabled(i.Name)
-			var newSnap []string
-			for _, n := range group.ExtActiveListSnapshot {
-				if n != i.Name {
-					newSnap = append(newSnap, n)
-				}
-			}
-			group.ExtActiveListSnapshot = newSnap
-			group.UpdatedAtTime = time.Now().Unix()
-			group.ExtClear()
-			return i
+			// 直接调用 ExtInactive，其内部会处理连带关闭
+			return group.ExtInactive(i)
 		}
 	}
 	return nil

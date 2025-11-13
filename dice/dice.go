@@ -78,6 +78,8 @@ type ExtInfo struct {
 	ConflictWith []string `json:"-"        yaml:"-"`
 	Official     bool     `json:"-"        yaml:"-"` // 官方插件
 
+	ActiveWith []string `jsbind:"activeWith" json:"-" yaml:"-"` // 跟随开关：当指定扩展开启或关闭时，本扩展也会同步
+
 	dice          *Dice
 	IsJsExt       bool          `json:"-"`
 	JSLoopVersion int64         `json:"-"`
