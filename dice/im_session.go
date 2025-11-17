@@ -162,11 +162,6 @@ func (group *GroupInfo) removeFromSnapshot(name string) {
 	group.ExtActiveListSnapshot = newSnap
 }
 
-func (group *GroupInfo) prependActivatedExt(ei *ExtInfo) {
-	group.ActivatedExtList = append([]*ExtInfo{ei}, group.ActivatedExtList...)
-	group.ensureInSnapshot(ei.Name)
-}
-
 func (group *GroupInfo) removeActivatedExt(ei *ExtInfo, disable bool) bool {
 	for index, item := range group.ActivatedExtList {
 		if item == ei || item.Name == ei.Name {
@@ -183,80 +178,37 @@ func (group *GroupInfo) removeActivatedExt(ei *ExtInfo, disable bool) bool {
 
 // ExtActive 开启扩展
 func (group *GroupInfo) ExtActive(ei *ExtInfo) {
-	group.prependActivatedExt(ei)
-
-	// 处理连带激活
-	group.activateChained(ei)
-
-	group.UpdatedAtTime = time.Now().Unix()
-	group.ExtClear()
-}
-
-// activateChained 迭代处理连带激活，避免深层递归
-func (group *GroupInfo) activateChained(ei *ExtInfo) {
-	if ei.dice == nil {
+	if ei == nil {
 		return
 	}
 
-	group.forEachFollower(ei.dice, ei.Name, func(follower *ExtInfo) {
-		if group.ExtGetActive(follower.Name) == nil {
-			group.prependActivatedExt(follower)
-		}
-	})
+	toActivate := []*ExtInfo{}
+	if ei.dice != nil {
+		toActivate = append(toActivate, group.getChainedActivations(ei.dice, ei.Name)...)
+	}
+	toActivate = append(toActivate, ei)
+
+	group.ActivatedExtList = append(toActivate, group.ActivatedExtList...)
+	for _, ext := range toActivate {
+		group.ensureInSnapshot(ext.Name)
+	}
+
+	group.UpdatedAtTime = time.Now().Unix()
+	group.ExtClear()
 }
 
 // ExtActiveBySnapshotOrder 按照快照顺序开启扩展
 func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bool) {
-	// 这个机制用于解决js插件指令会覆盖原生扩展的指令的问题
-	// 与之相关的问题是插件的自动激活，最好能够检测插件是否为首次加载
-	orderLst := group.ExtActiveListSnapshot
-	m := map[string]*ExtInfo{}
-	for _, i := range group.ActivatedExtList {
-		m[i.Name] = i
-	}
-	m[ei.Name] = ei
-
-	var newLst []*ExtInfo
-	for _, i := range orderLst {
-		// 若被用户禁用，则跳过
-		if m[i] != nil && !group.IsUserDisabled(i) {
-			newLst = append(newLst, m[i])
-		}
+	if ei == nil {
+		return
 	}
 
-	// 当首次加载，如果快照列表中没有，将其新增
+	var firstLoadMap map[string]bool
 	if isFirstTimeLoad {
-		if !lo.Contains(orderLst, ei.Name) {
-			newLst = append(newLst, ei)
-			group.ensureInSnapshot(ei.Name)
-		}
+		firstLoadMap = map[string]bool{ei.Name: true}
 	}
 
-	// 非首次加载但扩展为自动激活：如果不在快照中（例如曾被禁用并移除），重新启用插件后应恢复
-	if ei.DefaultSetting != nil && ei.DefaultSetting.AutoActive {
-		// 若用户在当前群禁用过该扩展，则不恢复
-		if !lo.Contains(orderLst, ei.Name) && !group.IsUserDisabled(ei.Name) {
-			newLst = append(newLst, ei)
-			group.ensureInSnapshot(ei.Name)
-		}
-	}
-
-	// 处理连带激活
-	if ei.dice != nil {
-		chainedExts := group.getChainedActivations(ei.dice, ei.Name)
-		for _, chainedExt := range chainedExts {
-			// 将连带扩展添加到映射和列表中
-			if m[chainedExt.Name] == nil {
-				m[chainedExt.Name] = chainedExt
-				newLst = append(newLst, chainedExt)
-				group.ensureInSnapshot(chainedExt.Name)
-			}
-		}
-	}
-
-	group.ActivatedExtList = newLst
-	group.UpdatedAtTime = time.Now().Unix()
-	group.ExtClear()
+	group.ExtActiveBatchBySnapshotOrder([]*ExtInfo{ei}, firstLoadMap)
 }
 
 // ExtActiveBatchBySnapshotOrder 批量按照快照顺序开启扩展
@@ -267,7 +219,12 @@ func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFir
 	// 这个机制用于解决js插件指令会覆盖原生扩展的指令的问题
 	// 与之相关的问题是插件的自动激活，最好能够检测插件是否为首次加载
 	orderLst := group.ExtActiveListSnapshot
-	m := map[string]*ExtInfo{}
+	orderSet := make(map[string]struct{}, len(orderLst))
+	for _, name := range orderLst {
+		orderSet[name] = struct{}{}
+	}
+
+	m := make(map[string]*ExtInfo, len(group.ActivatedExtList)+len(extInfos))
 
 	// 构建现有扩展的映射
 	for _, i := range group.ActivatedExtList {
@@ -276,33 +233,70 @@ func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFir
 
 	// 添加新的扩展到映射
 	for _, ei := range extInfos {
-		m[ei.Name] = ei
+		if ei != nil {
+			m[ei.Name] = ei
+		}
 	}
 
-	var newLst []*ExtInfo
+	newLst := make([]*ExtInfo, 0, len(orderLst)+len(extInfos))
 	for _, i := range orderLst {
-		if m[i] != nil {
-			// 若被用户禁用，则跳过
-			if !group.IsUserDisabled(i) {
-				newLst = append(newLst, m[i])
-			}
+		if m[i] != nil && !group.IsUserDisabled(i) {
+			newLst = append(newLst, m[i])
 		}
 	}
 
 	// 处理首次加载的扩展，以及在重新启用插件时需要自动恢复的扩展
 	for _, ei := range extInfos {
+		if ei == nil {
+			continue
+		}
+
 		if isFirstTimeLoad, exists := isFirstTimeLoadMap[ei.Name]; exists && isFirstTimeLoad {
-			if !lo.Contains(orderLst, ei.Name) {
+			if _, exists := orderSet[ei.Name]; !exists {
 				newLst = append(newLst, ei)
 				group.ensureInSnapshot(ei.Name)
+				orderSet[ei.Name] = struct{}{}
 				continue
 			}
 		}
 
 		if ei.DefaultSetting != nil && ei.DefaultSetting.AutoActive {
-			if !lo.Contains(orderLst, ei.Name) && !group.IsUserDisabled(ei.Name) {
+			if _, exists := orderSet[ei.Name]; !exists && !group.IsUserDisabled(ei.Name) {
 				newLst = append(newLst, ei)
 				group.ensureInSnapshot(ei.Name)
+				orderSet[ei.Name] = struct{}{}
+			}
+		}
+	}
+
+	// 处理连带激活，确保跟随扩展在被跟随扩展之前（便于覆盖指令）
+	insertBefore := func(target string, ext *ExtInfo) bool {
+		for idx, existing := range newLst {
+			if existing != nil && existing.Name == target {
+				newLst = append(newLst[:idx], append([]*ExtInfo{ext}, newLst[idx:]...)...)
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, ei := range extInfos {
+		if ei == nil || ei.dice == nil {
+			continue
+		}
+
+		chainedExts := group.getChainedActivations(ei.dice, ei.Name)
+		for _, chainedExt := range chainedExts {
+			if chainedExt == nil {
+				continue
+			}
+			if m[chainedExt.Name] == nil {
+				m[chainedExt.Name] = chainedExt
+				if !insertBefore(ei.Name, chainedExt) {
+					newLst = append(newLst, chainedExt)
+				}
+				group.ensureInSnapshot(chainedExt.Name)
+				orderSet[chainedExt.Name] = struct{}{}
 			}
 		}
 	}
@@ -387,8 +381,6 @@ func (group *GroupInfo) getChainedActivations(dice *Dice, baseExtName string) []
 }
 
 func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
-	group.deactivateChained(ei)
-
 	if ei.Storage != nil {
 		err := ei.StorageClose()
 		if err != nil {
@@ -397,6 +389,7 @@ func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 		}
 	}
 	if group.removeActivatedExt(ei, true) {
+		group.deactivateChained(ei)
 		group.UpdatedAtTime = time.Now().Unix()
 		group.ExtClear()
 		return ei
@@ -423,6 +416,7 @@ func (group *GroupInfo) deactivateChained(ei *ExtInfo) {
 
 // ExtInactiveSystem 系统级停用：不记录用户禁用，不修改快照
 // 用途：在脚本重载/JS环境清理等系统操作中暂时移除扩展，避免导致其他扩展被误认为用户手动关闭
+// System-level helper: skips user-disable marks and snapshot edits, used for script reloads/crashes.
 func (group *GroupInfo) ExtInactiveSystem(ei *ExtInfo) *ExtInfo {
 	if ei.Storage != nil {
 		_ = ei.StorageClose()
