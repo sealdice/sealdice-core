@@ -384,7 +384,7 @@ func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 	if ei.Storage != nil {
 		err := ei.StorageClose()
 		if err != nil {
-			ei.dice.Logger.Error("扩展Inactive处理错误")
+			ei.dice.Logger.Errorf("扩展%s Inactive处理错误: %v", ei.Name, err)
 			return nil
 		}
 	}
