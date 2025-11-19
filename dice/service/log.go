@@ -24,39 +24,117 @@ type LogOne struct {
 
 var ErrLogNotFound = errors.New("日志不存在")
 
-// LogGetInfo 查询日志简略信息，使用通用函数替代SQLITE专属函数
-// TODO: 换回去，因为现在已经分离了引擎
+// LogGetInfo 查询日志简略信息（近似估算）
+// 返回值保持原结构：logs 最大 ID、log_items 最大 ID、logs 近似行数、log_items 近似行数。
 func LogGetInfo(operator engine2.DatabaseOperator) ([]int, error) {
 	db := operator.GetLogDB(constant.READ)
-	lst := []int{0, 0, 0, 0}
-
-	var maxID sql.NullInt64      // 使用sql.NullInt64来处理NULL值
-	var itemsMaxID sql.NullInt64 // 使用sql.NullInt64来处理NULL值
-	// 获取 logs 表的记录数和最大 ID
-	err := db.Model(&model.LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error
+	logMaxID, logRows, err := logTableApproxInfo(db, operator.Type(), "logs", &model.LogInfo{})
 	if err != nil {
 		return nil, err
 	}
-
-	err = db.Model(&model.LogInfo{}).Select("MAX(id)").Scan(&maxID).Error
+	itemMaxID, itemRows, err := logTableApproxInfo(db, operator.Type(), "log_items", &model.LogOneItem{})
 	if err != nil {
 		return nil, err
 	}
-	lst[0] = int(maxID.Int64)
+	return []int{int(logMaxID), int(itemMaxID), int(logRows), int(itemRows)}, nil
+}
 
-	// 获取 log_items 表的记录数和最大 ID
-	err = db.Model(&model.LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error
-	if err != nil {
-		return nil, err
+func logTableApproxInfo(db *gorm.DB, dbType string, tableName string, modelValue interface{}) (maxID int64, rows int64, err error) {
+	switch dbType {
+	case constant.SQLITE:
+		if seq, ok := querySQLiteSequence(db, tableName); ok {
+			return seq, seq, nil
+		}
+	case constant.MYSQL:
+		if autoIncrement, ok := queryMySQLAutoIncrement(db, tableName); ok {
+			maxID = autoIncrement
+		}
+		if tableRows, ok := queryMySQLTableRows(db, tableName); ok {
+			rows = tableRows
+		}
+	case constant.POSTGRESQL:
+		if sequenceValue, ok := queryPostgreSQLSequence(db, tableName); ok {
+			maxID = sequenceValue
+		}
+		if tableRows, ok := queryPostgreSQLTableRows(db, tableName); ok {
+			rows = tableRows
+		}
 	}
 
-	err = db.Model(&model.LogOneItem{}).Select("MAX(id)").Scan(&itemsMaxID).Error
-	if err != nil {
-		return nil, err
+	if maxID == 0 {
+		maxID, err = queryMaxID(db, modelValue)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
-	lst[1] = int(itemsMaxID.Int64)
+	if rows == 0 {
+		rows = maxID
+	}
+	return maxID, rows, nil
+}
 
-	return lst, nil
+func querySQLiteSequence(db *gorm.DB, tableName string) (int64, bool) {
+	var seq sql.NullInt64
+	if err := db.Raw("SELECT seq FROM sqlite_sequence WHERE name = ?", tableName).Scan(&seq).Error; err != nil {
+		return 0, false
+	}
+	return seq.Int64, seq.Valid
+}
+
+func queryMySQLAutoIncrement(db *gorm.DB, tableName string) (int64, bool) {
+	var autoIncrement sql.NullInt64
+	err := db.Raw(
+		"SELECT AUTO_INCREMENT - 1 FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+		tableName,
+	).Scan(&autoIncrement).Error
+	if err != nil || !autoIncrement.Valid {
+		return 0, false
+	}
+	if autoIncrement.Int64 < 0 {
+		return 0, false
+	}
+	return autoIncrement.Int64, true
+}
+
+func queryMySQLTableRows(db *gorm.DB, tableName string) (int64, bool) {
+	var rows sql.NullInt64
+	err := db.Raw(
+		"SELECT TABLE_ROWS FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+		tableName,
+	).Scan(&rows).Error
+	if err != nil || !rows.Valid || rows.Int64 < 0 {
+		return 0, false
+	}
+	return rows.Int64, true
+}
+
+func queryPostgreSQLSequence(db *gorm.DB, tableName string) (int64, bool) {
+	var sequenceValue sql.NullInt64
+	err := db.Raw(
+		"SELECT last_value FROM pg_sequences WHERE schemaname = current_schema() AND sequencename = ?",
+		fmt.Sprintf("%s_id_seq", tableName),
+	).Scan(&sequenceValue).Error
+	if err != nil || !sequenceValue.Valid || sequenceValue.Int64 < 0 {
+		return 0, false
+	}
+	return sequenceValue.Int64, true
+}
+
+func queryPostgreSQLTableRows(db *gorm.DB, tableName string) (int64, bool) {
+	var rows sql.NullInt64
+	err := db.Raw("SELECT reltuples::BIGINT FROM pg_class WHERE oid = ?::regclass", tableName).Scan(&rows).Error
+	if err != nil || !rows.Valid || rows.Int64 < 0 {
+		return 0, false
+	}
+	return rows.Int64, true
+}
+
+func queryMaxID(db *gorm.DB, modelValue interface{}) (int64, error) {
+	var maxID sql.NullInt64
+	if err := db.Model(modelValue).Select("MAX(id)").Scan(&maxID).Error; err != nil {
+		return 0, err
+	}
+	return maxID.Int64, nil
 }
 
 // Deprecated: replaced by page
