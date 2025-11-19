@@ -22,39 +22,129 @@ type LogOne struct {
 	Info  model.LogInfo      `json:"info"`
 }
 
-// LogGetInfo 查询日志简略信息，使用通用函数替代SQLITE专属函数
-// TODO: 换回去，因为现在已经分离了引擎
+// LogGetInfo 查询日志简略信息（近似估算）
+// 需求：此处无需精准统计，优先选择“轻量、近似”的获取方式，在失败时回退到通用查询。
+// 返回结构保持不变：
+//   lst[0] = logs 表最大ID（近似）；lst[1] = log_items 表最大ID（近似）；
+//   lst[2] = logs 记录数（近似）；lst[3] = log_items 记录数（近似）。
+// 近似方案按引擎选择：
+// - SQLite：从 sqlite_sequence 读取 seq 作为最大ID与近似行数；缺失或失败时回退 MAX(id)/COUNT(*)。
+// - MySQL：从 information_schema.tables 读取 AUTO_INCREMENT-1 作为最大ID，TABLE_ROWS 作为近似行数；失败时回退。
+// - PostgreSQL：通过 pg_get_serial_sequence 获取序列，再读序列 last_value 作为最大ID；
+//                通过 pg_class.reltuples 作为近似行数；失败时回退。
+// - 其他引擎：以 MAX(id) 作为最大ID与近似行数的估算来源，失败时回退 COUNT(*)。
 func LogGetInfo(operator engine2.DatabaseOperator) ([]int, error) {
-	db := operator.GetLogDB(constant.READ)
-	lst := []int{0, 0, 0, 0}
+    db := operator.GetLogDB(constant.READ)
+    lst := []int{0, 0, 0, 0}
 
-	var maxID sql.NullInt64      // 使用sql.NullInt64来处理NULL值
-	var itemsMaxID sql.NullInt64 // 使用sql.NullInt64来处理NULL值
-	// 获取 logs 表的记录数和最大 ID
-	err := db.Model(&model.LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error
-	if err != nil {
-		return nil, err
-	}
+    // 近似最大ID与近似行数
+    var maxID sql.NullInt64      // logs 最大ID（近似，可能为空）
+    var itemsMaxID sql.NullInt64 // log_items 最大ID（近似，可能为空）
+    var logsApproxRows sql.NullInt64
+    var itemsApproxRows sql.NullInt64
 
-	err = db.Model(&model.LogInfo{}).Select("MAX(id)").Scan(&maxID).Error
-	if err != nil {
-		return nil, err
-	}
-	lst[0] = int(maxID.Int64)
+    switch operator.Type() {
+    case constant.SQLITE:
+        // SQLite：seq 近似代表当前最大id，也可近似代表行数（有删除时会偏大）
+        _ = db.Raw("SELECT seq FROM sqlite_sequence WHERE name = ?", "logs").Scan(&maxID).Error
+        _ = db.Raw("SELECT seq FROM sqlite_sequence WHERE name = ?", "log_items").Scan(&itemsMaxID).Error
+        // 行数近似采用 seq，失败时回退 COUNT(*)
+        logsApproxRows = maxID
+        itemsApproxRows = itemsMaxID
+        if !logsApproxRows.Valid {
+            if err := db.Model(&model.LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error; err != nil {
+                return nil, err
+            }
+        }
+        if !itemsApproxRows.Valid {
+            if err := db.Model(&model.LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error; err != nil {
+                return nil, err
+            }
+        }
 
-	// 获取 log_items 表的记录数和最大 ID
-	err = db.Model(&model.LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error
-	if err != nil {
-		return nil, err
-	}
+    case constant.MYSQL:
+        // MySQL：AUTO_INCREMENT-1 近似最大ID；TABLE_ROWS 为近似行数（InnoDB 下为估算）。
+        _ = db.Raw(
+            "SELECT AUTO_INCREMENT - 1 FROM information_schema.tables WHERE TABLE_NAME = ? AND TABLE_SCHEMA = DATABASE()",
+            "logs",
+        ).Scan(&maxID).Error
+        _ = db.Raw(
+            "SELECT AUTO_INCREMENT - 1 FROM information_schema.tables WHERE TABLE_NAME = ? AND TABLE_SCHEMA = DATABASE()",
+            "log_items",
+        ).Scan(&itemsMaxID).Error
+        _ = db.Raw(
+            "SELECT TABLE_ROWS FROM information_schema.tables WHERE TABLE_NAME = ? AND TABLE_SCHEMA = DATABASE()",
+            "logs",
+        ).Scan(&logsApproxRows).Error
+        _ = db.Raw(
+            "SELECT TABLE_ROWS FROM information_schema.tables WHERE TABLE_NAME = ? AND TABLE_SCHEMA = DATABASE()",
+            "log_items",
+        ).Scan(&itemsApproxRows).Error
+        // 如果近似值不可用，回退 COUNT(*)
+        if !logsApproxRows.Valid {
+            if err := db.Model(&model.LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error; err != nil {
+                return nil, err
+            }
+        }
+        if !itemsApproxRows.Valid {
+            if err := db.Model(&model.LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error; err != nil {
+                return nil, err
+            }
+        }
 
-	err = db.Model(&model.LogOneItem{}).Select("MAX(id)").Scan(&itemsMaxID).Error
-	if err != nil {
-		return nil, err
-	}
-	lst[1] = int(itemsMaxID.Int64)
+    case constant.POSTGRESQL:
+        // PostgreSQL：序列 last_value 近似最大ID；pg_class.reltuples 为近似行数。
+        var seqName string
+        if err := db.Raw("SELECT pg_get_serial_sequence('logs', 'id')").Scan(&seqName).Error; err == nil && len(seqName) > 0 {
+            _ = db.Raw(fmt.Sprintf("SELECT last_value FROM %s", seqName)).Scan(&maxID).Error
+        }
+        seqName = ""
+        if err := db.Raw("SELECT pg_get_serial_sequence('log_items', 'id')").Scan(&seqName).Error; err == nil && len(seqName) > 0 {
+            _ = db.Raw(fmt.Sprintf("SELECT last_value FROM %s", seqName)).Scan(&itemsMaxID).Error
+        }
+        _ = db.Raw("SELECT reltuples::BIGINT FROM pg_class WHERE oid = 'logs'::regclass").Scan(&logsApproxRows).Error
+        _ = db.Raw("SELECT reltuples::BIGINT FROM pg_class WHERE oid = 'log_items'::regclass").Scan(&itemsApproxRows).Error
+        // 如果近似值不可用，回退 COUNT(*)
+        if !logsApproxRows.Valid {
+            if err := db.Model(&model.LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error; err != nil {
+                return nil, err
+            }
+        }
+        if !itemsApproxRows.Valid {
+            if err := db.Model(&model.LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error; err != nil {
+                return nil, err
+            }
+        }
 
-	return lst, nil
+    default:
+        // 未识别引擎：以 MAX(id) 近似行数与最大ID（失败时回退 COUNT(*)）
+        _ = db.Model(&model.LogInfo{}).Select("MAX(id)").Scan(&maxID).Error
+        _ = db.Model(&model.LogOneItem{}).Select("MAX(id)").Scan(&itemsMaxID).Error
+        logsApproxRows = maxID
+        itemsApproxRows = itemsMaxID
+        if !logsApproxRows.Valid {
+            if err := db.Model(&model.LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error; err != nil {
+                return nil, err
+            }
+        }
+        if !itemsApproxRows.Valid {
+            if err := db.Model(&model.LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error; err != nil {
+                return nil, err
+            }
+        }
+    }
+
+    // 写入结果（如果表为空，NullInt64.Int64 为 0）
+    lst[0] = int(maxID.Int64)
+    lst[1] = int(itemsMaxID.Int64)
+    // 近似行数赋值（若前面已填充确切值则保持）
+    if lst[2] == 0 && logsApproxRows.Valid {
+        lst[2] = int(logsApproxRows.Int64)
+    }
+    if lst[3] == 0 && itemsApproxRows.Valid {
+        lst[3] = int(itemsApproxRows.Int64)
+    }
+    return lst, nil
 }
 
 // Deprecated: replaced by page
