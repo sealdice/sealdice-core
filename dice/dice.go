@@ -186,12 +186,15 @@ type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
 	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
 
-	CmdMap          CmdMapCls              `json:"-" yaml:"-"`
-	ExtList         []*ExtInfo             `yaml:"-"`
-	RollParser      *DiceRollParser        `yaml:"-"`
-	LastUpdatedTime int64                  `yaml:"-"`
-	TextMap         map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig      BaseConfig             `yaml:"-"`
+	CmdMap             CmdMapCls                  `json:"-" yaml:"-"`
+	ExtList            []*ExtInfo                 `yaml:"-"`
+	ExtRegistry        *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`
+	ActiveWithGraph    *SyncMap[string, []string] `json:"-" yaml:"-"`
+	ExtRegistryVersion int64                      `json:"-" yaml:"-"`
+	RollParser         *DiceRollParser            `yaml:"-"`
+	LastUpdatedTime    int64                      `yaml:"-"`
+	TextMap            map[string]*wr.Chooser     `yaml:"-"`
+	BaseConfig         BaseConfig                 `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
@@ -310,6 +313,8 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 	d.CmdMap = CmdMapCls{}
+	d.ExtRegistry = new(SyncMap[string, *ExtInfo])
+	d.ActiveWithGraph = new(SyncMap[string, []string])
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
@@ -562,6 +567,14 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 // ExtFind 根据名称或别名查找扩展
 func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
 	find := func(_ string) *ExtInfo {
+		if d.ExtRegistry != nil {
+			if ext, ok := d.ExtRegistry.Load(s); ok && ext != nil {
+				return ext
+			}
+			if ext, ok := d.ExtRegistry.Load(strings.ToLower(s)); ok && ext != nil {
+				return ext
+			}
+		}
 		for _, i := range d.ExtList {
 			// 名字匹配，优先级最高
 			if i.Name == s {

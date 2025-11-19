@@ -1582,7 +1582,7 @@ func (d *Dice) registerCoreCommands() {
 						if !isActive {
 							extNames = append(extNames, ext.Name)
 							conflictsAll = append(conflictsAll, checkConflict(ext)...)
-							ctx.Group.ClearUserDisabledFlag(ext.Name)
+							ctx.Group.RemoveFromInactivated(ext.Name)
 							ctx.Group.ExtActive(ext)
 						}
 					}
@@ -1600,13 +1600,29 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				for index := range len(cmdArgs.Args) {
+				var companionExtNames []string
+				// 排除最后一个参数 "on"
+				for index := range len(cmdArgs.Args) - 1 {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName, false); i != nil {
 						extNames = append(extNames, extName)
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
-						ctx.Group.ClearUserDisabledFlag(i.Name)
+						ctx.Group.RemoveFromInactivated(i.Name)
+
+						// 记录激活前已有的扩展
+						beforeActivate := make(map[string]bool)
+						for _, ext := range ctx.Group.ActivatedExtList {
+							beforeActivate[ext.Name] = true
+						}
+
 						ctx.Group.ExtActive(i)
+
+						// 检查新激活的伴随扩展
+						for _, ext := range ctx.Group.ActivatedExtList {
+							if !beforeActivate[ext.Name] && ext.Name != i.Name {
+								companionExtNames = append(companionExtNames, ext.Name)
+							}
+						}
 					}
 				}
 
@@ -1614,6 +1630,9 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "输入的扩展类别名无效")
 				} else {
 					text := fmt.Sprintf("打开扩展 %s", strings.Join(extNames, ","))
+					if len(companionExtNames) > 0 {
+						text += fmt.Sprintf("\n自动启用伴随扩展: %s", strings.Join(companionExtNames, ", "))
+					}
 					if len(conflictsAll) > 0 {
 						text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflictsAll, ",")
 						text += "\n对于扩展中存在的同名指令，则越晚开启的扩展，优先级越高。"
@@ -1627,13 +1646,37 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				var closed []string
+				var companionClosed []string
 				var notfound []string
-				for index := range len(cmdArgs.Args) {
+
+				// 排除最后一个参数 "off"
+				for index := range len(cmdArgs.Args) - 1 {
 					extName := cmdArgs.Args[index]
 					extName = d.ExtAliasToName(extName)
+
+					// 记录关闭前的扩展列表
+					beforeDeactivate := make(map[string]bool)
+					for _, ext := range ctx.Group.ActivatedExtList {
+						beforeDeactivate[ext.Name] = true
+					}
+
 					ei := ctx.Group.ExtInactiveByName(extName)
 					if ei != nil {
 						closed = append(closed, ei.Name)
+
+						// 检查被连带关闭的伴随扩展
+						for extName := range beforeDeactivate {
+							stillActive := false
+							for _, ext := range ctx.Group.ActivatedExtList {
+								if ext.Name == extName {
+									stillActive = true
+									break
+								}
+							}
+							if !stillActive && extName != ei.Name {
+								companionClosed = append(companionClosed, extName)
+							}
+						}
 					} else {
 						notfound = append(notfound, extName)
 					}
@@ -1643,6 +1686,9 @@ func (d *Dice) registerCoreCommands() {
 
 				if len(closed) > 0 {
 					text += fmt.Sprintf("关闭扩展: %s", strings.Join(closed, ","))
+					if len(companionClosed) > 0 {
+						text += fmt.Sprintf("\n自动关闭伴随扩展: %s", strings.Join(companionClosed, ", "))
+					}
 				} else {
 					text += fmt.Sprintf(" 已关闭或未找到: %s", strings.Join(notfound, ","))
 				}
