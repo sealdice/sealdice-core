@@ -1,5 +1,7 @@
 package dice
 
+//lint:file-ignore testpackage Tests need access to internal helpers and types
+
 import (
 	"os"
 	"path/filepath"
@@ -65,7 +67,7 @@ func TestStringSetUnmarshalYAML(t *testing.T) {
 // TestRegisterExtensionUpdatesRegistry 验证注册流程会更新 registry/版本号
 func TestRegisterExtensionUpdatesRegistry(t *testing.T) {
 	d := &Dice{
-		Logger:    zap.NewNop().Sugar(),
+		Logger: zap.NewNop().Sugar(),
 		BaseConfig: BaseConfig{
 			DataDir: t.TempDir(),
 		},
@@ -375,10 +377,10 @@ func TestCollectChainedNames(t *testing.T) {
 // TestExtActivateWithCompanion 测试扩展激活（包含伴随扩展）
 func TestExtActivateWithCompanion(t *testing.T) {
 	tests := []struct {
-		name               string
-		exts               []*ExtInfo
-		activateExtName    string
-		expectedActivated  []string // 预期被激活的扩展名（按优先级从高到低）
+		name                string
+		exts                []*ExtInfo
+		activateExtName     string
+		expectedActivated   []string // 预期被激活的扩展名（按优先级从高到低）
 		expectedInactivated map[string]bool
 	}{
 		{
@@ -459,7 +461,7 @@ func TestExtActivateWithCompanion(t *testing.T) {
 				t.Errorf("主扩展 %s 未被激活", tt.activateExtName)
 			} else {
 				// 检查主扩展之前的扩展是否都是伴随扩展
-				for i := 0; i < mainExtIndex; i++ {
+				for i := range group.ActivatedExtList[:mainExtIndex] {
 					extName := group.ActivatedExtList[i].Name
 					if extName == tt.activateExtName {
 						t.Errorf("主扩展 %s 不应该出现在位置 %d（应该在所有伴随扩展之后）", tt.activateExtName, i)
@@ -480,11 +482,11 @@ func TestExtActivateWithCompanion(t *testing.T) {
 // TestExtDeactivateWithCompanion 测试扩展关闭（包含伴随扩展）
 func TestExtDeactivateWithCompanion(t *testing.T) {
 	tests := []struct {
-		name                string
-		exts                []*ExtInfo
-		activateFirst       []string // 先激活这些扩展
-		deactivateExtName   string   // 然后关闭这个扩展
-		expectedRemaining   []string // 预期剩余的扩展
+		name              string
+		exts              []*ExtInfo
+		activateFirst     []string // 先激活这些扩展
+		deactivateExtName string   // 然后关闭这个扩展
+		expectedRemaining []string // 预期剩余的扩展
 	}{
 		{
 			name: "关闭主扩展，伴随扩展自动关闭",
@@ -584,8 +586,8 @@ func TestCommandPriority(t *testing.T) {
 	tests := []struct {
 		name              string
 		exts              []*ExtInfo
-		activateOrder     []string   // 按顺序激活这些扩展
-		expectedListOrder []string   // 预期的 ActivatedExtList 顺序（从前到后）
+		activateOrder     []string // 按顺序激活这些扩展
+		expectedListOrder []string // 预期的 ActivatedExtList 顺序（从前到后）
 	}{
 		{
 			name: "先开扩展1，再开扩展2，扩展2优先级更高",
@@ -612,7 +614,7 @@ func TestCommandPriority(t *testing.T) {
 				{Name: "main"},
 				{Name: "companion", ActiveWith: []string{"main"}},
 			},
-			activateOrder:     []string{"main"}, // 只激活 main，companion 自动激活
+			activateOrder:     []string{"main"},              // 只激活 main，companion 自动激活
 			expectedListOrder: []string{"companion", "main"}, // companion 优先级更高
 		},
 		{

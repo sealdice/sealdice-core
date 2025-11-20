@@ -554,9 +554,7 @@ func (group *GroupInfo) promoteExt(ext *ExtInfo) {
 		return
 	}
 	group.RemoveFromInactivated(ext.Name)
-	if group.removeActivatedByName(ext.Name) {
-		// 已在列表中，被移除后再插入
-	}
+	_ = group.removeActivatedByName(ext.Name)
 	group.ActivatedExtList = append([]*ExtInfo{ext}, group.ActivatedExtList...)
 }
 
