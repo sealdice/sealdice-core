@@ -1,6 +1,5 @@
-package dice
-
 //lint:file-ignore testpackage Tests need access to internal helpers and types
+package dice
 
 import (
 	"os"
