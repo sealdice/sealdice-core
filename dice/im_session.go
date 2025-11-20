@@ -109,7 +109,7 @@ type GroupInfo struct {
 
 	DefaultHelpGroup string `json:"defaultHelpGroup" yaml:"defaultHelpGroup"` // 当前群默认的帮助条目
 
-	PlayerGroups      *SyncMap[string, []string] `json:"playerGroups" yaml:"playerGroups"` // 给team指令使用，和玩家、群等信息一样，都来自Players，不会重复存储
+	PlayerGroups      *SyncMap[string, []string] `json:"playerGroups"      yaml:"playerGroups"` // 给team指令使用，和玩家、群等信息一样，都来自Players，不会重复存储
 	ExtAppliedVersion int64                      `json:"extAppliedVersion" yaml:"extAppliedVersion"`
 }
 
