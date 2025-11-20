@@ -1,5 +1,5 @@
 //lint:file-ignore testpackage Tests need access to internal helpers and types
-package dice
+package dice //nolint:testpackage // tests rely on unexported helpers
 
 import (
 	"os"
