@@ -53,7 +53,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 				{Name: "ext2", ActiveWith: []string{"ext1"}},
 			},
 			userActivateNames: []string{"ext1", "ext2"}, // 用户同时激活 ext1 和 ext2
-			expectedCompanion: []string{},                // ext2 不应该被识别为伴随扩展
+			expectedCompanion: []string{},               // ext2 不应该被识别为伴随扩展
 		},
 		{
 			name: "复杂场景：部分是用户激活，部分是伴随激活",
@@ -63,7 +63,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 				{Name: "companion1", ActiveWith: []string{"ext1"}},
 				{Name: "companion2", ActiveWith: []string{"ext2"}},
 			},
-			userActivateNames: []string{"ext1", "ext2"}, // 用户明确激活 ext1 和 ext2
+			userActivateNames: []string{"ext1", "ext2"},             // 用户明确激活 ext1 和 ext2
 			expectedCompanion: []string{"companion1", "companion2"}, // 只有真正的伴随扩展
 		},
 		{
@@ -73,7 +73,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 				{Name: "Ext2", ActiveWith: []string{"Ext1"}},
 			},
 			userActivateNames: []string{"ext1", "EXT2"}, // 用户输入不同大小写
-			expectedCompanion: []string{},                // Ext2 不应该被识别为伴随扩展
+			expectedCompanion: []string{},               // Ext2 不应该被识别为伴随扩展
 		},
 	}
 
@@ -180,7 +180,7 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 				{Name: "companion", ActiveWith: []string{"ext2"}},
 			},
 			userActivateNames: []string{"ext1", "ext2"}, // 用户明确激活 ext1 和 ext2
-			expectedCompanion: []string{"companion"},     // 只有 companion 是伴随扩展
+			expectedCompanion: []string{"companion"},    // 只有 companion 是伴随扩展
 		},
 		{
 			name: "链式伴随扩展，用户激活所有节点",
