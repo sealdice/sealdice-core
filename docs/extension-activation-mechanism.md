@@ -192,9 +192,9 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 
 | 旧方法 | 新方法 | 参数变化 |
 |--------|--------|----------|
-| `IsUserDisabled(name)` | `IsExtInInactivatedList(name)` | 无变化 |
-| `SetUserDisabled(name)` | `AddToInactivatedList(name)` | 无变化 |
-| `ClearUserDisabledFlag(name)` | `RemoveFromInactivatedList(name)` | 无变化 |
+| `IsUserDisabled(name)` | `IsExtInactivated(name)` | 无变化 |
+| `SetUserDisabled(name)` | `AddToInactivated(name)` | 无变化 |
+| `ClearUserDisabledFlag(name)` | `RemoveFromInactivated(name)` | 无变化 |
 
 **重要**：`AddToInactivatedList` 的参数已从 `*ExtInfo` 改为 `string`（只需传扩展名称）
 
