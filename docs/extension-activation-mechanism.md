@@ -107,7 +107,7 @@ func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
     // ...
     
     // 加入关闭列表
-    group.AddToInactivatedList(i)
+    group.AddToInactivated(ei.Name)
     
     // 从快照中移除
     // ...
