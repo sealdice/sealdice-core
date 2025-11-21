@@ -166,7 +166,7 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 
 ### 3. 数据一致性
 
-使用列表而非 map，保证了数据结构的一致性，避免了同步问题。
+使用集合（由 map 实现）保证了数据结构的一致性，避免了同步问题。
 
 ### 4. 功能完整
 
