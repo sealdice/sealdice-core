@@ -336,7 +336,8 @@ func RegisterBuiltinStory(self *Dice) {
 					break
 				}
 
-				text := fmt.Sprintf("来自cnmods的搜索结果 - %d/%d页%d项:\n", thePage, ret.Data.TotalPages, ret.Data.TotalElements)
+				var text strings.Builder
+				fmt.Fprintf(&text, "来自cnmods的搜索结果 - %d/%d页%d项:\n", thePage, ret.Data.TotalPages, ret.Data.TotalElements)
 				for _, item := range ret.Data.List {
 					ver := ""
 					if item.ModuleVersion == "coc6th" {
@@ -346,12 +347,12 @@ func RegisterBuiltinStory(self *Dice) {
 					// if item.ModuleVersion == "coc7th" {
 					//	ver = "[coc7]"
 					// }
-					text += fmt.Sprintf("[%d]%s%s %s%s - by %s\n", item.KeyID, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
+					fmt.Fprintf(&text, "[%d]%s%s %s%s - by %s\n", item.KeyID, ver, item.Title, item.ModuleAge, item.OccurrencePlace, item.Article)
 				}
 				if len(ret.Data.List) == 0 {
-					text += "什么也没发现"
+					text.WriteString("什么也没发现")
 				}
-				ReplyToSender(ctx, msg, text)
+				ReplyToSender(ctx, msg, text.String())
 			case "roll":
 				ret, err := CnmodsSearch("", 1, 1, false, "")
 				if err != nil {
