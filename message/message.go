@@ -30,11 +30,11 @@ func (c *CQCommand) Compile() string {
 	if c.Overwrite != "" {
 		return c.Overwrite
 	}
-	argsPart := ""
+	var argsPart strings.Builder
 	for k, v := range c.Args {
-		argsPart += fmt.Sprintf(",%s=%s", k, v)
+		fmt.Fprintf(&argsPart, ",%s=%s", k, v)
 	}
-	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart)
+	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart.String())
 }
 
 type (
@@ -143,12 +143,17 @@ func newText(s string) *TextElement {
 }
 
 func CQToText(t string, d map[string]string) IMessageElement {
-	org := "[CQ:" + t
+	var org strings.Builder
+	org.WriteString("[CQ:")
+	org.WriteString(t)
 	for k, v := range d {
-		org += "," + k + "=" + v
+		org.WriteString(",")
+		org.WriteString(k)
+		org.WriteString("=")
+		org.WriteString(v)
 	}
-	org += "]"
-	return newText(org)
+	org.WriteString("]")
+	return newText(org.String())
 }
 func getFileName(header http.Header) string {
 	contentDisposition := header.Get("Content-Disposition")

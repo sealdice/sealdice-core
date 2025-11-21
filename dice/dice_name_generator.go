@@ -157,22 +157,22 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 		return ""
 	}
 
-	result := ""
+	var result strings.Builder
 	lastLeft := 0
 	for _, i := range re.FindAllStringIndex(rule, -1) {
 		var c *wr.Chooser
 		var err error
 		inner := rule[i[0]+1 : i[1]-1]
-		result += rule[lastLeft:i[0]]
+		result.WriteString(rule[lastLeft:i[0]])
 		c, inner, err = parseWeight(inner)
 		if err != nil {
-			result += "<语句错误>"
+			result.WriteString("<语句错误>")
 		} else {
-			result += parseInner(inner, c)
+			result.WriteString(parseInner(inner, c))
 		}
 		lastLeft = i[1]
 	}
 
-	result += rule[lastLeft:]
-	return result
+	result.WriteString(rule[lastLeft:])
+	return result.String()
 }

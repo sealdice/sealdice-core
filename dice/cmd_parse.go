@@ -487,11 +487,11 @@ func (c *CQCommand) Compile() string {
 	if c.Overwrite != "" {
 		return c.Overwrite
 	}
-	argsPart := ""
+	var argsPart strings.Builder
 	for k, v := range c.Args {
-		argsPart += fmt.Sprintf(",%s=%s", k, v)
+		fmt.Fprintf(&argsPart, ",%s=%s", k, v)
 	}
-	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart)
+	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart.String())
 }
 
 func ImageRewrite(longText string, solve func(text string) string) string {
