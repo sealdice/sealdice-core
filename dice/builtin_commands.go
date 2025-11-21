@@ -1601,6 +1601,13 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				var companionExtNames []string
+
+				// 记录激活前已有的扩展
+				beforeActivate := make(map[string]bool)
+				for _, ext := range ctx.Group.ActivatedExtList {
+					beforeActivate[ext.Name] = true
+				}
+
 				// 排除最后一个参数 "on"
 				for index := range len(cmdArgs.Args) - 1 {
 					extName := strings.ToLower(cmdArgs.Args[index])
@@ -1608,20 +1615,23 @@ func (d *Dice) registerCoreCommands() {
 						extNames = append(extNames, i.Name)
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
 						ctx.Group.RemoveFromInactivated(i.Name)
-
-						// 记录激活前已有的扩展
-						beforeActivate := make(map[string]bool)
-						for _, ext := range ctx.Group.ActivatedExtList {
-							beforeActivate[ext.Name] = true
-						}
-
 						ctx.Group.ExtActive(i)
+					}
+				}
 
-						// 检查新激活的伴随扩展
-						for _, ext := range ctx.Group.ActivatedExtList {
-							if !beforeActivate[ext.Name] && ext.Name != i.Name {
-								companionExtNames = append(companionExtNames, ext.Name)
+				// 循环结束后统一检查新激活的伴随扩展
+				for _, ext := range ctx.Group.ActivatedExtList {
+					if !beforeActivate[ext.Name] {
+						// 检查是否是用户明确激活的扩展
+						isUserActivated := false
+						for index := range len(cmdArgs.Args) - 1 {
+							if strings.EqualFold(cmdArgs.Args[index], ext.Name) {
+								isUserActivated = true
+								break
 							}
+						}
+						if !isUserActivated {
+							companionExtNames = append(companionExtNames, ext.Name)
 						}
 					}
 				}

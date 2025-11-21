@@ -13,42 +13,11 @@ import (
 	"github.com/dop251/goja"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 )
 
 const (
 	maxChainDepth = 10
 )
-
-// StringSet 是一个字符串集合，内部使用 map[string]struct{} 实现，
-// 序列化时转换为 []string 格式以提高可读性。
-type StringSet map[string]struct{}
-
-// MarshalYAML 将 StringSet 序列化为 []string
-func (s StringSet) MarshalYAML() (interface{}, error) {
-	if s == nil {
-		return []string{}, nil
-	}
-	keys := make([]string, 0, len(s))
-	for k := range s {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys, nil
-}
-
-// UnmarshalYAML 将 []string 反序列化为 StringSet
-func (s *StringSet) UnmarshalYAML(node *yaml.Node) error {
-	var items []string
-	if err := node.Decode(&items); err != nil {
-		return err
-	}
-	*s = make(map[string]struct{}, len(items))
-	for _, item := range items {
-		(*s)[item] = struct{}{}
-	}
-	return nil
-}
 
 // ActivateReason 用于区分扩展开启的触发来源（手动、首次消息自动、脚本重载等）。
 type ActivateReason string
