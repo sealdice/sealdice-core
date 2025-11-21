@@ -1665,16 +1665,16 @@ func (d *Dice) registerCoreCommands() {
 						closed = append(closed, ei.Name)
 
 						// 检查被连带关闭的伴随扩展
-						for extName := range beforeDeactivate {
+						for closedExtName := range beforeDeactivate {
 							stillActive := false
 							for _, ext := range ctx.Group.ActivatedExtList {
-								if ext.Name == extName {
+								if ext.Name == closedExtName {
 									stillActive = true
 									break
 								}
 							}
-							if !stillActive && extName != ei.Name {
-								companionClosed = append(companionClosed, extName)
+							if !stillActive && closedExtName != ei.Name {
+								companionClosed = append(companionClosed, closedExtName)
 							}
 						}
 					} else {
