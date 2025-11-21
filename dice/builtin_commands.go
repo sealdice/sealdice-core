@@ -1605,7 +1605,7 @@ func (d *Dice) registerCoreCommands() {
 				for index := range len(cmdArgs.Args) - 1 {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName, false); i != nil {
-						extNames = append(extNames, extName)
+						extNames = append(extNames, i.Name)
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
 						ctx.Group.RemoveFromInactivated(i.Name)
 
