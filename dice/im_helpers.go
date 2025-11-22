@@ -63,8 +63,8 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		if group.DiceIDExistsMap == nil {
 			group.DiceIDExistsMap = new(SyncMap[string, bool])
 		}
-		if group.ExtDisabledByUser == nil {
-			group.ExtDisabledByUser = map[string]bool{}
+		if group.InactivatedExtSet == nil {
+			group.InactivatedExtSet = StringSet{}
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -83,7 +83,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		session.ServiceAtNew.Store(groupID, &GroupInfo{
 			Active:            true,
 			ActivatedExtList:  extLst,
-			ExtDisabledByUser: map[string]bool{},
+			InactivatedExtSet: StringSet{},
 			Players:           new(SyncMap[string, *GroupPlayerInfo]),
 			GroupID:           groupID,
 			DiceIDActiveMap:   new(SyncMap[string, bool]),
@@ -133,6 +133,10 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	}
 	if msg.ChannelID != "" {
 		groupInfo.ChannelID = msg.ChannelID
+	}
+
+	if ctx.Dice != nil {
+		groupInfo.SyncExtensionsOnMessage(ctx.Dice)
 	}
 
 	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)
