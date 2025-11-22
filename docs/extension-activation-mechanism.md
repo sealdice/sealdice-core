@@ -29,15 +29,15 @@
 新机制使用以下数据结构：
 
 1. **`ActivatedExtList []*ExtInfo`** - 当前已激活的扩展列表
-2. **`InactivatedExtList []string`** - 当前已关闭的扩展名称列表（新增）
+2. **`InactivatedExtSet StringSet`** - 当前已关闭的扩展名称集合（新增）
 3. **`ExtActiveListSnapshot []string`** - 用于维持扩展激活顺序（保留）
 
-移除了 `ExtDisabledByUser map[string]bool`，其功能由 `InactivatedExtList` 替代。
+移除了 `ExtDisabledByUser map[string]bool`，其功能由 `InactivatedExtSet` 替代。
 
 **设计原则**：
 - `ActivatedExtList` 存储完整的扩展对象，便于直接使用
-- `InactivatedExtList` 只存储扩展名称，节省内存，与 snapshot 设计保持一致
-- 两个列表清晰记录扩展的激活/关闭状态，无需复杂推断
+- `InactivatedExtSet` 使用集合（`StringSet`，内部为 `map[string]struct{}`）存储扩展名称，高效查询，节省内存
+- 列表和集合清晰记录扩展的激活/关闭状态，无需复杂推断
 
 ### 核心逻辑
 
@@ -45,14 +45,14 @@
 
 ```go
 // 判断是否是新扩展
-if 扩展既不在ActivatedExtList，也不在InactivatedExtList {
+if 扩展既不在ActivatedExtList，也不在InactivatedExtSet {
     // 这是新扩展，根据 AutoActive 选项决定是否激活
     if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
         激活它，并加入 ActivatedExtList 和 ExtActiveListSnapshot
     } else {
-        加入 InactivatedExtList
+        加入 InactivatedExtSet
     }
-} else if 扩展在InactivatedExtList中 {
+} else if 扩展在InactivatedExtSet中 {
     // 用户曾经关闭过，保持关闭状态
     不激活
 } else {
@@ -65,33 +65,27 @@ if 扩展既不在ActivatedExtList，也不在InactivatedExtList {
 ### 新增辅助方法
 
 ```go
-// IsExtInActivatedList 检查扩展是否在激活列表中
-func (group *GroupInfo) IsExtInActivatedList(name string) bool
+// IsExtInactivated 检查扩展是否在关闭集合中
+func (group *GroupInfo) IsExtInactivated(name string) bool
 
-// IsExtInInactivatedList 检查扩展是否在关闭列表中
-func (group *GroupInfo) IsExtInInactivatedList(name string) bool
+// RemoveFromInactivated 从关闭集合中移除扩展
+func (group *GroupInfo) RemoveFromInactivated(name string)
 
-// IsExtKnown 检查扩展是否已知（在激活或关闭列表中）
-func (group *GroupInfo) IsExtKnown(name string) bool
-
-// RemoveFromInactivatedList 从关闭列表中移除扩展
-func (group *GroupInfo) RemoveFromInactivatedList(name string)
-
-// AddToInactivatedList 添加扩展名称到关闭列表
-func (group *GroupInfo) AddToInactivatedList(name string)
+// AddToInactivated 添加扩展名称到关闭集合
+func (group *GroupInfo) AddToInactivated(name string)
 ```
 
 ### 修改的方法
 
 #### 1. ExtActive
 
-当用户手动激活一个扩展时，会自动从关闭列表中移除：
+当用户手动激活一个扩展时，会自动从关闭集合中移除：
 
 ```go
 func (group *GroupInfo) ExtActive(ei *ExtInfo) {
-    // 从关闭列表中移除
-    group.RemoveFromInactivatedList(ei.Name)
-    
+    // 从关闭集合中移除
+    group.RemoveFromInactivated(ei.Name)
+
     // 添加到激活列表
     // ...
 }
@@ -99,16 +93,16 @@ func (group *GroupInfo) ExtActive(ei *ExtInfo) {
 
 #### 2. ExtInactive / ExtInactiveByName
 
-当用户手动关闭一个扩展时，会自动加入关闭列表：
+当用户手动关闭一个扩展时，会自动加入关闭集合：
 
 ```go
 func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
     // 从激活列表中移除
     // ...
-    
-    // 加入关闭列表
+
+    // 加入关闭集合
     group.AddToInactivated(ei.Name)
-    
+
     // 从快照中移除
     // ...
 }
@@ -183,20 +177,20 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 旧的群组数据中可能存在 `ExtDisabledByUser` 字段。新机制会自动处理：
 
 1. 如果群组数据中存在旧的 `ExtDisabledByUser` 字段，它会被忽略
-2. 新机制会初始化 `InactivatedExtList` 为空列表
+2. 新机制会初始化 `InactivatedExtSet` 为空集合
 3. 当扩展首次加载时，根据 AutoActive 自动决定是否激活
 
 ### API 变更
 
 如果你的代码中使用了以下方法，需要更新：
 
-| 旧方法 | 新方法 | 参数变化 |
-|--------|--------|----------|
-| `IsUserDisabled(name)` | `IsExtInactivated(name)` | 无变化 |
-| `SetUserDisabled(name)` | `AddToInactivated(name)` | 无变化 |
-| `ClearUserDisabledFlag(name)` | `RemoveFromInactivated(name)` | 无变化 |
+| 旧方法 | 新方法 | 说明 |
+|--------|--------|------|
+| `IsUserDisabled(name)` | `IsExtInactivated(name)` | 检查扩展是否被标记为手动关闭 |
+| `SetUserDisabled(name)` | `AddToInactivated(name)` | 将扩展添加到关闭集合 |
+| `ClearUserDisabledFlag(name)` | `RemoveFromInactivated(name)` | 从关闭集合中移除扩展 |
 
-**重要**：`AddToInactivatedList` 的参数已从 `*ExtInfo` 改为 `string`（只需传扩展名称）
+**注意**：所有方法的参数都是 `string`（扩展名称），不需要传递 `*ExtInfo` 对象。
 
 ## 测试
 
@@ -210,4 +204,10 @@ go test ./dice/...
 
 ## 总结
 
-新的扩展激活机制通过引入 `InactivatedExtSet`，简化了扩展状态管理，使代码更加清晰易懂。核心思想是：**用一个明确的列表和一个集合来记录扩展的激活和关闭状态，而不是通过复杂的检查逻辑来推断**。
+新的扩展激活机制通过引入 `InactivatedExtSet`，简化了扩展状态管理，使代码更加清晰易懂。核心思想是：**用一个激活列表（`ActivatedExtList`）和一个关闭集合（`InactivatedExtSet`）来明确记录扩展的状态，而不是通过复杂的检查逻辑来推断**。
+
+使用 `StringSet`（基于 `map[string]struct{}`）作为关闭集合的优势：
+- 高效的 O(1) 查询性能
+- 自动去重，避免重复记录
+- 内存占用小（只存储键，值为空结构体）
+- 支持 YAML 序列化为有序的字符串数组，提高可读性
