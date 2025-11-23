@@ -1608,11 +1608,14 @@ func (d *Dice) registerCoreCommands() {
 					beforeActivate[ext.Name] = true
 				}
 
+				userActivatedNames := make(map[string]bool)
+
 				// 排除最后一个参数 "on"
 				for index := range len(cmdArgs.Args) - 1 {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName, false); i != nil {
 						extNames = append(extNames, i.Name)
+						userActivatedNames[i.Name] = true
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
 						ctx.Group.RemoveFromInactivated(i.Name)
 						ctx.Group.ExtActive(i)
@@ -1621,18 +1624,8 @@ func (d *Dice) registerCoreCommands() {
 
 				// 循环结束后统一检查新激活的伴随扩展
 				for _, ext := range ctx.Group.ActivatedExtList {
-					if !beforeActivate[ext.Name] {
-						// 检查是否是用户明确激活的扩展
-						isUserActivated := false
-						for index := range len(cmdArgs.Args) - 1 {
-							if strings.EqualFold(cmdArgs.Args[index], ext.Name) {
-								isUserActivated = true
-								break
-							}
-						}
-						if !isUserActivated {
-							companionExtNames = append(companionExtNames, ext.Name)
-						}
+					if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
+						companionExtNames = append(companionExtNames, ext.Name)
 					}
 				}
 
@@ -1658,38 +1651,46 @@ func (d *Dice) registerCoreCommands() {
 				var closed []string
 				var companionClosed []string
 				var notfound []string
+				companionClosedSet := make(map[string]struct{})
+
+				// 记录关闭前的扩展列表
+				beforeDeactivate := make(map[string]bool)
+				for _, ext := range ctx.Group.ActivatedExtList {
+					beforeDeactivate[ext.Name] = true
+				}
+				directlyClosed := make(map[string]struct{})
 
 				// 排除最后一个参数 "off"
 				for index := range len(cmdArgs.Args) - 1 {
 					extName := cmdArgs.Args[index]
 					extName = d.ExtAliasToName(extName)
 
-					// 记录关闭前的扩展列表
-					beforeDeactivate := make(map[string]bool)
-					for _, ext := range ctx.Group.ActivatedExtList {
-						beforeDeactivate[ext.Name] = true
-					}
-
 					ei := ctx.Group.ExtInactiveByName(extName)
 					if ei != nil {
 						closed = append(closed, ei.Name)
-
-						// 检查被连带关闭的伴随扩展
-						for closedExtName := range beforeDeactivate {
-							stillActive := false
-							for _, ext := range ctx.Group.ActivatedExtList {
-								if ext.Name == closedExtName {
-									stillActive = true
-									break
-								}
-							}
-							if !stillActive && closedExtName != ei.Name {
-								companionClosed = append(companionClosed, closedExtName)
-							}
-						}
+						directlyClosed[ei.Name] = struct{}{}
 					} else {
 						notfound = append(notfound, extName)
 					}
+				}
+
+				// 检查被连带关闭的伴随扩展：差集 = 关闭前 - 关闭后 - 主动关闭
+				afterDeactivate := make(map[string]bool)
+				for _, ext := range ctx.Group.ActivatedExtList {
+					afterDeactivate[ext.Name] = true
+				}
+				for closedExtName := range beforeDeactivate {
+					if afterDeactivate[closedExtName] {
+						continue
+					}
+					if _, manuallyClosed := directlyClosed[closedExtName]; manuallyClosed {
+						continue
+					}
+					if _, alreadyAdded := companionClosedSet[closedExtName]; alreadyAdded {
+						continue
+					}
+					companionClosedSet[closedExtName] = struct{}{}
+					companionClosed = append(companionClosed, closedExtName)
 				}
 
 				var text string

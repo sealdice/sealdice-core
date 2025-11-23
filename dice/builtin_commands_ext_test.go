@@ -75,6 +75,23 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 			userActivateNames: []string{"ext1", "EXT2"}, // 用户输入不同大小写
 			expectedCompanion: []string{},               // Ext2 不应该被识别为伴随扩展
 		},
+		{
+			name: "使用别名激活且没有伴随扩展",
+			extensions: []*ExtInfo{
+				{Name: "MyExt", Aliases: []string{"alias1"}},
+			},
+			userActivateNames: []string{"alias1"},
+			expectedCompanion: []string{},
+		},
+		{
+			name: "使用别名激活且存在伴随扩展",
+			extensions: []*ExtInfo{
+				{Name: "MyExt", Aliases: []string{"alias1"}},
+				{Name: "Companion", ActiveWith: []string{"MyExt"}},
+			},
+			userActivateNames: []string{"alias1"},
+			expectedCompanion: []string{"Companion"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -89,6 +106,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 			for _, ext := range group.ActivatedExtList {
 				beforeActivate[ext.Name] = true
 			}
+			userActivatedNames := make(map[string]bool)
 
 			// 激活用户指定的扩展（模拟循环激活）
 			var activatedExtNames []string
@@ -96,6 +114,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 				extName = strings.ToLower(extName)
 				if ext := dice.ExtFind(extName, false); ext != nil {
 					activatedExtNames = append(activatedExtNames, ext.Name)
+					userActivatedNames[ext.Name] = true
 					group.RemoveFromInactivated(ext.Name)
 					group.ExtActive(ext)
 				}
@@ -104,18 +123,8 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 			// 检查新激活的伴随扩展（模拟 builtin_commands.go 中的检测逻辑）
 			var companionExtNames []string
 			for _, ext := range group.ActivatedExtList {
-				if !beforeActivate[ext.Name] {
-					// 检查是否是用户明确激活的扩展
-					isUserActivated := false
-					for _, userExtName := range tt.userActivateNames {
-						if strings.EqualFold(userExtName, ext.Name) {
-							isUserActivated = true
-							break
-						}
-					}
-					if !isUserActivated {
-						companionExtNames = append(companionExtNames, ext.Name)
-					}
+				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
+					companionExtNames = append(companionExtNames, ext.Name)
 				}
 			}
 
@@ -204,10 +213,12 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 			for _, ext := range group.ActivatedExtList {
 				beforeActivate[ext.Name] = true
 			}
+			userActivatedNames := make(map[string]bool)
 
 			for _, extName := range tt.userActivateNames {
 				extName = strings.ToLower(extName)
 				if ext := dice.ExtFind(extName, false); ext != nil {
+					userActivatedNames[ext.Name] = true
 					group.RemoveFromInactivated(ext.Name)
 					group.ExtActive(ext)
 				}
@@ -215,17 +226,8 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 
 			var companionExtNames []string
 			for _, ext := range group.ActivatedExtList {
-				if !beforeActivate[ext.Name] {
-					isUserActivated := false
-					for _, userExtName := range tt.userActivateNames {
-						if strings.EqualFold(userExtName, ext.Name) {
-							isUserActivated = true
-							break
-						}
-					}
-					if !isUserActivated {
-						companionExtNames = append(companionExtNames, ext.Name)
-					}
+				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
+					companionExtNames = append(companionExtNames, ext.Name)
 				}
 			}
 
