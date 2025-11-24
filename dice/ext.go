@@ -37,12 +37,27 @@ const (
 type ActiveWithGraph map[string][]string
 
 func (d *Dice) rebuildActiveWithGraph() {
+	d.ActiveWithGraphMu.Lock()
+	defer d.ActiveWithGraphMu.Unlock()
+	d.rebuildActiveWithGraphLocked()
+}
+
+func (d *Dice) rebuildActiveWithGraphLocked() {
 	d.ActiveWithGraph = BuildActiveWithGraph(d.ExtList)
 }
 
 func (d *Dice) activeWithGraph() *SyncMap[string, []string] {
+	d.ActiveWithGraphMu.RLock()
+	graph := d.ActiveWithGraph
+	d.ActiveWithGraphMu.RUnlock()
+	if graph != nil {
+		return graph
+	}
+
+	d.ActiveWithGraphMu.Lock()
+	defer d.ActiveWithGraphMu.Unlock()
 	if d.ActiveWithGraph == nil {
-		d.rebuildActiveWithGraph()
+		d.rebuildActiveWithGraphLocked()
 	}
 	return d.ActiveWithGraph
 }
@@ -160,7 +175,9 @@ func (d *Dice) RegisterExtension(extInfo *ExtInfo) {
 		registerKey(alias)
 	}
 	d.ExtRegistryVersion++
+	d.ActiveWithGraphMu.Lock()
 	d.ActiveWithGraph = nil
+	d.ActiveWithGraphMu.Unlock()
 }
 
 func (d *Dice) GetExtDataDir(extName string) string {

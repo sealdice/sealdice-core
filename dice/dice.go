@@ -189,7 +189,11 @@ type Dice struct {
 	CmdMap             CmdMapCls                  `json:"-" yaml:"-"`
 	ExtList            []*ExtInfo                 `yaml:"-"`
 	ExtRegistry        *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`
+	// ActiveWithGraph 伴随激活图，nil 表示需要重建。
+	// 访问时必须通过 activeWithGraph() 方法，确保并发安全。
 	ActiveWithGraph    *SyncMap[string, []string] `json:"-" yaml:"-"`
+	// ActiveWithGraphMu 保护 ActiveWithGraph 的并发读写
+	ActiveWithGraphMu  sync.RWMutex               `json:"-" yaml:"-"`
 	ExtRegistryVersion int64                      `json:"-" yaml:"-"`
 	RollParser         *DiceRollParser            `yaml:"-"`
 	LastUpdatedTime    int64                      `yaml:"-"`
@@ -314,7 +318,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 	d.CmdMap = CmdMapCls{}
 	d.ExtRegistry = new(SyncMap[string, *ExtInfo])
-	d.ActiveWithGraph = new(SyncMap[string, []string])
+	// ActiveWithGraph 通过 activeWithGraph() 方法懒加载，无需在此初始化
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
