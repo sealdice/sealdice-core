@@ -1372,11 +1372,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			if ctx != nil && ctx.Dice != nil {
-				if tmpl, ok := ctx.Dice.GameSystemMap.Load("coc7"); ok && tmpl != nil {
-					ctx.SystemTemplate = tmpl
-				}
-			}
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
