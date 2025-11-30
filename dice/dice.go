@@ -186,19 +186,19 @@ type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
 	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
 
-	CmdMap             CmdMapCls                  `json:"-" yaml:"-"`
-	ExtList            []*ExtInfo                 `yaml:"-"`
-	ExtRegistry        *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`
+	CmdMap      CmdMapCls                  `json:"-" yaml:"-"`
+	ExtList     []*ExtInfo                 `yaml:"-"`
+	ExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`
 	// ActiveWithGraph 伴随激活图，nil 表示需要重建。
 	// 访问时必须通过 activeWithGraph() 方法，确保并发安全。
-	ActiveWithGraph    *SyncMap[string, []string] `json:"-" yaml:"-"`
+	ActiveWithGraph *SyncMap[string, []string] `json:"-" yaml:"-"`
 	// ActiveWithGraphMu 保护 ActiveWithGraph 的并发读写
-	ActiveWithGraphMu  sync.RWMutex               `json:"-" yaml:"-"`
-	ExtRegistryVersion int64                      `json:"-" yaml:"-"`
-	RollParser         *DiceRollParser            `yaml:"-"`
-	LastUpdatedTime    int64                      `yaml:"-"`
-	TextMap            map[string]*wr.Chooser     `yaml:"-"`
-	BaseConfig         BaseConfig                 `yaml:"-"`
+	ActiveWithGraphMu  sync.RWMutex           `json:"-" yaml:"-"`
+	ExtRegistryVersion int64                  `json:"-" yaml:"-"`
+	RollParser         *DiceRollParser        `yaml:"-"`
+	LastUpdatedTime    int64                  `yaml:"-"`
+	TextMap            map[string]*wr.Chooser `yaml:"-"`
+	BaseConfig         BaseConfig             `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
