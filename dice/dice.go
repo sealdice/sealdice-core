@@ -78,6 +78,8 @@ type ExtInfo struct {
 	ConflictWith []string `json:"-"        yaml:"-"`
 	Official     bool     `json:"-"        yaml:"-"` // 官方插件
 
+	ActiveWith []string `jsbind:"activeWith" json:"-" yaml:"-"` // 跟随开关：当指定扩展开启或关闭时，本扩展也会同步
+
 	dice          *Dice
 	IsJsExt       bool          `json:"-"`
 	JSLoopVersion int64         `json:"-"`
@@ -184,12 +186,19 @@ type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
 	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
 
-	CmdMap          CmdMapCls              `json:"-" yaml:"-"`
-	ExtList         []*ExtInfo             `yaml:"-"`
-	RollParser      *DiceRollParser        `yaml:"-"`
-	LastUpdatedTime int64                  `yaml:"-"`
-	TextMap         map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig      BaseConfig             `yaml:"-"`
+	CmdMap      CmdMapCls                  `json:"-" yaml:"-"`
+	ExtList     []*ExtInfo                 `yaml:"-"`
+	ExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`
+	// ActiveWithGraph 伴随激活图，nil 表示需要重建。
+	// 访问时必须通过 activeWithGraph() 方法，确保并发安全。
+	ActiveWithGraph *SyncMap[string, []string] `json:"-" yaml:"-"`
+	// ActiveWithGraphMu 保护 ActiveWithGraph 的并发读写
+	ActiveWithGraphMu  sync.RWMutex           `json:"-" yaml:"-"`
+	ExtRegistryVersion int64                  `json:"-" yaml:"-"`
+	RollParser         *DiceRollParser        `yaml:"-"`
+	LastUpdatedTime    int64                  `yaml:"-"`
+	TextMap            map[string]*wr.Chooser `yaml:"-"`
+	BaseConfig         BaseConfig             `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
@@ -308,6 +317,8 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 	d.CmdMap = CmdMapCls{}
+	d.ExtRegistry = new(SyncMap[string, *ExtInfo])
+	// ActiveWithGraph 通过 activeWithGraph() 方法懒加载，无需在此初始化
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
@@ -560,6 +571,14 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 // ExtFind 根据名称或别名查找扩展
 func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
 	find := func(_ string) *ExtInfo {
+		if d.ExtRegistry != nil {
+			if ext, ok := d.ExtRegistry.Load(s); ok && ext != nil {
+				return ext
+			}
+			if ext, ok := d.ExtRegistry.Load(strings.ToLower(s)); ok && ext != nil {
+				return ext
+			}
+		}
 		for _, i := range d.ExtList {
 			// 名字匹配，优先级最高
 			if i.Name == s {
