@@ -8,11 +8,115 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/tidwall/buntdb"
+	"go.uber.org/zap"
 )
 
+const (
+	maxChainDepth = 10
+)
+
+// ActivateReason 用于区分扩展开启的触发来源（手动、首次消息自动、脚本重载等）。
+type ActivateReason string
+
+// DeactivateReason 用于区分扩展关闭的触发来源。
+type DeactivateReason string
+
+const (
+	ActivateReasonManual       ActivateReason   = "manual"
+	ActivateReasonFirstMessage ActivateReason   = "first_message_auto"
+	ActivateReasonReload       ActivateReason   = "reload"
+	DeactivateReasonManual     DeactivateReason = "manual"
+	DeactivateReasonSystem     DeactivateReason = "system"
+)
+
+// ActiveWithGraph 描述扩展伴随关系：A -> [B,C] 表示激活 A 时需要附带 B、C。
+type ActiveWithGraph map[string][]string
+
+func (d *Dice) rebuildActiveWithGraph() {
+	d.ActiveWithGraphMu.Lock()
+	defer d.ActiveWithGraphMu.Unlock()
+	d.rebuildActiveWithGraphLocked()
+}
+
+func (d *Dice) rebuildActiveWithGraphLocked() {
+	d.ActiveWithGraph = BuildActiveWithGraph(d.ExtList)
+}
+
+func (d *Dice) activeWithGraph() *SyncMap[string, []string] {
+	d.ActiveWithGraphMu.RLock()
+	graph := d.ActiveWithGraph
+	d.ActiveWithGraphMu.RUnlock()
+	if graph != nil {
+		return graph
+	}
+
+	d.ActiveWithGraphMu.Lock()
+	defer d.ActiveWithGraphMu.Unlock()
+	if d.ActiveWithGraph == nil {
+		d.rebuildActiveWithGraphLocked()
+	}
+	return d.ActiveWithGraph
+}
+
+// BuildActiveWithGraph 根据扩展列表构建伴随激活图。
+// 返回反向图：A -> [B,C] 表示 B、C 跟随 A（当 A 开启时，B、C 也开启）
+func BuildActiveWithGraph(exts []*ExtInfo) *SyncMap[string, []string] {
+	graph := new(SyncMap[string, []string])
+	// 构建反向图：如果 ext 跟随 target，则在 graph[target] 中加入 ext
+	for _, ext := range exts {
+		for _, target := range ext.ActiveWith {
+			followers, _ := graph.Load(target)
+			followers = append(followers, ext.Name)
+			graph.Store(target, followers)
+		}
+	}
+	return graph
+}
+
+// collectChainedNames 收集所有跟随 base 扩展的伴随扩展（递归查找，返回拓扑顺序）。
+func collectChainedNames(logger *zap.SugaredLogger, graph *SyncMap[string, []string], base string, depthLimit int) []string {
+	visited := map[string]bool{}
+	visiting := map[string]bool{}
+	var order []string
+
+	if graph == nil {
+		return order
+	}
+
+	var dfs func(name string, depth int)
+	dfs = func(name string, depth int) {
+		if depth > depthLimit {
+			logger.Warnf("扩展 %s 的 ActiveWith 链深度超过 %d，停止展开", name, depthLimit)
+			return
+		}
+		if visiting[name] {
+			logger.Warnf("检测到扩展 %s 的 ActiveWith 存在循环，跳过连带操作", name)
+			return
+		}
+		if visited[name] {
+			return
+		}
+		visiting[name] = true
+		followers, _ := graph.Load(name)
+		for _, follower := range followers {
+			dfs(follower, depth+1)
+		}
+		visiting[name] = false
+		visited[name] = true
+		if name != base {
+			order = append(order, name)
+		}
+	}
+
+	dfs(base, 0)
+	return order
+}
+
+// RegisterBuiltinExt 注册所有内置扩展。
 func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtCoc7(d)
 	RegisterBuiltinExtLog(d)
@@ -40,24 +144,45 @@ func (d *Dice) RegisterBuiltinSystemTemplate() {
 	}
 }
 
-// RegisterExtension 注册扩展
+// RegisterExtension 注册扩展并刷新伴随激活图/版本号。
 //
-// panic 如果扩展的Name或Aliases冲突
+// panic 当扩展的 Name/Aliases 与现有扩展冲突。
 func (d *Dice) RegisterExtension(extInfo *ExtInfo) {
 	for _, name := range append(extInfo.Aliases, extInfo.Name) {
 		if collide := d.ExtFind(name, false); collide != nil {
-			panicMsg := fmt.Sprintf("扩展<%s>的名字%q与现存扩展<%s>冲突", extInfo.Name, name, collide.Name)
+			panicMsg := fmt.Sprintf("扩展<%s>的名称%q与扩展<%s>冲突", extInfo.Name, name, collide.Name)
 			panic(panicMsg)
 		}
 	}
 
 	extInfo.dice = d
 	d.ExtList = append(d.ExtList, extInfo)
+	if d.ExtRegistry == nil {
+		d.ExtRegistry = new(SyncMap[string, *ExtInfo])
+	}
+	registerKey := func(key string) {
+		if key == "" {
+			return
+		}
+		d.ExtRegistry.Store(key, extInfo)
+		lower := strings.ToLower(key)
+		if lower != key {
+			d.ExtRegistry.Store(lower, extInfo)
+		}
+	}
+	registerKey(extInfo.Name)
+	for _, alias := range extInfo.Aliases {
+		registerKey(alias)
+	}
+	d.ExtRegistryVersion++
+	d.ActiveWithGraphMu.Lock()
+	d.ActiveWithGraph = nil
+	d.ActiveWithGraphMu.Unlock()
 }
 
 func (d *Dice) GetExtDataDir(extName string) string {
 	p := path.Join(d.BaseConfig.DataDir, "extensions", extName)
-	_ = os.MkdirAll(p, 0755)
+	_ = os.MkdirAll(p, 0o755)
 	return p
 }
 
@@ -69,9 +194,7 @@ func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 	return path.Join(d.GetExtDataDir(extName), filename)
 }
 
-// ClearExtStorage closes the extension's storage connections, deletes the extension's
-// storage.db file and restarts the database. It does not return an error if the file
-// does not exist.
+// ClearExtStorage 删除扩展 storage.db 并重新初始化。
 func ClearExtStorage(d *Dice, ext *ExtInfo, name string) error {
 	err := ext.StorageClose()
 	if err != nil {
@@ -87,15 +210,14 @@ func ClearExtStorage(d *Dice, ext *ExtInfo, name string) error {
 		return err
 	}
 
-	err = ext.StorageInit()
-	return err
+	return ext.StorageInit()
 }
 
 func GetExtensionDesc(ei *ExtInfo) string {
 	var text strings.Builder
 	text.WriteString("> ")
 	text.WriteString(ei.Brief)
-	text.WriteString("\n提供命令:\n")
+	text.WriteString("\n提供指令:\n")
 	keys := make([]string, 0, len(ei.CmdMap))
 
 	valueMap := map[*CmdItemInfo]bool{}
@@ -105,18 +227,18 @@ func GetExtensionDesc(ei *ExtInfo) string {
 	}
 	sort.Strings(keys)
 
-	for _, i := range keys {
-		i := ei.CmdMap[i]
-		if valueMap[i] {
+	for _, name := range keys {
+		item := ei.CmdMap[name]
+		if valueMap[item] {
 			continue
 		}
-		valueMap[i] = true
-		if i.ShortHelp == "" {
+		valueMap[item] = true
+		if item.ShortHelp == "" {
 			text.WriteString(".")
-			text.WriteString(i.Name)
+			text.WriteString(item.Name)
 			text.WriteString("\n")
 		} else {
-			text.WriteString(i.ShortHelp)
+			text.WriteString(item.ShortHelp)
 			text.WriteString("\n")
 		}
 	}
@@ -124,21 +246,20 @@ func GetExtensionDesc(ei *ExtInfo) string {
 	return text.String()
 }
 
+// callWithJsCheck 保留旧行为：JS 扩展需要切回事件循环，避免并发问题。
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	if i.IsJsExt {
 		if d.Config.JsEnable {
 			loop, err := d.ExtLoopManager.GetLoop(i.JSLoopVersion)
 			if err != nil {
-				// 打个DEBUG日志？
 				i.dice.Logger.Errorf("扩展<%s>运行环境已经过期: %v", i.Name, err)
 				return
 			}
 			waitRun := make(chan int, 1)
 			loop.RunOnLoop(func(vm *goja.Runtime) {
 				defer func() {
-					// 防止崩掉进程
 					if r := recover(); r != nil {
-						d.Logger.Error("JS脚本报错:", r)
+						d.Logger.Error("JS脚本异常:", r)
 					}
 					waitRun <- 1
 				}()
@@ -147,25 +268,24 @@ func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 			})
 			<-waitRun
 		} else {
-			d.Logger.Infof("当前已关闭js，跳过<%v>", i.Name)
+			d.Logger.Infof("当前已关闭js扩展<%v>", i.Name)
 		}
 	} else {
 		f()
 	}
 }
 
+// StorageInit 与旧版一致：使用互斥锁确保只初始化一次。
 func (i *ExtInfo) StorageInit() error {
 	var err error
 	if i.dice == nil {
-		return errors.New("[扩展]:请先完成此扩展的注册")
+		return errors.New("[扩展]:必须先把扩展注册到 Dice")
 	}
 	d := i.dice
 
-	// 使用互斥锁保护初始化过程，确保只初始化一次
 	i.dbMu.Lock()
 	defer i.dbMu.Unlock()
 	if i.init {
-		// 如果已经初始化，则直接返回
 		return nil
 	}
 
@@ -173,41 +293,34 @@ func (i *ExtInfo) StorageInit() error {
 	fn := path.Join(dir, "storage.db")
 	i.Storage, err = buntdb.Open(fn)
 	if err != nil {
-		d.Logger.Errorf("[扩展]:初始化扩展数据库失败，原因：%v，路径为：%s", err, fn)
+		d.Logger.Errorf("[扩展]:初始化扩展数据库失败，原因: %v，路径为：%s", err, fn)
 		return err
 	}
-	// 否则初始化后使用
 	i.init = true
 	return nil
 }
 
+// StorageClose 与旧逻辑一致：先判断 init，再关闭数据库并回收状态。
 func (i *ExtInfo) StorageClose() error {
-	// 先上锁
 	i.dbMu.Lock()
-	// 保证还锁
 	defer i.dbMu.Unlock()
-	// 检查是否在init中，若已经关闭了就不需要处理了
 	if !i.init {
 		return nil
 	}
-	// 说初始化了但没有初始化，应该抛出异常
 	if i.Storage == nil {
-		return errors.New("[扩展]:Storage初始化错误")
+		return errors.New("[扩展]:Storage 未初始化")
 	}
 	err := i.Storage.Close()
-	// 经Xiangze-Li 佬提示，如果关闭失败，应该直接返回异常
-	// 不过向上是否有正确的err处理逻辑？我暂且蒙在鼓里
 	if err != nil {
-		i.dice.Logger.Errorf("[扩展]:关闭扩展数据库失败，原因：%v", err)
+		i.dice.Logger.Errorf("[扩展]:关闭扩展数据库失败，原因: %v", err)
 		return err
 	}
-	// 关闭成功，将Storage放空（实际我也不清楚是否需要该操作），返回nil.
 	i.Storage = nil
-	// 将init放为初始值false
 	i.init = false
 	return nil
 }
 
+// StorageSet/StorageGet 只是辅助函数，原注释无变更。
 func (i *ExtInfo) StorageSet(k, v string) error {
 	if err := i.StorageInit(); err != nil {
 		return err
@@ -219,6 +332,7 @@ func (i *ExtInfo) StorageSet(k, v string) error {
 	})
 }
 
+// StorageGet 与旧实现保持一致，出现 ErrNotFound 时直接返回空字符串。
 func (i *ExtInfo) StorageGet(k string) (string, error) {
 	if err := i.StorageInit(); err != nil {
 		return "", err
@@ -237,4 +351,256 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 	})
 
 	return val, err
+}
+
+// -------------------- 群扩展状态管理 --------------------
+
+func (group *GroupInfo) ensureInactivatedSet() {
+	if group.InactivatedExtSet == nil {
+		group.InactivatedExtSet = StringSet{}
+	}
+}
+
+// IsExtInactivated 判断扩展是否被标记为手动关闭。
+func (group *GroupInfo) IsExtInactivated(name string) bool {
+	if group.InactivatedExtSet == nil {
+		return false
+	}
+	_, ok := group.InactivatedExtSet[name]
+	return ok
+}
+
+func (group *GroupInfo) RemoveFromInactivated(name string) {
+	if group.InactivatedExtSet == nil {
+		return
+	}
+	delete(group.InactivatedExtSet, name)
+}
+
+func (group *GroupInfo) AddToInactivated(name string) {
+	group.ensureInactivatedSet()
+	group.InactivatedExtSet[name] = struct{}{}
+}
+
+func (group *GroupInfo) indexOfActivated(name string) int {
+	for idx, item := range group.ActivatedExtList {
+		if item != nil && item.Name == name {
+			return idx
+		}
+	}
+	return -1
+}
+
+func (group *GroupInfo) removeActivatedByName(name string) bool {
+	idx := group.indexOfActivated(name)
+	if idx == -1 {
+		return false
+	}
+	group.ActivatedExtList = append(group.ActivatedExtList[:idx], group.ActivatedExtList[idx+1:]...)
+	return true
+}
+
+func (group *GroupInfo) ensureSnapshotFromActivated() {
+	if len(group.ActivatedExtList) == 0 {
+		group.ExtActiveListSnapshot = nil
+		return
+	}
+	names := make([]string, 0, len(group.ActivatedExtList))
+	for _, item := range group.ActivatedExtList {
+		if item != nil {
+			names = append(names, item.Name)
+		}
+	}
+	group.ExtActiveListSnapshot = names
+}
+
+// ExtActive 开启扩展（手动触发）。
+func (group *GroupInfo) ExtActive(ei *ExtInfo) {
+	group.extActivateInternal(ei, ActivateReasonManual)
+}
+
+// ExtActiveBySnapshotOrder 兼容旧逻辑：按照快照顺序尝试开启扩展。
+func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bool) {
+	if ei == nil {
+		return
+	}
+	firstMap := map[string]bool{}
+	if isFirstTimeLoad {
+		firstMap[ei.Name] = true
+	}
+	group.ExtActiveBatchBySnapshotOrder([]*ExtInfo{ei}, firstMap)
+}
+
+// ExtActiveBatchBySnapshotOrder 批量按照快照顺序开启扩展。
+func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFirstTimeLoad map[string]bool) {
+	if len(extInfos) == 0 {
+		return
+	}
+	// 保存快照到本地变量，因为 extActivateInternal 会修改 group.ExtActiveListSnapshot
+	snapshot := make([]string, len(group.ExtActiveListSnapshot))
+	copy(snapshot, group.ExtActiveListSnapshot)
+
+	orderSet := StringSet{}
+	for _, name := range snapshot {
+		orderSet[name] = struct{}{}
+	}
+
+	lookup := map[string]*ExtInfo{}
+	for _, ext := range extInfos {
+		if ext != nil {
+			lookup[ext.Name] = ext
+		}
+	}
+
+	// 反向遍历快照，因为 extActivateInternal 会将扩展插入列表前端
+	// 这样可以保持原有的优先级顺序
+	for i := len(snapshot) - 1; i >= 0; i-- {
+		name := snapshot[i]
+		if group.IsExtInactivated(name) {
+			continue
+		}
+		if ext := lookup[name]; ext != nil {
+			group.extActivateInternal(ext, ActivateReasonReload)
+		}
+	}
+
+	for _, ext := range extInfos {
+		if ext == nil {
+			continue
+		}
+		if _, ok := orderSet[ext.Name]; ok {
+			continue
+		}
+		if group.IsExtInactivated(ext.Name) {
+			continue
+		}
+		if first, exists := isFirstTimeLoad[ext.Name]; exists && first {
+			group.extActivateInternal(ext, ActivateReasonReload)
+			continue
+		}
+		if ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive {
+			group.extActivateInternal(ext, ActivateReasonReload)
+		}
+	}
+	group.ensureSnapshotFromActivated()
+}
+
+// ExtInactive 手动关闭扩展，连带关闭伴随扩展。
+func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
+	return group.extDeactivateInternal(ei, DeactivateReasonManual, true)
+}
+
+// ExtInactiveSystem 系统级关闭（不写入 Inactivated 集合）。
+func (group *GroupInfo) ExtInactiveSystem(ei *ExtInfo) *ExtInfo {
+	return group.extDeactivateInternal(ei, DeactivateReasonSystem, false)
+}
+
+// ExtInactiveByName 通过名称关闭扩展。
+func (group *GroupInfo) ExtInactiveByName(name string) *ExtInfo {
+	for _, item := range group.ActivatedExtList {
+		if item != nil && item.Name == name {
+			return group.ExtInactive(item)
+		}
+	}
+	return nil
+}
+
+// ExtGetActive 查询扩展是否处于激活状态。
+func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
+	for _, item := range group.ActivatedExtList {
+		if item != nil && item.Name == name {
+			return item
+		}
+	}
+	return nil
+}
+
+func (group *GroupInfo) extActivateInternal(ei *ExtInfo, reason ActivateReason) {
+	if ei == nil || ei.dice == nil {
+		return
+	}
+	group.ensureInactivatedSet()
+	d := ei.dice
+	graph := d.activeWithGraph()
+	// 先激活主扩展
+	group.promoteExt(ei)
+	// 再激活伴随扩展，使其指令优先级更高（越晚激活优先级越高）
+	names := collectChainedNames(d.Logger, graph, ei.Name, maxChainDepth)
+	for _, name := range names {
+		if ext := d.ExtFind(name, false); ext != nil {
+			group.promoteExt(ext)
+		}
+	}
+	group.ensureSnapshotFromActivated()
+	group.UpdatedAtTime = time.Now().Unix()
+}
+
+func (group *GroupInfo) promoteExt(ext *ExtInfo) {
+	if ext == nil {
+		return
+	}
+	group.RemoveFromInactivated(ext.Name)
+	_ = group.removeActivatedByName(ext.Name)
+	group.ActivatedExtList = append([]*ExtInfo{ext}, group.ActivatedExtList...)
+}
+
+func (group *GroupInfo) extDeactivateInternal(ei *ExtInfo, reason DeactivateReason, markInactivated bool) *ExtInfo {
+	if ei == nil || ei.dice == nil {
+		return nil
+	}
+	d := ei.dice
+	graph := d.activeWithGraph()
+	names := []string{ei.Name}
+	names = append(names, collectChainedNames(d.Logger, graph, ei.Name, maxChainDepth)...)
+
+	var removed *ExtInfo
+	for _, name := range names {
+		if markInactivated {
+			group.AddToInactivated(name)
+		}
+		if ext := d.ExtFind(name, false); ext != nil {
+			if ext.Storage != nil {
+				_ = ext.StorageClose()
+			}
+			if group.removeActivatedByName(name) && removed == nil {
+				removed = ext
+			}
+		}
+	}
+	group.ensureSnapshotFromActivated()
+	group.UpdatedAtTime = time.Now().Unix()
+	return removed
+}
+
+// SyncExtensionsOnMessage 在群首次收到消息或扩展集发生变动时调用，按 AutoActive 规则处理新扩展。
+func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
+	if d == nil {
+		return
+	}
+	if group.ExtAppliedVersion == d.ExtRegistryVersion {
+		return
+	}
+	group.ensureInactivatedSet()
+	known := make(map[string]struct{}, len(group.ActivatedExtList)+len(group.InactivatedExtSet))
+	for _, ext := range group.ActivatedExtList {
+		if ext != nil {
+			known[ext.Name] = struct{}{}
+		}
+	}
+	for name := range group.InactivatedExtSet {
+		known[name] = struct{}{}
+	}
+
+	for _, ext := range d.ExtList {
+		if _, exists := known[ext.Name]; exists {
+			continue
+		}
+		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+			group.extActivateInternal(ext, ActivateReasonFirstMessage)
+		} else {
+			group.AddToInactivated(ext.Name)
+		}
+	}
+	group.ExtAppliedVersion = d.ExtRegistryVersion
+	group.ensureSnapshotFromActivated()
 }

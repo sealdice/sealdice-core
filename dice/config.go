@@ -2151,8 +2151,8 @@ func (d *Dice) loads() {
 				groupInfo.GroupID = id
 				groupInfo.UpdatedAtTime = 0
 
-				if groupInfo.ExtDisabledByUser == nil {
-					groupInfo.ExtDisabledByUser = map[string]bool{}
+				if groupInfo.InactivatedExtSet == nil {
+					groupInfo.InactivatedExtSet = StringSet{}
 				}
 
 				// 找出其中以群号开头的，这是1.2版本的bug
@@ -2210,8 +2210,8 @@ func (d *Dice) loads() {
 			if groupInfo.BotList == nil {
 				groupInfo.BotList = new(SyncMap[string, bool])
 			}
-			if groupInfo.ExtDisabledByUser == nil {
-				groupInfo.ExtDisabledByUser = map[string]bool{}
+			if groupInfo.InactivatedExtSet == nil {
+				groupInfo.InactivatedExtSet = StringSet{}
 			}
 			return true
 		})
