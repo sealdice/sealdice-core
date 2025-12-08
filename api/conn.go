@@ -823,6 +823,8 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		// 设置正在使用中 千万不要设置这个
+		// conn.SetEnable(myDice, true)
 		// 像Milky一样使用
 		go dice.ServePureOnebot(myDice, conn)
 		// 上次更新的时间

@@ -56,53 +56,39 @@ type PlatformAdapterOnebot struct {
 	isConnecting    bool // 是否正在建立连接
 
 	echoServer *echo.Echo
-	
-	DiceServing bool `yaml:"-"` // 是否正在服务中
-	servingMutex sync.Mutex // 保护DiceServing状态的互斥锁
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
-	// 检查适配器是否已启用
-	if !p.EndPoint.Enable {
-		p.logger.Info("OneBot适配器未启用，跳过连接启动")
-		return 0
-	}
-	
-	// 并发安全地检查服务状态
-	p.servingMutex.Lock()
-	if p.DiceServing {
-		p.servingMutex.Unlock()
-		p.logger.Info("OneBot适配器已在运行中，无需重复启动")
-		return 0
-	}
-	// 设置服务状态为true
-	p.DiceServing = true
-	p.servingMutex.Unlock()
-	
-	p.logger.Info("正在启动OneBot适配器连接...")
-	p.EndPoint.State = StateConnecting
-	
 	// 使用统一的连接启动逻辑
 	if err := p.startConnection(); err != nil {
-		p.logger.Errorf("OneBot适配器连接启动失败: %v", err)
-		p.EndPoint.State = StateConnecting
-		
-		// 并发安全地重置服务状态
-		p.servingMutex.Lock()
-		p.DiceServing = false // 启动失败，重置服务状态
-		p.servingMutex.Unlock()
-		
-		go p.retryConnect()
+		p.logger.Errorf("启动连接失败: %v", err)
 		return 3 // 连接失败
 	}
-	
 	return 0
 }
 
 // DoRelogin 重新登录/重连
 func (p *PlatformAdapterOnebot) DoRelogin() bool {
-	// 重新登录在该模式下不可用
-	p.logger.Info("OneBot适配器的重新登录功能已被废弃，此操作不会生效")
+	// 检查适配器是否已启用
+	if !p.EndPoint.Enable {
+		p.logger.Info("适配器已禁用，跳过重新登录")
+		return false
+	}
+
+	p.logger.Info("开始重新登录...")
+
+	// 清理现有资源
+	p.cleanupResources()
+
+	// 重新启动连接
+	if err := p.startConnection(); err != nil {
+		p.logger.Errorf("重新登录失败: %v", err)
+		p.EndPoint.State = StateConnecting
+		go p.retryConnect()
+		return false
+	}
+
+	p.logger.Info("重新登录成功")
 	return true
 }
 
@@ -113,33 +99,20 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 	if enable {
 		p.logger.Info("正在启用 OneBot 适配器...")
 		p.EndPoint.Enable = true
-		
-		// 并发安全地检查服务状态
-		p.servingMutex.Lock()
-		isServing := p.DiceServing
-		p.servingMutex.Unlock()
-		
-		// 如果当前没有在服务中，则开始Serve 
-		if !isServing {
-			p.logger.Info("检测到OneBot适配器未在运行，正在自动启动连接...")
-			result := p.Serve()
-			if result == 0 {
-				p.logger.Info("OneBot适配器连接启动成功")
-			} else {
-				p.logger.Errorf("OneBot适配器连接启动失败，返回码: %d", result)
-			}
+
+		// 使用统一的连接启动逻辑
+		if err := p.startConnection(); err != nil {
+			p.logger.Errorf("启用失败: %v", err)
+			p.EndPoint.State = StateConnecting
+			// 启用失败时不应该禁用适配器，而是进入重连状态
+			go p.retryConnect()
 		} else {
-			p.logger.Info("OneBot 适配器已启用，当前正在运行中")
+			p.logger.Info("OneBot 适配器启用成功")
 		}
 	} else {
 		p.logger.Info("正在禁用 OneBot 适配器...")
 		p.EndPoint.Enable = false
 		p.EndPoint.State = StateDisconnected
-		
-		// 并发安全地重置服务状态
-		p.servingMutex.Lock()
-		p.DiceServing = false
-		p.servingMutex.Unlock()
 
 		// 清理资源
 		p.cleanupResources()
@@ -340,10 +313,6 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	if err != nil {
 		p.logger.Errorf("获取登录信息异常 %v", err)
 		p.EndPoint.State = 3
-		// 并发安全地重置服务状态
-		p.servingMutex.Lock()
-		p.DiceServing = false // 连接失败，重置服务状态
-		p.servingMutex.Unlock()
 		return
 	}
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
@@ -351,10 +320,6 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	p.EndPoint.Nickname = info.NickName
 	// 状态设置
 	p.EndPoint.State = 1
-	// 并发安全地设置服务状态
-	p.servingMutex.Lock()
-	p.DiceServing = true // 连接成功，设置服务状态
-	p.servingMutex.Unlock()
 	// 启动Endpoint
 	p.EndPoint.Enable = true
 	// 更新上次时间，并存储
@@ -436,9 +401,9 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 		} else {
 			// 主动关闭或适配器已禁用的情况
 			if p.isShuttingDown {
-				p.logger.Info("OneBot连接已主动关闭")
+				p.logger.Info("连接已主动关闭")
 			} else {
-				p.logger.Info("OneBot适配器已禁用，连接断开")
+				p.logger.Info("适配器已禁用，连接断开")
 			}
 			p.EndPoint.State = StateDisconnected
 		}
@@ -520,11 +485,6 @@ func (p *PlatformAdapterOnebot) cleanupResources() {
 	p.isConnecting = false
 	p.EndPoint.State = StateDisconnected
 	p.connectionMutex.Unlock()
-	
-	// 并发安全地重置服务状态
-	p.servingMutex.Lock()
-	p.DiceServing = false // 清理资源时重置服务状态
-	p.servingMutex.Unlock()
 
 	// 6. 重置主动关闭标志
 	p.isShuttingDown = false
@@ -578,7 +538,7 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 func (p *PlatformAdapterOnebot) retryConnect() {
 	// 检查适配器是否已被禁用
 	if !p.EndPoint.Enable {
-		p.logger.Info("OneBot适配器已被禁用，取消重连")
+		p.logger.Info("适配器已被禁用，取消重连")
 		return
 	}
 
@@ -597,7 +557,7 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 		p.retryMutex.Unlock()
 	}()
 
-	const maxRetries = 10
+	const maxRetries = 5
 	const baseDelay = 2 * time.Second
 
 	err := retry.Do(
@@ -629,7 +589,7 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 		retry.OnRetry(func(n uint, err error) {
 			// 在重试前再次检查适配器是否已被禁用
 			if !p.EndPoint.Enable {
-				p.logger.Info("OneBot适配器已被禁用，停止重试")
+				p.logger.Info("适配器已被禁用，停止重试")
 				return
 			}
 			nextDelay := time.Duration(1<<n) * baseDelay
@@ -640,14 +600,10 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 	if err != nil {
 		// 检查是否是因为适配器被禁用而失败
 		if strings.Contains(err.Error(), "适配器已被禁用") {
-			p.logger.Info("重连已停止：OneBot适配器被禁用")
+			p.logger.Info("重连已停止：适配器被禁用")
 		} else {
 			p.logger.Errorf("重连最终失败，已达到最大重试次数 %d: %v", maxRetries, err)
 			p.EndPoint.State = 3
-			// 并发安全地重置服务状态
-			p.servingMutex.Lock()
-			p.DiceServing = false // 重连失败，重置服务状态
-			p.servingMutex.Unlock()
 		}
 	} else {
 		p.logger.Infof("OneBot 重连成功")
