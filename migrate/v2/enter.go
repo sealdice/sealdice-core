@@ -8,14 +8,15 @@ import (
 	v141 "sealdice-core/migrate/v2/v141"
 	v144 "sealdice-core/migrate/v2/v144"
 	v150 "sealdice-core/migrate/v2/v150"
+	v151 "sealdice-core/migrate/v2/v151"
 	operator "sealdice-core/utils/dboperator/engine"
 	upgrade "sealdice-core/utils/upgrader"
 	"sealdice-core/utils/upgrader/store"
 )
 
 func InitUpgrader(operator operator.DatabaseOperator) error {
-	store := store.NewJSONStore("upgrade_metadata.json")
-	mgr := &upgrade.Manager{Store: store, Database: operator}
+	storer := store.NewJSONStore("upgrade_metadata.json")
+	mgr := &upgrade.Manager{Store: storer, Database: operator}
 	// V120注册
 	mgr.Register(v120.V120Migration)
 	mgr.Register(v120.V120LogMessageMigration)
@@ -28,6 +29,8 @@ func InitUpgrader(operator operator.DatabaseOperator) error {
 	// v150注册
 	mgr.Register(v150.V150UpgradeAttrsMigration)
 	mgr.Register(v150.V150FixGroupInfoMigration)
+	// v151注册
+	mgr.Register(v151.V151GORMCleanMigration)
 	err := mgr.ApplyAll()
 	if err != nil {
 		return err

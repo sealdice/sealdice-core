@@ -170,13 +170,16 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 			sort.Sort(spanByEnd(item.spans))
 			last := item.spans[size-1]
 
-			subDetailsText := ""
+			var subDetailsText strings.Builder
 			if size > 1 {
 				// 次级结果，如 (10d3)d5 中，此处为10d3的结果
 				// 例如 (10d3)d5=63[(10d3)d5=...,10d3=19]
 				for j := range len(item.spans) - 1 {
 					span := item.spans[j]
-					subDetailsText += "," + string(detailResult[span.Begin:span.End]) + "=" + span.Ret.ToString()
+					subDetailsText.WriteString(",")
+					subDetailsText.Write(detailResult[span.Begin:span.End])
+					subDetailsText.WriteString("=")
+					subDetailsText.WriteString(span.Ret.ToString())
 				}
 			}
 
@@ -213,7 +216,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 				detail += "=" + partRet
 			}
 
-			detail += subDetailsText + "]"
+			detail += subDetailsText.String() + "]"
 			if len(m) == 1 && detail == "["+baseExprText+"]" {
 				detail = "" // 规则1.3
 			}
@@ -305,7 +308,9 @@ func dsValueToRollVMv1(v *ds.VMValue) *VMValue {
 
 func DiceFormatV1(ctx *MsgContext, s string) (string, error) { //nolint:revive
 	// 在进行格式化前刷新临时变量
-	SetTempVars(ctx, ctx.Player.Name)
+	if ctx.Player != nil {
+		SetTempVars(ctx, ctx.Player.Name)
+	}
 	s = CompatibleReplace(ctx, s)
 
 	r, _, err := ctx.Dice._ExprTextV1(s, ctx)
@@ -792,8 +797,10 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 }
 
 func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
-	// 在进行格式化前刷新临时变量
-	SetTempVars(ctx, ctx.Player.Name)
+	// 在进行格式化前，若有玩家则刷新玩家的属性临时变量
+	if ctx.Player != nil {
+		SetTempVars(ctx, ctx.Player.Name)
+	}
 	ctx.CreateVmIfNotExists()
 	ctx.vm.Ret = nil
 	ctx.vm.Error = nil

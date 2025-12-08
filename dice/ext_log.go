@@ -335,19 +335,24 @@ func RegisterBuiltinExtLog(self *Dice) {
 					groupID = ctx.Group.GroupID
 				}
 
-				text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
+				var text strings.Builder
+				text.WriteString(DiceFormatTmpl(ctx, "日志:记录_列出_导入语"))
+				text.WriteString("\n")
 				lst, err := service.LogGetList(ctx.Dice.DBOperator, groupID)
 				if err == nil {
 					for _, i := range lst {
-						text += "- " + i + "\n"
+						text.WriteString("- ")
+						text.WriteString(i)
+						text.WriteString("\n")
 					}
 					if len(lst) == 0 {
-						text += "暂无记录"
+						text.WriteString("暂无记录")
 					}
 				} else {
-					text += "获取记录出错: " + err.Error()
+					text.WriteString("获取记录出错: ")
+					text.WriteString(err.Error())
 				}
-				ReplyToSender(ctx, msg, text)
+				ReplyToSender(ctx, msg, text.String())
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "new") {
 				if ctx.IsPrivate {
@@ -1182,9 +1187,17 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 
 					if j.Get("type").String() == "mod" {
 						readNum := func(item gjson.Result, dataKey, key string) {
-							// 直接使用 gjson 的 Int() 方法提取整数值
 							if val := item.Get(dataKey); val.Exists() {
-								pcInfo[nickname][key] = int(val.Int()) // 自动处理 float/int/string 数字
+								if val.Type == gjson.Number {
+									pcInfo[nickname][key] = int(val.Int()) // 自动处理 float/int/string 数字
+								} else {
+									// 保存的是 DiceScript 的 IntValue
+									if dsVal, dsErr := ds.VMValueFromJSON([]byte(val.Raw)); dsErr == nil {
+										if dsInt, dsOK := dsVal.ReadInt(); dsOK {
+											pcInfo[nickname][key] = int(dsInt)
+										}
+									}
+								}
 							}
 							// 如果字段不存在或非数字，pcInfo[nickname][key] 不会被修改
 						}
@@ -1215,12 +1228,12 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 		pcInfo = pcInfo2
 	}
 
-	texts := ""
+	var texts strings.Builder
 	for k, v := range pcInfo {
 		if len(v) == 0 {
 			continue
 		}
-		texts += fmt.Sprintf("<%v>当前团内检定情况:\n", k)
+		fmt.Fprintf(&texts, "<%v>当前团内检定情况:\n", k)
 		success := map[string]int{}
 		failed := map[string]int{}
 		var others []string
@@ -1263,39 +1276,47 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 		failedList := doSort(failed)
 
 		if len(successList) > 0 {
-			text := "成功: "
+			var text strings.Builder
+			text.WriteString("成功: ")
 			for _, j := range successList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":成功")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":成功")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(failedList) > 0 {
-			text := "失败: "
+			var text strings.Builder
+			text.WriteString("失败: ")
 			for _, j := range failedList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":失败")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":失败")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(oldVal) > 0 {
-			text := ""
+			var text strings.Builder
 			for k2, v2 := range oldVal {
-				text += fmt.Sprintf("%v[%v➯%v] ", k2, v2, newVal[k2])
+				fmt.Fprintf(&text, "%v[%v➯%v] ", k2, v2, newVal[k2])
 			}
-			texts += "属性: " + strings.TrimSpace(text) + "\n"
+			texts.WriteString("属性: ")
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(others) > 0 {
-			text := "其他: "
+			var text strings.Builder
+			text.WriteString("其他: ")
 			for _, j := range others {
-				text += fmt.Sprintf("%v%d ", j, v[j])
+				fmt.Fprintf(&text, "%v%d ", j, v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
-		texts += "\n"
+		texts.WriteString("\n")
 	}
-	return strings.TrimSpace(texts)
+	return strings.TrimSpace(texts.String())
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
@@ -1458,12 +1479,12 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 		pcInfo = pcInfo2
 	}
 
-	texts := ""
+	var texts strings.Builder
 	for k, v := range pcInfo {
 		if len(v) == 0 {
 			continue
 		}
-		texts += fmt.Sprintf("<%v>当前团内检定情况:\n", k)
+		fmt.Fprintf(&texts, "<%v>当前团内检定情况:\n", k)
 		success := map[string]int{}
 		failed := map[string]int{}
 		var others []string
@@ -1506,39 +1527,47 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 		failedList := doSort(failed)
 
 		if len(successList) > 0 {
-			text := "成功: "
+			var text strings.Builder
+			text.WriteString("成功: ")
 			for _, j := range successList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":成功")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":成功")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(failedList) > 0 {
-			text := "失败: "
+			var text strings.Builder
+			text.WriteString("失败: ")
 			for _, j := range failedList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":失败")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":失败")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(oldVal) > 0 {
-			text := ""
+			var text strings.Builder
 			for k2, v2 := range oldVal {
-				text += fmt.Sprintf("%v[%v➯%v] ", k2, v2, newVal[k2])
+				fmt.Fprintf(&text, "%v[%v➯%v] ", k2, v2, newVal[k2])
 			}
-			texts += "属性: " + strings.TrimSpace(text) + "\n"
+			texts.WriteString("属性: ")
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(others) > 0 {
-			text := "其他: "
+			var text strings.Builder
+			text.WriteString("其他: ")
 			for _, j := range others {
-				text += fmt.Sprintf("%v%d ", j, v[j])
+				fmt.Fprintf(&text, "%v%d ", j, v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
-		texts += "\n"
+		texts.WriteString("\n")
 	}
-	return strings.TrimSpace(texts)
+	return strings.TrimSpace(texts.String())
 }
 
 // LogRollBriefDetail 根据log生成骰点简报

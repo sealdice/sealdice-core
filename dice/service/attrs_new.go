@@ -87,12 +87,13 @@ func AttrsPutById(operator engine2.DatabaseOperator, id string, data []byte, nam
 	now := time.Now().Unix() // 获取当前时间
 	// 这里的原本逻辑是：第一次全量创建，第二次修改部分属性
 	// 所以使用了Attrs和Assign配合使用
+	bytePoint := dbutil.BYTE(data)
 	if err := db.Where("id = ?", id).
 		Attrs(map[string]any{
 			// 第一次全量建表
 			"id": id,
 			// 使用BYTE规避无法插入的问题
-			"data":             dbutil.BYTE(data),
+			"data":             &bytePoint,
 			"is_hidden":        true,
 			"binding_sheet_id": "",
 			"name":             name,
@@ -102,7 +103,7 @@ func AttrsPutById(operator engine2.DatabaseOperator, id string, data []byte, nam
 		}).
 		// 如果是更新的情况，更新下面这部分，则需要被更新的为：
 		Assign(map[string]any{
-			"data":       dbutil.BYTE(data),
+			"data":       &bytePoint,
 			"updated_at": now,
 			"name":       name,
 			"sheet_type": sheetType,
@@ -210,7 +211,7 @@ func AttrsBindCharacter(operator engine2.DatabaseOperator, charId string, id str
 	db := operator.GetDataDB(constant.WRITE)
 	// 将新字典值转换为 JSON
 	now := time.Now().Unix()
-	json, err := ds.NewDictVal(nil).V().ToJSON()
+	jsonBytes, err := ds.NewDictVal(nil).V().ToJSON()
 	if err != nil {
 		return err
 	}
@@ -219,13 +220,14 @@ func AttrsBindCharacter(operator engine2.DatabaseOperator, charId string, id str
 	//					       values ($1, $3, true, '', $2, $2)`, id, time.Now().Unix(), json)
 	//
 	//	ret, err := db.Exec(`update attrs set binding_sheet_id = $1 where id = $2`, charId, id)
+	bytePoint := dbutil.BYTE(jsonBytes)
 	result := db.Where("id = ?", id).
 		// 按照木落的原版代码，应该是这么个逻辑：查不到的时候能正确执行，查到了就不执行了，所以用Attrs而不是Assign
 		Attrs(map[string]any{
 			"id": id,
 			// 如果想在[]bytes里输入值，注意传参的时候不能给any传[]bytes，否则会无法读取，同时还没有豹错，浪费大量时间。
 			// 这里为了兼容，不使用gob的序列化方法处理结构体（同时，也不知道序列化方法是否可用）
-			"data":      dbutil.BYTE(json),
+			"data":      &bytePoint,
 			"is_hidden": true,
 			// 如果插入成功，原版代码接下来更新这个值，那么现在就是等价的
 			"binding_sheet_id": charId,

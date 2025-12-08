@@ -61,7 +61,10 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 		if group.DiceIDExistsMap == nil {
-			group.DiceIDActiveMap = new(SyncMap[string, bool])
+			group.DiceIDExistsMap = new(SyncMap[string, bool])
+		}
+		if group.InactivatedExtSet == nil {
+			group.InactivatedExtSet = StringSet{}
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -78,14 +81,15 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		}
 
 		session.ServiceAtNew.Store(groupID, &GroupInfo{
-			Active:           true,
-			ActivatedExtList: extLst,
-			Players:          new(SyncMap[string, *GroupPlayerInfo]),
-			GroupID:          groupID,
-			DiceIDActiveMap:  new(SyncMap[string, bool]),
-			DiceIDExistsMap:  new(SyncMap[string, bool]),
-			CocRuleIndex:     int(session.Parent.Config.DefaultCocRuleIndex),
-			UpdatedAtTime:    time.Now().Unix(),
+			Active:            true,
+			ActivatedExtList:  extLst,
+			InactivatedExtSet: StringSet{},
+			Players:           new(SyncMap[string, *GroupPlayerInfo]),
+			GroupID:           groupID,
+			DiceIDActiveMap:   new(SyncMap[string, bool]),
+			DiceIDExistsMap:   new(SyncMap[string, bool]),
+			CocRuleIndex:      int(session.Parent.Config.DefaultCocRuleIndex),
+			UpdatedAtTime:     time.Now().Unix(),
 		})
 		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
 		group, _ = session.ServiceAtNew.Load(groupID)
@@ -147,6 +151,10 @@ func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo,
 	}
 	if msg.ChannelID != "" {
 		groupInfo.ChannelID = msg.ChannelID
+	}
+
+	if ctx.Dice != nil {
+		groupInfo.SyncExtensionsOnMessage(ctx.Dice)
 	}
 
 	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)
@@ -510,6 +518,11 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 		return false
 	}
 
+	// Check if user is already banned to avoid sending multiple warnings in concurrent scenarios
+	if banItem, exists := ctx.Dice.Config.BanList.GetByID(ctx.Player.UserID); exists && banItem.Rank == BanRankBanned {
+		return true
+	}
+
 	if ctx.Player.RateLimitWarned {
 		ctx.Dice.Config.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
 	} else {
@@ -559,6 +572,11 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 	if ctx.Group.RateLimiter.Allow() {
 		ctx.Group.RateLimitWarned = false
 		return false
+	}
+
+	// Check if group is already banned to avoid sending multiple warnings in concurrent scenarios
+	if banItem, exists := ctx.Dice.Config.BanList.GetByID(ctx.Group.GroupID); exists && banItem.Rank == BanRankBanned {
+		return true
 	}
 
 	// If not allow

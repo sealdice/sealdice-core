@@ -357,20 +357,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		ShortHelp: helpSetCOC,
 		Help:      "设置房规:\n" + helpSetCOC,
 		HelpFunc: func(isShort bool) string {
-			help := ".setcoc 0-5 // 设置常见的0-5房规，0为规则书，2为国内常用规则\n" +
-				".setcoc dg // delta green 扩展规则\n" +
-				".setcoc details // 列出所有规则及其解释文本 \n"
-
+			var help strings.Builder
+			help.WriteString(".setcoc 0-5 // 设置常见的0-5房规，0为规则书，2为国内常用规则\n")
+			help.WriteString(".setcoc dg // delta green 扩展规则\n")
+			help.WriteString(".setcoc details // 列出所有规则及其解释文本 \n")
 			// 自定义
 			for _, i := range self.CocExtraRules {
 				n := strings.ReplaceAll(i.Desc, "\n", " ")
-				help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, n)
+				fmt.Fprintf(&help, ".setcoc %d/%s // %s\n", i.Index, i.Key, n)
 			}
 
+			helpText := help.String()
 			if isShort {
-				return help
+				return helpText
 			}
-			return "设置房规:\n" + help
+			return "设置房规:\n" + helpText
 		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
@@ -407,21 +408,22 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "details":
-				help := "当前有coc7规则如下:\n"
+				var help strings.Builder
+				help.WriteString("当前有coc7规则如下:\n")
 				for i := range 6 {
 					basicStr := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
-					help += fmt.Sprintf(".setcoc %d // %s\n", i, basicStr)
+					fmt.Fprintf(&help, ".setcoc %d // %s\n", i, basicStr)
 				}
 				// dg
 				dgStr := strings.ReplaceAll(SetCocRuleText[11], "\n", " ")
-				help += fmt.Sprintf(".setcoc dg // %s\n", dgStr)
+				fmt.Fprintf(&help, ".setcoc dg // %s\n", dgStr)
 
 				// 自定义
 				for _, i := range self.CocExtraRules {
 					ruleStr := strings.ReplaceAll(i.Desc, "\n", " ")
-					help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, ruleStr)
+					fmt.Fprintf(&help, ".setcoc %d/%s // %s\n", i.Index, i.Key, ruleStr)
 				}
-				ReplyToSender(ctx, msg, help)
+				ReplyToSender(ctx, msg, help.String())
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
@@ -1370,11 +1372,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			if ctx != nil && ctx.Dice != nil {
-				if tmpl, ok := ctx.Dice.GameSystemMap.Load("coc7"); ok && tmpl != nil {
-					ctx.SystemTemplate = tmpl
-				}
-			}
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{

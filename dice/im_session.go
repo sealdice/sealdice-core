@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
@@ -71,6 +70,8 @@ type GroupInfo struct {
 	ExtActiveListSnapshot []string                           `json:"-"                yaml:"-"`                                   // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
 	Players               *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
 
+	InactivatedExtSet StringSet `json:"inactivatedExtSet" yaml:"inactivatedExtSet,flow"` // 手动关闭或尚未启用的扩展
+
 	GroupID         string                 `jsbind:"groupId"       json:"groupId"      yaml:"groupId"`
 	GuildID         string                 `jsbind:"guildId"       json:"guildId"      yaml:"guildId"`
 	ChannelID       string                 `jsbind:"channelId"     json:"channelId"    yaml:"channelId"`
@@ -106,147 +107,10 @@ type GroupInfo struct {
 
 	UpdatedAtTime int64 `json:"-" yaml:"-"`
 
-	DefaultHelpGroup string `json:"defaultHelpGroup" yaml:"defaultHelpGroup"` // 当前群默认的帮助文档分组
+	DefaultHelpGroup string `json:"defaultHelpGroup" yaml:"defaultHelpGroup"` // 当前群默认的帮助条目
 
-	PlayerGroups *SyncMap[string, []string] `json:"playerGroups" yaml:"playerGroups"` // 供team指令使用并由其管理，与Players不同步
-}
-
-// ExtActive 开启扩展
-func (group *GroupInfo) ExtActive(ei *ExtInfo) {
-	lst := []*ExtInfo{ei}
-	oldLst := group.ActivatedExtList
-	group.ActivatedExtList = append(lst, oldLst...) //nolint:gocritic
-	group.ExtClear()
-}
-
-// ExtActiveBySnapshotOrder 按照快照顺序开启扩展
-func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bool) {
-	// 这个机制用于解决js插件指令会覆盖原生扩展的指令的问题
-	// 与之相关的问题是插件的自动激活，最好能够检测插件是否为首次加载
-	orderLst := group.ExtActiveListSnapshot
-	m := map[string]*ExtInfo{}
-	for _, i := range group.ActivatedExtList {
-		m[i.Name] = i
-	}
-	m[ei.Name] = ei
-
-	var newLst []*ExtInfo
-	for _, i := range orderLst {
-		if m[i] != nil {
-			newLst = append(newLst, m[i])
-		}
-	}
-
-	// 当首次加载，如果快照列表中没有，将其新增
-	if isFirstTimeLoad {
-		if !lo.Contains(orderLst, ei.Name) {
-			newLst = append(newLst, ei)
-			group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, ei.Name)
-		}
-	}
-
-	group.ActivatedExtList = newLst
-	group.ExtClear()
-}
-
-// ExtActiveBatchBySnapshotOrder 批量按照快照顺序开启扩展
-func (group *GroupInfo) ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFirstTimeLoadMap map[string]bool) {
-	if len(extInfos) == 0 {
-		return
-	}
-	// 这个机制用于解决js插件指令会覆盖原生扩展的指令的问题
-	// 与之相关的问题是插件的自动激活，最好能够检测插件是否为首次加载
-	orderLst := group.ExtActiveListSnapshot
-	m := map[string]*ExtInfo{}
-
-	// 构建现有扩展的映射
-	for _, i := range group.ActivatedExtList {
-		m[i.Name] = i
-	}
-
-	// 添加新的扩展到映射
-	for _, ei := range extInfos {
-		m[ei.Name] = ei
-	}
-
-	var newLst []*ExtInfo
-	for _, i := range orderLst {
-		if m[i] != nil {
-			newLst = append(newLst, m[i])
-		}
-	}
-
-	// 处理首次加载的扩展
-	var newSnapshotItems []string
-	for _, ei := range extInfos {
-		if isFirstTimeLoad, exists := isFirstTimeLoadMap[ei.Name]; exists && isFirstTimeLoad {
-			if !lo.Contains(orderLst, ei.Name) {
-				newLst = append(newLst, ei)
-				newSnapshotItems = append(newSnapshotItems, ei.Name)
-			}
-		}
-	}
-
-	// 批量更新快照列表
-	if len(newSnapshotItems) > 0 {
-		group.ExtActiveListSnapshot = append(group.ExtActiveListSnapshot, newSnapshotItems...)
-	}
-
-	group.ActivatedExtList = newLst
-	group.ExtClear()
-}
-
-// ExtClear 清除多余的扩展项
-func (group *GroupInfo) ExtClear() {
-	m := map[string]bool{}
-	var lst []*ExtInfo
-
-	for _, i := range group.ActivatedExtList {
-		if !m[i.Name] {
-			m[i.Name] = true
-			lst = append(lst, i)
-		}
-	}
-	group.ActivatedExtList = lst
-}
-
-func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
-	if ei.Storage != nil {
-		err := ei.StorageClose()
-		if err != nil {
-			// 经过指点使用了ei的logger
-			ei.dice.Logger.Error("扩展Inactive出现错误！")
-			return nil
-		}
-	}
-	for index, i := range group.ActivatedExtList {
-		if ei == i {
-			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
-			group.ExtClear()
-			return i
-		}
-	}
-	return nil
-}
-
-func (group *GroupInfo) ExtInactiveByName(name string) *ExtInfo {
-	for index, i := range group.ActivatedExtList {
-		if i.Name == name {
-			group.ActivatedExtList = append(group.ActivatedExtList[:index], group.ActivatedExtList[index+1:]...)
-			group.ExtClear()
-			return i
-		}
-	}
-	return nil
-}
-
-func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
-	for _, i := range group.ActivatedExtList {
-		if i.Name == name {
-			return i
-		}
-	}
-	return nil
+	PlayerGroups      *SyncMap[string, []string] `json:"playerGroups"      yaml:"playerGroups"` // 给team指令使用，和玩家、群等信息一样，都来自Players，不会重复存储
+	ExtAppliedVersion int64                      `json:"extAppliedVersion" yaml:"extAppliedVersion"`
 }
 
 func (group *GroupInfo) IsActive(ctx *MsgContext) bool {

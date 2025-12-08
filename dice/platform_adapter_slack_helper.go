@@ -25,6 +25,7 @@ func ServeSlack(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "SLACK" {
 		conn := ep.Adapter.(*PlatformAdapterSlack)
+		ep.Session = d.ImSession
 		conn.Session = d.ImSession
 		conn.EndPoint = ep
 		if conn.Serve() != 0 {

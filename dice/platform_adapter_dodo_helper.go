@@ -26,6 +26,7 @@ func ServeDodo(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "DODO" {
 		conn := ep.Adapter.(*PlatformAdapterDodo)
+		ep.Session = d.ImSession
 		d.Logger.Infof("Dodo 尝试连接")
 		if conn.Serve() != 0 {
 			d.Logger.Errorf("连接Dodo失败")
