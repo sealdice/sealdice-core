@@ -59,70 +59,62 @@ type PlatformAdapterOnebot struct {
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
-	// 使用统一的连接启动逻辑
-	if err := p.startConnection(); err != nil {
-		p.logger.Errorf("启动连接失败: %v", err)
-		return 3 // 连接失败
-	}
-	return 0
+    // 设置连接中并保存一次
+    p.EndPoint.State = StateConnecting
+    d := p.Session.Parent
+    d.LastUpdatedTime = time.Now().Unix()
+    d.Save(false)
+
+    // 使用统一的连接启动逻辑
+    if err := p.startConnection(); err != nil {
+        p.logger.Errorf("启动连接失败: %v", err)
+        // 连接失败，禁用并保存
+        p.EndPoint.State = StateConnectionFailed
+        p.EndPoint.Enable = false
+        d.LastUpdatedTime = time.Now().Unix()
+        d.Save(false)
+        return 1
+    }
+    return 0
 }
 
 // DoRelogin 重新登录/重连
 func (p *PlatformAdapterOnebot) DoRelogin() bool {
-	// 检查适配器是否已启用
-	if !p.EndPoint.Enable {
-		p.logger.Info("适配器已禁用，跳过重新登录")
-		return false
-	}
-
-	p.logger.Info("开始重新登录...")
-
-	// 清理现有资源
-	p.cleanupResources()
-
-	// 重新启动连接
-	if err := p.startConnection(); err != nil {
-		p.logger.Errorf("重新登录失败: %v", err)
-		p.EndPoint.State = StateConnecting
-		go p.retryConnect()
-		return false
-	}
-
-	p.logger.Info("重新登录成功")
+	p.logger.Warn("因协议端不支持所谓重新登录，重新登录功能无实际用途。")
 	return true
 }
 
 // SetEnable 启用或禁用适配器
 func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
-	d := p.Session.Parent
+    d := p.Session.Parent
 
-	if enable {
-		p.logger.Info("正在启用 OneBot 适配器...")
-		p.EndPoint.Enable = true
+    if enable {
+        p.logger.Info("正在启用 OneBot 适配器...")
+        // 进入连接中态，由 Serve/onConnected 负责最终的 Enable 与 State=1
+        p.EndPoint.State = StateConnecting
+        d.LastUpdatedTime = time.Now().Unix()
+        d.Save(false)
+        // 统一走 Serve，避免重复状态逻辑
+        if p.Serve() != 0 {
+            p.EndPoint.State = StateConnectionFailed
+            p.EndPoint.Enable = false
+            d.LastUpdatedTime = time.Now().Unix()
+            d.Save(false)
+        }
+    } else {
+        p.logger.Info("正在禁用 OneBot 适配器...")
+        p.EndPoint.Enable = false
+        p.EndPoint.State = StateDisconnected
 
-		// 使用统一的连接启动逻辑
-		if err := p.startConnection(); err != nil {
-			p.logger.Errorf("启用失败: %v", err)
-			p.EndPoint.State = StateConnecting
-			// 启用失败时不应该禁用适配器，而是进入重连状态
-			go p.retryConnect()
-		} else {
-			p.logger.Info("OneBot 适配器启用成功")
-		}
-	} else {
-		p.logger.Info("正在禁用 OneBot 适配器...")
-		p.EndPoint.Enable = false
-		p.EndPoint.State = StateDisconnected
+        // 清理资源
+        p.cleanupResources()
 
-		// 清理资源
-		p.cleanupResources()
+        p.logger.Info("OneBot 适配器已禁用")
+    }
 
-		p.logger.Info("OneBot 适配器已禁用")
-	}
-
-	// 更新状态并保存
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+    // 更新状态并保存
+    d.LastUpdatedTime = time.Now().Unix()
+    d.Save(false)
 }
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
@@ -318,14 +310,13 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
 	p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
 	p.EndPoint.Nickname = info.NickName
-	// 状态设置
-	p.EndPoint.State = 1
-	// 启动Endpoint
-	p.EndPoint.Enable = true
-	// 更新上次时间，并存储
-	d := p.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+    // 状态设置
+    p.EndPoint.State = 1
+    p.EndPoint.Enable = true
+    // 更新上次时间，并存储
+    d := p.Session.Parent
+    d.LastUpdatedTime = time.Now().Unix()
+    d.Save(false)
 }
 
 // initializeCommonResources 初始化公共资源（移除sync.Once限制，允许重新初始化）
