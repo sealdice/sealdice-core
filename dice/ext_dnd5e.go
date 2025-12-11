@@ -302,8 +302,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// 获取hpmax
 				var curHpMax ds.IntType
 				hpMax, maxExists := attrs.LoadX("hpmax")
-				if maxExists && hpMax.TypeId == ds.VMTypeInt {
-					curHpMax, _ = hpMax.ReadInt()
+				if maxExists {
+					switch hpMax.TypeId {
+					case ds.VMTypeComputedValue:
+						cd, _ := hpMax.ReadComputed()
+						curHpMax, _ = ctx.Eval(cd.Expr, nil).ReadInt()
+					default:
+						curHpMax, _ = hpMax.ReadInt()
+					}
 				}
 
 				// 注: 暂时只考虑简单形式的hpmax的buff
