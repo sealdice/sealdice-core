@@ -50,5 +50,7 @@ var (
 	_ PlatformAdapter = (*PlatformAdapterWalleQ)(nil)
 	_ PlatformAdapter = (*PlatformAdapterSatori)(nil)
 	_ PlatformAdapter = (*PlatformAdapterMilky)(nil)
+	_ PlatformAdapter = (*PlatformAdapterOnebot)(nil)
+
 	// _ PlatformAdapter = (*PlatformAdapterLagrangeGo)(nil)
 )
