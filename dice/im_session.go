@@ -182,15 +182,17 @@ func (group *GroupInfo) GetCharTemplate(dice *Dice) *GameSystemTemplate {
 	return blankTmpl
 }
 
+type EndpointState int
+
 type EndPointInfoBase struct {
-	ID                  string `jsbind:"id"                  json:"id"                  yaml:"id"` // uuid
-	Nickname            string `jsbind:"nickname"            json:"nickname"            yaml:"nickname"`
-	State               int    `jsbind:"state"               json:"state"               yaml:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
-	UserID              string `jsbind:"userId"              json:"userId"              yaml:"userId"`
-	GroupNum            int64  `jsbind:"groupNum"            json:"groupNum"            yaml:"groupNum"`            // 拥有群数
-	CmdExecutedNum      int64  `jsbind:"cmdExecutedNum"      json:"cmdExecutedNum"      yaml:"cmdExecutedNum"`      // 指令执行次数
-	CmdExecutedLastTime int64  `jsbind:"cmdExecutedLastTime" json:"cmdExecutedLastTime" yaml:"cmdExecutedLastTime"` // 指令执行次数
-	OnlineTotalTime     int64  `jsbind:"onlineTotalTime"     json:"onlineTotalTime"     yaml:"onlineTotalTime"`     // 在线时长
+	ID                  string        `jsbind:"id"                  json:"id"                  yaml:"id"` // uuid
+	Nickname            string        `jsbind:"nickname"            json:"nickname"            yaml:"nickname"`
+	State               EndpointState `jsbind:"state"               json:"state"               yaml:"state"` // 状态 0断开 1已连接 2连接中 3连接失败
+	UserID              string        `jsbind:"userId"              json:"userId"              yaml:"userId"`
+	GroupNum            int64         `jsbind:"groupNum"            json:"groupNum"            yaml:"groupNum"`            // 拥有群数
+	CmdExecutedNum      int64         `jsbind:"cmdExecutedNum"      json:"cmdExecutedNum"      yaml:"cmdExecutedNum"`      // 指令执行次数
+	CmdExecutedLastTime int64         `jsbind:"cmdExecutedLastTime" json:"cmdExecutedLastTime" yaml:"cmdExecutedLastTime"` // 指令执行次数
+	OnlineTotalTime     int64         `jsbind:"onlineTotalTime"     json:"onlineTotalTime"     yaml:"onlineTotalTime"`     // 在线时长
 
 	Platform     string `jsbind:"platform"   json:"platform"     yaml:"platform"` // 平台，如QQ等
 	RelWorkDir   string `json:"relWorkDir"   yaml:"relWorkDir"`                   // 工作目录
@@ -200,6 +202,13 @@ type EndPointInfoBase struct {
 	IsPublic bool       `json:"isPublic" yaml:"isPublic"`
 	Session  *IMSession `json:"-"        yaml:"-"`
 }
+
+const (
+	StateDisconnected     EndpointState = iota // 0: 断开
+	StateConnected                             // 1: 已连接
+	StateConnecting                            // 2: 连接中
+	StateConnectionFailed                      // 3: 连接失败
+)
 
 type EndPointInfo struct {
 	EndPointInfoBase `jsbind:"baseInfo" yaml:"baseInfo"`
@@ -283,6 +292,15 @@ func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
 		case "milky":
 			var val struct {
 				Adapter *PlatformAdapterMilky `yaml:"adapter"`
+			}
+			err = value.Decode(&val)
+			if err != nil {
+				return err
+			}
+			ep.Adapter = val.Adapter
+		case "pureonebot":
+			var val struct {
+				Adapter *PlatformAdapterOnebot `yaml:"adapter"`
 			}
 			err = value.Decode(&val)
 			if err != nil {
@@ -865,11 +883,12 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	log := d.Logger
 
 	// 处理消息段，如果 2.0 要完全抛弃依赖 Message.Message 的字符串解析，把这里删掉
-	msg.Message = ""
-	for _, elem := range msg.Segment {
-		// 类型断言
-		if e, ok := elem.(*message.TextElement); ok {
-			msg.Message += e.Content
+	if msg.Message == "" {
+		for _, elem := range msg.Segment {
+			// 类型断言
+			if e, ok := elem.(*message.TextElement); ok {
+				msg.Message += e.Content
+			}
 		}
 	}
 
@@ -900,6 +919,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 		txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, groupInfo.GroupID, autoOn)
 		// 意义不明，删掉
+		// 疑似是为了获取群信息然后塞到奇怪的地方
 		// ep.Adapter.GetGroupInfoAsync(msg.GroupID)
 		log.Info(txt)
 		mctx.Notice(txt)
@@ -927,7 +947,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	for _, elem := range msg.Segment {
 		// 类型断言
 		if e, ok := elem.(*message.AtElement); ok {
-			if e.Target == ep.UserID {
+			if msg.Platform+":"+e.Target == ep.UserID {
 				amIBeMentioned = true
 				break
 			}
@@ -1886,6 +1906,12 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa := ep.Adapter.(*PlatformAdapterMilky)
 			pa.Session = ep.Session
 			pa.EndPoint = ep
+		case "pureonebot":
+			pa := ep.Adapter.(*PlatformAdapterOnebot)
+			log := zap.S().Named(logger.LogKeyAdapter)
+			pa.Session = ep.Session
+			pa.EndPoint = ep
+			pa.logger = log
 			// case "LagrangeGo":
 			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
 			//	pa.Session = ep.Session
@@ -2086,7 +2112,11 @@ func (ctx *MsgContext) Notice(txt string) {
 		}
 
 		if !sent {
-			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			if len(ctx.Dice.Config.NoticeIDs) != 0 {
+				ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			} else {
+				ctx.Dice.Logger.Warnf("因为没有配置通知列表，无法发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			}
 		}
 	}
 	go foo()
