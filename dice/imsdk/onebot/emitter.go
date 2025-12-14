@@ -18,8 +18,6 @@ import (
 	"sealdice-core/dice/imsdk/onebot/types"
 )
 
-var _ Emitter = (*EmitterEVSocket)(nil)
-
 // EchoTimeOut ws onebot await echo message time out
 var EchoTimeOut = 10 * time.Second
 
@@ -47,6 +45,8 @@ type Emitter interface {
 	Raw(ctx context.Context, action Action, params any) ([]byte, error)
 }
 
+var _ Emitter = (*emitterSocket)(nil)
+
 type Request[T any] struct {
 	Echo   string `json:"echo"`
 	Action Action `json:"action"`
@@ -60,29 +60,29 @@ type Response[T any] struct {
 	Echo    string `json:"echo"`
 }
 
-type EmitterEVSocket struct {
+type emitterSocket struct {
 	mu     sync.Mutex
 	conn   *socketio.WebsocketWrapper
 	echo   chan Response[sonic.NoCopyRawMessage]
 	selfId int64
 }
 
-func NewEVEmitter(conn *socketio.WebsocketWrapper, echo chan Response[sonic.NoCopyRawMessage]) *EmitterEVSocket {
-	emitter := &EmitterEVSocket{
+func NewEVEmitter(conn *socketio.WebsocketWrapper, echo chan Response[sonic.NoCopyRawMessage]) *emitterSocket {
+	emitter := &emitterSocket{
 		conn: conn,
 		echo: echo,
 	}
 	return emitter
 }
 
-func (e *EmitterEVSocket) SetSelfId(_ context.Context, selfId int64) error {
+func (e *emitterSocket) SetSelfId(_ context.Context, selfId int64) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.selfId = selfId
 	return nil
 }
 
-func (e *EmitterEVSocket) SendPvtMsg(ctx context.Context, userId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
+func (e *emitterSocket) SendPvtMsg(ctx context.Context, userId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_SEND_PRIVATE_MSG, types.SendPrivateMsgReq{
 		UserId:  userId,
@@ -96,7 +96,7 @@ func (e *EmitterEVSocket) SendPvtMsg(ctx context.Context, userId int64, msg sche
 	return wsWait[types.SendMsgRes](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) SendGrMsg(ctx context.Context, groupId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
+func (e *emitterSocket) SendGrMsg(ctx context.Context, groupId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_SEND_GROUP_MSG, types.SendGrMsgReq{
 		GroupId: groupId,
@@ -110,7 +110,7 @@ func (e *EmitterEVSocket) SendGrMsg(ctx context.Context, groupId int64, msg sche
 	return wsWait[types.SendMsgRes](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) GetMsg(ctx context.Context, msgId int) (*types.GetMsgRes, error) {
+func (e *emitterSocket) GetMsg(ctx context.Context, msgId int) (*types.GetMsgRes, error) {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_GET_MSG, types.GetMsgReq{
 		MessageId: msgId,
@@ -123,7 +123,7 @@ func (e *EmitterEVSocket) GetMsg(ctx context.Context, msgId int) (*types.GetMsgR
 	return wsWait[types.GetMsgRes](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) DelMsg(ctx context.Context, msgId int) error {
+func (e *emitterSocket) DelMsg(ctx context.Context, msgId int) error {
 	e.mu.Lock()
 	echoId, err := wsAction[any](e.conn, ACTION_DELETE_MSG, types.DelMsgReq{
 		MessageId: msgId,
@@ -137,7 +137,7 @@ func (e *EmitterEVSocket) DelMsg(ctx context.Context, msgId int) error {
 	return err
 }
 
-func (e *EmitterEVSocket) GetLoginInfo(ctx context.Context) (*types.LoginInfo, error) {
+func (e *emitterSocket) GetLoginInfo(ctx context.Context) (*types.LoginInfo, error) {
 	e.mu.Lock()
 	echoId, err := wsAction[any](e.conn, ACTION_GET_LOGIN_INFO, nil)
 	if err != nil {
@@ -148,7 +148,7 @@ func (e *EmitterEVSocket) GetLoginInfo(ctx context.Context) (*types.LoginInfo, e
 	return wsWait[types.LoginInfo](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) GetStrangerInfo(ctx context.Context, userId int64, noCache bool) (*types.StrangerInfo, error) {
+func (e *emitterSocket) GetStrangerInfo(ctx context.Context, userId int64, noCache bool) (*types.StrangerInfo, error) {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_GET_STRANGER_INFO, types.GetStrangerInfo{
 		UserId:  userId,
@@ -162,7 +162,7 @@ func (e *EmitterEVSocket) GetStrangerInfo(ctx context.Context, userId int64, noC
 	return wsWait[types.StrangerInfo](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) GetStatus(ctx context.Context) (*types.Status, error) {
+func (e *emitterSocket) GetStatus(ctx context.Context) (*types.Status, error) {
 	e.mu.Lock()
 	echoId, err := wsAction[any](e.conn, ACTION_GET_STATUS, nil)
 	if err != nil {
@@ -173,7 +173,7 @@ func (e *EmitterEVSocket) GetStatus(ctx context.Context) (*types.Status, error) 
 	return wsWait[types.Status](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) GetVersionInfo(ctx context.Context) (*types.VersionInfo, error) {
+func (e *emitterSocket) GetVersionInfo(ctx context.Context) (*types.VersionInfo, error) {
 	e.mu.Lock()
 	echoId, err := wsAction[any](e.conn, ACTION_GET_VERSION_INFO, nil)
 	if err != nil {
@@ -184,11 +184,11 @@ func (e *EmitterEVSocket) GetVersionInfo(ctx context.Context) (*types.VersionInf
 	return wsWait[types.VersionInfo](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) GetSelfId(_ context.Context) (int64, error) {
+func (e *emitterSocket) GetSelfId(_ context.Context) (int64, error) {
 	return e.selfId, nil
 }
 
-func (e *EmitterEVSocket) SetFriendAddRequest(ctx context.Context, flag string, approve bool, remark string) error {
+func (e *emitterSocket) SetFriendAddRequest(ctx context.Context, flag string, approve bool, remark string) error {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_SET_FRIEND_ADD_REQUEST, types.FriendAddReq{
 		Flag:    flag,
@@ -204,7 +204,7 @@ func (e *EmitterEVSocket) SetFriendAddRequest(ctx context.Context, flag string, 
 	return err
 }
 
-func (e *EmitterEVSocket) SetGroupAddRequest(ctx context.Context, flag string, approve bool, reason string) error {
+func (e *emitterSocket) SetGroupAddRequest(ctx context.Context, flag string, approve bool, reason string) error {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_SET_GROUP_ADD_REQUEST, types.GroupAddReq{
 		Flag:    flag,
@@ -220,7 +220,7 @@ func (e *EmitterEVSocket) SetGroupAddRequest(ctx context.Context, flag string, a
 	return err
 }
 
-func (e *EmitterEVSocket) SetGroupSpecialTitle(ctx context.Context, groupId int64, userId int64, specialTitle string, duration int) error {
+func (e *emitterSocket) SetGroupSpecialTitle(ctx context.Context, groupId int64, userId int64, specialTitle string, duration int) error {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_SET_GROUP_SPECIAL_TITLE, types.SpecialTitleReq{
 		GroupId:      groupId,
@@ -238,7 +238,7 @@ func (e *EmitterEVSocket) SetGroupSpecialTitle(ctx context.Context, groupId int6
 
 // ADD 不存在于Onebot大典的内容
 
-func (e *EmitterEVSocket) QuitGroup(ctx context.Context, groupId int64) error {
+func (e *emitterSocket) QuitGroup(ctx context.Context, groupId int64) error {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_QUIT_GROUP, types.QuitGroupReq{
 		GroupId: groupId,
@@ -252,7 +252,7 @@ func (e *EmitterEVSocket) QuitGroup(ctx context.Context, groupId int64) error {
 	return err
 }
 
-func (e *EmitterEVSocket) SetGroupCard(ctx context.Context, groupId int64, userId int64, card string) error {
+func (e *emitterSocket) SetGroupCard(ctx context.Context, groupId int64, userId int64, card string) error {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_SET_GROUP_CARD, types.SetGroupCardReq{
 		GroupId: groupId,
@@ -268,7 +268,7 @@ func (e *EmitterEVSocket) SetGroupCard(ctx context.Context, groupId int64, userI
 	return err
 }
 
-func (e *EmitterEVSocket) GetGroupInfo(ctx context.Context, groupId int64, noCache bool) (*types.GroupInfo, error) {
+func (e *emitterSocket) GetGroupInfo(ctx context.Context, groupId int64, noCache bool) (*types.GroupInfo, error) {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_GET_GROUP_INFO, types.GetGroupInfoReq{
 		GroupId: groupId,
@@ -282,7 +282,7 @@ func (e *EmitterEVSocket) GetGroupInfo(ctx context.Context, groupId int64, noCac
 	return wsWait[types.GroupInfo](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) GetGroupMemberInfo(ctx context.Context, groupId int64, userId int64, noCache bool) (*types.GroupMemberInfo, error) {
+func (e *emitterSocket) GetGroupMemberInfo(ctx context.Context, groupId int64, userId int64, noCache bool) (*types.GroupMemberInfo, error) {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, ACTION_GET_GROUP_MEMBER_INFO, types.GetGroupMemberInfoReq{
 		GroupId: groupId,
@@ -297,7 +297,7 @@ func (e *EmitterEVSocket) GetGroupMemberInfo(ctx context.Context, groupId int64,
 	return wsWait[types.GroupMemberInfo](ctx, echoId, e.echo)
 }
 
-func (e *EmitterEVSocket) Raw(ctx context.Context, action Action, params any) ([]byte, error) {
+func (e *emitterSocket) Raw(ctx context.Context, action Action, params any) ([]byte, error) {
 	e.mu.Lock()
 	echoId, err := wsAction(e.conn, action, params)
 	if err != nil {
