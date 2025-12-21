@@ -312,9 +312,17 @@ func ExtractLocalTempFile(path string) (string, string, error) {
 		filePath := path[8:] // 移除 "files://" 前缀
 		
 		var absPath string
+		
+		// 处理 files:///path 格式（三个斜杠开头）
+		if strings.HasPrefix(filePath, "/") {
+			// 移除开头的斜杠，得到实际路径
+			filePath = filePath[1:]
+		}
+		
+		// 检查是否为有效的绝对路径
 		if filepath.IsAbs(filePath) {
-			// 如果已经是绝对路径，直接使用
-			absPath = filePath
+			// 如果已经是绝对路径，清理并使用
+			absPath = filepath.Clean(filePath)
 		} else {
 			// 如果是相对路径，转换为绝对路径
 			var err error
