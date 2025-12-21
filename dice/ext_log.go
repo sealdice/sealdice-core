@@ -1015,8 +1015,8 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 					counter++
 				}
 				// ========== 新增：每批写入后强制同步 ==========
-				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
-					resultCh <- fmt.Errorf("批次同步失败: %w", err)
+				if err1 := tempLog.Sync(); err1 != nil { // 确保批次数据落盘
+					resultCh <- fmt.Errorf("批次同步失败: %w", err1)
 				}
 
 				// 如果没有下一页，则成功完成
