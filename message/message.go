@@ -310,15 +310,14 @@ func ExtractLocalTempFile(path string) (string, string, error) {
 	// 如果是 files:// 协议且指向本地文件，直接解析并返回
 	if strings.HasPrefix(path, "files://") {
 		filePath := path[8:] // 移除 "files://" 前缀
-		
+
 		var absPath string
-		
+
 		// 处理 files:///path 格式（三个斜杠开头）
-		if strings.HasPrefix(filePath, "/") {
-			// 移除开头的斜杠，得到实际路径
-			filePath = filePath[1:]
-		}
-		
+		filePath = strings.TrimPrefix(filePath, "/")
+
+		// 检查是否为有效的绝对路径
+
 		// 检查是否为有效的绝对路径
 		if filepath.IsAbs(filePath) {
 			// 如果已经是绝对路径，清理并使用
@@ -331,65 +330,65 @@ func ExtractLocalTempFile(path string) (string, string, error) {
 				return "", "", fmt.Errorf("获取文件绝对路径失败: %w", err)
 			}
 		}
-		
+
 		info, err := os.Stat(absPath)
 		if err != nil {
 			return "", "", fmt.Errorf("文件不存在或无法访问: %w", err)
 		}
-		
+
 		// 检查文件权限，如果不是644则修改
 		if info.Mode().Perm() != 0o644 {
 			if err := os.Chmod(absPath, 0o644); err != nil {
 				return "", "", fmt.Errorf("设置文件权限失败: %w", err)
 			}
 		}
-		
+
 		return info.Name(), absPath, nil
 	}
-	
+
 	// 对于其他协议（http/base64），按原逻辑处理
 	fileElement, err := FilepathToFileElement(path)
 	if err != nil {
 		return "", "", err
 	}
-	
+
 	// 尝试获取海豹数据目录，如果失败则使用系统临时目录
 	var tempDir string
-	if wd, err := os.Getwd(); err == nil {
+	if wd, err1 := os.Getwd(); err1 == nil {
 		tempDir = filepath.Join(wd, "data", "temp")
 		_ = os.MkdirAll(tempDir, 0o755)
 	} else {
 		tempDir = ""
 	}
-	
+
 	temp, err := os.CreateTemp(tempDir, "temp-")
 	if err != nil {
 		return "", "", err
 	}
-	
+
 	// 设置文件权限为644，确保其他进程可以读取
-	if err := os.Chmod(temp.Name(), 0o644); err != nil {
+	if err1 := os.Chmod(temp.Name(), 0o644); err1 != nil {
 		_ = temp.Close()
 		_ = os.Remove(temp.Name())
-		return "", "", fmt.Errorf("设置临时文件权限失败: %w", err)
+		return "", "", fmt.Errorf("设置临时文件权限失败: %w", err1)
 	}
-	
+
 	defer func(temp *os.File) {
 		_ = temp.Close()
 	}(temp)
-	
+
 	data, err := io.ReadAll(fileElement.Stream)
 	if err != nil {
 		_ = os.Remove(temp.Name())
 		return "", "", err
 	}
-	
+
 	_, err = temp.Write(data)
 	if err != nil {
 		_ = os.Remove(temp.Name())
 		return "", "", err
 	}
-	
+
 	// 确保返回绝对路径
 	absPath, err := filepath.Abs(temp.Name())
 	if err != nil {
@@ -428,39 +427,39 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 		if strings.HasPrefix(filePath, "/") && len(filePath) > 1 {
 			filePath = filePath[1:] // 移除开头的斜杠，files:///path -> /path
 		}
-		
+
 		info, err := os.Stat(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("文件不存在或无法访问: %w", err)
 		}
-		
+
 		if info.Size() == 0 || info.Size() >= maxFileSize {
 			return nil, errors.New("invalid file size")
 		}
-		
+
 		afn, err := filepath.Abs(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("获取文件绝对路径失败: %w", err)
 		}
-		
+
 		// 允许访问海豹数据目录和系统临时目录
 		cwd, _ := os.Getwd()
 		dataDir := filepath.Join(cwd, "data")
 		if !strings.HasPrefix(afn, cwd) && !strings.HasPrefix(afn, os.TempDir()) && !strings.HasPrefix(afn, dataDir) {
 			return nil, errors.New("restricted file path")
 		}
-		
+
 		filesuffix := path.Ext(filePath)
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("读取文件失败: %w", err)
 		}
-		
+
 		contenttype := mime.TypeByExtension(filesuffix)
 		if len(contenttype) == 0 {
 			contenttype = "application/octet-stream"
 		}
-		
+
 		r := &FileElement{
 			Stream:      bytes.NewReader(content),
 			ContentType: contenttype,

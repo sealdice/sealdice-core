@@ -969,7 +969,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	}
 
 	// 设置文件权限为644，确保NapCat可以读取
-	if err := os.Chmod(tempLog.Name(), 0o644); err != nil {
+	if err1 := os.Chmod(tempLog.Name(), 0o644); err1 != nil {
 		_ = tempLog.Close()
 		_ = os.Remove(tempLog.Name())
 		return "", errors.New("设置临时文件权限失败")
@@ -1001,9 +1001,9 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 				return
 			default:
 				// 获取当前游标对应的数据
-				cursorLines, cursor, err := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
-				if err != nil {
-					resultCh <- err
+				cursorLines, cursor, err1 := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
+				if err1 != nil {
+					resultCh <- err1
 					return
 				}
 
@@ -1032,12 +1032,12 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	}()
 
 	// 等待 goroutine 完成或超时
-	if err := <-resultCh; err != nil {
-		return "", err
+	if err1 := <-resultCh; err1 != nil {
+		return "", err1
 	}
 	// 2. 确保文件指针回到开头
-	if _, err := tempLog.Seek(0, 0); err != nil {
-		return "", fmt.Errorf("重置文件指针失败: %w", err)
+	if _, err1 := tempLog.Seek(0, 0); err1 != nil {
+		return "", fmt.Errorf("重置文件指针失败: %w", err1)
 	}
 
 	// 如果没有任何数据，返回错误

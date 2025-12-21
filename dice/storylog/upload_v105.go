@@ -34,11 +34,11 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 			),
 		))
 	buf := new(bytes.Buffer)
-	
+
 	// 尝试创建临时文件，优先使用海豹数据目录
 	tempDir := filepath.Join(env.Dir, "temp")
 	_ = os.MkdirAll(tempDir, 0o755)
-	
+
 	tempLog, err := os.CreateTemp(tempDir, fmt.Sprintf(
 		"%s(*).txt",
 		utils.FilenameClean("sealdice_v105_prefix_"),
@@ -46,13 +46,13 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	if err != nil {
 		return nil, nil, errors.New("log导出出现未知错误")
 	}
-	
+
 	// 设置文件权限为644，确保其他进程可以读取
-	if err := os.Chmod(tempLog.Name(), 0o644); err != nil {
+	if err1 := os.Chmod(tempLog.Name(), 0o644); err1 != nil {
 		_ = os.Remove(tempLog.Name())
-		return nil, nil, fmt.Errorf("设置临时文件权限失败: %w", err)
+		return nil, nil, fmt.Errorf("设置临时文件权限失败: %w", err1)
 	}
-	
+
 	defer func() {
 		if err != nil {
 			_ = os.Remove(tempLog.Name())
@@ -78,9 +78,9 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 				return
 			default:
 				// 获取当前游标对应的数据
-				cursorLines, cursor, err0 := service.LogGetExportCursorLines(env.Db, env.GroupID, env.LogName, currentCursor)
-				if err0 != nil {
-					resultCh <- err0
+				cursorLines, cursor, err1 := service.LogGetExportCursorLines(env.Db, env.GroupID, env.LogName, currentCursor)
+				if err1 != nil {
+					resultCh <- err1
 					return
 				}
 
@@ -92,13 +92,13 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 					counter++
 				}
 				// ========== 新增：每批写入后强制同步 ==========
-				if err = tempLog.Sync(); err != nil { // 确保批次数据落盘
-					resultCh <- fmt.Errorf("批次同步失败: %w", err)
+				if err1 := tempLog.Sync(); err1 != nil { // 确保批次数据落盘
+					resultCh <- fmt.Errorf("批次同步失败: %w", err1)
 				}
 
-				_, err0 = parquetBuffer.Write(cursorLines)
-				if err0 != nil {
-					resultCh <- err0
+				_, err2 := parquetBuffer.Write(cursorLines)
+				if err2 != nil {
+					resultCh <- err2
 					return
 				}
 
@@ -115,8 +115,8 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	}()
 
 	// 等待 goroutine 完成或超时
-	if err = <-resultCh; err != nil {
-		return nil, nil, err
+	if err1 := <-resultCh; err1 != nil {
+		return nil, nil, err1
 	}
 
 	// 如果没有任何数据，返回错误
@@ -127,8 +127,8 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	compressOption := parquet.Compression(&zstd.Codec{})
 	writer := parquet.NewGenericWriter[model.LogOneItemParquet](buf, compressOption)
 	// 2. 确保文件指针回到开头
-	if _, err = tempLog.Seek(0, 0); err != nil {
-		return nil, nil, fmt.Errorf("重置文件指针失败: %w", err)
+	if _, err1 := tempLog.Seek(0, 0); err1 != nil {
+		return nil, nil, fmt.Errorf("重置文件指针失败: %w", err1)
 	}
 	// 写入到writer中
 	_, err = parquet.CopyRows(writer, parquetBuffer.Rows())
