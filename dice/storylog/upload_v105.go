@@ -34,13 +34,25 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 			),
 		))
 	buf := new(bytes.Buffer)
-	tempLog, err := os.CreateTemp("", fmt.Sprintf(
+	
+	// 尝试创建临时文件，优先使用海豹数据目录
+	tempDir := filepath.Join(env.Dir, "temp")
+	_ = os.MkdirAll(tempDir, 0o755)
+	
+	tempLog, err := os.CreateTemp(tempDir, fmt.Sprintf(
 		"%s(*).txt",
 		utils.FilenameClean("sealdice_v105_prefix_"),
 	))
 	if err != nil {
 		return nil, nil, errors.New("log导出出现未知错误")
 	}
+	
+	// 设置文件权限为644，确保其他进程可以读取
+	if err := os.Chmod(tempLog.Name(), 0o644); err != nil {
+		_ = os.Remove(tempLog.Name())
+		return nil, nil, fmt.Errorf("设置临时文件权限失败: %w", err)
+	}
+	
 	defer func() {
 		if err != nil {
 			_ = os.Remove(tempLog.Name())

@@ -955,14 +955,26 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, error) {
-	// 创建临时文件
-	tempLog, err := os.CreateTemp("", fmt.Sprintf(
+	// 创建临时文件，优先使用海豹数据目录
+	dice := ctx.Dice
+	tempDir := filepath.Join(dice.BaseConfig.DataDir, "temp")
+	_ = os.MkdirAll(tempDir, 0o755)
+
+	tempLog, err := os.CreateTemp(tempDir, fmt.Sprintf(
 		"%s(*).txt",
 		utils.FilenameClean(fileNamePrefix),
 	))
 	if err != nil {
 		return "", errors.New("log导出出现未知错误")
 	}
+
+	// 设置文件权限为644，确保NapCat可以读取
+	if err := os.Chmod(tempLog.Name(), 0o644); err != nil {
+		_ = tempLog.Close()
+		_ = os.Remove(tempLog.Name())
+		return "", errors.New("设置临时文件权限失败")
+	}
+
 	defer func() {
 		_ = tempLog.Close()
 		if err != nil {
@@ -1033,7 +1045,12 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
 
-	return tempLog.Name(), nil
+	// 确保返回绝对路径
+	absPath, err := filepath.Abs(tempLog.Name())
+	if err != nil {
+		return "", fmt.Errorf("获取文件绝对路径失败: %w", err)
+	}
+	return absPath, nil
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
