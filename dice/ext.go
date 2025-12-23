@@ -567,7 +567,10 @@ func (group *GroupInfo) extDeactivateInternal(ei *ExtInfo, reason DeactivateReas
 			}
 		}
 	}
-	group.ensureSnapshotFromActivated()
+	// 系统级停用（用于重载等场景）不应更新快照，避免覆盖已保存的快照
+	if reason != DeactivateReasonSystem {
+		group.ensureSnapshotFromActivated()
+	}
 	group.UpdatedAtTime = time.Now().Unix()
 	return removed
 }
