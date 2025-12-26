@@ -263,20 +263,14 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
-				// Pinenutn ActivatedExtList模板
-				groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-				if ok {
-					for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
-						ext := wrapper.GetRealExt()
-						if ext == nil {
-							continue
+				// 触发扩展钩子
+				if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+					groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+						if ext.OnGroupJoined == nil {
+							return nil
 						}
-						if ext.OnGroupJoined != nil {
-							ext.callWithJsCheck(ctx.Dice, func() {
-								ext.OnGroupJoined(ctx, msg)
-							})
-						}
-					}
+						return func() { ext.OnGroupJoined(ctx, msg) }
+					})
 				}
 			}()
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupID)
@@ -851,29 +845,24 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 		return
 	}
 
-	// Pinenutn ActivatedExtList模板
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
-	if ok {
-		for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
-			ext := wrapper.GetRealExt()
-			if ext == nil {
-				continue
-			}
-			if ext.OnMessageSend != nil {
-				ext.callWithJsCheck(ctx.Dice, func() {
-					ext.OnMessageSend(ctx, &Message{
-						Platform:    "QQ",
-						Message:     text,
-						MessageType: "group",
-						GroupID:     groupID,
-						Sender: SenderBase{
-							UserID:   pa.EndPoint.UserID,
-							Nickname: pa.EndPoint.Nickname,
-						},
-					}, flag)
-				})
-			}
+	// 触发扩展钩子
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
+		msgToSend := &Message{
+			Platform:    "QQ",
+			Message:     text,
+			MessageType: "group",
+			GroupID:     groupID,
+			Sender: SenderBase{
+				UserID:   pa.EndPoint.UserID,
+				Nickname: pa.EndPoint.Nickname,
+			},
 		}
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnMessageSend == nil {
+				return nil
+			}
+			return func() { ext.OnMessageSend(ctx, msgToSend, flag) }
+		})
 	}
 
 	text = textAssetsConvert(text)

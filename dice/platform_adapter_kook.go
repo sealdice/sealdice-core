@@ -311,19 +311,13 @@ func (pa *PlatformAdapterKook) Serve() int {
 			mctx.Session.ServiceAtNew.Store(msg.GroupID, channel)
 		}
 
-		groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
-		if ok {
-			for _, wrapper := range groupInfo.GetActivatedExtList(mctx.Dice) {
-				ext := wrapper.GetRealExt()
-				if ext == nil {
-					continue
+		if groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+			groupInfo.TriggerExtHook(mctx.Dice, func(ext *ExtInfo) func() {
+				if ext.OnGuildJoined == nil {
+					return nil
 				}
-				if ext.OnGuildJoined != nil {
-					ext.callWithJsCheck(mctx.Dice, func() {
-						ext.OnGuildJoined(mctx, msg)
-					})
-				}
-			}
+				return func() { ext.OnGuildJoined(mctx, msg) }
+			})
 		}
 	})
 

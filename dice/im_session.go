@@ -191,6 +191,20 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	return g.activatedExtList
 }
 
+// TriggerExtHook 遍历已激活的扩展并触发钩子
+// getHook 返回要执行的函数，若返回 nil 则跳过该扩展
+func (g *GroupInfo) TriggerExtHook(d *Dice, getHook func(*ExtInfo) func()) {
+	for _, wrapper := range g.GetActivatedExtList(d) {
+		ext := wrapper.GetRealExt()
+		if ext == nil {
+			continue
+		}
+		if hook := getHook(ext); hook != nil {
+			ext.callWithJsCheck(d, hook)
+		}
+	}
+}
+
 // GetActivatedExtListRaw 直接访问扩展列表（用于序列化、内部修改等场景）
 func (g *GroupInfo) GetActivatedExtListRaw() []*ExtInfo {
 	g.extInitMu.Lock()

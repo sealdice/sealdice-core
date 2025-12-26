@@ -223,19 +223,13 @@ func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsoc
 			doSleepQQ(ctx)
 			p.SendToPerson(ctx, userId, strings.TrimSpace(i), "")
 		}
-		groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-		if ok {
-			for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
-				ext := wrapper.GetRealExt()
-				if ext == nil {
-					continue
+		if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+			groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+				if ext.OnBecomeFriend == nil {
+					return nil
 				}
-				if ext.OnBecomeFriend != nil {
-					ext.callWithJsCheck(ctx.Dice, func() {
-						ext.OnBecomeFriend(ctx, msg)
-					})
-				}
-			}
+				return func() { ext.OnBecomeFriend(ctx, msg) }
+			})
 		}
 	})
 	return nil
@@ -275,19 +269,13 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 				doSleepQQ(ctx)
 				p.SendToGroup(ctx, groupId, strings.TrimSpace(i), "")
 			}
-			groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
-			if ok {
-				for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
-					ext := wrapper.GetRealExt()
-					if ext == nil {
-						continue
+			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId); ok {
+				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+					if ext.OnGroupJoined == nil {
+						return nil
 					}
-					if ext.OnGroupJoined != nil {
-						ext.callWithJsCheck(ctx.Dice, func() {
-							ext.OnGroupJoined(ctx, msg)
-						})
-					}
-				}
+					return func() { ext.OnGroupJoined(ctx, msg) }
+				})
 			}
 		})
 	} else {

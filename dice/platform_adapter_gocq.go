@@ -819,19 +819,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						doSleepQQ(ctx)
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
-					groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-					if ok {
-						for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
-							ext := wrapper.GetRealExt()
-							if ext == nil {
-								continue
+					if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+						groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+							if ext.OnBecomeFriend == nil {
+								return nil
 							}
-							if ext.OnBecomeFriend != nil {
-								ext.callWithJsCheck(ctx.Dice, func() {
-									ext.OnBecomeFriend(ctx, msg)
-								})
-							}
-						}
+							return func() { ext.OnBecomeFriend(ctx, msg) }
+						})
 					}
 				}()
 			}()
@@ -895,19 +889,13 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt)
-			groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-			if ok {
-				for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
-					ext := wrapper.GetRealExt()
-					if ext == nil {
-						continue
+			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+					if ext.OnGroupJoined == nil {
+						return nil
 					}
-					if ext.OnGroupJoined != nil {
-						ext.callWithJsCheck(ctx.Dice, func() {
-							ext.OnGroupJoined(ctx, msg)
-						})
-					}
-				}
+					return func() { ext.OnGroupJoined(ctx, msg) }
+				})
 			}
 		}
 

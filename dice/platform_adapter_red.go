@@ -580,28 +580,23 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 		return
 	}
 
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
-	if ok {
-		for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
-			ext := wrapper.GetRealExt()
-			if ext == nil {
-				continue
-			}
-			if ext.OnMessageSend != nil {
-				ext.callWithJsCheck(ctx.Dice, func() {
-					ext.OnMessageSend(ctx, &Message{
-						Message:     text,
-						MessageType: "group",
-						Platform:    pa.EndPoint.Platform,
-						GroupID:     groupId,
-						Sender: SenderBase{
-							Nickname: pa.EndPoint.Nickname,
-							UserID:   pa.EndPoint.UserID,
-						},
-					}, flag)
-				})
-			}
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId); ok {
+		msgToSend := &Message{
+			Message:     text,
+			MessageType: "group",
+			Platform:    pa.EndPoint.Platform,
+			GroupID:     groupId,
+			Sender: SenderBase{
+				Nickname: pa.EndPoint.Nickname,
+				UserID:   pa.EndPoint.UserID,
+			},
 		}
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnMessageSend == nil {
+				return nil
+			}
+			return func() { ext.OnMessageSend(ctx, msgToSend, flag) }
+		})
 	}
 
 	texts := textSplit(text)
