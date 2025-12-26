@@ -8,10 +8,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"github.com/dop251/goja"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
+
+	"sealdice-core/dice/events"
 )
 
 const (
@@ -284,6 +287,39 @@ func (i *ExtInfo) GetCmdMap() CmdMapCls {
 	return ext.CmdMap
 }
 
+// CallOnMessageSend 调用 OnMessageSend 回调（处理 wrapper 代理）
+func (i *ExtInfo) CallOnMessageSend(d *Dice, ctx *MsgContext, msg *Message, flag string) {
+	ext := i.GetRealExt()
+	if ext == nil || ext.OnMessageSend == nil {
+		return
+	}
+	ext.callWithJsCheck(d, func() {
+		ext.OnMessageSend(ctx, msg, flag)
+	})
+}
+
+// CallOnMessageDeleted 调用 OnMessageDeleted 回调（处理 wrapper 代理）
+func (i *ExtInfo) CallOnMessageDeleted(d *Dice, ctx *MsgContext, msg *Message) {
+	ext := i.GetRealExt()
+	if ext == nil || ext.OnMessageDeleted == nil {
+		return
+	}
+	ext.callWithJsCheck(d, func() {
+		ext.OnMessageDeleted(ctx, msg)
+	})
+}
+
+// CallOnGroupLeave 调用 OnGroupLeave 回调（处理 wrapper 代理）
+func (i *ExtInfo) CallOnGroupLeave(d *Dice, ctx *MsgContext, event *events.GroupLeaveEvent) {
+	ext := i.GetRealExt()
+	if ext == nil || ext.OnGroupLeave == nil {
+		return
+	}
+	ext.callWithJsCheck(d, func() {
+		ext.OnGroupLeave(ctx, event)
+	})
+}
+
 // callWithJsCheck 保留旧行为：JS 扩展需要切回事件循环，避免并发问题。
 func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	if i.IsJsExt {
@@ -458,8 +494,8 @@ func (group *GroupInfo) SyncWrapperStatus(d *Dice) bool {
 	// 确保延迟初始化已完成（GetActivatedExtList 会处理）
 	_ = group.GetActivatedExtList(d)
 
-	// 快速路径：无需更新
-	if group.ExtAppliedTime >= d.ExtUpdateTime {
+	// 快速路径：无需更新（使用 atomic 避免并发读写 data race）
+	if atomic.LoadInt64(&group.ExtAppliedTime) >= d.ExtUpdateTime {
 		return false
 	}
 
@@ -496,7 +532,7 @@ func (group *GroupInfo) SyncWrapperStatus(d *Dice) bool {
 		group.MarkDirty(d)
 	}
 
-	group.ExtAppliedTime = d.ExtUpdateTime
+	atomic.StoreInt64(&group.ExtAppliedTime, d.ExtUpdateTime)
 	return needsUpdate
 }
 

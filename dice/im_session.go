@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -122,13 +123,13 @@ type GroupInfo struct {
 // 通过 ExtAppliedTime == 0 判断是否需要初始化
 // 同时处理新扩展的延迟激活
 func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
-	// 快速路径：已初始化
-	if g.ExtAppliedTime != 0 {
+	// 快速路径：已初始化（使用 atomic 避免并发读写 data race）
+	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
 		return g.activatedExtList
 	}
 	g.extInitMu.Lock()
 	defer g.extInitMu.Unlock()
-	if g.ExtAppliedTime != 0 {
+	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
 		return g.activatedExtList // double-check
 	}
 
@@ -175,7 +176,7 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	}
 
 	g.activatedExtList = newList
-	g.ExtAppliedTime = d.ExtUpdateTime // 标记已初始化
+	atomic.StoreInt64(&g.ExtAppliedTime, d.ExtUpdateTime) // 标记已初始化
 
 	// 如果激活了新扩展，标记群组为 dirty
 	if newExtCount > 0 {
@@ -196,9 +197,9 @@ func (g *GroupInfo) GetActivatedExtListRaw() []*ExtInfo {
 func (g *GroupInfo) SetActivatedExtList(list []*ExtInfo, d *Dice) {
 	g.activatedExtList = list
 	if d != nil {
-		g.ExtAppliedTime = d.ExtUpdateTime // 标记已初始化
+		atomic.StoreInt64(&g.ExtAppliedTime, d.ExtUpdateTime) // 标记已初始化
 	} else {
-		g.ExtAppliedTime = 1 // 没有 Dice 时设置非零值标记已初始化
+		atomic.StoreInt64(&g.ExtAppliedTime, 1) // 没有 Dice 时设置非零值标记已初始化
 	}
 }
 
@@ -1969,21 +1970,13 @@ func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
 	_ = mctx.fillPrivilege(msg)
 
 	for _, i := range s.Parent.ExtList {
-		if i.OnMessageDeleted != nil {
-			i.callWithJsCheck(mctx.Dice, func() {
-				i.OnMessageDeleted(mctx, msg)
-			})
-		}
+		i.CallOnMessageDeleted(mctx.Dice, mctx, msg)
 	}
 }
 
 func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 	for _, i := range s.Parent.ExtList {
-		if i.OnMessageSend != nil {
-			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnMessageSend(ctx, msg, flag)
-			})
-		}
+		i.CallOnMessageSend(ctx.Dice, ctx, msg, flag)
 	}
 }
 
@@ -2006,11 +1999,7 @@ func (s *IMSession) OnPoke(ctx *MsgContext, event *events.PokeEvent) {
 
 func (s *IMSession) OnGroupLeave(ctx *MsgContext, event *events.GroupLeaveEvent) {
 	for _, i := range s.Parent.ExtList {
-		if i.OnGroupLeave != nil {
-			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnGroupLeave(ctx, event)
-			})
-		}
+		i.CallOnGroupLeave(ctx.Dice, ctx, event)
 	}
 }
 

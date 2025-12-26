@@ -207,8 +207,9 @@ func (d *Dice) JsInit() {
 				wrapper = existingWrapper
 				wrapper.Author = realExt.Author
 				wrapper.Version = realExt.Version
-				wrapper.IsDeleted = false // 重新激活（清除删除标记）
-				wrapper.dice = d          // 确保 dice 引用正确（可能从配置恢复时为 nil）
+				wrapper.IsDeleted = false     // 重新激活（清除删除标记）
+				wrapper.dice = d              // 确保 dice 引用正确（可能从配置恢复时为 nil）
+				wrapper.JSLoopVersion = versionID // 同步新的 loop 版本号，避免 callWithJsCheck 时版本不匹配
 			} else {
 				// 首次加载：创建新 wrapper
 				wrapper = &ExtInfo{
