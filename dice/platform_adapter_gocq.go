@@ -560,7 +560,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 					Name: msgQQ.Data.GroupName,
 					time: time.Now().Unix(),
-				}) // 不论如何，先试图取一下群名
+				})
 
 				groupInfo, ok := session.ServiceAtNew.Load(groupID)
 				if ok {
@@ -569,12 +569,12 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						if _, exists := groupInfo.DiceIDExistsMap.Load(diceID); exists {
 							// 不在群里了，更新信息
 							groupInfo.DiceIDExistsMap.Delete(diceID)
-							groupInfo.UpdatedAtTime = time.Now().Unix()
+							groupInfo.MarkDirty(session.Parent)
 						}
 					} else if msgQQ.Data.GroupName != groupInfo.GroupName {
 						// 更新群名
 						groupInfo.GroupName = msgQQ.Data.GroupName
-						groupInfo.UpdatedAtTime = time.Now().Unix()
+						groupInfo.MarkDirty(session.Parent)
 					}
 
 					// 处理被强制拉群的情况
@@ -821,10 +821,14 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					}
 					groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 					if ok {
-						for _, i := range groupInfo.ActivatedExtList {
-							if i.OnBecomeFriend != nil {
-								i.callWithJsCheck(ctx.Dice, func() {
-									i.OnBecomeFriend(ctx, msg)
+						for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+							ext := wrapper.GetRealExt()
+							if ext == nil {
+								continue
+							}
+							if ext.OnBecomeFriend != nil {
+								ext.callWithJsCheck(ctx.Dice, func() {
+									ext.OnBecomeFriend(ctx, msg)
 								})
 							}
 						}
@@ -863,7 +867,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			}
 			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
-			gi.UpdatedAtTime = time.Now().Unix()
+			gi.MarkDirty(ctx.Dice)
 			// 立即获取群信息
 			pa.GetGroupInfoAsync(msg.GroupID)
 			// fmt.Sprintf("<%s>已经就绪。可通过.help查看指令列表", conn.Name)
@@ -893,10 +897,14 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			ctx.Notice(txt)
 			groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
-				for _, i := range groupInfo.ActivatedExtList {
-					if i.OnGroupJoined != nil {
-						i.callWithJsCheck(ctx.Dice, func() {
-							i.OnGroupJoined(ctx, msg)
+				for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+					ext := wrapper.GetRealExt()
+					if ext == nil {
+						continue
+					}
+					if ext.OnGroupJoined != nil {
+						ext.callWithJsCheck(ctx.Dice, func() {
+							ext.OnGroupJoined(ctx, msg)
 						})
 					}
 				}
@@ -998,7 +1006,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			}
 			// TODO：存疑，根据DISMISS的代码复制而来
 			group.DiceIDExistsMap.Delete(ep.UserID)
-			group.UpdatedAtTime = time.Now().Unix()
+			group.MarkDirty(ctx.Dice)
 			log.Info(txt)
 			ctx.Notice(txt)
 			return
@@ -1365,6 +1373,9 @@ func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgC
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = d.Nickname
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
+			if ctx.Group != nil {
+				ctx.Group.MarkDirty(ctx.Dice)
+			}
 		}
 		SetTempVars(ctx, d.Nickname)
 	case "group":
@@ -1372,9 +1383,12 @@ func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgC
 		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.UserID))
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 		if ctx.Group == nil {
+			// 注意：GetPlayerInfoBySender 内部已调用 SetBotOnAtGroup，正常不会返回 nil
+			// 若仍为 nil，说明出现异常情况，此处使用 SetBotOnAtGroup 确保群组被正确存入全局列表
 			gi := pa.GetGroupInfo(msg.GroupID, false)
-			ctx.Group = &GroupInfo{GroupID: msg.GroupID, GroupName: gi.GroupName}
-			ctx.Group.UpdatedAtTime = time.Now().Unix()
+			ctx.Group = SetBotOnAtGroup(ctx, msg.GroupID)
+			ctx.Group.GroupName = gi.GroupName
+			ctx.Group.MarkDirty(ctx.Dice)
 		}
 		if ctx.Player == nil {
 			ctx.Player = &GroupPlayerInfo{UserID: msg.Sender.UserID}
@@ -1386,6 +1400,9 @@ func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgC
 				ctx.Player.Name = d.Card
 			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
+			if ctx.Group != nil {
+				ctx.Group.MarkDirty(ctx.Dice)
+			}
 		}
 		SetTempVars(ctx, d.Nickname)
 	}

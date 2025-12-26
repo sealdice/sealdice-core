@@ -240,7 +240,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			}
 			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
-			gi.UpdatedAtTime = time.Now().Unix()
+			gi.MarkDirty(ctx.Dice)
 			// 立即获取群信息
 			pa.GetGroupInfoAsync(msg.GroupID)
 
@@ -266,10 +266,14 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				// Pinenutn ActivatedExtList模板
 				groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 				if ok {
-					for _, i := range groupInfo.ActivatedExtList {
-						if i.OnGroupJoined != nil {
-							i.callWithJsCheck(ctx.Dice, func() {
-								i.OnGroupJoined(ctx, msg)
+					for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+						ext := wrapper.GetRealExt()
+						if ext == nil {
+							continue
+						}
+						if ext.OnGroupJoined != nil {
+							ext.callWithJsCheck(ctx.Dice, func() {
+								ext.OnGroupJoined(ctx, msg)
 							})
 						}
 					}
@@ -635,14 +639,14 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 					Name: GroupName,
 					time: time.Now().Unix(),
-				}) // 不论如何，先试图取一下群名
+				})
 
 				groupInfo, ok := s.ServiceAtNew.Load(groupID)
 				if ok {
 					// 更新群名
 					if GroupName != groupInfo.GroupName {
 						groupInfo.GroupName = GroupName
-						groupInfo.UpdatedAtTime = time.Now().Unix()
+						groupInfo.MarkDirty(ctx.Dice)
 					}
 
 					// 处理被强制拉群的情况
@@ -850,10 +854,14 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 	// Pinenutn ActivatedExtList模板
 	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
 	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, &Message{
+		for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnMessageSend != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnMessageSend(ctx, &Message{
 						Platform:    "QQ",
 						Message:     text,
 						MessageType: "group",

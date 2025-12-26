@@ -15,7 +15,6 @@ import (
 
 	wr "github.com/mroth/weightedrand"
 	"github.com/panjf2000/ants/v2"
-	"github.com/samber/lo"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
@@ -2151,6 +2150,16 @@ func (d *Dice) loads() {
 				groupInfo.GroupID = id
 				groupInfo.UpdatedAtTime = 0
 
+				// 初始化 nil 字段（加载时初始化，避免单独遍历）
+				if groupInfo.DiceIDActiveMap == nil {
+					groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
+				}
+				if groupInfo.DiceIDExistsMap == nil {
+					groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
+				}
+				if groupInfo.BotList == nil {
+					groupInfo.BotList = new(SyncMap[string, bool])
+				}
 				if groupInfo.InactivatedExtSet == nil {
 					groupInfo.InactivatedExtSet = StringSet{}
 				}
@@ -2176,45 +2185,8 @@ func (d *Dice) loads() {
 		if err != nil {
 			d.Logger.Errorf("加载群信息失败 %s", err)
 		}
-		m := map[string]*ExtInfo{}
-		for _, i := range d.ExtList {
-			m[i.Name] = i
-		}
-		// 设置群扩展
-		// Pinenutn: Range模板 ServiceAtNew重构代码
-		d.ImSession.ServiceAtNew.Range(func(_ string, groupInfo *GroupInfo) bool {
-			// Pinenutn: ServiceAtNew重构
-			var tmp []*ExtInfo
-			groupInfo.ExtActiveListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
-				return item.Name
-			})
-			for _, i := range groupInfo.ActivatedExtList {
-				if m[i.Name] != nil {
-					tmp = append(tmp, m[i.Name])
-				}
-			}
-			groupInfo.ActivatedExtList = tmp
-			return true
-		})
-
-		// 读取群变量
-		// Pinenutn: Range模板 ServiceAtNew重构代码
-		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-			// Pinenutn: ServiceAtNew重构
-			if groupInfo.DiceIDActiveMap == nil {
-				groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
-			}
-			if groupInfo.DiceIDExistsMap == nil {
-				groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
-			}
-			if groupInfo.BotList == nil {
-				groupInfo.BotList = new(SyncMap[string, bool])
-			}
-			if groupInfo.InactivatedExtSet == nil {
-				groupInfo.InactivatedExtSet = StringSet{}
-			}
-			return true
-		})
+		// 延迟加载：不再遍历群组替换扩展对象，改为在 GetActivatedExtList 中延迟处理
+		// nil 字段初始化已移至 GroupInfoListGet 回调中，避免单独遍历
 
 		if config.VersionCode != 0 && config.VersionCode < 10005 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
@@ -2372,8 +2344,8 @@ func (d *Dice) loads() {
 
 	d.LogWriter.LogLimit = int(d.Config.UILogLimit)
 
-	// 设置扩展选项
-	d.ApplyExtDefaultSettings()
+	// 设置扩展选项（延迟加载，跳过群组遍历）
+	d.ApplyExtDefaultSettings(true)
 
 	// 读取文本模板
 	setupTextTemplate(d)
@@ -2423,7 +2395,8 @@ func (d *Dice) SaveText() {
 }
 
 // ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
-func (d *Dice) ApplyExtDefaultSettings() {
+// skipGroupActivation: 是否跳过群组遍历激活（在 wrapper 机制下的 JsReload 场景应为 true）
+func (d *Dice) ApplyExtDefaultSettings(skipGroupActivation bool) {
 	// 遍历两个列表
 	exts1 := map[string]*ExtDefaultSettingItem{}
 	for _, i := range d.Config.ExtDefaultSettings {
@@ -2467,7 +2440,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 
 			// 将改扩展拥有的指令，塞入DisabledCommand
 			names := map[string]bool{}
-			for _, v := range extInfo.CmdMap {
+			for _, v := range extInfo.GetCmdMap() {
 				names[v.Name] = true
 			}
 			// 去掉无效指令
@@ -2492,7 +2465,8 @@ func (d *Dice) ApplyExtDefaultSettings() {
 	}
 
 	// 批量处理所有群组的扩展激活，使用ants池进行并发处理
-	if len(batchExtInfos) > 0 {
+	// 在 wrapper 机制下的 JsReload 场景，跳过群组遍历激活
+	if len(batchExtInfos) > 0 && !skipGroupActivation {
 		// 收集所有群组信息
 		var groups []*GroupInfo
 		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
@@ -2507,7 +2481,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 			if err != nil {
 				// 如果创建池失败，回退到串行处理
 				for _, group := range groups {
-					group.ExtActiveBatchBySnapshotOrder(batchExtInfos, isFirstTimeLoadMap)
+					group.ExtActivateBatch(batchExtInfos, isFirstTimeLoadMap)
 				}
 			} else {
 				defer pool.Release() // 确保池被正确释放
@@ -2519,12 +2493,12 @@ func (d *Dice) ApplyExtDefaultSettings() {
 					err := pool.Submit(func() {
 						defer wg.Done()
 						// Pinenutn: ServiceAtNew重构
-						g.ExtActiveBatchBySnapshotOrder(batchExtInfos, isFirstTimeLoadMap)
+						g.ExtActivateBatch(batchExtInfos, isFirstTimeLoadMap)
 					})
 					if err != nil {
 						// 如果提交任务失败，直接执行并减少计数
 						wg.Done()
-						g.ExtActiveBatchBySnapshotOrder(batchExtInfos, isFirstTimeLoadMap)
+						g.ExtActivateBatch(batchExtInfos, isFirstTimeLoadMap)
 					}
 				}
 
@@ -2538,6 +2512,9 @@ func (d *Dice) ApplyExtDefaultSettings() {
 }
 
 func (d *Dice) Save(isAuto bool) {
+	saveStartTime := time.Now()
+
+	configStartTime := time.Now()
 	if d.LastUpdatedTime != 0 {
 		totalConf := &struct {
 			// copy from Dice
@@ -2580,57 +2557,92 @@ func (d *Dice) Save(isAuto bool) {
 			}
 		}
 	}
+	configDuration := time.Since(configStartTime)
 
-	// Pinenutn: Range模板 ServiceAtNew重构代码
-	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-		// Pinenutn: ServiceAtNew重构
-		// 保存群内玩家信息
-		if groupInfo.Players != nil {
-			groupInfo.Players.Range(func(key string, value *GroupPlayerInfo) bool {
-				if value.UpdatedAtTime != 0 {
-					// 解离数据库层的操作到调用处，设置对应的信息
-					now := int(time.Now().Unix())
-					value.UserID = key
-					value.GroupID = groupInfo.GroupID
-					value.UpdatedAt = now // 更新当前时间为 UpdatedAt
-					_ = service.GroupPlayerInfoSave(d.DBOperator, (*model.GroupPlayerInfoBase)(value))
-					value.UpdatedAtTime = 0
-				}
-				return true
-			})
-		}
+	groupStartTime := time.Now()
+	var groupCount, playerCount, groupSavedCount, playerSavedCount int
+	if d.DirtyGroups != nil {
+		var dirtyIDs []string
+		d.DirtyGroups.Range(func(groupID string, _ int64) bool {
+			dirtyIDs = append(dirtyIDs, groupID)
+			return true
+		})
 
-		if groupInfo.UpdatedAtTime != 0 {
-			data, err := json.Marshal(groupInfo)
-			if err == nil {
-				err := service.GroupInfoSave(d.DBOperator, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
-				if err != nil {
-					d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
-				}
-				groupInfo.UpdatedAtTime = 0
+		for _, groupID := range dirtyIDs {
+			groupCount++
+			groupInfo, ok := d.ImSession.ServiceAtNew.Load(groupID)
+			if !ok || groupInfo == nil {
+				d.DirtyGroups.Delete(groupID)
+				continue
 			}
-		}
-		return true
-	})
 
+			if groupInfo.Players != nil {
+				groupInfo.Players.Range(func(key string, value *GroupPlayerInfo) bool {
+					playerCount++
+					if value.UpdatedAtTime != 0 {
+						playerSavedCount++
+						now := int(time.Now().Unix())
+						value.UserID = key
+						value.GroupID = groupInfo.GroupID
+						value.UpdatedAt = now
+						_ = service.GroupPlayerInfoSave(d.DBOperator, (*model.GroupPlayerInfoBase)(value))
+						value.UpdatedAtTime = 0
+					}
+					return true
+				})
+			}
+
+			if groupInfo.UpdatedAtTime != 0 {
+				groupSavedCount++
+				data, err := json.Marshal(groupInfo)
+				if err == nil {
+					err := service.GroupInfoSave(d.DBOperator, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
+					if err != nil {
+						d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
+					}
+					groupInfo.UpdatedAtTime = 0
+				}
+			}
+
+			d.DirtyGroups.Delete(groupID)
+		}
+	}
+	groupDuration := time.Since(groupStartTime)
+
+	attrsStartTime := time.Now()
 	// 同步全部属性数据：个人角色卡、群内角色卡、群数据、个人全局数据
 	err := d.AttrsManager.CheckForSave()
 	if err != nil {
 		d.Logger.Errorf("保存属性数据失败 %v", err)
 	}
+	attrsDuration := time.Since(attrsStartTime)
 
 	// 保存黑名单数据
 	// TODO: 增加更新时间检测
 	// model.BanMapSet(d.DBData, d.Config.BanList.MapToJSON())
 
 	// endpoint数据额外更新到数据库
+	epStartTime := time.Now()
+	var epCount int
 	for _, ep := range d.ImSession.EndPoints {
 		// 为了避免Restore时没有UserId, Dump时有UserId, 导致空白数据被错误落库的情况, 这里提前做判断
 		if len(ep.UserID) > 0 {
+			epCount++
 			/* NOTE(Xiangze Li): 按理说Restore只需要在每个ep新增时做一次. 但是许多ep都是异步
 			   连接, 并且在连接真正完成之后才有UserId. 所以干脆每次保存数据都尝试一次Restore. */
 			ep.StatsRestore(d)
 			ep.StatsDump(d)
 		}
+	}
+	epDuration := time.Since(epStartTime)
+
+	totalDuration := time.Since(saveStartTime)
+	if playerSavedCount >= 1 || groupSavedCount >= 1 {
+		d.Logger.Infof("Save 完成，耗时统计: 总计 %dms | 配置文件 %dms | 群组/玩家 %dms (群%d/%d, 玩家%d/%d) | 属性 %dms | EP %dms (%d个)",
+			totalDuration.Milliseconds(),
+			configDuration.Milliseconds(),
+			groupDuration.Milliseconds(), groupSavedCount, groupCount, playerSavedCount, playerCount,
+			attrsDuration.Milliseconds(),
+			epDuration.Milliseconds(), epCount)
 	}
 }

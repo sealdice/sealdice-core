@@ -475,7 +475,7 @@ func (m *HelpManager) addExternalCmdHelp(ext []*ExtInfo) error {
 		if err != nil {
 			return err
 		}
-		err = m.addCmdMap(i.Name, i.CmdMap)
+		err = m.addCmdMap(i.Name, i.GetCmdMap())
 		if err != nil {
 			return err
 		}

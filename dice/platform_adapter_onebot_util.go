@@ -150,7 +150,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			ctx.Notice(txtErr)
 		}
 		group.DiceIDExistsMap.Delete(p.EndPoint.UserID)
-		group.UpdatedAtTime = time.Now().Unix()
+		group.MarkDirty(p.Session.Parent)
 		p.logger.Info(txt)
 		ctx.Notice(txt)
 	}
@@ -225,10 +225,14 @@ func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsoc
 		}
 		groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 		if ok {
-			for _, i := range groupInfo.ActivatedExtList {
-				if i.OnBecomeFriend != nil {
-					i.callWithJsCheck(ctx.Dice, func() {
-						i.OnBecomeFriend(ctx, msg)
+			for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+				ext := wrapper.GetRealExt()
+				if ext == nil {
+					continue
+				}
+				if ext.OnBecomeFriend != nil {
+					ext.callWithJsCheck(ctx.Dice, func() {
+						ext.OnBecomeFriend(ctx, msg)
 					})
 				}
 			}
@@ -258,8 +262,8 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 		ctx.Group.DiceIDExistsMap.Store(ctx.EndPoint.UserID, true)
 		// 入群时间
 		ctx.Group.EnteredTime = time.Now().Unix()
-		// 更新时间
-		ctx.Group.UpdatedAtTime = time.Now().Unix()
+		// 标记脏数据
+		ctx.Group.MarkDirty(ctx.Dice)
 		// 获取群信息 并发送入群致辞
 		_ = p.antPool.Submit(func() {
 			time.Sleep(1 * time.Second)
@@ -273,10 +277,14 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 			}
 			groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
 			if ok {
-				for _, i := range groupInfo.ActivatedExtList {
-					if i.OnGroupJoined != nil {
-						i.callWithJsCheck(ctx.Dice, func() {
-							i.OnGroupJoined(ctx, msg)
+				for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+					ext := wrapper.GetRealExt()
+					if ext == nil {
+						continue
+					}
+					if ext.OnGroupJoined != nil {
+						ext.callWithJsCheck(ctx.Dice, func() {
+							ext.OnGroupJoined(ctx, msg)
 						})
 					}
 				}
@@ -991,6 +999,9 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		if ctx.Player.Name == "" {
 			ctx.Player.Name = info.NickName
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
+			if ctx.Group != nil {
+				ctx.Group.MarkDirty(ctx.Dice)
+			}
 		}
 		SetTempVars(ctx, info.NickName)
 	case "group":
@@ -1004,9 +1015,12 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		wrapper.Sender.Nickname = memberInfo.Nickname
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Group == nil {
+			// 注意：GetPlayerInfoBySenderRaw 内部已调用 SetBotOnAtGroup，正常不会返回 nil
+			// 若仍为 nil，说明出现异常情况，此处使用 SetBotOnAtGroup 确保群组被正确存入全局列表
 			gi := p.GetGroupCacheInfo(FormatOnebotDiceIDQQGroup(req.Get("group_id").String()))
-			ctx.Group = &GroupInfo{GroupID: gi.GroupId, GroupName: gi.GroupName}
-			ctx.Group.UpdatedAtTime = time.Now().Unix()
+			ctx.Group = SetBotOnAtGroup(ctx, gi.GroupId)
+			ctx.Group.GroupName = gi.GroupName
+			ctx.Group.MarkDirty(ctx.Dice)
 		}
 		if ctx.Player == nil {
 			ctx.Player = &GroupPlayerInfo{UserID: wrapper.Sender.UserID}
@@ -1018,6 +1032,9 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 				ctx.Player.Name = memberInfo.Card
 			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
+			if ctx.Group != nil {
+				ctx.Group.MarkDirty(ctx.Dice)
+			}
 		}
 		SetTempVars(ctx, memberInfo.Nickname)
 	}

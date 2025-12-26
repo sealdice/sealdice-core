@@ -350,6 +350,17 @@ func (dm *DiceManager) TryGetGroupName(id string) string {
 	return "%未知群名%"
 }
 
+// ShouldRefreshGroupInfo 检查是否应该刷新群信息，内置30秒CD
+// 返回 true 表示可以刷新（不在CD中），false 表示在CD中应跳过
+func (dm *DiceManager) ShouldRefreshGroupInfo(id string) bool {
+	now := time.Now().Unix()
+	item, exists := dm.GroupNameCache.Load(id)
+	if exists && now-item.time < 30 {
+		return false // 30秒内不重复刷新
+	}
+	return true
+}
+
 func (dm *DiceManager) TryGetUserName(id string) string {
 	item, exists := dm.UserNameCache.Load(id)
 	if exists {

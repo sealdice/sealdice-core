@@ -582,10 +582,14 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 
 	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
 	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, &Message{
+		for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnMessageSend != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnMessageSend(ctx, &Message{
 						Message:     text,
 						MessageType: "group",
 						Platform:    pa.EndPoint.Platform,
@@ -737,12 +741,12 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 						if _, exists := groupRecord.DiceIDExistsMap.Load(diceId); exists {
 							// 不在群里了，更新信息
 							groupRecord.DiceIDExistsMap.Delete(diceId)
-							groupRecord.UpdatedAtTime = time.Now().Unix()
+							groupRecord.MarkDirty(session.Parent)
 						}
 					} else if groupRecord.GroupName != group.GroupName {
 						// 更新群名
 						groupRecord.GroupName = group.GroupName
-						groupRecord.UpdatedAtTime = time.Now().Unix()
+						groupRecord.MarkDirty(session.Parent)
 					}
 				}
 			}

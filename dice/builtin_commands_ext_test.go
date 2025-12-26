@@ -103,7 +103,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 
 			// 记录激活前的扩展列表（模拟 builtin_commands.go 中的逻辑）
 			beforeActivate := make(map[string]bool)
-			for _, ext := range group.ActivatedExtList {
+			for _, ext := range group.GetActivatedExtListRaw() {
 				beforeActivate[ext.Name] = true
 			}
 			userActivatedNames := make(map[string]bool)
@@ -122,7 +122,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 
 			// 检查新激活的伴随扩展（模拟 builtin_commands.go 中的检测逻辑）
 			var companionExtNames []string
-			for _, ext := range group.ActivatedExtList {
+			for _, ext := range group.GetActivatedExtListRaw() {
 				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
 					companionExtNames = append(companionExtNames, ext.Name)
 				}
@@ -210,7 +210,7 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 			group := newTestGroupInfo()
 
 			beforeActivate := make(map[string]bool)
-			for _, ext := range group.ActivatedExtList {
+			for _, ext := range group.GetActivatedExtListRaw() {
 				beforeActivate[ext.Name] = true
 			}
 			userActivatedNames := make(map[string]bool)
@@ -225,7 +225,7 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 			}
 
 			var companionExtNames []string
-			for _, ext := range group.ActivatedExtList {
+			for _, ext := range group.GetActivatedExtListRaw() {
 				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
 					companionExtNames = append(companionExtNames, ext.Name)
 				}

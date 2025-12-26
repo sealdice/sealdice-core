@@ -271,10 +271,14 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 
 	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
 	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, &Message{
+		for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnMessageSend != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnMessageSend(ctx, &Message{
 						Message:     text,
 						MessageType: "group",
 						Platform:    pa.EndPoint.Platform,

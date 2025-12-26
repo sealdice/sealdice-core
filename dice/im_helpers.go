@@ -48,7 +48,7 @@ func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 		if groupInfo.DiceIDActiveMap.Len() == 0 {
 			groupInfo.Active = false
 		}
-		groupInfo.UpdatedAtTime = time.Now().Unix()
+		groupInfo.MarkDirty(ctx.Dice)
 	}
 }
 
@@ -82,7 +82,8 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 
 		session.ServiceAtNew.Store(groupID, &GroupInfo{
 			Active:            true,
-			ActivatedExtList:  extLst,
+			activatedExtList:  extLst,
+			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
 			InactivatedExtSet: StringSet{},
 			Players:           new(SyncMap[string, *GroupPlayerInfo]),
 			GroupID:           groupID,
@@ -106,7 +107,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	}
 
 	group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
-	group.UpdatedAtTime = time.Now().Unix()
+	group.MarkDirty(ctx.Dice)
 	return group
 }
 
@@ -154,7 +155,8 @@ func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo,
 	}
 
 	if ctx.Dice != nil {
-		groupInfo.SyncExtensionsOnMessage(ctx.Dice)
+		groupInfo.SyncWrapperStatus(ctx.Dice)    // 移除无效 wrapper
+		groupInfo.SyncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
 	}
 
 	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)
@@ -280,9 +282,8 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		text = "要发送的文本过长"
 	}
 	if ctx.Group != nil {
-		now := time.Now().Unix()
-		ctx.Group.RecentDiceSendTime = now
-		ctx.Group.UpdatedAtTime = now
+		ctx.Group.RecentDiceSendTime = time.Now().Unix()
+		ctx.Group.MarkDirty(ctx.Dice)
 	}
 	text = strings.TrimSpace(text)
 	for _, i := range ctx.SplitText(text) {

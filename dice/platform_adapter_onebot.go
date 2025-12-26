@@ -210,13 +210,13 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 	// 群名有更新的情况
 	if result.GroupName != groupInfo.GroupName {
 		groupInfo.GroupName = result.GroupName
-		groupInfo.UpdatedAtTime = time.Now().Unix()
+		groupInfo.MarkDirty(p.Session.Parent)
 	}
 	// 群信息获取不到，可能退群的情况，删除群信息
 	if result.MaxMemberCount == 0 {
 		if _, exists := groupInfo.DiceIDExistsMap.Load(p.EndPoint.UserID); exists {
 			groupInfo.DiceIDExistsMap.Delete(p.EndPoint.UserID)
-			groupInfo.UpdatedAtTime = time.Now().Unix()
+			groupInfo.MarkDirty(p.Session.Parent)
 		}
 	}
 	// 发现群情况不对，可能要退群的情况。 放在这里是因为可能这个群已经被邀请进入了

@@ -3,12 +3,14 @@ package dice
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"regexp"
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -65,10 +67,10 @@ type Message struct {
 type GroupPlayerInfo model.GroupPlayerInfoBase
 
 type GroupInfo struct {
-	Active                bool                               `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
-	ActivatedExtList      []*ExtInfo                         `json:"activatedExtList" yaml:"activatedExtList,flow"`               // 当前群开启的扩展列表
-	ExtActiveListSnapshot []string                           `json:"-"                yaml:"-"`                                   // 存放当前激活的扩展表，无论其是否存在，用于处理插件重载后优先级混乱的问题
-	Players               *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
+	Active           bool                               `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
+	activatedExtList []*ExtInfo                         `json:"activatedExtList" yaml:"activatedExtList,flow"`               // 当前群开启的扩展列表（私有，通过 Getter 访问）
+	extInitMu        sync.Mutex                         `json:"-"                yaml:"-"`                                   // 延迟初始化锁
+	Players          *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
 
 	InactivatedExtSet StringSet `json:"inactivatedExtSet" yaml:"inactivatedExtSet,flow"` // 手动关闭或尚未启用的扩展
 
@@ -111,6 +113,107 @@ type GroupInfo struct {
 
 	PlayerGroups      *SyncMap[string, []string] `json:"playerGroups"      yaml:"playerGroups"` // 给team指令使用，和玩家、群等信息一样，都来自Players，不会重复存储
 	ExtAppliedVersion int64                      `json:"extAppliedVersion" yaml:"extAppliedVersion"`
+
+	/* Wrapper 架构 */
+	ExtAppliedTime int64 `json:"-" yaml:"-"` // 群组应用扩展的时间戳，运行时使用，不序列化（强制每次启动重新初始化）
+}
+
+// GetActivatedExtList 获取激活的扩展列表，自动处理延迟初始化
+// 通过 ExtAppliedTime == 0 判断是否需要初始化
+func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
+	// 快速路径：已初始化
+	if g.ExtAppliedTime != 0 {
+		return g.activatedExtList
+	}
+	g.extInitMu.Lock()
+	defer g.extInitMu.Unlock()
+	if g.ExtAppliedTime != 0 {
+		return g.activatedExtList // double-check
+	}
+
+	// 延迟初始化：用全局 ExtList 替换反序列化的占位对象
+	m := make(map[string]*ExtInfo)
+	for _, ext := range d.ExtList {
+		m[ext.Name] = ext
+	}
+
+	oldCount := len(g.activatedExtList)
+	var newList []*ExtInfo
+	for _, item := range g.activatedExtList {
+		if item != nil && m[item.Name] != nil {
+			newList = append(newList, m[item.Name])
+		}
+	}
+	g.activatedExtList = newList
+	g.ExtAppliedTime = d.ExtUpdateTime // 标记已初始化
+
+	// 打印初始化日志
+	d.Logger.Infof("群组扩展初始化: %s, 扩展数 %d -> %d", g.GroupID, oldCount, len(newList))
+	return g.activatedExtList
+}
+
+// GetActivatedExtListRaw 直接访问扩展列表（用于序列化、内部修改等场景）
+func (g *GroupInfo) GetActivatedExtListRaw() []*ExtInfo {
+	return g.activatedExtList
+}
+
+// SetActivatedExtList 设置扩展列表（用于新群组创建等场景）
+func (g *GroupInfo) SetActivatedExtList(list []*ExtInfo, d *Dice) {
+	g.activatedExtList = list
+	if d != nil {
+		g.ExtAppliedTime = d.ExtUpdateTime // 标记已初始化
+	} else {
+		g.ExtAppliedTime = 1 // 没有 Dice 时设置非零值标记已初始化
+	}
+}
+
+// groupInfoAlias 用于避免 MarshalJSON 递归调用
+type groupInfoAlias GroupInfo
+
+// groupInfoJSON 用于序列化/反序列化 GroupInfo
+// 由于 activatedExtList 是私有字段，需要通过此结构体处理
+type groupInfoJSON struct {
+	*groupInfoAlias
+	ActivatedExtList []*ExtInfo `json:"activatedExtList"`
+}
+
+// MarshalJSON 自定义序列化，处理私有字段 activatedExtList
+// 同时过滤掉已删除的 wrapper（IsDeleted=true）
+func (g *GroupInfo) MarshalJSON() ([]byte, error) {
+	// 过滤掉已删除的 wrapper
+	var filteredList []*ExtInfo
+	for _, ext := range g.activatedExtList {
+		if ext != nil && !ext.IsDeleted {
+			filteredList = append(filteredList, ext)
+		}
+	}
+
+	return json.Marshal(&groupInfoJSON{
+		groupInfoAlias:   (*groupInfoAlias)(g),
+		ActivatedExtList: filteredList,
+	})
+}
+
+// UnmarshalJSON 自定义反序列化，处理私有字段 activatedExtList
+func (g *GroupInfo) UnmarshalJSON(data []byte) error {
+	temp := &groupInfoJSON{
+		groupInfoAlias: (*groupInfoAlias)(g),
+	}
+	if err := json.Unmarshal(data, temp); err != nil {
+		return err
+	}
+	g.activatedExtList = temp.ActivatedExtList
+	return nil
+}
+
+// MarkDirty 标记群组为脏数据，需要保存到数据库
+// 同时将群组 ID 加入脏列表，Save 时只遍历脏列表
+func (g *GroupInfo) MarkDirty(d *Dice) {
+	now := time.Now().Unix()
+	g.UpdatedAtTime = now
+	if d != nil && d.DirtyGroups != nil {
+		d.DirtyGroups.Store(g.GroupID, now)
+	}
 }
 
 func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
@@ -539,13 +642,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			if msg.GroupName != "" {
 				groupInfo.GroupName = msg.GroupName
 			}
-			groupInfo.UpdatedAtTime = time.Now().Unix()
+			groupInfo.MarkDirty(d) // SetBotOnAtGroup 已调用过一次，这里确保后续修改也被标记
 
 			dm := d.Parent
 			groupName := dm.TryGetGroupName(groupInfo.GroupID)
 
 			txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, groupInfo.GroupID, autoOn)
-			ep.Adapter.GetGroupInfoAsync(msg.GroupID)
+			if dm.ShouldRefreshGroupInfo(msg.GroupID) {
+				ep.Adapter.GetGroupInfoAsync(msg.GroupID)
+			}
 			log.Info(txt)
 			mctx.Notice(txt)
 
@@ -554,10 +659,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				// Pinenutn:这个i不知道是啥，放你一马（
 				activatedList, _ := mctx.Session.ServiceAtNew.Load(msg.GroupID)
 				if ok {
-					for _, i := range activatedList.ActivatedExtList {
-						if i.OnGroupJoined != nil {
-							i.callWithJsCheck(mctx.Dice, func() {
-								i.OnGroupJoined(mctx, msg)
+					for _, wrapper := range activatedList.GetActivatedExtList(mctx.Dice) {
+						ext := wrapper.GetRealExt()
+						if ext == nil {
+							continue
+						}
+						if ext.OnGroupJoined != nil {
+							ext.callWithJsCheck(mctx.Dice, func() {
+								ext.OnGroupJoined(mctx, msg)
 							})
 						}
 					}
@@ -606,7 +715,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 自动激活存在状态
 			if _, exists := groupInfo.DiceIDExistsMap.Load(ep.UserID); !exists {
 				groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
-				groupInfo.UpdatedAtTime = time.Now().Unix()
+				groupInfo.MarkDirty(d)
 			}
 		}
 
@@ -615,10 +724,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 			if mctx.PrivilegeLevel != -30 {
-				for _, i := range mctx.Group.ActivatedExtList {
-					if i.OnMessageReceived != nil {
-						i.callWithJsCheck(mctx.Dice, func() {
-							i.OnMessageReceived(mctx, msg)
+				for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+					ext := wrapper.GetRealExt()
+					if ext == nil {
+						continue
+					}
+					if ext.OnMessageReceived != nil {
+						ext.callWithJsCheck(mctx.Dice, func() {
+							ext.OnMessageReceived(mctx, msg)
 						})
 					}
 				}
@@ -634,8 +747,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 这里不用group是为了私聊
 			g := mctx.Group
 			if g != nil {
-				for _, i := range g.ActivatedExtList {
-					for k := range i.CmdMap {
+				for _, wrapper := range g.GetActivatedExtList(d) {
+					for k := range wrapper.GetCmdMap() {
 						cmdLst = append(cmdLst, k)
 					}
 				}
@@ -825,8 +938,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 			if !isSenderBot {
 				if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
-					for _, _i := range mctx.Group.ActivatedExtList {
-						i := _i // 保留引用
+					for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+						ext := wrapper.GetRealExt()
+						if ext == nil {
+							continue
+						}
+						i := ext // 保留引用
 						if i.OnNotCommandReceived != nil {
 							notCommandReceiveCall := func() {
 								if i.IsJsExt {
@@ -910,7 +1027,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		if msg.GroupName != "" {
 			groupInfo.GroupName = msg.GroupName
 		}
-		groupInfo.UpdatedAtTime = time.Now().Unix()
+		groupInfo.MarkDirty(d) // SetBotOnAtGroup 已调用过一次，这里确保后续修改也被标记
 
 		// dm := d.Parent
 		// 愚蠢调用，改了
@@ -927,10 +1044,14 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		if msg.Platform == "QQ" || msg.Platform == "TG" {
 			groupInfo, ok = mctx.Session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
-				for _, i := range groupInfo.ActivatedExtList {
-					if i.OnGroupJoined != nil {
-						i.callWithJsCheck(mctx.Dice, func() {
-							i.OnGroupJoined(mctx, msg)
+				for _, wrapper := range groupInfo.GetActivatedExtList(mctx.Dice) {
+					ext := wrapper.GetRealExt()
+					if ext == nil {
+						continue
+					}
+					if ext.OnGroupJoined != nil {
+						ext.callWithJsCheck(mctx.Dice, func() {
+							ext.OnGroupJoined(mctx, msg)
 						})
 					}
 				}
@@ -967,7 +1088,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		// 自动激活存在状态
 		if _, exists := groupInfo.DiceIDExistsMap.Load(ep.UserID); !exists {
 			groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
-			groupInfo.UpdatedAtTime = time.Now().Unix()
+			groupInfo.MarkDirty(mctx.Dice)
 		}
 	}
 
@@ -976,10 +1097,14 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 		if mctx.PrivilegeLevel != -30 {
-			for _, i := range mctx.Group.ActivatedExtList {
-				if i.OnMessageReceived != nil {
-					i.callWithJsCheck(mctx.Dice, func() {
-						i.OnMessageReceived(mctx, msg)
+			for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+				ext := wrapper.GetRealExt()
+				if ext == nil {
+					continue
+				}
+				if ext.OnMessageReceived != nil {
+					ext.callWithJsCheck(mctx.Dice, func() {
+						ext.OnMessageReceived(mctx, msg)
 					})
 				}
 			}
@@ -1102,8 +1227,12 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 		if !isSenderBot {
 			if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
-				for _, _i := range mctx.Group.ActivatedExtList {
-					i := _i // 保留引用
+				for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+					ext := wrapper.GetRealExt()
+					if ext == nil {
+						continue
+					}
+					i := ext // 保留引用
 					if i.OnNotCommandReceived != nil {
 						notCommandReceiveCall := func() {
 							if i.IsJsExt {
@@ -1215,9 +1344,13 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	var ret bool
 	// 试图匹配自定义指令
 	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
-		for _, i := range mctx.Group.ActivatedExtList {
-			if i.OnCommandOverride != nil {
-				ret = i.OnCommandOverride(mctx, msg, cmdArgs)
+		for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnCommandOverride != nil {
+				ret = ext.OnCommandOverride(mctx, msg, cmdArgs)
 				if ret {
 					break
 				}
@@ -1236,6 +1369,9 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 		ep.CmdExecutedLastTime = time.Now().Unix()
 		mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
 		mctx.Player.UpdatedAtTime = time.Now().Unix()
+		if mctx.Group != nil {
+			mctx.Group.MarkDirty(mctx.Dice)
+		}
 	} else {
 		if msg.MessageType == "group" {
 			log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
@@ -1262,8 +1398,10 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	group.InviteUserID = msg.Sender.UserID
 	group.DiceIDExistsMap.Store(ep.UserID, true)
 	group.EnteredTime = time.Now().Unix() // 设置入群时间
-	group.UpdatedAtTime = time.Now().Unix()
-	ep.Adapter.GetGroupInfoAsync(msg.GroupID)
+	group.MarkDirty(ctx.Dice)
+	if dm.ShouldRefreshGroupInfo(msg.GroupID) {
+		ep.Adapter.GetGroupInfoAsync(msg.GroupID)
+	}
 	time.Sleep(2 * time.Second)
 	groupName := dm.TryGetGroupName(msg.GroupID)
 	go func() {
@@ -1287,10 +1425,14 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	txt := fmt.Sprintf("加入群组: <%s>(%s)", groupName, msg.GroupID)
 	log.Info(txt)
 	ctx.Notice(txt)
-	for _, i := range group.ActivatedExtList {
-		if i.OnGroupJoined != nil {
-			i.callWithJsCheck(d, func() {
-				i.OnGroupJoined(ctx, msg)
+	for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+		ext := wrapper.GetRealExt()
+		if ext == nil {
+			continue
+		}
+		if ext.OnGroupJoined != nil {
+			ext.callWithJsCheck(d, func() {
+				ext.OnGroupJoined(ctx, msg)
 			})
 		}
 	}
@@ -1439,7 +1581,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			time.Sleep(2 * time.Second)
 			// 删除群聊绑定信息，更新群处理时间
 			grp.DiceIDExistsMap.Delete(ep.UserID)
-			grp.UpdatedAtTime = time.Now().Unix()
+			grp.MarkDirty(msgCtx.Dice)
 			// 执行真正的退群活动，理论上这个msgCtx就能直接用
 			ep.Adapter.QuitGroup(msgCtx, grp.GroupID)
 			// 发出提示
@@ -1742,9 +1884,10 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 
 		if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
-			for _, i := range group.ActivatedExtList {
-				item := i.CmdMap[cmdArgs.Command]
-				if tryItemSolve(i, item) {
+			for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+				cmdMap := wrapper.GetCmdMap()
+				item := cmdMap[cmdArgs.Command]
+				if tryItemSolve(wrapper, item) {
 					return true
 				}
 			}
@@ -1754,10 +1897,14 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 
 	solved := builtinSolve()
 	if group.Active || ctx.IsCurGroupBotOn {
-		for _, i := range group.ActivatedExtList {
-			if i.OnCommandReceived != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnCommandReceived(ctx, msg, cmdArgs)
+		for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnCommandReceived != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnCommandReceived(ctx, msg, cmdArgs)
 				})
 			}
 		}
@@ -1809,10 +1956,14 @@ func (s *IMSession) OnPoke(ctx *MsgContext, event *events.PokeEvent) {
 	if !ctx.Group.IsActive(ctx) {
 		return
 	}
-	for _, i := range ctx.Group.ActivatedExtList {
-		if i.OnPoke != nil {
-			i.callWithJsCheck(ctx.Dice, func() {
-				i.OnPoke(ctx, event)
+	for _, wrapper := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+		ext := wrapper.GetRealExt()
+		if ext == nil {
+			continue
+		}
+		if ext.OnPoke != nil {
+			ext.callWithJsCheck(ctx.Dice, func() {
+				ext.OnPoke(ctx, event)
 			})
 		}
 	}
@@ -1849,10 +2000,14 @@ func (s *IMSession) OnMessageEdit(ctx *MsgContext, msg *Message) {
 
 	group := ctx.Group
 	if group.Active || ctx.IsCurGroupBotOn {
-		for _, i := range group.ActivatedExtList {
-			if i.OnMessageEdit != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageEdit(ctx, msg)
+		for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnMessageEdit != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnMessageEdit(ctx, msg)
 				})
 			}
 		}

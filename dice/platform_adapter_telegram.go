@@ -223,10 +223,14 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	// Pinenutn ActivatedExtList模板
 	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnGroupJoined != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnGroupJoined(ctx, msg)
+		for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnGroupJoined != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnGroupJoined(ctx, msg)
 				})
 			}
 		}
@@ -246,10 +250,14 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	}
 	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnBecomeFriend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnBecomeFriend(ctx, msg)
+		for _, wrapper := range groupInfo.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnBecomeFriend != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnBecomeFriend(ctx, msg)
 				})
 			}
 		}

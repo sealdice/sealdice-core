@@ -484,11 +484,11 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 			if cmdArgs.IsArgEqual(1, "on") {
 				ctx.Group.ShowGroupWelcome = true
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ctx.Group.MarkDirty(ctx.Dice)
 				ReplyToSender(ctx, msg, "入群欢迎语已打开")
 			} else if cmdArgs.IsArgEqual(1, "off") {
 				ctx.Group.ShowGroupWelcome = false
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ctx.Group.MarkDirty(ctx.Dice)
 				ReplyToSender(ctx, msg, "入群欢迎语已关闭")
 			} else if cmdArgs.IsArgEqual(1, "show") {
 				welcome := ctx.Group.GroupWelcomeMessage
@@ -503,7 +503,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				text2 := strings.TrimSpace(cmdArgs.RawArgs[len("set"):])
 				ctx.Group.GroupWelcomeMessage = text2
 				ctx.Group.ShowGroupWelcome = true
-				ctx.Group.UpdatedAtTime = time.Now().Unix()
+				ctx.Group.MarkDirty(ctx.Dice)
 				ReplyToSender(ctx, msg, "当前欢迎语设定为:\n"+text2+"\n入群欢迎语已自动打开(注意，会在bot off时起效)")
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
