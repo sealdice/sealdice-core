@@ -67,12 +67,12 @@ type Message struct {
 type GroupPlayerInfo model.GroupPlayerInfoBase
 
 type GroupInfo struct {
-	Active           bool                               `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
-	activatedExtList []*ExtInfo                         `json:"activatedExtList" yaml:"activatedExtList,flow"`               // 当前群开启的扩展列表（私有，通过 Getter 访问）
-	extInitMu        sync.Mutex                         `json:"-"                yaml:"-"`                                   // 延迟初始化锁
-	Players          *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
+	Active    bool                               `jsbind:"active"         json:"active"                yaml:"active"` // 是否在群内开启 - 过渡为象征意义
+	extInitMu sync.Mutex                         `json:"-"                yaml:"-"`                                   // 延迟初始化锁
+	Players   *SyncMap[string, *GroupPlayerInfo] `json:"-"                yaml:"-"`                                   // 群员角色数据
 
-	InactivatedExtSet StringSet `json:"inactivatedExtSet" yaml:"inactivatedExtSet,flow"` // 手动关闭或尚未启用的扩展
+	activatedExtList  []*ExtInfo // 当前群开启的扩展列表（私有，通过 Getter 访问，由 MarshalJSON/UnmarshalJSON 处理序列化）
+	InactivatedExtSet StringSet  `json:"inactivatedExtSet" yaml:"inactivatedExtSet,flow"` // 手动关闭或尚未启用的扩展
 
 	GroupID         string                 `jsbind:"groupId"       json:"groupId"      yaml:"groupId"`
 	GuildID         string                 `jsbind:"guildId"       json:"guildId"      yaml:"guildId"`
