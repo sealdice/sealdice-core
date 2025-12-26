@@ -155,7 +155,7 @@ func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo,
 	}
 
 	if ctx.Dice != nil {
-		groupInfo.SyncWrapperStatus(ctx.Dice)    // 移除无效 wrapper
+		groupInfo.SyncWrapperStatus(ctx.Dice)       // 移除无效 wrapper
 		groupInfo.SyncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
 	}
 

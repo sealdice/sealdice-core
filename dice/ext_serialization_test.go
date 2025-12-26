@@ -1,7 +1,9 @@
-package dice
+package dice_test
 
 import (
 	"testing"
+
+	"sealdice-core/dice"
 
 	"gopkg.in/yaml.v3"
 )
@@ -10,16 +12,16 @@ import (
 func TestGroupInfoSerialization(t *testing.T) {
 	tests := []struct {
 		name     string
-		group    *GroupInfo
-		validate func(*testing.T, *GroupInfo)
+		group    *dice.GroupInfo
+		validate func(*testing.T, *dice.GroupInfo)
 	}{
 		{
 			name: "有数据的情况",
-			group: &GroupInfo{
-				InactivatedExtSet: StringSet{"ext1": {}, "ext2": {}},
+			group: &dice.GroupInfo{
+				InactivatedExtSet: dice.StringSet{"ext1": {}, "ext2": {}},
 				ExtAppliedVersion: 123,
 			},
-			validate: func(t *testing.T, g *GroupInfo) {
+			validate: func(t *testing.T, g *dice.GroupInfo) {
 				if len(g.InactivatedExtSet) != 2 {
 					t.Errorf("InactivatedExtSet 长度不匹配: got %d, want 2", len(g.InactivatedExtSet))
 				}
@@ -33,14 +35,14 @@ func TestGroupInfoSerialization(t *testing.T) {
 		},
 		{
 			name: "nil 字段的情况",
-			group: &GroupInfo{
+			group: &dice.GroupInfo{
 				InactivatedExtSet: nil,
 				ExtAppliedVersion: 0,
 			},
-			validate: func(t *testing.T, g *GroupInfo) {
+			validate: func(t *testing.T, g *dice.GroupInfo) {
 				// YAML 会将 nil map/slice 反序列化为空集合，这是预期行为
 				if g.InactivatedExtSet == nil {
-					g.InactivatedExtSet = StringSet{}
+					g.InactivatedExtSet = dice.StringSet{}
 				}
 				// 验证空集合也能正常工作
 				if g.IsExtInactivated("any") {
@@ -50,10 +52,10 @@ func TestGroupInfoSerialization(t *testing.T) {
 		},
 		{
 			name: "空但非 nil 的情况",
-			group: &GroupInfo{
-				InactivatedExtSet: StringSet{},
+			group: &dice.GroupInfo{
+				InactivatedExtSet: dice.StringSet{},
 			},
-			validate: func(t *testing.T, g *GroupInfo) {
+			validate: func(t *testing.T, g *dice.GroupInfo) {
 				if len(g.InactivatedExtSet) != 0 {
 					t.Errorf("InactivatedExtSet 应该为空: got %d items", len(g.InactivatedExtSet))
 				}
@@ -72,7 +74,7 @@ func TestGroupInfoSerialization(t *testing.T) {
 			t.Logf("YAML 输出:\n%s", string(data))
 
 			// 反序列化
-			var restored GroupInfo
+			var restored dice.GroupInfo
 			err = yaml.Unmarshal(data, &restored)
 			if err != nil {
 				t.Fatalf("反序列化失败: %v", err)
@@ -92,7 +94,7 @@ inactivatedExtSet:
   - ext2
 `
 
-	var group GroupInfo
+	var group dice.GroupInfo
 	err := yaml.Unmarshal([]byte(yamlData), &group)
 	if err != nil {
 		t.Fatalf("反序列化失败: %v", err)
