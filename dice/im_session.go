@@ -179,7 +179,12 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	}
 
 	g.activatedExtList = newList
-	atomic.StoreInt64(&g.ExtAppliedTime, d.ExtUpdateTime) // 标记已初始化
+	// 标记已初始化，确保值不为 0（否则下次检查会再次进入初始化）
+	appliedTime := d.ExtUpdateTime
+	if appliedTime == 0 {
+		appliedTime = 1
+	}
+	atomic.StoreInt64(&g.ExtAppliedTime, appliedTime)
 
 	// 如果激活了新扩展，标记群组为 dirty
 	if newExtCount > 0 {
