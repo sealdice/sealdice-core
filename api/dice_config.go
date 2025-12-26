@@ -331,7 +331,7 @@ func DiceConfigSet(c echo.Context) error {
 			err := json.Unmarshal(data, &items)
 			if err == nil {
 				config.ExtDefaultSettings = items
-				myDice.ApplyExtDefaultSettings(false)
+				myDice.ApplyExtDefaultSettings()
 			}
 		}
 	}

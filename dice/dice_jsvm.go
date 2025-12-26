@@ -830,9 +830,8 @@ func (d *Dice) JsLoadScripts() {
 		d.JsLoadScriptRaw(jsInfo)
 	}
 	// 统一在所有脚本加载完后应用扩展默认设置
-	// wrapper 机制下 JsReload 不需要遍历群组激活，跳过群组遍历
-	// 初始加载时 JsReloading=false，需要遍历群组激活新扩展
-	d.ApplyExtDefaultSettings(d.JsReloading)
+	// 新扩展激活采用延迟模式，在群组收到消息时通过 GetActivatedExtList 按需激活
+	d.ApplyExtDefaultSettings()
 }
 
 func (d *Dice) JsReload() {

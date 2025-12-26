@@ -120,6 +120,7 @@ type GroupInfo struct {
 
 // GetActivatedExtList 获取激活的扩展列表，自动处理延迟初始化
 // 通过 ExtAppliedTime == 0 判断是否需要初始化
+// 同时处理新扩展的延迟激活
 func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	// 快速路径：已初始化
 	if g.ExtAppliedTime != 0 {
@@ -132,23 +133,57 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	}
 
 	// 延迟初始化：用全局 ExtList 替换反序列化的占位对象
-	m := make(map[string]*ExtInfo)
+	extMap := make(map[string]*ExtInfo)
 	for _, ext := range d.ExtList {
-		m[ext.Name] = ext
+		extMap[ext.Name] = ext
 	}
 
 	oldCount := len(g.activatedExtList)
 	var newList []*ExtInfo
+	activated := make(map[string]bool)
 	for _, item := range g.activatedExtList {
-		if item != nil && m[item.Name] != nil {
-			newList = append(newList, m[item.Name])
+		if item != nil && extMap[item.Name] != nil {
+			newList = append(newList, extMap[item.Name])
+			activated[item.Name] = true
 		}
 	}
+
+	// 延迟激活新扩展：检查 ExtList 中是否有新扩展需要激活
+	// 新扩展 = 不在 activatedExtList 中，也不在 InactivatedExtSet 中
+	g.ensureInactivatedSet()
+	newExtCount := 0
+	for _, ext := range d.ExtList {
+		if ext == nil {
+			continue
+		}
+		// 跳过已激活的扩展
+		if activated[ext.Name] {
+			continue
+		}
+		// 跳过被用户手动关闭的扩展
+		if g.IsExtInactivated(ext.Name) {
+			continue
+		}
+		// 新扩展：根据 AutoActive 决定是否激活
+		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+			newList = append([]*ExtInfo{ext}, newList...) // 插入头部
+			activated[ext.Name] = true
+			newExtCount++
+		} else {
+			g.AddToInactivated(ext.Name)
+		}
+	}
+
 	g.activatedExtList = newList
 	g.ExtAppliedTime = d.ExtUpdateTime // 标记已初始化
 
+	// 如果激活了新扩展，标记群组为 dirty
+	if newExtCount > 0 {
+		g.MarkDirty(d)
+	}
+
 	// 打印初始化日志
-	d.Logger.Infof("群组扩展初始化: %s, 扩展数 %d -> %d", g.GroupID, oldCount, len(newList))
+	d.Logger.Infof("群组扩展初始化: %s, 扩展数 %d -> %d (新激活 %d)", g.GroupID, oldCount, len(newList), newExtCount)
 	return g.activatedExtList
 }
 

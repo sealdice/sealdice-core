@@ -14,7 +14,6 @@ import (
 	"time"
 
 	wr "github.com/mroth/weightedrand"
-	"github.com/panjf2000/ants/v2"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
@@ -2344,8 +2343,8 @@ func (d *Dice) loads() {
 
 	d.LogWriter.LogLimit = int(d.Config.UILogLimit)
 
-	// 设置扩展选项（延迟加载，跳过群组遍历）
-	d.ApplyExtDefaultSettings(true)
+	// 设置扩展选项（新扩展激活采用延迟模式）
+	d.ApplyExtDefaultSettings()
 
 	// 读取文本模板
 	setupTextTemplate(d)
@@ -2395,8 +2394,8 @@ func (d *Dice) SaveText() {
 }
 
 // ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
-// skipGroupActivation: 是否跳过群组遍历激活（在 wrapper 机制下的 JsReload 场景应为 true）
-func (d *Dice) ApplyExtDefaultSettings(skipGroupActivation bool) {
+// 新扩展激活采用延迟模式，在群组收到消息时通过 GetActivatedExtList 按需激活
+func (d *Dice) ApplyExtDefaultSettings() {
 	// 遍历两个列表
 	exts1 := map[string]*ExtDefaultSettingItem{}
 	for _, i := range d.Config.ExtDefaultSettings {
@@ -2408,21 +2407,12 @@ func (d *Dice) ApplyExtDefaultSettings(skipGroupActivation bool) {
 		exts2[i.Name] = i
 	}
 
-	// 收集需要批量处理的扩展信息
-	var batchExtInfos []*ExtInfo
-	isFirstTimeLoadMap := map[string]bool{}
-
-	// 如果存在于扩展列表，但不存在于默认列表中的，视为第一次加载并放入末尾
+	// 如果存在于扩展列表，但不存在于默认列表中的，添加到默认列表末尾
 	for k, v := range exts2 {
 		if _, exists := exts1[k]; !exists {
 			item := &ExtDefaultSettingItem{Name: k, AutoActive: v.AutoActive, DisabledCommand: map[string]bool{}}
 			(&d.Config).ExtDefaultSettings = append((&d.Config).ExtDefaultSettings, item)
 			exts1[k] = item
-			batchExtInfos = append(batchExtInfos, v)
-			isFirstTimeLoadMap[v.Name] = true
-		} else {
-			batchExtInfos = append(batchExtInfos, v)
-			isFirstTimeLoadMap[v.Name] = false
 		}
 	}
 
@@ -2464,48 +2454,8 @@ func (d *Dice) ApplyExtDefaultSettings(skipGroupActivation bool) {
 		}
 	}
 
-	// 批量处理所有群组的扩展激活，使用ants池进行并发处理
-	// 在 wrapper 机制下的 JsReload 场景，跳过群组遍历激活
-	if len(batchExtInfos) > 0 && !skipGroupActivation {
-		// 收集所有群组信息
-		var groups []*GroupInfo
-		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-			groups = append(groups, groupInfo)
-			return true
-		})
-
-		// 使用ants池并发处理每个群组的扩展激活
-		if len(groups) > 0 {
-			const poolSize = 50 // 可根据实际情况调整
-			pool, err := ants.NewPool(poolSize)
-			if err != nil {
-				// 如果创建池失败，回退到串行处理
-				for _, group := range groups {
-					group.ExtActivateBatch(batchExtInfos, isFirstTimeLoadMap)
-				}
-			} else {
-				defer pool.Release() // 确保池被正确释放
-
-				var wg sync.WaitGroup
-				for _, group := range groups {
-					wg.Add(1)
-					g := group // 避免闭包变量问题
-					err := pool.Submit(func() {
-						defer wg.Done()
-						// Pinenutn: ServiceAtNew重构
-						g.ExtActivateBatch(batchExtInfos, isFirstTimeLoadMap)
-					})
-					if err != nil {
-						// 如果提交任务失败，直接执行并减少计数
-						wg.Done()
-						g.ExtActivateBatch(batchExtInfos, isFirstTimeLoadMap)
-					}
-				}
-
-				wg.Wait() // 等待所有任务完成
-			}
-		}
-	}
+	// 新扩展激活已改为延迟模式：在 GetActivatedExtList 中按需激活
+	// 不再遍历所有群组，避免大量群组被标记为 dirty 导致 Save 耗时过长
 
 	// 不好分辨，直接标记
 	d.MarkModified()
