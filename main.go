@@ -452,7 +452,7 @@ func main() {
 
 		<-interrupt
 		cleanUp()
-		time.Sleep(3 * time.Second)
+		log.Info("程序即将退出，再见")
 		os.Exit(0)
 	})()
 

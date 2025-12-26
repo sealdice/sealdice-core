@@ -147,40 +147,6 @@ func TestDiceDataDirHelpers(t *testing.T) {
 	}
 }
 
-// TestExtActiveBySnapshotOrderReload 验证复用快照重载单个扩展时会恢复原先的激活状态
-func TestExtActiveBySnapshotOrderReload(t *testing.T) {
-	dice := newTestDice([]*ExtInfo{
-		{Name: "ext1"},
-		{Name: "ext2"},
-	})
-	group := newTestGroupInfo()
-
-	// 初始激活顺序：先 ext1，再 ext2（ext2 优先级更高）
-	group.ExtActive(dice.ExtFind("ext1", false))
-	group.ExtActive(dice.ExtFind("ext2", false))
-	if !stringSliceEqual(extListToNames(group.ActivatedExtList), []string{"ext2", "ext1"}) {
-		t.Fatalf("unexpected initial order: %v", extListToNames(group.ActivatedExtList))
-	}
-
-	// 保存快照并清空激活列表，模拟扩展被卸载但快照仍保留
-	snapshot := append([]string(nil), group.ExtActiveListSnapshot...)
-	group.ActivatedExtList = nil
-	group.ExtActiveListSnapshot = snapshot
-
-	// 仅重新加载 ext1，Expect 它会根据快照被恢复
-	group.ExtActiveBySnapshotOrder(dice.ExtFind("ext1", false), false)
-
-	if len(group.ActivatedExtList) != 1 || group.ActivatedExtList[0].Name != "ext1" {
-		t.Fatalf("expected ext1 to be reactivated via snapshot, got %v",
-			extListToNames(group.ActivatedExtList))
-	}
-
-	// 快照也应更新为当前激活顺序
-	if !stringSliceEqual(group.ExtActiveListSnapshot, []string{"ext1"}) {
-		t.Fatalf("snapshot should update after reload, got %v", group.ExtActiveListSnapshot)
-	}
-}
-
 // 创建测试用的轻量化 Dice 结构
 func newTestDice(exts []*ExtInfo) *Dice {
 	d := &Dice{
@@ -204,10 +170,11 @@ func newTestDice(exts []*ExtInfo) *Dice {
 
 // 创建测试用的 GroupInfo
 func newTestGroupInfo() *GroupInfo {
-	return &GroupInfo{
-		ActivatedExtList:  []*ExtInfo{},
+	g := &GroupInfo{
 		InactivatedExtSet: make(StringSet),
 	}
+	g.SetActivatedExtList([]*ExtInfo{}, nil)
+	return g
 }
 
 // TestBuildActiveWithGraph 测试反向图构建
@@ -427,16 +394,16 @@ func TestExtActivateWithCompanion(t *testing.T) {
 			group.ExtActive(ext)
 
 			// 验证激活的扩展数量
-			if len(group.ActivatedExtList) != len(tt.expectedActivated) {
+			if len(group.GetActivatedExtListRaw()) != len(tt.expectedActivated) {
 				t.Errorf("激活的扩展数量不匹配: got %d, want %d\ngot: %v",
-					len(group.ActivatedExtList), len(tt.expectedActivated),
-					extListToNames(group.ActivatedExtList))
+					len(group.GetActivatedExtListRaw()), len(tt.expectedActivated),
+					extListToNames(group.GetActivatedExtListRaw()))
 				return
 			}
 
 			// 验证所有预期的扩展都被激活（使用集合比较，不关心具体顺序）
 			activatedSet := make(map[string]bool)
-			for _, ext := range group.ActivatedExtList {
+			for _, ext := range group.GetActivatedExtListRaw() {
 				activatedSet[ext.Name] = true
 			}
 
@@ -449,7 +416,7 @@ func TestExtActivateWithCompanion(t *testing.T) {
 			// 验证主扩展（tt.activateExtName）在所有伴随扩展之后
 			// （伴随扩展优先级应该更高，所以在列表前面）
 			mainExtIndex := -1
-			for i, ext := range group.ActivatedExtList {
+			for i, ext := range group.GetActivatedExtListRaw() {
 				if ext.Name == tt.activateExtName {
 					mainExtIndex = i
 					break
@@ -460,8 +427,8 @@ func TestExtActivateWithCompanion(t *testing.T) {
 				t.Errorf("主扩展 %s 未被激活", tt.activateExtName)
 			} else {
 				// 检查主扩展之前的扩展是否都是伴随扩展
-				for i := range group.ActivatedExtList[:mainExtIndex] {
-					extName := group.ActivatedExtList[i].Name
+				for i := range group.GetActivatedExtListRaw()[:mainExtIndex] {
+					extName := group.GetActivatedExtListRaw()[i].Name
 					if extName == tt.activateExtName {
 						t.Errorf("主扩展 %s 不应该出现在位置 %d（应该在所有伴随扩展之后）", tt.activateExtName, i)
 					}
@@ -469,7 +436,7 @@ func TestExtActivateWithCompanion(t *testing.T) {
 			}
 
 			// 验证 InactivatedExtSet
-			for _, activatedExt := range group.ActivatedExtList {
+			for _, activatedExt := range group.GetActivatedExtListRaw() {
 				if group.IsExtInactivated(activatedExt.Name) {
 					t.Errorf("扩展 %s 不应该在 InactivatedExtSet 中", activatedExt.Name)
 				}
@@ -538,15 +505,15 @@ func TestExtDeactivateWithCompanion(t *testing.T) {
 			group.ExtInactiveByName(tt.deactivateExtName)
 
 			// 验证剩余扩展
-			if len(group.ActivatedExtList) != len(tt.expectedRemaining) {
+			if len(group.GetActivatedExtListRaw()) != len(tt.expectedRemaining) {
 				t.Errorf("剩余扩展数量不匹配: got %d, want %d\ngot: %v\nwant: %v",
-					len(group.ActivatedExtList), len(tt.expectedRemaining),
-					extListToNames(group.ActivatedExtList), tt.expectedRemaining)
+					len(group.GetActivatedExtListRaw()), len(tt.expectedRemaining),
+					extListToNames(group.GetActivatedExtListRaw()), tt.expectedRemaining)
 				return
 			}
 
 			remainingSet := make(map[string]bool)
-			for _, ext := range group.ActivatedExtList {
+			for _, ext := range group.GetActivatedExtListRaw() {
 				remainingSet[ext.Name] = true
 			}
 
@@ -643,75 +610,25 @@ func TestCommandPriority(t *testing.T) {
 			}
 
 			// 验证 ActivatedExtList 的顺序
-			if len(group.ActivatedExtList) != len(tt.expectedListOrder) {
+			if len(group.GetActivatedExtListRaw()) != len(tt.expectedListOrder) {
 				t.Errorf("激活的扩展数量不匹配: got %d, want %d\ngot: %v\nwant: %v",
-					len(group.ActivatedExtList), len(tt.expectedListOrder),
-					extListToNames(group.ActivatedExtList), tt.expectedListOrder)
+					len(group.GetActivatedExtListRaw()), len(tt.expectedListOrder),
+					extListToNames(group.GetActivatedExtListRaw()), tt.expectedListOrder)
 				return
 			}
 
 			for i, expectedName := range tt.expectedListOrder {
-				actualName := group.ActivatedExtList[i].Name
+				actualName := group.GetActivatedExtListRaw()[i].Name
 				if actualName != expectedName {
 					t.Errorf("位置 %d 的扩展不匹配: got %s, want %s\n完整顺序: %v",
-						i, actualName, expectedName, extListToNames(group.ActivatedExtList))
+						i, actualName, expectedName, extListToNames(group.GetActivatedExtListRaw()))
 				}
 			}
 
 			// 额外验证：列表前面的扩展应该比后面的优先级高
-			t.Logf("激活顺序（优先级从高到低）: %v", extListToNames(group.ActivatedExtList))
+			t.Logf("激活顺序（优先级从高到低）: %v", extListToNames(group.GetActivatedExtListRaw()))
 		})
 	}
-}
-
-// TestReloadExtensionKeepsPriority 测试重载扩展保持原有优先级
-func TestReloadExtensionKeepsPriority(t *testing.T) {
-	dice := newTestDice([]*ExtInfo{
-		{Name: "ext1"},
-		{Name: "ext2"},
-	})
-	group := newTestGroupInfo()
-
-	// 第一步：按顺序激活 ext1, ext2
-	group.ExtActive(dice.ExtFind("ext1", false))
-	group.ExtActive(dice.ExtFind("ext2", false))
-
-	// 验证初始顺序：[ext2, ext1]（ext2 优先级高）
-	expectedOrder1 := []string{"ext2", "ext1"}
-	actualOrder1 := extListToNames(group.ActivatedExtList)
-	if !stringSliceEqual(actualOrder1, expectedOrder1) {
-		t.Errorf("初始激活后顺序不匹配:\ngot:  %v\nwant: %v", actualOrder1, expectedOrder1)
-	}
-
-	t.Logf("初始激活顺序（优先级从高到低）: %v", actualOrder1)
-	t.Logf("快照内容: %v", group.ExtActiveListSnapshot)
-
-	// 第二步：模拟脚本热重载
-	// 保存快照（模拟持久化到磁盘）
-	savedSnapshot := make([]string, len(group.ExtActiveListSnapshot))
-	copy(savedSnapshot, group.ExtActiveListSnapshot)
-
-	// 清空激活列表（模拟扩展从内存中卸载）
-	group.ActivatedExtList = nil
-
-	// 恢复快照（模拟从磁盘加载）
-	group.ExtActiveListSnapshot = savedSnapshot
-
-	t.Logf("模拟重载：快照恢复为 %v", group.ExtActiveListSnapshot)
-
-	// 使用 ExtActiveBatchBySnapshotOrder 重新激活所有扩展（模拟脚本重载）
-	ext1 := dice.ExtFind("ext1", false)
-	ext2 := dice.ExtFind("ext2", false)
-	group.ExtActiveBatchBySnapshotOrder([]*ExtInfo{ext1, ext2}, nil)
-
-	// 验证重载后顺序：仍然是 [ext2, ext1]（ext2 优先级仍然高于 ext1）
-	expectedOrder2 := []string{"ext2", "ext1"}
-	actualOrder2 := extListToNames(group.ActivatedExtList)
-	if !stringSliceEqual(actualOrder2, expectedOrder2) {
-		t.Errorf("重载 ext1 后顺序不匹配:\ngot:  %v\nwant: %v", actualOrder2, expectedOrder2)
-	}
-
-	t.Logf("✓ 重载扩展后保持原有优先级，顺序: %v", actualOrder2)
 }
 
 // TestReopenExtensionPriority 测试重复开启扩展会提升优先级
@@ -730,7 +647,7 @@ func TestReopenExtensionPriority(t *testing.T) {
 
 	// 预期顺序：[ext3, ext2, ext1]
 	expectedOrder1 := []string{"ext3", "ext2", "ext1"}
-	actualOrder1 := extListToNames(group.ActivatedExtList)
+	actualOrder1 := extListToNames(group.GetActivatedExtListRaw())
 	if !stringSliceEqual(actualOrder1, expectedOrder1) {
 		t.Errorf("第一轮激活后顺序不匹配:\ngot:  %v\nwant: %v", actualOrder1, expectedOrder1)
 	}
@@ -740,7 +657,7 @@ func TestReopenExtensionPriority(t *testing.T) {
 
 	// 预期顺序：[ext1, ext3, ext2]（ext1 被移到最前）
 	expectedOrder2 := []string{"ext1", "ext3", "ext2"}
-	actualOrder2 := extListToNames(group.ActivatedExtList)
+	actualOrder2 := extListToNames(group.GetActivatedExtListRaw())
 	if !stringSliceEqual(actualOrder2, expectedOrder2) {
 		t.Errorf("重新激活 ext1 后顺序不匹配:\ngot:  %v\nwant: %v", actualOrder2, expectedOrder2)
 	}
@@ -770,17 +687,17 @@ func TestCompanionFollowsMainExtension(t *testing.T) {
 	// 第一步：开启主扩展，伴随扩展自动开启
 	group.ExtActive(dice.ExtFind("main", false))
 
-	if len(group.ActivatedExtList) != 2 {
-		t.Fatalf("开启主扩展后应该有2个扩展，实际: %d", len(group.ActivatedExtList))
+	if len(group.GetActivatedExtListRaw()) != 2 {
+		t.Fatalf("开启主扩展后应该有2个扩展，实际: %d", len(group.GetActivatedExtListRaw()))
 	}
 
-	t.Logf("✓ 开启主扩展后：%v", extListToNames(group.ActivatedExtList))
+	t.Logf("✓ 开启主扩展后：%v", extListToNames(group.GetActivatedExtListRaw()))
 
 	// 第二步：关闭主扩展，伴随扩展自动关闭
 	group.ExtInactive(dice.ExtFind("main", false))
 
-	if len(group.ActivatedExtList) != 0 {
-		t.Errorf("关闭主扩展后应该没有扩展，实际: %v", extListToNames(group.ActivatedExtList))
+	if len(group.GetActivatedExtListRaw()) != 0 {
+		t.Errorf("关闭主扩展后应该没有扩展，实际: %v", extListToNames(group.GetActivatedExtListRaw()))
 	}
 
 	t.Logf("✓ 关闭主扩展后：所有扩展已关闭")
@@ -797,20 +714,20 @@ func TestReopenMainExtensionReopensCompanion(t *testing.T) {
 	// 第一步：开启主扩展（伴随扩展自动开启）
 	group.ExtActive(dice.ExtFind("main", false))
 
-	initialOrder := extListToNames(group.ActivatedExtList)
+	initialOrder := extListToNames(group.GetActivatedExtListRaw())
 	t.Logf("初始状态：%v", initialOrder)
 
-	if len(group.ActivatedExtList) != 2 {
-		t.Fatalf("开启主扩展后应该有2个扩展，实际: %d", len(group.ActivatedExtList))
+	if len(group.GetActivatedExtListRaw()) != 2 {
+		t.Fatalf("开启主扩展后应该有2个扩展，实际: %d", len(group.GetActivatedExtListRaw()))
 	}
 
 	// 第二步：用户手动关闭伴随扩展
 	group.ExtInactive(dice.ExtFind("companion", false))
 
-	afterCloseCompanion := extListToNames(group.ActivatedExtList)
+	afterCloseCompanion := extListToNames(group.GetActivatedExtListRaw())
 	t.Logf("手动关闭伴随扩展后：%v", afterCloseCompanion)
 
-	if len(group.ActivatedExtList) != 1 || group.ActivatedExtList[0].Name != "main" {
+	if len(group.GetActivatedExtListRaw()) != 1 || group.GetActivatedExtListRaw()[0].Name != "main" {
 		t.Errorf("关闭伴随扩展后应该只剩主扩展，实际: %v", afterCloseCompanion)
 	}
 
@@ -822,19 +739,19 @@ func TestReopenMainExtensionReopensCompanion(t *testing.T) {
 	// 第三步：重新开启主扩展（用户执行 .ext main on）
 	group.ExtActive(dice.ExtFind("main", false))
 
-	finalOrder := extListToNames(group.ActivatedExtList)
+	finalOrder := extListToNames(group.GetActivatedExtListRaw())
 	t.Logf("重新开启主扩展后：%v", finalOrder)
 
 	// 验证：伴随扩展应该重新开启
-	if len(group.ActivatedExtList) != 2 {
+	if len(group.GetActivatedExtListRaw()) != 2 {
 		t.Errorf("重新开启主扩展后应该有2个扩展，实际: %d, %v",
-			len(group.ActivatedExtList), finalOrder)
+			len(group.GetActivatedExtListRaw()), finalOrder)
 	}
 
 	// 验证两个扩展都存在
 	hasMain := false
 	hasCompanion := false
-	for _, ext := range group.ActivatedExtList {
+	for _, ext := range group.GetActivatedExtListRaw() {
 		if ext.Name == "main" {
 			hasMain = true
 		}
@@ -869,4 +786,201 @@ func stringSliceEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// TestGetRealExtNonWrapper 测试非 wrapper 扩展的 GetRealExt 返回自身
+func TestGetRealExtNonWrapper(t *testing.T) {
+	ext := &ExtInfo{
+		Name:      "test-ext",
+		IsWrapper: false,
+	}
+
+	result := ext.GetRealExt()
+	if result != ext {
+		t.Errorf("非 wrapper 扩展的 GetRealExt 应返回自身，got nil")
+	}
+}
+
+// TestGetRealExtWrapper 测试 wrapper 扩展的 GetRealExt 返回真实扩展
+func TestGetRealExtWrapper(t *testing.T) {
+	d := &Dice{
+		JsExtRegistry: new(SyncMap[string, *ExtInfo]),
+	}
+
+	realExt := &ExtInfo{
+		Name: "js-ext",
+		CmdMap: CmdMapCls{
+			"test": &CmdItemInfo{Name: "test"},
+		},
+	}
+	d.JsExtRegistry.Store("js-ext", realExt)
+
+	wrapper := &ExtInfo{
+		Name:       "js-ext",
+		IsWrapper:  true,
+		TargetName: "js-ext",
+		IsDeleted:  false,
+		dice:       d,
+	}
+
+	result := wrapper.GetRealExt()
+	if result != realExt {
+		t.Errorf("wrapper 的 GetRealExt 应返回真实扩展")
+	}
+}
+
+// TestGetRealExtDeletedWrapper 测试已删除 wrapper 的 GetRealExt 返回 nil
+func TestGetRealExtDeletedWrapper(t *testing.T) {
+	d := &Dice{
+		JsExtRegistry: new(SyncMap[string, *ExtInfo]),
+	}
+
+	realExt := &ExtInfo{Name: "js-ext"}
+	d.JsExtRegistry.Store("js-ext", realExt)
+
+	wrapper := &ExtInfo{
+		Name:       "js-ext",
+		IsWrapper:  true,
+		TargetName: "js-ext",
+		IsDeleted:  true, // 已删除
+		dice:       d,
+	}
+
+	result := wrapper.GetRealExt()
+	if result != nil {
+		t.Errorf("已删除 wrapper 的 GetRealExt 应返回 nil，got %v", result)
+	}
+}
+
+// TestGetCmdMapWrapper 测试 wrapper 的 GetCmdMap 返回真实扩展的 CmdMap
+func TestGetCmdMapWrapper(t *testing.T) {
+	d := &Dice{
+		JsExtRegistry: new(SyncMap[string, *ExtInfo]),
+	}
+
+	expectedCmdMap := CmdMapCls{
+		"roll": &CmdItemInfo{Name: "roll"},
+		"st":   &CmdItemInfo{Name: "st"},
+	}
+	realExt := &ExtInfo{
+		Name:   "js-ext",
+		CmdMap: expectedCmdMap,
+	}
+	d.JsExtRegistry.Store("js-ext", realExt)
+
+	wrapper := &ExtInfo{
+		Name:       "js-ext",
+		IsWrapper:  true,
+		TargetName: "js-ext",
+		IsDeleted:  false,
+		CmdMap:     CmdMapCls{}, // wrapper 自己的 CmdMap 为空
+		dice:       d,
+	}
+
+	result := wrapper.GetCmdMap()
+	if len(result) != len(expectedCmdMap) {
+		t.Errorf("wrapper 的 GetCmdMap 应返回真实扩展的 CmdMap，期望 %d 个命令，实际 %d 个",
+			len(expectedCmdMap), len(result))
+	}
+
+	for name := range expectedCmdMap {
+		if _, exists := result[name]; !exists {
+			t.Errorf("GetCmdMap 缺少命令: %s", name)
+		}
+	}
+}
+
+// TestGetCmdMapNonWrapper 测试非 wrapper 扩展的 GetCmdMap 返回自己的 CmdMap
+func TestGetCmdMapNonWrapper(t *testing.T) {
+	expectedCmdMap := CmdMapCls{
+		"help": &CmdItemInfo{Name: "help"},
+	}
+	ext := &ExtInfo{
+		Name:      "builtin-ext",
+		IsWrapper: false,
+		CmdMap:    expectedCmdMap,
+	}
+
+	result := ext.GetCmdMap()
+	if len(result) != len(expectedCmdMap) {
+		t.Errorf("非 wrapper 扩展的 GetCmdMap 应返回自己的 CmdMap")
+	}
+}
+
+// TestExtFindWrapperWithRealExt 测试 ExtFind 从 JS 调用时，如果是 Wrapper 且有真实扩展，返回真实扩展
+func TestExtFindWrapperWithRealExt(t *testing.T) {
+	d := &Dice{
+		ExtRegistry:   new(SyncMap[string, *ExtInfo]),
+		JsExtRegistry: new(SyncMap[string, *ExtInfo]),
+	}
+
+	// 创建真实扩展
+	realExt := &ExtInfo{
+		Name: "js-ext",
+		CmdMap: CmdMapCls{
+			"test": &CmdItemInfo{Name: "test"},
+		},
+	}
+	d.JsExtRegistry.Store("js-ext", realExt)
+
+	// 创建 Wrapper
+	wrapper := &ExtInfo{
+		Name:       "js-ext",
+		IsWrapper:  true,
+		TargetName: "js-ext",
+		dice:       d,
+	}
+	d.ExtRegistry.Store("js-ext", wrapper)
+
+	// 从 JS 调用 ExtFind，应该返回真实扩展
+	result := d.ExtFind("js-ext", true)
+	if result != realExt {
+		t.Errorf("ExtFind 从 JS 调用时应返回真实扩展，实际返回: %v", result)
+	}
+}
+
+// TestExtFindWrapperWithoutRealExt 测试 ExtFind 从 JS 调用时，如果是 Wrapper 但没有真实扩展（重载场景），返回 nil
+func TestExtFindWrapperWithoutRealExt(t *testing.T) {
+	d := &Dice{
+		ExtRegistry:   new(SyncMap[string, *ExtInfo]),
+		JsExtRegistry: new(SyncMap[string, *ExtInfo]), // 空的 JsExtRegistry，模拟重载后清空的状态
+	}
+
+	// 创建 Wrapper（没有对应的真实扩展）
+	wrapper := &ExtInfo{
+		Name:       "js-ext",
+		IsWrapper:  true,
+		TargetName: "js-ext",
+		dice:       d,
+	}
+	d.ExtRegistry.Store("js-ext", wrapper)
+
+	// 从 JS 调用 ExtFind，由于没有真实扩展，应该返回 nil
+	result := d.ExtFind("js-ext", true)
+	if result != nil {
+		t.Errorf("ExtFind 在 JsExtRegistry 中找不到真实扩展时应返回 nil，实际返回: %v", result)
+	}
+}
+
+// TestExtFindWrapperFromNonJS 测试 ExtFind 从非 JS 调用时，返回 Wrapper 本身
+func TestExtFindWrapperFromNonJS(t *testing.T) {
+	d := &Dice{
+		ExtRegistry:   new(SyncMap[string, *ExtInfo]),
+		JsExtRegistry: new(SyncMap[string, *ExtInfo]),
+	}
+
+	// 创建 Wrapper
+	wrapper := &ExtInfo{
+		Name:       "js-ext",
+		IsWrapper:  true,
+		TargetName: "js-ext",
+		dice:       d,
+	}
+	d.ExtRegistry.Store("js-ext", wrapper)
+
+	// 从非 JS 调用 ExtFind，应该返回 Wrapper 本身
+	result := d.ExtFind("js-ext", false)
+	if result != wrapper {
+		t.Errorf("ExtFind 从非 JS 调用时应返回 Wrapper 本身，实际返回: %v", result)
+	}
 }

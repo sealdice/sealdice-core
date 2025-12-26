@@ -476,7 +476,7 @@ func (pa *PlatformAdapterSealChat) registerCommands() {
 	}
 
 	for _, i := range pa.EndPoint.Session.Parent.ExtList {
-		for k, v := range i.CmdMap {
+		for k, v := range i.GetCmdMap() {
 			// fmt.Println("??", k, v)
 			m[k] = v.ShortHelp
 		}

@@ -30,14 +30,15 @@
 
 1. **`ActivatedExtList []*ExtInfo`** - 当前已激活的扩展列表
 2. **`InactivatedExtSet StringSet`** - 当前已关闭的扩展名称集合（新增）
-3. **`ExtActiveListSnapshot []string`** - 用于维持扩展激活顺序（保留）
 
 移除了 `ExtDisabledByUser map[string]bool`，其功能由 `InactivatedExtSet` 替代。
+移除了 `ExtActiveListSnapshot []string`，Wrapper 机制已使其不再必要。
 
 **设计原则**：
 - `ActivatedExtList` 存储完整的扩展对象，便于直接使用
 - `InactivatedExtSet` 使用集合（`StringSet`，内部为 `map[string]struct{}`）存储扩展名称，高效查询，节省内存
 - 列表和集合清晰记录扩展的激活/关闭状态，无需复杂推断
+- Wrapper 机制确保热重载时扩展顺序保持不变
 
 ### 核心逻辑
 
@@ -48,7 +49,7 @@
 if 扩展既不在ActivatedExtList，也不在InactivatedExtSet {
     // 这是新扩展，根据 AutoActive 选项决定是否激活
     if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
-        激活它，并加入 ActivatedExtList 和 ExtActiveListSnapshot
+        激活它，加入 ActivatedExtList
     } else {
         加入 InactivatedExtSet
     }
@@ -102,40 +103,8 @@ func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
 
     // 加入关闭集合
     group.AddToInactivated(ei.Name)
-
-    // 从快照中移除
-    // ...
 }
 ```
-
-#### 3. ExtActiveBySnapshotOrder
-
-现在的实现只是对批量逻辑的薄封装，确保所有入口共享同一套排序/快照/连带激活规则：
-
-```go
-func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bool) {
-    if ei == nil {
-        return
-    }
-    var firstLoad map[string]bool
-    if isFirstTimeLoad {
-        firstLoad = map[string]bool{ei.Name: true}
-    }
-    group.ExtActiveBatchBySnapshotOrder([]*ExtInfo{ei}, firstLoad)
-}
-```
-
-#### 4. ExtActiveBatchBySnapshotOrder
-
-批量逻辑会按以下顺序处理整批扩展：
-
-1. 以 `ExtActiveListSnapshot` 为基准，按快照顺序取出现有扩展（忽略被用户禁用的项）。
-2. 遍历待激活扩展：
-   - 如果是首次加载且不在快照中，直接追加并写入快照；
-   - 如果声明了 `AutoActive` 且不在快照中、也未被禁用，则自动恢复。
-3. 对每个扩展执行 `ActiveWith` 链式激活，保证依赖扩展也被追加并更新快照。
-
-这样无论是一次加载多个扩展还是单独开启，都会得到一致的行为。
 
 ### 移除的方法
 
@@ -144,6 +113,9 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 - `IsUserDisabled(name string) bool`
 - `SetUserDisabled(name string)`
 - `ClearUserDisabledFlag(name string)`
+- `ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bool)` - Wrapper 机制使快照不再必要
+- `ExtActiveBatchBySnapshotOrder(extInfos []*ExtInfo, isFirstTimeLoad map[string]bool)` - 同上
+- `ensureSnapshotFromActivated()` - 快照机制已移除
 
 ## 优势
 
@@ -168,7 +140,7 @@ func (group *GroupInfo) ExtActiveBySnapshotOrder(ei *ExtInfo, isFirstTimeLoad bo
 - 支持扩展的自动激活
 - 记住用户手动关闭的扩展
 - 支持扩展的优先级排序
-- 支持插件重载后恢复状态
+- Wrapper 机制确保热重载后扩展顺序保持不变
 
 ## 迁移指南
 

@@ -677,6 +677,9 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 						VarSetValueStr(mctx, "$t玩家", fmt.Sprintf("<%s>", mctx.Player.Name))
 						VarSetValueStr(mctx, "$t玩家_RAW", mctx.Player.Name)
 						p.UpdatedAtTime = time.Now().Unix()
+						if mctx.Group != nil {
+							mctx.Group.MarkDirty(mctx.Dice)
+						}
 
 						if mctx.Player.AutoSetNameTemplate != "" {
 							_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)

@@ -580,24 +580,23 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 		return
 	}
 
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
-	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, &Message{
-						Message:     text,
-						MessageType: "group",
-						Platform:    pa.EndPoint.Platform,
-						GroupID:     groupId,
-						Sender: SenderBase{
-							Nickname: pa.EndPoint.Nickname,
-							UserID:   pa.EndPoint.UserID,
-						},
-					}, flag)
-				})
-			}
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId); ok {
+		msgToSend := &Message{
+			Message:     text,
+			MessageType: "group",
+			Platform:    pa.EndPoint.Platform,
+			GroupID:     groupId,
+			Sender: SenderBase{
+				Nickname: pa.EndPoint.Nickname,
+				UserID:   pa.EndPoint.UserID,
+			},
 		}
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnMessageSend == nil {
+				return nil
+			}
+			return func() { ext.OnMessageSend(ctx, msgToSend, flag) }
+		})
 	}
 
 	texts := textSplit(text)
@@ -737,12 +736,12 @@ func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 						if _, exists := groupRecord.DiceIDExistsMap.Load(diceId); exists {
 							// 不在群里了，更新信息
 							groupRecord.DiceIDExistsMap.Delete(diceId)
-							groupRecord.UpdatedAtTime = time.Now().Unix()
+							groupRecord.MarkDirty(session.Parent)
 						}
 					} else if groupRecord.GroupName != group.GroupName {
 						// 更新群名
 						groupRecord.GroupName = group.GroupName
-						groupRecord.UpdatedAtTime = time.Now().Unix()
+						groupRecord.MarkDirty(session.Parent)
 					}
 				}
 			}

@@ -240,7 +240,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			}
 			gi.DiceIDExistsMap.Store(ep.UserID, true)
 			gi.EnteredTime = nowTime // 设置入群时间
-			gi.UpdatedAtTime = time.Now().Unix()
+			gi.MarkDirty(ctx.Dice)
 			// 立即获取群信息
 			pa.GetGroupInfoAsync(msg.GroupID)
 
@@ -263,16 +263,14 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
-				// Pinenutn ActivatedExtList模板
-				groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-				if ok {
-					for _, i := range groupInfo.ActivatedExtList {
-						if i.OnGroupJoined != nil {
-							i.callWithJsCheck(ctx.Dice, func() {
-								i.OnGroupJoined(ctx, msg)
-							})
+				// 触发扩展钩子
+				if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+					groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+						if ext.OnGroupJoined == nil {
+							return nil
 						}
-					}
+						return func() { ext.OnGroupJoined(ctx, msg) }
+					})
 				}
 			}()
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupID)
@@ -635,14 +633,14 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 					Name: GroupName,
 					time: time.Now().Unix(),
-				}) // 不论如何，先试图取一下群名
+				})
 
 				groupInfo, ok := s.ServiceAtNew.Load(groupID)
 				if ok {
 					// 更新群名
 					if GroupName != groupInfo.GroupName {
 						groupInfo.GroupName = GroupName
-						groupInfo.UpdatedAtTime = time.Now().Unix()
+						groupInfo.MarkDirty(ctx.Dice)
 					}
 
 					// 处理被强制拉群的情况
@@ -847,25 +845,24 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 		return
 	}
 
-	// Pinenutn ActivatedExtList模板
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
-	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, &Message{
-						Platform:    "QQ",
-						Message:     text,
-						MessageType: "group",
-						GroupID:     groupID,
-						Sender: SenderBase{
-							UserID:   pa.EndPoint.UserID,
-							Nickname: pa.EndPoint.Nickname,
-						},
-					}, flag)
-				})
-			}
+	// 触发扩展钩子
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
+		msgToSend := &Message{
+			Platform:    "QQ",
+			Message:     text,
+			MessageType: "group",
+			GroupID:     groupID,
+			Sender: SenderBase{
+				UserID:   pa.EndPoint.UserID,
+				Nickname: pa.EndPoint.Nickname,
+			},
 		}
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnMessageSend == nil {
+				return nil
+			}
+			return func() { ext.OnMessageSend(ctx, msgToSend, flag) }
+		})
 	}
 
 	text = textAssetsConvert(text)

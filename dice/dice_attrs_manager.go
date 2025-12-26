@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	ds "github.com/sealdice/dicescript"
@@ -20,12 +21,14 @@ type AttrsManager struct {
 	db     engine.DatabaseOperator
 	logger *zap.SugaredLogger
 	cancel context.CancelFunc
+	wg     sync.WaitGroup
 	m      SyncMap[string, *AttributesItem]
 }
 
 func (am *AttrsManager) Stop() {
 	logger.M().Info("结束数据库保存程序...")
 	am.cancel()
+	am.wg.Wait()
 }
 
 // LoadByCtx 获取当前角色，如有绑定，则获取绑定的角色，若无绑定，获取群内默认卡
@@ -171,7 +174,9 @@ func (am *AttrsManager) Init(d *Dice) {
 	// 创建一个 context 用于取消 goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	// 启动后台定时任务
+	am.wg.Add(1)
 	go func() {
+		defer am.wg.Done()
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
 
