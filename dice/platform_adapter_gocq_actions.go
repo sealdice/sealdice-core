@@ -269,24 +269,23 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		return
 	}
 
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID)
-	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnMessageSend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnMessageSend(ctx, &Message{
-						Message:     text,
-						MessageType: "group",
-						Platform:    pa.EndPoint.Platform,
-						GroupID:     groupID,
-						Sender: SenderBase{
-							Nickname: pa.EndPoint.Nickname,
-							UserID:   pa.EndPoint.UserID,
-						},
-					}, flag)
-				})
-			}
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
+		msgToSend := &Message{
+			Message:     text,
+			MessageType: "group",
+			Platform:    pa.EndPoint.Platform,
+			GroupID:     groupID,
+			Sender: SenderBase{
+				Nickname: pa.EndPoint.Nickname,
+				UserID:   pa.EndPoint.UserID,
+			},
 		}
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnMessageSend == nil {
+				return nil
+			}
+			return func() { ext.OnMessageSend(ctx, msgToSend, flag) }
+		})
 	}
 
 	type GroupMessageParams struct {

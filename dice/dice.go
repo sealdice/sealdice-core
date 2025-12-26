@@ -109,6 +109,11 @@ type ExtInfo struct {
 	GetDescText         func(i *ExtInfo) string                               `jsbind:"getDescText"         json:"-" yaml:"-"`
 	IsLoaded            bool                                                  `jsbind:"isLoaded"            json:"-" yaml:"-"`
 	OnLoad              func()                                                `jsbind:"onLoad"              json:"-" yaml:"-"`
+
+	// Wrapper 相关字段
+	IsWrapper  bool   `json:"-" yaml:"-"` // 是否为 Wrapper ExtInfo (代理对象)
+	TargetName string `json:"-" yaml:"-"` // Wrapper 代理的真实扩展名
+	IsDeleted  bool   `json:"-" yaml:"-"` // Wrapper 已被删除（脚本已删除，落盘时过滤）
 }
 
 // RootConfig TODO：历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
@@ -269,6 +274,14 @@ type Dice struct {
 
 	/* 扩展商店 */
 	StoreManager *StoreManager `json:"-" yaml:"-"`
+
+	/* Wrapper 架构 */
+	JsExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"` // JS 扩展真实 ExtInfo 注册表
+	ExtUpdateTime int64                      `json:"-" yaml:"-"` // 扩展变更时间戳，用于触发群组延迟更新
+	JsReloading   bool                       `json:"-" yaml:"-"` // JS 扩展正在重载中
+
+	/* 保存优化 */
+	DirtyGroups *SyncMap[string, int64] `json:"-" yaml:"-"` // 脏群组列表：groupID -> UpdatedAtTime
 }
 
 func (d *Dice) MarkModified() {
@@ -320,6 +333,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ExtRegistry = new(SyncMap[string, *ExtInfo])
 	// ActiveWithGraph 通过 activeWithGraph() 方法懒加载，无需在此初始化
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
+	d.DirtyGroups = new(SyncMap[string, int64]) // 脏群组列表
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
 	if err != nil {
@@ -421,8 +435,8 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 
 							// 上次被人使用小于60s
 							if now-groupInfo.RecentDiceSendTime < 60 {
-								// 在群内存在，且开启时
-								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) {
+								// 在群内存在，且开启时，且不在刷新CD中
+								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) && d.Parent.ShouldRefreshGroupInfo(key) {
 									i.Adapter.GetGroupInfoAsync(key)
 								}
 							}
@@ -600,6 +614,19 @@ func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
 		return nil
 	}
 	ext := find(s)
+
+	// Wrapper 代理：如果是 wrapper 且从 JS 调用，返回真实扩展
+	// 如果 JsExtRegistry 中找不到真实扩展（例如重载期间），返回 nil
+	// 这确保 JS 脚本会创建新的真实 ExtInfo，而不是复用 Wrapper
+	if ext != nil && ext.IsWrapper && fromJS {
+		if d.JsExtRegistry != nil {
+			if realExt, ok := d.JsExtRegistry.Load(ext.TargetName); ok {
+				return realExt
+			}
+		}
+		return nil // 找不到真实扩展时返回 nil，避免 JS 脚本误用 Wrapper
+	}
+
 	if ext != nil && ext.Official && fromJS {
 		// return a copy of the official extension
 		cmdMap := make(CmdMapCls, len(ext.CmdMap))
@@ -643,13 +670,31 @@ func (d *Dice) ExtAliasToName(s string) string {
 }
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
-	// Pinenutn: Range模板 ServiceAtNew重构代码
-	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-		// Pinenutn: ServiceAtNew重构
-		// 系统移除扩展时，不应记录为用户禁用或破坏快照
-		groupInfo.ExtInactiveSystem(ei)
-		return true
-	})
+	// Wrapper 架构：JS 扩展使用 wrapper 机制，不遍历群组
+	// 只标记 wrapper 为 IsDeleted，SyncWrapperStatus 会在消息到达时移除
+	if ei.IsJsExt {
+		// 标记 ExtRegistry 中的 wrapper 为已删除
+		if d.ExtRegistry != nil {
+			if wrapper, ok := d.ExtRegistry.Load(ei.Name); ok && wrapper != nil && wrapper.IsWrapper {
+				wrapper.IsDeleted = true
+			}
+		}
+		// 从 JsExtRegistry 移除真实扩展
+		if d.JsExtRegistry != nil {
+			if realExt, ok := d.JsExtRegistry.Load(ei.Name); ok && realExt != nil && realExt.Storage != nil {
+				_ = realExt.StorageClose()
+			}
+			d.JsExtRegistry.Delete(ei.Name)
+		}
+		// 更新时间戳触发延迟更新
+		d.ExtUpdateTime = time.Now().Unix()
+	} else {
+		// 内置扩展：遍历群组移除
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			groupInfo.ExtInactiveSystem(ei)
+			return true
+		})
+	}
 
 	for index, i := range d.ExtList {
 		if i == ei {
