@@ -123,9 +123,12 @@ type GroupInfo struct {
 // 通过 ExtAppliedTime == 0 判断是否需要初始化
 // 同时处理新扩展的延迟激活
 func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
-	// 快速路径：已初始化（使用 atomic 避免并发读写 data race）
+	// 快速路径：已初始化
 	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
-		return g.activatedExtList
+		g.extInitMu.Lock()
+		list := g.activatedExtList
+		g.extInitMu.Unlock()
+		return list
 	}
 	g.extInitMu.Lock()
 	defer g.extInitMu.Unlock()
@@ -190,11 +193,15 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 
 // GetActivatedExtListRaw 直接访问扩展列表（用于序列化、内部修改等场景）
 func (g *GroupInfo) GetActivatedExtListRaw() []*ExtInfo {
+	g.extInitMu.Lock()
+	defer g.extInitMu.Unlock()
 	return g.activatedExtList
 }
 
 // SetActivatedExtList 设置扩展列表（用于新群组创建等场景）
 func (g *GroupInfo) SetActivatedExtList(list []*ExtInfo, d *Dice) {
+	g.extInitMu.Lock()
+	defer g.extInitMu.Unlock()
 	g.activatedExtList = list
 	if d != nil {
 		atomic.StoreInt64(&g.ExtAppliedTime, d.ExtUpdateTime) // 标记已初始化
@@ -216,6 +223,7 @@ type groupInfoJSON struct {
 // MarshalJSON 自定义序列化，处理私有字段 activatedExtList
 // 同时过滤掉已删除的 wrapper（IsDeleted=true）
 func (g *GroupInfo) MarshalJSON() ([]byte, error) {
+	g.extInitMu.Lock()
 	// 过滤掉已删除的 wrapper
 	var filteredList []*ExtInfo
 	for _, ext := range g.activatedExtList {
@@ -223,6 +231,7 @@ func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 			filteredList = append(filteredList, ext)
 		}
 	}
+	g.extInitMu.Unlock()
 
 	return json.Marshal(&groupInfoJSON{
 		groupInfoAlias:   (*groupInfoAlias)(g),
@@ -238,7 +247,9 @@ func (g *GroupInfo) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, temp); err != nil {
 		return err
 	}
+	g.extInitMu.Lock()
 	g.activatedExtList = temp.ActivatedExtList
+	g.extInitMu.Unlock()
 	return nil
 }
 
