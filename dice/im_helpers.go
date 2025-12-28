@@ -48,7 +48,7 @@ func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 		if groupInfo.DiceIDActiveMap.Len() == 0 {
 			groupInfo.Active = false
 		}
-		groupInfo.UpdatedAtTime = time.Now().Unix()
+		groupInfo.MarkDirty(ctx.Dice)
 	}
 }
 
@@ -63,8 +63,8 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		if group.DiceIDExistsMap == nil {
 			group.DiceIDExistsMap = new(SyncMap[string, bool])
 		}
-		if group.ExtDisabledByUser == nil {
-			group.ExtDisabledByUser = map[string]bool{}
+		if group.InactivatedExtSet == nil {
+			group.InactivatedExtSet = StringSet{}
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -82,8 +82,9 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 
 		session.ServiceAtNew.Store(groupID, &GroupInfo{
 			Active:            true,
-			ActivatedExtList:  extLst,
-			ExtDisabledByUser: map[string]bool{},
+			activatedExtList:  extLst,
+			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
+			InactivatedExtSet: StringSet{},
 			Players:           new(SyncMap[string, *GroupPlayerInfo]),
 			GroupID:           groupID,
 			DiceIDActiveMap:   new(SyncMap[string, bool]),
@@ -106,12 +107,30 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	}
 
 	group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
-	group.UpdatedAtTime = time.Now().Unix()
+	group.MarkDirty(ctx.Dice)
 	return group
 }
 
 // GetPlayerInfoBySender 获取玩家群内信息，没有就创建
 func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPlayerInfo) {
+	wrapper := MessageWrapper{
+		MessageType: msg.MessageType,
+		GroupID:     msg.GroupID,
+		Sender: struct {
+			UserID   string
+			Nickname string
+		}{
+			UserID:   msg.Sender.UserID,
+			Nickname: msg.Sender.Nickname,
+		},
+		GuildID:   msg.GuildID,
+		ChannelID: msg.ChannelID,
+	}
+	return GetPlayerInfoBySenderRaw(ctx, &wrapper)
+}
+
+// GetPlayerInfoBySenderRaw 获取玩家群内信息的轻量版，不依赖完整的msg信息，因为实质上，大部分数据并没什么卵用。
+func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo, *GroupPlayerInfo) {
 	session := ctx.Session
 	var groupID string
 	if msg.MessageType == "group" {
@@ -135,6 +154,11 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupInfo.ChannelID = msg.ChannelID
 	}
 
+	if ctx.Dice != nil {
+		groupInfo.SyncWrapperStatus(ctx.Dice)       // 移除无效 wrapper
+		groupInfo.SyncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
+	}
+
 	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)
 	if p == nil {
 		p = &GroupPlayerInfo{
@@ -150,6 +174,17 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	}
 	p.InGroup = true
 	return groupInfo, p
+}
+
+type MessageWrapper struct {
+	MessageType string // "group" 或私聊
+	GroupID     string
+	Sender      struct {
+		UserID   string
+		Nickname string
+	}
+	GuildID   string // 可选
+	ChannelID string // 可选
 }
 
 func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
@@ -247,9 +282,8 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		text = "要发送的文本过长"
 	}
 	if ctx.Group != nil {
-		now := time.Now().Unix()
-		ctx.Group.RecentDiceSendTime = now
-		ctx.Group.UpdatedAtTime = now
+		ctx.Group.RecentDiceSendTime = time.Now().Unix()
+		ctx.Group.MarkDirty(ctx.Dice)
 	}
 	text = strings.TrimSpace(text)
 	for _, i := range ctx.SplitText(text) {

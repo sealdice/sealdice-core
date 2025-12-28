@@ -452,7 +452,7 @@ func main() {
 
 		<-interrupt
 		cleanUp()
-		time.Sleep(3 * time.Second)
+		log.Info("程序即将退出，再见")
 		os.Exit(0)
 	})()
 
@@ -549,6 +549,10 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.ProtocolType == "milky" {
 						dice.ServeMilky(d, conn)
+						return
+					}
+					if conn.ProtocolType == "pureonebot" {
+						dice.ServePureOnebot(d, conn)
 						return
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接

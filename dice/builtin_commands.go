@@ -625,7 +625,7 @@ func (d *Dice) registerCoreCommands() {
 					// SetBotOffAtGroup(ctx, ctx.Group.GroupID)
 					time.Sleep(3 * time.Second)
 					ctx.Group.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
-					ctx.Group.UpdatedAtTime = time.Now().Unix()
+					ctx.Group.MarkDirty(ctx.Dice)
 					ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupID)
 
 					return CmdExecuteResult{Matched: true, Solved: true}
@@ -1182,7 +1182,7 @@ func (d *Dice) registerCoreCommands() {
 				// SetBotOffAtGroup(mctx, gp.GroupID)
 				time.Sleep(3 * time.Second)
 				gp.DiceIDExistsMap.Delete(mctx.EndPoint.UserID)
-				gp.UpdatedAtTime = time.Now().Unix()
+				gp.MarkDirty(mctx.Dice)
 				mctx.EndPoint.Adapter.QuitGroup(mctx, gp.GroupID)
 
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -1505,7 +1505,7 @@ func (d *Dice) registerCoreCommands() {
 				text.WriteString("检测到以下扩展(名称-版本-作者)：\n")
 				for index, i := range ctx.Dice.ExtList {
 					state := "关"
-					for _, j := range ctx.Group.ActivatedExtList {
+					for _, j := range ctx.Group.GetActivatedExtList(ctx.Dice) {
 						if i.Name == j.Name {
 							state = "开"
 							break
@@ -1552,7 +1552,7 @@ func (d *Dice) registerCoreCommands() {
 
 				checkConflict := func(ext *ExtInfo) []string {
 					var actived []string
-					for _, i := range ctx.Group.ActivatedExtList {
+					for _, i := range ctx.Group.GetActivatedExtList(ctx.Dice) {
 						actived = append(actived, i.Name)
 					}
 
@@ -1573,7 +1573,7 @@ func (d *Dice) registerCoreCommands() {
 				if cmdArgs.IsArgEqual(1, "all") {
 					for _, ext := range ctx.Dice.ExtList {
 						isActive := false
-						for _, activated := range ctx.Group.ActivatedExtList {
+						for _, activated := range ctx.Group.GetActivatedExtList(ctx.Dice) {
 							if ext.Name == activated.Name {
 								isActive = true
 								break
@@ -1582,7 +1582,7 @@ func (d *Dice) registerCoreCommands() {
 						if !isActive {
 							extNames = append(extNames, ext.Name)
 							conflictsAll = append(conflictsAll, checkConflict(ext)...)
-							ctx.Group.ClearUserDisabledFlag(ext.Name)
+							ctx.Group.RemoveFromInactivated(ext.Name)
 							ctx.Group.ExtActive(ext)
 						}
 					}
@@ -1600,13 +1600,32 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				for index := range len(cmdArgs.Args) {
+				var companionExtNames []string
+
+				// 记录激活前已有的扩展
+				beforeActivate := make(map[string]bool)
+				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+					beforeActivate[ext.Name] = true
+				}
+
+				userActivatedNames := make(map[string]bool)
+
+				// 排除最后一个参数 "on"
+				for index := range len(cmdArgs.Args) - 1 {
 					extName := strings.ToLower(cmdArgs.Args[index])
 					if i := d.ExtFind(extName, false); i != nil {
-						extNames = append(extNames, extName)
+						extNames = append(extNames, i.Name)
+						userActivatedNames[i.Name] = true
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
-						ctx.Group.ClearUserDisabledFlag(i.Name)
+						ctx.Group.RemoveFromInactivated(i.Name)
 						ctx.Group.ExtActive(i)
+					}
+				}
+
+				// 循环结束后统一检查新激活的伴随扩展
+				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+					if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
+						companionExtNames = append(companionExtNames, ext.Name)
 					}
 				}
 
@@ -1614,6 +1633,9 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, "输入的扩展类别名无效")
 				} else {
 					text := fmt.Sprintf("打开扩展 %s", strings.Join(extNames, ","))
+					if len(companionExtNames) > 0 {
+						text += fmt.Sprintf("\n自动启用伴随扩展: %s", strings.Join(companionExtNames, ", "))
+					}
 					if len(conflictsAll) > 0 {
 						text += "\n检测到可能冲突的扩展，建议关闭: " + strings.Join(conflictsAll, ",")
 						text += "\n对于扩展中存在的同名指令，则越晚开启的扩展，优先级越高。"
@@ -1627,22 +1649,57 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				var closed []string
+				var companionClosed []string
 				var notfound []string
-				for index := range len(cmdArgs.Args) {
+				companionClosedSet := make(map[string]struct{})
+
+				// 记录关闭前的扩展列表
+				beforeDeactivate := make(map[string]bool)
+				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+					beforeDeactivate[ext.Name] = true
+				}
+				directlyClosed := make(map[string]struct{})
+
+				// 排除最后一个参数 "off"
+				for index := range len(cmdArgs.Args) - 1 {
 					extName := cmdArgs.Args[index]
 					extName = d.ExtAliasToName(extName)
+
 					ei := ctx.Group.ExtInactiveByName(extName)
 					if ei != nil {
 						closed = append(closed, ei.Name)
+						directlyClosed[ei.Name] = struct{}{}
 					} else {
 						notfound = append(notfound, extName)
 					}
+				}
+
+				// 检查被连带关闭的伴随扩展：差集 = 关闭前 - 关闭后 - 主动关闭
+				afterDeactivate := make(map[string]bool)
+				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+					afterDeactivate[ext.Name] = true
+				}
+				for closedExtName := range beforeDeactivate {
+					if afterDeactivate[closedExtName] {
+						continue
+					}
+					if _, manuallyClosed := directlyClosed[closedExtName]; manuallyClosed {
+						continue
+					}
+					if _, alreadyAdded := companionClosedSet[closedExtName]; alreadyAdded {
+						continue
+					}
+					companionClosedSet[closedExtName] = struct{}{}
+					companionClosed = append(companionClosed, closedExtName)
 				}
 
 				var text string
 
 				if len(closed) > 0 {
 					text += fmt.Sprintf("关闭扩展: %s", strings.Join(closed, ","))
+					if len(companionClosed) > 0 {
+						text += fmt.Sprintf("\n自动关闭伴随扩展: %s", strings.Join(companionClosed, ", "))
+					}
 				} else {
 					text += fmt.Sprintf(" 已关闭或未找到: %s", strings.Join(notfound, ","))
 				}
@@ -1683,6 +1740,9 @@ func (d *Dice) registerCoreCommands() {
 				VarSetValueStr(ctx, "$t旧昵称_RAW", ctx.Player.Name)
 				p.Name = msg.Sender.Nickname
 				p.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 				VarSetValueStr(ctx, "$t玩家_RAW", ctx.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:昵称_重置"))
@@ -1696,6 +1756,9 @@ func (d *Dice) registerCoreCommands() {
 
 				p.Name = cmdArgs.Args[0]
 				p.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				VarSetValueStr(ctx, "$t玩家", fmt.Sprintf("<%s>", ctx.Player.Name))
 				VarSetValueStr(ctx, "$t玩家_RAW", ctx.Player.Name)
 
@@ -1779,7 +1842,7 @@ func (d *Dice) registerCoreCommands() {
 					modSwitch = true
 					ctx.Group.System = key
 					ctx.Group.DiceSideNum = tmpl.SetConfig.DiceSides
-					ctx.Group.UpdatedAtTime = time.Now().Unix()
+					ctx.Group.MarkDirty(ctx.Dice)
 
 					// 兼容性设定
 					if tmpl.SetConfig.EnableTip == "" {
@@ -1831,6 +1894,9 @@ func (d *Dice) registerCoreCommands() {
 				} else {
 					p.DiceSideNum = int(num)
 					p.UpdatedAtTime = time.Now().Unix()
+					if ctx.Group != nil {
+						ctx.Group.MarkDirty(ctx.Dice)
+					}
 					VarSetValueInt64(ctx, "$t个人骰子面数", int64(ctx.Player.DiceSideNum))
 					VarSetValueInt64(ctx, "$t当前骰子面数", getDefaultDicePoints(ctx))
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数"))
@@ -1840,10 +1906,13 @@ func (d *Dice) registerCoreCommands() {
 				case "clr":
 					if isSetGroup {
 						ctx.Group.DiceSideNum = 0
-						ctx.Group.UpdatedAtTime = time.Now().Unix()
+						ctx.Group.MarkDirty(ctx.Dice)
 					} else {
 						p.DiceSideNum = 0
 						p.UpdatedAtTime = time.Now().Unix()
+						if ctx.Group != nil {
+							ctx.Group.MarkDirty(ctx.Dice)
+						}
 					}
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:设定默认骰子面数_重置"))
 				case "help":
@@ -1927,6 +1996,9 @@ func (d *Dice) registerCoreCommands() {
 			setCurPlayerName := func(name string) {
 				ctx.Player.Name = name
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 			}
 
 			switch val1 {
@@ -2152,6 +2224,9 @@ func (d *Dice) registerCoreCommands() {
 					if i == ctx.Group.GroupID {
 						ctx.Player.Name = msg.Sender.Nickname
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
+						if ctx.Group != nil {
+							ctx.Group.MarkDirty(ctx.Dice)
+						}
 
 						// TODO: 其他群的设置sn的怎么办？先不管了。。
 						if ctx.Player.AutoSetNameTemplate != "" {
@@ -2288,7 +2363,7 @@ func setRuleByName(ctx *MsgContext, name string) {
 			modSwitch = true
 			ctx.Group.System = key
 			ctx.Group.DiceSideNum = tmpl.SetConfig.DiceSides
-			ctx.Group.UpdatedAtTime = time.Now().Unix()
+			ctx.Group.MarkDirty(ctx.Dice)
 			tipText += tmpl.SetConfig.EnableTip
 
 			// TODO: 命令该要进步啦

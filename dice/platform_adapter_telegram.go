@@ -220,16 +220,14 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
-	// Pinenutn ActivatedExtList模板
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnGroupJoined != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnGroupJoined(ctx, msg)
-				})
+	// 触发扩展钩子
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnGroupJoined == nil {
+				return nil
 			}
-		}
+			return func() { ext.OnGroupJoined(ctx, msg) }
+		})
 	}
 }
 
@@ -244,15 +242,13 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 	for _, i := range ctx.SplitText(welcome) {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 	}
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnBecomeFriend != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnBecomeFriend(ctx, msg)
-				})
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnBecomeFriend == nil {
+				return nil
 			}
-		}
+			return func() { ext.OnBecomeFriend(ctx, msg) }
+		})
 	}
 }
 

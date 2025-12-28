@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/samber/lo"
@@ -462,7 +461,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 			ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7", false))
 			ctx.Group.System = "coc7"
-			ctx.Group.UpdatedAtTime = time.Now().Unix()
+			ctx.Group.MarkDirty(ctx.Dice)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
@@ -1372,11 +1371,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			if ctx != nil && ctx.Dice != nil {
-				if tmpl, ok := ctx.Dice.GameSystemMap.Load("coc7"); ok && tmpl != nil {
-					ctx.SystemTemplate = tmpl
-				}
-			}
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
