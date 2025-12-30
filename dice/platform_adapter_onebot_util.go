@@ -139,7 +139,15 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			UserID:     FormatOnebotDiceIDQQ(req.Get("user_id").String()),
 			OperatorID: FormatOnebotDiceIDQQ(req.Get("operator_id").String()),
 		})
+		// 离开群 群解散 别人被踹了
 	case "leave", "disband":
+		// 先获取被操作者，看看是否和自己是同一个人
+		selfID := FormatOnebotDiceIDQQ(req.Get("self_id").String())
+		operatorId := FormatOnebotDiceIDQQ(req.Get("operator_id").String())
+		if selfID != operatorId {
+			// 别人离开群的情况
+			return nil
+		}
 		groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
 		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
 		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
