@@ -240,7 +240,7 @@ func TestSplitLongText_CQCodeProtection(t *testing.T) {
 				for i, s := range splits {
 					openCQ := 0
 					inCQ := false
-					for j := 0; j < len(s); j++ {
+					for j := range len(s) {
 						if j+4 <= len(s) && s[j:j+4] == "[CQ:" {
 							openCQ++
 							inCQ = true

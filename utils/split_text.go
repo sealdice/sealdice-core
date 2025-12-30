@@ -118,7 +118,7 @@ func splitFirst(s string, maxLen int) (first string, rest string) {
 // findSplitPoint 找到切分点，使前半部分的可读文本（排除CQ码）长度 <= maxLen
 // 返回切分位置，如果找不到返回 0
 func findSplitPoint(s string, maxLen int) int {
-	textLen := 0  // 累计的可读文本长度
+	textLen := 0 // 累计的可读文本长度
 	i := 0
 
 	for i < len(s) {
