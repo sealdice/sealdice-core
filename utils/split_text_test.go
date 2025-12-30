@@ -148,19 +148,12 @@ func TestSplitLongText_CQCodeProtection(t *testing.T) {
 			name:    "CQ码不被切断-短文本+长CQ码",
 			text:    "Hello [CQ:image,file=base64://" + longBase64 + "] World",
 			maxLen:  100,
-			wantLen: 3, // "Hello " + 完整CQ码 + " World"
+			wantLen: 1, // 可读文本 "Hello  World" 只有 13 字节，不需要切分
 			check: func(splits []string) {
-				// 应该有一片包含完整的 CQ 码
-				foundCompleteCQ := false
-				for _, s := range splits {
-					if strings.Contains(s, "[CQ:image,file=base64://") &&
-						strings.Contains(s, "]") {
-						foundCompleteCQ = true
-						break
-					}
-				}
-				if !foundCompleteCQ {
-					t.Error("CQ码被切断了")
+				// 整条消息应该保持完整
+				if !strings.Contains(splits[0], "[CQ:image,file=base64://") ||
+					!strings.Contains(splits[0], "] World") {
+					t.Error("消息应该保持完整不切分")
 				}
 			},
 		},
@@ -168,19 +161,12 @@ func TestSplitLongText_CQCodeProtection(t *testing.T) {
 			name:    "CQ码在开头且超长",
 			text:    "[CQ:image,file=base64://" + longBase64 + "]After",
 			maxLen:  100,
-			wantLen: 2,
+			wantLen: 1, // 可读文本 "After" 只有 5 字节，不需要切分
 			check: func(splits []string) {
-				// 第一片应该是完整的 CQ 码（带分页提示）
-				// 分页提示格式: "[ 1 / 2 ]\n"
-				firstSplit := splits[0]
-				// 移除分页提示后检查
-				if idx := strings.Index(firstSplit, "[CQ:"); idx != -1 {
-					cqPart := firstSplit[idx:]
-					if !strings.Contains(cqPart, "]") {
-						t.Error("开头的CQ码应该保持完整")
-					}
-				} else {
-					t.Error("第一片应该包含CQ码")
+				// 整条消息应该保持完整
+				if !strings.Contains(splits[0], "[CQ:image,file=base64://") ||
+					!strings.Contains(splits[0], "]After") {
+					t.Error("消息应该保持完整不切分")
 				}
 			},
 		},
@@ -211,17 +197,12 @@ func TestSplitLongText_CQCodeProtection(t *testing.T) {
 			name:    "CQ码内有特殊字符",
 			text:    "Test [CQ:image,file=base64://" + longBase64 + ",url=http://example.com] Done",
 			maxLen:  100,
-			wantLen: 3, // "Test " + 完整CQ码 + " Done"
+			wantLen: 1, // 可读文本 "Test  Done" 只有 10 字节，不需要切分
 			check: func(splits []string) {
-				foundCompleteCQ := false
-				for _, s := range splits {
-					if strings.Contains(s, "[CQ:image,") && strings.Contains(s, "url=http://example.com]") {
-						foundCompleteCQ = true
-						break
-					}
-				}
-				if !foundCompleteCQ {
-					t.Error("带特殊字符的CQ码被切断了")
+				// 整条消息应该保持完整
+				if !strings.Contains(splits[0], "[CQ:image,") ||
+					!strings.Contains(splits[0], "url=http://example.com]") {
+					t.Error("消息应该保持完整不切分")
 				}
 			},
 		},
@@ -298,18 +279,18 @@ func TestSplitFirst_CQCodeProtection(t *testing.T) {
 			wantRest:  "d Test",
 		},
 		{
-			name:      "切分点在CQ码内-应调整到CQ码前",
+			name:      "短文本+CQ码-不切分",
 			s:         "Hi [CQ:image,file=" + longContent + "] End",
 			maxLen:    20,
-			wantFirst: "Hi ",
-			wantRest:  "[CQ:image,file=" + longContent + "] End",
+			wantFirst: "Hi [CQ:image,file=" + longContent + "] End", // 可读文本 "Hi  End" 只有 8 字节
+			wantRest:  "",
 		},
 		{
-			name:      "CQ码在开头且超长",
+			name:      "CQ码在开头-不切分",
 			s:         "[CQ:image,file=" + longContent + "]After",
 			maxLen:    20,
-			wantFirst: "[CQ:image,file=" + longContent + "]",
-			wantRest:  "After",
+			wantFirst: "[CQ:image,file=" + longContent + "]After", // 可读文本 "After" 只有 5 字节
+			wantRest:  "",
 		},
 		{
 			name:      "整个字符串是一个CQ码",
@@ -317,6 +298,13 @@ func TestSplitFirst_CQCodeProtection(t *testing.T) {
 			maxLen:    20,
 			wantFirst: "[CQ:image,file=" + longContent + "]",
 			wantRest:  "",
+		},
+		{
+			name:      "长文本+CQ码+长文本-需要切分",
+			s:         strings.Repeat("A", 50) + "[CQ:image,file=" + longContent + "]" + strings.Repeat("B", 50),
+			maxLen:    40,
+			wantFirst: strings.Repeat("A", 40),
+			wantRest:  strings.Repeat("A", 10) + "[CQ:image,file=" + longContent + "]" + strings.Repeat("B", 50),
 		},
 	}
 
