@@ -69,19 +69,19 @@ var V151GroupInfoConvertMigration = upgrade.Upgrade{
 			return err
 		}
 		defer rows.Close()
-		if err := rows.Err(); err != nil {
+		if err = rows.Err(); err != nil {
 			return err
 		}
 		var tempList []model.GroupInfoDB
 		for rows.Next() {
 			total++
 			var r row
-			if err := rows.Scan(&r.ID, &r.UpdatedAt, &r.Data); err != nil {
+			if err = rows.Scan(&r.ID, &r.UpdatedAt, &r.Data); err != nil {
 				failCount++
 				continue
 			}
 			var old oldGroupInfo
-			if err := json.Unmarshal(r.Data, &old); err != nil {
+			if err = json.Unmarshal(r.Data, &old); err != nil {
 				failCount++
 				continue
 			}
@@ -165,10 +165,10 @@ var V151GroupInfoConvertMigration = upgrade.Upgrade{
 
 		// 进行批量创建，开一个事务
 		err = db.Transaction(func(tx *gorm.DB) error {
-			if err := tx.CreateInBatches(&tempList, 500).Error; err != nil {
+			if err = tx.CreateInBatches(&tempList, 500).Error; err != nil {
 				return err
 			}
-			err := tx.Migrator().DropTable("group_info")
+			err = tx.Migrator().DropTable("group_info")
 			if err != nil {
 				return err
 			}
