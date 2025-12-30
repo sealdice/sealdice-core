@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/samber/lo"
@@ -100,7 +99,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			if tmpl == nil {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			mctx.Player.TempValueAlias = &tmpl.Alias // 兼容性支持
+			// alias resolution now relies on the active system template set above
 
 			reBP := regexp.MustCompile(`^[bBpP(]`)
 			re2 := regexp.MustCompile(`([^\d]+)\s+([\d]+)`)
@@ -117,10 +116,15 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 					if unicode.IsSpace(r) { // 暂不考虑太过奇葩的空格
 						replaced = true
 						restText = restText[:1] + " " + re2.ReplaceAllString(restText[2:], "$1$2")
-					} else { // if !(unicode.IsNumber(r) || r == '(')
+					} else if restText[0] != '(' { // if !(unicode.IsNumber(r) || r == '(')
 						// 将 .rab测试 切开为 "b 测试"
+						// 注: 判断 ( 是为了 .ra(1)50 能够运行，除此之外还有 .rab3(1)50 等等
 						for index, i := range restText[1:] {
-							if !unicode.IsNumber(i) && i != '(' {
+							if i == '(' {
+								break
+							}
+
+							if !unicode.IsNumber(i) {
 								restText = restText[:index+1] + " " + restText[index+1:]
 								break
 							}
@@ -134,7 +138,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			}
 
 			cocRule := mctx.Group.CocRuleIndex
-			if cmdArgs.Command == "rc" {
+			if cmdArgs.Command == "rc" || cmdArgs.Command == "rch" {
 				// 强制规则书
 				cocRule = 0
 			}
@@ -352,20 +356,21 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 		ShortHelp: helpSetCOC,
 		Help:      "设置房规:\n" + helpSetCOC,
 		HelpFunc: func(isShort bool) string {
-			help := ".setcoc 0-5 // 设置常见的0-5房规，0为规则书，2为国内常用规则\n" +
-				".setcoc dg // delta green 扩展规则\n" +
-				".setcoc details // 列出所有规则及其解释文本 \n"
-
+			var help strings.Builder
+			help.WriteString(".setcoc 0-5 // 设置常见的0-5房规，0为规则书，2为国内常用规则\n")
+			help.WriteString(".setcoc dg // delta green 扩展规则\n")
+			help.WriteString(".setcoc details // 列出所有规则及其解释文本 \n")
 			// 自定义
 			for _, i := range self.CocExtraRules {
 				n := strings.ReplaceAll(i.Desc, "\n", " ")
-				help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, n)
+				fmt.Fprintf(&help, ".setcoc %d/%s // %s\n", i.Index, i.Key, n)
 			}
 
+			helpText := help.String()
 			if isShort {
-				return help
+				return helpText
 			}
-			return "设置房规:\n" + help
+			return "设置房规:\n" + helpText
 		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			n := cmdArgs.GetArgN(1)
@@ -402,21 +407,22 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				text := fmt.Sprintf("已切换房规为%s:\n%s%s", SetCocRulePrefixText[ctx.Group.CocRuleIndex], SetCocRuleText[ctx.Group.CocRuleIndex], suffix)
 				ReplyToSender(ctx, msg, text)
 			case "details":
-				help := "当前有coc7规则如下:\n"
+				var help strings.Builder
+				help.WriteString("当前有coc7规则如下:\n")
 				for i := range 6 {
 					basicStr := strings.ReplaceAll(SetCocRuleText[i], "\n", " ")
-					help += fmt.Sprintf(".setcoc %d // %s\n", i, basicStr)
+					fmt.Fprintf(&help, ".setcoc %d // %s\n", i, basicStr)
 				}
 				// dg
 				dgStr := strings.ReplaceAll(SetCocRuleText[11], "\n", " ")
-				help += fmt.Sprintf(".setcoc dg // %s\n", dgStr)
+				fmt.Fprintf(&help, ".setcoc dg // %s\n", dgStr)
 
 				// 自定义
 				for _, i := range self.CocExtraRules {
 					ruleStr := strings.ReplaceAll(i.Desc, "\n", " ")
-					help += fmt.Sprintf(".setcoc %d/%s // %s\n", i.Index, i.Key, ruleStr)
+					fmt.Fprintf(&help, ".setcoc %d/%s // %s\n", i.Index, i.Key, ruleStr)
 				}
-				ReplyToSender(ctx, msg, help)
+				ReplyToSender(ctx, msg, help.String())
 			case "help":
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
@@ -455,7 +461,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 			ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7", false))
 			ctx.Group.System = "coc7"
-			ctx.Group.UpdatedAtTime = time.Now().Unix()
+			ctx.Group.MarkDirty(ctx.Dice)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}
@@ -1083,7 +1089,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			mctx.Player.TempValueAlias = &tmpl.Alias
+			mctx.SystemTemplate = tmpl
 
 			// 首先读取一个值
 			// 试图读取 /: 读到了，当前是成功值，转入读取单项流程，试图读取失败值
@@ -1365,8 +1371,6 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 
 		},
 		OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-			tmpl := getCoc7CharTemplate()
-			ctx.Player.TempValueAlias = &tmpl.Alias
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{

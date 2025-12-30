@@ -158,6 +158,7 @@ type BaseConfig struct {
 	UpgradeWindowID         string     `json:"-"                       yaml:"upgradeWindowId"`      // 执行升级指令的窗口
 	UpgradeEndpointID       string     `json:"-"                       yaml:"upgradeEndpointId"`    // 执行升级指令的端点
 	BotExtFreeSwitch        bool       `json:"botExtFreeSwitch"        yaml:"botExtFreeSwitch"`     // 允许任意人员开关: 否则邀请者、群主、管理员、master有权限
+	BotExitWithoutAt        bool       `json:"botExitWithoutAt"        yaml:"botExitWithoutAt"`     // 不@骰娘即可执行退群指令
 	TrustOnlyMode           bool       `json:"trustOnlyMode"           yaml:"trustOnlyMode"`        // 只有信任的用户/master可以拉群和使用
 	AliveNoticeEnable       bool       `json:"aliveNoticeEnable"       yaml:"aliveNoticeEnable"`    // 定时通知
 	AliveNoticeValue        string     `json:"aliveNoticeValue"        yaml:"aliveNoticeValue"`     // 定时通知间隔

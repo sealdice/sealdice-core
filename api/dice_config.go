@@ -253,6 +253,9 @@ func DiceConfigSet(c echo.Context) error {
 	if val, ok := jsonMap["botExtFreeSwitch"]; ok {
 		config.BotExtFreeSwitch = val.(bool)
 	}
+	if val, ok := jsonMap["botExitWithoutAt"]; ok {
+		config.BotExitWithoutAt = val.(bool)
+	}
 	if val, ok := jsonMap["rateLimitEnabled"]; ok {
 		config.RateLimitEnabled = val.(bool)
 	}

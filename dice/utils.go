@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/samber/lo"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
+	"gopkg.in/yaml.v3"
 )
 
 type Int64SliceDesc []int64
@@ -25,6 +27,36 @@ type Int64SliceDesc []int64
 func (x Int64SliceDesc) Len() int           { return len(x) }
 func (x Int64SliceDesc) Less(i, j int) bool { return x[i] > x[j] }
 func (x Int64SliceDesc) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
+// StringSet 是一个字符串集合，内部使用 map[string]struct{} 实现，
+// 序列化时转换为 []string 格式以提高可读性。
+type StringSet map[string]struct{}
+
+// MarshalYAML 将 StringSet 序列化为 []string
+func (s StringSet) MarshalYAML() (interface{}, error) {
+	if s == nil {
+		return []string{}, nil
+	}
+	keys := make([]string, 0, len(s))
+	for k := range s {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys, nil
+}
+
+// UnmarshalYAML 将 []string 反序列化为 StringSet
+func (s *StringSet) UnmarshalYAML(node *yaml.Node) error {
+	var items []string
+	if err := node.Decode(&items); err != nil {
+		return err
+	}
+	*s = make(map[string]struct{}, len(items))
+	for _, item := range items {
+		(*s)[item] = struct{}{}
+	}
+	return nil
+}
 
 func RemoveSpace(s string) string {
 	re := regexp.MustCompile(`\s+`)
@@ -535,6 +567,11 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 		"OpenQQ-Group-T:":   "OpenQQ-Member-T:",
 		"UI-Group:":         "UI:",
 	}
+
+	// 遇到一个例子:
+	// QQ-CH-Group:33845581638279358-3047284-QQ-CH:144115218744389299
+	// OpenQQ-Group:102076784-89F06C35D4D418FE02BEFAEB8A6BAEB2-OpenQQ-Member:102076784-89F06C35D4D418FE02BEFAEB8A6BAEB2-FF4E7AAC8134661D05CF53E62F4037B4
+	// 应该是某一个测试版本，占比很少，这里忽略吧
 
 	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:456 ？
 	// 但是 KOOK 就例外了

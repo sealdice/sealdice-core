@@ -33,6 +33,7 @@ import (
 	"sealdice-core/utils/crypto"
 	"sealdice-core/utils/dboperator"
 	"sealdice-core/utils/oschecker"
+	"sealdice-core/utils/paniclog"
 )
 
 /*
@@ -171,6 +172,10 @@ func main() {
 		LogLevel               int8   `choice:"-1"                                                                   choice:"0"              choice:"1" choice:"2" choice:"3" choice:"4" choice:"5" default:"0" description:"设置日志等级"             long:"log-level"`
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
 	}
+	// pprof
+	// go func() {
+	//	http.ListenAndServe("0.0.0.0:8899", nil)
+	// }()
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
@@ -190,6 +195,8 @@ func main() {
 	// 提前到最开始初始化所有日志
 	uiWriter := logger.NewUIWriter()
 	log := logger.InitLogger(zapcore.Level(opts.LogLevel), uiWriter).Named(logger.LogKeyMain)
+	// 初始化PanicLog
+	paniclog.InitPanicLog()
 
 	// 3. 提示日志打印
 	log.Info("运行日志开始记录，海豹出现故障时可查看 data/main.log 与 data/panic.log 获取更多信息")
@@ -213,7 +220,7 @@ func main() {
 	judge, osr := oschecker.OldVersionCheck()
 	// 预留收集信息的接口，如果有需要可以考虑从这里拿数据。不从这里做提示的原因是Windows和Linux的展示方式不同。
 	if judge {
-		log.Info(osr)
+		log.Info(fmt.Sprintf("您当前使用的系统为: %s", osr))
 	}
 	if opts.DBCheck {
 		dboperator.DBCheck()
@@ -445,7 +452,7 @@ func main() {
 
 		<-interrupt
 		cleanUp()
-		time.Sleep(3 * time.Second)
+		log.Info("程序即将退出，再见")
 		os.Exit(0)
 	})()
 
@@ -456,11 +463,6 @@ func main() {
 	for _, d := range diceManager.Dice {
 		go diceServe(d)
 	}
-
-	// pprof
-	// go func() {
-	//	http.ListenAndServe("0.0.0.0:8899", nil)
-	// }()
 
 	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
 	// OOM分析工具
@@ -547,6 +549,10 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.ProtocolType == "milky" {
 						dice.ServeMilky(d, conn)
+						return
+					}
+					if conn.ProtocolType == "pureonebot" {
+						dice.ServePureOnebot(d, conn)
 						return
 					}
 					time.Sleep(10 * time.Second) // 稍作等待再连接

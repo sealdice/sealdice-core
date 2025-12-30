@@ -111,11 +111,18 @@ func ImConnectionsSetData(c echo.Context) error {
 		if i.ID != v.ID {
 			continue
 		}
-		if i.ProtocolType == "walle-q" {
+		switch i.ProtocolType {
+		case "walle-q":
 			ad := i.Adapter.(*dice.PlatformAdapterWalleQ)
 			ad.SetQQProtocol(v.Protocol)
 			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
-		} else {
+		case "milky":
+			ad := i.Adapter.(*dice.PlatformAdapterMilky)
+			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+		case "pureonebot":
+			ad := i.Adapter.(*dice.PlatformAdapterOnebot)
+			ad.IgnoreFriendRequest = v.IgnoreFriendRequest
+		default:
 			ad := i.Adapter.(*dice.PlatformAdapterGocq)
 			if i.ProtocolType != "onebot" {
 				i.ProtocolType = "onebot"
@@ -805,24 +812,22 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 		if checkUidExists(c, uid) {
 			return nil
 		}
-
-		conn := dice.NewGoCqhttpConnectInfoItem("")
+		conn := dice.NewOnebotConnItem(dice.AddOnebotEcho{
+			Token:         v.AccessToken,
+			ConnectURL:    v.ConnectURL,
+			ReverseURL:    "",
+			ReverseSuffix: "",
+			Mode:          "client",
+		})
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
-
-		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
 		pa.Session = myDice.ImSession
-
-		// 三项设置
-		conn.RelWorkDir = "x" // 此选项已无意义
-		pa.ConnectURL = v.ConnectURL
-		pa.AccessToken = v.AccessToken
-
-		pa.UseInPackClient = false
-
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		conn.SetEnable(myDice, true)
-
+		// 设置正在使用中 千万不要设置这个
+		// conn.SetEnable(myDice, true)
+		// 像Milky一样使用
+		go dice.ServePureOnebot(myDice, conn)
+		// 上次更新的时间
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		return c.JSON(http.StatusOK, conn)
@@ -851,22 +856,22 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 		if checkUidExists(c, uid) {
 			return nil
 		}
-
-		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
+		conn := dice.NewOnebotConnItem(dice.AddOnebotEcho{
+			Token:         "", // TODO：反向怎么可怜巴巴的，连个Token都没有吗
+			ConnectURL:    "",
+			ReverseURL:    v.ReverseAddr,
+			ReverseSuffix: "/ws",
+			Mode:          "server",
+		})
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
-
-		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
 		pa.Session = myDice.ImSession
-
-		pa.IsReverse = true
-		pa.ReverseAddr = v.ReverseAddr
-
-		pa.UseInPackClient = false
-
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		conn.SetEnable(myDice, true)
-
+		// 设置正在使用中 千万不要设置这个
+		// conn.SetEnable(myDice, true)
+		// 像Milky一样使用
+		go dice.ServePureOnebot(myDice, conn)
+		// 上次更新的时间
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		return c.JSON(http.StatusOK, conn)

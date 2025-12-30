@@ -20,6 +20,7 @@ func ServeMinecraft(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "MC" {
 		conn := ep.Adapter.(*PlatformAdapterMinecraft)
+		ep.Session = d.ImSession
 		d.Logger.Infof("Minecraft 尝试连接")
 		conn.Serve()
 	}

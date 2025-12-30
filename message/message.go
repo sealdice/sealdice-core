@@ -18,6 +18,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/bytedance/sonic"
 )
 
 type CQCommand struct {
@@ -30,34 +32,81 @@ func (c *CQCommand) Compile() string {
 	if c.Overwrite != "" {
 		return c.Overwrite
 	}
-	argsPart := ""
+	var argsPart strings.Builder
 	for k, v := range c.Args {
-		argsPart += fmt.Sprintf(",%s=%s", k, v)
+		fmt.Fprintf(&argsPart, ",%s=%s", k, v)
 	}
-	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart)
+	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart.String())
 }
 
 type (
 	IMessageElement interface {
 		Type() ElementType
+		FromCQData(dMap map[string]string) error
 	}
 
 	ElementType int
 )
 
 const (
-	Text   ElementType = iota // 文本
-	At                        // 艾特
-	File                      // 文件
-	Image                     // 图片
-	TTS                       // 文字转语音
-	Reply                     // 回复
-	Record                    // 语音
-	Face                      // 表情
-	Poke                      // 戳一戳
+	Text    ElementType = iota // 文本
+	At                         // 艾特
+	File                       // 文件
+	Image                      // 图片
+	TTS                        // 文字转语音
+	Reply                      // 回复
+	Record                     // 语音
+	Face                       // 表情
+	Poke                       // 戳一戳
+	Default = -1               // 一个兜底的情况，兜底所有不认识的类型
 )
 
 const maxFileSize = 1024 * 1024 * 50 // 50MB
+
+// ElementFactory 创建 IMessageElement 实例的工厂函数
+type ElementFactory func() IMessageElement
+
+// elementRegistry 全局注册表，存储类型名到工厂函数的映射
+var elementRegistry = map[string]ElementFactory{
+	"at":     func() IMessageElement { return &AtElement{} },
+	"tts":    func() IMessageElement { return &TTSElement{} },
+	"reply":  func() IMessageElement { return &ReplyElement{} },
+	"poke":   func() IMessageElement { return &PokeElement{} },
+	"face":   func() IMessageElement { return &FaceElement{} },
+	"file":   func() IMessageElement { return &FileElement{} },
+	"image":  func() IMessageElement { return &ImageElement{} },
+	"record": func() IMessageElement { return &RecordElement{} },
+}
+
+// GetElementFactory 获取指定类型的元素工厂函数
+func GetElementFactory(elementType string) ElementFactory {
+	factory, exists := elementRegistry[elementType]
+	if !exists {
+		// 构建成默认类型
+		return func() IMessageElement {
+			return &DefaultElement{RawType: elementType}
+		}
+	}
+	return factory
+}
+
+type DefaultElement struct {
+	RawType string                 `jsbind:"type"`
+	Data    sonic.NoCopyRawMessage `jsbind:"data"`
+}
+
+func (t *DefaultElement) Type() ElementType {
+	return Default
+}
+
+func (t *DefaultElement) FromCQData(dMap map[string]string) error {
+	marshal, err := sonic.Marshal(dMap)
+	if err != nil {
+		return err
+	}
+	t.Data = marshal
+	return nil
+}
 
 type TextElement struct {
 	Content string `jsbind:"content"`
@@ -67,12 +116,26 @@ func (t *TextElement) Type() ElementType {
 	return Text
 }
 
+func (t *TextElement) FromCQData(dMap map[string]string) error {
+	// TextElement 不从 CQ 码创建，这个方法不应该被调用
+	return errors.New("TextElement should not be created from CQ data")
+}
+
 type AtElement struct {
 	Target string `jsbind:"target"`
 }
 
 func (t *AtElement) Type() ElementType {
 	return At
+}
+
+func (t *AtElement) FromCQData(dMap map[string]string) error {
+	target := dMap["qq"]
+	if dMap["id"] != "" {
+		target = dMap["id"]
+	}
+	t.Target = target
+	return nil
 }
 
 type ReplyElement struct {
@@ -86,12 +149,22 @@ func (t *ReplyElement) Type() ElementType {
 	return Reply
 }
 
+func (t *ReplyElement) FromCQData(dMap map[string]string) error {
+	t.ReplySeq = dMap["id"]
+	return nil
+}
+
 type TTSElement struct {
 	Content string `jsbind:"content"`
 }
 
 func (t *TTSElement) Type() ElementType {
 	return TTS
+}
+
+func (t *TTSElement) FromCQData(dMap map[string]string) error {
+	t.Content = dMap["text"]
+	return nil
 }
 
 type FileElement struct {
@@ -105,6 +178,23 @@ func (l *FileElement) Type() ElementType {
 	return File
 }
 
+func (l *FileElement) FromCQData(dMap map[string]string) error {
+	p := strings.TrimSpace(dMap["file"])
+	u := strings.TrimSpace(dMap["url"])
+	if u == "" {
+		fileElem, err := FilepathToFileElement(p)
+		if err != nil {
+			return err
+		}
+		*l = *fileElem
+		return nil
+	} else {
+		// 当 url 不为空时，绕过读取直接发送 url
+		l.URL = u
+		return nil
+	}
+}
+
 type ImageElement struct {
 	File *FileElement `jsbind:"file"`
 	URL  string       `jsbind:"url"`
@@ -112,6 +202,17 @@ type ImageElement struct {
 
 func (l *ImageElement) Type() ElementType {
 	return Image
+}
+
+func (l *ImageElement) FromCQData(dMap map[string]string) error {
+	fileElem := &FileElement{}
+	err := fileElem.FromCQData(dMap)
+	if err != nil {
+		return err
+	}
+	l.File = fileElem
+	l.URL = fileElem.URL
+	return nil
 }
 
 type RecordElement struct {
@@ -122,12 +223,27 @@ func (r *RecordElement) Type() ElementType {
 	return Record
 }
 
+func (r *RecordElement) FromCQData(dMap map[string]string) error {
+	fileElem := &FileElement{}
+	err := fileElem.FromCQData(dMap)
+	if err != nil {
+		return err
+	}
+	r.File = fileElem
+	return nil
+}
+
 type FaceElement struct {
 	FaceID string `jsbind:"faceID"`
 }
 
 func (f *FaceElement) Type() ElementType {
 	return Face
+}
+
+func (f *FaceElement) FromCQData(dMap map[string]string) error {
+	f.FaceID = dMap["id"]
+	return nil
 }
 
 type PokeElement struct {
@@ -138,17 +254,27 @@ func (p *PokeElement) Type() ElementType {
 	return Poke
 }
 
+func (p *PokeElement) FromCQData(dMap map[string]string) error {
+	p.Target = dMap["qq"]
+	return nil
+}
+
 func newText(s string) *TextElement {
 	return &TextElement{Content: s}
 }
 
 func CQToText(t string, d map[string]string) IMessageElement {
-	org := "[CQ:" + t
+	var org strings.Builder
+	org.WriteString("[CQ:")
+	org.WriteString(t)
 	for k, v := range d {
-		org += "," + k + "=" + v
+		org.WriteString(",")
+		org.WriteString(k)
+		org.WriteString("=")
+		org.WriteString(v)
 	}
-	org += "]"
-	return newText(org)
+	org.WriteString("]")
+	return newText(org.String())
 }
 func getFileName(header http.Header) string {
 	contentDisposition := header.Get("Content-Disposition")
@@ -290,53 +416,16 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 }
 
 func toElement(t string, dMap map[string]string) (IMessageElement, error) {
-	switch t {
-	case "file":
-		p := strings.TrimSpace(dMap["file"])
-		u := strings.TrimSpace(dMap["url"])
-		if u == "" {
-			return FilepathToFileElement(p)
-		} else {
-			// 当 url 不为空时，绕过读取直接发送 url
-			return &FileElement{URL: u}, nil
-		}
-	case "record":
-		t = "file"
-		f, err := toElement(t, dMap)
-		if err != nil {
-			return nil, err
-		}
-		file := f.(*FileElement)
-		return &RecordElement{File: file}, nil
-	case "at":
-		target := dMap["qq"]
-		if dMap["id"] != "" {
-			target = dMap["id"]
-		}
-		return &AtElement{Target: target}, nil
-	case "image":
-		t = "file"
-		f, err := toElement(t, dMap)
-		if err != nil {
-			return nil, err
-		}
-		switch node := f.(type) {
-		case *FileElement:
-			return &ImageElement{File: node, URL: node.URL}, nil
-		case *ImageElement:
-			return node, nil
-		}
-	case "tts":
-		content := dMap["text"]
-		return &TTSElement{Content: content}, nil
-	case "reply":
-		target := dMap["id"]
-		return &ReplyElement{ReplySeq: target}, nil
-	case "poke":
-		target := dMap["qq"]
-		return &PokeElement{Target: target}, nil
+	// 从注册表查找工厂函数
+	elemFactory := GetElementFactory(t)
+	elem := elemFactory()
+	// 调用实例的转换方法
+	err := elem.FromCQData(dMap)
+	if err != nil {
+		return nil, err
 	}
-	return CQToText(t, dMap), nil
+
+	return elem, nil
 }
 
 func ImageRewrite(longText string, solve func(text string) string) string {

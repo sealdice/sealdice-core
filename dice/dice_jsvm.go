@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -31,7 +30,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 	"gopkg.in/elazarl/goproxy.v1"
-	"gopkg.in/yaml.v3"
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
@@ -87,7 +85,10 @@ func (d *Dice) JsInit() {
 	// 重建js vm
 	reg := new(require.Registry)
 
-	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false), eventloop.WithRegistry(reg))
+	loop := eventloop.NewEventLoop(eventloop.EnableConsole(false),
+		eventloop.WithRegistry(reg),
+		eventloop.WithDebugLog(true),
+		eventloop.WithLogger(d.Logger))
 	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	versionID := d.ExtLoopManager.SetLoop(loop)
 
@@ -111,7 +112,7 @@ func (d *Dice) JsInit() {
 
 		sealws.Enable(vm, loop)
 		// require 模块
-		d.JsRequire = reg.Enable(vm)
+		reg.Enable(vm)
 
 		seal := vm.NewObject()
 
@@ -189,12 +190,7 @@ func (d *Dice) JsInit() {
 		_ = ext.Set("find", func(name string) *ExtInfo {
 			return d.ExtFind(name, true)
 		})
-		_ = ext.Set("register", func(ei *ExtInfo) {
-			// NOTE(Xiangze Li): 移动到dice.RegisterExtension里去检查
-			// if d.ExtFind(ei.Name) != nil {
-			// 	panic("扩展<" + ei.Name + ">已被注册")
-			// }
-
+		_ = ext.Set("register", func(realExt *ExtInfo) {
 			defer func() {
 				// 增加recover, 以免在scripts目录中存在名字冲突扩展时导致启动崩溃
 				if e := recover(); e != nil {
@@ -202,14 +198,57 @@ func (d *Dice) JsInit() {
 				}
 			}()
 
-			d.RegisterExtension(ei)
-			if ei.OnLoad != nil {
-				ei.OnLoad()
-			}
-			// 设置本次loop的版本，用于比较
-			ei.JSLoopVersion = versionID
+			extName := realExt.Name
 
-			d.ApplyExtDefaultSettings()
+			// 1. 查找或创建 wrapper
+			var wrapper *ExtInfo
+			if existingWrapper, ok := d.ExtRegistry.Load(extName); ok && existingWrapper != nil && existingWrapper.IsWrapper {
+				// 重载：复用已有 wrapper
+				wrapper = existingWrapper
+				wrapper.Author = realExt.Author
+				wrapper.Version = realExt.Version
+				wrapper.IsDeleted = false         // 重新激活（清除删除标记）
+				wrapper.dice = d                  // 确保 dice 引用正确（可能从配置恢复时为 nil）
+				wrapper.JSLoopVersion = versionID // 同步新的 loop 版本号，避免 callWithJsCheck 时版本不匹配
+			} else {
+				// 首次加载：创建新 wrapper
+				wrapper = &ExtInfo{
+					Name:          extName,
+					Author:        realExt.Author,
+					Version:       realExt.Version,
+					IsWrapper:     true,
+					TargetName:    extName,
+					IsDeleted:     false,
+					GetDescText:   GetExtensionDesc,
+					AutoActive:    realExt.AutoActive, // 复制真实扩展的 AutoActive 设置
+					IsJsExt:       true,               // 标记为 JS 扩展
+					Brief:         "一个JS自定义扩展",
+					Official:      realExt.Official,
+					CmdMap:        CmdMapCls{},
+					JSLoopVersion: versionID,
+					dice:          d,
+				}
+				// 注册 wrapper 到 ExtRegistry 和 ExtList
+				d.RegisterExtension(wrapper)
+			}
+
+			// 2. 注册真实 ExtInfo 到 JsExtRegistry
+			if d.JsExtRegistry == nil {
+				d.JsExtRegistry = new(SyncMap[string, *ExtInfo])
+			}
+			d.JsExtRegistry.Store(extName, realExt)
+
+			// 3. 设置真实 ExtInfo 的属性
+			realExt.dice = d
+			realExt.JSLoopVersion = versionID
+
+			// 4. 更新全局扩展变更时间戳
+			d.ExtUpdateTime = time.Now().Unix()
+
+			// 5. 触发 OnLoad 回调
+			if realExt.OnLoad != nil {
+				realExt.OnLoad()
+			}
 		})
 		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
 			if ei.dice == nil {
@@ -510,8 +549,7 @@ func (d *Dice) JsInit() {
 		})
 		gameSystem := vm.NewObject()
 		_ = gameSystem.Set("newTemplate", func(data string) error {
-			tmpl := &GameSystemTemplate{}
-			err := json.Unmarshal([]byte(data), tmpl)
+			tmpl, err := loadGameSystemTemplateFromData([]byte(data), "json")
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}
@@ -522,8 +560,7 @@ func (d *Dice) JsInit() {
 			return nil
 		})
 		_ = gameSystem.Set("newTemplateByYaml", func(data string) error {
-			tmpl := &GameSystemTemplate{}
-			err := yaml.Unmarshal([]byte(data), tmpl)
+			tmpl, err := loadGameSystemTemplateFromData([]byte(data), "yaml")
 			if err != nil {
 				return errors.New("解析失败:" + err.Error())
 			}
@@ -626,16 +663,21 @@ func (d *Dice) JsShutdown() {
 }
 
 func (d *Dice) jsClear() {
-	// 清理js扩展
-	prepareRemove := []*ExtInfo{}
-	for _, i := range d.ExtList {
-		if i.IsJsExt {
-			prepareRemove = append(prepareRemove, i)
-		}
+	// Wrapper 架构：不再调用 ExtRemove，只清空 JsExtRegistry
+	// 注意：不标记 wrapper 为 IsDeleted，否则重载期间消息到达会导致 wrapper 被移除
+	// IsDeleted 只在 JsDelete/ExtRemove（永久删除脚本）时设置
+
+	// 清空/初始化 JsExtRegistry
+	if d.JsExtRegistry != nil {
+		d.JsExtRegistry.Range(func(_ string, ext *ExtInfo) bool {
+			if ext != nil && ext.Storage != nil {
+				_ = ext.StorageClose()
+			}
+			return true
+		})
 	}
-	for _, i := range prepareRemove {
-		d.ExtRemove(i)
-	}
+	d.JsExtRegistry = new(SyncMap[string, *ExtInfo])
+
 	// 清理coc扩展规则
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 	// 清理脚本列表
@@ -788,27 +830,38 @@ func (d *Dice) JsLoadScripts() {
 
 		d.JsLoadScriptRaw(jsInfo)
 	}
+	// 统一在所有脚本加载完后应用扩展默认设置
+	// 新扩展激活采用延迟模式，在群组收到消息时通过 GetActivatedExtList 按需激活
+	d.ApplyExtDefaultSettings()
 }
 
 func (d *Dice) JsReload() {
+	startTime := time.Now()
+	d.Logger.Infof("JsReload: 开始重载")
+
 	if d.JsScriptCron != nil {
 		d.JsScriptCron.Stop()
 		d.JsScriptCron = nil
 	}
 
-	// 记录扩展快照
-	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-		groupInfo.ExtActiveListSnapshot = lo.Map(groupInfo.ActivatedExtList, func(item *ExtInfo, index int) string {
-			return item.Name
-		})
-		return true
-	})
+	// Wrapper 架构：设置重载标志，避免重载期间访问无效的 CmdMap
+	d.JsReloading = true
+	defer func() { d.JsReloading = false }()
+
+	// Wrapper 架构：不再需要记录快照，wrapper 保留在群组中
+	// jsClear 清空 JsExtRegistry，seal.ext.register 会复用 wrapper 并注册新的真实扩展
 
 	d.JsInit()
 	_ = d.ConfigManager.Load()
 	d.JsLoadScripts()
+
+	// 更新扩展变更时间戳，触发延迟更新
+	d.ExtUpdateTime = time.Now().Unix()
+
 	d.MarkModified()
 	d.Save(false)
+
+	d.Logger.Infof("JsReload: 重载完成，耗时 %dms", time.Since(startTime).Milliseconds())
 }
 
 // JsExtSettingVacuum 清理已被删除的脚本对应的插件配置
@@ -1059,7 +1112,7 @@ func (d *Dice) JsLoadScriptRaw(jsInfo *JsScriptInfo) {
 			targetPath = jsInfo.Filename
 		}
 		if err == nil {
-			_, err = d.JsRequire.Require(targetPath)
+			_, err = d.ExtLoopManager.GetWebLoop().RequireModule(targetPath)
 		}
 		d.JsLoadingScript = nil
 	} else {
@@ -1083,11 +1136,11 @@ func tsScriptCompile(path string) (string, error) {
 		Loader: esbuild.LoaderTS,
 	})
 	if len(compiled.Errors) > 0 {
-		var msg string
+		var msg strings.Builder
 		for _, e := range compiled.Errors {
-			msg += e.Text // FIXME 优化错误信息展示
+			msg.WriteString(e.Text) // FIXME 优化错误信息展示
 		}
-		return "", errors.New(msg)
+		return "", errors.New(msg.String())
 	}
 	compiledPath, err := os.CreateTemp("", "compiled-*-"+filepath.Base(path))
 	if err != nil {
@@ -1130,7 +1183,7 @@ func CheckJsSign(rawData []byte) (bool, SignStatus) {
 	return false, ErrorSign
 }
 
-func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {
+func JsDelete(d *Dice, jsInfo *JsScriptInfo) {
 	dirpath := filepath.Dir(jsInfo.Filename)
 	dirname := filepath.Base(dirpath)
 
@@ -1141,6 +1194,27 @@ func JsDelete(_ *Dice, jsInfo *JsScriptInfo) {
 		_ = os.Remove(zipFilename)
 	} else {
 		_ = os.Remove(jsInfo.Filename)
+	}
+
+	// Wrapper 架构：标记 wrapper 为已删除并更新时间戳
+	if d != nil {
+		// 标记 wrapper 为已删除
+		if d.ExtRegistry != nil {
+			if wrapper, ok := d.ExtRegistry.Load(jsInfo.Name); ok && wrapper != nil && wrapper.IsWrapper {
+				wrapper.IsDeleted = true
+			}
+		}
+
+		// 从 JsExtRegistry 移除
+		if d.JsExtRegistry != nil {
+			if realExt, ok := d.JsExtRegistry.Load(jsInfo.Name); ok && realExt != nil && realExt.Storage != nil {
+				_ = realExt.StorageClose()
+			}
+			d.JsExtRegistry.Delete(jsInfo.Name)
+		}
+
+		// 更新时间戳
+		d.ExtUpdateTime = time.Now().Unix()
 	}
 }
 
