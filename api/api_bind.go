@@ -542,12 +542,11 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	// 挂载 humaecho 到 echo 实例
 	apier := humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))
-	v2.InitV2Router(apier, myDice)
+	v2.InitV2Router(apier, _myDice)
 
 	e.GET(prefix+"/preInfo", preInfo)
-	e.GET(prefix+"/baseInfo", baseInfo)
-	e.GET(prefix+"/hello", hello2)
-	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
+	e.GET(prefix+"/baseInfo", baseInfo) // 已完成
+	e.GET(prefix+"/hello", hello2)      // 已完成
 	e.GET(prefix+"/im_connections/list", ImConnections)
 	e.GET(prefix+"/im_connections/get", ImConnectionsGet)
 
@@ -616,9 +615,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.POST(prefix+"/dice/config/vm-version-set", vmVersionSet)
 
-	e.POST(prefix+"/signin", doSignIn)
-	e.GET(prefix+"/signin/salt", doSignInGetSalt)
-	e.GET(prefix+"/checkSecurity", checkSecurity)
+	e.POST(prefix+"/signin", doSignIn)            // 已完成
+	e.GET(prefix+"/signin/salt", doSignInGetSalt) // 废弃了
+	e.GET(prefix+"/checkSecurity", checkSecurity) // 已完成
 
 	e.GET(prefix+"/backup/list", backupGetList)
 	e.POST(prefix+"/backup/do_backup", backupExec)
@@ -727,4 +726,5 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/store/page", storeGetPage)
 	e.POST(prefix+"/store/download", storeDownload)
 	e.POST(prefix+"/store/rating", storeRating)
+	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
 }

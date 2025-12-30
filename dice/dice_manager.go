@@ -110,6 +110,10 @@ type Configs struct { //nolint:revive
 	ConfigVersion int `yaml:"configVersion"`
 }
 
+func (dm *DiceManager) GetDice() *Dice {
+	return dm.Dice[0]
+}
+
 func (dm *DiceManager) InitHelp() {
 	log := logger.M()
 	dm.IsHelpReloading = true
