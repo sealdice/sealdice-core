@@ -64,6 +64,10 @@ var V151GroupInfoConvertMigration = upgrade.Upgrade{
 		var total, okCount, failCount int
 		logf("[INFO] V151 群信息转换开始")
 
+		if !rdb.Migrator().HasTable(&model.GroupInfo{}) {
+			logf("[INFO] 旧版本数据表不存在，可能曾经已经升级过或版本有问题，升级暂时跳过")
+			return nil
+		}
 		rows, err := rdb.Model(&model.GroupInfo{}).Select("id, updated_at, data").Rows()
 		if err != nil {
 			return err
