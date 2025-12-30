@@ -6,15 +6,24 @@ import (
 	"sealdice-core/dice"
 )
 
-func AuthMiddleware(d *dice.Dice) func(ctx huma.Context, next func(huma.Context)) {
+func AuthMiddleware(api huma.API, d *dice.Dice) func(ctx huma.Context, next func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
-		token := ctx.Header("token")
+		token := ctx.Header("Authorization")
+		if token != "" {
+			if len(token) > 7 && token[:7] == "Bearer " {
+				token = token[7:]
+			}
+		}
+		if token == "" {
+			token = ctx.Header("token")
+		}
 		if token == "" {
 			token = ctx.Query("token")
 		}
 		if d.Parent.AccessTokens.Exists(token) {
 			next(ctx)
+			return
 		}
-		// 失败登录 400 错误
+		_ = huma.WriteErr(api, ctx, 401, "unauthorized")
 	}
 }
