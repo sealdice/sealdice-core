@@ -200,6 +200,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				ReplyToSender(ctx, msg, text)
 				return &CmdExecuteResult{Matched: true, Solved: true}
 			}
+			ctx.CreateVmIfNotExists()
 			ctx.setDndReadForVM(false)
 			return nil
 		},
@@ -209,6 +210,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			// 对于带buff的值，st show值后面带上 [x] 其中x为本值
 			suffixText := ""
 			ctx.CreateVmIfNotExists()
+			ctx.setDndReadForVM(false)
 			orgV, err := ctx.vm.RunExpr("$org_"+k, true)
 			if orgV != nil {
 				if orgV.TypeId == ds.VMTypeComputedValue {
@@ -300,8 +302,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// 获取hpmax
 				var curHpMax ds.IntType
 				hpMax, maxExists := attrs.LoadX("hpmax")
-				if maxExists && hpMax.TypeId == ds.VMTypeInt {
-					curHpMax, _ = hpMax.ReadInt()
+				if maxExists {
+					switch hpMax.TypeId {
+					case ds.VMTypeComputedValue:
+						cd, _ := hpMax.ReadComputed()
+						curHpMax, _ = ctx.Eval(cd.Expr, nil).ReadInt()
+					default:
+						curHpMax, _ = hpMax.ReadInt()
+					}
 				}
 
 				// 注: 暂时只考虑简单形式的hpmax的buff
@@ -403,8 +411,14 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			// 获取代骰
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			mctx.DelegateText = ctx.DelegateText
-			mctx.Player.TempValueAlias = &_dnd5eTmpl.Alias
+			if ctx != nil {
+				mctx.DelegateText = ctx.DelegateText
+				if ctx.Dice != nil {
+					if baseTmpl, ok := ctx.Dice.GameSystemMap.Load("dnd5e"); ok && baseTmpl != nil {
+						mctx.SystemTemplate = baseTmpl
+					}
+				}
+			}
 			// 参数确认
 			val := cmdArgs.GetArgN(1)
 			switch val {
@@ -425,6 +439,9 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				mctx.CreateVmIfNotExists()
 				// 获取角色模板
 				tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+				if tmpl != nil {
+					mctx.SystemTemplate = tmpl
+				}
 				// 初始化多轮检定结果保存数组
 				textList := make([]string, 0)
 				// 多轮检定判断
@@ -450,7 +467,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// 循环N轮
 				for range round {
 					// 执行预订的code
-					mctx.Eval(tmpl.PreloadCode, nil)
+					mctx.Eval(tmpl.InitScript, nil)
 					// 为rc设定属性豁免
 					mctx.setDndReadForVM(true)
 					// 准备要处理的函数，为了能够读取到 d20 的出目，先不加上加值
@@ -643,24 +660,25 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				}
 
 				// 每四个一行，拼起来
-				itemsPerLine := tmpl.AttrConfig.ItemsPerLine
+				itemsPerLine := tmpl.Commands.St.Show.ItemsPerLine
 				if itemsPerLine <= 1 {
 					itemsPerLine = 4
 				}
 
 				tick := 0
-				info := ""
+				var infoBuilder strings.Builder
 				for _, i := range items {
 					tick++
-					info += i
+					infoBuilder.WriteString(i)
 					if tick%itemsPerLine == 0 {
-						info += "\n"
+						infoBuilder.WriteString("\n")
 					} else {
-						info += "\t"
+						infoBuilder.WriteString("\t")
 					}
 				}
 
 				// 再拼点附加信息，然后输出
+				info := infoBuilder.String()
 				if info == "" {
 					info = DiceFormatTmpl(ctx, "COC:属性设置_列出_未发现记录")
 				}
@@ -745,6 +763,33 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			}
 
 			return false
+		},
+		ToModResult: func(ctx *MsgContext, args *CmdArgs, i *stSetOrModInfoItem, attrs *AttributesItem, tmpl *GameSystemTemplate, theOldValue, theNewValue *ds.VMValue) *ds.VMValue {
+			if !strings.HasPrefix(i.name, "$buff_") {
+				return theNewValue
+			}
+
+			if i.op != "+" && i.op != "-" {
+				return theNewValue
+			}
+
+			delta := i.value
+
+			var buffValOld *ds.VMValue
+			if buffVal, exists := attrs.LoadX(i.name); exists {
+				buffValOld = buffVal
+			} else {
+				buffValOld = ds.NewIntVal(0)
+			}
+
+			switch i.op {
+			case "+":
+				return buffValOld.OpAdd(ctx.vm, delta)
+			case "-":
+				return buffValOld.OpSub(ctx.vm, delta)
+			default:
+				return theNewValue
+			}
 		},
 	})
 
@@ -985,8 +1030,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
-			mctx.Player.TempValueAlias = &tmpl.Alias // 防止找不到hpmax
+			tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+			if tmpl != nil {
+				mctx.SystemTemplate = tmpl
+			}
 
 			switch val {
 			case "":
@@ -1029,8 +1076,10 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 		AllowDelegate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			mctx := GetCtxProxyFirst(ctx, cmdArgs)
-			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
-			mctx.Player.TempValueAlias = &tmpl.Alias
+			tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
+			if tmpl != nil {
+				mctx.SystemTemplate = tmpl
+			}
 
 			restText := cmdArgs.CleanArgs
 			re := regexp.MustCompile(`^(s|S|成功|f|F|失败)([+-＋－])`)
@@ -1362,7 +1411,8 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			if solved {
 				riList := (RIList{}).LoadByCurGroup(ctx)
 
-				textOut := DiceFormatTmpl(mctx, "DND:先攻_设置_前缀")
+				var textOut strings.Builder
+				textOut.WriteString(DiceFormatTmpl(mctx, "DND:先攻_设置_前缀"))
 				sort.Sort(items)
 				if riList.Len() == 0 {
 					VarSetValueInt64(ctx, "$g当前回合先攻值", NULL_INIT_VAL)
@@ -1372,7 +1422,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if i.detail != "" {
 						detail = i.detail + "="
 					}
-					textOut += fmt.Sprintf("%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
+					fmt.Fprintf(&textOut, "%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
 
 					item := riList.GetExists(i.name)
 					if item == nil {
@@ -1390,7 +1440,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 
 				sort.Sort(riList)
 				riList.SaveToGroup(ctx)
-				ReplyToSender(ctx, msg, textOut)
+				ReplyToSender(ctx, msg, textOut.String())
 			} else {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(mctx, "DND:先攻_设置_格式错误"))
 			}
@@ -1421,26 +1471,27 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 			n := cmdArgs.GetArgN(1)
 			switch n {
 			case "", "list":
-				textOut := DiceFormatTmpl(ctx, "DND:先攻_查看_前缀")
+				var textOut strings.Builder
+				textOut.WriteString(DiceFormatTmpl(ctx, "DND:先攻_查看_前缀"))
 				riList := (RIList{}).LoadByCurGroup(ctx)
 
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
 
 				for order, i := range riList {
-					textOut += fmt.Sprintf("%2d. %s: %d\n", order+1, i.name, i.val)
+					fmt.Fprintf(&textOut, "%2d. %s: %d\n", order+1, i.name, i.val)
 				}
 
 				if len(riList) == 0 {
-					textOut += "- 没有找到任何单位"
+					textOut.WriteString("- 没有找到任何单位")
 				} else {
 					if len(riList) <= int(round) || round < 0 {
 						round = 0
 					}
 					rounder := riList[round]
-					textOut += fmt.Sprintf("当前回合：%s", rounder.name)
+					fmt.Fprintf(&textOut, "当前回合：%s", rounder.name)
 				}
 
-				ReplyToSender(ctx, msg, textOut)
+				ReplyToSender(ctx, msg, textOut.String())
 			case "ed", "end":
 				lst := (RIList{}).LoadByCurGroup(ctx)
 				round, _ := VarGetValueInt64(ctx, "$g回合数")

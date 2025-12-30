@@ -2,7 +2,9 @@ package dice
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -16,12 +18,13 @@ import (
 )
 
 type PlatformAdapterMilky struct {
-	Session       *IMSession     `json:"-"            yaml:"-"`
-	EndPoint      *EndPointInfo  `json:"-"            yaml:"-"`
-	WsGateway     string         `json:"ws_gateway"   yaml:"ws_gateway"`
-	RestGateway   string         `json:"rest_gateway" yaml:"rest_gateway"`
-	Token         string         `json:"token"        yaml:"token"`
-	IntentSession *milky.Session `json:"-"            yaml:"-"`
+	Session             *IMSession     `json:"-"                     yaml:"-"`
+	EndPoint            *EndPointInfo  `json:"-"                     yaml:"-"`
+	IntentSession       *milky.Session `json:"-"                     yaml:"-"`
+	WsGateway           string         `json:"ws_gateway"            yaml:"ws_gateway"`
+	RestGateway         string         `json:"rest_gateway"          yaml:"rest_gateway"`
+	Token               string         `json:"token"                 yaml:"token"`
+	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
@@ -206,6 +209,29 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			IsPrivate: false,
 		})
 	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.FriendNudge) {
+		if m == nil {
+			return
+		}
+		log.Debugf("Received friend nudge: Sender %d", m.UserID)
+		msg := &Message{
+			Platform:    "QQ",
+			MessageType: "private",
+			Sender: SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10)),
+			},
+		}
+		event := &events.PokeEvent{
+			SenderID:  msg.Sender.UserID,
+			IsPrivate: true,
+		}
+		if m.IsSelfReceive {
+			event.TargetID = pa.EndPoint.UserID
+		} else {
+			event.TargetID = msg.Sender.UserID
+		}
+		pa.Session.OnPoke(CreateTempCtx(pa.EndPoint, msg), event)
+	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.GroupMemberDecrease) {
 		if m == nil {
 			return
@@ -238,6 +264,125 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			}
 		}
 	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.GroupMemberIncrease) {
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		inviterID := FormatDiceIDQQ(strconv.FormatInt(m.InvitorID, 10))
+		msg := &Message{
+			Time:        time.Now().Unix(),
+			MessageType: "group",
+			GroupID:     "QQ-Group:" + strconv.FormatInt(m.GroupID, 10),
+			Platform:    "QQ",
+			Sender: SenderBase{
+				UserID: inviterID,
+			},
+		}
+		newMemberUID := FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10))
+		// 自己加群
+		if newMemberUID == pa.EndPoint.UserID {
+			pa.Session.OnGroupJoined(ctx, msg)
+		} else {
+			// 其他人被邀请加群
+			msg.Sender.UserID = newMemberUID
+			pa.Session.OnGroupMemberJoined(ctx, msg)
+		}
+	})
+	session.AddHandler(func(session *milky.Session, m *milky.GroupMute) {
+		if m == nil {
+			return
+		}
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		dm := pa.Session.Parent.Parent
+		groupId := FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10))
+		if FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10)) == pa.EndPoint.UserID {
+			opUID := FormatDiceIDQQ(strconv.FormatInt(m.OperatorID, 10))
+			groupName := dm.TryGetGroupName(groupId)
+			userName := dm.TryGetUserName(opUID)
+
+			ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, groupId, ctx)
+			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, groupId, m.Duration, userName, m.OperatorID)
+			log.Info(txt)
+			ctx.Notice(txt)
+		}
+	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
+		if m == nil {
+			ctx := &MsgContext{MessageType: "private", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+			pa.handelFriendRequest(ctx, m)
+		}
+	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.GroupInvitation) {
+		dm := pa.Session.Parent.Parent
+		if m == nil {
+			return
+		}
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		uid := FormatDiceIDQQ(strconv.FormatInt(m.InitiatorID, 10))
+		groupId := FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10))
+		pa.GetGroupInfoAsync(groupId)
+		groupName := dm.TryGetGroupName(groupId)
+		userName := dm.TryGetUserName(uid)
+		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%d)", groupName, groupId, userName, m.InitiatorID)
+		log.Info(txt)
+		ctx.Notice(txt)
+
+		// 邀请人在黑名单上
+		banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
+		if ok {
+			if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
+				pa.SetGroupAddRequest(m.GroupID, m.InvitationSeq, false)
+				return
+			}
+		}
+
+		// 信任模式，如果不是信任，又不是master则拒绝拉群邀请
+		isMaster := ctx.Dice.IsMaster(uid)
+		if ctx.Dice.Config.TrustOnlyMode && ((banInfo != nil && banInfo.Rank != BanRankTrusted) && !isMaster) {
+			pa.SetGroupAddRequest(m.GroupID, m.InvitationSeq, false)
+			return
+		}
+
+		// 群在黑名单上
+		banInfo, ok = ctx.Dice.Config.BanList.GetByID(groupId)
+		if ok {
+			if banInfo.Rank == BanRankBanned {
+				pa.SetGroupAddRequest(m.GroupID, m.InvitationSeq, false)
+				return
+			}
+		}
+
+		if ctx.Dice.Config.RefuseGroupInvite {
+			pa.SetGroupAddRequest(m.GroupID, m.InvitationSeq, false)
+			return
+		}
+
+		pa.SetGroupAddRequest(m.GroupID, m.InvitationSeq, true)
+	})
+	session.AddHandler(func(session2 *milky.Session, m *milky.MessageRecall) {
+		if m == nil {
+			return
+		}
+		msg := new(Message)
+		msg.Time = time.Now().Unix()
+		msg.Platform = "QQ"
+		msg.RawID = m.MessageSeq
+		switch m.MessageScene {
+		case "group":
+			msg.MessageType = "group"
+			msg.GroupID = FormatDiceIDQQGroup(strconv.FormatInt(m.PeerID, 10))
+			msg.Sender = SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderID, 10)),
+			}
+		case "friend":
+			msg.MessageType = "private"
+			msg.Sender = SenderBase{
+				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderID, 10)),
+			}
+		default:
+			return
+		}
+		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		pa.Session.OnMessageDeleted(mctx, msg)
+	})
 	d := pa.Session.Parent
 	err = pa.IntentSession.Open()
 	if err != nil {
@@ -268,6 +413,125 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	return 0
+}
+
+func (pa *PlatformAdapterMilky) SetGroupAddRequest(groupId int64, invitationSeq int64, approve bool) {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	if approve {
+		err := pa.IntentSession.AcceptGroupInvitation(groupId, invitationSeq)
+		if err != nil {
+			log.Errorf("Failed to accept group invitation: %v", err)
+			return
+		}
+	} else {
+		// 拒绝加群邀请
+		err := pa.IntentSession.RejectGroupInvitation(groupId, invitationSeq)
+		if err != nil {
+			log.Errorf("Failed to refuse group invitation: %v", err)
+			return
+		}
+	}
+}
+
+func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milky.FriendRequest) {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	var comment string
+	if event.Comment != "" {
+		comment = strings.TrimSpace(event.Comment)
+		comment = strings.ReplaceAll(comment, "\u00a0", "")
+	}
+
+	toMatch := strings.TrimSpace(pa.Session.Parent.Config.FriendAddComment)
+	willAccept := comment == DiceFormat(ctx, toMatch)
+	if toMatch == "" {
+		willAccept = true
+	}
+
+	if !willAccept {
+		// 如果是问题校验，只填写回答即可
+		re := regexp.MustCompile(`\n回答:([^\n]+)`)
+		m := re.FindAllStringSubmatch(comment, -1)
+
+		var items []string
+		for _, i := range m {
+			items = append(items, i[1])
+		}
+
+		re2 := regexp.MustCompile(`\s+`)
+		m2 := re2.Split(toMatch, -1)
+
+		if len(m2) == len(items) {
+			ok := true
+			for i := range m2 {
+				if m2[i] != items[i] {
+					ok = false
+					break
+				}
+			}
+			willAccept = ok
+		}
+	}
+
+	if comment == "" {
+		comment = "(无)"
+	} else {
+		comment = strconv.Quote(comment)
+	}
+
+	// 检查黑名单
+	extra := ""
+	uid := FormatDiceIDQQ(strconv.FormatInt(event.InitiatorID, 10))
+	banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
+	if ok {
+		if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
+			if willAccept {
+				extra = "。回答正确，但为被禁止用户，准备自动拒绝"
+			} else {
+				extra = "。回答错误，且为被禁止用户，准备自动拒绝"
+			}
+			willAccept = false
+		}
+	}
+
+	if pa.IgnoreFriendRequest {
+		extra += "。由于设置了忽略邀请，此信息仅为通报"
+	}
+
+	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", strconv.FormatInt(event.InitiatorID, 10), comment, willAccept, extra)
+	log.Info(txt)
+	ctx.Notice(txt)
+
+	// 忽略邀请
+	if pa.IgnoreFriendRequest {
+		return
+	}
+
+	time.Sleep(time.Duration((0.8 + rand.Float64()) * float64(time.Second)))
+
+	if willAccept {
+		pa.SetFriendAddRequest(event.InitiatorUID, true, "")
+	} else {
+		pa.SetFriendAddRequest(event.InitiatorUID, false, "验证信息不符")
+	}
+}
+
+func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve bool, reason string) {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	if approve {
+		// 同意好友请求，目前都是 unfiltered 的
+		err := pa.IntentSession.AcceptFriendRequest(initiatorUid, false)
+		if err != nil {
+			log.Errorf("Failed to accept friend request: %v", err)
+			return
+		}
+	} else {
+		// 拒绝好友请求
+		err := pa.IntentSession.RejectFriendRequest(initiatorUid, false, reason)
+		if err != nil {
+			log.Errorf("Failed to refuse friend request: %v", err)
+			return
+		}
+	}
 }
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {

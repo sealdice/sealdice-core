@@ -190,16 +190,14 @@ func (pa *PlatformAdapterDingTalk) OnGroupJoined(_ *dingtalk.Session, data *ding
 	for _, i := range ctx.SplitText(text) {
 		pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 	}
-	// Pinenutn ActivatedExtList模板
-	groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-	if ok {
-		for _, i := range groupInfo.ActivatedExtList {
-			if i.OnGroupJoined != nil {
-				i.callWithJsCheck(ctx.Dice, func() {
-					i.OnGroupJoined(ctx, msg)
-				})
+	// 触发扩展钩子
+	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			if ext.OnGroupJoined == nil {
+				return nil
 			}
-		}
+			return func() { ext.OnGroupJoined(ctx, msg) }
+		})
 	}
 }
 

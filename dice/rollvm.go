@@ -562,7 +562,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 		case TypeLoadFormatString:
 			num := int(code.Value)
 
-			outStr := ""
+			var outStr strings.Builder
 			for index := range num {
 				var val VMStack
 				if top-num+index < 0 {
@@ -570,9 +570,9 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 					// val = vmStack{VMTypeString, ""}
 				}
 				val = stack[top-num+index]
-				outStr += val.ToString()
+				outStr.WriteString(val.ToString())
 			}
-			outStr = strings.ReplaceAll(outStr, "\\n", "\n")
+			formatted := strings.ReplaceAll(outStr.String(), "\\n", "\n")
 			// for index, i := range parts {
 			//	var val vmStack
 			//	if top-len(parts)+index < 0 {
@@ -586,7 +586,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 
 			top -= num
 			stack[top].TypeID = VMTypeString
-			stack[top].Value = outStr
+			stack[top].Value = formatted
 			top++
 			continue
 		case TypePushNumber:
@@ -1340,16 +1340,17 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 					num += nums[i]
 				}
 
-				text := "{"
+				var text strings.Builder
+				text.WriteString("{")
 				for i := range nums {
 					if int64(i) == diceKQ {
-						text += "| "
+						text.WriteString("| ")
 					}
-					text += fmt.Sprintf("%d ", nums[i])
+					fmt.Fprintf(&text, "%d ", nums[i])
 				}
-				text += "}"
+				text.WriteString("}")
 
-				lastDetail := text
+				lastDetail := text.String()
 				lastDetails = append(lastDetails, lastDetail)
 				a.Value = num
 
@@ -1358,7 +1359,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			} else {
 				// XXX Dice YYY, 如 3d100
 				var num int64
-				text := ""
+				var text strings.Builder
 				for range aInt {
 					var curNum int64
 					if e.flags.BigFailDiceOn {
@@ -1368,12 +1369,13 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 					}
 
 					num += curNum
-					text += fmt.Sprintf("+%d", curNum)
+					fmt.Fprintf(&text, "+%d", curNum)
 				}
 
+				textStr := text.String()
 				var suffix string
 				if aInt > 1 {
-					suffix = ", " + text[1:]
+					suffix = ", " + textStr[1:]
 				}
 
 				lastDetail := fmt.Sprintf("%dd%d=%d%s", aInt, bInt, num, suffix)
@@ -1603,19 +1605,22 @@ func DiceWodRollVM(randSrc *rand2.PCGSource, e *RollExpression, addLine *VMStack
 }
 
 func (e *RollExpression) GetAsmText() string {
-	ret := ""
-	ret += "=== VM Code ===\n"
+	var ret strings.Builder
+	ret.WriteString("=== VM Code ===\n")
 	for index, i := range e.Code {
 		if index >= e.Top {
 			break
 		}
 		s := i.CodeString()
 		if s != "" {
-			ret += s + "\n"
+			ret.WriteString(s)
+			ret.WriteString("\n")
 		} else {
-			ret += "@raw: " + strconv.FormatInt(int64(i.T), 10) + "\n"
+			ret.WriteString("@raw: ")
+			ret.WriteString(strconv.FormatInt(int64(i.T), 10))
+			ret.WriteString("\n")
 		}
 	}
-	ret += "=== VM Code End===\n"
-	return ret
+	ret.WriteString("=== VM Code End===\n")
+	return ret.String()
 }

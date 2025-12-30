@@ -155,7 +155,7 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 	if ok {
 		if channel.Name != groupInfo.GroupName {
 			groupInfo.GroupName = channel.Name
-			groupInfo.UpdatedAtTime = time.Now().Unix()
+			groupInfo.MarkDirty(pa.Session.Parent)
 		}
 	}
 }
@@ -311,15 +311,13 @@ func (pa *PlatformAdapterKook) Serve() int {
 			mctx.Session.ServiceAtNew.Store(msg.GroupID, channel)
 		}
 
-		groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID)
-		if ok {
-			for _, i := range groupInfo.ActivatedExtList {
-				if i.OnGuildJoined != nil {
-					i.callWithJsCheck(mctx.Dice, func() {
-						i.OnGuildJoined(mctx, msg)
-					})
+		if groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+			groupInfo.TriggerExtHook(mctx.Dice, func(ext *ExtInfo) func() {
+				if ext.OnGuildJoined == nil {
+					return nil
 				}
-			}
+				return func() { ext.OnGuildJoined(mctx, msg) }
+			})
 		}
 	})
 

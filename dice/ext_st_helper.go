@@ -50,12 +50,14 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 		// 按照配置文件排序
 		var attrKeys []string
 		used := map[string]bool{}
-		for _, key := range tmpl.AttrConfig.Top {
-			if used[key] {
-				continue
+		if !isExport {
+			for _, key := range tmpl.Commands.St.Show.Top {
+				if used[key] {
+					continue
+				}
+				attrKeys = append(attrKeys, key)
+				used[key] = true
 			}
-			attrKeys = append(attrKeys, key)
-			used[key] = true
 		}
 
 		// 其余按字典序
@@ -69,7 +71,7 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				return true
 			}
 			if !isExport {
-				for _, n := range tmpl.AttrConfig.Ignores {
+				for _, n := range tmpl.Commands.St.Show.Ignores {
 					// 跳过忽略项
 					if n == key {
 						return true
@@ -83,9 +85,9 @@ func cmdStSortNamesByTmpl(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 
 		// 没有pickItem时，按照配置文件排序
 		if len(pickItems) == 0 {
-			switch tmpl.AttrConfig.SortBy {
+			switch tmpl.Commands.St.Show.SortBy {
 			case "value", "value desc":
-				isDesc := tmpl.AttrConfig.SortBy == "value desc"
+				isDesc := tmpl.Commands.St.Show.SortBy == "value desc"
 				// 首先变换为可排序形式
 				var vals []struct {
 					Key string
@@ -172,16 +174,51 @@ func cmdStGetItemsForShow(mctx *MsgContext, tmpl *GameSystemTemplate, pickItems 
 				}
 			}
 
+			mctx.CreateVmIfNotExists()
+			vm := mctx.vm
+
 			var v *ds.VMValue
-			k, v, err = tmpl.GetShowAs(mctx, k)
+			baseK := k
+			k, err = tmpl.GetShowKeyAs(mctx, k)
 			if err != nil {
-				return nil, 0, errors.New("模板卡异常, 属性: " + k + "\n报错: " + err.Error())
+				return nil, 0, errors.New("模板卡异常(key), 属性: " + k + "\n报错: " + err.Error())
+			}
+
+			// 注: 使用 baseK 的原因是 k 可能会被showAs更改，例如dnd5e会将”运动“修改为“运动*“，以代表熟练，此时k不再匹配
+			vm.Error = nil // 避免残留错误
+			v, err = tmpl.GetShowValueAs(mctx, baseK)
+
+			// NOTE: 注意，计算computed会引起 .st &手枪=1d3+1d5 这样的值被计算出来，但是像是 db 这样的值我们又希望不计算。在showValueAs里面写一下 db: {db} 可解决
+			// 这段可以用来获取实际值，用于一种情况，就是模板中未设定showAs，该value本身是个computed
+			// if err == nil && v.TypeId == ds.VMTypeComputedValue {
+			// 	vm.Error = nil // 好像可能残留错误
+			// 	v = v.ComputedExecute(vm, nil)
+			// 	err = vm.Error
+			// }
+
+			if err != nil {
+				return nil, 0, errors.New("模板卡异常(value), 属性: " + k + "\n报错: " + err.Error())
 			}
 
 			if index >= topNum {
-				if useLimit && v.TypeId == ds.VMTypeInt && int64(v.MustReadInt()) < limit {
-					limitSkipCount++
-					continue
+				if useLimit {
+					compareVal := ds.IntType(0)
+
+					if v.TypeId == ds.VMTypeInt {
+						compareVal = v.MustReadInt()
+					}
+
+					if v.TypeId == ds.VMTypeString {
+						// 如果是个字符串 试试转换
+						if _v, err := strconv.ParseInt(v.ToString(), 10, 64); err == nil {
+							compareVal = ds.IntType(_v)
+						}
+					}
+
+					if int64(compareVal) < limit {
+						limitSkipCount++
+						continue
+					}
 				}
 			}
 
@@ -244,10 +281,14 @@ func cmdStGetItemsForExport(mctx *MsgContext, tmpl *GameSystemTemplate, stInfo *
 }
 
 func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *AttributesItem, commandInfo map[string]any, i *stSetOrModInfoItem, cmdArgs *CmdArgs, stInfo *CmdStOverrideInfo) {
-	// 获取当前值
+	if stInfo.ToMod != nil {
+		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
+	}
+
+	// 获取当前值（在 ToMod 可能重定向名称后再读取）
 	curVal, _ := attrs.valueMap.Load(i.name)
 	if curVal == nil {
-		curVal = tmpl.GetDefaultValueEx(mctx, i.name)
+		curVal, _, _, _ = tmpl.GetDefaultValue(i.name)
 	}
 	if curVal == nil {
 		curVal = ds.NewIntVal(0)
@@ -256,15 +297,25 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 	isSetNew := true
 	if curVal.TypeId == ds.VMTypeComputedValue {
 		cd, _ := curVal.ReadComputed()
-		// dnd5e专属
-		if v, ok := cd.Attrs.Load("base"); ok {
-			curVal = v
-			isSetNew = false
+		// dnd5e专属：如果有base属性，使用base值且不覆盖
+		if cd != nil && cd.Attrs != nil {
+			if v, ok := cd.Attrs.Load("base"); ok {
+				curVal = v
+				isSetNew = false
+			}
 		}
-	}
-
-	if stInfo.ToMod != nil {
-		stInfo.ToMod(mctx, cmdArgs, i, attrs, tmpl)
+		// 对于普通的computed value（如 &(教育)），计算出实际值
+		// 这样在进行+/-运算时才能得到正确的结果
+		if isSetNew && curVal.TypeId == ds.VMTypeComputedValue {
+			mctx.CreateVmIfNotExists()
+			curVal = curVal.ComputedExecute(mctx.vm, nil)
+			if mctx.vm.Error != nil {
+				// 如果计算出错，使用0
+				curVal = ds.NewIntVal(0)
+				mctx.vm.Error = nil
+			}
+		}
+		// isSetNew保持为true，这样修改后的值会被存储
 	}
 
 	// 进行变更
@@ -461,6 +512,10 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 			cardType := ReadCardType(mctx)
 
 			tmpl := ctx.Group.GetCharTemplate(dice)
+			// 立即设置SystemTemplate，确保VM创建时能使用正确的模板
+			ctx.SystemTemplate = tmpl
+			mctx.SystemTemplate = tmpl
+
 			tmplShow := tmpl // 用于st show的模板，如果show不同规则的模板，可以以其他规则格式显示
 			if cardType != tmplShow.Name {
 				if tmpl2, _ := dice.GameSystemMap.Load(cardType); tmpl2 != nil {
@@ -472,16 +527,19 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				if tmpl2, _ := dice.GameSystemMap.Load(soi.TemplateName); tmpl2 != nil {
 					tmpl = tmpl2
 					tmplShow = tmpl2
+					// 更新SystemTemplate为新的模板
+					ctx.SystemTemplate = tmpl
+					mctx.SystemTemplate = tmpl
 				}
 			}
 
-			mctx.Eval(tmpl.PreloadCode, nil)
+			mctx.Eval(tmpl.InitScript, nil)
 			if tmplShow != tmpl {
-				mctx.Eval(tmplShow.PreloadCode, nil)
+				mctx.Eval(tmplShow.InitScript, nil)
 			}
 
 			if soi.CommandSolve != nil {
-				ret := soi.CommandSolve(ctx, msg, cmdArgs)
+				ret := soi.CommandSolve(mctx, msg, cmdArgs)
 				if ret != nil {
 					return *ret
 				}
@@ -500,35 +558,36 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 
 				// 每四个一行，拼起来
-				itemsPerLine := tmplShow.AttrConfig.ItemsPerLine
+				itemsPerLine := tmplShow.Commands.St.Show.ItemsPerLine
 				if itemsPerLine <= 1 {
 					itemsPerLine = 4
 				}
 
 				tick := 0
-				info := ""
+				var infoBuilder strings.Builder
 				for _, i := range items {
 					tick++
-					info += i
+					infoBuilder.WriteString(i)
 					if tick%itemsPerLine == 0 {
-						info += "\n"
+						infoBuilder.WriteString("\n")
 					} else {
-						info += "\t"
+						infoBuilder.WriteString("\t")
 					}
 				}
 
 				// 再拼点附加信息，然后输出
-				if info == "" {
-					info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
+				if infoBuilder.Len() == 0 {
+					infoBuilder.WriteString(DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录"))
 				}
 
 				if limit > 0 {
 					VarSetValueInt64(mctx, "$t数量", int64(droppedByLimit))
 					VarSetValueInt64(mctx, "$t判定值", limit)
-					info += DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示")
+					infoBuilder.WriteString(DiceFormatTmpl(mctx, "COC:属性设置_列出_隐藏提示"))
 					// info += fmt.Sprintf("\n注：%d条属性因≤%d被隐藏", limktSkipCount, limit)
 				}
 
+				info := infoBuilder.String()
 				VarSetValueStr(mctx, "$t属性信息", info)
 				extra := ReadCardTypeEx(mctx, tmpl.Name)
 				ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "COC:属性设置_列出")+extra)
@@ -540,21 +599,24 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				info := "导出结果：\n.st clr\n.st "
+				var info strings.Builder
+				info.WriteString("导出结果：\n.st clr\n.st ")
 				for _, i := range items {
-					info += i
-					info += " "
+					info.WriteString(i)
+					info.WriteString(" ")
 				}
 				playerName := DiceFormat(mctx, "{$t玩家_RAW}")
 				if playerName != "" {
-					info += "\n.nn " + playerName
+					info.WriteString("\n.nn ")
+					info.WriteString(playerName)
 				}
 
+				out := info.String()
 				if len(items) == 0 {
-					info = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
+					out = DiceFormatTmpl(mctx, "COC:属性设置_列出_未发现记录")
 				}
 
-				ReplyToSender(mctx, msg, info)
+				ReplyToSender(mctx, msg, out)
 
 			case "del", "rm":
 				var nums []string
@@ -592,7 +654,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 
 				cmdStCharFormat(mctx, tmpl) // 转一下卡
-				mctx.SystemTemplate = tmpl
+				// SystemTemplate已经在函数开始时设置，这里不需要重复设置
 
 				// 进行简化卡的尝试解析
 				input := cmdArgs.CleanArgs
@@ -636,6 +698,9 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 						VarSetValueStr(mctx, "$t玩家", fmt.Sprintf("<%s>", mctx.Player.Name))
 						VarSetValueStr(mctx, "$t玩家_RAW", mctx.Player.Name)
 						p.UpdatedAtTime = time.Now().Unix()
+						if mctx.Group != nil {
+							mctx.Group.MarkDirty(mctx.Dice)
+						}
 
 						if mctx.Player.AutoSetNameTemplate != "" {
 							_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
@@ -753,7 +818,7 @@ func RegisterBuiltinExtExp(_ *Dice) {
 	// 	AutoActive: false, // 是否自动开启
 	// 	OnCommandReceived: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
 	// 		//p := getPlayerInfoBySender(session, msg)
-	// 		//p.TempValueAlias = &ac.Alias;
+	// 		// alias mapping handled via system template.
 	// 	},
 	// 	GetDescText: func(i *ExtInfo) string {
 	// 		return GetExtensionDesc(i)

@@ -28,10 +28,11 @@ import (
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
-	ctx.Player.TempValueAlias = nil // 防止dnd的hp被转为“生命值”
-
+	if ctx.SystemTemplate == nil {
+		ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
+	}
 	config := ctx.GenDefaultRollVmConfig()
-	config.HookFuncValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
+	config.HookValueStore = func(ctx *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
 		return nil, true
 	}
 	v := ctx.EvalFString(tmpl, config)
@@ -213,7 +214,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 						group.LogOn = true
 						group.LogCurName = name
-						group.UpdatedAtTime = time.Now().Unix()
+						group.MarkDirty(ctx.Dice)
 
 						VarSetValueStr(ctx, "$t记录名称", name)
 						VarSetValueInt64(ctx, "$t当前记录条数", lines)
@@ -229,7 +230,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			} else if cmdArgs.IsArgEqual(1, "off") {
 				if group.LogCurName != "" && group.LogOn {
 					group.LogOn = false
-					group.UpdatedAtTime = time.Now().Unix()
+					group.MarkDirty(ctx.Dice)
 					lines, _ := service.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					VarSetValueInt64(ctx, "$t当前记录条数", lines)
@@ -305,13 +306,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				// }
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
 				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
 				go getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
 				if len(group.LogCurName) > 0 {
@@ -323,7 +324,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
 				group.LogCurName = ""
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "list") {
 				groupID, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
@@ -334,19 +335,24 @@ func RegisterBuiltinExtLog(self *Dice) {
 					groupID = ctx.Group.GroupID
 				}
 
-				text := DiceFormatTmpl(ctx, "日志:记录_列出_导入语") + "\n"
+				var text strings.Builder
+				text.WriteString(DiceFormatTmpl(ctx, "日志:记录_列出_导入语"))
+				text.WriteString("\n")
 				lst, err := service.LogGetList(ctx.Dice.DBOperator, groupID)
 				if err == nil {
 					for _, i := range lst {
-						text += "- " + i + "\n"
+						text.WriteString("- ")
+						text.WriteString(i)
+						text.WriteString("\n")
 					}
 					if len(lst) == 0 {
-						text += "暂无记录"
+						text.WriteString("暂无记录")
 					}
 				} else {
-					text += "获取记录出错: " + err.Error()
+					text.WriteString("获取记录出错: ")
+					text.WriteString(err.Error())
 				}
-				ReplyToSender(ctx, msg, text)
+				ReplyToSender(ctx, msg, text.String())
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "new") {
 				if ctx.IsPrivate {
@@ -376,7 +382,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				VarSetValueStr(ctx, "$t记录名称", name)
 				group.LogCurName = name
 				group.LogOn = true
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -574,6 +580,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
 					c.Player.Name = c.Player.Name[len("ob"):]
 					c.Player.UpdatedAtTime = time.Now().Unix()
+					if c.Group != nil {
+						c.Group.MarkDirty(c.Dice)
+					}
 				}
 				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_关闭"))
@@ -581,6 +590,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if !strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
 					c.Player.Name = "ob" + c.Player.Name
 					c.Player.UpdatedAtTime = time.Now().Unix()
+					if c.Group != nil {
+						c.Group.MarkDirty(c.Dice)
+					}
 				}
 				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_开启"))
@@ -648,6 +660,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "coc", "coc7":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
@@ -660,6 +675,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				// PW{pw}
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{pp}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
@@ -671,6 +689,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "none":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				text, err := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				if errors.Is(err, ErrGroupCardOverlong) { // 大约不至于会走到这里，但是为了统一也这样写了
 					return handleOverlong(ctx, msg, text)
@@ -682,6 +703,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ctx.Player.AutoSetNameTemplate = ""
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_取消设置"))
 			case "expr":
 				t := cmdArgs.GetRestArgsFrom(2)
@@ -692,6 +716,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 					ctx.Player.AutoSetNameTemplate = ""
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
+					if ctx.Group != nil {
+						ctx.Group.MarkDirty(ctx.Dice)
+					}
 					ReplyToSender(ctx, msg, "玩家自设内容为空，已自动关闭此功能")
 				} else {
 					last := ctx.Player.AutoSetNameTemplate
@@ -704,6 +731,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 						return handleOverlong(ctx, msg, text)
 					} else {
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
+						if ctx.Group != nil {
+							ctx.Group.MarkDirty(ctx.Dice)
+						}
 						VarSetValueStr(ctx, "$t名片格式", "玩家自设")
 						VarSetValueStr(ctx, "$t名片预览", text)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))
@@ -1181,9 +1211,17 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 
 					if j.Get("type").String() == "mod" {
 						readNum := func(item gjson.Result, dataKey, key string) {
-							// 直接使用 gjson 的 Int() 方法提取整数值
 							if val := item.Get(dataKey); val.Exists() {
-								pcInfo[nickname][key] = int(val.Int()) // 自动处理 float/int/string 数字
+								if val.Type == gjson.Number {
+									pcInfo[nickname][key] = int(val.Int()) // 自动处理 float/int/string 数字
+								} else {
+									// 保存的是 DiceScript 的 IntValue
+									if dsVal, dsErr := ds.VMValueFromJSON([]byte(val.Raw)); dsErr == nil {
+										if dsInt, dsOK := dsVal.ReadInt(); dsOK {
+											pcInfo[nickname][key] = int(dsInt)
+										}
+									}
+								}
 							}
 							// 如果字段不存在或非数字，pcInfo[nickname][key] 不会被修改
 						}
@@ -1214,12 +1252,12 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 		pcInfo = pcInfo2
 	}
 
-	texts := ""
+	var texts strings.Builder
 	for k, v := range pcInfo {
 		if len(v) == 0 {
 			continue
 		}
-		texts += fmt.Sprintf("<%v>当前团内检定情况:\n", k)
+		fmt.Fprintf(&texts, "<%v>当前团内检定情况:\n", k)
 		success := map[string]int{}
 		failed := map[string]int{}
 		var others []string
@@ -1262,39 +1300,47 @@ func LogRollBriefByPCV2(ctx *MsgContext, items []string, showAll bool, name stri
 		failedList := doSort(failed)
 
 		if len(successList) > 0 {
-			text := "成功: "
+			var text strings.Builder
+			text.WriteString("成功: ")
 			for _, j := range successList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":成功")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":成功")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(failedList) > 0 {
-			text := "失败: "
+			var text strings.Builder
+			text.WriteString("失败: ")
 			for _, j := range failedList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":失败")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":失败")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(oldVal) > 0 {
-			text := ""
+			var text strings.Builder
 			for k2, v2 := range oldVal {
-				text += fmt.Sprintf("%v[%v➯%v] ", k2, v2, newVal[k2])
+				fmt.Fprintf(&text, "%v[%v➯%v] ", k2, v2, newVal[k2])
 			}
-			texts += "属性: " + strings.TrimSpace(text) + "\n"
+			texts.WriteString("属性: ")
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(others) > 0 {
-			text := "其他: "
+			var text strings.Builder
+			text.WriteString("其他: ")
 			for _, j := range others {
-				text += fmt.Sprintf("%v%d ", j, v[j])
+				fmt.Fprintf(&text, "%v%d ", j, v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
-		texts += "\n"
+		texts.WriteString("\n")
 	}
-	return strings.TrimSpace(texts)
+	return strings.TrimSpace(texts.String())
 }
 
 // LogRollBriefByPC 根据log生成骰点简报
@@ -1457,12 +1503,12 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 		pcInfo = pcInfo2
 	}
 
-	texts := ""
+	var texts strings.Builder
 	for k, v := range pcInfo {
 		if len(v) == 0 {
 			continue
 		}
-		texts += fmt.Sprintf("<%v>当前团内检定情况:\n", k)
+		fmt.Fprintf(&texts, "<%v>当前团内检定情况:\n", k)
 		success := map[string]int{}
 		failed := map[string]int{}
 		var others []string
@@ -1505,39 +1551,47 @@ func LogRollBriefByPC(ctx *MsgContext, items []*model.LogOneItem, showAll bool, 
 		failedList := doSort(failed)
 
 		if len(successList) > 0 {
-			text := "成功: "
+			var text strings.Builder
+			text.WriteString("成功: ")
 			for _, j := range successList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":成功")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":成功")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(failedList) > 0 {
-			text := "失败: "
+			var text strings.Builder
+			text.WriteString("失败: ")
 			for _, j := range failedList {
-				text += fmt.Sprintf("%v%d ", j[:len(j)-len(":失败")], v[j])
+				fmt.Fprintf(&text, "%v%d ", j[:len(j)-len(":失败")], v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(oldVal) > 0 {
-			text := ""
+			var text strings.Builder
 			for k2, v2 := range oldVal {
-				text += fmt.Sprintf("%v[%v➯%v] ", k2, v2, newVal[k2])
+				fmt.Fprintf(&text, "%v[%v➯%v] ", k2, v2, newVal[k2])
 			}
-			texts += "属性: " + strings.TrimSpace(text) + "\n"
+			texts.WriteString("属性: ")
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
 
 		if len(others) > 0 {
-			text := "其他: "
+			var text strings.Builder
+			text.WriteString("其他: ")
 			for _, j := range others {
-				text += fmt.Sprintf("%v%d ", j, v[j])
+				fmt.Fprintf(&text, "%v%d ", j, v[j])
 			}
-			texts += strings.TrimSpace(text) + "\n"
+			texts.WriteString(strings.TrimSpace(text.String()))
+			texts.WriteString("\n")
 		}
-		texts += "\n"
+		texts.WriteString("\n")
 	}
-	return strings.TrimSpace(texts)
+	return strings.TrimSpace(texts.String())
 }
 
 // LogRollBriefDetail 根据log生成骰点简报

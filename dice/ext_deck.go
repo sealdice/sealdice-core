@@ -639,7 +639,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			}
 
 			if strings.EqualFold(deckName, "list") { //nolint:nestif
-				text := ""
+				var textBuilder strings.Builder
 				for _, i := range ctx.Dice.DeckList {
 					if i.Enable {
 						author := fmt.Sprintf(" 作者:%s", i.Author)
@@ -650,9 +650,10 @@ func RegisterBuiltinExtDeck(d *Dice) {
 								count++
 							}
 						}
-						text += fmt.Sprintf("- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, count)
+						fmt.Fprintf(&textBuilder, "- %s 格式: %s%s%s 牌组数量: %d\n", i.Name, i.Format, author, version, count)
 					}
 				}
+				text := textBuilder.String()
 				VarSetValueStr(ctx, "$t牌堆列表", text)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_牌堆列表"))
 			} else if strings.EqualFold(deckName, "desc") {
@@ -735,11 +736,14 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						if right > 10 {
 							right = 3
 						}
-						reply := "找到以下牌组:\n"
+						var reply strings.Builder
+						reply.WriteString("找到以下牌组:\n")
 						for _, i := range matches[:right] {
-							reply += "- " + i.Str + "\n"
+							reply.WriteString("- ")
+							reply.WriteString(i.Str)
+							reply.WriteString("\n")
 						}
-						ReplyToSender(ctx, msg, reply)
+						ReplyToSender(ctx, msg, reply.String())
 					}
 				} else {
 					ReplyToSender(ctx, msg, "请给出要搜索的关键字")
@@ -792,12 +796,15 @@ func RegisterBuiltinExtDeck(d *Dice) {
 						right = 4
 					}
 					if right > 0 {
-						text := DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组_存在类似")
-						text += "\n"
+						var textBuilder strings.Builder
+						textBuilder.WriteString(DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组_存在类似"))
+						textBuilder.WriteString("\n")
 						for _, i := range matches[:right] {
-							text += "- " + i.Str + "\n"
+							textBuilder.WriteString("- ")
+							textBuilder.WriteString(i.Str)
+							textBuilder.WriteString("\n")
 						}
-						ReplyToSender(ctx, msg, text)
+						ReplyToSender(ctx, msg, textBuilder.String())
 					} else {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "其它:抽牌_找不到牌组"))
 					}

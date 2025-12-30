@@ -11,37 +11,37 @@ import (
 )
 
 // GroupInfoListGet 使用 GORM 实现，遍历 group_info 表中的数据并调用回调函数
+// 使用流式读取（Rows）逐行处理，避免一次性加载所有数据到内存
 func GroupInfoListGet(operator engine2.DatabaseOperator, callback func(id string, updatedAt int64, data []byte)) error {
 	db := operator.GetDataDB(constant.READ)
-	// 创建一个保存查询结果的结构体
-	var results []struct {
-		ID        string `gorm:"column:id"`         // 字段 id
-		UpdatedAt *int64 `gorm:"column:updated_at"` // 由于可能存在 NULL，定义为指针类型
-		Data      []byte `gorm:"column:data"`       // 字段 data
-	}
 
-	// 使用 GORM 查询 group_info 表中的 id, updated_at, data 列
-	err := db.Model(&model.GroupInfo{}).Select("id, updated_at, data").Find(&results).Error
+	// 使用 Rows() 进行流式读取，避免一次性加载全部数据到内存
+	rows, err := db.Model(&model.GroupInfo{}).Select("id, updated_at, data").Rows()
 	if err != nil {
-		// 如果查询发生错误，返回错误信息
 		return err
 	}
+	defer rows.Close()
 
-	// 遍历查询结果
-	for _, result := range results {
-		var updatedAt int64
+	// 逐行读取并处理
+	for rows.Next() {
+		var id string
+		var updatedAt *int64
+		var data []byte
 
-		// 如果 updatedAt 是 NULL，需要跳过该字段
-		if result.UpdatedAt != nil {
-			updatedAt = *result.UpdatedAt
+		if err := rows.Scan(&id, &updatedAt, &data); err != nil {
+			// 单条记录读取失败，跳过继续处理下一条
+			continue
 		}
 
-		// 调用回调函数，传递 id, updatedAt, data
-		callback(result.ID, updatedAt, result.Data)
+		var ua int64
+		if updatedAt != nil {
+			ua = *updatedAt
+		}
+
+		callback(id, ua, data)
 	}
 
-	// 返回 nil 表示操作成功
-	return nil
+	return rows.Err()
 }
 
 // GroupInfoSave 保存群组信息

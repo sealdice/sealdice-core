@@ -10,6 +10,9 @@ import (
 	"golang.org/x/time/rate"
 
 	ds "github.com/sealdice/dicescript"
+
+	"sealdice-core/logger"
+	"sealdice-core/utils/panicHandler"
 )
 
 var (
@@ -45,7 +48,7 @@ func SetBotOffAtGroup(ctx *MsgContext, groupID string) {
 		if groupInfo.DiceIDActiveMap.Len() == 0 {
 			groupInfo.Active = false
 		}
-		groupInfo.UpdatedAtTime = time.Now().Unix()
+		groupInfo.MarkDirty(ctx.Dice)
 	}
 }
 
@@ -58,7 +61,10 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			group.DiceIDActiveMap = new(SyncMap[string, bool])
 		}
 		if group.DiceIDExistsMap == nil {
-			group.DiceIDActiveMap = new(SyncMap[string, bool])
+			group.DiceIDExistsMap = new(SyncMap[string, bool])
+		}
+		if group.InactivatedExtSet == nil {
+			group.InactivatedExtSet = StringSet{}
 		}
 		group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
 		group.Active = true
@@ -75,14 +81,16 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		}
 
 		session.ServiceAtNew.Store(groupID, &GroupInfo{
-			Active:           true,
-			ActivatedExtList: extLst,
-			Players:          new(SyncMap[string, *GroupPlayerInfo]),
-			GroupID:          groupID,
-			DiceIDActiveMap:  new(SyncMap[string, bool]),
-			DiceIDExistsMap:  new(SyncMap[string, bool]),
-			CocRuleIndex:     int(session.Parent.Config.DefaultCocRuleIndex),
-			UpdatedAtTime:    time.Now().Unix(),
+			Active:            true,
+			activatedExtList:  extLst,
+			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
+			InactivatedExtSet: StringSet{},
+			Players:           new(SyncMap[string, *GroupPlayerInfo]),
+			GroupID:           groupID,
+			DiceIDActiveMap:   new(SyncMap[string, bool]),
+			DiceIDExistsMap:   new(SyncMap[string, bool]),
+			CocRuleIndex:      int(session.Parent.Config.DefaultCocRuleIndex),
+			UpdatedAtTime:     time.Now().Unix(),
 		})
 		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
 		group, _ = session.ServiceAtNew.Load(groupID)
@@ -99,12 +107,30 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	}
 
 	group.DiceIDActiveMap.Store(ctx.EndPoint.UserID, true)
-	group.UpdatedAtTime = time.Now().Unix()
+	group.MarkDirty(ctx.Dice)
 	return group
 }
 
 // GetPlayerInfoBySender 获取玩家群内信息，没有就创建
 func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPlayerInfo) {
+	wrapper := MessageWrapper{
+		MessageType: msg.MessageType,
+		GroupID:     msg.GroupID,
+		Sender: struct {
+			UserID   string
+			Nickname string
+		}{
+			UserID:   msg.Sender.UserID,
+			Nickname: msg.Sender.Nickname,
+		},
+		GuildID:   msg.GuildID,
+		ChannelID: msg.ChannelID,
+	}
+	return GetPlayerInfoBySenderRaw(ctx, &wrapper)
+}
+
+// GetPlayerInfoBySenderRaw 获取玩家群内信息的轻量版，不依赖完整的msg信息，因为实质上，大部分数据并没什么卵用。
+func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo, *GroupPlayerInfo) {
 	session := ctx.Session
 	var groupID string
 	if msg.MessageType == "group" {
@@ -128,6 +154,11 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 		groupInfo.ChannelID = msg.ChannelID
 	}
 
+	if ctx.Dice != nil {
+		groupInfo.SyncWrapperStatus(ctx.Dice)       // 移除无效 wrapper
+		groupInfo.SyncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
+	}
+
 	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)
 	if p == nil {
 		p = &GroupPlayerInfo{
@@ -143,6 +174,17 @@ func GetPlayerInfoBySender(ctx *MsgContext, msg *Message) (*GroupInfo, *GroupPla
 	}
 	p.InGroup = true
 	return groupInfo, p
+}
+
+type MessageWrapper struct {
+	MessageType string // "group" 或私聊
+	GroupID     string
+	Sender      struct {
+		UserID   string
+		Nickname string
+	}
+	GuildID   string // 可选
+	ChannelID string // 可选
 }
 
 func ReplyToSenderRaw(ctx *MsgContext, msg *Message, text string, flag string) {
@@ -162,13 +204,24 @@ func replyToSenderRawNoCheck(ctx *MsgContext, msg *Message, text string, flag st
 		replyPersonRawNoCheck(ctx, msg, text, flag)
 	}
 }
-
 func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
-	go ReplyToSenderRaw(ctx, msg, text, "")
+	if ctx == nil || msg == nil || ctx.Dice == nil {
+		logger.M().Errorf("ReplyToSender 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
+		return
+	}
+	panicHandler.Once(logger.M(), func() {
+		ReplyToSenderRaw(ctx, msg, text, "")
+	})
 }
 
 func ReplyToSenderNoCheck(ctx *MsgContext, msg *Message, text string) {
-	go replyToSenderRawNoCheck(ctx, msg, text, "")
+	if ctx == nil || msg == nil || ctx.Dice == nil {
+		logger.M().Errorf("ReplyToSenderNoCheck 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
+		return
+	}
+	panicHandler.Once(logger.M(), func() {
+		replyToSenderRawNoCheck(ctx, msg, text, "")
+	})
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
@@ -229,9 +282,8 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		text = "要发送的文本过长"
 	}
 	if ctx.Group != nil {
-		now := time.Now().Unix()
-		ctx.Group.RecentDiceSendTime = now
-		ctx.Group.UpdatedAtTime = now
+		ctx.Group.RecentDiceSendTime = time.Now().Unix()
+		ctx.Group.MarkDirty(ctx.Dice)
 	}
 	text = strings.TrimSpace(text)
 	for _, i := range ctx.SplitText(text) {
@@ -467,6 +519,11 @@ func spamCheckPerson(ctx *MsgContext, msg *Message) bool {
 		return false
 	}
 
+	// Check if user is already banned to avoid sending multiple warnings in concurrent scenarios
+	if banItem, exists := ctx.Dice.Config.BanList.GetByID(ctx.Player.UserID); exists && banItem.Rank == BanRankBanned {
+		return true
+	}
+
 	if ctx.Player.RateLimitWarned {
 		ctx.Dice.Config.BanList.AddScoreByCommandSpam(ctx.Player.UserID, msg.GroupID, ctx)
 	} else {
@@ -516,6 +573,11 @@ func spamCheckGroup(ctx *MsgContext, msg *Message) bool {
 	if ctx.Group.RateLimiter.Allow() {
 		ctx.Group.RateLimitWarned = false
 		return false
+	}
+
+	// Check if group is already banned to avoid sending multiple warnings in concurrent scenarios
+	if banItem, exists := ctx.Dice.Config.BanList.GetByID(ctx.Group.GroupID); exists && banItem.Rank == BanRankBanned {
+		return true
 	}
 
 	// If not allow

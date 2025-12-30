@@ -22,8 +22,11 @@ func groupList(c echo.Context) error {
 			if item != nil {
 				var exts []string
 				item.TmpPlayerNum, _ = service.GroupPlayerNumGet(myDice.DBOperator, item.GroupID)
-				for _, i := range item.ActivatedExtList {
-					exts = append(exts, i.Name)
+				// 使用 Raw 版本避免触发全量初始化
+				for _, i := range item.GetActivatedExtListRaw() {
+					if i != nil {
+						exts = append(exts, i.Name)
+					}
 				}
 				item.TmpExtList = exts
 
@@ -124,7 +127,7 @@ func groupQuit(c echo.Context) error {
 
 		group.DiceIDExistsMap.Delete(v.DiceID)
 		time.Sleep(6 * time.Second)
-		group.UpdatedAtTime = time.Now().Unix()
+		group.MarkDirty(myDice)
 
 		ep.Adapter.QuitGroup(ctx, v.GroupID)
 		return c.String(http.StatusOK, "")

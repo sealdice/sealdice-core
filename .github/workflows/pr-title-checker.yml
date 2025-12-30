@@ -10,6 +10,7 @@ on:
 
 jobs:
   check:
+    if: ${{ github.repository == 'sealdice/sealdice-core' }}
     permissions:
       checks: write
       contents: read
@@ -30,12 +31,12 @@ jobs:
           header: 'PR Title Check'
           recreate: true
           message: |
-              ### 🚨 PR Title Needs Formatting
-              The title of this PR needs to be formatted correctly. 
-              Please update the title to match the format `type: description`. Examples:
-              - `fix: fix typo in README.md 
-              - `chore: update dependencies`
-              - `feat: add new feature`
-              - `chore: fixing build pipeline`
-              - etc.
-              More information can be found [here](https://www.conventionalcommits.org/zh-hans/v1.0.0/).
+            ### 🚨 PR Title Needs Formatting
+            The title of this PR needs to be formatted correctly.
+            Please update the title to match the format `type: description`. Examples:
+            - `fix: fix typo in README.md
+            - `chore: update dependencies`
+            - `feat: add new feature`
+            - `chore: fixing build pipeline`
+            - etc.
+            More information can be found [here](https://www.conventionalcommits.org/zh-hans/v1.0.0/).

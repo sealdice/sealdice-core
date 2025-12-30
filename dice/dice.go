@@ -17,7 +17,6 @@ import (
 	"unsafe"
 
 	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-creed/sat"
 	wr "github.com/mroth/weightedrand"
 	"github.com/robfig/cron/v3"
@@ -79,6 +78,8 @@ type ExtInfo struct {
 	ConflictWith []string `json:"-"        yaml:"-"`
 	Official     bool     `json:"-"        yaml:"-"` // 官方插件
 
+	ActiveWith []string `jsbind:"activeWith" json:"-" yaml:"-"` // 跟随开关：当指定扩展开启或关闭时，本扩展也会同步
+
 	dice          *Dice
 	IsJsExt       bool          `json:"-"`
 	JSLoopVersion int64         `json:"-"`
@@ -108,6 +109,11 @@ type ExtInfo struct {
 	GetDescText         func(i *ExtInfo) string                               `jsbind:"getDescText"         json:"-" yaml:"-"`
 	IsLoaded            bool                                                  `jsbind:"isLoaded"            json:"-" yaml:"-"`
 	OnLoad              func()                                                `jsbind:"onLoad"              json:"-" yaml:"-"`
+
+	// Wrapper 相关字段
+	IsWrapper  bool   `json:"-" yaml:"-"` // 是否为 Wrapper ExtInfo (代理对象)
+	TargetName string `json:"-" yaml:"-"` // Wrapper 代理的真实扩展名
+	IsDeleted  bool   `json:"-" yaml:"-"` // Wrapper 已被删除（脚本已删除，落盘时过滤）
 }
 
 // RootConfig TODO：历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
@@ -185,12 +191,19 @@ type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
 	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
 
-	CmdMap          CmdMapCls              `json:"-" yaml:"-"`
-	ExtList         []*ExtInfo             `yaml:"-"`
-	RollParser      *DiceRollParser        `yaml:"-"`
-	LastUpdatedTime int64                  `yaml:"-"`
-	TextMap         map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig      BaseConfig             `yaml:"-"`
+	CmdMap      CmdMapCls                  `json:"-" yaml:"-"`
+	ExtList     []*ExtInfo                 `yaml:"-"`
+	ExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`
+	// ActiveWithGraph 伴随激活图，nil 表示需要重建。
+	// 访问时必须通过 activeWithGraph() 方法，确保并发安全。
+	ActiveWithGraph *SyncMap[string, []string] `json:"-" yaml:"-"`
+	// ActiveWithGraphMu 保护 ActiveWithGraph 的并发读写
+	ActiveWithGraphMu  sync.RWMutex           `json:"-" yaml:"-"`
+	ExtRegistryVersion int64                  `json:"-" yaml:"-"`
+	RollParser         *DiceRollParser        `yaml:"-"`
+	LastUpdatedTime    int64                  `yaml:"-"`
+	TextMap            map[string]*wr.Chooser `yaml:"-"`
+	BaseConfig         BaseConfig             `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
@@ -214,11 +227,10 @@ type Dice struct {
 	ConfigManager *ConfigManager `yaml:"-"`
 	Parent        *DiceManager   `yaml:"-"`
 
-	CocExtraRules    map[int]*CocRuleInfo   `json:"cocExtraRules" yaml:"-"`
-	Cron             *cron.Cron             `json:"-"             yaml:"-"`
-	AliveNoticeEntry cron.EntryID           `json:"-"             yaml:"-"`
-	JsPrinter        *PrinterFunc           `json:"-"             yaml:"-"`
-	JsRequire        *require.RequireModule `json:"-"             yaml:"-"`
+	CocExtraRules    map[int]*CocRuleInfo `json:"cocExtraRules" yaml:"-"`
+	Cron             *cron.Cron           `json:"-"             yaml:"-"`
+	AliveNoticeEntry cron.EntryID         `json:"-"             yaml:"-"`
+	JsPrinter        *PrinterFunc         `json:"-"             yaml:"-"`
 
 	// JsLoop           *eventloop.EventLoop `yaml:"-" json:"-"`
 	ExtLoopManager   *JsLoopManager  `json:"-" yaml:"-"`
@@ -262,6 +274,14 @@ type Dice struct {
 
 	/* 扩展商店 */
 	StoreManager *StoreManager `json:"-" yaml:"-"`
+
+	/* Wrapper 架构 */
+	JsExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"` // JS 扩展真实 ExtInfo 注册表
+	ExtUpdateTime int64                      `json:"-" yaml:"-"` // 扩展变更时间戳，用于触发群组延迟更新
+	JsReloading   bool                       `json:"-" yaml:"-"` // JS 扩展正在重载中
+
+	/* 保存优化 */
+	DirtyGroups *SyncMap[string, int64] `json:"-" yaml:"-"` // 脏群组列表：groupID -> UpdatedAtTime
 }
 
 func (d *Dice) MarkModified() {
@@ -310,7 +330,10 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
 	d.CmdMap = CmdMapCls{}
+	d.ExtRegistry = new(SyncMap[string, *ExtInfo])
+	// ActiveWithGraph 通过 activeWithGraph() 方法懒加载，无需在此初始化
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
+	d.DirtyGroups = new(SyncMap[string, int64]) // 脏群组列表
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
 	if err != nil {
@@ -412,8 +435,8 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 
 							// 上次被人使用小于60s
 							if now-groupInfo.RecentDiceSendTime < 60 {
-								// 在群内存在，且开启时
-								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) {
+								// 在群内存在，且开启时，且不在刷新CD中
+								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) && d.Parent.ShouldRefreshGroupInfo(key) {
 									i.Adapter.GetGroupInfoAsync(key)
 								}
 							}
@@ -562,6 +585,14 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 // ExtFind 根据名称或别名查找扩展
 func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
 	find := func(_ string) *ExtInfo {
+		if d.ExtRegistry != nil {
+			if ext, ok := d.ExtRegistry.Load(s); ok && ext != nil {
+				return ext
+			}
+			if ext, ok := d.ExtRegistry.Load(strings.ToLower(s)); ok && ext != nil {
+				return ext
+			}
+		}
 		for _, i := range d.ExtList {
 			// 名字匹配，优先级最高
 			if i.Name == s {
@@ -583,6 +614,19 @@ func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
 		return nil
 	}
 	ext := find(s)
+
+	// Wrapper 代理：如果是 wrapper 且从 JS 调用，返回真实扩展
+	// 如果 JsExtRegistry 中找不到真实扩展（例如重载期间），返回 nil
+	// 这确保 JS 脚本会创建新的真实 ExtInfo，而不是复用 Wrapper
+	if ext != nil && ext.IsWrapper && fromJS {
+		if d.JsExtRegistry != nil {
+			if realExt, ok := d.JsExtRegistry.Load(ext.TargetName); ok {
+				return realExt
+			}
+		}
+		return nil // 找不到真实扩展时返回 nil，避免 JS 脚本误用 Wrapper
+	}
+
 	if ext != nil && ext.Official && fromJS {
 		// return a copy of the official extension
 		cmdMap := make(CmdMapCls, len(ext.CmdMap))
@@ -626,12 +670,31 @@ func (d *Dice) ExtAliasToName(s string) string {
 }
 
 func (d *Dice) ExtRemove(ei *ExtInfo) bool {
-	// Pinenutn: Range模板 ServiceAtNew重构代码
-	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-		// Pinenutn: ServiceAtNew重构
-		groupInfo.ExtInactive(ei)
-		return true
-	})
+	// Wrapper 架构：JS 扩展使用 wrapper 机制，不遍历群组
+	// 只标记 wrapper 为 IsDeleted，SyncWrapperStatus 会在消息到达时移除
+	if ei.IsJsExt {
+		// 标记 ExtRegistry 中的 wrapper 为已删除
+		if d.ExtRegistry != nil {
+			if wrapper, ok := d.ExtRegistry.Load(ei.Name); ok && wrapper != nil && wrapper.IsWrapper {
+				wrapper.IsDeleted = true
+			}
+		}
+		// 从 JsExtRegistry 移除真实扩展
+		if d.JsExtRegistry != nil {
+			if realExt, ok := d.JsExtRegistry.Load(ei.Name); ok && realExt != nil && realExt.Storage != nil {
+				_ = realExt.StorageClose()
+			}
+			d.JsExtRegistry.Delete(ei.Name)
+		}
+		// 更新时间戳触发延迟更新
+		d.ExtUpdateTime = time.Now().Unix()
+	} else {
+		// 内置扩展：遍历群组移除
+		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+			groupInfo.ExtInactiveSystem(ei)
+			return true
+		})
+	}
 
 	for index, i := range d.ExtList {
 		if i == ei {
@@ -730,21 +793,13 @@ func (d *Dice) ApplyAliveNotice() {
 
 // GameSystemTemplateAddEx 应用一个角色模板
 func (d *Dice) GameSystemTemplateAddEx(tmpl *GameSystemTemplate, overwrite bool) bool {
+	if tmpl == nil {
+		return false
+	}
 	_, exists := d.GameSystemMap.Load(tmpl.Name)
 	if !exists || overwrite {
+		tmpl.Init()
 		d.GameSystemMap.Store(tmpl.Name, tmpl)
-		// sn 从这里读取
-		// set 时从这里读取对应System名字的模板
-
-		// 同义词缓存
-		tmpl.AliasMap = new(SyncMap[string, string])
-		alias := tmpl.Alias
-		for k, v := range alias {
-			for _, i := range v {
-				tmpl.AliasMap.Store(strings.ToLower(i), k)
-			}
-			tmpl.AliasMap.Store(strings.ToLower(k), k)
-		}
 		return true
 	}
 	return false
@@ -939,7 +994,7 @@ func (d *Dice) PublicDiceSetupTick() {
 }
 
 func (d *Dice) PublicDiceSetup() {
-	d.PublicDice = public_dice.NewClient("https://dice.weizaima.com", "")
+	d.PublicDice = public_dice.NewClient("https://api.weizaima.com", "")
 
 	cfg := &d.Config.PublicDiceConfig
 	if !cfg.Enable {

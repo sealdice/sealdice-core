@@ -37,6 +37,7 @@ func ServeDiscord(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "DISCORD" {
 		conn := ep.Adapter.(*PlatformAdapterDiscord)
+		ep.Session = d.ImSession
 		d.Logger.Infof("DiscordGo 尝试连接")
 		if conn.Serve() != 0 {
 			d.Logger.Errorf("连接Discord服务失败")
