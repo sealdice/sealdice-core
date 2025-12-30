@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
 	operator "sealdice-core/utils/dboperator/engine"
@@ -67,6 +69,9 @@ var V151GroupInfoConvertMigration = upgrade.Upgrade{
 			return err
 		}
 		defer rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
 		var tempList []model.GroupInfoDB
 		for rows.Next() {
 			total++
@@ -157,14 +162,23 @@ var V151GroupInfoConvertMigration = upgrade.Upgrade{
 			// 不能在这里插入，否则会因为连接池只有一个连接，导致死锁
 			tempList = append(tempList, *rec)
 		}
-		// 进行批量更新
-		if err := db.CreateInBatches(&tempList, 500).Error; err != nil {
-			return err
-		}
 
-		if err := rows.Err(); err != nil {
+		// 进行批量创建，开一个事务
+		err = db.Transaction(func(tx *gorm.DB) error {
+			if err := tx.CreateInBatches(&tempList, 500).Error; err != nil {
+				return err
+			}
+			err := tx.Migrator().DropTable("group_info")
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			logf(fmt.Sprintf("[INFO] V151 群信息转换失败，原因为 %s", err))
 			return err
 		}
+		logf("删除旧版本的历史遗留数据")
 		logf(fmt.Sprintf("[INFO] V151 群信息转换完成，共 %d 条，成功 %d 条，失败 %d 条", total, okCount, failCount))
 		return nil
 	},
