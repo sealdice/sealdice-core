@@ -3,9 +3,10 @@ package model
 import (
 	"github.com/sealdice/dicescript"
 	"golang.org/x/time/rate"
+	"gorm.io/gorm"
 )
 
-// GroupInfo 模型
+// GroupInfo 模型 已被派恩废弃
 type GroupInfo struct {
 	ID        string `gorm:"column:id;primaryKey"` // 主键，字符串类型
 	CreatedAt int64  `gorm:"column:created_at"`    // 创建时间
@@ -15,6 +16,44 @@ type GroupInfo struct {
 
 func (*GroupInfo) TableName() string {
 	return "group_info"
+}
+
+// GroupInfoDB
+type GroupInfoDB struct {
+	ID                  string              `gorm:"primarykey"`
+	CreatedAt           int64               `json:"created_at"`
+	UpdatedAt           int64               `json:"updated_at"`
+	DeletedAt           gorm.DeletedAt      `gorm:"index"`
+	Active              bool                `gorm:"column:active"                 json:"active"`
+	ActivatedExtList    []string            `gorm:"column:activated_ext_list;type:TEXT;serializer:json"   json:"activatedExtList"`
+	InactivatedExtSet   []string            `gorm:"column:inactivated_ext_set;type:TEXT;serializer:json"  json:"inactivatedExtSet"`
+	GroupId             string              `gorm:"column:group_id"               json:"groupId"`
+	GuildId             string              `gorm:"column:guild_id"               json:"guildId"`
+	ChannelId           string              `gorm:"column:channel_id"             json:"channelId"`
+	GroupName           string              `gorm:"column:group_name"             json:"groupName"`
+	DiceIdActiveMap     map[string]bool     `gorm:"column:dice_id_active_map;type:TEXT;serializer:json"  json:"diceIdActiveMap"`
+	DiceIdExistsMap     map[string]bool     `gorm:"column:dice_id_exists_map;type:TEXT;serializer:json"  json:"diceIdExistsMap"`
+	BotList             map[string]bool     `gorm:"column:bot_list;type:TEXT;serializer:json"                json:"botList"`
+	DiceSideNum         int                 `gorm:"column:dice_side_num"          json:"diceSideNum"`
+	DiceSideExpr        string              `gorm:"column:dice_side_expr"         json:"diceSideExpr"`
+	System              string              `gorm:"column:system"                  json:"system"`
+	HelpPackages        []string            `gorm:"column:help_packages;type:TEXT;serializer:json"           json:"helpPackages"`
+	CocRuleIndex        int                 `gorm:"column:coc_rule_index"          json:"cocRuleIndex"`
+	LogCurName          string              `gorm:"column:log_cur_name"            json:"logCurName"`
+	LogOn               bool                `gorm:"column:log_on"                  json:"logOn"`
+	RecentDiceSendTime  int64               `gorm:"column:recent_dice_send_time"   json:"recentDiceSendTime"`
+	ShowGroupWelcome    bool                `gorm:"column:show_group_welcome"      json:"showGroupWelcome"`
+	GroupWelcomeMessage string              `gorm:"column:group_welcome_message"   json:"groupWelcomeMessage"`
+	EnteredTime         int64               `gorm:"column:entered_time"            json:"enteredTime"`
+	InviteUserId        string              `gorm:"column:invite_user_id"          json:"inviteUserId"`
+	DefaultHelpGroup    string              `gorm:"column:default_help_group"      json:"defaultHelpGroup"`
+	PlayerGroups        map[string][]string `gorm:"column:player_groups;type:TEXT;serializer:json"      json:"playerGroups"`
+	ExtAppliedVersion   int                 `gorm:"column:ext_applied_version"     json:"extAppliedVersion"`
+}
+
+func (*GroupInfoDB) TableName() string {
+	// 使用V2版本和V1区分开，不破坏V1版本的数据结构
+	return "group_info_v2"
 }
 
 // GroupPlayerInfoBase 群内玩家信息 迁移自 im_session.go

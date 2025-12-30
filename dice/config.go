@@ -2142,44 +2142,9 @@ func (d *Dice) loads() {
 		// 装载ServiceAtNew
 		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
 		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
-		err = service.GroupInfoListGet(d.DBOperator, func(id string, updatedAt int64, data []byte) {
-			var groupInfo GroupInfo
-			err = json.Unmarshal(data, &groupInfo)
-			if err == nil {
-				groupInfo.GroupID = id
-				groupInfo.UpdatedAtTime = 0
-
-				// 初始化 nil 字段（加载时初始化，避免单独遍历）
-				if groupInfo.DiceIDActiveMap == nil {
-					groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
-				}
-				if groupInfo.DiceIDExistsMap == nil {
-					groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
-				}
-				if groupInfo.BotList == nil {
-					groupInfo.BotList = new(SyncMap[string, bool])
-				}
-				if groupInfo.InactivatedExtSet == nil {
-					groupInfo.InactivatedExtSet = StringSet{}
-				}
-
-				// 找出其中以群号开头的，这是1.2版本的bug
-				var toDelete []string
-				if groupInfo.DiceIDExistsMap != nil {
-					groupInfo.DiceIDExistsMap.Range(func(key string, value bool) bool {
-						if strings.HasPrefix(key, "QQ-Group:") {
-							toDelete = append(toDelete, key)
-						}
-						return true
-					})
-					for _, i := range toDelete {
-						groupInfo.DiceIDExistsMap.Delete(i)
-					}
-				}
-				d.ImSession.ServiceAtNew.Store(id, &groupInfo)
-			} else {
-				d.Logger.Errorf("加载群信息失败: %s", id)
-			}
+		err = service.GroupInfoListGetNew(d.DBOperator, func(rec *model.GroupInfoDB) {
+			groupInfo := GroupInfoFromDB(rec, d)
+			d.ImSession.ServiceAtNew.Store(groupInfo.GroupID, groupInfo)
 		})
 		if err != nil {
 			d.Logger.Errorf("加载群信息失败 %s", err)
@@ -2544,14 +2509,12 @@ func (d *Dice) Save(isAuto bool) {
 
 			if groupInfo.UpdatedAtTime != 0 {
 				groupSavedCount++
-				data, err := json.Marshal(groupInfo)
-				if err == nil {
-					err := service.GroupInfoSave(d.DBOperator, groupInfo.GroupID, groupInfo.UpdatedAtTime, data)
-					if err != nil {
-						d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
-					}
-					groupInfo.UpdatedAtTime = 0
+				rec := GroupInfoToDB(groupInfo)
+				err := service.GroupInfoUpsert(d.DBOperator, rec)
+				if err != nil {
+					d.Logger.Warnf("保存群组数据失败 %v : %v", groupInfo.GroupID, err.Error())
 				}
+				groupInfo.UpdatedAtTime = 0
 			}
 
 			d.DirtyGroups.Delete(groupID)
