@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
+	"sealdice-core/dice/service"
 )
 
 func banConfigGet(c echo.Context) error {
@@ -206,4 +207,39 @@ func banImport(c echo.Context) error {
 	(&myDice.Config).BanList.SaveChanged(myDice)
 
 	return Success(&c, Response{})
+}
+
+// banScoreLogGetPage 分页获取怒气值变更日志
+func banScoreLogGetPage(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	v := service.QueryBanScoreLog{}
+	if err := c.Bind(&v); err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	// 默认值
+	if v.PageNum < 1 {
+		v.PageNum = 1
+	}
+	if v.PageSize < 1 {
+		v.PageSize = 20
+	}
+	if v.PageSize > 100 {
+		v.PageSize = 100
+	}
+
+	total, logs, err := service.BanScoreLogGetPage(myDice.DBOperator, v)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	return Success(&c, Response{
+		"data":     logs,
+		"total":    total,
+		"pageNum":  v.PageNum,
+		"pageSize": len(logs),
+	})
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"sealdice-core/dice/service"
+	"sealdice-core/model"
 )
 
 type BanRankType int
@@ -40,6 +41,16 @@ var BanRankText = map[BanRankType]string{
 	BanRankWarn:    "警告",
 	BanRankNormal:  "常规",
 }
+
+// BanScoreChangeType 怒气值变更类型
+const (
+	BanScoreChangeTypeCensor  = "censor"  // 敏感词
+	BanScoreChangeTypeMuted   = "muted"   // 禁言
+	BanScoreChangeTypeKicked  = "kicked"  // 踢出
+	BanScoreChangeTypeSpam    = "spam"    // 刷屏
+	BanScoreChangeTypeManual  = "manual"  // 手动
+	BanScoreChangeTypeJoint   = "joint"   // 连带责任
+)
 
 func (i *BanListInfoItem) toText(_ *Dice) string {
 	prefix := BanRankText[i.Rank]
@@ -203,15 +214,26 @@ func (i *BanListInfo) AddScoreBase(uid string, score int64, place string, reason
 func (i *BanListInfo) addJointScore(_ string, score int64, place string, reason string, ctx *MsgContext) (string, BanRankType) {
 	d := i.Parent
 	if i.JointScorePercentOfGroup > 0 {
-		score := i.JointScorePercentOfGroup * float64(score)
-		i.AddScoreBase(place, int64(score), place, reason, ctx)
+		groupRank := i.NoticeCheckPrepare(place)
+		jointScore := int64(i.JointScorePercentOfGroup * float64(score))
+		groupItem := i.AddScoreBase(place, jointScore, place, reason, ctx)
+		if groupItem != nil {
+			i.LogScoreChange(place, groupItem.Name, place, jointScore, groupItem.Score, reason, groupRank, groupItem.Rank, &BanScoreLogInfo{
+				ChangeType: BanScoreChangeTypeJoint,
+			})
+		}
 	}
 	if i.JointScorePercentOfInviter > 0 {
 		groupInfo, ok := d.ImSession.ServiceAtNew.Load(place)
 		if ok && groupInfo.InviteUserID != "" {
 			rank := i.NoticeCheckPrepare(groupInfo.InviteUserID)
-			score := i.JointScorePercentOfInviter * float64(score)
-			i.AddScoreBase(groupInfo.InviteUserID, int64(score), place, reason, ctx)
+			jointScore := int64(i.JointScorePercentOfInviter * float64(score))
+			inviterItem := i.AddScoreBase(groupInfo.InviteUserID, jointScore, place, reason, ctx)
+			if inviterItem != nil {
+				i.LogScoreChange(groupInfo.InviteUserID, inviterItem.Name, place, jointScore, inviterItem.Score, reason, rank, inviterItem.Rank, &BanScoreLogInfo{
+					ChangeType: BanScoreChangeTypeJoint,
+				})
+			}
 
 			// text := fmt.Sprintf("提醒: 你邀请的骰子在群组<%s>中被禁言/踢出/指令刷屏了", groupInfo.GroupName)
 			// ReplyPersonRaw(ctx, &Message{Sender: SenderBase{UserId: groupInfo.InviteUserId}}, text, "")
@@ -309,7 +331,12 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 func (i *BanListInfo) AddScoreByGroupMuted(uid string, place string, ctx *MsgContext) {
 	rank := i.NoticeCheckPrepare(uid)
 
-	i.AddScoreBase(uid, i.ScoreGroupMuted, place, "禁言骰子", ctx)
+	item := i.AddScoreBase(uid, i.ScoreGroupMuted, place, "禁言骰子", ctx)
+	if item != nil {
+		i.LogScoreChange(uid, item.Name, place, i.ScoreGroupMuted, item.Score, "禁言骰子", rank, item.Rank, &BanScoreLogInfo{
+			ChangeType: BanScoreChangeTypeMuted,
+		})
+	}
 	inviterID, inviterRank := i.addJointScore(uid, i.ScoreGroupMuted, place, "连带责任:禁言骰子", ctx)
 
 	i.NoticeCheck(uid, place, rank, ctx)
@@ -323,7 +350,12 @@ func (i *BanListInfo) AddScoreByGroupMuted(uid string, place string, ctx *MsgCon
 func (i *BanListInfo) AddScoreByGroupKicked(uid string, place string, ctx *MsgContext) {
 	rank := i.NoticeCheckPrepare(uid)
 
-	i.AddScoreBase(uid, i.ScoreGroupKicked, place, "踢出骰子", ctx)
+	item := i.AddScoreBase(uid, i.ScoreGroupKicked, place, "踢出骰子", ctx)
+	if item != nil {
+		i.LogScoreChange(uid, item.Name, place, i.ScoreGroupKicked, item.Score, "踢出骰子", rank, item.Rank, &BanScoreLogInfo{
+			ChangeType: BanScoreChangeTypeKicked,
+		})
+	}
 	inviterID, inviterRank := i.addJointScore(uid, i.ScoreGroupKicked, place, "连带责任:踢出骰子", ctx)
 
 	i.NoticeCheck(uid, place, rank, ctx)
@@ -337,7 +369,12 @@ func (i *BanListInfo) AddScoreByGroupKicked(uid string, place string, ctx *MsgCo
 func (i *BanListInfo) AddScoreByCommandSpam(uid string, place string, ctx *MsgContext) {
 	rank := i.NoticeCheckPrepare(uid)
 
-	i.AddScoreBase(uid, i.ScoreTooManyCommand, place, "指令刷屏", ctx)
+	item := i.AddScoreBase(uid, i.ScoreTooManyCommand, place, "指令刷屏", ctx)
+	if item != nil {
+		i.LogScoreChange(uid, item.Name, place, i.ScoreTooManyCommand, item.Score, "指令刷屏", rank, item.Rank, &BanScoreLogInfo{
+			ChangeType: BanScoreChangeTypeSpam,
+		})
+	}
 	inviterID, inviterRank := i.addJointScore(uid, i.ScoreTooManyCommand, place, "连带责任:指令刷屏", ctx)
 
 	i.NoticeCheck(uid, place, rank, ctx)
@@ -349,9 +386,25 @@ func (i *BanListInfo) AddScoreByCommandSpam(uid string, place string, ctx *MsgCo
 
 // AddScoreByCensor 敏感词审查
 func (i *BanListInfo) AddScoreByCensor(uid string, score int64, place string, level string, ctx *MsgContext) {
+	i.AddScoreByCensorWithWords(uid, score, place, level, nil, ctx)
+}
+
+// AddScoreByCensorWithWords 敏感词审查(带违禁词列表)
+func (i *BanListInfo) AddScoreByCensorWithWords(uid string, score int64, place string, level string, words []string, ctx *MsgContext) {
 	rank := i.NoticeCheckPrepare(uid)
 
-	i.AddScoreBase(uid, score, place, "触发<"+level+">敏感词", ctx)
+	reason := "触发<" + level + ">敏感词"
+	if len(words) > 0 {
+		reason = "触发<" + level + ">敏感词: " + strings.Join(words, ", ")
+	}
+	item := i.AddScoreBase(uid, score, place, reason, ctx)
+	if item != nil {
+		i.LogScoreChange(uid, item.Name, place, score, item.Score, reason, rank, item.Rank, &BanScoreLogInfo{
+			ChangeType:  BanScoreChangeTypeCensor,
+			CensorWords: words,
+			CensorLevel: level,
+		})
+	}
 	inviterID, inviterRank := i.addJointScore(uid, score, place, "连带责任:触发<"+level+">敏感词", ctx)
 
 	i.NoticeCheck(uid, place, rank, ctx)
@@ -419,4 +472,79 @@ func (i *BanListInfo) SaveChanged(d *Dice) {
 func (i *BanListInfo) DeleteByID(d *Dice, id string) {
 	i.Map.Delete(id)
 	_ = service.BanItemDel(d.DBOperator, id)
+}
+
+// BanScoreLogInfo 怒气值变更日志信息
+type BanScoreLogInfo struct {
+	ChangeType  string   // 变更类型
+	CensorWords []string // 触发的违禁词(仅敏感词类型使用)
+	CensorLevel string   // 违禁词等级(仅敏感词类型使用)
+}
+
+// LogScoreChange 记录怒气值变更日志
+func (i *BanListInfo) LogScoreChange(uid string, userName string, groupID string, score int64, scoreAfter int64, reason string, oldRank BanRankType, newRank BanRankType, info *BanScoreLogInfo) {
+	d := i.Parent
+	if d == nil || d.DBOperator == nil {
+		return
+	}
+
+	log := d.Logger
+	isWarning := oldRank != BanRankWarn && newRank == BanRankWarn
+	isBanned := oldRank != BanRankBanned && newRank == BanRankBanned
+
+	// 记录到日志
+	if info != nil && info.ChangeType == BanScoreChangeTypeCensor && len(info.CensorWords) > 0 {
+		log.Infof("怒气值变更[敏感词]: 用户<%s>(%s) 在群<%s> 触发<%s>级违禁词%v, 增加%d分, 当前%d分, 等级: %s->%s",
+			userName, uid, groupID, info.CensorLevel, info.CensorWords, score, scoreAfter,
+			BanRankText[oldRank], BanRankText[newRank])
+	} else {
+		log.Infof("怒气值变更: 用户<%s>(%s) 在群<%s> 因<%s>, 增加%d分, 当前%d分, 等级: %s->%s",
+			userName, uid, groupID, reason, score, scoreAfter,
+			BanRankText[oldRank], BanRankText[newRank])
+	}
+
+	if isWarning {
+		log.Warnf("警告触发: 用户<%s>(%s) 怒气值达到警告阈值, 当前%d分", userName, uid, scoreAfter)
+	}
+	if isBanned {
+		log.Warnf("黑名单触发: 用户<%s>(%s) 怒气值达到黑名单阈值, 当前%d分", userName, uid, scoreAfter)
+	}
+
+	// 构建敏感词JSON
+	var censorWordsJSON string
+	if info != nil && len(info.CensorWords) > 0 {
+		data, err := json.Marshal(info.CensorWords)
+		if err == nil {
+			censorWordsJSON = string(data)
+		}
+	}
+
+	// 变更类型
+	changeType := BanScoreChangeTypeManual
+	censorLevel := ""
+	if info != nil {
+		changeType = info.ChangeType
+		censorLevel = info.CensorLevel
+	}
+
+	// 保存到数据库
+	logEntry := &model.BanScoreLog{
+		UserID:      uid,
+		UserName:    userName,
+		GroupID:     groupID,
+		Score:       score,
+		ScoreAfter:  scoreAfter,
+		Reason:      reason,
+		RankBefore:  int(oldRank),
+		RankAfter:   int(newRank),
+		ChangeType:  changeType,
+		CensorWords: censorWordsJSON,
+		CensorLevel: censorLevel,
+		IsWarning:   isWarning,
+		IsBanned:    isBanned,
+	}
+
+	if err := service.BanScoreLogAppend(d.DBOperator, logEntry); err != nil {
+		log.Errorf("保存怒气值变更日志失败: %v", err)
+	}
 }

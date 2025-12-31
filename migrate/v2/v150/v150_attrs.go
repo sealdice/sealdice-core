@@ -557,6 +557,9 @@ func dataDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 		if err := ensureSQLiteSimpleTable(writeDB, &model.EndpointInfo{}); err != nil {
 			return err
 		}
+		if err := ensureSQLiteSimpleTable(writeDB, &model.BanScoreLog{}); err != nil {
+			return err
+		}
 		if err := ensureSQLiteAttrsTable(writeDB); err != nil {
 			return err
 		}
@@ -567,6 +570,7 @@ func dataDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 			&model.BanInfo{},
 			&model.EndpointInfo{},
 			&model.AttributesItemModel{},
+			&model.BanScoreLog{},
 		); err != nil {
 			return err
 		}
