@@ -84,7 +84,10 @@ type BanListInfo struct {
 	JointScorePercentOfGroup   float64 `json:"jointScorePercentOfGroup"   yaml:"jointScorePercentOfGroup"`   // 群组连带责任
 	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
 
-	cronID cron.EntryID
+	BanNotifyIntervalMinutes int64 `json:"banNotifyIntervalMinutes" yaml:"banNotifyIntervalMinutes"` // 黑名单警告间隔(分钟)，0表示每次都警告
+
+	cronID         cron.EntryID
+	banNotifyCache *SyncMap[string, int64] `json:"-" yaml:"-"` // 黑名单警告缓存 key: "groupID-userID", value: 上次警告时间戳
 }
 
 func (i *BanListInfo) Init() {
@@ -103,7 +106,9 @@ func (i *BanListInfo) Init() {
 
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
+	i.BanNotifyIntervalMinutes = 0 // 0=默认(20分钟), -1=每次都警告, >0=自定义分钟数
 	i.Map = new(SyncMap[string, *BanListInfoItem])
+	i.banNotifyCache = new(SyncMap[string, int64])
 }
 
 func (i *BanListInfo) Loads() {
@@ -547,4 +552,38 @@ func (i *BanListInfo) LogScoreChange(uid string, userName string, groupID string
 	if err := service.BanScoreLogAppend(d.DBOperator, logEntry); err != nil {
 		log.Errorf("保存怒气值变更日志失败: %v", err)
 	}
+}
+
+// ShouldNotifyBan 检查是否应该发送黑名单警告（基于冷却时间）
+// 返回 true 表示应该警告，false 表示在冷却中不警告
+// BanNotifyIntervalMinutes: -1=每次都警告, 0=默认(20分钟), >0=自定义分钟数
+func (i *BanListInfo) ShouldNotifyBan(groupID string, userID string) bool {
+	// -1 表示每次都警告（旧行为）
+	if i.BanNotifyIntervalMinutes < 0 {
+		return true
+	}
+
+	// 确定实际间隔：0使用默认值20分钟，否则使用配置值
+	intervalMinutes := i.BanNotifyIntervalMinutes
+	if intervalMinutes == 0 {
+		intervalMinutes = 20 // 默认20分钟
+	}
+
+	// 确保缓存已初始化
+	if i.banNotifyCache == nil {
+		i.banNotifyCache = new(SyncMap[string, int64])
+	}
+
+	cacheKey := groupID + "-" + userID
+	now := time.Now().Unix()
+	intervalSeconds := intervalMinutes * 60
+
+	if lastTime, exists := i.banNotifyCache.Load(cacheKey); exists {
+		if now-lastTime < intervalSeconds {
+			return false // 冷却中，不警告
+		}
+	}
+
+	i.banNotifyCache.Store(cacheKey, now)
+	return true // 需要警告
 }
