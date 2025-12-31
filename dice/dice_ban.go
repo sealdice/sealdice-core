@@ -44,12 +44,12 @@ var BanRankText = map[BanRankType]string{
 
 // BanScoreChangeType 怒气值变更类型
 const (
-	BanScoreChangeTypeCensor  = "censor"  // 敏感词
-	BanScoreChangeTypeMuted   = "muted"   // 禁言
-	BanScoreChangeTypeKicked  = "kicked"  // 踢出
-	BanScoreChangeTypeSpam    = "spam"    // 刷屏
-	BanScoreChangeTypeManual  = "manual"  // 手动
-	BanScoreChangeTypeJoint   = "joint"   // 连带责任
+	BanScoreChangeTypeCensor = "censor" // 敏感词
+	BanScoreChangeTypeMuted  = "muted"  // 禁言
+	BanScoreChangeTypeKicked = "kicked" // 踢出
+	BanScoreChangeTypeSpam   = "spam"   // 刷屏
+	BanScoreChangeTypeManual = "manual" // 手动
+	BanScoreChangeTypeJoint  = "joint"  // 连带责任
 )
 
 func (i *BanListInfoItem) toText(_ *Dice) string {

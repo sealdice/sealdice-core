@@ -1715,7 +1715,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
 	}
 
-	if ctx.PrivilegeLevel == -30 {
+	if ctx.PrivilegeLevel == -30 { //nolint:nestif
 		groupLevel := ctx.GroupRoleLevel
 		if (d.Config.BanList.BanBehaviorQuitIfAdmin || d.Config.BanList.BanBehaviorQuitIfAdminSilentIfNotAdmin) && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
