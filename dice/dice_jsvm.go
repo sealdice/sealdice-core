@@ -79,6 +79,11 @@ func (d *Dice) JsInit() {
 	if pub, err := static.Scripts.ReadFile("scripts/seal_mod.public.pem"); err == nil && len(pub) > 0 {
 		OfficialModPublicKey = string(pub)
 	}
+	// 允许在 JsEnable=false 的启动状态下通过 API 重启 JS：
+	// 此时 ExtLoopManager 尚未初始化，需要在这里补齐。
+	if d.ExtLoopManager == nil {
+		d.ExtLoopManager = NewJsLoopManager()
+	}
 	// 清理目前的js相关
 	d.jsClear()
 
@@ -689,7 +694,10 @@ func (d *Dice) jsClear() {
 	if d.StoreManager != nil {
 		d.StoreManager.InstalledPlugins = map[string]bool{}
 	}
-	d.ExtLoopManager.SetLoop(nil)
+	// JsEnable=false 的启动状态下 ExtLoopManager 可能尚未初始化
+	if d.ExtLoopManager != nil {
+		d.ExtLoopManager.SetLoop(nil)
+	}
 }
 
 func isScriptFile(filename string) bool {
