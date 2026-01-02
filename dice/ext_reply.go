@@ -14,11 +14,16 @@ import (
 
 func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
+	return CustomReplyConfigReadFromPath(dice, attrConfigFn, filename)
+}
+
+// CustomReplyConfigReadFromPath 从指定路径读取自定义回复配置
+func CustomReplyConfigReadFromPath(dice *Dice, filePath string, filename string) (*ReplyConfig, error) {
 	rc := &ReplyConfig{Enable: false, Filename: filename}
 
-	if _, err := os.Stat(attrConfigFn); err == nil {
+	if _, err := os.Stat(filePath); err == nil {
 		// 如果文件存在，那么读取
-		af, err := os.ReadFile(attrConfigFn)
+		af, err := os.ReadFile(filePath)
 		if err == nil {
 			err = yaml.Unmarshal(af, rc)
 			if err != nil {
@@ -92,8 +97,13 @@ func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 
 func ReplyReload(dice *Dice) {
 	var rcs []*ReplyConfig
+
+	// 1. 从全局 extensions/reply 目录加载
 	filenames := []string{"reply.yaml"}
 	_ = filepath.Walk(dice.GetExtDataDir("reply"), func(path string, info fs.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -127,6 +137,35 @@ func ReplyReload(dice *Dice) {
 		} else {
 			dice.Logger.Info("读取自定义回复配置 - 失败:", i)
 			dice.Logger.Error(err)
+		}
+	}
+
+	// 2. 从已启用的扩展包目录加载
+	if dice.PackageManager != nil {
+		replyDirs := dice.PackageManager.GetEnabledContentDirs("reply")
+		for _, dir := range replyDirs {
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+			for _, entry := range entries {
+				if entry.IsDir() {
+					continue
+				}
+				ext := filepath.Ext(entry.Name())
+				if ext != ".yaml" && ext != ".yml" {
+					continue
+				}
+				filePath := filepath.Join(dir, entry.Name())
+				rc, err := CustomReplyConfigReadFromPath(dice, filePath, entry.Name())
+				if err == nil {
+					dice.Logger.Infof("读取扩展包自定义回复配置: %s", filePath)
+					rc.Save(dice)
+					rcs = append(rcs, rc)
+				} else {
+					dice.Logger.Warnf("读取扩展包自定义回复配置失败: %s, %v", filePath, err)
+				}
+			}
 		}
 	}
 

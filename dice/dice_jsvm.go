@@ -397,6 +397,24 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.UnregisterConfig(ei.Name, key...)
 		})
 
+		_ = ext.Set("getPackageConfig", func(ei *ExtInfo) map[string]interface{} {
+			if ei.dice == nil {
+				panic("扩展未正确注册")
+			}
+			if ei.Source == nil || ei.Source.PackageID == "" {
+				panic("此扩展不属于任何扩展包")
+			}
+			if d.PackageManager == nil {
+				panic("包管理器未初始化")
+			}
+
+			config, err := d.PackageManager.GetConfig(ei.Source.PackageID)
+			if err != nil {
+				panic(err.Error())
+			}
+			return config
+		})
+
 		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string) *JsScriptTask {
 			if ei.dice == nil {
 				panic(errors.New("请先完成此扩展的注册"))
@@ -780,6 +798,38 @@ func (d *Dice) JsLoadScripts() {
 		return nil
 	})
 
+	// 解析扩展包内的脚本
+	if d.PackageManager != nil {
+		for _, pkg := range d.PackageManager.GetEnabled() {
+			pkgScriptsPath := filepath.Join(pkg.InstallPath, "scripts")
+			if _, err := os.Stat(pkgScriptsPath); os.IsNotExist(err) {
+				continue
+			}
+			_ = filepath.Walk(pkgScriptsPath, func(scriptPath string, info fs.FileInfo, err error) error {
+				if err != nil || info.IsDir() {
+					return nil
+				}
+				if isScriptFile(scriptPath) {
+					d.Logger.Infof("正在读取扩展包 %s 的脚本: %s", pkg.Manifest.Package.ID, scriptPath)
+					data, err := os.ReadFile(scriptPath)
+					if err != nil {
+						d.Logger.Errorf("读取扩展包脚本失败(无法访问): %s", err.Error())
+						return nil
+					}
+					jsInfo, err := d.JsParseMeta("./"+scriptPath, info.ModTime(), data, false)
+					if err != nil {
+						d.Logger.Errorf("读取扩展包脚本失败(错误依赖): %s", err.Error())
+						return nil
+					}
+					// 设置所属扩展包ID
+					jsInfo.PackageID = pkg.Manifest.Package.ID
+					jsInfos = append(jsInfos, jsInfo)
+				}
+				return nil
+			})
+		}
+	}
+
 	// 检查依赖是否满足
 	unloadKeySet := make(map[string]bool)
 	var unloadInfos []string
@@ -961,6 +1011,8 @@ type JsScriptInfo struct {
 	needCompiled bool
 	/** 扩展商店唯一 ID */
 	StoreID string `json:"storeID"`
+	/** 所属扩展包ID，空表示独立安装 */
+	PackageID string `json:"packageId"`
 }
 
 type JsScriptDepends struct {

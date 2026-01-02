@@ -725,4 +725,18 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/store/page", storeGetPage)
 	e.POST(prefix+"/store/download", storeDownload)
 	e.POST(prefix+"/store/rating", storeRating)
+
+	// 扩展包管理
+	e.GET(prefix+"/package/list", packageList)
+	e.GET(prefix+"/package/:id", packageGet)
+	e.POST(prefix+"/package/install", packageInstall)
+	e.POST(prefix+"/package/install-url", packageInstallFromURL)
+	e.POST(prefix+"/package/uninstall", packageUninstall)
+	e.POST(prefix+"/package/enable", packageEnable)
+	e.POST(prefix+"/package/disable", packageDisable)
+	e.POST(prefix+"/package/reload", packageReload)
+	e.POST(prefix+"/package/reload-all", packageReloadAll)
+	e.GET(prefix+"/package/:id/config", packageGetConfig)
+	e.POST(prefix+"/package/:id/config", packageSetConfig)
+	e.GET(prefix+"/package/:id/config-schema", packageGetConfigSchema)
 }

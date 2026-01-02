@@ -121,7 +121,7 @@ func (m *HelpManager) Close() {
 	_ = os.RemoveAll("./_help_cache")
 }
 
-func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
+func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	log := logger.M()
 	m.loadSearchEngine()
 
@@ -224,6 +224,53 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 		log.Errorf("加载用户自定义帮助文档出现异常!: %v", err)
 	}
 	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
+
+	// 3. 从已启用的扩展包目录加载 helpdoc
+	if dice != nil && dice.PackageManager != nil {
+		helpdocDirs := dice.PackageManager.GetEnabledContentDirs("helpdoc")
+		for _, dir := range helpdocDirs {
+			dirEntries, readErr := os.ReadDir(dir)
+			if readErr != nil {
+				continue
+			}
+			for _, entry := range dirEntries {
+				if strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+				var child HelpDoc
+				child.Key = generateHelpDocKey()
+				child.Name = entry.Name()
+				child.Path = filepath.Join(dir, entry.Name())
+				child.IsDir = entry.IsDir()
+				if child.IsDir {
+					child.Group = entry.Name()
+					child.Type = "dir"
+					child.Children = make([]*HelpDoc, 0)
+				} else {
+					child.Group = "default"
+					child.Type = filepath.Ext(child.Path)
+				}
+				buildHelpDocTree(&child, func(d *HelpDoc) {
+					if !d.IsDir {
+						ok := m.loadHelpDoc(d.Group, d.Path)
+						applyErr := m.AddItemApply(false)
+						if ok && applyErr == nil {
+							d.LoadStatus = Loaded
+						} else {
+							d.LoadStatus = LoadError
+						}
+					}
+				})
+				m.HelpDocTree = append(m.HelpDocTree, &child)
+			}
+			log.Infof("[帮助文档] 从扩展包加载帮助文档: %s", dir)
+		}
+		applyErr := m.AddItemApply(false)
+		if applyErr != nil {
+			log.Errorf("加载扩展包帮助文档出现异常: %v", applyErr)
+		}
+	}
+
 	log.Infof("[帮助文档] 正在处理指令相关（含插件）帮助文档组")
 	err = m.addInternalCmdHelp(internalCmdMap)
 	if err != nil {
