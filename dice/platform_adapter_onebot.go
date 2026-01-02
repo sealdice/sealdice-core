@@ -128,6 +128,7 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 	p.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
+		GroupID:     groupID,
 		Segment:     msg,
 		Message:     msgText,
 		Sender: SenderBase{
