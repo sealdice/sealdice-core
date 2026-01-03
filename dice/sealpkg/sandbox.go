@@ -22,26 +22,29 @@ func (e *PermissionError) Error() string {
 
 // Sandbox 扩展包权限沙箱
 type Sandbox struct {
-	PackageID   string
-	Permissions *Permissions
-	BasePath    string // 包安装路径
+	PackageID    string
+	Permissions  *Permissions
+	BasePath     string // 包安装路径 (cache/packages/<id>/)
+	UserDataPath string // 用户数据路径 (data/extensions/<id>/_userdata/)
 }
 
 // NewSandbox 创建包沙箱
-func NewSandbox(pkgID string, permissions *Permissions, basePath string) *Sandbox {
+func NewSandbox(pkgID string, permissions *Permissions, basePath, userDataPath string) *Sandbox {
 	return &Sandbox{
-		PackageID:   pkgID,
-		Permissions: permissions,
-		BasePath:    basePath,
+		PackageID:    pkgID,
+		Permissions:  permissions,
+		BasePath:     basePath,
+		UserDataPath: userDataPath,
 	}
 }
 
 // NewSandboxFromInstance 从包实例创建沙箱
 func NewSandboxFromInstance(inst *Instance) *Sandbox {
 	return &Sandbox{
-		PackageID:   inst.Manifest.Package.ID,
-		Permissions: &inst.Manifest.Permissions,
-		BasePath:    inst.InstallPath,
+		PackageID:    inst.Manifest.Package.ID,
+		Permissions:  &inst.Manifest.Permissions,
+		BasePath:     inst.InstallPath,
+		UserDataPath: inst.UserDataPath,
 	}
 }
 
@@ -148,28 +151,23 @@ func (s *Sandbox) CheckFileWritePermission(path string) error {
 func (s *Sandbox) normalizeToRelativePath(path string) (string, error) {
 	cleanPath := filepath.Clean(path)
 
+	// 处理绝对路径：转换为相对于 BasePath 的路径
 	if filepath.IsAbs(cleanPath) {
 		basePath := filepath.Clean(s.BasePath)
-		if !strings.HasPrefix(cleanPath, basePath+string(os.PathSeparator)) &&
-			cleanPath != basePath {
+		relPath, err := filepath.Rel(basePath, cleanPath)
+		if err != nil {
 			return "", &PermissionError{
 				PackageID:  s.PackageID,
 				Permission: "file_access",
 				Requested:  path,
-				Message:    "不允许访问包目录外的路径",
+				Message:    "无法解析路径",
 			}
-		}
-		relPath, err := filepath.Rel(basePath, cleanPath)
-		if err != nil {
-			return "", err
 		}
 		cleanPath = relPath
 	}
 
-	// 检查路径穿越
-	if strings.HasPrefix(cleanPath, "..") ||
-		strings.Contains(cleanPath, string(os.PathSeparator)+".."+string(os.PathSeparator)) ||
-		strings.HasSuffix(cleanPath, string(os.PathSeparator)+"..") {
+	// 检查路径穿越：filepath.Clean 后只需检查是否以 ".." 开头
+	if cleanPath == ".." || strings.HasPrefix(cleanPath, ".."+string(os.PathSeparator)) {
 		return "", &PermissionError{
 			PackageID:  s.PackageID,
 			Permission: "file_access",
@@ -351,10 +349,26 @@ func (fs *SandboxedFS) Remove(path string) error {
 }
 
 // resolvePath 解析路径到完整路径
+// _userdata/ 开头的路径会映射到 UserDataPath
 func (fs *SandboxedFS) resolvePath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}
+
+	// 检查是否是 _userdata 路径，映射到 UserDataPath
+	cleanPath := filepath.Clean(path)
+	if cleanPath == UserDataDir || strings.HasPrefix(cleanPath, UserDataDir+string(os.PathSeparator)) {
+		if fs.sandbox.UserDataPath != "" {
+			// 去掉 _userdata 前缀，拼接到 UserDataPath
+			relPath := strings.TrimPrefix(cleanPath, UserDataDir)
+			relPath = strings.TrimPrefix(relPath, string(os.PathSeparator))
+			if relPath == "" {
+				return fs.sandbox.UserDataPath
+			}
+			return filepath.Join(fs.sandbox.UserDataPath, relPath)
+		}
+	}
+
 	return filepath.Join(fs.sandbox.BasePath, path)
 }
 

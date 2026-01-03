@@ -44,13 +44,14 @@ type Manifest struct {
 
 ```go
 type Instance struct {
-    Manifest    *Manifest
-    State       PackageState           // installed/enabled/disabled/error
-    InstallTime time.Time
-    InstallPath string                 // data/packages/<id>/
-    SourcePath  string                 // 原始 .sealpkg 路径
-    Config      map[string]interface{} // 用户配置值
-    ErrText     string
+    Manifest     *Manifest
+    State        PackageState           // installed/enabled/disabled/error
+    InstallTime  time.Time
+    InstallPath  string                 // cache/packages/<id>/ 运行时缓存
+    SourcePath   string                 // data/packages/<id>.sealpkg 源文件
+    UserDataPath string                 // data/extensions/<id>/_userdata/ 用户数据
+    Config       map[string]interface{} // 用户配置值
+    ErrText      string
 }
 ```
 
@@ -72,17 +73,24 @@ type PackageManager struct {
 
 ```
 data/
-├── packages/                     # 扩展包安装目录
-│   └── com.example.ext/          # 按包ID隔离
-│       ├── manifest.toml         # 包元数据
-│       ├── scripts/              # 脚本目录
-│       ├── decks/                # 牌堆目录
-│       ├── reply/                # 回复配置
-│       ├── helpdoc/              # 帮助文档
-│       ├── assets/               # 静态资源
-│       └── _userdata/            # 用户数据（卸载时可保留）
-│           └── config.json       # 用户配置
-└── packages.json                 # 包管理器状态持久化
+├── packages/                         # 扩展包源文件目录
+│   ├── author@package.sealpkg        # 源文件
+│   └── packages.json                 # 包管理器状态持久化
+└── extensions/                       # 扩展用户数据（传统扩展和扩展包共用）
+    └── author@package/               # 按包ID隔离
+        ├── storage.db                # 传统扩展 storage（如使用）
+        └── _userdata/                # 扩展包用户数据（卸载时可保留）
+            └── cache.json            # 用户数据文件
+
+cache/
+└── packages/                         # 运行时缓存（可从源文件重建）
+    └── author@package/               # 解压后的包内容
+        ├── manifest.toml             # 包元数据
+        ├── scripts/                  # 脚本目录
+        ├── decks/                    # 牌堆目录
+        ├── reply/                    # 回复配置
+        ├── helpdoc/                  # 帮助文档
+        └── assets/                   # 静态资源
 ```
 
 ## 核心流程
@@ -99,9 +107,9 @@ Install(pkgPath)
   ├─ 如已安装旧版本
   │   ├─ 比较版本号
   │   └─ 禁用旧版本
-  ├─ 解压到 data/packages/<id>/
-  │   └─ 保留 _userdata/ 目录
-  ├─ 创建 _userdata/ 目录
+  ├─ 复制源文件到 data/packages/<id>.sealpkg
+  ├─ 解压到 cache/packages/<id>/
+  ├─ 创建用户数据目录 data/extensions/<id>/_userdata/
   ├─ 初始化默认配置
   ├─ 注册到 packages map
   ├─ 重建依赖图
@@ -142,8 +150,8 @@ Uninstall(pkgID, mode)
   ├─ 检查反向依赖
   ├─ 如已启用则先禁用
   ├─ 根据 mode:
-  │   ├─ full: 删除整个目录
-  │   ├─ keep_data: 保留 _userdata/
+  │   ├─ full: 删除缓存目录、源文件、用户数据
+  │   ├─ keep_data: 删除缓存目录和源文件，保留 data/extensions/<id>/_userdata/
   │   └─ disable_only: 仅设置状态
   ├─ 从 packages map 中移除
   ├─ 重建依赖图
@@ -156,9 +164,10 @@ Uninstall(pkgID, mode)
 
 ```go
 type Sandbox struct {
-    PackageID   string
-    Permissions *Permissions
-    BasePath    string  // 包安装路径
+    PackageID    string
+    Permissions  *Permissions
+    BasePath     string  // 包缓存路径 (cache/packages/<id>/)
+    UserDataPath string  // 用户数据路径 (data/extensions/<id>/_userdata/)
 }
 ```
 

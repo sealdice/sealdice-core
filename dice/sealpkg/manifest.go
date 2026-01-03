@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/pelletier/go-toml/v2"
@@ -32,8 +31,8 @@ func ParseManifest(data []byte) (*Manifest, error) {
 		return nil, errors.New("manifest 缺少 package.id")
 	}
 
-	// 验证 package.id 路径安全性
-	if err := validatePackageID(manifest.Package.ID); err != nil {
+	// 验证 package.id 格式（使用新的 @ 分隔符格式）
+	if err := ValidatePackageID(manifest.Package.ID); err != nil {
 		return nil, err
 	}
 
@@ -170,54 +169,6 @@ func CheckDependencyConstraint(constraint, version string) (bool, error) {
 	return c.Check(v), nil
 }
 
-// validatePackageID 验证 package.id 的格式和安全性
-// 要求格式为 "作者/包名"，同时防止路径遍历攻击
-func validatePackageID(id string) error {
-	// 检查是否为空或仅包含空白字符
-	if strings.TrimSpace(id) == "" {
-		return errors.New("package.id 不能为空或仅包含空白字符")
-	}
-
-	// 检查是否包含反斜杠（Windows 路径分隔符）
-	if strings.Contains(id, "\\") {
-		return errors.New("package.id 不能包含反斜杠 (\\)")
-	}
-
-	// 检查是否包含相对路径符号
-	if strings.Contains(id, "..") {
-		return errors.New("package.id 不能包含相对路径符号 (..)")
-	}
-
-	// 检查是否为绝对路径（Unix 根路径）
-	if len(id) > 0 && id[0] == '/' {
-		return errors.New("package.id 不能以 / 开头")
-	}
-
-	// Windows 盘符检查 (C:, D: 等)
-	if len(id) >= 2 && id[1] == ':' {
-		return errors.New("package.id 不能包含 Windows 盘符")
-	}
-
-	// 检查特殊字符
-	if strings.ContainsAny(id, "<>:|?*\"") {
-		return errors.New("package.id 包含非法字符")
-	}
-
-	// 验证格式为 "作者/包名"
-	parts := strings.Split(id, "/")
-	if len(parts) != 2 {
-		return errors.New("package.id 必须为 '作者/包名' 格式")
-	}
-
-	author := strings.TrimSpace(parts[0])
-	name := strings.TrimSpace(parts[1])
-
-	if author == "" {
-		return errors.New("package.id 的作者部分不能为空")
-	}
-	if name == "" {
-		return errors.New("package.id 的包名部分不能为空")
-	}
-
-	return nil
-}
+// 旧的 validatePackageID 函数已废弃
+// 新的验证逻辑已移至 validate.go 中的 ValidatePackageID 函数
+// 新版本支持 @ 分隔符格式：author@package 或 @org@package

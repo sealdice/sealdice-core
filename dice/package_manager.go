@@ -123,6 +123,22 @@ func (pm *PackageManager) extractAndLoadPackage(pkgFilePath string) error {
 	}
 
 	pkgID := manifest.Package.ID
+
+	// 验证包 ID 格式
+	if err := sealpkg.ValidatePackageID(pkgID); err != nil {
+		return errors.New("包 ID 格式错误: " + err.Error())
+	}
+
+	// 检查文件名和包 ID 是否一致
+	expectedFileName := sealpkg.PackageIDToFileName(pkgID)
+	actualFileName := filepath.Base(pkgFilePath)
+	if expectedFileName != actualFileName {
+		pm.parent.Logger.Warnf(
+			"扩展包文件名与包内 ID 不一致: 文件名=%s, 期望=%s (ID=%s), 将使用包内 ID 进行解压",
+			actualFileName, expectedFileName, pkgID,
+		)
+	}
+
 	installPath := filepath.Join(pm.getCachePackagesPath(), pkgID)
 
 	// 检查是否需要解压（目录不存在或 manifest 不存在）
@@ -180,26 +196,29 @@ func (pm *PackageManager) extractAndLoadPackage(pkgFilePath string) error {
 			}
 		}
 
-		// 创建用户数据目录
-		userDataPath := filepath.Join(installPath, sealpkg.UserDataDir)
-		os.MkdirAll(userDataPath, 0755)
-
 		pm.parent.Logger.Infof("扩展包 %s 已解压到缓存", pkgID)
 	}
+
+	// 获取用户数据目录路径（在 data/extensions/<包ID>/_userdata/）
+	userDataPath := pm.getUserDataPath(pkgID)
+	// 确保用户数据目录存在
+	os.MkdirAll(userDataPath, 0755)
 
 	// 注册或更新包实例
 	if _, exists := pm.packages[pkgID]; !exists {
 		pm.packages[pkgID] = &sealpkg.Instance{
-			Manifest:    manifest,
-			State:       sealpkg.PackageStateDisabled,
-			InstallPath: installPath,
-			SourcePath:  pkgFilePath,
-			Config:      make(map[string]interface{}),
+			Manifest:     manifest,
+			State:        sealpkg.PackageStateDisabled,
+			InstallPath:  installPath,
+			SourcePath:   pkgFilePath,
+			UserDataPath: userDataPath,
+			Config:       make(map[string]interface{}),
 		}
 	} else {
 		pm.packages[pkgID].Manifest = manifest
 		pm.packages[pkgID].InstallPath = installPath
 		pm.packages[pkgID].SourcePath = pkgFilePath
+		pm.packages[pkgID].UserDataPath = userDataPath
 	}
 
 	return nil
@@ -209,6 +228,15 @@ func (pm *PackageManager) extractAndLoadPackage(pkgFilePath string) error {
 // 路径: data/packages/
 func (pm *PackageManager) getSourcePackagesPath() string {
 	return filepath.Join(".", "data", sealpkg.PackagesDir)
+}
+
+// getUserDataPath 获取扩展包用户数据目录
+// 路径: data/extensions/<包ID>/_userdata/
+// 包ID中的 "/" 会被替换为 "@" 以兼容文件系统
+func (pm *PackageManager) getUserDataPath(pkgID string) string {
+	// 将包ID转换为文件系统安全的格式
+	safePkgID := sealpkg.PackageIDToSafeDir(pkgID)
+	return filepath.Join(".", "data", "extensions", safePkgID, sealpkg.UserDataDir)
 }
 
 // getCachePackagesPath 获取解压后的包缓存目录
@@ -244,12 +272,19 @@ func (pm *PackageManager) loadState() error {
 	}
 
 	for id, persist := range state.Packages {
+		// 兼容旧数据：如果没有 UserDataPath，自动计算
+		userDataPath := persist.UserDataPath
+		if userDataPath == "" {
+			userDataPath = pm.getUserDataPath(id)
+		}
+
 		pm.packages[id] = &sealpkg.Instance{
-			State:       persist.State,
-			InstallTime: persist.InstallTime,
-			InstallPath: persist.InstallPath,
-			SourcePath:  persist.SourcePath,
-			Config:      persist.Config,
+			State:        persist.State,
+			InstallTime:  persist.InstallTime,
+			InstallPath:  persist.InstallPath,
+			SourcePath:   persist.SourcePath,
+			UserDataPath: userDataPath,
+			Config:       persist.Config,
 		}
 		if pm.packages[id].Config == nil {
 			pm.packages[id].Config = make(map[string]interface{})
@@ -267,11 +302,12 @@ func (pm *PackageManager) saveState() error {
 
 	for id, pkg := range pm.packages {
 		state.Packages[id] = &sealpkg.InstancePersist{
-			State:       pkg.State,
-			InstallTime: pkg.InstallTime,
-			InstallPath: pkg.InstallPath,
-			SourcePath:  pkg.SourcePath,
-			Config:      pkg.Config,
+			State:        pkg.State,
+			InstallTime:  pkg.InstallTime,
+			InstallPath:  pkg.InstallPath,
+			SourcePath:   pkg.SourcePath,
+			UserDataPath: pkg.UserDataPath,
+			Config:       pkg.Config,
 		}
 	}
 
@@ -326,6 +362,11 @@ func (pm *PackageManager) Install(pkgPath string) error {
 
 	pkgID := manifest.Package.ID
 
+	// 验证包 ID 格式
+	if err := sealpkg.ValidatePackageID(pkgID); err != nil {
+		return errors.New("包 ID 格式错误: " + err.Error())
+	}
+
 	// 检查是否已安装
 	var oldConfig map[string]interface{}
 	if existing, exists := pm.packages[pkgID]; exists {
@@ -354,9 +395,9 @@ func (pm *PackageManager) Install(pkgPath string) error {
 		}
 	}
 
-	// 生成目标文件名：将 / 替换为 _ 避免路径问题
-	safeFileName := strings.ReplaceAll(pkgID, "/", "_") + sealpkg.Extension
-	destPkgPath := filepath.Join(pm.getSourcePackagesPath(), safeFileName)
+	// 生成目标文件名：使用包 ID 直接作为文件名（@ 符号在文件名中合法）
+	fileName := sealpkg.PackageIDToFileName(pkgID)
+	destPkgPath := filepath.Join(pm.getSourcePackagesPath(), fileName)
 
 	// 复制 .sealpkg 到 data/packages/
 	if pkgPath != destPkgPath {
@@ -399,7 +440,8 @@ func (pm *PackageManager) Install(pkgPath string) error {
 	return nil
 }
 
-// cleanInstallDir 清理安装目录（保留用户数据）
+// cleanInstallDir 清理缓存目录
+// 用户数据现在存储在 data/extensions/<包ID>/_userdata/，不在缓存目录中
 func (pm *PackageManager) cleanInstallDir(installPath string) {
 	entries, err := os.ReadDir(installPath)
 	if err != nil {
@@ -407,9 +449,6 @@ func (pm *PackageManager) cleanInstallDir(installPath string) {
 	}
 
 	for _, entry := range entries {
-		if entry.Name() == sealpkg.UserDataDir {
-			continue
-		}
 		os.RemoveAll(filepath.Join(installPath, entry.Name()))
 	}
 }
@@ -477,18 +516,32 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 
 	switch mode {
 	case sealpkg.UninstallModeFull:
+		// 删除缓存目录
 		if err := os.RemoveAll(pkg.InstallPath); err != nil {
 			return err
+		}
+		// 删除源文件
+		if pkg.SourcePath != "" {
+			os.Remove(pkg.SourcePath)
+		}
+		// 删除用户数据目录
+		if pkg.UserDataPath != "" {
+			os.RemoveAll(pkg.UserDataPath)
+			// 尝试删除父目录（如果为空）
+			os.Remove(filepath.Dir(pkg.UserDataPath))
 		}
 		delete(pm.packages, pkgID)
 
 	case sealpkg.UninstallModeKeepData:
-		entries, _ := os.ReadDir(pkg.InstallPath)
-		for _, entry := range entries {
-			if entry.Name() != sealpkg.UserDataDir {
-				os.RemoveAll(filepath.Join(pkg.InstallPath, entry.Name()))
-			}
+		// 删除缓存目录（用户数据在 data/extensions/ 下，不受影响）
+		if err := os.RemoveAll(pkg.InstallPath); err != nil {
+			return err
 		}
+		// 删除源文件
+		if pkg.SourcePath != "" {
+			os.Remove(pkg.SourcePath)
+		}
+		// 保留 UserDataPath
 		delete(pm.packages, pkgID)
 
 	case sealpkg.UninstallModeDisable:

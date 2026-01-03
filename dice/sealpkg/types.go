@@ -104,13 +104,14 @@ type ConfigSchema struct {
 
 // Instance 已安装的扩展包实例
 type Instance struct {
-	Manifest    *Manifest              `json:"manifest"`
-	State       PackageState           `json:"state"`
-	InstallTime time.Time              `json:"installTime"`
-	InstallPath string                 `json:"installPath"` // data/packages/<id>/
-	SourcePath  string                 `json:"sourcePath"`  // 原始 .sealpkg 路径
-	Config      map[string]interface{} `json:"config"`      // 用户配置值
-	ErrText     string                 `json:"errText"`
+	Manifest     *Manifest              `json:"manifest"`
+	State        PackageState           `json:"state"`
+	InstallTime  time.Time              `json:"installTime"`
+	InstallPath  string                 `json:"installPath"`  // cache/packages/<id>/ 运行时缓存
+	SourcePath   string                 `json:"sourcePath"`   // 原始 .sealpkg 路径
+	UserDataPath string                 `json:"userDataPath"` // data/extensions/<id>/_userdata/ 用户数据
+	Config       map[string]interface{} `json:"config"`       // 用户配置值
+	ErrText      string                 `json:"errText"`
 
 	// PendingReload 待重载的内容类型列表
 	// 当包状态变更（启用/禁用）后设置，重载后清空
@@ -125,11 +126,12 @@ type Persistence struct {
 
 // InstancePersist 持久化的包实例数据
 type InstancePersist struct {
-	State       PackageState           `json:"state"`
-	InstallTime time.Time              `json:"installTime"`
-	InstallPath string                 `json:"installPath"`
-	SourcePath  string                 `json:"sourcePath"`
-	Config      map[string]interface{} `json:"config"`
+	State        PackageState           `json:"state"`
+	InstallTime  time.Time              `json:"installTime"`
+	InstallPath  string                 `json:"installPath"`
+	SourcePath   string                 `json:"sourcePath"`
+	UserDataPath string                 `json:"userDataPath"`
+	Config       map[string]interface{} `json:"config"`
 }
 
 // OperationResult 包操作结果

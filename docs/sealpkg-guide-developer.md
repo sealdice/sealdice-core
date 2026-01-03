@@ -32,7 +32,7 @@ my-extension/
 
 ```toml
 [package]
-id = "你的名字/my-extension"       # 唯一标识符（必须为 "作者/包名" 格式）
+id = "yourname@my-extension"        # 唯一标识符（个人包：author@package，组织包：@org@package）
 name = "我的扩展包"                  # 显示名称
 version = "1.0.0"                   # 语义化版本号
 authors = ["你的名字"]
@@ -96,7 +96,7 @@ zip -r ../my-extension.sealpkg .
 
 | 字段 | 必需 | 说明 |
 |-----|------|------|
-| `id` | 是 | 唯一标识符，必须为 `作者/包名` 格式 |
+| `id` | 是 | 唯一标识符，格式：个人包 `author@package`，组织包 `@org@package` |
 | `name` | 是 | 显示名称 |
 | `version` | 是 | 语义化版本号（如 `1.0.0`、`1.2.3-beta`） |
 | `authors` | 否 | 作者列表 |
@@ -105,6 +105,42 @@ zip -r ../my-extension.sealpkg .
 | `homepage` | 否 | 主页链接 |
 | `repository` | 否 | 代码仓库链接 |
 | `keywords` | 否 | 关键词列表，用于搜索 |
+
+#### 包 ID 命名规范
+
+包 ID 是扩展包的唯一标识符，采用 `@` 分隔符格式：
+
+**个人包格式：** `author@package-name`
+```toml
+id = "alice@awesome-dice"      # 个人开发者发布的包
+id = "bob_dev@coc-helper"      # 支持下划线和连字符
+```
+
+**组织包格式：** `@org@package-name`
+```toml
+id = "@sealdice@official-coc7"   # 官方组织发布的包
+id = "@community@tools"          # 社区组织发布的包
+```
+
+**命名规则：**
+- 命名空间（author/org）和包名只能包含：字母、数字、连字符 `-`、下划线 `_`
+- 每部分长度限制：1-64 字符
+- 禁止使用的字符：`@ / # < > : | ? * " \` 和空格
+- `@` 符号保留用于标识组织和作为分隔符
+
+**文件命名：**
+包文件名与包 ID 保持一致：
+- 个人包：`alice@awesome-dice.sealpkg`
+- 组织包：`@sealdice@official-coc7.sealpkg`
+
+**目录结构：**
+解压后的缓存目录名也与包 ID 一致：
+```
+cache/packages/
+  ├── alice@awesome-dice/
+  ├── @sealdice@official-coc7/
+  └── bob_dev@coc-helper/
+```
 
 ### [package.seal] 海豹版本要求
 
@@ -120,8 +156,8 @@ max_version = "2.0.0"    # 最高版本（可选）
 
 ```toml
 [dependencies]
-"com.seal.coc7" = ">=1.0.0"           # 大于等于 1.0.0
-"com.example.base" = "^2.0.0"         # 兼容 2.x.x
+"seal@coc7-core" = ">=1.0.0"          # 大于等于 1.0.0
+"@sealdice@base-utils" = "^2.0.0"     # 兼容 2.x.x（组织包示例）
 "com.example.utils" = "~1.2.0"        # 兼容 1.2.x
 "com.example.core" = "1.0.0 - 2.0.0"  # 范围
 ```
@@ -288,12 +324,12 @@ try {
 
 ### Q: 如何调试扩展包？
 
-开发时可以直接将文件放在 `data/packages/你的包ID/` 目录下，无需每次打包。
+开发时可以直接将文件放在 `cache/packages/你的包ID/` 目录下，无需每次打包。用户数据目录在 `data/extensions/你的包ID/_userdata/`。
 
 ### Q: 扩展包和传统 JS 插件有什么区别？
 
-扩展包是传统插件的超集，可以包含脚本、牌堆、回复等多种资源，并提供权限隔离和配置管理。传统插件仍然支持。
+扩展包是传统插件的超集，可以包含脚本、牌堆、回复等多种资源，并提供权限隔离和配置管理。传统插件仍然支持。扩展包的用户数据与传统扩展的 storage.db 存放在同一目录（`data/extensions/`）。
 
 ### Q: 如何处理扩展包更新？
 
-用户安装新版本时，`_userdata/` 目录会保留，用户配置不会丢失。
+用户安装新版本时，用户数据目录（`data/extensions/<包ID>/_userdata/`）会保留，用户配置不会丢失。

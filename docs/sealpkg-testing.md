@@ -8,17 +8,17 @@ sealdice-core/
 │   ├── packages/                    # 包源文件存储目录
 │   │   ├── packages.json           # 包状态持久化文件
 │   │   └── *.sealpkg               # 已安装的包源文件
-│   └── extensions/<扩展名>/         # 扩展数据目录（原有设计）
-│       └── storage.db              # JS 扩展的 storage 数据库
+│   └── extensions/<包ID>/           # 扩展数据目录（扩展包和传统扩展共用）
+│       ├── storage.db              # JS 扩展的 storage 数据库（传统扩展）
+│       └── _userdata/              # 扩展包用户数据目录
 ├── cache/
-│   └── packages/<作者>/<包名>/      # 包解压缓存目录
+│   └── packages/<包ID>/            # 包解压缓存目录（可从源文件重建）
 │       ├── manifest.toml
 │       ├── scripts/
 │       ├── decks/
 │       ├── reply/
 │       ├── helpdoc/
-│       ├── templates/
-│       └── _userdata/              # 用户数据目录
+│       └── templates/
 └── tmp/
     └── test-packages/              # 测试包目录
 ```
@@ -27,21 +27,21 @@ sealdice-core/
 
 | 包 ID | 名称 | 测试内容 |
 |-------|------|----------|
-| `test/simple-script` | 简单脚本测试包 | JS 脚本加载 |
-| `test/config-package` | 配置测试扩展包 | 配置项系统、多种配置类型 |
-| `test/deck-package` | 测试牌堆扩展包 | 牌堆加载 |
-| `test/reply-package` | 回复测试包 | 自定义回复加载 |
-| `test/helpdoc-package` | 帮助文档测试包 | 帮助文档加载 |
-| `test/template-package` | 模板测试包 | 游戏模板加载 |
-| `test/permission-package` | 权限测试扩展包 | 权限声明、网络访问 |
+| `test@simple-script` | 简单脚本测试包 | JS 脚本加载 |
+| `test@config-package` | 配置测试扩展包 | 配置项系统、多种配置类型 |
+| `test@deck-package` | 测试牌堆扩展包 | 牌堆加载 |
+| `test@reply-package` | 回复测试包 | 自定义回复加载 |
+| `test@helpdoc-package` | 帮助文档测试包 | 帮助文档加载 |
+| `test@template-package` | 模板测试包 | 游戏模板加载 |
+| `test@permission-package` | 权限测试扩展包 | 权限声明、网络访问 |
 
 ## 测试包详情
 
-### test/simple-script
+### test@simple-script
 - **内容**: `scripts/*.js`
 - **功能**: 基础 JS 扩展，注册 `.hello` 命令
 
-### test/config-package
+### test@config-package
 - **内容**: `scripts/*.js`, `decks/*.toml`
 - **配置项**:
   - `greeting_message` (string) - 问候消息
@@ -51,16 +51,16 @@ sealdice-core/
   - `allowed_groups` (array) - 允许的群组
   - `custom_dice` (object) - 自定义骰子配置
 
-### test/reply-package
+### test@reply-package
 - **内容**: `reply/*.yaml`
 - **功能**: 测试自定义回复的动态加载
 
-### test/helpdoc-package
+### test@helpdoc-package
 - **内容**: `helpdoc/*.json`
 - **功能**: 测试帮助文档的动态加载
 - **帮助条目**: `测试帮助`, `helpdoc测试`
 
-### test/template-package
+### test@template-package
 - **内容**: `templates/*.yaml`
 - **功能**: 测试游戏模板的动态加载
 
@@ -95,17 +95,17 @@ curl -X POST http://127.0.0.1:3211/sd-api/package/install \
 # 启用包
 curl -X POST http://127.0.0.1:3211/sd-api/package/enable \
   -H "Content-Type: application/json" \
-  -d '{"id": "test/reply-package"}'
+  -d '{"id": "test@reply-package"}'
 
 # 重载包资源
 curl -X POST http://127.0.0.1:3211/sd-api/package/reload \
   -H "Content-Type: application/json" \
-  -d '{"id": "test/reply-package"}'
+  -d '{"id": "test@reply-package"}'
 
 # 更新包配置
 curl -X POST http://127.0.0.1:3211/sd-api/package/config \
   -H "Content-Type: application/json" \
-  -d '{"id": "test/config-package", "config": {"enable_debug": true}}'
+  -d '{"id": "test@config-package", "config": {"enable_debug": true}}'
 ```
 
 ## 内容类型支持
@@ -138,7 +138,7 @@ curl -X POST http://127.0.0.1:3211/sd-api/package/install \
 curl http://127.0.0.1:3211/sd-api/package/list | jq '.data[].manifest.package.id'
 
 # 检查解压目录
-ls -la cache/packages/test/reply-package/
+ls -la cache/packages/test@reply-package/
 ```
 
 ### 3. 启用包并测试
@@ -146,11 +146,11 @@ ls -la cache/packages/test/reply-package/
 ```bash
 # 启用包
 curl -X POST http://127.0.0.1:3211/sd-api/package/enable \
-  -d '{"id": "test/reply-package"}'
+  -d '{"id": "test@reply-package"}'
 
 # 重载资源
 curl -X POST http://127.0.0.1:3211/sd-api/package/reload \
-  -d '{"id": "test/reply-package"}'
+  -d '{"id": "test@reply-package"}'
 ```
 
 ### 4. 验证资源加载
@@ -179,7 +179,7 @@ console.log(config.enable_debug);
 curl -X POST http://127.0.0.1:3211/sd-api/package/config \
   -H "Content-Type: application/json" \
   -d '{
-    "id": "test/config-package",
+    "id": "test@config-package",
     "config": {
       "greeting_message": "新的问候语",
       "max_items": 20,
@@ -190,8 +190,10 @@ curl -X POST http://127.0.0.1:3211/sd-api/package/config \
 
 ## 注意事项
 
-1. **包 ID 格式**: `作者/包名`，如 `test/reply-package`
-2. **源文件命名**: 安装时 `/` 会被替换为 `_`，如 `test_reply-package.sealpkg`
-3. **缓存目录**: 按包 ID 层级存储，如 `cache/packages/test/reply-package/`
+1. **包 ID 格式**:
+   - 个人包：`author@package`，如 `test@reply-package`
+   - 组织包：`@org@package`，如 `@sealdice@official-coc7`
+2. **源文件命名**: 包文件名与包 ID 一致，如 `test@reply-package.sealpkg`
+3. **缓存目录**: 平铺存储，目录名与包 ID 一致，如 `cache/packages/test@reply-package/`
 4. **Storage 位置**: JS 扩展的 storage 存储在全局 `data/extensions/<扩展名>/storage.db`
 5. **资源不复制**: 资源文件保留在包目录，通过 `GetEnabledContentDirs()` 动态获取路径
