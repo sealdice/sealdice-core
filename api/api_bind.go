@@ -639,6 +639,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	// e.POST(prefix+"/banconfig/map_set", banMapSet)
 	e.GET(prefix+"/banconfig/export", banExport)
 	e.POST(prefix+"/banconfig/import", banImport)
+	e.GET(prefix+"/banconfig/log/page", banScoreLogGetPage)
 
 	e.GET(prefix+"/deck/list", deckList)
 	e.POST(prefix+"/deck/reload", deckReload)
