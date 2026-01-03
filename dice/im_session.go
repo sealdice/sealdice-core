@@ -2121,6 +2121,7 @@ func (ep *EndPointInfo) AdapterSetup() {
 			pa.Session = ep.Session
 			pa.EndPoint = ep
 			pa.logger = log
+			pa.desiredEnabled = ep.Enable
 			// case "LagrangeGo":
 			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
 			//	pa.Session = ep.Session
