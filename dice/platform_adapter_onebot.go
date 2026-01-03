@@ -278,7 +278,9 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 	if err != nil {
 		p.logger.Errorf("获取登录信息异常 %v", err)
-		p.EndPoint.State = 3
+		// 这里属于“已建立 WS 但初始化失败”，需要走失败路径触发重试；
+		// 否则 FSM 会停留在 connecting，且不会触发 retryConnect。
+		_ = p.sm.Event(context.Background(), "connect_fail")
 		return
 	}
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
@@ -578,6 +580,9 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 }
 
 func (p *PlatformAdapterOnebot) updateAndSave() {
+	if p.Session == nil || p.Session.Parent == nil {
+		return
+	}
 	d := p.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -608,6 +613,8 @@ func (p *PlatformAdapterOnebot) ensureFSM() {
 
 func (p *PlatformAdapterOnebot) cbEnterConnecting(_ context.Context, _ *loopfsm.Event) {
 	p.EndPoint.State = StateConnecting
+	// Enable 表示“用户期望启用”，不应由连接成功与否决定；否则连接中/失败会把配置写成禁用，重启后不会自动启动。
+	p.EndPoint.Enable = p.desiredEnabled
 	p.updateAndSave()
 	if err := p.startConnection(); err != nil {
 		_ = p.sm.Event(context.Background(), "connect_fail")
@@ -622,7 +629,8 @@ func (p *PlatformAdapterOnebot) cbEnterConnected(_ context.Context, _ *loopfsm.E
 
 func (p *PlatformAdapterOnebot) cbEnterFailed(_ context.Context, _ *loopfsm.Event) {
 	p.EndPoint.State = StateConnectionFailed
-	p.EndPoint.Enable = false
+	// 连接失败不等于用户禁用；保持 Enable 不变，避免持久化成“禁用”导致重启后不再自动连接。
+	p.EndPoint.Enable = p.desiredEnabled
 	p.updateAndSave()
 	if p.desiredEnabled {
 		go p.retryConnect()
