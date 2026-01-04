@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/logger"
+	"sealdice-core/model"
 	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
 )
@@ -251,6 +252,12 @@ func (s *SQLiteEngine) CensorDBInit() error {
 	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
 	readDB = readDB.WithContext(censorContext)
 	writeDB = writeDB.WithContext(censorContext)
+
+	// 创建 CensorLog 表结构
+	if err := writeDB.AutoMigrate(&model.CensorLog{}); err != nil {
+		return err
+	}
+
 	s.readList[CensorsDBKey] = readDB
 	s.writeList[CensorsDBKey] = writeDB
 	return nil
