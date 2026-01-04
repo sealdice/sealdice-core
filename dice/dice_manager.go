@@ -120,7 +120,7 @@ func (dm *DiceManager) InitHelp() {
 		log.Fatalf("Dice实例不存在!")
 		return
 	}
-	dm.Help.Load(dm.Dice[0].CmdMap, dm.Dice[0].ExtList)
+	dm.Help.Load(dm.Dice[0], dm.Dice[0].CmdMap, dm.Dice[0].ExtList)
 	dm.IsHelpReloading = false
 }
 
