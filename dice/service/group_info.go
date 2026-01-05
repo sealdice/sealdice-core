@@ -2,7 +2,7 @@ package service
 
 import (
 	"go.uber.org/zap"
-	"gorm.io/gorm/clause"
+	"gorm.io/gorm"
 
 	"sealdice-core/logger"
 	"sealdice-core/model"
@@ -10,55 +10,25 @@ import (
 	engine2 "sealdice-core/utils/dboperator/engine"
 )
 
-// GroupInfoListGet 使用 GORM 实现，遍历 group_info 表中的数据并调用回调函数
-// 使用流式读取（Rows）逐行处理，避免一次性加载所有数据到内存
-func GroupInfoListGet(operator engine2.DatabaseOperator, callback func(id string, updatedAt int64, data []byte)) error {
+// GroupInfoListGetNew 基于新的 GroupInfoDB 结构，分批遍历 group_info 表并回调
+func GroupInfoListGetNew(operator engine2.DatabaseOperator, callback func(info *model.GroupInfoDB)) error {
 	db := operator.GetDataDB(constant.READ)
-
-	// 使用 Rows() 进行流式读取，避免一次性加载全部数据到内存
-	rows, err := db.Model(&model.GroupInfo{}).Select("id, updated_at, data").Rows()
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	// 逐行读取并处理
-	for rows.Next() {
-		var id string
-		var updatedAt *int64
-		var data []byte
-
-		if err := rows.Scan(&id, &updatedAt, &data); err != nil {
-			// 单条记录读取失败，跳过继续处理下一条
-			continue
-		}
-
-		var ua int64
-		if updatedAt != nil {
-			ua = *updatedAt
-		}
-
-		callback(id, ua, data)
-	}
-
-	return rows.Err()
+	const batchSize = 200
+	var items []model.GroupInfoDB
+	return db.Model(&model.GroupInfoDB{}).
+		FindInBatches(&items, batchSize, func(tx *gorm.DB, batch int) error {
+			for i := range items {
+				item := items[i]
+				callback(&item)
+			}
+			return nil
+		}).Error
 }
 
-// GroupInfoSave 保存群组信息
-func GroupInfoSave(operator engine2.DatabaseOperator, groupID string, updatedAt int64, data []byte) error {
-	// 使用写数据库
+// GroupInfoUpsert 基于新的 GroupInfoDB 结构进行保存（插入或更新）
+func GroupInfoUpsert(operator engine2.DatabaseOperator, info *model.GroupInfoDB) error {
 	db := operator.GetDataDB(constant.WRITE)
-	// 使用 gorm 的 Upsert 功能实现插入或更新
-	groupInfo := model.GroupInfo{
-		ID:        groupID,
-		UpdatedAt: &updatedAt,
-		Data:      data,
-	}
-	result := db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "data"}),
-	}).Create(&groupInfo)
-	return result.Error
+	return db.Save(info).Error
 }
 
 // GroupPlayerNumGet 获取指定群组的玩家数量
