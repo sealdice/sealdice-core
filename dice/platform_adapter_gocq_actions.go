@@ -339,6 +339,133 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 	}
 }
 
+func (pa *PlatformAdapterGocq) SendGroupForwardMsg(ctx *MsgContext, groupID string, title string, contents []string) bool {
+	if groupID == "" || len(contents) == 0 {
+		return false
+	}
+	rawGroupID, idType := pa.mustExtractID(groupID)
+	// 频道群（QQ-CH-Group）不支持转发消息，交由上层走普通文本回复
+	if idType == 0 {
+		return false
+	}
+	if idType != QQUidGroup {
+		return false
+	}
+
+	botID, _ := pa.mustExtractID(pa.EndPoint.UserID)
+	uin := strconv.FormatInt(botID, 10)
+	name := pa.EndPoint.Nickname
+	if ctx != nil {
+		if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
+			name = diceName
+		}
+	}
+	type sendGroupForwardParams struct {
+		GroupID  int64         `json:"group_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	nodes := buildForwardNodes(name, uin, title, contents)
+	if len(nodes) == 0 {
+		return false
+	}
+
+	sendText := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.Join(contents, "\n"))
+	if ctx != nil && ctx.Session != nil {
+		if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
+			msgToSend := &Message{
+				Message:     sendText,
+				MessageType: "group",
+				Platform:    pa.EndPoint.Platform,
+				GroupID:     groupID,
+				Sender: SenderBase{
+					Nickname: pa.EndPoint.Nickname,
+					UserID:   pa.EndPoint.UserID,
+				},
+			}
+			groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+				if ext.OnMessageSend == nil {
+					return nil
+				}
+				return func() { ext.OnMessageSend(ctx, msgToSend, "") }
+			})
+		}
+	}
+
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "send_group_forward_msg",
+		Params: sendGroupForwardParams{
+			GroupID:  rawGroupID,
+			Messages: nodes,
+		},
+	})
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+	socketSendText(pa.Socket, string(a))
+	return true
+}
+
+func (pa *PlatformAdapterGocq) SendPrivateForwardMsg(ctx *MsgContext, userID string, title string, contents []string) bool {
+	if userID == "" || len(contents) == 0 {
+		return false
+	}
+	rawUserID, idType := pa.mustExtractID(userID)
+	if idType != QQUidPerson {
+		return false
+	}
+
+	botID, _ := pa.mustExtractID(pa.EndPoint.UserID)
+	uin := strconv.FormatInt(botID, 10)
+	name := pa.EndPoint.Nickname
+	if ctx != nil {
+		if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
+			name = diceName
+		}
+	}
+	type sendPrivateForwardParams struct {
+		UserID   int64         `json:"user_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	nodes := buildForwardNodes(name, uin, title, contents)
+	if len(nodes) == 0 {
+		return false
+	}
+
+	sendText := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.Join(contents, "\n"))
+	if ctx != nil && ctx.Dice != nil {
+		for _, i := range ctx.Dice.ExtList {
+			if i.OnMessageSend != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageSend(ctx, &Message{
+						Message:     sendText,
+						MessageType: "private",
+						Platform:    pa.EndPoint.Platform,
+						Sender: SenderBase{
+							Nickname: pa.EndPoint.Nickname,
+							UserID:   pa.EndPoint.UserID,
+						},
+					}, "")
+				})
+			}
+		}
+	}
+
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "send_private_forward_msg",
+		Params: sendPrivateForwardParams{
+			UserID:   rawUserID,
+			Messages: nodes,
+		},
+	})
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+	socketSendText(pa.Socket, string(a))
+	return true
+}
+
 func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, path string, _ string) {
 	rawID, idType := pa.mustExtractID(userID)
 	if idType != QQUidPerson {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -106,6 +107,113 @@ func (p *PlatformAdapterOnebot) SendToPerson(ctx *MsgContext, userID string, tex
 func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToGroup(ctx, groupID, msgElement, flag)
+}
+
+func (p *PlatformAdapterOnebot) SendGroupForwardMsg(ctx *MsgContext, groupID string, title string, contents []string) bool {
+	if p == nil || p.sendEmitter == nil {
+		return false
+	}
+	if groupID == "" || len(contents) == 0 {
+		return false
+	}
+	rawGroupID := ExtractQQEmitterGroupID(groupID)
+	if rawGroupID == 0 {
+		return false
+	}
+
+	botID := ExtractQQEmitterUserID(p.EndPoint.UserID)
+	uin := strconv.FormatInt(botID, 10)
+	name := p.EndPoint.Nickname
+	if ctx != nil {
+		if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
+			name = diceName
+		}
+	}
+	type sendGroupForwardParams struct {
+		GroupID  int64         `json:"group_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	nodes := buildForwardNodes(name, uin, title, contents)
+	if len(nodes) == 0 {
+		return false
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+
+	_, err := p.sendEmitter.Raw(p.ctx, "send_group_forward_msg", sendGroupForwardParams{
+		GroupID:  rawGroupID,
+		Messages: nodes,
+	})
+	if err == nil && p.Session != nil {
+		sendText := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.Join(contents, "\n"))
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "group",
+			GroupID:     groupID,
+			Message:     sendText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+		}, "")
+	}
+	return err == nil
+}
+
+func (p *PlatformAdapterOnebot) SendPrivateForwardMsg(ctx *MsgContext, userID string, title string, contents []string) bool {
+	if p == nil || p.sendEmitter == nil {
+		return false
+	}
+	if userID == "" || len(contents) == 0 {
+		return false
+	}
+	rawUserID := ExtractQQEmitterUserID(userID)
+	if rawUserID == 0 {
+		return false
+	}
+
+	botID := ExtractQQEmitterUserID(p.EndPoint.UserID)
+	uin := strconv.FormatInt(botID, 10)
+	name := p.EndPoint.Nickname
+	if ctx != nil {
+		if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
+			name = diceName
+		}
+	}
+	type sendPrivateForwardParams struct {
+		UserID   int64         `json:"user_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	nodes := buildForwardNodes(name, uin, title, contents)
+	if len(nodes) == 0 {
+		return false
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+
+	_, err := p.sendEmitter.Raw(p.ctx, "send_private_forward_msg", sendPrivateForwardParams{
+		UserID:   rawUserID,
+		Messages: nodes,
+	})
+	if err == nil && p.Session != nil {
+		sendText := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.Join(contents, "\n"))
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "private",
+			Message:     sendText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+		}, "")
+	}
+	return err == nil
 }
 
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {

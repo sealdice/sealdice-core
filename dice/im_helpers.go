@@ -20,6 +20,114 @@ var (
 	cqCodeRe   = regexp.MustCompile(`\[CQ:.+?]`)
 )
 
+type forwardMsgSender interface {
+	SendGroupForwardMsg(ctx *MsgContext, groupID string, title string, contents []string) bool
+	SendPrivateForwardMsg(ctx *MsgContext, userID string, title string, contents []string) bool
+}
+
+type forwardNodeData struct {
+	Name    string `json:"name"`
+	Uin     string `json:"uin"`
+	Content string `json:"content"`
+}
+
+type forwardNode struct {
+	Type string          `json:"type"`
+	Data forwardNodeData `json:"data"`
+}
+
+func buildForwardNodes(senderName string, senderUin string, title string, contents []string) []forwardNode {
+	nodes := make([]forwardNode, 0, len(contents)+1)
+	title = strings.TrimSpace(title)
+	if title != "" {
+		nodes = append(nodes, forwardNode{
+			Type: "node",
+			Data: forwardNodeData{
+				Name:    senderName,
+				Uin:     senderUin,
+				Content: title,
+			},
+		})
+	}
+
+	for i, c := range contents {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		if len(contents) > 1 {
+			c = fmt.Sprintf("第%d组\n%s", i+1, c)
+		}
+		nodes = append(nodes, forwardNode{
+			Type: "node",
+			Data: forwardNodeData{
+				Name:    senderName,
+				Uin:     senderUin,
+				Content: c,
+			},
+		})
+	}
+	return nodes
+}
+
+// TryReplyToSenderMergedForward 尝试用“合并转发”发送多条内容。
+//
+// 返回值含义：
+//   - true：已发送（或当前平台支持且已处理）
+//   - false：当前平台/适配器不支持，调用方应自行回退到普通 ReplyToSender
+func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, contents []string) bool {
+	if ctx == nil || msg == nil || ctx.Dice == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return false
+	}
+	if len(contents) == 0 {
+		return false
+	}
+
+	// 避免绕过“仅输出回复”的敏感词拦截逻辑：此模式下回退到普通 ReplyToSender 流程
+	if ctx.Dice.Config.EnableCensor && ctx.Dice.Config.CensorMode == OnlyOutputReply {
+		return false
+	}
+
+	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
+		if msg.MessageType == "group" {
+			if !spamCheckPerson(ctx, msg) {
+				spamCheckGroup(ctx, msg)
+			}
+		} else {
+			spamCheckPerson(ctx, msg)
+		}
+	}
+
+	if ctx.AliasPrefixText != "" {
+		title = ctx.AliasPrefixText + title
+		ctx.AliasPrefixText = ""
+	}
+	if ctx.DelegateText != "" {
+		title = ctx.DelegateText + title
+		ctx.DelegateText = ""
+	}
+
+	s, ok := ctx.EndPoint.Adapter.(forwardMsgSender)
+	if !ok {
+		return false
+	}
+
+	title = strings.TrimSpace(title)
+	switch msg.MessageType {
+	case "group":
+		ok := s.SendGroupForwardMsg(ctx, msg.GroupID, title, contents)
+		if ok && ctx.Group != nil {
+			ctx.Group.RecentDiceSendTime = time.Now().Unix()
+			ctx.Group.MarkDirty(ctx.Dice)
+		}
+		return ok
+	case "private":
+		return s.SendPrivateForwardMsg(ctx, msg.Sender.UserID, title, contents)
+	default:
+		return false
+	}
+}
+
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
 	// Pinenutn: 总觉得这里还能优化，但是又想不到怎么优化，可恶，要长脑子了
 	a := messageType == "group" && session.ServiceAtNew.Exists(groupID)
