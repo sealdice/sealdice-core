@@ -50,14 +50,12 @@ func buildForwardNodes(senderName string, senderUin string, title string, conten
 		})
 	}
 
-	for i, c := range contents {
+	for _, c := range contents {
 		c = strings.TrimSpace(c)
 		if c == "" {
 			continue
 		}
-		if len(contents) > 1 {
-			c = fmt.Sprintf("第%d组\n%s", i+1, c)
-		}
+
 		nodes = append(nodes, forwardNode{
 			Type: "node",
 			Data: forwardNodeData{
