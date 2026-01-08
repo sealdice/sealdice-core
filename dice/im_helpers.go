@@ -39,7 +39,6 @@ type forwardNode struct {
 
 func buildForwardNodes(senderName string, senderUin string, title string, contents []string) []forwardNode {
 	nodes := make([]forwardNode, 0, len(contents)+1)
-	title = strings.TrimSpace(title)
 	if title != "" {
 		nodes = append(nodes, forwardNode{
 			Type: "node",
@@ -76,7 +75,7 @@ func BuildForwardNodesFromContext(ctx *MsgContext, title string, contents []stri
 		return nil
 	}
 	name := ctx.EndPoint.Nickname
-	if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
+	if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名字")); diceName != "" {
 		name = diceName
 	}
 
@@ -161,7 +160,6 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 		return false
 	}
 
-	title = strings.TrimSpace(title)
 	nodes := BuildForwardNodesFromContext(ctx, title, contents)
 	if len(nodes) == 0 {
 		return false
