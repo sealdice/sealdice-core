@@ -339,8 +339,8 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 	}
 }
 
-func (pa *PlatformAdapterGocq) SendGroupForwardMsg(ctx *MsgContext, groupID string, title string, contents []string) bool {
-	if groupID == "" || len(contents) == 0 {
+func (pa *PlatformAdapterGocq) SendGroupForwardMsg(ctx *MsgContext, groupID string, nodes []forwardNode) bool {
+	if groupID == "" || len(nodes) == 0 {
 		return false
 	}
 	rawGroupID, idType := pa.mustExtractID(groupID)
@@ -352,25 +352,12 @@ func (pa *PlatformAdapterGocq) SendGroupForwardMsg(ctx *MsgContext, groupID stri
 		return false
 	}
 
-	botID, _ := pa.mustExtractID(pa.EndPoint.UserID)
-	uin := strconv.FormatInt(botID, 10)
-	name := pa.EndPoint.Nickname
-	if ctx != nil {
-		if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
-			name = diceName
-		}
-	}
 	type sendGroupForwardParams struct {
 		GroupID  int64         `json:"group_id"`
 		Messages []forwardNode `json:"messages"`
 	}
 
-	nodes := buildForwardNodes(name, uin, title, contents)
-	if len(nodes) == 0 {
-		return false
-	}
-
-	sendText := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.Join(contents, "\n"))
+	sendText := forwardNodesToText(nodes)
 	if ctx != nil && ctx.Session != nil {
 		if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
 			msgToSend := &Message{
@@ -406,8 +393,8 @@ func (pa *PlatformAdapterGocq) SendGroupForwardMsg(ctx *MsgContext, groupID stri
 	return true
 }
 
-func (pa *PlatformAdapterGocq) SendPrivateForwardMsg(ctx *MsgContext, userID string, title string, contents []string) bool {
-	if userID == "" || len(contents) == 0 {
+func (pa *PlatformAdapterGocq) SendPrivateForwardMsg(ctx *MsgContext, userID string, nodes []forwardNode) bool {
+	if userID == "" || len(nodes) == 0 {
 		return false
 	}
 	rawUserID, idType := pa.mustExtractID(userID)
@@ -415,25 +402,12 @@ func (pa *PlatformAdapterGocq) SendPrivateForwardMsg(ctx *MsgContext, userID str
 		return false
 	}
 
-	botID, _ := pa.mustExtractID(pa.EndPoint.UserID)
-	uin := strconv.FormatInt(botID, 10)
-	name := pa.EndPoint.Nickname
-	if ctx != nil {
-		if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
-			name = diceName
-		}
-	}
 	type sendPrivateForwardParams struct {
 		UserID   int64         `json:"user_id"`
 		Messages []forwardNode `json:"messages"`
 	}
 
-	nodes := buildForwardNodes(name, uin, title, contents)
-	if len(nodes) == 0 {
-		return false
-	}
-
-	sendText := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.Join(contents, "\n"))
+	sendText := forwardNodesToText(nodes)
 	if ctx != nil && ctx.Dice != nil {
 		for _, i := range ctx.Dice.ExtList {
 			if i.OnMessageSend != nil {

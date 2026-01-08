@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,8 +22,8 @@ var (
 )
 
 type forwardMsgSender interface {
-	SendGroupForwardMsg(ctx *MsgContext, groupID string, title string, contents []string) bool
-	SendPrivateForwardMsg(ctx *MsgContext, userID string, title string, contents []string) bool
+	SendGroupForwardMsg(ctx *MsgContext, groupID string, nodes []forwardNode) bool
+	SendPrivateForwardMsg(ctx *MsgContext, userID string, nodes []forwardNode) bool
 }
 
 type forwardNodeData struct {
@@ -70,6 +71,54 @@ func buildForwardNodes(senderName string, senderUin string, title string, conten
 	return nodes
 }
 
+func BuildForwardNodesFromContext(ctx *MsgContext, title string, contents []string) []forwardNode {
+	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return nil
+	}
+	name := ctx.EndPoint.Nickname
+	if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名称")); diceName != "" {
+		name = diceName
+	}
+
+	var uin string
+	switch a := ctx.EndPoint.Adapter.(type) {
+	case *PlatformAdapterGocq:
+		botID, _ := a.mustExtractID(a.EndPoint.UserID)
+		if botID != 0 {
+			uin = strconv.FormatInt(botID, 10)
+		}
+	case *PlatformAdapterOnebot:
+		botID := ExtractQQEmitterUserID(ctx.EndPoint.UserID)
+		if botID != 0 {
+			uin = strconv.FormatInt(botID, 10)
+		}
+	default:
+		trimmed := strings.TrimPrefix(ctx.EndPoint.UserID, "PG-")
+		trimmed = strings.TrimPrefix(trimmed, "QQ-Group:")
+		trimmed = strings.TrimPrefix(trimmed, "QQ-CH-Group:")
+		trimmed = strings.TrimPrefix(trimmed, "QQ-CH:")
+		trimmed = strings.TrimPrefix(trimmed, "QQ:")
+		if trimmed != ctx.EndPoint.UserID {
+			uin = trimmed
+		}
+	}
+	if uin == "" {
+		return nil
+	}
+	return buildForwardNodes(name, uin, title, contents)
+}
+
+func forwardNodesToText(nodes []forwardNode) string {
+	parts := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		text := strings.TrimSpace(n.Data.Content)
+		if text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.TrimSpace(strings.Join(parts, "\n"))
+}
+
 // TryReplyToSenderMergedForward 尝试用“合并转发”发送多条内容。
 //
 // 返回值含义：
@@ -113,16 +162,20 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 	}
 
 	title = strings.TrimSpace(title)
+	nodes := BuildForwardNodesFromContext(ctx, title, contents)
+	if len(nodes) == 0 {
+		return false
+	}
 	switch msg.MessageType {
 	case "group":
-		ok := s.SendGroupForwardMsg(ctx, msg.GroupID, title, contents)
+		ok := s.SendGroupForwardMsg(ctx, msg.GroupID, nodes)
 		if ok && ctx.Group != nil {
 			ctx.Group.RecentDiceSendTime = time.Now().Unix()
 			ctx.Group.MarkDirty(ctx.Dice)
 		}
 		return ok
 	case "private":
-		return s.SendPrivateForwardMsg(ctx, msg.Sender.UserID, title, contents)
+		return s.SendPrivateForwardMsg(ctx, msg.Sender.UserID, nodes)
 	default:
 		return false
 	}
