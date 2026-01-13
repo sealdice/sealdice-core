@@ -109,6 +109,19 @@ type ExtInfo struct {
 	GetDescText         func(i *ExtInfo) string                               `jsbind:"getDescText"         json:"-" yaml:"-"`
 	IsLoaded            bool                                                  `jsbind:"isLoaded"            json:"-" yaml:"-"`
 	OnLoad              func()                                                `jsbind:"onLoad"              json:"-" yaml:"-"`
+	OnUnload            func()                                                `jsbind:"onUnload"            json:"-" yaml:"-"`
+
+	// 新增的hook点
+	OnUserJoined         func(ctx *MsgContext, msg *Message)                   `jsbind:"onUserJoined"        json:"-" yaml:"-"` // 用户加入
+	OnUserLeft           func(ctx *MsgContext, msg *Message)                   `jsbind:"onUserLeft"          json:"-" yaml:"-"` // 用户离开
+	OnGroupCreated       func(ctx *MsgContext, msg *Message)                   `jsbind:"onGroupCreated"      json:"-" yaml:"-"` // 群创建
+	OnGroupDestroyed     func(ctx *MsgContext, msg *Message)                   `jsbind:"onGroupDestroyed"    json:"-" yaml:"-"` // 群解散
+	OnCommandExecuted    func(ctx *MsgContext, cmdArgs *CmdArgs, result interface{}) `jsbind:"onCommandExecuted" json:"-" yaml:"-"` // 命令执行后
+	OnDiceRoll           func(ctx *MsgContext, expr string, result int)        `jsbind:"onDiceRoll"          json:"-" yaml:"-"` // 骰点结果
+	OnPluginLoad         func()                                                `jsbind:"onPluginLoad"        json:"-" yaml:"-"` // 插件加载时
+	OnPluginUnload       func()                                                `jsbind:"onPluginUnload"      json:"-" yaml:"-"` // 插件卸载时
+	OnConfigChanged      func(key string, oldValue, newValue interface{})     `jsbind:"onConfigChanged"     json:"-" yaml:"-"` // 配置变更
+	OnDatabaseOperation  func(operation string, table string, data interface{}) `jsbind:"onDatabaseOperation" json:"-" yaml:"-"` // 数据库操作
 
 	// Wrapper 相关字段
 	IsWrapper  bool   `json:"-" yaml:"-"` // 是否为 Wrapper ExtInfo (代理对象)
@@ -365,6 +378,16 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		loggerInstance.Info("js扩展支持：关闭")
 	}
 
+	// 初始化Python环境
+	if err := GlobalPythonManager.InitializePython(); err != nil {
+		loggerInstance.Warnf("Python扩展支持初始化失败: %v", err)
+	} else {
+		loggerInstance.Info("Python扩展支持：开启")
+		
+		// 自动加载Python插件
+		d.loadPythonExtensions(loggerInstance)
+	}
+
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
 			i.callWithJsCheck(d, func() {
@@ -550,6 +573,25 @@ func (d *Dice) _ExprEvalBaseV1(buffer string, ctx *MsgContext, flags RollExtraFl
 		lastToken := tks[len(tks)-1]
 		ret.restInput = strings.TrimSpace(string(runeBuffer[lastToken.end:]))
 		ret.Matched = strings.TrimSpace(string(runeBuffer[:lastToken.end]))
+
+		// 调用OnDiceRoll hook
+		if ctx != nil && ctx.Group != nil && ctx.Group.IsActive(ctx) {
+			for _, wrapper := range ctx.Group.GetActivatedExtList(d) {
+				ext := wrapper.GetRealExt()
+				if ext == nil {
+					continue
+				}
+				if ext.OnDiceRoll != nil {
+					// 对于整数结果调用hook
+					if ret.TypeID == VMTypeInt64 {
+						ext.callWithJsCheck(d, func() {
+							ext.OnDiceRoll(ctx, buffer, int(ret.Value.(int64)))
+						})
+					}
+				}
+			}
+		}
+
 		return &ret, detail, nil
 	}
 	return nil, "", err
@@ -1007,4 +1049,53 @@ func (d *Dice) PublicDiceSetup() {
 
 func (d *Dice) StoreSetup() {
 	d.StoreManager = NewStoreManager(d)
+}
+
+// loadPythonExtensions 自动加载data/extensions目录下的Python插件
+func (d *Dice) loadPythonExtensions(loggerInstance *zap.SugaredLogger) {
+	extensionsDir := filepath.Join(d.BaseConfig.DataDir, "extensions")
+	
+	// 确保extensions目录存在
+	if err := os.MkdirAll(extensionsDir, 0o755); err != nil {
+		loggerInstance.Warnf("无法创建Python扩展目录 %s: %v", extensionsDir, err)
+		return
+	}
+	
+	// 扫描目录中的.py文件
+	entries, err := os.ReadDir(extensionsDir)
+	if err != nil {
+		loggerInstance.Warnf("无法读取Python扩展目录 %s: %v", extensionsDir, err)
+		return
+	}
+	
+	pythonFilesLoaded := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		
+		// 只加载.py文件
+		if !strings.HasSuffix(entry.Name(), ".py") {
+			continue
+		}
+		
+		// 跳过__开头的文件（如__init__.py）
+		if strings.HasPrefix(entry.Name(), "__") {
+			continue
+		}
+		
+		pluginPath := filepath.Join(extensionsDir, entry.Name())
+		
+		// 尝试加载Python插件
+		if err := d.LoadPythonExtension(pluginPath); err != nil {
+			loggerInstance.Warnf("加载Python插件 %s 失败: %v", entry.Name(), err)
+		} else {
+			pythonFilesLoaded++
+			loggerInstance.Infof("成功加载Python插件: %s", entry.Name())
+		}
+	}
+	
+	if pythonFilesLoaded > 0 {
+		loggerInstance.Infof("已加载 %d 个Python插件", pythonFilesLoaded)
+	}
 }

@@ -669,6 +669,15 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/js/delete_unused_configs", handleDeleteUnusedConfigs)
 	e.POST(prefix+"/js/reset_config", handleResetConfig)
 
+	e.GET(prefix+"/python/list", pythonList)
+	e.POST(prefix+"/python/upload", pythonUpload)
+	e.POST(prefix+"/python/load", pythonLoad)
+	e.POST(prefix+"/python/unload", pythonUnload)
+	e.POST(prefix+"/python/execute", pythonExecute)
+	e.GET(prefix+"/python/config", pythonGetConfig)
+	e.POST(prefix+"/python/config", pythonSetConfig)
+	e.POST(prefix+"/python/call_api", pythonCallAPI)
+
 	e.GET(prefix+"/helpdoc/status", helpDocStatus)
 	e.GET(prefix+"/helpdoc/tree", helpDocTree)
 	e.POST(prefix+"/helpdoc/reload", helpDocReload)

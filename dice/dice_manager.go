@@ -197,6 +197,7 @@ func (dm *DiceManager) LoadDice() {
 		newDice := new(Dice)
 		newDice.BaseConfig = i
 		newDice.ContainerMode = dm.ContainerMode
+		newDice.Parent = dm
 		dm.Dice = append(dm.Dice, newDice)
 	}
 }

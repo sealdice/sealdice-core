@@ -156,6 +156,7 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	// 新扩展 = 不在 activatedExtList 中，也不在 InactivatedExtSet 中
 	g.ensureInactivatedSet()
 	newExtCount := 0
+	isPrivateGroup := strings.HasPrefix(g.GroupID, "PG-")
 	for _, ext := range d.ExtList {
 		if ext == nil {
 			continue
@@ -168,8 +169,13 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 		if g.IsExtInactivated(ext.Name) {
 			continue
 		}
-		// 新扩展：根据 AutoActive 决定是否激活
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		// 新扩展：根据 AutoActive 或私聊设置决定是否激活
+		shouldActivate := ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive)
+		// 私聊群组：自动激活设置了 ActiveOnPrivate 的扩展
+		if isPrivateGroup && ext.ActiveOnPrivate {
+			shouldActivate = true
+		}
+		if shouldActivate {
 			newList = append([]*ExtInfo{ext}, newList...) // 插入头部
 			activated[ext.Name] = true
 			newExtCount++
@@ -1553,6 +1559,21 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 			}()
 		}
 	}
+
+	// 调用扩展的OnUserJoined hook
+	if groupInfo != nil && groupInfo.IsActive(ctx) {
+		for _, wrapper := range groupInfo.GetActivatedExtList(s.Parent) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnUserJoined != nil {
+				ext.callWithJsCheck(s.Parent, func() {
+					ext.OnUserJoined(ctx, msg)
+				})
+			}
+		}
+	}
 }
 
 var platformRE = regexp.MustCompile(`^(.*)-Group:`)
@@ -1971,6 +1992,21 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			if ext.OnCommandReceived != nil {
 				ext.callWithJsCheck(ctx.Dice, func() {
 					ext.OnCommandReceived(ctx, msg, cmdArgs)
+				})
+			}
+		}
+	}
+
+	// 调用OnCommandExecuted hook
+	if group != nil && group.IsActive(ctx) {
+		for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+			ext := wrapper.GetRealExt()
+			if ext == nil {
+				continue
+			}
+			if ext.OnCommandExecuted != nil {
+				ext.callWithJsCheck(ctx.Dice, func() {
+					ext.OnCommandExecuted(ctx, cmdArgs, solved)
 				})
 			}
 		}
