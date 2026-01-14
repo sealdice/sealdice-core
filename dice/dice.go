@@ -275,6 +275,9 @@ type Dice struct {
 	/* 扩展商店 */
 	StoreManager *StoreManager `json:"-" yaml:"-"`
 
+	/* 扩展包管理 */
+	PackageManager *PackageManager `json:"-" yaml:"-"`
+
 	/* Wrapper 架构 */
 	JsExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"` // JS 扩展真实 ExtInfo 注册表
 	ExtUpdateTime int64                      `json:"-" yaml:"-"` // 扩展变更时间戳，用于触发群组延迟更新
@@ -355,6 +358,9 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	go d.PublicDiceSetup()
 
 	go d.StoreSetup()
+
+	// 初始化扩展包管理器
+	d.PackageSetup()
 
 	// 创建js运行时
 	if d.Config.JsEnable {
@@ -582,8 +588,85 @@ func (d *Dice) _ExprTextV1(buffer string, ctx *MsgContext) (string, string, erro
 	return "格式化错误V1:" + textQuote, "", errors.New("格式化错误V1:" + textQuote)
 }
 
+// ExtGetFullName 返回扩展的完整名称（作者/扩展名格式）
+func (ei *ExtInfo) ExtGetFullName() string {
+	if ei.Author != "" {
+		return ei.Author + "/" + ei.Name
+	}
+	return ei.Name
+}
+
+// ExtFindByFullName 根据完整名称（作者/扩展名）查找扩展
+func (d *Dice) ExtFindByFullName(author, name string) *ExtInfo {
+	for _, i := range d.ExtList {
+		if strings.EqualFold(i.Author, author) && strings.EqualFold(i.Name, name) {
+			return i
+		}
+	}
+	if d.ExtRegistry != nil {
+		var found *ExtInfo
+		d.ExtRegistry.Range(func(_ string, ext *ExtInfo) bool {
+			if ext != nil && strings.EqualFold(ext.Author, author) && strings.EqualFold(ext.Name, name) {
+				found = ext
+				return false
+			}
+			return true
+		})
+		if found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+// ExtFindAllByName 查找所有同名的扩展（不同作者）
+func (d *Dice) ExtFindAllByName(name string) []*ExtInfo {
+	var result []*ExtInfo
+	seen := make(map[string]bool)
+
+	for _, i := range d.ExtList {
+		if strings.EqualFold(i.Name, name) || slices.Contains(i.Aliases, strings.ToLower(name)) {
+			key := i.Author + "/" + i.Name
+			if !seen[key] {
+				seen[key] = true
+				result = append(result, i)
+			}
+		}
+	}
+	if d.ExtRegistry != nil {
+		d.ExtRegistry.Range(func(_ string, ext *ExtInfo) bool {
+			if ext != nil && (strings.EqualFold(ext.Name, name) || slices.Contains(ext.Aliases, strings.ToLower(name))) {
+				key := ext.Author + "/" + ext.Name
+				if !seen[key] {
+					seen[key] = true
+					result = append(result, ext)
+				}
+			}
+			return true
+		})
+	}
+	return result
+}
+
 // ExtFind 根据名称或别名查找扩展
+// 支持 "作者/扩展名" 格式进行精确匹配
 func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
+	// 检查是否是 作者/扩展名 格式
+	if strings.Contains(s, "/") {
+		parts := strings.SplitN(s, "/", 2)
+		if len(parts) == 2 {
+			author := strings.TrimSpace(parts[0])
+			name := strings.TrimSpace(parts[1])
+			if author != "" && name != "" {
+				ext := d.ExtFindByFullName(author, name)
+				if ext != nil {
+					return d.extFindPostProcess(ext, fromJS)
+				}
+				return nil
+			}
+		}
+	}
+
 	find := func(_ string) *ExtInfo {
 		if d.ExtRegistry != nil {
 			if ext, ok := d.ExtRegistry.Load(s); ok && ext != nil {
@@ -614,7 +697,11 @@ func (d *Dice) ExtFind(s string, fromJS bool) *ExtInfo {
 		return nil
 	}
 	ext := find(s)
+	return d.extFindPostProcess(ext, fromJS)
+}
 
+// extFindPostProcess 对查找到的扩展进行后处理（处理 Wrapper 和 Official）
+func (d *Dice) extFindPostProcess(ext *ExtInfo, fromJS bool) *ExtInfo {
 	// Wrapper 代理：如果是 wrapper 且从 JS 调用，返回真实扩展
 	// 如果 JsExtRegistry 中找不到真实扩展（例如重载期间），返回 nil
 	// 这确保 JS 脚本会创建新的真实 ExtInfo，而不是复用 Wrapper
@@ -808,6 +895,54 @@ func (d *Dice) GameSystemTemplateAddEx(tmpl *GameSystemTemplate, overwrite bool)
 // GameSystemTemplateAdd 应用一个角色模板，当已存在时返回false
 func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return d.GameSystemTemplateAddEx(tmpl, false)
+}
+
+// GameSystemTemplateReload 重载游戏系统模板（从指定目录）
+func (d *Dice) GameSystemTemplateReload(templateDir string) error {
+	if templateDir == "" {
+		templateDir = filepath.Join(d.BaseConfig.DataDir, "data", "game-templates")
+	}
+
+	// 确保目录存在
+	if _, err := os.Stat(templateDir); os.IsNotExist(err) {
+		return nil // 目录不存在，跳过
+	}
+
+	entries, err := os.ReadDir(templateDir)
+	if err != nil {
+		return err
+	}
+
+	count := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		ext := filepath.Ext(entry.Name())
+		if ext != ".yaml" && ext != ".yml" && ext != ".json" {
+			continue
+		}
+
+		templatePath := filepath.Join(templateDir, entry.Name())
+		tmpl, err := LoadGameSystemTemplateFromFile(templatePath)
+		if err != nil {
+			d.Logger.Warnf("加载模板 %s 失败: %v", entry.Name(), err)
+			continue
+		}
+
+		// 使用 overwrite=true 允许覆盖现有模板
+		if d.GameSystemTemplateAddEx(tmpl, true) {
+			count++
+			d.Logger.Infof("模板 %s 已重载", tmpl.Name)
+		}
+	}
+
+	if count > 0 {
+		d.Logger.Infof("游戏系统模板重载完成，共 %d 个", count)
+	}
+
+	return nil
 }
 
 // generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID和堆栈信息组成
@@ -1007,4 +1142,12 @@ func (d *Dice) PublicDiceSetup() {
 
 func (d *Dice) StoreSetup() {
 	d.StoreManager = NewStoreManager(d)
+}
+
+// PackageSetup 初始化扩展包管理器
+func (d *Dice) PackageSetup() {
+	d.PackageManager = NewPackageManager(d)
+	if err := d.PackageManager.Init(); err != nil {
+		d.Logger.Errorf("初始化扩展包管理器失败: %v", err)
+	}
 }

@@ -126,6 +126,8 @@ type DeckInfo struct {
 	Cloud              bool                          `json:"cloud"         yaml:"cloud"` // 含有云端内容
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `json:"-"             yaml:"-"`
 	StoreID            string                        `json:"storeID"       yaml:"storeID"`
+	/** 所属扩展包ID，空表示独立安装 */
+	PackageID          string                        `json:"packageId"     yaml:"-"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
@@ -525,6 +527,64 @@ func DecksDetect(d *Dice) {
 		}
 		return nil
 	})
+
+	// 加载扩展包内的牌堆
+	if d.PackageManager != nil {
+		for _, pkg := range d.PackageManager.GetEnabled() {
+			if pkg == nil || pkg.Manifest == nil {
+				continue
+			}
+			pkgDecksPath := filepath.Join(pkg.InstallPath, "decks")
+			if _, err := os.Stat(pkgDecksPath); os.IsNotExist(err) {
+				continue
+			}
+			pkgID := pkg.Manifest.Package.ID
+			_ = filepath.Walk(pkgDecksPath, func(deckPath string, info fs.FileInfo, err error) error {
+				if err != nil || info.IsDir() {
+					return nil
+				}
+				// 跳过特殊目录
+				if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
+					return fs.SkipDir
+				}
+				ext := filepath.Ext(deckPath)
+				if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" {
+					d.Logger.Infof("正在加载扩展包 %s 的牌堆: %s", pkgID, deckPath)
+					DeckTryParseWithPackage(d, deckPath, pkgID)
+				}
+				return nil
+			})
+		}
+	}
+}
+
+// DeckTryParseWithPackage 解析牌堆并设置所属扩展包ID
+func DeckTryParseWithPackage(d *Dice, fn string, packageID string) {
+	content, err := os.ReadFile(fn)
+	if err != nil {
+		d.Logger.Infof("牌堆文件 %s 加载失败", fn)
+		return
+	}
+	deckInfo := new(DeckInfo)
+	if deckInfo.DeckItems == nil {
+		deckInfo.DeckItems = map[string][]string{}
+	}
+	if deckInfo.Command == nil {
+		deckInfo.Command = map[string]bool{}
+	}
+	if deckInfo.CloudDeckItemInfos == nil {
+		deckInfo.CloudDeckItemInfos = map[string]*CloudDeckItemInfo{}
+	}
+	_ = parseDeck(d, fn, content, deckInfo)
+	deckInfo.Filename = fn
+	deckInfo.PackageID = packageID
+
+	if deckInfo.Name == "" {
+		deckInfo.Name = filepath.Base(fn)
+	}
+
+	d.DeckList = append(d.DeckList, deckInfo)
+	d.MarkModified()
 }
 
 func DeckDelete(_ *Dice, deck *DeckInfo) {
