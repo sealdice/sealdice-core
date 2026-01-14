@@ -2011,7 +2011,22 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 }
 
 func (s *IMSession) OnPoke(ctx *MsgContext, event *events.PokeEvent) {
-	if !ctx.Group.IsActive(ctx) {
+	if ctx == nil || event == nil {
+		return
+	}
+	// Poke 事件可能缺少群/成员信息（例如 OneBot 获取群成员信息失败时），避免空指针导致崩溃。
+	if ctx.Group == nil && event.GroupID != "" {
+		if group, ok := s.ServiceAtNew.Load(event.GroupID); ok {
+			ctx.Group = group
+		} else {
+			// 确保群信息至少被初始化到全局列表，便于后续扩展读取/写入
+			ctx.Group = SetBotOnAtGroup(ctx, event.GroupID)
+		}
+	}
+	if ctx.Group == nil {
+		return
+	}
+	if ctx.MessageType == "group" && !ctx.Group.IsActive(ctx) {
 		return
 	}
 	for _, wrapper := range ctx.Group.GetActivatedExtList(ctx.Dice) {
