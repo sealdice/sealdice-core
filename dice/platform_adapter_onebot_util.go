@@ -996,7 +996,11 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		}
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Player.Name == "" {
-			ctx.Player.Name = wrapper.Sender.Nickname
+			if wrapper.Sender.Nickname != "" {
+				ctx.Player.Name = wrapper.Sender.Nickname
+			} else {
+				ctx.Player.Name = wrapper.Sender.UserID
+			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
 			if ctx.Group != nil {
 				ctx.Group.MarkDirty(ctx.Dice)
