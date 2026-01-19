@@ -85,6 +85,6 @@ func (s *BaseService) SecurityCheck(_ context.Context, _ *struct{}) (*response.I
 	return response.NewItemResponse[bool](!isEmptyPassword || !isPublicService), nil
 }
 
-// 私以为这应该是个WebSocket接口
+// 私以为这应该是个WebSocket接口 准备使用Melody进行改造 先不放在这里
 //func (s *BaseService) GetDiceLogItems(_ context.Context, req *request.RequestWrapper[]) (*response.ItemResponse[bool], error) {
 //}

@@ -21,6 +21,7 @@ func NewItemResponse[T any](item T) *ItemResponse[T] {
 	res := Body[T]{}
 	res.Item = item
 	return &ItemResponse[T]{
-		Body: res,
+		Status: 200,
+		Body:   res,
 	}
 }
