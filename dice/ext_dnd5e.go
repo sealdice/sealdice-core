@@ -503,11 +503,21 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					}
 					modifier, ok := r2.ReadInt()
 					if !ok {
-						ReplyToSender(mctx, msg, "无法解析表达式: "+restText)
-						return CmdExecuteResult{Matched: true, Solved: true}
+						// 如果不是整数，尝试读取浮点数并向下取整（符合DND规则）
+						if r2.TypeId == ds.VMTypeFloat {
+							modifier = ds.IntType(math.Floor(r2.MustReadFloat()))
+						} else {
+							ReplyToSender(mctx, msg, fmt.Sprintf("属性非数字类型，无法用于检定: %s", restText))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
 					}
 					// 这里只能手动格式化，为了保证不丢信息
-					detail := fmt.Sprintf("%s + %s", diceDetail, r2.vm.GetDetailText())
+					modifierDetail := r2.vm.GetDetailText()
+					if modifierDetail == "" {
+						// 如果GetDetailText为空(例如自定义属性)，使用计算结果的字符串表示
+						modifierDetail = r2.ToString()
+					}
+					detail := fmt.Sprintf("%s + %s", diceDetail, modifierDetail)
 					// Pinenutn/bugtower100：猜测这里只是格式化的部分，所以如果做多次检定，这个变量保存最后一次就够了
 					VarSetValueStr(mctx, "$t技能", reason)
 					VarSetValueStr(mctx, "$t检定过程文本", detail)
