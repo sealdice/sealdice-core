@@ -85,15 +85,20 @@ func (e *emitterSocket) HandleEcho(resp Response[sonic.NoCopyRawMessage]) {
 		atomic.AddUint64(&e.droppedEchoCount, 1)
 		return
 	}
-	if chAny, ok := e.waiters.Load(resp.Echo); ok {
-		ch := chAny.(chan Response[sonic.NoCopyRawMessage])
-		select {
-		case ch <- resp:
-		default:
-		}
+	chAny, ok := e.waiters.Load(resp.Echo)
+	if !ok {
+		atomic.AddUint64(&e.droppedEchoCount, 1)
 		return
 	}
-	atomic.AddUint64(&e.droppedEchoCount, 1)
+	ch, ok := chAny.(chan Response[sonic.NoCopyRawMessage])
+	if !ok {
+		atomic.AddUint64(&e.droppedEchoCount, 1)
+		return
+	}
+	select {
+	case ch <- resp:
+	default:
+	}
 }
 
 func (e *emitterSocket) SetSelfId(_ context.Context, selfId int64) error {
@@ -103,13 +108,17 @@ func (e *emitterSocket) SetSelfId(_ context.Context, selfId int64) error {
 	return nil
 }
 
-func (e *emitterSocket) waitEcho(ctx context.Context, echoId string) (Response[sonic.NoCopyRawMessage], error) {
+func (e *emitterSocket) waitEchoAfterSend(ctx context.Context, echoId string, send func() error) (Response[sonic.NoCopyRawMessage], error) {
 	ctx, cancel := context.WithTimeout(ctx, EchoTimeOut)
 	defer cancel()
 
 	ch := make(chan Response[sonic.NoCopyRawMessage], 1)
 	e.waiters.Store(echoId, ch)
 	defer e.waiters.Delete(echoId)
+
+	if err := send(); err != nil {
+		return Response[sonic.NoCopyRawMessage]{}, err
+	}
 
 	select {
 	case <-ctx.Done():
@@ -119,11 +128,7 @@ func (e *emitterSocket) waitEcho(ctx context.Context, echoId string) (Response[s
 	}
 }
 
-func waitAndDecode[R any](ctx context.Context, e *emitterSocket, echoId string) (*R, error) {
-	resp, err := e.waitEcho(ctx, echoId)
-	if err != nil {
-		return nil, err
-	}
+func decodeResponse[R any](resp Response[sonic.NoCopyRawMessage]) (*R, error) {
 	if strings.EqualFold("failed", resp.Status) {
 		return nil, fmt.Errorf("action failed, status=%s retcode=%d", resp.Status, resp.RetCode)
 	}
@@ -135,105 +140,81 @@ func waitAndDecode[R any](ctx context.Context, e *emitterSocket, echoId string) 
 }
 
 func (e *emitterSocket) SendPvtMsg(ctx context.Context, userId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_SEND_PRIVATE_MSG, types.SendPrivateMsgReq{
+	resp, err := doAction(ctx, e, ACTION_SEND_PRIVATE_MSG, types.SendPrivateMsgReq{
 		UserId:  userId,
 		Message: msg,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.SendMsgRes](ctx, e, echoId)
+	return decodeResponse[types.SendMsgRes](resp)
 }
 
 func (e *emitterSocket) SendGrMsg(ctx context.Context, groupId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_SEND_GROUP_MSG, types.SendGrMsgReq{
+	resp, err := doAction(ctx, e, ACTION_SEND_GROUP_MSG, types.SendGrMsgReq{
 		GroupId: groupId,
 		Message: msg,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.SendMsgRes](ctx, e, echoId)
+	return decodeResponse[types.SendMsgRes](resp)
 }
 
 func (e *emitterSocket) GetMsg(ctx context.Context, msgId int) (*types.GetMsgRes, error) {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_GET_MSG, types.GetMsgReq{
+	resp, err := doAction(ctx, e, ACTION_GET_MSG, types.GetMsgReq{
 		MessageId: msgId,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.GetMsgRes](ctx, e, echoId)
+	return decodeResponse[types.GetMsgRes](resp)
 }
 
 func (e *emitterSocket) DelMsg(ctx context.Context, msgId int) error {
-	e.mu.Lock()
-	echoId, err := wsAction[any](e.conn, ACTION_DELETE_MSG, types.DelMsgReq{
+	resp, err := doAction(ctx, e, ACTION_DELETE_MSG, types.DelMsgReq{
 		MessageId: msgId,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return err
 	}
-	e.mu.Unlock()
-	_, err = waitAndDecode[any](ctx, e, echoId)
+	_, err = decodeResponse[any](resp)
 	return err
 }
 
 func (e *emitterSocket) GetLoginInfo(ctx context.Context) (*types.LoginInfo, error) {
-	e.mu.Lock()
-	echoId, err := wsAction[any](e.conn, ACTION_GET_LOGIN_INFO, nil)
+	resp, err := doAction(ctx, e, ACTION_GET_LOGIN_INFO, nil)
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.LoginInfo](ctx, e, echoId)
+	return decodeResponse[types.LoginInfo](resp)
 }
 
 func (e *emitterSocket) GetStrangerInfo(ctx context.Context, userId int64, noCache bool) (*types.StrangerInfo, error) {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_GET_STRANGER_INFO, types.GetStrangerInfo{
+	resp, err := doAction(ctx, e, ACTION_GET_STRANGER_INFO, types.GetStrangerInfo{
 		UserId:  userId,
 		NoCache: noCache,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.StrangerInfo](ctx, e, echoId)
+	return decodeResponse[types.StrangerInfo](resp)
 }
 
 func (e *emitterSocket) GetStatus(ctx context.Context) (*types.Status, error) {
-	e.mu.Lock()
-	echoId, err := wsAction[any](e.conn, ACTION_GET_STATUS, nil)
+	resp, err := doAction(ctx, e, ACTION_GET_STATUS, nil)
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.Status](ctx, e, echoId)
+	return decodeResponse[types.Status](resp)
 }
 
 func (e *emitterSocket) GetVersionInfo(ctx context.Context) (*types.VersionInfo, error) {
-	e.mu.Lock()
-	echoId, err := wsAction[any](e.conn, ACTION_GET_VERSION_INFO, nil)
+	resp, err := doAction(ctx, e, ACTION_GET_VERSION_INFO, nil)
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.VersionInfo](ctx, e, echoId)
+	return decodeResponse[types.VersionInfo](resp)
 }
 
 func (e *emitterSocket) GetSelfId(_ context.Context) (int64, error) {
@@ -241,140 +222,123 @@ func (e *emitterSocket) GetSelfId(_ context.Context) (int64, error) {
 }
 
 func (e *emitterSocket) SetFriendAddRequest(ctx context.Context, flag string, approve bool, remark string) error {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_SET_FRIEND_ADD_REQUEST, types.FriendAddReq{
+	resp, err := doAction(ctx, e, ACTION_SET_FRIEND_ADD_REQUEST, types.FriendAddReq{
 		Flag:    flag,
 		Approve: approve,
 		Remark:  remark,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return err
 	}
-	e.mu.Unlock()
-	_, err = waitAndDecode[any](ctx, e, echoId)
+	_, err = decodeResponse[any](resp)
 	return err
 }
 
 func (e *emitterSocket) SetGroupAddRequest(ctx context.Context, flag string, approve bool, reason string) error {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_SET_GROUP_ADD_REQUEST, types.GroupAddReq{
+	resp, err := doAction(ctx, e, ACTION_SET_GROUP_ADD_REQUEST, types.GroupAddReq{
 		Flag:    flag,
 		Approve: approve,
 		Reason:  reason,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return err
 	}
-	e.mu.Unlock()
-	_, err = waitAndDecode[any](ctx, e, echoId)
+	_, err = decodeResponse[any](resp)
 	return err
 }
 
 func (e *emitterSocket) SetGroupSpecialTitle(ctx context.Context, groupId int64, userId int64, specialTitle string, duration int) error {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_SET_GROUP_SPECIAL_TITLE, types.SpecialTitleReq{
+	resp, err := doAction(ctx, e, ACTION_SET_GROUP_SPECIAL_TITLE, types.SpecialTitleReq{
 		GroupId:      groupId,
 		UserId:       userId,
 		SpecialTitle: specialTitle,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return err
 	}
-	e.mu.Unlock()
-	_, err = waitAndDecode[any](ctx, e, echoId)
+	_, err = decodeResponse[any](resp)
 	return err
 }
 
 // ADD 不存在于Onebot大典的内容
 
 func (e *emitterSocket) QuitGroup(ctx context.Context, groupId int64) error {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_QUIT_GROUP, types.QuitGroupReq{
+	resp, err := doAction(ctx, e, ACTION_QUIT_GROUP, types.QuitGroupReq{
 		GroupId: groupId,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return err
 	}
-	e.mu.Unlock()
-	_, err = waitAndDecode[any](ctx, e, echoId)
+	_, err = decodeResponse[any](resp)
 	return err
 }
 
 func (e *emitterSocket) SetGroupCard(ctx context.Context, groupId int64, userId int64, card string) error {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_SET_GROUP_CARD, types.SetGroupCardReq{
+	resp, err := doAction(ctx, e, ACTION_SET_GROUP_CARD, types.SetGroupCardReq{
 		GroupId: groupId,
 		UserId:  userId,
 		Card:    card,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return err
 	}
-	e.mu.Unlock()
-	_, err = waitAndDecode[any](ctx, e, echoId)
+	_, err = decodeResponse[any](resp)
 	return err
 }
 
 func (e *emitterSocket) GetGroupInfo(ctx context.Context, groupId int64, noCache bool) (*types.GroupInfo, error) {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_GET_GROUP_INFO, types.GetGroupInfoReq{
+	resp, err := doAction(ctx, e, ACTION_GET_GROUP_INFO, types.GetGroupInfoReq{
 		GroupId: groupId,
 		NoCache: noCache,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.GroupInfo](ctx, e, echoId)
+	return decodeResponse[types.GroupInfo](resp)
 }
 
 func (e *emitterSocket) GetGroupMemberInfo(ctx context.Context, groupId int64, userId int64, noCache bool) (*types.GroupMemberInfo, error) {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, ACTION_GET_GROUP_MEMBER_INFO, types.GetGroupMemberInfoReq{
+	resp, err := doAction(ctx, e, ACTION_GET_GROUP_MEMBER_INFO, types.GetGroupMemberInfoReq{
 		GroupId: groupId,
 		UserId:  userId,
 		NoCache: noCache,
 	})
 	if err != nil {
-		e.mu.Unlock()
 		return nil, err
 	}
-	e.mu.Unlock()
-	return waitAndDecode[types.GroupMemberInfo](ctx, e, echoId)
+	return decodeResponse[types.GroupMemberInfo](resp)
 }
 
 func (e *emitterSocket) Raw(ctx context.Context, action Action, params any) ([]byte, error) {
-	e.mu.Lock()
-	echoId, err := wsAction(e.conn, action, params)
-	if err != nil {
-		e.mu.Unlock()
-		return nil, err
-	}
-	e.mu.Unlock()
-	resp, err := e.waitEcho(ctx, echoId)
+	resp, err := doAction(ctx, e, action, params)
 	if err != nil {
 		return nil, err
 	}
 	return sonic.Marshal(resp)
 }
 
-func wsAction[P any](w *socketio.WebsocketWrapper, action string, params P) (string, error) {
-	echoid := uuid.New().String()
-	marshal, err := sonic.Marshal(Request[P]{
+func doAction(ctx context.Context, e *emitterSocket, action string, params any) (Response[sonic.NoCopyRawMessage], error) {
+	echoId := uuid.New().String()
+	resp, err := e.waitEchoAfterSend(ctx, echoId, func() error {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		return wsEmitWithEcho(e.conn, action, params, echoId)
+	})
+	if err != nil {
+		return Response[sonic.NoCopyRawMessage]{}, err
+	}
+	return resp, nil
+}
+
+func wsEmitWithEcho(w *socketio.WebsocketWrapper, action string, params any, echoId string) error {
+	marshal, err := sonic.Marshal(Request[any]{
 		Action: action,
-		Echo:   echoid,
+		Echo:   echoId,
 		Params: params,
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
-	// 消息推入消息队列，等待发送
 	w.Emit(marshal, socketio.TextMessage)
-	return echoid, nil
+	return nil
 }
