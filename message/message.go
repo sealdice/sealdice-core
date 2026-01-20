@@ -476,10 +476,6 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 				localPath = localPath[1:]
 			}
 			localPath = filepath.FromSlash(localPath)
-		} else {
-			// 普通路径：不使用url.Parse（Windows盘符会被误判为scheme）
-			// 直接使用原始路径
-			localPath = fp
 		}
 
 		info, err := os.Stat(localPath)
