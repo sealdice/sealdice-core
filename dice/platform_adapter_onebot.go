@@ -92,7 +92,15 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 	if p.sendEmitter != nil {
-		_ = p.sendEmitter.QuitGroup(p.ctx, ExtractQQEmitterGroupID(id))
+		gid := ExtractQQEmitterGroupID(id)
+		err := p.sendEmitter.QuitGroup(p.ctx, gid)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				p.logger.Warnf("QuitGroup 超时: group=%s gid=%d err=%v", id, gid, err)
+			} else {
+				p.logger.Warnf("QuitGroup 失败: group=%s gid=%d err=%v", id, gid, err)
+			}
+		}
 	}
 }
 
@@ -122,6 +130,11 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 	rawMsg, msgText := convertSealMsgToMessageChain(msg)
 	rawId, err := p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
+		} else {
+			p.logger.Warnf("SendGrMsg 失败: group=%s err=%v", groupID, err)
+		}
 		return
 	}
 	// 支援插件发送调用
@@ -272,7 +285,7 @@ func (p *PlatformAdapterOnebot) MemberKick(_ string, _ string) {
 func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	// 连接成功，获取当前登录状态
 	if p.emitterChan == nil {
-		p.emitterChan = make(chan emitter.Response[sonic.NoCopyRawMessage], 32)
+		p.emitterChan = make(chan emitter.Response[sonic.NoCopyRawMessage], 256)
 	}
 	p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
@@ -308,7 +321,15 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 			if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
 				p.logger.Errorf("echo 数据传输异常 %v", err)
 			}
-			p.emitterChan <- echoer
+			if p.emitterChan == nil {
+				p.logger.Warnf("echo 丢弃: emitterChan=nil echo=%s status=%s retcode=%d", echoer.Echo, echoer.Status, echoer.RetCode)
+				return
+			}
+			select {
+			case p.emitterChan <- echoer:
+			default:
+				p.logger.Warnf("echo 通道已满，丢弃: echo=%s status=%s retcode=%d len=%d cap=%d", echoer.Echo, echoer.Status, echoer.RetCode, len(p.emitterChan), cap(p.emitterChan))
+			}
 		})
 	}
 

@@ -313,7 +313,10 @@ func (e *emitterSocket) Raw(ctx context.Context, action Action, params any) ([]b
 			return nil, ctx.Err()
 		case echo := <-e.echo:
 			if !strings.EqualFold(echoId, echo.Echo) {
-				e.echo <- echo
+				select {
+				case e.echo <- echo:
+				default:
+				}
 				continue
 			}
 			return sonic.Marshal(echo)
@@ -345,11 +348,14 @@ func wsWait[R any](ctx context.Context, echoId string, echoChan chan Response[so
 			return nil, ctx.Err()
 		case echo := <-echoChan:
 			if !strings.EqualFold(echoId, echo.Echo) {
-				echoChan <- echo
+				select {
+				case echoChan <- echo:
+				default:
+				}
 				continue
 			}
 			if strings.EqualFold("failed", echo.Status) {
-				return nil, fmt.Errorf("action failed, rawdata: %x, please see onebot logs", echo.Status)
+				return nil, fmt.Errorf("action failed, status=%s retcode=%d", echo.Status, echo.RetCode)
 			}
 			var res R
 			if err := sonic.Unmarshal(echo.Data, &res); err != nil {
