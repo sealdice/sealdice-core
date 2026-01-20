@@ -404,9 +404,10 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	result := checkBlackList(req.Get("user_id").String(), "user", ctx)
 	passblackList = result.Passed
 	// 格式化请求的数据
-	comment = strconv.Quote(comment)
 	if comment == "" {
 		comment = "(无)"
+	} else {
+		comment = strconv.Quote(comment)
 	}
 	if !passQuestion {
 		extra = "。回答错误"
