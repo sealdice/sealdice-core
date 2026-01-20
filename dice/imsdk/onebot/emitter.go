@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -43,6 +44,8 @@ type Emitter interface {
 	GetGroupInfo(ctx context.Context, groupId int64, noCache bool) (*types.GroupInfo, error)
 	GetGroupMemberInfo(ctx context.Context, groupId int64, userId int64, noCache bool) (*types.GroupMemberInfo, error)
 	Raw(ctx context.Context, action Action, params any) ([]byte, error)
+
+	HandleEcho(resp Response[sonic.NoCopyRawMessage])
 }
 
 var _ Emitter = (*emitterSocket)(nil)
@@ -63,16 +66,34 @@ type Response[T any] struct {
 type emitterSocket struct {
 	mu     sync.Mutex
 	conn   *socketio.WebsocketWrapper
-	echo   chan Response[sonic.NoCopyRawMessage]
 	selfId int64
+
+	waiters sync.Map // map[string]chan Response[sonic.NoCopyRawMessage]
+
+	droppedEchoCount uint64
 }
 
-func NewEVEmitter(conn *socketio.WebsocketWrapper, echo chan Response[sonic.NoCopyRawMessage]) *emitterSocket {
+func NewEVEmitter(conn *socketio.WebsocketWrapper) *emitterSocket {
 	emitter := &emitterSocket{
 		conn: conn,
-		echo: echo,
 	}
 	return emitter
+}
+
+func (e *emitterSocket) HandleEcho(resp Response[sonic.NoCopyRawMessage]) {
+	if resp.Echo == "" {
+		atomic.AddUint64(&e.droppedEchoCount, 1)
+		return
+	}
+	if chAny, ok := e.waiters.Load(resp.Echo); ok {
+		ch := chAny.(chan Response[sonic.NoCopyRawMessage])
+		select {
+		case ch <- resp:
+		default:
+		}
+		return
+	}
+	atomic.AddUint64(&e.droppedEchoCount, 1)
 }
 
 func (e *emitterSocket) SetSelfId(_ context.Context, selfId int64) error {
@@ -80,6 +101,37 @@ func (e *emitterSocket) SetSelfId(_ context.Context, selfId int64) error {
 	defer e.mu.Unlock()
 	e.selfId = selfId
 	return nil
+}
+
+func (e *emitterSocket) waitEcho(ctx context.Context, echoId string) (Response[sonic.NoCopyRawMessage], error) {
+	ctx, cancel := context.WithTimeout(ctx, EchoTimeOut)
+	defer cancel()
+
+	ch := make(chan Response[sonic.NoCopyRawMessage], 1)
+	e.waiters.Store(echoId, ch)
+	defer e.waiters.Delete(echoId)
+
+	select {
+	case <-ctx.Done():
+		return Response[sonic.NoCopyRawMessage]{}, ctx.Err()
+	case resp := <-ch:
+		return resp, nil
+	}
+}
+
+func waitAndDecode[R any](ctx context.Context, e *emitterSocket, echoId string) (*R, error) {
+	resp, err := e.waitEcho(ctx, echoId)
+	if err != nil {
+		return nil, err
+	}
+	if strings.EqualFold("failed", resp.Status) {
+		return nil, fmt.Errorf("action failed, status=%s retcode=%d", resp.Status, resp.RetCode)
+	}
+	var res R
+	if err := sonic.Unmarshal(resp.Data, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (e *emitterSocket) SendPvtMsg(ctx context.Context, userId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
@@ -93,7 +145,7 @@ func (e *emitterSocket) SendPvtMsg(ctx context.Context, userId int64, msg schema
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.SendMsgRes](ctx, echoId, e.echo)
+	return waitAndDecode[types.SendMsgRes](ctx, e, echoId)
 }
 
 func (e *emitterSocket) SendGrMsg(ctx context.Context, groupId int64, msg schema.MessageChain) (*types.SendMsgRes, error) {
@@ -107,7 +159,7 @@ func (e *emitterSocket) SendGrMsg(ctx context.Context, groupId int64, msg schema
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.SendMsgRes](ctx, echoId, e.echo)
+	return waitAndDecode[types.SendMsgRes](ctx, e, echoId)
 }
 
 func (e *emitterSocket) GetMsg(ctx context.Context, msgId int) (*types.GetMsgRes, error) {
@@ -120,7 +172,7 @@ func (e *emitterSocket) GetMsg(ctx context.Context, msgId int) (*types.GetMsgRes
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.GetMsgRes](ctx, echoId, e.echo)
+	return waitAndDecode[types.GetMsgRes](ctx, e, echoId)
 }
 
 func (e *emitterSocket) DelMsg(ctx context.Context, msgId int) error {
@@ -133,7 +185,7 @@ func (e *emitterSocket) DelMsg(ctx context.Context, msgId int) error {
 		return err
 	}
 	e.mu.Unlock()
-	_, err = wsWait[any](ctx, echoId, e.echo)
+	_, err = waitAndDecode[any](ctx, e, echoId)
 	return err
 }
 
@@ -145,7 +197,7 @@ func (e *emitterSocket) GetLoginInfo(ctx context.Context) (*types.LoginInfo, err
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.LoginInfo](ctx, echoId, e.echo)
+	return waitAndDecode[types.LoginInfo](ctx, e, echoId)
 }
 
 func (e *emitterSocket) GetStrangerInfo(ctx context.Context, userId int64, noCache bool) (*types.StrangerInfo, error) {
@@ -159,7 +211,7 @@ func (e *emitterSocket) GetStrangerInfo(ctx context.Context, userId int64, noCac
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.StrangerInfo](ctx, echoId, e.echo)
+	return waitAndDecode[types.StrangerInfo](ctx, e, echoId)
 }
 
 func (e *emitterSocket) GetStatus(ctx context.Context) (*types.Status, error) {
@@ -170,7 +222,7 @@ func (e *emitterSocket) GetStatus(ctx context.Context) (*types.Status, error) {
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.Status](ctx, echoId, e.echo)
+	return waitAndDecode[types.Status](ctx, e, echoId)
 }
 
 func (e *emitterSocket) GetVersionInfo(ctx context.Context) (*types.VersionInfo, error) {
@@ -181,7 +233,7 @@ func (e *emitterSocket) GetVersionInfo(ctx context.Context) (*types.VersionInfo,
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.VersionInfo](ctx, echoId, e.echo)
+	return waitAndDecode[types.VersionInfo](ctx, e, echoId)
 }
 
 func (e *emitterSocket) GetSelfId(_ context.Context) (int64, error) {
@@ -200,7 +252,7 @@ func (e *emitterSocket) SetFriendAddRequest(ctx context.Context, flag string, ap
 		return err
 	}
 	e.mu.Unlock()
-	_, err = wsWait[any](ctx, echoId, e.echo)
+	_, err = waitAndDecode[any](ctx, e, echoId)
 	return err
 }
 
@@ -216,7 +268,7 @@ func (e *emitterSocket) SetGroupAddRequest(ctx context.Context, flag string, app
 		return err
 	}
 	e.mu.Unlock()
-	_, err = wsWait[any](ctx, echoId, e.echo)
+	_, err = waitAndDecode[any](ctx, e, echoId)
 	return err
 }
 
@@ -232,7 +284,7 @@ func (e *emitterSocket) SetGroupSpecialTitle(ctx context.Context, groupId int64,
 		return err
 	}
 	e.mu.Unlock()
-	_, err = wsWait[any](ctx, echoId, e.echo)
+	_, err = waitAndDecode[any](ctx, e, echoId)
 	return err
 }
 
@@ -248,7 +300,7 @@ func (e *emitterSocket) QuitGroup(ctx context.Context, groupId int64) error {
 		return err
 	}
 	e.mu.Unlock()
-	_, err = wsWait[any](ctx, echoId, e.echo)
+	_, err = waitAndDecode[any](ctx, e, echoId)
 	return err
 }
 
@@ -264,7 +316,7 @@ func (e *emitterSocket) SetGroupCard(ctx context.Context, groupId int64, userId 
 		return err
 	}
 	e.mu.Unlock()
-	_, err = wsWait[any](ctx, echoId, e.echo)
+	_, err = waitAndDecode[any](ctx, e, echoId)
 	return err
 }
 
@@ -279,7 +331,7 @@ func (e *emitterSocket) GetGroupInfo(ctx context.Context, groupId int64, noCache
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.GroupInfo](ctx, echoId, e.echo)
+	return waitAndDecode[types.GroupInfo](ctx, e, echoId)
 }
 
 func (e *emitterSocket) GetGroupMemberInfo(ctx context.Context, groupId int64, userId int64, noCache bool) (*types.GroupMemberInfo, error) {
@@ -294,7 +346,7 @@ func (e *emitterSocket) GetGroupMemberInfo(ctx context.Context, groupId int64, u
 		return nil, err
 	}
 	e.mu.Unlock()
-	return wsWait[types.GroupMemberInfo](ctx, echoId, e.echo)
+	return waitAndDecode[types.GroupMemberInfo](ctx, e, echoId)
 }
 
 func (e *emitterSocket) Raw(ctx context.Context, action Action, params any) ([]byte, error) {
@@ -305,23 +357,11 @@ func (e *emitterSocket) Raw(ctx context.Context, action Action, params any) ([]b
 		return nil, err
 	}
 	e.mu.Unlock()
-	ctx, cancel := context.WithTimeout(ctx, EchoTimeOut)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case echo := <-e.echo:
-			if !strings.EqualFold(echoId, echo.Echo) {
-				select {
-				case e.echo <- echo:
-				default:
-				}
-				continue
-			}
-			return sonic.Marshal(echo)
-		}
+	resp, err := e.waitEcho(ctx, echoId)
+	if err != nil {
+		return nil, err
 	}
+	return sonic.Marshal(resp)
 }
 
 func wsAction[P any](w *socketio.WebsocketWrapper, action string, params P) (string, error) {
@@ -337,31 +377,4 @@ func wsAction[P any](w *socketio.WebsocketWrapper, action string, params P) (str
 	// 消息推入消息队列，等待发送
 	w.Emit(marshal, socketio.TextMessage)
 	return echoid, nil
-}
-
-func wsWait[R any](ctx context.Context, echoId string, echoChan chan Response[sonic.NoCopyRawMessage]) (*R, error) {
-	ctx, cancel := context.WithTimeout(ctx, EchoTimeOut)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case echo := <-echoChan:
-			if !strings.EqualFold(echoId, echo.Echo) {
-				select {
-				case echoChan <- echo:
-				default:
-				}
-				continue
-			}
-			if strings.EqualFold("failed", echo.Status) {
-				return nil, fmt.Errorf("action failed, status=%s retcode=%d", echo.Status, echo.RetCode)
-			}
-			var res R
-			if err := sonic.Unmarshal(echo.Data, &res); err != nil {
-				return nil, err
-			}
-			return &res, nil
-		}
-	}
 }

@@ -40,7 +40,6 @@ type PlatformAdapterOnebot struct {
 
 	// 保护这几个
 	sendEmitter emitter.Emitter
-	emitterChan chan emitter.Response[sonic.NoCopyRawMessage]
 	once        sync.Once
 
 	// 执行用池
@@ -284,10 +283,7 @@ func (p *PlatformAdapterOnebot) MemberKick(_ string, _ string) {
 // onConnected 连接成功的回调函数
 func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	// 连接成功，获取当前登录状态
-	if p.emitterChan == nil {
-		p.emitterChan = make(chan emitter.Response[sonic.NoCopyRawMessage], 256)
-	}
-	p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
+	p.sendEmitter = emitter.NewEVEmitter(kws)
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 	if err != nil {
 		p.logger.Errorf("获取登录信息异常 %v", err)
@@ -321,15 +317,11 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 			if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
 				p.logger.Errorf("echo 数据传输异常 %v", err)
 			}
-			if p.emitterChan == nil {
-				p.logger.Warnf("echo 丢弃: emitterChan=nil echo=%s status=%s retcode=%d", echoer.Echo, echoer.Status, echoer.RetCode)
+			if p.sendEmitter == nil {
+				p.logger.Warnf("echo 丢弃: emitter=nil echo=%s status=%s retcode=%d", echoer.Echo, echoer.Status, echoer.RetCode)
 				return
 			}
-			select {
-			case p.emitterChan <- echoer:
-			default:
-				p.logger.Warnf("echo 通道已满，丢弃: echo=%s status=%s retcode=%d len=%d cap=%d", echoer.Echo, echoer.Status, echoer.RetCode, len(p.emitterChan), cap(p.emitterChan))
-			}
+			p.sendEmitter.HandleEcho(echoer)
 		})
 	}
 
