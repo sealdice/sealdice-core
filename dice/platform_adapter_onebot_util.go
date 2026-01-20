@@ -61,12 +61,18 @@ func (p *PlatformAdapterOnebot) serveOnebotEvent(ep *evsocket.EventPayload) {
 		p.wsmode = "string"
 	}
 	if p.wsmode == "string" {
-		resp2, err := string2array(resp)
+		resp2, err := string2array(p.logger, resp)
 		if err != nil {
-			p.logger.Warnf("消息转换为array异常 %s 未能正确处理", resp.String())
-			return
+			// 记录错误日志，但不丢弃消息
+			// string2array 内部已将无效的 CQ 码静默移除
+			p.logger.Debugf("消息CQ码转换部分失败: %v", err)
+			// 如果 resp2 有效则继续使用，否则保留原消息
+			if resp2.Exists() {
+				resp = resp2
+			}
+		} else {
+			resp = resp2
 		}
-		resp = resp2
 	}
 	// 将数据转换为对应的事件event
 	eventType := resp.Get("post_type").String()
@@ -781,29 +787,74 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 //	return gjson.Parse(tempStr), nil
 // }
 
+// cqUnescape 按 OneBot v11 规范反转义 CQ 码参数值
+// 规则：&amp; → &, &#91; → [, &#93; → ], &#44; → ,
+// 使用分步 ReplaceAll 以支持嵌套转义如 &amp;#44; → &#44; → ,
+func cqUnescape(s string) string {
+	if s == "" {
+		return s
+	}
+	// 先处理 &amp;，这样 &amp;#44; 会先变成 &#44;
+	s = strings.ReplaceAll(s, "&amp;", "&")
+	// 再处理其他转义字符
+	s = strings.ReplaceAll(s, "&#91;", "[")
+	s = strings.ReplaceAll(s, "&#93;", "]")
+	s = strings.ReplaceAll(s, "&#44;", ",")
+	return s
+}
+
 // 将CQ码字符串消息转换为OB11 Array格式
-func string2array(parseContent gjson.Result) (gjson.Result, error) {
+func string2array(logger *zap.SugaredLogger, parseContent gjson.Result) (gjson.Result, error) {
 	messageStr := parseContent.Get("message").String()
 	var messageArray []map[string]interface{}
 
 	// 使用正则表达式匹配CQ码和普通文本
-	re := regexp.MustCompile(`(\[CQ:\w+,[^\]]+\])|([^\[\]]+)`)
+	// 支持无参数 CQ 码如 [CQ:poke]，以及带参数 CQ 码如 [CQ:image,file=xxx]
+	re := regexp.MustCompile(`(\[CQ:[^\]]*\])|([^\[\]]+)`)
 	matches := re.FindAllStringSubmatch(messageStr, -1)
 
 	for _, match := range matches {
 		if match[1] != "" {
 			// 处理CQ码
 			cqCode := match[1]
-			cqType := strings.TrimPrefix(strings.Split(cqCode, ",")[0], "[CQ:")
-			cqType = strings.TrimSuffix(cqType, "]")
+			// 去掉 [CQ: 前缀和 ] 后缀
+			cqBody := strings.TrimSuffix(strings.TrimPrefix(cqCode, "[CQ:"), "]")
+
+			// 用第一个逗号分隔 type 和 params
+			cqType := cqBody
+			rawParamStr := ""
+			if idx := strings.IndexByte(cqBody, ','); idx >= 0 {
+				cqType = cqBody[:idx]
+				rawParamStr = cqBody[idx+1:]
+			}
+
+			cqType = strings.TrimSpace(cqType)
+			if cqType == "" {
+				// 空类型的 CQ 码，记录日志并静默跳过
+				logger.Warnf("[CQ码解析] 空类型CQ码已跳过: %s", cqCode)
+				continue
+			}
 
 			// 解析CQ码参数
 			params := make(map[string]string)
-			paramPairs := strings.Split(strings.TrimSuffix(strings.Split(cqCode, ",")[1], "]"), ",")
-			for _, pair := range paramPairs {
-				kv := strings.SplitN(pair, "=", 2)
-				if len(kv) == 2 {
-					params[kv[0]] = kv[1]
+			if rawParamStr != "" {
+				// 按逗号分割参数对（此时 value 中的逗号应已转义为 &#44;）
+				kvPairs := strings.Split(rawParamStr, ",")
+				for _, kv := range kvPairs {
+					if kv == "" {
+						continue
+					}
+					// 只切一刀，避免 value 内的 '=' 被误切
+					if eq := strings.IndexByte(kv, '='); eq >= 0 {
+						key := strings.TrimSpace(kv[:eq])
+						val := kv[eq+1:]
+						// 反转义 key 和 value
+						key = cqUnescape(key)
+						val = cqUnescape(val)
+						if key != "" {
+							params[key] = val
+						}
+					}
 				}
 			}
 

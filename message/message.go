@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
+	"go.uber.org/zap"
 )
 
 type CQCommand struct {
@@ -506,8 +507,8 @@ func ConvertStringMessage(raw string) (r []IMessageElement) {
 	saveCQCode := func() {
 		elem, err := toElement(arg, dMap)
 		if err != nil {
-			// d.Logger.Errorf("转换CQ码时出现错误，将原样发送 <%s>", err.Error())
-			r = append(r, CQToText(arg, dMap))
+			// CQ 码解析失败时静默跳过，但记录错误日志
+			zap.S().Warnf("[CQ码解析] 类型=%s 跳过，原因: %v", arg, err)
 			return
 		}
 		r = append(r, elem)
