@@ -46,6 +46,8 @@ type Emitter interface {
 	Raw(ctx context.Context, action Action, params any) ([]byte, error)
 
 	HandleEcho(resp Response[sonic.NoCopyRawMessage])
+
+	GetDroppedEchoCount() uint64
 }
 
 var _ Emitter = (*emitterSocket)(nil)
@@ -98,7 +100,12 @@ func (e *emitterSocket) HandleEcho(resp Response[sonic.NoCopyRawMessage]) {
 	select {
 	case ch <- resp:
 	default:
+		atomic.AddUint64(&e.droppedEchoCount, 1)
 	}
+}
+
+func (e *emitterSocket) GetDroppedEchoCount() uint64 {
+	return atomic.LoadUint64(&e.droppedEchoCount)
 }
 
 func (e *emitterSocket) SetSelfId(_ context.Context, selfId int64) error {
