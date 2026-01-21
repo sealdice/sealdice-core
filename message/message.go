@@ -605,7 +605,11 @@ type ConvertOption func(*convertConfig)
 
 // WithLogger 设置日志记录器
 func WithLogger(l *zap.SugaredLogger) ConvertOption {
-	return func(c *convertConfig) { c.logger = l }
+	return func(c *convertConfig) {
+		if l != nil {
+			c.logger = l
+		}
+	}
 }
 
 // WithOnError 设置错误回调
