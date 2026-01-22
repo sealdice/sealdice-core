@@ -902,10 +902,8 @@ func (pa *PlatformAdapterSealChat) handleCharacterSet(msg satori.ScApiMsgPayload
 	}
 
 	// 写入属性
-	if attrsData != nil {
-		for k, v := range attrsData {
-			attrs.Store(k, anyToVMValue(v))
-		}
+	for k, v := range attrsData {
+		attrs.Store(k, anyToVMValue(v))
 	}
 
 	// 更新名称（如果提供）
@@ -971,7 +969,7 @@ func (pa *PlatformAdapterSealChat) getCharIdFromRequest(d *Dice, dataMap map[str
 		}
 		// 安全检查：验证归属用户和类型
 		if item.OwnerId != formattedUserID || item.AttrsType != service.AttrsTypeCharacter {
-			return "", "", fmt.Errorf("character not owned by user or invalid type")
+			return "", "", errors.New("character not owned by user or invalid type")
 		}
 		return id, item.Name, nil
 	}
