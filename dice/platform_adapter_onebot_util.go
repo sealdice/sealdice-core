@@ -396,12 +396,12 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	var extra string
 	// 匹配验证问题检查
 	var passQuestion bool
-	var passblackList bool
 	if comment != DiceFormat(ctx, toMatch) {
 		passQuestion = checkMultiFriendAddVerify(comment, toMatch)
 	}
 	// 匹配黑名单检查
 	result := checkBlackList(req.Get("user_id").String(), "user", ctx)
+
 	// 格式化请求的数据
 	if comment == "" {
 		comment = "(无)"
@@ -420,7 +420,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	if p.IgnoreFriendRequest {
 		extra += "。由于设置了忽略邀请，此信息仅为通报"
 	}
-	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && passblackList, extra)
+	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
 	ctx.Notice(txt)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
