@@ -66,6 +66,7 @@ var DefaultConfig = Config{
 		DefaultCocRuleIndex: 0,
 		MaxExecuteTime:      12,
 		MaxCocCardGen:       5,
+		CocCardMergeForward: false,
 		ExtDefaultSettings:  make([]*ExtDefaultSettingItem, 0),
 	},
 	BanConfig{
