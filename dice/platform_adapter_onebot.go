@@ -115,6 +115,87 @@ func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, tex
 	p.SendSegmentToGroup(ctx, groupID, msgElement, flag)
 }
 
+func (p *PlatformAdapterOnebot) SendGroupForwardMsg(ctx *MsgContext, groupID string, nodes []forwardNode) bool {
+	if p == nil || p.sendEmitter == nil {
+		return false
+	}
+	if groupID == "" || len(nodes) == 0 {
+		return false
+	}
+	rawGroupID := ExtractQQEmitterGroupID(groupID)
+	if rawGroupID == 0 {
+		return false
+	}
+
+	type sendGroupForwardParams struct {
+		GroupID  int64         `json:"group_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+
+	_, err := p.sendEmitter.Raw(p.ctx, "send_group_forward_msg", sendGroupForwardParams{
+		GroupID:  rawGroupID,
+		Messages: nodes,
+	})
+	if err == nil && p.Session != nil {
+		sendText := forwardNodesToText(nodes)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "group",
+			GroupID:     groupID,
+			Message:     sendText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+		}, "")
+	}
+	return err == nil
+}
+
+func (p *PlatformAdapterOnebot) SendPrivateForwardMsg(ctx *MsgContext, userID string, nodes []forwardNode) bool {
+	if p == nil || p.sendEmitter == nil {
+		return false
+	}
+	if userID == "" || len(nodes) == 0 {
+		return false
+	}
+	rawUserID := ExtractQQEmitterUserID(userID)
+	if rawUserID == 0 {
+		return false
+	}
+
+	type sendPrivateForwardParams struct {
+		UserID   int64         `json:"user_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+
+	_, err := p.sendEmitter.Raw(p.ctx, "send_private_forward_msg", sendPrivateForwardParams{
+		UserID:   rawUserID,
+		Messages: nodes,
+	})
+	if err == nil && p.Session != nil {
+		sendText := forwardNodesToText(nodes)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "private",
+			Message:     sendText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+		}, "")
+	}
+	return err == nil
+}
+
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 	groupID := ctx.Group.GroupID
 	userID := ctx.Player.UserID
