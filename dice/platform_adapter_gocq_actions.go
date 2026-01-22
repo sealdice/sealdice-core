@@ -339,6 +339,107 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 	}
 }
 
+func (pa *PlatformAdapterGocq) SendGroupForwardMsg(ctx *MsgContext, groupID string, nodes []forwardNode) bool {
+	if groupID == "" || len(nodes) == 0 {
+		return false
+	}
+	rawGroupID, idType := pa.mustExtractID(groupID)
+	// 频道群（QQ-CH-Group）不支持转发消息，交由上层走普通文本回复
+	if idType == 0 {
+		return false
+	}
+	if idType != QQUidGroup {
+		return false
+	}
+
+	type sendGroupForwardParams struct {
+		GroupID  int64         `json:"group_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	sendText := forwardNodesToText(nodes)
+	if ctx != nil && ctx.Session != nil {
+		if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
+			msgToSend := &Message{
+				Message:     sendText,
+				MessageType: "group",
+				Platform:    pa.EndPoint.Platform,
+				GroupID:     groupID,
+				Sender: SenderBase{
+					Nickname: pa.EndPoint.Nickname,
+					UserID:   pa.EndPoint.UserID,
+				},
+			}
+			groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+				if ext.OnMessageSend == nil {
+					return nil
+				}
+				return func() { ext.OnMessageSend(ctx, msgToSend, "") }
+			})
+		}
+	}
+
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "send_group_forward_msg",
+		Params: sendGroupForwardParams{
+			GroupID:  rawGroupID,
+			Messages: nodes,
+		},
+	})
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+	socketSendText(pa.Socket, string(a))
+	return true
+}
+
+func (pa *PlatformAdapterGocq) SendPrivateForwardMsg(ctx *MsgContext, userID string, nodes []forwardNode) bool {
+	if userID == "" || len(nodes) == 0 {
+		return false
+	}
+	rawUserID, idType := pa.mustExtractID(userID)
+	if idType != QQUidPerson {
+		return false
+	}
+
+	type sendPrivateForwardParams struct {
+		UserID   int64         `json:"user_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	sendText := forwardNodesToText(nodes)
+	if ctx != nil && ctx.Dice != nil {
+		for _, i := range ctx.Dice.ExtList {
+			if i.OnMessageSend != nil {
+				i.callWithJsCheck(ctx.Dice, func() {
+					i.OnMessageSend(ctx, &Message{
+						Message:     sendText,
+						MessageType: "private",
+						Platform:    pa.EndPoint.Platform,
+						Sender: SenderBase{
+							Nickname: pa.EndPoint.Nickname,
+							UserID:   pa.EndPoint.UserID,
+						},
+					}, "")
+				})
+			}
+		}
+	}
+
+	a, _ := json.Marshal(oneBotCommand{
+		Action: "send_private_forward_msg",
+		Params: sendPrivateForwardParams{
+			UserID:   rawUserID,
+			Messages: nodes,
+		},
+	})
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+	socketSendText(pa.Socket, string(a))
+	return true
+}
+
 func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, path string, _ string) {
 	rawID, idType := pa.mustExtractID(userID)
 	if idType != QQUidPerson {
