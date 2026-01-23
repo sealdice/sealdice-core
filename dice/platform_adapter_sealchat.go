@@ -1,17 +1,23 @@
 package dice
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
+	"sync/atomic"
 	"time"
-
-	"sealdice-core/message"
-	"sealdice-core/utils/satori"
 
 	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/sacOO7/gowebsocket"
+	"golang.org/x/time/rate"
+
+	"sealdice-core/message"
+	"sealdice-core/utils/satori"
 )
 
 type PlatformAdapterSealChat struct {
@@ -23,10 +29,18 @@ type PlatformAdapterSealChat struct {
 	Socket     *gowebsocket.Socket       `json:"-"          yaml:"-"`
 	EchoMap    SyncMap[string, chan any] `json:"-"          yaml:"-"`
 	UserID     string                    `json:"-"          yaml:"-"`
+	assetCache SyncMap[string, struct{}] `json:"-"          yaml:"-"`
 
 	Reconnecting    bool `json:"-" yaml:"-"`
 	RetryTimes      int  `json:"-" yaml:"-"`
 	RetryTimesLimit int  `json:"-" yaml:"-"`
+
+	// 心跳相关
+	heartbeatStop chan struct{}
+	lastPong      int64
+
+	// 角色卡写入速率限制器 (60次/分钟)
+	characterSetLimiter *rate.Limiter
 }
 
 func (pa *PlatformAdapterSealChat) Serve() int {
@@ -37,7 +51,9 @@ func (pa *PlatformAdapterSealChat) Serve() int {
 	pa.Socket = &socket
 	pa.EndPoint.Nickname = "SealChat Bot"
 	pa.EndPoint.UserID = "SEALCHAT:BOT"
-	pa.RetryTimesLimit = 1
+	pa.RetryTimesLimit = 15
+	// 初始化角色卡写入速率限制器: 60次/分钟，允许突发5次
+	pa.characterSetLimiter = rate.NewLimiter(rate.Every(time.Minute/60), 5)
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -61,7 +77,6 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 	log := pa.Session.Parent.Logger
 	socket := pa.Socket
 	socket.OnConnected = func(socket gowebsocket.Socket) {
-		pa.Reconnecting = true
 		ep.State = 2
 		ep.Enable = true
 
@@ -122,7 +137,19 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 						pa.registerCommands()
 					}()
 				}
-				// TODO: 心跳
+				// 启动心跳
+				pa.startHeartbeat()
+				solved = true
+			case satori.OpPing:
+				// 收到服务端 Ping，回复 Pong
+				pa._sendJSON(&socket, satori.GatewayPayloadStructure{
+					Op:   satori.OpPong,
+					Body: map[string]any{},
+				})
+				solved = true
+			case satori.OpPong:
+				// 收到 Pong，更新最后心跳时间
+				atomic.StoreInt64(&pa.lastPong, time.Now().Unix())
 				solved = true
 			case satori.OpEvent:
 				pa.dispatchMessage(message)
@@ -139,6 +166,12 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		apiMsg := satori.ScApiMsgPayload{}
 		err = json.Unmarshal([]byte(message), &apiMsg)
 		if err == nil {
+			// 处理来自 SealChat 的 API 请求（角色卡同步等）
+			if apiMsg.Api != "" && apiMsg.Echo != "" {
+				pa.handleApiRequest(apiMsg)
+				return
+			}
+			// 处理 API 响应
 			if x, ok := pa.EchoMap.Load(apiMsg.Echo); ok {
 				x <- apiMsg.Data
 			}
@@ -146,8 +179,9 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 	}
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
 		log.Errorf("SealChat websocket出现错误: %s", err)
-		if !socket.IsConnected && !pa.Reconnecting {
-			// socket.Close()
+		pa.stopHeartbeat()
+		if !socket.IsConnected {
+			pa.Reconnecting = false
 			time.Sleep(time.Duration(10) * time.Second)
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
@@ -157,6 +191,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 	}
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("与SealChat服务器断开连接，尝试进行重连")
+		pa.stopHeartbeat()
 		time.Sleep(time.Duration(2) * time.Second)
 		if !pa.tryReconnect(*pa.Socket) {
 			ep.State = 3
@@ -171,13 +206,18 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 	if socket.IsConnected {
 		return true
 	}
+	if pa.Reconnecting {
+		return true
+	}
 	pa.Reconnecting = true
 
 	if !pa.EndPoint.Enable {
+		pa.Reconnecting = false
 		return true
 	}
 
 	if pa.RetryTimes >= pa.RetryTimesLimit {
+		pa.Reconnecting = false
 		return false
 	}
 
@@ -188,21 +228,240 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 	pa.socketSetup()
 	socket.Connect()
 
-	pa.Reconnecting = false
 	return true
+}
+
+// startHeartbeat 启动心跳协程
+func (pa *PlatformAdapterSealChat) startHeartbeat() {
+	pa.stopHeartbeat()
+	pa.heartbeatStop = make(chan struct{})
+	atomic.StoreInt64(&pa.lastPong, time.Now().Unix())
+	log := pa.Session.Parent.Logger
+
+	go func() {
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if pa.Socket == nil || !pa.Socket.IsConnected {
+					return
+				}
+				// 发送 Ping
+				pa._sendJSON(pa.Socket, satori.GatewayPayloadStructure{
+					Op:   satori.OpPing,
+					Body: map[string]any{},
+				})
+				// 检查超时（45秒无响应则断开）
+				last := atomic.LoadInt64(&pa.lastPong)
+				if time.Now().Unix()-last > 45 {
+					log.Warn("SealChat 心跳超时，断开连接")
+					pa.Socket.Close()
+					return
+				}
+			case <-pa.heartbeatStop:
+				return
+			}
+		}
+	}()
+}
+
+// stopHeartbeat 停止心跳协程
+func (pa *PlatformAdapterSealChat) stopHeartbeat() {
+	if pa.heartbeatStop != nil {
+		select {
+		case <-pa.heartbeatStop:
+			// 已关闭
+		default:
+			close(pa.heartbeatStop)
+		}
+		pa.heartbeatStop = nil
+	}
+}
+
+const sealChatAssetSrcPrefix = "sealchat://asset/"
+const sealChatAssetUploadTimeout = 5 * time.Second
+
+// encodeMessage 将消息文本转换为 Satori 格式（支持图片/文件 asset_id）
+func (pa *PlatformAdapterSealChat) encodeMessage(content string) string {
+	elems := message.ConvertStringMessage(content)
+	return pa.encodeMessageFromElements(elems)
+}
+
+func (pa *PlatformAdapterSealChat) ensureSealChatAsset(data []byte, contentType string, filename string) (string, bool) {
+	if len(data) == 0 {
+		return "", false
+	}
+	sum := sha256.Sum256(data)
+	assetID := hex.EncodeToString(sum[:])
+	if pa.assetCache.Exists(assetID) {
+		return assetID, true
+	}
+
+	payload := map[string]any{
+		"asset_id":     assetID,
+		"content_type": contentType,
+		"data":         base64.StdEncoding.EncodeToString(data),
+	}
+	if filename != "" {
+		payload["filename"] = filename
+	}
+
+	echo, ch := pa.sendAPIWithEcho("asset.upload", payload)
+	defer pa.EchoMap.Delete(echo)
+
+	select {
+	case resp := <-ch:
+		if respMap, ok := resp.(map[string]any); ok {
+			if okVal, ok := respMap["ok"].(bool); ok && okVal {
+				pa.assetCache.Store(assetID, struct{}{})
+				return assetID, true
+			}
+		}
+		return assetID, false
+	case <-time.After(sealChatAssetUploadTimeout):
+		return assetID, false
+	}
+}
+
+// encodeMessageFromElements 将消息元素列表转换为 Satori 格式
+func (pa *PlatformAdapterSealChat) encodeMessageFromElements(elems []message.IMessageElement) string {
+	var msg strings.Builder
+	for _, elem := range elems {
+		switch e := elem.(type) {
+		case *message.TextElement:
+			msg.WriteString(satori.ContentEscape(e.Content))
+		case *message.AtElement:
+			if e.Target == "all" {
+				msg.WriteString(`<at type="all"/>`)
+			} else {
+				msg.WriteString(fmt.Sprintf(`<at id="%s"/>`, e.Target))
+			}
+		case *message.ImageElement:
+			if e.File == nil {
+				continue
+			}
+			node := &satori.Element{
+				Type:  "img",
+				Attrs: make(satori.Dict),
+			}
+			if e.File.File != "" {
+				node.Attrs["title"] = e.File.File
+			}
+			// 分离部署：优先使用 asset_id，失败时回退 Base64 data URL
+			if e.File.Stream != nil {
+				data, err := io.ReadAll(io.LimitReader(e.File.Stream, 10*1024*1024)) // 限制 10MB
+				if err != nil {
+					continue
+				}
+				contentType := e.File.ContentType
+				if contentType == "" {
+					contentType = "image/png"
+				}
+				if assetID, ok := pa.ensureSealChatAsset(data, contentType, e.File.File); ok {
+					node.Attrs["src"] = sealChatAssetSrcPrefix + assetID
+				} else {
+					b64 := base64.StdEncoding.EncodeToString(data)
+					node.Attrs["src"] = fmt.Sprintf("data:%s;base64,%s", contentType, b64)
+				}
+			} else if e.File.URL != "" {
+				// HTTP URL 直接使用（大小写不敏感）
+				urlLower := strings.ToLower(e.File.URL)
+				if strings.HasPrefix(urlLower, "http://") || strings.HasPrefix(urlLower, "https://") || strings.HasPrefix(urlLower, sealChatAssetSrcPrefix) {
+					node.Attrs["src"] = e.File.URL
+				} else if strings.HasPrefix(e.File.URL, "base64://") {
+					// 已经是 base64 格式
+					b64Data := e.File.URL[9:]
+					data, err := base64.StdEncoding.DecodeString(b64Data)
+					if err == nil {
+						if assetID, ok := pa.ensureSealChatAsset(data, "image/png", e.File.File); ok {
+							node.Attrs["src"] = sealChatAssetSrcPrefix + assetID
+						} else {
+							node.Attrs["src"] = fmt.Sprintf("data:image/png;base64,%s", b64Data)
+						}
+					} else {
+						node.Attrs["src"] = fmt.Sprintf("data:image/png;base64,%s", b64Data)
+					}
+				}
+			}
+			if node.Attrs["src"] != nil {
+				msg.WriteString(node.ToString())
+			}
+		case *message.FileElement:
+			// 文件元素：同样转为 Base64
+			node := &satori.Element{
+				Type:  "file",
+				Attrs: make(satori.Dict),
+			}
+			if e.File != "" {
+				node.Attrs["title"] = e.File
+			}
+			if e.Stream != nil {
+				data, err := io.ReadAll(io.LimitReader(e.Stream, 10*1024*1024)) // 限制 10MB
+				if err != nil {
+					continue
+				}
+				contentType := e.ContentType
+				if contentType == "" {
+					contentType = "application/octet-stream"
+				}
+				if assetID, ok := pa.ensureSealChatAsset(data, contentType, e.File); ok {
+					node.Attrs["src"] = sealChatAssetSrcPrefix + assetID
+				} else {
+					b64 := base64.StdEncoding.EncodeToString(data)
+					node.Attrs["src"] = fmt.Sprintf("data:%s;base64,%s", contentType, b64)
+				}
+			} else if e.URL != "" {
+				urlLower := strings.ToLower(e.URL)
+				if strings.HasPrefix(urlLower, "http://") || strings.HasPrefix(urlLower, "https://") || strings.HasPrefix(urlLower, sealChatAssetSrcPrefix) {
+					node.Attrs["src"] = e.URL
+				} else if strings.HasPrefix(e.URL, "base64://") {
+					b64Data := e.URL[9:]
+					data, err := base64.StdEncoding.DecodeString(b64Data)
+					if err == nil {
+						if assetID, ok := pa.ensureSealChatAsset(data, "application/octet-stream", e.File); ok {
+							node.Attrs["src"] = sealChatAssetSrcPrefix + assetID
+						} else {
+							node.Attrs["src"] = fmt.Sprintf("data:application/octet-stream;base64,%s", b64Data)
+						}
+					} else {
+						node.Attrs["src"] = fmt.Sprintf("data:application/octet-stream;base64,%s", b64Data)
+					}
+				}
+			}
+			if node.Attrs["src"] != nil {
+				msg.WriteString(node.ToString())
+			}
+		case *message.ReplyElement:
+			msg.WriteString(fmt.Sprintf(`<quote id="%s"/>`, e.ReplySeq))
+		}
+	}
+	return msg.String()
 }
 
 func (pa *PlatformAdapterSealChat) GetGroupInfoAsync(_ string) {}
 
 func FormatDiceIDSealChat(id string) string {
+	// 避免双前缀：如果已有前缀则直接返回
+	if strings.HasPrefix(id, "SEALCHAT:") {
+		return id
+	}
 	return fmt.Sprintf("SEALCHAT:%s", id)
 }
 
 func FormatDiceIDSealChatPrivate(id string) string {
+	// 避免双前缀：如果已有前缀则直接返回
+	if strings.HasPrefix(id, "PG-SEALCHAT:") {
+		return id
+	}
 	return fmt.Sprintf("PG-SEALCHAT:%s", id)
 }
 
 func FormatDiceIDSealChatGroup(id string) string {
+	// 避免双前缀：如果已有前缀则直接返回
+	if strings.HasPrefix(id, "SEALCHAT-Group:") {
+		return id
+	}
 	return fmt.Sprintf("SEALCHAT-Group:%s", id)
 }
 
@@ -253,7 +512,7 @@ func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 	}
 }
 
-func (pa *PlatformAdapterSealChat) sendAPI(api string, data any) chan any {
+func (pa *PlatformAdapterSealChat) sendAPIWithEcho(api string, data any) (string, chan any) {
 	echo := gonanoid.Must()
 	ch := make(chan any, 1)
 	pa.EchoMap.Store(echo, ch)
@@ -262,6 +521,11 @@ func (pa *PlatformAdapterSealChat) sendAPI(api string, data any) chan any {
 		Echo: echo,
 		Data: data,
 	})
+	return echo, ch
+}
+
+func (pa *PlatformAdapterSealChat) sendAPI(api string, data any) chan any {
+	_, ch := pa.sendAPIWithEcho(api, data)
 	return ch
 }
 
@@ -288,18 +552,13 @@ func ExtractSealChatUserID(id string) string {
 }
 
 func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text string, flag string, msgType string) {
-	msg := new(SendMessageMinecraft)
-	msg.Content = text
-	msg.MessageType = "group"
-	parse, _ := json.Marshal(msg)
+	// 使用 encodeMessage 转换消息格式（支持图片等）
+	encodedContent := pa.encodeMessage(text)
 
 	pa.sendAPI("message.create", map[string]any{
 		"channel_id": chId,
-		"content":    text,
+		"content":    encodedContent,
 	})
-
-	pa._sendJSON(pa.Socket, &satori.Message{})
-	pa.Socket.SendText(string(parse))
 
 	var groupID string
 	if msgType == "private" {
@@ -324,9 +583,49 @@ func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text st
 }
 
 func (pa *PlatformAdapterSealChat) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	chId := ExtractSealChatUserID(groupID)
+	encodedContent := pa.encodeMessageFromElements(msg)
+
+	pa.sendAPI("message.create", map[string]any{
+		"channel_id": chId,
+		"content":    encodedContent,
+	})
+
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "SEALCHAT",
+		MessageType: "group",
+		Message:     encodedContent,
+		GroupID:     FormatDiceIDSealChatGroup(chId),
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterSealChat) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	<-pa.sendAPI("channel.private.create", map[string]string{
+		"user_id": ExtractSealChatUserID(userID),
+	})
+
+	chId := ExtractSealChatPrivateChatID(userID, pa.EndPoint.UserID)
+	encodedContent := pa.encodeMessageFromElements(msg)
+
+	pa.sendAPI("message.create", map[string]any{
+		"channel_id": chId,
+		"content":    encodedContent,
+	})
+
+	pa.Session.OnMessageSend(ctx, &Message{
+		Platform:    "SEALCHAT",
+		MessageType: "private",
+		Message:     encodedContent,
+		GroupID:     FormatDiceIDSealChatPrivate(chId),
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterSealChat) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
@@ -347,20 +646,26 @@ func (pa *PlatformAdapterSealChat) SendToGroup(ctx *MsgContext, uid string, text
 
 func (pa *PlatformAdapterSealChat) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
 	fileElement, err := message.FilepathToFileElement(path)
-	if err == nil {
-		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
-	} else {
+	if err != nil {
 		pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+		return
 	}
+	// 使用 SendSegmentToPerson 发送图片/文件
+	pa.SendSegmentToPerson(ctx, uid, []message.IMessageElement{
+		&message.ImageElement{File: fileElement},
+	}, flag)
 }
 
 func (pa *PlatformAdapterSealChat) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
 	fileElement, err := message.FilepathToFileElement(path)
-	if err == nil {
-		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件: %s，但不支持]", fileElement.File), flag)
-	} else {
+	if err != nil {
 		pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件出错: %s]", err.Error()), flag)
+		return
 	}
+	// 使用 SendSegmentToGroup 发送图片/文件
+	pa.SendSegmentToGroup(ctx, uid, []message.IMessageElement{
+		&message.ImageElement{File: fileElement},
+	}, flag)
 }
 
 func (pa *PlatformAdapterSealChat) MemberBan(_ string, _ string, _ int64) {}
@@ -451,6 +756,8 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 	if scMsg.Member != nil {
 		// 注: 部分消息，比如message-deleted没有member
 		send.Nickname = scMsg.Member.Nick
+		// 权限处理：解析 Member.Roles 映射到 GroupRole
+		send.GroupRole = pa.parseGroupRole(scMsg.Member.Roles)
 	}
 	if send.Nickname == "" && scMsg.User != nil {
 		send.Nickname = scMsg.User.Nick
@@ -459,12 +766,73 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 	if send.Nickname == "" {
 		send.Nickname = fmt.Sprintf("用户%4s", scMsg.Channel.ID)
 	}
-	// fmt.Println("!!!", scMsg.Member, "|", scMsg.User.Name)
-	// if msgMC.Event.IsAdmin {
-	//	send.GroupRole = "admin"
-	// }
 	msg.Sender = *send
 	return msg
+}
+
+// parseGroupRole 解析 Member.Roles 映射到标准 GroupRole
+// 返回值: "owner" | "admin" | "member"
+func (pa *PlatformAdapterSealChat) parseGroupRole(roles []string) string {
+	for _, role := range roles {
+		switch strings.ToLower(role) {
+		case "owner", "群主", "creator":
+			return "owner"
+		case "admin", "管理员", "administrator", "moderator":
+			return "admin"
+		}
+	}
+	return "member"
+}
+
+// handleApiRequest 处理来自 SealChat 的 API 请求
+func (pa *PlatformAdapterSealChat) handleApiRequest(msg satori.ScApiMsgPayload) {
+	log := pa.Session.Parent.Logger
+	d := pa.Session.Parent
+
+	switch msg.Api {
+	case "character.get":
+		// 获取角色卡数据
+		pa.handleCharacterGet(msg, d)
+	case "character.set":
+		// 写入角色卡数据
+		pa.handleCharacterSet(msg, d)
+	case "character.list":
+		// 获取用户的角色卡列表
+		pa.handleCharacterList(msg, d)
+	case "character.new":
+		// 新建角色卡并绑定
+		pa.handleCharacterNew(msg, d)
+	case "character.save":
+		// 保存独立卡为角色卡
+		pa.handleCharacterSave(msg, d)
+	case "character.tag":
+		// 绑定/解绑角色卡
+		pa.handleCharacterTag(msg, d)
+	case "character.untagAll":
+		// 从所有群解绑
+		pa.handleCharacterUntagAll(msg, d)
+	case "character.load":
+		// 加载角色卡到独立卡
+		pa.handleCharacterLoad(msg, d)
+	case "character.delete":
+		// 删除角色卡
+		pa.handleCharacterDelete(msg, d)
+	default:
+		log.Warnf("SealChat: unknown API request: %s", msg.Api)
+		pa.sendApiResponse(msg.Echo, map[string]any{
+			"ok":    false,
+			"error": "unknown api",
+		})
+	}
+}
+
+// sendApiResponse 发送 API 响应
+func (pa *PlatformAdapterSealChat) sendApiResponse(echo string, data any) {
+	pa._sendJSON(pa.Socket, &satori.ScApiMsgPayload{
+		Api:  "",
+		Echo: echo,
+		Data: data,
+	})
 }
 
 func (pa *PlatformAdapterSealChat) registerCommands() {
