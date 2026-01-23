@@ -2,10 +2,8 @@ package message
 
 import (
 	"bytes"
-	"crypto/md5"
 	"crypto/sha1"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -325,34 +323,6 @@ func CQToText(t string, d map[string]string) IMessageElement {
 	}
 	org.WriteString("]")
 	return newText(org.String())
-}
-func getFileName(header http.Header) string {
-	contentDisposition := header.Get("Content-Disposition")
-	if contentDisposition == "" {
-		contentType := header.Get("Content-Type")
-		if contentType == "" {
-			return calculateMD5(header)
-		}
-		filetype, err := mime.ExtensionsByType(contentType)
-		if err != nil {
-			return calculateMD5(header)
-		}
-		var suffix string
-		if len(filetype) != 0 {
-			suffix = filetype[len(filetype)-1]
-			return calculateMD5(header) + suffix
-		}
-		return calculateMD5(header)
-	}
-	return regexp.MustCompile(`filename=(.+)`).FindStringSubmatch(strings.Split(contentDisposition, ";")[1])[1]
-}
-
-func calculateMD5(header http.Header) string {
-	hash := md5.New() //nolint:gosec
-	for _, value := range header["Content-Type"] {
-		hash.Write([]byte(value))
-	}
-	return hex.EncodeToString(hash.Sum(nil))
 }
 
 // ExtractLocalTempFile 按路径提取临时文件，路径可以是 http/base64/本地路径
