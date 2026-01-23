@@ -979,14 +979,26 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, error) {
-	// 创建临时文件
-	tempLog, err := os.CreateTemp("", fmt.Sprintf(
+	// 创建临时文件，优先使用海豹数据目录
+	dice := ctx.Dice
+	tempDir := filepath.Join(dice.BaseConfig.DataDir, "temp")
+	_ = os.MkdirAll(tempDir, 0o755)
+
+	tempLog, err := os.CreateTemp(tempDir, fmt.Sprintf(
 		"%s(*).txt",
 		utils.FilenameClean(fileNamePrefix),
 	))
 	if err != nil {
 		return "", errors.New("log导出出现未知错误")
 	}
+
+	// 设置文件权限为644，确保NapCat可以读取
+	if err1 := os.Chmod(tempLog.Name(), 0o644); err1 != nil {
+		_ = tempLog.Close()
+		_ = os.Remove(tempLog.Name())
+		return "", errors.New("设置临时文件权限失败")
+	}
+
 	defer func() {
 		_ = tempLog.Close()
 		if err != nil {
@@ -1013,9 +1025,9 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 				return
 			default:
 				// 获取当前游标对应的数据
-				cursorLines, cursor, err := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
-				if err != nil {
-					resultCh <- err
+				cursorLines, cursor, err1 := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
+				if err1 != nil {
+					resultCh <- err1
 					return
 				}
 
@@ -1027,8 +1039,8 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 					counter++
 				}
 				// ========== 新增：每批写入后强制同步 ==========
-				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
-					resultCh <- fmt.Errorf("批次同步失败: %w", err)
+				if err1 := tempLog.Sync(); err1 != nil { // 确保批次数据落盘
+					resultCh <- fmt.Errorf("批次同步失败: %w", err1)
 				}
 
 				// 如果没有下一页，则成功完成
@@ -1044,12 +1056,12 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	}()
 
 	// 等待 goroutine 完成或超时
-	if err := <-resultCh; err != nil {
-		return "", err
+	if err1 := <-resultCh; err1 != nil {
+		return "", err1
 	}
 	// 2. 确保文件指针回到开头
-	if _, err := tempLog.Seek(0, 0); err != nil {
-		return "", fmt.Errorf("重置文件指针失败: %w", err)
+	if _, err1 := tempLog.Seek(0, 0); err1 != nil {
+		return "", fmt.Errorf("重置文件指针失败: %w", err1)
 	}
 
 	// 如果没有任何数据，返回错误
@@ -1057,7 +1069,12 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
 
-	return tempLog.Name(), nil
+	// 确保返回绝对路径
+	absPath, err := filepath.Abs(tempLog.Name())
+	if err != nil {
+		return "", fmt.Errorf("获取文件绝对路径失败: %w", err)
+	}
+	return absPath, nil
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
