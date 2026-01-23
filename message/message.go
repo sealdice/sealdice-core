@@ -18,7 +18,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/bytedance/sonic"
 	"go.uber.org/zap"
@@ -63,21 +62,6 @@ func (e *CQFileError) Error() string {
 
 func (e *CQFileError) Unwrap() error {
 	return e.Cause
-}
-
-// normalizeURLForHTTP 规范化URL，处理空格等特殊字符
-func normalizeURLForHTTP(raw string) (string, error) {
-	s := strings.TrimSpace(raw)
-	// 处理空格，将其编码为 %20
-	s = strings.ReplaceAll(s, " ", "%20")
-	u, err := url.Parse(s)
-	if err != nil {
-		return "", err
-	}
-	if u.Scheme == "" || u.Host == "" {
-		return "", errors.New("invalid URL: missing scheme or host")
-	}
-	return u.String(), nil
 }
 
 type CQCommand struct {
@@ -399,47 +383,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 	fp = strings.TrimSpace(fp)
 
 	if strings.HasPrefix(fp, "http://") || strings.HasPrefix(fp, "https://") {
-		// HTTP/HTTPS URL处理
-		normalized, err := normalizeURLForHTTP(fp)
-		if err != nil {
-			return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: err}
-		}
-
-		// 使用带超时的HTTP客户端
-		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Get(normalized) //nolint:gosec
-		if err != nil {
-			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalized, Cause: err}
-		}
-		defer func() { _ = resp.Body.Close() }()
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, &CQFileError{
-				Kind:       CQFileErrUnavailable,
-				Raw:        fp,
-				Normalized: normalized,
-				StatusCode: resp.StatusCode,
-			}
-		}
-
-		// 限制下载大小，防止内存爆炸
-		limited := io.LimitReader(resp.Body, maxFileSize+1)
-		content, err := io.ReadAll(limited)
-		if err != nil {
-			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalized, Cause: err}
-		}
-		if int64(len(content)) > maxFileSize {
-			return nil, &CQFileError{Kind: CQFileErrInvalidSize, Raw: fp, Normalized: normalized}
-		}
-
-		filename := getFileName(resp.Header)
-		r := &FileElement{
-			Stream:      bytes.NewReader(content),
-			ContentType: resp.Header.Get("Content-Type"),
-			File:        filename,
-			URL:         normalized,
-		}
-		return r, nil
+		return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: errors.New("http/https URL is not supported")}
 	} else if strings.HasPrefix(fp, "base64://") {
 		content, err := base64.StdEncoding.DecodeString(fp[9:])
 		if err != nil {
