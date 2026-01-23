@@ -349,11 +349,51 @@ func ExtractLocalTempFile(path string) (string, string, error) {
 	return fileElement.File, temp.Name(), nil
 }
 
+func normalizeRemoteURL(raw string) (string, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		parsed, err = url.Parse(strings.ReplaceAll(raw, " ", "%20"))
+		if err != nil {
+			return "", err
+		}
+	}
+	if parsed.Host == "" {
+		return "", errors.New("missing host")
+	}
+	if parsed.Path != "" {
+		unescapedPath, err := url.PathUnescape(parsed.Path)
+		if err != nil {
+			return "", err
+		}
+		parsed.Path = unescapedPath
+	}
+	if parsed.RawQuery != "" {
+		if q, err := url.ParseQuery(parsed.RawQuery); err == nil {
+			parsed.RawQuery = q.Encode()
+		}
+	}
+	return parsed.String(), nil
+}
+
 func FilepathToFileElement(fp string) (*FileElement, error) {
 	fp = strings.TrimSpace(fp)
 
 	if strings.HasPrefix(fp, "http://") || strings.HasPrefix(fp, "https://") {
-		return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: errors.New("http/https URL is not supported")}
+		normalizedURL, err := normalizeRemoteURL(fp)
+		if err != nil {
+			return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: err}
+		}
+		fileName := ""
+		if u, err := url.Parse(normalizedURL); err == nil {
+			fileName = path.Base(u.Path)
+			if fileName == "." || fileName == "/" {
+				fileName = ""
+			}
+		}
+		return &FileElement{
+			File: fileName,
+			URL:  normalizedURL,
+		}, nil
 	} else if strings.HasPrefix(fp, "base64://") {
 		content, err := base64.StdEncoding.DecodeString(fp[9:])
 		if err != nil {
@@ -416,11 +456,19 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 		if len(contenttype) == 0 {
 			contenttype = "application/octet-stream"
 		}
+		fileURLPath := filepath.ToSlash(afn)
+		if runtime.GOOS == `windows` && !strings.HasPrefix(fileURLPath, "/") {
+			fileURLPath = "/" + fileURLPath
+		}
+		fileURL := url.URL{
+			Scheme: "file",
+			Path:   fileURLPath,
+		}
 		r := &FileElement{
 			Stream:      bytes.NewReader(content),
 			ContentType: contenttype,
 			File:        info.Name(),
-			URL:         "file://" + afn,
+			URL:         fileURL.String(),
 		}
 		return r, nil
 	}
@@ -615,6 +663,9 @@ func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElemen
 					argsCopy[k] = v
 				}
 				cfg.onError(err, arg, argsCopy)
+			}
+			if fe != nil {
+				return
 			}
 			r = append(r, newText(placeholderForError(err, arg, dMap)))
 			return
