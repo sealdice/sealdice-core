@@ -668,4 +668,3 @@ func (pa *PlatformAdapterSealChat) handleCharacterDelete(msg satori.ScApiMsgPayl
 		"name": charName,
 	})
 }
-

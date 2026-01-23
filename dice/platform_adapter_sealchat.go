@@ -3,20 +3,21 @@ package dice
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/time/rate"
 	"io"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	"sealdice-core/message"
-	"sealdice-core/utils/satori"
-
 	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/sacOO7/gowebsocket"
+	"golang.org/x/time/rate"
+
+	"sealdice-core/message"
+	"sealdice-core/utils/satori"
 )
 
 type PlatformAdapterSealChat struct {
@@ -292,7 +293,7 @@ func (pa *PlatformAdapterSealChat) ensureSealChatAsset(data []byte, contentType 
 		return "", false
 	}
 	sum := sha256.Sum256(data)
-	assetID := fmt.Sprintf("%x", sum[:])
+	assetID := hex.EncodeToString(sum[:])
 	if pa.assetCache.Exists(assetID) {
 		return assetID, true
 	}
