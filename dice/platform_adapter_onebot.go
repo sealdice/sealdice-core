@@ -40,7 +40,6 @@ type PlatformAdapterOnebot struct {
 
 	// 保护这几个
 	sendEmitter emitter.Emitter
-	emitterChan chan emitter.Response[sonic.NoCopyRawMessage]
 	once        sync.Once
 
 	// 执行用池
@@ -92,7 +91,15 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 	if p.sendEmitter != nil {
-		_ = p.sendEmitter.QuitGroup(p.ctx, ExtractQQEmitterGroupID(id))
+		gid := ExtractQQEmitterGroupID(id)
+		err := p.sendEmitter.QuitGroup(p.ctx, gid)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				p.logger.Warnf("QuitGroup 超时: group=%s gid=%d err=%v", id, gid, err)
+			} else {
+				p.logger.Warnf("QuitGroup 失败: group=%s gid=%d err=%v", id, gid, err)
+			}
+		}
 	}
 }
 
@@ -203,6 +210,11 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 	rawMsg, msgText := convertSealMsgToMessageChain(msg)
 	rawId, err := p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
+		} else {
+			p.logger.Warnf("SendGrMsg 失败: group=%s err=%v", groupID, err)
+		}
 		return
 	}
 	// 支援插件发送调用
@@ -352,10 +364,7 @@ func (p *PlatformAdapterOnebot) MemberKick(_ string, _ string) {
 // onConnected 连接成功的回调函数
 func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	// 连接成功，获取当前登录状态
-	if p.emitterChan == nil {
-		p.emitterChan = make(chan emitter.Response[sonic.NoCopyRawMessage], 32)
-	}
-	p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
+	p.sendEmitter = emitter.NewEVEmitter(kws)
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 	if err != nil {
 		p.logger.Errorf("获取登录信息异常 %v", err)
@@ -389,7 +398,11 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 			if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
 				p.logger.Errorf("echo 数据传输异常 %v", err)
 			}
-			p.emitterChan <- echoer
+			if p.sendEmitter == nil {
+				p.logger.Warnf("echo 丢弃: emitter=nil echo=%s status=%s retcode=%d", echoer.Echo, echoer.Status, echoer.RetCode)
+				return
+			}
+			p.sendEmitter.HandleEcho(echoer)
 		})
 	}
 
