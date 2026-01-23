@@ -158,6 +158,11 @@ enable = [
 # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
 [linters.settings]
 
+[linters.settings.tagalign]
+# Disable tag alignment to avoid version-specific behavior differences
+align = false
+sort = false
+
 [linters.settings.cyclop]
 # The maximal code complexity to report.
 # Default: 10

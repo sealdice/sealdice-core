@@ -297,11 +297,25 @@ func cmdStValueMod(mctx *MsgContext, tmpl *GameSystemTemplate, attrs *Attributes
 	isSetNew := true
 	if curVal.TypeId == ds.VMTypeComputedValue {
 		cd, _ := curVal.ReadComputed()
-		// dnd5e专属
-		if v, ok := cd.Attrs.Load("base"); ok {
-			curVal = v
-			isSetNew = false
+		// dnd5e专属：如果有base属性，使用base值且不覆盖
+		if cd != nil && cd.Attrs != nil {
+			if v, ok := cd.Attrs.Load("base"); ok {
+				curVal = v
+				isSetNew = false
+			}
 		}
+		// 对于普通的computed value（如 &(教育)），计算出实际值
+		// 这样在进行+/-运算时才能得到正确的结果
+		if isSetNew && curVal.TypeId == ds.VMTypeComputedValue {
+			mctx.CreateVmIfNotExists()
+			curVal = curVal.ComputedExecute(mctx.vm, nil)
+			if mctx.vm.Error != nil {
+				// 如果计算出错，使用0
+				curVal = ds.NewIntVal(0)
+				mctx.vm.Error = nil
+			}
+		}
+		// isSetNew保持为true，这样修改后的值会被存储
 	}
 
 	// 进行变更
@@ -498,6 +512,10 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 			cardType := ReadCardType(mctx)
 
 			tmpl := ctx.Group.GetCharTemplate(dice)
+			// 立即设置SystemTemplate，确保VM创建时能使用正确的模板
+			ctx.SystemTemplate = tmpl
+			mctx.SystemTemplate = tmpl
+
 			tmplShow := tmpl // 用于st show的模板，如果show不同规则的模板，可以以其他规则格式显示
 			if cardType != tmplShow.Name {
 				if tmpl2, _ := dice.GameSystemMap.Load(cardType); tmpl2 != nil {
@@ -509,6 +527,9 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				if tmpl2, _ := dice.GameSystemMap.Load(soi.TemplateName); tmpl2 != nil {
 					tmpl = tmpl2
 					tmplShow = tmpl2
+					// 更新SystemTemplate为新的模板
+					ctx.SystemTemplate = tmpl
+					mctx.SystemTemplate = tmpl
 				}
 			}
 
@@ -633,7 +654,7 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 				}
 
 				cmdStCharFormat(mctx, tmpl) // 转一下卡
-				mctx.SystemTemplate = tmpl
+				// SystemTemplate已经在函数开始时设置，这里不需要重复设置
 
 				// 进行简化卡的尝试解析
 				input := cmdArgs.CleanArgs
@@ -677,6 +698,9 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 						VarSetValueStr(mctx, "$t玩家", fmt.Sprintf("<%s>", mctx.Player.Name))
 						VarSetValueStr(mctx, "$t玩家_RAW", mctx.Player.Name)
 						p.UpdatedAtTime = time.Now().Unix()
+						if mctx.Group != nil {
+							mctx.Group.MarkDirty(mctx.Dice)
+						}
 
 						if mctx.Player.AutoSetNameTemplate != "" {
 							_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)

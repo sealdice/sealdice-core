@@ -316,7 +316,7 @@ func (pa *PlatformAdapterSatori) refreshGroups() {
 			} else if group.Name != "" && groupInfo.GroupName != group.Name {
 				// 更新群名
 				groupInfo.GroupName = group.Name
-				groupInfo.UpdatedAtTime = time.Now().Unix()
+				groupInfo.MarkDirty(d)
 			}
 
 			// 触发群成员更新

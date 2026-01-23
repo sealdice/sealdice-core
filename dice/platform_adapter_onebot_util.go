@@ -139,7 +139,15 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			UserID:     FormatOnebotDiceIDQQ(req.Get("user_id").String()),
 			OperatorID: FormatOnebotDiceIDQQ(req.Get("operator_id").String()),
 		})
+		// 离开群 群解散 别人被踹了
 	case "leave", "disband":
+		// 先获取被操作者，看看是否和自己是同一个人
+		selfID := FormatOnebotDiceIDQQ(req.Get("self_id").String())
+		operatorId := FormatOnebotDiceIDQQ(req.Get("operator_id").String())
+		if selfID != operatorId {
+			// 别人离开群的情况
+			return nil
+		}
 		groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
 		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
 		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
@@ -150,7 +158,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			ctx.Notice(txtErr)
 		}
 		group.DiceIDExistsMap.Delete(p.EndPoint.UserID)
-		group.UpdatedAtTime = time.Now().Unix()
+		group.MarkDirty(p.Session.Parent)
 		p.logger.Info(txt)
 		ctx.Notice(txt)
 	}
@@ -163,8 +171,12 @@ func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsoc
 		defer ErrorLogAndContinue(p.Session.Parent)
 		msgContext := p.makeCtx(req)
 		isPrivate := msgContext.MessageType == "private"
+		groupID := ""
+		if req.Get("group_id").Exists() {
+			groupID = FormatDiceIDQQGroup(req.Get("group_id").String())
+		}
 		p.Session.OnPoke(msgContext, &events.PokeEvent{
-			GroupID:   FormatDiceIDQQGroup(req.Get("group_id").String()),
+			GroupID:   groupID,
 			SenderID:  FormatDiceIDQQ(req.Get("user_id").String()),
 			TargetID:  FormatDiceIDQQ(req.Get("target_id").String()),
 			IsPrivate: isPrivate,
@@ -223,15 +235,13 @@ func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsoc
 			doSleepQQ(ctx)
 			p.SendToPerson(ctx, userId, strings.TrimSpace(i), "")
 		}
-		groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
-		if ok {
-			for _, i := range groupInfo.ActivatedExtList {
-				if i.OnBecomeFriend != nil {
-					i.callWithJsCheck(ctx.Dice, func() {
-						i.OnBecomeFriend(ctx, msg)
-					})
+		if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+			groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+				if ext.OnBecomeFriend == nil {
+					return nil
 				}
-			}
+				return func() { ext.OnBecomeFriend(ctx, msg) }
+			})
 		}
 	})
 	return nil
@@ -258,8 +268,8 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 		ctx.Group.DiceIDExistsMap.Store(ctx.EndPoint.UserID, true)
 		// 入群时间
 		ctx.Group.EnteredTime = time.Now().Unix()
-		// 更新时间
-		ctx.Group.UpdatedAtTime = time.Now().Unix()
+		// 标记脏数据
+		ctx.Group.MarkDirty(ctx.Dice)
 		// 获取群信息 并发送入群致辞
 		_ = p.antPool.Submit(func() {
 			time.Sleep(1 * time.Second)
@@ -271,15 +281,13 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 				doSleepQQ(ctx)
 				p.SendToGroup(ctx, groupId, strings.TrimSpace(i), "")
 			}
-			groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId)
-			if ok {
-				for _, i := range groupInfo.ActivatedExtList {
-					if i.OnGroupJoined != nil {
-						i.callWithJsCheck(ctx.Dice, func() {
-							i.OnGroupJoined(ctx, msg)
-						})
+			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId); ok {
+				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+					if ext.OnGroupJoined == nil {
+						return nil
 					}
-				}
+					return func() { ext.OnGroupJoined(ctx, msg) }
+				})
 			}
 		})
 	} else {
@@ -388,16 +396,17 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	var extra string
 	// 匹配验证问题检查
 	var passQuestion bool
-	var passblackList bool
 	if comment != DiceFormat(ctx, toMatch) {
 		passQuestion = checkMultiFriendAddVerify(comment, toMatch)
 	}
 	// 匹配黑名单检查
 	result := checkBlackList(req.Get("user_id").String(), "user", ctx)
+
 	// 格式化请求的数据
-	comment = strconv.Quote(comment)
 	if comment == "" {
 		comment = "(无)"
+	} else {
+		comment = strconv.Quote(comment)
 	}
 	if !passQuestion {
 		extra = "。回答错误"
@@ -411,7 +420,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	if p.IgnoreFriendRequest {
 		extra += "。由于设置了忽略邀请，此信息仅为通报"
 	}
-	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && passblackList, extra)
+	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
 	ctx.Notice(txt)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
@@ -968,7 +977,7 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	ctx := &MsgContext{MessageType: messageType, EndPoint: ep, Session: session, Dice: session.Parent}
 	wrapper := MessageWrapper{
 		MessageType: ctx.MessageType,
-		GroupID:     FormatOnebotDiceIDQQ(req.Get("group_id").String()),
+		GroupID:     FormatOnebotDiceIDQQGroup(req.Get("group_id").String()),
 		Sender: struct {
 			UserID   string
 			Nickname string
@@ -979,47 +988,69 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	}
 	switch ctx.MessageType {
 	case "private":
-		// 拿到ID
+		// 私聊戳一戳可能拿不到用户信息（协议端异常/限流等），退化为仅依赖 user_id 的上下文。
+		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(req.Get("user_id").String())
 		info, err := p.sendEmitter.GetStrangerInfo(p.ctx, req.Get("user_id").Int(), false)
-		if err != nil {
-			return ctx
+		if err == nil {
+			wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(info.UserId, 10))
+			wrapper.Sender.Nickname = info.NickName
 		}
-		// 设置名称
-		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(info.UserId, 10))
-		wrapper.Sender.Nickname = info.NickName
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Player.Name == "" {
-			ctx.Player.Name = info.NickName
+			if wrapper.Sender.Nickname != "" {
+				ctx.Player.Name = wrapper.Sender.Nickname
+			} else {
+				ctx.Player.Name = wrapper.Sender.UserID
+			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
+			if ctx.Group != nil {
+				ctx.Group.MarkDirty(ctx.Dice)
+			}
 		}
-		SetTempVars(ctx, info.NickName)
+		if wrapper.Sender.Nickname != "" {
+			SetTempVars(ctx, wrapper.Sender.Nickname)
+		}
 	case "group":
 		groupID, _ := strconv.ParseInt(req.Get("group_id").String(), 10, 64)
 		userID, _ := strconv.ParseInt(req.Get("user_id").String(), 10, 64)
 		memberInfo, err := p.sendEmitter.GetGroupMemberInfo(p.ctx, groupID, userID, false)
-		if err != nil {
-			return ctx
+		// 群戳一戳事件中，获取群成员信息可能失败（协议端异常/限流/机器人不在群等）。
+		// 这种情况下仍构造最小上下文，避免后续处理链路空指针崩溃。
+		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(req.Get("user_id").String())
+		if err == nil {
+			wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(memberInfo.UserId, 10))
+			wrapper.Sender.Nickname = memberInfo.Nickname
 		}
-		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(memberInfo.UserId, 10))
-		wrapper.Sender.Nickname = memberInfo.Nickname
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Group == nil {
+			// 注意：GetPlayerInfoBySenderRaw 内部已调用 SetBotOnAtGroup，正常不会返回 nil
+			// 若仍为 nil，说明出现异常情况，此处使用 SetBotOnAtGroup 确保群组被正确存入全局列表
 			gi := p.GetGroupCacheInfo(FormatOnebotDiceIDQQGroup(req.Get("group_id").String()))
-			ctx.Group = &GroupInfo{GroupID: gi.GroupId, GroupName: gi.GroupName}
-			ctx.Group.UpdatedAtTime = time.Now().Unix()
+			ctx.Group = SetBotOnAtGroup(ctx, gi.GroupId)
+			ctx.Group.GroupName = gi.GroupName
+			ctx.Group.MarkDirty(ctx.Dice)
 		}
 		if ctx.Player == nil {
 			ctx.Player = &GroupPlayerInfo{UserID: wrapper.Sender.UserID}
 		}
 		if ctx.Player.Name == "" {
-			if memberInfo.Card == "" {
-				ctx.Player.Name = memberInfo.Nickname
+			if err == nil {
+				if memberInfo.Card == "" {
+					ctx.Player.Name = memberInfo.Nickname
+				} else {
+					ctx.Player.Name = memberInfo.Card
+				}
 			} else {
-				ctx.Player.Name = memberInfo.Card
+				ctx.Player.Name = wrapper.Sender.UserID
 			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
+			if ctx.Group != nil {
+				ctx.Group.MarkDirty(ctx.Dice)
+			}
 		}
-		SetTempVars(ctx, memberInfo.Nickname)
+		if wrapper.Sender.Nickname != "" {
+			SetTempVars(ctx, wrapper.Sender.Nickname)
+		}
 	}
 
 	return ctx

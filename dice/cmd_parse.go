@@ -396,11 +396,9 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 		}
 		switch v.Type() {
 		case message.At:
-			res, ok := v.(*message.AtElement)
-			if !ok {
-				continue
-			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", res.Target))
+			// 跳过 @ 信息，因为已通过 parseAtInfo 单独处理
+			// 不要转换为 CQ 码，否则会污染 CleanArgs 导致表达式解析失败
+			continue
 		case message.Text:
 			res, ok := v.(*message.TextElement)
 			if !ok {
@@ -545,8 +543,8 @@ func findMatchingCommand(restText string, d *Dice, group *GroupInfo) (string, bo
 
 	// 添加群组激活的扩展命令
 	if group != nil {
-		for _, ext := range group.ActivatedExtList {
-			for k := range ext.CmdMap {
+		for _, ext := range group.GetActivatedExtList(d) {
+			for k := range ext.GetCmdMap() {
 				cmdLst = append(cmdLst, k)
 			}
 		}

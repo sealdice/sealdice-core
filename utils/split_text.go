@@ -9,32 +9,144 @@ import (
 
 const DefaultSplitPaginationHint = "[ %d / %d ]\n"
 
+// cqCodePattern 匹配有效的 CQ 码格式
+// 格式: [CQ:type] 或 [CQ:type,key=value,...]
+// type 由小写字母组成，参数格式为 key=value
+var cqCodePattern = regexp.MustCompile(`^\[CQ:[a-z]+(?:,[^,\[\]]+=[^,\[\]]*)*\]`)
+
+// cqCodeGlobalPattern 用于全局匹配所有有效 CQ 码
+var cqCodeGlobalPattern = regexp.MustCompile(`\[CQ:[a-z]+(?:,[^,\[\]]+=[^,\[\]]*)*\]`)
+
+// lenWithoutCQCode 计算排除 CQ 码后的文本长度
+func lenWithoutCQCode(s string) int {
+	return len(cqCodeGlobalPattern.ReplaceAllString(s, ""))
+}
+
+// findCQCodeRange 查找包含指定位置的有效 CQ 码范围
+// 返回 (start, end)，如果 pos 不在有效 CQ 码内则返回 (-1, -1)
+// CQ 码必须符合标准格式: [CQ:type,key=value,...] 或 [CQ:type]
+func findCQCodeRange(s string, pos int) (int, int) {
+	if pos >= len(s) {
+		return -1, -1
+	}
+
+	// 遍历所有可能的 CQ 码，找到包含 pos 的那个
+	searchStart := 0
+	for {
+		cqStart := strings.Index(s[searchStart:], "[CQ:")
+		if cqStart == -1 {
+			break
+		}
+		cqStart += searchStart
+
+		// 使用正则验证是否为有效的 CQ 码格式
+		remaining := s[cqStart:]
+		match := cqCodePattern.FindString(remaining)
+		if match == "" {
+			// 不是有效的 CQ 码格式，跳过继续查找
+			searchStart = cqStart + 4 // 跳过 "[CQ:"
+			continue
+		}
+
+		cqEndAbs := cqStart + len(match) - 1
+
+		// 检查 pos 是否在这个 CQ 码范围内
+		if pos >= cqStart && pos <= cqEndAbs {
+			return cqStart, cqEndAbs
+		}
+
+		// 如果 pos 在当前 CQ 码之前，说明 pos 不在任何 CQ 码内
+		if pos < cqStart {
+			break
+		}
+
+		// 继续查找下一个 CQ 码
+		searchStart = cqEndAbs + 1
+	}
+
+	return -1, -1
+}
+
+// adjustSplitPointForCQCode 调整切分点以避免切断 CQ 码
+// 返回安全的切分位置
+func adjustSplitPointForCQCode(s string, pos int) int {
+	start, _ := findCQCodeRange(s, pos)
+	if start == -1 {
+		return pos // 不在 CQ 码内，原位置安全
+	}
+	if start == 0 {
+		return 0 // CQ 码从开头开始
+	}
+	return start
+}
+
 func splitFirst(s string, maxLen int) (first string, rest string) {
-	// 不足上限不切分
-	if len(s) <= maxLen {
+	// 使用排除 CQ 码后的长度判断是否需要切分
+	if lenWithoutCQCode(s) <= maxLen {
 		return s, ""
 	}
 
-	// 确保子串长度不大于 maxLen 且完整切分 UTF-8 字符
-	r := maxLen
-	for (!utf8.RuneStart(s[r])) && r > 0 {
-		r--
+	// 找到切分点：使前半部分的可读文本长度 <= maxLen，且不切断 CQ 码
+	r := findSplitPoint(s, maxLen)
+	if r <= 0 {
+		// 无法找到有效切分点，返回整个字符串
+		return s, ""
 	}
 
-	// 如果有连续换行符, 直接切分
+	// 如果有连续换行符, 直接切分（但要确保不在 CQ 码内）
 	multiNL := regexp.MustCompile(`\n{2,}`)
 	idxMultiNL := multiNL.FindStringIndex(s[0:r])
 	if len(idxMultiNL) == 2 {
-		return s[0:idxMultiNL[0]], s[idxMultiNL[1]:]
+		start, _ := findCQCodeRange(s, idxMultiNL[0])
+		if start == -1 {
+			return s[0:idxMultiNL[0]], s[idxMultiNL[1]:]
+		}
 	}
 
-	// 如果切分中有换行符, 以最后一个换行符切分, 增强可读性
+	// 如果切分中有换行符, 以最后一个换行符切分（但要确保不在 CQ 码内）
 	idxNL := strings.LastIndex(s[0:r], "\n")
 	if idxNL >= 0 {
-		return s[0:idxNL], s[idxNL+1:]
+		start, _ := findCQCodeRange(s, idxNL)
+		if start == -1 {
+			return s[0:idxNL], s[idxNL+1:]
+		}
 	}
 
 	return s[0:r], s[r:]
+}
+
+// findSplitPoint 找到切分点，使前半部分的可读文本（排除CQ码）长度 <= maxLen
+// 返回切分位置，如果找不到返回 0
+func findSplitPoint(s string, maxLen int) int {
+	textLen := 0 // 累计的可读文本长度
+	i := 0
+
+	for i < len(s) {
+		// 检查是否是 CQ 码开始
+		if i+4 <= len(s) && s[i:i+4] == "[CQ:" {
+			match := cqCodePattern.FindString(s[i:])
+			if match != "" {
+				// 是有效 CQ 码，跳过整个 CQ 码（不计入长度）
+				i += len(match)
+				continue
+			}
+		}
+
+		// 普通字符，计入长度
+		// 处理 UTF-8 多字节字符
+		_, size := utf8.DecodeRuneInString(s[i:])
+		textLen += size
+		i += size
+
+		// 如果可读文本长度达到 maxLen，这里就是切分点
+		if textLen >= maxLen {
+			// 确保不在 CQ 码内部切分
+			return adjustSplitPointForCQCode(s, i)
+		}
+	}
+
+	// 遍历完了还没达到 maxLen，不需要切分
+	return 0
 }
 
 // SplitLongText 切分长文本

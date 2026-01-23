@@ -214,7 +214,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 						group.LogOn = true
 						group.LogCurName = name
-						group.UpdatedAtTime = time.Now().Unix()
+						group.MarkDirty(ctx.Dice)
 
 						VarSetValueStr(ctx, "$t记录名称", name)
 						VarSetValueInt64(ctx, "$t当前记录条数", lines)
@@ -230,7 +230,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			} else if cmdArgs.IsArgEqual(1, "off") {
 				if group.LogCurName != "" && group.LogOn {
 					group.LogOn = false
-					group.UpdatedAtTime = time.Now().Unix()
+					group.MarkDirty(ctx.Dice)
 					lines, _ := service.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
 					VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
 					VarSetValueInt64(ctx, "$t当前记录条数", lines)
@@ -306,13 +306,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				// }
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
 				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
 				go getAndUpload(group.GroupID, group.LogCurName)
 				group.LogCurName = ""
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
 				if len(group.LogCurName) > 0 {
@@ -324,7 +324,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				ReplyToSender(ctx, msg, text)
 				group.LogOn = false
 				group.LogCurName = ""
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "list") {
 				groupID, requestForAnotherGroup := getSpecifiedGroupIfMaster(ctx, msg, cmdArgs)
@@ -382,7 +382,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				VarSetValueStr(ctx, "$t记录名称", name)
 				group.LogCurName = name
 				group.LogOn = true
-				group.UpdatedAtTime = time.Now().Unix()
+				group.MarkDirty(ctx.Dice)
 
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_新建"))
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -580,6 +580,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
 					c.Player.Name = c.Player.Name[len("ob"):]
 					c.Player.UpdatedAtTime = time.Now().Unix()
+					if c.Group != nil {
+						c.Group.MarkDirty(c.Dice)
+					}
 				}
 				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_关闭"))
@@ -587,6 +590,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if !strings.HasPrefix(strings.ToLower(c.Player.Name), "ob") {
 					c.Player.Name = "ob" + c.Player.Name
 					c.Player.UpdatedAtTime = time.Now().Unix()
+					if c.Group != nil {
+						c.Group.MarkDirty(c.Dice)
+					}
 				}
 				c.EndPoint.Adapter.SetGroupCardName(c, c.Player.Name)
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:OB_开启"))
@@ -654,6 +660,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "coc", "coc7":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
@@ -666,6 +675,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				// PW{pw}
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} HP{hp}/{hpmax} AC{ac} DC{dc} PP{pp}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				text, err := SetPlayerGroupCardByTemplate(ctx, ctx.Player.AutoSetNameTemplate)
 				if errors.Is(err, ErrGroupCardOverlong) {
 					return handleOverlong(ctx, msg, text)
@@ -677,6 +689,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "none":
 				ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW}"
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				text, err := SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				if errors.Is(err, ErrGroupCardOverlong) { // 大约不至于会走到这里，但是为了统一也这样写了
 					return handleOverlong(ctx, msg, text)
@@ -688,6 +703,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 				ctx.Player.AutoSetNameTemplate = ""
 				ctx.Player.UpdatedAtTime = time.Now().Unix()
+				if ctx.Group != nil {
+					ctx.Group.MarkDirty(ctx.Dice)
+				}
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_取消设置"))
 			case "expr":
 				t := cmdArgs.GetRestArgsFrom(2)
@@ -698,6 +716,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 					_, _ = SetPlayerGroupCardByTemplate(ctx, "{$t玩家_RAW}")
 					ctx.Player.AutoSetNameTemplate = ""
 					ctx.Player.UpdatedAtTime = time.Now().Unix()
+					if ctx.Group != nil {
+						ctx.Group.MarkDirty(ctx.Dice)
+					}
 					ReplyToSender(ctx, msg, "玩家自设内容为空，已自动关闭此功能")
 				} else {
 					last := ctx.Player.AutoSetNameTemplate
@@ -710,6 +731,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 						return handleOverlong(ctx, msg, text)
 					} else {
 						ctx.Player.UpdatedAtTime = time.Now().Unix()
+						if ctx.Group != nil {
+							ctx.Group.MarkDirty(ctx.Dice)
+						}
 						VarSetValueStr(ctx, "$t名片格式", "玩家自设")
 						VarSetValueStr(ctx, "$t名片预览", text)
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:名片_自动设置"))

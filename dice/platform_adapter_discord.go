@@ -50,7 +50,7 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupID string) {
 	if ok {
 		if channel.Name != groupInfo.GroupName {
 			groupInfo.GroupName = channel.Name
-			groupInfo.UpdatedAtTime = time.Now().Unix()
+			groupInfo.MarkDirty(pa.Session.Parent)
 		}
 	}
 }

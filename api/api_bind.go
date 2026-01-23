@@ -363,7 +363,7 @@ func DiceAllCommand(c echo.Context) error {
 	}
 
 	for _, i := range myDice.ExtList {
-		for k := range i.CmdMap {
+		for k := range i.GetCmdMap() {
 			cmdLst = append(cmdLst, k)
 		}
 	}
