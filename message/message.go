@@ -2,10 +2,8 @@ package message
 
 import (
 	"bytes"
-	"crypto/md5"
 	"crypto/sha1"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -20,12 +18,62 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
+	"go.uber.org/zap"
 )
+
+// CQFileErrorKind 定义CQ码资源错误类型
+type CQFileErrorKind int
+
+const (
+	CQFileErrInvalidURL  CQFileErrorKind = iota + 1 // URL格式错误
+	CQFileErrUnavailable                            // 资源不可用（网络错误、404等）
+	CQFileErrRestricted                             // 路径受限
+	CQFileErrInvalidSize                            // 文件大小无效
+)
+
+// CQFileError CQ码资源处理错误
+type CQFileError struct {
+	Kind       CQFileErrorKind
+	Raw        string // 原始路径/URL
+	Normalized string // 规范化后的路径/URL
+	StatusCode int    // HTTP状态码（仅HTTP请求时有效）
+	Cause      error  // 底层错误
+}
+
+func (e *CQFileError) Error() string {
+	switch e.Kind {
+	case CQFileErrInvalidURL:
+		return fmt.Sprintf("CQ码资源URL格式错误: %s", e.Raw)
+	case CQFileErrUnavailable:
+		if e.StatusCode > 0 {
+			return fmt.Sprintf("CQ码资源不可用(HTTP %d): %s", e.StatusCode, e.Raw)
+		}
+		return fmt.Sprintf("CQ码资源不可用: %s", e.Raw)
+	case CQFileErrRestricted:
+		return fmt.Sprintf("CQ码资源路径受限: %s", e.Raw)
+	case CQFileErrInvalidSize:
+		return fmt.Sprintf("CQ码资源文件大小无效: %s", e.Raw)
+	default:
+		return fmt.Sprintf("CQ码资源错误: %s", e.Raw)
+	}
+}
+
+func (e *CQFileError) Unwrap() error {
+	return e.Cause
+}
 
 type CQCommand struct {
 	Type      string
 	Args      map[string]string
 	Overwrite string
+}
+
+func EscapeCQParam(v string) string {
+	safeV := strings.ReplaceAll(v, "&", "&amp;")
+	safeV = strings.ReplaceAll(safeV, "[", "&#91;")
+	safeV = strings.ReplaceAll(safeV, "]", "&#93;")
+	safeV = strings.ReplaceAll(safeV, ",", "&#44;")
+	return safeV
 }
 
 func (c *CQCommand) Compile() string {
@@ -34,7 +82,7 @@ func (c *CQCommand) Compile() string {
 	}
 	var argsPart strings.Builder
 	for k, v := range c.Args {
-		fmt.Fprintf(&argsPart, ",%s=%s", k, v)
+		fmt.Fprintf(&argsPart, ",%s=%s", k, EscapeCQParam(v))
 	}
 	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart.String())
 }
@@ -276,34 +324,6 @@ func CQToText(t string, d map[string]string) IMessageElement {
 	org.WriteString("]")
 	return newText(org.String())
 }
-func getFileName(header http.Header) string {
-	contentDisposition := header.Get("Content-Disposition")
-	if contentDisposition == "" {
-		contentType := header.Get("Content-Type")
-		if contentType == "" {
-			return calculateMD5(header)
-		}
-		filetype, err := mime.ExtensionsByType(contentType)
-		if err != nil {
-			return calculateMD5(header)
-		}
-		var suffix string
-		if len(filetype) != 0 {
-			suffix = filetype[len(filetype)-1]
-			return calculateMD5(header) + suffix
-		}
-		return calculateMD5(header)
-	}
-	return regexp.MustCompile(`filename=(.+)`).FindStringSubmatch(strings.Split(contentDisposition, ";")[1])[1]
-}
-
-func calculateMD5(header http.Header) string {
-	hash := md5.New() //nolint:gosec
-	for _, value := range header["Content-Type"] {
-		hash.Write([]byte(value))
-	}
-	return hex.EncodeToString(hash.Sum(nil))
-}
 
 // ExtractLocalTempFile 按路径提取临时文件，路径可以是 http/base64/本地路径
 func ExtractLocalTempFile(path string) (string, string, error) {
@@ -329,34 +349,55 @@ func ExtractLocalTempFile(path string) (string, string, error) {
 	return fileElement.File, temp.Name(), nil
 }
 
-func FilepathToFileElement(fp string) (*FileElement, error) {
-	if strings.HasPrefix(fp, "http") {
-		resp, err := http.Get(fp) //nolint:gosec
+func normalizeRemoteURL(raw string) (string, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		parsed, err = url.Parse(strings.ReplaceAll(raw, " ", "%20"))
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		header := resp.Header
-		content, err := io.ReadAll(resp.Body)
-		defer func() { _ = resp.Body.Close() }()
+	}
+	if parsed.Host == "" {
+		return "", errors.New("missing host")
+	}
+	if parsed.Path != "" {
+		unescapedPath, err := url.PathUnescape(parsed.Path)
+		if err != nil {
+			return "", err
+		}
+		parsed.Path = unescapedPath
+	}
+	if parsed.RawQuery != "" {
+		if q, err := url.ParseQuery(parsed.RawQuery); err == nil {
+			parsed.RawQuery = q.Encode()
+		}
+	}
+	return parsed.String(), nil
+}
 
-		if resp.StatusCode != http.StatusOK {
-			return nil, errors.New("http get failed")
-		}
-		filename := getFileName(header)
+func FilepathToFileElement(fp string) (*FileElement, error) {
+	fp = strings.TrimSpace(fp)
+
+	if strings.HasPrefix(fp, "http://") || strings.HasPrefix(fp, "https://") {
+		normalizedURL, err := normalizeRemoteURL(fp)
 		if err != nil {
-			return nil, err
+			return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: err}
 		}
-		r := &FileElement{
-			Stream:      bytes.NewReader(content),
-			ContentType: resp.Header.Get("Content-Type"),
-			File:        filename,
-			URL:         fp,
+		fileName := ""
+		if u, err := url.Parse(normalizedURL); err == nil {
+			fileName = path.Base(u.Path)
+			if fileName == "." || fileName == "/" {
+				fileName = ""
+			}
 		}
-		return r, nil
+		return &FileElement{
+			File: fileName,
+			URL:  normalizedURL,
+		}, nil
 	} else if strings.HasPrefix(fp, "base64://") {
 		content, err := base64.StdEncoding.DecodeString(fp[9:])
 		if err != nil {
-			return nil, err
+			return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: err}
 		}
 		sha1Inst := sha1.New() //nolint:gosec
 		filetype, _ := mime.ExtensionsByType(http.DetectContentType(content))
@@ -374,42 +415,60 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 		}
 		return r, nil
 	} else {
-		fu, err := url.Parse(fp)
-		if err != nil {
-			return nil, err
+		// 本地文件路径处理
+		localPath := fp
+
+		// 处理 file:// URL
+		if strings.HasPrefix(fp, "file://") {
+			fu, err := url.Parse(fp)
+			if err != nil {
+				return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: err}
+			}
+			// 对路径进行URL解码，处理%20等编码的中文/空格
+			localPath, _ = url.PathUnescape(fu.Path)
+			if runtime.GOOS == `windows` && strings.HasPrefix(localPath, "/") {
+				localPath = localPath[1:]
+			}
+			localPath = filepath.FromSlash(localPath)
 		}
-		if runtime.GOOS == `windows` && strings.HasPrefix(fu.Path, "/") {
-			fu.Path = fu.Path[1:]
-		}
-		info, err := os.Stat(fu.Path)
+
+		info, err := os.Stat(localPath)
 		if err != nil {
-			return nil, err
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: localPath, Cause: err}
 		}
 		if info.Size() == 0 || info.Size() >= maxFileSize {
-			return nil, errors.New("invalid file size")
+			return nil, &CQFileError{Kind: CQFileErrInvalidSize, Raw: fp, Normalized: localPath}
 		}
-		afn, err := filepath.Abs(fu.Path)
+		afn, err := filepath.Abs(localPath)
 		if err != nil {
-			return nil, err // 不是文件路径，不管
+			return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Normalized: localPath, Cause: err}
 		}
 		cwd, _ := os.Getwd()
 		if !strings.HasPrefix(afn, cwd) && !strings.HasPrefix(afn, os.TempDir()) {
-			return nil, errors.New("restricted file path")
+			return nil, &CQFileError{Kind: CQFileErrRestricted, Raw: fp, Normalized: afn}
 		}
-		filesuffix := path.Ext(fu.Path)
-		content, err := os.ReadFile(fu.Path)
+		filesuffix := path.Ext(localPath)
+		content, err := os.ReadFile(localPath)
 		if err != nil {
-			return nil, err
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: localPath, Cause: err}
 		}
 		contenttype := mime.TypeByExtension(filesuffix)
 		if len(contenttype) == 0 {
 			contenttype = "application/octet-stream"
 		}
+		fileURLPath := filepath.ToSlash(afn)
+		if runtime.GOOS == `windows` && !strings.HasPrefix(fileURLPath, "/") {
+			fileURLPath = "/" + fileURLPath
+		}
+		fileURL := url.URL{
+			Scheme: "file",
+			Path:   fileURLPath,
+		}
 		r := &FileElement{
 			Stream:      bytes.NewReader(content),
 			ContentType: contenttype,
 			File:        info.Name(),
-			URL:         "file://" + afn,
+			URL:         fileURL.String(),
 		}
 		return r, nil
 	}
@@ -497,17 +556,118 @@ func SealCodeToCqCode(text string) string {
 	return "[图片/文件指向非当前程序目录，已禁止]"
 }
 
-func ConvertStringMessage(raw string) (r []IMessageElement) {
+// convertConfig ConvertStringMessage的配置
+type convertConfig struct {
+	logger  *zap.SugaredLogger
+	onError func(err error, cqType string, cqArgs map[string]string)
+}
+
+// ConvertOption ConvertStringMessage的选项函数
+type ConvertOption func(*convertConfig)
+
+// WithLogger 设置日志记录器
+func WithLogger(l *zap.SugaredLogger) ConvertOption {
+	return func(c *convertConfig) {
+		if l != nil {
+			c.logger = l
+		}
+	}
+}
+
+// WithOnError 设置错误回调
+func WithOnError(fn func(err error, cqType string, cqArgs map[string]string)) ConvertOption {
+	return func(c *convertConfig) { c.onError = fn }
+}
+
+func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElement) {
+	cfg := &convertConfig{
+		// 默认使用全局logger，确保控制台+前端日志可见
+		logger: zap.S().Named("message"),
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	var arg, key string
 	dMap := map[string]string{}
 
 	text := ImageRewrite(raw, SealCodeToCqCode)
 
+	resourceName := func(cqType string) string {
+		switch cqType {
+		case "image":
+			return "图片"
+		case "record":
+			return "语音"
+		case "video":
+			return "视频"
+		case "file":
+			return "文件"
+		default:
+			return "资源"
+		}
+	}
+	placeholderForError := func(err error, cqType string, cqArgs map[string]string) string {
+		name := resourceName(cqType)
+		var fe *CQFileError
+		if errors.As(err, &fe) {
+			switch fe.Kind {
+			case CQFileErrInvalidURL:
+				return fmt.Sprintf("[%sURL无效]", name)
+			case CQFileErrUnavailable:
+				if fe.StatusCode == http.StatusNotFound || errors.Is(fe.Cause, os.ErrNotExist) {
+					return fmt.Sprintf("[找不到%s]", name)
+				}
+				return fmt.Sprintf("[%s不可用]", name)
+			case CQFileErrRestricted:
+				return fmt.Sprintf("[%s路径受限]", name)
+			case CQFileErrInvalidSize:
+				return fmt.Sprintf("[%s大小无效]", name)
+			default:
+				return fmt.Sprintf("[%s处理失败]", name)
+			}
+		}
+		return "[消息解析失败]"
+	}
+
 	saveCQCode := func() {
 		elem, err := toElement(arg, dMap)
 		if err != nil {
-			// d.Logger.Errorf("转换CQ码时出现错误，将原样发送 <%s>", err.Error())
-			r = append(r, CQToText(arg, dMap))
+			// 错误时跳过该CQ码，不原样发出，但记录日志
+			var fe *CQFileError
+			if errors.As(err, &fe) {
+				switch fe.Kind {
+				case CQFileErrInvalidURL:
+					cfg.logger.Warnf("CQ码资源URL格式错误，已跳过: type=%s raw=%q err=%v", arg, fe.Raw, fe)
+				case CQFileErrUnavailable:
+					if fe.StatusCode > 0 {
+						cfg.logger.Warnf("CQ码资源不可用(HTTP %d)，已跳过: type=%s raw=%q", fe.StatusCode, arg, fe.Raw)
+					} else {
+						cfg.logger.Warnf("CQ码资源不可用，已跳过: type=%s raw=%q err=%v", arg, fe.Raw, fe.Cause)
+					}
+				case CQFileErrRestricted:
+					cfg.logger.Warnf("CQ码资源路径受限，已跳过: type=%s raw=%q", arg, fe.Raw)
+				case CQFileErrInvalidSize:
+					cfg.logger.Warnf("CQ码资源文件大小无效，已跳过: type=%s raw=%q", arg, fe.Raw)
+				default:
+					cfg.logger.Warnf("CQ码资源处理失败，已跳过: type=%s raw=%q err=%v", arg, fe.Raw, fe)
+				}
+			} else {
+				cfg.logger.Warnf("转换CQ码失败，已跳过: type=%s args=%v err=%v", arg, dMap, err)
+			}
+			// 调用错误回调（如果设置了的话）
+			if cfg.onError != nil {
+				// 复制一份dMap防止后续修改影响回调
+				argsCopy := make(map[string]string, len(dMap))
+				for k, v := range dMap {
+					argsCopy[k] = v
+				}
+				cfg.onError(err, arg, argsCopy)
+			}
+			if fe != nil {
+				return
+			}
+			r = append(r, newText(placeholderForError(err, arg, dMap)))
 			return
 		}
 		r = append(r, elem)
