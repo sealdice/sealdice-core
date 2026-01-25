@@ -1526,6 +1526,7 @@ func (d *Dice) registerCoreCommands() {
 					fmt.Fprintf(&text, "%d. [%s]%s%s %s - %s - %s\n", index+1, state, officialMark, i.Name, aliases, i.Version, author)
 				}
 				text.WriteString("使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n")
+				text.WriteString("使用命令: .ext <作者/扩展名> on/off 可以精确指定扩展（用于同名扩展）。\n")
 				text.WriteString("使用命令: .ext all on 可以在当前群开启全部扩展。\n")
 				text.WriteString("命令: .ext <扩展名> 可以查看扩展介绍及帮助")
 				ReplyToSender(ctx, msg, text.String())
@@ -1613,6 +1614,35 @@ func (d *Dice) registerCoreCommands() {
 				// 排除最后一个参数 "on"
 				for index := range len(cmdArgs.Args) - 1 {
 					extName := strings.ToLower(cmdArgs.Args[index])
+
+					// 检查是否有多个同名扩展需要区分
+					if !strings.Contains(extName, "/") {
+						allExts := d.ExtFindAllByName(extName)
+						// 过滤出当前群未激活的扩展
+						var inactiveExts []*ExtInfo
+						for _, ext := range allExts {
+							isActive := false
+							for _, activated := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+								if ext.Name == activated.Name && ext.Author == activated.Author {
+									isActive = true
+									break
+								}
+							}
+							if !isActive {
+								inactiveExts = append(inactiveExts, ext)
+							}
+						}
+						// 如果有多个未激活的同名扩展，提示用户
+						if len(inactiveExts) > 1 {
+							var names []string
+							for _, ext := range inactiveExts {
+								names = append(names, ext.ExtGetFullName())
+							}
+							ReplyToSender(ctx, msg, fmt.Sprintf("发现多个同名扩展均未激活，请使用完整名称指定:\n%s\n例如: .ext %s on", strings.Join(names, "\n"), names[0]))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+
 					if i := d.ExtFind(extName, false); i != nil {
 						extNames = append(extNames, i.Name)
 						userActivatedNames[i.Name] = true
@@ -1663,6 +1693,31 @@ func (d *Dice) registerCoreCommands() {
 				// 排除最后一个参数 "off"
 				for index := range len(cmdArgs.Args) - 1 {
 					extName := cmdArgs.Args[index]
+
+					// 检查是否有多个同名扩展需要区分
+					if !strings.Contains(extName, "/") {
+						allExts := d.ExtFindAllByName(extName)
+						// 过滤出当前群已激活的扩展
+						var activeExts []*ExtInfo
+						for _, ext := range allExts {
+							for _, activated := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+								if ext.Name == activated.Name && ext.Author == activated.Author {
+									activeExts = append(activeExts, ext)
+									break
+								}
+							}
+						}
+						// 如果有多个已激活的同名扩展，提示用户
+						if len(activeExts) > 1 {
+							var names []string
+							for _, ext := range activeExts {
+								names = append(names, ext.ExtGetFullName())
+							}
+							ReplyToSender(ctx, msg, fmt.Sprintf("发现多个同名扩展均已激活，请使用完整名称指定:\n%s\n例如: .ext %s off", strings.Join(names, "\n"), names[0]))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+
 					extName = d.ExtAliasToName(extName)
 
 					ei := ctx.Group.ExtInactiveByName(extName)
