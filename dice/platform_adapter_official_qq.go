@@ -129,8 +129,8 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 				pa.SessionManager = nil
 			}
 		}()
-		if err := pa.SessionManager.Start(currentCtx, ws, token, &intent); err != nil {
-			log.Error("official qq session manager 启动失败: ", err)
+		if startErr := pa.SessionManager.Start(currentCtx, ws, token, &intent); startErr != nil {
+			log.Error("official qq session manager 启动失败: ", startErr)
 			if pa.Ctx == currentCtx {
 				ep.State = 3
 				ep.Enable = false
