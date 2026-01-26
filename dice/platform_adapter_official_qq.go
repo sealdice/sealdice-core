@@ -51,11 +51,46 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	qqbot.SetLogger(NewDummyLogger())
 	token := qqtoken.BotToken(pa.AppID, pa.Token)
 	pa.Api = qqbot.NewOpenAPI(token).WithTimeout(3 * time.Second)
-	pa.Ctx, pa.CancelFunc = context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	pa.Ctx, pa.CancelFunc = ctx, cancel
 	pa.SessionManager = qqbot.NewSessionManager()
 
+	ep.State = 2
 	log.Debug("official qq connecting")
-	ws, _ := pa.Api.WS(pa.Ctx, nil, "")
+	ws, err := pa.Api.WS(ctx, nil, "")
+	if err != nil || ws == nil {
+		log.Error("official qq 获取 ws 接入点失败: ", err)
+		log.Error("official qq 提示：请确认在机器人后台配置了 IP 白名单，并检查 AppID/Token 是否正确")
+		ep.State = 3
+		if pa.CancelFunc != nil {
+			pa.CancelFunc()
+		}
+		pa.Api = nil
+		pa.SessionManager = nil
+		pa.Ctx = nil
+		pa.CancelFunc = nil
+		return 1
+	}
+	// 极端情况下 shards 为 0 会导致 session manager 阻塞在 channel range 上
+	if ws.Shards == 0 {
+		ws.Shards = 1
+	}
+	// 频控不满足时，botgo 会直接返回错误；这里提前检查避免在 goroutine 内“静默失败”
+	if ws.Shards > ws.SessionStartLimit.Remaining {
+		log.Errorf(
+			"official qq session limited: shards=%d remaining=%d resetAfter=%d maxConcurrency=%d",
+			ws.Shards, ws.SessionStartLimit.Remaining, ws.SessionStartLimit.ResetAfter, ws.SessionStartLimit.MaxConcurrency,
+		)
+		ep.State = 3
+		if pa.CancelFunc != nil {
+			pa.CancelFunc()
+		}
+		pa.Api = nil
+		pa.SessionManager = nil
+		pa.Ctx = nil
+		pa.CancelFunc = nil
+		return 1
+	}
 
 	var intent dto.Intent
 	// 文字子频道at消息
@@ -77,19 +112,30 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	}
 
 	go func() {
+		currentCtx := ctx
 		defer func() {
+			isCurrent := pa.Ctx == currentCtx
 			// 防止崩掉进程
 			if r := recover(); r != nil {
 				log.Error("official qq 启动失败: ", r)
+				if isCurrent {
+					ep.State = 3
+					ep.Enable = false
+				}
 			}
-			pa.Ctx = nil
-			pa.CancelFunc = nil
-			pa.SessionManager = nil
+			if isCurrent {
+				pa.Ctx = nil
+				pa.CancelFunc = nil
+				pa.SessionManager = nil
+			}
 		}()
-		_ = pa.SessionManager.Start(pa.Ctx, ws, token, &intent)
-		pa.Ctx = nil
-		pa.CancelFunc = nil
-		pa.SessionManager = nil
+		if startErr := pa.SessionManager.Start(currentCtx, ws, token, &intent); startErr != nil {
+			log.Error("official qq session manager 启动失败: ", startErr)
+			if pa.Ctx == currentCtx {
+				ep.State = 3
+				ep.Enable = false
+			}
+		}
 	}()
 	ep.State = 1
 	ep.Enable = true
@@ -97,7 +143,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	d.Save(false)
 	log.Info("official qq 连接成功")
 
-	botInfo, err := pa.Api.Me(pa.Ctx)
+	botInfo, err := pa.Api.Me(ctx)
 	if err == nil {
 		ep.UserID = formatDiceIDOfficialQQ(botInfo.ID)
 		ep.Nickname = botInfo.Username
