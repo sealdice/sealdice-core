@@ -1526,7 +1526,7 @@ func (d *Dice) registerCoreCommands() {
 					fmt.Fprintf(&text, "%d. [%s]%s%s %s - %s - %s\n", index+1, state, officialMark, i.Name, aliases, i.Version, author)
 				}
 				text.WriteString("使用命令: .ext <扩展名> on/off 可以在当前群开启或关闭某扩展。\n")
-				text.WriteString("使用命令: .ext all on 可以在当前群开启全部扩展。\n")
+				text.WriteString("使用命令: .ext all on/off 可以在当前群开启或关闭全部扩展。\n")
 				text.WriteString("命令: .ext <扩展名> 可以查看扩展介绍及帮助")
 				ReplyToSender(ctx, msg, text.String())
 			}
@@ -1645,6 +1645,56 @@ func (d *Dice) registerCoreCommands() {
 			} else if cmdArgs.IsArgEqual(last, "off") {
 				if !ctx.Dice.Config.BotExtFreeSwitch && ctx.PrivilegeLevel < 40 {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限_非master/管理/邀请者"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				// 判断是否是 .ext all off
+				if cmdArgs.IsArgEqual(1, "all") {
+					before := ctx.Group.GetActivatedExtList(ctx.Dice)
+					if len(before) == 0 {
+						ReplyToSender(ctx, msg, "当前群没有开启任何扩展。")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					beforeNames := make([]string, 0, len(before))
+					for _, ext := range before {
+						if ext != nil {
+							beforeNames = append(beforeNames, ext.Name)
+						}
+					}
+
+					for _, name := range beforeNames {
+						_ = ctx.Group.ExtInactiveByName(name)
+					}
+
+					after := ctx.Group.GetActivatedExtList(ctx.Dice)
+					if len(after) == 0 {
+						ReplyToSender(ctx, msg, fmt.Sprintf("已关闭全部扩展: %s", strings.Join(beforeNames, ", ")))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					afterSet := make(map[string]struct{}, len(after))
+					for _, ext := range after {
+						if ext != nil {
+							afterSet[ext.Name] = struct{}{}
+						}
+					}
+
+					var closed []string
+					for _, name := range beforeNames {
+						if _, stillOn := afterSet[name]; !stillOn {
+							closed = append(closed, name)
+						}
+					}
+
+					var stillOn []string
+					for _, ext := range after {
+						if ext != nil {
+							stillOn = append(stillOn, ext.Name)
+						}
+					}
+
+					ReplyToSender(ctx, msg, fmt.Sprintf("已尝试关闭全部扩展。\n已关闭: %s\n仍处于开启状态: %s", strings.Join(closed, ", "), strings.Join(stillOn, ", ")))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
