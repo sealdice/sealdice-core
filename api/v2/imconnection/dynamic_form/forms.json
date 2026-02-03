@@ -1,0 +1,81 @@
+{
+  "gocq": [
+    { "id": 1, "name": "account", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 0, "default": "" },
+    { "id": 2, "name": "password", "input_type": 0, "is_required": 1, "field_name": "password", "check_type": 0, "default": "" },
+    { "id": 3, "name": "protocol", "input_type": 1, "is_required": 1, "field_name": "protocol", "check_type": 1, "default": "" },
+    { "id": 4, "name": "appVersion", "input_type": 0, "is_required": 0, "field_name": "appVersion", "check_type": 0, "default": "" },
+    { "id": 5, "name": "useSignServer", "input_type": 10, "is_required": 0, "field_name": "useSignServer", "check_type": 0, "default": "" },
+    { "id": 6, "name": "signServerConfig", "input_type": 0, "is_required": 0, "field_name": "signServerConfig", "check_type": 0, "default": "" }
+  ],
+  "walle-q": [
+    { "id": 1, "name": "account", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 0, "default": "" },
+    { "id": 2, "name": "password", "input_type": 0, "is_required": 1, "field_name": "password", "check_type": 0, "default": "" },
+    { "id": 3, "name": "protocol", "input_type": 1, "is_required": 1, "field_name": "protocol", "check_type": 1, "default": "" }
+  ],
+  "discord": [
+    { "id": 1, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" },
+    { "id": 2, "name": "proxyURL", "input_type": 0, "is_required": 0, "field_name": "proxyURL", "check_type": 0, "default": "" },
+    { "id": 3, "name": "reverseProxyUrl", "input_type": 0, "is_required": 0, "field_name": "reverseProxyUrl", "check_type": 0, "default": "" },
+    { "id": 4, "name": "reverseProxyCDNUrl", "input_type": 0, "is_required": 0, "field_name": "reverseProxyCDNUrl", "check_type": 0, "default": "" }
+  ],
+  "kook": [
+    { "id": 1, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" }
+  ],
+  "telegram": [
+    { "id": 1, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" },
+    { "id": 2, "name": "proxyURL", "input_type": 0, "is_required": 0, "field_name": "proxyURL", "check_type": 0, "default": "" }
+  ],
+  "minecraft": [
+    { "id": 1, "name": "url", "input_type": 0, "is_required": 1, "field_name": "url", "check_type": 0, "default": "" }
+  ],
+  "dodo": [
+    { "id": 1, "name": "clientID", "input_type": 0, "is_required": 1, "field_name": "clientID", "check_type": 0, "default": "" },
+    { "id": 2, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" }
+  ],
+  "dingtalk": [
+    { "id": 1, "name": "clientID", "input_type": 0, "is_required": 1, "field_name": "clientID", "check_type": 0, "default": "" },
+    { "id": 2, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" },
+    { "id": 3, "name": "nickname", "input_type": 0, "is_required": 0, "field_name": "nickname", "check_type": 0, "default": "" },
+    { "id": 4, "name": "robotCode", "input_type": 0, "is_required": 0, "field_name": "robotCode", "check_type": 0, "default": "" }
+  ],
+  "slack": [
+    { "id": 1, "name": "botToken", "input_type": 0, "is_required": 1, "field_name": "botToken", "check_type": 0, "default": "" },
+    { "id": 2, "name": "appToken", "input_type": 0, "is_required": 1, "field_name": "appToken", "check_type": 0, "default": "" }
+  ],
+  "officialqq": [
+    { "id": 1, "name": "appID", "input_type": 1, "is_required": 1, "field_name": "appID", "check_type": 1, "default": "" },
+    { "id": 2, "name": "appSecret", "input_type": 0, "is_required": 1, "field_name": "appSecret", "check_type": 0, "default": "" },
+    { "id": 3, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" },
+    { "id": 4, "name": "onlyQQGuild", "input_type": 10, "is_required": 0, "field_name": "onlyQQGuild", "check_type": 0, "default": "" }
+  ],
+  "satori": [
+    { "id": 1, "name": "platform", "input_type": 0, "is_required": 1, "field_name": "platform", "check_type": 0, "default": "" },
+    { "id": 2, "name": "host", "input_type": 0, "is_required": 1, "field_name": "host", "check_type": 0, "default": "" },
+    { "id": 3, "name": "port", "input_type": 1, "is_required": 1, "field_name": "port", "check_type": 1, "default": "" },
+    { "id": 4, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" }
+  ],
+  "onebot-reverse": [
+    { "id": 1, "name": "account", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 0, "default": "" },
+    { "id": 2, "name": "reverseAddr", "input_type": 0, "is_required": 1, "field_name": "reverseAddr", "check_type": 0, "default": "" }
+  ],
+  "gocq-separate": [
+    { "id": 1, "name": "relWorkDir", "input_type": 0, "is_required": 0, "field_name": "relWorkDir", "check_type": 0, "default": "" },
+    { "id": 2, "name": "connectUrl", "input_type": 0, "is_required": 1, "field_name": "connectUrl", "check_type": 0, "default": "" },
+    { "id": 3, "name": "accessToken", "input_type": 0, "is_required": 0, "field_name": "accessToken", "check_type": 0, "default": "" },
+    { "id": 4, "name": "account", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 0, "default": "" }
+  ],
+  "red": [
+    { "id": 1, "name": "host", "input_type": 0, "is_required": 1, "field_name": "host", "check_type": 0, "default": "" },
+    { "id": 2, "name": "port", "input_type": 1, "is_required": 1, "field_name": "port", "check_type": 1, "default": "" },
+    { "id": 3, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" }
+  ],
+  "sealchat": [
+    { "id": 1, "name": "url", "input_type": 0, "is_required": 1, "field_name": "url", "check_type": 0, "default": "" },
+    { "id": 2, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" }
+  ],
+  "milky": [
+    { "id": 1, "name": "wsGateway", "input_type": 0, "is_required": 1, "field_name": "wsGateway", "check_type": 0, "default": "" },
+    { "id": 2, "name": "restGateway", "input_type": 0, "is_required": 1, "field_name": "restGateway", "check_type": 0, "default": "" },
+    { "id": 3, "name": "token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "" }
+  ]
+}
