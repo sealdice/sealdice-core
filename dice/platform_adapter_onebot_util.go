@@ -396,7 +396,11 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	var extra string
 	// 匹配验证问题检查
 	var passQuestion bool
-	if comment != DiceFormat(ctx, toMatch) {
+	if toMatch == "" {
+		passQuestion = true
+	} else if comment == DiceFormat(ctx, toMatch) {
+		passQuestion = true
+	} else {
 		passQuestion = checkMultiFriendAddVerify(comment, toMatch)
 	}
 	// 匹配黑名单检查
