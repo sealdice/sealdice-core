@@ -395,10 +395,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	var extra string
 	// 匹配验证问题检查
-	var passQuestion bool
-	if comment != DiceFormat(ctx, toMatch) {
-		passQuestion = checkMultiFriendAddVerify(comment, toMatch)
-	}
+	passQuestion := toMatch == "" || comment == DiceFormat(ctx, toMatch) || checkMultiFriendAddVerify(comment, toMatch)
 	// 匹配黑名单检查
 	result := checkBlackList(req.Get("user_id").String(), "user", ctx)
 
