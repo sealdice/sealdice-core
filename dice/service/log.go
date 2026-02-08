@@ -228,6 +228,12 @@ func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName s
 	if err != nil {
 		return nil, err
 	}
+	if logID == 0 {
+		return []string{}, nil
+	}
+	if logID == 0 {
+		return []*model.LogOneItem{}, nil
+	}
 
 	var items []*model.LogOneItem
 
@@ -272,6 +278,12 @@ func LogGetCursorLines(operator engine2.DatabaseOperator, groupID string, logNam
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return nil, paginator.Cursor{}, err
+	}
+	if logID == 0 {
+		return []model.LogOneItemParquet{}, paginator.Cursor{}, nil
+	}
+	if logID == 0 {
+		return []model.LogOneItem{}, paginator.Cursor{}, nil
 	}
 	var items []model.LogOneItem
 	stmt := db.Model(&model.LogOneItem{}).
@@ -330,6 +342,9 @@ func LogGetLinePage(operator engine2.DatabaseOperator, param *QueryLogLinePage) 
 	logID, err := getIDByGroupIDAndName(db, param.GroupID, param.LogName)
 	if err != nil {
 		return nil, err
+	}
+	if logID == 0 {
+		return []*model.LogOneItem{}, nil
 	}
 
 	var items []*model.LogOneItem
@@ -430,6 +445,7 @@ func LogAppend(operator engine2.DatabaseOperator, groupID string, logName string
 			}
 			logID = newLog.ID
 		}
+		newLogItem.LogID = logID
 		if err = tx.Create(&newLogItem).Error; err != nil {
 			return err
 		}
@@ -455,6 +471,12 @@ func LogMarkDeleteByMsgID(operator engine2.DatabaseOperator, groupID string, log
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return err
+	}
+	if logID == 0 {
+		return nil
+	}
+	if logID == 0 {
+		return nil
 	}
 	rid := fmt.Sprintf("%v", rawID)
 	err = db.Transaction(func(tx *gorm.DB) error {
