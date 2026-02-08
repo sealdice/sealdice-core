@@ -13,36 +13,24 @@ import (
 func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
 	db := dboperator.GetLogDB(constant.WRITE)
 
-	var itemIDs []uint64
-	if err := db.Model(&model.LogOneItem{}).
-		Where("log_id = 0").
-		Pluck("id", &itemIDs).Error; err != nil {
-		return err
-	}
 	itemResult := db.Where("log_id = 0").Delete(&model.LogOneItem{})
 	if itemResult.Error != nil {
 		return itemResult.Error
 	}
 
-	var logIDs []uint64
-	if err := db.Model(&model.LogInfo{}).
-		Where("id = 0").
-		Pluck("id", &logIDs).Error; err != nil {
-		return err
-	}
 	logResult := db.Where("id = 0").Delete(&model.LogInfo{})
 	if logResult.Error != nil {
 		return logResult.Error
 	}
 
-	if len(itemIDs) > 0 {
-		logf(fmt.Sprintf("数据修复 - LogItems表，删除了 %d 条记录，ID列表: %v", itemResult.RowsAffected, itemIDs))
+	if itemResult.RowsAffected > 0 {
+		logf(fmt.Sprintf("数据修复 - LogItems表，删除了 %d 条记录", itemResult.RowsAffected))
 	} else {
 		logf("数据修复 - LogItems表，没有需要删除的记录")
 	}
 
-	if len(logIDs) > 0 {
-		logf(fmt.Sprintf("数据修复 - Logs表，删除了 %d 条记录，ID列表: %v", logResult.RowsAffected, logIDs))
+	if logResult.RowsAffected > 0 {
+		logf(fmt.Sprintf("数据修复 - Logs表，删除了 %d 条记录", logResult.RowsAffected))
 	} else {
 		logf("数据修复 - Logs表，没有需要删除的记录")
 	}
