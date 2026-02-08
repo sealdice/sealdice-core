@@ -229,9 +229,6 @@ func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName s
 		return nil, err
 	}
 	if logID == 0 {
-		return []string{}, nil
-	}
-	if logID == 0 {
 		return []*model.LogOneItem{}, nil
 	}
 
@@ -278,9 +275,6 @@ func LogGetCursorLines(operator engine2.DatabaseOperator, groupID string, logNam
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return nil, paginator.Cursor{}, err
-	}
-	if logID == 0 {
-		return []model.LogOneItemParquet{}, paginator.Cursor{}, nil
 	}
 	if logID == 0 {
 		return []model.LogOneItem{}, paginator.Cursor{}, nil
@@ -471,9 +465,6 @@ func LogMarkDeleteByMsgID(operator engine2.DatabaseOperator, groupID string, log
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		return err
-	}
-	if logID == 0 {
-		return nil
 	}
 	if logID == 0 {
 		return nil
