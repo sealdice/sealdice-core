@@ -255,11 +255,12 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 				}
 				// 仅增加怒气值
 				if msg.MessageType == "group" {
-					(&d.Config).BanList.AddScoreByCensor(
+					(&d.Config).BanList.AddScoreByCensorWithWords(
 						msg.Sender.UserID,
 						int64(score),
 						groupInfo.GroupID,
 						levelText,
+						checkResult.CurSensitiveWords,
 						mctx,
 					)
 				}
