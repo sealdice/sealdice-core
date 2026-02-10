@@ -203,6 +203,10 @@ func (d *Dice) JsInit() {
 				}
 			}()
 
+			if strings.ToLower(realExt.Name) == "help" || strings.ToLower(realExt.Name) == "all" {
+				panic("help 和 all 为保留关键字，无法作为插件名使用")
+			}
+
 			extName := realExt.Name
 
 			// 1. 查找或创建 wrapper
