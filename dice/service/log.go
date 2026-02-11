@@ -22,6 +22,8 @@ type LogOne struct {
 	Info  model.LogInfo      `json:"info"`
 }
 
+var ErrLogNotFound = errors.New("日志不存在")
+
 // LogGetInfo 查询日志简略信息，使用通用函数替代SQLITE专属函数
 // TODO: 换回去，因为现在已经分离了引擎
 func LogGetInfo(operator engine2.DatabaseOperator) ([]int, error) {
@@ -138,20 +140,22 @@ func LogGetList(operator engine2.DatabaseOperator, groupID string) ([]string, er
 
 // getIDByGroupIDAndName 获取ID 私有函数，可以直接使用db
 func getIDByGroupIDAndName(db *gorm.DB, groupID string, logName string) (logID uint64, err error) {
+	var logInfo model.LogInfo
 	err = db.Model(&model.LogInfo{}).
 		Select("id").
 		Where("group_id = ? AND name = ?", groupID, logName).
-		Scan(&logID).Error
+		Take(&logInfo).Error
 
 	if err != nil {
-		// 如果出现错误，判断是否没有找到对应的记录
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, nil
+			return 0, ErrLogNotFound
 		}
 		return 0, err
 	}
-
-	return logID, nil
+	if logInfo.ID == 0 {
+		return 0, ErrLogNotFound
+	}
+	return logInfo.ID, nil
 }
 
 // LogGetUploadInfo 获取上传信息
@@ -226,10 +230,10 @@ func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName s
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []*model.LogOneItem{}, nil
+		}
 		return nil, err
-	}
-	if logID == 0 {
-		return []*model.LogOneItem{}, nil
 	}
 
 	var items []*model.LogOneItem
@@ -252,6 +256,9 @@ func LogGetCommandInfoStrList(operator engine2.DatabaseOperator, groupID string,
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []string{}, nil
+		}
 		return nil, err
 	}
 
@@ -274,10 +281,10 @@ func LogGetCursorLines(operator engine2.DatabaseOperator, groupID string, logNam
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []model.LogOneItem{}, paginator.Cursor{}, nil
+		}
 		return nil, paginator.Cursor{}, err
-	}
-	if logID == 0 {
-		return []model.LogOneItem{}, paginator.Cursor{}, nil
 	}
 	var items []model.LogOneItem
 	stmt := db.Model(&model.LogOneItem{}).
@@ -302,6 +309,9 @@ func LogGetExportCursorLines(operator engine2.DatabaseOperator, groupID string, 
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []model.LogOneItemParquet{}, paginator.Cursor{}, nil
+		}
 		return nil, paginator.Cursor{}, err
 	}
 	var items []model.LogOneItemParquet
@@ -335,10 +345,10 @@ func LogGetLinePage(operator engine2.DatabaseOperator, param *QueryLogLinePage) 
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, param.GroupID, param.LogName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []*model.LogOneItem{}, nil
+		}
 		return nil, err
-	}
-	if logID == 0 {
-		return []*model.LogOneItem{}, nil
 	}
 
 	var items []*model.LogOneItem
@@ -364,7 +374,7 @@ func LogLinesCountGet(operator engine2.DatabaseOperator, groupID string, logName
 	db := operator.GetLogDB(constant.READ)
 	// 获取日志 ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil || logID == 0 {
+	if err != nil {
 		return 0, false
 	}
 
@@ -386,7 +396,7 @@ func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string
 	db := operator.GetLogDB(constant.WRITE)
 	// 获取 log ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil || logID == 0 {
+	if err != nil {
 		return false
 	}
 	err = db.Transaction(func(tx *gorm.DB) error {
@@ -411,7 +421,11 @@ func LogAppend(operator engine2.DatabaseOperator, groupID string, logName string
 	// 获取 log ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
-		return false
+		if errors.Is(err, ErrLogNotFound) {
+			logID = 0
+		} else {
+			return false
+		}
 	}
 
 	// 获取当前时间戳
@@ -464,10 +478,10 @@ func LogMarkDeleteByMsgID(operator engine2.DatabaseOperator, groupID string, log
 	// 获取 log id
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return nil
+		}
 		return err
-	}
-	if logID == 0 {
-		return nil
 	}
 	rid := fmt.Sprintf("%v", rawID)
 	err = db.Transaction(func(tx *gorm.DB) error {
@@ -493,6 +507,9 @@ func LogEditByMsgID(operator engine2.DatabaseOperator, groupID, logName, newCont
 	db := operator.GetLogDB(constant.WRITE)
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return nil
+		}
 		return err
 	}
 
