@@ -64,16 +64,16 @@ func RemoveSpace(s string) string {
 }
 
 const (
-	commandReasonMaxLen      = 200
-	commandReasonOmitSuffix  = "……(过长已省略)"
+	CommandReasonMaxLen     = 200
+	CommandReasonOmitSuffix = "……(过长已省略)"
 )
 
-func limitCommandReasonText(text string) string {
+func LimitCommandReasonText(text string) string {
 	textRunes := []rune(text)
-	if len(textRunes) <= commandReasonMaxLen {
+	if len(textRunes) <= CommandReasonMaxLen {
 		return text
 	}
-	return string(textRunes[:commandReasonMaxLen]) + commandReasonOmitSuffix
+	return string(textRunes[:CommandReasonMaxLen]) + CommandReasonOmitSuffix
 }
 
 const letterBytes = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ123456789"
