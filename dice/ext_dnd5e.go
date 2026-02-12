@@ -501,6 +501,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if reason == "" {
 						reason = restText
 					}
+					reason = limitCommandReasonText(reason)
 					modifier, ok := r2.ReadInt()
 					if !ok {
 						// 如果不是整数，尝试读取浮点数并向下取整（符合DND规则）

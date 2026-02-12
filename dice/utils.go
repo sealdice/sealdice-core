@@ -63,6 +63,22 @@ func RemoveSpace(s string) string {
 	return re.ReplaceAllString(s, "")
 }
 
+const (
+	commandReasonMaxLen      = 200
+	commandReasonOmitSuffix  = "……(过长已省略)"
+)
+
+func limitCommandReasonText(text string) string {
+	if text == "" {
+		return text
+	}
+	textRunes := []rune(text)
+	if len(textRunes) <= commandReasonMaxLen {
+		return text
+	}
+	return string(textRunes[:commandReasonMaxLen]) + commandReasonOmitSuffix
+}
+
 const letterBytes = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ123456789"
 const letterBytes2 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+=-"
 
