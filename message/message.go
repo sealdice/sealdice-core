@@ -527,7 +527,6 @@ func ImageRewrite(longText string, solve func(text string) string) string {
 }
 
 func SealCodeToCqCode(text string) string {
-	text = strings.ReplaceAll(text, " ", "")
 	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindStringSubmatch(text)
 	if len(m) == 0 {
@@ -542,6 +541,8 @@ func SealCodeToCqCode(text string) string {
 	if m[1] == "video" || m[1] == "视频" {
 		cqType = "video"
 	}
+
+	fn = strings.TrimSpace(fn)
 
 	if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
 		u, err := url.Parse(fn)
