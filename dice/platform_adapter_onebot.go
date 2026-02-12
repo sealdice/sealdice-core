@@ -210,22 +210,42 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 	filteredMsg, pokeTargets := splitPokeElements(msg)
-	_, msgText := convertSealMsgToMessageChain(msg)
-	var rawId *emitter_types.SendMsgRes
-	var err error
-	if len(filteredMsg) > 0 {
-		rawMsg, _ := convertSealMsgToMessageChain(filteredMsg)
-		rawId, err = p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
-	}
-	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
-		} else {
-			p.logger.Warnf("SendGrMsg 失败: group=%s err=%v", groupID, err)
-		}
+	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
 		return
 	}
-	// 支援插件发送调用
+
+	var rawID *emitter_types.SendMsgRes
+	var msgText string
+	if len(filteredMsg) > 0 {
+		rawMsg, text := convertSealMsgToMessageChain(filteredMsg)
+		msgText = text
+		var err error
+		rawID, err = p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
+			} else {
+				p.logger.Warnf("SendGrMsg 失败: group=%s err=%v", groupID, err)
+			}
+			return
+		}
+
+		if p.Session != nil && p.EndPoint != nil {
+			p.Session.OnMessageSend(ctx, &Message{
+				Platform:    "QQ",
+				MessageType: "group",
+				GroupID:     groupID,
+				Segment:     filteredMsg,
+				Message:     msgText,
+				Sender: SenderBase{
+					UserID:   p.EndPoint.UserID,
+					Nickname: p.EndPoint.Nickname,
+				},
+				RawID: rawID,
+			}, flag)
+		}
+	}
+
 	rawGroupID := ExtractQQEmitterGroupID(groupID)
 	for _, target := range pokeTargets {
 		pokeTarget, parseErr := strconv.ParseInt(target, 10, 64)
@@ -245,37 +265,41 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 			return
 		}
 	}
-	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
-		return
-	}
-	p.Session.OnMessageSend(ctx, &Message{
-		Platform:    "QQ",
-		MessageType: "group",
-		GroupID:     groupID,
-		Segment:     msg,
-		Message:     msgText,
-		Sender: SenderBase{
-			UserID:   p.EndPoint.UserID,
-			Nickname: p.EndPoint.Nickname,
-		},
-		RawID: rawId,
-	}, flag)
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 	filteredMsg, pokeTargets := splitPokeElements(msg)
-	_, msgText := convertSealMsgToMessageChain(msg)
-	var rawId *emitter_types.SendMsgRes
-	var err error
-	if len(filteredMsg) > 0 {
-		rawMsg, _ := convertSealMsgToMessageChain(filteredMsg)
-		rawId, err = p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
-	}
-	if err != nil {
-		p.logger.Errorf("发送消息异常 %v", err)
+	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
 		return
 	}
-	// 支援插件发送调用
+
+	var rawID *emitter_types.SendMsgRes
+	var msgText string
+	if len(filteredMsg) > 0 {
+		rawMsg, text := convertSealMsgToMessageChain(filteredMsg)
+		msgText = text
+		var err error
+		rawID, err = p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
+		if err != nil {
+			p.logger.Errorf("发送消息异常 %v", err)
+			return
+		}
+
+		if p.Session != nil && p.EndPoint != nil {
+			p.Session.OnMessageSend(ctx, &Message{
+				Platform:    "QQ",
+				MessageType: "private",
+				Segment:     filteredMsg,
+				Message:     msgText,
+				Sender: SenderBase{
+					UserID:   p.EndPoint.UserID,
+					Nickname: p.EndPoint.Nickname,
+				},
+				RawID: rawID,
+			}, flag)
+		}
+	}
+
 	for _, target := range pokeTargets {
 		pokeTarget, parseErr := strconv.ParseInt(target, 10, 64)
 		if parseErr != nil {
@@ -292,20 +316,6 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 			return
 		}
 	}
-	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
-		return
-	}
-	p.Session.OnMessageSend(ctx, &Message{
-		Platform:    "QQ",
-		MessageType: "private",
-		Segment:     msg,
-		Message:     msgText,
-		Sender: SenderBase{
-			UserID:   p.EndPoint.UserID,
-			Nickname: p.EndPoint.Nickname,
-		},
-		RawID: rawId,
-	}, flag)
 }
 
 func splitPokeElements(msg []message.IMessageElement) ([]message.IMessageElement, []string) {
