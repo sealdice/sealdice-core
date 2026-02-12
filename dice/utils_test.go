@@ -11,17 +11,23 @@ func TestLimitCommandReasonText(t *testing.T) {
 		t.Fatalf("expected short text to remain unchanged, got %q", got)
 	}
 
-	overlong := strings.Repeat("测", commandReasonMaxLen+1)
-	got := limitCommandReasonText(overlong)
-	if !strings.HasSuffix(got, commandReasonOmitSuffix) {
-		t.Fatalf("expected truncated text to include suffix, got %q", got)
+	suffixLen := len([]rune(commandReasonOmitSuffix))
+	assertTruncate := func(t *testing.T, input string, expectedPrefix string) {
+		t.Helper()
+		got := limitCommandReasonText(input)
+		if !strings.HasSuffix(got, commandReasonOmitSuffix) {
+			t.Fatalf("expected truncated text to include suffix, got %q", got)
+		}
+		gotRunes := []rune(got)
+		expectedLen := commandReasonMaxLen + suffixLen
+		if len(gotRunes) != expectedLen {
+			t.Fatalf("expected truncated text length %d, got %d", expectedLen, len(gotRunes))
+		}
+		if string(gotRunes[:commandReasonMaxLen]) != expectedPrefix {
+			t.Fatalf("expected truncated text to keep prefix, got %q", got)
+		}
 	}
-	gotRunes := []rune(got)
-	expectedLen := commandReasonMaxLen + len([]rune(commandReasonOmitSuffix))
-	if len(gotRunes) != expectedLen {
-		t.Fatalf("expected truncated text length %d, got %d", expectedLen, len(gotRunes))
-	}
-	if string(gotRunes[:commandReasonMaxLen]) != strings.Repeat("测", commandReasonMaxLen) {
-		t.Fatalf("expected truncated text to keep prefix, got %q", got)
-	}
+
+	assertTruncate(t, strings.Repeat("测", commandReasonMaxLen+1), strings.Repeat("测", commandReasonMaxLen))
+	assertTruncate(t, strings.Repeat("a", commandReasonMaxLen+1), strings.Repeat("a", commandReasonMaxLen))
 }
