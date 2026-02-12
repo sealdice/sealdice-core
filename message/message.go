@@ -542,6 +542,8 @@ func SealCodeToCqCode(text string) string {
 		cqType = "video"
 	}
 
+	fn = strings.TrimSpace(fn)
+
 	if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
 		u, err := url.Parse(fn)
 		if err != nil {
