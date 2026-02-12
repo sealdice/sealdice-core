@@ -16,7 +16,11 @@ func TestLimitCommandReasonText(t *testing.T) {
 	if !strings.HasSuffix(got, commandReasonOmitSuffix) {
 		t.Fatalf("expected truncated text to include suffix, got %q", got)
 	}
-	if !strings.HasPrefix(got, strings.Repeat("测", commandReasonMaxLen)) {
+	gotRunes := []rune(got)
+	if len(gotRunes) <= commandReasonMaxLen {
+		t.Fatalf("expected truncated text to exceed max length, got %q", got)
+	}
+	if string(gotRunes[:commandReasonMaxLen]) != strings.Repeat("测", commandReasonMaxLen) {
 		t.Fatalf("expected truncated text to keep prefix, got %q", got)
 	}
 }
