@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"go.uber.org/zap"
 
 	emitter "sealdice-core/dice/imsdk/onebot"
+	emitter_types "sealdice-core/dice/imsdk/onebot/types"
 	"sealdice-core/logger"
 	"sealdice-core/message"
 )
@@ -207,8 +209,14 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
-	rawMsg, msgText := convertSealMsgToMessageChain(msg)
-	rawId, err := p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
+	filteredMsg, pokeTargets := splitPokeElements(msg)
+	_, msgText := convertSealMsgToMessageChain(msg)
+	var rawId *emitter_types.SendMsgRes
+	var err error
+	if len(filteredMsg) > 0 {
+		rawMsg, _ := convertSealMsgToMessageChain(filteredMsg)
+		rawId, err = p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
+	}
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
@@ -218,6 +226,28 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		return
 	}
 	// 支援插件发送调用
+	rawGroupID := ExtractQQEmitterGroupID(groupID)
+	for _, target := range pokeTargets {
+		pokeTarget, parseErr := strconv.ParseInt(target, 10, 64)
+		if parseErr != nil {
+			p.logger.Warnf("GroupPoke target parse failed: group=%s target=%s err=%v", groupID, target, parseErr)
+			continue
+		}
+		_, actionErr := p.sendEmitter.Raw(p.ctx, "group_poke", struct {
+			GroupID int64 `json:"group_id"`
+			UserID  int64 `json:"user_id"`
+		}{
+			GroupID: rawGroupID,
+			UserID:  pokeTarget,
+		})
+		if actionErr != nil {
+			p.logger.Warnf("GroupPoke failed: group=%s target=%s err=%v", groupID, target, actionErr)
+			return
+		}
+	}
+	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
+		return
+	}
 	p.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
@@ -233,13 +263,38 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
-	rawMsg, msgText := convertSealMsgToMessageChain(msg)
-	rawId, err := p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
+	filteredMsg, pokeTargets := splitPokeElements(msg)
+	_, msgText := convertSealMsgToMessageChain(msg)
+	var rawId *emitter_types.SendMsgRes
+	var err error
+	if len(filteredMsg) > 0 {
+		rawMsg, _ := convertSealMsgToMessageChain(filteredMsg)
+		rawId, err = p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
+	}
 	if err != nil {
 		p.logger.Errorf("发送消息异常 %v", err)
 		return
 	}
 	// 支援插件发送调用
+	for _, target := range pokeTargets {
+		pokeTarget, parseErr := strconv.ParseInt(target, 10, 64)
+		if parseErr != nil {
+			p.logger.Warnf("FriendPoke target parse failed: user=%s target=%s err=%v", userID, target, parseErr)
+			continue
+		}
+		_, actionErr := p.sendEmitter.Raw(p.ctx, "friend_poke", struct {
+			UserID int64 `json:"user_id"`
+		}{
+			UserID: pokeTarget,
+		})
+		if actionErr != nil {
+			p.logger.Warnf("FriendPoke failed: user=%s target=%s err=%v", userID, target, actionErr)
+			return
+		}
+	}
+	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
+		return
+	}
 	p.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "private",
@@ -251,6 +306,24 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 		},
 		RawID: rawId,
 	}, flag)
+}
+
+func splitPokeElements(msg []message.IMessageElement) ([]message.IMessageElement, []string) {
+	filtered := make([]message.IMessageElement, 0, len(msg))
+	pokeTargets := make([]string, 0)
+
+	for _, item := range msg {
+		if item.Type() != message.Poke {
+			filtered = append(filtered, item)
+			continue
+		}
+		poke, ok := item.(*message.PokeElement)
+		if !ok || poke.Target == "" {
+			continue
+		}
+		pokeTargets = append(pokeTargets, poke.Target)
+	}
+	return filtered, pokeTargets
 }
 
 func (p *PlatformAdapterOnebot) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
