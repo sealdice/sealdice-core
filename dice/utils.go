@@ -69,9 +69,6 @@ const (
 )
 
 func limitCommandReasonText(text string) string {
-	if text == "" {
-		return text
-	}
 	textRunes := []rune(text)
 	if len(textRunes) <= commandReasonMaxLen {
 		return text
