@@ -39,14 +39,14 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 }
 
 var V160LogIDZeroCleanMigration = upgrade.Upgrade{
-	ID: "001_V160LogIDZeroCleanMigration",
+	ID: "008_V160LogIDZeroCleanMigration",
 	Description: `
 # 升级说明
 清理 log_id = 0 的错误日志数据
 `,
-	Apply: func(logf func(string), operator operator.DatabaseOperator) error {
+	Apply: func(logf func(string), dbOperator operator.DatabaseOperator) error {
 		logf("[INFO] V160清理log_id=0数据开始")
-		err := V160LogIDZeroCleanMigrate(operator, logf)
+		err := V160LogIDZeroCleanMigrate(dbOperator, logf)
 		if err != nil {
 			return err
 		}
