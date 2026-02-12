@@ -390,9 +390,32 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 				fileName = ""
 			}
 		}
+		resp, err := http.Get(normalizedURL) //nolint:gosec
+		if err != nil {
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalizedURL, Cause: err}
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalizedURL, StatusCode: resp.StatusCode}
+		}
+		defer func() {
+			_ = resp.Body.Close()
+		}()
+		content, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalizedURL, Cause: err}
+		}
+		if int64(len(content)) == 0 || int64(len(content)) >= maxFileSize {
+			return nil, &CQFileError{Kind: CQFileErrInvalidSize, Raw: fp, Normalized: normalizedURL}
+		}
+		contentType := resp.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
 		return &FileElement{
-			File: fileName,
-			URL:  normalizedURL,
+			File:        fileName,
+			URL:         normalizedURL,
+			Stream:      bytes.NewReader(content),
+			ContentType: contentType,
 		}, nil
 	} else if strings.HasPrefix(fp, "base64://") {
 		content, err := base64.StdEncoding.DecodeString(fp[9:])
