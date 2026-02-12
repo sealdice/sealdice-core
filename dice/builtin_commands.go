@@ -1297,6 +1297,7 @@ func (d *Dice) registerCoreCommands() {
 					}
 				}
 
+				forWhat = LimitCommandReasonText(forWhat)
 				VarSetValueStr(ctx, "$t原因", forWhat)
 				if forWhat != "" {
 					forWhatText := DiceFormatTmpl(ctx, "核心:骰点_原因")

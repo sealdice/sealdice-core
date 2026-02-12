@@ -384,15 +384,40 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 			return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: err}
 		}
 		fileName := ""
-		if u, err := url.Parse(normalizedURL); err == nil {
+		if u, errr := url.Parse(normalizedURL); errr == nil {
 			fileName = path.Base(u.Path)
 			if fileName == "." || fileName == "/" {
 				fileName = ""
 			}
 		}
+		resp, err := http.Get(normalizedURL) //nolint:gosec
+		defer func() {
+			_ = resp.Body.Close()
+		}()
+		if err != nil {
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalizedURL, Cause: err}
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalizedURL, StatusCode: resp.StatusCode}
+		}
+		// 限制从响应体中读取的数据量，以避免过度的内存使用。
+		limitedBody := io.LimitReader(resp.Body, maxFileSize+100) // 允许比 maxFileSize 大一点的读取，以便检测超过限制的情况
+		content, err := io.ReadAll(limitedBody)
+		if err != nil {
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: normalizedURL, Cause: err}
+		}
+		if int64(len(content)) == 0 || int64(len(content)) >= maxFileSize {
+			return nil, &CQFileError{Kind: CQFileErrInvalidSize, Raw: fp, Normalized: normalizedURL}
+		}
+		contentType := resp.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
 		return &FileElement{
-			File: fileName,
-			URL:  normalizedURL,
+			File:        fileName,
+			URL:         normalizedURL,
+			Stream:      bytes.NewReader(content),
+			ContentType: contentType,
 		}, nil
 	} else if strings.HasPrefix(fp, "base64://") {
 		content, err := base64.StdEncoding.DecodeString(fp[9:])
@@ -502,7 +527,6 @@ func ImageRewrite(longText string, solve func(text string) string) string {
 }
 
 func SealCodeToCqCode(text string) string {
-	text = strings.ReplaceAll(text, " ", "")
 	re := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
 	m := re.FindStringSubmatch(text)
 	if len(m) == 0 {
@@ -517,6 +541,8 @@ func SealCodeToCqCode(text string) string {
 	if m[1] == "video" || m[1] == "视频" {
 		cqType = "video"
 	}
+
+	fn = strings.TrimSpace(fn)
 
 	if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
 		u, err := url.Parse(fn)
