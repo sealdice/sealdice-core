@@ -185,7 +185,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 
 				expr2Text = r2.GetMatched()
-				reason = r2.GetRestInput()
+				reason = LimitCommandReasonText(r2.GetRestInput())
 
 				difficultyRequire2 = difficultyPrefixMap[r2.GetCocPrefix()]
 				if difficultyRequire2 > difficultyRequire {
