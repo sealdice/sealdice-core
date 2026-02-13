@@ -235,7 +235,7 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 				Platform:    "QQ",
 				MessageType: "group",
 				GroupID:     groupID,
-				Segment:     filteredMsg,
+				Segment:     msg,
 				Message:     msgText,
 				Sender: SenderBase{
 					UserID:   p.EndPoint.UserID,
@@ -262,7 +262,23 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		})
 		if actionErr != nil {
 			p.logger.Warnf("GroupPoke failed: group=%s target=%s err=%v", groupID, target, actionErr)
-			return
+			continue
+		}
+	}
+	if len(filteredMsg) == 0 && len(pokeTargets) > 0 {
+		if p.Session != nil && p.EndPoint != nil {
+			p.Session.OnMessageSend(ctx, &Message{
+				Platform:    "QQ",
+				MessageType: "group",
+				GroupID:     groupID,
+				Segment:     msg,
+				Message:     msgText,
+				Sender: SenderBase{
+					UserID:   p.EndPoint.UserID,
+					Nickname: p.EndPoint.Nickname,
+				},
+				RawID: rawID,
+			}, flag)
 		}
 	}
 }
@@ -289,7 +305,7 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 			p.Session.OnMessageSend(ctx, &Message{
 				Platform:    "QQ",
 				MessageType: "private",
-				Segment:     filteredMsg,
+				Segment:     msg,
 				Message:     msgText,
 				Sender: SenderBase{
 					UserID:   p.EndPoint.UserID,
@@ -313,7 +329,22 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 		})
 		if actionErr != nil {
 			p.logger.Warnf("FriendPoke failed: user=%s target=%s err=%v", userID, target, actionErr)
-			return
+			continue
+		}
+	}
+	if len(filteredMsg) == 0 && len(pokeTargets) > 0 {
+		if p.Session != nil && p.EndPoint != nil {
+			p.Session.OnMessageSend(ctx, &Message{
+				Platform:    "QQ",
+				MessageType: "private",
+				Segment:     msg,
+				Message:     msgText,
+				Sender: SenderBase{
+					UserID:   p.EndPoint.UserID,
+					Nickname: p.EndPoint.Nickname,
+				},
+				RawID: rawID,
+			}, flag)
 		}
 	}
 }
