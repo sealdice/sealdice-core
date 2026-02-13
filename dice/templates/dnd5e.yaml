@@ -11,11 +11,11 @@ initScript: |
   }
 
   func skillShowKeyAs(key, val) {
-    return `{key}{&val.factor ? '*'+ (&val.factor == 1 ? '' : str(&val.factor)) }`
+    return `{key}{&val.factor ? '*'+ (&val.factor == 1 ? '' : toStr(&val.factor)) }`
   }
 
   func abilityShowKeyAs(key, keyFactor) {
-    return `{key}{keyFactor ? '*'+ (keyFactor == 1 ? '' : str(keyFactor)) }`
+    return `{key}{keyFactor ? '*'+ (keyFactor == 1 ? '' : toStr(keyFactor)) }`
   }
 
   func pbCalc(base, factor, ab) { // 基础值，熟练系数，属性值
