@@ -209,16 +209,42 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
-	filteredMsg, pokeTargets := splitPokeElements(msg)
-	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
+	if len(msg) == 0 {
 		return
 	}
 
 	var rawID *emitter_types.SendMsgRes
-	var msgText string
-	if len(filteredMsg) > 0 {
-		rawMsg, text := convertSealMsgToMessageChain(filteredMsg)
-		msgText = text
+	rawGroupID := ExtractQQEmitterGroupID(groupID)
+	pendingMsg := make([]message.IMessageElement, 0, len(msg))
+	sentAnything := false
+	sentSegments := make([]message.IMessageElement, 0, len(msg))
+
+	defer func() {
+		if !sentAnything || p.Session == nil || p.EndPoint == nil {
+			return
+		}
+		_, sentMsgText := convertSealMsgToMessageChain(sentSegments)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "group",
+			GroupID:     groupID,
+			Segment:     sentSegments,
+			Message:     sentMsgText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+			RawID: rawID,
+		}, flag)
+	}()
+
+	flushPending := func() bool {
+		if len(pendingMsg) == 0 {
+			return true
+		}
+		batch := make([]message.IMessageElement, len(pendingMsg))
+		copy(batch, pendingMsg)
+		rawMsg, _ := convertSealMsgToMessageChain(batch)
 		var err error
 		rawID, err = p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
 		if err != nil {
@@ -227,30 +253,31 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 			} else {
 				p.logger.Warnf("SendGrMsg 失败: group=%s err=%v", groupID, err)
 			}
+			return false
+		}
+		sentSegments = append(sentSegments, batch...)
+		pendingMsg = pendingMsg[:0]
+		sentAnything = true
+		return true
+	}
+
+	for _, item := range msg {
+		if item.Type() != message.Poke {
+			pendingMsg = append(pendingMsg, item)
+			continue
+		}
+
+		if !flushPending() {
 			return
 		}
 
-		if p.Session != nil && p.EndPoint != nil {
-			p.Session.OnMessageSend(ctx, &Message{
-				Platform:    "QQ",
-				MessageType: "group",
-				GroupID:     groupID,
-				Segment:     msg,
-				Message:     msgText,
-				Sender: SenderBase{
-					UserID:   p.EndPoint.UserID,
-					Nickname: p.EndPoint.Nickname,
-				},
-				RawID: rawID,
-			}, flag)
+		poke, ok := item.(*message.PokeElement)
+		if !ok || poke.Target == "" {
+			continue
 		}
-	}
-
-	rawGroupID := ExtractQQEmitterGroupID(groupID)
-	for _, target := range pokeTargets {
-		pokeTarget, parseErr := strconv.ParseInt(target, 10, 64)
+		pokeTarget, parseErr := strconv.ParseInt(poke.Target, 10, 64)
 		if parseErr != nil {
-			p.logger.Warnf("GroupPoke target parse failed: group=%s target=%s err=%v", groupID, target, parseErr)
+			p.logger.Warnf("GroupPoke target parse failed: group=%s target=%s err=%v", groupID, poke.Target, parseErr)
 			continue
 		}
 		_, actionErr := p.sendEmitter.Raw(p.ctx, "group_poke", struct {
@@ -261,65 +288,82 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 			UserID:  pokeTarget,
 		})
 		if actionErr != nil {
-			p.logger.Warnf("GroupPoke failed: group=%s target=%s err=%v", groupID, target, actionErr)
+			p.logger.Warnf("GroupPoke failed: group=%s target=%s err=%v", groupID, poke.Target, actionErr)
 			continue
 		}
+		sentSegments = append(sentSegments, &message.PokeElement{Target: poke.Target})
+		sentAnything = true
 	}
-	if len(filteredMsg) == 0 && len(pokeTargets) > 0 {
-		if p.Session != nil && p.EndPoint != nil {
-			p.Session.OnMessageSend(ctx, &Message{
-				Platform:    "QQ",
-				MessageType: "group",
-				GroupID:     groupID,
-				Segment:     msg,
-				Message:     msgText,
-				Sender: SenderBase{
-					UserID:   p.EndPoint.UserID,
-					Nickname: p.EndPoint.Nickname,
-				},
-				RawID: rawID,
-			}, flag)
-		}
+
+	if !flushPending() {
+		return
 	}
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
-	filteredMsg, pokeTargets := splitPokeElements(msg)
-	if len(filteredMsg) == 0 && len(pokeTargets) == 0 {
+	if len(msg) == 0 {
 		return
 	}
 
 	var rawID *emitter_types.SendMsgRes
-	var msgText string
-	if len(filteredMsg) > 0 {
-		rawMsg, text := convertSealMsgToMessageChain(filteredMsg)
-		msgText = text
+	pendingMsg := make([]message.IMessageElement, 0, len(msg))
+	sentAnything := false
+	sentSegments := make([]message.IMessageElement, 0, len(msg))
+
+	defer func() {
+		if !sentAnything || p.Session == nil || p.EndPoint == nil {
+			return
+		}
+		_, sentMsgText := convertSealMsgToMessageChain(sentSegments)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "private",
+			Segment:     sentSegments,
+			Message:     sentMsgText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+			RawID: rawID,
+		}, flag)
+	}()
+
+	flushPending := func() bool {
+		if len(pendingMsg) == 0 {
+			return true
+		}
+		batch := make([]message.IMessageElement, len(pendingMsg))
+		copy(batch, pendingMsg)
+		rawMsg, _ := convertSealMsgToMessageChain(batch)
 		var err error
 		rawID, err = p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
 		if err != nil {
 			p.logger.Errorf("发送消息异常 %v", err)
+			return false
+		}
+		sentSegments = append(sentSegments, batch...)
+		pendingMsg = pendingMsg[:0]
+		sentAnything = true
+		return true
+	}
+
+	for _, item := range msg {
+		if item.Type() != message.Poke {
+			pendingMsg = append(pendingMsg, item)
+			continue
+		}
+
+		if !flushPending() {
 			return
 		}
 
-		if p.Session != nil && p.EndPoint != nil {
-			p.Session.OnMessageSend(ctx, &Message{
-				Platform:    "QQ",
-				MessageType: "private",
-				Segment:     msg,
-				Message:     msgText,
-				Sender: SenderBase{
-					UserID:   p.EndPoint.UserID,
-					Nickname: p.EndPoint.Nickname,
-				},
-				RawID: rawID,
-			}, flag)
+		poke, ok := item.(*message.PokeElement)
+		if !ok || poke.Target == "" {
+			continue
 		}
-	}
-
-	for _, target := range pokeTargets {
-		pokeTarget, parseErr := strconv.ParseInt(target, 10, 64)
+		pokeTarget, parseErr := strconv.ParseInt(poke.Target, 10, 64)
 		if parseErr != nil {
-			p.logger.Warnf("FriendPoke target parse failed: user=%s target=%s err=%v", userID, target, parseErr)
+			p.logger.Warnf("FriendPoke target parse failed: user=%s target=%s err=%v", userID, poke.Target, parseErr)
 			continue
 		}
 		_, actionErr := p.sendEmitter.Raw(p.ctx, "friend_poke", struct {
@@ -328,43 +372,16 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 			UserID: pokeTarget,
 		})
 		if actionErr != nil {
-			p.logger.Warnf("FriendPoke failed: user=%s target=%s err=%v", userID, target, actionErr)
+			p.logger.Warnf("FriendPoke failed: user=%s target=%s err=%v", userID, poke.Target, actionErr)
 			continue
 		}
+		sentSegments = append(sentSegments, &message.PokeElement{Target: poke.Target})
+		sentAnything = true
 	}
-	if len(filteredMsg) == 0 && len(pokeTargets) > 0 {
-		if p.Session != nil && p.EndPoint != nil {
-			p.Session.OnMessageSend(ctx, &Message{
-				Platform:    "QQ",
-				MessageType: "private",
-				Segment:     msg,
-				Message:     msgText,
-				Sender: SenderBase{
-					UserID:   p.EndPoint.UserID,
-					Nickname: p.EndPoint.Nickname,
-				},
-				RawID: rawID,
-			}, flag)
-		}
-	}
-}
 
-func splitPokeElements(msg []message.IMessageElement) ([]message.IMessageElement, []string) {
-	filtered := make([]message.IMessageElement, 0, len(msg))
-	pokeTargets := make([]string, 0)
-
-	for _, item := range msg {
-		if item.Type() != message.Poke {
-			filtered = append(filtered, item)
-			continue
-		}
-		poke, ok := item.(*message.PokeElement)
-		if !ok || poke.Target == "" {
-			continue
-		}
-		pokeTargets = append(pokeTargets, poke.Target)
+	if !flushPending() {
+		return
 	}
-	return filtered, pokeTargets
 }
 
 func (p *PlatformAdapterOnebot) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
