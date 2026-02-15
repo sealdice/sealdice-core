@@ -420,3 +420,12 @@ func (i *BanListInfo) DeleteByID(d *Dice, id string) {
 	i.Map.Delete(id)
 	_ = service.BanItemDel(d.DBOperator, id)
 }
+
+func (i *BanListInfo) DeleteByIDWeb(d *Dice, id string) error {
+	err := service.BanItemDel(d.DBOperator, id)
+	// TODO: problem
+	if err != nil {
+		i.Map.Delete(id)
+	}
+	return err
+}

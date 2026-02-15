@@ -1,12 +1,13 @@
 package main
 
-// _ "net/http/pprof"
+//
 import (
 	"errors"
 	"fmt"
 	"io/fs"
 	"mime"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -173,9 +174,9 @@ func main() {
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
 	}
 	// pprof
-	// go func() {
-	//	http.ListenAndServe("0.0.0.0:8899", nil)
-	// }()
+	go func() {
+		http.ListenAndServe("0.0.0.0:8899", nil)
+	}()
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
@@ -601,10 +602,10 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	}))
 	mimePatch()
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
-		XSSProtection:         "1; mode=block",
-		ContentTypeNosniff:    "nosniff",
-		HSTSMaxAge:            3600,
-		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
+		XSSProtection:      "1; mode=block",
+		ContentTypeNosniff: "nosniff",
+		HSTSMaxAge:         3600,
+		// ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
 		// XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
 	// X-Content-Type-Options: nosniff

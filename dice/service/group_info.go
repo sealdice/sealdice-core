@@ -6,6 +6,8 @@ import (
 
 	"sealdice-core/logger"
 	"sealdice-core/model"
+	"sealdice-core/model/common/request"
+	"sealdice-core/model/common/response"
 	"sealdice-core/utils/constant"
 	engine2 "sealdice-core/utils/dboperator/engine"
 )
@@ -144,4 +146,38 @@ func GroupPlayerInfoSave(operator engine2.DatabaseOperator, info *model.GroupPla
 
 	// 返回 nil 表示操作成功
 	return nil
+}
+
+// GroupInfoPageGet 分页查询群组信息
+// 基于 PageInfo 参数，返回 HPageResult[model.GroupInfo] 类型的分页结果
+func GroupInfoPageGet(operator engine2.DatabaseOperator, pageInfo request.PageInfo) (response.HPageResult[model.GroupInfo], error) {
+	db := operator.GetDataDB(constant.READ)
+	var list []model.GroupInfo
+	var total int64
+
+	query := db.Model(&model.GroupInfo{})
+
+	if pageInfo.Keyword != "" {
+		query = query.Where("id LIKE ?", "%"+pageInfo.Keyword+"%")
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return response.HPageResult[model.GroupInfo]{}, err
+	}
+
+	offset := (pageInfo.Page - 1) * pageInfo.PageSize
+	if offset < 0 {
+		offset = 0
+	}
+
+	if err := query.Offset(offset).Limit(pageInfo.PageSize).Find(&list).Error; err != nil {
+		return response.HPageResult[model.GroupInfo]{}, err
+	}
+
+	return response.HPageResult[model.GroupInfo]{
+		List:     list,
+		Total:    total,
+		Page:     pageInfo.Page,
+		PageSize: pageInfo.PageSize,
+	}, nil
 }
