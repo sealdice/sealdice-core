@@ -16,7 +16,7 @@ func GetCloudContent(urls []string, etag string) (int, []byte, error) {
 		if etag != "" {
 			req.Header.Add("If-None-Match", etag)
 		}
-		resp, err := client.Do(req)
+		resp, err := client.Do(req) //nolint:gosec
 		if err != nil {
 			continue
 		}

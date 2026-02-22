@@ -63,7 +63,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 }
 
 func executeWin(name string, arg ...string) *exec.Cmd {
-	cmd := exec.Command(name, arg...)
+	cmd := exec.Command(name, arg...) //nolint:gosec
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 		Pgid:    os.Getppid(),

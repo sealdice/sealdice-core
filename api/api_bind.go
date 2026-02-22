@@ -234,7 +234,7 @@ func checkSecurity(c echo.Context) error {
 
 func doSignIn(c echo.Context) error {
 	v := struct {
-		Password string `json:"password"`
+		Password string `json:"password"` //nolint:gosec
 	}{}
 
 	err := c.Bind(&v)
@@ -560,7 +560,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addGocq", ImConnectionsAddBuiltinGocq)
 	e.POST(prefix+"/im_connections/addOnebot11ReverseWs", ImConnectionsAddReverseWs)
 	e.POST(prefix+"/im_connections/addGocqSeparate", ImConnectionsAddGocqSeparate)
-	e.POST(prefix+"/im_connections/addWalleQ", ImConnectionsAddWalleQ)
 	e.POST(prefix+"/im_connections/addLagrange", ImConnectionsAddBuiltinLagrange)
 	// e.POST(prefix+"/im_connections/addLagrangeGo", ImConnectionsAddLagrangeGO)
 	e.POST(prefix+"/im_connections/addRed", ImConnectionsAddRed)

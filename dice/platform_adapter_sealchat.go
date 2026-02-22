@@ -335,7 +335,7 @@ func (pa *PlatformAdapterSealChat) encodeMessageFromElements(elems []message.IMe
 			if e.Target == "all" {
 				msg.WriteString(`<at type="all"/>`)
 			} else {
-				msg.WriteString(fmt.Sprintf(`<at id="%s"/>`, e.Target))
+				_, _ = fmt.Fprintf(&msg, `<at id="%s"/>`, e.Target)
 			}
 		case *message.ImageElement:
 			if e.File == nil {
@@ -433,7 +433,7 @@ func (pa *PlatformAdapterSealChat) encodeMessageFromElements(elems []message.IMe
 				msg.WriteString(node.ToString())
 			}
 		case *message.ReplyElement:
-			msg.WriteString(fmt.Sprintf(`<quote id="%s"/>`, e.ReplySeq))
+			_, _ = fmt.Fprintf(&msg, `<quote id="%s"/>`, e.ReplySeq)
 		}
 	}
 	return msg.String()
@@ -726,7 +726,7 @@ func (pa *PlatformAdapterSealChat) toStdMessage(scMsg *satori.Message) *Message 
 		switch el.Type {
 		case "at":
 			if el.Attrs["role"] != "all" {
-				cqMsg.WriteString(fmt.Sprintf("<@%s>", el.Attrs["id"]))
+				_, _ = fmt.Fprintf(&cqMsg, "<@%s>", el.Attrs["id"])
 			}
 		case "root":
 			// 啥都不做

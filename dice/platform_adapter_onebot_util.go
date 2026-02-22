@@ -671,14 +671,14 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
 			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
 				rawImg.File.URL = dataObj.Get("url").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", dataObj.Get("url").String())
 			} else {
 				rawImg.File.URL = dataObj.Get("file").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", dataObj.Get("file").String())
 			}
 			seg = append(seg, rawImg)
 		case "face":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", dataObj.Get("id").String())
 			seg = append(seg, &message.FaceElement{FaceID: dataObj.Get("id").String()})
 		case "record":
 			recordRaw := message.RecordElement{File: &message.FileElement{
@@ -687,20 +687,20 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			// 兼容NC情况, 此时file字段只有文件名, 完整路径在path字段
 			if !hasURLScheme(dataObj.Get("file").String()) && dataObj.Get("path").String() != "" {
 				recordRaw.File.URL = dataObj.Get("path").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("path").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", dataObj.Get("path").String())
 			} else {
 				recordRaw.File.URL = dataObj.Get("file").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", dataObj.Get("file").String())
 			}
 			seg = append(seg, &recordRaw)
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", dataObj.Get("qq").String())
 			seg = append(seg, &message.AtElement{Target: dataObj.Get("qq").String()})
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 			seg = append(seg, &message.PokeElement{})
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", dataObj.Get("id").String())
 			seg = append(seg, &message.ReplyElement{
 				ReplySeq: dataObj.Get("id").String(),
 			})
@@ -711,7 +711,7 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			for paramStr, paramValue := range dMap {
 				params = append(params, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, strings.Join(params, ",")))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:%s,%s]", typeStr, strings.Join(params, ","))
 			// 生成对应的DefaultElement
 			seg = append(seg, &message.DefaultElement{
 				RawType: typeStr,
@@ -840,7 +840,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg.At(res.Target)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", res.Target))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", res.Target)
 		case message.Text:
 			res, ok := v.(*message.TextElement)
 			if !ok {
@@ -854,7 +854,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.Face(res.FaceID)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", res.FaceID))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", res.FaceID)
 		case message.File:
 			res, ok := v.(*message.FileElement)
 			if !ok {
@@ -868,7 +868,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.File(fileVal)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:file,file=%v]", fileVal))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:file,file=%v]", fileVal)
 		case message.Image:
 			res, ok := v.(*message.ImageElement)
 			if !ok {
@@ -879,7 +879,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				url = res.File.URL
 			}
 			rawMsg = rawMsg.Image(url)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", url))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", url)
 		case message.Record:
 			res, ok := v.(*message.RecordElement)
 			if !ok {
@@ -896,7 +896,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.Record(recordFile)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", recordFile))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", recordFile)
 		case message.Reply:
 			res, ok := v.(*message.ReplyElement)
 			if !ok {
@@ -907,7 +907,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.Reply(parseInt)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", parseInt))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", parseInt)
 		case message.Poke:
 			res, ok := v.(*message.PokeElement)
 			if !ok {
@@ -924,7 +924,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				Type: "poke",
 				Data: marshal,
 			})
-			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", res.Target))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:poke,qq=%v]", res.Target)
 		default:
 			res, ok := v.(*message.DefaultElement)
 			if !ok {
@@ -940,7 +940,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			for paramStr, paramValue := range dMap {
 				params = append(params, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, strings.Join(params, ",")))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:%s,%s]", res.RawType, strings.Join(params, ","))
 		}
 	}
 	messageStr := cqMessage.String()

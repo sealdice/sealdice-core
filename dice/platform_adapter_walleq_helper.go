@@ -29,7 +29,7 @@ const (
 )
 
 type WqQQ struct {
-	Password string `toml:"password,omitempty"`
+	Password string `toml:"password,omitempty"` //nolint:gosec
 	Protocol int    `toml:"protocol"`
 }
 

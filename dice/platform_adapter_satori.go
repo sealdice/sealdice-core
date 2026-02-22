@@ -556,7 +556,7 @@ func (pa *PlatformAdapterSatori) post(resource string, body io.Reader) ([]byte, 
 	request.Header.Add("X-Platform", pa.Platform)
 	//nolint:canonicalheader
 	request.Header.Add("X-Self-ID", UserIDExtract(pa.EndPoint.UserID))
-	resp, err := client.Do(request)
+	resp, err := client.Do(request) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
@@ -636,10 +636,10 @@ func decodeMessage(text string) string {
 		switch el.Type {
 		case "at":
 			if el.Attrs["role"] != "all" {
-				content.WriteString(fmt.Sprintf("[CQ:at,qq=%s]", el.Attrs["id"]))
+				_, _ = fmt.Fprintf(&content, "[CQ:at,qq=%s]", el.Attrs["id"])
 			}
 		case "img":
-			content.WriteString(fmt.Sprintf("[CQ:image,url=%s]", el.Attrs["src"]))
+			_, _ = fmt.Fprintf(&content, "[CQ:image,url=%s]", el.Attrs["src"])
 		case "root":
 			// pass
 		default:
@@ -660,7 +660,7 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 			if e.Target == "all" {
 				msg.WriteString(`<at type="all"/>`)
 			} else {
-				msg.WriteString(fmt.Sprintf(`<at id="%s"/>`, e.Target))
+				_, _ = fmt.Fprintf(&msg, `<at id="%s"/>`, e.Target)
 			}
 		case *message.FileElement:
 			node := &satori.Element{
