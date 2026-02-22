@@ -81,7 +81,7 @@ func uploadToBackend(env UploadEnv, backend string, data io.Reader) string {
 		req.Header.Set("Authorization", "Bearer "+env.Token)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec
 	if err != nil {
 		env.Log.Errorf(err.Error())
 		return ""

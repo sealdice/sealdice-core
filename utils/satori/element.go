@@ -37,9 +37,9 @@ func (el *Element) ToString() string {
 		case "text":
 			sb.WriteString(el.Attrs["content"].(string))
 		default:
-			sb.WriteString(fmt.Sprintf("<%s", el.Type))
+			_, _ = fmt.Fprintf(&sb, "<%s", el.Type)
 			for k, v := range el.Attrs {
-				sb.WriteString(fmt.Sprintf(" %s=\"%s\"", k, v))
+				_, _ = fmt.Fprintf(&sb, " %s=\"%s\"", k, v)
 			}
 			sb.WriteString(">")
 		}
@@ -48,7 +48,7 @@ func (el *Element) ToString() string {
 		case "root", "text":
 			break
 		default:
-			sb.WriteString(fmt.Sprintf("</%s>", el.Type))
+			_, _ = fmt.Fprintf(&sb, "</%s>", el.Type)
 		}
 	})
 	return sb.String()

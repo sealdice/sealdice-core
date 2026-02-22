@@ -457,7 +457,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 			localPath = filepath.FromSlash(localPath)
 		}
 
-		info, err := os.Stat(localPath)
+		info, err := os.Stat(localPath) //nolint:gosec
 		if err != nil {
 			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: localPath, Cause: err}
 		}
@@ -473,7 +473,7 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 			return nil, &CQFileError{Kind: CQFileErrRestricted, Raw: fp, Normalized: afn}
 		}
 		filesuffix := path.Ext(localPath)
-		content, err := os.ReadFile(localPath)
+		content, err := os.ReadFile(localPath) //nolint:gosec
 		if err != nil {
 			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: localPath, Cause: err}
 		}

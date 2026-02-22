@@ -20,7 +20,7 @@ func DownloadFile(filepath string, url string) error {
 	}
 
 	request.Header.Add("Accept-Encoding", "gzip")
-	resp, err := client.Do(request)
+	resp, err := client.Do(request) //nolint:gosec
 	if err != nil {
 		return err
 	}

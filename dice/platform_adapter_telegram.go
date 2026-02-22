@@ -268,19 +268,19 @@ func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
 				// text mention时User不为nil
 				if entity.User != nil {
 					replacedText.WriteString(string(utf16.Decode(u16[index:entity.Offset])))
-					replacedText.WriteString(fmt.Sprintf("tg://user?id=%d", entity.User.ID))
+					_, _ = fmt.Fprintf(&replacedText, "tg://user?id=%d", entity.User.ID)
 				} else {
 					// 这里处理最烦人的username mention 首先判断是不是@了机器人自己
 					if self.UserName == string(utf16.Decode(u16[entity.Offset+1:entity.Offset+entity.Length])) {
 						replacedText.WriteString(string(utf16.Decode(u16[index:entity.Offset])))
-						replacedText.WriteString(fmt.Sprintf("tg://user?id=%d", self.ID))
+						_, _ = fmt.Fprintf(&replacedText, "tg://user?id=%d", self.ID)
 					} else {
 						// @的不是自己，查看是否能从用户名缓存中找到username
 						name := string(utf16.Decode(u16[entity.Offset+1 : entity.Offset+entity.Length]))
 						v, exist := ucache.Load(name)
 						if exist {
 							replacedText.WriteString(string(utf16.Decode(u16[index:entity.Offset])))
-							replacedText.WriteString(fmt.Sprintf("tg://user?id=%d", v))
+							_, _ = fmt.Fprintf(&replacedText, "tg://user?id=%d", v)
 						} else {
 							// 找不到，没有办法了，现阶段没有通过username获取userid的api
 							replacedText.WriteString(string(utf16.Decode(u16[index : entity.Offset+entity.Length])))

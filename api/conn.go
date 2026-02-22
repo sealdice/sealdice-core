@@ -364,40 +364,6 @@ func ImConnectionsSmsCodeGet(c echo.Context) error {
 	return c.JSON(http.StatusNotFound, nil)
 }
 
-func ImConnectionsAddWalleQ(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, nil)
-	}
-	v := struct {
-		Account  string `json:"account"  yaml:"account"`
-		Password string `json:"password" yaml:"password"`
-		Protocol int    `json:"protocol"`
-	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		uid := v.Account
-		if checkUidExists(c, uid) {
-			return nil
-		}
-
-		conn := dice.NewWqConnectInfoItem(v.Account)
-		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
-		conn.ProtocolType = "walle-q"
-		pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
-		pa.InPackWalleQProtocol = v.Protocol
-		pa.InPackWalleQPassword = v.Password
-		pa.Session = myDice.ImSession
-
-		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		go dice.WalleQServe(myDice, conn, v.Password, v.Protocol, false)
-		myDice.LastUpdatedTime = time.Now().Unix()
-		myDice.Save(false)
-		return c.JSON(http.StatusOK, conn)
-	}
-	return c.String(430, "")
-}
-
 func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -742,7 +708,7 @@ func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 
 	v := struct {
 		Account          string                 `json:"account"          yaml:"account"`
-		Password         string                 `json:"password"         yaml:"password"`
+		Password         string                 `json:"password"         yaml:"password"` //nolint:gosec
 		Protocol         int                    `json:"protocol"`
 		AppVersion       string                 `json:"appVersion"`
 		UseSignServer    bool                   `json:"useSignServer"`
@@ -803,7 +769,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	v := struct {
 		Account     string `json:"account"     yaml:"account"`
 		ConnectURL  string `json:"connectUrl"  yaml:"connectUrl"`  // 连接地址
-		AccessToken string `json:"accessToken" yaml:"accessToken"` // 访问令牌
+		AccessToken string `json:"accessToken" yaml:"accessToken"` // 访问令牌 //nolint:gosec
 	}{}
 
 	err := c.Bind(&v)
