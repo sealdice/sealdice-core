@@ -91,7 +91,7 @@ type Configs struct { //nolint:revive
 
 	UIPasswordSalt string   `yaml:"UIPasswordFrontendSalt"`
 	UIPasswordHash string   `yaml:"uiPasswordHash"`
-	AccessTokens   []string `yaml:"accessTokens"`
+	AccessTokens   []string `yaml:"accessTokens"` //nolint:gosec
 
 	AutoBackupEnable    bool   `yaml:"autoBackupEnable"`
 	AutoBackupTime      string `yaml:"autoBackupTime"`

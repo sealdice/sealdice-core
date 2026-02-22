@@ -58,9 +58,10 @@ type PlatformAdapterGocq struct {
 	ReverseAddr string     `json:"reverseAddr" yaml:"reverseAddr"`
 	reverseApp  *echo.Echo `json:"-"           yaml:"-"`
 
-	Socket      *gowebsocket.Socket `json:"-"           yaml:"-"`
-	ConnectURL  string              `json:"connectUrl"  yaml:"connectUrl"`  // 连接地址
-	AccessToken string              `json:"accessToken" yaml:"accessToken"` // 访问令牌
+	Socket     *gowebsocket.Socket `json:"-"           yaml:"-"`
+	ConnectURL string              `json:"connectUrl"  yaml:"connectUrl"` // 连接地址
+	//nolint:gosec
+	AccessToken string `json:"accessToken" yaml:"accessToken"` // 访问令牌
 
 	UseInPackClient bool   `json:"useInPackGoCqhttp" yaml:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
 	BuiltinMode     string `json:"builtinMode"       yaml:"builtinMode"`       // 分为 lagrange 和 gocq

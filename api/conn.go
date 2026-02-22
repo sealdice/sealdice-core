@@ -707,8 +707,9 @@ func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 	}
 
 	v := struct {
-		Account          string                 `json:"account"          yaml:"account"`
-		Password         string                 `json:"password"         yaml:"password"` //nolint:gosec
+		Account string `json:"account"          yaml:"account"`
+		//nolint:gosec
+		Password         string                 `json:"password"         yaml:"password"`
 		Protocol         int                    `json:"protocol"`
 		AppVersion       string                 `json:"appVersion"`
 		UseSignServer    bool                   `json:"useSignServer"`
@@ -767,9 +768,10 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 	}
 
 	v := struct {
-		Account     string `json:"account"     yaml:"account"`
-		ConnectURL  string `json:"connectUrl"  yaml:"connectUrl"`  // 连接地址
-		AccessToken string `json:"accessToken" yaml:"accessToken"` // 访问令牌 //nolint:gosec
+		Account    string `json:"account"     yaml:"account"`
+		ConnectURL string `json:"connectUrl"  yaml:"connectUrl"` // 连接地址
+		//nolint:gosec
+		AccessToken string `json:"accessToken" yaml:"accessToken"` // 访问令牌
 	}{}
 
 	err := c.Bind(&v)

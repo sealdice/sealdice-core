@@ -990,7 +990,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	defer func() {
 		_ = tempLog.Close()
 		if err != nil {
-			_ = os.Remove(tempLog.Name())
+			_ = os.Remove(tempLog.Name()) //nolint:gosec
 		}
 	}()
 

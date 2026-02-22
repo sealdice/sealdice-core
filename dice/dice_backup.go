@@ -385,7 +385,7 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 	var fileInfoOld []os.FileInfo
 
 	logMsg := strings.Builder{}
-	_, _ = fmt.Fprintf(&logMsg, "现有备份文件 %d 个, 清理模式为 ", len(fileInfos))
+	_, _ = fmt.Fprintf(&logMsg, "现有备份文件 %d 个, 清理模式为 ", len(fileInfos)) //nolint:gosec
 
 	switch dm.BackupCleanStrategy {
 	case BackupCleanStrategyByCount:
@@ -404,12 +404,12 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		// no-op
 	}
 
-	_, _ = fmt.Fprintf(&logMsg, ", 有以下 %d 个将要被删除", len(fileInfoOld))
+	_, _ = fmt.Fprintf(&logMsg, ", 有以下 %d 个将要被删除", len(fileInfoOld)) //nolint:gosec
 
 	errDel := []string{}
 	for i, fi := range fileInfoOld {
-		_, _ = fmt.Fprintf(&logMsg, "\n%d. %s", i+1, fi.Name())
-		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name()))
+		_, _ = fmt.Fprintf(&logMsg, "\n%d. %s", i+1, fi.Name())     //nolint:gosec
+		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name())) //nolint:gosec
 		if errDelete != nil {
 			errDel = append(errDel, errDelete.Error())
 		}
