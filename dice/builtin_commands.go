@@ -750,7 +750,6 @@ func (d *Dice) registerCoreCommands() {
 		if len(cmdArgs.Args) > 1 {
 			for _, i := range cmdArgs.Args[1:] {
 				if i == "me" {
-					uidLst = append(uidLst, ctx.Player.UserID)
 					continue
 				}
 				uid := FormatDiceIDQQ(i)
@@ -862,8 +861,7 @@ func (d *Dice) registerCoreCommands() {
 		updateCode      = "0000"
 	)
 
-	var masterListHelp = `.master add me // 将自己标记为骰主
-.master add @A @B // 将别人标记为骰主
+	var masterListHelp = `.master add @A @B // 将别人标记为骰主
 .master del @A @B @C // 去除骰主标记
 .master unlock <密码(在UI中查看)> // (当Master被人抢占时)清空骰主列表，并使自己成为骰主
 .master list // 查看当前骰主列表
