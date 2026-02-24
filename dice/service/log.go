@@ -392,12 +392,12 @@ func LogLinesCountGet(operator engine2.DatabaseOperator, groupID string, logName
 }
 
 // LogDelete 删除log
-func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string) bool {
+func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string) error {
 	db := operator.GetLogDB(constant.WRITE)
 	// 获取 log ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
-		return false
+		return err
 	}
 	err = db.Transaction(func(tx *gorm.DB) error {
 		// 删除 log_id 相关的 log_items 记录
@@ -412,7 +412,7 @@ func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string
 		return nil
 	})
 
-	return err == nil
+	return err
 }
 
 // LogAppend 向指定的log中添加一条信息
