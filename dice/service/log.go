@@ -449,9 +449,15 @@ func LogAppend(operator engine2.DatabaseOperator, groupID string, logName string
 			// 创建一个新的 log
 			newLog := model.LogInfo{Name: logName, GroupID: groupID, CreatedAt: nowTimestamp, UpdatedAt: nowTimestamp}
 			if err = tx.Create(&newLog).Error; err != nil {
-				return err
+				// 并发场景下可能被其他事务先创建，回查既有log并继续写入
+				existedLogID, findErr := getIDByGroupIDAndName(tx, groupID, logName)
+				if findErr != nil {
+					return err
+				}
+				logID = existedLogID
+			} else {
+				logID = newLog.ID
 			}
-			logID = newLog.ID
 		}
 		newLogItem.LogID = logID
 		if err = tx.Create(&newLogItem).Error; err != nil {
