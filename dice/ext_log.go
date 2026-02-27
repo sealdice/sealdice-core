@@ -127,14 +127,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 .log on [<日志名>]  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
 .log end // 完成记录并发送日志文件
-.log get [<日志名>] // 重新上传日志，并获取链接
+.log get [<日志名>] [-f]// 重新上传日志，并获取链接, -f 强制重新上传
 .log halt // 强行关闭当前log，不上传日志
 .log list // 查看当前群的日志列表
 .log del <日志名> // 删除一份日志
 .log stat [<日志名>] // 查看统计
 .log stat [<日志名>] --all // 查看统计(全团)，--all前必须有空格
 .log list <群号> // 查看指定群的日志列表(无法取得日志时，找骰主做这个操作)
-.log masterget <群号> <日志名> // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作)
+.log masterget <群号> <日志名> [-f] // 重新上传日志，并获取链接(无法取得日志时，找骰主做这个操作),-f 强制重新上传
 .log export <日志名> // 直接取得日志txt(服务出问题或有其他需要时使用)
 .log export <日志名> <邮箱地址> // 通过邮件取得日志txt，多个邮箱用空格隔开`
 
@@ -168,8 +168,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			getAndUpload := func(gid, lname string) {
-				unofficial, fn, err := LogSendToBackend(ctx, gid, lname)
+			getAndUpload := func(gid, lname string, force bool) {
+				unofficial, fn, err := LogSendToBackend(ctx, gid, lname, force)
 				if err != nil {
 					reason := strings.TrimPrefix(err.Error(), "#")
 					VarSetValueStr(ctx, "$t错误原因", reason)
@@ -269,7 +269,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				getAndUpload(groupID, logName)
+				force := cmdArgs.GetKwarg("f") != nil
+				getAndUpload(groupID, logName, force)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "get") {
 				// 仿照 log on 为 log get 添加了 IsPrivate 判断
@@ -289,7 +290,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				getAndUpload(group.GroupID, logName)
+				force := cmdArgs.GetKwarg("f") != nil
+				getAndUpload(group.GroupID, logName, force)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
 				if group.LogCurName == "" {
@@ -310,7 +312,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
 				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
-				go getAndUpload(group.GroupID, group.LogCurName)
+				go getAndUpload(group.GroupID, group.LogCurName, false)
 				group.LogCurName = ""
 				group.MarkDirty(ctx.Dice)
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -1060,7 +1062,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	return tempLog.Name(), nil
 }
 
-func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
+func LogSendToBackend(ctx *MsgContext, groupID string, logName string, force bool) (bool, string, error) {
 	dice := ctx.Dice
 	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
@@ -1079,6 +1081,7 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 		LogName:   logName,
 		UniformID: ctx.EndPoint.UserID,
 		GroupID:   groupID,
+		Force:     force,
 	}
 	uploadCtx.Version = storylog.StoryVersionV1
 

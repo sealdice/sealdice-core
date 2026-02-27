@@ -189,5 +189,5 @@ func logSendToBackend(groupID string, logName string) (bool, string, error) {
 		EndPoint: myDice.UIEndpoint,
 	}
 
-	return dice.LogSendToBackend(ctx, groupID, logName)
+	return dice.LogSendToBackend(ctx, groupID, logName, true)
 }
