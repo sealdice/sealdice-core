@@ -1715,7 +1715,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
 	}
 
-	if ctx.PrivilegeLevel == -30 {
+	if ctx.PrivilegeLevel == -30 { //nolint:nestif
 		groupLevel := ctx.GroupRoleLevel
 		if (d.Config.BanList.BanBehaviorQuitIfAdmin || d.Config.BanList.BanBehaviorQuitIfAdminSilentIfNotAdmin) && msg.MessageType == "group" {
 			// 黑名单用户 - 立即退出所在群
@@ -1741,13 +1741,16 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 				} else {
 					notReply = true
 					if d.Config.BanList.BanBehaviorQuitIfAdmin {
-						noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
-						log.Info(noticeMsg)
+						// 检查是否在警告冷却中
+						if d.Config.BanList.ShouldNotifyBan(groupID, msg.Sender.UserID) {
+							noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
+							log.Info(noticeMsg)
 
-						text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
-						ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+							text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。\n%s", msg.Sender.Nickname, msg.Sender.UserID, reasontext)
+							ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
-						ctx.Notice(noticeMsg)
+							ctx.Notice(noticeMsg)
+						}
 					} else {
 						noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，忽略黑名单用户信息，不做其他操作\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 						log.Info(noticeMsg)
