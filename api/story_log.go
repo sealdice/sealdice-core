@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -113,9 +114,12 @@ func storyDelLog(c echo.Context) error {
 		myDice.Logger.Error("storyDelLog", err)
 		return c.JSON(http.StatusInternalServerError, err)
 	}
-	is := service.LogDelete(myDice.DBOperator, v.GroupID, v.Name)
-	if !is {
-		myDice.Logger.Error("storyDelLog", "failed to delete")
+	err = service.LogDelete(myDice.DBOperator, v.GroupID, v.Name)
+	if err != nil {
+		if errors.Is(err, service.ErrLogNotFound) {
+			return c.JSON(http.StatusNotFound, false)
+		}
+		myDice.Logger.Error("storyDelLog", "failed to delete", err)
 		return c.JSON(http.StatusInternalServerError, false)
 	}
 	return c.JSON(http.StatusOK, true)
