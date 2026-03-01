@@ -43,7 +43,7 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 	}
 
 	// log_id=0 清理后，回填 logs.size，避免调用方读取到过期计数
-	recountResult := db.Model(&model.LogInfo{}).Update("size", gorm.Expr(
+	recountResult := db.Model(&model.LogInfo{}).Where("id >= 0").Update("size", gorm.Expr(
 		"(SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)",
 	))
 	if recountResult.Error != nil {
