@@ -14,21 +14,24 @@ import (
 // V160LogIDZeroCleanMigrate 清理 log_id = 0 的日志行与日志表残留
 func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
 	db := dboperator.GetLogDB(constant.WRITE)
+	migrator := db.Migrator()
 
 	// 初始化以及正常没有logid为0时不执行migration
-	if !db.Migrator().HasTable(&model.LogInfo{}) || !db.Migrator().HasTable(&model.LogOneItem{}) {
+	if !migrator.HasTable(&model.LogInfo{}) || !migrator.HasTable(&model.LogOneItem{}) {
 		return nil
 	}
 
-	var countLog, countItem int64
-	if err := db.Model(&model.LogInfo{}).Where("id = 0").Count(&countLog).Error; err != nil {
-		return err
-	}
-	if err := db.Model(&model.LogOneItem{}).Where("log_id = 0").Count(&countItem).Error; err != nil {
+	var hasLogIDZero bool
+	if err := db.Raw("SELECT EXISTS(SELECT 1 FROM logs WHERE id = 0 LIMIT 1)").Scan(&hasLogIDZero).Error; err != nil {
 		return err
 	}
 
-	if countLog == 0 && countItem == 0 {
+	var hasItemLogIDZero bool
+	if err := db.Raw("SELECT EXISTS(SELECT 1 FROM log_items WHERE log_id = 0 LIMIT 1)").Scan(&hasItemLogIDZero).Error; err != nil {
+		return err
+	}
+
+	if !hasLogIDZero && !hasItemLogIDZero {
 		return nil
 	}
 
@@ -42,8 +45,8 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 		return logResult.Error
 	}
 
-	// log_id=0 清理后，回填 logs.size，避免调用方读取到过期计数
-	recountResult := db.Model(&model.LogInfo{}).Where("id >= 0").Update("size", gorm.Expr(
+	// log_id=0 清理后，回填剩余日志(size 仅需更新 id>0 的有效日志行)
+	recountResult := db.Model(&model.LogInfo{}).Where("id > 0").Update("size", gorm.Expr(
 		"(SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)",
 	))
 	if recountResult.Error != nil {
