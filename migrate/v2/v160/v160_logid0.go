@@ -15,6 +15,23 @@ import (
 func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
 	db := dboperator.GetLogDB(constant.WRITE)
 
+	// 初始化以及正常没有logid为0时不执行migration
+	if !db.Migrator().HasTable(&model.LogInfo{}) || !db.Migrator().HasTable(&model.LogOneItem{}) {
+		return nil
+	}
+
+	var countLog, countItem int64
+	if err := db.Model(&model.LogInfo{}).Where("id = 0").Count(&countLog).Error; err != nil {
+		return err
+	}
+	if err := db.Model(&model.LogOneItem{}).Where("log_id = 0").Count(&countItem).Error; err != nil {
+		return err
+	}
+
+	if countLog == 0 && countItem == 0 {
+		return nil
+	}
+
 	itemResult := db.Where("log_id = 0").Delete(&model.LogOneItem{})
 	if itemResult.Error != nil {
 		return itemResult.Error
