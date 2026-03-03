@@ -21,15 +21,17 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 		return nil
 	}
 
-	var hasLogIDZero bool
-	if err := db.Raw("SELECT EXISTS(SELECT 1 FROM logs WHERE id = 0 LIMIT 1)").Scan(&hasLogIDZero).Error; err != nil {
+	var hasLogIDZeroInt int64
+	if err := db.Raw("SELECT EXISTS(SELECT 1 FROM logs WHERE id = 0 LIMIT 1)").Scan(&hasLogIDZeroInt).Error; err != nil {
 		return err
 	}
+	hasLogIDZero := hasLogIDZeroInt != 0
 
-	var hasItemLogIDZero bool
-	if err := db.Raw("SELECT EXISTS(SELECT 1 FROM log_items WHERE log_id = 0 LIMIT 1)").Scan(&hasItemLogIDZero).Error; err != nil {
+	var hasItemLogIDZeroInt int64
+	if err := db.Raw("SELECT EXISTS(SELECT 1 FROM log_items WHERE log_id = 0 LIMIT 1)").Scan(&hasItemLogIDZeroInt).Error; err != nil {
 		return err
 	}
+	hasItemLogIDZero := hasItemLogIDZeroInt != 0
 
 	if !hasLogIDZero && !hasItemLogIDZero {
 		return nil
@@ -45,7 +47,7 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 		return logResult.Error
 	}
 
-	// log_id=0 清理后，回填剩余日志(size 仅需更新 id>0 的有效日志行)
+	// log_id=0 清理后，回填剩余日志 (size 仅需更新 id>0 的有效日志行)
 	recountResult := db.Model(&model.LogInfo{}).Where("id > 0").Update("size", gorm.Expr(
 		"(SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)",
 	))
