@@ -128,7 +128,7 @@ attrs: # 属性
     语言: 教育 # 语言的默认值随着教育增长而增加，但也可以是不同的值
     闪避: 敏捷 / 2
 
-    dbText: $STR_SIZ_SUM < 65 ? -2, $STR_SIZ_SUM < 85 ? -1, $STR_SIZ_SUM < 125 ? 0, $STR_SIZ_SUM < 165 ? "1d4", $STR_SIZ_SUM < 205 ? "1d6", 1 ? str(($STR_SIZ_SUM - 205) / 80 + 2) + "d6"
+    dbText: $STR_SIZ_SUM < 65 ? -2, $STR_SIZ_SUM < 85 ? -1, $STR_SIZ_SUM < 125 ? 0, $STR_SIZ_SUM < 165 ? "1d4", $STR_SIZ_SUM < 205 ? "1d6", 1 ? toStr(($STR_SIZ_SUM - 205) / 80 + 2) + "d6"
   # detailOverwrite:
   #   db: 'dbText'
   #   体格: '体格'
