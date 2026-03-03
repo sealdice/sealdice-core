@@ -1407,7 +1407,7 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	d := mctx.Dice
 	log := d.Logger
 
-	var ret bool
+	handled := false
 	// 试图匹配自定义指令
 	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
 		for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
@@ -1416,27 +1416,42 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 				continue
 			}
 			if ext.OnCommandOverride != nil {
-				ret = ext.OnCommandOverride(mctx, msg, cmdArgs)
-				if ret {
+				handled = ext.OnCommandOverride(mctx, msg, cmdArgs)
+				if handled {
 					break
 				}
 			}
 		}
 	}
 
-	if !ret {
+	var solveResult commandSolveResult
+	if !handled {
 		// 若自定义指令未匹配，匹配标准指令
-		ret = s.commandSolve(mctx, msg, cmdArgs)
+		solveResult = s.commandSolve(mctx, msg, cmdArgs)
+		switch solveResult.Status {
+		case commandSolveSolved:
+			handled = true
+		case commandSolveConflict:
+			handled = true
+			ReplyToSender(mctx, msg, fmt.Sprintf("指令[%s]存在冲突，可用扩展有: %s。请禁用其中之一后重试。", cmdArgs.Command, strings.Join(solveResult.AvailableSources, ", ")))
+			log.Infof("指令冲突: 群(%s) 指令[%s] 可用扩展: %s", msg.GroupID, cmdArgs.Command, strings.Join(solveResult.AvailableSources, ", "))
+		case commandSolveBlocked:
+			handled = true
+			log.Infof("指令[%s]可用扩展均被禁用: %s", cmdArgs.Command, strings.Join(solveResult.DisabledSources, ", "))
+		case commandSolveUnmatched:
+		}
 	}
 
-	if ret {
-		// 刷屏检测已经迁移到 im_helpers.go，此处不再处理
-		ep.CmdExecutedNum++
-		ep.CmdExecutedLastTime = time.Now().Unix()
-		mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
-		mctx.Player.UpdatedAtTime = time.Now().Unix()
-		if mctx.Group != nil {
-			mctx.Group.MarkDirty(mctx.Dice)
+	if handled {
+		if solveResult.Status != commandSolveBlocked {
+			// 刷屏检测已经迁移到 im_helpers.go，此处不再处理
+			ep.CmdExecutedNum++
+			ep.CmdExecutedLastTime = time.Now().Unix()
+			mctx.Player.LastCommandTime = ep.CmdExecutedLastTime
+			mctx.Player.UpdatedAtTime = time.Now().Unix()
+			if mctx.Group != nil {
+				mctx.Group.MarkDirty(mctx.Dice)
+			}
 		}
 	} else {
 		if msg.MessageType == "group" {
@@ -1447,7 +1462,7 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 			log.Infof("忽略指令(骰子关闭/扩展关闭/未知指令): 来自<%s>(%s)的私聊: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 		}
 	}
-	return ret
+	return handled
 }
 
 // OnGroupJoined 群组进群事件处理，其他 Adapter 应当尽快迁移至此方法实现
@@ -1798,7 +1813,111 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	return notReply
 }
 
-func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
+type commandSolveStatus int
+
+const (
+	commandSolveUnmatched commandSolveStatus = iota
+	commandSolveSolved
+	commandSolveConflict
+	commandSolveBlocked
+)
+
+type commandSolveCandidate struct {
+	Ext  *ExtInfo
+	Item *CmdItemInfo
+}
+
+type commandSolveResult struct {
+	Status           commandSolveStatus
+	AvailableSources []string
+	DisabledSources  []string
+}
+
+func collectRuleExtNameSetBySystem(ctx *MsgContext) (map[string]struct{}, map[string]struct{}) {
+	ruleExtNames := make(map[string]struct{})
+	preferredRuleExtNames := make(map[string]struct{})
+	if ctx == nil || ctx.Dice == nil || ctx.Dice.GameSystemMap == nil {
+		return ruleExtNames, preferredRuleExtNames
+	}
+
+	currentSystem := ""
+	if ctx.Group != nil {
+		currentSystem = strings.TrimSpace(ctx.Group.System)
+	}
+
+	addRelatedExt := func(system string, relatedExt []string) {
+		isCurrentSystem := currentSystem != "" && strings.EqualFold(currentSystem, system)
+		for _, extName := range relatedExt {
+			name := strings.ToLower(strings.TrimSpace(extName))
+			if name == "" {
+				continue
+			}
+			ruleExtNames[name] = struct{}{}
+			if isCurrentSystem {
+				preferredRuleExtNames[name] = struct{}{}
+			}
+		}
+	}
+
+	ctx.Dice.GameSystemMap.Range(func(system string, tmpl *GameSystemTemplate) bool {
+		if tmpl == nil {
+			return true
+		}
+
+		relatedExt := tmpl.Commands.Set.RelatedExt
+		if len(relatedExt) == 0 {
+			relatedExt = tmpl.SetConfig.RelatedExt
+		}
+		addRelatedExt(system, relatedExt)
+		return true
+	})
+
+	return ruleExtNames, preferredRuleExtNames
+}
+
+func selectRulePluginCandidateByGroupSystem(ctx *MsgContext, candidates []commandSolveCandidate) (commandSolveCandidate, bool) {
+	var empty commandSolveCandidate
+	if len(candidates) < 2 {
+		return empty, false
+	}
+
+	ruleExtNames, preferredRuleExtNames := collectRuleExtNameSetBySystem(ctx)
+	if len(ruleExtNames) == 0 || len(preferredRuleExtNames) == 0 {
+		return empty, false
+	}
+
+	matchedCount := 0
+	selected := empty
+	for _, candidate := range candidates {
+		if candidate.Ext == nil {
+			return empty, false
+		}
+
+		extName := strings.ToLower(candidate.Ext.Name)
+		if _, ok := ruleExtNames[extName]; !ok {
+			return empty, false
+		}
+
+		if _, ok := preferredRuleExtNames[extName]; ok {
+			selected = candidate
+			matchedCount++
+		}
+	}
+
+	if matchedCount != 1 {
+		return empty, false
+	}
+	return selected, true
+}
+
+func commandCandidateSourceName(candidate commandSolveCandidate) string {
+	if candidate.Ext == nil {
+		return "core"
+	}
+	return candidate.Ext.Name
+}
+
+func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) commandSolveResult {
 	// 设置临时变量
 	if ctx.Player != nil {
 		SetTempVars(ctx, msg.Sender.Nickname)
@@ -1806,33 +1925,53 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		VarSetValueInt64(ctx, "$t轮数", int64(cmdArgs.SpecialExecuteTimes))
 	}
 
-	tryItemSolve := func(ext *ExtInfo, item *CmdItemInfo) bool {
+	checkCandidateAvailable := func(ext *ExtInfo, item *CmdItemInfo) (available bool, disabled bool) {
 		if item == nil {
-			return false
+			return false, false
 		}
 
 		if item.Raw { //nolint:nestif
 			if item.CheckCurrentBotOn {
 				if !ctx.IsCurGroupBotOn && !ctx.IsPrivate {
-					return false
+					return false, false
 				}
 			}
 
 			if item.CheckMentionOthers {
 				if cmdArgs.SomeoneBeMentionedButNotMe {
-					return false
+					return false, false
 				}
 			}
 		} else { //nolint:gocritic
 			// 默认模式行为：需要在当前群/私聊开启，或@自己时生效(需要为第一个@目标)
 			if !ctx.IsCurGroupBotOn && !ctx.IsPrivate {
-				return false
+				return false, false
 			}
 		}
 
 		if ext != nil && ext.DefaultSetting.DisabledCommand[item.Name] {
-			ReplyToSender(ctx, msg, fmt.Sprintf("此指令已被骰主禁用: %s:%s", ext.Name, item.Name))
-			return true
+			return false, true
+		}
+
+		if !item.Raw {
+			if item.DisabledInPrivate && ctx.IsPrivate {
+				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
+				return false, false
+			}
+
+			if !item.AllowDelegate && cmdArgs.SomeoneBeMentionedButNotMe {
+				// 如果其他人被@了就不管
+				// 注: 如果被@的对象在botlist列表，那么不会走到这一步
+				return false, false
+			}
+		}
+
+		return true, false
+	}
+
+	executeCandidate := func(item *CmdItemInfo) bool {
+		if item == nil {
+			return false
 		}
 
 		// Note(Szzrain): TODO: 意义不明，需要想办法干掉
@@ -1844,40 +1983,29 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 			VarSetValueInt64(ctx, "$t轮数", int64(cmdArgs.SpecialExecuteTimes))
 		}
 
-		if !item.Raw {
-			if item.DisabledInPrivate && ctx.IsPrivate {
-				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
-				return false
+		if !item.Raw && item.AllowDelegate {
+			// 允许代骰时，发一句话
+			cur := -1
+			for index, i := range cmdArgs.At {
+				if i.UserID == ctx.EndPoint.UserID {
+					continue
+				} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
+					// 特殊处理 OpenQQ频道
+					uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
+					diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
+					if uid == diceId {
+						continue
+					}
+				}
+				cur = index
 			}
 
-			if item.AllowDelegate {
-				// 允许代骰时，发一句话
-				cur := -1
-				for index, i := range cmdArgs.At {
-					if i.UserID == ctx.EndPoint.UserID {
-						continue
-					} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-						// 特殊处理 OpenQQ频道
-						uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
-						diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
-						if uid == diceId {
-							continue
-						}
-					}
-					cur = index
+			if cur != -1 {
+				if ctx.Dice.Config.PlayerNameWrapEnable {
+					ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
+				} else {
+					ctx.DelegateText = fmt.Sprintf("由%s代骰:\n", ctx.Player.Name)
 				}
-
-				if cur != -1 {
-					if ctx.Dice.Config.PlayerNameWrapEnable {
-						ctx.DelegateText = fmt.Sprintf("由<%s>代骰:\n", ctx.Player.Name)
-					} else {
-						ctx.DelegateText = fmt.Sprintf("由%s代骰:\n", ctx.Player.Name)
-					}
-				}
-			} else if cmdArgs.SomeoneBeMentionedButNotMe {
-				// 如果其他人被@了就不管
-				// 注: 如果被@的对象在botlist列表，那么不会走到这一步
-				return false
 			}
 		}
 
@@ -1943,26 +2071,61 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	}
 
 	group := ctx.Group
-	builtinSolve := func() bool {
-		item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
-		if tryItemSolve(nil, item) {
-			return true
-		}
-
-		if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
-			for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
-				cmdMap := wrapper.GetCmdMap()
-				item := cmdMap[cmdArgs.Command]
-				if tryItemSolve(wrapper, item) {
-					return true
-				}
-			}
-		}
-		return false
+	var candidates []commandSolveCandidate
+	item := ctx.Session.Parent.CmdMap[cmdArgs.Command]
+	if item != nil {
+		candidates = append(candidates, commandSolveCandidate{Ext: nil, Item: item})
 	}
 
-	solved := builtinSolve()
-	if group.Active || ctx.IsCurGroupBotOn {
+	if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
+		for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+			cmdMap := wrapper.GetCmdMap()
+			item = cmdMap[cmdArgs.Command]
+			if item == nil {
+				continue
+			}
+			candidates = append(candidates, commandSolveCandidate{Ext: wrapper, Item: item})
+		}
+	}
+
+	if len(candidates) == 0 {
+		return commandSolveResult{Status: commandSolveUnmatched}
+	}
+
+	var available []commandSolveCandidate
+	var disabled []commandSolveCandidate
+	for _, candidate := range candidates {
+		ok, isDisabled := checkCandidateAvailable(candidate.Ext, candidate.Item)
+		if ok {
+			available = append(available, candidate)
+			continue
+		}
+		if isDisabled {
+			disabled = append(disabled, candidate)
+		}
+	}
+
+	if len(available) > 1 {
+		if selected, ok := selectRulePluginCandidateByGroupSystem(ctx, available); ok {
+			available = []commandSolveCandidate{selected}
+		} else {
+			names := make([]string, 0, len(available))
+			for _, candidate := range available {
+				names = append(names, fmt.Sprintf("%s:%s", commandCandidateSourceName(candidate), candidate.Item.Name))
+			}
+			return commandSolveResult{
+				Status:           commandSolveConflict,
+				AvailableSources: names,
+			}
+		}
+	}
+
+	var solved bool
+	if len(available) == 1 {
+		solved = executeCandidate(available[0].Item)
+	}
+
+	if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
 		for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
 			ext := wrapper.GetRealExt()
 			if ext == nil {
@@ -1976,7 +2139,22 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 	}
 
-	return solved
+	if len(available) == 1 && solved {
+		return commandSolveResult{Status: commandSolveSolved}
+	}
+
+	if len(disabled) > 0 {
+		names := make([]string, 0, len(disabled))
+		for _, candidate := range disabled {
+			names = append(names, fmt.Sprintf("%s:%s", commandCandidateSourceName(candidate), candidate.Item.Name))
+		}
+		return commandSolveResult{
+			Status:          commandSolveBlocked,
+			DisabledSources: names,
+		}
+	}
+
+	return commandSolveResult{Status: commandSolveUnmatched}
 }
 
 func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
