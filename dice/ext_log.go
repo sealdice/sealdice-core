@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/golang-module/carbon"
-	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
@@ -997,7 +996,6 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	}()
 
 	counter := 0
-	currentCursor := paginator.Cursor{} // 初始游标为空
 
 	// 腾讯元宝: 创建带10秒超时的 context
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1014,33 +1012,23 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 				resultCh <- errors.New("日志导出超时（10秒限制），请尝试减少数据量或联系管理员")
 				return
 			default:
-				// 获取当前游标对应的数据
-				cursorLines, cursor, err := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
-				if err != nil {
-					resultCh <- err
-					return
-				}
-
-				// 写入当前批次的数据
-				for _, line := range cursorLines {
-					timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
-					text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
-					_, _ = tempLog.WriteString(text)
-					counter++
-				}
-				// ========== 新增：每批写入后强制同步 ==========
-				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
-					resultCh <- fmt.Errorf("批次同步失败: %w", err)
-				}
-
-				// 如果没有下一页，则成功完成
-				if cursor.After == nil {
-					resultCh <- nil
-					return
-				}
-
-				// 更新游标，继续获取下一页
-				currentCursor.After = cursor.After
+				// 使用服务层的批量遍历接口拉取日志内容，替代第三方游标分页库。
+				err := service.LogIterLines(ctx.Dice.DBOperator, groupID, logName, 4000, func(cursorLines []model.LogOneItem) error {
+					// 写入当前批次的数据
+					for _, line := range cursorLines {
+						timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
+						text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
+						_, _ = tempLog.WriteString(text)
+						counter++
+					}
+					// ========== 每批写入后强制同步，确保数据落盘 ==========
+					if err := tempLog.Sync(); err != nil {
+						return fmt.Errorf("批次同步失败: %w", err)
+					}
+					return nil
+				})
+				resultCh <- err
+				return
 			}
 		}
 	}()
