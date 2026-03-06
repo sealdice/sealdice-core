@@ -412,7 +412,7 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.UnregisterConfig(ei.Name, key...)
 		})
 
-		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string, group ...string) *JsScriptTask {
+		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string, group string) *JsScriptTask {
 			if ei.dice == nil {
 				panic(errors.New("请先完成此扩展的注册"))
 			}
@@ -476,7 +476,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:cron",
-						Group:        getOptionalConfigGroup(group...),
+						Group:        group,
 						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
@@ -486,7 +486,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:daily",
-						Group:        getOptionalConfigGroup(group...),
+						Group:        group,
 						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
