@@ -259,20 +259,14 @@ func (d *Dice) JsInit() {
 				realExt.OnLoad()
 			}
 		})
-		getOptionalConfigGroup := func(group ...string) string {
-			if len(group) > 0 {
-				return group[0]
-			}
-			return ""
-		}
-		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string, group ...string) error {
+		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "string",
-				Group:        getOptionalConfigGroup(group...),
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -280,14 +274,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string, group ...string) error {
+		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "int",
-				Group:        getOptionalConfigGroup(group...),
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -295,14 +289,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string, group ...string) error {
+		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "bool",
-				Group:        getOptionalConfigGroup(group...),
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -310,14 +304,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string, group ...string) error {
+		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "float",
-				Group:        getOptionalConfigGroup(group...),
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -325,14 +319,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string, group ...string) error {
+		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "template",
-				Group:        getOptionalConfigGroup(group...),
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -340,14 +334,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string, group ...string) error {
+		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "option",
-				Group:        getOptionalConfigGroup(group...),
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Option:       option,
