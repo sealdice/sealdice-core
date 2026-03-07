@@ -459,7 +459,11 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
+	oldDiceMaxMode := vm.Config.DiceMaxMode
 	vm.Config.DiceMaxMode = flags.BigFailDiceOn
+	defer func() {
+		vm.Config.DiceMaxMode = oldDiceMaxMode
+	}()
 	if vm.Config.DefaultDiceSideExpr == "" {
 		vm.Config.DefaultDiceSideExpr = strconv.FormatInt(flags.DefaultDiceSideNum, 10)
 	}
