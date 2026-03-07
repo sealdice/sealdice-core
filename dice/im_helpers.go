@@ -129,9 +129,25 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 		return false
 	}
 
-	// 避免绕过“仅输出回复”的敏感词拦截逻辑：此模式下回退到普通 ReplyToSender 流程
 	if ctx.Dice.Config.EnableCensor && ctx.Dice.Config.CensorMode == OnlyOutputReply {
-		return false
+		for i, content := range contents {
+			checkText := sealCodeRe.ReplaceAllString(content, "")
+			checkText = cqCodeRe.ReplaceAllString(checkText, "")
+
+			hit, words, needToTerminate, _ := ctx.Dice.CensorMsg(ctx, msg, checkText, content)
+			if needToTerminate {
+				return true
+			}
+			if hit {
+				ctx.Dice.Logger.Infof(
+					"拒绝回复命中敏感词「%s」的内容（合并转发）- 来自<%s>(%s)",
+					strings.Join(words, "|"),
+					msg.Sender.Nickname,
+					msg.Sender.UserID,
+				)
+				contents[i] = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
+			}
+		}
 	}
 
 	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
