@@ -259,13 +259,14 @@ func (d *Dice) JsInit() {
 				realExt.OnLoad()
 			}
 		})
-		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
+		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "string",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -273,13 +274,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string) error {
+		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "int",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -287,13 +289,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string) error {
+		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "bool",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -301,13 +304,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string) error {
+		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "float",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -315,13 +319,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string) error {
+		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "template",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -329,13 +334,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string) error {
+		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "option",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Option:       option,
@@ -406,7 +412,7 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.UnregisterConfig(ei.Name, key...)
 		})
 
-		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string) *JsScriptTask {
+		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string, group string) *JsScriptTask {
 			if ei.dice == nil {
 				panic(errors.New("请先完成此扩展的注册"))
 			}
@@ -470,6 +476,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:cron",
+						Group:        group,
 						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
@@ -479,6 +486,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:daily",
+						Group:        group,
 						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
