@@ -1,12 +1,12 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
-	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
@@ -202,28 +202,6 @@ func LogSetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 }
 
 // LogGetAllLines 获取log的所有行数据
-func CreateLoggerPaginator(
-	cursor paginator.Cursor,
-	order *paginator.Order,
-) *paginator.Paginator {
-	opts := []paginator.Option{
-		&paginator.Config{
-			Keys:  []string{"ID", "Time"}, // 这里设置的是结构体的字段名称，而不是gorm里的名称……
-			Limit: 4000,
-			Order: paginator.ASC,
-		},
-	}
-	if order != nil {
-		opts = append(opts, paginator.WithOrder(*order))
-	}
-	if cursor.After != nil {
-		opts = append(opts, paginator.WithAfter(*cursor.After))
-	}
-	if cursor.Before != nil {
-		opts = append(opts, paginator.WithBefore(*cursor.Before))
-	}
-	return paginator.New(opts...)
-}
 
 func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName string) ([]*model.LogOneItem, error) {
 	db := operator.GetLogDB(constant.READ)
@@ -276,60 +254,65 @@ func LogGetCommandInfoStrList(operator engine2.DatabaseOperator, groupID string,
 	return items, nil
 }
 
-func LogGetCursorLines(operator engine2.DatabaseOperator, groupID string, logName string, cursor paginator.Cursor) ([]model.LogOneItem, paginator.Cursor, error) {
-	db := operator.GetLogDB(constant.READ)
+// LogIterLines 使用 GORM 的 FindInBatches 顺序遍历指定日志的所有行。
+// 该方法用于替代基于第三方游标库的多次拉取逻辑，避免对外暴露不可控游标类型。
+// fn 在每个批次上被调用；若 fn 返回错误，会提前终止遍历并将错误上抛。
+func LogIterLines(ctx context.Context, operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItem) error) error {
+	db := operator.GetLogDB(constant.READ).WithContext(ctx)
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		if errors.Is(err, ErrLogNotFound) {
-			return []model.LogOneItem{}, paginator.Cursor{}, nil
+			return nil
 		}
-		return nil, paginator.Cursor{}, err
+		return err
 	}
+	// 按时间和自增ID稳定排序，确保遍历顺序可预期
 	var items []model.LogOneItem
-	stmt := db.Model(&model.LogOneItem{}).
+	tx := db.Model(&model.LogOneItem{}).
 		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
-		Where("log_id = ?", logID)
-	// 获取游标分页器
-	p := CreateLoggerPaginator(cursor, nil)
-	// 进行游标分页
-	result, cursor, err := p.Paginate(stmt, &items)
-	if err != nil {
-		return nil, paginator.Cursor{}, err
-	}
-	// this is gorm error
-	if result.Error != nil {
-		return nil, paginator.Cursor{}, result.Error
-	}
-	return items, cursor, nil
+		Where("log_id = ?", logID).
+		Order("time ASC, id ASC")
+	return tx.FindInBatches(&items, batchSize, func(_ *gorm.DB, _ int) error {
+		if len(items) == 0 {
+			return nil
+		}
+		if err := fn(items); err != nil {
+			return err
+		}
+		// 避免复用切片残留数据
+		items = nil
+		return nil
+	}).Error
 }
 
-func LogGetExportCursorLines(operator engine2.DatabaseOperator, groupID string, logName string, cursor paginator.Cursor) ([]model.LogOneItemParquet, paginator.Cursor, error) {
-	db := operator.GetLogDB(constant.READ)
+// LogIterExportLines 使用 FindInBatches 顺序遍历用于导出（Parquet）的日志行。
+// 与 LogIterLines 类似，但使用 LogOneItemParquet 结构体，避免重复转换。
+func LogIterExportLines(ctx context.Context, operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItemParquet) error) error {
+	db := operator.GetLogDB(constant.READ).WithContext(ctx)
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
 		if errors.Is(err, ErrLogNotFound) {
-			return []model.LogOneItemParquet{}, paginator.Cursor{}, nil
+			return nil
 		}
-		return nil, paginator.Cursor{}, err
+		return err
 	}
 	var items []model.LogOneItemParquet
-	stmt := db.Model(&model.LogOneItemParquet{}).
+	tx := db.Model(&model.LogOneItemParquet{}).
 		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
-		Where("log_id = ?", logID)
-	// 获取游标分页器
-	p := CreateLoggerPaginator(cursor, nil)
-	// 进行游标分页
-	result, cursor, err := p.Paginate(stmt, &items)
-	if err != nil {
-		return nil, paginator.Cursor{}, err
-	}
-	// this is gorm error
-	if result.Error != nil {
-		return nil, paginator.Cursor{}, result.Error
-	}
-	return items, cursor, nil
+		Where("log_id = ?", logID).
+		Order("time ASC, id ASC")
+	return tx.FindInBatches(&items, batchSize, func(_ *gorm.DB, _ int) error {
+		if len(items) == 0 {
+			return nil
+		}
+		if err := fn(items); err != nil {
+			return err
+		}
+		items = nil
+		return nil
+	}).Error
 }
 
 type QueryLogLinePage struct {

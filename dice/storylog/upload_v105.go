@@ -17,7 +17,6 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 	"github.com/parquet-go/parquet-go/compress/zstd"
-	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 
 	"sealdice-core/dice/service"
 	"sealdice-core/model"
@@ -48,7 +47,6 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	}()
 
 	counter := 0
-	currentCursor := paginator.Cursor{} // 初始游标为空
 
 	// 腾讯元宝: 创建带10秒超时的 context
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -59,47 +57,31 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	go func() {
 		defer close(resultCh) // 确保 channel 被关闭
 
-		for {
-			select {
-			case <-ctxWithTimeout.Done(): // 检查是否超时或被取消
-				resultCh <- errors.New("日志导出超时（10秒限制），请尝试减少数据量或联系管理员")
-				return
-			default:
-				// 获取当前游标对应的数据
-				cursorLines, cursor, err0 := service.LogGetExportCursorLines(env.Db, env.GroupID, env.LogName, currentCursor)
-				if err0 != nil {
-					resultCh <- err0
-					return
-				}
-
-				// 写入当前批次的数据
-				for _, line := range cursorLines {
-					timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
-					text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
-					_, _ = tempLog.WriteString(text)
-					counter++
-				}
-				// ========== 新增：每批写入后强制同步 ==========
-				if err = tempLog.Sync(); err != nil { // 确保批次数据落盘
-					resultCh <- fmt.Errorf("批次同步失败: %w", err)
-				}
-
-				_, err0 = parquetBuffer.Write(cursorLines)
-				if err0 != nil {
-					resultCh <- err0
-					return
-				}
-
-				// 如果没有下一页，则成功完成
-				if cursor.After == nil {
-					resultCh <- nil
-					return
-				}
-
-				// 更新游标，继续获取下一页
-				currentCursor.After = cursor.After
+		// 使用服务层的批量遍历接口拉取日志内容，用于 TXT 与 Parquet 导出。
+		err0 := service.LogIterExportLines(ctxWithTimeout, env.Db, env.GroupID, env.LogName, 4000, func(cursorLines []model.LogOneItemParquet) error {
+			// 写入当前批次的数据到 TXT
+			for _, line := range cursorLines {
+				timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
+				text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
+				_, _ = tempLog.WriteString(text)
+				counter++
 			}
+			// 每批写入后强制同步，确保数据落盘
+			syncErr := tempLog.Sync()
+			if syncErr != nil {
+				return fmt.Errorf("批次同步失败: %w", syncErr)
+			}
+			// 将当前批次写入 Parquet buffer
+			if _, writeErr := parquetBuffer.Write(cursorLines); writeErr != nil {
+				return writeErr
+			}
+			return nil
+		})
+		if errors.Is(err0, context.DeadlineExceeded) {
+			resultCh <- errors.New("日志导出超时（10秒限制），请尝试减少数据量或联系管理员")
+			return
 		}
+		resultCh <- err0
 	}()
 
 	// 等待 goroutine 完成或超时
@@ -114,17 +96,13 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	// 对其进行压缩
 	compressOption := parquet.Compression(&zstd.Codec{})
 	writer := parquet.NewGenericWriter[model.LogOneItemParquet](buf, compressOption)
+	defer writer.Close()
 	// 2. 确保文件指针回到开头
 	if _, err = tempLog.Seek(0, 0); err != nil {
 		return nil, nil, fmt.Errorf("重置文件指针失败: %w", err)
 	}
 	// 写入到writer中
 	_, err = parquet.CopyRows(writer, parquetBuffer.Rows())
-	if err != nil {
-		return nil, nil, err
-	}
-	// 关闭writer让他写入到内存
-	err = writer.Close()
 	if err != nil {
 		return nil, nil, err
 	}
