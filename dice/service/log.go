@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -256,8 +257,8 @@ func LogGetCommandInfoStrList(operator engine2.DatabaseOperator, groupID string,
 // LogIterLines 使用 GORM 的 FindInBatches 顺序遍历指定日志的所有行。
 // 该方法用于替代基于第三方游标库的多次拉取逻辑，避免对外暴露不可控游标类型。
 // fn 在每个批次上被调用；若 fn 返回错误，会提前终止遍历并将错误上抛。
-func LogIterLines(operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItem) error) error {
-	db := operator.GetLogDB(constant.READ)
+func LogIterLines(ctx context.Context, operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItem) error) error {
+	db := operator.GetLogDB(constant.READ).WithContext(ctx)
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
@@ -287,8 +288,8 @@ func LogIterLines(operator engine2.DatabaseOperator, groupID string, logName str
 
 // LogIterExportLines 使用 FindInBatches 顺序遍历用于导出（Parquet）的日志行。
 // 与 LogIterLines 类似，但使用 LogOneItemParquet 结构体，避免重复转换。
-func LogIterExportLines(operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItemParquet) error) error {
-	db := operator.GetLogDB(constant.READ)
+func LogIterExportLines(ctx context.Context, operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItemParquet) error) error {
+	db := operator.GetLogDB(constant.READ).WithContext(ctx)
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
