@@ -261,9 +261,11 @@ func (d *Dice) registerCoreCommands() {
 
 			var id string
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
-				// FIXME: byd WHAT IS THAT
-				_id := rand.Uint64()%d.Parent.Help.CurID + 1
-				id = strconv.FormatUint(_id, 10)
+				count := d.Parent.Help.GetNumericIDCount()
+				if count > 0 {
+					_id := rand.Intn(count) + 1
+					id = strconv.Itoa(_id)
+				}
 			}
 
 			if id == "" {
@@ -282,9 +284,8 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			if id != "" {
-				text, err := d.Parent.Help.searchEngine.GetItemByID(id)
+				text, err := d.Parent.Help.GetItemByNumericIDString(id)
 				if err == nil {
-					// Copied from 支援换行符 By Fripine #963
 					text.Content = ctx.TranslateSplit(text.Content)
 					content := d.Parent.Help.GetContent(text, 0)
 					ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, content))
