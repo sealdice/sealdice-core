@@ -2402,7 +2402,7 @@ func (d *Dice) SaveText() {
 		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
-			_ = os.WriteFile(bakFn, current, 0o644)
+			_ = os.WriteFile(bakFn, current, 0o644) //nolint:gosec
 		}
 
 		_ = os.WriteFile(newFn, buf, 0o644)
