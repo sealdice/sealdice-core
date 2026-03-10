@@ -1242,7 +1242,19 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return errors.New("无法解析获取到的牌堆数据")
 	}
 
-	err = os.WriteFile(deckInfo.Filename, newData, 0755)
+	// 更新牌堆，验证文件路径在牌堆目录内以防止路径穿越
+	decksDirAbs, err := filepath.Abs("data/decks")
+	if err != nil {
+		return fmt.Errorf("获取牌堆目录绝对路径失败: %w", err)
+	}
+	filenameAbs, err := filepath.Abs(deckInfo.Filename)
+	if err != nil {
+		return fmt.Errorf("获取牌堆文件绝对路径失败: %w", err)
+	}
+	if !strings.HasPrefix(filenameAbs, decksDirAbs+string(filepath.Separator)) {
+		return fmt.Errorf("deck filename %q is outside decks directory", deckInfo.Filename)
+	}
+	err = os.WriteFile(filenameAbs, newData, 0755) //nolint:gosec
 	if err != nil {
 		d.Logger.Errorf("牌堆“%s”更新时保存文件出错，%s", deckInfo.Name, err.Error())
 		return err
