@@ -2123,6 +2123,7 @@ func getNumVal(i interface{}) uint {
 
 func (d *Dice) loads() {
 	config := NewConfig(d)
+	missingPlatformConfigInServe := false
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 	if err == nil { //nolint:nestif
 		err3 := config.LoadYamlConfig(data)
@@ -2142,11 +2143,11 @@ func (d *Dice) loads() {
 			if dNew.ImSession.EndPoints != nil {
 				d.ImSession.EndPoints = dNew.ImSession.EndPoints
 			} else {
-				d.Logger.Warn("读取 serve.yaml 时未找到平台账号配置，海豹将不会连接任何聊天平台。如果你原本配置过 QQ/Telegram/Discord 等账号，请检查 serve.yaml 是否损坏，或在界面中重新添加账号。")
+				missingPlatformConfigInServe = true
 				d.ImSession.EndPoints = make([]*EndPointInfo, 0)
 			}
 		} else {
-			d.Logger.Warn("当前没有可用的平台账号，海豹本次启动后将不会连接任何聊天平台，也无法收发平台消息。请在账号设置中检查是否已添加账号，或检查 serve.yaml 中的平台账号配置是否完整。")
+			missingPlatformConfigInServe = true
 			d.ImSession.EndPoints = make([]*EndPointInfo, 0)
 		}
 		d.DiceMasters = dNew.DiceMasters
@@ -2367,7 +2368,11 @@ func (d *Dice) loads() {
 		i.AdapterSetup()
 	}
 	if len(d.ImSession.EndPoints) == 0 {
-		d.Logger.Warn("当前没有可用的平台账号，海豹本次启动后将不会连接任何聊天平台，也无法收发平台消息。请在账号设置中检查是否已添加账号，或检查 serve.yaml 中的平台账号配置是否完整。")
+		if missingPlatformConfigInServe {
+			d.Logger.Warn("serve.yaml 中未找到平台账号配置，海豹将不会连接聊天平台。请检查 serve.yaml，或在界面中重新添加账号。")
+		} else {
+			d.Logger.Warn("当前没有可用的平台账号，海豹将不会连接聊天平台，也无法收发消息。请检查账号设置或 serve.yaml 配置。")
+		}
 	}
 
 	d.LogWriter.LogLimit = int(d.Config.UILogLimit)
