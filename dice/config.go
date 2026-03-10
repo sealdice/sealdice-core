@@ -2138,7 +2138,17 @@ func (d *Dice) loads() {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
-		d.ImSession.EndPoints = dNew.ImSession.EndPoints
+		if dNew.ImSession != nil {
+			if dNew.ImSession.EndPoints != nil {
+				d.ImSession.EndPoints = dNew.ImSession.EndPoints
+			} else {
+				d.Logger.Warn("读取 serve.yaml 时未找到平台账号配置，海豹将不会连接任何聊天平台。如果你原本配置过 QQ/Telegram/Discord 等账号，请检查 serve.yaml 是否损坏，或在界面中重新添加账号。")
+				d.ImSession.EndPoints = make([]*EndPointInfo, 0)
+			}
+		} else {
+			d.Logger.Warn("当前没有可用的平台账号，海豹本次启动后将不会连接任何聊天平台，也无法收发平台消息。请在账号设置中检查是否已添加账号，或检查 serve.yaml 中的平台账号配置是否完整。")
+			d.ImSession.EndPoints = make([]*EndPointInfo, 0)
+		}
 		d.DiceMasters = dNew.DiceMasters
 		if len(d.DiceMasters) == 0 {
 			d.DiceMasters = DefaultConfig.DiceMasters
@@ -2355,6 +2365,9 @@ func (d *Dice) loads() {
 	for _, i := range d.ImSession.EndPoints {
 		i.Session = d.ImSession
 		i.AdapterSetup()
+	}
+	if len(d.ImSession.EndPoints) == 0 {
+		d.Logger.Warn("当前没有可用的平台账号，海豹本次启动后将不会连接任何聊天平台，也无法收发平台消息。请在账号设置中检查是否已添加账号，或检查 serve.yaml 中的平台账号配置是否完整。")
 	}
 
 	d.LogWriter.LogLimit = int(d.Config.UILogLimit)
