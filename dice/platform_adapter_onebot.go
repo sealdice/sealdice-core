@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,6 +44,7 @@ type PlatformAdapterOnebot struct {
 	// 保护这几个
 	sendEmitter emitter.Emitter
 	once        sync.Once
+	ctxWarnOnce sync.Once
 
 	// 执行用池
 	antPool *ants.Pool
@@ -64,11 +66,43 @@ type PlatformAdapterOnebot struct {
 	desiredEnabled bool
 }
 
-func (p *PlatformAdapterOnebot) emitterContext() context.Context {
+func (p *PlatformAdapterOnebot) adapterLogger() *zap.SugaredLogger {
+	if p != nil && p.logger != nil {
+		return p.logger
+	}
+	return zap.S().Named(logger.LogKeyAdapter)
+}
+
+func (p *PlatformAdapterOnebot) emitterContext(op string) context.Context {
 	if p != nil && p.ctx != nil {
 		return p.ctx
 	}
+	if p != nil {
+		p.ctxWarnOnce.Do(func() {
+			p.adapterLogger().Warnf("OneBot %s uses fallback background context because adapter context is nil", op)
+		})
+	}
 	return context.Background()
+}
+
+func (p *PlatformAdapterOnebot) callEmitter(op string, fn func(context.Context) error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.adapterLogger().Errorf("OneBot %s panic: %v stack: %v", op, r, string(debug.Stack()))
+			err = fmt.Errorf("OneBot %s panic: %v", op, r)
+		}
+	}()
+	return fn(p.emitterContext(op))
+}
+
+func callOnebotEmitterResult[T any](p *PlatformAdapterOnebot, op string, fn func(context.Context) (T, error)) (res T, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			p.adapterLogger().Errorf("OneBot %s panic: %v stack: %v", op, r, string(debug.Stack()))
+			err = fmt.Errorf("OneBot %s panic: %v", op, r)
+		}
+	}()
+	return fn(p.emitterContext(op))
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
@@ -101,14 +135,9 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 	if p.sendEmitter != nil {
 		gid := ExtractQQEmitterGroupID(id)
-		err := func() (err error) {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("OneBot 退群时发生异常: %v", r)
-				}
-			}()
-			return p.sendEmitter.QuitGroup(p.emitterContext(), gid)
-		}()
+		err := p.callEmitter("QuitGroup", func(ctx context.Context) error {
+			return p.sendEmitter.QuitGroup(ctx, gid)
+		})
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				p.logger.Warnf("QuitGroup 超时: group=%s gid=%d err=%v", id, gid, err)
@@ -121,18 +150,12 @@ func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 
 // SendToPerson 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
-	if p == nil {
-		return
-	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToPerson(ctx, userID, msgElement, flag)
 }
 
 // SendToGroup 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
-	if p == nil {
-		return
-	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToGroup(ctx, groupID, msgElement, flag)
 }
@@ -158,9 +181,12 @@ func (p *PlatformAdapterOnebot) SendGroupForwardMsg(ctx *MsgContext, groupID str
 		doSleepQQ(ctx)
 	}
 
-	_, err := p.sendEmitter.Raw(p.emitterContext(), "send_group_forward_msg", sendGroupForwardParams{
-		GroupID:  rawGroupID,
-		Messages: nodes,
+	err := p.callEmitter("SendGroupForwardMsg", func(emitterCtx context.Context) error {
+		_, err := p.sendEmitter.Raw(emitterCtx, "send_group_forward_msg", sendGroupForwardParams{
+			GroupID:  rawGroupID,
+			Messages: nodes,
+		})
+		return err
 	})
 	if err == nil && p.Session != nil {
 		sendText := forwardNodesToText(nodes)
@@ -199,9 +225,12 @@ func (p *PlatformAdapterOnebot) SendPrivateForwardMsg(ctx *MsgContext, userID st
 		doSleepQQ(ctx)
 	}
 
-	_, err := p.sendEmitter.Raw(p.emitterContext(), "send_private_forward_msg", sendPrivateForwardParams{
-		UserID:   rawUserID,
-		Messages: nodes,
+	err := p.callEmitter("SendPrivateForwardMsg", func(emitterCtx context.Context) error {
+		_, err := p.sendEmitter.Raw(emitterCtx, "send_private_forward_msg", sendPrivateForwardParams{
+			UserID:   rawUserID,
+			Messages: nodes,
+		})
+		return err
 	})
 	if err == nil && p.Session != nil {
 		sendText := forwardNodesToText(nodes)
@@ -221,7 +250,9 @@ func (p *PlatformAdapterOnebot) SendPrivateForwardMsg(ctx *MsgContext, userID st
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 	groupID := ctx.Group.GroupID
 	userID := ctx.Player.UserID
-	err := p.sendEmitter.SetGroupCard(p.emitterContext(), ExtractQQEmitterGroupID(groupID), ExtractQQEmitterUserID(userID), name)
+	err := p.callEmitter("SetGroupCard", func(emitterCtx context.Context) error {
+		return p.sendEmitter.SetGroupCard(emitterCtx, ExtractQQEmitterGroupID(groupID), ExtractQQEmitterUserID(userID), name)
+	})
 	if err != nil {
 		p.logger.Errorf("Failed to set group card name: %v", err)
 		return
@@ -272,14 +303,9 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		copy(batch, pendingMsg)
 		rawMsg, _ := convertSealMsgToMessageChain(batch)
 		var err error
-		rawID, err = func() (res *emitter_types.SendMsgRes, err error) {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("OneBot 群消息发送时发生异常: %v", r)
-				}
-			}()
-			return p.sendEmitter.SendGrMsg(p.emitterContext(), ExtractQQEmitterGroupID(groupID), rawMsg)
-		}() // 这里可以获取到发送消息的ID
+		rawID, err = callOnebotEmitterResult(p, "SendGrMsg", func(emitterCtx context.Context) (*emitter_types.SendMsgRes, error) {
+			return p.sendEmitter.SendGrMsg(emitterCtx, ExtractQQEmitterGroupID(groupID), rawMsg)
+		}) // 这里可以获取到发送消息的ID
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
@@ -313,20 +339,15 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 			p.logger.Warnf("GroupPoke target parse failed: group=%s target=%s err=%v", groupID, poke.Target, parseErr)
 			continue
 		}
-		_, actionErr := func() (_ []byte, err error) {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("OneBot 群戳一戳时发生异常: %v", r)
-				}
-			}()
-			return p.sendEmitter.Raw(p.emitterContext(), "group_poke", struct {
-			GroupID int64 `json:"group_id"`
-			UserID  int64 `json:"user_id"`
-		}{
-			GroupID: rawGroupID,
-			UserID:  pokeTarget,
+		_, actionErr := callOnebotEmitterResult(p, "GroupPoke", func(emitterCtx context.Context) ([]byte, error) {
+			return p.sendEmitter.Raw(emitterCtx, "group_poke", struct {
+				GroupID int64 `json:"group_id"`
+				UserID  int64 `json:"user_id"`
+			}{
+				GroupID: rawGroupID,
+				UserID:  pokeTarget,
 			})
-		}()
+		})
 		if actionErr != nil {
 			p.logger.Warnf("GroupPoke failed: group=%s target=%s err=%v", groupID, poke.Target, actionErr)
 			continue
@@ -382,14 +403,9 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 		copy(batch, pendingMsg)
 		rawMsg, _ := convertSealMsgToMessageChain(batch)
 		var err error
-		rawID, err = func() (res *emitter_types.SendMsgRes, err error) {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("OneBot 私聊消息发送时发生异常: %v", r)
-				}
-			}()
-			return p.sendEmitter.SendPvtMsg(p.emitterContext(), ExtractQQEmitterUserID(userID), rawMsg)
-		}() // 这里可以获取到发送消息的ID
+		rawID, err = callOnebotEmitterResult(p, "SendPvtMsg", func(emitterCtx context.Context) (*emitter_types.SendMsgRes, error) {
+			return p.sendEmitter.SendPvtMsg(emitterCtx, ExtractQQEmitterUserID(userID), rawMsg)
+		}) // 这里可以获取到发送消息的ID
 		if err != nil {
 			p.logger.Errorf("发送消息异常 %v", err)
 			return false
@@ -419,18 +435,13 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 			p.logger.Warnf("FriendPoke target parse failed: user=%s target=%s err=%v", userID, poke.Target, parseErr)
 			continue
 		}
-		_, actionErr := func() (_ []byte, err error) {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("OneBot 私聊戳一戳时发生异常: %v", r)
-				}
-			}()
-			return p.sendEmitter.Raw(p.emitterContext(), "friend_poke", struct {
-			UserID int64 `json:"user_id"`
-		}{
-			UserID: pokeTarget,
+		_, actionErr := callOnebotEmitterResult(p, "FriendPoke", func(emitterCtx context.Context) ([]byte, error) {
+			return p.sendEmitter.Raw(emitterCtx, "friend_poke", struct {
+				UserID int64 `json:"user_id"`
+			}{
+				UserID: pokeTarget,
 			})
-		}()
+		})
 		if actionErr != nil {
 			p.logger.Warnf("FriendPoke failed: user=%s target=%s err=%v", userID, poke.Target, actionErr)
 			continue
@@ -468,7 +479,9 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 	// TODO：去掉这个MsgContext的需求 以及这个函数设计的一坨
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	rawGroupID := ExtractQQEmitterGroupID(diceGroupID)
-	groupInfoResp, err := p.sendEmitter.GetGroupInfo(p.emitterContext(), rawGroupID, true)
+	groupInfoResp, err := callOnebotEmitterResult(p, "GetGroupInfo", func(emitterCtx context.Context) (*emitter_types.GroupInfo, error) {
+		return p.sendEmitter.GetGroupInfo(emitterCtx, rawGroupID, true)
+	})
 	if err != nil {
 		p.logger.Errorf("获取群信息异常 %v", err)
 		return nil
@@ -556,7 +569,9 @@ func (p *PlatformAdapterOnebot) MemberKick(_ string, _ string) {
 func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	// 连接成功，获取当前登录状态
 	p.sendEmitter = emitter.NewEVEmitter(kws)
-	info, err := p.sendEmitter.GetLoginInfo(p.emitterContext())
+	info, err := callOnebotEmitterResult(p, "GetLoginInfo", func(emitterCtx context.Context) (*emitter_types.LoginInfo, error) {
+		return p.sendEmitter.GetLoginInfo(emitterCtx)
+	})
 	if err != nil {
 		p.logger.Errorf("获取登录信息异常 %v", err)
 		// 这里属于“已建立 WS 但初始化失败”，需要走失败路径触发重试；
