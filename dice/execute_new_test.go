@@ -1,3 +1,4 @@
+//nolint:testpackage
 package dice
 
 // Smoke tests for IMSession.ExecuteNew – the central message-dispatch function.

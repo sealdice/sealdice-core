@@ -1,5 +1,6 @@
 //go:build !cgo
 
+//nolint:testpackage
 package dice
 
 // openTestGormDB opens a plain in-memory (or file-backed) SQLite database
