@@ -94,7 +94,18 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 	if p.sendEmitter != nil {
 		gid := ExtractQQEmitterGroupID(id)
-		err := p.sendEmitter.QuitGroup(p.ctx, gid)
+		err := func() (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("OneBot 退群时发生异常: %v", r)
+				}
+			}()
+			ctx := p.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			return p.sendEmitter.QuitGroup(ctx, gid)
+		}()
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				p.logger.Warnf("QuitGroup 超时: group=%s gid=%d err=%v", id, gid, err)
@@ -217,7 +228,7 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 	if p == nil || p.sendEmitter == nil {
 		if p != nil && p.logger != nil {
-			p.logger.Debugf("SendSegmentToGroup skipped: emitter unavailable, group=%s", groupID)
+			p.logger.Debugf("SendSegmentToGroup 已跳过: 发送器不可用, group=%s", groupID)
 		}
 		return
 	}
@@ -258,7 +269,18 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		copy(batch, pendingMsg)
 		rawMsg, _ := convertSealMsgToMessageChain(batch)
 		var err error
-		rawID, err = p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
+		rawID, err = func() (res *emitter_types.SendMsgRes, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("OneBot 群消息发送时发生异常: %v", r)
+				}
+			}()
+			ctx := p.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			return p.sendEmitter.SendGrMsg(ctx, ExtractQQEmitterGroupID(groupID), rawMsg)
+		}() // 这里可以获取到发送消息的ID
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
@@ -292,13 +314,24 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 			p.logger.Warnf("GroupPoke target parse failed: group=%s target=%s err=%v", groupID, poke.Target, parseErr)
 			continue
 		}
-		_, actionErr := p.sendEmitter.Raw(p.ctx, "group_poke", struct {
+		_, actionErr := func() (_ []byte, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("OneBot 群戳一戳时发生异常: %v", r)
+				}
+			}()
+			ctx := p.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			return p.sendEmitter.Raw(ctx, "group_poke", struct {
 			GroupID int64 `json:"group_id"`
 			UserID  int64 `json:"user_id"`
 		}{
 			GroupID: rawGroupID,
 			UserID:  pokeTarget,
-		})
+			})
+		}()
 		if actionErr != nil {
 			p.logger.Warnf("GroupPoke failed: group=%s target=%s err=%v", groupID, poke.Target, actionErr)
 			continue
@@ -315,7 +348,7 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 	if p == nil || p.sendEmitter == nil {
 		if p != nil && p.logger != nil {
-			p.logger.Debugf("SendSegmentToPerson skipped: emitter unavailable, user=%s", userID)
+			p.logger.Debugf("SendSegmentToPerson 已跳过: 发送器不可用, user=%s", userID)
 		}
 		return
 	}
@@ -354,7 +387,18 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 		copy(batch, pendingMsg)
 		rawMsg, _ := convertSealMsgToMessageChain(batch)
 		var err error
-		rawID, err = p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
+		rawID, err = func() (res *emitter_types.SendMsgRes, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("OneBot 私聊消息发送时发生异常: %v", r)
+				}
+			}()
+			ctx := p.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			return p.sendEmitter.SendPvtMsg(ctx, ExtractQQEmitterUserID(userID), rawMsg)
+		}() // 这里可以获取到发送消息的ID
 		if err != nil {
 			p.logger.Errorf("发送消息异常 %v", err)
 			return false
@@ -384,11 +428,22 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 			p.logger.Warnf("FriendPoke target parse failed: user=%s target=%s err=%v", userID, poke.Target, parseErr)
 			continue
 		}
-		_, actionErr := p.sendEmitter.Raw(p.ctx, "friend_poke", struct {
+		_, actionErr := func() (_ []byte, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("OneBot 私聊戳一戳时发生异常: %v", r)
+				}
+			}()
+			ctx := p.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			return p.sendEmitter.Raw(ctx, "friend_poke", struct {
 			UserID int64 `json:"user_id"`
 		}{
 			UserID: pokeTarget,
-		})
+			})
+		}()
 		if actionErr != nil {
 			p.logger.Warnf("FriendPoke failed: user=%s target=%s err=%v", userID, poke.Target, actionErr)
 			continue
