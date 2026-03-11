@@ -107,12 +107,18 @@ func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 
 // SendToPerson 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	if p == nil {
+		return
+	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToPerson(ctx, userID, msgElement, flag)
 }
 
 // SendToGroup 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	if p == nil {
+		return
+	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToGroup(ctx, groupID, msgElement, flag)
 }
@@ -209,6 +215,12 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	if p == nil || p.sendEmitter == nil {
+		if p != nil && p.logger != nil {
+			p.logger.Debugf("SendSegmentToGroup skipped: emitter unavailable, group=%s", groupID)
+		}
+		return
+	}
 	if len(msg) == 0 {
 		return
 	}
@@ -301,6 +313,12 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	if p == nil || p.sendEmitter == nil {
+		if p != nil && p.logger != nil {
+			p.logger.Debugf("SendSegmentToPerson skipped: emitter unavailable, user=%s", userID)
+		}
+		return
+	}
 	if len(msg) == 0 {
 		return
 	}

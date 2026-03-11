@@ -1608,7 +1608,13 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		if last.Before(threshold) {
 			for _, ep := range s.EndPoints {
 				// 找到对应的endpoints，并准备退掉它的群
+				if ep == nil || ep.Adapter == nil || ep.Session == nil {
+					continue
+				}
 				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+					continue
+				}
+				if !ep.Enable || ep.State != StateConnected {
 					continue
 				}
 				selectedGroupEndpoints = append(selectedGroupEndpoints, &GroupEndpointPair{Group: grp, Endpoint: ep, Last: last})
@@ -1624,13 +1630,22 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 	})
 	// 循环完毕，要不然是因为够了要退的数量，要不就是遍历完毕了，但是不够，总之要进行退群活动了
 	go func() {
-		if r := recover(); r != nil {
-			log := zap.S().Named(logger.LogKeyAdapter)
-			log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				log := zap.S().Named(logger.LogKeyAdapter)
+				log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
 		for i, pair := range selectedGroupEndpoints {
 			grp := pair.Group
 			ep := pair.Endpoint
+			if grp == nil || ep == nil || ep.Adapter == nil || ep.Session == nil {
+				continue
+			}
+			if !ep.Enable || ep.State != StateConnected {
+				s.Parent.Logger.Infof("跳过自动退群: endpoint不可用，group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				continue
+			}
 			last := pair.Last
 			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出,当前为本轮第 %d 个", grp.GroupID, last.Format(time.RFC3339), i+1)
 			s.Parent.Logger.Info(hint)
@@ -1645,6 +1660,10 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 			// 退群在退群消息延迟两秒后发送，确保消息发送完成
 			time.Sleep(2 * time.Second)
+			if !ep.Enable || ep.State != StateConnected {
+				s.Parent.Logger.Infof("取消自动退群: endpoint状态已变化，group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				continue
+			}
 			// 删除群聊绑定信息，更新群处理时间
 			grp.DiceIDExistsMap.Delete(ep.UserID)
 			grp.MarkDirty(msgCtx.Dice)
