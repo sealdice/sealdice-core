@@ -20,6 +20,7 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/go-creed/sat"
 	wr "github.com/mroth/weightedrand"
+	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"

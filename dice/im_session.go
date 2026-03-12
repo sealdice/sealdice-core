@@ -29,6 +29,7 @@ import (
 
 	"github.com/dop251/goja"
 	"golang.org/x/time/rate"
+	"gopkg.in/yaml.v3"
 )
 
 type SenderBase struct {
