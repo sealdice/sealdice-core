@@ -21,6 +21,79 @@ import (
 	"sealdice-core/dice/docengine"
 )
 
+var dismissConfirmCodes SyncMap[string, string]
+
+func getDismissConfirmKey(ctx *MsgContext, msg *Message) string {
+	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, msg.GroupID, msg.Sender.UserID)
+}
+
+func getOnebotBotQQID(ctx *MsgContext) (int64, bool) {
+	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return 0, false
+	}
+
+	if userID := strings.TrimSpace(ctx.EndPoint.UserID); userID != "" {
+		if botID, err := strconv.ParseInt(UserIDExtract(userID), 10, 64); err == nil && botID > 0 {
+			return botID, true
+		}
+	}
+
+	switch pa := ctx.EndPoint.Adapter.(type) {
+	case *PlatformAdapterOnebot:
+		if pa.sendEmitter == nil {
+			return 0, false
+		}
+		info, err := pa.sendEmitter.GetLoginInfo(pa.ctx)
+		if err != nil || info == nil || info.UserId <= 0 {
+			return 0, false
+		}
+		return info.UserId, true
+	default:
+		return 0, false
+	}
+}
+
+func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return false, false, "context invalid"
+	}
+
+	switch pa := ctx.EndPoint.Adapter.(type) {
+	case *PlatformAdapterOnebot:
+		if pa.sendEmitter == nil {
+			return false, false, "onebot emitter unavailable"
+		}
+		botID, ok := getOnebotBotQQID(ctx)
+		if !ok {
+			return false, false, "cannot resolve bot qq id"
+		}
+		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, false)
+		if err != nil || memberInfo == nil {
+			if err != nil {
+				return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+			}
+			return false, false, "get_group_member_info returned nil"
+		}
+		return strings.EqualFold(memberInfo.Role, "owner"), true, memberInfo.Role
+	case *PlatformAdapterGocq:
+		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
+		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
+		if botIDRaw == "" || groupIDRaw == "" {
+			return false, false, "cannot resolve bot/group id"
+		}
+		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
+		if memberInfo == nil {
+			return false, false, "get_group_member_info returned nil"
+		}
+		if memberInfo.Role == "" {
+			return false, false, "empty role from get_group_member_info"
+		}
+		return strings.EqualFold(memberInfo.Role, "owner"), true, memberInfo.Role
+	default:
+		return false, false, "adapter not onebot-compatible"
+	}
+}
+
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
 	helpForBlack := ".ban add user <帐号> [<原因>] //添加个人\n" +
@@ -708,6 +781,12 @@ func (d *Dice) registerCoreCommands() {
 		Raw:               true,
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			executeDismiss := func() CmdExecuteResult {
+				cmdArgs.Args = []string{"bye"}
+				cmdArgs.RawArgs = "bye " + cmdArgs.RawArgs
+				return cmdBot.Solve(ctx, msg, cmdArgs)
+			}
+
 			if ctx.IsPrivate {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -723,16 +802,58 @@ func (d *Dice) registerCoreCommands() {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
+
 			rest := cmdArgs.GetArgN(1)
+			if needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, msg.GroupID); checked {
+				if needConfirm {
+					if rest == "" || cmdArgs.GetArgN(2) != "" {
+						confirmCode := strconv.FormatInt(rand.Int63()%8999+1000, 10)
+						dismissConfirmCodes.Store(getDismissConfirmKey(ctx, msg), confirmCode)
+						d.Logger.Infof("dismiss 二次确认: endpoint=%s group=%s operator=%s role=%s code=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, detail, confirmCode)
+						ReplyToSender(ctx, msg,
+							fmt.Sprintf("当前 OneBot 对接账号在本群是群主，继续 `.dismiss` 将会直接解散群聊。\n如确认仍要退出，请在当前群内重新输入 `.dismiss %s` 进行二次确认。", confirmCode),
+						)
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+
+					confirmKey := getDismissConfirmKey(ctx, msg)
+					confirmCode, ok := dismissConfirmCodes.Load(confirmKey)
+					if !ok || rest != confirmCode {
+						d.Logger.Warnf("dismiss 二次确认失败: endpoint=%s group=%s operator=%s input=%s expected=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, rest, confirmCode)
+						ReplyToSender(ctx, msg, "退群确认码无效，请重新输入 `.dismiss` 获取新的确认码。")
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					d.Logger.Infof("dismiss 二次确认通过: endpoint=%s group=%s operator=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID)
+					dismissConfirmCodes.Delete(confirmKey)
+					return executeDismiss()
+				}
+			} else if ctx.EndPoint.ProtocolType == "onebot" || ctx.EndPoint.Platform == "QQ" {
+				confirmKey := getDismissConfirmKey(ctx, msg)
+				if rest == "" || cmdArgs.GetArgN(2) != "" {
+					confirmCode := strconv.FormatInt(rand.Int63()%8999+1000, 10)
+					dismissConfirmCodes.Store(confirmKey, confirmCode)
+					d.Logger.Warnf("dismiss 角色判定失败，转入安全回退: endpoint=%s group=%s operator=%s detail=%s code=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, detail, confirmCode)
+					ReplyToSender(ctx, msg,
+						fmt.Sprintf("当前无法确认 OneBot 对接账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `.dismiss %s`。", confirmCode),
+					)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				confirmCode, ok := dismissConfirmCodes.Load(confirmKey)
+				if !ok || rest != confirmCode {
+					d.Logger.Warnf("dismiss 安全回退确认失败: endpoint=%s group=%s operator=%s input=%s expected=%s detail=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, rest, confirmCode, detail)
+					ReplyToSender(ctx, msg, "退群确认码无效，请重新输入 `.dismiss` 获取新的确认码。")
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				d.Logger.Infof("dismiss 安全回退确认通过: endpoint=%s group=%s operator=%s detail=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, detail)
+				dismissConfirmCodes.Delete(confirmKey)
+				return executeDismiss()
+			}
+
 			if rest != "" {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-			cmdArgs.Args = []string{"bye"}
-			cmdArgs.RawArgs = "bye " + cmdArgs.RawArgs
-			if rest != "" {
-				cmdArgs.Args = append(cmdArgs.Args, rest)
-			}
-			return cmdBot.Solve(ctx, msg, cmdArgs)
+			return executeDismiss()
 		},
 	}
 	d.CmdMap["dismiss"] = cmdDismiss
