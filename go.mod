@@ -81,6 +81,7 @@ require (
 	github.com/xuri/excelize/v2 v2.10.0
 	github.com/yuin/goldmark v1.7.13
 	go.etcd.io/bbolt v1.4.3
+	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.45.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621

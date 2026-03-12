@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -434,7 +435,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 							now := time.Now().Unix()
 
 							// 上次被人使用小于60s
-							if now-groupInfo.RecentDiceSendTime < 60 {
+							if now-atomic.LoadInt64(&groupInfo.RecentDiceSendTime) < 60 {
 								// 在群内存在，且开启时，且不在刷新CD中
 								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) && d.Parent.ShouldRefreshGroupInfo(key) {
 									i.Adapter.GetGroupInfoAsync(key)
