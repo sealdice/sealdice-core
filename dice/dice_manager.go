@@ -344,7 +344,7 @@ func (dm *DiceManager) LoadNames() {
 
 func (dm *DiceManager) TryGetGroupName(id string) string {
 	item, exists := dm.GroupNameCache.Load(id)
-	if exists {
+	if exists && item.Name != "" {
 		return item.Name
 	}
 	return "%未知群名%"
@@ -356,6 +356,10 @@ func (dm *DiceManager) TryGetGroupName(id string) string {
 func (dm *DiceManager) ShouldRefreshGroupInfo(id string) bool {
 	now := time.Now().Unix()
 	item, exists := dm.GroupNameCache.Load(id)
+	if name == "" || name == "%未知群名%" {
+		dm.GroupNameCache.Store(id, &GroupNameCacheItem{Name: name, time: now})
+		return true
+	}
 	if exists && now-item.time < 30 {
 		return false // 30秒内不重复刷新
 	}
@@ -371,7 +375,7 @@ func (dm *DiceManager) ShouldRefreshGroupInfo(id string) bool {
 
 func (dm *DiceManager) TryGetUserName(id string) string {
 	item, exists := dm.UserNameCache.Load(id)
-	if exists {
+	if exists && item.Name != "" {
 		return item.Name
 	}
 	return "%未知用户%"

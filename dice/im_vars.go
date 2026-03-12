@@ -227,6 +227,11 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 	// 设置临时变量
 	if ctx.Player != nil {
 		pcName := ctx.Player.Name
+		if pcName == "" && ctx.Dice != nil && ctx.Dice.Parent != nil {
+			pcName = ctx.Dice.Parent.TryGetUserName(ctx.Player.UserID)
+		} else {
+			pcName = "%未知用户%"
+		}
 		pcName = strings.ReplaceAll(pcName, "\n", "")
 		pcName = strings.ReplaceAll(pcName, "\r", "")
 		pcName = strings.ReplaceAll(pcName, `\n`, "")
@@ -291,7 +296,13 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 	if ctx.Group != nil {
 		if ctx.MessageType == "group" {
 			VarSetValueStr(ctx, "$t群号", ctx.Group.GroupID)
-			VarSetValueStr(ctx, "$t群名", ctx.Group.GroupName)
+			groupName := ctx.Group.GroupName
+			if groupName == "" && ctx.Dice != nil && ctx.Dice.Parent != nil {
+				groupName = ctx.Dice.Parent.TryGetGroupName(ctx.Group.GroupID)
+			} else {
+				groupName = "%未知群名%"
+			}
+			VarSetValueStr(ctx, "$t群名", groupName)
 			VarSetValueStr(ctx, "$t群号_RAW", UserIDExtract(ctx.Group.GroupID))
 		}
 		VarSetValueInt64(ctx, "$t群组骰子面数", ctx.Group.DiceSideNum)
