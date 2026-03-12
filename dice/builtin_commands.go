@@ -809,7 +809,7 @@ func (d *Dice) registerCoreCommands() {
 					if rest == "" || cmdArgs.GetArgN(2) != "" {
 						confirmCode := strconv.FormatInt(rand.Int63()%8999+1000, 10)
 						dismissConfirmCodes.Store(getDismissConfirmKey(ctx, msg), confirmCode)
-						d.Logger.Infof("dismiss 二次确认: endpoint=%s group=%s operator=%s role=%s code=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, detail, confirmCode)
+						d.Logger.Infof("指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为群主，已发出确认码。", msg.GroupID, msg.Sender.UserID, ctx.EndPoint.UserID)
 						ReplyToSender(ctx, msg,
 							fmt.Sprintf("当前 OneBot 对接账号在本群是群主，继续 `.dismiss` 将会直接解散群聊。\n如确认仍要退出，请在当前群内重新输入 `.dismiss %s` 进行二次确认。", confirmCode),
 						)
@@ -819,11 +819,11 @@ func (d *Dice) registerCoreCommands() {
 					confirmKey := getDismissConfirmKey(ctx, msg)
 					confirmCode, ok := dismissConfirmCodes.Load(confirmKey)
 					if !ok || rest != confirmCode {
-						d.Logger.Warnf("dismiss 二次确认失败: endpoint=%s group=%s operator=%s input=%s expected=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, rest, confirmCode)
+						d.Logger.Warnf("指令退群二次确认失败: 群组<%s>中，操作者<%s>提供的确认码无效，本次不执行退群。", msg.GroupID, msg.Sender.UserID)
 						ReplyToSender(ctx, msg, "退群确认码无效，请重新输入 `.dismiss` 获取新的确认码。")
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
-					d.Logger.Infof("dismiss 二次确认通过: endpoint=%s group=%s operator=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID)
+					d.Logger.Infof("指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为群主，这将导致群聊被解散。", msg.GroupID, msg.Sender.UserID, ctx.EndPoint.UserID)
 					dismissConfirmCodes.Delete(confirmKey)
 					return executeDismiss()
 				}
@@ -832,7 +832,7 @@ func (d *Dice) registerCoreCommands() {
 				if rest == "" || cmdArgs.GetArgN(2) != "" {
 					confirmCode := strconv.FormatInt(rand.Int63()%8999+1000, 10)
 					dismissConfirmCodes.Store(confirmKey, confirmCode)
-					d.Logger.Warnf("dismiss 角色判定失败，转入安全回退: endpoint=%s group=%s operator=%s detail=%s code=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, detail, confirmCode)
+					d.Logger.Warnf("指令退群进入安全确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；但当前无法确认该账号群内身份(%s)，为避免误解散群聊，已改为二次确认。", msg.GroupID, msg.Sender.UserID, ctx.EndPoint.UserID, detail)
 					ReplyToSender(ctx, msg,
 						fmt.Sprintf("当前无法确认 OneBot 对接账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `.dismiss %s`。", confirmCode),
 					)
@@ -841,11 +841,11 @@ func (d *Dice) registerCoreCommands() {
 
 				confirmCode, ok := dismissConfirmCodes.Load(confirmKey)
 				if !ok || rest != confirmCode {
-					d.Logger.Warnf("dismiss 安全回退确认失败: endpoint=%s group=%s operator=%s input=%s expected=%s detail=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, rest, confirmCode, detail)
+					d.Logger.Warnf("指令退群安全确认失败: 群组<%s>中，操作者<%s>提供的确认码无效，本次不执行退群。", msg.GroupID, msg.Sender.UserID)
 					ReplyToSender(ctx, msg, "退群确认码无效，请重新输入 `.dismiss` 获取新的确认码。")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				d.Logger.Infof("dismiss 安全回退确认通过: endpoint=%s group=%s operator=%s detail=%s", ctx.EndPoint.UserID, msg.GroupID, msg.Sender.UserID, detail)
+				d.Logger.Infof("指令退群安全确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；此前未能确认该账号群内身份(%s)。", msg.GroupID, msg.Sender.UserID, ctx.EndPoint.UserID, detail)
 				dismissConfirmCodes.Delete(confirmKey)
 				return executeDismiss()
 			}
