@@ -29,7 +29,6 @@ import (
 
 	"github.com/dop251/goja"
 	"golang.org/x/time/rate"
-	"gopkg.in/yaml.v3"
 )
 
 type SenderBase struct {
@@ -276,7 +275,7 @@ func (g *GroupInfo) UnmarshalJSON(data []byte) error {
 // 同时将群组 ID 加入脏列表，Save 时只遍历脏列表
 func (g *GroupInfo) MarkDirty(d *Dice) {
 	now := time.Now().Unix()
-	g.UpdatedAtTime = now
+	atomic.StoreInt64(&g.UpdatedAtTime, now)
 	if d != nil && d.DirtyGroups != nil {
 		d.DirtyGroups.Store(g.GroupID, now)
 	}
@@ -1593,7 +1592,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			return true
 		}
 		// 获取上次骰子活动时间
-		last := time.Unix(grp.RecentDiceSendTime, 0)
+		last := time.Unix(atomic.LoadInt64(&grp.RecentDiceSendTime), 0)
 		// 如果enter是进入时间，它比活动时间更晚（说明骰子刚进去，但是骰子还没有说话），那么上次骰子活动时间=进入时间
 		if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
 			last = enter
