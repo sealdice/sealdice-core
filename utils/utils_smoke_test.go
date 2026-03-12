@@ -182,16 +182,31 @@ func TestSyncMap_ConcurrentReadWrite(t *testing.T) {
 	const ops = 100
 
 	wg.Add(goroutines)
-	for g := range goroutines {
+	for g := 0; g < goroutines; g++ {
 		go func(id int) {
 			defer wg.Done()
-			for i := range ops {
+			for i := 0; i < ops; i++ {
 				m.Store(id*ops+i, i)
 				m.Load(id*ops + i)
 			}
 		}(g)
 	}
 	wg.Wait()
+
+	// Basic correctness check: we expect every Store to have succeeded.
+	if got, want := m.Len(), goroutines*ops; got != want {
+		t.Fatalf("Len() = %d, want %d", got, want)
+	}
+
+	// Spot-check a subset of keys whose final value is predictable:
+	// for each goroutine, the last key it writes should have value ops-1.
+	for id := 0; id < goroutines; id++ {
+		key := id*ops + (ops - 1)
+		v, ok := m.Load(key)
+		if !ok || v != ops-1 {
+			t.Fatalf("Load(%d) = (%v, %v), want (%d, true)", key, v, ok, ops-1)
+		}
+	}
 }
 
 // --- Benchmark tests for SplitLongText ---
