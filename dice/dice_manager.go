@@ -365,7 +365,7 @@ func (dm *DiceManager) ShouldRefreshGroupInfo(id string) bool {
 		return true
 	}
 	if exists && now-item.time < 30 {
-		return false // 30秒内不重复刷新
+		return false
 	}
 	dm.GroupNameCache.Store(id, &GroupNameCacheItem{Name: name, time: now})
 	return true
