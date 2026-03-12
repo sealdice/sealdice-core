@@ -149,18 +149,24 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			return nil
 		}
 		groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
+		pendingQuit := p.Session.ConsumePendingQuit(groupId, p.EndPoint.UserID)
 		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
 		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
 		group, exists := p.Session.ServiceAtNew.Load(groupId)
 		if !exists {
 			txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, groupId)
 			p.logger.Error(txtErr)
-			ctx.Notice(txtErr)
+			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+				ctx.Notice(txtErr)
+			}
+			return nil
 		}
 		group.DiceIDExistsMap.Delete(p.EndPoint.UserID)
 		group.MarkDirty(p.Session.Parent)
 		p.logger.Info(txt)
-		ctx.Notice(txt)
+		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+			ctx.Notice(txt)
+		}
 	}
 
 	return nil
