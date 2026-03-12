@@ -1,8 +1,10 @@
 package dice
 
 import (
+	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"os"
 	"path"
@@ -10,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang-module/carbon"
@@ -27,14 +30,42 @@ type dismissConfirmState struct {
 }
 
 var dismissConfirmCodes SyncMap[string, *dismissConfirmState]
+var dismissConfirmLastCleanup atomic.Int64
 
 const dismissConfirmTTL = 10 * time.Minute
+const dismissConfirmCleanupInterval = 30 * time.Minute
 
 func getDismissConfirmKey(ctx *MsgContext, msg *Message) string {
 	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, msg.GroupID, msg.Sender.UserID)
 }
 
+func cleanupExpiredDismissConfirmCodes(force bool) {
+	now := time.Now()
+	if !force {
+		last := dismissConfirmLastCleanup.Load()
+		if last != 0 && now.Unix()-last < int64(dismissConfirmCleanupInterval/time.Second) {
+			return
+		}
+	}
+	dismissConfirmLastCleanup.Store(now.Unix())
+	dismissConfirmCodes.Range(func(key string, state *dismissConfirmState) bool {
+		if state == nil || now.Unix() > state.ExpiresAt {
+			dismissConfirmCodes.Delete(key)
+		}
+		return true
+	})
+}
+
+func generateFourDigitCode() string {
+	n, err := crand.Int(crand.Reader, big.NewInt(9000))
+	if err != nil {
+		return strconv.FormatInt(time.Now().UnixNano()%9000+1000, 10)
+	}
+	return strconv.FormatInt(n.Int64()+1000, 10)
+}
+
 func storeDismissConfirmCode(key string, code string) {
+	cleanupExpiredDismissConfirmCodes(false)
 	dismissConfirmCodes.Store(key, &dismissConfirmState{Code: code, ExpiresAt: time.Now().Add(dismissConfirmTTL).Unix()})
 }
 
@@ -56,7 +87,7 @@ func getOnebotBotQQID(ctx *MsgContext) (int64, bool) {
 	}
 
 	if userID := strings.TrimSpace(ctx.EndPoint.UserID); userID != "" {
-		if botID, err := strconv.ParseInt(UserIDExtract(userID), 10, 64); err == nil && botID > 0 {
+		if botID := ExtractQQEmitterUserID(userID); botID > 0 {
 			return botID, true
 		}
 	}
@@ -813,7 +844,7 @@ func (d *Dice) registerCoreCommands() {
 			processDismissConfirmation := func(inputCode string, roleDetail string, issueLogTpl string, issueReplyTpl string, successLogTpl string) CmdExecuteResult {
 				confirmKey := getDismissConfirmKey(ctx, msg)
 				if inputCode == "" || cmdArgs.GetArgN(2) != "" {
-					confirmCode := strconv.FormatInt(rand.Int63()%8999+1000, 10)
+					confirmCode := generateFourDigitCode()
 					storeDismissConfirmCode(confirmKey, confirmCode)
 					d.Logger.Infof(issueLogTpl, msg.GroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
 					ReplyToSender(ctx, msg, fmt.Sprintf(issueReplyTpl, confirmCode))
@@ -1184,7 +1215,7 @@ func (d *Dice) registerCoreCommands() {
 					if dm.AppVersionOnline != nil {
 						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION.String(), dm.AppVersionOnline.VersionLatestDetail)
 						if dm.AppVersionCode != dm.AppVersionOnline.VersionLatestCode {
-							updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
+							updateCode = generateFourDigitCode()
 							text += fmt.Sprintf("\n如需升级，请输入.master checkupdate %s 确认进行升级\n升级将花费约2分钟，升级失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
 						}
 					} else {
@@ -1233,7 +1264,7 @@ func (d *Dice) registerCoreCommands() {
 
 				code := cmdArgs.GetArgN(2)
 				if code == "" {
-					updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
+					updateCode = generateFourDigitCode()
 					text := fmt.Sprintf("进程重启:\n如需重启，请输入.master reboot %s 确认进行重启\n重启将花费约2分钟，失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
 					ReplyToSender(ctx, msg, text)
 					break
