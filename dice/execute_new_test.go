@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/panjf2000/ants/v2"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 
@@ -83,16 +84,16 @@ func (m *mockPlatformAdapter) SendToPerson(_ *MsgContext, _ string, text string,
 }
 
 // Remaining PlatformAdapter methods – all no-ops for the smoke test.
-func (m *mockPlatformAdapter) Serve() int                                                       { return 0 }
-func (m *mockPlatformAdapter) DoRelogin() bool                                                  { return true }
-func (m *mockPlatformAdapter) SetEnable(_ bool)                                                 {}
-func (m *mockPlatformAdapter) QuitGroup(_ *MsgContext, _ string)                                {}
-func (m *mockPlatformAdapter) SetGroupCardName(_ *MsgContext, _ string)                         {}
-func (m *mockPlatformAdapter) MemberBan(_ string, _ string, _ int64)                           {}
-func (m *mockPlatformAdapter) MemberKick(_ string, _ string)                                   {}
-func (m *mockPlatformAdapter) GetGroupInfoAsync(_ string)                                       {}
-func (m *mockPlatformAdapter) EditMessage(_ *MsgContext, _, _ string)                          {}
-func (m *mockPlatformAdapter) RecallMessage(_ *MsgContext, _ string)                           {}
+func (m *mockPlatformAdapter) Serve() int                               { return 0 }
+func (m *mockPlatformAdapter) DoRelogin() bool                          { return true }
+func (m *mockPlatformAdapter) SetEnable(_ bool)                         {}
+func (m *mockPlatformAdapter) QuitGroup(_ *MsgContext, _ string)        {}
+func (m *mockPlatformAdapter) SetGroupCardName(_ *MsgContext, _ string) {}
+func (m *mockPlatformAdapter) MemberBan(_ string, _ string, _ int64)    {}
+func (m *mockPlatformAdapter) MemberKick(_ string, _ string)            {}
+func (m *mockPlatformAdapter) GetGroupInfoAsync(_ string)               {}
+func (m *mockPlatformAdapter) EditMessage(_ *MsgContext, _, _ string)   {}
+func (m *mockPlatformAdapter) RecallMessage(_ *MsgContext, _ string)    {}
 func (m *mockPlatformAdapter) SendSegmentToGroup(_ *MsgContext, _ string, _ []message.IMessageElement, _ string) {
 }
 func (m *mockPlatformAdapter) SendSegmentToPerson(_ *MsgContext, _ string, _ []message.IMessageElement, _ string) {
@@ -120,11 +121,11 @@ func newMockDatabaseOperator(dbPath string) (*mockDatabaseOperator, error) {
 	return &mockDatabaseOperator{db: db}, nil
 }
 
-func (m *mockDatabaseOperator) Init(_ context.Context) error         { return nil }
-func (m *mockDatabaseOperator) Type() string                          { return "mock-sqlite" }
-func (m *mockDatabaseOperator) DBCheck()                              {}
-func (m *mockDatabaseOperator) GetDataDB(_ constant.DBMode) *gorm.DB { return m.db }
-func (m *mockDatabaseOperator) GetLogDB(_ constant.DBMode) *gorm.DB  { return m.db }
+func (m *mockDatabaseOperator) Init(_ context.Context) error           { return nil }
+func (m *mockDatabaseOperator) Type() string                           { return "mock-sqlite" }
+func (m *mockDatabaseOperator) DBCheck()                               {}
+func (m *mockDatabaseOperator) GetDataDB(_ constant.DBMode) *gorm.DB   { return m.db }
+func (m *mockDatabaseOperator) GetLogDB(_ constant.DBMode) *gorm.DB    { return m.db }
 func (m *mockDatabaseOperator) GetCensorDB(_ constant.DBMode) *gorm.DB { return m.db }
 func (m *mockDatabaseOperator) Close() {
 	if sqlDB, err := m.db.DB(); err == nil {
@@ -233,8 +234,21 @@ func newExecuteNewTestDice(t *testing.T) (*Dice, *EndPointInfo, *mockPlatformAda
 	d.ImSession.EndPoints = []*EndPointInfo{ep}
 
 	cleanup := func() {
+		// Stop package-owned workers first.
 		d.AttrsManager.Stop()
+
+		// Close help search engine if it was initialized (bleve workers).
+		if d.Parent != nil && d.Parent.Help != nil {
+			d.Parent.Help.Close()
+		}
+
+		// Release ants default pool (stops purge/ticktock goroutines).
+		ants.Release()
+
 		mockDB.Close()
+
+		// Give async workers a short window to observe cancellation and exit.
+		time.Sleep(2 * time.Second)
 	}
 	return d, ep, adapter, cleanup
 }
