@@ -31,8 +31,6 @@ go-cqhttp/
 lagrange/
 frontend/
 frontend_overwrite/
-!static/frontend/
-!static/frontend/placeholder
 backups/
 update/
 walle-q/
