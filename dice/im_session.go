@@ -1569,6 +1569,43 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		Endpoint *EndPointInfo
 		Last     time.Time
 	}
+	isAutoQuitEndpointReady := func(grp *GroupInfo, ep *EndPointInfo, platform string, phase string) bool {
+		groupID := "<nil>"
+		if grp != nil {
+			groupID = grp.GroupID
+		}
+		if grp == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 找不到群信息，暂时无法处理该群。phase=%s group=%s platform=%s", phase, groupID, platform)
+			return false
+		}
+		if ep == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 找不到对应账号连接，暂时无法处理该群。phase=%s group=%s platform=%s", phase, groupID, platform)
+			return false
+		}
+		if ep.Adapter == nil || ep.Session == nil {
+			s.Parent.Logger.Debugf(
+				"自动退群已跳过: 账号连接尚未准备完成，暂时无法处理该群。phase=%s group=%s platform=%s endpoint=%s adapter_nil=%t session_nil=%t",
+				phase,
+				groupID,
+				platform,
+				ep.UserID,
+				ep.Adapter == nil,
+				ep.Session == nil,
+			)
+			return false
+		}
+		if grp.DiceIDExistsMap == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 群内账号记录缺失，暂时无法确认是否可退群。phase=%s group=%s platform=%s endpoint=%s", phase, groupID, platform, ep.UserID)
+			return false
+		}
+		if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+			return false
+		}
+		if !ep.Enable || ep.State != StateConnected {
+			return false
+		}
+		return true
+	}
 	var selectedGroupEndpoints = make([]*GroupEndpointPair, 0)
 	var groupCount int
 	s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
@@ -1608,13 +1645,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		if last.Before(threshold) {
 			for _, ep := range s.EndPoints {
 				// 找到对应的endpoints，并准备退掉它的群
-				if ep == nil || ep.Adapter == nil || ep.Session == nil {
-					continue
-				}
-				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
-					continue
-				}
-				if !ep.Enable || ep.State != StateConnected {
+				if !isAutoQuitEndpointReady(grp, ep, platform, "select") {
 					continue
 				}
 				selectedGroupEndpoints = append(selectedGroupEndpoints, &GroupEndpointPair{Group: grp, Endpoint: ep, Last: last})
@@ -1639,11 +1670,8 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		for i, pair := range selectedGroupEndpoints {
 			grp := pair.Group
 			ep := pair.Endpoint
-			if grp == nil || ep == nil || ep.Adapter == nil || ep.Session == nil {
-				continue
-			}
-			if !ep.Enable || ep.State != StateConnected {
-				s.Parent.Logger.Infof("跳过自动退群: endpoint不可用，group=%s endpoint=%s", grp.GroupID, ep.UserID)
+			if !isAutoQuitEndpointReady(grp, ep, "QQ", "send") {
+				s.Parent.Logger.Infof("自动退群已跳过: 当前账号已离线或不可用，暂不对该群执行退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
 				continue
 			}
 			last := pair.Last
@@ -1660,8 +1688,8 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 			// 退群在退群消息延迟两秒后发送，确保消息发送完成
 			time.Sleep(2 * time.Second)
-			if !ep.Enable || ep.State != StateConnected {
-				s.Parent.Logger.Infof("取消自动退群: endpoint状态已变化，group=%s endpoint=%s", grp.GroupID, ep.UserID)
+			if !isAutoQuitEndpointReady(grp, ep, "QQ", "quit") {
+				s.Parent.Logger.Infof("自动退群已取消: 当前账号状态发生变化，本次不再继续退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
 				continue
 			}
 			// 删除群聊绑定信息，更新群处理时间
