@@ -199,7 +199,7 @@ func TestSyncMap_ConcurrentReadWrite(t *testing.T) {
 func BenchmarkSplitLongText_Short(b *testing.B) {
 	text := strings.Repeat("Hello world. ", 10) // ~130 bytes, under limit
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = SplitLongText(text, 500, DefaultSplitPaginationHint)
 	}
 }
@@ -207,7 +207,7 @@ func BenchmarkSplitLongText_Short(b *testing.B) {
 func BenchmarkSplitLongText_Long(b *testing.B) {
 	text := strings.Repeat("这是一段比较长的消息文本，需要被切分成多段发送。", 50)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = SplitLongText(text, 200, DefaultSplitPaginationHint)
 	}
 }
@@ -216,7 +216,7 @@ func BenchmarkSplitLongText_WithCQCode(b *testing.B) {
 	cqCode := "[CQ:image,file=base64://" + strings.Repeat("A", 500) + "]"
 	text := strings.Repeat("普通文字内容 ", 30) + cqCode + strings.Repeat(" 更多内容", 30)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = SplitLongText(text, 300, DefaultSplitPaginationHint)
 	}
 }
@@ -224,7 +224,7 @@ func BenchmarkSplitLongText_WithCQCode(b *testing.B) {
 func BenchmarkLenWithoutCQCode_NoCQ(b *testing.B) {
 	text := strings.Repeat("plain text without any cq codes here. ", 20)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = lenWithoutCQCode(text)
 	}
 }
@@ -233,7 +233,7 @@ func BenchmarkLenWithoutCQCode_WithCQ(b *testing.B) {
 	cqCode := "[CQ:image,file=test.jpg]"
 	text := strings.Repeat("text "+cqCode+" more ", 20)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = lenWithoutCQCode(text)
 	}
 }
@@ -243,7 +243,7 @@ func BenchmarkLenWithoutCQCode_WithCQ(b *testing.B) {
 func BenchmarkSyncMap_Store(b *testing.B) {
 	var m SyncMap[int, int]
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		m.Store(i%1000, i)
 	}
 }
@@ -254,7 +254,7 @@ func BenchmarkSyncMap_Load_Hit(b *testing.B) {
 		m.Store(i, i*2)
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		_, _ = m.Load(i % 1000)
 	}
 }
@@ -262,7 +262,7 @@ func BenchmarkSyncMap_Load_Hit(b *testing.B) {
 func BenchmarkSyncMap_Load_Miss(b *testing.B) {
 	var m SyncMap[int, int]
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		_, _ = m.Load(i)
 	}
 }
