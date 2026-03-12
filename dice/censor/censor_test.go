@@ -1,3 +1,4 @@
+//nolint:testpackage
 package censor
 
 import (
@@ -159,7 +160,7 @@ func BenchmarkTrie_Insert(b *testing.B) {
 		"zeta", "eta", "theta", "iota", "kappa",
 	}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t := newTire()
 		for j, w := range words {
 			t.Insert(w, Level(j%5))
@@ -178,7 +179,7 @@ func BenchmarkTrie_Match_Hit(b *testing.B) {
 	}
 	text := "this message contains a sensitive word that is forbidden and harmful in nature"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = t.Match(text)
 	}
 }
@@ -190,7 +191,7 @@ func BenchmarkTrie_Match_Miss(b *testing.B) {
 	}
 	text := "a completely clean message without any matching keywords at all in this text"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = t.Match(text)
 	}
 }
@@ -216,7 +217,7 @@ func BenchmarkCensor_Check(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		_ = c.Check(texts[i%len(texts)])
 	}
 }
@@ -231,7 +232,7 @@ func BenchmarkCensor_Check_LargeWordlist(b *testing.B) {
 
 	text := "this is a representative message of average length sent by a typical user in chat"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = c.Check(text)
 	}
 }

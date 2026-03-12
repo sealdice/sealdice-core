@@ -1,3 +1,4 @@
+//nolint:testpackage
 package throttle
 
 import (
@@ -77,7 +78,7 @@ func BenchmarkDo_Throttled(b *testing.B) {
 	// prime the throttle so subsequent calls are all no-ops
 	Do(id, time.Hour, func() {})
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Do(id, time.Hour, func() {})
 	}
 }
@@ -85,7 +86,7 @@ func BenchmarkDo_Throttled(b *testing.B) {
 func BenchmarkDo_Unthrottled(b *testing.B) {
 	// Each iteration uses a unique id to avoid throttling
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		Do("bench_unthrottled_unique", 0, func() {})
 	}
 }

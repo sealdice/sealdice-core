@@ -121,7 +121,7 @@ func TestDeckToShuffleRandomPool_NoRepeatUntilExhausted(t *testing.T) {
 	pool := dice.DeckToShuffleRandomPool(deck)
 
 	seen := map[string]bool{}
-	for range len(deck) {
+	for range deck {
 		item := pool.Pick().(string)
 		if seen[item] {
 			t.Errorf("item %q was drawn twice before deck was exhausted", item)
@@ -135,7 +135,7 @@ func TestDeckToShuffleRandomPool_NoRepeatUntilExhausted(t *testing.T) {
 func BenchmarkLimitCommandReasonText_Short(b *testing.B) {
 	text := strings.Repeat("x", 50)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = dice.LimitCommandReasonText(text)
 	}
 }
@@ -143,21 +143,21 @@ func BenchmarkLimitCommandReasonText_Short(b *testing.B) {
 func BenchmarkLimitCommandReasonText_Long(b *testing.B) {
 	text := strings.Repeat("测试文字", dice.CommandReasonMaxLen)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = dice.LimitCommandReasonText(text)
 	}
 }
 
 func BenchmarkRandString_16(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = dice.RandStringBytesMaskImprSrcSB(16)
 	}
 }
 
 func BenchmarkRandString_64(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = dice.RandStringBytesMaskImprSrcSB(64)
 	}
 }
@@ -169,7 +169,7 @@ func BenchmarkDeckToShuffleRandomPool(b *testing.B) {
 		&deck,
 	)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = dice.DeckToShuffleRandomPool(deck)
 	}
 }
@@ -181,7 +181,7 @@ func BenchmarkShuffleRandomPool_Pick(b *testing.B) {
 		&deck,
 	)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		pool := dice.DeckToShuffleRandomPool(deck)
 		_ = pool.Pick()
 	}
