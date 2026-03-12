@@ -276,7 +276,7 @@ func (g *GroupInfo) UnmarshalJSON(data []byte) error {
 // 同时将群组 ID 加入脏列表，Save 时只遍历脏列表
 func (g *GroupInfo) MarkDirty(d *Dice) {
 	now := time.Now().Unix()
-	g.UpdatedAtTime = now
+	atomic.StoreInt64(&g.UpdatedAtTime, now)
 	if d != nil && d.DirtyGroups != nil {
 		d.DirtyGroups.Store(g.GroupID, now)
 	}
@@ -1569,6 +1569,43 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		Endpoint *EndPointInfo
 		Last     time.Time
 	}
+	isAutoQuitEndpointReady := func(grp *GroupInfo, ep *EndPointInfo, platform string, phase string) bool {
+		groupID := "<nil>"
+		if grp != nil {
+			groupID = grp.GroupID
+		}
+		if grp == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 找不到群信息，暂时无法处理该群。phase=%s group=%s platform=%s", phase, groupID, platform)
+			return false
+		}
+		if ep == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 找不到对应账号连接，暂时无法处理该群。phase=%s group=%s platform=%s", phase, groupID, platform)
+			return false
+		}
+		if ep.Adapter == nil || ep.Session == nil {
+			s.Parent.Logger.Debugf(
+				"自动退群已跳过: 账号连接尚未准备完成，暂时无法处理该群。phase=%s group=%s platform=%s endpoint=%s adapter_nil=%t session_nil=%t",
+				phase,
+				groupID,
+				platform,
+				ep.UserID,
+				ep.Adapter == nil,
+				ep.Session == nil,
+			)
+			return false
+		}
+		if grp.DiceIDExistsMap == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 群内账号记录缺失，暂时无法确认是否可退群。phase=%s group=%s platform=%s endpoint=%s", phase, groupID, platform, ep.UserID)
+			return false
+		}
+		if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+			return false
+		}
+		if !ep.Enable || ep.State != StateConnected {
+			return false
+		}
+		return true
+	}
 	var selectedGroupEndpoints = make([]*GroupEndpointPair, 0)
 	var groupCount int
 	s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
@@ -1593,7 +1630,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			return true
 		}
 		// 获取上次骰子活动时间
-		last := time.Unix(grp.RecentDiceSendTime, 0)
+		last := time.Unix(atomic.LoadInt64(&grp.RecentDiceSendTime), 0)
 		// 如果enter是进入时间，它比活动时间更晚（说明骰子刚进去，但是骰子还没有说话），那么上次骰子活动时间=进入时间
 		if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
 			last = enter
@@ -1608,7 +1645,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		if last.Before(threshold) {
 			for _, ep := range s.EndPoints {
 				// 找到对应的endpoints，并准备退掉它的群
-				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+				if !isAutoQuitEndpointReady(grp, ep, platform, "select") {
 					continue
 				}
 				selectedGroupEndpoints = append(selectedGroupEndpoints, &GroupEndpointPair{Group: grp, Endpoint: ep, Last: last})
@@ -1624,13 +1661,19 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 	})
 	// 循环完毕，要不然是因为够了要退的数量，要不就是遍历完毕了，但是不够，总之要进行退群活动了
 	go func() {
-		if r := recover(); r != nil {
-			log := zap.S().Named(logger.LogKeyAdapter)
-			log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				log := zap.S().Named(logger.LogKeyAdapter)
+				log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
 		for i, pair := range selectedGroupEndpoints {
 			grp := pair.Group
 			ep := pair.Endpoint
+			if !isAutoQuitEndpointReady(grp, ep, "QQ", "send") {
+				s.Parent.Logger.Infof("自动退群已跳过: 当前账号已离线或不可用，暂不对该群执行退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				continue
+			}
 			last := pair.Last
 			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出,当前为本轮第 %d 个", grp.GroupID, last.Format(time.RFC3339), i+1)
 			s.Parent.Logger.Info(hint)
@@ -1645,6 +1688,10 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 			// 退群在退群消息延迟两秒后发送，确保消息发送完成
 			time.Sleep(2 * time.Second)
+			if !isAutoQuitEndpointReady(grp, ep, "QQ", "quit") {
+				s.Parent.Logger.Infof("自动退群已取消: 当前账号状态发生变化，本次不再继续退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				continue
+			}
 			// 删除群聊绑定信息，更新群处理时间
 			grp.DiceIDExistsMap.Delete(ep.UserID)
 			grp.MarkDirty(msgCtx.Dice)

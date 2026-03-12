@@ -228,7 +228,7 @@ func (dm *DiceManager) Save() {
 		dc.DiceConfigs = append(dc.DiceConfigs, i.BaseConfig)
 	}
 
-	data, err := yaml.Marshal(dc)
+	data, err := yaml.Marshal(dc) //nolint:gosec
 	if err == nil {
 		_ = os.WriteFile("./data/dice.yaml", data, 0644)
 	}
