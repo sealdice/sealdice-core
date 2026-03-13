@@ -39,13 +39,11 @@ func getDismissConfirmKey(ctx *MsgContext, msg *Message) string {
 	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, msg.GroupID, msg.Sender.UserID)
 }
 
-func cleanupExpiredDismissConfirmCodes(force bool) {
+func cleanupExpiredDismissConfirmCodes() {
 	now := time.Now()
-	if !force {
-		last := dismissConfirmLastCleanup.Load()
-		if last != 0 && now.Unix()-last < int64(dismissConfirmCleanupInterval/time.Second) {
-			return
-		}
+	last := dismissConfirmLastCleanup.Load()
+	if last != 0 && now.Unix()-last < int64(dismissConfirmCleanupInterval/time.Second) {
+		return
 	}
 	dismissConfirmLastCleanup.Store(now.Unix())
 	dismissConfirmCodes.Range(func(key string, state *dismissConfirmState) bool {
@@ -65,7 +63,7 @@ func generateFourDigitCode() string {
 }
 
 func storeDismissConfirmCode(key string, code string) {
-	cleanupExpiredDismissConfirmCodes(false)
+	cleanupExpiredDismissConfirmCodes()
 	dismissConfirmCodes.Store(key, &dismissConfirmState{Code: code, ExpiresAt: time.Now().Add(dismissConfirmTTL).Unix()})
 }
 
