@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/golang-module/carbon"
-	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
@@ -492,9 +491,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
 				ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_成功"), "skip")
 				return CmdExecuteResult{Matched: true, Solved: true}
-			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
+
+			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 		},
 	}
 
@@ -997,57 +996,27 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	}()
 
 	counter := 0
-	currentCursor := paginator.Cursor{} // 初始游标为空
-
-	// 腾讯元宝: 创建带10秒超时的 context
+	// 创建带10秒超时的 context
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel() // 确保 context 被正确取消
-
-	// 腾讯元宝: 使用 channel 接收 goroutine 的结果
-	resultCh := make(chan error, 1)
-	go func() {
-		defer close(resultCh) // 确保 channel 被关闭
-
-		for {
-			select {
-			case <-ctxWithTimeout.Done(): // 检查是否超时或被取消
-				resultCh <- errors.New("日志导出超时（10秒限制），请尝试减少数据量或联系管理员")
-				return
-			default:
-				// 获取当前游标对应的数据
-				cursorLines, cursor, err := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
-				if err != nil {
-					resultCh <- err
-					return
-				}
-
-				// 写入当前批次的数据
-				for _, line := range cursorLines {
-					timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
-					text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
-					_, _ = tempLog.WriteString(text)
-					counter++
-				}
-				// ========== 新增：每批写入后强制同步 ==========
-				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
-					resultCh <- fmt.Errorf("批次同步失败: %w", err)
-				}
-
-				// 如果没有下一页，则成功完成
-				if cursor.After == nil {
-					resultCh <- nil
-					return
-				}
-
-				// 更新游标，继续获取下一页
-				currentCursor.After = cursor.After
-			}
+	// 使用服务层的批量遍历接口拉取日志内容，替代第三方游标分页库。
+	err = service.LogIterLines(ctxWithTimeout, ctx.Dice.DBOperator, groupID, logName, 4000, func(cursorLines []model.LogOneItem) error {
+		// 写入当前批次的数据
+		for _, line := range cursorLines {
+			timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
+			text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
+			_, _ = tempLog.WriteString(text)
+			counter++
 		}
-	}()
-
-	// 等待 goroutine 完成或超时
-	if err := <-resultCh; err != nil {
-		return "", err
+		// ========== 每批写入后强制同步，确保数据落盘 ==========
+		syncErr := tempLog.Sync()
+		if syncErr != nil {
+			return fmt.Errorf("批次同步失败: %w", syncErr)
+		}
+		return nil
+	})
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "", errors.New("日志导出超时（10秒限制），请尝试减少数据量或联系管理员")
 	}
 	// 2. 确保文件指针回到开头
 	if _, err := tempLog.Seek(0, 0); err != nil {
