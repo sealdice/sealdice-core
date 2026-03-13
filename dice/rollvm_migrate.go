@@ -3,6 +3,7 @@ package dice
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -456,6 +457,10 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	vm := ctx.vm
 	vm.Ret = nil
 	vm.Error = nil
+	exprLog := strings.ReplaceAll(s, "\x1e", "`")
+	if len(exprLog) > 200 {
+		exprLog = exprLog[:200] + "...(truncated)"
+	}
 
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
@@ -486,24 +491,41 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	}
 
 	err := ctx.vm.Run(s)
-	if err != nil || ctx.vm.Ret == nil {
+	ret := ctx.vm.Ret
+	if err != nil || ret == nil {
+		if err == nil && ret == nil {
+			err = errors.New("脚本执行结果为空")
+		}
+		if ret == nil {
+			logger.M().Warnf(
+				"DiceExprEvalBase V2返回空结果: err=%v flags={V1Only:%v V2Only:%v DisableBlock:%v IgnoreDiv0:%v} expr=%q",
+				err, flags.V1Only, flags.V2Only, flags.DisableBlock, flags.IgnoreDiv0, exprLog,
+			)
+		}
 		if flags.V2Only {
 			return nil, "", err
 		}
-		logger.M().Error("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
+		logger.M().Error("脚本执行出错V2: ", exprLog, "->", err)
 		errV2 := err // 某种情况下没有这个值，很奇怪
 
 		// 尝试一下V1
 		val, detail, err := ctx.Dice._ExprEvalBaseV1(s, ctx, flags)
 		if err != nil {
+			logger.M().Warnf(
+				"DiceExprEvalBase 回退V1失败: errV2=%v errV1=%v flags={V1Only:%v V2Only:%v} expr=%q",
+				errV2, err, flags.V1Only, flags.V2Only, exprLog,
+			)
 			// 我们不关心 v1 的报错
 			return nil, detail, errV2
 		}
+		logger.M().Warnf(
+			"DiceExprEvalBase 回退V1成功: errV2=%v flags={V1Only:%v V2Only:%v} expr=%q",
+			errV2, flags.V1Only, flags.V2Only, exprLog,
+		)
 
 		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix, errV2}, detail, err
-	} else {
-		return &VMResultV2m{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix, nil}, ctx.vm.GetDetailText(), nil
 	}
+	return &VMResultV2m{ret, ctx.vm, nil, cocFlagVarPrefix, nil}, ctx.vm.GetDetailText(), nil
 }
 
 // DiceExprTextBase
