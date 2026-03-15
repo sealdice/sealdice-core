@@ -39,6 +39,10 @@ func getDismissConfirmKey(ctx *MsgContext, msg *Message) string {
 	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, msg.GroupID, msg.Sender.UserID)
 }
 
+func getDismissConfirmKeyForGroup(ctx *MsgContext, operatorID string, targetGroupID string) string {
+	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, targetGroupID, operatorID)
+}
+
 func cleanupExpiredDismissConfirmCodes() {
 	now := time.Now()
 	last := dismissConfirmLastCleanup.Load()
@@ -144,6 +148,103 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 	default:
 		return false, false, "adapter not onebot-compatible"
 	}
+}
+
+func normalizeDismissTargetGroupID(ctx *MsgContext, rawGroupID string) string {
+	groupID := strings.TrimSpace(rawGroupID)
+	if groupID == "" {
+		return ""
+	}
+	if strings.Contains(groupID, ":") {
+		return groupID
+	}
+	return FormatDiceID(ctx, groupID, true)
+}
+
+func isDismissConfirmCode(text string) bool {
+	if len(text) != 4 {
+		return false
+	}
+	for _, ch := range text {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGroupID string, targetGroup *GroupInfo) CmdExecuteResult {
+	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
+
+	userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserID)
+	groupName := targetGroupID
+	if targetGroup != nil && targetGroup.GroupName != "" {
+		groupName = targetGroup.GroupName
+	} else if name := ctx.Dice.Parent.TryGetGroupName(targetGroupID); name != "" {
+		groupName = name
+	}
+	txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
+		groupName, targetGroupID, userName, msg.Sender.UserID)
+	d.Logger.Info(txt)
+	ctx.Notice(txt)
+
+	time.Sleep(3 * time.Second)
+	if targetGroup != nil {
+		targetGroup.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
+		targetGroup.MarkDirty(ctx.Dice)
+	}
+	ctx.EndPoint.Adapter.QuitGroup(ctx, targetGroupID)
+
+	return CmdExecuteResult{Matched: true, Solved: true}
+}
+
+func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGroupID string, targetGroup *GroupInfo, inputCode string, hasExtraArgs bool, confirmCommand string) CmdExecuteResult {
+	processDismissConfirmation := func(roleDetail string, issueLogTpl string, issueReplyTpl string, successLogTpl string) CmdExecuteResult {
+		confirmKey := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, targetGroupID)
+		if inputCode == "" || hasExtraArgs {
+			confirmCode := generateFourDigitCode()
+			confirmCmdWithCode := fmt.Sprintf("%s %s", confirmCommand, confirmCode)
+			storeDismissConfirmCode(confirmKey, confirmCode)
+			d.Logger.Infof(issueLogTpl, targetGroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
+			ReplyToSender(ctx, msg, fmt.Sprintf(issueReplyTpl, confirmCmdWithCode))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		}
+
+		confirmCode, ok := loadDismissConfirmCode(confirmKey)
+		if !ok || inputCode != confirmCode {
+			d.Logger.Warnf("指令退群确认失败: 群组<%s>中，操作者<%s>提供的确认码无效，本次不执行退群。", targetGroupID, msg.Sender.UserID)
+			ReplyToSender(ctx, msg, fmt.Sprintf("退群确认码无效，请重新输入 `%s` 获取新的确认码。", confirmCommand))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		}
+
+		d.Logger.Infof(successLogTpl, targetGroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
+		dismissConfirmCodes.Delete(confirmKey)
+		return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
+	}
+
+	if needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, targetGroupID); checked {
+		if needConfirm {
+			return processDismissConfirmation(
+				detail,
+				"指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为%s，已发出确认码。",
+				"当前 OneBot 对接账号在本群是群主，继续 `%s` 将会直接解散群聊。\n如确认仍要退出，请在当前群内重新输入 `%s` 进行二次确认。",
+				"指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为%s，这将导致群聊被解散。",
+			)
+		}
+	} else if ctx.EndPoint.ProtocolType == "onebot" || ctx.EndPoint.Platform == "QQ" {
+		return processDismissConfirmation(
+			detail,
+			"指令退群进入安全确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；但当前无法确认该账号群内身份(%s)，为避免误解散群聊，已改为二次确认。",
+			"当前无法确认 OneBot 对接账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `%s`。",
+			"指令退群安全确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；此前未能确认该账号群内身份(%s)。",
+		)
+	}
+
+	if inputCode != "" || hasExtraArgs {
+		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+	}
+
+	return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
 }
 
 /** 这几条指令不能移除 */
@@ -664,19 +765,21 @@ func (d *Dice) registerCoreCommands() {
 
 				cmdArgs.ChopPrefixToArgsWith("on", "off")
 
-				matchNumber := func() (bool, bool) {
-					txt := cmdArgs.GetArgN(2)
-					if len(txt) >= 4 {
-						if strings.HasSuffix(ctx.EndPoint.UserID, txt) {
-							return true, txt != ""
+				if cmdArgs.IsArgEqual(1, "on", "off") {
+					matchNumber := func() (bool, bool) {
+						txt := cmdArgs.GetArgN(2)
+						if len(txt) >= 4 {
+							if strings.HasSuffix(ctx.EndPoint.UserID, txt) {
+								return true, txt != ""
+							}
 						}
+						return false, txt != ""
 					}
-					return false, txt != ""
-				}
 
-				isMe, exists := matchNumber()
-				if exists && !isMe {
-					return CmdExecuteResult{Matched: true, Solved: false}
+					isMe, exists := matchNumber()
+					if exists && !isMe {
+						return CmdExecuteResult{Matched: true, Solved: false}
+					}
 				}
 
 				if cmdArgs.IsArgEqual(1, "on") {
@@ -717,10 +820,6 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
-					if cmdArgs.GetArgN(2) != "" {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					}
-
 					if ctx.IsPrivate {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -739,21 +838,40 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
+					targetGroupID := msg.GroupID
+					targetGroup := ctx.Group
+					inputCode := ""
+					hasExtraArgs := false
+					confirmCommand := ".bot bye"
 
-					userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserID)
-					txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
-						ctx.Group.GroupName, msg.GroupID, userName, msg.Sender.UserID)
-					d.Logger.Info(txt)
-					ctx.Notice(txt)
+					arg2 := strings.TrimSpace(cmdArgs.GetArgN(2))
+					arg3 := strings.TrimSpace(cmdArgs.GetArgN(3))
+					arg4 := strings.TrimSpace(cmdArgs.GetArgN(4))
+					if arg2 != "" {
+						confirmKey := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, msg.GroupID)
+						if arg3 == "" && isDismissConfirmCode(arg2) {
+							if confirmCode, ok := loadDismissConfirmCode(confirmKey); ok && confirmCode == arg2 {
+								inputCode = arg2
+							} else {
+								targetGroupID = normalizeDismissTargetGroupID(ctx, arg2)
+								confirmCommand = ".bot bye " + arg2
+							}
+						} else {
+							targetGroupID = normalizeDismissTargetGroupID(ctx, arg2)
+							inputCode = arg3
+							hasExtraArgs = arg4 != ""
+							confirmCommand = ".bot bye " + arg2
+						}
+					}
 
-					// SetBotOffAtGroup(ctx, ctx.Group.GroupID)
-					time.Sleep(3 * time.Second)
-					ctx.Group.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
-					ctx.Group.MarkDirty(ctx.Dice)
-					ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupID)
+					if targetGroupID == "" {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					}
+					if targetGroupID != msg.GroupID {
+						targetGroup, _ = ctx.Session.ServiceAtNew.Load(targetGroupID)
+					}
 
-					return CmdExecuteResult{Matched: true, Solved: true}
+					return d.executeDismissWithConfirm(ctx, msg, targetGroupID, targetGroup, inputCode, hasExtraArgs, confirmCommand)
 				} else if cmdArgs.IsArgEqual(1, "save") {
 					d.Save(false)
 
@@ -833,34 +951,6 @@ func (d *Dice) registerCoreCommands() {
 		Raw:               true,
 		DisabledInPrivate: true,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			executeDismiss := func() CmdExecuteResult {
-				cmdArgs.Args = []string{"bye"}
-				cmdArgs.RawArgs = "bye " + cmdArgs.RawArgs
-				return cmdBot.Solve(ctx, msg, cmdArgs)
-			}
-
-			processDismissConfirmation := func(inputCode string, roleDetail string, issueLogTpl string, issueReplyTpl string, successLogTpl string) CmdExecuteResult {
-				confirmKey := getDismissConfirmKey(ctx, msg)
-				if inputCode == "" || cmdArgs.GetArgN(2) != "" {
-					confirmCode := generateFourDigitCode()
-					storeDismissConfirmCode(confirmKey, confirmCode)
-					d.Logger.Infof(issueLogTpl, msg.GroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
-					ReplyToSender(ctx, msg, fmt.Sprintf(issueReplyTpl, confirmCode))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				confirmCode, ok := loadDismissConfirmCode(confirmKey)
-				if !ok || inputCode != confirmCode {
-					d.Logger.Warnf("指令退群确认失败: 群组<%s>中，操作者<%s>提供的确认码无效，本次不执行退群。", msg.GroupID, msg.Sender.UserID)
-					ReplyToSender(ctx, msg, "退群确认码无效，请重新输入 `.dismiss` 获取新的确认码。")
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-
-				d.Logger.Infof(successLogTpl, msg.GroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
-				dismissConfirmCodes.Delete(confirmKey)
-				return executeDismiss()
-			}
-
 			if ctx.IsPrivate {
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -877,31 +967,7 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			rest := cmdArgs.GetArgN(1)
-			if needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, msg.GroupID); checked {
-				if needConfirm {
-					return processDismissConfirmation(
-						rest,
-						detail,
-						"指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为%s，已发出确认码。",
-						"当前 OneBot 对接账号在本群是群主，继续 `.dismiss` 将会直接解散群聊。\n如确认仍要退出，请在当前群内重新输入 `.dismiss %s` 进行二次确认。",
-						"指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为%s，这将导致群聊被解散。",
-					)
-				}
-			} else if ctx.EndPoint.ProtocolType == "onebot" || ctx.EndPoint.Platform == "QQ" {
-				return processDismissConfirmation(
-					rest,
-					detail,
-					"指令退群进入安全确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；但当前无法确认该账号群内身份(%s)，为避免误解散群聊，已改为二次确认。",
-					"当前无法确认 OneBot 对接账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `.dismiss %s`。",
-					"指令退群安全确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；此前未能确认该账号群内身份(%s)。",
-				)
-			}
-
-			if rest != "" {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-			return executeDismiss()
+			return d.executeDismissWithConfirm(ctx, msg, msg.GroupID, ctx.Group, cmdArgs.GetArgN(1), cmdArgs.GetArgN(2) != "", ".dismiss")
 		},
 	}
 	d.CmdMap["dismiss"] = cmdDismiss
