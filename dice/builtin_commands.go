@@ -35,10 +35,6 @@ var dismissConfirmLastCleanup atomic.Int64
 const dismissConfirmTTL = 10 * time.Minute
 const dismissConfirmCleanupInterval = 30 * time.Minute
 
-func getDismissConfirmKey(ctx *MsgContext, msg *Message) string {
-	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, msg.GroupID, msg.Sender.UserID)
-}
-
 func getDismissConfirmKeyForGroup(ctx *MsgContext, operatorID string, targetGroupID string) string {
 	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, targetGroupID, operatorID)
 }
