@@ -149,3 +149,71 @@ func TestGameSystemTemplate_GetRealValue_DoesNotResyncWhenVersionIsCurrent(t *te
 		t.Fatal("did not expect new key when version is already current")
 	}
 }
+
+func TestMsgContext_loadAttrValueByName_SyncsBrokenDrivingKeyToDriveAuto(t *testing.T) {
+	ctx, cleanup := newTemplateFallbackTestCtx(t, "coc7", map[string]*ds.VMValue{
+		"驾驶": ds.NewIntVal(40),
+	})
+	defer cleanup()
+
+	value := ctx.loadAttrValueByName("驾驶")
+	if value == nil || value.ToString() != "40" {
+		t.Fatalf("expected 驾驶 to resolve to 汽车驾驶 with value 40, got %v", value)
+	}
+
+	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	if _, exists := attrs.LoadX("驾驶"); exists {
+		t.Fatal("expected broken 驾驶 key to be removed after sync")
+	}
+	if value2, exists := attrs.LoadX("汽车驾驶"); !exists || value2.ToString() != "40" {
+		t.Fatal("expected 汽车驾驶 to be written back after sync")
+	}
+}
+
+func TestMsgContext_loadAttrValueByName_SyncsBrokenFirearmsKeyToCanonicalSkill(t *testing.T) {
+	ctx, cleanup := newTemplateFallbackTestCtx(t, "coc7", map[string]*ds.VMValue{
+		"手枪": ds.NewIntVal(55),
+	})
+	defer cleanup()
+
+	value := ctx.loadAttrValueByName("手枪")
+	if value == nil || value.ToString() != "55" {
+		t.Fatalf("expected 手枪 to resolve to 射击:手枪 with value 55, got %v", value)
+	}
+
+	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	if _, exists := attrs.LoadX("手枪"); exists {
+		t.Fatal("expected old 手枪 key to be removed after sync")
+	}
+	if value2, exists := attrs.LoadX("射击:手枪"); !exists || value2.ToString() != "55" {
+		t.Fatal("expected 射击:手枪 to be written back after sync")
+	}
+}
+
+func TestMsgContext_loadAttrValueByName_ResolvesFirearmsSpecializationForms(t *testing.T) {
+	ctx, cleanup := newTemplateFallbackTestCtx(t, "coc7", map[string]*ds.VMValue{
+		"射击:步霰": ds.NewIntVal(66),
+	})
+	defer cleanup()
+
+	for _, name := range []string{"步枪/霰弹枪", "步霰", "射击:步霰", "射击：步霰", "射击:步枪/霰弹枪", "射击：步枪/霰弹枪"} {
+		value := ctx.loadAttrValueByName(name)
+		if value == nil || value.ToString() != "66" {
+			t.Fatalf("expected %s to resolve to 射击:步霰 with value 66, got %v", name, value)
+		}
+	}
+}
+
+func TestMsgContext_loadAttrValueByName_ResolvesDrivingSpecializationForms(t *testing.T) {
+	ctx, cleanup := newTemplateFallbackTestCtx(t, "coc7", map[string]*ds.VMValue{
+		"驾驶:飞行器": ds.NewIntVal(33),
+	})
+	defer cleanup()
+
+	for _, name := range []string{"驾驶（飞行器）", "驾驶(飞行器)", "驾驶:飞行器", "驾驶：飞行器", "驾驶飞行器", "驾驶-飞行器"} {
+		value := ctx.loadAttrValueByName(name)
+		if value == nil || value.ToString() != "33" {
+			t.Fatalf("expected %s to resolve to 驾驶:飞行器 with value 33, got %v", name, value)
+		}
+	}
+}
