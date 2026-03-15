@@ -227,7 +227,7 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 			return processDismissConfirmation(
 				detail,
 				"指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为%s，已发出确认码。",
-				"当前 OneBot 对接账号在本群是群主，继续 `%s` 将会直接解散群聊。\n如确认仍要退出，请在当前群内重新输入 `%s` 进行二次确认。",
+				"当前 OneBot 对接账号在本群是群主，继续 `%s` 将会直接解散群聊。\n请在当前群内重新输入上面的完整命令进行二次确认。",
 				"指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为%s，这将导致群聊被解散。",
 			)
 		}
