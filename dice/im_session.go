@@ -631,10 +631,9 @@ type MsgContext struct {
 	SpamCheckedGroup  bool
 	SpamCheckedPerson bool
 
-	splitKey      string
-	vm            *ds.Context
-	AttrsCurCache *AttributesItem
-	_v1Rand       *rand2.PCGSource
+	splitKey string
+	vm       *ds.Context
+	_v1Rand  *rand2.PCGSource
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
