@@ -631,6 +631,7 @@ type MsgContext struct {
 	SpamCheckedGroup  bool
 	SpamCheckedPerson bool
 
+	splitKeyMu    sync.RWMutex
 	splitKey      string
 	vm            *ds.Context
 	AttrsCurCache *AttributesItem
@@ -2397,6 +2398,15 @@ func (ctx *MsgContext) Notice(txt string) {
 var randSourceSplitKey = rand2.NewSource(uint64(time.Now().Unix()))
 
 func (ctx *MsgContext) InitSplitKey() {
+	ctx.splitKeyMu.RLock()
+	if len(ctx.splitKey) > 0 {
+		ctx.splitKeyMu.RUnlock()
+		return
+	}
+	ctx.splitKeyMu.RUnlock()
+
+	ctx.splitKeyMu.Lock()
+	defer ctx.splitKeyMu.Unlock()
 	if len(ctx.splitKey) > 0 {
 		return
 	}
@@ -2410,23 +2420,37 @@ func (ctx *MsgContext) InitSplitKey() {
 	ctx.splitKey = "###" + s + "###"
 }
 
+func (ctx *MsgContext) SetSplitKey(key string) {
+	ctx.splitKeyMu.Lock()
+	ctx.splitKey = key
+	ctx.splitKeyMu.Unlock()
+}
+
+func (ctx *MsgContext) getSplitKey() string {
+	ctx.splitKeyMu.RLock()
+	defer ctx.splitKeyMu.RUnlock()
+	return ctx.splitKey
+}
+
 func (ctx *MsgContext) TranslateSplit(s string) string {
-	if len(ctx.splitKey) == 0 {
+	if len(ctx.getSplitKey()) == 0 {
 		ctx.InitSplitKey()
 	}
-	s = strings.ReplaceAll(s, "#{SPLIT}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "{FormFeed}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "{formfeed}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "\f", ctx.splitKey)
-	s = strings.ReplaceAll(s, "\\f", ctx.splitKey)
+	splitKey := ctx.getSplitKey()
+	s = strings.ReplaceAll(s, "#{SPLIT}", splitKey)
+	s = strings.ReplaceAll(s, "{FormFeed}", splitKey)
+	s = strings.ReplaceAll(s, "{formfeed}", splitKey)
+	s = strings.ReplaceAll(s, "\f", splitKey)
+	s = strings.ReplaceAll(s, "\\f", splitKey)
 	return s
 }
 
 func (ctx *MsgContext) SplitText(text string) []string {
-	if len(ctx.splitKey) == 0 {
+	splitKey := ctx.getSplitKey()
+	if len(splitKey) == 0 {
 		return []string{text}
 	}
-	return strings.Split(text, ctx.splitKey)
+	return strings.Split(text, splitKey)
 }
 
 var curCommandID int64 = 0

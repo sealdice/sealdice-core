@@ -926,7 +926,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx.CreateVmIfNotExists()
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
-		ctx.splitKey = "###SPLIT-KEY###"
+		ctx.SetSplitKey("###SPLIT-KEY###")
 
 		if a, exists := _textMapTestData2[key]; exists {
 			if x, err := a.ToJSON(); err == nil {
@@ -945,7 +945,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx.CreateVmIfNotExists() // 也要设置，因为牌堆要用
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
-		ctx.splitKey = "###SPLIT-KEY###"
+		ctx.SetSplitKey("###SPLIT-KEY###")
 		ctx._v1Rand = ctx.vm.RandSrc
 		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
 
