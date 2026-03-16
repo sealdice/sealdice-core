@@ -263,6 +263,9 @@ func SetCardType(mctx *MsgContext, curType string) {
 	am := mctx.Dice.AttrsManager
 	curAttrs := lo.Must(am.LoadByCtx(mctx))
 	curAttrs.SetSheetType(curType)
+	if tmpl, _ := mctx.Dice.GameSystemMap.Load(curType); tmpl != nil && strings.TrimSpace(tmpl.Version) != "" {
+		writeAttrsTemplateVersion(curAttrs, tmpl.Version)
+	}
 }
 
 func ReadCardType(mctx *MsgContext) string {
