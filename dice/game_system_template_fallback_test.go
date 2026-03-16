@@ -45,6 +45,7 @@ func TestGameSystemTemplate_GetShowValueAs_SyncsOldKeyOnSameSheetType(t *testing
 		"db": ds.NewIntVal(42),
 	})
 	defer cleanup()
+	expectedVersion := ctx.SystemTemplate.Version
 
 	value, err := ctx.SystemTemplate.GetShowValueAs(ctx, "DB")
 	if err != nil {
@@ -55,8 +56,8 @@ func TestGameSystemTemplate_GetShowValueAs_SyncsOldKeyOnSameSheetType(t *testing
 	}
 
 	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
-	if version, exists := attrs.LoadX(attrsTemplateVersionKey); !exists || version.ToString() != "1.1.0" {
-		t.Fatalf("expected %s to be set to 1.1.0 after sync", attrsTemplateVersionKey)
+	if version, exists := attrs.LoadX(attrsTemplateVersionKey); !exists || version.ToString() != expectedVersion {
+		t.Fatalf("expected %s to be set to %s after sync", attrsTemplateVersionKey, expectedVersion)
 	}
 }
 
@@ -80,6 +81,7 @@ func TestAttrsManager_LoadByCtx_DoesNotSyncBeforeTemplateRead(t *testing.T) {
 		"语言": ds.NewIntVal(70),
 	})
 	defer cleanup()
+	expectedVersion := ctx.SystemTemplate.Version
 
 	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
 	if _, exists := attrs.LoadX("语言"); !exists {
@@ -102,8 +104,58 @@ func TestAttrsManager_LoadByCtx_DoesNotSyncBeforeTemplateRead(t *testing.T) {
 	if value2, exists := attrs.LoadX("外语"); !exists || value2.ToString() != "70" {
 		t.Fatal("expected new key to be written back after template-based read")
 	}
-	if version, exists := attrs.LoadX(attrsTemplateVersionKey); !exists || version.ToString() != "1.1.0" {
-		t.Fatalf("expected %s to be set to 1.1.0 after template-based read", attrsTemplateVersionKey)
+	if version, exists := attrs.LoadX(attrsTemplateVersionKey); !exists || version.ToString() != expectedVersion {
+		t.Fatalf("expected %s to be set to %s after template-based read", attrsTemplateVersionKey, expectedVersion)
+	}
+}
+
+func TestSetCardType_WritesTemplateVersionWithoutSyncingAliases(t *testing.T) {
+	ctx, cleanup := newTemplateFallbackTestCtx(t, "", map[string]*ds.VMValue{
+		"语言": ds.NewIntVal(70),
+	})
+	defer cleanup()
+	expectedVersion := ctx.SystemTemplate.Version
+
+	SetCardType(ctx, "coc7")
+
+	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	if attrs.SheetType != "coc7" {
+		t.Fatalf("expected SheetType coc7, got %q", attrs.SheetType)
+	}
+	if version, exists := attrs.LoadX(attrsTemplateVersionKey); !exists || version.ToString() != expectedVersion {
+		t.Fatalf("expected %s to be set to %s after SetCardType", attrsTemplateVersionKey, expectedVersion)
+	}
+	if value, exists := attrs.LoadX("语言"); !exists || value.ToString() != "70" {
+		t.Fatalf("expected legacy key 语言 to remain unchanged after SetCardType, got %v (exists=%v)", value, exists)
+	}
+	if _, exists := attrs.LoadX("外语"); exists {
+		t.Fatal("did not expect alias key 外语 to be written during SetCardType")
+	}
+}
+
+func TestGameSystemTemplate_GetRealValue_DoesNotSyncWhenSheetTypeEmpty(t *testing.T) {
+	ctx, cleanup := newTemplateFallbackTestCtx(t, "", map[string]*ds.VMValue{
+		"语言": ds.NewIntVal(70),
+	})
+	defer cleanup()
+
+	value, err := ctx.SystemTemplate.GetRealValue(ctx, "外语")
+	if err != nil {
+		t.Fatalf("GetRealValue returned error: %v", err)
+	}
+	if value == nil || value.ToString() != "1" {
+		t.Fatalf("expected template default value 1 when SheetType is empty, got %v", value)
+	}
+
+	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	if value2, exists := attrs.LoadX("语言"); !exists || value2.ToString() != "70" {
+		t.Fatalf("expected legacy key 语言 to remain unchanged when SheetType is empty, got %v (exists=%v)", value2, exists)
+	}
+	if _, exists := attrs.LoadX("外语"); exists {
+		t.Fatal("did not expect alias key 外语 to be written when SheetType is empty")
+	}
+	if _, exists := attrs.LoadX(attrsTemplateVersionKey); exists {
+		t.Fatalf("did not expect %s when SheetType is empty", attrsTemplateVersionKey)
 	}
 }
 
@@ -129,10 +181,12 @@ func TestGameSystemTemplate_GetRealValue_DoesNotFallbackAcrossSheetType(t *testi
 
 func TestGameSystemTemplate_GetRealValue_DoesNotResyncWhenVersionIsCurrent(t *testing.T) {
 	ctx, cleanup := newTemplateFallbackTestCtx(t, "coc7", map[string]*ds.VMValue{
-		attrsTemplateVersionKey: ds.NewStrVal("1.1.0"),
-		"语言":                    ds.NewIntVal(70),
+		"语言": ds.NewIntVal(70),
 	})
 	defer cleanup()
+	expectedVersion := ctx.SystemTemplate.Version
+	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	attrs.Store(attrsTemplateVersionKey, ds.NewStrVal(expectedVersion))
 
 	value, err := ctx.SystemTemplate.GetRealValue(ctx, "外语")
 	if err != nil {
@@ -142,12 +196,32 @@ func TestGameSystemTemplate_GetRealValue_DoesNotResyncWhenVersionIsCurrent(t *te
 		t.Fatalf("expected default value 1 when card version is already current, got %s", got)
 	}
 
-	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
 	if _, exists := attrs.LoadX("语言"); !exists {
 		t.Fatal("expected old key to remain when version is already current")
 	}
 	if _, exists := attrs.LoadX("外语"); exists {
 		t.Fatal("did not expect new key when version is already current")
+	}
+}
+
+func TestMsgContext_loadAttrValueByName_PrefersExistingCanonicalValueDuringSync(t *testing.T) {
+	ctx, cleanup := newTemplateFallbackTestCtx(t, "coc7", map[string]*ds.VMValue{
+		"db": ds.NewIntVal(40),
+		"DB": ds.NewIntVal(80),
+	})
+	defer cleanup()
+
+	value := ctx.loadAttrValueByName("db")
+	if value == nil || value.ToString() != "80" {
+		t.Fatalf("expected db to resolve to existing canonical DB with value 80, got %v", value)
+	}
+
+	attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	if val, exists := attrs.LoadX("db"); !exists || val.ToString() != "40" {
+		t.Fatalf("expected db to keep its original value 40, got %v (exists=%v)", val, exists)
+	}
+	if val, exists := attrs.LoadX("DB"); !exists || val.ToString() != "80" {
+		t.Fatalf("expected DB to keep its original value 80, got %v (exists=%v)", val, exists)
 	}
 }
 

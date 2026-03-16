@@ -242,7 +242,6 @@ func (ctx *MsgContext) syncAttrsForTemplate(attrs *AttributesItem, tmpl *GameSys
 	// $ver 是角色卡内部版本字段，不在常规 st show 中展示；
 	// 缺失或低于模板版本时，视为旧卡并在此处完成一次迁移。
 	writeAttrsTemplateVersion(attrs, tmpl.Version)
-
 }
 
 func (t *GameSystemTemplateV2) GetShowKeyAs(ctx *MsgContext, k string) (string, error) {
