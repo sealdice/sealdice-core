@@ -730,6 +730,9 @@ func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
 
 	if ctx.Dice != nil {
 		attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+		if tmpl != nil {
+			ctx.syncAttrsForTemplate(attrs, tmpl.GameSystemTemplateV2)
+		}
 		if v, exists := attrs.LoadX(resolved); exists {
 			return v
 		}
