@@ -621,9 +621,6 @@ func (s *IMSession) MarkPendingQuit(groupID string, endpointID string, origin st
 	if s == nil {
 		return
 	}
-	if s.PendingQuits == nil {
-		s.PendingQuits = new(SyncMap[string, *PendingQuitInfo])
-	}
 	now := time.Now()
 	s.PendingQuits.Store(makePendingQuitKey(groupID, endpointID), &PendingQuitInfo{
 		Origin:    origin,
@@ -633,7 +630,7 @@ func (s *IMSession) MarkPendingQuit(groupID string, endpointID string, origin st
 }
 
 func (s *IMSession) ConsumePendingQuit(groupID string, endpointID string) *PendingQuitInfo {
-	if s == nil || s.PendingQuits == nil {
+	if s == nil {
 		return nil
 	}
 	info, ok := s.PendingQuits.LoadAndDelete(makePendingQuitKey(groupID, endpointID))

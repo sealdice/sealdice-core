@@ -195,6 +195,7 @@ func newExecuteNewTestDice(t *testing.T) (*Dice, *EndPointInfo, *mockPlatformAda
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
+	d.ImSession.PendingQuits = new(SyncMap[string, *PendingQuitInfo])
 
 	// AttrsManager – starts one background goroutine; stopped in cleanup.
 	d.AttrsManager = &AttrsManager{}
