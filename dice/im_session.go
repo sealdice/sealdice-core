@@ -2432,6 +2432,42 @@ func (ctx *MsgContext) getSplitKey() string {
 	return ctx.splitKey
 }
 
+func (ctx *MsgContext) ShallowCopy() *MsgContext {
+	if ctx == nil {
+		return nil
+	}
+	copyCtx := &MsgContext{
+		MessageType:         ctx.MessageType,
+		Group:               ctx.Group,
+		Player:              ctx.Player,
+		IsCompatibilityTest: ctx.IsCompatibilityTest,
+		EndPoint:            ctx.EndPoint,
+		Session:             ctx.Session,
+		Dice:                ctx.Dice,
+		IsCurGroupBotOn:     ctx.IsCurGroupBotOn,
+		IsPrivate:           ctx.IsPrivate,
+		CommandID:           ctx.CommandID,
+		CommandHideFlag:     ctx.CommandHideFlag,
+		CommandInfo:         ctx.CommandInfo,
+		PrivilegeLevel:      ctx.PrivilegeLevel,
+		GroupRoleLevel:      ctx.GroupRoleLevel,
+		DelegateText:        ctx.DelegateText,
+		AliasPrefixText:     ctx.AliasPrefixText,
+		deckDepth:           ctx.deckDepth,
+		DeckPools:           ctx.DeckPools,
+		diceExprOverwrite:   ctx.diceExprOverwrite,
+		SystemTemplate:      ctx.SystemTemplate,
+		Censored:            ctx.Censored,
+		SpamCheckedGroup:    ctx.SpamCheckedGroup,
+		SpamCheckedPerson:   ctx.SpamCheckedPerson,
+		vm:                  ctx.vm,
+		AttrsCurCache:       ctx.AttrsCurCache,
+		_v1Rand:             ctx._v1Rand,
+	}
+	copyCtx.SetSplitKey(ctx.getSplitKey())
+	return copyCtx
+}
+
 func (ctx *MsgContext) TranslateSplit(s string) string {
 	if len(ctx.getSplitKey()) == 0 {
 		ctx.InitSplitKey()

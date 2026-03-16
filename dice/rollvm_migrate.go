@@ -736,14 +736,14 @@ func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
 	}
 
 	if tmpl != nil {
-		ctx2 := *ctx
+		ctx2 := ctx.ShallowCopy()
 		ctx2.vm = nil
 		ctx2.CreateVmIfNotExists()
 		ctx2.vm.UpCtx = ctx.vm
 		ctx2.vm.Attrs = ctx.vm.Attrs
 		ctx2.vm.Config = ctx.vm.Config
 
-		if v, _, _, exists := tmpl.GetDefaultValueEx0(&ctx2, resolved); exists {
+		if v, _, _, exists := tmpl.GetDefaultValueEx0(ctx2, resolved); exists {
 			return v
 		}
 	}
