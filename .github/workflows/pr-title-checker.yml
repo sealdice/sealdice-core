@@ -40,3 +40,11 @@ jobs:
             - `chore: fixing build pipeline`
             - etc.
             More information can be found [here](https://www.conventionalcommits.org/zh-hans/v1.0.0/).
+
+      - name: Remove comment if fixed
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: ${{ steps.check.outputs.success == 'true'}}
+        with:
+          header: 'PR Title Check'
+          delete: true
+          
