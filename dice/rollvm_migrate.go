@@ -739,14 +739,14 @@ func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
 	}
 
 	if tmpl != nil {
-		ctx2 := *ctx
+		ctx2 := ctx.ShallowCopy()
 		ctx2.vm = nil
 		ctx2.CreateVmIfNotExists()
 		ctx2.vm.UpCtx = ctx.vm
 		ctx2.vm.Attrs = ctx.vm.Attrs
 		ctx2.vm.Config = ctx.vm.Config
 
-		if v, _, _, exists := tmpl.GetDefaultValueEx0(&ctx2, resolved); exists {
+		if v, _, _, exists := tmpl.GetDefaultValueEx0(ctx2, resolved); exists {
 			return v
 		}
 	}
@@ -929,7 +929,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx.CreateVmIfNotExists()
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
-		ctx.splitKey = "###SPLIT-KEY###"
+		ctx.SetSplitKey("###SPLIT-KEY###")
 
 		if a, exists := _textMapTestData2[key]; exists {
 			if x, err := a.ToJSON(); err == nil {
@@ -948,7 +948,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx.CreateVmIfNotExists() // 也要设置，因为牌堆要用
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
-		ctx.splitKey = "###SPLIT-KEY###"
+		ctx.SetSplitKey("###SPLIT-KEY###")
 		ctx._v1Rand = ctx.vm.RandSrc
 		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
 

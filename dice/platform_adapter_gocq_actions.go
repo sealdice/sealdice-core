@@ -616,6 +616,7 @@ func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID string, userID string)
 		UserID:   string(d.UserID),
 		GroupID:  string(d.GroupID),
 		Card:     d.Card,
+		Role:     d.Role,
 	}
 }
 

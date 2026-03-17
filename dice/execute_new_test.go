@@ -43,6 +43,7 @@ type mockPlatformAdapter struct {
 	mu         sync.Mutex
 	groupMsgs  []string
 	personMsgs []string
+	quitGroups []string
 	msgCh      chan string
 }
 
@@ -84,10 +85,14 @@ func (m *mockPlatformAdapter) SendToPerson(_ *MsgContext, _ string, text string,
 }
 
 // Remaining PlatformAdapter methods – all no-ops for the smoke test.
-func (m *mockPlatformAdapter) Serve() int                               { return 0 }
-func (m *mockPlatformAdapter) DoRelogin() bool                          { return true }
-func (m *mockPlatformAdapter) SetEnable(_ bool)                         {}
-func (m *mockPlatformAdapter) QuitGroup(_ *MsgContext, _ string)        {}
+func (m *mockPlatformAdapter) Serve() int       { return 0 }
+func (m *mockPlatformAdapter) DoRelogin() bool  { return true }
+func (m *mockPlatformAdapter) SetEnable(_ bool) {}
+func (m *mockPlatformAdapter) QuitGroup(_ *MsgContext, groupID string) {
+	m.mu.Lock()
+	m.quitGroups = append(m.quitGroups, groupID)
+	m.mu.Unlock()
+}
 func (m *mockPlatformAdapter) SetGroupCardName(_ *MsgContext, _ string) {}
 func (m *mockPlatformAdapter) MemberBan(_ string, _ string, _ int64)    {}
 func (m *mockPlatformAdapter) MemberKick(_ string, _ string)            {}
