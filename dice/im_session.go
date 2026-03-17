@@ -672,11 +672,10 @@ type MsgContext struct {
 	SpamCheckedGroup  bool
 	SpamCheckedPerson bool
 
-	splitKeyMu    sync.RWMutex
-	splitKey      string
-	vm            *ds.Context
-	AttrsCurCache *AttributesItem
-	_v1Rand       *rand2.PCGSource
+	splitKeyMu sync.RWMutex
+	splitKey   string
+	vm         *ds.Context
+	_v1Rand    *rand2.PCGSource
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
@@ -2526,7 +2525,6 @@ func (ctx *MsgContext) ShallowCopy() *MsgContext {
 		SpamCheckedGroup:    ctx.SpamCheckedGroup,
 		SpamCheckedPerson:   ctx.SpamCheckedPerson,
 		vm:                  ctx.vm,
-		AttrsCurCache:       ctx.AttrsCurCache,
 		_v1Rand:             ctx._v1Rand,
 	}
 	copyCtx.SetSplitKey(ctx.getSplitKey())
