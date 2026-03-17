@@ -330,6 +330,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
+	d.ImSession.PendingQuits = new(SyncMap[string, *PendingQuitInfo])
 	d.CmdMap = CmdMapCls{}
 	d.ExtRegistry = new(SyncMap[string, *ExtInfo])
 	// ActiveWithGraph 通过 activeWithGraph() 方法懒加载，无需在此初始化

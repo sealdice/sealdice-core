@@ -191,6 +191,8 @@ type QuitInactiveConfig struct {
 
 	QuitInactiveThresholdDays float64 `json:"quitInactiveThreshold" yaml:"-"` // 为了和前端通信
 
+	QuitInactiveNoticeSummaryMode bool `json:"quitInactiveNoticeSummaryMode" yaml:"quitInactiveNoticeSummaryMode"` // 自动退群通知改为任务开始/结束摘要
+
 	QuitInactiveBatchSize int64 `json:"quitInactiveBatchSize" yaml:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
 	QuitInactiveBatchWait int64 `json:"quitInactiveBatchWait" yaml:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
 }

@@ -436,6 +436,12 @@ func DiceConfigSet(c echo.Context) error {
 		}
 	}
 
+	if val, ok := jsonMap["quitInactiveNoticeSummaryMode"]; ok {
+		if v, ok := val.(bool); ok {
+			config.QuitInactiveNoticeSummaryMode = v
+		}
+	}
+
 	if val, ok := jsonMap["quitInactiveBatchSize"]; ok {
 		if v, ok := val.(float64); ok {
 			if vv := int64(v); vv > 0 {

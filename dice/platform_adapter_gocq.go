@@ -982,6 +982,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			string(msgQQ.OperatorID) == string(msgQQ.SelfID) {
 			// 群解散
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
+			pendingQuit := session.ConsumePendingQuit(msg.GroupID, ep.UserID)
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
 			// 这个就是要删除的部分，离开这个群组=群组退出=删除对应的群聊绑定信息（也就是用户的骰子和这个群聊无关了）
@@ -990,14 +991,18 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if !exists {
 				txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, msgQQ.GroupID)
 				log.Error(txtErr)
-				ctx.Notice(txtErr)
+				if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
+					ctx.Notice(txtErr)
+				}
 				return
 			}
 			// TODO：存疑，根据DISMISS的代码复制而来
 			group.DiceIDExistsMap.Delete(ep.UserID)
 			group.MarkDirty(ctx.Dice)
 			log.Info(txt)
-			ctx.Notice(txt)
+			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
+				ctx.Notice(txt)
+			}
 			return
 		}
 
