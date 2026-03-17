@@ -126,6 +126,7 @@ type OnebotUserInfo struct {
 	GroupName       string `json:"group_name"`
 	MaxMemberCount  int32  `json:"max_member_count"`
 	Card            string `json:"card"`
+	Role            string `json:"role"`
 }
 
 type MessageQQBase struct {
@@ -162,6 +163,7 @@ type MessageQQBase struct {
 
 		// 群成员信息
 		Card string `json:"card"`
+		Role string `json:"role"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	// Status string `json:"status"`

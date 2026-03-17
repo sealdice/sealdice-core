@@ -672,9 +672,10 @@ type MsgContext struct {
 	SpamCheckedGroup  bool
 	SpamCheckedPerson bool
 
-	splitKey string
-	vm       *ds.Context
-	_v1Rand  *rand2.PCGSource
+	splitKeyMu sync.RWMutex
+	splitKey   string
+	vm         *ds.Context
+	_v1Rand    *rand2.PCGSource
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
@@ -2461,6 +2462,15 @@ func (ctx *MsgContext) Notice(txt string) {
 var randSourceSplitKey = rand2.NewSource(uint64(time.Now().Unix()))
 
 func (ctx *MsgContext) InitSplitKey() {
+	ctx.splitKeyMu.RLock()
+	if len(ctx.splitKey) > 0 {
+		ctx.splitKeyMu.RUnlock()
+		return
+	}
+	ctx.splitKeyMu.RUnlock()
+
+	ctx.splitKeyMu.Lock()
+	defer ctx.splitKeyMu.Unlock()
 	if len(ctx.splitKey) > 0 {
 		return
 	}
@@ -2474,23 +2484,72 @@ func (ctx *MsgContext) InitSplitKey() {
 	ctx.splitKey = "###" + s + "###"
 }
 
+func (ctx *MsgContext) SetSplitKey(key string) {
+	ctx.splitKeyMu.Lock()
+	ctx.splitKey = key
+	ctx.splitKeyMu.Unlock()
+}
+
+func (ctx *MsgContext) getSplitKey() string {
+	ctx.splitKeyMu.RLock()
+	defer ctx.splitKeyMu.RUnlock()
+	return ctx.splitKey
+}
+
+func (ctx *MsgContext) ShallowCopy() *MsgContext {
+	if ctx == nil {
+		return nil
+	}
+	copyCtx := &MsgContext{
+		MessageType:         ctx.MessageType,
+		Group:               ctx.Group,
+		Player:              ctx.Player,
+		IsCompatibilityTest: ctx.IsCompatibilityTest,
+		EndPoint:            ctx.EndPoint,
+		Session:             ctx.Session,
+		Dice:                ctx.Dice,
+		IsCurGroupBotOn:     ctx.IsCurGroupBotOn,
+		IsPrivate:           ctx.IsPrivate,
+		CommandID:           ctx.CommandID,
+		CommandHideFlag:     ctx.CommandHideFlag,
+		CommandInfo:         ctx.CommandInfo,
+		PrivilegeLevel:      ctx.PrivilegeLevel,
+		GroupRoleLevel:      ctx.GroupRoleLevel,
+		DelegateText:        ctx.DelegateText,
+		AliasPrefixText:     ctx.AliasPrefixText,
+		deckDepth:           ctx.deckDepth,
+		DeckPools:           ctx.DeckPools,
+		diceExprOverwrite:   ctx.diceExprOverwrite,
+		SystemTemplate:      ctx.SystemTemplate,
+		Censored:            ctx.Censored,
+		SpamCheckedGroup:    ctx.SpamCheckedGroup,
+		SpamCheckedPerson:   ctx.SpamCheckedPerson,
+		vm:                  ctx.vm,
+		_v1Rand:             ctx._v1Rand,
+	}
+	copyCtx.SetSplitKey(ctx.getSplitKey())
+	return copyCtx
+}
+
 func (ctx *MsgContext) TranslateSplit(s string) string {
-	if len(ctx.splitKey) == 0 {
+	if len(ctx.getSplitKey()) == 0 {
 		ctx.InitSplitKey()
 	}
-	s = strings.ReplaceAll(s, "#{SPLIT}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "{FormFeed}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "{formfeed}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "\f", ctx.splitKey)
-	s = strings.ReplaceAll(s, "\\f", ctx.splitKey)
+	splitKey := ctx.getSplitKey()
+	s = strings.ReplaceAll(s, "#{SPLIT}", splitKey)
+	s = strings.ReplaceAll(s, "{FormFeed}", splitKey)
+	s = strings.ReplaceAll(s, "{formfeed}", splitKey)
+	s = strings.ReplaceAll(s, "\f", splitKey)
+	s = strings.ReplaceAll(s, "\\f", splitKey)
 	return s
 }
 
 func (ctx *MsgContext) SplitText(text string) []string {
-	if len(ctx.splitKey) == 0 {
+	splitKey := ctx.getSplitKey()
+	if len(splitKey) == 0 {
 		return []string{text}
 	}
-	return strings.Split(text, ctx.splitKey)
+	return strings.Split(text, splitKey)
 }
 
 var curCommandID int64 = 0
