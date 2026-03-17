@@ -597,9 +597,50 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 }
 
 type IMSession struct {
-	Parent       *Dice                        `yaml:"-"`
-	EndPoints    []*EndPointInfo              `yaml:"endPoints"`
-	ServiceAtNew *SyncMap[string, *GroupInfo] `json:"servicesAt" yaml:"-"`
+	Parent       *Dice                              `yaml:"-"`
+	EndPoints    []*EndPointInfo                    `yaml:"endPoints"`
+	ServiceAtNew *SyncMap[string, *GroupInfo]       `json:"servicesAt" yaml:"-"`
+	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
+}
+
+type PendingQuitInfo struct {
+	Origin    string
+	CreatedAt time.Time
+	ExpireAt  time.Time
+}
+
+const (
+	QuitOriginAutoInactive = "auto_inactive"
+)
+
+func makePendingQuitKey(groupID string, endpointID string) string {
+	return groupID + "\x00" + endpointID
+}
+
+func (s *IMSession) MarkPendingQuit(groupID string, endpointID string, origin string, ttl time.Duration) {
+	if s == nil {
+		return
+	}
+	now := time.Now()
+	s.PendingQuits.Store(makePendingQuitKey(groupID, endpointID), &PendingQuitInfo{
+		Origin:    origin,
+		CreatedAt: now,
+		ExpireAt:  now.Add(ttl),
+	})
+}
+
+func (s *IMSession) ConsumePendingQuit(groupID string, endpointID string) *PendingQuitInfo {
+	if s == nil {
+		return nil
+	}
+	info, ok := s.PendingQuits.LoadAndDelete(makePendingQuitKey(groupID, endpointID))
+	if !ok || info == nil {
+		return nil
+	}
+	if time.Now().After(info.ExpireAt) {
+		return nil
+	}
+	return info
 }
 
 type MsgContext struct {
@@ -1661,6 +1702,17 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		return true
 	})
 	// 循环完毕，要不然是因为够了要退的数量，要不就是遍历完毕了，但是不够，总之要进行退群活动了
+	if len(selectedGroupEndpoints) == 0 {
+		return
+	}
+
+	summaryMode := s.Parent.Config.QuitInactiveNoticeSummaryMode
+	var noticeCtx *MsgContext
+	if summaryMode {
+		noticeCtx = &MsgContext{EndPoint: selectedGroupEndpoints[0].Endpoint, Session: s, Dice: s.Parent}
+		noticeCtx.Notice(fmt.Sprintf("自动退群任务开始：本轮预计处理 %d 个群。", len(selectedGroupEndpoints)))
+	}
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -1668,13 +1720,19 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 				log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
 			}
 		}()
+		processed := 0
+		skipped := 0
+		cancelled := 0
+		quitStarted := 0
 		for i, pair := range selectedGroupEndpoints {
 			grp := pair.Group
 			ep := pair.Endpoint
 			if !isAutoQuitEndpointReady(grp, ep, "QQ", "send") {
 				s.Parent.Logger.Infof("自动退群已跳过: 当前账号已离线或不可用，暂不对该群执行退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				skipped++
 				continue
 			}
+			processed++
 			last := pair.Last
 			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出,当前为本轮第 %d 个", grp.GroupID, last.Format(time.RFC3339), i+1)
 			s.Parent.Logger.Info(hint)
@@ -1691,19 +1749,26 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			time.Sleep(2 * time.Second)
 			if !isAutoQuitEndpointReady(grp, ep, "QQ", "quit") {
 				s.Parent.Logger.Infof("自动退群已取消: 当前账号状态发生变化，本次不再继续退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				cancelled++
 				continue
 			}
 			// 删除群聊绑定信息，更新群处理时间
 			grp.DiceIDExistsMap.Delete(ep.UserID)
 			grp.MarkDirty(msgCtx.Dice)
 			// 执行真正的退群活动，理论上这个msgCtx就能直接用
+			s.MarkPendingQuit(grp.GroupID, ep.UserID, QuitOriginAutoInactive, 5*time.Minute)
 			ep.Adapter.QuitGroup(msgCtx, grp.GroupID)
-			// 发出提示
-			msgCtx.Notice(hint)
+			quitStarted++
+			if !summaryMode {
+				msgCtx.Notice(hint)
+			}
 			// 生成一个随机值（8~11秒随机）
 			randomSleep := time.Duration(rand.Intn(3000)+8000) * time.Millisecond
 			logger.M().Infof("退群等待，等待 %f 秒后继续", randomSleep.Seconds())
 			time.Sleep(randomSleep)
+		}
+		if summaryMode && noticeCtx != nil {
+			noticeCtx.Notice(fmt.Sprintf("自动退群任务结束：候选 %d 个，开始处理 %d 个，已发起退群 %d 个，跳过 %d 个，取消 %d 个。", len(selectedGroupEndpoints), processed, quitStarted, skipped, cancelled))
 		}
 	}()
 }
