@@ -77,13 +77,12 @@ func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, tex
 	rawUserID := ExtractDingTalkUserID(uid)
 
 	pa.sessionMu.RLock()
+	defer pa.sessionMu.RUnlock()
 	if pa.IntentSession == nil || !pa.sessionOpened {
-		pa.sessionMu.RUnlock()
 		pa.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略私聊发送")
 		return
 	}
 	session := pa.IntentSession
-	pa.sessionMu.RUnlock()
 
 	messageID, err := session.MessagePrivateSend(rawUserID, pa.RobotCode, &msg)
 	if err != nil {
@@ -107,14 +106,12 @@ func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text
 	rawGroupID := ExtractDingTalkGroupID(uid)
 
 	pa.sessionMu.RLock()
+	defer pa.sessionMu.RUnlock()
 	if pa.IntentSession == nil || !pa.sessionOpened {
-		pa.sessionMu.RUnlock()
 		pa.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略群聊发送")
 		return
 	}
 	session := pa.IntentSession
-	pa.sessionMu.RUnlock()
-
 	messageID, err := session.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msg)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("Dingtalk SendToGroup Error: ", err)
@@ -249,17 +246,18 @@ func (pa *PlatformAdapterDingTalk) Serve() int {
 
 	pa.sessionMu.Lock()
 	defer pa.sessionMu.Unlock()
-
 	if pa.IntentSession == nil {
 		pa.IntentSession = dingtalk.New(pa.ClientID, pa.Token)
 		pa.IntentSession.AddEventHandler(pa.OnChatReceive)
 		pa.IntentSession.AddEventHandler(pa.OnGroupJoined)
 	}
+	session := pa.IntentSession
 
-	if err := pa.IntentSession.Open(); err != nil {
+	if err := session.Open(); err != nil {
 		pa.sessionOpened = false
 		return 1
 	}
+
 	pa.sessionOpened = true
 
 	logger.Info("Dingtalk 连接成功")
@@ -296,21 +294,20 @@ func ExtractDingTalkGroupID(id string) string {
 func (pa *PlatformAdapterDingTalk) closeSessionLocked() error {
 	pa.sessionMu.Lock()
 	defer pa.sessionMu.Unlock()
-
-	if pa.IntentSession == nil || !pa.sessionOpened {
-		pa.sessionOpened = false
-		return nil
-	}
-	err := pa.IntentSession.Close()
+	session := pa.IntentSession
+	opened := pa.sessionOpened
 	pa.sessionOpened = false
 	pa.IntentSession = nil
-	return err
+
+	if session == nil || !opened {
+		return nil
+	}
+	return session.Close()
 }
 
 func (pa *PlatformAdapterDingTalk) openSessionLocked() error {
 	pa.sessionMu.Lock()
 	defer pa.sessionMu.Unlock()
-
 	if pa.IntentSession == nil {
 		pa.IntentSession = dingtalk.New(pa.ClientID, pa.Token)
 		pa.IntentSession.AddEventHandler(pa.OnChatReceive)
@@ -319,10 +316,13 @@ func (pa *PlatformAdapterDingTalk) openSessionLocked() error {
 	if pa.sessionOpened {
 		return nil
 	}
-	if err := pa.IntentSession.Open(); err != nil {
+	session := pa.IntentSession
+
+	if err := session.Open(); err != nil {
 		pa.sessionOpened = false
 		return err
 	}
+
 	pa.sessionOpened = true
 	return nil
 }
