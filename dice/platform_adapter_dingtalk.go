@@ -3,6 +3,7 @@ package dice
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	dingtalk "github.com/Szzrain/DingTalk-go"
@@ -19,46 +20,40 @@ type PlatformAdapterDingTalk struct {
 	CoolAppCode   string            `json:"coolAppCode" yaml:"coolAppCode"`
 	EndPoint      *EndPointInfo     `json:"-"           yaml:"-"`
 	IntentSession *dingtalk.Session `json:"-"           yaml:"-"`
+	sessionMu     sync.RWMutex
+	sessionOpened bool
 }
 
 func (pa *PlatformAdapterDingTalk) DoRelogin() bool {
-	err := pa.IntentSession.Close()
-	if err != nil {
+	if err := pa.closeSessionLocked(); err != nil {
 		pa.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
 		return false
 	}
 	pa.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
-	if pa.IntentSession == nil {
-		pa.Serve()
-		return false
-	}
-	err = pa.IntentSession.Open()
-	if err != nil {
+	if err := pa.openSessionLocked(); err != nil {
 		pa.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
 		pa.EndPoint.State = 3
 		pa.EndPoint.Enable = false
 		return false
 	}
+	pa.EndPoint.State = 1
+	pa.EndPoint.Enable = true
 	return true
 }
 
 func (pa *PlatformAdapterDingTalk) SetEnable(enable bool) {
 	if enable {
 		pa.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
-		if pa.IntentSession == nil {
-			pa.Serve()
-			return
-		}
-		err := pa.IntentSession.Open()
-		if err != nil {
+		if err := pa.openSessionLocked(); err != nil {
 			pa.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
 			pa.EndPoint.State = 3
 			pa.EndPoint.Enable = false
 			return
 		}
+		pa.EndPoint.State = 1
+		pa.EndPoint.Enable = true
 	} else {
-		err := pa.IntentSession.Close()
-		if err != nil {
+		if err := pa.closeSessionLocked(); err != nil {
 			pa.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
 			return
 		}
@@ -80,7 +75,17 @@ func (pa *PlatformAdapterDingTalk) SendSegmentToPerson(ctx *MsgContext, userID s
 func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	msg := dingtalk.MessageSampleText{Content: text}
 	rawUserID := ExtractDingTalkUserID(uid)
-	messageID, err := pa.IntentSession.MessagePrivateSend(rawUserID, pa.RobotCode, &msg)
+
+	pa.sessionMu.RLock()
+	if pa.IntentSession == nil || !pa.sessionOpened {
+		pa.sessionMu.RUnlock()
+		pa.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略私聊发送")
+		return
+	}
+	session := pa.IntentSession
+	pa.sessionMu.RUnlock()
+
+	messageID, err := session.MessagePrivateSend(rawUserID, pa.RobotCode, &msg)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("Dingtalk SendToPerson Error: ", err)
 		return
@@ -100,7 +105,17 @@ func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, tex
 func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	msg := dingtalk.MessageSampleText{Content: text}
 	rawGroupID := ExtractDingTalkGroupID(uid)
-	messageID, err := pa.IntentSession.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msg)
+
+	pa.sessionMu.RLock()
+	if pa.IntentSession == nil || !pa.sessionOpened {
+		pa.sessionMu.RUnlock()
+		pa.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略群聊发送")
+		return
+	}
+	session := pa.IntentSession
+	pa.sessionMu.RUnlock()
+
+	messageID, err := session.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msg)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("Dingtalk SendToGroup Error: ", err)
 		return
@@ -231,13 +246,22 @@ func (pa *PlatformAdapterDingTalk) Serve() int {
 	}
 	logger := pa.Session.Parent.Logger
 	logger.Info("Dingtalk Serve")
-	pa.IntentSession = dingtalk.New(pa.ClientID, pa.Token)
-	pa.IntentSession.AddEventHandler(pa.OnChatReceive)
-	pa.IntentSession.AddEventHandler(pa.OnGroupJoined)
-	err := pa.IntentSession.Open()
-	if err != nil {
+
+	pa.sessionMu.Lock()
+	defer pa.sessionMu.Unlock()
+
+	if pa.IntentSession == nil {
+		pa.IntentSession = dingtalk.New(pa.ClientID, pa.Token)
+		pa.IntentSession.AddEventHandler(pa.OnChatReceive)
+		pa.IntentSession.AddEventHandler(pa.OnGroupJoined)
+	}
+
+	if err := pa.IntentSession.Open(); err != nil {
+		pa.sessionOpened = false
 		return 1
 	}
+	pa.sessionOpened = true
+
 	logger.Info("Dingtalk 连接成功")
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
@@ -267,4 +291,38 @@ func ExtractDingTalkGroupID(id string) string {
 		return id[len("DINGTALK-Group:"):]
 	}
 	return id
+}
+
+func (pa *PlatformAdapterDingTalk) closeSessionLocked() error {
+	pa.sessionMu.Lock()
+	defer pa.sessionMu.Unlock()
+
+	if pa.IntentSession == nil || !pa.sessionOpened {
+		pa.sessionOpened = false
+		return nil
+	}
+	err := pa.IntentSession.Close()
+	pa.sessionOpened = false
+	pa.IntentSession = nil
+	return err
+}
+
+func (pa *PlatformAdapterDingTalk) openSessionLocked() error {
+	pa.sessionMu.Lock()
+	defer pa.sessionMu.Unlock()
+
+	if pa.IntentSession == nil {
+		pa.IntentSession = dingtalk.New(pa.ClientID, pa.Token)
+		pa.IntentSession.AddEventHandler(pa.OnChatReceive)
+		pa.IntentSession.AddEventHandler(pa.OnGroupJoined)
+	}
+	if pa.sessionOpened {
+		return nil
+	}
+	if err := pa.IntentSession.Open(); err != nil {
+		pa.sessionOpened = false
+		return err
+	}
+	pa.sessionOpened = true
+	return nil
 }
