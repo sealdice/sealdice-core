@@ -14,6 +14,348 @@ import (
 // 哨兵错误
 var errMissingCharIdOrName = errors.New("missing id or name")
 
+type sealChatCharacterTarget struct {
+	FormattedGroupID string
+	FormattedUserID  string
+	Attrs            *AttributesItem
+	Ctx              *MsgContext
+	Template         *GameSystemTemplate
+}
+
+type sealChatCharacterOutputEntry struct {
+	Value    any
+	Priority int
+}
+
+type sealChatCharacterAttrSnapshot struct {
+	Key   string
+	Value *ds.VMValue
+}
+
+type sealChatCharacterAttrCandidate struct {
+	RawKey string
+	Value  *ds.VMValue
+}
+
+func (pa *PlatformAdapterSealChat) resolveSealChatCharacterTarget(d *Dice, groupID string, userID string) (*sealChatCharacterTarget, error) {
+	formattedGroupID := FormatDiceIDSealChatGroup(groupID)
+	formattedUserID := FormatDiceIDSealChat(userID)
+
+	attrs, err := d.AttrsManager.Load(formattedGroupID, formattedUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := &Message{
+		MessageType: "group",
+		GroupID:     formattedGroupID,
+		Platform:    "SEALCHAT",
+		Sender: SenderBase{
+			UserID:   formattedUserID,
+			Nickname: "SealChat User",
+		},
+	}
+	if attrs != nil && strings.TrimSpace(attrs.Name) != "" {
+		msg.Sender.Nickname = attrs.Name
+	}
+
+	ctx := CreateTempCtx(pa.EndPoint, msg)
+	tmpl := ctx.Group.GetCharTemplate(d)
+	if attrs != nil && strings.TrimSpace(attrs.SheetType) != "" {
+		if cardTmpl, ok := d.GameSystemMap.Load(attrs.SheetType); ok && cardTmpl != nil {
+			tmpl = cardTmpl
+		}
+	}
+	ctx.SystemTemplate = tmpl
+
+	return &sealChatCharacterTarget{
+		FormattedGroupID: formattedGroupID,
+		FormattedUserID:  formattedUserID,
+		Attrs:            attrs,
+		Ctx:              ctx,
+		Template:         tmpl,
+	}, nil
+}
+
+func sealChatLookupCanonicalAttrKey(tmpl *GameSystemTemplate, key string) (string, bool) {
+	if tmpl == nil || tmpl.AliasMap == nil {
+		return key, false
+	}
+
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	if normalized == "" {
+		return key, false
+	}
+	if value, ok := tmpl.AliasMap.Load(normalized); ok {
+		return value, true
+	}
+
+	normalized = chsS2T.Read(normalized)
+	if value, ok := tmpl.AliasMap.Load(normalized); ok {
+		return value, true
+	}
+	return key, false
+}
+
+func splitSealChatDisplayLabelKey(key string) (string, string, bool) {
+	for _, pair := range [][2]string{{"（", "）"}, {"(", ")"}} {
+		openIdx := strings.Index(key, pair[0])
+		if openIdx <= 0 {
+			continue
+		}
+		closeIdx := strings.LastIndex(key, pair[1])
+		if closeIdx <= openIdx+len(pair[0]) || closeIdx != len(key)-len(pair[1]) {
+			continue
+		}
+
+		left := strings.TrimSpace(key[:openIdx])
+		right := strings.TrimSpace(key[openIdx+len(pair[0]) : closeIdx])
+		if left == "" || right == "" {
+			continue
+		}
+		return left, right, true
+	}
+
+	return "", "", false
+}
+
+func resolveSealChatCharacterAttrKey(key string, tmpl *GameSystemTemplate) (string, error) {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" || tmpl == nil {
+		return trimmed, nil
+	}
+
+	if canonical, ok := sealChatLookupCanonicalAttrKey(tmpl, trimmed); ok {
+		return canonical, nil
+	}
+
+	left, right, ok := splitSealChatDisplayLabelKey(trimmed)
+	if !ok {
+		return trimmed, nil
+	}
+
+	leftCanonical, leftOK := sealChatLookupCanonicalAttrKey(tmpl, left)
+	rightCanonical, rightOK := sealChatLookupCanonicalAttrKey(tmpl, right)
+
+	switch {
+	case leftOK && rightOK && leftCanonical == rightCanonical:
+		return leftCanonical, nil
+	case rightOK && !leftOK:
+		return rightCanonical, nil
+	case leftOK && !rightOK:
+		return leftCanonical, nil
+	case leftOK && rightOK && leftCanonical != rightCanonical:
+		return "", fmt.Errorf("ambiguous attribute display label %q", trimmed)
+	default:
+		return trimmed, nil
+	}
+}
+
+func findSealChatExistingCanonicalAttrValue(attrs *AttributesItem, canonicalKey string, tmpl *GameSystemTemplate) (*ds.VMValue, bool) {
+	if attrs == nil {
+		return nil, false
+	}
+	if value, exists := attrs.LoadX(canonicalKey); exists {
+		return value, true
+	}
+
+	var matchedValue *ds.VMValue
+	matched := false
+	consistent := true
+	attrs.Range(func(key string, value *ds.VMValue) bool {
+		resolvedKey, err := resolveSealChatCharacterAttrKey(key, tmpl)
+		if err != nil || resolvedKey != canonicalKey || key == canonicalKey {
+			return true
+		}
+		if !matched {
+			matchedValue = value
+			matched = true
+			return true
+		}
+		if !ds.ValueEqual(matchedValue, value, false) {
+			consistent = false
+			return false
+		}
+		return true
+	})
+
+	if matched && consistent {
+		return matchedValue, true
+	}
+	return nil, false
+}
+
+func normalizeSealChatCharacterAttrs(attrsData map[string]any, tmpl *GameSystemTemplate, existingAttrs *AttributesItem) (map[string]*ds.VMValue, error) {
+	grouped := make(map[string][]sealChatCharacterAttrCandidate, len(attrsData))
+	for key, rawValue := range attrsData {
+		canonicalKey, err := resolveSealChatCharacterAttrKey(key, tmpl)
+		if err != nil {
+			return nil, err
+		}
+
+		grouped[canonicalKey] = append(grouped[canonicalKey], sealChatCharacterAttrCandidate{
+			RawKey: key,
+			Value:  anyToVMValue(rawValue),
+		})
+	}
+
+	normalized := make(map[string]*ds.VMValue, len(grouped))
+	for canonicalKey, candidates := range grouped {
+		uniqueCandidates := make([]sealChatCharacterAttrCandidate, 0, len(candidates))
+		for _, candidate := range candidates {
+			duplicated := false
+			for _, existing := range uniqueCandidates {
+				if ds.ValueEqual(existing.Value, candidate.Value, false) {
+					duplicated = true
+					break
+				}
+			}
+			if !duplicated {
+				uniqueCandidates = append(uniqueCandidates, candidate)
+			}
+		}
+
+		if len(uniqueCandidates) == 1 {
+			normalized[canonicalKey] = uniqueCandidates[0].Value
+			continue
+		}
+
+		if existingValue, exists := findSealChatExistingCanonicalAttrValue(existingAttrs, canonicalKey, tmpl); exists {
+			changedCandidates := make([]sealChatCharacterAttrCandidate, 0, len(uniqueCandidates))
+			for _, candidate := range uniqueCandidates {
+				if ds.ValueEqual(existingValue, candidate.Value, false) {
+					continue
+				}
+				changedCandidates = append(changedCandidates, candidate)
+			}
+			if len(changedCandidates) == 1 {
+				normalized[canonicalKey] = changedCandidates[0].Value
+				continue
+			}
+			if len(changedCandidates) == 0 {
+				normalized[canonicalKey] = uniqueCandidates[0].Value
+				continue
+			}
+		}
+
+		return nil, fmt.Errorf("conflicting values for attribute %q", canonicalKey)
+	}
+	return normalized, nil
+}
+
+func cleanupSealChatCharacterAliasKeys(attrs *AttributesItem, tmpl *GameSystemTemplate, normalizedAttrs map[string]*ds.VMValue) {
+	if attrs == nil || tmpl == nil || len(normalizedAttrs) == 0 {
+		return
+	}
+
+	toDelete := make([]string, 0)
+	attrs.Range(func(key string, value *ds.VMValue) bool {
+		canonicalKey, err := resolveSealChatCharacterAttrKey(key, tmpl)
+		if err != nil || canonicalKey == "" || canonicalKey == key {
+			return true
+		}
+		if _, exists := normalizedAttrs[canonicalKey]; exists {
+			toDelete = append(toDelete, key)
+		}
+		return true
+	})
+
+	for _, key := range toDelete {
+		attrs.Delete(key)
+	}
+}
+
+func (pa *PlatformAdapterSealChat) setSealChatCharacterAttrs(d *Dice, groupID string, userID string, attrsData map[string]any) (*sealChatCharacterTarget, error) {
+	target, err := pa.resolveSealChatCharacterTarget(d, groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	normalizedAttrs, err := normalizeSealChatCharacterAttrs(attrsData, target.Template, target.Attrs)
+	if err != nil {
+		return nil, err
+	}
+
+	for key, value := range normalizedAttrs {
+		target.Attrs.Store(key, value)
+	}
+	cleanupSealChatCharacterAliasKeys(target.Attrs, target.Template, normalizedAttrs)
+
+	return target, nil
+}
+
+func snapshotSealChatCharacterAttrs(attrs *AttributesItem, tmpl *GameSystemTemplate) ([]sealChatCharacterAttrSnapshot, map[string]struct{}) {
+	if attrs == nil {
+		return nil, nil
+	}
+
+	snapshots := make([]sealChatCharacterAttrSnapshot, 0)
+	canonicalKeys := make(map[string]struct{})
+	attrs.Range(func(key string, value *ds.VMValue) bool {
+		snapshots = append(snapshots, sealChatCharacterAttrSnapshot{
+			Key:   key,
+			Value: value,
+		})
+		if canonicalKey, err := resolveSealChatCharacterAttrKey(key, tmpl); err == nil && canonicalKey == key && canonicalKey != "" {
+			canonicalKeys[canonicalKey] = struct{}{}
+		}
+		return true
+	})
+	return snapshots, canonicalKeys
+}
+
+func buildSealChatCharacterOutputAttrs(target *sealChatCharacterTarget) map[string]any {
+	attrsData := make(map[string]any)
+	if target == nil || target.Attrs == nil {
+		return attrsData
+	}
+
+	snapshots, canonicalKeys := snapshotSealChatCharacterAttrs(target.Attrs, target.Template)
+
+	if target.Template != nil && target.Template.GameSystemTemplateV2 != nil && target.Ctx != nil {
+		target.Ctx.syncAttrsForTemplate(target.Attrs, target.Template.GameSystemTemplateV2)
+	}
+
+	entries := make(map[string]sealChatCharacterOutputEntry)
+	for _, snapshot := range snapshots {
+		key := snapshot.Key
+		value := snapshot.Value
+		outputKey := key
+		priority := 0
+
+		if canonicalKey, err := resolveSealChatCharacterAttrKey(key, target.Template); err == nil && canonicalKey != "" {
+			if canonicalKey == key {
+				outputKey = canonicalKey
+				priority = 2
+			} else if _, exists := canonicalKeys[canonicalKey]; exists {
+				outputKey = canonicalKey
+				priority = 1
+			}
+		}
+
+		if existing, exists := entries[outputKey]; exists {
+			if existing.Priority > priority {
+				continue
+			}
+			if existing.Priority == priority && existing.Value != nil && value != nil {
+				if ds.ValueEqual(anyToVMValue(existing.Value), value, false) {
+					continue
+				}
+			}
+		}
+
+		entries[outputKey] = sealChatCharacterOutputEntry{
+			Value:    vmValueToAny(value),
+			Priority: priority,
+		}
+	}
+
+	for key, entry := range entries {
+		attrsData[key] = entry.Value
+	}
+	return attrsData
+}
+
 // handleCharacterGet 处理获取角色卡请求
 func (pa *PlatformAdapterSealChat) handleCharacterGet(msg satori.ScApiMsgPayload, d *Dice) {
 	dataMap, ok := msg.Data.(map[string]any)
@@ -30,25 +372,13 @@ func (pa *PlatformAdapterSealChat) handleCharacterGet(msg satori.ScApiMsgPayload
 		return
 	}
 
-	// 格式化 ID
-	formattedGroupID := FormatDiceIDSealChatGroup(groupID)
-	formattedUserID := FormatDiceIDSealChat(userID)
-
-	attrs, err := d.AttrsManager.Load(formattedGroupID, formattedUserID)
+	target, err := pa.resolveSealChatCharacterTarget(d, groupID, userID)
 	if err != nil {
 		pa.sendApiResponse(msg.Echo, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-
-	// 将属性导出为 map
-	attrsData := make(map[string]any)
-	if attrs != nil {
-		attrs.Range(func(key string, value *ds.VMValue) bool {
-			// 将 VMValue 转换为可 JSON 序列化的值
-			attrsData[key] = vmValueToAny(value)
-			return true
-		})
-	}
+	attrs := target.Attrs
+	attrsData := buildSealChatCharacterOutputAttrs(target)
 
 	pa.sendApiResponse(msg.Echo, map[string]any{
 		"ok":   true,
@@ -129,7 +459,6 @@ func (pa *PlatformAdapterSealChat) handleCharacterSet(msg satori.ScApiMsgPayload
 
 	// 格式化 ID
 	formattedGroupID := FormatDiceIDSealChatGroup(groupID)
-	formattedUserID := FormatDiceIDSealChat(userID)
 
 	// 安全限制：仅允许写入 SealChat 平台的角色卡
 	if !strings.HasPrefix(formattedGroupID, "SEALCHAT-Group:") {
@@ -143,16 +472,12 @@ func (pa *PlatformAdapterSealChat) handleCharacterSet(msg satori.ScApiMsgPayload
 		return
 	}
 
-	attrs, err := d.AttrsManager.Load(formattedGroupID, formattedUserID)
+	target, err := pa.setSealChatCharacterAttrs(d, groupID, userID, attrsData)
 	if err != nil {
 		pa.sendApiResponse(msg.Echo, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-
-	// 写入属性
-	for k, v := range attrsData {
-		attrs.Store(k, anyToVMValue(v))
-	}
+	attrs := target.Attrs
 
 	// 更新名称（如果提供）
 	if hasName && nameData != "" {
