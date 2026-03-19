@@ -4,7 +4,9 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 )
 
 // RSASign RSA 签名
@@ -49,4 +51,30 @@ func RSAVerify256(data []byte, base64Sig, publicKey string) error {
 	}
 	hashed := CalculateSHA256(data)
 	return rsa.VerifyPSS(key, crypto.SHA256, hashed, sign, nil)
+}
+
+// RSAEncryptOAEP 使用 RSA 公钥加密数据（OAEP + SHA256），返回 base64 编码的密文。
+// 对于超出单次加密长度限制的数据会自动分块加密。
+func RSAEncryptOAEP(plaintext []byte, publicKey string) (string, error) {
+	key := ReadPublicKey[rsa.PublicKey](publicKey)
+	if key == nil {
+		return "", errors.New("failed to parse RSA public key")
+	}
+	hash := sha256.New()
+	// 单次加密最大长度 = keySize - 2*hashSize - 2
+	maxChunkSize := key.Size() - 2*hash.Size() - 2
+	var ciphertext []byte
+	for len(plaintext) > 0 {
+		chunk := plaintext
+		if len(chunk) > maxChunkSize {
+			chunk = plaintext[:maxChunkSize]
+		}
+		encrypted, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, key, chunk, nil)
+		if err != nil {
+			return "", err
+		}
+		ciphertext = append(ciphertext, encrypted...)
+		plaintext = plaintext[len(chunk):]
+	}
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
