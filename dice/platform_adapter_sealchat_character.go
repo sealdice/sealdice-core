@@ -285,8 +285,8 @@ func (pa *PlatformAdapterSealChat) setSealChatCharacterAttrs(d *Dice, groupID st
 	if err != nil {
 		return nil, err
 	}
-	if err := ensureSealChatCharacterAttrs(target); err != nil {
-		return nil, err
+	if ensureErr := ensureSealChatCharacterAttrs(target); ensureErr != nil {
+		return nil, ensureErr
 	}
 
 	normalizedAttrs, err := normalizeSealChatCharacterAttrs(attrsData, target.Template, target.Attrs)
