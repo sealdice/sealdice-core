@@ -1305,8 +1305,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 	}
 
 	cmdCheckHelp := `.check // 生成海豹校验码，可用于在官网校验是否是可信海豹
-.check --plain // 生成 ASCII 字符的海豹校验码
-.check recover // 恢复可信客户端私钥（仅海豹开发组使用，如果你正在阅读这行文字，说明这个功能不是给你用的）`
+.check --plain // 生成 ASCII 字符的海豹校验码`
 	cmdCheck := CmdItemInfo{
 		Name:      "check",
 		ShortHelp: cmdCheckHelp,
@@ -1315,17 +1314,6 @@ func RegisterBuiltinExtFun(self *Dice) {
 			if cmdArgs.IsArgEqual(1, "help") {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
-
-			if cmdArgs.IsArgEqual(1, "recover") {
-				encrypted, err := RecoverSealTrustedClientPrivateKey()
-				if err != nil {
-					ReplyToSender(ctx, msg, fmt.Sprintf("恢复失败: %s", err.Error()))
-					return CmdExecuteResult{Matched: true, Solved: true}
-				}
-				ReplyToSender(ctx, msg, fmt.Sprintf("已加密的可信客户端私钥（请使用对应RSA私钥解密）:\n%s", encrypted))
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
-
 			var code string
 			if kv := cmdArgs.GetKwarg("plain"); kv != nil && kv.AsBool {
 				code = GenerateVerificationCode(
