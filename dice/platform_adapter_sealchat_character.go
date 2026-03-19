@@ -37,6 +37,21 @@ type sealChatCharacterAttrCandidate struct {
 	Value  *ds.VMValue
 }
 
+func ensureSealChatCharacterAttrs(target *sealChatCharacterTarget) error {
+	if target == nil {
+		return errors.New("missing character target")
+	}
+	if target.Attrs != nil {
+		return nil
+	}
+
+	target.Attrs = &AttributesItem{
+		ID:       fmt.Sprintf("%s-%s", target.FormattedGroupID, target.FormattedUserID),
+		valueMap: &ds.ValueMap{},
+	}
+	return nil
+}
+
 func (pa *PlatformAdapterSealChat) resolveSealChatCharacterTarget(d *Dice, groupID string, userID string) (*sealChatCharacterTarget, error) {
 	formattedGroupID := FormatDiceIDSealChatGroup(groupID)
 	formattedUserID := FormatDiceIDSealChat(userID)
@@ -270,6 +285,9 @@ func (pa *PlatformAdapterSealChat) setSealChatCharacterAttrs(d *Dice, groupID st
 	if err != nil {
 		return nil, err
 	}
+	if err := ensureSealChatCharacterAttrs(target); err != nil {
+		return nil, err
+	}
 
 	normalizedAttrs, err := normalizeSealChatCharacterAttrs(attrsData, target.Template, target.Attrs)
 	if err != nil {
@@ -310,11 +328,11 @@ func buildSealChatCharacterOutputAttrs(target *sealChatCharacterTarget) map[stri
 		return attrsData
 	}
 
-	snapshots, canonicalKeys := snapshotSealChatCharacterAttrs(target.Attrs, target.Template)
-
 	if target.Template != nil && target.Template.GameSystemTemplateV2 != nil && target.Ctx != nil {
 		target.Ctx.syncAttrsForTemplate(target.Attrs, target.Template.GameSystemTemplateV2)
 	}
+
+	snapshots, canonicalKeys := snapshotSealChatCharacterAttrs(target.Attrs, target.Template)
 
 	entries := make(map[string]sealChatCharacterOutputEntry)
 	for _, snapshot := range snapshots {
