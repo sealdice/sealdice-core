@@ -549,10 +549,11 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.ProtocolType == "milky" {
 						pa := conn.Adapter.(*dice.PlatformAdapterMilky)
-						if pa.BuiltInMode == "lagrangeV2" {
+						switch pa.BuiltInMode {
+						case "lagrangeV2":
 							dice.ServeMilkyBuiltIn(d, conn)
 							return
-						} else if pa.BuiltInMode == "" {
+						default:
 							// 分离
 							dice.ServeMilky(d, conn)
 						}
