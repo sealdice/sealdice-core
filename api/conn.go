@@ -275,6 +275,13 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 			//			"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrcodeData),
 			//		})
 			//	}
+		case "milky":
+			pa := i.Adapter.(*dice.PlatformAdapterMilky)
+			if pa.BuiltInLoginState == dice.MilkyLoginStateQRWaitingForScan {
+				return c.JSON(http.StatusOK, map[string]string{
+					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
+				})
+			}
 		}
 		return c.JSON(http.StatusOK, i)
 	}

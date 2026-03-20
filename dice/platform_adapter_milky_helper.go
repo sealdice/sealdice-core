@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,7 +60,6 @@ func ServeMilky(d *Dice, ep *EndPointInfo) {
 
 func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
-
 	if d.ContainerMode {
 		d.Logger.Warnf("当前处于容器模式，Milky 内置版本不可用")
 		ep.State = 3
@@ -76,6 +76,19 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		return
 	}
 	conn := ep.Adapter.(*PlatformAdapterMilky)
+	doServe := func() {
+		if ep.Platform == "QQ" {
+			d.Logger.Infof("Milky 尝试连接")
+			if conn.Serve() != 0 {
+				d.Logger.Errorf("连接Milky失败")
+				ep.State = 3
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+				// TODO: kill process
+			}
+		}
+	}
+	pa := conn
 	conn.EndPoint = ep
 	conn.Session = d.ImSession
 	ep.Session = d.ImSession
@@ -96,11 +109,75 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	p.Env = []string{
 		fmt.Sprintf("APP_LAUNCHER_SIG=%s", BuildSignature(uint64(uin))),
 	}
+	chQrCode := make(chan int, 1)
+	qrcodeFilePath := filepath.Join(workDir, "qrcode.png")
+	pa.BuiltInLoginState = MilkyLoginStateInit
+	p.OutputHandler = func(line string, _type string) string {
+		// 登录中
+		if pa.BuiltInLoginState < MilkyLoginStateConnecting {
+			qrcodeSignal := "Fetch QrCode Success"
+			onlineSignal := "successfully logged in"
+			qrcodeExpiredSignal := "QrCode Expired, Please Fetch QrCode Again"
+			// 读取二维码
+			if strings.Contains(line, qrcodeSignal) {
+				chQrCode <- 1
+			}
+
+			// 登录成功
+			if strings.Contains(line, onlineSignal) {
+				pa.BuiltInLoginState = MilkyLoginStateQRConnected
+				log.Infof("Milky 登录成功，账号：<%s>(%s)", ep.Nickname, ep.UserID)
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+
+				// 经测试，若不延时，登录成功的同一时刻进行ws正向连接有几率导致第一次连接失败
+				time.Sleep(1 * time.Second)
+				go doServe()
+			}
+
+			if strings.Contains(line, qrcodeExpiredSignal) {
+				// 二维码过期，登录失败，杀掉进程
+				pa.BuiltInLoginState = MilkyLoginStateFailed
+				log.Infof("Milky 二维码过期，登录失败，账号：%s", ep.UserID)
+				// TODO: kill process
+			}
+		}
+
+		if _type == "stderr" {
+			log.Error("Milky Internal: ", strings.TrimSpace(line))
+		} else {
+			log.Info("Milky Internal: ", strings.TrimSpace(line))
+		}
+
+		return ""
+	}
+
+	go func() {
+		<-chQrCode
+		time.Sleep(3 * time.Second)
+		if _, err := os.Stat(qrcodeFilePath); err == nil {
+			log.Info("Milky 二维码已就绪")
+			qrdata, err := os.ReadFile(qrcodeFilePath)
+			if err == nil {
+				pa.BuiltInLoginState = MilkyLoginStateQRWaitingForScan
+				pa.QrCodeData = qrdata
+				log.Info("Milky 读取二维码成功")
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+			} else {
+				pa.BuiltInLoginState = MilkyLoginStateFailed
+				pa.QrCodeData = nil
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+				log.Infof("Milky 读取二维码失败：%s", err)
+			}
+		}
+	}()
 
 	run := func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Errorf("MilkyInteral 异常: %v 堆栈: %v", r, string(debug.Stack()))
+				log.Errorf("MilkyInternal 异常: %v 堆栈: %v", r, string(debug.Stack()))
 			}
 		}()
 
@@ -127,16 +204,4 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	}
 
 	go run()
-
-	time.Sleep(5 * time.Second)
-
-	if ep.Platform == "QQ" {
-		d.Logger.Infof("Milky 尝试连接")
-		if conn.Serve() != 0 {
-			d.Logger.Errorf("连接Milky失败")
-			ep.State = 3
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
-	}
 }

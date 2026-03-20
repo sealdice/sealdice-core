@@ -27,9 +27,21 @@ type PlatformAdapterMilky struct {
 	Token               string         `json:"token"                 yaml:"token"`
 	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
 	// 内置
-	BuiltInMode  string         `json:"built_in_mode" yaml:"built_in_mode"`
-	MilkyProcess *procs.Process `json:"-" yaml:"-"`
+	BuiltInMode       string          `json:"built_in_mode" yaml:"built_in_mode"`
+	MilkyProcess      *procs.Process  `json:"-" yaml:"-"`
+	BuiltInLoginState MilkyLoginState `json:"-" yaml:"-"`
+	QrCodeData        []byte          `json:"-"                          yaml:"-"`
 }
+
+type MilkyLoginState int64
+
+const (
+	MilkyLoginStateInit MilkyLoginState = iota
+	MilkyLoginStateQRWaitingForScan
+	MilkyLoginStateConnecting
+	MilkyLoginStateQRConnected
+	MilkyLoginStateFailed
+)
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
