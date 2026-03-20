@@ -139,5 +139,5 @@ func BuildSignature(uin uint64) string {
 	copy(sigPayload[0:16], msg[:])
 	copy(sigPayload[16:80], sig)
 
-	return base2048.DefaultEncoding.EncodeToString(sigPayload[:])
+	return base64.StdEncoding.EncodeToString(sigPayload[:])
 }
