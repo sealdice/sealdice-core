@@ -548,7 +548,14 @@ func diceServe(d *dice.Dice) {
 						return
 					}
 					if conn.ProtocolType == "milky" {
-						dice.ServeMilky(d, conn)
+						pa := conn.Adapter.(*dice.PlatformAdapterMilky)
+						if pa.BuiltInMode == "lagrangeV2" {
+							dice.ServeMilkyBuiltIn(d, conn)
+							return
+						} else if pa.BuiltInMode == "" {
+							// 分离
+							dice.ServeMilky(d, conn)
+						}
 						return
 					}
 					if conn.ProtocolType == "pureonebot" {

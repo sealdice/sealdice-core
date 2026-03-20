@@ -684,7 +684,42 @@ func ImConnectionsAddMilky(c echo.Context) error {
 			Token:       v.Token,
 			WsGateway:   v.WsGateway,
 			RestGateway: v.RestGateway,
+			BuiltInMode: "",
 		})
+		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServeMilky(myDice, conn)
+		return c.JSON(http.StatusOK, conn)
+	}
+	return c.String(430, "")
+}
+
+func ImConnectionsAddMilkyInternal(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		Uin        uint64 `json:"uin" yaml:"uin"`
+		ClientMode string `json:"clientMode" yaml:"clientMode"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		conn := dice.NewMilkyConnItem(dice.AddMilkyEcho{
+			Token:       "",
+			WsGateway:   "",
+			RestGateway: "",
+			BuiltInMode: v.ClientMode,
+		})
+		conn.UserID = dice.FormatDiceIDQQ(strconv.FormatUint(v.Uin, 10))
 		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
 		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)

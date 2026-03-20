@@ -13,8 +13,9 @@ import (
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
-	logger "sealdice-core/logger"
+	"sealdice-core/logger"
 	"sealdice-core/message"
+	"sealdice-core/utils/procs"
 )
 
 type PlatformAdapterMilky struct {
@@ -25,6 +26,9 @@ type PlatformAdapterMilky struct {
 	RestGateway         string         `json:"rest_gateway"          yaml:"rest_gateway"`
 	Token               string         `json:"token"                 yaml:"token"`
 	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
+	// 内置
+	BuiltInMode  string         `json:"built_in_mode" yaml:"built_in_mode"`
+	MilkyProcess *procs.Process `json:"-" yaml:"-"`
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
