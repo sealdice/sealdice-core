@@ -551,6 +551,9 @@ func diceServe(d *dice.Dice) {
 						pa := conn.Adapter.(*dice.PlatformAdapterMilky)
 						switch pa.BuiltInMode {
 						case "lagrangeV2":
+							if runtime.GOOS == "android" {
+								return
+							}
 							dice.ServeMilkyBuiltIn(d, conn)
 							return
 						default:

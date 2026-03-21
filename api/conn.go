@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"net/http"
+	"runtime"
 	"sort"
 	"strconv"
 	"time"
@@ -712,6 +713,10 @@ func ImConnectionsAddMilkyInternal(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]interface{}{
 			"testMode": true,
 		})
+	}
+
+	if runtime.GOOS == "android" {
+		return c.String(430, "Milky 内置版本暂不支持 Android")
 	}
 
 	v := struct {

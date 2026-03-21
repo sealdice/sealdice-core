@@ -17,6 +17,97 @@ import (
 	"sealdice-core/utils/procs"
 )
 
+var defaultLagrangeV2Config = `{
+    "$schema": "https://raw.githubusercontent.com/LagrangeDev/LagrangeV2/refs/heads/main/Lagrange.Milky/Resources/appsettings_schema.json",
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+        },
+    },
+    "Core": {
+        // "Server": {
+        //     Whether to automatically reconnect to the server
+        //     "AutoReconnect": true,
+
+        //     Whether to use IPv6 to connect to the server
+        //     "UseIPv6Network": false,
+
+        //     Whether to automatically select the fastest server
+        //     "GetOptimumServer": true,
+        // },
+        "Signer": {
+            // Signer URL
+            "Url": "{NTSignServer地址}",
+
+            // Signer token
+            // "Token": null
+
+            // Proxy for connect signer
+            // only supports Http proxy
+            // "ProxyUrl": null,
+        },
+        "Login": {
+            // Account uin
+            // If the Uin is inconsistent with the actual login account, quick login will not be possible
+            "Uin": {账号UIN},
+            
+            // Account password
+            // Set to null to login via QrCode
+            // "Password": null,
+
+            // Device Name
+            // Only valid when logging in without Keystore
+            "DeviceName": "Ubuntu 22.04",
+
+            // Whether to try to log in automatically after disconnection
+            // "AutoReLogin": true,
+
+            // Whether to use ASCII compatible QrCode
+            // "CompatibleQrCode": false,
+
+            // Whether to use the online validating parser provided by the mysterious person
+            // "UseOnlineCaptchaResolver": true,
+        },
+    },
+    "Milky": {
+        // The host that Milky service listens on
+        // Look https://learn.microsoft.com/zh-cn/dotnet/fundamentals/runtime-libraries/system-net-httplistener
+        // If you use * to expose your data to all networks, please ensure proper security settings
+        // e.g. setting a access token, configuring a firewall
+        "Host": "127.0.0.1",
+
+        // The port that the Milky service listens on
+        "Port": {WS端口},
+
+        // The path prefix that Milky service listens on
+        // "Prefix": "/",
+
+        // Token for verification, Set to null to disable
+        // "AccessToken": null
+
+        // Whether to enable WebSocket service
+        // "EnabledWebSocket": true,
+
+        // Set to null to disable the WebHook service
+        // "WebHook": null, // Default
+        // "WebHook": {
+        //     // WebHook Target URL
+        //     "Url": "http://127.0.0.1:3001/webhook"
+        // }
+
+        // "Message": {
+        //     // Whether to ignore messages sent by Bot
+        //     "IgnoreBotMessage": false,
+        //     "Cache": {
+        //         "Policy": "LRU",
+        //         // Maximum cache capacity
+        //         "Capacity": 1000,
+        //     },
+        // },
+    },
+}
+`
+
 type AddMilkyEcho struct {
 	Token       string
 	WsGateway   string
@@ -96,13 +187,23 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 
 	workDir := filepath.Join(d.BaseConfig.DataDir, ep.RelWorkDir)
 	diceWorkdir, _ := os.Getwd()
-	milkyExePath, _ := filepath.Abs(filepath.Join(diceWorkdir, "milky/milky"))
+	milkyExePath, _ := filepath.Abs(filepath.Join(diceWorkdir, fmt.Sprintf("milky/%s", pa.BuiltInMode)))
+	configFilePath := filepath.Join(workDir, "appsettings.jsonc")
+	qrcodeFilePath := filepath.Join(workDir, "qrcode.png")
 	milkyExePath = filepath.ToSlash(milkyExePath) // windows平台需要这个替换
 	if runtime.GOOS == "windows" {
 		milkyExePath += ".exe" //nolint:ineffassign
 	}
 	_ = os.MkdirAll(workDir, 0o755)
-	// TODO: generate config file
+	if pa.WsGateway == "" {
+		p, _ := GetRandomFreePort()
+		pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", p)
+		pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", p)
+		// 生成配置写入文件
+		// TODO: 获取服务器地址
+		c := GenerateMilkyConfig(p, "", ep)
+		_ = os.WriteFile(configFilePath, c, 0o644)
+	}
 	command := fmt.Sprintf(`"%s"`, milkyExePath)
 	p := procs.NewProcess(command)
 	p.Dir = workDir
@@ -110,7 +211,6 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		fmt.Sprintf("APP_LAUNCHER_SIG=%s", BuildSignature(uint64(uin))),
 	}
 	chQrCode := make(chan int, 1)
-	qrcodeFilePath := filepath.Join(workDir, "qrcode.png")
 	pa.BuiltInLoginState = MilkyLoginStateInit
 	p.OutputHandler = func(line string, _type string) string {
 		// 登录中
@@ -204,4 +304,18 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	}
 
 	go run()
+}
+
+// GenerateMilkyConfig 似乎暂时不需要 APPInfo, 如果以后需要了再改成双返回值
+func GenerateMilkyConfig(port int, signServerUrl string, info *EndPointInfo) []byte {
+	pa := info.Adapter.(*PlatformAdapterMilky)
+	switch pa.BuiltInMode {
+	case "lagrangeV2":
+		conf := strings.ReplaceAll(defaultLagrangeV2Config, "{WS端口}", strconv.Itoa(port))
+		conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
+		conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
+		return []byte(conf)
+	default:
+		return nil
+	}
 }
