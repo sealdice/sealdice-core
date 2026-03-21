@@ -184,7 +184,8 @@ func ImConnectionsDel(c echo.Context) error {
 				switch i.Platform {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
-					if i.ProtocolType == "onebot" {
+					switch i.ProtocolType {
+					case "onebot":
 						pa := i.Adapter.(*dice.PlatformAdapterGocq)
 						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 							dice.BuiltinQQServeProcessKillBase(myDice, i, true)
@@ -194,6 +195,14 @@ func ImConnectionsDel(c echo.Context) error {
 						} else {
 							dice.BuiltinQQServeProcessKill(myDice, i)
 						}
+					case "milky":
+						pa := i.Adapter.(*dice.PlatformAdapterMilky)
+						pa.SetEnable(false)
+						if pa.BuiltInMode != "" {
+							dice.BuiltinMilkyClientKill(myDice, i)
+						}
+					default:
+						i.Adapter.SetEnable(false)
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":

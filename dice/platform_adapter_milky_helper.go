@@ -1,6 +1,8 @@
 package dice
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -149,6 +151,39 @@ func ServeMilky(d *Dice, ep *EndPointInfo) {
 	}
 }
 
+func BuiltinMilkyClientKill(dice *Dice, conn *EndPointInfo) {
+	defer func() {
+		if r := recover(); r != nil {
+			dice.Logger.Error("内置 Milky 客户端清理报错: ", r)
+		}
+	}()
+	pa, ok := conn.Adapter.(*PlatformAdapterMilky)
+	defer func() {
+		pa.MilkyProcess = nil
+	}()
+	if !ok {
+		return
+	}
+	if pa.BuiltInMode == "" {
+		return
+	}
+	if pa.MilkyProcess != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		go func() {
+			<-ctx.Done()
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				dice.Logger.Errorf("Milky 进程未能在 5 秒内退出，可能需要手动结束，工作目录:")
+			}
+		}()
+		err := pa.MilkyProcess.Stop()
+		if err != nil {
+			dice.Logger.Error("停止 Milky 进程失败: ", err)
+		}
+		_ = pa.MilkyProcess.Wait()
+	}
+}
+
 func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if d.ContainerMode {
@@ -175,7 +210,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 				ep.State = 3
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
-				// TODO: kill process
+				BuiltinMilkyClientKill(d, ep)
 			}
 		}
 	}
@@ -195,8 +230,19 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		milkyExePath += ".exe" //nolint:ineffassign
 	}
 	_ = os.MkdirAll(workDir, 0o755)
+	_ = os.Chmod(milkyExePath, 0o755)
+	if pa.MilkyProcess != nil {
+		BuiltinMilkyClientKill(d, ep)
+	}
 	if pa.WsGateway == "" {
-		p, _ := GetRandomFreePort()
+		p, err := GetRandomFreePort()
+		if err != nil {
+			log.Errorf("获取随机端口失败: %s", err)
+			ep.State = 3
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
+			return
+		}
 		pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", p)
 		pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", p)
 		// 生成配置写入文件
@@ -217,7 +263,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		if pa.BuiltInLoginState < MilkyLoginStateConnecting {
 			qrcodeSignal := "Fetch QrCode Success"
 			onlineSignal := "successfully logged in"
-			qrcodeExpiredSignal := "QrCode Expired, Please Fetch QrCode Again"
+			qrcodeExpiredSignal := "QrCode State: 17"
 			// 读取二维码
 			if strings.Contains(line, qrcodeSignal) {
 				chQrCode <- 1
@@ -239,7 +285,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 				// 二维码过期，登录失败，杀掉进程
 				pa.BuiltInLoginState = MilkyLoginStateFailed
 				log.Infof("Milky 二维码过期，登录失败，账号：%s", ep.UserID)
-				// TODO: kill process
+				BuiltinMilkyClientKill(d, ep)
 			}
 		}
 
