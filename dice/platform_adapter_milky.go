@@ -421,11 +421,11 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		return 1
-	} else {
-		log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
-		pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
-		pa.EndPoint.Nickname = info.Nickname
 	}
+
+	log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
+	pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
+	pa.EndPoint.Nickname = info.Nickname
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
 	d.LastUpdatedTime = time.Now().Unix()
