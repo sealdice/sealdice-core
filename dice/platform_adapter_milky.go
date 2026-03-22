@@ -30,7 +30,7 @@ type PlatformAdapterMilky struct {
 	// BuiltInMode 留空则视为分离，目前支持的字段为 lagrangeV2
 	BuiltInMode       string          `json:"built_in_mode" yaml:"built_in_mode"`
 	MilkyProcess      *procs.Process  `json:"-" yaml:"-"`
-	BuiltInLoginState MilkyLoginState `json:"-" yaml:"-"`
+	BuiltInLoginState MilkyLoginState `json:"loginState" yaml:"-"`
 	QrCodeData        []byte          `json:"-"                          yaml:"-"`
 }
 
@@ -38,6 +38,7 @@ type MilkyLoginState int64
 
 const (
 	MilkyLoginStateInit MilkyLoginState = iota
+	MilkyLoginStatePlaceholder
 	MilkyLoginStateQRWaitingForScan
 	MilkyLoginStateConnecting
 	MilkyLoginStateQRConnected
@@ -588,37 +589,48 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 
 func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	if enable {
-		log.Infof("正在启用Milky服务……")
-		if pa.IntentSession == nil {
-			pa.Serve()
-			return
-		}
-		err := pa.IntentSession.Open()
-		if err != nil {
-			log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
-			pa.EndPoint.State = 3
-			pa.EndPoint.Enable = false
-			return
-		}
-		info, err := pa.IntentSession.GetLoginInfo()
-		if err != nil {
-			log.Errorf("Failed to get login info: %v", err)
+	if pa.BuiltInMode == "" {
+		if enable {
+			log.Infof("正在启用Milky服务……")
+			if pa.IntentSession == nil {
+				pa.Serve()
+				return
+			}
+			err := pa.IntentSession.Open()
+			if err != nil {
+				log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
+				pa.EndPoint.State = 3
+				pa.EndPoint.Enable = false
+				return
+			}
+			info, err := pa.IntentSession.GetLoginInfo()
+			if err != nil {
+				log.Errorf("Failed to get login info: %v", err)
+			} else {
+				pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
+				pa.EndPoint.Nickname = info.Nickname
+				log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
+			}
+			pa.EndPoint.State = 1
+			pa.EndPoint.Enable = true
 		} else {
-			pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
-			pa.EndPoint.Nickname = info.Nickname
-			log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
+			pa.EndPoint.State = 0
+			pa.EndPoint.Enable = false
+			_ = pa.IntentSession.Close()
 		}
-		pa.EndPoint.State = 1
-		pa.EndPoint.Enable = true
-	} else {
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
-		_ = pa.IntentSession.Close()
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return
 	}
-	d := pa.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+	if enable {
+		go ServeMilkyBuiltIn(pa.Session.Parent, pa.EndPoint)
+	} else {
+		if pa.IntentSession != nil {
+			_ = pa.IntentSession.Close()
+		}
+		BuiltinMilkyClientKill(pa.Session.Parent, pa.EndPoint)
+	}
 }
 
 func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {
