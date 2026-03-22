@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -124,10 +123,10 @@ func GenerateVerificationKeyForPublicDice(data any) string {
 func BuildSignature(uin uint64) string {
 	decoded, err2 := hex.DecodeString(strings.TrimSpace(SealSignClientPrivateKey))
 	if err2 != nil {
-		log.Fatalf("decode private key: %v", err2)
+		return ""
 	}
 	if len(decoded) != ed25519.PrivateKeySize {
-		log.Fatalf("private key must be %d bytes, got %d", ed25519.PrivateKeySize, len(decoded))
+		return ""
 	}
 	var msg [16]byte
 	binary.BigEndian.PutUint64(msg[0:8], uin)

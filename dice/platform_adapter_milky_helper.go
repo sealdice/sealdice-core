@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -162,15 +163,15 @@ func BuiltinMilkyClientKill(dice *Dice, conn *EndPointInfo) {
 		}
 	}()
 	pa, ok := conn.Adapter.(*PlatformAdapterMilky)
-	defer func() {
-		pa.MilkyProcess = nil
-	}()
 	if !ok {
 		return
 	}
 	if pa.BuiltInMode == "" {
 		return
 	}
+	defer func() {
+		pa.MilkyProcess = nil
+	}()
 	if pa.MilkyProcess != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -260,6 +261,8 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		fmt.Sprintf("APP_LAUNCHER_SIG=%s", BuildSignature(uint64(uin))),
 	}
 	chQrCode := make(chan int, 1)
+	qrSignalCalled := atomic.Bool{}
+	qrSignalCalled.Store(false)
 	pa.BuiltInLoginState = MilkyLoginStateInit
 	p.OutputHandler = func(line string, _type string) string {
 		// 登录中
@@ -268,7 +271,8 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 			onlineSignal := "successfully logged in"
 			qrcodeExpiredSignal := "QrCode State: 17"
 			// 读取二维码
-			if strings.Contains(line, qrcodeSignal) {
+			if strings.Contains(line, qrcodeSignal) && !qrSignalCalled.Load() {
+				qrSignalCalled.Store(true)
 				chQrCode <- 1
 			}
 
