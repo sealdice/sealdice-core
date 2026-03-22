@@ -737,15 +737,15 @@ func ImConnectionsAddMilkyInternal(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		clientMode := c.FormValue("clientMode")
 		// Only allow explicitly supported client modes for built-in Milky
 		supportedClientModes := map[string]struct{}{
+			// lagrangeV2
 			"lagrangeV2": {},
 		}
-		if _, ok := supportedClientModes[clientMode]; !ok {
+		if _, ok := supportedClientModes[v.ClientMode]; !ok {
 			return c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"error":      "unsupported clientMode",
-				"clientMode": clientMode,
+				"clientMode": v.ClientMode,
 			})
 		}
 		conn := dice.NewMilkyConnItem(dice.AddMilkyEcho{
