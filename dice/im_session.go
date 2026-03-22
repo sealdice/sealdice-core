@@ -276,7 +276,7 @@ func (g *GroupInfo) UnmarshalJSON(data []byte) error {
 // 同时将群组 ID 加入脏列表，Save 时只遍历脏列表
 func (g *GroupInfo) MarkDirty(d *Dice) {
 	now := time.Now().Unix()
-	g.UpdatedAtTime = now
+	atomic.StoreInt64(&g.UpdatedAtTime, now)
 	if d != nil && d.DirtyGroups != nil {
 		d.DirtyGroups.Store(g.GroupID, now)
 	}
@@ -597,9 +597,50 @@ func (ep *EndPointInfo) StatsDump(d *Dice) {
 }
 
 type IMSession struct {
-	Parent       *Dice                        `yaml:"-"`
-	EndPoints    []*EndPointInfo              `yaml:"endPoints"`
-	ServiceAtNew *SyncMap[string, *GroupInfo] `json:"servicesAt" yaml:"-"`
+	Parent       *Dice                              `yaml:"-"`
+	EndPoints    []*EndPointInfo                    `yaml:"endPoints"`
+	ServiceAtNew *SyncMap[string, *GroupInfo]       `json:"servicesAt" yaml:"-"`
+	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
+}
+
+type PendingQuitInfo struct {
+	Origin    string
+	CreatedAt time.Time
+	ExpireAt  time.Time
+}
+
+const (
+	QuitOriginAutoInactive = "auto_inactive"
+)
+
+func makePendingQuitKey(groupID string, endpointID string) string {
+	return groupID + "\x00" + endpointID
+}
+
+func (s *IMSession) MarkPendingQuit(groupID string, endpointID string, origin string, ttl time.Duration) {
+	if s == nil {
+		return
+	}
+	now := time.Now()
+	s.PendingQuits.Store(makePendingQuitKey(groupID, endpointID), &PendingQuitInfo{
+		Origin:    origin,
+		CreatedAt: now,
+		ExpireAt:  now.Add(ttl),
+	})
+}
+
+func (s *IMSession) ConsumePendingQuit(groupID string, endpointID string) *PendingQuitInfo {
+	if s == nil {
+		return nil
+	}
+	info, ok := s.PendingQuits.LoadAndDelete(makePendingQuitKey(groupID, endpointID))
+	if !ok || info == nil {
+		return nil
+	}
+	if time.Now().After(info.ExpireAt) {
+		return nil
+	}
+	return info
 }
 
 type MsgContext struct {
@@ -631,10 +672,10 @@ type MsgContext struct {
 	SpamCheckedGroup  bool
 	SpamCheckedPerson bool
 
-	splitKey      string
-	vm            *ds.Context
-	AttrsCurCache *AttributesItem
-	_v1Rand       *rand2.PCGSource
+	splitKeyMu sync.RWMutex
+	splitKey   string
+	vm         *ds.Context
+	_v1Rand    *rand2.PCGSource
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
@@ -1569,6 +1610,43 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		Endpoint *EndPointInfo
 		Last     time.Time
 	}
+	isAutoQuitEndpointReady := func(grp *GroupInfo, ep *EndPointInfo, platform string, phase string) bool {
+		groupID := "<nil>"
+		if grp != nil {
+			groupID = grp.GroupID
+		}
+		if grp == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 找不到群信息，暂时无法处理该群。phase=%s group=%s platform=%s", phase, groupID, platform)
+			return false
+		}
+		if ep == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 找不到对应账号连接，暂时无法处理该群。phase=%s group=%s platform=%s", phase, groupID, platform)
+			return false
+		}
+		if ep.Adapter == nil || ep.Session == nil {
+			s.Parent.Logger.Debugf(
+				"自动退群已跳过: 账号连接尚未准备完成，暂时无法处理该群。phase=%s group=%s platform=%s endpoint=%s adapter_nil=%t session_nil=%t",
+				phase,
+				groupID,
+				platform,
+				ep.UserID,
+				ep.Adapter == nil,
+				ep.Session == nil,
+			)
+			return false
+		}
+		if grp.DiceIDExistsMap == nil {
+			s.Parent.Logger.Debugf("自动退群已跳过: 群内账号记录缺失，暂时无法确认是否可退群。phase=%s group=%s platform=%s endpoint=%s", phase, groupID, platform, ep.UserID)
+			return false
+		}
+		if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+			return false
+		}
+		if !ep.Enable || ep.State != StateConnected {
+			return false
+		}
+		return true
+	}
 	var selectedGroupEndpoints = make([]*GroupEndpointPair, 0)
 	var groupCount int
 	s.ServiceAtNew.Range(func(key string, grp *GroupInfo) bool {
@@ -1593,7 +1671,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			return true
 		}
 		// 获取上次骰子活动时间
-		last := time.Unix(grp.RecentDiceSendTime, 0)
+		last := time.Unix(atomic.LoadInt64(&grp.RecentDiceSendTime), 0)
 		// 如果enter是进入时间，它比活动时间更晚（说明骰子刚进去，但是骰子还没有说话），那么上次骰子活动时间=进入时间
 		if enter := time.Unix(grp.EnteredTime, 0); enter.After(last) {
 			last = enter
@@ -1608,7 +1686,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		if last.Before(threshold) {
 			for _, ep := range s.EndPoints {
 				// 找到对应的endpoints，并准备退掉它的群
-				if ep.Platform != platform || !grp.DiceIDExistsMap.Exists(ep.UserID) {
+				if !isAutoQuitEndpointReady(grp, ep, platform, "select") {
 					continue
 				}
 				selectedGroupEndpoints = append(selectedGroupEndpoints, &GroupEndpointPair{Group: grp, Endpoint: ep, Last: last})
@@ -1623,14 +1701,37 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		return true
 	})
 	// 循环完毕，要不然是因为够了要退的数量，要不就是遍历完毕了，但是不够，总之要进行退群活动了
+	if len(selectedGroupEndpoints) == 0 {
+		return
+	}
+
+	summaryMode := s.Parent.Config.QuitInactiveNoticeSummaryMode
+	var noticeCtx *MsgContext
+	if summaryMode {
+		noticeCtx = &MsgContext{EndPoint: selectedGroupEndpoints[0].Endpoint, Session: s, Dice: s.Parent}
+		noticeCtx.Notice(fmt.Sprintf("自动退群任务开始：本轮预计处理 %d 个群。", len(selectedGroupEndpoints)))
+	}
+
 	go func() {
-		if r := recover(); r != nil {
-			log := zap.S().Named(logger.LogKeyAdapter)
-			log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				log := zap.S().Named(logger.LogKeyAdapter)
+				log.Errorf("自动退群异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+		processed := 0
+		skipped := 0
+		cancelled := 0
+		quitStarted := 0
 		for i, pair := range selectedGroupEndpoints {
 			grp := pair.Group
 			ep := pair.Endpoint
+			if !isAutoQuitEndpointReady(grp, ep, "QQ", "send") {
+				s.Parent.Logger.Infof("自动退群已跳过: 当前账号已离线或不可用，暂不对该群执行退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				skipped++
+				continue
+			}
+			processed++
 			last := pair.Last
 			hint := fmt.Sprintf("检测到群 %s 上次活动时间为 %s，尝试退出,当前为本轮第 %d 个", grp.GroupID, last.Format(time.RFC3339), i+1)
 			s.Parent.Logger.Info(hint)
@@ -1645,17 +1746,28 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 			// 退群在退群消息延迟两秒后发送，确保消息发送完成
 			time.Sleep(2 * time.Second)
+			if !isAutoQuitEndpointReady(grp, ep, "QQ", "quit") {
+				s.Parent.Logger.Infof("自动退群已取消: 当前账号状态发生变化，本次不再继续退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
+				cancelled++
+				continue
+			}
 			// 删除群聊绑定信息，更新群处理时间
 			grp.DiceIDExistsMap.Delete(ep.UserID)
 			grp.MarkDirty(msgCtx.Dice)
 			// 执行真正的退群活动，理论上这个msgCtx就能直接用
+			s.MarkPendingQuit(grp.GroupID, ep.UserID, QuitOriginAutoInactive, 5*time.Minute)
 			ep.Adapter.QuitGroup(msgCtx, grp.GroupID)
-			// 发出提示
-			msgCtx.Notice(hint)
+			quitStarted++
+			if !summaryMode {
+				msgCtx.Notice(hint)
+			}
 			// 生成一个随机值（8~11秒随机）
 			randomSleep := time.Duration(rand.Intn(3000)+8000) * time.Millisecond
 			logger.M().Infof("退群等待，等待 %f 秒后继续", randomSleep.Seconds())
 			time.Sleep(randomSleep)
+		}
+		if summaryMode && noticeCtx != nil {
+			noticeCtx.Notice(fmt.Sprintf("自动退群任务结束：候选 %d 个，开始处理 %d 个，已发起退群 %d 个，跳过 %d 个，取消 %d 个。", len(selectedGroupEndpoints), processed, quitStarted, skipped, cancelled))
 		}
 	}()
 }
@@ -2350,6 +2462,15 @@ func (ctx *MsgContext) Notice(txt string) {
 var randSourceSplitKey = rand2.NewSource(uint64(time.Now().Unix()))
 
 func (ctx *MsgContext) InitSplitKey() {
+	ctx.splitKeyMu.RLock()
+	if len(ctx.splitKey) > 0 {
+		ctx.splitKeyMu.RUnlock()
+		return
+	}
+	ctx.splitKeyMu.RUnlock()
+
+	ctx.splitKeyMu.Lock()
+	defer ctx.splitKeyMu.Unlock()
 	if len(ctx.splitKey) > 0 {
 		return
 	}
@@ -2363,23 +2484,72 @@ func (ctx *MsgContext) InitSplitKey() {
 	ctx.splitKey = "###" + s + "###"
 }
 
+func (ctx *MsgContext) SetSplitKey(key string) {
+	ctx.splitKeyMu.Lock()
+	ctx.splitKey = key
+	ctx.splitKeyMu.Unlock()
+}
+
+func (ctx *MsgContext) getSplitKey() string {
+	ctx.splitKeyMu.RLock()
+	defer ctx.splitKeyMu.RUnlock()
+	return ctx.splitKey
+}
+
+func (ctx *MsgContext) ShallowCopy() *MsgContext {
+	if ctx == nil {
+		return nil
+	}
+	copyCtx := &MsgContext{
+		MessageType:         ctx.MessageType,
+		Group:               ctx.Group,
+		Player:              ctx.Player,
+		IsCompatibilityTest: ctx.IsCompatibilityTest,
+		EndPoint:            ctx.EndPoint,
+		Session:             ctx.Session,
+		Dice:                ctx.Dice,
+		IsCurGroupBotOn:     ctx.IsCurGroupBotOn,
+		IsPrivate:           ctx.IsPrivate,
+		CommandID:           ctx.CommandID,
+		CommandHideFlag:     ctx.CommandHideFlag,
+		CommandInfo:         ctx.CommandInfo,
+		PrivilegeLevel:      ctx.PrivilegeLevel,
+		GroupRoleLevel:      ctx.GroupRoleLevel,
+		DelegateText:        ctx.DelegateText,
+		AliasPrefixText:     ctx.AliasPrefixText,
+		deckDepth:           ctx.deckDepth,
+		DeckPools:           ctx.DeckPools,
+		diceExprOverwrite:   ctx.diceExprOverwrite,
+		SystemTemplate:      ctx.SystemTemplate,
+		Censored:            ctx.Censored,
+		SpamCheckedGroup:    ctx.SpamCheckedGroup,
+		SpamCheckedPerson:   ctx.SpamCheckedPerson,
+		vm:                  ctx.vm,
+		_v1Rand:             ctx._v1Rand,
+	}
+	copyCtx.SetSplitKey(ctx.getSplitKey())
+	return copyCtx
+}
+
 func (ctx *MsgContext) TranslateSplit(s string) string {
-	if len(ctx.splitKey) == 0 {
+	if len(ctx.getSplitKey()) == 0 {
 		ctx.InitSplitKey()
 	}
-	s = strings.ReplaceAll(s, "#{SPLIT}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "{FormFeed}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "{formfeed}", ctx.splitKey)
-	s = strings.ReplaceAll(s, "\f", ctx.splitKey)
-	s = strings.ReplaceAll(s, "\\f", ctx.splitKey)
+	splitKey := ctx.getSplitKey()
+	s = strings.ReplaceAll(s, "#{SPLIT}", splitKey)
+	s = strings.ReplaceAll(s, "{FormFeed}", splitKey)
+	s = strings.ReplaceAll(s, "{formfeed}", splitKey)
+	s = strings.ReplaceAll(s, "\f", splitKey)
+	s = strings.ReplaceAll(s, "\\f", splitKey)
 	return s
 }
 
 func (ctx *MsgContext) SplitText(text string) []string {
-	if len(ctx.splitKey) == 0 {
+	splitKey := ctx.getSplitKey()
+	if len(splitKey) == 0 {
 		return []string{text}
 	}
-	return strings.Split(text, ctx.splitKey)
+	return strings.Split(text, splitKey)
 }
 
 var curCommandID int64 = 0

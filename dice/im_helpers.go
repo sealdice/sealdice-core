@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -182,7 +183,7 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 	case "group":
 		ok := s.SendGroupForwardMsg(ctx, msg.GroupID, nodes)
 		if ok && ctx.Group != nil {
-			ctx.Group.RecentDiceSendTime = time.Now().Unix()
+			atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
 			ctx.Group.MarkDirty(ctx.Dice)
 		}
 		return ok
@@ -455,7 +456,7 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		text = "要发送的文本过长"
 	}
 	if ctx.Group != nil {
-		ctx.Group.RecentDiceSendTime = time.Now().Unix()
+		atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
 		ctx.Group.MarkDirty(ctx.Dice)
 	}
 	text = strings.TrimSpace(text)

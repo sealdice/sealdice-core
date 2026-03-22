@@ -740,7 +740,7 @@ func (d *Dice) JsLoadScripts() {
 				scriptData, _ := os.ReadFile(target)
 				if ok, _ := CheckJsSign(scriptData); !ok {
 					d.Logger.Warnf("已存在的内置脚本「%s」未通过校验，进行覆盖", script.Name())
-					_ = os.WriteFile(target, scriptData, 0o644)
+					_ = os.WriteFile(target, scriptData, 0o644) //nolint:gosec
 				}
 			}
 		}
@@ -751,13 +751,13 @@ func (d *Dice) JsLoadScripts() {
 	_ = filepath.Walk(builtinPath, func(path string, info fs.FileInfo, err error) error {
 		if isScriptFile(path) {
 			d.Logger.Info("正在读取内置脚本: ", path)
-			data, err := os.ReadFile(path)
+			data, err := os.ReadFile(path) //nolint:gosec
 			if err != nil {
 				d.Logger.Error("读取内置脚本失败(无法访问): ", err.Error())
 				return nil
 			}
 			// 检查内置脚本签名，检查不通过则拒绝加载
-			scriptData, _ := os.ReadFile(path)
+			scriptData, _ := os.ReadFile(path) //nolint:gosec
 			if ok, _ := CheckJsSign(scriptData); ok {
 				jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, true)
 				if err != nil {
@@ -782,7 +782,7 @@ func (d *Dice) JsLoadScripts() {
 		}
 		if isScriptFile(path) {
 			d.Logger.Info("正在读取脚本: ", path)
-			data, err := os.ReadFile(path)
+			data, err := os.ReadFile(path) //nolint:gosec
 			if err != nil {
 				d.Logger.Error("读取脚本失败(无法访问): ", err.Error())
 				return nil
@@ -1315,8 +1315,19 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 	if len(newData) == 0 {
 		return errors.New("new data is empty")
 	}
-	// 更新插件
-	err = os.WriteFile(jsScriptInfo.Filename, newData, 0o755)
+	// 更新插件，验证文件路径在脚本目录内以防止路径穿越
+	scriptsDirAbs, err := filepath.Abs(filepath.Join(d.BaseConfig.DataDir, "scripts"))
+	if err != nil {
+		return fmt.Errorf("获取脚本目录绝对路径失败: %w", err)
+	}
+	filenameAbs, err := filepath.Abs(jsScriptInfo.Filename)
+	if err != nil {
+		return fmt.Errorf("获取脚本文件绝对路径失败: %w", err)
+	}
+	if !strings.HasPrefix(filenameAbs, scriptsDirAbs+string(filepath.Separator)) {
+		return fmt.Errorf("script filename %q is outside scripts directory", jsScriptInfo.Filename)
+	}
+	err = os.WriteFile(filenameAbs, newData, 0o755) //nolint:gosec
 	if err != nil {
 		d.Logger.Errorf("插件“%s”更新时保存文件出错，%s", jsScriptInfo.Name, err.Error())
 		return err
