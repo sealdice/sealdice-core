@@ -3,12 +3,16 @@ package dice
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Milly/go-base2048"
 	"github.com/vmihailenco/msgpack"
+	"golang.org/x/crypto/ed25519"
 
 	"sealdice-core/logger"
 	"sealdice-core/utils/crypto"
@@ -17,6 +21,8 @@ import (
 var (
 	// SealTrustedClientPrivateKey 可信客户端私钥
 	SealTrustedClientPrivateKey = ``
+	// SealSignClientPrivateKey 拉起 海豹v3 签名用私钥
+	SealSignClientPrivateKey = ``
 )
 
 func initVerify() {
@@ -27,6 +33,12 @@ func initVerify() {
 		SealTrustedClientPrivateKey = key
 	} else if len(SealTrustedClientPrivateKey) == 0 {
 		log.Warn("SEAL_TRUSTED_PRIVATE_KEY not found, maybe in development mode")
+	}
+	keySign := os.Getenv("SEAL_SIGN_PRIVATE_KEY")
+	if len(keySign) > 0 {
+		SealSignClientPrivateKey = keySign
+	} else if len(SealSignClientPrivateKey) == 0 {
+		log.Warn("SEAL_SIGN_PRIVATE_KEY not found, maybe in development mode")
 	}
 }
 
@@ -106,4 +118,25 @@ func GenerateVerificationKeyForPublicDice(data any) string {
 		return fmt.Sprintf("SEAL#%s", base64.StdEncoding.EncodeToString(dp))
 	}
 	return fmt.Sprintf("SEAL~%s", base64.StdEncoding.EncodeToString(dp))
+}
+
+func BuildSignature(uin uint64) string {
+	decoded, err2 := hex.DecodeString(strings.TrimSpace(SealSignClientPrivateKey))
+	if err2 != nil {
+		return ""
+	}
+	if len(decoded) != ed25519.PrivateKeySize {
+		return ""
+	}
+	var msg [16]byte
+	binary.BigEndian.PutUint64(msg[0:8], uin)
+	binary.BigEndian.PutUint64(msg[8:16], uint64(time.Now().Unix()))
+
+	sig := ed25519.Sign(decoded, msg[:])
+
+	var sigPayload [80]byte
+	copy(sigPayload[0:16], msg[:])
+	copy(sigPayload[16:80], sig)
+
+	return base64.StdEncoding.EncodeToString(sigPayload[:])
 }
