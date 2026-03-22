@@ -553,22 +553,36 @@ func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	if pa.IntentSession == nil {
-		success := pa.Serve()
-		return success == 0
+	pa.EndPoint.State = 2
+	// 分离
+	if pa.BuiltInMode == "" {
+		if pa.IntentSession == nil {
+			success := pa.Serve()
+			return success == 0
+		}
+		_ = pa.IntentSession.Close()
+		err := pa.IntentSession.Open()
+		if err != nil {
+			log.Errorf("Milky Connect Error:%s", err.Error())
+			pa.EndPoint.State = 0
+			return false
+		}
+		pa.EndPoint.State = 1
+		pa.EndPoint.Enable = true
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return true
 	}
-	_ = pa.IntentSession.Close()
-	err := pa.IntentSession.Open()
-	if err != nil {
-		log.Errorf("Milky Connect Error:%s", err.Error())
-		pa.EndPoint.State = 0
-		return false
+	// 内置
+	// 先断开连接
+	if pa.IntentSession != nil {
+		_ = pa.IntentSession.Close()
 	}
-	pa.EndPoint.State = 1
-	pa.EndPoint.Enable = true
-	d := pa.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+	// kill
+	BuiltinMilkyClientKill(pa.Session.Parent, pa.EndPoint)
+	MilkyRemoveSession(pa.Session.Parent, pa.EndPoint)
+	go ServeMilkyBuiltIn(pa.Session.Parent, pa.EndPoint)
 	return true
 }
 

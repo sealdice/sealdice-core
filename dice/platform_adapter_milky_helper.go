@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -175,7 +177,7 @@ func BuiltinMilkyClientKill(dice *Dice, conn *EndPointInfo) {
 		go func() {
 			<-ctx.Done()
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				dice.Logger.Errorf("Milky 进程未能在 5 秒内退出，可能需要手动结束，工作目录:")
+				dice.Logger.Error("Milky 进程未能在 5 秒内退出，可能需要手动结束")
 			}
 		}()
 		err := pa.MilkyProcess.Stop()
@@ -293,7 +295,11 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		if _type == "stderr" {
 			log.Error("Milky Internal: ", strings.TrimSpace(line))
 		} else {
-			log.Info("Milky Internal: ", strings.TrimSpace(line))
+			if ep.State != 1 {
+				log.Info("Milky Internal: ", strings.TrimSpace(line))
+			} else {
+				log.Debug("Milky Internal: ", strings.TrimSpace(line))
+			}
 		}
 
 		return ""
@@ -364,5 +370,37 @@ func GenerateMilkyConfig(port int, signServerUrl string, info *EndPointInfo) []b
 		return []byte(conf)
 	default:
 		return nil
+	}
+}
+
+func findKeystoreFiles(root string) ([]string, error) {
+	var matches []string
+	re := regexp.MustCompile(`^\d+\.keystore$`)
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !d.IsDir() && re.MatchString(d.Name()) {
+			matches = append(matches, path)
+		}
+
+		return nil
+	})
+
+	return matches, err
+}
+
+func MilkyRemoveSession(dice *Dice, conn *EndPointInfo) {
+	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
+	keyStores, err := findKeystoreFiles(workDir)
+	if err != nil {
+		dice.Logger.Errorf("查找 keystore 文件失败: %v", err)
+	}
+	for _, file := range keyStores {
+		if _, err := os.Stat(file); err == nil {
+			_ = os.Remove(file)
+		}
 	}
 }

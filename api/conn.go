@@ -200,6 +200,9 @@ func ImConnectionsDel(c echo.Context) error {
 						pa.SetEnable(false)
 						if pa.BuiltInMode != "" {
 							dice.BuiltinMilkyClientKill(myDice, i)
+							time.Sleep(1 * time.Second)
+							// 这个可以复用，别的就算了
+							dice.LagrangeServeRemoveConfig(myDice, i)
 						}
 					default:
 						i.Adapter.SetEnable(false)
