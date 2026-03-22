@@ -110,6 +110,8 @@ var defaultLagrangeV2Config = `{
 }
 `
 
+var SealSignV3Url = ``
+
 type AddMilkyEcho struct {
 	Token       string
 	WsGateway   string
@@ -246,8 +248,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", p)
 		pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", p)
 		// 生成配置写入文件
-		// TODO: 获取服务器地址
-		c := GenerateMilkyConfig(p, "", ep)
+		c := GenerateMilkyConfig(p, SealSignV3Url, ep)
 		_ = os.WriteFile(configFilePath, c, 0o644)
 	}
 	command := fmt.Sprintf(`"%s"`, milkyExePath)

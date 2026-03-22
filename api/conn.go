@@ -746,7 +746,7 @@ func ImConnectionsAddMilkyInternal(c echo.Context) error {
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
-		go dice.ServeMilky(myDice, conn)
+		go dice.ServeMilkyBuiltIn(myDice, conn)
 		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
