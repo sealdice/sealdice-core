@@ -213,6 +213,7 @@ func TestShouldDismissRequireOwnerConfirmMilkyMember(t *testing.T) {
 
 func newMilkyQuitCommandTestContext(t *testing.T, d *Dice, senderID, groupID, groupName string) (*MsgContext, *Message, *[]int64) {
 	t.Helper()
+	d.ExtList = nil
 
 	quitCalls := []int64{}
 	pa := &PlatformAdapterMilky{}
@@ -279,6 +280,7 @@ func TestDismissMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 func TestDismissMilkyLookupErrorFallsBackToSafetyConfirmation(t *testing.T) {
 	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
+	d.ExtList = nil
 
 	var quitCalls []int64
 	pa := &PlatformAdapterMilky{}
@@ -430,7 +432,7 @@ func TestShouldDismissRequireOwnerConfirmMilkyNilMember(t *testing.T) {
 	pa := &PlatformAdapterMilky{
 		IntentSession: &milky.Session{},
 		getGroupMemberInfo: func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
-			return nil, nil
+			return nil, errors.New(errGetGroupMemberInfoNil)
 		},
 	}
 

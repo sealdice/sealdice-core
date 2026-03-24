@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"path/filepath"
@@ -780,13 +781,13 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 
 func (pa *PlatformAdapterMilky) GetGroupMemberRole(groupID string, userID string) (string, error) {
 	if pa == nil || pa.IntentSession == nil {
-		return "", fmt.Errorf("milky session unavailable")
+		return "", errors.New("milky session unavailable")
 	}
 
 	rawGroupID := strings.TrimSpace(ExtractQQGroupID(groupID))
 	rawUserID := strings.TrimSpace(ExtractQQUserID(userID))
 	if rawGroupID == "" || rawUserID == "" {
-		return "", fmt.Errorf("cannot resolve milky group/user id")
+		return "", errors.New("cannot resolve milky group/user id")
 	}
 
 	groupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)
@@ -803,11 +804,11 @@ func (pa *PlatformAdapterMilky) GetGroupMemberRole(groupID string, userID string
 		return "", err
 	}
 	if memberInfo == nil {
-		return "", fmt.Errorf(errGetGroupMemberInfoNil)
+		return "", errors.New(errGetGroupMemberInfoNil)
 	}
 	role, ok := parseQQGroupRole(memberInfo.Role)
 	if !ok {
-		return "", fmt.Errorf(errGetGroupMemberInfoEmptyRole)
+		return "", errors.New(errGetGroupMemberInfoEmptyRole)
 	}
 	return role, nil
 }
