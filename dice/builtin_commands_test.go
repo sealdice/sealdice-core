@@ -10,6 +10,16 @@ import (
 	ds "github.com/sealdice/dicescript"
 )
 
+const (
+	testMilkyBotUserID               = "QQ:10010"
+	testMilkyBotQQID           int64 = 10010
+	testMilkyOwnerGroupID            = "QQ-Group:2010"
+	testMilkyOwnerGroupQQID    int64 = 2010
+	testMilkyFallbackGroupID         = "QQ-Group:2020"
+	testMilkyFallbackGroupQQID int64 = 2020
+	testMilkyOwnerRole               = "owner"
+)
+
 func newQuitCommandTestContext(t *testing.T, d *Dice, ep *EndPointInfo, senderID, groupID, groupName string) (*MsgContext, *Message) {
 	t.Helper()
 
@@ -137,15 +147,14 @@ func TestDismissAcceptsFourDigitConfirmationCode(t *testing.T) {
 }
 
 func TestShouldDismissRequireOwnerConfirmMilkyOwner(t *testing.T) {
-	orig := milkyGetGroupMemberInfo
-	t.Cleanup(func() {
-		milkyGetGroupMemberInfo = orig
-	})
-	milkyGetGroupMemberInfo = func(_ *milky.Session, groupID, userID int64, noCache bool) (*milky.GroupMemberInfo, error) {
-		if groupID != 2005 || userID != 10001 || noCache {
-			t.Fatalf("unexpected lookup args: groupID=%d userID=%d noCache=%v", groupID, userID, noCache)
-		}
-		return &milky.GroupMemberInfo{Role: "owner"}, nil
+	pa := &PlatformAdapterMilky{
+		IntentSession: &milky.Session{},
+		getGroupMemberInfo: func(_ *milky.Session, groupID, userID int64, noCache bool) (*milky.GroupMemberInfo, error) {
+			if groupID != 2005 || userID != 10001 || noCache {
+				t.Fatalf("unexpected lookup args: groupID=%d userID=%d noCache=%v", groupID, userID, noCache)
+			}
+			return &milky.GroupMemberInfo{Role: testMilkyOwnerRole}, nil
+		},
 	}
 
 	ctx := &MsgContext{
@@ -155,9 +164,7 @@ func TestShouldDismissRequireOwnerConfirmMilkyOwner(t *testing.T) {
 				Platform:     "QQ",
 				ProtocolType: "milky",
 			},
-			Adapter: &PlatformAdapterMilky{
-				IntentSession: &milky.Session{},
-			},
+			Adapter: pa,
 		},
 	}
 
@@ -174,12 +181,11 @@ func TestShouldDismissRequireOwnerConfirmMilkyOwner(t *testing.T) {
 }
 
 func TestShouldDismissRequireOwnerConfirmMilkyMember(t *testing.T) {
-	orig := milkyGetGroupMemberInfo
-	t.Cleanup(func() {
-		milkyGetGroupMemberInfo = orig
-	})
-	milkyGetGroupMemberInfo = func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
-		return &milky.GroupMemberInfo{Role: "member"}, nil
+	pa := &PlatformAdapterMilky{
+		IntentSession: &milky.Session{},
+		getGroupMemberInfo: func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
+			return &milky.GroupMemberInfo{Role: "member"}, nil
+		},
 	}
 
 	ctx := &MsgContext{
@@ -189,9 +195,7 @@ func TestShouldDismissRequireOwnerConfirmMilkyMember(t *testing.T) {
 				Platform:     "QQ",
 				ProtocolType: "milky",
 			},
-			Adapter: &PlatformAdapterMilky{
-				IntentSession: &milky.Session{},
-			},
+			Adapter: pa,
 		},
 	}
 
@@ -207,58 +211,47 @@ func TestShouldDismissRequireOwnerConfirmMilkyMember(t *testing.T) {
 	}
 }
 
-func newMilkyQuitCommandTestContext(t *testing.T, d *Dice, senderID, groupID, groupName string) (*MsgContext, *Message, *[]int64, func()) {
+func newMilkyQuitCommandTestContext(t *testing.T, d *Dice, senderID, groupID, groupName string) (*MsgContext, *Message, *[]int64) {
 	t.Helper()
 
-	origGet := milkyGetGroupMemberInfo
-	origSend := milkySendGroupMessage
-	origQuit := milkyQuitGroup
-	restore := func() {
-		milkyGetGroupMemberInfo = origGet
-		milkySendGroupMessage = origSend
-		milkyQuitGroup = origQuit
-	}
-
 	quitCalls := []int64{}
-	milkyGetGroupMemberInfo = func(_ *milky.Session, groupIDInt, userIDInt int64, noCache bool) (*milky.GroupMemberInfo, error) {
-		if groupIDInt != 2010 || userIDInt != 10010 || noCache {
-			t.Fatalf("unexpected lookup args: groupID=%d userID=%d noCache=%v", groupIDInt, userIDInt, noCache)
-		}
-		return &milky.GroupMemberInfo{Role: "owner"}, nil
-	}
-	milkySendGroupMessage = func(_ *milky.Session, _ int64, _ *[]milky.IMessageElement) (*milky.MessageRet, error) {
-		return &milky.MessageRet{}, nil
-	}
-	milkyQuitGroup = func(_ *milky.Session, groupIDInt int64) error {
-		quitCalls = append(quitCalls, groupIDInt)
-		return nil
-	}
-
+	pa := &PlatformAdapterMilky{}
 	ep := &EndPointInfo{
 		EndPointInfoBase: EndPointInfoBase{
-			UserID:       "QQ:10010",
+			UserID:       testMilkyBotUserID,
 			Platform:     "QQ",
 			ProtocolType: "milky",
 			Nickname:     "MilkyBot",
 		},
 	}
-	ep.Adapter = &PlatformAdapterMilky{
-		EndPoint:      ep,
-		Session:       d.ImSession,
-		IntentSession: &milky.Session{},
+	pa.EndPoint = ep
+	pa.Session = d.ImSession
+	pa.IntentSession = &milky.Session{}
+	pa.getGroupMemberInfo = func(_ *milky.Session, groupIDInt, userIDInt int64, noCache bool) (*milky.GroupMemberInfo, error) {
+		if groupIDInt != testMilkyOwnerGroupQQID || userIDInt != testMilkyBotQQID || noCache {
+			t.Fatalf("unexpected lookup args: groupID=%d userID=%d noCache=%v", groupIDInt, userIDInt, noCache)
+		}
+		return &milky.GroupMemberInfo{Role: testMilkyOwnerRole}, nil
 	}
+	pa.sendGroupMessage = func(_ *milky.Session, _ int64, _ *[]milky.IMessageElement) (*milky.MessageRet, error) {
+		return &milky.MessageRet{}, nil
+	}
+	pa.quitGroup = func(_ *milky.Session, groupIDInt int64) error {
+		quitCalls = append(quitCalls, groupIDInt)
+		return nil
+	}
+	ep.Adapter = pa
 
 	d.Config.BotExitWithoutAt = true
 	ctx, msg := newQuitCommandTestContext(t, d, ep, senderID, groupID, groupName)
-	return ctx, msg, &quitCalls, restore
+	return ctx, msg, &quitCalls
 }
 
 func TestDismissMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
 
-	ctx, msg, quitCalls, restore := newMilkyQuitCommandTestContext(t, d, "QQ:9010", "QQ-Group:2010", "MilkyDismissGroup")
-	t.Cleanup(restore)
+	ctx, msg, quitCalls := newMilkyQuitCommandTestContext(t, d, "QQ:9010", testMilkyOwnerGroupID, "MilkyDismissGroup")
 
 	first := d.CmdMap["dismiss"].Solve(ctx, msg, &CmdArgs{})
 	if !first.Matched || !first.Solved {
@@ -278,7 +271,7 @@ func TestDismissMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	if !second.Matched || !second.Solved {
 		t.Fatalf("unexpected confirmed result: %#v", second)
 	}
-	if len(*quitCalls) != 1 || (*quitCalls)[0] != 2010 {
+	if len(*quitCalls) != 1 || (*quitCalls)[0] != testMilkyOwnerGroupQQID {
 		t.Fatalf("expected exactly one milky quit call for group 2010, got %#v", *quitCalls)
 	}
 }
@@ -287,27 +280,8 @@ func TestDismissMilkyLookupErrorFallsBackToSafetyConfirmation(t *testing.T) {
 	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
 
-	origGet := milkyGetGroupMemberInfo
-	origSend := milkySendGroupMessage
-	origQuit := milkyQuitGroup
-	t.Cleanup(func() {
-		milkyGetGroupMemberInfo = origGet
-		milkySendGroupMessage = origSend
-		milkyQuitGroup = origQuit
-	})
-
 	var quitCalls []int64
-	milkyGetGroupMemberInfo = func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
-		return nil, errors.New("milky lookup failed")
-	}
-	milkySendGroupMessage = func(_ *milky.Session, _ int64, _ *[]milky.IMessageElement) (*milky.MessageRet, error) {
-		return &milky.MessageRet{}, nil
-	}
-	milkyQuitGroup = func(_ *milky.Session, groupIDInt int64) error {
-		quitCalls = append(quitCalls, groupIDInt)
-		return nil
-	}
-
+	pa := &PlatformAdapterMilky{}
 	ep := &EndPointInfo{
 		EndPointInfoBase: EndPointInfoBase{
 			UserID:       "QQ:10020",
@@ -316,14 +290,23 @@ func TestDismissMilkyLookupErrorFallsBackToSafetyConfirmation(t *testing.T) {
 			Nickname:     "MilkyBot",
 		},
 	}
-	ep.Adapter = &PlatformAdapterMilky{
-		EndPoint:      ep,
-		Session:       d.ImSession,
-		IntentSession: &milky.Session{},
+	pa.EndPoint = ep
+	pa.Session = d.ImSession
+	pa.IntentSession = &milky.Session{}
+	pa.getGroupMemberInfo = func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
+		return nil, errors.New("milky lookup failed")
 	}
+	pa.sendGroupMessage = func(_ *milky.Session, _ int64, _ *[]milky.IMessageElement) (*milky.MessageRet, error) {
+		return &milky.MessageRet{}, nil
+	}
+	pa.quitGroup = func(_ *milky.Session, groupIDInt int64) error {
+		quitCalls = append(quitCalls, groupIDInt)
+		return nil
+	}
+	ep.Adapter = pa
 
 	d.Config.BotExitWithoutAt = true
-	ctx, msg := newQuitCommandTestContext(t, d, ep, "QQ:9020", "QQ-Group:2020", "MilkyFallbackGroup")
+	ctx, msg := newQuitCommandTestContext(t, d, ep, "QQ:9020", testMilkyFallbackGroupID, "MilkyFallbackGroup")
 
 	needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, msg.GroupID)
 	if checked || needConfirm {
@@ -351,7 +334,7 @@ func TestDismissMilkyLookupErrorFallsBackToSafetyConfirmation(t *testing.T) {
 	if !second.Matched || !second.Solved {
 		t.Fatalf("unexpected confirmed result: %#v", second)
 	}
-	if len(quitCalls) != 1 || quitCalls[0] != 2020 {
+	if len(quitCalls) != 1 || quitCalls[0] != testMilkyFallbackGroupQQID {
 		t.Fatalf("expected exactly one milky quit call for group 2020, got %#v", quitCalls)
 	}
 }
@@ -360,8 +343,7 @@ func TestBotByeMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
 
-	ctx, msg, quitCalls, restore := newMilkyQuitCommandTestContext(t, d, "QQ:9011", "QQ-Group:2010", "MilkyBotByeGroup")
-	t.Cleanup(restore)
+	ctx, msg, quitCalls := newMilkyQuitCommandTestContext(t, d, "QQ:9011", testMilkyOwnerGroupID, "MilkyBotByeGroup")
 
 	first := d.CmdMap["bot"].Solve(ctx, msg, &CmdArgs{Args: []string{"bye"}})
 	if !first.Matched || !first.Solved {
@@ -381,7 +363,7 @@ func TestBotByeMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	if !second.Matched || !second.Solved {
 		t.Fatalf("unexpected confirmed result: %#v", second)
 	}
-	if len(*quitCalls) != 1 || (*quitCalls)[0] != 2010 {
+	if len(*quitCalls) != 1 || (*quitCalls)[0] != testMilkyOwnerGroupQQID {
 		t.Fatalf("expected exactly one milky quit call for group 2010, got %#v", *quitCalls)
 	}
 }
@@ -390,8 +372,7 @@ func TestBotExitMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
 
-	ctx, msg, quitCalls, restore := newMilkyQuitCommandTestContext(t, d, "QQ:9013", "QQ-Group:2010", "MilkyBotExitGroup")
-	t.Cleanup(restore)
+	ctx, msg, quitCalls := newMilkyQuitCommandTestContext(t, d, "QQ:9013", testMilkyOwnerGroupID, "MilkyBotExitGroup")
 
 	first := d.CmdMap["bot"].Solve(ctx, msg, &CmdArgs{Args: []string{"exit"}})
 	if !first.Matched || !first.Solved {
@@ -411,7 +392,7 @@ func TestBotExitMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	if !second.Matched || !second.Solved {
 		t.Fatalf("unexpected confirmed result: %#v", second)
 	}
-	if len(*quitCalls) != 1 || (*quitCalls)[0] != 2010 {
+	if len(*quitCalls) != 1 || (*quitCalls)[0] != testMilkyOwnerGroupQQID {
 		t.Fatalf("expected exactly one milky quit call for group 2010, got %#v", *quitCalls)
 	}
 }
@@ -420,8 +401,7 @@ func TestBotQuitMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
 
-	ctx, msg, quitCalls, restore := newMilkyQuitCommandTestContext(t, d, "QQ:9012", "QQ-Group:2010", "MilkyBotQuitGroup")
-	t.Cleanup(restore)
+	ctx, msg, quitCalls := newMilkyQuitCommandTestContext(t, d, "QQ:9012", testMilkyOwnerGroupID, "MilkyBotQuitGroup")
 
 	first := d.CmdMap["bot"].Solve(ctx, msg, &CmdArgs{Args: []string{"quit"}})
 	if !first.Matched || !first.Solved {
@@ -441,18 +421,17 @@ func TestBotQuitMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	if !second.Matched || !second.Solved {
 		t.Fatalf("unexpected confirmed result: %#v", second)
 	}
-	if len(*quitCalls) != 1 || (*quitCalls)[0] != 2010 {
+	if len(*quitCalls) != 1 || (*quitCalls)[0] != testMilkyOwnerGroupQQID {
 		t.Fatalf("expected exactly one milky quit call for group 2010, got %#v", *quitCalls)
 	}
 }
 
 func TestShouldDismissRequireOwnerConfirmMilkyNilMember(t *testing.T) {
-	orig := milkyGetGroupMemberInfo
-	t.Cleanup(func() {
-		milkyGetGroupMemberInfo = orig
-	})
-	milkyGetGroupMemberInfo = func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
-		return nil, nil
+	pa := &PlatformAdapterMilky{
+		IntentSession: &milky.Session{},
+		getGroupMemberInfo: func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
+			return nil, nil
+		},
 	}
 
 	ctx := &MsgContext{
@@ -462,9 +441,7 @@ func TestShouldDismissRequireOwnerConfirmMilkyNilMember(t *testing.T) {
 				Platform:     "QQ",
 				ProtocolType: "milky",
 			},
-			Adapter: &PlatformAdapterMilky{
-				IntentSession: &milky.Session{},
-			},
+			Adapter: pa,
 		},
 	}
 
@@ -472,18 +449,17 @@ func TestShouldDismissRequireOwnerConfirmMilkyNilMember(t *testing.T) {
 	if checked || needConfirm {
 		t.Fatalf("expected milky nil member result to fail check, got needConfirm=%v checked=%v detail=%q", needConfirm, checked, detail)
 	}
-	if !strings.Contains(detail, "returned nil") {
+	if !strings.Contains(detail, errGetGroupMemberInfoNil) {
 		t.Fatalf("expected nil-member detail, got %q", detail)
 	}
 }
 
 func TestShouldDismissRequireOwnerConfirmMilkyEmptyRole(t *testing.T) {
-	orig := milkyGetGroupMemberInfo
-	t.Cleanup(func() {
-		milkyGetGroupMemberInfo = orig
-	})
-	milkyGetGroupMemberInfo = func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
-		return &milky.GroupMemberInfo{}, nil
+	pa := &PlatformAdapterMilky{
+		IntentSession: &milky.Session{},
+		getGroupMemberInfo: func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
+			return &milky.GroupMemberInfo{}, nil
+		},
 	}
 
 	ctx := &MsgContext{
@@ -493,9 +469,7 @@ func TestShouldDismissRequireOwnerConfirmMilkyEmptyRole(t *testing.T) {
 				Platform:     "QQ",
 				ProtocolType: "milky",
 			},
-			Adapter: &PlatformAdapterMilky{
-				IntentSession: &milky.Session{},
-			},
+			Adapter: pa,
 		},
 	}
 
@@ -503,7 +477,7 @@ func TestShouldDismissRequireOwnerConfirmMilkyEmptyRole(t *testing.T) {
 	if checked || needConfirm {
 		t.Fatalf("expected milky empty role result to fail check, got needConfirm=%v checked=%v detail=%q", needConfirm, checked, detail)
 	}
-	if !strings.Contains(detail, "empty role") {
+	if !strings.Contains(detail, errGetGroupMemberInfoEmptyRole) {
 		t.Fatalf("expected empty-role detail, got %q", detail)
 	}
 }

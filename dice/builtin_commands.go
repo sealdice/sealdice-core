@@ -35,6 +35,11 @@ var dismissConfirmLastCleanup atomic.Int64
 const dismissConfirmTTL = 10 * time.Minute
 const dismissConfirmCleanupInterval = 30 * time.Minute
 
+const (
+	errGetGroupMemberInfoNil       = "get_group_member_info returned nil"
+	errGetGroupMemberInfoEmptyRole = "empty role from get_group_member_info"
+)
+
 func getDismissConfirmKeyForGroup(ctx *MsgContext, operatorID string, targetGroupID string) string {
 	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, targetGroupID, operatorID)
 }
@@ -105,6 +110,29 @@ func getOnebotBotQQID(ctx *MsgContext) (int64, bool) {
 	}
 }
 
+func normalizeQQGroupRole(role string) string {
+	norm := strings.ToLower(strings.TrimSpace(role))
+
+	switch norm {
+	case "owner", "creator", "群主":
+		return "owner"
+	case "admin", "administrator", "管理员":
+		return "admin"
+	case "member", "membernormal", "成员":
+		return "member"
+	default:
+		return norm
+	}
+}
+
+func parseQQGroupRole(role string) (string, bool) {
+	normalized := normalizeQQGroupRole(role)
+	if normalized == "" {
+		return "", false
+	}
+	return normalized, true
+}
+
 func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
 		return false, false, "context invalid"
@@ -124,9 +152,13 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 			if err != nil {
 				return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
 			}
-			return false, false, "get_group_member_info returned nil"
+			return false, false, errGetGroupMemberInfoNil
 		}
-		return strings.EqualFold(memberInfo.Role, "owner"), true, memberInfo.Role
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return false, false, errGetGroupMemberInfoEmptyRole
+		}
+		return role == "owner", true, role
 	case *PlatformAdapterGocq:
 		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
 		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
@@ -135,18 +167,19 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 		}
 		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
 		if memberInfo == nil {
-			return false, false, "get_group_member_info returned nil"
+			return false, false, errGetGroupMemberInfoNil
 		}
-		if memberInfo.Role == "" {
-			return false, false, "empty role from get_group_member_info"
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return false, false, errGetGroupMemberInfoEmptyRole
 		}
-		return strings.EqualFold(memberInfo.Role, "owner"), true, memberInfo.Role
+		return role == "owner", true, role
 	case *PlatformAdapterMilky:
 		role, err := pa.GetGroupMemberRole(groupID, ctx.EndPoint.UserID)
 		if err != nil {
 			return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
 		}
-		return strings.EqualFold(role, "owner"), true, role
+		return role == "owner", true, role
 	default:
 		return false, false, "adapter not onebot-compatible"
 	}

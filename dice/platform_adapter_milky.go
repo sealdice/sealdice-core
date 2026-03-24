@@ -18,18 +18,6 @@ import (
 	"sealdice-core/utils/procs"
 )
 
-var milkyGetGroupMemberInfo = func(session *milky.Session, groupID, userID int64, noCache bool) (*milky.GroupMemberInfo, error) {
-	return session.GetGroupMemberInfo(groupID, userID, noCache)
-}
-
-var milkySendGroupMessage = func(session *milky.Session, groupID int64, elements *[]milky.IMessageElement) (*milky.MessageRet, error) {
-	return session.SendGroupMessage(groupID, elements)
-}
-
-var milkyQuitGroup = func(session *milky.Session, groupID int64) error {
-	return session.QuitGroup(groupID)
-}
-
 type PlatformAdapterMilky struct {
 	Session             *IMSession     `json:"-"                     yaml:"-"`
 	EndPoint            *EndPointInfo  `json:"-"                     yaml:"-"`
@@ -44,6 +32,10 @@ type PlatformAdapterMilky struct {
 	MilkyProcess      *procs.Process  `json:"-" yaml:"-"`
 	BuiltInLoginState MilkyLoginState `json:"loginState" yaml:"-"`
 	QrCodeData        []byte          `json:"-"                          yaml:"-"`
+
+	getGroupMemberInfo func(session *milky.Session, groupID, userID int64, noCache bool) (*milky.GroupMemberInfo, error)         `json:"-" yaml:"-"`
+	sendGroupMessage   func(session *milky.Session, groupID int64, elements *[]milky.IMessageElement) (*milky.MessageRet, error) `json:"-" yaml:"-"`
+	quitGroup          func(session *milky.Session, groupID int64) error                                                         `json:"-" yaml:"-"`
 }
 
 type MilkyLoginState int64
@@ -65,7 +57,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		return
 	}
 	elements := ParseMessageToMilky(msg)
-	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
+	ret, err := pa.callSendGroupMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
@@ -716,7 +708,7 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Debugf("No valid message elements to send to group %s", groupID)
 		ret = &milky.MessageRet{}
 	} else {
-		ret, err = milkySendGroupMessage(pa.IntentSession, id, &elements)
+		ret, err = pa.callSendGroupMessage(id, &elements)
 	}
 	if err != nil {
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
@@ -778,7 +770,7 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
-	err = milkyQuitGroup(pa.IntentSession, id)
+	err = pa.callQuitGroup(id)
 	if err != nil {
 		log.Errorf("Failed to quit group %s: %v", groupID, err)
 		return
@@ -806,17 +798,39 @@ func (pa *PlatformAdapterMilky) GetGroupMemberRole(groupID string, userID string
 		return "", fmt.Errorf("invalid milky user id %q: %w", userID, err)
 	}
 
-	memberInfo, err := milkyGetGroupMemberInfo(pa.IntentSession, groupIDInt, userIDInt, false)
+	memberInfo, err := pa.callGetGroupMemberInfo(groupIDInt, userIDInt, false)
 	if err != nil {
 		return "", err
 	}
 	if memberInfo == nil {
-		return "", fmt.Errorf("get_group_member_info returned nil")
+		return "", fmt.Errorf(errGetGroupMemberInfoNil)
 	}
-	if memberInfo.Role == "" {
-		return "", fmt.Errorf("empty role from get_group_member_info")
+	role, ok := parseQQGroupRole(memberInfo.Role)
+	if !ok {
+		return "", fmt.Errorf(errGetGroupMemberInfoEmptyRole)
 	}
-	return memberInfo.Role, nil
+	return role, nil
+}
+
+func (pa *PlatformAdapterMilky) callGetGroupMemberInfo(groupID, userID int64, noCache bool) (*milky.GroupMemberInfo, error) {
+	if pa.getGroupMemberInfo != nil {
+		return pa.getGroupMemberInfo(pa.IntentSession, groupID, userID, noCache)
+	}
+	return pa.IntentSession.GetGroupMemberInfo(groupID, userID, noCache)
+}
+
+func (pa *PlatformAdapterMilky) callSendGroupMessage(groupID int64, elements *[]milky.IMessageElement) (*milky.MessageRet, error) {
+	if pa.sendGroupMessage != nil {
+		return pa.sendGroupMessage(pa.IntentSession, groupID, elements)
+	}
+	return pa.IntentSession.SendGroupMessage(groupID, elements)
+}
+
+func (pa *PlatformAdapterMilky) callQuitGroup(groupID int64) error {
+	if pa.quitGroup != nil {
+		return pa.quitGroup(pa.IntentSession, groupID)
+	}
+	return pa.IntentSession.QuitGroup(groupID)
 }
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {
