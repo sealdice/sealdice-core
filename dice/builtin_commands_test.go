@@ -3,6 +3,7 @@ package dice
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -18,6 +19,9 @@ const (
 	testMilkyFallbackGroupID         = "QQ-Group:2020"
 	testMilkyFallbackGroupQQID int64 = 2020
 	testMilkyOwnerRole               = "owner"
+	testMilkyOwnerRoleUpper          = "OWNER"
+	testMilkyOwnerRoleChinese        = "群主"
+	testMilkyAdminRoleChinese        = "管理员"
 )
 
 func newQuitCommandTestContext(t *testing.T, d *Dice, ep *EndPointInfo, senderID, groupID, groupName string) (*MsgContext, *Message) {
@@ -146,68 +150,100 @@ func TestDismissAcceptsFourDigitConfirmationCode(t *testing.T) {
 	}
 }
 
-func TestShouldDismissRequireOwnerConfirmMilkyOwner(t *testing.T) {
-	pa := &PlatformAdapterMilky{
-		IntentSession: &milky.Session{},
-		getGroupMemberInfo: func(_ *milky.Session, groupID, userID int64, noCache bool) (*milky.GroupMemberInfo, error) {
-			if groupID != 2005 || userID != 10001 || noCache {
-				t.Fatalf("unexpected lookup args: groupID=%d userID=%d noCache=%v", groupID, userID, noCache)
+func TestShouldDismissRequireOwnerConfirmMilkyRoleNormalization(t *testing.T) {
+	tests := []struct {
+		name            string
+		groupQQID       int64
+		userQQID        int64
+		role            string
+		wantNeedConfirm bool
+		wantChecked     bool
+		wantDetail      string
+	}{
+		{
+			name:            "lowercase owner",
+			groupQQID:       2005,
+			userQQID:        10001,
+			role:            testMilkyOwnerRole,
+			wantNeedConfirm: true,
+			wantChecked:     true,
+			wantDetail:      "owner",
+		},
+		{
+			name:            "uppercase owner",
+			groupQQID:       2006,
+			userQQID:        10002,
+			role:            testMilkyOwnerRoleUpper,
+			wantNeedConfirm: true,
+			wantChecked:     true,
+			wantDetail:      "owner",
+		},
+		{
+			name:            "chinese owner",
+			groupQQID:       2007,
+			userQQID:        10003,
+			role:            testMilkyOwnerRoleChinese,
+			wantNeedConfirm: true,
+			wantChecked:     true,
+			wantDetail:      "owner",
+		},
+		{
+			name:            "chinese admin",
+			groupQQID:       2008,
+			userQQID:        10004,
+			role:            testMilkyAdminRoleChinese,
+			wantNeedConfirm: false,
+			wantChecked:     true,
+			wantDetail:      "admin",
+		},
+		{
+			name:            "member",
+			groupQQID:       2009,
+			userQQID:        10005,
+			role:            "member",
+			wantNeedConfirm: false,
+			wantChecked:     true,
+			wantDetail:      "member",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			groupID := "QQ-Group:" + strconv.FormatInt(tt.groupQQID, 10)
+			userID := "QQ:" + strconv.FormatInt(tt.userQQID, 10)
+
+			pa := &PlatformAdapterMilky{
+				IntentSession: &milky.Session{},
+				getGroupMemberInfo: func(_ *milky.Session, groupIDInt, userIDInt int64, noCache bool) (*milky.GroupMemberInfo, error) {
+					if groupIDInt != tt.groupQQID || userIDInt != tt.userQQID || noCache {
+						t.Fatalf("unexpected lookup args: groupID=%d userID=%d noCache=%v", groupIDInt, userIDInt, noCache)
+					}
+					return &milky.GroupMemberInfo{Role: tt.role}, nil
+				},
 			}
-			return &milky.GroupMemberInfo{Role: testMilkyOwnerRole}, nil
-		},
-	}
 
-	ctx := &MsgContext{
-		EndPoint: &EndPointInfo{
-			EndPointInfoBase: EndPointInfoBase{
-				UserID:       "QQ:10001",
-				Platform:     "QQ",
-				ProtocolType: "milky",
-			},
-			Adapter: pa,
-		},
-	}
+			ctx := &MsgContext{
+				EndPoint: &EndPointInfo{
+					EndPointInfoBase: EndPointInfoBase{
+						UserID:       userID,
+						Platform:     "QQ",
+						ProtocolType: "milky",
+					},
+					Adapter: pa,
+				},
+			}
 
-	needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, "QQ-Group:2005")
-	if !checked {
-		t.Fatalf("expected milky owner check to succeed, detail=%q", detail)
-	}
-	if !needConfirm {
-		t.Fatalf("expected milky owner to require confirmation, detail=%q", detail)
-	}
-	if detail != "owner" {
-		t.Fatalf("expected owner detail, got %q", detail)
-	}
-}
-
-func TestShouldDismissRequireOwnerConfirmMilkyMember(t *testing.T) {
-	pa := &PlatformAdapterMilky{
-		IntentSession: &milky.Session{},
-		getGroupMemberInfo: func(_ *milky.Session, _, _ int64, _ bool) (*milky.GroupMemberInfo, error) {
-			return &milky.GroupMemberInfo{Role: "member"}, nil
-		},
-	}
-
-	ctx := &MsgContext{
-		EndPoint: &EndPointInfo{
-			EndPointInfoBase: EndPointInfoBase{
-				UserID:       "QQ:10002",
-				Platform:     "QQ",
-				ProtocolType: "milky",
-			},
-			Adapter: pa,
-		},
-	}
-
-	needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, "QQ-Group:2006")
-	if !checked {
-		t.Fatalf("expected milky member check to succeed, detail=%q", detail)
-	}
-	if needConfirm {
-		t.Fatalf("expected milky member not to require owner confirmation, detail=%q", detail)
-	}
-	if detail != "member" {
-		t.Fatalf("expected member detail, got %q", detail)
+			needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, groupID)
+			if checked != tt.wantChecked {
+				t.Fatalf("checked = %v, want %v, detail=%q", checked, tt.wantChecked, detail)
+			}
+			if needConfirm != tt.wantNeedConfirm {
+				t.Fatalf("needConfirm = %v, want %v, detail=%q", needConfirm, tt.wantNeedConfirm, detail)
+			}
+			if detail != tt.wantDetail {
+				t.Fatalf("detail = %q, want %q", detail, tt.wantDetail)
+			}
+		})
 	}
 }
 
