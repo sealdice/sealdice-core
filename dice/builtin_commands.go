@@ -181,7 +181,7 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 		}
 		return role == "owner", true, role
 	default:
-		return false, false, "adapter not onebot-compatible"
+		return false, false, "adapter does not support group role check"
 	}
 }
 
@@ -262,7 +262,7 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 			return processDismissConfirmation(
 				detail,
 				"指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为%s，已发出确认码。",
-				"当前 OneBot 对接账号在本群是群主，继续 `%s` 将会直接解散群聊。\n请在当前群内重新输入上面的完整命令进行二次确认。",
+				"当前骰子账号在本群是群主，继续 `%s` 将会直接解散群聊。\n请在当前群内重新输入上面的完整命令进行二次确认。",
 				"指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为%s，这将导致群聊被解散。",
 			)
 		}
@@ -270,7 +270,7 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 		return processDismissConfirmation(
 			detail,
 			"指令退群进入安全确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；但当前无法确认该账号群内身份(%s)，为避免误解散群聊，已改为二次确认。",
-			"当前无法确认 OneBot 对接账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `%s`。",
+			"当前无法确认骰子账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `%s`。",
 			"指令退群安全确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；此前未能确认该账号群内身份(%s)。",
 		)
 	}
