@@ -141,6 +141,12 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 			return false, false, "empty role from get_group_member_info"
 		}
 		return strings.EqualFold(memberInfo.Role, "owner"), true, memberInfo.Role
+	case *PlatformAdapterMilky:
+		role, err := pa.GetGroupMemberRole(groupID, ctx.EndPoint.UserID)
+		if err != nil {
+			return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+		}
+		return strings.EqualFold(role, "owner"), true, role
 	default:
 		return false, false, "adapter not onebot-compatible"
 	}
