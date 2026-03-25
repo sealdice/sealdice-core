@@ -175,9 +175,16 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 		}
 		return role == "owner", true, role
 	case *PlatformAdapterMilky:
-		role, err := pa.GetGroupMemberRole(groupID, ctx.EndPoint.UserID)
+		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
 		if err != nil {
 			return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+		}
+		if memberInfo == nil {
+			return false, false, errGetGroupMemberInfoNil
+		}
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return false, false, errGetGroupMemberInfoEmptyRole
 		}
 		return role == "owner", true, role
 	default:
