@@ -35,6 +35,11 @@ var dismissConfirmLastCleanup atomic.Int64
 const dismissConfirmTTL = 10 * time.Minute
 const dismissConfirmCleanupInterval = 30 * time.Minute
 
+const (
+	errGetGroupMemberInfoNil       = "get_group_member_info returned nil"
+	errGetGroupMemberInfoEmptyRole = "empty role from get_group_member_info"
+)
+
 func getDismissConfirmKeyForGroup(ctx *MsgContext, operatorID string, targetGroupID string) string {
 	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, targetGroupID, operatorID)
 }
@@ -105,6 +110,29 @@ func getOnebotBotQQID(ctx *MsgContext) (int64, bool) {
 	}
 }
 
+func normalizeQQGroupRole(role string) string {
+	norm := strings.ToLower(strings.TrimSpace(role))
+
+	switch norm {
+	case "owner", "creator", "群主":
+		return "owner"
+	case "admin", "administrator", "管理员":
+		return "admin"
+	case "member", "membernormal", "成员":
+		return "member"
+	default:
+		return norm
+	}
+}
+
+func parseQQGroupRole(role string) (string, bool) {
+	normalized := normalizeQQGroupRole(role)
+	if normalized == "" {
+		return "", false
+	}
+	return normalized, true
+}
+
 func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
 		return false, false, "context invalid"
@@ -124,9 +152,13 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 			if err != nil {
 				return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
 			}
-			return false, false, "get_group_member_info returned nil"
+			return false, false, errGetGroupMemberInfoNil
 		}
-		return strings.EqualFold(memberInfo.Role, "owner"), true, memberInfo.Role
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return false, false, errGetGroupMemberInfoEmptyRole
+		}
+		return role == "owner", true, role
 	case *PlatformAdapterGocq:
 		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
 		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
@@ -135,14 +167,28 @@ func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bo
 		}
 		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
 		if memberInfo == nil {
-			return false, false, "get_group_member_info returned nil"
+			return false, false, errGetGroupMemberInfoNil
 		}
-		if memberInfo.Role == "" {
-			return false, false, "empty role from get_group_member_info"
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return false, false, errGetGroupMemberInfoEmptyRole
 		}
-		return strings.EqualFold(memberInfo.Role, "owner"), true, memberInfo.Role
+		return role == "owner", true, role
+	case *PlatformAdapterMilky:
+		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
+		if err != nil {
+			return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+		}
+		if memberInfo == nil {
+			return false, false, errGetGroupMemberInfoNil
+		}
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return false, false, errGetGroupMemberInfoEmptyRole
+		}
+		return role == "owner", true, role
 	default:
-		return false, false, "adapter not onebot-compatible"
+		return false, false, "adapter does not support group role check"
 	}
 }
 
@@ -223,7 +269,7 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 			return processDismissConfirmation(
 				detail,
 				"指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为%s，已发出确认码。",
-				"当前 OneBot 对接账号在本群是群主，继续 `%s` 将会直接解散群聊。\n请在当前群内重新输入上面的完整命令进行二次确认。",
+				"当前骰子账号在本群是群主，继续 `%s` 将会直接解散群聊。\n请在当前群内重新输入上面的完整命令进行二次确认。",
 				"指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为%s，这将导致群聊被解散。",
 			)
 		}
@@ -231,7 +277,7 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 		return processDismissConfirmation(
 			detail,
 			"指令退群进入安全确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；但当前无法确认该账号群内身份(%s)，为避免误解散群聊，已改为二次确认。",
-			"当前无法确认 OneBot 对接账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `%s`。",
+			"当前无法确认骰子账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `%s`。",
 			"指令退群安全确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；此前未能确认该账号群内身份(%s)。",
 		)
 	}

@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"path/filepath"
@@ -772,6 +773,28 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 		return
 	}
 	log.Infof("Successfully quit group %s", groupID)
+}
+
+func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string) (*milky.GroupMemberInfo, error) {
+	if pa == nil || pa.IntentSession == nil {
+		return nil, errors.New("milky session unavailable")
+	}
+
+	rawGroupID := strings.TrimSpace(ExtractQQGroupID(groupID))
+	rawUserID := strings.TrimSpace(ExtractQQUserID(userID))
+	if rawGroupID == "" || rawUserID == "" {
+		return nil, errors.New("cannot resolve milky group/user id")
+	}
+
+	groupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid milky group id %q: %w", groupID, err)
+	}
+	userIDInt, err := strconv.ParseInt(rawUserID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid milky user id %q: %w", userID, err)
+	}
+	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, false)
 }
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {
