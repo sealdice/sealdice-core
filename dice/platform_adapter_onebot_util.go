@@ -483,7 +483,6 @@ func checkMultiFriendAddVerify(comment string, toMatch string) bool {
 	return true
 }
 
-
 type BlackListCheckResult struct {
 	Passed      bool
 	FailureType string           // "user_banned", "group_banned", "trust_mode", "refuse_invite"
