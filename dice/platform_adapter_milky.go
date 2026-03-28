@@ -519,12 +519,15 @@ func normalizeMilkyFriendRequestComment(comment string) string {
 	comment = strings.TrimSpace(comment)
 	comment = strings.ReplaceAll(comment, "\u00a0", "")
 	comment = strings.ReplaceAll(comment, "\r\n", "\n")
+	// 上游可能把好友验证里的换行以字面量转义形式传过来，这里统一还原为真实换行，
+	// 以便问题校验和日志展示看到的是同一种文本布局。
 	comment = strings.ReplaceAll(comment, `\r\n`, "\n")
 	comment = strings.ReplaceAll(comment, `\n`, "\n")
 	return comment
 }
 
 func formatMilkyFriendRequestCommentForLog(comment string) string {
+	// 日志里保留真实换行，避免再次编码成 `\n` 影响人工查看。
 	comment = strings.ReplaceAll(comment, `\`, `\\`)
 	comment = strings.ReplaceAll(comment, `"`, `\"`)
 	return `"` + comment + `"`
@@ -538,7 +541,8 @@ func checkMilkyFriendAddVerify(comment string, toMatch string) bool {
 	matches := milkyFriendRequestAnswerPattern.FindAllStringSubmatch(comment, -1)
 	answers := make([]string, 0, len(matches))
 	for _, match := range matches {
-		answers = append(answers, match[1])
+		answer := strings.TrimSpace(strings.ReplaceAll(match[1], "\u00a0", " "))
+		answers = append(answers, answer)
 	}
 
 	expectedItems := milkyFriendRequestExpectedItemPattern.Split(toMatch, -1)
@@ -547,7 +551,8 @@ func checkMilkyFriendAddVerify(comment string, toMatch string) bool {
 	}
 
 	for i, item := range expectedItems {
-		if item != answers[i] {
+		expected := strings.TrimSpace(strings.ReplaceAll(item, "\u00a0", " "))
+		if expected != answers[i] {
 			return false
 		}
 	}
