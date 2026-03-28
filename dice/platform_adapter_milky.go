@@ -456,8 +456,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	log := zap.S().Named(logger.LogKeyAdapter)
 	var comment string
 	if event.Comment != "" {
-		comment = strings.TrimSpace(event.Comment)
-		comment = strings.ReplaceAll(comment, "\u00a0", "")
+		comment = normalizeMilkyFriendRequestComment(event.Comment)
 	}
 
 	toMatch := strings.TrimSpace(pa.Session.Parent.Config.FriendAddComment)
@@ -467,34 +466,13 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	}
 
 	if !willAccept {
-		// 如果是问题校验，只填写回答即可
-		re := regexp.MustCompile(`\n回答:([^\n]+)`)
-		m := re.FindAllStringSubmatch(comment, -1)
-
-		var items []string
-		for _, i := range m {
-			items = append(items, i[1])
-		}
-
-		re2 := regexp.MustCompile(`\s+`)
-		m2 := re2.Split(toMatch, -1)
-
-		if len(m2) == len(items) {
-			ok := true
-			for i := range m2 {
-				if m2[i] != items[i] {
-					ok = false
-					break
-				}
-			}
-			willAccept = ok
-		}
+		willAccept = checkMilkyFriendAddVerify(comment, toMatch)
 	}
 
 	if comment == "" {
 		comment = "(无)"
 	} else {
-		comment = strconv.Quote(comment)
+		comment = formatMilkyFriendRequestCommentForLog(comment)
 	}
 
 	// 检查黑名单
@@ -532,6 +510,49 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	} else {
 		pa.SetFriendAddRequest(event.InitiatorUID, false, "验证信息不符")
 	}
+}
+
+var milkyFriendRequestAnswerPattern = regexp.MustCompile(`\n回答:([^\n]+)`)
+var milkyFriendRequestExpectedItemPattern = regexp.MustCompile(`\s+`)
+
+func normalizeMilkyFriendRequestComment(comment string) string {
+	comment = strings.TrimSpace(comment)
+	comment = strings.ReplaceAll(comment, "\u00a0", "")
+	comment = strings.ReplaceAll(comment, "\r\n", "\n")
+	comment = strings.ReplaceAll(comment, `\r\n`, "\n")
+	comment = strings.ReplaceAll(comment, `\n`, "\n")
+	return comment
+}
+
+func formatMilkyFriendRequestCommentForLog(comment string) string {
+	comment = strings.ReplaceAll(comment, `\`, `\\`)
+	comment = strings.ReplaceAll(comment, `"`, `\"`)
+	return `"` + comment + `"`
+}
+
+func checkMilkyFriendAddVerify(comment string, toMatch string) bool {
+	if toMatch == "" {
+		return true
+	}
+
+	matches := milkyFriendRequestAnswerPattern.FindAllStringSubmatch(comment, -1)
+	answers := make([]string, 0, len(matches))
+	for _, match := range matches {
+		answers = append(answers, match[1])
+	}
+
+	expectedItems := milkyFriendRequestExpectedItemPattern.Split(toMatch, -1)
+	if len(expectedItems) != len(answers) {
+		return false
+	}
+
+	for i, item := range expectedItems {
+		if item != answers[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve bool, reason string) {

@@ -392,8 +392,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	// 获取请求详情
 	var comment string
 	if req.Get("comment").Exists() {
-		comment = strings.TrimSpace(req.Get("comment").String())
-		comment = strings.ReplaceAll(comment, "\u00a0", "")
+		comment = normalizeOnebotFriendRequestComment(req.Get("comment").String())
 	}
 	// 将匹配的验证问题
 	toMatch := strings.TrimSpace(p.Session.Parent.Config.FriendAddComment)
@@ -409,7 +408,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	if comment == "" {
 		comment = "(无)"
 	} else {
-		comment = strconv.Quote(comment)
+		comment = formatOnebotFriendRequestCommentForLog(comment)
 	}
 	if !passQuestion {
 		extra = "。回答错误"
@@ -436,27 +435,36 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	return nil
 }
 
-// 检查加好友是否成功
+var onebotFriendRequestAnswerPattern = regexp.MustCompile(`\n回答:([^\n]+)`)
+var onebotFriendRequestExpectedItemPattern = regexp.MustCompile(`\s+`)
+
+func normalizeOnebotFriendRequestComment(comment string) string {
+	comment = strings.TrimSpace(comment)
+	comment = strings.ReplaceAll(comment, "\u00a0", "")
+	comment = strings.ReplaceAll(comment, "\r\n", "\n")
+	comment = strings.ReplaceAll(comment, `\r\n`, "\n")
+	comment = strings.ReplaceAll(comment, `\n`, "\n")
+	return comment
+}
+
+func formatOnebotFriendRequestCommentForLog(comment string) string {
+	comment = strings.ReplaceAll(comment, `\`, `\\`)
+	comment = strings.ReplaceAll(comment, `"`, `\"`)
+	return `"` + comment + `"`
+}
+
 func checkMultiFriendAddVerify(comment string, toMatch string) bool {
-	// 如果目标匹配字符串为空，直接返回true
 	if toMatch == "" {
 		return true
 	}
 
-	// 提取评论中的所有回答
-	re := regexp.MustCompile(`\n回答:([^\n]+)`)
-	matches := re.FindAllStringSubmatch(comment, -1)
-
-	// 提取回答内容
+	matches := onebotFriendRequestAnswerPattern.FindAllStringSubmatch(comment, -1)
 	answers := make([]string, 0, len(matches))
 	for _, match := range matches {
 		answers = append(answers, match[1])
 	}
 
-	// 分割目标匹配字符串
-	expectedItems := regexp.MustCompile(`\s+`).Split(toMatch, -1)
-
-	// 比较长度和内容
+	expectedItems := onebotFriendRequestExpectedItemPattern.Split(toMatch, -1)
 	if len(expectedItems) != len(answers) {
 		return false
 	}
@@ -469,6 +477,7 @@ func checkMultiFriendAddVerify(comment string, toMatch string) bool {
 
 	return true
 }
+
 
 type BlackListCheckResult struct {
 	Passed      bool
