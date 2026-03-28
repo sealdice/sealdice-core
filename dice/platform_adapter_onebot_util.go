@@ -440,7 +440,7 @@ var onebotFriendRequestExpectedItemPattern = regexp.MustCompile(`\s+`)
 
 func normalizeOnebotFriendRequestComment(comment string) string {
 	comment = strings.TrimSpace(comment)
-	comment = strings.ReplaceAll(comment, "\u00a0", "")
+	comment = strings.ReplaceAll(comment, "\u00a0", " ")
 	comment = strings.ReplaceAll(comment, "\r\n", "\n")
 	// 上游可能把好友验证里的换行以字面量转义形式传过来，这里统一还原为真实换行，
 	// 以便问题校验和日志展示看到的是同一种文本布局。
