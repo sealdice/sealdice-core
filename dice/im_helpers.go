@@ -14,6 +14,7 @@ import (
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/logger"
+	"sealdice-core/message"
 	"sealdice-core/utils/panicHandler"
 )
 
@@ -472,6 +473,20 @@ func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
 	ReplyGroupRaw(ctx, msg, text, "")
 }
 
+// ReplyGroupSegmentRaw 是 segment 主链路入口的兼容封装。
+// 当前仍复用文本发送链路以保持行为一致，后续可直接切到 adapter 的 SendSegmentToGroup。
+func ReplyGroupSegmentRaw(ctx *MsgContext, msg *Message, segments []message.IMessageElement, flag string) {
+	text := strings.TrimSpace(message.SegmentsToLegacyCQText(segments))
+	if text == "" {
+		text = strings.TrimSpace(message.SegmentsToText(segments))
+	}
+	ReplyGroupRaw(ctx, msg, text, flag)
+}
+
+func ReplyGroupSegment(ctx *MsgContext, msg *Message, segments []message.IMessageElement) {
+	ReplyGroupSegmentRaw(ctx, msg, segments, "")
+}
+
 func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 	if ctx.AliasPrefixText != "" {
 		text = ctx.AliasPrefixText + text
@@ -570,6 +585,20 @@ func CrossMsgBySearch(se *IMSession, p, t, txt string, pr bool) bool {
 
 func ReplyPerson(ctx *MsgContext, msg *Message, text string) {
 	ReplyPersonRaw(ctx, msg, text, "")
+}
+
+// ReplyPersonSegmentRaw 是 segment 主链路入口的兼容封装。
+// 当前仍复用文本发送链路以保持行为一致，后续可直接切到 adapter 的 SendSegmentToPerson。
+func ReplyPersonSegmentRaw(ctx *MsgContext, msg *Message, segments []message.IMessageElement, flag string) {
+	text := strings.TrimSpace(message.SegmentsToLegacyCQText(segments))
+	if text == "" {
+		text = strings.TrimSpace(message.SegmentsToText(segments))
+	}
+	ReplyPersonRaw(ctx, msg, text, flag)
+}
+
+func ReplyPersonSegment(ctx *MsgContext, msg *Message, segments []message.IMessageElement) {
+	ReplyPersonSegmentRaw(ctx, msg, segments, "")
 }
 
 func SendFileToSenderRaw(ctx *MsgContext, msg *Message, path string, flag string) {

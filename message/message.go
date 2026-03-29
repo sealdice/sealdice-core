@@ -584,8 +584,9 @@ func SealCodeToCqCode(text string) string {
 
 // convertConfig ConvertStringMessage的配置
 type convertConfig struct {
-	logger  *zap.SugaredLogger
-	onError func(err error, cqType string, cqArgs map[string]string)
+	logger          *zap.SugaredLogger
+	onError         func(err error, cqType string, cqArgs map[string]string)
+	resolveResource bool
 }
 
 // ConvertOption ConvertStringMessage的选项函数
@@ -605,10 +606,54 @@ func WithOnError(fn func(err error, cqType string, cqArgs map[string]string)) Co
 	return func(c *convertConfig) { c.onError = fn }
 }
 
+// WithResolveResource 设置是否在转换时解析资源文件（如 image/file/record）。
+// 默认 true 以保持历史行为；对于入站消息标准化建议传 false，避免无意义文件/网络访问。
+func WithResolveResource(enabled bool) ConvertOption {
+	return func(c *convertConfig) {
+		c.resolveResource = enabled
+	}
+}
+
+func toElementWithConfig(t string, dMap map[string]string, cfg *convertConfig) (IMessageElement, error) {
+	if cfg == nil || cfg.resolveResource {
+		return toElement(t, dMap)
+	}
+
+	switch t {
+	case "file":
+		return &FileElement{
+			File: strings.TrimSpace(dMap["file"]),
+			URL:  strings.TrimSpace(dMap["url"]),
+		}, nil
+	case "image":
+		file := strings.TrimSpace(dMap["file"])
+		urlVal := strings.TrimSpace(dMap["url"])
+		if urlVal == "" {
+			urlVal = file
+		}
+		return &ImageElement{
+			File: &FileElement{File: file, URL: urlVal},
+			URL:  urlVal,
+		}, nil
+	case "record":
+		file := strings.TrimSpace(dMap["file"])
+		urlVal := strings.TrimSpace(dMap["url"])
+		if urlVal == "" {
+			urlVal = file
+		}
+		return &RecordElement{
+			File: &FileElement{File: file, URL: urlVal},
+		}, nil
+	default:
+		return toElement(t, dMap)
+	}
+}
+
 func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElement) {
 	cfg := &convertConfig{
 		// 默认使用全局logger，确保控制台+前端日志可见
-		logger: zap.S().Named("message"),
+		logger:          zap.S().Named("message"),
+		resolveResource: true,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -657,7 +702,7 @@ func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElemen
 	}
 
 	saveCQCode := func() {
-		elem, err := toElement(arg, dMap)
+		elem, err := toElementWithConfig(arg, dMap, cfg)
 		if err != nil {
 			// 错误时跳过该CQ码，不原样发出，但记录日志
 			var fe *CQFileError

@@ -59,6 +59,30 @@ type Message struct {
 	Segment []message.IMessageElement `jsbind:"segment" json:"-" yaml:"-"`
 }
 
+// normalizeForPipeline 保证消息同时具备 segment 与兼容文本视图：
+// - Segment 作为内部主表示
+// - Message 作为兼容文本视图
+func (msg *Message) normalizeForPipeline() {
+	if msg == nil {
+		return
+	}
+	if len(msg.Segment) == 0 && msg.Message != "" {
+		// 入站桥接：从旧文本格式构造 segment，禁用资源解析避免文件/网络访问。
+		msg.Segment = message.ConvertStringMessage(
+			msg.Message,
+			message.WithResolveResource(false),
+		)
+		if len(msg.Segment) == 0 {
+			msg.Segment = []message.IMessageElement{
+				&message.TextElement{Content: msg.Message},
+			}
+		}
+	}
+	if msg.Message == "" && len(msg.Segment) > 0 {
+		msg.Message = message.SegmentsToText(msg.Segment)
+	}
+}
+
 // GroupPlayerInfo 这是一个YamlWrapper，没有实际作用
 // 原因见 https://github.com/go-yaml/yaml/issues/712
 // type GroupPlayerInfo struct {
@@ -724,6 +748,7 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	d := s.Parent
+	msg.normalizeForPipeline()
 
 	mctx := &MsgContext{}
 	mctx.Dice = d
@@ -1097,6 +1122,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 // 这个 ExcuteNew 方法优化了对消息段的解析，其他平台应当尽快实现消息段解析并使用这个方法
 func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	d := s.Parent
+	msg.normalizeForPipeline()
 
 	mctx := &MsgContext{}
 	mctx.Dice = d
@@ -1105,16 +1131,6 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	mctx.Session = s
 	mctx.EndPoint = ep
 	log := d.Logger
-
-	// 处理消息段，如果 2.0 要完全抛弃依赖 Message.Message 的字符串解析，把这里删掉
-	if msg.Message == "" {
-		for _, elem := range msg.Segment {
-			// 类型断言
-			if e, ok := elem.(*message.TextElement); ok {
-				msg.Message += e.Content
-			}
-		}
-	}
 
 	if msg.MessageType != "group" && msg.MessageType != "private" {
 		return

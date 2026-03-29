@@ -40,11 +40,13 @@ import (
 // the bot tries to send.  A buffered channel makes it easy to wait for async
 // replies from PreTriggerCommand.
 type mockPlatformAdapter struct {
-	mu         sync.Mutex
-	groupMsgs  []string
-	personMsgs []string
-	quitGroups []string
-	msgCh      chan string
+	mu              sync.Mutex
+	groupMsgs       []string
+	personMsgs      []string
+	groupSegmentMsg [][]message.IMessageElement
+	personSegmentMsg [][]message.IMessageElement
+	quitGroups      []string
+	msgCh           chan string
 }
 
 // compile-time check
@@ -52,6 +54,15 @@ var _ PlatformAdapter = (*mockPlatformAdapter)(nil)
 
 func newMockPlatformAdapter() *mockPlatformAdapter {
 	return &mockPlatformAdapter{msgCh: make(chan string, 32)}
+}
+
+func cloneSegments(src []message.IMessageElement) []message.IMessageElement {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make([]message.IMessageElement, len(src))
+	copy(out, src)
+	return out
 }
 
 // waitForMsg blocks until a message arrives or the timeout elapses.
@@ -99,9 +110,31 @@ func (m *mockPlatformAdapter) MemberKick(_ string, _ string)            {}
 func (m *mockPlatformAdapter) GetGroupInfoAsync(_ string)               {}
 func (m *mockPlatformAdapter) EditMessage(_ *MsgContext, _, _ string)   {}
 func (m *mockPlatformAdapter) RecallMessage(_ *MsgContext, _ string)    {}
-func (m *mockPlatformAdapter) SendSegmentToGroup(_ *MsgContext, _ string, _ []message.IMessageElement, _ string) {
+func (m *mockPlatformAdapter) SendSegmentToGroup(_ *MsgContext, _ string, segs []message.IMessageElement, _ string) {
+	m.mu.Lock()
+	m.groupSegmentMsg = append(m.groupSegmentMsg, cloneSegments(segs))
+	m.mu.Unlock()
+	text := message.SegmentsToLegacyCQText(segs)
+	if text == "" {
+		text = message.SegmentsToText(segs)
+	}
+	select {
+	case m.msgCh <- text:
+	default:
+	}
 }
-func (m *mockPlatformAdapter) SendSegmentToPerson(_ *MsgContext, _ string, _ []message.IMessageElement, _ string) {
+func (m *mockPlatformAdapter) SendSegmentToPerson(_ *MsgContext, _ string, segs []message.IMessageElement, _ string) {
+	m.mu.Lock()
+	m.personSegmentMsg = append(m.personSegmentMsg, cloneSegments(segs))
+	m.mu.Unlock()
+	text := message.SegmentsToLegacyCQText(segs)
+	if text == "" {
+		text = message.SegmentsToText(segs)
+	}
+	select {
+	case m.msgCh <- text:
+	default:
+	}
 }
 func (m *mockPlatformAdapter) SendFileToPerson(_ *MsgContext, _ string, _ string, _ string) {}
 func (m *mockPlatformAdapter) SendFileToGroup(_ *MsgContext, _ string, _ string, _ string)  {}
@@ -408,6 +441,91 @@ func TestExecuteNew_Segment_TextReconstructed(t *testing.T) {
 	_, ok := adapter.waitForMsg(2 * time.Second)
 	if !ok {
 		t.Fatal("timeout: command in text segment was not processed")
+	}
+	if msg.Message != ".r 2d6" {
+		t.Fatalf("Message should be reconstructed from Segment, got %q", msg.Message)
+	}
+}
+
+// TestExecuteNew_TextOnly_BridgedToSegments verifies legacy text-only inbound
+// messages are normalized to segment-based representation before parsing.
+func TestExecuteNew_TextOnly_BridgedToSegments(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+
+	msg := &Message{
+		Platform:    "QQ",
+		MessageType: "group",
+		GroupID:     "QQ-Group:9527",
+		GroupName:   "TestGroup",
+		Time:        time.Now().Unix(),
+		Sender:      SenderBase{UserID: "QQ:222", Nickname: "Tester"},
+		Message:     ".r 1d6",
+		Segment:     nil, // legacy input: only Message text
+	}
+
+	d.ImSession.ExecuteNew(ep, msg)
+
+	_, ok := adapter.waitForMsg(2 * time.Second)
+	if !ok {
+		t.Fatal("timeout: legacy text-only message was not processed")
+	}
+	if len(msg.Segment) == 0 {
+		t.Fatal("expected text-only message to be bridged into Segment")
+	}
+	textElem, ok := msg.Segment[0].(*message.TextElement)
+	if !ok || textElem.Content != ".r 1d6" {
+		t.Fatalf("unexpected bridged segment: %#v", msg.Segment[0])
+	}
+}
+
+// TestExecuteNew_SegmentPreferredForCommandParsing verifies when Message and
+// Segment disagree, Segment remains the source for command parsing.
+func TestExecuteNew_SegmentPreferredForCommandParsing(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+
+	msg := &Message{
+		Platform:    "QQ",
+		MessageType: "group",
+		GroupID:     "QQ-Group:789",
+		GroupName:   "TestGroup",
+		Time:        time.Now().Unix(),
+		Sender:      SenderBase{UserID: "QQ:222", Nickname: "Tester"},
+		Message:     "just chatting", // conflicting legacy view
+		Segment: []message.IMessageElement{
+			&message.TextElement{Content: ".r 2d6"},
+		},
+	}
+
+	d.ImSession.ExecuteNew(ep, msg)
+
+	_, ok := adapter.waitForMsg(2 * time.Second)
+	if !ok {
+		t.Fatal("timeout: expected command from Segment to be processed")
+	}
+}
+
+// TestMockAdapter_SendSegmentCompatibility verifies smoke test adapter can
+// observe segment-path sending while still yielding a text projection.
+func TestMockAdapter_SendSegmentCompatibility(t *testing.T) {
+	adapter := newMockPlatformAdapter()
+	segs := []message.IMessageElement{
+		&message.TextElement{Content: "hello"},
+		&message.AtElement{Target: "123"},
+	}
+
+	adapter.SendSegmentToGroup(nil, "QQ-Group:1", segs, "")
+
+	if len(adapter.groupSegmentMsg) != 1 {
+		t.Fatalf("expected one segment send record, got %d", len(adapter.groupSegmentMsg))
+	}
+	gotText, ok := adapter.waitForMsg(500 * time.Millisecond)
+	if !ok {
+		t.Fatal("expected text projection emitted for segment send")
+	}
+	if gotText == "" {
+		t.Fatal("expected non-empty text projection for segment send")
 	}
 }
 
