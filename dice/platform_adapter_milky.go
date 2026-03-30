@@ -25,7 +25,7 @@ type PlatformAdapterMilky struct {
 	IntentSession       *milky.Session `json:"-"                     yaml:"-"`
 	WsGateway           string         `json:"ws_gateway"            yaml:"ws_gateway"`
 	RestGateway         string         `json:"rest_gateway"          yaml:"rest_gateway"`
-	Token               string         `json:"token"                 yaml:"token"`
+	Token               string         `json:"-"                 yaml:"token"`
 	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
 	// 内置
 	// BuiltInMode 留空则视为分离，目前支持的字段为 lagrangeV2
