@@ -14,10 +14,10 @@ import (
 
 type PlatformAdapterDingTalk struct {
 	Session       *IMSession        `json:"-"           yaml:"-"`
-	ClientID      string            `json:"clientID"    yaml:"clientID"`
-	Token         string            `json:"token"       yaml:"token"`
-	RobotCode     string            `json:"robotCode"   yaml:"robotCode"`
-	CoolAppCode   string            `json:"coolAppCode" yaml:"coolAppCode"`
+	ClientID      string            `json:"-"    yaml:"clientID"`
+	Token         string            `json:"-"       yaml:"token"`
+	RobotCode     string            `json:"-"   yaml:"robotCode"`
+	CoolAppCode   string            `json:"-" yaml:"coolAppCode"`
 	EndPoint      *EndPointInfo     `json:"-"           yaml:"-"`
 	IntentSession *dingtalk.Session `json:"-"           yaml:"-"`
 	sessionMu     sync.RWMutex

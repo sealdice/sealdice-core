@@ -129,7 +129,7 @@ type CardMessageModuleFile struct {
 // PlatformAdapterKook 与 PlatformAdapterDiscord 基本相同的实现，因此不详细写注释了，可以去参考隔壁的实现
 type PlatformAdapterKook struct {
 	Session       *IMSession    `json:"-"     yaml:"-"`
-	Token         string        `json:"token" yaml:"token"`
+	Token         string        `json:"-" yaml:"token"`
 	EndPoint      *EndPointInfo `json:"-"     yaml:"-"`
 	IntentSession *kook.Session `json:"-"     yaml:"-"`
 }

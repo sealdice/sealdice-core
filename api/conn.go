@@ -172,6 +172,10 @@ func ImConnectionsDel(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
+		defer func() {
+			myDice.LastUpdatedTime = time.Now().Unix()
+			myDice.Save(false)
+		}()
 		for index, i := range myDice.ImSession.EndPoints {
 			if i.ID == v.ID {
 				// 禁用该endpoint防止出问题
