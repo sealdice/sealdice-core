@@ -40,13 +40,13 @@ import (
 // the bot tries to send.  A buffered channel makes it easy to wait for async
 // replies from PreTriggerCommand.
 type mockPlatformAdapter struct {
-	mu              sync.Mutex
-	groupMsgs       []string
-	personMsgs      []string
-	groupSegmentMsg [][]message.IMessageElement
+	mu               sync.Mutex
+	groupMsgs        []string
+	personMsgs       []string
+	groupSegmentMsg  [][]message.IMessageElement
 	personSegmentMsg [][]message.IMessageElement
-	quitGroups      []string
-	msgCh           chan string
+	quitGroups       []string
+	msgCh            chan string
 }
 
 // compile-time check
