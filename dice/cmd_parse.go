@@ -9,7 +9,6 @@ import (
 	"unicode"
 
 	ds "github.com/sealdice/dicescript"
-	"github.com/tidwall/gjson"
 
 	"sealdice-core/message"
 )
@@ -380,116 +379,7 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 
 // extractResultFromSegments 从消息段中提取纯文本内容 部分文本使用了CQ码。问题的原因在于，CmdArgs的参数可能是图片等其他数据，但CmdArgs缺乏对这个功能的支持。
 func extractResultFromSegments(segments []message.IMessageElement) string {
-	cqMessage := strings.Builder{}
-	var foundFirstText bool
-	for _, v := range segments {
-		// 警告，这个函数不要复用到其他地方，如果复用，请删掉下面这个代码
-		// 代码的意思是：从第一个有文本的元素开始，后面的全部认为是参数。
-		// 检查是否是文本元素
-		if v.Type() == message.Text {
-			foundFirstText = true
-		}
-		// 只有找到第一个文本元素后才开始将剩下的拼凑到结果中
-		if !foundFirstText {
-			continue
-		}
-		switch v.Type() {
-		case message.At:
-			// 跳过 @ 信息，因为已通过 parseAtInfo 单独处理
-			// 不要转换为 CQ 码，否则会污染 CleanArgs 导致表达式解析失败
-			continue
-		case message.Text:
-			res, ok := v.(*message.TextElement)
-			if !ok {
-				continue
-			}
-			cqMessage.WriteString(res.Content)
-		case message.Face:
-			res, ok := v.(*message.FaceElement)
-			if !ok {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", res.FaceID)
-		case message.File:
-			res, ok := v.(*message.FileElement)
-			if !ok {
-				continue
-			}
-			fileVal := res.File
-			if fileVal == "" {
-				fileVal = res.URL
-			}
-			if fileVal == "" {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:file,file=%v]", fileVal)
-		case message.Image:
-			res, ok := v.(*message.ImageElement)
-			if !ok {
-				continue
-			}
-			url := res.URL
-			if res.URL == "" {
-				url = res.File.URL
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", url)
-		case message.Record:
-			res, ok := v.(*message.RecordElement)
-			if !ok {
-				continue
-			}
-			var recordFile string
-			if res.File != nil {
-				recordFile = res.File.URL
-				if recordFile == "" {
-					recordFile = res.File.File
-				}
-			}
-			if recordFile == "" {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", recordFile)
-		case message.Reply:
-			res, ok := v.(*message.ReplyElement)
-			if !ok {
-				continue
-			}
-			parseInt, err := strconv.Atoi(res.ReplySeq)
-			if err != nil {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", parseInt)
-		case message.TTS:
-			res, ok := v.(*message.TTSElement)
-			if !ok {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:tts,text=%v]", res.Content)
-		case message.Poke:
-			res, ok := v.(*message.PokeElement)
-			if !ok {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:poke,qq=%v]", res.Target)
-		default:
-			// 不是标准类型的情况
-			res, ok := v.(*message.DefaultElement)
-			if !ok {
-				continue
-			}
-			// 将其转换为CQ码
-			var (
-				cqParamParts []string
-			)
-			dMap := gjson.ParseBytes(res.Data).Map()
-			for paramStr, paramValue := range dMap {
-				cqParamParts = append(cqParamParts, fmt.Sprintf("%s=%s", paramStr, paramValue))
-			}
-			cqParam := strings.Join(cqParamParts, ",")
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:%s,%s]", res.RawType, cqParam)
-		}
-	}
-	return cqMessage.String()
+	return message.SegmentsToLegacyCQText(segments)
 }
 
 // parseAtInfo 解析@信息，设置相关的@状态标志
