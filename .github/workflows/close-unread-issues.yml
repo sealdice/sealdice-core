@@ -5,6 +5,8 @@ on:
 
 jobs:
   check-then-close:
+    #    don't run on forks
+    if: ${{ github.repository == 'sealdice/sealdice-core' }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -25,6 +27,56 @@ jobs:
           script: |
             const text = '我填写了简短且清晰明确的标题，以便开发者在翻阅 issue 列表时能快速确定大致问题。而不是“一个建议”、“卡住了”等';
             return new RegExp(`- \\[x\\]\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(context.payload.issue.body);
+
+      - name: Check Open Issues and Violations
+        id: judge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+          REPO: ${{ github.repository }}
+          IGNORE_LABEL: "issue-checker-ignore"
+        run: |
+          OPEN_COUNT=$(gh issue list -R "$REPO" \
+            --author "$ISSUE_AUTHOR" \
+            --state open \
+            --exclude-label "$IGNORE_LABEL" \
+            --json number --jq '. | length')
+          
+          HAS_PREVIOUS_VIOLATION=$(gh issue list -R "$REPO" --author "$AUTHOR" --state all --label "violation" --json number --jq '. | length')
+          
+          echo "open_count=$OPEN_COUNT" >> $GITHUB_OUTPUT
+          echo "prev_violations=$HAS_PREVIOUS_VIOLATION" >> $GITHUB_OUTPUT
+
+      - name: Warn User
+        if: steps.judge.outputs.open_count > 10 && steps.judge.outputs.open_count <= 15 && steps.judge.outputs.prev_violations == 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment $ISSUE --body "警告：您当前已拥有超过 10 个 Open Issue。此仓库有上限为 15 的 Issue 限制，如果此 Issue 有开启的必要，请让维护者添加 issue-checker-ignore 标签。否则请关闭一些不必要的 issue。"
+
+      - name: First Strike
+        if: steps.judge.outputs.open_count > 15 && steps.judge.outputs.prev_violations == 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment $ISSUE --body "这是您的第一次警告。您已超过 15 个 Open Issue 限制。当前 Issue 已关闭并标记，再次违反将被封禁。"
+          gh issue edit $ISSUE --add-label "violation"
+          gh issue close $ISSUE --reason "not_planned"
+
+      - name: Second Strike - BAN
+        if: steps.judge.outputs.open_count > 15 && steps.judge.outputs.prev_violations > 0
+        env:
+          ADMIN_PAT: ${{ secrets.SEALDICE_ADMIN_PAT }}
+          ORG_NAME: "sealdice"
+          SPAMMER: ${{ github.event.issue.user.login }}
+        run: |
+          echo "Detecting second violation. Banning $SPAMMER..."
+          curl -X PUT \
+            -H "Authorization: token $ADMIN_PAT" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/orgs/$ORG_NAME/blocks/$SPAMMER
 
       - name: Close issue
         if: steps.unread-checkbox-check.outputs.result == 'true' || steps.blank-issue-check.outputs.result == 'false' && !contains( github.event.issue.labels.*.name, 'issue-checker-ignore')
