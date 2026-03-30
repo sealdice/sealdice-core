@@ -548,7 +548,18 @@ func diceServe(d *dice.Dice) {
 						return
 					}
 					if conn.ProtocolType == "milky" {
-						dice.ServeMilky(d, conn)
+						pa := conn.Adapter.(*dice.PlatformAdapterMilky)
+						switch pa.BuiltInMode {
+						case "lagrangeV2":
+							if runtime.GOOS == "android" {
+								return
+							}
+							dice.ServeMilkyBuiltIn(d, conn)
+							return
+						default:
+							// 分离
+							dice.ServeMilky(d, conn)
+						}
 						return
 					}
 					if conn.ProtocolType == "pureonebot" {

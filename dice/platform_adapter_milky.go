@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"path/filepath"
@@ -13,8 +14,9 @@ import (
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
-	logger "sealdice-core/logger"
+	"sealdice-core/logger"
 	"sealdice-core/message"
+	"sealdice-core/utils/procs"
 )
 
 type PlatformAdapterMilky struct {
@@ -25,7 +27,24 @@ type PlatformAdapterMilky struct {
 	RestGateway         string         `json:"rest_gateway"          yaml:"rest_gateway"`
 	Token               string         `json:"token"                 yaml:"token"`
 	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
+	// 内置
+	// BuiltInMode 留空则视为分离，目前支持的字段为 lagrangeV2
+	BuiltInMode       string          `json:"built_in_mode" yaml:"built_in_mode"`
+	MilkyProcess      *procs.Process  `json:"-" yaml:"-"`
+	BuiltInLoginState MilkyLoginState `json:"loginState" yaml:"-"`
+	QrCodeData        []byte          `json:"-"                          yaml:"-"`
 }
+
+type MilkyLoginState int64
+
+const (
+	MilkyLoginStateInit MilkyLoginState = iota
+	MilkyLoginStatePlaceholder
+	MilkyLoginStateQRWaitingForScan
+	MilkyLoginStateConnecting
+	MilkyLoginStateQRConnected
+	MilkyLoginStateFailed
+)
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
@@ -403,11 +422,11 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		return 1
-	} else {
-		log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
-		pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
-		pa.EndPoint.Nickname = info.Nickname
 	}
+
+	log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
+	pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
+	pa.EndPoint.Nickname = info.Nickname
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
 	d.LastUpdatedTime = time.Now().Unix()
@@ -437,8 +456,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	log := zap.S().Named(logger.LogKeyAdapter)
 	var comment string
 	if event.Comment != "" {
-		comment = strings.TrimSpace(event.Comment)
-		comment = strings.ReplaceAll(comment, "\u00a0", "")
+		comment = normalizeMilkyFriendRequestComment(event.Comment)
 	}
 
 	toMatch := strings.TrimSpace(pa.Session.Parent.Config.FriendAddComment)
@@ -448,34 +466,13 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	}
 
 	if !willAccept {
-		// 如果是问题校验，只填写回答即可
-		re := regexp.MustCompile(`\n回答:([^\n]+)`)
-		m := re.FindAllStringSubmatch(comment, -1)
-
-		var items []string
-		for _, i := range m {
-			items = append(items, i[1])
-		}
-
-		re2 := regexp.MustCompile(`\s+`)
-		m2 := re2.Split(toMatch, -1)
-
-		if len(m2) == len(items) {
-			ok := true
-			for i := range m2 {
-				if m2[i] != items[i] {
-					ok = false
-					break
-				}
-			}
-			willAccept = ok
-		}
+		willAccept = checkMilkyFriendAddVerify(comment, toMatch)
 	}
 
 	if comment == "" {
 		comment = "(无)"
 	} else {
-		comment = strconv.Quote(comment)
+		comment = formatMilkyFriendRequestCommentForLog(comment)
 	}
 
 	// 检查黑名单
@@ -515,6 +512,54 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	}
 }
 
+var milkyFriendRequestAnswerPattern = regexp.MustCompile(`\n回答:([^\n]+)`)
+var milkyFriendRequestExpectedItemPattern = regexp.MustCompile(`\s+`)
+
+func normalizeMilkyFriendRequestComment(comment string) string {
+	comment = strings.TrimSpace(comment)
+	comment = strings.ReplaceAll(comment, "\u00a0", " ")
+	comment = strings.ReplaceAll(comment, "\r\n", "\n")
+	// 上游可能把好友验证里的换行以字面量转义形式传过来，这里统一还原为真实换行，
+	// 以便问题校验和日志展示看到的是同一种文本布局。
+	comment = strings.ReplaceAll(comment, `\r\n`, "\n")
+	comment = strings.ReplaceAll(comment, `\n`, "\n")
+	return comment
+}
+
+func formatMilkyFriendRequestCommentForLog(comment string) string {
+	// 日志里保留真实换行，避免再次编码成 `\n` 影响人工查看。
+	comment = strings.ReplaceAll(comment, `\`, `\\`)
+	comment = strings.ReplaceAll(comment, `"`, `\"`)
+	return `"` + comment + `"`
+}
+
+func checkMilkyFriendAddVerify(comment string, toMatch string) bool {
+	if toMatch == "" {
+		return true
+	}
+
+	matches := milkyFriendRequestAnswerPattern.FindAllStringSubmatch(comment, -1)
+	answers := make([]string, 0, len(matches))
+	for _, match := range matches {
+		answer := strings.TrimSpace(strings.ReplaceAll(match[1], "\u00a0", " "))
+		answers = append(answers, answer)
+	}
+
+	expectedItems := milkyFriendRequestExpectedItemPattern.Split(toMatch, -1)
+	if len(expectedItems) != len(answers) {
+		return false
+	}
+
+	for i, item := range expectedItems {
+		expected := strings.TrimSpace(strings.ReplaceAll(item, "\u00a0", " "))
+		if expected != answers[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve bool, reason string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	if approve {
@@ -536,58 +581,83 @@ func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	if pa.IntentSession == nil {
-		success := pa.Serve()
-		return success == 0
+	pa.EndPoint.State = 2
+	// 分离
+	if pa.BuiltInMode == "" {
+		if pa.IntentSession == nil {
+			success := pa.Serve()
+			return success == 0
+		}
+		_ = pa.IntentSession.Close()
+		err := pa.IntentSession.Open()
+		if err != nil {
+			log.Errorf("Milky Connect Error:%s", err.Error())
+			pa.EndPoint.State = 0
+			return false
+		}
+		pa.EndPoint.State = 1
+		pa.EndPoint.Enable = true
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return true
 	}
-	_ = pa.IntentSession.Close()
-	err := pa.IntentSession.Open()
-	if err != nil {
-		log.Errorf("Milky Connect Error:%s", err.Error())
-		pa.EndPoint.State = 0
-		return false
+	// 内置
+	// 先断开连接
+	if pa.IntentSession != nil {
+		_ = pa.IntentSession.Close()
 	}
-	pa.EndPoint.State = 1
-	pa.EndPoint.Enable = true
-	d := pa.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+	// kill
+	BuiltinMilkyClientKill(pa.Session.Parent, pa.EndPoint)
+	MilkyRemoveSession(pa.Session.Parent, pa.EndPoint)
+	go ServeMilkyBuiltIn(pa.Session.Parent, pa.EndPoint)
 	return true
 }
 
 func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	if enable {
-		log.Infof("正在启用Milky服务……")
-		if pa.IntentSession == nil {
-			pa.Serve()
-			return
-		}
-		err := pa.IntentSession.Open()
-		if err != nil {
-			log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
-			pa.EndPoint.State = 3
-			pa.EndPoint.Enable = false
-			return
-		}
-		info, err := pa.IntentSession.GetLoginInfo()
-		if err != nil {
-			log.Errorf("Failed to get login info: %v", err)
+	if pa.BuiltInMode == "" {
+		if enable {
+			log.Infof("正在启用Milky服务……")
+			if pa.IntentSession == nil {
+				pa.Serve()
+				return
+			}
+			err := pa.IntentSession.Open()
+			if err != nil {
+				log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
+				pa.EndPoint.State = 3
+				pa.EndPoint.Enable = false
+				return
+			}
+			info, err := pa.IntentSession.GetLoginInfo()
+			if err != nil {
+				log.Errorf("Failed to get login info: %v", err)
+			} else {
+				pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
+				pa.EndPoint.Nickname = info.Nickname
+				log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
+			}
+			pa.EndPoint.State = 1
+			pa.EndPoint.Enable = true
 		} else {
-			pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
-			pa.EndPoint.Nickname = info.Nickname
-			log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
+			pa.EndPoint.State = 0
+			pa.EndPoint.Enable = false
+			_ = pa.IntentSession.Close()
 		}
-		pa.EndPoint.State = 1
-		pa.EndPoint.Enable = true
-	} else {
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
-		_ = pa.IntentSession.Close()
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return
 	}
-	d := pa.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+	if enable {
+		go ServeMilkyBuiltIn(pa.Session.Parent, pa.EndPoint)
+	} else {
+		if pa.IntentSession != nil {
+			_ = pa.IntentSession.Close()
+		}
+		BuiltinMilkyClientKill(pa.Session.Parent, pa.EndPoint)
+	}
 }
 
 func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {
@@ -729,6 +799,28 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 		return
 	}
 	log.Infof("Successfully quit group %s", groupID)
+}
+
+func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string) (*milky.GroupMemberInfo, error) {
+	if pa == nil || pa.IntentSession == nil {
+		return nil, errors.New("milky session unavailable")
+	}
+
+	rawGroupID := strings.TrimSpace(ExtractQQGroupID(groupID))
+	rawUserID := strings.TrimSpace(ExtractQQUserID(userID))
+	if rawGroupID == "" || rawUserID == "" {
+		return nil, errors.New("cannot resolve milky group/user id")
+	}
+
+	groupIDInt, err := strconv.ParseInt(rawGroupID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid milky group id %q: %w", groupID, err)
+	}
+	userIDInt, err := strconv.ParseInt(rawUserID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid milky user id %q: %w", userID, err)
+	}
+	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, false)
 }
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {
