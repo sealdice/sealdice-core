@@ -37,9 +37,8 @@ jobs:
           IGNORE_LABEL: "issue-checker-ignore"
         run: |
           OPEN_COUNT=$(gh issue list -R "$REPO" \
-            --author "$ISSUE_AUTHOR" \
+            --author "$AUTHOR" \
             --state open \
-            --exclude-label "$IGNORE_LABEL" \
             --json number --jq '. | length')
           
           HAS_PREVIOUS_VIOLATION=$(gh issue list -R "$REPO" --author "$AUTHOR" --state all --label "violation" --json number --jq '. | length')
@@ -48,7 +47,7 @@ jobs:
           echo "prev_violations=$HAS_PREVIOUS_VIOLATION" >> $GITHUB_OUTPUT
 
       - name: Warn User
-        if: steps.judge.outputs.open_count > 10 && steps.judge.outputs.open_count <= 15 && steps.judge.outputs.prev_violations == 0
+        if: steps.judge.outputs.open_count > 10 && steps.judge.outputs.open_count <= 15 && steps.judge.outputs.prev_violations == 0 && !contains( github.event.issue.labels.*.name, 'issue-checker-ignore')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE: ${{ github.event.issue.number }}
@@ -56,7 +55,7 @@ jobs:
           gh issue comment $ISSUE --body "警告：您当前已拥有超过 10 个 Open Issue。此仓库有上限为 15 的 Issue 限制，如果此 Issue 有开启的必要，请让维护者添加 issue-checker-ignore 标签。否则请关闭一些不必要的 issue。"
 
       - name: First Strike
-        if: steps.judge.outputs.open_count > 15 && steps.judge.outputs.prev_violations == 0
+        if: steps.judge.outputs.open_count > 15 && steps.judge.outputs.prev_violations == 0 && !contains( github.event.issue.labels.*.name, 'issue-checker-ignore')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE: ${{ github.event.issue.number }}
@@ -66,7 +65,7 @@ jobs:
           gh issue close $ISSUE --reason "not_planned"
 
       - name: Second Strike - BAN
-        if: steps.judge.outputs.open_count > 15 && steps.judge.outputs.prev_violations > 0
+        if: steps.judge.outputs.open_count > 15 && steps.judge.outputs.prev_violations > 0 && !contains( github.event.issue.labels.*.name, 'issue-checker-ignore')
         env:
           ADMIN_PAT: ${{ secrets.SEALDICE_ADMIN_PAT }}
           ORG_NAME: "sealdice"
