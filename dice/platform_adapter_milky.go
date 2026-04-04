@@ -324,7 +324,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
-		if m == nil {
+		if m != nil {
 			ctx := &MsgContext{MessageType: "private", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
 			pa.handelFriendRequest(ctx, m)
 		}
