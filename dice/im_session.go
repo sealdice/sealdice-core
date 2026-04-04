@@ -1522,7 +1522,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 		time.Sleep(2 * time.Second)
 
 		ctx.Player = &GroupPlayerInfo{}
-		log.Infof("发送入群致辞，群: <%s>(%d)", groupName, msg.GroupID)
+		log.Infof("发送入群致辞，群: <%s>(%s)", groupName, msg.GroupID)
 		text := DiceFormatTmpl(ctx, "核心:骰子进群")
 		for _, i := range ctx.SplitText(text) {
 			doSleepQQ(ctx)
