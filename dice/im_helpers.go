@@ -253,8 +253,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 				}
 			}
 		}
-
-		session.ServiceAtNew.Store(groupID, &GroupInfo{
+		group = &GroupInfo{
 			Active:            true,
 			activatedExtList:  extLst,
 			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
@@ -265,9 +264,8 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			DiceIDExistsMap:   new(SyncMap[string, bool]),
 			CocRuleIndex:      int(session.Parent.Config.DefaultCocRuleIndex),
 			UpdatedAtTime:     time.Now().Unix(),
-		})
-		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
-		group, _ = session.ServiceAtNew.Load(groupID)
+		}
+		session.ServiceAtNew.Store(groupID, group)
 	}
 
 	if group.DiceIDActiveMap == nil {
