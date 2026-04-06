@@ -518,21 +518,13 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.ProtocolType == "onebot" {
 						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
+						if pa.BuiltinMode == "lagrange" {
 							dice.LagrangeServe(d, conn, dice.LagrangeLoginInfo{
 								IsAsyncRun: true,
 							})
 							return
-						} else {
-							dice.GoCqhttpServe(d, conn, dice.GoCqhttpLoginInfo{
-								Password:         pa.InPackGoCqhttpPassword,
-								Protocol:         pa.InPackGoCqhttpProtocol,
-								AppVersion:       pa.InPackGoCqhttpAppVersion,
-								IsAsyncRun:       true,
-								UseSignServer:    pa.UseSignServer,
-								SignServerConfig: pa.SignServerConfig,
-							})
 						}
+						log.Errorf("不支持或已经废弃的内置适配器模式: %s", pa.BuiltinMode)
 					}
 					if conn.ProtocolType == "red" {
 						dice.ServeRed(d, conn)
