@@ -326,8 +326,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
 		go ServeQQ(dice, conn)
-	} else if pa.BuiltinMode == "lagrange-gocq" {
-		helper.Error("onebot: 尝试启动内置gocq，但内置gocq已废弃，不再尝试启动。建议使用内置Milky")
 	}
 }
 
