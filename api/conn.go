@@ -1015,7 +1015,6 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		Account           string `json:"account"           yaml:"account"`
 		SignServerName    string `json:"signServerName"    yaml:"signServerName"`
 		SignServerVersion string `json:"signServerVersion" yaml:"signServerVersion"`
-		IsGocq            bool   `json:"isGocq"            yaml:"isGocq"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -1024,7 +1023,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 			return nil
 		}
 
-		conn := dice.NewLagrangeConnectInfoItem(v.Account, v.IsGocq)
+		conn := dice.NewLagrangeConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)

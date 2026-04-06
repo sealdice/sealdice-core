@@ -37,7 +37,7 @@ func lagrangeGetWorkDir(dice *Dice, conn *EndPointInfo) string {
 	return workDir
 }
 
-func NewLagrangeConnectInfoItem(account string, isGocq bool) *EndPointInfo {
+func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
@@ -49,11 +49,6 @@ func NewLagrangeConnectInfoItem(account string, isGocq bool) *EndPointInfo {
 		UseInPackClient: true,
 		BuiltinMode:     "lagrange",
 	}
-
-	if isGocq {
-		conn.RelWorkDir = "extra/lagrange-gocq-qq" + account
-		conn.Adapter.(*PlatformAdapterGocq).BuiltinMode = "lagrange-gocq"
-	}
 	return conn
 }
 
@@ -63,15 +58,11 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 	pa.CurLoginIndex++
 	loginIndex := pa.CurLoginIndex
 	pa.GoCqhttpState = StateCodeInLogin
-
-	if pa.UseInPackClient && (pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq") { //nolint:nestif
-		helper := zap.S().Named(logger.LogKeyAdapter)
-
+	helper := zap.S().Named(logger.LogKeyAdapter)
+	if pa.UseInPackClient && (pa.BuiltinMode == "lagrange") { //nolint:nestif
 		if dice.ContainerMode {
 			if pa.BuiltinMode == "lagrange" {
 				helper.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
-			} else {
-				helper.Warn("onebot: 尝试启动内置gocq，但内置gocq在容器模式下被禁用")
 			}
 			conn.State = 3
 			pa.GoCqhttpState = StateCodeLoginFailed
@@ -86,13 +77,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		qrcodeFilePath := filepath.Join(workDir, fmt.Sprintf("qr-%s.png", conn.UserID[3:]))
 		configFilePath := filepath.Join(workDir, "appsettings.json")
 		appinfoFilePath := filepath.Join(workDir, "appinfo.json")
-
-		if pa.BuiltinMode == "lagrange-gocq" {
-			exeFilePath, _ = filepath.Abs(filepath.Join(wd, "lagrange/go-cqhttp"))
-			qrcodeFilePath = filepath.Join(workDir, "qrcode.png")
-			configFilePath = filepath.Join(workDir, "config.yml")
-			appinfoFilePath = filepath.Join(workDir, "data/versions/7.json")
-		}
 
 		exeFilePath = filepath.ToSlash(exeFilePath) // windows平台需要这个替换
 		if runtime.GOOS == "windows" {
@@ -197,11 +181,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 				qrcodeSignal := "QrCode Fetched"
 				onlineSignal := "Bot Online: "
 				qrcodeExpiredSignal := "QrCode Expired, Please Fetch QrCode Again"
-				if pa.BuiltinMode == "lagrange-gocq" {
-					qrcodeSignal = "请使用手机QQ扫描二维码"
-					onlineSignal = "登录成功"
-					qrcodeExpiredSignal = "二维码过期"
-				}
 				// 读取二维码
 				if strings.Contains(line, qrcodeSignal) {
 					chQrCode <- 1
@@ -357,7 +336,6 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 func GenerateLagrangeConfig(port int, signServerName string, signServerVersion string, dice *Dice, info *EndPointInfo) ([]byte, []byte) {
 	var appinfo []byte
 	var signServerUrl string
-	pa := info.Adapter.(*PlatformAdapterGocq)
 	if signServerVersion == "自定义" {
 		appinfo, _ = lagrangeGetAppinfoFromSignServer(signServerName)
 		signServerUrl = signServerName
@@ -368,9 +346,6 @@ func GenerateLagrangeConfig(port int, signServerName string, signServerVersion s
 		appinfo, signServerUrl = lagrangeGetSignSeverFromInfo(signServerVersion, signServerName)
 	}
 	conf := strings.ReplaceAll(defaultLagrangeConfig, "{WS端口}", strconv.Itoa(port))
-	if pa.BuiltinMode == "lagrange-gocq" {
-		conf = strings.ReplaceAll(defaultLagrangeGocqConfig, "{WS端口}", strconv.Itoa(port))
-	}
 	conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 	conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
 	return appinfo, []byte(conf)
@@ -699,64 +674,3 @@ var defaultLagrangeConfig = `
 		]
 	}
 	`
-var defaultLagrangeGocqConfig = `
-account:
-  uin: {账号UIN}
-  password: ''
-  encrypt: false
-  status: 0
-  relogin:
-    delay: 3
-    interval: 3
-    max-times: 0 
-  use-sso-address: true
-  allow-temp-session: false
-  sign-servers:
-    - url: '{NTSignServer地址}'
-  max-check-count: 0
-  sign-server-timeout: 60
-
-heartbeat:
-  interval: 5
-
-message:
-  post-format: array
-  ignore-invalid-cqcode: false
-  force-fragment: false
-  fix-url: false
-  proxy-rewrite: ''
-  report-self-message: false
-  remove-reply-at: false
-  extra-reply-data: false
-  skip-mime-scan: false
-  convert-webp-image: false
-  http-timeout: 15
-
-output:
-  log-level: warn
-  log-aging: 15
-  log-force-new: true
-  log-colorful: true
-  debug: false
-
-default-middlewares: &default
-  access-token: ''
-  filter: ''
-  rate-limit:
-    enabled: false
-    frequency: 1
-    bucket: 1
-
-database:
-  leveldb:
-    enable: true
-  sqlite3:
-    enable: false
-    cachettl: 3600000000000
-
-servers:
-  - ws:
-      address: 127.0.0.1:{WS端口}
-      middlewares:
-        <<: *default
-`
