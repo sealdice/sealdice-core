@@ -88,7 +88,7 @@ var defaultLagrangeV2Config = `{
         // "Prefix": "/",
 
         // Token for verification, Set to null to disable
-        // "AccessToken": null
+        "AccessToken": "{访问Token}",
 
         // Whether to enable WebSocket service
         // "EnabledWebSocket": true,
@@ -251,8 +251,13 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", p)
 		pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", p)
 		// 生成配置写入文件
-		c := GenerateMilkyConfig(p, SealSignV3Url, ep)
-		_ = os.WriteFile(configFilePath, c, 0o644)
+		accessToken := uuid.NewString()
+		pa.Token = accessToken
+		c := GenerateMilkyConfig(p, SealSignV3Url, accessToken, ep)
+		err = os.WriteFile(configFilePath, c, 0o644)
+		if err != nil {
+			log.Errorf("写入 Milky 配置文件失败: %s", err)
+		}
 	}
 	command := fmt.Sprintf(`"%s"`, milkyExePath)
 	p := procs.NewProcess(command)
@@ -364,13 +369,14 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 }
 
 // GenerateMilkyConfig 似乎暂时不需要 APPInfo, 如果以后需要了再改成双返回值
-func GenerateMilkyConfig(port int, signServerUrl string, info *EndPointInfo) []byte {
+func GenerateMilkyConfig(port int, signServerUrl string, accessToken string, info *EndPointInfo) []byte {
 	pa := info.Adapter.(*PlatformAdapterMilky)
 	switch pa.BuiltInMode {
 	case "lagrangeV2":
 		conf := strings.ReplaceAll(defaultLagrangeV2Config, "{WS端口}", strconv.Itoa(port))
 		conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 		conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
+		conf = strings.ReplaceAll(conf, "{访问Token}", accessToken)
 		return []byte(conf)
 	default:
 		return nil
