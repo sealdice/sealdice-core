@@ -254,7 +254,10 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		accessToken := uuid.NewString()
 		pa.Token = accessToken
 		c := GenerateMilkyConfig(p, SealSignV3Url, accessToken, ep)
-		_ = os.WriteFile(configFilePath, c, 0o644)
+		err = os.WriteFile(configFilePath, c, 0o644)
+		if err != nil {
+			log.Errorf("写入 Milky 配置文件失败: %s", err)
+		}
 	}
 	command := fmt.Sprintf(`"%s"`, milkyExePath)
 	p := procs.NewProcess(command)
