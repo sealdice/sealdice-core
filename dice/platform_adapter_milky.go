@@ -348,7 +348,6 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
 		uid := FormatDiceIDQQ(strconv.FormatInt(m.InitiatorID, 10))
 		groupId := FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10))
-		pa.GetGroupInfoAsync(groupId)
 		groupName := dm.TryGetGroupName(groupId)
 		userName := dm.TryGetUserName(uid)
 		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%d)", groupName, groupId, userName, m.InitiatorID)

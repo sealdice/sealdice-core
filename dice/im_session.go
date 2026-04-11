@@ -1577,8 +1577,7 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 				}()
 
 				// Ensure context has group set for formatting and attrs access
-				ctx.Group = groupInfo
-				ctx.Player = &GroupPlayerInfo{}
+				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
 				uidRaw := UserIDExtract(msg.Sender.UserID)
 				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
