@@ -740,6 +740,7 @@ func ImConnectionsAddMilkyInternal(c echo.Context) error {
 		supportedClientModes := map[string]struct{}{
 			// lagrangeV2
 			"lagrangeV2": {},
+			"yogurt":     {},
 		}
 		if _, ok := supportedClientModes[v.ClientMode]; !ok {
 			return c.JSON(http.StatusBadRequest, map[string]interface{}{

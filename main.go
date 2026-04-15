@@ -548,6 +548,9 @@ func diceServe(d *dice.Dice) {
 							}
 							dice.ServeMilkyBuiltIn(d, conn)
 							return
+						case "yogurt":
+							dice.ServeMilkyBuiltIn(d, conn)
+							return
 						default:
 							// 分离
 							dice.ServeMilky(d, conn)
