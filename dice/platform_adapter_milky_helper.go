@@ -228,7 +228,13 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	workDir := filepath.Join(d.BaseConfig.DataDir, ep.RelWorkDir)
 	diceWorkdir, _ := os.Getwd()
 	milkyExePath, _ := filepath.Abs(filepath.Join(diceWorkdir, fmt.Sprintf("milky/%s", pa.BuiltInMode)))
-	configFilePath := filepath.Join(workDir, "appsettings.jsonc")
+	var configFilePath string
+	switch pa.BuiltInMode {
+	case "lagrangeV2":
+		configFilePath = filepath.Join(workDir, "appsettings.jsonc")
+	case "yogurt":
+		configFilePath = filepath.Join(workDir, "config.json")
+	}
 	qrcodeFilePath := filepath.Join(workDir, "qrcode.png")
 	milkyExePath = filepath.ToSlash(milkyExePath) // windows平台需要这个替换
 	if runtime.GOOS == "windows" {
