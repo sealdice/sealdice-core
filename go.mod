@@ -53,7 +53,7 @@ require (
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/mroth/weightedrand v1.0.0
-	github.com/ncruces/go-sqlite3 v0.29.0
+	github.com/ncruces/go-sqlite3 v0.32.0
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/otiai10/copy v1.14.1
@@ -82,9 +82,9 @@ require (
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.45.0
+	golang.org/x/crypto v0.48.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
-	golang.org/x/sys v0.38.0
+	golang.org/x/sys v0.41.0
 	golang.org/x/text v0.34.0
 	golang.org/x/time v0.14.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
@@ -189,7 +189,7 @@ require (
 	github.com/sunshineplan/pdf v1.0.8 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.8.5 // indirect
-	github.com/tetratelabs/wazero v1.9.0 // indirect
+	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/tidwall/btree v1.8.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
@@ -210,9 +210,9 @@ require (
 	golang.org/x/arch v0.21.0 // indirect
 	golang.org/x/image v0.32.0 // indirect
 	golang.org/x/mod v0.32.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/term v0.40.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect

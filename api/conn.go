@@ -172,6 +172,10 @@ func ImConnectionsDel(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
+		defer func() {
+			myDice.LastUpdatedTime = time.Now().Unix()
+			myDice.Save(false)
+		}()
 		for index, i := range myDice.ImSession.EndPoints {
 			if i.ID == v.ID {
 				// 禁用该endpoint防止出问题
@@ -183,7 +187,8 @@ func ImConnectionsDel(c echo.Context) error {
 				switch i.Platform {
 				case "QQ":
 					myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints[:index], myDice.ImSession.EndPoints[index+1:]...)
-					if i.ProtocolType == "onebot" {
+					switch i.ProtocolType {
+					case "onebot":
 						pa := i.Adapter.(*dice.PlatformAdapterGocq)
 						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
 							dice.BuiltinQQServeProcessKillBase(myDice, i, true)
@@ -193,6 +198,17 @@ func ImConnectionsDel(c echo.Context) error {
 						} else {
 							dice.BuiltinQQServeProcessKill(myDice, i)
 						}
+					case "milky":
+						pa := i.Adapter.(*dice.PlatformAdapterMilky)
+						pa.SetEnable(false)
+						if pa.BuiltInMode != "" {
+							dice.BuiltinMilkyClientKill(myDice, i)
+							time.Sleep(1 * time.Second)
+							// 这个可以复用，别的就算了
+							dice.LagrangeServeRemoveConfig(myDice, i)
+						}
+					default:
+						i.Adapter.SetEnable(false)
 					}
 					return c.JSON(http.StatusOK, i)
 				case "DISCORD":
@@ -275,6 +291,13 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 			//			"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrcodeData),
 			//		})
 			//	}
+		case "milky":
+			pa := i.Adapter.(*dice.PlatformAdapterMilky)
+			if pa.BuiltInLoginState == dice.MilkyLoginStateQRWaitingForScan {
+				return c.JSON(http.StatusOK, map[string]string{
+					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
+				})
+			}
 		}
 		return c.JSON(http.StatusOK, i)
 	}
@@ -684,6 +707,7 @@ func ImConnectionsAddMilky(c echo.Context) error {
 			Token:       v.Token,
 			WsGateway:   v.WsGateway,
 			RestGateway: v.RestGateway,
+			BuiltInMode: "",
 		})
 		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
 		pa.Session = myDice.ImSession
@@ -691,6 +715,52 @@ func ImConnectionsAddMilky(c echo.Context) error {
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServeMilky(myDice, conn)
+		return c.JSON(http.StatusOK, conn)
+	}
+	return c.String(430, "")
+}
+
+func ImConnectionsAddMilkyInternal(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	v := struct {
+		Uin        uint64 `json:"uin" yaml:"uin"`
+		ClientMode string `json:"clientMode" yaml:"clientMode"`
+	}{}
+	err := c.Bind(&v)
+	if err == nil {
+		// Only allow explicitly supported client modes for built-in Milky
+		supportedClientModes := map[string]struct{}{
+			// lagrangeV2
+			"lagrangeV2": {},
+			"yogurt":     {},
+		}
+		if _, ok := supportedClientModes[v.ClientMode]; !ok {
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
+				"error":      "unsupported clientMode",
+				"clientMode": v.ClientMode,
+			})
+		}
+		conn := dice.NewMilkyConnItem(dice.AddMilkyEcho{
+			Token:       "",
+			WsGateway:   "",
+			RestGateway: "",
+			BuiltInMode: v.ClientMode,
+		})
+		conn.UserID = dice.FormatDiceIDQQ(strconv.FormatUint(v.Uin, 10))
+		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
+		pa.Session = myDice.ImSession
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServeMilkyBuiltIn(myDice, conn)
 		return c.JSON(http.StatusOK, conn)
 	}
 	return c.String(430, "")
@@ -946,7 +1016,6 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		Account           string `json:"account"           yaml:"account"`
 		SignServerName    string `json:"signServerName"    yaml:"signServerName"`
 		SignServerVersion string `json:"signServerVersion" yaml:"signServerVersion"`
-		IsGocq            bool   `json:"isGocq"            yaml:"isGocq"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -955,7 +1024,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 			return nil
 		}
 
-		conn := dice.NewLagrangeConnectInfoItem(v.Account, v.IsGocq)
+		conn := dice.NewLagrangeConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
