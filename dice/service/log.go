@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -220,9 +219,32 @@ func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName s
 	err = db.Model(&model.LogOneItem{}).
 		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
 		Where("log_id = ?", logID).
-		Order("time ASC").
+		Order("time ASC, id ASC").
 		Find(&items).Error
 
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// LogGetAllParquetLines 获取用于 Parquet 导出的所有行数据。
+func LogGetAllParquetLines(operator engine2.DatabaseOperator, groupID string, logName string) ([]model.LogOneItemParquet, error) {
+	db := operator.GetLogDB(constant.READ)
+	logID, err := getIDByGroupIDAndName(db, groupID, logName)
+	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []model.LogOneItemParquet{}, nil
+		}
+		return nil, err
+	}
+
+	var items []model.LogOneItemParquet
+	err = db.Model(&model.LogOneItemParquet{}).
+		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, user_uniform_id").
+		Where("log_id = ?", logID).
+		Order("time ASC, id ASC").
+		Find(&items).Error
 	if err != nil {
 		return nil, err
 	}
@@ -252,67 +274,6 @@ func LogGetCommandInfoStrList(operator engine2.DatabaseOperator, groupID string,
 		return nil, err
 	}
 	return items, nil
-}
-
-// LogIterLines 使用 GORM 的 FindInBatches 顺序遍历指定日志的所有行。
-// 该方法用于替代基于第三方游标库的多次拉取逻辑，避免对外暴露不可控游标类型。
-// fn 在每个批次上被调用；若 fn 返回错误，会提前终止遍历并将错误上抛。
-func LogIterLines(ctx context.Context, operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItem) error) error {
-	db := operator.GetLogDB(constant.READ).WithContext(ctx)
-	// 获取log的ID
-	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil {
-		if errors.Is(err, ErrLogNotFound) {
-			return nil
-		}
-		return err
-	}
-	// 按时间和自增ID稳定排序，确保遍历顺序可预期
-	var items []model.LogOneItem
-	tx := db.Model(&model.LogOneItem{}).
-		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
-		Where("log_id = ?", logID).
-		Order("time ASC, id ASC")
-	return tx.FindInBatches(&items, batchSize, func(_ *gorm.DB, _ int) error {
-		if len(items) == 0 {
-			return nil
-		}
-		if err := fn(items); err != nil {
-			return err
-		}
-		// 避免复用切片残留数据
-		items = nil
-		return nil
-	}).Error
-}
-
-// LogIterExportLines 使用 FindInBatches 顺序遍历用于导出（Parquet）的日志行。
-// 与 LogIterLines 类似，但使用 LogOneItemParquet 结构体，避免重复转换。
-func LogIterExportLines(ctx context.Context, operator engine2.DatabaseOperator, groupID string, logName string, batchSize int, fn func(batch []model.LogOneItemParquet) error) error {
-	db := operator.GetLogDB(constant.READ).WithContext(ctx)
-	// 获取log的ID
-	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil {
-		if errors.Is(err, ErrLogNotFound) {
-			return nil
-		}
-		return err
-	}
-	var items []model.LogOneItemParquet
-	tx := db.Model(&model.LogOneItemParquet{}).
-		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
-		Where("log_id = ?", logID).
-		Order("time ASC, id ASC")
-	return tx.FindInBatches(&items, batchSize, func(_ *gorm.DB, _ int) error {
-		if len(items) == 0 {
-			return nil
-		}
-		if err := fn(items); err != nil {
-			return err
-		}
-		items = nil
-		return nil
-	}).Error
 }
 
 type QueryLogLinePage struct {

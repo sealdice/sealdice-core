@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"sealdice-core/model"
 	"sealdice-core/utils/dboperator/engine"
 )
 
@@ -26,9 +26,6 @@ type UploadEnv struct {
 	UniformID string
 	GroupID   string
 	Token     string
-
-	lines []*model.LogOneItem
-	data  *[]byte
 }
 
 func Upload(env UploadEnv) (string, error) {
@@ -41,34 +38,56 @@ func Upload(env UploadEnv) (string, error) {
 	return "", errors.New("未指定日志版本")
 }
 
-func uploadToBackend(env UploadEnv, backend string, data io.Reader) string {
+type uploadPartWriter func(io.Writer) error
+
+func uploadToSealBackends(env UploadEnv, clientName string, fileName string, writePart uploadPartWriter) string {
+	for _, backend := range env.Backends {
+		if backend == "" {
+			continue
+		}
+		ret := uploadToBackend(env, backend, clientName, fileName, writePart)
+		if ret != "" {
+			return ret
+		}
+	}
+	return ""
+}
+
+func uploadToBackend(env UploadEnv, backend string, clientName string, fileName string, writePart uploadPartWriter) string {
 	client := &http.Client{}
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	field, err := writer.CreateFormField("name")
-	if err == nil {
-		_, _ = field.Write([]byte(env.LogName))
+	if err := writeFormField(writer, "name", env.LogName); err != nil {
+		env.Log.Errorf("写入上传字段 name 失败: %v", err)
+		return ""
+	}
+	if err := writeFormField(writer, "uniform_id", env.UniformID); err != nil {
+		env.Log.Errorf("写入上传字段 uniform_id 失败: %v", err)
+		return ""
+	}
+	if err := writeFormField(writer, "client", clientName); err != nil {
+		env.Log.Errorf("写入上传字段 client 失败: %v", err)
+		return ""
+	}
+	if err := writeFormField(writer, "version", strconv.Itoa(int(env.Version))); err != nil {
+		env.Log.Errorf("写入上传字段 version 失败: %v", err)
+		return ""
 	}
 
-	field, err = writer.CreateFormField("uniform_id")
-	if err == nil {
-		_, _ = field.Write([]byte(env.UniformID))
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		env.Log.Errorf("创建上传文件字段失败: %v", err)
+		return ""
 	}
-
-	field, err = writer.CreateFormField("client")
-	if err == nil {
-		_, _ = field.Write([]byte("SealDice"))
+	if err := writePart(part); err != nil {
+		env.Log.Errorf("写入上传文件内容失败: %v", err)
+		return ""
 	}
-
-	field, err = writer.CreateFormField("version")
-	if err == nil {
-		_, _ = field.Write([]byte(strconv.Itoa(int(env.Version))))
+	if err := writer.Close(); err != nil {
+		env.Log.Errorf("关闭 multipart writer 失败: %v", err)
+		return ""
 	}
-
-	part, _ := writer.CreateFormFile("file", "log-zlib-compressed")
-	_, _ = io.Copy(part, data)
-	_ = writer.Close()
 
 	req, err := http.NewRequest(http.MethodPut, backend, body)
 	if err != nil {
@@ -102,4 +121,15 @@ func uploadToBackend(env UploadEnv, backend string, data io.Reader) string {
 		env.Log.Error("日志上传的返回结果异常:", string(bodyText))
 	}
 	return ret.URL
+}
+
+func writeFormField(writer *multipart.Writer, name string, value string) error {
+	field, err := writer.CreateFormField(name)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(field, value); err != nil {
+		return fmt.Errorf("write form field %s: %w", name, err)
+	}
+	return nil
 }
