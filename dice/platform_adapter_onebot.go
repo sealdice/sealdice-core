@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"go.uber.org/zap"
 
 	emitter "sealdice-core/dice/imsdk/onebot"
+	emitter_types "sealdice-core/dice/imsdk/onebot/types"
 	"sealdice-core/logger"
 	"sealdice-core/message"
 )
@@ -40,7 +42,6 @@ type PlatformAdapterOnebot struct {
 
 	// 保护这几个
 	sendEmitter emitter.Emitter
-	emitterChan chan emitter.Response[sonic.NoCopyRawMessage]
 	once        sync.Once
 
 	// 执行用池
@@ -92,20 +93,117 @@ func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 	if p.sendEmitter != nil {
-		_ = p.sendEmitter.QuitGroup(p.ctx, ExtractQQEmitterGroupID(id))
+		gid := ExtractQQEmitterGroupID(id)
+		err := p.sendEmitter.QuitGroup(p.ctx, gid)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				p.logger.Warnf("QuitGroup 超时: group=%s gid=%d err=%v", id, gid, err)
+			} else {
+				p.logger.Warnf("QuitGroup 失败: group=%s gid=%d err=%v", id, gid, err)
+			}
+		}
 	}
 }
 
 // SendToPerson 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	if p == nil {
+		zap.S().Named(logger.LogKeyAdapter).Warnf("向用户发送消息失败: 当前 OneBot 账号未正确初始化，消息未发出。user=%s flag=%s text=%q", userID, flag, text)
+		return
+	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToPerson(ctx, userID, msgElement, flag)
 }
 
 // SendToGroup 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	if p == nil {
+		zap.S().Named(logger.LogKeyAdapter).Warnf("向群发送消息失败: 当前 OneBot 账号未正确初始化，消息未发出。group=%s flag=%s text=%q", groupID, flag, text)
+		return
+	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToGroup(ctx, groupID, msgElement, flag)
+}
+
+func (p *PlatformAdapterOnebot) SendGroupForwardMsg(ctx *MsgContext, groupID string, nodes []forwardNode) bool {
+	if p == nil || p.sendEmitter == nil {
+		return false
+	}
+	if groupID == "" || len(nodes) == 0 {
+		return false
+	}
+	rawGroupID := ExtractQQEmitterGroupID(groupID)
+	if rawGroupID == 0 {
+		return false
+	}
+
+	type sendGroupForwardParams struct {
+		GroupID  int64         `json:"group_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+
+	_, err := p.sendEmitter.Raw(p.ctx, "send_group_forward_msg", sendGroupForwardParams{
+		GroupID:  rawGroupID,
+		Messages: nodes,
+	})
+	if err == nil && p.Session != nil {
+		sendText := forwardNodesToText(nodes)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "group",
+			GroupID:     groupID,
+			Message:     sendText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+		}, "")
+	}
+	return err == nil
+}
+
+func (p *PlatformAdapterOnebot) SendPrivateForwardMsg(ctx *MsgContext, userID string, nodes []forwardNode) bool {
+	if p == nil || p.sendEmitter == nil {
+		return false
+	}
+	if userID == "" || len(nodes) == 0 {
+		return false
+	}
+	rawUserID := ExtractQQEmitterUserID(userID)
+	if rawUserID == 0 {
+		return false
+	}
+
+	type sendPrivateForwardParams struct {
+		UserID   int64         `json:"user_id"`
+		Messages []forwardNode `json:"messages"`
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+
+	_, err := p.sendEmitter.Raw(p.ctx, "send_private_forward_msg", sendPrivateForwardParams{
+		UserID:   rawUserID,
+		Messages: nodes,
+	})
+	if err == nil && p.Session != nil {
+		sendText := forwardNodesToText(nodes)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "private",
+			Message:     sendText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+		}, "")
+	}
+	return err == nil
 }
 
 func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
@@ -119,44 +217,195 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
-	rawMsg, msgText := convertSealMsgToMessageChain(msg)
-	rawId, err := p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
-	if err != nil {
+	if p == nil || p.sendEmitter == nil {
+		log := zap.S().Named(logger.LogKeyAdapter)
+		if p != nil && p.logger != nil {
+			log = p.logger
+		}
+		log.Warnf("向群发送消息失败: 当前账号连接不可用，消息未发出。group=%s flag=%s msg_len=%d", groupID, flag, len(msg))
 		return
 	}
-	// 支援插件发送调用
-	p.Session.OnMessageSend(ctx, &Message{
-		Platform:    "QQ",
-		MessageType: "group",
-		Segment:     msg,
-		Message:     msgText,
-		Sender: SenderBase{
-			UserID:   p.EndPoint.UserID,
-			Nickname: p.EndPoint.Nickname,
-		},
-		RawID: rawId,
-	}, flag)
+	if len(msg) == 0 {
+		return
+	}
+
+	var rawID *emitter_types.SendMsgRes
+	rawGroupID := ExtractQQEmitterGroupID(groupID)
+	pendingMsg := make([]message.IMessageElement, 0, len(msg))
+	sentAnything := false
+	sentSegments := make([]message.IMessageElement, 0, len(msg))
+
+	defer func() {
+		if !sentAnything || p.Session == nil || p.EndPoint == nil {
+			return
+		}
+		_, sentMsgText := convertSealMsgToMessageChain(sentSegments)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "group",
+			GroupID:     groupID,
+			Segment:     sentSegments,
+			Message:     sentMsgText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+			RawID: rawID,
+		}, flag)
+	}()
+
+	flushPending := func() bool {
+		if len(pendingMsg) == 0 {
+			return true
+		}
+		batch := make([]message.IMessageElement, len(pendingMsg))
+		copy(batch, pendingMsg)
+		rawMsg, _ := convertSealMsgToMessageChain(batch)
+		var err error
+		rawID, err = p.sendEmitter.SendGrMsg(p.ctx, ExtractQQEmitterGroupID(groupID), rawMsg) // 这里可以获取到发送消息的ID
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				p.logger.Warnf("SendGrMsg 超时: group=%s err=%v", groupID, err)
+			} else {
+				p.logger.Warnf("SendGrMsg 失败: group=%s err=%v", groupID, err)
+			}
+			return false
+		}
+		sentSegments = append(sentSegments, batch...)
+		pendingMsg = pendingMsg[:0]
+		sentAnything = true
+		return true
+	}
+
+	for _, item := range msg {
+		if item.Type() != message.Poke {
+			pendingMsg = append(pendingMsg, item)
+			continue
+		}
+
+		if !flushPending() {
+			return
+		}
+
+		poke, ok := item.(*message.PokeElement)
+		if !ok || poke.Target == "" {
+			continue
+		}
+		pokeTarget, parseErr := strconv.ParseInt(poke.Target, 10, 64)
+		if parseErr != nil {
+			p.logger.Warnf("GroupPoke target parse failed: group=%s target=%s err=%v", groupID, poke.Target, parseErr)
+			continue
+		}
+		_, actionErr := p.sendEmitter.Raw(p.ctx, "group_poke", struct {
+			GroupID int64 `json:"group_id"`
+			UserID  int64 `json:"user_id"`
+		}{
+			GroupID: rawGroupID,
+			UserID:  pokeTarget,
+		})
+		if actionErr != nil {
+			p.logger.Warnf("GroupPoke failed: group=%s target=%s err=%v", groupID, poke.Target, actionErr)
+			continue
+		}
+		sentSegments = append(sentSegments, &message.PokeElement{Target: poke.Target})
+		sentAnything = true
+	}
+
+	if !flushPending() {
+		return
+	}
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
-	rawMsg, msgText := convertSealMsgToMessageChain(msg)
-	rawId, err := p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
-	if err != nil {
-		p.logger.Errorf("发送消息异常 %v", err)
+	if p == nil || p.sendEmitter == nil {
+		log := zap.S().Named(logger.LogKeyAdapter)
+		if p != nil && p.logger != nil {
+			log = p.logger
+		}
+		log.Warnf("向用户发送消息失败: 当前账号连接不可用，消息未发出。user=%s flag=%s msg_len=%d", userID, flag, len(msg))
 		return
 	}
-	// 支援插件发送调用
-	p.Session.OnMessageSend(ctx, &Message{
-		Platform:    "QQ",
-		MessageType: "private",
-		Segment:     msg,
-		Message:     msgText,
-		Sender: SenderBase{
-			UserID:   p.EndPoint.UserID,
-			Nickname: p.EndPoint.Nickname,
-		},
-		RawID: rawId,
-	}, flag)
+	if len(msg) == 0 {
+		return
+	}
+
+	var rawID *emitter_types.SendMsgRes
+	pendingMsg := make([]message.IMessageElement, 0, len(msg))
+	sentAnything := false
+	sentSegments := make([]message.IMessageElement, 0, len(msg))
+
+	defer func() {
+		if !sentAnything || p.Session == nil || p.EndPoint == nil {
+			return
+		}
+		_, sentMsgText := convertSealMsgToMessageChain(sentSegments)
+		p.Session.OnMessageSend(ctx, &Message{
+			Platform:    "QQ",
+			MessageType: "private",
+			Segment:     sentSegments,
+			Message:     sentMsgText,
+			Sender: SenderBase{
+				UserID:   p.EndPoint.UserID,
+				Nickname: p.EndPoint.Nickname,
+			},
+			RawID: rawID,
+		}, flag)
+	}()
+
+	flushPending := func() bool {
+		if len(pendingMsg) == 0 {
+			return true
+		}
+		batch := make([]message.IMessageElement, len(pendingMsg))
+		copy(batch, pendingMsg)
+		rawMsg, _ := convertSealMsgToMessageChain(batch)
+		var err error
+		rawID, err = p.sendEmitter.SendPvtMsg(p.ctx, ExtractQQEmitterUserID(userID), rawMsg) // 这里可以获取到发送消息的ID
+		if err != nil {
+			p.logger.Errorf("发送消息异常 %v", err)
+			return false
+		}
+		sentSegments = append(sentSegments, batch...)
+		pendingMsg = pendingMsg[:0]
+		sentAnything = true
+		return true
+	}
+
+	for _, item := range msg {
+		if item.Type() != message.Poke {
+			pendingMsg = append(pendingMsg, item)
+			continue
+		}
+
+		if !flushPending() {
+			return
+		}
+
+		poke, ok := item.(*message.PokeElement)
+		if !ok || poke.Target == "" {
+			continue
+		}
+		pokeTarget, parseErr := strconv.ParseInt(poke.Target, 10, 64)
+		if parseErr != nil {
+			p.logger.Warnf("FriendPoke target parse failed: user=%s target=%s err=%v", userID, poke.Target, parseErr)
+			continue
+		}
+		_, actionErr := p.sendEmitter.Raw(p.ctx, "friend_poke", struct {
+			UserID int64 `json:"user_id"`
+		}{
+			UserID: pokeTarget,
+		})
+		if actionErr != nil {
+			p.logger.Warnf("FriendPoke failed: user=%s target=%s err=%v", userID, poke.Target, actionErr)
+			continue
+		}
+		sentSegments = append(sentSegments, &message.PokeElement{Target: poke.Target})
+		sentAnything = true
+	}
+
+	if !flushPending() {
+		return
+	}
 }
 
 func (p *PlatformAdapterOnebot) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
@@ -270,14 +519,13 @@ func (p *PlatformAdapterOnebot) MemberKick(_ string, _ string) {
 // onConnected 连接成功的回调函数
 func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	// 连接成功，获取当前登录状态
-	if p.emitterChan == nil {
-		p.emitterChan = make(chan emitter.Response[sonic.NoCopyRawMessage], 32)
-	}
-	p.sendEmitter = emitter.NewEVEmitter(kws, p.emitterChan)
+	p.sendEmitter = emitter.NewEVEmitter(kws)
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 	if err != nil {
 		p.logger.Errorf("获取登录信息异常 %v", err)
-		p.EndPoint.State = 3
+		// 这里属于“已建立 WS 但初始化失败”，需要走失败路径触发重试；
+		// 否则 FSM 会停留在 connecting，且不会触发 retryConnect。
+		_ = p.sm.Event(context.Background(), "connect_fail")
 		return
 	}
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
@@ -305,7 +553,11 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 			if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
 				p.logger.Errorf("echo 数据传输异常 %v", err)
 			}
-			p.emitterChan <- echoer
+			if p.sendEmitter == nil {
+				p.logger.Warnf("echo 丢弃: emitter=nil echo=%s status=%s retcode=%d", echoer.Echo, echoer.Status, echoer.RetCode)
+				return
+			}
+			p.sendEmitter.HandleEcho(echoer)
 		})
 	}
 
@@ -577,6 +829,9 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 }
 
 func (p *PlatformAdapterOnebot) updateAndSave() {
+	if p.Session == nil || p.Session.Parent == nil {
+		return
+	}
 	d := p.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -607,6 +862,8 @@ func (p *PlatformAdapterOnebot) ensureFSM() {
 
 func (p *PlatformAdapterOnebot) cbEnterConnecting(_ context.Context, _ *loopfsm.Event) {
 	p.EndPoint.State = StateConnecting
+	// Enable 表示“用户期望启用”，不应由连接成功与否决定；否则连接中/失败会把配置写成禁用，重启后不会自动启动。
+	p.EndPoint.Enable = p.desiredEnabled
 	p.updateAndSave()
 	if err := p.startConnection(); err != nil {
 		_ = p.sm.Event(context.Background(), "connect_fail")
@@ -621,7 +878,8 @@ func (p *PlatformAdapterOnebot) cbEnterConnected(_ context.Context, _ *loopfsm.E
 
 func (p *PlatformAdapterOnebot) cbEnterFailed(_ context.Context, _ *loopfsm.Event) {
 	p.EndPoint.State = StateConnectionFailed
-	p.EndPoint.Enable = false
+	// 连接失败不等于用户禁用；保持 Enable 不变，避免持久化成“禁用”导致重启后不再自动连接。
+	p.EndPoint.Enable = p.desiredEnabled
 	p.updateAndSave()
 	if p.desiredEnabled {
 		go p.retryConnect()

@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -19,6 +21,178 @@ var (
 	sealCodeRe = regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`)
 	cqCodeRe   = regexp.MustCompile(`\[CQ:.+?]`)
 )
+
+type forwardMsgSender interface {
+	SendGroupForwardMsg(ctx *MsgContext, groupID string, nodes []forwardNode) bool
+	SendPrivateForwardMsg(ctx *MsgContext, userID string, nodes []forwardNode) bool
+}
+
+type forwardNodeData struct {
+	Name    string `json:"name"`
+	Uin     string `json:"uin"`
+	Content string `json:"content"`
+}
+
+type forwardNode struct {
+	Type string          `json:"type"`
+	Data forwardNodeData `json:"data"`
+}
+
+func buildForwardNodes(senderName string, senderUin string, title string, contents []string) []forwardNode {
+	nodes := make([]forwardNode, 0, len(contents)+1)
+	if title != "" {
+		nodes = append(nodes, forwardNode{
+			Type: "node",
+			Data: forwardNodeData{
+				Name:    senderName,
+				Uin:     senderUin,
+				Content: title,
+			},
+		})
+	}
+
+	for _, c := range contents {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+
+		nodes = append(nodes, forwardNode{
+			Type: "node",
+			Data: forwardNodeData{
+				Name:    senderName,
+				Uin:     senderUin,
+				Content: c,
+			},
+		})
+	}
+	return nodes
+}
+
+func BuildForwardNodesFromContext(ctx *MsgContext, title string, contents []string) []forwardNode {
+	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return nil
+	}
+	name := ctx.EndPoint.Nickname
+	if diceName := strings.TrimSpace(DiceFormatTmpl(ctx, "核心:骰子名字")); diceName != "" {
+		name = diceName
+	}
+
+	var uin string
+	switch a := ctx.EndPoint.Adapter.(type) {
+	case *PlatformAdapterGocq:
+		botID, _ := a.mustExtractID(a.EndPoint.UserID)
+		if botID != 0 {
+			uin = strconv.FormatInt(botID, 10)
+		}
+	case *PlatformAdapterOnebot:
+		botID := ExtractQQEmitterUserID(ctx.EndPoint.UserID)
+		if botID != 0 {
+			uin = strconv.FormatInt(botID, 10)
+		}
+	default:
+		trimmed := strings.TrimPrefix(ctx.EndPoint.UserID, "PG-")
+		trimmed = strings.TrimPrefix(trimmed, "QQ-Group:")
+		trimmed = strings.TrimPrefix(trimmed, "QQ-CH-Group:")
+		trimmed = strings.TrimPrefix(trimmed, "QQ-CH:")
+		trimmed = strings.TrimPrefix(trimmed, "QQ:")
+		if trimmed != ctx.EndPoint.UserID {
+			uin = trimmed
+		}
+	}
+	if uin == "" {
+		return nil
+	}
+	return buildForwardNodes(name, uin, title, contents)
+}
+
+func forwardNodesToText(nodes []forwardNode) string {
+	parts := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		text := strings.TrimSpace(n.Data.Content)
+		if text != "" {
+			parts = append(parts, text)
+		}
+	}
+	return strings.TrimSpace(strings.Join(parts, "\n"))
+}
+
+// TryReplyToSenderMergedForward 尝试用“合并转发”发送多条内容。
+//
+// 返回值含义：
+//   - true：已发送（或当前平台支持且已处理）
+//   - false：当前平台/适配器不支持，调用方应自行回退到普通 ReplyToSender
+func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, contents []string) bool {
+	if ctx == nil || msg == nil || ctx.Dice == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return false
+	}
+	if len(contents) == 0 {
+		return false
+	}
+
+	if ctx.Dice.Config.EnableCensor && ctx.Dice.Config.CensorMode == OnlyOutputReply {
+		for i, content := range contents {
+			checkText := sealCodeRe.ReplaceAllString(content, "")
+			checkText = cqCodeRe.ReplaceAllString(checkText, "")
+
+			hit, words, needToTerminate, _ := ctx.Dice.CensorMsg(ctx, msg, checkText, content)
+			if needToTerminate {
+				return true
+			}
+			if hit {
+				ctx.Dice.Logger.Infof(
+					"拒绝回复命中敏感词「%s」的内容（合并转发）- 来自<%s>(%s)",
+					strings.Join(words, "|"),
+					msg.Sender.Nickname,
+					msg.Sender.UserID,
+				)
+				contents[i] = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
+			}
+		}
+	}
+
+	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
+		if msg.MessageType == "group" {
+			if !spamCheckPerson(ctx, msg) {
+				spamCheckGroup(ctx, msg)
+			}
+		} else {
+			spamCheckPerson(ctx, msg)
+		}
+	}
+
+	if ctx.AliasPrefixText != "" {
+		title = ctx.AliasPrefixText + title
+		ctx.AliasPrefixText = ""
+	}
+	if ctx.DelegateText != "" {
+		title = ctx.DelegateText + title
+		ctx.DelegateText = ""
+	}
+
+	s, ok := ctx.EndPoint.Adapter.(forwardMsgSender)
+	if !ok {
+		return false
+	}
+
+	nodes := BuildForwardNodesFromContext(ctx, title, contents)
+	if len(nodes) == 0 {
+		return false
+	}
+	switch msg.MessageType {
+	case "group":
+		ok := s.SendGroupForwardMsg(ctx, msg.GroupID, nodes)
+		if ok && ctx.Group != nil {
+			atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
+			ctx.Group.MarkDirty(ctx.Dice)
+		}
+		return ok
+	case "private":
+		return s.SendPrivateForwardMsg(ctx, msg.Sender.UserID, nodes)
+	default:
+		return false
+	}
+}
 
 func IsCurGroupBotOnByID(session *IMSession, ep *EndPointInfo, messageType string, groupID string) bool {
 	// Pinenutn: 总觉得这里还能优化，但是又想不到怎么优化，可恶，要长脑子了
@@ -79,8 +253,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 				}
 			}
 		}
-
-		session.ServiceAtNew.Store(groupID, &GroupInfo{
+		group = &GroupInfo{
 			Active:            true,
 			activatedExtList:  extLst,
 			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
@@ -91,9 +264,8 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			DiceIDExistsMap:   new(SyncMap[string, bool]),
 			CocRuleIndex:      int(session.Parent.Config.DefaultCocRuleIndex),
 			UpdatedAtTime:     time.Now().Unix(),
-		})
-		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
-		group, _ = session.ServiceAtNew.Load(groupID)
+		}
+		session.ServiceAtNew.Store(groupID, group)
 	}
 
 	if group.DiceIDActiveMap == nil {
@@ -282,7 +454,7 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		text = "要发送的文本过长"
 	}
 	if ctx.Group != nil {
-		ctx.Group.RecentDiceSendTime = time.Now().Unix()
+		atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
 		ctx.Group.MarkDirty(ctx.Dice)
 	}
 	text = strings.TrimSpace(text)

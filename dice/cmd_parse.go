@@ -36,8 +36,7 @@ type AtInfo struct {
 }
 
 func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
-	c1 := *ctx
-	mctx := &c1 // 复制一个ctx，用于其他用途
+	mctx := ctx.ShallowCopy() // 复制一个ctx，用于其他用途
 	mctx.vm = nil
 	if ctx.Group != nil {
 		p := ctx.Group.PlayerGet(ctx.Dice.DBOperator, i.UserID)
@@ -396,11 +395,9 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 		}
 		switch v.Type() {
 		case message.At:
-			res, ok := v.(*message.AtElement)
-			if !ok {
-				continue
-			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", res.Target))
+			// 跳过 @ 信息，因为已通过 parseAtInfo 单独处理
+			// 不要转换为 CQ 码，否则会污染 CleanArgs 导致表达式解析失败
+			continue
 		case message.Text:
 			res, ok := v.(*message.TextElement)
 			if !ok {
@@ -412,7 +409,7 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 			if !ok {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", res.FaceID))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", res.FaceID)
 		case message.File:
 			res, ok := v.(*message.FileElement)
 			if !ok {
@@ -425,7 +422,7 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 			if fileVal == "" {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:file,file=%v]", fileVal))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:file,file=%v]", fileVal)
 		case message.Image:
 			res, ok := v.(*message.ImageElement)
 			if !ok {
@@ -435,7 +432,7 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 			if res.URL == "" {
 				url = res.File.URL
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", url))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", url)
 		case message.Record:
 			res, ok := v.(*message.RecordElement)
 			if !ok {
@@ -451,7 +448,7 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 			if recordFile == "" {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", recordFile))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", recordFile)
 		case message.Reply:
 			res, ok := v.(*message.ReplyElement)
 			if !ok {
@@ -461,19 +458,19 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 			if err != nil {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", parseInt))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", parseInt)
 		case message.TTS:
 			res, ok := v.(*message.TTSElement)
 			if !ok {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:tts,text=%v]", res.Content))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:tts,text=%v]", res.Content)
 		case message.Poke:
 			res, ok := v.(*message.PokeElement)
 			if !ok {
 				continue
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", res.Target))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:poke,qq=%v]", res.Target)
 		default:
 			// 不是标准类型的情况
 			res, ok := v.(*message.DefaultElement)
@@ -489,7 +486,7 @@ func extractResultFromSegments(segments []message.IMessageElement) string {
 				cqParamParts = append(cqParamParts, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
 			cqParam := strings.Join(cqParamParts, ",")
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, cqParam))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:%s,%s]", res.RawType, cqParam)
 		}
 	}
 	return cqMessage.String()
@@ -643,7 +640,7 @@ func (c *CQCommand) Compile() string {
 	}
 	var argsPart strings.Builder
 	for k, v := range c.Args {
-		fmt.Fprintf(&argsPart, ",%s=%s", k, v)
+		_, _ = fmt.Fprintf(&argsPart, ",%s=%s", k, v)
 	}
 	return fmt.Sprintf("[CQ:%s%s]", c.Type, argsPart.String())
 }

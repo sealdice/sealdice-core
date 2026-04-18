@@ -79,6 +79,11 @@ func (d *Dice) JsInit() {
 	if pub, err := static.Scripts.ReadFile("scripts/seal_mod.public.pem"); err == nil && len(pub) > 0 {
 		OfficialModPublicKey = string(pub)
 	}
+	// 允许在 JsEnable=false 的启动状态下通过 API 重启 JS：
+	// 此时 ExtLoopManager 尚未初始化，需要在这里补齐。
+	if d.ExtLoopManager == nil {
+		d.ExtLoopManager = NewJsLoopManager()
+	}
 	// 清理目前的js相关
 	d.jsClear()
 
@@ -198,6 +203,10 @@ func (d *Dice) JsInit() {
 				}
 			}()
 
+			if strings.ToLower(realExt.Name) == "help" || strings.ToLower(realExt.Name) == "all" {
+				panic("help 和 all 为保留关键字，无法作为插件名使用")
+			}
+
 			extName := realExt.Name
 
 			// 1. 查找或创建 wrapper
@@ -250,13 +259,14 @@ func (d *Dice) JsInit() {
 				realExt.OnLoad()
 			}
 		})
-		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string) error {
+		_ = ext.Set("registerStringConfig", func(ei *ExtInfo, key string, defaultValue string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "string",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -264,13 +274,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string) error {
+		_ = ext.Set("registerIntConfig", func(ei *ExtInfo, key string, defaultValue int64, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "int",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -278,13 +289,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string) error {
+		_ = ext.Set("registerBoolConfig", func(ei *ExtInfo, key string, defaultValue bool, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "bool",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -292,13 +304,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string) error {
+		_ = ext.Set("registerFloatConfig", func(ei *ExtInfo, key string, defaultValue float64, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "float",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -306,13 +319,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string) error {
+		_ = ext.Set("registerTemplateConfig", func(ei *ExtInfo, key string, defaultValue []string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "template",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Description:  description,
@@ -320,13 +334,14 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.RegisterPluginConfig(ei.Name, config)
 			return nil
 		})
-		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string) error {
+		_ = ext.Set("registerOptionConfig", func(ei *ExtInfo, key string, defaultValue string, option []string, description string, group string) error {
 			if ei.dice == nil {
 				return errors.New("请先完成此扩展的注册")
 			}
 			config := &ConfigItem{
 				Key:          key,
 				Type:         "option",
+				Group:        group,
 				Value:        defaultValue,
 				DefaultValue: defaultValue,
 				Option:       option,
@@ -397,25 +412,7 @@ func (d *Dice) JsInit() {
 			d.ConfigManager.UnregisterConfig(ei.Name, key...)
 		})
 
-		_ = ext.Set("getPackageConfig", func(ei *ExtInfo) map[string]interface{} {
-			if ei.dice == nil {
-				panic("扩展未正确注册")
-			}
-			if ei.Source == nil || ei.Source.PackageID == "" {
-				panic("此扩展不属于任何扩展包")
-			}
-			if d.PackageManager == nil {
-				panic("包管理器未初始化")
-			}
-
-			config, err := d.PackageManager.GetConfig(ei.Source.PackageID)
-			if err != nil {
-				panic(err.Error())
-			}
-			return config
-		})
-
-		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string) *JsScriptTask {
+		_ = ext.Set("registerTask", func(ei *ExtInfo, taskType string, value string, fn func(taskCtx JsScriptTaskCtx), key string, desc string, group string) *JsScriptTask {
 			if ei.dice == nil {
 				panic(errors.New("请先完成此扩展的注册"))
 			}
@@ -479,6 +476,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:cron",
+						Group:        group,
 						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
@@ -488,6 +486,7 @@ func (d *Dice) JsInit() {
 					config = &ConfigItem{
 						Key:          key,
 						Type:         "task:daily",
+						Group:        group,
 						Value:        expr,
 						DefaultValue: value,
 						Description:  desc,
@@ -707,7 +706,10 @@ func (d *Dice) jsClear() {
 	if d.StoreManager != nil {
 		d.StoreManager.InstalledPlugins = map[string]bool{}
 	}
-	d.ExtLoopManager.SetLoop(nil)
+	// JsEnable=false 的启动状态下 ExtLoopManager 可能尚未初始化
+	if d.ExtLoopManager != nil {
+		d.ExtLoopManager.SetLoop(nil)
+	}
 }
 
 func isScriptFile(filename string) bool {
@@ -738,7 +740,7 @@ func (d *Dice) JsLoadScripts() {
 				scriptData, _ := os.ReadFile(target)
 				if ok, _ := CheckJsSign(scriptData); !ok {
 					d.Logger.Warnf("已存在的内置脚本「%s」未通过校验，进行覆盖", script.Name())
-					_ = os.WriteFile(target, scriptData, 0o644)
+					_ = os.WriteFile(target, scriptData, 0o644) //nolint:gosec
 				}
 			}
 		}
@@ -749,13 +751,13 @@ func (d *Dice) JsLoadScripts() {
 	_ = filepath.Walk(builtinPath, func(path string, info fs.FileInfo, err error) error {
 		if isScriptFile(path) {
 			d.Logger.Info("正在读取内置脚本: ", path)
-			data, err := os.ReadFile(path)
+			data, err := os.ReadFile(path) //nolint:gosec
 			if err != nil {
 				d.Logger.Error("读取内置脚本失败(无法访问): ", err.Error())
 				return nil
 			}
 			// 检查内置脚本签名，检查不通过则拒绝加载
-			scriptData, _ := os.ReadFile(path)
+			scriptData, _ := os.ReadFile(path) //nolint:gosec
 			if ok, _ := CheckJsSign(scriptData); ok {
 				jsInfo, err := d.JsParseMeta("./"+path, info.ModTime(), data, true)
 				if err != nil {
@@ -780,7 +782,7 @@ func (d *Dice) JsLoadScripts() {
 		}
 		if isScriptFile(path) {
 			d.Logger.Info("正在读取脚本: ", path)
-			data, err := os.ReadFile(path)
+			data, err := os.ReadFile(path) //nolint:gosec
 			if err != nil {
 				d.Logger.Error("读取脚本失败(无法访问): ", err.Error())
 				return nil
@@ -797,38 +799,6 @@ func (d *Dice) JsLoadScripts() {
 		}
 		return nil
 	})
-
-	// 解析扩展包内的脚本
-	if d.PackageManager != nil {
-		for _, pkg := range d.PackageManager.GetEnabled() {
-			pkgScriptsPath := filepath.Join(pkg.InstallPath, "scripts")
-			if _, err := os.Stat(pkgScriptsPath); os.IsNotExist(err) {
-				continue
-			}
-			_ = filepath.Walk(pkgScriptsPath, func(scriptPath string, info fs.FileInfo, err error) error {
-				if err != nil || info.IsDir() {
-					return nil
-				}
-				if isScriptFile(scriptPath) {
-					d.Logger.Infof("正在读取扩展包 %s 的脚本: %s", pkg.Manifest.Package.ID, scriptPath)
-					data, err := os.ReadFile(scriptPath)
-					if err != nil {
-						d.Logger.Errorf("读取扩展包脚本失败(无法访问): %s", err.Error())
-						return nil
-					}
-					jsInfo, err := d.JsParseMeta("./"+scriptPath, info.ModTime(), data, false)
-					if err != nil {
-						d.Logger.Errorf("读取扩展包脚本失败(错误依赖): %s", err.Error())
-						return nil
-					}
-					// 设置所属扩展包ID
-					jsInfo.PackageID = pkg.Manifest.Package.ID
-					jsInfos = append(jsInfos, jsInfo)
-				}
-				return nil
-			})
-		}
-	}
 
 	// 检查依赖是否满足
 	unloadKeySet := make(map[string]bool)
@@ -1011,8 +981,6 @@ type JsScriptInfo struct {
 	needCompiled bool
 	/** 扩展商店唯一 ID */
 	StoreID string `json:"storeID"`
-	/** 所属扩展包ID，空表示独立安装 */
-	PackageID string `json:"packageId"`
 }
 
 type JsScriptDepends struct {
@@ -1347,8 +1315,19 @@ func (d *Dice) JsUpdate(jsScriptInfo *JsScriptInfo, tempFileName string) error {
 	if len(newData) == 0 {
 		return errors.New("new data is empty")
 	}
-	// 更新插件
-	err = os.WriteFile(jsScriptInfo.Filename, newData, 0o755)
+	// 更新插件，验证文件路径在脚本目录内以防止路径穿越
+	scriptsDirAbs, err := filepath.Abs(filepath.Join(d.BaseConfig.DataDir, "scripts"))
+	if err != nil {
+		return fmt.Errorf("获取脚本目录绝对路径失败: %w", err)
+	}
+	filenameAbs, err := filepath.Abs(jsScriptInfo.Filename)
+	if err != nil {
+		return fmt.Errorf("获取脚本文件绝对路径失败: %w", err)
+	}
+	if !strings.HasPrefix(filenameAbs, scriptsDirAbs+string(filepath.Separator)) {
+		return fmt.Errorf("script filename %q is outside scripts directory", jsScriptInfo.Filename)
+	}
+	err = os.WriteFile(filenameAbs, newData, 0o755) //nolint:gosec
 	if err != nil {
 		d.Logger.Errorf("插件“%s”更新时保存文件出错，%s", jsScriptInfo.Name, err.Error())
 		return err

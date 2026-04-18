@@ -385,17 +385,17 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 	var fileInfoOld []os.FileInfo
 
 	logMsg := strings.Builder{}
-	logMsg.WriteString(fmt.Sprintf("现有备份文件 %d 个, 清理模式为 ", len(fileInfos)))
+	_, _ = fmt.Fprintf(&logMsg, "现有备份文件 %d 个, 清理模式为 ", len(fileInfos)) //nolint:gosec
 
 	switch dm.BackupCleanStrategy {
 	case BackupCleanStrategyByCount:
-		logMsg.WriteString(fmt.Sprintf("保留一定数量(%d)", dm.BackupCleanKeepCount))
+		_, _ = fmt.Fprintf(&logMsg, "保留一定数量(%d)", dm.BackupCleanKeepCount)
 		if len(fileInfos) > dm.BackupCleanKeepCount {
 			fileInfoOld = fileInfos[:len(fileInfos)-dm.BackupCleanKeepCount]
 		}
 	case BackupCleanStrategyByTime:
 		threshold := time.Now().Add(-dm.BackupCleanKeepDur)
-		logMsg.WriteString(fmt.Sprintf("保留一定时间(%v, %s)", dm.BackupCleanKeepDur, threshold.Format(time.DateTime)))
+		_, _ = fmt.Fprintf(&logMsg, "保留一定时间(%v, %s)", dm.BackupCleanKeepDur, threshold.Format(time.DateTime))
 		idx, _ := sort.Find(len(fileInfos), func(i int) int {
 			return threshold.Compare(fileInfos[i].ModTime())
 		})
@@ -404,12 +404,12 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		// no-op
 	}
 
-	logMsg.WriteString(fmt.Sprintf(", 有以下 %d 个将要被删除", len(fileInfoOld)))
+	_, _ = fmt.Fprintf(&logMsg, ", 有以下 %d 个将要被删除", len(fileInfoOld)) //nolint:gosec
 
 	errDel := []string{}
 	for i, fi := range fileInfoOld {
-		logMsg.WriteString(fmt.Sprintf("\n%d. %s", i+1, fi.Name()))
-		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name()))
+		_, _ = fmt.Fprintf(&logMsg, "\n%d. %s", i+1, fi.Name())     //nolint:gosec
+		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name())) //nolint:gosec
 		if errDelete != nil {
 			errDel = append(errDel, errDelete.Error())
 		}

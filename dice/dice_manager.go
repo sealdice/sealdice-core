@@ -91,7 +91,7 @@ type Configs struct { //nolint:revive
 
 	UIPasswordSalt string   `yaml:"UIPasswordFrontendSalt"`
 	UIPasswordHash string   `yaml:"uiPasswordHash"`
-	AccessTokens   []string `yaml:"accessTokens"`
+	AccessTokens   []string `yaml:"accessTokens"` //nolint:gosec
 
 	AutoBackupEnable    bool   `yaml:"autoBackupEnable"`
 	AutoBackupTime      string `yaml:"autoBackupTime"`
@@ -228,7 +228,7 @@ func (dm *DiceManager) Save() {
 		dc.DiceConfigs = append(dc.DiceConfigs, i.BaseConfig)
 	}
 
-	data, err := yaml.Marshal(dc)
+	data, err := yaml.Marshal(dc) //nolint:gosec
 	if err == nil {
 		_ = os.WriteFile("./data/dice.yaml", data, 0644)
 	}

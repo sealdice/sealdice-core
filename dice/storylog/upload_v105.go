@@ -43,7 +43,7 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 	}
 	defer func() {
 		if err != nil {
-			_ = os.Remove(tempLog.Name())
+			_ = os.Remove(tempLog.Name()) //nolint:gosec
 		}
 	}()
 
@@ -270,7 +270,7 @@ func uploadToBackendParquet(env UploadEnv, backend string, data io.Reader) strin
 		req.Header.Set("Authorization", "Bearer "+env.Token)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec
 	if err != nil {
 		env.Log.Errorf(err.Error())
 		return ""

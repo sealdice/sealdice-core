@@ -50,7 +50,7 @@ type CnmodsDetailInfo struct {
 				CreateTime string `json:"createTime"`
 				Sort       int    `json:"sort"`
 				LoginID    string `json:"loginId"`
-				Password   string `json:"password"`
+				Password   string `json:"password"` //nolint:gosec
 				NickName   string `json:"nickName"`
 			} `json:"loginUser"`
 			Module struct {

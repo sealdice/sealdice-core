@@ -88,7 +88,7 @@ func signModFile(root, privateKey string, signFn signFn, path, name string, sign
 	if filepath.Ext(target) == ".json" {
 		target += "c" // json 转为 jsonc
 	}
-	err = os.WriteFile(target, newData, 0644)
+	err = os.WriteFile(target, newData, 0644) //nolint:gosec
 	if err != nil {
 		return
 	}

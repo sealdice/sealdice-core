@@ -132,7 +132,7 @@ func doReboot(dm *dice.DiceManager) {
 		// 手动cleanup
 		cleanupCreate(dm)()
 		// os.Args[1:]...
-		execErr := syscall.Exec(binary, []string{os.Args[0], "--delay=25"}, os.Environ())
+		execErr := syscall.Exec(binary, []string{os.Args[0], "--delay=25"}, os.Environ()) //nolint:gosec
 		if execErr != nil {
 			log.Errorf("Restart error: %s %v", binary, execErr)
 		}

@@ -58,9 +58,10 @@ type PlatformAdapterGocq struct {
 	ReverseAddr string     `json:"reverseAddr" yaml:"reverseAddr"`
 	reverseApp  *echo.Echo `json:"-"           yaml:"-"`
 
-	Socket      *gowebsocket.Socket `json:"-"           yaml:"-"`
-	ConnectURL  string              `json:"connectUrl"  yaml:"connectUrl"`  // 连接地址
-	AccessToken string              `json:"accessToken" yaml:"accessToken"` // 访问令牌
+	Socket     *gowebsocket.Socket `json:"-"           yaml:"-"`
+	ConnectURL string              `json:"connectUrl"  yaml:"connectUrl"` // 连接地址
+	//nolint:gosec
+	AccessToken string `json:"accessToken" yaml:"accessToken"` // 访问令牌
 
 	UseInPackClient bool   `json:"useInPackGoCqhttp" yaml:"useInPackGoCqhttp"` // 是否使用内置的gocqhttp
 	BuiltinMode     string `json:"builtinMode"       yaml:"builtinMode"`       // 分为 lagrange 和 gocq
@@ -125,6 +126,7 @@ type OnebotUserInfo struct {
 	GroupName       string `json:"group_name"`
 	MaxMemberCount  int32  `json:"max_member_count"`
 	Card            string `json:"card"`
+	Role            string `json:"role"`
 }
 
 type MessageQQBase struct {
@@ -161,6 +163,7 @@ type MessageQQBase struct {
 
 		// 群成员信息
 		Card string `json:"card"`
+		Role string `json:"role"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	// Status string `json:"status"`
@@ -308,26 +311,26 @@ func tryParseOneBot11ArrayMessage(log *zap.SugaredLogger, message string, writeT
 		case "image":
 			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
 			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", dataObj.Get("url").String())
 			} else {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", dataObj.Get("file").String())
 			}
 		case "face":
 			// 兼容四叶草，移除 .(string)。自动获取的信息表示此类型为 float64，这是go解析的问题
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", dataObj.Get("id").String())
 		case "record":
 			// 兼容NC情况, 此时file字段只有文件名, 完整路径在path字段
 			if !hasURLScheme(dataObj.Get("file").String()) && dataObj.Get("path").String() != "" {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("path").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", dataObj.Get("path").String())
 			} else {
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", dataObj.Get("file").String())
 			}
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", dataObj.Get("qq").String())
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", dataObj.Get("id").String())
 		}
 	}
 	// 赋值对应的Message
@@ -413,7 +416,7 @@ func (pa *PlatformAdapterGocq) SendSegmentToPerson(ctx *MsgContext, userID strin
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
-	if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
+	if pa.BuiltinMode == "lagrange" {
 		pa.Implementation = "lagrange"
 	} else {
 		pa.Implementation = "gocq"
@@ -981,6 +984,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			string(msgQQ.OperatorID) == string(msgQQ.SelfID) {
 			// 群解散
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
+			pendingQuit := session.ConsumePendingQuit(msg.GroupID, ep.UserID)
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
 			// 这个就是要删除的部分，离开这个群组=群组退出=删除对应的群聊绑定信息（也就是用户的骰子和这个群聊无关了）
@@ -989,14 +993,18 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if !exists {
 				txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, msgQQ.GroupID)
 				log.Error(txtErr)
-				ctx.Notice(txtErr)
+				if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
+					ctx.Notice(txtErr)
+				}
 				return
 			}
 			// TODO：存疑，根据DISMISS的代码复制而来
 			group.DiceIDExistsMap.Delete(ep.UserID)
 			group.MarkDirty(ctx.Dice)
 			log.Info(txt)
-			ctx.Notice(txt)
+			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
+				ctx.Notice(txt)
+			}
 			return
 		}
 
@@ -1199,7 +1207,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		if pa.InPackGoCqhttpDisconnectedCH != nil {
 			pa.InPackGoCqhttpDisconnectedCH <- -1
 		}
-		if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
+		if pa.BuiltinMode == "lagrange" {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInit
@@ -1246,7 +1254,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		c.Enable = true
 
 		if pa.UseInPackClient {
-			if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
+			if pa.BuiltinMode == "lagrange" {
 				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
 				LagrangeServe(d, c, LagrangeLoginInfo{

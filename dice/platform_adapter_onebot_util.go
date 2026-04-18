@@ -149,18 +149,24 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			return nil
 		}
 		groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
+		pendingQuit := p.Session.ConsumePendingQuit(groupId, p.EndPoint.UserID)
 		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
 		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
 		group, exists := p.Session.ServiceAtNew.Load(groupId)
 		if !exists {
 			txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, groupId)
 			p.logger.Error(txtErr)
-			ctx.Notice(txtErr)
+			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+				ctx.Notice(txtErr)
+			}
+			return nil
 		}
 		group.DiceIDExistsMap.Delete(p.EndPoint.UserID)
 		group.MarkDirty(p.Session.Parent)
 		p.logger.Info(txt)
-		ctx.Notice(txt)
+		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+			ctx.Notice(txt)
+		}
 	}
 
 	return nil
@@ -171,8 +177,12 @@ func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsoc
 		defer ErrorLogAndContinue(p.Session.Parent)
 		msgContext := p.makeCtx(req)
 		isPrivate := msgContext.MessageType == "private"
+		groupID := ""
+		if req.Get("group_id").Exists() {
+			groupID = FormatDiceIDQQGroup(req.Get("group_id").String())
+		}
 		p.Session.OnPoke(msgContext, &events.PokeEvent{
-			GroupID:   FormatDiceIDQQGroup(req.Get("group_id").String()),
+			GroupID:   groupID,
 			SenderID:  FormatDiceIDQQ(req.Get("user_id").String()),
 			TargetID:  FormatDiceIDQQ(req.Get("target_id").String()),
 			IsPrivate: isPrivate,
@@ -382,8 +392,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	// 获取请求详情
 	var comment string
 	if req.Get("comment").Exists() {
-		comment = strings.TrimSpace(req.Get("comment").String())
-		comment = strings.ReplaceAll(comment, "\u00a0", "")
+		comment = normalizeOnebotFriendRequestComment(req.Get("comment").String())
 	}
 	// 将匹配的验证问题
 	toMatch := strings.TrimSpace(p.Session.Parent.Config.FriendAddComment)
@@ -391,17 +400,15 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	var extra string
 	// 匹配验证问题检查
-	var passQuestion bool
-	var passblackList bool
-	if comment != DiceFormat(ctx, toMatch) {
-		passQuestion = checkMultiFriendAddVerify(comment, toMatch)
-	}
+	passQuestion := toMatch == "" || comment == DiceFormat(ctx, toMatch) || checkMultiFriendAddVerify(comment, toMatch)
 	// 匹配黑名单检查
 	result := checkBlackList(req.Get("user_id").String(), "user", ctx)
+
 	// 格式化请求的数据
-	comment = strconv.Quote(comment)
 	if comment == "" {
 		comment = "(无)"
+	} else {
+		comment = formatOnebotFriendRequestCommentForLog(comment)
 	}
 	if !passQuestion {
 		extra = "。回答错误"
@@ -415,7 +422,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	if p.IgnoreFriendRequest {
 		extra += "。由于设置了忽略邀请，此信息仅为通报"
 	}
-	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && passblackList, extra)
+	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
 	ctx.Notice(txt)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
@@ -428,33 +435,47 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	return nil
 }
 
-// 检查加好友是否成功
+var onebotFriendRequestAnswerPattern = regexp.MustCompile(`\n回答:([^\n]+)`)
+var onebotFriendRequestExpectedItemPattern = regexp.MustCompile(`\s+`)
+
+func normalizeOnebotFriendRequestComment(comment string) string {
+	comment = strings.TrimSpace(comment)
+	comment = strings.ReplaceAll(comment, "\u00a0", " ")
+	comment = strings.ReplaceAll(comment, "\r\n", "\n")
+	// 上游可能把好友验证里的换行以字面量转义形式传过来，这里统一还原为真实换行，
+	// 以便问题校验和日志展示看到的是同一种文本布局。
+	comment = strings.ReplaceAll(comment, `\r\n`, "\n")
+	comment = strings.ReplaceAll(comment, `\n`, "\n")
+	return comment
+}
+
+func formatOnebotFriendRequestCommentForLog(comment string) string {
+	// 日志里保留真实换行，避免再次编码成 `\n` 影响人工查看。
+	comment = strings.ReplaceAll(comment, `\`, `\\`)
+	comment = strings.ReplaceAll(comment, `"`, `\"`)
+	return `"` + comment + `"`
+}
+
 func checkMultiFriendAddVerify(comment string, toMatch string) bool {
-	// 如果目标匹配字符串为空，直接返回true
 	if toMatch == "" {
 		return true
 	}
 
-	// 提取评论中的所有回答
-	re := regexp.MustCompile(`\n回答:([^\n]+)`)
-	matches := re.FindAllStringSubmatch(comment, -1)
-
-	// 提取回答内容
+	matches := onebotFriendRequestAnswerPattern.FindAllStringSubmatch(comment, -1)
 	answers := make([]string, 0, len(matches))
 	for _, match := range matches {
-		answers = append(answers, match[1])
+		answer := strings.TrimSpace(strings.ReplaceAll(match[1], "\u00a0", " "))
+		answers = append(answers, answer)
 	}
 
-	// 分割目标匹配字符串
-	expectedItems := regexp.MustCompile(`\s+`).Split(toMatch, -1)
-
-	// 比较长度和内容
+	expectedItems := onebotFriendRequestExpectedItemPattern.Split(toMatch, -1)
 	if len(expectedItems) != len(answers) {
 		return false
 	}
 
 	for i, item := range expectedItems {
-		if item != answers[i] {
+		expected := strings.TrimSpace(strings.ReplaceAll(item, "\u00a0", " "))
+		if expected != answers[i] {
 			return false
 		}
 	}
@@ -669,14 +690,14 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			// 兼容NC情况, 此时file字段只有文件名, 完整URL在url字段
 			if !hasURLScheme(dataObj.Get("file").String()) && hasURLScheme(dataObj.Get("url").String()) {
 				rawImg.File.URL = dataObj.Get("url").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("url").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", dataObj.Get("url").String())
 			} else {
 				rawImg.File.URL = dataObj.Get("file").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", dataObj.Get("file").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", dataObj.Get("file").String())
 			}
 			seg = append(seg, rawImg)
 		case "face":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", dataObj.Get("id").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", dataObj.Get("id").String())
 			seg = append(seg, &message.FaceElement{FaceID: dataObj.Get("id").String()})
 		case "record":
 			recordRaw := message.RecordElement{File: &message.FileElement{
@@ -685,20 +706,20 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			// 兼容NC情况, 此时file字段只有文件名, 完整路径在path字段
 			if !hasURLScheme(dataObj.Get("file").String()) && dataObj.Get("path").String() != "" {
 				recordRaw.File.URL = dataObj.Get("path").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("path").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", dataObj.Get("path").String())
 			} else {
 				recordRaw.File.URL = dataObj.Get("file").String()
-				cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", dataObj.Get("file").String()))
+				_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", dataObj.Get("file").String())
 			}
 			seg = append(seg, &recordRaw)
 		case "at":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", dataObj.Get("qq").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", dataObj.Get("qq").String())
 			seg = append(seg, &message.AtElement{Target: dataObj.Get("qq").String()})
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 			seg = append(seg, &message.PokeElement{})
 		case "reply":
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", dataObj.Get("id").String()))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", dataObj.Get("id").String())
 			seg = append(seg, &message.ReplyElement{
 				ReplySeq: dataObj.Get("id").String(),
 			})
@@ -709,7 +730,7 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			for paramStr, paramValue := range dMap {
 				params = append(params, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", typeStr, strings.Join(params, ",")))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:%s,%s]", typeStr, strings.Join(params, ","))
 			// 生成对应的DefaultElement
 			seg = append(seg, &message.DefaultElement{
 				RawType: typeStr,
@@ -838,7 +859,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg.At(res.Target)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:at,qq=%v]", res.Target))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", res.Target)
 		case message.Text:
 			res, ok := v.(*message.TextElement)
 			if !ok {
@@ -852,7 +873,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.Face(res.FaceID)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:face,id=%v]", res.FaceID))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", res.FaceID)
 		case message.File:
 			res, ok := v.(*message.FileElement)
 			if !ok {
@@ -866,7 +887,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.File(fileVal)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:file,file=%v]", fileVal))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:file,file=%v]", fileVal)
 		case message.Image:
 			res, ok := v.(*message.ImageElement)
 			if !ok {
@@ -877,7 +898,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				url = res.File.URL
 			}
 			rawMsg = rawMsg.Image(url)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:image,file=%v]", url))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", url)
 		case message.Record:
 			res, ok := v.(*message.RecordElement)
 			if !ok {
@@ -894,7 +915,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.Record(recordFile)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:record,file=%v]", recordFile))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", recordFile)
 		case message.Reply:
 			res, ok := v.(*message.ReplyElement)
 			if !ok {
@@ -905,7 +926,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			rawMsg = rawMsg.Reply(parseInt)
-			cqMessage.WriteString(fmt.Sprintf("[CQ:reply,id=%v]", parseInt))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", parseInt)
 		case message.Poke:
 			res, ok := v.(*message.PokeElement)
 			if !ok {
@@ -922,7 +943,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				Type: "poke",
 				Data: marshal,
 			})
-			cqMessage.WriteString(fmt.Sprintf("[CQ:poke,qq=%v]", res.Target))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:poke,qq=%v]", res.Target)
 		default:
 			res, ok := v.(*message.DefaultElement)
 			if !ok {
@@ -938,7 +959,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			for paramStr, paramValue := range dMap {
 				params = append(params, fmt.Sprintf("%s=%s", paramStr, paramValue))
 			}
-			cqMessage.WriteString(fmt.Sprintf("[CQ:%s,%s]", res.RawType, strings.Join(params, ",")))
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:%s,%s]", res.RawType, strings.Join(params, ","))
 		}
 	}
 	messageStr := cqMessage.String()
@@ -972,7 +993,7 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	ctx := &MsgContext{MessageType: messageType, EndPoint: ep, Session: session, Dice: session.Parent}
 	wrapper := MessageWrapper{
 		MessageType: ctx.MessageType,
-		GroupID:     FormatOnebotDiceIDQQ(req.Get("group_id").String()),
+		GroupID:     FormatOnebotDiceIDQQGroup(req.Get("group_id").String()),
 		Sender: struct {
 			UserID   string
 			Nickname string
@@ -983,32 +1004,39 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	}
 	switch ctx.MessageType {
 	case "private":
-		// 拿到ID
+		// 私聊戳一戳可能拿不到用户信息（协议端异常/限流等），退化为仅依赖 user_id 的上下文。
+		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(req.Get("user_id").String())
 		info, err := p.sendEmitter.GetStrangerInfo(p.ctx, req.Get("user_id").Int(), false)
-		if err != nil {
-			return ctx
+		if err == nil {
+			wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(info.UserId, 10))
+			wrapper.Sender.Nickname = info.NickName
 		}
-		// 设置名称
-		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(info.UserId, 10))
-		wrapper.Sender.Nickname = info.NickName
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Player.Name == "" {
-			ctx.Player.Name = info.NickName
+			if wrapper.Sender.Nickname != "" {
+				ctx.Player.Name = wrapper.Sender.Nickname
+			} else {
+				ctx.Player.Name = wrapper.Sender.UserID
+			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
 			if ctx.Group != nil {
 				ctx.Group.MarkDirty(ctx.Dice)
 			}
 		}
-		SetTempVars(ctx, info.NickName)
+		if wrapper.Sender.Nickname != "" {
+			SetTempVars(ctx, wrapper.Sender.Nickname)
+		}
 	case "group":
 		groupID, _ := strconv.ParseInt(req.Get("group_id").String(), 10, 64)
 		userID, _ := strconv.ParseInt(req.Get("user_id").String(), 10, 64)
 		memberInfo, err := p.sendEmitter.GetGroupMemberInfo(p.ctx, groupID, userID, false)
-		if err != nil {
-			return ctx
+		// 群戳一戳事件中，获取群成员信息可能失败（协议端异常/限流/机器人不在群等）。
+		// 这种情况下仍构造最小上下文，避免后续处理链路空指针崩溃。
+		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(req.Get("user_id").String())
+		if err == nil {
+			wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(memberInfo.UserId, 10))
+			wrapper.Sender.Nickname = memberInfo.Nickname
 		}
-		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(memberInfo.UserId, 10))
-		wrapper.Sender.Nickname = memberInfo.Nickname
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Group == nil {
 			// 注意：GetPlayerInfoBySenderRaw 内部已调用 SetBotOnAtGroup，正常不会返回 nil
@@ -1022,17 +1050,23 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 			ctx.Player = &GroupPlayerInfo{UserID: wrapper.Sender.UserID}
 		}
 		if ctx.Player.Name == "" {
-			if memberInfo.Card == "" {
-				ctx.Player.Name = memberInfo.Nickname
+			if err == nil {
+				if memberInfo.Card == "" {
+					ctx.Player.Name = memberInfo.Nickname
+				} else {
+					ctx.Player.Name = memberInfo.Card
+				}
 			} else {
-				ctx.Player.Name = memberInfo.Card
+				ctx.Player.Name = wrapper.Sender.UserID
 			}
 			ctx.Player.UpdatedAtTime = time.Now().Unix()
 			if ctx.Group != nil {
 				ctx.Group.MarkDirty(ctx.Dice)
 			}
 		}
-		SetTempVars(ctx, memberInfo.Nickname)
+		if wrapper.Sender.Nickname != "" {
+			SetTempVars(ctx, wrapper.Sender.Nickname)
+		}
 	}
 
 	return ctx

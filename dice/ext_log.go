@@ -249,11 +249,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				if name == group.LogCurName {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_正在进行"))
 				} else {
-					ok := service.LogDelete(ctx.Dice.DBOperator, group.GroupID, name)
-					if ok {
+					err := service.LogDelete(ctx.Dice.DBOperator, group.GroupID, name)
+					if err == nil {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_成功"))
-					} else {
+					} else if errors.Is(err, service.ErrLogNotFound) {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_删除_失败_找不到"))
+					} else {
+						ReplyToSender(ctx, msg, "日志删除失败: "+err.Error())
 					}
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
@@ -990,7 +992,7 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	defer func() {
 		_ = tempLog.Close()
 		if err != nil {
-			_ = os.Remove(tempLog.Name())
+			_ = os.Remove(tempLog.Name()) //nolint:gosec
 		}
 	}()
 
