@@ -25,10 +25,14 @@ type BleveSearchEngine struct {
 	idList []string
 	// idToNumber 反向映射：ULID -> 数字ID(从1开始)，用于在搜索结果中展示短ID
 	idToNumber map[string]int
+	// numericIDDirty 表示数字ID映射已过期，需要在真正读取时重建
+	numericIDDirty bool
 }
 
 var indexDir = "./data/_help_cache/_index"
 var reSpace = regexp.MustCompile(`\s+`)
+
+const deleteSearchBatchSize = 1000
 
 func (d *BleveSearchEngine) getNextID() string {
 	return ulid.Make().String()
@@ -92,9 +96,7 @@ func (d *BleveSearchEngine) Init() error {
 	d.Index = i
 	d.CurID = 0
 	d.batch = d.Index.NewBatch()
-	// 初始化数字ID映射（从已有索引构建）
-	// 目的：为用户提供稳定的“纯数字且不太长”的ID
-	_ = d.rebuildNumericIDMapping()
+	d.markNumericIDDirty()
 	return nil
 }
 
@@ -109,6 +111,24 @@ func (d *BleveSearchEngine) GetTotalID() uint64 {
 	return d.CurID
 }
 
+func (d *BleveSearchEngine) markNumericIDDirty() {
+	d.numericIDDirty = true
+}
+
+func (d *BleveSearchEngine) ensureNumericIDMapping() error {
+	if d.Index == nil {
+		d.idList = nil
+		d.idToNumber = nil
+		d.CurID = 0
+		d.numericIDDirty = false
+		return nil
+	}
+	if !d.numericIDDirty && d.idList != nil && d.idToNumber != nil {
+		return nil
+	}
+	return d.rebuildNumericIDMapping()
+}
+
 // rebuildNumericIDMapping 重建 ULID -> 数字ID 的映射（内存态）
 // 步骤：
 // 1. 遍历全部文档ID
@@ -116,19 +136,50 @@ func (d *BleveSearchEngine) GetTotalID() uint64 {
 // 3. 生成从1开始的数字ID映射
 func (d *BleveSearchEngine) rebuildNumericIDMapping() error {
 	if d.Index == nil {
-		// 索引尚未就绪，直接返回
+		d.idList = nil
+		d.idToNumber = nil
+		d.CurID = 0
+		d.numericIDDirty = false
 		return nil
 	}
-	req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), 1000000, 0, false)
-	req.Fields = []string{} // 不需要取字段，仅需要ID
-	res, err := d.Index.Search(req)
+
+	advancedIndex, err := d.Index.Advanced()
 	if err != nil {
 		return err
 	}
-	ids := make([]string, 0, len(res.Hits))
-	for _, hit := range res.Hits {
-		ids = append(ids, hit.ID)
+
+	reader, err := advancedIndex.Reader()
+	if err != nil {
+		return err
 	}
+	defer func() {
+		_ = reader.Close()
+	}()
+
+	docIDReader, err := reader.DocIDReaderAll()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = docIDReader.Close()
+	}()
+
+	ids := make([]string, 0)
+	for {
+		internalID, err := docIDReader.Next()
+		if err != nil {
+			return err
+		}
+		if internalID == nil {
+			break
+		}
+		externalID, err := reader.ExternalID(internalID)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, externalID)
+	}
+
 	// 使用字典序进行排序：ULID的特性可保证唯一且时间有序
 	sort.Strings(ids)
 	d.idList = ids
@@ -138,70 +189,65 @@ func (d *BleveSearchEngine) rebuildNumericIDMapping() error {
 		// 数字ID从1开始，符合用户认知
 		d.idToNumber[id] = i + 1
 	}
+	d.CurID = uint64(len(ids))
+	d.numericIDDirty = false
 	return nil
 }
 
 // getNumericIDByULID 将内部ULID转换为“纯数字ID（字符串）”
-// 若当前映射不存在或未命中，尝试重建；仍未命中时返回ULID原值（极少数异常场景）
+// 调用方应先确保映射已就绪；未命中时回退到原始ID。
 func (d *BleveSearchEngine) getNumericIDByULID(id string) string {
-	if d.idToNumber == nil {
-		_ = d.rebuildNumericIDMapping()
-	}
 	if num, ok := d.idToNumber[id]; ok {
 		return strconv.Itoa(num)
 	}
-	// 可能发生于索引刚变化，内存映射尚未更新，尝试重建一次
-	if err := d.rebuildNumericIDMapping(); err == nil {
-		if num, ok := d.idToNumber[id]; ok {
-			return strconv.Itoa(num)
-		}
-	}
-	// 理论上不应走到这里；为保证功能可用，做降级回退
 	return id
 }
 
-func (d *BleveSearchEngine) DeleteByFrom(path string) error {
+func (d *BleveSearchEngine) deleteByField(field, value string) error {
 	if d.Index == nil {
 		return nil
 	}
-	q := bleve.NewMatchPhraseQuery(path)
-	q.SetField("from")
-	req := bleve.NewSearchRequestOptions(q, 10000, 0, false)
-	req.Fields = []string{}
-	res, err := d.Index.Search(req)
-	if err != nil {
-		return err
-	}
-	for _, hit := range res.Hits {
-		if err := d.Index.Delete(hit.ID); err != nil {
+	q := bleve.NewMatchPhraseQuery(value)
+	q.SetField(field)
+
+	deletedAny := false
+	for {
+		req := bleve.NewSearchRequestOptions(q, deleteSearchBatchSize, 0, false)
+		req.Fields = []string{}
+		res, err := d.Index.Search(req)
+		if err != nil {
 			return err
 		}
+		if len(res.Hits) == 0 {
+			break
+		}
+
+		batch := d.Index.NewBatch()
+		for _, hit := range res.Hits {
+			batch.Delete(hit.ID)
+		}
+		if err := d.Index.Batch(batch); err != nil {
+			return err
+		}
+		deletedAny = true
+
+		if len(res.Hits) < deleteSearchBatchSize {
+			break
+		}
 	}
-	// 发生删除后重建映射，确保数字ID与当前索引一致
-	_ = d.rebuildNumericIDMapping()
+
+	if deletedAny {
+		d.markNumericIDDirty()
+	}
 	return nil
 }
 
+func (d *BleveSearchEngine) DeleteByFrom(path string) error {
+	return d.deleteByField("from", path)
+}
+
 func (d *BleveSearchEngine) DeleteByGroup(group string) error {
-	if d.Index == nil {
-		return nil
-	}
-	q := bleve.NewMatchPhraseQuery(group)
-	q.SetField("group")
-	req := bleve.NewSearchRequestOptions(q, 10000, 0, false)
-	req.Fields = []string{}
-	res, err := d.Index.Search(req)
-	if err != nil {
-		return err
-	}
-	for _, hit := range res.Hits {
-		if err := d.Index.Delete(hit.ID); err != nil {
-			return err
-		}
-	}
-	// 发生删除后重建映射，确保数字ID与当前索引一致
-	_ = d.rebuildNumericIDMapping()
-	return nil
+	return d.deleteByField("group", group)
 }
 
 // AddItem 这里引用了dice，其实不妥，应该将它单独拆出来的。
@@ -219,16 +265,17 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 		"package": item.PackageName,
 		"_type":   "helpdoc",
 	}
+	if err := d.batch.Index(id, data); err != nil {
+		return "", err
+	}
 	d.batchSize++
-	// 五十一次执行
+	// 单批达到阈值后立即提交，避免batch无限增长。
 	if d.batchSize >= 50 {
-		err := d.AddItemApply(false)
-		d.batchSize = 0
-		if err != nil {
+		if err := d.AddItemApply(false); err != nil {
 			return "", err
 		}
 	}
-	return id, d.batch.Index(id, data)
+	return id, nil
 }
 
 // AddItemApply 这里认为是真正执行插入文档的逻辑
@@ -236,17 +283,24 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 // end代表是否是最后一次执行，一般用在所有的数据都处理完之后，关闭逻辑的时候使用，如bleve batch重复利用后最后销毁
 func (d *BleveSearchEngine) AddItemApply(end bool) error {
 	if d.batch != nil {
+		if d.batch.Size() == 0 {
+			d.batchSize = 0
+			if end {
+				d.batch = nil
+			}
+			return nil
+		}
 		// 执行batch
 		err := d.Index.Batch(d.batch)
 		if err != nil {
 			return err
 		}
 		d.batch.Reset()
+		d.batchSize = 0
 		if end {
 			d.batch = nil
 		}
-		// 每次提交后重建映射，确保新增文档可被数字ID正确引用
-		_ = d.rebuildNumericIDMapping()
+		d.markNumericIDDirty()
 		return err
 	}
 	return nil
@@ -291,6 +345,9 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
+	if err := d.ensureNumericIDMapping(); err != nil {
+		logger.M().Warnf("[帮助文档] 重建数字ID映射失败，将退回内部ID展示: %v", err)
+	}
 	var resultList = make(MatchCollection, 0)
 	for _, hit := range res.Hits {
 		result := MatchResult{
@@ -314,14 +371,8 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 }
 
 func (d *BleveSearchEngine) ListAllDocumentIDs() ([]string, error) {
-	if d.Index == nil {
-		return nil, nil
-	}
-	// 如果已有映射，直接返回按字典序排序好的列表；否则重建后返回
-	if d.idList == nil {
-		if err := d.rebuildNumericIDMapping(); err != nil {
-			return nil, err
-		}
+	if err := d.ensureNumericIDMapping(); err != nil {
+		return nil, err
 	}
 	// 返回一个拷贝，避免外部修改内部切片
 	out := make([]string, len(d.idList))

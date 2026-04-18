@@ -603,12 +603,18 @@ func (m *HelpManager) saveHelpIndexMeta(meta *HelpIndexMeta) {
 	if meta == nil {
 		return
 	}
-	_ = os.MkdirAll("./_help_cache", 0755)
-	data, err := json.Marshal(meta)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(helpIndexMetaPath), 0755); err != nil {
+		logger.M().Warnf("[帮助文档] 创建索引 meta 目录失败(%s): %v", filepath.Dir(helpIndexMetaPath), err)
 		return
 	}
-	_ = os.WriteFile(helpIndexMetaPath, data, 0644)
+	data, err := json.Marshal(meta)
+	if err != nil {
+		logger.M().Warnf("[帮助文档] 序列化索引 meta 失败: %v", err)
+		return
+	}
+	if err := os.WriteFile(helpIndexMetaPath, data, 0644); err != nil {
+		logger.M().Warnf("[帮助文档] 写入索引 meta 文件失败(%s): %v", helpIndexMetaPath, err)
+	}
 }
 
 func computeHelpFileHash(filePath string) (uint64, int64, error) {
