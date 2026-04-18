@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -182,7 +183,7 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 	case "group":
 		ok := s.SendGroupForwardMsg(ctx, msg.GroupID, nodes)
 		if ok && ctx.Group != nil {
-			ctx.Group.RecentDiceSendTime = time.Now().Unix()
+			atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
 			ctx.Group.MarkDirty(ctx.Dice)
 		}
 		return ok
@@ -252,8 +253,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 				}
 			}
 		}
-
-		session.ServiceAtNew.Store(groupID, &GroupInfo{
+		group = &GroupInfo{
 			Active:            true,
 			activatedExtList:  extLst,
 			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
@@ -264,9 +264,8 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			DiceIDExistsMap:   new(SyncMap[string, bool]),
 			CocRuleIndex:      int(session.Parent.Config.DefaultCocRuleIndex),
 			UpdatedAtTime:     time.Now().Unix(),
-		})
-		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
-		group, _ = session.ServiceAtNew.Load(groupID)
+		}
+		session.ServiceAtNew.Store(groupID, group)
 	}
 
 	if group.DiceIDActiveMap == nil {
@@ -455,7 +454,7 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		text = "要发送的文本过长"
 	}
 	if ctx.Group != nil {
-		ctx.Group.RecentDiceSendTime = time.Now().Unix()
+		atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
 		ctx.Group.MarkDirty(ctx.Dice)
 	}
 	text = strings.TrimSpace(text)
