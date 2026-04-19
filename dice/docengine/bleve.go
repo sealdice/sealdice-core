@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"sync"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/simple"
@@ -17,6 +18,8 @@ import (
 )
 
 type BleveSearchEngine struct {
+	// mu 串行化批量写入和数字 ID 缓存的读写，避免 Search/Add/Delete 并发时出现状态竞争。
+	mu        sync.Mutex
 	Index     bleve.Index
 	batch     *bleve.Batch
 	batchSize int
@@ -96,11 +99,14 @@ func (d *BleveSearchEngine) Init() error {
 	d.Index = i
 	d.CurID = 0
 	d.batch = d.Index.NewBatch()
-	d.markNumericIDDirty()
+	d.markNumericIDDirtyLocked()
 	return nil
 }
 
 func (d *BleveSearchEngine) Close() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if d.Index != nil {
 		_ = d.Index.Close()
 		d.Index = nil
@@ -108,14 +114,16 @@ func (d *BleveSearchEngine) Close() {
 }
 
 func (d *BleveSearchEngine) GetTotalID() uint64 {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	return d.CurID
 }
 
-func (d *BleveSearchEngine) markNumericIDDirty() {
+func (d *BleveSearchEngine) markNumericIDDirtyLocked() {
 	d.numericIDDirty = true
 }
 
-func (d *BleveSearchEngine) ensureNumericIDMapping() error {
+func (d *BleveSearchEngine) ensureNumericIDMappingLocked() error {
 	if d.Index == nil {
 		d.idList = nil
 		d.idToNumber = nil
@@ -126,7 +134,7 @@ func (d *BleveSearchEngine) ensureNumericIDMapping() error {
 	if !d.numericIDDirty && d.idList != nil && d.idToNumber != nil {
 		return nil
 	}
-	return d.rebuildNumericIDMapping()
+	return d.rebuildNumericIDMappingLocked()
 }
 
 // rebuildNumericIDMapping 重建 ULID -> 数字ID 的映射（内存态）
@@ -134,7 +142,7 @@ func (d *BleveSearchEngine) ensureNumericIDMapping() error {
 // 1. 遍历全部文档ID
 // 2. 基于ULID的字典序进行排序（ULID的字典序具备时间有序且唯一的属性）
 // 3. 生成从1开始的数字ID映射
-func (d *BleveSearchEngine) rebuildNumericIDMapping() error {
+func (d *BleveSearchEngine) rebuildNumericIDMappingLocked() error {
 	if d.Index == nil {
 		d.idList = nil
 		d.idToNumber = nil
@@ -204,6 +212,9 @@ func (d *BleveSearchEngine) getNumericIDByULID(id string) string {
 }
 
 func (d *BleveSearchEngine) deleteByField(field, value string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if d.Index == nil {
 		return nil
 	}
@@ -237,7 +248,7 @@ func (d *BleveSearchEngine) deleteByField(field, value string) error {
 	}
 
 	if deletedAny {
-		d.markNumericIDDirty()
+		d.markNumericIDDirtyLocked()
 	}
 	return nil
 }
@@ -252,6 +263,9 @@ func (d *BleveSearchEngine) DeleteByGroup(group string) error {
 
 // AddItem 这里引用了dice，其实不妥，应该将它单独拆出来的。
 func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	// 如果batch为空，初始化一个batch
 	if d.batch == nil {
 		return "", errors.New("已通过end参数执行AddItemApply，不允许新增文档。请检查代码逻辑")
@@ -271,7 +285,7 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 	d.batchSize++
 	// 单批达到阈值后立即提交，避免batch无限增长。
 	if d.batchSize >= 50 {
-		if err := d.AddItemApply(false); err != nil {
+		if err := d.addItemApplyLocked(false); err != nil {
 			return "", err
 		}
 	}
@@ -282,6 +296,13 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 // 由于现在已经将执行函数改为了可按文件执行，所以可以按文件进行Apply，这应当不会有太大的量级。
 // end代表是否是最后一次执行，一般用在所有的数据都处理完之后，关闭逻辑的时候使用，如bleve batch重复利用后最后销毁
 func (d *BleveSearchEngine) AddItemApply(end bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return d.addItemApplyLocked(end)
+}
+
+func (d *BleveSearchEngine) addItemApplyLocked(end bool) error {
 	if d.batch != nil {
 		if d.batch.Size() == 0 {
 			d.batchSize = 0
@@ -300,13 +321,16 @@ func (d *BleveSearchEngine) AddItemApply(end bool) error {
 		if end {
 			d.batch = nil
 		}
-		d.markNumericIDDirty()
+		d.markNumericIDDirtyLocked()
 		return err
 	}
 	return nil
 }
 
 func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly bool, pageSize, pageNum int, group string) (*GeneralSearchResult, int, int, int, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	// 在标题中查找
 	queryTitle := query.NewMatchPhraseQuery(text)
 	queryTitle.SetField("title")
@@ -345,7 +369,7 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 	if err != nil {
 		return nil, 0, 0, 0, err
 	}
-	if err := d.ensureNumericIDMapping(); err != nil {
+	if err := d.ensureNumericIDMappingLocked(); err != nil {
 		logger.M().Warnf("[帮助文档] 重建数字ID映射失败，将退回内部ID展示: %v", err)
 	}
 	var resultList = make(MatchCollection, 0)
@@ -371,7 +395,10 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 }
 
 func (d *BleveSearchEngine) ListAllDocumentIDs() ([]string, error) {
-	if err := d.ensureNumericIDMapping(); err != nil {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if err := d.ensureNumericIDMappingLocked(); err != nil {
 		return nil, err
 	}
 	// 返回一个拷贝，避免外部修改内部切片
@@ -381,6 +408,9 @@ func (d *BleveSearchEngine) ListAllDocumentIDs() ([]string, error) {
 }
 
 func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from, title string) (uint64, []*HelpTextItem, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	var items []*HelpTextItem
 	// 只有Keyword才支持NewTermQuery
 	conjunctionQuery := bleve.NewConjunctionQuery()
@@ -438,6 +468,9 @@ func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from
 }
 
 func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	log := logger.M()
 	document, err := d.Index.Document(id)
 	if err != nil {
@@ -474,6 +507,9 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 
 // 精确查询title
 func (d *BleveSearchEngine) GetHelpTextItemByTermTitle(title string) (*HelpTextItem, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	newTermQuery := query.NewMatchQuery(title)
 	newTermQuery.SetField("title") // 精确匹配title
 	req := bleve.NewSearchRequest(newTermQuery)

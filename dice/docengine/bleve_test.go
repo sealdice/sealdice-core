@@ -1,4 +1,4 @@
-package docengine
+package docengine //nolint:testpackage // Tests need access to unexported index helpers.
 
 import (
 	"path/filepath"
@@ -30,7 +30,7 @@ func newTestBleveSearchEngine(t *testing.T) *BleveSearchEngine {
 func addTestHelpItems(t *testing.T, engine *BleveSearchEngine, count int, group, from, titlePrefix string) {
 	t.Helper()
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if _, err := engine.AddItem(HelpTextItem{
 			Group:       group,
 			From:        from,
@@ -64,8 +64,9 @@ func TestBleveSearchEngineDeleteByFromRemovesAllMatches(t *testing.T) {
 		t.Fatalf("document count before delete = %d, want %d", got, want)
 	}
 
-	if err := engine.DeleteByFrom("targetfrom"); err != nil {
-		t.Fatalf("DeleteByFrom() error = %v", err)
+	deleteErr := engine.DeleteByFrom("targetfrom")
+	if deleteErr != nil {
+		t.Fatalf("DeleteByFrom() error = %v", deleteErr)
 	}
 
 	idsAfter, err := engine.ListAllDocumentIDs()
@@ -77,9 +78,9 @@ func TestBleveSearchEngineDeleteByFromRemovesAllMatches(t *testing.T) {
 	}
 
 	for _, id := range idsAfter {
-		item, err := engine.GetItemByID(id)
-		if err != nil {
-			t.Fatalf("GetItemByID(%q) error = %v", id, err)
+		item, getErr := engine.GetItemByID(id)
+		if getErr != nil {
+			t.Fatalf("GetItemByID(%q) error = %v", id, getErr)
 		}
 		if item.From == "targetfrom" {
 			t.Fatalf("document %q from deleted source still exists", id)
@@ -105,8 +106,9 @@ func TestBleveSearchEngineNumericIDsRebuildLazily(t *testing.T) {
 		t.Fatalf("document IDs are not sorted: %v", idsBefore)
 	}
 
-	if err := engine.DeleteByGroup("remove-me"); err != nil {
-		t.Fatalf("DeleteByGroup() error = %v", err)
+	deleteErr := engine.DeleteByGroup("remove-me")
+	if deleteErr != nil {
+		t.Fatalf("DeleteByGroup() error = %v", deleteErr)
 	}
 
 	idsAfter, err := engine.ListAllDocumentIDs()
@@ -124,7 +126,8 @@ func TestBleveSearchEngineNumericIDsRebuildLazily(t *testing.T) {
 	if total != 1 || len(res.Hits) != 1 {
 		t.Fatalf("Search() total/hits = %d/%d, want 1/1", total, len(res.Hits))
 	}
-	if _, err := strconv.Atoi(res.Hits[0].ID); err != nil {
+	_, parseErr := strconv.Atoi(res.Hits[0].ID)
+	if parseErr != nil {
 		t.Fatalf("Search() returned non-numeric ID %q", res.Hits[0].ID)
 	}
 }

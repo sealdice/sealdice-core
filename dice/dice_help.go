@@ -149,7 +149,9 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	newMeta := &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}
 
 	if m.searchEngine != nil {
-		_ = m.searchEngine.DeleteByGroup(HelpBuiltinGroup)
+		if err := m.searchEngine.DeleteByGroup(HelpBuiltinGroup); err != nil {
+			log.Warnf("[帮助文档] 删除内置帮助索引失败(group=%s): %v", HelpBuiltinGroup, err)
+		}
 	}
 
 	_ = m.AddItem(docengine.HelpTextItem{
@@ -253,7 +255,9 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 				return
 			}
 			if m.searchEngine != nil {
-				_ = m.searchEngine.DeleteByFrom(filePath)
+				if err := m.searchEngine.DeleteByFrom(filePath); err != nil {
+					log.Warnf("[帮助文档] 删除旧帮助索引失败(from=%s): %v", filePath, err)
+				}
 			}
 			ok := m.loadHelpDoc(d.Group, d.Path)
 			err = m.AddItemApply(false)
@@ -273,7 +277,9 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	if m.searchEngine != nil {
 		for oldPath := range indexMeta.Files {
 			if _, okNew := newMeta.Files[oldPath]; !okNew {
-				_ = m.searchEngine.DeleteByFrom(oldPath)
+				if err := m.searchEngine.DeleteByFrom(oldPath); err != nil {
+					log.Warnf("[帮助文档] 删除已移除帮助文档索引失败(from=%s): %v", oldPath, err)
+				}
 			}
 		}
 	}
