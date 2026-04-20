@@ -162,7 +162,7 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	if metaTrusted && indexFreshlyCreated {
 		log.Warnf("[帮助文档] 检测到 Bleve 索引已重新创建，将忽略旧 meta 并执行全量重建")
 	}
-	indexMeta, metaTrusted = reconcileHelpIndexMeta(indexMeta, metaTrusted, indexFreshlyCreated)
+	indexMeta, _ = reconcileHelpIndexMeta(indexMeta, metaTrusted, indexFreshlyCreated)
 
 	m.docIDs = make([]string, 0)
 
