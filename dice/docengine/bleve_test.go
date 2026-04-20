@@ -48,8 +48,9 @@ func TestBleveSearchEngineDeleteByFromRemovesAllMatches(t *testing.T) {
 
 	const targetCount = deleteSearchBatchSize + 137
 	const keepCount = 17
+	const targetFrom = "target from/with spaces"
 
-	addTestHelpItems(t, engine, targetCount, "group-a", "targetfrom", "target-")
+	addTestHelpItems(t, engine, targetCount, "group-a", targetFrom, "target-")
 	addTestHelpItems(t, engine, keepCount, "group-b", "keepfrom", "keep-")
 
 	if err := engine.AddItemApply(true); err != nil {
@@ -64,7 +65,7 @@ func TestBleveSearchEngineDeleteByFromRemovesAllMatches(t *testing.T) {
 		t.Fatalf("document count before delete = %d, want %d", got, want)
 	}
 
-	deleteErr := engine.DeleteByFrom("targetfrom")
+	deleteErr := engine.DeleteByFrom(targetFrom)
 	if deleteErr != nil {
 		t.Fatalf("DeleteByFrom() error = %v", deleteErr)
 	}
@@ -82,7 +83,7 @@ func TestBleveSearchEngineDeleteByFromRemovesAllMatches(t *testing.T) {
 		if getErr != nil {
 			t.Fatalf("GetItemByID(%q) error = %v", id, getErr)
 		}
-		if item.From == "targetfrom" {
+		if item.From == targetFrom {
 			t.Fatalf("document %q from deleted source still exists", id)
 		}
 	}

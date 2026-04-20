@@ -166,3 +166,35 @@ func TestHelpManagerGetItemByNumericID_ValidResolvesCorrectDoc(t *testing.T) {
 		t.Fatalf("GetItemByNumericID(1) item = %#v, want %#v", item, expected)
 	}
 }
+
+func TestReconcileHelpIndexMeta(t *testing.T) {
+	existing := &HelpIndexMeta{
+		Files: map[string]HelpFileMeta{
+			"data/helpdoc/example.json": {
+				Hash:  1,
+				Size:  2,
+				Group: "default",
+			},
+		},
+	}
+
+	t.Run("preserve trusted meta when index reused", func(t *testing.T) {
+		gotMeta, gotTrusted := reconcileHelpIndexMeta(existing, true, false)
+		if !gotTrusted {
+			t.Fatalf("got trusted = false, want true")
+		}
+		if gotMeta != existing {
+			t.Fatalf("got meta %#v, want original %#v", gotMeta, existing)
+		}
+	})
+
+	t.Run("reset trusted meta when index recreated", func(t *testing.T) {
+		gotMeta, gotTrusted := reconcileHelpIndexMeta(existing, true, true)
+		if gotTrusted {
+			t.Fatalf("got trusted = true, want false")
+		}
+		if len(gotMeta.Files) != 0 {
+			t.Fatalf("got meta files = %d, want 0", len(gotMeta.Files))
+		}
+	})
+}

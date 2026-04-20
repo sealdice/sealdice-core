@@ -105,20 +105,36 @@ type HelpIndexMeta struct {
 	Files map[string]HelpFileMeta `json:"files"`
 }
 
-func (m *HelpManager) loadSearchEngine() {
+func newEmptyHelpIndexMeta() *HelpIndexMeta {
+	return &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}
+}
+
+func reconcileHelpIndexMeta(indexMeta *HelpIndexMeta, metaTrusted, indexFreshlyCreated bool) (*HelpIndexMeta, bool) {
+	if !metaTrusted || indexFreshlyCreated || indexMeta == nil {
+		return newEmptyHelpIndexMeta(), false
+	}
+	if indexMeta.Files == nil {
+		indexMeta.Files = make(map[string]HelpFileMeta)
+	}
+	return indexMeta, true
+}
+
+func (m *HelpManager) loadSearchEngine() bool {
 	if runtime.GOARCH == "arm64" {
 		// 等木落测试，测试之前先不实现这个Clover模式，如果直接就能用，那也不必再实现他了
 		m.EngineType = BleveSearch
 	}
 	switch m.EngineType {
 	case Clover:
+		return false
 	case BleveSearch:
 		engine, err := docengine.NewBleveSearchEngine()
 		if err != nil {
 			logger.M().Errorf("初始化帮助文档失败，帮助文档不可用!")
-			return
+			return false
 		}
 		m.searchEngine = engine
+		return engine.IndexFreshlyCreated()
 	default:
 		// 如果BleveSearch兼容性差，到时候全部回退到Clover查询
 		panic("unhandled default case")
@@ -142,11 +158,15 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 		_ = os.RemoveAll("./data/_help_cache/_index")
 	}
 
-	m.loadSearchEngine()
+	indexFreshlyCreated := m.loadSearchEngine()
+	if metaTrusted && indexFreshlyCreated {
+		log.Warnf("[帮助文档] 检测到 Bleve 索引已重新创建，将忽略旧 meta 并执行全量重建")
+	}
+	indexMeta, metaTrusted = reconcileHelpIndexMeta(indexMeta, metaTrusted, indexFreshlyCreated)
 
 	m.docIDs = make([]string, 0)
 
-	newMeta := &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}
+	newMeta := newEmptyHelpIndexMeta()
 
 	if m.searchEngine != nil {
 		if err := m.searchEngine.DeleteByGroup(HelpBuiltinGroup); err != nil {
@@ -594,12 +614,12 @@ func (m *HelpManager) loadHelpIndexMeta() (*HelpIndexMeta, bool) {
 	data, err := os.ReadFile(helpIndexMetaPath)
 	if err != nil {
 		logger.M().Warnf("[帮助文档] 未找到索引 meta 文件(%s)，将视为缓存失效: %v", helpIndexMetaPath, err)
-		return &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}, false
+		return newEmptyHelpIndexMeta(), false
 	}
 	var meta HelpIndexMeta
 	if err := json.Unmarshal(data, &meta); err != nil {
 		logger.M().Warnf("[帮助文档] 解析索引 meta 文件(%s)失败，将视为缓存失效: %v", helpIndexMetaPath, err)
-		return &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}, false
+		return newEmptyHelpIndexMeta(), false
 	}
 	if meta.Files == nil {
 		meta.Files = make(map[string]HelpFileMeta)

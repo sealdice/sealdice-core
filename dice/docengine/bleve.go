@@ -24,6 +24,8 @@ type BleveSearchEngine struct {
 	batch     *bleve.Batch
 	batchSize int
 	CurID     uint64
+	// freshlyCreated 标记本次 Init 是否通过 bleve.New 创建了新索引。
+	freshlyCreated bool
 	// idList 按照字典序(ULID的特性)排序的文档ID列表，用于为用户提供“纯数字”的短ID
 	idList []string
 	// idToNumber 反向映射：ULID -> 数字ID(从1开始)，用于在搜索结果中展示短ID
@@ -87,6 +89,7 @@ func (d *BleveSearchEngine) Init() error {
 
 	var i bleve.Index
 	var err error
+	freshlyCreated := false
 
 	i, err = bleve.Open(indexDir)
 	if err != nil {
@@ -94,10 +97,12 @@ func (d *BleveSearchEngine) Init() error {
 		if err != nil {
 			return err
 		}
+		freshlyCreated = true
 	}
 
 	d.Index = i
 	d.CurID = 0
+	d.freshlyCreated = freshlyCreated
 	d.batch = d.Index.NewBatch()
 	d.markNumericIDDirtyLocked()
 	return nil
@@ -117,6 +122,12 @@ func (d *BleveSearchEngine) GetTotalID() uint64 {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.CurID
+}
+
+func (d *BleveSearchEngine) IndexFreshlyCreated() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.freshlyCreated
 }
 
 func (d *BleveSearchEngine) markNumericIDDirtyLocked() {
@@ -218,6 +229,9 @@ func (d *BleveSearchEngine) deleteByField(field, value string) error {
 	if d.Index == nil {
 		return nil
 	}
+	// `simple` analyzer may tokenize values with spaces or path separators,
+	// so we first gather phrase-matched candidates and then verify the stored
+	// field value before deleting to keep deletion semantics exact.
 	q := bleve.NewMatchPhraseQuery(value)
 	q.SetField(field)
 
@@ -235,12 +249,21 @@ func (d *BleveSearchEngine) deleteByField(field, value string) error {
 
 		batch := d.Index.NewBatch()
 		for _, hit := range res.Hits {
+			item, err := d.getItemByIDLocked(hit.ID)
+			if err != nil {
+				return err
+			}
+			if item == nil || !helpItemFieldEquals(item, field, value) {
+				continue
+			}
 			batch.Delete(hit.ID)
 		}
 		if err := d.Index.Batch(batch); err != nil {
 			return err
 		}
-		deletedAny = true
+		if batch.Size() > 0 {
+			deletedAny = true
+		}
 
 		if len(res.Hits) < deleteSearchBatchSize {
 			break
@@ -471,6 +494,10 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	return d.getItemByIDLocked(id)
+}
+
+func (d *BleveSearchEngine) getItemByIDLocked(id string) (*HelpTextItem, error) {
 	log := logger.M()
 	document, err := d.Index.Document(id)
 	if err != nil {
@@ -503,6 +530,26 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 		}
 	})
 	return &item, nil
+}
+
+func helpItemFieldEquals(item *HelpTextItem, field, want string) bool {
+	if item == nil {
+		return false
+	}
+	switch field {
+	case "group":
+		return item.Group == want
+	case "from":
+		return item.From == want
+	case "title":
+		return item.Title == want
+	case "content":
+		return item.Content == want
+	case "package":
+		return item.PackageName == want
+	default:
+		return false
+	}
 }
 
 // 精确查询title
