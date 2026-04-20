@@ -255,8 +255,9 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 				return
 			}
 			if m.searchEngine != nil {
-				if err := m.searchEngine.DeleteByFrom(filePath); err != nil {
-					log.Warnf("[帮助文档] 删除旧帮助索引失败(from=%s): %v", filePath, err)
+				delErr := m.searchEngine.DeleteByFrom(filePath)
+				if delErr != nil {
+					log.Warnf("[帮助文档] 删除旧帮助索引失败(from=%s): %v", filePath, delErr)
 				}
 			}
 			ok := m.loadHelpDoc(d.Group, d.Path)
@@ -277,8 +278,9 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	if m.searchEngine != nil {
 		for oldPath := range indexMeta.Files {
 			if _, okNew := newMeta.Files[oldPath]; !okNew {
-				if err := m.searchEngine.DeleteByFrom(oldPath); err != nil {
-					log.Warnf("[帮助文档] 删除已移除帮助文档索引失败(from=%s): %v", oldPath, err)
+				delErr := m.searchEngine.DeleteByFrom(oldPath)
+				if delErr != nil {
+					log.Warnf("[帮助文档] 删除已移除帮助文档索引失败(from=%s): %v", oldPath, delErr)
 				}
 			}
 		}

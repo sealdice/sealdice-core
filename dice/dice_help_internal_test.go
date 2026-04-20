@@ -2,11 +2,14 @@ package dice
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 
 	"sealdice-core/dice/docengine"
 )
+
+var errFakeSearchNotImplemented = errors.New("fake search engine: term title lookup not implemented")
 
 //nolint:usetesting // This test changes cwd explicitly so Windows can restore it before TempDir cleanup.
 func TestHelpManagerSaveHelpIndexMetaWritesToConfiguredPath(t *testing.T) {
@@ -78,7 +81,7 @@ func (f *fakeHelpSearchEngine) Search([]string, string, bool, int, int, string) 
 }
 
 func (f *fakeHelpSearchEngine) GetHelpTextItemByTermTitle(string) (*docengine.HelpTextItem, error) {
-	return nil, nil
+	return nil, errFakeSearchNotImplemented
 }
 
 func (f *fakeHelpSearchEngine) GetItemByID(id string) (*docengine.HelpTextItem, error) {
