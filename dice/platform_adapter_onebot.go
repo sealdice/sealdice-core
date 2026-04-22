@@ -107,12 +107,20 @@ func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
 
 // SendToPerson 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	if p == nil {
+		zap.S().Named(logger.LogKeyAdapter).Warnf("向用户发送消息失败: 当前 OneBot 账号未正确初始化，消息未发出。user=%s flag=%s text=%q", userID, flag, text)
+		return
+	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToPerson(ctx, userID, msgElement, flag)
 }
 
 // SendToGroup 这几个到时候直接调用SendSegment的方法来处理，为以后铺路
 func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	if p == nil {
+		zap.S().Named(logger.LogKeyAdapter).Warnf("向群发送消息失败: 当前 OneBot 账号未正确初始化，消息未发出。group=%s flag=%s text=%q", groupID, flag, text)
+		return
+	}
 	msgElement := message.ConvertStringMessage(text)
 	p.SendSegmentToGroup(ctx, groupID, msgElement, flag)
 }
@@ -209,6 +217,14 @@ func (p *PlatformAdapterOnebot) SetGroupCardName(ctx *MsgContext, name string) {
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	if p == nil || p.sendEmitter == nil {
+		log := zap.S().Named(logger.LogKeyAdapter)
+		if p != nil && p.logger != nil {
+			log = p.logger
+		}
+		log.Warnf("向群发送消息失败: 当前账号连接不可用，消息未发出。group=%s flag=%s msg_len=%d", groupID, flag, len(msg))
+		return
+	}
 	if len(msg) == 0 {
 		return
 	}
@@ -301,6 +317,14 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 }
 
 func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	if p == nil || p.sendEmitter == nil {
+		log := zap.S().Named(logger.LogKeyAdapter)
+		if p != nil && p.logger != nil {
+			log = p.logger
+		}
+		log.Warnf("向用户发送消息失败: 当前账号连接不可用，消息未发出。user=%s flag=%s msg_len=%d", userID, flag, len(msg))
+		return
+	}
 	if len(msg) == 0 {
 		return
 	}

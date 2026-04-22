@@ -3,6 +3,7 @@ package dice
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -456,10 +457,18 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	vm := ctx.vm
 	vm.Ret = nil
 	vm.Error = nil
+	exprLog := strings.ReplaceAll(s, "\x1e", "`")
+	if len(exprLog) > 200 {
+		exprLog = exprLog[:200] + "...(truncated)"
+	}
 
 	vm.Config.DisableStmts = flags.DisableBlock
 	vm.Config.IgnoreDiv0 = flags.IgnoreDiv0
+	oldDiceMaxMode := vm.Config.DiceMaxMode
 	vm.Config.DiceMaxMode = flags.BigFailDiceOn
+	defer func() {
+		vm.Config.DiceMaxMode = oldDiceMaxMode
+	}()
 	if vm.Config.DefaultDiceSideExpr == "" {
 		vm.Config.DefaultDiceSideExpr = strconv.FormatInt(flags.DefaultDiceSideNum, 10)
 	}
@@ -482,24 +491,41 @@ func DiceExprEvalBase(ctx *MsgContext, s string, flags RollExtraFlags) (*VMResul
 	}
 
 	err := ctx.vm.Run(s)
-	if err != nil || ctx.vm.Ret == nil {
+	ret := ctx.vm.Ret
+	if err != nil || ret == nil {
+		if err == nil && ret == nil {
+			err = errors.New("脚本执行结果为空")
+		}
+		if ret == nil {
+			logger.M().Warnf(
+				"DiceExprEvalBase V2返回空结果: err=%v flags={V1Only:%v V2Only:%v DisableBlock:%v IgnoreDiv0:%v} expr=%q",
+				err, flags.V1Only, flags.V2Only, flags.DisableBlock, flags.IgnoreDiv0, exprLog,
+			)
+		}
 		if flags.V2Only {
 			return nil, "", err
 		}
-		logger.M().Error("脚本执行出错V2: ", strings.ReplaceAll(s, "\x1e", "`"), "->", err)
+		logger.M().Error("脚本执行出错V2: ", exprLog, "->", err)
 		errV2 := err // 某种情况下没有这个值，很奇怪
 
 		// 尝试一下V1
 		val, detail, err := ctx.Dice._ExprEvalBaseV1(s, ctx, flags)
 		if err != nil {
+			logger.M().Warnf(
+				"DiceExprEvalBase 回退V1失败: errV2=%v errV1=%v flags={V1Only:%v V2Only:%v} expr=%q",
+				errV2, err, flags.V1Only, flags.V2Only, exprLog,
+			)
 			// 我们不关心 v1 的报错
 			return nil, detail, errV2
 		}
+		logger.M().Warnf(
+			"DiceExprEvalBase 回退V1成功: errV2=%v flags={V1Only:%v V2Only:%v} expr=%q",
+			errV2, flags.V1Only, flags.V2Only, exprLog,
+		)
 
 		return &VMResultV2m{val.ConvertToV2(), ctx.vm, val, cocFlagVarPrefix, errV2}, detail, err
-	} else {
-		return &VMResultV2m{ctx.vm.Ret, ctx.vm, nil, cocFlagVarPrefix, nil}, ctx.vm.GetDetailText(), nil
 	}
+	return &VMResultV2m{ret, ctx.vm, nil, cocFlagVarPrefix, nil}, ctx.vm.GetDetailText(), nil
 }
 
 // DiceExprTextBase
@@ -704,20 +730,23 @@ func (ctx *MsgContext) loadAttrValueByName(name string) *ds.VMValue {
 
 	if ctx.Dice != nil {
 		attrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+		if tmpl != nil {
+			ctx.syncAttrsForTemplate(attrs, tmpl.GameSystemTemplateV2)
+		}
 		if v, exists := attrs.LoadX(resolved); exists {
 			return v
 		}
 	}
 
 	if tmpl != nil {
-		ctx2 := *ctx
+		ctx2 := ctx.ShallowCopy()
 		ctx2.vm = nil
 		ctx2.CreateVmIfNotExists()
 		ctx2.vm.UpCtx = ctx.vm
 		ctx2.vm.Attrs = ctx.vm.Attrs
 		ctx2.vm.Config = ctx.vm.Config
 
-		if v, _, _, exists := tmpl.GetDefaultValueEx0(&ctx2, resolved); exists {
+		if v, _, _, exists := tmpl.GetDefaultValueEx0(ctx2, resolved); exists {
 			return v
 		}
 	}
@@ -900,7 +929,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx.CreateVmIfNotExists()
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
-		ctx.splitKey = "###SPLIT-KEY###"
+		ctx.SetSplitKey("###SPLIT-KEY###")
 
 		if a, exists := _textMapTestData2[key]; exists {
 			if x, err := a.ToJSON(); err == nil {
@@ -919,7 +948,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		ctx.CreateVmIfNotExists() // 也要设置，因为牌堆要用
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
-		ctx.splitKey = "###SPLIT-KEY###"
+		ctx.SetSplitKey("###SPLIT-KEY###")
 		ctx._v1Rand = ctx.vm.RandSrc
 		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
 

@@ -20,7 +20,7 @@ import (
 // PlatformAdapterDiscord 只有token需要记录，别的是生成的
 type PlatformAdapterDiscord struct {
 	Session            *IMSession         `json:"-"                  yaml:"-"`
-	Token              string             `json:"token"              yaml:"token"`
+	Token              string             `json:"-"              yaml:"token"`
 	ProxyURL           string             `json:"proxyURL"           yaml:"proxyURL"`
 	ReverseProxyUrl    string             `json:"reverseProxyUrl"    yaml:"reverseProxyUrl"`
 	ReverseProxyCDNUrl string             `json:"reverseProxyCDNUrl" yaml:"reverseProxyCDNUrl"`
@@ -308,7 +308,9 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 	} else {
 		pa.EndPoint.State = 0
 		pa.EndPoint.Enable = false
-		_ = pa.IntentSession.Close()
+		if pa.IntentSession != nil {
+			_ = pa.IntentSession.Close()
+		}
 	}
 	d := pa.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
