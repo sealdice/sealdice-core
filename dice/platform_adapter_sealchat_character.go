@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,6 +38,8 @@ type sealChatCharacterAttrCandidate struct {
 	Value  *ds.VMValue
 }
 
+const sealChatCharacterValueMaxDepth = 32
+
 func ensureSealChatCharacterAttrs(target *sealChatCharacterTarget) error {
 	if target == nil {
 		return errors.New("missing character target")
@@ -44,12 +47,7 @@ func ensureSealChatCharacterAttrs(target *sealChatCharacterTarget) error {
 	if target.Attrs != nil {
 		return nil
 	}
-
-	target.Attrs = &AttributesItem{
-		ID:       fmt.Sprintf("%s-%s", target.FormattedGroupID, target.FormattedUserID),
-		valueMap: &ds.ValueMap{},
-	}
-	return nil
+	return errors.New("missing character attrs")
 }
 
 func (pa *PlatformAdapterSealChat) resolveSealChatCharacterTarget(d *Dice, groupID string, userID string) (*sealChatCharacterTarget, error) {
@@ -59,6 +57,14 @@ func (pa *PlatformAdapterSealChat) resolveSealChatCharacterTarget(d *Dice, group
 	attrs, err := d.AttrsManager.Load(formattedGroupID, formattedUserID)
 	if err != nil {
 		return nil, err
+	}
+	if attrs == nil {
+		id := fmt.Sprintf("%s-%s", formattedGroupID, formattedUserID)
+		d.AttrsManager.m.Delete(id)
+		attrs, err = d.AttrsManager.LoadById(id)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	msg := &Message{
@@ -92,6 +98,27 @@ func (pa *PlatformAdapterSealChat) resolveSealChatCharacterTarget(d *Dice, group
 	}, nil
 }
 
+func sealChatLoadAliasMapValue(aliasMap *SyncMap[string, string], key string) (canonical string, ok bool) {
+	if aliasMap == nil {
+		return "", false
+	}
+
+	defer func() {
+		if recover() != nil {
+			canonical = ""
+			ok = false
+		}
+	}()
+
+	rawValue, exists := aliasMap.m.Load(key)
+	if !exists {
+		return "", false
+	}
+
+	canonical, ok = rawValue.(string)
+	return canonical, ok
+}
+
 func sealChatLookupCanonicalAttrKey(tmpl *GameSystemTemplate, key string) (string, bool) {
 	if tmpl == nil || tmpl.AliasMap == nil {
 		return key, false
@@ -101,12 +128,12 @@ func sealChatLookupCanonicalAttrKey(tmpl *GameSystemTemplate, key string) (strin
 	if normalized == "" {
 		return key, false
 	}
-	if value, ok := tmpl.AliasMap.Load(normalized); ok {
+	if value, ok := sealChatLoadAliasMapValue(tmpl.AliasMap, normalized); ok {
 		return value, true
 	}
 
 	normalized = chsS2T.Read(normalized)
-	if value, ok := tmpl.AliasMap.Load(normalized); ok {
+	if value, ok := sealChatLoadAliasMapValue(tmpl.AliasMap, normalized); ok {
 		return value, true
 	}
 	return key, false
@@ -203,14 +230,26 @@ func findSealChatExistingCanonicalAttrValue(attrs *AttributesItem, canonicalKey 
 func normalizeSealChatCharacterAttrs(attrsData map[string]any, tmpl *GameSystemTemplate, existingAttrs *AttributesItem) (map[string]*ds.VMValue, error) {
 	grouped := make(map[string][]sealChatCharacterAttrCandidate, len(attrsData))
 	for key, rawValue := range attrsData {
+		if strings.TrimSpace(key) == "" {
+			return nil, fmt.Errorf("invalid attribute key %q", key)
+		}
+
 		canonicalKey, err := resolveSealChatCharacterAttrKey(key, tmpl)
 		if err != nil {
 			return nil, err
 		}
+		if canonicalKey == "" {
+			return nil, fmt.Errorf("invalid attribute key %q", key)
+		}
+
+		value, err := anyToVMValue(rawValue)
+		if err != nil {
+			return nil, fmt.Errorf("invalid value for attribute %q: %w", key, err)
+		}
 
 		grouped[canonicalKey] = append(grouped[canonicalKey], sealChatCharacterAttrCandidate{
 			RawKey: key,
-			Value:  anyToVMValue(rawValue),
+			Value:  value,
 		})
 	}
 
@@ -356,7 +395,8 @@ func buildSealChatCharacterOutputAttrs(target *sealChatCharacterTarget) map[stri
 				continue
 			}
 			if existing.Priority == priority && existing.Value != nil && value != nil {
-				if ds.ValueEqual(anyToVMValue(existing.Value), value, false) {
+				existingValue, err := anyToVMValue(existing.Value)
+				if err == nil && ds.ValueEqual(existingValue, value, false) {
 					continue
 				}
 			}
@@ -408,45 +448,183 @@ func (pa *PlatformAdapterSealChat) handleCharacterGet(msg satori.ScApiMsgPayload
 
 // vmValueToAny 将 VMValue 转换为可 JSON 序列化的值
 func vmValueToAny(v *ds.VMValue) any {
-	if v == nil {
-		return nil
+	value, err := vmValueToAnyDepth(v, 0)
+	if err != nil {
+		if v == nil {
+			return nil
+		}
+		return v.ToString()
 	}
+	return value
+}
+
+func vmValueToAnyDepth(v *ds.VMValue, depth int) (any, error) {
+	if v == nil {
+		return nil, nil
+	}
+	if depth >= sealChatCharacterValueMaxDepth {
+		return nil, fmt.Errorf("attribute value exceeds max nesting depth %d", sealChatCharacterValueMaxDepth)
+	}
+
 	switch v.TypeId {
 	case ds.VMTypeInt:
-		return v.MustReadInt()
+		return v.MustReadInt(), nil
 	case ds.VMTypeFloat:
-		return v.MustReadFloat()
+		return v.MustReadFloat(), nil
 	case ds.VMTypeString:
 		s, _ := v.ReadString()
-		return s
+		return s, nil
+	case ds.VMTypeArray:
+		arrayData := v.MustReadArray()
+		result := make([]any, 0, len(arrayData.List))
+		for _, item := range arrayData.List {
+			converted, err := vmValueToAnyDepth(item, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, converted)
+		}
+		return result, nil
+	case ds.VMTypeDict:
+		dictData := v.MustReadDictData()
+		result := make(map[string]any)
+		dictData.Dict.Range(func(key string, value *ds.VMValue) bool {
+			converted, err := vmValueToAnyDepth(value, depth+1)
+			if err != nil {
+				result = nil
+				return false
+			}
+			result[key] = converted
+			return true
+		})
+		if result == nil {
+			return nil, fmt.Errorf("attribute value exceeds max nesting depth %d", sealChatCharacterValueMaxDepth)
+		}
+		return result, nil
 	default:
 		// 对于复杂类型，尝试转换为字符串
-		return v.ToString()
+		return v.ToString(), nil
 	}
 }
 
+func parseSealChatComputedString(value string) (*ds.VMValue, bool, error) {
+	trimmed := strings.TrimSpace(value)
+	if !strings.HasPrefix(trimmed, "&(") || !strings.HasSuffix(trimmed, ")") {
+		return nil, false, nil
+	}
+
+	expr := strings.TrimSpace(trimmed[2 : len(trimmed)-1])
+	if expr == "" {
+		return nil, true, errors.New("empty computed expression")
+	}
+	return ds.NewComputedVal(expr), true, nil
+}
+
+func sealChatTypedEnvelopeType(v any) (ds.VMValueType, bool) {
+	switch val := v.(type) {
+	case float64:
+		if val != float64(int64(val)) {
+			return 0, false
+		}
+		return ds.VMValueType(int64(val)), true
+	case int:
+		return ds.VMValueType(val), true
+	case int64:
+		return ds.VMValueType(val), true
+	default:
+		return 0, false
+	}
+}
+
+func parseSealChatTypedVMValue(v any) (*ds.VMValue, bool, error) {
+	rawMap, ok := v.(map[string]any)
+	if !ok {
+		return nil, false, nil
+	}
+	rawType, exists := rawMap["t"]
+	if !exists {
+		return nil, false, nil
+	}
+	typeID, ok := sealChatTypedEnvelopeType(rawType)
+	if !ok || typeID != ds.VMTypeComputedValue {
+		return nil, false, nil
+	}
+	if _, exists := rawMap["v"]; !exists {
+		return nil, true, errors.New("missing computed value payload")
+	}
+
+	data, err := json.Marshal(rawMap)
+	if err != nil {
+		return nil, true, err
+	}
+	value, err := ds.VMValueFromJSON(data)
+	if err != nil {
+		return nil, true, err
+	}
+	computed, ok := value.ReadComputed()
+	if !ok || strings.TrimSpace(computed.Expr) == "" {
+		return nil, true, errors.New("empty computed expression")
+	}
+	return value, true, nil
+}
+
 // anyToVMValue 将 any 类型转换为 VMValue
-func anyToVMValue(v any) *ds.VMValue {
+func anyToVMValue(v any) (*ds.VMValue, error) {
+	return anyToVMValueDepth(v, 0)
+}
+
+func anyToVMValueDepth(v any, depth int) (*ds.VMValue, error) {
+	if depth >= sealChatCharacterValueMaxDepth {
+		return nil, fmt.Errorf("attribute value exceeds max nesting depth %d", sealChatCharacterValueMaxDepth)
+	}
+
+	if typedValue, matched, err := parseSealChatTypedVMValue(v); matched || err != nil {
+		return typedValue, err
+	}
+
 	switch val := v.(type) {
 	case float64:
 		// JSON 解析时数字默认为 float64
 		if val == float64(int64(val)) {
-			return ds.NewIntVal(ds.IntType(val))
+			return ds.NewIntVal(ds.IntType(val)), nil
 		}
-		return ds.NewFloatVal(val)
+		return ds.NewFloatVal(val), nil
 	case int:
-		return ds.NewIntVal(ds.IntType(val))
+		return ds.NewIntVal(ds.IntType(val)), nil
 	case int64:
-		return ds.NewIntVal(ds.IntType(val))
+		return ds.NewIntVal(ds.IntType(val)), nil
 	case string:
-		return ds.NewStrVal(val)
+		if computedValue, matched, err := parseSealChatComputedString(val); matched || err != nil {
+			return computedValue, err
+		}
+		return ds.NewStrVal(val), nil
+	case []any:
+		items := make([]*ds.VMValue, 0, len(val))
+		for _, item := range val {
+			converted, err := anyToVMValueDepth(item, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, converted)
+		}
+		return ds.NewArrayValRaw(items), nil
+	case map[string]any:
+		dict := &ds.ValueMap{}
+		for key, item := range val {
+			converted, err := anyToVMValueDepth(item, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			dict.Store(key, converted)
+		}
+		return ds.NewDictVal(dict).V(), nil
 	case bool:
 		if val {
-			return ds.NewIntVal(1)
+			return ds.NewIntVal(1), nil
 		}
-		return ds.NewIntVal(0)
+		return ds.NewIntVal(0), nil
 	default:
-		return ds.NewStrVal(fmt.Sprintf("%v", v))
+		return ds.NewStrVal(fmt.Sprintf("%v", v)), nil
 	}
 }
 
