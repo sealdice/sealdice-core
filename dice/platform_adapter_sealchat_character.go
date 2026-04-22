@@ -448,20 +448,18 @@ func (pa *PlatformAdapterSealChat) handleCharacterGet(msg satori.ScApiMsgPayload
 
 // vmValueToAny 将 VMValue 转换为可 JSON 序列化的值
 func vmValueToAny(v *ds.VMValue) any {
+	if v == nil {
+		return nil
+	}
+
 	value, err := vmValueToAnyDepth(v, 0)
 	if err != nil {
-		if v == nil {
-			return nil
-		}
 		return v.ToString()
 	}
 	return value
 }
 
 func vmValueToAnyDepth(v *ds.VMValue, depth int) (any, error) {
-	if v == nil {
-		return nil, nil
-	}
 	if depth >= sealChatCharacterValueMaxDepth {
 		return nil, fmt.Errorf("attribute value exceeds max nesting depth %d", sealChatCharacterValueMaxDepth)
 	}
@@ -478,6 +476,10 @@ func vmValueToAnyDepth(v *ds.VMValue, depth int) (any, error) {
 		arrayData := v.MustReadArray()
 		result := make([]any, 0, len(arrayData.List))
 		for _, item := range arrayData.List {
+			if item == nil {
+				result = append(result, nil)
+				continue
+			}
 			converted, err := vmValueToAnyDepth(item, depth+1)
 			if err != nil {
 				return nil, err
@@ -489,6 +491,10 @@ func vmValueToAnyDepth(v *ds.VMValue, depth int) (any, error) {
 		dictData := v.MustReadDictData()
 		result := make(map[string]any)
 		dictData.Dict.Range(func(key string, value *ds.VMValue) bool {
+			if value == nil {
+				result[key] = nil
+				return true
+			}
 			converted, err := vmValueToAnyDepth(value, depth+1)
 			if err != nil {
 				result = nil
