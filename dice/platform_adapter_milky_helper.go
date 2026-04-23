@@ -323,7 +323,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 			case "lagrangeV2":
 				qrcodeSignal = "Fetch QrCode Success"
 				onlineSignal = "successfully logged in"
-				qrcodeExpiredSignal = "QrCode State: 17"
+				qrcodeExpiredSignal = "QrCode State: CodeExpired"
 			case "yogurt":
 				qrcodeSignal = "二维码文件已保存"
 				onlineSignal = "已上线"
