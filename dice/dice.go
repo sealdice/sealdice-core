@@ -899,52 +899,85 @@ func (d *Dice) GameSystemTemplateAdd(tmpl *GameSystemTemplate) bool {
 	return d.GameSystemTemplateAddEx(tmpl, false)
 }
 
-// GameSystemTemplateReload 重载游戏系统模板（从指定目录）
+// GameSystemTemplateReload 从指定目录重建游戏系统模板注册表。
 func (d *Dice) GameSystemTemplateReload(templateDir string) error {
 	if templateDir == "" {
 		templateDir = filepath.Join(d.BaseConfig.DataDir, "data", "game-templates")
 	}
-
-	// 确保目录存在
-	if _, err := os.Stat(templateDir); os.IsNotExist(err) {
-		return nil // 目录不存在，跳过
-	}
-
-	entries, err := os.ReadDir(templateDir)
+	files, err := collectGameSystemTemplateFiles(templateDir)
 	if err != nil {
 		return err
 	}
+	return d.reloadGameSystemTemplates(files)
+}
 
+// GameSystemTemplateReloadFiles rebuilds the template registry from builtin templates,
+// user templates under data/game-templates, and the provided package template files.
+func (d *Dice) GameSystemTemplateReloadFiles(packageFiles []string) error {
+	userTemplateDir := filepath.Join(d.BaseConfig.DataDir, "data", "game-templates")
+	userFiles, err := collectGameSystemTemplateFiles(userTemplateDir)
+	if err != nil {
+		return err
+	}
+	files := append(userFiles, packageFiles...)
+	return d.reloadGameSystemTemplates(files)
+}
+
+func (d *Dice) reloadGameSystemTemplates(files []string) error {
+	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
+	d.RegisterBuiltinSystemTemplate()
+
+	seen := make(map[string]struct{}, len(files))
 	count := 0
-	for _, entry := range entries {
-		if entry.IsDir() {
+	for _, templatePath := range files {
+		if templatePath == "" {
 			continue
 		}
-
-		ext := filepath.Ext(entry.Name())
-		if ext != ".yaml" && ext != ".yml" && ext != ".json" {
+		templatePath = filepath.Clean(templatePath)
+		if _, exists := seen[templatePath]; exists {
 			continue
 		}
+		seen[templatePath] = struct{}{}
 
-		templatePath := filepath.Join(templateDir, entry.Name())
 		tmpl, err := LoadGameSystemTemplateFromFile(templatePath)
 		if err != nil {
-			d.Logger.Warnf("加载模板 %s 失败: %v", entry.Name(), err)
+			d.Logger.Warnf("加载模板文件 %s 失败: %v", templatePath, err)
 			continue
 		}
-
-		// 使用 overwrite=true 允许覆盖现有模板
 		if d.GameSystemTemplateAddEx(tmpl, true) {
 			count++
 			d.Logger.Infof("模板 %s 已重载", tmpl.Name)
 		}
 	}
-
 	if count > 0 {
-		d.Logger.Infof("游戏系统模板重载完成，共 %d 个", count)
+		d.Logger.Infof("游戏系统模板重载完成，共加载 %d 个模板", count)
 	}
-
 	return nil
+}
+
+func collectGameSystemTemplateFiles(templateDir string) ([]string, error) {
+	if templateDir == "" {
+		return nil, nil
+	}
+	if _, err := os.Stat(templateDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(templateDir)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(entry.Name())
+		if ext != ".yaml" && ext != ".yml" && ext != ".json" {
+			continue
+		}
+		files = append(files, filepath.Join(templateDir, entry.Name()))
+	}
+	return files, nil
 }
 
 // generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID和堆栈信息组成

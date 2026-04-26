@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -225,53 +226,34 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 	}
 	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
 
-	// 3. 从已启用的扩展包目录加载 helpdoc
+	// 3. 从已启用扩展包加载 helpdoc
 	if dice != nil && dice.PackageManager != nil {
-		helpdocDirs := dice.PackageManager.GetEnabledContentDirs("helpdoc")
-		for _, dir := range helpdocDirs {
-			dirEntries, readErr := os.ReadDir(dir)
-			if readErr != nil {
-				continue
-			}
-			for _, entry := range dirEntries {
-				if strings.HasPrefix(entry.Name(), ".") {
-					continue
+		helpdocFiles := dice.PackageManager.GetEnabledContentFiles("helpdoc")
+		for _, child := range buildPackageHelpDocTree(helpdocFiles) {
+			_ = traverseHelpDocTree(child, func(d *HelpDoc) error {
+				if d.IsDir {
+					return nil
 				}
-				var child HelpDoc
-				child.Key = generateHelpDocKey()
-				child.Name = entry.Name()
-				child.Path = filepath.Join(dir, entry.Name())
-				child.IsDir = entry.IsDir()
-				if child.IsDir {
-					child.Group = entry.Name()
-					child.Type = "dir"
-					child.Children = make([]*HelpDoc, 0)
+				ok := m.loadHelpDoc(d.Group, d.Path)
+				applyErr := m.AddItemApply(false)
+				if ok && applyErr == nil {
+					d.LoadStatus = Loaded
 				} else {
-					child.Group = "default"
-					child.Type = filepath.Ext(child.Path)
+					d.LoadStatus = LoadError
 				}
-				buildHelpDocTree(&child, func(d *HelpDoc) {
-					if !d.IsDir {
-						ok := m.loadHelpDoc(d.Group, d.Path)
-						applyErr := m.AddItemApply(false)
-						if ok && applyErr == nil {
-							d.LoadStatus = Loaded
-						} else {
-							d.LoadStatus = LoadError
-						}
-					}
-				})
-				m.HelpDocTree = append(m.HelpDocTree, &child)
-			}
-			log.Infof("[帮助文档] 从扩展包加载帮助文档: %s", dir)
+				return nil
+			})
+			m.HelpDocTree = append(m.HelpDocTree, child)
+		}
+		if len(helpdocFiles) > 0 {
+			log.Infof("[帮助文档] 从扩展包加载帮助文档文件: %d", len(helpdocFiles))
 		}
 		applyErr := m.AddItemApply(false)
 		if applyErr != nil {
-			log.Errorf("加载扩展包帮助文档出现异常: %v", applyErr)
+			log.Errorf("加载扩展包帮助文档时出现异常: %v", applyErr)
 		}
 	}
 
-	log.Infof("[帮助文档] 正在处理指令相关（含插件）帮助文档组")
 	err = m.addInternalCmdHelp(internalCmdMap)
 	if err != nil {
 		log.Errorf("加载内置指令帮助文档出现异常: %v", err)
@@ -662,6 +644,109 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 		// 调用处理函数
 		fn(current)
 	}
+}
+
+func buildPackageHelpDocTree(files []PackageContentFile) []*HelpDoc {
+	pkgRoot := func(file PackageContentFile) string {
+		rel := filepath.FromSlash(file.PackagePath)
+		if strings.HasSuffix(file.Path, rel) {
+			return strings.TrimSuffix(file.Path, rel)
+		}
+		return filepath.Dir(file.Path)
+	}
+
+	roots := make([]*HelpDoc, 0)
+	rootIndex := make(map[string]*HelpDoc)
+	for _, file := range files {
+		packagePath := filepath.ToSlash(file.PackagePath)
+		if !strings.HasPrefix(packagePath, "helpdoc/") {
+			continue
+		}
+		rel := strings.TrimPrefix(packagePath, "helpdoc/")
+		if rel == "" {
+			continue
+		}
+		segments := strings.Split(rel, "/")
+		if len(segments) == 1 {
+			roots = append(roots, &HelpDoc{
+				Key:        generateHelpDocKey(),
+				Name:       segments[0],
+				Path:       file.Path,
+				Group:      "default",
+				Type:       filepath.Ext(file.Path),
+				IsDir:      false,
+				LoadStatus: Unload,
+			})
+			continue
+		}
+
+		base := pkgRoot(file)
+		rootName := segments[0]
+		root := rootIndex[rootName]
+		if root == nil {
+			root = &HelpDoc{
+				Key:        generateHelpDocKey(),
+				Name:       rootName,
+				Path:       filepath.Join(base, filepath.FromSlash("helpdoc/"+rootName)),
+				Group:      rootName,
+				Type:       "dir",
+				IsDir:      true,
+				LoadStatus: Unload,
+				Children:   make([]*HelpDoc, 0),
+			}
+			rootIndex[rootName] = root
+			roots = append(roots, root)
+		}
+
+		current := root
+		for idx := 1; idx < len(segments); idx++ {
+			part := segments[idx]
+			isLast := idx == len(segments)-1
+			currentPath := filepath.Join(base, filepath.FromSlash("helpdoc/"+strings.Join(segments[:idx+1], "/")))
+			var child *HelpDoc
+			for _, existing := range current.Children {
+				if existing.Name == part {
+					child = existing
+					break
+				}
+			}
+			if child == nil {
+				child = &HelpDoc{
+					Key:        generateHelpDocKey(),
+					Name:       part,
+					Path:       currentPath,
+					Group:      root.Group,
+					IsDir:      !isLast,
+					LoadStatus: Unload,
+				}
+				if child.IsDir {
+					child.Type = "dir"
+					child.Children = make([]*HelpDoc, 0)
+				} else {
+					child.Type = filepath.Ext(child.Path)
+				}
+				current.Children = append(current.Children, child)
+			}
+			current = child
+		}
+	}
+
+	var sortNodes func(nodes []*HelpDoc)
+	sortNodes = func(nodes []*HelpDoc) {
+		sort.Slice(nodes, func(i, j int) bool {
+			if nodes[i].IsDir != nodes[j].IsDir {
+				return nodes[i].IsDir
+			}
+			return nodes[i].Name < nodes[j].Name
+		})
+		for _, node := range nodes {
+			if len(node.Children) > 0 {
+				sortNodes(node.Children)
+			}
+		}
+	}
+	sortNodes(roots)
+	return roots
 }
 
 func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) error {

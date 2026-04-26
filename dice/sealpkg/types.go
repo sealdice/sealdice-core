@@ -30,6 +30,7 @@ type Manifest struct {
 	Dependencies map[string]string       `toml:"dependencies" json:"dependencies"`
 	Permissions  Permissions             `toml:"permissions" json:"permissions"`
 	Contents     Contents                `toml:"contents" json:"contents"`
+	Store        StoreInfo               `toml:"store" json:"store"`
 	Config       map[string]ConfigSchema `toml:"config" json:"config"`
 }
 
@@ -73,20 +74,29 @@ type Permissions struct {
 
 // Contents 包含的资源清单
 type Contents struct {
-	Scripts  []string `toml:"scripts" json:"scripts"`
-	Decks    []string `toml:"decks" json:"decks"`
-	Reply    []string `toml:"reply" json:"reply"`
-	Helpdoc  []string `toml:"helpdoc" json:"helpdoc"`
-	Template []string `toml:"template" json:"template"`
+	Scripts   []string `toml:"scripts" json:"scripts"`
+	Decks     []string `toml:"decks" json:"decks"`
+	Reply     []string `toml:"reply" json:"reply"`
+	Helpdoc   []string `toml:"helpdoc" json:"helpdoc"`
+	Templates []string `toml:"templates" json:"templates"`
+}
+
+// StoreInfo 商店展示资源信息
+type StoreInfo struct {
+	Readme      string   `toml:"readme" json:"readme"`
+	Icon        string   `toml:"icon" json:"icon"`
+	Banner      string   `toml:"banner" json:"banner"`
+	Screenshots []string `toml:"screenshots" json:"screenshots"`
+	Category    string   `toml:"category" json:"category"`
 }
 
 // ConfigSchema 配置项Schema（类JSON Schema）
 type ConfigSchema struct {
-	Type        string                  `toml:"type" json:"type"`
-	Title       string                  `toml:"title" json:"title"`
-	Description string                  `toml:"description" json:"description"`
-	Default     interface{}             `toml:"default" json:"default"`
-	Secret      bool                    `toml:"secret" json:"secret"` // 敏感信息标记
+	Type        string      `toml:"type" json:"type"`
+	Title       string      `toml:"title" json:"title"`
+	Description string      `toml:"description" json:"description"`
+	Default     interface{} `toml:"default" json:"default"`
+	Secret      bool        `toml:"secret" json:"secret"` // 敏感信息标记
 
 	// 数值约束
 	Min *float64 `toml:"min" json:"min,omitempty"`
@@ -126,12 +136,20 @@ type Persistence struct {
 
 // InstancePersist 持久化的包实例数据
 type InstancePersist struct {
-	State        PackageState           `json:"state"`
-	InstallTime  time.Time              `json:"installTime"`
-	InstallPath  string                 `json:"installPath"`
-	SourcePath   string                 `json:"sourcePath"`
-	UserDataPath string                 `json:"userDataPath"`
-	Config       map[string]interface{} `json:"config"`
+	Version       string                 `json:"version,omitempty"`
+	State         PackageState           `json:"state"`
+	InstallTime   time.Time              `json:"installTime"`
+	InstallPath   string                 `json:"installPath"`
+	SourcePath    string                 `json:"sourcePath"`
+	UserDataPath  string                 `json:"userDataPath"`
+	Config        map[string]interface{} `json:"config"`
+	PendingReload []string               `json:"pendingReload,omitempty"`
+}
+
+// ArchiveInfo describes a validated .sealpkg archive.
+type ArchiveInfo struct {
+	Manifest *Manifest `json:"manifest"`
+	Files    []string  `json:"files"`
 }
 
 // OperationResult 包操作结果
@@ -169,5 +187,8 @@ const (
 	ConfigFile = "config.json"
 
 	// ManifestFile manifest 文件名
-	ManifestFile = "manifest.toml"
+	InfoFile = "info.toml"
+
+	// ManifestFile keeps the historical constant name mapped to info.toml.
+	ManifestFile = InfoFile
 )

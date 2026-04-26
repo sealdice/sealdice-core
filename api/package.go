@@ -99,7 +99,7 @@ func packageInstall(c echo.Context) error {
 }
 
 // packageInstallFromURL 从远程 URL 安装扩展包
-// POST /package/install-from-url
+// POST /package/install-from-url (compatible with /package/install-url)
 // 参数: { url: string } - 远程 .sealpkg 文件的 URL
 // 返回: { message: string, result: true }
 func packageInstallFromURL(c echo.Context) error {
@@ -113,14 +113,14 @@ func packageInstallFromURL(c echo.Context) error {
 	}
 
 	var params struct {
-		URL string `json:"url"` // 远程 zip 文件 URL
+		URL string `json:"url"` // 远程 .sealpkg 文件 URL
 	}
 	err := c.Bind(&params)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
 
-	err = myDice.PackageManager.InstallFromURL(params.URL)
+	err = myDice.PackageManager.InstallFromURL(params.URL, nil)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
@@ -283,10 +283,42 @@ func packageReload(c echo.Context) error {
 	})
 }
 
-// packageReloadAll 重载所有已启用扩展包的资源
+// packageReloadContent reloads package resources globally by content type.
+// POST /package/reload-content
+// Params: { content: string }, allowed values: scripts / decks / reply / helpdoc / templates
+// Returns: { data: ReloadResult, result: true }
+func packageReloadContent(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	if dm.JustForTest {
+		return Success(&c, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	var params struct {
+		Content string `json:"content"`
+	}
+	err := c.Bind(&params)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	result, err := myDice.PackageManager.ReloadByContent(params.Content)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	return Success(&c, Response{
+		"data": result,
+	})
+}
+
+// packageReloadAll reloads all declared resources from enabled packages.
 // POST /package/reload-all
-// 返回: { data: ReloadResult, result: true }
-// 该接口会重载所有已启用包的 JS 脚本和牌堆
+// Returns: { data: ReloadResult, result: true }
+// This endpoint reloads every declared content kind from enabled packages.
 func packageReloadAll(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, "auth")
@@ -329,7 +361,7 @@ func packageGetConfig(c echo.Context) error {
 // 参数: 配置对象 map[string]interface{}
 // 返回: { message: string, result: true }
 // 注意: 配置会立即生效，JS 扩展下次调用 ext.getPackageConfig() 时会获取新值
-// 配置会根据 manifest.toml 中的 [config] 定义进行类型验证
+// 配置会根据 info.toml 中的 [config] 定义进行类型验证
 func packageSetConfig(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, "auth")

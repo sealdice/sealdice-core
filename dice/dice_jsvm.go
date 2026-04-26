@@ -703,9 +703,6 @@ func (d *Dice) jsClear() {
 	// Pinenutn: 由于切换成了其他的syncMap，所以初始化策略需要修改
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.RegisterBuiltinSystemTemplate()
-	if d.StoreManager != nil {
-		d.StoreManager.InstalledPlugins = map[string]bool{}
-	}
 	// JsEnable=false 的启动状态下 ExtLoopManager 可能尚未初始化
 	if d.ExtLoopManager != nil {
 		d.ExtLoopManager.SetLoop(nil)
@@ -765,9 +762,6 @@ func (d *Dice) JsLoadScripts() {
 					return nil
 				}
 				jsInfos = append(jsInfos, jsInfo)
-				if len(jsInfo.StoreID) > 0 {
-					d.StoreManager.InstalledPlugins[jsInfo.StoreID] = true
-				}
 			} else {
 				d.Logger.Warnf("内置脚本「%s」校验未通过，拒绝加载", path)
 			}
@@ -793,12 +787,35 @@ func (d *Dice) JsLoadScripts() {
 				return nil
 			}
 			jsInfos = append(jsInfos, jsInfo)
-			if len(jsInfo.StoreID) > 0 {
-				d.StoreManager.InstalledPlugins[jsInfo.StoreID] = true
-			}
 		}
 		return nil
 	})
+
+	// Load scripts from enabled packages.
+	if d.PackageManager != nil {
+		for _, scriptFile := range d.PackageManager.GetEnabledContentFiles("scripts") {
+			if !isScriptFile(scriptFile.Path) {
+				continue
+			}
+			info, err := os.Stat(scriptFile.Path)
+			if err != nil {
+				continue
+			}
+			d.Logger.Infof("loading package script: %s", scriptFile.Path)
+			data, err := os.ReadFile(scriptFile.Path) //nolint:gosec
+			if err != nil {
+				d.Logger.Error("failed to read package script: ", err.Error())
+				continue
+			}
+			jsInfo, err := d.JsParseMeta("./"+scriptFile.Path, info.ModTime(), data, false)
+			if err != nil {
+				d.Logger.Error("failed to parse package script: ", err.Error())
+				continue
+			}
+			jsInfo.PackageID = scriptFile.PackageID
+			jsInfos = append(jsInfos, jsInfo)
+		}
+	}
 
 	// 检查依赖是否满足
 	unloadKeySet := make(map[string]bool)
@@ -981,6 +998,8 @@ type JsScriptInfo struct {
 	needCompiled bool
 	/** 扩展商店唯一 ID */
 	StoreID string `json:"storeID"`
+	/** Owning package ID */
+	PackageID string `json:"packageID,omitempty"`
 }
 
 type JsScriptDepends struct {

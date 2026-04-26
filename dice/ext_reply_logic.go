@@ -320,7 +320,8 @@ type ReplyConfig struct {
 	Conditions ReplyConditions `json:"conditions" yaml:"conditions"`
 
 	// web专用
-	Filename string `json:"filename" yaml:"-"`
+	Filename  string `json:"filename" yaml:"-"`
+	PackageID string `json:"packageId,omitempty" yaml:"-"`
 }
 
 func (c *ReplyConfig) Save(dice *Dice) {

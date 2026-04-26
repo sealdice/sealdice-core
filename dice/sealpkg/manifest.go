@@ -1,16 +1,19 @@
 package sealpkg
 
 import (
-	"archive/zip"
+	"bytes"
 	"errors"
-	"io"
+	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
+	"unicode"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/pelletier/go-toml/v2"
 )
 
-// ParseManifestFile 解析 manifest.toml 文件
+// ParseManifestFile parses an info.toml file from disk.
 func ParseManifestFile(path string) (*Manifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -19,36 +22,30 @@ func ParseManifestFile(path string) (*Manifest, error) {
 	return ParseManifest(data)
 }
 
-// ParseManifest 解析 manifest.toml 内容
+// ParseManifest parses info.toml contents.
 func ParseManifest(data []byte) (*Manifest, error) {
 	var manifest Manifest
-	if err := toml.Unmarshal(data, &manifest); err != nil {
+	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
+	if err := decoder.Decode(&manifest); err != nil {
 		return nil, err
 	}
 
-	// 验证必填字段
 	if manifest.Package.ID == "" {
-		return nil, errors.New("manifest 缺少 package.id")
+		return nil, errors.New("info 缺少 package.id")
 	}
-
-	// 验证 package.id 格式（使用新的 @ 分隔符格式）
 	if err := ValidatePackageID(manifest.Package.ID); err != nil {
 		return nil, err
 	}
-
 	if manifest.Package.Name == "" {
-		return nil, errors.New("manifest 缺少 package.name")
+		return nil, errors.New("info 缺少 package.name")
 	}
 	if manifest.Package.Version == "" {
-		return nil, errors.New("manifest 缺少 package.version")
+		return nil, errors.New("info 缺少 package.version")
 	}
-
-	// 验证版本号格式
 	if _, err := semver.NewVersion(manifest.Package.Version); err != nil {
-		return nil, errors.New("manifest 的 package.version 不是有效的语义化版本: " + err.Error())
+		return nil, errors.New("info 的 package.version 不是有效的语义化版本: " + err.Error())
 	}
 
-	// 初始化空字段
 	if manifest.Dependencies == nil {
 		manifest.Dependencies = make(map[string]string)
 	}
@@ -56,43 +53,36 @@ func ParseManifest(data []byte) (*Manifest, error) {
 		manifest.Config = make(map[string]ConfigSchema)
 	}
 
+	if err := validateDependencies(manifest.Dependencies); err != nil {
+		return nil, err
+	}
+	if err := validateContents(manifest.Contents); err != nil {
+		return nil, err
+	}
+	if err := validateStoreInfo(manifest.Store); err != nil {
+		return nil, err
+	}
+
 	return &manifest, nil
 }
 
-// ParseManifestFromZip 从 ZIP 文件中解析 manifest
+// ParseManifestFromZip parses package metadata from a .sealpkg archive.
 func ParseManifestFromZip(pkgPath string) (*Manifest, error) {
-	reader, err := zip.OpenReader(pkgPath)
+	archiveInfo, err := InspectArchive(pkgPath)
 	if err != nil {
-		return nil, errors.New("无法打开扩展包: " + err.Error())
+		return nil, err
 	}
-	defer reader.Close()
-
-	for _, f := range reader.File {
-		if f.Name == ManifestFile {
-			rc, err := f.Open()
-			if err != nil {
-				return nil, err
-			}
-			defer rc.Close()
-
-			data, err := io.ReadAll(rc)
-			if err != nil {
-				return nil, err
-			}
-			return ParseManifest(data)
-		}
-	}
-
-	return nil, errors.New("扩展包中未找到 " + ManifestFile)
+	return archiveInfo.Manifest, nil
 }
 
-// ValidateManifest 验证 manifest 的完整性
+// ValidateManifest returns a list of validation issues for a parsed manifest.
 func ValidateManifest(manifest *Manifest) []string {
 	var issues []string
 
-	// 检查基本信息
 	if manifest.Package.ID == "" {
 		issues = append(issues, "缺少 package.id")
+	} else if err := ValidatePackageID(manifest.Package.ID); err != nil {
+		issues = append(issues, err.Error())
 	}
 	if manifest.Package.Name == "" {
 		issues = append(issues, "缺少 package.name")
@@ -103,38 +93,47 @@ func ValidateManifest(manifest *Manifest) []string {
 		issues = append(issues, "package.version 不是有效的语义化版本")
 	}
 
-	// 检查依赖版本约束格式
 	for depID, constraint := range manifest.Dependencies {
+		if err := ValidatePackageID(depID); err != nil {
+			issues = append(issues, fmt.Sprintf("依赖 %s 的包 ID 无效: %v", depID, err))
+			continue
+		}
 		if _, err := semver.NewConstraint(constraint); err != nil {
 			issues = append(issues, "依赖 "+depID+" 的版本约束无效: "+constraint)
 		}
 	}
 
-	// 检查配置 schema
 	for key, schema := range manifest.Config {
 		if schema.Type == "" {
 			issues = append(issues, "配置项 "+key+" 缺少 type 字段")
+			continue
 		}
 		switch schema.Type {
 		case "string", "integer", "number", "boolean", "array", "object":
-			// 有效类型
 		default:
 			issues = append(issues, "配置项 "+key+" 的类型无效: "+schema.Type)
 		}
 	}
 
+	if err := validateContents(manifest.Contents); err != nil {
+		issues = append(issues, err.Error())
+	}
+	if err := validateStoreInfo(manifest.Store); err != nil {
+		issues = append(issues, err.Error())
+	}
+
 	return issues
 }
 
-// CheckSealVersion 检查海豹版本兼容性
+// CheckSealVersion checks whether the current SealDice version satisfies the package requirement.
 func CheckSealVersion(manifest *Manifest, currentVersion string) error {
 	if manifest.Package.Seal.MinVersion == "" && manifest.Package.Seal.MaxVersion == "" {
-		return nil // 没有版本要求
+		return nil
 	}
 
 	current, err := semver.NewVersion(currentVersion)
 	if err != nil {
-		return nil // 无法解析当前版本，跳过检查
+		return nil
 	}
 
 	if manifest.Package.Seal.MinVersion != "" {
@@ -154,7 +153,7 @@ func CheckSealVersion(manifest *Manifest, currentVersion string) error {
 	return nil
 }
 
-// CheckDependencyConstraint 检查单个依赖版本是否满足约束
+// CheckDependencyConstraint checks whether a version satisfies a dependency constraint.
 func CheckDependencyConstraint(constraint, version string) (bool, error) {
 	c, err := semver.NewConstraint(constraint)
 	if err != nil {
@@ -169,6 +168,85 @@ func CheckDependencyConstraint(constraint, version string) (bool, error) {
 	return c.Check(v), nil
 }
 
-// 旧的 validatePackageID 函数已废弃
-// 新的验证逻辑已移至 validate.go 中的 ValidatePackageID 函数
-// 新版本支持 @ 分隔符格式：author@package 或 @org@package
+func validateDependencies(dependencies map[string]string) error {
+	for depID, constraint := range dependencies {
+		if err := ValidatePackageID(depID); err != nil {
+			return fmt.Errorf("依赖 %s 的包 ID 无效: %w", depID, err)
+		}
+		if _, err := semver.NewConstraint(constraint); err != nil {
+			return fmt.Errorf("依赖 %s 的版本约束无效: %w", depID, err)
+		}
+	}
+	return nil
+}
+
+func validateContents(contents Contents) error {
+	checks := map[string][]string{
+		"scripts":   contents.Scripts,
+		"decks":     contents.Decks,
+		"reply":     contents.Reply,
+		"helpdoc":   contents.Helpdoc,
+		"templates": contents.Templates,
+	}
+
+	for dir, patterns := range checks {
+		for _, pattern := range patterns {
+			if err := validateContentPattern(dir, pattern); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateContentPattern(dir, pattern string) error {
+	if err := validateRelativePackagePath(pattern); err != nil {
+		return fmt.Errorf("contents.%s 路径无效: %w", dir, err)
+	}
+	normalized := filepath.ToSlash(pattern)
+	if !strings.HasPrefix(normalized, dir+"/") {
+		return fmt.Errorf("contents.%s 只能引用 %s/ 目录下的文件", dir, dir)
+	}
+	return nil
+}
+
+func validateStoreInfo(store StoreInfo) error {
+	paths := []string{store.Readme, store.Icon, store.Banner}
+	for _, screenshot := range store.Screenshots {
+		paths = append(paths, screenshot)
+	}
+	for _, item := range paths {
+		if item == "" {
+			continue
+		}
+		if err := validateRelativePackagePath(item); err != nil {
+			return fmt.Errorf("store 路径无效: %w", err)
+		}
+	}
+	return nil
+}
+
+func validateRelativePackagePath(path string) error {
+	normalized := filepath.ToSlash(strings.TrimSpace(path))
+	if normalized == "" {
+		return nil
+	}
+	if strings.HasPrefix(normalized, "/") || strings.HasPrefix(normalized, "//") {
+		return errors.New("路径不能以根目录开头")
+	}
+	if len(normalized) >= 2 && normalized[1] == ':' && unicode.IsLetter(rune(normalized[0])) {
+		return errors.New("路径不能使用 Windows 盘符")
+	}
+	if strings.HasPrefix(normalized, "src/") || normalized == "src" {
+		return errors.New("不支持 src/ 目录布局")
+	}
+	for _, part := range strings.Split(normalized, "/") {
+		if part == "" {
+			return errors.New("路径不能包含空的目录段")
+		}
+		if part == "." || part == ".." {
+			return errors.New("路径不能包含 . 或 ..")
+		}
+	}
+	return nil
+}

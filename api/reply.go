@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -41,13 +42,18 @@ func customReplyGet(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	rc, _ := dice.CustomReplyConfigRead(myDice, c.QueryParam("filename"))
+	filename := c.QueryParam("filename")
+	rc, _ := dice.CustomReplyConfigRead(myDice, filename)
+	if rc != nil {
+		rc.PackageID = getCustomReplyPackageID(filename)
+	}
 	return c.JSON(http.StatusOK, rc)
 }
 
 type ReplyConfigInfo struct {
-	Enable   bool   `json:"enable"   yaml:"enable"`
-	Filename string `json:"filename" yaml:"-"`
+	Enable    bool   `json:"enable"   yaml:"enable"`
+	Filename  string `json:"filename" yaml:"-"`
+	PackageID string `json:"packageId,omitempty" yaml:"-"`
 }
 
 func customReplyFileList(c echo.Context) error {
@@ -55,17 +61,65 @@ func customReplyFileList(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
+	packageIDs := getCustomReplyPackageIDs()
 	var items []*ReplyConfigInfo
+	seen := map[string]int{}
 	for _, i := range myDice.CustomReplyConfig {
+		packageID := i.PackageID
+		if packageID == "" {
+			packageID = packageIDs[strings.ToLower(i.Filename)]
+		}
+
+		key := strings.ToLower(i.Filename)
+		if idx, exists := seen[key]; exists {
+			if items[idx].PackageID == "" && packageID != "" {
+				items[idx].PackageID = packageID
+				items[idx].Enable = i.Enable
+			}
+			continue
+		}
+
 		items = append(items, &ReplyConfigInfo{
-			Enable:   i.Enable,
-			Filename: i.Filename,
+			Enable:    i.Enable,
+			Filename:  i.Filename,
+			PackageID: packageID,
 		})
+		seen[key] = len(items) - 1
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"items": items,
 	})
+}
+
+func getCustomReplyPackageID(filename string) string {
+	if filename == "" {
+		return ""
+	}
+	for _, item := range myDice.CustomReplyConfig {
+		if strings.EqualFold(item.Filename, filename) && item.PackageID != "" {
+			return item.PackageID
+		}
+	}
+	return getCustomReplyPackageIDs()[strings.ToLower(filename)]
+}
+
+func getCustomReplyPackageIDs() map[string]string {
+	result := map[string]string{}
+	if myDice == nil || myDice.PackageManager == nil {
+		return result
+	}
+	for _, replyFile := range myDice.PackageManager.GetEnabledContentFiles("reply") {
+		ext := strings.ToLower(filepath.Ext(replyFile.Path))
+		if ext != ".yaml" && ext != ".yml" && ext != "" {
+			continue
+		}
+		filename := strings.ToLower(filepath.Base(replyFile.Path))
+		if _, exists := result[filename]; !exists {
+			result[filename] = replyFile.PackageID
+		}
+	}
+	return result
 }
 
 func customReplyFileNew(c echo.Context) error {

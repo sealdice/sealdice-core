@@ -8,24 +8,17 @@ import (
 	"sealdice-core/utils/cache"
 )
 
-func PostgresDBInit(dsn string) (*gorm.DB, error) {
-	// 构建 PostgreSQL DSN (Data Source Name)
-
-	// 使用 GORM 连接 PostgreSQL
+func PostgresDBInit(dsn string) (*gorm.DB, *cache.Plugin, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// GetOtterCacheDB 逻辑保持不变
-	cacheDB, err := cache.GetOtterCacheDB(db)
+	cacheDB, plugin, err := cache.AttachOtterCache(db)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	// 返回数据库连接
-	return cacheDB, nil
+	return cacheDB, plugin, nil
 }

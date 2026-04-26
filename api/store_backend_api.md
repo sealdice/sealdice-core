@@ -1,111 +1,253 @@
-# SealDice 商店接口文档
+# SealDice Store Backend API
 
-## 接口基础信息
+## Base URL
 
-所有接口都基于基础 URL 构建，通常为 `<baseUrl>` + `/dice/app/store`，如官方 API 使用 `http://sealdice.com/dice/api/store`。
+All backend store endpoints are rooted at:
 
-## 接口列表
+```text
+<baseUrl>/dice/api/store
+```
 
-### 获取商店信息
+Example:
 
-**接口地址**: `GET /info`
+```text
+https://example.com/dice/api/store
+```
 
-**请求方式**: GET
+Protocol version: `2.0`
 
-**接口说明**: 获取商店的基本信息，包括支持的协议版本、公告等。
+## Unified package DTO
 
-**响应数据结构**:
+Store list endpoints now exchange a package-centric DTO. Public responses must use nested `storeAssets` and `download` objects. Legacy fields such as `fullId`, `store`, `downloadUrl`, root-level `hash`, `releaseTime`, `updateTime`, and `downloadCount` are rejected by the SealDice client. SealDice now uses a single active backend source, so backend identity is not part of the package DTO.
+
 ```json
 {
-  "name": "string",               // 商店名称
-  "protocolVersions": ["string"], // 支持的协议版本列表，目前仅有 "1.0"
-  "announcement": "string",       // 商店公告
-  "sign": "string"                // （可选）签名信息，使用相应私钥签名的商店 url
+  "id": "author/package",
+  "version": "1.2.3",
+  "name": "Demo Package",
+  "authors": ["Alice", "Bob"],
+  "description": "Package description",
+  "license": "MIT",
+  "homepage": "https://example.com/pkg",
+  "repository": "https://github.com/example/pkg",
+  "keywords": ["coc", "tools"],
+  "contents": ["scripts", "decks", "helpdoc"],
+  "seal": {
+    "minVersion": "1.5.0",
+    "maxVersion": "2.0.0"
+  },
+  "dependencies": {
+    "author/base": ">=1.0.0"
+  },
+  "storeAssets": {
+    "readme": "docs/README.md",
+    "icon": "assets/icon.png",
+    "banner": "assets/banner.png",
+    "screenshots": ["assets/shot-1.png"],
+    "category": "rules"
+  },
+  "download": {
+    "url": "https://example.com/downloads/author/package/1.2.3.sealpkg",
+    "hash": {
+      "sha256": "abcdef..."
+    },
+    "releaseTime": 1710000000,
+    "updateTime": 1710500000,
+    "downloadCount": 1234
+  },
+  "installed": false
 }
 ```
 
-### 获取推荐扩展
+### Field notes
 
-**接口地址**: `GET /recommend`
+- `id`: package ID in `author/package` format.
+- `version`: semantic version string.
+- `contents`: allowed values are `scripts`, `decks`, `reply`, `helpdoc`, `templates`.
+- `dependencies`: map of package ID to semver constraint.
+- `storeAssets`: package presentation assets shown in the store UI.
+- `download.url`: absolute URL to a `.sealpkg` file.
+- `download.hash`: optional integrity hashes keyed by algorithm. When `sha256` is present, the SealDice client verifies it before installation.
+- `download.releaseTime` / `download.updateTime`: Unix timestamps in seconds.
+- `download.downloadCount`: public download counter.
+- `installed`: local-only field computed by the SealDice client; backend responses may omit it.
 
-**请求方式**: GET
+## Endpoints
 
-**接口说明**: 获取商店推荐的扩展列表。
+### 1. Backend info
 
-**响应数据结构**:
+`GET /info`
+
+Response example:
+
+```json
+{
+  "name": "Official Store",
+  "protocolVersions": ["2.0"],
+  "announcement": "Welcome",
+  "sign": "base64-signature"
+}
+```
+
+### 2. Recommendations
+
+`GET /recommend`
+
+Response example:
+
 ```json
 {
   "result": true,
   "data": [
     {
-      "id": "string",                         // 扩展唯一 ID，格式 <namespace>@<key>@<version>，例如 seal@example@1.0.0
-      "namespace": "string",                  // 命名空间
-      "key": "string",                        // 扩展键名
-      "version": "string",                    // 版本号
-      "type": "plugin|deck|reply|helpdoc",    // 扩展类型
-      "ext": "string",                        // 扩展名后缀（.js|.json|.toml 等）
-      "name": "string",                       // 扩展名称
-      "authors": ["string"],                  // 作者列表
-      "desc": "string",                       // 描述
-      "license": "string",                    // 许可证
-      "releaseTime": 0,                       // 发布时间（unix 时间戳）
-      "updateTime": 0,                        // 更新时间（unix 时间戳）
-      "tags": ["string"],                     // 标签列表
-      "rate": 0,                              // 评分（0-5）
-      "extra": {"key": "value"},              // 额外信息
-      "downloadNum": 0,                       // 下载次数
-      "downloadUrl": "string",                // 下载地址，目标扩展的直接下载地址
-      "hash": {"sha256": "string"},           // 文件哈希值
-      "homePage": "string",                   // 主页地址
-      "sealVersion": "string",                // 支持的最低 sealdice 版本
-      "dependencies": {"key": "value"}        // 依赖信息
+      "id": "author/package",
+      "version": "1.2.3",
+      "name": "Demo Package",
+      "authors": ["Alice"],
+      "description": "Package description",
+      "license": "MIT",
+      "homepage": "https://example.com/pkg",
+      "repository": "https://github.com/example/pkg",
+      "keywords": ["coc"],
+      "contents": ["scripts"],
+      "seal": {
+        "minVersion": "1.5.0",
+        "maxVersion": "2.0.0"
+      },
+      "dependencies": {},
+      "storeAssets": {
+        "readme": "docs/README.md",
+        "icon": "assets/icon.png",
+        "banner": "assets/banner.png",
+        "screenshots": [],
+        "category": "rules"
+      },
+      "download": {
+        "url": "https://example.com/pkg/1.2.3.sealpkg",
+        "hash": {
+          "sha256": "abcdef..."
+        },
+        "releaseTime": 1710000000,
+        "updateTime": 1710500000,
+        "downloadCount": 1234
+      }
     }
   ],
-  "err": "string" // 错误信息（仅在 result 为 false 时存在）
+  "err": ""
 }
 ```
 
-### 分页获取扩展列表
+### 3. Paged packages
 
-**接口地址**: `GET /page`
+`GET /page`
 
-**请求方式**: GET
+Query parameters:
 
-**请求参数**:
-| 参数名      | 类型   | 必填 | 说明 |
-| ----------- | ------ | ---- | ---- |
-| type        | string | 是   | 扩展类型（plugin/deck/reply/helpdoc） |
-| pageNum     | int    | 是   | 页码（从 1 开始） |
-| pageSize    | int    | 是   | 每页数量 |
-| author      | string | 否   | 作者 |
-| name        | string | 否   | 扩展名称 |
-| sortBy      | string | 否   | 排序（updateTime/downloadNum） |
-| order       | string | 否   | 排序方式（asc/desc） |
+| Name | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `content` | string | no | One of `scripts` / `decks` / `reply` / `helpdoc` / `templates` |
+| `pageNum` | int | no | 1-based page number |
+| `pageSize` | int | no | Page size |
+| `author` | string | no | Author filter |
+| `name` | string | no | Name filter |
+| `category` | string | no | Category filter |
+| `sortBy` | string | no | `updateTime`, `downloadCount`, `releaseTime`, `name` |
+| `order` | string | no | `asc` or `desc` |
 
-例如：`/page?type=plugin&pageNum=1&pageSize=20`
+Example:
 
-**响应数据结构**:
+```text
+/page?content=scripts&pageNum=1&pageSize=20&sortBy=updateTime&order=desc
+```
+
+Response example:
+
 ```json
 {
   "result": true,
   "data": {
     "data": [
-      // 扩展数组，结构同 /recommend 接口
+      {
+        "id": "author/package",
+        "version": "1.2.3",
+        "name": "Demo Package",
+        "authors": ["Alice"],
+        "description": "Package description",
+        "license": "MIT",
+        "homepage": "https://example.com/pkg",
+        "repository": "https://github.com/example/pkg",
+        "keywords": ["coc"],
+        "contents": ["scripts"],
+        "seal": {
+          "minVersion": "1.5.0",
+          "maxVersion": "2.0.0"
+        },
+        "dependencies": {},
+        "storeAssets": {
+          "readme": "docs/README.md",
+          "icon": "assets/icon.png",
+          "banner": "assets/banner.png",
+          "screenshots": [],
+          "category": "rules"
+        },
+        "download": {
+          "url": "https://example.com/pkg/1.2.3.sealpkg",
+          "hash": {
+            "sha256": "abcdef..."
+          },
+          "releaseTime": 1710000000,
+          "updateTime": 1710500000,
+          "downloadCount": 1234
+        }
+      }
     ],
-    "pageNum": 0,    // 当前页码
-    "pageSize": 0,   // 每页数量
-    "next": true     // 是否有下一页
+    "pageNum": 1,
+    "pageSize": 20,
+    "next": true
   },
-  "err": "string" // 错误信息（仅在 result 为 false 时存在）
+  "err": ""
 }
 ```
 
-## 错误处理
+## Local download API contract
 
-所有接口在出错时会返回相应的 HTTP 状态码和错误信息：
-- HTTP 200: 请求成功
-- 其他状态码：请求失败，错误信息在响应体中
+The SealDice local download endpoint now accepts package identity as `id` + `version`.
 
-对于返回 JSON 格式的接口，使用 `result` 字段表示请求是否成功：
-- `result: true`: 请求成功，数据在 `data` 字段中
-- `result: false`: 请求失败，错误信息在 `err` 字段中
+`POST /store/download`
+
+Request body:
+
+```json
+{
+  "id": "author/package",
+  "version": "1.2.3"
+}
+```
+
+Implementation note: the local client may still cache entries internally by `author/package@version`, but that cache key is not part of the public API.
+
+## Validation rules
+
+The SealDice client validates backend responses before exposing them locally:
+
+1. `id` must be a valid package ID.
+2. `version` must be valid semver.
+3. `download.url` must be an absolute `.sealpkg` URL.
+4. `contents` must contain only supported content kinds.
+5. dependency keys must be valid package IDs.
+
+## Errors
+
+Backend business errors should still use the standard wrapper:
+
+```json
+{
+  "result": false,
+  "err": "error message"
+}
+```
+
+HTTP status guidance:
+
+- `200`: request handled successfully; inspect `result` for business status.
+- `4xx` / `5xx`: transport or server failure.

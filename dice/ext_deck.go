@@ -127,7 +127,7 @@ type DeckInfo struct {
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `json:"-"             yaml:"-"`
 	StoreID            string                        `json:"storeID"       yaml:"storeID"`
 	/** 所属扩展包ID，空表示独立安装 */
-	PackageID          string                        `json:"packageId"     yaml:"-"`
+	PackageID string `json:"packageId"     yaml:"-"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
@@ -530,30 +530,12 @@ func DecksDetect(d *Dice) {
 
 	// 加载扩展包内的牌堆
 	if d.PackageManager != nil {
-		for _, pkg := range d.PackageManager.GetEnabled() {
-			if pkg == nil || pkg.Manifest == nil {
-				continue
+		for _, deckFile := range d.PackageManager.GetEnabledContentFiles("decks") {
+			ext := filepath.Ext(deckFile.Path)
+			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" {
+				d.Logger.Infof("正在加载扩展包 %s 的牌堆: %s", deckFile.PackageID, deckFile.Path)
+				DeckTryParseWithPackage(d, deckFile.Path, deckFile.PackageID)
 			}
-			pkgDecksPath := filepath.Join(pkg.InstallPath, "decks")
-			if _, err := os.Stat(pkgDecksPath); os.IsNotExist(err) {
-				continue
-			}
-			pkgID := pkg.Manifest.Package.ID
-			_ = filepath.Walk(pkgDecksPath, func(deckPath string, info fs.FileInfo, err error) error {
-				if err != nil || info.IsDir() {
-					return nil
-				}
-				// 跳过特殊目录
-				if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
-					return fs.SkipDir
-				}
-				ext := filepath.Ext(deckPath)
-				if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" {
-					d.Logger.Infof("正在加载扩展包 %s 的牌堆: %s", pkgID, deckPath)
-					DeckTryParseWithPackage(d, deckPath, pkgID)
-				}
-				return nil
-			})
 		}
 	}
 }

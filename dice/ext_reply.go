@@ -39,9 +39,6 @@ func CustomReplyConfigReadFromPath(dice *Dice, filePath string, filename string)
 	if rc.Conditions == nil {
 		rc.Conditions = []ReplyConditionBase{}
 	}
-	if len(rc.StoreID) > 0 {
-		dice.StoreManager.InstalledReplies[rc.StoreID] = true
-	}
 
 	return rc, nil
 }
@@ -140,31 +137,21 @@ func ReplyReload(dice *Dice) {
 		}
 	}
 
-	// 2. 从已启用的扩展包目录加载
+	// 2. 从已启用扩展包加载自定义回复配置
 	if dice.PackageManager != nil {
-		replyDirs := dice.PackageManager.GetEnabledContentDirs("reply")
-		for _, dir := range replyDirs {
-			entries, err := os.ReadDir(dir)
-			if err != nil {
+		for _, replyFile := range dice.PackageManager.GetEnabledContentFiles("reply") {
+			ext := filepath.Ext(replyFile.Path)
+			if ext != ".yaml" && ext != ".yml" {
 				continue
 			}
-			for _, entry := range entries {
-				if entry.IsDir() {
-					continue
-				}
-				ext := filepath.Ext(entry.Name())
-				if ext != ".yaml" && ext != ".yml" {
-					continue
-				}
-				filePath := filepath.Join(dir, entry.Name())
-				rc, err := CustomReplyConfigReadFromPath(dice, filePath, entry.Name())
-				if err == nil {
-					dice.Logger.Infof("读取扩展包自定义回复配置: %s", filePath)
-					rc.Save(dice)
-					rcs = append(rcs, rc)
-				} else {
-					dice.Logger.Warnf("读取扩展包自定义回复配置失败: %s, %v", filePath, err)
-				}
+			rc, err := CustomReplyConfigReadFromPath(dice, replyFile.Path, filepath.Base(replyFile.Path))
+			if err == nil {
+				rc.PackageID = replyFile.PackageID
+				dice.Logger.Infof("读取扩展包自定义回复配置: %s", replyFile.Path)
+				rc.Save(dice)
+				rcs = append(rcs, rc)
+			} else {
+				dice.Logger.Warnf("读取扩展包自定义回复配置失败: %s, %v", replyFile.Path, err)
 			}
 		}
 	}
