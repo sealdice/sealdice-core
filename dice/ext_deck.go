@@ -25,6 +25,8 @@ import (
 	"github.com/sahilm/fuzzy"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
+
+	"sealdice-core/utils"
 )
 
 type DeckDiceEFormat struct {
@@ -1211,7 +1213,7 @@ func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, string, erro
 	}
 	newDeck := strings.ReplaceAll(string(newData), "\r\n", "\n")
 
-	temp, err := os.CreateTemp("", "new-*-"+filepath.Base(deckInfo.Filename))
+	temp, err := os.CreateTemp("", utils.TempFilePatternFromName("new-"+filepath.Base(deckInfo.Filename), "new-deck", 80))
 	if err != nil {
 		return "", "", "", err
 	}

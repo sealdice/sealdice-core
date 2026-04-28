@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/golang-module/carbon"
-	"github.com/pilagod/gorm-cursor-paginator/v2/paginator"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
@@ -492,9 +490,9 @@ func RegisterBuiltinExtLog(self *Dice) {
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
 				ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_成功"), "skip")
 				return CmdExecuteResult{Matched: true, Solved: true}
-			} else {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
+
+			return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 		},
 	}
 
@@ -981,84 +979,34 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, error) {
-	// 创建临时文件
-	tempLog, err := os.CreateTemp("", fmt.Sprintf(
-		"%s(*).txt",
-		utils.FilenameClean(fileNamePrefix),
-	))
+	lines, err := service.LogGetAllLines(ctx.Dice.DBOperator, groupID, logName)
+	if err != nil {
+		return "", err
+	}
+	if len(lines) == 0 {
+		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
+	}
+
+	tempLog, err := os.CreateTemp("", utils.TempFilePattern(fileNamePrefix, "log-export", ".txt", 80))
 	if err != nil {
 		return "", errors.New("log导出出现未知错误")
 	}
+
+	cleanup := true
 	defer func() {
 		_ = tempLog.Close()
-		if err != nil {
+		if cleanup {
 			_ = os.Remove(tempLog.Name()) //nolint:gosec
 		}
 	}()
 
-	counter := 0
-	currentCursor := paginator.Cursor{} // 初始游标为空
-
-	// 腾讯元宝: 创建带10秒超时的 context
-	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel() // 确保 context 被正确取消
-
-	// 腾讯元宝: 使用 channel 接收 goroutine 的结果
-	resultCh := make(chan error, 1)
-	go func() {
-		defer close(resultCh) // 确保 channel 被关闭
-
-		for {
-			select {
-			case <-ctxWithTimeout.Done(): // 检查是否超时或被取消
-				resultCh <- errors.New("日志导出超时（10秒限制），请尝试减少数据量或联系管理员")
-				return
-			default:
-				// 获取当前游标对应的数据
-				cursorLines, cursor, err := service.LogGetCursorLines(ctx.Dice.DBOperator, groupID, logName, currentCursor)
-				if err != nil {
-					resultCh <- err
-					return
-				}
-
-				// 写入当前批次的数据
-				for _, line := range cursorLines {
-					timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
-					text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
-					_, _ = tempLog.WriteString(text)
-					counter++
-				}
-				// ========== 新增：每批写入后强制同步 ==========
-				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
-					resultCh <- fmt.Errorf("批次同步失败: %w", err)
-				}
-
-				// 如果没有下一页，则成功完成
-				if cursor.After == nil {
-					resultCh <- nil
-					return
-				}
-
-				// 更新游标，继续获取下一页
-				currentCursor.After = cursor.After
-			}
-		}
-	}()
-
-	// 等待 goroutine 完成或超时
-	if err := <-resultCh; err != nil {
-		return "", err
+	if err := storylog.WriteLogTXT(tempLog, lines); err != nil {
+		return "", fmt.Errorf("写入日志导出文件失败: %w", err)
 	}
-	// 2. 确保文件指针回到开头
-	if _, err := tempLog.Seek(0, 0); err != nil {
-		return "", fmt.Errorf("重置文件指针失败: %w", err)
+	if err := tempLog.Close(); err != nil {
+		return "", fmt.Errorf("关闭日志导出文件失败: %w", err)
 	}
-
-	// 如果没有任何数据，返回错误
-	if counter == 0 {
-		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
-	}
-
+	cleanup = false
 	return tempLog.Name(), nil
 }
 

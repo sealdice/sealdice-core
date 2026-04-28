@@ -2,23 +2,22 @@ package storylog
 
 import (
 	"archive/zip"
-	"bytes"
 	"compress/zlib"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"sealdice-core/dice/service"
-	"sealdice-core/utils"
+	"sealdice-core/model"
 )
 
 func uploadV1(env UploadEnv) (string, error) {
-	_ = os.MkdirAll(env.Dir, 0o755)
+	if err := os.MkdirAll(env.Dir, 0o755); err != nil {
+		return "", fmt.Errorf("创建导出目录失败: %w", err)
+	}
 
 	url, uploadTS, updateTS, _ := service.LogGetUploadInfo(env.Db, env.GroupID, env.LogName)
 	if len(url) > 0 && uploadTS > updateTS {
@@ -50,19 +49,19 @@ func uploadV1(env UploadEnv) (string, error) {
 	if len(lines) == 0 {
 		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
-	env.lines = lines
 
-	err = formatAndBackup(&env)
-	if err != nil {
+	if err := formatAndBackup(&env, lines); err != nil {
 		return "", err
 	}
 
-	var zlibBuffer bytes.Buffer
-	w := zlib.NewWriter(&zlibBuffer)
-	_, _ = w.Write(*env.data)
-	_ = w.Close()
-
-	url = uploadToSealBackends(env, &zlibBuffer)
+	url = uploadToSealBackends(env, "SealDice", "log-zlib-compressed", func(w io.Writer) error {
+		zlibWriter := zlib.NewWriter(w)
+		if err := writeStoryV1JSON(zlibWriter, lines); err != nil {
+			_ = zlibWriter.Close()
+			return err
+		}
+		return zlibWriter.Close()
+	})
 	if errDB := service.LogSetUploadInfo(env.Db, env.GroupID, env.LogName, url); errDB != nil {
 		env.Log.Errorf("记录Log上传信息失败: %v", errDB)
 	}
@@ -72,59 +71,58 @@ func uploadV1(env UploadEnv) (string, error) {
 	return url, nil
 }
 
-// formatAndBackup 将导出的日志序列化到 env.data 并存储为本地 zip
-func formatAndBackup(env *UploadEnv) error {
-	fzip, _ := os.OpenFile(
-		filepath.Join(env.Dir, utils.FilenameClean(fmt.Sprintf(
-			"%s_%s.%s.zip",
-			env.GroupID, env.LogName, time.Now().Format("060102150405"),
-		))),
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-		0o600,
-	)
+// formatAndBackup 将导出的日志直接写入本地 zip 文件。
+func formatAndBackup(env *UploadEnv, lines []*model.LogOneItem) (err error) {
+	zipPath := filepath.Join(env.Dir, exportZipFilename(env.GroupID, env.LogName, time.Now()))
+	fzip, err := os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("创建本地备份 zip 失败: %w", err)
+	}
+	removeOnError := true
+	defer func() {
+		if fzip != nil {
+			_ = fzip.Close()
+		}
+		if removeOnError {
+			_ = os.Remove(zipPath)
+		}
+	}()
+
 	writer := zip.NewWriter(fzip)
-
-	var text strings.Builder
-	for _, i := range env.lines {
-		timeTxt := time.Unix(i.Time, 0).Format("2006-01-02 15:04:05")
-		fmt.Fprintf(&text, "%s(%v) %s\n%s\n\n", i.Nickname, i.IMUserID, timeTxt, i.Message)
-	}
-
-	{
-		wr, _ := writer.Create(ExportReadmeFilename)
-		_, _ = wr.Write([]byte(ExportReadmeContent))
-	}
-	{
-		fileWriter, _ := writer.Create(ExportTxtFilename)
-		_, _ = fileWriter.Write([]byte(text.String()))
-	}
-
-	data, err := json.Marshal(map[string]interface{}{
-		"version": StoryVersionV1,
-		"items":   env.lines,
-	})
-	if err == nil {
-		fileWriter2, _ := writer.Create(ExportJsonFilename)
-		_, _ = fileWriter2.Write(data)
-		env.data = &data
-	}
-
-	_ = writer.Close()
-	_ = fzip.Close()
-
-	return err
-}
-
-func uploadToSealBackends(env UploadEnv, data io.Reader) string {
-	// 逐个尝试所有后端地址
-	for _, backend := range env.Backends {
-		if backend == "" {
-			continue
+	defer func() {
+		if writer != nil {
+			_ = writer.Close()
 		}
-		ret := uploadToBackend(env, backend, data)
-		if ret != "" {
-			return ret
-		}
+	}()
+
+	if err := writeReadmeToZip(writer); err != nil {
+		return fmt.Errorf("写入 README 失败: %w", err)
 	}
-	return ""
+
+	txtWriter, err := writer.Create(ExportTxtFilename)
+	if err != nil {
+		return fmt.Errorf("创建 TXT 导出文件失败: %w", err)
+	}
+	if err := WriteLogTXT(txtWriter, lines); err != nil {
+		return fmt.Errorf("写入 TXT 导出文件失败: %w", err)
+	}
+
+	jsonWriter, err := writer.Create(ExportJsonFilename)
+	if err != nil {
+		return fmt.Errorf("创建 JSON 导出文件失败: %w", err)
+	}
+	if err := writeStoryV1JSON(jsonWriter, lines); err != nil {
+		return fmt.Errorf("写入 JSON 导出文件失败: %w", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("关闭本地备份 zip 失败: %w", err)
+	}
+	writer = nil
+	if err := fzip.Close(); err != nil {
+		return fmt.Errorf("关闭本地备份文件失败: %w", err)
+	}
+	fzip = nil
+	removeOnError = false
+	return nil
 }

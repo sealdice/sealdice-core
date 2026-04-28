@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"sealdice-core/message"
+	"sealdice-core/utils"
 	"sealdice-core/utils/satori"
 
 	"github.com/gorilla/websocket"
@@ -675,7 +676,7 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 				if fileName == "" {
 					fileName = "temp"
 				}
-				temp, _ := os.CreateTemp("", fileName)
+				temp, _ := os.CreateTemp("", utils.TempFilePatternFromName(fileName, "temp", 80))
 				_, err := io.Copy(temp, e.Stream)
 				if err != nil {
 					continue
@@ -700,7 +701,7 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 				if fileName == "" {
 					fileName = "temp"
 				}
-				temp, _ := os.CreateTemp("", fileName)
+				temp, _ := os.CreateTemp("", utils.TempFilePatternFromName(fileName, "temp", 80))
 				_, err := io.Copy(temp, file.Stream)
 				if err != nil {
 					continue
