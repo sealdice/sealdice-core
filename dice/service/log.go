@@ -40,6 +40,9 @@ func LogGetInfo(operator engine2.DatabaseOperator) ([]int, error) {
 }
 
 func logTableApproxInfo(db *gorm.DB, dbType string, tableName string, modelValue interface{}) (maxID int64, rows int64, err error) {
+	maxIDValid := false
+	rowsValid := false
+
 	switch dbType {
 	case constant.SQLITE:
 		if seq, ok := querySQLiteSequence(db, tableName); ok {
@@ -48,26 +51,30 @@ func logTableApproxInfo(db *gorm.DB, dbType string, tableName string, modelValue
 	case constant.MYSQL:
 		if autoIncrement, ok := queryMySQLAutoIncrement(db, tableName); ok {
 			maxID = autoIncrement
+			maxIDValid = true
 		}
 		if tableRows, ok := queryMySQLTableRows(db, tableName); ok {
 			rows = tableRows
+			rowsValid = true
 		}
-	case constant.POSTGRESQL:
+	case constant.POSTGRESQL, "pgsql":
 		if sequenceValue, ok := queryPostgreSQLSequence(db, tableName); ok {
 			maxID = sequenceValue
+			maxIDValid = true
 		}
 		if tableRows, ok := queryPostgreSQLTableRows(db, tableName); ok {
 			rows = tableRows
+			rowsValid = true
 		}
 	}
 
-	if maxID == 0 {
+	if !maxIDValid {
 		maxID, err = queryMaxID(db, modelValue)
 		if err != nil {
 			return 0, 0, err
 		}
 	}
-	if rows == 0 {
+	if !rowsValid {
 		rows = maxID
 	}
 	return maxID, rows, nil
