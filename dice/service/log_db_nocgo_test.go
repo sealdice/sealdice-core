@@ -1,6 +1,6 @@
 //go:build !cgo
 
-package service
+package service_test
 
 import (
 	sqlite "github.com/ncruces/go-sqlite3/gormlite"

@@ -1,6 +1,6 @@
 //go:build cgo
 
-package service
+package service_test
 
 import (
 	gormsqlite "gorm.io/driver/sqlite"

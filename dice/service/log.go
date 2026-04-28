@@ -28,11 +28,12 @@ var ErrLogNotFound = errors.New("日志不存在")
 // 返回值保持原结构：logs 最大 ID、log_items 最大 ID、logs 近似行数、log_items 近似行数。
 func LogGetInfo(operator engine2.DatabaseOperator) ([]int, error) {
 	db := operator.GetLogDB(constant.READ)
-	logMaxID, logRows, err := logTableApproxInfo(db, operator.Type(), "logs", &model.LogInfo{})
+	dbType := operator.Type()
+	logMaxID, logRows, err := logTableApproxInfo(db, dbType, "logs", &model.LogInfo{})
 	if err != nil {
 		return nil, err
 	}
-	itemMaxID, itemRows, err := logTableApproxInfo(db, operator.Type(), "log_items", &model.LogOneItem{})
+	itemMaxID, itemRows, err := logTableApproxInfo(db, dbType, "log_items", &model.LogOneItem{})
 	if err != nil {
 		return nil, err
 	}
@@ -40,42 +41,24 @@ func LogGetInfo(operator engine2.DatabaseOperator) ([]int, error) {
 }
 
 func logTableApproxInfo(db *gorm.DB, dbType string, tableName string, modelValue interface{}) (maxID int64, rows int64, err error) {
-	maxIDValid := false
-	rowsValid := false
-
+	maxID, err = queryMaxID(db, modelValue)
+	if err != nil {
+		return 0, 0, err
+	}
+	rows = maxID
 	switch dbType {
 	case constant.SQLITE:
 		if seq, ok := querySQLiteSequence(db, tableName); ok {
-			return seq, seq, nil
+			rows = seq
 		}
 	case constant.MYSQL:
-		if autoIncrement, ok := queryMySQLAutoIncrement(db, tableName); ok {
-			maxID = autoIncrement
-			maxIDValid = true
-		}
 		if tableRows, ok := queryMySQLTableRows(db, tableName); ok {
 			rows = tableRows
-			rowsValid = true
 		}
 	case constant.POSTGRESQL, "pgsql":
-		if sequenceValue, ok := queryPostgreSQLSequence(db, tableName); ok {
-			maxID = sequenceValue
-			maxIDValid = true
-		}
 		if tableRows, ok := queryPostgreSQLTableRows(db, tableName); ok {
 			rows = tableRows
-			rowsValid = true
 		}
-	}
-
-	if !maxIDValid {
-		maxID, err = queryMaxID(db, modelValue)
-		if err != nil {
-			return 0, 0, err
-		}
-	}
-	if !rowsValid {
-		rows = maxID
 	}
 	return maxID, rows, nil
 }
@@ -88,21 +71,6 @@ func querySQLiteSequence(db *gorm.DB, tableName string) (int64, bool) {
 	return seq.Int64, seq.Valid
 }
 
-func queryMySQLAutoIncrement(db *gorm.DB, tableName string) (int64, bool) {
-	var autoIncrement sql.NullInt64
-	err := db.Raw(
-		"SELECT AUTO_INCREMENT - 1 FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
-		tableName,
-	).Scan(&autoIncrement).Error
-	if err != nil || !autoIncrement.Valid {
-		return 0, false
-	}
-	if autoIncrement.Int64 < 0 {
-		return 0, false
-	}
-	return autoIncrement.Int64, true
-}
-
 func queryMySQLTableRows(db *gorm.DB, tableName string) (int64, bool) {
 	var rows sql.NullInt64
 	err := db.Raw(
@@ -113,18 +81,6 @@ func queryMySQLTableRows(db *gorm.DB, tableName string) (int64, bool) {
 		return 0, false
 	}
 	return rows.Int64, true
-}
-
-func queryPostgreSQLSequence(db *gorm.DB, tableName string) (int64, bool) {
-	var sequenceValue sql.NullInt64
-	err := db.Raw(
-		"SELECT last_value FROM pg_sequences WHERE schemaname = current_schema() AND sequencename = ?",
-		fmt.Sprintf("%s_id_seq", tableName),
-	).Scan(&sequenceValue).Error
-	if err != nil || !sequenceValue.Valid || sequenceValue.Int64 < 0 {
-		return 0, false
-	}
-	return sequenceValue.Int64, true
 }
 
 func queryPostgreSQLTableRows(db *gorm.DB, tableName string) (int64, bool) {
