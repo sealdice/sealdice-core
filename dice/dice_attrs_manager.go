@@ -119,7 +119,7 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 	// 1. 如果当前有缓存，那么从缓存中返回。
 	// 但是。。如果有人把这个对象一直持有呢？
 	i, exists := am.m.Load(id)
-	if exists {
+	if exists && i != nil {
 		return i, nil
 	}
 
@@ -133,6 +133,9 @@ func (am *AttrsManager) LoadById(id string) (*AttributesItem, error) {
 				return nil, err
 			}
 			if dd, ok := v.ReadDictData(); ok {
+				if dd.Dict == nil {
+					dd.Dict = &ds.ValueMap{}
+				}
 				i = &AttributesItem{
 					ID:           id,
 					valueMap:     dd.Dict,
