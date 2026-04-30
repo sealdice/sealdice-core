@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ type PlatformAdapterMilky struct {
 	IntentSession       *milky.Session `json:"-"                     yaml:"-"`
 	WsGateway           string         `json:"ws_gateway"            yaml:"ws_gateway"`
 	RestGateway         string         `json:"rest_gateway"          yaml:"rest_gateway"`
-	Token               string         `json:"token"                 yaml:"token"`
+	Token               string         `json:"-"                 yaml:"token"`
 	IgnoreFriendRequest bool           `json:"ignore_friend_request" yaml:"ignore_friend_request"`
 	// 内置
 	// BuiltInMode 留空则视为分离，目前支持的字段为 lagrangeV2
@@ -104,19 +105,29 @@ func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
-	groupInfo, err := pa.IntentSession.GetGroupInfo(id, true)
+	groupInfoMilky, err := pa.IntentSession.GetGroupInfo(id, true)
 	if err != nil {
 		log.Errorf("Failed to get group info for %s: %v", groupID, err)
 		return
 	}
-	if groupInfo == nil {
+	if groupInfoMilky == nil {
 		log.Warnf("Group info for %s is nil", groupID)
 		return
 	}
-	pa.Session.Parent.Parent.GroupNameCache.Store(groupID, &GroupNameCacheItem{
-		Name: groupInfo.Name,
+	dm := pa.Session.Parent.Parent
+	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
+		Name: groupInfoMilky.Name,
 		time: time.Now().Unix(),
 	})
+	session := pa.Session
+	groupInfo, ok := session.ServiceAtNew.Load(groupID)
+	if ok {
+		if groupInfoMilky.Name != groupInfo.GroupName {
+			// 更新群名
+			groupInfo.GroupName = groupInfoMilky.Name
+			groupInfo.MarkDirty(session.Parent)
+		}
+	}
 }
 
 func (pa *PlatformAdapterMilky) Serve() int {
@@ -324,7 +335,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
-		if m == nil {
+		if m != nil {
 			ctx := &MsgContext{MessageType: "private", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
 			pa.handelFriendRequest(ctx, m)
 		}
@@ -337,7 +348,6 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
 		uid := FormatDiceIDQQ(strconv.FormatInt(m.InitiatorID, 10))
 		groupId := FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10))
-		pa.GetGroupInfoAsync(groupId)
 		groupName := dm.TryGetGroupName(groupId)
 		userName := dm.TryGetUserName(uid)
 		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%d)", groupName, groupId, userName, m.InitiatorID)
@@ -509,6 +519,57 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 		pa.SetFriendAddRequest(event.InitiatorUID, true, "")
 	} else {
 		pa.SetFriendAddRequest(event.InitiatorUID, false, "验证信息不符")
+	}
+	sendSpeech := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		// 稍作等待后发好友致辞
+		time.Sleep(2 * time.Second)
+		selfId, err := strconv.ParseInt(ExtractQQUserID(pa.EndPoint.UserID), 10, 64)
+		if err != nil {
+			log.Errorf("好友致辞异常: 无法解析自己的QQ号: %v", err)
+			return
+		}
+		event.InitiatorID = selfId
+		msg := &Message{
+			MessageType: "private",
+			Platform:    "QQ",
+			Sender: SenderBase{
+				UserID: uid,
+			},
+		}
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+
+		welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
+		log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
+
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+				}
+			}()
+
+			for _, i := range ctx.SplitText(welcome) {
+				doSleepQQ(ctx)
+				pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
+			}
+			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(ctx.Group.GroupID); ok {
+				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+					if ext.OnBecomeFriend == nil {
+						return nil
+					}
+					return func() { ext.OnBecomeFriend(ctx, msg) }
+				})
+			}
+		}()
+	}
+	if willAccept {
+		sendSpeech()
 	}
 }
 

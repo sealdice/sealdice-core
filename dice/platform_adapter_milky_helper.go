@@ -88,7 +88,7 @@ var defaultLagrangeV2Config = `{
         // "Prefix": "/",
 
         // Token for verification, Set to null to disable
-        // "AccessToken": null
+        "AccessToken": "{访问Token}",
 
         // Whether to enable WebSocket service
         // "EnabledWebSocket": true,
@@ -112,6 +112,44 @@ var defaultLagrangeV2Config = `{
     },
 }
 `
+
+var defaultYogurtConfig = `{
+    "configVersion": 3,
+    "protocol": {
+        "uin": {账号UIN},
+        "password": "",
+        "os": "Linux",
+        "version": "46494",
+        "signApiUrl": "{NTSignServer地址}",
+        "pcLagrangeSignToken": "placeholder",
+        "androidUseLegacySign": false
+    },
+    "milky": {
+        "http": {
+            "host": "127.0.0.1",
+            "port": {WS端口},
+            "prefix": "",
+            "accessToken": "{访问Token}",
+            "corsOrigins": []
+        },
+        "webhook": {
+            "endpoints": []
+        },
+        "reportSelfMessage": true,
+        "preloadContacts": false,
+        "ffmpegPath": ""
+    },
+    "logging": {
+        "ansiLevel": "ANSI256",
+        "coreLogLevel": "DEBUG"
+    },
+    "security": {
+        "skipOnLaunchListenAddressCheck": false
+    },
+    "debug": {
+        "enableFaceDetailsApi": false
+    }
+}`
 
 var SealSignV3Url = ``
 
@@ -228,7 +266,13 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	workDir := filepath.Join(d.BaseConfig.DataDir, ep.RelWorkDir)
 	diceWorkdir, _ := os.Getwd()
 	milkyExePath, _ := filepath.Abs(filepath.Join(diceWorkdir, fmt.Sprintf("milky/%s", pa.BuiltInMode)))
-	configFilePath := filepath.Join(workDir, "appsettings.jsonc")
+	var configFilePath string
+	switch pa.BuiltInMode {
+	case "lagrangeV2":
+		configFilePath = filepath.Join(workDir, "appsettings.jsonc")
+	case "yogurt":
+		configFilePath = filepath.Join(workDir, "config.json")
+	}
 	qrcodeFilePath := filepath.Join(workDir, "qrcode.png")
 	milkyExePath = filepath.ToSlash(milkyExePath) // windows平台需要这个替换
 	if runtime.GOOS == "windows" {
@@ -251,8 +295,13 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", p)
 		pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", p)
 		// 生成配置写入文件
-		c := GenerateMilkyConfig(p, SealSignV3Url, ep)
-		_ = os.WriteFile(configFilePath, c, 0o644)
+		accessToken := uuid.NewString()
+		pa.Token = accessToken
+		c := GenerateMilkyConfig(p, SealSignV3Url, accessToken, ep)
+		err = os.WriteFile(configFilePath, c, 0o644)
+		if err != nil {
+			log.Errorf("写入 Milky 配置文件失败: %s", err)
+		}
 	}
 	command := fmt.Sprintf(`"%s"`, milkyExePath)
 	p := procs.NewProcess(command)
@@ -267,9 +316,20 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	p.OutputHandler = func(line string, _type string) string {
 		// 登录中
 		if pa.BuiltInLoginState < MilkyLoginStateConnecting {
-			qrcodeSignal := "Fetch QrCode Success"
-			onlineSignal := "successfully logged in"
-			qrcodeExpiredSignal := "QrCode State: 17"
+			var qrcodeSignal string
+			var onlineSignal string
+			var qrcodeExpiredSignal string
+			switch pa.BuiltInMode {
+			case "lagrangeV2":
+				qrcodeSignal = "Fetch QrCode Success"
+				onlineSignal = "successfully logged in"
+				qrcodeExpiredSignal = "QrCode State: CodeExpired"
+			case "yogurt":
+				qrcodeSignal = "二维码文件已保存"
+				onlineSignal = "已上线"
+				qrcodeExpiredSignal = "二维码已过期"
+			}
+
 			// 读取二维码
 			if strings.Contains(line, qrcodeSignal) && !qrSignalCalled.Load() {
 				qrSignalCalled.Store(true)
@@ -364,13 +424,20 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 }
 
 // GenerateMilkyConfig 似乎暂时不需要 APPInfo, 如果以后需要了再改成双返回值
-func GenerateMilkyConfig(port int, signServerUrl string, info *EndPointInfo) []byte {
+func GenerateMilkyConfig(port int, signServerUrl string, accessToken string, info *EndPointInfo) []byte {
 	pa := info.Adapter.(*PlatformAdapterMilky)
 	switch pa.BuiltInMode {
 	case "lagrangeV2":
 		conf := strings.ReplaceAll(defaultLagrangeV2Config, "{WS端口}", strconv.Itoa(port))
 		conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
 		conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
+		conf = strings.ReplaceAll(conf, "{访问Token}", accessToken)
+		return []byte(conf)
+	case "yogurt":
+		conf := strings.ReplaceAll(defaultYogurtConfig, "{WS端口}", strconv.Itoa(port))
+		conf = strings.ReplaceAll(conf, "{NTSignServer地址}", signServerUrl)
+		conf = strings.ReplaceAll(conf, "{账号UIN}", info.UserID[3:])
+		conf = strings.ReplaceAll(conf, "{访问Token}", accessToken)
 		return []byte(conf)
 	default:
 		return nil

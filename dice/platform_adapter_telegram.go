@@ -32,7 +32,7 @@ func (b *BotLoggerWrapper) Printf(format string, v ...interface{}) {
 
 type PlatformAdapterTelegram struct {
 	Session       *IMSession       `json:"-"        yaml:"-"`
-	Token         string           `json:"token"    yaml:"token"`
+	Token         string           `json:"-"    yaml:"token"`
 	ProxyURL      string           `json:"proxyURL" yaml:"proxyURL"`
 	EndPoint      *EndPointInfo    `json:"-"        yaml:"-"`
 	IntentSession *tgbotapi.BotAPI `json:"-"        yaml:"-"`

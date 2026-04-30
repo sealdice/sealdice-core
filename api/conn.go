@@ -172,6 +172,10 @@ func ImConnectionsDel(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
+		defer func() {
+			myDice.LastUpdatedTime = time.Now().Unix()
+			myDice.Save(false)
+		}()
 		for index, i := range myDice.ImSession.EndPoints {
 			if i.ID == v.ID {
 				// 禁用该endpoint防止出问题
@@ -736,6 +740,7 @@ func ImConnectionsAddMilkyInternal(c echo.Context) error {
 		supportedClientModes := map[string]struct{}{
 			// lagrangeV2
 			"lagrangeV2": {},
+			"yogurt":     {},
 		}
 		if _, ok := supportedClientModes[v.ClientMode]; !ok {
 			return c.JSON(http.StatusBadRequest, map[string]interface{}{
@@ -1011,7 +1016,6 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 		Account           string `json:"account"           yaml:"account"`
 		SignServerName    string `json:"signServerName"    yaml:"signServerName"`
 		SignServerVersion string `json:"signServerVersion" yaml:"signServerVersion"`
-		IsGocq            bool   `json:"isGocq"            yaml:"isGocq"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -1020,7 +1024,7 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 			return nil
 		}
 
-		conn := dice.NewLagrangeConnectInfoItem(v.Account, v.IsGocq)
+		conn := dice.NewLagrangeConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)

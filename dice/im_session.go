@@ -1522,7 +1522,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 		time.Sleep(2 * time.Second)
 
 		ctx.Player = &GroupPlayerInfo{}
-		log.Infof("发送入群致辞，群: <%s>(%d)", groupName, msg.GroupID)
+		log.Infof("发送入群致辞，群: <%s>(%s)", groupName, msg.GroupID)
 		text := DiceFormatTmpl(ctx, "核心:骰子进群")
 		for _, i := range ctx.SplitText(text) {
 			doSleepQQ(ctx)
@@ -1577,8 +1577,7 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 				}()
 
 				// Ensure context has group set for formatting and attrs access
-				ctx.Group = groupInfo
-				ctx.Player = &GroupPlayerInfo{}
+				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
 				uidRaw := UserIDExtract(msg.Sender.UserID)
 				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
