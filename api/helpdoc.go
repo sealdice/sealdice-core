@@ -43,10 +43,9 @@ func helpDocReload(c echo.Context) error {
 	}
 
 	if !dm.IsHelpReloading {
-		dm.IsHelpReloading = true
-		dm.Help.Close()
-
-		dm.InitHelp()
+		if err := dm.ReloadHelp(); err != nil {
+			return Error(&c, err.Error(), Response{})
+		}
 		return Success(&c, Response{})
 	}
 	return Error(&c, "帮助文档正在重新装载", Response{})
@@ -126,10 +125,16 @@ func helpGetTextItemPage(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
+		if dm.IsHelpReloading {
+			return Error(&c, "帮助文档正在重新装载", Response{"total": 0, "data": dice.HelpTextVos{}})
+		}
+		if dm.Help == nil || !dm.Help.IsAvailable() {
+			return Error(&c, "帮助文档不可用，请重载或重启", Response{"total": 0, "data": dice.HelpTextVos{}})
+		}
 		total, data := dm.Help.GetHelpItemPage(v.PageNum, v.PageSize, v.ID, v.Group, v.From, v.Title)
 		return Success(&c, Response{"total": total, "data": data})
 	}
-	return Success(&c, Response{"total": 0, "data": dice.HelpTextItems{}})
+	return Success(&c, Response{"total": 0, "data": dice.HelpTextVos{}})
 }
 
 func helpGetConfig(c echo.Context) error {

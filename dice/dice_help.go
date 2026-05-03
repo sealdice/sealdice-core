@@ -10,8 +10,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"sealdice-core/dice/docengine"
@@ -61,6 +63,7 @@ type HelpManager struct {
 	LoadingFn    string
 	HelpDocTree  []*HelpDoc
 	GroupAliases map[string]string
+	mu           sync.RWMutex
 	// SearchEngine
 	searchEngine docengine.SearchEngine
 
@@ -115,15 +118,28 @@ func (m *HelpManager) loadSearchEngine() {
 }
 
 func (m *HelpManager) Close() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.searchEngine == nil {
+		return
+	}
 	// 关闭Bucket，并删除所有数据
 	// TODO:暂时先不动删除逻辑
 	m.searchEngine.Close()
+	m.searchEngine = nil
 	_ = os.RemoveAll("./_help_cache")
 }
 
-func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
+func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	log := logger.M()
 	m.loadSearchEngine()
+	if !m.IsAvailable() {
+		log.Errorf("帮助文档搜索引擎不可用，跳过帮助文档加载")
+		return
+	}
 
 	_ = m.AddItem(docengine.HelpTextItem{
 		Group: HelpBuiltinGroup,
@@ -224,7 +240,35 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 		log.Errorf("加载用户自定义帮助文档出现异常!: %v", err)
 	}
 	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
-	log.Infof("[帮助文档] 正在处理指令相关（含插件）帮助文档组")
+
+	// 3. 从已启用扩展包加载 helpdoc
+	if dice != nil && dice.PackageManager != nil {
+		helpdocFiles := dice.PackageManager.GetEnabledContentFiles("helpdoc")
+		for _, child := range buildPackageHelpDocTree(helpdocFiles) {
+			_ = traverseHelpDocTree(child, func(d *HelpDoc) error {
+				if d.IsDir {
+					return nil
+				}
+				ok := m.loadHelpDoc(d.Group, d.Path)
+				applyErr := m.AddItemApply(false)
+				if ok && applyErr == nil {
+					d.LoadStatus = Loaded
+				} else {
+					d.LoadStatus = LoadError
+				}
+				return nil
+			})
+			m.HelpDocTree = append(m.HelpDocTree, child)
+		}
+		if len(helpdocFiles) > 0 {
+			log.Infof("[帮助文档] 从扩展包加载帮助文档文件: %d", len(helpdocFiles))
+		}
+		applyErr := m.AddItemApply(false)
+		if applyErr != nil {
+			log.Errorf("加载扩展包帮助文档时出现异常: %v", applyErr)
+		}
+	}
+
 	err = m.addInternalCmdHelp(internalCmdMap)
 	if err != nil {
 		log.Errorf("加载内置指令帮助文档出现异常: %v", err)
@@ -484,11 +528,27 @@ func (m *HelpManager) addExternalCmdHelp(ext []*ExtInfo) error {
 }
 
 func (m *HelpManager) AddItem(item docengine.HelpTextItem) error {
+	if m == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
 	_, err := m.searchEngine.AddItem(item)
 	return err
 }
 
 func (m *HelpManager) AddItemApply(end bool) error {
+	if m == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
 	err := m.searchEngine.AddItemApply(end)
 	if err != nil {
 		return err
@@ -496,19 +556,70 @@ func (m *HelpManager) AddItemApply(end bool) error {
 	return nil
 }
 
+func (m *HelpManager) IsAvailable() bool {
+	if m == nil {
+		return false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return searchEngineAvailable(m.searchEngine)
+}
+
+func searchEngineAvailable(engine docengine.SearchEngine) bool {
+	if engine == nil {
+		return false
+	}
+	if bleveEngine, ok := engine.(*docengine.BleveSearchEngine); ok {
+		return bleveEngine.Index != nil
+	}
+	return true
+}
+
 func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res *docengine.GeneralSearchResult, total, pageStart, pageEnd int, err error) {
+	if m == nil {
+		return nil, 0, 0, 0, docengine.ErrSearchEngineUnavailable
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return nil, 0, 0, 0, docengine.ErrSearchEngineUnavailable
+	}
 	return m.searchEngine.Search(ctx.Group.HelpPackages, text, titleOnly, pageSize, pageNum, group)
 }
 
 func (m *HelpManager) GetSuffixText() string {
+	if m == nil {
+		return ""
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return ""
+	}
 	return m.searchEngine.GetSuffixText()
 }
 
 func (m *HelpManager) GetPrefixText() string {
+	if m == nil {
+		return ""
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return ""
+	}
 	return m.searchEngine.GetPrefixText()
 }
 
 func (m *HelpManager) GetShowBestOffset() int {
+	if m == nil {
+		return 1
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return 1
+	}
 	return m.searchEngine.GetShowBestOffset()
 }
 
@@ -546,7 +657,21 @@ func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string
 		name := txt[left+1 : right-1]
 		// 搜索TitleOnly，严格匹配Title的情形
 		// 如果查询到对应数据，那么就调用m.GetContent
-		valueResult, err := m.searchEngine.GetHelpTextItemByTermTitle(name)
+		var (
+			valueResult *docengine.HelpTextItem
+			err         error
+		)
+		if m == nil {
+			err = docengine.ErrSearchEngineUnavailable
+		} else {
+			m.mu.RLock()
+			if m.searchEngine == nil {
+				err = docengine.ErrSearchEngineUnavailable
+			} else {
+				valueResult, err = m.searchEngine.GetHelpTextItemByTermTitle(name)
+			}
+			m.mu.RUnlock()
+		}
 		if err != nil {
 			result.WriteByte('{')
 			result.WriteString(name)
@@ -615,6 +740,109 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 		// 调用处理函数
 		fn(current)
 	}
+}
+
+func buildPackageHelpDocTree(files []PackageContentFile) []*HelpDoc {
+	pkgRoot := func(file PackageContentFile) string {
+		rel := filepath.FromSlash(file.PackagePath)
+		if strings.HasSuffix(file.Path, rel) {
+			return strings.TrimSuffix(file.Path, rel)
+		}
+		return filepath.Dir(file.Path)
+	}
+
+	roots := make([]*HelpDoc, 0)
+	rootIndex := make(map[string]*HelpDoc)
+	for _, file := range files {
+		packagePath := filepath.ToSlash(file.PackagePath)
+		if !strings.HasPrefix(packagePath, "helpdoc/") {
+			continue
+		}
+		rel := strings.TrimPrefix(packagePath, "helpdoc/")
+		if rel == "" {
+			continue
+		}
+		segments := strings.Split(rel, "/")
+		if len(segments) == 1 {
+			roots = append(roots, &HelpDoc{
+				Key:        generateHelpDocKey(),
+				Name:       segments[0],
+				Path:       file.Path,
+				Group:      "default",
+				Type:       filepath.Ext(file.Path),
+				IsDir:      false,
+				LoadStatus: Unload,
+			})
+			continue
+		}
+
+		base := pkgRoot(file)
+		rootName := segments[0]
+		root := rootIndex[rootName]
+		if root == nil {
+			root = &HelpDoc{
+				Key:        generateHelpDocKey(),
+				Name:       rootName,
+				Path:       filepath.Join(base, filepath.FromSlash("helpdoc/"+rootName)),
+				Group:      rootName,
+				Type:       "dir",
+				IsDir:      true,
+				LoadStatus: Unload,
+				Children:   make([]*HelpDoc, 0),
+			}
+			rootIndex[rootName] = root
+			roots = append(roots, root)
+		}
+
+		current := root
+		for idx := 1; idx < len(segments); idx++ {
+			part := segments[idx]
+			isLast := idx == len(segments)-1
+			currentPath := filepath.Join(base, filepath.FromSlash("helpdoc/"+strings.Join(segments[:idx+1], "/")))
+			var child *HelpDoc
+			for _, existing := range current.Children {
+				if existing.Name == part {
+					child = existing
+					break
+				}
+			}
+			if child == nil {
+				child = &HelpDoc{
+					Key:        generateHelpDocKey(),
+					Name:       part,
+					Path:       currentPath,
+					Group:      root.Group,
+					IsDir:      !isLast,
+					LoadStatus: Unload,
+				}
+				if child.IsDir {
+					child.Type = "dir"
+					child.Children = make([]*HelpDoc, 0)
+				} else {
+					child.Type = filepath.Ext(child.Path)
+				}
+				current.Children = append(current.Children, child)
+			}
+			current = child
+		}
+	}
+
+	var sortNodes func(nodes []*HelpDoc)
+	sortNodes = func(nodes []*HelpDoc) {
+		sort.Slice(nodes, func(i, j int) bool {
+			if nodes[i].IsDir != nodes[j].IsDir {
+				return nodes[i].IsDir
+			}
+			return nodes[i].Name < nodes[j].Name
+		})
+		for _, node := range nodes {
+			if len(node.Children) > 0 {
+				sortNodes(node.Children)
+			}
+		}
+	}
+	sortNodes(roots)
+	return roots
 }
 
 func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) error {
@@ -797,6 +1025,14 @@ func (h HelpTextVos) Less(i, j int) bool {
 
 func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, title string) (int, HelpTextVos) {
 	if pageNum <= 0 || pageSize <= 0 {
+		return 0, HelpTextVos{}
+	}
+	if m == nil {
+		return 0, HelpTextVos{}
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
 		return 0, HelpTextVos{}
 	}
 

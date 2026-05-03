@@ -16,20 +16,14 @@ import (
 	"sealdice-core/utils/cache"
 )
 
-// 警告：不要在一个事务（写事务）里使用读的DB！否则读的DB会发现有人在写而锁住，从而死锁。
+// Do not use the read DB handle inside a write transaction. SQLite will block
+// on the writer and can deadlock the process.
 
 func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
-	// 使用即时事务
 	path = fmt.Sprintf("file:%v?_txlock=immediate&_busy_timeout=15000", path)
 	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
-		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
 		Logger: logger.Default.LogMode(logger.Info),
 	})
-	if err != nil {
-		return nil, err
-	}
-	// Enable Cache Mode
-	open, err = cache.GetOtterCacheDB(open)
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +37,7 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 }
 
 func createReadDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
-	// _txlock=immediate 解决BEGIN IMMEDIATELY
 	path = fmt.Sprintf("file:%v?_txlock=immediate", path)
-	// ---- 创建读连接 -----
 	readDB, err := gorm.Open(sqlite.Open(path), &gormConf)
 	if err != nil {
 		return nil, err
@@ -63,9 +55,7 @@ func createReadDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 }
 
 func createWriteDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
-	// 注意基于wasm的版本必须添加file:
 	path = fmt.Sprintf("file:%v?_txlock=immediate", path)
-	// ---- 创建写连接 -----
 	writeDB, err := gorm.Open(sqlite.Open(path), &gormConf)
 	if err != nil {
 		return nil, err
@@ -78,63 +68,55 @@ func createWriteDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	writePool.SetMaxOpenConns(1) // only use one active connection for writing
+	writePool.SetMaxOpenConns(1)
 	return writeDB, nil
 }
 
-func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
-	// 由于现在我们只有一个写入连接，所以不需要使用事务
+func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, *cache.Plugin, error) {
 	gormConf := gorm.Config{
 		Logger:                 logger.Default.LogMode(logger.Info),
 		SkipDefaultTransaction: true,
 	}
 	readDB, err := createReadDB(path, gormConf)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	writeDB, err := createWriteDB(path, gormConf)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	// ----- 启用共享缓存插件 -----
+
 	plugin, err := cache.GetOtterCacheDBPluginInstance()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	err = readDB.Use(plugin)
 	if err != nil {
-		return nil, nil, err
+		plugin.Close()
+		return nil, nil, nil, err
 	}
 	err = writeDB.Use(plugin)
 	if err != nil {
-		return nil, nil, err
+		plugin.Close()
+		return nil, nil, nil, err
 	}
-	return readDB, writeDB, nil
+	return readDB, writeDB, plugin, nil
 }
 
-// SetDefaultPragmas defines some sqlite pragmas for good performance and litestream compatibility
-// https://highperformancesqlite.com/articles/sqlite-recommended-pragmas
-// https://litestream.io/tips/
-// copied from https://github.com/bihe/monorepo
-// add PRAGMA optimize=0x10002; from https://github.com/Palats/mastopoof
+// SetDefaultPragmas configures SQLite defaults that work well for the current
+// deployment model and Litestream-compatible setups.
 func SetDefaultPragmas(db *sql.DB) error {
 	var (
 		stmt string
 		val  string
 	)
-	// 外键的暂时弃用，反正咱也不用外键536870912
-	// "foreign_keys": "1",     // 1(bool) --> https://www.sqlite.org/pragma.html#pragma_foreign_keys
 	defaultPragmas := map[string]string{
-		"journal_mode": "wal",   // https://www.sqlite.org/pragma.html#pragma_journal_mode
-		"busy_timeout": "15000", // https://www.sqlite.org/pragma.html#pragma_busy_timeout
-		// 在 WAL 模式下使用 synchronous=NORMAL 提交的事务可能会在断电或系统崩溃后回滚。
-		// 无论同步设置或日志模式如何，事务在应用程序崩溃时都是持久的。
-		// 对于在 WAL 模式下运行的大多数应用程序来说，synchronous=NORMAL 设置是一个不错的选择。
-		"synchronous": "1",         // NORMAL --> https://www.sqlite.org/pragma.html#pragma_synchronous
-		"cache_size":  "536870912", // 536870912 = 512MB --> https://www.sqlite.org/pragma.html#pragma_cache_size
+		"journal_mode": "wal",
+		"busy_timeout": "15000",
+		"synchronous":  "1",
+		"cache_size":   "536870912",
 	}
 
-	// set the pragmas
 	for k := range defaultPragmas {
 		stmt = fmt.Sprintf("pragma %s = %s", k, defaultPragmas[k])
 		if _, err := db.Exec(stmt); err != nil {
@@ -142,7 +124,6 @@ func SetDefaultPragmas(db *sql.DB) error {
 		}
 	}
 
-	// validate the pragmas
 	for k := range defaultPragmas {
 		row := db.QueryRow(fmt.Sprintf("pragma %s", k))
 		err := row.Scan(&val)
@@ -153,9 +134,6 @@ func SetDefaultPragmas(db *sql.DB) error {
 			return fmt.Errorf("could not set pragma %s to %s", k, defaultPragmas[k])
 		}
 	}
-	// 这个不能在上面，因为他没有任何返回值
-	// Setup some regular optimization according to sqlite doc:
-	//  https://www.sqlite.org/lang_analyze.html
 	if _, err := db.Exec("PRAGMA optimize=0x10002;"); err != nil {
 		return fmt.Errorf("unable set optimize pragma: %w", err)
 	}

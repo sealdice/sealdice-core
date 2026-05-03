@@ -14,11 +14,16 @@ import (
 
 func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
+	return CustomReplyConfigReadFromPath(dice, attrConfigFn, filename)
+}
+
+// CustomReplyConfigReadFromPath 从指定路径读取自定义回复配置
+func CustomReplyConfigReadFromPath(dice *Dice, filePath string, filename string) (*ReplyConfig, error) {
 	rc := &ReplyConfig{Enable: false, Filename: filename}
 
-	if _, err := os.Stat(attrConfigFn); err == nil {
+	if _, err := os.Stat(filePath); err == nil {
 		// 如果文件存在，那么读取
-		af, err := os.ReadFile(attrConfigFn)
+		af, err := os.ReadFile(filePath)
 		if err == nil {
 			err = yaml.Unmarshal(af, rc)
 			if err != nil {
@@ -34,9 +39,6 @@ func CustomReplyConfigRead(dice *Dice, filename string) (*ReplyConfig, error) {
 	if rc.Conditions == nil {
 		rc.Conditions = []ReplyConditionBase{}
 	}
-	if len(rc.StoreID) > 0 {
-		dice.StoreManager.InstalledReplies[rc.StoreID] = true
-	}
 
 	return rc, nil
 }
@@ -51,7 +53,7 @@ func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
 
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 	for _, i := range dice.CustomReplyConfig {
-		if strings.EqualFold(i.Filename, filename) {
+		if i.PackageID == "" && strings.EqualFold(i.Filename, filename) {
 			return nil
 		}
 	}
@@ -92,8 +94,17 @@ func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 
 func ReplyReload(dice *Dice) {
 	var rcs []*ReplyConfig
+
+	// 1. 从全局 extensions/reply 目录加载
 	filenames := []string{"reply.yaml"}
 	_ = filepath.Walk(dice.GetExtDataDir("reply"), func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			dice.Logger.Warnf("扫描自定义回复目录失败: %v", err)
+			return err
+		}
+		if info == nil {
+			return nil
+		}
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -127,6 +138,25 @@ func ReplyReload(dice *Dice) {
 		} else {
 			dice.Logger.Info("读取自定义回复配置 - 失败:", i)
 			dice.Logger.Error(err)
+		}
+	}
+
+	// 2. 从已启用扩展包加载自定义回复配置
+	if dice.PackageManager != nil {
+		for _, replyFile := range dice.PackageManager.GetEnabledContentFiles("reply") {
+			ext := filepath.Ext(replyFile.Path)
+			if ext != ".yaml" && ext != ".yml" {
+				continue
+			}
+			rc, err := CustomReplyConfigReadFromPath(dice, replyFile.Path, filepath.Base(replyFile.Path))
+			if err == nil {
+				rc.PackageID = replyFile.PackageID
+				rc.CacheBacked = true
+				dice.Logger.Infof("读取扩展包自定义回复配置: %s", replyFile.Path)
+				rcs = append(rcs, rc)
+			} else {
+				dice.Logger.Warnf("读取扩展包自定义回复配置失败: %s, %v", replyFile.Path, err)
+			}
 		}
 	}
 

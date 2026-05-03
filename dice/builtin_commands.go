@@ -716,11 +716,11 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if !dm.IsHelpReloading {
-						dm.IsHelpReloading = true
-						dm.Help.Close()
-
-						dm.InitHelp()
-						ReplyToSender(ctx, msg, "帮助文档已经重新装载")
+						if err := dm.ReloadHelp(); err != nil {
+							ReplyToSender(ctx, msg, "帮助文档重载失败: "+err.Error())
+						} else {
+							ReplyToSender(ctx, msg, "帮助文档已经重新装载")
+						}
 					} else {
 						ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
 					}
@@ -1408,10 +1408,11 @@ func (d *Dice) registerCoreCommands() {
 				case "help", "helpdoc":
 					dm := dice.Parent
 					if !dm.IsHelpReloading {
-						dm.IsHelpReloading = true
-						dm.Help.Close()
-						dm.InitHelp()
-						ReplyToSender(ctx, msg, "帮助文档已重载")
+						if err := dm.ReloadHelp(); err != nil {
+							ReplyToSender(ctx, msg, "帮助文档重载失败: "+err.Error())
+						} else {
+							ReplyToSender(ctx, msg, "帮助文档已重载")
+						}
 					} else {
 						ReplyToSender(ctx, msg, "帮助文档正在重新装载")
 					}

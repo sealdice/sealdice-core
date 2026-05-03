@@ -16,37 +16,35 @@ import (
 )
 
 type MYSQLEngine struct {
-	DSN      string
-	DB       *gorm.DB
-	dataDB   *gorm.DB
-	logsDB   *gorm.DB
-	censorDB *gorm.DB
-	ctx      context.Context
+	DSN         string
+	DB          *gorm.DB
+	dataDB      *gorm.DB
+	logsDB      *gorm.DB
+	censorDB    *gorm.DB
+	ctx         context.Context
+	cachePlugin *cache.Plugin
 }
 
 func (s *MYSQLEngine) Close() {
 	log := zap.S().Named(logger.LogKeyDatabase)
+
+	if s.cachePlugin != nil {
+		s.cachePlugin.Close()
+		s.cachePlugin = nil
+	}
 
 	db, err := s.DB.DB()
 	if err != nil {
 		log.Errorf("failed to close db: %v", err)
 		return
 	}
-	err = db.Close()
-	if err != nil {
+	if err = db.Close(); err != nil {
 		log.Errorf("failed to close db: %v", err)
-		return
 	}
 }
 
-func (s *MYSQLEngine) GetDataDB(_ constant.DBMode) *gorm.DB {
-	return s.dataDB
-}
-
-func (s *MYSQLEngine) GetLogDB(_ constant.DBMode) *gorm.DB {
-	return s.logsDB
-}
-
+func (s *MYSQLEngine) GetDataDB(_ constant.DBMode) *gorm.DB { return s.dataDB }
+func (s *MYSQLEngine) GetLogDB(_ constant.DBMode) *gorm.DB  { return s.logsDB }
 func (s *MYSQLEngine) GetCensorDB(_ constant.DBMode) *gorm.DB {
 	return s.censorDB
 }
@@ -60,8 +58,9 @@ func (s *MYSQLEngine) Init(ctx context.Context) error {
 	if s.DSN == "" {
 		return errors.New("DB_DSN is missing")
 	}
+
 	var err error
-	s.DB, err = MySQLDBInit(s.DSN)
+	s.DB, s.cachePlugin, err = MySQLDBInit(s.DSN)
 	if err != nil {
 		return err
 	}
@@ -80,23 +79,18 @@ func (s *MYSQLEngine) Init(ctx context.Context) error {
 	return nil
 }
 
-// DBCheck DB检查
 func (s *MYSQLEngine) DBCheck() {
-	fmt.Fprintln(os.Stdout, "MYSQL 海豹不提供检查，请自行检查数据库！")
+	fmt.Fprintln(os.Stdout, "MySQL integrity checks are not implemented; check the database manually.")
 }
 
-// DataDBInit 初始化
 func (s *MYSQLEngine) dataDBInit() (*gorm.DB, error) {
 	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
-	dataDB := s.DB.WithContext(dataContext)
-	return dataDB, nil
+	return s.DB.WithContext(dataContext), nil
 }
 
 func (s *MYSQLEngine) logDBInit() (*gorm.DB, error) {
-	// logs特殊建表
 	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
-	logDB := s.DB.WithContext(logsContext)
-	return logDB, nil
+	return s.DB.WithContext(logsContext), nil
 }
 
 func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
@@ -108,6 +102,4 @@ func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
 	return censorDB, nil
 }
 
-func (s *MYSQLEngine) Type() string {
-	return "mysql"
-}
+func (s *MYSQLEngine) Type() string { return "mysql" }
