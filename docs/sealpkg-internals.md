@@ -12,7 +12,7 @@ type Instance struct {
     State        PackageState
     InstallTime  time.Time
     InstallPath  string // cache/packages/<author>/<package>/
-    SourcePath   string // data/packages/<author>/<package>/<version>.sealpkg
+    SourcePath   string // data/packages/<author>/<package>@<version>.sealpkg
     UserDataPath string // data/extensions/<author>/<package>/_userdata/
     Config       map[string]interface{}
 }
@@ -23,7 +23,7 @@ type Instance struct {
 ```text
 data/
 |- packages/
-|  `- <author>/<package>/<version>.sealpkg
+|  `- <author>/<package>@<version>.sealpkg
 `- extensions/
    `- <author>/<package>/_userdata/
 
@@ -47,7 +47,7 @@ Install(pkgPath)
 |- validate package id and semver
 |- reject src/ archives
 |- check SealDice version and package dependencies
-|- copy artifact to data/packages/<author>/<package>/<version>.sealpkg
+|- copy artifact to data/packages/<author>/<package>@<version>.sealpkg
 |- extract to cache/packages/<author>/<package>/
 |- create data/extensions/<author>/<package>/_userdata/
 `- persist state

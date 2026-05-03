@@ -48,13 +48,55 @@ func storeRemoveBackend(c echo.Context) error {
 		})
 	}
 	var params struct {
-		ID string `json:"id"`
+		ID        string `json:"id"`
+		BackendID string `json:"backendID"`
+		Url       string `json:"url"`
 	}
 	if err := c.Bind(&params); err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
+	id := params.ID
+	if id == "" {
+		id = params.BackendID
+	}
 
-	if err := myDice.StoreManager.StoreRemoveBackend(params.ID); err != nil {
+	if err := myDice.StoreManager.StoreRemoveBackend(id, params.Url); err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	return Success(&c, Response{})
+}
+
+func storeEnableBackend(c echo.Context) error {
+	return storeSetBackendEnabled(c, true)
+}
+
+func storeDisableBackend(c echo.Context) error {
+	return storeSetBackendEnabled(c, false)
+}
+
+func storeSetBackendEnabled(c echo.Context, enabled bool) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	if dm.JustForTest {
+		return Success(&c, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+	var params struct {
+		ID        string `json:"id"`
+		BackendID string `json:"backendID"`
+		Url       string `json:"url"`
+	}
+	if err := c.Bind(&params); err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	id := params.ID
+	if id == "" {
+		id = params.BackendID
+	}
+
+	if err := myDice.StoreManager.StoreSetBackendEnabled(id, params.Url, enabled); err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
 	return Success(&c, Response{})

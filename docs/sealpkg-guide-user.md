@@ -13,7 +13,7 @@ A `.sealpkg` file is a SealDice extension package. A single package can include 
 SealDice stores package data in three places:
 
 ```text
-data/packages/<author>/<package>/<version>.sealpkg
+data/packages/<author>/<package>@<version>.sealpkg
 data/extensions/<author>/<package>/_userdata/
 cache/packages/<author>/<package>/
 ```

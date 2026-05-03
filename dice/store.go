@@ -38,6 +38,9 @@ type StoreBackend struct {
 	ID               string           `json:"id"`
 	Name             string           `json:"name"`
 	Type             StoreBackendType `json:"type"`
+	Builtin          bool             `json:"builtin"`
+	Official         bool             `json:"official"`
+	Enabled          bool             `json:"enabled"`
 	ProtocolVersions []string         `json:"protocolVersions"`
 	Announcement     string           `json:"announcement"`
 	Health           bool             `json:"health"`
@@ -198,6 +201,45 @@ func normalizeConfiguredStoreBackendURL(urls []string) string {
 	return ""
 }
 
+func normalizeConfiguredStoreBackendURLs(urls []string) []string {
+	seen := make(map[string]struct{}, len(urls))
+	result := make([]string, 0, len(urls))
+	for _, rawURL := range urls {
+		normalized := strings.TrimRight(strings.TrimSpace(rawURL), "/")
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+	}
+	return result
+}
+
+func containsStoreBackendURL(urls []string, rawURL string) bool {
+	normalized := strings.TrimRight(strings.TrimSpace(rawURL), "/")
+	for _, urlItem := range urls {
+		if urlItem == normalized {
+			return true
+		}
+	}
+	return false
+}
+
+func removeStoreBackendURL(urls []string, rawURL string) []string {
+	normalized := strings.TrimRight(strings.TrimSpace(rawURL), "/")
+	result := make([]string, 0, len(urls))
+	for _, urlItem := range urls {
+		if urlItem == normalized {
+			continue
+		}
+		result = append(result, urlItem)
+	}
+	return result
+}
+
 func officialStoreBackendURL() (string, error) {
 	if len(BackendUrls) == 0 {
 		return "", errors.New("未配置官方扩展商店后端")
@@ -224,42 +266,46 @@ func validateStoreBackendURL(rawURL string) (string, error) {
 	return rawURL, nil
 }
 
-func (m *StoreManager) resolveBackend() (*StoreBackend, error) {
-	normalizedCustomBackend := normalizeConfiguredStoreBackendURL(m.parent.Config.BackendUrls)
-	normalizedConfig := []string{}
-	if normalizedCustomBackend != "" {
-		normalizedConfig = []string{normalizedCustomBackend}
-	}
-	if strings.Join(m.parent.Config.BackendUrls, "\n") != strings.Join(normalizedConfig, "\n") {
-		m.parent.Config.StoreConfig = StoreConfig{BackendUrls: normalizedConfig}
-		m.parent.MarkModified()
+func (m *StoreManager) normalizeStoreConfigLocked() (enabledUrls []string, disabledUrls []string, changed bool) {
+	enabledUrls = normalizeConfiguredStoreBackendURLs(m.parent.Config.BackendUrls)
+	disabledUrls = normalizeConfiguredStoreBackendURLs(m.parent.Config.DisabledBackendUrls)
+
+	for _, enabledURL := range enabledUrls {
+		if containsStoreBackendURL(disabledUrls, enabledURL) {
+			disabledUrls = removeStoreBackendURL(disabledUrls, enabledURL)
+		}
 	}
 
-	var backend *StoreBackend
-	if normalizedCustomBackend != "" {
-		backend = &StoreBackend{
-			Url:  normalizedCustomBackend,
-			ID:   "custom",
-			Name: "自定义商店",
-			Type: StoreBackendTypeExtra,
-		}
-	} else {
-		officialURL, err := officialStoreBackendURL()
-		if err != nil {
-			return nil, err
-		}
-		backend = &StoreBackend{
-			Url:  officialURL,
-			ID:   "official",
-			Name: "官方商店",
-			Type: StoreBackendTypeOfficial,
-		}
+	changed = strings.Join(m.parent.Config.BackendUrls, "\n") != strings.Join(enabledUrls, "\n") ||
+		strings.Join(m.parent.Config.DisabledBackendUrls, "\n") != strings.Join(disabledUrls, "\n")
+	if changed {
+		m.parent.Config.StoreConfig.BackendUrls = enabledUrls
+		m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
+		m.parent.MarkModified()
+	}
+	return enabledUrls, disabledUrls, changed
+}
+
+func (m *StoreManager) buildBackend(rawURL, id, name string, backendType StoreBackendType, enabled bool) *StoreBackend {
+	backend := &StoreBackend{
+		Url:      rawURL,
+		ID:       id,
+		Name:     name,
+		Type:     backendType,
+		Builtin:  backendType == StoreBackendTypeOfficial,
+		Official: backendType == StoreBackendTypeOfficial,
+		Enabled:  enabled,
+	}
+
+	if !enabled {
+		backend.Health = false
+		return backend
 	}
 
 	info, err := fetchStoreJSON[storeBackendInfoResponse](backend.Url + "/info")
 	if err != nil {
 		backend.Health = false
-		return backend, nil
+		return backend
 	}
 
 	if info.Name != "" {
@@ -279,6 +325,22 @@ func (m *StoreManager) resolveBackend() (*StoreBackend, error) {
 	backend.Health = true
 	if backend.Sign == "" {
 		backend.Sign = info.Sign
+	}
+	return backend
+}
+
+func (m *StoreManager) resolveBackend() (*StoreBackend, error) {
+	enabledCustomBackends, _, _ := m.normalizeStoreConfigLocked()
+
+	var backend *StoreBackend
+	if len(enabledCustomBackends) > 0 {
+		backend = m.buildBackend(enabledCustomBackends[0], "custom", "自定义商店", StoreBackendTypeExtra, true)
+	} else {
+		officialURL, err := officialStoreBackendURL()
+		if err != nil {
+			return nil, err
+		}
+		backend = m.buildBackend(officialURL, "official", "官方商店", StoreBackendTypeOfficial, true)
 	}
 	return backend, nil
 }
@@ -345,13 +407,49 @@ func (m *StoreManager) StoreQueryRecommend() ([]*StorePackage, error) {
 func (m *StoreManager) StoreBackendList() []*StoreBackend {
 	m.refreshStoreBackend()
 
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	if m.backend == nil {
-		return []*StoreBackend{}
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	enabledUrls, disabledUrls, _ := m.normalizeStoreConfigLocked()
+	result := make([]*StoreBackend, 0, 1+len(enabledUrls)+len(disabledUrls))
+
+	if officialURL, err := officialStoreBackendURL(); err == nil {
+		if m.backend != nil && m.backend.Type == StoreBackendTypeOfficial && m.backend.Url == officialURL {
+			backendCopy := *m.backend
+			backendCopy.Enabled = true
+			backendCopy.Builtin = true
+			backendCopy.Official = true
+			result = append(result, &backendCopy)
+		} else {
+			result = append(result, m.buildBackend(officialURL, "official", "官方商店", StoreBackendTypeOfficial, true))
+		}
 	}
-	backendCopy := *m.backend
-	return []*StoreBackend{&backendCopy}
+
+	for index, backendURL := range enabledUrls {
+		id := "custom"
+		if index > 0 {
+			id = fmt.Sprintf("custom:%d", index+1)
+		}
+		if m.backend != nil && m.backend.Type != StoreBackendTypeOfficial && m.backend.Url == backendURL {
+			backendCopy := *m.backend
+			backendCopy.ID = id
+			backendCopy.Enabled = true
+			result = append(result, &backendCopy)
+			continue
+		}
+		result = append(result, m.buildBackend(backendURL, id, "自定义商店", StoreBackendTypeExtra, true))
+	}
+
+	for index, backendURL := range disabledUrls {
+		result = append(result, m.buildBackend(
+			backendURL,
+			fmt.Sprintf("disabled:%d", index+1),
+			"自定义商店",
+			StoreBackendTypeExtra,
+			false,
+		))
+	}
+
+	return result
 }
 
 func (m *StoreManager) StoreAddBackend(rawURL string) error {
@@ -362,33 +460,100 @@ func (m *StoreManager) StoreAddBackend(rawURL string) error {
 
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	currentURL := normalizeConfiguredStoreBackendURL(m.parent.Config.BackendUrls)
-	if currentURL == normalizedURL {
+	enabledUrls, disabledUrls, _ := m.normalizeStoreConfigLocked()
+	if containsStoreBackendURL(enabledUrls, normalizedURL) {
 		return fmt.Errorf("后端 `%s` 已经是当前商店来源", normalizedURL)
 	}
-	m.parent.Config.StoreConfig = StoreConfig{BackendUrls: []string{normalizedURL}}
+	if containsStoreBackendURL(disabledUrls, normalizedURL) {
+		disabledUrls = removeStoreBackendURL(disabledUrls, normalizedURL)
+	}
+	enabledUrls = append(enabledUrls, normalizedURL)
+	m.parent.Config.StoreConfig.BackendUrls = enabledUrls
+	m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
 	m.backend = nil
 	return nil
 }
 
-func (m *StoreManager) StoreRemoveBackend(id string) error {
-	configuredBackend := normalizeConfiguredStoreBackendURL(m.parent.Config.BackendUrls)
-	if configuredBackend == "" {
-		return errors.New("cannot remove official backend")
-	}
-
+func (m *StoreManager) StoreRemoveBackend(id, rawURL string) error {
 	id = strings.TrimSpace(id)
-	if id != "" && id != "custom" {
-		return fmt.Errorf("backend `%s` not found", id)
-	}
-
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	m.parent.Config.StoreConfig = StoreConfig{BackendUrls: []string{}}
+	enabledUrls, disabledUrls, _ := m.normalizeStoreConfigLocked()
+	targetURL, err := m.resolveStoreBackendActionURL(id, rawURL, enabledUrls, disabledUrls)
+	if err != nil {
+		return err
+	}
+	if targetURL == "" {
+		return errors.New("cannot remove official backend")
+	}
+	enabledUrls = removeStoreBackendURL(enabledUrls, targetURL)
+	disabledUrls = removeStoreBackendURL(disabledUrls, targetURL)
+	m.parent.Config.StoreConfig.BackendUrls = enabledUrls
+	m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
 	m.backend = nil
 	return nil
+}
+
+func (m *StoreManager) StoreSetBackendEnabled(id, rawURL string, enabled bool) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	enabledUrls, disabledUrls, _ := m.normalizeStoreConfigLocked()
+	targetURL, err := m.resolveStoreBackendActionURL(strings.TrimSpace(id), rawURL, enabledUrls, disabledUrls)
+	if err != nil {
+		return err
+	}
+	if targetURL == "" {
+		return errors.New("官方商店后端不支持禁用")
+	}
+	if enabled {
+		if !containsStoreBackendURL(enabledUrls, targetURL) {
+			enabledUrls = append(enabledUrls, targetURL)
+		}
+		disabledUrls = removeStoreBackendURL(disabledUrls, targetURL)
+	} else {
+		if len(enabledUrls) == 1 && containsStoreBackendURL(enabledUrls, targetURL) {
+			return errors.New("至少需要保留一个启用的自定义商店后端；可删除该后端以恢复默认官方商店")
+		}
+		enabledUrls = removeStoreBackendURL(enabledUrls, targetURL)
+		if !containsStoreBackendURL(disabledUrls, targetURL) {
+			disabledUrls = append(disabledUrls, targetURL)
+		}
+	}
+	m.parent.Config.StoreConfig.BackendUrls = enabledUrls
+	m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
+	m.parent.MarkModified()
+	m.backend = nil
+	return nil
+}
+
+func (m *StoreManager) resolveStoreBackendActionURL(id, rawURL string, enabledUrls, disabledUrls []string) (string, error) {
+	if rawURL != "" {
+		return validateStoreBackendURL(rawURL)
+	}
+	switch {
+	case id == "" || id == "official":
+		return "", nil
+	case id == "custom":
+		if len(enabledUrls) > 0 {
+			return enabledUrls[0], nil
+		}
+		if len(disabledUrls) > 0 {
+			return disabledUrls[0], nil
+		}
+	case strings.HasPrefix(id, "custom:"):
+		index, err := strconv.Atoi(strings.TrimPrefix(id, "custom:"))
+		if err == nil && index >= 1 && index <= len(enabledUrls) {
+			return enabledUrls[index-1], nil
+		}
+	case strings.HasPrefix(id, "disabled:"):
+		index, err := strconv.Atoi(strings.TrimPrefix(id, "disabled:"))
+		if err == nil && index >= 1 && index <= len(disabledUrls) {
+			return disabledUrls[index-1], nil
+		}
+	}
+	return "", fmt.Errorf("backend `%s` not found", id)
 }
 
 func (m *StoreManager) StoreQueryPage(params StoreQueryPageParams) (*StorePackagePage, error) {

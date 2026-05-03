@@ -87,6 +87,15 @@ func PackageVersionToFileName(version string) string {
 	return version + Extension
 }
 
+// PackageSourceFileName converts a package ID and version to the canonical source archive filename.
+func PackageSourceFileName(pkgID, version string) string {
+	_, pkg, err := ParsePackageID(pkgID)
+	if err != nil {
+		return PackageVersionToFileName(version)
+	}
+	return pkg + "@" + version + Extension
+}
+
 // FileNameToPackageVersion converts an archive filename back to its version.
 func FileNameToPackageVersion(fileName string) string {
 	return strings.TrimSuffix(fileName, Extension)

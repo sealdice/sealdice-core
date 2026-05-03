@@ -104,7 +104,8 @@ var DefaultConfig = Config{
 		Enable: false,
 	},
 	StoreConfig{
-		BackendUrls: []string{},
+		BackendUrls:         []string{},
+		DisabledBackendUrls: []string{},
 	},
 	DirtyConfig{
 		DeckList: nil,

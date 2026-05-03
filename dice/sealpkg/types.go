@@ -15,6 +15,14 @@ const (
 	PackageStateError     PackageState = "error"     // 错误状态
 )
 
+// PackageSourceStatus describes whether the source .sealpkg still exists.
+type PackageSourceStatus string
+
+const (
+	PackageSourceStatusPresent   PackageSourceStatus = "present"    // 源 .sealpkg 文件存在
+	PackageSourceStatusCacheOnly PackageSourceStatus = "cache_only" // 仅保留缓存安装
+)
+
 // UninstallMode 卸载模式
 type UninstallMode string
 
@@ -114,14 +122,16 @@ type ConfigSchema struct {
 
 // Instance 已安装的扩展包实例
 type Instance struct {
-	Manifest     *Manifest              `json:"manifest"`
-	State        PackageState           `json:"state"`
-	InstallTime  time.Time              `json:"installTime"`
-	InstallPath  string                 `json:"installPath"`  // cache/packages/<id>/ 运行时缓存
-	SourcePath   string                 `json:"sourcePath"`   // 原始 .sealpkg 路径
-	UserDataPath string                 `json:"userDataPath"` // data/extensions/<id>/_userdata/ 用户数据
-	Config       map[string]interface{} `json:"config"`       // 用户配置值
-	ErrText      string                 `json:"errText"`
+	Manifest      *Manifest              `json:"manifest"`
+	State         PackageState           `json:"state"`
+	InstallTime   time.Time              `json:"installTime"`
+	InstallPath   string                 `json:"installPath"`  // cache/packages/<id>/ 运行时缓存
+	SourcePath    string                 `json:"sourcePath"`   // 原始 .sealpkg 路径
+	UserDataPath  string                 `json:"userDataPath"` // data/extensions/<id>/_userdata/ 用户数据
+	Config        map[string]interface{} `json:"config"`       // 用户配置值
+	ErrText       string                 `json:"errText"`
+	SourceStatus  PackageSourceStatus    `json:"sourceStatus,omitempty"`
+	SourceWarning string                 `json:"sourceWarning,omitempty"`
 
 	// PendingReload 待重载的内容类型列表
 	// 当包状态变更（启用/禁用）后设置，重载后清空

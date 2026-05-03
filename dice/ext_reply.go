@@ -53,7 +53,7 @@ func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
 
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 	for _, i := range dice.CustomReplyConfig {
-		if strings.EqualFold(i.Filename, filename) {
+		if i.PackageID == "" && strings.EqualFold(i.Filename, filename) {
 			return nil
 		}
 	}
@@ -147,8 +147,8 @@ func ReplyReload(dice *Dice) {
 			rc, err := CustomReplyConfigReadFromPath(dice, replyFile.Path, filepath.Base(replyFile.Path))
 			if err == nil {
 				rc.PackageID = replyFile.PackageID
+				rc.CacheBacked = true
 				dice.Logger.Infof("读取扩展包自定义回复配置: %s", replyFile.Path)
-				rc.Save(dice)
 				rcs = append(rcs, rc)
 			} else {
 				dice.Logger.Warnf("读取扩展包自定义回复配置失败: %s, %v", replyFile.Path, err)

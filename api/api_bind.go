@@ -720,6 +720,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.GET(prefix+"/store/backend/list", storeBackendList)
 	e.POST(prefix+"/store/backend/add", storeAddBackend)
+	e.POST(prefix+"/store/backend/enable", storeEnableBackend)
+	e.POST(prefix+"/store/backend/disable", storeDisableBackend)
 	e.DELETE(prefix+"/store/backend/remove", storeRemoveBackend)
 	e.GET(prefix+"/store/recommend", storeRecommend)
 	e.GET(prefix+"/store/page", storeGetPage)
@@ -728,8 +730,13 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	// 扩展包管理
 	e.GET(prefix+"/package/list", packageList)
+	e.POST(prefix+"/package/refresh", packageRefresh)
 	e.GET(prefix+"/package/:id", packageGet)
 	e.POST(prefix+"/package/install", packageInstall)
+	e.POST(prefix+"/package/preview-upload", packagePreviewFromUpload)
+	e.POST(prefix+"/package/upload-preview", packagePreviewFromUpload)
+	e.POST(prefix+"/package/install-upload", packageInstallFromUpload)
+	e.POST(prefix+"/package/upload-install", packageInstallFromUpload)
 	e.POST(prefix+"/package/install-url", packageInstallFromURL)
 	e.POST(prefix+"/package/install-from-url", packageInstallFromURL)
 	e.POST(prefix+"/package/uninstall", packageUninstall)

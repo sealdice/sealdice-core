@@ -25,6 +25,8 @@ type BleveSearchEngine struct {
 var indexDir = "./data/_index"
 var reSpace = regexp.MustCompile(`\s+`)
 
+var ErrSearchEngineUnavailable = errors.New("帮助文档搜索引擎不可用")
+
 // getNextID 使用原子操作，避免并发问题
 func (d *BleveSearchEngine) getNextID() string {
 	// 使用原子操作安全递增 CurID
@@ -88,18 +90,24 @@ func (d *BleveSearchEngine) Init() error {
 }
 
 func (d *BleveSearchEngine) Close() {
-	if d.Index != nil {
+	if d != nil && d.Index != nil {
 		_ = d.Index.Close()
 		d.Index = nil
 	}
 }
 
 func (d *BleveSearchEngine) GetTotalID() uint64 {
+	if d == nil {
+		return 0
+	}
 	return d.CurID
 }
 
 // AddItem 这里引用了dice，其实不妥，应该将它单独拆出来的。
 func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
+	if d == nil || d.Index == nil {
+		return "", ErrSearchEngineUnavailable
+	}
 	// 如果batch为空，初始化一个batch
 	if d.batch == nil {
 		return "", errors.New("已通过end参数执行AddItemApply，不允许新增文档。请检查代码逻辑")
@@ -129,6 +137,9 @@ func (d *BleveSearchEngine) AddItem(item HelpTextItem) (string, error) {
 // 由于现在已经将执行函数改为了可按文件执行，所以可以按文件进行Apply，这应当不会有太大的量级。
 // end代表是否是最后一次执行，一般用在所有的数据都处理完之后，关闭逻辑的时候使用，如bleve batch重复利用后最后销毁
 func (d *BleveSearchEngine) AddItemApply(end bool) error {
+	if d == nil || d.Index == nil {
+		return ErrSearchEngineUnavailable
+	}
 	if d.batch != nil {
 		// 执行batch
 		err := d.Index.Batch(d.batch)
@@ -149,6 +160,9 @@ func (d *BleveSearchEngine) AddItemApply(end bool) error {
 }
 
 func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly bool, pageSize, pageNum int, group string) (*GeneralSearchResult, int, int, int, error) {
+	if d == nil || d.Index == nil {
+		return nil, 0, 0, 0, ErrSearchEngineUnavailable
+	}
 	// 在标题中查找
 	queryTitle := query.NewMatchPhraseQuery(text)
 	queryTitle.SetField("title")
@@ -208,6 +222,9 @@ func (d *BleveSearchEngine) Search(helpPackages []string, text string, titleOnly
 }
 
 func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from, title string) (uint64, []*HelpTextItem, error) {
+	if d == nil || d.Index == nil {
+		return 0, nil, ErrSearchEngineUnavailable
+	}
 	var items []*HelpTextItem
 	// 只有Keyword才支持NewTermQuery
 	conjunctionQuery := bleve.NewConjunctionQuery()
@@ -265,6 +282,9 @@ func (d *BleveSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from
 }
 
 func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
+	if d == nil || d.Index == nil {
+		return nil, ErrSearchEngineUnavailable
+	}
 	log := logger.M()
 	document, err := d.Index.Document(id)
 	if err != nil {
@@ -301,6 +321,9 @@ func (d *BleveSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
 
 // 精确查询title
 func (d *BleveSearchEngine) GetHelpTextItemByTermTitle(title string) (*HelpTextItem, error) {
+	if d == nil || d.Index == nil {
+		return nil, ErrSearchEngineUnavailable
+	}
 	newTermQuery := query.NewMatchQuery(title)
 	newTermQuery.SetField("title") // 精确匹配title
 	req := bleve.NewSearchRequest(newTermQuery)

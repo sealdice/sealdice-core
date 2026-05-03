@@ -41,6 +41,29 @@ func packageList(c echo.Context) error {
 	})
 }
 
+// packageRefresh 根据 data/packages 与 cache/packages 的实际情况刷新扩展包列表。
+// POST /package/refresh
+// 返回: { data: PackageRefreshResult, result: true }
+func packageRefresh(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	if dm.JustForTest {
+		return Success(&c, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	result, err := myDice.PackageManager.RefreshFromDisk()
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	return Success(&c, Response{
+		"data": result,
+	})
+}
+
 // getPackageIDFromRequest 从请求中获取包ID
 // 优先使用查询参数 ?id=xxx（支持包含 / 的ID）
 // 其次使用路径参数 :id
@@ -95,6 +118,65 @@ func packageInstall(c echo.Context) error {
 
 	return Success(&c, Response{
 		"message": "扩展包安装成功",
+	})
+}
+
+// packageInstallFromUpload 从请求体流式上传并安装扩展包。
+// POST /package/install-upload
+// 请求体: application/octet-stream 的 .sealpkg 文件内容
+// 返回: { message: string, result: true }
+func packageInstallFromUpload(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	if dm.JustForTest {
+		return Success(&c, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	req := c.Request()
+	if req.Body == nil || req.ContentLength == 0 {
+		return Error(&c, "未上传扩展包文件", Response{})
+	}
+	defer req.Body.Close()
+
+	if err := myDice.PackageManager.InstallFromStream(req.Body); err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	return Success(&c, Response{
+		"message": "扩展包安装成功",
+	})
+}
+
+// packagePreviewFromUpload 从请求体流式上传扩展包并返回包内容预览。
+// POST /package/preview-upload
+// 请求体: application/octet-stream 的 .sealpkg 文件内容
+// 返回: { data: PackageUploadPreview, result: true }
+func packagePreviewFromUpload(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	if dm.JustForTest {
+		return Success(&c, map[string]interface{}{
+			"testMode": true,
+		})
+	}
+
+	req := c.Request()
+	if req.Body == nil || req.ContentLength == 0 {
+		return Error(&c, "未上传扩展包文件", Response{})
+	}
+	defer req.Body.Close()
+
+	preview, err := myDice.PackageManager.PreviewFromStream(req.Body)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	return Success(&c, Response{
+		"data": preview,
 	})
 }
 

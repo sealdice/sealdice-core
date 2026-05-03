@@ -107,7 +107,7 @@ zip -r ../my-extension.sealpkg .
 After installation, core stores package data like this:
 
 ```text
-data/packages/<author>/<package>/<version>.sealpkg
+data/packages/<author>/<package>@<version>.sealpkg
 cache/packages/<author>/<package>/
 data/extensions/<author>/<package>/_userdata/
 ```

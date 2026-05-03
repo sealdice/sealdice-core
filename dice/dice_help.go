@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"sealdice-core/dice/docengine"
@@ -62,6 +63,7 @@ type HelpManager struct {
 	LoadingFn    string
 	HelpDocTree  []*HelpDoc
 	GroupAliases map[string]string
+	mu           sync.RWMutex
 	// SearchEngine
 	searchEngine docengine.SearchEngine
 
@@ -116,15 +118,28 @@ func (m *HelpManager) loadSearchEngine() {
 }
 
 func (m *HelpManager) Close() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.searchEngine == nil {
+		return
+	}
 	// 关闭Bucket，并删除所有数据
 	// TODO:暂时先不动删除逻辑
 	m.searchEngine.Close()
+	m.searchEngine = nil
 	_ = os.RemoveAll("./_help_cache")
 }
 
 func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	log := logger.M()
 	m.loadSearchEngine()
+	if !m.IsAvailable() {
+		log.Errorf("帮助文档搜索引擎不可用，跳过帮助文档加载")
+		return
+	}
 
 	_ = m.AddItem(docengine.HelpTextItem{
 		Group: HelpBuiltinGroup,
@@ -513,11 +528,27 @@ func (m *HelpManager) addExternalCmdHelp(ext []*ExtInfo) error {
 }
 
 func (m *HelpManager) AddItem(item docengine.HelpTextItem) error {
+	if m == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
 	_, err := m.searchEngine.AddItem(item)
 	return err
 }
 
 func (m *HelpManager) AddItemApply(end bool) error {
+	if m == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return docengine.ErrSearchEngineUnavailable
+	}
 	err := m.searchEngine.AddItemApply(end)
 	if err != nil {
 		return err
@@ -525,19 +556,70 @@ func (m *HelpManager) AddItemApply(end bool) error {
 	return nil
 }
 
+func (m *HelpManager) IsAvailable() bool {
+	if m == nil {
+		return false
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return searchEngineAvailable(m.searchEngine)
+}
+
+func searchEngineAvailable(engine docengine.SearchEngine) bool {
+	if engine == nil {
+		return false
+	}
+	if bleveEngine, ok := engine.(*docengine.BleveSearchEngine); ok {
+		return bleveEngine.Index != nil
+	}
+	return true
+}
+
 func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res *docengine.GeneralSearchResult, total, pageStart, pageEnd int, err error) {
+	if m == nil {
+		return nil, 0, 0, 0, docengine.ErrSearchEngineUnavailable
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return nil, 0, 0, 0, docengine.ErrSearchEngineUnavailable
+	}
 	return m.searchEngine.Search(ctx.Group.HelpPackages, text, titleOnly, pageSize, pageNum, group)
 }
 
 func (m *HelpManager) GetSuffixText() string {
+	if m == nil {
+		return ""
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return ""
+	}
 	return m.searchEngine.GetSuffixText()
 }
 
 func (m *HelpManager) GetPrefixText() string {
+	if m == nil {
+		return ""
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return ""
+	}
 	return m.searchEngine.GetPrefixText()
 }
 
 func (m *HelpManager) GetShowBestOffset() int {
+	if m == nil {
+		return 1
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
+		return 1
+	}
 	return m.searchEngine.GetShowBestOffset()
 }
 
@@ -575,7 +657,21 @@ func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string
 		name := txt[left+1 : right-1]
 		// 搜索TitleOnly，严格匹配Title的情形
 		// 如果查询到对应数据，那么就调用m.GetContent
-		valueResult, err := m.searchEngine.GetHelpTextItemByTermTitle(name)
+		var (
+			valueResult *docengine.HelpTextItem
+			err         error
+		)
+		if m == nil {
+			err = docengine.ErrSearchEngineUnavailable
+		} else {
+			m.mu.RLock()
+			if m.searchEngine == nil {
+				err = docengine.ErrSearchEngineUnavailable
+			} else {
+				valueResult, err = m.searchEngine.GetHelpTextItemByTermTitle(name)
+			}
+			m.mu.RUnlock()
+		}
 		if err != nil {
 			result.WriteByte('{')
 			result.WriteString(name)
@@ -929,6 +1025,14 @@ func (h HelpTextVos) Less(i, j int) bool {
 
 func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, title string) (int, HelpTextVos) {
 	if pageNum <= 0 || pageSize <= 0 {
+		return 0, HelpTextVos{}
+	}
+	if m == nil {
+		return 0, HelpTextVos{}
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.searchEngine == nil {
 		return 0, HelpTextVos{}
 	}
 

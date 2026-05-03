@@ -15,7 +15,7 @@ Use the canonical `author/package` format in tests:
 ## Expected local paths
 
 ```text
-data/packages/<author>/<package>/<version>.sealpkg
+data/packages/<author>/<package>@<version>.sealpkg
 data/extensions/<author>/<package>/_userdata/
 cache/packages/<author>/<package>/
 ```
