@@ -73,7 +73,6 @@ enable = [
     # "gocyclo",                   # computes and checks the cyclomatic complexity of functions
     # "godot",                   # checks if comments end in a period
     # "gomoddirectives",           # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
-    "gomodguard",
     "goprintffuncname",          # checks that printf-like functions are named with f at the end
     "gosec",                     # inspects source code for security problems
     "govet",                     # reports suspicious constructs, such as Printf calls whose arguments do not align with the format string
