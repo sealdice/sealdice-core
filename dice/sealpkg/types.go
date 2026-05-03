@@ -34,12 +34,13 @@ const (
 
 // Manifest manifest.toml 对应结构
 type Manifest struct {
-	Package      PackageInfo             `toml:"package" json:"package"`
-	Dependencies map[string]string       `toml:"dependencies" json:"dependencies"`
-	Permissions  Permissions             `toml:"permissions" json:"permissions"`
-	Contents     Contents                `toml:"contents" json:"contents"`
-	Store        StoreInfo               `toml:"store" json:"store"`
-	Config       map[string]ConfigSchema `toml:"config" json:"config"`
+	FormatVersion int                     `toml:"format_version" json:"formatVersion"`
+	Package       PackageInfo             `toml:"package" json:"package"`
+	Dependencies  map[string]string       `toml:"dependencies" json:"dependencies"`
+	Permissions   Permissions             `toml:"permissions" json:"permissions"`
+	Contents      Contents                `toml:"contents" json:"contents"`
+	Store         StoreInfo               `toml:"store" json:"store"`
+	Config        map[string]ConfigSchema `toml:"config" json:"config"`
 }
 
 // PackageInfo 包基础信息
@@ -181,6 +182,9 @@ type ReloadResult struct {
 
 // 常量定义
 const (
+	// CurrentManifestFormatVersion 当前支持的 info.toml 格式版本。
+	CurrentManifestFormatVersion = 1
+
 	// Extension .sealpkg 文件扩展名
 	Extension = ".sealpkg"
 

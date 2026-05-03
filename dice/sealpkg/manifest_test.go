@@ -4,6 +4,8 @@ import "testing"
 
 func TestParseManifestWithUnifiedFormat(t *testing.T) {
 	data := []byte(`
+format_version = 1
+
 [package]
 id = "木落/奇幻牌堆"
 name = "奇幻牌堆合集"
@@ -42,11 +44,61 @@ default = "simple"
 	if manifest.Package.ID != "木落/奇幻牌堆" {
 		t.Fatalf("manifest.Package.ID = %q", manifest.Package.ID)
 	}
+	if manifest.FormatVersion != CurrentManifestFormatVersion {
+		t.Fatalf("manifest.FormatVersion = %d", manifest.FormatVersion)
+	}
 	if got := len(manifest.Contents.Templates); got != 1 {
 		t.Fatalf("manifest.Contents.Templates len = %d", got)
 	}
 	if manifest.Store.Icon != "assets/icon.png" {
 		t.Fatalf("manifest.Store.Icon = %q", manifest.Store.Icon)
+	}
+}
+
+func TestParseManifestDefaultsFormatVersion(t *testing.T) {
+	data := []byte(`
+[package]
+id = "alice/demo"
+name = "Demo"
+version = "1.0.0"
+`)
+
+	manifest, err := ParseManifest(data)
+	if err != nil {
+		t.Fatalf("ParseManifest() error = %v", err)
+	}
+	if manifest.FormatVersion != CurrentManifestFormatVersion {
+		t.Fatalf("manifest.FormatVersion = %d", manifest.FormatVersion)
+	}
+}
+
+func TestParseManifestRejectsUnsupportedFormatVersion(t *testing.T) {
+	data := []byte(`
+format_version = 999
+
+[package]
+id = "alice/demo"
+name = "Demo"
+version = "1.0.0"
+`)
+
+	if _, err := ParseManifest(data); err == nil {
+		t.Fatal("ParseManifest() error = nil, want unsupported format_version rejection")
+	}
+}
+
+func TestParseManifestRejectsInvalidFormatVersion(t *testing.T) {
+	data := []byte(`
+format_version = 0
+
+[package]
+id = "alice/demo"
+name = "Demo"
+version = "1.0.0"
+`)
+
+	if _, err := ParseManifest(data); err == nil {
+		t.Fatal("ParseManifest() error = nil, want invalid format_version rejection")
 	}
 }
 

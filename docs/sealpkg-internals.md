@@ -2,7 +2,7 @@
 
 ## Core model
 
-`sealpkg.Manifest` is the parsed form of `info.toml`.
+`sealpkg.Manifest` is the parsed form of `info.toml`. The root `format_version` field declares the manifest format version; missing values are treated as version `1`.
 
 Key runtime fields:
 

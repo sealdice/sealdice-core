@@ -30,7 +30,14 @@ func ParseManifest(data []byte) (*Manifest, error) {
 	if err := decoder.Decode(&manifest); err != nil {
 		return nil, err
 	}
-	if err := validateManifestKnownKeys(data); err != nil {
+	meta, err := validateManifestKnownKeys(data)
+	if err != nil {
+		return nil, err
+	}
+	if manifest.FormatVersion == 0 && !meta.HasFormatVersion {
+		manifest.FormatVersion = CurrentManifestFormatVersion
+	}
+	if err := validateManifestFormatVersion(manifest.FormatVersion); err != nil {
 		return nil, err
 	}
 
@@ -70,19 +77,35 @@ func ParseManifest(data []byte) (*Manifest, error) {
 	return &manifest, nil
 }
 
-func validateManifestKnownKeys(data []byte) error {
+func validateManifestFormatVersion(version int) error {
+	if version < 1 {
+		return errors.New("info 的 format_version 必须大于等于 1")
+	}
+	if version > CurrentManifestFormatVersion {
+		return fmt.Errorf("info 的 format_version %d 高于当前支持的版本 %d", version, CurrentManifestFormatVersion)
+	}
+	return nil
+}
+
+type manifestParseMeta struct {
+	HasFormatVersion bool
+}
+
+func validateManifestKnownKeys(data []byte) (*manifestParseMeta, error) {
 	var raw map[string]interface{}
 	if err := toml.Unmarshal(data, &raw); err != nil {
-		return err
+		return nil, err
 	}
+	meta := &manifestParseMeta{}
+	_, meta.HasFormatVersion = raw["format_version"]
 
 	contentsRaw, ok := raw["contents"]
 	if !ok {
-		return nil
+		return meta, nil
 	}
 	contents, ok := contentsRaw.(map[string]interface{})
 	if !ok {
-		return errors.New("info 的 contents 必须是表")
+		return nil, errors.New("info 的 contents 必须是表")
 	}
 
 	allowed := map[string]struct{}{
@@ -100,10 +123,10 @@ func validateManifestKnownKeys(data []byte) error {
 	}
 	if len(unknown) > 0 {
 		sort.Strings(unknown)
-		return errors.New("contents 包含未知内容类型: " + strings.Join(unknown, ", "))
+		return nil, errors.New("contents 包含未知内容类型: " + strings.Join(unknown, ", "))
 	}
 
-	return nil
+	return meta, nil
 }
 
 // ParseManifestFromZip parses package metadata from a .sealpkg archive.
