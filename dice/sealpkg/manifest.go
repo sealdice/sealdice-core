@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -25,8 +26,11 @@ func ParseManifestFile(path string) (*Manifest, error) {
 // ParseManifest parses info.toml contents.
 func ParseManifest(data []byte) (*Manifest, error) {
 	var manifest Manifest
-	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
+	decoder := toml.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&manifest); err != nil {
+		return nil, err
+	}
+	if err := validateManifestKnownKeys(data); err != nil {
 		return nil, err
 	}
 
@@ -64,6 +68,42 @@ func ParseManifest(data []byte) (*Manifest, error) {
 	}
 
 	return &manifest, nil
+}
+
+func validateManifestKnownKeys(data []byte) error {
+	var raw map[string]interface{}
+	if err := toml.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	contentsRaw, ok := raw["contents"]
+	if !ok {
+		return nil
+	}
+	contents, ok := contentsRaw.(map[string]interface{})
+	if !ok {
+		return errors.New("info 的 contents 必须是表")
+	}
+
+	allowed := map[string]struct{}{
+		"scripts":   {},
+		"decks":     {},
+		"reply":     {},
+		"helpdoc":   {},
+		"templates": {},
+	}
+	var unknown []string
+	for key := range contents {
+		if _, ok := allowed[key]; !ok {
+			unknown = append(unknown, key)
+		}
+	}
+	if len(unknown) > 0 {
+		sort.Strings(unknown)
+		return errors.New("contents 包含未知内容类型: " + strings.Join(unknown, ", "))
+	}
+
+	return nil
 }
 
 // ParseManifestFromZip parses package metadata from a .sealpkg archive.

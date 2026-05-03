@@ -66,6 +66,40 @@ scripts = ["src/scripts/*.js"]
 	}
 }
 
+func TestParseManifestAllowsExtensionFields(t *testing.T) {
+	data := []byte(`
+[package]
+id = "alice/demo"
+name = "Demo"
+version = "1.0.0"
+display_name = "Demo Package"
+
+[package.extra]
+homepage_name = "Project"
+
+[contents]
+scripts = ["scripts/*.js"]
+
+[store]
+icon = "assets/icon.png"
+summary = "ignored"
+
+[x-sealdice]
+note = "ignored"
+`)
+
+	manifest, err := ParseManifest(data)
+	if err != nil {
+		t.Fatalf("ParseManifest() error = %v", err)
+	}
+	if manifest.Package.ID != "alice/demo" {
+		t.Fatalf("manifest.Package.ID = %q", manifest.Package.ID)
+	}
+	if manifest.Store.Icon != "assets/icon.png" {
+		t.Fatalf("manifest.Store.Icon = %q", manifest.Store.Icon)
+	}
+}
+
 func TestParseManifestRejectsAbsoluteStorePath(t *testing.T) {
 	data := []byte(`
 [package]
