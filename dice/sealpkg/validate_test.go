@@ -1,4 +1,4 @@
-package sealpkg
+package sealpkg //nolint:testpackage
 
 import (
 	"path/filepath"

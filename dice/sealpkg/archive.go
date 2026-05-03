@@ -65,14 +65,14 @@ func ExtractArchive(pkgPath, destDir string) (*ArchiveInfo, error) {
 		}
 
 		if isDir {
-			if err := os.MkdirAll(targetPath, 0o755); err != nil {
-				return nil, err
+			if mkdirErr := os.MkdirAll(targetPath, 0o755); mkdirErr != nil {
+				return nil, mkdirErr
 			}
 			continue
 		}
 
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-			return nil, err
+		if mkdirErr := os.MkdirAll(filepath.Dir(targetPath), 0o755); mkdirErr != nil {
+			return nil, mkdirErr
 		}
 
 		rc, err := file.Open()
@@ -125,8 +125,8 @@ func inspectArchiveFiles(files []*zip.File) (*ArchiveInfo, error) {
 		}
 		seen[normalized] = struct{}{}
 
-		if err := validateArchiveTopLevelPath(normalized); err != nil {
-			return nil, err
+		if validateErr := validateArchiveTopLevelPath(normalized); validateErr != nil {
+			return nil, validateErr
 		}
 
 		if normalized == "README.md" {

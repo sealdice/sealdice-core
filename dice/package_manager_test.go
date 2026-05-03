@@ -1,4 +1,4 @@
-package dice
+package dice //nolint:testpackage
 
 import (
 	"archive/zip"
@@ -689,16 +689,7 @@ func withConfigMode() manifestOption {
 func newTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd() error = %v", err)
-	}
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Chdir() error = %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(cwd)
-	})
+	t.Chdir(tmpDir)
 
 	d := &Dice{
 		BaseConfig: BaseConfig{DataDir: "."},

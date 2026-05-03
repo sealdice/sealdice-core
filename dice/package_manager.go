@@ -550,11 +550,6 @@ func (pm *PackageManager) getCachePackagesPath() string {
 	return filepath.Join(".", "cache", sealpkg.PackagesDir)
 }
 
-// getPackagesPath 获取扩展包安装目录（兼容旧代码，返回缓存目录）
-func (pm *PackageManager) getPackagesPath() string {
-	return pm.getCachePackagesPath()
-}
-
 // getStatePath 获取状态文件路径
 func (pm *PackageManager) getStatePath() string {
 	return filepath.Join(pm.getSourcePackagesPath(), sealpkg.StateFile)
@@ -671,8 +666,8 @@ func (pm *PackageManager) Install(pkgPath string) error {
 		return err
 	}
 
-	if err := sealpkg.CheckSealVersion(manifest, VERSION.String()); err != nil {
-		return err
+	if checkErr := sealpkg.CheckSealVersion(manifest, VERSION.String()); checkErr != nil {
+		return checkErr
 	}
 	if satisfied, missing := pm.CheckDependencies(manifest); !satisfied {
 		return &DependencyError{
@@ -682,11 +677,11 @@ func (pm *PackageManager) Install(pkgPath string) error {
 	}
 
 	destDir := pm.getPackageSourceDir(pkgID)
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return err
+	if mkdirErr := os.MkdirAll(destDir, 0o755); mkdirErr != nil {
+		return mkdirErr
 	}
 	destPkgPath := pm.getPackageSourcePath(pkgID, manifest.Package.Version)
-	if _, err := os.Stat(destPkgPath); err == nil {
+	if _, statErr := os.Stat(destPkgPath); statErr == nil {
 		return errors.New("the package version is already installed")
 	}
 
@@ -904,53 +899,6 @@ func packageVersionOf(pkg *sealpkg.Instance) string {
 	return pkg.Manifest.Package.Version
 }
 
-// cleanInstallDir 清理缓存目录
-// 用户数据现在存储在 data/extensions/<包ID>/_userdata/，不在缓存目录中
-func (pm *PackageManager) cleanInstallDir(installPath string) {
-	entries, err := os.ReadDir(installPath)
-	if err != nil {
-		return
-	}
-
-	for _, entry := range entries {
-		os.RemoveAll(filepath.Join(installPath, entry.Name()))
-	}
-}
-
-// cleanInvalidPackages 清理无效的包实例
-// 如果包实例没有 Manifest，尝试从缓存目录恢复，失败则移除
-func (pm *PackageManager) cleanInvalidPackages() {
-	invalidPackages := make([]string, 0)
-
-	for pkgID, pkg := range pm.packages {
-		if pkg.Manifest == nil {
-			// 尝试从缓存目录恢复 manifest
-			manifestPath := filepath.Join(pkg.InstallPath, sealpkg.InfoFile)
-			if data, err := os.ReadFile(manifestPath); err == nil {
-				if manifest, err := sealpkg.ParseManifest(data); err == nil {
-					pkg.Manifest = manifest
-					pm.parent.Logger.Infof("已从缓存恢复扩展包 %s 的 manifest", pkgID)
-					continue
-				}
-			}
-
-			// 无法恢复，标记为无效
-			pm.parent.Logger.Warnf("扩展包 %s 的 manifest 缺失且无法恢复，将被移除", pkgID)
-			invalidPackages = append(invalidPackages, pkgID)
-		}
-	}
-
-	// 移除无效的包
-	for _, pkgID := range invalidPackages {
-		delete(pm.packages, pkgID)
-	}
-
-	// 如果有包被移除，保存状态
-	if len(invalidPackages) > 0 {
-		pm.saveState()
-	}
-}
-
 // Uninstall 卸载扩展包
 func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) error {
 	pm.lock.Lock()
@@ -975,7 +923,9 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 	}
 
 	if pkg.State == sealpkg.PackageStateEnabled {
-		pm.disableInternal(pkgID)
+		if _, err := pm.disableInternal(pkgID); err != nil {
+			return err
+		}
 	}
 
 	switch mode {
@@ -1012,7 +962,9 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 	}
 
 	pm.buildDependencyGraph()
-	pm.saveState()
+	if err := pm.saveState(); err != nil {
+		return err
+	}
 
 	pm.parent.Logger.Infof("扩展包 %s 已卸载 (模式: %s)", pkgID, mode)
 	return nil
@@ -1074,7 +1026,9 @@ func (pm *PackageManager) enableInternal(pkgID string) (*sealpkg.OperationResult
 	// 禁用会移除运行时缓存，重新启用时先恢复缓存目录。
 	if err := pm.linkPackageResources(pkg); err != nil {
 		pkg.ErrText = err.Error()
-		pm.saveState()
+		if saveErr := pm.saveState(); saveErr != nil {
+			pm.parent.Logger.Warnf("failed to save package state: %v", saveErr)
+		}
 		return nil, err
 	}
 	pkg.State = sealpkg.PackageStateEnabled
@@ -1091,7 +1045,9 @@ func (pm *PackageManager) enableInternal(pkgID string) (*sealpkg.OperationResult
 		pkg.PendingReload = result.ReloadHints
 	}
 
-	pm.saveState()
+	if err := pm.saveState(); err != nil {
+		return nil, err
+	}
 	pm.parent.Logger.Infof("扩展包 %s 已启用", pkgID)
 
 	return result, nil
@@ -1157,7 +1113,9 @@ func (pm *PackageManager) disableInternal(pkgID string) (*sealpkg.OperationResul
 		pkg.PendingReload = result.ReloadHints
 	}
 
-	pm.saveState()
+	if err := pm.saveState(); err != nil {
+		return nil, err
+	}
 	pm.parent.Logger.Infof("扩展包 %s 已禁用", pkgID)
 
 	return result, nil
@@ -1356,13 +1314,13 @@ func (pm *PackageManager) collectPackageContentFiles(pkg *sealpkg.Instance, cont
 
 	files := make([]PackageContentFile, 0)
 	seen := make(map[string]struct{})
-	_ = filepath.WalkDir(baseDir, func(currentPath string, d fs.DirEntry, walkErr error) error {
+	if err := filepath.WalkDir(baseDir, func(currentPath string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() {
-			return nil
+			return walkErr
 		}
 		relPath, err := filepath.Rel(pkg.InstallPath, currentPath)
 		if err != nil {
-			return nil
+			return err
 		}
 		packagePath := filepath.ToSlash(relPath)
 		if !matchesPackageContentPatterns(patterns, packagePath) {
@@ -1378,7 +1336,9 @@ func (pm *PackageManager) collectPackageContentFiles(pkg *sealpkg.Instance, cont
 			PackagePath: packagePath,
 		})
 		return nil
-	})
+	}); err != nil {
+		pm.parent.Logger.Warnf("扫描扩展包资源目录失败 %s: %v", baseDir, err)
+	}
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].PackagePath < files[j].PackagePath
 	})
@@ -1547,7 +1507,9 @@ func (pm *PackageManager) Reload(pkgID string) (*sealpkg.ReloadResult, error) {
 	pm.lock.Lock()
 	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
 	if pendingChanged {
-		_ = pm.saveState()
+		if err := pm.saveState(); err != nil {
+			pm.parent.Logger.Warnf("failed to save package state: %v", err)
+		}
 	}
 	pm.lock.Unlock()
 
@@ -1569,7 +1531,9 @@ func (pm *PackageManager) ReloadByContent(contentType string) (*sealpkg.ReloadRe
 	pm.lock.Lock()
 	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
 	if pendingChanged {
-		_ = pm.saveState()
+		if err := pm.saveState(); err != nil {
+			pm.parent.Logger.Warnf("failed to save package state: %v", err)
+		}
 	}
 	pm.lock.Unlock()
 
@@ -1587,7 +1551,7 @@ func (pm *PackageManager) ReloadAll() (*sealpkg.ReloadResult, error) {
 		if pkg.State != sealpkg.PackageStateEnabled && len(pkg.PendingReload) == 0 {
 			continue
 		}
-		flags.merge(packageReloadContentFlagsFromManifest(pkg.Manifest))
+		flags = flags.merge(packageReloadContentFlagsFromManifest(pkg.Manifest))
 	}
 	pm.lock.RUnlock()
 
@@ -1654,12 +1618,13 @@ func packageReloadContentFlagsFromContentType(contentType string) (packageReload
 	}
 }
 
-func (flags *packageReloadContentFlags) merge(other packageReloadContentFlags) {
+func (flags packageReloadContentFlags) merge(other packageReloadContentFlags) packageReloadContentFlags {
 	flags.scripts = flags.scripts || other.scripts
 	flags.decks = flags.decks || other.decks
 	flags.reply = flags.reply || other.reply
 	flags.helpdoc = flags.helpdoc || other.helpdoc
 	flags.templates = flags.templates || other.templates
+	return flags
 }
 
 func (flags packageReloadContentFlags) contains(kind string) bool {
@@ -1947,8 +1912,8 @@ func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) e
 	if statusCode != 200 {
 		return fmt.Errorf("无法获取扩展包内容，状态码: %d", statusCode)
 	}
-	if err := verifyDownloadedPackageHash(data, hashes); err != nil {
-		return err
+	if hashErr := verifyDownloadedPackageHash(data, hashes); hashErr != nil {
+		return hashErr
 	}
 	if unsupported := unsupportedPackageHashAlgorithms(hashes); len(unsupported) > 0 && pm.parent != nil && pm.parent.Logger != nil {
 		pm.parent.Logger.Warnf("下载校验目前仅支持 sha256，已忽略以下算法: %s", strings.Join(unsupported, ", "))
@@ -1956,20 +1921,22 @@ func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) e
 
 	// 保存到临时文件
 	tmpDir := filepath.Join(pm.parent.BaseConfig.DataDir, "temp")
-	if err := os.MkdirAll(tmpDir, 0755); err != nil {
-		return errors.New("创建临时目录失败: " + err.Error())
+	if mkdirErr := os.MkdirAll(tmpDir, 0755); mkdirErr != nil {
+		return errors.New("创建临时目录失败: " + mkdirErr.Error())
 	}
 
 	tmpFile := filepath.Join(tmpDir, "package_download_"+time.Now().Format("20060102150405")+".sealpkg")
-	if err := os.WriteFile(tmpFile, data, 0644); err != nil {
-		return errors.New("保存临时文件失败: " + err.Error())
+	if writeErr := os.WriteFile(tmpFile, data, 0644); writeErr != nil {
+		return errors.New("保存临时文件失败: " + writeErr.Error())
 	}
 
 	// 安装扩展包
 	err = pm.Install(tmpFile)
 
 	// 清理临时文件
-	os.Remove(tmpFile)
+	if removeErr := os.Remove(tmpFile); removeErr != nil {
+		pm.parent.Logger.Warnf("清理临时扩展包文件失败 %s: %v", tmpFile, removeErr)
+	}
 
 	return err
 }

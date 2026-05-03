@@ -133,7 +133,7 @@ func CheckSealVersion(manifest *Manifest, currentVersion string) error {
 
 	current, err := semver.NewVersion(currentVersion)
 	if err != nil {
-		return nil
+		return fmt.Errorf("当前海豹版本号无效: %w", err)
 	}
 
 	if manifest.Package.Seal.MinVersion != "" {
@@ -212,9 +212,7 @@ func validateContentPattern(dir, pattern string) error {
 
 func validateStoreInfo(store StoreInfo) error {
 	paths := []string{store.Readme, store.Icon, store.Banner}
-	for _, screenshot := range store.Screenshots {
-		paths = append(paths, screenshot)
-	}
+	paths = append(paths, store.Screenshots...)
 	for _, item := range paths {
 		if item == "" {
 			continue
@@ -245,7 +243,7 @@ func validateRelativePackagePath(path string) error {
 			return errors.New("路径不能包含空的目录段")
 		}
 		if part == "." || part == ".." {
-			return errors.New("路径不能包含 . 或 ..")
+			return errors.New("路径不能包含 . 或 .. 路径段")
 		}
 	}
 	return nil

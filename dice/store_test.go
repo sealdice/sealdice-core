@@ -1,4 +1,4 @@
-package dice
+package dice //nolint:testpackage
 
 import (
 	"encoding/json"

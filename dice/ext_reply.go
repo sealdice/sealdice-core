@@ -98,7 +98,11 @@ func ReplyReload(dice *Dice) {
 	// 1. 从全局 extensions/reply 目录加载
 	filenames := []string{"reply.yaml"}
 	_ = filepath.Walk(dice.GetExtDataDir("reply"), func(path string, info fs.FileInfo, err error) error {
-		if err != nil || info == nil {
+		if err != nil {
+			dice.Logger.Warnf("扫描自定义回复目录失败: %v", err)
+			return err
+		}
+		if info == nil {
 			return nil
 		}
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {

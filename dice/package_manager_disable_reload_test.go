@@ -1,4 +1,4 @@
-package dice
+package dice //nolint:testpackage
 
 import (
 	"archive/zip"
@@ -173,19 +173,10 @@ func assertDisableDeckTestDeckCount(t *testing.T, testDice *Dice, want int) {
 func newDisableDeckTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd() error = %v", err)
-	}
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("Chdir() error = %v", err)
-	}
+	t.Chdir(tmpDir)
 	if err := os.MkdirAll(filepath.Join("data", "decks"), 0o755); err != nil {
 		t.Fatalf("MkdirAll(data/decks) error = %v", err)
 	}
-	t.Cleanup(func() {
-		_ = os.Chdir(cwd)
-	})
 
 	testDice := &Dice{
 		BaseConfig: BaseConfig{DataDir: "."},
@@ -211,8 +202,8 @@ func createDisableDeckTestPackage(t *testing.T, pkgID, version string) string {
 	if err != nil {
 		t.Fatalf("Create(info.toml) error = %v", err)
 	}
-	if _, err := infoWriter.Write([]byte(buildDisableDeckTestManifest(pkgID, version))); err != nil {
-		t.Fatalf("Write(info.toml) error = %v", err)
+	if _, writeErr := infoWriter.Write([]byte(buildDisableDeckTestManifest(pkgID, version))); writeErr != nil {
+		t.Fatalf("Write(info.toml) error = %v", writeErr)
 	}
 
 	deckWriter, err := zipWriter.Create("decks/test.json")

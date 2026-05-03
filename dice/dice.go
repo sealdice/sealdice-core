@@ -919,7 +919,8 @@ func (d *Dice) GameSystemTemplateReloadFiles(packageFiles []string) error {
 	if err != nil {
 		return err
 	}
-	files := append(userFiles, packageFiles...)
+	files := append([]string(nil), userFiles...)
+	files = append(files, packageFiles...)
 	return d.reloadGameSystemTemplates(files)
 }
 

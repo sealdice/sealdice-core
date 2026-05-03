@@ -170,6 +170,7 @@ func decodeJSONStrict(data []byte, target interface{}) error {
 }
 
 func fetchStoreJSON[T any](requestURL string) (*T, error) {
+	// #nosec G107 -- store backend URLs are user/admin-configured extension repository endpoints.
 	resp, err := http.Get(requestURL)
 	if err != nil {
 		return nil, err
@@ -279,8 +280,8 @@ func (m *StoreManager) normalizeStoreConfigLocked() (enabledUrls []string, disab
 	changed = strings.Join(m.parent.Config.BackendUrls, "\n") != strings.Join(enabledUrls, "\n") ||
 		strings.Join(m.parent.Config.DisabledBackendUrls, "\n") != strings.Join(disabledUrls, "\n")
 	if changed {
-		m.parent.Config.StoreConfig.BackendUrls = enabledUrls
-		m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
+		m.parent.Config.BackendUrls = enabledUrls
+		m.parent.Config.DisabledBackendUrls = disabledUrls
 		m.parent.MarkModified()
 	}
 	return enabledUrls, disabledUrls, changed
@@ -468,8 +469,8 @@ func (m *StoreManager) StoreAddBackend(rawURL string) error {
 		disabledUrls = removeStoreBackendURL(disabledUrls, normalizedURL)
 	}
 	enabledUrls = append(enabledUrls, normalizedURL)
-	m.parent.Config.StoreConfig.BackendUrls = enabledUrls
-	m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
+	m.parent.Config.BackendUrls = enabledUrls
+	m.parent.Config.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
 	m.backend = nil
 	return nil
@@ -489,8 +490,8 @@ func (m *StoreManager) StoreRemoveBackend(id, rawURL string) error {
 	}
 	enabledUrls = removeStoreBackendURL(enabledUrls, targetURL)
 	disabledUrls = removeStoreBackendURL(disabledUrls, targetURL)
-	m.parent.Config.StoreConfig.BackendUrls = enabledUrls
-	m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
+	m.parent.Config.BackendUrls = enabledUrls
+	m.parent.Config.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
 	m.backend = nil
 	return nil
@@ -521,8 +522,8 @@ func (m *StoreManager) StoreSetBackendEnabled(id, rawURL string, enabled bool) e
 			disabledUrls = append(disabledUrls, targetURL)
 		}
 	}
-	m.parent.Config.StoreConfig.BackendUrls = enabledUrls
-	m.parent.Config.StoreConfig.DisabledBackendUrls = disabledUrls
+	m.parent.Config.BackendUrls = enabledUrls
+	m.parent.Config.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
 	m.backend = nil
 	return nil

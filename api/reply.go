@@ -252,7 +252,7 @@ func customReplyFileDelete(c echo.Context) error {
 	}
 
 	var warning string
-	success := false
+	var success bool
 	if v.PackageID != "" {
 		replyFile, ok := findCustomReplyPackageFile(v.PackageID, v.Filename)
 		if !ok {

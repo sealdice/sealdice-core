@@ -6,17 +6,17 @@ import (
 
 // 为方便使用，重新导出 sealpkg 中的类型
 type (
-	PackageState     = sealpkg.PackageState
-	UninstallMode    = sealpkg.UninstallMode
-	PackageManifest  = sealpkg.Manifest
-	PackageInfo      = sealpkg.PackageInfo
-	PackageInstance  = sealpkg.Instance
-	PackageContents  = sealpkg.Contents
-	ConfigSchema     = sealpkg.ConfigSchema
-	PackageSandbox   = sealpkg.Sandbox
-	PermissionError  = sealpkg.PermissionError
-	SandboxedFS      = sealpkg.SandboxedFS
-	SandboxedHTTP    = sealpkg.SandboxedHTTP
+	PackageState    = sealpkg.PackageState
+	UninstallMode   = sealpkg.UninstallMode
+	PackageManifest = sealpkg.Manifest
+	PackageInfo     = sealpkg.PackageInfo
+	PackageInstance = sealpkg.Instance
+	PackageContents = sealpkg.Contents
+	ConfigSchema    = sealpkg.ConfigSchema
+	PackageSandbox  = sealpkg.Sandbox
+	PermissionError = sealpkg.PermissionError
+	SandboxedFS     = sealpkg.SandboxedFS
+	SandboxedHTTP   = sealpkg.SandboxedHTTP
 )
 
 // 重新导出常量
