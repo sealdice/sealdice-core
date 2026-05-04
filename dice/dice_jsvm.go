@@ -32,6 +32,7 @@ import (
 	"gopkg.in/elazarl/goproxy.v1"
 
 	"sealdice-core/static"
+	"sealdice-core/utils"
 	"sealdice-core/utils/crypto"
 
 	sealws "sealdice-core/utils/plugin/websocket"
@@ -1162,7 +1163,7 @@ func tsScriptCompile(path string) (string, error) {
 		}
 		return "", errors.New(msg.String())
 	}
-	compiledPath, err := os.CreateTemp("", "compiled-*-"+filepath.Base(path))
+	compiledPath, err := os.CreateTemp("", utils.TempFilePattern("compiled-"+strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), "compiled-script", ".js", 80))
 	if err != nil {
 		return "", err
 	}
@@ -1291,7 +1292,7 @@ func (d *Dice) JsCheckUpdate(jsScriptInfo *JsScriptInfo) (string, string, string
 	}
 	newJs := strings.ReplaceAll(string(newData), "\r\n", "\n")
 
-	temp, err := os.CreateTemp("", "new-*-"+filepath.Base(jsScriptInfo.Filename))
+	temp, err := os.CreateTemp("", utils.TempFilePatternFromName("new-"+filepath.Base(jsScriptInfo.Filename), "new-plugin", 80))
 	if err != nil {
 		return "", "", "", err
 	}
