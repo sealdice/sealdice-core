@@ -34,7 +34,7 @@ func ParseManifest(data []byte) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	if manifest.FormatVersion == 0 && !meta.HasFormatVersion {
+	if manifest.FormatVersion == "" && !meta.HasFormatVersion {
 		manifest.FormatVersion = CurrentManifestFormatVersion
 	}
 	if err := validateManifestFormatVersion(manifest.FormatVersion); err != nil {
@@ -77,12 +77,17 @@ func ParseManifest(data []byte) (*Manifest, error) {
 	return &manifest, nil
 }
 
-func validateManifestFormatVersion(version int) error {
-	if version < 1 {
-		return errors.New("info 的 format_version 必须大于等于 1")
+func validateManifestFormatVersion(version string) error {
+	formatVersion, err := semver.NewVersion(version)
+	if err != nil {
+		return errors.New("info 的 format_version 不是有效的语义化版本: " + err.Error())
 	}
-	if version > CurrentManifestFormatVersion {
-		return fmt.Errorf("info 的 format_version %d 高于当前支持的版本 %d", version, CurrentManifestFormatVersion)
+	currentVersion, err := semver.NewVersion(CurrentManifestFormatVersion)
+	if err != nil {
+		return err
+	}
+	if formatVersion.GreaterThan(currentVersion) {
+		return fmt.Errorf("info 的 format_version %s 高于当前支持的版本 %s", version, CurrentManifestFormatVersion)
 	}
 	return nil
 }

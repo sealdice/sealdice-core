@@ -43,7 +43,7 @@ Rules:
 ## Minimal `info.toml`
 
 ```toml
-format_version = 1
+format_version = "1.0.0"
 
 [package]
 id = "yourname/my-extension"
@@ -87,7 +87,7 @@ default = "simple"
 
 ## Field summary
 
-- `format_version`: manifest format version. The current version is `1`; omitted legacy manifests are treated as version `1`.
+- `format_version`: manifest format version as a semantic version string. The current version is `"1.0.0"`; omitted legacy manifests are treated as version `"1.0.0"`.
 - `[package]`: identity and display metadata.
 - `[package.seal]`: minimum and optional maximum SealDice version.
 - `[dependencies]`: map of `author/package` to semver constraints.

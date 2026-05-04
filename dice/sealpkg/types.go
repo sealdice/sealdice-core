@@ -34,7 +34,7 @@ const (
 
 // Manifest manifest.toml 对应结构
 type Manifest struct {
-	FormatVersion int                     `toml:"format_version" json:"formatVersion"`
+	FormatVersion string                  `toml:"format_version" json:"formatVersion"`
 	Package       PackageInfo             `toml:"package" json:"package"`
 	Dependencies  map[string]string       `toml:"dependencies" json:"dependencies"`
 	Permissions   Permissions             `toml:"permissions" json:"permissions"`
@@ -183,7 +183,7 @@ type ReloadResult struct {
 // 常量定义
 const (
 	// CurrentManifestFormatVersion 当前支持的 info.toml 格式版本。
-	CurrentManifestFormatVersion = 1
+	CurrentManifestFormatVersion = "1.0.0"
 
 	// Extension .sealpkg 文件扩展名
 	Extension = ".sealpkg"
