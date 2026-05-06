@@ -481,8 +481,8 @@ github.com/sahilm/fuzzy v0.1.1/go.mod h1:VFvziUEIMCrT6A6tw2RFIXPXXmzXbOsSHF0DOI8
 github.com/samber/lo v1.52.0 h1:Rvi+3BFHES3A8meP33VPAxiBZX/Aws5RxrschYGjomw=
 github.com/samber/lo v1.52.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRoM0=
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
-github.com/schollz/progressbar/v3 v3.18.0 h1:uXdoHABRFmNIjUfte/Ex7WtuyVslrw2wVPQmCN62HpA=
-github.com/schollz/progressbar/v3 v3.18.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
+github.com/schollz/progressbar/v3 v3.19.0 h1:Ea18xuIRQXLAUidVDox3AbwfUhD0/1IvohyTutOIFoc=
+github.com/schollz/progressbar/v3 v3.19.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 h1:s/jzCGYlM/0+TYTXwva5574EFnIv/ggPCoXHFpdbSUw=
 github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083/go.mod h1:MGtR0REQDslBwQE+Rln4P9iDjH/ZInlu5qzOLdvBWJU=
 github.com/sealdice/dicescript v0.0.0-20260103130502-bd5621347a4e h1:Skv3TeB0vmvWN9SDhBmRWfsgudvXDkMyFhTgYpnQUoQ=
