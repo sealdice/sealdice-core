@@ -55,6 +55,18 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 			groupAttrs.Store(name, v)
 			return nil, true
 		}
+
+		// 无前缀的属性名（角色卡/上下文属性等）
+		// V1 使用 AttrsManager 将这类属性持久化到当前上下文（群/玩家/群内人物卡）
+		// V2 的默认行为仅会写入 VM 的本地存储，导致无法修改无前缀变量。这里做兼容写入。
+		resolved := name
+		if ctx.SystemTemplate != nil {
+			resolved = ctx.SystemTemplate.GetAlias(name)
+		}
+		if am != nil {
+			curAttrs := lo.Must(am.LoadByCtx(ctx))
+			curAttrs.Store(resolved, v)
+		}
 		return nil, false
 	}
 
