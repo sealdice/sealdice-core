@@ -426,7 +426,9 @@ func (t *GameSystemTemplate) runInitScript(ctx *MsgContext) {
 	if t.InitScript == "" {
 		return
 	}
-	ctx.Eval(t.InitScript, nil)
+	ctx.Eval(t.InitScript, &ds.RollConfig{
+		ValueStoreSource: "template",
+	})
 }
 
 // GetDefaultValueEx0 获取默认值 四个返回值 val, detail, computed, exists

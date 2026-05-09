@@ -27,6 +27,7 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 	config.EnableDiceDoubleCross = true
 	config.OpCountLimit = 30000
 	config.ParseExprLimit = 10000000 // kenichiLyon: 限制解析算力，防止递归过深，这里以建议值1000万设置。
+	config.ValueStoreSource = "player"
 
 	am := ctx.Dice.AttrsManager
 	config.HookValueStore = func(vm *ds.Context, name string, v *ds.VMValue) (overwrite *ds.VMValue, solved bool) {
@@ -54,6 +55,18 @@ func (ctx *MsgContext) GenDefaultRollVmConfig() *ds.RollConfig {
 			groupAttrs := lo.Must(am.LoadById(ctx.Group.GroupID))
 			groupAttrs.Store(name, v)
 			return nil, true
+		}
+
+		// 角色卡变量
+		if vm.Config.ValueStoreSource == "player" {
+			resolved := name
+			if ctx.SystemTemplate != nil {
+				resolved = ctx.SystemTemplate.GetAlias(name)
+			}
+			if am != nil {
+				curAttrs := lo.Must(am.LoadByCtx(ctx))
+				curAttrs.Store(resolved, v)
+			}
 		}
 		return nil, false
 	}

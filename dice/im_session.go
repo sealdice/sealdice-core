@@ -1996,7 +1996,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		// TODO: 注意一下这里使用群模板还是个人卡模板，目前群模板，可有情况特殊？
 		tmpl := ctx.SystemTemplate
 		if tmpl != nil {
-			ctx.Eval(tmpl.InitScript, nil)
+			tmpl.runInitScript(ctx)
 			if tmpl.Name == "dnd5e" {
 				// 这里面有buff机制的代码，所以需要加载
 				ctx.setDndReadForVM(false)

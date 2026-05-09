@@ -1058,8 +1058,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 
 			tmpl := ctx.Group.GetCharTemplate(ctx.Dice)
 			if tmpl != nil {
-				ctx.SystemTemplate = tmpl
-				ctx.Eval(tmpl.InitScript, nil)
+				tmpl.runInitScript(ctx)
 			}
 			val := cmdArgs.GetArgN(1)
 

@@ -467,7 +467,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				// 循环N轮
 				for range round {
 					// 执行预订的code
-					mctx.Eval(tmpl.InitScript, nil)
+					tmpl.runInitScript(mctx)
 					// 为rc设定属性豁免
 					mctx.setDndReadForVM(true)
 					// 准备要处理的函数，为了能够读取到 d20 的出目，先不加上加值
