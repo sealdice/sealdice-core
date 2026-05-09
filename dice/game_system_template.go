@@ -426,9 +426,10 @@ func (t *GameSystemTemplate) runInitScript(ctx *MsgContext) {
 	if t.InitScript == "" {
 		return
 	}
-	ctx.Eval(t.InitScript, &ds.RollConfig{
-		ValueStoreSource: "template",
-	})
+	ctx.CreateVmIfNotExists()
+	cfg := ctx.vm.Config
+	cfg.ValueStoreSource = "template"
+	ctx.Eval(t.InitScript, &cfg)
 }
 
 // GetDefaultValueEx0 获取默认值 四个返回值 val, detail, computed, exists

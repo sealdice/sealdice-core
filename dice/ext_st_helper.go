@@ -536,9 +536,10 @@ func getCmdStBase(soi CmdStOverrideInfo) *CmdItemInfo {
 			tmpl.runInitScript(mctx)
 			if tmplShow != tmpl {
 				// 不能改成 runInitScript，否则会更改模板
-				mctx.Eval(tmplShow.InitScript, &ds.RollConfig{
-					ValueStoreSource: "template",
-				})
+				mctx.CreateVmIfNotExists()
+				cfg := mctx.vm.Config
+				cfg.ValueStoreSource = "template"
+				mctx.Eval(tmplShow.InitScript, &cfg)
 			}
 
 			if soi.CommandSolve != nil {
