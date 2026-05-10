@@ -45,10 +45,10 @@ func actorAttrExistsWithTemplateDefault(ctx *MsgContext, canonicalName string) (
 	ctx2 := ctx.ShallowCopy()
 	ctx2.vm = nil
 	ctx2.CreateVmIfNotExists()
-	if ctx.vm != nil {
-		ctx2.vm.UpCtx = ctx.vm
-		ctx2.vm.Attrs = ctx.vm.Attrs
-		ctx2.vm.Config = ctx.vm.Config
+	if parentVM := ctx.vm; parentVM != nil {
+		ctx2.vm.UpCtx = parentVM
+		ctx2.vm.Attrs = parentVM.Attrs
+		ctx2.vm.Config = parentVM.Config
 	}
 
 	if v, _, _, exists := ctx.SystemTemplate.GetDefaultValueEx0(ctx2, canonicalName); exists {
@@ -90,12 +90,14 @@ func actorVisibleKeys(ctx *MsgContext) []string {
 		}
 	}
 
-	if tmpl := ctx.SystemTemplate; tmpl != nil && tmpl.GameSystemTemplateV2 != nil {
-		for key := range tmpl.Attrs.Defaults {
-			keys[key] = struct{}{}
-		}
-		for key := range tmpl.Attrs.DefaultsComputed {
-			keys[key] = struct{}{}
+	if ctx != nil {
+		if tmpl := ctx.SystemTemplate; tmpl != nil && tmpl.GameSystemTemplateV2 != nil {
+			for key := range tmpl.Attrs.Defaults {
+				keys[key] = struct{}{}
+			}
+			for key := range tmpl.Attrs.DefaultsComputed {
+				keys[key] = struct{}{}
+			}
 		}
 	}
 

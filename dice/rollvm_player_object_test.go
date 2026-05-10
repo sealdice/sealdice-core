@@ -153,8 +153,8 @@ func TestPlayerObject_ReturnsNullWhenAttrTrulyMissing(t *testing.T) {
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
-	if result.VMValue.TypeId != ds.VMTypeInt || result.VMValue.ToString() != "0" {
-		t.Fatalf("expected missing value to be 0, got type %v with value %s", result.VMValue.TypeId, result.ToString())
+	if result.TypeId != ds.VMTypeInt || result.ToString() != "0" {
+		t.Fatalf("expected missing value to be 0, got type %v with value %s", result.TypeId, result.ToString())
 	}
 }
 
@@ -171,7 +171,7 @@ func TestPlayerObject_DirIncludesMethodsAndVisibleKeys(t *testing.T) {
 
 	dirArr, ok := result.ReadArray()
 	if !ok {
-		t.Fatalf("expected array result, got %s", result.VMValue.GetTypeName())
+		t.Fatalf("expected array result, got %s", result.GetTypeName())
 	}
 
 	items := map[string]bool{}
@@ -181,6 +181,26 @@ func TestPlayerObject_DirIncludesMethodsAndVisibleKeys(t *testing.T) {
 	for _, key := range []string{"keys", "values", "items", "len", "has", "力量", "外语"} {
 		if !items[key] {
 			t.Fatalf("expected dir(player) to include %q", key)
+		}
+	}
+}
+
+func TestPlayerObject_DirWithNilContextIsSafe(t *testing.T) {
+	object := newActorNativeObject(nil, "player")
+	objectData, ok := object.ReadNativeObjectData()
+	if !ok {
+		t.Fatalf("expected native object, got %s", object.GetTypeName())
+	}
+
+	dir := objectData.DirFunc(ds.NewVM())
+	items := map[string]bool{}
+	for _, item := range dir {
+		items[item.ToString()] = true
+	}
+
+	for _, key := range []string{"has", "items", "keys", "len", "values"} {
+		if !items[key] {
+			t.Fatalf("expected dir(player) to include %q with nil context", key)
 		}
 	}
 }
@@ -195,10 +215,10 @@ func TestPlayerObject_ProvidesDictStyleMethods(t *testing.T) {
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
-	if result.VMValue.TypeId != ds.VMTypeInt {
-		t.Fatalf("expected integer len result, got %s", result.VMValue.GetTypeName())
+	if result.TypeId != ds.VMTypeInt {
+		t.Fatalf("expected integer len result, got %s", result.GetTypeName())
 	}
-	if result.VMValue.MustReadInt() <= 0 {
+	if result.MustReadInt() <= 0 {
 		t.Fatal("expected player.keys().len() to be greater than 0")
 	}
 }
@@ -216,7 +236,7 @@ func TestPlayerObject_KeysDoesNotIncludeInjectedMethods(t *testing.T) {
 
 	keys, ok := result.ReadArray()
 	if !ok {
-		t.Fatalf("expected array result, got %s", result.VMValue.GetTypeName())
+		t.Fatalf("expected array result, got %s", result.GetTypeName())
 	}
 
 	items := map[string]bool{}
@@ -247,7 +267,7 @@ func TestPlayerObject_HasSupportsCanonicalAliasAndTemplateDefault(t *testing.T) 
 
 	arr, ok := result.ReadArray()
 	if !ok {
-		t.Fatalf("expected array result, got %s", result.VMValue.GetTypeName())
+		t.Fatalf("expected array result, got %s", result.GetTypeName())
 	}
 	if len(arr.List) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(arr.List))
