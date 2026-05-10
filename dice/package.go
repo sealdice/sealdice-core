@@ -1,6 +1,8 @@
 package dice
 
 import (
+	"strings"
+
 	"sealdice-core/dice/sealpkg"
 )
 
@@ -39,24 +41,27 @@ type DependencyError struct {
 }
 
 func (e *DependencyError) Error() string {
-	msg := "包 " + e.PackageID + " 依赖不满足"
+	var b strings.Builder
+	b.WriteString("包 ")
+	b.WriteString(e.PackageID)
+	b.WriteString(" 依赖不满足")
 	if len(e.MissingDeps) > 0 {
-		msg += ", 缺少: "
+		b.WriteString(", 缺少: ")
 		for i, dep := range e.MissingDeps {
 			if i > 0 {
-				msg += ", "
+				b.WriteString(", ")
 			}
-			msg += dep
+			b.WriteString(dep)
 		}
 	}
 	if len(e.VersionMismatch) > 0 {
-		msg += ", 版本不匹配: "
+		b.WriteString(", 版本不匹配: ")
 		for i, dep := range e.VersionMismatch {
 			if i > 0 {
-				msg += ", "
+				b.WriteString(", ")
 			}
-			msg += dep
+			b.WriteString(dep)
 		}
 	}
-	return msg
+	return b.String()
 }

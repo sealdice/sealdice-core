@@ -176,7 +176,11 @@ func performReplyAPIRequest(t *testing.T, method, target, body, token string, ha
 
 func createReplyAPITestSealPkg(t *testing.T, pkgID, version string, files map[string]string) string {
 	t.Helper()
-	archivePath := filepath.Join(t.TempDir(), strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
+	tempDir := filepath.Join(".", "temp")
+	if err := os.MkdirAll(tempDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%s) error = %v", tempDir, err)
+	}
+	archivePath := filepath.Join(tempDir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {
 		t.Fatalf("Create(%s) error = %v", archivePath, err)

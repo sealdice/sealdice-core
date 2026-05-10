@@ -88,39 +88,6 @@ func packageGet(c echo.Context) error {
 	})
 }
 
-// packageInstall 从本地文件安装扩展包
-// POST /package/install
-// 参数: { path: string } - 本地 .sealpkg 文件的绝对路径
-// 返回: { message: string, result: true }
-// 注意: 安装后包默认为 disabled 状态，需要调用 enable 启用
-func packageInstall(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, "auth")
-	}
-	if dm.JustForTest {
-		return Success(&c, map[string]interface{}{
-			"testMode": true,
-		})
-	}
-
-	var params struct {
-		Path string `json:"path"` // 本地 zip 文件路径
-	}
-	err := c.Bind(&params)
-	if err != nil {
-		return Error(&c, err.Error(), Response{})
-	}
-
-	err = myDice.PackageManager.Install(params.Path)
-	if err != nil {
-		return Error(&c, err.Error(), Response{})
-	}
-
-	return Success(&c, Response{
-		"message": "扩展包安装成功",
-	})
-}
-
 // packageInstallFromUpload 从请求体流式上传并安装扩展包。
 // POST /package/install-upload
 // 请求体: application/octet-stream 的 .sealpkg 文件内容

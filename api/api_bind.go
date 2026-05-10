@@ -732,7 +732,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/package/list", packageList)
 	e.POST(prefix+"/package/refresh", packageRefresh)
 	e.GET(prefix+"/package/:id", packageGet)
-	e.POST(prefix+"/package/install", packageInstall)
 	e.POST(prefix+"/package/preview-upload", packagePreviewFromUpload)
 	e.POST(prefix+"/package/upload-preview", packagePreviewFromUpload)
 	e.POST(prefix+"/package/install-upload", packageInstallFromUpload)

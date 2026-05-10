@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -290,6 +293,31 @@ func TestPackageManagerRefreshRemovesMissingSourceAndCache(t *testing.T) {
 	}
 }
 
+func TestPackageManagerInstallRejectsSourceOutsideTempDir(t *testing.T) {
+	_, pm := newTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	pkgID := "alice/outside-temp"
+	archive := createTestSealPkg(t, t.TempDir(), pkgID, "1.0.0", map[string][]string{
+		"scripts": {"scripts/*.js"},
+	}, map[string]string{
+		"scripts/main.js": "// outside",
+	})
+
+	err := pm.Install(archive)
+	if err == nil {
+		t.Fatal("Install() error = nil, want temp directory rejection")
+	}
+	if !strings.Contains(err.Error(), "临时安装目录") {
+		t.Fatalf("Install() error = %v, want temp directory rejection", err)
+	}
+	if _, ok := pm.Get(pkgID); ok {
+		t.Fatalf("package %s should not be installed", pkgID)
+	}
+}
+
 func TestPackageManagerInstallFromStream(t *testing.T) {
 	_, pm := newTestPackageManager(t)
 	if err := pm.Init(); err != nil {
@@ -324,6 +352,21 @@ func TestPackageManagerInstallFromStream(t *testing.T) {
 	}
 	if _, err := os.Stat(pkg.SourcePath); err != nil {
 		t.Fatalf("expected streamed source artifact to exist: %v", err)
+	}
+}
+
+func TestPackageManagerInstallFromStreamRejectsOversizedArchive(t *testing.T) {
+	_, pm := newTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	err := pm.InstallFromStream(io.LimitReader(zeroReader{}, maxPackageArchiveSize+1))
+	if err == nil {
+		t.Fatal("InstallFromStream() error = nil, want size rejection")
+	}
+	if !strings.Contains(err.Error(), "超过大小限制") {
+		t.Fatalf("InstallFromStream() error = %v, want size rejection", err)
 	}
 }
 
@@ -362,6 +405,23 @@ func TestPackageManagerPreviewFromStream(t *testing.T) {
 	}
 	if preview.InstallAction != "install" {
 		t.Fatalf("InstallAction = %q, want install", preview.InstallAction)
+	}
+}
+
+func TestDownloadPackageArchiveRejectsOversizedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", fmt.Sprint(maxPackageArchiveSize+1))
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, io.LimitReader(zeroReader{}, maxPackageArchiveSize+1))
+	}))
+	defer server.Close()
+
+	_, _, err := downloadPackageArchive(server.URL)
+	if err == nil {
+		t.Fatal("downloadPackageArchive() error = nil, want size rejection")
+	}
+	if !strings.Contains(err.Error(), "超过大小限制") {
+		t.Fatalf("downloadPackageArchive() error = %v, want size rejection", err)
 	}
 }
 
@@ -703,7 +763,10 @@ func newTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
 func createTestSealPkg(t *testing.T, dir, pkgID, version string, contents map[string][]string, files map[string]string, opts ...manifestOption) string {
 	t.Helper()
 	if dir == "" {
-		dir = t.TempDir()
+		dir = filepath.Join(".", "temp")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%s) error = %v", dir, err)
 	}
 	archivePath := filepath.Join(dir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
 	f, err := os.Create(archivePath)
@@ -738,13 +801,13 @@ func createTestSealPkg(t *testing.T, dir, pkgID, version string, contents map[st
 
 func buildTestManifest(pkgID, version string, contents map[string][]string, opts ...manifestOption) string {
 	var b strings.Builder
-	b.WriteString("[package]\n")
-	b.WriteString(fmt.Sprintf("id = %q\n", pkgID))
-	b.WriteString("name = \"Test Package\"\n")
-	b.WriteString(fmt.Sprintf("version = %q\n", version))
-	b.WriteString("authors = [\"Tester\"]\n")
-	b.WriteString("license = \"MIT\"\n")
-	b.WriteString("description = \"test\"\n")
+	fmt.Fprintln(&b, "[package]")
+	fmt.Fprintf(&b, "id = %q\n", pkgID)
+	fmt.Fprintln(&b, "name = \"Test Package\"")
+	fmt.Fprintf(&b, "version = %q\n", version)
+	fmt.Fprintln(&b, "authors = [\"Tester\"]")
+	fmt.Fprintln(&b, "license = \"MIT\"")
+	fmt.Fprintln(&b, "description = \"test\"")
 	if len(contents) > 0 {
 		b.WriteString("\n[contents]\n")
 		keys := make([]string, 0, len(contents))
@@ -759,7 +822,7 @@ func buildTestManifest(pkgID, version string, contents map[string][]string, opts
 				if i > 0 {
 					b.WriteString(", ")
 				}
-				b.WriteString(fmt.Sprintf("%q", pattern))
+				fmt.Fprintf(&b, "%q", pattern)
 			}
 			b.WriteString("]\n")
 		}
@@ -768,6 +831,15 @@ func buildTestManifest(pkgID, version string, contents map[string][]string, opts
 		opt(&b)
 	}
 	return b.String()
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
 }
 
 func copyTestFile(t *testing.T, src, dst string) {

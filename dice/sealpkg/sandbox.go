@@ -380,9 +380,18 @@ type SandboxedHTTP struct {
 
 // NewSandboxedHTTP 创建沙箱化HTTP客户端
 func NewSandboxedHTTP(sandbox *Sandbox) *SandboxedHTTP {
+	client := &http.Client{}
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if sandbox == nil || req == nil || req.URL == nil {
+			return &PermissionError{
+				Message: "无效的重定向请求",
+			}
+		}
+		return sandbox.CheckNetworkPermission(req.URL.String())
+	}
 	return &SandboxedHTTP{
 		sandbox: sandbox,
-		client:  &http.Client{},
+		client:  client,
 	}
 }
 
@@ -404,8 +413,18 @@ func (h *SandboxedHTTP) Post(url, contentType string, body []byte) (*http.Respon
 
 // Do 沙箱化的HTTP请求
 func (h *SandboxedHTTP) Do(req *http.Request) (*http.Response, error) {
+	if h == nil || h.sandbox == nil || req == nil || req.URL == nil {
+		return nil, &PermissionError{
+			PackageID:  "",
+			Permission: "network",
+			Requested:  "",
+			Message:    "无效的请求",
+		}
+	}
 	if err := h.sandbox.CheckNetworkPermission(req.URL.String()); err != nil {
 		return nil, err
 	}
-	return h.client.Do(req)
+	return h.client.Do(func() *http.Request {
+		return req.Clone(req.Context())
+	}())
 }

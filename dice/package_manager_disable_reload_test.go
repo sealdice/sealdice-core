@@ -189,7 +189,11 @@ func newDisableDeckTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
 
 func createDisableDeckTestPackage(t *testing.T, pkgID, version string) string {
 	t.Helper()
-	archivePath := filepath.Join(t.TempDir(), strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
+	tempDir := filepath.Join(".", "temp")
+	if err := os.MkdirAll(tempDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%s) error = %v", tempDir, err)
+	}
+	archivePath := filepath.Join(tempDir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
 
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {

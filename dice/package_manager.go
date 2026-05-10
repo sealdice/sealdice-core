@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,6 +21,8 @@ import (
 
 	"sealdice-core/dice/sealpkg"
 )
+
+const maxPackageArchiveSize int64 = 128 << 20
 
 // PackageManager 扩展包管理器
 type PackageManager struct {
@@ -251,7 +254,15 @@ func (pm *PackageManager) scanSourceArtifacts() (map[string][]*packageArtifactCa
 
 func (pm *PackageManager) scanCacheArtifacts() map[string]*packageCacheCandidate {
 	candidates := make(map[string]*packageCacheCandidate)
-	err := filepath.WalkDir(pm.getCachePackagesPath(), func(infoPath string, d fs.DirEntry, walkErr error) error {
+	cacheRootPath := pm.getCachePackagesPath()
+	cacheRoot, err := os.OpenRoot(cacheRootPath)
+	if err != nil {
+		pm.parent.Logger.Warnf("打开扩展包缓存目录失败: %v", err)
+		return candidates
+	}
+	defer cacheRoot.Close()
+
+	err = filepath.WalkDir(cacheRootPath, func(infoPath string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			pm.parent.Logger.Warnf("扫描扩展包缓存目录时发生错误: %v", walkErr)
 			return nil
@@ -260,19 +271,30 @@ func (pm *PackageManager) scanCacheArtifacts() map[string]*packageCacheCandidate
 			return nil
 		}
 
-		data, err := os.ReadFile(infoPath)
-		if err != nil {
-			pm.parent.Logger.Warnf("读取扩展包缓存 manifest 失败 %s: %v", infoPath, err)
+		relPath, relErr := filepath.Rel(cacheRootPath, infoPath)
+		if relErr != nil {
+			pm.parent.Logger.Warnf("计算扩展包缓存相对路径失败 %s: %v", infoPath, relErr)
 			return nil
 		}
-		manifest, err := sealpkg.ParseManifest(data)
-		if err != nil {
-			pm.parent.Logger.Warnf("解析扩展包缓存 manifest 失败 %s: %v", infoPath, err)
+		infoFile, openErr := cacheRoot.Open(relPath)
+		if openErr != nil {
+			pm.parent.Logger.Warnf("读取扩展包缓存 manifest 失败 %s: %v", infoPath, openErr)
 			return nil
 		}
-		version, err := semver.NewVersion(manifest.Package.Version)
-		if err != nil {
-			pm.parent.Logger.Warnf("解析扩展包缓存版本失败 %s: %v", infoPath, err)
+		data, readErr := io.ReadAll(infoFile)
+		_ = infoFile.Close()
+		if readErr != nil {
+			pm.parent.Logger.Warnf("读取扩展包缓存 manifest 失败 %s: %v", infoPath, readErr)
+			return nil
+		}
+		manifest, parseErr := sealpkg.ParseManifest(data)
+		if parseErr != nil {
+			pm.parent.Logger.Warnf("解析扩展包缓存 manifest 失败 %s: %v", infoPath, parseErr)
+			return nil
+		}
+		version, versionErr := semver.NewVersion(manifest.Package.Version)
+		if versionErr != nil {
+			pm.parent.Logger.Warnf("解析扩展包缓存版本失败 %s: %v", infoPath, versionErr)
 			return nil
 		}
 
@@ -652,6 +674,14 @@ func (pm *PackageManager) saveState() error {
 // Install 安装扩展包
 // 将 .sealpkg 复制到 data/packages/，并解压到 cache/packages/
 func (pm *PackageManager) Install(pkgPath string) error {
+	validatedPath, err := pm.validateManagedPackageSource(pkgPath)
+	if err != nil {
+		return err
+	}
+	return pm.installFromSource(validatedPath)
+}
+
+func (pm *PackageManager) installFromSource(pkgPath string) error {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -765,7 +795,7 @@ func (pm *PackageManager) InstallFromStream(src io.Reader) error {
 		return errors.New("未提供上传内容")
 	}
 
-	tmpDir := filepath.Join(pm.parent.BaseConfig.DataDir, "temp")
+	tmpDir := pm.getPackageTempDir()
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return errors.New("创建临时目录失败: " + err.Error())
 	}
@@ -777,7 +807,7 @@ func (pm *PackageManager) InstallFromStream(src io.Reader) error {
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
 
-	written, copyErr := io.Copy(tmpFile, src)
+	written, copyErr := copyPackageArchive(tmpFile, src)
 	closeErr := tmpFile.Close()
 	if copyErr != nil {
 		return errors.New("保存上传文件失败: " + copyErr.Error())
@@ -798,7 +828,7 @@ func (pm *PackageManager) PreviewFromStream(src io.Reader) (*PackageUploadPrevie
 		return nil, errors.New("未提供上传内容")
 	}
 
-	tmpDir := filepath.Join(pm.parent.BaseConfig.DataDir, "temp")
+	tmpDir := pm.getPackageTempDir()
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return nil, errors.New("创建临时目录失败: " + err.Error())
 	}
@@ -810,7 +840,7 @@ func (pm *PackageManager) PreviewFromStream(src io.Reader) (*PackageUploadPrevie
 	tmpPath := tmpFile.Name()
 	defer os.Remove(tmpPath)
 
-	written, copyErr := io.Copy(tmpFile, src)
+	written, copyErr := copyPackageArchive(tmpFile, src)
 	closeErr := tmpFile.Close()
 	if copyErr != nil {
 		return nil, errors.New("保存上传文件失败: " + copyErr.Error())
@@ -826,6 +856,14 @@ func (pm *PackageManager) PreviewFromStream(src io.Reader) (*PackageUploadPrevie
 }
 
 func (pm *PackageManager) Preview(pkgPath string) (*PackageUploadPreview, error) {
+	validatedPath, err := pm.validateManagedPackageSource(pkgPath)
+	if err != nil {
+		return nil, err
+	}
+	return pm.previewFromSource(validatedPath)
+}
+
+func (pm *PackageManager) previewFromSource(pkgPath string) (*PackageUploadPreview, error) {
 	archiveInfo, err := sealpkg.InspectArchive(pkgPath)
 	if err != nil {
 		return nil, err
@@ -873,6 +911,73 @@ func packageUploadContentCounts(files []string) map[string]int {
 		}
 	}
 	return counts
+}
+
+func copyPackageArchive(dst io.Writer, src io.Reader) (int64, error) {
+	limited := &io.LimitedReader{R: src, N: maxPackageArchiveSize + 1}
+	written, err := io.Copy(dst, limited)
+	if err != nil {
+		return written, err
+	}
+	if written > maxPackageArchiveSize {
+		return written, fmt.Errorf("扩展包文件超过大小限制 %d MiB", maxPackageArchiveSize/(1024*1024))
+	}
+	return written, nil
+}
+
+func (pm *PackageManager) getPackageTempDir() string {
+	baseDir := "."
+	if pm != nil && pm.parent != nil && pm.parent.BaseConfig.DataDir != "" {
+		baseDir = pm.parent.BaseConfig.DataDir
+	}
+	return filepath.Join(baseDir, "temp")
+}
+
+func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, error) {
+	if strings.TrimSpace(pkgPath) == "" {
+		return "", errors.New("扩展包路径不能为空")
+	}
+	if !strings.EqualFold(filepath.Ext(pkgPath), sealpkg.Extension) {
+		return "", fmt.Errorf("扩展包文件必须是 %s 文件", sealpkg.Extension)
+	}
+
+	absSource, err := filepath.Abs(pkgPath)
+	if err != nil {
+		return "", fmt.Errorf("获取扩展包源文件绝对路径失败: %w", err)
+	}
+	absTempDir, err := filepath.Abs(pm.getPackageTempDir())
+	if err != nil {
+		return "", fmt.Errorf("获取扩展包临时目录绝对路径失败: %w", err)
+	}
+	if err := os.MkdirAll(absTempDir, 0o755); err != nil {
+		return "", fmt.Errorf("创建扩展包临时目录失败: %w", err)
+	}
+
+	info, err := os.Lstat(absSource)
+	if err != nil {
+		return "", err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return "", errors.New("扩展包源文件不能是符号链接")
+	}
+	if !info.Mode().IsRegular() {
+		return "", errors.New("扩展包源文件必须是普通文件")
+	}
+
+	resolvedTempDir, err := filepath.EvalSymlinks(absTempDir)
+	if err != nil {
+		return "", fmt.Errorf("解析扩展包临时目录失败: %w", err)
+	}
+	resolvedSource, err := filepath.EvalSymlinks(absSource)
+	if err != nil {
+		return "", fmt.Errorf("解析扩展包源文件失败: %w", err)
+	}
+
+	rel, err := filepath.Rel(resolvedTempDir, resolvedSource)
+	if err != nil || rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("扩展包源文件必须位于临时安装目录: %s", pm.getPackageTempDir())
+	}
+	return resolvedSource, nil
 }
 
 func (pm *PackageManager) stageSourceArtifact(srcPath, destDir string) (string, error) {
@@ -1859,6 +1964,34 @@ func (pm *PackageManager) copyFile(src, dst string) error {
 	return dstFile.Sync()
 }
 
+func downloadPackageArchive(url string) (int, []byte, error) {
+	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return 0, nil, err
+	}
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, nil, nil
+	}
+	if resp.ContentLength > maxPackageArchiveSize {
+		return 0, nil, fmt.Errorf("扩展包文件超过大小限制 %d MiB", maxPackageArchiveSize/(1024*1024))
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxPackageArchiveSize+1))
+	if err != nil {
+		return 0, nil, err
+	}
+	if int64(len(data)) > maxPackageArchiveSize {
+		return 0, nil, fmt.Errorf("扩展包文件超过大小限制 %d MiB", maxPackageArchiveSize/(1024*1024))
+	}
+	return http.StatusOK, data, nil
+}
+
 func verifyDownloadedPackageHash(data []byte, hashes map[string]string) error {
 	if len(hashes) == 0 {
 		return nil
@@ -1905,11 +2038,11 @@ func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) e
 	pm.parent.Logger.Infof("正在从 URL 下载扩展包: %s", url)
 
 	// 下载文件
-	statusCode, data, err := GetCloudContent([]string{url}, "")
+	statusCode, data, err := downloadPackageArchive(url)
 	if err != nil {
 		return errors.New("下载扩展包失败: " + err.Error())
 	}
-	if statusCode != 200 {
+	if statusCode != http.StatusOK {
 		return fmt.Errorf("无法获取扩展包内容，状态码: %d", statusCode)
 	}
 	if hashErr := verifyDownloadedPackageHash(data, hashes); hashErr != nil {
@@ -1920,22 +2053,32 @@ func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) e
 	}
 
 	// 保存到临时文件
-	tmpDir := filepath.Join(pm.parent.BaseConfig.DataDir, "temp")
+	tmpDir := pm.getPackageTempDir()
 	if mkdirErr := os.MkdirAll(tmpDir, 0755); mkdirErr != nil {
 		return errors.New("创建临时目录失败: " + mkdirErr.Error())
 	}
 
-	tmpFile := filepath.Join(tmpDir, "package_download_"+time.Now().Format("20060102150405")+".sealpkg")
-	if writeErr := os.WriteFile(tmpFile, data, 0644); writeErr != nil {
+	tmpFile, err := os.CreateTemp(tmpDir, "package_download_*.sealpkg")
+	if err != nil {
+		return errors.New("创建临时文件失败: " + err.Error())
+	}
+	tmpPath := tmpFile.Name()
+	if _, writeErr := tmpFile.Write(data); writeErr != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
 		return errors.New("保存临时文件失败: " + writeErr.Error())
+	}
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return errors.New("保存临时文件失败: " + closeErr.Error())
 	}
 
 	// 安装扩展包
-	err = pm.Install(tmpFile)
+	err = pm.Install(tmpPath)
 
 	// 清理临时文件
-	if removeErr := os.Remove(tmpFile); removeErr != nil {
-		pm.parent.Logger.Warnf("清理临时扩展包文件失败 %s: %v", tmpFile, removeErr)
+	if removeErr := os.Remove(tmpPath); removeErr != nil {
+		pm.parent.Logger.Warnf("清理临时扩展包文件失败 %s: %v", tmpPath, removeErr)
 	}
 
 	return err
