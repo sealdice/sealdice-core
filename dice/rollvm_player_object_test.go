@@ -38,25 +38,36 @@ func newPlayerObjectTestCtx(t *testing.T, sheetType string, values map[string]*d
 	return ctx, cleanup
 }
 
-func TestPlayerObject_IsInjectedAsPlayerAndActor(t *testing.T) {
+func TestPlayerObject_IsInjectedAsActorAndCharacter(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
 	defer cleanup()
 
 	ctx.CreateVmIfNotExists()
 
-	playerVal, ok := ctx.vm.Attrs.Load("player")
-	if !ok || playerVal == nil || playerVal.TypeId != ds.VMTypeNativeObject {
-		t.Fatalf("expected native object player, got %v (exists=%v)", playerVal, ok)
-	}
 	actorVal, ok := ctx.vm.Attrs.Load("actor")
 	if !ok || actorVal == nil || actorVal.TypeId != ds.VMTypeNativeObject {
 		t.Fatalf("expected native object actor, got %v (exists=%v)", actorVal, ok)
 	}
+	characterVal, ok := ctx.vm.Attrs.Load("character")
+	if !ok || characterVal == nil || characterVal.TypeId != ds.VMTypeNativeObject {
+		t.Fatalf("expected native object character, got %v (exists=%v)", characterVal, ok)
+	}
 
-	playerObj, _ := playerVal.ReadNativeObjectData()
 	actorObj, _ := actorVal.ReadNativeObjectData()
-	if playerObj != actorObj {
-		t.Fatal("expected player and actor to point to the same native object")
+	characterObj, _ := characterVal.ReadNativeObjectData()
+	if actorObj == nil || characterObj == nil {
+		t.Fatal("expected actor and character to provide native object data")
+	}
+}
+
+func TestPlayerObject_DoesNotInjectLegacyPlayerAlias(t *testing.T) {
+	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
+	defer cleanup()
+
+	ctx.CreateVmIfNotExists()
+
+	if playerVal, ok := ctx.vm.Attrs.Load("player"); ok || playerVal != nil {
+		t.Fatalf("expected legacy player alias to be absent, got %v (exists=%v)", playerVal, ok)
 	}
 }
 
@@ -64,7 +75,7 @@ func TestPlayerObject_WriteAndReadCanonicalAttr(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
 	defer cleanup()
 
-	result := ctx.Eval("player.力量 = 70; player.力量", nil)
+	result := ctx.Eval("actor.力量 = 70; actor.力量", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -82,7 +93,7 @@ func TestPlayerObject_AliasWriteStoresCanonicalKey(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
 	defer cleanup()
 
-	result := ctx.Eval("player.DEX = 60; player.敏捷", nil)
+	result := ctx.Eval("actor.DEX = 60; character.敏捷", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -105,7 +116,7 @@ func TestPlayerObject_AliasReadReturnsStoredCanonicalValue(t *testing.T) {
 	})
 	defer cleanup()
 
-	result := ctx.Eval("player.DEX", nil)
+	result := ctx.Eval("character.DEX", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -118,7 +129,7 @@ func TestPlayerObject_ItemGetAndSetUseAliasResolution(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
 	defer cleanup()
 
-	result := ctx.Eval("player['DEX'] = 55; player['敏捷']", nil)
+	result := ctx.Eval("actor['DEX'] = 55; character['敏捷']", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -136,7 +147,7 @@ func TestPlayerObject_UsesTemplateDefaultWhenAttrMissing(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
 	defer cleanup()
 
-	result := ctx.Eval("player.外语", nil)
+	result := ctx.Eval("actor.外语", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -149,7 +160,7 @@ func TestPlayerObject_ReturnsNullWhenAttrTrulyMissing(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
 	defer cleanup()
 
-	result := ctx.Eval("player.不存在属性", nil)
+	result := ctx.Eval("character.不存在属性", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -164,7 +175,7 @@ func TestPlayerObject_DirIncludesMethodsAndVisibleKeys(t *testing.T) {
 	})
 	defer cleanup()
 
-	result := ctx.Eval("dir(player)", nil)
+	result := ctx.Eval("dir(actor)", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -180,13 +191,13 @@ func TestPlayerObject_DirIncludesMethodsAndVisibleKeys(t *testing.T) {
 	}
 	for _, key := range []string{"keys", "values", "items", "len", "has", "力量", "外语"} {
 		if !items[key] {
-			t.Fatalf("expected dir(player) to include %q", key)
+			t.Fatalf("expected dir(actor) to include %q", key)
 		}
 	}
 }
 
 func TestPlayerObject_DirWithNilContextIsSafe(t *testing.T) {
-	object := newActorNativeObject(nil, "player")
+	object := newActorNativeObject(nil, "actor")
 	objectData, ok := object.ReadNativeObjectData()
 	if !ok {
 		t.Fatalf("expected native object, got %s", object.GetTypeName())
@@ -200,7 +211,7 @@ func TestPlayerObject_DirWithNilContextIsSafe(t *testing.T) {
 
 	for _, key := range []string{"has", "items", "keys", "len", "values"} {
 		if !items[key] {
-			t.Fatalf("expected dir(player) to include %q with nil context", key)
+			t.Fatalf("expected dir(actor) to include %q with nil context", key)
 		}
 	}
 }
@@ -211,7 +222,7 @@ func TestPlayerObject_ProvidesDictStyleMethods(t *testing.T) {
 	})
 	defer cleanup()
 
-	result := ctx.Eval("player.keys().len()", nil)
+	result := ctx.Eval("actor.keys().len()", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -219,7 +230,7 @@ func TestPlayerObject_ProvidesDictStyleMethods(t *testing.T) {
 		t.Fatalf("expected integer len result, got %s", result.GetTypeName())
 	}
 	if result.MustReadInt() <= 0 {
-		t.Fatal("expected player.keys().len() to be greater than 0")
+		t.Fatal("expected actor.keys().len() to be greater than 0")
 	}
 }
 
@@ -229,7 +240,7 @@ func TestPlayerObject_KeysDoesNotIncludeInjectedMethods(t *testing.T) {
 	})
 	defer cleanup()
 
-	result := ctx.Eval("player.keys()", nil)
+	result := ctx.Eval("character.keys()", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -260,7 +271,7 @@ func TestPlayerObject_HasSupportsCanonicalAliasAndTemplateDefault(t *testing.T) 
 	})
 	defer cleanup()
 
-	result := ctx.Eval("[player.has('敏捷'), player.has('DEX'), player.has('外语')]", nil)
+	result := ctx.Eval("[actor.has('敏捷'), character.has('DEX'), actor.has('外语')]", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}
@@ -283,7 +294,7 @@ func TestPlayerObject_HasReturnsFalseForTrulyMissingAttr(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
 	defer cleanup()
 
-	result := ctx.Eval("player.has('不存在属性')", nil)
+	result := ctx.Eval("character.has('不存在属性')", nil)
 	if result.vm.Error != nil {
 		t.Fatalf("Eval returned error: %v", result.vm.Error)
 	}

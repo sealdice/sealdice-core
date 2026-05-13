@@ -824,9 +824,10 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		return value
 	}
 
-	actorObj := newActorNativeObject(ctx, "player")
-	ctx.vm.Attrs.Store("player", actorObj)
+	actorObj := newActorNativeObject(ctx, "actor")
+	characterObj := newActorNativeObject(ctx, "character")
 	ctx.vm.Attrs.Store("actor", actorObj)
+	ctx.vm.Attrs.Store("character", characterObj)
 }
 
 func DiceFormatV2(ctx *MsgContext, s string) (string, error) { //nolint:revive
