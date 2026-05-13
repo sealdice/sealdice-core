@@ -167,7 +167,7 @@ func TestPlayerObject_ReturnsNullWhenAttrTrulyMissing(t *testing.T) {
 	}
 }
 
-func TestPlayerObject_DirIncludesMethodsAndVisibleKeys(t *testing.T) {
+func TestPlayerObject_DirIncludesMethodsOnly(t *testing.T) {
 	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", map[string]*ds.VMValue{
 		"力量": ds.NewIntVal(80),
 	})
@@ -187,9 +187,14 @@ func TestPlayerObject_DirIncludesMethodsAndVisibleKeys(t *testing.T) {
 	for _, item := range dirArr.List {
 		items[item.ToString()] = true
 	}
-	for _, key := range []string{"keys", "values", "items", "len", "has", "get", "getRaw", "力量", "外语"} {
+	for _, key := range []string{"keys", "values", "items", "len", "has", "get", "getRaw"} {
 		if !items[key] {
 			t.Fatalf("expected dir(actor) to include %q", key)
+		}
+	}
+	for _, key := range []string{"力量", "外语"} {
+		if items[key] {
+			t.Fatalf("did not expect dir(actor) to include attr %q", key)
 		}
 	}
 }

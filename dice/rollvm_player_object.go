@@ -3,7 +3,6 @@ package dice
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	ds "github.com/sealdice/dicescript"
 )
@@ -279,16 +278,12 @@ func newActorNativeObject(ctx *MsgContext, objectName string) *ds.VMValue {
 			return ds.NewIntVal(0)
 		},
 		DirFunc: func(vm *ds.Context) []*ds.VMValue {
-			visible := actorVisibleKeys(ctx)
-			out := make([]*ds.VMValue, 0, len(visible)+len(methods))
+			out := make([]*ds.VMValue, 0, len(methods))
 			for key := range methods {
 				out = append(out, ds.NewStrVal(key))
 			}
-			for _, key := range visible {
-				out = append(out, ds.NewStrVal(key))
-			}
 			sort.Slice(out, func(i, j int) bool {
-				return strings.Compare(out[i].ToString(), out[j].ToString()) < 0
+				return out[i].ToString() < out[j].ToString()
 			})
 			return out
 		},
