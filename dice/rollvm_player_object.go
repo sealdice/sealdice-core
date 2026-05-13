@@ -115,6 +115,19 @@ func newActorNativeObject(ctx *MsgContext, objectName string) *ds.VMValue {
 	visibleKeys := func() []string {
 		return actorVisibleKeys(ctx)
 	}
+	resolveVisibleValue := func(vm *ds.Context, key string, isRaw bool) *ds.VMValue {
+		val, exists := loadActorAttrValue(ctx, key)
+		if !exists || val == nil {
+			return nil
+		}
+		if !isRaw && val.TypeId == ds.VMTypeComputedValue {
+			val = val.ComputedExecute(vm, &ds.BufferSpan{})
+			if vm.Error != nil {
+				return nil
+			}
+		}
+		return val
+	}
 	readVisibleValue := func(key string) *ds.VMValue {
 		val, exists := loadActorAttrValue(ctx, key)
 		if !exists || val == nil {
@@ -165,6 +178,46 @@ func newActorNativeObject(ctx *MsgContext, objectName string) *ds.VMValue {
 					return ds.NewIntVal(1)
 				}
 				return ds.NewIntVal(0)
+			},
+		}),
+		"get": ds.NewNativeFunctionVal(&ds.NativeFunctionData{
+			Name:     objectName + ".get",
+			Params:   []string{"key", "default"},
+			Defaults: []*ds.VMValue{nil, ds.NewNullVal()},
+			NativeFunc: func(vm *ds.Context, this *ds.VMValue, params []*ds.VMValue) *ds.VMValue {
+				key, err := params[0].AsDictKey()
+				if err != nil {
+					vm.Error = err
+					return nil
+				}
+				canonicalName := resolveActorAttrName(ctx, key)
+				if val := resolveVisibleValue(vm, canonicalName, false); val != nil {
+					return val
+				}
+				if len(params) > 1 {
+					return params[1]
+				}
+				return ds.NewNullVal()
+			},
+		}),
+		"getRaw": ds.NewNativeFunctionVal(&ds.NativeFunctionData{
+			Name:     objectName + ".getRaw",
+			Params:   []string{"key", "default"},
+			Defaults: []*ds.VMValue{nil, ds.NewNullVal()},
+			NativeFunc: func(vm *ds.Context, this *ds.VMValue, params []*ds.VMValue) *ds.VMValue {
+				key, err := params[0].AsDictKey()
+				if err != nil {
+					vm.Error = err
+					return nil
+				}
+				canonicalName := resolveActorAttrName(ctx, key)
+				if val := resolveVisibleValue(vm, canonicalName, true); val != nil {
+					return val
+				}
+				if len(params) > 1 {
+					return params[1]
+				}
+				return ds.NewNullVal()
 			},
 		}),
 	}

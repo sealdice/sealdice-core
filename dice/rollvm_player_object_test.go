@@ -189,7 +189,7 @@ func TestPlayerObject_DirIncludesMethodsAndVisibleKeys(t *testing.T) {
 	for _, item := range dirArr.List {
 		items[item.ToString()] = true
 	}
-	for _, key := range []string{"keys", "values", "items", "len", "has", "力量", "外语"} {
+	for _, key := range []string{"keys", "values", "items", "len", "has", "get", "getRaw", "力量", "外语"} {
 		if !items[key] {
 			t.Fatalf("expected dir(actor) to include %q", key)
 		}
@@ -209,7 +209,7 @@ func TestPlayerObject_DirWithNilContextIsSafe(t *testing.T) {
 		items[item.ToString()] = true
 	}
 
-	for _, key := range []string{"has", "items", "keys", "len", "values"} {
+	for _, key := range []string{"get", "getRaw", "has", "items", "keys", "len", "values"} {
 		if !items[key] {
 			t.Fatalf("expected dir(actor) to include %q with nil context", key)
 		}
@@ -231,6 +231,67 @@ func TestPlayerObject_ProvidesDictStyleMethods(t *testing.T) {
 	}
 	if result.MustReadInt() <= 0 {
 		t.Fatal("expected actor.keys().len() to be greater than 0")
+	}
+}
+
+func TestPlayerObject_GetSupportsAliasDefaultAndTemplateDefault(t *testing.T) {
+	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", map[string]*ds.VMValue{
+		"敏捷": ds.NewIntVal(80),
+	})
+	defer cleanup()
+
+	result := ctx.Eval("[actor.get('敏捷'), character.get('DEX'), actor.get('外语'), actor.get('不存在属性', 66)]", nil)
+	if result.vm.Error != nil {
+		t.Fatalf("Eval returned error: %v", result.vm.Error)
+	}
+
+	arr, ok := result.ReadArray()
+	if !ok {
+		t.Fatalf("expected array result, got %s", result.GetTypeName())
+	}
+	if len(arr.List) != 4 {
+		t.Fatalf("expected 4 results, got %d", len(arr.List))
+	}
+	for idx, want := range []string{"80", "80", "1", "66"} {
+		if got := arr.List[idx].ToString(); got != want {
+			t.Fatalf("expected result[%d] = %s, got %s", idx, want, got)
+		}
+	}
+}
+
+func TestPlayerObject_GetReturnsNullForTrulyMissingAttrWithoutDefault(t *testing.T) {
+	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", nil)
+	defer cleanup()
+
+	result := ctx.Eval("character.get('不存在属性')", nil)
+	if result.vm.Error != nil {
+		t.Fatalf("Eval returned error: %v", result.vm.Error)
+	}
+	if result.TypeId != ds.VMTypeNull {
+		t.Fatalf("expected get() to return null for missing attr, got %s", result.GetTypeName())
+	}
+}
+
+func TestPlayerObject_GetAndGetRawHandleComputedValues(t *testing.T) {
+	ctx, cleanup := newPlayerObjectTestCtx(t, "coc7", map[string]*ds.VMValue{
+		"力量": ds.NewComputedVal("1+2"),
+	})
+	defer cleanup()
+
+	result := ctx.Eval("actor.get('力量')", nil)
+	if result.vm.Error != nil {
+		t.Fatalf("Eval returned error: %v", result.vm.Error)
+	}
+	if got := result.ToString(); got != "3" {
+		t.Fatalf("expected computed get() result 3, got %s", got)
+	}
+
+	result = ctx.Eval("typeId(character.getRaw('力量'))", nil)
+	if result.vm.Error != nil {
+		t.Fatalf("Eval returned error: %v", result.vm.Error)
+	}
+	if result.MustReadInt() != ds.IntType(ds.VMTypeComputedValue) {
+		t.Fatalf("expected getRaw() to preserve computed value type, got %s", result.ToString())
 	}
 }
 
@@ -258,7 +319,7 @@ func TestPlayerObject_KeysDoesNotIncludeInjectedMethods(t *testing.T) {
 	if !items["力量"] || !items["外语"] {
 		t.Fatalf("expected keys() to include visible attrs, got %v", items)
 	}
-	for _, key := range []string{"keys", "values", "items", "len", "has"} {
+	for _, key := range []string{"keys", "values", "items", "len", "has", "get", "getRaw"} {
 		if items[key] {
 			t.Fatalf("did not expect keys() to include injected method %q", key)
 		}
