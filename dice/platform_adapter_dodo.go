@@ -20,8 +20,8 @@ import (
 
 type PlatformAdapterDodo struct {
 	Session           *IMSession                                              `json:"-"        yaml:"-"`
-	ClientID          string                                                  `json:"clientID" yaml:"clientID"`
-	Token             string                                                  `json:"token"    yaml:"token"`
+	ClientID          string                                                  `json:"-" yaml:"clientID"`
+	Token             string                                                  `json:"-"    yaml:"token"`
 	EndPoint          *EndPointInfo                                           `json:"-"        yaml:"-"`
 	Client            client.Client                                           `json:"-"        yaml:"-"`
 	WebSocket         websocket.Client                                        `json:"-"        yaml:"-"`

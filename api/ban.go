@@ -148,7 +148,7 @@ func banExport(c echo.Context) error {
 	temp, _ := os.CreateTemp("", "黑白名单-*.json")
 	defer func() {
 		_ = temp.Close()
-		_ = os.RemoveAll(temp.Name())
+		_ = os.RemoveAll(temp.Name()) //nolint:gosec
 	}()
 	writer := bufio.NewWriter(temp)
 	err := json.NewEncoder(writer).Encode(&lst)

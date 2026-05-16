@@ -191,14 +191,17 @@ type QuitInactiveConfig struct {
 
 	QuitInactiveThresholdDays float64 `json:"quitInactiveThreshold" yaml:"-"` // 为了和前端通信
 
+	QuitInactiveNoticeSummaryMode bool `json:"quitInactiveNoticeSummaryMode" yaml:"quitInactiveNoticeSummaryMode"` // 自动退群通知改为任务开始/结束摘要
+
 	QuitInactiveBatchSize int64 `json:"quitInactiveBatchSize" yaml:"quitInactiveBatchSize"` // 退出不活跃群组的批量大小
 	QuitInactiveBatchWait int64 `json:"quitInactiveBatchWait" yaml:"quitInactiveBatchWait"` // 退出不活跃群组的批量等待时间（分）
 }
 
 type ExtConfig struct {
-	DefaultCocRuleIndex int64 `jsbind:"defaultCocRuleIndex" json:"-" yaml:"defaultCocRuleIndex"` // 默认coc index
-	MaxExecuteTime      int64 `jsbind:"maxExecuteTime"      json:"-" yaml:"maxExecuteTime"`      // 最大骰点次数
-	MaxCocCardGen       int64 `jsbind:"maxCocCardGen"       json:"-" yaml:"maxCocCardGen"`       // 最大coc制卡数
+	DefaultCocRuleIndex int64 `jsbind:"defaultCocRuleIndex" json:"-" yaml:"defaultCocRuleIndex"`                   // 默认coc index
+	MaxExecuteTime      int64 `jsbind:"maxExecuteTime"      json:"-" yaml:"maxExecuteTime"`                        // 最大骰点次数
+	MaxCocCardGen       int64 `jsbind:"maxCocCardGen"       json:"-" yaml:"maxCocCardGen"`                         // 最大coc制卡数
+	CocCardMergeForward bool  `jsbind:"cocCardMergeForward" json:"cocCardMergeForward" yaml:"cocCardMergeForward"` // COC制卡是否使用合并转发（默认关闭）
 
 	ExtDefaultSettings []*ExtDefaultSettingItem `json:"extDefaultSettings" yaml:"extDefaultSettings"` // 新群扩展按此顺序加载
 }

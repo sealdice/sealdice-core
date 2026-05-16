@@ -57,15 +57,17 @@ var DefaultConfig = Config{
 		GroupBurst:               3,
 	},
 	QuitInactiveConfig{
-		QuitInactiveThreshold: 0,
-		quitInactiveCronEntry: 0,
-		QuitInactiveBatchSize: 10,
-		QuitInactiveBatchWait: 30,
+		QuitInactiveThreshold:         0,
+		quitInactiveCronEntry:         0,
+		QuitInactiveNoticeSummaryMode: false,
+		QuitInactiveBatchSize:         10,
+		QuitInactiveBatchWait:         30,
 	},
 	ExtConfig{
 		DefaultCocRuleIndex: 0,
 		MaxExecuteTime:      12,
 		MaxCocCardGen:       5,
+		CocCardMergeForward: false,
 		ExtDefaultSettings:  make([]*ExtDefaultSettingItem, 0),
 	},
 	BanConfig{

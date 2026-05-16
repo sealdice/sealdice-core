@@ -16,10 +16,8 @@ import (
 )
 
 func jsExec(c echo.Context) error {
-	if dm.JustForTest {
-		return c.JSON(200, map[string]interface{}{
-			"testMode": true,
-		})
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
 	}
 	if dm.JustForTest {
 		return c.JSON(200, map[string]interface{}{
@@ -135,6 +133,9 @@ func jsDelete(c echo.Context) error {
 }
 
 func jsReload(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
 	if dm.JustForTest {
 		return c.JSON(200, map[string]interface{}{
 			"testMode": true,

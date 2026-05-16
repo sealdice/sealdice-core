@@ -184,7 +184,7 @@ func checkHTTPConnectivity(url string) (bool, time.Duration) {
 		myDice.Logger.Debugf("check http connectivity, url=%s", url)
 		start := time.Now()
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req) //nolint:gosec
 		duration := time.Since(start)
 		if err == nil {
 			_ = resp.Body.Close()

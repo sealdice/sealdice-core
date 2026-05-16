@@ -484,7 +484,7 @@ func censorGetTomlFileTemplate(c echo.Context) error {
 	c.Response().Header().Add("Cache-Control", "no-store")
 	err = c.Attachment(temp.Name(), "词库模板.toml")
 	_ = temp.Close()
-	_ = os.RemoveAll(temp.Name())
+	_ = os.RemoveAll(temp.Name()) //nolint:gosec
 	return err
 }
 
@@ -507,7 +507,7 @@ func censorGetTxtFileTemplate(c echo.Context) error {
 	c.Response().Header().Add("Cache-Control", "no-store")
 	err := c.Attachment(temp.Name(), "词库模板.txt")
 	_ = temp.Close()
-	_ = os.RemoveAll(temp.Name())
+	_ = os.RemoveAll(temp.Name()) //nolint:gosec
 	return err
 }
 

@@ -182,6 +182,12 @@ func DiceConfigSet(c echo.Context) error {
 		}
 	}
 
+	if val, ok := jsonMap["cocCardMergeForward"]; ok {
+		if b, ok2 := val.(bool); ok2 {
+			config.CocCardMergeForward = b
+		}
+	}
+
 	if val, ok := jsonMap["personalBurst"]; ok {
 		valStr, ok := val.(float64)
 		if ok {
@@ -427,6 +433,12 @@ func DiceConfigSet(c echo.Context) error {
 		}
 		if set {
 			myDice.ResetQuitInactiveCron()
+		}
+	}
+
+	if val, ok := jsonMap["quitInactiveNoticeSummaryMode"]; ok {
+		if v, ok := val.(bool); ok {
+			config.QuitInactiveNoticeSummaryMode = v
 		}
 	}
 

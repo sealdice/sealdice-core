@@ -67,6 +67,7 @@ type (
 type ConfigItem struct {
 	Key          string      `jsbind:"key"          json:"key"`
 	Type         string      `jsbind:"type"         json:"type"`
+	Group        string      `jsbind:"group"        json:"group,omitempty"`
 	DefaultValue interface{} `jsbind:"defaultValue" json:"defaultValue"`
 	Value        interface{} `jsbind:"value"        json:"value,omitempty"`
 	Option       interface{} `jsbind:"option"       json:"option,omitempty"`
@@ -90,6 +91,11 @@ func (i *ConfigItem) UnmarshalJSON(data []byte) error {
 	}
 	if err := json.Unmarshal(raw["description"], &i.Description); err != nil {
 		return fmt.Errorf("ConfigItem (%s): unmarshal 'description' failed as %w", i.Key, err)
+	}
+	if v, ok := raw["group"]; ok {
+		if err := json.Unmarshal(v, &i.Group); err != nil {
+			return fmt.Errorf("ConfigItem (%s): unmarshal 'group' failed as %w", i.Key, err)
+		}
 	}
 	if v, ok := raw["deprecated"]; ok {
 		if err := json.Unmarshal(v, &i.Deprecated); err != nil {
@@ -226,11 +232,21 @@ func (cm *ConfigManager) RegisterPluginConfig(pluginName string, configItems ...
 		for _, newItem := range configItems {
 			// if isValidType(newItem.Type) {
 			if existingItem, itemExists := existingPlugin.Configs[newItem.Key]; itemExists {
+				typeChanged := newItem.Type != "" && existingItem.Type != newItem.Type
+				if newItem.Type != "" {
+					existingItem.Type = newItem.Type
+				}
+				if newItem.Group != "" {
+					existingItem.Group = newItem.Group
+				}
 				existingItem.DefaultValue = newItem.DefaultValue
 				existingItem.Option = newItem.Option
 				existingItem.Description = newItem.Description
 				existingItem.Deprecated = false // Reset deprecated flag
 				existingItem.task = newItem.task
+				if typeChanged {
+					existingItem.Value = newItem.DefaultValue
+				}
 				existingPlugin.Configs[newItem.Key] = existingItem
 				// Extension can reorder config by re-registering it
 				// Time complexity of removing the old position is O(1) if the order doesn't change
@@ -2107,6 +2123,7 @@ func getNumVal(i interface{}) uint {
 
 func (d *Dice) loads() {
 	config := NewConfig(d)
+	missingPlatformConfigInServe := false
 	data, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
 	if err == nil { //nolint:nestif
 		err3 := config.LoadYamlConfig(data)
@@ -2122,7 +2139,7 @@ func (d *Dice) loads() {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err2)
 		}
-		d.ImSession.EndPoints = dNew.ImSession.EndPoints
+		missingPlatformConfigInServe = d.loadIMSessionEndpoints(dNew.ImSession)
 		d.DiceMasters = dNew.DiceMasters
 		if len(d.DiceMasters) == 0 {
 			d.DiceMasters = DefaultConfig.DiceMasters
@@ -2340,6 +2357,7 @@ func (d *Dice) loads() {
 		i.Session = d.ImSession
 		i.AdapterSetup()
 	}
+	d.warnIfNoPlatformEndpoint(missingPlatformConfigInServe)
 
 	d.LogWriter.LogLimit = int(d.Config.UILogLimit)
 
@@ -2351,6 +2369,28 @@ func (d *Dice) loads() {
 	d.MarkModified()
 }
 
+func (d *Dice) loadIMSessionEndpoints(imSession *IMSession) bool {
+	if imSession == nil || imSession.EndPoints == nil {
+		d.ImSession.EndPoints = make([]*EndPointInfo, 0)
+		return true
+	}
+
+	d.ImSession.EndPoints = imSession.EndPoints
+	return false
+}
+
+func (d *Dice) warnIfNoPlatformEndpoint(missingPlatformConfigInServe bool) {
+	if len(d.ImSession.EndPoints) != 0 {
+		return
+	}
+
+	if missingPlatformConfigInServe {
+		d.Logger.Warn("serve.yaml 中未找到平台账号配置，海豹将不会连接聊天平台。请检查 serve.yaml，或在界面中重新添加账号。")
+		return
+	}
+
+	d.Logger.Warn("当前没有可用的平台账号，海豹将不会连接聊天平台，也无法收发消息。请检查账号设置或 serve.yaml 配置。")
+}
 func (d *Dice) loadAdvanced() {
 	d.Logger.Info("开始读取 advanced.yaml")
 	advancedConfig := AdvancedConfig{
@@ -2386,7 +2426,7 @@ func (d *Dice) SaveText() {
 		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
 		current, err := os.ReadFile(newFn)
 		if err != nil {
-			_ = os.WriteFile(bakFn, current, 0o644)
+			_ = os.WriteFile(bakFn, current, 0o644) //nolint:gosec
 		}
 
 		_ = os.WriteFile(newFn, buf, 0o644)

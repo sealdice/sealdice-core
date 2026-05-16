@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -329,6 +330,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ImSession = &IMSession{}
 	d.ImSession.Parent = d
 	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
+	d.ImSession.PendingQuits = new(SyncMap[string, *PendingQuitInfo])
 	d.CmdMap = CmdMapCls{}
 	d.ExtRegistry = new(SyncMap[string, *ExtInfo])
 	// ActiveWithGraph 通过 activeWithGraph() 方法懒加载，无需在此初始化
@@ -434,7 +436,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 							now := time.Now().Unix()
 
 							// 上次被人使用小于60s
-							if now-groupInfo.RecentDiceSendTime < 60 {
+							if now-atomic.LoadInt64(&groupInfo.RecentDiceSendTime) < 60 {
 								// 在群内存在，且开启时，且不在刷新CD中
 								if groupInfo.DiceIDExistsMap.Exists(diceID) && groupInfo.DiceIDActiveMap.Exists(diceID) && d.Parent.ShouldRefreshGroupInfo(key) {
 									i.Adapter.GetGroupInfoAsync(key)

@@ -501,6 +501,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if reason == "" {
 						reason = restText
 					}
+					reason = LimitCommandReasonText(reason)
 					modifier, ok := r2.ReadInt()
 					if !ok {
 						// 如果不是整数，尝试读取浮点数并向下取整（符合DND规则）
@@ -1432,7 +1433,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 					if i.detail != "" {
 						detail = i.detail + "="
 					}
-					fmt.Fprintf(&textOut, "%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
+					_, _ = fmt.Fprintf(&textOut, "%2d. %s: %s%d\n", order+1, i.name, detail, i.val)
 
 					item := riList.GetExists(i.name)
 					if item == nil {
@@ -1488,7 +1489,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 				round, _ := VarGetValueInt64(ctx, "$g回合数")
 
 				for order, i := range riList {
-					fmt.Fprintf(&textOut, "%2d. %s: %d\n", order+1, i.name, i.val)
+					_, _ = fmt.Fprintf(&textOut, "%2d. %s: %d\n", order+1, i.name, i.val)
 				}
 
 				if len(riList) == 0 {
@@ -1498,7 +1499,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 						round = 0
 					}
 					rounder := riList[round]
-					fmt.Fprintf(&textOut, "当前回合：%s", rounder.name)
+					_, _ = fmt.Fprintf(&textOut, "当前回合：%s", rounder.name)
 				}
 
 				ReplyToSender(ctx, msg, textOut.String())
@@ -1534,7 +1535,7 @@ func RegisterBuiltinExtDnd5e(self *Dice) {
 							newList = append(newList, i)
 						} else {
 							delCounter++
-							textOut.WriteString(fmt.Sprintf("%2d. %s\n", delCounter, i.name))
+							_, _ = fmt.Fprintf(&textOut, "%2d. %s\n", delCounter, i.name)
 
 							if int64(index) < round {
 								preCurrent++

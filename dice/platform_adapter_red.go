@@ -872,7 +872,7 @@ func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]s
 			request.Header.Add(key, value)
 		}
 	}
-	resp, err := client.Do(request)
+	resp, err := client.Do(request) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}

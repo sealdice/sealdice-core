@@ -185,7 +185,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 
 				expr2Text = r2.GetMatched()
-				reason = r2.GetRestInput()
+				reason = LimitCommandReasonText(r2.GetRestInput())
 
 				difficultyRequire2 = difficultyPrefixMap[r2.GetCocPrefix()]
 				if difficultyRequire2 > difficultyRequire {
@@ -1352,6 +1352,12 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			VarSetValueStr(ctx, "$t制卡结果文本", info)
 			text := DiceFormatTmpl(ctx, "COC:制卡")
 			// fmt.Sprintf("<%s>的七版COC人物作成:\n%s", ctx.Player.Name, info)
+			if ctx.Dice.Config.CocCardMergeForward {
+				title := fmt.Sprintf("<%s>的COC7制卡结果", ctx.Player.Name)
+				if TryReplyToSenderMergedForward(ctx, msg, title, ss) {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+			}
 			ReplyToSender(ctx, msg, text)
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},

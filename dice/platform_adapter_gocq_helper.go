@@ -582,7 +582,7 @@ func GoCqhttpServeRemoveSessionToken(dice *Dice, conn *EndPointInfo) {
 
 type GoCqhttpLoginInfo struct {
 	UIN              int64
-	Password         string
+	Password         string //nolint:gosec
 	Protocol         int
 	AppVersion       string
 	IsAsyncRun       bool
