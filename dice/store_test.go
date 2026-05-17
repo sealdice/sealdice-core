@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"sealdice-core/dice/sealpkg"
+	"sealdice-core/dice/sealpack"
 )
 
 func TestParseStorePackageFullID(t *testing.T) {
@@ -26,10 +26,10 @@ func TestParseStorePackageFullID(t *testing.T) {
 
 func TestDecodeJSONStrictRejectsLegacyStorePackageFields(t *testing.T) {
 	cases := map[string]string{
-		"legacy store":       `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"store":{"category":"rules"},"download":{"url":"https://example.com/demo.sealpkg"}}`,
-		"legacy downloadUrl": `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpkg"},"downloadUrl":"https://example.com/demo.sealpkg"}`,
-		"legacy fullId":      `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpkg"},"fullId":"alice/demo@1.2.3"}`,
-		"legacy backendId":   `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpkg"},"backendID":"official"}`,
+		"legacy store":       `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"store":{"category":"rules"},"download":{"url":"https://example.com/demo.sealpack"}}`,
+		"legacy downloadUrl": `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"},"downloadUrl":"https://example.com/demo.sealpack"}`,
+		"legacy fullId":      `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"},"fullId":"alice/demo@1.2.3"}`,
+		"legacy backendId":   `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"},"backendID":"official"}`,
 	}
 
 	for name, raw := range cases {
@@ -50,11 +50,11 @@ func TestStorePackageMarshalUsesUnifiedSchema(t *testing.T) {
 		FullID:   "alice/demo@1.2.3",
 		Name:     "Demo",
 		Contents: []string{"scripts"},
-		StoreAssets: sealpkg.StoreInfo{
+		StoreAssets: sealpack.StoreInfo{
 			Category: "rules",
 		},
 		Download: StorePackageDownload{
-			URL: "https://example.com/demo-1.2.3.sealpkg",
+			URL: "https://example.com/demo-1.2.3.sealpack",
 		},
 	})
 	if err != nil {
@@ -126,7 +126,7 @@ func TestStoreQueryPageUsesSingleResolvedBackend(t *testing.T) {
 		case "/dice/api/store/info":
 			_, _ = w.Write([]byte(`{"name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
 		case "/dice/api/store/page":
-			_, _ = w.Write([]byte(`{"result":true,"data":{"data":[{"id":"alice/demo","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[]},"download":{"url":"https://example.com/demo-1.2.3.sealpkg","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3}}],"pageNum":1,"pageSize":20,"next":false},"err":""}`))
+			_, _ = w.Write([]byte(`{"result":true,"data":{"data":[{"id":"alice/demo","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[]},"download":{"url":"https://example.com/demo-1.2.3.sealpack","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3}}],"pageNum":1,"pageSize":20,"next":false},"err":""}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -238,7 +238,7 @@ func TestSanitizeStorePackageRejectsMismatchedFullID(t *testing.T) {
 		Name:     "Demo",
 		Contents: []string{"scripts"},
 		Download: StorePackageDownload{
-			URL: "https://example.com/demo-1.2.3.sealpkg",
+			URL: "https://example.com/demo-1.2.3.sealpack",
 		},
 	})
 	if err == nil {
@@ -253,7 +253,7 @@ func TestSanitizeStorePackageMarksCanonicalFields(t *testing.T) {
 		Name:     "Demo",
 		Contents: []string{"scripts", "scripts", "decks"},
 		Download: StorePackageDownload{
-			URL: "https://example.com/demo-1.2.3.sealpkg",
+			URL: "https://example.com/demo-1.2.3.sealpack",
 		},
 	})
 	if err != nil {

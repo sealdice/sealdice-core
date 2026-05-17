@@ -1,10 +1,10 @@
-# Sealpkg Developer Guide
+# SealPack Developer Guide
 
-`sealpkg` is the canonical SealDice package format.
+`sealpack` is the canonical SealDice package format.
 
 ## Package layout
 
-A package is a zip archive with the `.sealpkg` extension. The archive root must contain `info.toml` and may contain the following directories:
+A package is a zip archive with the `.sealpack` extension. The archive root must contain `info.toml` and may contain the following directories:
 
 ```text
 my-extension/
@@ -98,11 +98,11 @@ default = "simple"
 
 ## Packaging
 
-Create a zip from the package root and rename it to `.sealpkg`.
+Create a zip from the package root and rename it to `.sealpack`.
 
 ```bash
 cd my-extension
-zip -r ../my-extension.sealpkg .
+zip -r ../my-extension.sealpack .
 ```
 
 ## Local storage layout
@@ -110,7 +110,7 @@ zip -r ../my-extension.sealpkg .
 After installation, core stores package data like this:
 
 ```text
-data/packages/<author>/<package>@<version>.sealpkg
+data/packages/<author>/<package>@<version>.sealpack
 cache/packages/<author>/<package>/
 data/extensions/<author>/<package>/_userdata/
 ```

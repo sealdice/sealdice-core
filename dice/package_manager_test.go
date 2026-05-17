@@ -17,7 +17,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"sealdice-core/dice/sealpkg"
+	"sealdice-core/dice/sealpack"
 )
 
 func TestMatchPackageContentPattern(t *testing.T) {
@@ -49,12 +49,12 @@ func TestPackageManagerInitSelectsHighestVersion(t *testing.T) {
 	_ = testDice
 
 	pkgID := "alice/demo"
-	v1 := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	v1 := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// v1",
 	})
-	v2 := createTestSealPkg(t, "", pkgID, "2.0.0", map[string][]string{
+	v2 := createTestSealPack(t, "", pkgID, "2.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// v2",
@@ -64,8 +64,8 @@ func TestPackageManagerInitSelectsHighestVersion(t *testing.T) {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	copyTestFile(t, v1, filepath.Join(destDir, "demo@1.0.0.sealpkg"))
-	copyTestFile(t, v2, filepath.Join(destDir, "demo@2.0.0.sealpkg"))
+	copyTestFile(t, v1, filepath.Join(destDir, "demo@1.0.0.sealpack"))
+	copyTestFile(t, v2, filepath.Join(destDir, "demo@2.0.0.sealpack"))
 
 	if err := pm.Init(); err != nil {
 		t.Fatalf("Init() error = %v", err)
@@ -78,7 +78,7 @@ func TestPackageManagerInitSelectsHighestVersion(t *testing.T) {
 	if got := pkg.Manifest.Package.Version; got != "2.0.0" {
 		t.Fatalf("loaded version = %q, want 2.0.0", got)
 	}
-	if !strings.HasSuffix(filepath.ToSlash(pkg.SourcePath), "data/packages/alice/demo@2.0.0.sealpkg") {
+	if !strings.HasSuffix(filepath.ToSlash(pkg.SourcePath), "data/packages/alice/demo@2.0.0.sealpack") {
 		t.Fatalf("SourcePath = %q", pkg.SourcePath)
 	}
 	if _, err := os.Stat(filepath.Join("cache", "packages", "alice", "demo", "info.toml")); err != nil {
@@ -93,7 +93,7 @@ func TestPackageManagerRefreshDiscoversCopiedSourcePackage(t *testing.T) {
 	}
 
 	pkgID := "alice/manual"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// manual",
@@ -102,7 +102,7 @@ func TestPackageManagerRefreshDiscoversCopiedSourcePackage(t *testing.T) {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	copyTestFile(t, archive, filepath.Join(destDir, "manual@1.0.0.sealpkg"))
+	copyTestFile(t, archive, filepath.Join(destDir, "manual@1.0.0.sealpack"))
 
 	result, err := pm.RefreshFromDisk()
 	if err != nil {
@@ -115,8 +115,8 @@ func TestPackageManagerRefreshDiscoversCopiedSourcePackage(t *testing.T) {
 	if !ok || pkg == nil || pkg.Manifest == nil {
 		t.Fatalf("expected package %s to be loaded", pkgID)
 	}
-	if pkg.SourceStatus != sealpkg.PackageSourceStatusPresent {
-		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpkg.PackageSourceStatusPresent)
+	if pkg.SourceStatus != sealpack.PackageSourceStatusPresent {
+		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpack.PackageSourceStatusPresent)
 	}
 	if _, err := os.Stat(filepath.Join("cache", "packages", "alice", "manual", "info.toml")); err != nil {
 		t.Fatalf("expected extracted cache manifest: %v", err)
@@ -130,12 +130,12 @@ func TestPackageManagerRefreshUpgradesCopiedHigherVersion(t *testing.T) {
 	}
 
 	pkgID := "alice/upgrade"
-	v1 := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	v1 := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// v1",
 	}, withConfigMode())
-	v2 := createTestSealPkg(t, "", pkgID, "2.0.0", map[string][]string{
+	v2 := createTestSealPack(t, "", pkgID, "2.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// v2",
@@ -152,7 +152,7 @@ func TestPackageManagerRefreshUpgradesCopiedHigherVersion(t *testing.T) {
 	}
 
 	destDir := filepath.Join("data", "packages", "alice")
-	copyTestFile(t, v2, filepath.Join(destDir, "upgrade@2.0.0.sealpkg"))
+	copyTestFile(t, v2, filepath.Join(destDir, "upgrade@2.0.0.sealpack"))
 
 	result, err := pm.RefreshFromDisk()
 	if err != nil {
@@ -187,7 +187,7 @@ func TestPackageManagerRefreshMarksMissingSourceAsCacheOnly(t *testing.T) {
 	}
 
 	pkgID := "alice/cache-only"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// cached",
@@ -214,8 +214,8 @@ func TestPackageManagerRefreshMarksMissingSourceAsCacheOnly(t *testing.T) {
 	if !ok || pkg == nil {
 		t.Fatalf("expected package %s to remain", pkgID)
 	}
-	if pkg.SourceStatus != sealpkg.PackageSourceStatusCacheOnly {
-		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpkg.PackageSourceStatusCacheOnly)
+	if pkg.SourceStatus != sealpack.PackageSourceStatusCacheOnly {
+		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpack.PackageSourceStatusCacheOnly)
 	}
 	if pkg.State != PackageStateEnabled {
 		t.Fatalf("State = %q, want %q", pkg.State, PackageStateEnabled)
@@ -229,13 +229,13 @@ func TestPackageManagerRefreshAddsOrphanCacheAsCacheOnly(t *testing.T) {
 	_, pm := newTestPackageManager(t)
 
 	pkgID := "orphan/pkg"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"reply": {"reply/*.yaml"},
 	}, map[string]string{
 		"reply/main.yaml": "items: []",
 	})
 	installPath := filepath.Join("cache", "packages", "orphan", "pkg")
-	if _, err := sealpkg.ExtractArchive(archive, installPath); err != nil {
+	if _, err := sealpack.ExtractArchive(archive, installPath); err != nil {
 		t.Fatalf("ExtractArchive() error = %v", err)
 	}
 
@@ -253,8 +253,8 @@ func TestPackageManagerRefreshAddsOrphanCacheAsCacheOnly(t *testing.T) {
 	if pkg.State != PackageStateInstalled {
 		t.Fatalf("State = %q, want %q", pkg.State, PackageStateInstalled)
 	}
-	if pkg.SourceStatus != sealpkg.PackageSourceStatusCacheOnly {
-		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpkg.PackageSourceStatusCacheOnly)
+	if pkg.SourceStatus != sealpack.PackageSourceStatusCacheOnly {
+		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpack.PackageSourceStatusCacheOnly)
 	}
 }
 
@@ -265,7 +265,7 @@ func TestPackageManagerRefreshRemovesMissingSourceAndCache(t *testing.T) {
 	}
 
 	pkgID := "alice/vanished"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// vanished",
@@ -300,7 +300,7 @@ func TestPackageManagerInstallRejectsSourceOutsideTempDir(t *testing.T) {
 	}
 
 	pkgID := "alice/outside-temp"
-	archive := createTestSealPkg(t, t.TempDir(), pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, t.TempDir(), pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// outside",
@@ -325,7 +325,7 @@ func TestPackageManagerInstallFromStream(t *testing.T) {
 	}
 
 	pkgID := "alice/uploaded"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// uploaded",
@@ -344,10 +344,10 @@ func TestPackageManagerInstallFromStream(t *testing.T) {
 	if !ok || pkg == nil || pkg.Manifest == nil {
 		t.Fatalf("expected package %s to be installed", pkgID)
 	}
-	if pkg.SourceStatus != sealpkg.PackageSourceStatusPresent {
-		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpkg.PackageSourceStatusPresent)
+	if pkg.SourceStatus != sealpack.PackageSourceStatusPresent {
+		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpack.PackageSourceStatusPresent)
 	}
-	if !strings.HasSuffix(filepath.ToSlash(pkg.SourcePath), "data/packages/alice/uploaded@1.0.0.sealpkg") {
+	if !strings.HasSuffix(filepath.ToSlash(pkg.SourcePath), "data/packages/alice/uploaded@1.0.0.sealpack") {
 		t.Fatalf("SourcePath = %q", pkg.SourcePath)
 	}
 	if _, err := os.Stat(pkg.SourcePath); err != nil {
@@ -377,7 +377,7 @@ func TestPackageManagerPreviewFromStream(t *testing.T) {
 	}
 
 	pkgID := "alice/preview"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 		"decks":   {"decks/*.json"},
 	}, map[string]string{
@@ -432,12 +432,12 @@ func TestPackageManagerInstallUpgradePreservesConfigAndUserData(t *testing.T) {
 	}
 
 	pkgID := "alice/demo"
-	v1 := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	v1 := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// v1",
 	}, withConfigMode())
-	v2 := createTestSealPkg(t, "", pkgID, "2.0.0", map[string][]string{
+	v2 := createTestSealPack(t, "", pkgID, "2.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 	}, map[string]string{
 		"scripts/main.js": "// v2",
@@ -498,7 +498,7 @@ func TestPackageManagerGetEnabledContentFilesUsesDeclaredPatterns(t *testing.T) 
 	}
 
 	pkgID := "alice/content-pack"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 		"decks":   {"decks/**/*.json"},
 		"reply":   {"reply/*.yaml"},
@@ -540,7 +540,7 @@ func TestPackageReplyReloadDoesNotCopyPackageReplyToUserDir(t *testing.T) {
 	}
 
 	pkgID := "alice/reply-pack"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"reply": {"reply/*.yaml"},
 	}, map[string]string{
 		"reply/main.yaml": "enable: true\nitems: []\n",
@@ -578,7 +578,7 @@ func TestPackageManagerReloadAllLoadsTemplateFilesFromEnabledPackages(t *testing
 	}
 
 	pkgID := "alice/template-pack"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"templates": {"templates/*.yaml"},
 	}, map[string]string{
 		"templates/pkgtest.yaml": loadTemplateFixture(t, "pkgtest"),
@@ -616,7 +616,7 @@ func TestPackageManagerReloadHelpdocUsesReloadHelp(t *testing.T) {
 	}
 
 	pkgID := "alice/helpdoc-pack"
-	archive := createTestSealPkg(t, "", pkgID, "1.0.0", map[string][]string{
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"helpdoc": {"helpdoc/*.json"},
 	}, map[string]string{
 		"helpdoc/guide.json": `{"mod":"Test Help","helpdoc":{"测试帮助":"帮助内容"}}`,
@@ -673,7 +673,7 @@ func TestPackageManagerListReturnsStablePackageOrder(t *testing.T) {
 		{id: "middle/pkg", version: "1.0.0"},
 	}
 	for _, item := range archives {
-		archive := createTestSealPkg(t, "", item.id, item.version, map[string][]string{
+		archive := createTestSealPack(t, "", item.id, item.version, map[string][]string{
 			"scripts": {"scripts/*.js"},
 		}, map[string]string{
 			"scripts/main.js": "// test",
@@ -760,7 +760,7 @@ func newTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
 	return d, pm
 }
 
-func createTestSealPkg(t *testing.T, dir, pkgID, version string, contents map[string][]string, files map[string]string, opts ...manifestOption) string {
+func createTestSealPack(t *testing.T, dir, pkgID, version string, contents map[string][]string, files map[string]string, opts ...manifestOption) string {
 	t.Helper()
 	if dir == "" {
 		dir = filepath.Join(".", "temp")
@@ -768,7 +768,7 @@ func createTestSealPkg(t *testing.T, dir, pkgID, version string, contents map[st
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(%s) error = %v", dir, err)
 	}
-	archivePath := filepath.Join(dir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
+	archivePath := filepath.Join(dir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpack")
 	f, err := os.Create(archivePath)
 	if err != nil {
 		t.Fatalf("Create(%s) error = %v", archivePath, err)

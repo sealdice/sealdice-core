@@ -1,11 +1,11 @@
-# Sealpkg User Guide
+# SealPack User Guide
 
-A `.sealpkg` file is a SealDice extension package. A single package can include scripts, decks, replies, help documents, templates, and assets.
+A `.sealpack` file is a SealDice extension package. A single package can include scripts, decks, replies, help documents, templates, and assets.
 
 ## Install methods
 
 - Install from the extension UI.
-- Install from a local `.sealpkg` file.
+- Install from a local `.sealpack` file.
 - Install from a direct package URL.
 
 ## What happens on install
@@ -13,7 +13,7 @@ A `.sealpkg` file is a SealDice extension package. A single package can include 
 SealDice stores package data in three places:
 
 ```text
-data/packages/<author>/<package>@<version>.sealpkg
+data/packages/<author>/<package>@<version>.sealpack
 data/extensions/<author>/<package>/_userdata/
 cache/packages/<author>/<package>/
 ```

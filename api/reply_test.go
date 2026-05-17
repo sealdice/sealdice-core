@@ -20,7 +20,7 @@ import (
 func TestCustomReplySavePackageReplyWritesCacheOnly(t *testing.T) {
 	testDice, pm, token := newReplyAPITestPackageManager(t)
 	const pkgID = "alice/reply-pack"
-	archive := createReplyAPITestSealPkg(t, pkgID, "1.0.0", map[string]string{
+	archive := createReplyAPITestSealPack(t, pkgID, "1.0.0", map[string]string{
 		"reply/main.yaml": "enable: true\nname: original\nitems: []\n",
 	})
 	if err := pm.Install(archive); err != nil {
@@ -62,7 +62,7 @@ func TestCustomReplySavePackageReplyWritesCacheOnly(t *testing.T) {
 func TestCustomReplyListDistinguishesLocalAndPackageSameName(t *testing.T) {
 	testDice, pm, token := newReplyAPITestPackageManager(t)
 	const pkgID = "alice/reply-pack"
-	archive := createReplyAPITestSealPkg(t, pkgID, "1.0.0", map[string]string{
+	archive := createReplyAPITestSealPack(t, pkgID, "1.0.0", map[string]string{
 		"reply/main.yaml": "enable: true\nname: package\nitems: []\n",
 	})
 	if err := pm.Install(archive); err != nil {
@@ -104,7 +104,7 @@ func TestCustomReplyListDistinguishesLocalAndPackageSameName(t *testing.T) {
 func TestCustomReplyNewAllowsLocalFileWithPackageSameName(t *testing.T) {
 	testDice, pm, token := newReplyAPITestPackageManager(t)
 	const pkgID = "alice/reply-pack"
-	archive := createReplyAPITestSealPkg(t, pkgID, "1.0.0", map[string]string{
+	archive := createReplyAPITestSealPack(t, pkgID, "1.0.0", map[string]string{
 		"reply/main.yaml": "enable: true\nname: package\nitems: []\n",
 	})
 	if err := pm.Install(archive); err != nil {
@@ -174,13 +174,13 @@ func performReplyAPIRequest(t *testing.T, method, target, body, token string, ha
 	return rec
 }
 
-func createReplyAPITestSealPkg(t *testing.T, pkgID, version string, files map[string]string) string {
+func createReplyAPITestSealPack(t *testing.T, pkgID, version string, files map[string]string) string {
 	t.Helper()
 	tempDir := filepath.Join(".", "temp")
 	if err := os.MkdirAll(tempDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(%s) error = %v", tempDir, err)
 	}
-	archivePath := filepath.Join(tempDir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
+	archivePath := filepath.Join(tempDir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpack")
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {
 		t.Fatalf("Create(%s) error = %v", archivePath, err)

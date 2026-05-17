@@ -1,8 +1,8 @@
-# Sealpkg Internals
+# SealPack Internals
 
 ## Core model
 
-`sealpkg.Manifest` is the parsed form of `info.toml`. The root `format_version` field declares the manifest format version as a semantic version string; missing values are treated as version `"1.0.0"`.
+`sealpack.Manifest` is the parsed form of `info.toml`. The root `format_version` field declares the manifest format version as a semantic version string; missing values are treated as version `"1.0.0"`.
 
 Key runtime fields:
 
@@ -12,7 +12,7 @@ type Instance struct {
     State        PackageState
     InstallTime  time.Time
     InstallPath  string // cache/packages/<author>/<package>/
-    SourcePath   string // data/packages/<author>/<package>@<version>.sealpkg
+    SourcePath   string // data/packages/<author>/<package>@<version>.sealpack
     UserDataPath string // data/extensions/<author>/<package>/_userdata/
     Config       map[string]interface{}
 }
@@ -23,7 +23,7 @@ type Instance struct {
 ```text
 data/
 |- packages/
-|  `- <author>/<package>@<version>.sealpkg
+|  `- <author>/<package>@<version>.sealpack
 `- extensions/
    `- <author>/<package>/_userdata/
 
@@ -47,7 +47,7 @@ Install(pkgPath)
 |- validate package id and semver
 |- reject src/ archives
 |- check SealDice version and package dependencies
-|- copy artifact to data/packages/<author>/<package>@<version>.sealpkg
+|- copy artifact to data/packages/<author>/<package>@<version>.sealpack
 |- extract to cache/packages/<author>/<package>/
 |- create data/extensions/<author>/<package>/_userdata/
 `- persist state

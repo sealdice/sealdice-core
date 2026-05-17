@@ -1,5 +1,5 @@
-// Package sealpkg 提供海豹骰扩展包(.sealpkg)的核心类型定义和工具
-package sealpkg
+// Package sealpack 提供海豹骰扩展包(.sealpack)的核心类型定义和工具
+package sealpack
 
 import (
 	"time"
@@ -15,11 +15,11 @@ const (
 	PackageStateError     PackageState = "error"     // 错误状态
 )
 
-// PackageSourceStatus describes whether the source .sealpkg still exists.
+// PackageSourceStatus describes whether the source .sealpack still exists.
 type PackageSourceStatus string
 
 const (
-	PackageSourceStatusPresent   PackageSourceStatus = "present"    // 源 .sealpkg 文件存在
+	PackageSourceStatusPresent   PackageSourceStatus = "present"    // 源 .sealpack 文件存在
 	PackageSourceStatusCacheOnly PackageSourceStatus = "cache_only" // 仅保留缓存安装
 )
 
@@ -127,7 +127,7 @@ type Instance struct {
 	State         PackageState           `json:"state"`
 	InstallTime   time.Time              `json:"installTime"`
 	InstallPath   string                 `json:"installPath"`  // cache/packages/<id>/ 运行时缓存
-	SourcePath    string                 `json:"sourcePath"`   // 原始 .sealpkg 路径
+	SourcePath    string                 `json:"sourcePath"`   // 原始 .sealpack 路径
 	UserDataPath  string                 `json:"userDataPath"` // data/extensions/<id>/_userdata/ 用户数据
 	Config        map[string]interface{} `json:"config"`       // 用户配置值
 	ErrText       string                 `json:"errText"`
@@ -157,7 +157,7 @@ type InstancePersist struct {
 	PendingReload []string               `json:"pendingReload,omitempty"`
 }
 
-// ArchiveInfo describes a validated .sealpkg archive.
+// ArchiveInfo describes a validated .sealpack archive.
 type ArchiveInfo struct {
 	Manifest *Manifest `json:"manifest"`
 	Files    []string  `json:"files"`
@@ -185,8 +185,8 @@ const (
 	// CurrentManifestFormatVersion 当前支持的 info.toml 格式版本。
 	CurrentManifestFormatVersion = "1.0.0"
 
-	// Extension .sealpkg 文件扩展名
-	Extension = ".sealpkg"
+	// Extension .sealpack 文件扩展名
+	Extension = ".sealpack"
 
 	// PackagesDir 扩展包安装目录名
 	PackagesDir = "packages"

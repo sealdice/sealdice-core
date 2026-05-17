@@ -5,12 +5,12 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"sealdice-core/dice/sealpkg"
+	"sealdice-core/dice/sealpack"
 )
 
 // ================== 扩展包管理 API ==================
 //
-// 扩展包 (sealpkg) 是 SealDice 的模块化扩展机制，支持：
+// 扩展包 (sealpack) 是 SealDice 的模块化扩展机制，支持：
 // - JS 脚本扩展
 // - 牌堆 (decks)
 // - 自定义回复 (reply)
@@ -90,7 +90,7 @@ func packageGet(c echo.Context) error {
 
 // packageInstallFromUpload 从请求体流式上传并安装扩展包。
 // POST /package/install-upload
-// 请求体: application/octet-stream 的 .sealpkg 文件内容
+// 请求体: application/octet-stream 的 .sealpack 文件内容
 // 返回: { message: string, result: true }
 func packageInstallFromUpload(c echo.Context) error {
 	if !doAuth(c) {
@@ -119,7 +119,7 @@ func packageInstallFromUpload(c echo.Context) error {
 
 // packagePreviewFromUpload 从请求体流式上传扩展包并返回包内容预览。
 // POST /package/preview-upload
-// 请求体: application/octet-stream 的 .sealpkg 文件内容
+// 请求体: application/octet-stream 的 .sealpack 文件内容
 // 返回: { data: PackageUploadPreview, result: true }
 func packagePreviewFromUpload(c echo.Context) error {
 	if !doAuth(c) {
@@ -149,7 +149,7 @@ func packagePreviewFromUpload(c echo.Context) error {
 
 // packageInstallFromURL 从远程 URL 安装扩展包
 // POST /package/install-from-url (compatible with /package/install-url)
-// 参数: { url: string } - 远程 .sealpkg 文件的 URL
+// 参数: { url: string } - 远程 .sealpack 文件的 URL
 // 返回: { message: string, result: true }
 func packageInstallFromURL(c echo.Context) error {
 	if !doAuth(c) {
@@ -162,7 +162,7 @@ func packageInstallFromURL(c echo.Context) error {
 	}
 
 	var params struct {
-		URL string `json:"url"` // 远程 .sealpkg 文件 URL
+		URL string `json:"url"` // 远程 .sealpack 文件 URL
 	}
 	err := c.Bind(&params)
 	if err != nil {
@@ -201,8 +201,8 @@ func packageUninstall(c echo.Context) error {
 	}
 
 	var params struct {
-		ID   string                `json:"id"`
-		Mode sealpkg.UninstallMode `json:"mode"` // full, keep_data, disable
+		ID   string                 `json:"id"`
+		Mode sealpack.UninstallMode `json:"mode"` // full, keep_data, disable
 	}
 	err := c.Bind(&params)
 	if err != nil {
@@ -211,7 +211,7 @@ func packageUninstall(c echo.Context) error {
 
 	// 默认模式为 full
 	if params.Mode == "" {
-		params.Mode = sealpkg.UninstallModeFull
+		params.Mode = sealpack.UninstallModeFull
 	}
 
 	err = myDice.PackageManager.Uninstall(params.ID, params.Mode)

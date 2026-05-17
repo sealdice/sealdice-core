@@ -1,4 +1,4 @@
-package sealpkg //nolint:testpackage
+package sealpack //nolint:testpackage
 
 import "testing"
 

@@ -14,7 +14,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"sealdice-core/dice/sealpkg"
+	"sealdice-core/dice/sealpack"
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 )
@@ -60,17 +60,17 @@ type StorePackage struct {
 	Version string `json:"version"`
 	FullID  string `json:"-"`
 
-	Name         string                  `json:"name"`
-	Authors      []string                `json:"authors"`
-	Description  string                  `json:"description"`
-	License      string                  `json:"license"`
-	Homepage     string                  `json:"homepage"`
-	Repository   string                  `json:"repository"`
-	Keywords     []string                `json:"keywords"`
-	Contents     []string                `json:"contents"`
-	Seal         sealpkg.SealRequirement `json:"seal"`
-	Dependencies map[string]string       `json:"dependencies"`
-	StoreAssets  sealpkg.StoreInfo       `json:"storeAssets"`
+	Name         string                   `json:"name"`
+	Authors      []string                 `json:"authors"`
+	Description  string                   `json:"description"`
+	License      string                   `json:"license"`
+	Homepage     string                   `json:"homepage"`
+	Repository   string                   `json:"repository"`
+	Keywords     []string                 `json:"keywords"`
+	Contents     []string                 `json:"contents"`
+	Seal         sealpack.SealRequirement `json:"seal"`
+	Dependencies map[string]string        `json:"dependencies"`
+	StoreAssets  sealpack.StoreInfo       `json:"storeAssets"`
 
 	Download  StorePackageDownload `json:"download"`
 	Installed bool                 `json:"installed"`
@@ -145,7 +145,7 @@ func ParseStorePackageFullID(fullID string) (string, string, error) {
 
 	pkgID := fullID[:pos]
 	version := fullID[pos+1:]
-	if err := sealpkg.ValidatePackageID(pkgID); err != nil {
+	if err := sealpack.ValidatePackageID(pkgID); err != nil {
 		return "", "", err
 	}
 	if _, err := semver.NewVersion(version); err != nil {
@@ -714,7 +714,7 @@ func sanitizeStorePackage(pkg *StorePackage) (*StorePackage, error) {
 	copyPkg.Name = strings.TrimSpace(copyPkg.Name)
 	copyPkg.Download.URL = strings.TrimSpace(copyPkg.Download.URL)
 
-	if err := sealpkg.ValidatePackageID(copyPkg.ID); err != nil {
+	if err := sealpack.ValidatePackageID(copyPkg.ID); err != nil {
 		return nil, fmt.Errorf("无效的包 ID: %w", err)
 	}
 	if copyPkg.Version == "" {
@@ -733,8 +733,8 @@ func sanitizeStorePackage(pkg *StorePackage) (*StorePackage, error) {
 	if err != nil || parsedDownloadURL.Scheme == "" || parsedDownloadURL.Host == "" {
 		return nil, errors.New("download.url 必须是绝对 URL")
 	}
-	if !strings.HasSuffix(strings.ToLower(parsedDownloadURL.Path), sealpkg.Extension) {
-		return nil, fmt.Errorf("download.url 必须指向 %s 文件", sealpkg.Extension)
+	if !strings.HasSuffix(strings.ToLower(parsedDownloadURL.Path), sealpack.Extension) {
+		return nil, fmt.Errorf("download.url 必须指向 %s 文件", sealpack.Extension)
 	}
 
 	expectedFullID := BuildStorePackageFullID(copyPkg.ID, copyPkg.Version)
@@ -754,7 +754,7 @@ func sanitizeStorePackage(pkg *StorePackage) (*StorePackage, error) {
 		copyPkg.Dependencies = map[string]string{}
 	}
 	for depID := range copyPkg.Dependencies {
-		if err := sealpkg.ValidatePackageID(depID); err != nil {
+		if err := sealpack.ValidatePackageID(depID); err != nil {
 			return nil, fmt.Errorf("依赖 %s 的包 ID 无效: %w", depID, err)
 		}
 	}

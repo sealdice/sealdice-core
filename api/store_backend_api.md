@@ -47,7 +47,7 @@ Store list endpoints now exchange a package-centric DTO. Public responses must u
     "category": "rules"
   },
   "download": {
-    "url": "https://example.com/downloads/author/package/1.2.3.sealpkg",
+    "url": "https://example.com/downloads/author/package/1.2.3.sealpack",
     "hash": {
       "sha256": "abcdef..."
     },
@@ -66,7 +66,7 @@ Store list endpoints now exchange a package-centric DTO. Public responses must u
 - `contents`: allowed values are `scripts`, `decks`, `reply`, `helpdoc`, `templates`.
 - `dependencies`: map of package ID to semver constraint.
 - `storeAssets`: package presentation assets shown in the store UI.
-- `download.url`: absolute URL to a `.sealpkg` file.
+- `download.url`: absolute URL to a `.sealpack` file.
 - `download.hash`: optional integrity hashes keyed by algorithm. When `sha256` is present, the SealDice client verifies it before installation.
 - `download.releaseTime` / `download.updateTime`: Unix timestamps in seconds.
 - `download.downloadCount`: public download counter.
@@ -123,7 +123,7 @@ Response example:
         "category": "rules"
       },
       "download": {
-        "url": "https://example.com/pkg/1.2.3.sealpkg",
+        "url": "https://example.com/pkg/1.2.3.sealpack",
         "hash": {
           "sha256": "abcdef..."
         },
@@ -191,7 +191,7 @@ Response example:
           "category": "rules"
         },
         "download": {
-          "url": "https://example.com/pkg/1.2.3.sealpkg",
+          "url": "https://example.com/pkg/1.2.3.sealpack",
           "hash": {
             "sha256": "abcdef..."
           },
@@ -232,7 +232,7 @@ The SealDice client validates backend responses before exposing them locally:
 
 1. `id` must be a valid package ID.
 2. `version` must be valid semver.
-3. `download.url` must be an absolute `.sealpkg` URL.
+3. `download.url` must be an absolute `.sealpack` URL.
 4. `contents` must contain only supported content kinds.
 5. dependency keys must be valid package IDs.
 

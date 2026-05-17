@@ -1,4 +1,4 @@
-package sealpkg //nolint:testpackage
+package sealpack //nolint:testpackage
 
 import (
 	"archive/zip"
@@ -36,7 +36,7 @@ func TestInspectArchiveRejectsUnsupportedTopLevelDirectory(t *testing.T) {
 }
 
 func TestInspectArchiveRejectsDuplicateEntries(t *testing.T) {
-	archivePath := filepath.Join(t.TempDir(), "duplicate.sealpkg")
+	archivePath := filepath.Join(t.TempDir(), "duplicate.sealpack")
 	file, err := os.Create(archivePath)
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
@@ -83,7 +83,7 @@ func TestInspectArchiveFallsBackToReadmeFile(t *testing.T) {
 
 func createArchiveForTest(t *testing.T, files map[string]string) string {
 	t.Helper()
-	archivePath := filepath.Join(t.TempDir(), "test.sealpkg")
+	archivePath := filepath.Join(t.TempDir(), "test.sealpack")
 	file, err := os.Create(archivePath)
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)

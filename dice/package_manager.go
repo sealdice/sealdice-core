@@ -19,7 +19,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"sealdice-core/dice/sealpkg"
+	"sealdice-core/dice/sealpack"
 )
 
 const maxPackageArchiveSize int64 = 128 << 20
@@ -30,7 +30,7 @@ type PackageManager struct {
 	parent *Dice
 
 	// 已安装的包
-	packages map[string]*sealpkg.Instance
+	packages map[string]*sealpack.Instance
 
 	// 依赖图: A -> [B, C] 表示 A 依赖 B 和 C
 	dependencyGraph map[string][]string
@@ -40,13 +40,13 @@ type PackageManager struct {
 }
 
 type packageArtifactCandidate struct {
-	Manifest   *sealpkg.Manifest
+	Manifest   *sealpack.Manifest
 	SourcePath string
 	Version    *semver.Version
 }
 
 type packageCacheCandidate struct {
-	Manifest    *sealpkg.Manifest
+	Manifest    *sealpack.Manifest
 	InstallPath string
 	Version     *semver.Version
 }
@@ -58,20 +58,20 @@ type PackageContentFile struct {
 }
 
 type PackageRefreshResult struct {
-	Packages  []*sealpkg.Instance `json:"packages"`
-	Added     []string            `json:"added"`
-	Updated   []string            `json:"updated"`
-	CacheOnly []string            `json:"cacheOnly"`
-	Removed   []string            `json:"removed"`
+	Packages  []*sealpack.Instance `json:"packages"`
+	Added     []string             `json:"added"`
+	Updated   []string             `json:"updated"`
+	CacheOnly []string             `json:"cacheOnly"`
+	Removed   []string             `json:"removed"`
 }
 
 type PackageUploadPreview struct {
-	Manifest        *sealpkg.Manifest `json:"manifest"`
-	Files           []string          `json:"files"`
-	FileCount       int               `json:"fileCount"`
-	ContentCounts   map[string]int    `json:"contentCounts"`
-	ExistingVersion string            `json:"existingVersion,omitempty"`
-	InstallAction   string            `json:"installAction"`
+	Manifest        *sealpack.Manifest `json:"manifest"`
+	Files           []string           `json:"files"`
+	FileCount       int                `json:"fileCount"`
+	ContentCounts   map[string]int     `json:"contentCounts"`
+	ExistingVersion string             `json:"existingVersion,omitempty"`
+	InstallAction   string             `json:"installAction"`
 }
 
 // NewPackageManager 创建包管理器
@@ -79,7 +79,7 @@ func NewPackageManager(parent *Dice) *PackageManager {
 	pm := &PackageManager{
 		lock:                   new(sync.RWMutex),
 		parent:                 parent,
-		packages:               make(map[string]*sealpkg.Instance),
+		packages:               make(map[string]*sealpack.Instance),
 		dependencyGraph:        make(map[string][]string),
 		reverseDependencyGraph: make(map[string][]string),
 	}
@@ -131,7 +131,7 @@ func (pm *PackageManager) refreshFromDiskLocked(markPendingReload bool) (*Packag
 	cacheCandidates := pm.scanCacheArtifacts()
 
 	persisted := pm.packages
-	loaded := make(map[string]*sealpkg.Instance, len(persisted)+len(candidates)+len(cacheCandidates))
+	loaded := make(map[string]*sealpack.Instance, len(persisted)+len(candidates)+len(cacheCandidates))
 	result := &PackageRefreshResult{}
 
 	for pkgID, pkg := range persisted {
@@ -224,11 +224,11 @@ func (pm *PackageManager) scanSourceArtifacts() (map[string][]*packageArtifactCa
 			pm.parent.Logger.Warnf("扫描扩展包目录时发生错误: %v", walkErr)
 			return nil
 		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), sealpkg.Extension) {
+		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {
 			return nil
 		}
 
-		archiveInfo, err := sealpkg.InspectArchive(pkgFilePath)
+		archiveInfo, err := sealpack.InspectArchive(pkgFilePath)
 		if err != nil {
 			pm.parent.Logger.Warnf("检查扩展包失败 %s: %v", d.Name(), err)
 			return nil
@@ -267,7 +267,7 @@ func (pm *PackageManager) scanCacheArtifacts() map[string]*packageCacheCandidate
 			pm.parent.Logger.Warnf("扫描扩展包缓存目录时发生错误: %v", walkErr)
 			return nil
 		}
-		if d.IsDir() || d.Name() != sealpkg.InfoFile {
+		if d.IsDir() || d.Name() != sealpack.InfoFile {
 			return nil
 		}
 
@@ -287,7 +287,7 @@ func (pm *PackageManager) scanCacheArtifacts() map[string]*packageCacheCandidate
 			pm.parent.Logger.Warnf("读取扩展包缓存 manifest 失败 %s: %v", infoPath, readErr)
 			return nil
 		}
-		manifest, parseErr := sealpkg.ParseManifest(data)
+		manifest, parseErr := sealpack.ParseManifest(data)
 		if parseErr != nil {
 			pm.parent.Logger.Warnf("解析扩展包缓存 manifest 失败 %s: %v", infoPath, parseErr)
 			return nil
@@ -316,7 +316,7 @@ func (pm *PackageManager) scanCacheArtifacts() map[string]*packageCacheCandidate
 	return candidates
 }
 
-func (pm *PackageManager) materializeCandidate(candidate *packageArtifactCandidate, persisted *sealpkg.Instance) (*sealpkg.Instance, error) {
+func (pm *PackageManager) materializeCandidate(candidate *packageArtifactCandidate, persisted *sealpack.Instance) (*sealpack.Instance, error) {
 	pkgID := candidate.Manifest.Package.ID
 	installPath := pm.getPackageInstallPath(pkgID)
 	if err := pm.ensureInstallCache(candidate, installPath); err != nil {
@@ -328,8 +328,8 @@ func (pm *PackageManager) materializeCandidate(candidate *packageArtifactCandida
 		return nil, err
 	}
 
-	config := sealpkg.InitDefaultConfig(candidate.Manifest.Config)
-	state := sealpkg.PackageStateDisabled
+	config := sealpack.InitDefaultConfig(candidate.Manifest.Config)
+	state := sealpack.PackageStateDisabled
 	installTime := time.Now()
 	var pendingReload []string
 	if persisted != nil {
@@ -339,13 +339,13 @@ func (pm *PackageManager) materializeCandidate(candidate *packageArtifactCandida
 		if !persisted.InstallTime.IsZero() {
 			installTime = persisted.InstallTime
 		}
-		config = sealpkg.MergeConfig(config, persisted.Config)
+		config = sealpack.MergeConfig(config, persisted.Config)
 		pendingReload = append([]string(nil), persisted.PendingReload...)
 	} else if info, err := os.Stat(candidate.SourcePath); err == nil {
 		installTime = info.ModTime()
 	}
 
-	return &sealpkg.Instance{
+	return &sealpack.Instance{
 		Manifest:      candidate.Manifest,
 		State:         state,
 		InstallTime:   installTime,
@@ -353,20 +353,20 @@ func (pm *PackageManager) materializeCandidate(candidate *packageArtifactCandida
 		SourcePath:    candidate.SourcePath,
 		UserDataPath:  userDataPath,
 		Config:        config,
-		SourceStatus:  sealpkg.PackageSourceStatusPresent,
+		SourceStatus:  sealpack.PackageSourceStatusPresent,
 		PendingReload: pendingReload,
 	}, nil
 }
 
-func (pm *PackageManager) materializeCacheCandidate(candidate *packageCacheCandidate, persisted *sealpkg.Instance) (*sealpkg.Instance, error) {
+func (pm *PackageManager) materializeCacheCandidate(candidate *packageCacheCandidate, persisted *sealpack.Instance) (*sealpack.Instance, error) {
 	pkgID := candidate.Manifest.Package.ID
 	userDataPath := pm.getUserDataPath(pkgID)
 	if err := os.MkdirAll(userDataPath, 0o755); err != nil {
 		return nil, err
 	}
 
-	config := sealpkg.InitDefaultConfig(candidate.Manifest.Config)
-	state := sealpkg.PackageStateInstalled
+	config := sealpack.InitDefaultConfig(candidate.Manifest.Config)
+	state := sealpack.PackageStateInstalled
 	installTime := time.Now()
 	sourcePath := ""
 	var pendingReload []string
@@ -378,13 +378,13 @@ func (pm *PackageManager) materializeCacheCandidate(candidate *packageCacheCandi
 			installTime = persisted.InstallTime
 		}
 		sourcePath = persisted.SourcePath
-		config = sealpkg.MergeConfig(config, persisted.Config)
+		config = sealpack.MergeConfig(config, persisted.Config)
 		pendingReload = append([]string(nil), persisted.PendingReload...)
 	} else if info, err := os.Stat(candidate.InstallPath); err == nil {
 		installTime = info.ModTime()
 	}
 
-	return &sealpkg.Instance{
+	return &sealpack.Instance{
 		Manifest:      candidate.Manifest,
 		State:         state,
 		InstallTime:   installTime,
@@ -392,7 +392,7 @@ func (pm *PackageManager) materializeCacheCandidate(candidate *packageCacheCandi
 		SourcePath:    sourcePath,
 		UserDataPath:  userDataPath,
 		Config:        config,
-		SourceStatus:  sealpkg.PackageSourceStatusCacheOnly,
+		SourceStatus:  sealpack.PackageSourceStatusCacheOnly,
 		SourceWarning: packageCacheOnlyWarning(sourcePath),
 		PendingReload: pendingReload,
 	}, nil
@@ -411,7 +411,7 @@ func (pm *PackageManager) ensureInstallCache(candidate *packageArtifactCandidate
 }
 
 func (pm *PackageManager) installCacheMatchesCandidate(candidate *packageArtifactCandidate, installPath string) bool {
-	infoPath := filepath.Join(installPath, sealpkg.InfoFile)
+	infoPath := filepath.Join(installPath, sealpack.InfoFile)
 	info, statErr := os.Stat(infoPath)
 	if statErr != nil {
 		return false
@@ -420,7 +420,7 @@ func (pm *PackageManager) installCacheMatchesCandidate(candidate *packageArtifac
 	if err != nil {
 		return false
 	}
-	manifest, parseErr := sealpkg.ParseManifest(data)
+	manifest, parseErr := sealpack.ParseManifest(data)
 	if parseErr != nil || manifest.Package.ID != candidate.Manifest.Package.ID || manifest.Package.Version != candidate.Manifest.Package.Version {
 		return false
 	}
@@ -432,11 +432,11 @@ func (pm *PackageManager) installCacheMatchesCandidate(candidate *packageArtifac
 }
 
 func (pm *PackageManager) stageExtractPackage(pkgPath, pkgID string) (string, error) {
-	tempDir, err := os.MkdirTemp(pm.getCachePackagesPath(), strings.ReplaceAll(sealpkg.PackageIDToSafePath(pkgID), string(os.PathSeparator), "-")+"-")
+	tempDir, err := os.MkdirTemp(pm.getCachePackagesPath(), strings.ReplaceAll(sealpack.PackageIDToSafePath(pkgID), string(os.PathSeparator), "-")+"-")
 	if err != nil {
 		return "", err
 	}
-	if _, err := sealpkg.ExtractArchive(pkgPath, tempDir); err != nil {
+	if _, err := sealpack.ExtractArchive(pkgPath, tempDir); err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", err
 	}
@@ -506,12 +506,12 @@ func samePackagePath(left, right string) bool {
 
 func packageCacheOnlyWarning(sourcePath string) string {
 	if sourcePath == "" {
-		return "源 .sealpkg 文件缺失，当前仅保留 cache/packages 中的安装缓存。请将 sealpkg 放回 data/packages 后刷新，或卸载该扩展包。"
+		return "源 .sealpack 文件缺失，当前仅保留 cache/packages 中的安装缓存。请将 sealpack 放回 data/packages 后刷新，或卸载该扩展包。"
 	}
-	return "源 .sealpkg 文件不存在: " + sourcePath + "；当前仅保留 cache/packages 中的安装缓存。请将 sealpkg 放回 data/packages 后刷新，或卸载该扩展包。"
+	return "源 .sealpack 文件不存在: " + sourcePath + "；当前仅保留 cache/packages 中的安装缓存。请将 sealpack 放回 data/packages 后刷新，或卸载该扩展包。"
 }
 
-func packageSourceChanged(previous, next *sealpkg.Instance) bool {
+func packageSourceChanged(previous, next *sealpack.Instance) bool {
 	if previous == nil || next == nil {
 		return false
 	}
@@ -524,14 +524,14 @@ func packageSourceChanged(previous, next *sealpkg.Instance) bool {
 	return previous.SourceStatus != next.SourceStatus
 }
 
-func packageNeedsRefreshPendingReload(previous, next *sealpkg.Instance, cacheStale bool) bool {
-	if next == nil || next.State != sealpkg.PackageStateEnabled {
+func packageNeedsRefreshPendingReload(previous, next *sealpack.Instance, cacheStale bool) bool {
+	if next == nil || next.State != sealpack.PackageStateEnabled {
 		return false
 	}
 	return cacheStale || packageSourceChanged(previous, next)
 }
 
-func (pm *PackageManager) addPendingReloadHints(pkg *sealpkg.Instance, hints []string) {
+func (pm *PackageManager) addPendingReloadHints(pkg *sealpack.Instance, hints []string) {
 	if pkg == nil || len(hints) == 0 {
 		return
 	}
@@ -554,31 +554,31 @@ func (pm *PackageManager) addPendingReloadHints(pkg *sealpkg.Instance, hints []s
 	pkg.PendingReload = merged
 }
 
-// getSourcePackagesPath 获取 .sealpkg 源文件存放目录
+// getSourcePackagesPath 获取 .sealpack 源文件存放目录
 // 路径: data/packages/
 func (pm *PackageManager) getSourcePackagesPath() string {
-	return filepath.Join(".", "data", sealpkg.PackagesDir)
+	return filepath.Join(".", "data", sealpack.PackagesDir)
 }
 
 // getUserDataPath 获取包的用户数据目录
 // 路径: data/extensions/<author>/<package>/_userdata/
 func (pm *PackageManager) getUserDataPath(pkgID string) string {
-	return filepath.Join(".", "data", "extensions", sealpkg.PackageIDToSafePath(pkgID), sealpkg.UserDataDir)
+	return filepath.Join(".", "data", "extensions", sealpack.PackageIDToSafePath(pkgID), sealpack.UserDataDir)
 }
 
 // getCachePackagesPath 获取解压后的包缓存目录
 // 路径: cache/packages/
 func (pm *PackageManager) getCachePackagesPath() string {
-	return filepath.Join(".", "cache", sealpkg.PackagesDir)
+	return filepath.Join(".", "cache", sealpack.PackagesDir)
 }
 
 // getStatePath 获取状态文件路径
 func (pm *PackageManager) getStatePath() string {
-	return filepath.Join(pm.getSourcePackagesPath(), sealpkg.StateFile)
+	return filepath.Join(pm.getSourcePackagesPath(), sealpack.StateFile)
 }
 
 func (pm *PackageManager) getPackageSourceDir(pkgID string) string {
-	author, _, err := sealpkg.ParsePackageID(pkgID)
+	author, _, err := sealpack.ParsePackageID(pkgID)
 	if err != nil {
 		return pm.getSourcePackagesPath()
 	}
@@ -586,11 +586,11 @@ func (pm *PackageManager) getPackageSourceDir(pkgID string) string {
 }
 
 func (pm *PackageManager) getPackageSourcePath(pkgID, version string) string {
-	return filepath.Join(pm.getPackageSourceDir(pkgID), sealpkg.PackageSourceFileName(pkgID, version))
+	return filepath.Join(pm.getPackageSourceDir(pkgID), sealpack.PackageSourceFileName(pkgID, version))
 }
 
 func (pm *PackageManager) getPackageInstallPath(pkgID string) string {
-	return filepath.Join(pm.getCachePackagesPath(), sealpkg.PackageIDToSafePath(pkgID))
+	return filepath.Join(pm.getCachePackagesPath(), sealpack.PackageIDToSafePath(pkgID))
 }
 
 func (pm *PackageManager) removeEmptyParents(path string, stop string) {
@@ -615,7 +615,7 @@ func (pm *PackageManager) loadState() error {
 		return err
 	}
 
-	var state sealpkg.Persistence
+	var state sealpack.Persistence
 	if err := json.Unmarshal(data, &state); err != nil {
 		return err
 	}
@@ -627,7 +627,7 @@ func (pm *PackageManager) loadState() error {
 			userDataPath = pm.getUserDataPath(id)
 		}
 
-		pm.packages[id] = &sealpkg.Instance{
+		pm.packages[id] = &sealpack.Instance{
 			State:         persist.State,
 			InstallTime:   persist.InstallTime,
 			InstallPath:   persist.InstallPath,
@@ -646,12 +646,12 @@ func (pm *PackageManager) loadState() error {
 
 // saveState 保存持久化状态
 func (pm *PackageManager) saveState() error {
-	state := sealpkg.Persistence{
-		Packages: make(map[string]*sealpkg.InstancePersist),
+	state := sealpack.Persistence{
+		Packages: make(map[string]*sealpack.InstancePersist),
 	}
 
 	for id, pkg := range pm.packages {
-		state.Packages[id] = &sealpkg.InstancePersist{
+		state.Packages[id] = &sealpack.InstancePersist{
 			Version:       packageVersionOf(pkg),
 			State:         pkg.State,
 			InstallTime:   pkg.InstallTime,
@@ -672,7 +672,7 @@ func (pm *PackageManager) saveState() error {
 }
 
 // Install 安装扩展包
-// 将 .sealpkg 复制到 data/packages/，并解压到 cache/packages/
+// 将 .sealpack 复制到 data/packages/，并解压到 cache/packages/
 func (pm *PackageManager) Install(pkgPath string) error {
 	validatedPath, err := pm.validateManagedPackageSource(pkgPath)
 	if err != nil {
@@ -685,7 +685,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
-	archiveInfo, err := sealpkg.InspectArchive(pkgPath)
+	archiveInfo, err := sealpack.InspectArchive(pkgPath)
 	if err != nil {
 		return err
 	}
@@ -696,7 +696,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		return err
 	}
 
-	if checkErr := sealpkg.CheckSealVersion(manifest, VERSION.String()); checkErr != nil {
+	if checkErr := sealpack.CheckSealVersion(manifest, VERSION.String()); checkErr != nil {
 		return checkErr
 	}
 	if satisfied, missing := pm.CheckDependencies(manifest); !satisfied {
@@ -715,7 +715,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		return errors.New("the package version is already installed")
 	}
 
-	var existing *sealpkg.Instance
+	var existing *sealpack.Instance
 	if current, exists := pm.packages[pkgID]; exists {
 		existing = current
 		if current.Manifest != nil {
@@ -752,18 +752,18 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		return err
 	}
 
-	config := sealpkg.InitDefaultConfig(manifest.Config)
-	state := sealpkg.PackageStateDisabled
+	config := sealpack.InitDefaultConfig(manifest.Config)
+	state := sealpack.PackageStateDisabled
 	pendingReload := []string(nil)
 	if existing != nil {
 		state = existing.State
-		config = sealpkg.MergeConfig(config, existing.Config)
-		if state == sealpkg.PackageStateEnabled {
+		config = sealpack.MergeConfig(config, existing.Config)
+		if state == sealpack.PackageStateEnabled {
 			pendingReload = append(pendingReload, pm.generateReloadHints(manifest).ReloadHints...)
 		}
 	}
 
-	pm.packages[pkgID] = &sealpkg.Instance{
+	pm.packages[pkgID] = &sealpack.Instance{
 		Manifest:      manifest,
 		State:         state,
 		InstallTime:   time.Now(),
@@ -771,7 +771,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		SourcePath:    destPkgPath,
 		UserDataPath:  userDataPath,
 		Config:        config,
-		SourceStatus:  sealpkg.PackageSourceStatusPresent,
+		SourceStatus:  sealpack.PackageSourceStatusPresent,
 		PendingReload: pendingReload,
 	}
 
@@ -789,7 +789,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 	return nil
 }
 
-// InstallFromStream streams an uploaded .sealpkg into a temporary file, then installs it.
+// InstallFromStream streams an uploaded .sealpack into a temporary file, then installs it.
 func (pm *PackageManager) InstallFromStream(src io.Reader) error {
 	if src == nil {
 		return errors.New("未提供上传内容")
@@ -800,7 +800,7 @@ func (pm *PackageManager) InstallFromStream(src io.Reader) error {
 		return errors.New("创建临时目录失败: " + err.Error())
 	}
 
-	tmpFile, err := os.CreateTemp(tmpDir, "package_upload_*.sealpkg")
+	tmpFile, err := os.CreateTemp(tmpDir, "package_upload_*.sealpack")
 	if err != nil {
 		return errors.New("创建临时文件失败: " + err.Error())
 	}
@@ -822,7 +822,7 @@ func (pm *PackageManager) InstallFromStream(src io.Reader) error {
 	return pm.Install(tmpPath)
 }
 
-// PreviewFromStream streams an uploaded .sealpkg into a temporary file, then inspects it.
+// PreviewFromStream streams an uploaded .sealpack into a temporary file, then inspects it.
 func (pm *PackageManager) PreviewFromStream(src io.Reader) (*PackageUploadPreview, error) {
 	if src == nil {
 		return nil, errors.New("未提供上传内容")
@@ -833,7 +833,7 @@ func (pm *PackageManager) PreviewFromStream(src io.Reader) (*PackageUploadPrevie
 		return nil, errors.New("创建临时目录失败: " + err.Error())
 	}
 
-	tmpFile, err := os.CreateTemp(tmpDir, "package_preview_*.sealpkg")
+	tmpFile, err := os.CreateTemp(tmpDir, "package_preview_*.sealpack")
 	if err != nil {
 		return nil, errors.New("创建临时文件失败: " + err.Error())
 	}
@@ -864,12 +864,12 @@ func (pm *PackageManager) Preview(pkgPath string) (*PackageUploadPreview, error)
 }
 
 func (pm *PackageManager) previewFromSource(pkgPath string) (*PackageUploadPreview, error) {
-	archiveInfo, err := sealpkg.InspectArchive(pkgPath)
+	archiveInfo, err := sealpack.InspectArchive(pkgPath)
 	if err != nil {
 		return nil, err
 	}
 	manifest := archiveInfo.Manifest
-	if err := sealpkg.CheckSealVersion(manifest, VERSION.String()); err != nil {
+	if err := sealpack.CheckSealVersion(manifest, VERSION.String()); err != nil {
 		return nil, err
 	}
 
@@ -937,8 +937,8 @@ func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, 
 	if strings.TrimSpace(pkgPath) == "" {
 		return "", errors.New("扩展包路径不能为空")
 	}
-	if !strings.EqualFold(filepath.Ext(pkgPath), sealpkg.Extension) {
-		return "", fmt.Errorf("扩展包文件必须是 %s 文件", sealpkg.Extension)
+	if !strings.EqualFold(filepath.Ext(pkgPath), sealpack.Extension) {
+		return "", fmt.Errorf("扩展包文件必须是 %s 文件", sealpack.Extension)
 	}
 
 	absSource, err := filepath.Abs(pkgPath)
@@ -981,7 +981,7 @@ func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, 
 }
 
 func (pm *PackageManager) stageSourceArtifact(srcPath, destDir string) (string, error) {
-	tempFile, err := os.CreateTemp(destDir, "staged-*.sealpkg")
+	tempFile, err := os.CreateTemp(destDir, "staged-*.sealpack")
 	if err != nil {
 		return "", err
 	}
@@ -997,7 +997,7 @@ func (pm *PackageManager) stageSourceArtifact(srcPath, destDir string) (string, 
 	return tempPath, nil
 }
 
-func packageVersionOf(pkg *sealpkg.Instance) string {
+func packageVersionOf(pkg *sealpack.Instance) string {
 	if pkg == nil || pkg.Manifest == nil {
 		return ""
 	}
@@ -1005,7 +1005,7 @@ func packageVersionOf(pkg *sealpkg.Instance) string {
 }
 
 // Uninstall 卸载扩展包
-func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) error {
+func (pm *PackageManager) Uninstall(pkgID string, mode sealpack.UninstallMode) error {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -1018,7 +1018,7 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 	if deps := pm.reverseDependencyGraph[pkgID]; len(deps) > 0 {
 		enabledDeps := make([]string, 0)
 		for _, depID := range deps {
-			if depPkg, ok := pm.packages[depID]; ok && depPkg.State == sealpkg.PackageStateEnabled {
+			if depPkg, ok := pm.packages[depID]; ok && depPkg.State == sealpack.PackageStateEnabled {
 				enabledDeps = append(enabledDeps, depID)
 			}
 		}
@@ -1027,14 +1027,14 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 		}
 	}
 
-	if pkg.State == sealpkg.PackageStateEnabled {
+	if pkg.State == sealpack.PackageStateEnabled {
 		if _, err := pm.disableInternal(pkgID); err != nil {
 			return err
 		}
 	}
 
 	switch mode {
-	case sealpkg.UninstallModeFull:
+	case sealpack.UninstallModeFull:
 		if err := os.RemoveAll(pkg.InstallPath); err != nil {
 			return err
 		}
@@ -1051,7 +1051,7 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 		}
 		delete(pm.packages, pkgID)
 
-	case sealpkg.UninstallModeKeepData:
+	case sealpack.UninstallModeKeepData:
 		if err := os.RemoveAll(pkg.InstallPath); err != nil {
 			return err
 		}
@@ -1062,8 +1062,8 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 		}
 		delete(pm.packages, pkgID)
 
-	case sealpkg.UninstallModeDisable:
-		pkg.State = sealpkg.PackageStateDisabled
+	case sealpack.UninstallModeDisable:
+		pkg.State = sealpack.PackageStateDisabled
 	}
 
 	pm.buildDependencyGraph()
@@ -1076,7 +1076,7 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpkg.UninstallMode) er
 }
 
 // Enable 启用扩展包
-func (pm *PackageManager) Enable(pkgID string) (*sealpkg.OperationResult, error) {
+func (pm *PackageManager) Enable(pkgID string) (*sealpack.OperationResult, error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -1089,16 +1089,16 @@ func (pm *PackageManager) Enable(pkgID string) (*sealpkg.OperationResult, error)
 		return nil, errors.New("扩展包 manifest 缺失，无法启用")
 	}
 
-	if pkg.State == sealpkg.PackageStateEnabled {
-		return &sealpkg.OperationResult{
+	if pkg.State == sealpack.PackageStateEnabled {
+		return &sealpack.OperationResult{
 			Success:      true,
 			Message:      "扩展包已处于启用状态",
 			ReloadNeeded: false,
 		}, nil
 	}
 
-	if pkg.SourceStatus == sealpkg.PackageSourceStatusCacheOnly {
-		return nil, errors.New("扩展包源文件缺失，无法启用；请将 sealpkg 放回 data/packages 后刷新")
+	if pkg.SourceStatus == sealpack.PackageSourceStatusCacheOnly {
+		return nil, errors.New("扩展包源文件缺失，无法启用；请将 sealpack 放回 data/packages 后刷新")
 	}
 
 	if satisfied, missing := pm.CheckDependencies(pkg.Manifest); !satisfied {
@@ -1110,7 +1110,7 @@ func (pm *PackageManager) Enable(pkgID string) (*sealpkg.OperationResult, error)
 
 	// 启用依赖的包
 	for depID := range pkg.Manifest.Dependencies {
-		if depPkg, ok := pm.packages[depID]; ok && depPkg.State != sealpkg.PackageStateEnabled {
+		if depPkg, ok := pm.packages[depID]; ok && depPkg.State != sealpack.PackageStateEnabled {
 			if _, err := pm.enableInternal(depID); err != nil {
 				return nil, errors.New("启用依赖包 " + depID + " 失败: " + err.Error())
 			}
@@ -1126,7 +1126,7 @@ func (pm *PackageManager) Enable(pkgID string) (*sealpkg.OperationResult, error)
 }
 
 // enableInternal 内部启用逻辑
-func (pm *PackageManager) enableInternal(pkgID string) (*sealpkg.OperationResult, error) {
+func (pm *PackageManager) enableInternal(pkgID string) (*sealpack.OperationResult, error) {
 	pkg := pm.packages[pkgID]
 	// 禁用会移除运行时缓存，重新启用时先恢复缓存目录。
 	if err := pm.linkPackageResources(pkg); err != nil {
@@ -1136,7 +1136,7 @@ func (pm *PackageManager) enableInternal(pkgID string) (*sealpkg.OperationResult
 		}
 		return nil, err
 	}
-	pkg.State = sealpkg.PackageStateEnabled
+	pkg.State = sealpack.PackageStateEnabled
 	pkg.ErrText = ""
 
 	// 生成重载提示并设置待重载状态
@@ -1159,7 +1159,7 @@ func (pm *PackageManager) enableInternal(pkgID string) (*sealpkg.OperationResult
 }
 
 // Disable 禁用扩展包
-func (pm *PackageManager) Disable(pkgID string) (*sealpkg.OperationResult, error) {
+func (pm *PackageManager) Disable(pkgID string) (*sealpack.OperationResult, error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -1168,8 +1168,8 @@ func (pm *PackageManager) Disable(pkgID string) (*sealpkg.OperationResult, error
 		return nil, errors.New("扩展包不存在: " + pkgID)
 	}
 
-	if pkg.State != sealpkg.PackageStateEnabled {
-		return &sealpkg.OperationResult{
+	if pkg.State != sealpack.PackageStateEnabled {
+		return &sealpack.OperationResult{
 			Success:      true,
 			Message:      "扩展包已处于禁用状态",
 			ReloadNeeded: false,
@@ -1180,7 +1180,7 @@ func (pm *PackageManager) Disable(pkgID string) (*sealpkg.OperationResult, error
 	if deps := pm.reverseDependencyGraph[pkgID]; len(deps) > 0 {
 		enabledDeps := make([]string, 0)
 		for _, depID := range deps {
-			if depPkg, ok := pm.packages[depID]; ok && depPkg.State == sealpkg.PackageStateEnabled {
+			if depPkg, ok := pm.packages[depID]; ok && depPkg.State == sealpack.PackageStateEnabled {
 				enabledDeps = append(enabledDeps, depID)
 			}
 		}
@@ -1198,9 +1198,9 @@ func (pm *PackageManager) Disable(pkgID string) (*sealpkg.OperationResult, error
 }
 
 // disableInternal 内部禁用逻辑
-func (pm *PackageManager) disableInternal(pkgID string) (*sealpkg.OperationResult, error) {
+func (pm *PackageManager) disableInternal(pkgID string) (*sealpack.OperationResult, error) {
 	pkg := pm.packages[pkgID]
-	pkg.State = sealpkg.PackageStateDisabled
+	pkg.State = sealpack.PackageStateDisabled
 
 	// 移除全局目录中的资源链接
 	if err := pm.unlinkPackageResources(pkg); err != nil {
@@ -1227,7 +1227,7 @@ func (pm *PackageManager) disableInternal(pkgID string) (*sealpkg.OperationResul
 }
 
 // CheckDependencies 检查依赖是否满足
-func (pm *PackageManager) CheckDependencies(manifest *sealpkg.Manifest) (bool, []string) {
+func (pm *PackageManager) CheckDependencies(manifest *sealpack.Manifest) (bool, []string) {
 	missing := make([]string, 0)
 
 	for depID, constraint := range manifest.Dependencies {
@@ -1237,7 +1237,7 @@ func (pm *PackageManager) CheckDependencies(manifest *sealpkg.Manifest) (bool, [
 			continue
 		}
 
-		satisfied, err := sealpkg.CheckDependencyConstraint(constraint, depPkg.Manifest.Package.Version)
+		satisfied, err := sealpack.CheckDependencyConstraint(constraint, depPkg.Manifest.Package.Version)
 		if err != nil {
 			missing = append(missing, depID+" ("+err.Error()+")")
 			continue
@@ -1302,7 +1302,7 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 	}
 
 	// 验证配置
-	if err := sealpkg.ValidateConfig(config, pkg.Manifest.Config); err != nil {
+	if err := sealpack.ValidateConfig(config, pkg.Manifest.Config); err != nil {
 		return err
 	}
 
@@ -1312,7 +1312,7 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 	if err := os.MkdirAll(pkg.UserDataPath, 0o755); err != nil {
 		return err
 	}
-	configPath := filepath.Join(pkg.UserDataPath, sealpkg.ConfigFile)
+	configPath := filepath.Join(pkg.UserDataPath, sealpack.ConfigFile)
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
@@ -1326,7 +1326,7 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 }
 
 // List 列出所有已安装的包
-func packageInstanceSortKey(pkg *sealpkg.Instance) string {
+func packageInstanceSortKey(pkg *sealpack.Instance) string {
 	if pkg == nil {
 		return ""
 	}
@@ -1339,8 +1339,8 @@ func packageInstanceSortKey(pkg *sealpkg.Instance) string {
 	return filepath.ToSlash(pkg.InstallPath)
 }
 
-func sortedPackageInstances(packages map[string]*sealpkg.Instance) []*sealpkg.Instance {
-	result := make([]*sealpkg.Instance, 0, len(packages))
+func sortedPackageInstances(packages map[string]*sealpack.Instance) []*sealpack.Instance {
+	result := make([]*sealpack.Instance, 0, len(packages))
 	for _, pkg := range packages {
 		result = append(result, pkg)
 	}
@@ -1350,7 +1350,7 @@ func sortedPackageInstances(packages map[string]*sealpkg.Instance) []*sealpkg.In
 	return result
 }
 
-func (pm *PackageManager) List() []*sealpkg.Instance {
+func (pm *PackageManager) List() []*sealpack.Instance {
 	pm.lock.RLock()
 	defer pm.lock.RUnlock()
 
@@ -1358,7 +1358,7 @@ func (pm *PackageManager) List() []*sealpkg.Instance {
 }
 
 // Get 获取指定包
-func (pm *PackageManager) Get(pkgID string) (*sealpkg.Instance, bool) {
+func (pm *PackageManager) Get(pkgID string) (*sealpack.Instance, bool) {
 	pm.lock.RLock()
 	defer pm.lock.RUnlock()
 
@@ -1367,13 +1367,13 @@ func (pm *PackageManager) Get(pkgID string) (*sealpkg.Instance, bool) {
 }
 
 // GetEnabled 获取所有已启用的包
-func (pm *PackageManager) GetEnabled() []*sealpkg.Instance {
+func (pm *PackageManager) GetEnabled() []*sealpack.Instance {
 	pm.lock.RLock()
 	defer pm.lock.RUnlock()
 
-	result := make([]*sealpkg.Instance, 0)
+	result := make([]*sealpack.Instance, 0)
 	for _, pkg := range pm.packages {
-		if pkg.State == sealpkg.PackageStateEnabled {
+		if pkg.State == sealpack.PackageStateEnabled {
 			result = append(result, pkg)
 		}
 	}
@@ -1393,7 +1393,7 @@ func (pm *PackageManager) GetEnabledContentFiles(contentType string) []PackageCo
 func (pm *PackageManager) getEnabledContentFilesLocked(contentType string) []PackageContentFile {
 	pkgIDs := make([]string, 0, len(pm.packages))
 	for pkgID, pkg := range pm.packages {
-		if pkg != nil && pkg.State == sealpkg.PackageStateEnabled && pkg.Manifest != nil {
+		if pkg != nil && pkg.State == sealpack.PackageStateEnabled && pkg.Manifest != nil {
 			pkgIDs = append(pkgIDs, pkgID)
 		}
 	}
@@ -1406,7 +1406,7 @@ func (pm *PackageManager) getEnabledContentFilesLocked(contentType string) []Pac
 	return result
 }
 
-func (pm *PackageManager) collectPackageContentFiles(pkg *sealpkg.Instance, contentType string) []PackageContentFile {
+func (pm *PackageManager) collectPackageContentFiles(pkg *sealpack.Instance, contentType string) []PackageContentFile {
 	patterns := packageContentPatterns(pkg.Manifest, contentType)
 	if len(patterns) == 0 {
 		return nil
@@ -1450,7 +1450,7 @@ func (pm *PackageManager) collectPackageContentFiles(pkg *sealpkg.Instance, cont
 	return files
 }
 
-func packageContentPatterns(manifest *sealpkg.Manifest, contentType string) []string {
+func packageContentPatterns(manifest *sealpack.Manifest, contentType string) []string {
 	if manifest == nil {
 		return nil
 	}
@@ -1533,7 +1533,7 @@ func (pm *PackageManager) LoadAllEnabled() {
 	defer pm.lock.RUnlock()
 
 	for pkgID, pkg := range pm.packages {
-		if pkg.State == sealpkg.PackageStateEnabled {
+		if pkg.State == sealpack.PackageStateEnabled {
 			pm.parent.Logger.Infof("加载扩展包 %s 的资源", pkgID)
 			// TODO: 实际的资源加载逻辑
 		}
@@ -1541,7 +1541,7 @@ func (pm *PackageManager) LoadAllEnabled() {
 }
 
 // GetSandbox 获取包的沙箱
-func (pm *PackageManager) GetSandbox(pkgID string) (*sealpkg.Sandbox, error) {
+func (pm *PackageManager) GetSandbox(pkgID string) (*sealpack.Sandbox, error) {
 	pm.lock.RLock()
 	defer pm.lock.RUnlock()
 
@@ -1550,15 +1550,15 @@ func (pm *PackageManager) GetSandbox(pkgID string) (*sealpkg.Sandbox, error) {
 		return nil, errors.New("扩展包不存在: " + pkgID)
 	}
 
-	return sealpkg.NewSandboxFromInstance(pkg), nil
+	return sealpack.NewSandboxFromInstance(pkg), nil
 }
 
 // generateReloadHints 根据包的内容生成重载提示
-func (pm *PackageManager) generateReloadHints(manifest *sealpkg.Manifest) *sealpkg.OperationResult {
+func (pm *PackageManager) generateReloadHints(manifest *sealpack.Manifest) *sealpack.OperationResult {
 	hints := make([]string, 0)
 
 	if manifest == nil {
-		return &sealpkg.OperationResult{
+		return &sealpack.OperationResult{
 			ReloadNeeded: false,
 			ReloadHints:  hints,
 		}
@@ -1585,7 +1585,7 @@ func (pm *PackageManager) generateReloadHints(manifest *sealpkg.Manifest) *sealp
 		hints = append(hints, "游戏系统模板 - 可通过重载接口生效")
 	}
 
-	return &sealpkg.OperationResult{
+	return &sealpack.OperationResult{
 		ReloadNeeded: len(hints) > 0,
 		ReloadHints:  hints,
 	}
@@ -1593,7 +1593,7 @@ func (pm *PackageManager) generateReloadHints(manifest *sealpkg.Manifest) *sealp
 
 // Reload 按指定扩展包声明的资源类型触发重载。
 // 对已禁用的扩展包也允许执行，以便把内存中的旧资源清掉。
-func (pm *PackageManager) Reload(pkgID string) (*sealpkg.ReloadResult, error) {
+func (pm *PackageManager) Reload(pkgID string) (*sealpack.ReloadResult, error) {
 	pm.lock.RLock()
 	pkg, exists := pm.packages[pkgID]
 	pm.lock.RUnlock()
@@ -1603,7 +1603,7 @@ func (pm *PackageManager) Reload(pkgID string) (*sealpkg.ReloadResult, error) {
 	}
 	manifest := pkg.Manifest
 	if manifest == nil {
-		return &sealpkg.ReloadResult{Success: false, Message: "扩展包 manifest 缺失"}, nil
+		return &sealpack.ReloadResult{Success: false, Message: "扩展包 manifest 缺失"}, nil
 	}
 
 	exec := pm.reloadPackageContent(packageReloadContentFlagsFromManifest(manifest))
@@ -1624,7 +1624,7 @@ func (pm *PackageManager) Reload(pkgID string) (*sealpkg.ReloadResult, error) {
 
 // ReloadAll 重载所有已启用扩展包的资源，并应用待重载的禁用变更。
 // ReloadByContent reloads package resources globally by content type and clears matching pending flags.
-func (pm *PackageManager) ReloadByContent(contentType string) (*sealpkg.ReloadResult, error) {
+func (pm *PackageManager) ReloadByContent(contentType string) (*sealpack.ReloadResult, error) {
 	flags, err := packageReloadContentFlagsFromContentType(contentType)
 	if err != nil {
 		return nil, err
@@ -1646,14 +1646,14 @@ func (pm *PackageManager) ReloadByContent(contentType string) (*sealpkg.ReloadRe
 	return result, nil
 }
 
-func (pm *PackageManager) ReloadAll() (*sealpkg.ReloadResult, error) {
+func (pm *PackageManager) ReloadAll() (*sealpack.ReloadResult, error) {
 	pm.lock.RLock()
 	flags := packageReloadContentFlags{}
 	for _, pkg := range pm.packages {
 		if pkg == nil || pkg.Manifest == nil {
 			continue
 		}
-		if pkg.State != sealpkg.PackageStateEnabled && len(pkg.PendingReload) == 0 {
+		if pkg.State != sealpack.PackageStateEnabled && len(pkg.PendingReload) == 0 {
 			continue
 		}
 		flags = flags.merge(packageReloadContentFlagsFromManifest(pkg.Manifest))
@@ -1688,12 +1688,12 @@ type packageReloadContentFlags struct {
 }
 
 type packageReloadExecution struct {
-	result    *sealpkg.ReloadResult
+	result    *sealpack.ReloadResult
 	succeeded packageReloadContentFlags
 	failed    packageReloadContentFlags
 }
 
-func packageReloadContentFlagsFromManifest(manifest *sealpkg.Manifest) packageReloadContentFlags {
+func packageReloadContentFlagsFromManifest(manifest *sealpack.Manifest) packageReloadContentFlags {
 	if manifest == nil {
 		return packageReloadContentFlags{}
 	}
@@ -1808,7 +1808,7 @@ func reloadHintMatchesContentType(hint, kind string) bool {
 	}
 }
 
-func (pm *PackageManager) clearPendingReloadLocked(pkg *sealpkg.Instance, succeeded packageReloadContentFlags) bool {
+func (pm *PackageManager) clearPendingReloadLocked(pkg *sealpack.Instance, succeeded packageReloadContentFlags) bool {
 	if pkg == nil || len(pkg.PendingReload) == 0 {
 		return false
 	}
@@ -1851,7 +1851,7 @@ func (pm *PackageManager) clearPendingReloadForAllLocked(succeeded packageReload
 }
 
 func (pm *PackageManager) reloadPackageContent(flags packageReloadContentFlags) packageReloadExecution {
-	result := &sealpkg.ReloadResult{
+	result := &sealpack.ReloadResult{
 		Success:       true,
 		ReloadedItems: make(map[string]string),
 		RestartHints:  make([]string, 0),
@@ -1915,7 +1915,7 @@ func (pm *PackageManager) reloadTemplates() error {
 }
 
 // linkPackageResources 恢复扩展包运行时缓存目录。
-func (pm *PackageManager) linkPackageResources(pkg *sealpkg.Instance) error {
+func (pm *PackageManager) linkPackageResources(pkg *sealpack.Instance) error {
 	if pkg == nil || pkg.Manifest == nil {
 		return errors.New("扩展包 manifest 缺失")
 	}
@@ -1932,7 +1932,7 @@ func (pm *PackageManager) linkPackageResources(pkg *sealpkg.Instance) error {
 }
 
 // unlinkPackageResources 移除运行时缓存目录，等待重载后从内存中清理资源。
-func (pm *PackageManager) unlinkPackageResources(pkg *sealpkg.Instance) error {
+func (pm *PackageManager) unlinkPackageResources(pkg *sealpack.Instance) error {
 	if pkg == nil || pkg.InstallPath == "" {
 		return nil
 	}
@@ -2058,7 +2058,7 @@ func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) e
 		return errors.New("创建临时目录失败: " + mkdirErr.Error())
 	}
 
-	tmpFile, err := os.CreateTemp(tmpDir, "package_download_*.sealpkg")
+	tmpFile, err := os.CreateTemp(tmpDir, "package_download_*.sealpack")
 	if err != nil {
 		return errors.New("创建临时文件失败: " + err.Error())
 	}

@@ -1,4 +1,4 @@
-# Sealpkg Testing Guide
+# SealPack Testing Guide
 
 ## Recommended test package IDs
 
@@ -15,14 +15,14 @@ Use the canonical `author/package` format in tests:
 ## Expected local paths
 
 ```text
-data/packages/<author>/<package>@<version>.sealpkg
+data/packages/<author>/<package>@<version>.sealpack
 data/extensions/<author>/<package>/_userdata/
 cache/packages/<author>/<package>/
 ```
 
 ## Suggested checks
 
-- Install a package from a local `.sealpkg` file.
+- Install a package from a local `.sealpack` file.
 - Install a package from a URL.
 - Enable and disable a package.
 - Verify package scripts load from `scripts/`.
@@ -36,7 +36,7 @@ cache/packages/<author>/<package>/
 
 ```bash
 # focused metadata tests
-go test ./dice/sealpkg
+go test ./dice/sealpack
 
 # broader package and dice validation
 go test ./dice/...

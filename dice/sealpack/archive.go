@@ -1,4 +1,4 @@
-package sealpkg
+package sealpack
 
 import (
 	"archive/zip"
@@ -21,7 +21,7 @@ var allowedArchiveRoots = map[string]struct{}{
 	"templates": {},
 }
 
-// InspectArchive validates a .sealpkg archive and returns its manifest and file list.
+// InspectArchive validates a .sealpack archive and returns its manifest and file list.
 func InspectArchive(pkgPath string) (*ArchiveInfo, error) {
 	reader, err := zip.OpenReader(pkgPath)
 	if err != nil {
@@ -32,7 +32,7 @@ func InspectArchive(pkgPath string) (*ArchiveInfo, error) {
 	return inspectArchiveFiles(reader.File)
 }
 
-// ExtractArchive validates and extracts a .sealpkg archive to destDir.
+// ExtractArchive validates and extracts a .sealpack archive to destDir.
 func ExtractArchive(pkgPath, destDir string) (*ArchiveInfo, error) {
 	archiveInfo, err := InspectArchive(pkgPath)
 	if err != nil {

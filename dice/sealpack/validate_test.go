@@ -1,4 +1,4 @@
-package sealpkg //nolint:testpackage
+package sealpack //nolint:testpackage
 
 import (
 	"path/filepath"
@@ -57,16 +57,16 @@ func TestPackageIDToSafePath(t *testing.T) {
 }
 
 func TestPackageVersionHelpers(t *testing.T) {
-	if got := PackageVersionToFileName("1.2.3"); got != "1.2.3.sealpkg" {
+	if got := PackageVersionToFileName("1.2.3"); got != "1.2.3.sealpack" {
 		t.Fatalf("PackageVersionToFileName() = %q", got)
 	}
-	if got := PackageSourceFileName("alice/demo", "1.2.3"); got != "demo@1.2.3.sealpkg" {
+	if got := PackageSourceFileName("alice/demo", "1.2.3"); got != "demo@1.2.3.sealpack" {
 		t.Fatalf("PackageSourceFileName() = %q", got)
 	}
-	if got := PackageSourceFileName("作者/扩展", "1.2.3"); got != "扩展@1.2.3.sealpkg" {
+	if got := PackageSourceFileName("作者/扩展", "1.2.3"); got != "扩展@1.2.3.sealpack" {
 		t.Fatalf("PackageSourceFileName() = %q", got)
 	}
-	if got := FileNameToPackageVersion("1.2.3.sealpkg"); got != "1.2.3" {
+	if got := FileNameToPackageVersion("1.2.3.sealpack"); got != "1.2.3" {
 		t.Fatalf("FileNameToPackageVersion() = %q", got)
 	}
 }

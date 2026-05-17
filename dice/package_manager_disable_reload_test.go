@@ -10,7 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"sealdice-core/dice/sealpkg"
+	"sealdice-core/dice/sealpack"
 )
 
 func TestPackageManagerDisableDeckPackageReload(t *testing.T) {
@@ -193,7 +193,7 @@ func createDisableDeckTestPackage(t *testing.T, pkgID, version string) string {
 	if err := os.MkdirAll(tempDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(%s) error = %v", tempDir, err)
 	}
-	archivePath := filepath.Join(tempDir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpkg")
+	archivePath := filepath.Join(tempDir, strings.ReplaceAll(pkgID, "/", "-")+"-"+version+".sealpack")
 
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {
@@ -240,7 +240,7 @@ decks = ["decks/*.json"]
 
 func TestClearPendingReloadLockedPreservesUnreloadedKinds(t *testing.T) {
 	pm := &PackageManager{}
-	pkg := &sealpkg.Instance{PendingReload: []string{"scripts", "helpdoc", "templates"}}
+	pkg := &sealpack.Instance{PendingReload: []string{"scripts", "helpdoc", "templates"}}
 
 	changed := pm.clearPendingReloadLocked(pkg, packageReloadContentFlags{scripts: true, templates: true})
 	if !changed {

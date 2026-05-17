@@ -1,4 +1,4 @@
-package sealpkg
+package sealpack
 
 import (
 	"bytes"
@@ -134,7 +134,7 @@ func validateManifestKnownKeys(data []byte) (*manifestParseMeta, error) {
 	return meta, nil
 }
 
-// ParseManifestFromZip parses package metadata from a .sealpkg archive.
+// ParseManifestFromZip parses package metadata from a .sealpack archive.
 func ParseManifestFromZip(pkgPath string) (*Manifest, error) {
 	archiveInfo, err := InspectArchive(pkgPath)
 	if err != nil {
