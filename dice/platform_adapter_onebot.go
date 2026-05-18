@@ -62,6 +62,7 @@ type PlatformAdapterOnebot struct {
 
 	sm             *loopfsm.FSM
 	desiredEnabled bool
+	loginInitRetry func()
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
@@ -471,9 +472,9 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 	// 发现群情况不对，可能要退群的情况。 放在这里是因为可能这个群已经被邀请进入了
 	uid := groupInfo.InviteUserID
 	// 邀请人有问题
-	userResult := checkBlackList(uid, "user", ctx)
+	userResult := checkBlackList(uid, "user", "", ctx)
 	if !userResult.Passed {
-		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
+		if userResult.BanInfo != nil && groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
 			text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
 			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
 			time.Sleep(1 * time.Second)
@@ -481,11 +482,11 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 		}
 	}
 	// 这群有问题
-	groupResult := checkBlackList(diceGroupID, "group", ctx)
+	groupResult := checkBlackList(diceGroupID, "group", uid, ctx)
 	if !groupResult.Passed {
 		// 如果是被ban之后拉群，判定为强制拉群
-		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
-			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", userResult.BanInfo.toText(ctx.Dice))
+		if groupResult.BanInfo != nil && groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > groupResult.BanInfo.BanTime {
+			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", groupResult.BanInfo.toText(ctx.Dice))
 			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
 			time.Sleep(1 * time.Second)
 			p.QuitGroup(ctx, diceGroupID)
@@ -523,9 +524,7 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 	if err != nil {
 		p.logger.Errorf("获取登录信息异常 %v", err)
-		// 这里属于“已建立 WS 但初始化失败”，需要走失败路径触发重试；
-		// 否则 FSM 会停留在 connecting，且不会触发 retryConnect。
-		_ = p.sm.Event(context.Background(), "connect_fail")
+		p.scheduleLoginInfoRetry()
 		return
 	}
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
@@ -590,9 +589,7 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 	}
 	client := p.websocketManager.NewClient(p.ConnectURL, options)
 
-	if p.Token != "" {
-		client.RequestHeader.Set("Authorization", p.Token)
-	}
+	p.applyClientAuthHeader(client)
 
 	client.OnConnectError = func(err error) {
 		p.logger.Errorf("连接失败: %v", err)
@@ -619,6 +616,36 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 	}
 
 	return client.ClientConnect(p.onConnected)
+}
+
+func (p *PlatformAdapterOnebot) applyClientAuthHeader(client *socketio.WebsocketWrapper) {
+	if client == nil || p.Token == "" {
+		return
+	}
+	client.RequestHeader.Set("Authorization", "Bearer "+p.Token)
+}
+
+func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
+	retryFn := p.loginInitRetry
+	if retryFn == nil {
+		retryFn = func() {
+			time.Sleep(3 * time.Second)
+			if !p.desiredEnabled || p.sendEmitter == nil || p.ctx == nil {
+				return
+			}
+			info, err := p.sendEmitter.GetLoginInfo(p.ctx)
+			if err != nil {
+				p.logger.Errorf("重试获取登录信息异常 %v", err)
+				_ = p.sm.Event(context.Background(), "connect_fail")
+				return
+			}
+			p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
+			p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
+			p.EndPoint.Nickname = info.NickName
+			_ = p.sm.Event(context.Background(), "connect_ok")
+		}
+	}
+	go retryFn()
 }
 
 // setupServerConnection 设置服务器连接
