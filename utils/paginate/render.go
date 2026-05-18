@@ -20,19 +20,19 @@ type IRender interface {
 }
 
 type Render struct {
-	//总数
+	// 总数
 	Total int64 `json:"total" xml:"total"`
-	//数据集
+	// 数据集
 	Data any `json:"data" xml:"data"`
-	//是否为简单模式分页
+	// 是否为简单模式分页
 	Simple bool `json:"simple" xml:"simple"`
-	//每页的数量
+	// 每页的数量
 	PerPage int64 `json:"per_page" xml:"perPage"`
-	//当前页
+	// 当前页
 	CurrentPage int64 `json:"current_page" xml:"currentPage"`
-	//最后一页
+	// 最后一页
 	LastPage int64 `json:"last_page" xml:"lastPage"`
-	//是否有下一页
+	// 是否有下一页
 	HasMore bool `json:"has_more" xml:"hasMore"`
 }
 

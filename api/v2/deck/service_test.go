@@ -1,8 +1,7 @@
-package deck
+package deck_test
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"mime/multipart"
@@ -14,13 +13,14 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	deck "sealdice-core/api/v2/deck"
 	deckm "sealdice-core/api/v2/model/deck"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 	"sealdice-core/model/common/request"
 )
 
-func newTestService(t *testing.T) *Service {
+func newTestService(t *testing.T) *deck.Service {
 	t.Helper()
 
 	deckDir := filepath.Join("data", "decks")
@@ -56,7 +56,7 @@ func newTestService(t *testing.T) *Service {
 		Dice: []*dice.Dice{d},
 	}
 	d.Parent = dm
-	return NewService(dm)
+	return deck.NewService(dm)
 }
 
 func writeDeckFile(t *testing.T, d *dice.Dice, name string, content string) {
@@ -70,10 +70,10 @@ func writeDeckFile(t *testing.T, d *dice.Dice, name string, content string) {
 
 func TestGetListSupportsKeywordAndPagination(t *testing.T) {
 	svc := newTestService(t)
-	writeDeckFile(t, svc.dice, "codex-v2-deck-alpha.json", `{"_title":["Alpha"],"_author":["Alice"],"atk":["1"]}`)
-	writeDeckFile(t, svc.dice, "codex-v2-deck-beta.json", `{"_title":["Beta"],"_author":["Bob"],"heal":["2"]}`)
+	writeDeckFile(t, svc.Dice(), "codex-v2-deck-alpha.json", `{"_title":["Alpha"],"_author":["Alice"],"atk":["1"]}`)
+	writeDeckFile(t, svc.Dice(), "codex-v2-deck-beta.json", `{"_title":["Beta"],"_author":["Bob"],"heal":["2"]}`)
 
-	resp, err := svc.GetList(context.Background(), &deckm.ListQuery{
+	resp, err := svc.GetList(t.Context(), &deckm.ListQuery{
 		Page:      1,
 		PageSize:  1,
 		Keyword:   "alp",
@@ -96,9 +96,9 @@ func TestGetListSupportsKeywordAndPagination(t *testing.T) {
 
 func TestReloadReturnsTestModeWhenJustForTest(t *testing.T) {
 	svc := newTestService(t)
-	svc.dm.JustForTest = true
+	svc.Dice().Parent.JustForTest = true
 
-	resp, err := svc.Reload(context.Background(), &request.Empty{})
+	resp, err := svc.Reload(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("Reload returned error: %v", err)
 	}
@@ -116,11 +116,11 @@ func TestUploadWritesDeckFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFormFile: %v", err)
 	}
-	if _, err := part.Write([]byte(`{"_title":["Sample"],"draw":["1"]}`)); err != nil {
-		t.Fatalf("write multipart payload: %v", err)
+	if _, writeErr := part.Write([]byte(`{"_title":["Sample"],"draw":["1"]}`)); writeErr != nil {
+		t.Fatalf("write multipart payload: %v", writeErr)
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("writer.Close: %v", err)
+	if closeErr := writer.Close(); closeErr != nil {
+		t.Fatalf("writer.Close: %v", closeErr)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, "/upload", &buf)
@@ -128,13 +128,13 @@ func TestUploadWritesDeckFile(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if err := req.ParseMultipartForm(1024 * 1024); err != nil {
-		t.Fatalf("ParseMultipartForm: %v", err)
+	if parseErr := req.ParseMultipartForm(1024 * 1024); parseErr != nil {
+		t.Fatalf("ParseMultipartForm: %v", parseErr)
 	}
 
 	raw := huma.MultipartFormFiles[deckm.UploadForm]{}
 	raw.Form = req.MultipartForm
-	resp, err := svc.Upload(context.Background(), &deckm.UploadReq{RawBody: raw})
+	resp, err := svc.Upload(t.Context(), &deckm.UploadReq{RawBody: raw})
 	if err != nil {
 		t.Fatalf("Upload returned error: %v", err)
 	}
@@ -149,9 +149,9 @@ func TestUploadWritesDeckFile(t *testing.T) {
 
 func TestDeleteRemovesDeck(t *testing.T) {
 	svc := newTestService(t)
-	writeDeckFile(t, svc.dice, "codex-v2-deck-sample.json", `{"_title":["Sample"],"draw":["1"]}`)
+	writeDeckFile(t, svc.Dice(), "codex-v2-deck-sample.json", `{"_title":["Sample"],"draw":["1"]}`)
 
-	resp, err := svc.Delete(context.Background(), &deckm.FilenameReq{
+	resp, err := svc.Delete(t.Context(), &deckm.FilenameReq{
 		Body: request.RequestWrapper[deckm.FilenameReqBody]{
 			Body: deckm.FilenameReqBody{Filename: filepath.Join("data", "decks", "codex-v2-deck-sample.json")},
 		},
@@ -167,7 +167,7 @@ func TestDeleteRemovesDeck(t *testing.T) {
 func TestCheckUpdateReturnsFailureForMissingDeck(t *testing.T) {
 	svc := newTestService(t)
 
-	resp, err := svc.CheckUpdate(context.Background(), &deckm.FilenameReq{
+	resp, err := svc.CheckUpdate(t.Context(), &deckm.FilenameReq{
 		Body: request.RequestWrapper[deckm.FilenameReqBody]{
 			Body: deckm.FilenameReqBody{Filename: "missing.json"},
 		},
@@ -185,7 +185,7 @@ func TestChunkUploadCompletesDeckFile(t *testing.T) {
 	content := []byte(`{"_title":["Chunked"],"_author":["Alice"],"draw":["1","2"]}`)
 	hash := sha256.Sum256(content)
 
-	initResp, err := svc.InitUpload(context.Background(), &deckm.UploadInitReq{
+	initResp, err := svc.InitUpload(t.Context(), &deckm.UploadInitReq{
 		Body: request.RequestWrapper[deckm.UploadInitReqBody]{
 			Body: deckm.UploadInitReqBody{
 				Filename:  "codex-v2-deck-chunked.json",
@@ -210,7 +210,7 @@ func TestChunkUploadCompletesDeckFile(t *testing.T) {
 		content[48:],
 	}
 	for index, chunk := range chunks {
-		resp, uploadErr := svc.UploadChunk(context.Background(), &deckm.UploadChunkReq{
+		resp, uploadErr := svc.UploadChunk(t.Context(), &deckm.UploadChunkReq{
 			SessionID: sessionID,
 			Index:     index,
 			RawBody:   chunk,
@@ -223,7 +223,7 @@ func TestChunkUploadCompletesDeckFile(t *testing.T) {
 		}
 	}
 
-	completeResp, err := svc.CompleteUpload(context.Background(), &deckm.UploadCompleteReq{
+	completeResp, err := svc.CompleteUpload(t.Context(), &deckm.UploadCompleteReq{
 		Body: request.RequestWrapper[deckm.UploadCompleteReqBody]{
 			Body: deckm.UploadCompleteReqBody{SessionID: sessionID},
 		},

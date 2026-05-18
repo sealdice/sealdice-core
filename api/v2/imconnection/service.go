@@ -30,6 +30,10 @@ func NewService(dm *dice.DiceManager) *Service {
 	return newService(dm, true, true)
 }
 
+func NewServiceWithOptions(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
+	return newService(dm, autoServe, autoSave)
+}
+
 func newService(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
 	_ = loadForms()
 	s := &Service{

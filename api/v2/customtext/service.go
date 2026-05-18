@@ -23,12 +23,20 @@ func NewService(dm *dice.DiceManager) *Service {
 	return newService(dm, true)
 }
 
+func NewServiceWithAutoSave(dm *dice.DiceManager, autoSave bool) *Service {
+	return newService(dm, autoSave)
+}
+
 func newService(dm *dice.DiceManager, autoSave bool) *Service {
 	return &Service{
 		dice:     dm.GetDice(),
 		dm:       dm,
 		autoSave: autoSave,
 	}
+}
+
+func (s *Service) Dice() *dice.Dice {
+	return s.dice
 }
 
 func (s *Service) RegisterRoutes(grp *huma.Group) {

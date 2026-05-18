@@ -21,6 +21,10 @@ func tokenFromHandshake(headers map[string]any, query map[string]any, auth map[s
 	return firstQueryValue(query, "token")
 }
 
+func TokenFromHandshake(headers map[string]any, query map[string]any, auth map[string]any) string {
+	return tokenFromHandshake(headers, query, auth)
+}
+
 func firstHeaderValue(headers map[string]any, key string) string {
 	for name, values := range headers {
 		if !strings.EqualFold(name, key) {

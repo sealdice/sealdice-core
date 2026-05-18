@@ -85,20 +85,19 @@ func (b *GroupService) visibleGroups() []*dice.GroupInfo {
 		if g.DiceIDExistsMap == nil || g.DiceIDExistsMap.Len() == 0 {
 			continue
 		}
-		clone := *g
 		var exts []string
 		for _, ext := range g.GetActivatedExtListRaw() {
 			if ext != nil {
 				exts = append(exts, ext.Name)
 			}
 		}
-		clone.TmpExtList = exts
+		g.TmpExtList = exts
 		if b.dice.DBOperator != nil {
 			if count, err := diceservice.GroupPlayerNumGet(b.dice.DBOperator, g.GroupID); err == nil {
-				clone.TmpPlayerNum = count
+				g.TmpPlayerNum = count
 			}
 		}
-		res = append(res, &clone)
+		res = append(res, g)
 	}
 	return res
 }
@@ -256,6 +255,10 @@ func NewGroupService(dm *dice.DiceManager) *GroupService {
 		dice: dm.GetDice(),
 		dm:   dm,
 	}
+}
+
+func (b *GroupService) Dice() *dice.Dice {
+	return b.dice
 }
 
 // GroupModifyRequest

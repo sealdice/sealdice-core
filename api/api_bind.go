@@ -543,12 +543,11 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	// 挂载 humaecho 到 echo 实例
 	apier := humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))
 	v2.InitV2Router(apier, e, _myDice)
-	res := e.Routes()
-	fmt.Println(res)
 
 	e.GET(prefix+"/preInfo", preInfo)
 	e.GET(prefix+"/baseInfo", baseInfo) // 已完成
 	e.GET(prefix+"/hello", hello2)      // 已完成
+	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
 	e.GET(prefix+"/im_connections/list", ImConnections)
 	e.GET(prefix+"/im_connections/get", ImConnectionsGet)
 
@@ -583,7 +582,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
-
 	e.GET(prefix+"/im_connections/get_lgr_signinfo", ImConnectionsGetSignInfo)                // 理应废弃
 	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)            // 理应废弃
 	e.POST(prefix+"/im_connections/walleQRelogin", ImConnectionsWalleQRelogin)                // 理应废弃

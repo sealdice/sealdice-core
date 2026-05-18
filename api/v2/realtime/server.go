@@ -259,11 +259,19 @@ func buildBootstrapEvents(dm *dice.DiceManager) []Event {
 	return events
 }
 
+func BuildBootstrapEvents(dm *dice.DiceManager) []Event {
+	return buildBootstrapEvents(dm)
+}
+
 func encodeEnvelope(evt Event) ([]byte, error) {
 	return json.Marshal(envelope{
 		Event:   evt.Name,
 		Payload: evt.Payload,
 	})
+}
+
+func EncodeEnvelope(evt Event) ([]byte, error) {
+	return encodeEnvelope(evt)
 }
 
 func writeSSEEvent(w io.Writer, evt Event) error {
@@ -275,12 +283,20 @@ func writeSSEEvent(w io.Writer, evt Event) error {
 	return err
 }
 
+func WriteSSEEvent(w io.Writer, evt Event) error {
+	return writeSSEEvent(w, evt)
+}
+
 func isAuthorized(dm *dice.DiceManager, token string) bool {
 	d := primaryDice(dm)
 	if d == nil {
 		return false
 	}
 	return apimiddleware.IsAuthorized(d, token)
+}
+
+func IsAuthorized(dm *dice.DiceManager, token string) bool {
+	return isAuthorized(dm, token)
 }
 
 func primaryDice(dm *dice.DiceManager) *dice.Dice {

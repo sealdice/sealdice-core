@@ -154,6 +154,10 @@ func workflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
 	}
 }
 
+func WorkflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
+	return workflowOfEndpoint(ep)
+}
+
 func qrCodeOfEndpoint(ep *dice.EndPointInfo) string {
 	switch pa := ep.Adapter.(type) {
 	case *dice.PlatformAdapterGocq:

@@ -1,18 +1,18 @@
-package config
+package config_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	config "sealdice-core/api/v2/config"
 	configm "sealdice-core/api/v2/model/config"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 	"sealdice-core/model/common/request"
 )
 
-func newTestService(t *testing.T) *Service {
+func newTestService(t *testing.T) *config.Service {
 	t.Helper()
 
 	dataDir := t.TempDir()
@@ -38,14 +38,14 @@ func newTestService(t *testing.T) *Service {
 		Dice: []*dice.Dice{d},
 	}
 	d.Parent = dm
-	return NewService(dm)
+	return config.NewService(dm)
 }
 
 func TestReplyConfigRoundTrip(t *testing.T) {
 	svc := newTestService(t)
-	defer svc.dice.AttrsManager.Stop()
+	defer svc.Dice().AttrsManager.Stop()
 
-	getResp, err := svc.GetReplyConfig(context.Background(), &request.Empty{})
+	getResp, err := svc.GetReplyConfig(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetReplyConfig returned error: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestReplyConfigRoundTrip(t *testing.T) {
 		t.Fatalf("default custom reply switch should be false")
 	}
 
-	setResp, err := svc.SetReplyConfig(context.Background(), &configm.ReplyConfigReq{
+	setResp, err := svc.SetReplyConfig(t.Context(), &configm.ReplyConfigReq{
 		Body: request.RequestWrapper[configm.ReplyModuleConfig]{
 			Body: configm.ReplyModuleConfig{CustomReplyConfigEnable: true},
 		},
@@ -68,9 +68,9 @@ func TestReplyConfigRoundTrip(t *testing.T) {
 
 func TestAdvancedConfigRoundTrip(t *testing.T) {
 	svc := newTestService(t)
-	defer svc.dice.AttrsManager.Stop()
+	defer svc.Dice().AttrsManager.Stop()
 
-	_, err := svc.SetAdvancedConfig(context.Background(), &configm.AdvancedConfigReq{
+	_, err := svc.SetAdvancedConfig(t.Context(), &configm.AdvancedConfigReq{
 		Body: request.RequestWrapper[dice.AdvancedConfig]{
 			Body: dice.AdvancedConfig{
 				Show:                 true,
@@ -85,7 +85,7 @@ func TestAdvancedConfigRoundTrip(t *testing.T) {
 		t.Fatalf("SetAdvancedConfig returned error: %v", err)
 	}
 
-	getResp, err := svc.GetAdvancedConfig(context.Background(), &request.Empty{})
+	getResp, err := svc.GetAdvancedConfig(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetAdvancedConfig returned error: %v", err)
 	}

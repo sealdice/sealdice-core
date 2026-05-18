@@ -1,13 +1,12 @@
 package main
 
-//
 import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"mime"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -177,7 +176,13 @@ func main() {
 	}
 	// pprof
 	go func() {
-		http.ListenAndServe("0.0.0.0:8899", nil)
+		server := http.Server{
+			Addr:              "0.0.0.0:8899",
+			ReadHeaderTimeout: 5 * time.Second,
+		}
+		if listenErr := server.ListenAndServe(); listenErr != nil && !errors.Is(listenErr, http.ErrServerClosed) {
+			log.Printf("pprof server failed: %v", listenErr)
+		}
 	}()
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
@@ -196,8 +201,9 @@ func main() {
 		return
 	}
 	if opts.GenOpenAPI != "" {
-		if err := apiv2.WriteOpenAPI(opts.GenOpenAPI); err != nil {
-			fmt.Fprintf(os.Stderr, "生成 OpenAPI 失败: %v\n", err)
+		openAPIErr := apiv2.WriteOpenAPI(opts.GenOpenAPI)
+		if openAPIErr != nil {
+			fmt.Fprintf(os.Stderr, "生成 OpenAPI 失败: %v\n", openAPIErr)
 			os.Exit(1)
 		}
 		return
