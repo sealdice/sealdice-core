@@ -1,43 +1,47 @@
-package group
+package group_test
 
 import (
-	"context"
 	"testing"
 
+	"sealdice-core/api/v2/group"
 	groupm "sealdice-core/api/v2/model/group"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
+	"sealdice-core/message"
 	areq "sealdice-core/model/api/req"
 	"sealdice-core/model/common/request"
-	"sealdice-core/message"
 )
 
 type fakePlatformAdapter struct {
 	quitGroupIDs []string
 }
 
-func (f *fakePlatformAdapter) Serve() int { return 0 }
-func (f *fakePlatformAdapter) DoRelogin() bool { return true }
+func (f *fakePlatformAdapter) Serve() int            { return 0 }
+func (f *fakePlatformAdapter) DoRelogin() bool       { return true }
 func (f *fakePlatformAdapter) SetEnable(enable bool) {}
-func (f *fakePlatformAdapter) QuitGroup(ctx *dice.MsgContext, ID string) {
-	f.quitGroupIDs = append(f.quitGroupIDs, ID)
+func (f *fakePlatformAdapter) QuitGroup(ctx *dice.MsgContext, id string) {
+	f.quitGroupIDs = append(f.quitGroupIDs, id)
 }
-func (f *fakePlatformAdapter) SendToPerson(ctx *dice.MsgContext, userID string, text string, flag string) {}
-func (f *fakePlatformAdapter) SendToGroup(ctx *dice.MsgContext, groupID string, text string, flag string) {}
+func (f *fakePlatformAdapter) SendToPerson(ctx *dice.MsgContext, userID string, text string, flag string) {
+}
+func (f *fakePlatformAdapter) SendToGroup(ctx *dice.MsgContext, groupID string, text string, flag string) {
+}
 func (f *fakePlatformAdapter) SetGroupCardName(ctx *dice.MsgContext, name string) {}
 func (f *fakePlatformAdapter) SendSegmentToGroup(ctx *dice.MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 }
 func (f *fakePlatformAdapter) SendSegmentToPerson(ctx *dice.MsgContext, userID string, msg []message.IMessageElement, flag string) {
 }
-func (f *fakePlatformAdapter) SendFileToPerson(ctx *dice.MsgContext, userID string, path string, flag string) {}
-func (f *fakePlatformAdapter) SendFileToGroup(ctx *dice.MsgContext, groupID string, path string, flag string) {}
+func (f *fakePlatformAdapter) SendFileToPerson(ctx *dice.MsgContext, userID string, path string, flag string) {
+}
+func (f *fakePlatformAdapter) SendFileToGroup(ctx *dice.MsgContext, groupID string, path string, flag string) {
+}
 func (f *fakePlatformAdapter) MemberBan(groupID string, userID string, duration int64) {}
-func (f *fakePlatformAdapter) MemberKick(groupID string, userID string) {}
-func (f *fakePlatformAdapter) GetGroupInfoAsync(groupID string) {}
+func (f *fakePlatformAdapter) MemberKick(groupID string, userID string)                {}
+func (f *fakePlatformAdapter) GetGroupInfoAsync(groupID string)                        {}
 func (f *fakePlatformAdapter) EditMessage(ctx *dice.MsgContext, msgID, message string) {}
-func (f *fakePlatformAdapter) RecallMessage(ctx *dice.MsgContext, msgID string) {}
+func (f *fakePlatformAdapter) RecallMessage(ctx *dice.MsgContext, msgID string)        {}
 
-func newTestGroupService(t *testing.T) *GroupService {
+func newTestGroupService(t *testing.T) *group.GroupService {
 	t.Helper()
 
 	d := &dice.Dice{
@@ -57,19 +61,19 @@ func newTestGroupService(t *testing.T) *GroupService {
 		JustForTest: true,
 	}
 	d.Parent = dm
-	return NewGroupService(dm)
+	return group.NewGroupService(dm)
 }
 
 func newTestGroup(groupID string, name string, activeDiceIDs ...string) *dice.GroupInfo {
 	g := &dice.GroupInfo{
-		Active:           true,
-		GroupID:          groupID,
-		GroupName:        name,
-		DiceIDActiveMap:  new(dice.SyncMap[string, bool]),
-		DiceIDExistsMap:  new(dice.SyncMap[string, bool]),
-		BotList:          new(dice.SyncMap[string, bool]),
-		Players:          new(dice.SyncMap[string, *dice.GroupPlayerInfo]),
-		PlayerGroups:     new(dice.SyncMap[string, []string]),
+		Active:            true,
+		GroupID:           groupID,
+		GroupName:         name,
+		DiceIDActiveMap:   new(dice.SyncMap[string, bool]),
+		DiceIDExistsMap:   new(dice.SyncMap[string, bool]),
+		BotList:           new(dice.SyncMap[string, bool]),
+		Players:           new(dice.SyncMap[string, *dice.GroupPlayerInfo]),
+		PlayerGroups:      new(dice.SyncMap[string, []string]),
 		InactivatedExtSet: dice.StringSet{},
 	}
 	for _, id := range activeDiceIDs {
@@ -87,11 +91,11 @@ func TestGetGroupPageReturnsVisibleGroupsAndTmpExtList(t *testing.T) {
 	hiddenPG := newTestGroup("PG-Group:shadow", "PG", "QQ:1001")
 	hiddenNoDice := newTestGroup("DISCORD-CH-Group:2001", "No Dice")
 
-	svc.dice.ImSession.ServiceAtNew.Store(visible.GroupID, visible)
-	svc.dice.ImSession.ServiceAtNew.Store(hiddenPG.GroupID, hiddenPG)
-	svc.dice.ImSession.ServiceAtNew.Store(hiddenNoDice.GroupID, hiddenNoDice)
+	svc.Dice().ImSession.ServiceAtNew.Store(visible.GroupID, visible)
+	svc.Dice().ImSession.ServiceAtNew.Store(hiddenPG.GroupID, hiddenPG)
+	svc.Dice().ImSession.ServiceAtNew.Store(hiddenNoDice.GroupID, hiddenNoDice)
 
-	resp, err := svc.GetGroupPage(context.Background(), request.NewRequestWrapper(areq.GroupPageRequest{
+	resp, err := svc.GetGroupPage(t.Context(), request.NewRequestWrapper(areq.GroupPageRequest{
 		PageInfo: request.PageInfo{Page: 1, PageSize: 10},
 	}))
 	if err != nil {
@@ -111,12 +115,12 @@ func TestGetGroupPageReturnsVisibleGroupsAndTmpExtList(t *testing.T) {
 
 func TestGetPlatformsReturnsVisiblePlatformOptions(t *testing.T) {
 	svc := newTestGroupService(t)
-	svc.dice.ImSession.ServiceAtNew.Store("QQ-Group:1001", newTestGroup("QQ-Group:1001", "QQ", "QQ:1001"))
-	svc.dice.ImSession.ServiceAtNew.Store("QQ-Group:1002", newTestGroup("QQ-Group:1002", "QQ2", "QQ:1001"))
-	svc.dice.ImSession.ServiceAtNew.Store("DISCORD-CH-Group:2001", newTestGroup("DISCORD-CH-Group:2001", "Discord", "DISCORD:1001"))
-	svc.dice.ImSession.ServiceAtNew.Store("PG-Group:shadow", newTestGroup("PG-Group:shadow", "PG", "QQ:1001"))
+	svc.Dice().ImSession.ServiceAtNew.Store("QQ-Group:1001", newTestGroup("QQ-Group:1001", "QQ", "QQ:1001"))
+	svc.Dice().ImSession.ServiceAtNew.Store("QQ-Group:1002", newTestGroup("QQ-Group:1002", "QQ2", "QQ:1001"))
+	svc.Dice().ImSession.ServiceAtNew.Store("DISCORD-CH-Group:2001", newTestGroup("DISCORD-CH-Group:2001", "Discord", "DISCORD:1001"))
+	svc.Dice().ImSession.ServiceAtNew.Store("PG-Group:shadow", newTestGroup("PG-Group:shadow", "PG", "QQ:1001"))
 
-	resp, err := svc.GetPlatforms(context.Background(), &request.Empty{})
+	resp, err := svc.GetPlatforms(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetPlatforms returned error: %v", err)
 	}
@@ -141,12 +145,12 @@ func TestQuitGroupUsesExplicitDiceID(t *testing.T) {
 		EndPointInfoBase: dice.EndPointInfoBase{ID: "ep-2", UserID: "QQ:1002", Platform: "QQ", Enable: true},
 		Adapter:          adapter2,
 	}
-	svc.dice.ImSession.EndPoints = []*dice.EndPointInfo{ep1, ep2}
+	svc.Dice().ImSession.EndPoints = []*dice.EndPointInfo{ep1, ep2}
 
 	group := newTestGroup("QQ-Group:1001", "Alpha", ep1.UserID, ep2.UserID)
-	svc.dice.ImSession.ServiceAtNew.Store(group.GroupID, group)
+	svc.Dice().ImSession.ServiceAtNew.Store(group.GroupID, group)
 
-	resp, err := svc.QuitGroup(context.Background(), request.NewRequestWrapper(groupm.QuitGroupRequest{
+	resp, err := svc.QuitGroup(t.Context(), request.NewRequestWrapper(groupm.QuitGroupRequest{
 		GroupID: group.GroupID,
 		DiceID:  ep2.UserID,
 		Silence: true,

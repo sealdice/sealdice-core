@@ -102,14 +102,14 @@ func (s *Server) Start() {
 }
 
 func (s *Server) handleWS(c echo.Context) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromHTTPRequest(c.Request())) {
+	if !IsAuthorized(s.dm, apimiddleware.TokenFromHTTPRequest(c.Request())) {
 		return c.NoContent(http.StatusUnauthorized)
 	}
 	return s.ws.HandleRequest(c.Response(), c.Request())
 }
 
 func (s *Server) handleSSE(c echo.Context) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromHTTPRequest(c.Request())) {
+	if !IsAuthorized(s.dm, apimiddleware.TokenFromHTTPRequest(c.Request())) {
 		return c.NoContent(http.StatusUnauthorized)
 	}
 
@@ -126,8 +126,8 @@ func (s *Server) handleSSE(c echo.Context) error {
 	header.Set("X-Accel-Buffering", "no")
 	c.Response().WriteHeader(http.StatusOK)
 
-	for _, evt := range buildBootstrapEvents(s.dm) {
-		if err := writeSSEEvent(writer, evt); err != nil {
+	for _, evt := range BuildBootstrapEvents(s.dm) {
+		if err := WriteSSEEvent(writer, evt); err != nil {
 			return nil
 		}
 		flusher.Flush()
@@ -147,7 +147,7 @@ func (s *Server) handleSSE(c echo.Context) error {
 			if !ok {
 				return nil
 			}
-			if err := writeSSEEvent(writer, evt); err != nil {
+			if err := WriteSSEEvent(writer, evt); err != nil {
 				return nil
 			}
 			flusher.Flush()
@@ -163,8 +163,8 @@ func (s *Server) handleSSE(c echo.Context) error {
 func (s *Server) attachWSSession(session *melody.Session) func() {
 	ch, unsubscribe := s.bus.Subscribe(128)
 
-	for _, evt := range buildBootstrapEvents(s.dm) {
-		if data, err := encodeEnvelope(evt); err == nil {
+	for _, evt := range BuildBootstrapEvents(s.dm) {
+		if data, err := EncodeEnvelope(evt); err == nil {
 			_ = session.Write(data)
 		}
 	}
@@ -172,7 +172,7 @@ func (s *Server) attachWSSession(session *melody.Session) func() {
 	var once sync.Once
 	go func() {
 		for evt := range ch {
-			data, err := encodeEnvelope(evt)
+			data, err := EncodeEnvelope(evt)
 			if err != nil {
 				continue
 			}
@@ -199,7 +199,7 @@ func (s *Server) detachWSSession(session *melody.Session) {
 	session.UnSet(wsUnsubscribeSessionKey)
 }
 
-func buildBootstrapEvents(dm *dice.DiceManager) []Event {
+func BuildBootstrapEvents(dm *dice.DiceManager) []Event {
 	events := []Event{
 		{
 			Name:    EventSystemReady,
@@ -241,7 +241,7 @@ func buildBootstrapEvents(dm *dice.DiceManager) []Event {
 			Name: EventIMConnectionWorkflow,
 			Payload: IMConnectionWorkflowPayload{
 				EndpointID: ep.ID,
-				Workflow:   workflowOfEndpoint(ep),
+				Workflow:   WorkflowOfEndpoint(ep),
 			},
 		})
 
@@ -259,14 +259,14 @@ func buildBootstrapEvents(dm *dice.DiceManager) []Event {
 	return events
 }
 
-func encodeEnvelope(evt Event) ([]byte, error) {
+func EncodeEnvelope(evt Event) ([]byte, error) {
 	return json.Marshal(envelope{
 		Event:   evt.Name,
 		Payload: evt.Payload,
 	})
 }
 
-func writeSSEEvent(w io.Writer, evt Event) error {
+func WriteSSEEvent(w io.Writer, evt Event) error {
 	data, err := json.Marshal(evt.Payload)
 	if err != nil {
 		return err
@@ -275,7 +275,7 @@ func writeSSEEvent(w io.Writer, evt Event) error {
 	return err
 }
 
-func isAuthorized(dm *dice.DiceManager, token string) bool {
+func IsAuthorized(dm *dice.DiceManager, token string) bool {
 	d := primaryDice(dm)
 	if d == nil {
 		return false

@@ -1,10 +1,10 @@
-package imconnection
+package imconnection_test
 
 import (
-	"context"
 	"strings"
 	"testing"
 
+	"sealdice-core/api/v2/imconnection"
 	dynamicform "sealdice-core/api/v2/imconnection/dynamic_form"
 	imconnm "sealdice-core/api/v2/model/imconnection"
 	"sealdice-core/dice"
@@ -12,7 +12,7 @@ import (
 	"sealdice-core/model/common/request"
 )
 
-func newTestService(t *testing.T, containerMode bool) *Service {
+func newTestService(t *testing.T, containerMode bool) *imconnection.Service {
 	t.Helper()
 	d := &dice.Dice{
 		Logger: logger.M(),
@@ -30,7 +30,7 @@ func newTestService(t *testing.T, containerMode bool) *Service {
 		ContainerMode: containerMode,
 	}
 	d.Parent = dm
-	return newService(dm, false, false)
+	return imconnection.NewServiceWithOptions(dm, false, false)
 }
 
 func protocolByKey(items []*imconnm.ProtocolDefinition, key string) *imconnm.ProtocolDefinition {
@@ -45,7 +45,7 @@ func protocolByKey(items []*imconnm.ProtocolDefinition, key string) *imconnm.Pro
 func TestGetProtocolsReturnsCapabilitiesAndContainerAvailability(t *testing.T) {
 	svc := newTestService(t, true)
 
-	resp, err := svc.GetProtocols(context.Background(), &request.Empty{})
+	resp, err := svc.GetProtocols(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetProtocols returned error: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestCreateConnectionSupportsRetainedProtocolsWithoutStartingServers(t *test
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := svc.CreateConnection(context.Background(), request.NewRequestWrapper(imconnm.CreateBody{
+			resp, err := svc.CreateConnection(t.Context(), request.NewRequestWrapper(imconnm.CreateBody{
 				Platform: tt.platform,
 				Config:   tt.config,
 			}))
@@ -129,14 +129,14 @@ func TestCreateConnectionSupportsRetainedProtocolsWithoutStartingServers(t *test
 func TestCreateConnectionRejectsDeprecatedAndInvalidConfig(t *testing.T) {
 	svc := newTestService(t, false)
 
-	if _, err := svc.CreateConnection(context.Background(), request.NewRequestWrapper(imconnm.CreateBody{
+	if _, err := svc.CreateConnection(t.Context(), request.NewRequestWrapper(imconnm.CreateBody{
 		Platform: "gocq",
 		Config:   map[string]interface{}{"account": "10001"},
 	})); err == nil {
 		t.Fatalf("expected deprecated gocq create to fail")
 	}
 
-	if _, err := svc.CreateConnection(context.Background(), request.NewRequestWrapper(imconnm.CreateBody{
+	if _, err := svc.CreateConnection(t.Context(), request.NewRequestWrapper(imconnm.CreateBody{
 		Platform: "gocq-separate",
 		Config:   map[string]interface{}{"account": "10001"},
 	})); err == nil {
@@ -146,7 +146,7 @@ func TestCreateConnectionRejectsDeprecatedAndInvalidConfig(t *testing.T) {
 
 func TestEnableWorkflowAndQRCode(t *testing.T) {
 	svc := newTestService(t, false)
-	resp, err := svc.CreateConnection(context.Background(), request.NewRequestWrapper(imconnm.CreateBody{
+	resp, err := svc.CreateConnection(t.Context(), request.NewRequestWrapper(imconnm.CreateBody{
 		Platform: "milky-internal",
 		Config:   map[string]interface{}{"account": "10001", "builtInMode": "yogurt"},
 	}))
@@ -155,24 +155,24 @@ func TestEnableWorkflowAndQRCode(t *testing.T) {
 	}
 	ep := resp.Body.Item
 
-	if _, err := svc.SetEnable(context.Background(), &imconnm.EnableReq{
+	if _, enableErr := svc.SetEnable(t.Context(), &imconnm.EnableReq{
 		ID: ep.ID,
 		Body: request.RequestWrapper[imconnm.EnableBody]{
 			Body: imconnm.EnableBody{Enable: true},
 		},
-	}); err != nil {
-		t.Fatalf("SetEnable returned error: %v", err)
+	}); enableErr != nil {
+		t.Fatalf("SetEnable returned error: %v", enableErr)
 	}
 	if !ep.Enable {
 		t.Fatalf("endpoint should be enabled")
 	}
-	if _, err := svc.SetEnable(context.Background(), &imconnm.EnableReq{
+	if _, disableErr := svc.SetEnable(t.Context(), &imconnm.EnableReq{
 		ID: ep.ID,
 		Body: request.RequestWrapper[imconnm.EnableBody]{
 			Body: imconnm.EnableBody{Enable: false},
 		},
-	}); err != nil {
-		t.Fatalf("SetEnable disable returned error: %v", err)
+	}); disableErr != nil {
+		t.Fatalf("SetEnable disable returned error: %v", disableErr)
 	}
 	if ep.Enable {
 		t.Fatalf("endpoint should be disabled")
@@ -182,7 +182,7 @@ func TestEnableWorkflowAndQRCode(t *testing.T) {
 	pa.BuiltInLoginState = dice.MilkyLoginStateQRWaitingForScan
 	pa.QrCodeData = []byte("fake-png")
 
-	workflow, err := svc.GetWorkflow(context.Background(), &imconnm.IDPath{ID: ep.ID})
+	workflow, err := svc.GetWorkflow(t.Context(), &imconnm.IDPath{ID: ep.ID})
 	if err != nil {
 		t.Fatalf("GetWorkflow returned error: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestEnableWorkflowAndQRCode(t *testing.T) {
 		t.Fatalf("workflow = %+v, want qrcode with QRCode", workflow.Body.Item)
 	}
 
-	qrcode, err := svc.GetQRCode(context.Background(), &imconnm.IDPath{ID: ep.ID})
+	qrcode, err := svc.GetQRCode(t.Context(), &imconnm.IDPath{ID: ep.ID})
 	if err != nil {
 		t.Fatalf("GetQRCode returned error: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestEnableWorkflowAndQRCode(t *testing.T) {
 
 func TestProtocolSchemasUseSensitiveMetadata(t *testing.T) {
 	svc := newTestService(t, false)
-	resp, err := svc.GetSchemas(context.Background(), &request.Empty{})
+	resp, err := svc.GetSchemas(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetSchemas returned error: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestProtocolSchemasUseSensitiveMetadata(t *testing.T) {
 
 func TestEditableConfigMasksSensitiveFieldsAndIncludesPlaceholders(t *testing.T) {
 	svc := newTestService(t, false)
-	createResp, err := svc.CreateConnection(context.Background(), request.NewRequestWrapper(imconnm.CreateBody{
+	createResp, err := svc.CreateConnection(t.Context(), request.NewRequestWrapper(imconnm.CreateBody{
 		Platform: "discord",
 		Config: map[string]interface{}{
 			"token":              "old-token",
@@ -237,7 +237,7 @@ func TestEditableConfigMasksSensitiveFieldsAndIncludesPlaceholders(t *testing.T)
 		t.Fatalf("CreateConnection returned error: %v", err)
 	}
 
-	resp, err := svc.GetEditableConfig(context.Background(), &imconnm.IDPath{ID: createResp.Body.Item.ID})
+	resp, err := svc.GetEditableConfig(t.Context(), &imconnm.IDPath{ID: createResp.Body.Item.ID})
 	if err != nil {
 		t.Fatalf("GetEditableConfig returned error: %v", err)
 	}
@@ -265,7 +265,7 @@ func TestEditableConfigMasksSensitiveFieldsAndIncludesPlaceholders(t *testing.T)
 
 func TestUpdateConnectionPreservesSensitiveFieldsAndRejectsIdentityChange(t *testing.T) {
 	svc := newTestService(t, false)
-	createResp, err := svc.CreateConnection(context.Background(), request.NewRequestWrapper(imconnm.CreateBody{
+	createResp, err := svc.CreateConnection(t.Context(), request.NewRequestWrapper(imconnm.CreateBody{
 		Platform: "gocq-separate",
 		Config: map[string]interface{}{
 			"account":     "10002",
@@ -279,7 +279,7 @@ func TestUpdateConnectionPreservesSensitiveFieldsAndRejectsIdentityChange(t *tes
 	ep := createResp.Body.Item
 	pa := ep.Adapter.(*dice.PlatformAdapterOnebot)
 
-	if _, err := svc.UpdateConnection(context.Background(), &imconnm.UpdateReq{
+	if _, err := svc.UpdateConnection(t.Context(), &imconnm.UpdateReq{
 		ID: ep.ID,
 		Body: request.RequestWrapper[map[string]interface{}]{
 			Body: map[string]interface{}{

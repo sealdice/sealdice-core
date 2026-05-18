@@ -23,6 +23,14 @@ func NewService(dm *dice.DiceManager) *Service {
 	return newService(dm, true)
 }
 
+func NewServiceWithAutoSave(dm *dice.DiceManager, autoSave bool) *Service {
+	return newService(dm, autoSave)
+}
+
+func (s *Service) Dice() *dice.Dice {
+	return s.dice
+}
+
 func newService(dm *dice.DiceManager, autoSave bool) *Service {
 	return &Service{
 		dice:     dm.GetDice(),

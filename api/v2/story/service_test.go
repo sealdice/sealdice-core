@@ -1,11 +1,11 @@
-package story
+package story_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	storym "sealdice-core/api/v2/model/story"
+	"sealdice-core/api/v2/story"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 	"sealdice-core/model"
@@ -15,14 +15,14 @@ import (
 	sqliteengine "sealdice-core/utils/dboperator/engine/sqlite"
 )
 
-func newTestStoryService(t *testing.T) *Service {
+func newTestStoryService(t *testing.T) *story.Service {
 	t.Helper()
 
 	dataDir := t.TempDir()
 	t.Setenv("DATADIR", dataDir)
 
 	operator := &sqliteengine.SQLiteEngine{}
-	if err := operator.Init(context.Background()); err != nil {
+	if err := operator.Init(t.Context()); err != nil {
 		t.Fatalf("init sqlite operator: %v", err)
 	}
 	t.Cleanup(operator.Close)
@@ -44,13 +44,13 @@ func newTestStoryService(t *testing.T) *Service {
 	}
 	d.Parent = dm
 
-	return NewService(dm)
+	return story.NewService(dm)
 }
 
-func insertStoryLogFixture(t *testing.T, svc *Service, logInfo model.LogInfo, items []model.LogOneItem) {
+func insertStoryLogFixture(t *testing.T, svc *story.Service, logInfo model.LogInfo, items []model.LogOneItem) {
 	t.Helper()
 
-	db := svc.dice.DBOperator.GetLogDB(constant.WRITE)
+	db := svc.Dice().DBOperator.GetLogDB(constant.WRITE)
 	if err := db.Create(&logInfo).Error; err != nil {
 		t.Fatalf("create log info: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestGetItemPageSupportsLogIDAndFallbackQuery(t *testing.T) {
 		{ID: 1002, GroupID: logInfo.GroupID, Nickname: "Bob", IMUserID: "u2", Time: logInfo.CreatedAt + 1, Message: "second"},
 	})
 
-	respByID, err := svc.GetItemPage(context.Background(), &storym.ItemPageQuery{
+	respByID, err := svc.GetItemPage(t.Context(), &storym.ItemPageQuery{
 		LogID:    logInfo.ID,
 		PageNum:  1,
 		PageSize: 10,
@@ -88,7 +88,7 @@ func TestGetItemPageSupportsLogIDAndFallbackQuery(t *testing.T) {
 		t.Fatalf("GetItemPage by id returned %d items, want 2", len(respByID.Body.Item))
 	}
 
-	respByLegacy, err := svc.GetItemPage(context.Background(), &storym.ItemPageQuery{
+	respByLegacy, err := svc.GetItemPage(t.Context(), &storym.ItemPageQuery{
 		GroupID:  logInfo.GroupID,
 		LogName:  logInfo.Name,
 		PageNum:  1,
@@ -115,7 +115,7 @@ func TestDeleteLogDeletesByIDOnly(t *testing.T) {
 		{ID: 2001, GroupID: logInfo.GroupID, Nickname: "Alice", IMUserID: "u1", Time: logInfo.CreatedAt, Message: "first"},
 	})
 
-	resp, err := svc.DeleteLog(context.Background(), &storym.DeleteLogReq{
+	resp, err := svc.DeleteLog(t.Context(), &storym.DeleteLogReq{
 		Body: request.RequestWrapper[storym.DeleteLogReqBody]{
 			Body: storym.DeleteLogReqBody{ID: logInfo.ID},
 		},
@@ -127,7 +127,7 @@ func TestDeleteLogDeletesByIDOnly(t *testing.T) {
 		t.Fatal("DeleteLog success = false, want true")
 	}
 
-	db := svc.dice.DBOperator.GetLogDB(constant.READ)
+	db := svc.Dice().DBOperator.GetLogDB(constant.READ)
 	var logsCount int64
 	if err := db.Model(&model.LogInfo{}).Where("id = ?", logInfo.ID).Count(&logsCount).Error; err != nil {
 		t.Fatalf("count logs: %v", err)
@@ -176,7 +176,7 @@ func TestGetLogPageIncludesLinkState(t *testing.T) {
 		UploadTime: int(now - 200),
 	}, nil)
 
-	resp, err := svc.GetLogPage(context.Background(), &storym.LogPageQuery{
+	resp, err := svc.GetLogPage(t.Context(), &storym.LogPageQuery{
 		PageNum:  1,
 		PageSize: 10,
 		GroupID:  "QQ-Group:3",
@@ -223,7 +223,7 @@ func TestCleanupPreviewAndExecute(t *testing.T) {
 		{ID: 4003, GroupID: "QQ-Group:4", Nickname: "New", IMUserID: "u-new", Time: newUpdatedAt, Message: "new"},
 	})
 
-	preview, err := svc.PreviewCleanup(context.Background(), &storym.CleanupPreviewQuery{Months: 2})
+	preview, err := svc.PreviewCleanup(t.Context(), &storym.CleanupPreviewQuery{Months: 2})
 	if err != nil {
 		t.Fatalf("PreviewCleanup returned error: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestCleanupPreviewAndExecute(t *testing.T) {
 		t.Fatalf("PreviewCleanup items = %d, want 2", preview.Body.Item.Items)
 	}
 
-	execResp, err := svc.Cleanup(context.Background(), &storym.CleanupReq{
+	execResp, err := svc.Cleanup(t.Context(), &storym.CleanupReq{
 		Body: request.RequestWrapper[storym.CleanupReqBody]{
 			Body: storym.CleanupReqBody{Months: 2, Vacuum: false},
 		},
@@ -246,7 +246,7 @@ func TestCleanupPreviewAndExecute(t *testing.T) {
 		t.Fatalf("Cleanup result = %#v, want 1 log and 2 items", execResp.Body.Item)
 	}
 
-	db := svc.dice.DBOperator.GetLogDB(constant.READ)
+	db := svc.Dice().DBOperator.GetLogDB(constant.READ)
 	var count int64
 	if err := db.Model(&model.LogInfo{}).Where("id = ?", 401).Count(&count).Error; err != nil {
 		t.Fatalf("count old logs: %v", err)
@@ -264,7 +264,7 @@ func TestCleanupPreviewAndExecute(t *testing.T) {
 
 func TestUploadLogRejectsMissingID(t *testing.T) {
 	svc := newTestStoryService(t)
-	_, err := svc.UploadLog(context.Background(), &storym.UploadLogReq{
+	_, err := svc.UploadLog(t.Context(), &storym.UploadLogReq{
 		Body: request.RequestWrapper[storym.UploadLogReqBody]{
 			Body: storym.UploadLogReqBody{ID: 0, Force: false},
 		},

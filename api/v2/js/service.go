@@ -2,6 +2,7 @@ package js
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -406,17 +407,17 @@ func (s *Service) CheckUpdate(_ context.Context, req *jsm.CheckUpdateReq) (*jsm.
 	for _, si := range s.dice.JsScriptList {
 		if si != nil && si.Filename == req.Body.Body.Filename {
 			old, newCode, tempFileName, errUpdate := s.dice.JsCheckUpdate(si)
-			if errUpdate != nil {
-				return response.NewItemResponse(jsm.JsCheckUpdateResp{Success: false, Err: errUpdate.Error()}), nil
+			if errUpdate == nil {
+				return response.NewItemResponse(jsm.JsCheckUpdateResp{
+					Success:      true,
+					Old:          old,
+					New:          newCode,
+					Format:       "javascript",
+					Filename:     si.Filename,
+					TempFileName: tempFileName,
+				}), nil
 			}
-			return response.NewItemResponse(jsm.JsCheckUpdateResp{
-				Success:      true,
-				Old:          old,
-				New:          newCode,
-				Format:       "javascript",
-				Filename:     si.Filename,
-				TempFileName: tempFileName,
-			}), nil
+			return response.NewItemResponse(jsm.JsCheckUpdateResp{Success: false, Err: errUpdate.Error()}), nil
 		}
 	}
 	return response.NewItemResponse(jsm.JsCheckUpdateResp{Success: false, Err: "未找到脚本"}), nil
@@ -434,11 +435,12 @@ func (s *Service) Update(_ context.Context, req *jsm.UpdateReq) (*jsm.UpdateItem
 	}
 	for _, si := range s.dice.JsScriptList {
 		if si != nil && si.Filename == req.Body.Body.Filename {
-			if err := s.dice.JsUpdate(si, req.Body.Body.TempFileName); err != nil {
-				return response.NewItemResponse(jsm.JsUpdateResp{Success: false}), nil
+			updateErr := s.dice.JsUpdate(si, req.Body.Body.TempFileName)
+			if updateErr == nil {
+				s.dice.MarkModified()
+				return response.NewItemResponse(jsm.JsUpdateResp{Success: true}), nil
 			}
-			s.dice.MarkModified()
-			return response.NewItemResponse(jsm.JsUpdateResp{Success: true}), nil
+			return response.NewItemResponse(jsm.JsUpdateResp{Success: false}), nil
 		}
 	}
 	return response.NewItemResponse(jsm.JsUpdateResp{Success: false}), nil
@@ -538,12 +540,12 @@ func (s *Service) UploadChunk(_ context.Context, req *jsm.UploadChunkReq) (*resp
 
 	session, err := s.uploadManager.SaveChunk(req.SessionID, req.Index, req.RawBody)
 	if err != nil {
-		switch err {
-		case uploadcore.ErrSessionNotFound:
+		switch {
+		case errors.Is(err, uploadcore.ErrSessionNotFound):
 			return nil, huma.Error404NotFound("上传会话不存在")
-		case uploadcore.ErrChunkOutOfRange:
+		case errors.Is(err, uploadcore.ErrChunkOutOfRange):
 			return nil, huma.Error400BadRequest("chunk index超出范围")
-		case uploadcore.ErrChunkEmpty:
+		case errors.Is(err, uploadcore.ErrChunkEmpty):
 			return nil, huma.Error400BadRequest("分块内容不能为空")
 		default:
 			return nil, huma.Error500InternalServerError("写入分块失败")
@@ -574,10 +576,10 @@ func (s *Service) CompleteUpload(_ context.Context, req *jsm.UploadCompleteReq) 
 		filepath.Join(s.dice.BaseConfig.DataDir, "scripts", sessionMeta.Filename),
 	)
 	if err != nil {
-		switch err {
-		case uploadcore.ErrIncomplete:
+		switch {
+		case errors.Is(err, uploadcore.ErrIncomplete):
 			return nil, huma.Error400BadRequest("上传分块不完整")
-		case uploadcore.ErrHashMismatch:
+		case errors.Is(err, uploadcore.ErrHashMismatch):
 			return nil, huma.Error400BadRequest("文件校验失败")
 		default:
 			return nil, huma.Error500InternalServerError("完成上传失败")
@@ -589,7 +591,6 @@ func (s *Service) CompleteUpload(_ context.Context, req *jsm.UploadCompleteReq) 
 		Filename: session.Filename,
 	}), nil
 }
-
 
 func (s *Service) SetConfigs(_ context.Context, req *jsm.SetConfigsReq) (*jsm.SimpleItemResponse, error) {
 	if s.dm.JustForTest {

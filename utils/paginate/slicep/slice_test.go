@@ -1,136 +1,69 @@
-package slicep
+package slicep_test
 
 import (
-	"reflect"
 	"testing"
 
-	"sealdice-core/utils/paginate"
+	"sealdice-core/utils/paginate/slicep"
 )
 
 func TestSliceAdapter(t *testing.T) {
-	type args struct {
-		source any
+	src := []int{1, 2, 3}
+	adapter := slicep.Adapter(src)
+	if adapter == nil {
+		t.Fatal("Adapter returned nil")
 	}
-	var tests []struct {
-		name string
-		args args
-		want paginate.IAdapter
+	length, err := adapter.Length()
+	if err != nil {
+		t.Fatalf("Length returned error: %v", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := Adapter(tt.args.source); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SliceAdapter() = %v, want %v", got, tt.want)
-			}
-		})
+	if length != 3 {
+		t.Fatalf("Length = %d, want 3", length)
 	}
 }
 
 func TestSlice_Length(t *testing.T) {
-	type fields struct {
-		src any
+	adapter := slicep.Adapter([]string{"a", "b"})
+	got, err := adapter.Length()
+	if err != nil {
+		t.Fatalf("Length returned error: %v", err)
 	}
-	var tests []struct {
-		name    string
-		fields  fields
-		want    int64
-		wantErr bool
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := Slice{
-				src: tt.fields.src,
-			}
-			got, err := s.Length()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Length() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("Length() got = %v, want %v", got, tt.want)
-			}
-		})
+	if got != 2 {
+		t.Fatalf("Length = %d, want 2", got)
 	}
 }
 
 func TestSlice_Slice(t *testing.T) {
-	type fields struct {
-		src any
+	adapter := slicep.Adapter([]string{"a", "b", "c"})
+	var dest []string
+	if err := adapter.Slice(1, 2, &dest); err != nil {
+		t.Fatalf("Slice returned error: %v", err)
 	}
-	type args struct {
-		offset int64
-		length int64
-		dest   any
-	}
-	var tests []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := Slice{
-				src: tt.fields.src,
-			}
-			if err := s.Slice(tt.args.offset, tt.args.length, tt.args.dest); (err != nil) != tt.wantErr {
-				t.Errorf("Slice() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+	if len(dest) != 2 || dest[0] != "b" || dest[1] != "c" {
+		t.Fatalf("Slice result = %#v, want [b c]", dest)
 	}
 }
 
-func Test_isPtr(t *testing.T) {
-	type args struct {
-		data any
-	}
-	var tests []struct {
-		name string
-		args args
-		want bool
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isPtr(tt.args.data); got != tt.want {
-				t.Errorf("isPtr() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+func TestSliceImplementsPaginateAdapter(t *testing.T) {
+	var _ = slicep.Adapter([]int{1})
 }
 
-func Test_isSlice(t *testing.T) {
-	type args struct {
-		data any
-	}
-	var tests []struct {
-		name string
-		args args
-		want bool
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := isSlice(tt.args.data); got != tt.want {
-				t.Errorf("isSlice() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+func TestAdapterRejectsPointerInput(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic for pointer input")
+		}
+	}()
+	src := []int{1, 2, 3}
+	_ = slicep.Adapter(&src)
 }
 
-func Test_makeSlice(t *testing.T) {
-	type args struct {
-		data   interface{}
-		length int
-		cap    int
+func TestSliceHandlesEmptyRange(t *testing.T) {
+	adapter := slicep.Adapter([]string{"a"})
+	var dest []string
+	if err := adapter.Slice(2, 1, &dest); err != nil {
+		t.Fatalf("Slice returned error: %v", err)
 	}
-	var tests []struct {
-		name    string
-		args    args
-		wantErr bool
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := makeSlice(tt.args.data, tt.args.length, tt.args.cap); (err != nil) != tt.wantErr {
-				t.Errorf("makeSlice() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+	if len(dest) != 0 {
+		t.Fatalf("Slice result length = %d, want 0", len(dest))
 	}
 }

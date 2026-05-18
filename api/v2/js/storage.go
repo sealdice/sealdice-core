@@ -8,8 +8,8 @@ import (
 
 	"github.com/tidwall/buntdb"
 
-	"sealdice-core/dice"
 	jsm "sealdice-core/api/v2/model/js"
+	"sealdice-core/dice"
 )
 
 // extStorage wraps per-extension BuntDB operations.
@@ -29,14 +29,14 @@ func resolveStorage(d *dice.Dice, name string) (*extStorage, error) {
 	if !ok || ext == nil {
 		return nil, errors.New("未找到扩展：" + name)
 	}
-	real := ext.GetRealExt()
-	if real == nil {
+	realExt := ext.GetRealExt()
+	if realExt == nil {
 		return nil, errors.New("扩展不存在：" + name)
 	}
-	if err := real.StorageInit(); err != nil {
+	if err := realExt.StorageInit(); err != nil {
 		return nil, err
 	}
-	return &extStorage{d: d, ext: real}, nil
+	return &extStorage{d: d, ext: realExt}, nil
 }
 
 // listKeys returns a paginated subset of keys matching keyword (glob pattern).

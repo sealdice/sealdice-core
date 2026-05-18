@@ -2,7 +2,7 @@ package realtime
 
 import "strings"
 
-func tokenFromHandshake(headers map[string]any, query map[string]any, auth map[string]any) string {
+func TokenFromHandshake(headers map[string]any, query map[string]any, auth map[string]any) string {
 	if auth != nil {
 		if token, ok := auth["token"].(string); ok && strings.TrimSpace(token) != "" {
 			return strings.TrimSpace(token)

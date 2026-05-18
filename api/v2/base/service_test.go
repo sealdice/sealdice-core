@@ -1,10 +1,10 @@
-package base
+package base_test
 
 import (
-	"context"
 	"runtime"
 	"testing"
 
+	"sealdice-core/api/v2/base"
 	"sealdice-core/dice"
 	"sealdice-core/model/common/request"
 )
@@ -19,8 +19,8 @@ func TestOverviewIncludesSplitBaseInfoFields(t *testing.T) {
 	d := &dice.Dice{Parent: dm}
 	dm.Dice[0] = d
 
-	svc := NewBaseService(dm)
-	resp, err := svc.Overview(context.Background(), &request.Empty{})
+	svc := base.NewBaseService(dm)
+	resp, err := svc.Overview(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("Overview returned error: %v", err)
 	}
@@ -57,8 +57,8 @@ func TestLoginSaltReturnsManagerSalt(t *testing.T) {
 	d := &dice.Dice{Parent: dm}
 	dm.Dice[0] = d
 
-	svc := NewBaseService(dm)
-	resp, err := svc.LoginSalt(context.Background(), &request.Empty{})
+	svc := base.NewBaseService(dm)
+	resp, err := svc.LoginSalt(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("LoginSalt returned error: %v", err)
 	}
@@ -72,8 +72,8 @@ func TestHealthIncludesInitializedFlag(t *testing.T) {
 	d := &dice.Dice{Parent: dm}
 	dm.Dice = []*dice.Dice{d}
 
-	svc := NewBaseService(dm)
-	resp, err := svc.health(context.Background(), &request.Empty{})
+	svc := base.NewBaseService(dm)
+	resp, err := svc.Health(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("health returned error: %v", err)
 	}

@@ -28,9 +28,9 @@ type IPaginate interface {
 	GetTotal() (int64, error)
 	// GetListRows 获取每页数量
 	GetListRows() int64
-	//GetLastPage 获取最后一页页码
+	// GetLastPage 获取最后一页页码
 	GetLastPage() (int64, error)
-	//HasPages 数据是否足够分页
+	// HasPages 数据是否足够分页
 	HasPages() bool
 	// Get 获取数据
 	Get(data any) error
@@ -38,23 +38,23 @@ type IPaginate interface {
 	Render(data any) any
 }
 type Paginate struct {
-	//数据集适配器
+	// 数据集适配器
 	adapter IAdapter
-	//渲染
+	// 渲染
 	render IRender
 	// 模式
 	simple bool
-	//设置输出源
+	// 设置输出源
 	Data any
-	//当前页
+	// 当前页
 	currentPage int64
-	//最后一页
+	// 最后一页
 	lastPage int64
-	//数据总数
+	// 数据总数
 	total int64
-	//每页数量
+	// 每页数量
 	listRows int64
-	//是否有下一页
+	// 是否有下一页
 	hasMore bool
 }
 
@@ -153,7 +153,7 @@ func (p *Paginate) GetLastPage() (int64, error) {
 
 // HasPages 数据是否足够分页
 func (p *Paginate) HasPages() bool {
-	return !(p.currentPage == 1 && !p.hasMore)
+	return p.currentPage != 1 || p.hasMore
 }
 
 // Get 获取指定长度的数据

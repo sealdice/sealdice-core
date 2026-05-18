@@ -44,7 +44,7 @@ func Keys() []string {
 	}
 	if len(ks) > 1 {
 		// 简单稳定排序
-		for i := 0; i < len(ks)-1; i++ {
+		for i := range len(ks) - 1 {
 			for j := i + 1; j < len(ks); j++ {
 				if ks[i] > ks[j] {
 					ks[i], ks[j] = ks[j], ks[i]

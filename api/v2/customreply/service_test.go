@@ -1,8 +1,7 @@
-package customreply
+package customreply_test
 
 import (
 	"bytes"
-	"context"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -11,13 +10,14 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"sealdice-core/api/v2/customreply"
 	customreplym "sealdice-core/api/v2/model/customreply"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 	"sealdice-core/model/common/request"
 )
 
-func newTestService(t *testing.T) *Service {
+func newTestService(t *testing.T) *customreply.Service {
 	t.Helper()
 
 	dataDir := t.TempDir()
@@ -44,7 +44,7 @@ func newTestService(t *testing.T) *Service {
 	d.Parent = dm
 	dice.CustomReplyConfigNew(d, "reply.yaml")
 	dice.ReplyReload(d)
-	return NewService(dm)
+	return customreply.NewService(dm)
 }
 
 func writeReplyFile(t *testing.T, d *dice.Dice, filename string, content string) {
@@ -61,9 +61,9 @@ func writeReplyFile(t *testing.T, d *dice.Dice, filename string, content string)
 
 func TestGetFileListReturnsReplyFiles(t *testing.T) {
 	svc := newTestService(t)
-	writeReplyFile(t, svc.dice, "reply2.yaml", "enable: false\nitems: []\nconditions: []\n")
+	writeReplyFile(t, svc.Dice(), "reply2.yaml", "enable: false\nitems: []\nconditions: []\n")
 
-	resp, err := svc.GetFileList(context.Background(), &customreplym.FileListQuery{})
+	resp, err := svc.GetFileList(t.Context(), &customreplym.FileListQuery{})
 	if err != nil {
 		t.Fatalf("GetFileList returned error: %v", err)
 	}
@@ -74,10 +74,10 @@ func TestGetFileListReturnsReplyFiles(t *testing.T) {
 
 func TestGetFileListSupportsKeywordSortAndPagination(t *testing.T) {
 	svc := newTestService(t)
-	writeReplyFile(t, svc.dice, "bbb.yaml", "enable: true\nupdateTimestamp: 10\ncreateTimestamp: 9\nitems: []\nconditions: []\n")
-	writeReplyFile(t, svc.dice, "aaa.yaml", "enable: true\nupdateTimestamp: 20\ncreateTimestamp: 19\nitems: []\nconditions: []\n")
+	writeReplyFile(t, svc.Dice(), "bbb.yaml", "enable: true\nupdateTimestamp: 10\ncreateTimestamp: 9\nitems: []\nconditions: []\n")
+	writeReplyFile(t, svc.Dice(), "aaa.yaml", "enable: true\nupdateTimestamp: 20\ncreateTimestamp: 19\nitems: []\nconditions: []\n")
 
-	resp, err := svc.GetFileList(context.Background(), &customreplym.FileListQuery{
+	resp, err := svc.GetFileList(t.Context(), &customreplym.FileListQuery{
 		Page:      1,
 		PageSize:  1,
 		Keyword:   "a",
@@ -100,9 +100,9 @@ func TestGetFileListSupportsKeywordSortAndPagination(t *testing.T) {
 
 func TestGetConfigReturnsCurrentReplyConfig(t *testing.T) {
 	svc := newTestService(t)
-	writeReplyFile(t, svc.dice, "reply.yaml", "enable: true\ninterval: 7\ncreateTimestamp: 11\nupdateTimestamp: 12\nitems: []\nconditions: []\n")
+	writeReplyFile(t, svc.Dice(), "reply.yaml", "enable: true\ninterval: 7\ncreateTimestamp: 11\nupdateTimestamp: 12\nitems: []\nconditions: []\n")
 
-	resp, err := svc.GetConfig(context.Background(), &customreplym.FilenamePath{Filename: "reply.yaml"})
+	resp, err := svc.GetConfig(t.Context(), &customreplym.FilenamePath{Filename: "reply.yaml"})
 	if err != nil {
 		t.Fatalf("GetConfig returned error: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestGetConfigReturnsCurrentReplyConfig(t *testing.T) {
 
 func TestGetRulesReturnsPagedRuleItems(t *testing.T) {
 	svc := newTestService(t)
-	writeReplyFile(t, svc.dice, "reply.yaml", `enable: true
+	writeReplyFile(t, svc.Dice(), "reply.yaml", `enable: true
 conditions: []
 items:
   - enable: true
@@ -147,7 +147,7 @@ items:
           - ["two", 1]
 `)
 
-	resp, err := svc.GetRules(context.Background(), &customreplym.RulePageQuery{
+	resp, err := svc.GetRules(t.Context(), &customreplym.RulePageQuery{
 		Filename: "reply.yaml",
 		Page:     2,
 		PageSize: 1,
@@ -168,7 +168,7 @@ items:
 
 func TestGetConditionsReturnsPagedConditions(t *testing.T) {
 	svc := newTestService(t)
-	writeReplyFile(t, svc.dice, "reply.yaml", `enable: true
+	writeReplyFile(t, svc.Dice(), "reply.yaml", `enable: true
 conditions:
   - condType: textMatch
     matchType: matchExact
@@ -178,7 +178,7 @@ conditions:
 items: []
 `)
 
-	resp, err := svc.GetConditions(context.Background(), &customreplym.ConditionPageQuery{
+	resp, err := svc.GetConditions(t.Context(), &customreplym.ConditionPageQuery{
 		Filename: "reply.yaml",
 		Page:     2,
 		PageSize: 1,
@@ -200,7 +200,7 @@ items: []
 func TestSaveConfigWritesReplyFile(t *testing.T) {
 	svc := newTestService(t)
 
-	_, err := svc.SaveConfig(context.Background(), &customreplym.SaveReq{
+	_, err := svc.SaveConfig(t.Context(), &customreplym.SaveReq{
 		Filename: "reply.yaml",
 		Body: request.RequestWrapper[dice.ReplyConfig]{
 			Body: dice.ReplyConfig{
@@ -233,7 +233,7 @@ func TestSaveConfigWritesReplyFile(t *testing.T) {
 		t.Fatalf("SaveConfig returned error: %v", err)
 	}
 
-	resp, err := svc.GetConfig(context.Background(), &customreplym.FilenamePath{Filename: "reply.yaml"})
+	resp, err := svc.GetConfig(t.Context(), &customreplym.FilenamePath{Filename: "reply.yaml"})
 	if err != nil {
 		t.Fatalf("GetConfig returned error: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestSaveConfigWritesReplyFile(t *testing.T) {
 func TestCreateFileRejectsExistingName(t *testing.T) {
 	svc := newTestService(t)
 
-	resp, err := svc.CreateFile(context.Background(), &customreplym.FileReq{
+	resp, err := svc.CreateFile(t.Context(), &customreplym.FileReq{
 		Body: request.RequestWrapper[customreplym.FileBody]{
 			Body: customreplym.FileBody{Filename: "reply.yaml"},
 		},
@@ -267,7 +267,7 @@ func TestCreateFileRejectsExistingName(t *testing.T) {
 func TestCreateAndDeleteFile(t *testing.T) {
 	svc := newTestService(t)
 
-	createResp, err := svc.CreateFile(context.Background(), &customreplym.FileReq{
+	createResp, err := svc.CreateFile(t.Context(), &customreplym.FileReq{
 		Body: request.RequestWrapper[customreplym.FileBody]{
 			Body: customreplym.FileBody{Filename: "reply2.yaml"},
 		},
@@ -279,7 +279,7 @@ func TestCreateAndDeleteFile(t *testing.T) {
 		t.Fatalf("CreateFile should succeed")
 	}
 
-	deleteResp, err := svc.DeleteFile(context.Background(), &customreplym.FilenamePath{Filename: "reply2.yaml"})
+	deleteResp, err := svc.DeleteFile(t.Context(), &customreplym.FilenamePath{Filename: "reply2.yaml"})
 	if err != nil {
 		t.Fatalf("DeleteFile returned error: %v", err)
 	}
@@ -290,16 +290,16 @@ func TestCreateAndDeleteFile(t *testing.T) {
 
 func TestDownloadRejectsInvalidName(t *testing.T) {
 	svc := newTestService(t)
-	if _, err := svc.Download(context.Background(), &customreplym.FilenamePath{Filename: "../bad.yaml"}); err == nil {
+	if _, err := svc.Download(t.Context(), &customreplym.FilenamePath{Filename: "../bad.yaml"}); err == nil {
 		t.Fatalf("expected invalid filename error")
 	}
 }
 
 func TestDownloadReturnsStreamForExistingFile(t *testing.T) {
 	svc := newTestService(t)
-	writeReplyFile(t, svc.dice, "reply.yaml", "enable: true\nitems: []\nconditions: []\n")
+	writeReplyFile(t, svc.Dice(), "reply.yaml", "enable: true\nitems: []\nconditions: []\n")
 
-	resp, err := svc.Download(context.Background(), &customreplym.FilenamePath{Filename: "reply.yaml"})
+	resp, err := svc.Download(t.Context(), &customreplym.FilenamePath{Filename: "reply.yaml"})
 	if err != nil {
 		t.Fatalf("Download returned error: %v", err)
 	}
@@ -311,7 +311,7 @@ func TestDownloadReturnsStreamForExistingFile(t *testing.T) {
 func TestDebugModeRoundTrip(t *testing.T) {
 	svc := newTestService(t)
 
-	getResp, err := svc.GetDebugMode(context.Background(), &request.Empty{})
+	getResp, err := svc.GetDebugMode(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetDebugMode returned error: %v", err)
 	}
@@ -319,7 +319,7 @@ func TestDebugModeRoundTrip(t *testing.T) {
 		t.Fatalf("default debug mode should be false")
 	}
 
-	setResp, err := svc.SetDebugMode(context.Background(), &customreplym.DebugModeReq{
+	setResp, err := svc.SetDebugMode(t.Context(), &customreplym.DebugModeReq{
 		Body: request.RequestWrapper[customreplym.DebugModeResp]{
 			Body: customreplym.DebugModeResp{Value: true},
 		},
@@ -341,11 +341,11 @@ func TestUploadFileSavesMultipartPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFormFile: %v", err)
 	}
-	if _, err := part.Write([]byte("enable: true\nitems: []\nconditions: []\n")); err != nil {
-		t.Fatalf("write multipart payload: %v", err)
+	if _, writeErr := part.Write([]byte("enable: true\nitems: []\nconditions: []\n")); writeErr != nil {
+		t.Fatalf("write multipart payload: %v", writeErr)
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close multipart writer: %v", err)
+	if closeErr := writer.Close(); closeErr != nil {
+		t.Fatalf("close multipart writer: %v", closeErr)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, "/upload", &buf)
@@ -353,19 +353,19 @@ func TestUploadFileSavesMultipartPayload(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if err := req.ParseMultipartForm(1024 * 1024); err != nil {
-		t.Fatalf("ParseMultipartForm: %v", err)
+	if parseErr := req.ParseMultipartForm(1024 * 1024); parseErr != nil {
+		t.Fatalf("ParseMultipartForm: %v", parseErr)
 	}
 
 	raw := huma.MultipartFormFiles[customreplym.UploadForm]{}
 	raw.Form = req.MultipartForm
 
-	_, err = svc.Upload(context.Background(), &customreplym.UploadReq{RawBody: raw})
+	_, err = svc.Upload(t.Context(), &customreplym.UploadReq{RawBody: raw})
 	if err != nil {
 		t.Fatalf("Upload returned error: %v", err)
 	}
 
-	itemsResp, err := svc.GetFileList(context.Background(), &customreplym.FileListQuery{})
+	itemsResp, err := svc.GetFileList(t.Context(), &customreplym.FileListQuery{})
 	if err != nil {
 		t.Fatalf("GetFileList returned error: %v", err)
 	}

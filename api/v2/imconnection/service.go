@@ -27,10 +27,10 @@ type Service struct {
 }
 
 func NewService(dm *dice.DiceManager) *Service {
-	return newService(dm, true, true)
+	return NewServiceWithOptions(dm, true, true)
 }
 
-func newService(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
+func NewServiceWithOptions(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
 	_ = loadForms()
 	s := &Service{
 		dice:       dm.GetDice(),
