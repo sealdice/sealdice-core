@@ -16,6 +16,8 @@ const themeVars = useThemeVars();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 
+// 首页是运行概览页：低频状态走 overview query，高频日志走 realtime。
+// 不把日志混进 overview，是为了避免 5 秒轮询带回大量日志数据。
 const overviewQuery = useQuery({
   ...getSdApiV2BaseOverviewOptions(),
   enabled: hasAccessToken,
@@ -34,6 +36,8 @@ const isContainerMode = computed(() => overview.value?.runtime.containerMode ===
 const displayReverse = ref(true);
 const autoRefresh = ref(true);
 const logStream = useBaseLogStream();
+// 日志源保持 append 顺序，展示顺序只在 computed 中转换，避免切换“倒序显示”
+// 时破坏原始缓冲和后续 append 逻辑。
 const logData = computed(() => {
   return displayReverse.value ? [...logStream.logs.value].reverse() : logStream.logs.value;
 });

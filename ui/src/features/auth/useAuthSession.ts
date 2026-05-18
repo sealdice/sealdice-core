@@ -12,11 +12,14 @@ import { passwordHash } from './crypto';
 
 const defaultSigninPassword = 'defaultSignin';
 
+// 认证会话 composable。它只管理 V2 token，不再兼容旧版 localStorage.t。
+// 登录流程：获取盐 -> 前端 PBKDF2 哈希 -> 调 V2 login -> 写入 token -> 刷新基础查询。
 export function useAuthSession() {
   const queryClient = useQueryClient();
   const signinMutation = useMutation(postSdApiV2BaseLoginMutation());
 
   const clearSession = () => {
+    // 登出或鉴权失效时必须清空 Vue Query，防止旧账号/旧 token 的缓存继续显示。
     clearAccessToken();
     queryClient.clear();
   };
@@ -42,6 +45,8 @@ export function useAuthSession() {
   };
 
   const tryDefaultSignin = async () => {
+    // 首次启动未设置密码时，后端允许 defaultSignin 快速进入后台。
+    // 失败是正常路径，AppUnlockDialog 会继续展示密码输入。
     if (currentAccessToken()) {
       return true;
     }

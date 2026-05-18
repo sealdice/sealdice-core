@@ -22,6 +22,9 @@ type LogAppendPayload = {
 const logs = ref<BaseLogItem[]>([]);
 let initialized = false;
 
+// 首页日志流是实时事件的一个业务投影。
+// 后端先推 logs/snapshot 作为当前缓冲，再持续推 logs/append；这里限制最多 500 条，
+// 避免长时间打开首页导致表格渲染和内存无限增长。
 function ensureInitialized(): void {
   if (initialized) return;
   initialized = true;

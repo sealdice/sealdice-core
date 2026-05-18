@@ -376,6 +376,9 @@ import {
   type TextTemplateWithWeightDict,
 } from '@/features/customText/types';
 
+// 自定义文案页按 category 动态路由进入。
+// 页面维护一份可编辑 texts 草稿，并通过 helpInfo/previewInfo 标识默认变量、
+// 自定义覆盖和兼容性预览；保存时只提交当前分类，避免误覆盖其它分类。
 const props = defineProps<{ category?: string }>();
 
 const message = useMessage();

@@ -2,6 +2,8 @@
 
 SealDice 的新版管理后台 UI，基于 Vue 3 + TypeScript + Naive UI 构建，通过 V2 OpenAPI 接口与后端通信。
 
+架构接手说明见 [`src/ARCHITECTURE.md`](src/ARCHITECTURE.md)。它描述了目录边界、数据流、认证、实时通道和新页面开发顺序。
+
 ## 技术栈
 
 - Vue 3 + TypeScript
@@ -27,6 +29,8 @@ VITE_API_PROXY_TARGET=http://127.0.0.1:3005 pnpm dev
 前端路由使用 Hash 模式，页面地址形如 `/#/mod/js`。
 
 ## 生成 API 客户端
+
+仓库已经提交 `src/api/generated/`，新 clone 后可以直接类型检查和构建。只有后端 OpenAPI 发生变化时才需要重新生成并提交生成结果。
 
 后端启动后，运行：
 

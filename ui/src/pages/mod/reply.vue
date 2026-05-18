@@ -373,6 +373,9 @@ import NestedRuleEditor from '@/components/shared/NestedRuleEditor.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
 
+// 自定义回复页是本项目最复杂的表单页之一。
+// 设计上将“远端文件详情”和“本地草稿”分开：远端数据来自 Query，
+// 草稿存放在 drafts 中，用户保存前所有编辑都只影响草稿，modified 负责提示未保存状态。
 type ReplyCondition = {
   condType: string;
   matchType: string;

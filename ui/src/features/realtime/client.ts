@@ -34,6 +34,8 @@ let initialized = false;
 let connectGeneration = 0;
 let manualDisconnect = false;
 
+// 实时层是全局事件总线，不直接保存业务状态。
+// 业务 feature 通过 subscribeRealtimeEvent 订阅事件，再把 payload 转成自己的 ref。
 function dispatch(event: string, payload: unknown): void {
   const handlers = listeners.get(event);
   if (!handlers) return;
@@ -43,6 +45,8 @@ function dispatch(event: string, payload: unknown): void {
 }
 
 function buildRealtimeURL(path: string): string {
+  // WebSocket/EventSource 不能统一注入 Authorization header，因此实时接口使用 query token。
+  // token 仍来自 features/auth/state.ts，是同一个 V2 token 源。
   const url = new URL(path, getApiBaseUrl() || window.location.origin);
   const token = currentAccessToken();
   if (token) {
@@ -77,6 +81,7 @@ function clearReconnectTimer(): void {
 }
 
 function scheduleReconnect(): void {
+  // 自动重连只在“非手动断开且仍有 token”时发生，避免退出登录后后台继续重连。
   if (manualDisconnect || !hasAccessToken.value) return;
   clearReconnectTimer();
   reconnectTimer = window.setTimeout(() => {
@@ -109,6 +114,8 @@ function cleanupTransports(): void {
 }
 
 function connectSSE(generation: number): void {
+  // SSE 是 WS 不可用时的降级通道。两种传输都派发同一批事件名，
+  // 所以业务订阅方不需要关心当前 activeTransport。
   if (typeof EventSource === 'undefined') {
     connected.value = false;
     connecting.value = false;
@@ -147,6 +154,8 @@ function connectSSE(generation: number): void {
 }
 
 function connectWS(generation: number): void {
+  // connectGeneration 用来丢弃旧连接的异步回调，防止快速登录/登出/重连时
+  // 上一代 socket 把状态写回当前 UI。
   if (typeof WebSocket === 'undefined') {
     connectSSE(generation);
     return;
@@ -205,6 +214,8 @@ function connectWS(generation: number): void {
 }
 
 function ensureInitialized(): void {
+  // 通过 token 状态驱动连接生命周期：有 token 自动连接，无 token 断开并清状态。
+  // 这样页面只要订阅事件，不需要知道何时建立底层连接。
   if (initialized) return;
   initialized = true;
 
@@ -249,6 +260,8 @@ export function subscribeRealtimeEvent<T = unknown>(
   event: string,
   handler: RealtimeEventHandler<T>,
 ): () => void {
+  // 返回 unsubscribe，页面级订阅必须在 onBeforeUnmount 调用；
+  // feature 级单例订阅则由 initialized guard 控制只注册一次。
   ensureInitialized();
 
   const handlers = listeners.get(event) ?? new Set<RealtimeEventHandler>();

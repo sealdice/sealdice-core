@@ -17,6 +17,9 @@ import JsDataView from '@/components/js/JsDataView.vue';
 
 const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
 
+// JS 扩展页分为四个工作区：
+// list 管理脚本文件，config 管理插件配置，data 管理插件 KV 存储，
+// console 用于临时执行代码和查看输出。
 const message = useMessage();
 const tab = ref<string>('list');
 
@@ -54,6 +57,8 @@ const jsConfigViewRef = ref<InstanceType<typeof JsConfigView> | null>(null);
 const editorExtensions = shallowRef<unknown[]>([]);
 const editorReady = computed(() => editorExtensions.value.length > 0);
 
+// JS 总开关状态来自后端；切换时通过 reload/shutdown 表达实际语义，
+// 而不是只在前端改开关显示。
 const statusQuery = useQuery({
   ...getSdApiV2JsStatusOptions(),
   enabled: hasAccessToken,
@@ -164,6 +169,7 @@ async function saveJsConfig() {
 }
 
 async function loadEditorExtensions() {
+  // CodeMirror 体积较大，仅进入 console tab 时加载，避免拖慢 JS 管理页首屏。
   if (editorExtensions.value.length) return;
   const [{ basicSetup }, { oneDark }, { javascript }] = await Promise.all([
     import('codemirror'),

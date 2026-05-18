@@ -1,5 +1,8 @@
 import type { FormConfigItem } from '@/api';
 
+// 后端连接协议用 FormConfigItem 描述动态表单。
+// 这个文件只处理“schema <-> 前端 model/payload”的纯转换，便于单元测试，
+// 组件本身只负责渲染控件和 v-model。
 export type DynamicFormModel = Record<string, unknown>;
 
 export type DynamicFormValidation = {
@@ -9,6 +12,7 @@ export type DynamicFormValidation = {
 
 export const fieldKeyOf = (item: FormConfigItem): string => item.field_name || String(item.id);
 
+// 构造初始值时尽量贴近后端 input_type 语义，避免 Naive UI 控件收到 undefined。
 export const buildDynamicFormInitialModel = (schema: FormConfigItem[]): DynamicFormModel => {
   return schema.reduce<DynamicFormModel>((model, item) => {
     model[fieldKeyOf(item)] = defaultValueOf(item);
@@ -20,6 +24,8 @@ export const buildDynamicFormPayload = (
   schema: FormConfigItem[],
   model: DynamicFormModel
 ): Record<string, unknown> => {
+  // 空值默认不提交，防止编辑连接时把敏感字段的空占位覆盖掉后端旧值。
+  // 必填字段保留空值，让后端/前端校验能明确指出缺失。
   return schema.reduce<Record<string, unknown>>((payload, item) => {
     const key = fieldKeyOf(item);
     const value = model[key];

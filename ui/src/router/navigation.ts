@@ -1,5 +1,8 @@
 import type { NavigationItem } from './types';
 
+// 侧边栏菜单是独立于文件路由的产品导航模型。
+// 不是所有路由都一定出现在菜单里，菜单也可以挂动态子项（如自定义文案分类）。
+// 修改页面路径时必须同步这里和 routeMeta，避免“能路由但菜单不可达”。
 export const appNavigation: NavigationItem[] = [
   {
     label: '主页',

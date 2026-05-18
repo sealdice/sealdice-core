@@ -47,6 +47,11 @@ const message = useMessage();
 const dialog = useDialog();
 const realtimeConnections = useRealtimeConnections();
 
+// 连接管理页的设计：
+// - 协议定义和表单 schema 来自后端，用 DynamicForm 渲染；
+// - 连接列表、登录工作流、二维码来自实时事件；
+// - 创建/编辑/启停/删除仍走标准 HTTP mutation。
+// 这样页面既能实时更新，又保持写操作有明确的成功/失败反馈。
 const dialogVisible = ref(false);
 const editDialogVisible = ref(false);
 const qrDialogVisible = ref(false);
@@ -70,6 +75,8 @@ const signInfoQuery = useQuery({
   enabled: computed(() => hasAccessToken.value && selectedProtocolKey.value === 'lagrange'),
 });
 
+// ProtocolDefinition 是后端对“可创建哪些连接”的声明。
+// 前端只过滤 deprecated/available，不在这里硬编码某个平台是否可用。
 const protocols = computed(() => protocolsQuery.data.value?.item.items ?? []);
 const schemas = computed(() => schemasQuery.data.value?.item ?? {});
 const connections = realtimeConnections.connections;
@@ -121,6 +128,8 @@ watch(selectedSchema, schema => {
 });
 
 watch(signInfoQuery.data, data => {
+  // Lagrange 创建表单需要后端推荐的签名服务。这里把推荐值写入动态表单 model，
+  // 用户仍可在表单里按需覆盖。
   if (selectedProtocolKey.value !== 'lagrange') return;
   const items = data?.item.items ?? [];
   const selectedVersion = items.find(item => item.selected && !item.ignored) ?? items.find(item => !item.ignored);

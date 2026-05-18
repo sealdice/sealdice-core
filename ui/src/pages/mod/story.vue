@@ -25,6 +25,11 @@ const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
 
+// 跑团日志页包含三类工作流：
+// 1. 日志列表与条目查看；
+// 2. 日志上传/强制重传，拿到后端链接；
+// 3. 旧日志清理和备份管理。
+// 数据量可能较大，所以列表和条目分页状态分开维护。
 type StoryTab = 'list' | 'cleanup' | 'backup';
 type StoryMode = 'logs' | 'items';
 
@@ -98,6 +103,8 @@ function linkStateType(log: LogView): 'default' | 'success' | 'warning' {
 }
 
 async function searchLogs() {
+  // 查询参数在这里从页面状态转换为后端需要的 Unix 秒时间范围。
+  // 页面保持毫秒时间戳，方便直接喂给 Naive UI DatePicker。
   const params = {
     pageNum: queryLogPage.value.pageNum,
     pageSize: queryLogPage.value.pageSize,

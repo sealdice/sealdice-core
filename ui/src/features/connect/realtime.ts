@@ -34,6 +34,9 @@ const ready = ref(false);
 
 let initialized = false;
 
+// 连接管理页不主动轮询连接列表，而是消费全局实时事件：
+// imconnection/list 提供全量快照，updated/workflow/qrcode 提供增量变化。
+// 这样二维码登录、连接状态变化可以实时反映到页面上。
 function ensureInitialized(): void {
   if (initialized) return;
   initialized = true;

@@ -24,6 +24,8 @@ const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffVi
 
 const deckChunkSize = 4 * 1024 * 1024;
 
+// 牌堆页同时承载列表管理、diff 更新和大文件上传。
+// 列表数据用 Vue Query；更新检查按需打开 DiffViewer；上传复用通用断点续传控制器。
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();

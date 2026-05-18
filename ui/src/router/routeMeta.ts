@@ -1,5 +1,8 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+// routeMeta 是页面标题和布局选择的单一事实源。
+// 新增 pages/* 后如果不在这里登记，页面仍能访问，但会落到 default layout
+// 且面包屑/菜单标题缺少业务语义。
 export const routeMeta: Record<string, RouteRecordRaw['meta']> = {
   '/': { layout: 'default', title: '主页' },
   '/connect': { layout: 'default', title: '账号设置' },
