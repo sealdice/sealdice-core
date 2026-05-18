@@ -43,6 +43,44 @@ func TestDecodeJSONStrictRejectsLegacyStorePackageFields(t *testing.T) {
 	}
 }
 
+func TestDecodeJSONStrictAllowsStoreFormatVersionMetadata(t *testing.T) {
+	infoRaw := `{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`
+	var info storeBackendInfoResponse
+	if err := decodeJSONStrict([]byte(infoRaw), &info); err != nil {
+		t.Fatalf("decode info with formatVersion returned error: %v", err)
+	}
+	if info.FormatVersion != "2.0" {
+		t.Fatalf("FormatVersion = %q, want 2.0", info.FormatVersion)
+	}
+
+	pageRaw := `{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[],"pageNum":1,"pageSize":20,"next":false},"err":""}`
+	var page storePageResponse
+	if err := decodeJSONStrict([]byte(pageRaw), &page); err != nil {
+		t.Fatalf("decode page with formatVersion returned error: %v", err)
+	}
+	if page.FormatVersion != "2.0" || page.Data == nil || page.Data.FormatVersion != "2.0" {
+		t.Fatalf("unexpected decoded page metadata: %#v", page)
+	}
+
+	recommendRaw := `{"formatVersion":"2.0","result":true,"data":[],"err":""}`
+	var recommend storeRecommendResponse
+	if err := decodeJSONStrict([]byte(recommendRaw), &recommend); err != nil {
+		t.Fatalf("decode recommend with formatVersion returned error: %v", err)
+	}
+	if recommend.FormatVersion != "2.0" {
+		t.Fatalf("FormatVersion = %q, want 2.0", recommend.FormatVersion)
+	}
+
+	packageRaw := `{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"}}`
+	var pkg StorePackage
+	if err := decodeJSONStrict([]byte(packageRaw), &pkg); err != nil {
+		t.Fatalf("decode package with formatVersion returned error: %v", err)
+	}
+	if pkg.FormatVersion != "1.0.0" {
+		t.Fatalf("FormatVersion = %q, want 1.0.0", pkg.FormatVersion)
+	}
+}
+
 func TestStorePackageMarshalUsesUnifiedSchema(t *testing.T) {
 	data, err := json.Marshal(&StorePackage{
 		ID:       "alice/demo",
@@ -124,9 +162,9 @@ func TestStoreQueryPageUsesSingleResolvedBackend(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/dice/api/store/info":
-			_, _ = w.Write([]byte(`{"name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
 		case "/dice/api/store/page":
-			_, _ = w.Write([]byte(`{"result":true,"data":{"data":[{"id":"alice/demo","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[]},"download":{"url":"https://example.com/demo-1.2.3.sealpack","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3}}],"pageNum":1,"pageSize":20,"next":false},"err":""}`))
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[]},"download":{"url":"https://example.com/demo-1.2.3.sealpack","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3}}],"pageNum":1,"pageSize":20,"next":false},"err":""}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -148,13 +186,16 @@ func TestStoreQueryPageUsesSingleResolvedBackend(t *testing.T) {
 	if page.Data[0].FullID != "alice/demo@1.2.3" {
 		t.Fatalf("FullID = %q", page.Data[0].FullID)
 	}
+	if page.Data[0].FormatVersion != "1.0.0" {
+		t.Fatalf("FormatVersion = %q", page.Data[0].FormatVersion)
+	}
 }
 
 func TestStoreBackendListReturnsEnabledAndDisabledBackends(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/dice/api/store/info":
-			_, _ = w.Write([]byte(`{"name":"Custom Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Custom Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
 		default:
 			http.NotFound(w, r)
 		}

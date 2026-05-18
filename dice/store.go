@@ -56,9 +56,10 @@ type StorePackageDownload struct {
 }
 
 type StorePackage struct {
-	ID      string `json:"id"`
-	Version string `json:"version"`
-	FullID  string `json:"-"`
+	ID            string `json:"id"`
+	FormatVersion string `json:"formatVersion,omitempty"`
+	Version       string `json:"version"`
+	FullID        string `json:"-"`
 
 	Name         string                   `json:"name"`
 	Authors      []string                 `json:"authors"`
@@ -77,6 +78,7 @@ type StorePackage struct {
 }
 
 type storeBackendInfoResponse struct {
+	FormatVersion    string   `json:"formatVersion"`
 	Name             string   `json:"name"`
 	ProtocolVersions []string `json:"protocolVersions"`
 	Announcement     string   `json:"announcement"`
@@ -84,15 +86,17 @@ type storeBackendInfoResponse struct {
 }
 
 type storeRecommendResponse struct {
-	Result bool            `json:"result"`
-	Data   []*StorePackage `json:"data"`
-	Err    string          `json:"err"`
+	FormatVersion string          `json:"formatVersion"`
+	Result        bool            `json:"result"`
+	Data          []*StorePackage `json:"data"`
+	Err           string          `json:"err"`
 }
 
 type storePageResponse struct {
-	Result bool              `json:"result"`
-	Data   *StorePackagePage `json:"data"`
-	Err    string            `json:"err"`
+	FormatVersion string            `json:"formatVersion"`
+	Result        bool              `json:"result"`
+	Data          *StorePackagePage `json:"data"`
+	Err           string            `json:"err"`
 }
 
 type StoreQueryPageParams struct {
@@ -107,10 +111,11 @@ type StoreQueryPageParams struct {
 }
 
 type StorePackagePage struct {
-	Data     []*StorePackage `json:"data"`
-	PageNum  int             `json:"pageNum"`
-	PageSize int             `json:"pageSize"`
-	Next     bool            `json:"next"`
+	FormatVersion string          `json:"formatVersion"`
+	Data          []*StorePackage `json:"data"`
+	PageNum       int             `json:"pageNum"`
+	PageSize      int             `json:"pageSize"`
+	Next          bool            `json:"next"`
 }
 
 type StoreManager struct {
@@ -709,6 +714,7 @@ func sanitizeStorePackage(pkg *StorePackage) (*StorePackage, error) {
 
 	copyPkg := *pkg
 	copyPkg.ID = strings.TrimSpace(copyPkg.ID)
+	copyPkg.FormatVersion = strings.TrimSpace(copyPkg.FormatVersion)
 	copyPkg.Version = strings.TrimSpace(copyPkg.Version)
 	copyPkg.FullID = strings.TrimSpace(copyPkg.FullID)
 	copyPkg.Name = strings.TrimSpace(copyPkg.Name)
