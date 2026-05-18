@@ -26,6 +26,25 @@ pnpm install
 pnpm dev
 ```
 
+开发时页面请求保持同源，由 Vite 代理转发到后端，不需要在页面代码里写后端端口。
+
+前端路由使用 Hash 模式，页面地址形如 `/#/signin`。
+
+默认代理到 `http://127.0.0.1:3005`，也可以通过环境变量覆盖：
+
+```sh
+VITE_API_PROXY_TARGET=http://127.0.0.1:3005 pnpm dev
+```
+
+当前会代理这些入口：
+
+```txt
+/api
+/openapi.json
+/docs
+/schemas
+```
+
 ### Type-Check, Compile and Minify for Production
 
 ```sh
