@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,14 +12,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	json "github.com/bytedance/sonic"
 
 	"sealdice-core/dice/docengine"
 	"sealdice-core/logger"
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/cespare/xxhash/v2"
 	nanoid "github.com/matoous/go-nanoid/v2"
 
 	"github.com/xuri/excelize/v2"
@@ -63,11 +64,12 @@ type HelpManager struct {
 	LoadingFn    string
 	HelpDocTree  []*HelpDoc
 	GroupAliases map[string]string
-	mu           sync.RWMutex
 	// SearchEngine
 	searchEngine docengine.SearchEngine
 
 	Config *HelpConfig
+
+	docIDs []string
 }
 
 type EngineType int
@@ -92,25 +94,48 @@ type HelpDocFormat struct {
 	Helpdoc map[string]string `json:"helpdoc"`
 }
 
-func (m *HelpManager) loadSearchEngine() {
+const helpIndexMetaPath = "./data/_help_cache/help_index_meta.json"
+
+type HelpFileMeta struct {
+	Hash  uint64 `json:"hash"`
+	Size  int64  `json:"size"`
+	Group string `json:"group"`
+}
+
+type HelpIndexMeta struct {
+	Files map[string]HelpFileMeta `json:"files"`
+}
+
+func newEmptyHelpIndexMeta() *HelpIndexMeta {
+	return &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}
+}
+
+func reconcileHelpIndexMeta(indexMeta *HelpIndexMeta, metaTrusted, indexFreshlyCreated bool) (*HelpIndexMeta, bool) {
+	if !metaTrusted || indexFreshlyCreated || indexMeta == nil {
+		return newEmptyHelpIndexMeta(), false
+	}
+	if indexMeta.Files == nil {
+		indexMeta.Files = make(map[string]HelpFileMeta)
+	}
+	return indexMeta, true
+}
+
+func (m *HelpManager) loadSearchEngine() bool {
 	if runtime.GOARCH == "arm64" {
 		// 等木落测试，测试之前先不实现这个Clover模式，如果直接就能用，那也不必再实现他了
 		m.EngineType = BleveSearch
 	}
-	// 删除旧版本数据，这里先不改，先集中精力测试BleveSearch
-	indexDir := "./data/_index"
-	_ = os.RemoveAll(indexDir)
-	indexDir = "./_help_cache"
-	_ = os.RemoveAll(indexDir)
 	switch m.EngineType {
 	case Clover:
+		return false
 	case BleveSearch:
 		engine, err := docengine.NewBleveSearchEngine()
 		if err != nil {
 			logger.M().Errorf("初始化帮助文档失败，帮助文档不可用!")
-			return
+			return false
 		}
 		m.searchEngine = engine
+		return engine.IndexFreshlyCreated()
 	default:
 		// 如果BleveSearch兼容性差，到时候全部回退到Clover查询
 		panic("unhandled default case")
@@ -118,27 +143,36 @@ func (m *HelpManager) loadSearchEngine() {
 }
 
 func (m *HelpManager) Close() {
-	if m == nil {
-		return
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.searchEngine == nil {
-		return
-	}
 	// 关闭Bucket，并删除所有数据
 	// TODO:暂时先不动删除逻辑
 	m.searchEngine.Close()
-	m.searchEngine = nil
-	_ = os.RemoveAll("./_help_cache")
 }
 
 func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	log := logger.M()
-	m.loadSearchEngine()
-	if !m.IsAvailable() {
-		log.Errorf("帮助文档搜索引擎不可用，跳过帮助文档加载")
-		return
+	_ = os.RemoveAll("./data/_index") // 删除旧索引
+
+	// 先读取索引 meta 和 docIDs 文件，判断缓存是否可信
+	indexMeta, metaTrusted := m.loadHelpIndexMeta()
+	if !metaTrusted {
+		log.Warnf("[帮助文档] 检测到索引缓存不可信(metaTrusted=%v)，删除旧索引 ./data/_help_cache/_index 并准备全量重建", metaTrusted)
+		_ = os.RemoveAll("./data/_help_cache/_index")
+	}
+
+	indexFreshlyCreated := m.loadSearchEngine()
+	if metaTrusted && indexFreshlyCreated {
+		log.Warnf("[帮助文档] 检测到 Bleve 索引已重新创建，将忽略旧 meta 并执行全量重建")
+	}
+	indexMeta, _ = reconcileHelpIndexMeta(indexMeta, metaTrusted, indexFreshlyCreated)
+
+	m.docIDs = make([]string, 0)
+
+	newMeta := newEmptyHelpIndexMeta()
+
+	if m.searchEngine != nil {
+		if err := m.searchEngine.DeleteByGroup(HelpBuiltinGroup); err != nil {
+			log.Warnf("[帮助文档] 删除内置帮助索引失败(group=%s): %v", HelpBuiltinGroup, err)
+		}
 	}
 
 	_ = m.AddItem(docengine.HelpTextItem{
@@ -222,15 +256,37 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 			child.Type = filepath.Ext(child.Path)
 		}
 		buildHelpDocTree(&child, func(d *HelpDoc) {
-			if !d.IsDir {
-				ok := m.loadHelpDoc(d.Group, d.Path)
-				// TODO: Batch过大好像不会释放……
-				err = m.AddItemApply(false)
-				if ok && err == nil {
-					d.LoadStatus = Loaded
-				} else {
-					d.LoadStatus = LoadError
+			if d.IsDir {
+				return
+			}
+			filePath := filepath.Clean(d.Path)
+			hash, size, hashErr := computeHelpFileHash(filePath)
+			if hashErr != nil {
+				d.LoadStatus = LoadError
+				return
+			}
+			newMeta.Files[filePath] = HelpFileMeta{
+				Hash:  hash,
+				Size:  size,
+				Group: d.Group,
+			}
+			oldMeta, okOld := indexMeta.Files[filePath]
+			if okOld && oldMeta.Hash == hash && oldMeta.Size == size && oldMeta.Group == d.Group {
+				d.LoadStatus = Loaded
+				return
+			}
+			if m.searchEngine != nil {
+				delErr := m.searchEngine.DeleteByFrom(filePath)
+				if delErr != nil {
+					log.Warnf("[帮助文档] 删除旧帮助索引失败(from=%s): %v", filePath, delErr)
 				}
+			}
+			ok := m.loadHelpDoc(d.Group, d.Path)
+			err = m.AddItemApply(false)
+			if ok && err == nil {
+				d.LoadStatus = Loaded
+			} else {
+				d.LoadStatus = LoadError
 			}
 		})
 		m.HelpDocTree = append(m.HelpDocTree, &child)
@@ -239,15 +295,35 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 	if err != nil {
 		log.Errorf("加载用户自定义帮助文档出现异常!: %v", err)
 	}
-	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
 
-	// 3. 从已启用扩展包加载 helpdoc
 	if dice != nil && dice.PackageManager != nil {
 		helpdocFiles := dice.PackageManager.GetEnabledContentFiles("helpdoc")
 		for _, child := range buildPackageHelpDocTree(helpdocFiles) {
 			_ = traverseHelpDocTree(child, func(d *HelpDoc) error {
 				if d.IsDir {
 					return nil
+				}
+				filePath := filepath.Clean(d.Path)
+				hash, size, hashErr := computeHelpFileHash(filePath)
+				if hashErr != nil {
+					d.LoadStatus = LoadError
+					return nil
+				}
+				newMeta.Files[filePath] = HelpFileMeta{
+					Hash:  hash,
+					Size:  size,
+					Group: d.Group,
+				}
+				oldMeta, okOld := indexMeta.Files[filePath]
+				if okOld && oldMeta.Hash == hash && oldMeta.Size == size && oldMeta.Group == d.Group {
+					d.LoadStatus = Loaded
+					return nil
+				}
+				if m.searchEngine != nil {
+					delErr := m.searchEngine.DeleteByFrom(filePath)
+					if delErr != nil {
+						log.Warnf("[帮助文档] 删除旧扩展包帮助索引失败(from=%s): %v", filePath, delErr)
+					}
 				}
 				ok := m.loadHelpDoc(d.Group, d.Path)
 				applyErr := m.AddItemApply(false)
@@ -263,12 +339,22 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 		if len(helpdocFiles) > 0 {
 			log.Infof("[帮助文档] 从扩展包加载帮助文档文件: %d", len(helpdocFiles))
 		}
-		applyErr := m.AddItemApply(false)
-		if applyErr != nil {
-			log.Errorf("加载扩展包帮助文档时出现异常: %v", applyErr)
+	}
+
+	if m.searchEngine != nil {
+		for oldPath := range indexMeta.Files {
+			if _, okNew := newMeta.Files[oldPath]; !okNew {
+				delErr := m.searchEngine.DeleteByFrom(oldPath)
+				if delErr != nil {
+					log.Warnf("[帮助文档] 删除已移除帮助文档索引失败(from=%s): %v", oldPath, delErr)
+				}
+			}
 		}
 	}
 
+	m.saveHelpIndexMeta(newMeta)
+	log.Infof("[帮助文档] 用户定义的帮助文档组已加载完成!")
+	log.Infof("[帮助文档] 正在处理指令相关（含插件）帮助文档组")
 	err = m.addInternalCmdHelp(internalCmdMap)
 	if err != nil {
 		log.Errorf("加载内置指令帮助文档出现异常: %v", err)
@@ -286,7 +372,7 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 		log.Errorf("加载插件指令帮助文档出现异常: %v", err)
 	}
 	log.Infof("[帮助文档] 指令相关（含插件）帮助文档组已加载完成!")
-	m.CurID = m.searchEngine.GetTotalID()
+	m.rebuildDocIDs()
 	elapsed := time.Since(start) // 计算执行时间
 	log.Infof("帮助文档加载完毕，共耗费时间: %s 共计加载条目:%d\n", elapsed, m.CurID)
 }
@@ -528,27 +614,14 @@ func (m *HelpManager) addExternalCmdHelp(ext []*ExtInfo) error {
 }
 
 func (m *HelpManager) AddItem(item docengine.HelpTextItem) error {
-	if m == nil {
-		return docengine.ErrSearchEngineUnavailable
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.searchEngine == nil {
-		return docengine.ErrSearchEngineUnavailable
-	}
 	_, err := m.searchEngine.AddItem(item)
-	return err
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *HelpManager) AddItemApply(end bool) error {
-	if m == nil {
-		return docengine.ErrSearchEngineUnavailable
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.searchEngine == nil {
-		return docengine.ErrSearchEngineUnavailable
-	}
 	err := m.searchEngine.AddItemApply(end)
 	if err != nil {
 		return err
@@ -557,69 +630,121 @@ func (m *HelpManager) AddItemApply(end bool) error {
 }
 
 func (m *HelpManager) IsAvailable() bool {
-	if m == nil {
+	if m == nil || m.searchEngine == nil {
 		return false
 	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return searchEngineAvailable(m.searchEngine)
-}
-
-func searchEngineAvailable(engine docengine.SearchEngine) bool {
-	if engine == nil {
-		return false
-	}
-	if bleveEngine, ok := engine.(*docengine.BleveSearchEngine); ok {
-		return bleveEngine.Index != nil
+	if engine, ok := m.searchEngine.(*docengine.BleveSearchEngine); ok {
+		return engine.Index != nil
 	}
 	return true
 }
 
+func (m *HelpManager) GetNumericIDCount() int {
+	return len(m.docIDs)
+}
+
+func (m *HelpManager) GetItemByNumericID(id int) (*docengine.HelpTextItem, error) {
+	if id <= 0 || id > len(m.docIDs) {
+		return nil, errors.New("无效的帮助条目ID")
+	}
+	internalID := m.docIDs[id-1]
+	return m.searchEngine.GetItemByID(internalID)
+}
+
+func (m *HelpManager) GetItemByNumericIDString(id string) (*docengine.HelpTextItem, error) {
+	if id == "" {
+		return nil, errors.New("无效的帮助条目ID")
+	}
+	v, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, err
+	}
+	return m.GetItemByNumericID(v)
+}
+
 func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res *docengine.GeneralSearchResult, total, pageStart, pageEnd int, err error) {
-	if m == nil {
-		return nil, 0, 0, 0, docengine.ErrSearchEngineUnavailable
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.searchEngine == nil {
-		return nil, 0, 0, 0, docengine.ErrSearchEngineUnavailable
-	}
 	return m.searchEngine.Search(ctx.Group.HelpPackages, text, titleOnly, pageSize, pageNum, group)
 }
 
+func (m *HelpManager) loadHelpIndexMeta() (*HelpIndexMeta, bool) {
+	data, err := os.ReadFile(helpIndexMetaPath)
+	if err != nil {
+		logger.M().Warnf("[帮助文档] 未找到索引 meta 文件(%s)，将视为缓存失效: %v", helpIndexMetaPath, err)
+		return newEmptyHelpIndexMeta(), false
+	}
+	var meta HelpIndexMeta
+	if err := json.Unmarshal(data, &meta); err != nil {
+		logger.M().Warnf("[帮助文档] 解析索引 meta 文件(%s)失败，将视为缓存失效: %v", helpIndexMetaPath, err)
+		return newEmptyHelpIndexMeta(), false
+	}
+	if meta.Files == nil {
+		meta.Files = make(map[string]HelpFileMeta)
+	}
+	return &meta, true
+}
+
+func (m *HelpManager) saveHelpIndexMeta(meta *HelpIndexMeta) {
+	if meta == nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(helpIndexMetaPath), 0755); err != nil {
+		logger.M().Warnf("[帮助文档] 创建索引 meta 目录失败(%s): %v", filepath.Dir(helpIndexMetaPath), err)
+		return
+	}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		logger.M().Warnf("[帮助文档] 序列化索引 meta 失败: %v", err)
+		return
+	}
+	if err := os.WriteFile(helpIndexMetaPath, data, 0644); err != nil {
+		logger.M().Warnf("[帮助文档] 写入索引 meta 文件失败(%s): %v", helpIndexMetaPath, err)
+	}
+}
+
+func computeHelpFileHash(filePath string) (uint64, int64, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+	h := xxhash.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		return 0, 0, err
+	}
+	return h.Sum64(), n, nil
+}
+
+func (m *HelpManager) rebuildDocIDs() {
+	engine, ok := m.searchEngine.(*docengine.BleveSearchEngine)
+	if !ok {
+		logger.M().Warnf("[帮助文档] 当前搜索引擎不是 BleveSearchEngine，无法重建 docIDs 映射")
+		m.docIDs = make([]string, 0)
+		m.CurID = 0
+		return
+	}
+	ids, err := engine.ListAllDocumentIDs()
+	if err != nil {
+		logger.M().Warnf("[帮助文档] 列出全部文档 ID 失败，将清空 docIDs 映射: %v", err)
+		m.docIDs = make([]string, 0)
+		m.CurID = 0
+		return
+	}
+	m.docIDs = ids
+	m.CurID = uint64(len(ids))
+}
+
 func (m *HelpManager) GetSuffixText() string {
-	if m == nil {
-		return ""
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.searchEngine == nil {
-		return ""
-	}
 	return m.searchEngine.GetSuffixText()
 }
 
 func (m *HelpManager) GetPrefixText() string {
-	if m == nil {
-		return ""
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.searchEngine == nil {
-		return ""
-	}
 	return m.searchEngine.GetPrefixText()
 }
 
 func (m *HelpManager) GetShowBestOffset() int {
-	if m == nil {
-		return 1
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.searchEngine == nil {
-		return 1
-	}
 	return m.searchEngine.GetShowBestOffset()
 }
 
@@ -657,21 +782,7 @@ func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string
 		name := txt[left+1 : right-1]
 		// 搜索TitleOnly，严格匹配Title的情形
 		// 如果查询到对应数据，那么就调用m.GetContent
-		var (
-			valueResult *docengine.HelpTextItem
-			err         error
-		)
-		if m == nil {
-			err = docengine.ErrSearchEngineUnavailable
-		} else {
-			m.mu.RLock()
-			if m.searchEngine == nil {
-				err = docengine.ErrSearchEngineUnavailable
-			} else {
-				valueResult, err = m.searchEngine.GetHelpTextItemByTermTitle(name)
-			}
-			m.mu.RUnlock()
-		}
+		valueResult, err := m.searchEngine.GetHelpTextItemByTermTitle(name)
 		if err != nil {
 			result.WriteByte('{')
 			result.WriteString(name)
@@ -1025,14 +1136,6 @@ func (h HelpTextVos) Less(i, j int) bool {
 
 func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, title string) (int, HelpTextVos) {
 	if pageNum <= 0 || pageSize <= 0 {
-		return 0, HelpTextVos{}
-	}
-	if m == nil {
-		return 0, HelpTextVos{}
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if m.searchEngine == nil {
 		return 0, HelpTextVos{}
 	}
 
