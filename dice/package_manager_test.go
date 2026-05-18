@@ -170,8 +170,8 @@ func TestPackageManagerRefreshUpgradesCopiedHigherVersion(t *testing.T) {
 	if got := pkg.Manifest.Package.Version; got != "2.0.0" {
 		t.Fatalf("version = %q, want 2.0.0", got)
 	}
-	if pkg.State != PackageStateEnabled {
-		t.Fatalf("State = %q, want %q", pkg.State, PackageStateEnabled)
+	if pkg.State != sealpack.PackageStateEnabled {
+		t.Fatalf("State = %q, want %q", pkg.State, sealpack.PackageStateEnabled)
 	}
 	if got := pkg.Config["mode"]; got != "custom" {
 		t.Fatalf("config mode = %#v, want custom", got)
@@ -218,8 +218,8 @@ func TestPackageManagerRefreshMarksMissingSourceAsCacheOnly(t *testing.T) {
 	if pkg.SourceStatus != sealpack.PackageSourceStatusCacheOnly {
 		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpack.PackageSourceStatusCacheOnly)
 	}
-	if pkg.State != PackageStateEnabled {
-		t.Fatalf("State = %q, want %q", pkg.State, PackageStateEnabled)
+	if pkg.State != sealpack.PackageStateEnabled {
+		t.Fatalf("State = %q, want %q", pkg.State, sealpack.PackageStateEnabled)
 	}
 	if pkg.SourceWarning == "" {
 		t.Fatal("expected source warning")
@@ -251,8 +251,8 @@ func TestPackageManagerRefreshAddsOrphanCacheAsCacheOnly(t *testing.T) {
 	if !ok || pkg == nil || pkg.Manifest == nil {
 		t.Fatalf("expected cache-only package %s", pkgID)
 	}
-	if pkg.State != PackageStateInstalled {
-		t.Fatalf("State = %q, want %q", pkg.State, PackageStateInstalled)
+	if pkg.State != sealpack.PackageStateInstalled {
+		t.Fatalf("State = %q, want %q", pkg.State, sealpack.PackageStateInstalled)
 	}
 	if pkg.SourceStatus != sealpack.PackageSourceStatusCacheOnly {
 		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpack.PackageSourceStatusCacheOnly)
@@ -507,8 +507,8 @@ func TestPackageManagerInstallUpgradePreservesConfigAndUserData(t *testing.T) {
 	if got := pkg.Manifest.Package.Version; got != "2.0.0" {
 		t.Fatalf("upgraded version = %q, want 2.0.0", got)
 	}
-	if pkg.State != PackageStateEnabled {
-		t.Fatalf("State = %q, want %q", pkg.State, PackageStateEnabled)
+	if pkg.State != sealpack.PackageStateEnabled {
+		t.Fatalf("State = %q, want %q", pkg.State, sealpack.PackageStateEnabled)
 	}
 	cfg, err := pm.GetConfig(pkgID)
 	if err != nil {

@@ -2,35 +2,6 @@ package dice
 
 import (
 	"strings"
-
-	"sealdice-core/dice/sealpack"
-)
-
-// 为方便使用，重新导出 sealpack 中的类型
-type (
-	PackageState    = sealpack.PackageState
-	UninstallMode   = sealpack.UninstallMode
-	PackageManifest = sealpack.Manifest
-	PackageInfo     = sealpack.PackageInfo
-	PackageInstance = sealpack.Instance
-	PackageContents = sealpack.Contents
-	ConfigSchema    = sealpack.ConfigSchema
-	PackageSandbox  = sealpack.Sandbox
-	PermissionError = sealpack.PermissionError
-	SandboxedFS     = sealpack.SandboxedFS
-	SandboxedHTTP   = sealpack.SandboxedHTTP
-)
-
-// 重新导出常量
-const (
-	PackageStateInstalled = sealpack.PackageStateInstalled
-	PackageStateEnabled   = sealpack.PackageStateEnabled
-	PackageStateDisabled  = sealpack.PackageStateDisabled
-	PackageStateError     = sealpack.PackageStateError
-
-	UninstallModeFull     = sealpack.UninstallModeFull
-	UninstallModeKeepData = sealpack.UninstallModeKeepData
-	UninstallModeDisable  = sealpack.UninstallModeDisable
 )
 
 // DependencyError 依赖错误
