@@ -3,7 +3,7 @@ import AppShell from '@/components/shared/AppShell.vue';
 </script>
 
 <template>
-  <AppShell>
+  <AppShell content-mode="wide">
     <slot />
   </AppShell>
 </template>

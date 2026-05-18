@@ -2,6 +2,7 @@
 import { defineAsyncComponent, nextTick, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/core';
 import { useMessage } from 'naive-ui';
+import { getAppShellContentClass, type AppShellContentMode } from './appShellLayout';
 import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppUnlockDialog from './AppUnlockDialog.vue';
@@ -10,6 +11,12 @@ import { useAuthSession } from '@/features/auth/useAuthSession';
 interface AppSearchMenuHandle {
   open: () => void;
 }
+
+const props = withDefaults(defineProps<{
+  contentMode?: AppShellContentMode;
+}>(), {
+  contentMode: 'default',
+});
 
 const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
 const AppSearchMenu = defineAsyncComponent(loadAppSearchMenu);
@@ -94,7 +101,7 @@ void authSession.tryDefaultSignin();
           @toggle-sidebar="toggleSidebar"
           @open-search="openSearch"
         />
-        <main class="sd-main-container">
+        <main :class="getAppShellContentClass(props.contentMode)">
           <slot />
         </main>
       </n-layout-content>
@@ -175,6 +182,11 @@ void authSession.tryDefaultSignin();
   box-sizing: border-box;
   min-height: 100%;
   padding: 1.5rem 2rem 2rem;
+}
+
+.sd-main-container--wide {
+  width: 100%;
+  max-width: none;
 }
 
 :global(.sd-drawer .n-drawer-content) {
