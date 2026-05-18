@@ -673,19 +673,19 @@ func (pm *PackageManager) saveState() error {
 
 func loadPackageConfigFromUserData(userDataPath string) (map[string]interface{}, error) {
 	if userDataPath == "" {
-		return nil, nil
+		return map[string]interface{}{}, nil
 	}
 
 	configPath := filepath.Join(userDataPath, sealpack.ConfigFile)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return map[string]interface{}{}, nil
 		}
 		return nil, err
 	}
 
-	var config map[string]interface{}
+	config := map[string]interface{}{}
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
@@ -784,7 +784,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		}
 	} else if persistedConfig, readErr := loadPackageConfigFromUserData(userDataPath); readErr == nil {
 		config = sealpack.MergeConfig(config, persistedConfig)
-	} else if readErr != nil && pm.parent != nil && pm.parent.Logger != nil {
+	} else if pm.parent != nil && pm.parent.Logger != nil {
 		pm.parent.Logger.Warnf("读取扩展包 %s 用户配置失败: %v", pkgID, readErr)
 	}
 
@@ -1018,8 +1018,8 @@ func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("获取扩展包临时目录绝对路径失败: %w", err)
 	}
-	if err := os.MkdirAll(absTempDir, 0o755); err != nil {
-		return "", fmt.Errorf("创建扩展包临时目录失败: %w", err)
+	if mkdirErr := os.MkdirAll(absTempDir, 0o755); mkdirErr != nil {
+		return "", fmt.Errorf("创建扩展包临时目录失败: %w", mkdirErr)
 	}
 
 	info, err := os.Lstat(absSource)

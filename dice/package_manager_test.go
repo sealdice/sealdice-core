@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -449,7 +450,7 @@ func TestPackageManagerPreviewFromURL(t *testing.T) {
 
 func TestDownloadPackageArchiveRejectsOversizedResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Length", fmt.Sprint(maxPackageArchiveSize+1))
+		w.Header().Set("Content-Length", strconv.FormatInt(maxPackageArchiveSize+1, 10))
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.Copy(w, io.LimitReader(zeroReader{}, maxPackageArchiveSize+1))
 	}))
