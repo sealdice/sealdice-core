@@ -602,7 +602,7 @@ function deckUpdate() {
 
 <style scoped>
 .deck-page {
-  max-width: 1180px;
+  width: 100%;
 }
 
 .page-header {
