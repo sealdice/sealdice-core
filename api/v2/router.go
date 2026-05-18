@@ -2,23 +2,32 @@ package v2
 
 import (
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/labstack/echo/v4"
 
 	"sealdice-core/api/v2/backup"
 	"sealdice-core/api/v2/ban"
 	"sealdice-core/api/v2/base"
+	"sealdice-core/api/v2/config"
+	"sealdice-core/api/v2/customreply"
+	"sealdice-core/api/v2/customtext"
+	"sealdice-core/api/v2/deck"
 	"sealdice-core/api/v2/group"
 	"sealdice-core/api/v2/imconnection"
+	"sealdice-core/api/v2/js"
 	"sealdice-core/api/v2/middleware"
+	"sealdice-core/api/v2/realtime"
+	"sealdice-core/api/v2/story"
 	"sealdice-core/dice"
 )
 
 // InitV2Router 初始化v2版本的API路由
 // 使用依赖注入模式，将dice实例传递给各个模块
-func InitV2Router(api huma.API, dm *dice.DiceManager) {
+func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	baseGroup := huma.NewGroup(api, "/sd-api/v2/base")
 	baseGroup.UseSimpleModifier(huma.OperationTags("base"))
 	baseService := base.NewBaseService(dm)
 	baseService.RegisterRoutes(baseGroup)
+	realtime.RegisterRoutes(e, dm)
 
 	groupPublic := huma.NewGroup(api, "/sd-api/v2/group")
 	groupPublic.UseSimpleModifier(huma.OperationTags("group"))
@@ -51,6 +60,72 @@ func InitV2Router(api huma.API, dm *dice.DiceManager) {
 	banProtected.UseSimpleModifier(huma.OperationTags("ban"))
 	banProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
 	banService.RegisterProtectedRoutes(banProtected)
+
+	customTextAuth := huma.NewGroup(api, "/sd-api/v2/custom-text")
+	customTextAuth.UseSimpleModifier(huma.OperationTags("custom-text"))
+	customTextAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	customTextService := customtext.NewService(dm)
+	customTextService.RegisterRoutes(customTextAuth)
+
+	customTextProtected := huma.NewGroup(api, "/sd-api/v2/custom-text")
+	customTextProtected.UseSimpleModifier(huma.OperationTags("custom-text"))
+	customTextProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	customTextService.RegisterProtectedRoutes(customTextProtected)
+
+	configAuth := huma.NewGroup(api, "/sd-api/v2/config")
+	configAuth.UseSimpleModifier(huma.OperationTags("config"))
+	configAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	configService := config.NewService(dm)
+	configService.RegisterRoutes(configAuth)
+
+	configProtected := huma.NewGroup(api, "/sd-api/v2/config")
+	configProtected.UseSimpleModifier(huma.OperationTags("config"))
+	configProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	configService.RegisterProtectedRoutes(configProtected)
+
+	customReplyAuth := huma.NewGroup(api, "/sd-api/v2/custom-reply")
+	customReplyAuth.UseSimpleModifier(huma.OperationTags("custom-reply"))
+	customReplyAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	customReplyService := customreply.NewService(dm)
+	customReplyService.RegisterRoutes(customReplyAuth)
+
+	customReplyProtected := huma.NewGroup(api, "/sd-api/v2/custom-reply")
+	customReplyProtected.UseSimpleModifier(huma.OperationTags("custom-reply"))
+	customReplyProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	customReplyService.RegisterProtectedRoutes(customReplyProtected)
+
+	deckAuth := huma.NewGroup(api, "/sd-api/v2/deck")
+	deckAuth.UseSimpleModifier(huma.OperationTags("deck"))
+	deckAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	deckService := deck.NewService(dm)
+	deckService.RegisterRoutes(deckAuth)
+
+	deckProtected := huma.NewGroup(api, "/sd-api/v2/deck")
+	deckProtected.UseSimpleModifier(huma.OperationTags("deck"))
+	deckProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	deckService.RegisterProtectedRoutes(deckProtected)
+
+	storyAuth := huma.NewGroup(api, "/sd-api/v2/story")
+	storyAuth.UseSimpleModifier(huma.OperationTags("story"))
+	storyAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	storyService := story.NewService(dm)
+	storyService.RegisterRoutes(storyAuth)
+
+	storyProtected := huma.NewGroup(api, "/sd-api/v2/story")
+	storyProtected.UseSimpleModifier(huma.OperationTags("story"))
+	storyProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	storyService.RegisterProtectedRoutes(storyProtected)
+
+	jsAuth := huma.NewGroup(api, "/sd-api/v2/js")
+	jsAuth.UseSimpleModifier(huma.OperationTags("js"))
+	jsAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	jsService := js.NewService(dm)
+	jsService.RegisterRoutes(jsAuth)
+
+	jsProtected := huma.NewGroup(api, "/sd-api/v2/js")
+	jsProtected.UseSimpleModifier(huma.OperationTags("js"))
+	jsProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	jsService.RegisterProtectedRoutes(jsProtected)
 
 	imcAuth := huma.NewGroup(api, "/sd-api/v2/imconnection")
 	imcAuth.UseSimpleModifier(huma.OperationTags("imconnection"))

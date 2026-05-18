@@ -7,6 +7,7 @@ type GroupModifyRequest struct {
 
 type QuitGroupRequest struct {
 	GroupID   string `json:"groupId"`
+	DiceID    string `json:"diceId,omitempty"`
 	Silence   bool   `json:"silence"`
 	ExtraText string `json:"extraText"`
 }
@@ -21,4 +22,3 @@ type BatchNotifyGroupRequest struct {
 	GroupIDs []string `json:"groupIds"`
 	Text     string   `json:"text"`
 }
-

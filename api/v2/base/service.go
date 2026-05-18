@@ -3,6 +3,7 @@ package base
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 )
+
+var startTime = time.Now()
 
 // BaseService 基础服务，封装dice依赖
 type BaseService struct {
@@ -36,9 +39,17 @@ func (s *BaseService) RegisterRoutes(grp *huma.Group) {
 		o.Description = "检查服务是否正常"
 		o.Summary = "检查服务是否正常"
 	})
+	huma.Get(grp, "/overview", s.Overview, func(o *huma.Operation) {
+		o.Description = "获取基础运行概览"
+		o.Summary = "获取基础运行概览"
+	})
 	huma.Post(grp, "/login", s.Login, func(o *huma.Operation) {
 		o.Description = "登录获取Token"
 		o.Summary = "登录获取Token"
+	})
+	huma.Get(grp, "/login/salt", s.LoginSalt, func(o *huma.Operation) {
+		o.Description = "获取登录盐"
+		o.Summary = "获取登录盐"
 	})
 	huma.Get(grp, "/security-check", s.SecurityCheck, func(o *huma.Operation) {
 		o.Description = "检查安全状态"
@@ -47,15 +58,80 @@ func (s *BaseService) RegisterRoutes(grp *huma.Group) {
 }
 
 // health 健康检查处理函数
-func (s *BaseService) health(_ context.Context, _ *struct{}) (*response.ItemResponse[resp.HealthData], error) {
+func (s *BaseService) health(_ context.Context, _ *request.Empty) (*response.ItemResponse[resp.HealthData], error) {
 	if s.dice == nil {
 		return nil, huma.Error500InternalServerError("Dice instance is nil,contact administrator")
 	}
+	initialized := s.dice.Parent != nil
+	testMode := false
+	if initialized {
+		testMode = s.dice.Parent.JustForTest
+	}
 	data := resp.HealthData{
-		Status:   "ok",
-		TestMode: s.dice.Parent.JustForTest,
+		Status:      "ok",
+		TestMode:    testMode,
+		Initialized: initialized,
 	}
 	return response.NewItemResponse[resp.HealthData](data), nil
+}
+
+func (s *BaseService) Overview(_ context.Context, _ *request.Empty) (*response.ItemResponse[resp.OverviewData], error) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	var versionLatest string
+	var versionLatestNote string
+	var versionLatestCode int64
+	if s.dm.AppVersionOnline != nil {
+		versionLatest = s.dm.AppVersionOnline.VersionLatestDetail
+		versionLatestNote = s.dm.AppVersionOnline.VersionLatestNote
+		versionLatestCode = s.dm.AppVersionOnline.VersionLatestCode
+	}
+
+	extraTitle := ""
+	if s.dice != nil && s.dice.ImSession != nil {
+		func() {
+			defer func() {
+				_ = recover()
+			}()
+			ctx := &dice.MsgContext{Dice: s.dice, EndPoint: nil, Session: s.dice.ImSession}
+			extraTitle = dice.DiceFormatTmpl(ctx, "核心:骰子名字")
+		}()
+	}
+
+	data := resp.OverviewData{
+		AppName:    dice.APPNAME,
+		AppChannel: dice.APP_CHANNEL,
+		ExtraTitle: extraTitle,
+		Version: resp.VersionInfo{
+			Value:  dice.VERSION.String(),
+			Simple: dice.VERSION_MAIN + dice.VERSION_PRERELEASE,
+			Code:   dice.VERSION_CODE,
+			Detail: resp.VersionDetail{
+				Major:         dice.VERSION.Major(),
+				Minor:         dice.VERSION.Minor(),
+				Patch:         dice.VERSION.Patch(),
+				Prerelease:    dice.VERSION.Prerelease(),
+				BuildMetaData: dice.VERSION.Metadata(),
+			},
+			Latest:     versionLatest,
+			LatestNote: versionLatestNote,
+			LatestCode: versionLatestCode,
+		},
+		Runtime: resp.RuntimeInfo{
+			Uptime:        int64(time.Since(startTime).Seconds()),
+			OS:            runtime.GOOS,
+			Arch:          runtime.GOARCH,
+			JustForTest:   s.dm.JustForTest,
+			ContainerMode: s.dm.ContainerMode,
+		},
+		Memory: resp.MemoryInfo{
+			Alloc:   m.Alloc,
+			Sys:     m.Sys,
+			UsedSys: m.Sys - m.HeapReleased,
+		},
+	}
+	return response.NewItemResponse[resp.OverviewData](data), nil
 }
 
 // Login 用户登录
@@ -76,6 +152,12 @@ func (s *BaseService) Login(_ context.Context, req *request.RequestWrapper[req.L
 		}), nil
 	}
 	return nil, huma.Error401Unauthorized("Invalid password")
+}
+
+func (s *BaseService) LoginSalt(_ context.Context, _ *request.Empty) (*response.ItemResponse[resp.LoginSaltResponse], error) {
+	return response.NewItemResponse[resp.LoginSaltResponse](resp.LoginSaltResponse{
+		Salt: s.dm.UIPasswordSalt,
+	}), nil
 }
 
 // SecurityCheck 安全配置检查

@@ -11,6 +11,7 @@ import (
 
 	groupm "sealdice-core/api/v2/model/group"
 	"sealdice-core/dice"
+	diceservice "sealdice-core/dice/service"
 	"sealdice-core/model/api/req"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
@@ -30,16 +31,37 @@ func platformOfGroupID(gid string) string {
 	return strings.ToUpper(gid[:i])
 }
 
+func platformLabel(platform string) string {
+	switch platform {
+	case "QQ-GROUP":
+		return "QQ 群"
+	case "QQ-CH-GROUP":
+		return "QQ 频道"
+	case "DISCORD-CH-GROUP":
+		return "Discord 频道"
+	case "DODO-GROUP":
+		return "Dodo 频道"
+	case "KOOK-CH-GROUP":
+		return "KOOK 频道"
+	case "DINGTALK-GROUP":
+		return "钉钉群"
+	case "SLACK-CH-GROUP":
+		return "Slack 频道"
+	case "TG-GROUP":
+		return "TG 群"
+	case "SEALCHAT-GROUP":
+		return "SealChat 频道"
+	default:
+		return platform
+	}
+}
+
 // GetSupportedPlatforms
 // 从当前 ServiceAtNew 中所有群的 GroupID 汇总得到“支持的平台列表”
 // 用于前端筛选项的下拉展示；已去重并进行字典序排序
 func (b *GroupService) GetSupportedPlatforms() []string {
-	resRaw := b.dice.ImSession.ServiceAtNew.ToList()
-	set := make(map[string]struct{}, len(resRaw))
-	for _, g := range resRaw {
-		if g == nil {
-			continue
-		}
+	set := make(map[string]struct{})
+	for _, g := range b.visibleGroups() {
 		p := platformOfGroupID(g.GroupID)
 		if p != "" {
 			set[p] = struct{}{}
@@ -51,6 +73,65 @@ func (b *GroupService) GetSupportedPlatforms() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func (b *GroupService) visibleGroups() []*dice.GroupInfo {
+	resRaw := b.dice.ImSession.ServiceAtNew.ToList()
+	res := make([]*dice.GroupInfo, 0, len(resRaw))
+	for _, g := range resRaw {
+		if g == nil || strings.HasPrefix(g.GroupID, "PG-") {
+			continue
+		}
+		if g.DiceIDExistsMap == nil || g.DiceIDExistsMap.Len() == 0 {
+			continue
+		}
+		clone := *g
+		var exts []string
+		for _, ext := range g.GetActivatedExtListRaw() {
+			if ext != nil {
+				exts = append(exts, ext.Name)
+			}
+		}
+		clone.TmpExtList = exts
+		if b.dice.DBOperator != nil {
+			if count, err := diceservice.GroupPlayerNumGet(b.dice.DBOperator, g.GroupID); err == nil {
+				clone.TmpPlayerNum = count
+			}
+		}
+		res = append(res, &clone)
+	}
+	return res
+}
+
+func (b *GroupService) chooseGroupEndpoint(group *dice.GroupInfo, preferredDiceID string) (*dice.EndPointInfo, string) {
+	if preferredDiceID != "" {
+		for _, ep := range b.dice.ImSession.EndPoints {
+			if ep.UserID == preferredDiceID {
+				if group.DiceIDExistsMap != nil && group.DiceIDExistsMap.Exists(ep.UserID) {
+					return ep, ""
+				}
+				return nil, "dice not in group"
+			}
+		}
+		return nil, "dice not found"
+	}
+
+	for _, ep := range b.dice.ImSession.EndPoints {
+		if group.DiceIDExistsMap != nil && group.DiceIDExistsMap.Exists(ep.UserID) {
+			return ep, ""
+		}
+	}
+	if len(b.dice.ImSession.EndPoints) > 0 {
+		return b.dice.ImSession.EndPoints[0], ""
+	}
+	return nil, "no endpoint available"
+}
+
+func (b *GroupService) sleepBeforeQuit() {
+	if b.dm != nil && b.dm.JustForTest {
+		return
+	}
+	time.Sleep(6 * time.Second)
 }
 
 // 增删改查 - 不能增，不能改
@@ -65,7 +146,7 @@ type GroupService struct {
 func (b *GroupService) GetGroupPage(_ context.Context, ol *request.RequestWrapper[req.GroupPageRequest]) (*response.
 	ItemResponse[response.HPageResult[*dice.GroupInfo]], error) {
 	// 获取ServiceAtNew的列表
-	res_raw := b.dice.ImSession.ServiceAtNew.ToList()
+	res_raw := b.visibleGroups()
 	// 读取请求体与筛选参数
 	reqBody := ol.Body
 	filter := reqBody.Filter
@@ -147,6 +228,9 @@ func (b *GroupService) GetGroupPage(_ context.Context, ol *request.RequestWrappe
 }
 
 func (b *GroupService) RegisterRoutes(grp *huma.Group) {
+	huma.Get(grp, "/platforms", b.GetPlatforms, func(o *huma.Operation) {
+		o.Description = "获取群列表平台筛选项"
+	})
 	huma.Post(grp, "/list", b.GetGroupPage, func(o *huma.Operation) {
 		o.Description = "获取群列表"
 	})
@@ -208,8 +292,21 @@ func (b *GroupService) ModifyGroup(_ context.Context, ol *request.RequestWrapper
 // - ExtraText: 附加留言文本（非静默时在群内告别消息附加）
 type QuitGroupRequest struct {
 	GroupID   string `json:"groupId"`
+	DiceID    string `json:"diceId,omitempty"`
 	Silence   bool   `json:"silence"`
 	ExtraText string `json:"extraText"`
+}
+
+func (b *GroupService) GetPlatforms(_ context.Context, _ *request.Empty) (*response.ItemResponse[[]response.SelectText], error) {
+	platforms := b.GetSupportedPlatforms()
+	options := make([]response.SelectText, 0, len(platforms))
+	for _, platform := range platforms {
+		options = append(options, response.SelectText{
+			Text:  platformLabel(platform),
+			Value: platform,
+		})
+	}
+	return response.NewItemResponse(options), nil
 }
 
 // QuitGroup
@@ -226,21 +323,11 @@ func (b *GroupService) QuitGroup(_ context.Context, ol *request.RequestWrapper[g
 			Message string `json:"message"`
 		}{Message: "group not found"}}, nil
 	}
-	// 选择在该群内“存在”的第一个端点作为退群执行者；若未找到，则回退到第一个端点
-	var chosen *dice.EndPointInfo
-	for _, ep := range b.dice.ImSession.EndPoints {
-		if group.DiceIDExistsMap.Exists(ep.UserID) {
-			chosen = ep
-			break
-		}
-	}
-	if chosen == nil && len(b.dice.ImSession.EndPoints) > 0 {
-		chosen = b.dice.ImSession.EndPoints[0]
-	}
+	chosen, errMsg := b.chooseGroupEndpoint(group, v.DiceID)
 	if chosen == nil {
 		return &response.MessageResponse{Body: struct {
 			Message string `json:"message"`
-		}{Message: "no endpoint available"}}, nil
+		}{Message: errMsg}}, nil
 	}
 	txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupID)
 	ctx := &dice.MsgContext{Dice: b.dice, EndPoint: chosen, Session: b.dice.ImSession}
@@ -255,7 +342,7 @@ func (b *GroupService) QuitGroup(_ context.Context, ol *request.RequestWrapper[g
 	}
 	// 从群的存在映射中删除所选端点
 	group.DiceIDExistsMap.Delete(chosen.UserID)
-	time.Sleep(6 * time.Second)
+	b.sleepBeforeQuit()
 	group.MarkDirty(b.dice)
 	chosen.Adapter.QuitGroup(ctx, v.GroupID)
 	return &response.MessageResponse{Body: struct {
@@ -284,17 +371,7 @@ func (b *GroupService) BatchQuitGroup(_ context.Context, ol *request.RequestWrap
 		if !exists {
 			continue
 		}
-		// 为该群选择第一个“在群内存在”的端点，若无则回退到第一个端点
-		var chosen *dice.EndPointInfo
-		for _, e := range b.dice.ImSession.EndPoints {
-			if group.DiceIDExistsMap.Exists(e.UserID) {
-				chosen = e
-				break
-			}
-		}
-		if chosen == nil && len(b.dice.ImSession.EndPoints) > 0 {
-			chosen = b.dice.ImSession.EndPoints[0]
-		}
+		chosen, _ := b.chooseGroupEndpoint(group, "")
 		if chosen == nil {
 			continue
 		}
@@ -310,7 +387,7 @@ func (b *GroupService) BatchQuitGroup(_ context.Context, ol *request.RequestWrap
 			dice.ReplyGroup(ctx, &dice.Message{GroupID: gid}, txtPost)
 		}
 		group.DiceIDExistsMap.Delete(chosen.UserID)
-		time.Sleep(6 * time.Second)
+		b.sleepBeforeQuit()
 		group.MarkDirty(b.dice)
 		chosen.Adapter.QuitGroup(ctx, gid)
 		updated++
@@ -340,16 +417,7 @@ func (b *GroupService) BatchNotifyGroup(_ context.Context, ol *request.RequestWr
 		if !exists {
 			continue
 		}
-		var chosen *dice.EndPointInfo
-		for _, ep := range b.dice.ImSession.EndPoints {
-			if group.DiceIDExistsMap.Exists(ep.UserID) {
-				chosen = ep
-				break
-			}
-		}
-		if chosen == nil && len(b.dice.ImSession.EndPoints) > 0 {
-			chosen = b.dice.ImSession.EndPoints[0]
-		}
+		chosen, _ := b.chooseGroupEndpoint(group, "")
 		if chosen == nil {
 			continue
 		}

@@ -3,6 +3,7 @@ package dynamicform
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -296,6 +297,87 @@ func BuildParamsBySubmit(forms []*FormConfigItem, submit SubmitFormItems) (map[s
 		}
 	}
 	return params, nil
+}
+
+// BuildParamsByConfig 将 field_name keyed 的配置 map 转换为标准参数 map。
+// 这是 v2 API 的主要入口，前端 DynamicForm 直接提交字段名和值。
+func BuildParamsByConfig(forms []*FormConfigItem, cfg map[string]interface{}) (map[string]interface{}, error) {
+	submit := make(SubmitFormItems, 0, len(forms))
+	for _, item := range forms {
+		if item == nil {
+			continue
+		}
+		key := item.FieldName
+		if key == "" {
+			key = strconv.FormatUint(item.ID, 10)
+		}
+		value, ok := cfg[key]
+		if !ok || value == nil {
+			continue
+		}
+		data, err := configValueToSubmitData(item, value)
+		if err != nil {
+			return nil, err
+		}
+		submit = append(submit, &SubmitFormItem{ID: item.ID, Data: data})
+	}
+	return BuildParamsBySubmit(forms, submit)
+}
+
+func configValueToSubmitData(item *FormConfigItem, value interface{}) (string, error) {
+	switch item.InputType {
+	case InputTypeMul, InputTypeDateRange:
+		switch v := value.(type) {
+		case string:
+			return v, nil
+		default:
+			data, err := json.Marshal(v)
+			if err != nil {
+				return "", errors.New("params error")
+			}
+			return string(data), nil
+		}
+	case InputTypeBool:
+		switch v := value.(type) {
+		case bool:
+			if v {
+				return "true", nil
+			}
+			return "false", nil
+		case string:
+			return v, nil
+		case int:
+			return strconv.Itoa(v), nil
+		case int64:
+			return strconv.FormatInt(v, 10), nil
+		case float64:
+			return strconv.FormatInt(int64(v), 10), nil
+		default:
+			return "", errors.New("need boolean")
+		}
+	case InputTypeNum, InputTypeDate, InputTypeSin:
+		switch v := value.(type) {
+		case string:
+			return v, nil
+		case int:
+			return strconv.Itoa(v), nil
+		case int64:
+			return strconv.FormatInt(v, 10), nil
+		case uint64:
+			return strconv.FormatUint(v, 10), nil
+		case float64:
+			return strconv.FormatInt(int64(v), 10), nil
+		default:
+			return fmt.Sprint(v), nil
+		}
+	default:
+		switch v := value.(type) {
+		case string:
+			return v, nil
+		default:
+			return fmt.Sprint(v), nil
+		}
+	}
 }
 
 // checkSubmitType 按校验类型检查 data

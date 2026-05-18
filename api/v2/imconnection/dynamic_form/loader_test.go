@@ -237,3 +237,50 @@ func TestDynamicOptionsProvider(t *testing.T) {
 		t.Fatalf("dynamic select mismatch")
 	}
 }
+
+func TestBuildParamsByConfigUsesFieldNamesAndNativeValues(t *testing.T) {
+	forms := []*FormConfigItem{
+		{ID: 1, FieldName: "token", InputType: InputTypeText, IsRequired: RequiredTrue},
+		{ID: 2, FieldName: "port", InputType: InputTypeNum, IsRequired: RequiredTrue},
+		{ID: 3, FieldName: "enabled", InputType: InputTypeBool, IsRequired: RequiredFalse, Default: "true"},
+		{ID: 4, FieldName: "mode", InputType: InputTypeSelect, IsRequired: RequiredTrue, SubOption: []*Option{
+			{Label: "Yogurt", Value: "yogurt"},
+			{Label: "LagrangeV2", Value: "lagrangeV2"},
+		}},
+	}
+
+	params, err := BuildParamsByConfig(forms, map[string]interface{}{
+		"token": "abc",
+		"port":  5500,
+		"mode":  "yogurt",
+	})
+	if err != nil {
+		t.Fatalf("BuildParamsByConfig error: %v", err)
+	}
+	if params["token"] != "abc" {
+		t.Fatalf("token mismatch")
+	}
+	if params["port"] != 5500 {
+		t.Fatalf("port expected 5500 got %v", params["port"])
+	}
+	if params["enabled"] != true {
+		t.Fatalf("enabled default expected true got %v", params["enabled"])
+	}
+	if params["mode"] != "yogurt" {
+		t.Fatalf("mode mismatch")
+	}
+}
+
+func TestFormConfigItemSensitiveMetadataLoads(t *testing.T) {
+	mustLoad(t)
+	items := GetFormConfig("discord")
+	for _, it := range items {
+		if it.FieldName == "token" {
+			if !it.Sensitive {
+				t.Fatalf("discord token should be marked sensitive")
+			}
+			return
+		}
+	}
+	t.Fatalf("discord token field not found")
+}

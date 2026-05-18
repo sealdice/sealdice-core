@@ -57,6 +57,8 @@ type FormConfigItem struct {
 	SubOption    []*Option   `json:"sub_option"`
 	OptionsURL   string      `json:"options_url,omitempty"`
 	DefaultRange *RangeValue `json:"default_range,omitempty"`
+	Sensitive    bool        `json:"sensitive,omitempty"`
+	Readonly     bool        `json:"readonly,omitempty"`
 }
 
 type FormConfigItems []*FormConfigItem
