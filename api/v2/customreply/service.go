@@ -34,10 +34,6 @@ func NewService(dm *dice.DiceManager) *Service {
 	}
 }
 
-func (s *Service) Dice() *dice.Dice {
-	return s.dice
-}
-
 func (s *Service) RegisterRoutes(grp *huma.Group) {
 	huma.Get(grp, "/files", s.GetFileList, func(o *huma.Operation) {
 		o.Description = "获取自定义回复文件列表"

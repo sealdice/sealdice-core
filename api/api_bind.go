@@ -543,6 +543,8 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	// 挂载 humaecho 到 echo 实例
 	apier := humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))
 	v2.InitV2Router(apier, e, _myDice)
+	res := e.Routes()
+	fmt.Println(res)
 
 	e.GET(prefix+"/preInfo", preInfo)
 	e.GET(prefix+"/baseInfo", baseInfo) // 已完成

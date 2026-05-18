@@ -85,40 +85,7 @@ func (b *GroupService) visibleGroups() []*dice.GroupInfo {
 		if g.DiceIDExistsMap == nil || g.DiceIDExistsMap.Len() == 0 {
 			continue
 		}
-		clone := &dice.GroupInfo{
-			Active:              g.Active,
-			Players:             g.Players,
-			InactivatedExtSet:   g.InactivatedExtSet,
-			GroupID:             g.GroupID,
-			GuildID:             g.GuildID,
-			ChannelID:           g.ChannelID,
-			GroupName:           g.GroupName,
-			DiceIDActiveMap:     g.DiceIDActiveMap,
-			DiceIDExistsMap:     g.DiceIDExistsMap,
-			BotList:             g.BotList,
-			DiceSideNum:         g.DiceSideNum,
-			DiceSideExpr:        g.DiceSideExpr,
-			System:              g.System,
-			HelpPackages:        append([]string(nil), g.HelpPackages...),
-			CocRuleIndex:        g.CocRuleIndex,
-			LogCurName:          g.LogCurName,
-			LogOn:               g.LogOn,
-			QuitMarkAutoClean:   g.QuitMarkAutoClean,
-			QuitMarkMaster:      g.QuitMarkMaster,
-			RecentDiceSendTime:  g.RecentDiceSendTime,
-			ShowGroupWelcome:    g.ShowGroupWelcome,
-			GroupWelcomeMessage: g.GroupWelcomeMessage,
-			LastCustomReplyTime: g.LastCustomReplyTime,
-			RateLimiter:         g.RateLimiter,
-			RateLimitWarned:     g.RateLimitWarned,
-			EnteredTime:         g.EnteredTime,
-			InviteUserID:        g.InviteUserID,
-			UpdatedAtTime:       g.UpdatedAtTime,
-			DefaultHelpGroup:    g.DefaultHelpGroup,
-			PlayerGroups:        g.PlayerGroups,
-			ExtAppliedVersion:   g.ExtAppliedVersion,
-			ExtAppliedTime:      g.ExtAppliedTime,
-		}
+		clone := *g
 		var exts []string
 		for _, ext := range g.GetActivatedExtListRaw() {
 			if ext != nil {
@@ -131,7 +98,7 @@ func (b *GroupService) visibleGroups() []*dice.GroupInfo {
 				clone.TmpPlayerNum = count
 			}
 		}
-		res = append(res, clone)
+		res = append(res, &clone)
 	}
 	return res
 }
@@ -289,10 +256,6 @@ func NewGroupService(dm *dice.DiceManager) *GroupService {
 		dice: dm.GetDice(),
 		dm:   dm,
 	}
-}
-
-func (b *GroupService) Dice() *dice.Dice {
-	return b.dice
 }
 
 // GroupModifyRequest

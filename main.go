@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -16,8 +17,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	pprof "net/http/pprof"
 
 	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
@@ -122,26 +121,6 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 	}
 }
 
-func startPprofServer() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-
-	go func() {
-		server := &http.Server{
-			Addr:              "0.0.0.0:8899",
-			Handler:           mux,
-			ReadHeaderTimeout: 5 * time.Second,
-		}
-		if err := server.ListenAndServe(); err != nil {
-			fmt.Fprintf(os.Stderr, "pprof server stopped: %v\n", err)
-		}
-	}()
-}
-
 func deleteOldWrongFile() {
 	_ = os.Remove("./data/names/data-logs.db")
 	_ = os.Remove("./data/names/names.zip")
@@ -197,7 +176,9 @@ func main() {
 		GenOpenAPI             string `description:"生成 Huma v2 OpenAPI JSON 到指定路径并退出"                                      long:"gen-openapi"`
 	}
 	// pprof
-	startPprofServer()
+	go func() {
+		http.ListenAndServe("0.0.0.0:8899", nil)
+	}()
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
@@ -215,9 +196,8 @@ func main() {
 		return
 	}
 	if opts.GenOpenAPI != "" {
-		writeErr := apiv2.WriteOpenAPI(opts.GenOpenAPI)
-		if writeErr != nil {
-			fmt.Fprintf(os.Stderr, "生成 OpenAPI 失败: %v\n", writeErr)
+		if err := apiv2.WriteOpenAPI(opts.GenOpenAPI); err != nil {
+			fmt.Fprintf(os.Stderr, "生成 OpenAPI 失败: %v\n", err)
 			os.Exit(1)
 		}
 		return

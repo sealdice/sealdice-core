@@ -1,13 +1,9 @@
-package realtime_test
+package realtime
 
-import (
-	"testing"
-
-	"sealdice-core/api/v2/realtime"
-)
+import "testing"
 
 func TestTokenFromHandshakePrefersSocketAuth(t *testing.T) {
-	token := realtime.TokenFromHandshake(
+	token := tokenFromHandshake(
 		map[string]any{
 			"Authorization": []string{"Bearer header-token"},
 			"token":         []string{"legacy-header-token"},
@@ -25,7 +21,7 @@ func TestTokenFromHandshakePrefersSocketAuth(t *testing.T) {
 }
 
 func TestTokenFromHandshakeFallsBackToHeadersAndQuery(t *testing.T) {
-	token := realtime.TokenFromHandshake(
+	token := tokenFromHandshake(
 		map[string]any{
 			"Authorization": []string{"Bearer header-token"},
 			"token":         []string{"legacy-header-token"},
@@ -39,7 +35,7 @@ func TestTokenFromHandshakeFallsBackToHeadersAndQuery(t *testing.T) {
 		t.Fatalf("token = %q, want header-token", token)
 	}
 
-	token = realtime.TokenFromHandshake(
+	token = tokenFromHandshake(
 		map[string]any{
 			"token": []string{"legacy-header-token"},
 		},
@@ -52,7 +48,7 @@ func TestTokenFromHandshakeFallsBackToHeadersAndQuery(t *testing.T) {
 		t.Fatalf("token = %q, want legacy-header-token", token)
 	}
 
-	token = realtime.TokenFromHandshake(nil, map[string]any{"token": []string{"query-token"}}, nil)
+	token = tokenFromHandshake(nil, map[string]any{"token": []string{"query-token"}}, nil)
 	if token != "query-token" {
 		t.Fatalf("token = %q, want query-token", token)
 	}

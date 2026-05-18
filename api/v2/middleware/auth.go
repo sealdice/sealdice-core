@@ -15,7 +15,7 @@ func TokenFromHTTPRequest(r *http.Request) string {
 		token = token[7:]
 	}
 	if token == "" {
-		token = r.Header.Get("Token")
+		token = r.Header.Get("token")
 	}
 	if token == "" {
 		token = r.URL.Query().Get("token")

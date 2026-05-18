@@ -1,14 +1,12 @@
-package logger_test
+package logger
 
 import (
 	"testing"
 	"time"
-
-	"sealdice-core/logger"
 )
 
 func TestUIWriterBroadcastsParsedLogItemsToSubscribers(t *testing.T) {
-	writer := logger.NewUIWriter()
+	writer := NewUIWriter()
 	ch, unsubscribe := writer.Subscribe()
 	defer unsubscribe()
 
@@ -34,7 +32,7 @@ func TestUIWriterBroadcastsParsedLogItemsToSubscribers(t *testing.T) {
 }
 
 func TestUIWriterSnapshotIsDetachedFromInternalItems(t *testing.T) {
-	writer := logger.NewUIWriter()
+	writer := NewUIWriter()
 	_, _ = writer.Write([]byte(`{"level":"info","module":"core","time":"2026-05-17T12:34:56.000Z+0800","msg":"first"}`))
 
 	snapshot := writer.Snapshot()

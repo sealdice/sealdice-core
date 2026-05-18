@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -28,10 +27,6 @@ func NewService(dm *dice.DiceManager) *Service {
 		dice: dm.GetDice(),
 		dm:   dm,
 	}
-}
-
-func (s *Service) Dice() *dice.Dice {
-	return s.dice
 }
 
 func (s *Service) RegisterRoutes(grp *huma.Group) {
@@ -97,15 +92,18 @@ func (s *Service) GetLogPage(_ context.Context, req *storym.LogPageQuery) (*resp
 		query.PageSize = 20
 	}
 	if req.CreatedTimeBegin > 0 {
-		query.CreatedTimeBegin = strconv.FormatInt(req.CreatedTimeBegin, 10)
+		query.CreatedTimeBegin = fmt.Sprint(req.CreatedTimeBegin)
 	}
 	if req.CreatedTimeEnd > 0 {
-		query.CreatedTimeEnd = strconv.FormatInt(req.CreatedTimeEnd, 10)
+		query.CreatedTimeEnd = fmt.Sprint(req.CreatedTimeEnd)
 	}
 
 	total, page, err := service.LogGetLogPage(s.dice.DBOperator, &query)
 	if err != nil {
-		return nil, huma.Error500InternalServerError(err.Error())
+		return response.NewItemResponse(storym.LogPageResp{
+			Result: false,
+			Err:    err.Error(),
+		}), nil
 	}
 
 	items := make([]storym.StoryLogView, 0, len(page))
@@ -154,7 +152,7 @@ func (s *Service) GetItemPage(_ context.Context, req *storym.ItemPageQuery) (*re
 	if err != nil {
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
-	return response.NewItemResponse(lines), nil
+	return response.NewItemResponse(storym.LogLinePageResp(lines)), nil
 }
 
 func (s *Service) DeleteLog(_ context.Context, req *storym.DeleteLogReq) (*response.ItemResponse[storym.DeleteLogResp], error) {
@@ -186,7 +184,7 @@ func (s *Service) UploadLog(_ context.Context, req *storym.UploadLogReq) (*respo
 	if err != nil {
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
-	if !req.Body.Body.Force && url0 != "" && uploadTime > updateTime {
+	if !req.Body.Body.Force && url0 != "" && int64(uploadTime) > updateTime {
 		return response.NewItemResponse(storym.UploadLogResp{
 			URL:    url0,
 			Reused: true,
@@ -207,7 +205,10 @@ func (s *Service) UploadLog(_ context.Context, req *storym.UploadLogReq) (*respo
 func (s *Service) GetBackupList(_ context.Context, _ *request.Empty) (*response.ItemResponse[storym.BackupListResp], error) {
 	list, err := dice.StoryLogBackupList(s.dice)
 	if err != nil {
-		return nil, huma.Error500InternalServerError(err.Error())
+		return response.NewItemResponse(storym.BackupListResp{
+			Result: false,
+			Err:    err.Error(),
+		}), nil
 	}
 	return response.NewItemResponse(storym.BackupListResp{
 		Result: true,

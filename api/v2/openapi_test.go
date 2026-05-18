@@ -1,4 +1,4 @@
-package v2_test
+package v2
 
 import (
 	"encoding/json"
@@ -7,12 +7,11 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	v2 "sealdice-core/api/v2"
 	storym "sealdice-core/api/v2/model/story"
 )
 
 func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
-	spec := v2.BuildOpenAPI()
+	spec := BuildOpenAPI()
 	if spec == nil {
 		t.Fatal("expected OpenAPI spec")
 	}
@@ -94,7 +93,7 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 }
 
 func TestStoryWriteSchemasDisallowLegacyFields(t *testing.T) {
-	spec := v2.BuildOpenAPI()
+	spec := BuildOpenAPI()
 	if spec == nil {
 		t.Fatal("expected OpenAPI spec")
 	}

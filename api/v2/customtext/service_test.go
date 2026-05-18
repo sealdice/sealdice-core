@@ -1,4 +1,4 @@
-package customtext_test
+package customtext
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"sealdice-core/api/v2/customtext"
 	customtextm "sealdice-core/api/v2/model/customtext"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
@@ -45,7 +44,7 @@ func closeGormDB(db *gorm.DB) error {
 	return sqlDB.Close()
 }
 
-func newTestService(t *testing.T) (*customtext.Service, func()) {
+func newTestService(t *testing.T) (*Service, func()) {
 	t.Helper()
 
 	db := newTestDatabaseOperator(t)
@@ -74,7 +73,7 @@ func newTestService(t *testing.T) (*customtext.Service, func()) {
 	d.UIEndpoint.Session = d.ImSession
 	dm := &dice.DiceManager{Dice: []*dice.Dice{d}}
 	d.Parent = dm
-	return customtext.NewServiceWithAutoSave(dm, false), func() {
+	return newService(dm, false), func() {
 		d.AttrsManager.Stop()
 		db.Close()
 	}
@@ -84,17 +83,17 @@ func TestGetTextReturnsTextsHelpInfoAndPreviewInfo(t *testing.T) {
 	svc, cleanup := newTestService(t)
 	defer cleanup()
 
-	svc.Dice().TextMapRaw["核心"] = dice.TextTemplateWithWeight{
+	svc.dice.TextMapRaw["核心"] = dice.TextTemplateWithWeight{
 		"骰子名字": {{"海豹", 1}},
 	}
-	svc.Dice().TextMapHelpInfo["核心"] = dice.TextTemplateHelpGroup{
+	svc.dice.TextMapHelpInfo["核心"] = dice.TextTemplateHelpGroup{
 		"骰子名字": &dice.TextTemplateHelpItem{SubType: "基础", Vars: []string{"$t玩家"}},
 	}
 	inner := &dice.SyncMap[string, dice.TextItemCompatibleInfo]{}
 	inner.Store("海豹", dice.TextItemCompatibleInfo{Version: "v2", TextV2: "海豹"})
-	svc.Dice().TextMapCompatible.Store("核心:骰子名字", inner)
+	svc.dice.TextMapCompatible.Store("核心:骰子名字", inner)
 
-	resp, err := svc.GetText(t.Context(), &request.Empty{})
+	resp, err := svc.GetText(context.Background(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetText returned error: %v", err)
 	}
@@ -114,7 +113,7 @@ func TestSaveCategoryTrimsTextAndUpdatesRawMap(t *testing.T) {
 	svc, cleanup := newTestService(t)
 	defer cleanup()
 
-	_, err := svc.SaveCategory(t.Context(), &customtextm.SaveCategoryReq{
+	_, err := svc.SaveCategory(context.Background(), &customtextm.SaveCategoryReq{
 		Category: "核心",
 		Body: request.RequestWrapper[customtextm.SaveCategoryBody]{
 			Body: customtextm.SaveCategoryBody{
@@ -127,14 +126,14 @@ func TestSaveCategoryTrimsTextAndUpdatesRawMap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveCategory returned error: %v", err)
 	}
-	got := svc.Dice().TextMapRaw["核心"]["骰子名字"][0]
+	got := svc.dice.TextMapRaw["核心"]["骰子名字"][0]
 	if got[0] != "海豹" {
 		t.Fatalf("text = %v, want trimmed 海豹", got[0])
 	}
 	if got[1] != 2 {
 		t.Fatalf("weight = %#v, want int 2", got[1])
 	}
-	if _, ok := svc.Dice().TextMapCompatible.Load("核心:骰子名字"); !ok {
+	if _, ok := svc.dice.TextMapCompatible.Load("核心:骰子名字"); !ok {
 		t.Fatalf("compatible preview was not refreshed")
 	}
 }

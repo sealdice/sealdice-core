@@ -1,19 +1,18 @@
-package realtime_test
+package realtime
 
 import (
 	"testing"
 	"time"
 
 	imconnm "sealdice-core/api/v2/model/imconnection"
-	"sealdice-core/api/v2/realtime"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 )
 
 func TestStateWatcherPublishesLogAppendEvents(t *testing.T) {
 	dm := newTestDiceManager()
-	bus := realtime.NewBus()
-	watcher := realtime.NewStateWatcher(dm, bus)
+	bus := NewBus()
+	watcher := NewStateWatcher(dm, bus)
 
 	unsubscribeLogs := watcher.BindLogs()
 	defer unsubscribeLogs()
@@ -23,8 +22,8 @@ func TestStateWatcherPublishesLogAppendEvents(t *testing.T) {
 
 	_, _ = dm.GetDice().LogWriter.Write([]byte(`{"level":"info","module":"core","time":"2026-05-17T12:34:56.000Z+0800","msg":"hello"}`))
 
-	evt := waitForEvent(t, ch, realtime.EventLogsAppend)
-	payload, ok := evt.Payload.(realtime.LogAppendPayload)
+	evt := waitForEvent(t, ch, EventLogsAppend)
+	payload, ok := evt.Payload.(LogAppendPayload)
 	if !ok {
 		t.Fatalf("payload type = %T, want LogAppendPayload", evt.Payload)
 	}
@@ -35,8 +34,8 @@ func TestStateWatcherPublishesLogAppendEvents(t *testing.T) {
 
 func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T) {
 	dm := newTestDiceManager()
-	bus := realtime.NewBus()
-	watcher := realtime.NewStateWatcher(dm, bus)
+	bus := NewBus()
+	watcher := NewStateWatcher(dm, bus)
 
 	ep := dice.NewMilkyConnItem(dice.AddMilkyEcho{BuiltInMode: "yogurt"})
 	ep.Enable = true
@@ -54,8 +53,8 @@ func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T
 
 	watcher.Scan()
 
-	listEvt := waitForEvent(t, ch, realtime.EventIMConnectionList)
-	listPayload, ok := listEvt.Payload.(realtime.IMConnectionListPayload)
+	listEvt := waitForEvent(t, ch, EventIMConnectionList)
+	listPayload, ok := listEvt.Payload.(IMConnectionListPayload)
 	if !ok {
 		t.Fatalf("payload type = %T, want IMConnectionListPayload", listEvt.Payload)
 	}
@@ -63,8 +62,8 @@ func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T
 		t.Fatalf("list payload = %#v, want endpoint %s", listPayload.Items, ep.ID)
 	}
 
-	updatedEvt := waitForEvent(t, ch, realtime.EventIMConnectionUpdated)
-	updatedPayload, ok := updatedEvt.Payload.(realtime.IMConnectionUpdatedPayload)
+	updatedEvt := waitForEvent(t, ch, EventIMConnectionUpdated)
+	updatedPayload, ok := updatedEvt.Payload.(IMConnectionUpdatedPayload)
 	if !ok {
 		t.Fatalf("payload type = %T, want IMConnectionUpdatedPayload", updatedEvt.Payload)
 	}
@@ -72,8 +71,8 @@ func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T
 		t.Fatalf("updated payload = %#v, want endpoint %s", updatedPayload.Item, ep.ID)
 	}
 
-	workflowEvt := waitForEvent(t, ch, realtime.EventIMConnectionWorkflow)
-	workflowPayload, ok := workflowEvt.Payload.(realtime.IMConnectionWorkflowPayload)
+	workflowEvt := waitForEvent(t, ch, EventIMConnectionWorkflow)
+	workflowPayload, ok := workflowEvt.Payload.(IMConnectionWorkflowPayload)
 	if !ok {
 		t.Fatalf("payload type = %T, want IMConnectionWorkflowPayload", workflowEvt.Payload)
 	}
@@ -84,8 +83,8 @@ func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T
 		t.Fatalf("workflow = %#v, want qrcode state with QR code", workflowPayload.Workflow)
 	}
 
-	qrEvt := waitForEvent(t, ch, realtime.EventIMConnectionQRCode)
-	qrPayload, ok := qrEvt.Payload.(realtime.IMConnectionQRCodePayload)
+	qrEvt := waitForEvent(t, ch, EventIMConnectionQRCode)
+	qrPayload, ok := qrEvt.Payload.(IMConnectionQRCodePayload)
 	if !ok {
 		t.Fatalf("payload type = %T, want IMConnectionQRCodePayload", qrEvt.Payload)
 	}
@@ -102,20 +101,20 @@ func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T
 
 	watcher.Scan()
 
-	updatedEvt = waitForEvent(t, ch, realtime.EventIMConnectionUpdated)
-	updatedPayload = updatedEvt.Payload.(realtime.IMConnectionUpdatedPayload)
+	updatedEvt = waitForEvent(t, ch, EventIMConnectionUpdated)
+	updatedPayload = updatedEvt.Payload.(IMConnectionUpdatedPayload)
 	if updatedPayload.Item == nil || updatedPayload.Item.State != dice.StateConnected {
 		t.Fatalf("updated payload state = %#v, want connected", updatedPayload.Item)
 	}
 
-	workflowEvt = waitForEvent(t, ch, realtime.EventIMConnectionWorkflow)
-	workflowPayload = workflowEvt.Payload.(realtime.IMConnectionWorkflowPayload)
+	workflowEvt = waitForEvent(t, ch, EventIMConnectionWorkflow)
+	workflowPayload = workflowEvt.Payload.(IMConnectionWorkflowPayload)
 	if workflowPayload.Workflow.State != "success" {
 		t.Fatalf("workflow state = %q, want success", workflowPayload.Workflow.State)
 	}
 
-	qrEvt = waitForEvent(t, ch, realtime.EventIMConnectionQRCode)
-	qrPayload = qrEvt.Payload.(realtime.IMConnectionQRCodePayload)
+	qrEvt = waitForEvent(t, ch, EventIMConnectionQRCode)
+	qrPayload = qrEvt.Payload.(IMConnectionQRCodePayload)
 	if qrPayload.Img != "" {
 		t.Fatalf("qrcode image = %q, want empty after success", qrPayload.Img)
 	}
@@ -126,7 +125,7 @@ func TestBuildConnectionWorkflowMatchesIMConnectionContract(t *testing.T) {
 	pa := ep.Adapter.(*dice.PlatformAdapterMilky)
 	pa.BuiltInLoginState = dice.MilkyLoginStateFailed
 
-	workflow := realtime.WorkflowOfEndpoint(ep)
+	workflow := workflowOfEndpoint(ep)
 	if workflow != (imconnm.WorkflowResp{State: "failed", LoginState: int64(dice.MilkyLoginStateFailed)}) {
 		t.Fatalf("workflow = %#v", workflow)
 	}
@@ -150,7 +149,7 @@ func newTestDiceManager() *dice.DiceManager {
 	return dm
 }
 
-func waitForEvent(t *testing.T, ch <-chan realtime.Event, name string) realtime.Event {
+func waitForEvent(t *testing.T, ch <-chan Event, name string) Event {
 	t.Helper()
 
 	deadline := time.After(time.Second)

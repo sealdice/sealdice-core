@@ -90,7 +90,7 @@ func (w *StateWatcher) Scan() {
 			})
 		}
 
-		workflow := WorkflowOfEndpoint(ep)
+		workflow := workflowOfEndpoint(ep)
 		if workflow != w.workflows[ep.ID] {
 			w.workflows[ep.ID] = workflow
 			w.bus.Publish(Event{
@@ -132,7 +132,7 @@ func (w *StateWatcher) dice() *dice.Dice {
 	return w.dm.GetDice()
 }
 
-func WorkflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
+func workflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
 	switch pa := ep.Adapter.(type) {
 	case *dice.PlatformAdapterGocq:
 		state, hasQR := mapGocqWorkflow(pa.GoCqhttpState, len(pa.GoCqhttpQrcodeData) > 0)

@@ -8,10 +8,10 @@ import (
 )
 
 type StoryInfo struct {
-	TotalLogs    int `json:"totalLogs"`
-	TotalItems   int `json:"totalItems"`
-	CurrentLogs  int `json:"currentLogs"`
-	CurrentItems int `json:"currentItems"`
+	TotalLogs      int `json:"totalLogs"`
+	TotalItems     int `json:"totalItems"`
+	CurrentLogs    int `json:"currentLogs"`
+	CurrentItems   int `json:"currentItems"`
 }
 
 type StoryInfoResp = StoryInfo
@@ -38,12 +38,12 @@ type LogPageQuery struct {
 }
 
 type LogPageResp struct {
-	Result   bool           `json:"result"`
-	Err      string         `json:"err,omitempty"`
-	Total    int            `json:"total"`
-	Data     []StoryLogView `json:"data,omitempty"`
-	PageNum  int            `json:"pageNum"`
-	PageSize int            `json:"pageSize"`
+	Result   bool            `json:"result"`
+	Err      string          `json:"err,omitempty"`
+	Total    int             `json:"total"`
+	Data     []StoryLogView  `json:"data,omitempty"`
+	PageNum  int             `json:"pageNum"`
+	PageSize int             `json:"pageSize"`
 }
 
 type ItemPageQuery struct {
@@ -85,8 +85,8 @@ type UploadLogResp struct {
 }
 
 type BackupListResp struct {
-	Result bool                  `json:"result"`
-	Err    string                `json:"err,omitempty"`
+	Result bool                 `json:"result"`
+	Err    string               `json:"err,omitempty"`
 	Data   []dice.StoryLogBackup `json:"data,omitempty"`
 }
 

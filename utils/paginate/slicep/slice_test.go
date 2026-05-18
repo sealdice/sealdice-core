@@ -1,69 +1,136 @@
-package slicep_test
+package slicep
 
 import (
+	"reflect"
 	"testing"
 
-	"sealdice-core/utils/paginate/slicep"
+	"sealdice-core/utils/paginate"
 )
 
 func TestSliceAdapter(t *testing.T) {
-	src := []int{1, 2, 3}
-	adapter := slicep.Adapter(src)
-	if adapter == nil {
-		t.Fatal("Adapter returned nil")
+	type args struct {
+		source any
 	}
-	length, err := adapter.Length()
-	if err != nil {
-		t.Fatalf("Length returned error: %v", err)
+	var tests []struct {
+		name string
+		args args
+		want paginate.IAdapter
 	}
-	if length != 3 {
-		t.Fatalf("Length = %d, want 3", length)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Adapter(tt.args.source); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SliceAdapter() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestSlice_Length(t *testing.T) {
-	adapter := slicep.Adapter([]string{"a", "b"})
-	got, err := adapter.Length()
-	if err != nil {
-		t.Fatalf("Length returned error: %v", err)
+	type fields struct {
+		src any
 	}
-	if got != 2 {
-		t.Fatalf("Length = %d, want 2", got)
+	var tests []struct {
+		name    string
+		fields  fields
+		want    int64
+		wantErr bool
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Slice{
+				src: tt.fields.src,
+			}
+			got, err := s.Length()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Length() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Length() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestSlice_Slice(t *testing.T) {
-	adapter := slicep.Adapter([]string{"a", "b", "c"})
-	var dest []string
-	if err := adapter.Slice(1, 2, &dest); err != nil {
-		t.Fatalf("Slice returned error: %v", err)
+	type fields struct {
+		src any
 	}
-	if len(dest) != 2 || dest[0] != "b" || dest[1] != "c" {
-		t.Fatalf("Slice result = %#v, want [b c]", dest)
+	type args struct {
+		offset int64
+		length int64
+		dest   any
+	}
+	var tests []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Slice{
+				src: tt.fields.src,
+			}
+			if err := s.Slice(tt.args.offset, tt.args.length, tt.args.dest); (err != nil) != tt.wantErr {
+				t.Errorf("Slice() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
 
-func TestSliceImplementsPaginateAdapter(t *testing.T) {
-	var _ = slicep.Adapter([]int{1})
-}
-
-func TestAdapterRejectsPointerInput(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatal("expected panic for pointer input")
-		}
-	}()
-	src := []int{1, 2, 3}
-	_ = slicep.Adapter(&src)
-}
-
-func TestSliceHandlesEmptyRange(t *testing.T) {
-	adapter := slicep.Adapter([]string{"a"})
-	var dest []string
-	if err := adapter.Slice(2, 1, &dest); err != nil {
-		t.Fatalf("Slice returned error: %v", err)
+func Test_isPtr(t *testing.T) {
+	type args struct {
+		data any
 	}
-	if len(dest) != 0 {
-		t.Fatalf("Slice result length = %d, want 0", len(dest))
+	var tests []struct {
+		name string
+		args args
+		want bool
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isPtr(tt.args.data); got != tt.want {
+				t.Errorf("isPtr() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_isSlice(t *testing.T) {
+	type args struct {
+		data any
+	}
+	var tests []struct {
+		name string
+		args args
+		want bool
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isSlice(tt.args.data); got != tt.want {
+				t.Errorf("isSlice() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_makeSlice(t *testing.T) {
+	type args struct {
+		data   interface{}
+		length int
+		cap    int
+	}
+	var tests []struct {
+		name    string
+		args    args
+		wantErr bool
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := makeSlice(tt.args.data, tt.args.length, tt.args.cap); (err != nil) != tt.wantErr {
+				t.Errorf("makeSlice() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }

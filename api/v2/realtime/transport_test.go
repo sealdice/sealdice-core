@@ -1,18 +1,16 @@
-package realtime_test
+package realtime
 
 import (
 	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
-
-	"sealdice-core/api/v2/realtime"
 )
 
 func TestEncodeEnvelopeIncludesEventNameAndPayload(t *testing.T) {
-	data, err := realtime.EncodeEnvelope(realtime.Event{
-		Name:    realtime.EventLogsAppend,
-		Payload: realtime.LogAppendPayload{Item: nil},
+	data, err := encodeEnvelope(Event{
+		Name:    EventLogsAppend,
+		Payload: LogAppendPayload{Item: nil},
 	})
 	if err != nil {
 		t.Fatalf("encodeEnvelope returned error: %v", err)
@@ -27,8 +25,8 @@ func TestEncodeEnvelopeIncludesEventNameAndPayload(t *testing.T) {
 	if err := json.Unmarshal(decoded["event"], &eventName); err != nil {
 		t.Fatalf("event field invalid: %v", err)
 	}
-	if eventName != realtime.EventLogsAppend {
-		t.Fatalf("event = %q, want %q", eventName, realtime.EventLogsAppend)
+	if eventName != EventLogsAppend {
+		t.Fatalf("event = %q, want %q", eventName, EventLogsAppend)
 	}
 	if _, ok := decoded["payload"]; !ok {
 		t.Fatal("payload field missing")
@@ -38,16 +36,16 @@ func TestEncodeEnvelopeIncludesEventNameAndPayload(t *testing.T) {
 func TestWriteSSEEventFormatsStreamFrame(t *testing.T) {
 	var buf bytes.Buffer
 
-	err := realtime.WriteSSEEvent(&buf, realtime.Event{
-		Name:    realtime.EventSystemReady,
-		Payload: realtime.SystemReadyPayload{},
+	err := writeSSEEvent(&buf, Event{
+		Name:    EventSystemReady,
+		Payload: SystemReadyPayload{},
 	})
 	if err != nil {
 		t.Fatalf("writeSSEEvent returned error: %v", err)
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "event: "+realtime.EventSystemReady+"\n") {
+	if !strings.Contains(output, "event: "+EventSystemReady+"\n") {
 		t.Fatalf("event line missing: %q", output)
 	}
 	if !strings.Contains(output, "data: ") {

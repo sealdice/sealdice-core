@@ -1,11 +1,10 @@
-package base_test
+package base
 
 import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
 
-	"sealdice-core/api/v2/base"
 	"sealdice-core/dice"
 )
 
@@ -16,5 +15,5 @@ func TestRegisterLogStreamRouteSkipsEmptyDiceManager(t *testing.T) {
 		}
 	}()
 
-	base.RegisterLogStreamRoute(echo.New(), &dice.DiceManager{})
+	RegisterLogStreamRoute(echo.New(), &dice.DiceManager{})
 }

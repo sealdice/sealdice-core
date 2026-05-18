@@ -1,26 +1,24 @@
-package realtime_test
+package realtime
 
 import (
 	"testing"
 	"time"
-
-	"sealdice-core/api/v2/realtime"
 )
 
 func TestBusPublishesToSubscribers(t *testing.T) {
-	bus := realtime.NewBus()
+	bus := NewBus()
 	ch, unsubscribe := bus.Subscribe(1)
 	defer unsubscribe()
 
-	bus.Publish(realtime.Event{
-		Name:    realtime.EventSystemReady,
+	bus.Publish(Event{
+		Name:    EventSystemReady,
 		Payload: map[string]any{"ok": true},
 	})
 
 	select {
 	case evt := <-ch:
-		if evt.Name != realtime.EventSystemReady {
-			t.Fatalf("event name = %q, want %q", evt.Name, realtime.EventSystemReady)
+		if evt.Name != EventSystemReady {
+			t.Fatalf("event name = %q, want %q", evt.Name, EventSystemReady)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for event")

@@ -125,11 +125,11 @@ type ResetConfigReq struct {
 // --- response types ---
 
 type JsListResp struct {
-	Success  bool     `json:"success"`
-	Data     []JsInfo `json:"data"`
-	Total    int      `json:"total"`
-	Page     int      `json:"page"`
-	PageSize int      `json:"pageSize"`
+	Success  bool      `json:"success"`
+	Data     []JsInfo  `json:"data"`
+	Total    int       `json:"total"`
+	Page     int       `json:"page"`
+	PageSize int       `json:"pageSize"`
 }
 
 type JsInfo struct {
@@ -226,7 +226,7 @@ type UploadInitReq struct {
 }
 
 type JsUploadSessionResp struct {
-	Success         bool   `json:"success"`
+	Success         bool  `json:"success"`
 	SessionID       string `json:"sessionId"`
 	ChunkSize       int64  `json:"chunkSize"`
 	UploadedChunks  []int  `json:"uploadedChunks"`

@@ -71,7 +71,7 @@ func (m *Manager) Init(filename string, fileSize int64, fileHash string, chunkSi
 		UploadedChunks: map[int]bool{},
 		TempDir:        tempDir,
 	}
-	for index := range expectedChunks {
+	for index := 0; index < expectedChunks; index++ {
 		chunkPath := filepath.Join(tempDir, ChunkFilename(index))
 		if info, err := os.Stat(chunkPath); err == nil && info.Size() > 0 {
 			session.UploadedChunks[index] = true
@@ -153,7 +153,7 @@ func (m *Manager) Complete(sessionID string, dstPath string) (*Session, error) {
 	defer func() { _ = dst.Close() }()
 
 	hasher := m.newHash()
-	for index := range session.ExpectedChunks {
+	for index := 0; index < session.ExpectedChunks; index++ {
 		chunkPath := filepath.Join(session.TempDir, ChunkFilename(index))
 		content, readErr := os.ReadFile(chunkPath)
 		if readErr != nil {

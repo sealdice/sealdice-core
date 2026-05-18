@@ -40,13 +40,13 @@ func (s Slice) Slice(offset, length int64, dest any) error {
 	if lengthInt == 0 {
 		return nil
 	}
-	// 防止切片需要切割的过多，导致的失败
+	//防止切片需要切割的过多，导致的失败
 	if needSize > fullSize {
 		needSize = fullSize
 	}
 	vs := va.Slice(int(offset), int(needSize))
 	vt := reflect.ValueOf(dest).Elem()
-	for i := range vs.Len() {
+	for i := 0; i < vs.Len(); i++ {
 		vt.Index(i).Set(reflect.ValueOf(vs.Index(i).Interface()))
 	}
 	return nil
@@ -60,7 +60,7 @@ func isSlice(data any) bool {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	return v.Kind() == reflect.Slice
 }
-func makeSlice(data interface{}, length, capacity int) error {
+func makeSlice(data interface{}, length, cap int) error {
 	if !isPtr(data) {
 		return fmt.Errorf("expected to be a ptr but got %T", data)
 	}
@@ -69,6 +69,6 @@ func makeSlice(data interface{}, length, capacity int) error {
 	}
 	ind := reflect.Indirect(reflect.ValueOf(data))
 	typ := reflect.TypeOf(ind.Interface())
-	reflect.ValueOf(data).Elem().Set(reflect.MakeSlice(typ, length, capacity))
+	reflect.ValueOf(data).Elem().Set(reflect.MakeSlice(typ, length, cap))
 	return nil
 }

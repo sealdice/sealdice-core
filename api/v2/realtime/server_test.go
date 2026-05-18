@@ -1,9 +1,8 @@
-package realtime_test
+package realtime
 
 import (
 	"testing"
 
-	"sealdice-core/api/v2/realtime"
 	"sealdice-core/dice"
 )
 
@@ -21,15 +20,15 @@ func TestBuildBootstrapEventsIncludesCurrentSnapshots(t *testing.T) {
 	pa.QrCodeData = []byte("fake-png")
 	dm.GetDice().ImSession.EndPoints = append(dm.GetDice().ImSession.EndPoints, ep)
 
-	events := realtime.BuildBootstrapEvents(dm)
+	events := buildBootstrapEvents(dm)
 	if len(events) < 5 {
 		t.Fatalf("bootstrap event count = %d, want at least 5", len(events))
 	}
 
-	assertHasEvent(t, events, realtime.EventSystemReady)
+	assertHasEvent(t, events, EventSystemReady)
 
-	logEvt := findEvent(events, realtime.EventLogsSnapshot)
-	logPayload, ok := logEvt.Payload.(realtime.LogSnapshotPayload)
+	logEvt := findEvent(events, EventLogsSnapshot)
+	logPayload, ok := logEvt.Payload.(LogSnapshotPayload)
 	if !ok {
 		t.Fatalf("logs payload type = %T, want LogSnapshotPayload", logEvt.Payload)
 	}
@@ -37,37 +36,37 @@ func TestBuildBootstrapEventsIncludesCurrentSnapshots(t *testing.T) {
 		t.Fatalf("log payload = %#v", logPayload.Items)
 	}
 
-	listEvt := findEvent(events, realtime.EventIMConnectionList)
-	listPayload := listEvt.Payload.(realtime.IMConnectionListPayload)
+	listEvt := findEvent(events, EventIMConnectionList)
+	listPayload := listEvt.Payload.(IMConnectionListPayload)
 	if len(listPayload.Items) != 1 || listPayload.Items[0].ID != ep.ID {
 		t.Fatalf("list payload = %#v", listPayload.Items)
 	}
 
-	workflowEvt := findEvent(events, realtime.EventIMConnectionWorkflow)
-	workflowPayload := workflowEvt.Payload.(realtime.IMConnectionWorkflowPayload)
+	workflowEvt := findEvent(events, EventIMConnectionWorkflow)
+	workflowPayload := workflowEvt.Payload.(IMConnectionWorkflowPayload)
 	if workflowPayload.EndpointID != ep.ID || workflowPayload.Workflow.State != "qrcode" {
 		t.Fatalf("workflow payload = %#v", workflowPayload)
 	}
 
-	qrEvt := findEvent(events, realtime.EventIMConnectionQRCode)
-	qrPayload := qrEvt.Payload.(realtime.IMConnectionQRCodePayload)
+	qrEvt := findEvent(events, EventIMConnectionQRCode)
+	qrPayload := qrEvt.Payload.(IMConnectionQRCodePayload)
 	if qrPayload.EndpointID != ep.ID || qrPayload.Img == "" {
 		t.Fatalf("qr payload = %#v", qrPayload)
 	}
 }
 
-func assertHasEvent(t *testing.T, events []realtime.Event, name string) {
+func assertHasEvent(t *testing.T, events []Event, name string) {
 	t.Helper()
 	if findEvent(events, name).Name == "" {
 		t.Fatalf("missing event %q", name)
 	}
 }
 
-func findEvent(events []realtime.Event, name string) realtime.Event {
+func findEvent(events []Event, name string) Event {
 	for _, evt := range events {
 		if evt.Name == name {
 			return evt
 		}
 	}
-	return realtime.Event{}
+	return Event{}
 }

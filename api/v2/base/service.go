@@ -35,7 +35,7 @@ func NewBaseService(dm *dice.DiceManager) *BaseService {
 }
 
 func (s *BaseService) RegisterRoutes(grp *huma.Group) {
-	huma.Get(grp, "/health", s.Health, func(o *huma.Operation) {
+	huma.Get(grp, "/health", s.health, func(o *huma.Operation) {
 		o.Description = "检查服务是否正常"
 		o.Summary = "检查服务是否正常"
 	})
@@ -57,8 +57,8 @@ func (s *BaseService) RegisterRoutes(grp *huma.Group) {
 	})
 }
 
-// Health 健康检查处理函数
-func (s *BaseService) Health(_ context.Context, _ *request.Empty) (*response.ItemResponse[resp.HealthData], error) {
+// health 健康检查处理函数
+func (s *BaseService) health(_ context.Context, _ *request.Empty) (*response.ItemResponse[resp.HealthData], error) {
 	if s.dice == nil {
 		return nil, huma.Error500InternalServerError("Dice instance is nil,contact administrator")
 	}
@@ -168,5 +168,5 @@ func (s *BaseService) SecurityCheck(_ context.Context, _ *struct{}) (*response.I
 }
 
 // 私以为这应该是个WebSocket接口 准备使用Melody进行改造 先不放在这里
-// func (s *BaseService) GetDiceLogItems(_ context.Context, req *request.RequestWrapper[]) (*response.ItemResponse[bool], error) {
+//func (s *BaseService) GetDiceLogItems(_ context.Context, req *request.RequestWrapper[]) (*response.ItemResponse[bool], error) {
 //}

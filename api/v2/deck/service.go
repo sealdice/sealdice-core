@@ -2,7 +2,6 @@ package deck
 
 import (
 	"context"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -35,10 +34,6 @@ func NewService(dm *dice.DiceManager) *Service {
 		dm:            dm,
 		uploadManager: uploadcore.NewManager(filepath.Join("data", "decks", ".uploads")),
 	}
-}
-
-func (s *Service) Dice() *dice.Dice {
-	return s.dice
 }
 
 func (s *Service) RegisterRoutes(grp *huma.Group) {
@@ -250,12 +245,12 @@ func (s *Service) UploadChunk(_ context.Context, req *deckm.UploadChunkReq) (*re
 
 	session, err := s.uploadManager.SaveChunk(req.SessionID, req.Index, req.RawBody)
 	if err != nil {
-		switch {
-		case errors.Is(err, uploadcore.ErrSessionNotFound):
+		switch err {
+		case uploadcore.ErrSessionNotFound:
 			return nil, huma.Error404NotFound("上传会话不存在")
-		case errors.Is(err, uploadcore.ErrChunkOutOfRange):
+		case uploadcore.ErrChunkOutOfRange:
 			return nil, huma.Error400BadRequest("chunk index超出范围")
-		case errors.Is(err, uploadcore.ErrChunkEmpty):
+		case uploadcore.ErrChunkEmpty:
 			return nil, huma.Error400BadRequest("分块内容不能为空")
 		default:
 			return nil, huma.Error500InternalServerError("写入分块失败")
@@ -283,10 +278,10 @@ func (s *Service) CompleteUpload(_ context.Context, req *deckm.UploadCompleteReq
 	}
 	session, err := s.uploadManager.Complete(req.Body.Body.SessionID, filepath.Join("data", "decks", sessionMeta.Filename))
 	if err != nil {
-		switch {
-		case errors.Is(err, uploadcore.ErrIncomplete):
+		switch err {
+		case uploadcore.ErrIncomplete:
 			return nil, huma.Error400BadRequest("上传分块不完整")
-		case errors.Is(err, uploadcore.ErrHashMismatch):
+		case uploadcore.ErrHashMismatch:
 			return nil, huma.Error400BadRequest("文件校验失败")
 		default:
 			return nil, huma.Error500InternalServerError("完成上传失败")
@@ -336,20 +331,20 @@ func (s *Service) CheckUpdate(_ context.Context, req *deckm.FilenameReq) (*respo
 		if deck == nil || deck.Filename != filename {
 			continue
 		}
-		oldDeck, newDeck, tempFileName, checkErr := s.dice.DeckCheckUpdate(deck)
-		if checkErr == nil {
+		oldDeck, newDeck, tempFileName, err := s.dice.DeckCheckUpdate(deck)
+		if err != nil {
 			return response.NewItemResponse(deckm.UpdateCheckResult{
-				Success:      true,
-				Old:          oldDeck,
-				New:          newDeck,
-				Format:       deck.FileFormat,
-				Filename:     deck.Filename,
-				TempFileName: tempFileName,
+				Success: false,
+				Err:     err.Error(),
 			}), nil
 		}
 		return response.NewItemResponse(deckm.UpdateCheckResult{
-			Success: false,
-			Err:     checkErr.Error(),
+			Success:      true,
+			Old:          oldDeck,
+			New:          newDeck,
+			Format:       deck.FileFormat,
+			Filename:     deck.Filename,
+			TempFileName: tempFileName,
 		}), nil
 	}
 
@@ -373,13 +368,12 @@ func (s *Service) Update(_ context.Context, req *deckm.UpdateReq) (*response.Ite
 		if deck == nil || deck.Filename != filename {
 			continue
 		}
-		updateErr := s.dice.DeckUpdate(deck, tempFileName)
-		if updateErr == nil {
-			dice.DeckReload(s.dice)
-			s.dice.MarkModified()
-			return response.NewItemResponse(cmm.SimpleOK{Success: true}), nil
+		if err := s.dice.DeckUpdate(deck, tempFileName); err != nil {
+			return response.NewItemResponse(cmm.SimpleOK{Success: false}), nil
 		}
-		return response.NewItemResponse(cmm.SimpleOK{Success: false}), nil
+		dice.DeckReload(s.dice)
+		s.dice.MarkModified()
+		return response.NewItemResponse(cmm.SimpleOK{Success: true}), nil
 	}
 
 	return response.NewItemResponse(cmm.SimpleOK{Success: false}), nil

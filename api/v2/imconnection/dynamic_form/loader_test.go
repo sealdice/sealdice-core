@@ -1,21 +1,19 @@
-package dynamicform_test
+package dynamicform
 
 import (
 	"testing"
-
-	dynamicform "sealdice-core/api/v2/imconnection/dynamic_form"
 )
 
 func mustLoad(t *testing.T) {
 	t.Helper()
-	if dynamicform.GetAll() == nil {
-		if err := dynamicform.LoadFromFile("forms.json"); err != nil {
+	if forms == nil {
+		if err := LoadFromFile("forms.json"); err != nil {
 			t.Fatalf("LoadFromFile failed: %v", err)
 		}
 	}
 }
 
-func idByField(items []*dynamicform.FormConfigItem, field string) uint64 {
+func idByField(items []*FormConfigItem, field string) uint64 {
 	for _, it := range items {
 		if it.FieldName == field {
 			return it.ID
@@ -26,7 +24,7 @@ func idByField(items []*dynamicform.FormConfigItem, field string) uint64 {
 
 func TestLoadAndGetFormsDiscord(t *testing.T) {
 	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
+	items := GetFormConfig("discord")
 	if len(items) == 0 {
 		t.Fatalf("discord form empty")
 	}
@@ -38,12 +36,12 @@ func TestLoadAndGetFormsDiscord(t *testing.T) {
 
 func TestBuildParamsBySubmitDiscord(t *testing.T) {
 	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: idByField(items, "token"), Data: "TKN"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "proxyURL"), Data: "http://127.0.0.1:7890"},
+	items := GetFormConfig("discord")
+	sub := SubmitFormItems{
+		&SubmitFormItem{ID: idByField(items, "token"), Data: "TKN"},
+		&SubmitFormItem{ID: idByField(items, "proxyURL"), Data: "http://127.0.0.1:7890"},
 	}
-	params, err := dynamicform.BuildParamsBySubmit(items, sub)
+	params, err := BuildParamsBySubmit(items, sub)
 	if err != nil {
 		t.Fatalf("BuildParamsBySubmit error: %v", err)
 	}
@@ -57,14 +55,14 @@ func TestBuildParamsBySubmitDiscord(t *testing.T) {
 
 func TestBuildParamsNumericSatoriPort(t *testing.T) {
 	mustLoad(t)
-	items := dynamicform.GetFormConfig("satori")
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: idByField(items, "platform"), Data: "QQ"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "host"), Data: "localhost"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "port"), Data: "3100"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "token"), Data: "abc"},
+	items := GetFormConfig("satori")
+	sub := SubmitFormItems{
+		&SubmitFormItem{ID: idByField(items, "platform"), Data: "QQ"},
+		&SubmitFormItem{ID: idByField(items, "host"), Data: "localhost"},
+		&SubmitFormItem{ID: idByField(items, "port"), Data: "3100"},
+		&SubmitFormItem{ID: idByField(items, "token"), Data: "abc"},
 	}
-	params, err := dynamicform.BuildParamsBySubmit(items, sub)
+	params, err := BuildParamsBySubmit(items, sub)
 	if err != nil {
 		t.Fatalf("BuildParamsBySubmit error: %v", err)
 	}
@@ -75,11 +73,11 @@ func TestBuildParamsNumericSatoriPort(t *testing.T) {
 
 func TestRequiredMissing(t *testing.T) {
 	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
-	sub := dynamicform.SubmitFormItems{
+	items := GetFormConfig("discord")
+	sub := SubmitFormItems{
 		// omit token (required)
 	}
-	_, err := dynamicform.BuildParamsBySubmit(items, sub)
+	_, err := BuildParamsBySubmit(items, sub)
 	if err == nil {
 		t.Fatalf("expected error for missing required")
 	}
@@ -87,11 +85,11 @@ func TestRequiredMissing(t *testing.T) {
 
 func TestKeysAndGetAll(t *testing.T) {
 	mustLoad(t)
-	ks := dynamicform.Keys()
+	ks := Keys()
 	if len(ks) == 0 {
 		t.Fatalf("Keys empty")
 	}
-	all := dynamicform.GetAll()
+	all := GetAll()
 	if len(all) == 0 {
 		t.Fatalf("GetAll empty")
 	}
@@ -100,22 +98,22 @@ func TestKeysAndGetAll(t *testing.T) {
 		if _, ok := all[k]; !ok {
 			t.Fatalf("key %s missing in GetAll", k)
 		}
-		if len(dynamicform.GetFormConfig(k)) == 0 {
+		if len(GetFormConfig(k)) == 0 {
 			t.Fatalf("GetFormConfig(%s) empty", k)
 		}
 	}
 }
 
 func TestSelectTypesSupport(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "p1", InputType: dynamicform.InputTypeSin, IsRequired: dynamicform.RequiredTrue},
-		{ID: 2, FieldName: "p2", InputType: dynamicform.InputTypeMul, IsRequired: dynamicform.RequiredFalse},
+	forms := []*FormConfigItem{
+		{ID: 1, FieldName: "p1", InputType: InputTypeSin, IsRequired: RequiredTrue},
+		{ID: 2, FieldName: "p2", InputType: InputTypeMul, IsRequired: RequiredFalse},
 	}
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "5"},
-		&dynamicform.SubmitFormItem{ID: 2, Data: "[1,2,3]"},
+	sub := SubmitFormItems{
+		&SubmitFormItem{ID: 1, Data: "5"},
+		&SubmitFormItem{ID: 2, Data: "[1,2,3]"},
 	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
+	params, err := BuildParamsBySubmit(forms, sub)
 	if err != nil {
 		t.Fatalf("BuildParamsBySubmit error: %v", err)
 	}
@@ -128,17 +126,17 @@ func TestSelectTypesSupport(t *testing.T) {
 }
 
 func TestDefaultsApplied(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "t1", InputType: dynamicform.InputTypeText, IsRequired: dynamicform.RequiredFalse, Default: "DEF"},
-		{ID: 2, FieldName: "n1", InputType: dynamicform.InputTypeNum, IsRequired: dynamicform.RequiredFalse, Default: "42"},
-		{ID: 3, FieldName: "d1", InputType: dynamicform.InputTypeDate, IsRequired: dynamicform.RequiredFalse, Default: "1700000000"},
-		{ID: 4, FieldName: "r1", InputType: dynamicform.InputTypeDateRange, IsRequired: dynamicform.RequiredFalse, DefaultRange: &dynamicform.RangeValue{Start: 1, End: 2}},
-		{ID: 5, FieldName: "b1", InputType: dynamicform.InputTypeBool, IsRequired: dynamicform.RequiredFalse, Default: "true"},
+	forms := []*FormConfigItem{
+		{ID: 1, FieldName: "t1", InputType: InputTypeText, IsRequired: RequiredFalse, Default: "DEF"},
+		{ID: 2, FieldName: "n1", InputType: InputTypeNum, IsRequired: RequiredFalse, Default: "42"},
+		{ID: 3, FieldName: "d1", InputType: InputTypeDate, IsRequired: RequiredFalse, Default: "1700000000"},
+		{ID: 4, FieldName: "r1", InputType: InputTypeDateRange, IsRequired: RequiredFalse, DefaultRange: &RangeValue{Start: 1, End: 2}},
+		{ID: 5, FieldName: "b1", InputType: InputTypeBool, IsRequired: RequiredFalse, Default: "true"},
 	}
-	sub := dynamicform.SubmitFormItems{
+	sub := SubmitFormItems{
 		// empty submit, all should use defaults
 	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
+	params, err := BuildParamsBySubmit(forms, sub)
 	if err != nil {
 		t.Fatalf("BuildParamsBySubmit error: %v", err)
 	}
@@ -151,7 +149,7 @@ func TestDefaultsApplied(t *testing.T) {
 	if params["d1"] != int64(1700000000) {
 		t.Fatalf("d1 default mismatch got %v", params["d1"])
 	}
-	if r, ok := params["r1"].(*dynamicform.RangeValue); !ok || r.Start != 1 || r.End != 2 {
+	if r, ok := params["r1"].(*RangeValue); !ok || r.Start != 1 || r.End != 2 {
 		t.Fatalf("r1 default mismatch")
 	}
 	if params["b1"] != true {
@@ -160,16 +158,16 @@ func TestDefaultsApplied(t *testing.T) {
 }
 
 func TestSelectWithOptions(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "color", InputType: dynamicform.InputTypeSelect, IsRequired: dynamicform.RequiredTrue, SubOption: []*dynamicform.Option{
+	forms := []*FormConfigItem{
+		{ID: 1, FieldName: "color", InputType: InputTypeSelect, IsRequired: RequiredTrue, SubOption: []*Option{
 			{Label: "Red", Value: "red"},
 			{Label: "Blue", Value: "blue"},
 		}},
 	}
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "red"},
+	sub := SubmitFormItems{
+		&SubmitFormItem{ID: 1, Data: "red"},
 	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
+	params, err := BuildParamsBySubmit(forms, sub)
 	if err != nil {
 		t.Fatalf("BuildParamsBySubmit error: %v", err)
 	}
@@ -177,32 +175,32 @@ func TestSelectWithOptions(t *testing.T) {
 		t.Fatalf("select value mismatch")
 	}
 	// invalid value
-	subBad := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "green"},
+	subBad := SubmitFormItems{
+		&SubmitFormItem{ID: 1, Data: "green"},
 	}
-	_, err = dynamicform.BuildParamsBySubmit(forms, subBad)
+	_, err = BuildParamsBySubmit(forms, subBad)
 	if err == nil {
 		t.Fatalf("expected error for invalid option")
 	}
 }
 
 func TestRadioCheckboxWithOptions(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "radio", InputType: dynamicform.InputTypeSin, IsRequired: dynamicform.RequiredTrue, SubOption: []*dynamicform.Option{
+	forms := []*FormConfigItem{
+		{ID: 1, FieldName: "radio", InputType: InputTypeSin, IsRequired: RequiredTrue, SubOption: []*Option{
 			{Label: "A", Value: "a"},
 			{Label: "B", Value: "b"},
 		}},
-		{ID: 2, FieldName: "checks", InputType: dynamicform.InputTypeMul, IsRequired: dynamicform.RequiredFalse, SubOption: []*dynamicform.Option{
+		{ID: 2, FieldName: "checks", InputType: InputTypeMul, IsRequired: RequiredFalse, SubOption: []*Option{
 			{Label: "A", Value: "a"},
 			{Label: "B", Value: "b"},
 			{Label: "C", Value: "c"},
 		}},
 	}
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "a"},
-		&dynamicform.SubmitFormItem{ID: 2, Data: "[\"a\",\"c\"]"},
+	sub := SubmitFormItems{
+		&SubmitFormItem{ID: 1, Data: "a"},
+		&SubmitFormItem{ID: 2, Data: "[\"a\",\"c\"]"},
 	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
+	params, err := BuildParamsBySubmit(forms, sub)
 	if err != nil {
 		t.Fatalf("BuildParamsBySubmit error: %v", err)
 	}
@@ -216,22 +214,22 @@ func TestRadioCheckboxWithOptions(t *testing.T) {
 }
 
 func TestDynamicOptionsProvider(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "dyn", InputType: dynamicform.InputTypeSelect, IsRequired: dynamicform.RequiredTrue, OptionsURL: "mock://colors"},
+	forms := []*FormConfigItem{
+		{ID: 1, FieldName: "dyn", InputType: InputTypeSelect, IsRequired: RequiredTrue, OptionsURL: "mock://colors"},
 	}
-	dynamicform.RegisterOptionsProvider(func(item *dynamicform.FormConfigItem) ([]*dynamicform.Option, error) {
+	RegisterOptionsProvider(func(item *FormConfigItem) ([]*Option, error) {
 		if item.OptionsURL == "mock://colors" {
-			return []*dynamicform.Option{
+			return []*Option{
 				{Label: "Red", Value: "red"},
 				{Label: "Blue", Value: "blue"},
 			}, nil
 		}
 		return nil, nil
 	})
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "blue"},
+	sub := SubmitFormItems{
+		&SubmitFormItem{ID: 1, Data: "blue"},
 	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
+	params, err := BuildParamsBySubmit(forms, sub)
 	if err != nil {
 		t.Fatalf("BuildParamsBySubmit error: %v", err)
 	}
@@ -241,17 +239,17 @@ func TestDynamicOptionsProvider(t *testing.T) {
 }
 
 func TestBuildParamsByConfigUsesFieldNamesAndNativeValues(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "token", InputType: dynamicform.InputTypeText, IsRequired: dynamicform.RequiredTrue},
-		{ID: 2, FieldName: "port", InputType: dynamicform.InputTypeNum, IsRequired: dynamicform.RequiredTrue},
-		{ID: 3, FieldName: "enabled", InputType: dynamicform.InputTypeBool, IsRequired: dynamicform.RequiredFalse, Default: "true"},
-		{ID: 4, FieldName: "mode", InputType: dynamicform.InputTypeSelect, IsRequired: dynamicform.RequiredTrue, SubOption: []*dynamicform.Option{
+	forms := []*FormConfigItem{
+		{ID: 1, FieldName: "token", InputType: InputTypeText, IsRequired: RequiredTrue},
+		{ID: 2, FieldName: "port", InputType: InputTypeNum, IsRequired: RequiredTrue},
+		{ID: 3, FieldName: "enabled", InputType: InputTypeBool, IsRequired: RequiredFalse, Default: "true"},
+		{ID: 4, FieldName: "mode", InputType: InputTypeSelect, IsRequired: RequiredTrue, SubOption: []*Option{
 			{Label: "Yogurt", Value: "yogurt"},
 			{Label: "LagrangeV2", Value: "lagrangeV2"},
 		}},
 	}
 
-	params, err := dynamicform.BuildParamsByConfig(forms, map[string]interface{}{
+	params, err := BuildParamsByConfig(forms, map[string]interface{}{
 		"token": "abc",
 		"port":  5500,
 		"mode":  "yogurt",
@@ -275,7 +273,7 @@ func TestBuildParamsByConfigUsesFieldNamesAndNativeValues(t *testing.T) {
 
 func TestFormConfigItemSensitiveMetadataLoads(t *testing.T) {
 	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
+	items := GetFormConfig("discord")
 	for _, it := range items {
 		if it.FieldName == "token" {
 			if !it.Sensitive {

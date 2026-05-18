@@ -127,7 +127,7 @@ func (s *BanService) Delete(_ context.Context, ol *request.RequestWrapper[banm.D
 	if err != nil {
 		return nil, huma.Error500InternalServerError("删除失败", err)
 	}
-	return &struct{}{}, nil
+	return nil, nil
 }
 
 func (s *BanService) BatchDelete(_ context.Context, ol *request.RequestWrapper[cmm.IDListReq]) (*response.ItemResponse[cmm.BatchDeleteResp], error) {
