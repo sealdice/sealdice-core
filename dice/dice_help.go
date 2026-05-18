@@ -307,7 +307,7 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 				hash, size, hashErr := computeHelpFileHash(filePath)
 				if hashErr != nil {
 					d.LoadStatus = LoadError
-					return nil
+					return hashErr
 				}
 				newMeta.Files[filePath] = HelpFileMeta{
 					Hash:  hash,
