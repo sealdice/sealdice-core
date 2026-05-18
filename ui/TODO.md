@@ -6,7 +6,7 @@
 
 - [x] OpenAPI 客户端生成链路（@hey-api/openapi-ts + Vue Query）
 - [x] 文件路由（vue-router/auto-routes + routeMeta）
-- [x] 布局体系（default/auth/plain/wide）
+- [x] 布局体系（default/plain/wide）
 - [x] 侧边栏菜单（router/navigation.ts）
 - [x] 认证状态管理（features/auth）
 - [x] 路由进度条（nprogress）
