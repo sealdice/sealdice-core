@@ -1,7 +1,9 @@
 package dice
 
 import (
+	"errors"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -34,6 +36,7 @@ type DiceManager struct { //nolint:revive
 	ServeAddress         string
 	Help                 *HelpManager
 	IsHelpReloading      bool
+	helpReloadLock       sync.Mutex
 	UseDictForTokenizer  bool
 	HelpDocEngineType    int
 	progressExitGroupWin ProcessExitGroup
@@ -111,17 +114,44 @@ type Configs struct { //nolint:revive
 }
 
 func (dm *DiceManager) InitHelp() {
+	_ = dm.reloadHelp(false)
+}
+
+func (dm *DiceManager) ReloadHelp() error {
+	return dm.reloadHelp(true)
+}
+
+func (dm *DiceManager) reloadHelp(closeCurrent bool) error {
 	log := logger.M()
+	dm.helpReloadLock.Lock()
+	defer dm.helpReloadLock.Unlock()
+
 	dm.IsHelpReloading = true
+	defer func() {
+		dm.IsHelpReloading = false
+	}()
 	_ = os.MkdirAll("./data/helpdoc", 0755)
-	dm.Help = new(HelpManager)
-	dm.Help.EngineType = EngineType(dm.HelpDocEngineType)
-	if len(dm.Dice) == 0 {
-		log.Fatalf("Dice实例不存在!")
-		return
+	if closeCurrent && dm.Help != nil {
+		dm.Help.Close()
 	}
-	dm.Help.Load(dm.Dice[0].CmdMap, dm.Dice[0].ExtList)
-	dm.IsHelpReloading = false
+	if len(dm.Dice) == 0 {
+		err := errors.New("Dice实例不存在")
+		log.Error(err)
+		return err
+	}
+
+	nextHelp := dm.Help
+	if nextHelp == nil || closeCurrent {
+		nextHelp = &HelpManager{EngineType: EngineType(dm.HelpDocEngineType)}
+	}
+	nextHelp.Load(dm.Dice[0], dm.Dice[0].CmdMap, dm.Dice[0].ExtList)
+	if !nextHelp.IsAvailable() {
+		err := errors.New("帮助文档搜索引擎不可用")
+		log.Error(err)
+		return err
+	}
+	dm.Help = nextHelp
+	return nil
 }
 
 // LoadDice 初始化函数

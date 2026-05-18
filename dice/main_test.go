@@ -16,5 +16,9 @@ func TestMain(m *testing.M) {
 		// bleve creates AnalysisWorker goroutines when an index is opened;
 		// they are stopped only when the index is closed.
 		goleak.IgnoreTopFunction("github.com/blevesearch/bleve_index_api.AnalysisWorker"),
+		// otter cache workers are started by the mainline GORM cache plugin.
+		goleak.IgnoreTopFunction("github.com/maypok86/otter/internal/unixtime.startTimer.func1"),
+		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).cleanup"),
+		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).process"),
 	)
 }
