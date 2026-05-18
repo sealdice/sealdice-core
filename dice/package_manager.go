@@ -2080,7 +2080,7 @@ func verifyDownloadedPackageHash(data []byte, hashes map[string]string) error {
 		}
 		return nil
 	}
-	return nil
+	return errors.New("下载校验不支持提供的哈希算法，仅支持 sha256")
 }
 
 func unsupportedPackageHashAlgorithms(hashes map[string]string) []string {

@@ -67,7 +67,7 @@ Store list endpoints now exchange a package-centric DTO. Public responses must u
 - `dependencies`: map of package ID to semver constraint.
 - `storeAssets`: package presentation assets shown in the store UI.
 - `download.url`: absolute URL to a `.sealpack` file.
-- `download.hash`: optional integrity hashes keyed by algorithm. When `sha256` is present, the SealDice client verifies it before installation.
+- `download.hash`: optional integrity hashes keyed by algorithm. If provided, it must include `sha256`; unsupported-only hash sets are rejected. Omit the object when no client-side integrity verification is available.
 - `download.releaseTime` / `download.updateTime`: Unix timestamps in seconds.
 - `download.downloadCount`: public download counter.
 - `installed`: local-only field computed by the SealDice client; backend responses may omit it.

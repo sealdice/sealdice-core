@@ -797,7 +797,7 @@ func TestVerifyDownloadedPackageHash(t *testing.T) {
 		{name: "valid sha256 case insensitive", hashes: map[string]string{"SHA256": strings.ToUpper(sha256Text)}, wantErr: false},
 		{name: "invalid sha256", hashes: map[string]string{"sha256": strings.Repeat("0", 64)}, wantErr: true},
 		{name: "blank sha256", hashes: map[string]string{"sha256": "   "}, wantErr: true},
-		{name: "unsupported only", hashes: map[string]string{"sha512": "abc"}, wantErr: false},
+		{name: "unsupported only", hashes: map[string]string{"sha512": "abc"}, wantErr: true},
 	}
 
 	for _, tt := range tests {

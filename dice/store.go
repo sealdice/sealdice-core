@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -31,6 +32,8 @@ const (
 	StoreBackendTypeTrusted  StoreBackendType = "trusted"
 	StoreBackendTypeExtra    StoreBackendType = "extra"
 )
+
+const storeBackendInfoCacheTTL = 5 * time.Minute
 
 type StoreBackend struct {
 	Url string `json:"url"`
@@ -119,14 +122,24 @@ type StorePackagePage struct {
 }
 
 type StoreManager struct {
-	lock         *sync.RWMutex
-	parent       *Dice
-	backend      *StoreBackend
-	packageCache map[string]*StorePackage
+	lock             *sync.RWMutex
+	parent           *Dice
+	backend          *StoreBackend
+	backendCacheKey  string
+	backendFetchedAt time.Time
+	packageCache     map[string]*StorePackage
 
 	InstalledPlugins map[string]bool `json:"-" yaml:"-"`
 	InstalledDecks   map[string]bool `json:"-" yaml:"-"`
 	InstalledReplies map[string]bool `json:"-" yaml:"-"`
+}
+
+type storeBackendTarget struct {
+	rawURL      string
+	id          string
+	name        string
+	backendType StoreBackendType
+	cacheKey    string
 }
 
 var storeAllowedContents = map[string]struct{}{
@@ -292,6 +305,26 @@ func (m *StoreManager) normalizeStoreConfigLocked() (enabledUrls []string, disab
 	return enabledUrls, disabledUrls, changed
 }
 
+func (m *StoreManager) invalidateStoreBackendLocked() {
+	m.backend = nil
+	m.backendCacheKey = ""
+	m.backendFetchedAt = time.Time{}
+}
+
+func (m *StoreManager) storeConfigSnapshot() (enabledUrls []string, disabledUrls []string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	enabledUrls, disabledUrls, changed := m.normalizeStoreConfigLocked()
+	if changed {
+		m.invalidateStoreBackendLocked()
+	}
+	return append([]string(nil), enabledUrls...), append([]string(nil), disabledUrls...)
+}
+
+func storeBackendCacheKey(backendType StoreBackendType, rawURL string) string {
+	return string(backendType) + "\x00" + rawURL
+}
+
 func (m *StoreManager) buildBackend(rawURL, id, name string, backendType StoreBackendType, enabled bool) *StoreBackend {
 	backend := &StoreBackend{
 		Url:      rawURL,
@@ -335,43 +368,85 @@ func (m *StoreManager) buildBackend(rawURL, id, name string, backendType StoreBa
 	return backend
 }
 
-func (m *StoreManager) resolveBackend() (*StoreBackend, error) {
-	enabledCustomBackends, _, _ := m.normalizeStoreConfigLocked()
-
-	var backend *StoreBackend
+func (m *StoreManager) resolveBackendTarget() (*storeBackendTarget, error) {
+	enabledCustomBackends, _ := m.storeConfigSnapshot()
 	if len(enabledCustomBackends) > 0 {
-		backend = m.buildBackend(enabledCustomBackends[0], "custom", "自定义商店", StoreBackendTypeExtra, true)
-	} else {
-		officialURL, err := officialStoreBackendURL()
-		if err != nil {
-			return nil, err
-		}
-		backend = m.buildBackend(officialURL, "official", "官方商店", StoreBackendTypeOfficial, true)
+		backendURL := enabledCustomBackends[0]
+		return &storeBackendTarget{
+			rawURL:      backendURL,
+			id:          "custom",
+			name:        "自定义商店",
+			backendType: StoreBackendTypeExtra,
+			cacheKey:    storeBackendCacheKey(StoreBackendTypeExtra, backendURL),
+		}, nil
 	}
-	return backend, nil
+
+	officialURL, err := officialStoreBackendURL()
+	if err != nil {
+		return nil, err
+	}
+	return &storeBackendTarget{
+		rawURL:      officialURL,
+		id:          "official",
+		name:        "官方商店",
+		backendType: StoreBackendTypeOfficial,
+		cacheKey:    storeBackendCacheKey(StoreBackendTypeOfficial, officialURL),
+	}, nil
+}
+
+func (m *StoreManager) cachedBackend(cacheKey string, now time.Time) (*StoreBackend, bool) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	if m.backend == nil || m.backendCacheKey != cacheKey {
+		return nil, false
+	}
+	if m.backendFetchedAt.IsZero() || !now.Before(m.backendFetchedAt.Add(storeBackendInfoCacheTTL)) {
+		return nil, false
+	}
+	backendCopy := *m.backend
+	return &backendCopy, true
+}
+
+func (m *StoreManager) loadStoreBackend(force bool) (*StoreBackend, error) {
+	target, err := m.resolveBackendTarget()
+	if err != nil {
+		m.lock.Lock()
+		m.invalidateStoreBackendLocked()
+		m.lock.Unlock()
+		return nil, err
+	}
+
+	now := time.Now()
+	if !force {
+		if backend, ok := m.cachedBackend(target.cacheKey, now); ok {
+			return backend, nil
+		}
+	}
+
+	backend := m.buildBackend(target.rawURL, target.id, target.name, target.backendType, true)
+	fetchedAt := time.Now()
+	m.lock.Lock()
+	m.backend = backend
+	m.backendCacheKey = target.cacheKey
+	m.backendFetchedAt = fetchedAt
+	backendCopy := *backend
+	m.lock.Unlock()
+	return &backendCopy, nil
 }
 
 func (m *StoreManager) refreshStoreBackend() {
-	backend, err := m.resolveBackend()
-	if err != nil {
-		backend = nil
-	}
-
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	m.backend = backend
+	_, _ = m.loadStoreBackend(true)
 }
 
 func (m *StoreManager) currentBackend() (*StoreBackend, error) {
-	m.refreshStoreBackend()
-
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	if m.backend == nil {
+	backend, err := m.loadStoreBackend(false)
+	if err != nil {
+		return nil, err
+	}
+	if backend == nil {
 		return nil, errors.New("未配置扩展商店后端")
 	}
-	backendCopy := *m.backend
-	return &backendCopy, nil
+	return backend, nil
 }
 
 func NewStoreManager(parent *Dice) *StoreManager {
@@ -397,11 +472,19 @@ func (m *StoreManager) StoreQueryRecommend() ([]*StorePackage, error) {
 		return nil, err
 	}
 	if !backend.Health {
-		return nil, fmt.Errorf("当前扩展商店后端不可用: %s", backend.Url)
+		m.refreshStoreBackend()
+		backend, err = m.currentBackend()
+		if err != nil {
+			return nil, err
+		}
+		if !backend.Health {
+			return nil, fmt.Errorf("当前扩展商店后端不可用: %s", backend.Url)
+		}
 	}
 
 	respResult, err := fetchStoreJSON[storeRecommendResponse](backend.Url + "/recommend")
 	if err != nil {
+		m.refreshStoreBackend()
 		return nil, err
 	}
 	if !respResult.Result {
@@ -411,16 +494,13 @@ func (m *StoreManager) StoreQueryRecommend() ([]*StorePackage, error) {
 }
 
 func (m *StoreManager) StoreBackendList() []*StoreBackend {
-	m.refreshStoreBackend()
-
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	enabledUrls, disabledUrls, _ := m.normalizeStoreConfigLocked()
+	activeBackend, _ := m.currentBackend()
+	enabledUrls, disabledUrls := m.storeConfigSnapshot()
 	result := make([]*StoreBackend, 0, 1+len(enabledUrls)+len(disabledUrls))
 
 	if officialURL, err := officialStoreBackendURL(); err == nil {
-		if m.backend != nil && m.backend.Type == StoreBackendTypeOfficial && m.backend.Url == officialURL {
-			backendCopy := *m.backend
+		if activeBackend != nil && activeBackend.Type == StoreBackendTypeOfficial && activeBackend.Url == officialURL {
+			backendCopy := *activeBackend
 			backendCopy.Enabled = true
 			backendCopy.Builtin = true
 			backendCopy.Official = true
@@ -435,8 +515,8 @@ func (m *StoreManager) StoreBackendList() []*StoreBackend {
 		if index > 0 {
 			id = fmt.Sprintf("custom:%d", index+1)
 		}
-		if m.backend != nil && m.backend.Type != StoreBackendTypeOfficial && m.backend.Url == backendURL {
-			backendCopy := *m.backend
+		if activeBackend != nil && activeBackend.Type != StoreBackendTypeOfficial && activeBackend.Url == backendURL {
+			backendCopy := *activeBackend
 			backendCopy.ID = id
 			backendCopy.Enabled = true
 			result = append(result, &backendCopy)
@@ -477,7 +557,7 @@ func (m *StoreManager) StoreAddBackend(rawURL string) error {
 	m.parent.Config.BackendUrls = enabledUrls
 	m.parent.Config.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
-	m.backend = nil
+	m.invalidateStoreBackendLocked()
 	return nil
 }
 
@@ -498,7 +578,7 @@ func (m *StoreManager) StoreRemoveBackend(id, rawURL string) error {
 	m.parent.Config.BackendUrls = enabledUrls
 	m.parent.Config.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
-	m.backend = nil
+	m.invalidateStoreBackendLocked()
 	return nil
 }
 
@@ -519,7 +599,8 @@ func (m *StoreManager) StoreSetBackendEnabled(id, rawURL string, enabled bool) e
 		}
 		disabledUrls = removeStoreBackendURL(disabledUrls, targetURL)
 	} else {
-		if len(enabledUrls) == 1 && containsStoreBackendURL(enabledUrls, targetURL) {
+		_, officialErr := officialStoreBackendURL()
+		if officialErr != nil && len(enabledUrls) == 1 && containsStoreBackendURL(enabledUrls, targetURL) {
 			return errors.New("至少需要保留一个启用的自定义商店后端；可删除该后端以恢复默认官方商店")
 		}
 		enabledUrls = removeStoreBackendURL(enabledUrls, targetURL)
@@ -530,7 +611,7 @@ func (m *StoreManager) StoreSetBackendEnabled(id, rawURL string, enabled bool) e
 	m.parent.Config.BackendUrls = enabledUrls
 	m.parent.Config.DisabledBackendUrls = disabledUrls
 	m.parent.MarkModified()
-	m.backend = nil
+	m.invalidateStoreBackendLocked()
 	return nil
 }
 
@@ -568,7 +649,14 @@ func (m *StoreManager) StoreQueryPage(params StoreQueryPageParams) (*StorePackag
 		return nil, err
 	}
 	if !backend.Health {
-		return nil, fmt.Errorf("当前扩展商店后端不可用: %s", backend.Url)
+		m.refreshStoreBackend()
+		backend, err = m.currentBackend()
+		if err != nil {
+			return nil, err
+		}
+		if !backend.Health {
+			return nil, fmt.Errorf("当前扩展商店后端不可用: %s", backend.Url)
+		}
 	}
 
 	reqParams := url.Values{}
@@ -684,8 +772,19 @@ func (m *StoreManager) StoreQueryUploadInfo() (StoreUploadInfo, error) {
 	if err != nil {
 		return StoreUploadInfo{}, err
 	}
+	if !backend.Health {
+		m.refreshStoreBackend()
+		backend, err = m.currentBackend()
+		if err != nil {
+			return StoreUploadInfo{}, err
+		}
+		if !backend.Health {
+			return StoreUploadInfo{}, fmt.Errorf("当前扩展商店后端不可用: %s", backend.Url)
+		}
+	}
 	result, err := fetchStoreJSON[StoreUploadInfo](backend.Url + "/upload/info")
 	if err != nil {
+		m.refreshStoreBackend()
 		return StoreUploadInfo{}, err
 	}
 	return *result, nil

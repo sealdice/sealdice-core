@@ -1,6 +1,7 @@
 package sealpack
 
 import (
+	"bytes"
 	"net/http"
 	"net/url"
 	"os"
@@ -408,7 +409,7 @@ func (h *SandboxedHTTP) Post(url, contentType string, body []byte) (*http.Respon
 	if err := h.sandbox.CheckNetworkPermission(url); err != nil {
 		return nil, err
 	}
-	return h.client.Post(url, contentType, strings.NewReader(string(body)))
+	return h.client.Post(url, contentType, bytes.NewReader(body))
 }
 
 // Do 沙箱化的HTTP请求

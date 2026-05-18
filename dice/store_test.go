@@ -6,7 +6,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"sealdice-core/dice/sealpack"
 )
@@ -224,6 +226,48 @@ func TestStoreManagerFindPackageMatchesByIDAndVersionAfterRefreshInstalled(t *te
 	}
 }
 
+func TestStoreQueryRecommendCachesBackendInfo(t *testing.T) {
+	var infoRequests int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			atomic.AddInt32(&infoRequests, 1)
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+		case "/dice/api/store/recommend":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":[],"err":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	oldBackendURLs := BackendUrls
+	BackendUrls = []string{server.URL}
+	defer func() { BackendUrls = oldBackendURLs }()
+
+	manager := NewStoreManager(&Dice{})
+	if _, err := manager.StoreQueryRecommend(); err != nil {
+		t.Fatalf("StoreQueryRecommend() first error = %v", err)
+	}
+	if _, err := manager.StoreQueryRecommend(); err != nil {
+		t.Fatalf("StoreQueryRecommend() second error = %v", err)
+	}
+	if got := atomic.LoadInt32(&infoRequests); got != 1 {
+		t.Fatalf("info requests = %d, want 1", got)
+	}
+
+	manager.lock.Lock()
+	manager.backendFetchedAt = time.Now().Add(-storeBackendInfoCacheTTL - time.Second)
+	manager.lock.Unlock()
+
+	if _, err := manager.StoreQueryRecommend(); err != nil {
+		t.Fatalf("StoreQueryRecommend() after TTL error = %v", err)
+	}
+	if got := atomic.LoadInt32(&infoRequests); got != 2 {
+		t.Fatalf("info requests after TTL = %d, want 2", got)
+	}
+}
+
 func TestStoreBackendListReturnsEnabledAndDisabledBackends(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -291,16 +335,62 @@ func TestStoreSetBackendEnabledMovesURLBetweenLists(t *testing.T) {
 	}
 }
 
-func TestStoreSetBackendEnabledRejectsDisablingOnlyCustomBackend(t *testing.T) {
+func TestStoreSetBackendEnabledRejectsDisablingOnlyCustomBackendWithoutOfficial(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Custom Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	customURL := server.URL + "/dice/api/store"
+
+	oldBackendURLs := BackendUrls
+	BackendUrls = nil
+	defer func() { BackendUrls = oldBackendURLs }()
+
 	manager := NewStoreManager(&Dice{Config: Config{StoreConfig: StoreConfig{
-		BackendUrls: []string{"https://enabled.example/dice/api/store"},
+		BackendUrls: []string{customURL},
 	}}})
 
-	if err := manager.StoreSetBackendEnabled("", "https://enabled.example/dice/api/store", false); err == nil {
+	if err := manager.StoreSetBackendEnabled("", customURL, false); err == nil {
 		t.Fatal("expected disabling only custom backend to fail")
 	}
-	if got := manager.parent.Config.BackendUrls; len(got) != 1 || got[0] != "https://enabled.example/dice/api/store" {
+	if got := manager.parent.Config.BackendUrls; len(got) != 1 || got[0] != customURL {
 		t.Fatalf("BackendUrls = %#v", got)
+	}
+}
+
+func TestStoreSetBackendEnabledAllowsDisablingOnlyCustomBackendWithOfficial(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Custom Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	customURL := server.URL + "/dice/api/store"
+
+	oldBackendURLs := BackendUrls
+	BackendUrls = []string{"https://official.example"}
+	defer func() { BackendUrls = oldBackendURLs }()
+
+	manager := NewStoreManager(&Dice{Config: Config{StoreConfig: StoreConfig{
+		BackendUrls: []string{customURL},
+	}}})
+
+	if err := manager.StoreSetBackendEnabled("", customURL, false); err != nil {
+		t.Fatalf("StoreSetBackendEnabled(false) error = %v", err)
+	}
+	if got := manager.parent.Config.BackendUrls; len(got) != 0 {
+		t.Fatalf("BackendUrls = %#v, want empty", got)
+	}
+	if got := manager.parent.Config.DisabledBackendUrls; len(got) != 1 || got[0] != customURL {
+		t.Fatalf("DisabledBackendUrls = %#v", got)
 	}
 }
 
