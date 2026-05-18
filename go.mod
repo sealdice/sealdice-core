@@ -19,6 +19,7 @@ require (
 	github.com/blevesearch/bleve_index_api v1.2.11
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/bytedance/sonic v1.14.1
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/dop251/goja v0.0.0-20260216154549-8b74ce4618c5
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
@@ -55,6 +56,8 @@ require (
 	github.com/mroth/weightedrand v1.0.0
 	github.com/ncruces/go-sqlite3 v0.32.0
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
+	github.com/oklog/ulid/v2 v2.1.1
+	github.com/olahol/melody v1.4.0
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/otiai10/copy v1.14.1
 	github.com/panjf2000/ants/v2 v2.11.3
@@ -125,7 +128,6 @@ require (
 	github.com/blevesearch/zapx/v16 v16.2.8 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
@@ -177,7 +179,6 @@ require (
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
-	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pdfcpu/pdfcpu v0.11.0 // indirect

@@ -25,6 +25,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
+	apiv2 "sealdice-core/api/v2"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
@@ -171,6 +172,7 @@ func main() {
 		UpdateTest             bool   `description:"更新测试"                                                            long:"update-test"`
 		LogLevel               int8   `choice:"-1"                                                                   choice:"0"              choice:"1" choice:"2" choice:"3" choice:"4" choice:"5" default:"0" description:"设置日志等级"             long:"log-level"`
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
+		GenOpenAPI             string `description:"生成 Huma v2 OpenAPI JSON 到指定路径并退出"                                      long:"gen-openapi"`
 	}
 	// pprof
 	// go func() {
@@ -189,6 +191,14 @@ func main() {
 	if opts.ShowEnv {
 		for i, e := range os.Environ() {
 			fmt.Fprintln(os.Stdout, i, e)
+		}
+		return
+	}
+	if opts.GenOpenAPI != "" {
+		err = apiv2.WriteOpenAPI(opts.GenOpenAPI)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "生成 OpenAPI 失败: %v\n", err)
+			os.Exit(1)
 		}
 		return
 	}

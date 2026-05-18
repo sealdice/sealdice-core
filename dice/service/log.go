@@ -22,7 +22,39 @@ type LogOne struct {
 	Info  model.LogInfo      `json:"info"`
 }
 
+type LinkState string
+
+const (
+	LinkStateNone  LinkState = "none"
+	LinkStateFresh LinkState = "fresh"
+	LinkStateStale LinkState = "stale"
+)
+
 var ErrLogNotFound = errors.New("日志不存在")
+
+type CleanupPreview struct {
+	Logs          int
+	Items         int
+	OldestUpdated int64
+	NewestUpdated int64
+	CanVacuum     bool
+}
+
+type CleanupResult struct {
+	Logs     int
+	Items    int
+	Vacuumed bool
+}
+
+func BuildLogLinkState(logInfo *model.LogInfo) string {
+	if logInfo == nil || logInfo.UploadURL == "" {
+		return string(LinkStateNone)
+	}
+	if int64(logInfo.UploadTime) > logInfo.UpdatedAt {
+		return string(LinkStateFresh)
+	}
+	return string(LinkStateStale)
+}
 
 // LogGetInfo 查询日志简略信息，使用通用函数替代SQLITE专属函数
 // TODO: 换回去，因为现在已经分离了引擎
@@ -89,24 +121,29 @@ func LogGetLogPage(operator engine2.DatabaseOperator, param *QueryLogPage) (int,
 	var lst []*model.LogInfo
 
 	// 构建基础查询
-	query := db.Model(&model.LogInfo{}).Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at,COALESCE(logs.size, 0) as size").Order("logs.updated_at desc")
+	query := db.Model(&model.LogInfo{}).Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at, COALESCE(logs.size, 0) as size, COALESCE(logs.upload_url, '') as upload_url, COALESCE(logs.upload_time, 0) as upload_time").Order("logs.updated_at desc")
+	countQuery := db.Model(&model.LogInfo{})
 	// 添加条件
 	if param.Name != "" {
 		query = query.Where("logs.name LIKE ?", "%"+param.Name+"%")
+		countQuery = countQuery.Where("name LIKE ?", "%"+param.Name+"%")
 	}
 	if param.GroupID != "" {
 		query = query.Where("logs.group_id LIKE ?", "%"+param.GroupID+"%")
+		countQuery = countQuery.Where("group_id LIKE ?", "%"+param.GroupID+"%")
 	}
 	if param.CreatedTimeBegin != "" {
 		query = query.Where("logs.created_at >= ?", param.CreatedTimeBegin)
+		countQuery = countQuery.Where("created_at >= ?", param.CreatedTimeBegin)
 	}
 	if param.CreatedTimeEnd != "" {
 		query = query.Where("logs.created_at <= ?", param.CreatedTimeEnd)
+		countQuery = countQuery.Where("created_at <= ?", param.CreatedTimeEnd)
 	}
 
 	// 获取总数
 	var count int64
-	if err := db.Model(&model.LogInfo{}).Count(&count).Error; err != nil {
+	if err := countQuery.Count(&count).Error; err != nil {
 		return 0, nil, err
 	}
 
@@ -158,6 +195,21 @@ func getIDByGroupIDAndName(db *gorm.DB, groupID string, logName string) (logID u
 	return logInfo.ID, nil
 }
 
+func LogGetByGroupIDAndName(operator engine2.DatabaseOperator, groupID string, logName string) (*model.LogInfo, error) {
+	db := operator.GetLogDB(constant.READ)
+	var logInfo model.LogInfo
+	err := db.Model(&model.LogInfo{}).
+		Where("group_id = ? AND name = ?", groupID, logName).
+		Take(&logInfo).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrLogNotFound
+		}
+		return nil, err
+	}
+	return &logInfo, nil
+}
+
 // LogGetUploadInfo 获取上传信息
 func LogGetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName string) (url string, uploadTime, updateTime int64, err error) {
 	db := operator.GetLogDB(constant.READ)
@@ -183,6 +235,29 @@ func LogGetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 	return url, uploadTime, updateTime, err
 }
 
+func LogGetByID(operator engine2.DatabaseOperator, logID uint64) (*model.LogInfo, error) {
+	db := operator.GetLogDB(constant.READ)
+	var logInfo model.LogInfo
+	err := db.Model(&model.LogInfo{}).
+		Where("id = ?", logID).
+		Take(&logInfo).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrLogNotFound
+		}
+		return nil, err
+	}
+	return &logInfo, nil
+}
+
+func LogGetUploadInfoByID(operator engine2.DatabaseOperator, logID uint64) (url string, uploadTime, updateTime int64, err error) {
+	logInfo, err := LogGetByID(operator, logID)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	return logInfo.UploadURL, int64(logInfo.UploadTime), logInfo.UpdatedAt, nil
+}
+
 // LogSetUploadInfo 设置上传信息
 func LogSetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName string, url string) error {
 	db := operator.GetLogDB(constant.WRITE)
@@ -199,6 +274,21 @@ func LogSetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 		Error
 
 	return err
+}
+
+func LogSetUploadInfoByID(operator engine2.DatabaseOperator, logID uint64, url string) error {
+	db := operator.GetLogDB(constant.WRITE)
+	if len(url) == 0 {
+		return nil
+	}
+
+	now := time.Now().Unix()
+	return db.Model(&model.LogInfo{}).
+		Where("id = ?", logID).
+		Updates(map[string]interface{}{
+			"upload_url":  url,
+			"upload_time": now,
+		}).Error
 }
 
 // LogGetAllLines 获取log的所有行数据
@@ -333,6 +423,7 @@ func LogGetExportCursorLines(operator engine2.DatabaseOperator, groupID string, 
 }
 
 type QueryLogLinePage struct {
+	LogID    uint64 `query:"logId"`
 	PageNum  int    `query:"pageNum"`
 	PageSize int    `query:"pageSize"`
 	GroupID  string `query:"groupId"`
@@ -342,8 +433,15 @@ type QueryLogLinePage struct {
 // LogGetLinePage 获取log的行分页
 func LogGetLinePage(operator engine2.DatabaseOperator, param *QueryLogLinePage) ([]*model.LogOneItem, error) {
 	db := operator.GetLogDB(constant.READ)
-	// 获取log的ID
-	logID, err := getIDByGroupIDAndName(db, param.GroupID, param.LogName)
+	var (
+		logID uint64
+		err   error
+	)
+	if param.LogID != 0 {
+		logID = param.LogID
+	} else {
+		logID, err = getIDByGroupIDAndName(db, param.GroupID, param.LogName)
+	}
 	if err != nil {
 		if errors.Is(err, ErrLogNotFound) {
 			return []*model.LogOneItem{}, nil
@@ -367,6 +465,14 @@ func LogGetLinePage(operator engine2.DatabaseOperator, param *QueryLogLinePage) 
 	}
 
 	return items, nil
+}
+
+func LogGetLinePageByID(operator engine2.DatabaseOperator, logID uint64, pageNum int, pageSize int) ([]*model.LogOneItem, error) {
+	return LogGetLinePage(operator, &QueryLogLinePage{
+		LogID:    logID,
+		PageNum:  pageNum,
+		PageSize: pageSize,
+	})
 }
 
 // LogLinesCountGet 获取日志行数
@@ -413,6 +519,121 @@ func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string
 	})
 
 	return err
+}
+
+func LogDeleteByID(operator engine2.DatabaseOperator, logID uint64) error {
+	db := operator.GetLogDB(constant.WRITE)
+	_, err := LogGetByID(operator, logID)
+	if err != nil {
+		return err
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err = tx.Where("log_id = ?", logID).Delete(&model.LogOneItem{}).Error; err != nil {
+			return err
+		}
+		if err = tx.Where("id = ?", logID).Delete(&model.LogInfo{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func LogGetAllLinesByID(operator engine2.DatabaseOperator, logID uint64) ([]*model.LogOneItem, error) {
+	db := operator.GetLogDB(constant.READ)
+	var items []*model.LogOneItem
+	err := db.Model(&model.LogOneItem{}).
+		Select("id, nickname, im_userid, time, message, is_dice, command_id, command_info, raw_msg_id, user_uniform_id").
+		Where("log_id = ?", logID).
+		Order("time ASC").
+		Find(&items).Error
+	if err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func LogGetCleanupPreviewByMonths(operator engine2.DatabaseOperator, months int) (*CleanupPreview, error) {
+	if months <= 0 {
+		return &CleanupPreview{CanVacuum: operator.Type() == constant.SQLITE}, nil
+	}
+	db := operator.GetLogDB(constant.READ)
+	cutoff := time.Now().AddDate(0, -months, 0).Unix()
+
+	type result struct {
+		Logs          int64 `gorm:"column:logs"`
+		Items         int64 `gorm:"column:items"`
+		OldestUpdated int64 `gorm:"column:oldest_updated"`
+		NewestUpdated int64 `gorm:"column:newest_updated"`
+	}
+	var row result
+	err := db.Table("logs").
+		Joins("LEFT JOIN log_items ON log_items.log_id = logs.id").
+		Select(`COUNT(DISTINCT logs.id) as logs,
+COUNT(log_items.id) as items,
+COALESCE(MIN(logs.updated_at), 0) as oldest_updated,
+COALESCE(MAX(logs.updated_at), 0) as newest_updated`).
+		Where("logs.updated_at <= ?", cutoff).
+		Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	return &CleanupPreview{
+		Logs:          int(row.Logs),
+		Items:         int(row.Items),
+		OldestUpdated: row.OldestUpdated,
+		NewestUpdated: row.NewestUpdated,
+		CanVacuum:     operator.Type() == constant.SQLITE,
+	}, nil
+}
+
+func LogCleanupByMonths(operator engine2.DatabaseOperator, months int, vacuum bool) (*CleanupResult, error) {
+	preview, err := LogGetCleanupPreviewByMonths(operator, months)
+	if err != nil {
+		return nil, err
+	}
+	if preview.Logs == 0 {
+		return &CleanupResult{Vacuumed: false}, nil
+	}
+
+	db := operator.GetLogDB(constant.WRITE)
+	cutoff := time.Now().AddDate(0, -months, 0).Unix()
+	var ids []uint64
+	if err = db.Model(&model.LogInfo{}).Where("updated_at <= ?", cutoff).Pluck("id", &ids).Error; err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return &CleanupResult{Vacuumed: false}, nil
+	}
+	if err = db.Transaction(func(tx *gorm.DB) error {
+		if err = tx.Where("log_id IN ?", ids).Delete(&model.LogOneItem{}).Error; err != nil {
+			return err
+		}
+		if err = tx.Where("id IN ?", ids).Delete(&model.LogInfo{}).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	result := &CleanupResult{
+		Logs:  preview.Logs,
+		Items: preview.Items,
+	}
+	if vacuum && operator.Type() == constant.SQLITE {
+		if err = LogVacuum(operator); err != nil {
+			return nil, err
+		}
+		result.Vacuumed = true
+	}
+	return result, nil
+}
+
+func LogVacuum(operator engine2.DatabaseOperator) error {
+	if operator.Type() != constant.SQLITE {
+		return nil
+	}
+	return operator.GetLogDB(constant.WRITE).Exec("VACUUM;").Error
 }
 
 // LogAppend 向指定的log中添加一条信息

@@ -28,3 +28,8 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# hey-api / openapi-ts
+openapi.json
+
+components.d.ts
