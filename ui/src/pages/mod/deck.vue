@@ -681,8 +681,14 @@ function deckUpdate() {
 
 .upload-item {
   border: 1px solid var(--sd-border-soft);
-  background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 20%);
+  background: var(--sd-bg-elevated-soft);
   padding: 0.75rem;
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .upload-item {
+    background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 20%);
+  }
 }
 
 .upload-item-head,

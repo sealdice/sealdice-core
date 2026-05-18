@@ -1,4 +1,3 @@
-import { clearLegacyAccessToken, setLegacyAccessToken } from '@/api/legacy';
 import { clearAccessToken, currentAccessToken, setAccessToken } from '@/features/auth/state';
 import { queryClient } from '@/queryClient';
 import { client } from './generated/client.gen';
@@ -34,7 +33,6 @@ export function setupApiClient(): void {
     const newToken = response.headers.get('new-token');
     if (newToken) {
       setAccessToken(newToken);
-      setLegacyAccessToken(newToken);
     }
 
     return response;
@@ -67,6 +65,5 @@ export function setupApiClient(): void {
 
 function clearApiSession(): void {
   clearAccessToken();
-  clearLegacyAccessToken();
   queryClient.clear();
 }

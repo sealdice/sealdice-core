@@ -1,4 +1,5 @@
 import './assets/main.css';
+import './polyfills/structuredClone';
 
 import { createApp } from 'vue';
 import { VueQueryPlugin } from '@tanstack/vue-query';
@@ -6,6 +7,7 @@ import { VueQueryPlugin } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import safeHtmlDirective from './directives/safeHtml';
 
 import App from './App.vue';
 import router from './router';
@@ -30,6 +32,7 @@ setupApiClient();
 
 const app = createApp(App);
 
+app.directive('safe-html', safeHtmlDirective);
 app.use(router);
 app.use(VueQueryPlugin, {
   queryClient,

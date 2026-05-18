@@ -367,6 +367,7 @@ import {
   type FileInfo,
   type ReplyFileDetail,
 } from '@/api';
+import { downloadApiFile } from '@/api/download';
 import ConditionBuilder from '@/components/shared/ConditionBuilder.vue';
 import NestedRuleEditor from '@/components/shared/NestedRuleEditor.vue';
 import TipBox from '@/components/shared/TipBox.vue';
@@ -875,18 +876,14 @@ function deleteCurrentFile() {
 
 async function downloadCurrentFile() {
   if (!selectedFilename.value) return;
-  const result = await getSdApiV2CustomReplyFilesByFilenameDownload({
-    path: { filename: selectedFilename.value },
-    parseAs: 'blob',
-    throwOnError: true,
-  });
-  const blob = result.data as Blob;
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = selectedFilename.value;
-  link.click();
-  URL.revokeObjectURL(url);
+  await downloadApiFile(
+    getSdApiV2CustomReplyFilesByFilenameDownload({
+      path: { filename: selectedFilename.value },
+      parseAs: 'blob',
+      throwOnError: true,
+    }),
+    selectedFilename.value,
+  );
 }
 
 async function uploadFile(options: UploadCustomRequestOptions) {
@@ -1170,7 +1167,13 @@ function toApiReplyConfig(draft: ReplyFileDraft) {
   min-height: 0;
   flex-direction: column;
   border-right: 1px solid var(--sd-border);
-  background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 48%);
+  background: var(--sd-bg-elevated-muted);
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .reply-sidebar {
+    background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 48%);
+  }
 }
 
 .panel-head,

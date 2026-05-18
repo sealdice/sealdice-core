@@ -21,6 +21,13 @@ body {
   --sd-text-inverse: #ffffff;
   --sd-border: rgba(17, 24, 39, 0.1);
   --sd-border-soft: rgba(17, 24, 39, 0.08);
+  --sd-scrollbar-thumb: rgba(31, 41, 55, 0.34);
+  --sd-scrollbar-thumb-hover: rgba(31, 41, 55, 0.45);
+  --sd-bg-elevated-soft: #f0f2f6;
+  --sd-bg-elevated-muted: #e8ebf1;
+  --sd-bg-elevated-tint: rgba(255, 255, 255, 0.88);
+  --sd-text-inverse-soft: rgba(255, 255, 255, 0.86);
+  --sd-text-inverse-muted: rgba(255, 255, 255, 0.68);
   --primary-color: #1d4ed8;
   --table-color-hover: var(--sd-bg-selected);
 }
@@ -43,6 +50,13 @@ body {
   --sd-text-inverse: #ffffff;
   --sd-border: rgba(148, 163, 184, 0.24);
   --sd-border-soft: rgba(148, 163, 184, 0.16);
+  --sd-scrollbar-thumb: rgba(203, 213, 225, 0.38);
+  --sd-scrollbar-thumb-hover: rgba(203, 213, 225, 0.5);
+  --sd-bg-elevated-soft: #151d2d;
+  --sd-bg-elevated-muted: #161f30;
+  --sd-bg-elevated-tint: rgba(24, 33, 51, 0.92);
+  --sd-text-inverse-soft: rgba(255, 255, 255, 0.9);
+  --sd-text-inverse-muted: rgba(255, 255, 255, 0.7);
   --primary-color: #60a5fa;
   --table-color-hover: var(--sd-bg-selected);
 }
@@ -90,7 +104,7 @@ select {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--sd-text-muted), transparent 40%);
+  background: var(--sd-scrollbar-thumb);
 }
 
 ::-webkit-scrollbar-corner {
@@ -102,7 +116,17 @@ select {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--sd-text-muted), transparent 20%);
+  background: var(--sd-scrollbar-thumb-hover);
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--sd-text-muted), transparent 40%);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--sd-text-muted), transparent 20%);
+  }
 }
 
 .no-scrollbar {

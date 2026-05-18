@@ -183,7 +183,7 @@ const breadcrumbItems = computed(() => {
         确认已读
       </n-button>
     </template>
-    <div class="feed-content" v-html="newsData"></div>
+    <div class="feed-content" v-safe-html="newsData"></div>
   </n-modal>
 </template>
 
@@ -192,8 +192,14 @@ const breadcrumbItems = computed(() => {
   position: relative;
   z-index: 10;
   border-bottom: 1px solid var(--sd-border-soft);
-  background: color-mix(in srgb, var(--sd-bg-elevated), transparent 12%);
+  background: var(--sd-bg-elevated-tint);
   padding: 0.65rem 1rem;
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .sd-breadcrumb-bar {
+    background: color-mix(in srgb, var(--sd-bg-elevated), transparent 12%);
+  }
 }
 
 .sd-breadcrumb-title {

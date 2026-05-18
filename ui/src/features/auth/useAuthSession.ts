@@ -7,9 +7,8 @@ import {
   getSdApiV2BaseOverviewQueryKey,
   getSdApiV2BaseSecurityCheckQueryKey,
 } from '@/api';
-import { setLegacyAccessToken, clearLegacyAccessToken } from '@/api/legacy';
-import { passwordHash } from '@/features/legacy-auth/crypto';
 import { clearAccessToken, currentAccessToken, hasAccessToken, setAccessToken } from './state';
+import { passwordHash } from './crypto';
 
 const defaultSigninPassword = 'defaultSignin';
 
@@ -19,7 +18,6 @@ export function useAuthSession() {
 
   const clearSession = () => {
     clearAccessToken();
-    clearLegacyAccessToken();
     queryClient.clear();
   };
 
@@ -31,7 +29,6 @@ export function useAuthSession() {
     });
     const token = result.item.token;
     setAccessToken(token);
-    setLegacyAccessToken(token);
     await queryClient.invalidateQueries({ queryKey: getSdApiV2BaseHealthQueryKey() });
     await queryClient.invalidateQueries({ queryKey: getSdApiV2BaseOverviewQueryKey() });
     await queryClient.invalidateQueries({ queryKey: getSdApiV2BaseSecurityCheckQueryKey() });

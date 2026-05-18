@@ -5,7 +5,6 @@ import VueRouter from 'vue-router/vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
-import tailwindcss from '@tailwindcss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 import Components from 'unplugin-vue-components/vite'
@@ -32,7 +31,6 @@ export default defineConfig(({ mode }) => ({
     }),
     vue(),
     vueJsx(),
-    tailwindcss(),
     vueDevTools(),
     AutoImport({
       imports: [
@@ -103,6 +101,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    target: 'chrome90',
+    cssTarget: 'chrome90',
     rollupOptions: {
       output: {
         manualChunks(id) {

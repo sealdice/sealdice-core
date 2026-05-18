@@ -9,6 +9,7 @@ import {
   postSdApiV2StoryBackupBatchDelete,
   type StoryLogBackup,
 } from '@/api';
+import { downloadApiFile } from '@/api/download';
 import { hasAccessToken } from '@/features/auth/state';
 
 const message = useMessage();
@@ -102,18 +103,14 @@ function bakDeleteConfirm(name: string) {
 }
 
 async function downloadBackup(name: string) {
-  const result = await getSdApiV2StoryBackupDownload({
-    query: { name },
-    parseAs: 'blob',
-    throwOnError: true,
-  });
-  const blob = result.data as Blob;
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
+  await downloadApiFile(
+    getSdApiV2StoryBackupDownload({
+      query: { name },
+      parseAs: 'blob',
+      throwOnError: true,
+    }),
+    name,
+  );
 }
 </script>
 

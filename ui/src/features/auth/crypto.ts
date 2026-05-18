@@ -25,12 +25,6 @@ function serializePasswordHash(keyBuffer: ArrayBuffer, saltBytes: Uint8Array, it
   return encodeBinaryText(`${passwordHashVersion}${bytesToBinaryString(payload)}`);
 }
 
-export function sleep(duration: number): Promise<void> {
-  return new Promise(resolve => {
-    globalThis.setTimeout(resolve, duration);
-  });
-}
-
 export async function passwordHash(
   salt: string,
   password: string,
@@ -38,7 +32,7 @@ export async function passwordHash(
 ): Promise<string> {
   const cryptoApi = globalThis.crypto?.subtle;
   if (!cryptoApi) {
-    throw new Error('当前环境不支持 Web Crypto，无法生成旧版登录密码哈希。');
+    throw new Error('当前环境不支持 Web Crypto，无法生成登录密码哈希。');
   }
 
   const encoder = new TextEncoder();

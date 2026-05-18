@@ -1,6 +1,9 @@
-@import 'tailwindcss';
 @import 'nprogress/nprogress.css';
 @import './base.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 #app {
   display: flex;

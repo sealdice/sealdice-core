@@ -326,7 +326,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
   gap: 0.75rem;
   min-width: 0;
   border-bottom: 1px solid var(--sd-border-soft);
-  background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 62%);
+  background: var(--sd-bg-elevated-soft);
   padding: 0.55rem 0.75rem;
 }
 
@@ -376,8 +376,18 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
   min-width: 0;
   border: 1px solid var(--sd-border-soft);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 34%);
+  background: var(--sd-bg-elevated-muted);
   padding: 0.75rem;
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .rule-panel-head {
+    background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 62%);
+  }
+
+  .rule-block {
+    background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 34%);
+  }
 }
 
 .rule-block-head,

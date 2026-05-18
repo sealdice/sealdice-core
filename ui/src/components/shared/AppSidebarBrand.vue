@@ -52,17 +52,20 @@ const { overview, appName, runtimeText } = useBaseOverview();
 <style scoped>
 .sd-sidebar-brand {
   display: flex;
-  min-height: 82px;
+  min-height: 72px;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 0.85rem 0.8rem;
+  gap: 0;
+  margin-bottom: 1rem;
+  padding: 1.5rem 0.8rem 0.5rem 1.1rem;
   color: var(--sd-text-inverse);
+  line-height: 1;
 }
 
 .sd-sidebar-brand.collapsed {
   justify-content: center;
-  min-height: 70px;
-  padding: 0.85rem 0.5rem;
+  min-height: 64px;
+  margin-bottom: 1rem;
+  padding: 1.5rem 0.5rem 0.5rem 0.5rem;
 }
 
 .brand-mark {
@@ -76,6 +79,7 @@ const { overview, appName, runtimeText } = useBaseOverview();
   border-radius: 10px;
   background: linear-gradient(135deg, #22c55e, #0ea5e9 52%, #f97316);
   cursor: pointer;
+  margin: 0 0.34rem;
   padding: 0;
 }
 
@@ -94,7 +98,7 @@ const { overview, appName, runtimeText } = useBaseOverview();
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .brand-title {
@@ -104,7 +108,8 @@ const { overview, appName, runtimeText } = useBaseOverview();
   color: var(--sd-text-inverse);
   cursor: pointer;
   font: inherit;
-  font-size: 1rem;
+  font-size: 1.3rem;
+  font-weight: 500;
   line-height: 1.25;
   padding: 0;
   text-align: left;
@@ -113,16 +118,26 @@ const { overview, appName, runtimeText } = useBaseOverview();
 }
 
 .container-indicator {
-  color: color-mix(in srgb, var(--sd-text-inverse), transparent 14%);
+  color: var(--sd-text-inverse-soft);
 }
 
 .runtime-text {
   overflow: hidden;
-  color: color-mix(in srgb, var(--sd-text-inverse), transparent 32%);
+  color: var(--sd-text-inverse-muted);
   font-size: 0.7rem;
   line-height: 1.35;
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .container-indicator {
+    color: color-mix(in srgb, var(--sd-text-inverse), transparent 14%);
+  }
+
+  .runtime-text {
+    color: color-mix(in srgb, var(--sd-text-inverse), transparent 32%);
+  }
 }
 </style>

@@ -75,7 +75,7 @@ void authSession.tryDefaultSignin();
         class="sd-sidebar no-scrollbar"
         collapse-mode="width"
         :collapsed-width="64"
-        :width="240"
+        :width="216"
         :collapsed="collapsedMenu"
         bordered
         :native-scrollbar="false"
@@ -164,6 +164,7 @@ void authSession.tryDefaultSignin();
 .sd-sidebar {
   height: 100%;
   background: var(--sd-bg-sidebar);
+  text-align: left;
 }
 
 .sd-content-pane {

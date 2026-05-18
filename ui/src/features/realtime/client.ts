@@ -1,5 +1,4 @@
 import { computed, ref, watch } from 'vue';
-import { clearLegacyAccessToken } from '@/api/legacy';
 import { getApiBaseUrl } from '@/api';
 import { clearAccessToken, currentAccessToken, hasAccessToken } from '@/features/auth/state';
 import { queryClient } from '@/queryClient';
@@ -67,7 +66,6 @@ function parseEnvelope(raw: string): RealtimeEnvelope | null {
 
 function clearSessionForUnauthorized(): void {
   clearAccessToken();
-  clearLegacyAccessToken();
   queryClient.clear();
 }
 

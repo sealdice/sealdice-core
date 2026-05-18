@@ -773,7 +773,13 @@ onMounted(async () => {
 }
 
 .cleanup-danger {
-  border-color: color-mix(in srgb, var(--n-error-color), var(--sd-border) 60%);
+  border-color: var(--n-error-color);
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .cleanup-danger {
+    border-color: color-mix(in srgb, var(--n-error-color), var(--sd-border) 60%);
+  }
 }
 
 .cleanup-alert {

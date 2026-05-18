@@ -1,5 +1,12 @@
 import NProgress from 'nprogress';
-import type { Router } from 'vue-router';
+import type { RouteLocationNormalizedLoadedGeneric, Router } from 'vue-router';
+
+const APP_NAME = 'SealDice';
+
+function formatDocumentTitle(route: RouteLocationNormalizedLoadedGeneric): string {
+  const pageTitle = typeof route.meta.title === 'string' ? route.meta.title.trim() : '';
+  return pageTitle ? `${pageTitle} - ${APP_NAME}` : APP_NAME;
+}
 
 NProgress.configure({
   showSpinner: false,
@@ -12,7 +19,8 @@ export function setupRouterProgress(router: Router): void {
     return true;
   });
 
-  router.afterEach(() => {
+  router.afterEach((to) => {
+    document.title = formatDocumentTitle(to);
     NProgress.done();
   });
 

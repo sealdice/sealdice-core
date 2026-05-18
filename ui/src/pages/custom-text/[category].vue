@@ -358,6 +358,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { cloneDeep, filter, groupBy, map, mapValues, sortBy, startsWith, trim, uniq } from 'es-toolkit/compat';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useDialog, useMessage } from 'naive-ui';
+import { useRoute } from 'vue-router';
 import {
   getSdApiV2CustomTextOptions,
   getSdApiV2CustomTextQueryKey,
@@ -375,11 +376,12 @@ import {
   type TextTemplateWithWeightDict,
 } from '@/features/customText/types';
 
-const props = defineProps<{ category: string }>();
+const props = defineProps<{ category?: string }>();
 
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
+const route = useRoute();
 
 const texts = ref<TextTemplateWithWeightDict>({});
 const configForImport = ref('');
@@ -400,7 +402,12 @@ const customTextQuery = useQuery({
 const remoteData = computed(() => normalizeCustomTextData(customTextQuery.data.value?.item));
 const helpInfo = computed(() => remoteData.value.helpInfo);
 const previewInfo = computed(() => remoteData.value.previewInfo);
-const category = computed(() => props.category);
+const category = computed(() => {
+  const routeParams = route.params as Record<string, string | string[] | undefined>;
+  const routeCategory = routeParams.category;
+  const fallback = Array.isArray(routeCategory) ? routeCategory[0] : routeCategory;
+  return props.category ?? String(fallback ?? '');
+});
 const hasCategory = computed(() => Boolean(texts.value[category.value]));
 
 const syncLocalTexts = (force = false) => {
@@ -416,7 +423,7 @@ watch(
 );
 
 watch(
-  () => props.category,
+  category,
   () => {
     modified.value = false;
     filterMode.value = 'all';
@@ -572,7 +579,7 @@ const importRefresh = () => {
       {
         title: '某人的自定义配置',
         items: {
-          [props.category]: texts.value[props.category],
+          [category.value]: texts.value[category.value],
         },
       },
       null,
@@ -628,7 +635,7 @@ watch(
 );
 
 const addItem = (keyName: string) => {
-  texts.value[props.category][keyName].push(['', 1]);
+  texts.value[category.value][keyName].push(['', 1]);
   modified.value = true;
 };
 
@@ -646,19 +653,19 @@ const removeItem = (items: TextTemplateItem[], index: number) => {
 };
 
 const save = async () => {
-  await saveMutation.mutateAsync(props.category);
+  await saveMutation.mutateAsync(category.value);
   modified.value = false;
   syncLocalTexts(true);
   message.success('已保存');
 };
 
 const refreshPreview = async () => {
-  await previewRefreshMutation.mutateAsync(props.category);
+  await previewRefreshMutation.mutateAsync(category.value);
   message.success('预览已刷新');
 };
 
 const getPreview = (keyName: string, text: string): TextItemCompatibleInfo | undefined => {
-  return previewInfo.value[`${props.category}:${keyName}`]?.[text];
+  return previewInfo.value[`${category.value}:${keyName}`]?.[text];
 };
 
 const getPreviewCheckErr = (keyName: string, text: string) => {

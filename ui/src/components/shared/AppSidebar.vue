@@ -134,7 +134,8 @@ watch(
       class="sd-sidebar-menu"
       :collapsed="props.collapsed"
       :collapsed-width="64"
-      :collapsed-icon-size="22"
+      :icon-size="20"
+      :collapsed-icon-size="20"
       :options="options"
       :value="activeValue"
       :expanded-keys="expandedKeys"
@@ -151,16 +152,57 @@ watch(
   height: 100%;
   min-height: 0;
   flex-direction: column;
+  text-align: left;
 }
 
 .sd-sidebar-menu {
   flex: 1 1 auto;
   min-height: 0;
   background: transparent;
+  padding: 0;
 }
 
 :deep(.sd-menu-link) {
+  display: inline-flex;
+  align-items: center;
   color: inherit;
   text-decoration: none;
+  text-align: left;
+  width: 100%;
+  line-height: 1.2;
+}
+
+:deep(.sd-sidebar-menu .n-menu-item-content) {
+  border-radius: 10px;
+}
+
+:deep(.sd-sidebar-menu .n-menu-item-content__icon .n-icon) {
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-0.5px);
+}
+
+:deep(.sd-sidebar-menu .n-menu-item-content-header) {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  text-align: left;
+  line-height: 1.2;
+}
+
+:deep(.sd-sidebar-menu .n-menu-item-content-header a) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  line-height: 20px;
+}
+
+:deep(.sd-sidebar-menu .n-menu-item-group-title) {
+  height: 22px;
+  font-size: 0.72rem;
+  opacity: 0.72;
 }
 </style>
