@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
+	dicesealpack "sealdice-core/dice/sealpack"
 )
 
 func storeBackendList(c echo.Context) error {
@@ -152,8 +153,13 @@ func storeDownload(c echo.Context) error {
 	if installedPkg, exists := myDice.PackageManager.Get(target.ID); exists && installedPkg != nil && installedPkg.Manifest != nil {
 		existingVer, existingErr := semver.NewVersion(installedPkg.Manifest.Package.Version)
 		targetVer, targetErr := semver.NewVersion(target.Version)
-		if existingErr == nil && targetErr == nil && !targetVer.GreaterThan(existingVer) {
-			return Error(&c, "当前已安装相同或更高版本的扩展包", Response{})
+		if existingErr == nil && targetErr == nil && targetVer.LessThan(existingVer) {
+			return Error(&c, "当前已安装更高版本的扩展包", Response{})
+		}
+		if existingErr == nil && targetErr == nil && targetVer.Equal(existingVer) {
+			if err := myDice.PackageManager.Uninstall(target.ID, dicesealpack.UninstallModeKeepData); err != nil {
+				return Error(&c, err.Error(), Response{})
+			}
 		}
 	}
 
@@ -163,6 +169,33 @@ func storeDownload(c echo.Context) error {
 
 	myDice.StoreManager.RefreshInstalled([]*dice.StorePackage{target})
 	return Success(&c, Response{})
+}
+
+func storePreviewDownload(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+	var params struct {
+		ID      string `json:"id"`
+		Version string `json:"version"`
+	}
+	if err := c.Bind(&params); err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	target, ok := myDice.StoreManager.FindPackage(params.ID, params.Version)
+	if !ok {
+		return Error(&c, "未找到已缓存的商店包，请先刷新商店列表后重试", Response{})
+	}
+
+	preview, err := myDice.PackageManager.PreviewFromURL(target.Download.URL, target.Download.Hash)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	return Success(&c, Response{
+		"data": preview,
+	})
 }
 
 func storeRating(c echo.Context) error {

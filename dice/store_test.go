@@ -191,6 +191,39 @@ func TestStoreQueryPageUsesSingleResolvedBackend(t *testing.T) {
 	}
 }
 
+func TestStoreManagerFindPackageMatchesByIDAndVersionAfterRefreshInstalled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+		case "/dice/api/store/page":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[]},"download":{"url":"https://example.com/demo-1.2.3.sealpack","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3}}],"pageNum":1,"pageSize":20,"next":false},"err":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	oldBackendURLs := BackendUrls
+	BackendUrls = []string{server.URL}
+	defer func() { BackendUrls = oldBackendURLs }()
+
+	manager := NewStoreManager(&Dice{})
+	page, err := manager.StoreQueryPage(StoreQueryPageParams{PageNum: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("StoreQueryPage() error = %v", err)
+	}
+	manager.RefreshInstalled(page.Data)
+
+	pkg, ok := manager.FindPackage("alice/demo", "1.2.3")
+	if !ok {
+		t.Fatal("expected package to be found in cache")
+	}
+	if pkg.Download.URL != "https://example.com/demo-1.2.3.sealpack" {
+		t.Fatalf("Download.URL = %q", pkg.Download.URL)
+	}
+}
+
 func TestStoreBackendListReturnsEnabledAndDisabledBackends(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

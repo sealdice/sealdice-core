@@ -408,6 +408,45 @@ func TestPackageManagerPreviewFromStream(t *testing.T) {
 	}
 }
 
+func TestPackageManagerPreviewFromURL(t *testing.T) {
+	_, pm := newTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	pkgID := "alice/preview-url"
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
+		"scripts": {"scripts/*.js"},
+		"reply":   {"reply/*.yaml"},
+	}, map[string]string{
+		"scripts/main.js": "// preview-url",
+		"reply/main.yaml": "replies: []",
+	})
+	data, err := os.ReadFile(archive)
+	if err != nil {
+		t.Fatalf("ReadFile(archive) error = %v", err)
+	}
+	sum := sha256.Sum256(data)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(data)
+	}))
+	defer server.Close()
+
+	preview, err := pm.PreviewFromURL(server.URL, map[string]string{"sha256": hex.EncodeToString(sum[:])})
+	if err != nil {
+		t.Fatalf("PreviewFromURL() error = %v", err)
+	}
+	if preview.Manifest.Package.ID != pkgID {
+		t.Fatalf("preview package ID = %q, want %q", preview.Manifest.Package.ID, pkgID)
+	}
+	if preview.FileCount != 3 {
+		t.Fatalf("FileCount = %d, want 3", preview.FileCount)
+	}
+	if preview.ContentCounts["scripts"] != 1 || preview.ContentCounts["reply"] != 1 {
+		t.Fatalf("ContentCounts = %#v, want scripts/reply counts", preview.ContentCounts)
+	}
+}
+
 func TestDownloadPackageArchiveRejectsOversizedResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", fmt.Sprint(maxPackageArchiveSize+1))
@@ -488,6 +527,54 @@ func TestPackageManagerInstallUpgradePreservesConfigAndUserData(t *testing.T) {
 	}
 	if err := pm.Install(v2); err == nil {
 		t.Fatal("expected same version install to fail")
+	}
+}
+
+func TestPackageManagerKeepDataReinstallPreservesConfigAndUserData(t *testing.T) {
+	_, pm := newTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	pkgID := "alice/reinstall"
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
+		"scripts": {"scripts/*.js"},
+	}, map[string]string{
+		"scripts/main.js": "// reinstall",
+	}, withConfigMode())
+
+	if err := pm.Install(archive); err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	if _, err := pm.Enable(pkgID); err != nil {
+		t.Fatalf("Enable() error = %v", err)
+	}
+	if err := pm.SetConfig(pkgID, map[string]interface{}{"mode": "custom"}); err != nil {
+		t.Fatalf("SetConfig() error = %v", err)
+	}
+
+	pkg, _ := pm.Get(pkgID)
+	markerPath := filepath.Join(pkg.UserDataPath, "marker.txt")
+	if err := os.WriteFile(markerPath, []byte("userdata"), 0o644); err != nil {
+		t.Fatalf("WriteFile(marker) error = %v", err)
+	}
+
+	if err := pm.Uninstall(pkgID, sealpack.UninstallModeKeepData); err != nil {
+		t.Fatalf("Uninstall(keep_data) error = %v", err)
+	}
+	if err := pm.Install(archive); err != nil {
+		t.Fatalf("Install(reinstall) error = %v", err)
+	}
+
+	pkg, ok := pm.Get(pkgID)
+	if !ok || pkg == nil || pkg.Manifest == nil {
+		t.Fatalf("expected package %s to exist", pkgID)
+	}
+	if got := pkg.Config["mode"]; got != "custom" {
+		t.Fatalf("config mode after reinstall = %#v, want custom", got)
+	}
+	if _, err := os.Stat(markerPath); err != nil {
+		t.Fatalf("expected userdata marker to remain after reinstall: %v", err)
 	}
 }
 

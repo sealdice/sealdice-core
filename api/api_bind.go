@@ -725,6 +725,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.DELETE(prefix+"/store/backend/remove", storeRemoveBackend)
 	e.GET(prefix+"/store/recommend", storeRecommend)
 	e.GET(prefix+"/store/page", storeGetPage)
+	e.POST(prefix+"/store/preview-download", storePreviewDownload)
 	e.POST(prefix+"/store/download", storeDownload)
 	e.POST(prefix+"/store/rating", storeRating)
 

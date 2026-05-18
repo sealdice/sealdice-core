@@ -671,6 +671,27 @@ func (pm *PackageManager) saveState() error {
 	return os.WriteFile(pm.getStatePath(), data, 0644)
 }
 
+func loadPackageConfigFromUserData(userDataPath string) (map[string]interface{}, error) {
+	if userDataPath == "" {
+		return nil, nil
+	}
+
+	configPath := filepath.Join(userDataPath, sealpack.ConfigFile)
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var config map[string]interface{}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
 // Install 安装扩展包
 // 将 .sealpack 复制到 data/packages/，并解压到 cache/packages/
 func (pm *PackageManager) Install(pkgPath string) error {
@@ -761,6 +782,10 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		if state == sealpack.PackageStateEnabled {
 			pendingReload = append(pendingReload, pm.generateReloadHints(manifest).ReloadHints...)
 		}
+	} else if persistedConfig, readErr := loadPackageConfigFromUserData(userDataPath); readErr == nil {
+		config = sealpack.MergeConfig(config, persistedConfig)
+	} else if readErr != nil && pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Warnf("读取扩展包 %s 用户配置失败: %v", pkgID, readErr)
 	}
 
 	pm.packages[pkgID] = &sealpack.Instance{
@@ -787,6 +812,50 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 
 	pm.parent.Logger.Infof("package %s v%s installed", manifest.Package.Name, manifest.Package.Version)
 	return nil
+}
+
+func (pm *PackageManager) prepareDownloadedPackage(url string, hashes map[string]string, tempFilePrefix string) (string, error) {
+	if len(url) == 0 {
+		return "", errors.New("未提供下载链接")
+	}
+
+	pm.parent.Logger.Infof("正在从 URL 下载扩展包: %s", url)
+
+	statusCode, data, err := downloadPackageArchive(url)
+	if err != nil {
+		return "", errors.New("下载扩展包失败: " + err.Error())
+	}
+	if statusCode != http.StatusOK {
+		return "", fmt.Errorf("无法获取扩展包内容，状态码: %d", statusCode)
+	}
+	if hashErr := verifyDownloadedPackageHash(data, hashes); hashErr != nil {
+		return "", hashErr
+	}
+	if unsupported := unsupportedPackageHashAlgorithms(hashes); len(unsupported) > 0 && pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Warnf("下载校验目前仅支持 sha256，已忽略以下算法: %s", strings.Join(unsupported, ", "))
+	}
+
+	tmpDir := pm.getPackageTempDir()
+	if mkdirErr := os.MkdirAll(tmpDir, 0755); mkdirErr != nil {
+		return "", errors.New("创建临时目录失败: " + mkdirErr.Error())
+	}
+
+	tmpFile, err := os.CreateTemp(tmpDir, tempFilePrefix)
+	if err != nil {
+		return "", errors.New("创建临时文件失败: " + err.Error())
+	}
+	tmpPath := tmpFile.Name()
+	if _, writeErr := tmpFile.Write(data); writeErr != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return "", errors.New("保存临时文件失败: " + writeErr.Error())
+	}
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return "", errors.New("保存临时文件失败: " + closeErr.Error())
+	}
+
+	return tmpPath, nil
 }
 
 // InstallFromStream streams an uploaded .sealpack into a temporary file, then installs it.
@@ -2031,46 +2100,9 @@ func unsupportedPackageHashAlgorithms(hashes map[string]string) []string {
 
 // InstallFromURL 从 URL 下载并安装扩展包
 func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) error {
-	if len(url) == 0 {
-		return errors.New("未提供下载链接")
-	}
-
-	pm.parent.Logger.Infof("正在从 URL 下载扩展包: %s", url)
-
-	// 下载文件
-	statusCode, data, err := downloadPackageArchive(url)
+	tmpPath, err := pm.prepareDownloadedPackage(url, hashes, "package_download_*.sealpack")
 	if err != nil {
-		return errors.New("下载扩展包失败: " + err.Error())
-	}
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("无法获取扩展包内容，状态码: %d", statusCode)
-	}
-	if hashErr := verifyDownloadedPackageHash(data, hashes); hashErr != nil {
-		return hashErr
-	}
-	if unsupported := unsupportedPackageHashAlgorithms(hashes); len(unsupported) > 0 && pm.parent != nil && pm.parent.Logger != nil {
-		pm.parent.Logger.Warnf("下载校验目前仅支持 sha256，已忽略以下算法: %s", strings.Join(unsupported, ", "))
-	}
-
-	// 保存到临时文件
-	tmpDir := pm.getPackageTempDir()
-	if mkdirErr := os.MkdirAll(tmpDir, 0755); mkdirErr != nil {
-		return errors.New("创建临时目录失败: " + mkdirErr.Error())
-	}
-
-	tmpFile, err := os.CreateTemp(tmpDir, "package_download_*.sealpack")
-	if err != nil {
-		return errors.New("创建临时文件失败: " + err.Error())
-	}
-	tmpPath := tmpFile.Name()
-	if _, writeErr := tmpFile.Write(data); writeErr != nil {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
-		return errors.New("保存临时文件失败: " + writeErr.Error())
-	}
-	if closeErr := tmpFile.Close(); closeErr != nil {
-		_ = os.Remove(tmpPath)
-		return errors.New("保存临时文件失败: " + closeErr.Error())
+		return err
 	}
 
 	// 安装扩展包
@@ -2082,4 +2114,19 @@ func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) e
 	}
 
 	return err
+}
+
+// PreviewFromURL 从 URL 下载扩展包并返回包内容预览。
+func (pm *PackageManager) PreviewFromURL(url string, hashes map[string]string) (*PackageUploadPreview, error) {
+	tmpPath, err := pm.prepareDownloadedPackage(url, hashes, "package_preview_download_*.sealpack")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if removeErr := os.Remove(tmpPath); removeErr != nil && pm.parent != nil && pm.parent.Logger != nil {
+			pm.parent.Logger.Warnf("清理临时扩展包文件失败 %s: %v", tmpPath, removeErr)
+		}
+	}()
+
+	return pm.Preview(tmpPath)
 }
