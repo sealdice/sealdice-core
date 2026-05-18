@@ -19,11 +19,10 @@ import (
 type SQLiteEngine struct {
 	DataDir string
 	ctx     context.Context
-	// Protect readList and writeList access.
-	mu           sync.RWMutex
-	readList     map[dbName]*gorm.DB
-	writeList    map[dbName]*gorm.DB
-	cachePlugins []*cache.Plugin
+	// 用于控制readList和writeList的读写锁
+	mu        sync.RWMutex
+	readList  map[dbName]*gorm.DB
+	writeList map[dbName]*gorm.DB
 }
 
 func (s *SQLiteEngine) Type() string {
@@ -45,7 +44,7 @@ func (s *SQLiteEngine) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Close connections from readList.
+	// 关闭 readList 中的连接
 	for name, db := range s.readList {
 		sqlDB, err := db.DB()
 		if err != nil {
@@ -57,7 +56,7 @@ func (s *SQLiteEngine) Close() {
 		}
 	}
 
-	// Close connections from writeList.
+	// 关闭 writeList 中的连接
 	for name, db := range s.writeList {
 		sqlDB, err := db.DB()
 		if err != nil {
@@ -68,11 +67,6 @@ func (s *SQLiteEngine) Close() {
 			log.Errorf("failed to close db %s: %v", name, err)
 		}
 	}
-
-	for _, plugin := range s.cachePlugins {
-		plugin.Close()
-	}
-	s.cachePlugins = nil
 }
 
 func (s *SQLiteEngine) getDBByModeAndKey(mode constant.DBMode, key dbName) *gorm.DB {
@@ -216,7 +210,7 @@ func (s *SQLiteEngine) DBCheck() {
 // 初始化
 func (s *SQLiteEngine) dataDBInit() error {
 	dbDataPath, _ := filepath.Abs(filepath.Join(s.DataDir, "data.db"))
-	readDB, writeDB, plugin, err := SQLiteDBRWInit(dbDataPath)
+	readDB, writeDB, err := SQLiteDBRWInit(dbDataPath)
 	if err != nil {
 		return err
 	}
@@ -226,13 +220,12 @@ func (s *SQLiteEngine) dataDBInit() error {
 	writeDB = writeDB.WithContext(dataContext)
 	s.readList[DataDBKey] = readDB
 	s.writeList[DataDBKey] = writeDB
-	s.cachePlugins = append(s.cachePlugins, plugin)
 	return nil
 }
 
 func (s *SQLiteEngine) LogDBInit() error {
 	dbDataLogsPath, _ := filepath.Abs(filepath.Join(s.DataDir, "data-logs.db"))
-	readDB, writeDB, plugin, err := SQLiteDBRWInit(dbDataLogsPath)
+	readDB, writeDB, err := SQLiteDBRWInit(dbDataLogsPath)
 	if err != nil {
 		return err
 	}
@@ -242,7 +235,6 @@ func (s *SQLiteEngine) LogDBInit() error {
 	writeDB = writeDB.WithContext(logsContext)
 	s.readList[LogsDBKey] = readDB
 	s.writeList[LogsDBKey] = writeDB
-	s.cachePlugins = append(s.cachePlugins, plugin)
 	return nil
 }
 
@@ -251,7 +243,7 @@ func (s *SQLiteEngine) CensorDBInit() error {
 	if err != nil {
 		return err
 	}
-	readDB, writeDB, plugin, err := SQLiteDBRWInit(path)
+	readDB, writeDB, err := SQLiteDBRWInit(path)
 	if err != nil {
 		return err
 	}
@@ -261,6 +253,5 @@ func (s *SQLiteEngine) CensorDBInit() error {
 	writeDB = writeDB.WithContext(censorContext)
 	s.readList[CensorsDBKey] = readDB
 	s.writeList[CensorsDBKey] = writeDB
-	s.cachePlugins = append(s.cachePlugins, plugin)
 	return nil
 }

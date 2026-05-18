@@ -15,35 +15,36 @@ import (
 )
 
 type PGSQLEngine struct {
-	DSN         string
-	DB          *gorm.DB
-	dataDB      *gorm.DB
-	logsDB      *gorm.DB
-	censorDB    *gorm.DB
-	ctx         context.Context
-	cachePlugin *cache.Plugin
+	DSN      string
+	DB       *gorm.DB
+	dataDB   *gorm.DB
+	logsDB   *gorm.DB
+	censorDB *gorm.DB
+	ctx      context.Context
+	// 其他引擎不需要读写分离
 }
 
 func (s *PGSQLEngine) Close() {
 	log := zap.S().Named(logger.LogKeyDatabase)
-
-	if s.cachePlugin != nil {
-		s.cachePlugin.Close()
-		s.cachePlugin = nil
-	}
-
 	db, err := s.DB.DB()
 	if err != nil {
 		log.Errorf("failed to close db: %v", err)
 		return
 	}
-	if err = db.Close(); err != nil {
-		log.Errorf("failed to close db: %v", err)
+	err = db.Close()
+	if err != nil {
+		return
 	}
 }
 
-func (s *PGSQLEngine) GetDataDB(_ constant.DBMode) *gorm.DB { return s.dataDB }
-func (s *PGSQLEngine) GetLogDB(_ constant.DBMode) *gorm.DB  { return s.logsDB }
+func (s *PGSQLEngine) GetDataDB(_ constant.DBMode) *gorm.DB {
+	return s.dataDB
+}
+
+func (s *PGSQLEngine) GetLogDB(_ constant.DBMode) *gorm.DB {
+	return s.logsDB
+}
+
 func (s *PGSQLEngine) GetCensorDB(_ constant.DBMode) *gorm.DB {
 	return s.censorDB
 }
@@ -57,12 +58,12 @@ func (s *PGSQLEngine) Init(ctx context.Context) error {
 	if s.DSN == "" {
 		return errors.New("DB_DSN is missing")
 	}
-
 	var err error
-	s.DB, s.cachePlugin, err = PostgresDBInit(s.DSN)
+	s.DB, err = PostgresDBInit(s.DSN)
 	if err != nil {
 		return err
 	}
+	// 获取dataDB,logsDB和censorDB并赋值
 	s.dataDB, err = s.dataDBInit()
 	if err != nil {
 		return err
@@ -78,23 +79,31 @@ func (s *PGSQLEngine) Init(ctx context.Context) error {
 	return nil
 }
 
+// DBCheck DB检查
 func (s *PGSQLEngine) DBCheck() {
-	fmt.Fprintln(os.Stdout, "PostgreSQL integrity checks are not implemented; check the database manually.")
+	fmt.Fprintln(os.Stdout, "PostGRESQL 海豹不提供检查，请自行检查数据库！")
 }
 
+// DataDBInit 初始化
 func (s *PGSQLEngine) dataDBInit() (*gorm.DB, error) {
+	// data建表
 	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
-	return s.DB.WithContext(dataContext), nil
+	dataDB := s.DB.WithContext(dataContext)
+	return dataDB, nil
 }
 
 func (s *PGSQLEngine) logDBInit() (*gorm.DB, error) {
+	// logs建表
 	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
-	return s.DB.WithContext(logsContext), nil
+	logDB := s.DB.WithContext(logsContext)
+	return logDB, nil
 }
 
 func (s *PGSQLEngine) censorDBInit() (*gorm.DB, error) {
 	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
-	return s.DB.WithContext(censorContext), nil
+	censorDB := s.DB.WithContext(censorContext)
+	return censorDB, nil
 }
-
-func (s *PGSQLEngine) Type() string { return "pgsql" }
+func (s *PGSQLEngine) Type() string {
+	return "pgsql"
+}

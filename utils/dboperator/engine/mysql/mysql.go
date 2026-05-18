@@ -8,17 +8,20 @@ import (
 	"sealdice-core/utils/cache"
 )
 
-func MySQLDBInit(dsn string) (*gorm.DB, *cache.Plugin, error) {
+func MySQLDBInit(dsn string) (*gorm.DB, error) {
+	// 构建 MySQL DSN (Data Source Name)
+	// 使用 GORM 连接 MySQL
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
+		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
+		Logger: logger.Default.LogMode(logger.Info)})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	cacheDB, plugin, err := cache.AttachOtterCache(db)
+	// 存疑，MYSQL是否需要使用缓存
+	cacheDB, err := cache.GetOtterCacheDB(db)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return cacheDB, plugin, nil
+	// 返回数据库连接
+	return cacheDB, nil
 }

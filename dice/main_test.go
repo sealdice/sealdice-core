@@ -4,15 +4,10 @@ import (
 	"testing"
 
 	"go.uber.org/goleak"
-
-	cache "sealdice-core/utils/cache"
 )
 
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m,
-		goleak.Cleanup(func(int) {
-			cache.CloseAllOtterCachePlugins()
-		}),
 		// ants pool spawns background purge/ticktock goroutines that persist
 		// until ants.Release() is called. Even after Release, they may take a
 		// brief moment to exit.
@@ -21,5 +16,9 @@ func TestMain(m *testing.M) {
 		// bleve creates AnalysisWorker goroutines when an index is opened;
 		// they are stopped only when the index is closed.
 		goleak.IgnoreTopFunction("github.com/blevesearch/bleve_index_api.AnalysisWorker"),
+		// otter cache workers are started by the mainline GORM cache plugin.
+		goleak.IgnoreTopFunction("github.com/maypok86/otter/internal/unixtime.startTimer.func1"),
+		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).cleanup"),
+		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).process"),
 	)
 }
