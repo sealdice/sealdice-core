@@ -38,6 +38,16 @@ const (
 // ActiveWithGraph 描述扩展伴随关系：A -> [B,C] 表示激活 A 时需要附带 B、C。
 type ActiveWithGraph map[string][]string
 
+func shouldAutoActivateExt(ext *ExtInfo) bool {
+	if ext == nil {
+		return false
+	}
+	if ext.DefaultSetting != nil {
+		return ext.DefaultSetting.AutoActive
+	}
+	return ext.AutoActive
+}
+
 func (d *Dice) rebuildActiveWithGraph() {
 	d.ActiveWithGraphMu.Lock()
 	defer d.ActiveWithGraphMu.Unlock()
@@ -619,7 +629,7 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 			continue
 		}
 		// 非首次加载，根据 AutoActive 决定
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		if shouldAutoActivateExt(ext) {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 			known[ext.Name] = struct{}{}
 		} else {
@@ -755,7 +765,7 @@ func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
 		if _, exists := known[ext.Name]; exists {
 			continue
 		}
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		if shouldAutoActivateExt(ext) {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 		} else {
 			group.AddToInactivated(ext.Name)

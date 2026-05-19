@@ -775,6 +775,55 @@ func TestReopenMainExtensionReopensCompanion(t *testing.T) {
 	t.Logf("✓ 重新开启主扩展成功重新激活伴随扩展")
 }
 
+func TestGetActivatedExtListRespectsDefaultSettingOverride(t *testing.T) {
+	ext := &ExtInfo{
+		Name:       "builtin-like",
+		AutoActive: true,
+		DefaultSetting: &ExtDefaultSettingItem{
+			Name:       "builtin-like",
+			AutoActive: false,
+		},
+	}
+	dice := newTestDice([]*ExtInfo{ext})
+	dice.ExtUpdateTime = 1
+
+	group := &GroupInfo{
+		InactivatedExtSet: make(StringSet),
+	}
+
+	got := group.GetActivatedExtList(dice)
+	if len(got) != 0 {
+		t.Fatalf("配置关闭的扩展不应在延迟初始化时被自动激活: got %v", extListToNames(got))
+	}
+	if !group.IsExtInactivated(ext.Name) {
+		t.Fatalf("配置关闭的扩展应被记录到 InactivatedExtSet")
+	}
+}
+
+func TestSyncExtensionsOnMessageRespectsDefaultSettingOverride(t *testing.T) {
+	ext := &ExtInfo{
+		Name:       "builtin-like",
+		AutoActive: true,
+		DefaultSetting: &ExtDefaultSettingItem{
+			Name:       "builtin-like",
+			AutoActive: false,
+		},
+	}
+	dice := newTestDice([]*ExtInfo{ext})
+	dice.ExtRegistryVersion = 1
+
+	group := newTestGroupInfo()
+	group.SyncExtensionsOnMessage(dice)
+
+	got := group.GetActivatedExtListRaw()
+	if len(got) != 0 {
+		t.Fatalf("配置关闭的扩展不应在同步阶段被自动激活: got %v", extListToNames(got))
+	}
+	if !group.IsExtInactivated(ext.Name) {
+		t.Fatalf("配置关闭的扩展应在同步阶段被记录到 InactivatedExtSet")
+	}
+}
+
 // 辅助函数：比较两个字符串切片是否相等
 func stringSliceEqual(a, b []string) bool {
 	if len(a) != len(b) {
