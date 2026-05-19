@@ -297,7 +297,7 @@ func DiceExecSplitOptions(c echo.Context) error {
 	}
 
 	return c.JSON(200, map[string]interface{}{
-		"defaultKey": "short",
+		"defaultKey": "qq",
 		"options": []map[string]interface{}{
 			{
 				"key":             "short",

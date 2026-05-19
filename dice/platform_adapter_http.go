@@ -46,7 +46,7 @@ func (pa *PlatformAdapterHTTP) SetEnable(_ bool) {}
 
 func getUITestReplySplitLen(ctx *MsgContext) int {
 	if ctx == nil || ctx.UITestReplySplitLen == nil {
-		return UITestReplySplitLenShort
+		return UITestReplySplitLenQQ
 	}
 	return *ctx.UITestReplySplitLen
 }
