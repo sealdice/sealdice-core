@@ -204,7 +204,7 @@ func fetchStoreJSON[T any](requestURL string) (*T, error) {
 
 	var result T
 	if err := decodeJSONCompatible(respData, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode store response from %s: %w", requestURL, err)
 	}
 	return &result, nil
 }

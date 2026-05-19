@@ -72,6 +72,25 @@ func TestDecodeJSONCompatibleRejectsTrailingContent(t *testing.T) {
 	}
 }
 
+func TestFetchStoreJSONWrapsDecodeErrorWithRequestURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"name":`))
+	}))
+	defer server.Close()
+
+	requestURL := server.URL + "/dice/api/store/info"
+	_, err := fetchStoreJSON[storeBackendInfoResponse](requestURL)
+	if err == nil {
+		t.Fatal("expected malformed JSON to fail")
+	}
+	if !strings.Contains(err.Error(), requestURL) {
+		t.Fatalf("error %q does not include request URL %q", err.Error(), requestURL)
+	}
+	if !strings.Contains(err.Error(), "decode store response") {
+		t.Fatalf("error %q does not include decode context", err.Error())
+	}
+}
+
 func TestStorePackageMarshalUsesUnifiedSchema(t *testing.T) {
 	data, err := json.Marshal(&StorePackage{
 		ID:       "alice/demo",
