@@ -1799,10 +1799,7 @@ func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message, now ti
 	} else {
 		cmdArgs = CommandParse(msg.Message, []string{"help"}, ctx.Dice.CommandPrefix, msg.Platform, false)
 	}
-	if cmdArgs == nil || !strings.EqualFold(cmdArgs.Command, "help") {
-		return false
-	}
-	if len(cmdArgs.Args) != 1 || !cmdArgs.IsArgEqual(1, "骰主") {
+	if !isBlacklistedHelpMasterRequest(cmdArgs) {
 		return false
 	}
 	if !ctx.Dice.Config.BanList.CanReplyBlacklistedHelpMaster(msg.Sender.UserID, now) {
@@ -1812,6 +1809,13 @@ func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message, now ti
 	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_骰主"))
 	ctx.Dice.Logger.Infof("响应黑名单用户 .help 骰主 请求: <%s>(%s)", msg.Sender.Nickname, msg.Sender.UserID)
 	return true
+}
+
+func isBlacklistedHelpMasterRequest(cmdArgs *CmdArgs) bool {
+	if cmdArgs == nil || !strings.EqualFold(cmdArgs.Command, "help") {
+		return false
+	}
+	return len(cmdArgs.Args) == 1 && cmdArgs.IsArgEqual(1, "骰主")
 }
 
 func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGroup bool, banQuitGroup func()) bool {

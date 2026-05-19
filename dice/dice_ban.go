@@ -21,7 +21,7 @@ const (
 	BanRankTrusted BanRankType = 30
 )
 
-const blacklistedHelpMasterCooldown = time.Hour
+const defaultBlacklistedHelpMasterCooldown = time.Hour
 
 type BanListInfoItem struct {
 	ID      string      `jsbind:"id"      json:"ID"`
@@ -68,10 +68,11 @@ type BanListInfo struct {
 	ThresholdBan                           int64                              `json:"thresholdBan"                           yaml:"thresholdBan"`                           // 错误阈值
 	AutoBanMinutes                         int64                              `json:"autoBanMinutes"                         yaml:"autoBanMinutes"`                         // 自动禁止时长
 
-	ScoreReducePerMinute int64 `json:"scoreReducePerMinute" yaml:"scoreReducePerMinute"` // 每分钟下降
-	ScoreGroupMuted      int64 `json:"scoreGroupMuted"      yaml:"scoreGroupMuted"`      // 群组禁言
-	ScoreGroupKicked     int64 `json:"scoreGroupKicked"     yaml:"scoreGroupKicked"`     // 群组踢出
-	ScoreTooManyCommand  int64 `json:"scoreTooManyCommand"  yaml:"scoreTooManyCommand"`  // 刷指令
+	ScoreReducePerMinute      int64 `json:"scoreReducePerMinute" yaml:"scoreReducePerMinute"`           // 每分钟下降
+	ScoreGroupMuted           int64 `json:"scoreGroupMuted"      yaml:"scoreGroupMuted"`                // 群组禁言
+	ScoreGroupKicked          int64 `json:"scoreGroupKicked"     yaml:"scoreGroupKicked"`               // 群组踢出
+	ScoreTooManyCommand       int64 `json:"scoreTooManyCommand"  yaml:"scoreTooManyCommand"`            // 刷指令
+	HelpMasterCooldownMinutes int64 `json:"helpMasterCooldownMinutes" yaml:"helpMasterCooldownMinutes"` // 黑名单用户使用.help 骰主的冷却分钟数
 
 	JointScorePercentOfGroup   float64 `json:"jointScorePercentOfGroup"   yaml:"jointScorePercentOfGroup"`   // 群组连带责任
 	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
@@ -94,11 +95,27 @@ func (i *BanListInfo) Init() {
 	i.ScoreGroupMuted = 100
 	i.ScoreGroupKicked = 200
 	i.ScoreTooManyCommand = 100
+	i.HelpMasterCooldownMinutes = int64(defaultBlacklistedHelpMasterCooldown / time.Minute)
 
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
 	i.Map = new(SyncMap[string, *BanListInfoItem])
 	i.helpMasterReplyAt = map[string]time.Time{}
+}
+
+func (i *BanListInfo) BlacklistedHelpMasterCooldown() time.Duration {
+	if i.HelpMasterCooldownMinutes <= 0 {
+		return defaultBlacklistedHelpMasterCooldown
+	}
+	return time.Duration(i.HelpMasterCooldownMinutes) * time.Minute
+}
+
+func (i *BanListInfo) cleanupBlacklistedHelpMasterReplyAtLocked(now time.Time, cooldown time.Duration) {
+	for userID, replyAt := range i.helpMasterReplyAt {
+		if now.Sub(replyAt) >= cooldown {
+			delete(i.helpMasterReplyAt, userID)
+		}
+	}
 }
 
 func (i *BanListInfo) CanReplyBlacklistedHelpMaster(userID string, now time.Time) bool {
@@ -108,8 +125,10 @@ func (i *BanListInfo) CanReplyBlacklistedHelpMaster(userID string, now time.Time
 	if i.helpMasterReplyAt == nil {
 		i.helpMasterReplyAt = map[string]time.Time{}
 	}
+	cooldown := i.BlacklistedHelpMasterCooldown()
+	i.cleanupBlacklistedHelpMasterReplyAtLocked(now, cooldown)
 
-	if lastReplyAt, ok := i.helpMasterReplyAt[userID]; ok && now.Sub(lastReplyAt) < blacklistedHelpMasterCooldown {
+	if lastReplyAt, ok := i.helpMasterReplyAt[userID]; ok && now.Sub(lastReplyAt) < cooldown {
 		return false
 	}
 
@@ -124,6 +143,10 @@ func (i *BanListInfo) AfterLoads() {
 	// 加载完成了
 	d := i.Parent
 	i.cronID, _ = d.Parent.Cron.AddFunc("@every 1m", func() {
+		i.helpMasterReplyMu.Lock()
+		i.cleanupBlacklistedHelpMasterReplyAtLocked(time.Now(), i.BlacklistedHelpMasterCooldown())
+		i.helpMasterReplyMu.Unlock()
+
 		if d.DBOperator == nil {
 			return
 		}
