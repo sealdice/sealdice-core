@@ -172,9 +172,8 @@ func ParseStorePackageFullID(fullID string) (string, string, error) {
 	return pkgID, version, nil
 }
 
-func decodeJSONStrict(data []byte, target interface{}) error {
+func decodeJSONCompatible(data []byte, target interface{}) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return err
 	}
@@ -204,7 +203,7 @@ func fetchStoreJSON[T any](requestURL string) (*T, error) {
 	}
 
 	var result T
-	if err := decodeJSONStrict(respData, &result); err != nil {
+	if err := decodeJSONCompatible(respData, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
