@@ -320,17 +320,29 @@ type ReplyConfig struct {
 	Conditions ReplyConditions `json:"conditions" yaml:"conditions"`
 
 	// web专用
-	Filename string `json:"filename" yaml:"-"`
+	Filename    string `json:"filename" yaml:"-"`
+	PackageID   string `json:"packageId,omitempty" yaml:"-"`
+	CacheBacked bool   `json:"cacheBacked,omitempty" yaml:"-"`
+	Warning     string `json:"warning,omitempty" yaml:"-"`
 }
 
 func (c *ReplyConfig) Save(dice *Dice) {
+	if c.PackageID != "" {
+		dice.Logger.Warnf("跳过保存扩展包自定义回复到普通目录: package=%s file=%s", c.PackageID, c.Filename)
+		return
+	}
 	attrConfigFn := dice.GetExtConfigFilePath("reply", c.Filename)
+	if err := c.SaveToPath(attrConfigFn); err != nil {
+		dice.Logger.Error("ReplyConfig.Save", err)
+	}
+}
+
+func (c *ReplyConfig) SaveToPath(filePath string) error {
 	buf, err := yaml.Marshal(c)
 	if err != nil {
-		dice.Logger.Error("ReplyConfig.Save", err)
-	} else {
-		_ = os.WriteFile(attrConfigFn, buf, 0644)
+		return err
 	}
+	return os.WriteFile(filePath, buf, 0644)
 }
 
 func (c *ReplyConfig) Clean() {

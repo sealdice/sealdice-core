@@ -169,7 +169,7 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 			continue
 		}
 		// 新扩展：根据 AutoActive 决定是否激活
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		if ext.AutoActive {
 			newList = append([]*ExtInfo{ext}, newList...) // 插入头部
 			activated[ext.Name] = true
 			newExtCount++
