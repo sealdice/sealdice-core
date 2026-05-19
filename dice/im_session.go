@@ -1793,7 +1793,12 @@ func FormatBlacklistReasons(v *BanListInfoItem) string {
 }
 
 func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message) bool {
-	cmdArgs := CommandParse(msg.Message, []string{"help"}, ctx.Dice.CommandPrefix, msg.Platform, false)
+	var cmdArgs *CmdArgs
+	if len(msg.Segment) > 0 {
+		cmdArgs = CommandParseNew(ctx, msg)
+	} else {
+		cmdArgs = CommandParse(msg.Message, []string{"help"}, ctx.Dice.CommandPrefix, msg.Platform, false)
+	}
 	if cmdArgs == nil || !strings.EqualFold(cmdArgs.Command, "help") {
 		return false
 	}
