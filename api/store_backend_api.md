@@ -18,7 +18,7 @@ Protocol version: `2.0`
 
 ## Unified package DTO
 
-Store list endpoints now exchange a package-centric DTO. Public responses must use nested `storeAssets` and `download` objects. Legacy fields such as `fullId`, `store`, `downloadUrl`, root-level `hash`, `releaseTime`, `updateTime`, and `downloadCount` are rejected by the SealDice client. SealDice now uses a single active backend source, so backend identity is not part of the package DTO.
+Store list endpoints now exchange a package-centric DTO. Public responses should use nested `storeAssets` and `download` objects. SealDice validates known fields that affect package identity, display, and installation, but ignores unknown extension fields so backend additions do not require an immediate client update. SealDice now uses a single active backend source, so backend identity is not part of the package DTO.
 
 ```json
 {
@@ -71,6 +71,7 @@ Store list endpoints now exchange a package-centric DTO. Public responses must u
 - `download.releaseTime` / `download.updateTime`: Unix timestamps in seconds.
 - `download.downloadCount`: public download counter.
 - `installed`: local-only field computed by the SealDice client; backend responses may omit it.
+- Unknown fields: allowed at response, package, `storeAssets`, `download`, and other object levels. Older clients may ignore these fields.
 
 ## Endpoints
 

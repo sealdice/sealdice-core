@@ -26,60 +26,68 @@ func TestParseStorePackageFullID(t *testing.T) {
 	}
 }
 
-func TestDecodeJSONStrictRejectsLegacyStorePackageFields(t *testing.T) {
-	cases := map[string]string{
-		"legacy store":       `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"store":{"category":"rules"},"download":{"url":"https://example.com/demo.sealpack"}}`,
-		"legacy downloadUrl": `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"},"downloadUrl":"https://example.com/demo.sealpack"}`,
-		"legacy fullId":      `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"},"fullId":"alice/demo@1.2.3"}`,
-		"legacy backendId":   `{"id":"alice/demo","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"},"backendID":"official"}`,
-	}
-
-	for name, raw := range cases {
-		t.Run(name, func(t *testing.T) {
-			var pkg StorePackage
-			err := decodeJSONStrict([]byte(raw), &pkg)
-			if err == nil {
-				t.Fatal("expected legacy field to be rejected")
-			}
-		})
-	}
-}
-
-func TestDecodeJSONStrictAllowsStoreFormatVersionMetadata(t *testing.T) {
-	infoRaw := `{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`
+func TestDecodeJSONCompatibleAllowsStoreFormatVersionMetadata(t *testing.T) {
+	infoRaw := `{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":"","extraInfo":{"newField":true}}`
 	var info storeBackendInfoResponse
-	if err := decodeJSONStrict([]byte(infoRaw), &info); err != nil {
+	if err := decodeJSONCompatible([]byte(infoRaw), &info); err != nil {
 		t.Fatalf("decode info with formatVersion returned error: %v", err)
 	}
 	if info.FormatVersion != "2.0" {
 		t.Fatalf("FormatVersion = %q, want 2.0", info.FormatVersion)
 	}
 
-	pageRaw := `{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[],"pageNum":1,"pageSize":20,"next":false},"err":""}`
+	pageRaw := `{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[],"pageNum":1,"pageSize":20,"next":false,"extraPageField":1},"err":"","extraRootField":true}`
 	var page storePageResponse
-	if err := decodeJSONStrict([]byte(pageRaw), &page); err != nil {
+	if err := decodeJSONCompatible([]byte(pageRaw), &page); err != nil {
 		t.Fatalf("decode page with formatVersion returned error: %v", err)
 	}
 	if page.FormatVersion != "2.0" || page.Data == nil || page.Data.FormatVersion != "2.0" {
 		t.Fatalf("unexpected decoded page metadata: %#v", page)
 	}
 
-	recommendRaw := `{"formatVersion":"2.0","result":true,"data":[],"err":""}`
+	recommendRaw := `{"formatVersion":"2.0","result":true,"data":[],"err":"","extraRecommendField":"ok"}`
 	var recommend storeRecommendResponse
-	if err := decodeJSONStrict([]byte(recommendRaw), &recommend); err != nil {
+	if err := decodeJSONCompatible([]byte(recommendRaw), &recommend); err != nil {
 		t.Fatalf("decode recommend with formatVersion returned error: %v", err)
 	}
 	if recommend.FormatVersion != "2.0" {
 		t.Fatalf("FormatVersion = %q, want 2.0", recommend.FormatVersion)
 	}
 
-	packageRaw := `{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack"}}`
+	packageRaw := `{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","contents":["scripts"],"download":{"url":"https://example.com/demo.sealpack","zipUrl":"https://example.com/demo.zip"},"store":{"category":"legacy"},"extensionData":{"future":true}}`
 	var pkg StorePackage
-	if err := decodeJSONStrict([]byte(packageRaw), &pkg); err != nil {
+	if err := decodeJSONCompatible([]byte(packageRaw), &pkg); err != nil {
 		t.Fatalf("decode package with formatVersion returned error: %v", err)
 	}
 	if pkg.FormatVersion != "1.0.0" {
 		t.Fatalf("FormatVersion = %q, want 1.0.0", pkg.FormatVersion)
+	}
+}
+
+func TestDecodeJSONCompatibleRejectsTrailingContent(t *testing.T) {
+	var info storeBackendInfoResponse
+	err := decodeJSONCompatible([]byte(`{"name":"Official Store"}{"name":"Other Store"}`), &info)
+	if err == nil {
+		t.Fatal("expected trailing JSON content to be rejected")
+	}
+}
+
+func TestFetchStoreJSONWrapsDecodeErrorWithRequestURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"name":`))
+	}))
+	defer server.Close()
+
+	requestURL := server.URL + "/dice/api/store/info"
+	_, err := fetchStoreJSON[storeBackendInfoResponse](requestURL)
+	if err == nil {
+		t.Fatal("expected malformed JSON to fail")
+	}
+	if !strings.Contains(err.Error(), requestURL) {
+		t.Fatalf("error %q does not include request URL %q", err.Error(), requestURL)
+	}
+	if !strings.Contains(err.Error(), "decode store response") {
+		t.Fatalf("error %q does not include decode context", err.Error())
 	}
 }
 
@@ -164,9 +172,9 @@ func TestStoreQueryPageUsesSingleResolvedBackend(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/dice/api/store/info":
-			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":"","extraInfo":"ignored"}`))
 		case "/dice/api/store/page":
-			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[]},"download":{"url":"https://example.com/demo-1.2.3.sealpack","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3}}],"pageNum":1,"pageSize":20,"next":false},"err":""}`))
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[],"extraAsset":"ignored"},"download":{"url":"https://example.com/demo-1.2.3.sealpack","zipUrl":"https://example.com/demo-1.2.3.zip","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3,"extraDownload":"ignored"},"extraPackage":"ignored"}],"pageNum":1,"pageSize":20,"next":false,"extraPage":"ignored"},"err":"","extraResponse":"ignored"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -232,9 +240,9 @@ func TestStoreQueryRecommendCachesBackendInfo(t *testing.T) {
 		switch r.URL.Path {
 		case "/dice/api/store/info":
 			atomic.AddInt32(&infoRequests, 1)
-			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":""}`))
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":"","extraInfo":{"ignored":true}}`))
 		case "/dice/api/store/recommend":
-			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":[],"err":""}`))
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":[{"id":"alice/demo","formatVersion":"1.0.0","version":"1.2.3","name":"Demo","authors":["Alice"],"description":"demo","license":"MIT","homepage":"https://example.com","repository":"https://example.com/repo","keywords":["coc"],"contents":["scripts"],"seal":{},"dependencies":{},"storeAssets":{"category":"rules","screenshots":[],"extraAsset":"ignored"},"download":{"url":"https://example.com/demo-1.2.3.sealpack","zipUrl":"https://example.com/demo-1.2.3.zip","hash":{"sha256":"abc"},"releaseTime":1,"updateTime":2,"downloadCount":3,"extraDownload":"ignored"},"extraPackage":"ignored"}],"err":"","extraResponse":"ignored"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -246,8 +254,12 @@ func TestStoreQueryRecommendCachesBackendInfo(t *testing.T) {
 	defer func() { BackendUrls = oldBackendURLs }()
 
 	manager := NewStoreManager(&Dice{})
-	if _, err := manager.StoreQueryRecommend(); err != nil {
+	firstPackages, err := manager.StoreQueryRecommend()
+	if err != nil {
 		t.Fatalf("StoreQueryRecommend() first error = %v", err)
+	}
+	if len(firstPackages) != 1 {
+		t.Fatalf("len(firstPackages) = %d, want 1", len(firstPackages))
 	}
 	if _, err := manager.StoreQueryRecommend(); err != nil {
 		t.Fatalf("StoreQueryRecommend() second error = %v", err)
@@ -265,6 +277,33 @@ func TestStoreQueryRecommendCachesBackendInfo(t *testing.T) {
 	}
 	if got := atomic.LoadInt32(&infoRequests); got != 2 {
 		t.Fatalf("info requests after TTL = %d, want 2", got)
+	}
+}
+
+func TestStoreQueryUploadInfoAllowsExtensionFields(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"],"announcement":"ready","sign":"","extraInfo":"ignored"}`))
+		case "/dice/api/store/upload/info":
+			_, _ = w.Write([]byte(`{"uploadNotice":"ready","uploadForm":[{"key":"category","desc":"Category","required":true,"default":"tool","options":[{"key":"tool","desc":"Tool","extraOption":"ignored"}],"extraElem":"ignored"}],"extraUpload":"ignored"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	oldBackendURLs := BackendUrls
+	BackendUrls = []string{server.URL}
+	defer func() { BackendUrls = oldBackendURLs }()
+
+	manager := NewStoreManager(&Dice{})
+	info, err := manager.StoreQueryUploadInfo()
+	if err != nil {
+		t.Fatalf("StoreQueryUploadInfo() error = %v", err)
+	}
+	if info.UploadNotice != "ready" || len(info.UploadForm) != 1 {
+		t.Fatalf("unexpected upload info: %#v", info)
 	}
 }
 
