@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -19,6 +20,8 @@ const (
 	BanRankNormal  BanRankType = 0
 	BanRankTrusted BanRankType = 30
 )
+
+const blacklistedHelpMasterCooldown = time.Hour
 
 type BanListInfoItem struct {
 	ID      string      `jsbind:"id"      json:"ID"`
@@ -73,7 +76,9 @@ type BanListInfo struct {
 	JointScorePercentOfGroup   float64 `json:"jointScorePercentOfGroup"   yaml:"jointScorePercentOfGroup"`   // 群组连带责任
 	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
 
-	cronID cron.EntryID
+	helpMasterReplyMu sync.Mutex
+	helpMasterReplyAt int64
+	cronID            cron.EntryID
 }
 
 func (i *BanListInfo) Init() {
@@ -93,6 +98,19 @@ func (i *BanListInfo) Init() {
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
 	i.Map = new(SyncMap[string, *BanListInfoItem])
+}
+
+func (i *BanListInfo) CanReplyBlacklistedHelpMaster(_ string, now time.Time) bool {
+	i.helpMasterReplyMu.Lock()
+	defer i.helpMasterReplyMu.Unlock()
+
+	nowUnix := now.Unix()
+	if nowUnix-i.helpMasterReplyAt < int64(blacklistedHelpMasterCooldown/time.Second) {
+		return false
+	}
+
+	i.helpMasterReplyAt = nowUnix
+	return true
 }
 
 func (i *BanListInfo) Loads() {

@@ -1792,6 +1792,23 @@ func FormatBlacklistReasons(v *BanListInfoItem) string {
 	return reasontext
 }
 
+func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message) bool {
+	cmdArgs := CommandParse(msg.Message, []string{"help"}, ctx.Dice.CommandPrefix, msg.Platform, false)
+	if cmdArgs == nil || !strings.EqualFold(cmdArgs.Command, "help") {
+		return false
+	}
+	if len(cmdArgs.Args) != 1 || !cmdArgs.IsArgEqual(1, "骰主") {
+		return false
+	}
+	if !ctx.Dice.Config.BanList.CanReplyBlacklistedHelpMaster(msg.Sender.UserID, time.Now()) {
+		return true
+	}
+
+	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子帮助文本_骰主"))
+	ctx.Dice.Logger.Infof("响应黑名单用户 .help 骰主 请求: <%s>(%s)", msg.Sender.Nickname, msg.Sender.UserID)
+	return true
+}
+
 // checkBan 黑名单拦截
 func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	d := ctx.Dice
@@ -1875,6 +1892,9 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 				banQuitGroup()
 			}
 		} else if d.Config.BanList.BanBehaviorRefuseReply {
+			if tryHandleBlacklistedHelpMasterRequest(ctx, msg) {
+				return true
+			}
 			notReply = true
 			// 黑名单用户 - 拒绝回复
 			log.Infof("忽略黑名单用户信息: 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
