@@ -28,10 +28,25 @@ type ProtocolDefinition struct {
 	Available      bool               `json:"available"`
 	DisabledReason string             `json:"disabledReason,omitempty"`
 	Capabilities   ProtocolCapability `json:"capabilities"`
+	Description    string             `json:"description,omitempty"`
+}
+
+type MethodTreeNode struct {
+	ID          string                `json:"id"`
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Protocols   []*ProtocolDefinition `json:"protocols"`
+}
+
+type PlatformTreeNode struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Methods     []*MethodTreeNode `json:"methods"`
 }
 
 type ProtocolListResp struct {
-	Items []*ProtocolDefinition `json:"items"`
+	Items []*PlatformTreeNode `json:"items"`
 }
 
 type EditableConfigResp struct {

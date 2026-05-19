@@ -16,6 +16,8 @@ import {
   type EditableConfigResp,
   type FormConfigItem,
   type ProtocolDefinition,
+  type PlatformTreeNode,
+  type MethodTreeNode,
   type WorkflowResp,
 } from '@/api';
 import AsyncFieldSection from '@/components/shared/AsyncFieldSection.vue';
@@ -62,6 +64,12 @@ const editingEndpoint = ref<EndPointInfo | null>(null);
 const editingConfig = ref<EditableConfigResp | null>(null);
 const editFormModel = ref<DynamicFormModel>({});
 
+// Step wizard state
+const wizardStep = ref(1);
+const wizardPlatform = ref<PlatformTreeNode | null>(null);
+const wizardMethod = ref<MethodTreeNode | null>(null);
+const wizardProtocol = ref<ProtocolDefinition | null>(null);
+
 const protocolsQuery = useQuery({
   ...getSdApiV2ImconnectionProtocolsOptions(),
   enabled: hasAccessToken,
@@ -77,11 +85,24 @@ const signInfoQuery = useQuery({
 
 // ProtocolDefinition 是后端对“可创建哪些连接”的声明。
 // 前端只过滤 deprecated/available，不在这里硬编码某个平台是否可用。
-const protocols = computed(() => protocolsQuery.data.value?.item.items ?? []);
+const protocols = computed<PlatformTreeNode[]>(() => (protocolsQuery.data.value?.item.items ?? []) as PlatformTreeNode[]);
 const schemas = computed(() => schemasQuery.data.value?.item ?? {});
 const connections = realtimeConnections.connections;
+
+const allProtocols = computed<ProtocolDefinition[]>(() => {
+  const result: ProtocolDefinition[] = [];
+  for (const platform of protocols.value) {
+    for (const method of platform.methods ?? []) {
+      for (const protocol of method.protocols ?? []) {
+        result.push(protocol);
+      }
+    }
+  }
+  return result;
+});
+
 const selectedProtocol = computed(
-  () => protocols.value.find(item => item.key === selectedProtocolKey.value) ?? null
+  () => allProtocols.value.find(item => item.key === selectedProtocolKey.value) ?? null
 );
 const selectedSchema = computed<FormConfigItem[]>(() => {
   const protocol = selectedProtocol.value;
@@ -89,16 +110,6 @@ const selectedSchema = computed<FormConfigItem[]>(() => {
   return schemas.value[protocol.schemaKey] ?? [];
 });
 const editSchema = computed<FormConfigItem[]>(() => editingConfig.value?.schema ?? []);
-
-const protocolOptions = computed(() =>
-  protocols.value
-    .filter(item => !item.deprecated)
-    .map(item => ({
-      label: item.name,
-      value: item.key,
-      disabled: !item.available,
-    }))
-);
 
 const canSubmit = computed(() => {
   if (!selectedProtocol.value?.available) return false;
@@ -111,16 +122,6 @@ const realtimeErrorText = computed(() =>
 );
 const connectionsLoading = computed(() =>
   hasAccessToken.value && !realtimeConnections.ready.value,
-);
-
-watch(
-  protocols,
-  items => {
-    if (!selectedProtocolKey.value) {
-      selectedProtocolKey.value = items.find(item => !item.deprecated && item.available)?.key ?? '';
-    }
-  },
-  { immediate: true }
 );
 
 watch(selectedSchema, schema => {
@@ -157,6 +158,7 @@ const createMutation = useMutation({
   onSuccess: () => {
     message.success('账号已添加');
     dialogVisible.value = false;
+    resetWizard();
   },
   onError: () => {
     message.error('添加账号失败');
@@ -411,6 +413,7 @@ const openEditDialog = async (endpoint: EndPointInfo) => {
 };
 
 const openCreateDialog = () => {
+  resetWizard();
   dialogVisible.value = true;
 };
 
@@ -486,6 +489,44 @@ const columns: DataTableColumns<EndPointInfo> = [
   },
 ];
 
+const wizardCanNext = computed(() => {
+  switch (wizardStep.value) {
+    case 1: return !!wizardPlatform.value;
+    case 2: return !!wizardMethod.value;
+    case 3: {
+      const p = wizardProtocol.value;
+      return !!p && p.available && !p.deprecated;
+    }
+    case 4: return canSubmit.value;
+  }
+  return false;
+});
+
+const goNext = () => {
+  if (wizardStep.value === 3 && wizardProtocol.value) {
+    selectedProtocolKey.value = wizardProtocol.value.key;
+    formModel.value = buildDynamicFormInitialModel(selectedSchema.value);
+  }
+  if (wizardStep.value < 4) {
+    wizardStep.value++;
+  }
+};
+
+const goPrev = () => {
+  if (wizardStep.value > 1) {
+    wizardStep.value--;
+  }
+};
+
+const resetWizard = () => {
+  wizardStep.value = 1;
+  wizardPlatform.value = null;
+  wizardMethod.value = null;
+  wizardProtocol.value = null;
+  selectedProtocolKey.value = '';
+  formModel.value = {};
+};
+
 const submit = () => {
   if (canSubmit.value) createMutation.mutate();
 };
@@ -528,122 +569,173 @@ const submitEdit = () => {
     <n-modal
       v-model:show="dialogVisible"
       preset="dialog"
-      title="帐号登录"
-      class="account-dialog"
+      title="添加账号"
+      class="account-dialog wizard-dialog"
       :show-icon="false"
       :mask-closable="false"
+      @after-leave="resetWizard"
     >
       <n-space vertical size="large">
-        <n-alert
-          v-if="selectedProtocol && !selectedProtocol.available"
-          type="warning"
-          :show-icon="false"
-        >
-          {{ selectedProtocol.disabledReason }}
-        </n-alert>
+        <n-steps :current="wizardStep" size="small">
+          <n-step title="选择平台" />
+          <n-step title="选择方式" />
+          <n-step title="选择协议" />
+          <n-step title="填写信息" />
+        </n-steps>
 
-        <n-form label-placement="left" :label-width="108">
-          <n-form-item label="账号类型">
-            <n-select
-              v-model:value="selectedProtocolKey"
-              :options="protocolOptions"
-              :loading="protocolsQuery.isLoading.value"
-            />
-          </n-form-item>
-        </n-form>
-
-        <n-alert
-          v-if="protocolsQuery.error.value"
-          type="error"
-          :show-icon="false"
-        >
-          账号类型读取失败，请关闭弹窗后重试。
-        </n-alert>
-
-        <n-alert
-          v-if="selectedProtocol && !selectedSchema.length && schemasQuery.isFetching.value"
-          type="info"
-          :show-icon="false"
-        >
-          正在加载当前账号类型的配置项…
-        </n-alert>
-
-        <n-alert
-          v-if="selectedProtocol && !selectedSchema.length && schemasQuery.error.value"
-          type="error"
-          :show-icon="false"
-        >
-          当前账号类型的配置项读取失败，请稍后重试。
-        </n-alert>
-
-        <DynamicForm
-          v-model="formModel"
-          :schema="selectedSchema"
-          :disabled="createMutation.isPending.value"
-        >
-          <template #field="{ item, fieldKey, value, setValue }">
-            <AsyncFieldSection
-              v-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerVersion'"
-              :loading="signInfoState.mode === 'loading'"
-              :message="signInfoState.message"
-              :error="signInfoErrorMessage"
-              @retry="retrySignInfo"
+        <!-- Step 1: 选择平台 -->
+        <div v-if="wizardStep === 1" class="wizard-step-panel">
+          <div class="option-cards">
+            <n-card
+              v-for="platform in protocols"
+              :key="platform.id"
+              hoverable
+              :class="['option-card', { 'option-card--selected': wizardPlatform?.id === platform.id }]"
+              @click="wizardPlatform = platform"
             >
-              <n-select
-                :value="value as string"
-                :options="signVersionOptions"
-                :disabled="!signInfoState.canSelectVersion"
-                placeholder="请选择签名版本"
-                @update:value="setValue"
-              />
-            </AsyncFieldSection>
-            <AsyncFieldSection
-              v-else-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerName'"
-              :loading="signInfoState.mode === 'loading'"
-              :message="
-                signInfoState.mode === 'manual-fallback' ? '' : signInfoState.message
-              "
-              :error="fieldKey === 'signServerName' ? signInfoErrorMessage : ''"
-              @retry="retrySignInfo"
+              <div class="option-card-title">{{ platform.name }}</div>
+              <div class="option-card-desc">{{ platform.description }}</div>
+            </n-card>
+          </div>
+        </div>
+
+        <!-- Step 2: 选择方式 -->
+        <div v-if="wizardStep === 2" class="wizard-step-panel">
+          <div class="option-cards">
+            <n-card
+              v-for="method in wizardPlatform?.methods"
+              :key="method.id"
+              hoverable
+              :class="['option-card', { 'option-card--selected': wizardMethod?.id === method.id }]"
+              @click="wizardMethod = method"
             >
-              <n-select
-                v-if="!signInfoState.showCustomServerInput"
-                :value="value as string"
-                :options="signServers"
-                :disabled="!signInfoState.canSelectServer"
-                placeholder="请选择签名服务"
-                @update:value="setValue"
-              />
+              <div class="option-card-title">{{ method.name }}</div>
+              <div class="option-card-desc">{{ method.description }}</div>
+            </n-card>
+          </div>
+        </div>
+
+        <!-- Step 3: 选择协议 -->
+        <div v-if="wizardStep === 3" class="wizard-step-panel">
+          <div class="option-cards">
+            <n-card
+              v-for="protocol in wizardMethod?.protocols"
+              :key="protocol.key"
+              hoverable
+              :class="[
+                'option-card',
+                { 'option-card--selected': wizardProtocol?.key === protocol.key },
+                { 'option-card--disabled': !protocol.available },
+              ]"
+              @click="protocol.available ? (wizardProtocol = protocol) : null"
+            >
+              <div class="option-card-title">
+                {{ protocol.name }}
+                <n-tag v-if="protocol.deprecated" type="warning" size="small">已废弃</n-tag>
+                <n-tag v-else-if="!protocol.available" type="error" size="small">不可用</n-tag>
+              </div>
+              <div class="option-card-desc">{{ protocol.description }}</div>
+              <n-alert
+                v-if="!protocol.available && protocol.disabledReason"
+                type="warning"
+                :show-icon="false"
+                class="mt-2"
+              >
+                {{ protocol.disabledReason }}
+              </n-alert>
+            </n-card>
+          </div>
+        </div>
+
+        <!-- Step 4: 填写信息 -->
+        <div v-if="wizardStep === 4" class="wizard-step-panel">
+          <n-alert v-if="selectedProtocol && !selectedProtocol.available" type="warning" :show-icon="false">
+            {{ selectedProtocol.disabledReason }}
+          </n-alert>
+
+          <n-alert v-if="schemasQuery.error.value" type="error" :show-icon="false">
+            配置项读取失败，请稍后重试。
+          </n-alert>
+
+          <DynamicForm
+            v-model="formModel"
+            :schema="selectedSchema"
+            :disabled="createMutation.isPending.value"
+          >
+            <template #field="{ item, fieldKey, value, setValue }">
+              <AsyncFieldSection
+                v-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerVersion'"
+                :loading="signInfoState.mode === 'loading'"
+                :message="signInfoState.message"
+                :error="signInfoErrorMessage"
+                @retry="retrySignInfo"
+              >
+                <n-select
+                  :value="value as string"
+                  :options="signVersionOptions"
+                  :disabled="!signInfoState.canSelectVersion"
+                  placeholder="请选择签名版本"
+                  @update:value="setValue"
+                />
+              </AsyncFieldSection>
+              <AsyncFieldSection
+                v-else-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerName'"
+                :loading="signInfoState.mode === 'loading'"
+                :message="signInfoState.mode === 'manual-fallback' ? '' : signInfoState.message"
+                :error="fieldKey === 'signServerName' ? signInfoErrorMessage : ''"
+                @retry="retrySignInfo"
+              >
+                <n-select
+                  v-if="!signInfoState.showCustomServerInput"
+                  :value="value as string"
+                  :options="signServers"
+                  :disabled="!signInfoState.canSelectServer"
+                  placeholder="请选择签名服务"
+                  @update:value="setValue"
+                />
+                <n-input
+                  v-else
+                  :value="value as string"
+                  placeholder="请输入自定义签名地址"
+                  @update:value="setValue"
+                />
+              </AsyncFieldSection>
               <n-input
-                v-else
+                v-else-if="item.input_type === 0"
                 :value="value as string"
-                placeholder="请输入自定义签名地址"
+                :type="item.sensitive ? 'password' : 'text'"
+                :placeholder="item.placeholder"
+                show-password-on="mousedown"
                 @update:value="setValue"
               />
-            </AsyncFieldSection>
-            <n-input
-              v-else-if="item.input_type === 0"
-              :value="value as string"
-              :type="item.sensitive ? 'password' : 'text'"
-              :placeholder="item.placeholder"
-              show-password-on="mousedown"
-              @update:value="setValue"
-            />
-          </template>
-        </DynamicForm>
+            </template>
+          </DynamicForm>
+        </div>
       </n-space>
 
       <template #action>
         <n-button @click="dialogVisible = false">
           取消
         </n-button>
+        <n-button v-if="wizardStep > 1" @click="goPrev">
+          上一步
+        </n-button>
         <n-button
+          v-if="wizardStep < 4"
+          type="primary"
+          :disabled="!wizardCanNext"
+          @click="goNext"
+        >
+          下一步
+        </n-button>
+        <n-button
+          v-if="wizardStep === 4"
           type="primary"
           :loading="createMutation.isPending.value"
           :disabled="!canSubmit"
           @click="submit"
         >
-          下一步
+          添加
         </n-button>
       </template>
     </n-modal>
@@ -752,5 +844,57 @@ h4 {
 
 .account-dialog {
   width: min(720px, calc(100vw - 32px));
+}
+
+.wizard-dialog {
+  max-width: 720px;
+}
+
+.wizard-step-panel {
+  min-height: 200px;
+}
+
+.option-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.option-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-card:hover {
+  border-color: #1d4ed8;
+}
+
+.option-card--selected {
+  border-color: #1d4ed8;
+  background-color: #eff6ff;
+}
+
+.option-card--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.option-card-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-card-desc {
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.mt-2 {
+  margin-top: 8px;
 }
 </style>

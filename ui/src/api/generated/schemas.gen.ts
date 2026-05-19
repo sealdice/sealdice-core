@@ -3262,6 +3262,29 @@ export const MessageResponseBodySchema = {
   type: 'object',
 } as const;
 
+export const MethodTreeNodeSchema = {
+  additionalProperties: false,
+  properties: {
+    description: {
+      type: 'string',
+    },
+    id: {
+      type: 'string',
+    },
+    name: {
+      type: 'string',
+    },
+    protocols: {
+      items: {
+        $ref: '#/components/schemas/ProtocolDefinition',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['id', 'name', 'description', 'protocols'],
+  type: 'object',
+} as const;
+
 export const NameListReqSchema = {
   additionalProperties: false,
   properties: {
@@ -3323,6 +3346,29 @@ export const OverviewDataSchema = {
   type: 'object',
 } as const;
 
+export const PlatformTreeNodeSchema = {
+  additionalProperties: false,
+  properties: {
+    description: {
+      type: 'string',
+    },
+    id: {
+      type: 'string',
+    },
+    methods: {
+      items: {
+        $ref: '#/components/schemas/MethodTreeNode',
+      },
+      type: ['array', 'null'],
+    },
+    name: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'name', 'description', 'methods'],
+  type: 'object',
+} as const;
+
 export const ProtocolCapabilitySchema = {
   additionalProperties: false,
   properties: {
@@ -3364,6 +3410,9 @@ export const ProtocolDefinitionSchema = {
     deprecated: {
       type: 'boolean',
     },
+    description: {
+      type: 'string',
+    },
     disabledReason: {
       type: 'string',
     },
@@ -3389,7 +3438,7 @@ export const ProtocolListRespSchema = {
   properties: {
     items: {
       items: {
-        $ref: '#/components/schemas/ProtocolDefinition',
+        $ref: '#/components/schemas/PlatformTreeNode',
       },
       type: ['array', 'null'],
     },

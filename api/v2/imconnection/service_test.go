@@ -33,10 +33,14 @@ func newTestService(t *testing.T, containerMode bool) *imconnection.Service {
 	return imconnection.NewServiceWithOptions(dm, false, false)
 }
 
-func protocolByKey(items []*imconnm.ProtocolDefinition, key string) *imconnm.ProtocolDefinition {
-	for _, item := range items {
-		if item != nil && item.Key == key {
-			return item
+func protocolByKey(tree []*imconnm.PlatformTreeNode, key string) *imconnm.ProtocolDefinition {
+	for _, platform := range tree {
+		for _, method := range platform.Methods {
+			for _, item := range method.Protocols {
+				if item != nil && item.Key == key {
+					return item
+				}
+			}
 		}
 	}
 	return nil

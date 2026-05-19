@@ -1351,6 +1351,13 @@ export type MessageResponseBody = {
   message: string;
 };
 
+export type MethodTreeNode = {
+  description: string;
+  id: string;
+  name: string;
+  protocols: Array<ProtocolDefinition> | null;
+};
+
 export type NameListReq = {
   /**
    * A URL to the JSON Schema for this object.
@@ -1373,6 +1380,13 @@ export type OverviewData = {
   version: VersionInfo;
 };
 
+export type PlatformTreeNode = {
+  description: string;
+  id: string;
+  methods: Array<MethodTreeNode> | null;
+  name: string;
+};
+
 export type ProtocolCapability = {
   create: boolean;
   delete: boolean;
@@ -1387,6 +1401,7 @@ export type ProtocolDefinition = {
   available: boolean;
   capabilities: ProtocolCapability;
   deprecated: boolean;
+  description?: string;
   disabledReason?: string;
   key: string;
   name: string;
@@ -1395,7 +1410,7 @@ export type ProtocolDefinition = {
 };
 
 export type ProtocolListResp = {
-  items: Array<ProtocolDefinition> | null;
+  items: Array<PlatformTreeNode> | null;
 };
 
 export type QrCodeResp = {

@@ -18,12 +18,12 @@ import (
 )
 
 type Service struct {
-	dice       *dice.Dice
-	dm         *dice.DiceManager
-	autoServe  bool
-	autoSave   bool
-	protocols  []*imconnm.ProtocolDefinition
-	protocolBy map[string]*imconnm.ProtocolDefinition
+	dice         *dice.Dice
+	dm           *dice.DiceManager
+	autoServe    bool
+	autoSave     bool
+	protocolTree []*imconnm.PlatformTreeNode
+	protocolBy   map[string]*imconnm.ProtocolDefinition
 }
 
 func NewService(dm *dice.DiceManager) *Service {
@@ -43,9 +43,13 @@ func newService(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
 		autoSave:   autoSave,
 		protocolBy: map[string]*imconnm.ProtocolDefinition{},
 	}
-	s.protocols = s.buildProtocolDefinitions()
-	for _, p := range s.protocols {
-		s.protocolBy[p.Key] = p
+	s.protocolTree = s.buildProtocolTree()
+	for _, platform := range s.protocolTree {
+		for _, method := range platform.Methods {
+			for _, p := range method.Protocols {
+				s.protocolBy[p.Key] = p
+			}
+		}
 	}
 	return s
 }
@@ -102,41 +106,158 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	})
 }
 
-func (s *Service) buildProtocolDefinitions() []*imconnm.ProtocolDefinition {
+func (s *Service) buildProtocolTree() []*imconnm.PlatformTreeNode {
 	baseCapabilities := imconnm.ProtocolCapability{
 		Create: true,
 		Update: true,
 		Delete: true,
 		Enable: true,
 	}
-	items := []*imconnm.ProtocolDefinition{
-		{Key: "lagrange", Name: "QQ(内置客户端)", Platform: "QQ", SchemaKey: "lagrange", Available: true, Capabilities: withWorkflow(baseCapabilities, true, true, true)},
-		{Key: "milky", Name: "QQ(Milky)", Platform: "QQ", SchemaKey: "milky", Available: true, Capabilities: baseCapabilities},
-		{Key: "milky-internal", Name: "QQ(内置Milky)", Platform: "QQ", SchemaKey: "milky-internal", Available: true, Capabilities: withWorkflow(baseCapabilities, true, true, false)},
-		{Key: "gocq-separate", Name: "QQ(onebot11正向WS)", Platform: "QQ", SchemaKey: "gocq-separate", Available: true, Capabilities: baseCapabilities},
-		{Key: "onebot-reverse", Name: "QQ(onebot11反向WS)", Platform: "QQ", SchemaKey: "onebot-reverse", Available: true, Capabilities: baseCapabilities},
-		{Key: "officialqq", Name: "QQ(官方机器人)", Platform: "QQ", SchemaKey: "officialqq", Available: true, Capabilities: baseCapabilities},
-		{Key: "satori", Name: "[WIP]Satori", Platform: "Satori", SchemaKey: "satori", Available: true, Capabilities: baseCapabilities},
-		{Key: "sealchat", Name: "[WIP]SealChat", Platform: "SealChat", SchemaKey: "sealchat", Available: true, Capabilities: baseCapabilities},
-		{Key: "discord", Name: "Discord", Platform: "Discord", SchemaKey: "discord", Available: true, Capabilities: baseCapabilities},
-		{Key: "kook", Name: "KOOK(开黑啦)", Platform: "KOOK", SchemaKey: "kook", Available: true, Capabilities: baseCapabilities},
-		{Key: "telegram", Name: "Telegram", Platform: "Telegram", SchemaKey: "telegram", Available: true, Capabilities: baseCapabilities},
-		{Key: "minecraft", Name: "Minecraft服务器", Platform: "Minecraft", SchemaKey: "minecraft", Available: true, Capabilities: baseCapabilities},
-		{Key: "dodo", Name: "Dodo语音", Platform: "Dodo", SchemaKey: "dodo", Available: true, Capabilities: baseCapabilities},
-		{Key: "dingtalk", Name: "钉钉", Platform: "DingTalk", SchemaKey: "dingtalk", Available: true, Capabilities: baseCapabilities},
-		{Key: "slack", Name: "Slack", Platform: "Slack", SchemaKey: "slack", Available: true, Capabilities: baseCapabilities},
-		{Key: "red", Name: "[已弃用]QQ(red协议)", Platform: "QQ", SchemaKey: "red", Deprecated: true, Available: false, DisabledReason: "Red 协议已弃用", Capabilities: imconnm.ProtocolCapability{}},
-		{Key: "gocq", Name: "[已弃用]QQ(内置 gocq)", Platform: "QQ", SchemaKey: "gocq", Deprecated: true, Available: false, DisabledReason: "内置 gocq 已弃用，请使用内置客户端或分离部署", Capabilities: imconnm.ProtocolCapability{}},
+
+	qqBuiltin := &imconnm.MethodTreeNode{
+		ID:          "builtin",
+		Name:        "内置客户端",
+		Description: "协议端直接运行在海豹核心内部，无需额外部署。推荐大多数用户使用。",
+		Protocols: []*imconnm.ProtocolDefinition{
+			{Key: "lagrange", Name: "Lagrange", Platform: "QQ", SchemaKey: "lagrange", Available: true, Description: "新架构内置客户端，稳定性好，支持扫码登录。推荐作为 QQ 内置首选。", Capabilities: withWorkflow(baseCapabilities, true, true, true)},
+			{Key: "milky-internal", Name: "内置 Milky", Platform: "QQ", SchemaKey: "milky-internal", Available: true, Description: "基于 Milky 的内置实现，支持扫码登录。", Capabilities: withWorkflow(baseCapabilities, true, true, false)},
+			{Key: "gocq", Name: "内置 GoCQ", Platform: "QQ", SchemaKey: "gocq", Deprecated: true, Available: false, DisabledReason: "内置 gocq 已弃用，请使用内置客户端或分离部署", Description: "早期内置方案，已停止维护，不建议使用。", Capabilities: imconnm.ProtocolCapability{}},
+		},
 	}
+
+	qqSeparate := &imconnm.MethodTreeNode{
+		ID:          "separate",
+		Name:        "分离客户端",
+		Description: "需要自行部署协议端服务，再通过 WebSocket 连接海豹核心。适合高级用户。",
+		Protocols: []*imconnm.ProtocolDefinition{
+			{Key: "milky", Name: "Milky (外部)", Platform: "QQ", SchemaKey: "milky", Available: true, Description: "外部 Milky 协议端，需自行部署后连接。", Capabilities: baseCapabilities},
+			{Key: "gocq-separate", Name: "OneBot11 正向WS", Platform: "QQ", SchemaKey: "gocq-separate", Available: true, Description: "OneBot 11 正向 WebSocket 协议，需配合协议端使用。", Capabilities: baseCapabilities},
+			{Key: "onebot-reverse", Name: "OneBot11 反向WS", Platform: "QQ", SchemaKey: "onebot-reverse", Available: true, Description: "OneBot 11 反向 WebSocket 协议，需配合协议端使用。", Capabilities: baseCapabilities},
+			{Key: "officialqq", Name: "QQ 官方机器人", Platform: "QQ", SchemaKey: "officialqq", Available: true, Description: "QQ 官方机器人接口，仅支持频道消息。", Capabilities: baseCapabilities},
+			{Key: "red", Name: "Red 协议", Platform: "QQ", SchemaKey: "red", Deprecated: true, Available: false, DisabledReason: "Red 协议已弃用", Description: "QQ Red 协议，已废弃。", Capabilities: imconnm.ProtocolCapability{}},
+		},
+	}
+
+	platforms := []*imconnm.PlatformTreeNode{
+		{
+			ID: "qq", Name: "QQ",
+			Description: "腾讯 QQ 即时通讯平台，支持群聊和私聊。",
+			Methods:     []*imconnm.MethodTreeNode{qqBuiltin, qqSeparate},
+		},
+		{
+			ID: "dingtalk", Name: "钉钉",
+			Description: "阿里巴巴旗下企业协作平台。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过钉钉开放平台接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "dingtalk", Name: "钉钉", Platform: "DingTalk", SchemaKey: "dingtalk", Available: true, Description: "钉钉机器人协议，支持企业群消息收发。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "discord", Name: "Discord",
+			Description: "海外流行游戏社区平台。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 Discord Bot 接口接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "discord", Name: "Discord", Platform: "Discord", SchemaKey: "discord", Available: true, Description: "Discord 官方 Bot 接口。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "kook", Name: "KOOK",
+			Description: "国内游戏语音与社区平台（开黑啦）。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 KOOK Bot 接口接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "kook", Name: "KOOK(开黑啦)", Platform: "KOOK", SchemaKey: "kook", Available: true, Description: "KOOK 官方 Bot 接口。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "telegram", Name: "Telegram",
+			Description: "注重隐私的海外即时通讯平台。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 Telegram Bot 接口接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "telegram", Name: "Telegram", Platform: "Telegram", SchemaKey: "telegram", Available: true, Description: "Telegram Bot 接口。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "minecraft", Name: "Minecraft",
+			Description: "Minecraft 游戏服务器接入。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 RCON 协议接入 Minecraft 服务器。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "minecraft", Name: "Minecraft服务器", Platform: "Minecraft", SchemaKey: "minecraft", Available: true, Description: "Minecraft 服务器 RCON 接入。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "dodo", Name: "Dodo",
+			Description: "Dodo 语音社区平台。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 Dodo Bot 接口接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "dodo", Name: "Dodo语音", Platform: "Dodo", SchemaKey: "dodo", Available: true, Description: "Dodo 官方 Bot 接口。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "slack", Name: "Slack",
+			Description: "企业团队协作平台。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 Slack Bot 接口接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "slack", Name: "Slack", Platform: "Slack", SchemaKey: "slack", Available: true, Description: "Slack Bot 接口。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "satori", Name: "Satori",
+			Description: "通用聊天平台协议（开发中）。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 Satori 协议接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "satori", Name: "[WIP]Satori", Platform: "Satori", SchemaKey: "satori", Available: true, Description: "Satori 通用协议。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+		{
+			ID: "sealchat", Name: "SealChat",
+			Description: "SealChat 协议（开发中）。",
+			Methods: []*imconnm.MethodTreeNode{{
+				ID: "default", Name: "默认",
+				Description: "通过 SealChat 协议接入。",
+				Protocols: []*imconnm.ProtocolDefinition{
+					{Key: "sealchat", Name: "[WIP]SealChat", Platform: "SealChat", SchemaKey: "sealchat", Available: true, Description: "SealChat 协议。", Capabilities: baseCapabilities},
+				},
+			}},
+		},
+	}
+
 	if s.dm.ContainerMode {
-		for _, item := range items {
-			if item.Key == "lagrange" || item.Key == "milky-internal" {
-				item.Available = false
-				item.DisabledReason = "当前为容器模式，内置客户端被禁用"
+		for _, platform := range platforms {
+			for _, method := range platform.Methods {
+				for _, item := range method.Protocols {
+					if item.Key == "lagrange" || item.Key == "milky-internal" {
+						item.Available = false
+						item.DisabledReason = "当前为容器模式，内置客户端被禁用"
+					}
+				}
 			}
 		}
 	}
-	return items
+	return platforms
 }
 
 func withWorkflow(base imconnm.ProtocolCapability, workflow bool, qrcode bool, signInfo bool) imconnm.ProtocolCapability {
@@ -147,7 +268,7 @@ func withWorkflow(base imconnm.ProtocolCapability, workflow bool, qrcode bool, s
 }
 
 func (s *Service) GetProtocols(_ context.Context, _ *request.Empty) (*response.ItemResponse[imconnm.ProtocolListResp], error) {
-	return response.NewItemResponse[imconnm.ProtocolListResp](imconnm.ProtocolListResp{Items: s.protocols}), nil
+	return response.NewItemResponse[imconnm.ProtocolListResp](imconnm.ProtocolListResp{Items: s.protocolTree}), nil
 }
 
 func (s *Service) GetSchemas(_ context.Context, _ *request.Empty) (*response.ItemResponse[map[string][]*dynamicform.FormConfigItem], error) {
