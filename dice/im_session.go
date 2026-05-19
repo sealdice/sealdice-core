@@ -44,17 +44,18 @@ type SenderBase struct {
 // 人物(是谁发的)
 // 内容
 type Message struct {
-	Time        int64       `jsbind:"time"        json:"time"`        // 发送时间
-	MessageType string      `jsbind:"messageType" json:"messageType"` // group private
-	GroupID     string      `jsbind:"groupId"     json:"groupId"`     // 群号，如果是群聊消息
-	GuildID     string      `jsbind:"guildId"     json:"guildId"`     // 服务器群组号，会在discord,kook,dodo等平台见到
-	ChannelID   string      `jsbind:"channelId"   json:"channelId"`
-	Sender      SenderBase  `jsbind:"sender"      json:"sender"`   // 发送者
-	Message     string      `jsbind:"message"     json:"message"`  // 消息内容
-	RawID       interface{} `jsbind:"rawId"       json:"rawId"`    // 原始信息ID，用于处理撤回等
-	Platform    string      `jsbind:"platform"    json:"platform"` // 当前平台
-	GroupName   string      `json:"groupName"`
-	TmpUID      string      `json:"-"             yaml:"-"`
+	Time                int64       `jsbind:"time"        json:"time"`        // 发送时间
+	MessageType         string      `jsbind:"messageType" json:"messageType"` // group private
+	GroupID             string      `jsbind:"groupId"     json:"groupId"`     // 群号，如果是群聊消息
+	GuildID             string      `jsbind:"guildId"     json:"guildId"`     // 服务器群组号，会在discord,kook,dodo等平台见到
+	ChannelID           string      `jsbind:"channelId"   json:"channelId"`
+	Sender              SenderBase  `jsbind:"sender"      json:"sender"`   // 发送者
+	Message             string      `jsbind:"message"     json:"message"`  // 消息内容
+	RawID               interface{} `jsbind:"rawId"       json:"rawId"`    // 原始信息ID，用于处理撤回等
+	Platform            string      `jsbind:"platform"    json:"platform"` // 当前平台
+	GroupName           string      `json:"groupName"`
+	TmpUID              string      `json:"-"             yaml:"-"`
+	UITestReplySplitLen *int        `json:"-"             yaml:"-"`
 	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 Milky 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
 	Segment []message.IMessageElement `jsbind:"segment" json:"-" yaml:"-"`
 }
@@ -664,13 +665,14 @@ type MsgContext struct {
 	DelegateText    string      `jsbind:"delegateText"`  // 代骰附加文本
 	AliasPrefixText string      `json:"aliasPrefixText"` // 快捷指令回复前缀文本
 
-	deckDepth         int                                         // 抽牌递归深度
-	DeckPools         map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
-	diceExprOverwrite string                                      // 默认骰表达式覆盖
-	SystemTemplate    *GameSystemTemplate
-	Censored          bool // 已检查过敏感词
-	SpamCheckedGroup  bool
-	SpamCheckedPerson bool
+	deckDepth           int                                         // 抽牌递归深度
+	DeckPools           map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
+	diceExprOverwrite   string                                      // 默认骰表达式覆盖
+	SystemTemplate      *GameSystemTemplate
+	Censored            bool // 已检查过敏感词
+	SpamCheckedGroup    bool
+	SpamCheckedPerson   bool
+	UITestReplySplitLen *int
 
 	splitKeyMu sync.RWMutex
 	splitKey   string
@@ -731,6 +733,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	mctx.IsPrivate = mctx.MessageType == "private"
 	mctx.Session = s
 	mctx.EndPoint = ep
+	mctx.UITestReplySplitLen = msg.UITestReplySplitLen
 	log := d.Logger
 
 	// 处理命令
@@ -1104,6 +1107,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	mctx.IsPrivate = mctx.MessageType == "private"
 	mctx.Session = s
 	mctx.EndPoint = ep
+	mctx.UITestReplySplitLen = msg.UITestReplySplitLen
 	log := d.Logger
 
 	// 处理消息段，如果 2.0 要完全抛弃依赖 Message.Message 的字符串解析，把这里删掉
@@ -2523,6 +2527,7 @@ func (ctx *MsgContext) ShallowCopy() *MsgContext {
 		Censored:            ctx.Censored,
 		SpamCheckedGroup:    ctx.SpamCheckedGroup,
 		SpamCheckedPerson:   ctx.SpamCheckedPerson,
+		UITestReplySplitLen: ctx.UITestReplySplitLen,
 		vm:                  ctx.vm,
 		_v1Rand:             ctx._v1Rand,
 	}

@@ -280,15 +280,54 @@ var (
 	lastGroupExecTime   int64
 )
 
+func isValidUITestReplySplitLen(splitLen int) bool {
+	switch splitLen {
+	case dice.UITestReplySplitLenShort,
+		dice.UITestReplySplitLenQQ,
+		dice.UITestReplySplitLenUnlimited:
+		return true
+	default:
+		return false
+	}
+}
+
+func DiceExecSplitOptions(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	return c.JSON(200, map[string]interface{}{
+		"defaultKey": "short",
+		"options": []map[string]interface{}{
+			{
+				"key":             "short",
+				"label":           fmt.Sprintf("短分段 %d", dice.UITestReplySplitLenShort),
+				"messageSplitLen": dice.UITestReplySplitLenShort,
+			},
+			{
+				"key":             "qq",
+				"label":           fmt.Sprintf("QQ 分段 %d", dice.UITestReplySplitLenQQ),
+				"messageSplitLen": dice.UITestReplySplitLenQQ,
+			},
+			{
+				"key":             "unlimited",
+				"label":           "无限",
+				"messageSplitLen": dice.UITestReplySplitLenUnlimited,
+			},
+		},
+	})
+}
+
 func DiceExec(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
 	v := struct {
-		ID          string `form:"id"          json:"id"`
-		Message     string `form:"message"`
-		MessageType string `form:"messageType"`
+		ID              string `form:"id"              json:"id"`
+		Message         string `form:"message"`
+		MessageType     string `form:"messageType"`
+		MessageSplitLen *int   `form:"messageSplitLen" json:"messageSplitLen"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -296,6 +335,9 @@ func DiceExec(c echo.Context) error {
 	}
 	if v.Message == "" {
 		return c.JSON(400, "格式错误")
+	}
+	if v.MessageSplitLen != nil && !isValidUITestReplySplitLen(*v.MessageSplitLen) {
+		return c.JSON(400, "分段长度无效")
 	}
 	timeNeed := int64(500)
 	if dm.JustForTest {
@@ -325,10 +367,17 @@ func DiceExec(c echo.Context) error {
 		lastPrivateExecTime = now
 	}
 
+	var uiTestReplySplitLen *int
+	if v.MessageSplitLen != nil {
+		splitLen := *v.MessageSplitLen
+		uiTestReplySplitLen = &splitLen
+	}
+
 	msg := &dice.Message{
-		MessageType: messageType,
-		Message:     v.Message,
-		Platform:    "UI",
+		MessageType:         messageType,
+		Message:             v.Message,
+		Platform:            "UI",
+		UITestReplySplitLen: uiTestReplySplitLen,
 		Sender: dice.SenderBase{
 			Nickname:  "User",
 			UserID:    userID,
@@ -604,6 +653,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/dice/config/advanced/get", DiceAdvancedConfigGet)
 	e.POST(prefix+"/dice/config/advanced/set", DiceAdvancedConfigSet)
 	e.POST(prefix+"/dice/config/mail_test", DiceMailTest)
+	e.GET(prefix+"/dice/exec/split_options", DiceExecSplitOptions)
 	e.POST(prefix+"/dice/exec", DiceExec)
 	e.GET(prefix+"/dice/recentMessage", DiceRecentMessage)
 	e.GET(prefix+"/dice/cmdList", DiceAllCommand)

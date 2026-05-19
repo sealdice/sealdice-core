@@ -8,6 +8,12 @@ import (
 	"sealdice-core/utils"
 )
 
+const (
+	UITestReplySplitLenShort     = 300
+	UITestReplySplitLenQQ        = 2000
+	UITestReplySplitLenUnlimited = 0
+)
+
 type HTTPSimpleMessage struct {
 	UID         string `json:"uid"`
 	Message     string `json:"message"`
@@ -38,8 +44,15 @@ func (pa *PlatformAdapterHTTP) DoRelogin() bool {
 
 func (pa *PlatformAdapterHTTP) SetEnable(_ bool) {}
 
+func getUITestReplySplitLen(ctx *MsgContext) int {
+	if ctx == nil || ctx.UITestReplySplitLen == nil {
+		return UITestReplySplitLenShort
+	}
+	return *ctx.UITestReplySplitLen
+}
+
 func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	sp := utils.SplitLongText(text, 300, utils.DefaultSplitPaginationHint)
+	sp := utils.SplitLongText(text, getUITestReplySplitLen(ctx), utils.DefaultSplitPaginationHint)
 	for _, sub := range sp {
 		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "private"})
 	}
@@ -55,7 +68,7 @@ func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text st
 }
 
 func (pa *PlatformAdapterHTTP) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	sp := utils.SplitLongText(text, 300, utils.DefaultSplitPaginationHint)
+	sp := utils.SplitLongText(text, getUITestReplySplitLen(ctx), utils.DefaultSplitPaginationHint)
 	for _, sub := range sp {
 		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "group"})
 	}
