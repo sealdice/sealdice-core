@@ -77,7 +77,7 @@ type BanListInfo struct {
 	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
 
 	helpMasterReplyMu sync.Mutex
-	helpMasterReplyAt int64
+	helpMasterReplyAt map[string]time.Time
 	cronID            cron.EntryID
 }
 
@@ -98,18 +98,22 @@ func (i *BanListInfo) Init() {
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
 	i.Map = new(SyncMap[string, *BanListInfoItem])
+	i.helpMasterReplyAt = map[string]time.Time{}
 }
 
-func (i *BanListInfo) CanReplyBlacklistedHelpMaster(_ string, now time.Time) bool {
+func (i *BanListInfo) CanReplyBlacklistedHelpMaster(userID string, now time.Time) bool {
 	i.helpMasterReplyMu.Lock()
 	defer i.helpMasterReplyMu.Unlock()
 
-	nowUnix := now.Unix()
-	if nowUnix-i.helpMasterReplyAt < int64(blacklistedHelpMasterCooldown/time.Second) {
+	if i.helpMasterReplyAt == nil {
+		i.helpMasterReplyAt = map[string]time.Time{}
+	}
+
+	if lastReplyAt, ok := i.helpMasterReplyAt[userID]; ok && now.Sub(lastReplyAt) < blacklistedHelpMasterCooldown {
 		return false
 	}
 
-	i.helpMasterReplyAt = nowUnix
+	i.helpMasterReplyAt[userID] = now
 	return true
 }
 

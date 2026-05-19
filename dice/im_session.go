@@ -1792,7 +1792,7 @@ func FormatBlacklistReasons(v *BanListInfoItem) string {
 	return reasontext
 }
 
-func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message) bool {
+func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message, now time.Time) bool {
 	var cmdArgs *CmdArgs
 	if len(msg.Segment) > 0 {
 		cmdArgs = CommandParseNew(ctx, msg)
@@ -1805,7 +1805,7 @@ func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message) bool {
 	if len(cmdArgs.Args) != 1 || !cmdArgs.IsArgEqual(1, "骰主") {
 		return false
 	}
-	if !ctx.Dice.Config.BanList.CanReplyBlacklistedHelpMaster(msg.Sender.UserID, time.Now()) {
+	if !ctx.Dice.Config.BanList.CanReplyBlacklistedHelpMaster(msg.Sender.UserID, now) {
 		return true
 	}
 
@@ -1818,6 +1818,7 @@ func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message) bool {
 func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 	d := ctx.Dice
 	log := d.Logger
+	now := time.Now()
 	var isBanGroup, isWhiteGroup bool
 	// log.Info("check ban ", msg.MessageType, " ", msg.GroupID, " ", ctx.PrivilegeLevel)
 	if msg.MessageType == "group" {
@@ -1897,7 +1898,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 				banQuitGroup()
 			}
 		} else if d.Config.BanList.BanBehaviorRefuseReply {
-			if tryHandleBlacklistedHelpMasterRequest(ctx, msg) {
+			if tryHandleBlacklistedHelpMasterRequest(ctx, msg, now) {
 				return true
 			}
 			notReply = true
