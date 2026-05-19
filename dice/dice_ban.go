@@ -76,7 +76,7 @@ type BanListInfo struct {
 	JointScorePercentOfGroup   float64 `json:"jointScorePercentOfGroup"   yaml:"jointScorePercentOfGroup"`   // 群组连带责任
 	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
 
-	helpMasterReplyMu sync.Mutex          `json:"-" yaml:"-"`
+	helpMasterReplyMu sync.Mutex           `json:"-" yaml:"-"`
 	helpMasterReplyAt map[string]time.Time `json:"-" yaml:"-"`
 	cronID            cron.EntryID         `json:"-" yaml:"-"`
 }
