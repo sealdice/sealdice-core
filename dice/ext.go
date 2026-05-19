@@ -618,8 +618,7 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 			known[ext.Name] = struct{}{}
 			continue
 		}
-		// 非首次加载，根据 AutoActive 决定
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		if ext.AutoActive {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 			known[ext.Name] = struct{}{}
 		} else {
@@ -755,7 +754,7 @@ func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
 		if _, exists := known[ext.Name]; exists {
 			continue
 		}
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		if ext != nil && ext.AutoActive {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 		} else {
 			group.AddToInactivated(ext.Name)
