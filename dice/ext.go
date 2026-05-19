@@ -39,13 +39,7 @@ const (
 type ActiveWithGraph map[string][]string
 
 func shouldAutoActivateExt(ext *ExtInfo) bool {
-	if ext == nil {
-		return false
-	}
-	if ext.DefaultSetting != nil {
-		return ext.DefaultSetting.AutoActive
-	}
-	return ext.AutoActive
+	return ext != nil && ext.AutoActive
 }
 
 func (d *Dice) rebuildActiveWithGraph() {

@@ -775,16 +775,46 @@ func TestReopenMainExtensionReopensCompanion(t *testing.T) {
 	t.Logf("✓ 重新开启主扩展成功重新激活伴随扩展")
 }
 
-func TestGetActivatedExtListRespectsDefaultSettingOverride(t *testing.T) {
+func TestApplyExtDefaultSettingsSyncsAutoActiveToExtInfo(t *testing.T) {
 	ext := &ExtInfo{
 		Name:       "builtin-like",
 		AutoActive: true,
-		DefaultSetting: &ExtDefaultSettingItem{
-			Name:       "builtin-like",
-			AutoActive: false,
-		},
+		CmdMap:     CmdMapCls{},
 	}
 	dice := newTestDice([]*ExtInfo{ext})
+	dice.Config.ExtDefaultSettings = []*ExtDefaultSettingItem{
+		{
+			Name:            "builtin-like",
+			AutoActive:      false,
+			DisabledCommand: map[string]bool{},
+		},
+	}
+
+	dice.ApplyExtDefaultSettings()
+
+	if ext.DefaultSetting == nil {
+		t.Fatalf("ApplyExtDefaultSettings 后应绑定 DefaultSetting")
+	}
+	if ext.AutoActive {
+		t.Fatalf("ApplyExtDefaultSettings 后 ext.AutoActive 应与配置同步为 false")
+	}
+}
+
+func TestGetActivatedExtListRespectsAppliedAutoActive(t *testing.T) {
+	ext := &ExtInfo{
+		Name:       "builtin-like",
+		AutoActive: true,
+		CmdMap:     CmdMapCls{},
+	}
+	dice := newTestDice([]*ExtInfo{ext})
+	dice.Config.ExtDefaultSettings = []*ExtDefaultSettingItem{
+		{
+			Name:            "builtin-like",
+			AutoActive:      false,
+			DisabledCommand: map[string]bool{},
+		},
+	}
+	dice.ApplyExtDefaultSettings()
 	dice.ExtUpdateTime = 1
 
 	group := &GroupInfo{
@@ -800,16 +830,21 @@ func TestGetActivatedExtListRespectsDefaultSettingOverride(t *testing.T) {
 	}
 }
 
-func TestSyncExtensionsOnMessageRespectsDefaultSettingOverride(t *testing.T) {
+func TestSyncExtensionsOnMessageRespectsAppliedAutoActive(t *testing.T) {
 	ext := &ExtInfo{
 		Name:       "builtin-like",
 		AutoActive: true,
-		DefaultSetting: &ExtDefaultSettingItem{
-			Name:       "builtin-like",
-			AutoActive: false,
-		},
+		CmdMap:     CmdMapCls{},
 	}
 	dice := newTestDice([]*ExtInfo{ext})
+	dice.Config.ExtDefaultSettings = []*ExtDefaultSettingItem{
+		{
+			Name:            "builtin-like",
+			AutoActive:      false,
+			DisabledCommand: map[string]bool{},
+		},
+	}
+	dice.ApplyExtDefaultSettings()
 	dice.ExtRegistryVersion = 1
 
 	group := newTestGroupInfo()

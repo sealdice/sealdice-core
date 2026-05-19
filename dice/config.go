@@ -2464,6 +2464,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 			v.ExtItem = extInfo
 			v.Loaded = true
 			extInfo.DefaultSetting = v
+			extInfo.AutoActive = v.AutoActive
 
 			// 为了避免锁问题，这里做一个新的map
 			m := map[string]bool{}
