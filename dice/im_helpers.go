@@ -248,7 +248,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		var extLst []*ExtInfo
 		for _, i := range session.Parent.Config.ExtDefaultSettings {
 			if i.ExtItem != nil {
-				if shouldAutoActivateExt(i.ExtItem) {
+				if i.AutoActive {
 					extLst = append(extLst, i.ExtItem)
 				}
 			}
