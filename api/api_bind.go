@@ -367,17 +367,11 @@ func DiceExec(c echo.Context) error {
 		lastPrivateExecTime = now
 	}
 
-	var uiTestReplySplitLen *int
-	if v.MessageSplitLen != nil {
-		splitLen := *v.MessageSplitLen
-		uiTestReplySplitLen = &splitLen
-	}
-
 	msg := &dice.Message{
 		MessageType:         messageType,
 		Message:             v.Message,
 		Platform:            "UI",
-		UITestReplySplitLen: uiTestReplySplitLen,
+		UITestReplySplitLen: v.MessageSplitLen,
 		Sender: dice.SenderBase{
 			Nickname:  "User",
 			UserID:    userID,

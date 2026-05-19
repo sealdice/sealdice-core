@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	UITestReplySplitLenShort     = 300
-	UITestReplySplitLenQQ        = 2000
+	UITestReplySplitLenShort = 300
+	UITestReplySplitLenQQ    = 2000
+	// SplitLongText treats maxLen <= 0 as no split.
 	UITestReplySplitLenUnlimited = 0
 )
 
