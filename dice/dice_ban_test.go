@@ -1,12 +1,14 @@
-package dice
+package dice_test
 
 import (
 	"testing"
 	"time"
+
+	"sealdice-core/dice"
 )
 
 func TestCanReplyBlacklistedHelpMasterPerUserCooldown(t *testing.T) {
-	var banList BanListInfo
+	var banList dice.BanListInfo
 	banList.Init()
 
 	base := time.Unix(1_700_000_000, 0)
@@ -23,7 +25,7 @@ func TestCanReplyBlacklistedHelpMasterPerUserCooldown(t *testing.T) {
 		t.Fatal("expected different user to bypass another user's cooldown")
 	}
 
-	if !banList.CanReplyBlacklistedHelpMaster("QQ:1001", base.Add(blacklistedHelpMasterCooldown+time.Minute)) {
+	if !banList.CanReplyBlacklistedHelpMaster("QQ:1001", base.Add(time.Hour+time.Minute)) {
 		t.Fatal("expected same user to be allowed after cooldown elapsed")
 	}
 }
