@@ -618,8 +618,7 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 			known[ext.Name] = struct{}{}
 			continue
 		}
-		// 非首次加载，根据 AutoActive 决定
-		if ext != nil && ext.AutoActive {
+		if ext.AutoActive {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 			known[ext.Name] = struct{}{}
 		} else {
