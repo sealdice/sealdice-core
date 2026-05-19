@@ -585,65 +585,87 @@ const submitEdit = () => {
 
         <!-- Step 1: 选择平台 -->
         <div v-if="wizardStep === 1" class="wizard-step-panel">
-          <div class="option-cards">
-            <n-card
-              v-for="platform in protocols"
-              :key="platform.id"
-              hoverable
-              :class="['option-card', { 'option-card--selected': wizardPlatform?.id === platform.id }]"
-              @click="wizardPlatform = platform"
-            >
-              <div class="option-card-title">{{ platform.name }}</div>
-              <div class="option-card-desc">{{ platform.description }}</div>
-            </n-card>
+          <div class="split-layout">
+            <div class="split-left">
+              <div
+                v-for="platform in protocols"
+                :key="platform.id"
+                :class="['split-item', { 'split-item--selected': wizardPlatform?.id === platform.id }]"
+                @click="wizardPlatform = platform"
+              >
+                <span class="split-item-name">{{ platform.name }}</span>
+              </div>
+            </div>
+            <div class="split-right">
+              <n-empty v-if="!wizardPlatform" description="请在左侧选择一个平台" />
+              <template v-else>
+                <h3 class="split-detail-title">{{ wizardPlatform.name }}</h3>
+                <p class="split-detail-desc">{{ wizardPlatform.description }}</p>
+              </template>
+            </div>
           </div>
         </div>
 
         <!-- Step 2: 选择方式 -->
         <div v-if="wizardStep === 2" class="wizard-step-panel">
-          <div class="option-cards">
-            <n-card
-              v-for="method in wizardPlatform?.methods"
-              :key="method.id"
-              hoverable
-              :class="['option-card', { 'option-card--selected': wizardMethod?.id === method.id }]"
-              @click="wizardMethod = method"
-            >
-              <div class="option-card-title">{{ method.name }}</div>
-              <div class="option-card-desc">{{ method.description }}</div>
-            </n-card>
+          <div class="split-layout">
+            <div class="split-left">
+              <div
+                v-for="method in wizardPlatform?.methods"
+                :key="method.id"
+                :class="['split-item', { 'split-item--selected': wizardMethod?.id === method.id }]"
+                @click="wizardMethod = method"
+              >
+                <span class="split-item-name">{{ method.name }}</span>
+              </div>
+            </div>
+            <div class="split-right">
+              <n-empty v-if="!wizardMethod" description="请在左侧选择一种方式" />
+              <template v-else>
+                <h3 class="split-detail-title">{{ wizardMethod.name }}</h3>
+                <p class="split-detail-desc">{{ wizardMethod.description }}</p>
+              </template>
+            </div>
           </div>
         </div>
 
         <!-- Step 3: 选择协议 -->
         <div v-if="wizardStep === 3" class="wizard-step-panel">
-          <div class="option-cards">
-            <n-card
-              v-for="protocol in wizardMethod?.protocols"
-              :key="protocol.key"
-              hoverable
-              :class="[
-                'option-card',
-                { 'option-card--selected': wizardProtocol?.key === protocol.key },
-                { 'option-card--disabled': !protocol.available },
-              ]"
-              @click="protocol.available ? (wizardProtocol = protocol) : null"
-            >
-              <div class="option-card-title">
-                {{ protocol.name }}
+          <div class="split-layout">
+            <div class="split-left">
+              <div
+                v-for="protocol in wizardMethod?.protocols"
+                :key="protocol.key"
+                :class="[
+                  'split-item',
+                  { 'split-item--selected': wizardProtocol?.key === protocol.key },
+                  { 'split-item--disabled': !protocol.available },
+                ]"
+                @click="protocol.available ? (wizardProtocol = protocol) : null"
+              >
+                <span class="split-item-name">{{ protocol.name }}</span>
                 <n-tag v-if="protocol.deprecated" type="warning" size="small">已废弃</n-tag>
                 <n-tag v-else-if="!protocol.available" type="error" size="small">不可用</n-tag>
               </div>
-              <div class="option-card-desc">{{ protocol.description }}</div>
-              <n-alert
-                v-if="!protocol.available && protocol.disabledReason"
-                type="warning"
-                :show-icon="false"
-                class="mt-2"
-              >
-                {{ protocol.disabledReason }}
-              </n-alert>
-            </n-card>
+            </div>
+            <div class="split-right">
+              <n-empty v-if="!wizardProtocol" description="请在左侧选择一个协议" />
+              <template v-else>
+                <h3 class="split-detail-title">
+                  {{ wizardProtocol.name }}
+                  <n-tag v-if="wizardProtocol.deprecated" type="warning" size="small">已废弃</n-tag>
+                </h3>
+                <p class="split-detail-desc">{{ wizardProtocol.description }}</p>
+                <n-alert
+                  v-if="!wizardProtocol.available && wizardProtocol.disabledReason"
+                  type="warning"
+                  :show-icon="false"
+                  class="mt-2"
+                >
+                  {{ wizardProtocol.disabledReason }}
+                </n-alert>
+              </template>
+            </div>
           </div>
         </div>
 
@@ -851,47 +873,80 @@ h4 {
 }
 
 .wizard-step-panel {
-  min-height: 200px;
+  min-height: 240px;
 }
 
-.option-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+.split-layout {
+  display: flex;
+  gap: 16px;
+  height: 280px;
 }
 
-.option-card {
+.split-left {
+  flex: 0 0 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  padding-right: 8px;
+  border-right: 1px solid #e5e7eb;
+}
+
+.split-item {
+  padding: 10px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.option-card:hover {
-  border-color: #1d4ed8;
+.split-item:hover {
+  background-color: #f3f4f6;
 }
 
-.option-card--selected {
-  border-color: #1d4ed8;
+.split-item--selected {
   background-color: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
 }
 
-.option-card--disabled {
-  opacity: 0.6;
+.split-item--disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.option-card-title {
+.split-item--disabled:hover {
+  background-color: transparent;
+}
+
+.split-item-name {
+  font-size: 0.9rem;
+}
+
+.split-right {
+  flex: 1;
+  padding: 8px 4px;
+  overflow-y: auto;
+}
+
+.split-detail-title {
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
   font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 4px;
+  color: #111827;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.option-card-desc {
-  font-size: 0.85rem;
-  color: #6b7280;
-  line-height: 1.4;
+.split-detail-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.6;
 }
 
 .mt-2 {
