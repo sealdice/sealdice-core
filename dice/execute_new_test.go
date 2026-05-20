@@ -19,6 +19,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -340,6 +341,56 @@ func TestExecuteNew_PrivateCommand_Roll(t *testing.T) {
 	_, ok := adapter.waitForMsg(2 * time.Second)
 	if !ok {
 		t.Fatal("timeout: expected a reply to private '.r 1d6'")
+	}
+}
+
+func TestExecuteNew_BlacklistedHelpMasterAllowedOnce(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+
+	d.Config.BanList.Map.Store("QQ:999", &BanListInfoItem{ID: "QQ:999", Rank: BanRankBanned})
+
+	d.ImSession.ExecuteNew(ep, newPrivateMsg("QQ:999", ".help 骰主"))
+
+	got, ok := adapter.waitForMsg(2 * time.Second)
+	if !ok {
+		t.Fatal("timeout: expected blacklisted user to receive help-master reply")
+	}
+	if !strings.Contains(got, "骰主") {
+		t.Fatalf("unexpected help reply: %q", got)
+	}
+
+	d.ImSession.ExecuteNew(ep, newPrivateMsg("QQ:999", ".help 骰主"))
+
+	select {
+	case unexpected := <-adapter.msgCh:
+		t.Fatalf("expected cooldown to suppress repeated reply, got %q", unexpected)
+	case <-time.After(400 * time.Millisecond):
+	}
+
+	d.Config.BanList.Map.Store("QQ:1000", &BanListInfoItem{ID: "QQ:1000", Rank: BanRankBanned})
+	d.ImSession.ExecuteNew(ep, newPrivateMsg("QQ:1000", ".help 骰主"))
+
+	got, ok = adapter.waitForMsg(2 * time.Second)
+	if !ok {
+		t.Fatal("timeout: expected a different blacklisted user to receive help-master reply")
+	}
+	if !strings.Contains(got, "骰主") {
+		t.Fatalf("unexpected help reply for second user: %q", got)
+	}
+
+	d.ImSession.ExecuteNew(ep, newPrivateMsg("QQ:999", ".help 协议"))
+	select {
+	case unexpected := <-adapter.msgCh:
+		t.Fatalf("expected other help topics to stay silent, got %q", unexpected)
+	case <-time.After(400 * time.Millisecond):
+	}
+
+	d.ImSession.ExecuteNew(ep, newPrivateMsg("QQ:999", ".r 1d6"))
+	select {
+	case unexpected := <-adapter.msgCh:
+		t.Fatalf("expected other commands to stay silent, got %q", unexpected)
+	case <-time.After(400 * time.Millisecond):
 	}
 }
 
