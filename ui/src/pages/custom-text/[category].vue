@@ -1,26 +1,6 @@
 <template>
   <main class="custom-text-page">
     <n-spin :show="customTextQuery.isFetching.value && !customTextQuery.data.value">
-      <n-affix :top="60" v-if="modified">
-        <TipBox type="error" class="mb-4">
-          <n-flex>
-            <n-text type="error" class="text-base" tag="strong">内容已修改，不要忘记保存！</n-text>
-            <n-button
-              class="button"
-              type="primary"
-              :loading="saveMutation.isPending.value"
-              :disabled="!modified"
-              @click="save"
-            >
-              <template #icon>
-                <n-icon><i-carbon-save /></n-icon>
-              </template>
-              点我保存
-            </n-button>
-          </n-flex>
-        </TipBox>
-      </n-affix>
-
       <TipBox type="info">
         <n-collapse>
           <n-collapse-item name="1">
@@ -375,6 +355,7 @@ import {
   type TextTemplateItem,
   type TextTemplateWithWeightDict,
 } from '@/features/customText/types';
+import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 // 自定义文案页按 category 动态路由进入。
 // 页面维护一份可编辑 texts 草稿，并通过 helpInfo/previewInfo 标识默认变量、
@@ -391,7 +372,7 @@ const configForImport = ref('');
 const importOnlyCurrent = ref(true);
 const importImpact = ref(true);
 const dialogImportVisible = ref(false);
-const modified = ref(false);
+const initialTexts = ref<TextTemplateWithWeightDict>({});
 const filterMode = ref<string>('all');
 const filterGroups = ref<string[]>([]);
 const currentFilterGroup = ref<string>('');
@@ -412,11 +393,17 @@ const category = computed(() => {
   return props.category ?? String(fallback ?? '');
 });
 const hasCategory = computed(() => Boolean(texts.value[category.value]));
+const modified = computed(() => {
+  if (!category.value || !texts.value[category.value]) return false;
+  return JSON.stringify(texts.value[category.value] ?? {}) !== JSON.stringify(initialTexts.value[category.value] ?? {});
+});
 
 const syncLocalTexts = (force = false) => {
   const data = customTextQuery.data.value?.item;
   if (!data || (modified.value && !force)) return;
-  texts.value = cloneDeep(normalizeCustomTextData(data).texts);
+  const nextTexts = cloneDeep(normalizeCustomTextData(data).texts);
+  texts.value = nextTexts;
+  initialTexts.value = cloneDeep(nextTexts);
 };
 
 watch(
@@ -428,7 +415,6 @@ watch(
 watch(
   category,
   () => {
-    modified.value = false;
     filterMode.value = 'all';
     currentFilterGroup.value = '';
     currentFilterName.value = '';
@@ -611,8 +597,8 @@ const doImport = async () => {
       }
       texts.value[targetCategory] = value;
       await saveMutation.mutateAsync(targetCategory);
+      initialTexts.value[targetCategory] = cloneDeep(value);
     }
-    modified.value = false;
     syncLocalTexts(true);
     message.success('已保存');
     dialogImportVisible.value = false;
@@ -639,11 +625,9 @@ watch(
 
 const addItem = (keyName: string) => {
   texts.value[category.value][keyName].push(['', 1]);
-  modified.value = true;
 };
 
 const doChanged = (targetCategory: string, keyName: string) => {
-  modified.value = true;
   const itemHelpInfo = helpInfo.value[targetCategory]?.[keyName];
   if (itemHelpInfo) {
     itemHelpInfo.modified = true;
@@ -652,15 +636,25 @@ const doChanged = (targetCategory: string, keyName: string) => {
 
 const removeItem = (items: TextTemplateItem[], index: number) => {
   items.splice(index, 1);
-  modified.value = true;
 };
 
 const save = async () => {
   await saveMutation.mutateAsync(category.value);
-  modified.value = false;
+  initialTexts.value[category.value] = cloneDeep(texts.value[category.value] ?? {});
   syncLocalTexts(true);
   message.success('已保存');
 };
+
+useUnsavedChanges('custom-text', {
+  label: computed(() => category.value ? `自定义文案 / ${category.value}` : '自定义文案'),
+  dirty: modified,
+  save,
+  saving: computed(() => saveMutation.isPending.value),
+  confirmMessage: computed(() => {
+    const target = category.value ? `自定义文案 / ${category.value}` : '自定义文案';
+    return `${target} 还有修改，确定要忽略？`;
+  }),
+});
 
 const refreshPreview = async () => {
   await previewRefreshMutation.mutateAsync(category.value);
@@ -747,7 +741,6 @@ const getPreviewInfo = (keyName: string, text: string) => {
 
 const deleteValue = async (targetCategory: string, keyName: string) => {
   delete texts.value[targetCategory][keyName];
-  modified.value = true;
 };
 
 const askDeleteValue = async (targetCategory: string, keyName: string) => {
@@ -774,7 +767,6 @@ const resetValue = async (targetCategory: string, keyName: string) => {
   if (itemHelpInfo) {
     itemHelpInfo.modified = false;
   }
-  modified.value = true;
 };
 
 const askResetValue = async (targetCategory: string, keyName: string) => {

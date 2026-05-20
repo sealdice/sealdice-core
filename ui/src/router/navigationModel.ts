@@ -1,5 +1,5 @@
 import { pinyin } from 'pinyin-pro';
-import type { NavigationItem, NavigationSearchItem } from './types';
+import type { NavigationBreadcrumbItem, NavigationItem, NavigationSearchItem } from './types';
 
 export interface BuildNavigationOptions {
   advancedConfigEnabled: boolean;
@@ -27,6 +27,8 @@ function buildNavigationItem(
         label: category,
         path: `/custom-text/${category}`,
         icon: 'dice',
+        title: category,
+        layout: item.layout,
       }))
     : item.children
       ?.map(child => buildNavigationItem(child, options))
@@ -36,6 +38,93 @@ function buildNavigationItem(
     ...item,
     ...(children ? { children } : {}),
   };
+}
+
+export function buildRouteMeta(items: NavigationItem[]) {
+  const meta: Record<string, { title?: string; layout?: NavigationItem['layout'] }> = {};
+
+  const walk = (item: NavigationItem) => {
+    if (item.hidden) return;
+
+    const title = item.title ?? item.label;
+    if (item.path) {
+      meta[item.path] = {
+        title,
+        ...(item.layout ? { layout: item.layout } : {}),
+      };
+    }
+
+    if (item.dynamicChildren === 'customTextCategories') {
+      meta['/custom-text/:category'] = {
+        title,
+        ...(item.layout ? { layout: item.layout } : {}),
+      };
+    }
+
+    item.children?.forEach(walk);
+  };
+
+  items.forEach(walk);
+  return meta;
+}
+
+export function buildBreadcrumbItems(
+  items: NavigationItem[],
+  activePath: string,
+  fallbackTitle = '当前页面',
+): NavigationBreadcrumbItem[] {
+  const path = activePath === '/home' ? '/' : normalizePath(activePath);
+
+  const staticMatch = findStaticBreadcrumb(items, path, []);
+  if (staticMatch) return staticMatch;
+
+  const dynamicMatch = findDynamicBreadcrumb(items, path, []);
+  if (dynamicMatch) return dynamicMatch;
+
+  return [{ label: fallbackTitle }];
+}
+
+function findStaticBreadcrumb(
+  items: NavigationItem[],
+  activePath: string,
+  parents: NavigationBreadcrumbItem[],
+): NavigationBreadcrumbItem[] | undefined {
+  for (const item of items) {
+    if (item.hidden) continue;
+
+    const label = item.title ?? item.label;
+    if (item.path && normalizePath(item.path) === activePath) {
+      return [...parents, { label }];
+    }
+
+    const nextParents = item.path ? parents : [...parents, { label }];
+    const childMatch = findStaticBreadcrumb(item.children ?? [], activePath, nextParents);
+    if (childMatch) return childMatch;
+  }
+
+  return undefined;
+}
+
+function findDynamicBreadcrumb(
+  items: NavigationItem[],
+  activePath: string,
+  parents: NavigationBreadcrumbItem[],
+): NavigationBreadcrumbItem[] | undefined {
+  for (const item of items) {
+    if (item.hidden) continue;
+
+    const label = item.title ?? item.label;
+    if (item.dynamicChildren === 'customTextCategories' && activePath.startsWith('/custom-text/')) {
+      const category = activePath.split('/').slice(2).join('/');
+      return [...parents, { label }, { label: decodePathPart(category) || '当前页面' }];
+    }
+
+    const nextParents = item.path ? parents : [...parents, { label }];
+    const childMatch = findDynamicBreadcrumb(item.children ?? [], activePath, nextParents);
+    if (childMatch) return childMatch;
+  }
+
+  return undefined;
 }
 
 export function flattenNavigationItems(items: NavigationItem[]): NavigationSearchItem[] {
@@ -115,6 +204,14 @@ function normalizePath(path: string): string {
     return decodeURIComponent(path);
   } catch {
     return path;
+  }
+}
+
+function decodePathPart(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
   }
 }
 

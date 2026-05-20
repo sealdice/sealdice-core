@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { defineAsyncComponent, nextTick, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/core';
-import { useMessage } from 'naive-ui';
+import { useDialog, useMessage } from 'naive-ui';
 import { getAppShellContentClass, type AppShellContentMode } from './appShellLayout';
 import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
+import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
 import AppUnlockDialog from './AppUnlockDialog.vue';
 import { useAuthSession } from '@/features/auth/useAuthSession';
+import {
+  activeUnsavedChangesSource,
+  hasUnsavedChanges,
+  setUnsavedChangesConfirmHandler,
+} from '@/features/unsavedChanges';
 
 interface AppSearchMenuHandle {
   open: () => void;
@@ -30,6 +36,7 @@ const advancedConfigCounter = ref(0);
 const renderSearchMenu = ref(false);
 const searchMenuRef = ref<AppSearchMenuHandle | null>(null);
 const message = useMessage();
+const dialog = useDialog();
 const authSession = useAuthSession();
 
 function enableAdvancedConfig() {
@@ -64,6 +71,26 @@ useEventListener(window, 'keydown', event => {
     void openSearch();
   }
 });
+
+useEventListener(window, 'beforeunload', event => {
+  if (!hasUnsavedChanges.value) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+
+setUnsavedChangesConfirmHandler(source => new Promise(resolve => {
+  dialog.warning({
+    title: '确认离开',
+    content: source.confirmMessage,
+    positiveText: '确定忽略',
+    negativeText: '取消',
+    onPositiveClick: () => resolve(true),
+    onNegativeClick: () => resolve(false),
+    onClose: () => resolve(false),
+    onMaskClick: () => resolve(false),
+    onEsc: () => resolve(false),
+  });
+}));
 
 void authSession.tryDefaultSignin();
 </script>
@@ -101,6 +128,9 @@ void authSession.tryDefaultSignin();
           @toggle-sidebar="toggleSidebar"
           @open-search="openSearch"
         />
+        <div class="sd-floating-panel-layer" :class="{ 'sd-floating-panel-layer--active': !!activeUnsavedChangesSource }">
+          <AppUnsavedChangesPanel />
+        </div>
         <main :class="getAppShellContentClass(props.contentMode)">
           <slot />
         </main>
@@ -190,6 +220,22 @@ void authSession.tryDefaultSignin();
   max-width: none;
 }
 
+.sd-floating-panel-layer {
+  position: fixed;
+  top: 4.4rem;
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  width: min(100%, calc(100vw - 15rem));
+  transform: translateX(-50%);
+}
+
+.sd-floating-panel-layer--active {
+  pointer-events: none;
+}
+
 :global(.sd-drawer .n-drawer-content) {
   background: var(--sd-bg-sidebar);
 }
@@ -201,6 +247,11 @@ void authSession.tryDefaultSignin();
 
   .sd-main-container {
     padding: 1rem;
+  }
+
+  .sd-floating-panel-layer {
+    top: 4rem;
+    width: calc(100vw - 1rem);
   }
 }
 </style>

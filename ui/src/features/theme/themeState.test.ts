@@ -30,7 +30,25 @@ assertEqual(resolveThemeMode('dark', false), 'dark');
 assertEqual(resolveThemeMode('system', true), 'dark');
 assertEqual(resolveThemeMode('system', false), 'light');
 
-const root = document.createElement('html');
+const classNames = new Set<string>();
+const root = {
+  classList: {
+    contains(className: string) {
+      return classNames.has(className);
+    },
+    toggle(className: string, force?: boolean) {
+      const enabled = force ?? !classNames.has(className);
+      if (enabled) {
+        classNames.add(className);
+      } else {
+        classNames.delete(className);
+      }
+      return enabled;
+    },
+  },
+  dataset: {},
+  style: {},
+} as HTMLElement;
 syncDocumentTheme(root, 'dark');
 assertClass(root, 'dark', true);
 assertEqual(root.dataset.theme, 'dark');

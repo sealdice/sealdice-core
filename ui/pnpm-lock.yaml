@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ant-design/colors':
+        specifier: ^8.0.1
+        version: 8.0.1
       '@codemirror/lang-javascript':
         specifier: ^6.2.5
         version: 6.2.5
@@ -38,15 +41,15 @@ importers:
       filesize:
         specifier: ^11.0.13
         version: 11.0.13
+      mitt:
+        specifier: ^3.0.1
+        version: 3.0.1
       naive-ui:
         specifier: ^2.43.1
         version: 2.43.1(vue@3.5.34(typescript@5.8.3))
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
-      pinia:
-        specifier: ^3.0.4
-        version: 3.0.4(typescript@5.8.3)(vue@3.5.34(typescript@5.8.3))
       pinyin-pro:
         specifier: ^3.28.1
         version: 3.28.1
@@ -171,6 +174,13 @@ packages:
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
+
+  '@ant-design/colors@8.0.1':
+    resolution: {integrity: sha512-foPVl0+SWIslGUtD/xBr1p9U4AKzPhNYEseXYRRo5QSzGACYZrQbe11AYJbYfAWnWSpGBx6JjBmSeugUsD9vqQ==}
+
+  '@ant-design/fast-color@3.0.1':
+    resolution: {integrity: sha512-esKJegpW4nckh0o6kV3Tkb7NPIZYbPnnFxmQDUmL08ukXZAvV85TZBr70eGuke/CIArLaP6aw8lt9KILjnWuOw==}
+    engines: {node: '>=8.x'}
 
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
@@ -3143,6 +3153,12 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
+  '@ant-design/colors@8.0.1':
+    dependencies:
+      '@ant-design/fast-color': 3.0.1
+
+  '@ant-design/fast-color@3.0.1': {}
+
   '@antfu/install-pkg@1.1.0':
     dependencies:
       package-manager-detector: 1.6.0
@@ -4384,6 +4400,7 @@ snapshots:
   '@vue/devtools-api@7.7.7':
     dependencies:
       '@vue/devtools-kit': 7.7.7
+    optional: true
 
   '@vue/devtools-api@8.1.2':
     dependencies:
@@ -4410,6 +4427,7 @@ snapshots:
       perfect-debounce: 1.0.0
       speakingurl: 14.0.1
       superjson: 2.2.2
+    optional: true
 
   '@vue/devtools-kit@8.0.2':
     dependencies:
@@ -4431,6 +4449,7 @@ snapshots:
   '@vue/devtools-shared@7.7.7':
     dependencies:
       rfdc: 1.4.1
+    optional: true
 
   '@vue/devtools-shared@8.0.2':
     dependencies:
@@ -5477,7 +5496,8 @@ snapshots:
 
   pathe@2.0.3: {}
 
-  perfect-debounce@1.0.0: {}
+  perfect-debounce@1.0.0:
+    optional: true
 
   perfect-debounce@2.0.0: {}
 
@@ -5499,6 +5519,7 @@ snapshots:
       vue: 3.5.34(typescript@5.8.3)
     optionalDependencies:
       typescript: 5.8.3
+    optional: true
 
   pinyin-pro@3.28.1: {}
 

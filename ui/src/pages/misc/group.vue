@@ -15,6 +15,10 @@ import {
 } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { hasAccessToken } from '@/features/auth/state';
+import {
+  readGroupQuitDefaultText,
+  writeGroupQuitDefaultText,
+} from '@/features/group/quitPreference';
 
 dayjs.extend(relativeTime);
 
@@ -51,7 +55,7 @@ const quitDialogVisible = ref(false);
 const quitAction = ref<QuitAction | null>(null);
 const quitForm = reactive({
   silence: false,
-  extraText: localStorage.getItem('group-quit-default-text') || '因长期不使用等原因，骰主后台操作退出',
+  extraText: readGroupQuitDefaultText(),
   saveAsDefault: false,
 });
 
@@ -210,7 +214,7 @@ async function submitQuit() {
   }
 
   if (quitForm.saveAsDefault) {
-    localStorage.setItem('group-quit-default-text', quitForm.extraText);
+    writeGroupQuitDefaultText(quitForm.extraText);
   }
   quitDialogVisible.value = false;
   await searchGroups();

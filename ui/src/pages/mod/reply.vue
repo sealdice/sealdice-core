@@ -28,12 +28,6 @@
         </n-flex>
       </header>
 
-      <n-affix v-if="modified" :top="60">
-        <TipBox type="error">
-          <n-text type="error" class="text-base" tag="strong">内容已修改，不要忘记保存！</n-text>
-        </TipBox>
-      </n-affix>
-
       <template v-if="!replyEnabled">
         <section class="reply-empty">
           <n-text type="error" class="text-xl">请先启用总开关！</n-text>
@@ -372,6 +366,7 @@ import ConditionBuilder from '@/components/shared/ConditionBuilder.vue';
 import NestedRuleEditor from '@/components/shared/NestedRuleEditor.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
+import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 // 自定义回复页是本项目最复杂的表单页之一。
 // 设计上将“远端文件详情”和“本地草稿”分开：远端数据来自 Query，
@@ -470,6 +465,7 @@ const fileSortOrderOptions = [
 ];
 
 const drafts = ref<Record<string, ReplyFileDraft>>({});
+const initialDrafts = ref<Record<string, ReplyFileDraft>>({});
 const customReplyFileListQueryKey = computed(() => [
   'custom-reply-files',
   fileQuery.page,
@@ -563,6 +559,10 @@ const currentFileDraft = computed(() => {
   if (!selectedFilename.value) return null;
   return drafts.value[selectedFilename.value] ?? null;
 });
+const currentInitialDraft = computed(() => {
+  if (!selectedFilename.value) return null;
+  return initialDrafts.value[selectedFilename.value] ?? null;
+});
 const rulesTotal = computed(() => currentFileDraft.value?.itemCount ?? currentFileDraft.value?.items.length ?? 0);
 const rulePageStart = computed(() => (rulesPage.value - 1) * rulesPageSize.value);
 const commonConditionsTotal = computed(() => currentFileDraft.value?.conditions.length ?? 0);
@@ -580,6 +580,37 @@ const pagedCommonConditions = computed<ReplyCondition[]>({
     currentFileDraft.value.conditions.splice(commonConditionsPageStart.value, value.length, ...value);
     markModified();
   },
+});
+
+watch(
+  [currentFileDraft, currentInitialDraft],
+  () => {
+    const current = currentFileDraft.value;
+    const initial = currentInitialDraft.value;
+    if (!current || !initial) {
+      modified.value = false;
+      return;
+    }
+    modified.value = JSON.stringify(current) !== JSON.stringify(initial);
+  },
+  { deep: true, immediate: true },
+);
+
+useUnsavedChanges('custom-reply', {
+  label: computed(() => {
+    const filename = selectedFilename.value || currentFileDraft.value?.filename;
+    return filename ? `自定义回复 / ${filename}` : '自定义回复';
+  }),
+  dirty: computed(() => modified.value),
+  save: saveCurrent,
+  saving: computed(() => saveMutation.isPending.value),
+  canSave: computed(() => Boolean(currentFileDraft.value) && modified.value),
+  confirmMessage: computed(() => {
+    const filename = selectedFilename.value || currentFileDraft.value?.filename;
+    return filename
+      ? `自定义回复 / ${filename} 还有修改，确定要忽略？`
+      : '自定义回复还有修改，确定要忽略？';
+  }),
 });
 
 watch(
@@ -601,10 +632,15 @@ watch(
   detail => {
     if (!detail) return;
     syncingRemote.value = true;
+    const normalized = normalizeReplyFileDetail(detail);
     const existing = drafts.value[detail.filename];
     drafts.value = {
       ...drafts.value,
-      [detail.filename]: existing ?? normalizeReplyFileDetail(detail),
+      [detail.filename]: existing ?? normalized,
+    };
+    initialDrafts.value = {
+      ...initialDrafts.value,
+      [detail.filename]: cloneReplyFileDraft(normalized),
     };
     modified.value = false;
     void nextTick(() => {
@@ -624,7 +660,6 @@ watch(
     for (const condition of pageData.list ?? []) {
       draft.conditions[condition.index] = normalizeCondition(condition.item);
     }
-    modified.value = false;
     void nextTick(() => {
       syncingRemote.value = false;
     });
@@ -645,7 +680,6 @@ watch(
     }
     draft.itemCount = pageData.total;
     syncRulePageItemsFromDraft();
-    modified.value = false;
     void nextTick(() => {
       syncingRemote.value = false;
     });
@@ -658,16 +692,6 @@ watch(selectedFilename, () => {
   rulesPage.value = 1;
   rulePageItems.value = [];
 });
-
-watch(
-  currentFileDraft,
-  () => {
-    if (currentFileDraft.value && !syncingRemote.value) {
-      modified.value = true;
-    }
-  },
-  { deep: true },
-);
 
 watch(
   [rulesPage, rulesPageSize, currentFileDraft],
@@ -718,7 +742,12 @@ const saveMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: ['custom-reply-file-conditions'] });
     await queryClient.invalidateQueries({ queryKey: ['custom-reply-file-rules'] });
     await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
-    modified.value = false;
+    if (currentFileDraft.value && selectedFilename.value) {
+      initialDrafts.value = {
+        ...initialDrafts.value,
+        [selectedFilename.value]: cloneReplyFileDraft(currentFileDraft.value),
+      };
+    }
     message.success('已保存');
   },
   onError: () => {
@@ -995,9 +1024,10 @@ function doImport() {
 }
 
 function markModified() {
-  if (!syncingRemote.value) {
-    modified.value = true;
-  }
+  if (syncingRemote.value) return;
+  const current = currentFileDraft.value;
+  const initial = currentInitialDraft.value;
+  modified.value = !!current && !!initial && JSON.stringify(current) !== JSON.stringify(initial);
 }
 
 function ensureDraftItemLength(draft: ReplyFileDraft, total: number) {
@@ -1034,6 +1064,15 @@ function cloneReplyTask(item: ReplyTask): ReplyTask {
       delay: result.delay,
       message: result.message.map(messageItem => [messageItem[0], messageItem[1]]),
     })),
+  };
+}
+
+function cloneReplyFileDraft(item: ReplyFileDraft): ReplyFileDraft {
+  return {
+    ...item,
+    author: [...item.author],
+    conditions: item.conditions.map(condition => ({ ...condition })),
+    items: item.items.map(task => cloneReplyTask(task)),
   };
 }
 

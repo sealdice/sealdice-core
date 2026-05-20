@@ -6,6 +6,11 @@ body {
 :root {
   --sd-accent: #fcd34d;
   --sd-accent-strong: #d97706;
+  --sd-primary: #1d4ed8;
+  --sd-info: #0891b2;
+  --sd-success: #16a34a;
+  --sd-warning: #ca8a04;
+  --sd-error: #dc2626;
   --sd-bg-app: #f3f4f6;
   --sd-bg-page: #f3f4f6;
   --sd-bg-shell: #f3f4f6;
@@ -28,8 +33,6 @@ body {
   --sd-bg-elevated-tint: rgba(255, 255, 255, 0.88);
   --sd-text-inverse-soft: rgba(255, 255, 255, 0.86);
   --sd-text-inverse-muted: rgba(255, 255, 255, 0.68);
-  --primary-color: #1d4ed8;
-  --table-color-hover: var(--sd-bg-selected);
 }
 
 .dark {
@@ -57,8 +60,6 @@ body {
   --sd-bg-elevated-tint: rgba(24, 33, 51, 0.92);
   --sd-text-inverse-soft: rgba(255, 255, 255, 0.9);
   --sd-text-inverse-muted: rgba(255, 255, 255, 0.7);
-  --primary-color: #60a5fa;
-  --table-color-hover: var(--sd-bg-selected);
 }
 
 *,

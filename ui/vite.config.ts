@@ -111,7 +111,6 @@ export default defineConfig(({ mode }) => ({
             id.includes('/vue/') ||
             id.includes('/@vue/') ||
             id.includes('/vue-router/') ||
-            id.includes('/pinia/') ||
             id.includes('/@tanstack/query-core/') ||
             id.includes('/@tanstack/vue-query/')
           ) {

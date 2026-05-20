@@ -2,6 +2,7 @@
 import { computed, h, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import type { MenuOption } from 'naive-ui';
+import AppNavigationIcon from './AppNavigationIcon.vue';
 import AppSidebarBrand from './AppSidebarBrand.vue';
 import { getNavigationExpandedKeys } from '@/router/navigationModel';
 import type { NavigationItem } from '@/router/types';
@@ -30,58 +31,9 @@ function link(path: string, label: string) {
   return () => h(RouterLink, { to: path, class: 'sd-menu-link' }, () => label);
 }
 
-function renderIcon(name?: string) {
-  switch (name) {
-    case 'home':
-      return <i-ep-house />;
-    case 'connection':
-      return <i-ep-connection />;
-    case 'edit':
-      return <i-ep-edit-pen />;
-    case 'reply':
-      return <i-ep-chat-line-round />;
-    case 'deck':
-      return <i-ep-collection />;
-    case 'story':
-      return <i-ep-notebook />;
-    case 'js':
-      return <i-ep-cpu />;
-    case 'helpdoc':
-      return <i-ep-document />;
-    case 'censor':
-      return <i-ep-warning />;
-    case 'operation':
-      return <i-ep-operation />;
-    case 'setting':
-      return <i-ep-setting />;
-    case 'base-setting':
-      return <i-ep-setting />;
-    case 'group':
-      return <i-ep-user-filled />;
-    case 'ban':
-      return <i-ep-circle-close-filled />;
-    case 'dice':
-      return <i-ep-grid />;
-    case 'backup':
-      return <i-ep-folder-opened />;
-    case 'advanced-setting':
-      return <i-ep-tools />;
-    case 'tools':
-      return <i-ep-tools />;
-    case 'test':
-      return <i-ep-magic-stick />;
-    case 'resource':
-      return <i-ep-folder />;
-    case 'star':
-      return <i-ep-star-filled />;
-    default:
-      return <i-ep-menu />;
-  }
-}
-
 function icon(name?: string) {
   if (!name) return undefined;
-  return () => <n-icon>{renderIcon(name)}</n-icon>;
+  return () => <n-icon><AppNavigationIcon name={name} /></n-icon>;
 }
 
 function expandIcon() {

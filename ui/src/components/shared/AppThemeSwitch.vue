@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { inject, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { useAppTheme } from '@/features/theme';
 import { triggerThemeTransitionKey } from '@/features/theme/themeTransition';
 
 const { isDark } = useAppTheme();
 const triggerThemeTransition = inject(triggerThemeTransitionKey);
 const triggerRef = ref<HTMLElement | null>(null);
+// Naive UI 的 quaternary 按钮颜色由 color prop 写入内部 token；亮色态用深色图标，深色态用黄色图标。
+const switchIconColor = computed(() => (isDark.value ? 'var(--sd-accent)' : 'var(--sd-text-primary)'));
 
 function toggle(event: MouseEvent) {
   const rect = triggerRef.value?.getBoundingClientRect();
@@ -21,7 +23,7 @@ function toggle(event: MouseEvent) {
           quaternary
           circle
           class="theme-switch"
-          :class="{ active: isDark }"
+          :color="switchIconColor"
           :aria-label="isDark ? '切换到亮色模式' : '切换到深色模式'"
           @click="toggle"
         >
@@ -41,13 +43,5 @@ function toggle(event: MouseEvent) {
 <style scoped>
 .theme-switch-trigger {
   display: inline-flex;
-}
-
-.theme-switch {
-  color: var(--sd-text-inverse);
-}
-
-.theme-switch.active {
-  color: var(--sd-accent);
 }
 </style>

@@ -2,6 +2,9 @@
 import { computed, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
+import { appNavigation } from '@/router/navigation';
+import { buildBreadcrumbItems } from '@/router/navigationModel';
+import AppThemePaletteButton from './AppThemePaletteButton.vue';
 import AppThemeSwitch from './AppThemeSwitch.vue';
 
 const props = defineProps<{
@@ -20,74 +23,23 @@ const newsChecked = ref(true);
 const newsData = ref('<div>暂无内容</div>');
 const { overview, isStable, hasNewVersion } = useBaseOverview();
 
-const sectionTitles: Record<string, string> = {
-  'custom-text': '自定义文案',
-  mod: '扩展功能',
-  misc: '综合设置',
-  tool: '辅助工具',
-};
-
-const pageTitles: Record<string, string> = {
-  '/': '主页',
-  '/home': '主页',
-  '/connect': '账号设置',
-  '/mod/reply': '自定义回复',
-  '/mod/deck': '牌堆管理',
-  '/mod/story': '跑团日志',
-  '/mod/js': 'JS 扩展',
-  '/mod/helpdoc': '帮助文档',
-  '/mod/censor': '拦截管理',
-  '/misc/base-setting': '基本设置',
-  '/misc/group': '群组管理',
-  '/misc/ban': '黑白名单',
-  '/misc/dice-public': '公骰设置',
-  '/misc/backup': '备份',
-  '/misc/advanced-setting': '高级设置',
-  '/tool/test': '测试',
-  '/tool/resource': '资源管理',
-  '/about': '关于',
-};
-
-const breadcrumbItems = computed(() => {
-  const path = route.path === '/home' ? '/' : route.path;
-  if (path === '/') {
-    return [{ label: '主页', to: undefined }];
-  }
-
-  const items: { label: string; to?: string }[] = [];
-
-  const [, section] = path.split('/');
-  const sectionTitle = sectionTitles[section];
-  if (sectionTitle) {
-    items.push({ label: sectionTitle, to: undefined });
-  }
-
-  if (section === 'custom-text') {
-    items.push({
-      label: decodeURIComponent(path.split('/').slice(2).join('/')) || '当前页面',
-      to: undefined,
-    });
-    return items;
-  }
-
-  items.push({
-    label: pageTitles[path] ?? route.meta.title ?? sectionTitle ?? '当前页面',
-    to: undefined,
-  });
-
-  return items;
-});
+const breadcrumbItems = computed(() =>
+  buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面')),
+);
 </script>
 
 <template>
   <n-page-header class="sd-breadcrumb-bar">
     <template #title>
       <div class="sd-breadcrumb-title">
+        <!-- 桌面收起态用主题主色提示侧栏状态，移动端仍保持普通菜单按钮。 -->
         <n-button
           class="sd-sidebar-toggle"
+          :class="{ 'sd-sidebar-toggle--collapsed': props.collapsed && !props.mobileMode }"
           size="small"
           quaternary
           circle
+          :type="props.collapsed && !props.mobileMode ? 'primary' : 'default'"
           @click="emit('toggleSidebar')"
         >
           <template #icon>
@@ -116,6 +68,7 @@ const breadcrumbItems = computed(() => {
     <template #extra>
       <div class="sd-page-actions">
         <AppThemeSwitch />
+        <AppThemePaletteButton />
 
         <button type="button" class="search-entry" @click="emit('openSearch')">
           <span class="search-label">
@@ -211,6 +164,16 @@ const breadcrumbItems = computed(() => {
 
 .sd-sidebar-toggle {
   flex: 0 0 auto;
+}
+
+.sd-sidebar-toggle--collapsed {
+  background: var(--sd-bg-selected);
+  color: var(--sd-primary);
+}
+
+.sd-sidebar-toggle--collapsed:hover {
+  background: var(--sd-bg-selected-strong);
+  color: var(--sd-primary);
 }
 
 .version-summary {

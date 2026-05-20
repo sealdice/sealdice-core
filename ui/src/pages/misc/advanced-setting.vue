@@ -1,11 +1,5 @@
 <template>
   <main class="advanced-page">
-    <n-affix v-if="modified" :top="120" :trigger-top="60" class="w-full">
-      <TipBox type="error">
-        <n-text type="error" tag="strong" class="text-lg">内容已修改，不要忘记保存！</n-text>
-      </TipBox>
-    </n-affix>
-
     <h2 class="h-2">高级设置</h2>
     <TipBox type="warning" class="my-4">
       <n-text>
@@ -132,6 +126,7 @@ import {
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
+import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
 const queryClient = useQueryClient();
@@ -153,7 +148,8 @@ const config = ref<AdvancedConfig>({
   storyLogBackendToken: '',
 });
 const replyDebugMode = ref(false);
-const modified = ref(false);
+const initialConfig = ref<AdvancedConfig | null>(null);
+const initialReplyDebugMode = ref(false);
 
 const pageBusy = computed(() => {
   return advancedConfigQuery.isFetching.value || debugModeQuery.isFetching.value;
@@ -164,7 +160,7 @@ watch(
   value => {
     if (!value) return;
     config.value = structuredClone(value);
-    modified.value = false;
+    initialConfig.value = structuredClone(value);
   },
   { immediate: true },
 );
@@ -173,17 +169,23 @@ watch(
   () => debugModeQuery.data.value?.item.value,
   value => {
     replyDebugMode.value = value ?? false;
-    modified.value = false;
+    initialReplyDebugMode.value = value ?? false;
   },
   { immediate: true },
 );
 
-watch(config, () => {
-  modified.value = true;
-}, { deep: true });
+const modified = computed(() => {
+  if (!initialConfig.value) return false;
+  return JSON.stringify(config.value) !== JSON.stringify(initialConfig.value)
+    || replyDebugMode.value !== initialReplyDebugMode.value;
+});
 
-watch(replyDebugMode, () => {
-  modified.value = true;
+useUnsavedChanges('advanced-setting', {
+  label: '高级设置',
+  dirty: modified,
+  save,
+  saving: computed(() => saveMutation.isPending.value),
+  confirmMessage: '高级设置还有修改，确定要忽略？',
 });
 
 const saveMutation = useMutation({
@@ -201,7 +203,8 @@ const saveMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: getSdApiV2ConfigAdvancedQueryKey() });
     await queryClient.invalidateQueries({ queryKey: getSdApiV2CustomReplyDebugModeQueryKey() });
     setAdvancedSettingsVisible(config.value.show);
-    modified.value = false;
+    initialConfig.value = structuredClone(config.value);
+    initialReplyDebugMode.value = replyDebugMode.value;
     message.success('已保存');
   },
   onError: () => {
@@ -216,7 +219,6 @@ async function save() {
 async function reload() {
   await queryClient.invalidateQueries({ queryKey: getSdApiV2ConfigAdvancedQueryKey() });
   await queryClient.invalidateQueries({ queryKey: getSdApiV2CustomReplyDebugModeQueryKey() });
-  modified.value = false;
 }
 </script>
 

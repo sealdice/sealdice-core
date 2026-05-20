@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory, type RouteLocationNormalized, type 
 import { handleHotUpdate, routes } from 'vue-router/auto-routes';
 import { setupRouterProgress } from './progress';
 import { routeMeta } from './routeMeta';
+import { setupUnsavedChangesGuard } from '@/features/unsavedChanges';
 import './types';
 
 // vue-router/auto-routes 只负责从 pages/ 生成路径。项目级的标题、布局和
@@ -48,5 +49,6 @@ if (import.meta.hot) {
 }
 
 setupRouterProgress(router);
+setupUnsavedChangesGuard(router);
 
 export default router;

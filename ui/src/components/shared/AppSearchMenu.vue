@@ -10,6 +10,7 @@ import {
 } from '@/router/navigationModel';
 import type { NavigationSearchItem } from '@/router/types';
 import { useAppNavigation } from '@/router/useAppNavigation';
+import AppNavigationIcon from './AppNavigationIcon.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -91,10 +92,6 @@ function onMouseEnter(index: number) {
   selectedIndex.value = index;
 }
 
-function iconName(item: NavigationSearchItem) {
-  return item.icon ?? 'menu';
-}
-
 defineExpose({ open });
 </script>
 
@@ -165,27 +162,7 @@ defineExpose({ open });
           >
             <span class="sd-search-item-main">
               <n-icon class="sd-search-item-icon">
-                <i-ep-menu v-if="iconName(item) === 'menu'" />
-                <i-ep-house v-else-if="iconName(item) === 'home'" />
-                <i-ep-connection v-else-if="iconName(item) === 'connection'" />
-                <i-ep-edit-pen v-else-if="iconName(item) === 'edit'" />
-                <i-ep-chat-line-round v-else-if="iconName(item) === 'reply'" />
-                <i-ep-collection v-else-if="iconName(item) === 'deck'" />
-                <i-ep-notebook v-else-if="iconName(item) === 'story'" />
-                <i-ep-cpu v-else-if="iconName(item) === 'js'" />
-                <i-ep-document v-else-if="iconName(item) === 'helpdoc'" />
-                <i-ep-warning v-else-if="iconName(item) === 'censor'" />
-                <i-ep-operation v-else-if="iconName(item) === 'operation'" />
-                <i-ep-setting v-else-if="iconName(item) === 'setting' || iconName(item) === 'base-setting'" />
-                <i-ep-user-filled v-else-if="iconName(item) === 'group'" />
-                <i-ep-circle-close-filled v-else-if="iconName(item) === 'ban'" />
-                <i-ep-grid v-else-if="iconName(item) === 'dice'" />
-                <i-ep-folder-opened v-else-if="iconName(item) === 'backup'" />
-                <i-ep-tools v-else-if="iconName(item) === 'advanced-setting' || iconName(item) === 'tools'" />
-                <i-ep-magic-stick v-else-if="iconName(item) === 'test'" />
-                <i-ep-folder v-else-if="iconName(item) === 'resource'" />
-                <i-ep-star-filled v-else-if="iconName(item) === 'star'" />
-                <i-ep-menu v-else />
+                <AppNavigationIcon :name="item.icon" />
               </n-icon>
               <span class="sd-search-item-text">
                 <span class="sd-search-item-label">{{ item.label }}</span>
@@ -318,8 +295,8 @@ defineExpose({ open });
 
 .sd-search-item:hover,
 .sd-search-item.selected {
-  border-color: var(--primary-color);
-  background: var(--table-color-hover);
+  border-color: var(--sd-primary);
+  background: var(--sd-bg-selected);
 }
 
 .sd-search-item-main {
