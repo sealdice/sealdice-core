@@ -1,7 +1,7 @@
 <script setup lang="tsx">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
-import { NButton, NFlex, NIcon, NTabs, NTabPane, NText, NSwitch, useMessage } from 'naive-ui';
+import { NButton, NFlex, NIcon, NLog, NTabs, NTabPane, NText, NSwitch, useMessage, type LogInst } from 'naive-ui';
 import {
   getSdApiV2JsRecord,
   getSdApiV2JsStatusOptions,
@@ -14,6 +14,7 @@ import { hasAccessToken } from '@/features/auth/state';
 import JsListView from '@/components/js/JsListView.vue';
 import JsConfigView from '@/components/js/JsConfigView.vue';
 import JsDataView from '@/components/js/JsDataView.vue';
+import { useAppTheme } from '@/features/theme';
 
 const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
 
@@ -54,8 +55,19 @@ const jsSwitchBusy = ref(false);
 const needReload = ref(false);
 const jsConfigEdited = ref(false);
 const jsConfigViewRef = ref<InstanceType<typeof JsConfigView> | null>(null);
-const editorExtensions = shallowRef<unknown[]>([]);
-const editorReady = computed(() => editorExtensions.value.length > 0);
+const logRef = ref<LogInst | null>(null);
+const editorBaseExtensions = shallowRef<unknown[]>([]);
+const editorDarkTheme = shallowRef<unknown | null>(null);
+const { resolvedTheme } = useAppTheme();
+const editorReady = computed(() => editorBaseExtensions.value.length > 0);
+const editorDark = computed(() => resolvedTheme.value === 'dark');
+const editorExtensions = computed(() => {
+  if (!editorBaseExtensions.value.length) return [];
+  if (editorDark.value && editorDarkTheme.value) {
+    return [...editorBaseExtensions.value, editorDarkTheme.value];
+  }
+  return [...editorBaseExtensions.value];
+});
 
 // JS 总开关状态来自后端；切换时通过 reload/shutdown 表达实际语义，
 // 而不是只在前端改开关显示。
@@ -74,10 +86,29 @@ watch(
   { immediate: true },
 );
 
+function appendLogLines(lines: string[]) {
+  const cleaned = lines.filter(Boolean);
+  if (!cleaned.length) return;
+  jsLines.value.push(...cleaned);
+}
+
+function appendLogLine(line: string) {
+  appendLogLines([line]);
+}
+
+function appendExecutionSeparator() {
+  const stamp = new Date().toLocaleString('zh-CN', { hour12: false });
+  appendLogLine(`======= ${stamp} =======`);
+}
+
+function clearLogs() {
+  jsLines.value = [];
+}
+
 async function doExecute() {
   if (!code.value.trim()) return;
   jsRunning.value = true;
-  jsLines.value = [];
+  appendExecutionSeparator();
   try {
     const { data } = await postSdApiV2JsExecute({
       body: { body: { value: code.value } },
@@ -85,14 +116,15 @@ async function doExecute() {
     });
     const item = data.item;
     if (item.outputs?.length) {
-      jsLines.value.push(...item.outputs);
+      appendLogLines(item.outputs);
     }
     if (item.err) {
-      jsLines.value.push(`[Error] ${item.err}`);
+      appendLogLine(`[Error] ${item.err}`);
     } else if (item.ret !== undefined && item.ret !== null) {
-      jsLines.value.push(String(item.ret));
+      appendLogLine(String(item.ret));
     }
   } catch {
+    appendLogLine('[Error] 执行失败');
     message.error('执行失败');
   } finally {
     jsRunning.value = false;
@@ -104,12 +136,7 @@ function startRecordPolling() {
   recordTimer = setInterval(async () => {
     try {
       const { data } = await getSdApiV2JsRecord({ throwOnError: true });
-      const outputs = data.item.outputs ?? [];
-      for (const line of outputs) {
-        if (line) {
-          jsLines.value.push(line);
-        }
-      }
+      appendLogLines(data.item.outputs ?? []);
     } catch {
       // ignore polling errors
     }
@@ -170,13 +197,14 @@ async function saveJsConfig() {
 
 async function loadEditorExtensions() {
   // CodeMirror 体积较大，仅进入 console tab 时加载，避免拖慢 JS 管理页首屏。
-  if (editorExtensions.value.length) return;
+  if (editorBaseExtensions.value.length) return;
   const [{ basicSetup }, { oneDark }, { javascript }] = await Promise.all([
     import('codemirror'),
     import('@codemirror/theme-one-dark'),
     import('@codemirror/lang-javascript'),
   ]);
-  editorExtensions.value = [basicSetup, oneDark, javascript()];
+  editorBaseExtensions.value = [basicSetup, javascript()];
+  editorDarkTheme.value = oneDark;
 }
 
 watch(tab, value => {
@@ -184,6 +212,14 @@ watch(tab, value => {
     void loadEditorExtensions();
   }
 }, { immediate: true });
+
+watch(
+  () => jsLines.value.length,
+  async () => {
+    await nextTick();
+    logRef.value?.scrollTo({ position: 'bottom', silent: true });
+  },
+);
 
 onMounted(async () => {
   startRecordPolling();
@@ -237,40 +273,61 @@ onBeforeUnmount(() => {
 
     <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly">
       <n-tab-pane tab="控制台" name="console">
-        <header class="js-console-header">
-          <n-flex align="center" justify="space-between">
-            <n-text>JS 扩展执行环境</n-text>
-            <n-flex size="small">
-              <n-button type="info" secondary :disabled="!jsEnable || jsRunning" @click="doExecute">
-                <template #icon><n-icon><i-carbon-play /></n-icon></template>
-                执行代码
-              </n-button>
-            </n-flex>
-          </n-flex>
-        </header>
+        <section class="js-console-grid">
+          <section class="js-panel js-editor-panel">
+            <header class="js-panel-header">
+              <n-flex align="center" justify="space-between" :wrap="false">
+                <n-text class="js-panel-title">JS 扩展执行环境</n-text>
+                <n-button type="info" secondary :disabled="!jsEnable || jsRunning" @click="doExecute">
+                  <template #icon><n-icon><i-carbon-play /></n-icon></template>
+                  执行代码
+                </n-button>
+              </n-flex>
+            </header>
 
-        <section class="js-editor-section">
-          <CodeMirror
-            v-if="editorReady"
-            v-model="code"
-            class="js-editor"
-            :extensions="editorExtensions as never[]"
-            :wrap="true"
-          />
-          <n-skeleton v-else text :repeat="8" />
-          <n-text type="error" tag="p" class="js-console-tip">
-            注意：延迟执行的代码，其输出不会立即出现
-          </n-text>
-        </section>
+            <div class="js-panel-body js-editor-body">
+              <CodeMirror
+                v-if="editorReady"
+                v-model="code"
+                class="js-editor"
+                :extensions="editorExtensions as never[]"
+                :dark="editorDark"
+                :wrap="true"
+              />
+              <n-skeleton v-else text :repeat="8" />
+            </div>
 
-        <section class="js-output-section">
-          <n-text depth="3" class="mb-2">输出</n-text>
-          <div class="js-output-lines">
-            <p v-for="(line, idx) in jsLines" :key="idx" class="js-output-line">
-              <n-text code>{{ line }}</n-text>
-            </p>
-            <n-text v-if="!jsLines.length" depth="3">暂无输出</n-text>
-          </div>
+            <footer class="js-panel-footer">
+              <n-text type="error" tag="p" class="js-console-tip">
+                注意：延迟执行的代码，其输出不会立即出现
+              </n-text>
+            </footer>
+          </section>
+
+          <section class="js-panel js-output-panel">
+            <header class="js-panel-header">
+              <n-flex align="center" justify="space-between" :wrap="false">
+                <div class="js-panel-heading">
+                  <n-text class="js-panel-title">运行日志</n-text>
+                  <n-text depth="3" class="js-panel-subtitle">执行结果与轮询日志统一显示在这里</n-text>
+                </div>
+                <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
+                  <template #icon><n-icon><i-carbon-clean /></n-icon></template>
+                  清空日志
+                </n-button>
+              </n-flex>
+            </header>
+
+            <div class="js-panel-body js-output-body">
+              <n-log
+                ref="logRef"
+                class="js-output-log"
+                :lines="jsLines"
+                :rows="24"
+                trim
+              />
+            </div>
+          </section>
         </section>
       </n-tab-pane>
 
@@ -301,42 +358,180 @@ onBeforeUnmount(() => {
   margin-bottom: 1rem;
 }
 
-.js-console-header {
-  margin-bottom: 1rem;
+.js-console-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.js-panel {
+  display: flex;
+  min-height: 36rem;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--sd-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--sd-bg-elevated-tint) 0%, var(--sd-bg-elevated) 14%, var(--sd-bg-elevated) 100%);
+  box-shadow:
+    0 14px 32px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.dark .js-panel {
+  box-shadow:
+    0 20px 44px rgba(2, 6, 23, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.js-panel-header {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--sd-border-soft);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated-soft), transparent 10%) 0%, transparent 100%);
+}
+
+.js-panel-heading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.js-panel-title {
+  font-size: 0.97rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--sd-text-primary);
+}
+
+.js-panel-subtitle {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.js-panel-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+
+.js-editor-body,
+.js-output-body {
+  padding: 0.85rem;
 }
 
 .js-editor-section {
-  margin-bottom: 1rem;
+  min-width: auto;
 }
 
 .js-editor {
-  min-height: 20rem;
-  border: 1px solid var(--sd-border);
+  width: 100%;
+  min-height: 100%;
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 12px;
+  background: var(--sd-bg-page);
 }
 
-.js-execute-btn {
-  margin-top: 0.5rem;
+.js-editor :deep(.cm-editor) {
+  min-height: 100%;
+  color: var(--sd-text-primary);
+  background: var(--sd-bg-page);
+  font-family:
+    'Fira Code',
+    'DengXian',
+    'Microsoft YaHei Mono',
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+}
+
+.js-editor :deep(.cm-scroller) {
+  font-family: inherit;
+}
+
+.js-editor :deep(.cm-gutters) {
+  color: var(--sd-text-muted);
+  background: color-mix(in srgb, var(--sd-bg-elevated-soft), var(--sd-bg-page) 25%);
+  border-right: 1px solid var(--sd-border-soft);
+}
+
+.js-editor :deep(.cm-activeLine),
+.js-editor :deep(.cm-activeLineGutter) {
+  background: var(--sd-bg-hover);
+}
+
+.js-editor :deep(.cm-selectionBackground),
+.js-editor :deep(.cm-content ::selection) {
+  background: var(--sd-bg-selected);
+}
+
+.js-editor :deep(.cm-cursor),
+.js-editor :deep(.cm-dropCursor) {
+  border-left-color: var(--sd-text-primary);
 }
 
 .js-console-tip {
-  padding: 1rem 0;
+  margin: 0;
+  padding: 0;
 }
 
-.js-output-section {
-  margin-top: 1rem;
+.js-output-log {
+  width: 100%;
+  min-height: 100%;
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 12px;
+  background: var(--sd-bg-page);
+  font-family:
+    'Fira Code',
+    'DengXian',
+    'Microsoft YaHei Mono',
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
 }
 
-.js-output-lines {
-  max-height: 30rem;
-  overflow-y: auto;
-  padding: 0.5rem;
-  border: 1px solid var(--sd-border);
-  background: var(--sd-bg-elevated);
+.js-output-log :deep(.n-log) {
+  background: transparent;
 }
 
-.js-output-line {
-  margin: 0.15rem 0;
-  white-space: pre-wrap;
-  word-break: break-all;
+.js-output-log :deep(.n-scrollbar-container) {
+  border-radius: 12px;
+}
+
+.js-output-log :deep(.n-log-line) {
+  color: var(--sd-text-primary);
+}
+
+.js-panel-footer {
+  padding: 0 1rem 0.95rem;
+}
+
+@media (max-width: 960px) {
+  .js-console-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .js-panel {
+    min-height: 28rem;
+  }
+
+  .js-panel-header :deep(.n-flex) {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .js-panel-header :deep(.n-flex) {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
 }
 </style>

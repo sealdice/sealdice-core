@@ -97,6 +97,10 @@ const items = computed<JsInfoExt[]>(() =>
   (listQueryResult.data.value?.data ?? []).map(item => ({ ...item, pitch: false })),
 );
 const total = computed(() => listQueryResult.data.value?.total ?? 0);
+const hasItems = computed(() => items.value.length > 0);
+const selectedCount = computed(() => items.value.filter(item => item.pitch).length);
+const allSelected = computed(() => hasItems.value && items.value.every(item => item.pitch));
+const showPagination = computed(() => total.value > listQuery.pageSize);
 const filterHint = computed(() => {
   if (!listQuery.keyword.trim()) return '';
   return `当前匹配 ${total.value} 条`;
@@ -314,85 +318,95 @@ async function delSelected() {
     },
   });
 }
+
+function resetFilters() {
+  listQuery.keyword = '';
+  listQuery.sortBy = 'name';
+  listQuery.sortOrder = 'asc';
+  listQuery.page = 1;
+  void listQueryResult.refetch();
+}
+
+function toggleSelectAll(checked: boolean) {
+  items.value.forEach(item => {
+    item.pitch = checked;
+  });
+}
 </script>
 
 <template>
-  <div>
-    <section class="js-search-block">
-      <div class="js-toolbar-left">
-        <n-flex align="center" wrap size="small">
-          <n-input v-model:value="listQuery.keyword" placeholder="搜索名称/描述/作者" clearable class="js-search" />
-          <n-button type="info" secondary @click="listQueryResult.refetch()">查询</n-button>
-          <n-button
-            secondary
-            @click="
-              listQuery.keyword = '';
-              listQuery.sortBy = 'name';
-              listQuery.sortOrder = 'asc';
-              listQuery.page = 1;
-              listQueryResult.refetch();
-            "
-          >
-            重置
-          </n-button>
-          <n-button
-            type="info"
-            size="tiny"
-            text
-            tag="a"
-            target="_blank"
-            style="text-decoration: none"
-            href="https://github.com/sealdice/javascript"
-          >
-            <template #icon>
-              <n-icon><i-carbon-link /></n-icon>
-            </template>
-            获取插件
-          </n-button>
-        </n-flex>
-        <aside class="js-filter-hint">
-          <n-text v-if="filterHint" type="info" class="text-xs">
-            {{ filterHint }}
-          </n-text>
-        </aside>
-      </div>
-    </section>
+  <main class="js-list-page">
+    <section class="js-panel">
+      <header class="js-panel-header">
+        <div class="js-query-layout">
+          <div class="js-query-main">
+            <div class="js-query-fields">
+              <n-input v-model:value="listQuery.keyword" placeholder="搜索名称/描述/作者" clearable class="js-search">
+                <template #prefix>
+                  <n-icon><i-carbon-search /></n-icon>
+                </template>
+              </n-input>
+              <n-button type="info" secondary @click="listQueryResult.refetch()">查询</n-button>
+              <n-button secondary @click="resetFilters">重置</n-button>
+            </div>
+            <aside class="js-query-meta">
+              <n-text v-if="filterHint" type="info" class="text-xs">
+                {{ filterHint }}
+              </n-text>
+              <n-text v-else depth="3" class="text-xs">
+                支持按插件名称、简介和作者筛选
+              </n-text>
+            </aside>
+          </div>
 
-    <section class="js-action-block">
-      <div class="js-toolbar-right">
-        <n-flex size="small" align="center" wrap>
-          <n-upload
-            action=""
-            multiple
-            accept="application/javascript,application/typescript,.js,.ts"
-            :show-file-list="false"
-            :custom-request="uploadPlugin"
-          >
-            <n-button type="info" secondary :loading="uploader.busy.value">
+          <div class="js-query-tools">
+            <n-upload
+              action=""
+              multiple
+              accept="application/javascript,application/typescript,.js,.ts"
+              :show-file-list="false"
+              :custom-request="uploadPlugin"
+            >
+              <n-button type="info" secondary :loading="uploader.busy.value">
+                <template #icon>
+                  <n-icon><i-carbon-upload /></n-icon>
+                </template>
+                上传插件
+              </n-button>
+            </n-upload>
+            <n-select
+              v-model:value="listQuery.sortBy"
+              :options="sortByOptions"
+              class="js-sort"
+              size="small"
+              placeholder="排序"
+            />
+            <n-select
+              v-model:value="listQuery.sortOrder"
+              :options="sortOrderOptions"
+              class="js-order"
+              size="small"
+            />
+            <n-button
+              type="info"
+              size="tiny"
+              text
+              tag="a"
+              target="_blank"
+              style="text-decoration: none"
+              href="https://github.com/sealdice/javascript"
+            >
               <template #icon>
-                <n-icon><i-carbon-upload /></n-icon>
+                <n-icon><i-carbon-link /></n-icon>
               </template>
-              上传插件
+              获取插件
             </n-button>
-          </n-upload>
-          <n-select
-            v-model:value="listQuery.sortBy"
-            :options="sortByOptions"
-            class="js-sort"
-            size="small"
-            placeholder="排序"
-          />
-          <n-select
-            v-model:value="listQuery.sortOrder"
-            :options="sortOrderOptions"
-            class="js-order"
-            size="small"
-          />
-        </n-flex>
-      </div>
+          </div>
+        </div>
+      </header>
     </section>
 
-    <section v-if="activeUploadTasks.length" class="upload-panel">
+    <section v-if="activeUploadTasks.length" class="js-panel upload-panel">
       <div class="upload-panel-head">
         <h3>上传队列</h3>
         <n-tag size="small" :bordered="false" type="info">
@@ -436,31 +450,38 @@ async function delSelected() {
       </div>
     </section>
 
-    <section class="js-batch-actions-block">
-      <n-button-group class="js-batch-actions">
-      <n-button size="small" @click="items.forEach(i => (i.pitch = !i.pitch))">
-        <template #icon>
-          <n-icon><i-carbon-checkmark /></n-icon>
-        </template>
-        全选
-      </n-button>
-      <n-button
-        v-if="items.filter(i => i.pitch).length"
-        type="error"
-        size="small"
-        @click="delSelected"
-      >
-        <template #icon>
-          <n-icon><i-carbon-row-delete /></n-icon>
-        </template>
-        删除所选
-      </n-button>
-      </n-button-group>
-    </section>
+    <section class="js-panel">
+      <header class="js-panel-header js-data-header">
+        <div class="js-batch-actions">
+          <n-checkbox
+            :checked="allSelected"
+            :disabled="!hasItems"
+            @update:checked="toggleSelectAll"
+          >
+            全选
+          </n-checkbox>
+          <n-text depth="3" class="text-xs">
+            {{ hasItems ? `本页 ${items.length} 项，已选 ${selectedCount} 项` : '当前没有可操作的插件' }}
+          </n-text>
+        </div>
+        <n-button
+          type="error"
+          size="small"
+          secondary
+          :disabled="selectedCount === 0"
+          @click="delSelected"
+        >
+          <template #icon>
+            <n-icon><i-carbon-row-delete /></n-icon>
+          </template>
+          删除所选
+        </n-button>
+      </header>
 
-    <section class="js-list-main">
-      <template v-for="item in items" :key="item.filename">
-        <FoldableCard class="js-plugin-card" :err-title="item.filename" :err-text="item.errText">
+      <div class="js-panel-body">
+        <section v-if="hasItems" class="js-list-main">
+          <template v-for="item in items" :key="item.filename">
+            <FoldableCard class="js-plugin-card" :err-title="item.filename" :err-text="item.errText">
           <template #title>
             <n-flex align="center">
               <n-checkbox v-model:checked="item.pitch" />
@@ -584,24 +605,35 @@ async function delSelected() {
           <template #unfolded-extra>
             <n-ellipsis :line-clamp="2">{{ item.desc || '<暂无>' }}</n-ellipsis>
           </template>
-        </FoldableCard>
-      </template>
+            </FoldableCard>
+          </template>
+        </section>
 
-      <n-text v-if="!items.length && !listQueryResult.isFetching.value" depth="3" class="mt-4">
-        暂无插件
-      </n-text>
+        <div v-else-if="!listQueryResult.isFetching.value" class="js-empty-state">
+          <n-empty description="暂无插件">
+            <template #icon>
+              <n-icon size="40"><i-carbon-container-software /></n-icon>
+            </template>
+            <template #extra>
+              <n-text depth="3">可以先上传插件，或到插件仓库获取脚本后再导入。</n-text>
+            </template>
+          </n-empty>
+        </div>
+      </div>
     </section>
 
-    <div class="js-pagination-block">
-      <n-pagination
-        v-model:page="listQuery.page"
-        v-model:page-size="listQuery.pageSize"
-        show-size-picker
-        :page-sizes="[10, 20, 30, 50]"
-        :item-count="total"
-        :page-slot="3"
-      />
-    </div>
+    <section v-if="showPagination" class="js-panel js-pagination-panel">
+      <div class="js-pagination-block">
+        <n-pagination
+          v-model:page="listQuery.page"
+          v-model:page-size="listQuery.pageSize"
+          show-size-picker
+          :page-sizes="[10, 20, 30, 50]"
+          :item-count="total"
+          :page-slot="3"
+        />
+      </div>
+    </section>
 
     <n-modal v-model:show="showDiff" title="插件内容对比" preset="card" style="width: 90vw; max-width: 1000px">
       <DiffViewer
@@ -624,36 +656,79 @@ async function delSelected() {
         </n-flex>
       </template>
     </n-modal>
-  </div>
+  </main>
 </template>
 
 <style scoped>
-.js-search-block {
+.js-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.js-panel {
+  overflow: hidden;
+  border: 1px solid var(--sd-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--sd-bg-elevated-tint) 0%, var(--sd-bg-elevated) 14%, var(--sd-bg-elevated) 100%);
+  box-shadow:
+    0 14px 32px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.dark .js-panel {
+  box-shadow:
+    0 20px 44px rgba(2, 6, 23, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.js-panel-header {
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid var(--sd-border-soft);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated-soft), transparent 10%) 0%, transparent 100%);
+}
+
+.js-panel-body {
+  padding: 1rem;
+}
+
+.js-query-layout {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 0.9rem;
 }
 
-.js-toolbar-left {
+.js-query-main {
   min-width: 0;
-  flex: 1 1 320px;
+  flex: 1 1 24rem;
 }
 
-.js-toolbar-right {
-  margin-left: auto;
-}
-
-.js-action-block {
+.js-query-fields {
   display: flex;
-  justify-content: flex-start;
-  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.js-query-meta {
+  margin-top: 0.7rem;
+}
+
+.js-query-tools {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .js-search {
-  width: 15rem;
+  width: min(100%, 18rem);
 }
 
 .js-sort {
@@ -661,26 +736,11 @@ async function delSelected() {
 }
 
 .js-order {
-  width: 5rem;
-}
-
-.js-filter-hint {
-  margin-top: 1rem;
-}
-
-.js-batch-actions-block {
-  margin-bottom: 1rem;
-}
-
-.js-batch-actions {
-  display: block;
+  width: 5.5rem;
 }
 
 .upload-panel {
-  border: 1px solid var(--sd-border);
-  background: var(--sd-bg-elevated);
-  padding: 0.85rem;
-  margin-bottom: 1rem;
+  padding: 0.95rem 1rem 1rem;
 }
 
 .upload-panel-head {
@@ -746,21 +806,46 @@ async function delSelected() {
   color: var(--n-error-color);
 }
 
+.js-data-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.js-batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .js-list-main {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-top: 1rem;
 }
 
 .js-plugin-card {
   width: 100%;
 }
 
+.js-empty-state {
+  display: flex;
+  min-height: 17rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.js-pagination-panel {
+  padding: 0.85rem 1rem;
+}
+
 .js-pagination-block {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 1rem;
+  justify-content: flex-start;
 }
 
 .max-h-150 {
@@ -774,14 +859,16 @@ async function delSelected() {
 }
 
 @media screen and (max-width: 700px) {
-  .js-toolbar-right {
-    margin-left: 0;
-  }
-
+  .js-query-layout,
+  .js-data-header,
   .upload-item-head,
   .upload-detail {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .js-query-tools {
+    justify-content: flex-start;
   }
 }
 </style>
