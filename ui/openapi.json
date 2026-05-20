@@ -244,6 +244,449 @@
         ],
         "type": "object"
       },
+      "BaseSettingActionResp": {
+        "additionalProperties": false,
+        "properties": {
+          "err": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      },
+      "BaseSettingExtDefaultSettingItem": {
+        "additionalProperties": false,
+        "properties": {
+          "autoActive": {
+            "type": "boolean"
+          },
+          "disabledCommand": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object"
+          },
+          "loaded": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "autoActive",
+          "disabledCommand",
+          "loaded"
+        ],
+        "type": "object"
+      },
+      "BaseSettingFieldSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "allowCustomValue": {
+            "type": "boolean"
+          },
+          "confirmMessage": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/BaseSettingOption"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "readonly": {
+            "type": "boolean"
+          },
+          "sensitive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "BaseSettingGroupSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "collapsible": {
+            "type": "boolean"
+          },
+          "defaultExpanded": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/BaseSettingFieldSchema"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/BaseSettingNote"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "fields"
+        ],
+        "type": "object"
+      },
+      "BaseSettingNote": {
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tone",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "BaseSettingOption": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "BaseSettingSchemaResp": {
+        "additionalProperties": false,
+        "properties": {
+          "tabs": {
+            "items": {
+              "$ref": "#/components/schemas/BaseSettingTabSchema"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "tabs"
+        ],
+        "type": "object"
+      },
+      "BaseSettingTabSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/BaseSettingGroupSchema"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "groups"
+        ],
+        "type": "object"
+      },
+      "BaseSettingValueResp": {
+        "additionalProperties": false,
+        "properties": {
+          "QQChannelAutoOn": {
+            "type": "boolean"
+          },
+          "QQChannelLogMessage": {
+            "type": "boolean"
+          },
+          "QQEnablePoke": {
+            "type": "boolean"
+          },
+          "aliveNoticeEnable": {
+            "type": "boolean"
+          },
+          "aliveNoticeValue": {
+            "type": "string"
+          },
+          "botExtFreeSwitch": {
+            "type": "boolean"
+          },
+          "commandPrefix": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "defaultCocRuleIndex": {
+            "type": "string"
+          },
+          "diceMasters": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "extDefaultSettings": {
+            "items": {
+              "$ref": "#/components/schemas/BaseSettingExtDefaultSettingItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "friendAddComment": {
+            "type": "string"
+          },
+          "groupBurst": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "groupReplenishRate": {
+            "type": "string"
+          },
+          "ignoreUnaddressedBotCmd": {
+            "type": "boolean"
+          },
+          "logSizeNoticeCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "logSizeNoticeEnable": {
+            "type": "boolean"
+          },
+          "mailEnable": {
+            "type": "boolean"
+          },
+          "mailFrom": {
+            "type": "string"
+          },
+          "mailPassword": {
+            "type": "string"
+          },
+          "mailSmtp": {
+            "type": "string"
+          },
+          "masterUnlockCode": {
+            "type": "string"
+          },
+          "maxCocCardGen": {
+            "type": "string"
+          },
+          "maxExecuteTime": {
+            "type": "string"
+          },
+          "messageDelayRangeEnd": {
+            "format": "double",
+            "type": "number"
+          },
+          "messageDelayRangeStart": {
+            "format": "double",
+            "type": "number"
+          },
+          "noticeIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "onlyLogCommandInGroup": {
+            "type": "boolean"
+          },
+          "onlyLogCommandInPrivate": {
+            "type": "boolean"
+          },
+          "personalBurst": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "personalReplenishRate": {
+            "type": "string"
+          },
+          "playerNameWrapEnable": {
+            "type": "boolean"
+          },
+          "quitInactiveBatchSize": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "quitInactiveBatchWait": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "quitInactiveThreshold": {
+            "format": "double",
+            "type": "number"
+          },
+          "rateLimitEnabled": {
+            "type": "boolean"
+          },
+          "refuseGroupInvite": {
+            "type": "boolean"
+          },
+          "serveAddress": {
+            "type": "string"
+          },
+          "textCmdTrustOnly": {
+            "type": "boolean"
+          },
+          "trustOnlyMode": {
+            "type": "boolean"
+          },
+          "uiPassword": {
+            "type": "string"
+          },
+          "workInQQChannel": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "commandPrefix",
+          "diceMasters",
+          "noticeIds",
+          "masterUnlockCode",
+          "uiPassword",
+          "mailEnable",
+          "mailFrom",
+          "mailPassword",
+          "mailSmtp",
+          "trustOnlyMode",
+          "botExtFreeSwitch",
+          "QQEnablePoke",
+          "textCmdTrustOnly",
+          "ignoreUnaddressedBotCmd",
+          "aliveNoticeEnable",
+          "aliveNoticeValue",
+          "logSizeNoticeEnable",
+          "logSizeNoticeCount",
+          "playerNameWrapEnable",
+          "onlyLogCommandInGroup",
+          "onlyLogCommandInPrivate",
+          "rateLimitEnabled",
+          "personalReplenishRate",
+          "personalBurst",
+          "groupReplenishRate",
+          "groupBurst",
+          "serveAddress",
+          "refuseGroupInvite",
+          "friendAddComment",
+          "workInQQChannel",
+          "QQChannelAutoOn",
+          "QQChannelLogMessage",
+          "defaultCocRuleIndex",
+          "maxCocCardGen",
+          "maxExecuteTime",
+          "messageDelayRangeStart",
+          "messageDelayRangeEnd",
+          "quitInactiveThreshold",
+          "quitInactiveBatchSize",
+          "quitInactiveBatchWait",
+          "extDefaultSettings"
+        ],
+        "type": "object"
+      },
       "BatchDeleteResp": {
         "additionalProperties": false,
         "properties": {
@@ -415,6 +858,72 @@
         ],
         "type": "object"
       },
+      "BodyBaseSettingActionResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyBaseSettingActionResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/BaseSettingActionResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyBaseSettingSchemaResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyBaseSettingSchemaResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/BaseSettingSchemaResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyBaseSettingValueResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyBaseSettingValueResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/BaseSettingValueResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
       "BodyBatchDeleteResp": {
         "additionalProperties": false,
         "properties": {
@@ -452,6 +961,138 @@
           "item": {
             "description": "响应数据项",
             "type": "boolean"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyCensorConfigBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyCensorConfigBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/CensorConfigBody",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyCensorFilesResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyCensorFilesResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/CensorFilesResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyCensorLogPageResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyCensorLogPageResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/CensorLogPageResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyCensorSimpleResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyCensorSimpleResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/CensorSimpleResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyCensorStatusResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyCensorStatusResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/CensorStatusResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyCensorWordsResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyCensorWordsResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/CensorWordsResp",
+            "description": "响应数据项"
           }
         },
         "required": [
@@ -891,6 +1532,116 @@
           },
           "item": {
             "$ref": "#/components/schemas/HealthData",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyHelpConfigBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyHelpConfigBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/HelpConfigBody",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyHelpDocUploadChunkResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyHelpDocUploadChunkResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/HelpDocUploadChunkResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyHelpDocUploadCompleteResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyHelpDocUploadCompleteResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/HelpDocUploadCompleteResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyHelpDocUploadSessionResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyHelpDocUploadSessionResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/HelpDocUploadSessionResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyHelpTextItemPageResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyHelpTextItemPageResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/HelpTextItemPageResp",
             "description": "响应数据项"
           }
         },
@@ -1474,6 +2225,50 @@
         ],
         "type": "object"
       },
+      "BodySimpleResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodySimpleResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/SimpleResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyStatusResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyStatusResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/StatusResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
       "BodyStoryInfo": {
         "additionalProperties": false,
         "properties": {
@@ -1536,6 +2331,28 @@
           },
           "item": {
             "$ref": "#/components/schemas/TextResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyTreeResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyTreeResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/TreeResp",
             "description": "响应数据项"
           }
         },
@@ -1695,6 +2512,344 @@
         },
         "required": [
           "item"
+        ],
+        "type": "object"
+      },
+      "CensorConfigBody": {
+        "additionalProperties": false,
+        "properties": {
+          "caseSensitive": {
+            "type": "boolean"
+          },
+          "filterRegex": {
+            "type": "string"
+          },
+          "levelConfig": {
+            "$ref": "#/components/schemas/CensorLevelConfigs"
+          },
+          "matchPinyin": {
+            "type": "boolean"
+          },
+          "mode": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "caseSensitive",
+          "matchPinyin",
+          "filterRegex",
+          "levelConfig"
+        ],
+        "type": "object"
+      },
+      "CensorDeleteFilesReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "type": "object"
+      },
+      "CensorFileInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "count": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "maxItems": 5,
+            "minItems": 5,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "desc": {
+            "type": "string"
+          },
+          "fileType": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "count",
+          "fileType",
+          "name",
+          "author",
+          "version",
+          "desc",
+          "license"
+        ],
+        "type": "object"
+      },
+      "CensorFilesResp": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CensorFileInfo"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "type": "object"
+      },
+      "CensorLevelConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "handlers": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "score": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "threshold": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "threshold",
+          "handlers",
+          "score"
+        ],
+        "type": "object"
+      },
+      "CensorLevelConfigs": {
+        "additionalProperties": false,
+        "properties": {
+          "caution": {
+            "$ref": "#/components/schemas/CensorLevelConfig"
+          },
+          "danger": {
+            "$ref": "#/components/schemas/CensorLevelConfig"
+          },
+          "notice": {
+            "$ref": "#/components/schemas/CensorLevelConfig"
+          },
+          "warning": {
+            "$ref": "#/components/schemas/CensorLevelConfig"
+          }
+        },
+        "required": [
+          "notice",
+          "caution",
+          "warning",
+          "danger"
+        ],
+        "type": "object"
+      },
+      "CensorLog": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "highestLevel": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "msgType": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "msgType",
+          "userId",
+          "groupId",
+          "content",
+          "highestLevel",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "CensorLogPageResp": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CensorLog"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "pageNum": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pageSize": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "pageNum",
+          "pageSize"
+        ],
+        "type": "object"
+      },
+      "CensorRelatedWord": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "word": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "word",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CensorSimpleResp": {
+        "additionalProperties": false,
+        "properties": {
+          "err": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "testMode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      },
+      "CensorStatusResp": {
+        "additionalProperties": false,
+        "properties": {
+          "enable": {
+            "type": "boolean"
+          },
+          "isLoading": {
+            "type": "boolean"
+          },
+          "testMode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enable",
+          "isLoading"
+        ],
+        "type": "object"
+      },
+      "CensorWordItem": {
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "main": {
+            "type": "string"
+          },
+          "related": {
+            "items": {
+              "$ref": "#/components/schemas/CensorRelatedWord"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "main",
+          "level",
+          "related"
+        ],
+        "type": "object"
+      },
+      "CensorWordsResp": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CensorWordItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data"
         ],
         "type": "object"
       },
@@ -2148,6 +3303,24 @@
         },
         "required": [
           "id"
+        ],
+        "type": "object"
+      },
+      "DeleteReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "keys"
         ],
         "type": "object"
       },
@@ -3005,6 +4178,281 @@
           "status",
           "testMode",
           "initialized"
+        ],
+        "type": "object"
+      },
+      "HelpConfigBody": {
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "aliases"
+        ],
+        "type": "object"
+      },
+      "HelpDoc": {
+        "additionalProperties": false,
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/HelpDoc"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "group": {
+            "type": "string"
+          },
+          "isDir": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          },
+          "loadStatus": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "path",
+          "group",
+          "type",
+          "isDir",
+          "loadStatus",
+          "deleted",
+          "children"
+        ],
+        "type": "object"
+      },
+      "HelpDocUploadChunkResp": {
+        "additionalProperties": false,
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "uploadedBytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "uploadedChunk": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "success",
+          "uploadedBytes",
+          "uploadedChunk"
+        ],
+        "type": "object"
+      },
+      "HelpDocUploadCompleteReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "HelpDocUploadCompleteResp": {
+        "additionalProperties": false,
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "testMode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "filename",
+          "group"
+        ],
+        "type": "object"
+      },
+      "HelpDocUploadInitReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "chunkSize": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "fileHash": {
+            "type": "string"
+          },
+          "fileSize": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "filename",
+          "fileSize",
+          "fileHash",
+          "chunkSize"
+        ],
+        "type": "object"
+      },
+      "HelpDocUploadSessionResp": {
+        "additionalProperties": false,
+        "properties": {
+          "chunkSize": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expectedChunks": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "resumeSupported": {
+            "type": "boolean"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "uploadedBytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "uploadedChunks": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "sessionId",
+          "chunkSize",
+          "uploadedChunks",
+          "uploadedBytes",
+          "expectedChunks",
+          "resumeSupported"
+        ],
+        "type": "object"
+      },
+      "HelpTextItemPageResp": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HelpTextVo"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "pageNum": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pageSize": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "data",
+          "pageNum",
+          "pageSize"
+        ],
+        "type": "object"
+      },
+      "HelpTextVo": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "keyWords": {
+            "type": "string"
+          },
+          "packageName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "group",
+          "from",
+          "title",
+          "content",
+          "packageName",
+          "keyWords"
         ],
         "type": "object"
       },
@@ -4301,6 +5749,48 @@
         ],
         "type": "object"
       },
+      "RequestWrapperCensorConfigBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RequestWrapperCensorConfigBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/components/schemas/CensorConfigBody"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "RequestWrapperCensorDeleteFilesReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RequestWrapperCensorDeleteFilesReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/components/schemas/CensorDeleteFilesReqBody"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
       "RequestWrapperCleanupReqBody": {
         "additionalProperties": false,
         "properties": {
@@ -4364,6 +5854,27 @@
         ],
         "type": "object"
       },
+      "RequestWrapperDeleteReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RequestWrapperDeleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/components/schemas/DeleteReqBody"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
       "RequestWrapperEnableBody": {
         "additionalProperties": false,
         "properties": {
@@ -4420,6 +5931,69 @@
           },
           "body": {
             "$ref": "#/components/schemas/FilenameReqBody"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "RequestWrapperHelpConfigBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RequestWrapperHelpConfigBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HelpConfigBody"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "RequestWrapperHelpDocUploadCompleteReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RequestWrapperHelpDocUploadCompleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HelpDocUploadCompleteReqBody"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "RequestWrapperHelpDocUploadInitReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RequestWrapperHelpDocUploadInitReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/components/schemas/HelpDocUploadInitReqBody"
           }
         },
         "required": [
@@ -5037,6 +6611,24 @@
         ],
         "type": "object"
       },
+      "SimpleResp": {
+        "additionalProperties": false,
+        "properties": {
+          "err": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "testMode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "type": "object"
+      },
       "SizeRange": {
         "additionalProperties": false,
         "properties": {
@@ -5052,6 +6644,21 @@
         "required": [
           "min",
           "max"
+        ],
+        "type": "object"
+      },
+      "StatusResp": {
+        "additionalProperties": false,
+        "properties": {
+          "loading": {
+            "type": "boolean"
+          },
+          "testMode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "loading"
         ],
         "type": "object"
       },
@@ -5242,6 +6849,24 @@
           "texts",
           "helpInfo",
           "previewInfo"
+        ],
+        "type": "object"
+      },
+      "TreeResp": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/HelpDoc"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "data"
         ],
         "type": "object"
       },
@@ -6076,6 +7701,199 @@
         ]
       }
     },
+    "/sd-api/v2/base-setting/mail-test": {
+      "post": {
+        "description": "发送测试邮件",
+        "operationId": "post-sd-api-v2-base-setting-mail-test",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyBaseSettingActionResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 base setting mail test",
+        "tags": [
+          "base-setting"
+        ]
+      }
+    },
+    "/sd-api/v2/base-setting/schema": {
+      "get": {
+        "description": "获取基本设置页 schema",
+        "operationId": "get-sd-api-v2-base-setting-schema",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyBaseSettingSchemaResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 base setting schema",
+        "tags": [
+          "base-setting"
+        ]
+      }
+    },
+    "/sd-api/v2/base-setting/upgrade": {
+      "post": {
+        "description": "上传固件升级包",
+        "operationId": "post-sd-api-v2-base-setting-upgrade",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyBaseSettingActionResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 base setting upgrade",
+        "tags": [
+          "base-setting"
+        ]
+      }
+    },
+    "/sd-api/v2/base-setting/value": {
+      "get": {
+        "description": "获取基本设置当前值",
+        "operationId": "get-sd-api-v2-base-setting-value",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyBaseSettingValueResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 base setting value",
+        "tags": [
+          "base-setting"
+        ]
+      },
+      "put": {
+        "description": "保存基本设置（支持部分字段提交）",
+        "operationId": "put-sd-api-v2-base-setting-value",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestWrapperMapStringInterface {}"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyBaseSettingActionResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Put sd API v2 base setting value",
+        "tags": [
+          "base-setting"
+        ]
+      }
+    },
     "/sd-api/v2/base/health": {
       "get": {
         "description": "检查服务是否正常",
@@ -6243,6 +8061,454 @@
         "summary": "检查安全状态",
         "tags": [
           "base"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/config": {
+      "get": {
+        "description": "获取拦截配置",
+        "operationId": "get-sd-api-v2-censor-config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorConfigBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 censor config",
+        "tags": [
+          "censor"
+        ]
+      },
+      "post": {
+        "description": "保存拦截配置",
+        "operationId": "post-sd-api-v2-censor-config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestWrapperCensorConfigBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorConfigBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 censor config",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/files": {
+      "delete": {
+        "description": "删除词库文件",
+        "operationId": "delete-sd-api-v2-censor-files",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestWrapperCensorDeleteFilesReqBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorSimpleResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete sd API v2 censor files",
+        "tags": [
+          "censor"
+        ]
+      },
+      "get": {
+        "description": "获取词库文件列表",
+        "operationId": "get-sd-api-v2-censor-files",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorFilesResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 censor files",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/files/template/toml": {
+      "get": {
+        "description": "下载 TOML 词库模板",
+        "operationId": "get-sd-api-v2-censor-files-template-toml",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 censor files template toml",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/files/template/txt": {
+      "get": {
+        "description": "下载 TXT 词库模板",
+        "operationId": "get-sd-api-v2-censor-files-template-txt",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 censor files template txt",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/files/upload": {
+      "post": {
+        "description": "上传词库文件",
+        "operationId": "post-sd-api-v2-censor-files-upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorSimpleResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 censor files upload",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/logs/page": {
+      "get": {
+        "description": "分页获取拦截日志",
+        "operationId": "get-sd-api-v2-censor-logs-page",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "pageNum",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "userId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "level",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorLogPageResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 censor logs page",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/restart": {
+      "post": {
+        "description": "启用并重载拦截引擎",
+        "operationId": "post-sd-api-v2-censor-restart",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorStatusResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 censor restart",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/status": {
+      "get": {
+        "description": "获取拦截管理状态",
+        "operationId": "get-sd-api-v2-censor-status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorStatusResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 censor status",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/stop": {
+      "post": {
+        "description": "关闭拦截引擎",
+        "operationId": "post-sd-api-v2-censor-stop",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorStatusResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 censor stop",
+        "tags": [
+          "censor"
+        ]
+      }
+    },
+    "/sd-api/v2/censor/words": {
+      "get": {
+        "description": "获取敏感词列表",
+        "operationId": "get-sd-api-v2-censor-words",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCensorWordsResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 censor words",
+        "tags": [
+          "censor"
         ]
       }
     },
@@ -7774,6 +10040,496 @@
         "summary": "Post sd API v2 group quit",
         "tags": [
           "group"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/config": {
+      "get": {
+        "description": "获取帮助文档配置",
+        "operationId": "get-sd-api-v2-helpdoc-config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyHelpConfigBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 helpdoc config",
+        "tags": [
+          "helpdoc"
+        ]
+      },
+      "post": {
+        "description": "保存帮助文档配置",
+        "operationId": "post-sd-api-v2-helpdoc-config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestWrapperHelpConfigBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySimpleResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 helpdoc config",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/delete": {
+      "post": {
+        "description": "删除帮助文档文件",
+        "operationId": "post-sd-api-v2-helpdoc-delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestWrapperDeleteReqBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySimpleResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 helpdoc delete",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/items/page": {
+      "get": {
+        "description": "分页查询帮助词条",
+        "operationId": "get-sd-api-v2-helpdoc-items-page",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "pageNum",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "group",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "title",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyHelpTextItemPageResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 helpdoc items page",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/reload": {
+      "post": {
+        "description": "重载帮助文档",
+        "operationId": "post-sd-api-v2-helpdoc-reload",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySimpleResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 helpdoc reload",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/status": {
+      "get": {
+        "description": "获取帮助文档加载状态",
+        "operationId": "get-sd-api-v2-helpdoc-status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyStatusResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 helpdoc status",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/tree": {
+      "get": {
+        "description": "获取帮助文档文件树",
+        "operationId": "get-sd-api-v2-helpdoc-tree",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyTreeResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 helpdoc tree",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/upload/complete": {
+      "post": {
+        "description": "完成帮助文档上传",
+        "operationId": "post-sd-api-v2-helpdoc-upload-complete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestWrapperHelpDocUploadCompleteReqBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyHelpDocUploadCompleteResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 helpdoc upload complete",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/upload/init": {
+      "post": {
+        "description": "初始化帮助文档上传会话",
+        "operationId": "post-sd-api-v2-helpdoc-upload-init",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestWrapperHelpDocUploadInitReqBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyHelpDocUploadSessionResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 helpdoc upload init",
+        "tags": [
+          "helpdoc"
+        ]
+      }
+    },
+    "/sd-api/v2/helpdoc/upload/{sessionId}/{index}": {
+      "get": {
+        "description": "获取帮助文档上传分块状态",
+        "operationId": "get-sd-api-v2-helpdoc-upload-by-session-id-by-index",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyHelpDocUploadChunkResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 helpdoc upload by session ID by index",
+        "tags": [
+          "helpdoc"
+        ]
+      },
+      "put": {
+        "description": "上传帮助文档分块",
+        "operationId": "put-sd-api-v2-helpdoc-upload-by-session-id-by-index",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "index",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyHelpDocUploadChunkResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Put sd API v2 helpdoc upload by session ID by index",
+        "tags": [
+          "helpdoc"
         ]
       }
     },

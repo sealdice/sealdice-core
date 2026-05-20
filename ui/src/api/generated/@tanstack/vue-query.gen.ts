@@ -4,6 +4,7 @@ import { queryOptions, type UseMutationOptions } from '@tanstack/vue-query';
 
 import { client } from '../client.gen';
 import {
+  deleteSdApiV2CensorFiles,
   deleteSdApiV2CustomReplyFilesByFilename,
   deleteSdApiV2ImconnectionById,
   deleteSdApiV2StoryLog,
@@ -15,6 +16,15 @@ import {
   getSdApiV2BaseLoginSalt,
   getSdApiV2BaseOverview,
   getSdApiV2BaseSecurityCheck,
+  getSdApiV2BaseSettingSchema,
+  getSdApiV2BaseSettingValue,
+  getSdApiV2CensorConfig,
+  getSdApiV2CensorFiles,
+  getSdApiV2CensorFilesTemplateToml,
+  getSdApiV2CensorFilesTemplateTxt,
+  getSdApiV2CensorLogsPage,
+  getSdApiV2CensorStatus,
+  getSdApiV2CensorWords,
   getSdApiV2ConfigAdvanced,
   getSdApiV2ConfigReply,
   getSdApiV2CustomReplyDebugMode,
@@ -27,6 +37,11 @@ import {
   getSdApiV2DeckList,
   getSdApiV2DeckUploadBySessionIdByIndex,
   getSdApiV2GroupPlatforms,
+  getSdApiV2HelpdocConfig,
+  getSdApiV2HelpdocItemsPage,
+  getSdApiV2HelpdocStatus,
+  getSdApiV2HelpdocTree,
+  getSdApiV2HelpdocUploadBySessionIdByIndex,
   getSdApiV2Imconnection,
   getSdApiV2ImconnectionByIdConfig,
   getSdApiV2ImconnectionByIdQrcode,
@@ -58,6 +73,12 @@ import {
   postSdApiV2BanDelete,
   postSdApiV2BanList,
   postSdApiV2BaseLogin,
+  postSdApiV2BaseSettingMailTest,
+  postSdApiV2BaseSettingUpgrade,
+  postSdApiV2CensorConfig,
+  postSdApiV2CensorFilesUpload,
+  postSdApiV2CensorRestart,
+  postSdApiV2CensorStop,
   postSdApiV2CustomReplyFiles,
   postSdApiV2CustomReplyFilesUpload,
   postSdApiV2CustomTextByCategoryPreviewRefresh,
@@ -73,6 +94,11 @@ import {
   postSdApiV2GroupList,
   postSdApiV2GroupModify,
   postSdApiV2GroupQuit,
+  postSdApiV2HelpdocConfig,
+  postSdApiV2HelpdocDelete,
+  postSdApiV2HelpdocReload,
+  postSdApiV2HelpdocUploadComplete,
+  postSdApiV2HelpdocUploadInit,
   postSdApiV2Imconnection,
   postSdApiV2JsByNameData,
   postSdApiV2JsByNameDataDelete,
@@ -94,17 +120,22 @@ import {
   postSdApiV2StoryBackupBatchDelete,
   postSdApiV2StoryCleanup,
   postSdApiV2StoryUploadLog,
+  putSdApiV2BaseSettingValue,
   putSdApiV2ConfigAdvanced,
   putSdApiV2ConfigReply,
   putSdApiV2CustomReplyDebugMode,
   putSdApiV2CustomReplyFilesByFilename,
   putSdApiV2CustomTextByCategory,
   putSdApiV2DeckUploadBySessionIdByIndex,
+  putSdApiV2HelpdocUploadBySessionIdByIndex,
   putSdApiV2ImconnectionById,
   putSdApiV2ImconnectionByIdEnable,
   putSdApiV2JsUploadBySessionIdByIndex,
 } from '../sdk.gen';
 import type {
+  DeleteSdApiV2CensorFilesData,
+  DeleteSdApiV2CensorFilesError,
+  DeleteSdApiV2CensorFilesResponse,
   DeleteSdApiV2CustomReplyFilesByFilenameData,
   DeleteSdApiV2CustomReplyFilesByFilenameError,
   DeleteSdApiV2CustomReplyFilesByFilenameResponse,
@@ -136,6 +167,31 @@ import type {
   GetSdApiV2BaseSecurityCheckData,
   GetSdApiV2BaseSecurityCheckError,
   GetSdApiV2BaseSecurityCheckResponse,
+  GetSdApiV2BaseSettingSchemaData,
+  GetSdApiV2BaseSettingSchemaError,
+  GetSdApiV2BaseSettingSchemaResponse,
+  GetSdApiV2BaseSettingValueData,
+  GetSdApiV2BaseSettingValueError,
+  GetSdApiV2BaseSettingValueResponse,
+  GetSdApiV2CensorConfigData,
+  GetSdApiV2CensorConfigError,
+  GetSdApiV2CensorConfigResponse,
+  GetSdApiV2CensorFilesData,
+  GetSdApiV2CensorFilesError,
+  GetSdApiV2CensorFilesResponse,
+  GetSdApiV2CensorFilesTemplateTomlData,
+  GetSdApiV2CensorFilesTemplateTomlError,
+  GetSdApiV2CensorFilesTemplateTxtData,
+  GetSdApiV2CensorFilesTemplateTxtError,
+  GetSdApiV2CensorLogsPageData,
+  GetSdApiV2CensorLogsPageError,
+  GetSdApiV2CensorLogsPageResponse,
+  GetSdApiV2CensorStatusData,
+  GetSdApiV2CensorStatusError,
+  GetSdApiV2CensorStatusResponse,
+  GetSdApiV2CensorWordsData,
+  GetSdApiV2CensorWordsError,
+  GetSdApiV2CensorWordsResponse,
   GetSdApiV2ConfigAdvancedData,
   GetSdApiV2ConfigAdvancedError,
   GetSdApiV2ConfigAdvancedResponse,
@@ -171,6 +227,21 @@ import type {
   GetSdApiV2GroupPlatformsData,
   GetSdApiV2GroupPlatformsError,
   GetSdApiV2GroupPlatformsResponse,
+  GetSdApiV2HelpdocConfigData,
+  GetSdApiV2HelpdocConfigError,
+  GetSdApiV2HelpdocConfigResponse,
+  GetSdApiV2HelpdocItemsPageData,
+  GetSdApiV2HelpdocItemsPageError,
+  GetSdApiV2HelpdocItemsPageResponse,
+  GetSdApiV2HelpdocStatusData,
+  GetSdApiV2HelpdocStatusError,
+  GetSdApiV2HelpdocStatusResponse,
+  GetSdApiV2HelpdocTreeData,
+  GetSdApiV2HelpdocTreeError,
+  GetSdApiV2HelpdocTreeResponse,
+  GetSdApiV2HelpdocUploadBySessionIdByIndexData,
+  GetSdApiV2HelpdocUploadBySessionIdByIndexError,
+  GetSdApiV2HelpdocUploadBySessionIdByIndexResponse,
   GetSdApiV2ImconnectionByIdConfigData,
   GetSdApiV2ImconnectionByIdConfigError,
   GetSdApiV2ImconnectionByIdConfigResponse,
@@ -260,6 +331,24 @@ import type {
   PostSdApiV2BaseLoginData,
   PostSdApiV2BaseLoginError,
   PostSdApiV2BaseLoginResponse,
+  PostSdApiV2BaseSettingMailTestData,
+  PostSdApiV2BaseSettingMailTestError,
+  PostSdApiV2BaseSettingMailTestResponse,
+  PostSdApiV2BaseSettingUpgradeData,
+  PostSdApiV2BaseSettingUpgradeError,
+  PostSdApiV2BaseSettingUpgradeResponse,
+  PostSdApiV2CensorConfigData,
+  PostSdApiV2CensorConfigError,
+  PostSdApiV2CensorConfigResponse,
+  PostSdApiV2CensorFilesUploadData,
+  PostSdApiV2CensorFilesUploadError,
+  PostSdApiV2CensorFilesUploadResponse,
+  PostSdApiV2CensorRestartData,
+  PostSdApiV2CensorRestartError,
+  PostSdApiV2CensorRestartResponse,
+  PostSdApiV2CensorStopData,
+  PostSdApiV2CensorStopError,
+  PostSdApiV2CensorStopResponse,
   PostSdApiV2CustomReplyFilesData,
   PostSdApiV2CustomReplyFilesError,
   PostSdApiV2CustomReplyFilesResponse,
@@ -305,6 +394,21 @@ import type {
   PostSdApiV2GroupQuitData,
   PostSdApiV2GroupQuitError,
   PostSdApiV2GroupQuitResponse,
+  PostSdApiV2HelpdocConfigData,
+  PostSdApiV2HelpdocConfigError,
+  PostSdApiV2HelpdocConfigResponse,
+  PostSdApiV2HelpdocDeleteData,
+  PostSdApiV2HelpdocDeleteError,
+  PostSdApiV2HelpdocDeleteResponse,
+  PostSdApiV2HelpdocReloadData,
+  PostSdApiV2HelpdocReloadError,
+  PostSdApiV2HelpdocReloadResponse,
+  PostSdApiV2HelpdocUploadCompleteData,
+  PostSdApiV2HelpdocUploadCompleteError,
+  PostSdApiV2HelpdocUploadCompleteResponse,
+  PostSdApiV2HelpdocUploadInitData,
+  PostSdApiV2HelpdocUploadInitError,
+  PostSdApiV2HelpdocUploadInitResponse,
   PostSdApiV2ImconnectionData,
   PostSdApiV2ImconnectionError,
   PostSdApiV2ImconnectionResponse,
@@ -368,6 +472,9 @@ import type {
   PostSdApiV2StoryUploadLogData,
   PostSdApiV2StoryUploadLogError,
   PostSdApiV2StoryUploadLogResponse,
+  PutSdApiV2BaseSettingValueData,
+  PutSdApiV2BaseSettingValueError,
+  PutSdApiV2BaseSettingValueResponse,
   PutSdApiV2ConfigAdvancedData,
   PutSdApiV2ConfigAdvancedError,
   PutSdApiV2ConfigAdvancedResponse,
@@ -386,6 +493,9 @@ import type {
   PutSdApiV2DeckUploadBySessionIdByIndexData,
   PutSdApiV2DeckUploadBySessionIdByIndexError,
   PutSdApiV2DeckUploadBySessionIdByIndexResponse,
+  PutSdApiV2HelpdocUploadBySessionIdByIndexData,
+  PutSdApiV2HelpdocUploadBySessionIdByIndexError,
+  PutSdApiV2HelpdocUploadBySessionIdByIndexResponse,
   PutSdApiV2ImconnectionByIdData,
   PutSdApiV2ImconnectionByIdEnableData,
   PutSdApiV2ImconnectionByIdEnableError,
@@ -747,6 +857,153 @@ export const postSdApiV2BanListMutation = (
   return mutationOptions;
 };
 
+/**
+ * Post sd API v2 base setting mail test
+ *
+ * 发送测试邮件
+ */
+export const postSdApiV2BaseSettingMailTestMutation = (
+  options?: Partial<Options<PostSdApiV2BaseSettingMailTestData>>
+): UseMutationOptions<
+  PostSdApiV2BaseSettingMailTestResponse,
+  PostSdApiV2BaseSettingMailTestError,
+  Options<PostSdApiV2BaseSettingMailTestData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2BaseSettingMailTestResponse,
+    PostSdApiV2BaseSettingMailTestError,
+    Options<PostSdApiV2BaseSettingMailTestData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2BaseSettingMailTest({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2BaseSettingSchemaQueryKey = (
+  options?: Options<GetSdApiV2BaseSettingSchemaData>
+) => createQueryKey('getSdApiV2BaseSettingSchema', options);
+
+/**
+ * Get sd API v2 base setting schema
+ *
+ * 获取基本设置页 schema
+ */
+export const getSdApiV2BaseSettingSchemaOptions = (
+  options?: Options<GetSdApiV2BaseSettingSchemaData>
+) =>
+  queryOptions<
+    GetSdApiV2BaseSettingSchemaResponse,
+    GetSdApiV2BaseSettingSchemaError,
+    GetSdApiV2BaseSettingSchemaResponse,
+    ReturnType<typeof getSdApiV2BaseSettingSchemaQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2BaseSettingSchema({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2BaseSettingSchemaQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 base setting upgrade
+ *
+ * 上传固件升级包
+ */
+export const postSdApiV2BaseSettingUpgradeMutation = (
+  options?: Partial<Options<PostSdApiV2BaseSettingUpgradeData>>
+): UseMutationOptions<
+  PostSdApiV2BaseSettingUpgradeResponse,
+  PostSdApiV2BaseSettingUpgradeError,
+  Options<PostSdApiV2BaseSettingUpgradeData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2BaseSettingUpgradeResponse,
+    PostSdApiV2BaseSettingUpgradeError,
+    Options<PostSdApiV2BaseSettingUpgradeData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2BaseSettingUpgrade({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2BaseSettingValueQueryKey = (
+  options?: Options<GetSdApiV2BaseSettingValueData>
+) => createQueryKey('getSdApiV2BaseSettingValue', options);
+
+/**
+ * Get sd API v2 base setting value
+ *
+ * 获取基本设置当前值
+ */
+export const getSdApiV2BaseSettingValueOptions = (
+  options?: Options<GetSdApiV2BaseSettingValueData>
+) =>
+  queryOptions<
+    GetSdApiV2BaseSettingValueResponse,
+    GetSdApiV2BaseSettingValueError,
+    GetSdApiV2BaseSettingValueResponse,
+    ReturnType<typeof getSdApiV2BaseSettingValueQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2BaseSettingValue({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2BaseSettingValueQueryKey(options),
+  });
+
+/**
+ * Put sd API v2 base setting value
+ *
+ * 保存基本设置（支持部分字段提交）
+ */
+export const putSdApiV2BaseSettingValueMutation = (
+  options?: Partial<Options<PutSdApiV2BaseSettingValueData>>
+): UseMutationOptions<
+  PutSdApiV2BaseSettingValueResponse,
+  PutSdApiV2BaseSettingValueError,
+  Options<PutSdApiV2BaseSettingValueData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PutSdApiV2BaseSettingValueResponse,
+    PutSdApiV2BaseSettingValueError,
+    Options<PutSdApiV2BaseSettingValueData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await putSdApiV2BaseSettingValue({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
 export const getSdApiV2BaseHealthQueryKey = (options?: Options<GetSdApiV2BaseHealthData>) =>
   createQueryKey('getSdApiV2BaseHealth', options);
 
@@ -885,6 +1142,346 @@ export const getSdApiV2BaseSecurityCheckOptions = (
       return data;
     },
     queryKey: getSdApiV2BaseSecurityCheckQueryKey(options),
+  });
+
+export const getSdApiV2CensorConfigQueryKey = (options?: Options<GetSdApiV2CensorConfigData>) =>
+  createQueryKey('getSdApiV2CensorConfig', options);
+
+/**
+ * Get sd API v2 censor config
+ *
+ * 获取拦截配置
+ */
+export const getSdApiV2CensorConfigOptions = (options?: Options<GetSdApiV2CensorConfigData>) =>
+  queryOptions<
+    GetSdApiV2CensorConfigResponse,
+    GetSdApiV2CensorConfigError,
+    GetSdApiV2CensorConfigResponse,
+    ReturnType<typeof getSdApiV2CensorConfigQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2CensorConfig({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2CensorConfigQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 censor config
+ *
+ * 保存拦截配置
+ */
+export const postSdApiV2CensorConfigMutation = (
+  options?: Partial<Options<PostSdApiV2CensorConfigData>>
+): UseMutationOptions<
+  PostSdApiV2CensorConfigResponse,
+  PostSdApiV2CensorConfigError,
+  Options<PostSdApiV2CensorConfigData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2CensorConfigResponse,
+    PostSdApiV2CensorConfigError,
+    Options<PostSdApiV2CensorConfigData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2CensorConfig({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
+ * Delete sd API v2 censor files
+ *
+ * 删除词库文件
+ */
+export const deleteSdApiV2CensorFilesMutation = (
+  options?: Partial<Options<DeleteSdApiV2CensorFilesData>>
+): UseMutationOptions<
+  DeleteSdApiV2CensorFilesResponse,
+  DeleteSdApiV2CensorFilesError,
+  Options<DeleteSdApiV2CensorFilesData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    DeleteSdApiV2CensorFilesResponse,
+    DeleteSdApiV2CensorFilesError,
+    Options<DeleteSdApiV2CensorFilesData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await deleteSdApiV2CensorFiles({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2CensorFilesQueryKey = (options?: Options<GetSdApiV2CensorFilesData>) =>
+  createQueryKey('getSdApiV2CensorFiles', options);
+
+/**
+ * Get sd API v2 censor files
+ *
+ * 获取词库文件列表
+ */
+export const getSdApiV2CensorFilesOptions = (options?: Options<GetSdApiV2CensorFilesData>) =>
+  queryOptions<
+    GetSdApiV2CensorFilesResponse,
+    GetSdApiV2CensorFilesError,
+    GetSdApiV2CensorFilesResponse,
+    ReturnType<typeof getSdApiV2CensorFilesQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2CensorFiles({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2CensorFilesQueryKey(options),
+  });
+
+export const getSdApiV2CensorFilesTemplateTomlQueryKey = (
+  options?: Options<GetSdApiV2CensorFilesTemplateTomlData>
+) => createQueryKey('getSdApiV2CensorFilesTemplateToml', options);
+
+/**
+ * Get sd API v2 censor files template toml
+ *
+ * 下载 TOML 词库模板
+ */
+export const getSdApiV2CensorFilesTemplateTomlOptions = (
+  options?: Options<GetSdApiV2CensorFilesTemplateTomlData>
+) =>
+  queryOptions<
+    unknown,
+    GetSdApiV2CensorFilesTemplateTomlError,
+    unknown,
+    ReturnType<typeof getSdApiV2CensorFilesTemplateTomlQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2CensorFilesTemplateToml({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2CensorFilesTemplateTomlQueryKey(options),
+  });
+
+export const getSdApiV2CensorFilesTemplateTxtQueryKey = (
+  options?: Options<GetSdApiV2CensorFilesTemplateTxtData>
+) => createQueryKey('getSdApiV2CensorFilesTemplateTxt', options);
+
+/**
+ * Get sd API v2 censor files template txt
+ *
+ * 下载 TXT 词库模板
+ */
+export const getSdApiV2CensorFilesTemplateTxtOptions = (
+  options?: Options<GetSdApiV2CensorFilesTemplateTxtData>
+) =>
+  queryOptions<
+    unknown,
+    GetSdApiV2CensorFilesTemplateTxtError,
+    unknown,
+    ReturnType<typeof getSdApiV2CensorFilesTemplateTxtQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2CensorFilesTemplateTxt({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2CensorFilesTemplateTxtQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 censor files upload
+ *
+ * 上传词库文件
+ */
+export const postSdApiV2CensorFilesUploadMutation = (
+  options?: Partial<Options<PostSdApiV2CensorFilesUploadData>>
+): UseMutationOptions<
+  PostSdApiV2CensorFilesUploadResponse,
+  PostSdApiV2CensorFilesUploadError,
+  Options<PostSdApiV2CensorFilesUploadData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2CensorFilesUploadResponse,
+    PostSdApiV2CensorFilesUploadError,
+    Options<PostSdApiV2CensorFilesUploadData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2CensorFilesUpload({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2CensorLogsPageQueryKey = (options?: Options<GetSdApiV2CensorLogsPageData>) =>
+  createQueryKey('getSdApiV2CensorLogsPage', options);
+
+/**
+ * Get sd API v2 censor logs page
+ *
+ * 分页获取拦截日志
+ */
+export const getSdApiV2CensorLogsPageOptions = (options?: Options<GetSdApiV2CensorLogsPageData>) =>
+  queryOptions<
+    GetSdApiV2CensorLogsPageResponse,
+    GetSdApiV2CensorLogsPageError,
+    GetSdApiV2CensorLogsPageResponse,
+    ReturnType<typeof getSdApiV2CensorLogsPageQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2CensorLogsPage({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2CensorLogsPageQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 censor restart
+ *
+ * 启用并重载拦截引擎
+ */
+export const postSdApiV2CensorRestartMutation = (
+  options?: Partial<Options<PostSdApiV2CensorRestartData>>
+): UseMutationOptions<
+  PostSdApiV2CensorRestartResponse,
+  PostSdApiV2CensorRestartError,
+  Options<PostSdApiV2CensorRestartData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2CensorRestartResponse,
+    PostSdApiV2CensorRestartError,
+    Options<PostSdApiV2CensorRestartData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2CensorRestart({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2CensorStatusQueryKey = (options?: Options<GetSdApiV2CensorStatusData>) =>
+  createQueryKey('getSdApiV2CensorStatus', options);
+
+/**
+ * Get sd API v2 censor status
+ *
+ * 获取拦截管理状态
+ */
+export const getSdApiV2CensorStatusOptions = (options?: Options<GetSdApiV2CensorStatusData>) =>
+  queryOptions<
+    GetSdApiV2CensorStatusResponse,
+    GetSdApiV2CensorStatusError,
+    GetSdApiV2CensorStatusResponse,
+    ReturnType<typeof getSdApiV2CensorStatusQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2CensorStatus({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2CensorStatusQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 censor stop
+ *
+ * 关闭拦截引擎
+ */
+export const postSdApiV2CensorStopMutation = (
+  options?: Partial<Options<PostSdApiV2CensorStopData>>
+): UseMutationOptions<
+  PostSdApiV2CensorStopResponse,
+  PostSdApiV2CensorStopError,
+  Options<PostSdApiV2CensorStopData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2CensorStopResponse,
+    PostSdApiV2CensorStopError,
+    Options<PostSdApiV2CensorStopData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2CensorStop({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2CensorWordsQueryKey = (options?: Options<GetSdApiV2CensorWordsData>) =>
+  createQueryKey('getSdApiV2CensorWords', options);
+
+/**
+ * Get sd API v2 censor words
+ *
+ * 获取敏感词列表
+ */
+export const getSdApiV2CensorWordsOptions = (options?: Options<GetSdApiV2CensorWordsData>) =>
+  queryOptions<
+    GetSdApiV2CensorWordsResponse,
+    GetSdApiV2CensorWordsError,
+    GetSdApiV2CensorWordsResponse,
+    ReturnType<typeof getSdApiV2CensorWordsQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2CensorWords({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2CensorWordsQueryKey(options),
   });
 
 export const getSdApiV2ConfigAdvancedQueryKey = (options?: Options<GetSdApiV2ConfigAdvancedData>) =>
@@ -1860,6 +2457,321 @@ export const postSdApiV2GroupQuitMutation = (
   > = {
     mutationFn: async fnOptions => {
       const { data } = await postSdApiV2GroupQuit({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2HelpdocConfigQueryKey = (options?: Options<GetSdApiV2HelpdocConfigData>) =>
+  createQueryKey('getSdApiV2HelpdocConfig', options);
+
+/**
+ * Get sd API v2 helpdoc config
+ *
+ * 获取帮助文档配置
+ */
+export const getSdApiV2HelpdocConfigOptions = (options?: Options<GetSdApiV2HelpdocConfigData>) =>
+  queryOptions<
+    GetSdApiV2HelpdocConfigResponse,
+    GetSdApiV2HelpdocConfigError,
+    GetSdApiV2HelpdocConfigResponse,
+    ReturnType<typeof getSdApiV2HelpdocConfigQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2HelpdocConfig({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2HelpdocConfigQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 helpdoc config
+ *
+ * 保存帮助文档配置
+ */
+export const postSdApiV2HelpdocConfigMutation = (
+  options?: Partial<Options<PostSdApiV2HelpdocConfigData>>
+): UseMutationOptions<
+  PostSdApiV2HelpdocConfigResponse,
+  PostSdApiV2HelpdocConfigError,
+  Options<PostSdApiV2HelpdocConfigData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2HelpdocConfigResponse,
+    PostSdApiV2HelpdocConfigError,
+    Options<PostSdApiV2HelpdocConfigData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2HelpdocConfig({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
+ * Post sd API v2 helpdoc delete
+ *
+ * 删除帮助文档文件
+ */
+export const postSdApiV2HelpdocDeleteMutation = (
+  options?: Partial<Options<PostSdApiV2HelpdocDeleteData>>
+): UseMutationOptions<
+  PostSdApiV2HelpdocDeleteResponse,
+  PostSdApiV2HelpdocDeleteError,
+  Options<PostSdApiV2HelpdocDeleteData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2HelpdocDeleteResponse,
+    PostSdApiV2HelpdocDeleteError,
+    Options<PostSdApiV2HelpdocDeleteData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2HelpdocDelete({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2HelpdocItemsPageQueryKey = (
+  options?: Options<GetSdApiV2HelpdocItemsPageData>
+) => createQueryKey('getSdApiV2HelpdocItemsPage', options);
+
+/**
+ * Get sd API v2 helpdoc items page
+ *
+ * 分页查询帮助词条
+ */
+export const getSdApiV2HelpdocItemsPageOptions = (
+  options?: Options<GetSdApiV2HelpdocItemsPageData>
+) =>
+  queryOptions<
+    GetSdApiV2HelpdocItemsPageResponse,
+    GetSdApiV2HelpdocItemsPageError,
+    GetSdApiV2HelpdocItemsPageResponse,
+    ReturnType<typeof getSdApiV2HelpdocItemsPageQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2HelpdocItemsPage({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2HelpdocItemsPageQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 helpdoc reload
+ *
+ * 重载帮助文档
+ */
+export const postSdApiV2HelpdocReloadMutation = (
+  options?: Partial<Options<PostSdApiV2HelpdocReloadData>>
+): UseMutationOptions<
+  PostSdApiV2HelpdocReloadResponse,
+  PostSdApiV2HelpdocReloadError,
+  Options<PostSdApiV2HelpdocReloadData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2HelpdocReloadResponse,
+    PostSdApiV2HelpdocReloadError,
+    Options<PostSdApiV2HelpdocReloadData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2HelpdocReload({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2HelpdocStatusQueryKey = (options?: Options<GetSdApiV2HelpdocStatusData>) =>
+  createQueryKey('getSdApiV2HelpdocStatus', options);
+
+/**
+ * Get sd API v2 helpdoc status
+ *
+ * 获取帮助文档加载状态
+ */
+export const getSdApiV2HelpdocStatusOptions = (options?: Options<GetSdApiV2HelpdocStatusData>) =>
+  queryOptions<
+    GetSdApiV2HelpdocStatusResponse,
+    GetSdApiV2HelpdocStatusError,
+    GetSdApiV2HelpdocStatusResponse,
+    ReturnType<typeof getSdApiV2HelpdocStatusQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2HelpdocStatus({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2HelpdocStatusQueryKey(options),
+  });
+
+export const getSdApiV2HelpdocTreeQueryKey = (options?: Options<GetSdApiV2HelpdocTreeData>) =>
+  createQueryKey('getSdApiV2HelpdocTree', options);
+
+/**
+ * Get sd API v2 helpdoc tree
+ *
+ * 获取帮助文档文件树
+ */
+export const getSdApiV2HelpdocTreeOptions = (options?: Options<GetSdApiV2HelpdocTreeData>) =>
+  queryOptions<
+    GetSdApiV2HelpdocTreeResponse,
+    GetSdApiV2HelpdocTreeError,
+    GetSdApiV2HelpdocTreeResponse,
+    ReturnType<typeof getSdApiV2HelpdocTreeQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2HelpdocTree({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2HelpdocTreeQueryKey(options),
+  });
+
+/**
+ * Post sd API v2 helpdoc upload complete
+ *
+ * 完成帮助文档上传
+ */
+export const postSdApiV2HelpdocUploadCompleteMutation = (
+  options?: Partial<Options<PostSdApiV2HelpdocUploadCompleteData>>
+): UseMutationOptions<
+  PostSdApiV2HelpdocUploadCompleteResponse,
+  PostSdApiV2HelpdocUploadCompleteError,
+  Options<PostSdApiV2HelpdocUploadCompleteData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2HelpdocUploadCompleteResponse,
+    PostSdApiV2HelpdocUploadCompleteError,
+    Options<PostSdApiV2HelpdocUploadCompleteData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2HelpdocUploadComplete({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
+ * Post sd API v2 helpdoc upload init
+ *
+ * 初始化帮助文档上传会话
+ */
+export const postSdApiV2HelpdocUploadInitMutation = (
+  options?: Partial<Options<PostSdApiV2HelpdocUploadInitData>>
+): UseMutationOptions<
+  PostSdApiV2HelpdocUploadInitResponse,
+  PostSdApiV2HelpdocUploadInitError,
+  Options<PostSdApiV2HelpdocUploadInitData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2HelpdocUploadInitResponse,
+    PostSdApiV2HelpdocUploadInitError,
+    Options<PostSdApiV2HelpdocUploadInitData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2HelpdocUploadInit({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2HelpdocUploadBySessionIdByIndexQueryKey = (
+  options: Options<GetSdApiV2HelpdocUploadBySessionIdByIndexData>
+) => createQueryKey('getSdApiV2HelpdocUploadBySessionIdByIndex', options);
+
+/**
+ * Get sd API v2 helpdoc upload by session ID by index
+ *
+ * 获取帮助文档上传分块状态
+ */
+export const getSdApiV2HelpdocUploadBySessionIdByIndexOptions = (
+  options: Options<GetSdApiV2HelpdocUploadBySessionIdByIndexData>
+) =>
+  queryOptions<
+    GetSdApiV2HelpdocUploadBySessionIdByIndexResponse,
+    GetSdApiV2HelpdocUploadBySessionIdByIndexError,
+    GetSdApiV2HelpdocUploadBySessionIdByIndexResponse,
+    ReturnType<typeof getSdApiV2HelpdocUploadBySessionIdByIndexQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2HelpdocUploadBySessionIdByIndex({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2HelpdocUploadBySessionIdByIndexQueryKey(options),
+  });
+
+/**
+ * Put sd API v2 helpdoc upload by session ID by index
+ *
+ * 上传帮助文档分块
+ */
+export const putSdApiV2HelpdocUploadBySessionIdByIndexMutation = (
+  options?: Partial<Options<PutSdApiV2HelpdocUploadBySessionIdByIndexData>>
+): UseMutationOptions<
+  PutSdApiV2HelpdocUploadBySessionIdByIndexResponse,
+  PutSdApiV2HelpdocUploadBySessionIdByIndexError,
+  Options<PutSdApiV2HelpdocUploadBySessionIdByIndexData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PutSdApiV2HelpdocUploadBySessionIdByIndexResponse,
+    PutSdApiV2HelpdocUploadBySessionIdByIndexError,
+    Options<PutSdApiV2HelpdocUploadBySessionIdByIndexData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await putSdApiV2HelpdocUploadBySessionIdByIndex({
         ...options,
         ...fnOptions,
         throwOnError: true,

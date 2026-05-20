@@ -8,6 +8,9 @@ import {
 } from './client';
 import { client } from './client.gen';
 import type {
+  DeleteSdApiV2CensorFilesData,
+  DeleteSdApiV2CensorFilesErrors,
+  DeleteSdApiV2CensorFilesResponses,
   DeleteSdApiV2CustomReplyFilesByFilenameData,
   DeleteSdApiV2CustomReplyFilesByFilenameErrors,
   DeleteSdApiV2CustomReplyFilesByFilenameResponses,
@@ -41,6 +44,33 @@ import type {
   GetSdApiV2BaseSecurityCheckData,
   GetSdApiV2BaseSecurityCheckErrors,
   GetSdApiV2BaseSecurityCheckResponses,
+  GetSdApiV2BaseSettingSchemaData,
+  GetSdApiV2BaseSettingSchemaErrors,
+  GetSdApiV2BaseSettingSchemaResponses,
+  GetSdApiV2BaseSettingValueData,
+  GetSdApiV2BaseSettingValueErrors,
+  GetSdApiV2BaseSettingValueResponses,
+  GetSdApiV2CensorConfigData,
+  GetSdApiV2CensorConfigErrors,
+  GetSdApiV2CensorConfigResponses,
+  GetSdApiV2CensorFilesData,
+  GetSdApiV2CensorFilesErrors,
+  GetSdApiV2CensorFilesResponses,
+  GetSdApiV2CensorFilesTemplateTomlData,
+  GetSdApiV2CensorFilesTemplateTomlErrors,
+  GetSdApiV2CensorFilesTemplateTomlResponses,
+  GetSdApiV2CensorFilesTemplateTxtData,
+  GetSdApiV2CensorFilesTemplateTxtErrors,
+  GetSdApiV2CensorFilesTemplateTxtResponses,
+  GetSdApiV2CensorLogsPageData,
+  GetSdApiV2CensorLogsPageErrors,
+  GetSdApiV2CensorLogsPageResponses,
+  GetSdApiV2CensorStatusData,
+  GetSdApiV2CensorStatusErrors,
+  GetSdApiV2CensorStatusResponses,
+  GetSdApiV2CensorWordsData,
+  GetSdApiV2CensorWordsErrors,
+  GetSdApiV2CensorWordsResponses,
   GetSdApiV2ConfigAdvancedData,
   GetSdApiV2ConfigAdvancedErrors,
   GetSdApiV2ConfigAdvancedResponses,
@@ -77,6 +107,21 @@ import type {
   GetSdApiV2GroupPlatformsData,
   GetSdApiV2GroupPlatformsErrors,
   GetSdApiV2GroupPlatformsResponses,
+  GetSdApiV2HelpdocConfigData,
+  GetSdApiV2HelpdocConfigErrors,
+  GetSdApiV2HelpdocConfigResponses,
+  GetSdApiV2HelpdocItemsPageData,
+  GetSdApiV2HelpdocItemsPageErrors,
+  GetSdApiV2HelpdocItemsPageResponses,
+  GetSdApiV2HelpdocStatusData,
+  GetSdApiV2HelpdocStatusErrors,
+  GetSdApiV2HelpdocStatusResponses,
+  GetSdApiV2HelpdocTreeData,
+  GetSdApiV2HelpdocTreeErrors,
+  GetSdApiV2HelpdocTreeResponses,
+  GetSdApiV2HelpdocUploadBySessionIdByIndexData,
+  GetSdApiV2HelpdocUploadBySessionIdByIndexErrors,
+  GetSdApiV2HelpdocUploadBySessionIdByIndexResponses,
   GetSdApiV2ImconnectionByIdConfigData,
   GetSdApiV2ImconnectionByIdConfigErrors,
   GetSdApiV2ImconnectionByIdConfigResponses,
@@ -167,6 +212,24 @@ import type {
   PostSdApiV2BaseLoginData,
   PostSdApiV2BaseLoginErrors,
   PostSdApiV2BaseLoginResponses,
+  PostSdApiV2BaseSettingMailTestData,
+  PostSdApiV2BaseSettingMailTestErrors,
+  PostSdApiV2BaseSettingMailTestResponses,
+  PostSdApiV2BaseSettingUpgradeData,
+  PostSdApiV2BaseSettingUpgradeErrors,
+  PostSdApiV2BaseSettingUpgradeResponses,
+  PostSdApiV2CensorConfigData,
+  PostSdApiV2CensorConfigErrors,
+  PostSdApiV2CensorConfigResponses,
+  PostSdApiV2CensorFilesUploadData,
+  PostSdApiV2CensorFilesUploadErrors,
+  PostSdApiV2CensorFilesUploadResponses,
+  PostSdApiV2CensorRestartData,
+  PostSdApiV2CensorRestartErrors,
+  PostSdApiV2CensorRestartResponses,
+  PostSdApiV2CensorStopData,
+  PostSdApiV2CensorStopErrors,
+  PostSdApiV2CensorStopResponses,
   PostSdApiV2CustomReplyFilesData,
   PostSdApiV2CustomReplyFilesErrors,
   PostSdApiV2CustomReplyFilesResponses,
@@ -212,6 +275,21 @@ import type {
   PostSdApiV2GroupQuitData,
   PostSdApiV2GroupQuitErrors,
   PostSdApiV2GroupQuitResponses,
+  PostSdApiV2HelpdocConfigData,
+  PostSdApiV2HelpdocConfigErrors,
+  PostSdApiV2HelpdocConfigResponses,
+  PostSdApiV2HelpdocDeleteData,
+  PostSdApiV2HelpdocDeleteErrors,
+  PostSdApiV2HelpdocDeleteResponses,
+  PostSdApiV2HelpdocReloadData,
+  PostSdApiV2HelpdocReloadErrors,
+  PostSdApiV2HelpdocReloadResponses,
+  PostSdApiV2HelpdocUploadCompleteData,
+  PostSdApiV2HelpdocUploadCompleteErrors,
+  PostSdApiV2HelpdocUploadCompleteResponses,
+  PostSdApiV2HelpdocUploadInitData,
+  PostSdApiV2HelpdocUploadInitErrors,
+  PostSdApiV2HelpdocUploadInitResponses,
   PostSdApiV2ImconnectionData,
   PostSdApiV2ImconnectionErrors,
   PostSdApiV2ImconnectionResponses,
@@ -275,6 +353,9 @@ import type {
   PostSdApiV2StoryUploadLogData,
   PostSdApiV2StoryUploadLogErrors,
   PostSdApiV2StoryUploadLogResponses,
+  PutSdApiV2BaseSettingValueData,
+  PutSdApiV2BaseSettingValueErrors,
+  PutSdApiV2BaseSettingValueResponses,
   PutSdApiV2ConfigAdvancedData,
   PutSdApiV2ConfigAdvancedErrors,
   PutSdApiV2ConfigAdvancedResponses,
@@ -293,6 +374,9 @@ import type {
   PutSdApiV2DeckUploadBySessionIdByIndexData,
   PutSdApiV2DeckUploadBySessionIdByIndexErrors,
   PutSdApiV2DeckUploadBySessionIdByIndexResponses,
+  PutSdApiV2HelpdocUploadBySessionIdByIndexData,
+  PutSdApiV2HelpdocUploadBySessionIdByIndexErrors,
+  PutSdApiV2HelpdocUploadBySessionIdByIndexResponses,
   PutSdApiV2ImconnectionByIdData,
   PutSdApiV2ImconnectionByIdEnableData,
   PutSdApiV2ImconnectionByIdEnableErrors,
@@ -525,6 +609,91 @@ export const postSdApiV2BanList = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Post sd API v2 base setting mail test
+ *
+ * 发送测试邮件
+ */
+export const postSdApiV2BaseSettingMailTest = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2BaseSettingMailTestData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2BaseSettingMailTestResponses,
+    PostSdApiV2BaseSettingMailTestErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/base-setting/mail-test', ...options });
+
+/**
+ * Get sd API v2 base setting schema
+ *
+ * 获取基本设置页 schema
+ */
+export const getSdApiV2BaseSettingSchema = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2BaseSettingSchemaData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2BaseSettingSchemaResponses,
+    GetSdApiV2BaseSettingSchemaErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/base-setting/schema', ...options });
+
+/**
+ * Post sd API v2 base setting upgrade
+ *
+ * 上传固件升级包
+ */
+export const postSdApiV2BaseSettingUpgrade = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2BaseSettingUpgradeData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2BaseSettingUpgradeResponses,
+    PostSdApiV2BaseSettingUpgradeErrors,
+    ThrowOnError
+  >({
+    ...formDataBodySerializer,
+    url: '/sd-api/v2/base-setting/upgrade',
+    ...options,
+    headers: {
+      'Content-Type': null,
+      ...options?.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 base setting value
+ *
+ * 获取基本设置当前值
+ */
+export const getSdApiV2BaseSettingValue = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2BaseSettingValueData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2BaseSettingValueResponses,
+    GetSdApiV2BaseSettingValueErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/base-setting/value', ...options });
+
+/**
+ * Put sd API v2 base setting value
+ *
+ * 保存基本设置（支持部分字段提交）
+ */
+export const putSdApiV2BaseSettingValue = <ThrowOnError extends boolean = false>(
+  options: Options<PutSdApiV2BaseSettingValueData, ThrowOnError>
+) =>
+  (options.client ?? client).put<
+    PutSdApiV2BaseSettingValueResponses,
+    PutSdApiV2BaseSettingValueErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/base-setting/value',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
  * 检查服务是否正常
  *
  * 检查服务是否正常
@@ -600,6 +769,196 @@ export const getSdApiV2BaseSecurityCheck = <ThrowOnError extends boolean = false
     GetSdApiV2BaseSecurityCheckErrors,
     ThrowOnError
   >({ url: '/sd-api/v2/base/security-check', ...options });
+
+/**
+ * Get sd API v2 censor config
+ *
+ * 获取拦截配置
+ */
+export const getSdApiV2CensorConfig = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2CensorConfigData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2CensorConfigResponses,
+    GetSdApiV2CensorConfigErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/config', ...options });
+
+/**
+ * Post sd API v2 censor config
+ *
+ * 保存拦截配置
+ */
+export const postSdApiV2CensorConfig = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2CensorConfigData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2CensorConfigResponses,
+    PostSdApiV2CensorConfigErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/censor/config',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete sd API v2 censor files
+ *
+ * 删除词库文件
+ */
+export const deleteSdApiV2CensorFiles = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteSdApiV2CensorFilesData, ThrowOnError>
+) =>
+  (options.client ?? client).delete<
+    DeleteSdApiV2CensorFilesResponses,
+    DeleteSdApiV2CensorFilesErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/censor/files',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 censor files
+ *
+ * 获取词库文件列表
+ */
+export const getSdApiV2CensorFiles = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2CensorFilesData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2CensorFilesResponses,
+    GetSdApiV2CensorFilesErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/files', ...options });
+
+/**
+ * Get sd API v2 censor files template toml
+ *
+ * 下载 TOML 词库模板
+ */
+export const getSdApiV2CensorFilesTemplateToml = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2CensorFilesTemplateTomlData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2CensorFilesTemplateTomlResponses,
+    GetSdApiV2CensorFilesTemplateTomlErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/files/template/toml', ...options });
+
+/**
+ * Get sd API v2 censor files template txt
+ *
+ * 下载 TXT 词库模板
+ */
+export const getSdApiV2CensorFilesTemplateTxt = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2CensorFilesTemplateTxtData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2CensorFilesTemplateTxtResponses,
+    GetSdApiV2CensorFilesTemplateTxtErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/files/template/txt', ...options });
+
+/**
+ * Post sd API v2 censor files upload
+ *
+ * 上传词库文件
+ */
+export const postSdApiV2CensorFilesUpload = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2CensorFilesUploadData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2CensorFilesUploadResponses,
+    PostSdApiV2CensorFilesUploadErrors,
+    ThrowOnError
+  >({
+    ...formDataBodySerializer,
+    url: '/sd-api/v2/censor/files/upload',
+    ...options,
+    headers: {
+      'Content-Type': null,
+      ...options?.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 censor logs page
+ *
+ * 分页获取拦截日志
+ */
+export const getSdApiV2CensorLogsPage = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2CensorLogsPageData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2CensorLogsPageResponses,
+    GetSdApiV2CensorLogsPageErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/logs/page', ...options });
+
+/**
+ * Post sd API v2 censor restart
+ *
+ * 启用并重载拦截引擎
+ */
+export const postSdApiV2CensorRestart = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2CensorRestartData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2CensorRestartResponses,
+    PostSdApiV2CensorRestartErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/restart', ...options });
+
+/**
+ * Get sd API v2 censor status
+ *
+ * 获取拦截管理状态
+ */
+export const getSdApiV2CensorStatus = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2CensorStatusData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2CensorStatusResponses,
+    GetSdApiV2CensorStatusErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/status', ...options });
+
+/**
+ * Post sd API v2 censor stop
+ *
+ * 关闭拦截引擎
+ */
+export const postSdApiV2CensorStop = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2CensorStopData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2CensorStopResponses,
+    PostSdApiV2CensorStopErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/stop', ...options });
+
+/**
+ * Get sd API v2 censor words
+ *
+ * 获取敏感词列表
+ */
+export const getSdApiV2CensorWords = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2CensorWordsData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2CensorWordsResponses,
+    GetSdApiV2CensorWordsErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/censor/words', ...options });
 
 /**
  * Get sd API v2 config advanced
@@ -1211,6 +1570,196 @@ export const postSdApiV2GroupQuit = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 helpdoc config
+ *
+ * 获取帮助文档配置
+ */
+export const getSdApiV2HelpdocConfig = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2HelpdocConfigData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2HelpdocConfigResponses,
+    GetSdApiV2HelpdocConfigErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/helpdoc/config', ...options });
+
+/**
+ * Post sd API v2 helpdoc config
+ *
+ * 保存帮助文档配置
+ */
+export const postSdApiV2HelpdocConfig = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2HelpdocConfigData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2HelpdocConfigResponses,
+    PostSdApiV2HelpdocConfigErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/helpdoc/config',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Post sd API v2 helpdoc delete
+ *
+ * 删除帮助文档文件
+ */
+export const postSdApiV2HelpdocDelete = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2HelpdocDeleteData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2HelpdocDeleteResponses,
+    PostSdApiV2HelpdocDeleteErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/helpdoc/delete',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 helpdoc items page
+ *
+ * 分页查询帮助词条
+ */
+export const getSdApiV2HelpdocItemsPage = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2HelpdocItemsPageData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2HelpdocItemsPageResponses,
+    GetSdApiV2HelpdocItemsPageErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/helpdoc/items/page', ...options });
+
+/**
+ * Post sd API v2 helpdoc reload
+ *
+ * 重载帮助文档
+ */
+export const postSdApiV2HelpdocReload = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2HelpdocReloadData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2HelpdocReloadResponses,
+    PostSdApiV2HelpdocReloadErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/helpdoc/reload', ...options });
+
+/**
+ * Get sd API v2 helpdoc status
+ *
+ * 获取帮助文档加载状态
+ */
+export const getSdApiV2HelpdocStatus = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2HelpdocStatusData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2HelpdocStatusResponses,
+    GetSdApiV2HelpdocStatusErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/helpdoc/status', ...options });
+
+/**
+ * Get sd API v2 helpdoc tree
+ *
+ * 获取帮助文档文件树
+ */
+export const getSdApiV2HelpdocTree = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2HelpdocTreeData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2HelpdocTreeResponses,
+    GetSdApiV2HelpdocTreeErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/helpdoc/tree', ...options });
+
+/**
+ * Post sd API v2 helpdoc upload complete
+ *
+ * 完成帮助文档上传
+ */
+export const postSdApiV2HelpdocUploadComplete = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2HelpdocUploadCompleteData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2HelpdocUploadCompleteResponses,
+    PostSdApiV2HelpdocUploadCompleteErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/helpdoc/upload/complete',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Post sd API v2 helpdoc upload init
+ *
+ * 初始化帮助文档上传会话
+ */
+export const postSdApiV2HelpdocUploadInit = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2HelpdocUploadInitData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2HelpdocUploadInitResponses,
+    PostSdApiV2HelpdocUploadInitErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/helpdoc/upload/init',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 helpdoc upload by session ID by index
+ *
+ * 获取帮助文档上传分块状态
+ */
+export const getSdApiV2HelpdocUploadBySessionIdByIndex = <ThrowOnError extends boolean = false>(
+  options: Options<GetSdApiV2HelpdocUploadBySessionIdByIndexData, ThrowOnError>
+) =>
+  (options.client ?? client).get<
+    GetSdApiV2HelpdocUploadBySessionIdByIndexResponses,
+    GetSdApiV2HelpdocUploadBySessionIdByIndexErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/helpdoc/upload/{sessionId}/{index}', ...options });
+
+/**
+ * Put sd API v2 helpdoc upload by session ID by index
+ *
+ * 上传帮助文档分块
+ */
+export const putSdApiV2HelpdocUploadBySessionIdByIndex = <ThrowOnError extends boolean = false>(
+  options: Options<PutSdApiV2HelpdocUploadBySessionIdByIndexData, ThrowOnError>
+) =>
+  (options.client ?? client).put<
+    PutSdApiV2HelpdocUploadBySessionIdByIndexResponses,
+    PutSdApiV2HelpdocUploadBySessionIdByIndexErrors,
+    ThrowOnError
+  >({
+    bodySerializer: null,
+    url: '/sd-api/v2/helpdoc/upload/{sessionId}/{index}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/octet-stream',
       ...options.headers,
     },
   });

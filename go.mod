@@ -18,7 +18,7 @@ require (
 	github.com/blevesearch/bleve/v2 v2.5.7
 	github.com/blevesearch/bleve_index_api v1.2.11
 	github.com/bwmarrin/discordgo v0.29.0
-	github.com/bytedance/sonic v1.14.1
+	github.com/bytedance/sonic v1.15.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/dop251/goja v0.0.0-20260216154549-8b74ce4618c5
@@ -127,7 +127,7 @@ require (
 	github.com/blevesearch/zapx/v15 v15.4.2 // indirect
 	github.com/blevesearch/zapx/v16 v16.2.8 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
-	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect

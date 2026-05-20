@@ -194,6 +194,395 @@ export const BanPageRequestSchema = {
   type: 'object',
 } as const;
 
+export const BaseSettingActionRespSchema = {
+  additionalProperties: false,
+  properties: {
+    err: {
+      type: 'string',
+    },
+    success: {
+      type: 'boolean',
+    },
+  },
+  required: ['success'],
+  type: 'object',
+} as const;
+
+export const BaseSettingExtDefaultSettingItemSchema = {
+  additionalProperties: false,
+  properties: {
+    autoActive: {
+      type: 'boolean',
+    },
+    disabledCommand: {
+      additionalProperties: {
+        type: 'boolean',
+      },
+      type: 'object',
+    },
+    loaded: {
+      type: 'boolean',
+    },
+    name: {
+      type: 'string',
+    },
+  },
+  required: ['name', 'autoActive', 'disabledCommand', 'loaded'],
+  type: 'object',
+} as const;
+
+export const BaseSettingFieldSchemaSchema = {
+  additionalProperties: false,
+  properties: {
+    allowCustomValue: {
+      type: 'boolean',
+    },
+    confirmMessage: {
+      type: 'string',
+    },
+    hint: {
+      type: 'string',
+    },
+    id: {
+      type: 'string',
+    },
+    key: {
+      type: 'string',
+    },
+    keys: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    keywords: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    kind: {
+      type: 'string',
+    },
+    label: {
+      type: 'string',
+    },
+    options: {
+      items: {
+        $ref: '#/components/schemas/BaseSettingOption',
+      },
+      type: ['array', 'null'],
+    },
+    placeholder: {
+      type: 'string',
+    },
+    readonly: {
+      type: 'boolean',
+    },
+    sensitive: {
+      type: 'boolean',
+    },
+  },
+  required: ['id', 'label', 'kind'],
+  type: 'object',
+} as const;
+
+export const BaseSettingGroupSchemaSchema = {
+  additionalProperties: false,
+  properties: {
+    collapsible: {
+      type: 'boolean',
+    },
+    defaultExpanded: {
+      type: 'boolean',
+    },
+    description: {
+      type: 'string',
+    },
+    fields: {
+      items: {
+        $ref: '#/components/schemas/BaseSettingFieldSchema',
+      },
+      type: ['array', 'null'],
+    },
+    id: {
+      type: 'string',
+    },
+    notes: {
+      items: {
+        $ref: '#/components/schemas/BaseSettingNote',
+      },
+      type: ['array', 'null'],
+    },
+    title: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'title', 'fields'],
+  type: 'object',
+} as const;
+
+export const BaseSettingNoteSchema = {
+  additionalProperties: false,
+  properties: {
+    lines: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    tone: {
+      type: 'string',
+    },
+  },
+  required: ['tone', 'lines'],
+  type: 'object',
+} as const;
+
+export const BaseSettingOptionSchema = {
+  additionalProperties: false,
+  properties: {
+    label: {
+      type: 'string',
+    },
+    value: {
+      type: 'string',
+    },
+  },
+  required: ['label', 'value'],
+  type: 'object',
+} as const;
+
+export const BaseSettingSchemaRespSchema = {
+  additionalProperties: false,
+  properties: {
+    tabs: {
+      items: {
+        $ref: '#/components/schemas/BaseSettingTabSchema',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['tabs'],
+  type: 'object',
+} as const;
+
+export const BaseSettingTabSchemaSchema = {
+  additionalProperties: false,
+  properties: {
+    description: {
+      type: 'string',
+    },
+    groups: {
+      items: {
+        $ref: '#/components/schemas/BaseSettingGroupSchema',
+      },
+      type: ['array', 'null'],
+    },
+    id: {
+      type: 'string',
+    },
+    title: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'title', 'groups'],
+  type: 'object',
+} as const;
+
+export const BaseSettingValueRespSchema = {
+  additionalProperties: false,
+  properties: {
+    QQChannelAutoOn: {
+      type: 'boolean',
+    },
+    QQChannelLogMessage: {
+      type: 'boolean',
+    },
+    QQEnablePoke: {
+      type: 'boolean',
+    },
+    aliveNoticeEnable: {
+      type: 'boolean',
+    },
+    aliveNoticeValue: {
+      type: 'string',
+    },
+    botExtFreeSwitch: {
+      type: 'boolean',
+    },
+    commandPrefix: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    defaultCocRuleIndex: {
+      type: 'string',
+    },
+    diceMasters: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    extDefaultSettings: {
+      items: {
+        $ref: '#/components/schemas/BaseSettingExtDefaultSettingItem',
+      },
+      type: ['array', 'null'],
+    },
+    friendAddComment: {
+      type: 'string',
+    },
+    groupBurst: {
+      format: 'int64',
+      type: 'integer',
+    },
+    groupReplenishRate: {
+      type: 'string',
+    },
+    ignoreUnaddressedBotCmd: {
+      type: 'boolean',
+    },
+    logSizeNoticeCount: {
+      format: 'int64',
+      type: 'integer',
+    },
+    logSizeNoticeEnable: {
+      type: 'boolean',
+    },
+    mailEnable: {
+      type: 'boolean',
+    },
+    mailFrom: {
+      type: 'string',
+    },
+    mailPassword: {
+      type: 'string',
+    },
+    mailSmtp: {
+      type: 'string',
+    },
+    masterUnlockCode: {
+      type: 'string',
+    },
+    maxCocCardGen: {
+      type: 'string',
+    },
+    maxExecuteTime: {
+      type: 'string',
+    },
+    messageDelayRangeEnd: {
+      format: 'double',
+      type: 'number',
+    },
+    messageDelayRangeStart: {
+      format: 'double',
+      type: 'number',
+    },
+    noticeIds: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    onlyLogCommandInGroup: {
+      type: 'boolean',
+    },
+    onlyLogCommandInPrivate: {
+      type: 'boolean',
+    },
+    personalBurst: {
+      format: 'int64',
+      type: 'integer',
+    },
+    personalReplenishRate: {
+      type: 'string',
+    },
+    playerNameWrapEnable: {
+      type: 'boolean',
+    },
+    quitInactiveBatchSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    quitInactiveBatchWait: {
+      format: 'int64',
+      type: 'integer',
+    },
+    quitInactiveThreshold: {
+      format: 'double',
+      type: 'number',
+    },
+    rateLimitEnabled: {
+      type: 'boolean',
+    },
+    refuseGroupInvite: {
+      type: 'boolean',
+    },
+    serveAddress: {
+      type: 'string',
+    },
+    textCmdTrustOnly: {
+      type: 'boolean',
+    },
+    trustOnlyMode: {
+      type: 'boolean',
+    },
+    uiPassword: {
+      type: 'string',
+    },
+    workInQQChannel: {
+      type: 'boolean',
+    },
+  },
+  required: [
+    'commandPrefix',
+    'diceMasters',
+    'noticeIds',
+    'masterUnlockCode',
+    'uiPassword',
+    'mailEnable',
+    'mailFrom',
+    'mailPassword',
+    'mailSmtp',
+    'trustOnlyMode',
+    'botExtFreeSwitch',
+    'QQEnablePoke',
+    'textCmdTrustOnly',
+    'ignoreUnaddressedBotCmd',
+    'aliveNoticeEnable',
+    'aliveNoticeValue',
+    'logSizeNoticeEnable',
+    'logSizeNoticeCount',
+    'playerNameWrapEnable',
+    'onlyLogCommandInGroup',
+    'onlyLogCommandInPrivate',
+    'rateLimitEnabled',
+    'personalReplenishRate',
+    'personalBurst',
+    'groupReplenishRate',
+    'groupBurst',
+    'serveAddress',
+    'refuseGroupInvite',
+    'friendAddComment',
+    'workInQQChannel',
+    'QQChannelAutoOn',
+    'QQChannelLogMessage',
+    'defaultCocRuleIndex',
+    'maxCocCardGen',
+    'maxExecuteTime',
+    'messageDelayRangeStart',
+    'messageDelayRangeEnd',
+    'quitInactiveThreshold',
+    'quitInactiveBatchSize',
+    'quitInactiveBatchWait',
+    'extDefaultSettings',
+  ],
+  type: 'object',
+} as const;
+
 export const BatchDeleteRespSchema = {
   additionalProperties: false,
   properties: {
@@ -334,6 +723,63 @@ export const BodyBackupListRespSchema = {
   type: 'object',
 } as const;
 
+export const BodyBaseSettingActionRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyBaseSettingActionResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/BaseSettingActionResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyBaseSettingSchemaRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyBaseSettingSchemaResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/BaseSettingSchemaResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyBaseSettingValueRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyBaseSettingValueResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/BaseSettingValueResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyBatchDeleteRespSchema = {
   additionalProperties: false,
   properties: {
@@ -366,6 +812,120 @@ export const BodyBoolSchema = {
     item: {
       description: '响应数据项',
       type: 'boolean',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorConfigBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyCensorConfigBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/CensorConfigBody',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorFilesRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyCensorFilesResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/CensorFilesResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorLogPageRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyCensorLogPageResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/CensorLogPageResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorSimpleRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyCensorSimpleResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/CensorSimpleResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorStatusRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyCensorStatusResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/CensorStatusResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorWordsRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyCensorWordsResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/CensorWordsResp',
+      description: '响应数据项',
     },
   },
   required: ['item'],
@@ -745,6 +1305,101 @@ export const BodyHealthDataSchema = {
     },
     item: {
       $ref: '#/components/schemas/HealthData',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpConfigBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyHelpConfigBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/HelpConfigBody',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpDocUploadChunkRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyHelpDocUploadChunkResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/HelpDocUploadChunkResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpDocUploadCompleteRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyHelpDocUploadCompleteResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/HelpDocUploadCompleteResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpDocUploadSessionRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyHelpDocUploadSessionResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/HelpDocUploadSessionResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpTextItemPageRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyHelpTextItemPageResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/HelpTextItemPageResp',
       description: '响应数据项',
     },
   },
@@ -1243,6 +1898,44 @@ export const BodySimpleOKSchema = {
   type: 'object',
 } as const;
 
+export const BodySimpleRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodySimpleResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/SimpleResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyStatusRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyStatusResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/StatusResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyStoryInfoSchema = {
   additionalProperties: false,
   properties: {
@@ -1298,6 +1991,25 @@ export const BodyTextRespSchema = {
     },
     item: {
       $ref: '#/components/schemas/TextResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyTreeRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyTreeResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/TreeResp',
       description: '响应数据项',
     },
   },
@@ -1435,6 +2147,281 @@ export const BodyWorkflowRespSchema = {
     },
   },
   required: ['item'],
+  type: 'object',
+} as const;
+
+export const CensorConfigBodySchema = {
+  additionalProperties: false,
+  properties: {
+    caseSensitive: {
+      type: 'boolean',
+    },
+    filterRegex: {
+      type: 'string',
+    },
+    levelConfig: {
+      $ref: '#/components/schemas/CensorLevelConfigs',
+    },
+    matchPinyin: {
+      type: 'boolean',
+    },
+    mode: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: ['mode', 'caseSensitive', 'matchPinyin', 'filterRegex', 'levelConfig'],
+  type: 'object',
+} as const;
+
+export const CensorDeleteFilesReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    keys: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['keys'],
+  type: 'object',
+} as const;
+
+export const CensorFileInfoSchema = {
+  additionalProperties: false,
+  properties: {
+    author: {
+      type: 'string',
+    },
+    count: {
+      items: {
+        format: 'int64',
+        type: 'integer',
+      },
+      maxItems: 5,
+      minItems: 5,
+      type: ['array', 'null'],
+    },
+    desc: {
+      type: 'string',
+    },
+    fileType: {
+      type: 'string',
+    },
+    key: {
+      type: 'string',
+    },
+    license: {
+      type: 'string',
+    },
+    name: {
+      type: 'string',
+    },
+    version: {
+      type: 'string',
+    },
+  },
+  required: ['key', 'count', 'fileType', 'name', 'author', 'version', 'desc', 'license'],
+  type: 'object',
+} as const;
+
+export const CensorFilesRespSchema = {
+  additionalProperties: false,
+  properties: {
+    data: {
+      items: {
+        $ref: '#/components/schemas/CensorFileInfo',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['data'],
+  type: 'object',
+} as const;
+
+export const CensorLevelConfigSchema = {
+  additionalProperties: false,
+  properties: {
+    handlers: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    score: {
+      format: 'int64',
+      type: 'integer',
+    },
+    threshold: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: ['threshold', 'handlers', 'score'],
+  type: 'object',
+} as const;
+
+export const CensorLevelConfigsSchema = {
+  additionalProperties: false,
+  properties: {
+    caution: {
+      $ref: '#/components/schemas/CensorLevelConfig',
+    },
+    danger: {
+      $ref: '#/components/schemas/CensorLevelConfig',
+    },
+    notice: {
+      $ref: '#/components/schemas/CensorLevelConfig',
+    },
+    warning: {
+      $ref: '#/components/schemas/CensorLevelConfig',
+    },
+  },
+  required: ['notice', 'caution', 'warning', 'danger'],
+  type: 'object',
+} as const;
+
+export const CensorLogSchema = {
+  additionalProperties: false,
+  properties: {
+    content: {
+      type: 'string',
+    },
+    createdAt: {
+      format: 'int64',
+      type: 'integer',
+    },
+    groupId: {
+      type: 'string',
+    },
+    highestLevel: {
+      format: 'int64',
+      type: 'integer',
+    },
+    id: {
+      format: 'int64',
+      minimum: 0,
+      type: 'integer',
+    },
+    msgType: {
+      type: 'string',
+    },
+    userId: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'msgType', 'userId', 'groupId', 'content', 'highestLevel', 'createdAt'],
+  type: 'object',
+} as const;
+
+export const CensorLogPageRespSchema = {
+  additionalProperties: false,
+  properties: {
+    data: {
+      items: {
+        $ref: '#/components/schemas/CensorLog',
+      },
+      type: ['array', 'null'],
+    },
+    pageNum: {
+      format: 'int64',
+      type: 'integer',
+    },
+    pageSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    total: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: ['data', 'total', 'pageNum', 'pageSize'],
+  type: 'object',
+} as const;
+
+export const CensorRelatedWordSchema = {
+  additionalProperties: false,
+  properties: {
+    reason: {
+      format: 'int64',
+      type: 'integer',
+    },
+    word: {
+      type: 'string',
+    },
+  },
+  required: ['word', 'reason'],
+  type: 'object',
+} as const;
+
+export const CensorSimpleRespSchema = {
+  additionalProperties: false,
+  properties: {
+    err: {
+      type: 'string',
+    },
+    success: {
+      type: 'boolean',
+    },
+    testMode: {
+      type: 'boolean',
+    },
+  },
+  required: ['success'],
+  type: 'object',
+} as const;
+
+export const CensorStatusRespSchema = {
+  additionalProperties: false,
+  properties: {
+    enable: {
+      type: 'boolean',
+    },
+    isLoading: {
+      type: 'boolean',
+    },
+    testMode: {
+      type: 'boolean',
+    },
+  },
+  required: ['enable', 'isLoading'],
+  type: 'object',
+} as const;
+
+export const CensorWordItemSchema = {
+  additionalProperties: false,
+  properties: {
+    level: {
+      format: 'int64',
+      type: 'integer',
+    },
+    main: {
+      type: 'string',
+    },
+    related: {
+      items: {
+        $ref: '#/components/schemas/CensorRelatedWord',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['main', 'level', 'related'],
+  type: 'object',
+} as const;
+
+export const CensorWordsRespSchema = {
+  additionalProperties: false,
+  properties: {
+    data: {
+      items: {
+        $ref: '#/components/schemas/CensorWordItem',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['data'],
   type: 'object',
 } as const;
 
@@ -1842,6 +2829,20 @@ export const DeleteReqSchema = {
     },
   },
   required: ['id'],
+  type: 'object',
+} as const;
+
+export const DeleteReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    keys: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['keys'],
   type: 'object',
 } as const;
 
@@ -2591,6 +3592,237 @@ export const HealthDataSchema = {
     },
   },
   required: ['status', 'testMode', 'initialized'],
+  type: 'object',
+} as const;
+
+export const HelpConfigBodySchema = {
+  additionalProperties: false,
+  properties: {
+    aliases: {
+      additionalProperties: {
+        items: {
+          type: 'string',
+        },
+        type: ['array', 'null'],
+      },
+      type: 'object',
+    },
+  },
+  required: ['aliases'],
+  type: 'object',
+} as const;
+
+export const HelpDocSchema = {
+  additionalProperties: false,
+  properties: {
+    children: {
+      items: {
+        $ref: '#/components/schemas/HelpDoc',
+      },
+      type: ['array', 'null'],
+    },
+    deleted: {
+      type: 'boolean',
+    },
+    group: {
+      type: 'string',
+    },
+    isDir: {
+      type: 'boolean',
+    },
+    key: {
+      type: 'string',
+    },
+    loadStatus: {
+      format: 'int64',
+      type: 'integer',
+    },
+    name: {
+      type: 'string',
+    },
+    path: {
+      type: 'string',
+    },
+    type: {
+      type: 'string',
+    },
+  },
+  required: ['key', 'name', 'path', 'group', 'type', 'isDir', 'loadStatus', 'deleted', 'children'],
+  type: 'object',
+} as const;
+
+export const HelpDocUploadChunkRespSchema = {
+  additionalProperties: false,
+  properties: {
+    success: {
+      type: 'boolean',
+    },
+    uploadedBytes: {
+      format: 'int64',
+      type: 'integer',
+    },
+    uploadedChunk: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: ['success', 'uploadedBytes', 'uploadedChunk'],
+  type: 'object',
+} as const;
+
+export const HelpDocUploadCompleteReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    sessionId: {
+      type: 'string',
+    },
+  },
+  required: ['sessionId'],
+  type: 'object',
+} as const;
+
+export const HelpDocUploadCompleteRespSchema = {
+  additionalProperties: false,
+  properties: {
+    filename: {
+      type: 'string',
+    },
+    group: {
+      type: 'string',
+    },
+    success: {
+      type: 'boolean',
+    },
+    testMode: {
+      type: 'boolean',
+    },
+  },
+  required: ['success', 'filename', 'group'],
+  type: 'object',
+} as const;
+
+export const HelpDocUploadInitReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    chunkSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    fileHash: {
+      type: 'string',
+    },
+    fileSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    filename: {
+      type: 'string',
+    },
+    group: {
+      type: 'string',
+    },
+  },
+  required: ['group', 'filename', 'fileSize', 'fileHash', 'chunkSize'],
+  type: 'object',
+} as const;
+
+export const HelpDocUploadSessionRespSchema = {
+  additionalProperties: false,
+  properties: {
+    chunkSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    expectedChunks: {
+      format: 'int64',
+      type: 'integer',
+    },
+    resumeSupported: {
+      type: 'boolean',
+    },
+    sessionId: {
+      type: 'string',
+    },
+    success: {
+      type: 'boolean',
+    },
+    uploadedBytes: {
+      format: 'int64',
+      type: 'integer',
+    },
+    uploadedChunks: {
+      items: {
+        format: 'int64',
+        type: 'integer',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: [
+    'success',
+    'sessionId',
+    'chunkSize',
+    'uploadedChunks',
+    'uploadedBytes',
+    'expectedChunks',
+    'resumeSupported',
+  ],
+  type: 'object',
+} as const;
+
+export const HelpTextItemPageRespSchema = {
+  additionalProperties: false,
+  properties: {
+    data: {
+      items: {
+        $ref: '#/components/schemas/HelpTextVo',
+      },
+      type: ['array', 'null'],
+    },
+    pageNum: {
+      format: 'int64',
+      type: 'integer',
+    },
+    pageSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    total: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: ['total', 'data', 'pageNum', 'pageSize'],
+  type: 'object',
+} as const;
+
+export const HelpTextVoSchema = {
+  additionalProperties: false,
+  properties: {
+    content: {
+      type: 'string',
+    },
+    from: {
+      type: 'string',
+    },
+    group: {
+      type: 'string',
+    },
+    id: {
+      format: 'int64',
+      type: 'integer',
+    },
+    keyWords: {
+      type: 'string',
+    },
+    packageName: {
+      type: 'string',
+    },
+    title: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'group', 'from', 'title', 'content', 'packageName', 'keyWords'],
   type: 'object',
 } as const;
 
@@ -3713,6 +4945,42 @@ export const RequestWrapperBackupBatchDeleteReqBodySchema = {
   type: 'object',
 } as const;
 
+export const RequestWrapperCensorConfigBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/RequestWrapperCensorConfigBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    body: {
+      $ref: '#/components/schemas/CensorConfigBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperCensorDeleteFilesReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/RequestWrapperCensorDeleteFilesReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    body: {
+      $ref: '#/components/schemas/CensorDeleteFilesReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
 export const RequestWrapperCleanupReqBodySchema = {
   additionalProperties: false,
   properties: {
@@ -3767,6 +5035,24 @@ export const RequestWrapperDeleteLogReqBodySchema = {
   type: 'object',
 } as const;
 
+export const RequestWrapperDeleteReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/RequestWrapperDeleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    body: {
+      $ref: '#/components/schemas/DeleteReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
 export const RequestWrapperEnableBodySchema = {
   additionalProperties: false,
   properties: {
@@ -3815,6 +5101,60 @@ export const RequestWrapperFilenameReqBodySchema = {
     },
     body: {
       $ref: '#/components/schemas/FilenameReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperHelpConfigBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/RequestWrapperHelpConfigBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    body: {
+      $ref: '#/components/schemas/HelpConfigBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperHelpDocUploadCompleteReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/RequestWrapperHelpDocUploadCompleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    body: {
+      $ref: '#/components/schemas/HelpDocUploadCompleteReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperHelpDocUploadInitReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/RequestWrapperHelpDocUploadInitReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    body: {
+      $ref: '#/components/schemas/HelpDocUploadInitReqBody',
     },
   },
   required: ['body'],
@@ -4335,6 +5675,23 @@ export const SimpleOKSchema = {
   type: 'object',
 } as const;
 
+export const SimpleRespSchema = {
+  additionalProperties: false,
+  properties: {
+    err: {
+      type: 'string',
+    },
+    success: {
+      type: 'boolean',
+    },
+    testMode: {
+      type: 'boolean',
+    },
+  },
+  required: ['success'],
+  type: 'object',
+} as const;
+
 export const SizeRangeSchema = {
   additionalProperties: false,
   properties: {
@@ -4348,6 +5705,20 @@ export const SizeRangeSchema = {
     },
   },
   required: ['min', 'max'],
+  type: 'object',
+} as const;
+
+export const StatusRespSchema = {
+  additionalProperties: false,
+  properties: {
+    loading: {
+      type: 'boolean',
+    },
+    testMode: {
+      type: 'boolean',
+    },
+  },
+  required: ['loading'],
   type: 'object',
 } as const;
 
@@ -4518,6 +5889,20 @@ export const TextRespSchema = {
     },
   },
   required: ['texts', 'helpInfo', 'previewInfo'],
+  type: 'object',
+} as const;
+
+export const TreeRespSchema = {
+  additionalProperties: false,
+  properties: {
+    data: {
+      items: {
+        $ref: '#/components/schemas/HelpDoc',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['data'],
   type: 'object',
 } as const;
 
@@ -4983,6 +6368,42 @@ export const BodyBackupListRespWritableSchema = {
   type: 'object',
 } as const;
 
+export const BodyBaseSettingActionRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/BaseSettingActionResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyBaseSettingSchemaRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/BaseSettingSchemaResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyBaseSettingValueRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/BaseSettingValueResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyBatchDeleteRespWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -5001,6 +6422,78 @@ export const BodyBoolWritableSchema = {
     item: {
       description: '响应数据项',
       type: 'boolean',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorConfigBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/CensorConfigBody',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorFilesRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/CensorFilesResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorLogPageRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/CensorLogPageResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorSimpleRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/CensorSimpleResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorStatusRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/CensorStatusResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCensorWordsRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/CensorWordsResp',
+      description: '响应数据项',
     },
   },
   required: ['item'],
@@ -5240,6 +6733,66 @@ export const BodyHealthDataWritableSchema = {
   properties: {
     item: {
       $ref: '#/components/schemas/HealthData',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpConfigBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/HelpConfigBody',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpDocUploadChunkRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/HelpDocUploadChunkResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpDocUploadCompleteRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/HelpDocUploadCompleteResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpDocUploadSessionRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/HelpDocUploadSessionResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyHelpTextItemPageRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/HelpTextItemPageResp',
       description: '响应数据项',
     },
   },
@@ -5563,6 +7116,30 @@ export const BodySimpleOKWritableSchema = {
   type: 'object',
 } as const;
 
+export const BodySimpleRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/SimpleResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyStatusRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/StatusResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyStoryInfoWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -5592,6 +7169,18 @@ export const BodyTextRespWritableSchema = {
   properties: {
     item: {
       $ref: '#/components/schemas/TextResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyTreeRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/TreeResp',
       description: '响应数据项',
     },
   },
@@ -5940,6 +7529,28 @@ export const RequestWrapperBackupBatchDeleteReqBodyWritableSchema = {
   type: 'object',
 } as const;
 
+export const RequestWrapperCensorConfigBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    body: {
+      $ref: '#/components/schemas/CensorConfigBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperCensorDeleteFilesReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    body: {
+      $ref: '#/components/schemas/CensorDeleteFilesReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
 export const RequestWrapperCleanupReqBodyWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -5973,6 +7584,17 @@ export const RequestWrapperDeleteLogReqBodyWritableSchema = {
   type: 'object',
 } as const;
 
+export const RequestWrapperDeleteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    body: {
+      $ref: '#/components/schemas/DeleteReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
 export const RequestWrapperEnableBodyWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -6000,6 +7622,39 @@ export const RequestWrapperFilenameReqBodyWritableSchema = {
   properties: {
     body: {
       $ref: '#/components/schemas/FilenameReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperHelpConfigBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    body: {
+      $ref: '#/components/schemas/HelpConfigBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperHelpDocUploadCompleteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    body: {
+      $ref: '#/components/schemas/HelpDocUploadCompleteReqBody',
+    },
+  },
+  required: ['body'],
+  type: 'object',
+} as const;
+
+export const RequestWrapperHelpDocUploadInitReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    body: {
+      $ref: '#/components/schemas/HelpDocUploadInitReqBody',
     },
   },
   required: ['body'],

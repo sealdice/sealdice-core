@@ -26,6 +26,7 @@ var (
 
 type Session struct {
 	SessionID      string
+	Scope          string
 	Filename       string
 	FileSize       int64
 	FileHash       string
@@ -51,11 +52,15 @@ func NewManager(rootDir string) *Manager {
 }
 
 func (m *Manager) Init(filename string, fileSize int64, fileHash string, chunkSize int64) (*Session, error) {
+	return m.InitWithScope("", filename, fileSize, fileHash, chunkSize)
+}
+
+func (m *Manager) InitWithScope(scope string, filename string, fileSize int64, fileHash string, chunkSize int64) (*Session, error) {
 	if chunkSize <= 0 {
 		chunkSize = DefaultChunkSize
 	}
 	expectedChunks := int((fileSize + chunkSize - 1) / chunkSize)
-	sessionID := buildSessionID(filename, fileHash, fileSize)
+	sessionID := buildSessionID(scope, filename, fileHash, fileSize)
 	tempDir := filepath.Join(m.rootDir, sessionID)
 	if err := os.MkdirAll(tempDir, 0o755); err != nil {
 		return nil, err
@@ -63,6 +68,7 @@ func (m *Manager) Init(filename string, fileSize int64, fileHash string, chunkSi
 
 	session := &Session{
 		SessionID:      sessionID,
+		Scope:          strings.TrimSpace(scope),
 		Filename:       filename,
 		FileSize:       fileSize,
 		FileHash:       strings.ToLower(strings.TrimSpace(fileHash)),
@@ -138,6 +144,15 @@ func (m *Manager) SortedUploadedChunks(session *Session) []int {
 }
 
 func (m *Manager) Complete(sessionID string, dstPath string) (*Session, error) {
+	session, err := m.CompleteWithoutCleanup(sessionID, dstPath)
+	if err != nil {
+		return nil, err
+	}
+	m.Cleanup(sessionID)
+	return session, nil
+}
+
+func (m *Manager) CompleteWithoutCleanup(sessionID string, dstPath string) (*Session, error) {
 	session, err := m.Get(sessionID)
 	if err != nil {
 		return nil, err
@@ -171,7 +186,6 @@ func (m *Manager) Complete(sessionID string, dstPath string) (*Session, error) {
 		return nil, ErrHashMismatch
 	}
 
-	m.Cleanup(sessionID)
 	return session, nil
 }
 
@@ -189,7 +203,7 @@ func ChunkFilename(index int) string {
 	return fmt.Sprintf("%06d.part", index)
 }
 
-func buildSessionID(filename string, fileHash string, fileSize int64) string {
-	sum := sha256.Sum256([]byte(filename + ":" + strings.ToLower(fileHash) + ":" + strconv.FormatInt(fileSize, 10)))
+func buildSessionID(scope string, filename string, fileHash string, fileSize int64) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(scope) + ":" + filename + ":" + strings.ToLower(fileHash) + ":" + strconv.FormatInt(fileSize, 10)))
 	return hex.EncodeToString(sum[:16])
 }

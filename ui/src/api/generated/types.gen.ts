@@ -62,6 +62,111 @@ export type BanPageRequest = {
   pageSize: number;
 };
 
+export type BaseSettingActionResp = {
+  err?: string;
+  success: boolean;
+};
+
+export type BaseSettingExtDefaultSettingItem = {
+  autoActive: boolean;
+  disabledCommand: {
+    [key: string]: boolean;
+  };
+  loaded: boolean;
+  name: string;
+};
+
+export type BaseSettingFieldSchema = {
+  allowCustomValue?: boolean;
+  confirmMessage?: string;
+  hint?: string;
+  id: string;
+  key?: string;
+  keys?: Array<string> | null;
+  keywords?: Array<string> | null;
+  kind: string;
+  label: string;
+  options?: Array<BaseSettingOption> | null;
+  placeholder?: string;
+  readonly?: boolean;
+  sensitive?: boolean;
+};
+
+export type BaseSettingGroupSchema = {
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
+  description?: string;
+  fields: Array<BaseSettingFieldSchema> | null;
+  id: string;
+  notes?: Array<BaseSettingNote> | null;
+  title: string;
+};
+
+export type BaseSettingNote = {
+  lines: Array<string> | null;
+  tone: string;
+};
+
+export type BaseSettingOption = {
+  label: string;
+  value: string;
+};
+
+export type BaseSettingSchemaResp = {
+  tabs: Array<BaseSettingTabSchema> | null;
+};
+
+export type BaseSettingTabSchema = {
+  description?: string;
+  groups: Array<BaseSettingGroupSchema> | null;
+  id: string;
+  title: string;
+};
+
+export type BaseSettingValueResp = {
+  QQChannelAutoOn: boolean;
+  QQChannelLogMessage: boolean;
+  QQEnablePoke: boolean;
+  aliveNoticeEnable: boolean;
+  aliveNoticeValue: string;
+  botExtFreeSwitch: boolean;
+  commandPrefix: Array<string> | null;
+  defaultCocRuleIndex: string;
+  diceMasters: Array<string> | null;
+  extDefaultSettings: Array<BaseSettingExtDefaultSettingItem> | null;
+  friendAddComment: string;
+  groupBurst: number;
+  groupReplenishRate: string;
+  ignoreUnaddressedBotCmd: boolean;
+  logSizeNoticeCount: number;
+  logSizeNoticeEnable: boolean;
+  mailEnable: boolean;
+  mailFrom: string;
+  mailPassword: string;
+  mailSmtp: string;
+  masterUnlockCode: string;
+  maxCocCardGen: string;
+  maxExecuteTime: string;
+  messageDelayRangeEnd: number;
+  messageDelayRangeStart: number;
+  noticeIds: Array<string> | null;
+  onlyLogCommandInGroup: boolean;
+  onlyLogCommandInPrivate: boolean;
+  personalBurst: number;
+  personalReplenishRate: string;
+  playerNameWrapEnable: boolean;
+  quitInactiveBatchSize: number;
+  quitInactiveBatchWait: number;
+  quitInactiveThreshold: number;
+  rateLimitEnabled: boolean;
+  refuseGroupInvite: boolean;
+  serveAddress: string;
+  textCmdTrustOnly: boolean;
+  trustOnlyMode: boolean;
+  uiPassword: string;
+  workInQQChannel: boolean;
+};
+
 export type BatchDeleteResp = {
   fails: Array<string> | null;
 };
@@ -126,6 +231,39 @@ export type BodyBackupListResp = {
   item: BackupListResp;
 };
 
+export type BodyBaseSettingActionResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: BaseSettingActionResp;
+};
+
+export type BodyBaseSettingSchemaResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: BaseSettingSchemaResp;
+};
+
+export type BodyBaseSettingValueResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: BaseSettingValueResp;
+};
+
 export type BodyBatchDeleteResp = {
   /**
    * A URL to the JSON Schema for this object.
@@ -146,6 +284,72 @@ export type BodyBool = {
    * 响应数据项
    */
   item: boolean;
+};
+
+export type BodyCensorConfigBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: CensorConfigBody;
+};
+
+export type BodyCensorFilesResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: CensorFilesResp;
+};
+
+export type BodyCensorLogPageResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: CensorLogPageResp;
+};
+
+export type BodyCensorSimpleResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: CensorSimpleResp;
+};
+
+export type BodyCensorStatusResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: CensorStatusResp;
+};
+
+export type BodyCensorWordsResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: CensorWordsResp;
 };
 
 export type BodyCleanupPreviewResp = {
@@ -366,6 +570,61 @@ export type BodyHealthData = {
    * 响应数据项
    */
   item: HealthData;
+};
+
+export type BodyHelpConfigBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: HelpConfigBody;
+};
+
+export type BodyHelpDocUploadChunkResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: HelpDocUploadChunkResp;
+};
+
+export type BodyHelpDocUploadCompleteResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: HelpDocUploadCompleteResp;
+};
+
+export type BodyHelpDocUploadSessionResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: HelpDocUploadSessionResp;
+};
+
+export type BodyHelpTextItemPageResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: HelpTextItemPageResp;
 };
 
 export type BodyInt = {
@@ -647,6 +906,28 @@ export type BodySimpleOk = {
   item: SimpleOk;
 };
 
+export type BodySimpleResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: SimpleResp;
+};
+
+export type BodyStatusResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: StatusResp;
+};
+
 export type BodyStoryInfo = {
   /**
    * A URL to the JSON Schema for this object.
@@ -682,6 +963,17 @@ export type BodyTextResp = {
    * 响应数据项
    */
   item: TextResp;
+};
+
+export type BodyTreeResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: TreeResp;
 };
 
 export type BodyUpdateCheckResult = {
@@ -759,6 +1051,90 @@ export type BodyWorkflowResp = {
    * 响应数据项
    */
   item: WorkflowResp;
+};
+
+export type CensorConfigBody = {
+  caseSensitive: boolean;
+  filterRegex: string;
+  levelConfig: CensorLevelConfigs;
+  matchPinyin: boolean;
+  mode: number;
+};
+
+export type CensorDeleteFilesReqBody = {
+  keys: Array<string> | null;
+};
+
+export type CensorFileInfo = {
+  author: string;
+  count: [number, number, number, number, number] | null;
+  desc: string;
+  fileType: string;
+  key: string;
+  license: string;
+  name: string;
+  version: string;
+};
+
+export type CensorFilesResp = {
+  data: Array<CensorFileInfo> | null;
+};
+
+export type CensorLevelConfig = {
+  handlers: Array<string> | null;
+  score: number;
+  threshold: number;
+};
+
+export type CensorLevelConfigs = {
+  caution: CensorLevelConfig;
+  danger: CensorLevelConfig;
+  notice: CensorLevelConfig;
+  warning: CensorLevelConfig;
+};
+
+export type CensorLog = {
+  content: string;
+  createdAt: number;
+  groupId: string;
+  highestLevel: number;
+  id: number;
+  msgType: string;
+  userId: string;
+};
+
+export type CensorLogPageResp = {
+  data: Array<CensorLog> | null;
+  pageNum: number;
+  pageSize: number;
+  total: number;
+};
+
+export type CensorRelatedWord = {
+  reason: number;
+  word: string;
+};
+
+export type CensorSimpleResp = {
+  err?: string;
+  success: boolean;
+  testMode?: boolean;
+};
+
+export type CensorStatusResp = {
+  enable: boolean;
+  isLoading: boolean;
+  testMode?: boolean;
+};
+
+export type CensorWordItem = {
+  level: number;
+  main: string;
+  related: Array<CensorRelatedWord> | null;
+};
+
+export type CensorWordsResp = {
+  data: Array<CensorWordItem> | null;
 };
 
 export type CleanupPreviewResp = {
@@ -891,6 +1267,10 @@ export type DeleteReq = {
    */
   readonly $schema?: string;
   id: string;
+};
+
+export type DeleteReqBody = {
+  keys: Array<string> | null;
 };
 
 export type EditableConfigResp = {
@@ -1141,6 +1521,76 @@ export type HealthData = {
    * 是否为测试模式
    */
   testMode: boolean;
+};
+
+export type HelpConfigBody = {
+  aliases: {
+    [key: string]: Array<string> | null;
+  };
+};
+
+export type HelpDoc = {
+  children: Array<HelpDoc> | null;
+  deleted: boolean;
+  group: string;
+  isDir: boolean;
+  key: string;
+  loadStatus: number;
+  name: string;
+  path: string;
+  type: string;
+};
+
+export type HelpDocUploadChunkResp = {
+  success: boolean;
+  uploadedBytes: number;
+  uploadedChunk: number;
+};
+
+export type HelpDocUploadCompleteReqBody = {
+  sessionId: string;
+};
+
+export type HelpDocUploadCompleteResp = {
+  filename: string;
+  group: string;
+  success: boolean;
+  testMode?: boolean;
+};
+
+export type HelpDocUploadInitReqBody = {
+  chunkSize: number;
+  fileHash: string;
+  fileSize: number;
+  filename: string;
+  group: string;
+};
+
+export type HelpDocUploadSessionResp = {
+  chunkSize: number;
+  expectedChunks: number;
+  resumeSupported: boolean;
+  sessionId: string;
+  success: boolean;
+  uploadedBytes: number;
+  uploadedChunks: Array<number> | null;
+};
+
+export type HelpTextItemPageResp = {
+  data: Array<HelpTextVo> | null;
+  pageNum: number;
+  pageSize: number;
+  total: number;
+};
+
+export type HelpTextVo = {
+  content: string;
+  from: string;
+  group: string;
+  id: number;
+  keyWords: string;
+  packageName: string;
+  title: string;
 };
 
 export type IdListReq = {
@@ -1494,6 +1944,22 @@ export type RequestWrapperBackupBatchDeleteReqBody = {
   body: BackupBatchDeleteReqBody;
 };
 
+export type RequestWrapperCensorConfigBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  body: CensorConfigBody;
+};
+
+export type RequestWrapperCensorDeleteFilesReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  body: CensorDeleteFilesReqBody;
+};
+
 export type RequestWrapperCleanupReqBody = {
   /**
    * A URL to the JSON Schema for this object.
@@ -1518,6 +1984,14 @@ export type RequestWrapperDeleteLogReqBody = {
   body: DeleteLogReqBody;
 };
 
+export type RequestWrapperDeleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  body: DeleteReqBody;
+};
+
 export type RequestWrapperEnableBody = {
   /**
    * A URL to the JSON Schema for this object.
@@ -1540,6 +2014,30 @@ export type RequestWrapperFilenameReqBody = {
    */
   readonly $schema?: string;
   body: FilenameReqBody;
+};
+
+export type RequestWrapperHelpConfigBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  body: HelpConfigBody;
+};
+
+export type RequestWrapperHelpDocUploadCompleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  body: HelpDocUploadCompleteReqBody;
+};
+
+export type RequestWrapperHelpDocUploadInitReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  body: HelpDocUploadInitReqBody;
 };
 
 export type RequestWrapperJsCheckUpdateReqBody = {
@@ -1756,9 +2254,20 @@ export type SimpleOk = {
   success: boolean;
 };
 
+export type SimpleResp = {
+  err?: string;
+  success: boolean;
+  testMode?: boolean;
+};
+
 export type SizeRange = {
   max: number;
   min: number;
+};
+
+export type StatusResp = {
+  loading: boolean;
+  testMode?: boolean;
 };
 
 export type StoryInfo = {
@@ -1822,6 +2331,10 @@ export type TextResp = {
       [key: string]: Array<Array<unknown> | null> | null;
     };
   };
+};
+
+export type TreeResp = {
+  data: Array<HelpDoc> | null;
 };
 
 export type UpdateCheckResult = {
@@ -1971,6 +2484,27 @@ export type BodyBackupListRespWritable = {
   item: BackupListResp;
 };
 
+export type BodyBaseSettingActionRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: BaseSettingActionResp;
+};
+
+export type BodyBaseSettingSchemaRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: BaseSettingSchemaResp;
+};
+
+export type BodyBaseSettingValueRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: BaseSettingValueResp;
+};
+
 export type BodyBatchDeleteRespWritable = {
   /**
    * 响应数据项
@@ -1983,6 +2517,48 @@ export type BodyBoolWritable = {
    * 响应数据项
    */
   item: boolean;
+};
+
+export type BodyCensorConfigBodyWritable = {
+  /**
+   * 响应数据项
+   */
+  item: CensorConfigBody;
+};
+
+export type BodyCensorFilesRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: CensorFilesResp;
+};
+
+export type BodyCensorLogPageRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: CensorLogPageResp;
+};
+
+export type BodyCensorSimpleRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: CensorSimpleResp;
+};
+
+export type BodyCensorStatusRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: CensorStatusResp;
+};
+
+export type BodyCensorWordsRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: CensorWordsResp;
 };
 
 export type BodyCleanupPreviewRespWritable = {
@@ -2123,6 +2699,41 @@ export type BodyHealthDataWritable = {
    * 响应数据项
    */
   item: HealthData;
+};
+
+export type BodyHelpConfigBodyWritable = {
+  /**
+   * 响应数据项
+   */
+  item: HelpConfigBody;
+};
+
+export type BodyHelpDocUploadChunkRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: HelpDocUploadChunkResp;
+};
+
+export type BodyHelpDocUploadCompleteRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: HelpDocUploadCompleteResp;
+};
+
+export type BodyHelpDocUploadSessionRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: HelpDocUploadSessionResp;
+};
+
+export type BodyHelpTextItemPageRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: HelpTextItemPageResp;
 };
 
 export type BodyIntWritable = {
@@ -2304,6 +2915,20 @@ export type BodySimpleOkWritable = {
   item: SimpleOk;
 };
 
+export type BodySimpleRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: SimpleResp;
+};
+
+export type BodyStatusRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: StatusResp;
+};
+
 export type BodyStoryInfoWritable = {
   /**
    * 响应数据项
@@ -2323,6 +2948,13 @@ export type BodyTextRespWritable = {
    * 响应数据项
    */
   item: TextResp;
+};
+
+export type BodyTreeRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: TreeResp;
 };
 
 export type BodyUpdateCheckResultWritable = {
@@ -2470,6 +3102,14 @@ export type RequestWrapperBackupBatchDeleteReqBodyWritable = {
   body: BackupBatchDeleteReqBody;
 };
 
+export type RequestWrapperCensorConfigBodyWritable = {
+  body: CensorConfigBody;
+};
+
+export type RequestWrapperCensorDeleteFilesReqBodyWritable = {
+  body: CensorDeleteFilesReqBody;
+};
+
 export type RequestWrapperCleanupReqBodyWritable = {
   body: CleanupReqBody;
 };
@@ -2482,6 +3122,10 @@ export type RequestWrapperDeleteLogReqBodyWritable = {
   body: DeleteLogReqBody;
 };
 
+export type RequestWrapperDeleteReqBodyWritable = {
+  body: DeleteReqBody;
+};
+
 export type RequestWrapperEnableBodyWritable = {
   body: EnableBody;
 };
@@ -2492,6 +3136,18 @@ export type RequestWrapperFileBodyWritable = {
 
 export type RequestWrapperFilenameReqBodyWritable = {
   body: FilenameReqBody;
+};
+
+export type RequestWrapperHelpConfigBodyWritable = {
+  body: HelpConfigBody;
+};
+
+export type RequestWrapperHelpDocUploadCompleteReqBodyWritable = {
+  body: HelpDocUploadCompleteReqBody;
+};
+
+export type RequestWrapperHelpDocUploadInitReqBodyWritable = {
+  body: HelpDocUploadInitReqBody;
 };
 
 export type RequestWrapperJsCheckUpdateReqBodyWritable = {
@@ -2867,6 +3523,143 @@ export type PostSdApiV2BanListResponses = {
 export type PostSdApiV2BanListResponse =
   PostSdApiV2BanListResponses[keyof PostSdApiV2BanListResponses];
 
+export type PostSdApiV2BaseSettingMailTestData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/base-setting/mail-test';
+};
+
+export type PostSdApiV2BaseSettingMailTestErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2BaseSettingMailTestError =
+  PostSdApiV2BaseSettingMailTestErrors[keyof PostSdApiV2BaseSettingMailTestErrors];
+
+export type PostSdApiV2BaseSettingMailTestResponses = {
+  /**
+   * OK
+   */
+  200: BodyBaseSettingActionResp;
+};
+
+export type PostSdApiV2BaseSettingMailTestResponse =
+  PostSdApiV2BaseSettingMailTestResponses[keyof PostSdApiV2BaseSettingMailTestResponses];
+
+export type GetSdApiV2BaseSettingSchemaData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/base-setting/schema';
+};
+
+export type GetSdApiV2BaseSettingSchemaErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2BaseSettingSchemaError =
+  GetSdApiV2BaseSettingSchemaErrors[keyof GetSdApiV2BaseSettingSchemaErrors];
+
+export type GetSdApiV2BaseSettingSchemaResponses = {
+  /**
+   * OK
+   */
+  200: BodyBaseSettingSchemaResp;
+};
+
+export type GetSdApiV2BaseSettingSchemaResponse =
+  GetSdApiV2BaseSettingSchemaResponses[keyof GetSdApiV2BaseSettingSchemaResponses];
+
+export type PostSdApiV2BaseSettingUpgradeData = {
+  body?: {
+    file: Blob | File;
+  };
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/base-setting/upgrade';
+};
+
+export type PostSdApiV2BaseSettingUpgradeErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2BaseSettingUpgradeError =
+  PostSdApiV2BaseSettingUpgradeErrors[keyof PostSdApiV2BaseSettingUpgradeErrors];
+
+export type PostSdApiV2BaseSettingUpgradeResponses = {
+  /**
+   * OK
+   */
+  200: BodyBaseSettingActionResp;
+};
+
+export type PostSdApiV2BaseSettingUpgradeResponse =
+  PostSdApiV2BaseSettingUpgradeResponses[keyof PostSdApiV2BaseSettingUpgradeResponses];
+
+export type GetSdApiV2BaseSettingValueData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/base-setting/value';
+};
+
+export type GetSdApiV2BaseSettingValueErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2BaseSettingValueError =
+  GetSdApiV2BaseSettingValueErrors[keyof GetSdApiV2BaseSettingValueErrors];
+
+export type GetSdApiV2BaseSettingValueResponses = {
+  /**
+   * OK
+   */
+  200: BodyBaseSettingValueResp;
+};
+
+export type GetSdApiV2BaseSettingValueResponse =
+  GetSdApiV2BaseSettingValueResponses[keyof GetSdApiV2BaseSettingValueResponses];
+
+export type PutSdApiV2BaseSettingValueData = {
+  body: RequestWrapperMapStringInterface;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/base-setting/value';
+};
+
+export type PutSdApiV2BaseSettingValueErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PutSdApiV2BaseSettingValueError =
+  PutSdApiV2BaseSettingValueErrors[keyof PutSdApiV2BaseSettingValueErrors];
+
+export type PutSdApiV2BaseSettingValueResponses = {
+  /**
+   * OK
+   */
+  200: BodyBaseSettingActionResp;
+};
+
+export type PutSdApiV2BaseSettingValueResponse =
+  PutSdApiV2BaseSettingValueResponses[keyof PutSdApiV2BaseSettingValueResponses];
+
 export type GetSdApiV2BaseHealthData = {
   body?: never;
   path?: never;
@@ -3001,6 +3794,331 @@ export type GetSdApiV2BaseSecurityCheckResponses = {
 
 export type GetSdApiV2BaseSecurityCheckResponse =
   GetSdApiV2BaseSecurityCheckResponses[keyof GetSdApiV2BaseSecurityCheckResponses];
+
+export type GetSdApiV2CensorConfigData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/config';
+};
+
+export type GetSdApiV2CensorConfigErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2CensorConfigError =
+  GetSdApiV2CensorConfigErrors[keyof GetSdApiV2CensorConfigErrors];
+
+export type GetSdApiV2CensorConfigResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorConfigBody;
+};
+
+export type GetSdApiV2CensorConfigResponse =
+  GetSdApiV2CensorConfigResponses[keyof GetSdApiV2CensorConfigResponses];
+
+export type PostSdApiV2CensorConfigData = {
+  body: RequestWrapperCensorConfigBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/config';
+};
+
+export type PostSdApiV2CensorConfigErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2CensorConfigError =
+  PostSdApiV2CensorConfigErrors[keyof PostSdApiV2CensorConfigErrors];
+
+export type PostSdApiV2CensorConfigResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorConfigBody;
+};
+
+export type PostSdApiV2CensorConfigResponse =
+  PostSdApiV2CensorConfigResponses[keyof PostSdApiV2CensorConfigResponses];
+
+export type DeleteSdApiV2CensorFilesData = {
+  body: RequestWrapperCensorDeleteFilesReqBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/files';
+};
+
+export type DeleteSdApiV2CensorFilesErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type DeleteSdApiV2CensorFilesError =
+  DeleteSdApiV2CensorFilesErrors[keyof DeleteSdApiV2CensorFilesErrors];
+
+export type DeleteSdApiV2CensorFilesResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorSimpleResp;
+};
+
+export type DeleteSdApiV2CensorFilesResponse =
+  DeleteSdApiV2CensorFilesResponses[keyof DeleteSdApiV2CensorFilesResponses];
+
+export type GetSdApiV2CensorFilesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/files';
+};
+
+export type GetSdApiV2CensorFilesErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2CensorFilesError =
+  GetSdApiV2CensorFilesErrors[keyof GetSdApiV2CensorFilesErrors];
+
+export type GetSdApiV2CensorFilesResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorFilesResp;
+};
+
+export type GetSdApiV2CensorFilesResponse =
+  GetSdApiV2CensorFilesResponses[keyof GetSdApiV2CensorFilesResponses];
+
+export type GetSdApiV2CensorFilesTemplateTomlData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/files/template/toml';
+};
+
+export type GetSdApiV2CensorFilesTemplateTomlErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2CensorFilesTemplateTomlError =
+  GetSdApiV2CensorFilesTemplateTomlErrors[keyof GetSdApiV2CensorFilesTemplateTomlErrors];
+
+export type GetSdApiV2CensorFilesTemplateTomlResponses = {
+  /**
+   * OK
+   */
+  200: unknown;
+};
+
+export type GetSdApiV2CensorFilesTemplateTxtData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/files/template/txt';
+};
+
+export type GetSdApiV2CensorFilesTemplateTxtErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2CensorFilesTemplateTxtError =
+  GetSdApiV2CensorFilesTemplateTxtErrors[keyof GetSdApiV2CensorFilesTemplateTxtErrors];
+
+export type GetSdApiV2CensorFilesTemplateTxtResponses = {
+  /**
+   * OK
+   */
+  200: unknown;
+};
+
+export type PostSdApiV2CensorFilesUploadData = {
+  body?: {
+    file: Blob | File;
+  };
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/files/upload';
+};
+
+export type PostSdApiV2CensorFilesUploadErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2CensorFilesUploadError =
+  PostSdApiV2CensorFilesUploadErrors[keyof PostSdApiV2CensorFilesUploadErrors];
+
+export type PostSdApiV2CensorFilesUploadResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorSimpleResp;
+};
+
+export type PostSdApiV2CensorFilesUploadResponse =
+  PostSdApiV2CensorFilesUploadResponses[keyof PostSdApiV2CensorFilesUploadResponses];
+
+export type GetSdApiV2CensorLogsPageData = {
+  body?: never;
+  path?: never;
+  query?: {
+    pageNum?: number;
+    pageSize?: number;
+    userId?: string;
+    level?: number;
+  };
+  url: '/sd-api/v2/censor/logs/page';
+};
+
+export type GetSdApiV2CensorLogsPageErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2CensorLogsPageError =
+  GetSdApiV2CensorLogsPageErrors[keyof GetSdApiV2CensorLogsPageErrors];
+
+export type GetSdApiV2CensorLogsPageResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorLogPageResp;
+};
+
+export type GetSdApiV2CensorLogsPageResponse =
+  GetSdApiV2CensorLogsPageResponses[keyof GetSdApiV2CensorLogsPageResponses];
+
+export type PostSdApiV2CensorRestartData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/restart';
+};
+
+export type PostSdApiV2CensorRestartErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2CensorRestartError =
+  PostSdApiV2CensorRestartErrors[keyof PostSdApiV2CensorRestartErrors];
+
+export type PostSdApiV2CensorRestartResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorStatusResp;
+};
+
+export type PostSdApiV2CensorRestartResponse =
+  PostSdApiV2CensorRestartResponses[keyof PostSdApiV2CensorRestartResponses];
+
+export type GetSdApiV2CensorStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/status';
+};
+
+export type GetSdApiV2CensorStatusErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2CensorStatusError =
+  GetSdApiV2CensorStatusErrors[keyof GetSdApiV2CensorStatusErrors];
+
+export type GetSdApiV2CensorStatusResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorStatusResp;
+};
+
+export type GetSdApiV2CensorStatusResponse =
+  GetSdApiV2CensorStatusResponses[keyof GetSdApiV2CensorStatusResponses];
+
+export type PostSdApiV2CensorStopData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/stop';
+};
+
+export type PostSdApiV2CensorStopErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2CensorStopError =
+  PostSdApiV2CensorStopErrors[keyof PostSdApiV2CensorStopErrors];
+
+export type PostSdApiV2CensorStopResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorStatusResp;
+};
+
+export type PostSdApiV2CensorStopResponse =
+  PostSdApiV2CensorStopResponses[keyof PostSdApiV2CensorStopResponses];
+
+export type GetSdApiV2CensorWordsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/censor/words';
+};
+
+export type GetSdApiV2CensorWordsErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2CensorWordsError =
+  GetSdApiV2CensorWordsErrors[keyof GetSdApiV2CensorWordsErrors];
+
+export type GetSdApiV2CensorWordsResponses = {
+  /**
+   * OK
+   */
+  200: BodyCensorWordsResp;
+};
+
+export type GetSdApiV2CensorWordsResponse =
+  GetSdApiV2CensorWordsResponses[keyof GetSdApiV2CensorWordsResponses];
 
 export type GetSdApiV2ConfigAdvancedData = {
   body?: never;
@@ -3959,6 +5077,316 @@ export type PostSdApiV2GroupQuitResponses = {
 
 export type PostSdApiV2GroupQuitResponse =
   PostSdApiV2GroupQuitResponses[keyof PostSdApiV2GroupQuitResponses];
+
+export type GetSdApiV2HelpdocConfigData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/config';
+};
+
+export type GetSdApiV2HelpdocConfigErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2HelpdocConfigError =
+  GetSdApiV2HelpdocConfigErrors[keyof GetSdApiV2HelpdocConfigErrors];
+
+export type GetSdApiV2HelpdocConfigResponses = {
+  /**
+   * OK
+   */
+  200: BodyHelpConfigBody;
+};
+
+export type GetSdApiV2HelpdocConfigResponse =
+  GetSdApiV2HelpdocConfigResponses[keyof GetSdApiV2HelpdocConfigResponses];
+
+export type PostSdApiV2HelpdocConfigData = {
+  body: RequestWrapperHelpConfigBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/config';
+};
+
+export type PostSdApiV2HelpdocConfigErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2HelpdocConfigError =
+  PostSdApiV2HelpdocConfigErrors[keyof PostSdApiV2HelpdocConfigErrors];
+
+export type PostSdApiV2HelpdocConfigResponses = {
+  /**
+   * OK
+   */
+  200: BodySimpleResp;
+};
+
+export type PostSdApiV2HelpdocConfigResponse =
+  PostSdApiV2HelpdocConfigResponses[keyof PostSdApiV2HelpdocConfigResponses];
+
+export type PostSdApiV2HelpdocDeleteData = {
+  body: RequestWrapperDeleteReqBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/delete';
+};
+
+export type PostSdApiV2HelpdocDeleteErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2HelpdocDeleteError =
+  PostSdApiV2HelpdocDeleteErrors[keyof PostSdApiV2HelpdocDeleteErrors];
+
+export type PostSdApiV2HelpdocDeleteResponses = {
+  /**
+   * OK
+   */
+  200: BodySimpleResp;
+};
+
+export type PostSdApiV2HelpdocDeleteResponse =
+  PostSdApiV2HelpdocDeleteResponses[keyof PostSdApiV2HelpdocDeleteResponses];
+
+export type GetSdApiV2HelpdocItemsPageData = {
+  body?: never;
+  path?: never;
+  query?: {
+    pageNum?: number;
+    pageSize?: number;
+    id?: string;
+    group?: string;
+    from?: string;
+    title?: string;
+  };
+  url: '/sd-api/v2/helpdoc/items/page';
+};
+
+export type GetSdApiV2HelpdocItemsPageErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2HelpdocItemsPageError =
+  GetSdApiV2HelpdocItemsPageErrors[keyof GetSdApiV2HelpdocItemsPageErrors];
+
+export type GetSdApiV2HelpdocItemsPageResponses = {
+  /**
+   * OK
+   */
+  200: BodyHelpTextItemPageResp;
+};
+
+export type GetSdApiV2HelpdocItemsPageResponse =
+  GetSdApiV2HelpdocItemsPageResponses[keyof GetSdApiV2HelpdocItemsPageResponses];
+
+export type PostSdApiV2HelpdocReloadData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/reload';
+};
+
+export type PostSdApiV2HelpdocReloadErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2HelpdocReloadError =
+  PostSdApiV2HelpdocReloadErrors[keyof PostSdApiV2HelpdocReloadErrors];
+
+export type PostSdApiV2HelpdocReloadResponses = {
+  /**
+   * OK
+   */
+  200: BodySimpleResp;
+};
+
+export type PostSdApiV2HelpdocReloadResponse =
+  PostSdApiV2HelpdocReloadResponses[keyof PostSdApiV2HelpdocReloadResponses];
+
+export type GetSdApiV2HelpdocStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/status';
+};
+
+export type GetSdApiV2HelpdocStatusErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2HelpdocStatusError =
+  GetSdApiV2HelpdocStatusErrors[keyof GetSdApiV2HelpdocStatusErrors];
+
+export type GetSdApiV2HelpdocStatusResponses = {
+  /**
+   * OK
+   */
+  200: BodyStatusResp;
+};
+
+export type GetSdApiV2HelpdocStatusResponse =
+  GetSdApiV2HelpdocStatusResponses[keyof GetSdApiV2HelpdocStatusResponses];
+
+export type GetSdApiV2HelpdocTreeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/tree';
+};
+
+export type GetSdApiV2HelpdocTreeErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2HelpdocTreeError =
+  GetSdApiV2HelpdocTreeErrors[keyof GetSdApiV2HelpdocTreeErrors];
+
+export type GetSdApiV2HelpdocTreeResponses = {
+  /**
+   * OK
+   */
+  200: BodyTreeResp;
+};
+
+export type GetSdApiV2HelpdocTreeResponse =
+  GetSdApiV2HelpdocTreeResponses[keyof GetSdApiV2HelpdocTreeResponses];
+
+export type PostSdApiV2HelpdocUploadCompleteData = {
+  body: RequestWrapperHelpDocUploadCompleteReqBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/upload/complete';
+};
+
+export type PostSdApiV2HelpdocUploadCompleteErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2HelpdocUploadCompleteError =
+  PostSdApiV2HelpdocUploadCompleteErrors[keyof PostSdApiV2HelpdocUploadCompleteErrors];
+
+export type PostSdApiV2HelpdocUploadCompleteResponses = {
+  /**
+   * OK
+   */
+  200: BodyHelpDocUploadCompleteResp;
+};
+
+export type PostSdApiV2HelpdocUploadCompleteResponse =
+  PostSdApiV2HelpdocUploadCompleteResponses[keyof PostSdApiV2HelpdocUploadCompleteResponses];
+
+export type PostSdApiV2HelpdocUploadInitData = {
+  body: RequestWrapperHelpDocUploadInitReqBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/helpdoc/upload/init';
+};
+
+export type PostSdApiV2HelpdocUploadInitErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2HelpdocUploadInitError =
+  PostSdApiV2HelpdocUploadInitErrors[keyof PostSdApiV2HelpdocUploadInitErrors];
+
+export type PostSdApiV2HelpdocUploadInitResponses = {
+  /**
+   * OK
+   */
+  200: BodyHelpDocUploadSessionResp;
+};
+
+export type PostSdApiV2HelpdocUploadInitResponse =
+  PostSdApiV2HelpdocUploadInitResponses[keyof PostSdApiV2HelpdocUploadInitResponses];
+
+export type GetSdApiV2HelpdocUploadBySessionIdByIndexData = {
+  body?: never;
+  path: {
+    sessionId: string;
+    index: number;
+  };
+  query?: never;
+  url: '/sd-api/v2/helpdoc/upload/{sessionId}/{index}';
+};
+
+export type GetSdApiV2HelpdocUploadBySessionIdByIndexErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2HelpdocUploadBySessionIdByIndexError =
+  GetSdApiV2HelpdocUploadBySessionIdByIndexErrors[keyof GetSdApiV2HelpdocUploadBySessionIdByIndexErrors];
+
+export type GetSdApiV2HelpdocUploadBySessionIdByIndexResponses = {
+  /**
+   * OK
+   */
+  200: BodyHelpDocUploadChunkResp;
+};
+
+export type GetSdApiV2HelpdocUploadBySessionIdByIndexResponse =
+  GetSdApiV2HelpdocUploadBySessionIdByIndexResponses[keyof GetSdApiV2HelpdocUploadBySessionIdByIndexResponses];
+
+export type PutSdApiV2HelpdocUploadBySessionIdByIndexData = {
+  body: Blob | File;
+  path: {
+    sessionId: string;
+    index: number;
+  };
+  query?: never;
+  url: '/sd-api/v2/helpdoc/upload/{sessionId}/{index}';
+};
+
+export type PutSdApiV2HelpdocUploadBySessionIdByIndexErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PutSdApiV2HelpdocUploadBySessionIdByIndexError =
+  PutSdApiV2HelpdocUploadBySessionIdByIndexErrors[keyof PutSdApiV2HelpdocUploadBySessionIdByIndexErrors];
+
+export type PutSdApiV2HelpdocUploadBySessionIdByIndexResponses = {
+  /**
+   * OK
+   */
+  200: BodyHelpDocUploadChunkResp;
+};
+
+export type PutSdApiV2HelpdocUploadBySessionIdByIndexResponse =
+  PutSdApiV2HelpdocUploadBySessionIdByIndexResponses[keyof PutSdApiV2HelpdocUploadBySessionIdByIndexResponses];
 
 export type GetSdApiV2ImconnectionData = {
   body?: never;

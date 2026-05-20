@@ -7,11 +7,14 @@ import (
 	"sealdice-core/api/v2/backup"
 	"sealdice-core/api/v2/ban"
 	"sealdice-core/api/v2/base"
+	"sealdice-core/api/v2/basesetting"
 	"sealdice-core/api/v2/config"
+	"sealdice-core/api/v2/censor"
 	"sealdice-core/api/v2/customreply"
 	"sealdice-core/api/v2/customtext"
 	"sealdice-core/api/v2/deck"
 	"sealdice-core/api/v2/group"
+	"sealdice-core/api/v2/helpdoc"
 	"sealdice-core/api/v2/imconnection"
 	"sealdice-core/api/v2/js"
 	"sealdice-core/api/v2/middleware"
@@ -28,6 +31,17 @@ func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	baseService := base.NewBaseService(dm)
 	baseService.RegisterRoutes(baseGroup)
 	realtime.RegisterRoutes(e, dm)
+
+	baseSettingAuth := huma.NewGroup(api, "/sd-api/v2/base-setting")
+	baseSettingAuth.UseSimpleModifier(huma.OperationTags("base-setting"))
+	baseSettingAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	baseSettingService := basesetting.NewService(dm)
+	baseSettingService.RegisterRoutes(baseSettingAuth)
+
+	baseSettingProtected := huma.NewGroup(api, "/sd-api/v2/base-setting")
+	baseSettingProtected.UseSimpleModifier(huma.OperationTags("base-setting"))
+	baseSettingProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	baseSettingService.RegisterProtectedRoutes(baseSettingProtected)
 
 	groupPublic := huma.NewGroup(api, "/sd-api/v2/group")
 	groupPublic.UseSimpleModifier(huma.OperationTags("group"))
@@ -126,6 +140,28 @@ func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	jsProtected.UseSimpleModifier(huma.OperationTags("js"))
 	jsProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
 	jsService.RegisterProtectedRoutes(jsProtected)
+
+	helpdocAuth := huma.NewGroup(api, "/sd-api/v2/helpdoc")
+	helpdocAuth.UseSimpleModifier(huma.OperationTags("helpdoc"))
+	helpdocAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	helpdocService := helpdoc.NewService(dm)
+	helpdocService.RegisterRoutes(helpdocAuth)
+
+	helpdocProtected := huma.NewGroup(api, "/sd-api/v2/helpdoc")
+	helpdocProtected.UseSimpleModifier(huma.OperationTags("helpdoc"))
+	helpdocProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	helpdocService.RegisterProtectedRoutes(helpdocProtected)
+
+	censorAuth := huma.NewGroup(api, "/sd-api/v2/censor")
+	censorAuth.UseSimpleModifier(huma.OperationTags("censor"))
+	censorAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	censorService := censor.NewService(dm)
+	censorService.RegisterRoutes(censorAuth)
+
+	censorProtected := huma.NewGroup(api, "/sd-api/v2/censor")
+	censorProtected.UseSimpleModifier(huma.OperationTags("censor"))
+	censorProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	censorService.RegisterProtectedRoutes(censorProtected)
 
 	imcAuth := huma.NewGroup(api, "/sd-api/v2/imconnection")
 	imcAuth.UseSimpleModifier(huma.OperationTags("imconnection"))
