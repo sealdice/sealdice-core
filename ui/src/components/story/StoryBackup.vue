@@ -1,79 +1,34 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { filesize } from 'filesize';
 import { useDialog, useMessage } from 'naive-ui';
-import {
-  getSdApiV2StoryBackupDownload,
-  getSdApiV2StoryBackupListOptions,
-  postSdApiV2StoryBackupBatchDelete,
-  type StoryLogBackup,
-} from '@/api';
-import { downloadApiFile } from '@/api/download';
-import { hasAccessToken } from '@/features/auth/state';
+import { useStoryBackup } from '@/features/story/useStoryBackup';
 
 const message = useMessage();
 const dialog = useDialog();
-const queryClient = useQueryClient();
+const {
+  backups,
+  selectedBackups,
+  selectedBackupNames,
+  checkAllBackups,
+  isIndeterminate,
+  selectedBytes,
+  deleteMutation,
+  handleCheckAllChange,
+  handleCheckedBackupChange,
+  downloadBackup,
+} = useStoryBackup();
 
-const selectedBackups = ref<StoryLogBackup[]>([]);
-const selectedBackupNames = computed({
-  get: () => selectedBackups.value.map(item => item.name),
-  set: names => {
-    selectedBackups.value = backups.value.filter(item => names.includes(item.name));
-  },
-});
-const checkAllBackups = ref(false);
-
-const backupListQuery = useQuery({
-  ...getSdApiV2StoryBackupListOptions(),
-  enabled: hasAccessToken,
-});
-
-const backups = computed(() => backupListQuery.data.value?.item.data ?? []);
-const isIndeterminate = computed(() => {
-  return selectedBackups.value.length > 0 && selectedBackups.value.length < backups.value.length;
-});
-const selectedBytes = computed(() =>
-  selectedBackups.value.map(item => item.fileSize).reduce((sum, size) => sum + size, 0),
-);
-
-const refreshList = () =>
-  queryClient.invalidateQueries({
-    queryKey: ['getSdApiV2StoryBackupList'],
-  });
-
-const deleteMutation = useMutation({
-  mutationFn: async (names: string[]) => {
-    const { data } = await postSdApiV2StoryBackupBatchDelete({
-      body: {
-        names,
-      },
-      throwOnError: true,
-    });
-    return data.item;
-  },
-  onSuccess: async item => {
+async function deleteBackups(names: string[]) {
+  try {
+    const item = await deleteMutation.mutateAsync(names);
     if (item.result) {
       message.success('已删除所选备份');
     } else {
       message.error('有备份删除失败！失败文件：\n' + (item.fails ?? []).join('\n'));
     }
-    selectedBackups.value = [];
-    checkAllBackups.value = false;
-    await refreshList();
-  },
-  onError: () => {
+  } catch {
     message.error('删除失败');
-  },
-});
-
-function handleCheckAllChange(checked: boolean) {
-  selectedBackups.value = checked ? [...backups.value] : [];
-}
-
-function handleCheckedBackupChange() {
-  checkAllBackups.value = selectedBackups.value.length === backups.value.length;
+  }
 }
 
 function backupBatchDeleteConfirm() {
@@ -83,7 +38,7 @@ function backupBatchDeleteConfirm() {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
-      await deleteMutation.mutateAsync(selectedBackups.value.map(item => item.name));
+      await deleteBackups(selectedBackups.value.map(item => item.name));
     },
   });
 }
@@ -95,20 +50,9 @@ function bakDeleteConfirm(name: string) {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
-      await deleteMutation.mutateAsync([name]);
+      await deleteBackups([name]);
     },
   });
-}
-
-async function downloadBackup(name: string) {
-  await downloadApiFile(
-    getSdApiV2StoryBackupDownload({
-      query: { name },
-      parseAs: 'blob',
-      throwOnError: true,
-    }),
-    name,
-  );
 }
 </script>
 

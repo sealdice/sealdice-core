@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, shallowRef, watch } from 'vue';
-import { getSdApiV2ResourceData, type ResourceItem } from '@/api';
+import { type ResourceItem } from '@/api';
+import { useResourcePreview } from '@/features/resource/useResourcePreview';
 
 const props = withDefaults(
   defineProps<{
@@ -12,66 +12,10 @@ const props = withDefaults(
   },
 );
 
-const objectUrl = shallowRef('');
-const loading = shallowRef(false);
-const failed = shallowRef(false);
-let loadId = 0;
-
-function revokeObjectUrl() {
-  if (!objectUrl.value) return;
-  URL.revokeObjectURL(objectUrl.value);
-  objectUrl.value = '';
-}
-
-async function loadImage() {
-  const currentId = ++loadId;
-  revokeObjectUrl();
-  failed.value = false;
-
-  if (props.item.type !== 'image' || !props.item.path) {
-    failed.value = true;
-    return;
-  }
-
-  loading.value = true;
-  try {
-    const { data } = await getSdApiV2ResourceData({
-      query: {
-        path: props.item.path,
-        thumbnail: props.thumbnail,
-      },
-      parseAs: 'blob',
-      throwOnError: true,
-    });
-    if (currentId !== loadId) return;
-    if (!(data instanceof Blob)) {
-      failed.value = true;
-      return;
-    }
-    objectUrl.value = URL.createObjectURL(data);
-  } catch {
-    if (currentId === loadId) {
-      failed.value = true;
-    }
-  } finally {
-    if (currentId === loadId) {
-      loading.value = false;
-    }
-  }
-}
-
-watch(
-  () => [props.item.path, props.thumbnail] as const,
-  () => {
-    void loadImage();
-  },
-  { immediate: true },
+const { objectUrl, loading, failed } = useResourcePreview(
+  () => props.item,
+  () => props.thumbnail,
 );
-
-onBeforeUnmount(() => {
-  loadId += 1;
-  revokeObjectUrl();
-});
 </script>
 
 <template>

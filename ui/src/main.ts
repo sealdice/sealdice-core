@@ -6,13 +6,18 @@ import './polyfills/structuredClone';
 
 import { createApp } from 'vue';
 import { VueQueryPlugin } from '@tanstack/vue-query';
-import proNaiveUi from 'pro-naive-ui';
 
-// import dayjs from 'dayjs';
-// import 'dayjs/locale/zh-cn';
-// import relativeTime from 'dayjs/plugin/relativeTime';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import safeHtmlDirective from './directives/safeHtml';
-
+import {
+  create,
+  ProInput ,
+  ProSelect ,
+  ProDigit ,
+  ProSwitch
+} from 'pro-naive-ui'
 import App from './App.vue';
 import router from './router';
 
@@ -30,8 +35,8 @@ import 'vfonts/Lato.css';
 import 'vfonts/FiraCode.css';
 
 // 配置 dayjs
-// dayjs.locale('zh-cn');
-// dayjs.extend(relativeTime);
+dayjs.locale('zh-cn');
+dayjs.extend(relativeTime);
 
 // Naive UI 会按运行时顺序插入 style 标签。显式插入标记节点可以稳定样式优先级，
 // 避免局部 scoped CSS 与组件库 CSS 在热更新/构建后出现顺序漂移。
@@ -44,9 +49,15 @@ setupApiClient();
 
 const app = createApp(App);
 
+// 未来考虑换掉这个玩意，还得手动引入，真麻烦啊。
+const proNaive = create({
+  components: [ProInput, ProSelect, ProDigit, ProSwitch]
+})
+
+app.use(proNaive)
+
 app.directive('safe-html', safeHtmlDirective);
 app.use(router);
-app.use(proNaiveUi);
 app.use(VueQueryPlugin, {
   queryClient,
 });

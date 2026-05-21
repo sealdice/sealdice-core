@@ -42,11 +42,12 @@
     "nprogress": "^0.2.0",
     "pinyin-pro": "^3.28.1",
     "pro-naive-ui": "^3.2.3",
+    "pro-naive-ui-resolver": "^1.0.2",
     "vue": "^3.5.34",
     "vue-codemirror6": "^1.5.2",
     "vue-diff": "^1.2.4",
-    "vue-router": "^5.0.7",
-    "vuedraggable": "^4.1.0"
+    "vue-draggable-next": "^2.3.0",
+    "vue-router": "^5.0.7"
   },
   "devDependencies": {
     "@csstools/postcss-color-mix-function": "^3.0.12",

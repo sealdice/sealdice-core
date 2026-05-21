@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
   NButton,
   NFlex,
@@ -15,43 +14,13 @@ import {
   NAlert,
 } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
-import {
-  getSdApiV2JsList,
-  getSdApiV2JsByNameDataList,
-  getSdApiV2JsByNameData,
-  getSdApiV2JsByNameDataInfo,
-  postSdApiV2JsByNameData,
-  postSdApiV2JsByNameDataDelete,
-  postSdApiV2JsByNameDataShrink,
-  type JsInfo,
-} from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import { useJsData } from '@/features/js/useJsData';
 
 const message = useMessage();
 const dialog = useDialog();
-const queryClient = useQueryClient();
 
 const selectedPlugin = ref<string>('');
-
-const pluginListQuery = useQuery({
-  queryKey: ['js-list-for-data'],
-  enabled: hasAccessToken,
-  queryFn: async () => {
-    const { data } = await getSdApiV2JsList({
-      query: { page: 1, pageSize: 200 },
-      throwOnError: true,
-    });
-    return data.item.data ?? [];
-  },
-});
-
-const pluginOptions = computed(() =>
-  (pluginListQuery.data.value ?? []).map((p: JsInfo) => ({
-    label: `${p.name} (v${p.version})`,
-    value: p.name,
-  })),
-);
 
 type JsDataSearchFormValues = {
   plugin: string | null;
@@ -65,6 +34,19 @@ const defaultJsDataSearchFormValues = (): JsDataSearchFormValues => ({
 
 const dataPage = ref({ page: 1, pageSize: 20 });
 const dataKeyword = ref('');
+const {
+  pluginOptions,
+  dataListQuery,
+  dataInfoQuery,
+  setMutation,
+  deleteMutation,
+  shrinkMutation,
+  invalidateData,
+} = useJsData({
+  selectedPlugin,
+  dataPage,
+  dataKeyword,
+});
 
 const searchForm = createProSearchForm<JsDataSearchFormValues>({
   initialValues: cloneSearchFormValues(defaultJsDataSearchFormValues()),
@@ -109,31 +91,6 @@ const searchColumns = computed<ProSearchFormColumns<JsDataSearchFormValues>>(() 
   },
 ]);
 
-const dataListQuery = useQuery({
-  queryKey: computed(() => ['js-data-list', selectedPlugin.value, dataPage.value, dataKeyword.value]),
-  enabled: computed(() => hasAccessToken.value && !!selectedPlugin.value),
-  queryFn: async () => {
-    const { data } = await getSdApiV2JsByNameDataList({
-      path: { name: selectedPlugin.value },
-      query: { page: dataPage.value.page, pageSize: dataPage.value.pageSize, keyword: dataKeyword.value || undefined },
-      throwOnError: true,
-    });
-    return data.item;
-  },
-});
-
-const dataInfoQuery = useQuery({
-  queryKey: computed(() => ['js-data-info', selectedPlugin.value]),
-  enabled: computed(() => hasAccessToken.value && !!selectedPlugin.value),
-  queryFn: async () => {
-    const { data } = await getSdApiV2JsByNameDataInfo({
-      path: { name: selectedPlugin.value },
-      throwOnError: true,
-    });
-    return data.item;
-  },
-});
-
 // Edit modal
 const showEditModal = ref(false);
 const editKey = ref('');
@@ -156,56 +113,6 @@ function openEdit(key: string, value: string, isJson: boolean) {
   showEditModal.value = true;
 }
 
-const setMutation = useMutation({
-  mutationFn: async (payload: { key: string; value: string }) => {
-    await postSdApiV2JsByNameData({
-      path: { name: selectedPlugin.value },
-      body: payload,
-      throwOnError: true,
-    });
-  },
-  onSuccess: () => {
-    message.success('已保存');
-    showEditModal.value = false;
-    invalidateData();
-  },
-  onError: () => message.error('保存失败'),
-});
-
-const deleteMutation = useMutation({
-  mutationFn: async (keys: string[]) => {
-    await postSdApiV2JsByNameDataDelete({
-      path: { name: selectedPlugin.value },
-      body: { keys },
-      throwOnError: true,
-    });
-  },
-  onSuccess: () => {
-    message.success('已删除');
-    invalidateData();
-  },
-  onError: () => message.error('删除失败'),
-});
-
-const shrinkMutation = useMutation({
-  mutationFn: async () => {
-    await postSdApiV2JsByNameDataShrink({
-      path: { name: selectedPlugin.value },
-      throwOnError: true,
-    });
-  },
-  onSuccess: () => {
-    message.success('数据库已压缩');
-    queryClient.invalidateQueries({ queryKey: ['js-data-info'] });
-  },
-  onError: () => message.error('压缩失败'),
-});
-
-function invalidateData() {
-  queryClient.invalidateQueries({ queryKey: ['js-data-list'] });
-  queryClient.invalidateQueries({ queryKey: ['js-data-info'] });
-}
-
 function confirmSave() {
   if (editIsJson.value && jsonError.value) {
     dialog.warning({
@@ -213,11 +120,11 @@ function confirmSave() {
       content: '当前数据不是合法 JSON，确定要继续保存吗？',
       positiveText: '仍然保存',
       negativeText: '取消',
-      onPositiveClick: () => setMutation.mutateAsync({ key: editKey.value, value: editValue.value }),
+      onPositiveClick: saveKey,
     });
     return;
   }
-  setMutation.mutateAsync({ key: editKey.value, value: editValue.value });
+  saveKey();
 }
 
 function handleDeleteKey(key: string) {
@@ -226,8 +133,36 @@ function handleDeleteKey(key: string) {
     content: `确认删除 "${key}"？`,
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => deleteMutation.mutateAsync([key]),
+    onPositiveClick: () => deleteKeys([key]),
   });
+}
+
+async function saveKey() {
+  try {
+    await setMutation.mutateAsync({ key: editKey.value, value: editValue.value });
+    message.success('已保存');
+    showEditModal.value = false;
+  } catch {
+    message.error('保存失败');
+  }
+}
+
+async function deleteKeys(keys: string[]) {
+  try {
+    await deleteMutation.mutateAsync(keys);
+    message.success('已删除');
+  } catch {
+    message.error('删除失败');
+  }
+}
+
+async function shrinkData() {
+  try {
+    await shrinkMutation.mutateAsync();
+    message.success('数据库已压缩');
+  } catch {
+    message.error('压缩失败');
+  }
 }
 
 function formatFileSize(bytes: number): string {
@@ -260,7 +195,7 @@ function formatFileSize(bytes: number): string {
           v-if="dataInfoQuery.data.value.canShrink"
           size="small"
           :loading="shrinkMutation.isPending.value"
-          @click="shrinkMutation.mutateAsync()"
+          @click="shrinkData"
         >
           压缩数据库
         </n-button>

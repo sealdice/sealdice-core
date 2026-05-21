@@ -59,6 +59,9 @@ importers:
       pro-naive-ui:
         specifier: ^3.2.3
         version: 3.2.3(naive-ui@2.43.1(vue@3.5.34(typescript@5.8.3)))(vue@3.5.34(typescript@5.8.3))
+      pro-naive-ui-resolver:
+        specifier: ^1.0.2
+        version: 1.0.2
       vue:
         specifier: ^3.5.34
         version: 3.5.34(typescript@5.8.3)
@@ -68,12 +71,12 @@ importers:
       vue-diff:
         specifier: ^1.2.4
         version: 1.2.4(vue@3.5.34(typescript@5.8.3))
+      vue-draggable-next:
+        specifier: ^2.3.0
+        version: 2.3.0(sortablejs@1.15.7)(vue@3.5.34(typescript@5.8.3))
       vue-router:
         specifier: ^5.0.7
         version: 5.0.7(@vue/compiler-sfc@3.5.34)(pinia@3.0.4(typescript@5.8.3)(vue@3.5.34(typescript@5.8.3)))(vue@3.5.34(typescript@5.8.3))
-      vuedraggable:
-        specifier: ^4.1.0
-        version: 4.1.0(vue@3.5.34(typescript@5.8.3))
     devDependencies:
       '@csstools/postcss-color-mix-function':
         specifier: ^3.0.12
@@ -3518,6 +3521,10 @@ packages:
     peerDependencies:
       vue: '>= 3.3.0'
 
+  pro-naive-ui-resolver@1.0.2:
+    resolution: {integrity: sha512-CEPDm2B4RSIxtVWdN+mlXNs8rQ4EQi5mp2x4ZTLgVhcvvC3v0NwxqHtjjR+swqGcBbKJ0ZN4/UlkxRIgd3+AdA==}
+    engines: {node: '>=18.12.0'}
+
   pro-naive-ui@3.2.3:
     resolution: {integrity: sha512-8aGqzuqk3547QqPsOyXfZuzysBIqOym2iIsPcODRt4J+VWjjD3R/av/xyfJABSuGx+T38hBz2DYg3kSySbMV1A==}
     engines: {node: '>=18.12.0'}
@@ -3714,9 +3721,6 @@ packages:
   smob@1.6.2:
     resolution: {integrity: sha512-RQsvleCbF8cVHEv+xuDGaA4pOizFqJ0GgjtMSRo6oP8pnN7WsigHgVGey6aILRBKv4W2YOMHLqbKdnB6hpB9fw==}
     engines: {node: '>=20.0.0'}
-
-  sortablejs@1.14.0:
-    resolution: {integrity: sha512-pBXvQCs5/33fdN1/39pPL0NZF20LeRbLQ5jtnheIPN9JQAaufGjKdWduZn4U7wCtVuzKhmRkI0DFYHYRbB2H1w==}
 
   sortablejs@1.15.7:
     resolution: {integrity: sha512-Kk8wLQPlS+yi1ZEf48a4+fzHa4yxjC30M/Sr2AnQu+f/MPwvvX9XjZ6OWejiz8crBsLwSq8GHqaxaET7u6ux0A==}
@@ -4169,6 +4173,12 @@ packages:
   vue-diff@1.2.4:
     resolution: {integrity: sha512-9z+0uPHigi/DdE3Zhdg1zR3VkiBaDN4czjWa/Zznvizn4znckVqz20p1KytaWq5NJtJ7UnkqRbuWsaCuC1ZHaA==}
 
+  vue-draggable-next@2.3.0:
+    resolution: {integrity: sha512-ymbY0UIwfSdg0iDN/iyNNwUrTqZ/6KbPryzsvTNXBLuDCuOBdNijSK8yynNtmiSj6RapTPQfjLGQdJrZkzBd2w==}
+    peerDependencies:
+      sortablejs: ^1.14.0
+      vue: ^3.5.17
+
   vue-eslint-parser@10.2.0:
     resolution: {integrity: sha512-CydUvFOQKD928UzZhTp4pr2vWz1L+H99t7Pkln2QSPdvmURT0MoC4wUccfCnuEaihNsu9aYYyk+bep8rlfkUXw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -4203,11 +4213,6 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
-
-  vuedraggable@4.1.0:
-    resolution: {integrity: sha512-FU5HCWBmsf20GpP3eudURW3WdWTKIbEIQxh9/8GE806hydR9qZqRRxRE3RjqX7PkuLuMQG/A7n3cfj9rCEchww==}
-    peerDependencies:
-      vue: ^3.0.1
 
   vueuc@0.4.65:
     resolution: {integrity: sha512-lXuMl+8gsBmruudfxnMF9HW4be8rFziylXFu1VHVNbLVhRTXXV4njvpRuJapD/8q+oFEMSfQMH16E/85VoWRyQ==}
@@ -7905,6 +7910,8 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
 
+  pro-naive-ui-resolver@1.0.2: {}
+
   pro-naive-ui@3.2.3(naive-ui@2.43.1(vue@3.5.34(typescript@5.8.3)))(vue@3.5.34(typescript@5.8.3)):
     dependencies:
       '@css-render/plugin-bem': 0.15.14(css-render@0.15.14)
@@ -8153,8 +8160,6 @@ snapshots:
       totalist: 3.0.1
 
   smob@1.6.2: {}
-
-  sortablejs@1.14.0: {}
 
   sortablejs@1.15.7: {}
 
@@ -8670,6 +8675,11 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
+  vue-draggable-next@2.3.0(sortablejs@1.15.7)(vue@3.5.34(typescript@5.8.3)):
+    dependencies:
+      sortablejs: 1.15.7
+      vue: 3.5.34(typescript@5.8.3)
+
   vue-eslint-parser@10.2.0(eslint@9.36.0(jiti@2.6.0)):
     dependencies:
       debug: 4.4.3
@@ -8721,11 +8731,6 @@ snapshots:
       '@vue/shared': 3.5.34
     optionalDependencies:
       typescript: 5.8.3
-
-  vuedraggable@4.1.0(vue@3.5.34(typescript@5.8.3)):
-    dependencies:
-      sortablejs: 1.14.0
-      vue: 3.5.34(typescript@5.8.3)
 
   vueuc@0.4.65(vue@3.5.34(typescript@5.8.3)):
     dependencies:

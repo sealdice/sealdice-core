@@ -1,28 +1,14 @@
 <script setup lang="tsx">
 import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { NButton, NCheckbox, NFlex, NPagination, NTag, NText, useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
-import {
-  getSdApiV2JsList,
-  postSdApiV2JsDelete,
-  postSdApiV2JsEnable,
-  postSdApiV2JsDisable,
-  postSdApiV2JsCheckUpdate,
-  postSdApiV2JsUpdate,
-  type JsInfo as JsInfoType,
-} from '@/api';
-import { getApiBaseUrl } from '@/api/config';
-import {
-  postSdApiV2JsUploadComplete,
-  postSdApiV2JsUploadInit,
-} from '@/api/generated';
+import { type JsInfo as JsInfoType } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
-import { hasAccessToken } from '@/features/auth/state';
-import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
+import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 
@@ -34,7 +20,6 @@ const emit = defineEmits<{
 
 const message = useMessage();
 const dialog = useDialog();
-const queryClient = useQueryClient();
 
 interface JsInfoExt extends JsInfoType {
   pitch?: boolean;
@@ -119,6 +104,26 @@ const listParams = computed(() => ({
   sortBy: listQuery.sortBy,
   sortOrder: listQuery.sortOrder,
 }));
+const {
+  listQueryResult,
+  invalidateList,
+  deleteMutation,
+  enableMutation,
+  disableMutation,
+  uploader,
+  checkUpdate,
+  applyUpdate,
+} = useJsList({
+  listParams,
+  async onUploadSuccess(task: ResumableUploadTask) {
+    message.success(`上传完成：${task.filename}`);
+    emit('markNeedReload');
+    await invalidateList();
+  },
+  onUploadError(task: ResumableUploadTask) {
+    message.error(`上传失败：${task.filename}`);
+  },
+});
 
 watch(
   () => listQuery.keyword,
@@ -134,18 +139,6 @@ watch(
   },
 );
 
-const listQueryResult = useQuery({
-  queryKey: computed(() => ['js-list', listParams.value]),
-  enabled: hasAccessToken,
-  queryFn: async () => {
-    const { data } = await getSdApiV2JsList({
-      query: listParams.value,
-      throwOnError: true,
-    });
-    return data.item;
-  },
-});
-
 const items = computed<JsInfoExt[]>(() =>
   (listQueryResult.data.value?.data ?? []).map(item => ({ ...item, pitch: false })),
 );
@@ -159,79 +152,9 @@ const filterHint = computed(() => {
   return `当前匹配 ${total.value} 条`;
 });
 
-const invalidateList = () => queryClient.invalidateQueries({ queryKey: ['js-list'] });
-
-const deleteMutation = useMutation({
-  mutationFn: async (filename: string) => {
-    await postSdApiV2JsDelete({
-      body: { filename },
-      throwOnError: true,
-    });
-  },
-});
-
-const enableMutation = useMutation({
-  mutationFn: async (name: string) => {
-    await postSdApiV2JsEnable({
-      body: { name },
-      throwOnError: true,
-    });
-  },
-});
-
-const disableMutation = useMutation({
-  mutationFn: async (name: string) => {
-    await postSdApiV2JsDisable({
-      body: { name },
-      throwOnError: true,
-    });
-  },
-});
-
 const showDiff = ref(false);
 const diffLoading = ref(false);
-const diffData = ref<{ old: string; new: string; filename: string; tempFileName: string } | null>(null);
-const uploader = useResumableUpload('sd-js-upload-state', {
-  chunkSize: 4 * 1024 * 1024,
-  async init(task: ResumableUploadTask) {
-    const { data } = await postSdApiV2JsUploadInit({
-      body: {
-        filename: task.filename,
-        fileSize: task.fileSize,
-        fileHash: task.fileHash,
-        chunkSize: 4 * 1024 * 1024,
-      },
-      throwOnError: true,
-    });
-    return {
-      sessionId: data.item.sessionId,
-      chunkSize: data.item.chunkSize,
-      uploadedChunks: data.item.uploadedChunks ?? [],
-      uploadedBytes: data.item.uploadedBytes,
-      expectedChunks: data.item.expectedChunks,
-    };
-  },
-  async complete(task: ResumableUploadTask) {
-    const { data } = await postSdApiV2JsUploadComplete({
-      body: {
-        sessionId: task.sessionId,
-      },
-      throwOnError: true,
-    });
-    return data.item.success;
-  },
-  buildChunkUrl(task: ResumableUploadTask, index: number) {
-    return `${getApiBaseUrl()}/sd-api/v2/js/upload/${encodeURIComponent(task.sessionId)}/${index}`;
-  },
-  async onTaskSuccess(task: ResumableUploadTask) {
-    message.success(`上传完成：${task.filename}`);
-    emit('markNeedReload');
-    await invalidateList();
-  },
-  onTaskError(task: ResumableUploadTask) {
-    message.error(`上传失败：${task.filename}`);
-  },
-});
+const diffData = ref<JsUpdateDiff | null>(null);
 
 const activeUploadTasks = computed(() =>
   uploader.tasks.value.filter(task => task.status !== 'success'),
@@ -265,23 +188,10 @@ async function uploadPlugin(options: UploadCustomRequestOptions) {
 async function handleCheckUpdate(item: JsInfoExt) {
   diffLoading.value = true;
   try {
-    const { data } = await postSdApiV2JsCheckUpdate({
-      body: { filename: item.filename },
-      throwOnError: true,
-    });
-    if (!data.item.success) {
-      message.error(data.item.err || '检查更新失败');
-      return;
-    }
-    diffData.value = {
-      old: data.item.old || '',
-      new: data.item.new || '',
-      filename: data.item.filename || '',
-      tempFileName: data.item.tempFileName || '',
-    };
+    diffData.value = await checkUpdate(item.filename);
     showDiff.value = true;
-  } catch {
-    message.error('检查更新失败');
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '检查更新失败');
   } finally {
     diffLoading.value = false;
   }
@@ -290,13 +200,7 @@ async function handleCheckUpdate(item: JsInfoExt) {
 async function handleApplyUpdate() {
   if (!diffData.value) return;
   try {
-    await postSdApiV2JsUpdate({
-      body: {
-        filename: diffData.value.filename,
-        tempFileName: diffData.value.tempFileName,
-      },
-      throwOnError: true,
-    });
+    await applyUpdate(diffData.value);
     message.success('更新成功，请手动重载后生效');
     showDiff.value = false;
     emit('markNeedReload');

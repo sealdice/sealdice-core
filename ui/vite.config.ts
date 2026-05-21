@@ -8,10 +8,12 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import { VitePWA } from 'vite-plugin-pwa'
 import AutoImport from 'unplugin-auto-import/vite'
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
+import { ProNaiveUIResolver } from 'pro-naive-ui-resolver'
 import Components from 'unplugin-vue-components/vite'
 import Icons from 'unplugin-icons/vite'
 import IconsResolver from 'unplugin-icons/resolver'
 import { visualizer } from 'rollup-plugin-visualizer'
+import { classifyVendorChunk } from './src/build/chunkPolicy'
 
 const DEFAULT_PROXY_TARGET = 'http://localhost:3211'
 const apiProxyTarget = (
@@ -33,43 +35,46 @@ export default defineConfig(({ mode }) => ({
     vue(),
     vueJsx(),
     vueDevTools(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'pwa-192.svg', 'pwa-512.svg', 'pwa-maskable.svg'],
-      manifest: {
-        name: 'SealDice 控制台',
-        short_name: 'SealDice',
-        description: 'SealDice 核心管理控制台',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
-        display: 'standalone',
-        start_url: './',
-        scope: './',
-        icons: [
-          {
-            src: '/pwa-192.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml',
-            purpose: 'any',
-          },
-          {
-            src: '/pwa-512.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any',
-          },
-          {
-            src: '/pwa-maskable.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'maskable',
-          },
-        ],
-      },
-      devOptions: {
-        enabled: true,
-      },
-    }),
+    // VitePWA({
+    //   registerType: 'autoUpdate',
+    //   includeAssets: ['favicon.ico', 'pwa-192.svg', 'pwa-512.svg', 'pwa-maskable.svg'],
+    //   workbox: {
+    //     globIgnores: ['**/stats.html'],
+    //   },
+    //   manifest: {
+    //     name: 'SealDice 控制台',
+    //     short_name: 'SealDice',
+    //     description: 'SealDice 核心管理控制台',
+    //     theme_color: '#0f172a',
+    //     background_color: '#0f172a',
+    //     display: 'standalone',
+    //     start_url: './',
+    //     scope: './',
+    //     icons: [
+    //       {
+    //         src: '/pwa-192.svg',
+    //         sizes: '192x192',
+    //         type: 'image/svg+xml',
+    //         purpose: 'any',
+    //       },
+    //       {
+    //         src: '/pwa-512.svg',
+    //         sizes: '512x512',
+    //         type: 'image/svg+xml',
+    //         purpose: 'any',
+    //       },
+    //       {
+    //         src: '/pwa-maskable.svg',
+    //         sizes: '512x512',
+    //         type: 'image/svg+xml',
+    //         purpose: 'maskable',
+    //       },
+    //     ],
+    //   },
+    //   devOptions: {
+    //     enabled: true,
+    //   },
+    // }),
     AutoImport({
       imports: [
         // 'vue', // 感觉vue自动引入有点乱，还是手动吧
@@ -85,7 +90,8 @@ export default defineConfig(({ mode }) => ({
       resolvers: [IconsResolver()]
     }),
     Components({
-      resolvers: [NaiveUiResolver(), IconsResolver()]
+      // 补充Pro-naive-ui自动引入
+      resolvers: [NaiveUiResolver(), ProNaiveUIResolver(), IconsResolver()]
     }),
     Icons({
       compiler: 'vue3',
@@ -143,19 +149,7 @@ export default defineConfig(({ mode }) => ({
     cssTarget: 'chrome90',
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes('/node_modules/')) return undefined
-          if (
-            id.includes('/vue/') ||
-            id.includes('/@vue/') ||
-            id.includes('/vue-router/') ||
-            id.includes('/@tanstack/query-core/') ||
-            id.includes('/@tanstack/vue-query/')
-          ) {
-            return 'vendor-framework'
-          }
-          return undefined
-        },
+        manualChunks: classifyVendorChunk,
       },
     },
   },

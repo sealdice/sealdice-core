@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
   NCollapse,
   NCollapseItem,
@@ -16,16 +15,8 @@ import {
   useDialog,
   useMessage,
 } from 'naive-ui';
-import {
-  getSdApiV2JsConfigs,
-  getSdApiV2JsDeadConfigs,
-  postSdApiV2JsConfigs,
-  postSdApiV2JsConfigsReset,
-  postSdApiV2JsDeadConfigsDelete,
-  type ApiPluginConfig,
-  type ConfigItem,
-} from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+import { type ConfigItem } from '@/api';
+import { useJsConfig } from '@/features/js/useJsConfig';
 
 const emit = defineEmits<{
   dirtyChange: [value: boolean];
@@ -33,37 +24,13 @@ const emit = defineEmits<{
 
 const message = useMessage();
 const dialog = useDialog();
-const queryClient = useQueryClient();
-
-const configsQuery = useQuery({
-  queryKey: ['js-configs'],
-  enabled: hasAccessToken,
-  queryFn: async () => {
-    const { data } = await getSdApiV2JsConfigs({ throwOnError: true });
-    return data.item;
-  },
-});
-
-const deadConfigsQuery = useQuery({
-  queryKey: ['js-dead-configs'],
-  enabled: hasAccessToken,
-  queryFn: async () => {
-    const { data } = await getSdApiV2JsDeadConfigs({ throwOnError: true });
-    return data.item.configs ?? [];
-  },
-});
-
-const configEntries = computed<[string, ApiPluginConfig][]>(() => {
-  const map = (configsQuery.data.value ?? {}) as Record<string, ApiPluginConfig>;
-  return Object.entries(map);
-});
-
-const configItems = computed(() => {
-  return configEntries.value.map(([name, cfg]) => ({
-    pluginName: name,
-    items: cfg.configs ?? [],
-  }));
-});
+const {
+  deadConfigsQuery,
+  configItems,
+  resetMutation,
+  deleteDeadMutation,
+  savePluginConfigs,
+} = useJsConfig();
 
 const editedValues = ref<Record<string, Record<string, unknown>>>({});
 const saveAllLoading = ref(false);
@@ -79,35 +46,6 @@ watch(
   },
   { immediate: true },
 );
-
-const resetMutation = useMutation({
-  mutationFn: async (payload: { name: string; keys: string[] }) => {
-    await postSdApiV2JsConfigsReset({
-      body: payload,
-      throwOnError: true,
-    });
-  },
-  onSuccess: async () => {
-    message.success('已重置');
-    await queryClient.invalidateQueries({ queryKey: ['js-configs'] });
-  },
-  onError: () => message.error('重置失败'),
-});
-
-const deleteDeadMutation = useMutation({
-  mutationFn: async (names: string[]) => {
-    await postSdApiV2JsDeadConfigsDelete({
-      body: { names },
-      throwOnError: true,
-    });
-  },
-  onSuccess: async () => {
-    message.success('已删除');
-    await queryClient.invalidateQueries({ queryKey: ['js-dead-configs'] });
-    await queryClient.invalidateQueries({ queryKey: ['js-configs'] });
-  },
-  onError: () => message.error('删除失败'),
-});
 
 function setEdited(pluginName: string, key: string, value: unknown) {
   if (!editedValues.value[pluginName]) {
@@ -131,9 +69,27 @@ function handleDeleteDead(deadList: { name: string }[]) {
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
-      await deleteDeadMutation.mutateAsync(deadList.map(item => item.name));
+      await deleteDeadConfigs(deadList.map(item => item.name));
     },
   });
+}
+
+async function resetConfigItem(payload: { name: string; keys: string[] }) {
+  try {
+    await resetMutation.mutateAsync(payload);
+    message.success('已重置');
+  } catch {
+    message.error('重置失败');
+  }
+}
+
+async function deleteDeadConfigs(names: string[]) {
+  try {
+    await deleteDeadMutation.mutateAsync(names);
+    message.success('已删除');
+  } catch {
+    message.error('删除失败');
+  }
 }
 
 async function saveAll() {
@@ -143,18 +99,8 @@ async function saveAll() {
   }
   saveAllLoading.value = true;
   try {
-    for (const [name, config] of Object.entries(editedValues.value)) {
-      if (!Object.keys(config).length) continue;
-      await postSdApiV2JsConfigs({
-        body: {
-          name,
-          config,
-        },
-        throwOnError: true,
-      });
-    }
+    await savePluginConfigs(editedValues.value);
     editedValues.value = {};
-    await queryClient.invalidateQueries({ queryKey: ['js-configs'] });
     message.success('已保存');
   } catch {
     message.error('保存失败');
@@ -222,7 +168,7 @@ defineExpose({
             <n-button
               size="tiny"
               secondary
-              @click="resetMutation.mutateAsync({ name: cfg.pluginName, keys: [item.key] })"
+              @click="resetConfigItem({ name: cfg.pluginName, keys: [item.key] })"
             >
               重置
             </n-button>
@@ -258,7 +204,7 @@ defineExpose({
             size="tiny"
             type="error"
             secondary
-            @click="deleteDeadMutation.mutateAsync([dc.name])"
+            @click="deleteDeadConfigs([dc.name])"
           >
             删除
           </n-button>

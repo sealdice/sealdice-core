@@ -21,6 +21,7 @@ import StoryBackup from '@/components/story/StoryBackup.vue';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import { storyInfoQueryKey } from '@/features/story/queryKeys';
 
 dayjs.extend(relativeTime);
 
@@ -198,7 +199,7 @@ async function searchLogs() {
 
 const refreshLogs = async () => {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['getSdApiV2StoryInfo'] }),
+    queryClient.invalidateQueries({ queryKey: storyInfoQueryKey() }),
     searchLogs(),
   ]);
 };
