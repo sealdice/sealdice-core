@@ -1439,6 +1439,25 @@ export const BodyHPageResultGroupInfoSchema = {
   type: 'object',
 } as const;
 
+export const BodyHPageResultResourceItemSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyHPageResultResourceItem.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/HPageResultResourceItem',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyHPageResultRuleInfoSchema = {
   additionalProperties: false,
   properties: {
@@ -1968,6 +1987,25 @@ export const BodyProtocolListRespSchema = {
   type: 'object',
 } as const;
 
+export const BodyPublicDiceInfoRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyPublicDiceInfoResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/PublicDiceInfoResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyQRCodeRespSchema = {
   additionalProperties: false,
   properties: {
@@ -2037,6 +2075,25 @@ export const BodyReplyModuleConfigSchema = {
     },
     item: {
       $ref: '#/components/schemas/ReplyModuleConfig',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyResourceUploadRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyResourceUploadResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/ResourceUploadResp',
       description: '响应数据项',
     },
   },
@@ -3807,6 +3864,32 @@ export const HPageResultGroupInfoSchema = {
   type: 'object',
 } as const;
 
+export const HPageResultResourceItemSchema = {
+  additionalProperties: false,
+  properties: {
+    list: {
+      items: {
+        $ref: '#/components/schemas/ResourceItem',
+      },
+      type: ['array', 'null'],
+    },
+    page: {
+      format: 'int64',
+      type: 'integer',
+    },
+    pageSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    total: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: ['list', 'total', 'page', 'pageSize'],
+  type: 'object',
+} as const;
+
 export const HPageResultRuleInfoSchema = {
   additionalProperties: false,
   properties: {
@@ -5097,6 +5180,107 @@ export const ProtocolListRespSchema = {
   type: 'object',
 } as const;
 
+export const PublicDiceConfigSchema = {
+  additionalProperties: false,
+  properties: {
+    publicDiceAvatar: {
+      type: 'string',
+    },
+    publicDiceBrief: {
+      type: 'string',
+    },
+    publicDiceEnable: {
+      type: 'boolean',
+    },
+    publicDiceId: {
+      type: 'string',
+    },
+    publicDiceName: {
+      type: 'string',
+    },
+    publicDiceNote: {
+      type: 'string',
+    },
+  },
+  required: [
+    'publicDiceEnable',
+    'publicDiceId',
+    'publicDiceName',
+    'publicDiceBrief',
+    'publicDiceNote',
+    'publicDiceAvatar',
+  ],
+  type: 'object',
+} as const;
+
+export const PublicDiceEndpointItemSchema = {
+  additionalProperties: false,
+  properties: {
+    id: {
+      type: 'string',
+    },
+    isPublic: {
+      type: 'boolean',
+    },
+    platform: {
+      type: 'string',
+    },
+    protocolType: {
+      type: 'string',
+    },
+    state: {
+      format: 'int64',
+      type: 'integer',
+    },
+    userId: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'userId', 'platform', 'protocolType', 'state', 'isPublic'],
+  type: 'object',
+} as const;
+
+export const PublicDiceInfoRespSchema = {
+  additionalProperties: false,
+  properties: {
+    config: {
+      $ref: '#/components/schemas/PublicDiceConfig',
+    },
+    endpoints: {
+      items: {
+        $ref: '#/components/schemas/PublicDiceEndpointItem',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['config', 'endpoints'],
+  type: 'object',
+} as const;
+
+export const PublicDiceUpdateBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/PublicDiceUpdateBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    config: {
+      $ref: '#/components/schemas/PublicDiceConfig',
+    },
+    selectedEndpointIds: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['config', 'selectedEndpointIds'],
+  type: 'object',
+} as const;
+
 export const QRCodeRespSchema = {
   additionalProperties: false,
   properties: {
@@ -5338,6 +5522,68 @@ export const ReplyModuleConfigSchema = {
     },
   },
   required: ['customReplyConfigEnable'],
+  type: 'object',
+} as const;
+
+export const ResourceItemSchema = {
+  additionalProperties: false,
+  properties: {
+    ext: {
+      type: 'string',
+    },
+    name: {
+      type: 'string',
+    },
+    path: {
+      type: 'string',
+    },
+    size: {
+      format: 'int64',
+      type: 'integer',
+    },
+    type: {
+      type: 'string',
+    },
+  },
+  required: ['type', 'name', 'ext', 'path', 'size'],
+  type: 'object',
+} as const;
+
+export const ResourcePathReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/ResourcePathReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    path: {
+      type: 'string',
+    },
+  },
+  required: ['path'],
+  type: 'object',
+} as const;
+
+export const ResourceUploadRespSchema = {
+  additionalProperties: false,
+  properties: {
+    failed: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    success: {
+      type: 'boolean',
+    },
+    testMode: {
+      type: 'boolean',
+    },
+  },
+  required: ['success'],
   type: 'object',
 } as const;
 
@@ -6730,6 +6976,18 @@ export const BodyHPageResultGroupInfoWritableSchema = {
   type: 'object',
 } as const;
 
+export const BodyHPageResultResourceItemWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/HPageResultResourceItem',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyHPageResultRuleInfoWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7070,6 +7328,18 @@ export const BodyProtocolListRespWritableSchema = {
   type: 'object',
 } as const;
 
+export const BodyPublicDiceInfoRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/PublicDiceInfoResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyQRCodeRespWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7111,6 +7381,18 @@ export const BodyReplyModuleConfigWritableSchema = {
   properties: {
     item: {
       $ref: '#/components/schemas/ReplyModuleConfigWritable',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyResourceUploadRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/ResourceUploadResp',
       description: '响应数据项',
     },
   },
@@ -7869,6 +8151,23 @@ export const PostMessageReqBodyWritableSchema = {
   type: 'object',
 } as const;
 
+export const PublicDiceUpdateBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    config: {
+      $ref: '#/components/schemas/PublicDiceConfig',
+    },
+    selectedEndpointIds: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['config', 'selectedEndpointIds'],
+  type: 'object',
+} as const;
+
 export const QuitGroupRequestWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7964,6 +8263,17 @@ export const ReplyModuleConfigWritableSchema = {
     },
   },
   required: ['customReplyConfigEnable'],
+  type: 'object',
+} as const;
+
+export const ResourcePathReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    path: {
+      type: 'string',
+    },
+  },
+  required: ['path'],
   type: 'object',
 } as const;
 

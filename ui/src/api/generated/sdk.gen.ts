@@ -77,6 +77,9 @@ import type {
   GetSdApiV2ConfigAdvancedData,
   GetSdApiV2ConfigAdvancedErrors,
   GetSdApiV2ConfigAdvancedResponses,
+  GetSdApiV2ConfigPublicDiceData,
+  GetSdApiV2ConfigPublicDiceErrors,
+  GetSdApiV2ConfigPublicDiceResponses,
   GetSdApiV2ConfigReplyData,
   GetSdApiV2ConfigReplyErrors,
   GetSdApiV2ConfigReplyResponses,
@@ -173,6 +176,15 @@ import type {
   GetSdApiV2JsUploadBySessionIdByIndexData,
   GetSdApiV2JsUploadBySessionIdByIndexErrors,
   GetSdApiV2JsUploadBySessionIdByIndexResponses,
+  GetSdApiV2ResourceDataData,
+  GetSdApiV2ResourceDataErrors,
+  GetSdApiV2ResourceDataResponses,
+  GetSdApiV2ResourceDownloadData,
+  GetSdApiV2ResourceDownloadErrors,
+  GetSdApiV2ResourceDownloadResponses,
+  GetSdApiV2ResourceListData,
+  GetSdApiV2ResourceListErrors,
+  GetSdApiV2ResourceListResponses,
   GetSdApiV2StoryBackupDownloadData,
   GetSdApiV2StoryBackupDownloadErrors,
   GetSdApiV2StoryBackupDownloadResponses,
@@ -359,6 +371,12 @@ import type {
   PostSdApiV2JsUploadInitErrors,
   PostSdApiV2JsUploadInitResponses,
   PostSdApiV2JsUploadResponses,
+  PostSdApiV2ResourceDeleteData,
+  PostSdApiV2ResourceDeleteErrors,
+  PostSdApiV2ResourceDeleteResponses,
+  PostSdApiV2ResourceUploadData,
+  PostSdApiV2ResourceUploadErrors,
+  PostSdApiV2ResourceUploadResponses,
   PostSdApiV2StoryBackupBatchDeleteData,
   PostSdApiV2StoryBackupBatchDeleteErrors,
   PostSdApiV2StoryBackupBatchDeleteResponses,
@@ -380,6 +398,9 @@ import type {
   PutSdApiV2ConfigAdvancedData,
   PutSdApiV2ConfigAdvancedErrors,
   PutSdApiV2ConfigAdvancedResponses,
+  PutSdApiV2ConfigPublicDiceData,
+  PutSdApiV2ConfigPublicDiceErrors,
+  PutSdApiV2ConfigPublicDiceResponses,
   PutSdApiV2ConfigReplyData,
   PutSdApiV2ConfigReplyErrors,
   PutSdApiV2ConfigReplyResponses,
@@ -1087,6 +1108,41 @@ export const putSdApiV2ConfigAdvanced = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     url: '/sd-api/v2/config/advanced',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 config public dice
+ *
+ * 获取公骰设置配置和可上报终端列表
+ */
+export const getSdApiV2ConfigPublicDice = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2ConfigPublicDiceData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2ConfigPublicDiceResponses,
+    GetSdApiV2ConfigPublicDiceErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/config/public-dice', ...options });
+
+/**
+ * Put sd API v2 config public dice
+ *
+ * 保存公骰设置配置和上报终端选择
+ */
+export const putSdApiV2ConfigPublicDice = <ThrowOnError extends boolean = false>(
+  options: Options<PutSdApiV2ConfigPublicDiceData, ThrowOnError>
+) =>
+  (options.client ?? client).put<
+    PutSdApiV2ConfigPublicDiceResponses,
+    PutSdApiV2ConfigPublicDiceErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/config/public-dice',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -2521,6 +2577,91 @@ export const postSdApiV2JsByNameDataShrink = <ThrowOnError extends boolean = fal
     PostSdApiV2JsByNameDataShrinkErrors,
     ThrowOnError
   >({ url: '/sd-api/v2/js/{name}/data/shrink', ...options });
+
+/**
+ * 获取资源图片数据
+ *
+ * 获取资源图片数据，可按需返回缩略图
+ */
+export const getSdApiV2ResourceData = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2ResourceDataData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2ResourceDataResponses,
+    GetSdApiV2ResourceDataErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/resource/data', ...options });
+
+/**
+ * 删除资源文件
+ *
+ * 删除资源文件
+ */
+export const postSdApiV2ResourceDelete = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2ResourceDeleteData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2ResourceDeleteResponses,
+    PostSdApiV2ResourceDeleteErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/resource/delete',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * 下载资源文件
+ *
+ * 下载资源文件（流式附件下载）
+ */
+export const getSdApiV2ResourceDownload = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2ResourceDownloadData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2ResourceDownloadResponses,
+    GetSdApiV2ResourceDownloadErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/resource/download', ...options });
+
+/**
+ * 获取资源列表
+ *
+ * 获取资源列表
+ */
+export const getSdApiV2ResourceList = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2ResourceListData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2ResourceListResponses,
+    GetSdApiV2ResourceListErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/resource/list', ...options });
+
+/**
+ * 上传资源文件
+ *
+ * 上传资源文件
+ */
+export const postSdApiV2ResourceUpload = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2ResourceUploadData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2ResourceUploadResponses,
+    PostSdApiV2ResourceUploadErrors,
+    ThrowOnError
+  >({
+    ...formDataBodySerializer,
+    url: '/sd-api/v2/resource/upload',
+    ...options,
+    headers: {
+      'Content-Type': null,
+      ...options?.headers,
+    },
+  });
 
 /**
  * Post sd API v2 story backup batch delete

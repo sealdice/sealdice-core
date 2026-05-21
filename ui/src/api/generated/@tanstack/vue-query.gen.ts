@@ -27,6 +27,7 @@ import {
   getSdApiV2CensorStatus,
   getSdApiV2CensorWords,
   getSdApiV2ConfigAdvanced,
+  getSdApiV2ConfigPublicDice,
   getSdApiV2ConfigReply,
   getSdApiV2CustomReplyDebugMode,
   getSdApiV2CustomReplyFiles,
@@ -59,6 +60,9 @@ import {
   getSdApiV2JsRecord,
   getSdApiV2JsStatus,
   getSdApiV2JsUploadBySessionIdByIndex,
+  getSdApiV2ResourceData,
+  getSdApiV2ResourceDownload,
+  getSdApiV2ResourceList,
   getSdApiV2StoryBackupDownload,
   getSdApiV2StoryBackupList,
   getSdApiV2StoryCleanupPreview,
@@ -122,6 +126,8 @@ import {
   postSdApiV2JsUpload,
   postSdApiV2JsUploadComplete,
   postSdApiV2JsUploadInit,
+  postSdApiV2ResourceDelete,
+  postSdApiV2ResourceUpload,
   postSdApiV2StoryBackupBatchDelete,
   postSdApiV2StoryCleanup,
   postSdApiV2StoryUploadLog,
@@ -129,6 +135,7 @@ import {
   putSdApiV2BanConfig,
   putSdApiV2BaseSettingValue,
   putSdApiV2ConfigAdvanced,
+  putSdApiV2ConfigPublicDice,
   putSdApiV2ConfigReply,
   putSdApiV2CustomReplyDebugMode,
   putSdApiV2CustomReplyFilesByFilename,
@@ -205,6 +212,9 @@ import type {
   GetSdApiV2ConfigAdvancedData,
   GetSdApiV2ConfigAdvancedError,
   GetSdApiV2ConfigAdvancedResponse,
+  GetSdApiV2ConfigPublicDiceData,
+  GetSdApiV2ConfigPublicDiceError,
+  GetSdApiV2ConfigPublicDiceResponse,
   GetSdApiV2ConfigReplyData,
   GetSdApiV2ConfigReplyError,
   GetSdApiV2ConfigReplyResponse,
@@ -300,6 +310,13 @@ import type {
   GetSdApiV2JsUploadBySessionIdByIndexData,
   GetSdApiV2JsUploadBySessionIdByIndexError,
   GetSdApiV2JsUploadBySessionIdByIndexResponse,
+  GetSdApiV2ResourceDataData,
+  GetSdApiV2ResourceDataError,
+  GetSdApiV2ResourceDownloadData,
+  GetSdApiV2ResourceDownloadError,
+  GetSdApiV2ResourceListData,
+  GetSdApiV2ResourceListError,
+  GetSdApiV2ResourceListResponse,
   GetSdApiV2StoryBackupDownloadData,
   GetSdApiV2StoryBackupDownloadError,
   GetSdApiV2StoryBackupListData,
@@ -485,6 +502,12 @@ import type {
   PostSdApiV2JsUploadInitError,
   PostSdApiV2JsUploadInitResponse,
   PostSdApiV2JsUploadResponse,
+  PostSdApiV2ResourceDeleteData,
+  PostSdApiV2ResourceDeleteError,
+  PostSdApiV2ResourceDeleteResponse,
+  PostSdApiV2ResourceUploadData,
+  PostSdApiV2ResourceUploadError,
+  PostSdApiV2ResourceUploadResponse,
   PostSdApiV2StoryBackupBatchDeleteData,
   PostSdApiV2StoryBackupBatchDeleteError,
   PostSdApiV2StoryBackupBatchDeleteResponse,
@@ -506,6 +529,9 @@ import type {
   PutSdApiV2ConfigAdvancedData,
   PutSdApiV2ConfigAdvancedError,
   PutSdApiV2ConfigAdvancedResponse,
+  PutSdApiV2ConfigPublicDiceData,
+  PutSdApiV2ConfigPublicDiceError,
+  PutSdApiV2ConfigPublicDiceResponse,
   PutSdApiV2ConfigReplyData,
   PutSdApiV2ConfigReplyError,
   PutSdApiV2ConfigReplyResponse,
@@ -1672,6 +1698,65 @@ export const putSdApiV2ConfigAdvancedMutation = (
   > = {
     mutationFn: async fnOptions => {
       const { data } = await putSdApiV2ConfigAdvanced({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2ConfigPublicDiceQueryKey = (
+  options?: Options<GetSdApiV2ConfigPublicDiceData>
+) => createQueryKey('getSdApiV2ConfigPublicDice', options);
+
+/**
+ * Get sd API v2 config public dice
+ *
+ * 获取公骰设置配置和可上报终端列表
+ */
+export const getSdApiV2ConfigPublicDiceOptions = (
+  options?: Options<GetSdApiV2ConfigPublicDiceData>
+) =>
+  queryOptions<
+    GetSdApiV2ConfigPublicDiceResponse,
+    GetSdApiV2ConfigPublicDiceError,
+    GetSdApiV2ConfigPublicDiceResponse,
+    ReturnType<typeof getSdApiV2ConfigPublicDiceQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2ConfigPublicDice({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2ConfigPublicDiceQueryKey(options),
+  });
+
+/**
+ * Put sd API v2 config public dice
+ *
+ * 保存公骰设置配置和上报终端选择
+ */
+export const putSdApiV2ConfigPublicDiceMutation = (
+  options?: Partial<Options<PutSdApiV2ConfigPublicDiceData>>
+): UseMutationOptions<
+  PutSdApiV2ConfigPublicDiceResponse,
+  PutSdApiV2ConfigPublicDiceError,
+  Options<PutSdApiV2ConfigPublicDiceData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PutSdApiV2ConfigPublicDiceResponse,
+    PutSdApiV2ConfigPublicDiceError,
+    Options<PutSdApiV2ConfigPublicDiceData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await putSdApiV2ConfigPublicDice({
         ...options,
         ...fnOptions,
         throwOnError: true,
@@ -4011,6 +4096,148 @@ export const postSdApiV2JsByNameDataShrinkMutation = (
   > = {
     mutationFn: async fnOptions => {
       const { data } = await postSdApiV2JsByNameDataShrink({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2ResourceDataQueryKey = (options?: Options<GetSdApiV2ResourceDataData>) =>
+  createQueryKey('getSdApiV2ResourceData', options);
+
+/**
+ * 获取资源图片数据
+ *
+ * 获取资源图片数据，可按需返回缩略图
+ */
+export const getSdApiV2ResourceDataOptions = (options?: Options<GetSdApiV2ResourceDataData>) =>
+  queryOptions<
+    unknown,
+    GetSdApiV2ResourceDataError,
+    unknown,
+    ReturnType<typeof getSdApiV2ResourceDataQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2ResourceData({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2ResourceDataQueryKey(options),
+  });
+
+/**
+ * 删除资源文件
+ *
+ * 删除资源文件
+ */
+export const postSdApiV2ResourceDeleteMutation = (
+  options?: Partial<Options<PostSdApiV2ResourceDeleteData>>
+): UseMutationOptions<
+  PostSdApiV2ResourceDeleteResponse,
+  PostSdApiV2ResourceDeleteError,
+  Options<PostSdApiV2ResourceDeleteData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2ResourceDeleteResponse,
+    PostSdApiV2ResourceDeleteError,
+    Options<PostSdApiV2ResourceDeleteData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2ResourceDelete({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2ResourceDownloadQueryKey = (
+  options?: Options<GetSdApiV2ResourceDownloadData>
+) => createQueryKey('getSdApiV2ResourceDownload', options);
+
+/**
+ * 下载资源文件
+ *
+ * 下载资源文件（流式附件下载）
+ */
+export const getSdApiV2ResourceDownloadOptions = (
+  options?: Options<GetSdApiV2ResourceDownloadData>
+) =>
+  queryOptions<
+    unknown,
+    GetSdApiV2ResourceDownloadError,
+    unknown,
+    ReturnType<typeof getSdApiV2ResourceDownloadQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2ResourceDownload({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2ResourceDownloadQueryKey(options),
+  });
+
+export const getSdApiV2ResourceListQueryKey = (options?: Options<GetSdApiV2ResourceListData>) =>
+  createQueryKey('getSdApiV2ResourceList', options);
+
+/**
+ * 获取资源列表
+ *
+ * 获取资源列表
+ */
+export const getSdApiV2ResourceListOptions = (options?: Options<GetSdApiV2ResourceListData>) =>
+  queryOptions<
+    GetSdApiV2ResourceListResponse,
+    GetSdApiV2ResourceListError,
+    GetSdApiV2ResourceListResponse,
+    ReturnType<typeof getSdApiV2ResourceListQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2ResourceList({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2ResourceListQueryKey(options),
+  });
+
+/**
+ * 上传资源文件
+ *
+ * 上传资源文件
+ */
+export const postSdApiV2ResourceUploadMutation = (
+  options?: Partial<Options<PostSdApiV2ResourceUploadData>>
+): UseMutationOptions<
+  PostSdApiV2ResourceUploadResponse,
+  PostSdApiV2ResourceUploadError,
+  Options<PostSdApiV2ResourceUploadData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2ResourceUploadResponse,
+    PostSdApiV2ResourceUploadError,
+    Options<PostSdApiV2ResourceUploadData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2ResourceUpload({
         ...options,
         ...fnOptions,
         throwOnError: true,

@@ -1678,6 +1678,28 @@
         ],
         "type": "object"
       },
+      "BodyHPageResultResourceItem": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyHPageResultResourceItem.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/HPageResultResourceItem",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
       "BodyHPageResultRuleInfo": {
         "additionalProperties": false,
         "properties": {
@@ -2297,6 +2319,28 @@
         ],
         "type": "object"
       },
+      "BodyPublicDiceInfoResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyPublicDiceInfoResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/PublicDiceInfoResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
       "BodyQRCodeResp": {
         "additionalProperties": false,
         "properties": {
@@ -2377,6 +2421,28 @@
           },
           "item": {
             "$ref": "#/components/schemas/ReplyModuleConfig",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyResourceUploadResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyResourceUploadResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/ResourceUploadResp",
             "description": "响应数据项"
           }
         },
@@ -4419,6 +4485,39 @@
         ],
         "type": "object"
       },
+      "HPageResultResourceItem": {
+        "additionalProperties": false,
+        "properties": {
+          "list": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "page": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pageSize": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "list",
+          "total",
+          "page",
+          "pageSize"
+        ],
+        "type": "object"
+      },
       "HPageResultRuleInfo": {
         "additionalProperties": false,
         "properties": {
@@ -5945,6 +6044,124 @@
         ],
         "type": "object"
       },
+      "PublicDiceConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "publicDiceAvatar": {
+            "type": "string"
+          },
+          "publicDiceBrief": {
+            "type": "string"
+          },
+          "publicDiceEnable": {
+            "type": "boolean"
+          },
+          "publicDiceId": {
+            "type": "string"
+          },
+          "publicDiceName": {
+            "type": "string"
+          },
+          "publicDiceNote": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "publicDiceEnable",
+          "publicDiceId",
+          "publicDiceName",
+          "publicDiceBrief",
+          "publicDiceNote",
+          "publicDiceAvatar"
+        ],
+        "type": "object"
+      },
+      "PublicDiceEndpointItem": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "protocolType": {
+            "type": "string"
+          },
+          "state": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "platform",
+          "protocolType",
+          "state",
+          "isPublic"
+        ],
+        "type": "object"
+      },
+      "PublicDiceInfoResp": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/PublicDiceConfig"
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/PublicDiceEndpointItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "config",
+          "endpoints"
+        ],
+        "type": "object"
+      },
+      "PublicDiceUpdateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/PublicDiceUpdateBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/components/schemas/PublicDiceConfig"
+          },
+          "selectedEndpointIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "config",
+          "selectedEndpointIds"
+        ],
+        "type": "object"
+      },
       "QRCodeResp": {
         "additionalProperties": false,
         "properties": {
@@ -6223,6 +6440,80 @@
         },
         "required": [
           "customReplyConfigEnable"
+        ],
+        "type": "object"
+      },
+      "ResourceItem": {
+        "additionalProperties": false,
+        "properties": {
+          "ext": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "size": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "ext",
+          "path",
+          "size"
+        ],
+        "type": "object"
+      },
+      "ResourcePathReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ResourcePathReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "ResourceUploadResp": {
+        "additionalProperties": false,
+        "properties": {
+          "failed": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "testMode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
         ],
         "type": "object"
       },
@@ -8600,6 +8891,78 @@
           }
         },
         "summary": "Put sd API v2 config advanced",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/sd-api/v2/config/public-dice": {
+      "get": {
+        "description": "获取公骰设置配置和可上报终端列表",
+        "operationId": "get-sd-api-v2-config-public-dice",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyPublicDiceInfoResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 config public dice",
+        "tags": [
+          "config"
+        ]
+      },
+      "put": {
+        "description": "保存公骰设置配置和上报终端选择",
+        "operationId": "put-sd-api-v2-config-public-dice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicDiceUpdateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyPublicDiceInfoResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Put sd API v2 config public dice",
         "tags": [
           "config"
         ]
@@ -12201,6 +12564,270 @@
         "summary": "Post sd API v2 js by name data shrink",
         "tags": [
           "js"
+        ]
+      }
+    },
+    "/sd-api/v2/resource/data": {
+      "get": {
+        "description": "获取资源图片数据，可按需返回缩略图",
+        "operationId": "get-sd-api-v2-resource-data",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "thumbnail",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "获取资源图片数据",
+        "tags": [
+          "resource"
+        ]
+      }
+    },
+    "/sd-api/v2/resource/delete": {
+      "post": {
+        "description": "删除资源文件",
+        "operationId": "post-sd-api-v2-resource-delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcePathReqBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySimpleOK"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "删除资源文件",
+        "tags": [
+          "resource"
+        ]
+      }
+    },
+    "/sd-api/v2/resource/download": {
+      "get": {
+        "description": "下载资源文件（流式附件下载）",
+        "operationId": "get-sd-api-v2-resource-download",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "下载资源文件",
+        "tags": [
+          "resource"
+        ]
+      }
+    },
+    "/sd-api/v2/resource/list": {
+      "get": {
+        "description": "获取资源列表",
+        "operationId": "get-sd-api-v2-resource-list",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "keyword",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyHPageResultResourceItem"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "获取资源列表",
+        "tags": [
+          "resource"
+        ]
+      }
+    },
+    "/sd-api/v2/resource/upload": {
+      "post": {
+        "description": "上传资源文件",
+        "operationId": "post-sd-api-v2-resource-upload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "files": {
+                  "contentType": "application/octet-stream"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "files": {
+                    "items": {
+                      "contentEncoding": "binary",
+                      "contentMediaType": "application/octet-stream",
+                      "format": "binary",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "files"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyResourceUploadResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "上传资源文件",
+        "tags": [
+          "resource"
         ]
       }
     },

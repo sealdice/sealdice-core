@@ -613,6 +613,17 @@ export type BodyHPageResultGroupInfo = {
   item: HPageResultGroupInfo;
 };
 
+export type BodyHPageResultResourceItem = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: HPageResultResourceItem;
+};
+
 export type BodyHPageResultRuleInfo = {
   /**
    * A URL to the JSON Schema for this object.
@@ -914,6 +925,17 @@ export type BodyProtocolListResp = {
   item: ProtocolListResp;
 };
 
+export type BodyPublicDiceInfoResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: PublicDiceInfoResp;
+};
+
 export type BodyQrCodeResp = {
   /**
    * A URL to the JSON Schema for this object.
@@ -956,6 +978,17 @@ export type BodyReplyModuleConfig = {
    * 响应数据项
    */
   item: ReplyModuleConfig;
+};
+
+export type BodyResourceUploadResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: ResourceUploadResp;
 };
 
 export type BodySignInfoResp = {
@@ -1615,6 +1648,13 @@ export type HPageResultGroupInfo = {
   total: number;
 };
 
+export type HPageResultResourceItem = {
+  list: Array<ResourceItem> | null;
+  page: number;
+  pageSize: number;
+  total: number;
+};
+
 export type HPageResultRuleInfo = {
   list: Array<RuleInfo> | null;
   page: number;
@@ -2056,6 +2096,38 @@ export type ProtocolListResp = {
   items: Array<PlatformTreeNode> | null;
 };
 
+export type PublicDiceConfig = {
+  publicDiceAvatar: string;
+  publicDiceBrief: string;
+  publicDiceEnable: boolean;
+  publicDiceId: string;
+  publicDiceName: string;
+  publicDiceNote: string;
+};
+
+export type PublicDiceEndpointItem = {
+  id: string;
+  isPublic: boolean;
+  platform: string;
+  protocolType: string;
+  state: number;
+  userId: string;
+};
+
+export type PublicDiceInfoResp = {
+  config: PublicDiceConfig;
+  endpoints: Array<PublicDiceEndpointItem> | null;
+};
+
+export type PublicDiceUpdateBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  config: PublicDiceConfig;
+  selectedEndpointIds: Array<string> | null;
+};
+
 export type QrCodeResp = {
   img: string;
 };
@@ -2127,6 +2199,28 @@ export type ReplyModuleConfig = {
    */
   readonly $schema?: string;
   customReplyConfigEnable: boolean;
+};
+
+export type ResourceItem = {
+  ext: string;
+  name: string;
+  path: string;
+  size: number;
+  type: string;
+};
+
+export type ResourcePathReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  path: string;
+};
+
+export type ResourceUploadResp = {
+  failed?: Array<string> | null;
+  success: boolean;
+  testMode?: boolean;
 };
 
 export type RuleInfo = {
@@ -2685,6 +2779,13 @@ export type BodyHPageResultGroupInfoWritable = {
   item: HPageResultGroupInfo;
 };
 
+export type BodyHPageResultResourceItemWritable = {
+  /**
+   * 响应数据项
+   */
+  item: HPageResultResourceItem;
+};
+
 export type BodyHPageResultRuleInfoWritable = {
   /**
    * 响应数据项
@@ -2878,6 +2979,13 @@ export type BodyProtocolListRespWritable = {
   item: ProtocolListResp;
 };
 
+export type BodyPublicDiceInfoRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: PublicDiceInfoResp;
+};
+
 export type BodyQrCodeRespWritable = {
   /**
    * 响应数据项
@@ -2904,6 +3012,13 @@ export type BodyReplyModuleConfigWritable = {
    * 响应数据项
    */
   item: ReplyModuleConfigWritable;
+};
+
+export type BodyResourceUploadRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: ResourceUploadResp;
 };
 
 export type BodySignInfoRespWritable = {
@@ -3213,6 +3328,11 @@ export type PostMessageReqBodyWritable = {
   text: string;
 };
 
+export type PublicDiceUpdateBodyWritable = {
+  config: PublicDiceConfig;
+  selectedEndpointIds: Array<string> | null;
+};
+
 export type QuitGroupRequestWritable = {
   diceId?: string;
   extraText: string;
@@ -3237,6 +3357,10 @@ export type ReplyConfigWritable = {
 
 export type ReplyModuleConfigWritable = {
   customReplyConfigEnable: boolean;
+};
+
+export type ResourcePathReqBodyWritable = {
+  path: string;
 };
 
 export type SaveCategoryBodyWritable = {
@@ -4316,6 +4440,60 @@ export type PutSdApiV2ConfigAdvancedResponses = {
 
 export type PutSdApiV2ConfigAdvancedResponse =
   PutSdApiV2ConfigAdvancedResponses[keyof PutSdApiV2ConfigAdvancedResponses];
+
+export type GetSdApiV2ConfigPublicDiceData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/config/public-dice';
+};
+
+export type GetSdApiV2ConfigPublicDiceErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2ConfigPublicDiceError =
+  GetSdApiV2ConfigPublicDiceErrors[keyof GetSdApiV2ConfigPublicDiceErrors];
+
+export type GetSdApiV2ConfigPublicDiceResponses = {
+  /**
+   * OK
+   */
+  200: BodyPublicDiceInfoResp;
+};
+
+export type GetSdApiV2ConfigPublicDiceResponse =
+  GetSdApiV2ConfigPublicDiceResponses[keyof GetSdApiV2ConfigPublicDiceResponses];
+
+export type PutSdApiV2ConfigPublicDiceData = {
+  body: PublicDiceUpdateBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/config/public-dice';
+};
+
+export type PutSdApiV2ConfigPublicDiceErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PutSdApiV2ConfigPublicDiceError =
+  PutSdApiV2ConfigPublicDiceErrors[keyof PutSdApiV2ConfigPublicDiceErrors];
+
+export type PutSdApiV2ConfigPublicDiceResponses = {
+  /**
+   * OK
+   */
+  200: BodyPublicDiceInfoResp;
+};
+
+export type PutSdApiV2ConfigPublicDiceResponse =
+  PutSdApiV2ConfigPublicDiceResponses[keyof PutSdApiV2ConfigPublicDiceResponses];
 
 export type GetSdApiV2ConfigReplyData = {
   body?: never;
@@ -6594,6 +6772,149 @@ export type PostSdApiV2JsByNameDataShrinkResponses = {
 
 export type PostSdApiV2JsByNameDataShrinkResponse =
   PostSdApiV2JsByNameDataShrinkResponses[keyof PostSdApiV2JsByNameDataShrinkResponses];
+
+export type GetSdApiV2ResourceDataData = {
+  body?: never;
+  path?: never;
+  query?: {
+    path?: string;
+    thumbnail?: boolean;
+  };
+  url: '/sd-api/v2/resource/data';
+};
+
+export type GetSdApiV2ResourceDataErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2ResourceDataError =
+  GetSdApiV2ResourceDataErrors[keyof GetSdApiV2ResourceDataErrors];
+
+export type GetSdApiV2ResourceDataResponses = {
+  /**
+   * OK
+   */
+  200: unknown;
+};
+
+export type PostSdApiV2ResourceDeleteData = {
+  body: ResourcePathReqBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/resource/delete';
+};
+
+export type PostSdApiV2ResourceDeleteErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2ResourceDeleteError =
+  PostSdApiV2ResourceDeleteErrors[keyof PostSdApiV2ResourceDeleteErrors];
+
+export type PostSdApiV2ResourceDeleteResponses = {
+  /**
+   * OK
+   */
+  200: BodySimpleOk;
+};
+
+export type PostSdApiV2ResourceDeleteResponse =
+  PostSdApiV2ResourceDeleteResponses[keyof PostSdApiV2ResourceDeleteResponses];
+
+export type GetSdApiV2ResourceDownloadData = {
+  body?: never;
+  path?: never;
+  query?: {
+    path?: string;
+  };
+  url: '/sd-api/v2/resource/download';
+};
+
+export type GetSdApiV2ResourceDownloadErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2ResourceDownloadError =
+  GetSdApiV2ResourceDownloadErrors[keyof GetSdApiV2ResourceDownloadErrors];
+
+export type GetSdApiV2ResourceDownloadResponses = {
+  /**
+   * OK
+   */
+  200: unknown;
+};
+
+export type GetSdApiV2ResourceListData = {
+  body?: never;
+  path?: never;
+  query?: {
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    keyword?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  };
+  url: '/sd-api/v2/resource/list';
+};
+
+export type GetSdApiV2ResourceListErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2ResourceListError =
+  GetSdApiV2ResourceListErrors[keyof GetSdApiV2ResourceListErrors];
+
+export type GetSdApiV2ResourceListResponses = {
+  /**
+   * OK
+   */
+  200: BodyHPageResultResourceItem;
+};
+
+export type GetSdApiV2ResourceListResponse =
+  GetSdApiV2ResourceListResponses[keyof GetSdApiV2ResourceListResponses];
+
+export type PostSdApiV2ResourceUploadData = {
+  body?: {
+    files: Array<Blob | File>;
+  };
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/resource/upload';
+};
+
+export type PostSdApiV2ResourceUploadErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2ResourceUploadError =
+  PostSdApiV2ResourceUploadErrors[keyof PostSdApiV2ResourceUploadErrors];
+
+export type PostSdApiV2ResourceUploadResponses = {
+  /**
+   * OK
+   */
+  200: BodyResourceUploadResp;
+};
+
+export type PostSdApiV2ResourceUploadResponse =
+  PostSdApiV2ResourceUploadResponses[keyof PostSdApiV2ResourceUploadResponses];
 
 export type PostSdApiV2StoryBackupBatchDeleteData = {
   body: BackupBatchDeleteReqBodyWritable;

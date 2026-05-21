@@ -109,6 +109,11 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/imconnection/{id}/workflow",
 		"/sd-api/v2/imconnection/{id}/qrcode",
 		"/sd-api/v2/imconnection/sign-info",
+		"/sd-api/v2/resource/list",
+		"/sd-api/v2/resource/upload",
+		"/sd-api/v2/resource/delete",
+		"/sd-api/v2/resource/download",
+		"/sd-api/v2/resource/data",
 	} {
 		if spec.Paths[path] == nil {
 			t.Fatalf("expected path %s in OpenAPI spec", path)
