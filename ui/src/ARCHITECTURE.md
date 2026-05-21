@@ -19,6 +19,7 @@
 
 - `api/`：API 边界。`generated/` 不手改；`client.ts` 负责全局 fetch client 配置；`download.ts` 放文件下载这种生成器不方便表达的薄封装。
 - `features/`：业务域逻辑。页面共享的状态、实时事件适配、上传控制器、认证状态都放这里，避免页面直接拼协议细节。
+- `components/app-shell/`：后台应用壳层组件，例如侧边栏、面包屑、搜索、主题切换、解锁弹窗和未保存提示。这些组件可以依赖 router、auth、theme 等应用级 feature。
 - `components/shared/`：跨页面复用组件。shared 组件只通过 props / emits / `defineModel` 接收数据，不直接发请求。
 - `components/<domain>/`：某个业务页的拆分组件，例如 JS 扩展页的 list/config/data 视图。
 - `layouts/`：页面壳。`default` 与 `wide` 都保留后台导航，只调整内容区宽度；`plain` 用于轻量流程页。

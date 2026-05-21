@@ -51,8 +51,6 @@ async function checkPasswordSecurity() {
   }
 }
 
-const renderCheckPasswordCountDown = ({ seconds }: { seconds: number }) => <span>{seconds}</span>;
-
 watch(authSession.hasAccessToken, canAccess => {
   if (canAccess) {
     void checkPasswordSecurity();
@@ -107,18 +105,9 @@ watch(authSession.hasAccessToken, canAccess => {
     <template #action>
       <n-button
         type="primary"
-        :disabled="!canSkipSecurityDialog"
         @click="dialogCheckPassword = false"
       >
         我已知晓！
-        <template v-if="!canSkipSecurityDialog">
-          （<n-countdown
-            :duration="5 * 1000"
-            :render="renderCheckPasswordCountDown"
-            @finish="canSkipSecurityDialog = true"
-          />
-          秒后可点击）
-        </template>
       </n-button>
     </template>
   </n-modal>

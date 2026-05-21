@@ -3,7 +3,7 @@ import { darkTheme, lightTheme, dateZhCN } from 'naive-ui';
 import { ProConfigProvider, zhCN } from 'pro-naive-ui';
 import { computed, defineAsyncComponent, provide, ref } from 'vue';
 import { RouterView } from 'vue-router';
-import AppThemeTransition from './components/shared/AppThemeTransition.vue';
+import AppThemeTransition from './components/app-shell/AppThemeTransition.vue';
 import { useRealtimeClient } from './features/realtime/client';
 import { useAppTheme } from './features/theme';
 import {
