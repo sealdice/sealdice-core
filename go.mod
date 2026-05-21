@@ -20,6 +20,7 @@ require (
 	github.com/bwmarrin/discordgo v0.29.0
 	github.com/bytedance/sonic v1.15.1
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/codecat/melody v1.4.0
 	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/dop251/goja v0.0.0-20260216154549-8b74ce4618c5
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
@@ -32,6 +33,7 @@ require (
 	github.com/go-creed/sat v1.0.3
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
+	github.com/gofiber/fiber/v2 v2.52.13
 	github.com/gofrs/flock v0.13.0
 	github.com/golang-module/carbon v1.7.3
 	github.com/google/uuid v1.6.0
@@ -57,7 +59,6 @@ require (
 	github.com/ncruces/go-sqlite3 v0.32.0
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/oklog/ulid/v2 v2.1.1
-	github.com/olahol/melody v1.4.0
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/otiai10/copy v1.14.1
 	github.com/panjf2000/ants/v2 v2.11.3
@@ -134,6 +135,7 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/esiqveland/notify v0.13.3 // indirect
+	github.com/fasthttp/websocket v1.5.3 // indirect
 	github.com/gammazero/deque v1.1.0 // indirect
 	github.com/getlantern/context v0.0.0-20220418194847-3d5e7a086201 // indirect
 	github.com/getlantern/errors v1.0.4 // indirect
@@ -188,6 +190,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/sacOO7/go-logger v0.0.0-20180719173527-9ac9add5a50d // indirect
+	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
 	github.com/sergeymakinen/go-bmp v1.0.0 // indirect
 	github.com/sergeymakinen/go-ico v1.0.0-beta.0 // indirect
 	github.com/sunshineplan/pdf v1.0.8 // indirect
@@ -203,6 +206,7 @@ require (
 	github.com/tiendc/go-deepcopy v1.7.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasthttp v1.62.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect

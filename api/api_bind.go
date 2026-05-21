@@ -12,14 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humaecho"
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
 
-	v2 "sealdice-core/api/v2"
 	"sealdice-core/dice"
 )
 
@@ -535,14 +532,14 @@ func checkCronExpr(c echo.Context) error {
 }
 
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
+	BindV1(e, _myDice)
+}
+
+func BindV1(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
 	myDice = _myDice.Dice[0]
 
 	prefix := "/sd-api"
-
-	// 挂载 humaecho 到 echo 实例
-	apier := humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))
-	v2.InitV2Router(apier, e, _myDice)
 
 	e.GET(prefix+"/preInfo", preInfo)
 	e.GET(prefix+"/baseInfo", baseInfo) // 已完成

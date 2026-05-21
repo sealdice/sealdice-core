@@ -14,7 +14,7 @@ import (
 
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 
 	"sealdice-core/dice"
 	"sealdice-core/icon"
@@ -97,7 +97,7 @@ func onExit() {
 	// clean up hear
 }
 
-func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
+func httpServe(e *fiber.App, dm *dice.DiceManager, hideUI bool) {
 	log := logger.M()
 	portStr := "3211"
 
@@ -128,7 +128,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 
 	// exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
 	log.Infof("如果浏览器没有自动打开，请手动访问:\nhttp://localhost:%s", portStr)
-	err = e.Start(dm.ServeAddress)
+	err = e.Listen(dm.ServeAddress)
 	if err != nil {
 		log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
 		return

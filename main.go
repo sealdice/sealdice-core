@@ -17,15 +17,23 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/etag"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
 	apiv2 "sealdice-core/api/v2"
+	apiv2middleware "sealdice-core/api/v2/middleware"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
@@ -600,52 +608,80 @@ func diceServe(d *dice.Dice) {
 func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	log := logger.M()
 	log.Info("即将启动webui")
-	// Echo instance
-	e := echo.New()
 
-	// 为UI添加日志，以echo方式输出
-	e.Use(logger.EchoLogMiddleware())
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		Skipper:      middleware.DefaultSkipper,
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
+	e := fiber.New(fiber.Config{
+		DisableStartupMessage: true,
+	})
+
+	e.Use(logger.FiberLogMiddleware())
+	e.Use(cors.New(cors.Config{
+		AllowHeaders: strings.Join([]string{
+			fiber.HeaderOrigin,
+			fiber.HeaderContentType,
+			fiber.HeaderAccept,
+			fiber.HeaderAuthorization,
+			"token",
+		}, ","),
+		AllowOrigins: "*",
+		AllowMethods: strings.Join([]string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodDelete,
+		}, ","),
 	}))
 
-	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
-		Level: 5,
-	}))
+	e.Use(func(c *fiber.Ctx) error {
+		c.Set(fiber.HeaderServer, "Sealdice Fiber")
+		return c.Next()
+	})
+
 	mimePatch()
-	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+	e.Use(helmet.New(helmet.Config{
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
 		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
-		// XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
-	// X-Content-Type-Options: nosniff
 
-	groupStatic := func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			if c.Request().URL.Path == "/" {
-				responseWriter := c.Response()
-				responseWriter.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-				responseWriter.Header().Set("Pragma", "no-cache")
-				responseWriter.Header().Set("Expires", "0")
-			}
-			return next(c)
+	e.Use(func(c *fiber.Ctx) error {
+		if c.Path() == "/" {
+			c.Set(fiber.HeaderCacheControl, "no-cache, no-store, must-revalidate")
+			c.Set("Pragma", "no-cache")
+			c.Set(fiber.HeaderExpires, "0")
 		}
-	}
-	e.Use(groupStatic)
+		return c.Next()
+	})
+
+	e.Use("/sd-api/v2", etag.New(etag.Config{
+		Next: func(c *fiber.Ctx) bool {
+			path := c.Path()
+			return path == "/sd-api/v2/realtime/ws" ||
+				path == "/sd-api/v2/realtime/sse" ||
+				path == "/sd-api/v2/base/logs/ws"
+		},
+	}))
+	e.Use("/sd-api/v2", apiv2middleware.PreferredCompressionMiddleware())
+
+	apier := humafiber.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
+	apiv2.InitV2Router(apier, e, dm)
+
+	legacy := echo.New()
+	legacy.HideBanner = true
+	api.BindV1(legacy, dm)
+	e.Use("/sd-api", adaptor.HTTPHandler(legacy))
+
 	if useBuiltin {
 		frontend, _ := fs.Sub(static.Frontend, "frontend")
-		e.StaticFS("/", frontend)
+		e.Use("/", filesystem.New(filesystem.Config{
+			Root:         http.FS(frontend),
+			NotFoundFile: "index.html",
+		}))
 	} else {
 		e.Static("/", "./frontend_overwrite")
 	}
-
-	api.Bind(e, dm)
-	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
 
 	httpServe(e, dm, hideUI)
 }

@@ -2,7 +2,7 @@ package v2
 
 import (
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 
 	"sealdice-core/api/v2/backup"
 	"sealdice-core/api/v2/ban"
@@ -19,6 +19,7 @@ import (
 	"sealdice-core/api/v2/js"
 	"sealdice-core/api/v2/middleware"
 	"sealdice-core/api/v2/realtime"
+	"sealdice-core/api/v2/resource"
 	"sealdice-core/api/v2/story"
 	"sealdice-core/api/v2/tooltest"
 	"sealdice-core/dice"
@@ -26,7 +27,7 @@ import (
 
 // InitV2Router 初始化v2版本的API路由
 // 使用依赖注入模式，将dice实例传递给各个模块
-func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
+func InitV2Router(api huma.API, e fiber.Router, dm *dice.DiceManager) {
 	baseGroup := huma.NewGroup(api, "/sd-api/v2/base")
 	baseGroup.UseSimpleModifier(huma.OperationTags("base"))
 	baseService := base.NewBaseService(dm)
@@ -184,6 +185,17 @@ func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	toolTestProtected.UseSimpleModifier(huma.OperationTags("tool-test"))
 	toolTestProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
 	toolTestService.RegisterProtectedRoutes(toolTestProtected)
+
+	resourceAuth := huma.NewGroup(api, "/sd-api/v2/resource")
+	resourceAuth.UseSimpleModifier(huma.OperationTags("resource"))
+	resourceAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	resourceService := resource.NewService(dm)
+	resourceService.RegisterRoutes(resourceAuth)
+
+	resourceProtected := huma.NewGroup(api, "/sd-api/v2/resource")
+	resourceProtected.UseSimpleModifier(huma.OperationTags("resource"))
+	resourceProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	resourceService.RegisterProtectedRoutes(resourceProtected)
 	// TODO: 后续可以在这里添加其他模块
 	// configService := config.NewConfigService(dice)
 	// protected := huma.NewGroup(api, "/sd-api/v2")

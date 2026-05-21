@@ -1,15 +1,15 @@
 package realtime
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/olahol/melody"
+	"github.com/codecat/melody"
+	"github.com/gofiber/fiber/v2"
 
 	apimiddleware "sealdice-core/api/v2/middleware"
 	"sealdice-core/dice"
@@ -37,7 +37,7 @@ type Server struct {
 	unsubscribeLogs func()
 }
 
-func RegisterRoutes(e *echo.Echo, dm *dice.DiceManager) *Server {
+func RegisterRoutes(e fiber.Router, dm *dice.DiceManager) *Server {
 	if e == nil {
 		return nil
 	}
@@ -53,8 +53,8 @@ func RegisterRoutes(e *echo.Echo, dm *dice.DiceManager) *Server {
 
 	srv.Start()
 
-	e.GET(realtimeWSPath, srv.handleWS)
-	e.GET(realtimeSSEPath, srv.handleSSE)
+	e.Get(realtimeWSPath, srv.handleWS)
+	e.Get(realtimeSSEPath, srv.handleSSE)
 
 	return srv
 }
@@ -101,63 +101,64 @@ func (s *Server) Start() {
 	}()
 }
 
-func (s *Server) handleWS(c echo.Context) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromHTTPRequest(c.Request())) {
-		return c.NoContent(http.StatusUnauthorized)
+func (s *Server) handleWS(c *fiber.Ctx) error {
+	if !isAuthorized(s.dm, apimiddleware.TokenFromFiberCtx(c)) {
+		return c.SendStatus(fiber.StatusUnauthorized)
 	}
-	return s.ws.HandleRequest(c.Response(), c.Request())
+	return s.ws.HandleRequest(c.Context())
 }
 
-func (s *Server) handleSSE(c echo.Context) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromHTTPRequest(c.Request())) {
-		return c.NoContent(http.StatusUnauthorized)
+func (s *Server) handleSSE(c *fiber.Ctx) error {
+	if !isAuthorized(s.dm, apimiddleware.TokenFromFiberCtx(c)) {
+		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 
-	writer := c.Response().Writer
-	flusher, ok := writer.(http.Flusher)
-	if !ok {
-		return c.NoContent(http.StatusInternalServerError)
-	}
+	c.Set(fiber.HeaderContentType, "text/event-stream")
+	c.Set(fiber.HeaderCacheControl, "no-cache")
+	c.Set(fiber.HeaderConnection, "keep-alive")
+	c.Set("X-Accel-Buffering", "no")
+	c.Status(fiber.StatusOK)
 
-	header := c.Response().Header()
-	header.Set(echo.HeaderContentType, "text/event-stream")
-	header.Set(echo.HeaderCacheControl, "no-cache")
-	header.Set(echo.HeaderConnection, "keep-alive")
-	header.Set("X-Accel-Buffering", "no")
-	c.Response().WriteHeader(http.StatusOK)
-
-	for _, evt := range buildBootstrapEvents(s.dm) {
-		if err := writeSSEEvent(writer, evt); err != nil {
-			return nil
+	c.Context().SetBodyStreamWriter(func(writer *bufio.Writer) {
+		writeAndFlush := func(fn func() error) bool {
+			if err := fn(); err != nil {
+				return false
+			}
+			return writer.Flush() == nil
 		}
-		flusher.Flush()
-	}
 
-	ch, unsubscribe := s.bus.Subscribe(128)
-	defer unsubscribe()
-
-	heartbeat := time.NewTicker(sseHeartbeatInterval)
-	defer heartbeat.Stop()
-
-	for {
-		select {
-		case <-c.Request().Context().Done():
-			return nil
-		case evt, ok := <-ch:
-			if !ok {
-				return nil
+		for _, evt := range buildBootstrapEvents(s.dm) {
+			if !writeAndFlush(func() error { return writeSSEEvent(writer, evt) }) {
+				return
 			}
-			if err := writeSSEEvent(writer, evt); err != nil {
-				return nil
-			}
-			flusher.Flush()
-		case <-heartbeat.C:
-			if _, err := io.WriteString(writer, ": ping\n\n"); err != nil {
-				return nil
-			}
-			flusher.Flush()
 		}
-	}
+
+		ch, unsubscribe := s.bus.Subscribe(128)
+		defer unsubscribe()
+
+		heartbeat := time.NewTicker(sseHeartbeatInterval)
+		defer heartbeat.Stop()
+
+		for {
+			select {
+			case evt, ok := <-ch:
+				if !ok {
+					return
+				}
+				if !writeAndFlush(func() error { return writeSSEEvent(writer, evt) }) {
+					return
+				}
+			case <-heartbeat.C:
+				if !writeAndFlush(func() error {
+					_, err := io.WriteString(writer, ": ping\n\n")
+					return err
+				}) {
+					return
+				}
+			}
+		}
+	})
+	return nil
 }
 
 func (s *Server) attachWSSession(session *melody.Session) func() {

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/gofiber/fiber/v2"
 
 	"sealdice-core/dice"
 )
@@ -33,6 +34,20 @@ func TokenFromHumaContext(ctx huma.Context) string {
 	}
 	if token == "" {
 		token = ctx.Query("token")
+	}
+	return token
+}
+
+func TokenFromFiberCtx(c *fiber.Ctx) string {
+	token := c.Get("Authorization")
+	if token != "" && strings.HasPrefix(token, "Bearer ") {
+		token = token[7:]
+	}
+	if token == "" {
+		token = c.Get("Token")
+	}
+	if token == "" {
+		token = c.Query("token")
 	}
 	return token
 }

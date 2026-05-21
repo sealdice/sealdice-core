@@ -17,7 +17,7 @@ import (
 	"github.com/fy0/go-autostart"
 	"github.com/fy0/systray"
 	"github.com/gen2brain/beeep"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 	win "github.com/lxn/win"
 	"github.com/monaco-io/request"
 	"golang.org/x/sys/windows"
@@ -186,7 +186,7 @@ func onExit() {
 
 var _trayPortStr = "3211"
 
-func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
+func httpServe(e *fiber.App, dm *dice.DiceManager, hideUI bool) {
 	log := logger.M()
 	portStr := "3211"
 	// runtime.LockOSThread()
@@ -230,7 +230,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 			_trayPortStr = portStr
 		}
 
-		err := e.Start(dm.ServeAddress)
+		err := e.Listen(dm.ServeAddress)
 
 		if err != nil {
 			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
