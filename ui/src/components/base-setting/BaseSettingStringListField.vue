@@ -1,74 +1,33 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { buildBaseSettingStringListOptions } from '@/features/baseSetting/viewModel';
+
 const model = defineModel<string[]>({ required: true });
 
-function addItem() {
-  model.value = [...model.value, ''];
-}
+const options = computed(() => buildBaseSettingStringListOptions(model.value));
 
-function removeItem(index: number) {
-  const next = [...model.value];
-  next.splice(index, 1);
-  model.value = next;
-}
-
-function updateItem(index: number, value: string) {
-  const next = [...model.value];
-  next[index] = value;
-  model.value = next;
+function updateValue(value: string[] | null) {
+  model.value = buildBaseSettingStringListOptions(value ?? []).map(option => option.value);
 }
 </script>
 
 <template>
-  <template v-if="model.length">
-    <n-flex>
-      <div
-        v-for="(item, index) in model"
-        :key="index"
-        class="setting-list-row"
-      >
-        <div class="setting-list-input">
-          <n-input
-            :value="item"
-            autosize
-            placeholder=""
-            @update:value="updateItem(index, $event)"
-          />
-        </div>
-        <div class="setting-list-action">
-          <n-tooltip placement="bottom-start">
-            <template #trigger>
-              <n-icon>
-                <i-carbon-add-filled v-if="index === 0" @click="addItem" />
-                <i-carbon-close-outline v-else @click="removeItem(index)" />
-              </n-icon>
-            </template>
-            {{ index === 0 ? '点击添加项目' : '点击删除你不想要的项目' }}
-          </n-tooltip>
-        </div>
-      </div>
-    </n-flex>
-  </template>
-  <template v-else>
-    <n-icon>
-      <i-carbon-add-filled @click="addItem" />
-    </n-icon>
-  </template>
+  <n-select
+    class="setting-string-list"
+    :value="model"
+    :options="options"
+    multiple
+    filterable
+    tag
+    clearable
+    max-tag-count="responsive"
+    placeholder="输入后回车添加"
+    @update:value="updateValue"
+  />
 </template>
 
 <style scoped>
-.setting-list-row {
+.setting-string-list {
   width: 100%;
-  margin-bottom: 0.5rem;
-}
-
-.setting-list-input {
-  min-width: 12rem;
-}
-
-.setting-list-action {
-  display: flex;
-  align-items: center;
-  width: 1.3rem;
-  margin-left: 1rem;
 }
 </style>

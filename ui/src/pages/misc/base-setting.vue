@@ -3,6 +3,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
 import BaseSettingFieldRenderer from '@/components/base-setting/BaseSettingFieldRenderer.vue';
 import BaseSettingSearchBar from '@/components/base-setting/BaseSettingSearchBar.vue';
+import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { useBaseSettingDraft } from '@/features/baseSetting/draft';
@@ -17,6 +18,7 @@ import {
 import {
   buildBaseSettingPatch,
   buildBaseSettingSearchIndex,
+  isBaseSettingGroupWide,
   searchBaseSettingFields,
   type BaseSettingSearchEntry,
 } from '@/features/baseSetting/viewModel';
@@ -62,6 +64,7 @@ const tabs = computed(() => schemaQuery.data.value?.tabs ?? []);
 const searchIndex = computed(() => (schemaQuery.data.value ? buildBaseSettingSearchIndex(schemaQuery.data.value) : []));
 const searchResults = computed(() => searchBaseSettingFields(searchIndex.value, searchKeyword.value));
 const currentValue = computed(() => draft.currentValue.value);
+const initialValue = computed(() => draft.initialValue.value);
 const pageBusy = computed(() => schemaQuery.isFetching.value || valueQuery.isFetching.value);
 const isContainerMode = computed(() => overview.value?.runtime.containerMode === true);
 
@@ -138,6 +141,11 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
   if (element instanceof HTMLElement) {
     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
+  window.setTimeout(() => {
+    if (highlightedFieldId.value === entry.fieldId) {
+      highlightedFieldId.value = '';
+    }
+  }, 1600);
 }
 </script>
 
@@ -173,27 +181,17 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
           :tab="tab.title"
         >
           <div class="setting-groups">
-            <section
+            <SettingCategoryBox
               v-for="group in tab.groups"
               :key="group.id"
-              :class="['setting-group-card', { 'setting-group-wide': ['ext-default-settings', 'upgrade', 'rate-limit-main'].includes(group.id) }]"
+              :title="group.title"
+              :description="group.description"
+              :collapsible="group.collapsible"
+              :expanded="expandedGroups[group.id]"
+              :wide="isBaseSettingGroupWide(group.id)"
+              @toggle="toggleGroup(group.id)"
             >
-              <header class="setting-group-head">
-                <div>
-                  <h3>{{ group.title }}</h3>
-                  <p v-if="group.description">{{ group.description }}</p>
-                </div>
-                <n-button
-                  v-if="group.collapsible"
-                  text
-                  size="small"
-                  @click="toggleGroup(group.id)"
-                >
-                  {{ expandedGroups[group.id] ? '收起' : '展开' }}
-                </n-button>
-              </header>
-
-              <template v-if="expandedGroups[group.id]">
+              <template #notes>
                 <TipBox
                   v-for="(note, noteIndex) in group.notes"
                   :key="`${group.id}-${noteIndex}`"
@@ -204,23 +202,23 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
                     {{ line }}
                   </div>
                 </TipBox>
-
-                <n-form v-if="currentValue" label-placement="left" label-width="126">
-                  <div class="group-fields">
-                    <BaseSettingFieldRenderer
-                      v-for="field in group.fields"
-                      :key="field.id"
-                      :field="field"
-                      :model="currentValue"
-                      :is-container-mode="isContainerMode"
-                      :busy-action-id="busyActionId"
-                      :run-action="runAction"
-                      @update-field="updateField"
-                    />
-                  </div>
-                </n-form>
               </template>
-            </section>
+
+              <div v-if="currentValue" class="setting-fields">
+                <BaseSettingFieldRenderer
+                  v-for="field in group.fields"
+                  :key="field.id"
+                  :field="field"
+                  :model="currentValue"
+                  :initial-model="initialValue"
+                  :is-container-mode="isContainerMode"
+                  :busy-action-id="busyActionId"
+                  :highlighted="highlightedFieldId === field.id"
+                  :run-action="runAction"
+                  @update-field="updateField"
+                />
+              </div>
+            </SettingCategoryBox>
           </div>
         </n-tab-pane>
       </n-tabs>
@@ -231,6 +229,7 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 <style scoped>
 .base-setting-page {
   width: 100%;
+  min-width: 0;
 }
 
 .page-head {
@@ -258,54 +257,49 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 
 .setting-groups {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 1rem;
-}
-
-.setting-group-card {
-  border: 1px solid var(--sd-border);
-  border-radius: 18px;
-  background: var(--sd-bg-elevated);
-  padding: 1rem;
-}
-
-.setting-group-wide {
-  grid-column: 1 / -1;
-}
-
-.setting-group-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-}
-
-.setting-group-head h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.setting-group-head p {
-  margin: 0.35rem 0 0;
-  color: var(--sd-text-muted);
-  font-size: 0.85rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem;
+  max-width: 1040px;
+  padding-bottom: 1.5rem;
 }
 
 .group-note {
-  margin-bottom: 0.75rem;
+  margin: 0.75rem 1rem 0.35rem;
 }
 
-.group-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 0 1rem;
+.setting-fields {
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 768px) {
-  .setting-groups,
-  .group-fields {
-    grid-template-columns: 1fr;
+  .setting-groups {
+    max-width: none;
+    gap: 0.15rem;
+  }
+}
+
+@media (max-width: 639.9px) {
+  .page-head {
+    gap: 0.65rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .page-head-copy h1 {
+    font-size: 1.35rem;
+  }
+
+  .page-head-copy p {
+    margin-top: 0.2rem;
+    font-size: 0.84rem;
+  }
+
+  .setting-tabs {
+    margin-top: 0.65rem;
+  }
+
+  .group-note {
+    margin: 0.55rem 0.75rem 0.3rem;
   }
 }
 </style>

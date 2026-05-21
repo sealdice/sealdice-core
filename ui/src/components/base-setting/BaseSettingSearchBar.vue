@@ -72,4 +72,16 @@ const emit = defineEmits<{
   color: var(--sd-text-muted);
   font-size: 0.85rem;
 }
+
+@media (max-width: 639.9px) {
+  .base-setting-search {
+    margin-bottom: 0.75rem;
+  }
+
+  .search-result-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+}
 </style>
