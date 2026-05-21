@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { NButton, NFlex, NText, useDialog, useMessage } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   getSdApiV2StoryCleanupPreview,
   getSdApiV2StoryInfoOptions,
@@ -19,6 +20,7 @@ import {
 import StoryBackup from '@/components/story/StoryBackup.vue';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { hasAccessToken } from '@/features/auth/state';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 
 dayjs.extend(relativeTime);
 
@@ -52,6 +54,18 @@ const queryLogPage = ref({
   createdTime: null as unknown as [number, number],
 });
 
+type StorySearchFormValues = {
+  name: string;
+  groupId: string;
+  createdTime: [number, number] | null;
+};
+
+const defaultStorySearchFormValues = (): StorySearchFormValues => ({
+  name: '',
+  groupId: '',
+  createdTime: null,
+});
+
 const logItemPage = ref({
   pageNum: 1,
   pageSize: 100,
@@ -82,6 +96,53 @@ const storyInfoQuery = useQuery({
 });
 
 const summary = computed(() => storyInfoQuery.data.value?.item);
+
+const storySearchForm = createProSearchForm<StorySearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultStorySearchFormValues()),
+  onSubmit: async values => {
+    Object.assign(queryLogPage.value, {
+      ...values,
+      pageNum: 1,
+    });
+    await searchLogs();
+  },
+  onReset: async () => {
+    Object.assign(queryLogPage.value, {
+      ...defaultStorySearchFormValues(),
+      pageNum: 1,
+    });
+    await searchLogs();
+  },
+});
+
+const storySearchColumns: ProSearchFormColumns<StorySearchFormValues> = [
+  {
+    label: '日志名',
+    path: 'name',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索日志名',
+    },
+  },
+  {
+    label: '群号',
+    path: 'groupId',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索群号',
+    },
+  },
+  {
+    label: '日期范围',
+    path: 'createdTime',
+    field: 'date-range',
+    fieldProps: {
+      clearable: true,
+    },
+  },
+];
 
 function linkStateText(log: LogView): string {
   switch (log.linkState) {
@@ -397,26 +458,15 @@ onMounted(async () => {
             </n-card>
           </header>
           <section class="story-search-block">
-            <div class="story-toolbar">
-              <n-input v-model:value="queryLogPage.name" size="small" clearable placeholder="搜索日志名" />
-              <n-input v-model:value="queryLogPage.groupId" size="small" clearable placeholder="搜索群号" />
-              <n-date-picker v-model:value="queryLogPage.createdTime" size="small" type="daterange" clearable />
-            </div>
-            <n-flex size="small" align="center" class="story-tools">
-              <n-button type="info" secondary @click="searchLogs">查询</n-button>
-              <n-button
-                secondary
-                @click="
-                  queryLogPage.name = '';
-                  queryLogPage.groupId = '';
-                  queryLogPage.createdTime = null as unknown as [number, number];
-                  queryLogPage.pageNum = 1;
-                  searchLogs();
-                "
-              >
-                重置
-              </n-button>
-            </n-flex>
+            <ProSearchForm
+              :form="storySearchForm"
+              :columns="storySearchColumns"
+              size="small"
+              label-placement="left"
+              label-width="72"
+              cols="1 s:2 l:3"
+              :collapse-button-props="false"
+            />
           </section>
 
           <section class="story-action-block">
@@ -677,24 +727,7 @@ onMounted(async () => {
 }
 
 .story-search-block {
-  display: flex;
-  flex-wrap: wrap-reverse;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
   margin-bottom: 1rem;
-}
-
-.story-toolbar {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(260px, 320px);
-  gap: 0.5rem;
-  min-width: 0;
-  flex: 1 1 640px;
-}
-
-.story-tools {
-  margin-left: auto;
 }
 
 .story-action-block {
@@ -802,7 +835,6 @@ onMounted(async () => {
 }
 
 @media screen and (max-width: 900px) {
-  .story-toolbar,
   .cleanup-stats {
     grid-template-columns: 1fr;
   }
@@ -819,7 +851,6 @@ onMounted(async () => {
     justify-content: flex-start !important;
   }
 
-  .story-search-block,
   .story-action-block,
   .cleanup-panel-head {
     flex-direction: column;

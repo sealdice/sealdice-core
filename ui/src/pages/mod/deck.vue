@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useDialog, useMessage } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   getSdApiV2DeckList,
   postSdApiV2DeckCheckUpdate,
@@ -20,6 +21,7 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { getApiBaseUrl } from '@/api/config';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { hasAccessToken } from '@/features/auth/state';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 
@@ -41,6 +43,18 @@ const listQuery = reactive({
   sortOrder: 'asc',
 });
 
+type DeckSearchFormValues = {
+  keyword: string;
+  sortBy: string;
+  sortOrder: string;
+};
+
+const defaultDeckSearchFormValues = (): DeckSearchFormValues => ({
+  keyword: '',
+  sortBy: 'name',
+  sortOrder: 'asc',
+});
+
 const sortByOptions = [
   { label: '按名称', value: 'name' },
   { label: '按作者', value: 'author' },
@@ -50,6 +64,54 @@ const sortByOptions = [
 const sortOrderOptions = [
   { label: '升序', value: 'asc' },
   { label: '降序', value: 'desc' },
+];
+
+const deckSearchForm = createProSearchForm<DeckSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultDeckSearchFormValues()),
+  onSubmit: async values => {
+    Object.assign(listQuery, {
+      keyword: values.keyword,
+      sortBy: values.sortBy,
+      sortOrder: values.sortOrder,
+      page: 1,
+    });
+    await deckListQuery.refetch();
+  },
+  onReset: async () => {
+    Object.assign(listQuery, {
+      ...defaultDeckSearchFormValues(),
+      page: 1,
+    });
+    await deckListQuery.refetch();
+  },
+});
+
+const deckSearchColumns: ProSearchFormColumns<DeckSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索牌堆 / 作者 / 简介 / 牌组',
+    },
+  },
+  {
+    label: '排序字段',
+    path: 'sortBy',
+    field: 'select',
+    fieldProps: {
+      options: sortByOptions,
+    },
+  },
+  {
+    label: '排序方向',
+    path: 'sortOrder',
+    field: 'select',
+    fieldProps: {
+      options: sortOrderOptions,
+    },
+  },
 ];
 
 const showDiff = ref(false);
@@ -300,49 +362,15 @@ function deckUpdate() {
 
     <n-spin :show="pageBusy">
       <section class="deck-search-block">
-        <div class="deck-toolbar">
-          <div class="deck-search">
-            <n-input
-              v-model:value="listQuery.keyword"
-              size="small"
-              clearable
-              placeholder="搜索牌堆 / 作者 / 简介 / 牌组"
-            >
-              <template #prefix>
-                <n-icon><i-carbon-search /></n-icon>
-              </template>
-            </n-input>
-          </div>
-
-          <n-select
-            v-model:value="listQuery.sortBy"
-            size="small"
-            :options="sortByOptions"
-            class="deck-sort"
-          />
-
-          <n-select
-            v-model:value="listQuery.sortOrder"
-            size="small"
-            :options="sortOrderOptions"
-            class="deck-order"
-          />
-        </div>
-        <n-flex size="small" align="center" class="deck-tools deck-search-actions">
-          <n-button type="info" secondary @click="deckListQuery.refetch()">查询</n-button>
-          <n-button
-            secondary
-            @click="
-              listQuery.keyword = '';
-              listQuery.sortBy = 'name';
-              listQuery.sortOrder = 'asc';
-              listQuery.page = 1;
-              deckListQuery.refetch();
-            "
-          >
-            重置
-          </n-button>
-        </n-flex>
+        <ProSearchForm
+          :form="deckSearchForm"
+          :columns="deckSearchColumns"
+          size="small"
+          label-placement="left"
+          label-width="84"
+          cols="1 s:2 l:3"
+          :collapse-button-props="false"
+        />
       </section>
 
       <section class="deck-action-block">
@@ -605,11 +633,6 @@ function deckUpdate() {
 }
 
 .deck-search-block {
-  display: flex;
-  flex-wrap: wrap-reverse;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
   margin-bottom: 0.75rem;
 }
 
@@ -622,25 +645,7 @@ function deckUpdate() {
   margin-bottom: 1rem;
 }
 
-.deck-toolbar {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) 128px 88px;
-  gap: 0.5rem;
-  min-width: 0;
-  flex: 1 1 520px;
-}
-
-.deck-search,
-.deck-sort,
-.deck-order {
-  min-width: 0;
-}
-
 .deck-tools {
-  margin-left: auto;
-}
-
-.deck-search-actions {
   margin-left: auto;
 }
 
@@ -760,15 +765,8 @@ function deckUpdate() {
   width: min(1000px, calc(100vw - 2rem));
 }
 
-@media screen and (max-width: 900px) {
-  .deck-toolbar {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media screen and (max-width: 700px) {
   .deck-meta,
-  .deck-search-block,
   .deck-action-block,
   .upload-item-head,
   .upload-detail {
@@ -777,7 +775,6 @@ function deckUpdate() {
   }
 
   .deck-tools,
-  .deck-search-actions,
   .deck-meta-right {
     margin-left: 0;
   }

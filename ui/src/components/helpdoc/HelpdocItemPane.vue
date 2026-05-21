@@ -1,11 +1,20 @@
 <script setup lang="tsx">
+import { computed, watch } from 'vue';
 import { NFlex, NText, type DataTableColumns } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import type { HelpTextVo } from '@/api';
-import type { HelpdocItemQueryModel } from '@/features/helpdoc/queries';
+import {
+  createDefaultHelpdocItemQuery,
+  type HelpdocItemQueryModel,
+} from '@/features/helpdoc/queries';
+import {
+  cloneSearchFormValues,
+  overwriteSearchFormValues,
+} from '@/features/searchForm/viewModel';
 
 const query = defineModel<HelpdocItemQueryModel>('query', { required: true });
 
-defineProps<{
+const props = defineProps<{
   loading: boolean;
   items: HelpTextVo[];
   total: number;
@@ -17,45 +26,95 @@ const emit = defineEmits<{
   search: [];
   reset: [];
 }>();
+
+type HelpdocSearchFormValues = Pick<HelpdocItemQueryModel, 'id' | 'group' | 'from' | 'title'>;
+
+const defaultHelpdocSearchFormValues = (): HelpdocSearchFormValues => {
+  const defaults = createDefaultHelpdocItemQuery();
+  return {
+    id: defaults.id,
+    group: defaults.group,
+    from: defaults.from,
+    title: defaults.title,
+  };
+};
+
+const searchForm = createProSearchForm<HelpdocSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultHelpdocSearchFormValues()),
+  onSubmit: values => {
+    Object.assign(query.value, values, { pageNum: 1 });
+    emit('search');
+  },
+  onReset: () => {
+    emit('reset');
+  },
+});
+
+const searchColumns = computed<ProSearchFormColumns<HelpdocSearchFormValues>>(() => [
+  {
+    label: '序号',
+    path: 'id',
+    field: 'digit',
+    fieldProps: {
+      clearable: true,
+    },
+  },
+  {
+    label: '分组',
+    path: 'group',
+    field: 'select',
+    fieldProps: {
+      options: props.groupOptions,
+      placeholder: '选择分组',
+      filterable: true,
+      clearable: true,
+    },
+  },
+  {
+    label: '来源文件',
+    path: 'from',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+    },
+  },
+  {
+    label: '词条名',
+    path: 'title',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+    },
+  },
+]);
+
+watch(
+  query,
+  next => {
+    overwriteSearchFormValues(searchForm.values.value, {
+      id: next.id,
+      group: next.group,
+      from: next.from,
+      title: next.title,
+    });
+  },
+  { deep: true, immediate: true },
+);
 </script>
 
 <template>
   <n-spin :show="loading">
     <main class="item-list-container">
       <header>
-        <n-form
-          :model="query"
+        <ProSearchForm
+          :form="searchForm"
+          :columns="searchColumns"
           size="small"
-          class="flex flex-wrap"
-          label-width="auto"
+          label-width="72"
           label-placement="left"
-          inline
-        >
-          <n-form-item label="序号">
-            <n-input-number v-model:value="query.id" placeholder="" clearable />
-          </n-form-item>
-          <n-form-item label="分组">
-            <n-select
-              v-model:value="query.group"
-              placeholder="选择分组"
-              filterable
-              clearable
-              :options="groupOptions"
-            />
-          </n-form-item>
-          <n-form-item label="来源文件">
-            <n-input v-model:value="query.from" placeholder="" clearable />
-          </n-form-item>
-          <n-form-item label="词条名">
-            <n-input v-model:value="query.title" placeholder="" clearable />
-          </n-form-item>
-          <n-form-item>
-            <n-flex size="small">
-              <n-button type="info" secondary @click="emit('search')">查询</n-button>
-              <n-button secondary @click="emit('reset')">重置</n-button>
-            </n-flex>
-          </n-form-item>
-        </n-form>
+          cols="1 s:2 l:4"
+          :collapse-button-props="false"
+        />
       </header>
 
       <n-data-table class="item-list" :columns="columns" :data="items" size="small" :bordered="false" remote :scroll-x="980" />

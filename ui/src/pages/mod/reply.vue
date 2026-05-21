@@ -108,31 +108,16 @@
             </div>
 
             <div class="panel-controls">
-              <n-input
-                v-model:value="fileQuery.keyword"
-                clearable
+              <ProSearchForm
+                :form="replyFileSearchForm"
+                :columns="replyFileSearchColumns"
                 size="small"
-                placeholder="按文件名搜索"
-              >
-                <template #prefix>
-                  <n-icon><i-carbon-search /></n-icon>
-                </template>
-              </n-input>
-
-              <div class="sort-row">
-                <n-select
-                  v-model:value="fileQuery.sortBy"
-                  size="small"
-                  :options="fileSortOptions"
-                  class="sort-select"
-                />
-                <n-select
-                  v-model:value="fileQuery.sortOrder"
-                  size="small"
-                  :options="fileSortOrderOptions"
-                  class="order-select"
-                />
-              </div>
+                label-placement="left"
+                label-width="72"
+                cols="1"
+                :show-suffix-grid-item="false"
+                :collapse-button-props="false"
+              />
             </div>
 
             <div class="panel-body">
@@ -345,6 +330,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import { useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   deleteSdApiV2CustomReplyFilesByFilename,
   getSdApiV2ConfigReplyOptions,
@@ -366,6 +352,7 @@ import ConditionBuilder from '@/components/shared/ConditionBuilder.vue';
 import NestedRuleEditor from '@/components/shared/NestedRuleEditor.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
+import { overwriteSearchFormValues } from '@/features/searchForm/viewModel';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 // 自定义回复页是本项目最复杂的表单页之一。
@@ -462,6 +449,48 @@ const fileSortOptions = [
 const fileSortOrderOptions = [
   { label: '降序', value: 'desc' },
   { label: '升序', value: 'asc' },
+];
+
+type ReplyFileSearchFormValues = {
+  keyword: string;
+  sortBy: string;
+  sortOrder: string;
+};
+
+const replyFileSearchForm = createProSearchForm<ReplyFileSearchFormValues>({
+  initialValues: {
+    keyword: '',
+    sortBy: 'updateTime',
+    sortOrder: 'desc',
+  },
+});
+
+const replyFileSearchColumns: ProSearchFormColumns<ReplyFileSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '按文件名搜索',
+    },
+  },
+  {
+    label: '排序字段',
+    path: 'sortBy',
+    field: 'select',
+    fieldProps: {
+      options: fileSortOptions,
+    },
+  },
+  {
+    label: '排序方向',
+    path: 'sortOrder',
+    field: 'select',
+    fieldProps: {
+      options: fileSortOrderOptions,
+    },
+  },
 ];
 
 const drafts = ref<Record<string, ReplyFileDraft>>({});
@@ -594,6 +623,29 @@ watch(
     modified.value = JSON.stringify(current) !== JSON.stringify(initial);
   },
   { deep: true, immediate: true },
+);
+
+watch(
+  () => [fileQuery.keyword, fileQuery.sortBy, fileQuery.sortOrder] as const,
+  ([keyword, sortBy, sortOrder]) => {
+    overwriteSearchFormValues(replyFileSearchForm.values.value, {
+      keyword,
+      sortBy,
+      sortOrder,
+    });
+  },
+  { immediate: true },
+);
+
+watch(
+  () => replyFileSearchForm.values.value,
+  values => {
+    fileQuery.keyword = values.keyword;
+    fileQuery.sortBy = values.sortBy;
+    fileQuery.sortOrder = values.sortOrder;
+    fileQuery.page = 1;
+  },
+  { deep: true },
 );
 
 useUnsavedChanges('custom-reply', {
@@ -1246,19 +1298,6 @@ function toApiReplyConfig(draft: ReplyFileDraft) {
 }
 
 .panel-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.sort-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  gap: 0.5rem;
-}
-
-.sort-select,
-.order-select {
   min-width: 0;
 }
 

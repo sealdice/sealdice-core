@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMessage } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   getSdApiV2GroupPlatformsOptions,
   postSdApiV2GroupBatchNotify,
@@ -20,6 +21,7 @@ import {
   readGroupQuitDefaultText,
   writeGroupQuitDefaultText,
 } from '@/features/group/quitPreference';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 
 dayjs.extend(relativeTime);
 
@@ -42,6 +44,22 @@ const listQuery = reactive({
   pageSize: 20,
   keyword: '',
   platforms: [] as string[],
+  queryUnusedDays: 0,
+  isLogging: false,
+  orderByLastTime: true,
+});
+
+type GroupSearchFormValues = {
+  keyword: string;
+  platforms: string[];
+  queryUnusedDays: number;
+  isLogging: boolean;
+  orderByLastTime: boolean;
+};
+
+const defaultGroupSearchFormValues = (): GroupSearchFormValues => ({
+  keyword: '',
+  platforms: [],
   queryUnusedDays: 0,
   isLogging: false,
   orderByLastTime: true,
@@ -73,6 +91,66 @@ const platformOptions = computed(() =>
     value: item.value,
   })),
 );
+
+const groupSearchForm = createProSearchForm<GroupSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultGroupSearchFormValues()),
+  onSubmit: async values => {
+    Object.assign(listQuery, {
+      ...values,
+      page: 1,
+    });
+    await searchGroups();
+  },
+  onReset: async () => {
+    Object.assign(listQuery, {
+      ...defaultGroupSearchFormValues(),
+      page: 1,
+    });
+    await searchGroups();
+  },
+});
+
+const groupSearchColumns = computed<ProSearchFormColumns<GroupSearchFormValues>>(() => [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索群号 / 群名',
+    },
+  },
+  {
+    label: '平台',
+    path: 'platforms',
+    field: 'select',
+    fieldProps: {
+      options: platformOptions.value,
+      multiple: true,
+      clearable: true,
+      placeholder: '平台筛选',
+    },
+  },
+  {
+    label: '未使用天数',
+    path: 'queryUnusedDays',
+    field: 'digit',
+    fieldProps: {
+      min: 0,
+      placeholder: '未使用天数',
+    },
+  },
+  {
+    label: '仅记录日志',
+    path: 'isLogging',
+    field: 'switch',
+  },
+  {
+    label: '按最后使用排序',
+    path: 'orderByLastTime',
+    field: 'switch',
+  },
+]);
 
 const selectedGroups = computed(() => groups.value.filter(item => item.selected));
 const selectedGroupIDs = computed(() => selectedGroups.value.map(item => item.groupId));
@@ -119,16 +197,6 @@ async function searchGroups() {
   } finally {
     listLoading.value = false;
   }
-}
-
-function resetFilters() {
-  listQuery.keyword = '';
-  listQuery.platforms = [];
-  listQuery.queryUnusedDays = 0;
-  listQuery.isLogging = false;
-  listQuery.orderByLastTime = true;
-  listQuery.page = 1;
-  void searchGroups();
 }
 
 function handlePageChange(value: number) {
@@ -277,27 +345,15 @@ onMounted(async () => {
 
     <n-spin :show="listLoading">
       <section class="group-search-block">
-        <div class="group-toolbar">
-          <n-input v-model:value="listQuery.keyword" size="small" clearable placeholder="搜索群号 / 群名" />
-          <n-select
-            v-model:value="listQuery.platforms"
-            size="small"
-            multiple
-            clearable
-            :options="platformOptions"
-            placeholder="平台筛选"
-          />
-          <n-input-number v-model:value="listQuery.queryUnusedDays" size="small" :min="0" placeholder="未使用天数" />
-        </div>
-
-        <n-flex size="small" align="center" class="group-tools" wrap>
-          <n-switch v-model:value="listQuery.isLogging" />
-          <n-text depth="3" class="tool-label">仅记录日志</n-text>
-          <n-switch v-model:value="listQuery.orderByLastTime" />
-          <n-text depth="3" class="tool-label">按最后使用排序</n-text>
-          <n-button type="info" secondary @click="searchGroups">查询</n-button>
-          <n-button secondary @click="resetFilters">重置</n-button>
-        </n-flex>
+        <ProSearchForm
+          :form="groupSearchForm"
+          :columns="groupSearchColumns"
+          size="small"
+          label-placement="left"
+          label-width="96"
+          cols="1 s:2 l:3 xl:5"
+          :collapse-button-props="false"
+        />
       </section>
 
       <section class="group-action-block">
@@ -430,24 +486,7 @@ onMounted(async () => {
 }
 
 .group-search-block {
-  display: flex;
-  flex-wrap: wrap-reverse;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
   margin-bottom: 1rem;
-}
-
-.group-toolbar {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 140px;
-  gap: 0.5rem;
-  min-width: 0;
-  flex: 1 1 640px;
-}
-
-.group-tools {
-  margin-left: auto;
 }
 
 .tool-label {
@@ -497,20 +536,12 @@ onMounted(async () => {
   width: min(720px, calc(100vw - 2rem));
 }
 
-@media screen and (max-width: 900px) {
-  .group-toolbar {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media screen and (max-width: 700px) {
-  .group-search-block,
   .group-action-block {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .group-tools,
   .group-meta-right {
     margin-left: 0;
   }

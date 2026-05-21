@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import type { UploadCustomRequestOptions } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import type { BanListInfoItem } from '@/api';
 import {
   getBanRankMeta,
   type BanListQueryModel,
 } from '@/features/ban/viewModel';
+import {
+  cloneSearchFormValues,
+  overwriteSearchFormValues,
+} from '@/features/searchForm/viewModel';
 
 dayjs.extend(relativeTime);
 
@@ -28,20 +33,92 @@ const emit = defineEmits<{
   export: [];
 }>();
 
-const rankValues = computed({
-  get: () => props.query.ranks,
-  set: value => emit('updateQuery', { ranks: [...value], page: 1 }),
+type BanSearchFormValues = Pick<BanListQueryModel, 'keyword' | 'ranks' | 'sortBy'>;
+
+const defaultBanSearchFormValues = (): BanSearchFormValues => ({
+  keyword: '',
+  ranks: [-30, -10, 30, 0],
+  sortBy: 'time',
 });
 
-const keyword = computed({
-  get: () => props.query.keyword,
-  set: value => emit('updateQuery', { keyword: value, page: 1 }),
+const syncingFromProps = ref(false);
+
+const searchForm = createProSearchForm<BanSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultBanSearchFormValues()),
 });
 
-const sortBy = computed({
-  get: () => props.query.sortBy,
-  set: value => emit('updateQuery', { sortBy: value, page: 1 }),
-});
+const searchColumns: ProSearchFormColumns<BanSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '按 ID 或名字筛选',
+    },
+  },
+  {
+    label: '级别',
+    path: 'ranks',
+    field: 'checkbox-group',
+    fieldProps: {
+      options: [
+        { label: '拉黑', value: -30 },
+        { label: '警告', value: -10 },
+        { label: '信任', value: 30 },
+        { label: '其它', value: 0 },
+      ],
+      flexProps: {
+        wrap: true,
+      },
+    },
+  },
+  {
+    label: '排序',
+    path: 'sortBy',
+    field: 'radio-group',
+    fieldProps: {
+      type: 'button',
+      options: [
+        { label: '按封禁时间', value: 'time' },
+        { label: '按怒气值', value: 'score' },
+      ],
+      flexProps: {
+        wrap: true,
+      },
+    },
+  },
+];
+
+watch(
+  () => [props.query.keyword, props.query.sortBy, props.query.ranks] as const,
+  ([keyword, sortBy, ranks]) => {
+    syncingFromProps.value = true;
+    overwriteSearchFormValues(searchForm.values.value, {
+      keyword,
+      sortBy,
+      ranks: [...ranks],
+    });
+    void nextTick(() => {
+      syncingFromProps.value = false;
+    });
+  },
+  { deep: true, immediate: true },
+);
+
+watch(
+  () => searchForm.values.value,
+  values => {
+    if (syncingFromProps.value) return;
+    emit('updateQuery', {
+      keyword: values.keyword,
+      ranks: [...values.ranks],
+      sortBy: values.sortBy,
+      page: 1,
+    });
+  },
+  { deep: true },
+);
 
 function updatePage(page: number) {
   emit('updateQuery', { page });
@@ -69,10 +146,16 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
 <template>
   <section class="ban-list-panel">
     <header class="ban-list-panel__toolbar">
-      <n-flex size="small" align="center" wrap>
-        <n-text>搜索：</n-text>
-        <n-input v-model:value="keyword" class="ban-list-panel__search" placeholder="按 ID 或名字筛选" clearable />
-      </n-flex>
+      <ProSearchForm
+        :form="searchForm"
+        :columns="searchColumns"
+        size="small"
+        label-placement="left"
+        label-width="72"
+        cols="1 s:2 l:3"
+        :show-suffix-grid-item="false"
+        :collapse-button-props="false"
+      />
 
       <n-flex align="center" wrap>
         <n-button type="success" secondary :loading="addPending" @click="emit('openAdd')">
@@ -102,23 +185,6 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
         </n-button>
       </n-flex>
     </header>
-
-    <n-flex align="center" wrap>
-      <n-text>级别：</n-text>
-      <n-checkbox-group v-model:value="rankValues">
-        <n-space item-style="display:flex;">
-          <n-checkbox :value="-30">拉黑</n-checkbox>
-          <n-checkbox :value="-10">警告</n-checkbox>
-          <n-checkbox :value="30">信任</n-checkbox>
-          <n-checkbox :value="0">其它</n-checkbox>
-        </n-space>
-      </n-checkbox-group>
-      <n-text>排序：</n-text>
-      <n-radio-group v-model:value="sortBy" size="small">
-        <n-radio-button value="time">按封禁时间</n-radio-button>
-        <n-radio-button value="score">按怒气值</n-radio-button>
-      </n-radio-group>
-    </n-flex>
 
     <n-spin :show="loading">
       <n-list hoverable clickable class="ban-list-panel__list">

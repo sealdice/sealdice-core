@@ -3,7 +3,8 @@ import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { NButton, NCheckbox, NFlex, NInput, NPagination, NSelect, NTag, NText, useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
+import { NButton, NCheckbox, NFlex, NPagination, NTag, NText, useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   getSdApiV2JsList,
   postSdApiV2JsDelete,
@@ -21,6 +22,7 @@ import {
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 
@@ -46,6 +48,12 @@ const listQuery = reactive({
   sortOrder: 'asc' as 'asc' | 'desc',
 });
 
+type JsListSearchFormValues = {
+  keyword: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+};
+
 const sortByOptions = [
   { label: '按名称', value: 'name' },
   { label: '按作者', value: 'author' },
@@ -57,6 +65,51 @@ const sortByOptions = [
 const sortOrderOptions = [
   { label: '升序', value: 'asc' },
   { label: '降序', value: 'desc' },
+];
+
+const defaultJsListSearchFormValues = (): JsListSearchFormValues => ({
+  keyword: '',
+  sortBy: 'name',
+  sortOrder: 'asc',
+});
+
+const searchForm = createProSearchForm<JsListSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultJsListSearchFormValues()),
+  onSubmit: async values => {
+    Object.assign(listQuery, values, { page: 1 });
+    await listQueryResult.refetch();
+  },
+  onReset: async () => {
+    resetFilters();
+  },
+});
+
+const searchColumns: ProSearchFormColumns<JsListSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索名称/描述/作者',
+    },
+  },
+  {
+    label: '排序字段',
+    path: 'sortBy',
+    field: 'select',
+    fieldProps: {
+      options: sortByOptions,
+    },
+  },
+  {
+    label: '排序方向',
+    path: 'sortOrder',
+    field: 'select',
+    fieldProps: {
+      options: sortOrderOptions,
+    },
+  },
 ];
 
 const listParams = computed(() => ({
@@ -332,17 +385,17 @@ function toggleSelectAll(checked: boolean) {
   <main class="js-list-page">
     <section class="js-panel">
       <header class="js-panel-header">
-        <div class="js-query-layout">
-          <div class="js-query-main">
-            <div class="js-query-fields">
-              <n-input v-model:value="listQuery.keyword" placeholder="搜索名称/描述/作者" clearable class="js-search">
-                <template #prefix>
-                  <n-icon><i-carbon-search /></n-icon>
-                </template>
-              </n-input>
-              <n-button type="info" secondary @click="listQueryResult.refetch()">查询</n-button>
-              <n-button secondary @click="resetFilters">重置</n-button>
-            </div>
+        <div class="js-query-main">
+          <ProSearchForm
+            :form="searchForm"
+            :columns="searchColumns"
+            size="small"
+            label-placement="left"
+            label-width="72"
+            cols="1 s:2 l:3"
+            :collapse-button-props="false"
+          />
+          <div class="js-query-footer">
             <aside class="js-query-meta">
               <n-text v-if="filterHint" type="info" class="text-xs">
                 {{ filterHint }}
@@ -351,50 +404,37 @@ function toggleSelectAll(checked: boolean) {
                 支持按插件名称、简介和作者筛选
               </n-text>
             </aside>
-          </div>
 
-          <div class="js-query-tools">
-            <n-upload
-              action=""
-              multiple
-              accept="application/javascript,application/typescript,.js,.ts"
-              :show-file-list="false"
-              :custom-request="uploadPlugin"
-            >
-              <n-button type="info" secondary :loading="uploader.busy.value">
+            <div class="js-query-tools">
+              <n-upload
+                action=""
+                multiple
+                accept="application/javascript,application/typescript,.js,.ts"
+                :show-file-list="false"
+                :custom-request="uploadPlugin"
+              >
+                <n-button type="info" secondary :loading="uploader.busy.value">
+                  <template #icon>
+                    <n-icon><i-carbon-upload /></n-icon>
+                  </template>
+                  上传插件
+                </n-button>
+              </n-upload>
+              <n-button
+                type="info"
+                size="tiny"
+                text
+                tag="a"
+                target="_blank"
+                style="text-decoration: none"
+                href="https://github.com/sealdice/javascript"
+              >
                 <template #icon>
-                  <n-icon><i-carbon-upload /></n-icon>
+                  <n-icon><i-carbon-link /></n-icon>
                 </template>
-                上传插件
+                获取插件
               </n-button>
-            </n-upload>
-            <n-select
-              v-model:value="listQuery.sortBy"
-              :options="sortByOptions"
-              class="js-sort"
-              size="small"
-              placeholder="排序"
-            />
-            <n-select
-              v-model:value="listQuery.sortOrder"
-              :options="sortOrderOptions"
-              class="js-order"
-              size="small"
-            />
-            <n-button
-              type="info"
-              size="tiny"
-              text
-              tag="a"
-              target="_blank"
-              style="text-decoration: none"
-              href="https://github.com/sealdice/javascript"
-            >
-              <template #icon>
-                <n-icon><i-carbon-link /></n-icon>
-              </template>
-              获取插件
-            </n-button>
+            </div>
           </div>
         </div>
       </header>
@@ -688,28 +728,18 @@ function toggleSelectAll(checked: boolean) {
   padding: 1rem;
 }
 
-.js-query-layout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.9rem;
-}
-
 .js-query-main {
+  display: grid;
+  gap: 0.75rem;
   min-width: 0;
-  flex: 1 1 24rem;
 }
 
-.js-query-fields {
+.js-query-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.js-query-meta {
-  margin-top: 0.7rem;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .js-query-tools {
@@ -719,18 +749,6 @@ function toggleSelectAll(checked: boolean) {
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
-}
-
-.js-search {
-  width: min(100%, 18rem);
-}
-
-.js-sort {
-  width: 8rem;
-}
-
-.js-order {
-  width: 5.5rem;
 }
 
 .upload-panel {
@@ -853,7 +871,7 @@ function toggleSelectAll(checked: boolean) {
 }
 
 @media screen and (max-width: 700px) {
-  .js-query-layout,
+  .js-query-footer,
   .js-data-header,
   .upload-item-head,
   .upload-detail {

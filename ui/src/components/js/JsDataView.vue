@@ -14,6 +14,7 @@ import {
   useMessage,
   NAlert,
 } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   getSdApiV2JsList,
   getSdApiV2JsByNameDataList,
@@ -25,6 +26,7 @@ import {
   type JsInfo,
 } from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -51,8 +53,61 @@ const pluginOptions = computed(() =>
   })),
 );
 
+type JsDataSearchFormValues = {
+  plugin: string | null;
+  keyword: string;
+};
+
+const defaultJsDataSearchFormValues = (): JsDataSearchFormValues => ({
+  plugin: null,
+  keyword: '',
+});
+
 const dataPage = ref({ page: 1, pageSize: 20 });
 const dataKeyword = ref('');
+
+const searchForm = createProSearchForm<JsDataSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultJsDataSearchFormValues()),
+  onValueChange: ({ path, value }) => {
+    if (path !== 'plugin') return;
+    selectedPlugin.value = typeof value === 'string' ? value : '';
+    dataPage.value = { ...dataPage.value, page: 1 };
+  },
+  onSubmit: () => {
+    const values = searchForm.values.value;
+    selectedPlugin.value = values.plugin ?? '';
+    dataKeyword.value = values.keyword.trim();
+    dataPage.value = { ...dataPage.value, page: 1 };
+    invalidateData();
+  },
+  onReset: () => {
+    selectedPlugin.value = '';
+    dataKeyword.value = '';
+    dataPage.value = { ...dataPage.value, page: 1 };
+  },
+});
+
+const searchColumns = computed<ProSearchFormColumns<JsDataSearchFormValues>>(() => [
+  {
+    label: '插件',
+    path: 'plugin',
+    field: 'select',
+    fieldProps: {
+      options: pluginOptions.value,
+      placeholder: '选择插件',
+      clearable: true,
+    },
+  },
+  {
+    label: 'Key',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索 Key（支持 * ? 通配符）',
+    },
+  },
+]);
 
 const dataListQuery = useQuery({
   queryKey: computed(() => ['js-data-list', selectedPlugin.value, dataPage.value, dataKeyword.value]),
@@ -185,16 +240,15 @@ function formatFileSize(bytes: number): string {
 <template>
   <div>
     <header class="mb-4">
-      <n-flex size="small" align="center" wrap class="js-data-plugin-picker">
-        <n-text>选择插件：</n-text>
-        <n-select
-          v-model:value="selectedPlugin"
-          :options="pluginOptions"
-          placeholder="选择插件"
-          class="w-60"
-          clearable
-        />
-      </n-flex>
+      <ProSearchForm
+        :form="searchForm"
+        :columns="searchColumns"
+        size="small"
+        label-placement="left"
+        label-width="72"
+        cols="1 s:2"
+        :collapse-button-props="false"
+      />
     </header>
 
     <template v-if="selectedPlugin">
@@ -210,18 +264,6 @@ function formatFileSize(bytes: number): string {
         >
           压缩数据库
         </n-button>
-      </n-flex>
-
-      <!-- Search -->
-      <n-flex size="small" class="js-data-search mb-4" wrap>
-        <n-input
-          v-model:value="dataKeyword"
-          placeholder="搜索 Key（支持 * ? 通配符）"
-          clearable
-          class="w-80"
-          @keyup.enter="invalidateData()"
-        />
-        <n-button size="small" @click="invalidateData()">查询</n-button>
       </n-flex>
 
       <!-- List -->
@@ -330,12 +372,6 @@ function formatFileSize(bytes: number): string {
 }
 
 @media screen and (max-width: 639.9px) {
-  .js-data-plugin-picker,
-  .js-data-search {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .w-60,
   .w-80 {
     width: 100%;
