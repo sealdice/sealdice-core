@@ -23,6 +23,8 @@ import (
 var (
 	// OfficialStorePublicKey 官方商店公钥。
 	OfficialStorePublicKey = ``
+
+	officialStoreBackendBaseURL = "https://repo-test.sealdice.com"
 )
 
 type StoreBackendType string
@@ -259,10 +261,7 @@ func removeStoreBackendURL(urls []string, rawURL string) []string {
 }
 
 func officialStoreBackendURL() (string, error) {
-	if len(BackendUrls) == 0 {
-		return "", errors.New("未配置官方扩展商店后端")
-	}
-	baseURL := strings.TrimRight(strings.TrimSpace(BackendUrls[0]), "/")
+	baseURL := strings.TrimRight(strings.TrimSpace(officialStoreBackendBaseURL), "/")
 	if baseURL == "" {
 		return "", errors.New("官方扩展商店后端地址为空")
 	}
