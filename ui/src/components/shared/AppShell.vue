@@ -2,7 +2,12 @@
 import { defineAsyncComponent, nextTick, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/core';
 import { useDialog, useMessage } from 'naive-ui';
-import { getAppShellContentClass, getAppShellDrawerWidth, type AppShellContentMode } from './appShellLayout';
+import {
+  APP_SHELL_DESKTOP_BREAKPOINT,
+  getAppShellContentClass,
+  getAppShellDrawerWidth,
+  type AppShellContentMode,
+} from './appShellLayout';
 import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
@@ -28,7 +33,7 @@ const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
 const AppSearchMenu = defineAsyncComponent(loadAppSearchMenu);
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
-const isDesktop = breakpoints.greater('md');
+const isDesktop = breakpoints.greaterOrEqual(APP_SHELL_DESKTOP_BREAKPOINT);
 
 const drawerMenu = ref(false);
 const collapsedMenu = ref(!isDesktop.value);
@@ -240,7 +245,7 @@ void authSession.tryDefaultSignin();
   background: var(--sd-bg-sidebar);
 }
 
-@media screen and (max-width: 639.9px) {
+@media screen and (max-width: 767.9px) {
   .sd-sidebar {
     display: none;
   }

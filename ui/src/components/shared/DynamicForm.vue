@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { FormRules } from 'naive-ui';
+import type { FormProps, FormRules } from 'naive-ui';
 import type { FormConfigItem } from '@/api';
 import {
   buildDynamicFormPayload,
@@ -20,6 +20,7 @@ const props = defineProps<{
   schema: FormConfigItem[];
   modelValue: DynamicFormModel;
   disabled?: boolean;
+  labelPlacement?: FormProps['labelPlacement'];
   labelWidth?: number | string;
 }>();
 
@@ -82,7 +83,7 @@ defineExpose({
     :model="modelValue"
     :rules="rules"
     :label-width="labelWidth ?? 108"
-    label-placement="left"
+    :label-placement="labelPlacement ?? 'left'"
   >
     <n-form-item
       v-for="item in schema"
@@ -178,6 +179,10 @@ defineExpose({
 }
 
 .dynamic-form :deep(.n-input-number) {
+  width: 100%;
+}
+
+.dynamic-form :deep(.n-date-picker) {
   width: 100%;
 }
 </style>

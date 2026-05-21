@@ -28,20 +28,20 @@ const title = computed(() => {
 
 .eyebrow {
   margin: 0 0 8px;
-  color: #0369a1;
+  color: var(--sd-primary);
   font-size: 12px;
 }
 
 h1 {
   margin: 0 0 12px;
-  color: #1f2937;
+  color: var(--sd-text-primary);
   font-size: 26px;
   font-weight: 700;
 }
 
 p {
   margin: 0;
-  color: #4b5563;
+  color: var(--sd-text-secondary);
   line-height: 1.8;
 }
 </style>

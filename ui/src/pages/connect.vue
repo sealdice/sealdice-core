@@ -21,7 +21,7 @@ import {
   type MethodTreeNode,
   type WorkflowResp,
 } from '@/api';
-import AsyncFieldSection from '@/components/shared/AsyncFieldSection.vue';
+import ConnectCreateWizard from '@/components/connect/ConnectCreateWizard.vue';
 import DynamicForm from '@/components/shared/DynamicForm.vue';
 import {
   buildDynamicFormInitialModel,
@@ -29,6 +29,7 @@ import {
   type DynamicFormModel,
 } from '@/components/shared/dynamicFormModel';
 import { hasAccessToken } from '@/features/auth/state';
+import { getEndpointProtocolLabel, getEndpointStateMeta } from '@/features/connect/endpointDisplay';
 import { useRealtimeConnections } from '@/features/connect/realtime';
 import { buildSignInfoState } from '@/features/connect/signInfoState';
 
@@ -288,19 +289,6 @@ const adapterOf = (endpoint: EndPointInfo): AdapterView => {
   return {};
 };
 
-const stateTag = (state: number) => {
-  switch (state) {
-    case 1:
-      return { type: 'success' as const, text: '已连接' };
-    case 2:
-      return { type: 'warning' as const, text: '连接中' };
-    case 3:
-      return { type: 'error' as const, text: '失败' };
-    default:
-      return { type: 'error' as const, text: '断开' };
-  }
-};
-
 const workflowOf = (endpoint: EndPointInfo): WorkflowResp | null =>
   realtimeConnections.workflows.value[endpoint.id] ?? null;
 
@@ -339,16 +327,12 @@ const openQRCode = (endpoint: EndPointInfo) => {
   qrDialogVisible.value = true;
 };
 
-const protocolLabel = (endpoint: EndPointInfo) => {
-  const adapter = adapterOf(endpoint);
-  if (endpoint.protocolType === 'onebot' && adapter.builtinMode === 'lagrange') return 'QQ(内置客户端)';
-  if (endpoint.protocolType === 'milky' && adapter.built_in_mode) return 'QQ(内置Milky)';
-  if (endpoint.protocolType === 'milky') return 'QQ(Milky)';
-  if (endpoint.protocolType === 'pureonebot' && adapter.reverseAddr) return 'QQ(onebot11反向WS)';
-  if (endpoint.protocolType === 'pureonebot') return 'QQ(onebot11正向WS)';
-  if (endpoint.protocolType === 'satori') return 'Satori';
-  return endpoint.platform;
-};
+const protocolLabel = (endpoint: EndPointInfo) =>
+  getEndpointProtocolLabel({
+    platform: endpoint.platform,
+    protocolType: endpoint.protocolType,
+    adapter: adapterOf(endpoint),
+  });
 
 const detailRows = (endpoint: EndPointInfo) => {
   const adapter = adapterOf(endpoint);
@@ -430,13 +414,13 @@ const columns = computed<DataTableColumns<EndPointInfo>>(() => [
     key: 'account',
     minWidth: 180,
     render: row => {
-      const tag = stateTag(row.state);
+      const tag = getEndpointStateMeta(row.state);
       const loginTag = workflowTag(row);
       return (
         <div class='account-cell'>
           <div class='account-title'>
             <span>{row.nickname || row.userId || row.id}</span>
-            <n-tag size='small' type={tag.type} bordered={false}>
+            <n-tag size='small' type={tag.tagType} bordered={false}>
               {tag.text}
             </n-tag>
             {!row.enable ? (
@@ -581,191 +565,30 @@ const submitEdit = () => {
       :mask-closable="false"
       @after-leave="resetWizard"
     >
-      <n-space vertical size="large">
-        <n-steps :current="wizardStep" size="small">
-          <n-step title="选择平台" />
-          <n-step title="选择方式" />
-          <n-step title="选择协议" />
-          <n-step title="填写信息" />
-        </n-steps>
-
-        <!-- Step 1: 选择平台 -->
-        <div v-if="wizardStep === 1" class="wizard-step-panel">
-          <div class="split-layout">
-            <div class="split-left">
-              <div
-                v-for="platform in protocols"
-                :key="platform.id"
-                :class="['split-item', { 'split-item--selected': wizardPlatform?.id === platform.id }]"
-                @click="wizardPlatform = platform"
-              >
-                <span class="split-item-name">{{ platform.name }}</span>
-              </div>
-            </div>
-            <div class="split-right">
-              <n-empty v-if="!wizardPlatform" description="请在左侧选择一个平台" />
-              <template v-else>
-                <h3 class="split-detail-title">{{ wizardPlatform.name }}</h3>
-                <p class="split-detail-desc">{{ wizardPlatform.description }}</p>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 2: 选择方式 -->
-        <div v-if="wizardStep === 2" class="wizard-step-panel">
-          <div class="split-layout">
-            <div class="split-left">
-              <div
-                v-for="method in wizardPlatform?.methods"
-                :key="method.id"
-                :class="['split-item', { 'split-item--selected': wizardMethod?.id === method.id }]"
-                @click="wizardMethod = method"
-              >
-                <span class="split-item-name">{{ method.name }}</span>
-              </div>
-            </div>
-            <div class="split-right">
-              <n-empty v-if="!wizardMethod" description="请在左侧选择一种方式" />
-              <template v-else>
-                <h3 class="split-detail-title">{{ wizardMethod.name }}</h3>
-                <p class="split-detail-desc">{{ wizardMethod.description }}</p>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 3: 选择协议 -->
-        <div v-if="wizardStep === 3" class="wizard-step-panel">
-          <div class="split-layout">
-            <div class="split-left">
-              <div
-                v-for="protocol in wizardMethod?.protocols"
-                :key="protocol.key"
-                :class="[
-                  'split-item',
-                  { 'split-item--selected': wizardProtocol?.key === protocol.key },
-                  { 'split-item--disabled': !protocol.available },
-                ]"
-                @click="protocol.available ? (wizardProtocol = protocol) : null"
-              >
-                <span class="split-item-name">{{ protocol.name }}</span>
-                <n-tag v-if="protocol.deprecated" type="warning" size="small">已废弃</n-tag>
-                <n-tag v-else-if="!protocol.available" type="error" size="small">不可用</n-tag>
-              </div>
-            </div>
-            <div class="split-right">
-              <n-empty v-if="!wizardProtocol" description="请在左侧选择一个协议" />
-              <template v-else>
-                <h3 class="split-detail-title">
-                  {{ wizardProtocol.name }}
-                  <n-tag v-if="wizardProtocol.deprecated" type="warning" size="small">已废弃</n-tag>
-                </h3>
-                <p class="split-detail-desc">{{ wizardProtocol.description }}</p>
-                <n-alert
-                  v-if="!wizardProtocol.available && wizardProtocol.disabledReason"
-                  type="warning"
-                  :show-icon="false"
-                  class="mt-2"
-                >
-                  {{ wizardProtocol.disabledReason }}
-                </n-alert>
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 4: 填写信息 -->
-        <div v-if="wizardStep === 4" class="wizard-step-panel">
-          <n-alert v-if="selectedProtocol && !selectedProtocol.available" type="warning" :show-icon="false">
-            {{ selectedProtocol.disabledReason }}
-          </n-alert>
-
-          <n-alert v-if="schemasQuery.error.value" type="error" :show-icon="false">
-            配置项读取失败，请稍后重试。
-          </n-alert>
-
-          <DynamicForm
-            v-model="formModel"
-            :schema="selectedSchema"
-            :disabled="createMutation.isPending.value"
-          >
-            <template #field="{ item, fieldKey, value, setValue }">
-              <AsyncFieldSection
-                v-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerVersion'"
-                :loading="signInfoState.mode === 'loading'"
-                :message="signInfoState.message"
-                :error="signInfoErrorMessage"
-                @retry="retrySignInfo"
-              >
-                <n-select
-                  :value="value as string"
-                  :options="signVersionOptions"
-                  :disabled="!signInfoState.canSelectVersion"
-                  placeholder="请选择签名版本"
-                  @update:value="setValue"
-                />
-              </AsyncFieldSection>
-              <AsyncFieldSection
-                v-else-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerName'"
-                :loading="signInfoState.mode === 'loading'"
-                :message="signInfoState.mode === 'manual-fallback' ? '' : signInfoState.message"
-                :error="fieldKey === 'signServerName' ? signInfoErrorMessage : ''"
-                @retry="retrySignInfo"
-              >
-                <n-select
-                  v-if="!signInfoState.showCustomServerInput"
-                  :value="value as string"
-                  :options="signServers"
-                  :disabled="!signInfoState.canSelectServer"
-                  placeholder="请选择签名服务"
-                  @update:value="setValue"
-                />
-                <n-input
-                  v-else
-                  :value="value as string"
-                  placeholder="请输入自定义签名地址"
-                  @update:value="setValue"
-                />
-              </AsyncFieldSection>
-              <n-input
-                v-else-if="item.input_type === 0"
-                :value="value as string"
-                :type="item.sensitive ? 'password' : 'text'"
-                :placeholder="item.placeholder"
-                show-password-on="mousedown"
-                @update:value="setValue"
-              />
-            </template>
-          </DynamicForm>
-        </div>
-      </n-space>
-
-      <template #action>
-        <n-button @click="dialogVisible = false">
-          取消
-        </n-button>
-        <n-button v-if="wizardStep > 1" @click="goPrev">
-          上一步
-        </n-button>
-        <n-button
-          v-if="wizardStep < 4"
-          type="primary"
-          :disabled="!wizardCanNext"
-          @click="goNext"
-        >
-          下一步
-        </n-button>
-        <n-button
-          v-if="wizardStep === 4"
-          type="primary"
-          :loading="createMutation.isPending.value"
-          :disabled="!canSubmit"
-          @click="submit"
-        >
-          添加
-        </n-button>
-      </template>
+      <ConnectCreateWizard
+        v-model:form-model="formModel"
+        v-model:wizard-step="wizardStep"
+        v-model:wizard-platform="wizardPlatform"
+        v-model:wizard-method="wizardMethod"
+        v-model:wizard-protocol="wizardProtocol"
+        :protocols="protocols"
+        :schemas-error="Boolean(schemasQuery.error.value)"
+        :selected-protocol="selectedProtocol"
+        :selected-protocol-key="selectedProtocolKey"
+        :selected-schema="selectedSchema"
+        :sign-info-state="signInfoState"
+        :sign-info-error-message="signInfoErrorMessage"
+        :sign-version-options="signVersionOptions"
+        :sign-servers="signServers"
+        :is-mobile="isMobile"
+        :can-submit="wizardCanNext"
+        :submitting="createMutation.isPending.value"
+        @cancel="dialogVisible = false"
+        @previous="goPrev"
+        @next="goNext"
+        @submit="submit"
+        @retry-sign-info="retrySignInfo"
+      />
     </n-modal>
 
     <n-modal
@@ -785,6 +608,8 @@ const submitEdit = () => {
             v-model="editFormModel"
             :schema="editSchema"
             :disabled="updateMutation.isPending.value"
+            :label-placement="isMobile ? 'top' : 'left'"
+            :label-width="isMobile ? undefined : 108"
           />
         </n-space>
       </n-spin>
@@ -846,7 +671,7 @@ const submitEdit = () => {
 
 h4 {
   margin: 0;
-  color: #111827;
+  color: var(--sd-text-primary);
   font-size: 1rem;
   font-weight: 700;
 }
@@ -861,12 +686,12 @@ h4 {
   align-items: center;
   gap: 0.5rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--sd-text-primary);
 }
 
 .account-subtitle {
   margin-top: 0.25rem;
-  color: #6b7280;
+  color: var(--sd-text-muted);
   font-size: 0.82rem;
 }
 
@@ -882,87 +707,6 @@ h4 {
   max-width: 720px;
 }
 
-.wizard-step-panel {
-  min-height: 240px;
-}
-
-.split-layout {
-  display: flex;
-  gap: 16px;
-  height: 280px;
-}
-
-.split-left {
-  flex: 0 0 180px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow-y: auto;
-  padding-right: 8px;
-  border-right: 1px solid #e5e7eb;
-}
-
-.split-item {
-  padding: 10px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.split-item:hover {
-  background-color: #f3f4f6;
-}
-
-.split-item--selected {
-  background-color: #eff6ff;
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
-.split-item--disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.split-item--disabled:hover {
-  background-color: transparent;
-}
-
-.split-item-name {
-  font-size: 0.9rem;
-}
-
-.split-right {
-  flex: 1;
-  padding: 8px 4px;
-  overflow-y: auto;
-}
-
-.split-detail-title {
-  margin: 0 0 12px 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #111827;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.split-detail-desc {
-  margin: 0;
-  font-size: 0.9rem;
-  color: #4b5563;
-  line-height: 1.6;
-}
-
-.mt-2 {
-  margin-top: 8px;
-}
-
 @media screen and (max-width: 639.9px) {
   .page-head {
     align-items: flex-start;
@@ -975,29 +719,6 @@ h4 {
 
   .wizard-dialog :deep(.n-step-content-header) {
     font-size: 0.78rem;
-  }
-
-  .wizard-step-panel {
-    min-height: 0;
-  }
-
-  .split-layout {
-    height: auto;
-    min-height: 18rem;
-    flex-direction: column;
-  }
-
-  .split-left {
-    flex: 0 0 auto;
-    max-height: 11rem;
-    border-right: 0;
-    border-bottom: 1px solid #e5e7eb;
-    padding-right: 0;
-    padding-bottom: 8px;
-  }
-
-  .split-right {
-    min-height: 8rem;
   }
 }
 </style>

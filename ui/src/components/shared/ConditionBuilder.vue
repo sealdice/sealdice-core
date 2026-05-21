@@ -37,6 +37,17 @@ const emit = defineEmits<{
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const notMobile = breakpoints.greater('sm');
+const conditionKeys = new WeakMap<ReplyCondition, string>();
+let nextConditionKey = 0;
+
+const conditionKeyOf = (condition: ReplyCondition): string => {
+  const existing = conditionKeys.get(condition);
+  if (existing) return existing;
+  nextConditionKey += 1;
+  const key = `condition-${nextConditionKey}`;
+  conditionKeys.set(condition, key);
+  return key;
+};
 
 const deleteByIndex = (index: number) => {
   emit('deleteCondition', index);
@@ -46,7 +57,7 @@ const deleteByIndex = (index: number) => {
 <template>
   <div
     v-for="(cond, index) in listModel"
-    :key="index"
+    :key="conditionKeyOf(cond)"
     class="condition-item">
     <div class="condition-head">
       <div class="condition-fields">

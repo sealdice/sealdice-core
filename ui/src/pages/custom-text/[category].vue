@@ -201,7 +201,7 @@
 
                       <div
                         v-for="(item, index) in items"
-                        :key="index"
+                        :key="textItemKeyOf(keyName, item)"
                         style="width: 100%; margin-bottom: 0.5rem"
                       >
                         <n-flex align="center">
@@ -377,6 +377,17 @@ const filterMode = ref<string>('all');
 const filterGroups = ref<string[]>([]);
 const currentFilterGroup = ref<string>('');
 const currentFilterName = ref<string>('');
+const textItemKeys = new WeakMap<TextTemplateItem, string>();
+let nextTextItemKey = 0;
+
+const textItemKeyOf = (keyName: string, item: TextTemplateItem): string => {
+  const existing = textItemKeys.get(item);
+  if (existing) return `${keyName}:${existing}`;
+  nextTextItemKey += 1;
+  const key = `text-item-${nextTextItemKey}`;
+  textItemKeys.set(item, key);
+  return `${keyName}:${key}`;
+};
 
 const customTextQuery = useQuery({
   ...getSdApiV2CustomTextOptions(),

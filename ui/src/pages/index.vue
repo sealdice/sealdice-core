@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 import { filesize } from 'filesize';
@@ -10,6 +10,7 @@ import {
   getSdApiV2BaseOverviewOptions,
 } from '@/api';
 import { useBaseLogStream, type BaseLogItem } from '@/features/base/logStream';
+import { applyLogDisplayUpdate } from '@/features/base/logDisplayState';
 import { hasAccessToken } from '@/features/auth/state';
 
 const themeVars = useThemeVars();
@@ -35,11 +36,21 @@ const isContainerMode = computed(() => overview.value?.runtime.containerMode ===
 
 const displayReverse = ref(true);
 const autoRefresh = ref(true);
+const visibleLogs = ref<BaseLogItem[]>([]);
 const logStream = useBaseLogStream();
+
+watch(
+  [logStream.logs, autoRefresh],
+  () => {
+    visibleLogs.value = applyLogDisplayUpdate(visibleLogs.value, logStream.logs.value, autoRefresh.value);
+  },
+  { immediate: true },
+);
+
 // 日志源保持 append 顺序，展示顺序只在 computed 中转换，避免切换“倒序显示”
 // 时破坏原始缓冲和后续 append 逻辑。
 const logData = computed(() => {
-  return displayReverse.value ? [...logStream.logs.value].reverse() : logStream.logs.value;
+  return displayReverse.value ? [...visibleLogs.value].reverse() : visibleLogs.value;
 });
 
 const getMsgColor = (row: BaseLogItem): string | undefined => {
@@ -183,7 +194,7 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
 
 h4 {
   margin: 1rem 0 0.75rem;
-  color: #111827;
+  color: var(--sd-text-primary);
   font-size: 1rem;
   font-weight: 700;
 }
