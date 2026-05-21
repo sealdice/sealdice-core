@@ -27,6 +27,7 @@ temp/
 
 .goreleaser.yaml
 dist/
+ui/dev-dist/
 go-cqhttp/
 lagrange/
 frontend/

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { darkTheme, lightTheme, zhCN, dateZhCN } from 'naive-ui';
+import { darkTheme, lightTheme, dateZhCN } from 'naive-ui';
+import { ProConfigProvider, zhCN } from 'pro-naive-ui';
 import { computed, defineAsyncComponent, provide, ref } from 'vue';
 import { RouterView } from 'vue-router';
 import AppThemeTransition from './components/shared/AppThemeTransition.vue';
@@ -44,7 +45,7 @@ useRealtimeClient();
 </script>
 
 <template>
-  <n-config-provider
+  <ProConfigProvider
     :locale="zhCN"
     :date-locale="dateZhCN"
     :theme="activeTheme"
@@ -68,7 +69,7 @@ useRealtimeClient();
         </n-modal-provider>
       </n-notification-provider>
     </n-message-provider>
-  </n-config-provider>
+  </ProConfigProvider>
 </template>
 
 <style>

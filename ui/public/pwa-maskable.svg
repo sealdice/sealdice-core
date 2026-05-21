@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SealDice">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#172554" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+  </defs>
+  <rect x="48" y="48" width="416" height="416" rx="104" fill="url(#bg)" />
+  <circle cx="171" cy="192" r="32" fill="#93c5fd" />
+  <circle cx="341" cy="192" r="32" fill="#cbd5e1" />
+  <circle cx="171" cy="320" r="32" fill="#cbd5e1" />
+  <circle cx="341" cy="320" r="32" fill="#93c5fd" />
+  <path d="M256 140 L332 256 L256 372 L180 256 Z" fill="none" stroke="#f8fafc" stroke-width="28" stroke-linejoin="round" />
+</svg>

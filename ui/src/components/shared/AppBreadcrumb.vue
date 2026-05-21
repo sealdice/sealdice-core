@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { appNavigation } from '@/router/navigation';
 import { buildBreadcrumbItems } from '@/router/navigationModel';
+import AppInstallButton from './AppInstallButton.vue';
 import AppThemePaletteButton from './AppThemePaletteButton.vue';
 import AppThemeSwitch from './AppThemeSwitch.vue';
 
@@ -69,6 +70,7 @@ const breadcrumbItems = computed(() =>
       <div class="sd-page-actions">
         <AppThemeSwitch />
         <AppThemePaletteButton />
+        <AppInstallButton />
 
         <button type="button" class="search-entry" @click="emit('openSearch')">
           <span class="search-label">

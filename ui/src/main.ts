@@ -6,10 +6,11 @@ import './polyfills/structuredClone';
 
 import { createApp } from 'vue';
 import { VueQueryPlugin } from '@tanstack/vue-query';
+import proNaiveUi from 'pro-naive-ui';
 
-import dayjs from 'dayjs';
-import 'dayjs/locale/zh-cn';
-import relativeTime from 'dayjs/plugin/relativeTime';
+// import dayjs from 'dayjs';
+// import 'dayjs/locale/zh-cn';
+// import relativeTime from 'dayjs/plugin/relativeTime';
 import safeHtmlDirective from './directives/safeHtml';
 
 import App from './App.vue';
@@ -29,8 +30,8 @@ import 'vfonts/Lato.css';
 import 'vfonts/FiraCode.css';
 
 // 配置 dayjs
-dayjs.locale('zh-cn');
-dayjs.extend(relativeTime);
+// dayjs.locale('zh-cn');
+// dayjs.extend(relativeTime);
 
 // Naive UI 会按运行时顺序插入 style 标签。显式插入标记节点可以稳定样式优先级，
 // 避免局部 scoped CSS 与组件库 CSS 在热更新/构建后出现顺序漂移。
@@ -45,6 +46,7 @@ const app = createApp(App);
 
 app.directive('safe-html', safeHtmlDirective);
 app.use(router);
+app.use(proNaiveUi);
 app.use(VueQueryPlugin, {
   queryClient,
 });
