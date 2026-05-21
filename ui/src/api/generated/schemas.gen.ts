@@ -23,9 +23,44 @@ export const APIPluginConfigSchema = {
   type: 'object',
 } as const;
 
+export const AddReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/AddReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    id: {
+      type: 'string',
+    },
+    name: {
+      type: 'string',
+    },
+    rank: {
+      format: 'int64',
+      type: 'integer',
+    },
+    reason: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'rank', 'name', 'reason'],
+  type: 'object',
+} as const;
+
 export const AdvancedConfigSchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/AdvancedConfig.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     enable: {
       type: 'boolean',
     },
@@ -49,6 +84,13 @@ export const AdvancedConfigSchema = {
 export const BackupBatchDeleteReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BackupBatchDeleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     names: {
       items: {
         type: 'string',
@@ -94,6 +136,91 @@ export const BackupListRespSchema = {
     },
   },
   required: ['result'],
+  type: 'object',
+} as const;
+
+export const BanConfigSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BanConfig.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    autoBanMinutes: {
+      format: 'int64',
+      type: 'integer',
+    },
+    banBehaviorQuitIfAdmin: {
+      type: 'boolean',
+    },
+    banBehaviorQuitIfAdminSilentIfNotAdmin: {
+      type: 'boolean',
+    },
+    banBehaviorQuitLastPlace: {
+      type: 'boolean',
+    },
+    banBehaviorQuitPlaceImmediately: {
+      type: 'boolean',
+    },
+    banBehaviorRefuseInvite: {
+      type: 'boolean',
+    },
+    banBehaviorRefuseReply: {
+      type: 'boolean',
+    },
+    jointScorePercentOfGroup: {
+      format: 'double',
+      type: 'number',
+    },
+    jointScorePercentOfInviter: {
+      format: 'double',
+      type: 'number',
+    },
+    scoreGroupKicked: {
+      format: 'int64',
+      type: 'integer',
+    },
+    scoreGroupMuted: {
+      format: 'int64',
+      type: 'integer',
+    },
+    scoreReducePerMinute: {
+      format: 'int64',
+      type: 'integer',
+    },
+    scoreTooManyCommand: {
+      format: 'int64',
+      type: 'integer',
+    },
+    thresholdBan: {
+      format: 'int64',
+      type: 'integer',
+    },
+    thresholdWarn: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: [
+    'banBehaviorRefuseReply',
+    'banBehaviorRefuseInvite',
+    'banBehaviorQuitLastPlace',
+    'banBehaviorQuitPlaceImmediately',
+    'banBehaviorQuitIfAdmin',
+    'banBehaviorQuitIfAdminSilentIfNotAdmin',
+    'thresholdWarn',
+    'thresholdBan',
+    'autoBanMinutes',
+    'scoreReducePerMinute',
+    'scoreGroupMuted',
+    'scoreGroupKicked',
+    'scoreTooManyCommand',
+    'jointScorePercentOfGroup',
+    'jointScorePercentOfInviter',
+  ],
   type: 'object',
 } as const;
 
@@ -723,6 +850,25 @@ export const BodyBackupListRespSchema = {
   type: 'object',
 } as const;
 
+export const BodyBanConfigSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyBanConfig.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/BanConfig',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyBaseSettingActionRespSchema = {
   additionalProperties: false,
   properties: {
@@ -963,6 +1109,25 @@ export const BodyCleanupRespSchema = {
     },
     item: {
       $ref: '#/components/schemas/CleanupResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyCommandsRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyCommandsResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/CommandsResp',
       description: '响应数据项',
     },
   },
@@ -1743,6 +1908,25 @@ export const BodyOverviewDataSchema = {
   type: 'object',
 } as const;
 
+export const BodyPendingMessagesRespSchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/BodyPendingMessagesResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    item: {
+      $ref: '#/components/schemas/PendingMessagesResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyPluginConfigMapSchema = {
   additionalProperties: false,
   properties: {
@@ -2153,6 +2337,13 @@ export const BodyWorkflowRespSchema = {
 export const CensorConfigBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/CensorConfigBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     caseSensitive: {
       type: 'boolean',
     },
@@ -2177,6 +2368,13 @@ export const CensorConfigBodySchema = {
 export const CensorDeleteFilesReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/CensorDeleteFilesReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     keys: {
       items: {
         type: 'string',
@@ -2455,6 +2653,13 @@ export const CleanupPreviewRespSchema = {
 export const CleanupReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/CleanupReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     months: {
       format: 'int64',
       type: 'integer',
@@ -2483,6 +2688,20 @@ export const CleanupRespSchema = {
     },
   },
   required: ['logs', 'items', 'vacuumed'],
+  type: 'object',
+} as const;
+
+export const CommandsRespSchema = {
+  additionalProperties: false,
+  properties: {
+    items: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['items'],
   type: 'object',
 } as const;
 
@@ -2694,6 +2913,13 @@ export const DeadConfigsRespSchema = {
 export const DebugModeRespSchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/DebugModeResp.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     value: {
       type: 'boolean',
     },
@@ -2793,6 +3019,13 @@ export const DeckItemSchema = {
 export const DeleteLogReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/DeleteLogReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     id: {
       format: 'int64',
       minimum: 0,
@@ -2835,6 +3068,13 @@ export const DeleteReqSchema = {
 export const DeleteReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/DeleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     keys: {
       items: {
         type: 'string',
@@ -2873,6 +3113,13 @@ export const EditableConfigRespSchema = {
 export const EnableBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/EnableBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     enable: {
       type: 'boolean',
     },
@@ -3055,6 +3302,13 @@ export const ExecReqSchema = {
 export const FileBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/FileBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     filename: {
       type: 'string',
     },
@@ -3125,6 +3379,13 @@ export const FileListRespSchema = {
 export const FilenameReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/FilenameReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     filename: {
       type: 'string',
     },
@@ -3598,6 +3859,13 @@ export const HealthDataSchema = {
 export const HelpConfigBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/HelpConfigBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     aliases: {
       additionalProperties: {
         items: {
@@ -3673,6 +3941,13 @@ export const HelpDocUploadChunkRespSchema = {
 export const HelpDocUploadCompleteReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/HelpDocUploadCompleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     sessionId: {
       type: 'string',
     },
@@ -3704,6 +3979,13 @@ export const HelpDocUploadCompleteRespSchema = {
 export const HelpDocUploadInitReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/HelpDocUploadInitReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     chunkSize: {
       format: 'int64',
       type: 'integer',
@@ -3850,6 +4132,13 @@ export const IDListReqSchema = {
 export const JsCheckUpdateReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsCheckUpdateReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     filename: {
       type: 'string',
     },
@@ -3890,6 +4179,13 @@ export const JsCheckUpdateRespSchema = {
 export const JsDataDeleteReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsDataDeleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     keys: {
       items: {
         type: 'string',
@@ -3904,6 +4200,13 @@ export const JsDataDeleteReqBodySchema = {
 export const JsDataSetReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsDataSetReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     key: {
       type: 'string',
     },
@@ -3918,6 +4221,13 @@ export const JsDataSetReqBodySchema = {
 export const JsDeleteDeadConfigsReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsDeleteDeadConfigsReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     names: {
       items: {
         type: 'string',
@@ -3932,6 +4242,13 @@ export const JsDeleteDeadConfigsReqBodySchema = {
 export const JsExecuteReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsExecuteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     value: {
       type: 'string',
     },
@@ -3961,6 +4278,13 @@ export const JsExecuteRespSchema = {
 export const JsFilenameReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsFilenameReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     filename: {
       type: 'string',
     },
@@ -4101,6 +4425,13 @@ export const JsListRespSchema = {
 export const JsNameReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsNameReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     name: {
       type: 'string',
     },
@@ -4112,6 +4443,13 @@ export const JsNameReqBodySchema = {
 export const JsResetConfigReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsResetConfigReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     keys: {
       items: {
         type: 'string',
@@ -4149,6 +4487,13 @@ export const JsScriptDependsSchema = {
 export const JsSetConfigsReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsSetConfigsReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     config: {
       additionalProperties: {},
       type: 'object',
@@ -4189,6 +4534,13 @@ export const JsStatusRespSchema = {
 export const JsUpdateReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsUpdateReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     filename: {
       type: 'string',
     },
@@ -4233,6 +4585,13 @@ export const JsUploadChunkRespSchema = {
 export const JsUploadCompleteReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsUploadCompleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     sessionId: {
       type: 'string',
     },
@@ -4261,6 +4620,13 @@ export const JsUploadCompleteRespSchema = {
 export const JsUploadInitReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/JsUploadInitReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     chunkSize: {
       format: 'int64',
       type: 'integer',
@@ -4476,6 +4842,23 @@ export const MemoryInfoSchema = {
   type: 'object',
 } as const;
 
+export const MessageItemSchema = {
+  additionalProperties: false,
+  properties: {
+    message: {
+      type: 'string',
+    },
+    messageType: {
+      type: 'string',
+    },
+    uid: {
+      type: 'string',
+    },
+  },
+  required: ['uid', 'message', 'messageType'],
+  type: 'object',
+} as const;
+
 export const MessageResponseBodySchema = {
   additionalProperties: false,
   properties: {
@@ -4578,6 +4961,20 @@ export const OverviewDataSchema = {
   type: 'object',
 } as const;
 
+export const PendingMessagesRespSchema = {
+  additionalProperties: false,
+  properties: {
+    items: {
+      items: {
+        $ref: '#/components/schemas/MessageItem',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['items'],
+  type: 'object',
+} as const;
+
 export const PlatformTreeNodeSchema = {
   additionalProperties: false,
   properties: {
@@ -4598,6 +4995,27 @@ export const PlatformTreeNodeSchema = {
     },
   },
   required: ['id', 'name', 'description', 'methods'],
+  type: 'object',
+} as const;
+
+export const PostMessageReqBodySchema = {
+  additionalProperties: false,
+  properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/PostMessageReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
+    mode: {
+      type: 'string',
+    },
+    text: {
+      type: 'string',
+    },
+  },
+  required: ['text', 'mode'],
   type: 'object',
 } as const;
 
@@ -4750,6 +5168,13 @@ export const ReloadRespSchema = {
 export const ReplyConfigSchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/ReplyConfig.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     author: {
       items: {
         type: 'string',
@@ -4901,624 +5326,18 @@ export const ReplyItemSchema = {
 export const ReplyModuleConfigSchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/ReplyModuleConfig.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     customReplyConfigEnable: {
       type: 'boolean',
     },
   },
   required: ['customReplyConfigEnable'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperAdvancedConfigSchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperAdvancedConfig.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/AdvancedConfig',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperBackupBatchDeleteReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperBackupBatchDeleteReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/BackupBatchDeleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperCensorConfigBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperCensorConfigBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/CensorConfigBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperCensorDeleteFilesReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperCensorDeleteFilesReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/CensorDeleteFilesReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperCleanupReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperCleanupReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/CleanupReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperDebugModeRespSchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperDebugModeResp.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/DebugModeResp',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperDeleteLogReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperDeleteLogReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/DeleteLogReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperDeleteReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperDeleteReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/DeleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperEnableBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperEnableBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/EnableBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperFileBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperFileBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/FileBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperFilenameReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperFilenameReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/FilenameReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperHelpConfigBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperHelpConfigBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/HelpConfigBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperHelpDocUploadCompleteReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperHelpDocUploadCompleteReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/HelpDocUploadCompleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperHelpDocUploadInitReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperHelpDocUploadInitReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/HelpDocUploadInitReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsCheckUpdateReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsCheckUpdateReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsCheckUpdateReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsDataDeleteReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsDataDeleteReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsDataDeleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsDataSetReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsDataSetReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsDataSetReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsDeleteDeadConfigsReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsDeleteDeadConfigsReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsDeleteDeadConfigsReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsExecuteReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsExecuteReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsExecuteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsFilenameReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsFilenameReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsFilenameReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsNameReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsNameReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsNameReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsResetConfigReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsResetConfigReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsResetConfigReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsSetConfigsReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsSetConfigsReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsSetConfigsReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsUpdateReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsUpdateReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsUpdateReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsUploadCompleteReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsUploadCompleteReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsUploadCompleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsUploadInitReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperJsUploadInitReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/JsUploadInitReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperMapStringInterface___Schema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperMapStringInterface {}.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      additionalProperties: {},
-      type: 'object',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperReplyConfigSchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperReplyConfig.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/ReplyConfig',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperReplyModuleConfigSchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperReplyModuleConfig.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/ReplyModuleConfig',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperSaveCategoryBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperSaveCategoryBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/SaveCategoryBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperUpdateReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperUpdateReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/UpdateReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperUploadCompleteReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperUploadCompleteReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/UploadCompleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperUploadInitReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperUploadInitReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/UploadInitReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperUploadLogReqBodySchema = {
-  additionalProperties: false,
-  properties: {
-    $schema: {
-      description: 'A URL to the JSON Schema for this object.',
-      examples: ['https://example.com/schemas/RequestWrapperUploadLogReqBody.json'],
-      format: 'uri',
-      readOnly: true,
-      type: 'string',
-    },
-    body: {
-      $ref: '#/components/schemas/UploadLogReqBody',
-    },
-  },
-  required: ['body'],
   type: 'object',
 } as const;
 
@@ -5564,6 +5383,13 @@ export const RuntimeInfoSchema = {
 export const SaveCategoryBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/SaveCategoryBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     data: {
       additionalProperties: {
         items: {
@@ -5938,6 +5764,13 @@ export const UpdateCheckResultSchema = {
 export const UpdateReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/UpdateReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     filename: {
       type: 'string',
     },
@@ -5971,6 +5804,13 @@ export const UploadChunkRespSchema = {
 export const UploadCompleteReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/UploadCompleteReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     sessionId: {
       type: 'string',
     },
@@ -5999,6 +5839,13 @@ export const UploadCompleteRespSchema = {
 export const UploadInitReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/UploadInitReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     chunkSize: {
       format: 'int64',
       type: 'integer',
@@ -6021,6 +5868,13 @@ export const UploadInitReqBodySchema = {
 export const UploadLogReqBodySchema = {
   additionalProperties: false,
   properties: {
+    $schema: {
+      description: 'A URL to the JSON Schema for this object.',
+      examples: ['https://example.com/schemas/UploadLogReqBody.json'],
+      format: 'uri',
+      readOnly: true,
+      type: 'string',
+    },
     force: {
       type: 'boolean',
     },
@@ -6262,6 +6116,142 @@ export const WorkflowRespSchema = {
   type: 'object',
 } as const;
 
+export const AddReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    id: {
+      type: 'string',
+    },
+    name: {
+      type: 'string',
+    },
+    rank: {
+      format: 'int64',
+      type: 'integer',
+    },
+    reason: {
+      type: 'string',
+    },
+  },
+  required: ['id', 'rank', 'name', 'reason'],
+  type: 'object',
+} as const;
+
+export const AdvancedConfigWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    enable: {
+      type: 'boolean',
+    },
+    show: {
+      type: 'boolean',
+    },
+    storyLogApiVersion: {
+      type: 'string',
+    },
+    storyLogBackendToken: {
+      type: 'string',
+    },
+    storyLogBackendUrl: {
+      type: 'string',
+    },
+  },
+  required: ['show', 'enable', 'storyLogBackendUrl', 'storyLogApiVersion', 'storyLogBackendToken'],
+  type: 'object',
+} as const;
+
+export const BackupBatchDeleteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    names: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['names'],
+  type: 'object',
+} as const;
+
+export const BanConfigWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    autoBanMinutes: {
+      format: 'int64',
+      type: 'integer',
+    },
+    banBehaviorQuitIfAdmin: {
+      type: 'boolean',
+    },
+    banBehaviorQuitIfAdminSilentIfNotAdmin: {
+      type: 'boolean',
+    },
+    banBehaviorQuitLastPlace: {
+      type: 'boolean',
+    },
+    banBehaviorQuitPlaceImmediately: {
+      type: 'boolean',
+    },
+    banBehaviorRefuseInvite: {
+      type: 'boolean',
+    },
+    banBehaviorRefuseReply: {
+      type: 'boolean',
+    },
+    jointScorePercentOfGroup: {
+      format: 'double',
+      type: 'number',
+    },
+    jointScorePercentOfInviter: {
+      format: 'double',
+      type: 'number',
+    },
+    scoreGroupKicked: {
+      format: 'int64',
+      type: 'integer',
+    },
+    scoreGroupMuted: {
+      format: 'int64',
+      type: 'integer',
+    },
+    scoreReducePerMinute: {
+      format: 'int64',
+      type: 'integer',
+    },
+    scoreTooManyCommand: {
+      format: 'int64',
+      type: 'integer',
+    },
+    thresholdBan: {
+      format: 'int64',
+      type: 'integer',
+    },
+    thresholdWarn: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: [
+    'banBehaviorRefuseReply',
+    'banBehaviorRefuseInvite',
+    'banBehaviorQuitLastPlace',
+    'banBehaviorQuitPlaceImmediately',
+    'banBehaviorQuitIfAdmin',
+    'banBehaviorQuitIfAdminSilentIfNotAdmin',
+    'thresholdWarn',
+    'thresholdBan',
+    'autoBanMinutes',
+    'scoreReducePerMinute',
+    'scoreGroupMuted',
+    'scoreGroupKicked',
+    'scoreTooManyCommand',
+    'jointScorePercentOfGroup',
+    'jointScorePercentOfInviter',
+  ],
+  type: 'object',
+} as const;
+
 export const BanPageRequestWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -6336,7 +6326,7 @@ export const BodyAdvancedConfigWritableSchema = {
   additionalProperties: false,
   properties: {
     item: {
-      $ref: '#/components/schemas/AdvancedConfig',
+      $ref: '#/components/schemas/AdvancedConfigWritable',
       description: '响应数据项',
     },
   },
@@ -6361,6 +6351,18 @@ export const BodyBackupListRespWritableSchema = {
   properties: {
     item: {
       $ref: '#/components/schemas/BackupListResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
+export const BodyBanConfigWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/BanConfigWritable',
       description: '响应数据项',
     },
   },
@@ -6432,7 +6434,7 @@ export const BodyCensorConfigBodyWritableSchema = {
   additionalProperties: false,
   properties: {
     item: {
-      $ref: '#/components/schemas/CensorConfigBody',
+      $ref: '#/components/schemas/CensorConfigBodyWritable',
       description: '响应数据项',
     },
   },
@@ -6524,6 +6526,18 @@ export const BodyCleanupRespWritableSchema = {
   type: 'object',
 } as const;
 
+export const BodyCommandsRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/CommandsResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyConfigWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -6588,7 +6602,7 @@ export const BodyDebugModeRespWritableSchema = {
   additionalProperties: false,
   properties: {
     item: {
-      $ref: '#/components/schemas/DebugModeResp',
+      $ref: '#/components/schemas/DebugModeRespWritable',
       description: '响应数据项',
     },
   },
@@ -6744,7 +6758,7 @@ export const BodyHelpConfigBodyWritableSchema = {
   additionalProperties: false,
   properties: {
     item: {
-      $ref: '#/components/schemas/HelpConfigBody',
+      $ref: '#/components/schemas/HelpConfigBodyWritable',
       description: '响应数据项',
     },
   },
@@ -7017,6 +7031,18 @@ export const BodyOverviewDataWritableSchema = {
   type: 'object',
 } as const;
 
+export const BodyPendingMessagesRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    item: {
+      $ref: '#/components/schemas/PendingMessagesResp',
+      description: '响应数据项',
+    },
+  },
+  required: ['item'],
+  type: 'object',
+} as const;
+
 export const BodyPluginConfigMapWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7084,7 +7110,7 @@ export const BodyReplyModuleConfigWritableSchema = {
   additionalProperties: false,
   properties: {
     item: {
-      $ref: '#/components/schemas/ReplyModuleConfig',
+      $ref: '#/components/schemas/ReplyModuleConfigWritable',
       description: '响应数据项',
     },
   },
@@ -7272,6 +7298,59 @@ export const BodyWorkflowRespWritableSchema = {
   type: 'object',
 } as const;
 
+export const CensorConfigBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    caseSensitive: {
+      type: 'boolean',
+    },
+    filterRegex: {
+      type: 'string',
+    },
+    levelConfig: {
+      $ref: '#/components/schemas/CensorLevelConfigs',
+    },
+    matchPinyin: {
+      type: 'boolean',
+    },
+    mode: {
+      format: 'int64',
+      type: 'integer',
+    },
+  },
+  required: ['mode', 'caseSensitive', 'matchPinyin', 'filterRegex', 'levelConfig'],
+  type: 'object',
+} as const;
+
+export const CensorDeleteFilesReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    keys: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['keys'],
+  type: 'object',
+} as const;
+
+export const CleanupReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    months: {
+      format: 'int64',
+      type: 'integer',
+    },
+    vacuum: {
+      type: 'boolean',
+    },
+  },
+  required: ['months', 'vacuum'],
+  type: 'object',
+} as const;
+
 export const ConfigWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7333,6 +7412,30 @@ export const CreateBodyWritableSchema = {
   type: 'object',
 } as const;
 
+export const DebugModeRespWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    value: {
+      type: 'boolean',
+    },
+  },
+  required: ['value'],
+  type: 'object',
+} as const;
+
+export const DeleteLogReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    id: {
+      format: 'int64',
+      minimum: 0,
+      type: 'integer',
+    },
+  },
+  required: ['id'],
+  type: 'object',
+} as const;
+
 export const DeleteReqWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7341,6 +7444,31 @@ export const DeleteReqWritableSchema = {
     },
   },
   required: ['id'],
+  type: 'object',
+} as const;
+
+export const DeleteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    keys: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['keys'],
+  type: 'object',
+} as const;
+
+export const EnableBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    enable: {
+      type: 'boolean',
+    },
+  },
+  required: ['enable'],
   type: 'object',
 } as const;
 
@@ -7401,6 +7529,28 @@ export const ExecReqWritableSchema = {
   type: 'object',
 } as const;
 
+export const FileBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    filename: {
+      type: 'string',
+    },
+  },
+  required: ['filename'],
+  type: 'object',
+} as const;
+
+export const FilenameReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    filename: {
+      type: 'string',
+    },
+  },
+  required: ['filename'],
+  type: 'object',
+} as const;
+
 export const GroupModifyRequestWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7437,6 +7587,59 @@ export const GroupPageRequestWritableSchema = {
   type: 'object',
 } as const;
 
+export const HelpConfigBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    aliases: {
+      additionalProperties: {
+        items: {
+          type: 'string',
+        },
+        type: ['array', 'null'],
+      },
+      type: 'object',
+    },
+  },
+  required: ['aliases'],
+  type: 'object',
+} as const;
+
+export const HelpDocUploadCompleteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    sessionId: {
+      type: 'string',
+    },
+  },
+  required: ['sessionId'],
+  type: 'object',
+} as const;
+
+export const HelpDocUploadInitReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    chunkSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    fileHash: {
+      type: 'string',
+    },
+    fileSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    filename: {
+      type: 'string',
+    },
+    group: {
+      type: 'string',
+    },
+  },
+  required: ['group', 'filename', 'fileSize', 'fileHash', 'chunkSize'],
+  type: 'object',
+} as const;
+
 export const IDListReqWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7448,6 +7651,171 @@ export const IDListReqWritableSchema = {
     },
   },
   required: ['ids'],
+  type: 'object',
+} as const;
+
+export const JsCheckUpdateReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    filename: {
+      type: 'string',
+    },
+  },
+  required: ['filename'],
+  type: 'object',
+} as const;
+
+export const JsDataDeleteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    keys: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['keys'],
+  type: 'object',
+} as const;
+
+export const JsDataSetReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    key: {
+      type: 'string',
+    },
+    value: {
+      type: 'string',
+    },
+  },
+  required: ['key', 'value'],
+  type: 'object',
+} as const;
+
+export const JsDeleteDeadConfigsReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    names: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+  },
+  required: ['names'],
+  type: 'object',
+} as const;
+
+export const JsExecuteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    value: {
+      type: 'string',
+    },
+  },
+  required: ['value'],
+  type: 'object',
+} as const;
+
+export const JsFilenameReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    filename: {
+      type: 'string',
+    },
+  },
+  required: ['filename'],
+  type: 'object',
+} as const;
+
+export const JsNameReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    name: {
+      type: 'string',
+    },
+  },
+  required: ['name'],
+  type: 'object',
+} as const;
+
+export const JsResetConfigReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    keys: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    name: {
+      type: 'string',
+    },
+  },
+  required: ['name', 'keys'],
+  type: 'object',
+} as const;
+
+export const JsSetConfigsReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    config: {
+      additionalProperties: {},
+      type: 'object',
+    },
+    name: {
+      type: 'string',
+    },
+  },
+  required: ['name', 'config'],
+  type: 'object',
+} as const;
+
+export const JsUpdateReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    filename: {
+      type: 'string',
+    },
+    tempFileName: {
+      type: 'string',
+    },
+  },
+  required: ['filename', 'tempFileName'],
+  type: 'object',
+} as const;
+
+export const JsUploadCompleteReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    sessionId: {
+      type: 'string',
+    },
+  },
+  required: ['sessionId'],
+  type: 'object',
+} as const;
+
+export const JsUploadInitReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    chunkSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    fileHash: {
+      type: 'string',
+    },
+    fileSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    filename: {
+      type: 'string',
+    },
+  },
+  required: ['filename', 'fileSize', 'fileHash', 'chunkSize'],
   type: 'object',
 } as const;
 
@@ -7487,6 +7855,20 @@ export const NameListReqWritableSchema = {
   type: 'object',
 } as const;
 
+export const PostMessageReqBodyWritableSchema = {
+  additionalProperties: false,
+  properties: {
+    mode: {
+      type: 'string',
+    },
+    text: {
+      type: 'string',
+    },
+  },
+  required: ['text', 'mode'],
+  type: 'object',
+} as const;
+
 export const QuitGroupRequestWritableSchema = {
   additionalProperties: false,
   properties: {
@@ -7507,377 +7889,161 @@ export const QuitGroupRequestWritableSchema = {
   type: 'object',
 } as const;
 
-export const RequestWrapperAdvancedConfigWritableSchema = {
+export const ReplyConfigWritableSchema = {
   additionalProperties: false,
   properties: {
-    body: {
-      $ref: '#/components/schemas/AdvancedConfig',
+    author: {
+      items: {
+        type: 'string',
+      },
+      type: ['array', 'null'],
+    },
+    conditions: {
+      items: {},
+      type: ['array', 'null'],
+    },
+    createTimestamp: {
+      format: 'int64',
+      type: 'integer',
+    },
+    desc: {
+      type: 'string',
+    },
+    enable: {
+      type: 'boolean',
+    },
+    filename: {
+      type: 'string',
+    },
+    interval: {
+      format: 'double',
+      type: 'number',
+    },
+    items: {
+      items: {
+        $ref: '#/components/schemas/ReplyItem',
+      },
+      type: ['array', 'null'],
+    },
+    name: {
+      type: 'string',
+    },
+    storeID: {
+      type: 'string',
+    },
+    updateTimestamp: {
+      format: 'int64',
+      type: 'integer',
+    },
+    version: {
+      type: 'string',
     },
   },
-  required: ['body'],
+  required: [
+    'enable',
+    'interval',
+    'items',
+    'name',
+    'author',
+    'version',
+    'createTimestamp',
+    'updateTimestamp',
+    'desc',
+    'storeID',
+    'conditions',
+    'filename',
+  ],
   type: 'object',
 } as const;
 
-export const RequestWrapperBackupBatchDeleteReqBodyWritableSchema = {
+export const ReplyModuleConfigWritableSchema = {
   additionalProperties: false,
   properties: {
-    body: {
-      $ref: '#/components/schemas/BackupBatchDeleteReqBody',
+    customReplyConfigEnable: {
+      type: 'boolean',
     },
   },
-  required: ['body'],
+  required: ['customReplyConfigEnable'],
   type: 'object',
 } as const;
 
-export const RequestWrapperCensorConfigBodyWritableSchema = {
+export const SaveCategoryBodyWritableSchema = {
   additionalProperties: false,
   properties: {
-    body: {
-      $ref: '#/components/schemas/CensorConfigBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperCensorDeleteFilesReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/CensorDeleteFilesReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperCleanupReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/CleanupReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperDebugModeRespWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/DebugModeResp',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperDeleteLogReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/DeleteLogReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperDeleteReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/DeleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperEnableBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/EnableBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperFileBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/FileBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperFilenameReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/FilenameReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperHelpConfigBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/HelpConfigBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperHelpDocUploadCompleteReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/HelpDocUploadCompleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperHelpDocUploadInitReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/HelpDocUploadInitReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsCheckUpdateReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsCheckUpdateReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsDataDeleteReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsDataDeleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsDataSetReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsDataSetReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsDeleteDeadConfigsReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsDeleteDeadConfigsReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsExecuteReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsExecuteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsFilenameReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsFilenameReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsNameReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsNameReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsResetConfigReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsResetConfigReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsSetConfigsReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsSetConfigsReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsUpdateReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsUpdateReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsUploadCompleteReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsUploadCompleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperJsUploadInitReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/JsUploadInitReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperMapStringInterface___WritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      additionalProperties: {},
+    data: {
+      additionalProperties: {
+        items: {
+          items: {},
+          type: ['array', 'null'],
+        },
+        type: ['array', 'null'],
+      },
       type: 'object',
     },
   },
-  required: ['body'],
+  required: ['data'],
   type: 'object',
 } as const;
 
-export const RequestWrapperReplyConfigWritableSchema = {
+export const UpdateReqBodyWritableSchema = {
   additionalProperties: false,
   properties: {
-    body: {
-      $ref: '#/components/schemas/ReplyConfig',
+    filename: {
+      type: 'string',
+    },
+    tempFileName: {
+      type: 'string',
     },
   },
-  required: ['body'],
+  required: ['filename', 'tempFileName'],
   type: 'object',
 } as const;
 
-export const RequestWrapperReplyModuleConfigWritableSchema = {
+export const UploadCompleteReqBodyWritableSchema = {
   additionalProperties: false,
   properties: {
-    body: {
-      $ref: '#/components/schemas/ReplyModuleConfig',
+    sessionId: {
+      type: 'string',
     },
   },
-  required: ['body'],
+  required: ['sessionId'],
   type: 'object',
 } as const;
 
-export const RequestWrapperSaveCategoryBodyWritableSchema = {
+export const UploadInitReqBodyWritableSchema = {
   additionalProperties: false,
   properties: {
-    body: {
-      $ref: '#/components/schemas/SaveCategoryBody',
+    chunkSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    fileHash: {
+      type: 'string',
+    },
+    fileSize: {
+      format: 'int64',
+      type: 'integer',
+    },
+    filename: {
+      type: 'string',
     },
   },
-  required: ['body'],
+  required: ['filename', 'fileSize', 'fileHash', 'chunkSize'],
   type: 'object',
 } as const;
 
-export const RequestWrapperUpdateReqBodyWritableSchema = {
+export const UploadLogReqBodyWritableSchema = {
   additionalProperties: false,
   properties: {
-    body: {
-      $ref: '#/components/schemas/UpdateReqBody',
+    force: {
+      type: 'boolean',
+    },
+    id: {
+      format: 'int64',
+      minimum: 0,
+      type: 'integer',
     },
   },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperUploadCompleteReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/UploadCompleteReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperUploadInitReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/UploadInitReqBody',
-    },
-  },
-  required: ['body'],
-  type: 'object',
-} as const;
-
-export const RequestWrapperUploadLogReqBodyWritableSchema = {
-  additionalProperties: false,
-  properties: {
-    body: {
-      $ref: '#/components/schemas/UploadLogReqBody',
-    },
-  },
-  required: ['body'],
+  required: ['id', 'force'],
   type: 'object',
 } as const;

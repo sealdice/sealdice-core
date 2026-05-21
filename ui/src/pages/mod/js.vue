@@ -111,7 +111,7 @@ async function doExecute() {
   appendExecutionSeparator();
   try {
     const { data } = await postSdApiV2JsExecute({
-      body: { body: { value: code.value } },
+      body: { value: code.value },
       throwOnError: true,
     });
     const item = data.item;
@@ -259,7 +259,7 @@ onBeforeUnmount(() => {
 
     <n-affix v-if="jsConfigEdited" :top="70">
       <TipBox type="error">
-        <n-flex>
+        <n-flex wrap>
           <n-text type="error" tag="strong" class="text-base">配置内容已修改，不要忘记保存！</n-text>
           <n-button type="info" secondary :disabled="!jsConfigEdited" @click="saveJsConfig">
             <template #icon>
@@ -271,12 +271,12 @@ onBeforeUnmount(() => {
       </TipBox>
     </n-affix>
 
-    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly">
+    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="js-tabs">
       <n-tab-pane tab="控制台" name="console">
         <section class="js-console-grid">
           <section class="js-panel js-editor-panel">
             <header class="js-panel-header">
-              <n-flex align="center" justify="space-between" :wrap="false">
+              <n-flex align="center" justify="space-between" wrap>
                 <n-text class="js-panel-title">JS 扩展执行环境</n-text>
                 <n-button type="info" secondary :disabled="!jsEnable || jsRunning" @click="doExecute">
                   <template #icon><n-icon><i-carbon-play /></n-icon></template>
@@ -306,7 +306,7 @@ onBeforeUnmount(() => {
 
           <section class="js-panel js-output-panel">
             <header class="js-panel-header">
-              <n-flex align="center" justify="space-between" :wrap="false">
+              <n-flex align="center" justify="space-between" wrap>
                 <div class="js-panel-heading">
                   <n-text class="js-panel-title">运行日志</n-text>
                   <n-text depth="3" class="js-panel-subtitle">执行结果与轮询日志统一显示在这里</n-text>
@@ -529,6 +529,15 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
+  .js-page {
+    padding: 0;
+  }
+
+  .js-tabs :deep(.n-tabs-nav-scroll-content) {
+    min-width: max-content;
+    justify-content: flex-start !important;
+  }
+
   .js-panel-header :deep(.n-flex) {
     flex-wrap: wrap;
     gap: 0.75rem;

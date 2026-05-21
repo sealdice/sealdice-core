@@ -17,13 +17,11 @@ export function useHelpdocUpload(options: {
     async init(task) {
       const { data } = await postSdApiV2HelpdocUploadInit({
         body: {
-          body: {
-            group: options.group(),
-            filename: task.filename,
-            fileSize: task.fileSize,
-            fileHash: task.fileHash,
-            chunkSize: helpdocChunkSize,
-          },
+          group: options.group(),
+          filename: task.filename,
+          fileSize: task.fileSize,
+          fileHash: task.fileHash,
+          chunkSize: helpdocChunkSize,
         },
         throwOnError: true,
       });
@@ -38,9 +36,7 @@ export function useHelpdocUpload(options: {
     async complete(task) {
       const { data } = await postSdApiV2HelpdocUploadComplete({
         body: {
-          body: {
-            sessionId: task.sessionId,
-          },
+          sessionId: task.sessionId,
         },
         throwOnError: true,
       });

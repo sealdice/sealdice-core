@@ -19,6 +19,14 @@ type SelectText struct {
 	Value string `json:"value"`
 }
 
+type BatchDeleteResp struct {
+	Fails []string `json:"fails"`
+}
+
+type SimpleOK struct {
+	Success bool `json:"success"`
+}
+
 type PageResultWithCol struct {
 	ColumnList []SelectText `json:"columnList"`
 	List       interface{}  `json:"list"`

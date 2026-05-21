@@ -8,7 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	apiv2 "sealdice-core/api/v2"
-	storym "sealdice-core/api/v2/model/story"
+	storym "sealdice-core/api/v2/story"
 )
 
 func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {

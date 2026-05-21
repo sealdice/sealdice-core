@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { computed, ref, watch } from 'vue';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import { useDialog, useMessage, type DataTableColumns } from 'naive-ui';
@@ -48,6 +49,8 @@ type AdapterView = {
 const message = useMessage();
 const dialog = useDialog();
 const realtimeConnections = useRealtimeConnections();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('md');
 
 // 连接管理页的设计：
 // - 协议定义和表单 schema 来自后端，用 DynamicForm 渲染；
@@ -170,7 +173,7 @@ const updateMutation = useMutation({
     if (!editingEndpoint.value) throw new Error('missing endpoint');
     const { data } = await putSdApiV2ImconnectionById({
       path: { id: editingEndpoint.value.id },
-      body: { body: editFormModel.value },
+      body: editFormModel.value,
       throwOnError: true,
     });
     return data;
@@ -191,7 +194,7 @@ const enableMutation = useMutation({
   mutationFn: async ({ endpoint, enable }: { endpoint: EndPointInfo; enable: boolean }) => {
     const { data } = await putSdApiV2ImconnectionByIdEnable({
       path: { id: endpoint.id },
-      body: { body: { enable } },
+      body: { enable },
       throwOnError: true,
     });
     return data;
@@ -421,10 +424,11 @@ const retrySignInfo = () => {
   void signInfoQuery.refetch();
 };
 
-const columns: DataTableColumns<EndPointInfo> = [
+const columns = computed<DataTableColumns<EndPointInfo>>(() => [
   {
     title: '账号',
     key: 'account',
+    minWidth: 180,
     render: row => {
       const tag = stateTag(row.state);
       const loginTag = workflowTag(row);
@@ -454,11 +458,12 @@ const columns: DataTableColumns<EndPointInfo> = [
   {
     title: '详情',
     key: 'detail',
+    minWidth: 320,
     render: row => (
-      <n-descriptions size='small' label-placement='left' column={2}>
+      <n-descriptions size='small' label-placement='left' column={isMobile.value ? 1 : 2}>
         {detailRows(row).map(([label, value]) => (
           <n-descriptions-item key={label} label={label}>
-            {value}
+            <span class='account-detail-value'>{value}</span>
           </n-descriptions-item>
         ))}
       </n-descriptions>
@@ -487,7 +492,7 @@ const columns: DataTableColumns<EndPointInfo> = [
       </n-space>
     ),
   },
-];
+]);
 
 const wizardCanNext = computed(() => {
   switch (wizardStep.value) {
@@ -563,6 +568,7 @@ const submitEdit = () => {
       :data="connections"
       :loading="connectionsLoading"
       :bordered="false"
+      :scroll-x="780"
       size="small"
     />
 
@@ -864,6 +870,10 @@ h4 {
   font-size: 0.82rem;
 }
 
+:deep(.account-detail-value) {
+  overflow-wrap: anywhere;
+}
+
 .account-dialog {
   width: min(720px, calc(100vw - 32px));
 }
@@ -951,5 +961,43 @@ h4 {
 
 .mt-2 {
   margin-top: 8px;
+}
+
+@media screen and (max-width: 639.9px) {
+  .page-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .account-dialog {
+    width: calc(100vw - 24px);
+  }
+
+  .wizard-dialog :deep(.n-step-content-header) {
+    font-size: 0.78rem;
+  }
+
+  .wizard-step-panel {
+    min-height: 0;
+  }
+
+  .split-layout {
+    height: auto;
+    min-height: 18rem;
+    flex-direction: column;
+  }
+
+  .split-left {
+    flex: 0 0 auto;
+    max-height: 11rem;
+    border-right: 0;
+    border-bottom: 1px solid #e5e7eb;
+    padding-right: 0;
+    padding-bottom: 8px;
+  }
+
+  .split-right {
+    min-height: 8rem;
+  }
 }
 </style>

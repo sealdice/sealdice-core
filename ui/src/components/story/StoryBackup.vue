@@ -47,9 +47,7 @@ const deleteMutation = useMutation({
   mutationFn: async (names: string[]) => {
     const { data } = await postSdApiV2StoryBackupBatchDelete({
       body: {
-        body: {
-          names,
-        },
+        names,
       },
       throwOnError: true,
     });

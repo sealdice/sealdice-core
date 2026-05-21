@@ -7,4 +7,12 @@ type PageInfo struct {
 	Keyword  string `json:"keyword" form:"keyword" required:"false"` // 关键字
 }
 
+type IDListReq struct {
+	IDs []string `json:"ids"`
+}
+
+type NameListReq struct {
+	Names []string `json:"names"`
+}
+
 type Empty struct{}

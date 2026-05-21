@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { computed, onMounted, ref } from 'vue';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -24,6 +25,8 @@ dayjs.extend(relativeTime);
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('md');
 
 // 跑团日志页包含三类工作流：
 // 1. 日志列表与条目查看；
@@ -143,9 +146,7 @@ const deleteLogMutation = useMutation({
   mutationFn: async (log: LogView) => {
     const { data } = await deleteSdApiV2StoryLog({
       body: {
-        body: {
-          id: log.id,
-        },
+        id: log.id,
       },
       throwOnError: true,
     });
@@ -157,10 +158,8 @@ const uploadLogMutation = useMutation({
   mutationFn: async ({ log, force }: { log: LogView; force: boolean }) => {
     const { data } = await postSdApiV2StoryUploadLog({
       body: {
-        body: {
-          id: log.id,
-          force,
-        },
+        id: log.id,
+        force,
       },
       throwOnError: true,
     });
@@ -171,9 +170,7 @@ const uploadLogMutation = useMutation({
 const cleanupMutation = useMutation({
   mutationFn: async (payload: { months: number; vacuum: boolean }) => {
     const { data } = await postSdApiV2StoryCleanup({
-      body: {
-        body: payload,
-      },
+      body: payload,
       throwOnError: true,
     });
     return data.item;
@@ -388,7 +385,7 @@ onMounted(async () => {
 
 <template>
   <main class="story-page">
-    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly">
+    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="story-tabs">
       <n-tab-pane tab="跑团日志" name="list">
         <template v-if="mode === 'logs'">
           <header class="page-header">
@@ -458,7 +455,7 @@ onMounted(async () => {
                 </template>
 
                 <template #action>
-                  <n-flex size="small">
+                  <n-flex size="small" wrap>
                     <n-button size="small" secondary @click="openItem(log)">查看</n-button>
                     <n-button size="small" type="primary" secondary @click="uploadLog(log)">
                       <template #icon>
@@ -515,7 +512,7 @@ onMounted(async () => {
               v-model:page-size="queryLogPage.pageSize"
               show-size-picker
               :page-sizes="[10, 20, 30, 50]"
-              :page-slot="3"
+              :page-slot="isMobile ? 3 : 5"
               :item-count="queryLogPage.total"
               @update:page="handleLogPageChange"
               @update:page-size="handlePageSizeChange"
@@ -570,7 +567,7 @@ onMounted(async () => {
               v-model:page-size="logItemPage.pageSize"
               show-size-picker
               :page-sizes="[50, 100, 200]"
-              :page-slot="5"
+              :page-slot="isMobile ? 3 : 5"
               :item-count="logItemPage.size"
               @update:page="handleItemPageChange"
               @update:page-size="handleItemPageChange"
@@ -675,6 +672,10 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
+.story-tabs :deep(.n-tabs-nav-scroll-content) {
+  min-width: max-content;
+}
+
 .story-search-block {
   display: flex;
   flex-wrap: wrap-reverse;
@@ -715,9 +716,16 @@ onMounted(async () => {
 .story-item-list {
   margin: 1rem 0;
   padding: 0 1rem;
+  overflow-wrap: anywhere;
 }
 
 .story-pagination-block {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.story-pagination {
   display: flex;
   justify-content: flex-end;
   margin-top: 1rem;
@@ -807,14 +815,24 @@ onMounted(async () => {
 }
 
 @media screen and (max-width: 700px) {
+  .story-tabs :deep(.n-tabs-nav-scroll-content) {
+    justify-content: flex-start !important;
+  }
+
   .story-search-block,
-  .story-action-block {
+  .story-action-block,
+  .cleanup-panel-head {
     flex-direction: column;
     align-items: flex-start;
   }
 
   .story-tools {
     margin-left: 0;
+  }
+
+  .story-pagination,
+  .story-pagination-block {
+    justify-content: flex-start;
   }
 }
 </style>

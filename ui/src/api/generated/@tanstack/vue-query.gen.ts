@@ -11,6 +11,7 @@ import {
   getSdApiV2BackupConfig,
   getSdApiV2BackupDownload,
   getSdApiV2BackupList,
+  getSdApiV2BanConfig,
   getSdApiV2BanExport,
   getSdApiV2BaseHealth,
   getSdApiV2BaseLoginSalt,
@@ -64,13 +65,17 @@ import {
   getSdApiV2StoryInfo,
   getSdApiV2StoryItemsPage,
   getSdApiV2StoryLogsPage,
+  getSdApiV2ToolTestCommands,
+  getSdApiV2ToolTestMessagesPending,
   type Options,
   postSdApiV2BackupBatchDelete,
   postSdApiV2BackupConfigSave,
   postSdApiV2BackupDelete,
   postSdApiV2BackupExec,
+  postSdApiV2BanAdd,
   postSdApiV2BanBatchDelete,
   postSdApiV2BanDelete,
+  postSdApiV2BanImport,
   postSdApiV2BanList,
   postSdApiV2BaseLogin,
   postSdApiV2BaseSettingMailTest,
@@ -120,6 +125,8 @@ import {
   postSdApiV2StoryBackupBatchDelete,
   postSdApiV2StoryCleanup,
   postSdApiV2StoryUploadLog,
+  postSdApiV2ToolTestMessages,
+  putSdApiV2BanConfig,
   putSdApiV2BaseSettingValue,
   putSdApiV2ConfigAdvanced,
   putSdApiV2ConfigReply,
@@ -153,6 +160,9 @@ import type {
   GetSdApiV2BackupListData,
   GetSdApiV2BackupListError,
   GetSdApiV2BackupListResponse,
+  GetSdApiV2BanConfigData,
+  GetSdApiV2BanConfigError,
+  GetSdApiV2BanConfigResponse,
   GetSdApiV2BanExportData,
   GetSdApiV2BanExportError,
   GetSdApiV2BaseHealthData,
@@ -307,6 +317,12 @@ import type {
   GetSdApiV2StoryLogsPageData,
   GetSdApiV2StoryLogsPageError,
   GetSdApiV2StoryLogsPageResponse,
+  GetSdApiV2ToolTestCommandsData,
+  GetSdApiV2ToolTestCommandsError,
+  GetSdApiV2ToolTestCommandsResponse,
+  GetSdApiV2ToolTestMessagesPendingData,
+  GetSdApiV2ToolTestMessagesPendingError,
+  GetSdApiV2ToolTestMessagesPendingResponse,
   PostSdApiV2BackupBatchDeleteData,
   PostSdApiV2BackupBatchDeleteError,
   PostSdApiV2BackupBatchDeleteResponse,
@@ -319,12 +335,18 @@ import type {
   PostSdApiV2BackupExecData,
   PostSdApiV2BackupExecError,
   PostSdApiV2BackupExecResponse,
+  PostSdApiV2BanAddData,
+  PostSdApiV2BanAddError,
+  PostSdApiV2BanAddResponse,
   PostSdApiV2BanBatchDeleteData,
   PostSdApiV2BanBatchDeleteError,
   PostSdApiV2BanBatchDeleteResponse,
   PostSdApiV2BanDeleteData,
   PostSdApiV2BanDeleteError,
   PostSdApiV2BanDeleteResponse,
+  PostSdApiV2BanImportData,
+  PostSdApiV2BanImportError,
+  PostSdApiV2BanImportResponse,
   PostSdApiV2BanListData,
   PostSdApiV2BanListError,
   PostSdApiV2BanListResponse,
@@ -472,6 +494,12 @@ import type {
   PostSdApiV2StoryUploadLogData,
   PostSdApiV2StoryUploadLogError,
   PostSdApiV2StoryUploadLogResponse,
+  PostSdApiV2ToolTestMessagesData,
+  PostSdApiV2ToolTestMessagesError,
+  PostSdApiV2ToolTestMessagesResponse,
+  PutSdApiV2BanConfigData,
+  PutSdApiV2BanConfigError,
+  PutSdApiV2BanConfigResponse,
   PutSdApiV2BaseSettingValueData,
   PutSdApiV2BaseSettingValueError,
   PutSdApiV2BaseSettingValueResponse,
@@ -744,6 +772,35 @@ export const getSdApiV2BackupListOptions = (options?: Options<GetSdApiV2BackupLi
   });
 
 /**
+ * Post sd API v2 ban add
+ *
+ * 添加黑白名单条目
+ */
+export const postSdApiV2BanAddMutation = (
+  options?: Partial<Options<PostSdApiV2BanAddData>>
+): UseMutationOptions<
+  PostSdApiV2BanAddResponse,
+  PostSdApiV2BanAddError,
+  Options<PostSdApiV2BanAddData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2BanAddResponse,
+    PostSdApiV2BanAddError,
+    Options<PostSdApiV2BanAddData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2BanAdd({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
  * Post sd API v2 ban batch delete
  *
  * 批量删除黑白名单条目
@@ -762,6 +819,62 @@ export const postSdApiV2BanBatchDeleteMutation = (
   > = {
     mutationFn: async fnOptions => {
       const { data } = await postSdApiV2BanBatchDelete({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2BanConfigQueryKey = (options?: Options<GetSdApiV2BanConfigData>) =>
+  createQueryKey('getSdApiV2BanConfig', options);
+
+/**
+ * Get sd API v2 ban config
+ *
+ * 获取拉黑设置
+ */
+export const getSdApiV2BanConfigOptions = (options?: Options<GetSdApiV2BanConfigData>) =>
+  queryOptions<
+    GetSdApiV2BanConfigResponse,
+    GetSdApiV2BanConfigError,
+    GetSdApiV2BanConfigResponse,
+    ReturnType<typeof getSdApiV2BanConfigQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2BanConfig({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2BanConfigQueryKey(options),
+  });
+
+/**
+ * Put sd API v2 ban config
+ *
+ * 保存拉黑设置
+ */
+export const putSdApiV2BanConfigMutation = (
+  options?: Partial<Options<PutSdApiV2BanConfigData>>
+): UseMutationOptions<
+  PutSdApiV2BanConfigResponse,
+  PutSdApiV2BanConfigError,
+  Options<PutSdApiV2BanConfigData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PutSdApiV2BanConfigResponse,
+    PutSdApiV2BanConfigError,
+    Options<PutSdApiV2BanConfigData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await putSdApiV2BanConfig({
         ...options,
         ...fnOptions,
         throwOnError: true,
@@ -827,6 +940,35 @@ export const getSdApiV2BanExportOptions = (options?: Options<GetSdApiV2BanExport
     },
     queryKey: getSdApiV2BanExportQueryKey(options),
   });
+
+/**
+ * Post sd API v2 ban import
+ *
+ * 导入黑白名单 JSON
+ */
+export const postSdApiV2BanImportMutation = (
+  options?: Partial<Options<PostSdApiV2BanImportData>>
+): UseMutationOptions<
+  PostSdApiV2BanImportResponse,
+  PostSdApiV2BanImportError,
+  Options<PostSdApiV2BanImportData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2BanImportResponse,
+    PostSdApiV2BanImportError,
+    Options<PostSdApiV2BanImportData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2BanImport({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
 
 /**
  * Post sd API v2 ban list
@@ -4165,3 +4307,92 @@ export const postSdApiV2StoryUploadLogMutation = (
   };
   return mutationOptions;
 };
+
+export const getSdApiV2ToolTestCommandsQueryKey = (
+  options?: Options<GetSdApiV2ToolTestCommandsData>
+) => createQueryKey('getSdApiV2ToolTestCommands', options);
+
+/**
+ * 获取指令测试命令列表
+ *
+ * 获取指令测试命令补全列表
+ */
+export const getSdApiV2ToolTestCommandsOptions = (
+  options?: Options<GetSdApiV2ToolTestCommandsData>
+) =>
+  queryOptions<
+    GetSdApiV2ToolTestCommandsResponse,
+    GetSdApiV2ToolTestCommandsError,
+    GetSdApiV2ToolTestCommandsResponse,
+    ReturnType<typeof getSdApiV2ToolTestCommandsQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2ToolTestCommands({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2ToolTestCommandsQueryKey(options),
+  });
+
+/**
+ * 发送指令测试消息
+ *
+ * 发送一条指令测试消息。TODO: 后续改为接入 realtime 推送，移除 pending 轮询。
+ */
+export const postSdApiV2ToolTestMessagesMutation = (
+  options?: Partial<Options<PostSdApiV2ToolTestMessagesData>>
+): UseMutationOptions<
+  PostSdApiV2ToolTestMessagesResponse,
+  PostSdApiV2ToolTestMessagesError,
+  Options<PostSdApiV2ToolTestMessagesData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    PostSdApiV2ToolTestMessagesResponse,
+    PostSdApiV2ToolTestMessagesError,
+    Options<PostSdApiV2ToolTestMessagesData>
+  > = {
+    mutationFn: async fnOptions => {
+      const { data } = await postSdApiV2ToolTestMessages({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getSdApiV2ToolTestMessagesPendingQueryKey = (
+  options?: Options<GetSdApiV2ToolTestMessagesPendingData>
+) => createQueryKey('getSdApiV2ToolTestMessagesPending', options);
+
+/**
+ * 获取指令测试待收取消息
+ *
+ * 获取并清空指令测试待收取消息
+ */
+export const getSdApiV2ToolTestMessagesPendingOptions = (
+  options?: Options<GetSdApiV2ToolTestMessagesPendingData>
+) =>
+  queryOptions<
+    GetSdApiV2ToolTestMessagesPendingResponse,
+    GetSdApiV2ToolTestMessagesPendingError,
+    GetSdApiV2ToolTestMessagesPendingResponse,
+    ReturnType<typeof getSdApiV2ToolTestMessagesPendingQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getSdApiV2ToolTestMessagesPending({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getSdApiV2ToolTestMessagesPendingQueryKey(options),
+  });

@@ -16,7 +16,7 @@
     </TipBox>
 
     <n-spin :show="pageBusy">
-      <n-form label-placement="left" label-width="auto">
+      <n-form :label-placement="isMobile ? 'top' : 'left'" label-width="auto">
         <n-form-item label="显示高级设置页">
           <template #label>
             <span>显示高级设置页</span>
@@ -68,7 +68,7 @@
               设置第三方跑团日志后端 URL
             </n-tooltip>
           </template>
-          <n-input v-model:value="config.storyLogBackendUrl" style="width: 30rem" />
+          <n-input v-model:value="config.storyLogBackendUrl" class="advanced-input advanced-input--long" />
         </n-form-item>
 
         <n-form-item label="API 版本">
@@ -81,7 +81,7 @@
               指定后端的 API 版本
             </n-tooltip>
           </template>
-          <n-input v-model:value="config.storyLogApiVersion" style="width: 10rem" />
+          <n-input v-model:value="config.storyLogApiVersion" class="advanced-input advanced-input--short" />
         </n-form-item>
 
         <n-form-item label="Token">
@@ -94,7 +94,7 @@
               指定传递给后端的 token
             </n-tooltip>
           </template>
-          <n-input v-model:value="config.storyLogBackendToken" style="width: 30rem" />
+          <n-input v-model:value="config.storyLogBackendToken" class="advanced-input advanced-input--long" />
         </n-form-item>
 
         <n-form-item v-if="modified" label="" label-width="1rem" class="mt-4">
@@ -112,6 +112,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useMessage } from 'naive-ui';
 import {
@@ -130,6 +131,8 @@ import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
 const queryClient = useQueryClient();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('md');
 
 const advancedConfigQuery = useQuery({
   ...getSdApiV2ConfigAdvancedOptions(),
@@ -191,11 +194,11 @@ useUnsavedChanges('advanced-setting', {
 const saveMutation = useMutation({
   mutationFn: async () => {
     await putSdApiV2ConfigAdvanced({
-      body: { body: config.value },
+      body: config.value,
       throwOnError: true,
     });
     await putSdApiV2CustomReplyDebugMode({
-      body: { body: { value: replyDebugMode.value } },
+      body: { value: replyDebugMode.value },
       throwOnError: true,
     });
   },
@@ -226,5 +229,24 @@ async function reload() {
 .advanced-page {
   max-width: 1180px;
   text-align: left;
+}
+
+.advanced-input {
+  width: 100%;
+}
+
+.advanced-input--long {
+  max-width: 30rem;
+}
+
+.advanced-input--short {
+  max-width: 10rem;
+}
+
+@media screen and (max-width: 767.9px) {
+  .advanced-input--short,
+  .advanced-input--long {
+    max-width: none;
+  }
 }
 </style>

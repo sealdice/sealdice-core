@@ -76,9 +76,9 @@
       </TipBox>
 
       <div class="custom-text-toolbar">
-        <n-flex align="center" size="small">
+        <n-flex align="center" size="small" class="custom-text-search">
           <n-text>搜索：</n-text>
-          <span>
+          <span class="custom-text-search-input">
             <n-input size="small" v-model:value="currentFilterName" clearable>
               <template #prefix>
                 <n-icon><i-carbon-search /></n-icon>
@@ -86,7 +86,7 @@
             </n-input>
           </span>
         </n-flex>
-        <n-flex align="center" size="small">
+        <n-flex align="center" size="small" class="custom-text-actions">
           <n-button
             type="info"
             secondary
@@ -99,7 +99,7 @@
         </n-flex>
       </div>
 
-      <n-flex class="mb-8 mt-4" align="center" wrap>
+      <n-flex class="custom-text-filter-row mb-8 mt-4" align="center" wrap>
         <n-radio-group v-model:value="filterMode" @update:value="handleFilterModeChange">
           <n-radio
             v-for="mode of filterModes"
@@ -108,9 +108,9 @@
             :label="mode.desc"
           />
         </n-radio-group>
-        <n-flex v-if="filterMode === 'group'" align="center">
+        <n-flex v-if="filterMode === 'group'" align="center" class="custom-text-group-filter">
           <n-text>分组：</n-text>
-          <span>
+          <span class="custom-text-group-select">
             <n-select
               v-model:value="currentFilterGroup"
               filterable
@@ -134,7 +134,7 @@
           :group="group"
         >
           <template #values>
-            <n-grid x-gap="24" :cols="2" responsive="screen">
+            <n-grid x-gap="24" y-gap="16" cols="1 m:2" responsive="screen">
               <n-grid-item v-for="[keyName, items] in values" :key="keyName">
                 <n-form ref="form" label-width="auto" label-position="top">
                   <n-form-item class="w-full">
@@ -425,7 +425,7 @@ const saveMutation = useMutation({
   mutationFn: async (targetCategory: string) => {
     const { data } = await putSdApiV2CustomTextByCategory({
       path: { category: targetCategory },
-      body: { body: { data: texts.value[targetCategory] ?? {} } },
+      body: { data: texts.value[targetCategory] ?? {} },
       throwOnError: true,
     });
     return data;
@@ -823,6 +823,24 @@ const handleFilterModeChange = (newMode: string) => {
   .custom-text-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .custom-text-search,
+  .custom-text-actions,
+  .custom-text-filter-row,
+  .custom-text-group-filter,
+  .custom-text-search-input,
+  .custom-text-group-select {
+    width: 100%;
+  }
+
+  .custom-text-actions {
+    justify-content: flex-start;
+  }
+
+  .custom-text-search-input :deep(.n-input),
+  .custom-text-group-select :deep(.n-select) {
+    width: 100%;
   }
 }
 </style>

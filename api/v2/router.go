@@ -8,8 +8,8 @@ import (
 	"sealdice-core/api/v2/ban"
 	"sealdice-core/api/v2/base"
 	"sealdice-core/api/v2/basesetting"
-	"sealdice-core/api/v2/config"
 	"sealdice-core/api/v2/censor"
+	"sealdice-core/api/v2/config"
 	"sealdice-core/api/v2/customreply"
 	"sealdice-core/api/v2/customtext"
 	"sealdice-core/api/v2/deck"
@@ -20,6 +20,7 @@ import (
 	"sealdice-core/api/v2/middleware"
 	"sealdice-core/api/v2/realtime"
 	"sealdice-core/api/v2/story"
+	"sealdice-core/api/v2/tooltest"
 	"sealdice-core/dice"
 )
 
@@ -172,6 +173,17 @@ func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	imcProtected.UseSimpleModifier(huma.OperationTags("imconnection"))
 	imcProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
 	imcService.RegisterProtectedRoutes(imcProtected)
+
+	toolTestAuth := huma.NewGroup(api, "/sd-api/v2/tool-test")
+	toolTestAuth.UseSimpleModifier(huma.OperationTags("tool-test"))
+	toolTestAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	toolTestService := tooltest.NewService(dm)
+	toolTestService.RegisterRoutes(toolTestAuth)
+
+	toolTestProtected := huma.NewGroup(api, "/sd-api/v2/tool-test")
+	toolTestProtected.UseSimpleModifier(huma.OperationTags("tool-test"))
+	toolTestProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	toolTestService.RegisterProtectedRoutes(toolTestProtected)
 	// TODO: 后续可以在这里添加其他模块
 	// configService := config.NewConfigService(dice)
 	// protected := huma.NewGroup(api, "/sd-api/v2")

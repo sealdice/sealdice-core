@@ -10,7 +10,22 @@ export type ApiPluginConfig = {
   pluginName: string;
 };
 
+export type AddReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  id: string;
+  name: string;
+  rank: number;
+  reason: string;
+};
+
 export type AdvancedConfig = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   enable: boolean;
   show: boolean;
   storyLogApiVersion: string;
@@ -19,6 +34,10 @@ export type AdvancedConfig = {
 };
 
 export type BackupBatchDeleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   names: Array<string> | null;
 };
 
@@ -31,6 +50,28 @@ export type BackupListResp = {
   data?: Array<StoryLogBackup> | null;
   err?: string;
   result: boolean;
+};
+
+export type BanConfig = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  autoBanMinutes: number;
+  banBehaviorQuitIfAdmin: boolean;
+  banBehaviorQuitIfAdminSilentIfNotAdmin: boolean;
+  banBehaviorQuitLastPlace: boolean;
+  banBehaviorQuitPlaceImmediately: boolean;
+  banBehaviorRefuseInvite: boolean;
+  banBehaviorRefuseReply: boolean;
+  jointScorePercentOfGroup: number;
+  jointScorePercentOfInviter: number;
+  scoreGroupKicked: number;
+  scoreGroupMuted: number;
+  scoreReducePerMinute: number;
+  scoreTooManyCommand: number;
+  thresholdBan: number;
+  thresholdWarn: number;
 };
 
 export type BanFilter = {
@@ -231,6 +272,17 @@ export type BodyBackupListResp = {
   item: BackupListResp;
 };
 
+export type BodyBanConfig = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: BanConfig;
+};
+
 export type BodyBaseSettingActionResp = {
   /**
    * A URL to the JSON Schema for this object.
@@ -372,6 +424,17 @@ export type BodyCleanupResp = {
    * 响应数据项
    */
   item: CleanupResp;
+};
+
+export type BodyCommandsResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: CommandsResp;
 };
 
 export type BodyConfig = {
@@ -816,6 +879,17 @@ export type BodyOverviewData = {
   item: OverviewData;
 };
 
+export type BodyPendingMessagesResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  /**
+   * 响应数据项
+   */
+  item: PendingMessagesResp;
+};
+
 export type BodyPluginConfigMap = {
   /**
    * A URL to the JSON Schema for this object.
@@ -1054,6 +1128,10 @@ export type BodyWorkflowResp = {
 };
 
 export type CensorConfigBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   caseSensitive: boolean;
   filterRegex: string;
   levelConfig: CensorLevelConfigs;
@@ -1062,6 +1140,10 @@ export type CensorConfigBody = {
 };
 
 export type CensorDeleteFilesReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   keys: Array<string> | null;
 };
 
@@ -1146,6 +1228,10 @@ export type CleanupPreviewResp = {
 };
 
 export type CleanupReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   months: number;
   vacuum: boolean;
 };
@@ -1154,6 +1240,10 @@ export type CleanupResp = {
   items: number;
   logs: number;
   vacuumed: boolean;
+};
+
+export type CommandsResp = {
+  items: Array<string> | null;
 };
 
 export type ConditionInfo = {
@@ -1227,6 +1317,10 @@ export type DeadConfigsResp = {
 };
 
 export type DebugModeResp = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   value: boolean;
 };
 
@@ -1254,6 +1348,10 @@ export type DeckItem = {
 };
 
 export type DeleteLogReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   id: number;
 };
 
@@ -1270,6 +1368,10 @@ export type DeleteReq = {
 };
 
 export type DeleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   keys: Array<string> | null;
 };
 
@@ -1283,6 +1385,10 @@ export type EditableConfigResp = {
 };
 
 export type EnableBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   enable: boolean;
 };
 
@@ -1362,6 +1468,10 @@ export type ExecReq = {
 };
 
 export type FileBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   filename: string;
 };
 
@@ -1384,6 +1494,10 @@ export type FileListResp = {
 };
 
 export type FilenameReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   filename: string;
 };
 
@@ -1524,6 +1638,10 @@ export type HealthData = {
 };
 
 export type HelpConfigBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   aliases: {
     [key: string]: Array<string> | null;
   };
@@ -1548,6 +1666,10 @@ export type HelpDocUploadChunkResp = {
 };
 
 export type HelpDocUploadCompleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   sessionId: string;
 };
 
@@ -1559,6 +1681,10 @@ export type HelpDocUploadCompleteResp = {
 };
 
 export type HelpDocUploadInitReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   chunkSize: number;
   fileHash: string;
   fileSize: number;
@@ -1602,6 +1728,10 @@ export type IdListReq = {
 };
 
 export type JsCheckUpdateReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   filename: string;
 };
 
@@ -1616,19 +1746,35 @@ export type JsCheckUpdateResp = {
 };
 
 export type JsDataDeleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   keys: Array<string> | null;
 };
 
 export type JsDataSetReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   key: string;
   value: string;
 };
 
 export type JsDeleteDeadConfigsReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   names: Array<string> | null;
 };
 
 export type JsExecuteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   value: string;
 };
 
@@ -1639,6 +1785,10 @@ export type JsExecuteResp = {
 };
 
 export type JsFilenameReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   filename: string;
 };
 
@@ -1674,10 +1824,18 @@ export type JsListResp = {
 };
 
 export type JsNameReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   name: string;
 };
 
 export type JsResetConfigReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   keys: Array<string> | null;
   name: string;
 };
@@ -1690,6 +1848,10 @@ export type JsScriptDepends = {
 };
 
 export type JsSetConfigsReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   config: {
     [key: string]: unknown;
   };
@@ -1706,6 +1868,10 @@ export type JsStatusResp = {
 };
 
 export type JsUpdateReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   filename: string;
   tempFileName: string;
 };
@@ -1721,6 +1887,10 @@ export type JsUploadChunkResp = {
 };
 
 export type JsUploadCompleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   sessionId: string;
 };
 
@@ -1731,6 +1901,10 @@ export type JsUploadCompleteResp = {
 };
 
 export type JsUploadInitReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   chunkSize: number;
   fileHash: string;
   fileSize: number;
@@ -1793,6 +1967,12 @@ export type MemoryInfo = {
   usedSys: number;
 };
 
+export type MessageItem = {
+  message: string;
+  messageType: string;
+  uid: string;
+};
+
 export type MessageResponseBody = {
   /**
    * A URL to the JSON Schema for this object.
@@ -1830,11 +2010,24 @@ export type OverviewData = {
   version: VersionInfo;
 };
 
+export type PendingMessagesResp = {
+  items: Array<MessageItem> | null;
+};
+
 export type PlatformTreeNode = {
   description: string;
   id: string;
   methods: Array<MethodTreeNode> | null;
   name: string;
+};
+
+export type PostMessageReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
+  mode: string;
+  text: string;
 };
 
 export type ProtocolCapability = {
@@ -1889,6 +2082,10 @@ export type ReloadResp = {
 };
 
 export type ReplyConfig = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   author: Array<string> | null;
   conditions: Array<unknown> | null;
   createTimestamp: number;
@@ -1925,281 +2122,11 @@ export type ReplyItem = {
 };
 
 export type ReplyModuleConfig = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   customReplyConfigEnable: boolean;
-};
-
-export type RequestWrapperAdvancedConfig = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: AdvancedConfig;
-};
-
-export type RequestWrapperBackupBatchDeleteReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: BackupBatchDeleteReqBody;
-};
-
-export type RequestWrapperCensorConfigBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: CensorConfigBody;
-};
-
-export type RequestWrapperCensorDeleteFilesReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: CensorDeleteFilesReqBody;
-};
-
-export type RequestWrapperCleanupReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: CleanupReqBody;
-};
-
-export type RequestWrapperDebugModeResp = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: DebugModeResp;
-};
-
-export type RequestWrapperDeleteLogReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: DeleteLogReqBody;
-};
-
-export type RequestWrapperDeleteReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: DeleteReqBody;
-};
-
-export type RequestWrapperEnableBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: EnableBody;
-};
-
-export type RequestWrapperFileBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: FileBody;
-};
-
-export type RequestWrapperFilenameReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: FilenameReqBody;
-};
-
-export type RequestWrapperHelpConfigBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: HelpConfigBody;
-};
-
-export type RequestWrapperHelpDocUploadCompleteReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: HelpDocUploadCompleteReqBody;
-};
-
-export type RequestWrapperHelpDocUploadInitReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: HelpDocUploadInitReqBody;
-};
-
-export type RequestWrapperJsCheckUpdateReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsCheckUpdateReqBody;
-};
-
-export type RequestWrapperJsDataDeleteReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsDataDeleteReqBody;
-};
-
-export type RequestWrapperJsDataSetReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsDataSetReqBody;
-};
-
-export type RequestWrapperJsDeleteDeadConfigsReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsDeleteDeadConfigsReqBody;
-};
-
-export type RequestWrapperJsExecuteReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsExecuteReqBody;
-};
-
-export type RequestWrapperJsFilenameReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsFilenameReqBody;
-};
-
-export type RequestWrapperJsNameReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsNameReqBody;
-};
-
-export type RequestWrapperJsResetConfigReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsResetConfigReqBody;
-};
-
-export type RequestWrapperJsSetConfigsReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsSetConfigsReqBody;
-};
-
-export type RequestWrapperJsUpdateReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsUpdateReqBody;
-};
-
-export type RequestWrapperJsUploadCompleteReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsUploadCompleteReqBody;
-};
-
-export type RequestWrapperJsUploadInitReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: JsUploadInitReqBody;
-};
-
-export type RequestWrapperMapStringInterface = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: {
-    [key: string]: unknown;
-  };
-};
-
-export type RequestWrapperReplyConfig = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: ReplyConfig;
-};
-
-export type RequestWrapperReplyModuleConfig = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: ReplyModuleConfig;
-};
-
-export type RequestWrapperSaveCategoryBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: SaveCategoryBody;
-};
-
-export type RequestWrapperUpdateReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: UpdateReqBody;
-};
-
-export type RequestWrapperUploadCompleteReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: UploadCompleteReqBody;
-};
-
-export type RequestWrapperUploadInitReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: UploadInitReqBody;
-};
-
-export type RequestWrapperUploadLogReqBody = {
-  /**
-   * A URL to the JSON Schema for this object.
-   */
-  readonly $schema?: string;
-  body: UploadLogReqBody;
 };
 
 export type RuleInfo = {
@@ -2216,6 +2143,10 @@ export type RuntimeInfo = {
 };
 
 export type SaveCategoryBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   data: {
     [key: string]: Array<Array<unknown> | null> | null;
   };
@@ -2348,6 +2279,10 @@ export type UpdateCheckResult = {
 };
 
 export type UpdateReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   filename: string;
   tempFileName: string;
 };
@@ -2359,6 +2294,10 @@ export type UploadChunkResp = {
 };
 
 export type UploadCompleteReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   sessionId: string;
 };
 
@@ -2369,6 +2308,10 @@ export type UploadCompleteResp = {
 };
 
 export type UploadInitReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   chunkSize: number;
   fileHash: string;
   fileSize: number;
@@ -2376,6 +2319,10 @@ export type UploadInitReqBody = {
 };
 
 export type UploadLogReqBody = {
+  /**
+   * A URL to the JSON Schema for this object.
+   */
+  readonly $schema?: string;
   force: boolean;
   id: number;
 };
@@ -2441,6 +2388,43 @@ export type WorkflowResp = {
   state: string;
 };
 
+export type AddReqBodyWritable = {
+  id: string;
+  name: string;
+  rank: number;
+  reason: string;
+};
+
+export type AdvancedConfigWritable = {
+  enable: boolean;
+  show: boolean;
+  storyLogApiVersion: string;
+  storyLogBackendToken: string;
+  storyLogBackendUrl: string;
+};
+
+export type BackupBatchDeleteReqBodyWritable = {
+  names: Array<string> | null;
+};
+
+export type BanConfigWritable = {
+  autoBanMinutes: number;
+  banBehaviorQuitIfAdmin: boolean;
+  banBehaviorQuitIfAdminSilentIfNotAdmin: boolean;
+  banBehaviorQuitLastPlace: boolean;
+  banBehaviorQuitPlaceImmediately: boolean;
+  banBehaviorRefuseInvite: boolean;
+  banBehaviorRefuseReply: boolean;
+  jointScorePercentOfGroup: number;
+  jointScorePercentOfInviter: number;
+  scoreGroupKicked: number;
+  scoreGroupMuted: number;
+  scoreReducePerMinute: number;
+  scoreTooManyCommand: number;
+  thresholdBan: number;
+  thresholdWarn: number;
+};
+
 export type BanPageRequestWritable = {
   filter?: BanFilter;
   keyword?: string;
@@ -2467,7 +2451,7 @@ export type BodyAdvancedConfigWritable = {
   /**
    * 响应数据项
    */
-  item: AdvancedConfig;
+  item: AdvancedConfigWritable;
 };
 
 export type BodyBackupBatchDeleteRespWritable = {
@@ -2482,6 +2466,13 @@ export type BodyBackupListRespWritable = {
    * 响应数据项
    */
   item: BackupListResp;
+};
+
+export type BodyBanConfigWritable = {
+  /**
+   * 响应数据项
+   */
+  item: BanConfigWritable;
 };
 
 export type BodyBaseSettingActionRespWritable = {
@@ -2523,7 +2514,7 @@ export type BodyCensorConfigBodyWritable = {
   /**
    * 响应数据项
    */
-  item: CensorConfigBody;
+  item: CensorConfigBodyWritable;
 };
 
 export type BodyCensorFilesRespWritable = {
@@ -2575,6 +2566,13 @@ export type BodyCleanupRespWritable = {
   item: CleanupResp;
 };
 
+export type BodyCommandsRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: CommandsResp;
+};
+
 export type BodyConfigWritable = {
   /**
    * 响应数据项
@@ -2614,7 +2612,7 @@ export type BodyDebugModeRespWritable = {
   /**
    * 响应数据项
    */
-  item: DebugModeResp;
+  item: DebugModeRespWritable;
 };
 
 export type BodyDeleteLogRespWritable = {
@@ -2705,7 +2703,7 @@ export type BodyHelpConfigBodyWritable = {
   /**
    * 响应数据项
    */
-  item: HelpConfigBody;
+  item: HelpConfigBodyWritable;
 };
 
 export type BodyHelpDocUploadChunkRespWritable = {
@@ -2857,6 +2855,13 @@ export type BodyOverviewDataWritable = {
   item: OverviewData;
 };
 
+export type BodyPendingMessagesRespWritable = {
+  /**
+   * 响应数据项
+   */
+  item: PendingMessagesResp;
+};
+
 export type BodyPluginConfigMapWritable = {
   /**
    * 响应数据项
@@ -2898,7 +2903,7 @@ export type BodyReplyModuleConfigWritable = {
   /**
    * 响应数据项
    */
-  item: ReplyModuleConfig;
+  item: ReplyModuleConfigWritable;
 };
 
 export type BodySignInfoRespWritable = {
@@ -3006,6 +3011,23 @@ export type BodyWorkflowRespWritable = {
   item: WorkflowResp;
 };
 
+export type CensorConfigBodyWritable = {
+  caseSensitive: boolean;
+  filterRegex: string;
+  levelConfig: CensorLevelConfigs;
+  matchPinyin: boolean;
+  mode: number;
+};
+
+export type CensorDeleteFilesReqBodyWritable = {
+  keys: Array<string> | null;
+};
+
+export type CleanupReqBodyWritable = {
+  months: number;
+  vacuum: boolean;
+};
+
 export type ConfigWritable = {
   autoBackupEnable: boolean;
   autoBackupSelection: number;
@@ -3024,8 +3046,24 @@ export type CreateBodyWritable = {
   platform: string;
 };
 
+export type DebugModeRespWritable = {
+  value: boolean;
+};
+
+export type DeleteLogReqBodyWritable = {
+  id: number;
+};
+
 export type DeleteReqWritable = {
   id: string;
+};
+
+export type DeleteReqBodyWritable = {
+  keys: Array<string> | null;
+};
+
+export type EnableBodyWritable = {
+  enable: boolean;
 };
 
 export type ErrorModelWritable = {
@@ -3059,6 +3097,14 @@ export type ExecReqWritable = {
   selection: number;
 };
 
+export type FileBodyWritable = {
+  filename: string;
+};
+
+export type FilenameReqBodyWritable = {
+  filename: string;
+};
+
 export type GroupModifyRequestWritable = {
   active: boolean;
   groupId: string;
@@ -3071,8 +3117,83 @@ export type GroupPageRequestWritable = {
   pageSize: number;
 };
 
+export type HelpConfigBodyWritable = {
+  aliases: {
+    [key: string]: Array<string> | null;
+  };
+};
+
+export type HelpDocUploadCompleteReqBodyWritable = {
+  sessionId: string;
+};
+
+export type HelpDocUploadInitReqBodyWritable = {
+  chunkSize: number;
+  fileHash: string;
+  fileSize: number;
+  filename: string;
+  group: string;
+};
+
 export type IdListReqWritable = {
   ids: Array<string> | null;
+};
+
+export type JsCheckUpdateReqBodyWritable = {
+  filename: string;
+};
+
+export type JsDataDeleteReqBodyWritable = {
+  keys: Array<string> | null;
+};
+
+export type JsDataSetReqBodyWritable = {
+  key: string;
+  value: string;
+};
+
+export type JsDeleteDeadConfigsReqBodyWritable = {
+  names: Array<string> | null;
+};
+
+export type JsExecuteReqBodyWritable = {
+  value: string;
+};
+
+export type JsFilenameReqBodyWritable = {
+  filename: string;
+};
+
+export type JsNameReqBodyWritable = {
+  name: string;
+};
+
+export type JsResetConfigReqBodyWritable = {
+  keys: Array<string> | null;
+  name: string;
+};
+
+export type JsSetConfigsReqBodyWritable = {
+  config: {
+    [key: string]: unknown;
+  };
+  name: string;
+};
+
+export type JsUpdateReqBodyWritable = {
+  filename: string;
+  tempFileName: string;
+};
+
+export type JsUploadCompleteReqBodyWritable = {
+  sessionId: string;
+};
+
+export type JsUploadInitReqBodyWritable = {
+  chunkSize: number;
+  fileHash: string;
+  fileSize: number;
+  filename: string;
 };
 
 export type LoginRequestWritable = {
@@ -3087,6 +3208,11 @@ export type NameListReqWritable = {
   names: Array<string> | null;
 };
 
+export type PostMessageReqBodyWritable = {
+  mode: string;
+  text: string;
+};
+
 export type QuitGroupRequestWritable = {
   diceId?: string;
   extraText: string;
@@ -3094,142 +3220,50 @@ export type QuitGroupRequestWritable = {
   silence: boolean;
 };
 
-export type RequestWrapperAdvancedConfigWritable = {
-  body: AdvancedConfig;
+export type ReplyConfigWritable = {
+  author: Array<string> | null;
+  conditions: Array<unknown> | null;
+  createTimestamp: number;
+  desc: string;
+  enable: boolean;
+  filename: string;
+  interval: number;
+  items: Array<ReplyItem> | null;
+  name: string;
+  storeID: string;
+  updateTimestamp: number;
+  version: string;
 };
 
-export type RequestWrapperBackupBatchDeleteReqBodyWritable = {
-  body: BackupBatchDeleteReqBody;
+export type ReplyModuleConfigWritable = {
+  customReplyConfigEnable: boolean;
 };
 
-export type RequestWrapperCensorConfigBodyWritable = {
-  body: CensorConfigBody;
-};
-
-export type RequestWrapperCensorDeleteFilesReqBodyWritable = {
-  body: CensorDeleteFilesReqBody;
-};
-
-export type RequestWrapperCleanupReqBodyWritable = {
-  body: CleanupReqBody;
-};
-
-export type RequestWrapperDebugModeRespWritable = {
-  body: DebugModeResp;
-};
-
-export type RequestWrapperDeleteLogReqBodyWritable = {
-  body: DeleteLogReqBody;
-};
-
-export type RequestWrapperDeleteReqBodyWritable = {
-  body: DeleteReqBody;
-};
-
-export type RequestWrapperEnableBodyWritable = {
-  body: EnableBody;
-};
-
-export type RequestWrapperFileBodyWritable = {
-  body: FileBody;
-};
-
-export type RequestWrapperFilenameReqBodyWritable = {
-  body: FilenameReqBody;
-};
-
-export type RequestWrapperHelpConfigBodyWritable = {
-  body: HelpConfigBody;
-};
-
-export type RequestWrapperHelpDocUploadCompleteReqBodyWritable = {
-  body: HelpDocUploadCompleteReqBody;
-};
-
-export type RequestWrapperHelpDocUploadInitReqBodyWritable = {
-  body: HelpDocUploadInitReqBody;
-};
-
-export type RequestWrapperJsCheckUpdateReqBodyWritable = {
-  body: JsCheckUpdateReqBody;
-};
-
-export type RequestWrapperJsDataDeleteReqBodyWritable = {
-  body: JsDataDeleteReqBody;
-};
-
-export type RequestWrapperJsDataSetReqBodyWritable = {
-  body: JsDataSetReqBody;
-};
-
-export type RequestWrapperJsDeleteDeadConfigsReqBodyWritable = {
-  body: JsDeleteDeadConfigsReqBody;
-};
-
-export type RequestWrapperJsExecuteReqBodyWritable = {
-  body: JsExecuteReqBody;
-};
-
-export type RequestWrapperJsFilenameReqBodyWritable = {
-  body: JsFilenameReqBody;
-};
-
-export type RequestWrapperJsNameReqBodyWritable = {
-  body: JsNameReqBody;
-};
-
-export type RequestWrapperJsResetConfigReqBodyWritable = {
-  body: JsResetConfigReqBody;
-};
-
-export type RequestWrapperJsSetConfigsReqBodyWritable = {
-  body: JsSetConfigsReqBody;
-};
-
-export type RequestWrapperJsUpdateReqBodyWritable = {
-  body: JsUpdateReqBody;
-};
-
-export type RequestWrapperJsUploadCompleteReqBodyWritable = {
-  body: JsUploadCompleteReqBody;
-};
-
-export type RequestWrapperJsUploadInitReqBodyWritable = {
-  body: JsUploadInitReqBody;
-};
-
-export type RequestWrapperMapStringInterfaceWritable = {
-  body: {
-    [key: string]: unknown;
+export type SaveCategoryBodyWritable = {
+  data: {
+    [key: string]: Array<Array<unknown> | null> | null;
   };
 };
 
-export type RequestWrapperReplyConfigWritable = {
-  body: ReplyConfig;
+export type UpdateReqBodyWritable = {
+  filename: string;
+  tempFileName: string;
 };
 
-export type RequestWrapperReplyModuleConfigWritable = {
-  body: ReplyModuleConfig;
+export type UploadCompleteReqBodyWritable = {
+  sessionId: string;
 };
 
-export type RequestWrapperSaveCategoryBodyWritable = {
-  body: SaveCategoryBody;
+export type UploadInitReqBodyWritable = {
+  chunkSize: number;
+  fileHash: string;
+  fileSize: number;
+  filename: string;
 };
 
-export type RequestWrapperUpdateReqBodyWritable = {
-  body: UpdateReqBody;
-};
-
-export type RequestWrapperUploadCompleteReqBodyWritable = {
-  body: UploadCompleteReqBody;
-};
-
-export type RequestWrapperUploadInitReqBodyWritable = {
-  body: UploadInitReqBody;
-};
-
-export type RequestWrapperUploadLogReqBodyWritable = {
-  body: UploadLogReqBody;
+export type UploadLogReqBodyWritable = {
+  force: boolean;
+  id: number;
 };
 
 export type PostSdApiV2BackupBatchDeleteData = {
@@ -3420,6 +3454,32 @@ export type GetSdApiV2BackupListResponses = {
 export type GetSdApiV2BackupListResponse =
   GetSdApiV2BackupListResponses[keyof GetSdApiV2BackupListResponses];
 
+export type PostSdApiV2BanAddData = {
+  body: AddReqBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/ban/add';
+};
+
+export type PostSdApiV2BanAddErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2BanAddError = PostSdApiV2BanAddErrors[keyof PostSdApiV2BanAddErrors];
+
+export type PostSdApiV2BanAddResponses = {
+  /**
+   * OK
+   */
+  200: BodySimpleOk;
+};
+
+export type PostSdApiV2BanAddResponse =
+  PostSdApiV2BanAddResponses[keyof PostSdApiV2BanAddResponses];
+
 export type PostSdApiV2BanBatchDeleteData = {
   body: IdListReqWritable;
   path?: never;
@@ -3446,6 +3506,58 @@ export type PostSdApiV2BanBatchDeleteResponses = {
 
 export type PostSdApiV2BanBatchDeleteResponse =
   PostSdApiV2BanBatchDeleteResponses[keyof PostSdApiV2BanBatchDeleteResponses];
+
+export type GetSdApiV2BanConfigData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/ban/config';
+};
+
+export type GetSdApiV2BanConfigErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2BanConfigError = GetSdApiV2BanConfigErrors[keyof GetSdApiV2BanConfigErrors];
+
+export type GetSdApiV2BanConfigResponses = {
+  /**
+   * OK
+   */
+  200: BodyBanConfig;
+};
+
+export type GetSdApiV2BanConfigResponse =
+  GetSdApiV2BanConfigResponses[keyof GetSdApiV2BanConfigResponses];
+
+export type PutSdApiV2BanConfigData = {
+  body: BanConfigWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/ban/config';
+};
+
+export type PutSdApiV2BanConfigErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PutSdApiV2BanConfigError = PutSdApiV2BanConfigErrors[keyof PutSdApiV2BanConfigErrors];
+
+export type PutSdApiV2BanConfigResponses = {
+  /**
+   * OK
+   */
+  200: BodyBanConfig;
+};
+
+export type PutSdApiV2BanConfigResponse =
+  PutSdApiV2BanConfigResponses[keyof PutSdApiV2BanConfigResponses];
 
 export type PostSdApiV2BanDeleteData = {
   body: DeleteReqWritable;
@@ -3496,6 +3608,35 @@ export type GetSdApiV2BanExportResponses = {
    */
   200: unknown;
 };
+
+export type PostSdApiV2BanImportData = {
+  body?: {
+    file: Blob | File;
+  };
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/ban/import';
+};
+
+export type PostSdApiV2BanImportErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2BanImportError =
+  PostSdApiV2BanImportErrors[keyof PostSdApiV2BanImportErrors];
+
+export type PostSdApiV2BanImportResponses = {
+  /**
+   * OK
+   */
+  200: BodySimpleOk;
+};
+
+export type PostSdApiV2BanImportResponse =
+  PostSdApiV2BanImportResponses[keyof PostSdApiV2BanImportResponses];
 
 export type PostSdApiV2BanListData = {
   body: BanPageRequestWritable;
@@ -3634,7 +3775,9 @@ export type GetSdApiV2BaseSettingValueResponse =
   GetSdApiV2BaseSettingValueResponses[keyof GetSdApiV2BaseSettingValueResponses];
 
 export type PutSdApiV2BaseSettingValueData = {
-  body: RequestWrapperMapStringInterface;
+  body: {
+    [key: string]: unknown;
+  };
   path?: never;
   query?: never;
   url: '/sd-api/v2/base-setting/value';
@@ -3823,7 +3966,7 @@ export type GetSdApiV2CensorConfigResponse =
   GetSdApiV2CensorConfigResponses[keyof GetSdApiV2CensorConfigResponses];
 
 export type PostSdApiV2CensorConfigData = {
-  body: RequestWrapperCensorConfigBodyWritable;
+  body: CensorConfigBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/censor/config';
@@ -3850,7 +3993,7 @@ export type PostSdApiV2CensorConfigResponse =
   PostSdApiV2CensorConfigResponses[keyof PostSdApiV2CensorConfigResponses];
 
 export type DeleteSdApiV2CensorFilesData = {
-  body: RequestWrapperCensorDeleteFilesReqBodyWritable;
+  body: CensorDeleteFilesReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/censor/files';
@@ -4148,7 +4291,7 @@ export type GetSdApiV2ConfigAdvancedResponse =
   GetSdApiV2ConfigAdvancedResponses[keyof GetSdApiV2ConfigAdvancedResponses];
 
 export type PutSdApiV2ConfigAdvancedData = {
-  body: RequestWrapperAdvancedConfigWritable;
+  body: AdvancedConfigWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/config/advanced';
@@ -4202,7 +4345,7 @@ export type GetSdApiV2ConfigReplyResponse =
   GetSdApiV2ConfigReplyResponses[keyof GetSdApiV2ConfigReplyResponses];
 
 export type PutSdApiV2ConfigReplyData = {
-  body: RequestWrapperReplyModuleConfigWritable;
+  body: ReplyModuleConfigWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/config/reply';
@@ -4256,7 +4399,7 @@ export type GetSdApiV2CustomReplyDebugModeResponse =
   GetSdApiV2CustomReplyDebugModeResponses[keyof GetSdApiV2CustomReplyDebugModeResponses];
 
 export type PutSdApiV2CustomReplyDebugModeData = {
-  body: RequestWrapperDebugModeRespWritable;
+  body: DebugModeRespWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/custom-reply/debug-mode';
@@ -4316,7 +4459,7 @@ export type GetSdApiV2CustomReplyFilesResponse =
   GetSdApiV2CustomReplyFilesResponses[keyof GetSdApiV2CustomReplyFilesResponses];
 
 export type PostSdApiV2CustomReplyFilesData = {
-  body: RequestWrapperFileBodyWritable;
+  body: FileBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/custom-reply/files';
@@ -4430,7 +4573,7 @@ export type GetSdApiV2CustomReplyFilesByFilenameResponse =
   GetSdApiV2CustomReplyFilesByFilenameResponses[keyof GetSdApiV2CustomReplyFilesByFilenameResponses];
 
 export type PutSdApiV2CustomReplyFilesByFilenameData = {
-  body: RequestWrapperReplyConfigWritable;
+  body: ReplyConfigWritable;
   path: {
     filename: string;
   };
@@ -4576,7 +4719,7 @@ export type GetSdApiV2CustomTextResponse =
   GetSdApiV2CustomTextResponses[keyof GetSdApiV2CustomTextResponses];
 
 export type PutSdApiV2CustomTextByCategoryData = {
-  body: RequestWrapperSaveCategoryBodyWritable;
+  body: SaveCategoryBodyWritable;
   path: {
     category: string;
   };
@@ -4634,7 +4777,7 @@ export type PostSdApiV2CustomTextByCategoryPreviewRefreshResponse =
   PostSdApiV2CustomTextByCategoryPreviewRefreshResponses[keyof PostSdApiV2CustomTextByCategoryPreviewRefreshResponses];
 
 export type PostSdApiV2DeckCheckUpdateData = {
-  body: RequestWrapperFilenameReqBodyWritable;
+  body: FilenameReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/deck/check-update';
@@ -4661,7 +4804,7 @@ export type PostSdApiV2DeckCheckUpdateResponse =
   PostSdApiV2DeckCheckUpdateResponses[keyof PostSdApiV2DeckCheckUpdateResponses];
 
 export type PostSdApiV2DeckDeleteData = {
-  body: RequestWrapperFilenameReqBodyWritable;
+  body: FilenameReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/deck/delete';
@@ -4747,7 +4890,7 @@ export type PostSdApiV2DeckReloadResponse =
   PostSdApiV2DeckReloadResponses[keyof PostSdApiV2DeckReloadResponses];
 
 export type PostSdApiV2DeckUpdateData = {
-  body: RequestWrapperUpdateReqBodyWritable;
+  body: UpdateReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/deck/update';
@@ -4803,7 +4946,7 @@ export type PostSdApiV2DeckUploadResponse =
   PostSdApiV2DeckUploadResponses[keyof PostSdApiV2DeckUploadResponses];
 
 export type PostSdApiV2DeckUploadCompleteData = {
-  body: RequestWrapperUploadCompleteReqBodyWritable;
+  body: UploadCompleteReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/deck/upload/complete';
@@ -4830,7 +4973,7 @@ export type PostSdApiV2DeckUploadCompleteResponse =
   PostSdApiV2DeckUploadCompleteResponses[keyof PostSdApiV2DeckUploadCompleteResponses];
 
 export type PostSdApiV2DeckUploadInitData = {
-  body: RequestWrapperUploadInitReqBodyWritable;
+  body: UploadInitReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/deck/upload/init';
@@ -5106,7 +5249,7 @@ export type GetSdApiV2HelpdocConfigResponse =
   GetSdApiV2HelpdocConfigResponses[keyof GetSdApiV2HelpdocConfigResponses];
 
 export type PostSdApiV2HelpdocConfigData = {
-  body: RequestWrapperHelpConfigBodyWritable;
+  body: HelpConfigBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/helpdoc/config';
@@ -5133,7 +5276,7 @@ export type PostSdApiV2HelpdocConfigResponse =
   PostSdApiV2HelpdocConfigResponses[keyof PostSdApiV2HelpdocConfigResponses];
 
 export type PostSdApiV2HelpdocDeleteData = {
-  body: RequestWrapperDeleteReqBodyWritable;
+  body: DeleteReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/helpdoc/delete';
@@ -5275,7 +5418,7 @@ export type GetSdApiV2HelpdocTreeResponse =
   GetSdApiV2HelpdocTreeResponses[keyof GetSdApiV2HelpdocTreeResponses];
 
 export type PostSdApiV2HelpdocUploadCompleteData = {
-  body: RequestWrapperHelpDocUploadCompleteReqBodyWritable;
+  body: HelpDocUploadCompleteReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/helpdoc/upload/complete';
@@ -5302,7 +5445,7 @@ export type PostSdApiV2HelpdocUploadCompleteResponse =
   PostSdApiV2HelpdocUploadCompleteResponses[keyof PostSdApiV2HelpdocUploadCompleteResponses];
 
 export type PostSdApiV2HelpdocUploadInitData = {
-  body: RequestWrapperHelpDocUploadInitReqBodyWritable;
+  body: HelpDocUploadInitReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/helpdoc/upload/init';
@@ -5553,7 +5696,9 @@ export type DeleteSdApiV2ImconnectionByIdResponse =
   DeleteSdApiV2ImconnectionByIdResponses[keyof DeleteSdApiV2ImconnectionByIdResponses];
 
 export type PutSdApiV2ImconnectionByIdData = {
-  body: RequestWrapperMapStringInterface;
+  body: {
+    [key: string]: unknown;
+  };
   path: {
     id: string;
   };
@@ -5611,7 +5756,7 @@ export type GetSdApiV2ImconnectionByIdConfigResponse =
   GetSdApiV2ImconnectionByIdConfigResponses[keyof GetSdApiV2ImconnectionByIdConfigResponses];
 
 export type PutSdApiV2ImconnectionByIdEnableData = {
-  body: RequestWrapperEnableBodyWritable;
+  body: EnableBodyWritable;
   path: {
     id: string;
   };
@@ -5698,7 +5843,7 @@ export type GetSdApiV2ImconnectionByIdWorkflowResponse =
   GetSdApiV2ImconnectionByIdWorkflowResponses[keyof GetSdApiV2ImconnectionByIdWorkflowResponses];
 
 export type PostSdApiV2JsCheckUpdateData = {
-  body: RequestWrapperJsCheckUpdateReqBodyWritable;
+  body: JsCheckUpdateReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/check-update';
@@ -5753,7 +5898,7 @@ export type GetSdApiV2JsConfigsResponse =
   GetSdApiV2JsConfigsResponses[keyof GetSdApiV2JsConfigsResponses];
 
 export type PostSdApiV2JsConfigsData = {
-  body: RequestWrapperJsSetConfigsReqBodyWritable;
+  body: JsSetConfigsReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/configs';
@@ -5780,7 +5925,7 @@ export type PostSdApiV2JsConfigsResponse =
   PostSdApiV2JsConfigsResponses[keyof PostSdApiV2JsConfigsResponses];
 
 export type PostSdApiV2JsConfigsResetData = {
-  body: RequestWrapperJsResetConfigReqBodyWritable;
+  body: JsResetConfigReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/configs/reset';
@@ -5834,7 +5979,7 @@ export type GetSdApiV2JsDeadConfigsResponse =
   GetSdApiV2JsDeadConfigsResponses[keyof GetSdApiV2JsDeadConfigsResponses];
 
 export type PostSdApiV2JsDeadConfigsDeleteData = {
-  body: RequestWrapperJsDeleteDeadConfigsReqBodyWritable;
+  body: JsDeleteDeadConfigsReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/dead-configs/delete';
@@ -5861,7 +6006,7 @@ export type PostSdApiV2JsDeadConfigsDeleteResponse =
   PostSdApiV2JsDeadConfigsDeleteResponses[keyof PostSdApiV2JsDeadConfigsDeleteResponses];
 
 export type PostSdApiV2JsDeleteData = {
-  body: RequestWrapperJsFilenameReqBodyWritable;
+  body: JsFilenameReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/delete';
@@ -5887,7 +6032,7 @@ export type PostSdApiV2JsDeleteResponse =
   PostSdApiV2JsDeleteResponses[keyof PostSdApiV2JsDeleteResponses];
 
 export type PostSdApiV2JsDisableData = {
-  body: RequestWrapperJsNameReqBodyWritable;
+  body: JsNameReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/disable';
@@ -5914,7 +6059,7 @@ export type PostSdApiV2JsDisableResponse =
   PostSdApiV2JsDisableResponses[keyof PostSdApiV2JsDisableResponses];
 
 export type PostSdApiV2JsEnableData = {
-  body: RequestWrapperJsNameReqBodyWritable;
+  body: JsNameReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/enable';
@@ -5940,7 +6085,7 @@ export type PostSdApiV2JsEnableResponse =
   PostSdApiV2JsEnableResponses[keyof PostSdApiV2JsEnableResponses];
 
 export type PostSdApiV2JsExecuteData = {
-  body: RequestWrapperJsExecuteReqBodyWritable;
+  body: JsExecuteReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/execute';
@@ -6103,7 +6248,7 @@ export type GetSdApiV2JsStatusResponse =
   GetSdApiV2JsStatusResponses[keyof GetSdApiV2JsStatusResponses];
 
 export type PostSdApiV2JsUpdateData = {
-  body: RequestWrapperJsUpdateReqBodyWritable;
+  body: JsUpdateReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/update';
@@ -6157,7 +6302,7 @@ export type PostSdApiV2JsUploadResponse =
   PostSdApiV2JsUploadResponses[keyof PostSdApiV2JsUploadResponses];
 
 export type PostSdApiV2JsUploadCompleteData = {
-  body: RequestWrapperJsUploadCompleteReqBodyWritable;
+  body: JsUploadCompleteReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/upload/complete';
@@ -6184,7 +6329,7 @@ export type PostSdApiV2JsUploadCompleteResponse =
   PostSdApiV2JsUploadCompleteResponses[keyof PostSdApiV2JsUploadCompleteResponses];
 
 export type PostSdApiV2JsUploadInitData = {
-  body: RequestWrapperJsUploadInitReqBodyWritable;
+  body: JsUploadInitReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/js/upload/init';
@@ -6302,7 +6447,7 @@ export type GetSdApiV2JsByNameDataResponse =
   GetSdApiV2JsByNameDataResponses[keyof GetSdApiV2JsByNameDataResponses];
 
 export type PostSdApiV2JsByNameDataData = {
-  body: RequestWrapperJsDataSetReqBodyWritable;
+  body: JsDataSetReqBodyWritable;
   path: {
     name: string;
   };
@@ -6331,7 +6476,7 @@ export type PostSdApiV2JsByNameDataResponse =
   PostSdApiV2JsByNameDataResponses[keyof PostSdApiV2JsByNameDataResponses];
 
 export type PostSdApiV2JsByNameDataDeleteData = {
-  body: RequestWrapperJsDataDeleteReqBodyWritable;
+  body: JsDataDeleteReqBodyWritable;
   path: {
     name: string;
   };
@@ -6451,7 +6596,7 @@ export type PostSdApiV2JsByNameDataShrinkResponse =
   PostSdApiV2JsByNameDataShrinkResponses[keyof PostSdApiV2JsByNameDataShrinkResponses];
 
 export type PostSdApiV2StoryBackupBatchDeleteData = {
-  body: RequestWrapperBackupBatchDeleteReqBodyWritable;
+  body: BackupBatchDeleteReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/story/backup/batch-delete';
@@ -6531,7 +6676,7 @@ export type GetSdApiV2StoryBackupListResponse =
   GetSdApiV2StoryBackupListResponses[keyof GetSdApiV2StoryBackupListResponses];
 
 export type PostSdApiV2StoryCleanupData = {
-  body: RequestWrapperCleanupReqBodyWritable;
+  body: CleanupReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/story/cleanup';
@@ -6646,7 +6791,7 @@ export type GetSdApiV2StoryItemsPageResponse =
   GetSdApiV2StoryItemsPageResponses[keyof GetSdApiV2StoryItemsPageResponses];
 
 export type DeleteSdApiV2StoryLogData = {
-  body: RequestWrapperDeleteLogReqBodyWritable;
+  body: DeleteLogReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/story/log';
@@ -6707,7 +6852,7 @@ export type GetSdApiV2StoryLogsPageResponse =
   GetSdApiV2StoryLogsPageResponses[keyof GetSdApiV2StoryLogsPageResponses];
 
 export type PostSdApiV2StoryUploadLogData = {
-  body: RequestWrapperUploadLogReqBodyWritable;
+  body: UploadLogReqBodyWritable;
   path?: never;
   query?: never;
   url: '/sd-api/v2/story/upload-log';
@@ -6732,3 +6877,84 @@ export type PostSdApiV2StoryUploadLogResponses = {
 
 export type PostSdApiV2StoryUploadLogResponse =
   PostSdApiV2StoryUploadLogResponses[keyof PostSdApiV2StoryUploadLogResponses];
+
+export type GetSdApiV2ToolTestCommandsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/tool-test/commands';
+};
+
+export type GetSdApiV2ToolTestCommandsErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2ToolTestCommandsError =
+  GetSdApiV2ToolTestCommandsErrors[keyof GetSdApiV2ToolTestCommandsErrors];
+
+export type GetSdApiV2ToolTestCommandsResponses = {
+  /**
+   * OK
+   */
+  200: BodyCommandsResp;
+};
+
+export type GetSdApiV2ToolTestCommandsResponse =
+  GetSdApiV2ToolTestCommandsResponses[keyof GetSdApiV2ToolTestCommandsResponses];
+
+export type PostSdApiV2ToolTestMessagesData = {
+  body: PostMessageReqBodyWritable;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/tool-test/messages';
+};
+
+export type PostSdApiV2ToolTestMessagesErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type PostSdApiV2ToolTestMessagesError =
+  PostSdApiV2ToolTestMessagesErrors[keyof PostSdApiV2ToolTestMessagesErrors];
+
+export type PostSdApiV2ToolTestMessagesResponses = {
+  /**
+   * OK
+   */
+  200: BodySimpleOk;
+};
+
+export type PostSdApiV2ToolTestMessagesResponse =
+  PostSdApiV2ToolTestMessagesResponses[keyof PostSdApiV2ToolTestMessagesResponses];
+
+export type GetSdApiV2ToolTestMessagesPendingData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sd-api/v2/tool-test/messages/pending';
+};
+
+export type GetSdApiV2ToolTestMessagesPendingErrors = {
+  /**
+   * Error
+   */
+  default: ErrorModel;
+};
+
+export type GetSdApiV2ToolTestMessagesPendingError =
+  GetSdApiV2ToolTestMessagesPendingErrors[keyof GetSdApiV2ToolTestMessagesPendingErrors];
+
+export type GetSdApiV2ToolTestMessagesPendingResponses = {
+  /**
+   * OK
+   */
+  200: BodyPendingMessagesResp;
+};
+
+export type GetSdApiV2ToolTestMessagesPendingResponse =
+  GetSdApiV2ToolTestMessagesPendingResponses[keyof GetSdApiV2ToolTestMessagesPendingResponses];

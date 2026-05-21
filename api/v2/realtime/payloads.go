@@ -1,7 +1,7 @@
 package realtime
 
 import (
-	"sealdice-core/api/v2/model/imconnection"
+	"sealdice-core/api/v2/imconnection"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 )

@@ -37,7 +37,7 @@ export function useHelpdocMutations(options: {
   const deleteMutation = useMutation({
     mutationFn: async (keys: string[]) => {
       const { data } = await postSdApiV2HelpdocDelete({
-        body: { body: { keys } },
+        body: { keys },
         throwOnError: true,
       });
       return data.item;
@@ -60,9 +60,7 @@ export function useHelpdocMutations(options: {
     mutationFn: async () => {
       const { data } = await postSdApiV2HelpdocConfig({
         body: {
-          body: {
-            aliases: options.getConfigPayload(),
-          },
+          aliases: options.getConfigPayload(),
         },
         throwOnError: true,
       });

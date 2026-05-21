@@ -83,7 +83,7 @@ watch(
 const resetMutation = useMutation({
   mutationFn: async (payload: { name: string; keys: string[] }) => {
     await postSdApiV2JsConfigsReset({
-      body: { body: payload },
+      body: payload,
       throwOnError: true,
     });
   },
@@ -97,7 +97,7 @@ const resetMutation = useMutation({
 const deleteDeadMutation = useMutation({
   mutationFn: async (names: string[]) => {
     await postSdApiV2JsDeadConfigsDelete({
-      body: { body: { names } },
+      body: { names },
       throwOnError: true,
     });
   },
@@ -147,10 +147,8 @@ async function saveAll() {
       if (!Object.keys(config).length) continue;
       await postSdApiV2JsConfigs({
         body: {
-          body: {
-            name,
-            config,
-          },
+          name,
+          config,
         },
         throwOnError: true,
       });
@@ -276,6 +274,7 @@ defineExpose({
 }
 
 .config-row {
+  min-width: 0;
   padding: 0.5rem 0;
 }
 
@@ -296,10 +295,21 @@ defineExpose({
 }
 
 .w-40 {
-  width: 10rem;
+  width: min(100%, 10rem);
 }
 
 .w-80 {
-  width: 20rem;
+  width: min(100%, 20rem);
+}
+
+@media screen and (max-width: 639.9px) {
+  .w-40,
+  .w-80 {
+    width: 100%;
+  }
+
+  .config-row :deep(.n-flex) {
+    align-items: flex-start;
+  }
 }
 </style>

@@ -8,7 +8,6 @@ import (
 
 	"github.com/tidwall/buntdb"
 
-	jsm "sealdice-core/api/v2/model/js"
 	"sealdice-core/dice"
 )
 
@@ -40,7 +39,7 @@ func resolveStorage(d *dice.Dice, name string) (*extStorage, error) {
 }
 
 // listKeys returns a paginated subset of keys matching keyword (glob pattern).
-func (s *extStorage) listKeys(page, pageSize int, keyword string) (*jsm.DataListResp, error) {
+func (s *extStorage) listKeys(page, pageSize int, keyword string) (*DataListResp, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -70,27 +69,27 @@ func (s *extStorage) listKeys(page, pageSize int, keyword string) (*jsm.DataList
 	total := len(all)
 	start := (page - 1) * pageSize
 	if start >= total {
-		return &jsm.DataListResp{Keys: []jsm.DataKV{}, Total: total, Page: page, PageSize: pageSize}, nil
+		return &DataListResp{Keys: []DataKV{}, Total: total, Page: page, PageSize: pageSize}, nil
 	}
 	end := start + pageSize
 	if end > total {
 		end = total
 	}
 
-	keys := make([]jsm.DataKV, 0, end-start)
+	keys := make([]DataKV, 0, end-start)
 	for _, item := range all[start:end] {
-		keys = append(keys, jsm.DataKV{
+		keys = append(keys, DataKV{
 			Key:    item.Key,
 			Value:  item.Value,
 			IsJSON: json.Valid([]byte(item.Value)),
 		})
 	}
 
-	return &jsm.DataListResp{Keys: keys, Total: total, Page: page, PageSize: pageSize}, nil
+	return &DataListResp{Keys: keys, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 // getValue returns a single key-value pair.
-func (s *extStorage) getValue(key string) (*jsm.DataKV, error) {
+func (s *extStorage) getValue(key string) (*DataKV, error) {
 	val, err := s.ext.StorageGet(key)
 	if err != nil {
 		if errors.Is(err, buntdb.ErrNotFound) {
@@ -98,7 +97,7 @@ func (s *extStorage) getValue(key string) (*jsm.DataKV, error) {
 		}
 		return nil, err
 	}
-	return &jsm.DataKV{
+	return &DataKV{
 		Key:    key,
 		Value:  val,
 		IsJSON: json.Valid([]byte(val)),
@@ -126,7 +125,7 @@ func (s *extStorage) deleteKeys(keys []string) error {
 }
 
 // info returns DB statistics.
-func (s *extStorage) info() (*jsm.DataInfoResp, error) {
+func (s *extStorage) info() (*DataInfoResp, error) {
 	var count int
 	var canShrink bool
 	var fileSize int64
@@ -148,7 +147,7 @@ func (s *extStorage) info() (*jsm.DataInfoResp, error) {
 		return nil, err
 	}
 
-	return &jsm.DataInfoResp{
+	return &DataInfoResp{
 		KeyCount:  count,
 		FileSize:  fileSize,
 		CanShrink: canShrink,

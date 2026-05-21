@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	imconnm "sealdice-core/api/v2/model/imconnection"
+	imconnm "sealdice-core/api/v2/imconnection"
 	realtime "sealdice-core/api/v2/realtime"
 	"sealdice-core/dice"
 	"sealdice-core/logger"

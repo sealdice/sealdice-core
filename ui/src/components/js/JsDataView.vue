@@ -105,7 +105,7 @@ const setMutation = useMutation({
   mutationFn: async (payload: { key: string; value: string }) => {
     await postSdApiV2JsByNameData({
       path: { name: selectedPlugin.value },
-      body: { body: payload },
+      body: payload,
       throwOnError: true,
     });
   },
@@ -121,7 +121,7 @@ const deleteMutation = useMutation({
   mutationFn: async (keys: string[]) => {
     await postSdApiV2JsByNameDataDelete({
       path: { name: selectedPlugin.value },
-      body: { body: { keys } },
+      body: { keys },
       throwOnError: true,
     });
   },
@@ -185,7 +185,7 @@ function formatFileSize(bytes: number): string {
 <template>
   <div>
     <header class="mb-4">
-      <n-flex size="small" align="center">
+      <n-flex size="small" align="center" wrap class="js-data-plugin-picker">
         <n-text>选择插件：</n-text>
         <n-select
           v-model:value="selectedPlugin"
@@ -199,7 +199,7 @@ function formatFileSize(bytes: number): string {
 
     <template v-if="selectedPlugin">
       <!-- Info -->
-      <n-flex v-if="dataInfoQuery.data.value" size="medium" class="mb-4">
+      <n-flex v-if="dataInfoQuery.data.value" size="medium" class="mb-4" wrap>
         <n-statistic label="Key 数量" :value="dataInfoQuery.data.value.keyCount" />
         <n-statistic label="文件大小" :value="formatFileSize(dataInfoQuery.data.value.fileSize)" />
         <n-button
@@ -213,7 +213,7 @@ function formatFileSize(bytes: number): string {
       </n-flex>
 
       <!-- Search -->
-      <n-flex size="small" class="mb-4">
+      <n-flex size="small" class="js-data-search mb-4" wrap>
         <n-input
           v-model:value="dataKeyword"
           placeholder="搜索 Key（支持 * ? 通配符）"
@@ -320,12 +320,25 @@ function formatFileSize(bytes: number): string {
   width: 4rem;
 }
 .w-60 {
-  width: 15rem;
+  width: min(100%, 15rem);
 }
 .w-80 {
-  width: 20rem;
+  width: min(100%, 20rem);
 }
 .mb-4 {
   margin-bottom: 1rem;
+}
+
+@media screen and (max-width: 639.9px) {
+  .js-data-plugin-picker,
+  .js-data-search {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .w-60,
+  .w-80 {
+    width: 100%;
+  }
 }
 </style>

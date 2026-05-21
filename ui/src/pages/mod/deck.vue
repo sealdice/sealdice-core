@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useDialog, useMessage } from 'naive-ui';
 import {
@@ -29,6 +30,8 @@ const deckChunkSize = 4 * 1024 * 1024;
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('md');
 
 const listQuery = reactive({
   page: 1,
@@ -132,9 +135,7 @@ const deleteMutation = useMutation({
   mutationFn: async (filename: string) => {
     const { data } = await postSdApiV2DeckDelete({
       body: {
-        body: {
-          filename,
-        },
+        filename,
       },
       throwOnError: true,
     });
@@ -157,10 +158,8 @@ const updateMutation = useMutation({
   mutationFn: async () => {
     const { data } = await postSdApiV2DeckUpdate({
       body: {
-        body: {
-          filename: deckCheck.value.filename ?? '',
-          tempFileName: deckCheck.value.tempFileName ?? '',
-        },
+        filename: deckCheck.value.filename ?? '',
+        tempFileName: deckCheck.value.tempFileName ?? '',
       },
       throwOnError: true,
     });
@@ -186,12 +185,10 @@ const uploader = useResumableUpload('sd-deck-upload-state', {
   async init(task: ResumableUploadTask) {
     const { data } = await postSdApiV2DeckUploadInit({
       body: {
-        body: {
-          filename: task.filename,
-          fileSize: task.fileSize,
-          fileHash: task.fileHash,
-          chunkSize: deckChunkSize,
-        },
+        filename: task.filename,
+        fileSize: task.fileSize,
+        fileHash: task.fileHash,
+        chunkSize: deckChunkSize,
       },
       throwOnError: true,
     });
@@ -206,9 +203,7 @@ const uploader = useResumableUpload('sd-deck-upload-state', {
   async complete(task: ResumableUploadTask): Promise<boolean> {
     const { data } = await postSdApiV2DeckUploadComplete({
       body: {
-        body: {
-          sessionId: task.sessionId,
-        },
+        sessionId: task.sessionId,
       },
       throwOnError: true,
     });
@@ -270,9 +265,7 @@ async function doCheckUpdate(item: DeckItem) {
   try {
     const { data } = await postSdApiV2DeckCheckUpdate({
       body: {
-        body: {
-          filename: item.filename,
-        },
+        filename: item.filename,
       },
       throwOnError: true,
     });
@@ -516,7 +509,7 @@ function deckUpdate() {
             </n-flex>
           </template>
 
-          <n-descriptions content-class="whitespace-pre-line">
+          <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
             <n-descriptions-item :span="3" label="作者">
               {{ item.author || '<佚名>' }}
             </n-descriptions-item>
@@ -548,7 +541,7 @@ function deckUpdate() {
           </n-descriptions>
 
           <template #unfolded-extra>
-            <n-descriptions content-class="whitespace-pre-line">
+            <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
               <n-descriptions-item :span="3" label="可见牌组列表">
                 <n-flex size="small">
                   <n-tag
@@ -763,6 +756,10 @@ function deckUpdate() {
   padding: 2rem 0;
 }
 
+.diff-dialog {
+  width: min(1000px, calc(100vw - 2rem));
+}
+
 @media screen and (max-width: 900px) {
   .deck-toolbar {
     grid-template-columns: 1fr;
@@ -783,6 +780,10 @@ function deckUpdate() {
   .deck-search-actions,
   .deck-meta-right {
     margin-left: 0;
+  }
+
+  .deck-pagination-block {
+    justify-content: flex-start;
   }
 }
 </style>

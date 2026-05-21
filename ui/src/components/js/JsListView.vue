@@ -111,7 +111,7 @@ const invalidateList = () => queryClient.invalidateQueries({ queryKey: ['js-list
 const deleteMutation = useMutation({
   mutationFn: async (filename: string) => {
     await postSdApiV2JsDelete({
-      body: { body: { filename } },
+      body: { filename },
       throwOnError: true,
     });
   },
@@ -120,7 +120,7 @@ const deleteMutation = useMutation({
 const enableMutation = useMutation({
   mutationFn: async (name: string) => {
     await postSdApiV2JsEnable({
-      body: { body: { name } },
+      body: { name },
       throwOnError: true,
     });
   },
@@ -129,7 +129,7 @@ const enableMutation = useMutation({
 const disableMutation = useMutation({
   mutationFn: async (name: string) => {
     await postSdApiV2JsDisable({
-      body: { body: { name } },
+      body: { name },
       throwOnError: true,
     });
   },
@@ -143,12 +143,10 @@ const uploader = useResumableUpload('sd-js-upload-state', {
   async init(task: ResumableUploadTask) {
     const { data } = await postSdApiV2JsUploadInit({
       body: {
-        body: {
-          filename: task.filename,
-          fileSize: task.fileSize,
-          fileHash: task.fileHash,
-          chunkSize: 4 * 1024 * 1024,
-        },
+        filename: task.filename,
+        fileSize: task.fileSize,
+        fileHash: task.fileHash,
+        chunkSize: 4 * 1024 * 1024,
       },
       throwOnError: true,
     });
@@ -163,9 +161,7 @@ const uploader = useResumableUpload('sd-js-upload-state', {
   async complete(task: ResumableUploadTask) {
     const { data } = await postSdApiV2JsUploadComplete({
       body: {
-        body: {
-          sessionId: task.sessionId,
-        },
+        sessionId: task.sessionId,
       },
       throwOnError: true,
     });
@@ -217,7 +213,7 @@ async function handleCheckUpdate(item: JsInfoExt) {
   diffLoading.value = true;
   try {
     const { data } = await postSdApiV2JsCheckUpdate({
-      body: { body: { filename: item.filename } },
+      body: { filename: item.filename },
       throwOnError: true,
     });
     if (!data.item.success) {
@@ -243,10 +239,8 @@ async function handleApplyUpdate() {
   try {
     await postSdApiV2JsUpdate({
       body: {
-        body: {
-          filename: diffData.value.filename,
-          tempFileName: diffData.value.tempFileName,
-        },
+        filename: diffData.value.filename,
+        tempFileName: diffData.value.tempFileName,
       },
       throwOnError: true,
     });

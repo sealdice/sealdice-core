@@ -56,9 +56,7 @@ export function useCensorMutations(options: {
   const saveConfigMutation = useMutation({
     mutationFn: async () => {
       const { data } = await postSdApiV2CensorConfig({
-        body: {
-          body: options.getConfigPayload(),
-        },
+        body: options.getConfigPayload(),
         throwOnError: true,
       });
       return data.item;
@@ -95,7 +93,7 @@ export function useCensorMutations(options: {
   const deleteFilesMutation = useMutation({
     mutationFn: async (keys: string[]) => {
       const { data } = await deleteSdApiV2CensorFiles({
-        body: { body: { keys } },
+        body: { keys },
         throwOnError: true,
       });
       return data.item;

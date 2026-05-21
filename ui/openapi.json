@@ -33,9 +33,52 @@
         ],
         "type": "object"
       },
+      "AddReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/AddReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rank": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "rank",
+          "name",
+          "reason"
+        ],
+        "type": "object"
+      },
       "AdvancedConfig": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/AdvancedConfig.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "enable": {
             "type": "boolean"
           },
@@ -64,6 +107,15 @@
       "BackupBatchDeleteReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BackupBatchDeleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "names": {
             "items": {
               "type": "string"
@@ -121,6 +173,92 @@
         },
         "required": [
           "result"
+        ],
+        "type": "object"
+      },
+      "BanConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BanConfig.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "autoBanMinutes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "banBehaviorQuitIfAdmin": {
+            "type": "boolean"
+          },
+          "banBehaviorQuitIfAdminSilentIfNotAdmin": {
+            "type": "boolean"
+          },
+          "banBehaviorQuitLastPlace": {
+            "type": "boolean"
+          },
+          "banBehaviorQuitPlaceImmediately": {
+            "type": "boolean"
+          },
+          "banBehaviorRefuseInvite": {
+            "type": "boolean"
+          },
+          "banBehaviorRefuseReply": {
+            "type": "boolean"
+          },
+          "jointScorePercentOfGroup": {
+            "format": "double",
+            "type": "number"
+          },
+          "jointScorePercentOfInviter": {
+            "format": "double",
+            "type": "number"
+          },
+          "scoreGroupKicked": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "scoreGroupMuted": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "scoreReducePerMinute": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "scoreTooManyCommand": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "thresholdBan": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "thresholdWarn": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "banBehaviorRefuseReply",
+          "banBehaviorRefuseInvite",
+          "banBehaviorQuitLastPlace",
+          "banBehaviorQuitPlaceImmediately",
+          "banBehaviorQuitIfAdmin",
+          "banBehaviorQuitIfAdminSilentIfNotAdmin",
+          "thresholdWarn",
+          "thresholdBan",
+          "autoBanMinutes",
+          "scoreReducePerMinute",
+          "scoreGroupMuted",
+          "scoreGroupKicked",
+          "scoreTooManyCommand",
+          "jointScorePercentOfGroup",
+          "jointScorePercentOfInviter"
         ],
         "type": "object"
       },
@@ -858,6 +996,28 @@
         ],
         "type": "object"
       },
+      "BodyBanConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyBanConfig.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/BanConfig",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
       "BodyBaseSettingActionResp": {
         "additionalProperties": false,
         "properties": {
@@ -1136,6 +1296,28 @@
           },
           "item": {
             "$ref": "#/components/schemas/CleanupResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
+      "BodyCommandsResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyCommandsResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/CommandsResp",
             "description": "响应数据项"
           }
         },
@@ -2046,6 +2228,28 @@
         ],
         "type": "object"
       },
+      "BodyPendingMessagesResp": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BodyPendingMessagesResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/PendingMessagesResp",
+            "description": "响应数据项"
+          }
+        },
+        "required": [
+          "item"
+        ],
+        "type": "object"
+      },
       "BodyPluginConfigMap": {
         "additionalProperties": false,
         "properties": {
@@ -2518,6 +2722,15 @@
       "CensorConfigBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CensorConfigBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "caseSensitive": {
             "type": "boolean"
           },
@@ -2547,6 +2760,15 @@
       "CensorDeleteFilesReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CensorDeleteFilesReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "keys": {
             "items": {
               "type": "string"
@@ -2886,6 +3108,15 @@
       "CleanupReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CleanupReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "months": {
             "format": "int64",
             "type": "integer"
@@ -2919,6 +3150,24 @@
           "logs",
           "items",
           "vacuumed"
+        ],
+        "type": "object"
+      },
+      "CommandsResp": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
         ],
         "type": "object"
       },
@@ -3160,6 +3409,15 @@
       "DebugModeResp": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/DebugModeResp.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "value": {
             "type": "boolean"
           }
@@ -3262,6 +3520,15 @@
       "DeleteLogReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/DeleteLogReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "id": {
             "format": "int64",
             "minimum": 0,
@@ -3309,6 +3576,15 @@
       "DeleteReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/DeleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "keys": {
             "items": {
               "type": "string"
@@ -3358,6 +3634,15 @@
       "EnableBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/EnableBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "enable": {
             "type": "boolean"
           }
@@ -3559,6 +3844,15 @@
       "FileBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/FileBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "filename": {
             "type": "string"
           }
@@ -3642,6 +3936,15 @@
       "FilenameReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/FilenameReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "filename": {
             "type": "string"
           }
@@ -4184,6 +4487,15 @@
       "HelpConfigBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/HelpConfigBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "aliases": {
             "additionalProperties": {
               "items": {
@@ -4278,6 +4590,15 @@
       "HelpDocUploadCompleteReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/HelpDocUploadCompleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "sessionId": {
             "type": "string"
           }
@@ -4313,6 +4634,15 @@
       "HelpDocUploadInitReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/HelpDocUploadInitReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "chunkSize": {
             "format": "int64",
             "type": "integer"
@@ -4486,6 +4816,15 @@
       "JsCheckUpdateReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsCheckUpdateReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "filename": {
             "type": "string"
           }
@@ -4528,6 +4867,15 @@
       "JsDataDeleteReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsDataDeleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "keys": {
             "items": {
               "type": "string"
@@ -4546,6 +4894,15 @@
       "JsDataSetReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsDataSetReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "key": {
             "type": "string"
           },
@@ -4562,6 +4919,15 @@
       "JsDeleteDeadConfigsReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsDeleteDeadConfigsReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "names": {
             "items": {
               "type": "string"
@@ -4580,6 +4946,15 @@
       "JsExecuteReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsExecuteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "value": {
             "type": "string"
           }
@@ -4614,6 +4989,15 @@
       "JsFilenameReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsFilenameReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "filename": {
             "type": "string"
           }
@@ -4771,6 +5155,15 @@
       "JsNameReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsNameReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "name": {
             "type": "string"
           }
@@ -4783,6 +5176,15 @@
       "JsResetConfigReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsResetConfigReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "keys": {
             "items": {
               "type": "string"
@@ -4832,6 +5234,15 @@
       "JsSetConfigsReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsSetConfigsReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "config": {
             "additionalProperties": {},
             "type": "object"
@@ -4876,6 +5287,15 @@
       "JsUpdateReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsUpdateReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "filename": {
             "type": "string"
           },
@@ -4926,6 +5346,15 @@
       "JsUploadCompleteReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsUploadCompleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "sessionId": {
             "type": "string"
           }
@@ -4957,6 +5386,15 @@
       "JsUploadInitReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/JsUploadInitReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "chunkSize": {
             "format": "int64",
             "type": "integer"
@@ -5192,6 +5630,26 @@
         ],
         "type": "object"
       },
+      "MessageItem": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "messageType": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uid",
+          "message",
+          "messageType"
+        ],
+        "type": "object"
+      },
       "MessageResponseBody": {
         "additionalProperties": false,
         "properties": {
@@ -5318,6 +5776,24 @@
         ],
         "type": "object"
       },
+      "PendingMessagesResp": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MessageItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "PlatformTreeNode": {
         "additionalProperties": false,
         "properties": {
@@ -5345,6 +5821,31 @@
           "name",
           "description",
           "methods"
+        ],
+        "type": "object"
+      },
+      "PostMessageReqBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/PostMessageReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "mode"
         ],
         "type": "object"
       },
@@ -5525,6 +6026,15 @@
       "ReplyConfig": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ReplyConfig.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "author": {
             "items": {
               "type": "string"
@@ -5698,727 +6208,21 @@
       "ReplyModuleConfig": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ReplyModuleConfig.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "customReplyConfigEnable": {
             "type": "boolean"
           }
         },
         "required": [
           "customReplyConfigEnable"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperAdvancedConfig": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperAdvancedConfig.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/AdvancedConfig"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperBackupBatchDeleteReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperBackupBatchDeleteReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/BackupBatchDeleteReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperCensorConfigBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperCensorConfigBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/CensorConfigBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperCensorDeleteFilesReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperCensorDeleteFilesReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/CensorDeleteFilesReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperCleanupReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperCleanupReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/CleanupReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperDebugModeResp": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperDebugModeResp.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/DebugModeResp"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperDeleteLogReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperDeleteLogReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/DeleteLogReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperDeleteReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperDeleteReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/DeleteReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperEnableBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperEnableBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/EnableBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperFileBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperFileBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/FileBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperFilenameReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperFilenameReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/FilenameReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperHelpConfigBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperHelpConfigBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HelpConfigBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperHelpDocUploadCompleteReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperHelpDocUploadCompleteReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HelpDocUploadCompleteReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperHelpDocUploadInitReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperHelpDocUploadInitReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/HelpDocUploadInitReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsCheckUpdateReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsCheckUpdateReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsCheckUpdateReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsDataDeleteReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsDataDeleteReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsDataDeleteReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsDataSetReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsDataSetReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsDataSetReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsDeleteDeadConfigsReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsDeleteDeadConfigsReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsDeleteDeadConfigsReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsExecuteReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsExecuteReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsExecuteReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsFilenameReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsFilenameReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsFilenameReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsNameReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsNameReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsNameReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsResetConfigReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsResetConfigReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsResetConfigReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsSetConfigsReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsSetConfigsReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsSetConfigsReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsUpdateReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsUpdateReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsUpdateReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsUploadCompleteReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsUploadCompleteReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsUploadCompleteReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperJsUploadInitReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperJsUploadInitReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/JsUploadInitReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperMapStringInterface {}": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperMapStringInterface {}.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "additionalProperties": {},
-            "type": "object"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperReplyConfig": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperReplyConfig.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/ReplyConfig"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperReplyModuleConfig": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperReplyModuleConfig.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/ReplyModuleConfig"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperSaveCategoryBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperSaveCategoryBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/SaveCategoryBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperUpdateReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperUpdateReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/UpdateReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperUploadCompleteReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperUploadCompleteReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/UploadCompleteReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperUploadInitReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperUploadInitReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/UploadInitReqBody"
-          }
-        },
-        "required": [
-          "body"
-        ],
-        "type": "object"
-      },
-      "RequestWrapperUploadLogReqBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/schemas/RequestWrapperUploadLogReqBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "body": {
-            "$ref": "#/components/schemas/UploadLogReqBody"
-          }
-        },
-        "required": [
-          "body"
         ],
         "type": "object"
       },
@@ -6471,6 +6275,15 @@
       "SaveCategoryBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/SaveCategoryBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "data": {
             "additionalProperties": {
               "items": {
@@ -6903,6 +6716,15 @@
       "UpdateReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "filename": {
             "type": "string"
           },
@@ -6941,6 +6763,15 @@
       "UploadCompleteReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UploadCompleteReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "sessionId": {
             "type": "string"
           }
@@ -6973,6 +6804,15 @@
       "UploadInitReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UploadInitReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "chunkSize": {
             "format": "int64",
             "type": "integer"
@@ -6999,6 +6839,15 @@
       "UploadLogReqBody": {
         "additionalProperties": false,
         "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UploadLogReqBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
           "force": {
             "type": "boolean"
           },
@@ -7557,6 +7406,48 @@
         ]
       }
     },
+    "/sd-api/v2/ban/add": {
+      "post": {
+        "description": "添加黑白名单条目",
+        "operationId": "post-sd-api-v2-ban-add",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddReqBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySimpleOK"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 ban add",
+        "tags": [
+          "ban"
+        ]
+      }
+    },
     "/sd-api/v2/ban/batch/delete": {
       "post": {
         "description": "批量删除黑白名单条目",
@@ -7594,6 +7485,78 @@
           }
         },
         "summary": "Post sd API v2 ban batch delete",
+        "tags": [
+          "ban"
+        ]
+      }
+    },
+    "/sd-api/v2/ban/config": {
+      "get": {
+        "description": "获取拉黑设置",
+        "operationId": "get-sd-api-v2-ban-config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyBanConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get sd API v2 ban config",
+        "tags": [
+          "ban"
+        ]
+      },
+      "put": {
+        "description": "保存拉黑设置",
+        "operationId": "put-sd-api-v2-ban-config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BanConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyBanConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Put sd API v2 ban config",
         "tags": [
           "ban"
         ]
@@ -7654,6 +7617,63 @@
           }
         },
         "summary": "Get sd API v2 ban export",
+        "tags": [
+          "ban"
+        ]
+      }
+    },
+    "/sd-api/v2/ban/import": {
+      "post": {
+        "description": "导入黑白名单 JSON",
+        "operationId": "post-sd-api-v2-ban-import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "application/octet-stream"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySimpleOK"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Post sd API v2 ban import",
         "tags": [
           "ban"
         ]
@@ -7860,7 +7880,8 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperMapStringInterface {}"
+                "additionalProperties": {},
+                "type": "object"
               }
             }
           },
@@ -8102,7 +8123,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperCensorConfigBody"
+                "$ref": "#/components/schemas/CensorConfigBody"
               }
             }
           },
@@ -8144,7 +8165,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperCensorDeleteFilesReqBody"
+                "$ref": "#/components/schemas/CensorDeleteFilesReqBody"
               }
             }
           },
@@ -8550,7 +8571,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperAdvancedConfig"
+                "$ref": "#/components/schemas/AdvancedConfig"
               }
             }
           },
@@ -8622,7 +8643,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperReplyModuleConfig"
+                "$ref": "#/components/schemas/ReplyModuleConfig"
               }
             }
           },
@@ -8694,7 +8715,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperDebugModeResp"
+                "$ref": "#/components/schemas/DebugModeResp"
               }
             }
           },
@@ -8810,7 +8831,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperFileBody"
+                "$ref": "#/components/schemas/FileBody"
               }
             }
           },
@@ -8999,7 +9020,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperReplyConfig"
+                "$ref": "#/components/schemas/ReplyConfig"
               }
             }
           },
@@ -9238,7 +9259,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperSaveCategoryBody"
+                "$ref": "#/components/schemas/SaveCategoryBody"
               }
             }
           },
@@ -9322,7 +9343,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperFilenameReqBody"
+                "$ref": "#/components/schemas/FilenameReqBody"
               }
             }
           },
@@ -9364,7 +9385,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperFilenameReqBody"
+                "$ref": "#/components/schemas/FilenameReqBody"
               }
             }
           },
@@ -9514,7 +9535,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperUpdateReqBody"
+                "$ref": "#/components/schemas/UpdateReqBody"
               }
             }
           },
@@ -9613,7 +9634,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperUploadCompleteReqBody"
+                "$ref": "#/components/schemas/UploadCompleteReqBody"
               }
             }
           },
@@ -9655,7 +9676,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperUploadInitReqBody"
+                "$ref": "#/components/schemas/UploadInitReqBody"
               }
             }
           },
@@ -10081,7 +10102,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperHelpConfigBody"
+                "$ref": "#/components/schemas/HelpConfigBody"
               }
             }
           },
@@ -10123,7 +10144,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperDeleteReqBody"
+                "$ref": "#/components/schemas/DeleteReqBody"
               }
             }
           },
@@ -10345,7 +10366,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperHelpDocUploadCompleteReqBody"
+                "$ref": "#/components/schemas/HelpDocUploadCompleteReqBody"
               }
             }
           },
@@ -10387,7 +10408,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperHelpDocUploadInitReqBody"
+                "$ref": "#/components/schemas/HelpDocUploadInitReqBody"
               }
             }
           },
@@ -10759,7 +10780,8 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperMapStringInterface {}"
+                "additionalProperties": {},
+                "type": "object"
               }
             }
           },
@@ -10853,7 +10875,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperEnableBody"
+                "$ref": "#/components/schemas/EnableBody"
               }
             }
           },
@@ -10979,7 +11001,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsCheckUpdateReqBody"
+                "$ref": "#/components/schemas/JsCheckUpdateReqBody"
               }
             }
           },
@@ -11061,7 +11083,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsSetConfigsReqBody"
+                "$ref": "#/components/schemas/JsSetConfigsReqBody"
               }
             }
           },
@@ -11103,7 +11125,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsResetConfigReqBody"
+                "$ref": "#/components/schemas/JsResetConfigReqBody"
               }
             }
           },
@@ -11177,7 +11199,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsDeleteDeadConfigsReqBody"
+                "$ref": "#/components/schemas/JsDeleteDeadConfigsReqBody"
               }
             }
           },
@@ -11219,7 +11241,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsFilenameReqBody"
+                "$ref": "#/components/schemas/JsFilenameReqBody"
               }
             }
           },
@@ -11261,7 +11283,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsNameReqBody"
+                "$ref": "#/components/schemas/JsNameReqBody"
               }
             }
           },
@@ -11303,7 +11325,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsNameReqBody"
+                "$ref": "#/components/schemas/JsNameReqBody"
               }
             }
           },
@@ -11345,7 +11367,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsExecuteReqBody"
+                "$ref": "#/components/schemas/JsExecuteReqBody"
               }
             }
           },
@@ -11591,7 +11613,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsUpdateReqBody"
+                "$ref": "#/components/schemas/JsUpdateReqBody"
               }
             }
           },
@@ -11690,7 +11712,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsUploadCompleteReqBody"
+                "$ref": "#/components/schemas/JsUploadCompleteReqBody"
               }
             }
           },
@@ -11732,7 +11754,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsUploadInitReqBody"
+                "$ref": "#/components/schemas/JsUploadInitReqBody"
               }
             }
           },
@@ -11944,7 +11966,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsDataSetReqBody"
+                "$ref": "#/components/schemas/JsDataSetReqBody"
               }
             }
           },
@@ -11996,7 +12018,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperJsDataDeleteReqBody"
+                "$ref": "#/components/schemas/JsDataDeleteReqBody"
               }
             }
           },
@@ -12190,7 +12212,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperBackupBatchDeleteReqBody"
+                "$ref": "#/components/schemas/BackupBatchDeleteReqBody"
               }
             }
           },
@@ -12299,7 +12321,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperCleanupReqBody"
+                "$ref": "#/components/schemas/CleanupReqBody"
               }
             }
           },
@@ -12494,7 +12516,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperDeleteLogReqBody"
+                "$ref": "#/components/schemas/DeleteLogReqBody"
               }
             }
           },
@@ -12622,7 +12644,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestWrapperUploadLogReqBody"
+                "$ref": "#/components/schemas/UploadLogReqBody"
               }
             }
           },
@@ -12653,6 +12675,112 @@
         "summary": "Post sd API v2 story upload log",
         "tags": [
           "story"
+        ]
+      }
+    },
+    "/sd-api/v2/tool-test/commands": {
+      "get": {
+        "description": "获取指令测试命令补全列表",
+        "operationId": "get-sd-api-v2-tool-test-commands",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyCommandsResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "获取指令测试命令列表",
+        "tags": [
+          "tool-test"
+        ]
+      }
+    },
+    "/sd-api/v2/tool-test/messages": {
+      "post": {
+        "description": "发送一条指令测试消息。TODO: 后续改为接入 realtime 推送，移除 pending 轮询。",
+        "operationId": "post-sd-api-v2-tool-test-messages",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMessageReqBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodySimpleOK"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "发送指令测试消息",
+        "tags": [
+          "tool-test"
+        ]
+      }
+    },
+    "/sd-api/v2/tool-test/messages/pending": {
+      "get": {
+        "description": "获取并清空指令测试待收取消息",
+        "operationId": "get-sd-api-v2-tool-test-messages-pending",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BodyPendingMessagesResp"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "获取指令测试待收取消息",
+        "tags": [
+          "tool-test"
         ]
       }
     }

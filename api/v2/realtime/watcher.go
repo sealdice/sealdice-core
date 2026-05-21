@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"sync"
 
-	imconnm "sealdice-core/api/v2/model/imconnection"
+	imconnm "sealdice-core/api/v2/imconnection"
 	"sealdice-core/dice"
 )
 

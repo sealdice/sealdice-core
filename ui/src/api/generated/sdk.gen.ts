@@ -29,6 +29,9 @@ import type {
   GetSdApiV2BackupListData,
   GetSdApiV2BackupListErrors,
   GetSdApiV2BackupListResponses,
+  GetSdApiV2BanConfigData,
+  GetSdApiV2BanConfigErrors,
+  GetSdApiV2BanConfigResponses,
   GetSdApiV2BanExportData,
   GetSdApiV2BanExportErrors,
   GetSdApiV2BanExportResponses,
@@ -188,6 +191,12 @@ import type {
   GetSdApiV2StoryLogsPageData,
   GetSdApiV2StoryLogsPageErrors,
   GetSdApiV2StoryLogsPageResponses,
+  GetSdApiV2ToolTestCommandsData,
+  GetSdApiV2ToolTestCommandsErrors,
+  GetSdApiV2ToolTestCommandsResponses,
+  GetSdApiV2ToolTestMessagesPendingData,
+  GetSdApiV2ToolTestMessagesPendingErrors,
+  GetSdApiV2ToolTestMessagesPendingResponses,
   PostSdApiV2BackupBatchDeleteData,
   PostSdApiV2BackupBatchDeleteErrors,
   PostSdApiV2BackupBatchDeleteResponses,
@@ -200,12 +209,18 @@ import type {
   PostSdApiV2BackupExecData,
   PostSdApiV2BackupExecErrors,
   PostSdApiV2BackupExecResponses,
+  PostSdApiV2BanAddData,
+  PostSdApiV2BanAddErrors,
+  PostSdApiV2BanAddResponses,
   PostSdApiV2BanBatchDeleteData,
   PostSdApiV2BanBatchDeleteErrors,
   PostSdApiV2BanBatchDeleteResponses,
   PostSdApiV2BanDeleteData,
   PostSdApiV2BanDeleteErrors,
   PostSdApiV2BanDeleteResponses,
+  PostSdApiV2BanImportData,
+  PostSdApiV2BanImportErrors,
+  PostSdApiV2BanImportResponses,
   PostSdApiV2BanListData,
   PostSdApiV2BanListErrors,
   PostSdApiV2BanListResponses,
@@ -353,6 +368,12 @@ import type {
   PostSdApiV2StoryUploadLogData,
   PostSdApiV2StoryUploadLogErrors,
   PostSdApiV2StoryUploadLogResponses,
+  PostSdApiV2ToolTestMessagesData,
+  PostSdApiV2ToolTestMessagesErrors,
+  PostSdApiV2ToolTestMessagesResponses,
+  PutSdApiV2BanConfigData,
+  PutSdApiV2BanConfigErrors,
+  PutSdApiV2BanConfigResponses,
   PutSdApiV2BaseSettingValueData,
   PutSdApiV2BaseSettingValueErrors,
   PutSdApiV2BaseSettingValueResponses,
@@ -532,6 +553,27 @@ export const getSdApiV2BackupList = <ThrowOnError extends boolean = false>(
   >({ url: '/sd-api/v2/backup/list', ...options });
 
 /**
+ * Post sd API v2 ban add
+ *
+ * 添加黑白名单条目
+ */
+export const postSdApiV2BanAdd = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2BanAddData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2BanAddResponses,
+    PostSdApiV2BanAddErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/ban/add',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
  * Post sd API v2 ban batch delete
  *
  * 批量删除黑白名单条目
@@ -545,6 +587,41 @@ export const postSdApiV2BanBatchDelete = <ThrowOnError extends boolean = false>(
     ThrowOnError
   >({
     url: '/sd-api/v2/ban/batch/delete',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Get sd API v2 ban config
+ *
+ * 获取拉黑设置
+ */
+export const getSdApiV2BanConfig = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2BanConfigData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2BanConfigResponses,
+    GetSdApiV2BanConfigErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/ban/config', ...options });
+
+/**
+ * Put sd API v2 ban config
+ *
+ * 保存拉黑设置
+ */
+export const putSdApiV2BanConfig = <ThrowOnError extends boolean = false>(
+  options: Options<PutSdApiV2BanConfigData, ThrowOnError>
+) =>
+  (options.client ?? client).put<
+    PutSdApiV2BanConfigResponses,
+    PutSdApiV2BanConfigErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/ban/config',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -586,6 +663,28 @@ export const getSdApiV2BanExport = <ThrowOnError extends boolean = false>(
     GetSdApiV2BanExportErrors,
     ThrowOnError
   >({ url: '/sd-api/v2/ban/export', ...options });
+
+/**
+ * Post sd API v2 ban import
+ *
+ * 导入黑白名单 JSON
+ */
+export const postSdApiV2BanImport = <ThrowOnError extends boolean = false>(
+  options?: Options<PostSdApiV2BanImportData, ThrowOnError>
+) =>
+  (options?.client ?? client).post<
+    PostSdApiV2BanImportResponses,
+    PostSdApiV2BanImportErrors,
+    ThrowOnError
+  >({
+    ...formDataBodySerializer,
+    url: '/sd-api/v2/ban/import',
+    ...options,
+    headers: {
+      'Content-Type': null,
+      ...options?.headers,
+    },
+  });
 
 /**
  * Post sd API v2 ban list
@@ -2590,3 +2689,52 @@ export const postSdApiV2StoryUploadLog = <ThrowOnError extends boolean = false>(
       ...options.headers,
     },
   });
+
+/**
+ * 获取指令测试命令列表
+ *
+ * 获取指令测试命令补全列表
+ */
+export const getSdApiV2ToolTestCommands = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2ToolTestCommandsData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2ToolTestCommandsResponses,
+    GetSdApiV2ToolTestCommandsErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/tool-test/commands', ...options });
+
+/**
+ * 发送指令测试消息
+ *
+ * 发送一条指令测试消息。TODO: 后续改为接入 realtime 推送，移除 pending 轮询。
+ */
+export const postSdApiV2ToolTestMessages = <ThrowOnError extends boolean = false>(
+  options: Options<PostSdApiV2ToolTestMessagesData, ThrowOnError>
+) =>
+  (options.client ?? client).post<
+    PostSdApiV2ToolTestMessagesResponses,
+    PostSdApiV2ToolTestMessagesErrors,
+    ThrowOnError
+  >({
+    url: '/sd-api/v2/tool-test/messages',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * 获取指令测试待收取消息
+ *
+ * 获取并清空指令测试待收取消息
+ */
+export const getSdApiV2ToolTestMessagesPending = <ThrowOnError extends boolean = false>(
+  options?: Options<GetSdApiV2ToolTestMessagesPendingData, ThrowOnError>
+) =>
+  (options?.client ?? client).get<
+    GetSdApiV2ToolTestMessagesPendingResponses,
+    GetSdApiV2ToolTestMessagesPendingErrors,
+    ThrowOnError
+  >({ url: '/sd-api/v2/tool-test/messages/pending', ...options });

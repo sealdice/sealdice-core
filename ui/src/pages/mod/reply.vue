@@ -717,7 +717,7 @@ watch(
 const replyConfigMutation = useMutation({
   mutationFn: async (enabled: boolean) => {
     const { data } = await putSdApiV2ConfigReply({
-      body: { body: { customReplyConfigEnable: enabled } },
+      body: { customReplyConfigEnable: enabled },
       throwOnError: true,
     });
     return data;
@@ -732,7 +732,7 @@ const saveMutation = useMutation({
     if (!currentFileDraft.value) throw new Error('missing current file draft');
     const { data } = await putSdApiV2CustomReplyFilesByFilename({
       path: { filename: selectedFilename.value },
-      body: { body: toApiReplyConfig(currentFileDraft.value) },
+      body: toApiReplyConfig(currentFileDraft.value),
       throwOnError: true,
     });
     return data;
@@ -862,7 +862,7 @@ async function createNewFile() {
   try {
     const target = newFilename.value.trim() || `reply${Math.ceil(Math.random() * 10000)}.yaml`;
     const { data } = await postSdApiV2CustomReplyFiles({
-      body: { body: { filename: target } },
+      body: { filename: target },
       throwOnError: true,
     });
     if (!data.item.success) {
