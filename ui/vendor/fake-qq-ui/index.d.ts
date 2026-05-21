@@ -1,0 +1,14 @@
+import { Plugin } from 'vue';
+import { default as QHeader } from './components/QHeader.vue';
+import { default as QMain } from './components/QMain.vue';
+import { default as QReply } from './components/QReply.vue';
+import { default as QText } from './components/QText.vue';
+import { default as QImage } from './components/QImage.vue';
+import { default as QFile } from './components/QFile.vue';
+import { default as QTip } from './components/QTip.vue';
+import { default as QVoice } from './components/QVoice.vue';
+import { default as QForward } from './components/QForward.vue';
+import { default as QTagColors } from './lib/QTagColors';
+declare const FakeQQUI: Plugin<[]>;
+export { FakeQQUI };
+export { QReply, QText, QImage, QFile, QTip, QVoice, QForward, QHeader, QMain, QTagColors };

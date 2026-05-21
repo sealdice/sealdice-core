@@ -33,6 +33,40 @@ body {
   --sd-bg-elevated-tint: rgba(255, 255, 255, 0.88);
   --sd-text-inverse-soft: rgba(255, 255, 255, 0.86);
   --sd-text-inverse-muted: rgba(255, 255, 255, 0.68);
+  --qq-background-03: var(--sd-bg-page);
+  --qq-border_standard: var(--sd-border-soft);
+  --qq-bg_bottom_light: var(--sd-bg-elevated);
+  --qq-bubble_guest: var(--sd-bg-elevated);
+  --qq-bubble_guest_text: var(--sd-text-primary);
+  --qq-fill_light_primary: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-control) 28%);
+  --qq-host_bubble_bg_css_value: var(--sd-primary);
+  --qq-host_bubble_text_link: color-mix(in srgb, var(--sd-text-inverse), transparent 22%);
+  --qq-icon_primary: var(--sd-text-primary);
+  --qq-icon_tertiary: var(--sd-text-muted);
+  --qq-on_bg_text: var(--sd-text-secondary);
+  --qq-overlay_hover: var(--sd-bg-hover);
+  --qq-overlay_hover_brand: color-mix(in srgb, var(--sd-primary), transparent 82%);
+  --qq-text-secondary-01: var(--sd-text-muted);
+  --qq-text_white: #ffffff;
+  --qq-text_link: var(--sd-primary);
+  --qq-text_primary: var(--sd-text-primary);
+  --qq-text_primary_light: color-mix(in srgb, var(--sd-text-primary), transparent 36%);
+  --qq-text_secondary: color-mix(in srgb, var(--sd-text-primary), transparent 46%);
+  --on_brand_primary: var(--sd-text-inverse);
+  --on_bubble_host_text: var(--sd-text-inverse);
+  --qq-tag_red_bg: color-mix(in srgb, var(--sd-error), transparent 82%);
+  --qq-tag_red_text: var(--sd-error);
+  --qq-tag_orange_bg: color-mix(in srgb, var(--sd-warning), transparent 82%);
+  --qq-tag_orange_text: var(--sd-warning);
+  --qq-tag_purple_bg: rgba(139, 92, 246, 0.18);
+  --qq-tag_purple_text: #8b5cf6;
+  --qq-tag_blue_bg: color-mix(in srgb, var(--sd-primary), transparent 82%);
+  --qq-tag_blue_text: var(--sd-primary);
+  --qq-tag_gray_bg: color-mix(in srgb, var(--sd-text-secondary), transparent 82%);
+  --qq-tag_gray_text: var(--sd-text-secondary);
+  --qq-tag_sage_green_bg: color-mix(in srgb, var(--sd-success), transparent 82%);
+  --qq-tag_sage_green_text: var(--sd-success);
+  --nt_blur_bottom_superlight_2_30_2_alpha: color-mix(in srgb, var(--sd-bg-elevated), transparent 24%);
 }
 
 .dark {
@@ -60,6 +94,7 @@ body {
   --sd-bg-elevated-tint: rgba(24, 33, 51, 0.92);
   --sd-text-inverse-soft: rgba(255, 255, 255, 0.9);
   --sd-text-inverse-muted: rgba(255, 255, 255, 0.7);
+  --nt_blur_bottom_superlight_2_30_2_alpha: color-mix(in srgb, var(--sd-bg-elevated), transparent 16%);
 }
 
 *,

@@ -38,6 +38,9 @@ importers:
       es-toolkit:
         specifier: ^1.39.10
         version: 1.39.10
+      fake-qq-ui:
+        specifier: file:vendor/fake-qq-ui
+        version: file:vendor/fake-qq-ui(typescript@5.8.3)
       filesize:
         specifier: ^11.0.13
         version: 11.0.13
@@ -1936,6 +1939,9 @@ packages:
 
   exsolve@1.0.8:
     resolution: {integrity: sha512-LmDxfWXwcTArk8fUEnOfSZpHOJ6zOMUJKOtFLFqJLoKJetuQG874Uc7/Kki7zFLzYybmZhp1M7+98pfMqeX8yA==}
+
+  fake-qq-ui@file:vendor/fake-qq-ui:
+    resolution: {directory: vendor/fake-qq-ui, type: directory}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -5013,6 +5019,12 @@ snapshots:
   exsolve@1.0.7: {}
 
   exsolve@1.0.8: {}
+
+  fake-qq-ui@file:vendor/fake-qq-ui(typescript@5.8.3):
+    dependencies:
+      vue: 3.5.34(typescript@5.8.3)
+    transitivePeerDependencies:
+      - typescript
 
   fast-deep-equal@3.1.3: {}
 

@@ -35,6 +35,7 @@
     "dayjs": "^1.11.18",
     "dompurify": "^3.3.0",
     "es-toolkit": "^1.39.10",
+    "fake-qq-ui": "file:vendor/fake-qq-ui",
     "filesize": "^11.0.13",
     "mitt": "^3.0.1",
     "naive-ui": "^2.43.1",

@@ -1,0 +1,21 @@
+{
+  "name": "fake-qq-ui",
+  "description": "一个全方位模仿 QQ NT 的聊天气泡样式与功能的 VUE 组件库",
+  "version": "0.3.4",
+  "type": "module",
+  "author": {
+    "name": "Redlnn",
+    "email": "npm@redlnn.top"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Redlnn/FakeQQ-UI"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "main": "./fake-qq-ui.cjs",
+  "module": "./fake-qq-ui.js",
+  "types": "./index.d.ts"
+}

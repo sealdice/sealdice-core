@@ -1,0 +1,22 @@
+html.dark {
+  --qq-background-03: #181818;
+  --qq-border_standard: #ffffff0f;
+  --qq-bg_bottom_light: #1b1b1bff;
+  --qq-bubble_guest: #262626ff;
+  --qq-bubble_guest_text: #f2f2f2ff;
+  --qq-host_bubble_bg_css_value: var(--qq-bubble_guest);
+  --qq-host_bubble_text_link: var(--qq-text_link);
+  --qq-fill_light_primary: #262626ff;
+  --qq-icon_primary: #ffffffb3;
+  --qq-icon_tertiary: #ffffff66;
+  --qq-on_bg_text: #808080ff;
+  --qq-overlay_hover: #ffffff14;
+  --qq-overlay_hover_brand: #ffffff14;
+  --qq-text_primary: #ffffffe6;
+  --qq-text_primary_light: #ffffff99;
+  --qq-text_secondary: #ffffff99;
+}
+
+html.dark {
+  --nt_blur_bottom_superlight_2_30_2_alpha: rgba(0, 0, 0, 0.3);
+}
