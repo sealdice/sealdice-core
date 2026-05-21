@@ -103,14 +103,14 @@ export const appNavigation: NavigationItem[] = [
         title: '公骰设置',
         path: '/misc/dice-public',
         icon: 'dice',
-        layout: 'default',
+        layout: 'wide',
       },
       {
         label: '备份',
         title: '备份',
         path: '/misc/backup',
         icon: 'backup',
-        layout: 'default',
+        layout: 'wide',
       },
       {
         label: '高级设置',
@@ -138,7 +138,7 @@ export const appNavigation: NavigationItem[] = [
         title: '资源管理',
         path: '/tool/resource',
         icon: 'resource',
-        layout: 'default',
+        layout: 'wide',
       },
     ],
   },
@@ -147,6 +147,6 @@ export const appNavigation: NavigationItem[] = [
     title: '关于',
     path: '/about',
     icon: 'star',
-    layout: 'default',
+    layout: 'wide',
   },
 ];

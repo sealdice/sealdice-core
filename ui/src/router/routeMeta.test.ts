@@ -13,6 +13,7 @@ assertEqual(routeMeta['/mod/js']?.layout, 'wide');
 
 assertEqual(routeMeta['/']?.layout, 'default');
 assertEqual(routeMeta['/connect']?.layout, 'default');
+assertEqual(routeMeta['/about']?.layout, 'wide');
 
 const expectedRouteMeta = buildRouteMeta(appNavigation);
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
