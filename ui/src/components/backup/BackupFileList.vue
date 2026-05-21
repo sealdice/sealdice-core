@@ -111,7 +111,7 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
       :data="items"
       :loading="loading"
       :bordered="false"
-      :row-key="row => row.name"
+      :row-key="(row: FileItem) => row.name"
       :scroll-x="680"
       size="small"
     />
