@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import ConditionBuilder from '@/components/shared/ConditionBuilder.vue';
+import ConditionBuilder from './ConditionBuilder.vue';
 import type { ReplyCondition } from '@/features/customReply/model';
 
 const conditions = defineModel<ReplyCondition[]>({ required: true });

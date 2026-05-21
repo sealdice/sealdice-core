@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import CustomTextBox from '@/components/shared/CustomTextBox.vue';
+import CustomTextBox from './CustomTextBox.vue';
 import CustomTextEntryCard from './CustomTextEntryCard.vue';
 import CustomTextFilterBar from './CustomTextFilterBar.vue';
 import CustomTextHelp from './CustomTextHelp.vue';

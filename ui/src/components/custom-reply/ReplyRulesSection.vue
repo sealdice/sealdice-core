@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import NestedRuleEditor from '@/components/shared/NestedRuleEditor.vue';
+import NestedRuleEditor from './NestedRuleEditor.vue';
 import type { ReplyTask } from '@/features/customReply/model';
 
 const rules = defineModel<ReplyTask[]>({ required: true });

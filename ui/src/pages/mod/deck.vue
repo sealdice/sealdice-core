@@ -10,13 +10,11 @@ import {
   postSdApiV2DeckDelete,
   postSdApiV2DeckReload,
   postSdApiV2DeckUpdate,
+  postSdApiV2DeckUploadComplete,
+  postSdApiV2DeckUploadInit,
   type DeckItem,
   type UpdateCheckResult,
 } from '@/api';
-import {
-  postSdApiV2DeckUploadComplete,
-  postSdApiV2DeckUploadInit,
-} from '@/api/generated';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { getApiBaseUrl } from '@/api/config';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';

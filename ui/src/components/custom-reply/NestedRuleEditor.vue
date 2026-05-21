@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
-import draggable from 'vuedraggable';
+import { VueDraggableNext } from 'vue-draggable-next';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import ConditionBuilder from './ConditionBuilder.vue';
 
@@ -124,7 +124,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
 </script>
 
 <template>
-  <draggable
+  <VueDraggableNext
     class="drag-area"
     tag="div"
     :list="tasks"
@@ -293,7 +293,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
         </div>
       </article>
     </template>
-  </draggable>
+  </VueDraggableNext>
 </template>
 
 <style scoped>
