@@ -309,6 +309,10 @@ function retryTask(task: ResumableUploadTask) {
   padding-bottom: 2rem;
 }
 
+.helpdoc-tabs :deep(.n-tabs-nav-scroll-content) {
+  min-width: max-content;
+}
+
 :deep(.help-content-preview) {
   display: inline-block;
   max-width: 30rem;
@@ -316,5 +320,17 @@ function retryTask(task: ResumableUploadTask) {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
+}
+
+@media screen and (max-width: 639.9px) {
+  .helpdoc-tabs :deep(.n-tabs-nav-scroll-content) {
+    justify-content: flex-start !important;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>

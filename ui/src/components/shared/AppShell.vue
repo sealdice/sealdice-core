@@ -2,7 +2,7 @@
 import { defineAsyncComponent, nextTick, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/core';
 import { useDialog, useMessage } from 'naive-ui';
-import { getAppShellContentClass, type AppShellContentMode } from './appShellLayout';
+import { getAppShellContentClass, getAppShellDrawerWidth, type AppShellContentMode } from './appShellLayout';
 import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
@@ -140,7 +140,7 @@ void authSession.tryDefaultSignin();
     <n-drawer
       v-model:show="drawerMenu"
       class="sd-drawer"
-      default-width="50%"
+      :default-width="getAppShellDrawerWidth()"
       placement="left"
     >
       <n-drawer-content body-content-style="padding: 0;" :native-scrollbar="false">

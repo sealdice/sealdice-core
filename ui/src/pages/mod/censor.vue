@@ -196,7 +196,7 @@ function refreshLogs() {
     </n-affix>
 
     <template v-if="censorEnable">
-      <n-tabs v-model:value="tab" justify-content="space-evenly">
+      <n-tabs v-model:value="tab" justify-content="space-evenly" class="censor-tabs">
         <n-tab-pane tab="拦截设置" name="setting">
           <n-spin :show="configQuery.isFetching.value">
             <CensorConfigView
@@ -241,5 +241,15 @@ function refreshLogs() {
 <style scoped>
 .censor-page {
   width: 100%;
+}
+
+.censor-tabs :deep(.n-tabs-nav-scroll-content) {
+  min-width: max-content;
+}
+
+@media screen and (max-width: 639.9px) {
+  .censor-tabs :deep(.n-tabs-nav-scroll-content) {
+    justify-content: flex-start !important;
+  }
 }
 </style>

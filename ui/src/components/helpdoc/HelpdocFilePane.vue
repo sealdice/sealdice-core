@@ -228,4 +228,24 @@ function getTaskStatusType(task: ResumableUploadTask) {
 .upload-error {
   color: #ef4444;
 }
+
+@media screen and (max-width: 639.9px) {
+  .helpdoc-action-block :deep(.n-flex),
+  .upload-panel-head,
+  .upload-item-head,
+  .upload-detail {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .file-tree-title {
+    gap: 0.75rem;
+    padding-left: 0;
+  }
+
+  .upload-meta {
+    display: block;
+    margin-left: 0;
+  }
+}
 </style>

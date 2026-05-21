@@ -14,25 +14,31 @@ const columns: DataTableColumns<CensorFileInfo> = [
   {
     title: '文件名',
     key: 'name',
+    minWidth: 180,
+    ellipsis: { tooltip: true },
   },
   {
     title: () => <CensorSensitiveTag level={1} />,
     key: 'count[1]',
+    minWidth: 82,
     render: row => row.count?.[1] ?? 0,
   },
   {
     title: () => <CensorSensitiveTag level={2} />,
     key: 'count[2]',
+    minWidth: 82,
     render: row => row.count?.[2] ?? 0,
   },
   {
     title: () => <CensorSensitiveTag level={3} />,
     key: 'count[3]',
+    minWidth: 82,
     render: row => row.count?.[3] ?? 0,
   },
   {
     title: () => <CensorSensitiveTag level={4} />,
     key: 'count[4]',
+    minWidth: 82,
     render: row => row.count?.[4] ?? 0,
   },
 ];
@@ -49,7 +55,7 @@ async function handleUpload(options: UploadCustomRequestOptions) {
 
 <template>
   <h4>词库列表</h4>
-  <header class="page-header">
+  <header class="censor-files-header">
     <n-upload
       action=""
       multiple
@@ -64,7 +70,7 @@ async function handleUpload(options: UploadCustomRequestOptions) {
         导入
       </n-button>
     </n-upload>
-    <n-flex>
+    <n-flex class="censor-files-template-actions">
       <n-button type="primary" size="tiny" text @click="downloadTomlTemplate">
         <template #icon>
           <n-icon><i-carbon-download /></n-icon>
@@ -80,6 +86,24 @@ async function handleUpload(options: UploadCustomRequestOptions) {
     </n-flex>
   </header>
   <main class="mt-4">
-    <n-data-table :columns="columns" :data="files" />
+    <n-data-table :columns="columns" :data="files" :scroll-x="520" />
   </main>
 </template>
+
+<style scoped>
+.censor-files-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media screen and (max-width: 639.9px) {
+  .censor-files-header,
+  .censor-files-template-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

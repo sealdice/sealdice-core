@@ -1,5 +1,5 @@
 <template>
-  <header class="flex items-center">
+  <header class="censor-config-header">
     <n-button type="info" secondary :loading="saving" @click="emit('save')">
       <template #icon>
         <i-carbon-save />
@@ -68,7 +68,7 @@
           判断敏感词时，忽略过滤字符。如敏感词为 "114514"，指定过滤字符为空白，则 "114&nbsp;&nbsp;&nbsp;514" 也会命中敏感词。
         </n-tooltip>
       </template>
-      <n-input v-model:value="config.filterRegex" placeholder="" style="width: 12rem" />
+      <n-input v-model:value="config.filterRegex" placeholder="" class="censor-regex-input" />
     </n-form-item>
   </n-form>
 
@@ -185,3 +185,22 @@ const LevelConfigEditor = defineComponent({
   },
 });
 </script>
+
+<style scoped>
+.censor-config-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.censor-regex-input {
+  width: min(100%, 12rem);
+}
+
+@media screen and (max-width: 639.9px) {
+  .censor-regex-input {
+    width: 100%;
+  }
+}
+</style>

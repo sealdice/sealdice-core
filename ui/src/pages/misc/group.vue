@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -33,6 +34,8 @@ type QuitAction =
   | { mode: 'batch'; count: number; groupIds: string[] };
 
 const message = useMessage();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('md');
 
 const listQuery = reactive({
   page: 1,
@@ -287,7 +290,7 @@ onMounted(async () => {
           <n-input-number v-model:value="listQuery.queryUnusedDays" size="small" :min="0" placeholder="未使用天数" />
         </div>
 
-        <n-flex size="small" align="center" class="group-tools">
+        <n-flex size="small" align="center" class="group-tools" wrap>
           <n-switch v-model:value="listQuery.isLogging" />
           <n-text depth="3" class="tool-label">仅记录日志</n-text>
           <n-switch v-model:value="listQuery.orderByLastTime" />
@@ -341,7 +344,7 @@ onMounted(async () => {
             </n-flex>
           </template>
 
-          <n-descriptions label-placement="left" size="small" :column="3" bordered>
+          <n-descriptions label-placement="left" size="small" :column="isMobile ? 1 : 3" bordered>
             <n-descriptions-item label="上次使用">{{ recentText(group.recentDiceSendTime) }}</n-descriptions-item>
             <n-descriptions-item label="入群时间">{{ group.enteredTime ? recentText(group.enteredTime) : '未知' }}</n-descriptions-item>
             <n-descriptions-item label="邀请人">{{ group.inviteUserId || '未知' }}</n-descriptions-item>
@@ -374,7 +377,7 @@ onMounted(async () => {
           v-model:page-size="listQuery.pageSize"
           show-size-picker
           :page-sizes="[10, 20, 30, 50]"
-          :page-slot="5"
+          :page-slot="isMobile ? 3 : 5"
           :item-count="total"
           @update:page="handlePageChange"
           @update:page-size="handlePageSizeChange"
@@ -510,6 +513,14 @@ onMounted(async () => {
   .group-tools,
   .group-meta-right {
     margin-left: 0;
+  }
+
+  .group-id {
+    max-width: 100%;
+  }
+
+  .group-pagination-block {
+    justify-content: flex-start;
   }
 }
 </style>

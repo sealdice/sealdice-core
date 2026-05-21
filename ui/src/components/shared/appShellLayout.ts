@@ -7,3 +7,7 @@ export function getAppShellContentClass(mode: AppShellContentMode): string {
     ? 'sd-main-container sd-main-container--wide'
     : 'sd-main-container';
 }
+
+export function getAppShellDrawerWidth(): string {
+  return 'min(320px, 86vw)';
+}

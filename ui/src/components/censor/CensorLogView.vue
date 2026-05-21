@@ -21,19 +21,22 @@ const columns: DataTableColumns<CensorLog> = [
   {
     title: '命中级别',
     key: 'highestLevel',
+    minWidth: 120,
     render: row => <CensorSensitiveTag level={row.highestLevel} />,
   },
   {
     title: '消息类型',
     key: 'msgType',
+    minWidth: 110,
     render: row => <n-text>{formatCensorMessageType(row.msgType)}</n-text>,
   },
-  { title: '用户', key: 'userId' },
-  { title: '群', key: 'groupId' },
-  { title: '内容', key: 'content' },
+  { title: '用户', key: 'userId', minWidth: 130, ellipsis: { tooltip: true } },
+  { title: '群', key: 'groupId', minWidth: 130, ellipsis: { tooltip: true } },
+  { title: '内容', key: 'content', minWidth: 280, ellipsis: { tooltip: true } },
   {
     title: '消息时间',
     key: 'createdAt',
+    minWidth: 170,
     render: row => <>{formatCensorLogTime(row.createdAt)}</>,
   },
 ];
@@ -53,12 +56,12 @@ const columns: DataTableColumns<CensorLog> = [
         v-model:page="query.pageNum"
         v-model:page-size="query.pageSize"
         :item-count="total"
-        :page-slot="5"
+        :page-slot="3"
         :default-page-size="20"
       />
     </header>
     <n-spin :show="loading">
-      <n-data-table :columns="columns" :data="logs" class="mt-4" />
+      <n-data-table :columns="columns" :data="logs" class="mt-4" :scroll-x="940" />
     </n-spin>
   </div>
 </template>

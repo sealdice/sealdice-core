@@ -58,13 +58,13 @@ defineExpose({ open, close });
       'shadow-sm hover:shadow-md transition-shadow': shadow === 'hover',
     }">
     <template v-if="!errText">
-      <header :class="compact ? 'flex items-center justify-between' : 'flex flex-col gap-4'">
-        <div class="flex items-center justify-between">
-          <div class="mr-2 min-w-0">
+      <header :class="compact ? 'foldable-card-header foldable-card-header--compact' : 'foldable-card-header'">
+        <div class="foldable-card-title-row">
+          <div class="foldable-card-title">
             <slot name="title" />
           </div>
-          <div class="flex items-center gap-2">
-            <div class="flex flex-wrap justify-end gap-2">
+          <div class="foldable-card-title-actions">
+            <div class="foldable-card-title-extra">
               <slot name="title-extra" />
             </div>
             <n-button text size="small" @click="folded = !folded">
@@ -75,11 +75,11 @@ defineExpose({ open, close });
           </div>
         </div>
 
-        <div v-if="!compact" class="flex items-center justify-between gap-2">
-          <div class="flex">
+        <div v-if="!compact" class="foldable-card-secondary-row">
+          <div class="foldable-card-description">
             <slot name="description" />
           </div>
-          <div class="ml-auto mr-10 flex items-center justify-end">
+          <div class="foldable-card-actions">
             <slot name="action" />
           </div>
         </div>
@@ -126,13 +126,13 @@ defineExpose({ open, close });
 
   <div v-else>
     <template v-if="!errText">
-      <header :class="compact ? 'flex items-center justify-between' : 'flex flex-col gap-1'">
-        <div class="flex items-center justify-between">
-          <div class="mr-2 min-w-0">
+      <header :class="compact ? 'foldable-card-header foldable-card-header--compact' : 'foldable-card-header foldable-card-header--tight'">
+        <div class="foldable-card-title-row">
+          <div class="foldable-card-title">
             <slot name="title" />
           </div>
-          <div class="flex items-center gap-2">
-            <div class="flex flex-wrap justify-end gap-2">
+          <div class="foldable-card-title-actions">
+            <div class="foldable-card-title-extra">
               <slot name="title-extra" />
             </div>
             <n-button text size="small" @click="folded = !folded">
@@ -143,11 +143,11 @@ defineExpose({ open, close });
           </div>
         </div>
 
-        <div v-if="!compact" class="flex items-center justify-between gap-2">
-          <div class="flex">
+        <div v-if="!compact" class="foldable-card-secondary-row">
+          <div class="foldable-card-description">
             <slot name="description" />
           </div>
-          <div class="ml-auto mr-10 flex items-center justify-end">
+          <div class="foldable-card-actions">
             <slot name="action" />
           </div>
         </div>
@@ -192,3 +192,90 @@ defineExpose({ open, close });
     </template>
   </div>
 </template>
+
+<style scoped>
+.foldable-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.foldable-card-header--compact {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.foldable-card-header--tight {
+  gap: 0.25rem;
+}
+
+.foldable-card-title-row,
+.foldable-card-secondary-row,
+.foldable-card-title-actions,
+.foldable-card-title-extra,
+.foldable-card-description,
+.foldable-card-actions {
+  display: flex;
+  min-width: 0;
+}
+
+.foldable-card-title-row,
+.foldable-card-secondary-row {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.foldable-card-title {
+  min-width: 0;
+  margin-right: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.foldable-card-title-actions {
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.foldable-card-title-extra {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.foldable-card-description {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.foldable-card-actions {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  margin-left: auto;
+  padding-right: 2.5rem;
+}
+
+@media screen and (max-width: 639.9px) {
+  .foldable-card-header--compact,
+  .foldable-card-title-row,
+  .foldable-card-secondary-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .foldable-card-title-actions,
+  .foldable-card-title-extra,
+  .foldable-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .foldable-card-actions {
+    margin-left: 0;
+    padding-right: 0;
+  }
+}
+</style>
