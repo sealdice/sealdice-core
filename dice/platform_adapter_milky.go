@@ -718,6 +718,11 @@ func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 			_ = pa.IntentSession.Close()
 		}
 		BuiltinMilkyClientKill(pa.Session.Parent, pa.EndPoint)
+		pa.EndPoint.State = 0
+		pa.EndPoint.Enable = false
+		d := pa.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
 	}
 }
 

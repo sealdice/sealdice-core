@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -147,7 +148,7 @@ func (m *HelpManager) Close() {
 	m.searchEngine.Close()
 }
 
-func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
+func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	log := logger.M()
 	_ = os.RemoveAll("./data/_index") // 删除旧索引
 
@@ -293,6 +294,51 @@ func (m *HelpManager) Load(internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	err = m.AddItemApply(false)
 	if err != nil {
 		log.Errorf("加载用户自定义帮助文档出现异常!: %v", err)
+	}
+
+	if dice != nil && dice.PackageManager != nil {
+		helpdocFiles := dice.PackageManager.GetEnabledContentFiles("helpdoc")
+		for _, child := range buildPackageHelpDocTree(helpdocFiles) {
+			_ = traverseHelpDocTree(child, func(d *HelpDoc) error {
+				if d.IsDir {
+					return nil
+				}
+				filePath := filepath.Clean(d.Path)
+				hash, size, hashErr := computeHelpFileHash(filePath)
+				if hashErr != nil {
+					d.LoadStatus = LoadError
+					return hashErr
+				}
+				newMeta.Files[filePath] = HelpFileMeta{
+					Hash:  hash,
+					Size:  size,
+					Group: d.Group,
+				}
+				oldMeta, okOld := indexMeta.Files[filePath]
+				if okOld && oldMeta.Hash == hash && oldMeta.Size == size && oldMeta.Group == d.Group {
+					d.LoadStatus = Loaded
+					return nil
+				}
+				if m.searchEngine != nil {
+					delErr := m.searchEngine.DeleteByFrom(filePath)
+					if delErr != nil {
+						log.Warnf("[帮助文档] 删除旧扩展包帮助索引失败(from=%s): %v", filePath, delErr)
+					}
+				}
+				ok := m.loadHelpDoc(d.Group, d.Path)
+				applyErr := m.AddItemApply(false)
+				if ok && applyErr == nil {
+					d.LoadStatus = Loaded
+				} else {
+					d.LoadStatus = LoadError
+				}
+				return nil
+			})
+			m.HelpDocTree = append(m.HelpDocTree, child)
+		}
+		if len(helpdocFiles) > 0 {
+			log.Infof("[帮助文档] 从扩展包加载帮助文档文件: %d", len(helpdocFiles))
+		}
 	}
 
 	if m.searchEngine != nil {
@@ -583,6 +629,16 @@ func (m *HelpManager) AddItemApply(end bool) error {
 	return nil
 }
 
+func (m *HelpManager) IsAvailable() bool {
+	if m == nil || m.searchEngine == nil {
+		return false
+	}
+	if engine, ok := m.searchEngine.(*docengine.BleveSearchEngine); ok {
+		return engine.Index != nil
+	}
+	return true
+}
+
 func (m *HelpManager) GetNumericIDCount() int {
 	return len(m.docIDs)
 }
@@ -795,6 +851,109 @@ func buildHelpDocTree(node *HelpDoc, fn func(d *HelpDoc)) {
 		// 调用处理函数
 		fn(current)
 	}
+}
+
+func buildPackageHelpDocTree(files []PackageContentFile) []*HelpDoc {
+	pkgRoot := func(file PackageContentFile) string {
+		rel := filepath.FromSlash(file.PackagePath)
+		if strings.HasSuffix(file.Path, rel) {
+			return strings.TrimSuffix(file.Path, rel)
+		}
+		return filepath.Dir(file.Path)
+	}
+
+	roots := make([]*HelpDoc, 0)
+	rootIndex := make(map[string]*HelpDoc)
+	for _, file := range files {
+		packagePath := filepath.ToSlash(file.PackagePath)
+		if !strings.HasPrefix(packagePath, "helpdoc/") {
+			continue
+		}
+		rel := strings.TrimPrefix(packagePath, "helpdoc/")
+		if rel == "" {
+			continue
+		}
+		segments := strings.Split(rel, "/")
+		if len(segments) == 1 {
+			roots = append(roots, &HelpDoc{
+				Key:        generateHelpDocKey(),
+				Name:       segments[0],
+				Path:       file.Path,
+				Group:      "default",
+				Type:       filepath.Ext(file.Path),
+				IsDir:      false,
+				LoadStatus: Unload,
+			})
+			continue
+		}
+
+		base := pkgRoot(file)
+		rootName := segments[0]
+		root := rootIndex[rootName]
+		if root == nil {
+			root = &HelpDoc{
+				Key:        generateHelpDocKey(),
+				Name:       rootName,
+				Path:       filepath.Join(base, filepath.FromSlash("helpdoc/"+rootName)),
+				Group:      rootName,
+				Type:       "dir",
+				IsDir:      true,
+				LoadStatus: Unload,
+				Children:   make([]*HelpDoc, 0),
+			}
+			rootIndex[rootName] = root
+			roots = append(roots, root)
+		}
+
+		current := root
+		for idx := 1; idx < len(segments); idx++ {
+			part := segments[idx]
+			isLast := idx == len(segments)-1
+			currentPath := filepath.Join(base, filepath.FromSlash("helpdoc/"+strings.Join(segments[:idx+1], "/")))
+			var child *HelpDoc
+			for _, existing := range current.Children {
+				if existing.Name == part {
+					child = existing
+					break
+				}
+			}
+			if child == nil {
+				child = &HelpDoc{
+					Key:        generateHelpDocKey(),
+					Name:       part,
+					Path:       currentPath,
+					Group:      root.Group,
+					IsDir:      !isLast,
+					LoadStatus: Unload,
+				}
+				if child.IsDir {
+					child.Type = "dir"
+					child.Children = make([]*HelpDoc, 0)
+				} else {
+					child.Type = filepath.Ext(child.Path)
+				}
+				current.Children = append(current.Children, child)
+			}
+			current = child
+		}
+	}
+
+	var sortNodes func(nodes []*HelpDoc)
+	sortNodes = func(nodes []*HelpDoc) {
+		sort.Slice(nodes, func(i, j int) bool {
+			if nodes[i].IsDir != nodes[j].IsDir {
+				return nodes[i].IsDir
+			}
+			return nodes[i].Name < nodes[j].Name
+		})
+		for _, node := range nodes {
+			if len(node.Children) > 0 {
+				sortNodes(node.Children)
+			}
+		}
+	}
+	sortNodes(roots)
+	return roots
 }
 
 func (m *HelpManager) UploadHelpDoc(src io.Reader, group string, name string) error {

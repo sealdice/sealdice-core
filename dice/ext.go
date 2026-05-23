@@ -435,6 +435,32 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 	return val, err
 }
 
+// GetPackageConfig 获取扩展所属包的用户配置
+// 如果扩展不属于任何包，返回空 map
+func (i *ExtInfo) GetPackageConfig() map[string]interface{} {
+	target := i.GetRealExt()
+	if target == nil {
+		return map[string]interface{}{}
+	}
+
+	// 检查是否有关联的脚本信息和包ID
+	if target.Source == nil || target.Source.PackageID == "" {
+		return map[string]interface{}{}
+	}
+
+	// 检查 dice 和 PackageManager 是否可用
+	if target.dice == nil || target.dice.PackageManager == nil {
+		return map[string]interface{}{}
+	}
+
+	config, err := target.dice.PackageManager.GetConfig(target.Source.PackageID)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+
+	return config
+}
+
 // -------------------- 群扩展状态管理 --------------------
 
 func (group *GroupInfo) ensureInactivatedSet() {
@@ -592,8 +618,7 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 			known[ext.Name] = struct{}{}
 			continue
 		}
-		// 非首次加载，根据 AutoActive 决定
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		if ext.AutoActive {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 			known[ext.Name] = struct{}{}
 		} else {
@@ -729,7 +754,7 @@ func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
 		if _, exists := known[ext.Name]; exists {
 			continue
 		}
-		if ext.AutoActive || (ext.DefaultSetting != nil && ext.DefaultSetting.AutoActive) {
+		if ext != nil && ext.AutoActive {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 		} else {
 			group.AddToInactivated(ext.Name)
