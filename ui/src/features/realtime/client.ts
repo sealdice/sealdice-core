@@ -1,5 +1,5 @@
 import { computed, ref, watch } from 'vue';
-import { getApiBaseUrl } from '@/api';
+import { getApiBaseUrl, joinApiBasePath } from '@/api';
 import { clearAccessToken, currentAccessToken, hasAccessToken } from '@/features/auth/state';
 import { queryClient } from '@/queryClient';
 
@@ -47,14 +47,14 @@ function dispatch(event: string, payload: unknown): void {
 function buildRealtimeURL(path: string): string {
   // WebSocket/EventSource 不能统一注入 Authorization header，因此实时接口使用 query token。
   // token 仍来自 features/auth/state.ts，是同一个 V2 token 源。
-  const url = new URL(path, getApiBaseUrl() || window.location.origin);
+  const url = new URL(joinApiBasePath(getApiBaseUrl() || window.location.origin, path));
   const token = currentAccessToken();
   if (token) {
     url.searchParams.set('token', token);
   }
 
   if (path.endsWith('/ws')) {
-    url.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   }
 
   return url.toString();

@@ -22,7 +22,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/etag"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofrs/flock"
@@ -34,6 +33,7 @@ import (
 	"sealdice-core/api"
 	apiv2 "sealdice-core/api/v2"
 	apiv2middleware "sealdice-core/api/v2/middleware"
+	v2ui "sealdice-core/api/v2ui"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
@@ -655,14 +655,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 		return c.Next()
 	})
 
-	e.Use("/sd-api/v2", etag.New(etag.Config{
-		Next: func(c *fiber.Ctx) bool {
-			path := c.Path()
-			return path == "/sd-api/v2/realtime/ws" ||
-				path == "/sd-api/v2/realtime/sse" ||
-				path == "/sd-api/v2/base/logs/ws"
-		},
-	}))
+	e.Use("/sd-api/v2", apiv2middleware.V2DataETagMiddleware())
 	e.Use("/sd-api/v2", apiv2middleware.PreferredCompressionMiddleware())
 
 	apier := humafiber.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
@@ -672,6 +665,13 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	legacy.HideBanner = true
 	api.BindV1(legacy, dm)
 	e.Use("/sd-api", adaptor.HTTPHandler(legacy))
+
+	v2UIRoot, err := fs.Sub(static.V2UI, "v2ui")
+	if err != nil {
+		log.Warnf("加载内置V2 UI资源失败: %v", err)
+	} else if err := v2ui.Register(e, v2UIRoot); err != nil {
+		log.Warnf("注册内置V2 UI资源失败: %v", err)
+	}
 
 	if useBuiltin {
 		frontend, _ := fs.Sub(static.Frontend, "frontend")
