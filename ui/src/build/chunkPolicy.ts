@@ -2,6 +2,12 @@ export function classifyVendorChunk(id: string): string | undefined {
   if (!id.includes('/node_modules/')) return undefined;
 
   if (
+    id.includes('/eruda/')
+  ) {
+    return 'vendor-debug';
+  }
+
+  if (
     id.includes('/vue/') ||
     id.includes('/@vue/') ||
     id.includes('/vue-router/') ||
@@ -9,6 +15,17 @@ export function classifyVendorChunk(id: string): string | undefined {
     id.includes('/@tanstack/vue-query/')
   ) {
     return 'vendor-framework';
+  }
+
+  if (id.includes('/lodash-es/')) {
+    return 'vendor-lodash';
+  }
+
+  if (
+    id.includes('/dayjs/') ||
+    id.includes('/date-fns/')
+  ) {
+    return 'vendor-date';
   }
 
   if (

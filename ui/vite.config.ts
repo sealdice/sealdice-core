@@ -1,4 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
+import tailwindcss from 'tailwindcss'
+import autoprefixer from 'autoprefixer'
+import postcssColorMix from '@csstools/postcss-color-mix-function'
 
 import { defineConfig } from 'vite'
 import VueRouter from 'vue-router/vite'
@@ -14,6 +17,8 @@ import Icons from 'unplugin-icons/vite'
 import IconsResolver from 'unplugin-icons/resolver'
 import { visualizer } from 'rollup-plugin-visualizer'
 import { classifyVendorChunk } from './src/build/chunkPolicy'
+import { resolveViteBuildOptions, resolveVitePublicBase } from './src/build/embedConfig'
+import { shouldSuppressRollupWarning } from './src/build/warningPolicy'
 
 const DEFAULT_PROXY_TARGET = 'http://localhost:3211'
 const apiProxyTarget = (
@@ -25,7 +30,7 @@ const apiProxyTarget = (
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: './',
+  base: resolveVitePublicBase(mode),
   plugins: [
     VueRouter({
       routesFolder: 'src/pages',
@@ -35,46 +40,46 @@ export default defineConfig(({ mode }) => ({
     vue(),
     vueJsx(),
     vueDevTools(),
-    // VitePWA({
-    //   registerType: 'autoUpdate',
-    //   includeAssets: ['favicon.ico', 'pwa-192.svg', 'pwa-512.svg', 'pwa-maskable.svg'],
-    //   workbox: {
-    //     globIgnores: ['**/stats.html'],
-    //   },
-    //   manifest: {
-    //     name: 'SealDice 控制台',
-    //     short_name: 'SealDice',
-    //     description: 'SealDice 核心管理控制台',
-    //     theme_color: '#0f172a',
-    //     background_color: '#0f172a',
-    //     display: 'standalone',
-    //     start_url: './',
-    //     scope: './',
-    //     icons: [
-    //       {
-    //         src: '/pwa-192.svg',
-    //         sizes: '192x192',
-    //         type: 'image/svg+xml',
-    //         purpose: 'any',
-    //       },
-    //       {
-    //         src: '/pwa-512.svg',
-    //         sizes: '512x512',
-    //         type: 'image/svg+xml',
-    //         purpose: 'any',
-    //       },
-    //       {
-    //         src: '/pwa-maskable.svg',
-    //         sizes: '512x512',
-    //         type: 'image/svg+xml',
-    //         purpose: 'maskable',
-    //       },
-    //     ],
-    //   },
-    //   devOptions: {
-    //     enabled: true,
-    //   },
-    // }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'pwa-192.svg', 'pwa-512.svg', 'pwa-maskable.svg'],
+      workbox: {
+        globIgnores: ['**/stats.html'],
+      },
+      manifest: {
+        name: 'SealDice 控制台',
+        short_name: 'SealDice',
+        description: 'SealDice 核心管理控制台',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
+        display: 'standalone',
+        start_url: './',
+        scope: './',
+        icons: [
+          {
+            src: './pwa-192.svg',
+            sizes: '192x192',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: './pwa-512.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: './pwa-maskable.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
     AutoImport({
       imports: [
         // 'vue', // 感觉vue自动引入有点乱，还是手动吧
@@ -109,6 +114,17 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
+    },
+  },
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss(),
+        postcssColorMix({
+          preserve: true,
+        }),
+        autoprefixer(),
+      ],
     },
   },
   server: {
@@ -147,7 +163,13 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'chrome90',
     cssTarget: 'chrome90',
+    chunkSizeWarningLimit: 650,
+    ...resolveViteBuildOptions(mode),
     rollupOptions: {
+      onwarn(warning, defaultHandler) {
+        if (shouldSuppressRollupWarning(warning)) return
+        defaultHandler(warning)
+      },
       output: {
         manualChunks: classifyVendorChunk,
       },
