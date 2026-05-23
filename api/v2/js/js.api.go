@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/dop251/goja"
+	"github.com/robfig/cron/v3"
 
 	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
@@ -54,6 +55,9 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 	})
 	huma.Get(grp, "/dead-configs", s.GetDeadConfigs, func(o *huma.Operation) {
 		o.Description = "获取死配置列表"
+	})
+	huma.Post(grp, "/cron/check", s.CheckCron, func(o *huma.Operation) {
+		o.Description = "检查Cron表达式"
 	})
 	huma.Get(grp, "/{name}/data/list", s.DataList, func(o *huma.Operation) {
 		o.Description = "获取插件KV数据分页列表"
@@ -193,6 +197,17 @@ func (s *Service) GetRecord(_ context.Context, _ *cmn.Empty) (*ExecuteItemRespon
 	}
 	outputs := s.dice.JsPrinter.RecordEnd()
 	return response.NewItemResponse(JsExecuteResp{Outputs: outputs}), nil
+}
+
+func (s *Service) CheckCron(_ context.Context, req *CheckCronReq) (*CheckCronItemResponse, error) {
+	expr := strings.TrimSpace(req.Body.Expr)
+	if expr == "" {
+		return nil, huma.Error400BadRequest("cron表达式不能为空")
+	}
+	if _, err := cron.ParseStandard(expr); err != nil {
+		return nil, huma.Error400BadRequest("cron表达式格式错误")
+	}
+	return response.NewItemResponse(JsCheckCronResp{Valid: true}), nil
 }
 
 func (s *Service) GetConfigs(_ context.Context, req *struct {

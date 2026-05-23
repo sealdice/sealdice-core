@@ -57,6 +57,14 @@ type ExecuteReq struct {
 	Body JsExecuteReqBody `json:"body"`
 }
 
+type JsCheckCronReqBody struct {
+	Expr string `json:"expr"`
+}
+
+type CheckCronReq struct {
+	Body JsCheckCronReqBody `json:"body"`
+}
+
 type JsCheckUpdateReqBody struct {
 	Filename string `json:"filename"`
 }
@@ -155,6 +163,10 @@ type JsCheckUpdateResp struct {
 	Filename     string `json:"filename,omitempty"`
 	TempFileName string `json:"tempFileName,omitempty"`
 	Err          string `json:"err,omitempty"`
+}
+
+type JsCheckCronResp struct {
+	Valid bool `json:"valid"`
 }
 
 type JsUpdateResp struct {
@@ -280,6 +292,7 @@ type APIPluginConfig struct {
 type ListItemResponse = response.ItemResponse[JsListResp]
 type StatusItemResponse = response.ItemResponse[JsStatusResp]
 type ExecuteItemResponse = response.ItemResponse[JsExecuteResp]
+type CheckCronItemResponse = response.ItemResponse[JsCheckCronResp]
 type CheckUpdateItemResponse = response.ItemResponse[JsCheckUpdateResp]
 type UpdateItemResponse = response.ItemResponse[JsUpdateResp]
 type SimpleItemResponse = response.ItemResponse[JsSimpleResult]

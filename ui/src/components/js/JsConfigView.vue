@@ -1,21 +1,26 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import {
   NCollapse,
   NCollapseItem,
   NFlex,
-  NInput,
-  NInputNumber,
-  NSelect,
-  NSwitch,
   NText,
-  NTag,
   NAlert,
   NButton,
   useDialog,
   useMessage,
 } from 'naive-ui';
-import { type ConfigItem } from '@/api';
+import { postSdApiV2JsCronCheck } from '@/api';
+import JsConfigItemEditor from '@/components/js/JsConfigItemEditor.vue';
+import {
+  buildConfigErrorKey,
+  groupPluginConfigItems,
+  isDailyTaskExpressionValid,
+  setConfigError,
+  shouldBlockConfigSave,
+  type JsConfigErrorMap,
+} from '@/features/js/configModel';
+import { getErrorMessage } from '@/features/auth/error';
 import { useJsConfig } from '@/features/js/useJsConfig';
 
 const emit = defineEmits<{
@@ -33,11 +38,14 @@ const {
 } = useJsConfig();
 
 const editedValues = ref<Record<string, Record<string, unknown>>>({});
+const configErrors = reactive<JsConfigErrorMap>({});
+const checkingKeys = ref<Record<string, boolean>>({});
 const saveAllLoading = ref(false);
 
 const hasEdits = computed(() =>
   Object.values(editedValues.value).some(item => Object.keys(item).length > 0),
 );
+const hasConfigErrors = computed(() => shouldBlockConfigSave(configErrors));
 
 watch(
   hasEdits,
@@ -54,12 +62,8 @@ function setEdited(pluginName: string, key: string, value: unknown) {
   editedValues.value[pluginName][key] = value;
 }
 
-function getItemType(item: ConfigItem): string {
-  return item.type ?? 'string';
-}
-
-function getItemVal(item: ConfigItem): unknown {
-  return item.value ?? item.defaultValue;
+function getPluginGroups(items: Parameters<typeof groupPluginConfigItems>[0]) {
+  return groupPluginConfigItems(items);
 }
 
 function handleDeleteDead(deadList: { name: string }[]) {
@@ -83,6 +87,10 @@ async function resetConfigItem(payload: { name: string; keys: string[] }) {
   }
 }
 
+async function resetSingleConfig(pluginName: string, key: string) {
+  await resetConfigItem({ name: pluginName, keys: [key] });
+}
+
 async function deleteDeadConfigs(names: string[]) {
   try {
     await deleteDeadMutation.mutateAsync(names);
@@ -97,6 +105,10 @@ async function saveAll() {
     message.info('无变更');
     return;
   }
+  if (hasConfigErrors.value) {
+    message.error('配置格式错误，请修正后再保存');
+    return;
+  }
   saveAllLoading.value = true;
   try {
     await savePluginConfigs(editedValues.value);
@@ -106,6 +118,35 @@ async function saveAll() {
     message.error('保存失败');
   } finally {
     saveAllLoading.value = false;
+  }
+}
+
+async function validateConfigValue(pluginName: string, key: string, value: string, type: string) {
+  if (type === 'task:daily') {
+    setConfigError(
+      configErrors,
+      pluginName,
+      key,
+      isDailyTaskExpressionValid(value) ? '' : '每日定时任务格式错误，应为 HH:mm',
+    );
+    return;
+  }
+  if (type !== 'task:cron') return;
+
+  const errorKey = buildConfigErrorKey(pluginName, key);
+  checkingKeys.value = { ...checkingKeys.value, [errorKey]: true };
+  try {
+    await postSdApiV2JsCronCheck({
+      body: { expr: value },
+      throwOnError: true,
+    });
+    setConfigError(configErrors, pluginName, key, '');
+  } catch (error) {
+    setConfigError(configErrors, pluginName, key, getErrorMessage(error, 'Cron 表达式格式错误'));
+  } finally {
+    const nextChecking = { ...checkingKeys.value };
+    delete nextChecking[errorKey];
+    checkingKeys.value = nextChecking;
   }
 }
 
@@ -124,56 +165,26 @@ defineExpose({
         :title="cfg.pluginName"
         :name="cfg.pluginName"
       >
-        <div v-for="item in cfg.items" :key="item.key" class="config-row">
-          <n-flex align="center" justify="space-between" wrap>
-            <n-flex align="center" size="small">
-              <n-text>{{ item.key }}</n-text>
-              <n-tag v-if="item.deprecated" size="small" type="error" :bordered="false">
-                废弃
-              </n-tag>
-            </n-flex>
-
-            <n-switch
-              v-if="getItemType(item) === 'bool' || getItemType(item) === 'boolean'"
-              size="small"
-              :value="!!getItemVal(item)"
-              @update:value="(v: boolean) => { item.value = v; setEdited(cfg.pluginName, item.key, v); }"
+        <n-tabs v-if="cfg.items.length" type="line" size="small" animated>
+          <n-tab-pane
+            v-for="group in getPluginGroups(cfg.items)"
+            :key="`${cfg.pluginName}-${group.name}`"
+            :name="group.name"
+            :tab="group.name"
+          >
+            <JsConfigItemEditor
+              v-for="item in group.items"
+              :key="item.key"
+              :item="item"
+              :plugin-name="cfg.pluginName"
+              :error-text="configErrors[buildConfigErrorKey(cfg.pluginName, item.key)]"
+              :checking="!!checkingKeys[buildConfigErrorKey(cfg.pluginName, item.key)]"
+              @change="setEdited"
+              @reset="resetSingleConfig"
+              @validate="validateConfigValue"
             />
-
-            <n-input-number
-              v-else-if="getItemType(item) === 'int' || getItemType(item) === 'float' || getItemType(item) === 'number'"
-              size="small"
-              :value="Number(getItemVal(item)) || 0"
-              class="w-40"
-              @update:value="(v: number | null) => { item.value = v; setEdited(cfg.pluginName, item.key, v); }"
-            />
-
-            <n-select
-              v-else-if="getItemType(item) === 'option' && item.option && Array.isArray(item.option)"
-              size="small"
-              :value="String(getItemVal(item))"
-              :options="(item.option as string[]).map((option: string) => ({ label: String(option), value: String(option) }))"
-              class="w-40"
-              @update:value="(v: string) => { item.value = v; setEdited(cfg.pluginName, item.key, v); }"
-            />
-
-            <n-input
-              v-else
-              size="small"
-              :value="String(getItemVal(item) ?? '')"
-              class="w-80"
-              @update:value="(v: string) => { item.value = v; setEdited(cfg.pluginName, item.key, v); }"
-            />
-
-            <n-button
-              size="tiny"
-              secondary
-              @click="resetConfigItem({ name: cfg.pluginName, keys: [item.key] })"
-            >
-              重置
-            </n-button>
-          </n-flex>
-        </div>
+          </n-tab-pane>
+        </n-tabs>
         <n-text v-if="!cfg.items.length" depth="3">无配置项</n-text>
       </n-collapse-item>
     </n-collapse>
@@ -219,15 +230,6 @@ defineExpose({
   margin-top: 0.5rem;
 }
 
-.config-row {
-  min-width: 0;
-  padding: 0.5rem 0;
-}
-
-.config-row + .config-row {
-  border-top: 1px solid var(--sd-border-soft);
-}
-
 .dead-configs-block {
   margin-top: 1rem;
 }
@@ -240,22 +242,6 @@ defineExpose({
   border-top: 1px solid var(--sd-border-soft);
 }
 
-.w-40 {
-  width: min(100%, 10rem);
-}
-
-.w-80 {
-  width: min(100%, 20rem);
-}
-
 @media screen and (max-width: 639.9px) {
-  .w-40,
-  .w-80 {
-    width: 100%;
-  }
-
-  .config-row :deep(.n-flex) {
-    align-items: flex-start;
-  }
 }
 </style>

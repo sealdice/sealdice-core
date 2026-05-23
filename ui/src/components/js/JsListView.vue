@@ -1,7 +1,6 @@
 <script setup lang="tsx">
 import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { NButton, NCheckbox, NFlex, NPagination, NTag, NText, useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { type JsInfo as JsInfoType } from '@/api';
@@ -11,8 +10,6 @@ import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
-
-dayjs.extend(relativeTime);
 
 const emit = defineEmits<{
   markNeedReload: [];
