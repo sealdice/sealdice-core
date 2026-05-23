@@ -17,6 +17,7 @@ import (
 	"sealdice-core/api/v2/helpdoc"
 	"sealdice-core/api/v2/imconnection"
 	"sealdice-core/api/v2/js"
+	"sealdice-core/api/v2/magic"
 	"sealdice-core/api/v2/middleware"
 	"sealdice-core/api/v2/realtime"
 	"sealdice-core/api/v2/resource"
@@ -196,6 +197,11 @@ func InitV2Router(api huma.API, e fiber.Router, dm *dice.DiceManager) {
 	resourceProtected.UseSimpleModifier(huma.OperationTags("resource"))
 	resourceProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
 	resourceService.RegisterProtectedRoutes(resourceProtected)
+
+	magicPublic := huma.NewGroup(api, "/sd-api/v2/magic")
+	magicPublic.UseSimpleModifier(huma.OperationTags("magic"))
+	magicService := magic.NewService()
+	magicService.RegisterRoutes(magicPublic)
 	// TODO: 后续可以在这里添加其他模块
 	// configService := config.NewConfigService(dice)
 	// protected := huma.NewGroup(api, "/sd-api/v2")

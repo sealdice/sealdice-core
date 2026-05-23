@@ -140,6 +140,13 @@ export const appNavigation: NavigationItem[] = [
         icon: 'resource',
         layout: 'wide',
       },
+      {
+        label: '数据库迁移',
+        title: '数据库迁移',
+        path: '/tool/magic',
+        icon: 'tools',
+        layout: 'wide',
+      },
     ],
   },
   {
