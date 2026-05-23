@@ -17,7 +17,8 @@ import {
   ProSelect ,
   ProDigit ,
   ProSwitch,
-  ProDateRange
+  ProDateRange,
+  ProRadioGroup
 } from 'pro-naive-ui'
 import App from './App.vue';
 import router from './router';
@@ -56,7 +57,7 @@ const app = createApp(App);
 
 // 未来考虑换掉这个玩意，现在它承担的是所有的表单，感觉可以直接封装一个而不是用这个，这个还得手动引入，真麻烦啊。
 const proNaive = create({
-  components: [ProInput, ProSelect, ProDigit, ProSwitch,ProDateRange]
+  components: [ProInput, ProSelect, ProDigit, ProSwitch,ProDateRange,ProRadioGroup]
 })
 
 app.use(proNaive)
