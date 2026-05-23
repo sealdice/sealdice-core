@@ -12,6 +12,7 @@ import (
 
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
+	"sealdice-core/dice/storylog"
 	"sealdice-core/model"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
@@ -42,6 +43,9 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 	})
 	huma.Get(grp, "/items/page", s.GetItemPage, func(o *huma.Operation) {
 		o.Description = "获取跑团日志消息分页"
+	})
+	huma.Get(grp, "/log/export-parquet", s.ExportParquet, func(o *huma.Operation) {
+		o.Description = "导出跑团日志 V1.5 Parquet 数据"
 	})
 	huma.Get(grp, "/cleanup/preview", s.PreviewCleanup, func(o *huma.Operation) {
 		o.Description = "预览跑团日志清理结果"
@@ -154,6 +158,40 @@ func (s *Service) GetItemPage(_ context.Context, req *ItemPageQuery) (*response.
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
 	return response.NewItemResponse(lines), nil
+}
+
+func (s *Service) ExportParquet(_ context.Context, req *ExportParquetQuery) (*huma.StreamResponse, error) {
+	if req.LogID == 0 {
+		return nil, huma.Error400BadRequest("缺少 logId")
+	}
+	logInfo, err := service.LogGetByID(s.dice.DBOperator, req.LogID)
+	if err != nil {
+		if errors.Is(err, service.ErrLogNotFound) {
+			return nil, huma.Error404NotFound("未找到该条日志")
+		}
+		return nil, huma.Error500InternalServerError(err.Error())
+	}
+
+	buf, err := storylog.GetLogParquetBytes(storylog.UploadEnv{
+		Db:      s.dice.DBOperator,
+		Log:     s.dice.Logger,
+		LogName: logInfo.Name,
+		GroupID: logInfo.GroupID,
+		Version: storylog.StoryVersionV105,
+	})
+	if err != nil {
+		return nil, huma.Error500InternalServerError(err.Error())
+	}
+
+	filename := fmt.Sprintf("%s_%s.parquet", logInfo.GroupID, logInfo.Name)
+	return &huma.StreamResponse{
+		Body: func(ctx huma.Context) {
+			ctx.SetHeader("Content-Type", "application/octet-stream")
+			ctx.SetHeader("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+			ctx.SetHeader("Content-Length", strconv.Itoa(buf.Len()))
+			_, _ = ctx.BodyWriter().Write(buf.Bytes())
+		},
+	}, nil
 }
 
 func (s *Service) DeleteLog(_ context.Context, req *DeleteLogReq) (*response.ItemResponse[DeleteLogResp], error) {

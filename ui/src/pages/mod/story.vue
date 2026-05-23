@@ -1,9 +1,8 @@
 <script setup lang="tsx">
-import { computed, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { NButton, NFlex, NText, useDialog, useMessage } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
@@ -23,13 +22,12 @@ import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { storyInfoQueryKey } from '@/features/story/queryKeys';
 
-dayjs.extend(relativeTime);
-
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
+const StoryPainterViewer = defineAsyncComponent(() => import('@/components/storyPainter/StoryPainterViewer.vue'));
 
 // 跑团日志页包含三类工作流：
 // 1. 日志列表与条目查看；
@@ -37,7 +35,7 @@ const isMobile = breakpoints.smaller('md');
 // 3. 旧日志清理和备份管理。
 // 数据量可能较大，所以列表和条目分页状态分开维护。
 type StoryTab = 'list' | 'cleanup' | 'backup';
-type StoryMode = 'logs' | 'items';
+type StoryMode = 'logs' | 'items' | 'painter';
 
 type LogView = StoryLogView & {
   pitch?: boolean;
@@ -89,6 +87,7 @@ const cleanupPreview = ref<{
 
 const logs = ref<LogView[]>([]);
 const itemData = ref<LogOneItem[]>([]);
+const currentPainterLog = ref<LogView | null>(null);
 const users = ref<Record<string, [string, string]>>({});
 
 const storyInfoQuery = useQuery({
@@ -321,6 +320,11 @@ function uploadLog(log: LogView, force = false) {
 }
 
 async function openItem(log: LogView) {
+  currentPainterLog.value = log;
+  mode.value = 'painter';
+}
+
+async function openRawItem(log: LogView) {
   logItemPage.value.logId = log.id;
   logItemPage.value.size = log.size ?? 0;
   logItemPage.value.pageNum = 1;
@@ -352,6 +356,7 @@ async function handleItemPageChange(value: number) {
 function closeItem() {
   itemData.value = [];
   mode.value = 'logs';
+  currentPainterLog.value = null;
   users.value = {};
 }
 
@@ -508,6 +513,7 @@ onMounted(async () => {
                 <template #action>
                   <n-flex size="small" wrap>
                     <n-button size="small" secondary @click="openItem(log)">查看</n-button>
+                    <n-button size="small" secondary @click="openRawItem(log)">分页文本</n-button>
                     <n-button size="small" type="primary" secondary @click="uploadLog(log)">
                       <template #icon>
                         <n-icon><i-carbon-upload /></n-icon>
@@ -569,6 +575,10 @@ onMounted(async () => {
               @update:page-size="handlePageSizeChange"
             />
           </div>
+        </template>
+
+        <template v-else-if="mode === 'painter' && currentPainterLog">
+          <StoryPainterViewer :log="currentPainterLog" @back="closeItem" />
         </template>
 
         <template v-else>

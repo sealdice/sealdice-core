@@ -1,8 +1,13 @@
 package story_test
 
 import (
+	"bytes"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/danielgtaylor/huma/v2/humatest"
+	"github.com/parquet-go/parquet-go"
 
 	. "sealdice-core/api/v2/story"
 	"sealdice-core/dice"
@@ -263,6 +268,71 @@ func TestUploadLogRejectsMissingID(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("UploadLog unexpectedly accepted empty id")
+	}
+}
+
+func TestExportParquetWritesV105LogWithoutUploadSideEffects(t *testing.T) {
+	svc := newTestStoryService(t)
+	now := time.Now().Unix()
+	logInfo := model.LogInfo{
+		ID:         501,
+		Name:       "parquet-log",
+		GroupID:    "QQ-Group:5",
+		CreatedAt:  now - 60,
+		UpdatedAt:  now,
+		UploadURL:  "",
+		UploadTime: 0,
+	}
+	insertStoryLogFixture(t, svc, logInfo, []model.LogOneItem{
+		{ID: 5001, GroupID: logInfo.GroupID, Nickname: "Alice", IMUserID: "u1", Time: now - 1, Message: "first", IsDice: false, CommandID: 0, UniformID: "QQ:u1"},
+		{ID: 5002, GroupID: logInfo.GroupID, Nickname: "Seal", IMUserID: "bot", Time: now, Message: "result", IsDice: true, CommandID: 1, UniformID: "QQ:bot"},
+	})
+
+	stream, err := svc.ExportParquet(t.Context(), &ExportParquetQuery{LogID: logInfo.ID})
+	if err != nil {
+		t.Fatalf("ExportParquet returned error: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx := humatest.NewContext(nil, httptest.NewRequest("GET", "/sd-api/v2/story/log/export-parquet", nil), recorder)
+	stream.Body(ctx)
+
+	if got := recorder.Header().Get("Content-Type"); got != "application/octet-stream" {
+		t.Fatalf("Content-Type = %q, want application/octet-stream", got)
+	}
+	if got := recorder.Header().Get("Content-Disposition"); got == "" {
+		t.Fatal("Content-Disposition is empty")
+	}
+
+	rows, err := parquet.Read[model.LogOneItemParquet](bytes.NewReader(recorder.Body.Bytes()), int64(recorder.Body.Len()))
+	if err != nil {
+		t.Fatalf("read parquet export: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("exported %d rows, want 2", len(rows))
+	}
+	if rows[0].Nickname != "Alice" || rows[0].IMUserID != "u1" || rows[0].Message != "first" {
+		t.Fatalf("first row = %#v", rows[0])
+	}
+	if !rows[1].IsDice || rows[1].CommandID != 1 {
+		t.Fatalf("second row = %#v", rows[1])
+	}
+
+	db := svc.Dice().DBOperator.GetLogDB(constant.READ)
+	var after model.LogInfo
+	if err := db.Where("id = ?", logInfo.ID).Take(&after).Error; err != nil {
+		t.Fatalf("reload log info: %v", err)
+	}
+	if after.UploadURL != "" || after.UploadTime != 0 {
+		t.Fatalf("export updated upload info: url=%q time=%d", after.UploadURL, after.UploadTime)
+	}
+}
+
+func TestExportParquetRejectsMissingLogID(t *testing.T) {
+	svc := newTestStoryService(t)
+	_, err := svc.ExportParquet(t.Context(), &ExportParquetQuery{LogID: 0})
+	if err == nil {
+		t.Fatal("ExportParquet unexpectedly accepted empty log id")
 	}
 }
 

@@ -55,6 +55,10 @@ type ItemPageQuery struct {
 
 type LogLinePageResp = []*model.LogOneItem
 
+type ExportParquetQuery struct {
+	LogID uint64 `query:"logId"`
+}
+
 type DeleteLogReqBody struct {
 	ID uint64 `json:"id"`
 }
