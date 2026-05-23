@@ -27,6 +27,9 @@ temp/
 
 .goreleaser.yaml
 dist/
+ui/openapi.json
+ui/src/api/generated/
+static/v2ui/dist/
 ui/dev-dist/
 go-cqhttp/
 lagrange/

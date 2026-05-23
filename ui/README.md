@@ -30,29 +30,22 @@ VITE_API_PROXY_TARGET=http://127.0.0.1:3005 pnpm dev
 
 ## 生成 API 客户端
 
-仓库已经提交 `src/api/generated/`，新 clone 后可以直接类型检查和构建。只有后端 OpenAPI 发生变化时才需要重新生成并提交生成结果。
+`openapi.json` 和 `src/api/generated/` 都是构建期产物，不提交到仓库，也不要手改。
 
-后端启动后，运行：
-
-```sh
-pnpm run generate-client
-```
-
-从后端 `/openapi.json` 生成 `src/api/generated/` 下的 TypeScript 客户端。
-
-如后端未启动，可先单独生成规范文件再生成客户端：
+本地需要刷新 API 客户端时运行：
 
 ```sh
-go run ../main.go --gen-openapi=./openapi.json
-pnpm run generate-client
+pnpm run generate-api
 ```
+
+该命令会先调用当前后端生成 `openapi.json`，再用 `@hey-api/openapi-ts` 生成 `src/api/generated/` 下的 TypeScript 客户端。正式构建命令会自动执行这一步。
 
 ## 构建与检查
 
 ```sh
 pnpm run type-check    # TypeScript 类型检查
-pnpm run build-only    # Vite 生产构建
-pnpm run build         # type-check + build
+pnpm run build-only    # Vite 生产构建，要求已存在 generated API
+pnpm run build         # generate-api + type-check + build
 pnpm run lint          # ESLint
 ```
 

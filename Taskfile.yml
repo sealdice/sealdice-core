@@ -19,6 +19,15 @@ tasks:
     deps: ['test-and-lint']
     cmds:
       - task: build-only
+  build-with-v2ui:
+    deps: ['test-and-lint']
+    cmds:
+      - mkdir -p temp
+      - go build -o temp/openapi-gen .
+      - ./temp/openapi-gen --gen-openapi=./ui/openapi.json
+      - pnpm --dir ui run generate-client
+      - pnpm --dir ui run build:embed:prepared
+      - task: build-only
   
   test-and-lint:
     deps: ['test', 'lint']

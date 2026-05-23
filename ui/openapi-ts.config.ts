@@ -1,20 +1,12 @@
 import { defineConfig } from '@hey-api/openapi-ts';
-import { existsSync } from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 const localSpecPath = path.join(configDir, 'openapi.json');
-const DEFAULT_OPENAPI_SERVER = 'http://127.0.0.1:3005';
-const openApiServer = (
-  process.env.VITE_API_PROXY_TARGET ||
-  process.env.DEV_PROXY_SERVER ||
-  process.env.VITE_API_BASE_URL ||
-  DEFAULT_OPENAPI_SERVER
-).replace(/\/+$/, '');
 
 export default defineConfig({
-  input: existsSync(localSpecPath) ? localSpecPath : `${openApiServer}/openapi.json`,
+  input: localSpecPath,
   output: {
     path: path.join(configDir, 'src/api/generated'),
     postProcess: ['prettier', 'eslint'],
