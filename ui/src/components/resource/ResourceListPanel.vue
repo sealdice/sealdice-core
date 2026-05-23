@@ -36,6 +36,7 @@ const emit = defineEmits<{
   copy: [item: ResourceItem];
   download: [item: ResourceItem];
   delete: [item: ResourceItem];
+  detail: [item: ResourceItem];
   refresh: [];
 }>();
 
@@ -145,6 +146,9 @@ const columns = computed<DataTableColumns<ResourceItem>>(() => [
       <NSpace justify='end' size='small'>
         <NButton size='small' secondary type='info' onClick={() => emit('copy', row)}>
           复制海豹码
+        </NButton>
+        <NButton size='small' secondary onClick={() => emit('detail', row)}>
+          详情
         </NButton>
         <NButton
           size='small'
@@ -265,7 +269,9 @@ async function uploadResourceFile(options: UploadCustomRequestOptions) {
     <n-spin :show="loading && isMobile">
       <div v-if="isMobile" class="resource-list-panel__cards">
         <article v-for="item in items" :key="getResourceKey(item)" class="resource-list-panel__card">
-          <ResourcePreview :item="item" thumbnail />
+          <button class="resource-list-panel__preview-button" type="button" @click="emit('detail', item)">
+            <ResourcePreview :item="item" thumbnail />
+          </button>
           <div class="resource-list-panel__card-main">
             <div class="resource-list-panel__card-title">
               <strong>{{ item.name }}</strong>
@@ -279,6 +285,9 @@ async function uploadResourceFile(options: UploadCustomRequestOptions) {
               <n-flex size="small" justify="end">
                 <n-button size="tiny" secondary type="info" @click="emit('copy', item)">
                   复制码
+                </n-button>
+                <n-button size="tiny" secondary @click="emit('detail', item)">
+                  详情
                 </n-button>
                 <n-button
                   size="tiny"
@@ -382,6 +391,13 @@ async function uploadResourceFile(options: UploadCustomRequestOptions) {
   border: 1px solid var(--sd-border-soft);
   border-radius: 16px;
   background: var(--sd-bg-elevated);
+}
+
+.resource-list-panel__preview-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .resource-list-panel__card-main {

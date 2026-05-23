@@ -6,9 +6,11 @@ const props = withDefaults(
   defineProps<{
     item: ResourceItem;
     thumbnail?: boolean;
+    size?: 'normal' | 'large';
   }>(),
   {
     thumbnail: true,
+    size: 'normal',
   },
 );
 
@@ -19,7 +21,7 @@ const { objectUrl, loading, failed } = useResourcePreview(
 </script>
 
 <template>
-  <div class="resource-preview">
+  <div class="resource-preview" :class="{ 'resource-preview--large': size === 'large' }">
     <n-skeleton v-if="loading && !objectUrl" class="resource-preview__skeleton" />
     <n-image
       v-else-if="objectUrl"
@@ -52,9 +54,21 @@ const { objectUrl, loading, failed } = useResourcePreview(
     var(--sd-bg-elevated-soft);
 }
 
+.resource-preview--large {
+  width: min(100%, 360px);
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+}
+
 .resource-preview__image {
   width: 72px;
   height: 72px;
+}
+
+.resource-preview--large .resource-preview__image {
+  width: 100%;
+  height: 100%;
 }
 
 .resource-preview__image :deep(img) {
@@ -63,9 +77,20 @@ const { objectUrl, loading, failed } = useResourcePreview(
   object-fit: cover;
 }
 
+.resource-preview--large .resource-preview__image :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .resource-preview__skeleton {
   width: 72px;
   height: 72px;
+}
+
+.resource-preview--large .resource-preview__skeleton {
+  width: 100%;
+  height: 100%;
 }
 
 .resource-preview__fallback {

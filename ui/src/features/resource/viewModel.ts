@@ -77,6 +77,10 @@ export function getResourceKey(item: ResourceItem): string {
   return item.path || item.name;
 }
 
+export function isResourceDetailAvailable(item: Pick<ResourceItem, 'path'>): boolean {
+  return item.path.trim().length > 0;
+}
+
 function normalizePage(page: number): number {
   if (!Number.isFinite(page) || page < 1) return 1;
   return Math.trunc(page);

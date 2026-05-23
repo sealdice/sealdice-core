@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { filesize } from 'filesize';
 import { useDialog, useMessage } from 'naive-ui';
 import {
   getSdApiV2ResourceDownload,
@@ -11,12 +12,14 @@ import {
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
 import ResourceListPanel from '@/components/resource/ResourceListPanel.vue';
+import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   buildResourceListQuery,
   buildSealImageCode,
   createDefaultResourceListQuery,
+  isResourceDetailAvailable,
 } from '@/features/resource/viewModel';
 
 const message = useMessage();
@@ -26,6 +29,8 @@ const queryClient = useQueryClient();
 const listQuery = reactive(createDefaultResourceListQuery());
 const deletingPath = ref('');
 const downloadingPath = ref('');
+const detailVisible = ref(false);
+const currentResource = ref<ResourceItem | null>(null);
 
 const listParams = computed(() => buildResourceListQuery(listQuery));
 
@@ -44,6 +49,7 @@ const resourceListQuery = useQuery({
 const items = computed(() => resourceListQuery.data.value?.list ?? []);
 const total = computed(() => Number(resourceListQuery.data.value?.total ?? 0));
 const currentCount = computed(() => items.value.length);
+const formatFileSize = filesize;
 const listErrorText = computed(() => (
   resourceListQuery.error.value ? getErrorMessage(resourceListQuery.error.value, '加载资源列表失败') : ''
 ));
@@ -89,14 +95,21 @@ const deleteMutation = useMutation({
       },
       throwOnError: true,
     });
-    return data.item;
+    return {
+      result: data.item,
+      resource: item,
+    };
   },
-  onSuccess: async item => {
-    if (!item.success) {
+  onSuccess: async ({ result, resource }) => {
+    if (!result.success) {
       message.error('删除失败');
       return;
     }
     message.success('资源已删除');
+    if (currentResource.value?.path === resource.path) {
+      detailVisible.value = false;
+      currentResource.value = null;
+    }
     await invalidateResourceList();
   },
   onError: error => {
@@ -168,6 +181,12 @@ async function copySealCode(item: ResourceItem) {
 function refreshList() {
   void resourceListQuery.refetch();
 }
+
+function showDetail(item: ResourceItem) {
+  if (!isResourceDetailAvailable(item)) return;
+  currentResource.value = item;
+  detailVisible.value = true;
+}
 </script>
 
 <template>
@@ -202,9 +221,50 @@ function refreshList() {
         @copy="copySealCode"
         @download="downloadResource"
         @delete="confirmDelete"
+        @detail="showDetail"
         @refresh="refreshList"
       />
     </n-card>
+
+    <n-drawer v-model:show="detailVisible" width="420" placement="right">
+      <n-drawer-content title="资源详情" closable>
+        <div v-if="currentResource" class="resource-page__detail">
+          <ResourcePreview :item="currentResource" :thumbnail="false" size="large" />
+          <n-descriptions :column="1" label-placement="left" bordered size="small">
+            <n-descriptions-item label="文件名">
+              {{ currentResource.name }}
+            </n-descriptions-item>
+            <n-descriptions-item label="路径">
+              <n-text code>{{ currentResource.path }}</n-text>
+            </n-descriptions-item>
+            <n-descriptions-item label="大小">
+              {{ formatFileSize(currentResource.size) }}
+            </n-descriptions-item>
+          </n-descriptions>
+          <n-flex size="small" justify="end" wrap>
+            <n-button secondary type="info" @click="copySealCode(currentResource)">
+              复制海豹码
+            </n-button>
+            <n-button
+              secondary
+              type="success"
+              :loading="downloadingPath === currentResource.path"
+              @click="downloadResource(currentResource)"
+            >
+              下载
+            </n-button>
+            <n-button
+              secondary
+              type="error"
+              :loading="deletingPath === currentResource.path"
+              @click="confirmDelete(currentResource)"
+            >
+              删除
+            </n-button>
+          </n-flex>
+        </div>
+      </n-drawer-content>
+    </n-drawer>
   </main>
 </template>
 
@@ -262,6 +322,12 @@ function refreshList() {
 
 .resource-page__card {
   min-width: 0;
+}
+
+.resource-page__detail {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
 }
 
 @media (max-width: 760px) {
