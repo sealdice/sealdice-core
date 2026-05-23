@@ -28,6 +28,7 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 	for _, path := range []string{
 		"/sd-api/v2/base/health",
 		"/sd-api/v2/base/login",
+		"/sd-api/v2/base/network-health",
 		"/sd-api/v2/base-setting/schema",
 		"/sd-api/v2/base-setting/value",
 		"/sd-api/v2/base-setting/mail-test",
@@ -47,6 +48,7 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/story/info",
 		"/sd-api/v2/story/logs/page",
 		"/sd-api/v2/story/items/page",
+		"/sd-api/v2/story/log/export-parquet",
 		"/sd-api/v2/story/log",
 		"/sd-api/v2/story/upload-log",
 		"/sd-api/v2/story/backup/list",
@@ -64,6 +66,7 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/js/execute",
 		"/sd-api/v2/js/record",
 		"/sd-api/v2/js/check-update",
+		"/sd-api/v2/js/cron/check",
 		"/sd-api/v2/js/update",
 		"/sd-api/v2/js/upload",
 		"/sd-api/v2/js/configs",
@@ -114,6 +117,7 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/resource/delete",
 		"/sd-api/v2/resource/download",
 		"/sd-api/v2/resource/data",
+		"/sd-api/v2/magic/source/inspect",
 	} {
 		if spec.Paths[path] == nil {
 			t.Fatalf("expected path %s in OpenAPI spec", path)
