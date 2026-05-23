@@ -16,12 +16,14 @@ import {
   ProInput ,
   ProSelect ,
   ProDigit ,
-  ProSwitch
+  ProSwitch,
+  ProDateRange
 } from 'pro-naive-ui'
 import App from './App.vue';
 import router from './router';
 
 import { setupApiClient } from './api';
+import { syncErudaFromStorage } from './features/debug/eruda';
 import { queryClient } from './queryClient';
 
 // 应用入口只负责装配全局基础设施：
@@ -46,12 +48,15 @@ document.head.appendChild(meta);
 
 // 生成客户端本身不带业务态。这里集中注入 baseUrl、token、401 清理和错误反馈。
 setupApiClient();
+void syncErudaFromStorage().catch(error => {
+  console.error('[eruda] failed to restore debug console', error);
+});
 
 const app = createApp(App);
 
-// 未来考虑换掉这个玩意，还得手动引入，真麻烦啊。
+// 未来考虑换掉这个玩意，现在它承担的是所有的表单，感觉可以直接封装一个而不是用这个，这个还得手动引入，真麻烦啊。
 const proNaive = create({
-  components: [ProInput, ProSelect, ProDigit, ProSwitch]
+  components: [ProInput, ProSelect, ProDigit, ProSwitch,ProDateRange]
 })
 
 app.use(proNaive)

@@ -1,8 +1,12 @@
 import { computed, type MaybeRefOrGetter, toValue, watchEffect } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
-import { getSdApiV2ConfigAdvancedOptions, getSdApiV2CustomTextOptions } from '@/api';
+import {
+  getSdApiV2ConfigAdvanced,
+  getSdApiV2ConfigAdvancedQueryKey,
+  getSdApiV2CustomTextOptions,
+} from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
-import { setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
+import { normalizeAdvancedConfig, setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
 import { appNavigation } from './navigation';
 import { buildNavigationTree, flattenNavigationItems } from './navigationModel';
 
@@ -12,19 +16,25 @@ export function useAppNavigation(advancedConfigCounter: MaybeRefOrGetter<number>
     enabled: hasAccessToken,
   });
   const advancedConfigQuery = useQuery({
-    ...getSdApiV2ConfigAdvancedOptions(),
+    queryKey: getSdApiV2ConfigAdvancedQueryKey(),
     enabled: hasAccessToken,
+    queryFn: async () => {
+      const { data } = await getSdApiV2ConfigAdvanced({
+        throwOnError: true,
+      });
+      return normalizeAdvancedConfig(data.item);
+    },
   });
 
   const customTextCategories = computed(() =>
     Object.keys(customTextQuery.data.value?.item.texts ?? {}),
   );
   const advancedConfigEnabled = computed(() => {
-    return toValue(advancedConfigCounter) >= 8 || advancedConfigQuery.data.value?.item.show === true;
+    return toValue(advancedConfigCounter) >= 8 || advancedConfigQuery.data.value?.show === true;
   });
 
   watchEffect(() => {
-    setAdvancedSettingsVisible(advancedConfigQuery.data.value?.item.show === true);
+    setAdvancedSettingsVisible(advancedConfigQuery.data.value?.show === true);
   });
 
   const navigationTree = computed(() =>

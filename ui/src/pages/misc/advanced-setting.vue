@@ -43,6 +43,24 @@
           <n-switch v-model:value="config.enable" />
         </n-form-item>
 
+        <h3>前端调试</h3>
+        <n-form-item label="启用 Eruda 调试面板">
+          <template #label>
+            <span>Eruda 调试面板</span>
+            <n-tooltip>
+              <template #trigger>
+                <n-icon><i-carbon-help-filled /></n-icon>
+              </template>
+              仅对当前浏览器生效，状态保存在本机，不会同步到后端。
+            </n-tooltip>
+          </template>
+          <n-switch
+            :value="erudaEnabled"
+            :loading="erudaPending"
+            @update:value="handleErudaToggle"
+          />
+        </n-form-item>
+
         <h3>自定义回复</h3>
         <n-form-item label="开启回复调试日志">
           <template #label>
@@ -116,7 +134,7 @@ import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useMessage } from 'naive-ui';
 import {
-  getSdApiV2ConfigAdvancedOptions,
+  getSdApiV2ConfigAdvanced,
   getSdApiV2ConfigAdvancedQueryKey,
   getSdApiV2CustomReplyDebugModeOptions,
   getSdApiV2CustomReplyDebugModeQueryKey,
@@ -126,7 +144,8 @@ import {
 } from '@/api';
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
-import { setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
+import { normalizeAdvancedConfig, setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
+import { isErudaEnabled, setErudaEnabled } from '@/features/debug/eruda';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
@@ -135,8 +154,14 @@ const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 
 const advancedConfigQuery = useQuery({
-  ...getSdApiV2ConfigAdvancedOptions(),
+  queryKey: getSdApiV2ConfigAdvancedQueryKey(),
   enabled: hasAccessToken,
+  queryFn: async () => {
+    const { data } = await getSdApiV2ConfigAdvanced({
+      throwOnError: true,
+    });
+    return normalizeAdvancedConfig(data.item);
+  },
 });
 const debugModeQuery = useQuery({
   ...getSdApiV2CustomReplyDebugModeOptions(),
@@ -150,6 +175,8 @@ const config = ref<AdvancedConfig>({
   storyLogApiVersion: '',
   storyLogBackendToken: '',
 });
+const erudaEnabled = ref(isErudaEnabled());
+const erudaPending = ref(false);
 const replyDebugMode = ref(false);
 const initialConfig = ref<AdvancedConfig | null>(null);
 const initialReplyDebugMode = ref(false);
@@ -159,11 +186,12 @@ const pageBusy = computed(() => {
 });
 
 watch(
-  () => advancedConfigQuery.data.value?.item,
+  () => advancedConfigQuery.data.value,
   value => {
     if (!value) return;
-    config.value = structuredClone(value);
-    initialConfig.value = structuredClone(value);
+    const next = normalizeAdvancedConfig(value);
+    config.value = next;
+    initialConfig.value = normalizeAdvancedConfig(next);
   },
   { immediate: true },
 );
@@ -206,7 +234,7 @@ const saveMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: getSdApiV2ConfigAdvancedQueryKey() });
     await queryClient.invalidateQueries({ queryKey: getSdApiV2CustomReplyDebugModeQueryKey() });
     setAdvancedSettingsVisible(config.value.show);
-    initialConfig.value = structuredClone(config.value);
+    initialConfig.value = normalizeAdvancedConfig(config.value);
     initialReplyDebugMode.value = replyDebugMode.value;
     message.success('已保存');
   },
@@ -222,6 +250,20 @@ async function save() {
 async function reload() {
   await queryClient.invalidateQueries({ queryKey: getSdApiV2ConfigAdvancedQueryKey() });
   await queryClient.invalidateQueries({ queryKey: getSdApiV2CustomReplyDebugModeQueryKey() });
+}
+
+async function handleErudaToggle(value: boolean) {
+  erudaPending.value = true;
+  try {
+    await setErudaEnabled(value);
+    erudaEnabled.value = value;
+    message.success(value ? '已开启 Eruda 调试面板' : '已关闭 Eruda 调试面板');
+  } catch {
+    erudaEnabled.value = isErudaEnabled();
+    message.error('Eruda 调试面板切换失败');
+  } finally {
+    erudaPending.value = false;
+  }
 }
 </script>
 
