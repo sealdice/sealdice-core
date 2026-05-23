@@ -143,6 +143,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/tool/magic': RouteRecordInfo<
+      '/tool/magic',
+      '/tool/magic',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/tool/resource': RouteRecordInfo<
       '/tool/resource',
       '/tool/resource',
@@ -263,6 +270,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/mod/story.vue': {
       routes:
         | '/mod/story'
+      views:
+        | never
+    }
+    'src/pages/tool/magic.vue': {
+      routes:
+        | '/tool/magic'
       views:
         | never
     }

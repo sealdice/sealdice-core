@@ -131,7 +131,7 @@ watch(
             <n-upload
               action=""
               accept=".yaml"
-              :custom-request="options => emit('upload', options)"
+              :custom-request="(options: UploadCustomRequestOptions) => emit('upload', options)"
               :show-file-list="false"
             >
               <n-button size="small" quaternary circle>

@@ -3,7 +3,6 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMessage } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
@@ -22,8 +21,6 @@ import {
   writeGroupQuitDefaultText,
 } from '@/features/group/quitPreference';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
-
-dayjs.extend(relativeTime);
 
 type GroupRow = GroupInfo & {
   selected?: boolean;

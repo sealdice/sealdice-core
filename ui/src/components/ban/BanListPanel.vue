@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import type { UploadCustomRequestOptions } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import type { BanListInfoItem } from '@/api';
@@ -13,8 +12,6 @@ import {
   cloneSearchFormValues,
   overwriteSearchFormValues,
 } from '@/features/searchForm/viewModel';
-
-dayjs.extend(relativeTime);
 
 const props = defineProps<{
   items: BanListInfoItem[];

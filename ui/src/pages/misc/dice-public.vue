@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery } from '@tanstack/vue-query';
 import type { DataTableRowKey } from 'naive-ui';
 import {
-  getSdApiV2ConfigPublicDiceOptions,
+  getSdApiV2ConfigPublicDice,
+  getSdApiV2ConfigPublicDiceQueryKey,
   putSdApiV2ConfigPublicDice,
   type PublicDiceInfoResp,
   type PublicDiceUpdateBodyWritable,
@@ -28,11 +29,17 @@ const draft = ref<PublicDiceDraft | null>(null);
 const initialDraft = ref<PublicDiceDraft | null>(null);
 
 const publicDiceQuery = useQuery({
-  ...getSdApiV2ConfigPublicDiceOptions(),
+  queryKey: getSdApiV2ConfigPublicDiceQueryKey(),
   enabled: hasAccessToken,
+  queryFn: async () => {
+    const { data } = await getSdApiV2ConfigPublicDice({
+      throwOnError: true,
+    });
+    return data.item;
+  },
 });
 
-const endpointRows = computed(() => getPublicDiceEndpointRows(publicDiceQuery.data.value?.item.endpoints));
+const endpointRows = computed(() => getPublicDiceEndpointRows(publicDiceQuery.data.value?.endpoints));
 const loadingInitial = computed(() => publicDiceQuery.isLoading.value && !draft.value);
 const contentDisabled = computed(() => !draft.value?.config.publicDiceEnable || saveMutation.isPending.value);
 const dirty = computed(() => isPublicDiceDirty(draft.value, initialDraft.value));
@@ -66,7 +73,7 @@ function syncDraft(info: PublicDiceInfoResp) {
 }
 
 watch(
-  () => publicDiceQuery.data.value?.item,
+  () => publicDiceQuery.data.value,
   value => {
     if (!value) return;
     syncDraft(value);
