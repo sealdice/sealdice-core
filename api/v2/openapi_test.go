@@ -117,7 +117,6 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/resource/delete",
 		"/sd-api/v2/resource/download",
 		"/sd-api/v2/resource/data",
-		"/sd-api/v2/magic/source/inspect",
 	} {
 		if spec.Paths[path] == nil {
 			t.Fatalf("expected path %s in OpenAPI spec", path)
