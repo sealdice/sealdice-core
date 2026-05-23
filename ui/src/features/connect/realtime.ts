@@ -3,8 +3,8 @@ import type { EndPointInfo, WorkflowResp } from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
 import { subscribeRealtimeEvent, useRealtimeClient } from '@/features/realtime/client';
 import {
-  applyConnectionList,
   applyConnectionQRCode,
+  applyConnectionSnapshot,
   applyConnectionUpdate,
   applyConnectionWorkflow,
 } from './realtimeState';
@@ -34,6 +34,26 @@ const ready = ref(false);
 
 let initialized = false;
 
+function replaceSnapshot(nextConnections?: EndPointInfo[] | null): void {
+  const nextState = applyConnectionSnapshot(
+    connections.value,
+    workflows.value,
+    qrCodes.value,
+    nextConnections ?? null,
+  );
+  connections.value = nextState.connections;
+  workflows.value = nextState.workflows;
+  qrCodes.value = nextState.qrCodes;
+  ready.value = nextState.ready;
+}
+
+function applyInitialSnapshot(nextConnections?: EndPointInfo[] | null): void {
+  // 页面可能晚于全局实时连接订阅，导致错过后端首次推送的 imconnection/list。
+  // HTTP 首屏快照只在实时快照未到达时兜底，避免覆盖后续实时增量状态。
+  if (ready.value) return;
+  replaceSnapshot(nextConnections);
+}
+
 // 连接管理页不主动轮询连接列表，而是消费全局实时事件：
 // imconnection/list 提供全量快照，updated/workflow/qrcode 提供增量变化。
 // 这样二维码登录、连接状态变化可以实时反映到页面上。
@@ -42,16 +62,7 @@ function ensureInitialized(): void {
   initialized = true;
 
   subscribeRealtimeEvent<ConnectionListPayload>('imconnection/list', (payload) => {
-    const nextState = applyConnectionList(
-      connections.value,
-      workflows.value,
-      qrCodes.value,
-      payload?.items ?? null,
-    );
-    connections.value = nextState.connections;
-    workflows.value = nextState.workflows;
-    qrCodes.value = nextState.qrCodes;
-    ready.value = true;
+    replaceSnapshot(payload?.items ?? null);
   });
 
   subscribeRealtimeEvent<ConnectionUpdatedPayload>('imconnection/updated', (payload) => {
@@ -103,6 +114,7 @@ export function useRealtimeConnections() {
     connecting: realtime.connecting,
     lastError: realtime.lastError,
     reconnect: realtime.reconnect,
+    applyInitialSnapshot,
     workflowOf: computed(() => (endpointId: string) => workflows.value[endpointId] ?? null),
     qrCodeOf: computed(() => (endpointId: string) => qrCodes.value[endpointId] ?? ''),
   };

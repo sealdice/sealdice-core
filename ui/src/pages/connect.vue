@@ -7,6 +7,7 @@ import { useDialog, useMessage, type DataTableColumns } from 'naive-ui';
 import {
   deleteSdApiV2ImconnectionById,
   getSdApiV2ImconnectionByIdConfig,
+  getSdApiV2ImconnectionOptions,
   getSdApiV2ImconnectionProtocolsOptions,
   getSdApiV2ImconnectionSchemasOptions,
   getSdApiV2ImconnectionSignInfoOptions,
@@ -28,6 +29,7 @@ import {
   validateDynamicFormModel,
   type DynamicFormModel,
 } from '@/components/shared/dynamicFormModel';
+import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { getEndpointProtocolLabel, getEndpointStateMeta } from '@/features/connect/endpointDisplay';
 import { useRealtimeConnections } from '@/features/connect/realtime';
@@ -74,6 +76,10 @@ const wizardPlatform = ref<PlatformTreeNode | null>(null);
 const wizardMethod = ref<MethodTreeNode | null>(null);
 const wizardProtocol = ref<ProtocolDefinition | null>(null);
 
+const connectionsQuery = useQuery({
+  ...getSdApiV2ImconnectionOptions(),
+  enabled: hasAccessToken,
+});
 const protocolsQuery = useQuery({
   ...getSdApiV2ImconnectionProtocolsOptions(),
   enabled: hasAccessToken,
@@ -124,8 +130,26 @@ const activeQRCode = computed(() => realtimeConnections.qrCodes.value[qrDialogEn
 const realtimeErrorText = computed(() =>
   realtimeConnections.lastError.value ? '实时连接异常，账号状态可能延迟。' : ''
 );
+const connectionsReady = computed(() =>
+  realtimeConnections.ready.value || connectionsQuery.isSuccess.value || connectionsQuery.isError.value,
+);
+const connectionsErrorText = computed(() =>
+  connectionsQuery.isError.value && !realtimeConnections.ready.value
+    ? getErrorMessage(connectionsQuery.error.value, '账号列表读取失败')
+    : ''
+);
 const connectionsLoading = computed(() =>
-  hasAccessToken.value && !realtimeConnections.ready.value,
+  hasAccessToken.value && !connectionsReady.value,
+);
+
+watch(
+  () => connectionsQuery.data.value,
+  data => {
+    // 实时首帧可能早于页面订阅发出；REST 首屏快照只在 ready 前兜底，后续仍由实时事件增量更新。
+    if (!data) return;
+    realtimeConnections.applyInitialSnapshot(data.item.items ?? null);
+  },
+  { immediate: true },
 );
 
 watch(selectedSchema, schema => {
@@ -538,7 +562,11 @@ const submitEdit = () => {
       {{ realtimeErrorText }}
     </n-alert>
 
-    <n-empty v-if="connections.length === 0 && realtimeConnections.ready.value" description="似乎还没有账号">
+    <n-alert v-if="connectionsErrorText" type="error" class="mb-4">
+      {{ connectionsErrorText }}
+    </n-alert>
+
+    <n-empty v-if="connections.length === 0 && connectionsReady" description="似乎还没有账号">
       <template #extra>
         <n-button type="primary" @click="openCreateDialog">
           添加账号

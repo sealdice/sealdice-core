@@ -6,6 +6,10 @@ export interface ConnectionRealtimeState {
   qrCodes: Record<string, string>;
 }
 
+export interface ConnectionRealtimeSnapshotState extends ConnectionRealtimeState {
+  ready: boolean;
+}
+
 export function applyConnectionList(
   _currentConnections: EndPointInfo[],
   currentWorkflows: Record<string, WorkflowResp>,
@@ -26,6 +30,18 @@ export function applyConnectionList(
     connections,
     workflows,
     qrCodes,
+  };
+}
+
+export function applyConnectionSnapshot(
+  currentConnections: EndPointInfo[],
+  currentWorkflows: Record<string, WorkflowResp>,
+  currentQrCodes: Record<string, string>,
+  nextConnections?: EndPointInfo[] | null,
+): ConnectionRealtimeSnapshotState {
+  return {
+    ...applyConnectionList(currentConnections, currentWorkflows, currentQrCodes, nextConnections),
+    ready: true,
   };
 }
 

@@ -1,6 +1,7 @@
 import type { EndPointInfo, WorkflowResp } from '@/api';
 import {
   applyConnectionList,
+  applyConnectionSnapshot,
   applyConnectionQRCode,
   applyConnectionUpdate,
   applyConnectionWorkflow,
@@ -53,6 +54,21 @@ assertDeepEqual(
     connections: [connB],
     workflows: {},
     qrCodes: {},
+  },
+);
+
+assertDeepEqual(
+  applyConnectionSnapshot(
+    [connA],
+    { a: workflow, stale: { state: 'failed', hasQRCode: false, loginState: 11 } },
+    { a: 'data:image/png;base64,abc', stale: 'old' },
+    [connB],
+  ),
+  {
+    connections: [connB],
+    workflows: {},
+    qrCodes: {},
+    ready: true,
   },
 );
 
