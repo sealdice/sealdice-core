@@ -10,6 +10,19 @@ type HealthData struct {
 	Initialized bool   `json:"initialized" example:"true" doc:"骰子实例是否已初始化"`
 }
 
+type NetworkHealthTarget struct {
+	Target     string `json:"target" doc:"检测目标"`
+	OK         bool   `json:"ok" doc:"是否可连接"`
+	DurationMs int64  `json:"durationMs" doc:"平均延迟毫秒"`
+}
+
+type NetworkHealthData struct {
+	Total     int                   `json:"total" doc:"检测目标总数"`
+	OK        []string              `json:"ok" doc:"可连接目标列表"`
+	Targets   []NetworkHealthTarget `json:"targets" doc:"逐目标检测结果"`
+	Timestamp int64                 `json:"timestamp" doc:"检测完成时间"`
+}
+
 type LoginResponse struct {
 	Token string `json:"token"`
 }

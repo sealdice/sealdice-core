@@ -37,6 +37,10 @@ func (s *BaseService) RegisterRoutes(grp *huma.Group) {
 		o.Description = "检查服务是否正常"
 		o.Summary = "检查服务是否正常"
 	})
+	huma.Get(grp, "/network-health", s.NetworkHealth, func(o *huma.Operation) {
+		o.Description = "检查网络质量"
+		o.Summary = "检查网络质量"
+	})
 	huma.Get(grp, "/overview", s.Overview, func(o *huma.Operation) {
 		o.Description = "获取基础运行概览"
 		o.Summary = "获取基础运行概览"
