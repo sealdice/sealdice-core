@@ -1,7 +1,6 @@
 type DownloadResult = {
   data: unknown;
-  request: Request;
-  response: Response;
+  headers: Record<string, unknown>;
 };
 
 function parseFilenameFromDisposition(disposition: string | null): string {
@@ -18,6 +17,29 @@ function parseFilenameFromDisposition(disposition: string | null): string {
 
   const plain = disposition.match(/filename="?([^";]+)"?/i);
   return plain?.[1]?.trim() ?? '';
+}
+
+function getHeader(headers: Record<string, unknown>, name: string): string | null {
+  const target = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() !== target) continue;
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) return value.map(String).join(', ');
+    if (value === undefined || value === null) return null;
+    return String(value);
+  }
+  return null;
+}
+
+export function getDownloadFilename(
+  response: { headers: Record<string, unknown> },
+  suggestedFilename?: string,
+): string {
+  return (
+    suggestedFilename?.trim() ||
+    parseFilenameFromDisposition(getHeader(response.headers, 'content-disposition')) ||
+    'download'
+  );
 }
 
 function saveBlobFile(blob: Blob, filename: string): void {
@@ -39,10 +61,7 @@ export async function downloadApiFile(
     throw new Error('下载响应不是文件');
   }
 
-  const filename =
-    suggestedFilename?.trim() ||
-    parseFilenameFromDisposition(result.response.headers.get('content-disposition')) ||
-    'download';
+  const filename = getDownloadFilename(result, suggestedFilename);
 
   saveBlobFile(result.data, filename);
 }

@@ -27,7 +27,7 @@
 
 - `src/api/`：API 边界。
   - `generated/` 由 OpenAPI 生成，不手改、不提交。
-  - `client.ts` 负责全局 fetch client 配置、token 注入、错误反馈、401 会话清理。
+  - `client.ts` 负责全局 axios client 配置、token 注入、错误反馈、401 会话清理。
   - `config.ts` 负责 API baseUrl。
   - `download.ts` 放文件下载这类生成器不方便表达的薄封装。
 - `src/features/`：业务域逻辑。
@@ -56,7 +56,7 @@
 这部分是本项目最重要的“不要放错地方”的约定。
 
 - HTTP 客户端统一在 `src/api/client.ts`。
-  - baseUrl、凭据、Bearer token、token 滚动更新、网络错误提示、401 清理都在这里。
+  - baseURL、凭据、Bearer token、token 滚动更新、网络/会话级错误提示、401 清理都在这里。
   - 页面和 feature 不要重复写这些逻辑。
 - 登录态统一在 `src/features/auth/state.ts`。
   - 当前唯一 token 源是这里的 `token`。

@@ -1,6 +1,5 @@
-export { setupApiClient } from './client';
+export { ApiError, setupApiClient } from './client';
 export { getApiBaseUrl, joinApiBasePath } from './config';
-export { ApiError } from './error';
 
 // Generated API (hey-api / openapi-ts output)
 export * from './generated';
