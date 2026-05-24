@@ -54,7 +54,6 @@ export function useBaseSettingMutations(options: {
     mutationFn: async (file: File) => {
       const { data } = await postSdApiV2BaseSettingUpgrade({
         body: { file },
-        headers: { 'Content-Type': undefined as never },
         throwOnError: true,
       });
       return data.item;

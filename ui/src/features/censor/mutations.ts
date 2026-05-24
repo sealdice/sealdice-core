@@ -75,7 +75,6 @@ export function useCensorMutations(options: {
     mutationFn: async (file: File) => {
       const { data } = await postSdApiV2CensorFilesUpload({
         body: { file },
-        headers: { 'Content-Type': undefined as never },
         throwOnError: true,
       });
       return data.item;

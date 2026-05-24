@@ -13,8 +13,8 @@ export default defineConfig({
   },
   plugins: [
     {
-      name: '@hey-api/client-fetch',
-      baseUrl: false,
+      name: '@hey-api/client-axios',
+      baseURL: false,
       bundle: true,
     },
     '@hey-api/typescript',

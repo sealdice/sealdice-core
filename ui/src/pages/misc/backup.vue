@@ -196,7 +196,7 @@ async function downloadBackup(item: FileItem) {
     await downloadApiFile(
       getSdApiV2BackupDownload({
         query: { name: item.name },
-        parseAs: 'blob',
+        responseType: 'blob',
         throwOnError: true,
       }),
       item.name,

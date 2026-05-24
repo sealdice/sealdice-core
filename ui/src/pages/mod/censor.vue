@@ -141,7 +141,7 @@ async function uploadFile(file: File) {
 async function downloadTomlTemplate() {
   await downloadApiFile(
     getSdApiV2CensorFilesTemplateToml({
-      parseAs: 'blob',
+      responseType: 'blob',
       throwOnError: true,
     }),
     '词库模板.toml',
@@ -151,7 +151,7 @@ async function downloadTomlTemplate() {
 async function downloadTxtTemplate() {
   await downloadApiFile(
     getSdApiV2CensorFilesTemplateTxt({
-      parseAs: 'blob',
+      responseType: 'blob',
       throwOnError: true,
     }),
     '词库模板.txt',

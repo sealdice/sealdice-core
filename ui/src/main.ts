@@ -30,7 +30,7 @@ import { queryClient } from './queryClient';
 // 应用入口只负责装配全局基础设施：
 // 1. 全局样式、字体、polyfill；
 // 2. Naive UI 所需的运行时补丁；
-// 3. OpenAPI fetch client、router、Vue Query。
+// 3. OpenAPI axios client、router、Vue Query。
 // 业务初始化不要放在这里，优先放进布局或 feature composable，便于测试和按页面加载。
 
 // 引入字体: 通用字体 / 等宽字体

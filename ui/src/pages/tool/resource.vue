@@ -157,7 +157,7 @@ async function downloadResource(item: ResourceItem) {
         query: {
           path: item.path,
         },
-        parseAs: 'blob',
+        responseType: 'blob',
         throwOnError: true,
       }),
       item.name,

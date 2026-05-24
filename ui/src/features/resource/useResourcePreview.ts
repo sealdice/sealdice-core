@@ -34,7 +34,7 @@ export function useResourcePreview(
           path: currentItem.path,
           thumbnail: toValue(thumbnail),
         },
-        parseAs: 'blob',
+        responseType: 'blob',
         throwOnError: true,
       });
       if (currentId !== loadId) return;

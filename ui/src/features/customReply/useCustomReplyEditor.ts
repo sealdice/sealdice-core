@@ -518,7 +518,7 @@ export function useCustomReplyEditor() {
     await downloadApiFile(
       getSdApiV2CustomReplyFilesByFilenameDownload({
         path: { filename: selectedFilename.value },
-        parseAs: 'blob',
+        responseType: 'blob',
         throwOnError: true,
       }),
       selectedFilename.value,
@@ -529,7 +529,6 @@ export function useCustomReplyEditor() {
     try {
       await postSdApiV2CustomReplyFilesUpload({
         body: { file: options.file.file as File },
-        headers: { 'Content-Type': undefined as never },
         throwOnError: true,
       });
       await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });

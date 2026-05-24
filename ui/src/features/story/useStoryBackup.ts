@@ -68,7 +68,7 @@ export function useStoryBackup() {
     await downloadApiFile(
       getSdApiV2StoryBackupDownload({
         query: { name },
-        parseAs: 'blob',
+        responseType: 'blob',
         throwOnError: true,
       }),
       name,

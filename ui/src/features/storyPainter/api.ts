@@ -3,7 +3,7 @@ import { getSdApiV2StoryLogExportParquet } from '@/api';
 export async function fetchStoryLogParquet(logId: number): Promise<Blob> {
   const { data } = await getSdApiV2StoryLogExportParquet({
     query: { logId },
-    parseAs: 'blob',
+    responseType: 'blob',
     throwOnError: true,
   });
   if (!(data instanceof Blob)) {

@@ -187,7 +187,7 @@ async function exportFile() {
   try {
     await downloadApiFile(
       getSdApiV2BanExport({
-        parseAs: 'blob',
+        responseType: 'blob',
         throwOnError: true,
       }),
       '黑白名单.json',
