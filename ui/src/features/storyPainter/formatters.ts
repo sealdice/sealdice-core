@@ -61,12 +61,12 @@ export function formatStoryPainterImages(message: string, options: StoryPainterO
 
 export function formatStoryPainterOffTopic(message: string, options: StoryPainterOptions, isDice = false): string {
   if (!options.offTopicHide || isDice) return message;
-  return message.replace(/^\s*(?:@\S+\s+)*[（\(].*/gm, '');
+  return message.replace(/^\s*(?:@\S+\s+)*[（(].*/gm, '');
 }
 
 export function formatStoryPainterCommands(message: string, options: StoryPainterOptions): string {
   if (!options.commandHide) return message;
-  return message.replace(/^[\.。\/](?![\.。\/])(.|\n)*$/g, '');
+  return message.replace(/^[.。/](?![.。/])(.|\n)*$/g, '');
 }
 
 export function finishStoryPainterMessage(message: string, options: StoryPainterOptions, isDice = false): string {

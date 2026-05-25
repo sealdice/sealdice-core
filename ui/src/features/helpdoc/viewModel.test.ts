@@ -9,6 +9,7 @@ import {
   isHelpdocUploadFileAccepted,
   normalizeHelpdocAliases,
 } from './viewModel.js';
+import type { HelpDoc } from '@/api';
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -20,12 +21,14 @@ const assertDeepEqual = (actual: unknown, expected: unknown) => {
   }
 };
 
-const tree = [
+const tree: HelpDoc[] = [
   {
     key: 'default',
     name: 'default',
     group: '',
+    path: 'default',
     type: '',
+    loadStatus: 1,
     deleted: false,
     isDir: true,
     children: [
@@ -33,6 +36,7 @@ const tree = [
         key: 'default/test.json',
         name: 'test.json',
         group: 'default',
+        path: 'default/test.json',
         type: '.json',
         deleted: false,
         isDir: false,
@@ -41,7 +45,7 @@ const tree = [
       },
     ],
   },
-] as any;
+];
 
 assertDeepEqual(buildHelpdocGroupOptions(tree), [
   { label: '默认', value: 'default' },

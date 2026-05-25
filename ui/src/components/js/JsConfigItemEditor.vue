@@ -1,62 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import type { SelectOption } from 'naive-ui';
-import type { ConfigItem } from '@/api';
-import {
-  normalizeTemplateValue,
-} from '@/features/js/configModel';
-
-const props = defineProps<{
-  item: ConfigItem;
-  pluginName: string;
-  errorText?: string;
-  checking?: boolean;
-}>();
-
-const emit = defineEmits<{
-  change: [pluginName: string, key: string, value: unknown];
-  reset: [pluginName: string, key: string];
-  validate: [pluginName: string, key: string, value: string, type: string];
-}>();
-
-const type = computed(() => props.item.type ?? 'string');
-const value = computed(() => props.item.value ?? props.item.defaultValue);
-const isChanged = computed(() => JSON.stringify(value.value) !== JSON.stringify(props.item.defaultValue));
-const optionItems = computed<SelectOption[]>(() => {
-  if (!Array.isArray(props.item.option)) return [];
-  return props.item.option.map(option => ({
-    label: String(option),
-    value: String(option),
-  }));
-});
-const templateValues = computed(() => normalizeTemplateValue(value.value));
-
-function updateValue(nextValue: unknown) {
-  props.item.value = nextValue;
-  emit('change', props.pluginName, props.item.key, nextValue);
-}
-
-function updateTaskValue(nextValue: string) {
-  updateValue(nextValue);
-  emit('validate', props.pluginName, props.item.key, nextValue, type.value);
-}
-
-function updateTemplateItem(index: number, nextValue: string) {
-  const nextItems = [...templateValues.value];
-  nextItems[index] = nextValue;
-  updateValue(nextItems);
-}
-
-function addTemplateItem() {
-  updateValue([...templateValues.value, '']);
-}
-
-function removeTemplateItem(index: number) {
-  const nextItems = templateValues.value.filter((_, itemIndex) => itemIndex !== index);
-  updateValue(nextItems.length ? nextItems : ['']);
-}
-</script>
-
 <template>
   <section class="js-config-item">
     <header class="js-config-item__header">
@@ -173,6 +114,73 @@ function removeTemplateItem(index: number) {
     </n-text>
   </section>
 </template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import type { SelectOption } from 'naive-ui';
+import type { ConfigItem } from '@/api';
+import {
+  normalizeTemplateValue,
+} from '@/features/js/configModel';
+
+const props = defineProps<{
+  item: ConfigItem;
+  pluginName: string;
+  errorText?: string;
+  checking?: boolean;
+}>();
+
+const emit = defineEmits<{
+  change: [pluginName: string, key: string, value: unknown];
+  reset: [pluginName: string, key: string];
+  validate: [pluginName: string, key: string, value: string, type: string];
+}>();
+
+const localValue = ref<unknown>(props.item.value ?? props.item.defaultValue);
+const type = computed(() => props.item.type ?? 'string');
+const value = computed(() => localValue.value);
+const isChanged = computed(() => JSON.stringify(value.value) !== JSON.stringify(props.item.defaultValue));
+const optionItems = computed<SelectOption[]>(() => {
+  if (!Array.isArray(props.item.option)) return [];
+  return props.item.option.map(option => ({
+    label: String(option),
+    value: String(option),
+  }));
+});
+const templateValues = computed(() => normalizeTemplateValue(value.value));
+
+watch(
+  () => [props.item.value, props.item.defaultValue] as const,
+  ([nextValue, nextDefaultValue]) => {
+    localValue.value = nextValue ?? nextDefaultValue;
+  },
+);
+
+function updateValue(nextValue: unknown) {
+  localValue.value = nextValue;
+  emit('change', props.pluginName, props.item.key, nextValue);
+}
+
+function updateTaskValue(nextValue: string) {
+  updateValue(nextValue);
+  emit('validate', props.pluginName, props.item.key, nextValue, type.value);
+}
+
+function updateTemplateItem(index: number, nextValue: string) {
+  const nextItems = [...templateValues.value];
+  nextItems[index] = nextValue;
+  updateValue(nextItems);
+}
+
+function addTemplateItem() {
+  updateValue([...templateValues.value, '']);
+}
+
+function removeTemplateItem(index: number) {
+  const nextItems = templateValues.value.filter((_, itemIndex) => itemIndex !== index);
+  updateValue(nextItems.length ? nextItems : ['']);
+}
+</script>
 
 <style scoped>
 .js-config-item {

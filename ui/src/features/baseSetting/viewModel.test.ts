@@ -16,6 +16,12 @@ import {
   searchExtDefaultSettingsView,
   sortExtDefaultSettingsView,
 } from './viewModel.js';
+import type {
+  BaseSettingExtDefaultSettingItem,
+  BaseSettingFieldSchema,
+  BaseSettingSchemaResp,
+  BaseSettingValueResp,
+} from '@/api';
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -59,7 +65,7 @@ const schema = normalizeBaseSettingSchema({
       ],
     },
   ],
-} as any);
+} satisfies BaseSettingSchemaResp);
 
 const index = buildBaseSettingSearchIndex(schema);
 assertEqual(index.length, 1);
@@ -68,21 +74,21 @@ assertEqual(searchBaseSettingFields(index, '平台')[0]?.tabId, 'platform-specia
 assertEqual(isBaseSettingGroupWide('ext-default-settings'), true);
 assertEqual(isBaseSettingGroupWide('upgrade'), true);
 assertEqual(isBaseSettingGroupWide('mail'), false);
-assertEqual(isBaseSettingFieldBottomMounted({ id: 'prefix', label: '指令前缀', kind: 'string-list' } as any), true);
-assertEqual(isBaseSettingFieldBottomMounted({ id: 'mail', label: '邮件启用', kind: 'boolean' } as any), false);
-assertEqual(getBaseSettingFieldLayout({ id: 'mail', label: '邮件启用', kind: 'boolean' } as any), 'inline');
-assertEqual(getBaseSettingFieldLayout({ id: 'mail-from', label: '发件邮箱', kind: 'text' } as any), 'auto');
-assertEqual(getBaseSettingFieldLayout({ id: 'prefix', label: '指令前缀', kind: 'string-list' } as any), 'stacked');
-assertEqual(getBaseSettingFieldLayout({ id: 'upgrade-package', label: '固件升级', kind: 'upload' } as any), 'stacked');
-assertEqual(getBaseSettingFieldFeedback({ id: 'poke', key: 'QQEnablePoke', label: '启用戳一戳', kind: 'boolean' } as any), '启用前请确认你使用的 QQ 连接方式支持该功能，若不支持请关闭该功能来避免日志中出现相关报错。');
-assertEqual(getBaseSettingFieldFeedback({ id: 'mail', label: 'SMTP', kind: 'text', hint: '用于发送通知' } as any), '用于发送通知');
+assertEqual(isBaseSettingFieldBottomMounted({ kind: 'string-list' } satisfies Pick<BaseSettingFieldSchema, 'kind'>), true);
+assertEqual(isBaseSettingFieldBottomMounted({ kind: 'boolean' } satisfies Pick<BaseSettingFieldSchema, 'kind'>), false);
+assertEqual(getBaseSettingFieldLayout({ kind: 'boolean' } satisfies Pick<BaseSettingFieldSchema, 'kind'>), 'inline');
+assertEqual(getBaseSettingFieldLayout({ kind: 'text' } satisfies Pick<BaseSettingFieldSchema, 'kind'>), 'auto');
+assertEqual(getBaseSettingFieldLayout({ kind: 'string-list' } satisfies Pick<BaseSettingFieldSchema, 'kind'>), 'stacked');
+assertEqual(getBaseSettingFieldLayout({ kind: 'upload' } satisfies Pick<BaseSettingFieldSchema, 'kind'>), 'stacked');
+assertEqual(getBaseSettingFieldFeedback({ key: 'QQEnablePoke' } satisfies Pick<BaseSettingFieldSchema, 'key' | 'hint'>), '启用前请确认你使用的 QQ 连接方式支持该功能，若不支持请关闭该功能来避免日志中出现相关报错。');
+assertEqual(getBaseSettingFieldFeedback({ hint: '用于发送通知' } satisfies Pick<BaseSettingFieldSchema, 'key' | 'hint'>), '用于发送通知');
 assertDeepEqual(buildBaseSettingStringListOptions(['.', '!', '.', '', ' QQ:1 ']), [
   { label: '.', value: '.' },
   { label: '!', value: '!' },
   { label: 'QQ:1', value: 'QQ:1' },
 ]);
 
-const extInitial = [
+const extInitial: BaseSettingExtDefaultSettingItem[] = [
   {
     name: 'coc7',
     autoActive: true,
@@ -103,7 +109,7 @@ const extInitial = [
   },
 ];
 
-const extCurrent = [
+const extCurrent: BaseSettingExtDefaultSettingItem[] = [
   extInitial[0],
   {
     name: 'fun',
@@ -119,7 +125,7 @@ const extCurrent = [
   },
 ];
 
-const extView = buildExtDefaultSettingsView(extCurrent as any, extInitial as any);
+const extView = buildExtDefaultSettingsView(extCurrent, extInitial);
 assertEqual(extView.length, 3);
 assertEqual(extView[0]?.dirty, false);
 assertEqual(extView[1]?.dirty, true);
@@ -181,7 +187,7 @@ const initial = normalizeBaseSettingValue({
   quitInactiveThreshold: 0,
   quitInactiveBatchSize: 0,
   quitInactiveBatchWait: 0,
-} as any);
+} satisfies BaseSettingValueResp);
 
 const current = structuredClone(initial);
 current.QQEnablePoke = true;

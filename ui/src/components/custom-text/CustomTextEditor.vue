@@ -1,19 +1,3 @@
-<script setup lang="ts">
-import CustomTextBox from './CustomTextBox.vue';
-import CustomTextEntryCard from './CustomTextEntryCard.vue';
-import CustomTextFilterBar from './CustomTextFilterBar.vue';
-import CustomTextHelp from './CustomTextHelp.vue';
-import CustomTextImportModal from './CustomTextImportModal.vue';
-import CustomTextToolbar from './CustomTextToolbar.vue';
-import { useCustomTextEditor } from '@/features/customText/useCustomTextEditor';
-
-const props = defineProps<{
-  category: string;
-}>();
-
-const editor = useCustomTextEditor(() => props.category);
-</script>
-
 <template>
   <main class="custom-text-page">
     <n-spin :show="editor.customTextQuery.isFetching.value && !editor.customTextQuery.data.value">
@@ -43,7 +27,7 @@ const editor = useCustomTextEditor(() => props.category);
         >
           <template #values>
             <n-grid x-gap="24" y-gap="16" cols="1 m:2" responsive="screen">
-              <n-grid-item v-for="[keyName, items] in values" :key="keyName">
+              <n-grid-item v-for="[keyName] in values" :key="keyName">
                 <CustomTextEntryCard
                   v-model="editor.texts.value[editor.category.value][keyName]"
                   :category="editor.category.value"
@@ -77,6 +61,22 @@ const editor = useCustomTextEditor(() => props.category);
     </n-spin>
   </main>
 </template>
+
+<script setup lang="ts">
+import CustomTextBox from './CustomTextBox.vue';
+import CustomTextEntryCard from './CustomTextEntryCard.vue';
+import CustomTextFilterBar from './CustomTextFilterBar.vue';
+import CustomTextHelp from './CustomTextHelp.vue';
+import CustomTextImportModal from './CustomTextImportModal.vue';
+import CustomTextToolbar from './CustomTextToolbar.vue';
+import { useCustomTextEditor } from '@/features/customText/useCustomTextEditor';
+
+const props = defineProps<{
+  category: string;
+}>();
+
+const editor = useCustomTextEditor(() => props.category);
+</script>
 
 <style scoped>
 .custom-text-page {

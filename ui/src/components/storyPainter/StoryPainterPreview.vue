@@ -1,3 +1,69 @@
+<template>
+  <section class="story-painter-preview">
+    <div v-if="mode !== 'preview'" class="preview-toolbar">
+      <n-flex size="small" align="center" wrap>
+        <template v-if="mode === 'bbs' || mode === 'bbspineapple'">
+          <n-checkbox
+            :checked="forumOptions.bbsUseSpaceWithMultiLine"
+            @update:checked="value => emit('updateForumOptions', { bbsUseSpaceWithMultiLine: value })"
+          >
+            多行空格缩进
+          </n-checkbox>
+          <n-checkbox
+            :checked="forumOptions.bbsUseColorName"
+            @update:checked="value => emit('updateForumOptions', { bbsUseColorName: value })"
+          >
+            使用颜色名
+          </n-checkbox>
+        </template>
+        <n-checkbox v-if="mode === 'trg'" :checked="addVoiceMark" @update:checked="value => emit('updateAddVoiceMark', value)">
+          添加语音合成标记
+        </n-checkbox>
+        <n-button size="small" type="primary" secondary @click="copyPreviewText">
+          <template #icon>
+            <n-icon><i-carbon-copy /></n-icon>
+          </template>
+          复制
+        </n-button>
+      </n-flex>
+    </div>
+
+    <div v-if="previewSources.length === 0" class="preview-empty">
+      <n-empty description="没有可展示的日志条目" />
+    </div>
+
+    <div v-else-if="mode === 'preview' || mode === 'bbs' || mode === 'trg'" ref="previewList" class="preview-list">
+      <div class="preview-virtual-spacer" :style="{ height: `${virtualTotalSize}px` }">
+        <div
+          v-for="{ virtualRow, item } in renderedRows"
+          :key="String(virtualRow.key)"
+          :ref="measureVirtualRow"
+          class="preview-virtual-row"
+          :data-index="virtualRow.index"
+          :style="{ transform: `translateY(${virtualRow.start}px)` }"
+        >
+          <StoryPainterPreviewRow
+            v-if="item"
+            :source="item"
+            :mode="mode"
+            :chars="chars"
+            :options="options"
+            :forum-options="forumOptions"
+            :color="colorByItem(item)"
+            :add-voice-mark="addVoiceMark"
+          />
+          <div v-else class="preview-row-loading">...</div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="preview-list">
+      <div v-if="props.itemIndexes.length > 0" class="copy-note">长文本复制/导出会分块读取完整内容。</div>
+      <pre v-for="item in textItems" :key="item.index" class="text-row">{{ item.text }}</pre>
+    </div>
+  </section>
+</template>
+
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 import { useVirtualizer, type VirtualItem, type Virtualizer } from '@tanstack/vue-virtual';
@@ -37,6 +103,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   copy: [text: string];
   updateAddVoiceMark: [value: boolean];
+  updateForumOptions: [value: Partial<StoryPainterForumOptions>];
 }>();
 
 type PreviewSource = StoryPainterPreviewSource<StoryPainterLogItem>;
@@ -170,7 +237,7 @@ function renderText(item: StoryPainterLogItem): string {
   return renderForumText(item, props.chars, props.options, props.forumOptions, colorByItem(item));
 }
 
-async function copyText(): Promise<void> {
+async function copyPreviewText(): Promise<void> {
   if (props.copyText) {
     emit('copy', await props.copyText());
     return;
@@ -319,66 +386,6 @@ function trimLoadedItems(
   return next;
 }
 </script>
-
-<template>
-  <section class="story-painter-preview">
-    <div v-if="mode !== 'preview'" class="preview-toolbar">
-      <n-flex size="small" align="center" wrap>
-        <template v-if="mode === 'bbs' || mode === 'bbspineapple'">
-          <n-checkbox v-model:checked="forumOptions.bbsUseSpaceWithMultiLine">
-            多行空格缩进
-          </n-checkbox>
-          <n-checkbox v-model:checked="forumOptions.bbsUseColorName">
-            使用颜色名
-          </n-checkbox>
-        </template>
-        <n-checkbox v-if="mode === 'trg'" :checked="addVoiceMark" @update:checked="value => emit('updateAddVoiceMark', value)">
-          添加语音合成标记
-        </n-checkbox>
-        <n-button size="small" type="primary" secondary @click="copyText">
-          <template #icon>
-            <n-icon><i-carbon-copy /></n-icon>
-          </template>
-          复制
-        </n-button>
-      </n-flex>
-    </div>
-
-    <div v-if="previewSources.length === 0" class="preview-empty">
-      <n-empty description="没有可展示的日志条目" />
-    </div>
-
-    <div v-else-if="mode === 'preview' || mode === 'bbs' || mode === 'trg'" ref="previewList" class="preview-list">
-      <div class="preview-virtual-spacer" :style="{ height: `${virtualTotalSize}px` }">
-        <div
-          v-for="{ virtualRow, item } in renderedRows"
-          :key="String(virtualRow.key)"
-          :ref="measureVirtualRow"
-          class="preview-virtual-row"
-          :data-index="virtualRow.index"
-          :style="{ transform: `translateY(${virtualRow.start}px)` }"
-        >
-          <StoryPainterPreviewRow
-            v-if="item"
-            :source="item"
-            :mode="mode"
-            :chars="chars"
-            :options="options"
-            :forum-options="forumOptions"
-            :color="colorByItem(item)"
-            :add-voice-mark="addVoiceMark"
-          />
-          <div v-else class="preview-row-loading">...</div>
-        </div>
-      </div>
-    </div>
-
-    <div v-else class="preview-list">
-      <div v-if="props.itemIndexes.length > 0" class="copy-note">长文本复制/导出会分块读取完整内容。</div>
-      <pre v-for="item in textItems" :key="item.index" class="text-row">{{ item.text }}</pre>
-    </div>
-  </section>
-</template>
 
 <style scoped>
 .story-painter-preview {

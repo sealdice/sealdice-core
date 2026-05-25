@@ -83,7 +83,7 @@ export function renameStoryPainterChar(
   nextName: string,
 ): StoryPainterLogItem[] {
   return items.map((item) => {
-    let message = replaceAllText(item.message, `<${target.name}>`, `<${nextName}>`);
+    const message = replaceAllText(item.message, `<${target.name}>`, `<${nextName}>`);
     if (item.IMUserId === target.IMUserId && item.nickname === target.name) {
       return { ...item, nickname: nextName, message };
     }

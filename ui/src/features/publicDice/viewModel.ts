@@ -17,15 +17,6 @@ export type PublicDiceEndpointRow = {
   isPublic: boolean;
 };
 
-const DEFAULT_PUBLIC_DICE_CONFIG: PublicDiceConfig = {
-  publicDiceEnable: false,
-  publicDiceId: '',
-  publicDiceName: '',
-  publicDiceAvatar: '',
-  publicDiceNote: '',
-  publicDiceBrief: '',
-};
-
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }

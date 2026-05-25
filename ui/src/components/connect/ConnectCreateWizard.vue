@@ -1,41 +1,3 @@
-<script setup lang="ts">
-import type { SelectOption } from 'naive-ui';
-import type { FormConfigItem, MethodTreeNode, PlatformTreeNode, ProtocolDefinition } from '@/api';
-import AsyncFieldSection from '@/components/shared/AsyncFieldSection.vue';
-import DynamicForm from '@/components/shared/DynamicForm.vue';
-import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
-import type { SignInfoState } from '@/features/connect/signInfoState';
-
-const props = defineProps<{
-  protocols: PlatformTreeNode[];
-  schemasError: boolean;
-  selectedProtocol: ProtocolDefinition | null;
-  selectedProtocolKey: string;
-  selectedSchema: FormConfigItem[];
-  signInfoState: SignInfoState;
-  signInfoErrorMessage: string;
-  signVersionOptions: SelectOption[];
-  signServers: SelectOption[];
-  isMobile: boolean;
-  canSubmit: boolean;
-  submitting: boolean;
-}>();
-
-const formModel = defineModel<DynamicFormModel>('formModel', { required: true });
-const wizardStep = defineModel<number>('wizardStep', { required: true });
-const wizardPlatform = defineModel<PlatformTreeNode | null>('wizardPlatform', { required: true });
-const wizardMethod = defineModel<MethodTreeNode | null>('wizardMethod', { required: true });
-const wizardProtocol = defineModel<ProtocolDefinition | null>('wizardProtocol', { required: true });
-
-const emit = defineEmits<{
-  cancel: [];
-  next: [];
-  previous: [];
-  submit: [];
-  retrySignInfo: [];
-}>();
-</script>
-
 <template>
   <n-space vertical size="large">
     <n-steps :current="wizardStep" size="small">
@@ -221,6 +183,44 @@ const emit = defineEmits<{
     </n-button>
   </div>
 </template>
+
+<script setup lang="ts">
+import type { SelectOption } from 'naive-ui';
+import type { FormConfigItem, MethodTreeNode, PlatformTreeNode, ProtocolDefinition } from '@/api';
+import AsyncFieldSection from '@/components/shared/AsyncFieldSection.vue';
+import DynamicForm from '@/components/shared/DynamicForm.vue';
+import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
+import type { SignInfoState } from '@/features/connect/signInfoState';
+
+defineProps<{
+  protocols: PlatformTreeNode[];
+  schemasError: boolean;
+  selectedProtocol: ProtocolDefinition | null;
+  selectedProtocolKey: string;
+  selectedSchema: FormConfigItem[];
+  signInfoState: SignInfoState;
+  signInfoErrorMessage: string;
+  signVersionOptions: SelectOption[];
+  signServers: SelectOption[];
+  isMobile: boolean;
+  canSubmit: boolean;
+  submitting: boolean;
+}>();
+
+const formModel = defineModel<DynamicFormModel>('formModel', { required: true });
+const wizardStep = defineModel<number>('wizardStep', { required: true });
+const wizardPlatform = defineModel<PlatformTreeNode | null>('wizardPlatform', { required: true });
+const wizardMethod = defineModel<MethodTreeNode | null>('wizardMethod', { required: true });
+const wizardProtocol = defineModel<ProtocolDefinition | null>('wizardProtocol', { required: true });
+
+const emit = defineEmits<{
+  cancel: [];
+  next: [];
+  previous: [];
+  submit: [];
+  retrySignInfo: [];
+}>();
+</script>
 
 <style scoped>
 .wizard-step-panel {

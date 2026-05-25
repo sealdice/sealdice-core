@@ -76,7 +76,7 @@ export function normalizeBaseSettingValue(value: BaseSettingValueResp): BaseSett
     noticeIds: [...(value.noticeIds ?? [])],
     extDefaultSettings: (value.extDefaultSettings ?? []).map(item => ({
       ...item,
-      disabledCommand: { ...(item.disabledCommand ?? {}) },
+      disabledCommand: { ...item.disabledCommand },
     })),
   };
 }

@@ -1,3 +1,281 @@
+<template>
+  <main class="story-page">
+    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="story-tabs">
+      <n-tab-pane tab="跑团日志" name="list">
+        <template v-if="mode === 'logs'">
+          <header class="page-header">
+            <n-card title="跑团日志 / Story" :bordered="false">
+              <n-flex vertical align="flex-start">
+                <n-text>记录过 {{ summary?.totalLogs ?? 0 }} 份日志，共计 {{ summary?.totalItems ?? 0 }} 条消息</n-text>
+                <n-text>现有 {{ summary?.currentLogs ?? 0 }} 份日志，共计 {{ summary?.currentItems ?? 0 }} 条消息</n-text>
+              </n-flex>
+            </n-card>
+          </header>
+          <section class="story-search-block">
+            <ProSearchForm
+              :form="storySearchForm"
+              :columns="storySearchColumns"
+              size="small"
+              label-placement="left"
+              label-width="72"
+              cols="1 s:2 l:3"
+              :collapse-button-props="false"
+            />
+          </section>
+
+          <section class="story-action-block">
+            <n-flex size="small" align="center" class="story-tools">
+              <n-button type="primary" size="small" @click="logs.forEach(item => (item.pitch = !item.pitch))">
+                <template #icon>
+                  <n-icon><i-carbon-checkmark /></n-icon>
+                </template>
+                全选
+              </n-button>
+              <n-button
+                v-show="(logs?.filter(item => item.pitch)?.length ?? 0) > 0"
+                type="error"
+                size="small"
+                @click="delLogs"
+              >
+                <template #icon>
+                  <n-icon><i-carbon-row-delete /></n-icon>
+                </template>
+                删除所选
+              </n-button>
+            </n-flex>
+          </section>
+
+          <section class="story-data-block">
+            <template v-for="log in logs" :key="log.id">
+              <FoldableCard class="story-log-card">
+                <template #title>
+                  <n-flex align="center">
+                    <n-checkbox v-model:checked="log.pitch" />
+                    <n-flex align="center" wrap>
+                      <n-text class="text-base" tag="strong">{{ log.name }}</n-text>
+                      <n-text>({{ log.groupId }})</n-text>
+                    </n-flex>
+                  </n-flex>
+                </template>
+
+                <template #action>
+                  <n-flex size="small" wrap>
+                    <n-button size="small" secondary @click="openItem(log)">查看</n-button>
+                    <n-button size="small" secondary @click="openRawItem(log)">分页文本</n-button>
+                    <n-button size="small" type="primary" secondary @click="uploadLog(log)">
+                      <template #icon>
+                        <n-icon><i-carbon-upload /></n-icon>
+                      </template>
+                      提取日志
+                    </n-button>
+                    <n-button size="small" secondary @click="uploadLog(log, true)">强制上传</n-button>
+                    <n-button size="small" secondary :disabled="!log.uploadUrl" @click="openLink(log.uploadUrl)">
+                      查看链接
+                    </n-button>
+                    <n-button size="small" type="error" secondary @click="delLog(log)">
+                      <template #icon>
+                        <n-icon><i-carbon-row-delete /></n-icon>
+                      </template>
+                      删除
+                    </n-button>
+                  </n-flex>
+                </template>
+
+                <n-flex vertical align="flex-start">
+                  <n-flex>
+                    <n-text>包含 {{ log.size ?? 0 }} 条消息</n-text>
+                  </n-flex>
+                  <n-flex align="center">
+                    <n-text>链接状态：{{ linkStateText(log) }}</n-text>
+                    <n-tag size="small" :type="linkStateType(log)" :bordered="false">
+                      {{ log.linkState }}
+                    </n-tag>
+                  </n-flex>
+                  <n-flex v-if="log.uploadTime">
+                    <n-text>上传于：{{ dayjs.unix(log.uploadTime).format('YYYY-MM-DD HH:mm') }}</n-text>
+                  </n-flex>
+                  <n-flex>
+                    <n-text>创建于：{{ dayjs.unix(log.createdAt).format('YYYY-MM-DD') }}</n-text>
+                    <n-tag type="info" size="small" :bordered="false">
+                      {{ dayjs.unix(log.createdAt).fromNow() }}
+                    </n-tag>
+                  </n-flex>
+                  <n-flex>
+                    <n-text>更新于：{{ dayjs.unix(log.updatedAt).format('YYYY-MM-DD') }}</n-text>
+                    <n-tag type="info" size="small" :bordered="false">
+                      {{ dayjs.unix(log.updatedAt).fromNow() }}
+                    </n-tag>
+                  </n-flex>
+                </n-flex>
+              </FoldableCard>
+            </template>
+          </section>
+
+          <div class="story-pagination-block">
+            <n-pagination
+              v-model:page="queryLogPage.pageNum"
+              v-model:page-size="queryLogPage.pageSize"
+              show-size-picker
+              :page-sizes="[10, 20, 30, 50]"
+              :page-slot="isMobile ? 3 : 5"
+              :item-count="queryLogPage.total"
+              @update:page="handleLogPageChange"
+              @update:page-size="handlePageSizeChange"
+            />
+          </div>
+        </template>
+
+        <template v-else-if="mode === 'painter' && currentPainterLog">
+          <StoryPainterViewer :log="currentPainterLog" @back="closeItem" />
+        </template>
+
+        <template v-else>
+          <n-card title="跑团日志 / Story">
+            <template #header-extra>
+              <n-button type="primary" @click="closeItem">
+                <template #icon>
+                  <n-icon><i-carbon-chevron-left /></n-icon>
+                </template>
+                返回列表
+              </n-button>
+            </template>
+
+            <n-collapse>
+              <n-collapse-item title="颜色设置">
+                <template v-for="(_, id) in users" :key="id">
+                  <n-descriptions label-placement="top">
+                    <n-descriptions-item :label="users[id][1]">
+                      <n-color-picker
+                        class="w-32"
+                        v-model:value="users[id][0]"
+                        :modes="['hex']"
+                        :show-alpha="false"
+                        :swatches="['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#9333ea', '#db2777']"
+                      />
+                    </n-descriptions-item>
+                  </n-descriptions>
+                </template>
+              </n-collapse-item>
+            </n-collapse>
+          </n-card>
+
+          <div class="story-item-list">
+            <template v-for="(item, index) in itemsView" :key="index">
+              <p :style="{ color: users[item.IMUserId][0] }">
+                <span>{{ item.nickname }}：</span>
+                <template v-for="(line, lineIndex) in item.message.split('\n')" :key="lineIndex">
+                  <span>{{ line }}</span><br />
+                </template>
+              </p>
+            </template>
+          </div>
+
+          <div class="story-pagination">
+            <n-pagination
+              v-model:page="logItemPage.pageNum"
+              v-model:page-size="logItemPage.pageSize"
+              show-size-picker
+              :page-sizes="[50, 100, 200]"
+              :page-slot="isMobile ? 3 : 5"
+              :item-count="logItemPage.size"
+              @update:page="handleItemPageChange"
+              @update:page-size="handleItemPageChange"
+            />
+          </div>
+        </template>
+      </n-tab-pane>
+
+      <n-tab-pane tab="日志清理" name="cleanup">
+        <section class="story-cleanup-page">
+          <header class="page-header">
+            <n-card title="日志清理" :bordered="false">
+              <n-flex vertical align="flex-start">
+                <n-text>按“超过 N 个月未更新”筛选日志并批量删除。</n-text>
+                <n-text depth="3">清理只影响日志库，不影响 v1 接口。</n-text>
+              </n-flex>
+            </n-card>
+          </header>
+
+          <section class="cleanup-panel">
+            <div class="cleanup-panel-head">
+              <div>
+                <h3>清理参数</h3>
+                <p>先预览，再执行危险操作。</p>
+              </div>
+              <n-button secondary @click="refreshCleanupPreview">刷新预览</n-button>
+            </div>
+
+            <div class="cleanup-panel-body">
+              <div class="cleanup-toolbar">
+                <n-input-number v-model:value="cleanupForm.months" :min="0" class="cleanup-months" />
+                <n-switch v-model:value="cleanupForm.vacuum" />
+              </div>
+              <div class="cleanup-toolbar-labels">
+                <n-text depth="3">N 个月未更新</n-text>
+                <n-text depth="3">执行 VACUUM</n-text>
+              </div>
+            </div>
+          </section>
+
+          <section class="cleanup-panel">
+            <div class="cleanup-panel-head">
+              <div>
+                <h3>预览结果</h3>
+                <p>依据当前阈值估算待删除范围。</p>
+              </div>
+            </div>
+
+            <div class="cleanup-stats">
+              <n-card size="small">
+                <n-statistic label="待删日志" :value="cleanupPreview?.logs ?? 0" />
+              </n-card>
+              <n-card size="small">
+                <n-statistic label="待删消息" :value="cleanupPreview?.items ?? 0" />
+              </n-card>
+              <n-card size="small">
+                <n-statistic
+                  label="最早更新时间"
+                  :value="cleanupPreview?.oldestUpdated ? dayjs.unix(cleanupPreview.oldestUpdated).format('YYYY-MM-DD') : '--'"
+                />
+              </n-card>
+              <n-card size="small">
+                <n-statistic
+                  label="最近更新时间"
+                  :value="cleanupPreview?.newestUpdated ? dayjs.unix(cleanupPreview.newestUpdated).format('YYYY-MM-DD') : '--'"
+                />
+              </n-card>
+            </div>
+          </section>
+
+          <section class="cleanup-panel cleanup-danger">
+            <div class="cleanup-panel-head">
+              <div>
+                <h3>执行清理</h3>
+                <p>危险操作，不可撤销。</p>
+              </div>
+            </div>
+
+            <n-alert v-if="cleanupForm.vacuum" type="warning" :show-icon="false" class="cleanup-alert">
+              这将可能导致海豹记录log用户运行缓慢，请注意
+            </n-alert>
+
+            <div class="cleanup-actions">
+              <n-button :loading="cleanupMutation.isPending.value" type="error" @click="openCleanupDialog">
+                确认并执行
+              </n-button>
+              <n-button secondary @click="executeCleanup" v-if="false">执行清理</n-button>
+            </div>
+          </section>
+        </section>
+      </n-tab-pane>
+
+      <n-tab-pane tab="日志备份" name="backup">
+        <StoryBackup />
+      </n-tab-pane>
+    </n-tabs>
+  </main>
+</template>
+
 <script setup lang="tsx">
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
@@ -427,7 +705,6 @@ function randomColorWithIndex(index: number): string {
     'var(--color-pink-600)',
     'var(--color-slate-600)',
   ];
-  const randomColorSystems = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'monochrome'];
   if (index < presets.length) {
     return presets[index];
   }
@@ -449,284 +726,6 @@ onMounted(async () => {
   await Promise.all([refreshLogs(), refreshCleanupPreview()]);
 });
 </script>
-
-<template>
-  <main class="story-page">
-    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="story-tabs">
-      <n-tab-pane tab="跑团日志" name="list">
-        <template v-if="mode === 'logs'">
-          <header class="page-header">
-            <n-card title="跑团日志 / Story" :bordered="false">
-              <n-flex vertical align="flex-start">
-                <n-text>记录过 {{ summary?.totalLogs ?? 0 }} 份日志，共计 {{ summary?.totalItems ?? 0 }} 条消息</n-text>
-                <n-text>现有 {{ summary?.currentLogs ?? 0 }} 份日志，共计 {{ summary?.currentItems ?? 0 }} 条消息</n-text>
-              </n-flex>
-            </n-card>
-          </header>
-          <section class="story-search-block">
-            <ProSearchForm
-              :form="storySearchForm"
-              :columns="storySearchColumns"
-              size="small"
-              label-placement="left"
-              label-width="72"
-              cols="1 s:2 l:3"
-              :collapse-button-props="false"
-            />
-          </section>
-
-          <section class="story-action-block">
-            <n-flex size="small" align="center" class="story-tools">
-              <n-button type="primary" size="small" @click="logs.forEach(item => (item.pitch = !item.pitch))">
-                <template #icon>
-                  <n-icon><i-carbon-checkmark /></n-icon>
-                </template>
-                全选
-              </n-button>
-              <n-button
-                v-show="(logs?.filter(item => item.pitch)?.length ?? 0) > 0"
-                type="error"
-                size="small"
-                @click="delLogs"
-              >
-                <template #icon>
-                  <n-icon><i-carbon-row-delete /></n-icon>
-                </template>
-                删除所选
-              </n-button>
-            </n-flex>
-          </section>
-
-          <section class="story-data-block">
-            <template v-for="log in logs" :key="log.id">
-              <FoldableCard class="story-log-card">
-                <template #title>
-                  <n-flex align="center">
-                    <n-checkbox v-model:checked="log.pitch" />
-                    <n-flex align="center" wrap>
-                      <n-text class="text-base" tag="strong">{{ log.name }}</n-text>
-                      <n-text>({{ log.groupId }})</n-text>
-                    </n-flex>
-                  </n-flex>
-                </template>
-
-                <template #action>
-                  <n-flex size="small" wrap>
-                    <n-button size="small" secondary @click="openItem(log)">查看</n-button>
-                    <n-button size="small" secondary @click="openRawItem(log)">分页文本</n-button>
-                    <n-button size="small" type="primary" secondary @click="uploadLog(log)">
-                      <template #icon>
-                        <n-icon><i-carbon-upload /></n-icon>
-                      </template>
-                      提取日志
-                    </n-button>
-                    <n-button size="small" secondary @click="uploadLog(log, true)">强制上传</n-button>
-                    <n-button size="small" secondary :disabled="!log.uploadUrl" @click="openLink(log.uploadUrl)">
-                      查看链接
-                    </n-button>
-                    <n-button size="small" type="error" secondary @click="delLog(log)">
-                      <template #icon>
-                        <n-icon><i-carbon-row-delete /></n-icon>
-                      </template>
-                      删除
-                    </n-button>
-                  </n-flex>
-                </template>
-
-                <n-flex vertical align="flex-start">
-                  <n-flex>
-                    <n-text>包含 {{ log.size ?? 0 }} 条消息</n-text>
-                  </n-flex>
-                  <n-flex align="center">
-                    <n-text>链接状态：{{ linkStateText(log) }}</n-text>
-                    <n-tag size="small" :type="linkStateType(log)" :bordered="false">
-                      {{ log.linkState }}
-                    </n-tag>
-                  </n-flex>
-                  <n-flex v-if="log.uploadTime">
-                    <n-text>上传于：{{ dayjs.unix(log.uploadTime).format('YYYY-MM-DD HH:mm') }}</n-text>
-                  </n-flex>
-                  <n-flex>
-                    <n-text>创建于：{{ dayjs.unix(log.createdAt).format('YYYY-MM-DD') }}</n-text>
-                    <n-tag type="info" size="small" :bordered="false">
-                      {{ dayjs.unix(log.createdAt).fromNow() }}
-                    </n-tag>
-                  </n-flex>
-                  <n-flex>
-                    <n-text>更新于：{{ dayjs.unix(log.updatedAt).format('YYYY-MM-DD') }}</n-text>
-                    <n-tag type="info" size="small" :bordered="false">
-                      {{ dayjs.unix(log.updatedAt).fromNow() }}
-                    </n-tag>
-                  </n-flex>
-                </n-flex>
-              </FoldableCard>
-            </template>
-          </section>
-
-          <div class="story-pagination-block">
-            <n-pagination
-              v-model:page="queryLogPage.pageNum"
-              v-model:page-size="queryLogPage.pageSize"
-              show-size-picker
-              :page-sizes="[10, 20, 30, 50]"
-              :page-slot="isMobile ? 3 : 5"
-              :item-count="queryLogPage.total"
-              @update:page="handleLogPageChange"
-              @update:page-size="handlePageSizeChange"
-            />
-          </div>
-        </template>
-
-        <template v-else-if="mode === 'painter' && currentPainterLog">
-          <StoryPainterViewer :log="currentPainterLog" @back="closeItem" />
-        </template>
-
-        <template v-else>
-          <n-card title="跑团日志 / Story">
-            <template #header-extra>
-              <n-button type="primary" @click="closeItem">
-                <template #icon>
-                  <n-icon><i-carbon-chevron-left /></n-icon>
-                </template>
-                返回列表
-              </n-button>
-            </template>
-
-            <n-collapse>
-              <n-collapse-item title="颜色设置">
-                <template v-for="(_, id) in users" :key="id">
-                  <n-descriptions label-placement="top">
-                    <n-descriptions-item :label="users[id][1]">
-                      <n-color-picker
-                        class="w-32"
-                        v-model:value="users[id][0]"
-                        :modes="['hex']"
-                        :show-alpha="false"
-                        :swatches="['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#9333ea', '#db2777']"
-                      />
-                    </n-descriptions-item>
-                  </n-descriptions>
-                </template>
-              </n-collapse-item>
-            </n-collapse>
-          </n-card>
-
-          <div class="story-item-list">
-            <template v-for="(item, index) in itemsView" :key="index">
-              <p :style="{ color: users[item.IMUserId][0] }">
-                <span>{{ item.nickname }}：</span>
-                <template v-for="(line, lineIndex) in item.message.split('\n')" :key="lineIndex">
-                  <span>{{ line }}</span><br />
-                </template>
-              </p>
-            </template>
-          </div>
-
-          <div class="story-pagination">
-            <n-pagination
-              v-model:page="logItemPage.pageNum"
-              v-model:page-size="logItemPage.pageSize"
-              show-size-picker
-              :page-sizes="[50, 100, 200]"
-              :page-slot="isMobile ? 3 : 5"
-              :item-count="logItemPage.size"
-              @update:page="handleItemPageChange"
-              @update:page-size="handleItemPageChange"
-            />
-          </div>
-        </template>
-      </n-tab-pane>
-
-      <n-tab-pane tab="日志清理" name="cleanup">
-        <section class="story-cleanup-page">
-          <header class="page-header">
-            <n-card title="日志清理" :bordered="false">
-              <n-flex vertical align="flex-start">
-                <n-text>按“超过 N 个月未更新”筛选日志并批量删除。</n-text>
-                <n-text depth="3">清理只影响日志库，不影响 v1 接口。</n-text>
-              </n-flex>
-            </n-card>
-          </header>
-
-          <section class="cleanup-panel">
-            <div class="cleanup-panel-head">
-              <div>
-                <h3>清理参数</h3>
-                <p>先预览，再执行危险操作。</p>
-              </div>
-              <n-button secondary @click="refreshCleanupPreview">刷新预览</n-button>
-            </div>
-
-            <div class="cleanup-panel-body">
-              <div class="cleanup-toolbar">
-                <n-input-number v-model:value="cleanupForm.months" :min="0" class="cleanup-months" />
-                <n-switch v-model:value="cleanupForm.vacuum" />
-              </div>
-              <div class="cleanup-toolbar-labels">
-                <n-text depth="3">N 个月未更新</n-text>
-                <n-text depth="3">执行 VACUUM</n-text>
-              </div>
-            </div>
-          </section>
-
-          <section class="cleanup-panel">
-            <div class="cleanup-panel-head">
-              <div>
-                <h3>预览结果</h3>
-                <p>依据当前阈值估算待删除范围。</p>
-              </div>
-            </div>
-
-            <div class="cleanup-stats">
-              <n-card size="small">
-                <n-statistic label="待删日志" :value="cleanupPreview?.logs ?? 0" />
-              </n-card>
-              <n-card size="small">
-                <n-statistic label="待删消息" :value="cleanupPreview?.items ?? 0" />
-              </n-card>
-              <n-card size="small">
-                <n-statistic
-                  label="最早更新时间"
-                  :value="cleanupPreview?.oldestUpdated ? dayjs.unix(cleanupPreview.oldestUpdated).format('YYYY-MM-DD') : '--'"
-                />
-              </n-card>
-              <n-card size="small">
-                <n-statistic
-                  label="最近更新时间"
-                  :value="cleanupPreview?.newestUpdated ? dayjs.unix(cleanupPreview.newestUpdated).format('YYYY-MM-DD') : '--'"
-                />
-              </n-card>
-            </div>
-          </section>
-
-          <section class="cleanup-panel cleanup-danger">
-            <div class="cleanup-panel-head">
-              <div>
-                <h3>执行清理</h3>
-                <p>危险操作，不可撤销。</p>
-              </div>
-            </div>
-
-            <n-alert v-if="cleanupForm.vacuum" type="warning" :show-icon="false" class="cleanup-alert">
-              这将可能导致海豹记录log用户运行缓慢，请注意
-            </n-alert>
-
-            <div class="cleanup-actions">
-              <n-button :loading="cleanupMutation.isPending.value" type="error" @click="openCleanupDialog">
-                确认并执行
-              </n-button>
-              <n-button secondary @click="executeCleanup" v-if="false">执行清理</n-button>
-            </div>
-          </section>
-        </section>
-      </n-tab-pane>
-
-      <n-tab-pane tab="日志备份" name="backup">
-        <StoryBackup />
-      </n-tab-pane>
-    </n-tabs>
-  </main>
-</template>
 
 <style scoped>
 .page-header {

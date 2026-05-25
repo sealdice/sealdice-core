@@ -1,3 +1,134 @@
+<template>
+  <section class="story-painter-viewer">
+    <header class="viewer-header">
+      <n-flex align="center" justify="space-between" wrap>
+        <div class="viewer-title">
+          <n-button quaternary @click="emit('back')">
+            <template #icon>
+              <n-icon><i-carbon-chevron-left /></n-icon>
+            </template>
+            返回列表
+          </n-button>
+          <n-text tag="strong" class="viewer-title-text">{{ title }}</n-text>
+        </div>
+        <n-flex size="small" wrap>
+          <n-button type="primary" secondary :loading="loading" @click="loadLog">
+            <template #icon><n-icon><i-carbon-renew /></n-icon></template>
+            重新加载
+          </n-button>
+          <n-button type="primary" text @click="painter.refreshSwatches">
+            刷新色板
+          </n-button>
+        </n-flex>
+      </n-flex>
+    </header>
+
+    <n-alert v-if="errorText" type="error" class="viewer-alert">
+      {{ errorText }}
+    </n-alert>
+
+    <n-spin :show="loading">
+      <div class="viewer-grid">
+        <aside class="viewer-side">
+          <StoryPainterOptionsPanel v-model:options="exportOptionsModel" v-model:editor-highlight="editorHighlightModel" />
+          <StoryPainterCharacterPanel
+            :chars="painter.chars.value"
+            :swatches="painter.swatches.value"
+            :disabled="loading"
+            @update-char="painter.updateChar"
+            @rename-char="painter.renameChar"
+            @delete-char="painter.deleteChar"
+          />
+        </aside>
+
+        <main class="viewer-main">
+          <section class="viewer-toolbar">
+            <n-flex align="center" justify="space-between" wrap>
+              <n-flex size="small" align="center" wrap>
+                <n-checkbox
+                  v-for="item in modeOptions"
+                  :key="item.value"
+                  :checked="painter.mode.value === item.value"
+                  :border="true"
+                  @click="openMode(item.value)"
+                >
+                  {{ item.label }}
+                </n-checkbox>
+                <n-button
+                  v-if="painter.mode.value !== 'editor'"
+                  size="small"
+                  type="primary"
+                  text
+                  @click="showEditor"
+                >
+                  编辑器
+                </n-button>
+              </n-flex>
+
+              <n-flex size="small" wrap>
+                <n-button size="small" type="primary" secondary :loading="exportBusy.raw" @click="withBusy('raw', exportRaw)">
+                  下载原始文件
+                </n-button>
+                <n-button size="small" type="primary" secondary :loading="exportBusy.rawText" @click="withBusy('rawText', exportRawText)">
+                  下载原始文本
+                </n-button>
+                <n-button size="small" type="primary" secondary :loading="exportBusy.doc" @click="withBusy('doc', () => exportDoc(false))">
+                  下载带图 doc
+                </n-button>
+                <n-button size="small" type="primary" secondary :loading="exportBusy.talkDoc" @click="withBusy('talkDoc', () => exportDoc(true))">
+                  下载对话 doc
+                </n-button>
+                <n-button size="small" type="primary" secondary :loading="exportBusy.docx" @click="withBusy('docx', exportDocx)">
+                  下载 docx
+                </n-button>
+                <n-dropdown
+                  trigger="click"
+                  :options="[
+                    { label: '保存论坛代码', key: 'bbs' },
+                    { label: '保存回声工坊', key: 'trg' },
+                  ]"
+                  @select="(key: string) => key === 'bbs' ? withBusy('forum', exportForumText) : withBusy('trg', exportTrgText)"
+                >
+                  <n-button size="small" type="primary" secondary>
+                    更多导出
+                  </n-button>
+                </n-dropdown>
+              </n-flex>
+            </n-flex>
+          </section>
+
+          <StoryPainterEditor
+            v-if="painter.mode.value === 'editor'"
+            :items="editorItems"
+            :chars="painter.chars.value"
+            :options="painter.exportOptions"
+            :highlight="painter.editorHighlight.value"
+            :lazy="!painter.fullItemsLoaded.value"
+            @load-full="showEditor"
+            @update-items="painter.setAllItemsFromEditor"
+          />
+          <StoryPainterPreview
+            v-else
+            :mode="painter.mode.value"
+            :items="painter.previewItems.value"
+            :item-indexes="painter.visibleIndexes.value"
+            :read-item="painter.readPreviewItem"
+            :read-items="painter.readPreviewItems"
+            :chars="painter.chars.value"
+            :options="painter.exportOptions"
+            :forum-options="painter.forumOptions"
+            :add-voice-mark="painter.trgIsAddVoiceMark.value"
+            :copy-text="buildCopyText"
+            @copy="handleCopy"
+            @update-add-voice-mark="value => { painter.trgIsAddVoiceMark.value = value; }"
+            @update-forum-options="value => { Object.assign(painter.forumOptions, value); }"
+          />
+        </main>
+      </div>
+    </n-spin>
+  </section>
+</template>
+
 <script setup lang="ts">
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import type { StoryLogView } from '@/api';
@@ -209,136 +340,6 @@ onMounted(() => {
   void loadLog();
 });
 </script>
-
-<template>
-  <section class="story-painter-viewer">
-    <header class="viewer-header">
-      <n-flex align="center" justify="space-between" wrap>
-        <div class="viewer-title">
-          <n-button quaternary @click="emit('back')">
-            <template #icon>
-              <n-icon><i-carbon-chevron-left /></n-icon>
-            </template>
-            返回列表
-          </n-button>
-          <n-text tag="strong" class="viewer-title-text">{{ title }}</n-text>
-        </div>
-        <n-flex size="small" wrap>
-          <n-button type="primary" secondary :loading="loading" @click="loadLog">
-            <template #icon><n-icon><i-carbon-renew /></n-icon></template>
-            重新加载
-          </n-button>
-          <n-button type="primary" text @click="painter.refreshSwatches">
-            刷新色板
-          </n-button>
-        </n-flex>
-      </n-flex>
-    </header>
-
-    <n-alert v-if="errorText" type="error" class="viewer-alert">
-      {{ errorText }}
-    </n-alert>
-
-    <n-spin :show="loading">
-      <div class="viewer-grid">
-        <aside class="viewer-side">
-          <StoryPainterOptionsPanel v-model:options="exportOptionsModel" v-model:editor-highlight="editorHighlightModel" />
-          <StoryPainterCharacterPanel
-            :chars="painter.chars.value"
-            :swatches="painter.swatches.value"
-            :disabled="loading"
-            @update-char="painter.updateChar"
-            @rename-char="painter.renameChar"
-            @delete-char="painter.deleteChar"
-          />
-        </aside>
-
-        <main class="viewer-main">
-          <section class="viewer-toolbar">
-            <n-flex align="center" justify="space-between" wrap>
-              <n-flex size="small" align="center" wrap>
-                <n-checkbox
-                  v-for="item in modeOptions"
-                  :key="item.value"
-                  :checked="painter.mode.value === item.value"
-                  :border="true"
-                  @click="openMode(item.value)"
-                >
-                  {{ item.label }}
-                </n-checkbox>
-                <n-button
-                  v-if="painter.mode.value !== 'editor'"
-                  size="small"
-                  type="primary"
-                  text
-                  @click="showEditor"
-                >
-                  编辑器
-                </n-button>
-              </n-flex>
-
-              <n-flex size="small" wrap>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.raw" @click="withBusy('raw', exportRaw)">
-                  下载原始文件
-                </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.rawText" @click="withBusy('rawText', exportRawText)">
-                  下载原始文本
-                </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.doc" @click="withBusy('doc', () => exportDoc(false))">
-                  下载带图 doc
-                </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.talkDoc" @click="withBusy('talkDoc', () => exportDoc(true))">
-                  下载对话 doc
-                </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.docx" @click="withBusy('docx', exportDocx)">
-                  下载 docx
-                </n-button>
-                <n-dropdown
-                  trigger="click"
-                  :options="[
-                    { label: '保存论坛代码', key: 'bbs' },
-                    { label: '保存回声工坊', key: 'trg' },
-                  ]"
-                  @select="(key: string) => key === 'bbs' ? withBusy('forum', exportForumText) : withBusy('trg', exportTrgText)"
-                >
-                  <n-button size="small" type="primary" secondary>
-                    更多导出
-                  </n-button>
-                </n-dropdown>
-              </n-flex>
-            </n-flex>
-          </section>
-
-          <StoryPainterEditor
-            v-if="painter.mode.value === 'editor'"
-            :items="editorItems"
-            :chars="painter.chars.value"
-            :options="painter.exportOptions"
-            :highlight="painter.editorHighlight.value"
-            :lazy="!painter.fullItemsLoaded.value"
-            @load-full="showEditor"
-            @update-items="painter.setAllItemsFromEditor"
-          />
-          <StoryPainterPreview
-            v-else
-            :mode="painter.mode.value"
-            :items="painter.previewItems.value"
-            :item-indexes="painter.visibleIndexes.value"
-            :read-item="painter.readPreviewItem"
-            :read-items="painter.readPreviewItems"
-            :chars="painter.chars.value"
-            :options="painter.exportOptions"
-            :forum-options="painter.forumOptions"
-            :add-voice-mark="painter.trgIsAddVoiceMark.value"
-            :copy-text="buildCopyText"
-            @copy="handleCopy"
-            @update-add-voice-mark="value => { painter.trgIsAddVoiceMark.value = value; }"
-          />
-        </main>
-      </div>
-    </n-spin>
-  </section>
-</template>
 
 <style scoped>
 .story-painter-viewer {

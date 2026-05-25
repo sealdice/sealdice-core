@@ -142,9 +142,7 @@ const LevelConfigEditor = defineComponent({
       required: true,
     },
   },
-  emits: {
-    'update:config': (_value: CensorLevelConfig) => true,
-  },
+  emits: ['update:config'],
   setup(props) {
     return () => (
       <n-flex align='center'>

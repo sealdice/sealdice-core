@@ -1,28 +1,3 @@
-<script setup lang="ts">
-import type { TextItemCompatibleInfo, Value } from '@/api';
-import CustomTextPreviewInfo from './CustomTextPreviewInfo.vue';
-import type { TextTemplateItem } from '@/features/customText/types';
-
-const items = defineModel<TextTemplateItem[]>({ required: true });
-
-const props = defineProps<{
-  category: string;
-  keyName: string;
-  help?: Value;
-  getPreview: (keyName: string, text: string) => TextItemCompatibleInfo | undefined;
-  getPreviewCheckErr: (keyName: string, text: string) => boolean;
-  textItemKeyOf: (keyName: string, item: TextTemplateItem) => string;
-}>();
-
-const emit = defineEmits<{
-  addItem: [keyName: string];
-  removeItem: [items: TextTemplateItem[], index: number];
-  change: [category: string, keyName: string];
-  deleteKey: [category: string, keyName: string];
-  resetKey: [category: string, keyName: string];
-}>();
-</script>
-
 <template>
   <n-form label-width="auto" label-position="top">
     <n-form-item class="w-full">
@@ -160,6 +135,31 @@ const emit = defineEmits<{
     </n-form-item>
   </n-form>
 </template>
+
+<script setup lang="ts">
+import type { TextItemCompatibleInfo, Value } from '@/api';
+import CustomTextPreviewInfo from './CustomTextPreviewInfo.vue';
+import type { TextTemplateItem } from '@/features/customText/types';
+
+const items = defineModel<TextTemplateItem[]>({ required: true });
+
+defineProps<{
+  category: string;
+  keyName: string;
+  help?: Value;
+  getPreview: (keyName: string, text: string) => TextItemCompatibleInfo | undefined;
+  getPreviewCheckErr: (keyName: string, text: string) => boolean;
+  textItemKeyOf: (keyName: string, item: TextTemplateItem) => string;
+}>();
+
+const emit = defineEmits<{
+  addItem: [keyName: string];
+  removeItem: [items: TextTemplateItem[], index: number];
+  change: [category: string, keyName: string];
+  deleteKey: [category: string, keyName: string];
+  resetKey: [category: string, keyName: string];
+}>();
+</script>
 
 <style scoped>
 .entry-tag {

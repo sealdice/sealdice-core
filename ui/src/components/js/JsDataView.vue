@@ -1,3 +1,107 @@
+<template>
+  <div>
+    <header class="mb-4">
+      <ProSearchForm
+        :form="searchForm"
+        :columns="searchColumns"
+        size="small"
+        label-placement="left"
+        label-width="72"
+        cols="1 s:2"
+        :collapse-button-props="false"
+      />
+    </header>
+
+    <template v-if="selectedPlugin">
+      <!-- Info -->
+      <n-flex v-if="dataInfoQuery.data.value" size="medium" class="mb-4" wrap>
+        <n-statistic label="Key 数量" :value="dataInfoQuery.data.value.keyCount" />
+        <n-statistic label="文件大小" :value="formatFileSize(dataInfoQuery.data.value.fileSize)" />
+        <n-button
+          v-if="dataInfoQuery.data.value.canShrink"
+          size="small"
+          :loading="shrinkMutation.isPending.value"
+          @click="shrinkData"
+        >
+          压缩数据库
+        </n-button>
+      </n-flex>
+
+      <!-- List -->
+      <section class="data-list">
+        <div
+          v-for="kv in dataListQuery.data.value?.keys ?? []"
+          :key="kv.key"
+          class="data-row"
+        >
+          <n-flex align="center" justify="space-between" wrap>
+            <n-flex align="center" size="small">
+              <n-text class="data-key">{{ kv.key }}</n-text>
+              <n-tag v-if="kv.isJson" size="small" type="info" :bordered="false">JSON</n-tag>
+            </n-flex>
+            <n-flex size="small">
+              <n-button size="tiny" @click="openEdit(kv.key, kv.value, kv.isJson)">编辑</n-button>
+              <n-button size="tiny" type="error" secondary @click="handleDeleteKey(kv.key)">删除</n-button>
+            </n-flex>
+          </n-flex>
+        </div>
+        <n-text v-if="!dataListQuery.data.value?.keys?.length" depth="3">无数据</n-text>
+      </section>
+
+      <!-- Pagination -->
+      <div v-if="(dataListQuery.data.value?.total ?? 0) > dataPage.pageSize" class="js-data-pagination">
+        <n-pagination
+          v-model:page="dataPage.page"
+          :page-size="dataPage.pageSize"
+          :item-count="dataListQuery.data.value?.total ?? 0"
+          :page-slot="3"
+        />
+      </div>
+    </template>
+
+    <!-- Edit Modal -->
+    <n-modal v-model:show="showEditModal" title="编辑数据" preset="card" style="width: 90vw; max-width: 700px">
+      <n-flex vertical size="medium">
+        <n-flex align="center">
+          <n-text depth="3" class="w-16">Key:</n-text>
+          <n-text>{{ editKey }}</n-text>
+        </n-flex>
+        <n-flex align="center" v-if="editIsJson">
+          <n-text depth="3" class="w-16">格式:</n-text>
+          <n-tag size="small" type="info" :bordered="false">JSON</n-tag>
+        </n-flex>
+        <n-flex vertical>
+          <n-text depth="3">Value:</n-text>
+          <n-input
+            v-model:value="editValue"
+            type="textarea"
+            rows="10"
+            @input="() => {
+              jsonError = '';
+              try { JSON.parse(editValue); } catch { if (editIsJson) jsonError = 'JSON 格式不合法'; }
+            }"
+          />
+        </n-flex>
+        <n-alert v-if="jsonError" type="warning" :show-icon="true">
+          {{ jsonError }}
+        </n-alert>
+      </n-flex>
+      <template #footer>
+        <n-flex justify="end">
+          <n-button @click="showEditModal = false">取消</n-button>
+          <n-button
+            type="primary"
+            :loading="setMutation.isPending.value"
+            @click="confirmSave"
+          >
+            保存
+          </n-button>
+        </n-flex>
+      </template>
+    </n-modal>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import {
@@ -6,7 +110,6 @@ import {
   NInput,
   NModal,
   NPagination,
-  NSelect,
   NStatistic,
   NText,
   useDialog,
@@ -171,110 +274,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 </script>
-
-<template>
-  <div>
-    <header class="mb-4">
-      <ProSearchForm
-        :form="searchForm"
-        :columns="searchColumns"
-        size="small"
-        label-placement="left"
-        label-width="72"
-        cols="1 s:2"
-        :collapse-button-props="false"
-      />
-    </header>
-
-    <template v-if="selectedPlugin">
-      <!-- Info -->
-      <n-flex v-if="dataInfoQuery.data.value" size="medium" class="mb-4" wrap>
-        <n-statistic label="Key 数量" :value="dataInfoQuery.data.value.keyCount" />
-        <n-statistic label="文件大小" :value="formatFileSize(dataInfoQuery.data.value.fileSize)" />
-        <n-button
-          v-if="dataInfoQuery.data.value.canShrink"
-          size="small"
-          :loading="shrinkMutation.isPending.value"
-          @click="shrinkData"
-        >
-          压缩数据库
-        </n-button>
-      </n-flex>
-
-      <!-- List -->
-      <section class="data-list">
-        <div
-          v-for="kv in dataListQuery.data.value?.keys ?? []"
-          :key="kv.key"
-          class="data-row"
-        >
-          <n-flex align="center" justify="space-between" wrap>
-            <n-flex align="center" size="small">
-              <n-text class="data-key">{{ kv.key }}</n-text>
-              <n-tag v-if="kv.isJson" size="small" type="info" :bordered="false">JSON</n-tag>
-            </n-flex>
-            <n-flex size="small">
-              <n-button size="tiny" @click="openEdit(kv.key, kv.value, kv.isJson)">编辑</n-button>
-              <n-button size="tiny" type="error" secondary @click="handleDeleteKey(kv.key)">删除</n-button>
-            </n-flex>
-          </n-flex>
-        </div>
-        <n-text v-if="!dataListQuery.data.value?.keys?.length" depth="3">无数据</n-text>
-      </section>
-
-      <!-- Pagination -->
-      <div v-if="(dataListQuery.data.value?.total ?? 0) > dataPage.pageSize" class="js-data-pagination">
-        <n-pagination
-          v-model:page="dataPage.page"
-          :page-size="dataPage.pageSize"
-          :item-count="dataListQuery.data.value?.total ?? 0"
-          :page-slot="3"
-        />
-      </div>
-    </template>
-
-    <!-- Edit Modal -->
-    <n-modal v-model:show="showEditModal" title="编辑数据" preset="card" style="width: 90vw; max-width: 700px">
-      <n-flex vertical size="medium">
-        <n-flex align="center">
-          <n-text depth="3" class="w-16">Key:</n-text>
-          <n-text>{{ editKey }}</n-text>
-        </n-flex>
-        <n-flex align="center" v-if="editIsJson">
-          <n-text depth="3" class="w-16">格式:</n-text>
-          <n-tag size="small" type="info" :bordered="false">JSON</n-tag>
-        </n-flex>
-        <n-flex vertical>
-          <n-text depth="3">Value:</n-text>
-          <n-input
-            v-model:value="editValue"
-            type="textarea"
-            rows="10"
-            @input="() => {
-              jsonError = '';
-              try { JSON.parse(editValue); } catch { if (editIsJson) jsonError = 'JSON 格式不合法'; }
-            }"
-          />
-        </n-flex>
-        <n-alert v-if="jsonError" type="warning" :show-icon="true">
-          {{ jsonError }}
-        </n-alert>
-      </n-flex>
-      <template #footer>
-        <n-flex justify="end">
-          <n-button @click="showEditModal = false">取消</n-button>
-          <n-button
-            type="primary"
-            :loading="setMutation.isPending.value"
-            @click="confirmSave"
-          >
-            保存
-          </n-button>
-        </n-flex>
-      </template>
-    </n-modal>
-  </div>
-</template>
 
 <style scoped>
 .data-row {
