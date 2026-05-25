@@ -1,147 +1,3 @@
-<script setup lang="tsx">
-import { computed, ref, useTemplateRef, watch } from 'vue';
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
-import { useQuery } from '@tanstack/vue-query';
-import { filesize } from 'filesize';
-import dayjs from 'dayjs';
-import type { DataTableColumns } from 'naive-ui';
-import { useThemeVars } from 'naive-ui';
-import {
-  getSdApiV2BaseNetworkHealthOptions,
-  getSdApiV2BaseOverviewOptions,
-} from '@/api';
-import { useBaseLogStream, type BaseLogItem } from '@/features/base/logStream';
-import { applyLogDisplayUpdate } from '@/features/base/logDisplayState';
-import {
-  formatNetworkHealthRelativeTime,
-  formatNetworkHealthTimestamp,
-  isNetworkHealthTargetOK,
-  normalizeNetworkHealthData,
-} from '@/features/base/networkHealth';
-import { hasAccessToken } from '@/features/auth/state';
-
-const themeVars = useThemeVars();
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const isMobile = breakpoints.smaller('md');
-
-// 首页是运行概览页：低频状态走 overview query，高频日志走 realtime。
-// 不把日志混进 overview，是为了避免 5 秒轮询带回大量日志数据。
-const overviewQuery = useQuery({
-  ...getSdApiV2BaseOverviewOptions(),
-  enabled: hasAccessToken,
-  refetchInterval: 5000,
-});
-
-const networkHealthQuery = useQuery({
-  ...getSdApiV2BaseNetworkHealthOptions(),
-  enabled: hasAccessToken,
-  refetchInterval: 300000,
-});
-
-const overview = computed(() => overviewQuery.data.value?.item);
-const memoryUsed = computed(() => overview.value?.memory.usedSys ?? 0);
-const hasNewVersion = computed(() => {
-  const version = overview.value?.version;
-  if (!version) return false;
-  return version.code < version.latestCode;
-});
-const isContainerMode = computed(() => overview.value?.runtime.containerMode === true);
-
-const displayReverse = ref(true);
-const autoRefresh = ref(true);
-const visibleLogs = ref<BaseLogItem[]>([]);
-const logsContainer = useTemplateRef<HTMLElement>('logsContainer');
-const logStream = useBaseLogStream();
-const networkHealth = computed(() => normalizeNetworkHealthData(networkHealthQuery.data.value?.item));
-
-watch(
-  [logStream.logs, autoRefresh],
-  () => {
-    visibleLogs.value = applyLogDisplayUpdate(visibleLogs.value, logStream.logs.value, autoRefresh.value);
-  },
-  { immediate: true },
-);
-
-// 日志源保持 append 顺序，展示顺序只在 computed 中转换，避免切换“倒序显示”
-// 时破坏原始缓冲和后续 append 逻辑。
-const logData = computed(() => {
-  return displayReverse.value ? [...visibleLogs.value].reverse() : visibleLogs.value;
-});
-
-function refreshNetworkHealth() {
-  void networkHealthQuery.refetch();
-}
-
-function getWebsiteHealthOK(target: string): boolean {
-  return isNetworkHealthTargetOK(networkHealth.value, target);
-}
-
-function scrollToLatestLog() {
-  const element = logsContainer.value;
-  if (!element) return;
-  element.scrollIntoView({
-    behavior: 'smooth',
-    block: displayReverse.value ? 'start' : 'end',
-  });
-}
-
-const getMsgColor = (row: BaseLogItem): string | undefined => {
-  if (row.msg.startsWith('onebot | ')) return themeVars.value.warningColor;
-  if (row.msg.startsWith('发给')) return themeVars.value.infoColor;
-  if (row.level === 'warn') return themeVars.value.warningColor;
-  if (row.level === 'error') return themeVars.value.errorColor;
-  return undefined;
-};
-
-const columns = computed<DataTableColumns<BaseLogItem>>(() => {
-  const data: DataTableColumns<BaseLogItem> = [
-    {
-      title: '时间',
-      key: 'ts',
-      width: isMobile.value ? 70 : 100,
-      render: row => {
-        const color = getMsgColor(row);
-        return (
-          <div class='log-time' style={{ color }}>
-            {isMobile.value ? null : (
-              <n-icon>
-                <i-carbon-time />
-              </n-icon>
-            )}
-            <span class='log-time-text'>
-              {dayjs.unix(row.ts).format(isMobile.value ? 'HH:mm' : 'HH:mm:ss')}
-            </span>
-          </div>
-        );
-      },
-    },
-  ];
-
-  if (!isMobile.value) {
-    data.push({
-      title: '级别',
-      key: 'level',
-      width: 70,
-      render: row => {
-        const color = getMsgColor(row);
-        return <span style={{ color }}>{row.level}</span>;
-      },
-    });
-  }
-
-  data.push({
-    title: '信息',
-    key: 'msg',
-    render: row => {
-      const color = getMsgColor(row);
-      return <span style={{ color }}>{row.msg}</span>;
-    },
-  });
-
-  return data;
-});
-</script>
-
 <template>
   <main class="home-page">
     <div class="upgrade-bar">
@@ -294,6 +150,150 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
     </main>
   </main>
 </template>
+
+<script setup lang="tsx">
+import { computed, ref, useTemplateRef, watch } from 'vue';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
+import { useQuery } from '@tanstack/vue-query';
+import { filesize } from 'filesize';
+import dayjs from 'dayjs';
+import type { DataTableColumns } from 'naive-ui';
+import { useThemeVars } from 'naive-ui';
+import {
+  getSdApiV2BaseNetworkHealthOptions,
+  getSdApiV2BaseOverviewOptions,
+} from '@/api';
+import { useBaseLogStream, type BaseLogItem } from '@/features/base/logStream';
+import { applyLogDisplayUpdate } from '@/features/base/logDisplayState';
+import {
+  formatNetworkHealthRelativeTime,
+  formatNetworkHealthTimestamp,
+  isNetworkHealthTargetOK,
+  normalizeNetworkHealthData,
+} from '@/features/base/networkHealth';
+import { hasAccessToken } from '@/features/auth/state';
+
+const themeVars = useThemeVars();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('md');
+
+// 首页是运行概览页：低频状态走 overview query，高频日志走 realtime。
+// 不把日志混进 overview，是为了避免 5 秒轮询带回大量日志数据。
+const overviewQuery = useQuery({
+  ...getSdApiV2BaseOverviewOptions(),
+  enabled: hasAccessToken,
+  refetchInterval: 5000,
+});
+
+const networkHealthQuery = useQuery({
+  ...getSdApiV2BaseNetworkHealthOptions(),
+  enabled: hasAccessToken,
+  refetchInterval: 300000,
+});
+
+const overview = computed(() => overviewQuery.data.value?.item);
+const memoryUsed = computed(() => overview.value?.memory.usedSys ?? 0);
+const hasNewVersion = computed(() => {
+  const version = overview.value?.version;
+  if (!version) return false;
+  return version.code < version.latestCode;
+});
+const isContainerMode = computed(() => overview.value?.runtime.containerMode === true);
+
+const displayReverse = ref(true);
+const autoRefresh = ref(true);
+const visibleLogs = ref<BaseLogItem[]>([]);
+const logsContainer = useTemplateRef<HTMLElement>('logsContainer');
+const logStream = useBaseLogStream();
+const networkHealth = computed(() => normalizeNetworkHealthData(networkHealthQuery.data.value?.item));
+
+watch(
+  [logStream.logs, autoRefresh],
+  () => {
+    visibleLogs.value = applyLogDisplayUpdate(visibleLogs.value, logStream.logs.value, autoRefresh.value);
+  },
+  { immediate: true },
+);
+
+// 日志源保持 append 顺序，展示顺序只在 computed 中转换，避免切换“倒序显示”
+// 时破坏原始缓冲和后续 append 逻辑。
+const logData = computed(() => {
+  return displayReverse.value ? [...visibleLogs.value].reverse() : visibleLogs.value;
+});
+
+function refreshNetworkHealth() {
+  void networkHealthQuery.refetch();
+}
+
+function getWebsiteHealthOK(target: string): boolean {
+  return isNetworkHealthTargetOK(networkHealth.value, target);
+}
+
+function scrollToLatestLog() {
+  const element = logsContainer.value;
+  if (!element) return;
+  element.scrollIntoView({
+    behavior: 'smooth',
+    block: displayReverse.value ? 'start' : 'end',
+  });
+}
+
+const getMsgColor = (row: BaseLogItem): string | undefined => {
+  if (row.msg.startsWith('onebot | ')) return themeVars.value.warningColor;
+  if (row.msg.startsWith('发给')) return themeVars.value.infoColor;
+  if (row.level === 'warn') return themeVars.value.warningColor;
+  if (row.level === 'error') return themeVars.value.errorColor;
+  return undefined;
+};
+
+const columns = computed<DataTableColumns<BaseLogItem>>(() => {
+  const data: DataTableColumns<BaseLogItem> = [
+    {
+      title: '时间',
+      key: 'ts',
+      width: isMobile.value ? 70 : 100,
+      render: row => {
+        const color = getMsgColor(row);
+        return (
+          <div class='log-time' style={{ color }}>
+            {isMobile.value ? null : (
+              <n-icon>
+                <i-carbon-time />
+              </n-icon>
+            )}
+            <span class='log-time-text'>
+              {dayjs.unix(row.ts).format(isMobile.value ? 'HH:mm' : 'HH:mm:ss')}
+            </span>
+          </div>
+        );
+      },
+    },
+  ];
+
+  if (!isMobile.value) {
+    data.push({
+      title: '级别',
+      key: 'level',
+      width: 70,
+      render: row => {
+        const color = getMsgColor(row);
+        return <span style={{ color }}>{row.level}</span>;
+      },
+    });
+  }
+
+  data.push({
+    title: '信息',
+    key: 'msg',
+    render: row => {
+      const color = getMsgColor(row);
+      return <span style={{ color }}>{row.msg}</span>;
+    },
+  });
+
+  return data;
+});
+</script>
 
 <style scoped>
 .home-page {

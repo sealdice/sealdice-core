@@ -1,35 +1,3 @@
-<script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { FormInst, FormRules } from 'naive-ui';
-import type { BanAddFormModel } from '@/features/ban/viewModel';
-
-const show = defineModel<boolean>('show', { required: true });
-const form = defineModel<BanAddFormModel>('form', { required: true });
-
-defineProps<{
-  submitting: boolean;
-}>();
-
-const emit = defineEmits<{
-  submit: [];
-}>();
-
-const formRef = ref<FormInst | null>(null);
-
-const formModel = computed(() => form.value);
-
-const rules: FormRules = {
-  id: [
-    { required: true, message: '请输入帐号或群组 ID', trigger: ['blur', 'change'] },
-  ],
-};
-
-async function handleSubmit() {
-  await formRef.value?.validate();
-  emit('submit');
-}
-</script>
-
 <template>
   <n-modal
     v-model:show="show"
@@ -74,3 +42,35 @@ async function handleSubmit() {
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import type { FormInst, FormRules } from 'naive-ui';
+import type { BanAddFormModel } from '@/features/ban/viewModel';
+
+const show = defineModel<boolean>('show', { required: true });
+const form = defineModel<BanAddFormModel>('form', { required: true });
+
+defineProps<{
+  submitting: boolean;
+}>();
+
+const emit = defineEmits<{
+  submit: [];
+}>();
+
+const formRef = ref<FormInst | null>(null);
+
+const formModel = computed(() => form.value);
+
+const rules: FormRules = {
+  id: [
+    { required: true, message: '请输入帐号或群组 ID', trigger: ['blur', 'change'] },
+  ],
+};
+
+async function handleSubmit() {
+  await formRef.value?.validate();
+  emit('submit');
+}
+</script>

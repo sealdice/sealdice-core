@@ -1,16 +1,3 @@
-<script setup lang="ts">
-const keyword = defineModel<string>('keyword', { required: true });
-
-defineProps<{
-  previewLoading: boolean;
-}>();
-
-const emit = defineEmits<{
-  refreshPreview: [];
-  openImport: [];
-}>();
-</script>
-
 <template>
   <div class="custom-text-toolbar">
     <n-flex align="center" size="small" class="custom-text-search">
@@ -36,6 +23,19 @@ const emit = defineEmits<{
     </n-flex>
   </div>
 </template>
+
+<script setup lang="ts">
+const keyword = defineModel<string>('keyword', { required: true });
+
+defineProps<{
+  previewLoading: boolean;
+}>();
+
+const emit = defineEmits<{
+  refreshPreview: [];
+  openImport: [];
+}>();
+</script>
 
 <style scoped>
 .custom-text-toolbar {

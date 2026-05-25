@@ -1,100 +1,3 @@
-<script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
-import { useClipboard, useLocalStorage } from '@vueuse/core';
-import { useMessage } from 'naive-ui';
-import { useRouter } from 'vue-router';
-import {
-  addSearchHistory,
-  matchesNavigationSearch,
-  removeSearchHistoryItem,
-} from '@/router/navigationModel';
-import type { NavigationSearchItem } from '@/router/types';
-import { useAppNavigation } from '@/router/useAppNavigation';
-import AppNavigationIcon from './AppNavigationIcon.vue';
-
-const props = withDefaults(
-  defineProps<{
-    advancedConfigCounter?: number;
-  }>(),
-  {
-    advancedConfigCounter: 0,
-  },
-);
-
-const show = ref(false);
-const keyword = ref('');
-const selectedIndex = ref(-1);
-const inputRef = ref<{ focus: () => void } | null>(null);
-const history = useLocalStorage<NavigationSearchItem[]>('search-history', []);
-const router = useRouter();
-const message = useMessage();
-const { copy } = useClipboard();
-const { searchItems } = useAppNavigation(() => props.advancedConfigCounter);
-
-const trimmedKeyword = computed(() => keyword.value.trim());
-const results = computed(() => {
-  if (!trimmedKeyword.value) return [];
-  return searchItems.value.filter(item => matchesNavigationSearch(item, trimmedKeyword.value));
-});
-const visibleItems = computed(() => (trimmedKeyword.value ? results.value : history.value));
-const hasList = computed(() => visibleItems.value.length > 0);
-
-watch(visibleItems, items => {
-  selectedIndex.value = items.length ? Math.min(Math.max(selectedIndex.value, 0), items.length - 1) : -1;
-});
-
-function open() {
-  show.value = true;
-  selectedIndex.value = visibleItems.value.length ? 0 : -1;
-  nextTick(() => inputRef.value?.focus());
-}
-
-function close() {
-  show.value = false;
-  keyword.value = '';
-  selectedIndex.value = -1;
-}
-
-function resolvedHref(path: string) {
-  return new URL(router.resolve(path).href, window.location.href).toString();
-}
-
-async function copyLink(item: NavigationSearchItem, event?: MouseEvent) {
-  event?.stopPropagation();
-  await copy(resolvedHref(item.path));
-  message.success('复制成功');
-}
-
-function openInNewWindow(item: NavigationSearchItem, event?: MouseEvent) {
-  event?.stopPropagation();
-  window.open(resolvedHref(item.path), '_blank', 'noopener,noreferrer');
-}
-
-function removeHistory(item: NavigationSearchItem, event?: MouseEvent) {
-  event?.stopPropagation();
-  history.value = removeSearchHistoryItem(history.value, item.path);
-}
-
-async function selectItem(item = visibleItems.value[selectedIndex.value]) {
-  if (!item) return;
-  history.value = addSearchHistory(history.value, item);
-  close();
-  await router.push(item.path);
-}
-
-function moveSelection(delta: number) {
-  if (!visibleItems.value.length) return;
-  selectedIndex.value =
-    (selectedIndex.value + delta + visibleItems.value.length) % visibleItems.value.length;
-}
-
-function onMouseEnter(index: number) {
-  selectedIndex.value = index;
-}
-
-defineExpose({ open });
-</script>
-
 <template>
   <n-modal
     v-model:show="show"
@@ -242,6 +145,103 @@ defineExpose({ open });
     </n-card>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue';
+import { useClipboard, useLocalStorage } from '@vueuse/core';
+import { useMessage } from 'naive-ui';
+import { useRouter } from 'vue-router';
+import {
+  addSearchHistory,
+  matchesNavigationSearch,
+  removeSearchHistoryItem,
+} from '@/router/navigationModel';
+import type { NavigationSearchItem } from '@/router/types';
+import { useAppNavigation } from '@/router/useAppNavigation';
+import AppNavigationIcon from './AppNavigationIcon.vue';
+
+const props = withDefaults(
+  defineProps<{
+    advancedConfigCounter?: number;
+  }>(),
+  {
+    advancedConfigCounter: 0,
+  },
+);
+
+const show = ref(false);
+const keyword = ref('');
+const selectedIndex = ref(-1);
+const inputRef = ref<{ focus: () => void } | null>(null);
+const history = useLocalStorage<NavigationSearchItem[]>('search-history', []);
+const router = useRouter();
+const message = useMessage();
+const { copy } = useClipboard();
+const { searchItems } = useAppNavigation(() => props.advancedConfigCounter);
+
+const trimmedKeyword = computed(() => keyword.value.trim());
+const results = computed(() => {
+  if (!trimmedKeyword.value) return [];
+  return searchItems.value.filter(item => matchesNavigationSearch(item, trimmedKeyword.value));
+});
+const visibleItems = computed(() => (trimmedKeyword.value ? results.value : history.value));
+const hasList = computed(() => visibleItems.value.length > 0);
+
+watch(visibleItems, items => {
+  selectedIndex.value = items.length ? Math.min(Math.max(selectedIndex.value, 0), items.length - 1) : -1;
+});
+
+function open() {
+  show.value = true;
+  selectedIndex.value = visibleItems.value.length ? 0 : -1;
+  nextTick(() => inputRef.value?.focus());
+}
+
+function close() {
+  show.value = false;
+  keyword.value = '';
+  selectedIndex.value = -1;
+}
+
+function resolvedHref(path: string) {
+  return new URL(router.resolve(path).href, window.location.href).toString();
+}
+
+async function copyLink(item: NavigationSearchItem, event?: MouseEvent) {
+  event?.stopPropagation();
+  await copy(resolvedHref(item.path));
+  message.success('复制成功');
+}
+
+function openInNewWindow(item: NavigationSearchItem, event?: MouseEvent) {
+  event?.stopPropagation();
+  window.open(resolvedHref(item.path), '_blank', 'noopener,noreferrer');
+}
+
+function removeHistory(item: NavigationSearchItem, event?: MouseEvent) {
+  event?.stopPropagation();
+  history.value = removeSearchHistoryItem(history.value, item.path);
+}
+
+async function selectItem(item = visibleItems.value[selectedIndex.value]) {
+  if (!item) return;
+  history.value = addSearchHistory(history.value, item);
+  close();
+  await router.push(item.path);
+}
+
+function moveSelection(delta: number) {
+  if (!visibleItems.value.length) return;
+  selectedIndex.value =
+    (selectedIndex.value + delta + visibleItems.value.length) % visibleItems.value.length;
+}
+
+function onMouseEnter(index: number) {
+  selectedIndex.value = index;
+}
+
+defineExpose({ open });
+</script>
 
 <style scoped>
 .sd-search-modal {

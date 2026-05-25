@@ -1,72 +1,3 @@
-<script setup lang="tsx">
-import { h } from 'vue';
-import {
-  NButton,
-  NFlex,
-  NProgress,
-  NTag,
-  NText,
-} from 'naive-ui';
-import type { HelpDocTreeOption } from '@/features/helpdoc/viewModel';
-import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
-
-type TreeRenderContext = {
-  option: Record<string, unknown>;
-  checked: boolean;
-  selected: boolean;
-};
-
-const checkedKeys = defineModel<Array<string | number>>('checkedKeys', { required: true });
-
-defineProps<{
-  docTree: HelpDocTreeOption[];
-  loading: boolean;
-  activeUploadTasks: ResumableUploadTask[];
-  deleting: boolean;
-}>();
-
-const emit = defineEmits<{
-  openUpload: [];
-  openConfig: [];
-  deleteFiles: [];
-  retryTask: [task: ResumableUploadTask];
-}>();
-
-function renderPrefix({ option }: TreeRenderContext) {
-  const raw = option as HelpDocTreeOption | undefined;
-  const icon = raw?.icon;
-  if (icon === 'folder') return <i-bi-folder2 color='var(--sd-muted-fg, #606266)' />;
-  if (icon === 'json') return <i-bi-filetype-json color='#d97706' />;
-  if (icon === 'xlsx') return <i-bi-filetype-xlsx color='#16a34a' />;
-  return <i-bi-file-break />;
-}
-
-function renderLabel({ option }: TreeRenderContext) {
-  const raw = option as HelpDocTreeOption | undefined;
-  return h(
-    NText,
-    { class: raw?.raw.deleted ? 'del-line file-info' : 'file-info' },
-    { default: () => option.label as string },
-  );
-}
-
-function renderSuffix({ option }: TreeRenderContext) {
-  const raw = option as HelpDocTreeOption | undefined;
-  if (!raw?.tag) return null;
-  return h(
-    NTag,
-    { size: 'small', type: raw.tag.type, bordered: false },
-    { default: () => raw.tag?.label ?? '' },
-  );
-}
-
-function getTaskStatusType(task: ResumableUploadTask) {
-  if (task.status === 'error') return 'error';
-  if (task.status === 'success') return 'success';
-  return 'default';
-}
-</script>
-
 <template>
   <section class="helpdoc-action-block">
     <n-flex justify="end" align="center" wrap>
@@ -142,6 +73,75 @@ function getTaskStatusType(task: ResumableUploadTask) {
     </main>
   </n-spin>
 </template>
+
+<script setup lang="tsx">
+import { h } from 'vue';
+import {
+  NButton,
+  NFlex,
+  NProgress,
+  NTag,
+  NText,
+} from 'naive-ui';
+import type { HelpDocTreeOption } from '@/features/helpdoc/viewModel';
+import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
+
+type TreeRenderContext = {
+  option: Record<string, unknown>;
+  checked: boolean;
+  selected: boolean;
+};
+
+const checkedKeys = defineModel<Array<string | number>>('checkedKeys', { required: true });
+
+defineProps<{
+  docTree: HelpDocTreeOption[];
+  loading: boolean;
+  activeUploadTasks: ResumableUploadTask[];
+  deleting: boolean;
+}>();
+
+const emit = defineEmits<{
+  openUpload: [];
+  openConfig: [];
+  deleteFiles: [];
+  retryTask: [task: ResumableUploadTask];
+}>();
+
+function renderPrefix({ option }: TreeRenderContext) {
+  const raw = option as HelpDocTreeOption | undefined;
+  const icon = raw?.icon;
+  if (icon === 'folder') return <i-bi-folder2 color='var(--sd-muted-fg, #606266)' />;
+  if (icon === 'json') return <i-bi-filetype-json color='#d97706' />;
+  if (icon === 'xlsx') return <i-bi-filetype-xlsx color='#16a34a' />;
+  return <i-bi-file-break />;
+}
+
+function renderLabel({ option }: TreeRenderContext) {
+  const raw = option as HelpDocTreeOption | undefined;
+  return h(
+    NText,
+    { class: raw?.raw.deleted ? 'del-line file-info' : 'file-info' },
+    { default: () => option.label as string },
+  );
+}
+
+function renderSuffix({ option }: TreeRenderContext) {
+  const raw = option as HelpDocTreeOption | undefined;
+  if (!raw?.tag) return null;
+  return h(
+    NTag,
+    { size: 'small', type: raw.tag.type, bordered: false },
+    { default: () => raw.tag?.label ?? '' },
+  );
+}
+
+function getTaskStatusType(task: ResumableUploadTask) {
+  if (task.status === 'error') return 'error';
+  if (task.status === 'success') return 'success';
+  return 'default';
+}
+</script>
 
 <style scoped>
 .helpdoc-action-block {

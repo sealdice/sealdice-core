@@ -1,29 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import {
-  buildBackupFilenamePreview,
-  formatBackupSelection,
-  type BackupSelectionKey,
-} from '@/features/backup/viewModel';
-import BackupSelectionGroup from './BackupSelectionGroup.vue';
-
-const show = defineModel<boolean>('show', { required: true });
-const selections = defineModel<BackupSelectionKey[]>('selections', { required: true });
-
-const props = defineProps<{
-  timestamp: string;
-  pending: boolean;
-}>();
-
-const emit = defineEmits<{
-  submit: [];
-}>();
-
-const preview = computed(() =>
-  buildBackupFilenamePreview(props.timestamp, formatBackupSelection(selections.value), false),
-);
-</script>
-
 <template>
   <n-modal v-model:show="show" preset="card" title="立即备份" class="backup-dialog" :mask-closable="false">
     <n-space vertical size="large">
@@ -52,6 +26,32 @@ const preview = computed(() =>
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import {
+  buildBackupFilenamePreview,
+  formatBackupSelection,
+  type BackupSelectionKey,
+} from '@/features/backup/viewModel';
+import BackupSelectionGroup from './BackupSelectionGroup.vue';
+
+const show = defineModel<boolean>('show', { required: true });
+const selections = defineModel<BackupSelectionKey[]>('selections', { required: true });
+
+const props = defineProps<{
+  timestamp: string;
+  pending: boolean;
+}>();
+
+const emit = defineEmits<{
+  submit: [];
+}>();
+
+const preview = computed(() =>
+  buildBackupFilenamePreview(props.timestamp, formatBackupSelection(selections.value), false),
+);
+</script>
 
 <style scoped>
 .backup-dialog {

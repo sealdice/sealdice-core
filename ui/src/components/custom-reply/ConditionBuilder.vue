@@ -1,59 +1,3 @@
-<script setup lang="ts">
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
-
-interface ReplyCondition {
-  condType: string;
-  value: string | number | undefined;
-  matchType: string;
-  matchOp?: string;
-}
-
-const matchTypeOptions = [
-  { label: '精确匹配', value: 'matchExact' },
-  { label: '任意相符', value: 'matchMulti' },
-  { label: '包含文本', value: 'matchContains' },
-  { label: '不含文本', value: 'matchNotContains' },
-  { label: '模糊匹配', value: 'matchFuzzy' },
-  { label: '正则匹配', value: 'matchRegex' },
-  { label: '前缀匹配', value: 'matchPrefix' },
-  { label: '后缀匹配', value: 'matchSuffix' },
-];
-
-const condTypeOptions = [
-  { label: '文本匹配', value: 'textMatch' },
-  { label: '文本长度', value: 'textLenLimit' },
-  { label: '表达式为真', value: 'exprTrue' },
-];
-
-const matchOpOptions = [
-  { label: '大于等于', value: 'ge' },
-  { label: '小于等于', value: 'le' },
-];
-
-const listModel = defineModel<ReplyCondition[]>();
-const emit = defineEmits<{
-  deleteCondition: [index: number];
-}>();
-
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const notMobile = breakpoints.greater('sm');
-const conditionKeys = new WeakMap<ReplyCondition, string>();
-let nextConditionKey = 0;
-
-const conditionKeyOf = (condition: ReplyCondition): string => {
-  const existing = conditionKeys.get(condition);
-  if (existing) return existing;
-  nextConditionKey += 1;
-  const key = `condition-${nextConditionKey}`;
-  conditionKeys.set(condition, key);
-  return key;
-};
-
-const deleteByIndex = (index: number) => {
-  emit('deleteCondition', index);
-};
-</script>
-
 <template>
   <div
     v-for="(cond, index) in listModel"
@@ -143,6 +87,62 @@ const deleteByIndex = (index: number) => {
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
+
+interface ReplyCondition {
+  condType: string;
+  value: string | number | undefined;
+  matchType: string;
+  matchOp?: string;
+}
+
+const matchTypeOptions = [
+  { label: '精确匹配', value: 'matchExact' },
+  { label: '任意相符', value: 'matchMulti' },
+  { label: '包含文本', value: 'matchContains' },
+  { label: '不含文本', value: 'matchNotContains' },
+  { label: '模糊匹配', value: 'matchFuzzy' },
+  { label: '正则匹配', value: 'matchRegex' },
+  { label: '前缀匹配', value: 'matchPrefix' },
+  { label: '后缀匹配', value: 'matchSuffix' },
+];
+
+const condTypeOptions = [
+  { label: '文本匹配', value: 'textMatch' },
+  { label: '文本长度', value: 'textLenLimit' },
+  { label: '表达式为真', value: 'exprTrue' },
+];
+
+const matchOpOptions = [
+  { label: '大于等于', value: 'ge' },
+  { label: '小于等于', value: 'le' },
+];
+
+const listModel = defineModel<ReplyCondition[]>();
+const emit = defineEmits<{
+  deleteCondition: [index: number];
+}>();
+
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const notMobile = breakpoints.greater('sm');
+const conditionKeys = new WeakMap<ReplyCondition, string>();
+let nextConditionKey = 0;
+
+const conditionKeyOf = (condition: ReplyCondition): string => {
+  const existing = conditionKeys.get(condition);
+  if (existing) return existing;
+  nextConditionKey += 1;
+  const key = `condition-${nextConditionKey}`;
+  conditionKeys.set(condition, key);
+  return key;
+};
+
+const deleteByIndex = (index: number) => {
+  emit('deleteCondition', index);
+};
+</script>
 
 <style scoped>
 .condition-item {

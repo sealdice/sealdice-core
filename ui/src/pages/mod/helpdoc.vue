@@ -1,3 +1,75 @@
+<template>
+  <main class="helpdoc-page">
+    <header class="page-header">
+      <n-button
+        type="primary"
+        :loading="reloadMutation.isPending.value"
+        :disabled="reloadMutation.isPending.value"
+        @click="reloadMutation.mutate()"
+      >
+        <template #icon>
+          <n-icon><i-carbon-renew /></n-icon>
+        </template>
+        重载帮助文档
+      </n-button>
+    </header>
+
+    <n-affix v-if="needReload" :top="60">
+      <TipBox type="error">
+        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
+      </TipBox>
+    </n-affix>
+
+    <n-tabs v-model:value="tab" justify-content="space-evenly" class="helpdoc-tabs">
+      <n-tab-pane tab="文件" name="file">
+        <HelpdocFilePane
+          v-model:checked-keys="checkedFileKeys"
+          :doc-tree="docTree"
+          :loading="treeQuery.isFetching.value"
+          :active-upload-tasks="activeUploadTasks"
+          :deleting="deleteMutation.isPending.value"
+          @open-upload="uploadDialogVisible = true"
+          @open-config="configDialogVisible = true"
+          @delete-files="deleteFiles"
+          @retry-task="retryTask"
+        />
+      </n-tab-pane>
+
+      <n-tab-pane tab="词条" name="item">
+        <HelpdocItemPane
+          v-model:query="itemQuery"
+          :loading="pageBusy"
+          :items="helpItems"
+          :total="itemTotal"
+          :group-options="itemGroupOptions"
+          :columns="columns"
+          @search="queryItems"
+          @reset="resetItemQuery"
+        />
+      </n-tab-pane>
+    </n-tabs>
+
+    <HelpdocUploadDialog
+      v-model:show="uploadDialogVisible"
+      v-model:group="uploadGroup"
+      v-model:file-list="uploadFiles"
+      :groups="docGroups"
+      :busy="uploader.busy.value"
+      @submit="submitUpload"
+    />
+
+    <HelpdocConfigDialog
+      v-model:show="configDialogVisible"
+      :groups="docGroups"
+      :aliases="currentAliases"
+      :saving="saveConfigMutation.isPending.value"
+      @save="saveConfig"
+      @add-alias="addAlias"
+      @remove-alias="removeAlias"
+    />
+  </main>
+</template>
+
 <script setup lang="tsx">
 import { computed, h, onMounted, reactive, ref, shallowRef, watch, type CSSProperties } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
@@ -223,78 +295,6 @@ function retryTask(task: ResumableUploadTask) {
   void uploader.retry(task);
 }
 </script>
-
-<template>
-  <main class="helpdoc-page">
-    <header class="page-header">
-      <n-button
-        type="primary"
-        :loading="reloadMutation.isPending.value"
-        :disabled="reloadMutation.isPending.value"
-        @click="reloadMutation.mutate()"
-      >
-        <template #icon>
-          <n-icon><i-carbon-renew /></n-icon>
-        </template>
-        重载帮助文档
-      </n-button>
-    </header>
-
-    <n-affix v-if="needReload" :top="60">
-      <TipBox type="error">
-        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
-      </TipBox>
-    </n-affix>
-
-    <n-tabs v-model:value="tab" justify-content="space-evenly" class="helpdoc-tabs">
-      <n-tab-pane tab="文件" name="file">
-        <HelpdocFilePane
-          v-model:checked-keys="checkedFileKeys"
-          :doc-tree="docTree"
-          :loading="treeQuery.isFetching.value"
-          :active-upload-tasks="activeUploadTasks"
-          :deleting="deleteMutation.isPending.value"
-          @open-upload="uploadDialogVisible = true"
-          @open-config="configDialogVisible = true"
-          @delete-files="deleteFiles"
-          @retry-task="retryTask"
-        />
-      </n-tab-pane>
-
-      <n-tab-pane tab="词条" name="item">
-        <HelpdocItemPane
-          v-model:query="itemQuery"
-          :loading="pageBusy"
-          :items="helpItems"
-          :total="itemTotal"
-          :group-options="itemGroupOptions"
-          :columns="columns"
-          @search="queryItems"
-          @reset="resetItemQuery"
-        />
-      </n-tab-pane>
-    </n-tabs>
-
-    <HelpdocUploadDialog
-      v-model:show="uploadDialogVisible"
-      v-model:group="uploadGroup"
-      v-model:file-list="uploadFiles"
-      :groups="docGroups"
-      :busy="uploader.busy.value"
-      @submit="submitUpload"
-    />
-
-    <HelpdocConfigDialog
-      v-model:show="configDialogVisible"
-      :groups="docGroups"
-      :aliases="currentAliases"
-      :saving="saveConfigMutation.isPending.value"
-      @save="saveConfig"
-      @add-alias="addAlias"
-      @remove-alias="removeAlias"
-    />
-  </main>
-</template>
 
 <style scoped>
 .helpdoc-page {

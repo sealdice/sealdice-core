@@ -1,24 +1,3 @@
-<script setup lang="ts">
-const props = withDefaults(
-  defineProps<{
-    loading?: boolean;
-    message?: string;
-    error?: string;
-    retryText?: string;
-  }>(),
-  {
-    loading: false,
-    message: '',
-    error: '',
-    retryText: '重试',
-  },
-);
-
-const emit = defineEmits<{
-  retry: [];
-}>();
-</script>
-
 <template>
   <div class="async-field-section">
     <n-alert
@@ -45,6 +24,27 @@ const emit = defineEmits<{
     </n-spin>
   </div>
 </template>
+
+<script setup lang="ts">
+const props = withDefaults(
+  defineProps<{
+    loading?: boolean;
+    message?: string;
+    error?: string;
+    retryText?: string;
+  }>(),
+  {
+    loading: false,
+    message: '',
+    error: '',
+    retryText: '重试',
+  },
+);
+
+const emit = defineEmits<{
+  retry: [];
+}>();
+</script>
 
 <style scoped>
 .async-field-section {

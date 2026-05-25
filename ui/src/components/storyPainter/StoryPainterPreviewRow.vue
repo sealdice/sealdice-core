@@ -1,3 +1,8 @@
+<template>
+  <div v-if="mode === 'preview'" class="preview-row" v-html="html" />
+  <pre v-else class="text-row">{{ text }}</pre>
+</template>
+
 <script setup lang="ts">
 import { computed } from 'vue';
 import type {
@@ -24,11 +29,6 @@ const text = computed(() => props.mode === 'trg'
   ? renderTrgText(props.source, props.chars, props.options, props.addVoiceMark)
   : renderForumText(props.source, props.chars, props.options, props.forumOptions, props.color));
 </script>
-
-<template>
-  <div v-if="mode === 'preview'" class="preview-row" v-html="html" />
-  <pre v-else class="text-row">{{ text }}</pre>
-</template>
 
 <style scoped>
 .preview-row {

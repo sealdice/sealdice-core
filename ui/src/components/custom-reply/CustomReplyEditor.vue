@@ -1,15 +1,3 @@
-<script setup lang="ts">
-import ReplyCommonConditionsSection from './ReplyCommonConditionsSection.vue';
-import ReplyFileSidebar from './ReplyFileSidebar.vue';
-import ReplyImportModal from './ReplyImportModal.vue';
-import ReplyLicenseModal from './ReplyLicenseModal.vue';
-import ReplyMetaSection from './ReplyMetaSection.vue';
-import ReplyRulesSection from './ReplyRulesSection.vue';
-import { useCustomReplyEditor } from '@/features/customReply/useCustomReplyEditor';
-
-const editor = useCustomReplyEditor();
-</script>
-
 <template>
   <main class="reply-page">
     <n-spin :show="editor.pageBusy.value">
@@ -105,6 +93,18 @@ const editor = useCustomReplyEditor();
     </n-spin>
   </main>
 </template>
+
+<script setup lang="ts">
+import ReplyCommonConditionsSection from './ReplyCommonConditionsSection.vue';
+import ReplyFileSidebar from './ReplyFileSidebar.vue';
+import ReplyImportModal from './ReplyImportModal.vue';
+import ReplyLicenseModal from './ReplyLicenseModal.vue';
+import ReplyMetaSection from './ReplyMetaSection.vue';
+import ReplyRulesSection from './ReplyRulesSection.vue';
+import { useCustomReplyEditor } from '@/features/customReply/useCustomReplyEditor';
+
+const editor = useCustomReplyEditor();
+</script>
 
 <style scoped>
 .reply-page {

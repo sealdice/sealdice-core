@@ -1,96 +1,3 @@
-<script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import type { BaseSettingExtDefaultSettingItem } from '@/api';
-import {
-  buildExtDefaultSettingsView,
-  filterExtDefaultSettingsView,
-  getExtDefaultSettingModifiedCount,
-  getExtDefaultSettingPage,
-  searchExtDefaultSettingsView,
-  sortExtDefaultSettingsView,
-  type ExtDefaultSettingsFilterMode,
-  type ExtDefaultSettingsSortKey,
-} from '@/features/baseSetting/viewModel';
-
-const props = withDefaults(defineProps<{
-  initialItems?: BaseSettingExtDefaultSettingItem[];
-}>(), {
-  initialItems: () => [],
-});
-
-const model = defineModel<BaseSettingExtDefaultSettingItem[]>({ required: true });
-
-const keyword = ref('');
-const filterMode = ref<ExtDefaultSettingsFilterMode>('all');
-const sortKey = ref<ExtDefaultSettingsSortKey>('source');
-const page = ref(1);
-const pageSize = ref(10);
-
-const viewItems = computed(() => buildExtDefaultSettingsView(model.value, props.initialItems));
-const modifiedCount = computed(() => getExtDefaultSettingModifiedCount(viewItems.value));
-const filteredByKeyword = computed(() => searchExtDefaultSettingsView(viewItems.value, keyword.value));
-const filteredItems = computed(() => filterExtDefaultSettingsView(filteredByKeyword.value, filterMode.value));
-const sortedItems = computed(() => sortExtDefaultSettingsView(filteredItems.value, sortKey.value));
-const pagedItems = computed(() => getExtDefaultSettingPage(sortedItems.value, page.value, pageSize.value));
-
-const filterOptions = computed(() => [
-  { label: '全部', value: 'all' },
-  { label: `已修改 ${modifiedCount.value}`, value: 'modified' },
-]);
-
-const sortOptions: Array<{ label: string; value: ExtDefaultSettingsSortKey }> = [
-  { label: '原始顺序', value: 'source' },
-  { label: '修改优先', value: 'modified' },
-  { label: '扩展名', value: 'name' },
-  { label: '自动开启优先', value: 'auto-active' },
-  { label: '禁用指令数', value: 'disabled-count' },
-];
-
-const emptyDescription = computed(() => {
-  if (viewItems.value.length === 0) return '暂无扩展默认设置';
-  if (filterMode.value === 'modified') return '当前没有已修改的扩展';
-  if (keyword.value.trim()) return '没有匹配的扩展或指令';
-  return '当前没有可显示的扩展';
-});
-
-watch([keyword, filterMode, sortKey, pageSize], () => {
-  page.value = 1;
-});
-
-watch(
-  () => pagedItems.value.page,
-  nextPage => {
-    if (page.value !== nextPage) {
-      page.value = nextPage;
-    }
-  },
-);
-
-function updateItem(name: string, updater: (item: BaseSettingExtDefaultSettingItem) => void) {
-  const targetIndex = model.value.findIndex(item => item.name === name);
-  if (targetIndex < 0) return;
-  const next = structuredClone(model.value);
-  updater(next[targetIndex]!);
-  model.value = next;
-}
-
-function toggleDisabledCommand(name: string, command: string) {
-  updateItem(name, item => {
-    item.disabledCommand[command] = !item.disabledCommand[command];
-  });
-}
-
-function updateAutoActive(name: string, value: boolean) {
-  updateItem(name, item => {
-    item.autoActive = value;
-  });
-}
-
-function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
-  return Object.entries(item.disabledCommand ?? {}).sort(([left], [right]) => left.localeCompare(right));
-}
-</script>
-
 <template>
   <div class="ext-defaults-field">
     <div class="ext-defaults-toolbar">
@@ -193,6 +100,99 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import type { BaseSettingExtDefaultSettingItem } from '@/api';
+import {
+  buildExtDefaultSettingsView,
+  filterExtDefaultSettingsView,
+  getExtDefaultSettingModifiedCount,
+  getExtDefaultSettingPage,
+  searchExtDefaultSettingsView,
+  sortExtDefaultSettingsView,
+  type ExtDefaultSettingsFilterMode,
+  type ExtDefaultSettingsSortKey,
+} from '@/features/baseSetting/viewModel';
+
+const props = withDefaults(defineProps<{
+  initialItems?: BaseSettingExtDefaultSettingItem[];
+}>(), {
+  initialItems: () => [],
+});
+
+const model = defineModel<BaseSettingExtDefaultSettingItem[]>({ required: true });
+
+const keyword = ref('');
+const filterMode = ref<ExtDefaultSettingsFilterMode>('all');
+const sortKey = ref<ExtDefaultSettingsSortKey>('source');
+const page = ref(1);
+const pageSize = ref(10);
+
+const viewItems = computed(() => buildExtDefaultSettingsView(model.value, props.initialItems));
+const modifiedCount = computed(() => getExtDefaultSettingModifiedCount(viewItems.value));
+const filteredByKeyword = computed(() => searchExtDefaultSettingsView(viewItems.value, keyword.value));
+const filteredItems = computed(() => filterExtDefaultSettingsView(filteredByKeyword.value, filterMode.value));
+const sortedItems = computed(() => sortExtDefaultSettingsView(filteredItems.value, sortKey.value));
+const pagedItems = computed(() => getExtDefaultSettingPage(sortedItems.value, page.value, pageSize.value));
+
+const filterOptions = computed(() => [
+  { label: '全部', value: 'all' },
+  { label: `已修改 ${modifiedCount.value}`, value: 'modified' },
+]);
+
+const sortOptions: Array<{ label: string; value: ExtDefaultSettingsSortKey }> = [
+  { label: '原始顺序', value: 'source' },
+  { label: '修改优先', value: 'modified' },
+  { label: '扩展名', value: 'name' },
+  { label: '自动开启优先', value: 'auto-active' },
+  { label: '禁用指令数', value: 'disabled-count' },
+];
+
+const emptyDescription = computed(() => {
+  if (viewItems.value.length === 0) return '暂无扩展默认设置';
+  if (filterMode.value === 'modified') return '当前没有已修改的扩展';
+  if (keyword.value.trim()) return '没有匹配的扩展或指令';
+  return '当前没有可显示的扩展';
+});
+
+watch([keyword, filterMode, sortKey, pageSize], () => {
+  page.value = 1;
+});
+
+watch(
+  () => pagedItems.value.page,
+  nextPage => {
+    if (page.value !== nextPage) {
+      page.value = nextPage;
+    }
+  },
+);
+
+function updateItem(name: string, updater: (item: BaseSettingExtDefaultSettingItem) => void) {
+  const targetIndex = model.value.findIndex(item => item.name === name);
+  if (targetIndex < 0) return;
+  const next = structuredClone(model.value);
+  updater(next[targetIndex]!);
+  model.value = next;
+}
+
+function toggleDisabledCommand(name: string, command: string) {
+  updateItem(name, item => {
+    item.disabledCommand[command] = !item.disabledCommand[command];
+  });
+}
+
+function updateAutoActive(name: string, value: boolean) {
+  updateItem(name, item => {
+    item.autoActive = value;
+  });
+}
+
+function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
+  return Object.entries(item.disabledCommand ?? {}).sort(([left], [right]) => left.localeCompare(right));
+}
+</script>
 
 <style scoped>
 .ext-defaults-field {

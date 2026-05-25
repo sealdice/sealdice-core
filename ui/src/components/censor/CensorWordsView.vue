@@ -1,3 +1,25 @@
+<template>
+  <n-flex justify="space-between" class="censor-words-header">
+    <h4>敏感词列表</h4>
+    <n-flex align="center" class="censor-words-filter">
+      <n-text v-if="filterCount > 0" type="info" class="text-xs">
+        已过滤 {{ filterCount }} 条
+      </n-text>
+      <span>
+        <n-input v-model:value="filter" size="small" placeholder="" clearable>
+          <template #prefix>
+            <n-icon><i-carbon-search /></n-icon>
+          </template>
+        </n-input>
+      </span>
+    </n-flex>
+  </n-flex>
+
+  <main class="mt-2 mb-8">
+    <n-data-table class="w-full" :columns="columns" :data="filteredWords" :scroll-x="480" virtual-scroll />
+  </main>
+</template>
+
 <script setup lang="tsx">
 import { computed, ref } from 'vue';
 import type { DataTableColumns } from 'naive-ui';
@@ -43,28 +65,6 @@ const columns: DataTableColumns<CensorWordItem> = [
   },
 ];
 </script>
-
-<template>
-  <n-flex justify="space-between" class="censor-words-header">
-    <h4>敏感词列表</h4>
-    <n-flex align="center" class="censor-words-filter">
-      <n-text v-if="filterCount > 0" type="info" class="text-xs">
-        已过滤 {{ filterCount }} 条
-      </n-text>
-      <span>
-        <n-input v-model:value="filter" size="small" placeholder="" clearable>
-          <template #prefix>
-            <n-icon><i-carbon-search /></n-icon>
-          </template>
-        </n-input>
-      </span>
-    </n-flex>
-  </n-flex>
-
-  <main class="mt-2 mb-8">
-    <n-data-table class="w-full" :columns="columns" :data="filteredWords" :scroll-x="480" virtual-scroll />
-  </main>
-</template>
 
 <style scoped>
 :deep(.censor-word-token) {

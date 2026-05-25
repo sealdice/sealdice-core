@@ -1,3 +1,9 @@
+<template>
+  <div class="tip-box">
+    <slot :type="props.type" />
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useThemeVars } from 'naive-ui';
@@ -29,12 +35,6 @@ const borderColor = computed(() => {
 
 const bgColor = computed(() => `${borderColor.value}10`);
 </script>
-
-<template>
-  <div class="tip-box">
-    <slot :type="props.type" />
-  </div>
-</template>
 
 <style scoped>
 .tip-box {

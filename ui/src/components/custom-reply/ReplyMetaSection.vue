@@ -1,17 +1,3 @@
-<script setup lang="ts">
-defineProps<{
-  replyEnabled: boolean;
-  switchLoading: boolean;
-  saveLoading: boolean;
-  saveDisabled: boolean;
-}>();
-
-const emit = defineEmits<{
-  toggleReplyEnabled: [value: boolean];
-  save: [];
-}>();
-</script>
-
 <template>
   <header class="reply-meta-section">
     <n-flex align="center" justify="space-between" wrap>
@@ -40,6 +26,20 @@ const emit = defineEmits<{
     </n-flex>
   </header>
 </template>
+
+<script setup lang="ts">
+defineProps<{
+  replyEnabled: boolean;
+  switchLoading: boolean;
+  saveLoading: boolean;
+  saveDisabled: boolean;
+}>();
+
+const emit = defineEmits<{
+  toggleReplyEnabled: [value: boolean];
+  save: [];
+}>();
+</script>
 
 <style scoped>
 .reply-meta-section {

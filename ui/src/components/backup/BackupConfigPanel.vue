@@ -1,35 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import type { BackupCleanTriggerKey, BackupConfigDraft } from '@/features/backup/viewModel';
-import { buildBackupConfigPayload, buildBackupFilenamePreview } from '@/features/backup/viewModel';
-import BackupSelectionGroup from './BackupSelectionGroup.vue';
-
-const config = defineModel<BackupConfigDraft>('config', { required: true });
-
-const props = defineProps<{
-  dirty: boolean;
-  saving: boolean;
-  timestamp: string;
-}>();
-
-const emit = defineEmits<{
-  save: [];
-}>();
-
-const cleanTriggerOptions: Array<{ value: BackupCleanTriggerKey; label: string }> = [
-  { value: 'afterAutoBackup', label: '自动备份后' },
-  { value: 'cron', label: '定时' },
-];
-
-const autoBackupPreview = computed(() =>
-  buildBackupFilenamePreview(
-    props.timestamp,
-    buildBackupConfigPayload(config.value).autoBackupSelection,
-    true,
-  ),
-);
-</script>
-
 <template>
   <n-card class="backup-config-panel" :bordered="false">
     <template #header>
@@ -162,6 +130,38 @@ const autoBackupPreview = computed(() =>
     </n-form>
   </n-card>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import type { BackupCleanTriggerKey, BackupConfigDraft } from '@/features/backup/viewModel';
+import { buildBackupConfigPayload, buildBackupFilenamePreview } from '@/features/backup/viewModel';
+import BackupSelectionGroup from './BackupSelectionGroup.vue';
+
+const config = defineModel<BackupConfigDraft>('config', { required: true });
+
+const props = defineProps<{
+  dirty: boolean;
+  saving: boolean;
+  timestamp: string;
+}>();
+
+const emit = defineEmits<{
+  save: [];
+}>();
+
+const cleanTriggerOptions: Array<{ value: BackupCleanTriggerKey; label: string }> = [
+  { value: 'afterAutoBackup', label: '自动备份后' },
+  { value: 'cron', label: '定时' },
+];
+
+const autoBackupPreview = computed(() =>
+  buildBackupFilenamePreview(
+    props.timestamp,
+    buildBackupConfigPayload(config.value).autoBackupSelection,
+    true,
+  ),
+);
+</script>
 
 <style scoped>
 .backup-config-panel__head,

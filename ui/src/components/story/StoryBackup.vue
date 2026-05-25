@@ -1,3 +1,54 @@
+<template>
+  <div class="tip">
+    <n-text>
+      每次向染色器上传跑团日志之前，都会在本地先保留一份备份，再进行上传。<br />
+      确定不再需要时，你可以在此处删除这些备份文件。<br /><br />
+      <strong>删除此处的备份文件不会使日志丢失。</strong>
+    </n-text>
+  </div>
+
+  <header class="backup-header">
+    <n-flex size="large" align="center">
+      <n-checkbox
+        v-model:checked="checkAllBackups"
+        :indeterminate="isIndeterminate"
+        :disabled="!(backups && backups.length > 0)"
+        @update:checked="handleCheckAllChange"
+      >
+        {{ checkAllBackups ? '取消全选' : '全选' }}
+      </n-checkbox>
+      <n-text type="info" class="text-xs">
+        已勾选 {{ selectedBackups.length }} 个备份，共 {{ filesize(selectedBytes) }}
+      </n-text>
+    </n-flex>
+
+    <n-button
+      type="error"
+      :disabled="!(selectedBackups && selectedBackups.length > 0)"
+      :loading="deleteMutation.isPending.value"
+      @click="backupBatchDeleteConfirm"
+    >
+      删除所选
+    </n-button>
+  </header>
+
+  <main class="backup-list">
+    <n-checkbox-group v-model:value="selectedBackupNames" @update:value="handleCheckedBackupChange">
+      <div v-for="backup in backups" :key="backup.name" class="backup-line">
+        <n-checkbox :value="backup.name" :label="backup.name" />
+        <n-flex size="small" wrap class="backup-actions">
+          <n-button size="small" secondary @click="downloadBackup(backup.name)">
+            下载 - {{ filesize(backup.fileSize) }}
+          </n-button>
+          <n-button type="error" size="small" secondary @click="bakDeleteConfirm(backup.name)">
+            删除
+          </n-button>
+        </n-flex>
+      </div>
+    </n-checkbox-group>
+  </main>
+</template>
+
 <script setup lang="ts">
 import { filesize } from 'filesize';
 import { useDialog, useMessage } from 'naive-ui';
@@ -55,57 +106,6 @@ function bakDeleteConfirm(name: string) {
   });
 }
 </script>
-
-<template>
-  <div class="tip">
-    <n-text>
-      每次向染色器上传跑团日志之前，都会在本地先保留一份备份，再进行上传。<br />
-      确定不再需要时，你可以在此处删除这些备份文件。<br /><br />
-      <strong>删除此处的备份文件不会使日志丢失。</strong>
-    </n-text>
-  </div>
-
-  <header class="backup-header">
-    <n-flex size="large" align="center">
-      <n-checkbox
-        v-model:checked="checkAllBackups"
-        :indeterminate="isIndeterminate"
-        :disabled="!(backups && backups.length > 0)"
-        @update:checked="handleCheckAllChange"
-      >
-        {{ checkAllBackups ? '取消全选' : '全选' }}
-      </n-checkbox>
-      <n-text type="info" class="text-xs">
-        已勾选 {{ selectedBackups.length }} 个备份，共 {{ filesize(selectedBytes) }}
-      </n-text>
-    </n-flex>
-
-    <n-button
-      type="error"
-      :disabled="!(selectedBackups && selectedBackups.length > 0)"
-      :loading="deleteMutation.isPending.value"
-      @click="backupBatchDeleteConfirm"
-    >
-      删除所选
-    </n-button>
-  </header>
-
-  <main class="backup-list">
-    <n-checkbox-group v-model:value="selectedBackupNames" @update:value="handleCheckedBackupChange">
-      <div v-for="backup in backups" :key="backup.name" class="backup-line">
-        <n-checkbox :value="backup.name" :label="backup.name" />
-        <n-flex size="small" wrap class="backup-actions">
-          <n-button size="small" secondary @click="downloadBackup(backup.name)">
-            下载 - {{ filesize(backup.fileSize) }}
-          </n-button>
-          <n-button type="error" size="small" secondary @click="bakDeleteConfirm(backup.name)">
-            删除
-          </n-button>
-        </n-flex>
-      </div>
-    </n-checkbox-group>
-  </main>
-</template>
 
 <style scoped>
 .backup-header {

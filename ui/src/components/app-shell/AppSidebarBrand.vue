@@ -1,22 +1,3 @@
-<script setup lang="ts">
-import { useBaseOverview } from '@/features/base/useBaseOverview';
-
-const props = withDefaults(
-  defineProps<{
-    collapsed?: boolean;
-  }>(),
-  {
-    collapsed: false,
-  },
-);
-
-const emit = defineEmits<{
-  enableAdvancedConfig: [];
-}>();
-
-const { overview, appName, runtimeText } = useBaseOverview();
-</script>
-
 <template>
   <div class="sd-sidebar-brand" :class="{ collapsed: props.collapsed }">
     <button type="button" class="brand-mark" @click="emit('enableAdvancedConfig')">
@@ -48,6 +29,25 @@ const { overview, appName, runtimeText } = useBaseOverview();
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { useBaseOverview } from '@/features/base/useBaseOverview';
+
+const props = withDefaults(
+  defineProps<{
+    collapsed?: boolean;
+  }>(),
+  {
+    collapsed: false,
+  },
+);
+
+const emit = defineEmits<{
+  enableAdvancedConfig: [];
+}>();
+
+const { overview, appName, runtimeText } = useBaseOverview();
+</script>
 
 <style scoped>
 .sd-sidebar-brand {

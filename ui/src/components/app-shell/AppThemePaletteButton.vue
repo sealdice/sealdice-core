@@ -1,10 +1,3 @@
-<script setup lang="ts">
-import { ref } from 'vue';
-import AppThemePaletteDialog from './AppThemePaletteDialog.vue';
-
-const dialogVisible = ref(false);
-</script>
-
 <template>
   <n-tooltip placement="bottom">
     <template #trigger>
@@ -27,6 +20,13 @@ const dialogVisible = ref(false);
 
   <AppThemePaletteDialog v-model:show="dialogVisible" />
 </template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import AppThemePaletteDialog from './AppThemePaletteDialog.vue';
+
+const dialogVisible = ref(false);
+</script>
 
 <style scoped>
 .theme-palette-button {

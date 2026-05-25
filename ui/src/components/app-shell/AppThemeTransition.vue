@@ -1,3 +1,13 @@
+<template>
+  <div
+    aria-hidden="true"
+    class="theme-transition-overlay"
+    :class="{ active, dark: isDark }"
+    :style="overlayStyle"
+    @transitionend="handleTransitionEnd"
+  />
+</template>
+
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { usePreferredReducedMotion } from '@vueuse/core';
@@ -58,16 +68,6 @@ defineExpose({
   toggle,
 });
 </script>
-
-<template>
-  <div
-    aria-hidden="true"
-    class="theme-transition-overlay"
-    :class="{ active, dark: isDark }"
-    :style="overlayStyle"
-    @transitionend="handleTransitionEnd"
-  />
-</template>
 
 <style scoped>
 .theme-transition-overlay {

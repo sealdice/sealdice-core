@@ -1,3 +1,31 @@
+<template>
+  <ProConfigProvider
+    :locale="zhCN"
+    :date-locale="dateZhCN"
+    :theme="activeTheme"
+    :theme-overrides="themeOverrides"
+  >
+    <n-message-provider>
+      <n-notification-provider>
+        <n-modal-provider>
+          <n-dialog-provider>
+            <n-loading-bar-provider>
+              <RouterView v-slot="{ Component, route }">
+                <component :is="layouts[route.meta.layout ?? 'default']">
+                  <Transition name="page-fade" mode="out-in">
+                    <component :is="Component" :key="route.path" />
+                  </Transition>
+                </component>
+              </RouterView>
+              <AppThemeTransition ref="themeTransitionRef" />
+            </n-loading-bar-provider>
+          </n-dialog-provider>
+        </n-modal-provider>
+      </n-notification-provider>
+    </n-message-provider>
+  </ProConfigProvider>
+</template>
+
 <script setup lang="ts">
 import { darkTheme, lightTheme, dateZhCN } from 'naive-ui';
 import { ProConfigProvider, zhCN } from 'pro-naive-ui';
@@ -43,34 +71,6 @@ const activeTheme = computed(() => (resolvedTheme.value === 'dark' ? darkTheme :
 useRealtimeClient();
 
 </script>
-
-<template>
-  <ProConfigProvider
-    :locale="zhCN"
-    :date-locale="dateZhCN"
-    :theme="activeTheme"
-    :theme-overrides="themeOverrides"
-  >
-    <n-message-provider>
-      <n-notification-provider>
-        <n-modal-provider>
-          <n-dialog-provider>
-            <n-loading-bar-provider>
-              <RouterView v-slot="{ Component, route }">
-                <component :is="layouts[route.meta.layout ?? 'default']">
-                  <Transition name="page-fade" mode="out-in">
-                    <component :is="Component" :key="route.path" />
-                  </Transition>
-                </component>
-              </RouterView>
-              <AppThemeTransition ref="themeTransitionRef" />
-            </n-loading-bar-provider>
-          </n-dialog-provider>
-        </n-modal-provider>
-      </n-notification-provider>
-    </n-message-provider>
-  </ProConfigProvider>
-</template>
 
 <style>
 .page-fade-enter-active,

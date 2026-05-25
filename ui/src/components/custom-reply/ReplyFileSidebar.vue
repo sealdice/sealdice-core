@@ -1,112 +1,3 @@
-<script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
-import type { UploadCustomRequestOptions } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
-import type { FileInfo } from '@/api';
-import { overwriteSearchFormValues } from '@/features/searchForm/viewModel';
-import type { ReplyFileQuery } from '@/features/customReply/useCustomReplyEditor';
-
-type ReplyFileSearchFormValues = Pick<ReplyFileQuery, 'keyword' | 'sortBy' | 'sortOrder'>;
-
-const props = defineProps<{
-  files: FileInfo[];
-  total: number;
-  selectedFilename: string;
-  query: ReplyFileQuery;
-  getFileEnableStatus: (filename: string, fallback: boolean) => boolean;
-  formatUpdateTime: (ts: number) => string;
-}>();
-
-const emit = defineEmits<{
-  select: [filename: string];
-  create: [];
-  openImport: [];
-  delete: [];
-  download: [];
-  upload: [options: UploadCustomRequestOptions];
-  updateQuery: [query: ReplyFileQuery];
-}>();
-
-const fileSortOptions = [
-  { label: '按更新时间', value: 'updateTime' },
-  { label: '按名称', value: 'name' },
-];
-
-const fileSortOrderOptions = [
-  { label: '降序', value: 'desc' },
-  { label: '升序', value: 'asc' },
-];
-
-const syncingFromProps = ref(false);
-const searchForm = createProSearchForm<ReplyFileSearchFormValues>({
-  initialValues: {
-    keyword: '',
-    sortBy: 'updateTime',
-    sortOrder: 'desc',
-  },
-});
-
-const searchColumns: ProSearchFormColumns<ReplyFileSearchFormValues> = [
-  {
-    label: '关键字',
-    path: 'keyword',
-    field: 'input',
-    fieldProps: {
-      clearable: true,
-      placeholder: '按文件名搜索',
-    },
-  },
-  {
-    label: '排序字段',
-    path: 'sortBy',
-    field: 'select',
-    fieldProps: {
-      options: fileSortOptions,
-    },
-  },
-  {
-    label: '排序方向',
-    path: 'sortOrder',
-    field: 'select',
-    fieldProps: {
-      options: fileSortOrderOptions,
-    },
-  },
-];
-
-const page = computed({
-  get: () => props.query.page,
-  set: value => emit('updateQuery', { ...props.query, page: value }),
-});
-
-watch(
-  () => [props.query.keyword, props.query.sortBy, props.query.sortOrder] as const,
-  ([keyword, sortBy, sortOrder]) => {
-    syncingFromProps.value = true;
-    overwriteSearchFormValues(searchForm.values.value, { keyword, sortBy, sortOrder });
-    void nextTick(() => {
-      syncingFromProps.value = false;
-    });
-  },
-  { immediate: true },
-);
-
-watch(
-  () => searchForm.values.value,
-  values => {
-    if (syncingFromProps.value) return;
-    emit('updateQuery', {
-      ...props.query,
-      keyword: values.keyword,
-      sortBy: values.sortBy,
-      sortOrder: values.sortOrder,
-      page: 1,
-    });
-  },
-  { deep: true },
-);
-</script>
-
 <template>
   <aside class="reply-sidebar">
     <div class="panel-head">
@@ -228,6 +119,115 @@ watch(
     </div>
   </aside>
 </template>
+
+<script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue';
+import type { UploadCustomRequestOptions } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import type { FileInfo } from '@/api';
+import { overwriteSearchFormValues } from '@/features/searchForm/viewModel';
+import type { ReplyFileQuery } from '@/features/customReply/useCustomReplyEditor';
+
+type ReplyFileSearchFormValues = Pick<ReplyFileQuery, 'keyword' | 'sortBy' | 'sortOrder'>;
+
+const props = defineProps<{
+  files: FileInfo[];
+  total: number;
+  selectedFilename: string;
+  query: ReplyFileQuery;
+  getFileEnableStatus: (filename: string, fallback: boolean) => boolean;
+  formatUpdateTime: (ts: number) => string;
+}>();
+
+const emit = defineEmits<{
+  select: [filename: string];
+  create: [];
+  openImport: [];
+  delete: [];
+  download: [];
+  upload: [options: UploadCustomRequestOptions];
+  updateQuery: [query: ReplyFileQuery];
+}>();
+
+const fileSortOptions = [
+  { label: '按更新时间', value: 'updateTime' },
+  { label: '按名称', value: 'name' },
+];
+
+const fileSortOrderOptions = [
+  { label: '降序', value: 'desc' },
+  { label: '升序', value: 'asc' },
+];
+
+const syncingFromProps = ref(false);
+const searchForm = createProSearchForm<ReplyFileSearchFormValues>({
+  initialValues: {
+    keyword: '',
+    sortBy: 'updateTime',
+    sortOrder: 'desc',
+  },
+});
+
+const searchColumns: ProSearchFormColumns<ReplyFileSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '按文件名搜索',
+    },
+  },
+  {
+    label: '排序字段',
+    path: 'sortBy',
+    field: 'select',
+    fieldProps: {
+      options: fileSortOptions,
+    },
+  },
+  {
+    label: '排序方向',
+    path: 'sortOrder',
+    field: 'select',
+    fieldProps: {
+      options: fileSortOrderOptions,
+    },
+  },
+];
+
+const page = computed({
+  get: () => props.query.page,
+  set: value => emit('updateQuery', { ...props.query, page: value }),
+});
+
+watch(
+  () => [props.query.keyword, props.query.sortBy, props.query.sortOrder] as const,
+  ([keyword, sortBy, sortOrder]) => {
+    syncingFromProps.value = true;
+    overwriteSearchFormValues(searchForm.values.value, { keyword, sortBy, sortOrder });
+    void nextTick(() => {
+      syncingFromProps.value = false;
+    });
+  },
+  { immediate: true },
+);
+
+watch(
+  () => searchForm.values.value,
+  values => {
+    if (syncingFromProps.value) return;
+    emit('updateQuery', {
+      ...props.query,
+      keyword: values.keyword,
+      sortBy: values.sortBy,
+      sortOrder: values.sortOrder,
+      page: 1,
+    });
+  },
+  { deep: true },
+);
+</script>
 
 <style scoped>
 .reply-sidebar {

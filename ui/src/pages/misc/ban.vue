@@ -1,3 +1,48 @@
+<template>
+  <main class="ban-page">
+    <header class="ban-page__header">
+      <div>
+        <h1>黑白名单</h1>
+        <p>管理黑白名单条目与拉黑惩罚策略，当前页面已迁移至 V2 API。</p>
+      </div>
+    </header>
+
+    <n-tabs v-model:value="tab" animated>
+      <n-tab-pane name="list" tab="黑白名单">
+        <BanListPanel
+          :items="listItems"
+          :total="listTotal"
+          :query="listQuery"
+          :loading="listQueryResult.isFetching.value"
+          :add-pending="addMutation.isPending.value"
+          :import-pending="importMutation.isPending.value"
+          @update-query="updateListQuery"
+          @open-add="openAddDialog"
+          @delete="confirmDelete"
+          @import="importFile"
+          @export="exportFile"
+        />
+      </n-tab-pane>
+      <n-tab-pane name="config" tab="拉黑设置">
+        <BanConfigPanel
+          v-if="configDraft"
+          v-model:config="configDraft"
+          :dirty="configDirty"
+          :saving="saveConfigMutation.isPending.value"
+          @save="saveConfig"
+        />
+      </n-tab-pane>
+    </n-tabs>
+
+    <BanAddDialog
+      v-model:show="addDialogVisible"
+      v-model:form="addForm"
+      :submitting="addMutation.isPending.value"
+      @submit="addMutation.mutate()"
+    />
+  </main>
+</template>
+
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useMutation, useQuery } from '@tanstack/vue-query';
@@ -202,51 +247,6 @@ async function saveConfig() {
   await saveConfigMutation.mutateAsync(configDraft.value);
 }
 </script>
-
-<template>
-  <main class="ban-page">
-    <header class="ban-page__header">
-      <div>
-        <h1>黑白名单</h1>
-        <p>管理黑白名单条目与拉黑惩罚策略，当前页面已迁移至 V2 API。</p>
-      </div>
-    </header>
-
-    <n-tabs v-model:value="tab" animated>
-      <n-tab-pane name="list" tab="黑白名单">
-        <BanListPanel
-          :items="listItems"
-          :total="listTotal"
-          :query="listQuery"
-          :loading="listQueryResult.isFetching.value"
-          :add-pending="addMutation.isPending.value"
-          :import-pending="importMutation.isPending.value"
-          @update-query="updateListQuery"
-          @open-add="openAddDialog"
-          @delete="confirmDelete"
-          @import="importFile"
-          @export="exportFile"
-        />
-      </n-tab-pane>
-      <n-tab-pane name="config" tab="拉黑设置">
-        <BanConfigPanel
-          v-if="configDraft"
-          v-model:config="configDraft"
-          :dirty="configDirty"
-          :saving="saveConfigMutation.isPending.value"
-          @save="saveConfig"
-        />
-      </n-tab-pane>
-    </n-tabs>
-
-    <BanAddDialog
-      v-model:show="addDialogVisible"
-      v-model:form="addForm"
-      :submitting="addMutation.isPending.value"
-      @submit="addMutation.mutate()"
-    />
-  </main>
-</template>
 
 <style scoped>
 .ban-page {

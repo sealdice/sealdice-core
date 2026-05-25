@@ -1,26 +1,3 @@
-<script setup lang="ts">
-import type { CustomTextFilterMode } from '@/features/customText/viewModel';
-
-const mode = defineModel<CustomTextFilterMode>('mode', { required: true });
-const group = defineModel<string>('group', { required: true });
-
-defineProps<{
-  groups: string[];
-}>();
-
-const emit = defineEmits<{
-  modeChange: [mode: CustomTextFilterMode];
-}>();
-
-const filterModes = [
-  { value: 'all', desc: '全部' },
-  { value: 'unmodified', desc: '默认文案' },
-  { value: 'modified', desc: '修改过' },
-  { value: 'group', desc: '指定分组' },
-  { value: 'deprecated', desc: '旧版文本' },
-] satisfies Array<{ value: CustomTextFilterMode; desc: string }>;
-</script>
-
 <template>
   <n-flex class="custom-text-filter-row mb-8 mt-4" align="center" wrap>
     <n-radio-group v-model:value="mode" @update:value="emit('modeChange', $event as CustomTextFilterMode)">
@@ -44,6 +21,29 @@ const filterModes = [
     </n-flex>
   </n-flex>
 </template>
+
+<script setup lang="ts">
+import type { CustomTextFilterMode } from '@/features/customText/viewModel';
+
+const mode = defineModel<CustomTextFilterMode>('mode', { required: true });
+const group = defineModel<string>('group', { required: true });
+
+defineProps<{
+  groups: string[];
+}>();
+
+const emit = defineEmits<{
+  modeChange: [mode: CustomTextFilterMode];
+}>();
+
+const filterModes = [
+  { value: 'all', desc: '全部' },
+  { value: 'unmodified', desc: '默认文案' },
+  { value: 'modified', desc: '修改过' },
+  { value: 'group', desc: '指定分组' },
+  { value: 'deprecated', desc: '旧版文本' },
+] satisfies Array<{ value: CustomTextFilterMode; desc: string }>;
+</script>
 
 <style scoped>
 @media screen and (max-width: 767.9px) {

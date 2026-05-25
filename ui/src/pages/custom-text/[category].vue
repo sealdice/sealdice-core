@@ -1,3 +1,7 @@
+<template>
+  <CustomTextEditor :category="category" />
+</template>
+
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
@@ -12,7 +16,3 @@ const category = computed(() => {
   return props.category ?? String(fallback ?? '');
 });
 </script>
-
-<template>
-  <CustomTextEditor :category="category" />
-</template>

@@ -1,17 +1,3 @@
-<script setup lang="ts">
-import type { BaseSettingSearchEntry } from '@/features/baseSetting/viewModel';
-
-const keyword = defineModel<string>('keyword', { required: true });
-
-defineProps<{
-  results: BaseSettingSearchEntry[];
-}>();
-
-const emit = defineEmits<{
-  select: [entry: BaseSettingSearchEntry];
-}>();
-</script>
-
 <template>
   <section class="base-setting-search">
     <n-input v-model:value="keyword" clearable placeholder="搜索配置项、功能名、提示词">
@@ -39,6 +25,20 @@ const emit = defineEmits<{
     </n-text>
   </section>
 </template>
+
+<script setup lang="ts">
+import type { BaseSettingSearchEntry } from '@/features/baseSetting/viewModel';
+
+const keyword = defineModel<string>('keyword', { required: true });
+
+defineProps<{
+  results: BaseSettingSearchEntry[];
+}>();
+
+const emit = defineEmits<{
+  select: [entry: BaseSettingSearchEntry];
+}>();
+</script>
 
 <style scoped>
 .base-setting-search {

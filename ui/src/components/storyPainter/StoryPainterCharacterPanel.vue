@@ -1,38 +1,3 @@
-<script setup lang="ts">
-import type { StoryPainterChar, StoryPainterRole } from '@/features/storyPainter/types';
-
-const props = defineProps<{
-  chars: StoryPainterChar[];
-  swatches: string[];
-  disabled?: boolean;
-}>();
-
-const emit = defineEmits<{
-  updateChar: [index: number, patch: Partial<StoryPainterChar>];
-  renameChar: [index: number, name: string];
-  deleteChar: [index: number];
-}>();
-
-const roleOptions: Array<{ label: StoryPainterRole; value: StoryPainterRole }> = [
-  { label: '主持人', value: '主持人' },
-  { label: '角色', value: '角色' },
-  { label: '骰子', value: '骰子' },
-  { label: '隐藏', value: '隐藏' },
-];
-
-function renameChar(index: number, value: string): void {
-  emit('renameChar', index, value);
-}
-
-function updateCharRole(index: number, value: StoryPainterRole): void {
-  emit('updateChar', index, { role: value });
-}
-
-function updateCharColor(index: number, value: string): void {
-  emit('updateChar', index, { color: value });
-}
-</script>
-
 <template>
   <section class="story-painter-characters">
     <div class="character-head">
@@ -78,6 +43,41 @@ function updateCharColor(index: number, value: string): void {
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import type { StoryPainterChar, StoryPainterRole } from '@/features/storyPainter/types';
+
+const props = defineProps<{
+  chars: StoryPainterChar[];
+  swatches: string[];
+  disabled?: boolean;
+}>();
+
+const emit = defineEmits<{
+  updateChar: [index: number, patch: Partial<StoryPainterChar>];
+  renameChar: [index: number, name: string];
+  deleteChar: [index: number];
+}>();
+
+const roleOptions: Array<{ label: StoryPainterRole; value: StoryPainterRole }> = [
+  { label: '主持人', value: '主持人' },
+  { label: '角色', value: '角色' },
+  { label: '骰子', value: '骰子' },
+  { label: '隐藏', value: '隐藏' },
+];
+
+function renameChar(index: number, value: string): void {
+  emit('renameChar', index, value);
+}
+
+function updateCharRole(index: number, value: StoryPainterRole): void {
+  emit('updateChar', index, { role: value });
+}
+
+function updateCharColor(index: number, value: string): void {
+  emit('updateChar', index, { color: value });
+}
+</script>
 
 <style scoped>
 .story-painter-characters {

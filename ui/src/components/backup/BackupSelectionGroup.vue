@@ -1,13 +1,3 @@
-<script setup lang="ts">
-import { BACKUP_SELECTION_OPTIONS, type BackupSelectionKey } from '@/features/backup/viewModel';
-
-const value = defineModel<BackupSelectionKey[]>('value', { required: true });
-
-defineProps<{
-  disabled?: boolean;
-}>();
-</script>
-
 <template>
   <n-checkbox-group v-model:value="value" :disabled="disabled">
     <div class="backup-selection-group">
@@ -22,6 +12,16 @@ defineProps<{
     </div>
   </n-checkbox-group>
 </template>
+
+<script setup lang="ts">
+import { BACKUP_SELECTION_OPTIONS, type BackupSelectionKey } from '@/features/backup/viewModel';
+
+const value = defineModel<BackupSelectionKey[]>('value', { required: true });
+
+defineProps<{
+  disabled?: boolean;
+}>();
+</script>
 
 <style scoped>
 .backup-selection-group {

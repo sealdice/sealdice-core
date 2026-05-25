@@ -1,14 +1,3 @@
-<script setup lang="ts">
-withDefaults(defineProps<{
-  label: string;
-  description?: string;
-  layout?: 'inline' | 'auto' | 'stacked';
-  highlighted?: boolean;
-}>(), {
-  layout: 'auto',
-});
-</script>
-
 <template>
   <div :class="['setting-row', `setting-row-${layout}`, { 'setting-row-highlighted': highlighted }]">
     <div class="setting-row-copy">
@@ -20,6 +9,17 @@ withDefaults(defineProps<{
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+withDefaults(defineProps<{
+  label: string;
+  description?: string;
+  layout?: 'inline' | 'auto' | 'stacked';
+  highlighted?: boolean;
+}>(), {
+  layout: 'auto',
+});
+</script>
 
 <style scoped>
 .setting-row {

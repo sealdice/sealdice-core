@@ -1,9 +1,3 @@
-<script setup lang="ts">
-defineProps<{
-  name?: string;
-}>();
-</script>
-
 <template>
   <i-ep-house v-if="name === 'home'" />
   <i-ep-connection v-else-if="name === 'connection'" />
@@ -26,3 +20,9 @@ defineProps<{
   <i-ep-star-filled v-else-if="name === 'star'" />
   <i-ep-menu v-else />
 </template>
+
+<script setup lang="ts">
+defineProps<{
+  name?: string;
+}>();
+</script>

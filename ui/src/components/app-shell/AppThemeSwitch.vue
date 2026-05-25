@@ -1,20 +1,3 @@
-<script setup lang="ts">
-import { computed, inject, ref } from 'vue';
-import { useAppTheme } from '@/features/theme';
-import { triggerThemeTransitionKey } from '@/features/theme/themeTransition';
-
-const { isDark } = useAppTheme();
-const triggerThemeTransition = inject(triggerThemeTransitionKey);
-const triggerRef = ref<HTMLElement | null>(null);
-// Naive UI 的 quaternary 按钮颜色由 color prop 写入内部 token；亮色态用深色图标，深色态用黄色图标。
-const switchIconColor = computed(() => (isDark.value ? 'var(--sd-accent)' : 'var(--sd-text-primary)'));
-
-function toggle(event: MouseEvent) {
-  const rect = triggerRef.value?.getBoundingClientRect();
-  triggerThemeTransition?.(rect ?? event);
-}
-</script>
-
 <template>
   <n-tooltip placement="bottom">
     <template #trigger>
@@ -39,6 +22,23 @@ function toggle(event: MouseEvent) {
     {{ isDark ? '切换到亮色模式' : '切换到深色模式' }}
   </n-tooltip>
 </template>
+
+<script setup lang="ts">
+import { computed, inject, ref } from 'vue';
+import { useAppTheme } from '@/features/theme';
+import { triggerThemeTransitionKey } from '@/features/theme/themeTransition';
+
+const { isDark } = useAppTheme();
+const triggerThemeTransition = inject(triggerThemeTransitionKey);
+const triggerRef = ref<HTMLElement | null>(null);
+// Naive UI 的 quaternary 按钮颜色由 color prop 写入内部 token；亮色态用深色图标，深色态用黄色图标。
+const switchIconColor = computed(() => (isDark.value ? 'var(--sd-accent)' : 'var(--sd-text-primary)'));
+
+function toggle(event: MouseEvent) {
+  const rect = triggerRef.value?.getBoundingClientRect();
+  triggerThemeTransition?.(rect ?? event);
+}
+</script>
 
 <style scoped>
 .theme-switch-trigger {

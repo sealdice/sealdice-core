@@ -1,11 +1,3 @@
-<script setup lang="ts">
-import { activeUnsavedChangesSource, saveActiveUnsavedChanges } from '@/features/unsavedChanges';
-
-async function handleSave() {
-  await saveActiveUnsavedChanges();
-}
-</script>
-
 <template>
   <transition name="unsaved-panel">
     <section v-if="activeUnsavedChangesSource" class="unsaved-panel">
@@ -33,6 +25,14 @@ async function handleSave() {
     </section>
   </transition>
 </template>
+
+<script setup lang="ts">
+import { activeUnsavedChangesSource, saveActiveUnsavedChanges } from '@/features/unsavedChanges';
+
+async function handleSave() {
+  await saveActiveUnsavedChanges();
+}
+</script>
 
 <style scoped>
 .unsaved-panel {

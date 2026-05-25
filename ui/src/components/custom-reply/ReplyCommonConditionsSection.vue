@@ -1,29 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import ConditionBuilder from './ConditionBuilder.vue';
-import type { ReplyCondition } from '@/features/customReply/model';
-
-const conditions = defineModel<ReplyCondition[]>({ required: true });
-const props = defineProps<{
-  fileEnabled: boolean;
-  page: number;
-  pageSize: number;
-  total: number;
-}>();
-
-const emit = defineEmits<{
-  add: [];
-  delete: [index: number];
-  toggleFileEnabled: [];
-  updatePage: [page: number];
-}>();
-
-const pageModel = computed({
-  get: () => props.page,
-  set: value => emit('updatePage', value),
-});
-</script>
-
 <template>
   <section class="reply-section">
     <div class="section-head">
@@ -74,6 +48,32 @@ const pageModel = computed({
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import ConditionBuilder from './ConditionBuilder.vue';
+import type { ReplyCondition } from '@/features/customReply/model';
+
+const conditions = defineModel<ReplyCondition[]>({ required: true });
+const props = defineProps<{
+  fileEnabled: boolean;
+  page: number;
+  pageSize: number;
+  total: number;
+}>();
+
+const emit = defineEmits<{
+  add: [];
+  delete: [index: number];
+  toggleFileEnabled: [];
+  updatePage: [page: number];
+}>();
+
+const pageModel = computed({
+  get: () => props.page,
+  set: value => emit('updatePage', value),
+});
+</script>
 
 <style scoped>
 .reply-section {

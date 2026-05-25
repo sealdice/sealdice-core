@@ -11,6 +11,7 @@ node_modules
 .DS_Store
 dist
 dist-ssr
+dev-dist
 coverage
 *.local
 
@@ -33,3 +34,6 @@ coverage
 openapi.json
 
 components.d.ts
+
+# vendored build output
+vendor/fake-qq-ui

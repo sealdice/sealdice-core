@@ -1,3 +1,23 @@
+<template>
+  <div class="resource-preview" :class="{ 'resource-preview--large': size === 'large' }">
+    <n-skeleton v-if="loading && !objectUrl" class="resource-preview__skeleton" />
+    <n-image
+      v-else-if="objectUrl"
+      class="resource-preview__image"
+      :src="objectUrl"
+      :preview-src="objectUrl"
+      :alt="item.name"
+      object-fit="cover"
+      lazy
+    />
+    <div v-else class="resource-preview__fallback" :class="{ 'resource-preview__fallback--failed': failed }">
+      <n-icon size="22">
+        <i-carbon-image />
+      </n-icon>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { type ResourceItem } from '@/api';
 import { useResourcePreview } from '@/features/resource/useResourcePreview';
@@ -19,26 +39,6 @@ const { objectUrl, loading, failed } = useResourcePreview(
   () => props.thumbnail,
 );
 </script>
-
-<template>
-  <div class="resource-preview" :class="{ 'resource-preview--large': size === 'large' }">
-    <n-skeleton v-if="loading && !objectUrl" class="resource-preview__skeleton" />
-    <n-image
-      v-else-if="objectUrl"
-      class="resource-preview__image"
-      :src="objectUrl"
-      :preview-src="objectUrl"
-      :alt="item.name"
-      object-fit="cover"
-      lazy
-    />
-    <div v-else class="resource-preview__fallback" :class="{ 'resource-preview__fallback--failed': failed }">
-      <n-icon size="22">
-        <i-carbon-image />
-      </n-icon>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .resource-preview {

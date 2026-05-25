@@ -1,52 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import { filesize } from 'filesize';
-import type { FileItem } from '@/api';
-
-type CheckboxOption = {
-  label: string;
-  value: string;
-};
-
-const show = defineModel<boolean>('show', { required: true });
-const selectedNames = defineModel<string[]>('selectedNames', { required: true });
-
-const props = defineProps<{
-  items: FileItem[];
-  pending: boolean;
-}>();
-
-const emit = defineEmits<{
-  submit: [];
-}>();
-
-const options = computed<CheckboxOption[]>(() =>
-  props.items.map(item => ({
-    label: item.name,
-    value: item.name,
-  })),
-);
-
-const selectedItems = computed(() =>
-  props.items.filter(item => selectedNames.value.includes(item.name)),
-);
-
-const selectedSize = computed(() =>
-  selectedItems.value.reduce((sum, item) => sum + item.fileSize, 0),
-);
-
-const checkedAll = computed({
-  get: () => props.items.length > 0 && selectedNames.value.length === props.items.length,
-  set: value => {
-    selectedNames.value = value ? props.items.map(item => item.name) : [];
-  },
-});
-
-const indeterminate = computed(() =>
-  selectedNames.value.length > 0 && selectedNames.value.length < props.items.length,
-);
-</script>
-
 <template>
   <n-modal v-model:show="show" preset="card" title="批量删除备份" class="backup-dialog" :mask-closable="false">
     <n-alert type="warning" :bordered="false" class="backup-dialog__alert">
@@ -95,6 +46,55 @@ const indeterminate = computed(() =>
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import { filesize } from 'filesize';
+import type { FileItem } from '@/api';
+
+type CheckboxOption = {
+  label: string;
+  value: string;
+};
+
+const show = defineModel<boolean>('show', { required: true });
+const selectedNames = defineModel<string[]>('selectedNames', { required: true });
+
+const props = defineProps<{
+  items: FileItem[];
+  pending: boolean;
+}>();
+
+const emit = defineEmits<{
+  submit: [];
+}>();
+
+const options = computed<CheckboxOption[]>(() =>
+  props.items.map(item => ({
+    label: item.name,
+    value: item.name,
+  })),
+);
+
+const selectedItems = computed(() =>
+  props.items.filter(item => selectedNames.value.includes(item.name)),
+);
+
+const selectedSize = computed(() =>
+  selectedItems.value.reduce((sum, item) => sum + item.fileSize, 0),
+);
+
+const checkedAll = computed({
+  get: () => props.items.length > 0 && selectedNames.value.length === props.items.length,
+  set: value => {
+    selectedNames.value = value ? props.items.map(item => item.name) : [];
+  },
+});
+
+const indeterminate = computed(() =>
+  selectedNames.value.length > 0 && selectedNames.value.length < props.items.length,
+);
+</script>
 
 <style scoped>
 .backup-dialog {

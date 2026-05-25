@@ -1,15 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import { QTip, QText } from 'fake-qq-ui';
-import type { ToolTestMessage } from '@/features/toolTest/model';
-
-const props = defineProps<{
-  message: ToolTestMessage;
-}>();
-
-const lines = computed(() => props.message.content.split('\n'));
-</script>
-
 <template>
   <QTip v-if="props.message.kind === 'tip'">
     {{ props.message.content }}
@@ -26,3 +14,15 @@ const lines = computed(() => props.message.content.split('\n'));
     </template>
   </QText>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import { QTip, QText } from 'fake-qq-ui';
+import type { ToolTestMessage } from '@/features/toolTest/model';
+
+const props = defineProps<{
+  message: ToolTestMessage;
+}>();
+
+const lines = computed(() => props.message.content.split('\n'));
+</script>

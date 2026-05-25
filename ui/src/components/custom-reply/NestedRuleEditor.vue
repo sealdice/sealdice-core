@@ -1,128 +1,3 @@
-<script setup lang="ts">
-import { reactive } from 'vue';
-import { VueDraggableNext } from 'vue-draggable-next';
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
-import ConditionBuilder from './ConditionBuilder.vue';
-
-interface ReplyCondition {
-  condType: string;
-  value: string | number | undefined;
-  matchType?: string;
-  matchOp?: string;
-}
-
-type ReplyMessage = [string, number];
-
-interface ReplyResult {
-  resultType: string;
-  delay: number;
-  message: ReplyMessage[];
-}
-
-interface ReplyTask {
-  name?: string;
-  enable: boolean;
-  conditions: ReplyCondition[];
-  results: ReplyResult[];
-}
-
-const props = withDefaults(
-  defineProps<{
-    tasks: ReplyTask[];
-    startIndex?: number;
-  }>(),
-  {
-    startIndex: 0,
-  },
-);
-const emit = defineEmits<{
-  change: [];
-  deleteRule: [index: number];
-}>();
-
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const notMobile = breakpoints.greater('sm');
-const foldedRules = reactive<Record<number, boolean>>({});
-
-const resultTypeOptions = [
-  { label: '回复', value: 'replyToSender' },
-  { label: '私聊回复', value: 'replyPrivate' },
-  { label: '群内回复', value: 'replyGroup' },
-];
-
-let taskKeySeed = 0;
-const taskKeys = new WeakMap<ReplyTask, string>();
-
-function getTaskKey(task: ReplyTask) {
-  let key = taskKeys.get(task);
-  if (!key) {
-    key = `reply-rule-${props.startIndex}-${taskKeySeed++}`;
-    taskKeys.set(task, key);
-  }
-  return key;
-}
-
-function toggleFold(index: number) {
-  const absoluteIndex = props.startIndex + index;
-  foldedRules[absoluteIndex] = !foldedRules[absoluteIndex];
-}
-
-function isFolded(index: number) {
-  return foldedRules[props.startIndex + index] === true;
-}
-
-function summarizeRule(task: ReplyTask) {
-  const firstCondition = task.conditions?.[0];
-  if (!firstCondition) {
-    return '无条件';
-  }
-  if (firstCondition.condType === 'textMatch') {
-    return `文本匹配：${String(firstCondition.value ?? '')}`;
-  }
-  if (firstCondition.condType === 'exprTrue') {
-    return `表达式：${String(firstCondition.value ?? '')}`;
-  }
-  if (firstCondition.condType === 'textLenLimit') {
-    const op = firstCondition.matchOp === 'ge' ? '大于等于' : '小于等于';
-    return `长度${op}${String(firstCondition.value ?? '')}`;
-  }
-  return '自定义条件';
-}
-
-const deleteItem = (index: number) => {
-  emit('deleteRule', index);
-};
-
-const deleteAnyItem = <T,>(lst: T[], index: number) => {
-  lst.splice(index, 1);
-  emit('change');
-};
-
-const addCond = (condList: ReplyCondition[]) => {
-  condList.push({
-    condType: 'textMatch',
-    matchType: 'matchExact',
-    value: '要匹配的文本',
-  });
-  emit('change');
-};
-
-const addResult = (results: ReplyResult[]) => {
-  results.push({ resultType: 'replyToSender', delay: 0, message: [['说点什么', 1]] });
-  emit('change');
-};
-
-const addMessageItem = (messages: ReplyMessage[]) => {
-  messages.push(['怎么辉石呢', 1]);
-  emit('change');
-};
-
-const removeMessageItem = (messages: ReplyMessage[], index: number) => {
-  messages.splice(index, 1);
-  emit('change');
-};
-</script>
-
 <template>
   <VueDraggableNext
     class="drag-area"
@@ -295,6 +170,131 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
     </template>
   </VueDraggableNext>
 </template>
+
+<script setup lang="ts">
+import { reactive } from 'vue';
+import { VueDraggableNext } from 'vue-draggable-next';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
+import ConditionBuilder from './ConditionBuilder.vue';
+
+interface ReplyCondition {
+  condType: string;
+  value: string | number | undefined;
+  matchType?: string;
+  matchOp?: string;
+}
+
+type ReplyMessage = [string, number];
+
+interface ReplyResult {
+  resultType: string;
+  delay: number;
+  message: ReplyMessage[];
+}
+
+interface ReplyTask {
+  name?: string;
+  enable: boolean;
+  conditions: ReplyCondition[];
+  results: ReplyResult[];
+}
+
+const props = withDefaults(
+  defineProps<{
+    tasks: ReplyTask[];
+    startIndex?: number;
+  }>(),
+  {
+    startIndex: 0,
+  },
+);
+const emit = defineEmits<{
+  change: [];
+  deleteRule: [index: number];
+}>();
+
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const notMobile = breakpoints.greater('sm');
+const foldedRules = reactive<Record<number, boolean>>({});
+
+const resultTypeOptions = [
+  { label: '回复', value: 'replyToSender' },
+  { label: '私聊回复', value: 'replyPrivate' },
+  { label: '群内回复', value: 'replyGroup' },
+];
+
+let taskKeySeed = 0;
+const taskKeys = new WeakMap<ReplyTask, string>();
+
+function getTaskKey(task: ReplyTask) {
+  let key = taskKeys.get(task);
+  if (!key) {
+    key = `reply-rule-${props.startIndex}-${taskKeySeed++}`;
+    taskKeys.set(task, key);
+  }
+  return key;
+}
+
+function toggleFold(index: number) {
+  const absoluteIndex = props.startIndex + index;
+  foldedRules[absoluteIndex] = !foldedRules[absoluteIndex];
+}
+
+function isFolded(index: number) {
+  return foldedRules[props.startIndex + index] === true;
+}
+
+function summarizeRule(task: ReplyTask) {
+  const firstCondition = task.conditions?.[0];
+  if (!firstCondition) {
+    return '无条件';
+  }
+  if (firstCondition.condType === 'textMatch') {
+    return `文本匹配：${String(firstCondition.value ?? '')}`;
+  }
+  if (firstCondition.condType === 'exprTrue') {
+    return `表达式：${String(firstCondition.value ?? '')}`;
+  }
+  if (firstCondition.condType === 'textLenLimit') {
+    const op = firstCondition.matchOp === 'ge' ? '大于等于' : '小于等于';
+    return `长度${op}${String(firstCondition.value ?? '')}`;
+  }
+  return '自定义条件';
+}
+
+const deleteItem = (index: number) => {
+  emit('deleteRule', index);
+};
+
+const deleteAnyItem = <T,>(lst: T[], index: number) => {
+  lst.splice(index, 1);
+  emit('change');
+};
+
+const addCond = (condList: ReplyCondition[]) => {
+  condList.push({
+    condType: 'textMatch',
+    matchType: 'matchExact',
+    value: '要匹配的文本',
+  });
+  emit('change');
+};
+
+const addResult = (results: ReplyResult[]) => {
+  results.push({ resultType: 'replyToSender', delay: 0, message: [['说点什么', 1]] });
+  emit('change');
+};
+
+const addMessageItem = (messages: ReplyMessage[]) => {
+  messages.push(['怎么辉石呢', 1]);
+  emit('change');
+};
+
+const removeMessageItem = (messages: ReplyMessage[], index: number) => {
+  messages.splice(index, 1);
+  emit('change');
+};
+</script>
 
 <style scoped>
 .drag-area {

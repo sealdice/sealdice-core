@@ -1,3 +1,121 @@
+<template>
+  <section class="resource-list-panel">
+    <header class="resource-list-panel__toolbar">
+      <ProSearchForm
+        :form="searchForm"
+        :columns="searchColumns"
+        size="small"
+        label-placement="left"
+        label-width="78"
+        cols="1 m:2 xl:3"
+        :show-suffix-grid-item="false"
+        :collapse-button-props="false"
+      />
+
+      <n-flex align="center" justify="end" wrap>
+        <n-button secondary :loading="loading" @click="emit('refresh')">
+          <template #icon>
+            <n-icon><i-carbon-renew /></n-icon>
+          </template>
+          刷新
+        </n-button>
+        <n-upload
+          action=""
+          multiple
+          accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
+          :show-file-list="false"
+          :custom-request="uploadResourceFile"
+        >
+          <n-button type="primary" :loading="uploadPending">
+            <template #icon>
+              <n-icon><i-carbon-upload /></n-icon>
+            </template>
+            上传图片
+          </n-button>
+        </n-upload>
+      </n-flex>
+    </header>
+
+    <n-spin :show="loading && isMobile">
+      <div v-if="isMobile" class="resource-list-panel__cards">
+        <article v-for="item in items" :key="getResourceKey(item)" class="resource-list-panel__card">
+          <button class="resource-list-panel__preview-button" type="button" @click="emit('detail', item)">
+            <ResourcePreview :item="item" thumbnail />
+          </button>
+          <div class="resource-list-panel__card-main">
+            <div class="resource-list-panel__card-title">
+              <strong>{{ item.name }}</strong>
+              <n-tag size="small" :bordered="false" :type="getResourceTypeTagType(item.type)">
+                {{ formatResourceTypeLabel(item.type) }}
+              </n-tag>
+            </div>
+            <n-text code class="resource-list-panel__path">{{ item.path }}</n-text>
+            <n-flex align="center" justify="space-between" wrap>
+              <n-tag size="small" :bordered="false">{{ filesize(item.size) }}</n-tag>
+              <n-flex size="small" justify="end">
+                <n-button size="tiny" secondary type="info" @click="emit('copy', item)">
+                  复制码
+                </n-button>
+                <n-button size="tiny" secondary @click="emit('detail', item)">
+                  详情
+                </n-button>
+                <n-button
+                  size="tiny"
+                  secondary
+                  type="success"
+                  :loading="downloadingPath === item.path"
+                  @click="emit('download', item)"
+                >
+                  下载
+                </n-button>
+                <n-button
+                  size="tiny"
+                  secondary
+                  type="error"
+                  :loading="deletingPath === item.path"
+                  @click="emit('delete', item)"
+                >
+                  删除
+                </n-button>
+              </n-flex>
+            </n-flex>
+          </div>
+        </article>
+      </div>
+
+      <n-data-table
+        v-else
+        :columns="columns"
+        :data="items"
+        :loading="loading"
+        :bordered="false"
+        :row-key="getResourceKey"
+        :scroll-x="900"
+        size="small"
+      />
+
+      <n-empty v-if="!loading && items.length === 0" description="暂无图片资源" class="resource-list-panel__empty">
+        <template #extra>
+          <n-text depth="3">上传图片后可在骰子消息中使用 [图:路径] 引用。</n-text>
+        </template>
+      </n-empty>
+    </n-spin>
+
+    <footer class="resource-list-panel__footer">
+      <n-text depth="3">{{ summary }}</n-text>
+      <n-pagination
+        :page="query.page"
+        :page-size="query.pageSize"
+        :item-count="total"
+        show-size-picker
+        :page-sizes="pageSizeOptions"
+        @update:page="updatePage"
+        @update:page-size="updatePageSize"
+      />
+    </footer>
+  </section>
+</template>
+
 <script setup lang="tsx">
 import { computed, nextTick, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
@@ -227,124 +345,6 @@ async function uploadResourceFile(options: UploadCustomRequestOptions) {
   options.onFinish?.();
 }
 </script>
-
-<template>
-  <section class="resource-list-panel">
-    <header class="resource-list-panel__toolbar">
-      <ProSearchForm
-        :form="searchForm"
-        :columns="searchColumns"
-        size="small"
-        label-placement="left"
-        label-width="78"
-        cols="1 m:2 xl:3"
-        :show-suffix-grid-item="false"
-        :collapse-button-props="false"
-      />
-
-      <n-flex align="center" justify="end" wrap>
-        <n-button secondary :loading="loading" @click="emit('refresh')">
-          <template #icon>
-            <n-icon><i-carbon-renew /></n-icon>
-          </template>
-          刷新
-        </n-button>
-        <n-upload
-          action=""
-          multiple
-          accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
-          :show-file-list="false"
-          :custom-request="uploadResourceFile"
-        >
-          <n-button type="primary" :loading="uploadPending">
-            <template #icon>
-              <n-icon><i-carbon-upload /></n-icon>
-            </template>
-            上传图片
-          </n-button>
-        </n-upload>
-      </n-flex>
-    </header>
-
-    <n-spin :show="loading && isMobile">
-      <div v-if="isMobile" class="resource-list-panel__cards">
-        <article v-for="item in items" :key="getResourceKey(item)" class="resource-list-panel__card">
-          <button class="resource-list-panel__preview-button" type="button" @click="emit('detail', item)">
-            <ResourcePreview :item="item" thumbnail />
-          </button>
-          <div class="resource-list-panel__card-main">
-            <div class="resource-list-panel__card-title">
-              <strong>{{ item.name }}</strong>
-              <n-tag size="small" :bordered="false" :type="getResourceTypeTagType(item.type)">
-                {{ formatResourceTypeLabel(item.type) }}
-              </n-tag>
-            </div>
-            <n-text code class="resource-list-panel__path">{{ item.path }}</n-text>
-            <n-flex align="center" justify="space-between" wrap>
-              <n-tag size="small" :bordered="false">{{ filesize(item.size) }}</n-tag>
-              <n-flex size="small" justify="end">
-                <n-button size="tiny" secondary type="info" @click="emit('copy', item)">
-                  复制码
-                </n-button>
-                <n-button size="tiny" secondary @click="emit('detail', item)">
-                  详情
-                </n-button>
-                <n-button
-                  size="tiny"
-                  secondary
-                  type="success"
-                  :loading="downloadingPath === item.path"
-                  @click="emit('download', item)"
-                >
-                  下载
-                </n-button>
-                <n-button
-                  size="tiny"
-                  secondary
-                  type="error"
-                  :loading="deletingPath === item.path"
-                  @click="emit('delete', item)"
-                >
-                  删除
-                </n-button>
-              </n-flex>
-            </n-flex>
-          </div>
-        </article>
-      </div>
-
-      <n-data-table
-        v-else
-        :columns="columns"
-        :data="items"
-        :loading="loading"
-        :bordered="false"
-        :row-key="getResourceKey"
-        :scroll-x="900"
-        size="small"
-      />
-
-      <n-empty v-if="!loading && items.length === 0" description="暂无图片资源" class="resource-list-panel__empty">
-        <template #extra>
-          <n-text depth="3">上传图片后可在骰子消息中使用 [图:路径] 引用。</n-text>
-        </template>
-      </n-empty>
-    </n-spin>
-
-    <footer class="resource-list-panel__footer">
-      <n-text depth="3">{{ summary }}</n-text>
-      <n-pagination
-        :page="query.page"
-        :page-size="query.pageSize"
-        :item-count="total"
-        show-size-picker
-        :page-sizes="pageSizeOptions"
-        @update:page="updatePage"
-        @update:page-size="updatePageSize"
-      />
-    </footer>
-  </section>
-</template>
 
 <style scoped>
 .resource-list-panel {

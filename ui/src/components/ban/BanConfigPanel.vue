@@ -1,19 +1,3 @@
-<script setup lang="ts">
-import type { BanConfig } from '@/api';
-import TipBox from '@/components/shared/TipBox.vue';
-
-const config = defineModel<BanConfig>('config', { required: true });
-
-defineProps<{
-  dirty: boolean;
-  saving: boolean;
-}>();
-
-const emit = defineEmits<{
-  save: [];
-}>();
-</script>
-
 <template>
   <section class="ban-config-panel">
     <header class="ban-config-panel__header">
@@ -85,6 +69,22 @@ const emit = defineEmits<{
     </section>
   </section>
 </template>
+
+<script setup lang="ts">
+import type { BanConfig } from '@/api';
+import TipBox from '@/components/shared/TipBox.vue';
+
+const config = defineModel<BanConfig>('config', { required: true });
+
+defineProps<{
+  dirty: boolean;
+  saving: boolean;
+}>();
+
+const emit = defineEmits<{
+  save: [];
+}>();
+</script>
 
 <style scoped>
 .ban-config-panel {

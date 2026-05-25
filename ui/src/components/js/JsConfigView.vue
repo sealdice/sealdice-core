@@ -1,3 +1,72 @@
+<template>
+  <div>
+    <n-collapse v-if="configItems.length" class="js-config-main">
+      <n-collapse-item
+        v-for="cfg in configItems"
+        :key="cfg.pluginName"
+        :title="cfg.pluginName"
+        :name="cfg.pluginName"
+      >
+        <n-tabs v-if="cfg.items.length" type="line" size="small" animated>
+          <n-tab-pane
+            v-for="group in getPluginGroups(cfg.items)"
+            :key="`${cfg.pluginName}-${group.name}`"
+            :name="group.name"
+            :tab="group.name"
+          >
+            <JsConfigItemEditor
+              v-for="item in group.items"
+              :key="item.key"
+              :item="item"
+              :plugin-name="cfg.pluginName"
+              :error-text="configErrors[buildConfigErrorKey(cfg.pluginName, item.key)]"
+              :checking="!!checkingKeys[buildConfigErrorKey(cfg.pluginName, item.key)]"
+              @change="setEdited"
+              @reset="resetSingleConfig"
+              @validate="validateConfigValue"
+            />
+          </n-tab-pane>
+        </n-tabs>
+        <n-text v-if="!cfg.items.length" depth="3">无配置项</n-text>
+      </n-collapse-item>
+    </n-collapse>
+
+    <n-text v-else depth="3">暂无活跃配置</n-text>
+
+    <div v-if="deadConfigsQuery.data.value?.length" class="dead-configs-block">
+      <n-flex size="small" align="center">
+        <n-alert type="warning" :show-icon="false">
+          <template #header>
+            以下是残留的死配置（插件已不存在但配置仍在），可安全删除
+          </template>
+        </n-alert>
+        <n-button
+          type="error"
+          size="small"
+          :disabled="!deadConfigsQuery.data.value?.length"
+          @click="handleDeleteDead(deadConfigsQuery.data.value ?? [])"
+        >
+          删除全部
+        </n-button>
+      </n-flex>
+
+      <div v-for="dc in deadConfigsQuery.data.value" :key="dc.name" class="dead-config-row">
+        <n-flex align="center" justify="space-between">
+          <n-text>{{ dc.name }}</n-text>
+          <n-button
+            size="tiny"
+            type="error"
+            secondary
+            @click="deleteDeadConfigs([dc.name])"
+          >
+            删除
+          </n-button>
+        </n-flex>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import {
@@ -155,75 +224,6 @@ defineExpose({
   saveAllLoading,
 });
 </script>
-
-<template>
-  <div>
-    <n-collapse v-if="configItems.length" class="js-config-main">
-      <n-collapse-item
-        v-for="cfg in configItems"
-        :key="cfg.pluginName"
-        :title="cfg.pluginName"
-        :name="cfg.pluginName"
-      >
-        <n-tabs v-if="cfg.items.length" type="line" size="small" animated>
-          <n-tab-pane
-            v-for="group in getPluginGroups(cfg.items)"
-            :key="`${cfg.pluginName}-${group.name}`"
-            :name="group.name"
-            :tab="group.name"
-          >
-            <JsConfigItemEditor
-              v-for="item in group.items"
-              :key="item.key"
-              :item="item"
-              :plugin-name="cfg.pluginName"
-              :error-text="configErrors[buildConfigErrorKey(cfg.pluginName, item.key)]"
-              :checking="!!checkingKeys[buildConfigErrorKey(cfg.pluginName, item.key)]"
-              @change="setEdited"
-              @reset="resetSingleConfig"
-              @validate="validateConfigValue"
-            />
-          </n-tab-pane>
-        </n-tabs>
-        <n-text v-if="!cfg.items.length" depth="3">无配置项</n-text>
-      </n-collapse-item>
-    </n-collapse>
-
-    <n-text v-else depth="3">暂无活跃配置</n-text>
-
-    <div v-if="deadConfigsQuery.data.value?.length" class="dead-configs-block">
-      <n-flex size="small" align="center">
-        <n-alert type="warning" :show-icon="false">
-          <template #header>
-            以下是残留的死配置（插件已不存在但配置仍在），可安全删除
-          </template>
-        </n-alert>
-        <n-button
-          type="error"
-          size="small"
-          :disabled="!deadConfigsQuery.data.value?.length"
-          @click="handleDeleteDead(deadConfigsQuery.data.value ?? [])"
-        >
-          删除全部
-        </n-button>
-      </n-flex>
-
-      <div v-for="dc in deadConfigsQuery.data.value" :key="dc.name" class="dead-config-row">
-        <n-flex align="center" justify="space-between">
-          <n-text>{{ dc.name }}</n-text>
-          <n-button
-            size="tiny"
-            type="error"
-            secondary
-            @click="deleteDeadConfigs([dc.name])"
-          >
-            删除
-          </n-button>
-        </n-flex>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .js-config-main {

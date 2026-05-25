@@ -1,17 +1,3 @@
-<script setup lang="ts">
-defineProps<{
-  title: string;
-  description?: string;
-  collapsible?: boolean;
-  expanded?: boolean;
-  wide?: boolean;
-}>();
-
-const emit = defineEmits<{
-  toggle: [];
-}>();
-</script>
-
 <template>
   <section :class="['setting-category-box', { 'setting-category-box-wide': wide }]">
     <n-thing class="setting-category-thing">
@@ -39,6 +25,20 @@ const emit = defineEmits<{
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+defineProps<{
+  title: string;
+  description?: string;
+  collapsible?: boolean;
+  expanded?: boolean;
+  wide?: boolean;
+}>();
+
+const emit = defineEmits<{
+  toggle: [];
+}>();
+</script>
 
 <style scoped>
 .setting-category-box {

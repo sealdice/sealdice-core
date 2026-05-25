@@ -1,287 +1,3 @@
-<script setup lang="tsx">
-import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
-import dayjs from 'dayjs';
-import { NButton, NCheckbox, NFlex, NPagination, NTag, NText, useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
-import { type JsInfo as JsInfoType } from '@/api';
-import FoldableCard from '@/components/shared/FoldableCard.vue';
-import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
-import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
-import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
-
-const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
-
-const emit = defineEmits<{
-  markNeedReload: [];
-}>();
-
-const message = useMessage();
-const dialog = useDialog();
-
-interface JsInfoExt extends JsInfoType {
-  pitch?: boolean;
-}
-
-const listQuery = reactive({
-  page: 1,
-  pageSize: 20,
-  keyword: '',
-  sortBy: 'name',
-  sortOrder: 'asc' as 'asc' | 'desc',
-});
-
-type JsListSearchFormValues = {
-  keyword: string;
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
-};
-
-const sortByOptions = [
-  { label: '按名称', value: 'name' },
-  { label: '按作者', value: 'author' },
-  { label: '按版本', value: 'version' },
-  { label: '按安装时间', value: 'installTime' },
-  { label: '按更新时间', value: 'updateTime' },
-];
-
-const sortOrderOptions = [
-  { label: '升序', value: 'asc' },
-  { label: '降序', value: 'desc' },
-];
-
-const defaultJsListSearchFormValues = (): JsListSearchFormValues => ({
-  keyword: '',
-  sortBy: 'name',
-  sortOrder: 'asc',
-});
-
-const searchForm = createProSearchForm<JsListSearchFormValues>({
-  initialValues: cloneSearchFormValues(defaultJsListSearchFormValues()),
-  onSubmit: async values => {
-    Object.assign(listQuery, values, { page: 1 });
-    await listQueryResult.refetch();
-  },
-  onReset: async () => {
-    resetFilters();
-  },
-});
-
-const searchColumns: ProSearchFormColumns<JsListSearchFormValues> = [
-  {
-    label: '关键字',
-    path: 'keyword',
-    field: 'input',
-    fieldProps: {
-      clearable: true,
-      placeholder: '搜索名称/描述/作者',
-    },
-  },
-  {
-    label: '排序字段',
-    path: 'sortBy',
-    field: 'select',
-    fieldProps: {
-      options: sortByOptions,
-    },
-  },
-  {
-    label: '排序方向',
-    path: 'sortOrder',
-    field: 'select',
-    fieldProps: {
-      options: sortOrderOptions,
-    },
-  },
-];
-
-const listParams = computed(() => ({
-  page: listQuery.page,
-  pageSize: listQuery.pageSize,
-  keyword: listQuery.keyword || undefined,
-  sortBy: listQuery.sortBy,
-  sortOrder: listQuery.sortOrder,
-}));
-const {
-  listQueryResult,
-  invalidateList,
-  deleteMutation,
-  enableMutation,
-  disableMutation,
-  uploader,
-  checkUpdate,
-  applyUpdate,
-} = useJsList({
-  listParams,
-  async onUploadSuccess(task: ResumableUploadTask) {
-    message.success(`上传完成：${task.filename}`);
-    emit('markNeedReload');
-    await invalidateList();
-  },
-  onUploadError(task: ResumableUploadTask) {
-    message.error(`上传失败：${task.filename}`);
-  },
-});
-
-watch(
-  () => listQuery.keyword,
-  () => {
-    listQuery.page = 1;
-  },
-);
-
-watch(
-  () => [listQuery.sortBy, listQuery.sortOrder] as const,
-  () => {
-    listQuery.page = 1;
-  },
-);
-
-const items = computed<JsInfoExt[]>(() =>
-  (listQueryResult.data.value?.data ?? []).map(item => ({ ...item, pitch: false })),
-);
-const total = computed(() => listQueryResult.data.value?.total ?? 0);
-const hasItems = computed(() => items.value.length > 0);
-const selectedCount = computed(() => items.value.filter(item => item.pitch).length);
-const allSelected = computed(() => hasItems.value && items.value.every(item => item.pitch));
-const showPagination = computed(() => total.value > listQuery.pageSize);
-const filterHint = computed(() => {
-  if (!listQuery.keyword.trim()) return '';
-  return `当前匹配 ${total.value} 条`;
-});
-
-const showDiff = ref(false);
-const diffLoading = ref(false);
-const diffData = ref<JsUpdateDiff | null>(null);
-
-const activeUploadTasks = computed(() =>
-  uploader.tasks.value.filter(task => task.status !== 'success'),
-);
-
-onMounted(() => {
-  uploader.restore();
-});
-
-async function uploadPlugin(options: UploadCustomRequestOptions) {
-  const file = options.file.file as File;
-  if (!file) {
-    options.onError();
-    return;
-  }
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (ext !== 'js' && ext !== 'ts') {
-    message.error('仅支持上传 .js 或 .ts 格式的插件文件');
-    options.onError();
-    return;
-  }
-  try {
-    await uploader.enqueueFiles([file]);
-    options.onFinish();
-  } catch {
-    message.error('上传失败');
-    options.onError();
-  }
-}
-
-async function handleCheckUpdate(item: JsInfoExt) {
-  diffLoading.value = true;
-  try {
-    diffData.value = await checkUpdate(item.filename);
-    showDiff.value = true;
-  } catch (error) {
-    message.error(error instanceof Error ? error.message : '检查更新失败');
-  } finally {
-    diffLoading.value = false;
-  }
-}
-
-async function handleApplyUpdate() {
-  if (!diffData.value) return;
-  try {
-    await applyUpdate(diffData.value);
-    message.success('更新成功，请手动重载后生效');
-    showDiff.value = false;
-    emit('markNeedReload');
-    await invalidateList();
-  } catch {
-    message.error('更新失败');
-  }
-}
-
-async function handleDelete(item: JsInfoExt) {
-  dialog.warning({
-    title: item.official ? '确认卸载' : '确认删除',
-    content: item.official
-      ? `确认卸载官方插件「${item.name}」的更新，确定吗？`
-      : `确认删除插件「${item.name}」，确定吗？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      try {
-        await deleteMutation.mutateAsync(item.filename);
-        message.success('插件已删除，请手动重载后生效');
-        emit('markNeedReload');
-        await invalidateList();
-      } catch {
-        message.error('删除失败');
-      }
-    },
-  });
-}
-
-async function toggleEnable(item: JsInfoExt, enable: boolean) {
-  try {
-    if (enable) {
-      await enableMutation.mutateAsync(item.name);
-      message.success('插件已启用，请手动重载后生效');
-    } else {
-      await disableMutation.mutateAsync(item.name);
-      message.success('插件已禁用，请手动重载后生效');
-    }
-    emit('markNeedReload');
-    await invalidateList();
-  } catch {
-    message.error('操作失败');
-  }
-}
-
-async function delSelected() {
-  const selected = items.value.filter(i => i.pitch);
-  if (!selected.length) return;
-  dialog.warning({
-    title: '批量删除',
-    content: `确认删除 ${selected.length} 个插件？`,
-    positiveText: '确定',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      for (const item of selected) {
-        try {
-          await deleteMutation.mutateAsync(item.filename);
-        } catch {
-          // continue
-        }
-      }
-      message.success('删除完成，请手动重载后生效');
-      emit('markNeedReload');
-      await invalidateList();
-    },
-  });
-}
-
-function resetFilters() {
-  listQuery.keyword = '';
-  listQuery.sortBy = 'name';
-  listQuery.sortOrder = 'asc';
-  listQuery.page = 1;
-  void listQueryResult.refetch();
-}
-
-function toggleSelectAll(checked: boolean) {
-  items.value.forEach(item => {
-    item.pitch = checked;
-  });
-}
-</script>
-
 <template>
   <main class="js-list-page">
     <section class="js-panel">
@@ -593,6 +309,290 @@ function toggleSelectAll(checked: boolean) {
     </n-modal>
   </main>
 </template>
+
+<script setup lang="tsx">
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
+import dayjs from 'dayjs';
+import { NButton, NCheckbox, NFlex, NPagination, NTag, NText, useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
+import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import { type JsInfo as JsInfoType } from '@/api';
+import FoldableCard from '@/components/shared/FoldableCard.vue';
+import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
+
+const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
+
+const emit = defineEmits<{
+  markNeedReload: [];
+}>();
+
+const message = useMessage();
+const dialog = useDialog();
+
+interface JsInfoExt extends JsInfoType {
+  pitch?: boolean;
+}
+
+const listQuery = reactive({
+  page: 1,
+  pageSize: 20,
+  keyword: '',
+  sortBy: 'name',
+  sortOrder: 'asc' as 'asc' | 'desc',
+});
+
+type JsListSearchFormValues = {
+  keyword: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+};
+
+const sortByOptions = [
+  { label: '按名称', value: 'name' },
+  { label: '按作者', value: 'author' },
+  { label: '按版本', value: 'version' },
+  { label: '按安装时间', value: 'installTime' },
+  { label: '按更新时间', value: 'updateTime' },
+];
+
+const sortOrderOptions = [
+  { label: '升序', value: 'asc' },
+  { label: '降序', value: 'desc' },
+];
+
+const defaultJsListSearchFormValues = (): JsListSearchFormValues => ({
+  keyword: '',
+  sortBy: 'name',
+  sortOrder: 'asc',
+});
+
+const searchForm = createProSearchForm<JsListSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultJsListSearchFormValues()),
+  onSubmit: async values => {
+    Object.assign(listQuery, values, { page: 1 });
+    await listQueryResult.refetch();
+  },
+  onReset: async () => {
+    resetFilters();
+  },
+});
+
+const searchColumns: ProSearchFormColumns<JsListSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索名称/描述/作者',
+    },
+  },
+  {
+    label: '排序字段',
+    path: 'sortBy',
+    field: 'select',
+    fieldProps: {
+      options: sortByOptions,
+    },
+  },
+  {
+    label: '排序方向',
+    path: 'sortOrder',
+    field: 'select',
+    fieldProps: {
+      options: sortOrderOptions,
+    },
+  },
+];
+
+const listParams = computed(() => ({
+  page: listQuery.page,
+  pageSize: listQuery.pageSize,
+  keyword: listQuery.keyword || undefined,
+  sortBy: listQuery.sortBy,
+  sortOrder: listQuery.sortOrder,
+}));
+const {
+  listQueryResult,
+  invalidateList,
+  deleteMutation,
+  enableMutation,
+  disableMutation,
+  uploader,
+  checkUpdate,
+  applyUpdate,
+} = useJsList({
+  listParams,
+  async onUploadSuccess(task: ResumableUploadTask) {
+    message.success(`上传完成：${task.filename}`);
+    emit('markNeedReload');
+    await invalidateList();
+  },
+  onUploadError(task: ResumableUploadTask) {
+    message.error(`上传失败：${task.filename}`);
+  },
+});
+
+watch(
+  () => listQuery.keyword,
+  () => {
+    listQuery.page = 1;
+  },
+);
+
+watch(
+  () => [listQuery.sortBy, listQuery.sortOrder] as const,
+  () => {
+    listQuery.page = 1;
+  },
+);
+
+const items = computed<JsInfoExt[]>(() =>
+  (listQueryResult.data.value?.data ?? []).map(item => ({ ...item, pitch: false })),
+);
+const total = computed(() => listQueryResult.data.value?.total ?? 0);
+const hasItems = computed(() => items.value.length > 0);
+const selectedCount = computed(() => items.value.filter(item => item.pitch).length);
+const allSelected = computed(() => hasItems.value && items.value.every(item => item.pitch));
+const showPagination = computed(() => total.value > listQuery.pageSize);
+const filterHint = computed(() => {
+  if (!listQuery.keyword.trim()) return '';
+  return `当前匹配 ${total.value} 条`;
+});
+
+const showDiff = ref(false);
+const diffLoading = ref(false);
+const diffData = ref<JsUpdateDiff | null>(null);
+
+const activeUploadTasks = computed(() =>
+  uploader.tasks.value.filter(task => task.status !== 'success'),
+);
+
+onMounted(() => {
+  uploader.restore();
+});
+
+async function uploadPlugin(options: UploadCustomRequestOptions) {
+  const file = options.file.file as File;
+  if (!file) {
+    options.onError();
+    return;
+  }
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext !== 'js' && ext !== 'ts') {
+    message.error('仅支持上传 .js 或 .ts 格式的插件文件');
+    options.onError();
+    return;
+  }
+  try {
+    await uploader.enqueueFiles([file]);
+    options.onFinish();
+  } catch {
+    message.error('上传失败');
+    options.onError();
+  }
+}
+
+async function handleCheckUpdate(item: JsInfoExt) {
+  diffLoading.value = true;
+  try {
+    diffData.value = await checkUpdate(item.filename);
+    showDiff.value = true;
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '检查更新失败');
+  } finally {
+    diffLoading.value = false;
+  }
+}
+
+async function handleApplyUpdate() {
+  if (!diffData.value) return;
+  try {
+    await applyUpdate(diffData.value);
+    message.success('更新成功，请手动重载后生效');
+    showDiff.value = false;
+    emit('markNeedReload');
+    await invalidateList();
+  } catch {
+    message.error('更新失败');
+  }
+}
+
+async function handleDelete(item: JsInfoExt) {
+  dialog.warning({
+    title: item.official ? '确认卸载' : '确认删除',
+    content: item.official
+      ? `确认卸载官方插件「${item.name}」的更新，确定吗？`
+      : `确认删除插件「${item.name}」，确定吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteMutation.mutateAsync(item.filename);
+        message.success('插件已删除，请手动重载后生效');
+        emit('markNeedReload');
+        await invalidateList();
+      } catch {
+        message.error('删除失败');
+      }
+    },
+  });
+}
+
+async function toggleEnable(item: JsInfoExt, enable: boolean) {
+  try {
+    if (enable) {
+      await enableMutation.mutateAsync(item.name);
+      message.success('插件已启用，请手动重载后生效');
+    } else {
+      await disableMutation.mutateAsync(item.name);
+      message.success('插件已禁用，请手动重载后生效');
+    }
+    emit('markNeedReload');
+    await invalidateList();
+  } catch {
+    message.error('操作失败');
+  }
+}
+
+async function delSelected() {
+  const selected = items.value.filter(i => i.pitch);
+  if (!selected.length) return;
+  dialog.warning({
+    title: '批量删除',
+    content: `确认删除 ${selected.length} 个插件？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      for (const item of selected) {
+        try {
+          await deleteMutation.mutateAsync(item.filename);
+        } catch {
+          // continue
+        }
+      }
+      message.success('删除完成，请手动重载后生效');
+      emit('markNeedReload');
+      await invalidateList();
+    },
+  });
+}
+
+function resetFilters() {
+  listQuery.keyword = '';
+  listQuery.sortBy = 'name';
+  listQuery.sortOrder = 'asc';
+  listQuery.page = 1;
+  void listQueryResult.refetch();
+}
+
+function toggleSelectAll(checked: boolean) {
+  items.value.forEach(item => {
+    item.pitch = checked;
+  });
+}
+</script>
 
 <style scoped>
 .js-list-page {

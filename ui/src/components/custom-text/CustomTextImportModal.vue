@@ -1,20 +1,3 @@
-<script setup lang="ts">
-const show = defineModel<boolean>('show', { required: true });
-const content = defineModel<string>('content', { required: true });
-const onlyCurrent = defineModel<boolean>('onlyCurrent', { required: true });
-const compact = defineModel<boolean>('compact', { required: true });
-
-defineProps<{
-  saving: boolean;
-}>();
-
-const emit = defineEmits<{
-  copy: [];
-  clear: [];
-  import: [];
-}>();
-</script>
-
 <template>
   <n-modal
     v-model:show="show"
@@ -63,6 +46,23 @@ const emit = defineEmits<{
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+const show = defineModel<boolean>('show', { required: true });
+const content = defineModel<string>('content', { required: true });
+const onlyCurrent = defineModel<boolean>('onlyCurrent', { required: true });
+const compact = defineModel<boolean>('compact', { required: true });
+
+defineProps<{
+  saving: boolean;
+}>();
+
+const emit = defineEmits<{
+  copy: [];
+  clear: [];
+  import: [];
+}>();
+</script>
 
 <style scoped>
 .import-edit :deep(textarea) {

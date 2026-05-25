@@ -1,47 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import {
-  DEFAULT_THEME_PALETTE,
-  useAppTheme,
-  type ThemeColorKey,
-} from '@/features/theme';
-
-const props = defineProps<{
-  show: boolean;
-}>();
-
-const emit = defineEmits<{
-  'update:show': [value: boolean];
-}>();
-
-const visible = computed({
-  get: () => props.show,
-  set: value => emit('update:show', value),
-});
-
-const { resetThemePalette, setThemeColor, themePalette } = useAppTheme();
-
-// 主题弹窗只负责浏览器本地的视觉偏好，不写入后端，也不替换任何业务设置页内容。
-const colorFields: Array<{
-  key: ThemeColorKey;
-  label: string;
-  description: string;
-}> = [
-  { key: 'primary', label: '主色', description: '按钮、选中态、重点操作' },
-  { key: 'info', label: '信息色', description: '普通提示与信息标签' },
-  { key: 'success', label: '成功色', description: '成功反馈与完成状态' },
-  { key: 'warning', label: '警告色', description: '风险提示与需关注状态' },
-  { key: 'error', label: '错误色', description: '错误反馈与危险操作' },
-];
-
-const swatches = Object.values(DEFAULT_THEME_PALETTE);
-
-function updateColor(key: ThemeColorKey, value: string | null) {
-  if (!value) return;
-  setThemeColor(key, value);
-}
-</script>
-
 <template>
   <n-modal
     v-model:show="visible"
@@ -87,6 +43,50 @@ function updateColor(key: ThemeColorKey, value: string | null) {
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import {
+  DEFAULT_THEME_PALETTE,
+  useAppTheme,
+  type ThemeColorKey,
+} from '@/features/theme';
+
+const props = defineProps<{
+  show: boolean;
+}>();
+
+const emit = defineEmits<{
+  'update:show': [value: boolean];
+}>();
+
+const visible = computed({
+  get: () => props.show,
+  set: value => emit('update:show', value),
+});
+
+const { resetThemePalette, setThemeColor, themePalette } = useAppTheme();
+
+// 主题弹窗只负责浏览器本地的视觉偏好，不写入后端，也不替换任何业务设置页内容。
+const colorFields: Array<{
+  key: ThemeColorKey;
+  label: string;
+  description: string;
+}> = [
+  { key: 'primary', label: '主色', description: '按钮、选中态、重点操作' },
+  { key: 'info', label: '信息色', description: '普通提示与信息标签' },
+  { key: 'success', label: '成功色', description: '成功反馈与完成状态' },
+  { key: 'warning', label: '警告色', description: '风险提示与需关注状态' },
+  { key: 'error', label: '错误色', description: '错误反馈与危险操作' },
+];
+
+const swatches = Object.values(DEFAULT_THEME_PALETTE);
+
+function updateColor(key: ThemeColorKey, value: string | null) {
+  if (!value) return;
+  setThemeColor(key, value);
+}
+</script>
 
 <style scoped>
 :global(.theme-palette-modal .n-card) {

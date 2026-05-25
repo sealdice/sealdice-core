@@ -1,26 +1,3 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import VueDiff from 'vue-diff';
-import 'vue-diff/dist/index.css';
-
-interface Props {
-  old: string;
-  new: string;
-  lang?: string;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  lang: 'text',
-  old: '',
-  new: '',
-});
-
-const changed = computed(() => props.old !== props.new);
-const split = ref(false);
-const folding = ref(false);
-const mode = computed(() => (split.value ? 'split' : 'unified'));
-</script>
-
 <template>
   <div class="flex items-center justify-between px-4">
     <n-space>
@@ -69,3 +46,26 @@ const mode = computed(() => (split.value ? 'split' : 'unified'));
     :current="props.new"
   />
 </template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import VueDiff from 'vue-diff';
+import 'vue-diff/dist/index.css';
+
+interface Props {
+  old: string;
+  new: string;
+  lang?: string;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  lang: 'text',
+  old: '',
+  new: '',
+});
+
+const changed = computed(() => props.old !== props.new);
+const split = ref(false);
+const folding = ref(false);
+const mode = computed(() => (split.value ? 'split' : 'unified'));
+</script>

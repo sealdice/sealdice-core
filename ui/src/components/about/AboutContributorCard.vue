@@ -1,20 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import sealImage from '@/assets/seal.png';
-import {
-  buildAvatarUrl,
-  buildContributorHref,
-  type AboutContributor,
-} from '@/features/about/viewModel';
-
-const props = defineProps<{
-  contributor: AboutContributor;
-}>();
-
-const href = computed(() => buildContributorHref(props.contributor));
-const avatarSrc = computed(() => (props.contributor.onlyName ? sealImage : buildAvatarUrl(props.contributor)));
-</script>
-
 <template>
   <a
     v-if="href"
@@ -42,6 +25,23 @@ const avatarSrc = computed(() => (props.contributor.onlyName ? sealImage : build
     </span>
   </div>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import sealImage from '@/assets/seal.png';
+import {
+  buildAvatarUrl,
+  buildContributorHref,
+  type AboutContributor,
+} from '@/features/about/viewModel';
+
+const props = defineProps<{
+  contributor: AboutContributor;
+}>();
+
+const href = computed(() => buildContributorHref(props.contributor));
+const avatarSrc = computed(() => (props.contributor.onlyName ? sealImage : buildAvatarUrl(props.contributor)));
+</script>
 
 <style scoped>
 .about-contributor-card {

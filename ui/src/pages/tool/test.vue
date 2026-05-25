@@ -1,11 +1,3 @@
-<script setup lang="ts">
-import { NAlert, NAutoComplete, NButton, NIcon, NRadioButton, NRadioGroup, NTag } from 'naive-ui';
-import ToolTestChatWindow from '@/components/tool-test/ToolTestChatWindow.vue';
-import { useToolTest } from '@/features/toolTest/useToolTest';
-
-const toolTest = useToolTest();
-</script>
-
 <template>
   <main class="tool-test-page">
     <header class="tool-test-page__header">
@@ -87,6 +79,14 @@ const toolTest = useToolTest();
     </footer>
   </main>
 </template>
+
+<script setup lang="ts">
+import { NAlert, NAutoComplete, NButton, NIcon, NRadioButton, NRadioGroup, NTag } from 'naive-ui';
+import ToolTestChatWindow from '@/components/tool-test/ToolTestChatWindow.vue';
+import { useToolTest } from '@/features/toolTest/useToolTest';
+
+const toolTest = useToolTest();
+</script>
 
 <style scoped>
 .tool-test-page {

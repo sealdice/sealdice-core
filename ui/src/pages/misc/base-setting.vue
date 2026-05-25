@@ -1,3 +1,80 @@
+<template>
+  <main class="base-setting-page">
+    <header class="page-head">
+      <div class="page-head-copy">
+        <h1>基本设置</h1>
+        <p>按业务分栏管理海豹基础配置，并支持跨分栏搜索与定位。</p>
+      </div>
+      <n-flex>
+        <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
+          放弃改动
+        </n-button>
+        <n-button type="primary" :loading="saveMutation.isPending.value" :disabled="!draft.dirty.value" @click="saveChanges">
+          保存设置
+        </n-button>
+      </n-flex>
+    </header>
+
+    <BaseSettingSearchBar
+      v-model:keyword="searchKeyword"
+      :results="searchResults"
+      @select="jumpToField"
+    />
+
+    <n-spin :show="pageBusy">
+      <n-tabs v-model:value="activeTab" type="line" animated class="setting-tabs">
+        <n-tab-pane
+          v-for="tab in tabs"
+          :key="tab.id"
+          :name="tab.id"
+          :tab="tab.title"
+        >
+          <div class="setting-groups">
+            <SettingCategoryBox
+              v-for="group in tab.groups"
+              :key="group.id"
+              :title="group.title"
+              :description="group.description"
+              :collapsible="group.collapsible"
+              :expanded="expandedGroups[group.id]"
+              :wide="isBaseSettingGroupWide(group.id)"
+              @toggle="toggleGroup(group.id)"
+            >
+              <template #notes>
+                <TipBox
+                  v-for="(note, noteIndex) in group.notes"
+                  :key="`${group.id}-${noteIndex}`"
+                  :type="note.tone === 'warning' ? 'warning' : 'info'"
+                  class="group-note"
+                >
+                  <div v-for="(line, lineIndex) in note.lines" :key="lineIndex">
+                    {{ line }}
+                  </div>
+                </TipBox>
+              </template>
+
+              <div v-if="currentValue" class="setting-fields">
+                <BaseSettingFieldRenderer
+                  v-for="field in group.fields"
+                  :key="field.id"
+                  :field="field"
+                  :model="currentValue"
+                  :initial-model="initialValue"
+                  :is-container-mode="isContainerMode"
+                  :busy-action-id="busyActionId"
+                  :highlighted="highlightedFieldId === field.id"
+                  :run-action="runAction"
+                  @update-field="updateField"
+                />
+              </div>
+            </SettingCategoryBox>
+          </div>
+        </n-tab-pane>
+      </n-tabs>
+    </n-spin>
+  </main>
+</template>
+
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
@@ -148,83 +225,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
   }, 1600);
 }
 </script>
-
-<template>
-  <main class="base-setting-page">
-    <header class="page-head">
-      <div class="page-head-copy">
-        <h1>基本设置</h1>
-        <p>按业务分栏管理海豹基础配置，并支持跨分栏搜索与定位。</p>
-      </div>
-      <n-flex>
-        <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
-          放弃改动
-        </n-button>
-        <n-button type="primary" :loading="saveMutation.isPending.value" :disabled="!draft.dirty.value" @click="saveChanges">
-          保存设置
-        </n-button>
-      </n-flex>
-    </header>
-
-    <BaseSettingSearchBar
-      v-model:keyword="searchKeyword"
-      :results="searchResults"
-      @select="jumpToField"
-    />
-
-    <n-spin :show="pageBusy">
-      <n-tabs v-model:value="activeTab" type="line" animated class="setting-tabs">
-        <n-tab-pane
-          v-for="tab in tabs"
-          :key="tab.id"
-          :name="tab.id"
-          :tab="tab.title"
-        >
-          <div class="setting-groups">
-            <SettingCategoryBox
-              v-for="group in tab.groups"
-              :key="group.id"
-              :title="group.title"
-              :description="group.description"
-              :collapsible="group.collapsible"
-              :expanded="expandedGroups[group.id]"
-              :wide="isBaseSettingGroupWide(group.id)"
-              @toggle="toggleGroup(group.id)"
-            >
-              <template #notes>
-                <TipBox
-                  v-for="(note, noteIndex) in group.notes"
-                  :key="`${group.id}-${noteIndex}`"
-                  :type="note.tone === 'warning' ? 'warning' : 'info'"
-                  class="group-note"
-                >
-                  <div v-for="(line, lineIndex) in note.lines" :key="lineIndex">
-                    {{ line }}
-                  </div>
-                </TipBox>
-              </template>
-
-              <div v-if="currentValue" class="setting-fields">
-                <BaseSettingFieldRenderer
-                  v-for="field in group.fields"
-                  :key="field.id"
-                  :field="field"
-                  :model="currentValue"
-                  :initial-model="initialValue"
-                  :is-container-mode="isContainerMode"
-                  :busy-action-id="busyActionId"
-                  :highlighted="highlightedFieldId === field.id"
-                  :run-action="runAction"
-                  @update-field="updateField"
-                />
-              </div>
-            </SettingCategoryBox>
-          </div>
-        </n-tab-pane>
-      </n-tabs>
-    </n-spin>
-  </main>
-</template>
 
 <style scoped>
 .base-setting-page {

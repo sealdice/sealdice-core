@@ -1,12 +1,3 @@
-<script setup lang="ts">
-import AboutContributorCard from './AboutContributorCard.vue';
-import type { AboutCreditSection } from '@/features/about/viewModel';
-
-const props = defineProps<{
-  sections: AboutCreditSection[];
-}>();
-</script>
-
 <template>
   <section class="about-credits">
     <div class="about-credits__header">
@@ -61,6 +52,15 @@ const props = defineProps<{
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import AboutContributorCard from './AboutContributorCard.vue';
+import type { AboutCreditSection } from '@/features/about/viewModel';
+
+const props = defineProps<{
+  sections: AboutCreditSection[];
+}>();
+</script>
 
 <style scoped>
 .about-credits {

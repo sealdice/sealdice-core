@@ -19,8 +19,10 @@ export default defineConfigWithVueTs(
   globalIgnores([
     '**/dist/**',
     '**/dist-ssr/**',
+    '**/dev-dist/**',
     '**/coverage/**',
     '**/src/api/generated/**',
+    '**/vendor/fake-qq-ui/**',
   ]),
 
   ...pluginVue.configs['flat/essential'],
@@ -31,6 +33,12 @@ export default defineConfigWithVueTs(
   {
     name: 'app/vue-tsx',
     rules: {
+      'vue/block-order': [
+        'error',
+        {
+          order: ['template', 'script', 'style'],
+        },
+      ],
       'vue/block-lang': [
         'error',
         {
@@ -46,6 +54,14 @@ export default defineConfigWithVueTs(
           jsx: true,
         },
       },
+    },
+  },
+
+  {
+    name: 'app/file-route-pages',
+    files: ['src/pages/**/*.vue'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
     },
   },
 )

@@ -1,16 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import { buildBaseSettingStringListOptions } from '@/features/baseSetting/viewModel';
-
-const model = defineModel<string[]>({ required: true });
-
-const options = computed(() => buildBaseSettingStringListOptions(model.value));
-
-function updateValue(value: string[] | null) {
-  model.value = buildBaseSettingStringListOptions(value ?? []).map(option => option.value);
-}
-</script>
-
 <template>
   <n-select
     class="setting-string-list"
@@ -25,6 +12,19 @@ function updateValue(value: string[] | null) {
     @update:value="updateValue"
   />
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import { buildBaseSettingStringListOptions } from '@/features/baseSetting/viewModel';
+
+const model = defineModel<string[]>({ required: true });
+
+const options = computed(() => buildBaseSettingStringListOptions(model.value));
+
+function updateValue(value: string[] | null) {
+  model.value = buildBaseSettingStringListOptions(value ?? []).map(option => option.value);
+}
+</script>
 
 <style scoped>
 .setting-string-list {

@@ -1,21 +1,3 @@
-<script setup lang="ts">
-import HelpConfigTags from './HelpConfigTags.vue';
-
-const show = defineModel<boolean>('show', { required: true });
-
-defineProps<{
-  groups: { label: string; value: string }[];
-  aliases: Map<string, string[]>;
-  saving: boolean;
-}>();
-
-const emit = defineEmits<{
-  save: [];
-  addAlias: [group: string, alias: string];
-  removeAlias: [group: string, alias: string];
-}>();
-</script>
-
 <template>
   <n-modal
     v-model:show="show"
@@ -45,6 +27,24 @@ const emit = defineEmits<{
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+import HelpConfigTags from './HelpConfigTags.vue';
+
+const show = defineModel<boolean>('show', { required: true });
+
+defineProps<{
+  groups: { label: string; value: string }[];
+  aliases: Map<string, string[]>;
+  saving: boolean;
+}>();
+
+const emit = defineEmits<{
+  save: [];
+  addAlias: [group: string, alias: string];
+  removeAlias: [group: string, alias: string];
+}>();
+</script>
 
 <style scoped>
 .config-title {

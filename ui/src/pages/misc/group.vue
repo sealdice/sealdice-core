@@ -1,3 +1,161 @@
+<template>
+  <main class="group-page">
+    <header class="page-header">
+      <n-card title="群组管理 / Group" :bordered="false">
+        <n-grid cols="1 s:2 m:4" responsive="screen" x-gap="12" y-gap="12">
+          <n-gi>
+            <n-statistic label="当前结果" :value="total" />
+          </n-gi>
+          <n-gi>
+            <n-statistic label="本页群组" :value="groups.length" />
+          </n-gi>
+          <n-gi>
+            <n-statistic label="记录日志中" :value="loggingCount" />
+          </n-gi>
+          <n-gi>
+            <n-statistic label="多账号群" :value="multiDiceCount" />
+          </n-gi>
+        </n-grid>
+      </n-card>
+    </header>
+
+    <n-spin :show="listLoading">
+      <section class="group-search-block">
+        <ProSearchForm
+          :form="groupSearchForm"
+          :columns="groupSearchColumns"
+          size="small"
+          label-placement="left"
+          label-width="96"
+          cols="1 s:2 l:3 xl:5"
+          :collapse-button-props="false"
+        />
+      </section>
+
+      <section class="group-action-block">
+        <n-tag size="small" :bordered="false" type="info">已选择 {{ selectedGroupIDs.length }} 项</n-tag>
+        <n-flex size="small" align="center" class="group-meta-right">
+          <n-button size="small" secondary :disabled="!selectedGroupIDs.length" @click="openBatchNotify">
+            批量通知群
+          </n-button>
+          <n-button size="small" type="error" secondary :disabled="!selectedGroupIDs.length" @click="openBatchQuit">
+            批量退群
+          </n-button>
+        </n-flex>
+      </section>
+
+      <section class="group-data-block">
+        <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
+          <template #title>
+            <n-flex align="center" size="small" wrap>
+              <n-checkbox v-model:checked="group.selected" />
+              <n-switch v-model:value="group.active" @update:value="markGroupChanged(group)" />
+              <n-text class="group-id" tag="strong">{{ group.groupId }}</n-text>
+              <n-text>「{{ group.groupName || '未获取到' }}」</n-text>
+            </n-flex>
+          </template>
+
+          <template #title-extra>
+            <n-button v-if="group.changed" type="success" size="small" secondary @click="saveGroup(group)">
+              保存
+            </n-button>
+          </template>
+
+          <template #action>
+            <n-flex size="small" wrap justify="end">
+              <n-button
+                v-for="diceId in groupDiceIDs(group)"
+                :key="diceId"
+                size="small"
+                type="error"
+                secondary
+                @click="openSingleQuit(group, diceId)"
+              >
+                退出 {{ diceId.slice(-4) }}
+              </n-button>
+            </n-flex>
+          </template>
+
+          <n-descriptions label-placement="left" size="small" :column="isMobile ? 1 : 3" bordered>
+            <n-descriptions-item label="上次使用">{{ recentText(group.recentDiceSendTime) }}</n-descriptions-item>
+            <n-descriptions-item label="入群时间">{{ group.enteredTime ? recentText(group.enteredTime) : '未知' }}</n-descriptions-item>
+            <n-descriptions-item label="邀请人">{{ group.inviteUserId || '未知' }}</n-descriptions-item>
+            <n-descriptions-item label="Log 状态">{{ group.logOn ? '开启' : '关闭' }}</n-descriptions-item>
+            <n-descriptions-item label="迎新">{{ group.showGroupWelcome ? '开启' : '关闭' }}</n-descriptions-item>
+            <n-descriptions-item label="群内账号">{{ groupDiceIDs(group).length || '未知' }}</n-descriptions-item>
+            <n-descriptions-item label="启用扩展" :span="3">
+              <n-space v-if="activeExtNames(group).length" size="small" wrap>
+                <n-tag
+                  v-for="ext in activeExtNames(group)"
+                  :key="ext"
+                  size="small"
+                  :bordered="false"
+                  type="success"
+                >
+                  {{ ext }}
+                </n-tag>
+              </n-space>
+              <n-text v-else depth="3">未知</n-text>
+            </n-descriptions-item>
+          </n-descriptions>
+        </FoldableCard>
+
+        <n-empty v-if="!groups.length && !listLoading" description="暂无匹配的群组" class="group-empty" />
+      </section>
+
+      <div class="group-pagination-block">
+        <n-pagination
+          v-model:page="listQuery.page"
+          v-model:page-size="listQuery.pageSize"
+          show-size-picker
+          :page-sizes="[10, 20, 30, 50]"
+          :page-slot="isMobile ? 3 : 5"
+          :item-count="total"
+          @update:page="handlePageChange"
+          @update:page-size="handlePageSizeChange"
+        />
+      </div>
+    </n-spin>
+
+    <n-modal v-model:show="notifyDialogVisible" preset="card" title="批量通知群" class="group-dialog">
+      <n-flex vertical>
+        <n-text depth="3">将向 {{ selectedGroupIDs.length }} 个群组发送同一条通知。</n-text>
+        <n-input
+          v-model:value="notifyText"
+          type="textarea"
+          :autosize="{ minRows: 5, maxRows: 10 }"
+          placeholder="输入通知内容"
+        />
+        <n-flex justify="end">
+          <n-button @click="notifyDialogVisible = false">取消</n-button>
+          <n-button type="primary" @click="submitNotify">发送通知</n-button>
+        </n-flex>
+      </n-flex>
+    </n-modal>
+
+    <n-modal v-model:show="quitDialogVisible" preset="card" title="退群确认" class="group-dialog">
+      <n-flex vertical>
+        <n-text depth="3">
+          {{ quitAction?.mode === 'single' ? '将退出当前选择的群组。' : `将批量退出 ${quitAction?.count ?? 0} 个群组。` }}
+        </n-text>
+        <n-checkbox v-model:checked="quitForm.silence">静默退出</n-checkbox>
+        <n-checkbox v-model:checked="quitForm.saveAsDefault">保存为默认留言</n-checkbox>
+        <n-input
+          v-model:value="quitForm.extraText"
+          type="textarea"
+          :disabled="quitForm.silence"
+          :autosize="{ minRows: 4, maxRows: 8 }"
+          placeholder="附加留言；若静默退出则不会发送"
+        />
+        <n-flex justify="end">
+          <n-button @click="quitDialogVisible = false">取消</n-button>
+          <n-button type="error" @click="submitQuit">确认退群</n-button>
+        </n-flex>
+      </n-flex>
+    </n-modal>
+  </main>
+</template>
+
 <script setup lang="tsx">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
@@ -318,164 +476,6 @@ onMounted(async () => {
   await searchGroups();
 });
 </script>
-
-<template>
-  <main class="group-page">
-    <header class="page-header">
-      <n-card title="群组管理 / Group" :bordered="false">
-        <n-grid cols="1 s:2 m:4" responsive="screen" x-gap="12" y-gap="12">
-          <n-gi>
-            <n-statistic label="当前结果" :value="total" />
-          </n-gi>
-          <n-gi>
-            <n-statistic label="本页群组" :value="groups.length" />
-          </n-gi>
-          <n-gi>
-            <n-statistic label="记录日志中" :value="loggingCount" />
-          </n-gi>
-          <n-gi>
-            <n-statistic label="多账号群" :value="multiDiceCount" />
-          </n-gi>
-        </n-grid>
-      </n-card>
-    </header>
-
-    <n-spin :show="listLoading">
-      <section class="group-search-block">
-        <ProSearchForm
-          :form="groupSearchForm"
-          :columns="groupSearchColumns"
-          size="small"
-          label-placement="left"
-          label-width="96"
-          cols="1 s:2 l:3 xl:5"
-          :collapse-button-props="false"
-        />
-      </section>
-
-      <section class="group-action-block">
-        <n-tag size="small" :bordered="false" type="info">已选择 {{ selectedGroupIDs.length }} 项</n-tag>
-        <n-flex size="small" align="center" class="group-meta-right">
-          <n-button size="small" secondary :disabled="!selectedGroupIDs.length" @click="openBatchNotify">
-            批量通知群
-          </n-button>
-          <n-button size="small" type="error" secondary :disabled="!selectedGroupIDs.length" @click="openBatchQuit">
-            批量退群
-          </n-button>
-        </n-flex>
-      </section>
-
-      <section class="group-data-block">
-        <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
-          <template #title>
-            <n-flex align="center" size="small" wrap>
-              <n-checkbox v-model:checked="group.selected" />
-              <n-switch v-model:value="group.active" @update:value="markGroupChanged(group)" />
-              <n-text class="group-id" tag="strong">{{ group.groupId }}</n-text>
-              <n-text>「{{ group.groupName || '未获取到' }}」</n-text>
-            </n-flex>
-          </template>
-
-          <template #title-extra>
-            <n-button v-if="group.changed" type="success" size="small" secondary @click="saveGroup(group)">
-              保存
-            </n-button>
-          </template>
-
-          <template #action>
-            <n-flex size="small" wrap justify="end">
-              <n-button
-                v-for="diceId in groupDiceIDs(group)"
-                :key="diceId"
-                size="small"
-                type="error"
-                secondary
-                @click="openSingleQuit(group, diceId)"
-              >
-                退出 {{ diceId.slice(-4) }}
-              </n-button>
-            </n-flex>
-          </template>
-
-          <n-descriptions label-placement="left" size="small" :column="isMobile ? 1 : 3" bordered>
-            <n-descriptions-item label="上次使用">{{ recentText(group.recentDiceSendTime) }}</n-descriptions-item>
-            <n-descriptions-item label="入群时间">{{ group.enteredTime ? recentText(group.enteredTime) : '未知' }}</n-descriptions-item>
-            <n-descriptions-item label="邀请人">{{ group.inviteUserId || '未知' }}</n-descriptions-item>
-            <n-descriptions-item label="Log 状态">{{ group.logOn ? '开启' : '关闭' }}</n-descriptions-item>
-            <n-descriptions-item label="迎新">{{ group.showGroupWelcome ? '开启' : '关闭' }}</n-descriptions-item>
-            <n-descriptions-item label="群内账号">{{ groupDiceIDs(group).length || '未知' }}</n-descriptions-item>
-            <n-descriptions-item label="启用扩展" :span="3">
-              <n-space v-if="activeExtNames(group).length" size="small" wrap>
-                <n-tag
-                  v-for="ext in activeExtNames(group)"
-                  :key="ext"
-                  size="small"
-                  :bordered="false"
-                  type="success"
-                >
-                  {{ ext }}
-                </n-tag>
-              </n-space>
-              <n-text v-else depth="3">未知</n-text>
-            </n-descriptions-item>
-          </n-descriptions>
-        </FoldableCard>
-
-        <n-empty v-if="!groups.length && !listLoading" description="暂无匹配的群组" class="group-empty" />
-      </section>
-
-      <div class="group-pagination-block">
-        <n-pagination
-          v-model:page="listQuery.page"
-          v-model:page-size="listQuery.pageSize"
-          show-size-picker
-          :page-sizes="[10, 20, 30, 50]"
-          :page-slot="isMobile ? 3 : 5"
-          :item-count="total"
-          @update:page="handlePageChange"
-          @update:page-size="handlePageSizeChange"
-        />
-      </div>
-    </n-spin>
-
-    <n-modal v-model:show="notifyDialogVisible" preset="card" title="批量通知群" class="group-dialog">
-      <n-flex vertical>
-        <n-text depth="3">将向 {{ selectedGroupIDs.length }} 个群组发送同一条通知。</n-text>
-        <n-input
-          v-model:value="notifyText"
-          type="textarea"
-          :autosize="{ minRows: 5, maxRows: 10 }"
-          placeholder="输入通知内容"
-        />
-        <n-flex justify="end">
-          <n-button @click="notifyDialogVisible = false">取消</n-button>
-          <n-button type="primary" @click="submitNotify">发送通知</n-button>
-        </n-flex>
-      </n-flex>
-    </n-modal>
-
-    <n-modal v-model:show="quitDialogVisible" preset="card" title="退群确认" class="group-dialog">
-      <n-flex vertical>
-        <n-text depth="3">
-          {{ quitAction?.mode === 'single' ? '将退出当前选择的群组。' : `将批量退出 ${quitAction?.count ?? 0} 个群组。` }}
-        </n-text>
-        <n-checkbox v-model:checked="quitForm.silence">静默退出</n-checkbox>
-        <n-checkbox v-model:checked="quitForm.saveAsDefault">保存为默认留言</n-checkbox>
-        <n-input
-          v-model:value="quitForm.extraText"
-          type="textarea"
-          :disabled="quitForm.silence"
-          :autosize="{ minRows: 4, maxRows: 8 }"
-          placeholder="附加留言；若静默退出则不会发送"
-        />
-        <n-flex justify="end">
-          <n-button @click="quitDialogVisible = false">取消</n-button>
-          <n-button type="error" @click="submitQuit">确认退群</n-button>
-        </n-flex>
-      </n-flex>
-    </n-modal>
-  </main>
-</template>
 
 <style scoped>
 .page-header {

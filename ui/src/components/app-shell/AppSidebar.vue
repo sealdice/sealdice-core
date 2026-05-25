@@ -1,3 +1,25 @@
+<template>
+  <div class="sd-sidebar-content">
+    <AppSidebarBrand
+      :collapsed="props.collapsed"
+      @enable-advanced-config="emit('enableAdvancedConfig')"
+    />
+    <n-menu
+      class="sd-sidebar-menu"
+      :collapsed="props.collapsed"
+      :collapsed-width="64"
+      :icon-size="20"
+      :collapsed-icon-size="20"
+      :options="options"
+      :value="activeValue"
+      :expanded-keys="expandedKeys"
+      :expand-icon="expandIcon"
+      accordion
+      @update:expanded-keys="expandedKeys = $event"
+    />
+  </div>
+</template>
+
 <script setup lang="tsx">
 import { computed, h, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
@@ -75,28 +97,6 @@ watch(
   { immediate: true },
 );
 </script>
-
-<template>
-  <div class="sd-sidebar-content">
-    <AppSidebarBrand
-      :collapsed="props.collapsed"
-      @enable-advanced-config="emit('enableAdvancedConfig')"
-    />
-    <n-menu
-      class="sd-sidebar-menu"
-      :collapsed="props.collapsed"
-      :collapsed-width="64"
-      :icon-size="20"
-      :collapsed-icon-size="20"
-      :options="options"
-      :value="activeValue"
-      :expanded-keys="expandedKeys"
-      :expand-icon="expandIcon"
-      accordion
-      @update:expanded-keys="expandedKeys = $event"
-    />
-  </div>
-</template>
 
 <style scoped>
 .sd-sidebar-content {

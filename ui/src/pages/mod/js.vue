@@ -1,3 +1,122 @@
+<template>
+  <main class="js-page">
+    <header class="page-header">
+      <n-flex align="center" justify="space-between" wrap>
+        <n-switch
+          :value="jsEnable"
+          :loading="jsSwitchBusy"
+          @update:value="handleJsEnableToggle"
+        >
+          <template #checked>启用</template>
+          <template #unchecked>关闭</template>
+        </n-switch>
+        <n-button v-show="jsEnable" type="primary" @click="handleReload">
+          <template #icon>
+            <n-icon><i-carbon-renew /></n-icon>
+          </template>
+          重载 JS
+        </n-button>
+      </n-flex>
+    </header>
+
+    <n-affix v-if="needReload" :top="60">
+      <TipBox type="error">
+        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
+      </TipBox>
+    </n-affix>
+
+    <n-affix v-if="jsConfigEdited" :top="70">
+      <TipBox type="error">
+        <n-flex wrap>
+          <n-text type="error" tag="strong" class="text-base">配置内容已修改，不要忘记保存！</n-text>
+          <n-button type="info" secondary :disabled="!jsConfigEdited" @click="saveJsConfig">
+            <template #icon>
+              <n-icon><i-carbon-save /></n-icon>
+            </template>
+            点我保存
+          </n-button>
+        </n-flex>
+      </TipBox>
+    </n-affix>
+
+    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="js-tabs">
+      <n-tab-pane tab="控制台" name="console">
+        <section class="js-console-grid">
+          <section class="js-panel js-editor-panel">
+            <header class="js-panel-header">
+              <n-flex align="center" justify="space-between" wrap>
+                <n-text class="js-panel-title">JS 扩展执行环境</n-text>
+                <n-button type="info" secondary :disabled="!jsEnable || jsRunning" @click="doExecute">
+                  <template #icon><n-icon><i-carbon-play /></n-icon></template>
+                  执行代码
+                </n-button>
+              </n-flex>
+            </header>
+
+            <div class="js-panel-body js-editor-body">
+              <CodeMirror
+                v-if="editorReady"
+                v-model="code"
+                class="js-editor"
+                :extensions="editorExtensions as never[]"
+                :dark="editorDark"
+                :wrap="true"
+              />
+              <n-skeleton v-else text :repeat="8" />
+            </div>
+
+            <footer class="js-panel-footer">
+              <n-text type="error" tag="p" class="js-console-tip">
+                注意：延迟执行的代码，其输出不会立即出现
+              </n-text>
+            </footer>
+          </section>
+
+          <section class="js-panel js-output-panel">
+            <header class="js-panel-header">
+              <n-flex align="center" justify="space-between" wrap>
+                <div class="js-panel-heading">
+                  <n-text class="js-panel-title">运行日志</n-text>
+                  <n-text depth="3" class="js-panel-subtitle">执行结果与轮询日志统一显示在这里</n-text>
+                </div>
+                <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
+                  <template #icon><n-icon><i-carbon-clean /></n-icon></template>
+                  清空日志
+                </n-button>
+              </n-flex>
+            </header>
+
+            <div class="js-panel-body js-output-body">
+              <n-log
+                ref="logRef"
+                class="js-output-log"
+                :lines="jsLines"
+                :rows="24"
+                trim
+              />
+            </div>
+          </section>
+        </section>
+      </n-tab-pane>
+
+      <n-tab-pane tab="插件列表" name="list">
+        <JsListView @mark-need-reload="handleMarkNeedReload" />
+      </n-tab-pane>
+
+      <n-tab-pane tab="插件设置" name="config">
+        <JsConfigView
+          ref="jsConfigViewRef"
+          @dirty-change="handleConfigDirtyChange"
+        />
+      </n-tab-pane>
+
+      <n-tab-pane tab="数据管理" name="data">
+        <JsDataView />
+      </n-tab-pane>
+    </n-tabs>
+  </main>
+</template>
+
 <script setup lang="tsx">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
@@ -229,125 +348,6 @@ onBeforeUnmount(() => {
   if (recordTimer) clearInterval(recordTimer);
 });
 </script>
-
-<template>
-  <main class="js-page">
-    <header class="page-header">
-      <n-flex align="center" justify="space-between" wrap>
-        <n-switch
-          :value="jsEnable"
-          :loading="jsSwitchBusy"
-          @update:value="handleJsEnableToggle"
-        >
-          <template #checked>启用</template>
-          <template #unchecked>关闭</template>
-        </n-switch>
-        <n-button v-show="jsEnable" type="primary" @click="handleReload">
-          <template #icon>
-            <n-icon><i-carbon-renew /></n-icon>
-          </template>
-          重载 JS
-        </n-button>
-      </n-flex>
-    </header>
-
-    <n-affix v-if="needReload" :top="60">
-      <TipBox type="error">
-        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
-      </TipBox>
-    </n-affix>
-
-    <n-affix v-if="jsConfigEdited" :top="70">
-      <TipBox type="error">
-        <n-flex wrap>
-          <n-text type="error" tag="strong" class="text-base">配置内容已修改，不要忘记保存！</n-text>
-          <n-button type="info" secondary :disabled="!jsConfigEdited" @click="saveJsConfig">
-            <template #icon>
-              <n-icon><i-carbon-save /></n-icon>
-            </template>
-            点我保存
-          </n-button>
-        </n-flex>
-      </TipBox>
-    </n-affix>
-
-    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="js-tabs">
-      <n-tab-pane tab="控制台" name="console">
-        <section class="js-console-grid">
-          <section class="js-panel js-editor-panel">
-            <header class="js-panel-header">
-              <n-flex align="center" justify="space-between" wrap>
-                <n-text class="js-panel-title">JS 扩展执行环境</n-text>
-                <n-button type="info" secondary :disabled="!jsEnable || jsRunning" @click="doExecute">
-                  <template #icon><n-icon><i-carbon-play /></n-icon></template>
-                  执行代码
-                </n-button>
-              </n-flex>
-            </header>
-
-            <div class="js-panel-body js-editor-body">
-              <CodeMirror
-                v-if="editorReady"
-                v-model="code"
-                class="js-editor"
-                :extensions="editorExtensions as never[]"
-                :dark="editorDark"
-                :wrap="true"
-              />
-              <n-skeleton v-else text :repeat="8" />
-            </div>
-
-            <footer class="js-panel-footer">
-              <n-text type="error" tag="p" class="js-console-tip">
-                注意：延迟执行的代码，其输出不会立即出现
-              </n-text>
-            </footer>
-          </section>
-
-          <section class="js-panel js-output-panel">
-            <header class="js-panel-header">
-              <n-flex align="center" justify="space-between" wrap>
-                <div class="js-panel-heading">
-                  <n-text class="js-panel-title">运行日志</n-text>
-                  <n-text depth="3" class="js-panel-subtitle">执行结果与轮询日志统一显示在这里</n-text>
-                </div>
-                <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
-                  <template #icon><n-icon><i-carbon-clean /></n-icon></template>
-                  清空日志
-                </n-button>
-              </n-flex>
-            </header>
-
-            <div class="js-panel-body js-output-body">
-              <n-log
-                ref="logRef"
-                class="js-output-log"
-                :lines="jsLines"
-                :rows="24"
-                trim
-              />
-            </div>
-          </section>
-        </section>
-      </n-tab-pane>
-
-      <n-tab-pane tab="插件列表" name="list">
-        <JsListView @mark-need-reload="handleMarkNeedReload" />
-      </n-tab-pane>
-
-      <n-tab-pane tab="插件设置" name="config">
-        <JsConfigView
-          ref="jsConfigViewRef"
-          @dirty-change="handleConfigDirtyChange"
-        />
-      </n-tab-pane>
-
-      <n-tab-pane tab="数据管理" name="data">
-        <JsDataView />
-      </n-tab-pane>
-    </n-tabs>
-  </main>
-</template>
 
 <style scoped>
 .js-page {

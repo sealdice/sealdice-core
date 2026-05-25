@@ -1,11 +1,3 @@
-<script setup lang="ts">
-import type { StoryPainterOptions } from '@/features/storyPainter/types';
-import { storyPainterOptionList } from '@/features/storyPainter/uiOptions';
-
-const options = defineModel<StoryPainterOptions>('options', { required: true });
-const editorHighlight = defineModel<boolean>('editorHighlight', { required: true });
-</script>
-
 <template>
   <section class="story-painter-options">
     <n-grid cols="1 640:2" :x-gap="10" :y-gap="14">
@@ -30,6 +22,14 @@ const editorHighlight = defineModel<boolean>('editorHighlight', { required: true
     </n-grid>
   </section>
 </template>
+
+<script setup lang="ts">
+import type { StoryPainterOptions } from '@/features/storyPainter/types';
+import { storyPainterOptionList } from '@/features/storyPainter/uiOptions';
+
+const options = defineModel<StoryPainterOptions>('options', { required: true });
+const editorHighlight = defineModel<boolean>('editorHighlight', { required: true });
+</script>
 
 <style scoped>
 .story-painter-options {

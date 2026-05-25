@@ -1,3 +1,70 @@
+<template>
+  <main class="public-dice-page">
+    <n-card class="public-dice-card" title="公骰设置" :bordered="false">
+      <template #header-extra>
+        <n-space align="center" :wrap="false">
+          <n-switch
+            :value="draft?.config.publicDiceEnable ?? false"
+            :disabled="!draft || saveMutation.isPending.value"
+            :loading="saveMutation.isPending.value"
+            @update:value="handleEnableUpdate"
+          >
+            <template #checked>启用</template>
+            <template #unchecked>关闭</template>
+          </n-switch>
+          <n-button
+            type="primary"
+            :disabled="!canSave"
+            :loading="saveMutation.isPending.value"
+            @click="saveDraft"
+          >
+            <template #icon>
+              <n-icon>
+                <i-carbon-save />
+              </n-icon>
+            </template>
+            保存
+          </n-button>
+        </n-space>
+      </template>
+
+      <n-alert v-if="queryErrorText" class="public-dice-card__alert" type="error">
+        {{ queryErrorText }}
+      </n-alert>
+
+      <n-spin :show="loadingInitial">
+        <div
+          v-if="draft"
+          :class="['public-dice-card__body', { 'public-dice-card__body--disabled': contentDisabled }]"
+        >
+          <aside class="public-dice-card__seal" aria-hidden="true">
+            <img :src="imgSeal" alt="" />
+          </aside>
+          <PublicDiceProfileForm
+            v-model:config="draft.config"
+            class="public-dice-card__form"
+            :disabled="contentDisabled"
+          />
+        </div>
+      </n-spin>
+
+      <template #footer>
+        <div
+          v-if="draft"
+          :class="['public-dice-card__footer', { 'public-dice-card__footer--disabled': contentDisabled }]"
+        >
+          <PublicDiceEndpointSelector
+            v-model:checked-row-keys="checkedRowKeys"
+            :rows="endpointRows"
+            :disabled="contentDisabled"
+            :loading="publicDiceQuery.isFetching.value && endpointRows.length === 0"
+          />
+        </div>
+      </template>
+    </n-card>
+  </main>
+</template>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery } from '@tanstack/vue-query';
@@ -121,73 +188,6 @@ useUnsavedChanges('public-dice', {
   confirmMessage: '公骰设置还有修改，确定要忽略？',
 });
 </script>
-
-<template>
-  <main class="public-dice-page">
-    <n-card class="public-dice-card" title="公骰设置" :bordered="false">
-      <template #header-extra>
-        <n-space align="center" :wrap="false">
-          <n-switch
-            :value="draft?.config.publicDiceEnable ?? false"
-            :disabled="!draft || saveMutation.isPending.value"
-            :loading="saveMutation.isPending.value"
-            @update:value="handleEnableUpdate"
-          >
-            <template #checked>启用</template>
-            <template #unchecked>关闭</template>
-          </n-switch>
-          <n-button
-            type="primary"
-            :disabled="!canSave"
-            :loading="saveMutation.isPending.value"
-            @click="saveDraft"
-          >
-            <template #icon>
-              <n-icon>
-                <i-carbon-save />
-              </n-icon>
-            </template>
-            保存
-          </n-button>
-        </n-space>
-      </template>
-
-      <n-alert v-if="queryErrorText" class="public-dice-card__alert" type="error">
-        {{ queryErrorText }}
-      </n-alert>
-
-      <n-spin :show="loadingInitial">
-        <div
-          v-if="draft"
-          :class="['public-dice-card__body', { 'public-dice-card__body--disabled': contentDisabled }]"
-        >
-          <aside class="public-dice-card__seal" aria-hidden="true">
-            <img :src="imgSeal" alt="" />
-          </aside>
-          <PublicDiceProfileForm
-            v-model:config="draft.config"
-            class="public-dice-card__form"
-            :disabled="contentDisabled"
-          />
-        </div>
-      </n-spin>
-
-      <template #footer>
-        <div
-          v-if="draft"
-          :class="['public-dice-card__footer', { 'public-dice-card__footer--disabled': contentDisabled }]"
-        >
-          <PublicDiceEndpointSelector
-            v-model:checked-row-keys="checkedRowKeys"
-            :rows="endpointRows"
-            :disabled="contentDisabled"
-            :loading="publicDiceQuery.isFetching.value && endpointRows.length === 0"
-          />
-        </div>
-      </template>
-    </n-card>
-  </main>
-</template>
 
 <style scoped>
 .public-dice-page {

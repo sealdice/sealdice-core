@@ -1,3 +1,136 @@
+<template>
+  <main class="connect-page">
+    <div class="page-head">
+      <h4>账号设置</h4>
+      <n-button type="primary" @click="openCreateDialog">
+        添加账号
+      </n-button>
+    </div>
+
+    <n-alert v-if="realtimeErrorText" type="error" class="mb-4">
+      {{ realtimeErrorText }}
+    </n-alert>
+
+    <n-alert v-if="connectionsErrorText" type="error" class="mb-4">
+      {{ connectionsErrorText }}
+    </n-alert>
+
+    <n-empty v-if="connections.length === 0 && connectionsReady" description="似乎还没有账号">
+      <template #extra>
+        <n-button type="primary" @click="openCreateDialog">
+          添加账号
+        </n-button>
+      </template>
+    </n-empty>
+
+    <n-data-table
+      v-else
+      :columns="columns"
+      :data="connections"
+      :loading="connectionsLoading"
+      :bordered="false"
+      :scroll-x="780"
+      size="small"
+    />
+
+    <n-modal
+      v-model:show="dialogVisible"
+      preset="dialog"
+      title="添加账号"
+      class="account-dialog wizard-dialog"
+      :show-icon="false"
+      :mask-closable="false"
+      @after-leave="resetWizard"
+    >
+      <ConnectCreateWizard
+        v-model:form-model="formModel"
+        v-model:wizard-step="wizardStep"
+        v-model:wizard-platform="wizardPlatform"
+        v-model:wizard-method="wizardMethod"
+        v-model:wizard-protocol="wizardProtocol"
+        :protocols="protocols"
+        :schemas-error="Boolean(schemasQuery.error.value)"
+        :selected-protocol="selectedProtocol"
+        :selected-protocol-key="selectedProtocolKey"
+        :selected-schema="selectedSchema"
+        :sign-info-state="signInfoState"
+        :sign-info-error-message="signInfoErrorMessage"
+        :sign-version-options="signVersionOptions"
+        :sign-servers="signServers"
+        :is-mobile="isMobile"
+        :can-submit="wizardCanNext"
+        :submitting="createMutation.isPending.value"
+        @cancel="dialogVisible = false"
+        @previous="goPrev"
+        @next="goNext"
+        @submit="submit"
+        @retry-sign-info="retrySignInfo"
+      />
+    </n-modal>
+
+    <n-modal
+      v-model:show="editDialogVisible"
+      preset="dialog"
+      title="修改账号配置"
+      class="account-dialog"
+      :show-icon="false"
+      :mask-closable="false"
+    >
+      <n-spin :show="!editingConfig">
+        <n-space vertical size="large">
+          <n-alert v-if="editingConfig?.restartRequired" type="warning" :show-icon="false">
+            保存后会重新连接此账号。Token、密码等敏感字段留空时保持原值不变。
+          </n-alert>
+          <DynamicForm
+            v-model="editFormModel"
+            :schema="editSchema"
+            :disabled="updateMutation.isPending.value"
+            :label-placement="isMobile ? 'top' : 'left'"
+            :label-width="isMobile ? undefined : 108"
+          />
+        </n-space>
+      </n-spin>
+
+      <template #action>
+        <n-button
+          @click="editDialogVisible = false"
+        >
+          取消
+        </n-button>
+        <n-button
+          type="primary"
+          :loading="updateMutation.isPending.value"
+          :disabled="!editingConfig || !canSubmitEdit"
+          @click="submitEdit"
+        >
+          保存
+        </n-button>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="qrDialogVisible"
+      preset="dialog"
+      title="登录二维码"
+      class="qrcode-dialog"
+      :show-icon="false"
+    >
+      <n-space vertical align="center" size="large">
+        <n-image
+          v-if="activeQRCode"
+          :src="activeQRCode"
+          width="280"
+          preview-disabled
+        />
+        <n-empty v-else description="当前没有可用二维码" />
+        <n-button size="small" secondary @click="realtimeConnections.reconnect">
+          刷新连接
+        </n-button>
+      </n-space>
+    </n-modal>
+  </main>
+</template>
+
 <script setup lang="tsx">
 import { computed, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
@@ -548,139 +681,6 @@ const submitEdit = () => {
   if (canSubmitEdit.value) updateMutation.mutate();
 };
 </script>
-
-<template>
-  <main class="connect-page">
-    <div class="page-head">
-      <h4>账号设置</h4>
-      <n-button type="primary" @click="openCreateDialog">
-        添加账号
-      </n-button>
-    </div>
-
-    <n-alert v-if="realtimeErrorText" type="error" class="mb-4">
-      {{ realtimeErrorText }}
-    </n-alert>
-
-    <n-alert v-if="connectionsErrorText" type="error" class="mb-4">
-      {{ connectionsErrorText }}
-    </n-alert>
-
-    <n-empty v-if="connections.length === 0 && connectionsReady" description="似乎还没有账号">
-      <template #extra>
-        <n-button type="primary" @click="openCreateDialog">
-          添加账号
-        </n-button>
-      </template>
-    </n-empty>
-
-    <n-data-table
-      v-else
-      :columns="columns"
-      :data="connections"
-      :loading="connectionsLoading"
-      :bordered="false"
-      :scroll-x="780"
-      size="small"
-    />
-
-    <n-modal
-      v-model:show="dialogVisible"
-      preset="dialog"
-      title="添加账号"
-      class="account-dialog wizard-dialog"
-      :show-icon="false"
-      :mask-closable="false"
-      @after-leave="resetWizard"
-    >
-      <ConnectCreateWizard
-        v-model:form-model="formModel"
-        v-model:wizard-step="wizardStep"
-        v-model:wizard-platform="wizardPlatform"
-        v-model:wizard-method="wizardMethod"
-        v-model:wizard-protocol="wizardProtocol"
-        :protocols="protocols"
-        :schemas-error="Boolean(schemasQuery.error.value)"
-        :selected-protocol="selectedProtocol"
-        :selected-protocol-key="selectedProtocolKey"
-        :selected-schema="selectedSchema"
-        :sign-info-state="signInfoState"
-        :sign-info-error-message="signInfoErrorMessage"
-        :sign-version-options="signVersionOptions"
-        :sign-servers="signServers"
-        :is-mobile="isMobile"
-        :can-submit="wizardCanNext"
-        :submitting="createMutation.isPending.value"
-        @cancel="dialogVisible = false"
-        @previous="goPrev"
-        @next="goNext"
-        @submit="submit"
-        @retry-sign-info="retrySignInfo"
-      />
-    </n-modal>
-
-    <n-modal
-      v-model:show="editDialogVisible"
-      preset="dialog"
-      title="修改账号配置"
-      class="account-dialog"
-      :show-icon="false"
-      :mask-closable="false"
-    >
-      <n-spin :show="!editingConfig">
-        <n-space vertical size="large">
-          <n-alert v-if="editingConfig?.restartRequired" type="warning" :show-icon="false">
-            保存后会重新连接此账号。Token、密码等敏感字段留空时保持原值不变。
-          </n-alert>
-          <DynamicForm
-            v-model="editFormModel"
-            :schema="editSchema"
-            :disabled="updateMutation.isPending.value"
-            :label-placement="isMobile ? 'top' : 'left'"
-            :label-width="isMobile ? undefined : 108"
-          />
-        </n-space>
-      </n-spin>
-
-      <template #action>
-        <n-button
-          @click="editDialogVisible = false"
-        >
-          取消
-        </n-button>
-        <n-button
-          type="primary"
-          :loading="updateMutation.isPending.value"
-          :disabled="!editingConfig || !canSubmitEdit"
-          @click="submitEdit"
-        >
-          保存
-        </n-button>
-      </template>
-    </n-modal>
-
-    <n-modal
-      v-model:show="qrDialogVisible"
-      preset="dialog"
-      title="登录二维码"
-      class="qrcode-dialog"
-      :show-icon="false"
-    >
-      <n-space vertical align="center" size="large">
-        <n-image
-          v-if="activeQRCode"
-          :src="activeQRCode"
-          width="280"
-          preview-disabled
-        />
-        <n-empty v-else description="当前没有可用二维码" />
-        <n-button size="small" secondary @click="realtimeConnections.reconnect">
-          刷新连接
-        </n-button>
-      </n-space>
-    </n-modal>
-  </main>
-</template>
 
 <style scoped>
 .connect-page {

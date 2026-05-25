@@ -1,82 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import type { FormProps, FormRules } from 'naive-ui';
-import type { FormConfigItem } from '@/api';
-import {
-  buildDynamicFormPayload,
-  fieldKeyOf,
-  validateDynamicFormModel,
-  type DynamicFormModel,
-} from './dynamicFormModel';
-
-type FieldSlotProps = {
-  item: FormConfigItem;
-  fieldKey: string;
-  value: unknown;
-  setValue: (value: unknown) => void;
-};
-
-const props = defineProps<{
-  schema: FormConfigItem[];
-  modelValue: DynamicFormModel;
-  disabled?: boolean;
-  labelPlacement?: FormProps['labelPlacement'];
-  labelWidth?: number | string;
-}>();
-
-const emit = defineEmits<{
-  'update:modelValue': [value: DynamicFormModel];
-  validChange: [valid: boolean];
-}>();
-
-defineSlots<{
-  field?: (props: FieldSlotProps) => unknown;
-}>();
-
-const validation = computed(() => validateDynamicFormModel(props.schema, props.modelValue));
-
-const rules = computed<FormRules>(() => {
-  return props.schema.reduce<FormRules>((acc, item) => {
-    const key = fieldKeyOf(item);
-    if (item.is_required === 1) {
-      acc[key] = {
-        required: true,
-        message: item.err_msg || `请填写${item.name}`,
-        trigger: ['blur', 'change'],
-      };
-    }
-    return acc;
-  }, {});
-});
-
-const setValue = (key: string, value: unknown) => {
-  const next = {
-    ...props.modelValue,
-    [key]: value,
-  };
-  emit('update:modelValue', next);
-  emit('validChange', validateDynamicFormModel(props.schema, next).valid);
-};
-
-const optionList = (item: FormConfigItem) =>
-  (item.sub_option ?? []).map(option => ({
-    label: option.label,
-    value: option.value,
-  }));
-
-const valueOf = (key: string) => props.modelValue[key];
-const updateValue = (key: string) => (value: unknown) => setValue(key, value);
-
-const getPayload = () => buildDynamicFormPayload(props.schema, props.modelValue);
-const isValid = () => validation.value.valid;
-const isDisabled = (item: FormConfigItem) => props.disabled || Boolean(item.readonly);
-
-defineExpose({
-  getPayload,
-  isValid,
-});
-</script>
-
 <template>
   <n-form
     class="dynamic-form"
@@ -172,6 +93,85 @@ defineExpose({
     </n-form-item>
   </n-form>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import type { FormProps, FormRules } from 'naive-ui';
+import type { FormConfigItem } from '@/api';
+import {
+  buildDynamicFormPayload,
+  fieldKeyOf,
+  validateDynamicFormModel,
+  type DynamicFormModel,
+} from './dynamicFormModel';
+
+type FieldSlotProps = {
+  item: FormConfigItem;
+  fieldKey: string;
+  value: unknown;
+  setValue: (value: unknown) => void;
+};
+
+const props = defineProps<{
+  schema: FormConfigItem[];
+  modelValue: DynamicFormModel;
+  disabled?: boolean;
+  labelPlacement?: FormProps['labelPlacement'];
+  labelWidth?: number | string;
+}>();
+
+const emit = defineEmits<{
+  'update:modelValue': [value: DynamicFormModel];
+  validChange: [valid: boolean];
+}>();
+
+defineSlots<{
+  field?: (props: FieldSlotProps) => unknown;
+}>();
+
+const validation = computed(() => validateDynamicFormModel(props.schema, props.modelValue));
+
+const rules = computed<FormRules>(() => {
+  return props.schema.reduce<FormRules>((acc, item) => {
+    const key = fieldKeyOf(item);
+    if (item.is_required === 1) {
+      acc[key] = {
+        required: true,
+        message: item.err_msg || `请填写${item.name}`,
+        trigger: ['blur', 'change'],
+      };
+    }
+    return acc;
+  }, {});
+});
+
+const setValue = (key: string, value: unknown) => {
+  const next = {
+    ...props.modelValue,
+    [key]: value,
+  };
+  emit('update:modelValue', next);
+  emit('validChange', validateDynamicFormModel(props.schema, next).valid);
+};
+
+const optionList = (item: FormConfigItem) =>
+  (item.sub_option ?? []).map(option => ({
+    label: option.label,
+    value: option.value,
+  }));
+
+const valueOf = (key: string) => props.modelValue[key];
+const updateValue = (key: string) => (value: unknown) => setValue(key, value);
+
+const getPayload = () => buildDynamicFormPayload(props.schema, props.modelValue);
+const isValid = () => validation.value.valid;
+const isDisabled = (item: FormConfigItem) => props.disabled || Boolean(item.readonly);
+
+defineExpose({
+  getPayload,
+  isValid,
+});
+</script>
 
 <style scoped>
 .dynamic-form {

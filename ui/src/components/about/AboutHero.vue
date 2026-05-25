@@ -1,14 +1,3 @@
-<script setup lang="ts">
-import sealImage from '@/assets/seal.png';
-import type { AboutLink, AboutOverviewSummary } from '@/features/about/viewModel';
-
-const props = defineProps<{
-  summary: AboutOverviewSummary;
-  links: AboutLink[];
-  loading?: boolean;
-}>();
-</script>
-
 <template>
   <section class="about-hero">
     <div class="about-hero__mascot">
@@ -81,6 +70,17 @@ const props = defineProps<{
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import sealImage from '@/assets/seal.png';
+import type { AboutLink, AboutOverviewSummary } from '@/features/about/viewModel';
+
+const props = defineProps<{
+  summary: AboutOverviewSummary;
+  links: AboutLink[];
+  loading?: boolean;
+}>();
+</script>
 
 <style scoped>
 .about-hero {

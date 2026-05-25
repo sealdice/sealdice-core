@@ -1,76 +1,3 @@
-<script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { UploadCustomRequestOptions } from 'naive-ui';
-import type { BaseSettingFieldModel, BaseSettingValueModel } from '@/features/baseSetting/viewModel';
-import BaseSettingExtDefaultsField from './BaseSettingExtDefaultsField.vue';
-import BaseSettingStringListField from './BaseSettingStringListField.vue';
-
-const props = defineProps<{
-  field: BaseSettingFieldModel;
-  model: BaseSettingValueModel;
-  initialModel?: BaseSettingValueModel | null;
-  isContainerMode: boolean;
-  busyActionId?: string | null;
-  runAction: (fieldId: string, payload?: unknown) => Promise<void> | void;
-}>();
-
-const emit = defineEmits<{
-  updateField: [key: string, value: unknown];
-}>();
-
-const dialog = useDialog();
-const revealUnlockCode = ref(false);
-const upgradeConfirmed = ref(false);
-
-const fieldKey = computed(() => props.field.key);
-const fieldValue = computed(() => {
-  if (!fieldKey.value) return undefined;
-  return props.model[fieldKey.value as keyof BaseSettingValueModel];
-});
-
-const pairValues = computed(() => props.field.keys.map(key => props.model[key as keyof BaseSettingValueModel]));
-
-function updateFieldValue(key: string, value: unknown) {
-  emit('updateField', key, value);
-}
-
-function updateBoolean(value: boolean) {
-  const key = fieldKey.value;
-  if (!key) return;
-  if (value === false && props.field.confirmMessage) {
-    dialog.warning({
-      title: `关闭${props.field.label}`,
-      content: props.field.confirmMessage,
-      positiveText: '确定',
-      negativeText: '取消',
-      closable: false,
-      onPositiveClick: () => updateFieldValue(key, value),
-    });
-    return;
-  }
-  updateFieldValue(key, value);
-}
-
-function updatePair(index: number, value: number | null) {
-  const key = props.field.keys[index];
-  if (!key || value === null) return;
-  updateFieldValue(key, value);
-}
-
-async function handleAction() {
-  await props.runAction(props.field.id);
-}
-
-async function handleUpload(options: UploadCustomRequestOptions) {
-  try {
-    await Promise.resolve(props.runAction(props.field.id, options.file.file as File));
-    options.onFinish();
-  } catch {
-    options.onError();
-  }
-}
-</script>
-
 <template>
   <div class="base-setting-field-control">
     <template v-if="field.kind === 'unlock-code'">
@@ -189,6 +116,79 @@ async function handleUpload(options: UploadCustomRequestOptions) {
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import type { UploadCustomRequestOptions } from 'naive-ui';
+import type { BaseSettingFieldModel, BaseSettingValueModel } from '@/features/baseSetting/viewModel';
+import BaseSettingExtDefaultsField from './BaseSettingExtDefaultsField.vue';
+import BaseSettingStringListField from './BaseSettingStringListField.vue';
+
+const props = defineProps<{
+  field: BaseSettingFieldModel;
+  model: BaseSettingValueModel;
+  initialModel?: BaseSettingValueModel | null;
+  isContainerMode: boolean;
+  busyActionId?: string | null;
+  runAction: (fieldId: string, payload?: unknown) => Promise<void> | void;
+}>();
+
+const emit = defineEmits<{
+  updateField: [key: string, value: unknown];
+}>();
+
+const dialog = useDialog();
+const revealUnlockCode = ref(false);
+const upgradeConfirmed = ref(false);
+
+const fieldKey = computed(() => props.field.key);
+const fieldValue = computed(() => {
+  if (!fieldKey.value) return undefined;
+  return props.model[fieldKey.value as keyof BaseSettingValueModel];
+});
+
+const pairValues = computed(() => props.field.keys.map(key => props.model[key as keyof BaseSettingValueModel]));
+
+function updateFieldValue(key: string, value: unknown) {
+  emit('updateField', key, value);
+}
+
+function updateBoolean(value: boolean) {
+  const key = fieldKey.value;
+  if (!key) return;
+  if (value === false && props.field.confirmMessage) {
+    dialog.warning({
+      title: `关闭${props.field.label}`,
+      content: props.field.confirmMessage,
+      positiveText: '确定',
+      negativeText: '取消',
+      closable: false,
+      onPositiveClick: () => updateFieldValue(key, value),
+    });
+    return;
+  }
+  updateFieldValue(key, value);
+}
+
+function updatePair(index: number, value: number | null) {
+  const key = props.field.keys[index];
+  if (!key || value === null) return;
+  updateFieldValue(key, value);
+}
+
+async function handleAction() {
+  await props.runAction(props.field.id);
+}
+
+async function handleUpload(options: UploadCustomRequestOptions) {
+  try {
+    await Promise.resolve(props.runAction(props.field.id, options.file.file as File));
+    options.onFinish();
+  } catch {
+    options.onError();
+  }
+}
+</script>
 
 <style scoped>
 .base-setting-field-control {

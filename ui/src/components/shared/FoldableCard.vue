@@ -1,54 +1,3 @@
-<script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
-
-const props = withDefaults(
-  defineProps<{
-    shadow?: 'always' | 'never' | 'hover';
-    type?: 'card' | 'div' | string;
-    errTitle?: string;
-    errText?: string;
-    defaultFold?: 'auto' | boolean;
-    compact?: boolean;
-  }>(),
-  {
-    shadow: 'hover',
-    type: 'card',
-    defaultFold: 'auto',
-    compact: false,
-  },
-);
-
-const folded = ref<boolean | undefined>(undefined);
-
-const open = () => {
-  folded.value = false;
-};
-
-const close = () => {
-  folded.value = true;
-};
-
-const updateFolded = () => {
-  if (props.defaultFold === 'auto') {
-    folded.value = folded.value ?? !window.matchMedia('(min-width: 768px)').matches;
-  } else {
-    folded.value = folded.value ?? props.defaultFold;
-  }
-};
-
-watch(
-  () => props.defaultFold,
-  () => updateFolded(),
-);
-
-window.addEventListener('resize', updateFolded);
-onMounted(() => {
-  updateFolded();
-});
-
-defineExpose({ open, close });
-</script>
-
 <template>
   <div
     v-if="type === 'card'"
@@ -192,6 +141,57 @@ defineExpose({ open, close });
     </template>
   </div>
 </template>
+
+<script setup lang="ts">
+import { ref, watch, onMounted } from 'vue';
+
+const props = withDefaults(
+  defineProps<{
+    shadow?: 'always' | 'never' | 'hover';
+    type?: 'card' | 'div' | string;
+    errTitle?: string;
+    errText?: string;
+    defaultFold?: 'auto' | boolean;
+    compact?: boolean;
+  }>(),
+  {
+    shadow: 'hover',
+    type: 'card',
+    defaultFold: 'auto',
+    compact: false,
+  },
+);
+
+const folded = ref<boolean | undefined>(undefined);
+
+const open = () => {
+  folded.value = false;
+};
+
+const close = () => {
+  folded.value = true;
+};
+
+const updateFolded = () => {
+  if (props.defaultFold === 'auto') {
+    folded.value = folded.value ?? !window.matchMedia('(min-width: 768px)').matches;
+  } else {
+    folded.value = folded.value ?? props.defaultFold;
+  }
+};
+
+watch(
+  () => props.defaultFold,
+  () => updateFolded(),
+);
+
+window.addEventListener('resize', updateFolded);
+onMounted(() => {
+  updateFolded();
+});
+
+defineExpose({ open, close });
+</script>
 
 <style scoped>
 .foldable-card-header {

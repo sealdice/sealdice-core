@@ -1,3 +1,48 @@
+<template>
+  <n-card class="backup-file-list" :bordered="false">
+    <template #header>
+      <div class="backup-file-list__head">
+        <div>
+          <h2>已备份文件</h2>
+          <p>{{ items.length }} 个备份文件</p>
+        </div>
+        <n-space>
+          <n-button type="primary" @click="emit('openBackup')">
+            立即备份
+          </n-button>
+          <n-button type="error" secondary :disabled="items.length === 0" @click="emit('openBatchDelete')">
+            <template #icon>
+              <n-icon>
+                <i-carbon-row-delete />
+              </n-icon>
+            </template>
+            批量删除
+          </n-button>
+        </n-space>
+      </div>
+    </template>
+
+    <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
+      <template #extra>
+        <n-button type="primary" @click="emit('openBackup')">
+          立即备份
+        </n-button>
+      </template>
+    </n-empty>
+
+    <n-data-table
+      v-else
+      :columns="columns"
+      :data="items"
+      :loading="loading"
+      :bordered="false"
+      :row-key="(row: FileItem) => row.name"
+      :scroll-x="680"
+      size="small"
+    />
+  </n-card>
+</template>
+
 <script setup lang="tsx">
 import { computed } from 'vue';
 import { filesize } from 'filesize';
@@ -72,51 +117,6 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
   },
 ]);
 </script>
-
-<template>
-  <n-card class="backup-file-list" :bordered="false">
-    <template #header>
-      <div class="backup-file-list__head">
-        <div>
-          <h2>已备份文件</h2>
-          <p>{{ items.length }} 个备份文件</p>
-        </div>
-        <n-space>
-          <n-button type="primary" @click="emit('openBackup')">
-            立即备份
-          </n-button>
-          <n-button type="error" secondary :disabled="items.length === 0" @click="emit('openBatchDelete')">
-            <template #icon>
-              <n-icon>
-                <i-carbon-row-delete />
-              </n-icon>
-            </template>
-            批量删除
-          </n-button>
-        </n-space>
-      </div>
-    </template>
-
-    <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
-      <template #extra>
-        <n-button type="primary" @click="emit('openBackup')">
-          立即备份
-        </n-button>
-      </template>
-    </n-empty>
-
-    <n-data-table
-      v-else
-      :columns="columns"
-      :data="items"
-      :loading="loading"
-      :bordered="false"
-      :row-key="(row: FileItem) => row.name"
-      :scroll-x="680"
-      size="small"
-    />
-  </n-card>
-</template>
 
 <style scoped>
 .backup-file-list__head {

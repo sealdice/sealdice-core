@@ -1,15 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import type { TextItemCompatibleInfo } from '@/api';
-
-const props = defineProps<{
-  info: TextItemCompatibleInfo;
-}>();
-
-const version = computed(() => props.info.version === 'v1' ? 'v1 [建议修改]' : props.info.version);
-const exists = computed(() => props.info.presetExists ? '是' : '否');
-</script>
-
 <template>
   <n-descriptions
     label-placement="left"
@@ -44,3 +32,15 @@ const exists = computed(() => props.info.presetExists ? '是' : '否');
     </n-descriptions-item>
   </n-descriptions>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import type { TextItemCompatibleInfo } from '@/api';
+
+const props = defineProps<{
+  info: TextItemCompatibleInfo;
+}>();
+
+const version = computed(() => props.info.version === 'v1' ? 'v1 [建议修改]' : props.info.version);
+const exists = computed(() => props.info.presetExists ? '是' : '否');
+</script>

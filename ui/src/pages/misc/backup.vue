@@ -1,3 +1,54 @@
+<template>
+  <main class="backup-page">
+    <n-alert v-if="configErrorText" type="error" :bordered="false">
+      {{ configErrorText }}
+    </n-alert>
+    <n-alert v-if="listErrorText" type="error" :bordered="false">
+      {{ listErrorText }}
+    </n-alert>
+
+    <section class="backup-page__grid">
+      <n-spin :show="configQuery.isLoading.value && !configDraft">
+        <BackupConfigPanel
+          v-if="configDraft"
+          v-model:config="configDraft"
+          :dirty="configDirty"
+          :saving="saveConfigMutation.isPending.value"
+          :timestamp="timestamp"
+          @save="saveConfig"
+        />
+      </n-spin>
+
+      <BackupFileList
+        :items="items"
+        :loading="listQuery.isFetching.value"
+        :downloading-name="downloadingName"
+        :deleting-name="deletingName"
+        @download="downloadBackup"
+        @delete="confirmDelete"
+        @open-batch-delete="openBatchDeleteDialog"
+        @open-backup="openBackupDialog"
+      />
+    </section>
+
+    <BackupExecDialog
+      v-model:show="execDialogVisible"
+      v-model:selections="execSelections"
+      :timestamp="timestamp"
+      :pending="execMutation.isPending.value"
+      @submit="executeBackup"
+    />
+
+    <BackupBatchDeleteDialog
+      v-model:show="batchDeleteVisible"
+      v-model:selected-names="batchDeleteNames"
+      :items="items"
+      :pending="batchDeleteMutation.isPending.value"
+      @submit="confirmBatchDelete"
+    />
+  </main>
+</template>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useMutation, useQuery } from '@tanstack/vue-query';
@@ -248,57 +299,6 @@ onBeforeUnmount(() => {
   if (timerId) clearInterval(timerId);
 });
 </script>
-
-<template>
-  <main class="backup-page">
-    <n-alert v-if="configErrorText" type="error" :bordered="false">
-      {{ configErrorText }}
-    </n-alert>
-    <n-alert v-if="listErrorText" type="error" :bordered="false">
-      {{ listErrorText }}
-    </n-alert>
-
-    <section class="backup-page__grid">
-      <n-spin :show="configQuery.isLoading.value && !configDraft">
-        <BackupConfigPanel
-          v-if="configDraft"
-          v-model:config="configDraft"
-          :dirty="configDirty"
-          :saving="saveConfigMutation.isPending.value"
-          :timestamp="timestamp"
-          @save="saveConfig"
-        />
-      </n-spin>
-
-      <BackupFileList
-        :items="items"
-        :loading="listQuery.isFetching.value"
-        :downloading-name="downloadingName"
-        :deleting-name="deletingName"
-        @download="downloadBackup"
-        @delete="confirmDelete"
-        @open-batch-delete="openBatchDeleteDialog"
-        @open-backup="openBackupDialog"
-      />
-    </section>
-
-    <BackupExecDialog
-      v-model:show="execDialogVisible"
-      v-model:selections="execSelections"
-      :timestamp="timestamp"
-      :pending="execMutation.isPending.value"
-      @submit="executeBackup"
-    />
-
-    <BackupBatchDeleteDialog
-      v-model:show="batchDeleteVisible"
-      v-model:selected-names="batchDeleteNames"
-      :items="items"
-      :pending="batchDeleteMutation.isPending.value"
-      @submit="confirmBatchDelete"
-    />
-  </main>
-</template>
 
 <style scoped>
 .backup-page {

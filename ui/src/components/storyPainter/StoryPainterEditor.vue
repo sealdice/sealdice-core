@@ -1,3 +1,26 @@
+<template>
+  <CodeMirror
+    v-if="!lazy"
+    v-model="code"
+    class="story-painter-editor"
+    :extensions="editorExtensions as never[]"
+    :dark="false"
+    :wrap="true"
+  />
+  <div v-else class="story-painter-editor story-painter-editor-lazy">
+    <n-empty description="编辑器需要载入完整文本后才能修改">
+      <template #extra>
+        <n-button type="primary" secondary @click="emit('loadFull')">
+          <template #icon>
+            <n-icon><i-carbon-document /></n-icon>
+          </template>
+          载入完整文本
+        </n-button>
+      </template>
+    </n-empty>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { computed, defineAsyncComponent, shallowRef, watch } from 'vue';
 import { basicSetup } from 'codemirror';
@@ -132,29 +155,6 @@ function storyLogHighlightExtension(chars: StoryPainterChar[], options: StoryPai
   });
 }
 </script>
-
-<template>
-  <CodeMirror
-    v-if="!lazy"
-    v-model="code"
-    class="story-painter-editor"
-    :extensions="editorExtensions as never[]"
-    :dark="false"
-    :wrap="true"
-  />
-  <div v-else class="story-painter-editor story-painter-editor-lazy">
-    <n-empty description="编辑器需要载入完整文本后才能修改">
-      <template #extra>
-        <n-button type="primary" secondary @click="emit('loadFull')">
-          <template #icon>
-            <n-icon><i-carbon-document /></n-icon>
-          </template>
-          载入完整文本
-        </n-button>
-      </template>
-    </n-empty>
-  </div>
-</template>
 
 <style scoped>
 .story-painter-editor {

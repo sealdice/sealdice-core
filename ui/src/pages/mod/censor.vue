@@ -1,3 +1,78 @@
+<template>
+  <main class="censor-page">
+    <n-flex align="center" justify="space-between" wrap>
+      <n-switch
+        v-model:value="censorEnable"
+        :loading="statusBusy"
+        :disabled="statusBusy || statusQuery.isFetching.value"
+        @update:value="enableChange"
+      >
+        <template #checked>启用</template>
+        <template #unchecked>关闭</template>
+      </n-switch>
+      <n-button
+        v-show="censorEnable"
+        type="primary"
+        :loading="restartMutation.isPending.value"
+        :disabled="restartMutation.isPending.value"
+        @click="restartCensor"
+      >
+        <template #icon>
+          <i-carbon-renew />
+        </template>
+        重载拦截
+      </n-button>
+    </n-flex>
+
+    <n-affix v-if="needReload" :top="60">
+      <TipBox type="error">
+        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
+      </TipBox>
+    </n-affix>
+
+    <template v-if="censorEnable">
+      <n-tabs v-model:value="tab" justify-content="space-evenly" class="censor-tabs">
+        <n-tab-pane tab="拦截设置" name="setting">
+          <n-spin :show="configQuery.isFetching.value">
+            <CensorConfigView
+              v-model:config="configDraft.currentConfig.value"
+              :saving="saveConfigMutation.isPending.value"
+              :modified="configDraft.dirty.value"
+              @save="saveConfig"
+            />
+          </n-spin>
+        </n-tab-pane>
+
+        <n-tab-pane tab="敏感词管理" name="word">
+          <n-spin :show="filesQuery.isFetching.value || wordsQuery.isFetching.value || uploadFileMutation.isPending.value">
+            <CensorWordTip />
+            <CensorFilesView
+              :files="files"
+              :upload-file="uploadFile"
+              :download-toml-template="downloadTomlTemplate"
+              :download-txt-template="downloadTxtTemplate"
+            />
+            <CensorWordsView :words="words" />
+          </n-spin>
+        </n-tab-pane>
+
+        <n-tab-pane tab="拦截日志" name="log">
+          <CensorLogView
+            v-model:query="logQuery"
+            :logs="logs"
+            :total="logTotal"
+            :loading="logsQuery.isFetching.value"
+            @refresh="refreshLogs"
+          />
+        </n-tab-pane>
+      </n-tabs>
+    </template>
+    <template v-else>
+      <n-text type="error" class="mt-4 block text-2xl">请先启用拦截！</n-text>
+    </template>
+  </main>
+</template>
+
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
@@ -162,81 +237,6 @@ function refreshLogs() {
   void logsQuery.refetch();
 }
 </script>
-
-<template>
-  <main class="censor-page">
-    <n-flex align="center" justify="space-between" wrap>
-      <n-switch
-        v-model:value="censorEnable"
-        :loading="statusBusy"
-        :disabled="statusBusy || statusQuery.isFetching.value"
-        @update:value="enableChange"
-      >
-        <template #checked>启用</template>
-        <template #unchecked>关闭</template>
-      </n-switch>
-      <n-button
-        v-show="censorEnable"
-        type="primary"
-        :loading="restartMutation.isPending.value"
-        :disabled="restartMutation.isPending.value"
-        @click="restartCensor"
-      >
-        <template #icon>
-          <i-carbon-renew />
-        </template>
-        重载拦截
-      </n-button>
-    </n-flex>
-
-    <n-affix v-if="needReload" :top="60">
-      <TipBox type="error">
-        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
-      </TipBox>
-    </n-affix>
-
-    <template v-if="censorEnable">
-      <n-tabs v-model:value="tab" justify-content="space-evenly" class="censor-tabs">
-        <n-tab-pane tab="拦截设置" name="setting">
-          <n-spin :show="configQuery.isFetching.value">
-            <CensorConfigView
-              v-model:config="configDraft.currentConfig.value"
-              :saving="saveConfigMutation.isPending.value"
-              :modified="configDraft.dirty.value"
-              @save="saveConfig"
-            />
-          </n-spin>
-        </n-tab-pane>
-
-        <n-tab-pane tab="敏感词管理" name="word">
-          <n-spin :show="filesQuery.isFetching.value || wordsQuery.isFetching.value || uploadFileMutation.isPending.value">
-            <CensorWordTip />
-            <CensorFilesView
-              :files="files"
-              :upload-file="uploadFile"
-              :download-toml-template="downloadTomlTemplate"
-              :download-txt-template="downloadTxtTemplate"
-            />
-            <CensorWordsView :words="words" />
-          </n-spin>
-        </n-tab-pane>
-
-        <n-tab-pane tab="拦截日志" name="log">
-          <CensorLogView
-            v-model:query="logQuery"
-            :logs="logs"
-            :total="logTotal"
-            :loading="logsQuery.isFetching.value"
-            @refresh="refreshLogs"
-          />
-        </n-tab-pane>
-      </n-tabs>
-    </template>
-    <template v-else>
-      <n-text type="error" class="mt-4 block text-2xl">请先启用拦截！</n-text>
-    </template>
-  </main>
-</template>
 
 <style scoped>
 .censor-page {

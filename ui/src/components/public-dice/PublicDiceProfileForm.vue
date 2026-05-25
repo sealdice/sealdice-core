@@ -1,13 +1,3 @@
-<script setup lang="ts">
-import type { PublicDiceConfig } from '@/api';
-
-const config = defineModel<PublicDiceConfig>('config', { required: true });
-
-defineProps<{
-  disabled: boolean;
-}>();
-</script>
-
 <template>
   <n-form class="public-dice-profile-form" :model="config" label-placement="top">
     <div class="public-dice-profile-form__grid">
@@ -109,6 +99,16 @@ defineProps<{
     </n-form-item>
   </n-form>
 </template>
+
+<script setup lang="ts">
+import type { PublicDiceConfig } from '@/api';
+
+const config = defineModel<PublicDiceConfig>('config', { required: true });
+
+defineProps<{
+  disabled: boolean;
+}>();
+</script>
 
 <style scoped>
 .public-dice-profile-form {

@@ -1,16 +1,3 @@
-<script setup lang="ts">
-const show = defineModel<boolean>('show', { required: true });
-
-defineProps<{
-  loading: boolean;
-}>();
-
-const emit = defineEmits<{
-  accept: [];
-  refuse: [];
-}>();
-</script>
-
 <template>
   <n-modal
     v-model:show="show"
@@ -49,6 +36,19 @@ const emit = defineEmits<{
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+const show = defineModel<boolean>('show', { required: true });
+
+defineProps<{
+  loading: boolean;
+}>();
+
+const emit = defineEmits<{
+  accept: [];
+  refuse: [];
+}>();
+</script>
 
 <style scoped>
 .license-text {

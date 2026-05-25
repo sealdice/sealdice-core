@@ -1,3 +1,68 @@
+<template>
+  <n-layout id="root" class="sd-shell">
+    <n-layout class="sd-body" has-sider>
+      <n-layout-sider
+        class="sd-sidebar no-scrollbar"
+        collapse-mode="width"
+        :collapsed-width="64"
+        :width="216"
+        :collapsed="collapsedMenu"
+        bordered
+        :native-scrollbar="false"
+        @collapse="collapsedMenu = true"
+        @expand="collapsedMenu = false"
+      >
+        <AppSidebar
+          :collapsed="collapsedMenu"
+          :advanced-config-counter="advancedConfigCounter"
+          @enable-advanced-config="enableAdvancedConfig"
+        />
+      </n-layout-sider>
+
+      <n-layout-content
+        class="sd-content-pane"
+        :native-scrollbar="false"
+        content-class="sd-content-inner"
+        embedded
+      >
+        <AppBreadcrumb
+          :collapsed="collapsedMenu"
+          :mobile-mode="!isDesktop"
+          @toggle-sidebar="toggleSidebar"
+          @open-search="openSearch"
+        />
+        <div class="sd-floating-panel-layer" :class="{ 'sd-floating-panel-layer--active': !!activeUnsavedChangesSource }">
+          <AppUnsavedChangesPanel />
+        </div>
+        <main :class="getAppShellContentClass(props.contentMode)">
+          <slot />
+        </main>
+      </n-layout-content>
+    </n-layout>
+
+    <n-drawer
+      v-model:show="drawerMenu"
+      class="sd-drawer"
+      :default-width="getAppShellDrawerWidth()"
+      placement="left"
+    >
+      <n-drawer-content body-content-style="padding: 0;" :native-scrollbar="false">
+        <AppSidebar
+          :advanced-config-counter="advancedConfigCounter"
+          @enable-advanced-config="enableAdvancedConfig"
+        />
+      </n-drawer-content>
+    </n-drawer>
+
+    <AppUnlockDialog />
+    <AppSearchMenu
+      v-if="renderSearchMenu"
+      ref="searchMenuRef"
+      :advanced-config-counter="advancedConfigCounter"
+    />
+  </n-layout>
+</template>
+
 <script setup lang="ts">
 import { defineAsyncComponent, nextTick, ref } from 'vue';
 import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/core';
@@ -99,71 +164,6 @@ setUnsavedChangesConfirmHandler(source => new Promise(resolve => {
 
 void authSession.tryDefaultSignin();
 </script>
-
-<template>
-  <n-layout id="root" class="sd-shell">
-    <n-layout class="sd-body" has-sider>
-      <n-layout-sider
-        class="sd-sidebar no-scrollbar"
-        collapse-mode="width"
-        :collapsed-width="64"
-        :width="216"
-        :collapsed="collapsedMenu"
-        bordered
-        :native-scrollbar="false"
-        @collapse="collapsedMenu = true"
-        @expand="collapsedMenu = false"
-      >
-        <AppSidebar
-          :collapsed="collapsedMenu"
-          :advanced-config-counter="advancedConfigCounter"
-          @enable-advanced-config="enableAdvancedConfig"
-        />
-      </n-layout-sider>
-
-      <n-layout-content
-        class="sd-content-pane"
-        :native-scrollbar="false"
-        content-class="sd-content-inner"
-        embedded
-      >
-        <AppBreadcrumb
-          :collapsed="collapsedMenu"
-          :mobile-mode="!isDesktop"
-          @toggle-sidebar="toggleSidebar"
-          @open-search="openSearch"
-        />
-        <div class="sd-floating-panel-layer" :class="{ 'sd-floating-panel-layer--active': !!activeUnsavedChangesSource }">
-          <AppUnsavedChangesPanel />
-        </div>
-        <main :class="getAppShellContentClass(props.contentMode)">
-          <slot />
-        </main>
-      </n-layout-content>
-    </n-layout>
-
-    <n-drawer
-      v-model:show="drawerMenu"
-      class="sd-drawer"
-      :default-width="getAppShellDrawerWidth()"
-      placement="left"
-    >
-      <n-drawer-content body-content-style="padding: 0;" :native-scrollbar="false">
-        <AppSidebar
-          :advanced-config-counter="advancedConfigCounter"
-          @enable-advanced-config="enableAdvancedConfig"
-        />
-      </n-drawer-content>
-    </n-drawer>
-
-    <AppUnlockDialog />
-    <AppSearchMenu
-      v-if="renderSearchMenu"
-      ref="searchMenuRef"
-      :advanced-config-counter="advancedConfigCounter"
-    />
-  </n-layout>
-</template>
 
 <style scoped>
 .sd-shell {

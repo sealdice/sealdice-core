@@ -1,3 +1,48 @@
+<template>
+  <section class="public-dice-endpoints">
+    <div class="public-dice-endpoints__head">
+      <h2>选择要上报的终端</h2>
+      <span>{{ checkedRowKeys.length }} / {{ rows.length }}</span>
+    </div>
+
+    <n-empty v-if="!loading && rows.length === 0" description="暂无可上报终端" />
+
+    <n-data-table
+      v-else
+      v-model:checked-row-keys="checkedRowKeys"
+      class="public-dice-endpoints__table"
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :row-key="rowKey"
+      :bordered="false"
+      :scroll-x="640"
+      size="small"
+    />
+
+    <div class="public-dice-endpoints__mobile-list">
+      <label
+        v-for="row in rows"
+        :key="row.id"
+        :class="['public-dice-endpoint-card', { 'public-dice-endpoint-card--disabled': disabled }]"
+      >
+        <n-checkbox
+          :checked="checkedSet.has(row.id)"
+          :disabled="disabled"
+          @update:checked="setRowChecked(row.id, $event === true)"
+        />
+        <span class="public-dice-endpoint-card__main">
+          <strong>{{ row.userId }}</strong>
+          <span>{{ row.protocol }}</span>
+        </span>
+        <n-tag size="small" :type="row.stateTagType" :bordered="false">
+          {{ row.stateText }}
+        </n-tag>
+      </label>
+    </div>
+  </section>
+</template>
+
 <script setup lang="ts">
 import { computed, h } from 'vue';
 import { NTag, type DataTableColumns, type DataTableRowKey } from 'naive-ui';
@@ -58,51 +103,6 @@ function setRowChecked(id: string, checked: boolean) {
   checkedRowKeys.value = Array.from(next);
 }
 </script>
-
-<template>
-  <section class="public-dice-endpoints">
-    <div class="public-dice-endpoints__head">
-      <h2>选择要上报的终端</h2>
-      <span>{{ checkedRowKeys.length }} / {{ rows.length }}</span>
-    </div>
-
-    <n-empty v-if="!loading && rows.length === 0" description="暂无可上报终端" />
-
-    <n-data-table
-      v-else
-      v-model:checked-row-keys="checkedRowKeys"
-      class="public-dice-endpoints__table"
-      :columns="columns"
-      :data="rows"
-      :loading="loading"
-      :row-key="rowKey"
-      :bordered="false"
-      :scroll-x="640"
-      size="small"
-    />
-
-    <div class="public-dice-endpoints__mobile-list">
-      <label
-        v-for="row in rows"
-        :key="row.id"
-        :class="['public-dice-endpoint-card', { 'public-dice-endpoint-card--disabled': disabled }]"
-      >
-        <n-checkbox
-          :checked="checkedSet.has(row.id)"
-          :disabled="disabled"
-          @update:checked="setRowChecked(row.id, $event === true)"
-        />
-        <span class="public-dice-endpoint-card__main">
-          <strong>{{ row.userId }}</strong>
-          <span>{{ row.protocol }}</span>
-        </span>
-        <n-tag size="small" :type="row.stateTagType" :bordered="false">
-          {{ row.stateText }}
-        </n-tag>
-      </label>
-    </div>
-  </section>
-</template>
 
 <style scoped>
 .public-dice-endpoints {

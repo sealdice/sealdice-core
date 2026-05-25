@@ -1,29 +1,3 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import NestedRuleEditor from './NestedRuleEditor.vue';
-import type { ReplyTask } from '@/features/customReply/model';
-
-const rules = defineModel<ReplyTask[]>({ required: true });
-const props = defineProps<{
-  startIndex: number;
-  page: number;
-  pageSize: number;
-  total: number;
-}>();
-
-const emit = defineEmits<{
-  add: [];
-  change: [];
-  delete: [index: number];
-  updatePage: [page: number];
-}>();
-
-const pageModel = computed({
-  get: () => props.page,
-  set: value => emit('updatePage', value),
-});
-</script>
-
 <template>
   <section class="reply-section reply-section--rules">
     <div class="section-head">
@@ -60,6 +34,32 @@ const pageModel = computed({
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import NestedRuleEditor from './NestedRuleEditor.vue';
+import type { ReplyTask } from '@/features/customReply/model';
+
+const rules = defineModel<ReplyTask[]>({ required: true });
+const props = defineProps<{
+  startIndex: number;
+  page: number;
+  pageSize: number;
+  total: number;
+}>();
+
+const emit = defineEmits<{
+  add: [];
+  change: [];
+  delete: [index: number];
+  updatePage: [page: number];
+}>();
+
+const pageModel = computed({
+  get: () => props.page,
+  set: value => emit('updatePage', value),
+});
+</script>
 
 <style scoped>
 .reply-section {

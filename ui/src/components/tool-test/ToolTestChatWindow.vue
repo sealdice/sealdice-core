@@ -1,3 +1,18 @@
+<template>
+  <section class="tool-test-chat-window">
+    <QHeader>{{ props.title }}</QHeader>
+    <div ref="scrollRef" class="tool-test-chat-window__scroll">
+      <QMain>
+        <ToolTestChatMessage
+          v-for="message in props.messages"
+          :key="message.id"
+          :message="message"
+        />
+      </QMain>
+    </div>
+  </section>
+</template>
+
 <script setup lang="ts">
 import { nextTick, useTemplateRef, watch } from 'vue';
 import { QHeader, QMain } from 'fake-qq-ui';
@@ -29,21 +44,6 @@ watch(
   { immediate: true },
 );
 </script>
-
-<template>
-  <section class="tool-test-chat-window">
-    <QHeader>{{ props.title }}</QHeader>
-    <div ref="scrollRef" class="tool-test-chat-window__scroll">
-      <QMain>
-        <ToolTestChatMessage
-          v-for="message in props.messages"
-          :key="message.id"
-          :message="message"
-        />
-      </QMain>
-    </div>
-  </section>
-</template>
 
 <style scoped>
 .tool-test-chat-window {

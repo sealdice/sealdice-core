@@ -1,34 +1,3 @@
-<script setup lang="ts">
-import { computed, ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
-import { useBaseOverview } from '@/features/base/useBaseOverview';
-import { appNavigation } from '@/router/navigation';
-import { buildBreadcrumbItems } from '@/router/navigationModel';
-import AppInstallButton from './AppInstallButton.vue';
-import AppThemePaletteButton from './AppThemePaletteButton.vue';
-import AppThemeSwitch from './AppThemeSwitch.vue';
-
-const props = defineProps<{
-  collapsed: boolean;
-  mobileMode: boolean;
-}>();
-
-const emit = defineEmits<{
-  toggleSidebar: [];
-  openSearch: [];
-}>();
-
-const route = useRoute();
-const dialogFeed = ref(false);
-const newsChecked = ref(true);
-const newsData = ref('<div>暂无内容</div>');
-const { overview, isStable, hasNewVersion } = useBaseOverview();
-
-const breadcrumbItems = computed(() =>
-  buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面')),
-);
-</script>
-
 <template>
   <n-page-header class="sd-breadcrumb-bar">
     <template #title>
@@ -141,6 +110,37 @@ const breadcrumbItems = computed(() =>
     <div class="feed-content" v-safe-html="newsData"></div>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
+import { useBaseOverview } from '@/features/base/useBaseOverview';
+import { appNavigation } from '@/router/navigation';
+import { buildBreadcrumbItems } from '@/router/navigationModel';
+import AppInstallButton from './AppInstallButton.vue';
+import AppThemePaletteButton from './AppThemePaletteButton.vue';
+import AppThemeSwitch from './AppThemeSwitch.vue';
+
+const props = defineProps<{
+  collapsed: boolean;
+  mobileMode: boolean;
+}>();
+
+const emit = defineEmits<{
+  toggleSidebar: [];
+  openSearch: [];
+}>();
+
+const route = useRoute();
+const dialogFeed = ref(false);
+const newsChecked = ref(true);
+const newsData = ref('<div>暂无内容</div>');
+const { overview, isStable, hasNewVersion } = useBaseOverview();
+
+const breadcrumbItems = computed(() =>
+  buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面')),
+);
+</script>
 
 <style scoped>
 .sd-breadcrumb-bar {

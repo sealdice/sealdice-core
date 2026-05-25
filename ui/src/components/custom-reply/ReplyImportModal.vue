@@ -1,16 +1,3 @@
-<script setup lang="ts">
-const show = defineModel<boolean>('show', { required: true });
-const content = defineModel<string>('content', { required: true });
-
-defineProps<{
-  disabled: boolean;
-}>();
-
-const emit = defineEmits<{
-  import: [];
-}>();
-</script>
-
 <template>
   <n-modal
     v-model:show="show"
@@ -38,6 +25,19 @@ const emit = defineEmits<{
     </template>
   </n-modal>
 </template>
+
+<script setup lang="ts">
+const show = defineModel<boolean>('show', { required: true });
+const content = defineModel<string>('content', { required: true });
+
+defineProps<{
+  disabled: boolean;
+}>();
+
+const emit = defineEmits<{
+  import: [];
+}>();
+</script>
 
 <style scoped>
 .reply-text :deep(textarea) {
