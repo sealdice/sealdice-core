@@ -92,6 +92,7 @@ const props = defineProps<{
   padding: clamp(20px, 4vw, 34px);
   border: 1px solid var(--sd-border-soft);
   border-radius: 28px;
+  background: linear-gradient(135deg, var(--sd-bg-elevated), var(--sd-bg-elevated-soft));
   background:
     radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--sd-accent), transparent 52%), transparent 28%),
     radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--sd-primary), transparent 78%), transparent 32%),
@@ -104,6 +105,7 @@ const props = defineProps<{
   align-items: center;
   justify-content: center;
   border-radius: 24px;
+  background: rgba(252, 211, 77, 0.24);
   background:
     linear-gradient(160deg, color-mix(in srgb, var(--sd-bg-elevated), transparent 14%), transparent),
     color-mix(in srgb, var(--sd-accent), transparent 76%);
@@ -193,6 +195,7 @@ const props = defineProps<{
   padding: 14px;
   border: 1px solid var(--sd-border-soft);
   border-radius: 16px;
+  background: var(--sd-bg-elevated-tint);
   background: color-mix(in srgb, var(--sd-bg-elevated), transparent 10%);
   color: var(--sd-text-primary);
   text-decoration: none;
@@ -203,6 +206,7 @@ const props = defineProps<{
 }
 
 .about-hero__link:hover {
+  border-color: var(--sd-primary);
   border-color: color-mix(in srgb, var(--sd-primary), transparent 62%);
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
   transform: translateY(-1px);

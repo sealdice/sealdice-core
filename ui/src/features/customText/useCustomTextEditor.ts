@@ -10,6 +10,7 @@ import {
   type TextItemCompatibleInfo,
 } from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
+import { copyText } from '@/features/clipboard';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import {
   normalizeCustomTextData,
@@ -138,7 +139,7 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
 
   async function copied() {
     try {
-      await navigator.clipboard.writeText(configForImport.value);
+      await copyText(configForImport.value);
       message.success('进行了复制！');
     } catch {
       message.error('复制失败');

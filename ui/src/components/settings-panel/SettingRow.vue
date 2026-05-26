@@ -33,6 +33,7 @@ withDefaults(defineProps<{
 }
 
 .setting-row:hover {
+  background: var(--sd-bg-hover);
   background: color-mix(in srgb, var(--sd-bg-hover), transparent 35%);
 }
 

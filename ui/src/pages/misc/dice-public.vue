@@ -224,6 +224,7 @@ useUnsavedChanges('public-dice', {
   min-height: 248px;
   border: 1px solid var(--sd-border);
   border-radius: 8px;
+  background: var(--sd-bg-elevated-soft);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--sd-primary) 9%, transparent), transparent 52%),
     var(--sd-bg-elevated-soft);

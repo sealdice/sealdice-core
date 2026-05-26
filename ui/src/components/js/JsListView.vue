@@ -621,6 +621,7 @@ function toggleSelectAll(checked: boolean) {
 .js-panel-header {
   padding: 0.95rem 1rem;
   border-bottom: 1px solid var(--sd-border-soft);
+  background: var(--sd-bg-elevated-soft);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated-soft), transparent 10%) 0%, transparent 100%);
 }

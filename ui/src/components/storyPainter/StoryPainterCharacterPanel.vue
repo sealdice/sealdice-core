@@ -114,6 +114,7 @@ function updateCharColor(index: number, value: string): void {
   min-width: 0;
   padding: 0.5rem;
   border: 1px solid var(--sd-border);
+  background: var(--sd-bg-elevated);
   background: color-mix(in srgb, var(--sd-bg-elevated) 92%, var(--sd-bg-base));
 }
 

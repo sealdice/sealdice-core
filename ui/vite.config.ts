@@ -161,8 +161,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    target: 'chrome90',
-    cssTarget: 'chrome90',
+    target: 'chrome98',
+    cssTarget: 'chrome98',
     chunkSizeWarningLimit: 650,
     ...resolveViteBuildOptions(mode),
     rollupOptions: {

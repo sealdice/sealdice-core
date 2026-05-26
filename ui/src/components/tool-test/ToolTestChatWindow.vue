@@ -53,6 +53,7 @@ watch(
   overflow: hidden;
   border: 1px solid var(--sd-border-soft);
   border-radius: 16px;
+  background: var(--qq-background-03);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated), transparent 6%) 0%, transparent 100%),
     var(--qq-background-03);

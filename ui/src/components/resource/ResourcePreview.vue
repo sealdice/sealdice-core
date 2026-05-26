@@ -49,6 +49,7 @@ const { objectUrl, loading, failed } = useResourcePreview(
   place-items: center;
   border: 1px solid var(--sd-border-soft);
   border-radius: 14px;
+  background: var(--sd-bg-elevated-soft);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--sd-bg-control), transparent 10%), transparent),
     var(--sd-bg-elevated-soft);

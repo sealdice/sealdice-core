@@ -6,7 +6,7 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "browserslist": [
-    "Chrome >= 90"
+    "Chrome >= 98"
   ],
   "scripts": {
     "dev": "vite --port 5175 --strictPort",

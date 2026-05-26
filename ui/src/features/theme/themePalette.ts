@@ -32,6 +32,13 @@ const paletteVariableNames: Record<ThemeColorKey, string> = {
   warning: '--sd-warning',
   error: '--sd-error',
 };
+const semanticColorVariableNames: Record<ThemeColorKey, string[]> = {
+  primary: ['--qq-overlay_hover_brand', '--qq-tag_blue_bg'],
+  info: [],
+  success: ['--qq-tag_sage_green_bg'],
+  warning: ['--qq-tag_orange_bg'],
+  error: ['--qq-tag_red_bg'],
+};
 const colorTokenNames: Record<ThemeColorKey, {
   base: keyof NonNullable<GlobalThemeOverrides['common']>;
   hover: keyof NonNullable<GlobalThemeOverrides['common']>;
@@ -120,6 +127,10 @@ function getGeneratedColor(color: string, index: number, theme: ResolvedTheme): 
     ? generate(color, { theme: 'dark', backgroundColor: darkBackground })
     : generate(color);
   return colors[index] ?? color;
+}
+
+function getSoftGeneratedColor(color: string, theme: ResolvedTheme): string {
+  return getGeneratedColor(color, theme === 'dark' ? 1 : 0, theme);
 }
 
 function createStatusColorOverrides(
@@ -232,8 +243,15 @@ export function createThemeOverrides(
 export function syncDocumentThemePalette(root: HTMLElement | undefined, palette: ThemePalette): void {
   if (!root) return;
 
+  const theme = root.dataset?.theme === 'dark' ? 'dark' : 'light';
+
   // 这里同步的是项目级语义色，Tailwind 和少量自定义 CSS 可以直接读这些变量。
   for (const key of THEME_COLOR_KEYS) {
     root.style.setProperty(paletteVariableNames[key], palette[key]);
+
+    const softColor = getSoftGeneratedColor(palette[key], theme);
+    for (const variableName of semanticColorVariableNames[key]) {
+      root.style.setProperty(variableName, softColor);
+    }
   }
 }

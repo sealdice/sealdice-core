@@ -132,6 +132,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import type { StoryLogView } from '@/api';
+import { copyText } from '@/features/clipboard';
 import { fetchStoryLogParquet } from '@/features/storyPainter/api';
 import { createStoryPainterParquetDataset } from '@/features/storyPainter/parquetDataset';
 import { useStoryPainter } from '@/features/storyPainter/useStoryPainter';
@@ -213,7 +214,7 @@ async function loadLog(): Promise<void> {
 }
 
 function handleCopy(text: string): void {
-  void navigator.clipboard.writeText(text).then(
+  void copyText(text).then(
     () => message.success('已复制'),
     () => message.error('复制失败'),
   );

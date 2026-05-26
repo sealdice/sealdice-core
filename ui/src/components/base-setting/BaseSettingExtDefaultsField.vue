@@ -237,18 +237,23 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   flex-direction: column;
   gap: 0.7rem;
   padding: 0.85rem 0.95rem;
+  border: 1px solid var(--sd-border-soft);
   border: 1px solid color-mix(in srgb, var(--sd-border-color), transparent 10%);
   border-radius: 8px;
+  background: var(--sd-bg-elevated-soft);
   background: color-mix(in srgb, var(--sd-bg-page), var(--sd-bg-elevated) 72%);
   transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .ext-default-row:hover {
+  border-color: var(--sd-primary);
   border-color: color-mix(in srgb, var(--sd-primary-color), var(--sd-border-color) 70%);
 }
 
 .ext-default-row-dirty {
+  border-color: var(--n-warning-color);
   border-color: color-mix(in srgb, var(--n-warning-color), var(--sd-border-color) 55%);
+  box-shadow: inset 0 0 0 1px rgba(202, 138, 4, 0.18);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--n-warning-color), transparent 82%);
 }
 
@@ -282,10 +287,12 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   min-height: 1.75rem;
   padding: 0.18rem 0.22rem 0.18rem 0.55rem;
   border-radius: 999px;
+  background: var(--sd-bg-hover);
   background: color-mix(in srgb, var(--sd-bg-hover), transparent 24%);
 }
 
 .ext-default-row-switch-dirty {
+  background: rgba(202, 138, 4, 0.12);
   background: color-mix(in srgb, var(--n-warning-color), transparent 88%);
 }
 
@@ -313,6 +320,7 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   appearance: none;
   cursor: pointer;
   padding: 0.36rem 0.66rem;
+  border: 1px solid var(--sd-border-soft);
   border: 1px solid color-mix(in srgb, var(--sd-border-color), transparent 8%);
   border-radius: 999px;
   background: var(--sd-bg-elevated);
@@ -324,17 +332,21 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
 }
 
 .ext-default-command-chip:hover {
+  border-color: var(--sd-primary);
   border-color: color-mix(in srgb, var(--sd-primary-color), var(--sd-border-color) 55%);
   color: var(--sd-text-primary);
 }
 
 .ext-default-command-chip-disabled {
+  border-color: var(--n-error-color);
   border-color: color-mix(in srgb, var(--n-error-color), transparent 52%);
+  background: rgba(220, 38, 38, 0.08);
   background: color-mix(in srgb, var(--n-error-color), transparent 92%);
   color: var(--n-error-color);
 }
 
 .ext-default-command-chip-dirty {
+  box-shadow: inset 0 0 0 1px rgba(202, 138, 4, 0.28);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--n-warning-color), transparent 72%);
 }
 

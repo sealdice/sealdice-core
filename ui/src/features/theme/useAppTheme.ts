@@ -36,6 +36,7 @@ watch(
   theme => {
     if (typeof document === 'undefined') return;
     syncDocumentTheme(document.documentElement, theme);
+    syncDocumentThemePalette(document.documentElement, themePalette.value);
   },
   { immediate: true },
 );

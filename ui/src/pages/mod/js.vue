@@ -388,6 +388,7 @@ onBeforeUnmount(() => {
 .js-panel-header {
   padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--sd-border-soft);
+  background: var(--sd-bg-elevated-soft);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated-soft), transparent 10%) 0%, transparent 100%);
 }
@@ -456,6 +457,7 @@ onBeforeUnmount(() => {
 
 .js-editor :deep(.cm-gutters) {
   color: var(--sd-text-muted);
+  background: var(--sd-bg-elevated-soft);
   background: color-mix(in srgb, var(--sd-bg-elevated-soft), var(--sd-bg-page) 25%);
   border-right: 1px solid var(--sd-border-soft);
 }

@@ -71,3 +71,6 @@ const fakeRoot = {
 syncDocumentThemePalette(fakeRoot, customPalette);
 assertEqual(styleValues.get('--sd-primary'), '#0ea5e9');
 assertEqual(styleValues.get('--sd-error'), '#ef4444');
+assertEqual(styleValues.has('--qq-overlay_hover_brand'), true);
+assertEqual(styleValues.has('--qq-tag_red_bg'), true);
+assertEqual(styleValues.has('--qq-tag_sage_green_bg'), true);

@@ -94,6 +94,7 @@ import ResourceListPanel from '@/components/resource/ResourceListPanel.vue';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
+import { copyText } from '@/features/clipboard';
 import {
   buildResourceListQuery,
   buildSealImageCode,
@@ -250,7 +251,7 @@ async function downloadResource(item: ResourceItem) {
 
 async function copySealCode(item: ResourceItem) {
   try {
-    await navigator.clipboard.writeText(buildSealImageCode(item.path));
+    await copyText(buildSealImageCode(item.path));
     message.success('已复制海豹码');
   } catch {
     message.error('复制失败，请检查浏览器剪贴板权限');
@@ -284,6 +285,7 @@ function showDetail(item: ResourceItem) {
   overflow: hidden;
   border: 1px solid var(--sd-border-soft);
   border-radius: 22px;
+  background: linear-gradient(135deg, var(--sd-bg-elevated), var(--sd-bg-elevated-soft));
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--sd-primary), transparent 78%), transparent 34%),
     linear-gradient(135deg, var(--sd-bg-elevated), var(--sd-bg-elevated-soft));
