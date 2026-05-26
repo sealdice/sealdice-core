@@ -54,6 +54,8 @@
 
 ### 编译运行
 
+下面的命令默认从仓库根目录执行，即包含 `go.mod`、`main.go`、`ui/` 的目录。
+
 #### 使用 `go-task`
 
 你可以安装 [go-task](https://taskfile.dev/installation) 以执行预置好的任务。安装后可执行：
@@ -112,6 +114,292 @@ go run .
 ```
 
 启动项目，大功告成！
+
+### 新版 V2 UI / OpenAPI 开发流程
+
+本仓库同时包含 Go 后端和新版管理前端：
+
+- 后端入口：仓库根目录的 `main.go`
+- 前端目录：`ui/`
+- OpenAPI 描述文件：`ui/openapi.json`
+- 前端生成代码：`ui/src/api/generated/`
+- 前端开发服务器：默认 `http://127.0.0.1:5175`
+- 后端 UI/API 服务：默认监听 `0.0.0.0:3211`，本机访问使用 `http://127.0.0.1:3211`
+
+`ui/openapi.json` 和 `ui/src/api/generated/` 是生成产物，已被 `.gitignore` 忽略，不要手工编辑，也不要提交。
+
+#### 0. 安装可复现的本地依赖
+
+后端需要 Go，当前项目编译版本见上文“golang 开发环境”。前端需要 Node.js 和 pnpm，版本约束写在 `ui/package.json`：
+
+```bash
+node --version
+pnpm --version
+go version
+```
+
+第一次准备仓库时执行：
+
+```bash
+cd /path/to/sealdice-core-newui
+go mod download
+pnpm --dir ui install
+```
+
+如果需要使用 `task` 统一执行构建任务，还需要安装 [go-task](https://taskfile.dev/installation)。不使用 `task` 时，下面所有步骤都可以直接用 `go`、`pnpm` 手动复现。
+
+#### 1. 编译后端
+
+只编译 Go 后端，不构建新版前端：
+
+```bash
+cd /path/to/sealdice-core-newui
+go build .
+```
+
+该命令会在当前目录生成 `sealdice-core`（Windows 下为 `sealdice-core.exe`）。如果只是临时运行，可以跳过二进制产物，直接使用：
+
+```bash
+cd /path/to/sealdice-core-newui
+go run .
+```
+
+如果要把新版 V2 UI 一起构建并嵌入到后端静态资源中，使用：
+
+```bash
+cd /path/to/sealdice-core-newui
+task build-with-v2ui
+```
+
+`task build-with-v2ui` 会先执行 `test-and-lint` 依赖，再执行构建。完整展开后包含：
+
+```bash
+go test ./...
+go vet ./...
+goimports -w .
+golangci-lint run
+mkdir -p temp
+go build -o temp/openapi-gen .
+./temp/openapi-gen --gen-openapi=./ui/openapi.json
+pnpm --dir ui run generate-client
+pnpm --dir ui run build:embed:prepared
+go build .
+```
+
+因此它会先完成 Go 测试和 lint，再刷新 OpenAPI、生成前端 API 客户端、构建可嵌入的 V2 UI，并最终编译后端。注意 `goimports -w .` 会直接格式化 Go 文件；如果只想避免自动格式化，请使用下面的手动命令链。
+
+#### 2. 生成 `ui/openapi.json`
+
+后端提供专用参数 `--gen-openapi`，用于生成 Huma v2 OpenAPI JSON 后退出。
+
+推荐直接使用前端脚本：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run generate-openapi
+```
+
+该脚本等价于：
+
+```bash
+cd /path/to/sealdice-core-newui
+go run . --gen-openapi=./ui/openapi.json
+```
+
+执行成功后，应出现或更新：
+
+```text
+ui/openapi.json
+```
+
+如果只想确认该文件是否生成：
+
+```bash
+cd /path/to/sealdice-core-newui
+test -f ui/openapi.json && echo "ui/openapi.json exists"
+```
+
+#### 3. 让前端生成对应 TypeScript API 代码
+
+前端使用 `@hey-api/openapi-ts` 读取 `ui/openapi.json`，并把 TypeScript 类型、axios client、SDK、Vue Query options 生成到 `ui/src/api/generated/`。
+
+如果已经有 `ui/openapi.json`，只生成前端代码：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run generate-client
+```
+
+如果要从后端重新生成 OpenAPI，再生成前端代码，使用完整命令：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run generate-api
+```
+
+`pnpm --dir ui run generate-api` 等价于：
+
+```bash
+cd /path/to/sealdice-core-newui/ui
+pnpm run generate-openapi
+pnpm run generate-client
+```
+
+执行成功后，应出现或更新：
+
+```text
+ui/openapi.json
+ui/src/api/generated/
+```
+
+生成代码后建议立刻做一次前端类型检查：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run type-check
+```
+
+#### 4. 运行后端
+
+本地开发推荐显式指定后端监听地址，避免不同平台或已有配置影响端口：
+
+```bash
+cd /path/to/sealdice-core-newui
+go run . --address=127.0.0.1:3211
+```
+
+也可以先编译再运行：
+
+```bash
+cd /path/to/sealdice-core-newui
+go build .
+./sealdice-core --address=127.0.0.1:3211
+```
+
+Windows PowerShell 下运行编译产物：
+
+```powershell
+cd C:\path\to\sealdice-core-newui
+go build .
+.\sealdice-core.exe --address=127.0.0.1:3211
+```
+
+后端启动后，浏览器访问：
+
+```text
+http://127.0.0.1:3211
+```
+
+V2 UI 的内置访问路径是：
+
+```text
+http://127.0.0.1:3211/v2ui/
+```
+
+如果没有构建并嵌入 V2 UI，`/v2ui/` 会显示占位页面；这不影响 API 调试。API 路径仍然是同一个后端服务下的：
+
+```text
+http://127.0.0.1:3211/sd-api/v2
+```
+
+#### 5. 让前端调试正确连接后端
+
+前端开发态通过 Vite dev server 启动，页面地址默认是：
+
+```text
+http://127.0.0.1:5175
+```
+
+前端代码本身使用同源 API 地址。开发时，Vite 会把这些同源请求代理到后端。代理目标由 `ui/vite.config.ts` 读取，优先级如下：
+
+1. `VITE_API_PROXY_TARGET`
+2. `DEV_PROXY_SERVER`
+3. `VITE_API_BASE_URL`
+4. 默认值 `http://localhost:3211`
+
+推荐在两个终端中分别运行后端和前端。
+
+终端 A，运行后端：
+
+```bash
+cd /path/to/sealdice-core-newui
+go run . --address=127.0.0.1:3211
+```
+
+终端 B，运行前端开发服务器：
+
+```bash
+cd /path/to/sealdice-core-newui
+VITE_API_PROXY_TARGET=http://127.0.0.1:3211 pnpm --dir ui run dev
+```
+
+Windows PowerShell 下设置环境变量并启动前端：
+
+```powershell
+cd C:\path\to\sealdice-core-newui
+$env:VITE_API_PROXY_TARGET = "http://127.0.0.1:3211"
+pnpm --dir ui run dev
+```
+
+启动后访问：
+
+```text
+http://127.0.0.1:5175
+```
+
+前端调试时不要直接把页面打开到 `http://127.0.0.1:3211/v2ui/`，那是后端内置静态资源路径；开发模式应访问 Vite 的 `5175` 端口。Vite 会代理以下路径到后端：
+
+```text
+/api
+/sd-api
+/openapi.json
+/docs
+/schemas
+```
+
+如果后端改了端口，例如：
+
+```bash
+cd /path/to/sealdice-core-newui
+go run . --address=127.0.0.1:4000
+```
+
+前端也必须使用相同端口作为代理目标：
+
+```bash
+cd /path/to/sealdice-core-newui
+VITE_API_PROXY_TARGET=http://127.0.0.1:4000 pnpm --dir ui run dev
+```
+
+#### 6. 前端构建与检查
+
+仅做类型检查：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run type-check
+```
+
+仅做 Vite 生产构建，要求已经存在 `ui/src/api/generated/`：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run build-only
+```
+
+完整前端构建，会自动重新生成 OpenAPI 和前端 API 代码：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run build
+```
+
+如需构建可嵌入 Go 后端的前端产物：
+
+```bash
+cd /path/to/sealdice-core-newui
+pnpm --dir ui run build:embed
+```
 
 ## 重点
 
