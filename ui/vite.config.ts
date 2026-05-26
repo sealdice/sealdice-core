@@ -5,6 +5,7 @@ import postcssColorMix from '@csstools/postcss-color-mix-function'
 
 import { defineConfig } from 'vite'
 import VueRouter from 'vue-router/vite'
+import legacy from '@vitejs/plugin-legacy'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
@@ -102,6 +103,9 @@ export default defineConfig(({ mode }) => ({
       compiler: 'vue3',
       autoInstall: true
     }),
+    legacy({
+      targets: ['Chrome >= 78'],
+    }),
     mode === 'analyze' && visualizer({
       filename: 'stats.html',
       emitFile: true,
@@ -161,8 +165,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    target: 'chrome98',
-    cssTarget: 'chrome98',
+    target: 'chrome78',
+    cssTarget: 'chrome78',
     chunkSizeWarningLimit: 650,
     ...resolveViteBuildOptions(mode),
     rollupOptions: {
