@@ -19,3 +19,17 @@ const differentPassword = await passwordHash('salt-value', 'password-2');
 assertEqual(first, second);
 assertMatch(first, /^djAx/);
 assertEqual(first === differentPassword, false);
+
+const originalCrypto = globalThis.crypto;
+Object.defineProperty(globalThis, 'crypto', {
+  configurable: true,
+  value: undefined,
+});
+
+const fallback = await passwordHash('salt-value', 'password');
+assertEqual(fallback, first);
+
+Object.defineProperty(globalThis, 'crypto', {
+  configurable: true,
+  value: originalCrypto,
+});

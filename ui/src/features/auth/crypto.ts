@@ -31,29 +31,37 @@ export async function passwordHash(
   iterations = defaultIterations,
 ): Promise<string> {
   const cryptoApi = globalThis.crypto?.subtle;
-  if (!cryptoApi) {
-    throw new Error('当前环境不支持 Web Crypto，无法生成登录密码哈希。');
+  if (cryptoApi) {
+    const encoder = new TextEncoder();
+    const passwordKey = await cryptoApi.importKey(
+      'raw',
+      encoder.encode(password),
+      'PBKDF2',
+      false,
+      ['deriveBits'],
+    );
+    const saltBytes = encoder.encode(salt);
+    const keyBuffer = await cryptoApi.deriveBits(
+      {
+        name: 'PBKDF2',
+        hash: 'SHA-512',
+        salt: saltBytes,
+        iterations,
+      },
+      passwordKey,
+      derivedBitsLength,
+    );
+
+    return serializePasswordHash(keyBuffer, saltBytes, iterations);
   }
 
   const encoder = new TextEncoder();
-  const passwordKey = await cryptoApi.importKey(
-    'raw',
-    encoder.encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits'],
-  );
   const saltBytes = encoder.encode(salt);
-  const keyBuffer = await cryptoApi.deriveBits(
-    {
-      name: 'PBKDF2',
-      hash: 'SHA-512',
-      salt: saltBytes,
-      iterations,
-    },
-    passwordKey,
-    derivedBitsLength,
-  );
-
-  return serializePasswordHash(keyBuffer, saltBytes, iterations);
+  const { pbkdf2 } = await import('@noble/hashes/pbkdf2.js');
+  const { sha512 } = await import('@noble/hashes/sha2.js');
+  const keyBuffer = pbkdf2(sha512, encoder.encode(password), saltBytes, {
+    c: iterations,
+    dkLen: derivedBitsLength / 8,
+  });
+  return serializePasswordHash(keyBuffer.buffer.slice(0), saltBytes, iterations);
 }

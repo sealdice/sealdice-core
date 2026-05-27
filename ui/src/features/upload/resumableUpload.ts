@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { ApiError } from '@/api';
 import { currentAccessToken } from '@/features/auth/state';
+import { hashFile } from './fileHash';
 
 export type UploadTaskStatus =
   | 'queued'
@@ -281,15 +282,6 @@ async function uploadChunk(
   });
 
   void index;
-}
-
-async function hashFile(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const hash = await crypto.subtle.digest('SHA-256', buffer);
-  const bytes = new Uint8Array(hash);
-  return Array.from(bytes)
-    .map(byte => byte.toString(16).padStart(2, '0'))
-    .join('');
 }
 
 function calcProgress(uploadedBytes: number, totalBytes: number): number {
