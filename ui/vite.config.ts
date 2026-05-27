@@ -104,7 +104,15 @@ export default defineConfig(({ mode }) => ({
       autoInstall: true
     }),
     legacy({
-      targets: ['Chrome >= 78'],
+      // Keep a single module build and let plugin-legacy inject the full
+      // modern polyfill bundle for the supported browser matrix below.
+      modernPolyfills: true,
+      modernTargets: ['Chrome >= 78',
+        "Firefox >= 67",
+        'Safari >= 14'],
+      // We do not ship nomodule/SystemJS bundles anymore; all supported users
+      // stay on the module path and receive the modern polyfill bundle.
+      renderLegacyChunks: false,
     }),
     mode === 'analyze' && visualizer({
       filename: 'stats.html',
@@ -165,8 +173,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    target: 'chrome78',
-    cssTarget: 'chrome78',
     chunkSizeWarningLimit: 650,
     ...resolveViteBuildOptions(mode),
     rollupOptions: {
