@@ -78,7 +78,14 @@
                 <n-button size="small" type="primary" secondary :loading="exportBusy.talkDoc" @click="withBusy('talkDoc', () => exportDoc(true))">
                   下载对话 doc
                 </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.docx" @click="withBusy('docx', exportDocx)">
+                <n-button
+                  size="small"
+                  type="primary"
+                  secondary
+                  :loading="exportBusy.docx"
+                  :disabled="!docxSupported"
+                  @click="withBusy('docx', exportDocx)"
+                >
                   下载 docx
                 </n-button>
                 <n-dropdown
@@ -133,6 +140,7 @@
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import type { StoryLogView } from '@/api';
 import { copyText } from '@/features/clipboard';
+import { getStoryPainterAdvancedModeSupport } from '@/features/storyPainter/compat';
 import { fetchStoryLogParquet } from '@/features/storyPainter/api';
 import { createStoryPainterParquetDataset } from '@/features/storyPainter/parquetDataset';
 import { useStoryPainter } from '@/features/storyPainter/useStoryPainter';
@@ -145,6 +153,7 @@ import {
   readElementColor,
   saveStoryPainterBlob,
   saveStoryPainterText,
+  supportsStoryPainterDocxExport,
   type StoryPainterDocxEntry,
 } from '@/features/storyPainter/exporter';
 import type { StoryPainterOptions as StoryPainterOptionsModel, StoryPainterPreviewDisplayMode } from '@/features/storyPainter/types';
@@ -186,6 +195,7 @@ const exportBusy = reactive({
   forum: false,
   trg: false,
 });
+const docxSupported = supportsStoryPainterDocxExport();
 
 const modeOptions: Array<{ label: string; value: StoryPainterPreviewDisplayMode }> = [
   { label: '预览', value: 'preview' },
@@ -201,6 +211,10 @@ async function loadLog(): Promise<void> {
   loading.value = true;
   errorText.value = '';
   try {
+    const support = getStoryPainterAdvancedModeSupport();
+    if (!support.supported) {
+      throw new Error(support.reason ?? '当前浏览器不支持高级日志模式');
+    }
     painter.mode.value = 'editor';
     const blob = await fetchStoryLogParquet(props.log.id);
     sourceBlob.value = blob;

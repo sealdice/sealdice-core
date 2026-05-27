@@ -15,3 +15,9 @@ export function isStandaloneDisplayMode(
   return displayModeStandalone || navigatorStandalone === true;
 }
 
+export function shouldShowPwaInstallEntry(
+  supportsBeforeInstallPrompt: boolean,
+  isInstalled: boolean,
+): boolean {
+  return supportsBeforeInstallPrompt && !isInstalled;
+}

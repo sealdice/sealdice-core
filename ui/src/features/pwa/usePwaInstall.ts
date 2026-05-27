@@ -1,10 +1,16 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { isStandaloneDisplayMode, type PwaBeforeInstallPromptEvent, type PwaInstallOutcome } from './pwaState';
+import {
+  isStandaloneDisplayMode,
+  shouldShowPwaInstallEntry,
+  type PwaBeforeInstallPromptEvent,
+  type PwaInstallOutcome,
+} from './pwaState';
 
 const canInstall = ref(false);
 const isInstalled = ref(false);
 const installing = ref(false);
 const initialized = ref(false);
+const isSupported = ref(false);
 
 let deferredPrompt: PwaBeforeInstallPromptEvent | null = null;
 let cleanup: (() => void) | null = null;
@@ -28,7 +34,7 @@ function handleBeforeInstallPrompt(event: Event): void {
   const promptEvent = event as PwaBeforeInstallPromptEvent;
   event.preventDefault();
   deferredPrompt = promptEvent;
-  canInstall.value = !isInstalled.value;
+  canInstall.value = shouldShowPwaInstallEntry(true, isInstalled.value);
 }
 
 function handleAppInstalled(): void {
@@ -41,6 +47,7 @@ function attachListeners(): void {
   if (typeof window === 'undefined' || initialized.value) return;
   initialized.value = true;
   syncStandaloneState();
+  isSupported.value = 'onbeforeinstallprompt' in window;
 
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
   window.addEventListener('appinstalled', handleAppInstalled);
@@ -84,6 +91,7 @@ export function usePwaInstall() {
   }
 
   return {
+    isSupported,
     canInstall: installAvailable,
     isInstalled,
     installing,

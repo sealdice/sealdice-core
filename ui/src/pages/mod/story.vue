@@ -598,6 +598,13 @@ function uploadLog(log: LogView, force = false) {
 }
 
 async function openItem(log: LogView) {
+  const { getStoryPainterAdvancedModeSupport } = await import('@/features/storyPainter/compat');
+  const support = getStoryPainterAdvancedModeSupport();
+  if (!support.supported) {
+    message.warning(support.reason ?? '当前浏览器不支持高级日志模式，已切换到分页文本');
+    await openRawItem(log);
+    return;
+  }
   currentPainterLog.value = log;
   mode.value = 'painter';
 }

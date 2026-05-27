@@ -1,5 +1,5 @@
-import type { StoryPainterLogItem } from './types';
 import type { FileChild, Paragraph, ParagraphChild } from 'docx';
+import type { StoryPainterLogItem } from './types';
 
 export interface StoryPainterDocxEntry {
   time?: string;
@@ -84,6 +84,10 @@ export function extractMessageLines(el: HTMLElement | null): string[] {
 export function readElementColor(el: HTMLElement | null): string | undefined {
   if (!el) return undefined;
   return el.style.color || window.getComputedStyle(el).color || undefined;
+}
+
+export function supportsStoryPainterDocxExport(): boolean {
+  return true;
 }
 
 function buildDocxParagraphs(

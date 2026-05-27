@@ -3,7 +3,7 @@
     <template #trigger>
       <span class="install-trigger">
         <n-button
-          v-if="!isInstalled"
+          v-if="isSupported && !isInstalled"
           class="install-button"
           secondary
           :type="canInstall ? 'primary' : 'default'"
@@ -39,7 +39,7 @@ import { useMessage } from 'naive-ui';
 import { usePwaInstall } from '@/features/pwa/usePwaInstall';
 
 const message = useMessage();
-const { canInstall, isInstalled, installing, install } = usePwaInstall();
+const { isSupported, canInstall, isInstalled, installing, install } = usePwaInstall();
 
 const buttonText = computed(() => {
   if (isInstalled.value) return '已安装';
@@ -57,7 +57,7 @@ async function handleClick() {
     message.info('已取消安装');
     return;
   }
-  message.warning('当前浏览器不支持一键安装，请使用浏览器菜单安装');
+  message.warning('当前浏览器不支持安装应用');
 }
 </script>
 
