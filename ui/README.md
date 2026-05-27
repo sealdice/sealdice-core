@@ -51,16 +51,17 @@ pnpm run lint          # ESLint
 
 ## 浏览器兼容
 
-项目开发和主体验默认按现代浏览器进行，当前把 Chrome 98+ 视为主要用户环境，同时通过单一路径的全量 polyfill 兼容更低版本的模块浏览器。
+项目开发仍以现代 Chrome 为主，但生产构建会兼容更低版本浏览器，目标是让旧版用户平稳迁移到 V2 UI。
 
-- 当前仅发布 `type="module"` 的 modern 构建，不再提供 `nomodule` / SystemJS legacy bundles。
-- 兼容目标由 [.browserslistrc](.browserslistrc) 定义，目前为 Chrome 78+、Firefox 67+、Safari 12+。
-- `@vitejs/plugin-legacy` 只用于给 modern 构建注入 polyfill，并已开启 `modernPolyfills: true`，因此支持范围内的浏览器都会先加载同一份 polyfill bundle。
-- `structuredClone` 这类不属于 core-js 覆盖面的 Web API 继续由 `src/polyfills/` 下的应用级 polyfill 管理。
+- 当前使用 `Vite 8` + `@vitejs/plugin-legacy` 生成 modern 与 legacy 两套产物。
+- 兼容目标由 [.browserslistrc](.browserslistrc) 定义，目前为 Chrome 78+、Firefox 67+、Safari 14+。
+- `structuredClone`、`ResizeObserver` 这类不属于 core-js 自动覆盖面的能力，继续由 `src/polyfills/` 下的应用级 polyfill 管理。
+- 登录密码哈希和上传文件哈希都提供了运行时 fallback，不依赖浏览器必须具备原生 Web Crypto。
+- PWA 安装、Parquet 高级日志预览、DOCX 导出这类增强能力在旧浏览器中允许降级或隐藏，不纳入核心兼容承诺。
 
 如果新增运行时能力，请先判断它属于哪一类：
 
-- ES / core-js 能覆盖：优先继续交给 `vite.config.ts` 中的 modern polyfill 配置处理。
+- ES / core-js 能覆盖：优先继续交给 `@vitejs/plugin-legacy` 处理。
 - Web API：优先做显式 fallback 或在 `src/polyfills/` 中单独管理。
 
 ## 目录结构

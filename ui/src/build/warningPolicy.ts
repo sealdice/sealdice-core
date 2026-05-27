@@ -18,6 +18,15 @@ export function shouldSuppressRollupWarning(warning: RollupWarningLike): boolean
   }
 
   if (
+    warning.code === 'INVALID_ANNOTATION' &&
+    id.includes('/fzstd@') &&
+    id.includes('/node_modules/fzstd/') &&
+    message.includes('#__PURE__')
+  ) {
+    return true;
+  }
+
+  if (
     warning.code === 'EVAL' &&
     id.includes('/eruda@') &&
     id.includes('/node_modules/eruda/eruda.js')

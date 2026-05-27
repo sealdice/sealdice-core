@@ -1,9 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
-import tailwindcss from 'tailwindcss'
-import autoprefixer from 'autoprefixer'
-import postcssColorMix from '@csstools/postcss-color-mix-function'
 
 import { defineConfig } from 'vite'
+import type { PluginOption } from 'vite'
 import VueRouter from 'vue-router/vite'
 import legacy from '@vitejs/plugin-legacy'
 import vue from '@vitejs/plugin-vue'
@@ -30,9 +28,8 @@ const apiProxyTarget = (
 ).trim()
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
-  base: resolveVitePublicBase(mode),
-  plugins: [
+export default defineConfig(({ mode }) => {
+  const plugins: PluginOption[] = [
     VueRouter({
       routesFolder: 'src/pages',
       dts: 'typed-router.d.ts',
@@ -40,7 +37,7 @@ export default defineConfig(({ mode }) => ({
     }),
     vue(),
     vueJsx(),
-    vueDevTools(),
+    mode === 'development' ? vueDevTools() : null,
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'pwa-192.svg', 'pwa-512.svg', 'pwa-maskable.svg'],
@@ -104,85 +101,89 @@ export default defineConfig(({ mode }) => ({
       autoInstall: true
     }),
     legacy({
-      // Keep a single module build and let plugin-legacy inject the full
-      // modern polyfill bundle for the supported browser matrix below.
-      modernPolyfills: true,
-      modernTargets: ['Chrome >= 78',
-        "Firefox >= 67",
-        'Safari >= 14'],
-      // We do not ship nomodule/SystemJS bundles anymore; all supported users
-      // stay on the module path and receive the modern polyfill bundle.
-      renderLegacyChunks: false,
+      // 用Chrome79测了一下好像问题不算特别大的样子，有些功能降级，但能用
+      // 感觉这就很极端的场景了，现在连2345浏览器都上100+了
+      targets: ['Chrome >= 78', 'Firefox >= 67', 'Safari >= 14'],
+      renderLegacyChunks: false // 这个已经是老古董级别的了，海豹啥的都不支持，别费心了还得打包一份额外文件
     }),
-    mode === 'analyze' && visualizer({
+    mode === 'analyze' ? visualizer({
       filename: 'stats.html',
       emitFile: true,
       title: 'SealDice UI Bundle',
       gzipSize: true,
       brotliSize: true,
       template: 'treemap',
-    }),
-  ],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    },
-  },
-  css: {
-    postcss: {
-      plugins: [
-        tailwindcss(),
-        postcssColorMix({
-          preserve: true,
-        }),
-        autoprefixer(),
-      ],
-    },
-  },
-  server: {
-    host: '0.0.0.0',
-    port: 5175,
-    strictPort: true,
-    proxy: {
-      '^/api': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        xfwd: true,
-      },
-      '^/sd-api': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        ws: true,
-        xfwd: true,
-      },
-      '^/openapi.json$': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        xfwd: true,
-      },
-      '^/docs(?:/.*)?$': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        xfwd: true,
-      },
-      '^/schemas(?:/.*)?$': {
-        target: apiProxyTarget,
-        changeOrigin: true,
-        xfwd: true,
+    }) : null,
+  ]
+
+  return {
+    base: resolveVitePublicBase(mode),
+    build: {
+      chunkSizeWarningLimit: 650,
+      ...resolveViteBuildOptions(mode),
+      rolldownOptions: {
+        onLog(level, log, defaultHandler) {
+          if (log.code === 'CIRCULAR_DEPENDENCY') {
+            return; // Ignore circular dependency warnings
+          }
+          if (level === 'warn') {
+            if (shouldSuppressRollupWarning(log)) return
+            defaultHandler('error',log)
+          } else {
+            defaultHandler(level, log); // otherwise, just print the log
+          }
+        },
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name(moduleId) {
+                  classifyVendorChunk(moduleId)
+                },
+              },
+            ],
+          },
+        },
       },
     },
-  },
-  build: {
-    chunkSizeWarningLimit: 650,
-    ...resolveViteBuildOptions(mode),
-    rollupOptions: {
-      onwarn(warning, defaultHandler) {
-        if (shouldSuppressRollupWarning(warning)) return
-        defaultHandler(warning)
-      },
-      output: {
-        manualChunks: classifyVendorChunk,
+    plugins,
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url))
       },
     },
-  },
-}))
+    server: {
+      host: '0.0.0.0',
+      port: 5175,
+      strictPort: true,
+      proxy: {
+        '^/api': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          xfwd: true,
+        },
+        '^/sd-api': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          ws: true,
+          xfwd: true,
+        },
+        '^/openapi.json$': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          xfwd: true,
+        },
+        '^/docs(?:/.*)?$': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          xfwd: true,
+        },
+        '^/schemas(?:/.*)?$': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          xfwd: true,
+        },
+      },
+    },
+  }
+})

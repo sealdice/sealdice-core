@@ -24,6 +24,15 @@ assertEqual(
 
 assertEqual(
   shouldSuppressRollupWarning({
+    code: 'INVALID_ANNOTATION',
+    id: '/project/node_modules/.pnpm/fzstd@0.1.1/node_modules/fzstd/esm/index.mjs',
+    message: 'A comment "/*#__PURE__*/" contains an annotation that Rolldown cannot interpret due to the position of the comment.',
+  }),
+  true,
+);
+
+assertEqual(
+  shouldSuppressRollupWarning({
     code: 'EVAL',
     id: '/project/src/features/debug/local.ts',
     message: 'Use of eval in "src/features/debug/local.ts" is strongly discouraged.',
