@@ -51,3 +51,4 @@ sealdice-lock.lock
 upgrade_metadata.json
 
 /signature/**/*
+ui/components.d.ts

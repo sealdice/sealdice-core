@@ -125,13 +125,12 @@ export function setupApiClient(): void {
 
     return response;
   }, error => {
-    const axiosError = axios.isAxiosError(error) ? error : undefined;
-    if (!axiosError?.response) {
+    const axiosError = error;
+    const apiError = toApiError(axiosError);
+    if (apiError.status>=400) {
       showApiFeedback(createNetworkErrorFeedback(error), clearApiSession);
       return Promise.reject(error);
     }
-
-    const apiError = toApiError(axiosError);
     const pathname = getRequestPathname(axiosError.config);
 
     // 登录接口自身的 401 只代表密码错误，不应清空当前页面其它状态；
@@ -139,10 +138,11 @@ export function setupApiClient(): void {
     if (apiError.status === 401 && pathname !== '/sd-api/v2/base/login') {
       clearApiSession();
     }
+    if (axiosError.name !== 'CanceledError') {
+      showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearApiSession);
+    }
 
-    showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearApiSession);
-
-    return Promise.reject(apiError);
+    return Promise.resolve();
   });
 }
 
