@@ -222,7 +222,7 @@ const emit = defineEmits<{
 }>();
 </script>
 
-<style scoped>
+<style>
 .wizard-step-panel {
   min-height: 240px;
 }
@@ -337,6 +337,32 @@ const emit = defineEmits<{
 
   .wizard-actions {
     flex-wrap: wrap;
+  }
+}
+/* 当屏幕宽度小于400px时应用这些样式 */
+@media (max-width: 500px) {
+  .n-steps>.n-step {
+    max-width: 300px;
+    
+    /* 添加动画过渡功能 */
+    transition: all 0.3s ease-in-out; /* 你可以根据需要调整过渡时间和缓动函数 */
+    flex: none;
+    margin-right: 20px;
+  }
+  .n-step>.n-step-content {
+    max-width: 300px;
+    width: 0;
+    flex: none;
+    /* 添加动画过渡功能 */
+    transition: all 0.3s ease-in-out; /* 你可以根据需要调整过渡时间和缓动函数 */
+    overflow: hidden;
+  }
+  .n-step--process-status {
+    flex: 1;
+    margin: none;
+  }
+  .n-step--process-status .n-step-content{
+    width: 75px;
   }
 }
 </style>
