@@ -8,7 +8,7 @@
       <span>
         <n-input v-model:value="filter" size="small" placeholder="" clearable>
           <template #prefix>
-            <n-icon><i-carbon-search /></n-icon>
+            <n-icon><i-ep-search /></n-icon>
           </template>
         </n-input>
       </span>

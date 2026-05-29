@@ -12,7 +12,7 @@
     />
     <div v-else class="resource-preview__fallback" :class="{ 'resource-preview__fallback--failed': failed }">
       <n-icon size="22">
-        <i-carbon-image />
+        <i-ep-picture />
       </n-icon>
     </div>
   </div>

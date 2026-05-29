@@ -15,7 +15,7 @@
       <n-flex align="center" wrap>
         <n-button type="success" secondary :loading="addPending" @click="emit('openAdd')">
           <template #icon>
-            <n-icon><i-carbon-add-large /></n-icon>
+            <n-icon><i-ep-plus /></n-icon>
           </template>
           添加
         </n-button>
@@ -27,14 +27,14 @@
         >
           <n-button type="info" secondary :loading="importPending">
             <template #icon>
-              <n-icon><i-carbon-upload /></n-icon>
+              <n-icon><i-ep-upload /></n-icon>
             </template>
             导入
           </n-button>
         </n-upload>
         <n-button type="info" secondary @click="emit('export')">
           <template #icon>
-            <n-icon><i-carbon-download /></n-icon>
+            <n-icon><i-ep-download /></n-icon>
           </template>
           导出
         </n-button>
@@ -56,7 +56,7 @@
             <template #header-extra>
               <n-button type="error" size="small" secondary @click="emit('delete', item)">
                 <template #icon>
-                  <n-icon><i-carbon-row-delete /></n-icon>
+                  <n-icon><i-ep-delete /></n-icon>
                 </template>
                 删除
               </n-button>

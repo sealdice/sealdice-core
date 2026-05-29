@@ -80,29 +80,29 @@
         <n-text size="small">
           官网
           <n-icon :color="getWebsiteHealthOK('seal') ? 'var(--success-color)' : 'var(--error-color)'">
-            <i-carbon-checkmark-filled v-if="getWebsiteHealthOK('seal')" />
-            <i-carbon-close-filled v-else />
+            <i-ep-success-filled v-if="getWebsiteHealthOK('seal')" />
+            <i-ep-circle-close-filled v-else />
           </n-icon>
         </n-text>
         <n-text size="small">
           Lagrange Sign
           <n-icon :color="getWebsiteHealthOK('sign') ? 'var(--success-color)' : 'var(--error-color)'">
-            <i-carbon-checkmark-filled v-if="getWebsiteHealthOK('sign')" />
-            <i-carbon-close-filled v-else />
+            <i-ep-success-filled v-if="getWebsiteHealthOK('sign')" />
+            <i-ep-circle-close-filled v-else />
           </n-icon>
         </n-text>
         <n-text size="small">
           Google
           <n-icon :color="getWebsiteHealthOK('google') ? 'var(--success-color)' : 'var(--error-color)'">
-            <i-carbon-checkmark-filled v-if="getWebsiteHealthOK('google')" />
-            <i-carbon-close-filled v-else />
+            <i-ep-success-filled v-if="getWebsiteHealthOK('google')" />
+            <i-ep-circle-close-filled v-else />
           </n-icon>
         </n-text>
         <n-text size="small">
           GitHub
           <n-icon :color="getWebsiteHealthOK('github') ? 'var(--success-color)' : 'var(--error-color)'">
-            <i-carbon-checkmark-filled v-if="getWebsiteHealthOK('github')" />
-            <i-carbon-close-filled v-else />
+            <i-ep-success-filled v-if="getWebsiteHealthOK('github')" />
+            <i-ep-circle-close-filled v-else />
           </n-icon>
         </n-text>
       </div>
@@ -113,7 +113,7 @@
       <div class="log-controls">
         <n-button size="small" secondary @click="scrollToLatestLog">
           <template #icon>
-            <n-icon><i-carbon-arrow-down /></n-icon>
+            <n-icon><i-ep-arrow-down /></n-icon>
           </template>
           最新日志
         </n-button>
@@ -258,7 +258,7 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
           <div class='log-time' style={{ color }}>
             {isMobile.value ? null : (
               <n-icon>
-                <i-carbon-time />
+                <i-ep-timer />
               </n-icon>
             )}
             <span class='log-time-text'>

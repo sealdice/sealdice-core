@@ -8,7 +8,7 @@
         class="ext-defaults-search"
       >
         <template #prefix>
-          <i-carbon-search />
+          <i-ep-search />
         </template>
       </n-input>
 

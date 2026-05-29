@@ -12,7 +12,7 @@
       <template #extra>
         <n-button type="primary" secondary @click="emit('loadFull')">
           <template #icon>
-            <n-icon><i-carbon-document /></n-icon>
+            <n-icon><i-ep-document /></n-icon>
           </template>
           载入完整文本
         </n-button>

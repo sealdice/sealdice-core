@@ -32,7 +32,7 @@
         >
           <n-button type="primary">
             <template #icon>
-              <n-icon><i-carbon-upload /></n-icon>
+              <n-icon><i-ep-upload /></n-icon>
             </template>
             选择文件
           </n-button>

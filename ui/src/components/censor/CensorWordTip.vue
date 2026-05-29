@@ -42,7 +42,7 @@
                 href="https://toml.io/cn/v1.0.0"
               >
                 <template #icon>
-                  <n-icon><i-carbon-search /></n-icon>
+                  <n-icon><i-ep-search /></n-icon>
                 </template>
                 了解 toml 格式
               </n-button>

@@ -70,8 +70,6 @@
   "devDependencies": {
     "@csstools/postcss-color-mix-function": "^3.0.12",
     "@hey-api/openapi-ts": "^0.91.1",
-    "@iconify-json/bi": "^1.2.7",
-    "@iconify-json/carbon": "^1.2.21",
     "@iconify-json/ep": "^1.2.4",
     "@prettier/plugin-oxc": "^0.0.4",
     "@tsconfig/node22": "^22.0.2",

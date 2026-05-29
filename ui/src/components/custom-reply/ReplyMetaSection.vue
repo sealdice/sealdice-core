@@ -19,7 +19,7 @@
         @click="emit('save')"
       >
         <template #icon>
-          <n-icon><i-carbon-save /></n-icon>
+          <n-icon><i-ep-document-checked /></n-icon>
         </template>
         保存
       </n-button>

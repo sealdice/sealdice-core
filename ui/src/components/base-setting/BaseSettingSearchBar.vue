@@ -2,7 +2,7 @@
   <section class="base-setting-search">
     <n-input v-model:value="keyword" clearable placeholder="搜索配置项、功能名、提示词">
       <template #prefix>
-        <n-icon><i-carbon-search /></n-icon>
+        <n-icon><i-ep-search /></n-icon>
       </template>
     </n-input>
 

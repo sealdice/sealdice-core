@@ -90,7 +90,7 @@
           <template #trigger>
             <n-button type="primary" disabled>
               <template #icon>
-                <i-carbon-upload />
+                <i-ep-upload />
               </template>
               上传压缩包
             </n-button>
@@ -108,7 +108,7 @@
       >
         <n-button type="primary" :disabled="!upgradeConfirmed" :loading="busyActionId === field.id">
           <template #icon>
-            <i-carbon-upload />
+            <i-ep-upload />
           </template>
           上传压缩包
         </n-button>

@@ -8,7 +8,7 @@
       <n-space size="small" align="center">
         <n-button size="small" secondary @click="emit('add')">
           <template #icon>
-            <n-icon><i-carbon-add-large /></n-icon>
+            <n-icon><i-ep-plus /></n-icon>
           </template>
           添加规则
         </n-button>

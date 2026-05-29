@@ -20,7 +20,7 @@
           >
             <template #icon>
               <n-icon>
-                <i-carbon-save />
+                <i-ep-document-checked />
               </n-icon>
             </template>
             保存

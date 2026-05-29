@@ -10,7 +10,7 @@
       >
         <template #icon>
           <n-icon size="1.2rem">
-            <i-carbon-paint-brush />
+            <i-ep-brush />
           </n-icon>
         </template>
       </n-button>

@@ -27,7 +27,7 @@
             <n-flex size="small" align="center" class="story-tools">
               <n-button type="primary" size="small" @click="logs.forEach(item => (item.pitch = !item.pitch))">
                 <template #icon>
-                  <n-icon><i-carbon-checkmark /></n-icon>
+                  <n-icon><i-ep-check /></n-icon>
                 </template>
                 全选
               </n-button>
@@ -38,7 +38,7 @@
                 @click="delLogs"
               >
                 <template #icon>
-                  <n-icon><i-carbon-row-delete /></n-icon>
+                  <n-icon><i-ep-delete /></n-icon>
                 </template>
                 删除所选
               </n-button>
@@ -64,7 +64,7 @@
                     <n-button size="small" secondary @click="openRawItem(log)">分页文本</n-button>
                     <n-button size="small" type="primary" secondary @click="uploadLog(log)">
                       <template #icon>
-                        <n-icon><i-carbon-upload /></n-icon>
+                        <n-icon><i-ep-upload /></n-icon>
                       </template>
                       提取日志
                     </n-button>
@@ -74,7 +74,7 @@
                     </n-button>
                     <n-button size="small" type="error" secondary @click="delLog(log)">
                       <template #icon>
-                        <n-icon><i-carbon-row-delete /></n-icon>
+                        <n-icon><i-ep-delete /></n-icon>
                       </template>
                       删除
                     </n-button>
@@ -134,7 +134,7 @@
             <template #header-extra>
               <n-button type="primary" @click="closeItem">
                 <template #icon>
-                  <n-icon><i-carbon-chevron-left /></n-icon>
+                  <n-icon><i-ep-arrow-left /></n-icon>
                 </template>
                 返回列表
               </n-button>

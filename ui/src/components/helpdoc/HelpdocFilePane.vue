@@ -3,19 +3,19 @@
     <n-flex justify="end" align="center" wrap>
       <n-button v-show="checkedKeys.length > 0" type="error" secondary :loading="deleting" @click="emit('deleteFiles')">
         <template #icon>
-          <n-icon><i-carbon-row-delete /></n-icon>
+          <n-icon><i-ep-delete /></n-icon>
         </template>
         删除所选
       </n-button>
       <n-button type="info" secondary @click="emit('openUpload')">
         <template #icon>
-          <n-icon><i-carbon-upload /></n-icon>
+          <n-icon><i-ep-upload /></n-icon>
         </template>
         上传
       </n-button>
       <n-button type="info" secondary @click="emit('openConfig')">
         <template #icon>
-          <n-icon><i-carbon-settings /></n-icon>
+          <n-icon><i-ep-setting /></n-icon>
         </template>
         设置
       </n-button>
@@ -111,10 +111,10 @@ const emit = defineEmits<{
 function renderPrefix({ option }: TreeRenderContext) {
   const raw = option as HelpDocTreeOption | undefined;
   const icon = raw?.icon;
-  if (icon === 'folder') return <i-bi-folder2 color='var(--sd-muted-fg, #606266)' />;
-  if (icon === 'json') return <i-bi-filetype-json color='#d97706' />;
-  if (icon === 'xlsx') return <i-bi-filetype-xlsx color='#16a34a' />;
-  return <i-bi-file-break />;
+  if (icon === 'folder') return <i-ep-folder color='var(--sd-muted-fg, #606266)' />;
+  if (icon === 'json') return <i-ep-document color='#d97706' />;
+  if (icon === 'xlsx') return <i-ep-document color='#16a34a' />;
+  return <i-ep-document />;
 }
 
 function renderLabel({ option }: TreeRenderContext) {

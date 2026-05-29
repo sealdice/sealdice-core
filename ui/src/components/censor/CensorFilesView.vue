@@ -10,7 +10,7 @@
     >
       <n-button type="info" secondary>
         <template #icon>
-          <n-icon><i-carbon-upload /></n-icon>
+          <n-icon><i-ep-upload /></n-icon>
         </template>
         导入
       </n-button>
@@ -18,13 +18,13 @@
     <n-flex class="censor-files-template-actions">
       <n-button type="primary" size="tiny" text @click="downloadTomlTemplate">
         <template #icon>
-          <n-icon><i-carbon-download /></n-icon>
+          <n-icon><i-ep-download /></n-icon>
         </template>
         下载 toml 词库模板
       </n-button>
       <n-button type="primary" size="tiny" text @click="downloadTxtTemplate">
         <template #icon>
-          <n-icon><i-carbon-save /></n-icon>
+          <n-icon><i-ep-document-checked /></n-icon>
         </template>
         下载 txt 词库模板
       </n-button>

@@ -14,7 +14,7 @@
             <n-button text size="tiny" class="container-indicator">
               <template #icon>
                 <n-icon>
-                  <i-carbon-container-software />
+                  <i-ep-box />
                 </n-icon>
               </template>
             </n-button>

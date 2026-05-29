@@ -27,7 +27,7 @@
           <template #trigger>
             <NButton secondary>
               <template #icon>
-                <NIcon><i-carbon-add-large /></NIcon>
+                <NIcon><i-ep-plus /></NIcon>
               </template>
               快捷操作
             </NButton>

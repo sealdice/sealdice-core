@@ -22,7 +22,7 @@
             <span>显示高级设置页</span>
             <n-tooltip>
               <template #trigger>
-                <n-icon><i-carbon-help-filled /></n-icon>
+                <n-icon><i-ep-question-filled /></n-icon>
               </template>
               设置是否显示高级设置页，只影响展示
             </n-tooltip>
@@ -35,7 +35,7 @@
             <span>启用高级设置</span>
             <n-tooltip>
               <template #trigger>
-                <n-icon><i-carbon-help-filled /></n-icon>
+                <n-icon><i-ep-question-filled /></n-icon>
               </template>
               设置是否启用高级设置，关闭时下列设置无效
             </n-tooltip>
@@ -49,7 +49,7 @@
             <span>Eruda 调试面板</span>
             <n-tooltip>
               <template #trigger>
-                <n-icon><i-carbon-help-filled /></n-icon>
+                <n-icon><i-ep-question-filled /></n-icon>
               </template>
               仅对当前浏览器生效，状态保存在本机，不会同步到后端。
             </n-tooltip>
@@ -67,7 +67,7 @@
             <span>回复调试日志</span>
             <n-tooltip>
               <template #trigger>
-                <n-icon><i-carbon-help-filled /></n-icon>
+                <n-icon><i-ep-question-filled /></n-icon>
               </template>
               开启自定义回复调试日志，打印字符细节
             </n-tooltip>
@@ -81,7 +81,7 @@
             <span>自定义后端 URL</span>
             <n-tooltip>
               <template #trigger>
-                <n-icon><i-carbon-help-filled /></n-icon>
+                <n-icon><i-ep-question-filled /></n-icon>
               </template>
               设置第三方跑团日志后端 URL
             </n-tooltip>
@@ -94,7 +94,7 @@
             <span>API 版本</span>
             <n-tooltip>
               <template #trigger>
-                <n-icon><i-carbon-help-filled /></n-icon>
+                <n-icon><i-ep-question-filled /></n-icon>
               </template>
               指定后端的 API 版本
             </n-tooltip>
@@ -107,7 +107,7 @@
             <span>Token</span>
             <n-tooltip>
               <template #trigger>
-                <n-icon><i-carbon-help-filled /></n-icon>
+                <n-icon><i-ep-question-filled /></n-icon>
               </template>
               指定传递给后端的 token
             </n-tooltip>

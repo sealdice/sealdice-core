@@ -8,7 +8,7 @@
             <n-tooltip placement="top">
               <template #trigger>
                 <n-icon class="public-dice-profile-form__help">
-                  <i-carbon-help-filled />
+                  <i-ep-question-filled />
                 </n-icon>
               </template>
               公骰 UID 是上报公骰所使用的密钥，通常留空让系统自动生成，请勿随意展示给他人。
@@ -31,7 +31,7 @@
             <n-tooltip placement="top">
               <template #trigger>
                 <n-icon class="public-dice-profile-form__help">
-                  <i-carbon-help-filled />
+                  <i-ep-question-filled />
                 </n-icon>
               </template>
               展示在公骰列表中的昵称。
@@ -52,7 +52,7 @@
             <n-tooltip placement="top">
               <template #trigger>
                 <n-icon class="public-dice-profile-form__help">
-                  <i-carbon-help-filled />
+                  <i-ep-question-filled />
                 </n-icon>
               </template>
               展示在公骰列表中的头像 URL。
@@ -73,7 +73,7 @@
             <n-tooltip placement="top">
               <template #trigger>
                 <n-icon class="public-dice-profile-form__help">
-                  <i-carbon-help-filled />
+                  <i-ep-question-filled />
                 </n-icon>
               </template>
               展示在公骰列表中的骰主留言。

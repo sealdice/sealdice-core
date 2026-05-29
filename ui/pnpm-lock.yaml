@@ -138,12 +138,6 @@ importers:
       '@hey-api/openapi-ts':
         specifier: ^0.91.1
         version: 0.91.1(typescript@5.8.3)
-      '@iconify-json/bi':
-        specifier: ^1.2.7
-        version: 1.2.7
-      '@iconify-json/carbon':
-        specifier: ^1.2.21
-        version: 1.2.21
       '@iconify-json/ep':
         specifier: ^1.2.4
         version: 1.2.4
@@ -1192,12 +1186,6 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
-
-  '@iconify-json/bi@1.2.7':
-    resolution: {integrity: sha512-IPz8WNxmLkH1I9msl+0Q4OnmjjvP4uU0Z61a4i4sqonB6vKSbMGUWuGn8/YuuszlReVj8rf+3gNv5JU8Xoljyg==}
-
-  '@iconify-json/carbon@1.2.21':
-    resolution: {integrity: sha512-yCutC5KWR7uiXdCum1MqNrnfUhq118WYhHkUiBux6wekc6UnlVKvIte54AER0B2uEe0wfKxFIMoJqJugjViATQ==}
 
   '@iconify-json/ep@1.2.4':
     resolution: {integrity: sha512-dtKOueYp1CRxAUW+GayIiuHqOlELfO0W3QiHOH4NjvKtBn2uxZbByIKQ+7B1Hj+AgZrhWTie3QKYkZn+VQVZrw==}
@@ -5638,14 +5626,6 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
-
-  '@iconify-json/bi@1.2.7':
-    dependencies:
-      '@iconify/types': 2.0.0
-
-  '@iconify-json/carbon@1.2.21':
-    dependencies:
-      '@iconify/types': 2.0.0
 
   '@iconify-json/ep@1.2.4':
     dependencies:

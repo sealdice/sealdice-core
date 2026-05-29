@@ -2,7 +2,7 @@
   <aside class="reply-sidebar">
     <div class="panel-head">
       <div class="panel-title">
-        <n-icon><i-carbon-folder /></n-icon>
+        <n-icon><i-ep-folder /></n-icon>
         <span>文件管理</span>
       </div>
       <div class="panel-toolbar">
@@ -10,7 +10,7 @@
           <template #trigger>
             <n-button size="small" quaternary circle @click="emit('create')">
               <template #icon>
-                <n-icon><i-carbon-document-add /></n-icon>
+                <n-icon><i-ep-document-add /></n-icon>
               </template>
             </n-button>
           </template>
@@ -27,7 +27,7 @@
             >
               <n-button size="small" quaternary circle>
                 <template #icon>
-                  <n-icon><i-carbon-upload /></n-icon>
+                  <n-icon><i-ep-upload /></n-icon>
                 </template>
               </n-button>
             </n-upload>
@@ -39,7 +39,7 @@
           <template #trigger>
             <n-button size="small" quaternary circle @click="emit('openImport')">
               <template #icon>
-                <n-icon><i-carbon-document /></n-icon>
+                <n-icon><i-ep-document /></n-icon>
               </template>
             </n-button>
           </template>
@@ -50,7 +50,7 @@
           <template #trigger>
             <n-button size="small" quaternary circle :disabled="!selectedFilename" @click="emit('download')">
               <template #icon>
-                <n-icon><i-carbon-download /></n-icon>
+                <n-icon><i-ep-download /></n-icon>
               </template>
             </n-button>
           </template>
@@ -61,7 +61,7 @@
           <template #trigger>
             <n-button size="small" quaternary circle type="error" :disabled="!selectedFilename" @click="emit('delete')">
               <template #icon>
-                <n-icon><i-carbon-row-delete /></n-icon>
+                <n-icon><i-ep-delete /></n-icon>
               </template>
             </n-button>
           </template>
@@ -95,7 +95,7 @@
       >
         <div class="file-item-main">
           <div class="file-item-name-row">
-            <n-icon class="file-item-icon"><i-carbon-document-blank /></n-icon>
+            <n-icon class="file-item-icon"><i-ep-document /></n-icon>
             <span class="file-item-name">{{ item.filename }}</span>
           </div>
           <div class="file-item-meta">

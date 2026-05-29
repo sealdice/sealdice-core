@@ -19,20 +19,20 @@
           <div class="rule-actions">
             <n-button class="rule-drag-handle" size="small" quaternary circle>
               <template #icon>
-                <n-icon><i-carbon-move /></n-icon>
+                <n-icon><i-ep-rank /></n-icon>
               </template>
             </n-button>
             <n-button type="error" size="small" secondary @click="deleteItem(index)">
               <template #icon>
-                <n-icon><i-carbon-row-delete /></n-icon>
+                <n-icon><i-ep-delete /></n-icon>
               </template>
               <template v-if="notMobile" #default>删除</template>
             </n-button>
             <n-button size="small" quaternary circle @click="toggleFold(index)">
               <template #icon>
                 <n-icon>
-                  <i-carbon-chevron-right v-if="isFolded(index)" />
-                  <i-carbon-chevron-down v-else />
+                  <i-ep-arrow-right v-if="isFolded(index)" />
+                  <i-ep-arrow-down v-else />
                 </n-icon>
               </template>
             </n-button>
@@ -48,7 +48,7 @@
               </div>
               <n-button type="success" size="small" secondary @click="addCond(el.conditions)">
                 <template #icon>
-                  <n-icon><i-carbon-add-large /></n-icon>
+                  <n-icon><i-ep-plus /></n-icon>
                 </template>
                 增加
               </n-button>
@@ -68,7 +68,7 @@
               </div>
               <n-button type="success" size="small" secondary @click="addResult(el.results)">
                 <template #icon>
-                  <n-icon><i-carbon-add-large /></n-icon>
+                  <n-icon><i-ep-plus /></n-icon>
                 </template>
                 增加
               </n-button>
@@ -94,7 +94,7 @@
                         延迟
                         <n-tooltip trigger="hover">
                           <template #trigger>
-                            <n-icon size="14"><i-carbon-help-filled /></n-icon>
+                            <n-icon size="14"><i-ep-question-filled /></n-icon>
                           </template>
                           文本将在此延迟后发送，单位秒，可小数。<br />注意随机延迟仍会被加入，如果你希望保证发言顺序，记得考虑这点。
                         </n-tooltip>
@@ -109,7 +109,7 @@
 
                   <n-button type="error" size="small" secondary @click="deleteAnyItem(el.results, rIdx)">
                     <template #icon>
-                      <n-icon><i-carbon-row-delete /></n-icon>
+                      <n-icon><i-ep-delete /></n-icon>
                     </template>
                     <template v-if="notMobile" #default>删除结果</template>
                   </n-button>
@@ -135,7 +135,7 @@
                           @click="addMessageItem(result.message)"
                         >
                           <template #icon>
-                            <n-icon><i-carbon-add-filled /></n-icon>
+                            <n-icon><i-ep-circle-plus-filled /></n-icon>
                           </template>
                         </n-button>
                         <n-button
@@ -147,7 +147,7 @@
                           @click="removeMessageItem(result.message, mIdx)"
                         >
                           <template #icon>
-                            <n-icon><i-carbon-close-outline /></n-icon>
+                            <n-icon><i-ep-circle-close /></n-icon>
                           </template>
                         </n-button>
                       </template>

@@ -71,7 +71,7 @@
           @click="addTemplateItem"
         >
           <template #icon>
-            <n-icon><i-carbon-add /></n-icon>
+            <n-icon><i-ep-plus /></n-icon>
           </template>
         </n-button>
         <n-button
@@ -83,7 +83,7 @@
           @click="removeTemplateItem(index)"
         >
           <template #icon>
-            <n-icon><i-carbon-close /></n-icon>
+            <n-icon><i-ep-close /></n-icon>
           </template>
         </n-button>
       </div>

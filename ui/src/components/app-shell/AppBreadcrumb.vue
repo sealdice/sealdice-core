@@ -14,9 +14,9 @@
         >
           <template #icon>
             <n-icon size="1.2rem">
-              <i-carbon-menu v-if="props.mobileMode" />
-              <i-carbon-side-panel-open v-else-if="props.collapsed" />
-              <i-carbon-side-panel-close v-else />
+              <i-ep-menu v-if="props.mobileMode" />
+              <i-ep-expand v-else-if="props.collapsed" />
+              <i-ep-fold v-else />
             </n-icon>
           </template>
         </n-button>
@@ -44,7 +44,7 @@
         <button type="button" class="search-entry" @click="emit('openSearch')">
           <span class="search-label">
             <n-icon size="1.1rem">
-              <i-carbon-search />
+              <i-ep-search />
             </n-icon>
             <span>搜索</span>
           </span>
@@ -62,7 +62,7 @@
               >
                 <template #icon>
                   <n-icon size="1.3rem">
-                    <i-carbon-notification />
+                    <i-ep-bell />
                   </n-icon>
                 </template>
               </n-button>

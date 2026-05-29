@@ -61,7 +61,7 @@ function icon(name?: string) {
 function expandIcon() {
   return (
     <n-icon>
-      <i-carbon-caret-right />
+      <i-ep-caret-right />
     </n-icon>
   );
 }

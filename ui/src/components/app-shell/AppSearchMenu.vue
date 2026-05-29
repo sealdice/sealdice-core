@@ -32,14 +32,14 @@
           >
             <template #prefix>
               <n-icon>
-                <i-carbon-search />
+                <i-ep-search />
               </n-icon>
             </template>
             <template #suffix>
               <n-button circle quaternary size="small" @click="close">
                 <template #icon>
                   <n-icon>
-                    <i-carbon-close />
+                    <i-ep-close />
                   </n-icon>
                 </template>
               </n-button>
@@ -79,7 +79,7 @@
                   <n-button circle quaternary size="small" @click="copyLink(item, $event)">
                     <template #icon>
                       <n-icon>
-                        <i-carbon-link />
+                        <i-ep-link />
                       </n-icon>
                     </template>
                   </n-button>
@@ -92,7 +92,7 @@
                   <n-button circle quaternary size="small" @click="openInNewWindow(item, $event)">
                     <template #icon>
                       <n-icon>
-                        <i-carbon-launch />
+                        <i-ep-top-right />
                       </n-icon>
                     </template>
                   </n-button>
@@ -105,7 +105,7 @@
                   <n-button circle quaternary size="small" @click="removeHistory(item, $event)">
                     <template #icon>
                       <n-icon>
-                        <i-carbon-close />
+                        <i-ep-close />
                       </n-icon>
                     </template>
                   </n-button>
@@ -118,7 +118,7 @@
 
         <div v-else class="sd-search-empty">
           <n-icon size="38" class="sd-search-empty-icon">
-            <i-carbon-search-locate />
+            <i-ep-aim />
           </n-icon>
           <n-text depth="3">
             <template v-if="trimmedKeyword">

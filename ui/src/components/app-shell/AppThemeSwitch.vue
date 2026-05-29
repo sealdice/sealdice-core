@@ -12,8 +12,8 @@
         >
           <template #icon>
             <n-icon size="1.25rem">
-              <i-carbon-moon v-if="isDark" />
-              <i-carbon-sun v-else />
+              <i-ep-moon v-if="isDark" />
+              <i-ep-sunny v-else />
             </n-icon>
           </template>
         </n-button>
