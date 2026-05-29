@@ -8,6 +8,7 @@ import {
   postSdApiV2CensorStop,
   type CensorConfigBody,
 } from '@/api';
+import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse } from '@/features/testMode/state';
 import { invalidateCensorQueries } from './queries';
 
 export function useCensorMutations(options: {
@@ -25,7 +26,7 @@ export function useCensorMutations(options: {
       return data.item;
     },
     onSuccess: async item => {
-      if (item.testMode) {
+      if (isTestModeResponse(item)) {
         options.message.warning('展示模式无法启用拦截');
         return;
       }
@@ -33,7 +34,11 @@ export function useCensorMutations(options: {
       options.onReloaded();
       await invalidateCensorQueries(options.queryClient);
     },
-    onError: () => {
+    onError: error => {
+      if (isTestModeApiError(error)) {
+        options.message.warning(getTestModeBlockMessage(error));
+        return;
+      }
       options.message.error('重载拦截失败');
     },
   });

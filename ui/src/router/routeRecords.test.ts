@@ -28,6 +28,7 @@ const records = [
 const merged = withRouteMeta(records, {
   '/tool/resource': { title: '资源管理', layout: 'wide' },
   '/tool/test': { title: '指令测试', layout: 'default' },
+  '/mod/reply': { title: '自定义回复', layout: 'workspace' },
   '/custom-text/:category': { title: '自定义文案', layout: 'default' },
 });
 

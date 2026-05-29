@@ -7,13 +7,13 @@
           <p>{{ items.length }} 个备份文件</p>
         </div>
         <n-space>
-          <n-button type="primary" @click="emit('openBackup')">
+          <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
             立即备份
           </n-button>
-          <n-button type="error" secondary :disabled="items.length === 0" @click="emit('openBatchDelete')">
+          <n-button type="error" secondary :disabled="disabled || items.length === 0" @click="emit('openBatchDelete')">
             <template #icon>
               <n-icon>
-                <i-carbon-row-delete />
+                <i-ep-delete />
               </n-icon>
             </template>
             批量删除
@@ -24,7 +24,7 @@
 
     <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
       <template #extra>
-        <n-button type="primary" @click="emit('openBackup')">
+        <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
           立即备份
         </n-button>
       </template>
@@ -55,6 +55,7 @@ const props = defineProps<{
   loading: boolean;
   downloadingName: string;
   deletingName: string;
+  disabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -108,6 +109,7 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
           type='error'
           secondary
           loading={props.deletingName === row.name}
+          disabled={props.disabled}
           onClick={() => emit('delete', row)}
         >
           删除

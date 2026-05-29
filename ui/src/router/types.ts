@@ -1,6 +1,6 @@
 import type { RouteRecordName } from 'vue-router';
 
-export type AppLayoutName = 'default' | 'plain' | 'wide';
+export type AppLayoutName = 'default' | 'plain' | 'wide' | 'workspace';
 
 export interface NavigationItem {
   label: string;

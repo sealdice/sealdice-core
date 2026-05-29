@@ -1,9 +1,15 @@
 import { ApiError } from '@/api';
+import { isRequestCanceledError } from '@/api/client';
 
 // getErrorMessage 统一提取接口错误提示，避免页面层重复拆字段。
 export function getErrorMessage(error: unknown, fallback = '请求失败'): string {
   if (!error) {
     return fallback;
+  }
+
+  // Query 被页面切换主动取消时不向页面层暴露 “Canceled”，避免局部错误文案误报。
+  if (isRequestCanceledError(error)) {
+    return '';
   }
 
   if (error instanceof ApiError) {

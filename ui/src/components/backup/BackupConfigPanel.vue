@@ -8,13 +8,13 @@
         </div>
         <n-button
           type="primary"
-          :disabled="!dirty"
+          :disabled="!dirty || disabled"
           :loading="saving"
           @click="emit('save')"
         >
           <template #icon>
             <n-icon>
-              <i-carbon-save />
+              <i-ep-document-checked />
             </n-icon>
           </template>
           保存设置
@@ -22,7 +22,7 @@
       </div>
     </template>
 
-    <n-form :model="config" label-placement="top">
+      <n-form :model="config" label-placement="top" :disabled="disabled">
       <section class="backup-config-panel__section">
         <div class="backup-config-panel__section-title">
           <h3>自动备份</h3>
@@ -40,7 +40,7 @@
                 <n-tooltip placement="top">
                   <template #trigger>
                     <n-icon class="backup-config-panel__help">
-                      <i-carbon-help-filled />
+                      <i-ep-question-filled />
                     </n-icon>
                   </template>
                   备份间隔表达式使用 robfig/cron 格式，例如 @every 12h。
@@ -86,7 +86,7 @@
               <n-tooltip placement="top">
                 <template #trigger>
                   <n-icon class="backup-config-panel__help">
-                    <i-carbon-help-filled />
+                    <i-ep-question-filled />
                   </n-icon>
                 </template>
                 支持 h、m、s，例如 720h 表示保留 30 天内的备份。
@@ -104,7 +104,7 @@
                 <n-tooltip placement="top">
                   <template #trigger>
                     <n-icon class="backup-config-panel__help">
-                      <i-carbon-help-filled />
+                      <i-ep-question-filled />
                     </n-icon>
                   </template>
                   自动备份后会在每次自动备份完成后顺便清理；定时会按照 cron 表达式单独清理。
@@ -143,6 +143,7 @@ const props = defineProps<{
   dirty: boolean;
   saving: boolean;
   timestamp: string;
+  disabled?: boolean;
 }>();
 
 const emit = defineEmits<{

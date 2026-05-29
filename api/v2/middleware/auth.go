@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -73,7 +74,14 @@ func WriteProtectedMiddleware(api huma.API, d *dice.Dice) func(ctx huma.Context,
 			return
 		}
 		if d.Parent.JustForTest {
-			_ = huma.WriteErr(api, ctx, 403, "展示模式不支持该操作")
+			ctx.SetHeader("Content-Type", "application/json; charset=utf-8")
+			ctx.SetStatus(http.StatusForbidden)
+			_ = json.NewEncoder(ctx.BodyWriter()).Encode(map[string]any{
+				"code":     "TEST_MODE_BLOCKED",
+				"message":  "展示模式不支持该操作",
+				"detail":   "展示模式不支持该操作",
+				"testMode": true,
+			})
 			return
 		}
 		next(ctx)

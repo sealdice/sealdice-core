@@ -4,34 +4,31 @@
       <n-flex align="center" justify="space-between" wrap>
         <n-switch
           :value="jsEnable"
+          :disabled="isTestMode"
           :loading="jsSwitchBusy"
           @update:value="handleJsEnableToggle"
         >
           <template #checked>启用</template>
           <template #unchecked>关闭</template>
         </n-switch>
-        <n-button v-show="jsEnable" type="primary" @click="handleReload">
+        <n-button v-show="jsEnable" type="primary" :disabled="isTestMode" @click="handleReload">
           <template #icon>
-            <n-icon><i-carbon-renew /></n-icon>
+            <n-icon><i-ep-refresh /></n-icon>
           </template>
           重载 JS
         </n-button>
       </n-flex>
     </header>
 
-    <n-affix v-if="needReload" :top="60">
-      <TipBox type="error">
-        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
-      </TipBox>
-    </n-affix>
+    <ReloadNotice :show="needReload" />
 
     <n-affix v-if="jsConfigEdited" :top="70">
       <TipBox type="error">
         <n-flex wrap>
           <n-text type="error" tag="strong" class="text-base">配置内容已修改，不要忘记保存！</n-text>
-          <n-button type="info" secondary :disabled="!jsConfigEdited" @click="saveJsConfig">
+          <n-button type="info" secondary :disabled="!jsConfigEdited || isTestMode" @click="saveJsConfig">
             <template #icon>
-              <n-icon><i-carbon-save /></n-icon>
+              <n-icon><i-ep-document-checked /></n-icon>
             </template>
             点我保存
           </n-button>
@@ -46,8 +43,8 @@
             <header class="js-panel-header">
               <n-flex align="center" justify="space-between" wrap>
                 <n-text class="js-panel-title">JS 扩展执行环境</n-text>
-                <n-button type="info" secondary :disabled="!jsEnable || jsRunning" @click="doExecute">
-                  <template #icon><n-icon><i-carbon-play /></n-icon></template>
+                <n-button type="info" secondary :disabled="!jsEnable || jsRunning || isTestMode" @click="doExecute">
+                  <template #icon><n-icon><i-ep-video-play /></n-icon></template>
                   执行代码
                 </n-button>
               </n-flex>
@@ -80,7 +77,7 @@
                   <n-text depth="3" class="js-panel-subtitle">执行结果与轮询日志统一显示在这里</n-text>
                 </div>
                 <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
-                  <template #icon><n-icon><i-carbon-clean /></n-icon></template>
+                  <template #icon><n-icon><i-ep-delete /></n-icon></template>
                   清空日志
                 </n-button>
               </n-flex>
@@ -128,8 +125,10 @@ import {
   postSdApiV2JsReload,
   postSdApiV2JsShutdown,
 } from '@/api';
+import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
+import { getTestModeBlockMessage, isTestModeApiError, useTestMode } from '@/features/testMode/state';
 import JsListView from '@/components/js/JsListView.vue';
 import JsConfigView from '@/components/js/JsConfigView.vue';
 import JsDataView from '@/components/js/JsDataView.vue';
@@ -141,6 +140,7 @@ const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
 // list 管理脚本文件，config 管理插件配置，data 管理插件 KV 存储，
 // console 用于临时执行代码和查看输出。
 const message = useMessage();
+const { isTestMode } = useTestMode();
 const tab = ref<string>('list');
 
 const defaultText = [
@@ -226,6 +226,10 @@ function clearLogs() {
 
 async function doExecute() {
   if (!code.value.trim()) return;
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   jsRunning.value = true;
   appendExecutionSeparator();
   try {
@@ -242,7 +246,12 @@ async function doExecute() {
     } else if (item.ret !== undefined && item.ret !== null) {
       appendLogLine(String(item.ret));
     }
-  } catch {
+  } catch (error) {
+    if (isTestModeApiError(error)) {
+      appendLogLine(`[Error] ${getTestModeBlockMessage(error)}`);
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     appendLogLine('[Error] 执行失败');
     message.error('执行失败');
   } finally {
@@ -263,24 +272,40 @@ function startRecordPolling() {
 }
 
 async function handleReload() {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   try {
     await postSdApiV2JsReload({ throwOnError: true });
     message.success('已重载');
     needReload.value = false;
     statusQuery.refetch();
-  } catch {
+  } catch (error) {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error('重载失败');
   }
 }
 
 async function handleShutdown() {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   try {
     await postSdApiV2JsShutdown({ throwOnError: true });
     jsLines.value = [];
     jsEnable.value = false;
     message.success('已关闭 JS 支持');
     statusQuery.refetch();
-  } catch {
+  } catch (error) {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error('关闭失败');
   }
 }
@@ -311,6 +336,10 @@ function handleConfigDirtyChange(value: boolean) {
 
 async function saveJsConfig() {
   if (!jsConfigViewRef.value) return;
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   await jsConfigViewRef.value.saveAll();
 }
 

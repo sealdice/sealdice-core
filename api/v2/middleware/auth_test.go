@@ -1,12 +1,16 @@
 package middleware_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/humatest"
 	"github.com/gofiber/fiber/v2"
 
+	"sealdice-core/dice"
 	middleware "sealdice-core/api/v2/middleware"
 )
 
@@ -78,5 +82,45 @@ func TestTokenFromFiberCtxFallsBackToTokenHeaderAndQuery(t *testing.T) {
 	}
 	if tokens[1] != "query-token" {
 		t.Fatalf("query fallback token = %q, want query-token", tokens[1])
+	}
+}
+
+func TestWriteProtectedMiddlewareReturnsTestModePayload(t *testing.T) {
+	dm := &dice.DiceManager{JustForTest: true}
+	d := &dice.Dice{Parent: dm}
+	dm.Dice = []*dice.Dice{d}
+	d.Parent.AccessTokens.Store("token-1", true)
+	req := httptest.NewRequest(http.MethodPost, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer token-1")
+	rec := httptest.NewRecorder()
+	ctx := humatest.NewContext(nil, req, rec)
+
+	middleware.WriteProtectedMiddleware(nil, d)(ctx, func(huma.Context) {
+		t.Fatal("next should not be called in test mode")
+	})
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusForbidden)
+	}
+
+	var payload struct {
+		Code     string `json:"code"`
+		Detail   string `json:"detail"`
+		Message  string `json:"message"`
+		TestMode bool   `json:"testMode"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Code != "TEST_MODE_BLOCKED" {
+		t.Fatalf("code = %q, want TEST_MODE_BLOCKED", payload.Code)
+	}
+	if payload.Detail != "展示模式不支持该操作" {
+		t.Fatalf("detail = %q, want 展示模式不支持该操作", payload.Detail)
+	}
+	if !payload.TestMode {
+		t.Fatalf("testMode = false, want true")
 	}
 }

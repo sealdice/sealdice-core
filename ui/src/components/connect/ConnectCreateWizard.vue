@@ -102,7 +102,7 @@
       <DynamicForm
         v-model="formModel"
         :schema="selectedSchema"
-        :disabled="submitting"
+        :disabled="submitting || testModeDisabled"
         :label-placement="isMobile ? 'top' : 'left'"
         :label-width="isMobile ? undefined : 108"
       >
@@ -167,7 +167,7 @@
     <n-button
       v-if="wizardStep < 4"
       type="primary"
-      :disabled="!canSubmit"
+      :disabled="!canSubmit || testModeDisabled"
       @click="emit('next')"
     >
       下一步
@@ -176,7 +176,7 @@
       v-if="wizardStep === 4"
       type="primary"
       :loading="submitting"
-      :disabled="!canSubmit"
+      :disabled="!canSubmit || testModeDisabled"
       @click="emit('submit')"
     >
       添加
@@ -205,6 +205,7 @@ defineProps<{
   isMobile: boolean;
   canSubmit: boolean;
   submitting: boolean;
+  testModeDisabled?: boolean;
 }>();
 
 const formModel = defineModel<DynamicFormModel>('formModel', { required: true });

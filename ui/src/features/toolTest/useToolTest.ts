@@ -10,6 +10,7 @@ import {
 } from '@/api';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
+import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse } from '@/features/testMode/state';
 import {
   appendPendingToolTestMessages,
   appendSelfToolTestMessage,
@@ -186,12 +187,16 @@ export function useToolTest() {
   async function reloadDeck() {
     try {
       const item = await reloadDeckMutation.mutateAsync();
-      if (item.testMode) {
+      if (isTestModeResponse(item)) {
         appendTip(mode.value, '展示模式无法重载牌堆。');
         return;
       }
       appendTip(mode.value, item.success ? '已重载牌堆。' : '牌堆重载失败。');
     } catch (error) {
+      if (isTestModeApiError(error)) {
+        appendTip(mode.value, getTestModeBlockMessage(error));
+        return;
+      }
       appendTip(mode.value, getErrorMessage(error, '牌堆重载失败'));
     }
   }
@@ -199,12 +204,16 @@ export function useToolTest() {
   async function reloadJs() {
     try {
       const item = await reloadJsMutation.mutateAsync();
-      if (item.testMode) {
+      if (isTestModeResponse(item)) {
         appendTip(mode.value, '展示模式无法重载 JS。');
         return;
       }
       appendTip(mode.value, item.success ? '已重载 JS。' : 'JS 重载失败。');
     } catch (error) {
+      if (isTestModeApiError(error)) {
+        appendTip(mode.value, getTestModeBlockMessage(error));
+        return;
+      }
       appendTip(mode.value, getErrorMessage(error, 'JS 重载失败'));
     }
   }

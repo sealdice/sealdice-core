@@ -25,6 +25,7 @@
         :upload-pending="uploadMutation.isPending.value"
         :deleting-path="deletingPath"
         :downloading-path="downloadingPath"
+        :disabled="isTestMode"
         @update-query="updateListQuery"
         @upload="uploadResource"
         @copy="copySealCode"
@@ -95,6 +96,7 @@ import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { copyText } from '@/features/clipboard';
+import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse, useTestMode } from '@/features/testMode/state';
 import {
   buildResourceListQuery,
   buildSealImageCode,
@@ -105,6 +107,7 @@ import {
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
+const { isTestMode } = useTestMode();
 
 const listQuery = reactive(createDefaultResourceListQuery());
 const deletingPath = ref('');
@@ -150,7 +153,7 @@ const uploadMutation = useMutation({
     return data.item;
   },
   onSuccess: async item => {
-    if (item.testMode) {
+    if (isTestModeResponse(item)) {
       message.warning('展示模式无法上传资源');
       return;
     }
@@ -162,6 +165,10 @@ const uploadMutation = useMutation({
     await invalidateResourceList();
   },
   onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error(getErrorMessage(error, '上传图片失败'));
   },
 });

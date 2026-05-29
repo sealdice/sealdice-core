@@ -1,4 +1,9 @@
-import { ApiError, createApiErrorFeedback, createNetworkErrorFeedback } from './client';
+import {
+  ApiError,
+  createApiErrorFeedback,
+  createNetworkErrorFeedback,
+  isRequestCanceledError,
+} from './client';
 
 function assertEqual(actual: unknown, expected: unknown): void {
   if (actual !== expected) {
@@ -129,3 +134,20 @@ if (networkError.kind === 'dialog') {
   assertEqual(typeof networkError.content, 'function');
   assertHasParagraphs(networkError.content(), 2);
 }
+
+assertEqual(
+  isRequestCanceledError({
+    code: 'ERR_CANCELED',
+    message: 'canceled',
+    name: 'CanceledError',
+  }),
+  true,
+);
+assertEqual(
+  isRequestCanceledError({
+    message: 'canceled',
+    name: 'CanceledError',
+  }),
+  true,
+);
+assertEqual(isRequestCanceledError(new Error('Failed to fetch')), false);

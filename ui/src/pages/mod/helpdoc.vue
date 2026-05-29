@@ -8,17 +8,13 @@
         @click="reloadMutation.mutate()"
       >
         <template #icon>
-          <n-icon><i-carbon-renew /></n-icon>
+          <n-icon><i-ep-refresh /></n-icon>
         </template>
         重载帮助文档
       </n-button>
     </header>
 
-    <n-affix v-if="needReload" :top="60">
-      <TipBox type="error">
-        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
-      </TipBox>
-    </n-affix>
+    <ReloadNotice :show="needReload" />
 
     <n-tabs v-model:value="tab" justify-content="space-evenly" class="helpdoc-tabs">
       <n-tab-pane tab="文件" name="file">
@@ -85,6 +81,7 @@ import HelpdocConfigDialog from '@/components/helpdoc/HelpdocConfigDialog.vue';
 import HelpdocFilePane from '@/components/helpdoc/HelpdocFilePane.vue';
 import HelpdocItemPane from '@/components/helpdoc/HelpdocItemPane.vue';
 import HelpdocUploadDialog from '@/components/helpdoc/HelpdocUploadDialog.vue';
+import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useHelpdocConfigDraft } from '@/features/helpdoc/configDraft';
 import { useHelpdocMutations } from '@/features/helpdoc/mutations';

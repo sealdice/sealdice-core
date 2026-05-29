@@ -1,6 +1,6 @@
 <template>
-  <main class="reply-page">
-    <n-spin :show="editor.pageBusy.value">
+  <WorkspaceFrame mode="fixed-height">
+    <template #header>
       <ReplyMetaSection
         :reply-enabled="editor.replyEnabled.value"
         :switch-loading="editor.replyConfigMutation.isPending.value"
@@ -9,7 +9,9 @@
         @toggle-reply-enabled="editor.handleReplySwitchUpdate"
         @save="editor.saveCurrent"
       />
+    </template>
 
+    <n-spin :show="editor.pageBusy.value">
       <template v-if="!editor.replyEnabled.value">
         <section class="reply-empty">
           <n-text type="error" class="text-xl">请先启用总开关！</n-text>
@@ -91,10 +93,11 @@
         <n-input v-model:value="editor.newFilename.value" placeholder="reply2.yaml" />
       </n-modal>
     </n-spin>
-  </main>
+  </WorkspaceFrame>
 </template>
 
 <script setup lang="ts">
+import WorkspaceFrame from '@/components/layout/WorkspaceFrame.vue';
 import ReplyCommonConditionsSection from './ReplyCommonConditionsSection.vue';
 import ReplyFileSidebar from './ReplyFileSidebar.vue';
 import ReplyImportModal from './ReplyImportModal.vue';
@@ -107,13 +110,6 @@ const editor = useCustomReplyEditor();
 </script>
 
 <style scoped>
-.reply-page {
-  width: 100%;
-  max-width: none;
-  margin: 0 auto;
-  text-align: left;
-}
-
 .reply-empty {
   padding: 2rem 0;
 }
@@ -121,7 +117,7 @@ const editor = useCustomReplyEditor();
 .reply-layout {
   display: flex;
   min-width: 0;
-  height: calc(100vh - 178px);
+  flex: 1 1 auto;
   min-height: 620px;
   border: 1px solid var(--sd-border);
   background: var(--sd-bg-elevated);
@@ -139,7 +135,6 @@ const editor = useCustomReplyEditor();
 
 @media screen and (max-width: 1023.9px) {
   .reply-layout {
-    height: calc(100vh - 148px);
     min-height: 560px;
   }
 }

@@ -1,4 +1,5 @@
 export type AppShellContentMode = 'default' | 'wide';
+export type AppShellContainerMode = 'default' | 'workspace';
 
 export const APP_SHELL_DESKTOP_BREAKPOINT = 'md';
 export const APP_SHELL_MOBILE_MAX_WIDTH = 767.9;
@@ -9,6 +10,12 @@ export function getAppShellContentClass(mode: AppShellContentMode): string {
   return mode === 'wide'
     ? 'sd-main-container sd-main-container--wide'
     : 'sd-main-container';
+}
+
+export function getAppShellContainerClass(mode: AppShellContainerMode): string {
+  return mode === 'workspace'
+    ? 'sd-page-shell sd-page-shell--workspace'
+    : 'sd-page-shell';
 }
 
 export function getAppShellDrawerWidth(): string {

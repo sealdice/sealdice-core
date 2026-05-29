@@ -15,7 +15,7 @@
       <n-flex align="center" justify="end" wrap>
         <n-button secondary :loading="loading" @click="emit('refresh')">
           <template #icon>
-            <n-icon><i-carbon-renew /></n-icon>
+            <n-icon><i-ep-refresh /></n-icon>
           </template>
           刷新
         </n-button>
@@ -23,12 +23,13 @@
           action=""
           multiple
           accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
+          :disabled="disabled"
           :show-file-list="false"
           :custom-request="uploadResourceFile"
         >
-          <n-button type="primary" :loading="uploadPending">
+          <n-button type="primary" :loading="uploadPending" :disabled="disabled">
             <template #icon>
-              <n-icon><i-carbon-upload /></n-icon>
+              <n-icon><i-ep-upload /></n-icon>
             </template>
             上传图片
           </n-button>
@@ -72,6 +73,7 @@
                   size="tiny"
                   secondary
                   type="error"
+                  :disabled="disabled"
                   :loading="deletingPath === item.path"
                   @click="emit('delete', item)"
                 >
@@ -146,6 +148,7 @@ const props = defineProps<{
   uploadPending: boolean;
   deletingPath: string;
   downloadingPath: string;
+  disabled?: boolean;
 }>();
 
 const emit = defineEmits<{

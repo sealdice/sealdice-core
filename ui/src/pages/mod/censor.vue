@@ -18,17 +18,13 @@
         @click="restartCensor"
       >
         <template #icon>
-          <i-carbon-renew />
+          <i-ep-refresh />
         </template>
         重载拦截
       </n-button>
     </n-flex>
 
-    <n-affix v-if="needReload" :top="60">
-      <TipBox type="error">
-        <n-text type="error" class="text-base" tag="strong">存在修改，需要重载后生效！</n-text>
-      </TipBox>
-    </n-affix>
+    <ReloadNotice :show="needReload" />
 
     <template v-if="censorEnable">
       <n-tabs v-model:value="tab" justify-content="space-evenly" class="censor-tabs">
@@ -86,6 +82,7 @@ import CensorFilesView from '@/components/censor/CensorFilesView.vue';
 import CensorLogView from '@/components/censor/CensorLogView.vue';
 import CensorWordsView from '@/components/censor/CensorWordsView.vue';
 import CensorWordTip from '@/components/censor/CensorWordTip.vue';
+import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useCensorConfigDraft } from '@/features/censor/configDraft';
 import { useCensorMutations } from '@/features/censor/mutations';

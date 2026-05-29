@@ -15,6 +15,7 @@
           :dirty="configDirty"
           :saving="saveConfigMutation.isPending.value"
           :timestamp="timestamp"
+          :disabled="isTestMode"
           @save="saveConfig"
         />
       </n-spin>
@@ -24,6 +25,7 @@
         :loading="listQuery.isFetching.value"
         :downloading-name="downloadingName"
         :deleting-name="deletingName"
+        :disabled="isTestMode"
         @download="downloadBackup"
         @delete="confirmDelete"
         @open-batch-delete="openBatchDeleteDialog"
@@ -81,10 +83,12 @@ import {
   type BackupConfigDraft,
   type BackupSelectionKey,
 } from '@/features/backup/viewModel';
+import { getTestModeBlockMessage, isTestModeApiError, useTestMode } from '@/features/testMode/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
 const dialog = useDialog();
+const { isTestMode } = useTestMode();
 
 const timestamp = shallowRef(dayjs().format('YYMMDD_HHmmss'));
 const configDraft = ref<BackupConfigDraft | null>(null);
@@ -133,6 +137,13 @@ const saveConfigMutation = useMutation({
     message.success('已保存');
     await configQuery.refetch();
   },
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
+    message.error(getErrorMessage(error, '保存备份设置失败'));
+  },
 });
 
 const execMutation = useMutation({
@@ -154,6 +165,13 @@ const execMutation = useMutation({
     message.success('已进行备份');
     await listQuery.refetch();
   },
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
+    message.error(getErrorMessage(error, '备份失败'));
+  },
 });
 
 const deleteMutation = useMutation({
@@ -172,6 +190,13 @@ const deleteMutation = useMutation({
     }
     message.success('已删除');
     await listQuery.refetch();
+  },
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
+    message.error(getErrorMessage(error, '删除失败'));
   },
   onSettled: () => {
     deletingName.value = '';
@@ -196,6 +221,13 @@ const batchDeleteMutation = useMutation({
     batchDeleteNames.value = [];
     message.success('已删除所选备份');
     await listQuery.refetch();
+  },
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
+    message.error(getErrorMessage(error, '删除备份失败'));
   },
 });
 
@@ -223,11 +255,19 @@ useUnsavedChanges('backup-config', {
 });
 
 function openBackupDialog() {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   execSelections.value = parseBackupSelection(0b111111);
   execDialogVisible.value = true;
 }
 
 function openBatchDeleteDialog() {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   batchDeleteNames.value = getDefaultBatchDeleteNames(items.value);
   batchDeleteVisible.value = true;
 }
@@ -260,6 +300,10 @@ async function downloadBackup(item: FileItem) {
 }
 
 function confirmDelete(item: FileItem) {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   dialog.warning({
     title: '删除备份',
     content: `确认删除「${item.name}」？`,
@@ -273,6 +317,10 @@ function confirmDelete(item: FileItem) {
 }
 
 function confirmBatchDelete() {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   dialog.warning({
     title: '批量删除备份',
     content: '确认删除所选备份？删除的内容无法找回。',

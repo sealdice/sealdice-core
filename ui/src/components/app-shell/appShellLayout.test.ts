@@ -1,6 +1,7 @@
 import {
   APP_SHELL_DESKTOP_BREAKPOINT,
   APP_SHELL_MOBILE_MAX_WIDTH,
+  getAppShellContainerClass,
   getAppShellContentClass,
   getAppShellDrawerWidth,
   isAppShellMobileWidth,
@@ -12,6 +13,8 @@ const assertEqual = (actual: unknown, expected: unknown) => {
 
 assertEqual(getAppShellContentClass('default'), 'sd-main-container');
 assertEqual(getAppShellContentClass('wide'), 'sd-main-container sd-main-container--wide');
+assertEqual(getAppShellContainerClass('default'), 'sd-page-shell');
+assertEqual(getAppShellContainerClass('workspace'), 'sd-page-shell sd-page-shell--workspace');
 assertEqual(getAppShellDrawerWidth(), 'min(320px, 86vw)');
 assertEqual(APP_SHELL_DESKTOP_BREAKPOINT, 'md');
 assertEqual(APP_SHELL_MOBILE_MAX_WIDTH, 767.9);

@@ -3,7 +3,7 @@
     <header class="page-header">
       <n-button type="primary" :loading="reloadMutation.isPending.value" @click="doReload">
         <template #icon>
-          <n-icon><i-carbon-renew /></n-icon>
+          <n-icon><i-ep-refresh /></n-icon>
         </template>
         重载牌堆
       </n-button>
@@ -33,7 +33,7 @@
             href="https://github.com/sealdice/draw"
           >
             <template #icon>
-              <n-icon><i-carbon-link /></n-icon>
+              <n-icon><i-ep-link /></n-icon>
             </template>
             获取牌堆
           </n-button>
@@ -47,7 +47,7 @@
           />
           <n-button type="info" secondary :loading="uploader.busy.value" @click="openFilePicker">
             <template #icon>
-              <n-icon><i-carbon-upload /></n-icon>
+              <n-icon><i-ep-upload /></n-icon>
             </template>
             上传牌堆
           </n-button>
@@ -107,7 +107,7 @@
           <n-text class="text-xs">目前支持 json/yaml/deck/toml 格式的牌堆</n-text>
           <n-tooltip>
             <template #trigger>
-              <n-icon size="small"><i-carbon-help-filled /></n-icon>
+              <n-icon size="small"><i-ep-question-filled /></n-icon>
             </template>
             deck 牌堆：一种单文件带图的牌堆格式<br />
             在牌堆文件中使用./images/xxx.png 的相对路径引用图片。并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作<br />
@@ -148,7 +148,7 @@
                 <template #trigger>
                   <n-button type="info" size="small" secondary :loading="diffLoading">
                     <template #icon>
-                      <n-icon><i-carbon-download /></n-icon>
+                      <n-icon><i-ep-download /></n-icon>
                     </template>
                     更新
                   </n-button>
@@ -157,7 +157,7 @@
               </n-popconfirm>
               <n-button type="error" size="small" secondary @click="doDelete(item)">
                 <template #icon>
-                  <n-icon><i-carbon-row-delete /></n-icon>
+                  <n-icon><i-ep-delete /></n-icon>
                 </template>
                 删除
               </n-button>
@@ -167,7 +167,7 @@
           <template #title-extra-error>
             <n-button type="error" size="small" secondary @click="doDelete(item)">
               <template #icon>
-                <n-icon><i-carbon-row-delete /></n-icon>
+                <n-icon><i-ep-delete /></n-icon>
               </template>
               删除
             </n-button>
@@ -176,11 +176,11 @@
           <template #description>
             <n-flex size="small" vertical align="normal">
               <n-text v-if="item.cloud" type="info" class="text-xs">
-                <n-icon><i-carbon-cloud /></n-icon>
+                <n-icon><i-ep-cloudy /></n-icon>
                 作者提供云端内容，请自行鉴别安全性
               </n-text>
               <n-text v-if="item.fileFormat === 'jsonc'" type="warning" class="text-xs">
-                <n-icon><i-carbon-warning-filled /></n-icon>
+                <n-icon><i-ep-warning-filled /></n-icon>
                 注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
               </n-text>
             </n-flex>
@@ -261,7 +261,7 @@
               @click="deckUpdate"
             >
               <template #icon>
-                <n-icon><i-carbon-save /></n-icon>
+                <n-icon><i-ep-document-checked /></n-icon>
               </template>
               确认更新
             </n-button>
@@ -291,6 +291,7 @@ import {
 } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { getApiBaseUrl } from '@/api/config';
+import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse } from '@/features/testMode/state';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
@@ -453,14 +454,18 @@ const reloadMutation = useMutation({
     return data.item;
   },
   onSuccess: async item => {
-    if (item.testMode) {
+    if (isTestModeResponse(item)) {
       message.success('展示模式无法重载牌堆');
       return;
     }
     message.success('已重载');
     await invalidateDeckList();
   },
-  onError: () => {
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error('重载失败');
   },
 });

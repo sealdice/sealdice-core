@@ -2,7 +2,7 @@
   <main class="connect-page">
     <div class="page-head">
       <h4>账号设置</h4>
-      <n-button type="primary" @click="openCreateDialog">
+      <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
         添加账号
       </n-button>
     </div>
@@ -17,7 +17,7 @@
 
     <n-empty v-if="connections.length === 0 && connectionsReady" description="似乎还没有账号">
       <template #extra>
-        <n-button type="primary" @click="openCreateDialog">
+        <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
           添加账号
         </n-button>
       </template>
@@ -60,6 +60,7 @@
         :is-mobile="isMobile"
         :can-submit="wizardCanNext"
         :submitting="createMutation.isPending.value"
+        :test-mode-disabled="isTestMode"
         @cancel="dialogVisible = false"
         @previous="goPrev"
         @next="goNext"
@@ -84,7 +85,7 @@
           <DynamicForm
             v-model="editFormModel"
             :schema="editSchema"
-            :disabled="updateMutation.isPending.value"
+            :disabled="updateMutation.isPending.value || isTestMode"
             :label-placement="isMobile ? 'top' : 'left'"
             :label-width="isMobile ? undefined : 108"
           />
@@ -100,7 +101,7 @@
         <n-button
           type="primary"
           :loading="updateMutation.isPending.value"
-          :disabled="!editingConfig || !canSubmitEdit"
+          :disabled="!editingConfig || !canSubmitEdit || isTestMode"
           @click="submitEdit"
         >
           保存
@@ -167,6 +168,7 @@ import { hasAccessToken } from '@/features/auth/state';
 import { getEndpointProtocolLabel, getEndpointStateMeta } from '@/features/connect/endpointDisplay';
 import { useRealtimeConnections } from '@/features/connect/realtime';
 import { buildSignInfoState } from '@/features/connect/signInfoState';
+import { getTestModeBlockMessage, isTestModeApiError, useTestMode } from '@/features/testMode/state';
 
 type AdapterView = {
   connectUrl?: string;
@@ -185,6 +187,7 @@ type AdapterView = {
 const message = useMessage();
 const dialog = useDialog();
 const realtimeConnections = useRealtimeConnections();
+const { isTestMode } = useTestMode();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 
@@ -321,7 +324,11 @@ const createMutation = useMutation({
     dialogVisible.value = false;
     resetWizard();
   },
-  onError: () => {
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error('添加账号失败');
   },
 });
@@ -343,7 +350,11 @@ const updateMutation = useMutation({
     editingConfig.value = null;
     editFormModel.value = {};
   },
-  onError: () => {
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error('账号配置更新失败');
   },
 });
@@ -360,7 +371,11 @@ const enableMutation = useMutation({
   onSuccess: () => {
     message.success('账号状态已更新');
   },
-  onError: () => {
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error('账号状态更新失败');
   },
 });
@@ -376,7 +391,11 @@ const deleteMutation = useMutation({
   onSuccess: () => {
     message.success('账号已删除');
   },
-  onError: () => {
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error('删除账号失败');
   },
 });
@@ -514,6 +533,10 @@ const detailRows = (endpoint: EndPointInfo) => {
 };
 
 const confirmDelete = (endpoint: EndPointInfo) => {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   dialog.warning({
     title: '删除账号',
     content: '删除此项帐号，确定吗？删除账号不会影响人物卡和 logs 等数据。',
@@ -524,6 +547,10 @@ const confirmDelete = (endpoint: EndPointInfo) => {
 };
 
 const confirmEnable = (endpoint: EndPointInfo, enable: boolean) => {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   dialog.warning({
     title: '修改账号状态',
     content: '确认修改此账号的在线状态吗？',
@@ -557,6 +584,10 @@ const openEditDialog = async (endpoint: EndPointInfo) => {
 };
 
 const openCreateDialog = () => {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   resetWizard();
   dialogVisible.value = true;
 };
@@ -621,13 +652,13 @@ const columns = computed<DataTableColumns<EndPointInfo>>(() => [
             二维码
           </n-button>
         ) : null}
-        <n-button size='small' onClick={() => openEditDialog(row)}>
+        <n-button size='small' disabled={isTestMode.value} onClick={() => openEditDialog(row)}>
           修改
         </n-button>
-        <n-button size='small' onClick={() => confirmEnable(row, !row.enable)}>
+        <n-button size='small' disabled={isTestMode.value} onClick={() => confirmEnable(row, !row.enable)}>
           {row.enable ? '禁用' : '启用'}
         </n-button>
-        <n-button size='small' type='error' onClick={() => confirmDelete(row)}>
+        <n-button size='small' type='error' disabled={isTestMode.value} onClick={() => confirmDelete(row)}>
           删除
         </n-button>
       </n-space>
@@ -674,10 +705,18 @@ const resetWizard = () => {
 };
 
 const submit = () => {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   if (canSubmit.value) createMutation.mutate();
 };
 
 const submitEdit = () => {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
   if (canSubmitEdit.value) updateMutation.mutate();
 };
 </script>

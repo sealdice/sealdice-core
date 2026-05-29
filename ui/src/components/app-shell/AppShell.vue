@@ -35,7 +35,9 @@
           <AppUnsavedChangesPanel />
         </div>
         <main :class="getAppShellContentClass(props.contentMode)">
-          <slot />
+          <div :class="getAppShellContainerClass(props.containerMode)">
+            <slot />
+          </div>
         </main>
       </n-layout-content>
     </n-layout>
@@ -69,8 +71,10 @@ import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/c
 import { useDialog, useMessage } from 'naive-ui';
 import {
   APP_SHELL_DESKTOP_BREAKPOINT,
+  getAppShellContainerClass,
   getAppShellContentClass,
   getAppShellDrawerWidth,
+  type AppShellContainerMode,
   type AppShellContentMode,
 } from './appShellLayout';
 import AppBreadcrumb from './AppBreadcrumb.vue';
@@ -90,8 +94,10 @@ interface AppSearchMenuHandle {
 
 const props = withDefaults(defineProps<{
   contentMode?: AppShellContentMode;
+  containerMode?: AppShellContainerMode;
 }>(), {
   contentMode: 'default',
+  containerMode: 'default',
 });
 
 const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
@@ -223,6 +229,16 @@ void authSession.tryDefaultSignin();
 .sd-main-container--wide {
   width: 100%;
   max-width: none;
+}
+
+.sd-page-shell {
+  min-width: 0;
+}
+
+.sd-page-shell--workspace {
+  display: flex;
+  min-height: calc(100vh - 5.5rem);
+  flex-direction: column;
 }
 
 .sd-floating-panel-layer {

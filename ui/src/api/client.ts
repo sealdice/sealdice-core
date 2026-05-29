@@ -3,6 +3,7 @@ import { createDiscreteApi } from 'naive-ui';
 import { h, type VNodeChild } from 'vue';
 import { clearAccessToken, currentAccessToken, setAccessToken } from '@/features/auth/state';
 import { queryClient } from '@/queryClient';
+import { TEST_MODE_ERROR_CODE, TEST_MODE_DEFAULT_REASON } from '@/features/testMode/state';
 import { client } from './generated/client.gen';
 import { getApiBaseUrl } from './config';
 
@@ -88,6 +89,14 @@ export class ApiError extends Error {
   }
 }
 
+export function isRequestCanceledError(error: unknown): boolean {
+  if (axios.isCancel(error)) return true;
+  if (!error || typeof error !== 'object') return false;
+
+  const candidate = error as { code?: unknown; name?: unknown };
+  return candidate.code === 'ERR_CANCELED' || candidate.name === 'CanceledError';
+}
+
 // 配置 hey-api 生成的全局 axios client。
 // 这里是所有 HTTP 请求的共同边界：baseURL、凭据、Bearer token、token 续期、
 // 网络/会话级错误提示和 401 会话清理都在这里完成。业务级 4xx 交给页面处理。
@@ -125,12 +134,19 @@ export function setupApiClient(): void {
 
     return response;
   }, error => {
-    const axiosError = error;
-    const apiError = toApiError(axiosError);
-    if (apiError.status>=400) {
+    // 路由切换会让 TanStack Query 取消仍在进行中的请求，这属于正常控制流，
+    // 不应再被用户看到为 “Canceled” 弹窗或错误提示。
+    if (isRequestCanceledError(error)) {
+      return Promise.reject(error);
+    }
+
+    const axiosError = axios.isAxiosError(error) ? error : undefined;
+    if (!axiosError?.response) {
       showApiFeedback(createNetworkErrorFeedback(error), clearApiSession);
       return Promise.reject(error);
     }
+
+    const apiError = toApiError(axiosError);
     const pathname = getRequestPathname(axiosError.config);
 
     // 登录接口自身的 401 只代表密码错误，不应清空当前页面其它状态；
@@ -138,11 +154,9 @@ export function setupApiClient(): void {
     if (apiError.status === 401 && pathname !== '/sd-api/v2/base/login') {
       clearApiSession();
     }
-    if (axiosError.name !== 'CanceledError') {
-      showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearApiSession);
-    }
+    showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearApiSession);
 
-    return Promise.resolve();
+    return Promise.reject(apiError);
   });
 }
 
@@ -154,6 +168,16 @@ function clearApiSession(): void {
 
 function pickErrorMessage(error: ApiError): string {
   return error.message || error.detail || error.title || error.statusText || '请求失败';
+}
+
+function isTestModeBlockedError(error: ApiError): boolean {
+  const data = typeof error.data === 'object' && error.data ? error.data as Record<string, unknown> : null;
+  return (
+    error.code === TEST_MODE_ERROR_CODE ||
+    data?.testMode === true ||
+    error.message === TEST_MODE_DEFAULT_REASON ||
+    error.detail === TEST_MODE_DEFAULT_REASON
+  );
 }
 
 function formatError(error: unknown): string {
@@ -189,6 +213,13 @@ export function createApiErrorFeedback(
   options: { pathname?: string } = {},
 ): ApiErrorFeedback {
   const errorMessage = pickErrorMessage(error);
+
+  if (isTestModeBlockedError(error)) {
+    return {
+      kind: 'business',
+      content: errorMessage || TEST_MODE_DEFAULT_REASON,
+    };
+  }
 
   if (error.status === 401) {
     if (options.pathname === '/sd-api/v2/base/login') {

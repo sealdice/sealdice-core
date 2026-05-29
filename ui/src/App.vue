@@ -11,11 +11,17 @@
           <n-dialog-provider>
             <n-loading-bar-provider>
               <RouterView v-slot="{ Component, route }">
-                <component :is="layouts[route.meta.layout ?? 'default']">
-                  <Transition name="page-fade" mode="out-in">
-                    <component :is="Component" :key="route.path" />
-                  </Transition>
-                </component>
+                <AppTestModeFrame
+                  :active="testMode.isTestMode.value"
+                  :banner-text="testMode.bannerText.value"
+                  :watermark-text="testMode.watermarkText.value"
+                >
+                  <component :is="layouts[route.meta.layout ?? 'default']">
+                    <Transition name="page-fade" mode="out-in">
+                      <component :is="Component" :key="route.path" />
+                    </Transition>
+                  </component>
+                </AppTestModeFrame>
               </RouterView>
               <AppThemeTransition ref="themeTransitionRef" />
             </n-loading-bar-provider>
@@ -31,8 +37,10 @@ import { darkTheme, lightTheme, dateZhCN } from 'naive-ui';
 import { ProConfigProvider, zhCN } from 'pro-naive-ui';
 import { computed, defineAsyncComponent, provide, ref } from 'vue';
 import { RouterView } from 'vue-router';
+import AppTestModeFrame from './components/app-shell/AppTestModeFrame.vue';
 import AppThemeTransition from './components/app-shell/AppThemeTransition.vue';
 import { useRealtimeClient } from './features/realtime/client';
+import { useTestMode } from './features/testMode/state';
 import { useAppTheme } from './features/theme';
 import {
   type ThemeTransitionSource,
@@ -44,6 +52,7 @@ const layouts = {
   default: defineAsyncComponent(() => import('./layouts/DefaultLayout.vue')),
   plain: defineAsyncComponent(() => import('./layouts/PlainLayout.vue')),
   wide: defineAsyncComponent(() => import('./layouts/WideLayout.vue')),
+  workspace: defineAsyncComponent(() => import('./layouts/WorkspaceLayout.vue')),
 } satisfies Record<AppLayoutName, unknown>;
 
 // App 是全局 provider 和 layout 分发层。页面不要直接挂全局 provider，
@@ -62,6 +71,7 @@ provide(triggerThemeTransitionKey, (source?: ThemeTransitionSource) => {
 });
 
 const activeTheme = computed(() => (resolvedTheme.value === 'dark' ? darkTheme : lightTheme));
+const testMode = useTestMode();
 
 // 全局 provider 只接收最终主题对象。颜色计算集中在 features/theme，
 // 避免根组件和业务页面各自维护一套主色、状态色和暗色覆盖。

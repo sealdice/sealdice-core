@@ -5,6 +5,7 @@ import {
   postSdApiV2HelpdocDelete,
   postSdApiV2HelpdocReload,
 } from '@/api';
+import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse } from '@/features/testMode/state';
 import { invalidateHelpdocQueries } from './queries';
 
 export function useHelpdocMutations(options: {
@@ -21,7 +22,7 @@ export function useHelpdocMutations(options: {
       return data.item;
     },
     onSuccess: async item => {
-      if (item.testMode) {
+      if (isTestModeResponse(item)) {
         options.message.warning('展示模式无法重载帮助文档');
         return;
       }
@@ -29,7 +30,11 @@ export function useHelpdocMutations(options: {
       options.onReloaded();
       await invalidateHelpdocQueries(options.queryClient);
     },
-    onError: () => {
+    onError: error => {
+      if (isTestModeApiError(error)) {
+        options.message.warning(getTestModeBlockMessage(error));
+        return;
+      }
       options.message.error('重载帮助文件失败');
     },
   });

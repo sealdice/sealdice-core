@@ -56,6 +56,18 @@ const sourceItems: NavigationItem[] = [
     ],
   },
   {
+    label: '扩展功能',
+    icon: 'edit',
+    children: [
+      {
+        label: '自定义回复',
+        path: '/mod/reply',
+        title: '自定义回复',
+        layout: 'workspace',
+      },
+    ],
+  },
+  {
     label: '隐藏项',
     path: '/hidden',
     hidden: true,
@@ -70,7 +82,7 @@ const lockedTree = buildNavigationTree(sourceItems, {
 const lockedLeaves = flattenNavigationItems(lockedTree);
 assertDeepEqual(
   lockedLeaves.map(item => item.path),
-  ['/', '/custom-text/默认', '/custom-text/骰子核心', '/misc/base-setting'],
+  ['/', '/custom-text/默认', '/custom-text/骰子核心', '/misc/base-setting', '/mod/reply'],
 );
 
 const unlockedLeaves = flattenNavigationItems(
@@ -81,7 +93,7 @@ const unlockedLeaves = flattenNavigationItems(
 );
 assertDeepEqual(
   unlockedLeaves.map(item => item.path),
-  ['/', '/custom-text/默认', '/misc/base-setting', '/misc/advanced-setting'],
+  ['/', '/custom-text/默认', '/misc/base-setting', '/misc/advanced-setting', '/mod/reply'],
 );
 assertDeepEqual(getNavigationExpandedKeys(lockedTree, '/misc/base-setting'), ['综合设置']);
 assertDeepEqual(getNavigationExpandedKeys(lockedTree, '/custom-text/默认'), ['自定义文案']);
@@ -103,6 +115,7 @@ const routeMeta = buildRouteMeta(sourceItems);
 assertDeepEqual(routeMeta['/'], { title: '主页', layout: 'default' satisfies AppLayoutName });
 assertDeepEqual(routeMeta['/custom-text/:category'], { title: '自定义文案', layout: 'default' satisfies AppLayoutName });
 assertDeepEqual(routeMeta['/misc/base-setting'], { title: '基本设置', layout: 'wide' satisfies AppLayoutName });
+assertDeepEqual(routeMeta['/mod/reply'], { title: '自定义回复', layout: 'workspace' satisfies AppLayoutName });
 assertEqual(routeMeta['/hidden'], undefined);
 
 assertDeepEqual(buildBreadcrumbItems(sourceItems, '/'), [{ label: '主页' }]);
