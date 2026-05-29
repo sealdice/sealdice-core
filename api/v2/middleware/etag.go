@@ -33,9 +33,9 @@ func ShouldSkipV2DataETag(c *fiber.Ctx) bool {
 	if method != fiber.MethodGet && method != fiber.MethodHead {
 		return true
 	}
-	if websocketUpgradeRequested(c) {
-		return true
-	}
+	//if websocketUpgradeRequested(c) {
+	//	return true
+	//}
 	path := c.Path()
 	if path == "/sd-api/v2/realtime/ws" ||
 		path == "/sd-api/v2/realtime/sse" ||

@@ -21,6 +21,9 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/gofiber/fiber/v2/middleware/compress"
+
+	//"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
@@ -181,6 +184,7 @@ func main() {
 		LogLevel               int8   `choice:"-1"                                                                   choice:"0"              choice:"1" choice:"2" choice:"3" choice:"4" choice:"5" default:"0" description:"设置日志等级"             long:"log-level"`
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
 		GenOpenAPI             string `description:"生成 Huma v2 OpenAPI JSON 到指定路径并退出"                                      long:"gen-openapi"`
+		PProfWeb               bool   `description:"在当前 Web 服务挂载 pprof 调试页面，需要使用启动时生成的 token 访问"                          long:"pprof-web"`
 	}
 	// pprof
 	// go func() {
@@ -482,7 +486,7 @@ func main() {
 		go diceServe(d)
 	}
 
-	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
+	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI, opts.PProfWeb)
 	// OOM分析工具
 	// err = nil
 	// err = http.ListenAndServe(":9090", nil)
@@ -605,13 +609,15 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
-func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
+func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool, enablePProfWeb bool) {
 	log := logger.M()
 	log.Info("即将启动webui")
 
 	e := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 	})
+	pprofCfg := newPprofWebConfig(enablePProfWeb)
+	registerPprofWebRoutes(e, pprofCfg)
 
 	e.Use(logger.FiberLogMiddleware())
 	e.Use(cors.New(cors.Config{
@@ -656,7 +662,9 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	})
 
 	e.Use("/sd-api/v2", apiv2middleware.V2DataETagMiddleware())
-	e.Use("/sd-api/v2", apiv2middleware.PreferredCompressionMiddleware())
+	// 废弃
+	// e.Use(compress.New())
+	e.Use("/sd-api/v2", compress.New())
 
 	apier := humafiber.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
 	apiv2.InitV2Router(apier, e, dm)
@@ -683,6 +691,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 		e.Static("/", "./frontend_overwrite")
 	}
 
+	logPprofWebEnabled(pprofCfg, dm.ServeAddress)
 	httpServe(e, dm, hideUI)
 }
 
