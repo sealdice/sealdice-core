@@ -101,6 +101,7 @@
     class="feed-modal"
     preset="card"
     title="海豹新闻"
+    style="max-width: 800px;"
   >
     <template #header-extra>
       <n-button type="primary" @click="dialogFeed = false">
@@ -253,6 +254,8 @@ const breadcrumbItems = computed(() =>
 }
 
 .feed-content {
+  margin-top: 10px;
+  margin-bottom: 20px;
   text-align: left;
 }
 
