@@ -1,22 +1,13 @@
-import { createAlova } from 'alova';
-import fetchAdapter from 'alova/fetch';
-import { createApis, withConfigType, mountApis } from './createApis';
+export { ApiError, setupApiClient } from './client';
+export { getApiBaseUrl, joinApiBasePath } from './config';
 
-export const alovaInstance = createAlova({
-  baseURL: 'http://127.0.0.1:3211',
-  requestAdapter: fetchAdapter(),
-  beforeRequest: method => {},
-  responded: res => {
-    return res.json();
-  }
-});
-
-export const $$userConfigMap = withConfigType({});
-
-const api = createApis(alovaInstance, $$userConfigMap);
-
-mountApis(api);
-
-export default api;
-export { api };
-export * from './globals';
+// Generated API (hey-api / openapi-ts output)
+export * from './generated';
+export {
+  getSdApiV2BaseSettingSchema,
+  getSdApiV2BaseSettingValue,
+  putSdApiV2BaseSettingValue,
+  postSdApiV2BaseSettingMailTest,
+  postSdApiV2BaseSettingUpgrade,
+} from './generated';
+export { client } from './generated/client.gen';

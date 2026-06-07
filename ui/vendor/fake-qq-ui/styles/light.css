@@ -1,0 +1,44 @@
+:root {
+  --qq-background-03: #f5f5f5;
+  --qq-border_standard: #0000000a;
+  --qq-bg_bottom_light: #ffffffff;
+  --qq-bubble_guest: #ffffffff;
+  --qq-bubble_guest_text: #000000ff;
+  --qq-fill_light_primary: #ffffffff;
+  --qq-host_bubble_bg_css_value: #0099ff;
+  --qq-host_bubble_text_link: #a0eaff;
+  --qq-icon_primary: #000000ff;
+  --qq-icon_tertiary: #0000004d;
+  --qq-on_bg_text: #999999ff;
+  --on_brand_primary: #ffffffff;
+  --on_bubble_host_text: #ffffffff;
+  --qq-overlay_hover: #0000000a;
+  --qq-overlay_hover_brand: #00000014;
+  --qq-text-secondary-01: #999;
+  --qq-text_white: #fff;
+  --qq-text_link: #2d77e5ff;
+  --qq-text_primary: #000000ff;
+  --qq-text_primary_light: #00000099;
+  --qq-text_secondary: #00000080;
+}
+
+:root {
+  --nt_blur_bottom_superlight_2_30_2_alpha: rgba(255, 255, 255, 0.3);
+}
+
+:root {
+  --qq-tag_red_bg: #ff3f3233;
+  --qq-tag_red_text: #f74c30ff;
+  --qq-tag_orange_text: #ff8d40ff;
+  --qq-tag_orange_bg: #ff862e33;
+  --qq-tag_purple_text: #aa76f6ff;
+  --qq-tag_purple_bg: #aa76f633;
+  --qq-tag_blue_text: #0099ffff;
+  --qq-tag_blue_bg: #0099ff33;
+  --qq-tag_blue: #0099ff33;
+  --qq-tag_red: #ff862e33;
+  --qq-tag_gray_bg: #9e9e9e33;
+  --qq-tag_gray_text: #9e9e9eff;
+  --qq-tag_sage_green_bg: #76969833;
+  --qq-tag_sage_green_text: #769698ff;
+}

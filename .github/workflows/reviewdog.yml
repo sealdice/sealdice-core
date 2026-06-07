@@ -2,6 +2,11 @@ name: Review Dog
 
 on:
   pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
       - '**.go'
       - 'go.mod'
@@ -9,6 +14,7 @@ on:
 
 jobs:
   review-dog:
+    if: ${{ !github.event.pull_request.draft }}
     permissions:
       checks: write
       contents: read

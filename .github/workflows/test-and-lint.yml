@@ -7,6 +7,11 @@ on:
       - 'go.mod'
       - 'test-and-lint.yml'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
       - '**.go'
       - 'go.mod'
@@ -15,6 +20,7 @@ on:
 jobs:
   test-and-lint:
     name: Test & Lint
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - name: Code

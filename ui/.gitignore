@@ -11,6 +11,7 @@ node_modules
 .DS_Store
 dist
 dist-ssr
+dev-dist
 coverage
 *.local
 
@@ -28,3 +29,13 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# hey-api / openapi-ts
+openapi.json
+
+components.d.ts
+
+# vendored build output
+vendor/fake-qq-ui
+
+components.d.ts

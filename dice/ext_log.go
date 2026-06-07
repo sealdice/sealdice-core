@@ -1063,6 +1063,14 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
+	logInfo, err := service.LogGetByGroupIDAndName(ctx.Dice.DBOperator, groupID, logName)
+	if err != nil {
+		return false, "", err
+	}
+	return LogSendToBackendByInfo(ctx, logInfo, false)
+}
+
+func LogSendToBackendByInfo(ctx *MsgContext, logInfo *model.LogInfo, force bool) (bool, string, error) {
 	dice := ctx.Dice
 	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
@@ -1078,9 +1086,10 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 		Log:      dice.Logger,
 		Backends: sealBackends,
 
-		LogName:   logName,
+		LogName:   logInfo.Name,
 		UniformID: ctx.EndPoint.UserID,
-		GroupID:   groupID,
+		GroupID:   logInfo.GroupID,
+		Force:     force,
 	}
 	uploadCtx.Version = storylog.StoryVersionV1
 

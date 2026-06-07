@@ -1,12 +1,14 @@
 {
   "extends": "@tsconfig/node22/tsconfig.json",
   "include": [
+    "*.config.*",
     "vite.config.*",
     "vitest.config.*",
     "cypress.config.*",
     "nightwatch.conf.*",
     "playwright.config.*",
-    "eslint.config.*"
+    "eslint.config.*",
+    "openapi-ts.config.*"
   ],
   "compilerOptions": {
     "noEmit": true,

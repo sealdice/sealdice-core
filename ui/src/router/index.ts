@@ -1,23 +1,30 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import HomeView from '../views/HomeView.vue';
+import { createRouter, createWebHashHistory } from 'vue-router';
+import { handleHotUpdate, routes } from 'vue-router/auto-routes';
+import { resolveHashHistoryBase } from './historyBase';
+import { setupRouterProgress } from './progress';
+import { routeMeta } from './routeMeta';
+import { withRouteMeta } from './routeRecords';
+import { setupUnsavedChangesGuard } from '@/features/unsavedChanges';
+import './types';
+
+const appRoutes = withRouteMeta(routes, routeMeta);
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  // 后端以内嵌静态资源形式分发 UI，Hash history 不要求后端为每个前端路由配 fallback。
+  history: createWebHashHistory(resolveHashHistoryBase(import.meta.env.BASE_URL)),
   routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: HomeView,
-    },
-    {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
-    },
+    ...appRoutes,
+    { path: '/home', redirect: '/' },
+    { path: '/signin', redirect: '/' },
+    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });
+
+if (import.meta.hot) {
+  handleHotUpdate(router);
+}
+
+setupRouterProgress(router);
+setupUnsavedChangesGuard(router);
 
 export default router;

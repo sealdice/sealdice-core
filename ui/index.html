@@ -1,16 +1,24 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="zh-CN">
 
 <head>
   <meta charset="UTF-8">
-  <link rel="icon" href="/favicon.ico">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title></title>
+  <link rel="icon" href="./favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!--    禁止页面被抓取，防止泄露到外面 -->
+    <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>SealDice</title>
 </head>
 
 <body>
+<div id="ie-warn" style="display: none;"></div>
   <div id="app"></div>
   <script type="module" src="/src/main.ts"></script>
+  <script src="/ie-compat.js"></script>
 </body>
 
 </html>
