@@ -215,6 +215,12 @@ watch(
   { immediate: true },
 );
 
+// 日志一些情况下因为ws连接建立早于页面初始化
+// 导致日志数据不能传给logStream
+// 建议给logStream做一个状态管理让他能保持
+// 现在先通过加载页面默认重连解决
+logStream.reconnect()
+
 // 日志源保持 append 顺序，展示顺序只在 computed 中转换，避免切换“倒序显示”
 // 时破坏原始缓冲和后续 append 逻辑。
 const logData = computed(() => {
