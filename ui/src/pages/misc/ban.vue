@@ -9,7 +9,7 @@
 
     <n-tabs v-model:value="tab" animated>
       <n-tab-pane name="list" tab="黑白名单">
-        <!-- <BanListPanel
+        <BanListPanel
           :items="listItems"
           :total="listTotal"
           :query="listQuery"
@@ -21,7 +21,7 @@
           @delete="confirmDelete"
           @import="importFile"
           @export="exportFile"
-        /> -->
+        />
       </n-tab-pane>
       <n-tab-pane name="config" tab="拉黑设置">
         <BanConfigPanel
