@@ -31,7 +31,7 @@
     </n-affix>
 
     <template v-if="censorEnable">
-      <n-tabs v-model:value="tab" justify-content="space-evenly" class="censor-tabs">
+      <n-tabs v-model:value="tab">
         <n-tab-pane tab="拦截设置" name="setting">
           <n-spin :show="configQuery.isFetching.value">
             <CensorConfigView
