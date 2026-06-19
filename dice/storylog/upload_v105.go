@@ -183,7 +183,7 @@ func uploadV105(env UploadEnv) (string, string, error) {
 }
 
 // formatAndBackup 将导出的日志序列化到 env.data 并存储为本地 zip
-func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Buffer) error {
+func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Buffer) (err error) {
 	filename, notice := buildLogBackupFilename(env.GroupID, env.LogName, time.Now())
 	env.appendNotice(notice)
 	fzip, err := os.OpenFile(
@@ -194,9 +194,15 @@ func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Bu
 	if err != nil {
 		return fmt.Errorf("创建日志备份文件失败: %w", err)
 	}
-	defer func() { _ = fzip.Close() }()
 	writer := zip.NewWriter(fzip)
-	defer func() { _ = writer.Close() }()
+	defer func() {
+		if closeErr := writer.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("关闭日志压缩文件失败: %w", closeErr)
+		}
+		if closeErr := fzip.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("关闭日志备份文件失败: %w", closeErr)
+		}
+	}()
 	// 写入README文件
 	{
 		readmeWriter, createErr := writer.Create(ExportReadmeFilename)
@@ -224,10 +230,6 @@ func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Bu
 	}
 	if _, err = parquetWriter.Write(parquetFile.Bytes()); err != nil {
 		return fmt.Errorf("写入Parquet文件失败: %w", err)
-	}
-
-	if err = writer.Close(); err != nil {
-		return fmt.Errorf("关闭日志压缩文件失败: %w", err)
 	}
 	return nil
 }

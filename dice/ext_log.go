@@ -167,13 +167,29 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			logNameAliasIndexCache := map[string]*logNameAliasIndex{}
+			getLogNameAliasIndex := func(groupID string) (*logNameAliasIndex, error) {
+				if index, exists := logNameAliasIndexCache[groupID]; exists {
+					return index, nil
+				}
+				index, err := buildLogNameAliasIndex(ctx.Dice.DBOperator, groupID)
+				if err != nil {
+					return nil, err
+				}
+				logNameAliasIndexCache[groupID] = index
+				return index, nil
+			}
+
 			resolveLogNameWithReply := func(groupID, name string) (string, bool) {
-				resolved, err := resolveLogNameForGroup(ctx.Dice.DBOperator, groupID, name)
+				index, err := getLogNameAliasIndex(groupID)
 				if err != nil {
 					ReplyToSender(ctx, msg, "获取记录出错: "+err.Error())
 					return "", false
 				}
-				return resolved, true
+				if resolved, ok := index.Resolve(name); ok {
+					return resolved, true
+				}
+				return name, true
 			}
 
 			logKeyHintText := func() string {
@@ -181,7 +197,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 
 			getAndUpload := func(gid, lname string) {
-				unofficial, fn, notice, err := LogSendToBackend(ctx, gid, lname)
+				if lname != "" {
+					var ok bool
+					lname, ok = resolveLogNameWithReply(gid, lname)
+					if !ok {
+						return
+					}
+				}
+				unofficial, fn, notice, err := logSendToBackend(ctx, gid, lname, true)
 				if err != nil {
 					reason := strings.TrimPrefix(err.Error(), "#")
 					VarSetValueStr(ctx, "$t错误原因", reason)
@@ -370,7 +393,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				var text strings.Builder
 				text.WriteString(DiceFormatTmpl(ctx, "日志:记录_列出_导入语"))
 				text.WriteString("\n")
-				index, err := buildLogNameAliasIndex(ctx.Dice.DBOperator, groupID)
+				index, err := getLogNameAliasIndex(groupID)
 				if err == nil {
 					for _, entry := range index.entries {
 						text.WriteString(formatLogNameListLine(entry))
@@ -1122,15 +1145,21 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, string, error) {
+	return logSendToBackend(ctx, groupID, logName, false)
+}
+
+func logSendToBackend(ctx *MsgContext, groupID string, logName string, skipResolve bool) (bool, string, string, error) {
 	dice := ctx.Dice
 	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
-	resolvedName, err := resolveLogNameForGroup(dice.DBOperator, groupID, logName)
-	if err != nil {
-		return false, "", "", err
-	}
-	if resolvedName != "" {
-		logName = resolvedName
+	if !skipResolve {
+		resolvedName, err := resolveLogNameForGroup(dice.DBOperator, groupID, logName)
+		if err != nil {
+			return false, "", "", err
+		}
+		if resolvedName != "" {
+			logName = resolvedName
+		}
 	}
 
 	var sealBackends []string

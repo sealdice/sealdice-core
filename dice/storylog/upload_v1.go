@@ -77,7 +77,7 @@ func uploadV1(env UploadEnv) (string, string, error) {
 }
 
 // formatAndBackup 将导出的日志序列化到 env.data 并存储为本地 zip
-func formatAndBackup(env *UploadEnv) error {
+func formatAndBackup(env *UploadEnv) (err error) {
 	filename, notice := buildLogBackupFilename(env.GroupID, env.LogName, time.Now())
 	env.appendNotice(notice)
 	fzip, err := os.OpenFile(
@@ -88,9 +88,15 @@ func formatAndBackup(env *UploadEnv) error {
 	if err != nil {
 		return fmt.Errorf("创建日志备份文件失败: %w", err)
 	}
-	defer func() { _ = fzip.Close() }()
 	writer := zip.NewWriter(fzip)
-	defer func() { _ = writer.Close() }()
+	defer func() {
+		if closeErr := writer.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("关闭日志压缩文件失败: %w", closeErr)
+		}
+		if closeErr := fzip.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("关闭日志备份文件失败: %w", closeErr)
+		}
+	}()
 
 	var text strings.Builder
 	for _, i := range env.lines {
@@ -130,9 +136,6 @@ func formatAndBackup(env *UploadEnv) error {
 	}
 	if _, err = fileWriter2.Write(data); err != nil {
 		return fmt.Errorf("写入JSON日志文件失败: %w", err)
-	}
-	if err = writer.Close(); err != nil {
-		return fmt.Errorf("关闭日志压缩文件失败: %w", err)
 	}
 	env.data = &data
 	return nil
