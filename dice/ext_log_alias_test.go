@@ -1,3 +1,4 @@
+//nolint:testpackage
 package dice
 
 import (
@@ -79,7 +80,7 @@ func TestBuildLogNameAliasIndexUsesWrappedKeysAndResolvesInput(t *testing.T) {
 
 func TestBuildLogNameAliasEntriesExtendsConflictingPrefixes(t *testing.T) {
 	buckets := map[byte][]string{}
-	for i := 0; i < 4096; i++ {
+	for i := range 4096 {
 		name := fmt.Sprintf("log-%d", i)
 		hash := logNameHashHex(name)
 		prefix := hash[0]
@@ -181,8 +182,8 @@ func TestLogSendToBackendAcceptsAliasKey(t *testing.T) {
 		if r.URL.Path != "/dice/api/log" {
 			t.Fatalf("unexpected path %q", r.URL.Path)
 		}
-		if err := r.ParseMultipartForm(1 << 20); err != nil {
-			t.Fatalf("ParseMultipartForm: %v", err)
+		if parseErr := r.ParseMultipartForm(1 << 20); parseErr != nil {
+			t.Fatalf("ParseMultipartForm: %v", parseErr)
 		}
 		if got := r.FormValue("name"); got != logName {
 			t.Fatalf("uploaded name = %q, want %q", got, logName)

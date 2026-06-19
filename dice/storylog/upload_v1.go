@@ -99,21 +99,21 @@ func formatAndBackup(env *UploadEnv) error {
 	}
 
 	{
-		wr, err := writer.Create(ExportReadmeFilename)
-		if err != nil {
-			return fmt.Errorf("创建README失败: %w", err)
+		readmeWriter, createErr := writer.Create(ExportReadmeFilename)
+		if createErr != nil {
+			return fmt.Errorf("创建README失败: %w", createErr)
 		}
-		if _, err = wr.Write([]byte(ExportReadmeContent)); err != nil {
-			return fmt.Errorf("写入README失败: %w", err)
+		if _, writeErr := readmeWriter.Write([]byte(ExportReadmeContent)); writeErr != nil {
+			return fmt.Errorf("写入README失败: %w", writeErr)
 		}
 	}
 	{
-		fileWriter, err := writer.Create(ExportTxtFilename)
-		if err != nil {
-			return fmt.Errorf("创建文本日志文件失败: %w", err)
+		textWriter, createErr := writer.Create(ExportTxtFilename)
+		if createErr != nil {
+			return fmt.Errorf("创建文本日志文件失败: %w", createErr)
 		}
-		if _, err = fileWriter.Write([]byte(text.String())); err != nil {
-			return fmt.Errorf("写入文本日志文件失败: %w", err)
+		if _, writeErr := textWriter.Write([]byte(text.String())); writeErr != nil {
+			return fmt.Errorf("写入文本日志文件失败: %w", writeErr)
 		}
 	}
 

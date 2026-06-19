@@ -199,12 +199,12 @@ func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Bu
 	defer func() { _ = writer.Close() }()
 	// 写入README文件
 	{
-		wr, err := writer.Create(ExportReadmeFilename)
-		if err != nil {
-			return fmt.Errorf("创建README失败: %w", err)
+		readmeWriter, createErr := writer.Create(ExportReadmeFilename)
+		if createErr != nil {
+			return fmt.Errorf("创建README失败: %w", createErr)
 		}
-		if _, err = wr.Write([]byte(ExportReadmeContent)); err != nil {
-			return fmt.Errorf("写入README失败: %w", err)
+		if _, writeErr := readmeWriter.Write([]byte(ExportReadmeContent)); writeErr != nil {
+			return fmt.Errorf("写入README失败: %w", writeErr)
 		}
 	}
 	// 写入文本TXT文件

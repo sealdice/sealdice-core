@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -82,7 +83,7 @@ func buildLogNameAliasEntries(names []string, minPrefixLen int) ([]logNameAliasE
 				continue
 			}
 			if keyLens[i] >= len(entry.FullHash) {
-				return nil, fmt.Errorf("日志 hash 键冲突，请改用原始名称")
+				return nil, errors.New("日志 hash 键冲突，请改用原始名称")
 			}
 			keyLens[i]++
 			changed = true
