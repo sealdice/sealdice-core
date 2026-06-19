@@ -14,10 +14,9 @@ import (
 	"time"
 
 	"sealdice-core/dice/service"
-	"sealdice-core/utils"
 )
 
-func uploadV1(env UploadEnv) (string, error) {
+func uploadV1(env UploadEnv) (string, string, error) {
 	_ = os.MkdirAll(env.Dir, 0o755)
 
 	url, uploadTS, updateTS, _ := service.LogGetUploadInfo(env.Db, env.GroupID, env.LogName)
@@ -30,7 +29,7 @@ func uploadV1(env UploadEnv) (string, error) {
 			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
 			url,
 		)
-		return url, nil
+		return url, env.Notice, nil
 	}
 	if len(url) == 0 {
 		env.Log.Infof("没有查询到之前上传的URL Log:%s.%s", env.GroupID, env.LogName)
@@ -45,44 +44,53 @@ func uploadV1(env UploadEnv) (string, error) {
 
 	lines, err := service.LogGetAllLines(env.Db, env.GroupID, env.LogName)
 	if err != nil {
-		return "", err
+		return "", env.Notice, err
 	}
 	if len(lines) == 0 {
-		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
+		return "", env.Notice, errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
 	env.lines = lines
 
 	err = formatAndBackup(&env)
 	if err != nil {
-		return "", err
+		return "", env.Notice, err
 	}
 
 	var zlibBuffer bytes.Buffer
 	w := zlib.NewWriter(&zlibBuffer)
-	_, _ = w.Write(*env.data)
-	_ = w.Close()
+	if _, err = w.Write(*env.data); err != nil {
+		_ = w.Close()
+		return "", env.Notice, err
+	}
+	if err = w.Close(); err != nil {
+		return "", env.Notice, err
+	}
 
 	url = uploadToSealBackends(env, &zlibBuffer)
 	if errDB := service.LogSetUploadInfo(env.Db, env.GroupID, env.LogName, url); errDB != nil {
 		env.Log.Errorf("记录Log上传信息失败: %v", errDB)
 	}
 	if len(url) == 0 {
-		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
+		return "", env.Notice, errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
-	return url, nil
+	return url, env.Notice, nil
 }
 
 // formatAndBackup 将导出的日志序列化到 env.data 并存储为本地 zip
 func formatAndBackup(env *UploadEnv) error {
-	fzip, _ := os.OpenFile(
-		filepath.Join(env.Dir, utils.FilenameClean(fmt.Sprintf(
-			"%s_%s.%s.zip",
-			env.GroupID, env.LogName, time.Now().Format("060102150405"),
-		))),
+	filename, notice := buildLogBackupFilename(env.GroupID, env.LogName, time.Now())
+	env.appendNotice(notice)
+	fzip, err := os.OpenFile(
+		filepath.Join(env.Dir, filename),
 		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
 		0o600,
 	)
+	if err != nil {
+		return fmt.Errorf("创建日志备份文件失败: %w", err)
+	}
+	defer func() { _ = fzip.Close() }()
 	writer := zip.NewWriter(fzip)
+	defer func() { _ = writer.Close() }()
 
 	var text strings.Builder
 	for _, i := range env.lines {
@@ -91,28 +99,43 @@ func formatAndBackup(env *UploadEnv) error {
 	}
 
 	{
-		wr, _ := writer.Create(ExportReadmeFilename)
-		_, _ = wr.Write([]byte(ExportReadmeContent))
+		wr, err := writer.Create(ExportReadmeFilename)
+		if err != nil {
+			return fmt.Errorf("创建README失败: %w", err)
+		}
+		if _, err = wr.Write([]byte(ExportReadmeContent)); err != nil {
+			return fmt.Errorf("写入README失败: %w", err)
+		}
 	}
 	{
-		fileWriter, _ := writer.Create(ExportTxtFilename)
-		_, _ = fileWriter.Write([]byte(text.String()))
+		fileWriter, err := writer.Create(ExportTxtFilename)
+		if err != nil {
+			return fmt.Errorf("创建文本日志文件失败: %w", err)
+		}
+		if _, err = fileWriter.Write([]byte(text.String())); err != nil {
+			return fmt.Errorf("写入文本日志文件失败: %w", err)
+		}
 	}
 
 	data, err := json.Marshal(map[string]interface{}{
 		"version": StoryVersionV1,
 		"items":   env.lines,
 	})
-	if err == nil {
-		fileWriter2, _ := writer.Create(ExportJsonFilename)
-		_, _ = fileWriter2.Write(data)
-		env.data = &data
+	if err != nil {
+		return err
 	}
-
-	_ = writer.Close()
-	_ = fzip.Close()
-
-	return err
+	fileWriter2, err := writer.Create(ExportJsonFilename)
+	if err != nil {
+		return fmt.Errorf("创建JSON日志文件失败: %w", err)
+	}
+	if _, err = fileWriter2.Write(data); err != nil {
+		return fmt.Errorf("写入JSON日志文件失败: %w", err)
+	}
+	if err = writer.Close(); err != nil {
+		return fmt.Errorf("关闭日志压缩文件失败: %w", err)
+	}
+	env.data = &data
+	return nil
 }
 
 func uploadToSealBackends(env UploadEnv, data io.Reader) string {

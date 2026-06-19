@@ -22,7 +22,6 @@ import (
 	"sealdice-core/dice/service"
 	"sealdice-core/dice/storylog"
 	"sealdice-core/model"
-	"sealdice-core/utils"
 )
 
 var ErrGroupCardOverlong = errors.New("群名片长度超过限制")
@@ -168,19 +167,38 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
+			resolveLogNameWithReply := func(groupID, name string) (string, bool) {
+				resolved, err := resolveLogNameForGroup(ctx.Dice.DBOperator, groupID, name)
+				if err != nil {
+					ReplyToSender(ctx, msg, "获取记录出错: "+err.Error())
+					return "", false
+				}
+				return resolved, true
+			}
+
+			logKeyHintText := func() string {
+				return "\n可先使用 .log list 查看对应的【key】: 日志名"
+			}
+
 			getAndUpload := func(gid, lname string) {
-				unofficial, fn, err := LogSendToBackend(ctx, gid, lname)
+				unofficial, fn, notice, err := LogSendToBackend(ctx, gid, lname)
 				if err != nil {
 					reason := strings.TrimPrefix(err.Error(), "#")
 					VarSetValueStr(ctx, "$t错误原因", reason)
 
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_失败")
+					if strings.Contains(reason, "此log不存在") || strings.Contains(reason, "名字是否正确") {
+						tmpl += logKeyHintText()
+					}
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				} else {
 					VarSetValueStr(ctx, "$t日志链接", fn)
 					tmpl := DiceFormatTmpl(ctx, "日志:记录_上传_成功")
 					if unofficial {
 						tmpl += "\n[注意：该链接非海豹官方染色器]"
+					}
+					if notice != "" {
+						tmpl += "\n" + notice
 					}
 					ReplyToSenderRaw(ctx, msg, tmpl, "skip")
 				}
@@ -202,6 +220,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				name := cmdArgs.GetArgN(2)
 				if name == "" {
 					name = group.LogCurName
+				}
+				if name != "" {
+					var ok bool
+					name, ok = resolveLogNameWithReply(group.GroupID, name)
+					if !ok {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
 				}
 
 				if name != "" {
@@ -243,6 +268,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 				name := cmdArgs.GetArgN(2)
 				if name == "" {
 					return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+				}
+				var ok bool
+				name, ok = resolveLogNameWithReply(group.GroupID, name)
+				if !ok {
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				VarSetValueStr(ctx, "$t记录名称", name)
@@ -340,14 +370,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 				var text strings.Builder
 				text.WriteString(DiceFormatTmpl(ctx, "日志:记录_列出_导入语"))
 				text.WriteString("\n")
-				lst, err := service.LogGetList(ctx.Dice.DBOperator, groupID)
+				index, err := buildLogNameAliasIndex(ctx.Dice.DBOperator, groupID)
 				if err == nil {
-					for _, i := range lst {
-						text.WriteString("- ")
-						text.WriteString(i)
+					for _, entry := range index.entries {
+						text.WriteString(formatLogNameListLine(entry))
 						text.WriteString("\n")
 					}
-					if len(lst) == 0 {
+					if len(index.entries) == 0 {
 						text.WriteString("暂无记录")
 					}
 				} else {
@@ -391,6 +420,13 @@ func RegisterBuiltinExtLog(self *Dice) {
 			} else if cmdArgs.IsArgEqual(1, "stat") {
 				// group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
+				if name != "" {
+					var ok bool
+					name, ok = resolveLogNameWithReply(group.GroupID, name)
+					if !ok {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+				}
 				items, err := service.LogGetCommandInfoStrList(ctx.Dice.DBOperator, group.GroupID, name)
 				if err == nil && len(items) > 0 {
 					// showDetail := cmdArgs.GetKwarg("detail")
@@ -439,15 +475,24 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_未指定记录"), "skip")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				var ok bool
+				logName, ok = resolveLogNameWithReply(group.GroupID, logName)
+				if !ok {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				now := carbon.Now()
 				VarSetValueStr(ctx, "$t记录名", logName)
 				VarSetValueStr(ctx, "$t日期", now.ToShortDateString())
 				VarSetValueStr(ctx, "$t时间", now.ToShortTimeString())
 				logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
-				logFile, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
+				logFile, notice, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
 				if err != nil {
-					ReplyToSenderRaw(ctx, msg, err.Error(), "skip")
+					reply := err.Error()
+					if strings.Contains(reply, "此log不存在") || strings.Contains(reply, "名字是否正确") {
+						reply += logKeyHintText()
+					}
+					ReplyToSenderRaw(ctx, msg, reply, "skip")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 				defer os.Remove(logFile)
@@ -490,7 +535,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 				}
 				SendFileToSenderRaw(ctx, msg, uri, "skip")
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
-				ReplyToSenderRaw(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_导出_成功"), "skip")
+				reply := DiceFormatTmpl(ctx, "日志:记录_导出_成功")
+				if notice != "" {
+					reply += "\n" + notice
+				}
+				ReplyToSenderRaw(ctx, msg, reply, "skip")
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -512,6 +561,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 			case "log":
 				group := ctx.Group
 				_, name := getLogName(ctx, msg, cmdArgs, 2)
+				if name != "" {
+					resolved, err := resolveLogNameForGroup(ctx.Dice.DBOperator, group.GroupID, name)
+					if err != nil {
+						ReplyToSender(ctx, msg, "获取记录出错: "+err.Error())
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					name = resolved
+				}
 				items, err := service.LogGetCommandInfoStrList(ctx.Dice.DBOperator, group.GroupID, name)
 				if err == nil && len(items) > 0 {
 					// showDetail := cmdArgs.GetKwarg("detail")
@@ -980,14 +1037,12 @@ func LogEditByID(ctx *MsgContext, groupID, logName, content string, messageID in
 	return true
 }
 
-func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, error) {
+func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, string, error) {
 	// 创建临时文件
-	tempLog, err := os.CreateTemp("", fmt.Sprintf(
-		"%s(*).txt",
-		utils.FilenameClean(fileNamePrefix),
-	))
+	tempPattern, notice := storylog.BuildTempPattern(fileNamePrefix)
+	tempLog, err := os.CreateTemp("", tempPattern)
 	if err != nil {
-		return "", errors.New("log导出出现未知错误")
+		return "", notice, errors.New("log导出出现未知错误")
 	}
 	defer func() {
 		_ = tempLog.Close()
@@ -1025,12 +1080,16 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 				for _, line := range cursorLines {
 					timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
 					text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
-					_, _ = tempLog.WriteString(text)
+					if _, err = tempLog.WriteString(text); err != nil {
+						resultCh <- fmt.Errorf("写入日志导出临时文件失败: %w", err)
+						return
+					}
 					counter++
 				}
 				// ========== 新增：每批写入后强制同步 ==========
 				if err := tempLog.Sync(); err != nil { // 确保批次数据落盘
 					resultCh <- fmt.Errorf("批次同步失败: %w", err)
+					return
 				}
 
 				// 如果没有下一页，则成功完成
@@ -1047,24 +1106,32 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 
 	// 等待 goroutine 完成或超时
 	if err := <-resultCh; err != nil {
-		return "", err
+		return "", notice, err
 	}
 	// 2. 确保文件指针回到开头
 	if _, err := tempLog.Seek(0, 0); err != nil {
-		return "", fmt.Errorf("重置文件指针失败: %w", err)
+		return "", notice, fmt.Errorf("重置文件指针失败: %w", err)
 	}
 
 	// 如果没有任何数据，返回错误
 	if counter == 0 {
-		return "", errors.New("此log不存在，或条目数为空，名字是否正确？")
+		return "", notice, errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
 
-	return tempLog.Name(), nil
+	return tempLog.Name(), notice, nil
 }
 
-func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, error) {
+func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, string, error) {
 	dice := ctx.Dice
 	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
+
+	resolvedName, err := resolveLogNameForGroup(dice.DBOperator, groupID, logName)
+	if err != nil {
+		return false, "", "", err
+	}
+	if resolvedName != "" {
+		logName = resolvedName
+	}
 
 	var sealBackends []string
 	for _, sealBackend := range BackendUrls {
@@ -1102,14 +1169,14 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 		}
 	}
 
-	url, err := storylog.Upload(uploadCtx)
+	url, notice, err := storylog.Upload(uploadCtx)
 	if err != nil {
-		return unofficial, "", err
+		return unofficial, "", notice, err
 	}
 	if len(url) == 0 {
-		return unofficial, "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
+		return unofficial, "", notice, errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
-	return unofficial, url, nil
+	return unofficial, url, notice, nil
 }
 
 // LogRollBriefByPCV2 根据log生成骰点简报 采用gjson进行解析 拒绝一次性加载所有数据库数据
