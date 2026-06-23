@@ -721,7 +721,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 
 			toCreate.MsgType = 7
 			toCreate.Media = &dto.MediaInfo{
-				FileInfo: media.FileInfo,
+				FileInfo: []byte(media.FileInfo),
 			}
 		case *message.RecordElement:
 			url := elem.File.URL
@@ -744,7 +744,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 
 			toCreate.MsgType = 7
 			toCreate.Media = &dto.MediaInfo{
-				FileInfo: media.FileInfo,
+				FileInfo: []byte(media.FileInfo),
 			}
 		}
 	}
