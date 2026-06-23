@@ -94,6 +94,10 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 		return 0
 	}
 
+	pa.AppID = strings.TrimSpace(pa.AppID)
+	pa.AppSecret = strings.TrimSpace(pa.AppSecret)
+	pa.Token = strings.TrimSpace(pa.Token)
+
 	log.Debug("official qq server")
 	qqbot.SetLogger(NewDummyLogger())
 
