@@ -70,7 +70,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/samber/lo v1.52.0
 	github.com/schollz/progressbar/v3 v3.18.0
-	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083
+	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 // replaced below
 	github.com/sealdice/dicescript v0.0.0-20260511210507-209e4d20a070
 	github.com/slack-go/slack v0.17.3
 	github.com/sunshineplan/imgconv v1.1.14
@@ -90,6 +90,7 @@ require (
 	golang.org/x/sys v0.41.0
 	golang.org/x/text v0.34.0
 	golang.org/x/time v0.15.0
+	golang.org/x/oauth2 v0.23.0
 	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -231,5 +232,7 @@ replace (
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0 => github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105 => github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6
+	// QQ官方机器人: 指向 baiyu-yu/botgo fork (tongbu 分支)，支持 webhook + OAuth2 + C2C消息等
+	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 => github.com/baiyu-yu/botgo v0.0.0-20241231000000-000000000000
 // github.com/PaienNate/pineutil v0.0.0-20251014070632-4c5ebfdc92e5 => C:\Users\11018\Documents\goutil
 )

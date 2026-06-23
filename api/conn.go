@@ -954,10 +954,15 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID       uint64 `json:"appID"       yaml:"appID"`
+		AppID       string `json:"appID"       yaml:"appID"`
 		Token       string `json:"token"       yaml:"token"`
 		AppSecret   string `json:"appSecret"   yaml:"appSecret"`
 		OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
+		// Webhook配置
+		UseWebhook    bool   `json:"useWebhook"    yaml:"useWebhook"`
+		WebhookPath   string `json:"webhookPath"   yaml:"webhookPath"`
+		WebhookPort   int    `json:"webhookPort"   yaml:"webhookPort"`
+		WebhookSecret string `json:"webhookSecret" yaml:"webhookSecret"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -965,6 +970,11 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 		conn.Session = myDice.ImSession
 		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
 		pa.Session = myDice.ImSession
+		// 设置Webhook配置
+		pa.UseWebhook = v.UseWebhook
+		pa.WebhookPath = v.WebhookPath
+		pa.WebhookPort = v.WebhookPort
+		pa.WebhookSecret = v.WebhookSecret
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
