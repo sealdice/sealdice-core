@@ -48,21 +48,6 @@ type PlatformAdapterOfficialQQ struct {
 	webhookServer *http.Server `json:"-" yaml:"-"`
 }
 
-// WSGroupMessageData 群聊普通消息数据（非@消息），对应 GROUP_MESSAGE_CREATE 事件
-// botgo dto 包中未包含此类型，在此补充定义
-type WSGroupMessageData struct {
-	ID          string              `json:"id"`
-	Content     string              `json:"content"`
-	Timestamp   dto.Timestamp       `json:"timestamp"`
-	Author      *GroupMessageAuthor  `json:"author"`
-	GroupOpenID string              `json:"group_openid"`
-}
-
-type GroupMessageAuthor struct {
-	ID           string `json:"id"`            // 用户ID（如果有）
-	MemberOpenID string `json:"member_openid"` // 成员OpenID
-}
-
 // WSGroupMemberAddData 群成员增加事件数据，对应 GROUP_MEMBER_ADD 事件
 type WSGroupMemberAddData struct {
 	GroupOpenID    string `json:"group_openid"`     // 群OpenID
@@ -79,9 +64,7 @@ type WSGroupMemberRemoveData struct {
 	Timestamp      int64  `json:"timestamp"`        // 时间戳（秒）
 }
 
-type GroupMessageEventHandler func(event *dto.WSPayload, data *WSGroupMessageData) error
-type GroupMemberAddEventHandler func(event *dto.WSPayload, data *WSGroupMemberAddData) error
-type GroupMemberRemoveEventHandler func(event *dto.WSPayload, data *WSGroupMemberRemoveData) error
+
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep := pa.EndPoint
@@ -286,6 +269,8 @@ func (pa *PlatformAdapterOfficialQQ) makeHandlers() []interface{} {
 		handlers = append(handlers,
 			// 群聊@消息
 			event.GroupATMessageEventHandler(pa.GroupAtMessageReceive),
+			// 群聊普通消息 (非@)
+			event.GroupMessageEventHandler(pa.GroupMessageReceive),
 			// 单聊消息
 			event.C2CMessageEventHandler(pa.C2CMessageReceiveFromEvent),
 		)
@@ -378,7 +363,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 }
 
 // GroupMessageReceive 处理群聊普通消息（非@）
-func (pa *PlatformAdapterOfficialQQ) GroupMessageReceive(event *dto.WSPayload, data *WSGroupMessageData) error {
+func (pa *PlatformAdapterOfficialQQ) GroupMessageReceive(event *dto.WSPayload, data *dto.WSGroupMessageData) error {
 	s := pa.Session
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群聊普通消息：%v, %v", event, data)
@@ -389,7 +374,7 @@ func (pa *PlatformAdapterOfficialQQ) GroupMessageReceive(event *dto.WSPayload, d
 }
 
 // groupNormalMsgToStdMsg 将群聊普通消息转换为标准消息
-func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(msgQQ *WSGroupMessageData) *Message {
+func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(msgQQ *dto.WSGroupMessageData) *Message {
 	appID := pa.AppID
 	msg := new(Message)
 	timestamp, _ := msgQQ.Timestamp.Time()
