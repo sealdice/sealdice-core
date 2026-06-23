@@ -38,10 +38,11 @@ type PlatformAdapterOfficialQQ struct {
 	WebhookPort   int    `json:"webhookPort"   yaml:"webhookPort"`      // Webhook端口，默认 8099
 	WebhookSecret string `json:"webhookSecret" yaml:"webhookSecret"`    // Webhook密钥（可选）
 
-	Api         qqapi.OpenAPI      `json:"-" yaml:"-"`
-	Ctx         context.Context    `json:"-" yaml:"-"`
-	CancelFunc  context.CancelFunc `json:"-" yaml:"-"`
-	tokenSource oauth2.TokenSource `json:"-" yaml:"-"`
+	Api            qqapi.OpenAPI        `json:"-" yaml:"-"`
+	SessionManager qqbot.SessionManager `json:"-" yaml:"-"`
+	Ctx            context.Context      `json:"-" yaml:"-"`
+	CancelFunc     context.CancelFunc   `json:"-" yaml:"-"`
+	tokenSource    oauth2.TokenSource   `json:"-" yaml:"-"`
 	
 	// Webhook服务器
 	webhookServer *http.Server `json:"-" yaml:"-"`
@@ -143,39 +144,127 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep.UserID = formatDiceIDOfficialQQ(botInfo.ID)
 	ep.Nickname = botInfo.Username
 
-	// 启动 webhook 服务器
-	if pa.WebhookPath == "" {
-		pa.WebhookPath = "/webhook/qq"
-	}
-	if pa.WebhookPort == 0 {
-		pa.WebhookPort = 8099
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc(pa.WebhookPath, pa.handleWebhookCallback)
-
-	addr := fmt.Sprintf(":%d", pa.WebhookPort)
-	pa.webhookServer = &http.Server{
-		Addr:    addr,
-		Handler: mux,
-	}
-
-	go func() {
-		log.Infof("official qq webhook: 监听地址 %s%s", addr, pa.WebhookPath)
-		if err := pa.webhookServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error("official qq webhook服务器启动失败: ", err)
-			if pa.Ctx == ctx {
-				ep.State = 3
-				ep.Enable = false
-			}
+	// 区分 Webhook 还是 WebSocket 模式
+	if pa.UseWebhook {
+		// 启动 webhook 服务器
+		if pa.WebhookPath == "" {
+			pa.WebhookPath = "/webhook/qq"
 		}
-	}()
+		if pa.WebhookPort == 0 {
+			pa.WebhookPort = 8099
+		}
 
-	ep.State = 1
-	ep.Enable = true
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
-	log.Info("official qq webhook模式启动成功")
+		mux := http.NewServeMux()
+		mux.HandleFunc(pa.WebhookPath, pa.handleWebhookCallback)
+
+		addr := fmt.Sprintf(":%d", pa.WebhookPort)
+		pa.webhookServer = &http.Server{
+			Addr:    addr,
+			Handler: mux,
+		}
+
+		go func() {
+			log.Infof("official qq webhook: 监听地址 %s%s", addr, pa.WebhookPath)
+			if err := pa.webhookServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Error("official qq webhook服务器启动失败: ", err)
+				if pa.Ctx == ctx {
+					ep.State = 3
+					ep.Enable = false
+				}
+			}
+		}()
+
+		ep.State = 1
+		ep.Enable = true
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		log.Info("official qq webhook模式启动成功")
+	} else {
+		// WebSocket 模式
+		pa.SessionManager = qqbot.NewSessionManager()
+
+		ep.State = 2
+		log.Debug("official qq connecting")
+		ws, err := pa.Api.WS(ctx, nil, "")
+		if err != nil || ws == nil {
+			log.Error("official qq 获取 ws 接入点失败: ", err)
+			log.Error("official qq 提示：请确认在机器人后台配置了 IP 白名单，并检查 AppID/AppSecret 是否正确")
+			ep.State = 3
+			if pa.CancelFunc != nil {
+				pa.CancelFunc()
+			}
+			pa.Api = nil
+			pa.SessionManager = nil
+			pa.Ctx = nil
+			pa.CancelFunc = nil
+			return 1
+		}
+		// 极端情况下 shards 为 0 会导致 session manager 阻塞在 channel range 上
+		if ws.Shards == 0 {
+			ws.Shards = 1
+		}
+		// 频控不满足时，botgo 会直接返回错误；这里提前检查避免在 goroutine 内“静默失败”
+		if ws.Shards > ws.SessionStartLimit.Remaining {
+			log.Errorf(
+				"official qq session limited: shards=%d remaining=%d resetAfter=%d maxConcurrency=%d",
+				ws.Shards, ws.SessionStartLimit.Remaining, ws.SessionStartLimit.ResetAfter, ws.SessionStartLimit.MaxConcurrency,
+			)
+			ep.State = 3
+			if pa.CancelFunc != nil {
+				pa.CancelFunc()
+			}
+			pa.Api = nil
+			pa.SessionManager = nil
+			pa.Ctx = nil
+			pa.CancelFunc = nil
+			return 1
+		}
+
+		var intent dto.Intent
+		// 文字子频道at消息
+		intent = intent | dto.IntentGuildAtMessage
+		// 频道私信
+		intent = intent | dto.IntentDirectMessages
+
+		if !pa.OnlyQQGuild {
+			// 群聊@消息、单聊、好友关系事件、进入AIO等
+			intent = intent | dto.IntentGroupMessages
+			intent = intent | dto.IntentEnterAIO
+		}
+
+		go func() {
+			currentCtx := ctx
+			defer func() {
+				isCurrent := pa.Ctx == currentCtx
+				// 防止崩掉进程
+				if r := recover(); r != nil {
+					log.Error("official qq 启动失败: ", r)
+					if isCurrent {
+						ep.State = 3
+						ep.Enable = false
+					}
+				}
+				if isCurrent {
+					pa.Ctx = nil
+					pa.CancelFunc = nil
+					pa.SessionManager = nil
+				}
+			}()
+			if startErr := pa.SessionManager.Start(currentCtx, ws, pa.tokenSource, &intent); startErr != nil {
+				log.Error("official qq session manager 启动失败: ", startErr)
+				if pa.Ctx == currentCtx {
+					ep.State = 3
+					ep.Enable = false
+				}
+			}
+		}()
+
+		ep.State = 1
+		ep.Enable = true
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		log.Info("official qq 连接成功")
+	}
 
 	return 0
 }
