@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/sealdice/botgo/event"
+	"github.com/sealdice/botgo/interaction/signature"
 
 	qqbot "github.com/sealdice/botgo"
 	"github.com/sealdice/botgo/dto"
@@ -20,6 +23,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"sealdice-core/message"
+	"sealdice-core/utils"
 )
 
 type PlatformAdapterOfficialQQ struct {
@@ -30,7 +34,7 @@ type PlatformAdapterOfficialQQ struct {
 	AppID       string `json:"appID"       yaml:"appID"`
 	AppSecret   string `json:"appSecret"   yaml:"appSecret"`
 	Token       string `json:"token"       yaml:"token"`
-	OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
+	OnlyQQGuild    bool   `json:"onlyQQGuild"    yaml:"onlyQQGuild"`
 	
 	// Webhook配置
 	UseWebhook    bool   `json:"useWebhook"    yaml:"useWebhook"`       // 是否使用Webhook模式
@@ -544,35 +548,55 @@ func (pa *PlatformAdapterOfficialQQ) SendSegmentToPerson(ctx *MsgContext, userID
 func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	userID, idType := pa.mustExtractID(uid)
 
-	if idType == OpenQQUserOpenid {
-		// 单聊消息
-		rowID, ok := VarGetValueStr(ctx, "$tMsgID")
-		if !ok {
-			pa.Session.Parent.Logger.Error("official qq 发送单聊消息失败：无法获取消息ID")
-			return
+	var textList []string
+	if pa.Session.Parent.Config.OfficialQQDisableSplit {
+		textList = []string{text}
+	} else {
+		maxLen := 900
+		totalLen := len(text)
+		if totalLen > 900*5 {
+			maxLen = totalLen/5 + 50
+			if maxLen > 2800 {
+				maxLen = 2800
+			}
 		}
-		pa.sendC2CMsgRaw(ctx, rowID, userID, text)
-		return
+		textList = utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
+		if len(textList) > 5 {
+			textList = textList[:5]
+		}
 	}
 
-	if idType != OpenQQCHUser {
-		// 说明不是频道信息
-		pa.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
-		return
-	}
-	channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
-	rowID, ok := VarGetValueStr(ctx, "$tMsgID")
-	if !ok || ctx.MessageType == "group" {
-		// 需要主动发起私聊
-		g, c, err := pa.createQQGuildDirectChannel(ctx, guildID, userID)
-		if err != nil {
-			pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
+	for _, t := range textList {
+		if idType == OpenQQUserOpenid {
+			// 单聊消息
+			rowID, ok := VarGetValueStr(ctx, "$tMsgID")
+			if !ok {
+				pa.Session.Parent.Logger.Error("official qq 发送单聊消息失败：无法获取消息ID")
+				return
+			}
+			pa.sendC2CMsgRaw(ctx, rowID, userID, t)
+			continue
+		}
+
+		if idType != OpenQQCHUser {
+			// 说明不是频道信息
+			pa.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
 			return
 		}
-		guildID = g
-		channelID = c
+		channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
+		rowID, ok := VarGetValueStr(ctx, "$tMsgID")
+		if !ok || ctx.MessageType == "group" {
+			// 需要主动发起私聊
+			g, c, err := pa.createQQGuildDirectChannel(ctx, guildID, userID)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
+				return
+			}
+			guildID = g
+			channelID = c
+		}
+		pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, t)
 	}
-	pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, text)
 }
 
 func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel( /* ctx */ _ *MsgContext, guildID, userID string) (string, string, error) {
@@ -615,12 +639,20 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 		ChannelID: channelID,
 	}
 	toCreate = &dto.MessageToCreate{
-		Content: content,
-		MsgType: 0,
-		MsgID:   rowMsgID,
+		MsgID:  rowMsgID,
+		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+	if pa.Session.Parent.Config.OfficialQQUseMarkdown {
+		toCreate.MsgType = 2
+		toCreate.Markdown = &dto.Markdown{
+			Content: content,
+		}
+	} else {
+		toCreate.MsgType = 0
+		toCreate.Content = content
 	}
 	if _, err := pa.Api.PostDirectMessage(qctx, dMsg, toCreate); err != nil {
-		pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：" + err.Error())
+		pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
 	}
 }
 
@@ -630,20 +662,88 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 	elems := message.ConvertStringMessage(text)
 	var content string
 
+	toCreate := &dto.MessageToCreate{
+		MsgID:  rowMsgID,
+		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+
 	for _, elem := range elems {
 		switch e := elem.(type) {
 		case *message.TextElement:
 			// QQ官方API中不能发送链接，所以全部进行转写绕过
 			content += textLinkStrip(e.Content)
 		case *message.ImageElement:
-			// 单聊暂不支持图片，跳过
+			url := e.File.URL
+			var fMsg *C2CRichMediaMessage
+			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
+				data, err := getElementBytes(e.File)
+				if err != nil {
+					pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地图片数据失败：" + err.Error())
+					continue
+				}
+				fMsg = &C2CRichMediaMessage{
+					FileType:   1,
+					FileData:   data,
+					SrvSendMsg: false,
+				}
+			} else {
+				fMsg = &C2CRichMediaMessage{
+					FileType:   1,
+					URL:        url,
+					SrvSendMsg: false,
+				}
+			}
+			media, err := pa.Api.PostC2CMessage(qctx, userOpenID, fMsg)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，准备图片信息失败：" + err.Error())
+				continue
+			}
+
+			toCreate.MsgType = 7
+			toCreate.Media = &dto.MediaInfo{
+				FileInfo: media.FileInfo,
+			}
+		case *message.RecordElement:
+			url := e.File.URL
+			var fMsg *C2CRichMediaMessage
+			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
+				data, err := getElementBytes(e.File)
+				if err != nil {
+					pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地语音数据失败：" + err.Error())
+					continue
+				}
+				fMsg = &C2CRichMediaMessage{
+					FileType:   3,
+					FileData:   data,
+					SrvSendMsg: false,
+				}
+			} else {
+				fMsg = &C2CRichMediaMessage{
+					FileType:   3,
+					URL:        url,
+					SrvSendMsg: false,
+				}
+			}
+			media, err := pa.Api.PostC2CMessage(qctx, userOpenID, fMsg)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，准备语音信息失败：" + err.Error())
+				continue
+			}
+
+			toCreate.MsgType = 7
+			toCreate.Media = &dto.MediaInfo{
+				FileInfo: media.FileInfo,
+			}
 		}
 	}
 
-	toCreate := &dto.MessageToCreate{
-		Content: content,
-		MsgType: 0,
-		MsgID:   rowMsgID,
+	if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
+		toCreate.MsgType = 2
+		toCreate.Markdown = &dto.Markdown{
+			Content: content,
+		}
+	} else {
+		toCreate.Content = content
 	}
 
 	if _, err := pa.Api.PostC2CMessage(qctx, userOpenID, toCreate); err != nil {
@@ -659,14 +759,35 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 		return
 	}
 	groupId, idType := pa.mustExtractID(uid)
-	switch idType {
-	case OpenQQGroupOpenid:
-		pa.sendQQGroupMsgRaw(ctx, rowID, groupId, text)
-	case OpenQQCHChannel:
-		pa.sendQQChannelMsgRaw(ctx, rowID, groupId, text)
-	default:
-		pa.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
-		return
+
+	var textList []string
+	if pa.Session.Parent.Config.OfficialQQDisableSplit {
+		textList = []string{text}
+	} else {
+		maxLen := 900
+		totalLen := len(text)
+		if totalLen > 900*5 {
+			maxLen = totalLen/5 + 50
+			if maxLen > 2800 {
+				maxLen = 2800
+			}
+		}
+		textList = utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
+		if len(textList) > 5 {
+			textList = textList[:5]
+		}
+	}
+
+	for _, t := range textList {
+		switch idType {
+		case OpenQQGroupOpenid:
+			pa.sendQQGroupMsgRaw(ctx, rowID, groupId, t)
+		case OpenQQCHChannel:
+			pa.sendQQChannelMsgRaw(ctx, rowID, groupId, t)
+		default:
+			pa.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
+			return
+		}
 	}
 }
 
@@ -679,7 +800,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 	)
 
 	toCreate = &dto.MessageToCreate{
-		MsgID: rowMsgID,
+		MsgID:  rowMsgID,
+		MsgSeq: rand.Uint32()%10000000 + 1,
 	}
 
 	for _, element := range elems {
@@ -691,16 +813,24 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *message.ImageElement:
 			url := elem.File.URL
-			// 目前不支持本地发送，检查一下url
-			if url == "" ||
-				strings.Contains(url, "localhost") ||
-				strings.Contains(url, "127.0.0.1") {
-				pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地图片，跳过该部分")
-			}
-			fMsg := &dto.MessageMediaToCreate{
-				FileType:   1,
-				URL:        url,
-				SrvSendMsg: false,
+			var fMsg *dto.MessageMediaToCreate
+			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
+				data, err := getElementBytes(elem.File)
+				if err != nil {
+					pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地图片数据失败：" + err.Error())
+					continue
+				}
+				fMsg = &dto.MessageMediaToCreate{
+					FileType:   1,
+					FileData:   data,
+					SrvSendMsg: false,
+				}
+			} else {
+				fMsg = &dto.MessageMediaToCreate{
+					FileType:   1,
+					URL:        url,
+					SrvSendMsg: false,
+				}
 			}
 			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
 			if err != nil {
@@ -714,16 +844,24 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			}
 		case *message.RecordElement:
 			url := elem.File.URL
-			// 目前不支持本地发送，检查一下url
-			if url == "" ||
-				strings.Contains(url, "localhost") ||
-				strings.Contains(url, "127.0.0.1") {
-				pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地语音，跳过该部分")
-			}
-			fMsg := &dto.MessageMediaToCreate{
-				FileType:   3,
-				URL:        url,
-				SrvSendMsg: false,
+			var fMsg *dto.MessageMediaToCreate
+			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
+				data, err := getElementBytes(elem.File)
+				if err != nil {
+					pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地语音数据失败：" + err.Error())
+					continue
+				}
+				fMsg = &dto.MessageMediaToCreate{
+					FileType:   3,
+					FileData:   data,
+					SrvSendMsg: false,
+				}
+			} else {
+				fMsg = &dto.MessageMediaToCreate{
+					FileType:   3,
+					URL:        url,
+					SrvSendMsg: false,
+				}
 			}
 			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
 			if err != nil {
@@ -738,7 +876,14 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 		}
 	}
 
-	toCreate.Content = content
+	if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
+		toCreate.MsgType = 2
+		toCreate.Markdown = &dto.Markdown{
+			Content: content,
+		}
+	} else {
+		toCreate.Content = content
+	}
 
 	if _, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate); err != nil {
 		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
@@ -769,9 +914,17 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 	}
 
 	toCreate = &dto.MessageToCreate{
-		Content: content,
-		MsgType: 0,
-		MsgID:   rowMsgID,
+		MsgID:  rowMsgID,
+		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+	if pa.Session.Parent.Config.OfficialQQUseMarkdown {
+		toCreate.MsgType = 2
+		toCreate.Markdown = &dto.Markdown{
+			Content: content,
+		}
+	} else {
+		toCreate.MsgType = 0
+		toCreate.Content = content
 	}
 	if _, err := pa.Api.PostMessage(qctx, channelID, toCreate); err != nil {
 		pa.Session.Parent.Logger.Error("official qq 发送频道消息失败：" + err.Error())
@@ -801,17 +954,17 @@ func formatDiceIDOfficialQQ(userUnionID string) string {
 
 func formatDiceIDOfficialQQGroupOpenID(botID, groupOpenID string) string {
 	// 在没有qq_unionid时的临时方案
-	return fmt.Sprintf("OpenQQ-Group-T:%s-%s", botID, groupOpenID)
+	return fmt.Sprintf("OpenQQ-Group-T:%s", groupOpenID)
 }
 
 func formatDiceIDOfficialQQMemberOpenID(botID, groupOpenID, memberOpenID string) string {
 	// 在没有qq_unionid时的临时方案
-	return fmt.Sprintf("OpenQQ-Member-T:%s-%s-%s", botID, groupOpenID, memberOpenID)
+	return fmt.Sprintf("OpenQQ-Member-T:%s", memberOpenID)
 }
 
 func formatDiceIDOfficialQQUserOpenID(botID, userOpenID string) string {
 	// 单聊用户OpenID格式
-	return fmt.Sprintf("OpenQQ-User-T:%s-%s", botID, userOpenID)
+	return fmt.Sprintf("OpenQQ-User-T:%s", userOpenID)
 }
 
 type OpenQQIDType = int
@@ -841,17 +994,29 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 	if strings.HasPrefix(text, "OpenQQ-Group-T:") {
 		temp := text[len("OpenQQ-Group-T:"):]
 		lst := strings.Split(temp, "-")
-		return lst[1], "", OpenQQGroupOpenid
+		if len(lst) >= 2 {
+			return lst[1], "", OpenQQGroupOpenid
+		}
+		return lst[0], "", OpenQQGroupOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQ-Member-T:") {
 		temp := text[len("OpenQQ-Member-T:"):]
 		lst := strings.Split(temp, "-")
-		return lst[2], lst[1], OpenQQGroupMemberOpenid
+		if len(lst) >= 3 {
+			return lst[2], lst[1], OpenQQGroupMemberOpenid
+		}
+		if len(lst) == 2 {
+			return lst[1], lst[0], OpenQQGroupMemberOpenid
+		}
+		return lst[0], "", OpenQQGroupMemberOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQ-User-T:") {
 		temp := text[len("OpenQQ-User-T:"):]
 		lst := strings.Split(temp, "-")
-		return lst[1], "", OpenQQUserOpenid
+		if len(lst) >= 2 {
+			return lst[1], "", OpenQQUserOpenid
+		}
+		return lst[0], "", OpenQQUserOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQCH:") {
 		return text[len("OpenQQCH:"):], "", OpenQQCHUser
@@ -914,6 +1079,13 @@ func (pa *PlatformAdapterOfficialQQ) handleWebhookCallback(w http.ResponseWriter
 	}
 	defer r.Body.Close()
 
+	// 签名验证
+	if !pa.verifyWebhookSignature(body, r.Header) {
+		log.Error("official qq webhook: 签名验证失败")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	log.Debugf("official qq webhook: 收到请求 %s", string(body))
 
 	// 解析事件
@@ -966,9 +1138,75 @@ func (pa *PlatformAdapterOfficialQQ) handleWebhookEvent(payload *dto.WSPayload) 
 }
 
 // verifyWebhookSignature 验证Webhook签名
-// 注意：QQ官方使用 Ed25519 签名，这里暂时用简化实现
-// 后续可根据 botgo fork 中的 webhook 包替换为完整实现
-func (pa *PlatformAdapterOfficialQQ) verifyWebhookSignature(_ []byte, _, _ string) bool {
-	// TODO: 实现 Ed25519 签名验证
-	return true
+func (pa *PlatformAdapterOfficialQQ) verifyWebhookSignature(body []byte, header http.Header) bool {
+	if pa.AppSecret == "" {
+		return true
+	}
+	pass, err := signature.Verify(pa.AppSecret, header, body)
+	if err != nil {
+		return false
+	}
+	return pass
+}
+
+type C2CRichMediaMessage struct {
+	FileType   int    `json:"file_type"`
+	URL        string `json:"url,omitempty"`
+	SrvSendMsg bool   `json:"srv_send_msg"`
+	FileData   []byte `json:"file_data,omitempty"`
+}
+
+func (msg *C2CRichMediaMessage) GetEventID() string {
+	return ""
+}
+
+func (msg *C2CRichMediaMessage) GetSendType() dto.SendType {
+	return dto.RichMedia
+}
+
+func isLocalOrNonPublic(urlStr string) bool {
+	if urlStr == "" {
+		return true
+	}
+	if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+		return true
+	}
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return true
+	}
+	host := u.Hostname()
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" ||
+		strings.HasPrefix(host, "192.168.") || strings.HasPrefix(host, "10.") ||
+		strings.HasPrefix(host, "172.16.") {
+		return true
+	}
+	return false
+}
+
+func getElementBytes(elem *message.FileElement) ([]byte, error) {
+	if elem == nil {
+		return nil, errors.New("nil element")
+	}
+	if elem.Stream != nil {
+		if seeker, ok := elem.Stream.(io.ReadSeeker); ok {
+			_, _ = seeker.Seek(0, io.SeekStart)
+		}
+		return io.ReadAll(elem.Stream)
+	}
+	pathOrUrl := elem.URL
+	if pathOrUrl == "" {
+		pathOrUrl = elem.File
+	}
+	if pathOrUrl == "" {
+		return nil, errors.New("no file path or url")
+	}
+	fileElem, err := message.FilepathToFileElement(pathOrUrl)
+	if err != nil {
+		return nil, err
+	}
+	if fileElem.Stream == nil {
+		return nil, errors.New("failed to get stream")
+	}
+	return io.ReadAll(fileElem.Stream)
 }

@@ -148,6 +148,9 @@ type BaseConfig struct {
 	QQChannelAutoOn         bool       `json:"QQChannelAutoOn"         yaml:"QQChannelAutoOn"`         // QQ频道中自动开启(默认不开)
 	QQChannelLogMessage     bool       `json:"QQChannelLogMessage"     yaml:"QQChannelLogMessage"`     // QQ频道中记录消息(默认不开)
 	QQEnablePoke            bool       `json:"QQEnablePoke"            yaml:"QQEnablePoke"`            // 启用戳一戳
+	OfficialQQFileSendBase64 bool      `json:"officialQQFileSendBase64" yaml:"officialQQFileSendBase64"` // 是否使用base64发送本地/非公网文件
+	OfficialQQDisableSplit   bool      `json:"officialQQDisableSplit"   yaml:"officialQQDisableSplit"`   // 是否禁用长消息分段
+	OfficialQQUseMarkdown    bool      `json:"officialQQUseMarkdown"    yaml:"officialQQUseMarkdown"`    // 是否自动把消息全转为markdown类型消息
 	TextCmdTrustOnly        bool       `json:"textCmdTrustOnly"        yaml:"textCmdTrustOnly"`        // 只允许信任用户或master使用text指令
 	IgnoreUnaddressedBotCmd bool       `json:"ignoreUnaddressedBotCmd" yaml:"ignoreUnaddressedBotCmd"` // 不响应群聊裸bot指令
 	UILogLimit              int64      `json:"-"                       yaml:"UILogLimit"`

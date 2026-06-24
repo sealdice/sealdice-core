@@ -954,15 +954,15 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID       string `json:"appID"       yaml:"appID"`
-		Token       string `json:"token"       yaml:"token"`
-		AppSecret   string `json:"appSecret"   yaml:"appSecret"`
-		OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
+		AppID          string `json:"appID"          yaml:"appID"`
+		Token          string `json:"token"          yaml:"token"`
+		AppSecret      string `json:"appSecret"      yaml:"appSecret"`
+		OnlyQQGuild    bool   `json:"onlyQQGuild"    yaml:"onlyQQGuild"`
 		// Webhook配置
-		UseWebhook    bool   `json:"useWebhook"    yaml:"useWebhook"`
-		WebhookPath   string `json:"webhookPath"   yaml:"webhookPath"`
-		WebhookPort   int    `json:"webhookPort"   yaml:"webhookPort"`
-		WebhookSecret string `json:"webhookSecret" yaml:"webhookSecret"`
+		UseWebhook     bool   `json:"useWebhook"     yaml:"useWebhook"`
+		WebhookPath    string `json:"webhookPath"    yaml:"webhookPath"`
+		WebhookPort    int    `json:"webhookPort"    yaml:"webhookPort"`
+		WebhookSecret  string `json:"webhookSecret"  yaml:"webhookSecret"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {

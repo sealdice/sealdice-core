@@ -397,6 +397,18 @@ func DiceConfigSet(c echo.Context) error {
 		config.QQEnablePoke = val.(bool)
 	}
 
+	if val, ok := jsonMap["officialQQFileSendBase64"]; ok {
+		config.OfficialQQFileSendBase64 = val.(bool)
+	}
+
+	if val, ok := jsonMap["officialQQDisableSplit"]; ok {
+		config.OfficialQQDisableSplit = val.(bool)
+	}
+
+	if val, ok := jsonMap["officialQQUseMarkdown"]; ok {
+		config.OfficialQQUseMarkdown = val.(bool)
+	}
+
 	if val, ok := jsonMap["playerNameWrapEnable"]; ok {
 		config.PlayerNameWrapEnable = val.(bool)
 	}
