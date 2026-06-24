@@ -1069,11 +1069,50 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, rowMsgID, userOpenID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
-	var content string
+	var (
+		content string
+		toCreate *dto.MessageToCreate
+		msgRef   *dto.MessageReference
+	)
 
-	toCreate := &dto.MessageToCreate{
+	toCreate = &dto.MessageToCreate{
 		MsgID:  rowMsgID,
 		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+
+	var lastRes *dto.Message
+	var lastErr error
+
+	sendCurrent := func(isFinal bool) {
+		if toCreate.Media == nil && content == "" && toCreate.MessageReference == nil {
+			return
+		}
+
+		if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
+			toCreate.MsgType = 2
+			toCreate.Markdown = &dto.Markdown{
+				Content: content,
+			}
+			if isFinal && keyboardObj != nil {
+				toCreate.Keyboard = keyboardObj
+			}
+		} else {
+			toCreate.Content = content
+			if toCreate.MsgType != 7 {
+				toCreate.MsgType = 0
+			}
+			if isFinal && keyboardObj != nil {
+				toCreate.Keyboard = keyboardObj
+			}
+		}
+
+		res, err := pa.Api.PostC2CMessage(qctx, userOpenID, toCreate)
+		if err != nil {
+			pa.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
+			lastErr = err
+		} else {
+			lastRes = res
+		}
 	}
 
 	for _, elem := range elems {
@@ -1082,10 +1121,11 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 			// QQ官方API中不能发送链接，所以全部进行转写绕过
 			content += textLinkStrip(e.Content)
 		case *message.ReplyElement:
-			toCreate.MessageReference = &dto.MessageReference{
+			msgRef = &dto.MessageReference{
 				MessageID:             e.ReplySeq,
 				IgnoreGetMessageError: true,
 			}
+			toCreate.MessageReference = msgRef
 		case *message.ImageElement:
 			url := e.File.URL
 			var fMsg *C2CRichMediaMessage
@@ -1111,6 +1151,16 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 			if err != nil {
 				pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，准备图片信息失败：" + err.Error())
 				continue
+			}
+
+			if toCreate.Media != nil {
+				sendCurrent(false)
+				content = ""
+				toCreate = &dto.MessageToCreate{
+					MsgID:            rowMsgID,
+					MsgSeq:           rand.Uint32()%10000000 + 1,
+					MessageReference: msgRef,
+				}
 			}
 
 			toCreate.MsgType = 7
@@ -1144,6 +1194,16 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 				continue
 			}
 
+			if toCreate.Media != nil {
+				sendCurrent(false)
+				content = ""
+				toCreate = &dto.MessageToCreate{
+					MsgID:            rowMsgID,
+					MsgSeq:           rand.Uint32()%10000000 + 1,
+					MessageReference: msgRef,
+				}
+			}
+
 			toCreate.MsgType = 7
 			toCreate.Media = &dto.MediaInfo{
 				FileInfo: media.FileInfo,
@@ -1151,23 +1211,8 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 		}
 	}
 
-	if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
-		toCreate.MsgType = 2
-		toCreate.Markdown = &dto.Markdown{
-			Content: content,
-		}
-		if keyboardObj != nil {
-			toCreate.Keyboard = keyboardObj
-		}
-	} else {
-		toCreate.Content = content
-	}
-
-	res, err := pa.Api.PostC2CMessage(qctx, userOpenID, toCreate)
-	if err != nil {
-		pa.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
-	}
-	return res, err
+	sendCurrent(true)
+	return lastRes, lastErr
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -1282,11 +1327,47 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 	var (
 		content  string
 		toCreate *dto.MessageToCreate
+		msgRef   *dto.MessageReference
 	)
 
 	toCreate = &dto.MessageToCreate{
 		MsgID:  rowMsgID,
 		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+
+	var lastRes *dto.Message
+	var lastErr error
+
+	sendCurrent := func(isFinal bool) {
+		if toCreate.Media == nil && content == "" && toCreate.MessageReference == nil {
+			return
+		}
+
+		if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
+			toCreate.MsgType = 2
+			toCreate.Markdown = &dto.Markdown{
+				Content: content,
+			}
+			if isFinal && keyboardObj != nil {
+				toCreate.Keyboard = keyboardObj
+			}
+		} else {
+			toCreate.Content = content
+			if toCreate.MsgType != 7 {
+				toCreate.MsgType = 0
+			}
+			if isFinal && keyboardObj != nil {
+				toCreate.Keyboard = keyboardObj
+			}
+		}
+
+		res, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate)
+		if err != nil {
+			pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
+			lastErr = err
+		} else {
+			lastRes = res
+		}
 	}
 
 	for _, element := range elems {
@@ -1295,10 +1376,11 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			// QQ官方API中不能发送链接，所以全部进行转写绕过
 			content += textLinkStrip(elem.Content)
 		case *message.ReplyElement:
-			toCreate.MessageReference = &dto.MessageReference{
+			msgRef = &dto.MessageReference{
 				MessageID:             elem.ReplySeq,
 				IgnoreGetMessageError: true,
 			}
+			toCreate.MessageReference = msgRef
 		case *message.AtElement:
 			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *message.ImageElement:
@@ -1326,6 +1408,16 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			if err != nil {
 				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备图片信息失败：" + err.Error())
 				continue
+			}
+
+			if toCreate.Media != nil {
+				sendCurrent(false)
+				content = ""
+				toCreate = &dto.MessageToCreate{
+					MsgID:            rowMsgID,
+					MsgSeq:           rand.Uint32()%10000000 + 1,
+					MessageReference: msgRef,
+				}
 			}
 
 			toCreate.MsgType = 7
@@ -1363,6 +1455,16 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 				continue
 			}
 
+			if toCreate.Media != nil {
+				sendCurrent(false)
+				content = ""
+				toCreate = &dto.MessageToCreate{
+					MsgID:            rowMsgID,
+					MsgSeq:           rand.Uint32()%10000000 + 1,
+					MessageReference: msgRef,
+				}
+			}
+
 			toCreate.MsgType = 7
 			decodedFileInfo, decodeErr := base64.StdEncoding.DecodeString(media.FileInfo)
 			if decodeErr != nil {
@@ -1374,23 +1476,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 		}
 	}
 
-	if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
-		toCreate.MsgType = 2
-		toCreate.Markdown = &dto.Markdown{
-			Content: content,
-		}
-		if keyboardObj != nil {
-			toCreate.Keyboard = keyboardObj
-		}
-	} else {
-		toCreate.Content = content
-	}
-
-	res, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate)
-	if err != nil {
-		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
-	}
-	return res, err
+	sendCurrent(true)
+	return lastRes, lastErr
 }
 
 func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContext, rowMsgID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
