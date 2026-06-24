@@ -213,6 +213,8 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 		intent = intent | dto.IntentGuildAtMessage
 		// 频道私信
 		intent = intent | dto.IntentDirectMessages
+		// 互动事件
+		intent = intent | dto.IntentInteraction
 
 		if !pa.OnlyQQGuild {
 			// 群聊@消息、单聊、好友关系事件
