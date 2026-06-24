@@ -767,22 +767,17 @@ func (pa *PlatformAdapterOfficialQQ) SendSegmentToPerson(ctx *MsgContext, userID
 func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	userID, idType := pa.mustExtractID(uid)
 
-	var textList []string
-	if pa.Session.Parent.Config.OfficialQQDisableSplit {
-		textList = []string{text}
-	} else {
-		maxLen := 900
-		totalLen := len(text)
-		if totalLen > 900*5 {
-			maxLen = totalLen/5 + 50
-			if maxLen > 2800 {
-				maxLen = 2800
-			}
+	maxLen := 900
+	totalLen := len(text)
+	if totalLen > 900*5 {
+		maxLen = totalLen/5 + 50
+		if maxLen > 2800 {
+			maxLen = 2800
 		}
-		textList = utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
-		if len(textList) > 5 {
-			textList = textList[:5]
-		}
+	}
+	textList := utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
+	if len(textList) > 5 {
+		textList = textList[:5]
 	}
 
 	if pa.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {
@@ -1020,22 +1015,17 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	}
 	groupId, idType := pa.mustExtractID(uid)
 
-	var textList []string
-	if pa.Session.Parent.Config.OfficialQQDisableSplit {
-		textList = []string{text}
-	} else {
-		maxLen := 900
-		totalLen := len(text)
-		if totalLen > 900*5 {
-			maxLen = totalLen/5 + 50
-			if maxLen > 2800 {
-				maxLen = 2800
-			}
+	maxLen := 900
+	totalLen := len(text)
+	if totalLen > 900*5 {
+		maxLen = totalLen/5 + 50
+		if maxLen > 2800 {
+			maxLen = 2800
 		}
-		textList = utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
-		if len(textList) > 5 {
-			textList = textList[:5]
-		}
+	}
+	textList := utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
+	if len(textList) > 5 {
+		textList = textList[:5]
 	}
 
 	if pa.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {

@@ -401,10 +401,6 @@ func DiceConfigSet(c echo.Context) error {
 		config.OfficialQQFileSendBase64 = val.(bool)
 	}
 
-	if val, ok := jsonMap["officialQQDisableSplit"]; ok {
-		config.OfficialQQDisableSplit = val.(bool)
-	}
-
 	if val, ok := jsonMap["officialQQUseMarkdown"]; ok {
 		config.OfficialQQUseMarkdown = val.(bool)
 	}

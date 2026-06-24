@@ -25,7 +25,6 @@ var DefaultConfig = Config{
 		QQChannelLogMessage:     false,
 		QQEnablePoke:            true,
 		OfficialQQFileSendBase64: false,
-		OfficialQQDisableSplit:   false,
 		OfficialQQUseMarkdown:    false,
 		TextCmdTrustOnly:        true,
 		IgnoreUnaddressedBotCmd: false,
