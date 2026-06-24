@@ -109,13 +109,12 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { nextTick, ref, watch, toValue } from 'vue';
 import dayjs from 'dayjs';
 import type { UploadCustomRequestOptions } from 'naive-ui';
 import { 
   createProSearchForm, 
   ProSearchForm, 
-  ProSelect,
   type ProSearchFormColumns 
 } from 'pro-naive-ui';
 import type { BanListInfoItem } from '@/api';
@@ -208,11 +207,9 @@ watch(
   ([keyword, sortBy, ranks]) => {
     try{
       syncingFromProps.value = true;
-      overwriteSearchFormValues(searchForm.values.value, {
-        keyword,
-        sortBy,
-        ranks: [...ranks],
-      });
+      searchForm.values.value.keyword = keyword
+      searchForm.values.value.sortBy = sortBy
+      searchForm.values.value.ranks = ranks
       void nextTick(() => {
         syncingFromProps.value = false;
       });
