@@ -716,7 +716,6 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPaylo
 
 	// 如果是机器人自己被移出群
 	if userID == pa.EndPoint.UserID || data.MemberOpenID == "" || data.MemberOpenID == "BOT" {
-		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
 		groupName := s.Parent.Parent.TryGetGroupName(groupID)
 
 		txt := fmt.Sprintf("official qq: 离开群组: <%s>(%s)", groupName, groupID)
