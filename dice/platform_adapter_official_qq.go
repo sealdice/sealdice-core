@@ -2,6 +2,7 @@ package dice
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -354,9 +355,8 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 		MsgSeq:  rand.Uint32()%10000000 + 1,
 	}
 
-	isGroupOrC2C := data.ChatType == 1 || data.ChatType == 2 || data.Scene == "group" || data.Scene == "c2c"
-	if isGroupOrC2C {
-		toCreate.MsgID = data.ID
+	if eventRaw != nil && eventRaw.EventID != "" {
+		toCreate.EventID = eventRaw.EventID
 	} else {
 		toCreate.EventID = data.ID
 	}
@@ -1019,6 +1019,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 	var (
 		content  string
 		toCreate *dto.MessageToCreate
+		msgRef   *dto.MessageReference
 	)
 
 	for _, elem := range elems {
@@ -1026,6 +1027,11 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 		case *message.TextElement:
 			content += e.Content
 		case *message.ImageElement:
+		case *message.ReplyElement:
+			msgRef = &dto.MessageReference{
+				MessageID:             e.ReplySeq,
+				IgnoreGetMessageError: true,
+			}
 		}
 	}
 
@@ -1034,8 +1040,9 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 		ChannelID: channelID,
 	}
 	toCreate = &dto.MessageToCreate{
-		MsgID:  rowMsgID,
-		MsgSeq: rand.Uint32()%10000000 + 1,
+		MsgID:            rowMsgID,
+		MsgSeq:           rand.Uint32()%10000000 + 1,
+		MessageReference: msgRef,
 	}
 	if pa.Session.Parent.Config.OfficialQQUseMarkdown {
 		toCreate.MsgType = 2
@@ -1072,6 +1079,11 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 		case *message.TextElement:
 			// QQ官方API中不能发送链接，所以全部进行转写绕过
 			content += textLinkStrip(e.Content)
+		case *message.ReplyElement:
+			toCreate.MessageReference = &dto.MessageReference{
+				MessageID:             e.ReplySeq,
+				IgnoreGetMessageError: true,
+			}
 		case *message.ImageElement:
 			url := e.File.URL
 			var fMsg *C2CRichMediaMessage
@@ -1278,6 +1290,11 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 		case *message.TextElement:
 			// QQ官方API中不能发送链接，所以全部进行转写绕过
 			content += textLinkStrip(elem.Content)
+		case *message.ReplyElement:
+			toCreate.MessageReference = &dto.MessageReference{
+				MessageID:             elem.ReplySeq,
+				IgnoreGetMessageError: true,
+			}
 		case *message.AtElement:
 			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *message.ImageElement:
@@ -1308,8 +1325,12 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			}
 
 			toCreate.MsgType = 7
+			decodedFileInfo, decodeErr := base64.StdEncoding.DecodeString(media.FileInfo)
+			if decodeErr != nil {
+				decodedFileInfo = []byte(media.FileInfo)
+			}
 			toCreate.Media = &dto.MediaInfo{
-				FileInfo: []byte(media.FileInfo),
+				FileInfo: decodedFileInfo,
 			}
 		case *message.RecordElement:
 			url := elem.File.URL
@@ -1339,8 +1360,12 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			}
 
 			toCreate.MsgType = 7
+			decodedFileInfo, decodeErr := base64.StdEncoding.DecodeString(media.FileInfo)
+			if decodeErr != nil {
+				decodedFileInfo = []byte(media.FileInfo)
+			}
 			toCreate.Media = &dto.MediaInfo{
-				FileInfo: []byte(media.FileInfo),
+				FileInfo: decodedFileInfo,
 			}
 		}
 	}
@@ -1370,6 +1395,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 	var (
 		content  string
 		toCreate *dto.MessageToCreate
+		msgRef   *dto.MessageReference
 	)
 
 	for _, elem := range elems {
@@ -1384,12 +1410,18 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 				content += fmt.Sprintf("<@%s>", e.Target)
 			}
 		case *message.ImageElement:
+		case *message.ReplyElement:
+			msgRef = &dto.MessageReference{
+				MessageID:             e.ReplySeq,
+				IgnoreGetMessageError: true,
+			}
 		}
 	}
 
 	toCreate = &dto.MessageToCreate{
-		MsgID:  rowMsgID,
-		MsgSeq: rand.Uint32()%10000000 + 1,
+		MsgID:            rowMsgID,
+		MsgSeq:           rand.Uint32()%10000000 + 1,
+		MessageReference: msgRef,
 	}
 	if pa.Session.Parent.Config.OfficialQQUseMarkdown {
 		toCreate.MsgType = 2
