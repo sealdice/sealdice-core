@@ -3,6 +3,7 @@ module sealdice-core
 go 1.25.0
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Milly/go-base2048 v0.1.0
 	github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752
