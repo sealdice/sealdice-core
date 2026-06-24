@@ -110,7 +110,8 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	pa.Api = qqbot.NewOpenAPI(pa.AppID, pa.tokenSource).WithTimeout(3 * time.Second)
 
 	// 注册事件处理器
-	event.RegisterHandlers(
+	event.RegisterHandlersByAppID(
+		pa.AppID,
 		pa.makeHandlers()...,
 	)
 
@@ -1837,6 +1838,7 @@ func (pa *PlatformAdapterOfficialQQ) handleWebhookCallback(w http.ResponseWriter
 
 	// 保存原始消息数据供 ParseAndHandle 使用
 	payload.RawMessage = body
+	payload.Session = &dto.Session{AppID: pa.AppID}
 
 	// 响应确认
 	w.Header().Set("Content-Type", "application/json")
