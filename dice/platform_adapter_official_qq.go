@@ -663,7 +663,7 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 		ctx.Group.MarkDirty(ctx.Dice)
 
 		if event != nil && event.EventID != "" {
-			VarSetValueStr(ctx, "$tMsgID", event.EventID)
+			VarSetValueStr(ctx, "$tEventID", event.EventID)
 		}
 
 		log.Infof("official qq: 机器人加入群 %s", groupID)
@@ -681,7 +681,7 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 		// 普通成员进群
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
 		if event != nil && event.EventID != "" {
-			VarSetValueStr(ctx, "$tMsgID", event.EventID)
+			VarSetValueStr(ctx, "$tEventID", event.EventID)
 		}
 
 		msg := &Message{
@@ -728,7 +728,6 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPaylo
 			group.MarkDirty(s.Parent)
 		}
 
-		ctx.Notice(txt)
 	}
 
 	return nil
@@ -778,7 +777,7 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
 		if event != nil && event.EventID != "" {
-			VarSetValueStr(ctx, "$tMsgID", event.EventID)
+			VarSetValueStr(ctx, "$tEventID", event.EventID)
 		}
 
 		msg := &Message{
@@ -999,6 +998,9 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		if idType == OpenQQUserOpenid {
 			rowID, ok := VarGetValueStr(ctx, "$tMsgID")
 			if !ok {
+				rowID, ok = VarGetValueStr(ctx, "$tEventID")
+			}
+			if !ok {
 				pa.Session.Parent.Logger.Error("official qq 发送单聊消息失败：无法获取消息ID")
 				return
 			}
@@ -1024,6 +1026,9 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		}
 		channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
 		rowID, ok := VarGetValueStr(ctx, "$tMsgID")
+		if !ok {
+			rowID, ok = VarGetValueStr(ctx, "$tEventID")
+		}
 		if !ok || ctx.MessageType == "group" {
 			g, c, err := pa.createQQGuildDirectChannel(ctx, guildID, userID)
 			if err != nil {
@@ -1054,6 +1059,9 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 			// 单聊消息
 			rowID, ok := VarGetValueStr(ctx, "$tMsgID")
 			if !ok {
+				rowID, ok = VarGetValueStr(ctx, "$tEventID")
+			}
+			if !ok {
 				pa.Session.Parent.Logger.Error("official qq 发送单聊消息失败：无法获取消息ID")
 				return
 			}
@@ -1080,6 +1088,9 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		}
 		channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
 		rowID, ok := VarGetValueStr(ctx, "$tMsgID")
+		if !ok {
+			rowID, ok = VarGetValueStr(ctx, "$tEventID")
+		}
 		if !ok || ctx.MessageType == "group" {
 			// 需要主动发起私聊
 			g, c, err := pa.createQQGuildDirectChannel(ctx, guildID, userID)
@@ -1176,7 +1187,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 }
 
 // sendC2CMsgRaw 发送单聊消息（使用msg_id被动回复）
-func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, rowMsgID, userOpenID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
+func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, userOpenID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
@@ -1186,8 +1197,16 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 	)
 
 	toCreate = &dto.MessageToCreate{
-		MsgID:  rowMsgID,
 		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+	if ctx != nil {
+		if eventID, ok := VarGetValueStr(ctx, "$tEventID"); ok && eventID != "" {
+			toCreate.EventID = eventID
+		} else {
+			toCreate.MsgID = rowMsgID
+		}
+	} else {
+		toCreate.MsgID = rowMsgID
 	}
 
 	var lastRes *dto.Message
@@ -1328,6 +1347,9 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw( /* ctx */ _ *MsgContext, row
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	rowID, ok := VarGetValueStr(ctx, "$tMsgID")
 	if !ok {
+		rowID, ok = VarGetValueStr(ctx, "$tEventID")
+	}
+	if !ok {
 		// TODO：允许主动消息发送，并校验频率
 		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：无法直接发送消息")
 		return
@@ -1431,7 +1453,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	}
 }
 
-func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext, rowMsgID, groupID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
+func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID, groupID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
@@ -1441,8 +1463,16 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 	)
 
 	toCreate = &dto.MessageToCreate{
-		MsgID:  rowMsgID,
 		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+	if ctx != nil {
+		if eventID, ok := VarGetValueStr(ctx, "$tEventID"); ok && eventID != "" {
+			toCreate.EventID = eventID
+		} else {
+			toCreate.MsgID = rowMsgID
+		}
+	} else {
+		toCreate.MsgID = rowMsgID
 	}
 
 	var lastRes *dto.Message
