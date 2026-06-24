@@ -214,10 +214,8 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 		intent = intent | dto.IntentDirectMessages
 
 		if !pa.OnlyQQGuild {
-			// 群聊@消息、单聊、好友关系事件、进入AIO等
+			// 群聊@消息、单聊、好友关系事件
 			intent = intent | dto.IntentGroupMessages
-			intent = intent | dto.IntentGroupMembers
-			intent = intent | dto.IntentEnterAIO
 		}
 
 		go func() {
