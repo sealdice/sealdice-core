@@ -216,6 +216,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 		if !pa.OnlyQQGuild {
 			// 群聊@消息、单聊、好友关系事件、进入AIO等
 			intent = intent | dto.IntentGroupMessages
+			intent = intent | dto.IntentGroupMembers
 			intent = intent | dto.IntentEnterAIO
 		}
 
@@ -661,6 +662,10 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 		ctx.Group.EnteredTime = time.Now().Unix()
 		ctx.Group.MarkDirty(ctx.Dice)
 
+		if event != nil && event.EventID != "" {
+			VarSetValueStr(ctx, "$tMsgID", event.EventID)
+		}
+
 		log.Infof("official qq: 机器人加入群 %s", groupID)
 
 		// 发送入群致辞
@@ -675,6 +680,10 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 	} else {
 		// 普通成员进群
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
+		if event != nil && event.EventID != "" {
+			VarSetValueStr(ctx, "$tMsgID", event.EventID)
+		}
+
 		msg := &Message{
 			Time:        data.Timestamp,
 			MessageType: "group",
@@ -768,6 +777,9 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
 
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
+		if event != nil && event.EventID != "" {
+			VarSetValueStr(ctx, "$tMsgID", event.EventID)
+		}
 
 		msg := &Message{
 			Time:        int64(data.Timestamp),
