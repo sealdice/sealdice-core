@@ -60,9 +60,10 @@ type PlatformAdapterOnebot struct {
 
 	echoServer *echo.Echo
 
-	sm             *loopfsm.FSM
-	desiredEnabled bool
-	loginInitRetry func()
+	sm                  *loopfsm.FSM
+	desiredEnabled      bool
+	loginInitRetry      func()
+	loginInitRetrySleep func(time.Duration)
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
@@ -643,7 +644,14 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 	retryFn := p.loginInitRetry
 	if retryFn == nil {
 		retryFn = func() {
-			time.Sleep(3 * time.Second)
+			if !p.desiredEnabled || p.sendEmitter == nil || p.ctx == nil {
+				return
+			}
+			sleepFn := p.loginInitRetrySleep
+			if sleepFn == nil {
+				sleepFn = time.Sleep
+			}
+			sleepFn(3 * time.Second)
 			if !p.desiredEnabled || p.sendEmitter == nil || p.ctx == nil {
 				return
 			}

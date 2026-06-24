@@ -3,11 +3,13 @@ package dice
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	socketio "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
+	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
@@ -188,6 +190,30 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	return d, pa, em, cleanupAll
 }
 
+func newPureOnebotRetryFSM(eventCh chan string) *loopfsm.FSM {
+	return loopfsm.NewFSM(
+		"connecting",
+		loopfsm.Events{
+			{Name: "connect_ok", Src: []string{"connecting"}, Dst: "connected"},
+			{Name: "connect_fail", Src: []string{"connecting"}, Dst: "failed"},
+		},
+		loopfsm.Callbacks{
+			"enter_connected": func(_ context.Context, _ *loopfsm.Event) {
+				select {
+				case eventCh <- "connect_ok":
+				default:
+				}
+			},
+			"enter_failed": func(_ context.Context, _ *loopfsm.Event) {
+				select {
+				case eventCh <- "connect_fail":
+				default:
+				}
+			},
+		},
+	)
+}
+
 func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
@@ -265,6 +291,25 @@ func TestPureOnebotCheckPassBlackListGroupUsesInviterForTrustOnlyMode(t *testing
 	ok, reason := checkPassBlackListGroup("QQ:55555", "QQ-Group:66666", ctx)
 	if !ok {
 		t.Fatalf("expected master inviter to pass trust-only mode, got reason=%q", reason)
+	}
+}
+
+func TestPureOnebotCheckBlackListUserRejectsBannedMaster(t *testing.T) {
+	d, _, _, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	d.DiceMasters = []string{"QQ:55555"}
+	d.Config.BanList.Map.Store("QQ:55555", &BanListInfoItem{
+		ID:   "QQ:55555",
+		Rank: BanRankBanned,
+	})
+
+	result := checkBlackList("QQ:55555", "user", "", &MsgContext{Dice: d})
+	if result.Passed {
+		t.Fatalf("expected banned master user check to be rejected, got %#v", result)
+	}
+	if result.Reason != "邀请人在黑名单上" {
+		t.Fatalf("expected banned master reject reason, got %#v", result)
 	}
 }
 
@@ -382,6 +427,18 @@ func TestPureOnebotAuthorizationHeaderMatchesConfiguredToken(t *testing.T) {
 		wantMatch bool
 	}{
 		{
+			name:      "empty config and empty header",
+			config:    "",
+			header:    "",
+			wantMatch: true,
+		},
+		{
+			name:      "empty config and non-empty header",
+			config:    "",
+			header:    "some-token",
+			wantMatch: false,
+		},
+		{
 			name:      "raw token matches raw header",
 			config:    "test-token",
 			header:    "test-token",
@@ -422,6 +479,231 @@ func TestPureOnebotAuthorizationHeaderMatchesConfiguredToken(t *testing.T) {
 				t.Fatalf("onebotAuthorizationMatches(%q, %q) = %v, want %v", tc.config, tc.header, got, tc.wantMatch)
 			}
 		})
+	}
+}
+
+func TestPureOnebotScheduleLoginInfoRetryInvokesCustomRetry(t *testing.T) {
+	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	calledCh := make(chan struct{}, 1)
+	pa.loginInitRetry = func() {
+		select {
+		case calledCh <- struct{}{}:
+		default:
+		}
+	}
+
+	pa.scheduleLoginInfoRetry()
+
+	select {
+	case <-calledCh:
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected custom loginInitRetry to be invoked")
+	}
+}
+
+func TestPureOnebotScheduleLoginInfoRetryEmitsConnectFailOnLoginInfoError(t *testing.T) {
+	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	events := make(chan string, 2)
+	sleepDurations := make(chan time.Duration, 1)
+	pa.desiredEnabled = true
+	pa.sm = newPureOnebotRetryFSM(events)
+	pa.loginInitRetrySleep = func(delay time.Duration) {
+		select {
+		case sleepDurations <- delay:
+		default:
+		}
+	}
+	em.loginInfoErr = errors.New("boom")
+
+	pa.scheduleLoginInfoRetry()
+
+	select {
+	case delay := <-sleepDurations:
+		if delay != 3*time.Second {
+			t.Fatalf("expected retry delay 3s, got %v", delay)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected retry sleep hook to be invoked")
+	}
+
+	select {
+	case event := <-events:
+		if event != "connect_fail" {
+			t.Fatalf("expected connect_fail event, got %q", event)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected connect_fail event")
+	}
+
+	if got := pa.sm.Current(); got != "failed" {
+		t.Fatalf("expected FSM to transition to failed, got %q", got)
+	}
+}
+
+func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testing.T) {
+	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	events := make(chan string, 2)
+	sleepDurations := make(chan time.Duration, 1)
+	pa.desiredEnabled = true
+	pa.sm = newPureOnebotRetryFSM(events)
+	pa.loginInitRetrySleep = func(delay time.Duration) {
+		select {
+		case sleepDurations <- delay:
+		default:
+		}
+	}
+	em.loginInfo = &emitterTypes.LoginInfo{
+		UserId:   123456,
+		NickName: "test-nick",
+	}
+
+	pa.scheduleLoginInfoRetry()
+
+	select {
+	case delay := <-sleepDurations:
+		if delay != 3*time.Second {
+			t.Fatalf("expected retry delay 3s, got %v", delay)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected retry sleep hook to be invoked")
+	}
+
+	select {
+	case event := <-events:
+		if event != "connect_ok" {
+			t.Fatalf("expected connect_ok event, got %q", event)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected connect_ok event")
+	}
+
+	if got := pa.sm.Current(); got != "connected" {
+		t.Fatalf("expected FSM to transition to connected, got %q", got)
+	}
+	if pa.EndPoint.UserID != "QQ:123456" {
+		t.Fatalf("expected EndPoint.UserID to be set, got %q", pa.EndPoint.UserID)
+	}
+	if pa.EndPoint.Nickname != "test-nick" {
+		t.Fatalf("expected EndPoint.Nickname to be set, got %q", pa.EndPoint.Nickname)
+	}
+}
+
+func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
+	tests := []struct {
+		name      string
+		configure func(pa *PlatformAdapterOnebot)
+	}{
+		{
+			name: "disabled adapter",
+			configure: func(pa *PlatformAdapterOnebot) {
+				pa.desiredEnabled = false
+			},
+		},
+		{
+			name: "nil emitter",
+			configure: func(pa *PlatformAdapterOnebot) {
+				pa.sendEmitter = nil
+			},
+		},
+		{
+			name: "nil ctx",
+			configure: func(pa *PlatformAdapterOnebot) {
+				pa.ctx = nil
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+			defer cleanup()
+
+			events := make(chan string, 1)
+			sleepDurations := make(chan time.Duration, 1)
+			pa.desiredEnabled = true
+			pa.sm = newPureOnebotRetryFSM(events)
+			pa.loginInitRetrySleep = func(delay time.Duration) {
+				select {
+				case sleepDurations <- delay:
+				default:
+				}
+			}
+			tc.configure(pa)
+
+			pa.scheduleLoginInfoRetry()
+
+			select {
+			case delay := <-sleepDurations:
+				t.Fatalf("expected guard to stop retry before sleeping, got sleep duration %v", delay)
+			case <-time.After(100 * time.Millisecond):
+			}
+
+			select {
+			case event := <-events:
+				t.Fatalf("expected no FSM event, got %q", event)
+			case <-time.After(100 * time.Millisecond):
+			}
+
+			if got := pa.sm.Current(); got != "connecting" {
+				t.Fatalf("expected FSM to remain connecting, got %q", got)
+			}
+		})
+	}
+}
+
+func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.T) {
+	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	events := make(chan string, 1)
+	sleepDurations := make(chan time.Duration, 1)
+	pa.desiredEnabled = true
+	pa.sm = newPureOnebotRetryFSM(events)
+	pa.loginInitRetrySleep = func(delay time.Duration) {
+		pa.desiredEnabled = false
+		select {
+		case sleepDurations <- delay:
+		default:
+		}
+	}
+	em.loginInfo = &emitterTypes.LoginInfo{
+		UserId:   123456,
+		NickName: "test-nick",
+	}
+	originalUserID := pa.EndPoint.UserID
+	originalNickname := pa.EndPoint.Nickname
+
+	pa.scheduleLoginInfoRetry()
+
+	select {
+	case delay := <-sleepDurations:
+		if delay != 3*time.Second {
+			t.Fatalf("expected retry delay 3s, got %v", delay)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("expected retry sleep hook to be invoked")
+	}
+
+	select {
+	case event := <-events:
+		t.Fatalf("expected no FSM event after desiredEnabled changed during sleep, got %q", event)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	if got := pa.sm.Current(); got != "connecting" {
+		t.Fatalf("expected FSM to remain connecting, got %q", got)
+	}
+	if pa.EndPoint.UserID != originalUserID {
+		t.Fatalf("expected EndPoint.UserID to remain %q, got %q", originalUserID, pa.EndPoint.UserID)
+	}
+	if pa.EndPoint.Nickname != originalNickname {
+		t.Fatalf("expected EndPoint.Nickname to remain %q, got %q", originalNickname, pa.EndPoint.Nickname)
 	}
 }
 
