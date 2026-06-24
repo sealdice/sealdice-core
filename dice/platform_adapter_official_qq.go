@@ -63,21 +63,6 @@ type PlatformAdapterOfficialQQ struct {
 	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
 }
 
-// WSGroupMemberAddData 群成员增加事件数据，对应 GROUP_MEMBER_ADD 事件
-type WSGroupMemberAddData struct {
-	GroupOpenID    string `json:"group_openid"`     // 群OpenID
-	MemberOpenID   string `json:"member_openid"`    // 新成员OpenID
-	OpMemberOpenID string `json:"op_member_openid"` // 操作者OpenID
-	Timestamp      int64  `json:"timestamp"`        // 时间戳（秒）
-}
-
-// WSGroupMemberRemoveData 群成员减少事件数据，对应 GROUP_MEMBER_REMOVE 事件
-type WSGroupMemberRemoveData struct {
-	GroupOpenID    string `json:"group_openid"`     // 群OpenID
-	MemberOpenID   string `json:"member_openid"`    // 被移除成员OpenID
-	OpMemberOpenID string `json:"op_member_openid"` // 操作者OpenID
-	Timestamp      int64  `json:"timestamp"`        // 时间戳（秒）
-}
 
 
 
@@ -290,6 +275,16 @@ func (pa *PlatformAdapterOfficialQQ) makeHandlers() []interface{} {
 			event.GroupMessageEventHandler(pa.GroupMessageReceive),
 			// 单聊消息
 			event.C2CMessageEventHandler(pa.C2CMessageReceiveFromEvent),
+			// 好友关系事件
+			event.C2CFriendEventHandler(pa.C2CFriendReceive),
+			// 机器人加入群聊
+			event.GroupAddRobotEventHandler(pa.GroupAddRobotReceive),
+			// 机器人退出群聊
+			event.GroupDelRobotEventHandler(pa.GroupDelRobotReceive),
+			// 群成员加入
+			event.GroupMemberAddEventHandler(pa.GroupMemberAddReceive),
+			// 群成员退出
+			event.GroupMemberRemoveEventHandler(pa.GroupMemberRemoveReceive),
 		)
 	}
 
@@ -649,7 +644,7 @@ func (pa *PlatformAdapterOfficialQQ) c2cMsgToStdMsg(msgQQ *dto.WSC2CMessageData)
 }
 
 // GroupMemberAddReceive 处理群成员增加事件
-func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload, data *WSGroupMemberAddData) error {
+func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload, data *dto.WSGroupMemberAddData) error {
 	s := pa.Session
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群成员增加事件：%v, %v", event, data)
@@ -659,7 +654,7 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 	userID := formatDiceIDOfficialQQMemberOpenID(appID, data.GroupOpenID, data.MemberOpenID)
 
 	// 如果是机器人自己加入群
-	if userID == pa.EndPoint.UserID {
+	if userID == pa.EndPoint.UserID || data.MemberOpenID == "" || data.MemberOpenID == "BOT" {
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
 		ctx.Group = SetBotOnAtGroup(ctx, groupID)
 		ctx.Group.DiceIDExistsMap.Store(ctx.EndPoint.UserID, true)
@@ -677,13 +672,31 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 				pa.SendToGroup(ctx, groupID, strings.TrimSpace(i), "")
 			}
 		}()
+	} else {
+		// 普通成员进群
+		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
+		msg := &Message{
+			Time:        data.Timestamp,
+			MessageType: "group",
+			Platform:    "QQ",
+			GroupID:     groupID,
+			Sender: SenderBase{
+				UserID:   userID,
+				Nickname: "用户",
+			},
+		}
+		if len(data.MemberOpenID) >= 4 {
+			msg.Sender.Nickname = "用户" + data.MemberOpenID[len(data.MemberOpenID)-4:]
+		}
+
+		pa.Session.OnGroupMemberJoined(ctx, msg)
 	}
 
 	return nil
 }
 
 // GroupMemberRemoveReceive 处理群成员减少事件
-func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPayload, data *WSGroupMemberRemoveData) error {
+func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPayload, data *dto.WSGroupMemberRemoveData) error {
 	s := pa.Session
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群成员减少事件：%v, %v", event, data)
@@ -693,7 +706,7 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPaylo
 	userID := formatDiceIDOfficialQQMemberOpenID(appID, data.GroupOpenID, data.MemberOpenID)
 
 	// 如果是机器人自己被移出群
-	if userID == pa.EndPoint.UserID {
+	if userID == pa.EndPoint.UserID || data.MemberOpenID == "" || data.MemberOpenID == "BOT" {
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
 		groupName := s.Parent.Parent.TryGetGroupName(groupID)
 
@@ -707,6 +720,91 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPaylo
 		}
 
 		ctx.Notice(txt)
+	}
+
+	return nil
+}
+
+// GroupAddRobotReceive 处理机器人加入群聊事件
+func (pa *PlatformAdapterOfficialQQ) GroupAddRobotReceive(event *dto.WSPayload, data *dto.WSGroupRobotEventData) error {
+	s := pa.Session
+	log := s.Parent.Logger
+	log.Debugf("official qq: 收到机器人加入群聊事件：%v, %v", event, data)
+
+	// 转化为 WSGroupMemberAddData
+	memberData := &dto.WSGroupMemberAddData{
+		GroupOpenID:    data.GroupOpenID,
+		MemberOpenID:   "BOT",
+		OpMemberOpenID: data.OpMemberOpenID,
+		Timestamp:      data.Timestamp,
+	}
+	return pa.GroupMemberAddReceive(event, memberData)
+}
+
+// GroupDelRobotReceive 处理机器人退出群聊事件
+func (pa *PlatformAdapterOfficialQQ) GroupDelRobotReceive(event *dto.WSPayload, data *dto.WSGroupRobotEventData) error {
+	s := pa.Session
+	log := s.Parent.Logger
+	log.Debugf("official qq: 收到机器人退出群聊事件：%v, %v", event, data)
+
+	// 转化为 WSGroupMemberRemoveData
+	memberData := &dto.WSGroupMemberRemoveData{
+		GroupOpenID:    data.GroupOpenID,
+		MemberOpenID:   "BOT",
+		OpMemberOpenID: data.OpMemberOpenID,
+		Timestamp:      data.Timestamp,
+	}
+	return pa.GroupMemberRemoveReceive(event, memberData)
+}
+
+// C2CFriendReceive 处理好友关系变动事件
+func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data *dto.C2CFriendData) error {
+	s := pa.Session
+	log := s.Parent.Logger
+	log.Debugf("official qq: 收到好友事件: %s, %v, %v", event.Type, event, data)
+
+	if event.Type == dto.EventC2CFriendAdd {
+		appID := pa.AppID
+		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
+
+		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
+
+		msg := &Message{
+			Time:        int64(data.Timestamp),
+			MessageType: "private",
+			Platform:    "QQ",
+			Message:     "",
+			Sender: SenderBase{
+				UserID:   userID,
+				Nickname: "用户",
+			},
+		}
+		if len(data.OpenID) >= 4 {
+			msg.Sender.Nickname = "用户" + data.OpenID[len(data.OpenID)-4:]
+		}
+
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		welcomeStr := DiceFormatTmpl(ctx, "核心:骰子成为好友")
+		log.Infof("official qq: 与 %s 成为好友，发送好友致辞: %s", userID, welcomeStr)
+
+		go func() {
+			time.Sleep(2 * time.Second)
+			for _, i := range ctx.SplitText(welcomeStr) {
+				pa.SendToPerson(ctx, userID, strings.TrimSpace(i), "")
+			}
+			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+					if ext.OnBecomeFriend == nil {
+						return nil
+					}
+					return func() { ext.OnBecomeFriend(ctx, msg) }
+				})
+			}
+		}()
+	} else if event.Type == dto.EventC2CFriendDel {
+		appID := pa.AppID
+		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
+		log.Infof("official qq: 与 %s 解除好友关系", userID)
 	}
 
 	return nil
