@@ -874,8 +874,10 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		}
 	}
 	textList := utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
-	if len(textList) > 5 {
-		textList = textList[:5]
+	if !pa.Session.Parent.Config.OfficialQQUseMarkdown {
+		if len(textList) > 5 {
+			textList = textList[:5]
+		}
 	}
 
 	if pa.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {
@@ -1186,8 +1188,10 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 		}
 	}
 	textList := utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
-	if len(textList) > 5 {
-		textList = textList[:5]
+	if !pa.Session.Parent.Config.OfficialQQUseMarkdown {
+		if len(textList) > 5 {
+			textList = textList[:5]
+		}
 	}
 
 	if pa.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {
@@ -1470,7 +1474,7 @@ func formatDiceIDOfficialQQGroupOpenID(botID, groupOpenID string) string {
 
 func formatDiceIDOfficialQQMemberOpenID(botID, groupOpenID, memberOpenID string) string {
 	// 在没有qq_unionid时的临时方案
-	return fmt.Sprintf("OpenQQ-Member-T:%s", memberOpenID)
+	return fmt.Sprintf("OpenQQ-User-T:%s", memberOpenID)
 }
 
 func formatDiceIDOfficialQQUserOpenID(botID, userOpenID string) string {
@@ -1514,12 +1518,12 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 		temp := text[len("OpenQQ-Member-T:"):]
 		lst := strings.Split(temp, "-")
 		if len(lst) >= 3 {
-			return lst[2], lst[1], OpenQQGroupMemberOpenid
+			return lst[2], lst[1], OpenQQUserOpenid
 		}
 		if len(lst) == 2 {
-			return lst[1], lst[0], OpenQQGroupMemberOpenid
+			return lst[1], lst[0], OpenQQUserOpenid
 		}
-		return lst[0], "", OpenQQGroupMemberOpenid
+		return lst[0], "", OpenQQUserOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQ-User-T:") {
 		temp := text[len("OpenQQ-User-T:"):]
