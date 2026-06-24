@@ -1170,7 +1170,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		}
 	}
 	// 重新赋值
-	if groupInfo != nil {
+	if groupInfo != nil && msg.GroupName != "" {
 		groupInfo.GroupName = msg.GroupName
 	}
 

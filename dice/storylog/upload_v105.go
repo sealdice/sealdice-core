@@ -21,7 +21,6 @@ import (
 
 	"sealdice-core/dice/service"
 	"sealdice-core/model"
-	"sealdice-core/utils"
 )
 
 func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
@@ -34,10 +33,8 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 			),
 		))
 	buf := new(bytes.Buffer)
-	tempLog, err := os.CreateTemp("", fmt.Sprintf(
-		"%s(*).txt",
-		utils.FilenameClean("sealdice_v105_prefix_"),
-	))
+	tempPattern, _ := buildTempPattern("sealdice_v105_prefix")
+	tempLog, err := os.CreateTemp("", tempPattern)
 	if err != nil {
 		return nil, nil, errors.New("log导出出现未知错误")
 	}
@@ -76,12 +73,16 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 				for _, line := range cursorLines {
 					timeTxt := time.Unix(line.Time, 0).Format("2006-01-02 15:04:05")
 					text := fmt.Sprintf("%s(%v) %s\n%s\n\n", line.Nickname, line.IMUserID, timeTxt, line.Message)
-					_, _ = tempLog.WriteString(text)
+					if _, err0 = tempLog.WriteString(text); err0 != nil {
+						resultCh <- fmt.Errorf("写入日志导出临时文件失败: %w", err0)
+						return
+					}
 					counter++
 				}
 				// ========== 新增：每批写入后强制同步 ==========
 				if err = tempLog.Sync(); err != nil { // 确保批次数据落盘
 					resultCh <- fmt.Errorf("批次同步失败: %w", err)
+					return
 				}
 
 				_, err0 = parquetBuffer.Write(cursorLines)
@@ -132,7 +133,7 @@ func GetLogTxtAndParquetFile(env UploadEnv) (*os.File, *bytes.Buffer, error) {
 }
 
 // 一个不那么激进的改版
-func uploadV105(env UploadEnv) (string, error) {
+func uploadV105(env UploadEnv) (string, string, error) {
 	_ = os.MkdirAll(env.Dir, 0o755)
 
 	url, uploadTS, updateTS, _ := service.LogGetUploadInfo(env.Db, env.GroupID, env.LogName)
@@ -145,7 +146,7 @@ func uploadV105(env UploadEnv) (string, error) {
 			time.Unix(updateTS, 0).Format("2006-01-02 15:04:05"),
 			url,
 		)
-		return url, nil
+		return url, env.Notice, nil
 	}
 	if len(url) == 0 {
 		env.Log.Infof("没有查询到之前上传的URL Log:%s.%s", env.GroupID, env.LogName)
@@ -160,11 +161,15 @@ func uploadV105(env UploadEnv) (string, error) {
 
 	file, b, err := GetLogTxtAndParquetFile(env)
 	if err != nil {
-		return "", err
+		return "", env.Notice, err
 	}
+	defer func() {
+		_ = file.Close()
+		_ = os.Remove(file.Name())
+	}()
 	err = formatAndBackupV105(&env, file, b)
 	if err != nil {
-		return "", err
+		return "", env.Notice, err
 	}
 
 	url = parquetUploadToSealBackends(env, b)
@@ -172,31 +177,48 @@ func uploadV105(env UploadEnv) (string, error) {
 		env.Log.Errorf("记录Log上传信息失败: %v", errDB)
 	}
 	if len(url) == 0 {
-		return "", errors.New("上传 log 到服务器失败，未能获取染色器链接")
+		return "", env.Notice, errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
-	return url, nil
+	return url, env.Notice, nil
 }
 
 // formatAndBackup 将导出的日志序列化到 env.data 并存储为本地 zip
-func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Buffer) error {
-	fzip, _ := os.OpenFile(
-		filepath.Join(env.Dir, utils.FilenameClean(fmt.Sprintf(
-			"%s_%s.%s.zip",
-			env.GroupID, env.LogName, time.Now().Format("060102150405"),
-		))),
+func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Buffer) (err error) {
+	filename, notice := buildLogBackupFilename(env.GroupID, env.LogName, time.Now())
+	env.appendNotice(notice)
+	fzip, err := os.OpenFile(
+		filepath.Join(env.Dir, filename),
 		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
 		0o600,
 	)
+	if err != nil {
+		return fmt.Errorf("创建日志备份文件失败: %w", err)
+	}
 	writer := zip.NewWriter(fzip)
-	var err error
+	defer func() {
+		if closeErr := writer.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("关闭日志压缩文件失败: %w", closeErr)
+		}
+		if closeErr := fzip.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("关闭日志备份文件失败: %w", closeErr)
+		}
+	}()
 	// 写入README文件
 	{
-		wr, _ := writer.Create(ExportReadmeFilename)
-		_, _ = wr.Write([]byte(ExportReadmeContent))
+		readmeWriter, createErr := writer.Create(ExportReadmeFilename)
+		if createErr != nil {
+			return fmt.Errorf("创建README失败: %w", createErr)
+		}
+		if _, writeErr := readmeWriter.Write([]byte(ExportReadmeContent)); writeErr != nil {
+			return fmt.Errorf("写入README失败: %w", writeErr)
+		}
 	}
 	// 写入文本TXT文件
 
-	fileWriter, _ := writer.Create(ExportTxtFilename)
+	fileWriter, err := writer.Create(ExportTxtFilename)
+	if err != nil {
+		return fmt.Errorf("创建文本日志文件失败: %w", err)
+	}
 	if _, err = io.Copy(fileWriter, tempLog); err != nil {
 		return fmt.Errorf("写入文本日志文件失败: %w", err)
 	}
@@ -209,11 +231,7 @@ func formatAndBackupV105(env *UploadEnv, tempLog *os.File, parquetFile *bytes.Bu
 	if _, err = parquetWriter.Write(parquetFile.Bytes()); err != nil {
 		return fmt.Errorf("写入Parquet文件失败: %w", err)
 	}
-
-	_ = writer.Close()
-	_ = fzip.Close()
-
-	return err
+	return nil
 }
 
 func parquetUploadToSealBackends(env UploadEnv, data io.Reader) string {
