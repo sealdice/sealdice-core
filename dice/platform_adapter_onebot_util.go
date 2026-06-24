@@ -133,22 +133,22 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
 	subType := req.Get("sub_type").String()
 	switch subType {
-		case "kick_me":
-			p.Session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
-				GroupID:    canonicalOnebotGroupID(req.Get("group_id").String()),
-				UserID:     canonicalOnebotUserID(req.Get("user_id").String()),
-				OperatorID: canonicalOnebotUserID(req.Get("operator_id").String()),
-			})
+	case "kick_me":
+		p.Session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
+			GroupID:    canonicalOnebotGroupID(req.Get("group_id").String()),
+			UserID:     canonicalOnebotUserID(req.Get("user_id").String()),
+			OperatorID: canonicalOnebotUserID(req.Get("operator_id").String()),
+		})
 		// 离开群 群解散 别人被踹了
 	case "leave", "disband":
 		// 先获取被操作者，看看是否和自己是同一个人
-			selfID := canonicalOnebotUserID(req.Get("self_id").String())
-			operatorId := canonicalOnebotUserID(req.Get("operator_id").String())
+		selfID := canonicalOnebotUserID(req.Get("self_id").String())
+		operatorId := canonicalOnebotUserID(req.Get("operator_id").String())
 		if selfID != operatorId {
 			// 别人离开群的情况
 			return nil
 		}
-			groupId := canonicalOnebotGroupID(req.Get("group_id").String())
+		groupId := canonicalOnebotGroupID(req.Get("group_id").String())
 		pendingQuit := p.Session.ConsumePendingQuit(groupId, p.EndPoint.UserID)
 		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
 		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
@@ -1055,12 +1055,12 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	switch ctx.MessageType {
 	case "private":
 		// 私聊戳一戳可能拿不到用户信息（协议端异常/限流等），退化为仅依赖 user_id 的上下文。
-			wrapper.Sender.UserID = canonicalOnebotUserID(req.Get("user_id").String())
-			info, err := p.sendEmitter.GetStrangerInfo(p.ctx, req.Get("user_id").Int(), false)
-			if err == nil {
-				wrapper.Sender.UserID = canonicalOnebotUserID(strconv.FormatInt(info.UserId, 10))
-				wrapper.Sender.Nickname = info.NickName
-			}
+		wrapper.Sender.UserID = canonicalOnebotUserID(req.Get("user_id").String())
+		info, err := p.sendEmitter.GetStrangerInfo(p.ctx, req.Get("user_id").Int(), false)
+		if err == nil {
+			wrapper.Sender.UserID = canonicalOnebotUserID(strconv.FormatInt(info.UserId, 10))
+			wrapper.Sender.Nickname = info.NickName
+		}
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Player.Name == "" {
 			if wrapper.Sender.Nickname != "" {
@@ -1082,16 +1082,16 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		memberInfo, err := p.sendEmitter.GetGroupMemberInfo(p.ctx, groupID, userID, false)
 		// 群戳一戳事件中，获取群成员信息可能失败（协议端异常/限流/机器人不在群等）。
 		// 这种情况下仍构造最小上下文，避免后续处理链路空指针崩溃。
-			wrapper.Sender.UserID = canonicalOnebotUserID(req.Get("user_id").String())
-			if err == nil {
-				wrapper.Sender.UserID = canonicalOnebotUserID(strconv.FormatInt(memberInfo.UserId, 10))
-				wrapper.Sender.Nickname = memberInfo.Nickname
-			}
+		wrapper.Sender.UserID = canonicalOnebotUserID(req.Get("user_id").String())
+		if err == nil {
+			wrapper.Sender.UserID = canonicalOnebotUserID(strconv.FormatInt(memberInfo.UserId, 10))
+			wrapper.Sender.Nickname = memberInfo.Nickname
+		}
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Group == nil {
 			// 注意：GetPlayerInfoBySenderRaw 内部已调用 SetBotOnAtGroup，正常不会返回 nil
 			// 若仍为 nil，说明出现异常情况，此处使用 SetBotOnAtGroup 确保群组被正确存入全局列表
-				gi := p.GetGroupCacheInfo(canonicalOnebotGroupID(req.Get("group_id").String()))
+			gi := p.GetGroupCacheInfo(canonicalOnebotGroupID(req.Get("group_id").String()))
 			ctx.Group = SetBotOnAtGroup(ctx, gi.GroupId)
 			ctx.Group.GroupName = gi.GroupName
 			ctx.Group.MarkDirty(ctx.Dice)

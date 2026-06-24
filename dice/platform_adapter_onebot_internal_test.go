@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	socketio "github.com/PaienNate/pineutil/evsocket"
 	"github.com/bytedance/sonic"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
-	socketio "github.com/PaienNate/pineutil/evsocket"
 
 	emitter "sealdice-core/dice/imsdk/onebot"
 	"sealdice-core/dice/imsdk/onebot/schema"
@@ -49,15 +49,15 @@ func (m *onebotTestEmitter) SendPvtMsg(context.Context, int64, schema.MessageCha
 		default:
 		}
 	}
-	return nil, nil
+	return &emitterTypes.SendMsgRes{}, nil
 }
 
 func (m *onebotTestEmitter) SendGrMsg(context.Context, int64, schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
-	return nil, nil
+	return &emitterTypes.SendMsgRes{}, nil
 }
 
 func (m *onebotTestEmitter) GetMsg(context.Context, int) (*emitterTypes.GetMsgRes, error) {
-	return nil, nil
+	return &emitterTypes.GetMsgRes{}, nil
 }
 
 func (m *onebotTestEmitter) DelMsg(context.Context, int) error { return nil }
@@ -73,15 +73,15 @@ func (m *onebotTestEmitter) GetLoginInfo(context.Context) (*emitterTypes.LoginIn
 }
 
 func (m *onebotTestEmitter) GetStrangerInfo(context.Context, int64, bool) (*emitterTypes.StrangerInfo, error) {
-	return nil, nil
+	return &emitterTypes.StrangerInfo{}, nil
 }
 
 func (m *onebotTestEmitter) GetStatus(context.Context) (*emitterTypes.Status, error) {
-	return nil, nil
+	return &emitterTypes.Status{}, nil
 }
 
 func (m *onebotTestEmitter) GetVersionInfo(context.Context) (*emitterTypes.VersionInfo, error) {
-	return nil, nil
+	return &emitterTypes.VersionInfo{}, nil
 }
 
 func (m *onebotTestEmitter) GetSelfId(context.Context) (int64, error) { return 0, nil }
@@ -131,11 +131,11 @@ func (m *onebotTestEmitter) GetGroupInfo(context.Context, int64, bool) (*emitter
 }
 
 func (m *onebotTestEmitter) GetGroupMemberInfo(context.Context, int64, int64, bool) (*emitterTypes.GroupMemberInfo, error) {
-	return nil, nil
+	return &emitterTypes.GroupMemberInfo{}, nil
 }
 
 func (m *onebotTestEmitter) Raw(context.Context, emitter.Action, any) ([]byte, error) {
-	return nil, nil
+	return []byte{}, nil
 }
 
 func (m *onebotTestEmitter) HandleEcho(emitter.Response[sonic.NoCopyRawMessage]) {}
@@ -150,7 +150,7 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	pa := &PlatformAdapterOnebot{
 		Session:  d.ImSession,
 		EndPoint: ep,
-		ctx:      context.Background(),
+		ctx:      t.Context(),
 		logger:   d.Logger,
 	}
 	pool, err := ants.NewPool(8)
@@ -179,7 +179,7 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 
 	cleanupAll := func() {
 		if pa.groupCache != nil {
-			(*pa.groupCache).Close()
+			pa.groupCache.Close()
 		}
 		pool.Release()
 		cleanup()
@@ -301,7 +301,50 @@ func TestPureOnebotGetGroupInfoSyncUsesGroupBanInfo(t *testing.T) {
 	}
 }
 
-func TestPureOnebotSetupClientConnectionUsesBearerAuthorization(t *testing.T) {
+func TestPureOnebotGroupInviteTrustOnlyNonMasterInviterRejected(t *testing.T) {
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	d.Config.TrustOnlyMode = true
+	d.DiceMasters = []string{"QQ:99999"}
+	d.Config.BanList.Map.Delete("QQ-Group:123456")
+
+	req := gjson.Parse(`{
+		"post_type":"request",
+		"request_type":"group",
+		"sub_type":"invite",
+		"group_id":123456,
+		"user_id":11111,
+		"flag":"group-invite-flag"
+	}`)
+
+	if err := pa.handleReqGroupAction(req, nil); err != nil {
+		t.Fatalf("handleReqGroupAction returned error: %v", err)
+	}
+
+	select {
+	case <-em.groupReqCh:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for group request action")
+	}
+
+	if len(em.groupReqCalls) != 1 {
+		t.Fatalf("expected one group request action, got %d", len(em.groupReqCalls))
+	}
+
+	call := em.groupReqCalls[0]
+	if call.Approve {
+		t.Fatalf("expected non-master inviter in trust-only mode to be rejected, got %#v", call)
+	}
+	if call.Flag != "group-invite-flag" {
+		t.Fatalf("unexpected flag in groupReqCall, expected %q, got %q", "group-invite-flag", call.Flag)
+	}
+	if call.Reason != "只允许信任的人拉群" {
+		t.Fatalf("expected trust-only reject reason, got %#v", call)
+	}
+}
+
+func TestPureOnebotApplyClientAuthHeaderPreservesConfiguredToken(t *testing.T) {
 	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
@@ -310,8 +353,75 @@ func TestPureOnebotSetupClientConnectionUsesBearerAuthorization(t *testing.T) {
 	pa.websocketManager = socketio.NewSocketInstance()
 	client := pa.websocketManager.NewClient(pa.ConnectURL, socketio.ClientOptions{})
 	pa.applyClientAuthHeader(client)
+	if got := client.RequestHeader.Get("Authorization"); got != "test-token" {
+		t.Fatalf("expected raw token header, got %q", got)
+	}
+}
+
+func TestPureOnebotApplyClientAuthHeaderKeepsExplicitBearerScheme(t *testing.T) {
+	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	pa.ConnectURL = "ws://127.0.0.1:12345"
+	pa.Token = "Bearer test-token"
+	pa.websocketManager = socketio.NewSocketInstance()
+	client := pa.websocketManager.NewClient(pa.ConnectURL, socketio.ClientOptions{})
+	pa.applyClientAuthHeader(client)
 	if got := client.RequestHeader.Get("Authorization"); got != "Bearer test-token" {
-		t.Fatalf("expected bearer header, got %q", got)
+		t.Fatalf("expected explicit bearer header to be preserved, got %q", got)
+	}
+}
+
+func TestPureOnebotAuthorizationHeaderMatchesConfiguredToken(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		config    string
+		header    string
+		wantMatch bool
+	}{
+		{
+			name:      "raw token matches raw header",
+			config:    "test-token",
+			header:    "test-token",
+			wantMatch: true,
+		},
+		{
+			name:      "raw token matches bearer header",
+			config:    "test-token",
+			header:    "Bearer test-token",
+			wantMatch: true,
+		},
+		{
+			name:      "bearer token matches raw header",
+			config:    "Bearer test-token",
+			header:    "test-token",
+			wantMatch: true,
+		},
+		{
+			name:      "bearer token matches bearer header",
+			config:    "Bearer test-token",
+			header:    "Bearer test-token",
+			wantMatch: true,
+		},
+		{
+			name:      "different token does not match",
+			config:    "test-token",
+			header:    "other-token",
+			wantMatch: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := onebotAuthorizationMatches(tc.config, tc.header)
+			if got != tc.wantMatch {
+				t.Fatalf("onebotAuthorizationMatches(%q, %q) = %v, want %v", tc.config, tc.header, got, tc.wantMatch)
+			}
+		})
 	}
 }
 

@@ -622,7 +622,21 @@ func (p *PlatformAdapterOnebot) applyClientAuthHeader(client *socketio.Websocket
 	if client == nil || p.Token == "" {
 		return
 	}
-	client.RequestHeader.Set("Authorization", "Bearer "+p.Token)
+	client.RequestHeader.Set("Authorization", p.Token)
+}
+
+func onebotAuthorizationMatches(configuredToken, headerValue string) bool {
+	if configuredToken == "" {
+		return headerValue == ""
+	}
+
+	if configuredToken == headerValue {
+		return true
+	}
+
+	configuredWithoutBearer := strings.TrimPrefix(configuredToken, "Bearer ")
+	headerWithoutBearer := strings.TrimPrefix(headerValue, "Bearer ")
+	return configuredWithoutBearer == headerWithoutBearer
 }
 
 func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
@@ -658,8 +672,7 @@ func (p *PlatformAdapterOnebot) setupServerConnection() error {
 			// 先检查是否允许
 			if p.Token != "" {
 				token := kws.RequestHeader.Get("Authorization")
-				token = strings.TrimPrefix(token, "Bearer ")
-				if p.Token != token {
+				if !onebotAuthorizationMatches(p.Token, token) {
 					kws.Emit([]byte(`{
 						"status": "failed",
 						"retcode": 1403,
