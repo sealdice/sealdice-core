@@ -38,7 +38,7 @@ type PlatformAdapterOfficialQQ struct {
 	
 	// Webhook配置
 	UseWebhook    bool   `json:"useWebhook"    yaml:"useWebhook"`       // 是否使用Webhook模式
-	WebhookPath   string `json:"webhookPath"   yaml:"webhookPath"`      // Webhook路径，默认 /webhook/qq
+	WebhookPath   string `json:"webhookPath"   yaml:"webhookPath"`      // Webhook路径，默认 /webhook
 	WebhookPort   int    `json:"webhookPort"   yaml:"webhookPort"`      // Webhook端口，默认 8099
 	WebhookSecret string `json:"webhookSecret" yaml:"webhookSecret"`    // Webhook密钥（可选）
 
@@ -139,7 +139,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	if pa.UseWebhook {
 		// 启动 webhook 服务器
 		if pa.WebhookPath == "" {
-			pa.WebhookPath = "/webhook/qq"
+			pa.WebhookPath = "/webhook"
 		}
 		if pa.WebhookPort == 0 {
 			pa.WebhookPort = 8099
