@@ -758,7 +758,7 @@ func (pa *PlatformAdapterOfficialQQ) GroupDelRobotReceive(event *dto.WSPayload, 
 }
 
 // C2CFriendReceive 处理好友关系变动事件
-func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data *dto.C2CFriendData) error {
+func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data *dto.WSC2CFriendData) error {
 	s := pa.Session
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到好友事件: %s, %v, %v", event.Type, event, data)
