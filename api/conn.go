@@ -26,7 +26,9 @@ func ImConnectionsGet(c echo.Context) error {
 	}
 
 	v := struct {
-		ID string `form:"id" json:"id"`
+
+	ID	string	`form:"id" json:"id"`
+
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -168,7 +170,9 @@ func ImConnectionsDel(c echo.Context) error {
 	}
 
 	v := struct {
-		ID string `form:"id" json:"id"`
+
+	ID	string	`form:"id" json:"id"`
+
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -258,7 +262,9 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 	}
 
 	v := struct {
-		ID string `form:"id" json:"id"`
+
+	ID	string	`form:"id" json:"id"`
+
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -368,7 +374,9 @@ func ImConnectionsSmsCodeGet(c echo.Context) error {
 	}
 
 	v := struct {
-		ID string `form:"id" json:"id"`
+
+	ID	string	`form:"id" json:"id"`
+
 	}{}
 	err := c.Bind(&v)
 
@@ -398,7 +406,9 @@ func ImConnectionsGocqhttpRelogin(c echo.Context) error {
 	}
 
 	v := struct {
-		ID string `form:"id" json:"id"`
+
+	ID	string	`form:"id" json:"id"`
+
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -419,7 +429,9 @@ func ImConnectionsWalleQRelogin(c echo.Context) error {
 	}
 
 	v := struct {
-		ID string `form:"id" json:"id"`
+
+	ID	string	`form:"id" json:"id"`
+
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -954,15 +966,14 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID          string `json:"appID"          yaml:"appID"`
-		Token          string `json:"token"          yaml:"token"`
-		AppSecret      string `json:"appSecret"      yaml:"appSecret"`
-		OnlyQQGuild    bool   `json:"onlyQQGuild"    yaml:"onlyQQGuild"`
+		AppID		string	`json:"appID"         yaml:"appID"`
+		Token		string	`json:"token"         yaml:"token"`
+		AppSecret	string	`json:"appSecret"     yaml:"appSecret"`
+		OnlyQQGuild	bool	`json:"onlyQQGuild"   yaml:"onlyQQGuild"`
 		// Webhook配置
-		UseWebhook     bool   `json:"useWebhook"     yaml:"useWebhook"`
-		WebhookPath    string `json:"webhookPath"    yaml:"webhookPath"`
-		WebhookPort    int    `json:"webhookPort"    yaml:"webhookPort"`
-		WebhookSecret  string `json:"webhookSecret"  yaml:"webhookSecret"`
+		UseWebhook	bool	`json:"useWebhook"    yaml:"useWebhook"`
+		WebhookPath	string	`json:"webhookPath"   yaml:"webhookPath"`
+		WebhookPort	int	`json:"webhookPort"   yaml:"webhookPort"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
@@ -974,7 +985,6 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 		pa.UseWebhook = v.UseWebhook
 		pa.WebhookPath = v.WebhookPath
 		pa.WebhookPort = v.WebhookPort
-		pa.WebhookSecret = v.WebhookSecret
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)

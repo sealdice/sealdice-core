@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -35,32 +35,31 @@ type PaginationItem struct {
 }
 
 type PlatformAdapterOfficialQQ struct {
-	Session     *IMSession    `json:"-" yaml:"-"`
-	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
-	DiceServing bool          `yaml:"-"`
+	Session		*IMSession			`json:"-" yaml:"-"`
+	EndPoint	*EndPointInfo			`json:"-" yaml:"-"`
+	DiceServing	bool				`yaml:"-"`
 
-	AppID       string `json:"appID"       yaml:"appID"`
-	AppSecret   string `json:"appSecret"   yaml:"appSecret"`
-	Token       string `json:"token"       yaml:"token"`
-	OnlyQQGuild    bool   `json:"onlyQQGuild"    yaml:"onlyQQGuild"`
-	
+	AppID		string				`json:"appID"       yaml:"appID"`
+	AppSecret	string				`json:"appSecret"   yaml:"appSecret"`
+	Token		string				`json:"token"       yaml:"token"`
+	OnlyQQGuild	bool				`json:"onlyQQGuild" yaml:"onlyQQGuild"`
+
 	// Webhook配置
-	UseWebhook    bool   `json:"useWebhook"    yaml:"useWebhook"`       // 是否使用Webhook模式
-	WebhookPath   string `json:"webhookPath"   yaml:"webhookPath"`      // Webhook路径，默认 /webhook
-	WebhookPort   int    `json:"webhookPort"   yaml:"webhookPort"`      // Webhook端口，默认 8099
-	WebhookSecret string `json:"webhookSecret" yaml:"webhookSecret"`    // Webhook密钥（可选）
+	UseWebhook	bool				`json:"useWebhook"    yaml:"useWebhook"`	 // 是否使用Webhook模式
+	WebhookPath	string				`json:"webhookPath"   yaml:"webhookPath"`	 // Webhook路径，默认 /webhook
+	WebhookPort	int				`json:"webhookPort"   yaml:"webhookPort"`	 // Webhook端口，默认 8099
 
-	Api            qqapi.OpenAPI        `json:"-" yaml:"-"`
-	SessionManager qqbot.SessionManager `json:"-" yaml:"-"`
-	Ctx            context.Context      `json:"-" yaml:"-"`
-	CancelFunc     context.CancelFunc   `json:"-" yaml:"-"`
-	tokenSource    oauth2.TokenSource   `json:"-" yaml:"-"`
-	
+	Api		qqapi.OpenAPI			`json:"-" yaml:"-"`
+	SessionManager	qqbot.SessionManager		`json:"-" yaml:"-"`
+	Ctx		context.Context			`json:"-" yaml:"-"`
+	CancelFunc	context.CancelFunc		`json:"-" yaml:"-"`
+	tokenSource	oauth2.TokenSource		`json:"-" yaml:"-"`
+
 	// Webhook服务器
-	webhookServer *http.Server `json:"-" yaml:"-"`
+	webhookServer	*http.Server			`json:"-" yaml:"-"`
 
-	paginationCache map[string]*PaginationItem `json:"-" yaml:"-"`
-	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
+	paginationCache	map[string]*PaginationItem	`json:"-" yaml:"-"`
+	paginationMu	sync.Mutex			`json:"-" yaml:"-"`
 }
 
 
@@ -147,8 +146,9 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 
 		addr := fmt.Sprintf(":%d", pa.WebhookPort)
 		pa.webhookServer = &http.Server{
-			Addr:    addr,
-			Handler: mux,
+			Addr:              addr,
+			Handler:           mux,
+			ReadHeaderTimeout: 3 * time.Second,
 		}
 
 		go func() {
@@ -210,15 +210,15 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 
 		var intent dto.Intent
 		// 文字子频道at消息
-		intent = intent | dto.IntentGuildAtMessage
+		intent |= dto.IntentGuildAtMessage
 		// 频道私信
-		intent = intent | dto.IntentDirectMessages
+		intent |= dto.IntentDirectMessages
 		// 互动事件
-		intent = intent | dto.IntentInteraction
+		intent |= dto.IntentInteraction
 
 		if !pa.OnlyQQGuild {
 			// 群聊@消息、单聊、好友关系事件
-			intent = intent | dto.IntentGroupMessages
+			intent |= dto.IntentGroupMessages
 		}
 
 		go func() {
@@ -329,7 +329,7 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 	pageIndexVal := parts[2]
 	var pageIndex int
 	if _, err := fmt.Sscanf(pageIndexVal, "%d", &pageIndex); err != nil {
-		return nil
+		return err
 	}
 
 	pa.paginationMu.Lock()
@@ -437,7 +437,8 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 			}, "")
 		}
 	default:
-		if data.Scene == "group" {
+		switch data.Scene {
+		case "group":
 			msg, err := pa.Api.PostGroupMessage(qctx, data.GroupOpenID, toCreate)
 			if err != nil {
 				log.Errorf("official qq 翻页发送群聊消息失败: %v", err)
@@ -457,7 +458,7 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 					RawID: msg.ID,
 				}, "")
 			}
-		} else if data.Scene == "c2c" {
+		case "c2c":
 			msg, err := pa.Api.PostC2CMessage(qctx, data.UserOpenID, toCreate)
 			if err != nil {
 				log.Errorf("official qq 翻页发送私聊消息失败: %v", err)
@@ -474,7 +475,7 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 					RawID: msg.ID,
 				}, "")
 			}
-		} else {
+		default:
 			if data.ChannelID != "" {
 				msg, err := pa.Api.PostMessage(qctx, data.ChannelID, toCreate)
 				if err != nil {
@@ -727,7 +728,6 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPaylo
 			group.DiceIDExistsMap.Delete(pa.EndPoint.UserID)
 			group.MarkDirty(s.Parent)
 		}
-
 	}
 
 	return nil
@@ -771,7 +771,8 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到好友事件: %s, %v, %v", event.Type, event, data)
 
-	if event.Type == dto.EventC2CFriendAdd {
+	switch event.Type {
+	case dto.EventC2CFriendAdd:
 		appID := pa.AppID
 		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
 
@@ -812,7 +813,7 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 				})
 			}
 		}()
-	} else if event.Type == dto.EventC2CFriendDel {
+	case dto.EventC2CFriendDel:
 		appID := pa.AppID
 		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
 		log.Infof("official qq: 与 %s 解除好友关系", userID)
@@ -1136,12 +1137,64 @@ func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel( /* ctx */ _ *Ms
 	return info.GuildID, info.ChannelID, nil
 }
 
+func (pa *PlatformAdapterOfficialQQ) initMessageToCreate(ctx *MsgContext, rowMsgID string) *dto.MessageToCreate {
+	toCreate := &dto.MessageToCreate{
+		MsgSeq: rand.Uint32()%10000000 + 1,
+	}
+	if ctx != nil {
+		if eventID, ok := VarGetValueStr(ctx, "$tEventID"); ok && eventID != "" {
+			toCreate.EventID = eventID
+		} else {
+			toCreate.MsgID = rowMsgID
+		}
+	} else {
+		toCreate.MsgID = rowMsgID
+	}
+	return toCreate
+}
+
+func (pa *PlatformAdapterOfficialQQ) finalizeMessageToCreate(toCreate *dto.MessageToCreate, content string, keyboardObj *keyboard.MessageKeyboard, isFinal bool) {
+	if toCreate.Media == nil && content == "" && toCreate.MessageReference == nil {
+		return
+	}
+
+	useMarkdown := pa.Session.Parent.Config.OfficialQQUseMarkdown
+	if useMarkdown && toCreate.MsgType != 7 {
+		toCreate.MsgType = 2
+		toCreate.Markdown = &dto.Markdown{
+			Content: content,
+		}
+		if isFinal && keyboardObj != nil {
+			toCreate.Keyboard = keyboardObj
+		}
+	} else {
+		toCreate.Content = content
+		if toCreate.MsgType != 7 {
+			toCreate.MsgType = 0
+		}
+		if isFinal && keyboardObj != nil {
+			toCreate.Keyboard = keyboardObj
+		}
+	}
+}
+
+func (pa *PlatformAdapterOfficialQQ) prepareMediaMessage(file *message.FileElement) (string, []byte, error) {
+	url := file.URL
+	if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
+		data, err := getElementBytes(file)
+		if err != nil {
+			return "", nil, err
+		}
+		return url, data, nil
+	}
+	return url, nil, nil
+}
+
 func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgContext, rowMsgID string, guildID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
 		content  string
-		toCreate *dto.MessageToCreate
 		msgRef   *dto.MessageReference
 	)
 
@@ -1162,23 +1215,10 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 		GuildID:   guildID,
 		ChannelID: channelID,
 	}
-	toCreate = &dto.MessageToCreate{
-		MsgID:            rowMsgID,
-		MsgSeq:           rand.Uint32()%10000000 + 1,
-		MessageReference: msgRef,
-	}
-	if pa.Session.Parent.Config.OfficialQQUseMarkdown {
-		toCreate.MsgType = 2
-		toCreate.Markdown = &dto.Markdown{
-			Content: content,
-		}
-		if keyboardObj != nil {
-			toCreate.Keyboard = keyboardObj
-		}
-	} else {
-		toCreate.MsgType = 0
-		toCreate.Content = content
-	}
+	toCreate := pa.initMessageToCreate(nil, rowMsgID)
+	toCreate.MessageReference = msgRef
+	pa.finalizeMessageToCreate(toCreate, content, keyboardObj, true)
+
 	res, err := pa.Api.PostDirectMessage(qctx, dMsg, toCreate)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
@@ -1192,49 +1232,19 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 	elems := message.ConvertStringMessage(text)
 	var (
 		content string
-		toCreate *dto.MessageToCreate
 		msgRef   *dto.MessageReference
 	)
 
-	toCreate = &dto.MessageToCreate{
-		MsgSeq: rand.Uint32()%10000000 + 1,
-	}
-	if ctx != nil {
-		if eventID, ok := VarGetValueStr(ctx, "$tEventID"); ok && eventID != "" {
-			toCreate.EventID = eventID
-		} else {
-			toCreate.MsgID = rowMsgID
-		}
-	} else {
-		toCreate.MsgID = rowMsgID
-	}
+	toCreate := pa.initMessageToCreate(ctx, rowMsgID)
 
 	var lastRes *dto.Message
 	var lastErr error
 
 	sendCurrent := func(isFinal bool) {
-		if toCreate.Media == nil && content == "" && toCreate.MessageReference == nil {
+		pa.finalizeMessageToCreate(toCreate, content, keyboardObj, isFinal)
+		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
 			return
 		}
-
-		if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
-			toCreate.MsgType = 2
-			toCreate.Markdown = &dto.Markdown{
-				Content: content,
-			}
-			if isFinal && keyboardObj != nil {
-				toCreate.Keyboard = keyboardObj
-			}
-		} else {
-			toCreate.Content = content
-			if toCreate.MsgType != 7 {
-				toCreate.MsgType = 0
-			}
-			if isFinal && keyboardObj != nil {
-				toCreate.Keyboard = keyboardObj
-			}
-		}
-
 		res, err := pa.Api.PostC2CMessage(qctx, userOpenID, toCreate)
 		if err != nil {
 			pa.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
@@ -1256,25 +1266,16 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			}
 			toCreate.MessageReference = msgRef
 		case *message.ImageElement:
-			url := e.File.URL
-			var fMsg *C2CRichMediaMessage
-			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
-				data, err := getElementBytes(e.File)
-				if err != nil {
-					pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地图片数据失败：" + err.Error())
-					continue
-				}
-				fMsg = &C2CRichMediaMessage{
-					FileType:   1,
-					FileData:   data,
-					SrvSendMsg: false,
-				}
-			} else {
-				fMsg = &C2CRichMediaMessage{
-					FileType:   1,
-					URL:        url,
-					SrvSendMsg: false,
-				}
+			url, data, err := pa.prepareMediaMessage(e.File)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地图片数据失败：" + err.Error())
+				continue
+			}
+			fMsg := &C2CRichMediaMessage{
+				FileType:   1,
+				URL:        url,
+				FileData:   data,
+				SrvSendMsg: false,
 			}
 			media, err := pa.Api.PostC2CMessage(qctx, userOpenID, fMsg)
 			if err != nil {
@@ -1285,11 +1286,8 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			if toCreate.Media != nil {
 				sendCurrent(false)
 				content = ""
-				toCreate = &dto.MessageToCreate{
-					MsgID:            rowMsgID,
-					MsgSeq:           rand.Uint32()%10000000 + 1,
-					MessageReference: msgRef,
-				}
+				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+				toCreate.MessageReference = msgRef
 			}
 
 			toCreate.MsgType = 7
@@ -1297,25 +1295,16 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 				FileInfo: media.FileInfo,
 			}
 		case *message.RecordElement:
-			url := e.File.URL
-			var fMsg *C2CRichMediaMessage
-			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
-				data, err := getElementBytes(e.File)
-				if err != nil {
-					pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地语音数据失败：" + err.Error())
-					continue
-				}
-				fMsg = &C2CRichMediaMessage{
-					FileType:   3,
-					FileData:   data,
-					SrvSendMsg: false,
-				}
-			} else {
-				fMsg = &C2CRichMediaMessage{
-					FileType:   3,
-					URL:        url,
-					SrvSendMsg: false,
-				}
+			url, data, err := pa.prepareMediaMessage(e.File)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地语音数据失败：" + err.Error())
+				continue
+			}
+			fMsg := &C2CRichMediaMessage{
+				FileType:   3,
+				URL:        url,
+				FileData:   data,
+				SrvSendMsg: false,
 			}
 			media, err := pa.Api.PostC2CMessage(qctx, userOpenID, fMsg)
 			if err != nil {
@@ -1326,11 +1315,8 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			if toCreate.Media != nil {
 				sendCurrent(false)
 				content = ""
-				toCreate = &dto.MessageToCreate{
-					MsgID:            rowMsgID,
-					MsgSeq:           rand.Uint32()%10000000 + 1,
-					MessageReference: msgRef,
-				}
+				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+				toCreate.MessageReference = msgRef
 			}
 
 			toCreate.MsgType = 7
@@ -1458,49 +1444,19 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	elems := message.ConvertStringMessage(text)
 	var (
 		content  string
-		toCreate *dto.MessageToCreate
 		msgRef   *dto.MessageReference
 	)
 
-	toCreate = &dto.MessageToCreate{
-		MsgSeq: rand.Uint32()%10000000 + 1,
-	}
-	if ctx != nil {
-		if eventID, ok := VarGetValueStr(ctx, "$tEventID"); ok && eventID != "" {
-			toCreate.EventID = eventID
-		} else {
-			toCreate.MsgID = rowMsgID
-		}
-	} else {
-		toCreate.MsgID = rowMsgID
-	}
+	toCreate := pa.initMessageToCreate(ctx, rowMsgID)
 
 	var lastRes *dto.Message
 	var lastErr error
 
 	sendCurrent := func(isFinal bool) {
-		if toCreate.Media == nil && content == "" && toCreate.MessageReference == nil {
+		pa.finalizeMessageToCreate(toCreate, content, keyboardObj, isFinal)
+		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
 			return
 		}
-
-		if pa.Session.Parent.Config.OfficialQQUseMarkdown && toCreate.MsgType != 7 {
-			toCreate.MsgType = 2
-			toCreate.Markdown = &dto.Markdown{
-				Content: content,
-			}
-			if isFinal && keyboardObj != nil {
-				toCreate.Keyboard = keyboardObj
-			}
-		} else {
-			toCreate.Content = content
-			if toCreate.MsgType != 7 {
-				toCreate.MsgType = 0
-			}
-			if isFinal && keyboardObj != nil {
-				toCreate.Keyboard = keyboardObj
-			}
-		}
-
 		res, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate)
 		if err != nil {
 			pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
@@ -1524,25 +1480,16 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 		case *message.AtElement:
 			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *message.ImageElement:
-			url := elem.File.URL
-			var fMsg *dto.MessageMediaToCreate
-			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
-				data, err := getElementBytes(elem.File)
-				if err != nil {
-					pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地图片数据失败：" + err.Error())
-					continue
-				}
-				fMsg = &dto.MessageMediaToCreate{
-					FileType:   1,
-					FileData:   data,
-					SrvSendMsg: false,
-				}
-			} else {
-				fMsg = &dto.MessageMediaToCreate{
-					FileType:   1,
-					URL:        url,
-					SrvSendMsg: false,
-				}
+			url, data, err := pa.prepareMediaMessage(elem.File)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地图片数据失败：" + err.Error())
+				continue
+			}
+			fMsg := &dto.MessageMediaToCreate{
+				FileType:   1,
+				URL:        url,
+				FileData:   data,
+				SrvSendMsg: false,
 			}
 			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
 			if err != nil {
@@ -1553,11 +1500,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			if toCreate.Media != nil {
 				sendCurrent(false)
 				content = ""
-				toCreate = &dto.MessageToCreate{
-					MsgID:            rowMsgID,
-					MsgSeq:           rand.Uint32()%10000000 + 1,
-					MessageReference: msgRef,
-				}
+				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+				toCreate.MessageReference = msgRef
 			}
 
 			toCreate.MsgType = 7
@@ -1569,25 +1513,16 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 				FileInfo: decodedFileInfo,
 			}
 		case *message.RecordElement:
-			url := elem.File.URL
-			var fMsg *dto.MessageMediaToCreate
-			if pa.Session.Parent.Config.OfficialQQFileSendBase64 || isLocalOrNonPublic(url) {
-				data, err := getElementBytes(elem.File)
-				if err != nil {
-					pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地语音数据失败：" + err.Error())
-					continue
-				}
-				fMsg = &dto.MessageMediaToCreate{
-					FileType:   3,
-					FileData:   data,
-					SrvSendMsg: false,
-				}
-			} else {
-				fMsg = &dto.MessageMediaToCreate{
-					FileType:   3,
-					URL:        url,
-					SrvSendMsg: false,
-				}
+			url, data, err := pa.prepareMediaMessage(elem.File)
+			if err != nil {
+				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地语音数据失败：" + err.Error())
+				continue
+			}
+			fMsg := &dto.MessageMediaToCreate{
+				FileType:   3,
+				URL:        url,
+				FileData:   data,
+				SrvSendMsg: false,
 			}
 			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
 			if err != nil {
@@ -1598,11 +1533,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			if toCreate.Media != nil {
 				sendCurrent(false)
 				content = ""
-				toCreate = &dto.MessageToCreate{
-					MsgID:            rowMsgID,
-					MsgSeq:           rand.Uint32()%10000000 + 1,
-					MessageReference: msgRef,
-				}
+				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+				toCreate.MessageReference = msgRef
 			}
 
 			toCreate.MsgType = 7
@@ -1625,7 +1557,6 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 	elems := message.ConvertStringMessage(text)
 	var (
 		content  string
-		toCreate *dto.MessageToCreate
 		msgRef   *dto.MessageReference
 	)
 
@@ -1649,23 +1580,10 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 		}
 	}
 
-	toCreate = &dto.MessageToCreate{
-		MsgID:            rowMsgID,
-		MsgSeq:           rand.Uint32()%10000000 + 1,
-		MessageReference: msgRef,
-	}
-	if pa.Session.Parent.Config.OfficialQQUseMarkdown {
-		toCreate.MsgType = 2
-		toCreate.Markdown = &dto.Markdown{
-			Content: content,
-		}
-		if keyboardObj != nil {
-			toCreate.Keyboard = keyboardObj
-		}
-	} else {
-		toCreate.MsgType = 0
-		toCreate.Content = content
-	}
+	toCreate := pa.initMessageToCreate(nil, rowMsgID)
+	toCreate.MessageReference = msgRef
+	pa.finalizeMessageToCreate(toCreate, content, keyboardObj, true)
+
 	res, err := pa.Api.PostMessage(qctx, channelID, toCreate)
 	if err != nil {
 		pa.Session.Parent.Logger.Error("official qq 发送频道消息失败：" + err.Error())
@@ -1848,7 +1766,9 @@ func (pa *PlatformAdapterOfficialQQ) handleWebhookCallback(w http.ResponseWriter
 	response := map[string]interface{}{
 		"op": 12, // HTTP回调确认
 	}
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Error("official qq webhook: 响应确认失败: ", err)
+	}
 
 	// 异步处理事件
 	go func() {
@@ -1861,23 +1781,6 @@ func (pa *PlatformAdapterOfficialQQ) handleWebhookCallback(w http.ResponseWriter
 			log.Errorf("official qq webhook: 事件处理失败: %v", err)
 		}
 	}()
-}
-
-// handleWebhookEvent 处理Webhook事件（保留用于手动分发场景）
-func (pa *PlatformAdapterOfficialQQ) handleWebhookEvent(payload *dto.WSPayload) {
-	s := pa.Session
-	log := s.Parent.Logger
-
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("official qq webhook: 处理事件异常: %v", r)
-		}
-	}()
-
-	// 优先使用 event.ParseAndHandle 进行自动分发
-	if err := event.ParseAndHandle(payload); err != nil {
-		log.Errorf("official qq webhook: 事件处理失败: %v", err)
-	}
 }
 
 // verifyWebhookSignature 验证Webhook签名
@@ -1919,9 +1822,12 @@ func isLocalOrNonPublic(urlStr string) bool {
 		return true
 	}
 	host := u.Hostname()
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" ||
-		strings.HasPrefix(host, "192.168.") || strings.HasPrefix(host, "10.") ||
-		strings.HasPrefix(host, "172.16.") {
+	ip := net.ParseIP(host)
+	if ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() {
+			return true
+		}
+	} else if host == "localhost" {
 		return true
 	}
 	return false
