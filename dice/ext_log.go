@@ -348,7 +348,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
 				logName := cmdArgs.GetArgN(2)
-				endCurrentLog := false
+				var endCurrentLog bool
 				if logName != "" {
 					var ok bool
 					logName, ok = resolveLogNameWithReply(group.GroupID, logName)
