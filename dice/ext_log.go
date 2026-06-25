@@ -125,7 +125,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 	const helpLog = `.log new [<日志名>] // 新建日志并开始记录，注意new后跟空格！
 .log on [<日志名>]  // 开始记录，不写日志名则开启最近一次日志，注意on后跟空格！
 .log off // 暂停记录
-.log end // 完成记录并发送日志文件
+.log end [<日志名>] // 完成记录并发送日志文件
 .log get [<日志名>] // 重新上传日志，并获取链接
 .log halt // 强行关闭当前log，不上传日志
 .log list // 查看当前群的日志列表
@@ -347,27 +347,60 @@ func RegisterBuiltinExtLog(self *Dice) {
 				getAndUpload(group.GroupID, logName)
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "end") {
-				if group.LogCurName == "" {
+				logName := cmdArgs.GetArgN(2)
+				endCurrentLog := false
+				if logName != "" {
+					var ok bool
+					logName, ok = resolveLogNameWithReply(group.GroupID, logName)
+					if !ok {
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					endCurrentLog = group.LogCurName == logName
+				} else {
+					logName = group.LogCurName
+					if logName == "" {
+						logNames, err := service.LogGetList(ctx.Dice.DBOperator, group.GroupID)
+						if err != nil {
+							ReplyToSender(ctx, msg, "获取记录出错: "+err.Error())
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						if len(logNames) > 0 {
+							logName = logNames[0]
+						}
+					}
+					endCurrentLog = true
+				}
+
+				if logName == "" {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_关闭_失败"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				lines, _ := service.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, group.LogCurName)
+				lines, exists := service.LogLinesCountGet(ctx.Dice.DBOperator, group.GroupID, logName)
+				if !exists {
+					VarSetValueStr(ctx, "$t记录名称", logName)
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "日志:记录_开启_失败_无此记录"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				VarSetValueInt64(ctx, "$t当前记录条数", lines)
-				VarSetValueStr(ctx, "$t记录名称", group.LogCurName)
+				VarSetValueStr(ctx, "$t记录名称", logName)
 				text := DiceFormatTmpl(ctx, "日志:记录_结束")
 				// Note: 2024-02-28 经过讨论，日志在 off 的情况下 end 属于合理操作，这里不再检查是否开启
 				// if !group.LogOn {
 				//	 text = strings.TrimRightFunc(DiceFormatTmpl(ctx, "日志:记录_关闭_失败"), unicode.IsSpace) + "\n" + text
 				// }
 				ReplyToSender(ctx, msg, text)
-				group.LogOn = false
-				group.MarkDirty(ctx.Dice)
+				if endCurrentLog {
+					group.LogOn = false
+					group.MarkDirty(ctx.Dice)
+				}
 
 				time.Sleep(time.Duration(0.3 * float64(time.Second)))
 				// Note: 2024-10-15 经过简单测试，似乎能缓解#1034的问题，但无法根本解决。
-				go getAndUpload(group.GroupID, group.LogCurName)
-				group.LogCurName = ""
-				group.MarkDirty(ctx.Dice)
+				go getAndUpload(group.GroupID, logName)
+				if endCurrentLog {
+					group.LogCurName = ""
+					group.MarkDirty(ctx.Dice)
+				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			} else if cmdArgs.IsArgEqual(1, "halt") {
 				if len(group.LogCurName) > 0 {
