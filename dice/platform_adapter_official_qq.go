@@ -1271,9 +1271,13 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 				pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地图片数据失败：" + err.Error())
 				continue
 			}
+			sendURL := url
+			if data != nil {
+				sendURL = ""
+			}
 			fMsg := &C2CRichMediaMessage{
 				FileType:   1,
-				URL:        url,
+				URL:        sendURL,
 				FileData:   data,
 				SrvSendMsg: false,
 			}
@@ -1300,9 +1304,13 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 				pa.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地语音数据失败：" + err.Error())
 				continue
 			}
+			sendURL := url
+			if data != nil {
+				sendURL = ""
+			}
 			fMsg := &C2CRichMediaMessage{
 				FileType:   3,
-				URL:        url,
+				URL:        sendURL,
 				FileData:   data,
 				SrvSendMsg: false,
 			}
@@ -1485,9 +1493,13 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地图片数据失败：" + err.Error())
 				continue
 			}
+			sendURL := url
+			if data != nil {
+				sendURL = ""
+			}
 			fMsg := &dto.MessageMediaToCreate{
 				FileType:   1,
-				URL:        url,
+				URL:        sendURL,
 				FileData:   data,
 				SrvSendMsg: false,
 			}
@@ -1518,9 +1530,13 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地语音数据失败：" + err.Error())
 				continue
 			}
+			sendURL := url
+			if data != nil {
+				sendURL = ""
+			}
 			fMsg := &dto.MessageMediaToCreate{
 				FileType:   3,
-				URL:        url,
+				URL:        sendURL,
 				FileData:   data,
 				SrvSendMsg: false,
 			}
