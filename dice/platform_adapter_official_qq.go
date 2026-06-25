@@ -36,35 +36,32 @@ type PaginationItem struct {
 }
 
 type PlatformAdapterOfficialQQ struct {
-	Session		*IMSession			`json:"-" yaml:"-"`
-	EndPoint	*EndPointInfo			`json:"-" yaml:"-"`
-	DiceServing	bool				`yaml:"-"`
+	Session     *IMSession    `json:"-" yaml:"-"`
+	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
+	DiceServing bool          `yaml:"-"`
 
-	AppID		string				`json:"appID"       yaml:"appID"`
-	AppSecret	string				`json:"appSecret"   yaml:"appSecret"`
-	Token		string				`json:"token"       yaml:"token"`
-	OnlyQQGuild	bool				`json:"onlyQQGuild" yaml:"onlyQQGuild"`
+	AppID       string `json:"appID"       yaml:"appID"`
+	AppSecret   string `json:"appSecret"   yaml:"appSecret"`
+	Token       string `json:"token"       yaml:"token"`
+	OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
 
 	// Webhook配置
-	UseWebhook	bool				`json:"useWebhook"    yaml:"useWebhook"`	 // 是否使用Webhook模式
-	WebhookPath	string				`json:"webhookPath"   yaml:"webhookPath"`	 // Webhook路径，默认 /webhook
-	WebhookPort	int				`json:"webhookPort"   yaml:"webhookPort"`	 // Webhook端口，默认 8099
+	UseWebhook  bool   `json:"useWebhook"    yaml:"useWebhook"`  // 是否使用Webhook模式
+	WebhookPath string `json:"webhookPath"   yaml:"webhookPath"` // Webhook路径，默认 /webhook
+	WebhookPort int    `json:"webhookPort"   yaml:"webhookPort"` // Webhook端口，默认 8099
 
-	Api		qqapi.OpenAPI			`json:"-" yaml:"-"`
-	SessionManager	qqbot.SessionManager		`json:"-" yaml:"-"`
-	Ctx		context.Context			`json:"-" yaml:"-"`
-	CancelFunc	context.CancelFunc		`json:"-" yaml:"-"`
-	tokenSource	oauth2.TokenSource		`json:"-" yaml:"-"`
+	Api            qqapi.OpenAPI        `json:"-" yaml:"-"`
+	SessionManager qqbot.SessionManager `json:"-" yaml:"-"`
+	Ctx            context.Context      `json:"-" yaml:"-"`
+	CancelFunc     context.CancelFunc   `json:"-" yaml:"-"`
+	tokenSource    oauth2.TokenSource   `json:"-" yaml:"-"`
 
 	// Webhook服务器
-	webhookServer	*http.Server			`json:"-" yaml:"-"`
+	webhookServer *http.Server `json:"-" yaml:"-"`
 
-	paginationCache	map[string]*PaginationItem	`json:"-" yaml:"-"`
-	paginationMu	sync.Mutex			`json:"-" yaml:"-"`
+	paginationCache map[string]*PaginationItem `json:"-" yaml:"-"`
+	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
 }
-
-
-
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep := pa.EndPoint
@@ -350,7 +347,7 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 	text := item.Pages[pageIndex]
 
 	toCreate := &dto.MessageToCreate{
-		MsgSeq:  rand.Uint32()%10000000 + 1,
+		MsgSeq: rand.Uint32()%10000000 + 1,
 	}
 
 	if eventRaw != nil && eventRaw.EventID != "" {
@@ -818,6 +815,8 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 		appID := pa.AppID
 		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
 		log.Infof("official qq: 与 %s 解除好友关系", userID)
+	default:
+		// 忽略其他事件
 	}
 
 	return nil
@@ -886,7 +885,7 @@ func (pa *PlatformAdapterOfficialQQ) buildPaginationKeyboard(cacheID string, pag
 	}
 
 	// 下一页
-	if pageIndex < totalPages - 1 {
+	if pageIndex < totalPages-1 {
 		buttons = append(buttons, &keyboard.Button{
 			ID: fmt.Sprintf("next_%s_%d", cacheID, pageIndex+1),
 			RenderData: &keyboard.RenderData{
@@ -1195,8 +1194,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
-		content  string
-		msgRef   *dto.MessageReference
+		content string
+		msgRef  *dto.MessageReference
 	)
 
 	for _, elem := range elems {
@@ -1233,7 +1232,7 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 	elems := message.ConvertStringMessage(text)
 	var (
 		content string
-		msgRef   *dto.MessageReference
+		msgRef  *dto.MessageReference
 	)
 
 	toCreate := pa.initMessageToCreate(ctx, rowMsgID)
@@ -1444,8 +1443,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
-		content  string
-		msgRef   *dto.MessageReference
+		content string
+		msgRef  *dto.MessageReference
 	)
 
 	toCreate := pa.initMessageToCreate(ctx, rowMsgID)
@@ -1557,8 +1556,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
-		content  string
-		msgRef   *dto.MessageReference
+		content string
+		msgRef  *dto.MessageReference
 	)
 
 	for _, elem := range elems {
