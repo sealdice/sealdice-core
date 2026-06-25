@@ -87,10 +87,12 @@ type GroupInfo struct {
 	DiceSideExpr    string                 `json:"diceSideExpr"    yaml:"diceSideExpr"` //
 	System          string                 `json:"system"          yaml:"system"`       // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
-	HelpPackages []string `json:"helpPackages"   yaml:"-"`
-	CocRuleIndex int      `jsbind:"cocRuleIndex" json:"cocRuleIndex" yaml:"cocRuleIndex"`
-	LogCurName   string   `jsbind:"logCurName"   json:"logCurName"   yaml:"logCurFile"`
-	LogOn        bool     `jsbind:"logOn"        json:"logOn"        yaml:"logOn"`
+	HelpPackages []string     `json:"helpPackages"   yaml:"-"`
+	CocRuleIndex int          `jsbind:"cocRuleIndex" json:"cocRuleIndex" yaml:"cocRuleIndex"`
+	logStateMu   sync.RWMutex `json:"-" yaml:"-"`
+	LogCurID     uint64       `json:"-" yaml:"-"`
+	LogCurName   string       `jsbind:"logCurName"   json:"logCurName"   yaml:"logCurFile"`
+	LogOn        bool         `jsbind:"logOn"        json:"logOn"        yaml:"logOn"`
 
 	QuitMarkAutoClean   bool   `json:"-"                     yaml:"-"` // 自动清群 - 播报，即将自动退出群组
 	QuitMarkMaster      bool   `json:"-"                     yaml:"-"` // 骰主命令退群 - 播报，即将自动退出群组
@@ -281,6 +283,44 @@ func (g *GroupInfo) MarkDirty(d *Dice) {
 	if d != nil && d.DirtyGroups != nil {
 		d.DirtyGroups.Store(g.GroupID, now)
 	}
+}
+
+type GroupLogState struct {
+	ID   uint64
+	Name string
+	On   bool
+}
+
+func (g *GroupInfo) GetLogState() GroupLogState {
+	g.logStateMu.RLock()
+	defer g.logStateMu.RUnlock()
+	return GroupLogState{
+		ID:   g.LogCurID,
+		Name: g.LogCurName,
+		On:   g.LogOn,
+	}
+}
+
+func (g *GroupInfo) SetLogState(logID uint64, logName string, logOn bool) {
+	g.logStateMu.Lock()
+	g.LogCurID = logID
+	g.LogCurName = logName
+	g.LogOn = logOn
+	g.logStateMu.Unlock()
+}
+
+func (g *GroupInfo) SetLogOn(logOn bool) {
+	g.logStateMu.Lock()
+	g.LogOn = logOn
+	g.logStateMu.Unlock()
+}
+
+func (g *GroupInfo) ClearLogState() {
+	g.logStateMu.Lock()
+	g.LogCurID = 0
+	g.LogCurName = ""
+	g.LogOn = false
+	g.logStateMu.Unlock()
 }
 
 func (group *GroupInfo) IsActive(ctx *MsgContext) bool {

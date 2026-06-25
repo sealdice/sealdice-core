@@ -244,3 +244,136 @@ func seedLogInfoTestDB(t *testing.T, db *gorm.DB) {
 		t.Fatalf("delete log item gap: %v", err)
 	}
 }
+
+func TestLogGetOrCreateReturnsStableID(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+
+	firstID, err := service.LogGetOrCreate(op, "QQ-Group:1001", "first-log")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate() first error = %v", err)
+	}
+	if firstID == 0 {
+		t.Fatal("LogGetOrCreate() returned zero id")
+	}
+
+	secondID, err := service.LogGetOrCreate(op, "QQ-Group:1001", "first-log")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate() second error = %v", err)
+	}
+	if secondID != firstID {
+		t.Fatalf("LogGetOrCreate() second id = %d, want %d", secondID, firstID)
+	}
+}
+
+func TestLogAppendByIDAndDeleteByRawMsgIDOperateOnOriginalLog(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+	groupID := "QQ-Group:1002"
+
+	logIDA, err := service.LogGetOrCreate(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-a): %v", err)
+	}
+	logIDB, err := service.LogGetOrCreate(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-b): %v", err)
+	}
+
+	if !service.LogAppendByID(op, logIDA, groupID, &model.LogOneItem{
+		Nickname: "tester-a",
+		IMUserID: "user-a",
+		Message:  "message-a",
+		RawMsgID: "raw-a",
+	}) {
+		t.Fatal("LogAppendByID(log-a) failed")
+	}
+	if !service.LogAppendByID(op, logIDB, groupID, &model.LogOneItem{
+		Nickname: "tester-b",
+		IMUserID: "user-b",
+		Message:  "message-b",
+		RawMsgID: "raw-b",
+	}) {
+		t.Fatal("LogAppendByID(log-b) failed")
+	}
+
+	err = service.LogMarkDeleteByRawMsgID(op, groupID, "raw-a")
+	if err != nil {
+		t.Fatalf("LogMarkDeleteByRawMsgID(): %v", err)
+	}
+
+	linesA, err := service.LogGetAllLines(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-a): %v", err)
+	}
+	if len(linesA) != 0 {
+		t.Fatalf("len(log-a lines) = %d, want 0", len(linesA))
+	}
+
+	linesB, err := service.LogGetAllLines(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-b): %v", err)
+	}
+	if len(linesB) != 1 {
+		t.Fatalf("len(log-b lines) = %d, want 1", len(linesB))
+	}
+}
+
+func TestLogEditByRawMsgIDUpdatesOriginalMessage(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+	groupID := "QQ-Group:1003"
+
+	logIDA, err := service.LogGetOrCreate(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-a): %v", err)
+	}
+	logIDB, err := service.LogGetOrCreate(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-b): %v", err)
+	}
+
+	if !service.LogAppendByID(op, logIDA, groupID, &model.LogOneItem{
+		Nickname: "tester-a",
+		IMUserID: "user-a",
+		Message:  "before-a",
+		RawMsgID: "raw-a",
+	}) {
+		t.Fatal("LogAppendByID(log-a) failed")
+	}
+	if !service.LogAppendByID(op, logIDB, groupID, &model.LogOneItem{
+		Nickname: "tester-b",
+		IMUserID: "user-b",
+		Message:  "before-b",
+		RawMsgID: "raw-b",
+	}) {
+		t.Fatal("LogAppendByID(log-b) failed")
+	}
+
+	err = service.LogEditByRawMsgID(op, groupID, "after-a", "raw-a")
+	if err != nil {
+		t.Fatalf("LogEditByRawMsgID(): %v", err)
+	}
+
+	linesA, err := service.LogGetAllLines(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-a): %v", err)
+	}
+	if len(linesA) != 1 {
+		t.Fatalf("len(log-a lines) = %d, want 1", len(linesA))
+	}
+	if linesA[0].Message != "after-a" {
+		t.Fatalf("log-a message = %q, want %q", linesA[0].Message, "after-a")
+	}
+
+	linesB, err := service.LogGetAllLines(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-b): %v", err)
+	}
+	if len(linesB) != 1 {
+		t.Fatalf("len(log-b lines) = %d, want 1", len(linesB))
+	}
+	if linesB[0].Message != "before-b" {
+		t.Fatalf("log-b message = %q, want %q", linesB[0].Message, "before-b")
+	}
+}

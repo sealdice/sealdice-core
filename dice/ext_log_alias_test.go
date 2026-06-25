@@ -34,7 +34,7 @@ func newLogAliasTestDB(t *testing.T) *mockDatabaseOperator {
 func appendTestLog(t *testing.T, mockDB *mockDatabaseOperator, groupID, logName string) {
 	t.Helper()
 
-	ok := LogAppend(&MsgContext{Dice: &Dice{DBOperator: mockDB}}, groupID, logName, &model.LogOneItem{
+	ok := LogAppend(&MsgContext{Dice: &Dice{DBOperator: mockDB}}, groupID, 0, logName, &model.LogOneItem{
 		Nickname: "tester",
 		IMUserID: "user",
 		Message:  "line",
