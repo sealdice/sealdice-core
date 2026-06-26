@@ -1,4 +1,4 @@
-package v151
+package v160
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	upgrade "sealdice-core/utils/upgrader"
 )
 
-func V151LogRawMsgIDIndexMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
+func V160LogRawMsgIDIndexMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
 	db := dboperator.GetLogDB(constant.WRITE)
 	if !db.Migrator().HasTable(&model.LogOneItem{}) {
 		return nil
@@ -39,19 +39,19 @@ func V151LogRawMsgIDIndexMigrate(dboperator operator.DatabaseOperator, logf func
 	return nil
 }
 
-var V151LogRawMsgIDIndexMigration = upgrade.Upgrade{
-	ID: "007a_V151LogRawMsgIDIndexMigration",
+var V160LogRawMsgIDIndexMigration = upgrade.Upgrade{
+	ID: "008a_V160LogRawMsgIDIndexMigration",
 	Description: `
 # 升级说明
 为日志消息回查补齐(group_id, raw_msg_id, id)复合索引
 `,
 	Apply: func(logf func(string), operator operator.DatabaseOperator) error {
-		logf(fmt.Sprintf("[INFO] V151日志索引修复开始 type=%s", operator.Type()))
-		err := V151LogRawMsgIDIndexMigrate(operator, logf)
+		logf(fmt.Sprintf("[INFO] V160日志索引修复开始 type=%s", operator.Type()))
+		err := V160LogRawMsgIDIndexMigrate(operator, logf)
 		if err != nil {
 			return err
 		}
-		logf("[INFO] V151日志索引修复处置完毕")
+		logf("[INFO] V160日志索引修复处置完毕")
 		return nil
 	},
 }

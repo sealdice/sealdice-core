@@ -2214,6 +2214,13 @@ func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
 
 	_ = mctx.fillPrivilege(msg)
 
+	log := d.Logger
+	if msg.MessageType == "group" {
+		log.Infof("收到群(%s)内<%s>(%s)的撤回消息事件: rawId=%v", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.RawID)
+	} else {
+		log.Infof("收到<%s>(%s)的撤回消息事件: rawId=%v", msg.Sender.Nickname, msg.Sender.UserID, msg.RawID)
+	}
+
 	for _, i := range s.Parent.ExtList {
 		i.CallOnMessageDeleted(mctx.Dice, mctx, msg)
 	}
