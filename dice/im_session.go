@@ -813,6 +813,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		}
 
 		mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+		VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 		mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
 		if mctx.Group != nil && mctx.Group.System != "" {
@@ -1187,6 +1188,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 
 	mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+	VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 	mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
 	if mctx.Group != nil && mctx.Group.System != "" {
@@ -1319,7 +1321,6 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 	// Note(Szzrain): 赋值临时变量，不然有些地方没法用
 	SetTempVars(mctx, msg.Sender.Nickname)
-	VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 	if cmdArgs != nil {
 		go s.PreTriggerCommand(mctx, msg, cmdArgs)
 	} else {
