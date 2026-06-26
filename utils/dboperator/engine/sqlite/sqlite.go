@@ -7,8 +7,7 @@ import (
 	"fmt"
 	"runtime"
 
-	_ "github.com/ncruces/go-sqlite3/embed"
-	sqlite "github.com/ncruces/go-sqlite3/gormlite"
+	"github.com/glebarez/sqlite"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -22,8 +21,7 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	// 使用即时事务
 	path = fmt.Sprintf("file:%v?_txlock=immediate&_busy_timeout=15000", path)
 	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
-		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.DefaultSealLogger,
 	})
 	if err != nil {
 		return nil, err

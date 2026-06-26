@@ -41,14 +41,10 @@ func NewGormLogger(zapLogger *zap.Logger) GORMLogger {
 		ZapLogger:                 zapLogger,
 		LogLevel:                  gormlogger.Warn,
 		SlowThreshold:             100 * time.Millisecond,
-		IgnoreRecordNotFoundError: false,
+		IgnoreRecordNotFoundError: true,
 		Context:                   nil,
 		JSONFormat:                false,
 	}
-}
-
-func (l GORMLogger) SetAsDefault() {
-	gormlogger.Default = l
 }
 
 func (l GORMLogger) LogMode(level gormlogger.LogLevel) gormlogger.Interface {
@@ -132,7 +128,7 @@ func (l GORMLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 
 var (
 	gormPackage    = filepath.Join("gorm.io", "gorm")
-	zapgormPackage = filepath.Join("moul.io", "zapgorm2")
+	zapgormPackage = filepath.Join("moul.io", "zapgorm2") // 奇怪了，不知道为什么不用跳过
 )
 
 func (l GORMLogger) logger(ctx context.Context) *zap.Logger {

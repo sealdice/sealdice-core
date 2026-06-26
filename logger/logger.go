@@ -19,14 +19,15 @@ const (
 	LogKeyAdapter  = "adapter"
 )
 
+var DefaultSealLogger GORMLogger
+
 func InitLogger(level zapcore.Level, ui *UIWriter) *zap.SugaredLogger {
 	core := newLoggerCore(level, ui, zapcore.AddSync(os.Stdout), "data")
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
+
+	DefaultSealLogger = NewGormLogger(logger.Named(LogKeyDatabase))
+
 	zap.ReplaceGlobals(logger)
-
-	gormLogger := NewGormLogger(logger.Named(LogKeyDatabase))
-	gormLogger.SetAsDefault()
-
 	return logger.Sugar()
 }
 
