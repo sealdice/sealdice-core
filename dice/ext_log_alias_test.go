@@ -219,3 +219,32 @@ func TestLogSendToBackendAcceptsAliasKey(t *testing.T) {
 		t.Fatalf("url = %q", url)
 	}
 }
+
+func TestEnsureGroupLogStateBackfillsLegacyLogID(t *testing.T) {
+	mockDB := newLogAliasTestDB(t)
+	groupID := "QQ-Group:2001"
+	logName := "legacy-log"
+
+	ctx := &MsgContext{
+		Dice: &Dice{DBOperator: mockDB},
+		Group: &GroupInfo{
+			GroupID:    groupID,
+			LogCurName: logName,
+			LogOn:      true,
+		},
+	}
+
+	logState := ensureGroupLogState(ctx, ctx.Group)
+	if !logState.On {
+		t.Fatal("expected legacy log state to stay on")
+	}
+	if logState.Name != logName {
+		t.Fatalf("logState.Name = %q, want %q", logState.Name, logName)
+	}
+	if logState.ID == 0 {
+		t.Fatal("expected legacy log state to backfill non-zero log id")
+	}
+	if got := ctx.Group.GetLogState().ID; got != logState.ID {
+		t.Fatalf("group LogCurID = %d, want %d", got, logState.ID)
+	}
+}

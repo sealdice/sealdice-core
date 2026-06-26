@@ -39,7 +39,28 @@ func getGroupLogName(group *GroupInfo) string {
 }
 
 func getGroupLogOn(group *GroupInfo) bool {
-	return getGroupLogState(group).On
+	state := getGroupLogState(group)
+	return state.On && state.Name != ""
+}
+
+func ensureGroupLogState(ctx *MsgContext, group *GroupInfo) GroupLogState {
+	state := getGroupLogState(group)
+	if group == nil || !state.On || state.Name == "" || state.ID > 0 {
+		return state
+	}
+
+	logID, err := service.LogGetOrCreate(ctx.Dice.DBOperator, group.GroupID, state.Name)
+	if err != nil {
+		if ctx != nil && ctx.Dice != nil && ctx.Dice.Logger != nil {
+			ctx.Dice.Logger.Warnf("日志状态修复失败: 群=%s 名称=%s err=%v", group.GroupID, state.Name, err)
+		}
+		return state
+	}
+	group.SetLogState(logID, state.Name, state.On)
+	if ctx != nil && ctx.Dice != nil && ctx.Dice.Logger != nil {
+		ctx.Dice.Logger.Infof("日志状态修复: 群=%s 记录=%s 补全logID=%d", group.GroupID, state.Name, logID)
+	}
+	return getGroupLogState(group)
 }
 
 func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
@@ -943,8 +964,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 						ctx.Dice.Logger.Warn("ServiceAtNew ext_log加载groupInfo异常")
 						return
 					}
-					logState := getGroupLogState(groupInfo)
-					if !logState.On || logState.ID == 0 || logState.Name == "" {
+					logState := ensureGroupLogState(ctx, groupInfo)
+					if !logState.On || logState.Name == "" {
 						return
 					}
 					a := model.LogOneItem{
@@ -970,8 +991,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ctx.Dice.Logger.Warn("ServiceAtNew ext_log加载groupInfo异常")
 					return
 				}
-				logState := getGroupLogState(groupInfo)
-				if logState.On && logState.ID > 0 && logState.Name != "" {
+				logState := ensureGroupLogState(ctx, groupInfo)
+				if logState.On && logState.Name != "" {
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					if ctx.CommandHideFlag != "" {
 						// 记录当前指令和时间
@@ -996,8 +1017,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 		OnMessageReceived: func(ctx *MsgContext, msg *Message) {
 			// 处理日志
 			if ctx.Group != nil {
-				logState := getGroupLogState(ctx.Group)
-				if logState.On && logState.ID > 0 && logState.Name != "" {
+				logState := ensureGroupLogState(ctx, ctx.Group)
+				if logState.On && logState.Name != "" {
 					// 去重，用于同群多骰情况
 					if !groupMsgInfoCheckOk(msg.RawID) {
 						return

@@ -222,23 +222,32 @@ func getLogInfoByRawMsgID(db *gorm.DB, groupID string, rawID interface{}) (*mode
 		return nil, ErrLogNotFound
 	}
 
-	var logInfo model.LogInfo
-	err := db.Model(&model.LogInfo{}).
-		Select("logs.id, logs.name, logs.group_id, logs.created_at, logs.updated_at, logs.upload_url, logs.upload_time").
-		Joins("JOIN log_items ON log_items.log_id = logs.id").
-		Where("log_items.group_id = ? AND log_items.raw_msg_id = ?", groupID, rid).
-		Order("log_items.id DESC").
-		Take(&logInfo).Error
+	// NOTE:
+	// - 这里依赖 log_items 上的复合索引 (group_id, raw_msg_id, id)，以支撑 WHERE + ORDER BY 的查询模式。
+	// - 正常情况下，同一群内不应存在多条相同 raw_msg_id 的日志项；若出现，默认以最新一条为准。
+	var candidates []struct {
+		ID    uint64 `gorm:"column:id"`
+		LogID uint64 `gorm:"column:log_id"`
+	}
+	err := db.Model(&model.LogOneItem{}).
+		Select("id, log_id").
+		Where("group_id = ? AND raw_msg_id = ?", groupID, rid).
+		Order("id DESC").
+		Limit(2).
+		Find(&candidates).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrLogNotFound
-		}
 		return nil, err
 	}
-	if logInfo.ID == 0 {
+
+	if len(candidates) == 0 || candidates[0].LogID == 0 {
 		return nil, ErrLogNotFound
 	}
-	return &logInfo, nil
+
+	if len(candidates) > 1 {
+		zap.S().Named(logger.LogKeyDatabase).Warnf("日志RawMsgID出现重复，按最新记录处理: group=%s raw_msg_id=%s latest_item_id=%d", groupID, rid, candidates[0].ID)
+	}
+
+	return getLogInfoByID(db, candidates[0].LogID)
 }
 
 func createLog(tx *gorm.DB, groupID string, logName string, nowTimestamp int64) (uint64, error) {

@@ -377,3 +377,90 @@ func TestLogEditByRawMsgIDUpdatesOriginalMessage(t *testing.T) {
 		t.Fatalf("log-b message = %q, want %q", linesB[0].Message, "before-b")
 	}
 }
+
+func TestLogEditByRawMsgIDUsesLatestDuplicateInGroup(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+	groupID := "QQ-Group:1004"
+
+	logIDA, err := service.LogGetOrCreate(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-a): %v", err)
+	}
+	logIDB, err := service.LogGetOrCreate(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-b): %v", err)
+	}
+
+	const sharedRawID = "raw-shared"
+	if !service.LogAppendByID(op, logIDA, groupID, &model.LogOneItem{
+		Nickname: "tester-a",
+		IMUserID: "user-a",
+		Message:  "before-a",
+		RawMsgID: sharedRawID,
+	}) {
+		t.Fatal("LogAppendByID(log-a) failed")
+	}
+	if !service.LogAppendByID(op, logIDB, groupID, &model.LogOneItem{
+		Nickname: "tester-b",
+		IMUserID: "user-b",
+		Message:  "before-b",
+		RawMsgID: sharedRawID,
+	}) {
+		t.Fatal("LogAppendByID(log-b) failed")
+	}
+
+	err = service.LogEditByRawMsgID(op, groupID, "after-latest", sharedRawID)
+	if err != nil {
+		t.Fatalf("LogEditByRawMsgID(): %v", err)
+	}
+
+	linesA, err := service.LogGetAllLines(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-a): %v", err)
+	}
+	if len(linesA) != 1 {
+		t.Fatalf("len(log-a lines) = %d, want 1", len(linesA))
+	}
+	if linesA[0].Message != "before-a" {
+		t.Fatalf("log-a message = %q, want %q", linesA[0].Message, "before-a")
+	}
+
+	linesB, err := service.LogGetAllLines(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-b): %v", err)
+	}
+	if len(linesB) != 1 {
+		t.Fatalf("len(log-b lines) = %d, want 1", len(linesB))
+	}
+	if linesB[0].Message != "after-latest" {
+		t.Fatalf("log-b message = %q, want %q", linesB[0].Message, "after-latest")
+	}
+}
+
+func TestLogModelCreatesCompositeRawMsgIDIndexOnSQLite(t *testing.T) {
+	db := newLogInfoTestDB(t)
+
+	type sqliteIndexInfo struct {
+		Name string `gorm:"column:name"`
+		SQL  string `gorm:"column:sql"`
+	}
+	var indexes []sqliteIndexInfo
+	if err := db.Raw("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'log_items'").Scan(&indexes).Error; err != nil {
+		t.Fatalf("query sqlite indexes: %v", err)
+	}
+
+	var found bool
+	for _, idx := range indexes {
+		if idx.Name != "idx_log_delete_by_id" {
+			continue
+		}
+		found = true
+		if !regexp.MustCompile("(?i)[(`]?group_id[)`]?,\\s*[(`]?raw_msg_id[)`]?,\\s*[(`]?id[)`]?").MatchString(idx.SQL) {
+			t.Fatalf("idx_log_delete_by_id sql = %q, want composite (group_id, raw_msg_id, id)", idx.SQL)
+		}
+	}
+	if !found {
+		t.Fatal("expected idx_log_delete_by_id to exist on log_items")
+	}
+}
