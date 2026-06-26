@@ -40,7 +40,7 @@ func NewGormLogger(zapLogger *zap.Logger) GORMLogger {
 	return GORMLogger{
 		ZapLogger:                 zapLogger,
 		LogLevel:                  gormlogger.Warn,
-		SlowThreshold:             100 * time.Millisecond,
+		SlowThreshold:             300 * time.Millisecond,
 		IgnoreRecordNotFoundError: true,
 		Context:                   nil,
 		JSONFormat:                false,

@@ -9,7 +9,6 @@ import (
 )
 
 func PostgresDBInit(dsn string) (*gorm.DB, error) {
-
 	// 使用 GORM 连接 PostgreSQL
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
