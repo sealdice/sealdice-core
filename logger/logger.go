@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"moul.io/zapgorm2"
 )
 
 const (
@@ -21,10 +20,21 @@ const (
 )
 
 func InitLogger(level zapcore.Level, ui *UIWriter) *zap.SugaredLogger {
+	core := newLoggerCore(level, ui, zapcore.AddSync(os.Stdout), "data")
+	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
+	zap.ReplaceGlobals(logger)
+
+	gormLogger := NewGormLogger(logger.Named(LogKeyDatabase))
+	gormLogger.SetAsDefault()
+
+	return logger.Sugar()
+}
+
+func newLoggerCore(level zapcore.Level, ui *UIWriter, consoleSink zapcore.WriteSyncer, rootDir string) zapcore.Core {
 	consoleEncoder := newEncoder(true)
 	jsonEncoder := newEncoder(false)
 
-	consoleWriter := zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), level)
+	consoleWriter := zapcore.NewCore(consoleEncoder, consoleSink, level)
 	uiWriter := zapcore.NewCore(jsonEncoder, zapcore.AddSync(ui), level)
 
 	levelConfig := map[string]zapcore.Level{
@@ -34,19 +44,11 @@ func InitLogger(level zapcore.Level, ui *UIWriter) *zap.SugaredLogger {
 		LogKeyAdapter:  level,
 	}
 
-	core := zapcore.NewTee(
-		newDynamicFileCore("data", consoleEncoder, levelConfig, level),
-		consoleWriter,
-		uiWriter,
+	return zapcore.NewTee(
+		newDynamicFileCore(rootDir, consoleEncoder, levelConfig, level),
+		newVisibilityCore(consoleWriter, level),
+		newVisibilityCore(uiWriter, level),
 	)
-
-	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
-	zap.ReplaceGlobals(logger)
-
-	gormLogger := zapgorm2.New(logger.Named(LogKeyDatabase))
-	gormLogger.SetAsDefault()
-
-	return logger.Sugar()
 }
 
 func M() *zap.SugaredLogger {
@@ -186,4 +188,55 @@ func newEncoder(console bool) zapcore.Encoder {
 		return zapcore.NewConsoleEncoder(encoderConfig)
 	}
 	return zapcore.NewJSONEncoder(encoderConfig)
+}
+
+type visibilityCore struct {
+	inner       zapcore.Core
+	globalLevel zapcore.Level
+}
+
+func newVisibilityCore(inner zapcore.Core, globalLevel zapcore.Level) zapcore.Core {
+	return &visibilityCore{
+		inner:       inner,
+		globalLevel: globalLevel,
+	}
+}
+
+func (c *visibilityCore) Enabled(level zapcore.Level) bool {
+	return c.inner.Enabled(level)
+}
+
+func (c *visibilityCore) With(fields []zapcore.Field) zapcore.Core {
+	return &visibilityCore{
+		inner:       c.inner.With(fields),
+		globalLevel: c.globalLevel,
+	}
+}
+
+func (c *visibilityCore) Check(entry zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if !c.shouldWrite(entry) {
+		return ce
+	}
+	return c.inner.Check(entry, ce)
+}
+
+func (c *visibilityCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
+	if !c.shouldWrite(entry) {
+		return nil
+	}
+	return c.inner.Write(entry, fields)
+}
+
+func (c *visibilityCore) Sync() error {
+	return c.inner.Sync()
+}
+
+func (c *visibilityCore) shouldWrite(entry zapcore.Entry) bool {
+	if !strings.EqualFold(entry.LoggerName, LogKeyDatabase) {
+		return true
+	}
+	if entry.Level != zapcore.DebugLevel {
+		return true
+	}
+	return c.globalLevel <= zapcore.DebugLevel
 }
