@@ -39,7 +39,7 @@ type GORMLogger struct {
 func NewGormLogger(zapLogger *zap.Logger) GORMLogger {
 	return GORMLogger{
 		ZapLogger:                 zapLogger,
-		LogLevel:                  gormlogger.Warn,
+		LogLevel:                  gormlogger.Info,
 		SlowThreshold:             300 * time.Millisecond,
 		IgnoreRecordNotFoundError: true,
 		Context:                   nil,
@@ -61,6 +61,11 @@ func (l GORMLogger) LogMode(level gormlogger.LogLevel) gormlogger.Interface {
 
 func (l GORMLogger) Info(ctx context.Context, msg string, args ...interface{}) {
 	if l.LogLevel < gormlogger.Info {
+		return
+	}
+	// hack： 这个日志不想打印在后台里，但是它的代码不在我的代码内，所以只能先hack一下，未来看看有没有必要直接把这里降级成debugf
+	if strings.Contains(msg, "replacing callback") {
+		l.logger(ctx).Sugar().Debugf(infoStr+msg, args...)
 		return
 	}
 	l.logger(ctx).Sugar().Infof(infoStr+msg, args...)

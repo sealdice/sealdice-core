@@ -10,8 +10,8 @@ import (
 	"github.com/glebarez/sqlite"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/cache"
 )
 
@@ -83,7 +83,7 @@ func createWriteDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
 	// 由于现在我们只有一个写入连接，所以不需要使用事务
 	gormConf := gorm.Config{
-		Logger:                 logger.Default.LogMode(logger.Info),
+		Logger:                 logger.DefaultSealLogger,
 		SkipDefaultTransaction: true,
 	}
 	readDB, err := createReadDB(path, gormConf)
