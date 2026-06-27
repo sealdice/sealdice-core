@@ -717,12 +717,9 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 // setupServerConnection 设置服务器连接
 func (p *PlatformAdapterOnebot) setupServerConnection() error {
 	p.echoServer = echo.New()
-	p.echoServer.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: `[${time_rfc3339}] ${remote_ip} ${method} ${uri} ${status} ${latency_human}` + "\n",
-	}))
+	p.echoServer.HideBanner = true
 	p.echoServer.Use(middleware.Recover())
 	wsHandler := p.websocketManager.New()
-	// 注册Handler
 	p.echoServer.GET(p.ReverseSuffix, echo.WrapHandler(wsHandler))
 	return p.echoServer.Start(p.ReverseUrl)
 }
@@ -819,7 +816,6 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 				}
 				_ = p.sm.Event(context.Background(), "connect_fail")
 			}
-			fmt.Println("成功啊")
 		}()
 		return nil
 	default:

@@ -137,7 +137,7 @@ func (e *emitterSocket) waitEchoAfterSend(ctx context.Context, echoId string, se
 
 func decodeResponse[R any](resp Response[sonic.NoCopyRawMessage]) (*R, error) {
 	if strings.EqualFold("failed", resp.Status) {
-		return nil, fmt.Errorf("action failed, status=%s retcode=%d", resp.Status, resp.RetCode)
+		return nil, fmt.Errorf("发送动作失败, status=%s retcode=%d reason(data)=%s", resp.Status, resp.RetCode, resp.Data)
 	}
 	var res R
 	if err := sonic.Unmarshal(resp.Data, &res); err != nil {
