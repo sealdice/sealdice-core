@@ -2,14 +2,16 @@ package dice
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	socketio "github.com/PaienNate/pineutil/evsocket"
+	socketio "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/avast/retry-go"
 	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
@@ -586,11 +588,16 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 // setupClientConnection 设置客户端连接
 func (p *PlatformAdapterOnebot) setupClientConnection() error {
 	options := socketio.ClientOptions{
-		UseSSL: strings.Contains(p.ConnectURL, "wss://"),
+		RequestHeader: http.Header{},
+	}
+	p.applyClientAuthHeader(&options)
+	if strings.Contains(p.ConnectURL, "wss://") {
+		options.TLSConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 	}
 	client := p.websocketManager.NewClient(p.ConnectURL, options)
-
-	p.applyClientAuthHeader(client)
+	client.OnConnected = func() {
+		p.onConnected(client)
+	}
 
 	client.OnConnectError = func(err error) {
 		p.logger.Errorf("连接失败: %v", err)
@@ -616,14 +623,17 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 		_ = p.sm.Event(context.Background(), "connection_lost")
 	}
 
-	return client.ClientConnect(p.onConnected)
+	return client.Connect()
 }
 
-func (p *PlatformAdapterOnebot) applyClientAuthHeader(client *socketio.WebsocketWrapper) {
-	if client == nil || p.Token == "" {
+func (p *PlatformAdapterOnebot) applyClientAuthHeader(options *socketio.ClientOptions) {
+	if options == nil || p.Token == "" {
 		return
 	}
-	client.RequestHeader.Set("Authorization", p.Token)
+	if options.RequestHeader == nil {
+		options.RequestHeader = http.Header{}
+	}
+	options.RequestHeader.Set("Authorization", p.Token)
 }
 
 func onebotAuthorizationMatches(configuredToken, headerValue string) bool {
@@ -677,9 +687,8 @@ func (p *PlatformAdapterOnebot) setupServerConnection() error {
 	// 注册Handler
 	p.echoServer.GET(p.ReverseSuffix, echo.WrapHandler(
 		p.websocketManager.New(func(kws *socketio.WebsocketWrapper) {
-			// 先检查是否允许
 			if p.Token != "" {
-				token := kws.RequestHeader.Get("Authorization")
+				token := kws.GetRequestHeader("Authorization")
 				if !onebotAuthorizationMatches(p.Token, token) {
 					kws.Emit([]byte(`{
 						"status": "failed",

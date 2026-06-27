@@ -13,7 +13,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/google/uuid"
 
-	socketio "github.com/PaienNate/pineutil/evsocket"
+	socketio "github.com/PaienNate/pineutil/evsocket/v2"
 
 	"sealdice-core/dice/imsdk/onebot/schema"
 	"sealdice-core/dice/imsdk/onebot/types"

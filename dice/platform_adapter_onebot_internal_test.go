@@ -4,10 +4,11 @@ package dice
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
-	socketio "github.com/PaienNate/pineutil/evsocket"
+	socketio "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/bytedance/sonic"
 	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
@@ -395,10 +396,9 @@ func TestPureOnebotApplyClientAuthHeaderPreservesConfiguredToken(t *testing.T) {
 
 	pa.ConnectURL = "ws://127.0.0.1:12345"
 	pa.Token = "test-token"
-	pa.websocketManager = socketio.NewSocketInstance()
-	client := pa.websocketManager.NewClient(pa.ConnectURL, socketio.ClientOptions{})
-	pa.applyClientAuthHeader(client)
-	if got := client.RequestHeader.Get("Authorization"); got != "test-token" {
+	options := socketio.ClientOptions{RequestHeader: http.Header{}}
+	pa.applyClientAuthHeader(&options)
+	if got := options.RequestHeader.Get("Authorization"); got != "test-token" {
 		t.Fatalf("expected raw token header, got %q", got)
 	}
 }
@@ -409,10 +409,9 @@ func TestPureOnebotApplyClientAuthHeaderKeepsExplicitBearerScheme(t *testing.T) 
 
 	pa.ConnectURL = "ws://127.0.0.1:12345"
 	pa.Token = "Bearer test-token"
-	pa.websocketManager = socketio.NewSocketInstance()
-	client := pa.websocketManager.NewClient(pa.ConnectURL, socketio.ClientOptions{})
-	pa.applyClientAuthHeader(client)
-	if got := client.RequestHeader.Get("Authorization"); got != "Bearer test-token" {
+	options := socketio.ClientOptions{RequestHeader: http.Header{}}
+	pa.applyClientAuthHeader(&options)
+	if got := options.RequestHeader.Get("Authorization"); got != "Bearer test-token" {
 		t.Fatalf("expected explicit bearer header to be preserved, got %q", got)
 	}
 }

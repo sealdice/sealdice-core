@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	evsocket "github.com/PaienNate/pineutil/evsocket"
+	evsocket "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/bytedance/sonic"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
