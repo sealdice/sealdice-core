@@ -6,7 +6,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Milly/go-base2048 v0.1.0
-	github.com/PaienNate/pineutil v1.0.0
+	github.com/PaienNate/pineutil v1.1.1
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
 	github.com/Szzrain/Milky-go-sdk v1.0.2

@@ -17,6 +17,8 @@ github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752 h1:LVVPZE5kFejq
 github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752/go.mod h1:cg9EQoyBMyDIdRp9b5DuuJo8KBCjHL5JiDpJesIEsZw=
 github.com/PaienNate/pineutil v1.0.0 h1:u5ovyYsW2Qn4oTmzdJIDUk7oDeGWpa6Jj+eSdO969eM=
 github.com/PaienNate/pineutil v1.0.0/go.mod h1:8SL3Atzmso0aDXyCX1w7HDyEXT5LIG1MIPhHabtEWFE=
+github.com/PaienNate/pineutil v1.1.1 h1:Qt1OWuU2eXgRR/TryI9im9a2/Bl8kLzCdURn+Z6USvQ=
+github.com/PaienNate/pineutil v1.1.1/go.mod h1:8SL3Atzmso0aDXyCX1w7HDyEXT5LIG1MIPhHabtEWFE=
 github.com/RoaringBitmap/roaring/v2 v2.8.0 h1:y1rdtixfXvaITKzkfiKvScI0hlBJHe9sfzJp8cgeM7w=
 github.com/RoaringBitmap/roaring/v2 v2.8.0/go.mod h1:FiJcsfkGje/nZBZgCu0ZxCPOKD/hVXDS2dXi7/eUFE0=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=

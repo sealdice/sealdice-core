@@ -16,6 +16,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
@@ -520,12 +521,23 @@ func (p *PlatformAdapterOnebot) MemberKick(_ string, _ string) {
 
 }
 
+// isServer 是否为反向连接模式（别人连我）。
+func (p *PlatformAdapterOnebot) isServer() bool {
+	return p.Mode == "server" //nolint:goconst
+}
+
 // onConnected 连接成功的回调函数
 func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	// 连接成功，获取当前登录状态
 	p.sendEmitter = emitter.NewEVEmitter(kws)
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 	if err != nil {
+		if p.isServer() {
+			// 反向连接：对端未正常响应 GetLoginInfo，说明不可用，关闭本次连接。
+			p.logger.Warnf("[反向WS] 未能获取对端身份信息: %v，关闭连接", err)
+			kws.Close()
+			return
+		}
 		p.logger.Errorf("获取登录信息异常 %v", err)
 		p.scheduleLoginInfoRetry()
 		return
@@ -550,6 +562,34 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 		p.websocketManager.On(OnebotEventPostTypeMetaEvent, p.onOnebotMetaDataEvent)
 		p.websocketManager.On(OnebotEventPostTypeRequest, p.onOnebotRequestEvent)
 		p.websocketManager.On(OnebotEventPostTypeNotice, p.OnebotNoticeEvent)
+		p.websocketManager.On(socketio.EventConnect, func(payload *socketio.EventPayload) {
+			if p.isServer() {
+				p.logger.Infof("[反向WS] 收到连接，会话ID: %s", payload.SocketUUID)
+			}
+			if p.Token != "" {
+				token := payload.Kws.GetRequestHeader("Authorization")
+				if !onebotAuthorizationMatches(p.Token, token) {
+					p.logger.Warnf("[反向WS] Token 验证失败，拒绝连接，会话ID: %s", payload.SocketUUID)
+					payload.Kws.Emit([]byte(`{
+						"status": "failed",
+						"retcode": 1403,
+						"data": null,
+						"message": "token验证失败",
+						"wording": "token验证失败",
+						"echo": null,
+						"stream": "normal-action"
+					}`))
+					payload.Kws.Close()
+					return
+				}
+			}
+			p.onConnected(payload.Kws)
+		})
+		p.websocketManager.On(socketio.EventDisconnect, func(payload *socketio.EventPayload) {
+			if p.isServer() {
+				p.logger.Infof("[反向WS] 连接断开，会话ID: %s", payload.SocketUUID)
+			}
+		})
 		p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
 			var echoer emitter.Response[sonic.NoCopyRawMessage]
 			if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
@@ -595,9 +635,6 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 		options.TLSConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 	}
 	client := p.websocketManager.NewClient(p.ConnectURL, options)
-	client.OnConnected = func() {
-		p.onConnected(client)
-	}
 
 	client.OnConnectError = func(err error) {
 		p.logger.Errorf("连接失败: %v", err)
@@ -607,13 +644,10 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 	client.OnDisconnected = func(err error) {
 		if err != nil {
 			var closeErr *websocket.CloseError
-			if errors.As(err, &closeErr) {
-				// 检查关闭码是否为 1002
-				if closeErr.Code == 1002 {
-					p.logger.Info("连接正常关闭 (WebSocket 1002)")
-				} else {
-					p.logger.Errorf("连接异常断开: %v", err)
-				}
+			if errors.As(err, &closeErr) && closeErr.Code == 1002 {
+				p.logger.Info("连接正常关闭 (WebSocket 1002)")
+			} else if p.isShuttingDown {
+				p.logger.Infof("适配器关闭中，连接断开: %v", err)
 			} else {
 				p.logger.Errorf("连接异常断开: %v", err)
 			}
@@ -683,30 +717,13 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 // setupServerConnection 设置服务器连接
 func (p *PlatformAdapterOnebot) setupServerConnection() error {
 	p.echoServer = echo.New()
-
+	p.echoServer.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: `[${time_rfc3339}] ${remote_ip} ${method} ${uri} ${status} ${latency_human}` + "\n",
+	}))
+	p.echoServer.Use(middleware.Recover())
+	wsHandler := p.websocketManager.New()
 	// 注册Handler
-	p.echoServer.GET(p.ReverseSuffix, echo.WrapHandler(
-		p.websocketManager.New(func(kws *socketio.WebsocketWrapper) {
-			if p.Token != "" {
-				token := kws.GetRequestHeader("Authorization")
-				if !onebotAuthorizationMatches(p.Token, token) {
-					kws.Emit([]byte(`{
-						"status": "failed",
-						"retcode": 1403,
-						"data": null,
-						"message": "token验证失败",
-						"wording": "token验证失败",
-						"echo": null,
-						"stream": "normal-action"
-					}`))
-					kws.Close()
-					return
-				}
-			}
-			p.onConnected(kws)
-		}),
-	))
-
+	p.echoServer.GET(p.ReverseSuffix, echo.WrapHandler(wsHandler))
 	return p.echoServer.Start(p.ReverseUrl)
 }
 
@@ -716,7 +733,7 @@ func (p *PlatformAdapterOnebot) cleanupResources() {
 	p.isShuttingDown = true
 
 	// 1. 首先关闭服务器，停止接收新的请求（避免在清理过程中崩溃）
-	if p.Mode == "server" && p.echoServer != nil {
+	if p.isServer() && p.echoServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := p.echoServer.Shutdown(ctx); err != nil {
@@ -795,9 +812,14 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 				}
 			}()
 			if err := p.setupServerConnection(); err != nil {
-				p.logger.Errorf("启动服务器失败: %v", err)
+				if errors.Is(err, http.ErrServerClosed) {
+					p.logger.Infof("适配器关闭，服务器停止: %v", err)
+				} else {
+					p.logger.Errorf("启动服务器失败: %v", err)
+				}
 				_ = p.sm.Event(context.Background(), "connect_fail")
 			}
+			fmt.Println("成功啊")
 		}()
 		return nil
 	default:
