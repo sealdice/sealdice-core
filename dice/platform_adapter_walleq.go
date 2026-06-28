@@ -440,8 +440,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			case "group_message_delete": // 消息撤回
 				groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 				if ok {
-					if groupInfo.LogOn {
-						_ = service.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
+					if groupInfo.GetLogState().On {
+						_ = service.LogMarkDeleteByRawMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, n.MessageID)
 					}
 				}
 				return

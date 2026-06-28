@@ -26,6 +26,8 @@ import (
 
 	"github.com/panjf2000/ants/v2"
 	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
 
 	sealdiceLogger "sealdice-core/logger"
@@ -431,6 +433,59 @@ func TestExecuteNew_GroupInfo_Created(t *testing.T) {
 	}
 	if !groupInfo.Active {
 		t.Error("new GroupInfo should have Active=true")
+	}
+}
+
+func TestOnMessageDeletedWritesUILog(t *testing.T) {
+	d, ep, _, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.TimeKey = "time"
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	encoderConfig.NameKey = "module"
+	encoderConfig.EncodeName = zapcore.FullNameEncoder
+	core := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), zapcore.AddSync(d.LogWriter), zapcore.InfoLevel)
+	d.Logger = zap.New(core).Named(sealdiceLogger.LogKeyMain).Sugar()
+
+	ctx := &MsgContext{
+		Dice:     d,
+		EndPoint: ep,
+		Session:  d.ImSession,
+	}
+	group := SetBotOnAtGroup(ctx, "QQ-Group:10001")
+	group.GroupName = "TestGroup"
+
+	msg := &Message{
+		Platform:    "QQ",
+		MessageType: "group",
+		GroupID:     "QQ-Group:10001",
+		GroupName:   "TestGroup",
+		Time:        time.Now().Unix(),
+		Sender: SenderBase{
+			UserID:   "QQ:20001",
+			Nickname: "Alice",
+		},
+		Message: "这是一条被撤回的消息",
+		RawID:   "raw-delete-1",
+	}
+
+	d.ImSession.OnMessageDeleted(ctx, msg)
+
+	var found bool
+	for _, item := range d.LogWriter.Items {
+		if item == nil {
+			continue
+		}
+		if strings.Contains(item.Msg, "撤回消息事件") &&
+			strings.Contains(item.Msg, msg.GroupID) &&
+			strings.Contains(item.Msg, msg.Sender.UserID) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected UI log to contain message delete event, got %+v", d.LogWriter.Items)
 	}
 }
 
