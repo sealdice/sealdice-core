@@ -842,7 +842,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.IsCurGroupBotOn = true
 
 					text := DiceFormatTmpl(ctx, "核心:骰子开启")
-					if ctx.Group.LogOn {
+					if ctx.Group.GetLogState().On {
 						text += "\n请特别注意: 日志记录处于开启状态"
 					}
 					ReplyToSender(ctx, msg, text)

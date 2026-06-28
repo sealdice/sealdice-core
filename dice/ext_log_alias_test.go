@@ -34,7 +34,7 @@ func newLogAliasTestDB(t *testing.T) *mockDatabaseOperator {
 func appendTestLog(t *testing.T, mockDB *mockDatabaseOperator, groupID, logName string) {
 	t.Helper()
 
-	ok := LogAppend(&MsgContext{Dice: &Dice{DBOperator: mockDB}}, groupID, logName, &model.LogOneItem{
+	ok := LogAppend(&MsgContext{Dice: &Dice{DBOperator: mockDB}}, groupID, 0, logName, &model.LogOneItem{
 		Nickname: "tester",
 		IMUserID: "user",
 		Message:  "line",
@@ -217,5 +217,34 @@ func TestLogSendToBackendAcceptsAliasKey(t *testing.T) {
 	}
 	if url != "https://example.com/log" {
 		t.Fatalf("url = %q", url)
+	}
+}
+
+func TestEnsureGroupLogStateBackfillsLegacyLogID(t *testing.T) {
+	mockDB := newLogAliasTestDB(t)
+	groupID := "QQ-Group:2001"
+	logName := "legacy-log"
+
+	ctx := &MsgContext{
+		Dice: &Dice{DBOperator: mockDB},
+		Group: &GroupInfo{
+			GroupID:    groupID,
+			LogCurName: logName,
+			LogOn:      true,
+		},
+	}
+
+	logState := ensureGroupLogState(ctx, ctx.Group)
+	if !logState.On {
+		t.Fatal("expected legacy log state to stay on")
+	}
+	if logState.Name != logName {
+		t.Fatalf("logState.Name = %q, want %q", logState.Name, logName)
+	}
+	if logState.ID == 0 {
+		t.Fatal("expected legacy log state to backfill non-zero log id")
+	}
+	if got := ctx.Group.GetLogState().ID; got != logState.ID {
+		t.Fatalf("group LogCurID = %d, want %d", got, logState.ID)
 	}
 }
