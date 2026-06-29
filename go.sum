@@ -15,6 +15,10 @@ github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231 h1:t9hBFiDTf
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231/go.mod h1:wQTmPSYoaXtXfBysiJ9XiLwVnoCdlNHwuxYfxO4I4uo=
 github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752 h1:LVVPZE5kFejqoTSzZGxXYF0Y+l1DjUX+RWb/uA2PllA=
 github.com/PaienNate/pineutil v0.0.0-20251018153346-e4acff10b752/go.mod h1:cg9EQoyBMyDIdRp9b5DuuJo8KBCjHL5JiDpJesIEsZw=
+github.com/PaienNate/pineutil v1.0.0 h1:u5ovyYsW2Qn4oTmzdJIDUk7oDeGWpa6Jj+eSdO969eM=
+github.com/PaienNate/pineutil v1.0.0/go.mod h1:8SL3Atzmso0aDXyCX1w7HDyEXT5LIG1MIPhHabtEWFE=
+github.com/PaienNate/pineutil v1.1.1 h1:Qt1OWuU2eXgRR/TryI9im9a2/Bl8kLzCdURn+Z6USvQ=
+github.com/PaienNate/pineutil v1.1.1/go.mod h1:8SL3Atzmso0aDXyCX1w7HDyEXT5LIG1MIPhHabtEWFE=
 github.com/RoaringBitmap/roaring/v2 v2.8.0 h1:y1rdtixfXvaITKzkfiKvScI0hlBJHe9sfzJp8cgeM7w=
 github.com/RoaringBitmap/roaring/v2 v2.8.0/go.mod h1:FiJcsfkGje/nZBZgCu0ZxCPOKD/hVXDS2dXi7/eUFE0=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=
@@ -374,6 +378,8 @@ github.com/looplab/fsm v1.0.0/go.mod h1:PmD3fFvQEIsjMEfvZdrCDZ6y8VwKTwWNjlpEr6IK
 github.com/lxn/walk v0.0.0-20210112085537-c389da54e794/go.mod h1:E23UucZGqpuUANJooIbHWCufXvOcT6E7Stq81gU+CSQ=
 github.com/lxn/win v0.0.0-20210218163916-a377121e959e h1:H+t6A/QJMbhCSEH5rAuRxh+CtW96g0Or0Fxa9IKr4uc=
 github.com/lxn/win v0.0.0-20210218163916-a377121e959e/go.mod h1:KxxjdtRkfNoYDCUP5ryK7XJJNTnpC8atvtmTheChOtk=
+github.com/lxzan/gws v1.9.1 h1:4lbIp4cW0hOLP3ejFHR/uWRy741AURx7oKkNNi2OT9o=
+github.com/lxzan/gws v1.9.1/go.mod h1:gXHSCPmTGryWJ4icuqy8Yho32E4YIMHH0fkDRYJRbdc=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/matoous/go-nanoid/v2 v2.1.0 h1:P64+dmq21hhWdtvZfEAofnvJULaRR1Yib0+PnU669bE=
 github.com/matoous/go-nanoid/v2 v2.1.0/go.mod h1:KlbGNQ+FhrUNIHUxZdL63t7tl4LaPkZNpUULS8H4uVM=
