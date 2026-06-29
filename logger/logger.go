@@ -13,19 +13,20 @@ import (
 )
 
 const (
-	LogKeyMain     = "main"
-	LogKeyDatabase = "database"
-	LogKeyWeb      = "web"
-	LogKeyAdapter  = "adapter"
+	LogKeyMain          = "main"
+	LogKeyDatabase      = "database"
+	LogKeyDatabaseQuery = "database.query"
+	LogKeyWeb           = "web"
+	LogKeyAdapter       = "adapter"
 )
 
-var DefaultSealLogger GORMLogger
+var DefaultSealLogger = NewGormLogger(zap.NewNop())
 
 func InitLogger(level zapcore.Level, ui *UIWriter) *zap.SugaredLogger {
 	core := newLoggerCore(level, ui, zapcore.AddSync(os.Stdout), "data")
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
 
-	DefaultSealLogger = NewGormLogger(logger.Named(LogKeyDatabase))
+	DefaultSealLogger = NewGormLogger(logger)
 
 	zap.ReplaceGlobals(logger)
 	return logger.Sugar()
@@ -39,10 +40,11 @@ func newLoggerCore(level zapcore.Level, ui *UIWriter, consoleSink zapcore.WriteS
 	uiWriter := zapcore.NewCore(jsonEncoder, zapcore.AddSync(ui), level)
 
 	levelConfig := map[string]zapcore.Level{
-		LogKeyMain:     level,
-		LogKeyDatabase: zapcore.DebugLevel,
-		LogKeyWeb:      zapcore.DebugLevel,
-		LogKeyAdapter:  level,
+		LogKeyMain:          level,
+		LogKeyDatabase:      zapcore.DebugLevel,
+		LogKeyDatabaseQuery: zapcore.DebugLevel,
+		LogKeyWeb:           zapcore.DebugLevel,
+		LogKeyAdapter:       level,
 	}
 
 	return zapcore.NewTee(
@@ -83,7 +85,7 @@ func newDynamicFileCore(rootDir string, encoder zapcore.Encoder, levelConfig map
 	}
 }
 
-func (c *dynamicFileCore) Enabled(level zapcore.Level) bool {
+func (c *dynamicFileCore) Enabled(_ zapcore.Level) bool {
 	return true // the actual logic is in `Check` method
 }
 
@@ -119,23 +121,24 @@ func (c *dynamicFileCore) getLoggerName(entry zapcore.Entry) string {
 
 func (c *dynamicFileCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
 	loggerName := c.getLoggerName(entry)
+	fileLoggerName := c.getFileLoggerName(loggerName)
 
 	c.mu.RLock()
-	writer, ok := c.writerMap[loggerName]
+	writer, ok := c.writerMap[fileLoggerName]
 	c.mu.RUnlock()
 
 	if !ok {
 		c.mu.Lock()
-		writer, ok = c.writerMap[loggerName]
+		writer, ok = c.writerMap[fileLoggerName]
 		if !ok {
-			logFile := filepath.Join(c.rootDir, loggerName+".log")
+			logFile := filepath.Join(c.rootDir, fileLoggerName+".log")
 			important := true
-			if loggerName == LogKeyWeb {
+			if fileLoggerName == LogKeyWeb {
 				important = false
 			}
 			logWriter := newLumberjackWriter(logFile, important)
 			writer = zapcore.AddSync(logWriter)
-			c.writerMap[loggerName] = writer
+			c.writerMap[fileLoggerName] = writer
 		}
 		c.mu.Unlock()
 	}
@@ -147,6 +150,15 @@ func (c *dynamicFileCore) Write(entry zapcore.Entry, fields []zapcore.Field) err
 	_, err = writer.Write(buf.Bytes())
 	buf.Free()
 	return err
+}
+
+func (c *dynamicFileCore) getFileLoggerName(loggerName string) string {
+	switch loggerName {
+	case LogKeyDatabaseQuery:
+		return LogKeyDatabase
+	default:
+		return loggerName
+	}
 }
 
 func (c *dynamicFileCore) Sync() error {
@@ -233,11 +245,5 @@ func (c *visibilityCore) Sync() error {
 }
 
 func (c *visibilityCore) shouldWrite(entry zapcore.Entry) bool {
-	if !strings.EqualFold(entry.LoggerName, LogKeyDatabase) {
-		return true
-	}
-	if entry.Level != zapcore.DebugLevel {
-		return true
-	}
-	return c.globalLevel <= zapcore.DebugLevel
+	return !strings.EqualFold(entry.LoggerName, LogKeyDatabaseQuery)
 }

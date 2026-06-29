@@ -33,7 +33,6 @@ type GORMLogger struct {
 	IgnoreRecordNotFoundError bool
 	SkipCallerLookup          bool
 	Context                   ContextFn
-	JSONFormat                bool
 }
 
 func NewGormLogger(zapLogger *zap.Logger) GORMLogger {
@@ -43,7 +42,6 @@ func NewGormLogger(zapLogger *zap.Logger) GORMLogger {
 		SlowThreshold:             300 * time.Millisecond,
 		IgnoreRecordNotFoundError: true,
 		Context:                   nil,
-		JSONFormat:                false,
 	}
 }
 
@@ -55,7 +53,6 @@ func (l GORMLogger) LogMode(level gormlogger.LogLevel) gormlogger.Interface {
 		SkipCallerLookup:          l.SkipCallerLookup,
 		IgnoreRecordNotFoundError: l.IgnoreRecordNotFoundError,
 		Context:                   l.Context,
-		JSONFormat:                l.JSONFormat,
 	}
 }
 
@@ -63,9 +60,9 @@ func (l GORMLogger) Info(ctx context.Context, msg string, args ...interface{}) {
 	if l.LogLevel < gormlogger.Info {
 		return
 	}
-	// hack： 这个日志不想打印在后台里，但是它的代码不在我的代码内，所以只能先hack一下，未来看看有没有必要直接把这里降级成debugf
+	// GORM 内部回调替换日志属于查询噪声，只写入 database.log。
 	if strings.Contains(msg, "replacing callback") {
-		l.logger(ctx).Sugar().Debugf(infoStr+msg, args...)
+		l.queryLogger(ctx).Sugar().Debugf(infoStr+msg, args...)
 		return
 	}
 	l.logger(ctx).Sugar().Infof(infoStr+msg, args...)
@@ -96,10 +93,6 @@ func (l GORMLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	switch {
 	case err != nil && l.LogLevel >= gormlogger.Error && (!l.IgnoreRecordNotFoundError || !errors.Is(err, gorm.ErrRecordNotFound)):
 		sql, rows := fc()
-		if l.JSONFormat {
-			logger.Error("trace", zap.Error(err), zap.Duration("elapsed", elapsed), zap.Int64("rows", rows), zap.String("sql", sql))
-			return
-		}
 		if rows == -1 {
 			logger.Sugar().Errorf(traceErrStr, err, float64(elapsed.Nanoseconds())/1e6, "-", sql)
 			return
@@ -107,10 +100,6 @@ func (l GORMLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 		logger.Sugar().Errorf(traceErrStr, err, float64(elapsed.Nanoseconds())/1e6, rows, sql)
 	case l.SlowThreshold != 0 && elapsed > l.SlowThreshold && l.LogLevel >= gormlogger.Warn:
 		sql, rows := fc()
-		if l.JSONFormat {
-			logger.Warn("trace", zap.Duration("elapsed", elapsed), zap.Int64("rows", rows), zap.String("sql", sql))
-			return
-		}
 		slowLog := fmt.Sprintf("SLOW SQL >= %v", l.SlowThreshold)
 		if rows == -1 {
 			logger.Sugar().Warnf(traceWarnStr, slowLog, float64(elapsed.Nanoseconds())/1e6, "-", sql)
@@ -119,25 +108,30 @@ func (l GORMLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 		logger.Sugar().Warnf(traceWarnStr, slowLog, float64(elapsed.Nanoseconds())/1e6, rows, sql)
 	case l.LogLevel >= gormlogger.Info:
 		sql, rows := fc()
-		if l.JSONFormat {
-			logger.Debug("trace", zap.Duration("elapsed", elapsed), zap.Int64("rows", rows), zap.String("sql", sql))
-			return
-		}
+		queryLogger := l.queryLogger(ctx)
 		if rows == -1 {
-			logger.Sugar().Debugf(traceStr, float64(elapsed.Nanoseconds())/1e6, "-", sql)
+			queryLogger.Sugar().Debugf(traceStr, float64(elapsed.Nanoseconds())/1e6, "-", sql)
 			return
 		}
-		logger.Sugar().Debugf(traceStr, float64(elapsed.Nanoseconds())/1e6, rows, sql)
+		queryLogger.Sugar().Debugf(traceStr, float64(elapsed.Nanoseconds())/1e6, rows, sql)
 	}
 }
 
 var (
-	gormPackage    = filepath.Join("gorm.io", "gorm")
-	zapgormPackage = filepath.Join("moul.io", "zapgorm2") // 奇怪了，不知道为什么不用跳过
+	gormPackage = filepath.Join("gorm.io", "gorm")
 )
 
 func (l GORMLogger) logger(ctx context.Context) *zap.Logger {
-	logger := l.ZapLogger
+	return l.namedLogger(ctx, LogKeyDatabase)
+}
+
+func (l GORMLogger) queryLogger(ctx context.Context) *zap.Logger {
+	return l.namedLogger(ctx, LogKeyDatabaseQuery)
+}
+
+func (l GORMLogger) namedLogger(ctx context.Context, name string) *zap.Logger {
+	logger := l.baseLogger()
+	logger = logger.Named(name)
 	if l.Context != nil {
 		fields := l.Context(ctx)
 		logger = logger.With(fields...)
@@ -153,10 +147,16 @@ func (l GORMLogger) logger(ctx context.Context) *zap.Logger {
 		case !ok:
 		case strings.HasSuffix(file, "_test.go"):
 		case strings.Contains(file, gormPackage):
-		case strings.Contains(file, zapgormPackage):
 		default:
 			return logger.WithOptions(zap.AddCallerSkip(i))
 		}
 	}
 	return logger
+}
+
+func (l GORMLogger) baseLogger() *zap.Logger {
+	if l.ZapLogger != nil {
+		return l.ZapLogger
+	}
+	return zap.L()
 }
