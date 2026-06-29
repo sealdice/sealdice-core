@@ -19,7 +19,7 @@ require (
 	github.com/blevesearch/bleve/v2 v2.5.7
 	github.com/blevesearch/bleve_index_api v1.2.11
 	github.com/bwmarrin/discordgo v0.29.0
-	github.com/bytedance/sonic v1.14.1
+	github.com/bytedance/sonic v1.15.2
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/dop251/goja v0.0.0-20260216154549-8b74ce4618c5
@@ -30,6 +30,7 @@ require (
 	github.com/fy0/systray v1.2.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/gen2brain/beeep v0.11.1
+	github.com/glebarez/sqlite v1.11.0
 	github.com/go-creed/sat v1.0.3
 	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
@@ -99,7 +100,6 @@ require (
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.0
-	moul.io/zapgorm2 v1.3.0
 )
 
 require (
@@ -127,10 +127,11 @@ require (
 	github.com/blevesearch/zapx/v15 v15.4.2 // indirect
 	github.com/blevesearch/zapx/v16 v16.2.8 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
-	github.com/bytedance/sonic/loader v0.3.0 // indirect
+	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/esiqveland/notify v0.13.3 // indirect
@@ -141,6 +142,7 @@ require (
 	github.com/getlantern/hex v0.0.0-20220104173244-ad7e4b9194dc // indirect
 	github.com/getlantern/hidden v0.0.0-20220104173330-f221c5a24770 // indirect
 	github.com/getlantern/ops v0.0.0-20231025133620-f368ab734534 // indirect
+	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -184,6 +186,7 @@ require (
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pdfcpu/pdfcpu v0.11.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
@@ -222,6 +225,10 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	modernc.org/libc v1.22.5 // indirect
+	modernc.org/mathutil v1.5.0 // indirect
+	modernc.org/memory v1.5.0 // indirect
+	modernc.org/sqlite v1.23.1 // indirect
 )
 
 replace (
