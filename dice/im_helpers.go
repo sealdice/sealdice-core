@@ -245,17 +245,18 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	} else {
 		// 设定扩展情况
 		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.Config.ExtDefaultSettings))
-		var extLst []*ExtInfo
+		var extNames []string
 		for _, i := range session.Parent.Config.ExtDefaultSettings {
 			if i.ExtItem != nil {
 				if i.AutoActive {
-					extLst = append(extLst, i.ExtItem)
+					extNames = append(extNames, i.ExtItem.Name)
 				}
 			}
 		}
 		group = &GroupInfo{
 			Active:            true,
-			activatedExtList:  extLst,
+			dice:              session.Parent,
+			activatedExtNames: extNames,
 			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
 			InactivatedExtSet: StringSet{},
 			Players:           new(SyncMap[string, *GroupPlayerInfo]),

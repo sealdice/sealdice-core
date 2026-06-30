@@ -72,9 +72,10 @@ type GroupInfo struct {
 	Active    bool                               `jsbind:"active" json:"active" yaml:"active"` // 是否在群内开启 - 过渡为象征意义
 	extInitMu sync.Mutex                         `json:"-" yaml:"-"`                           // 延迟初始化锁
 	Players   *SyncMap[string, *GroupPlayerInfo] `json:"-" yaml:"-"`                           // 群员角色数据
+	dice      *Dice                              `json:"-" yaml:"-"`                           // 运行时反向引用，用于按名称解析当前扩展对象
 
-	activatedExtList  []*ExtInfo // 当前群开启的扩展列表（私有，通过 Getter 访问，由 MarshalJSON/UnmarshalJSON 处理序列化）
-	InactivatedExtSet StringSet  `json:"inactivatedExtSet" yaml:"inactivatedExtSet,flow"` // 手动关闭或尚未启用的扩展
+	activatedExtNames []string  // 当前群开启的扩展名称列表（私有，通过 Getter 访问，由 MarshalJSON/UnmarshalJSON 处理序列化）
+	InactivatedExtSet StringSet `json:"inactivatedExtSet" yaml:"inactivatedExtSet,flow"` // 手动关闭或尚未启用的扩展
 
 	GroupID         string                 `jsbind:"groupId"       json:"groupId"      yaml:"groupId"`
 	GuildID         string                 `jsbind:"guildId"       json:"guildId"      yaml:"guildId"`
@@ -126,32 +127,64 @@ type GroupInfo struct {
 // 通过 ExtAppliedTime == 0 判断是否需要初始化
 // 同时处理新扩展的延迟激活
 func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
+	if d != nil {
+		g.dice = d
+	}
 	// 快速路径：已初始化
 	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
 		g.extInitMu.Lock()
-		list := g.activatedExtList
-		g.extInitMu.Unlock()
-		return list
+		defer g.extInitMu.Unlock()
+		changed := false
+		extMap := make(map[string]*ExtInfo, len(d.ExtList))
+		for _, ext := range d.ExtList {
+			if ext != nil {
+				extMap[ext.Name] = ext
+			}
+		}
+		newNames := make([]string, 0, len(g.activatedExtNames))
+		newList := make([]*ExtInfo, 0, len(g.activatedExtNames))
+		for _, name := range g.activatedExtNames {
+			if name == "" {
+				continue
+			}
+			normalized := extMap[name]
+			if normalized == nil {
+				changed = true
+				continue
+			}
+			if normalized == nil {
+				continue
+			}
+			newNames = append(newNames, normalized.Name)
+			newList = append(newList, normalized)
+		}
+		if changed {
+			g.activatedExtNames = newNames
+		}
+		return newList
 	}
 	g.extInitMu.Lock()
 	defer g.extInitMu.Unlock()
 	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
-		return g.activatedExtList // double-check
+		return g.getActivatedExtListLocked(d) // double-check
 	}
 
-	// 延迟初始化：用全局 ExtList 替换反序列化的占位对象
+	// 延迟初始化：用全局 ExtList 替换反序列化的占位名称
 	extMap := make(map[string]*ExtInfo)
 	for _, ext := range d.ExtList {
 		extMap[ext.Name] = ext
 	}
 
-	oldCount := len(g.activatedExtList)
+	oldCount := len(g.activatedExtNames)
+	newNames := make([]string, 0, len(g.activatedExtNames))
 	var newList []*ExtInfo
 	activated := make(map[string]bool)
-	for _, item := range g.activatedExtList {
-		if item != nil && extMap[item.Name] != nil {
-			newList = append(newList, extMap[item.Name])
-			activated[item.Name] = true
+	for _, name := range g.activatedExtNames {
+		if name != "" && extMap[name] != nil {
+			normalized := extMap[name]
+			newNames = append(newNames, normalized.Name)
+			newList = append(newList, normalized)
+			activated[normalized.Name] = true
 		}
 	}
 
@@ -173,6 +206,7 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 		}
 		// 新扩展：根据 AutoActive 决定是否激活
 		if ext.AutoActive {
+			newNames = append([]string{ext.Name}, newNames...)
 			newList = append([]*ExtInfo{ext}, newList...) // 插入头部
 			activated[ext.Name] = true
 			newExtCount++
@@ -181,7 +215,7 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 		}
 	}
 
-	g.activatedExtList = newList
+	g.activatedExtNames = newNames
 	// 标记已初始化，确保值不为 0（否则下次检查会再次进入初始化）
 	appliedTime := d.ExtUpdateTime
 	if appliedTime == 0 {
@@ -196,7 +230,7 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 
 	// 打印初始化日志
 	d.Logger.Infof("群组扩展初始化: %s, 扩展数 %d -> %d (新激活 %d)", g.GroupID, oldCount, len(newList), newExtCount)
-	return g.activatedExtList
+	return newList
 }
 
 // TriggerExtHook 遍历已激活的扩展并触发钩子
@@ -217,14 +251,21 @@ func (g *GroupInfo) TriggerExtHook(d *Dice, getHook func(*ExtInfo) func()) {
 func (g *GroupInfo) GetActivatedExtListRaw() []*ExtInfo {
 	g.extInitMu.Lock()
 	defer g.extInitMu.Unlock()
-	return g.activatedExtList
+	return g.getActivatedExtListLocked(g.dice)
 }
 
 // SetActivatedExtList 设置扩展列表（用于新群组创建等场景）
 func (g *GroupInfo) SetActivatedExtList(list []*ExtInfo, d *Dice) {
 	g.extInitMu.Lock()
 	defer g.extInitMu.Unlock()
-	g.activatedExtList = list
+	g.dice = d
+	names := make([]string, 0, len(list))
+	for _, ext := range list {
+		if ext != nil && ext.Name != "" {
+			names = append(names, ext.Name)
+		}
+	}
+	g.activatedExtNames = names
 	if d != nil {
 		atomic.StoreInt64(&g.ExtAppliedTime, d.ExtUpdateTime) // 标记已初始化
 	} else {
@@ -239,20 +280,16 @@ type groupInfoAlias GroupInfo
 // 由于 activatedExtList 是私有字段，需要通过此结构体处理
 type groupInfoJSON struct {
 	*groupInfoAlias
-	ActivatedExtList []*ExtInfo `json:"activatedExtList"`
+	ActivatedExtList []string `json:"activatedExtList"`
 }
 
 // MarshalJSON 自定义序列化，处理私有字段 activatedExtList
 // 同时过滤掉已删除的 wrapper（IsDeleted=true）
 func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 	g.extInitMu.Lock()
-	// 过滤掉已删除的 wrapper
-	var filteredList []*ExtInfo
-	for _, ext := range g.activatedExtList {
-		if ext != nil && !ext.IsDeleted {
-			filteredList = append(filteredList, ext)
-		}
-	}
+	// 过滤掉已删除的 wrapper，仅持久化扩展名，避免将运行时对象写入存档
+	var filteredList []string
+	filteredList = append(filteredList, g.activatedExtNames...)
 	g.extInitMu.Unlock()
 
 	return json.Marshal(&groupInfoJSON{
@@ -263,16 +300,65 @@ func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON 自定义反序列化，处理私有字段 activatedExtList
 func (g *GroupInfo) UnmarshalJSON(data []byte) error {
+	type legacyGroupInfoJSON struct {
+		*groupInfoAlias
+		ActivatedExtList []*ExtInfo `json:"activatedExtList"`
+	}
+
 	temp := &groupInfoJSON{
 		groupInfoAlias: (*groupInfoAlias)(g),
 	}
 	if err := json.Unmarshal(data, temp); err != nil {
-		return err
+		legacy := &legacyGroupInfoJSON{
+			groupInfoAlias: (*groupInfoAlias)(g),
+		}
+		if legacyErr := json.Unmarshal(data, legacy); legacyErr != nil {
+			return err
+		}
+		g.extInitMu.Lock()
+		g.activatedExtNames = make([]string, 0, len(legacy.ActivatedExtList))
+		for _, ext := range legacy.ActivatedExtList {
+			if ext != nil && ext.Name != "" {
+				g.activatedExtNames = append(g.activatedExtNames, ext.Name)
+			}
+		}
+		g.extInitMu.Unlock()
+		return nil
 	}
 	g.extInitMu.Lock()
-	g.activatedExtList = temp.ActivatedExtList
+	g.activatedExtNames = make([]string, 0, len(temp.ActivatedExtList))
+	for _, name := range temp.ActivatedExtList {
+		if name != "" {
+			g.activatedExtNames = append(g.activatedExtNames, name)
+		}
+	}
 	g.extInitMu.Unlock()
 	return nil
+}
+
+func (g *GroupInfo) getActivatedExtListLocked(d *Dice) []*ExtInfo {
+	if d == nil {
+		result := make([]*ExtInfo, 0, len(g.activatedExtNames))
+		for _, name := range g.activatedExtNames {
+			if name != "" {
+				result = append(result, &ExtInfo{Name: name})
+			}
+		}
+		return result
+	}
+	extMap := make(map[string]*ExtInfo, len(d.ExtList))
+	for _, ext := range d.ExtList {
+		if ext != nil {
+			extMap[ext.Name] = ext
+		}
+	}
+	result := make([]*ExtInfo, 0, len(g.activatedExtNames))
+	for _, name := range g.activatedExtNames {
+		if current := extMap[name]; current != nil {
+			result = append(result, current)
+		}
+	}
+	return result
 }
 
 // MarkDirty 标记群组为脏数据，需要保存到数据库
