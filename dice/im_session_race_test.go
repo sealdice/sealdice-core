@@ -1,3 +1,4 @@
+//nolint:testpackage // This test needs package-level access to internal extension state helpers for race coverage.
 package dice
 
 import (

@@ -640,13 +640,6 @@ func groupActivatedExtListRaw(d *Dice, g *GroupInfo) []*ExtInfo {
 	return g.getActivatedExtListLocked(d)
 }
 
-func groupSetActivatedExtList(g *GroupInfo, list []*ExtInfo, d *Dice) {
-	if g == nil {
-		return
-	}
-	g.setActivatedExtList(list, d)
-}
-
 func groupTriggerExtHook(d *Dice, g *GroupInfo, getHook func(*ExtInfo) func()) {
 	for _, wrapper := range groupActivatedExtList(d, g) {
 		ext := wrapper.GetRealExt()
@@ -738,56 +731,6 @@ func groupExtActive(d *Dice, group *GroupInfo, ei *ExtInfo) {
 	group.extInitMu.Lock()
 	defer group.extInitMu.Unlock()
 	group.extActivateInternal(normalizeGroupExtRef(ei), ActivateReasonManual)
-}
-
-// ExtActivateBatch 批量激活扩展。
-// 对于首次加载的扩展（isFirstTimeLoad[name]=true），直接激活。
-// 对于非首次加载的扩展，根据 AutoActive 设置决定是否激活。
-// 已在 InactivatedExtSet 中的扩展不会被激活。
-func groupExtActivateBatch(group *GroupInfo, extInfos []*ExtInfo, isFirstTimeLoad map[string]bool) {
-	if len(extInfos) == 0 {
-		return
-	}
-
-	group.extInitMu.Lock()
-	defer group.extInitMu.Unlock()
-
-	group.ensureInactivatedSet()
-
-	// 构建已知扩展集合
-	known := make(map[string]struct{}, len(group.activatedExtNames))
-	for _, name := range group.activatedExtNames {
-		if name != "" {
-			known[name] = struct{}{}
-		}
-	}
-
-	for _, ext := range extInfos {
-		ext = normalizeGroupExtRef(ext)
-		if ext == nil {
-			continue
-		}
-		// 跳过已激活的扩展
-		if _, exists := known[ext.Name]; exists {
-			continue
-		}
-		// 跳过被用户关闭的扩展
-		if group.isExtInactivated(ext.Name) {
-			continue
-		}
-		// 首次加载的扩展直接激活
-		if first, exists := isFirstTimeLoad[ext.Name]; exists && first {
-			group.extActivateInternal(ext, ActivateReasonFirstMessage)
-			known[ext.Name] = struct{}{}
-			continue
-		}
-		if ext.AutoActive {
-			group.extActivateInternal(ext, ActivateReasonFirstMessage)
-			known[ext.Name] = struct{}{}
-		} else {
-			group.addToInactivated(ext.Name)
-		}
-	}
 }
 
 // ExtInactive 手动关闭扩展，连带关闭伴随扩展。

@@ -1,3 +1,4 @@
+//nolint:testpackage // This test validates internal GroupInfo extension state serialization helpers.
 package dice
 
 import (
