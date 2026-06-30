@@ -20,6 +20,7 @@ type DatabaseOperator interface {
 	GetDataDB(mode constant.DBMode) *gorm.DB
 	GetLogDB(mode constant.DBMode) *gorm.DB
 	GetCensorDB(mode constant.DBMode) *gorm.DB
+	GetBackupInfo() (string, map[string]string)
 	Close()
 }
 
