@@ -591,7 +591,7 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 				UserID:   pa.EndPoint.UserID,
 			},
 		}
-		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+		groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 			if ext.OnMessageSend == nil {
 				return nil
 			}

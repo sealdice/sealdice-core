@@ -823,7 +823,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 					}
 					if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
-						groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+						groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 							if ext.OnBecomeFriend == nil {
 								return nil
 							}
@@ -893,7 +893,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			log.Info(txt)
 			ctx.Notice(txt)
 			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
-				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+				groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 					if ext.OnGroupJoined == nil {
 						return nil
 					}

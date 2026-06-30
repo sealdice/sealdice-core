@@ -280,7 +280,7 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 				UserID:   pa.EndPoint.UserID,
 			},
 		}
-		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+		groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 			if ext.OnMessageSend == nil {
 				return nil
 			}
@@ -370,7 +370,7 @@ func (pa *PlatformAdapterGocq) SendGroupForwardMsg(ctx *MsgContext, groupID stri
 					UserID:   pa.EndPoint.UserID,
 				},
 			}
-			groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 				if ext.OnMessageSend == nil {
 					return nil
 				}

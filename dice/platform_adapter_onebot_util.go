@@ -243,7 +243,7 @@ func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsoc
 			p.SendToPerson(ctx, userId, strings.TrimSpace(i), "")
 		}
 		if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
-			groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+			groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 				if ext.OnBecomeFriend == nil {
 					return nil
 				}
@@ -293,7 +293,7 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 				p.SendToGroup(ctx, groupId, strings.TrimSpace(i), "")
 			}
 			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId); ok {
-				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+				groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 					if ext.OnGroupJoined == nil {
 						return nil
 					}

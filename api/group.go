@@ -22,10 +22,9 @@ func groupList(c echo.Context) error {
 			if item != nil {
 				var exts []string
 				item.TmpPlayerNum, _ = service.GroupPlayerNumGet(myDice.DBOperator, item.GroupID)
-				// 使用 Raw 版本避免触发全量初始化
-				for _, i := range item.GetActivatedExtListRaw() {
-					if i != nil {
-						exts = append(exts, i.Name)
+				for _, name := range dice.GroupActivatedExtNamesSnapshot(item) {
+					if name != "" {
+						exts = append(exts, name)
 					}
 				}
 				item.TmpExtList = exts

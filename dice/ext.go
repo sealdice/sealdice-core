@@ -131,11 +131,11 @@ func normalizeGroupExtRef(ext *ExtInfo) *ExtInfo {
 	return ext
 }
 
-func (group *GroupInfo) resolveActivatedExtByName(name string) *ExtInfo {
-	if name == "" || group == nil || group.dice == nil {
+func resolveActivatedExtByName(d *Dice, group *GroupInfo, name string) *ExtInfo {
+	if name == "" || group == nil || d == nil {
 		return nil
 	}
-	return normalizeGroupExtRef(group.dice.ExtFind(name, false))
+	return normalizeGroupExtRef(d.ExtFind(name, false))
 }
 
 // RegisterBuiltinExt 注册所有内置扩展。
@@ -489,8 +489,8 @@ func (group *GroupInfo) ensureInactivatedSet() {
 	}
 }
 
-// IsExtInactivated 判断扩展是否被标记为手动关闭。
-func (group *GroupInfo) IsExtInactivated(name string) bool {
+// isExtInactivated 判断扩展是否被标记为手动关闭。
+func (group *GroupInfo) isExtInactivated(name string) bool {
 	if group.InactivatedExtSet == nil {
 		return false
 	}
@@ -498,14 +498,14 @@ func (group *GroupInfo) IsExtInactivated(name string) bool {
 	return ok
 }
 
-func (group *GroupInfo) RemoveFromInactivated(name string) {
+func (group *GroupInfo) removeFromInactivated(name string) {
 	if group.InactivatedExtSet == nil {
 		return
 	}
 	delete(group.InactivatedExtSet, name)
 }
 
-func (group *GroupInfo) AddToInactivated(name string) {
+func (group *GroupInfo) addToInactivated(name string) {
 	group.ensureInactivatedSet()
 	group.InactivatedExtSet[name] = struct{}{}
 }
@@ -532,13 +532,151 @@ func (group *GroupInfo) removeActivatedByName(name string) bool {
 // 在消息到达时调用，根据时间戳判断是否需要更新
 // 返回值表示是否进行了更新
 // 注意：只移除被明确标记为 IsDeleted 的 wrapper（由 JsDelete/ExtRemove 设置）
-func (group *GroupInfo) SyncWrapperStatus(d *Dice) bool {
+// groupActivatedExtList returns the currently effective extension objects for the group.
+func groupActivatedExtList(d *Dice, g *GroupInfo) []*ExtInfo {
+	if g == nil || d == nil {
+		return nil
+	}
+
+	// 快速路径：群组状态已经初始化过。
+	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
+		g.extInitMu.Lock()
+		defer g.extInitMu.Unlock()
+		changed := false
+
+		extMap := make(map[string]*ExtInfo, len(d.ExtList))
+		for _, ext := range d.ExtList {
+			if ext != nil {
+				extMap[ext.Name] = ext
+			}
+		}
+
+		newNames := make([]string, 0, len(g.activatedExtNames))
+		newList := make([]*ExtInfo, 0, len(g.activatedExtNames))
+		for _, name := range g.activatedExtNames {
+			if name == "" {
+				continue
+			}
+			normalized := extMap[name]
+			if normalized == nil {
+				changed = true
+				continue
+			}
+			newNames = append(newNames, normalized.Name)
+			newList = append(newList, normalized)
+		}
+		if changed {
+			g.activatedExtNames = newNames
+		}
+		return newList
+	}
+
+	g.extInitMu.Lock()
+	defer g.extInitMu.Unlock()
+	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
+		return g.getActivatedExtListLocked(d)
+	}
+
+	extMap := make(map[string]*ExtInfo)
+	for _, ext := range d.ExtList {
+		extMap[ext.Name] = ext
+	}
+
+	oldCount := len(g.activatedExtNames)
+	newNames := make([]string, 0, len(g.activatedExtNames))
+	var newList []*ExtInfo
+	activated := make(map[string]bool)
+	for _, name := range g.activatedExtNames {
+		if name != "" && extMap[name] != nil {
+			normalized := extMap[name]
+			newNames = append(newNames, normalized.Name)
+			newList = append(newList, normalized)
+			activated[normalized.Name] = true
+		}
+	}
+
+	g.ensureInactivatedSet()
+	newExtCount := 0
+	for _, ext := range d.ExtList {
+		if ext == nil {
+			continue
+		}
+		if activated[ext.Name] {
+			continue
+		}
+		if g.isExtInactivated(ext.Name) {
+			continue
+		}
+		if ext.AutoActive {
+			newNames = append([]string{ext.Name}, newNames...)
+			newList = append([]*ExtInfo{ext}, newList...)
+			activated[ext.Name] = true
+			newExtCount++
+		} else {
+			g.addToInactivated(ext.Name)
+		}
+	}
+
+	g.activatedExtNames = newNames
+	appliedTime := d.ExtUpdateTime
+	if appliedTime == 0 {
+		appliedTime = 1
+	}
+	atomic.StoreInt64(&g.ExtAppliedTime, appliedTime)
+
+	if newExtCount > 0 {
+		g.MarkDirty(d)
+	}
+	d.Logger.Infof("群组扩展初始化: %s, 扩展数 %d -> %d (新激活 %d)", g.GroupID, oldCount, len(newList), newExtCount)
+	return newList
+}
+
+func groupActivatedExtListRaw(d *Dice, g *GroupInfo) []*ExtInfo {
+	if g == nil {
+		return nil
+	}
+	g.extInitMu.Lock()
+	defer g.extInitMu.Unlock()
+	return g.getActivatedExtListLocked(d)
+}
+
+func groupSetActivatedExtList(g *GroupInfo, list []*ExtInfo, d *Dice) {
+	if g == nil {
+		return
+	}
+	g.setActivatedExtList(list, d)
+}
+
+func groupTriggerExtHook(d *Dice, g *GroupInfo, getHook func(*ExtInfo) func()) {
+	for _, wrapper := range groupActivatedExtList(d, g) {
+		ext := wrapper.GetRealExt()
+		if ext == nil {
+			continue
+		}
+		if hook := getHook(ext); hook != nil {
+			ext.callWithJsCheck(d, hook)
+		}
+	}
+}
+
+func GroupActivatedExtNamesSnapshot(g *GroupInfo) []string {
+	if g == nil {
+		return nil
+	}
+	g.extInitMu.Lock()
+	defer g.extInitMu.Unlock()
+	out := make([]string, 0, len(g.activatedExtNames))
+	out = append(out, g.activatedExtNames...)
+	return out
+}
+
+func groupSyncWrapperStatus(d *Dice, group *GroupInfo) bool {
 	if d == nil {
 		return false
 	}
 
 	// 确保延迟初始化已完成（GetActivatedExtList 会处理，内部有锁）
-	_ = group.GetActivatedExtList(d)
+	_ = groupActivatedExtList(d, group)
 
 	// 快速路径：无需更新（无锁检查，减少锁竞争）
 	if atomic.LoadInt64(&group.ExtAppliedTime) >= d.ExtUpdateTime {
@@ -595,7 +733,8 @@ func (group *GroupInfo) SyncWrapperStatus(d *Dice) bool {
 }
 
 // ExtActive 开启扩展（手动触发）。
-func (group *GroupInfo) ExtActive(ei *ExtInfo) {
+func groupExtActive(d *Dice, group *GroupInfo, ei *ExtInfo) {
+	_ = d
 	group.extInitMu.Lock()
 	defer group.extInitMu.Unlock()
 	group.extActivateInternal(normalizeGroupExtRef(ei), ActivateReasonManual)
@@ -605,7 +744,7 @@ func (group *GroupInfo) ExtActive(ei *ExtInfo) {
 // 对于首次加载的扩展（isFirstTimeLoad[name]=true），直接激活。
 // 对于非首次加载的扩展，根据 AutoActive 设置决定是否激活。
 // 已在 InactivatedExtSet 中的扩展不会被激活。
-func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad map[string]bool) {
+func groupExtActivateBatch(group *GroupInfo, extInfos []*ExtInfo, isFirstTimeLoad map[string]bool) {
 	if len(extInfos) == 0 {
 		return
 	}
@@ -633,7 +772,7 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 			continue
 		}
 		// 跳过被用户关闭的扩展
-		if group.IsExtInactivated(ext.Name) {
+		if group.isExtInactivated(ext.Name) {
 			continue
 		}
 		// 首次加载的扩展直接激活
@@ -646,33 +785,33 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 			known[ext.Name] = struct{}{}
 		} else {
-			group.AddToInactivated(ext.Name)
+			group.addToInactivated(ext.Name)
 		}
 	}
 }
 
 // ExtInactive 手动关闭扩展，连带关闭伴随扩展。
-func (group *GroupInfo) ExtInactive(ei *ExtInfo) *ExtInfo {
+func groupExtInactive(group *GroupInfo, ei *ExtInfo) *ExtInfo {
 	group.extInitMu.Lock()
 	defer group.extInitMu.Unlock()
 	return group.extDeactivateInternal(normalizeGroupExtRef(ei), DeactivateReasonManual, true)
 }
 
 // ExtInactiveSystem 系统级关闭（不写入 Inactivated 集合）。
-func (group *GroupInfo) ExtInactiveSystem(ei *ExtInfo) *ExtInfo {
+func groupExtInactiveSystem(group *GroupInfo, ei *ExtInfo) *ExtInfo {
 	group.extInitMu.Lock()
 	defer group.extInitMu.Unlock()
 	return group.extDeactivateInternal(normalizeGroupExtRef(ei), DeactivateReasonSystem, false)
 }
 
 // ExtInactiveByName 通过名称关闭扩展。
-func (group *GroupInfo) ExtInactiveByName(name string) *ExtInfo {
+func groupExtInactiveByName(d *Dice, group *GroupInfo, name string) *ExtInfo {
 	group.extInitMu.Lock()
 	defer group.extInitMu.Unlock()
 	// 直接调用内部函数避免死锁（不调用 ExtInactive）
 	for _, item := range group.activatedExtNames {
 		if item == name {
-			if ext := group.resolveActivatedExtByName(name); ext != nil {
+			if ext := resolveActivatedExtByName(d, group, name); ext != nil {
 				return group.extDeactivateInternal(ext, DeactivateReasonManual, true)
 			}
 			return nil
@@ -682,12 +821,12 @@ func (group *GroupInfo) ExtInactiveByName(name string) *ExtInfo {
 }
 
 // ExtGetActive 查询扩展是否处于激活状态。
-func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
+func groupExtGetActive(d *Dice, group *GroupInfo, name string) *ExtInfo {
 	group.extInitMu.Lock()
 	defer group.extInitMu.Unlock()
 	for _, item := range group.activatedExtNames {
 		if item == name {
-			return group.resolveActivatedExtByName(name)
+			return resolveActivatedExtByName(d, group, name)
 		}
 	}
 	return nil
@@ -698,7 +837,6 @@ func (group *GroupInfo) extActivateInternal(ei *ExtInfo, reason ActivateReason) 
 	if ei == nil || ei.dice == nil {
 		return
 	}
-	group.dice = ei.dice
 	group.ensureInactivatedSet()
 	d := ei.dice
 	graph := d.activeWithGraph()
@@ -719,7 +857,7 @@ func (group *GroupInfo) promoteExt(ext *ExtInfo) {
 	if ext == nil {
 		return
 	}
-	group.RemoveFromInactivated(ext.Name)
+	group.removeFromInactivated(ext.Name)
 	_ = group.removeActivatedByName(ext.Name)
 	group.activatedExtNames = append([]string{ext.Name}, group.activatedExtNames...)
 }
@@ -729,7 +867,6 @@ func (group *GroupInfo) extDeactivateInternal(ei *ExtInfo, reason DeactivateReas
 	if ei == nil || ei.dice == nil {
 		return nil
 	}
-	group.dice = ei.dice
 	d := ei.dice
 	graph := d.activeWithGraph()
 	names := []string{ei.Name}
@@ -738,7 +875,7 @@ func (group *GroupInfo) extDeactivateInternal(ei *ExtInfo, reason DeactivateReas
 	var removed *ExtInfo
 	for _, name := range names {
 		if markInactivated {
-			group.AddToInactivated(name)
+			group.addToInactivated(name)
 		}
 		if ext := d.ExtFind(name, false); ext != nil {
 			if target := ext.GetRealExt(); target != nil && target.Storage != nil {
@@ -754,7 +891,7 @@ func (group *GroupInfo) extDeactivateInternal(ei *ExtInfo, reason DeactivateReas
 }
 
 // SyncExtensionsOnMessage 在群首次收到消息或扩展集发生变动时调用，按 AutoActive 规则处理新扩展。
-func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
+func groupSyncExtensionsOnMessage(d *Dice, group *GroupInfo) {
 	if d == nil {
 		return
 	}
@@ -789,7 +926,7 @@ func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
 		if ext != nil && ext.AutoActive {
 			group.extActivateInternal(ext, ActivateReasonFirstMessage)
 		} else {
-			group.AddToInactivated(ext.Name)
+			group.addToInactivated(ext.Name)
 		}
 	}
 	group.ExtAppliedVersion = d.ExtRegistryVersion

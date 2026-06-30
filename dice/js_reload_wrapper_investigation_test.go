@@ -45,9 +45,9 @@ func TestInvestigation_JsReloadWrapperRegistryKeepsWrapperButSwitchesRealExt(t *
 	d.JsExtRegistry.Store("myPlugin", real1)
 
 	group := newTestGroupInfo()
-	group.SetActivatedExtList([]*ExtInfo{wrapper}, d)
+	group.setActivatedExtList([]*ExtInfo{wrapper}, d)
 
-	got1 := group.GetActivatedExtList(d)
+	got1 := group.activatedExtList(d)
 	if len(got1) != 1 || got1[0] != wrapper {
 		t.Fatalf("expected activated list to keep wrapper, got %#v", got1)
 	}
@@ -83,7 +83,7 @@ func TestInvestigation_JsReloadWrapperRegistryKeepsWrapperButSwitchesRealExt(t *
 	}
 	d.JsExtRegistry.Store("myPlugin", real2)
 
-	got2 := group.GetActivatedExtList(d)
+	got2 := group.activatedExtList(d)
 	if len(got2) != 1 || got2[0] != wrapper {
 		t.Fatalf("expected activated list to still keep wrapper after reload, got %#v", got2)
 	}
@@ -134,7 +134,7 @@ func TestInvestigation_SetBotOnAtGroupKeepsWrapperFromDefaultSettings(t *testing
 	}
 
 	group := SetBotOnAtGroup(ctx, "QQ-Group:123")
-	got := group.GetActivatedExtListRaw()
+	got := group.activatedExtListRaw(d)
 	if len(got) != 1 {
 		t.Fatalf("expected one activated ext, got %d", len(got))
 	}
@@ -179,10 +179,10 @@ func TestInvestigation_ActivatedListHoldingOldRealExtCausesVersionMismatch(t *te
 	d.ExtRegistry.Store("billboard", wrapper)
 	d.JsExtRegistry.Store("billboard", newRealExt)
 	group := newTestGroupInfo()
-	group.SetActivatedExtList([]*ExtInfo{oldRealExt}, d)
+	group.setActivatedExtList([]*ExtInfo{oldRealExt}, d)
 	group.ExtAppliedTime = 1
 
-	got := group.GetActivatedExtList(d)
+	got := group.activatedExtList(d)
 	if len(got) != 1 || got[0] != wrapper {
 		t.Fatalf("expected activated list to normalize stale real ext to wrapper, got %#v", got)
 	}
@@ -236,10 +236,10 @@ func TestInvestigation_StaleRealExtCacheResolvesToCurrentRealExtAfterNormalizati
 	d.JsExtRegistry.Store("team", newRealExt)
 
 	group := newTestGroupInfo()
-	group.SetActivatedExtList([]*ExtInfo{oldRealExt}, d)
+	group.setActivatedExtList([]*ExtInfo{oldRealExt}, d)
 	group.ExtAppliedTime = 1
 
-	activated := group.GetActivatedExtList(d)
+	activated := group.activatedExtList(d)
 	if len(activated) != 1 {
 		t.Fatalf("expected one activated ext, got %d", len(activated))
 	}
@@ -281,10 +281,10 @@ func TestExtActiveWithRealExtNormalizesToWrapper(t *testing.T) {
 	group := newTestGroupInfo()
 	group.ExtAppliedTime = 1
 
-	// This simulates a JS script calling ctx.group.ExtActive(seal.ext.find("polluted")).
-	group.ExtActive(realExt)
+	// This simulates a JS script calling ctx.group.extActive(seal.ext.find("polluted")).
+	group.extActive(d, realExt)
 
-	got := group.GetActivatedExtListRaw()
+	got := group.activatedExtListRaw(d)
 	if len(got) != 1 {
 		t.Fatalf("expected one activated ext, got %d", len(got))
 	}

@@ -780,7 +780,7 @@ func (d *Dice) ExtRemove(ei *ExtInfo) bool {
 	} else {
 		// 内置扩展：遍历群组移除
 		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-			groupInfo.ExtInactiveSystem(ei)
+			groupExtInactiveSystem(groupInfo, ei)
 			return true
 		})
 	}

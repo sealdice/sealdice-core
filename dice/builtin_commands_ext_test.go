@@ -103,7 +103,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 
 			// 记录激活前的扩展列表（模拟 builtin_commands.go 中的逻辑）
 			beforeActivate := make(map[string]bool)
-			for _, ext := range group.GetActivatedExtListRaw() {
+			for _, ext := range group.activatedExtListRaw(dice) {
 				beforeActivate[ext.Name] = true
 			}
 			userActivatedNames := make(map[string]bool)
@@ -115,14 +115,14 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 				if ext := dice.ExtFind(extName, false); ext != nil {
 					activatedExtNames = append(activatedExtNames, ext.Name)
 					userActivatedNames[ext.Name] = true
-					group.RemoveFromInactivated(ext.Name)
-					group.ExtActive(ext)
+					group.removeFromInactivated(ext.Name)
+					group.extActive(dice, ext)
 				}
 			}
 
 			// 检查新激活的伴随扩展（模拟 builtin_commands.go 中的检测逻辑）
 			var companionExtNames []string
-			for _, ext := range group.GetActivatedExtListRaw() {
+			for _, ext := range group.activatedExtListRaw(dice) {
 				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
 					companionExtNames = append(companionExtNames, ext.Name)
 				}
@@ -210,7 +210,7 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 			group := newTestGroupInfo()
 
 			beforeActivate := make(map[string]bool)
-			for _, ext := range group.GetActivatedExtListRaw() {
+			for _, ext := range group.activatedExtListRaw(dice) {
 				beforeActivate[ext.Name] = true
 			}
 			userActivatedNames := make(map[string]bool)
@@ -219,13 +219,13 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 				extName = strings.ToLower(extName)
 				if ext := dice.ExtFind(extName, false); ext != nil {
 					userActivatedNames[ext.Name] = true
-					group.RemoveFromInactivated(ext.Name)
-					group.ExtActive(ext)
+					group.removeFromInactivated(ext.Name)
+					group.extActive(dice, ext)
 				}
 			}
 
 			var companionExtNames []string
-			for _, ext := range group.GetActivatedExtListRaw() {
+			for _, ext := range group.activatedExtListRaw(dice) {
 				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
 					companionExtNames = append(companionExtNames, ext.Name)
 				}

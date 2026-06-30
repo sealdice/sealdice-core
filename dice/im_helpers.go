@@ -255,7 +255,6 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 		}
 		group = &GroupInfo{
 			Active:            true,
-			dice:              session.Parent,
 			activatedExtNames: extNames,
 			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
 			InactivatedExtSet: StringSet{},
@@ -328,8 +327,8 @@ func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo,
 	}
 
 	if ctx.Dice != nil {
-		groupInfo.SyncWrapperStatus(ctx.Dice)       // 移除无效 wrapper
-		groupInfo.SyncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
+		groupInfo.syncWrapperStatus(ctx.Dice)       // 移除无效 wrapper
+		groupInfo.syncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
 	}
 
 	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)

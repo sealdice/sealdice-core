@@ -265,7 +265,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				}
 				// 触发扩展钩子
 				if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
-					groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+					groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 						if ext.OnGroupJoined == nil {
 							return nil
 						}
@@ -857,7 +857,7 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 				Nickname: pa.EndPoint.Nickname,
 			},
 		}
-		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+		groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 			if ext.OnMessageSend == nil {
 				return nil
 			}

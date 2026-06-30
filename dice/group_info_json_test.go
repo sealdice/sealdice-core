@@ -28,7 +28,7 @@ func TestGroupInfoMarshalJSONStoresActivatedExtAsNames(t *testing.T) {
 	d.ExtRegistry.Store("builtin", builtin)
 
 	group := newTestGroupInfo()
-	group.SetActivatedExtList([]*ExtInfo{jsWrapper, builtin}, d)
+	group.setActivatedExtList([]*ExtInfo{jsWrapper, builtin}, d)
 
 	data, err := json.Marshal(group)
 	if err != nil {
@@ -86,7 +86,7 @@ func TestGroupInfoUnmarshalJSONSupportsLegacyObjectEntries(t *testing.T) {
 	}
 
 	group.ExtAppliedTime = 1
-	got := group.GetActivatedExtList(d)
+	got := group.activatedExtList(d)
 	if len(got) != 2 {
 		t.Fatalf("expected 2 activated exts, got %d", len(got))
 	}
@@ -113,7 +113,7 @@ func TestGroupInfoUnmarshalJSONSupportsStringEntries(t *testing.T) {
 	}
 
 	group.ExtAppliedTime = 1
-	got := group.GetActivatedExtList(d)
+	got := group.activatedExtList(d)
 	if len(got) != 2 {
 		t.Fatalf("expected 2 activated exts, got %d", len(got))
 	}

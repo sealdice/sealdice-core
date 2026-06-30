@@ -542,7 +542,7 @@ func findMatchingCommand(restText string, d *Dice, group *GroupInfo) (string, bo
 
 	// 添加群组激活的扩展命令
 	if group != nil {
-		for _, ext := range group.GetActivatedExtList(d) {
+		for _, ext := range group.activatedExtList(d) {
 			for k := range ext.GetCmdMap() {
 				cmdLst = append(cmdLst, k)
 			}
