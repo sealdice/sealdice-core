@@ -8,16 +8,16 @@ import (
 
 func TestInvestigation_JsReloadWrapperRegistryKeepsWrapperButSwitchesRealExt(t *testing.T) {
 	d := &Dice{
-		Logger:          zap.NewNop().Sugar(),
-		ExtRegistry:     new(SyncMap[string, *ExtInfo]),
-		JsExtRegistry:   new(SyncMap[string, *ExtInfo]),
-		ExtLoopManager:  NewJsLoopManager(),
-		GameSystemMap:   new(SyncMap[string, *GameSystemTemplate]),
-		DirtyGroups:     new(SyncMap[string, int64]),
-		CocExtraRules:   map[int]*CocRuleInfo{},
-		ImSession:       &IMSession{ServiceAtNew: new(SyncMap[string, *GroupInfo])},
-		ConfigManager:   NewConfigManager(t.TempDir() + "/plugin-configs.json"),
-		BaseConfig:      BaseConfig{DataDir: t.TempDir()},
+		Logger:         zap.NewNop().Sugar(),
+		ExtRegistry:    new(SyncMap[string, *ExtInfo]),
+		JsExtRegistry:  new(SyncMap[string, *ExtInfo]),
+		ExtLoopManager: NewJsLoopManager(),
+		GameSystemMap:  new(SyncMap[string, *GameSystemTemplate]),
+		DirtyGroups:    new(SyncMap[string, int64]),
+		CocExtraRules:  map[int]*CocRuleInfo{},
+		ImSession:      &IMSession{ServiceAtNew: new(SyncMap[string, *GroupInfo])},
+		ConfigManager:  NewConfigManager(t.TempDir() + "/plugin-configs.json"),
+		BaseConfig:     BaseConfig{DataDir: t.TempDir()},
 	}
 
 	wrapper := &ExtInfo{
@@ -152,7 +152,7 @@ func TestInvestigation_ActivatedListHoldingOldRealExtCausesVersionMismatch(t *te
 	}
 
 	// Simulate current loop version becoming 10 after many reloads.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		d.ExtLoopManager.SetLoop(nil)
 	}
 
@@ -207,7 +207,7 @@ func TestInvestigation_StaleRealExtCacheResolvesToCurrentRealExtAfterNormalizati
 		ExtRegistry:    new(SyncMap[string, *ExtInfo]),
 		JsExtRegistry:  new(SyncMap[string, *ExtInfo]),
 	}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		d.ExtLoopManager.SetLoop(nil)
 	}
 
@@ -246,11 +246,11 @@ func TestInvestigation_StaleRealExtCacheResolvesToCurrentRealExtAfterNormalizati
 	if activated[0] != wrapper {
 		t.Fatalf("expected stale cached real ext to normalize to wrapper")
 	}
-	real := activated[0].GetRealExt()
-	if real != newRealExt {
+	resolvedRealExt := activated[0].GetRealExt()
+	if resolvedRealExt != newRealExt {
 		t.Fatalf("expected normalized wrapper to resolve to new real ext")
 	}
-	if real == oldRealExt {
+	if resolvedRealExt == oldRealExt {
 		t.Fatalf("should not resolve to stale real ext")
 	}
 }
@@ -269,20 +269,20 @@ func TestExtActiveWithRealExtNormalizesToWrapper(t *testing.T) {
 		IsJsExt:    true,
 		dice:       d,
 	}
-	real := &ExtInfo{
+	realExt := &ExtInfo{
 		Name:    "polluted",
 		IsJsExt: true,
 		dice:    d,
 	}
 	d.ExtList = []*ExtInfo{wrapper}
 	d.ExtRegistry.Store("polluted", wrapper)
-	d.JsExtRegistry.Store("polluted", real)
+	d.JsExtRegistry.Store("polluted", realExt)
 
 	group := newTestGroupInfo()
 	group.ExtAppliedTime = 1
 
 	// This simulates a JS script calling ctx.group.ExtActive(seal.ext.find("polluted")).
-	group.ExtActive(real)
+	group.ExtActive(realExt)
 
 	got := group.GetActivatedExtListRaw()
 	if len(got) != 1 {

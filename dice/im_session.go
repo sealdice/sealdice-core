@@ -123,53 +123,87 @@ type GroupInfo struct {
 	ExtAppliedTime int64 `json:"-" yaml:"-"` // 群组应用扩展的时间戳，运行时使用，不序列化（强制每次启动重新初始化）
 }
 
-// GetActivatedExtList 获取激活的扩展列表，自动处理延迟初始化
-// 通过 ExtAppliedTime == 0 判断是否需要初始化
-// 同时处理新扩展的延迟激活
+// GetActivatedExtList 返回“当前群此刻应该生效的扩展对象列表”。
+//
+// 注意这里有两层数据：
+// 1. GroupInfo 内部只持有激活扩展的名称列表 activatedExtNames，这是群组状态的事实来源。
+// 2. 真正可执行的 ExtInfo 对象来自 Dice.ExtList / ExtRegistry，这是全局插件定义。
+//
+// 因此这个函数的职责不是“维护一份对象缓存”，而是：
+// - 按名称把群组状态映射为当前全局有效的 ExtInfo
+// - 在首次访问时补做一次群组扩展状态初始化
+// - 顺手处理“新的全局扩展出现后，这个群是否应当自动启用它”
+//
+// 通过 ExtAppliedTime == 0 判断是否需要初始化。
+// 初始化完成后，后续读取走快速路径：只做名称 -> 当前对象的映射。
 func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	if d != nil {
 		g.dice = d
 	}
-	// 快速路径：已初始化
+	// 快速路径：群组状态已经初始化过。
+	//
+	// 这时不再重新推导群组启停规则，只做一件事：
+	// 根据 activatedExtNames 去当前 Dice.ExtList 中取“现在这一次运行”对应的 ExtInfo。
+	//
+	// 这样做的原因：
+	// - 群组状态只记名字，不记运行时对象
+	// - 同名 JS 扩展重载后，对象会变，但名字不变
+	// - 每次按名字重新取对象，才能避免命中旧 realExt / 旧 wrapper
 	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
 		g.extInitMu.Lock()
 		defer g.extInitMu.Unlock()
 		changed := false
+
+		// 建一个当前全局扩展对象的名字索引，后面按名称做映射。
 		extMap := make(map[string]*ExtInfo, len(d.ExtList))
 		for _, ext := range d.ExtList {
 			if ext != nil {
 				extMap[ext.Name] = ext
 			}
 		}
+
+		// newNames/newList 是“归一化后的结果”：
+		// - newNames 写回群组状态
+		// - newList 作为这次调用要返回的对象视图
 		newNames := make([]string, 0, len(g.activatedExtNames))
 		newList := make([]*ExtInfo, 0, len(g.activatedExtNames))
 		for _, name := range g.activatedExtNames {
 			if name == "" {
 				continue
 			}
+
+			// 找不到说明这个扩展已经不在当前全局扩展集中：
+			// 可能被卸载、删除、禁用了。此时从群组状态中顺手清掉。
 			normalized := extMap[name]
 			if normalized == nil {
 				changed = true
 				continue
 			}
-			if normalized == nil {
-				continue
-			}
 			newNames = append(newNames, normalized.Name)
 			newList = append(newList, normalized)
 		}
+
+		// 如果群组状态里有失效名称，顺手收敛一次，避免后续继续带着脏状态运行。
 		if changed {
 			g.activatedExtNames = newNames
 		}
 		return newList
 	}
+
+	// 慢路径：首次初始化。
+	//
+	// 典型场景：
+	// - 从数据库刚反序列化出来，群组只有名字状态，没有运行时对象
+	// - 新群第一次收到消息，尚未根据当前全局扩展集建立激活视图
 	g.extInitMu.Lock()
 	defer g.extInitMu.Unlock()
+
+	// double-check：避免并发下重复初始化。
 	if atomic.LoadInt64(&g.ExtAppliedTime) != 0 {
 		return g.getActivatedExtListLocked(d) // double-check
 	}
 
-	// 延迟初始化：用全局 ExtList 替换反序列化的占位名称
+	// 用当前全局扩展集构建名字 -> 对象映射。
 	extMap := make(map[string]*ExtInfo)
 	for _, ext := range d.ExtList {
 		extMap[ext.Name] = ext
@@ -179,6 +213,9 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	newNames := make([]string, 0, len(g.activatedExtNames))
 	var newList []*ExtInfo
 	activated := make(map[string]bool)
+
+	// 先恢复“这个群原本已经开启过哪些扩展”：
+	// 只要名字还存在于当前全局扩展集中，就重新映射成当前对象。
 	for _, name := range g.activatedExtNames {
 		if name != "" && extMap[name] != nil {
 			normalized := extMap[name]
@@ -188,8 +225,14 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 		}
 	}
 
-	// 延迟激活新扩展：检查 ExtList 中是否有新扩展需要激活
-	// 新扩展 = 不在 activatedExtList 中，也不在 InactivatedExtSet 中
+	// 然后处理“全局扩展集里新出现的扩展”。
+	//
+	// 判定规则：
+	// - 已经在 activated 里的，跳过
+	// - 被用户手动关闭过的，跳过
+	// - 剩下的是这个群从未见过的新扩展
+	//   - AutoActive=true：自动加入群组激活列表
+	//   - AutoActive=false：放进 InactivatedExtSet，表示该群已见过但默认关闭
 	g.ensureInactivatedSet()
 	newExtCount := 0
 	for _, ext := range d.ExtList {
@@ -204,7 +247,8 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 		if g.IsExtInactivated(ext.Name) {
 			continue
 		}
-		// 新扩展：根据 AutoActive 决定是否激活
+		// 新扩展：根据 AutoActive 决定是否激活。
+		// 插入头部是沿用现有优先级语义：越晚进入列表，优先级越高。
 		if ext.AutoActive {
 			newNames = append([]string{ext.Name}, newNames...)
 			newList = append([]*ExtInfo{ext}, newList...) // 插入头部
@@ -216,7 +260,9 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	}
 
 	g.activatedExtNames = newNames
-	// 标记已初始化，确保值不为 0（否则下次检查会再次进入初始化）
+
+	// 标记已初始化，确保后续读取都走快速路径。
+	// 若 d.ExtUpdateTime 还没建立，则至少写入一个非零值，避免反复初始化。
 	appliedTime := d.ExtUpdateTime
 	if appliedTime == 0 {
 		appliedTime = 1
