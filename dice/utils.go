@@ -583,6 +583,7 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 		"SEALCHAT-Group:":   "SEALCHAT:",
 		"SLACK-CH-Group":    "SLACK:",
 		"DINGTALK-Group":    "DINGTALK:",
+		"OpenQQ-Group:":     "OpenQQ:",
 		"OpenQQ-Group-T:":   "OpenQQ-User-T:",
 		"UI-Group:":         "UI:",
 	}

@@ -797,18 +797,9 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				tmpUID = msg.TmpUID
 			}
 			for _, i := range ats {
-				// 特殊处理 OpenQQ 和 OpenQQCH
 				if i.UserID == tmpUID {
 					amIBeMentioned = true
 					break
-				} else if strings.HasPrefix(i.UserID, "OpenQQ:") ||
-					strings.HasPrefix(i.UserID, "OpenQQCH:") ||
-					strings.HasPrefix(i.UserID, "OpenQQ-User-T:") {
-					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
-					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid || i.UserID == "OpenQQ-User-T:"+uid {
-						amIBeMentioned = true
-						break
-					}
 				}
 			}
 		}
@@ -883,10 +874,6 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				// 特殊处理 OpenQQ频道
 				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
 				tmpUID = "OpenQQCH:" + uid
-			case "OpenQQ":
-				// 特殊处理 OpenQQ群聊
-				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
-				tmpUID = "OpenQQ-User-T:" + uid
 			default:
 				tmpUID = ep.UserID
 			}

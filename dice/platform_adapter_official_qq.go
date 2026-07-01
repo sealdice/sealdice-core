@@ -1629,18 +1629,18 @@ func formatDiceIDOfficialQQ(userUnionID string) string {
 }
 
 func formatDiceIDOfficialQQGroupOpenID(botID, groupOpenID string) string {
-	// 在没有qq_unionid时的临时方案
-	return fmt.Sprintf("OpenQQ-Group-T:%s", groupOpenID)
+	// 官方QQ群ID格式
+	return fmt.Sprintf("OpenQQ-Group:%s", groupOpenID)
 }
 
 func formatDiceIDOfficialQQMemberOpenID(botID, groupOpenID, memberOpenID string) string {
-	// 在没有qq_unionid时的临时方案
-	return fmt.Sprintf("OpenQQ-User-T:%s", memberOpenID)
+	// 官方QQ群成员ID格式
+	return fmt.Sprintf("OpenQQ:%s", memberOpenID)
 }
 
 func formatDiceIDOfficialQQUserOpenID(botID, userOpenID string) string {
-	// 单聊用户OpenID格式
-	return fmt.Sprintf("OpenQQ-User-T:%s", userOpenID)
+	// 官方QQ单聊用户ID格式
+	return fmt.Sprintf("OpenQQ:%s", userOpenID)
 }
 
 type OpenQQIDType = int
@@ -1664,8 +1664,13 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractID(text string) (string, OpenQQI
 }
 
 func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, string, OpenQQIDType) {
-	if strings.HasPrefix(text, "OpenQQ:") {
-		return text[len("OpenQQ:"):], "", OpenQQUser
+	if strings.HasPrefix(text, "OpenQQ-Group:") {
+		temp := text[len("OpenQQ-Group:"):]
+		lst := strings.Split(temp, "-")
+		if len(lst) >= 2 {
+			return lst[1], "", OpenQQGroupOpenid
+		}
+		return lst[0], "", OpenQQGroupOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQ-Group-T:") {
 		temp := text[len("OpenQQ-Group-T:"):]
@@ -1693,6 +1698,13 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 			return lst[1], "", OpenQQUserOpenid
 		}
 		return lst[0], "", OpenQQUserOpenid
+	}
+	if strings.HasPrefix(text, "OpenQQ:") {
+		id := text[len("OpenQQ:"):]
+		if id == pa.AppID {
+			return id, "", OpenQQUser
+		}
+		return id, "", OpenQQUserOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQCH:") {
 		return text[len("OpenQQCH:"):], "", OpenQQCHUser
