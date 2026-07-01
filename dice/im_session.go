@@ -878,15 +878,16 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			mctx.CommandID = getNextCommandID()
 
 			var tmpUID string
-			if platformPrefix == "OpenQQCH" {
+			switch platformPrefix {
+			case "OpenQQCH":
 				// 特殊处理 OpenQQ频道
 				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
 				tmpUID = "OpenQQCH:" + uid
-			} else if platformPrefix == "OpenQQ" {
+			case "OpenQQ":
 				// 特殊处理 OpenQQ群聊
 				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
 				tmpUID = "OpenQQ-User-T:" + uid
-			} else {
+			default:
 				tmpUID = ep.UserID
 			}
 			if msg.TmpUID != "" {
