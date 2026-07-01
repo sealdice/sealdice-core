@@ -581,14 +581,10 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
 
-	pa.Session.Parent.Logger.Infof("DEBUG-QQ-MSG: content=%q", msgQQ.Content)
 	reAt := regexp.MustCompile(`<@!?(\S+?)>`)
 	m := reAt.FindStringSubmatch(msgQQ.Content)
 	if len(m) == 2 {
 		msg.TmpUID = "OpenQQ:" + m[1]
-		pa.Session.Parent.Logger.Infof("DEBUG-QQ-MSG: set TmpUID=%q", msg.TmpUID)
-	} else {
-		pa.Session.Parent.Logger.Infof("DEBUG-QQ-MSG: no regex match for TmpUID, len(matches)=%d", len(m))
 	}
 
 	return msg
@@ -620,6 +616,13 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(msgQQ *dto.WSGroupMe
 		msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
+
+	reAt := regexp.MustCompile(`<@!?(\S+?)>`)
+	m := reAt.FindStringSubmatch(msgQQ.Content)
+	if len(m) == 2 {
+		msg.TmpUID = "OpenQQ:" + m[1]
+	}
+
 	return msg
 }
 
