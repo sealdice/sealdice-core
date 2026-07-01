@@ -883,6 +883,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 			// 设置at信息
 			cmdArgs.SetupAtInfo(tmpUID)
+			
+			log.Infof("DEBUG-AT: tmpUID=%q, cmdArgs.AmIBeMentioned=%v, cmdArgs.AmIBeMentionedFirst=%v, len(At)=%d", 
+				tmpUID, cmdArgs.AmIBeMentioned, cmdArgs.AmIBeMentionedFirst, len(cmdArgs.At))
+			if len(cmdArgs.At) > 0 {
+				log.Infof("DEBUG-AT-DETAIL: firstAt.UserID=%q", cmdArgs.At[0].UserID)
+			}
 		}
 
 		// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
