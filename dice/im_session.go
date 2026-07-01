@@ -2013,18 +2013,8 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				// 允许代骰时，发一句话
 				cur := -1
 				for index, i := range cmdArgs.At {
-					if i.UserID == ctx.EndPoint.UserID {
+					if i.UserID == ctx.EndPoint.UserID || (cmdArgs.uidForAtInfo != "" && i.UserID == cmdArgs.uidForAtInfo) {
 						continue
-					} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-						// 特殊处理 OpenQQ频道/群聊
-						uid := i.UserID
-						uid = strings.TrimPrefix(uid, "OpenQQCH:")
-						uid = strings.TrimPrefix(uid, "OpenQQ-User-T:")
-						uid = strings.TrimPrefix(uid, "OpenQQ-Member-T:")
-						diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
-						if uid == diceId {
-							continue
-						}
 					}
 					cur = index
 				}

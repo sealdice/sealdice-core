@@ -579,6 +579,13 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 		msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
+
+	reAt := regexp.MustCompile(`<@!?(\S+?)>`)
+	m := reAt.FindStringSubmatch(msgQQ.Content)
+	if len(m) == 2 {
+		msg.TmpUID = "OpenQQ:" + m[1]
+	}
+
 	return msg
 }
 
@@ -1671,33 +1678,6 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 			return lst[1], "", OpenQQGroupOpenid
 		}
 		return lst[0], "", OpenQQGroupOpenid
-	}
-	if strings.HasPrefix(text, "OpenQQ-Group-T:") {
-		temp := text[len("OpenQQ-Group-T:"):]
-		lst := strings.Split(temp, "-")
-		if len(lst) >= 2 {
-			return lst[1], "", OpenQQGroupOpenid
-		}
-		return lst[0], "", OpenQQGroupOpenid
-	}
-	if strings.HasPrefix(text, "OpenQQ-Member-T:") {
-		temp := text[len("OpenQQ-Member-T:"):]
-		lst := strings.Split(temp, "-")
-		if len(lst) >= 3 {
-			return lst[2], lst[1], OpenQQUserOpenid
-		}
-		if len(lst) == 2 {
-			return lst[1], lst[0], OpenQQUserOpenid
-		}
-		return lst[0], "", OpenQQUserOpenid
-	}
-	if strings.HasPrefix(text, "OpenQQ-User-T:") {
-		temp := text[len("OpenQQ-User-T:"):]
-		lst := strings.Split(temp, "-")
-		if len(lst) >= 2 {
-			return lst[1], "", OpenQQUserOpenid
-		}
-		return lst[0], "", OpenQQUserOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQ:") {
 		id := text[len("OpenQQ:"):]

@@ -64,8 +64,6 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 				mctx.Player.Name = "<@!" + strings.TrimPrefix(i.UserID, "OpenQQCH:") + ">"
 			} else if strings.HasPrefix(i.UserID, "OpenQQ:") {
 				mctx.Player.Name = "<@" + strings.TrimPrefix(i.UserID, "OpenQQ:") + ">"
-			} else if strings.HasPrefix(i.UserID, "OpenQQ-Member-T:") || strings.HasPrefix(i.UserID, "OpenQQ-User-T:") {
-				mctx.Player.Name = i.UserID[len(i.UserID)-4:]
 			}
 		}
 		return mctx, p != nil
