@@ -802,9 +802,10 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					amIBeMentioned = true
 					break
 				} else if strings.HasPrefix(i.UserID, "OpenQQ:") ||
-					strings.HasPrefix(i.UserID, "OpenQQCH:") {
+					strings.HasPrefix(i.UserID, "OpenQQCH:") ||
+					strings.HasPrefix(i.UserID, "OpenQQ-User-T:") {
 					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
-					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid {
+					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid || i.UserID == "OpenQQ-User-T:"+uid {
 						amIBeMentioned = true
 						break
 					}
@@ -881,6 +882,10 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				// 特殊处理 OpenQQ频道
 				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
 				tmpUID = "OpenQQCH:" + uid
+			} else if platformPrefix == "OpenQQ" {
+				// 特殊处理 OpenQQ群聊
+				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
+				tmpUID = "OpenQQ-User-T:" + uid
 			} else {
 				tmpUID = ep.UserID
 			}
@@ -2023,8 +2028,11 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 					if i.UserID == ctx.EndPoint.UserID {
 						continue
 					} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-						// 特殊处理 OpenQQ频道
-						uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
+						// 特殊处理 OpenQQ频道/群聊
+						uid := i.UserID
+						uid = strings.TrimPrefix(uid, "OpenQQCH:")
+						uid = strings.TrimPrefix(uid, "OpenQQ-User-T:")
+						uid = strings.TrimPrefix(uid, "OpenQQ-Member-T:")
 						diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
 						if uid == diceId {
 							continue

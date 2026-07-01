@@ -306,8 +306,11 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		if i.UserID == ctx.EndPoint.UserID {
 			continue
 		} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-			// 特殊处理 OpenQQ频道
-			uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
+			// 特殊处理 OpenQQ频道/群聊
+			uid := i.UserID
+			uid = strings.TrimPrefix(uid, "OpenQQCH:")
+			uid = strings.TrimPrefix(uid, "OpenQQ-User-T:")
+			uid = strings.TrimPrefix(uid, "OpenQQ-Member-T:")
 			diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
 			if uid == diceId {
 				continue
