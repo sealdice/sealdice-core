@@ -2354,8 +2354,7 @@ func (d *Dice) loads() {
 	})
 
 	for _, i := range d.ImSession.EndPoints {
-		i.Session = d.ImSession
-		i.AdapterSetup()
+		i.BindRuntime(d.ImSession)
 	}
 	d.warnIfNoPlatformEndpoint(missingPlatformConfigInServe)
 

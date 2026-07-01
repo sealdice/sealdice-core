@@ -293,7 +293,7 @@ func (pa *PlatformAdapterWalleQ) SetQQProtocol(protocol int) bool {
 	uid := pa.EndPoint.UserID
 	log := pa.EndPoint.Session.Parent.Logger
 
-	wd := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	wd := filepath.Join(pa.EndPoint.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	wdData, err := os.ReadFile(wd)
 	if err != nil {
 		log.Error("读取 Walle-q 配置文件失败，请检查！")

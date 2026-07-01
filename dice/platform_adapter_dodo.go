@@ -19,7 +19,6 @@ import (
 )
 
 type PlatformAdapterDodo struct {
-	Session           *IMSession                                              `json:"-"        yaml:"-"`
 	ClientID          string                                                  `json:"-" yaml:"clientID"`
 	Token             string                                                  `json:"-"    yaml:"token"`
 	EndPoint          *EndPointInfo                                           `json:"-"        yaml:"-"`
@@ -46,19 +45,19 @@ func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
 	if err != nil {
 		return
 	}
-	dm := pa.Session.Parent.Parent
+	dm := pa.EndPoint.Session.Parent.Parent
 	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 		Name: info.ChannelName,
 		time: time.Now().Unix(),
 	})
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := pa.EndPoint.Session.ServiceAtNew.Load(groupID)
 	if ok {
 		groupInfo.GroupName = info.ChannelName
 	}
 }
 
 func (pa *PlatformAdapterDodo) Serve() int {
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	clientID := pa.ClientID
 	token := pa.Token
 	instance, err := client.New(clientID, token, client.WithTimeout(time.Second*3))
@@ -70,7 +69,7 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	if err == nil {
 		pa.EndPoint.UserID = FormatDiceIDDodo(selfid.DodoSourceId)
 		pa.EndPoint.Nickname = selfid.NickName
-		d := pa.Session.Parent
+		d := pa.EndPoint.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 	}
@@ -78,25 +77,25 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	channelMessageHandler := func(event *websocket.WSEventMessage, data *websocket.ChannelMessageEventBody) error {
 		// defer func() {
 		// 	if recoverError := recover(); recoverError != nil {
-		// 		pa.Session.Parent.Logger.Errorf("Dodo消息处理错误:%v\n Stack: \n%v", recoverError, string(debug.Stack()))
+		// 		pa.EndPoint.Session.Parent.Logger.Errorf("Dodo消息处理错误:%v\n Stack: \n%v", recoverError, string(debug.Stack()))
 		// 	}
 		// }()
-		// pa.Session.Parent.Logger.Infof("WS-收到Dodo频道消息:%s", string(data.MessageBody))
+		// pa.EndPoint.Session.Parent.Logger.Infof("WS-收到Dodo频道消息:%s", string(data.MessageBody))
 		msg, errs := pa.toStdChannelMessage(data)
 		if errs != nil {
-			pa.Session.Parent.Logger.Errorf("Dodo消息转换错误:%s", err.Error())
+			pa.EndPoint.Session.Parent.Logger.Errorf("Dodo消息转换错误:%s", err.Error())
 			return errs
 		}
-		pa.Session.Execute(pa.EndPoint, msg, false)
+		pa.EndPoint.Session.Execute(pa.EndPoint, msg, false)
 		return nil
 	}
 	personalMessageHandler := func(event *websocket.WSEventMessage, data *websocket.PersonalMessageEventBody) error {
 		msg, errs := pa.toStdPersonalMessage(data)
 		if errs != nil {
-			pa.Session.Parent.Logger.Errorf("Dodo消息转换错误:%s", err.Error())
+			pa.EndPoint.Session.Parent.Logger.Errorf("Dodo消息转换错误:%s", err.Error())
 			return errs
 		}
-		pa.Session.Execute(pa.EndPoint, msg, false)
+		pa.EndPoint.Session.Execute(pa.EndPoint, msg, false)
 		return nil
 	}
 	msgHandlers.ChannelMessage = channelMessageHandler
@@ -109,7 +108,7 @@ func (pa *PlatformAdapterDodo) Serve() int {
 		for pa.RetryConnectTimes <= 5 {
 			pa.RetryConnectTimes++
 			time.Sleep(time.Second * 5)
-			pa.Session.Parent.Logger.Infof("Dodo 尝试重连, 第 [%d/5] 次", pa.RetryConnectTimes)
+			pa.EndPoint.Session.Parent.Logger.Infof("Dodo 尝试重连, 第 [%d/5] 次", pa.RetryConnectTimes)
 			ws.Close()
 			if err = ws.Connect(); err == nil {
 				pa.RetryConnectTimes = 0
@@ -122,7 +121,7 @@ func (pa *PlatformAdapterDodo) Serve() int {
 		if err != nil {
 			logger.Errorf("Dodo 短时间内重试次数过多，先行中断")
 			pa.EndPoint.State = 3
-			d := pa.Session.Parent
+			d := pa.EndPoint.Session.Parent
 			d.LastUpdatedTime = time.Now().Unix()
 			d.Save(false)
 			return 1
@@ -131,9 +130,9 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	pa.WebSocket = ws
 	pa.EndPoint.State = 1
 	pa.RetryConnectTimes = 0
-	pa.Session.Parent.Logger.Infof("Dodo 连接成功")
+	pa.EndPoint.Session.Parent.Logger.Infof("Dodo 连接成功")
 	pa.EndPoint.Enable = true
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	go func() {
@@ -142,7 +141,7 @@ func (pa *PlatformAdapterDodo) Serve() int {
 			logger.Errorf("Dodo监听错误:%s", err.Error())
 			if pa.EndPoint.Enable {
 				pa.EndPoint.State = 3
-				d := pa.Session.Parent
+				d := pa.EndPoint.Session.Parent
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
 				logger.Infof("Dodo 连接断开，正在尝试重连……")
@@ -165,7 +164,7 @@ func (pa *PlatformAdapterDodo) toStdPersonalMessage(msgRaw *websocket.PersonalMe
 	if msgRaw.IslandSourceId != "" {
 		msg.GuildID = msgRaw.IslandSourceId
 	}
-	// pa.Session.Parent.Logger.Infof("source id: %s", msgRaw.IslandSourceId)
+	// pa.EndPoint.Session.Parent.Logger.Infof("source id: %s", msgRaw.IslandSourceId)
 	if msgRaw.MessageType == 1 {
 		msgDodo := new(model.TextMessage)
 		err := json.Unmarshal(msgRaw.MessageBody, msgDodo)
@@ -240,14 +239,14 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 		DodoSourceId:   userID,
 	})
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("Dodo获取权限列表失败:%s", err.Error())
+		pa.EndPoint.Session.Parent.Logger.Errorf("Dodo获取权限列表失败:%s", err.Error())
 		return aperm
 	}
 
 	for _, role := range list {
 		num, err := strconv.ParseInt(role.Permission, 16, 64) // 16 表示这是一个十六进制数
 		if err != nil {
-			pa.Session.Parent.Logger.Errorf("Dodo权限转换错误:%s", err.Error())
+			pa.EndPoint.Session.Parent.Logger.Errorf("Dodo权限转换错误:%s", err.Error())
 			return aperm
 		}
 		aperm |= num
@@ -263,7 +262,7 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 			IslandSourceId: guildID,
 		})
 		if err != nil {
-			pa.Session.Parent.Logger.Errorf("Dodo获取群信息失败:%s", err.Error())
+			pa.EndPoint.Session.Parent.Logger.Errorf("Dodo获取群信息失败:%s", err.Error())
 			return aperm
 		}
 
@@ -287,7 +286,7 @@ func (pa *PlatformAdapterDodo) DoRelogin() bool {
 	defer func() {
 		_ = recover()
 	}()
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	if pa.WebSocket != nil {
 		pa.WebSocket.Close()
 		pa.Client = nil
@@ -304,7 +303,7 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 	defer func() {
 		_ = recover()
 	}()
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	if enable {
 		if pa.Client != nil && pa.WebSocket != nil {
 			pa.WebSocket.Close()
@@ -331,13 +330,13 @@ func (pa *PlatformAdapterDodo) SendSegmentToPerson(ctx *MsgContext, userID strin
 }
 
 func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	// pa.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
+	// pa.EndPoint.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
 	err := pa.SendToPersonRaw(ctx, uid, text, true)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("DODO 发送私聊消息失败：%v\n", err)
+		pa.EndPoint.Session.Parent.Logger.Errorf("DODO 发送私聊消息失败：%v\n", err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "private",
 		Platform:    "DODO",
 		Message:     text,
@@ -351,10 +350,10 @@ func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text st
 func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	err := pa.SendToChatRaw(ctx, uid, text, false)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("DODO 发送消息失败：%v\n", err)
+		pa.EndPoint.Session.Parent.Logger.Errorf("DODO 发送消息失败：%v\n", err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "group",
 		Platform:    "DODO",
 		Message:     text,
@@ -605,7 +604,7 @@ func (pa *PlatformAdapterDodo) QuitGroup(ctx *MsgContext, groupId string) {
 		IslandSourceId: ctx.Group.GuildID,
 	})
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("Dodo退群失败:%v", err)
+		pa.EndPoint.Session.Parent.Logger.Errorf("Dodo退群失败:%v", err)
 	}
 }
 
@@ -616,6 +615,6 @@ func (pa *PlatformAdapterDodo) SetGroupCardName(ctx *MsgContext, name string) {
 		NickName:       name,
 	})
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("Dodo设置群名片失败:%v", err)
+		pa.EndPoint.Session.Parent.Logger.Errorf("Dodo设置群名片失败:%v", err)
 	}
 }

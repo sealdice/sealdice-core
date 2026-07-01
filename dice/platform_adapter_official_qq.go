@@ -21,7 +21,6 @@ import (
 )
 
 type PlatformAdapterOfficialQQ struct {
-	Session     *IMSession    `json:"-" yaml:"-"`
 	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
 	DiceServing bool          `yaml:"-"`
 
@@ -38,9 +37,9 @@ type PlatformAdapterOfficialQQ struct {
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep := pa.EndPoint
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 
 	if pa.Ctx != nil {
 		log.Info("official qq session already running, skip Serve")
@@ -153,7 +152,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 }
 
 func (pa *PlatformAdapterOfficialQQ) ChannelAtMessageReceive(event *dto.WSPayload, data *dto.WSATMessageData) error {
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到文字频道消息：%v, %v", event, data)
 
@@ -181,7 +180,7 @@ func (pa *PlatformAdapterOfficialQQ) channelMsgToStdMsg(msgQQ *dto.WSATMessageDa
 }
 
 func (pa *PlatformAdapterOfficialQQ) GuildDirectMessageReceive(event *dto.WSPayload, data *dto.WSDirectMessageData) error {
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到频道私信消息：%v, %v", event, data)
 
@@ -209,7 +208,7 @@ func (pa *PlatformAdapterOfficialQQ) guildDirectMsgToStdMsg(msgQQ *dto.WSDirectM
 }
 
 func (pa *PlatformAdapterOfficialQQ) GroupAtMessageReceive(event *dto.WSPayload, data *dto.WSGroupATMessageData) error {
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群聊消息：%v, %v", event, data)
 
@@ -236,7 +235,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 }
 func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
 	pa.CancelFunc()
-	pa.Session.Parent.Logger.Infof("正在启用 official qq 服务")
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 official qq 服务")
 	pa.EndPoint.State = 0
 	pa.EndPoint.Enable = false
 	pa.Api = nil
@@ -247,7 +246,7 @@ func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
 	if enable {
 		if pa.Ctx == nil {
@@ -281,7 +280,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 	userID, idType := pa.mustExtractID(uid)
 	if idType != OpenQQCHUser {
 		// 说明不是频道信息
-		pa.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
 		return
 	}
 	channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
@@ -290,7 +289,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		// 需要主动发起私聊
 		g, c, err := pa.createQQGuildDirectChannel(ctx, guildID, userID)
 		if err != nil {
-			pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
+			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
 			return
 		}
 		guildID = g
@@ -302,7 +301,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel( /* ctx */ _ *MsgContext, guildID, userID string) (string, string, error) {
 	if guildID == "" || userID == "" {
 		err := errors.New("创建私信频道的参数不全")
-		pa.Session.Parent.Logger.Error("official qq 创建私信频道失败：" + err.Error())
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 创建私信频道失败：" + err.Error())
 		return "", "", err
 	}
 	qctx := context.Background()
@@ -312,7 +311,7 @@ func (pa *PlatformAdapterOfficialQQ) createQQGuildDirectChannel( /* ctx */ _ *Ms
 	}
 	info, err := pa.Api.CreateDirectMessage(qctx, toCreate)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("official qq 创建私信频道失败：" + err.Error())
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 创建私信频道失败：" + err.Error())
 		return "", "", err
 	}
 	return info.GuildID, info.ChannelID, nil
@@ -344,7 +343,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 		MsgID:   rowMsgID,
 	}
 	if _, err := pa.Api.PostDirectMessage(qctx, dMsg, toCreate); err != nil {
-		pa.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：" + err.Error())
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：" + err.Error())
 	}
 }
 
@@ -352,7 +351,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	rowID, ok := VarGetValueStr(ctx, "$tMsgID")
 	if !ok {
 		// TODO：允许主动消息发送，并校验频率
-		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：无法直接发送消息")
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息失败：无法直接发送消息")
 		return
 	}
 	groupId, idType := pa.mustExtractID(uid)
@@ -362,7 +361,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	case OpenQQCHChannel:
 		pa.sendQQChannelMsgRaw(ctx, rowID, groupId, text)
 	default:
-		pa.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
+		pa.EndPoint.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
 		return
 	}
 }
@@ -385,14 +384,14 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			// QQ官方API中不能发送链接，所以全部进行转写绕过
 			content += textLinkStrip(elem.Content)
 		case *message.AtElement:
-			pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
+			pa.EndPoint.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *message.ImageElement:
 			url := elem.File.URL
 			// 目前不支持本地发送，检查一下url
 			if url == "" ||
 				strings.Contains(url, "localhost") ||
 				strings.Contains(url, "127.0.0.1") {
-				pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地图片，跳过该部分")
+				pa.EndPoint.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地图片，跳过该部分")
 			}
 			fMsg := &dto.MessageMediaToCreate{
 				FileType:   1,
@@ -401,7 +400,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			}
 			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
 			if err != nil {
-				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备图片信息失败：" + err.Error())
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备图片信息失败：" + err.Error())
 				continue
 			}
 
@@ -415,7 +414,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			if url == "" ||
 				strings.Contains(url, "localhost") ||
 				strings.Contains(url, "127.0.0.1") {
-				pa.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地语音，跳过该部分")
+				pa.EndPoint.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持发送本地语音，跳过该部分")
 			}
 			fMsg := &dto.MessageMediaToCreate{
 				FileType:   3,
@@ -424,7 +423,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 			}
 			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
 			if err != nil {
-				pa.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备语音信息失败：" + err.Error())
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备语音信息失败：" + err.Error())
 				continue
 			}
 
@@ -438,7 +437,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw( /* ctx */ _ *MsgContext,
 	toCreate.Content = content
 
 	if _, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate); err != nil {
-		pa.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
 	}
 }
 
@@ -471,13 +470,13 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 		MsgID:   rowMsgID,
 	}
 	if _, err := pa.Api.PostMessage(qctx, channelID, toCreate); err != nil {
-		pa.Session.Parent.Logger.Error("official qq 发送频道消息失败：" + err.Error())
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道消息失败：" + err.Error())
 	}
 }
 
 func (pa *PlatformAdapterOfficialQQ) GetGroupInfoAsync(groupID string) {
 	// 警告太频繁了，拿掉
-	// pa.Session.Parent.Logger.Infof("official qq 更新群信息失败：不支持该功能")
+	// pa.EndPoint.Session.Parent.Logger.Infof("official qq 更新群信息失败：不支持该功能")
 }
 
 func formatDiceIDOfficialQQCh(userID string) string {
@@ -562,19 +561,19 @@ func (pa *PlatformAdapterOfficialQQ) SendFileToGroup(ctx *MsgContext, uid string
 }
 
 func (pa *PlatformAdapterOfficialQQ) QuitGroup(_ *MsgContext, _ string) {
-	pa.Session.Parent.Logger.Error("official qq 退出群组失败：不支持该功能")
+	pa.EndPoint.Session.Parent.Logger.Error("official qq 退出群组失败：不支持该功能")
 }
 
 func (pa *PlatformAdapterOfficialQQ) SetGroupCardName(_ *MsgContext, _ string) {
-	pa.Session.Parent.Logger.Error("official qq 修改名片失败：不支持该功能")
+	pa.EndPoint.Session.Parent.Logger.Error("official qq 修改名片失败：不支持该功能")
 }
 
 func (pa *PlatformAdapterOfficialQQ) MemberBan(_ string, _ string, _ int64) {
-	pa.Session.Parent.Logger.Error("official qq 禁言用户失败：不支持该功能")
+	pa.EndPoint.Session.Parent.Logger.Error("official qq 禁言用户失败：不支持该功能")
 }
 
 func (pa *PlatformAdapterOfficialQQ) MemberKick(_ string, _ string) {
-	pa.Session.Parent.Logger.Error("official qq 踢出用户失败：不支持该功能")
+	pa.EndPoint.Session.Parent.Logger.Error("official qq 踢出用户失败：不支持该功能")
 }
 
 func (pa *PlatformAdapterOfficialQQ) EditMessage(_ *MsgContext, _, _ string) {}

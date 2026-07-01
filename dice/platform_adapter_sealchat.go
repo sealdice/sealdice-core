@@ -21,7 +21,6 @@ import (
 )
 
 type PlatformAdapterSealChat struct {
-	Session  *IMSession    `json:"-" yaml:"-"`
 	EndPoint *EndPointInfo `json:"-" yaml:"-"`
 
 	ConnectURL string                    `json:"connectUrl" yaml:"connectUrl"` // 连接地址
@@ -54,7 +53,7 @@ func (pa *PlatformAdapterSealChat) Serve() int {
 	pa.RetryTimesLimit = 15
 	// 初始化角色卡写入速率限制器: 60次/分钟，允许突发5次
 	pa.characterSetLimiter = rate.NewLimiter(rate.Every(time.Minute/60), 5)
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	pa.socketSetup()
@@ -74,13 +73,13 @@ func (pa *PlatformAdapterSealChat) _sendJSON(socket *gowebsocket.Socket, data an
 
 func (pa *PlatformAdapterSealChat) socketSetup() {
 	ep := pa.EndPoint
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	socket := pa.Socket
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		ep.State = 2
 		ep.Enable = true
 
-		d := pa.Session.Parent
+		d := pa.EndPoint.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 
@@ -202,7 +201,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 }
 
 func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	if socket.IsConnected {
 		return true
 	}
@@ -236,7 +235,7 @@ func (pa *PlatformAdapterSealChat) startHeartbeat() {
 	pa.stopHeartbeat()
 	pa.heartbeatStop = make(chan struct{})
 	atomic.StoreInt64(&pa.lastPong, time.Now().Unix())
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 
 	go func() {
 		ticker := time.NewTicker(15 * time.Second)
@@ -466,7 +465,7 @@ func FormatDiceIDSealChatGroup(id string) string {
 }
 
 func (pa *PlatformAdapterSealChat) DoRelogin() bool {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	pa.Reconnecting = true
 	if pa.Socket != nil {
 		pa.Socket.Close()
@@ -482,7 +481,7 @@ func (pa *PlatformAdapterSealChat) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	if enable {
 		pa.EndPoint.Enable = true
 		log.Infof("Sealchat 连接中")
@@ -570,7 +569,7 @@ func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text st
 	text = strings.ReplaceAll(text, "&gt;", ">")
 	text = strings.ReplaceAll(text, "&amp;", "&")
 	text = strings.ReplaceAll(text, "&quot;", "\"")
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "SEALCHAT",
 		MessageType: msgType,
 		Message:     text,
@@ -591,7 +590,7 @@ func (pa *PlatformAdapterSealChat) SendSegmentToGroup(ctx *MsgContext, groupID s
 		"content":    encodedContent,
 	})
 
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "SEALCHAT",
 		MessageType: "group",
 		Message:     encodedContent,
@@ -616,7 +615,7 @@ func (pa *PlatformAdapterSealChat) SendSegmentToPerson(ctx *MsgContext, userID s
 		"content":    encodedContent,
 	})
 
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "SEALCHAT",
 		MessageType: "private",
 		Message:     encodedContent,
@@ -690,7 +689,7 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 	ev := satori.Event{}
 	err := json.Unmarshal([]byte(msg), &ev)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("PlatformAdapterSealChat.dispatchMessage", err)
+		pa.EndPoint.Session.Parent.Logger.Error("PlatformAdapterSealChat.dispatchMessage", err)
 		return
 	}
 
@@ -700,13 +699,13 @@ func (pa *PlatformAdapterSealChat) dispatchMessage(msg string) {
 			// 自己发的消息，不管
 			return
 		}
-		pa.Session.Execute(pa.EndPoint, pa.toStdMessage(ev.Message), false)
+		pa.EndPoint.Session.Execute(pa.EndPoint, pa.toStdMessage(ev.Message), false)
 		return
 	case satori.EventMessageDeleted:
 		stdMsg := pa.toStdMessage(ev.Message)
 		// 注; 缺少 User、Channel[导致MessageType出不来]
 		mctx := CreateTempCtx(pa.EndPoint, stdMsg)
-		pa.Session.OnMessageDeleted(mctx, stdMsg)
+		pa.EndPoint.Session.OnMessageDeleted(mctx, stdMsg)
 		return
 	default:
 		// fmt.Println("msg", ev.Type, "|", ev)
@@ -786,8 +785,8 @@ func (pa *PlatformAdapterSealChat) parseGroupRole(roles []string) string {
 
 // handleApiRequest 处理来自 SealChat 的 API 请求
 func (pa *PlatformAdapterSealChat) handleApiRequest(msg satori.ScApiMsgPayload) {
-	log := pa.Session.Parent.Logger
-	d := pa.Session.Parent
+	log := pa.EndPoint.Session.Parent.Logger
+	d := pa.EndPoint.Session.Parent
 
 	switch msg.Api {
 	case "character.get":

@@ -24,7 +24,6 @@ import (
 const SatoriProtocolVersion = "v1"
 
 type PlatformAdapterSatori struct {
-	Session     *IMSession    `json:"-" yaml:"-"`
 	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
 	DiceServing bool          `yaml:"-"`
 
@@ -44,9 +43,9 @@ type PlatformAdapterSatori struct {
 
 func (pa *PlatformAdapterSatori) Serve() int {
 	ep := pa.EndPoint
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 
 	wsUrl := url.URL{
 		Scheme: "ws",
@@ -215,7 +214,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 
 // refreshFriends 更新好友信息
 func (pa *PlatformAdapterSatori) refreshFriends() {
-	session := pa.Session
+	session := pa.EndPoint.Session
 	d := session.Parent
 	log := d.Logger
 	dm := d.Parent
@@ -267,7 +266,7 @@ func (pa *PlatformAdapterSatori) refreshFriends() {
 
 // refreshGroups 更新群信息
 func (pa *PlatformAdapterSatori) refreshGroups() {
-	session := pa.Session
+	session := pa.EndPoint.Session
 	d := session.Parent
 	log := d.Logger
 	dm := d.Parent
@@ -329,7 +328,7 @@ func (pa *PlatformAdapterSatori) refreshGroups() {
 }
 
 func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
-	session := pa.Session
+	session := pa.EndPoint.Session
 	d := session.Parent
 	log := d.Logger
 
@@ -392,7 +391,7 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 }
 
 func (pa *PlatformAdapterSatori) DoRelogin() bool {
-	pa.Session.Parent.Logger.Infof("正在启用 satori 连接，请稍后...")
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 satori 连接，请稍后...")
 	pa.EndPoint.State = 0
 	pa.EndPoint.Enable = false
 	if pa.CancelFunc != nil {
@@ -402,7 +401,7 @@ func (pa *PlatformAdapterSatori) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterSatori) SetEnable(enable bool) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	e := pa.EndPoint
 	if enable {
 		e.Enable = true
@@ -422,12 +421,12 @@ func (pa *PlatformAdapterSatori) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterSatori) QuitGroup(ctx *MsgContext, _ string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Errorf("satori %s 平台暂不支持退群", pa.Platform)
 }
 
 func (pa *PlatformAdapterSatori) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	if pa.Platform == "QQ" {
 		id := UserIDExtract(userID)
 		pa.sendMsgRaw(ctx, "private:"+id, text, flag, "private")
@@ -441,7 +440,7 @@ func (pa *PlatformAdapterSatori) SendToGroup(ctx *MsgContext, groupID string, te
 }
 
 func (pa *PlatformAdapterSatori) sendMsgRaw( /* ctx */ _ *MsgContext, channelID string, text string /* flag */, _ string, msgType string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	req, err := json.Marshal(map[string]interface{}{
 		"channel_id": channelID,
 		"content":    pa.encodeMessage(text),
@@ -476,22 +475,22 @@ func (pa *PlatformAdapterSatori) SendSegmentToPerson(ctx *MsgContext, userID str
 }
 
 func (pa *PlatformAdapterSatori) SetGroupCardName(ctx *MsgContext, name string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Errorf("satori %s 平台暂不支持设置群成员名片", pa.Platform)
 }
 
 func (pa *PlatformAdapterSatori) SendFileToPerson(ctx *MsgContext, userID string, path string, flag string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Errorf("satori %s 平台暂不支持私聊文件发送", pa.Platform)
 }
 
 func (pa *PlatformAdapterSatori) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Errorf("satori %s 平台暂不支持群聊文件发送", pa.Platform)
 }
 
 func (pa *PlatformAdapterSatori) MemberBan(groupID string, userID string, duration int64) {
-	pa.Session.Parent.Logger.Errorf("satori %s 平台暂不支持禁言群(%s)内成员%s", pa.Platform, groupID, userID)
+	pa.EndPoint.Session.Parent.Logger.Errorf("satori %s 平台暂不支持禁言群(%s)内成员%s", pa.Platform, groupID, userID)
 }
 
 func (pa *PlatformAdapterSatori) MemberKick(groupID string, userID string) {
@@ -501,18 +500,18 @@ func (pa *PlatformAdapterSatori) MemberKick(groupID string, userID string) {
 		"permanent": false,
 	})
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("satori 踢出群(%s)内成员(%s)失败：%s", groupID, userID, err)
+		pa.EndPoint.Session.Parent.Logger.Errorf("satori 踢出群(%s)内成员(%s)失败：%s", groupID, userID, err)
 		return
 	}
 	_, err = pa.post("guild.member.kick", bytes.NewBuffer(req))
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("satori 踢出群(%s)内成员(%s)失败：%s", groupID, userID, err)
+		pa.EndPoint.Session.Parent.Logger.Errorf("satori 踢出群(%s)内成员(%s)失败：%s", groupID, userID, err)
 		return
 	}
 }
 
 func (pa *PlatformAdapterSatori) GetGroupInfoAsync(groupID string) {
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	req, err := json.Marshal(map[string]interface{}{
 		"guild_id": UserIDExtract(groupID),
 	})
@@ -536,12 +535,12 @@ func (pa *PlatformAdapterSatori) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterSatori) EditMessage(ctx *MsgContext, msgID, message string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Errorf("satori %s 平台暂不支持编辑消息", pa.Platform)
 }
 
 func (pa *PlatformAdapterSatori) RecallMessage(ctx *MsgContext, msgID string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Errorf("satori %s 平台暂不支持撤回消息", pa.Platform)
 }
 
@@ -584,7 +583,7 @@ func (pa *PlatformAdapterSatori) post(resource string, body io.Reader) ([]byte, 
 }
 
 func (pa *PlatformAdapterSatori) toStdMessage(messageEvent *SatoriEvent) *Message {
-	session := pa.Session
+	session := pa.EndPoint.Session
 	d := session.Parent
 	log := d.Logger
 	dm := d.Parent
@@ -717,7 +716,7 @@ func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
 }
 
 func (pa *PlatformAdapterSatori) handleEvent(event SatoriPayload[SatoriEvent]) {
-	s := pa.Session
+	s := pa.EndPoint.Session
 	switch event.Body.Type {
 	case "message-created": // 消息创建
 		msg := pa.toStdMessage(event.Body)
@@ -759,8 +758,8 @@ func (pa *PlatformAdapterSatori) deleteMessageHandle(e *SatoriEvent) {
 		msg.MessageType = "group"
 		msg.GroupID = formatDiceIDSatoriGroup(pa.Platform, e.Channel.ID)
 	}
-	mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
-	pa.Session.OnMessageDeleted(mctx, msg)
+	mctx := &MsgContext{Session: pa.EndPoint.Session, EndPoint: pa.EndPoint, Dice: pa.EndPoint.Session.Parent, MessageType: msg.MessageType}
+	pa.EndPoint.Session.OnMessageDeleted(mctx, msg)
 }
 
 func (pa *PlatformAdapterSatori) editMessageHandle(e *SatoriEvent) {
@@ -776,13 +775,13 @@ func (pa *PlatformAdapterSatori) editMessageHandle(e *SatoriEvent) {
 		msg.GroupID = formatDiceIDSatoriGroup(pa.Platform, e.Channel.ID)
 	}
 	mctx := &MsgContext{
-		Session:     pa.Session,
+		Session:     pa.EndPoint.Session,
 		EndPoint:    pa.EndPoint,
-		Dice:        pa.Session.Parent,
+		Dice:        pa.EndPoint.Session.Parent,
 		MessageType: msg.MessageType,
 		Player:      &GroupPlayerInfo{},
 	}
-	pa.Session.OnMessageEdit(mctx, msg)
+	pa.EndPoint.Session.OnMessageEdit(mctx, msg)
 }
 
 //nolint:unused
@@ -797,7 +796,7 @@ func (pa *PlatformAdapterSatori) guildRemovedHandle(e *SatoriEvent) {
 
 //nolint:unused
 func (pa *PlatformAdapterSatori) guildRequestHandle(e *SatoriEvent) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	dm := d.Parent
 	log := d.Logger
 
@@ -843,7 +842,7 @@ func (pa *PlatformAdapterSatori) guildRequestHandle(e *SatoriEvent) {
 //
 //nolint:unused
 func (pa *PlatformAdapterSatori) sendGuildRequestResult(id string, approve bool, comment string) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	log := d.Logger
 	req := map[string]any{
 		"message_id": id,
@@ -860,7 +859,7 @@ func (pa *PlatformAdapterSatori) sendGuildRequestResult(id string, approve bool,
 
 //nolint:unused
 func (pa *PlatformAdapterSatori) friendRequestHandle(e *SatoriEvent) {
-	s := pa.Session
+	s := pa.EndPoint.Session
 	d := s.Parent
 	dm := d.Parent
 	log := d.Logger
@@ -890,7 +889,7 @@ func (pa *PlatformAdapterSatori) friendRequestHandle(e *SatoriEvent) {
 //
 //nolint:unused
 func (pa *PlatformAdapterSatori) sendFriendRequestResult(id string, approve bool, comment string) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	log := d.Logger
 	req := map[string]any{
 		"message_id": id,

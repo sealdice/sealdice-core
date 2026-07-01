@@ -13,7 +13,6 @@ import (
 )
 
 type PlatformAdapterDingTalk struct {
-	Session       *IMSession        `json:"-"           yaml:"-"`
 	ClientID      string            `json:"-"    yaml:"clientID"`
 	Token         string            `json:"-"       yaml:"token"`
 	RobotCode     string            `json:"-"   yaml:"robotCode"`
@@ -26,12 +25,12 @@ type PlatformAdapterDingTalk struct {
 
 func (pa *PlatformAdapterDingTalk) DoRelogin() bool {
 	if err := pa.closeSessionLocked(); err != nil {
-		pa.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
+		pa.EndPoint.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
 		return false
 	}
-	pa.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
 	if err := pa.openSessionLocked(); err != nil {
-		pa.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
+		pa.EndPoint.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
 		pa.EndPoint.State = 3
 		pa.EndPoint.Enable = false
 		return false
@@ -43,9 +42,9 @@ func (pa *PlatformAdapterDingTalk) DoRelogin() bool {
 
 func (pa *PlatformAdapterDingTalk) SetEnable(enable bool) {
 	if enable {
-		pa.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
+		pa.EndPoint.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
 		if err := pa.openSessionLocked(); err != nil {
-			pa.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
+			pa.EndPoint.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
 			pa.EndPoint.State = 3
 			pa.EndPoint.Enable = false
 			return
@@ -54,7 +53,7 @@ func (pa *PlatformAdapterDingTalk) SetEnable(enable bool) {
 		pa.EndPoint.Enable = true
 	} else {
 		if err := pa.closeSessionLocked(); err != nil {
-			pa.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
+			pa.EndPoint.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
 			return
 		}
 		pa.EndPoint.State = 0
@@ -79,17 +78,17 @@ func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, tex
 	pa.sessionMu.RLock()
 	defer pa.sessionMu.RUnlock()
 	if pa.IntentSession == nil || !pa.sessionOpened {
-		pa.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略私聊发送")
+		pa.EndPoint.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略私聊发送")
 		return
 	}
 	session := pa.IntentSession
 
 	messageID, err := session.MessagePrivateSend(rawUserID, pa.RobotCode, &msg)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("Dingtalk SendToPerson Error: ", err)
+		pa.EndPoint.Session.Parent.Logger.Error("Dingtalk SendToPerson Error: ", err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DINGTALK",
 		MessageType: "private",
 		Message:     text,
@@ -108,16 +107,16 @@ func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text
 	pa.sessionMu.RLock()
 	defer pa.sessionMu.RUnlock()
 	if pa.IntentSession == nil || !pa.sessionOpened {
-		pa.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略群聊发送")
+		pa.EndPoint.Session.Parent.Logger.Warn("Dingtalk session 未开启，忽略群聊发送")
 		return
 	}
 	session := pa.IntentSession
 	messageID, err := session.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msg)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("Dingtalk SendToGroup Error: ", err)
+		pa.EndPoint.Session.Parent.Logger.Error("Dingtalk SendToGroup Error: ", err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DINGTALK",
 		MessageType: "group",
 		Message:     text,
@@ -166,16 +165,18 @@ func (pa *PlatformAdapterDingTalk) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterDingTalk) OnChatReceive(_ *dingtalk.Session, data *chatbot.BotCallbackDataModel) {
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(FormatDiceIDDingTalkGroup(data.ConversationId))
+	session := pa.EndPoint.Session
+	groupInfo, ok := session.ServiceAtNew.Load(FormatDiceIDDingTalkGroup(data.ConversationId))
 	if ok {
 		groupInfo.GroupName = data.ConversationTitle
 	}
 	msg := pa.toStdMessage(data)
-	pa.Session.Execute(pa.EndPoint, msg, false)
+	session.Execute(pa.EndPoint, msg, false)
 }
 
 func (pa *PlatformAdapterDingTalk) OnGroupJoined(_ *dingtalk.Session, data *dingtalk.GroupJoinedEvent) {
-	palogger := pa.Session.Parent.Logger
+	session := pa.EndPoint.Session
+	palogger := session.Parent.Logger
 	msg := &Message{
 		Platform: "DINGTALK",
 		RawID:    data.EventId,
@@ -187,12 +188,12 @@ func (pa *PlatformAdapterDingTalk) OnGroupJoined(_ *dingtalk.Session, data *ding
 	palogger.Info("Dingtalk OnGroupJoined: ", data)
 	pa.CoolAppCode = data.CoolAppCode
 	pa.RobotCode = data.RobotCode
-	d := pa.Session.Parent
+	d := session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-	logger := pa.Session.Parent.Logger
+	logger := session.Parent.Logger
 	ep := pa.EndPoint
-	ctx := &MsgContext{MessageType: "group", EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
+	ctx := &MsgContext{MessageType: "group", EndPoint: ep, Session: session, Dice: session.Parent}
 	gi := SetBotOnAtGroup(ctx, msg.GroupID)
 	gi.InviteUserID = msg.Sender.UserID
 	gi.EnteredTime = time.Now().Unix()
@@ -241,7 +242,7 @@ func (pa *PlatformAdapterDingTalk) Serve() int {
 	if pa.EndPoint.Nickname == "" {
 		pa.EndPoint.Nickname = "DingTalkBot"
 	}
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	logger.Info("Dingtalk Serve")
 
 	pa.sessionMu.Lock()
@@ -263,7 +264,7 @@ func (pa *PlatformAdapterDingTalk) Serve() int {
 	logger.Info("Dingtalk 连接成功")
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	return 0
