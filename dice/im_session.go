@@ -704,6 +704,10 @@ func (s *IMSession) ResolveLiveEndpoint(ep *EndPointInfo) (*EndPointInfo, error)
 		return matched, nil
 	}
 
+	if ep.Platform == "UI" && ep.Session == s {
+		return ep, nil
+	}
+
 	return nil, fmt.Errorf("endpoint not found: id=%s userId=%s platform=%s protocolType=%s", ep.ID, ep.UserID, ep.Platform, ep.ProtocolType)
 }
 

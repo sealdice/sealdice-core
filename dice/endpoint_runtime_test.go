@@ -110,3 +110,31 @@ func TestBindRuntimeSetsSessionOnPureOnebotEndpoint(t *testing.T) {
 		t.Fatalf("expected adapter endpoint back-reference to be rebound")
 	}
 }
+
+func TestCreateTempCtxAllowsBoundInternalUIEndpoint(t *testing.T) {
+	d, _, _, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+
+	uiEp := &EndPointInfo{
+		EndPointInfoBase: EndPointInfoBase{
+			ID:       "1",
+			UserID:   "UI:1000",
+			Nickname: "UI",
+			Platform: "UI",
+			Enable:   true,
+			State:    StateConnected,
+		},
+		Adapter: &PlatformAdapterHTTP{},
+	}
+	uiEp.BindRuntime(d.ImSession)
+
+	msg := newGroupMsg("UI-Group:2101", "UI:1101", ".r 1")
+	ctx := CreateTempCtx(uiEp, msg)
+
+	if ctx.EndPoint != uiEp {
+		t.Fatalf("expected internal UI endpoint to be used directly")
+	}
+	if ctx.Session != d.ImSession {
+		t.Fatalf("expected ctx session to be current imSession, got %#v", ctx.Session)
+	}
+}
