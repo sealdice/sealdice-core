@@ -151,7 +151,6 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	d, ep, _, cleanup := newExecuteNewTestDice(t)
 	d.ExtList = nil
 	pa := &PlatformAdapterOnebot{
-		Session:  d.ImSession,
 		EndPoint: ep,
 		ctx:      t.Context(),
 		logger:   d.Logger,
@@ -257,7 +256,7 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 		"group_id":"66666"
 	}`)
 
-	pa.Session.Parent.Config.RefuseGroupInvite = true
+	pa.EndPoint.Session.Parent.Config.RefuseGroupInvite = true
 
 	if err := pa.handleReqGroupAction(req, nil); err != nil {
 		t.Fatalf("handleReqGroupAction returned error: %v", err)
@@ -725,7 +724,7 @@ func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
 		t.Fatalf("handleJoinGroupAction returned error: %v", err)
 	}
 
-	group, ok := pa.Session.ServiceAtNew.Load("QQ-Group:66666")
+	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
 	if !ok {
 		t.Fatalf("expected group to be initialized")
 	}

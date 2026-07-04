@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -653,6 +654,61 @@ type IMSession struct {
 	EndPoints    []*EndPointInfo                    `yaml:"endPoints"`
 	ServiceAtNew *SyncMap[string, *GroupInfo]       `json:"servicesAt" yaml:"-"`
 	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
+}
+
+func (s *IMSession) ResolveLiveEndpoint(ep *EndPointInfo) (*EndPointInfo, error) {
+	if ep == nil {
+		return nil, errors.New("endpoint is nil")
+	}
+	if s == nil {
+		return nil, errors.New("session is nil")
+	}
+
+	for _, cur := range s.EndPoints {
+		if cur == ep {
+			if cur.Session == nil {
+				cur.BindRuntime(s)
+			}
+			return cur, nil
+		}
+	}
+
+	if ep.ID != "" {
+		for _, cur := range s.EndPoints {
+			if cur != nil && cur.ID == ep.ID {
+				if cur.Session == nil {
+					cur.BindRuntime(s)
+				}
+				return cur, nil
+			}
+		}
+	}
+
+	var matched *EndPointInfo
+	for _, cur := range s.EndPoints {
+		if cur == nil {
+			continue
+		}
+		if cur.UserID != ep.UserID || cur.Platform != ep.Platform || cur.ProtocolType != ep.ProtocolType {
+			continue
+		}
+		if matched != nil && matched != cur {
+			return nil, fmt.Errorf("endpoint resolution ambiguous for userId=%s platform=%s protocolType=%s", ep.UserID, ep.Platform, ep.ProtocolType)
+		}
+		matched = cur
+	}
+	if matched != nil {
+		if matched.Session == nil {
+			matched.BindRuntime(s)
+		}
+		return matched, nil
+	}
+
+	if ep.Platform == "UI" && ep.Session == s {
+		return ep, nil
+	}
+
+	return nil, fmt.Errorf("endpoint not found: id=%s userId=%s platform=%s protocolType=%s", ep.ID, ep.UserID, ep.Platform, ep.ProtocolType)
 }
 
 type PendingQuitInfo struct {
@@ -2324,79 +2380,76 @@ func (ep *EndPointInfo) SetEnable(_ *Dice, enable bool) {
 	}
 }
 
-func (ep *EndPointInfo) AdapterSetup() {
+func (ep *EndPointInfo) BindRuntime(session *IMSession) {
+	if ep == nil {
+		return
+	}
+	ep.Session = session
+
+	if ep.Adapter == nil {
+		return
+	}
+
 	switch ep.Platform {
 	case "QQ":
 		switch ep.ProtocolType {
 		case "onebot":
 			pa := ep.Adapter.(*PlatformAdapterGocq)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "walle-q":
 			pa := ep.Adapter.(*PlatformAdapterWalleQ)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "red":
 			pa := ep.Adapter.(*PlatformAdapterRed)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "official":
 			pa := ep.Adapter.(*PlatformAdapterOfficialQQ)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "satori":
 			pa := ep.Adapter.(*PlatformAdapterSatori)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "milky":
 			pa := ep.Adapter.(*PlatformAdapterMilky)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "pureonebot":
 			pa := ep.Adapter.(*PlatformAdapterOnebot)
 			log := zap.S().Named(logger.LogKeyAdapter)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 			pa.logger = log
 			pa.desiredEnabled = ep.Enable
 			// case "LagrangeGo":
 			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
-			//	pa.Session = ep.Session
 			//	pa.EndPoint = ep
 		}
 	case "DISCORD":
 		pa := ep.Adapter.(*PlatformAdapterDiscord)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "KOOK":
 		pa := ep.Adapter.(*PlatformAdapterKook)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "TG":
 		pa := ep.Adapter.(*PlatformAdapterTelegram)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "MC":
 		pa := ep.Adapter.(*PlatformAdapterMinecraft)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "DODO":
 		pa := ep.Adapter.(*PlatformAdapterDodo)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "DINGTALK":
 		pa := ep.Adapter.(*PlatformAdapterDingTalk)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "SLACK":
 		pa := ep.Adapter.(*PlatformAdapterSlack)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "SEALCHAT":
 		pa := ep.Adapter.(*PlatformAdapterSealChat)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
+}
+
+func (ep *EndPointInfo) AdapterSetup() {
+	ep.BindRuntime(ep.Session)
 }
 
 func (ep *EndPointInfo) RefreshGroupNum() {

@@ -604,7 +604,10 @@ func (d *Dice) JsInit() {
 			}
 		})
 		_ = seal.Set("getEndPoints", func() []*EndPointInfo {
-			return d.ImSession.EndPoints
+			src := d.ImSession.EndPoints
+			dst := make([]*EndPointInfo, len(src))
+			copy(dst, src)
+			return dst
 		})
 
 		_ = vm.Set("atob", func(s string) (string, error) {
