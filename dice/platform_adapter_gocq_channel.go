@@ -58,17 +58,17 @@ func (pa *PlatformAdapterGocq) QQChannelTrySolve(message string) {
 	if err == nil {
 		// fmt.Println("DDD", message)
 		ep := pa.EndPoint
-		session := pa.Session
+		session := pa.EndPoint.Session
 
 		msg := msgQQ.toStdMessage()
-		ctx := &MsgContext{ /* MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, */ Dice: pa.Session.Parent}
+		ctx := &MsgContext{ /* MessageType: msg.MessageType, EndPoint: ep, Session: pa.EndPoint.Session, */ Dice: pa.EndPoint.Session.Parent}
 
 		// 消息撤回
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "guild_channel_recall" {
 			groupInfo, ok := session.ServiceAtNew.Load(msg.GroupID)
 			if ok {
-				if groupInfo.LogOn {
-					_ = service.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, msgQQ.MessageID)
+				if groupInfo.GetLogState().On {
+					_ = service.LogMarkDeleteByRawMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, msgQQ.MessageID)
 				}
 			}
 			return

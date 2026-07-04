@@ -25,9 +25,7 @@ func ServeSlack(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "SLACK" {
 		conn := ep.Adapter.(*PlatformAdapterSlack)
-		ep.Session = d.ImSession
-		conn.Session = d.ImSession
-		conn.EndPoint = ep
+		ep.BindRuntime(d.ImSession)
 		if conn.Serve() != 0 {
 			ep.State = 3
 			d.LastUpdatedTime = time.Now().Unix()

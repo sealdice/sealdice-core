@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	evsocket "github.com/PaienNate/pineutil/evsocket"
+	evsocket "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/bytedance/sonic"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
@@ -87,12 +87,13 @@ func (p *PlatformAdapterOnebot) onOnebotMessageEvent(ep *evsocket.EventPayload) 
 		p.logger.Errorf("收到消息但无法进行处理，原因为 %s", err)
 		return
 	}
+	session := p.EndPoint.Session
 	// 注册消息发送人的缓存，以兼容dice_manager
 	if msg.Sender.UserID != "" && msg.Sender.Nickname != "" {
-		p.Session.Parent.Parent.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+		session.Parent.Parent.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
 	}
 
-	p.Session.ExecuteNew(p.EndPoint, msg)
+	session.ExecuteNew(p.EndPoint, msg)
 }
 
 func (p *PlatformAdapterOnebot) onOnebotRequestEvent(ep *evsocket.EventPayload) {
@@ -130,41 +131,42 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *evsocket.EventPayload) {
 }
 
 func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	subType := req.Get("sub_type").String()
 	switch subType {
 	case "kick_me":
-		p.Session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
-			GroupID:    FormatOnebotDiceIDQQGroup(req.Get("group_id").String()),
-			UserID:     FormatOnebotDiceIDQQ(req.Get("user_id").String()),
-			OperatorID: FormatOnebotDiceIDQQ(req.Get("operator_id").String()),
+		session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
+			GroupID:    canonicalOnebotGroupID(req.Get("group_id").String()),
+			UserID:     canonicalOnebotUserID(req.Get("user_id").String()),
+			OperatorID: canonicalOnebotUserID(req.Get("operator_id").String()),
 		})
 		// 离开群 群解散 别人被踹了
 	case "leave", "disband":
 		// 先获取被操作者，看看是否和自己是同一个人
-		selfID := FormatOnebotDiceIDQQ(req.Get("self_id").String())
-		operatorId := FormatOnebotDiceIDQQ(req.Get("operator_id").String())
+		selfID := canonicalOnebotUserID(req.Get("self_id").String())
+		operatorId := canonicalOnebotUserID(req.Get("operator_id").String())
 		if selfID != operatorId {
 			// 别人离开群的情况
 			return nil
 		}
-		groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
-		pendingQuit := p.Session.ConsumePendingQuit(groupId, p.EndPoint.UserID)
-		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
+		groupId := canonicalOnebotGroupID(req.Get("group_id").String())
+		pendingQuit := session.ConsumePendingQuit(groupId, p.EndPoint.UserID)
+		groupName := session.Parent.Parent.TryGetGroupName(groupId)
 		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
-		group, exists := p.Session.ServiceAtNew.Load(groupId)
+		group, exists := session.ServiceAtNew.Load(groupId)
 		if !exists {
 			txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, groupId)
 			p.logger.Error(txtErr)
-			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
 				ctx.Notice(txtErr)
 			}
 			return nil
 		}
 		group.DiceIDExistsMap.Delete(p.EndPoint.UserID)
-		group.MarkDirty(p.Session.Parent)
+		group.MarkDirty(session.Parent)
 		p.logger.Info(txt)
-		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
 			ctx.Notice(txt)
 		}
 	}
@@ -174,14 +176,15 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 
 func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	go func() {
-		defer ErrorLogAndContinue(p.Session.Parent)
+		session := p.EndPoint.Session
+		defer ErrorLogAndContinue(session.Parent)
 		msgContext := p.makeCtx(req)
 		isPrivate := msgContext.MessageType == "private"
 		groupID := ""
 		if req.Get("group_id").Exists() {
 			groupID = FormatDiceIDQQGroup(req.Get("group_id").String())
 		}
-		p.Session.OnPoke(msgContext, &events.PokeEvent{
+		session.OnPoke(msgContext, &events.PokeEvent{
 			GroupID:   groupID,
 			SenderID:  FormatDiceIDQQ(req.Get("user_id").String()),
 			TargetID:  FormatDiceIDQQ(req.Get("target_id").String()),
@@ -192,29 +195,31 @@ func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsoc
 }
 
 func (p *PlatformAdapterOnebot) handleGroupRecallAction(_ gjson.Result, ep *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, ep.Data)
 	if err != nil {
 		return err
 	}
-	p.Session.OnMessageDeleted(ctx, msg)
+	session.OnMessageDeleted(ctx, msg)
 	return nil
 }
 
 func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	subType := req.Get("sub_type").String()
-	userID := FormatOnebotDiceIDQQ(req.Get("user_id").String())
-	selfID := FormatOnebotDiceIDQQ(req.Get("self_id").String())
-	groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
-	operatorID := FormatOnebotDiceIDQQ(req.Get("operator_id").String())
+	userID := canonicalOnebotUserID(req.Get("user_id").String())
+	selfID := canonicalOnebotUserID(req.Get("self_id").String())
+	groupId := canonicalOnebotGroupID(req.Get("group_id").String())
+	operatorID := canonicalOnebotUserID(req.Get("operator_id").String())
 	durationTime := int(req.Get("duration").Int())
 	duration := time.Duration(durationTime) * time.Second
 	switch subType {
 	case "ban":
 		if userID == selfID {
-			groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
-			userName := p.Session.Parent.Parent.TryGetUserName(operatorID)
+			groupName := session.Parent.Parent.TryGetGroupName(groupId)
+			userName := session.Parent.Parent.TryGetUserName(operatorID)
 			ctx.Dice.Config.BanList.AddScoreByGroupMuted(operatorID, groupId, ctx)
 			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupId, duration, userName, operatorID)
 			p.logger.Info(txt)
@@ -225,18 +230,20 @@ func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsock
 }
 
 func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
 	if err != nil {
 		return err
 	}
-	userId := FormatOnebotDiceIDQQ(req.Get("user_id").String())
+	userId := canonicalOnebotUserID(req.Get("user_id").String())
 	// 先查看
 	ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 	welcomeStr := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 	p.logger.Infof("与 %s 成为好友，发送好友致辞: %s", req.Get("user_id").String(), welcomeStr)
-	_ = p.antPool.Submit(func() {
-		time.Sleep(2 * time.Second)
+	_ = p.submitAsync(func() {
+		// 与旧 onebot 链保持一致：上游可能先发 friend_add，再真正建立好友关系。
+		time.Sleep(5 * time.Second)
 		for _, i := range ctx.SplitText(welcomeStr) {
 			doSleepQQ(ctx)
 			p.SendToPerson(ctx, userId, strings.TrimSpace(i), "")
@@ -258,26 +265,31 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 	// 入群要做的事情：
 	// 1. 如果发现进群的是自己，要和大家发入群致辞
 	// 2. 如果发现进群的不是自己，对他进行节流的迎新
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
 	if err != nil {
 		return err
 	}
-	userId := FormatOnebotDiceIDQQ(req.Get("user_id").String())
-	selfId := FormatOnebotDiceIDQQ(req.Get("self_id").String())
-	groupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
+	userId := canonicalOnebotUserID(req.Get("user_id").String())
+	selfId := canonicalOnebotUserID(req.Get("self_id").String())
+	groupId := canonicalOnebotGroupID(req.Get("group_id").String())
 	// 迎新逻辑
 	// 发送入群致辞逻辑
 	if userId == selfId {
 		p.logger.Infof("收到自己的入群请求，准备发送入群致辞")
 		ctx.Group = SetBotOnAtGroup(ctx, groupId)
 		ctx.Group.DiceIDExistsMap.Store(ctx.EndPoint.UserID, true)
+		operatorID := canonicalOnebotUserID(req.Get("operator_id").String())
+		if operatorID != "" && operatorID != selfId {
+			ctx.Group.InviteUserID = operatorID
+		}
 		// 入群时间
 		ctx.Group.EnteredTime = time.Now().Unix()
 		// 标记脏数据
 		ctx.Group.MarkDirty(ctx.Dice)
 		// 获取群信息 并发送入群致辞
-		_ = p.antPool.Submit(func() {
+		_ = p.submitAsync(func() {
 			time.Sleep(1 * time.Second)
 			cache := p.GetGroupCacheInfo(groupId)
 			ctx.Player = &GroupPlayerInfo{}
@@ -298,7 +310,7 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 		})
 	} else {
 		p.logger.Infof("收到非自己的入群请求，准备迎新")
-		_ = p.antPool.Submit(func() {
+		_ = p.submitAsync(func() {
 			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况（此时会出现大量的迎新），先等一下再取数据
 			group, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
 			if ok && group.ShowGroupWelcome {
@@ -326,13 +338,14 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 // 加群：被好友邀请-> 获取群信息 -> 根据获取的群信息，判断是否应该加群
 func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	// 创建虚拟Context
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	switch req.Get("sub_type").String() {
 	case "invite":
 		// 获取群信息
-		diceGroupId := FormatOnebotDiceIDQQGroup(req.Get("group_id").String())
-		diceUserId := FormatOnebotDiceIDQQ(req.Get("user_id").String())
-		userName := p.Session.Parent.Parent.TryGetUserName(diceUserId)
+		diceGroupId := canonicalOnebotGroupID(req.Get("group_id").String())
+		diceUserId := canonicalOnebotUserID(req.Get("user_id").String())
+		userName := session.Parent.Parent.TryGetUserName(diceUserId)
 		res := p.GetGroupCacheInfo(diceGroupId)
 		if res == nil {
 			// 没有群信息，默认群信息创建
@@ -349,7 +362,7 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		ok, reason := checkPassBlackListGroup(diceUserId, diceGroupId, ctx)
 		if !ok {
 			p.logger.Infof("群组 %s 加群请求被拒绝，原因为 %s", req.Get("group_id").String(), reason)
-			err := ants.Submit(func() {
+			err := p.submitAsync(func() {
 				err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), false, reason)
 				if err != nil {
 					p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
@@ -358,9 +371,10 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 			if err != nil {
 				return err
 			}
+			return nil
 		}
 		// 没问题，加群
-		_ = ants.Submit(func() {
+		_ = p.submitAsync(func() {
 			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
 			p.logger.Info(txt)
 			ctx.Notice(txt)
@@ -375,12 +389,12 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 	return nil
 }
 
-func checkPassBlackListGroup(userId string, groupID string, ctx *MsgContext) (bool, string) {
-	userResult := checkBlackList(userId, "user", ctx)
+func checkPassBlackListGroup(inviterID string, groupID string, ctx *MsgContext) (bool, string) {
+	userResult := checkBlackList(inviterID, "user", "", ctx)
 	if !userResult.Passed {
 		return false, userResult.Reason
 	}
-	groupResult := checkBlackList(groupID, "group", ctx)
+	groupResult := checkBlackList(groupID, "group", inviterID, ctx)
 	if !groupResult.Passed {
 		return false, groupResult.Reason
 	}
@@ -395,14 +409,15 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 		comment = normalizeOnebotFriendRequestComment(req.Get("comment").String())
 	}
 	// 将匹配的验证问题
-	toMatch := strings.TrimSpace(p.Session.Parent.Config.FriendAddComment)
+	session := p.EndPoint.Session
+	toMatch := strings.TrimSpace(session.Parent.Config.FriendAddComment)
 	// 创建虚构MsgContext
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	var extra string
 	// 匹配验证问题检查
 	passQuestion := toMatch == "" || comment == DiceFormat(ctx, toMatch) || checkMultiFriendAddVerify(comment, toMatch)
 	// 匹配黑名单检查
-	result := checkBlackList(req.Get("user_id").String(), "user", ctx)
+	result := checkBlackList(canonicalOnebotUserID(req.Get("user_id").String()), "user", "", ctx)
 
 	// 格式化请求的数据
 	if comment == "" {
@@ -498,20 +513,36 @@ type BlackListCheckResult struct {
 //
 // 返回值:
 //   - BlackListCheckResult: 包含检查结果和详细信息
-func checkBlackList(userId string, checkType string, ctx *MsgContext) BlackListCheckResult {
+func checkBlackList(id string, checkType string, inviterID string, ctx *MsgContext) BlackListCheckResult {
 	result := BlackListCheckResult{
 		Passed: true,
 	}
 
-	// 检查 userId 是否有效
-	if userId == "" {
+	if id == "" {
 		return result
 	}
 
-	// 获取禁用信息
-	banInfo, ok := ctx.Dice.Config.BanList.GetByID(userId)
+	banInfo, ok := ctx.Dice.Config.BanList.GetByID(id)
 	if !ok || banInfo == nil {
-		return result // 如果不在黑名单中，默认通过
+		if checkType != "group" {
+			return result
+		}
+		if ctx.Dice.Config.RefuseGroupInvite {
+			result.Passed = false
+			result.FailureType = "refuse_invite"
+			result.Reason = "拒绝拉群邀请"
+			return result
+		}
+		if inviterID != "" {
+			isMaster := ctx.Dice.IsMaster(inviterID)
+			if ctx.Dice.Config.TrustOnlyMode && !isMaster {
+				result.Passed = false
+				result.FailureType = "trust_mode"
+				result.Reason = "只允许信任的人拉群"
+				return result
+			}
+		}
+		return result
 	}
 
 	result.BanInfo = banInfo
@@ -534,7 +565,7 @@ func checkBlackList(userId string, checkType string, ctx *MsgContext) BlackListC
 		}
 
 		// 信任模式检查
-		isMaster := ctx.Dice.IsMaster(userId)
+		isMaster := inviterID != "" && ctx.Dice.IsMaster(inviterID)
 		if ctx.Dice.Config.TrustOnlyMode && banInfo.Rank != BanRankTrusted && !isMaster {
 			result.Passed = false
 			result.FailureType = "trust_mode"
@@ -551,6 +582,13 @@ func checkBlackList(userId string, checkType string, ctx *MsgContext) BlackListC
 	}
 
 	return result
+}
+
+func (p *PlatformAdapterOnebot) submitAsync(task func()) error {
+	if p != nil && p.antPool != nil {
+		return p.antPool.Submit(task)
+	}
+	return ants.Submit(task)
 }
 
 func (p *PlatformAdapterOnebot) onOnebotMetaDataEvent(ep *evsocket.EventPayload) {
@@ -572,6 +610,26 @@ func FormatOnebotDiceIDQQ(diceQQ string) string {
 
 func FormatOnebotDiceIDQQGroup(diceQQ string) string {
 	return fmt.Sprintf("QQ-Group:%s", diceQQ)
+}
+
+func canonicalOnebotUserID(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	if strings.HasPrefix(raw, "QQ:") {
+		return raw
+	}
+	return FormatOnebotDiceIDQQ(raw)
+}
+
+func canonicalOnebotGroupID(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	if strings.HasPrefix(raw, "QQ-Group:") {
+		return raw
+	}
+	return FormatOnebotDiceIDQQGroup(raw)
 }
 
 type MessageQQOBBase struct {
@@ -634,13 +692,13 @@ func (msgQQ *MessageOBQQ) toStdMessage() *Message {
 	}
 
 	if msgQQ.Data != nil && len(msgQQ.Data.GroupID) > 0 {
-		msg.GroupID = FormatOnebotDiceIDQQGroup(string(msgQQ.Data.GroupID))
+		msg.GroupID = canonicalOnebotGroupID(string(msgQQ.Data.GroupID))
 	}
 	if string(msgQQ.GroupID) != "" {
 		if msg.MessageType == "private" {
 			msg.MessageType = "group"
 		}
-		msg.GroupID = FormatOnebotDiceIDQQGroup(string(msgQQ.GroupID))
+		msg.GroupID = canonicalOnebotGroupID(string(msgQQ.GroupID))
 	}
 	if msgQQ.Sender != nil {
 		msg.Sender.Nickname = msgQQ.Sender.Nickname
@@ -648,7 +706,7 @@ func (msgQQ *MessageOBQQ) toStdMessage() *Message {
 			msg.Sender.Nickname = msgQQ.Sender.Card
 		}
 		msg.Sender.GroupRole = msgQQ.Sender.Role
-		msg.Sender.UserID = FormatOnebotDiceIDQQ(string(msgQQ.Sender.UserID))
+		msg.Sender.UserID = canonicalOnebotUserID(string(msgQQ.Sender.UserID))
 	}
 	return msg
 }
@@ -967,6 +1025,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 }
 
 func ExtractQQEmitterUserID(id string) int64 {
+	id = canonicalOnebotUserID(id)
 	if strings.HasPrefix(id, "QQ:") {
 		atoi, _ := strconv.ParseInt(id[len("QQ:"):], 10, 64)
 		return atoi
@@ -975,17 +1034,17 @@ func ExtractQQEmitterUserID(id string) int64 {
 }
 
 func ExtractQQEmitterGroupID(id string) int64 {
+	id = canonicalOnebotGroupID(id)
 	if strings.HasPrefix(id, "QQ-Group:") {
 		atoi, _ := strconv.ParseInt(id[len("QQ-Group:"):], 10, 64)
 		return atoi
 	}
-	atoi, _ := strconv.ParseInt(id[len("QQ-Group:"):], 10, 64)
-	return atoi
+	return 0
 }
 
 func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	ep := p.EndPoint
-	session := p.Session
+	session := ep.Session
 	var messageType = "private"
 	if req.Get("group_id").Exists() {
 		messageType = "group"
@@ -993,7 +1052,7 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	ctx := &MsgContext{MessageType: messageType, EndPoint: ep, Session: session, Dice: session.Parent}
 	wrapper := MessageWrapper{
 		MessageType: ctx.MessageType,
-		GroupID:     FormatOnebotDiceIDQQGroup(req.Get("group_id").String()),
+		GroupID:     canonicalOnebotGroupID(req.Get("group_id").String()),
 		Sender: struct {
 			UserID   string
 			Nickname string
@@ -1005,10 +1064,10 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	switch ctx.MessageType {
 	case "private":
 		// 私聊戳一戳可能拿不到用户信息（协议端异常/限流等），退化为仅依赖 user_id 的上下文。
-		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(req.Get("user_id").String())
+		wrapper.Sender.UserID = canonicalOnebotUserID(req.Get("user_id").String())
 		info, err := p.sendEmitter.GetStrangerInfo(p.ctx, req.Get("user_id").Int(), false)
 		if err == nil {
-			wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(info.UserId, 10))
+			wrapper.Sender.UserID = canonicalOnebotUserID(strconv.FormatInt(info.UserId, 10))
 			wrapper.Sender.Nickname = info.NickName
 		}
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
@@ -1032,16 +1091,16 @@ func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 		memberInfo, err := p.sendEmitter.GetGroupMemberInfo(p.ctx, groupID, userID, false)
 		// 群戳一戳事件中，获取群成员信息可能失败（协议端异常/限流/机器人不在群等）。
 		// 这种情况下仍构造最小上下文，避免后续处理链路空指针崩溃。
-		wrapper.Sender.UserID = FormatOnebotDiceIDQQ(req.Get("user_id").String())
+		wrapper.Sender.UserID = canonicalOnebotUserID(req.Get("user_id").String())
 		if err == nil {
-			wrapper.Sender.UserID = FormatOnebotDiceIDQQ(strconv.FormatInt(memberInfo.UserId, 10))
+			wrapper.Sender.UserID = canonicalOnebotUserID(strconv.FormatInt(memberInfo.UserId, 10))
 			wrapper.Sender.Nickname = memberInfo.Nickname
 		}
 		ctx.Group, ctx.Player = GetPlayerInfoBySenderRaw(ctx, &wrapper)
 		if ctx.Group == nil {
 			// 注意：GetPlayerInfoBySenderRaw 内部已调用 SetBotOnAtGroup，正常不会返回 nil
 			// 若仍为 nil，说明出现异常情况，此处使用 SetBotOnAtGroup 确保群组被正确存入全局列表
-			gi := p.GetGroupCacheInfo(FormatOnebotDiceIDQQGroup(req.Get("group_id").String()))
+			gi := p.GetGroupCacheInfo(canonicalOnebotGroupID(req.Get("group_id").String()))
 			ctx.Group = SetBotOnAtGroup(ctx, gi.GroupId)
 			ctx.Group.GroupName = gi.GroupName
 			ctx.Group.MarkDirty(ctx.Dice)
