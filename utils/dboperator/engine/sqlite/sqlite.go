@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"runtime"
 
-	_ "github.com/ncruces/go-sqlite3/embed"
-	sqlite "github.com/ncruces/go-sqlite3/gormlite"
+	"github.com/glebarez/sqlite"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/cache"
 )
 
@@ -22,8 +21,7 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	// 使用即时事务
 	path = fmt.Sprintf("file:%v?_txlock=immediate&_busy_timeout=15000", path)
 	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
-		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.DefaultSealLogger,
 	})
 	if err != nil {
 		return nil, err
@@ -85,7 +83,7 @@ func createWriteDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
 	// 由于现在我们只有一个写入连接，所以不需要使用事务
 	gormConf := gorm.Config{
-		Logger:                 logger.Default.LogMode(logger.Info),
+		Logger:                 logger.DefaultSealLogger,
 		SkipDefaultTransaction: true,
 	}
 	readDB, err := createReadDB(path, gormConf)

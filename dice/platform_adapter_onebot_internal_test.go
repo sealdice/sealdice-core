@@ -4,10 +4,11 @@ package dice
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 	"time"
 
-	socketio "github.com/PaienNate/pineutil/evsocket"
+	socketio "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/bytedance/sonic"
 	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
@@ -150,7 +151,6 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	d, ep, _, cleanup := newExecuteNewTestDice(t)
 	d.ExtList = nil
 	pa := &PlatformAdapterOnebot{
-		Session:  d.ImSession,
 		EndPoint: ep,
 		ctx:      t.Context(),
 		logger:   d.Logger,
@@ -256,7 +256,7 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 		"group_id":"66666"
 	}`)
 
-	pa.Session.Parent.Config.RefuseGroupInvite = true
+	pa.EndPoint.Session.Parent.Config.RefuseGroupInvite = true
 
 	if err := pa.handleReqGroupAction(req, nil); err != nil {
 		t.Fatalf("handleReqGroupAction returned error: %v", err)
@@ -395,10 +395,9 @@ func TestPureOnebotApplyClientAuthHeaderPreservesConfiguredToken(t *testing.T) {
 
 	pa.ConnectURL = "ws://127.0.0.1:12345"
 	pa.Token = "test-token"
-	pa.websocketManager = socketio.NewSocketInstance()
-	client := pa.websocketManager.NewClient(pa.ConnectURL, socketio.ClientOptions{})
-	pa.applyClientAuthHeader(client)
-	if got := client.RequestHeader.Get("Authorization"); got != "test-token" {
+	options := socketio.ClientOptions{RequestHeader: http.Header{}}
+	pa.applyClientAuthHeader(&options)
+	if got := options.RequestHeader.Get("Authorization"); got != "test-token" {
 		t.Fatalf("expected raw token header, got %q", got)
 	}
 }
@@ -409,10 +408,9 @@ func TestPureOnebotApplyClientAuthHeaderKeepsExplicitBearerScheme(t *testing.T) 
 
 	pa.ConnectURL = "ws://127.0.0.1:12345"
 	pa.Token = "Bearer test-token"
-	pa.websocketManager = socketio.NewSocketInstance()
-	client := pa.websocketManager.NewClient(pa.ConnectURL, socketio.ClientOptions{})
-	pa.applyClientAuthHeader(client)
-	if got := client.RequestHeader.Get("Authorization"); got != "Bearer test-token" {
+	options := socketio.ClientOptions{RequestHeader: http.Header{}}
+	pa.applyClientAuthHeader(&options)
+	if got := options.RequestHeader.Get("Authorization"); got != "Bearer test-token" {
 		t.Fatalf("expected explicit bearer header to be preserved, got %q", got)
 	}
 }
@@ -726,7 +724,7 @@ func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
 		t.Fatalf("handleJoinGroupAction returned error: %v", err)
 	}
 
-	group, ok := pa.Session.ServiceAtNew.Load("QQ-Group:66666")
+	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
 	if !ok {
 		t.Fatalf("expected group to be initialized")
 	}

@@ -43,6 +43,7 @@ _help_cache
 .vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+.worktrees/
 sealdice-lock.lock
 upgrade_metadata.json
 

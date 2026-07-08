@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	evsocket "github.com/PaienNate/pineutil/evsocket"
+	evsocket "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/bytedance/sonic"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
@@ -87,12 +87,13 @@ func (p *PlatformAdapterOnebot) onOnebotMessageEvent(ep *evsocket.EventPayload) 
 		p.logger.Errorf("收到消息但无法进行处理，原因为 %s", err)
 		return
 	}
+	session := p.EndPoint.Session
 	// 注册消息发送人的缓存，以兼容dice_manager
 	if msg.Sender.UserID != "" && msg.Sender.Nickname != "" {
-		p.Session.Parent.Parent.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
+		session.Parent.Parent.UserNameCache.Store(msg.Sender.UserID, &GroupNameCacheItem{Name: msg.Sender.Nickname, time: time.Now().Unix()})
 	}
 
-	p.Session.ExecuteNew(p.EndPoint, msg)
+	session.ExecuteNew(p.EndPoint, msg)
 }
 
 func (p *PlatformAdapterOnebot) onOnebotRequestEvent(ep *evsocket.EventPayload) {
@@ -130,11 +131,12 @@ func (p *PlatformAdapterOnebot) OnebotNoticeEvent(ep *evsocket.EventPayload) {
 }
 
 func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	subType := req.Get("sub_type").String()
 	switch subType {
 	case "kick_me":
-		p.Session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
+		session.OnGroupLeave(ctx, &events.GroupLeaveEvent{
 			GroupID:    canonicalOnebotGroupID(req.Get("group_id").String()),
 			UserID:     canonicalOnebotUserID(req.Get("user_id").String()),
 			OperatorID: canonicalOnebotUserID(req.Get("operator_id").String()),
@@ -149,22 +151,22 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			return nil
 		}
 		groupId := canonicalOnebotGroupID(req.Get("group_id").String())
-		pendingQuit := p.Session.ConsumePendingQuit(groupId, p.EndPoint.UserID)
-		groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
+		pendingQuit := session.ConsumePendingQuit(groupId, p.EndPoint.UserID)
+		groupName := session.Parent.Parent.TryGetGroupName(groupId)
 		txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, groupId)
-		group, exists := p.Session.ServiceAtNew.Load(groupId)
+		group, exists := session.ServiceAtNew.Load(groupId)
 		if !exists {
 			txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, groupId)
 			p.logger.Error(txtErr)
-			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
 				ctx.Notice(txtErr)
 			}
 			return nil
 		}
 		group.DiceIDExistsMap.Delete(p.EndPoint.UserID)
-		group.MarkDirty(p.Session.Parent)
+		group.MarkDirty(session.Parent)
 		p.logger.Info(txt)
-		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !p.Session.Parent.Config.QuitInactiveNoticeSummaryMode {
+		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
 			ctx.Notice(txt)
 		}
 	}
@@ -174,14 +176,15 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 
 func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	go func() {
-		defer ErrorLogAndContinue(p.Session.Parent)
+		session := p.EndPoint.Session
+		defer ErrorLogAndContinue(session.Parent)
 		msgContext := p.makeCtx(req)
 		isPrivate := msgContext.MessageType == "private"
 		groupID := ""
 		if req.Get("group_id").Exists() {
 			groupID = FormatDiceIDQQGroup(req.Get("group_id").String())
 		}
-		p.Session.OnPoke(msgContext, &events.PokeEvent{
+		session.OnPoke(msgContext, &events.PokeEvent{
 			GroupID:   groupID,
 			SenderID:  FormatDiceIDQQ(req.Get("user_id").String()),
 			TargetID:  FormatDiceIDQQ(req.Get("target_id").String()),
@@ -192,17 +195,19 @@ func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsoc
 }
 
 func (p *PlatformAdapterOnebot) handleGroupRecallAction(_ gjson.Result, ep *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, ep.Data)
 	if err != nil {
 		return err
 	}
-	p.Session.OnMessageDeleted(ctx, msg)
+	session.OnMessageDeleted(ctx, msg)
 	return nil
 }
 
 func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	subType := req.Get("sub_type").String()
 	userID := canonicalOnebotUserID(req.Get("user_id").String())
 	selfID := canonicalOnebotUserID(req.Get("self_id").String())
@@ -213,8 +218,8 @@ func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsock
 	switch subType {
 	case "ban":
 		if userID == selfID {
-			groupName := p.Session.Parent.Parent.TryGetGroupName(groupId)
-			userName := p.Session.Parent.Parent.TryGetUserName(operatorID)
+			groupName := session.Parent.Parent.TryGetGroupName(groupId)
+			userName := session.Parent.Parent.TryGetUserName(operatorID)
 			ctx.Dice.Config.BanList.AddScoreByGroupMuted(operatorID, groupId, ctx)
 			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupId, duration, userName, operatorID)
 			p.logger.Info(txt)
@@ -225,7 +230,8 @@ func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsock
 }
 
 func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsocket.EventPayload) error {
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
 	if err != nil {
 		return err
@@ -259,7 +265,8 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 	// 入群要做的事情：
 	// 1. 如果发现进群的是自己，要和大家发入群致辞
 	// 2. 如果发现进群的不是自己，对他进行节流的迎新
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
 	if err != nil {
 		return err
@@ -331,13 +338,14 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 // 加群：被好友邀请-> 获取群信息 -> 根据获取的群信息，判断是否应该加群
 func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	// 创建虚拟Context
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	switch req.Get("sub_type").String() {
 	case "invite":
 		// 获取群信息
 		diceGroupId := canonicalOnebotGroupID(req.Get("group_id").String())
 		diceUserId := canonicalOnebotUserID(req.Get("user_id").String())
-		userName := p.Session.Parent.Parent.TryGetUserName(diceUserId)
+		userName := session.Parent.Parent.TryGetUserName(diceUserId)
 		res := p.GetGroupCacheInfo(diceGroupId)
 		if res == nil {
 			// 没有群信息，默认群信息创建
@@ -401,9 +409,10 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 		comment = normalizeOnebotFriendRequestComment(req.Get("comment").String())
 	}
 	// 将匹配的验证问题
-	toMatch := strings.TrimSpace(p.Session.Parent.Config.FriendAddComment)
+	session := p.EndPoint.Session
+	toMatch := strings.TrimSpace(session.Parent.Config.FriendAddComment)
 	// 创建虚构MsgContext
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	var extra string
 	// 匹配验证问题检查
 	passQuestion := toMatch == "" || comment == DiceFormat(ctx, toMatch) || checkMultiFriendAddVerify(comment, toMatch)
@@ -1035,7 +1044,7 @@ func ExtractQQEmitterGroupID(id string) int64 {
 
 func (p *PlatformAdapterOnebot) makeCtx(req gjson.Result) *MsgContext {
 	ep := p.EndPoint
-	session := p.Session
+	session := ep.Session
 	var messageType = "private"
 	if req.Get("group_id").Exists() {
 		messageType = "group"

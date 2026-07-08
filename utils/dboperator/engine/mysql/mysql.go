@@ -3,8 +3,8 @@ package mysql
 import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/cache"
 )
 
@@ -13,7 +13,7 @@ func MySQLDBInit(dsn string) (*gorm.DB, error) {
 	// 使用 GORM 连接 MySQL
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
-		Logger: logger.Default.LogMode(logger.Info)})
+		Logger: logger.DefaultSealLogger})
 	if err != nil {
 		return nil, err
 	}
