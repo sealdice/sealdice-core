@@ -424,7 +424,7 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 				RawID: msg.ID,
 			}, "")
 		}
-	case 1: //群
+	case 1: // 群
 		msg, err := pa.Api.PostGroupMessage(qctx, data.GroupOpenID, toCreate)
 		if err != nil {
 			log.Errorf("official qq 翻页发送群聊消息失败：%v", err)
@@ -1913,4 +1913,3 @@ func getElementBytes(elem *message.FileElement) ([]byte, error) {
 	}
 	return io.ReadAll(fileElem.Stream)
 }
-
