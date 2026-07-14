@@ -65,8 +65,6 @@ type PlatformAdapterOfficialQQ struct {
 	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
 }
 
-
-
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep := pa.EndPoint
 	s := pa.EndPoint.Session
@@ -81,8 +79,6 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	pa.AppID = strings.TrimSpace(pa.AppID)
 	pa.AppSecret = strings.TrimSpace(pa.AppSecret)
 	pa.Token = strings.TrimSpace(pa.Token)
-
-
 
 	log.Debug("official qq server")
 	qqbot.SetLogger(NewDummyLogger())
@@ -566,11 +562,11 @@ func (pa *PlatformAdapterOfficialQQ) GroupAtMessageReceive(event *dto.WSPayload,
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群聊消息：%v, %v", event, data)
 
-	s.Execute(pa.EndPoint, pa.groupMsgToStdMsg(data), false)
+	s.Execute(pa.EndPoint, pa.groupMsgToStdMsg(event, data), false)
 	return nil
 }
 
-func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessageData) *Message {
+func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQQ *dto.WSGroupATMessageData) *Message {
 	appID := pa.AppID
 	msg := new(Message)
 	timestamp, _ := msgQQ.Timestamp.Time()
@@ -581,15 +577,53 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 	msg.Platform = "OpenQQ"
 	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
 	if msgQQ.Author != nil {
-		// FIXME: 我要用户名啊kora
-		msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
+		if msgQQ.Author.Username != "" {
+			msg.Sender.Nickname = msgQQ.Author.Username
+		} else if len(msgQQ.Author.MemberOpenID) >= 4 {
+			msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
+		} else {
+			msg.Sender.Nickname = "用户"
+		}
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
+	}
+
+	var botSelfOpenID string
+	if event != nil && len(event.RawMessage) > 0 {
+		type rawMention struct {
+			ID    string `json:"id"`
+			IsYou bool   `json:"is_you"`
+		}
+		type rawData struct {
+			Mentions []rawMention `json:"mentions"`
+		}
+		type rawPayload struct {
+			Data rawData `json:"data"`
+		}
+		var payload rawPayload
+		if err := json.Unmarshal(event.RawMessage, &payload); err == nil {
+			for _, m := range payload.Data.Mentions {
+				if m.IsYou {
+					botSelfOpenID = m.ID
+					break
+				}
+			}
+		}
+	}
+
+	if botSelfOpenID == "" {
+		botSelfOpenID = pa.EndPoint.UserID
+		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "OpenQQ:")
+		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "QQ:")
 	}
 
 	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
 	if len(m) == 2 {
 		msg.TmpUID = "OpenQQ:" + m[1]
+	} else if botSelfOpenID != "" {
+		msg.TmpUID = "OpenQQ:" + botSelfOpenID
 	}
+
+	appendAttachmentsToMessage(msg, msgQQ.Attachments)
 
 	return msg
 }
@@ -600,13 +634,13 @@ func (pa *PlatformAdapterOfficialQQ) GroupMessageReceive(event *dto.WSPayload, d
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群聊普通消息：%v, %v", event, data)
 
-	msg := pa.groupNormalMsgToStdMsg(data)
+	msg := pa.groupNormalMsgToStdMsg(event, data)
 	s.Execute(pa.EndPoint, msg, false)
 	return nil
 }
 
 // groupNormalMsgToStdMsg 将群聊普通消息转换为标准消息
-func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(msgQQ *dto.WSGroupMessageData) *Message {
+func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload, msgQQ *dto.WSGroupMessageData) *Message {
 	appID := pa.AppID
 	msg := new(Message)
 	timestamp, _ := msgQQ.Timestamp.Time()
@@ -617,17 +651,53 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(msgQQ *dto.WSGroupMe
 	msg.Platform = "OpenQQ"
 	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
 	if msgQQ.Author != nil {
-		msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
+		if msgQQ.Author.Username != "" {
+			msg.Sender.Nickname = msgQQ.Author.Username
+		} else if len(msgQQ.Author.MemberOpenID) >= 4 {
+			msg.Sender.Nickname = "用户" + msgQQ.Author.MemberOpenID[len(msgQQ.Author.MemberOpenID)-4:]
+		} else {
+			msg.Sender.Nickname = "用户"
+		}
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
 
-	botSelfOpenID := strings.TrimPrefix(pa.EndPoint.UserID, "OpenQQ:")
+	var botSelfOpenID string
+	if event != nil && len(event.RawMessage) > 0 {
+		type rawMention struct {
+			ID    string `json:"id"`
+			IsYou bool   `json:"is_you"`
+		}
+		type rawData struct {
+			Mentions []rawMention `json:"mentions"`
+		}
+		type rawPayload struct {
+			Data rawData `json:"data"`
+		}
+		var payload rawPayload
+		if err := json.Unmarshal(event.RawMessage, &payload); err == nil {
+			for _, m := range payload.Data.Mentions {
+				if m.IsYou {
+					botSelfOpenID = m.ID
+					break
+				}
+			}
+		}
+	}
+
+	if botSelfOpenID == "" {
+		botSelfOpenID = pa.EndPoint.UserID
+		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "OpenQQ:")
+		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "QQ:")
+	}
+
 	for _, match := range officialQQAtRegex.FindAllStringSubmatch(msgQQ.Content, -1) {
 		if len(match) == 2 && match[1] == botSelfOpenID {
 			msg.TmpUID = "OpenQQ:" + match[1]
 			break
 		}
 	}
+
+	appendAttachmentsToMessage(msg, msgQQ.Attachments)
 
 	return msg
 }
@@ -655,13 +725,16 @@ func (pa *PlatformAdapterOfficialQQ) c2cMsgToStdMsg(msgQQ *dto.WSC2CMessageData)
 	msg.Platform = "OpenQQ"
 	if msgQQ.Author != nil {
 		userOpenID := msgQQ.Author.UserOpenID
-		if len(userOpenID) >= 4 {
+		if msgQQ.Author.Username != "" {
+			msg.Sender.Nickname = msgQQ.Author.Username
+		} else if len(userOpenID) >= 4 {
 			msg.Sender.Nickname = "用户" + userOpenID[len(userOpenID)-4:]
 		} else {
 			msg.Sender.Nickname = "用户"
 		}
 		msg.Sender.UserID = formatDiceIDOfficialQQUserOpenID(appID, userOpenID)
 	}
+	appendAttachmentsToMessage(msg, msgQQ.Attachments)
 	return msg
 }
 
@@ -1047,7 +1120,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		}
 
 		if idType != OpenQQCHUser {
-			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
+			// pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
 			return
 		}
 		channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
@@ -1099,7 +1172,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		}
 
 		if idType != OpenQQCHUser {
-			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
+			// pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
 			return
 		}
 		channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
@@ -1522,7 +1595,11 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			}
 			toCreate.MessageReference = msgRef
 		case *message.AtElement:
-			pa.EndPoint.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
+			target := strings.TrimPrefix(elem.Target, "OpenQQ:")
+			target = strings.TrimPrefix(target, "QQ:")
+			if target != "all" {
+				content += fmt.Sprintf("<qqbot-at-user id=\"%s\" />", target)
+			}
 		case *message.ImageElement:
 			media, err := pa.uploadGroupMedia(qctx, groupID, elem.File, 1)
 			if err != nil {
@@ -1576,10 +1653,12 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 			// QQ官方API中不能发送链接，所以全部进行转写绕开
 			content += textLinkStrip(e.Content)
 		case *message.AtElement:
-			if e.Target == "all" {
-				content += "@everyone"
+			target := strings.TrimPrefix(e.Target, "OpenQQCH:")
+			target = strings.TrimPrefix(target, "QQ:")
+			if target == "all" {
+				content += "<qqbot-at-everyone />"
 			} else {
-				content += fmt.Sprintf("<@%s>", e.Target)
+				content += fmt.Sprintf("<qqbot-at-user id=\"%s\" />", target)
 			}
 		case *message.ImageElement:
 		case *message.ReplyElement:
@@ -1876,4 +1955,25 @@ func getElementBytes(elem *message.FileElement) ([]byte, error) {
 		return nil, errors.New("failed to get stream")
 	}
 	return io.ReadAll(fileElem.Stream)
+}
+
+func appendAttachmentsToMessage(msg *Message, attachments []*dto.MessageAttachment) {
+	for _, attach := range attachments {
+		if attach.URL != "" {
+			if strings.HasPrefix(attach.ContentType, "image/") {
+				msg.Message += fmt.Sprintf("[CQ:image,file=%s]", attach.URL)
+			} else if strings.HasPrefix(attach.ContentType, "voice") || attach.ContentType == "voice" {
+				msg.Message += fmt.Sprintf("[CQ:record,file=%s]", attach.URL)
+			} else if strings.HasPrefix(attach.ContentType, "video/") {
+				msg.Message += fmt.Sprintf("[CQ:video,file=%s]", attach.URL)
+			} else {
+				ext := strings.ToLower(filepath.Ext(attach.FileName))
+				if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".bmp" || ext == ".webp" {
+					msg.Message += fmt.Sprintf("[CQ:image,file=%s]", attach.URL)
+				} else {
+					msg.Message += fmt.Sprintf("[文件: %s, 链接: %s]", attach.FileName, attach.URL)
+				}
+			}
+		}
+	}
 }
