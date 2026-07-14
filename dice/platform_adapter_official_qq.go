@@ -1967,4 +1967,3 @@ func (pa *PlatformAdapterOfficialQQ) parseBotSelfOpenID(event *dto.WSPayload) st
 	}
 	return ""
 }
-
