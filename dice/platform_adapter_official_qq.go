@@ -31,6 +31,8 @@ import (
 	"sealdice-core/utils"
 )
 
+var officialQQAtRegex = regexp.MustCompile(`<@!?(\S+?)>`)
+
 type PaginationItem struct {
 	Pages     []string
 	CreatedAt time.Time
@@ -607,8 +609,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
 
-	reAt := regexp.MustCompile(`<@!?(\S+?)>`)
-	m := reAt.FindStringSubmatch(msgQQ.Content)
+	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
 	if len(m) == 2 {
 		targetBotOpenID := m[1]
 		pa.setBotOpenID(msgQQ.GroupOpenID, targetBotOpenID)
@@ -645,8 +646,7 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(msgQQ *dto.WSGroupMe
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
 
-	reAt := regexp.MustCompile(`<@!?(\S+?)>`)
-	m := reAt.FindStringSubmatch(msgQQ.Content)
+	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
 	if len(m) == 2 {
 		targetBotOpenID := m[1]
 		cached := pa.getBotOpenID(msgQQ.GroupOpenID)
@@ -1043,7 +1043,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 	}
 
 	var activeCtx *MsgContext = nil
-	var activeRowID string = ""
+	var activeRowID = ""
 	if ctx != nil && ctx.MessageType == "private" && ctx.Player != nil && ctx.Player.UserID == uid {
 		activeRowID, _ = VarGetValueStr(ctx, "$tMsgID")
 		if activeRowID == "" {
@@ -1272,6 +1272,58 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 	return res, err
 }
 
+func (pa *PlatformAdapterOfficialQQ) uploadC2CMedia(qctx context.Context, userOpenID string, file *message.FileElement, fileType int) (*dto.MediaInfo, error) {
+	url, data, err := pa.prepareMediaMessage(file)
+	if err != nil {
+		return nil, err
+	}
+	sendURL := url
+	if data != nil {
+		sendURL = ""
+	}
+	fMsg := &C2CRichMediaMessage{
+		FileType:   fileType,
+		URL:        sendURL,
+		FileData:   data,
+		SrvSendMsg: false,
+	}
+	media, err := pa.Api.PostC2CMessage(qctx, userOpenID, fMsg)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.MediaInfo{
+		FileInfo: media.FileInfo,
+	}, nil
+}
+
+func (pa *PlatformAdapterOfficialQQ) uploadGroupMedia(qctx context.Context, groupID string, file *message.FileElement, fileType int) (*dto.MediaInfo, error) {
+	url, data, err := pa.prepareMediaMessage(file)
+	if err != nil {
+		return nil, err
+	}
+	sendURL := url
+	if data != nil {
+		sendURL = ""
+	}
+	fMsg := &dto.MessageMediaToCreate{
+		FileType:   fileType,
+		URL:        sendURL,
+		FileData:   data,
+		SrvSendMsg: false,
+	}
+	media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
+	if err != nil {
+		return nil, err
+	}
+	decodedFileInfo, decodeErr := base64.StdEncoding.DecodeString(media.FileInfo)
+	if decodeErr != nil {
+		decodedFileInfo = []byte(media.FileInfo)
+	}
+	return &dto.MediaInfo{
+		FileInfo: decodedFileInfo,
+	}, nil
+}
+
 // sendC2CMsgRaw 发送单聊消息（使用msg_id被动回复）
 func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, userOpenID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
@@ -1312,22 +1364,7 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			}
 			toCreate.MessageReference = msgRef
 		case *message.ImageElement:
-			url, data, err := pa.prepareMediaMessage(e.File)
-			if err != nil {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地图片数据失败：" + err.Error())
-				continue
-			}
-			sendURL := url
-			if data != nil {
-				sendURL = ""
-			}
-			fMsg := &C2CRichMediaMessage{
-				FileType:   1,
-				URL:        sendURL,
-				FileData:   data,
-				SrvSendMsg: false,
-			}
-			media, err := pa.Api.PostC2CMessage(qctx, userOpenID, fMsg)
+			media, err := pa.uploadC2CMedia(qctx, userOpenID, e.File, 1)
 			if err != nil {
 				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息时，准备图片信息失败：" + err.Error())
 				continue
@@ -1341,26 +1378,9 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			}
 
 			toCreate.MsgType = 7
-			toCreate.Media = &dto.MediaInfo{
-				FileInfo: media.FileInfo,
-			}
+			toCreate.Media = media
 		case *message.RecordElement:
-			url, data, err := pa.prepareMediaMessage(e.File)
-			if err != nil {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息时，获取本地语音数据失败：" + err.Error())
-				continue
-			}
-			sendURL := url
-			if data != nil {
-				sendURL = ""
-			}
-			fMsg := &C2CRichMediaMessage{
-				FileType:   3,
-				URL:        sendURL,
-				FileData:   data,
-				SrvSendMsg: false,
-			}
-			media, err := pa.Api.PostC2CMessage(qctx, userOpenID, fMsg)
+			media, err := pa.uploadC2CMedia(qctx, userOpenID, e.File, 3)
 			if err != nil {
 				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息时，准备语音信息失败：" + err.Error())
 				continue
@@ -1374,9 +1394,7 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			}
 
 			toCreate.MsgType = 7
-			toCreate.Media = &dto.MediaInfo{
-				FileInfo: media.FileInfo,
-			}
+			toCreate.Media = media
 		}
 	}
 
@@ -1403,7 +1421,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	}
 
 	var activeCtx *MsgContext = nil
-	var activeRowID string = ""
+	var activeRowID = ""
 	if ctx != nil && ctx.Group != nil && ctx.Group.GroupID == uid {
 		activeRowID, _ = VarGetValueStr(ctx, "$tMsgID")
 		if activeRowID == "" {
@@ -1540,22 +1558,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 		case *message.AtElement:
 			pa.EndPoint.Session.Parent.Logger.Warn("official qq 群聊消息暂不支持 AT 他人，跳过该部分")
 		case *message.ImageElement:
-			url, data, err := pa.prepareMediaMessage(elem.File)
-			if err != nil {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地图片数据失败：" + err.Error())
-				continue
-			}
-			sendURL := url
-			if data != nil {
-				sendURL = ""
-			}
-			fMsg := &dto.MessageMediaToCreate{
-				FileType:   1,
-				URL:        sendURL,
-				FileData:   data,
-				SrvSendMsg: false,
-			}
-			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
+			media, err := pa.uploadGroupMedia(qctx, groupID, elem.File, 1)
 			if err != nil {
 				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备图片信息失败：" + err.Error())
 				continue
@@ -1569,30 +1572,9 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			}
 
 			toCreate.MsgType = 7
-			decodedFileInfo, decodeErr := base64.StdEncoding.DecodeString(media.FileInfo)
-			if decodeErr != nil {
-				decodedFileInfo = []byte(media.FileInfo)
-			}
-			toCreate.Media = &dto.MediaInfo{
-				FileInfo: decodedFileInfo,
-			}
+			toCreate.Media = media
 		case *message.RecordElement:
-			url, data, err := pa.prepareMediaMessage(elem.File)
-			if err != nil {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，获取本地语音数据失败：" + err.Error())
-				continue
-			}
-			sendURL := url
-			if data != nil {
-				sendURL = ""
-			}
-			fMsg := &dto.MessageMediaToCreate{
-				FileType:   3,
-				URL:        sendURL,
-				FileData:   data,
-				SrvSendMsg: false,
-			}
-			media, err := pa.Api.PostGroupFile(qctx, groupID, fMsg)
+			media, err := pa.uploadGroupMedia(qctx, groupID, elem.File, 3)
 			if err != nil {
 				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备语音信息失败：" + err.Error())
 				continue
@@ -1606,13 +1588,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			}
 
 			toCreate.MsgType = 7
-			decodedFileInfo, decodeErr := base64.StdEncoding.DecodeString(media.FileInfo)
-			if decodeErr != nil {
-				decodedFileInfo = []byte(media.FileInfo)
-			}
-			toCreate.Media = &dto.MediaInfo{
-				FileInfo: decodedFileInfo,
-			}
+			toCreate.Media = media
 		}
 	}
 
@@ -1750,7 +1726,7 @@ func (pa *PlatformAdapterOfficialQQ) SendFileToPerson(ctx *MsgContext, uid strin
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件 %s，但不支持]", filepath.Base(path)), flag)
+	pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件 %s，但不支持]", filepath.Base(path)), flag)
 }
 
 func (pa *PlatformAdapterOfficialQQ) QuitGroup(_ *MsgContext, _ string) {
