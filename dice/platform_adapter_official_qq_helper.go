@@ -3,7 +3,6 @@ package dice
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"

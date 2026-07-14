@@ -587,28 +587,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
 
-	var botSelfOpenID string
-	if event != nil && len(event.RawMessage) > 0 {
-		type rawMention struct {
-			ID    string `json:"id"`
-			IsYou bool   `json:"is_you"`
-		}
-		type rawData struct {
-			Mentions []rawMention `json:"mentions"`
-		}
-		type rawPayload struct {
-			Data rawData `json:"data"`
-		}
-		var payload rawPayload
-		if err := json.Unmarshal(event.RawMessage, &payload); err == nil {
-			for _, m := range payload.Data.Mentions {
-				if m.IsYou {
-					botSelfOpenID = m.ID
-					break
-				}
-			}
-		}
-	}
+	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
 	if botSelfOpenID == "" {
 		botSelfOpenID = pa.EndPoint.UserID
@@ -661,28 +640,7 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
 
-	var botSelfOpenID string
-	if event != nil && len(event.RawMessage) > 0 {
-		type rawMention struct {
-			ID    string `json:"id"`
-			IsYou bool   `json:"is_you"`
-		}
-		type rawData struct {
-			Mentions []rawMention `json:"mentions"`
-		}
-		type rawPayload struct {
-			Data rawData `json:"data"`
-		}
-		var payload rawPayload
-		if err := json.Unmarshal(event.RawMessage, &payload); err == nil {
-			for _, m := range payload.Data.Mentions {
-				if m.IsYou {
-					botSelfOpenID = m.ID
-					break
-				}
-			}
-		}
-	}
+	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
 	if botSelfOpenID == "" {
 		botSelfOpenID = pa.EndPoint.UserID
@@ -1971,9 +1929,42 @@ func appendAttachmentsToMessage(msg *Message, attachments []*dto.MessageAttachme
 				if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".bmp" || ext == ".webp" {
 					msg.Message += fmt.Sprintf("[CQ:image,file=%s]", attach.URL)
 				} else {
-					msg.Message += fmt.Sprintf("[文件: %s, 链接: %s]", attach.FileName, attach.URL)
+					msg.Message += fmt.Sprintf("[CQ:file,file=%s]", attach.URL)
 				}
 			}
 		}
 	}
 }
+
+func (pa *PlatformAdapterOfficialQQ) parseBotSelfOpenID(event *dto.WSPayload) string {
+	if event == nil || len(event.RawMessage) == 0 {
+		return ""
+	}
+	type rawMention struct {
+		ID    string `json:"id"`
+		IsYou bool   `json:"is_you"`
+	}
+	type rawData struct {
+		Mentions []rawMention `json:"mentions"`
+	}
+	type rawPayload struct {
+		Data rawData `json:"data"`
+		D    rawData `json:"d"`
+	}
+	var payload rawPayload
+	if err := json.Unmarshal(event.RawMessage, &payload); err == nil {
+		var mentions []rawMention
+		if len(payload.Data.Mentions) > 0 {
+			mentions = payload.Data.Mentions
+		} else {
+			mentions = payload.D.Mentions
+		}
+		for _, m := range mentions {
+			if m.IsYou {
+				return m.ID
+			}
+		}
+	}
+	return ""
+}
+
