@@ -63,28 +63,9 @@ type PlatformAdapterOfficialQQ struct {
 
 	paginationCache map[string]*PaginationItem `json:"-" yaml:"-"`
 	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
-
-	botOpenIDCache map[string]string `json:"-" yaml:"-"`
-	botOpenIDMu    sync.RWMutex      `json:"-" yaml:"-"`
 }
 
-func (pa *PlatformAdapterOfficialQQ) getBotOpenID(groupID string) string {
-	pa.botOpenIDMu.RLock()
-	defer pa.botOpenIDMu.RUnlock()
-	if pa.botOpenIDCache == nil {
-		return ""
-	}
-	return pa.botOpenIDCache[groupID]
-}
 
-func (pa *PlatformAdapterOfficialQQ) setBotOpenID(groupID string, botOpenID string) {
-	pa.botOpenIDMu.Lock()
-	defer pa.botOpenIDMu.Unlock()
-	if pa.botOpenIDCache == nil {
-		pa.botOpenIDCache = make(map[string]string)
-	}
-	pa.botOpenIDCache[groupID] = botOpenID
-}
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep := pa.EndPoint
@@ -101,11 +82,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	pa.AppSecret = strings.TrimSpace(pa.AppSecret)
 	pa.Token = strings.TrimSpace(pa.Token)
 
-	pa.botOpenIDMu.Lock()
-	if pa.botOpenIDCache == nil {
-		pa.botOpenIDCache = make(map[string]string)
-	}
-	pa.botOpenIDMu.Unlock()
+
 
 	log.Debug("official qq server")
 	qqbot.SetLogger(NewDummyLogger())
@@ -611,9 +588,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(msgQQ *dto.WSGroupATMessag
 
 	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
 	if len(m) == 2 {
-		targetBotOpenID := m[1]
-		pa.setBotOpenID(msgQQ.GroupOpenID, targetBotOpenID)
-		msg.TmpUID = "OpenQQ:" + targetBotOpenID
+		msg.TmpUID = "OpenQQ:" + m[1]
 	}
 
 	return msg
@@ -646,17 +621,11 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(msgQQ *dto.WSGroupMe
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 	}
 
-	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
-	if len(m) == 2 {
-		targetBotOpenID := m[1]
-		cached := pa.getBotOpenID(msgQQ.GroupOpenID)
-		if cached != "" {
-			if targetBotOpenID == cached {
-				msg.TmpUID = "OpenQQ:" + targetBotOpenID
-			}
-		} else {
-			pa.setBotOpenID(msgQQ.GroupOpenID, targetBotOpenID)
-			msg.TmpUID = "OpenQQ:" + targetBotOpenID
+	botSelfOpenID := strings.TrimPrefix(pa.EndPoint.UserID, "OpenQQ:")
+	for _, match := range officialQQAtRegex.FindAllStringSubmatch(msgQQ.Content, -1) {
+		if len(match) == 2 && match[1] == botSelfOpenID {
+			msg.TmpUID = "OpenQQ:" + match[1]
+			break
 		}
 	}
 
@@ -1538,9 +1507,6 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			lastErr = err
 		} else {
 			lastRes = res
-			if res != nil && res.Author != nil && res.Author.ID != "" {
-				pa.setBotOpenID(groupID, res.Author.ID)
-			}
 		}
 	}
 
@@ -1700,8 +1666,31 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 		}
 		return lst[0], "", OpenQQGroupOpenid
 	}
+	if strings.HasPrefix(text, "Group:") {
+		temp := text[len("Group:"):]
+		lst := strings.Split(temp, "-")
+		if len(lst) >= 2 {
+			return lst[1], "", OpenQQGroupOpenid
+		}
+		return lst[0], "", OpenQQGroupOpenid
+	}
+	if idx := strings.Index(text, "-Group:"); idx != -1 {
+		temp := text[idx+len("-Group:"):]
+		lst := strings.Split(temp, "-")
+		if len(lst) >= 2 {
+			return lst[1], "", OpenQQGroupOpenid
+		}
+		return lst[0], "", OpenQQGroupOpenid
+	}
 	if strings.HasPrefix(text, "OpenQQ:") {
 		id := text[len("OpenQQ:"):]
+		if id == pa.AppID {
+			return id, "", OpenQQUser
+		}
+		return id, "", OpenQQUserOpenid
+	}
+	if strings.HasPrefix(text, "QQ:") {
+		id := text[len("QQ:"):]
 		if id == pa.AppID {
 			return id, "", OpenQQUser
 		}
