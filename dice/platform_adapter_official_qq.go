@@ -1042,6 +1042,18 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		}
 	}
 
+	var activeCtx *MsgContext = nil
+	var activeRowID string = ""
+	if ctx != nil && ctx.MessageType == "private" && ctx.Player != nil && ctx.Player.UserID == uid {
+		activeRowID, _ = VarGetValueStr(ctx, "$tMsgID")
+		if activeRowID == "" {
+			activeRowID, _ = VarGetValueStr(ctx, "$tEventID")
+		}
+		if activeRowID != "" {
+			activeCtx = ctx
+		}
+	}
+
 	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {
 		cacheID := generateCacheID()
 		pa.addToPaginationCache(cacheID, textList)
@@ -1049,15 +1061,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		keyboardObj := pa.buildPaginationKeyboard(cacheID, 0, len(textList))
 
 		if idType == OpenQQUserOpenid {
-			rowID, ok := VarGetValueStr(ctx, "$tMsgID")
-			if !ok {
-				rowID, ok = VarGetValueStr(ctx, "$tEventID")
-			}
-			if !ok {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息失败：无法获取消息ID")
-				return
-			}
-			msg, err := pa.sendC2CMsgRaw(ctx, rowID, userID, textList[0], keyboardObj)
+			msg, err := pa.sendC2CMsgRaw(activeCtx, activeRowID, userID, textList[0], keyboardObj)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
@@ -1109,15 +1113,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 
 	for _, t := range textList {
 		if idType == OpenQQUserOpenid {
-			rowID, ok := VarGetValueStr(ctx, "$tMsgID")
-			if !ok {
-				rowID, ok = VarGetValueStr(ctx, "$tEventID")
-			}
-			if !ok {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息失败：无法获取消息ID")
-				return
-			}
-			msg, err := pa.sendC2CMsgRaw(ctx, rowID, userID, t, nil)
+			msg, err := pa.sendC2CMsgRaw(activeCtx, activeRowID, userID, t, nil)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
@@ -1389,15 +1385,6 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	rowID, ok := VarGetValueStr(ctx, "$tMsgID")
-	if !ok {
-		rowID, ok = VarGetValueStr(ctx, "$tEventID")
-	}
-	if !ok {
-		// TODO：允许主动消息发送，并校验频率
-		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息失败：无法直接发送消息")
-		return
-	}
 	groupId, idType := pa.mustExtractID(uid)
 
 	maxLen := 900
@@ -1415,6 +1402,18 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 		}
 	}
 
+	var activeCtx *MsgContext = nil
+	var activeRowID string = ""
+	if ctx != nil && ctx.Group != nil && ctx.Group.GroupID == uid {
+		activeRowID, _ = VarGetValueStr(ctx, "$tMsgID")
+		if activeRowID == "" {
+			activeRowID, _ = VarGetValueStr(ctx, "$tEventID")
+		}
+		if activeRowID != "" {
+			activeCtx = ctx
+		}
+	}
+
 	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {
 		cacheID := generateCacheID()
 		pa.addToPaginationCache(cacheID, textList)
@@ -1423,7 +1422,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 
 		switch idType {
 		case OpenQQGroupOpenid:
-			msg, err := pa.sendQQGroupMsgRaw(ctx, rowID, groupId, textList[0], keyboardObj)
+			msg, err := pa.sendQQGroupMsgRaw(activeCtx, activeRowID, groupId, textList[0], keyboardObj)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
@@ -1438,7 +1437,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 				}, flag)
 			}
 		case OpenQQCHChannel:
-			msg, err := pa.sendQQChannelMsgRaw(ctx, rowID, groupId, textList[0], keyboardObj)
+			msg, err := pa.sendQQChannelMsgRaw(activeCtx, activeRowID, groupId, textList[0], keyboardObj)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
@@ -1461,7 +1460,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	for _, t := range textList {
 		switch idType {
 		case OpenQQGroupOpenid:
-			msg, err := pa.sendQQGroupMsgRaw(ctx, rowID, groupId, t, nil)
+			msg, err := pa.sendQQGroupMsgRaw(activeCtx, activeRowID, groupId, t, nil)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
@@ -1476,7 +1475,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 				}, flag)
 			}
 		case OpenQQCHChannel:
-			msg, err := pa.sendQQChannelMsgRaw(ctx, rowID, groupId, t, nil)
+			msg, err := pa.sendQQChannelMsgRaw(activeCtx, activeRowID, groupId, t, nil)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
