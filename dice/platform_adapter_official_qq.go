@@ -970,6 +970,18 @@ func (pa *PlatformAdapterOfficialQQ) buildPaginationKeyboard(cacheID string, pag
 	}
 }
 
+func (pa *PlatformAdapterOfficialQQ) shutdownWebhookServer() {
+	if pa.webhookServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		if err := pa.webhookServer.Shutdown(ctx); err != nil {
+			pa.EndPoint.Session.Parent.Logger.Warn("official qq webhook server graceful shutdown failed, forcing close: ", err)
+			_ = pa.webhookServer.Close()
+		}
+		cancel()
+		pa.webhookServer = nil
+	}
+}
+
 func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
 	if pa.CancelFunc != nil {
 		pa.CancelFunc()
@@ -981,10 +993,7 @@ func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
 	pa.Ctx = nil
 	pa.CancelFunc = nil
 	pa.tokenSource = nil
-	if pa.webhookServer != nil {
-		pa.webhookServer.Close()
-		pa.webhookServer = nil
-	}
+	pa.shutdownWebhookServer()
 	return pa.Serve() == 0
 }
 
@@ -1007,10 +1016,7 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 		if pa.CancelFunc != nil {
 			pa.CancelFunc()
 		}
-		if pa.webhookServer != nil {
-			pa.webhookServer.Close()
-			pa.webhookServer = nil
-		}
+		pa.shutdownWebhookServer()
 		pa.CancelFunc = nil
 		pa.Ctx = nil
 		pa.tokenSource = nil
@@ -1081,6 +1087,12 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 			// pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
 			return
 		}
+
+		if ctx == nil || ctx.Group == nil {
+			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：无有效的上下文信息")
+			return
+		}
+
 		channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
 		rowID, ok := VarGetValueStr(ctx, "$tMsgID")
 		if !ok {
@@ -1133,6 +1145,12 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 			// pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
 			return
 		}
+
+		if ctx == nil || ctx.Group == nil {
+			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：无有效的上下文信息")
+			return
+		}
+
 		channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
 		rowID, ok := VarGetValueStr(ctx, "$tMsgID")
 		if !ok {
@@ -1355,7 +1373,6 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 	for _, elem := range elems {
 		switch e := elem.(type) {
 		case *message.TextElement:
-			// QQ官方API中不能发送链接，所以全部进行转写绕开
 			content += textLinkStrip(e.Content)
 		case *message.ReplyElement:
 			msgRef = &dto.MessageReference{
@@ -1544,7 +1561,6 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	for _, element := range elems {
 		switch elem := element.(type) {
 		case *message.TextElement:
-			// QQ官方API中不能发送链接，所以全部进行转写绕开
 			content += textLinkStrip(elem.Content)
 		case *message.ReplyElement:
 			msgRef = &dto.MessageReference{
@@ -1608,7 +1624,6 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 	for _, elem := range elems {
 		switch e := elem.(type) {
 		case *message.TextElement:
-			// QQ官方API中不能发送链接，所以全部进行转写绕开
 			content += textLinkStrip(e.Content)
 		case *message.AtElement:
 			target := strings.TrimPrefix(e.Target, "OpenQQCH:")
@@ -1892,11 +1907,26 @@ func getElementBytes(elem *message.FileElement) ([]byte, error) {
 	if elem == nil {
 		return nil, errors.New("nil element")
 	}
+	// 限制文件大小在30MB以下
+	const maxLimit = 30 * 1024 * 1024
+
+	readLimitBytes := func(r io.Reader) ([]byte, error) {
+		limitedReader := io.LimitReader(r, maxLimit+1)
+		data, err := io.ReadAll(limitedReader)
+		if err != nil {
+			return nil, err
+		}
+		if int64(len(data)) > maxLimit {
+			return nil, errors.New("file size exceeds the maximum limit of 30MB")
+		}
+		return data, nil
+	}
+
 	if elem.Stream != nil {
 		if seeker, ok := elem.Stream.(io.ReadSeeker); ok {
 			_, _ = seeker.Seek(0, io.SeekStart)
 		}
-		return io.ReadAll(elem.Stream)
+		return readLimitBytes(elem.Stream)
 	}
 	pathOrUrl := elem.URL
 	if pathOrUrl == "" {
@@ -1912,7 +1942,7 @@ func getElementBytes(elem *message.FileElement) ([]byte, error) {
 	if fileElem.Stream == nil {
 		return nil, errors.New("failed to get stream")
 	}
-	return io.ReadAll(fileElem.Stream)
+	return readLimitBytes(fileElem.Stream)
 }
 
 func appendAttachmentsToMessage(msg *Message, attachments []*dto.MessageAttachment) {

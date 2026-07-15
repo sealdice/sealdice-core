@@ -101,10 +101,11 @@ func output(v ...interface{}) string {
 	return fmt.Sprintf(logFormat, file, line, funcName)
 }
 
+// 链接现在原样发送；注释掉下面的正则防止以后要用
 // 参考: https://gist.github.com/brydavis/0c7da92bd508195744708eeb2b54ac96
 // var reUrlExtract = regexp.MustCompile(`(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/|\/|\/\/)?[A-z0-9_-]*?[:]?[A-z0-9_-]*?[@]?[A-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?`)
 
-// 链接能发了，删掉？
+// 不再使用，为了防止以后要用，暂时保留
 func textLinkStrip(text string) string {
 	return text
 }
