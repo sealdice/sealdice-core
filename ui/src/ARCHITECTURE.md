@@ -58,6 +58,11 @@
 - HTTP 客户端统一在 `src/api/client.ts`。
   - baseURL、凭据、Bearer token、token 滚动更新、网络/会话级错误提示、401 清理都在这里。
   - 页面和 feature 不要重复写这些逻辑。
+  - 错误反馈分三类（见 `createApiErrorFeedback`）：
+    - `dialog`：401（非登录）、404、500、网络错误 → 全局弹窗。
+    - `business`：400/403/422、测试模式、登录 401 → **全局静默**，交页面处理。
+    - `message`：其余 → 全局 toast。
+  - 因此页面 mutation 的 `onError` 里写 `message.error` 主要是为覆盖 `business` 类（全局不报，否则用户无反馈）；对 `dialog` 类会与全局弹窗重复，属于已知冗余。未来若要精确去重，应抽公共 helper 先判定错误分类再决定是否提示，而不是直接删页面的 `message.error`。
 - 登录态统一在 `src/features/auth/state.ts`。
   - 当前唯一 token 源是这里的 `token`。
   - 不要直接在页面里读写 localStorage。
@@ -77,11 +82,21 @@
 
 ## 状态管理原则
 
-服务端状态优先使用 Vue Query，稳定数据通过 OpenAPI generated client 获取。客户端本地状态优先使用局部 `ref/reactive`；只有主题、token、侧边栏等 UI 偏好才允许持久化。
+服务端状态优先使用 Vue Query，稳定数据通过 OpenAPI generated client 获取。
+
+客户端状态分三类管理：
+
+| 类型 | 容器 | 说明 |
+|---|---|---|
+| **全局状态**（跨页面/跨组件共享） | **Pinia store**（`features/<domain>/store.ts`，setup 语法） | 如 token、实时连接状态、主题等。禁止用模块级 `export const x = ref()` 充当全局状态。 |
+| **局部状态**（单页面/组件内） | `ref` / `reactive` | 随组件生命周期销毁。 |
+| **持久化偏好** | Pinia store + localStorage | 只有主题、token 等需要跨刷新保留的才持久化。 |
+
+**范式参考**：`src/features/theme/store.ts`——setup 语法、feature 内、`storeToRefs` 兼容包装。
 
 页面层应该尽量只做三件事：
 
-1. 读取 feature/composable 暴露出来的状态。
+1. 读取 feature/store/composable 暴露出来的状态。
 2. 触发 mutation 或本地交互。
 3. 渲染组件。
 
@@ -90,7 +105,7 @@
 - 全局错误处理。
 - token 注入和清理。
 - 实时连接管理。
-- 大量跨页面共享状态。
+- 大量跨页面共享状态（应下沉到 store）。
 - 复杂的数据转换规则。
 
 ## 一个简单功能的完整流程

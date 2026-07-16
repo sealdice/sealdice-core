@@ -74,9 +74,6 @@ export default defineConfig(({ mode }) => {
           },
         ],
       },
-      devOptions: {
-        enabled: true,
-      },
     }),
     AutoImport({
       imports: [
@@ -184,6 +181,9 @@ export default defineConfig(({ mode }) => {
           xfwd: true,
         },
       },
+    },
+    test: {
+      include: ['src/**/*.test.ts'],
     },
   }
 })
