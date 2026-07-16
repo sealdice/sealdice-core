@@ -8,6 +8,9 @@ import {
   renameStoryPainterChar,
 } from './state';
 import { normalizeStoryPainterMessage } from './formatters';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -73,3 +76,4 @@ assertEqual(renamed[1]?.message, '<Alicia>掷出了 D20=1');
 
 const deleted = deleteStoryPainterChar(items, chars[0]!);
 assertDeepEqual(deleted.map((item) => item.nickname), ['Seal', 'obWatcher']);
+});

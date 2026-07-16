@@ -6,6 +6,9 @@ import {
   sortCustomTextCategory,
 } from './viewModel';
 import type { TextTemplateHelpDict, TextTemplateItem, TextTemplateWithWeightDict } from './types';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -90,3 +93,4 @@ assertDeepEqual(parsed.core.diceName, [['SealDice', 1]]);
 const keyStore = createTextItemKeyStore();
 const item: TextTemplateItem = ['text', 1];
 assertEqual(keyStore.keyOf('diceName', item), keyStore.keyOf('diceName', item));
+});

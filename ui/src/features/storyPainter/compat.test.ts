@@ -1,4 +1,7 @@
 import { detectStoryPainterAdvancedModeSupport } from './compat';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -32,3 +35,4 @@ const missingResizeObserver = detectStoryPainterAdvancedModeSupport({
 });
 assertEqual(missingResizeObserver.supported, false);
 assertEqual(missingResizeObserver.reason?.includes('ResizeObserver'), true);
+});

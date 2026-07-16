@@ -1,5 +1,8 @@
 import type { BaseLogItem } from './logStream';
 import { applyLogDisplayUpdate } from './logDisplayState';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -28,3 +31,4 @@ const third: BaseLogItem = {
 assertDeepEqual(applyLogDisplayUpdate([], [first, second], true), [first, second]);
 assertDeepEqual(applyLogDisplayUpdate([first], [first, second], false), [first]);
 assertDeepEqual(applyLogDisplayUpdate([first], [first, second, third], true), [first, second, third]);
+});

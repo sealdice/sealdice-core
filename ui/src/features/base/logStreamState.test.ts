@@ -1,5 +1,8 @@
 import type { BaseLogItem } from './logStream';
 import { applyLogAppend, applyLogSnapshot } from './logStreamState';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -31,3 +34,4 @@ assertEqual(appended.length, 2);
 assertDeepEqual(appended[1], second);
 
 assertDeepEqual(applyLogAppend([first], null, 500), [first]);
+});

@@ -2,6 +2,9 @@ import { createMemoryParquetDataset } from './parquetDataset';
 import type { StoryPainterParquetColumn, StoryPainterParquetDataset, StoryPainterParquetRow } from './parquetDataset';
 import type { StoryPainterLogItem } from './types';
 import { useStoryPainter } from './useStoryPainter';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -100,3 +103,4 @@ function createCountingDataset(rows: StoryPainterParquetRow[]): {
   };
   return { dataset, calls };
 }
+});

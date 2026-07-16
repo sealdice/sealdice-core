@@ -1,4 +1,7 @@
 import { getDownloadFilename } from './download';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 function assertEqual(actual: unknown, expected: unknown): void {
   if (actual !== expected) {
@@ -30,3 +33,4 @@ assertEqual(
   }, 'manual.txt'),
   'manual.txt',
 );
+});

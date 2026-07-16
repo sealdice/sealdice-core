@@ -5,6 +5,9 @@ import {
   isNetworkHealthTargetOK,
   type NetworkHealthData,
 } from './networkHealth.js';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -27,3 +30,4 @@ assertEqual(isNetworkHealthTargetOK(health(['seal']), 'sign'), false);
 assertEqual(formatNetworkHealthTimestamp(0), '');
 assertEqual(formatNetworkHealthTimestamp(1700000000).includes('2023'), true);
 assertEqual(formatNetworkHealthRelativeTime(0), '');
+});

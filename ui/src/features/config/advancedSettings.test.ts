@@ -1,4 +1,7 @@
 import { normalizeAdvancedConfig } from './advancedSettings';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
   const actualText = JSON.stringify(actual);
@@ -32,3 +35,4 @@ assertDeepEqual(
     storyLogBackendToken: 'token',
   },
 );
+});

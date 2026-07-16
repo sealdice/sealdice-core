@@ -6,6 +6,9 @@ import {
   jsListForDataQueryKey,
   jsListQueryKey,
 } from './queryKeys';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -27,3 +30,4 @@ assertDeepEqual(jsDataListQueryKey('plugin-a', { page: 2, pageSize: 20 }, 'abc')
   'abc',
 ]);
 assertDeepEqual(jsDataInfoQueryKey('plugin-a'), ['js-data-info', 'plugin-a']);
+});

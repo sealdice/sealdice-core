@@ -1,4 +1,7 @@
 import { joinApiBasePath, resolveApiBaseUrlFromLocation } from './config';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -31,3 +34,4 @@ assertEqual(resolveApiBaseUrlFromLocation({
 
 assertEqual(joinApiBasePath('https://example.test/dice', '/sd-api/v2/base/health'), 'https://example.test/dice/sd-api/v2/base/health');
 assertEqual(joinApiBasePath('https://example.test/dice/', 'sd-api/v2/realtime/ws'), 'https://example.test/dice/sd-api/v2/realtime/ws');
+});

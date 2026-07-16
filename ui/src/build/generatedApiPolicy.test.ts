@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const rootDir = resolve(new URL('../..', import.meta.url).pathname);
 
@@ -24,3 +27,4 @@ assertIncludes(packageJson.scripts.build, 'generate-api', 'build script');
 assertIncludes(packageJson.scripts['build:embed'], 'generate-api', 'build:embed script');
 assertNotIncludes(openApiConfig, 'DEFAULT_OPENAPI_SERVER', 'openapi-ts config');
 assertNotIncludes(openApiConfig, 'VITE_API_PROXY_TARGET', 'openapi-ts config');
+});

@@ -1,4 +1,7 @@
 import { resolveViteBuildOptions, resolveVitePublicBase } from './embedConfig';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -14,4 +17,5 @@ assertDeepEqual(resolveViteBuildOptions('production'), {});
 assertDeepEqual(resolveViteBuildOptions('embed'), {
   outDir: '../static/v2ui/dist',
   emptyOutDir: true,
+});
 });

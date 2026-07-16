@@ -6,6 +6,9 @@ import {
   getAppShellDrawerWidth,
   isAppShellMobileWidth,
 } from './appShellLayout.ts';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -21,3 +24,4 @@ assertEqual(APP_SHELL_MOBILE_MAX_WIDTH, 767.9);
 assertEqual(isAppShellMobileWidth(640), true);
 assertEqual(isAppShellMobileWidth(767), true);
 assertEqual(isAppShellMobileWidth(768), false);
+});

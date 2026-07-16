@@ -3,6 +3,9 @@ import {
   createStoryPainterDebugLogger,
   isStoryPainterDebugEnabled,
 } from './debug';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -46,3 +49,4 @@ logger('shown', { ok: true });
 assertEqual(messages.length, 1);
 assertEqual(messages[0]?.[0], '[StoryPainter]');
 assertEqual(messages[0]?.[1], 'shown');
+});

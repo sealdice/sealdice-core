@@ -1,4 +1,7 @@
 import { storyPainterOptionList } from './uiOptions';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assert = (condition: boolean, message: string) => {
   if (!condition) throw new Error(message);
@@ -14,3 +17,4 @@ assert(
   storyPainterOptionList.some(item => item.key === 'commandHide' && item.desc.includes('正常显示指令结果')),
   'commandHide description should match original behavior',
 );
+});

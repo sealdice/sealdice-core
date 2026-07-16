@@ -10,6 +10,9 @@ import {
   parseBackupSelection,
   parseCleanTriggers,
 } from './viewModel.js';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -88,3 +91,4 @@ const files: FileItem[] = Array.from({ length: 7 }, (_, index) => ({
   selection: index,
 }));
 assertDeepEqual(getDefaultBatchDeleteNames(files), ['bak-5', 'bak-6']);
+});

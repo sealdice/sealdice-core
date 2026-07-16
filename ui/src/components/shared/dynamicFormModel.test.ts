@@ -4,6 +4,9 @@ import {
   buildDynamicFormPayload,
   validateDynamicFormModel,
 } from './dynamicFormModel';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -75,4 +78,5 @@ assertDeepEqual(payload, {
   token: 'abc',
   port: 5500,
   enabled: true,
+});
 });

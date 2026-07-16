@@ -6,6 +6,9 @@ import {
   getAboutOverviewSummary,
   resolveContributorUser,
 } from './viewModel.js';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -69,3 +72,4 @@ assertEqual(fallbackSummary.uptimeText, '读取中');
 assertEqual(ABOUT_CREDIT_SECTIONS[0]?.title, '社区协力');
 assertEqual(ABOUT_CREDIT_SECTIONS.some(section => section.title === 'V1.5 版本'), true);
 assertEqual(ABOUT_CREDIT_SECTIONS.some(section => section.title === '参考'), true);
+});

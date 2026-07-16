@@ -1,4 +1,7 @@
 import { classifyVendorChunk } from './chunkPolicy';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -49,3 +52,4 @@ assertEqual(
   'vendor-utility',
 );
 assertEqual(classifyVendorChunk('/project/src/main.ts'), undefined);
+});

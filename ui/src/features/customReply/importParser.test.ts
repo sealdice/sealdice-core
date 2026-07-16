@@ -1,4 +1,7 @@
 import { parseReplyImportLine, parseReplyImportText } from './importParser';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -40,3 +43,4 @@ const tasks = parseReplyImportText('a/b\nc/d');
 assertEqual(tasks.length, 2);
 assertEqual(tasks[0]!.conditions[0]!.value, 'a');
 assertDeepEqual(tasks[1]!.results[0]!.message, [['d', 1]]);
+});

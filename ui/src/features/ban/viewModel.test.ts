@@ -5,6 +5,9 @@ import {
   isBanImportFileAccepted,
   normalizeBanConfig,
 } from './viewModel.js';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -108,4 +111,5 @@ assertDeepEqual(normalizeBanConfig({
   scoreTooManyCommand: 100,
   jointScorePercentOfGroup: 0.5,
   jointScorePercentOfInviter: 0.3,
+});
 });

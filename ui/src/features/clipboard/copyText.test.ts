@@ -1,4 +1,7 @@
 import { copyText } from './copyText';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -89,4 +92,5 @@ Object.defineProperty(globalThis, 'navigator', {
 Object.defineProperty(globalThis, 'document', {
   configurable: true,
   value: originalDocument,
+});
 });

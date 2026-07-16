@@ -1,4 +1,7 @@
 import { getErrorMessage } from './error';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 function assertEqual(actual: unknown, expected: unknown): void {
   if (actual !== expected) {
@@ -15,3 +18,4 @@ assertEqual(
   '',
 );
 assertEqual(getErrorMessage(new Error('boom'), '读取失败'), 'boom');
+});

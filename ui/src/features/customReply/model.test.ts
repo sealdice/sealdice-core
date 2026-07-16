@@ -7,6 +7,9 @@ import {
   toApiReplyConfig,
   type ReplyFileDraft,
 } from './model';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -69,3 +72,4 @@ const payload = toApiReplyConfig({
 });
 assertEqual(payload.conditions[0]!.value, 7);
 assertEqual(payload.items[0]!.results[0]!.delay, 3);
+});

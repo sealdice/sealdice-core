@@ -1,4 +1,7 @@
 import { toggleStoryPainterMode } from './viewMode';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -9,3 +12,4 @@ const assertEqual = (actual: unknown, expected: unknown) => {
 assertEqual(toggleStoryPainterMode('editor', 'preview'), 'preview');
 assertEqual(toggleStoryPainterMode('preview', 'preview'), 'editor');
 assertEqual(toggleStoryPainterMode('bbs', 'bbspineapple'), 'bbspineapple');
+});

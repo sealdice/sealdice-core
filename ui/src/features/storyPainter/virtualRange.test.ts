@@ -4,6 +4,9 @@ import {
   isStoryPainterVirtualRange,
   virtualItemsToStoryPainterRange,
 } from './virtualRange';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -66,3 +69,4 @@ assertDeepEqual(virtualItemsToStoryPainterRange([
 ]), { start: 12, end: 14 });
 
 assertDeepEqual(virtualItemsToStoryPainterRange([]), undefined);
+});

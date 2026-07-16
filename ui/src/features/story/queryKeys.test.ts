@@ -3,6 +3,9 @@ import {
   getSdApiV2StoryInfoQueryKey,
 } from '@/api';
 import { storyBackupListQueryKey, storyInfoQueryKey } from './queryKeys';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -12,3 +15,4 @@ const assertDeepEqual = (actual: unknown, expected: unknown) => {
 
 assertDeepEqual(storyInfoQueryKey(), getSdApiV2StoryInfoQueryKey());
 assertDeepEqual(storyBackupListQueryKey(), getSdApiV2StoryBackupListQueryKey());
+});

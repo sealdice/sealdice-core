@@ -1,5 +1,8 @@
 import { withRouteMeta } from './routeRecords.ts';
 import type { RouteRecordRaw } from 'vue-router';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -37,3 +40,4 @@ assertEqual(merged[0]?.children?.[0]?.meta?.title, '资源管理');
 assertEqual(merged[0]?.children?.[0]?.meta?.layout, 'wide');
 assertEqual(merged[0]?.children?.[1]?.meta?.title, '指令测试');
 assertEqual(typeof merged[1]?.children?.[0]?.props, 'function');
+});

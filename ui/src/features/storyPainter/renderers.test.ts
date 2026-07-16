@@ -1,5 +1,8 @@
 import { defaultStoryPainterOptions, type StoryPainterLogItem } from './types';
 import { renderForumText, renderTrgText } from './renderers';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertIncludes = (actual: string, expected: string) => {
   if (!actual.includes(expected)) {
@@ -53,3 +56,4 @@ const trg = renderTrgText({
 
 assertIncludes(trg, '# [Alice]:roll');
 assertIncludes(trg, '\n<dice>:(Alice的D100,100,NA,30)');
+});

@@ -2,6 +2,9 @@ import {
   cloneSearchFormValues,
   overwriteSearchFormValues,
 } from './viewModel.js';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -61,3 +64,4 @@ const nextSource = {
 overwriteSearchFormValues(target, nextSource);
 nextSource.platforms.push('Telegram');
 assertDeepEqual(target.platforms, ['QQ']);
+});

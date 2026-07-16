@@ -22,6 +22,9 @@ import type {
   BaseSettingSchemaResp,
   BaseSettingValueResp,
 } from '@/api';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -196,4 +199,5 @@ current.commandPrefix = ['.', '!'];
 assertDeepEqual(buildBaseSettingPatch(current, initial), {
   QQEnablePoke: true,
   commandPrefix: ['.', '!'],
+});
 });

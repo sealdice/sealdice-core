@@ -9,6 +9,9 @@ import {
   removeSearchHistoryItem,
 } from './navigationModel.ts';
 import type { AppLayoutName, NavigationItem } from './types.ts';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -127,3 +130,4 @@ assertDeepEqual(buildBreadcrumbItems(sourceItems, '/custom-text/默认'), [
   { label: '自定义文案' },
   { label: '默认' },
 ]);
+});

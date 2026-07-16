@@ -10,6 +10,9 @@ import {
   type ThemePalette,
 } from './themePalette';
 import { createThemeStorage } from './themeState';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -74,3 +77,4 @@ assertEqual(styleValues.get('--sd-error'), '#ef4444');
 assertEqual(styleValues.has('--qq-overlay_hover_brand'), true);
 assertEqual(styleValues.has('--qq-tag_red_bg'), true);
 assertEqual(styleValues.has('--qq-tag_sage_green_bg'), true);
+});

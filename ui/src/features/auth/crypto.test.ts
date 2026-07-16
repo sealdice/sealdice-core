@@ -1,4 +1,7 @@
 import { passwordHash } from './crypto';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 function assertEqual(actual: unknown, expected: unknown): void {
   if (actual !== expected) {
@@ -32,4 +35,5 @@ assertEqual(fallback, first);
 Object.defineProperty(globalThis, 'crypto', {
   configurable: true,
   value: originalCrypto,
+});
 });

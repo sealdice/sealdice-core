@@ -6,6 +6,9 @@ import {
   applyConnectionUpdate,
   applyConnectionWorkflow,
 } from './realtimeState';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertDeepEqual = (actual: unknown, expected: unknown) => {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -78,3 +81,4 @@ assertDeepEqual(applyConnectionUpdate([connA], { ...connA, nickname: 'A2' })[0]?
 assertDeepEqual(applyConnectionWorkflow({}, 'a', workflow), { a: workflow });
 assertDeepEqual(applyConnectionQRCode({}, 'a', 'data:image/png;base64,abc'), { a: 'data:image/png;base64,abc' });
 assertDeepEqual(applyConnectionQRCode({ a: 'x' }, 'a', ''), {});
+});

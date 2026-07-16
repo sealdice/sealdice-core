@@ -10,6 +10,9 @@ import {
   normalizeHelpdocAliases,
 } from './viewModel.js';
 import type { HelpDoc } from '@/api';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -101,3 +104,4 @@ cloned.get('default')?.push('同义词');
 assertDeepEqual(aliases.get('default'), ['基础']);
 assertEqual(isHelpdocConfigDirty(aliases, normalizeHelpdocAliases({ default: ['基础'], empty: null })), false);
 assertEqual(isHelpdocConfigDirty(cloned, aliases), true);
+});

@@ -1,5 +1,8 @@
 import { defaultStoryPainterOptions, type StoryPainterLogItem } from './types';
 import { collectStoryPainterForumText, collectStoryPainterTrgText } from './textExport';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -64,3 +67,4 @@ const trg = await collectStoryPainterTrgText({
 });
 
 assertEqual(trg, '[Alice]:one{*}\n[Bob]:three{*}');
+});

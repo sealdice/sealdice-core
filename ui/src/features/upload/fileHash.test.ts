@@ -1,4 +1,7 @@
 import { blobToArrayBuffer, hashFile, sha256Hex } from './fileHash';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -50,3 +53,4 @@ Object.defineProperty(globalThis, 'FileReader', {
 
 const fileHash = await hashFile(new Blob(['story upload']));
 assertEqual(fileHash, '57a8501edefe84ba3c84a188bef478874f10d25243e1be50b7bd9dc8e5892433');
+});

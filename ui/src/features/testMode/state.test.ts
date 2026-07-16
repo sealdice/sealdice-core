@@ -6,6 +6,9 @@ import {
   isTestModeResponse,
   useDerivedTestModeState,
 } from './state.ts';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -46,3 +49,4 @@ assertEqual(derived.watermarkText.value, '');
 overview.value = { runtime: { justForTest: true } };
 assertEqual(derived.isTestMode.value, true);
 assertEqual(derived.watermarkText.value, '仅用于展示，修改无效');
+});

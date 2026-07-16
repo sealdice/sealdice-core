@@ -4,6 +4,9 @@ import {
   createNetworkErrorFeedback,
   isRequestCanceledError,
 } from './client';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 function assertEqual(actual: unknown, expected: unknown): void {
   if (actual !== expected) {
@@ -151,3 +154,4 @@ assertEqual(
   true,
 );
 assertEqual(isRequestCanceledError(new Error('Failed to fetch')), false);
+});

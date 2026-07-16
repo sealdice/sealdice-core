@@ -3,6 +3,9 @@ import {
   readGroupQuitDefaultText,
   writeGroupQuitDefaultText,
 } from './quitPreference';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
@@ -36,3 +39,4 @@ const brokenStorage = {
 };
 assertEqual(readGroupQuitDefaultText(brokenStorage), defaultGroupQuitText);
 writeGroupQuitDefaultText('不会抛出', brokenStorage);
+});

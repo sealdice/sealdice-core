@@ -1,4 +1,7 @@
 import { bufferToStoryPainterRows, createMemoryParquetDataset, mapParquetRowToStoryPainterItem } from './parquetDataset';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) {
@@ -41,3 +44,4 @@ assertDeepEqual(bufferToStoryPainterRows(rows, ['nickname', 'message']).map(item
   ['B', 'two'],
   ['C', 'three'],
 ]);
+});
