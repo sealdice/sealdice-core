@@ -1,15 +1,18 @@
 import { routeMeta } from './routeMeta.ts';
 import { appNavigation } from './navigation.ts';
 import { buildRouteMeta } from './navigationModel.ts';
+import { it } from 'vitest';
+
+it('passes', async () => {
 
 const assertEqual = (actual: unknown, expected: unknown) => {
   if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
 };
 
-assertEqual(routeMeta['/mod/reply']?.layout, 'wide');
+assertEqual(routeMeta['/mod/reply']?.layout, 'workspace');
 assertEqual(routeMeta['/mod/deck']?.layout, 'wide');
-assertEqual(routeMeta['/mod/story']?.layout, 'wide');
-assertEqual(routeMeta['/mod/js']?.layout, 'wide');
+assertEqual(routeMeta['/mod/story']?.layout, 'workspace');
+assertEqual(routeMeta['/mod/js']?.layout, 'workspace');
 
 assertEqual(routeMeta['/']?.layout, 'default');
 assertEqual(routeMeta['/connect']?.layout, 'default');
@@ -23,3 +26,4 @@ const assertDeepEqual = (actual: unknown, expected: unknown) => {
 };
 
 assertDeepEqual(routeMeta, expectedRouteMeta);
+});

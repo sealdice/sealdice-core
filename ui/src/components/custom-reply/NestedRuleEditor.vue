@@ -107,7 +107,7 @@
                     </label>
                   </div>
 
-                  <n-button type="error" size="small" secondary @click="deleteAnyItem(el.results, rIdx)">
+                  <n-button type="error" size="small" secondary @click="deleteAnyItem(el.results, Number(rIdx))">
                     <template #icon>
                       <n-icon><i-ep-delete /></n-icon>
                     </template>
@@ -144,7 +144,7 @@
                           size="tiny"
                           quaternary
                           circle
-                          @click="removeMessageItem(result.message, mIdx)"
+                          @click="removeMessageItem(result.message, Number(mIdx))"
                         >
                           <template #icon>
                             <n-icon><i-ep-circle-close /></n-icon>
