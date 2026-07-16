@@ -1,7 +1,6 @@
 import { computed, ref, watch } from 'vue';
 import { getApiBaseUrl, joinApiBasePath } from '@/api';
-import { clearAccessToken, currentAccessToken, hasAccessToken } from '@/features/auth/state';
-import { queryClient } from '@/queryClient';
+import { currentAccessToken, hasAccessToken } from '@/features/auth/state';
 
 type RealtimeEventHandler<T = unknown> = (payload: T) => void;
 
@@ -29,7 +28,12 @@ const listeners = new Map<string, Set<RealtimeEventHandler>>();
 
 let websocket: WebSocket | null = null;
 let eventSource: EventSource | null = null;
+// 自动重连采用指数退避 + 抖动，避免后端不可用时形成固定间隔的重连风暴。
+const RECONNECT_BASE_DELAY = 1000;
+const RECONNECT_MAX_DELAY = 30000;
+
 let reconnectTimer: number | null = null;
+let reconnectAttempt = 0;
 let initialized = false;
 let connectGeneration = 0;
 let manualDisconnect = false;
@@ -68,11 +72,6 @@ function parseEnvelope(raw: string): RealtimeEnvelope | null {
   }
 }
 
-function clearSessionForUnauthorized(): void {
-  clearAccessToken();
-  queryClient.clear();
-}
-
 function clearReconnectTimer(): void {
   if (reconnectTimer !== null) {
     window.clearTimeout(reconnectTimer);
@@ -80,13 +79,27 @@ function clearReconnectTimer(): void {
   }
 }
 
+function getReconnectDelay(): number {
+  // 指数退避到上限后保持该间隔持续重连，既防止风暴又能自愈。
+  const exponential = Math.min(RECONNECT_BASE_DELAY * 2 ** reconnectAttempt, RECONNECT_MAX_DELAY);
+  reconnectAttempt += 1;
+  // ±20% 抖动，避免多个客户端同步重连形成惊群。
+  const jitter = exponential * (0.8 + Math.random() * 0.4);
+  return Math.round(jitter);
+}
+
+function resetReconnectAttempt(): void {
+  reconnectAttempt = 0;
+}
+
 function scheduleReconnect(): void {
   // 自动重连只在“非手动断开且仍有 token”时发生，避免退出登录后后台继续重连。
   if (manualDisconnect || !hasAccessToken.value) return;
   clearReconnectTimer();
+  const delay = getReconnectDelay();
   reconnectTimer = window.setTimeout(() => {
-    reconnect();
-  }, 1500);
+    reconnectInternal();
+  }, delay);
 }
 
 function closeWS(): void {
@@ -131,6 +144,7 @@ function connectSSE(generation: number): void {
 
   source.onopen = () => {
     if (generation != connectGeneration) return;
+    resetReconnectAttempt();
     connected.value = true;
     connecting.value = false;
     lastError.value = '';
@@ -141,6 +155,9 @@ function connectSSE(generation: number): void {
     connected.value = false;
     connecting.value = true;
     lastError.value = '实时连接异常';
+    // 主动关闭由浏览器原生重连的通道，交给应用层统一退避重连。
+    closeSSE();
+    scheduleReconnect();
   };
 
   for (const eventName of knownEventNames) {
@@ -179,6 +196,7 @@ function connectWS(generation: number): void {
   ws.onopen = () => {
     if (generation != connectGeneration) return;
     opened = true;
+    resetReconnectAttempt();
     connected.value = true;
     connecting.value = false;
     lastError.value = '';
@@ -233,8 +251,7 @@ function ensureInitialized(): void {
   );
 }
 
-function reconnect(): void {
-  ensureInitialized();
+function performReconnect(): void {
   if (!hasAccessToken.value) return;
 
   manualDisconnect = false;
@@ -248,8 +265,22 @@ function reconnect(): void {
   connectWS(connectGeneration);
 }
 
+function reconnect(): void {
+  // 手动重连视为全新尝试，重置退避计数，让用户点“重连”后立即用最短间隔。
+  ensureInitialized();
+  resetReconnectAttempt();
+  performReconnect();
+}
+
+function reconnectInternal(): void {
+  // 自动重连保留退避计数，使连续失败时间隔持续增长。
+  ensureInitialized();
+  performReconnect();
+}
+
 function disconnect(): void {
   manualDisconnect = true;
+  resetReconnectAttempt();
   clearReconnectTimer();
   cleanupTransports();
   connected.value = false;
@@ -280,12 +311,6 @@ export function subscribeRealtimeEvent<T = unknown>(
 
 export function useRealtimeClient() {
   ensureInitialized();
-
-  watch(lastError, (message) => {
-    if (message === 'unauthorized') {
-      clearSessionForUnauthorized();
-    }
-  });
 
   return {
     connected,
