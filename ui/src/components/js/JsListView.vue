@@ -292,6 +292,7 @@
         :old="diffData.old"
         :new="diffData.new"
         lang="javascript"
+        :theme="isDark ? 'dark' : 'light'"
         class="max-h-150 overflow-auto"
       />
       <template #footer>
@@ -320,6 +321,7 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
+import { useAppTheme } from '@/features/theme';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 
@@ -329,6 +331,7 @@ const emit = defineEmits<{
 
 const message = useMessage();
 const dialog = useDialog();
+const { isDark } = useAppTheme();
 
 interface JsInfoExt extends JsInfoType {
   pitch?: boolean;

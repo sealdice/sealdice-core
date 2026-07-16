@@ -39,7 +39,7 @@
   <VueDiff
     v-if="changed"
     :mode="mode"
-    theme="light"
+    :theme="props.theme"
     :language="props.lang"
     :folding="folding"
     :prev="props.old"
@@ -56,12 +56,14 @@ interface Props {
   old: string;
   new: string;
   lang?: string;
+  theme?: 'light' | 'dark';
 }
 
 const props = withDefaults(defineProps<Props>(), {
   lang: 'text',
   old: '',
   new: '',
+  theme: 'light',
 });
 
 const changed = computed(() => props.old !== props.new);

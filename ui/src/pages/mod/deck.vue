@@ -250,7 +250,7 @@
       </div>
 
       <n-modal v-model:show="showDiff" preset="card" title="牌堆内容对比" class="diff-dialog">
-        <DiffViewer :lang="deckCheck.format ?? 'text'" :old="deckCheck.old ?? ''" :new="deckCheck.new ?? ''" />
+        <DiffViewer :lang="deckCheck.format ?? 'text'" :old="deckCheck.old ?? ''" :new="deckCheck.new ?? ''" :theme="isDark ? 'dark' : 'light'" />
         <template #footer>
           <n-flex wrap>
             <n-button @click="showDiff = false">取消</n-button>
@@ -294,6 +294,7 @@ import { getApiBaseUrl } from '@/api/config';
 import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse } from '@/features/testMode/state';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { hasAccessToken } from '@/features/auth/state';
+import { useAppTheme } from '@/features/theme';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
@@ -305,6 +306,7 @@ const deckChunkSize = 4 * 1024 * 1024;
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
+const { isDark } = useAppTheme();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 

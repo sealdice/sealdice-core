@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="type === 'card'"
-    class="rounded-lg border border-gray-200 bg-white p-4"
+    class="rounded-lg border border-sd-border bg-sd-elevated p-4"
     :class="{
       'shadow-sm': shadow === 'always',
       'shadow-sm hover:shadow-md transition-shadow': shadow === 'hover',
@@ -18,7 +18,7 @@
             </div>
             <n-button text size="small" @click="folded = !folded">
               <template #icon>
-                <span class="text-gray-400 text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
+                <span class="text-sd-muted text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
               </template>
             </n-button>
           </div>
@@ -63,7 +63,7 @@
       </header>
       <div class="mt-2 flex items-start justify-between gap-2">
         <div class="whitespace-pre-line">
-          <span class="text-sm text-gray-500">错误信息：</span>
+          <span class="text-sm text-sd-muted">错误信息：</span>
           <n-text type="error">{{ errText }}</n-text>
         </div>
         <div class="flex items-center justify-end">
@@ -86,7 +86,7 @@
             </div>
             <n-button text size="small" @click="folded = !folded">
               <template #icon>
-                <span class="text-gray-400 text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
+                <span class="text-sd-muted text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
               </template>
             </n-button>
           </div>
@@ -131,7 +131,7 @@
       </header>
       <div class="mt-2 flex items-start justify-between gap-2">
         <div class="whitespace-pre-line">
-          <span class="text-sm text-gray-500">错误信息：</span>
+          <span class="text-sm text-sd-muted">错误信息：</span>
           <n-text type="error">{{ errText }}</n-text>
         </div>
         <div class="flex items-center justify-end">
@@ -144,6 +144,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
+import { useEventListener } from '@vueuse/core';
 
 const props = withDefaults(
   defineProps<{
@@ -185,7 +186,7 @@ watch(
   () => updateFolded(),
 );
 
-window.addEventListener('resize', updateFolded);
+useEventListener(window, 'resize', updateFolded);
 onMounted(() => {
   updateFolded();
 });
