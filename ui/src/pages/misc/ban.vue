@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch, toRaw } from 'vue';
 import { useMutation, useQuery } from '@tanstack/vue-query';
 import { isEqual } from 'es-toolkit/compat';
 import {
@@ -103,19 +103,24 @@ const configQuery = useQuery({
   queryKey: ['ban-config'],
   enabled: hasAccessToken,
   queryFn: async () => {
-    const { data } = await getSdApiV2BanConfig({
-      throwOnError: true,
-    });
-    return normalizeBanConfig(data.item);
+    try{
+      const { data } = await getSdApiV2BanConfig({
+        throwOnError: true,
+      });
+      return normalizeBanConfig(data.item);
+    }catch(e) {
+      console.log(e)
+    }
   },
 });
-
 watch(
-  () => configQuery.data.value,
-  value => {
+  configQuery.data,
+  (value) => {
     if (!value) return;
-    configDraft.value = structuredClone(value);
-    initialConfig.value = structuredClone(value);
+    // 代理对象不能被直接克隆，需要先通过toRaw转为普通对象才能克隆
+    const rawValue = toRaw(value)
+    configDraft.value = structuredClone(rawValue);
+    initialConfig.value = structuredClone(rawValue);
   },
   { immediate: true },
 );

@@ -1,6 +1,6 @@
 <template>
   <main class="story-page">
-    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="story-tabs">
+    <n-tabs v-model:value="tab">
       <n-tab-pane tab="跑团日志" name="list">
         <template v-if="mode === 'logs'">
           <header class="page-header">

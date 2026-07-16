@@ -109,10 +109,14 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { nextTick, ref, watch, toValue } from 'vue';
 import dayjs from 'dayjs';
 import type { UploadCustomRequestOptions } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import { 
+  createProSearchForm, 
+  ProSearchForm, 
+  type ProSearchFormColumns 
+} from 'pro-naive-ui';
 import type { BanListInfoItem } from '@/api';
 import {
   getBanRankMeta,
@@ -167,7 +171,7 @@ const searchColumns: ProSearchFormColumns<BanSearchFormValues> = [
   {
     label: '级别',
     path: 'ranks',
-    field: 'checkbox-group',
+    field: 'select',
     fieldProps: {
       options: [
         { label: '拉黑', value: -30 },
@@ -175,6 +179,7 @@ const searchColumns: ProSearchFormColumns<BanSearchFormValues> = [
         { label: '信任', value: 30 },
         { label: '其它', value: 0 },
       ],
+      multiple: true,
       flexProps: {
         wrap: true,
       },
@@ -200,15 +205,17 @@ const searchColumns: ProSearchFormColumns<BanSearchFormValues> = [
 watch(
   () => [props.query.keyword, props.query.sortBy, props.query.ranks] as const,
   ([keyword, sortBy, ranks]) => {
-    syncingFromProps.value = true;
-    overwriteSearchFormValues(searchForm.values.value, {
-      keyword,
-      sortBy,
-      ranks: [...ranks],
-    });
-    void nextTick(() => {
-      syncingFromProps.value = false;
-    });
+    try{
+      syncingFromProps.value = true;
+      searchForm.values.value.keyword = keyword
+      searchForm.values.value.sortBy = sortBy
+      searchForm.values.value.ranks = ranks
+      void nextTick(() => {
+        syncingFromProps.value = false;
+      });
+    }catch(e) {
+      console.log(e)
+    }
   },
   { deep: true, immediate: true },
 );

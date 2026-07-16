@@ -51,8 +51,7 @@ import type { AppLayoutName } from './router/types';
 const layouts = {
   default: defineAsyncComponent(() => import('./layouts/DefaultLayout.vue')),
   plain: defineAsyncComponent(() => import('./layouts/PlainLayout.vue')),
-  wide: defineAsyncComponent(() => import('./layouts/WideLayout.vue')),
-  workspace: defineAsyncComponent(() => import('./layouts/WorkspaceLayout.vue')),
+  wide: defineAsyncComponent(() => import('./layouts/DefaultLayout.vue')),
 } satisfies Record<AppLayoutName, unknown>;
 
 // App 是全局 provider 和 layout 分发层。页面不要直接挂全局 provider，

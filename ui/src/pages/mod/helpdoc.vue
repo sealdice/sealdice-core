@@ -16,7 +16,7 @@
 
     <ReloadNotice :show="needReload" />
 
-    <n-tabs v-model:value="tab" justify-content="space-evenly" class="helpdoc-tabs">
+    <n-tabs v-model:value="tab">
       <n-tab-pane tab="文件" name="file">
         <HelpdocFilePane
           v-model:checked-keys="checkedFileKeys"
