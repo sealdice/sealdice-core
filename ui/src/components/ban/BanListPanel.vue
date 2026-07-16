@@ -204,8 +204,7 @@ const searchColumns: ProSearchFormColumns<BanSearchFormValues> = [
 
 watch(
   () => [props.query.keyword, props.query.sortBy, props.query.ranks] as const,
-  ([keyword, sortBy, ranks]) => {
-    try{
+    ([keyword, sortBy, ranks]) => {
       syncingFromProps.value = true;
       searchForm.values.value.keyword = keyword
       searchForm.values.value.sortBy = sortBy
@@ -213,10 +212,7 @@ watch(
       void nextTick(() => {
         syncingFromProps.value = false;
       });
-    }catch(e) {
-      console.log(e)
-    }
-  },
+    },
   { deep: true, immediate: true },
 );
 

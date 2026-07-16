@@ -103,14 +103,10 @@ const configQuery = useQuery({
   queryKey: ['ban-config'],
   enabled: hasAccessToken,
   queryFn: async () => {
-    try{
-      const { data } = await getSdApiV2BanConfig({
-        throwOnError: true,
-      });
-      return normalizeBanConfig(data.item);
-    }catch(e) {
-      console.log(e)
-    }
+    const { data } = await getSdApiV2BanConfig({
+      throwOnError: true,
+    });
+    return normalizeBanConfig(data.item);
   },
 });
 watch(

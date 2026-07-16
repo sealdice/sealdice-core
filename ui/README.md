@@ -9,7 +9,7 @@ SealDice 的新版管理后台 UI，基于 Vue 3 + TypeScript + Naive UI 构建�
 - Vue 3 + TypeScript
 - Naive UI
 - Vue Query（服务端状态）
-- Tailwind CSS v4
+- Tailwind CSS v3
 - @hey-api/openapi-ts（API 客户端生成）
 - vue-router/auto-routes（文件路由）
 
@@ -20,10 +20,10 @@ pnpm install
 pnpm dev
 ```
 
-开发时页面请求保持同源，由 Vite 代理转发到后端（默认 `http://127.0.0.1:3005`），可通过环境变量覆盖：
+开发时页面请求保持同源，由 Vite 代理转发到后端（默认 `http://127.0.0.1:3211`），可通过环境变量覆盖：
 
 ```sh
-VITE_API_PROXY_TARGET=http://127.0.0.1:3005 pnpm dev
+VITE_API_PROXY_TARGET=http://127.0.0.1:3211 pnpm dev
 ```
 
 前端路由使用 Hash 模式，页面地址形如 `/#/mod/js`。
@@ -53,7 +53,7 @@ pnpm run lint          # ESLint
 
 项目开发仍以现代 Chrome 为主，但生产构建会兼容更低版本浏览器，目标是让旧版用户平稳迁移到 V2 UI。
 
-- 当前使用 `Vite 8` + `@vitejs/plugin-legacy` 生成 modern 与 legacy 两套产物。
+- 当前使用 `Vite 8`，`@vitejs/plugin-legacy` 仅保留 polyfill 能力（`renderLegacyChunks: false`），只产出 modern 一套产物。
 - 兼容目标由 [.browserslistrc](.browserslistrc) 定义，目前为 Chrome 78+、Firefox 67+、Safari 14+。
 - `structuredClone`、`ResizeObserver` 这类不属于 core-js 自动覆盖面的能力，继续由 `src/polyfills/` 下的应用级 polyfill 管理。
 - 登录密码哈希和上传文件哈希都提供了运行时 fallback，不依赖浏览器必须具备原生 Web Crypto。
