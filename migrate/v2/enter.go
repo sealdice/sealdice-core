@@ -1,7 +1,7 @@
 package v2
 
 import (
-	_ "time"
+	"os"
 
 	v120 "sealdice-core/migrate/v2/v120"
 	v131 "sealdice-core/migrate/v2/v131"
@@ -10,13 +10,17 @@ import (
 	v150 "sealdice-core/migrate/v2/v150"
 	v151 "sealdice-core/migrate/v2/v151"
 	v160 "sealdice-core/migrate/v2/v160"
+	"sealdice-core/utils/constant"
 	operator "sealdice-core/utils/dboperator/engine"
 	upgrade "sealdice-core/utils/upgrader"
 	"sealdice-core/utils/upgrader/store"
 )
 
 func InitUpgrader(operator operator.DatabaseOperator) error {
-	storer := store.NewJSONStore("upgrade_metadata.json")
+	// 清理旧版 JSON 升级记录文件（已迁入 data.db，不再需要）
+	_ = os.Remove("upgrade_metadata.json")
+
+	storer := store.NewGormStore(operator.GetDataDB(constant.WRITE))
 	mgr := &upgrade.Manager{Store: storer, Database: operator}
 	// V120注册
 	mgr.Register(v120.V120Migration)

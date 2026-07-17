@@ -3,7 +3,6 @@ package v2
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,6 +15,7 @@ import (
 	v150 "sealdice-core/migrate/v2/v150"
 	v151 "sealdice-core/migrate/v2/v151"
 	v160 "sealdice-core/migrate/v2/v160"
+	"sealdice-core/utils/constant"
 	engine "sealdice-core/utils/dboperator/engine"
 	"sealdice-core/utils/dboperator/engine/sqlite"
 	upgrade "sealdice-core/utils/upgrader"
@@ -23,8 +23,7 @@ import (
 )
 
 // newTestSQLiteEngine 在临时目录中创建一个可用的 SQLite DatabaseOperator，
-// 返回 operator 及其数据目录（数据目录可用于放置 upgrade_metadata.json）。
-// 连接会在测试结束时自动关闭。
+// 返回 operator 及其数据目录。连接会在测试结束时自动关闭。
 func newTestSQLiteEngine(t *testing.T) (engine.DatabaseOperator, string) {
 	t.Helper()
 	dataDir := t.TempDir()
@@ -39,7 +38,7 @@ func newTestSQLiteEngine(t *testing.T) (engine.DatabaseOperator, string) {
 }
 
 // execSQLFile 将一个 .sql 文件按分号拆分后逐条在给定 *gorm.DB 上执行，
-// 用于把 testdata 下的库结构/数据“灌”进测试库。
+// 用于把 testdata 下的库结构/数据"灌"进测试库。
 func execSQLFile(t *testing.T, db *gorm.DB, path string) {
 	t.Helper()
 	raw, err := os.ReadFile(path)
@@ -71,10 +70,10 @@ func stripSQLLineComments(s string) string {
 	return b.String()
 }
 
-// newTestManager 复刻 enter.go 的注册顺序，但 Store 落在临时目录里，便于测试隔离。
-func newTestManager(t *testing.T, op engine.DatabaseOperator, dataDir string) *upgrade.Manager {
+// newTestManager 复刻 enter.go 的注册顺序，升级记录存入 data.db（GormStore）。
+func newTestManager(t *testing.T, op engine.DatabaseOperator) *upgrade.Manager {
 	t.Helper()
-	storer := store.NewJSONStore(filepath.Join(dataDir, "upgrade_metadata.json"))
+	storer := store.NewGormStore(op.GetDataDB(constant.WRITE))
 	mgr := &upgrade.Manager{Store: storer, Database: op}
 	mgr.Register(v120.V120Migration)
 	mgr.Register(v120.V120LogMessageMigration)

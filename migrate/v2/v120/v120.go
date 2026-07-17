@@ -31,11 +31,21 @@ var V120Migration = upgrade.Upgrade{
 - 为后续实现日志管理、检索与上传等功能奠定基础。
 `,
 	Apply: func(logf func(string), operator engine.DatabaseOperator) error {
+		const bdbPath = "./data/default/data.bdb"
 		logf("[INFO] 尝试检查是否为V120版本升级到新版本")
-		if _, err := os.Stat("./data/default/data.bdb"); err != nil {
+		if _, err := os.Stat(bdbPath); err != nil {
 			logf("[INFO] V120升级已经被应用过或版本为新版本，无需应用升级")
 			return nil // 没有旧数据库，无需迁移
 		}
+
+		// 若新版 attrs 表已存在，说明 V150 已执行过，data.bdb 中的旧数据早已迁移完成。
+		// 跳过可避免"V120 重建旧表 → V150 重跑时 convertToNew 生成重复角色卡"。
+		if operator.GetDataDB(constant.WRITE).Migrator().HasTable("attrs") {
+			logf("[INFO] 新版 attrs 表已存在，data.bdb 数据已迁移，将旧文件重命名为 data.bdb.migrated 作为备份")
+			_ = os.Rename(bdbPath, bdbPath+".migrated")
+			return nil
+		}
+
 		// 尝试升级 TODO: 历史遗留的SQLX，如果改动怕升级失败，不改动吧又看不到日志
 		dataDB, err := utils.GetSQLXDB(operator.GetDataDB(constant.WRITE))
 		if err != nil {
@@ -53,6 +63,9 @@ var V120Migration = upgrade.Upgrade{
 		if err != nil {
 			return err
 		}
+		// 迁移成功，重命名 data.bdb 为备份，后续启动不再触发本迁移
+		logf("[INFO] V120 升级完成，将 data.bdb 重命名为 data.bdb.migrated 作为备份")
+		_ = os.Rename(bdbPath, bdbPath+".migrated")
 		return nil
 	},
 }

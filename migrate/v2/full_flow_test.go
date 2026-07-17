@@ -10,7 +10,7 @@ import (
 // TestFullUpgradeFlow 用一个“造假库”（旧版结构 + 坏数据）跑一遍完整的 V120→V160 升级流程，
 // 覆盖注释里“让它走一下完整升级流程（包括 V150）以及完整 V160 升级流程”的要求。
 func TestFullUpgradeFlow(t *testing.T) {
-	op, dataDir := newTestSQLiteEngine(t)
+	op, _ := newTestSQLiteEngine(t)
 	logDB := op.GetLogDB(constant.WRITE)
 	dataDB := op.GetDataDB(constant.WRITE)
 
@@ -18,7 +18,7 @@ func TestFullUpgradeFlow(t *testing.T) {
 	execSQLFile(t, logDB, "../testdata/full_setup_logs.sql")
 	execSQLFile(t, dataDB, "../testdata/full_setup_data.sql")
 
-	mgr := newTestManager(t, op, dataDir)
+	mgr := newTestManager(t, op)
 	if err := mgr.ApplyAll(); err != nil {
 		t.Fatalf("首次 ApplyAll 失败: %v", err)
 	}

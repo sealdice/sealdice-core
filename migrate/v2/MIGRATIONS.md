@@ -6,9 +6,10 @@
 
 - **入口**：`migrate/v2/enter.go` 的 `InitUpgrader(operator)` 创建 `upgrade.Manager`，依次 `Register` 所有迁移，然后 `ApplyAll()`。
 - **排序**：`ApplyAll` 按 **迁移 ID 的字符串字典序升序** 逐个应用。因此 ID 前缀的数字决定了执行顺序（`001_` < `002_` < … < `010_`）。
-- **幂等 / 去重**：每个迁移应用前先问 `Store.IsApplied(id)`；`JSONStore`（`upgrade_metadata.json`）记录已成功的迁移，再次启动会跳过。
+- **幂等 / 去重**：每个迁移应用前先问 `Store.IsApplied(id)`；`GormStore`（`data.db` 的 `upgrade_records` 表）记录迁移状态，再次启动会跳过。
 - **失败处理**：任意迁移返回错误时，`ApplyAll` 立即中止，并把错误向上抛（“因无法忽略的错误，升级 X 失败”）。已成功的迁移不会被回滚，下次启动会从失败的那个继续。
-- **记录**：无论成功失败，都会写一条 `UpgradeRecord`（含时间、成功标志、日志）到 `upgrade_metadata.json`。
+- **记录**：无论成功失败，都会写一条 `UpgradeRecord`（含时间、成功标志、日志）到 `data.db` 的 `upgrade_records` 表。
+- **旧格式清理**：启动时删除旧版 `upgrade_metadata.json`（升级状态已迁入 `data.db`）。
 
 > 字段约定：下文“触发条件”指迁移函数内部的“是否需要真正干活”判断；“幂等”指**即使 Store 没拦住、重复执行同一迁移函数**是否安全。
 
@@ -37,12 +38,14 @@
 ### 001 — V120Migration（配置与日志入库）
 
 - **触发条件**：存在 `./data/default/data.bdb`（旧 BoltDB 日志库）。不存在则直接返回（视为新版本或已迁移）。
+- **自检守卫**：若新版 `attrs` 表已存在（说明 V150 已执行过），跳过迁移，直接将 `data.bdb` 重命名为 `data.bdb.migrated`。这避免了"V120 重建旧表 → V150 重跑时重复生成角色卡"的风险。
 - **行为**：
   1. 经 sqlx 读旧库，把 `group_info`、`group_player_info`、`attrs_*`、`ban_info` 等配置数据写入 SQLite；
   2. 把 BoltDB 中的历史日志迁到新的 `logs` / `log_items` 表；
   3. 将原 `serve.yaml` 备份为 `serve.yaml.old`。
-- **幂等**：依赖 Store 去重。函数本身不删除 `data.bdb`，若强行重跑理论上会重复写入（因此不要绕过 Store 手动重跑）。
-- **失败**：返回错误 → 中断整个升级。
+  4. **迁移成功后**将 `data.bdb` 重命名为 `data.bdb.migrated`（保留备份）。
+- **幂等**：自检守卫 + `data.bdb` 重命名双重保证。`data.bdb` 不存在或已重命名为 `.migrated` 时直接跳过；`attrs` 表存在时也跳过（避免旧表被重建后与 V150 冲突）。
+- **失败**：返回错误 → 中断整个升级。`data.bdb` 不会在此路径下被重命名，下次启动仍可重试。
 
 ### 002 — V120LogMessageMigration（log_items 类型修复）
 
@@ -149,8 +152,10 @@
 
 ## 测试覆盖
 
-测试位于 `migrate/v2/*_test.go`（包内测试，共享 `migrate_helper_test.go`）：
+测试位于 `migrate/v2/*_test.go`（包内测试，共享 `migrate_helper_test.go`），以及 `utils/upgrader/store/gorm_store_test.go`：
 
+- `gorm_store_test.go`：GormStore 的"建表→SaveRecord→IsApplied→LoadRecords 往返"、失败记录语义、幂等 Save、空 Logs。
+- `v120_test.go`：V120 自检守卫（`attrs` 存在 → 跳过迁移 + 重命名 `data.bdb`）。
 - `v160_log_size_test.go`：010 的“补建缺失列+重算”、“已有列重算”、“无 logs 表无操作”。
 - `v160_logid0_test.go`：008 的“清理+重算”、“size 列缺失时不报错”、“无数据无操作”。
 - `full_flow_test.go`：用 `testdata/full_setup_logs.sql` + `testdata/full_setup_data.sql` 造假库，跑完整 V120→V010 链路并断言结果，再跑第二次验证幂等。
