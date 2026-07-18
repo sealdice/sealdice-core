@@ -42,6 +42,7 @@ var V120Migration = upgrade.Upgrade{
 		// 跳过可避免"V120 重建旧表 → V150 重跑时 convertToNew 生成重复角色卡"。
 		if operator.GetDataDB(constant.WRITE).Migrator().HasTable("attrs") {
 			logf("[INFO] 新版 attrs 表已存在，data.bdb 数据已迁移，将旧文件重命名为 data.bdb.migrated 作为备份")
+			_ = os.Remove(bdbPath + ".migrated") // Windows 上 Rename 不覆盖已有目标，先清理
 			_ = os.Rename(bdbPath, bdbPath+".migrated")
 			return nil
 		}
@@ -65,6 +66,7 @@ var V120Migration = upgrade.Upgrade{
 		}
 		// 迁移成功，重命名 data.bdb 为备份，后续启动不再触发本迁移
 		logf("[INFO] V120 升级完成，将 data.bdb 重命名为 data.bdb.migrated 作为备份")
+		_ = os.Remove(bdbPath + ".migrated") // Windows 上 Rename 不覆盖已有目标，先清理
 		_ = os.Rename(bdbPath, bdbPath+".migrated")
 		return nil
 	},
