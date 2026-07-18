@@ -1,49 +1,45 @@
-package v2
+package v2_test
 
 import (
 	"testing"
 
+	"sealdice-core/migrate/v2/v2test"
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
 )
 
-// TestFullUpgradeFlow 用一个“造假库”（旧版结构 + 坏数据）跑一遍完整的 V120→V160 升级流程，
-// 覆盖注释里“让它走一下完整升级流程（包括 V150）以及完整 V160 升级流程”的要求。
 func TestFullUpgradeFlow(t *testing.T) {
-	op, _ := newTestSQLiteEngine(t)
+	op, _ := v2test.NewTestSQLiteEngine(t)
 	logDB := op.GetLogDB(constant.WRITE)
 	dataDB := op.GetDataDB(constant.WRITE)
 
-	// 灌入测试数据：日志库（旧结构 + log_id=0 + removed 行）+ 数据库（旧 attrs 表 + 坏 ban_info）
-	execSQLFile(t, logDB, "../testdata/full_setup_logs.sql")
-	execSQLFile(t, dataDB, "../testdata/full_setup_data.sql")
+	v2test.ExecSQLFile(t, logDB, "../testdata/full_setup_logs.sql")
+	v2test.ExecSQLFile(t, dataDB, "../testdata/full_setup_data.sql")
 
-	mgr := newTestManager(t, op)
+	mgr := v2test.NewTestManager(t, op)
 	if err := mgr.ApplyAll(); err != nil {
 		t.Fatalf("首次 ApplyAll 失败: %v", err)
 	}
 
 	// === logs 侧 ===
-	// 1) size 列存在
 	if !logDB.Migrator().HasColumn(&model.LogInfo{}, "size") {
 		t.Fatal("升级后 logs 表应包含 size 列")
 	}
-	// 2) size 值正确：log1=3（一条 removed 不计），log2=1
-	sizes := scanLogSizes(t, logDB)
+	sizes := v2test.ScanLogSizes(t, logDB)
 	if sizes[1] != 3 {
 		t.Fatalf("log 1 的 size 期望 3，实际 %d", sizes[1])
 	}
 	if sizes[2] != 1 {
 		t.Fatalf("log 2 的 size 期望 1，实际 %d", sizes[2])
 	}
-	// 3) log_id=0 的孤儿与 id=0 的伪日志已被清理
+
 	var logZero, itemLogZero int64
 	logDB.Raw("SELECT COUNT(1) FROM logs WHERE id = 0").Scan(&logZero)
 	logDB.Raw("SELECT COUNT(1) FROM log_items WHERE log_id = 0").Scan(&itemLogZero)
 	if logZero != 0 || itemLogZero != 0 {
 		t.Fatalf("log_id=0 清理不彻底: logs.id=0=%d, log_items.log_id=0=%d", logZero, itemLogZero)
 	}
-	// 4) 复合索引 idx_log_delete_by_id 已建
+
 	var idxCount int64
 	logDB.Raw("SELECT COUNT(1) FROM sqlite_master WHERE type='index' AND name='idx_log_delete_by_id'").Scan(&idxCount)
 	if idxCount != 1 {
@@ -51,13 +47,12 @@ func TestFullUpgradeFlow(t *testing.T) {
 	}
 
 	// === data 侧 ===
-	// 5) 旧 attrs_* 表已删除
 	var oldTables int64
 	dataDB.Raw("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name IN ('attrs_user','attrs_group','attrs_group_user')").Scan(&oldTables)
 	if oldTables != 0 {
 		t.Fatalf("旧 attrs_* 表应已被删除，剩余 %d 张", oldTables)
 	}
-	// 6) 新 attrs 表包含 user/group/group_user 各 1 条，共 3 条
+
 	type attrRow struct {
 		AttrsType string `gorm:"column:attrs_type"`
 		ID        string `gorm:"column:id"`
@@ -74,7 +69,7 @@ func TestFullUpgradeFlow(t *testing.T) {
 	if typeCount["user"] != 1 || typeCount["group"] != 1 || typeCount["group_user"] != 1 {
 		t.Fatalf("attrs 类型分布不符预期: %+v", typeCount)
 	}
-	// 7) ban_info 中 data 为 NULL 的坏行已被 V151 清理，正常行保留
+
 	var banCount, banBad int64
 	dataDB.Raw("SELECT COUNT(1) FROM ban_info").Scan(&banCount)
 	dataDB.Raw("SELECT COUNT(1) FROM ban_info WHERE id = 'ban-bad'").Scan(&banBad)
@@ -82,11 +77,11 @@ func TestFullUpgradeFlow(t *testing.T) {
 		t.Fatalf("ban_info 清理不符预期: total=%d, ban-bad=%d (期望 total=1, ban-bad=0)", banCount, banBad)
 	}
 
-	// === 幂等性：再次 ApplyAll 应为无操作，不报错且状态不变 ===
+	// === 幂等性 ===
 	if err := mgr.ApplyAll(); err != nil {
 		t.Fatalf("第二次 ApplyAll（幂等）失败: %v", err)
 	}
-	sizes2 := scanLogSizes(t, logDB)
+	sizes2 := v2test.ScanLogSizes(t, logDB)
 	if sizes2[1] != 3 || sizes2[2] != 1 {
 		t.Fatalf("幂等重跑后 size 不应变化: %+v", sizes2)
 	}

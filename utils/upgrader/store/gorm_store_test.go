@@ -1,4 +1,4 @@
-package store
+package store_test
 
 import (
 	"testing"
@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	upgrade "sealdice-core/utils/upgrader"
+	store "sealdice-core/utils/upgrader/store"
 )
 
 func newTestDB(t *testing.T) *gorm.DB {
@@ -21,7 +22,7 @@ func newTestDB(t *testing.T) *gorm.DB {
 
 func TestGormStore_SaveAndCheck(t *testing.T) {
 	db := newTestDB(t)
-	gs := NewGormStore(db)
+	gs := store.NewGormStore(db)
 
 	// 初始状态：未应用
 	applied, err := gs.IsApplied("001_test")
@@ -40,7 +41,7 @@ func TestGormStore_SaveAndCheck(t *testing.T) {
 		Message:   "成功",
 		Logs:      []string{"[INFO] 开始", "[INFO] 完成"},
 	}
-	if err := gs.SaveRecord(rec); err != nil {
+	if err = gs.SaveRecord(rec); err != nil {
 		t.Fatalf("SaveRecord 失败: %v", err)
 	}
 
@@ -75,7 +76,7 @@ func TestGormStore_SaveAndCheck(t *testing.T) {
 
 func TestGormStore_FailedRecord(t *testing.T) {
 	db := newTestDB(t)
-	gs := NewGormStore(db)
+	gs := store.NewGormStore(db)
 
 	// 失败记录也应算作"已应用"（与 JSONStore 语义一致）
 	rec := upgrade.UpgradeRecord{
@@ -96,7 +97,7 @@ func TestGormStore_FailedRecord(t *testing.T) {
 
 func TestGormStore_MultipleRecords(t *testing.T) {
 	db := newTestDB(t)
-	gs := NewGormStore(db)
+	gs := store.NewGormStore(db)
 
 	for _, id := range []string{"001_a", "003_c", "002_b"} {
 		_ = gs.SaveRecord(upgrade.UpgradeRecord{
@@ -128,7 +129,7 @@ func TestGormStore_MultipleRecords(t *testing.T) {
 
 func TestGormStore_IdempotentSave(t *testing.T) {
 	db := newTestDB(t)
-	gs := NewGormStore(db)
+	gs := store.NewGormStore(db)
 
 	rec := upgrade.UpgradeRecord{
 		ID:        "001_same",
@@ -157,7 +158,7 @@ func TestGormStore_IdempotentSave(t *testing.T) {
 
 func TestGormStore_EmptyLogs(t *testing.T) {
 	db := newTestDB(t)
-	gs := NewGormStore(db)
+	gs := store.NewGormStore(db)
 
 	_ = gs.SaveRecord(upgrade.UpgradeRecord{
 		ID:        "001_nologs",
@@ -167,7 +168,7 @@ func TestGormStore_EmptyLogs(t *testing.T) {
 		Logs:      nil, // nil Logs
 	})
 	recs, _ := gs.LoadRecords()
-	if recs[0].Logs != nil && len(recs[0].Logs) != 0 {
+	if len(recs[0].Logs) != 0 {
 		t.Fatalf("空 Logs 应为 nil 或空切片: %v", recs[0].Logs)
 	}
 }

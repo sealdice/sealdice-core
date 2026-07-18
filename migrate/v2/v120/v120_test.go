@@ -1,11 +1,11 @@
-package v120
+package v120_test
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	v120 "sealdice-core/migrate/v2/v120"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/dboperator/engine/sqlite"
 )
@@ -28,7 +28,7 @@ func TestV120Migration_SelfGuard_SkipsWhenAttrsExists(t *testing.T) {
 	t.Setenv("DATADIR", defaultDir)
 
 	op := &sqlite.SQLiteEngine{}
-	if err := op.Init(context.Background()); err != nil {
+	if err := op.Init(t.Context()); err != nil {
 		t.Fatalf("Init SQLiteEngine 失败: %v", err)
 	}
 	t.Cleanup(op.Close)
@@ -47,7 +47,7 @@ func TestV120Migration_SelfGuard_SkipsWhenAttrsExists(t *testing.T) {
 
 	// 执行 V120（应走自检分支，跳过迁移并重命名）
 	logf := &logCollector{}
-	if err := V120Migration.Apply(logf.logf, op); err != nil {
+	if err := v120.V120Migration.Apply(logf.logf, op); err != nil {
 		t.Fatalf("V120Migration.Apply 失败: %v", err)
 	}
 

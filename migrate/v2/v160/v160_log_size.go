@@ -9,16 +9,6 @@ import (
 	upgrade "sealdice-core/utils/upgrader"
 )
 
-// 背景：V150 的历史升级存在失误——在某些历史版本中，V150 的“建表 + 计算 size”逻辑尚未就位
-// 就已经被应用并记录为“已升级”。这导致 logs 表可能根本没有 size 列，或 size 列虽存在但从未被正确计算过。
-// 由于升级框架会把 V150 记为已完成、不会再次执行，因此这里用一条新的 V160 迁移来兜底：
-//  1. 检测 logs 表是否有 size 列；没有则补建（size 列的定义参见 V150：logs 表上记录该日志条目数的 INTEGER 列）。
-//  2. 进行一次 size 列的全量重算（计算方式与 V150 的 calculateLogSize 一致：按 log_id 统计 log_items 行数）。
-//
-// 关于 size 的语义：此处与 V160 的 log_id=0 清理迁移保持一致——只统计 removed IS NULL 的可见条目，
-// 这也与运行期 LogAppend(+1)/LogMarkDelete(-1) 的不变式相符。V150 旧版 calculateLogSize 统计的是全部行
-// （不区分 removed），属已知的旧实现差异，本迁移统一到“仅统计可见条目”的口径。
-
 // V160LogSizeRepairMigrate 修复 logs.size 列：缺失则补建，并全量重算每条日志的条目数。
 func V160LogSizeRepairMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
 	db := dboperator.GetLogDB(constant.WRITE)
@@ -45,19 +35,11 @@ func V160LogSizeRepairMigrate(dboperator operator.DatabaseOperator, logf func(st
 	// 用裸 SQL（而非 gorm.Model().Update()）以绕开 GORM “无 WHERE 的批量更新”保护，
 	// 这里确实需要更新全部行。该相关子查询与 008 迁移的重算口径一致，三种数据库均支持。
 	var rowsAffected int64
-	if migrator.HasTable(&model.LogOneItem{}) {
-		res := db.Exec("UPDATE logs SET size = (SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)")
-		if res.Error != nil {
-			return res.Error
-		}
-		rowsAffected = res.RowsAffected
-	} else {
-		res := db.Exec("UPDATE logs SET size = 0")
-		if res.Error != nil {
-			return res.Error
-		}
-		rowsAffected = res.RowsAffected
+	res := db.Exec("UPDATE logs SET size = (SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)")
+	if res.Error != nil {
+		return res.Error
 	}
+	rowsAffected = res.RowsAffected
 
 	if columnCreated {
 		logf(fmt.Sprintf("数据修复 - Logs表，已补建 size 列并重算了 %d 条记录", rowsAffected))
