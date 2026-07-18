@@ -60,10 +60,19 @@ func TestV120Migration_SelfGuard_SkipsWhenAttrsExists(t *testing.T) {
 		t.Fatalf("data.bdb.migrated 应已存在: %v", err)
 	}
 
-	// 应走自检分支而非"不存在"分支
+	// 应走自检分支而非"不存在"分支，并且应输出自检跳过日志
+	// 注：日志文案需与 v120.go 中保持一致；该包未为此日志定义常量，故硬编码字面量。
+	const selfGuardLog = "[INFO] 新版 attrs 表已存在，data.bdb 数据已迁移，将旧文件重命名为 data.bdb.migrated 作为备份"
+	var selfGuardLogFound bool
 	for _, l := range logf.lines {
+		if l == selfGuardLog {
+			selfGuardLogFound = true
+		}
 		if l == "[INFO] V120升级已经被应用过或版本为新版本，无需应用升级" {
 			t.Fatal("不应进入 data.bdb 不存在的分支（attrs 表应触发自检跳过）")
 		}
+	}
+	if !selfGuardLogFound {
+		t.Fatalf("未找到自检跳过日志 %q，实际日志: %v", selfGuardLog, logf.lines)
 	}
 }

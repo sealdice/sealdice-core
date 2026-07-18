@@ -85,3 +85,24 @@ func TestV160LogSizeRepair_NoLogsTableIsNoOp(t *testing.T) {
 		t.Fatalf("无 logs 表时不应报错: %v", err)
 	}
 }
+
+func TestV160LogSizeRepair_MissingLogItemsTableErrors(t *testing.T) {
+	op, _ := v2test.NewTestSQLiteEngine(t)
+	logDB := op.GetLogDB(constant.WRITE)
+
+	// 仅创建 logs 表，不创建 log_items，模拟“logs 存在而 log_items 缺失”的异常状态
+	v2test.MustExec(t, logDB, `CREATE TABLE logs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT,
+		group_id TEXT,
+		created_at INTEGER,
+		updated_at INTEGER,
+		size INTEGER
+	)`)
+	v2test.MustExec(t, logDB, `INSERT INTO logs (id, name, size) VALUES (1, 'a', 99)`)
+
+	err := v160.V160LogSizeRepairMigrate(op, v2test.SilentLogf)
+	if err == nil {
+		t.Fatal("logs 存在而 log_items 缺失时应返回错误，实际得到 nil")
+	}
+}

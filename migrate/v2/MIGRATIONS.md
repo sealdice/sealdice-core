@@ -129,7 +129,7 @@
 - **触发条件**：存在 `logs` 表；否则跳过。
 - **行为**：
   1. **检测 size 列**：`HasColumn(logs, size)` 为假时，用 GORM `AddColumn` 补建（兼容 SQLite/MySQL/PG 的标识符引用）。
-  2. **全量重算**：`UPDATE logs SET size = (SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)`。若 log_items 表不存在，则全部置 0。
+  2. **全量重算**：`UPDATE logs SET size = (SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)`。前置条件：`log_items` 表必须存在（与 `logs` 由 V120 一同创建）。若 `logs` 存在而 `log_items` 缺失，视为数据库状态异常，返回错误中断升级。
 - **幂等**：是（列存在则只重算；重算是覆盖式，重复执行结果一致）。
 - **失败**：返回错误 → 中断升级。
 - **设计说明**：用裸 `db.Exec` 而非 `db.Model().Update()`，以绕开 GORM “无 WHERE 的批量更新”保护——这里确实需要更新全部行；相关子查询与 008 重算口径完全一致，三种数据库均支持。

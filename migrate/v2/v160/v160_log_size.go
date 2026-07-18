@@ -31,9 +31,15 @@ func V160LogSizeRepairMigrate(dboperator operator.DatabaseOperator, logf func(st
 	}
 
 	// 步骤 2：全量重算 size
-	// size = 该日志下 removed IS NULL 的条目数；log_items 表不存在时，所有日志的 size 归零。
+	// size = 该日志下 removed IS NULL 的条目数。
+	// 前置条件：log_items 表必须存在。logs 与 log_items 由 V120 一同创建，理论上不会出现
+	// “logs 存在而 log_items 缺失”的状态；若真的出现，说明数据库状态异常，这里显式报错中断，
+	// 而不是让裸 SQL 在子查询里抛出难以理解的错误。
 	// 用裸 SQL（而非 gorm.Model().Update()）以绕开 GORM “无 WHERE 的批量更新”保护，
 	// 这里确实需要更新全部行。该相关子查询与 008 迁移的重算口径一致，三种数据库均支持。
+	if !migrator.HasTable(&model.LogOneItem{}) {
+		return fmt.Errorf("logs 表存在但 log_items 表缺失，数据库状态异常，无法重算 size")
+	}
 	var rowsAffected int64
 	res := db.Exec("UPDATE logs SET size = (SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)")
 	if res.Error != nil {

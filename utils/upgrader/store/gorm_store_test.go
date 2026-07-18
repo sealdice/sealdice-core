@@ -99,13 +99,33 @@ func TestGormStore_MultipleRecords(t *testing.T) {
 	db := newTestDB(t)
 	gs := store.NewGormStore(db)
 
-	for _, id := range []string{"001_a", "003_c", "002_b"} {
-		_ = gs.SaveRecord(upgrade.UpgradeRecord{
-			ID:        id,
-			Timestamp: time.Now(),
+	// 使用固定且互不相同的时间戳，以验证 LoadRecords 的时间排序契约
+	base := time.Now()
+	records := []upgrade.UpgradeRecord{
+		{
+			ID:        "001_a",
+			Timestamp: base.Add(2 * time.Minute),
 			Success:   true,
 			Message:   "ok",
-		})
+		},
+		{
+			ID:        "003_c",
+			Timestamp: base.Add(1 * time.Minute),
+			Success:   true,
+			Message:   "ok",
+		},
+		{
+			ID:        "002_b",
+			Timestamp: base.Add(3 * time.Minute),
+			Success:   true,
+			Message:   "ok",
+		},
+	}
+
+	for _, rec := range records {
+		if err := gs.SaveRecord(rec); err != nil {
+			t.Fatalf("SaveRecord 失败: %v", err)
+		}
 	}
 
 	// IsApplied 多条
@@ -120,10 +140,22 @@ func TestGormStore_MultipleRecords(t *testing.T) {
 		t.Fatal("999_no 不应已应用")
 	}
 
-	// LoadRecords 返回全部
+	// LoadRecords 返回全部且按 Timestamp 升序排序
 	recs, _ := gs.LoadRecords()
 	if len(recs) != 3 {
 		t.Fatalf("期望 3 条，实际 %d", len(recs))
+	}
+
+	// 期望按 Timestamp 升序返回：003_c(1min), 001_a(2min), 002_b(3min)
+	expectedOrder := []string{"003_c", "001_a", "002_b"}
+	for i, rec := range recs {
+		if rec.ID != expectedOrder[i] {
+			t.Fatalf("记录顺序不正确: 第 %d 条期望 ID=%s, 实际 ID=%s", i, expectedOrder[i], rec.ID)
+		}
+		if i > 0 && !recs[i-1].Timestamp.Before(rec.Timestamp) {
+			t.Fatalf("记录时间戳未按升序排序: 第 %d 条 (%s, %v) 不早于 第 %d 条 (%s, %v)",
+				i-1, recs[i-1].ID, recs[i-1].Timestamp, i, rec.ID, rec.Timestamp)
+		}
 	}
 }
 
