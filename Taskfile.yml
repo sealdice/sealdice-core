@@ -6,7 +6,7 @@ tasks:
   install:
     cmds:
       - go mod download
-      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
       - go install golang.org/x/tools/cmd/goimports@latest
       - go install github.com/pointlander/peg@v1.0.1
       - go generate ./...
