@@ -973,7 +973,8 @@ func loadTemplateFixture(t *testing.T, name string) string {
 	if err != nil {
 		t.Fatalf("ReadFile(template fixture) error = %v", err)
 	}
-	content := strings.Replace(string(data), "name: coc7", "name: "+name, 1)
+	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+	content = strings.Replace(content, "name: coc7", "name: "+name, 1)
 	content = strings.Replace(content, "fullName:", "fullName: package fixture\n#", 1)
 	content = strings.Replace(content, "      - coc\n      - coc7", "      - "+name+"\n      - "+name+"-rule", 1)
 	return content
