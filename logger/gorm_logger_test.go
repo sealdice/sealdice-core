@@ -104,6 +104,11 @@ func TestDynamicFileCoreWritesQueryLoggerIntoDatabaseFile(t *testing.T) {
 		LogKeyDatabase:      zapcore.DebugLevel,
 		LogKeyDatabaseQuery: zapcore.DebugLevel,
 	}, zapcore.InfoLevel)
+	defer func() {
+		if err := fileCore.Close(); err != nil {
+			t.Errorf("close file core: %v", err)
+		}
+	}()
 
 	entry := zapcore.Entry{
 		LoggerName: LogKeyDatabaseQuery,
