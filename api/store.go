@@ -133,6 +133,48 @@ func storeGetPage(c echo.Context) error {
 	})
 }
 
+func storePackageFiles(c echo.Context) error {
+	files, err := myDice.StoreManager.StoreQueryPackageFiles(c.Param("namespace"), c.Param("package"), c.Param("version"))
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	return Success(&c, Response{
+		"data": files,
+	})
+}
+
+func storePackageFilePreview(c echo.Context) error {
+	resp, err := myDice.StoreManager.StorePreviewPackageFile(c.Request().Context(), c.Param("namespace"), c.Param("package"), c.Param("version"), c.QueryParam("path"))
+	if err != nil {
+		return c.JSON(http.StatusBadGateway, Response{
+			"result": false,
+			"err":    err.Error(),
+		})
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errText := http.StatusText(resp.StatusCode)
+		if errText == "" {
+			errText = "商店文件预览失败"
+		}
+		return c.JSON(resp.StatusCode, Response{
+			"result": false,
+			"err":    errText,
+		})
+	}
+
+	headers := c.Response().Header()
+	headers.Set("Cache-Control", "public, max-age=31536000, immutable")
+	headers.Set("X-Content-Type-Options", "nosniff")
+	headers.Set("Content-Security-Policy", filePreviewContentSecurityPolicy)
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	return c.Stream(http.StatusOK, contentType, resp.Body)
+}
+
 func storeDownload(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, "auth")

@@ -316,3 +316,8 @@ func validateRelativePackagePath(path string) error {
 	}
 	return nil
 }
+
+// ValidateRelativePackagePath validates a package-internal relative path.
+func ValidateRelativePackagePath(path string) error {
+	return validateRelativePackagePath(path)
+}
