@@ -792,4 +792,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/package/:id/config", packageGetConfig)
 	e.POST(prefix+"/package/:id/config", packageSetConfig)
 	e.GET(prefix+"/package/:id/config-schema", packageGetConfigSchema)
+
+	bindPProfAPIs(e, prefix)
 }
