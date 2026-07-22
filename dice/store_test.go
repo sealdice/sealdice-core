@@ -285,9 +285,7 @@ func TestStoreQueryPageResolvesSealrepoRelativeDownloadURLs(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldBackendURLs := BackendUrls
-	BackendUrls = []string{server.URL}
-	defer func() { BackendUrls = oldBackendURLs }()
+	withOfficialStoreBackendBaseURL(t, server.URL)
 
 	manager := NewStoreManager(&Dice{})
 	page, err := manager.StoreQueryPage(StoreQueryPageParams{PageNum: 1, PageSize: 20})
@@ -326,9 +324,7 @@ func TestStorePackageFilesAndPreviewProxy(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldBackendURLs := BackendUrls
-	BackendUrls = []string{server.URL}
-	defer func() { BackendUrls = oldBackendURLs }()
+	withOfficialStoreBackendBaseURL(t, server.URL)
 
 	manager := NewStoreManager(&Dice{})
 	files, err := manager.StoreQueryPackageFiles("alice", "demo", "1.2.3")

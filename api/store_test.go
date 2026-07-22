@@ -28,11 +28,9 @@ func TestStorePackageFilePreviewSecuresUpstreamResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	oldBackendURLs := dice.BackendUrls
-	dice.BackendUrls = []string{server.URL}
-	defer func() { dice.BackendUrls = oldBackendURLs }()
-
-	testDice := &dice.Dice{}
+	testDice := &dice.Dice{Config: dice.Config{StoreConfig: dice.StoreConfig{
+		BackendUrls: []string{server.URL + "/dice/api/store"},
+	}}}
 	testDice.StoreManager = dice.NewStoreManager(testDice)
 	previousDice := myDice
 	myDice = testDice
