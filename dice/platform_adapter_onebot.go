@@ -2,18 +2,21 @@ package dice
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	socketio "github.com/PaienNate/pineutil/evsocket"
+	socketio "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/avast/retry-go"
 	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
@@ -26,7 +29,6 @@ import (
 )
 
 type PlatformAdapterOnebot struct {
-	Session             *IMSession    `json:"-"                     yaml:"-"`
 	EndPoint            *EndPointInfo `json:"-"                     yaml:"-"`
 	Token               string        `json:"token"                 yaml:"token"`                 // 正向或者反向时，使用的Token
 	ConnectURL          string        `json:"connectUrl"            yaml:"connectUrl"`            // 正向时 连接地址
@@ -60,8 +62,10 @@ type PlatformAdapterOnebot struct {
 
 	echoServer *echo.Echo
 
-	sm             *loopfsm.FSM
-	desiredEnabled bool
+	sm                  *loopfsm.FSM
+	desiredEnabled      bool
+	loginInitRetry      func()
+	loginInitRetrySleep func(time.Duration)
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
@@ -150,9 +154,10 @@ func (p *PlatformAdapterOnebot) SendGroupForwardMsg(ctx *MsgContext, groupID str
 		GroupID:  rawGroupID,
 		Messages: nodes,
 	})
-	if err == nil && p.Session != nil {
+	session := p.EndPoint.Session
+	if err == nil && session != nil {
 		sendText := forwardNodesToText(nodes)
-		p.Session.OnMessageSend(ctx, &Message{
+		session.OnMessageSend(ctx, &Message{
 			Platform:    "QQ",
 			MessageType: "group",
 			GroupID:     groupID,
@@ -191,9 +196,10 @@ func (p *PlatformAdapterOnebot) SendPrivateForwardMsg(ctx *MsgContext, userID st
 		UserID:   rawUserID,
 		Messages: nodes,
 	})
-	if err == nil && p.Session != nil {
+	session := p.EndPoint.Session
+	if err == nil && session != nil {
 		sendText := forwardNodesToText(nodes)
-		p.Session.OnMessageSend(ctx, &Message{
+		session.OnMessageSend(ctx, &Message{
 			Platform:    "QQ",
 			MessageType: "private",
 			Message:     sendText,
@@ -236,11 +242,12 @@ func (p *PlatformAdapterOnebot) SendSegmentToGroup(ctx *MsgContext, groupID stri
 	sentSegments := make([]message.IMessageElement, 0, len(msg))
 
 	defer func() {
-		if !sentAnything || p.Session == nil || p.EndPoint == nil {
+		session := p.EndPoint.Session
+		if !sentAnything || session == nil || p.EndPoint == nil {
 			return
 		}
 		_, sentMsgText := convertSealMsgToMessageChain(sentSegments)
-		p.Session.OnMessageSend(ctx, &Message{
+		session.OnMessageSend(ctx, &Message{
 			Platform:    "QQ",
 			MessageType: "group",
 			GroupID:     groupID,
@@ -335,11 +342,12 @@ func (p *PlatformAdapterOnebot) SendSegmentToPerson(ctx *MsgContext, userID stri
 	sentSegments := make([]message.IMessageElement, 0, len(msg))
 
 	defer func() {
-		if !sentAnything || p.Session == nil || p.EndPoint == nil {
+		session := p.EndPoint.Session
+		if !sentAnything || session == nil || p.EndPoint == nil {
 			return
 		}
 		_, sentMsgText := convertSealMsgToMessageChain(sentSegments)
-		p.Session.OnMessageSend(ctx, &Message{
+		session.OnMessageSend(ctx, &Message{
 			Platform:    "QQ",
 			MessageType: "private",
 			Segment:     sentSegments,
@@ -430,7 +438,8 @@ func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
 
 func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache {
 	// TODO：去掉这个MsgContext的需求 以及这个函数设计的一坨
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: p.Session, Dice: p.Session.Parent}
+	session := p.EndPoint.Session
+	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	rawGroupID := ExtractQQEmitterGroupID(diceGroupID)
 	groupInfoResp, err := p.sendEmitter.GetGroupInfo(p.ctx, rawGroupID, true)
 	if err != nil {
@@ -447,33 +456,33 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 		MaxMemberCount: groupInfoResp.MaxMemberCount,
 	}
 	_ = p.groupCache.Set(diceGroupID, result)
-	p.Session.Parent.Parent.GroupNameCache.Store(diceGroupID, &GroupNameCacheItem{
+	session.Parent.Parent.GroupNameCache.Store(diceGroupID, &GroupNameCacheItem{
 		Name: result.GroupName,
 		time: time.Now().Unix(),
 	})
 	// 存储群组相关信息
-	groupInfo, ok := p.Session.ServiceAtNew.Load(diceGroupID)
+	groupInfo, ok := session.ServiceAtNew.Load(diceGroupID)
 	if !ok {
 		return result
 	}
 	// 群名有更新的情况
 	if result.GroupName != groupInfo.GroupName {
 		groupInfo.GroupName = result.GroupName
-		groupInfo.MarkDirty(p.Session.Parent)
+		groupInfo.MarkDirty(session.Parent)
 	}
 	// 群信息获取不到，可能退群的情况，删除群信息
 	if result.MaxMemberCount == 0 {
 		if _, exists := groupInfo.DiceIDExistsMap.Load(p.EndPoint.UserID); exists {
 			groupInfo.DiceIDExistsMap.Delete(p.EndPoint.UserID)
-			groupInfo.MarkDirty(p.Session.Parent)
+			groupInfo.MarkDirty(session.Parent)
 		}
 	}
 	// 发现群情况不对，可能要退群的情况。 放在这里是因为可能这个群已经被邀请进入了
 	uid := groupInfo.InviteUserID
 	// 邀请人有问题
-	userResult := checkBlackList(uid, "user", ctx)
+	userResult := checkBlackList(uid, "user", "", ctx)
 	if !userResult.Passed {
-		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
+		if userResult.BanInfo != nil && groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
 			text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
 			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
 			time.Sleep(1 * time.Second)
@@ -481,11 +490,11 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 		}
 	}
 	// 这群有问题
-	groupResult := checkBlackList(diceGroupID, "group", ctx)
+	groupResult := checkBlackList(diceGroupID, "group", uid, ctx)
 	if !groupResult.Passed {
 		// 如果是被ban之后拉群，判定为强制拉群
-		if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
-			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", userResult.BanInfo.toText(ctx.Dice))
+		if groupResult.BanInfo != nil && groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > groupResult.BanInfo.BanTime {
+			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", groupResult.BanInfo.toText(ctx.Dice))
 			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
 			time.Sleep(1 * time.Second)
 			p.QuitGroup(ctx, diceGroupID)
@@ -516,16 +525,25 @@ func (p *PlatformAdapterOnebot) MemberKick(_ string, _ string) {
 
 }
 
+// isServer 是否为反向连接模式（别人连我）。
+func (p *PlatformAdapterOnebot) isServer() bool {
+	return p.Mode == "server" //nolint:goconst
+}
+
 // onConnected 连接成功的回调函数
 func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	// 连接成功，获取当前登录状态
 	p.sendEmitter = emitter.NewEVEmitter(kws)
 	info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 	if err != nil {
+		if p.isServer() {
+			// 反向连接：对端未正常响应 GetLoginInfo，说明不可用，关闭本次连接。
+			p.logger.Warnf("[反向WS] 未能获取对端身份信息: %v，关闭连接", err)
+			kws.Close()
+			return
+		}
 		p.logger.Errorf("获取登录信息异常 %v", err)
-		// 这里属于“已建立 WS 但初始化失败”，需要走失败路径触发重试；
-		// 否则 FSM 会停留在 connecting，且不会触发 retryConnect。
-		_ = p.sm.Event(context.Background(), "connect_fail")
+		p.scheduleLoginInfoRetry()
 		return
 	}
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
@@ -548,6 +566,34 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 		p.websocketManager.On(OnebotEventPostTypeMetaEvent, p.onOnebotMetaDataEvent)
 		p.websocketManager.On(OnebotEventPostTypeRequest, p.onOnebotRequestEvent)
 		p.websocketManager.On(OnebotEventPostTypeNotice, p.OnebotNoticeEvent)
+		p.websocketManager.On(socketio.EventConnect, func(payload *socketio.EventPayload) {
+			if p.isServer() {
+				p.logger.Infof("[反向WS] 收到连接，会话ID: %s", payload.SocketUUID)
+			}
+			if p.Token != "" {
+				token := payload.Kws.GetRequestHeader("Authorization")
+				if !onebotAuthorizationMatches(p.Token, token) {
+					p.logger.Warnf("[反向WS] Token 验证失败，拒绝连接，会话ID: %s", payload.SocketUUID)
+					payload.Kws.Emit([]byte(`{
+						"status": "failed",
+						"retcode": 1403,
+						"data": null,
+						"message": "token验证失败",
+						"wording": "token验证失败",
+						"echo": null,
+						"stream": "normal-action"
+					}`))
+					payload.Kws.Close()
+					return
+				}
+			}
+			p.onConnected(payload.Kws)
+		})
+		p.websocketManager.On(socketio.EventDisconnect, func(payload *socketio.EventPayload) {
+			if p.isServer() {
+				p.logger.Infof("[反向WS] 连接断开，会话ID: %s", payload.SocketUUID)
+			}
+		})
 		p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
 			var echoer emitter.Response[sonic.NoCopyRawMessage]
 			if err := sonic.Unmarshal(payload.Data, &echoer); err != nil {
@@ -586,13 +632,13 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 // setupClientConnection 设置客户端连接
 func (p *PlatformAdapterOnebot) setupClientConnection() error {
 	options := socketio.ClientOptions{
-		UseSSL: strings.Contains(p.ConnectURL, "wss://"),
+		RequestHeader: http.Header{},
+	}
+	p.applyClientAuthHeader(&options)
+	if strings.Contains(p.ConnectURL, "wss://") {
+		options.TLSConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec
 	}
 	client := p.websocketManager.NewClient(p.ConnectURL, options)
-
-	if p.Token != "" {
-		client.RequestHeader.Set("Authorization", p.Token)
-	}
 
 	client.OnConnectError = func(err error) {
 		p.logger.Errorf("连接失败: %v", err)
@@ -602,13 +648,10 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 	client.OnDisconnected = func(err error) {
 		if err != nil {
 			var closeErr *websocket.CloseError
-			if errors.As(err, &closeErr) {
-				// 检查关闭码是否为 1002
-				if closeErr.Code == 1002 {
-					p.logger.Info("连接正常关闭 (WebSocket 1002)")
-				} else {
-					p.logger.Errorf("连接异常断开: %v", err)
-				}
+			if errors.As(err, &closeErr) && closeErr.Code == 1002 {
+				p.logger.Info("连接正常关闭 (WebSocket 1002)")
+			} else if p.isShuttingDown {
+				p.logger.Infof("适配器关闭中，连接断开: %v", err)
 			} else {
 				p.logger.Errorf("连接异常断开: %v", err)
 			}
@@ -618,38 +661,70 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 		_ = p.sm.Event(context.Background(), "connection_lost")
 	}
 
-	return client.ClientConnect(p.onConnected)
+	return client.Connect()
+}
+
+func (p *PlatformAdapterOnebot) applyClientAuthHeader(options *socketio.ClientOptions) {
+	if options == nil || p.Token == "" {
+		return
+	}
+	if options.RequestHeader == nil {
+		options.RequestHeader = http.Header{}
+	}
+	options.RequestHeader.Set("Authorization", p.Token)
+}
+
+func onebotAuthorizationMatches(configuredToken, headerValue string) bool {
+	if configuredToken == "" {
+		return headerValue == ""
+	}
+
+	if configuredToken == headerValue {
+		return true
+	}
+
+	configuredWithoutBearer := strings.TrimPrefix(configuredToken, "Bearer ")
+	headerWithoutBearer := strings.TrimPrefix(headerValue, "Bearer ")
+	return configuredWithoutBearer == headerWithoutBearer
+}
+
+func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
+	retryFn := p.loginInitRetry
+	if retryFn == nil {
+		retryFn = func() {
+			if !p.desiredEnabled || p.sendEmitter == nil || p.ctx == nil {
+				return
+			}
+			sleepFn := p.loginInitRetrySleep
+			if sleepFn == nil {
+				sleepFn = time.Sleep
+			}
+			sleepFn(3 * time.Second)
+			if !p.desiredEnabled || p.sendEmitter == nil || p.ctx == nil {
+				return
+			}
+			info, err := p.sendEmitter.GetLoginInfo(p.ctx)
+			if err != nil {
+				p.logger.Errorf("重试获取登录信息异常 %v", err)
+				_ = p.sm.Event(context.Background(), "connect_fail")
+				return
+			}
+			p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
+			p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
+			p.EndPoint.Nickname = info.NickName
+			_ = p.sm.Event(context.Background(), "connect_ok")
+		}
+	}
+	go retryFn()
 }
 
 // setupServerConnection 设置服务器连接
 func (p *PlatformAdapterOnebot) setupServerConnection() error {
 	p.echoServer = echo.New()
-
-	// 注册Handler
-	p.echoServer.GET(p.ReverseSuffix, echo.WrapHandler(
-		p.websocketManager.New(func(kws *socketio.WebsocketWrapper) {
-			// 先检查是否允许
-			if p.Token != "" {
-				token := kws.RequestHeader.Get("Authorization")
-				token = strings.TrimPrefix(token, "Bearer ")
-				if p.Token != token {
-					kws.Emit([]byte(`{
-						"status": "failed",
-						"retcode": 1403,
-						"data": null,
-						"message": "token验证失败",
-						"wording": "token验证失败",
-						"echo": null,
-						"stream": "normal-action"
-					}`))
-					kws.Close()
-					return
-				}
-			}
-			p.onConnected(kws)
-		}),
-	))
-
+	p.echoServer.HideBanner = true
+	p.echoServer.Use(middleware.Recover())
+	wsHandler := p.websocketManager.New()
+	p.echoServer.GET(p.ReverseSuffix, echo.WrapHandler(wsHandler))
 	return p.echoServer.Start(p.ReverseUrl)
 }
 
@@ -659,7 +734,7 @@ func (p *PlatformAdapterOnebot) cleanupResources() {
 	p.isShuttingDown = true
 
 	// 1. 首先关闭服务器，停止接收新的请求（避免在清理过程中崩溃）
-	if p.Mode == "server" && p.echoServer != nil {
+	if p.isServer() && p.echoServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := p.echoServer.Shutdown(ctx); err != nil {
@@ -738,7 +813,11 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 				}
 			}()
 			if err := p.setupServerConnection(); err != nil {
-				p.logger.Errorf("启动服务器失败: %v", err)
+				if errors.Is(err, http.ErrServerClosed) {
+					p.logger.Infof("适配器关闭，服务器停止: %v", err)
+				} else {
+					p.logger.Errorf("启动服务器失败: %v", err)
+				}
 				_ = p.sm.Event(context.Background(), "connect_fail")
 			}
 		}()
@@ -829,10 +908,11 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 }
 
 func (p *PlatformAdapterOnebot) updateAndSave() {
-	if p.Session == nil || p.Session.Parent == nil {
+	session := p.EndPoint.Session
+	if session == nil || session.Parent == nil {
 		return
 	}
-	d := p.Session.Parent
+	d := session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 }

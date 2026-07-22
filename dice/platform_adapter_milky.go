@@ -21,7 +21,6 @@ import (
 )
 
 type PlatformAdapterMilky struct {
-	Session             *IMSession     `json:"-"                     yaml:"-"`
 	EndPoint            *EndPointInfo  `json:"-"                     yaml:"-"`
 	IntentSession       *milky.Session `json:"-"                     yaml:"-"`
 	WsGateway           string         `json:"ws_gateway"            yaml:"ws_gateway"`
@@ -60,7 +59,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
 		Segment:     msg,
@@ -86,7 +85,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID stri
 		log.Errorf("Failed to send private message to %s: %v", userID, err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "private",
 		Segment:     msg,
@@ -114,12 +113,12 @@ func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
 		log.Warnf("Group info for %s is nil", groupID)
 		return
 	}
-	dm := pa.Session.Parent.Parent
+	dm := pa.EndPoint.Session.Parent.Parent
 	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 		Name: groupInfoMilky.Name,
 		time: time.Now().Unix(),
 	})
-	session := pa.Session
+	session := pa.EndPoint.Session
 	groupInfo, ok := session.ServiceAtNew.Load(groupID)
 	if ok {
 		if groupInfoMilky.Name != groupInfo.GroupName {
@@ -217,7 +216,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		if len(msg.Segment) == 0 {
 			return // 如果没有消息内容，忽略
 		}
-		pa.Session.ExecuteNew(pa.EndPoint, msg)
+		pa.EndPoint.Session.ExecuteNew(pa.EndPoint, msg)
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.GroupNudge) {
 		if m == nil {
@@ -232,7 +231,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderID, 10)),
 			},
 		}
-		pa.Session.OnPoke(CreateTempCtx(pa.EndPoint, msg), &events.PokeEvent{
+		pa.EndPoint.Session.OnPoke(CreateTempCtx(pa.EndPoint, msg), &events.PokeEvent{
 			GroupID:   msg.GroupID,
 			SenderID:  msg.Sender.UserID,
 			TargetID:  FormatDiceIDQQ(strconv.FormatInt(m.ReceiverID, 10)),
@@ -260,7 +259,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		} else {
 			event.TargetID = msg.Sender.UserID
 		}
-		pa.Session.OnPoke(CreateTempCtx(pa.EndPoint, msg), event)
+		pa.EndPoint.Session.OnPoke(CreateTempCtx(pa.EndPoint, msg), event)
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.GroupMemberDecrease) {
 		if m == nil {
@@ -279,14 +278,14 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			log.Infof("Bot has left group %s", msg.GroupID)
 			if m.OperatorID == 0 {
 				log.Debugf("Bot left group %s without an operator ID, treating as a normal leave", msg.GroupID)
-				pa.Session.OnGroupLeave(CreateTempCtx(pa.EndPoint, msg), &events.GroupLeaveEvent{
+				pa.EndPoint.Session.OnGroupLeave(CreateTempCtx(pa.EndPoint, msg), &events.GroupLeaveEvent{
 					GroupID:    msg.GroupID,
 					UserID:     pa.EndPoint.UserID,
 					OperatorID: "",
 				})
 			} else {
 				log.Debugf("Bot left group %s with operator ID %d", msg.GroupID, m.OperatorID)
-				pa.Session.OnGroupLeave(CreateTempCtx(pa.EndPoint, msg), &events.GroupLeaveEvent{
+				pa.EndPoint.Session.OnGroupLeave(CreateTempCtx(pa.EndPoint, msg), &events.GroupLeaveEvent{
 					GroupID:    msg.GroupID,
 					UserID:     pa.EndPoint.UserID,
 					OperatorID: FormatDiceIDQQ(strconv.FormatInt(m.OperatorID, 10)),
@@ -295,7 +294,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.GroupMemberIncrease) {
-		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.EndPoint.Session, Dice: pa.EndPoint.Session.Parent}
 		inviterID := FormatDiceIDQQ(strconv.FormatInt(m.InvitorID, 10))
 		msg := &Message{
 			Time:        time.Now().Unix(),
@@ -309,19 +308,19 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		newMemberUID := FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10))
 		// 自己加群
 		if newMemberUID == pa.EndPoint.UserID {
-			pa.Session.OnGroupJoined(ctx, msg)
+			pa.EndPoint.Session.OnGroupJoined(ctx, msg)
 		} else {
 			// 其他人被邀请加群
 			msg.Sender.UserID = newMemberUID
-			pa.Session.OnGroupMemberJoined(ctx, msg)
+			pa.EndPoint.Session.OnGroupMemberJoined(ctx, msg)
 		}
 	})
 	session.AddHandler(func(session *milky.Session, m *milky.GroupMute) {
 		if m == nil {
 			return
 		}
-		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
-		dm := pa.Session.Parent.Parent
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.EndPoint.Session, Dice: pa.EndPoint.Session.Parent}
+		dm := pa.EndPoint.Session.Parent.Parent
 		groupId := FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10))
 		if FormatDiceIDQQ(strconv.FormatInt(m.UserID, 10)) == pa.EndPoint.UserID {
 			opUID := FormatDiceIDQQ(strconv.FormatInt(m.OperatorID, 10))
@@ -336,16 +335,16 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
 		if m != nil {
-			ctx := &MsgContext{MessageType: "private", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+			ctx := &MsgContext{MessageType: "private", EndPoint: pa.EndPoint, Session: pa.EndPoint.Session, Dice: pa.EndPoint.Session.Parent}
 			pa.handelFriendRequest(ctx, m)
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.GroupInvitation) {
-		dm := pa.Session.Parent.Parent
+		dm := pa.EndPoint.Session.Parent.Parent
 		if m == nil {
 			return
 		}
-		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.Session, Dice: pa.Session.Parent}
+		ctx := &MsgContext{MessageType: "group", EndPoint: pa.EndPoint, Session: pa.EndPoint.Session, Dice: pa.EndPoint.Session.Parent}
 		uid := FormatDiceIDQQ(strconv.FormatInt(m.InitiatorID, 10))
 		groupId := FormatDiceIDQQGroup(strconv.FormatInt(m.GroupID, 10))
 		groupName := dm.TryGetGroupName(groupId)
@@ -409,10 +408,10 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		default:
 			return
 		}
-		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
-		pa.Session.OnMessageDeleted(mctx, msg)
+		mctx := &MsgContext{Session: pa.EndPoint.Session, EndPoint: pa.EndPoint, Dice: pa.EndPoint.Session.Parent, MessageType: msg.MessageType}
+		pa.EndPoint.Session.OnMessageDeleted(mctx, msg)
 	})
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	err = pa.IntentSession.Open()
 	if err != nil {
 		log.Errorf("Failed to open Milky session: %v", err)
@@ -469,7 +468,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 		comment = normalizeMilkyFriendRequestComment(event.Comment)
 	}
 
-	toMatch := strings.TrimSpace(pa.Session.Parent.Config.FriendAddComment)
+	toMatch := strings.TrimSpace(pa.EndPoint.Session.Parent.Config.FriendAddComment)
 	willAccept := comment == DiceFormat(ctx, toMatch)
 	if toMatch == "" {
 		willAccept = true
@@ -658,7 +657,7 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 		}
 		pa.EndPoint.State = 1
 		pa.EndPoint.Enable = true
-		d := pa.Session.Parent
+		d := pa.EndPoint.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		return true
@@ -669,9 +668,9 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 		_ = pa.IntentSession.Close()
 	}
 	// kill
-	BuiltinMilkyClientKill(pa.Session.Parent, pa.EndPoint)
-	MilkyRemoveSession(pa.Session.Parent, pa.EndPoint)
-	go ServeMilkyBuiltIn(pa.Session.Parent, pa.EndPoint)
+	BuiltinMilkyClientKill(pa.EndPoint.Session.Parent, pa.EndPoint)
+	MilkyRemoveSession(pa.EndPoint.Session.Parent, pa.EndPoint)
+	go ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
 	return true
 }
 
@@ -706,21 +705,21 @@ func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 			pa.EndPoint.Enable = false
 			_ = pa.IntentSession.Close()
 		}
-		d := pa.Session.Parent
+		d := pa.EndPoint.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		return
 	}
 	if enable {
-		go ServeMilkyBuiltIn(pa.Session.Parent, pa.EndPoint)
+		go ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
 	} else {
 		if pa.IntentSession != nil {
 			_ = pa.IntentSession.Close()
 		}
-		BuiltinMilkyClientKill(pa.Session.Parent, pa.EndPoint)
+		BuiltinMilkyClientKill(pa.EndPoint.Session.Parent, pa.EndPoint)
 		pa.EndPoint.State = 0
 		pa.EndPoint.Enable = false
-		d := pa.Session.Parent
+		d := pa.EndPoint.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 	}
@@ -771,7 +770,7 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 		log.Errorf("Failed to send private message to %s: %v", uid, err)
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "private",
 		Message:     text,
@@ -816,7 +815,7 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 			}
 		}
 	}()
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
 		Message:     text,

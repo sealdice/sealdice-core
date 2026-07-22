@@ -475,9 +475,7 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewDiscordConnItem(dice.AddDiscordEcho(*v))
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -503,9 +501,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewKookConnItem(v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterKook)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -532,11 +528,9 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewTelegramConnItem(v.Token, v.ProxyURL)
-		conn.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 
 		// myDice.Logger.Infof("成功创建endpoint")
-		pa := conn.Adapter.(*dice.PlatformAdapterTelegram)
-		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -562,9 +556,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewMinecraftConnItem(v.URL)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterMinecraft)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -591,9 +583,7 @@ func ImConnectionsAddSealChat(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewSealChatConnItem(v.URL, v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterSealChat)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -620,9 +610,7 @@ func ImConnectionsAddDodo(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewDodoConnItem(v.ClientID, v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDodo)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -646,9 +634,7 @@ func ImConnectionsAddDingTalk(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewDingTalkConnItem(v.ClientID, v.Token, v.Nickname, v.RobotCode)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDingTalk)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -675,8 +661,7 @@ func ImConnectionsAddSlack(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewSlackConnItem(v.AppToken, v.BotToken)
-		pa := conn.Adapter.(*dice.PlatformAdapterSlack)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -709,8 +694,7 @@ func ImConnectionsAddMilky(c echo.Context) error {
 			RestGateway: v.RestGateway,
 			BuiltInMode: "",
 		})
-		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -755,8 +739,7 @@ func ImConnectionsAddMilkyInternal(c echo.Context) error {
 			BuiltInMode: v.ClientMode,
 		})
 		conn.UserID = dice.FormatDiceIDQQ(strconv.FormatUint(v.Uin, 10))
-		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -800,12 +783,11 @@ func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		pa.InPackGoCqhttpProtocol = v.Protocol
 		pa.InPackGoCqhttpPassword = v.Password
 		pa.InPackGoCqhttpAppVersion = v.AppVersion
-		pa.Session = myDice.ImSession
 		pa.UseSignServer = v.UseSignServer
 		pa.SignServerConfig = v.SignServerConfig
 
@@ -858,8 +840,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 			Mode:          "client",
 		})
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		// 设置正在使用中 千万不要设置这个
 		// conn.SetEnable(myDice, true)
@@ -902,8 +883,7 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 			Mode:          "server",
 		})
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		// 设置正在使用中 千万不要设置这个
 		// conn.SetEnable(myDice, true)
@@ -933,9 +913,7 @@ func ImConnectionsAddRed(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewRedConnItem(v.Host, v.Port, v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterRed)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -962,9 +940,7 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewOfficialQQConnItem(v.AppID, v.Token, v.AppSecret, v.OnlyQQGuild)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -994,9 +970,7 @@ func ImConnectionsAddSatori(c echo.Context) error {
 	}
 
 	conn := dice.NewSatoriConnItem(v.Platform, v.Host, v.Port, v.Token)
-	conn.Session = myDice.ImSession
-	pa := conn.Adapter.(*dice.PlatformAdapterSatori)
-	pa.Session = myDice.ImSession
+	conn.BindRuntime(myDice.ImSession)
 	myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 	myDice.LastUpdatedTime = time.Now().Unix()
 	myDice.Save(false)
@@ -1026,10 +1000,9 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 
 		conn := dice.NewLagrangeConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		// pa.InPackGoCqhttpProtocol = v.Protocol
-		pa.Session = myDice.ImSession
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()

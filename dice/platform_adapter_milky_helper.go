@@ -181,9 +181,7 @@ func ServeMilky(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "QQ" {
 		conn := ep.Adapter.(*PlatformAdapterMilky)
-		conn.EndPoint = ep
-		conn.Session = d.ImSession
-		ep.Session = d.ImSession
+		ep.BindRuntime(d.ImSession)
 		d.Logger.Infof("Milky 尝试连接")
 		if conn.Serve() != 0 {
 			d.Logger.Errorf("连接Milky失败")
@@ -258,9 +256,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		}
 	}
 	pa := conn
-	conn.EndPoint = ep
-	conn.Session = d.ImSession
-	ep.Session = d.ImSession
+	ep.BindRuntime(d.ImSession)
 	log := zap.S().Named(logger.LogKeyAdapter)
 
 	workDir := filepath.Join(d.BaseConfig.DataDir, ep.RelWorkDir)

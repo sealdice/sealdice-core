@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -27,18 +28,33 @@ type UploadEnv struct {
 	GroupID   string
 	Token     string
 
-	lines []*model.LogOneItem
-	data  *[]byte
+	lines  []*model.LogOneItem
+	data   *[]byte
+	Notice string
 }
 
-func Upload(env UploadEnv) (string, error) {
+func (env *UploadEnv) appendNotice(notice string) {
+	if notice == "" {
+		return
+	}
+	if env.Notice == "" {
+		env.Notice = notice
+		return
+	}
+	if strings.Contains(env.Notice, notice) {
+		return
+	}
+	env.Notice += "\n" + notice
+}
+
+func Upload(env UploadEnv) (string, string, error) {
 	if env.Version == StoryVersionV1 {
 		return uploadV1(env)
 	}
 	if env.Version == StoryVersionV105 {
 		return uploadV105(env)
 	}
-	return "", errors.New("未指定日志版本")
+	return "", "", errors.New("未指定日志版本")
 }
 
 func uploadToBackend(env UploadEnv, backend string, data io.Reader) string {

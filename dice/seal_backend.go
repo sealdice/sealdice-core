@@ -21,7 +21,9 @@ func _tryGetBackendBase(url string) string {
 }
 
 var BackendUrls = []string{
-	"https://repo-test.sealdice.com",
+	"http://api.weizaima.com",
+	"http://dice.weizaima.com",
+	"http://api.sealdice.com",
 }
 
 func TryGetBackendURL() {
