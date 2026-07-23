@@ -22,6 +22,8 @@ import (
 
 type Response map[string]interface{}
 
+const filePreviewContentSecurityPolicy = "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'"
+
 func Success(c *echo.Context, res Response) error {
 	res["result"] = true
 	return (*c).JSON(http.StatusOK, res)

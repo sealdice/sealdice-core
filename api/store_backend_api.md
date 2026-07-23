@@ -47,10 +47,12 @@ Store list endpoints now exchange a package-centric DTO. Public responses should
     "category": "rules"
   },
   "download": {
-    "url": "https://example.com/downloads/author/package/1.2.3.sealpack",
+    "url": "/dice/api/store/packages/author/package/1.2.3/package@1.2.3.sealpack",
+    "zipUrl": "/dice/api/store/packages/author/package/1.2.3/package@1.2.3.zip",
     "hash": {
       "sha256": "abcdef..."
     },
+    "size": 10240,
     "releaseTime": 1710000000,
     "updateTime": 1710500000,
     "downloadCount": 1234
@@ -66,7 +68,9 @@ Store list endpoints now exchange a package-centric DTO. Public responses should
 - `contents`: allowed values are `scripts`, `decks`, `reply`, `helpdoc`, `templates`.
 - `dependencies`: map of package ID to semver constraint.
 - `storeAssets`: package presentation assets shown in the store UI.
-- `download.url`: absolute URL to a `.sealpack` file.
+- `download.url`: absolute URL or store-rooted relative path to a `.sealpack` file.
+- `download.zipUrl`: optional absolute URL or store-rooted relative path to a `.zip` artifact.
+- `download.size`: package artifact size in bytes.
 - `download.hash`: optional integrity hashes keyed by algorithm. If provided, it must include `sha256`; unsupported-only hash sets are rejected. Omit the object when no client-side integrity verification is available.
 - `download.releaseTime` / `download.updateTime`: Unix timestamps in seconds.
 - `download.downloadCount`: public download counter.
@@ -124,10 +128,12 @@ Response example:
         "category": "rules"
       },
       "download": {
-        "url": "https://example.com/pkg/1.2.3.sealpack",
+        "url": "/dice/api/store/packages/author/package/1.2.3/package@1.2.3.sealpack",
+        "zipUrl": "/dice/api/store/packages/author/package/1.2.3/package@1.2.3.zip",
         "hash": {
           "sha256": "abcdef..."
         },
+        "size": 10240,
         "releaseTime": 1710000000,
         "updateTime": 1710500000,
         "downloadCount": 1234
@@ -192,10 +198,12 @@ Response example:
           "category": "rules"
         },
         "download": {
-          "url": "https://example.com/pkg/1.2.3.sealpack",
+          "url": "/dice/api/store/packages/author/package/1.2.3/package@1.2.3.sealpack",
+          "zipUrl": "/dice/api/store/packages/author/package/1.2.3/package@1.2.3.zip",
           "hash": {
             "sha256": "abcdef..."
           },
+          "size": 10240,
           "releaseTime": 1710000000,
           "updateTime": 1710500000,
           "downloadCount": 1234
@@ -209,6 +217,35 @@ Response example:
   "err": ""
 }
 ```
+
+### 4. Package files
+
+`GET /files/{namespace}/{package}/{version}`
+
+Response example:
+
+```json
+{
+  "result": true,
+  "data": [
+    {
+      "path": "README.md",
+      "size": 1200
+    },
+    {
+      "path": "assets/icon.png",
+      "size": 4096
+    }
+  ],
+  "err": ""
+}
+```
+
+### 5. Package file preview
+
+`GET /file/{namespace}/{package}/{version}?path=assets/icon.png`
+
+Returns the requested package-internal file bytes with an appropriate `Content-Type`.
 
 ## Local download API contract
 
@@ -227,13 +264,58 @@ Request body:
 
 Implementation note: the local client may still cache entries internally by `author/package@version`, but that cache key is not part of the public API.
 
+### Install an extension list
+
+`POST /store/install-list`
+
+The UI parses the SealRepo TOML list and submits exact package coordinates:
+
+```json
+{
+  "packages": [
+    { "id": "author/base", "version": "1.0.0" },
+    { "id": "author/package", "version": "1.2.3" }
+  ]
+}
+```
+
+The endpoint accepts at most 200 unique package IDs. It retries packages whose declared dependencies may be installed later in the same list. An already installed exact version is skipped, while an installed newer version is reported as a failure.
+
+```json
+{
+  "result": true,
+  "data": {
+    "items": [
+      { "id": "author/base", "version": "1.0.0", "status": "installed" },
+      {
+        "id": "author/package",
+        "version": "1.2.3",
+        "status": "skipped",
+        "message": "已安装目标版本"
+      }
+    ],
+    "installed": 1,
+    "skipped": 1,
+    "failed": 0
+  }
+}
+```
+
+Item status is one of `installed`, `skipped`, or `failed`. A partial failure still returns `result: true`; callers should inspect each item and the aggregate counts.
+
+### Query extension list metadata
+
+`POST /store/package-info-list`
+
+Accepts the same `packages` array shape as `/store/install-list`, but allows different versions of the same package ID. Exact `(id, version)` duplicates are rejected. Each response item contains the exact version's `package.name`, or an `error` when its `info.toml` cannot be read. This endpoint only reads package metadata and does not install the package.
+
 ## Validation rules
 
 The SealDice client validates backend responses before exposing them locally:
 
 1. `id` must be a valid package ID.
 2. `version` must be valid semver.
-3. `download.url` must be an absolute `.sealpack` URL.
+3. `download.url` must resolve to a `.sealpack` URL.
 4. `contents` must contain only supported content kinds.
 5. dependency keys must be valid package IDs.
 

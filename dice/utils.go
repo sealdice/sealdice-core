@@ -303,15 +303,8 @@ func GetCtxProxyAtPos(ctx *MsgContext, cmdArgs *CmdArgs, pos int) *MsgContext {
 func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar bool) *MsgContext {
 	cur := 0
 	for _, i := range cmdArgs.At {
-		if i.UserID == ctx.EndPoint.UserID {
+		if i.UserID == ctx.EndPoint.UserID || (cmdArgs.uidForAtInfo != "" && i.UserID == cmdArgs.uidForAtInfo) {
 			continue
-		} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-			// 特殊处理 OpenQQ频道
-			uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
-			diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
-			if uid == diceId {
-				continue
-			}
 		}
 
 		if pos != cur {
@@ -533,12 +526,31 @@ func CheckDialErr(err error) syscall.Errno {
 
 // CreateTempCtx 制作ctx，需要msg.MessageType和msg.Sender.UserId，以及ep.Session
 func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
+	if ep == nil {
+		panic("CreateTempCtx: endpoint is nil")
+	}
+	if msg == nil {
+		panic("CreateTempCtx: message is nil")
+	}
+
 	session := ep.Session
+	if session == nil {
+		panic(fmt.Sprintf("CreateTempCtx: endpoint %s (%s) has nil session", ep.ID, ep.UserID))
+	}
+
+	liveEp, err := session.ResolveLiveEndpoint(ep)
+	if err != nil {
+		panic("CreateTempCtx: " + err.Error())
+	}
+	session = liveEp.Session
+	if session == nil || session.Parent == nil {
+		panic(fmt.Sprintf("CreateTempCtx: endpoint %s (%s) runtime not bound", liveEp.ID, liveEp.UserID))
+	}
 	// if msg.Sender.UserID == "" {
 	//	return nil
 	// }
 
-	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
+	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: liveEp, Session: session, Dice: session.Parent}
 
 	switch msg.MessageType {
 	case "private":
@@ -580,7 +592,7 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 		"SEALCHAT-Group:":   "SEALCHAT:",
 		"SLACK-CH-Group":    "SLACK:",
 		"DINGTALK-Group":    "DINGTALK:",
-		"OpenQQ-Group-T:":   "OpenQQ-Member-T:",
+		"OpenQQ-Group:":     "OpenQQ:",
 		"UI-Group:":         "UI:",
 	}
 
