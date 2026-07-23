@@ -307,7 +307,7 @@ Item status is one of `installed`, `skipped`, or `failed`. A partial failure sti
 
 `POST /store/package-info-list`
 
-Accepts the same `packages` array as `/store/install-list`. Each response item contains the exact version's `package.name`, or an `error` when its `info.toml` cannot be read. This endpoint only reads package metadata and does not install the package.
+Accepts the same `packages` array shape as `/store/install-list`, but allows different versions of the same package ID. Exact `(id, version)` duplicates are rejected. Each response item contains the exact version's `package.name`, or an `error` when its `info.toml` cannot be read. This endpoint only reads package metadata and does not install the package.
 
 ## Validation rules
 

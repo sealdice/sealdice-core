@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/labstack/echo/v4"
@@ -227,6 +228,12 @@ type pendingStoreInstall struct {
 	lastError   error
 }
 
+func sameStorePackageVersion(left, right string) bool {
+	leftVersion, leftErr := semver.NewVersion(strings.TrimSpace(left))
+	rightVersion, rightErr := semver.NewVersion(strings.TrimSpace(right))
+	return leftErr == nil && rightErr == nil && leftVersion.Equal(rightVersion)
+}
+
 func storePackageInfoList(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, "auth")
@@ -248,12 +255,14 @@ func storePackageInfoList(c echo.Context) error {
 	seen := make(map[string]struct{}, len(params.Packages))
 	for _, item := range params.Packages {
 		result := storePackageInfoItemResult{ID: item.ID, Version: item.Version}
-		if _, exists := seen[item.ID]; exists {
-			return Error(&c, "清单中存在重复的扩展包: "+item.ID, Response{})
+		coordinate := dice.BuildStorePackageFullID(strings.TrimSpace(item.ID), strings.TrimSpace(item.Version))
+		if _, exists := seen[coordinate]; exists {
+			return Error(&c, "清单中存在重复的扩展包版本: "+coordinate, Response{})
 		}
-		seen[item.ID] = struct{}{}
+		seen[coordinate] = struct{}{}
 
-		if installed, exists := myDice.PackageManager.Get(item.ID); exists && installed != nil && installed.Manifest != nil {
+		if installed, exists := myDice.PackageManager.Get(strings.TrimSpace(item.ID)); exists && installed != nil && installed.Manifest != nil &&
+			sameStorePackageVersion(installed.Manifest.Package.Version, item.Version) {
 			result.Name = installed.Manifest.Package.Name
 			results = append(results, result)
 			continue
