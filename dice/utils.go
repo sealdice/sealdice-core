@@ -303,15 +303,8 @@ func GetCtxProxyAtPos(ctx *MsgContext, cmdArgs *CmdArgs, pos int) *MsgContext {
 func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar bool) *MsgContext {
 	cur := 0
 	for _, i := range cmdArgs.At {
-		if i.UserID == ctx.EndPoint.UserID {
+		if i.UserID == ctx.EndPoint.UserID || (cmdArgs.uidForAtInfo != "" && i.UserID == cmdArgs.uidForAtInfo) {
 			continue
-		} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-			// 特殊处理 OpenQQ频道
-			uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
-			diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
-			if uid == diceId {
-				continue
-			}
 		}
 
 		if pos != cur {
@@ -599,7 +592,7 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 		"SEALCHAT-Group:":   "SEALCHAT:",
 		"SLACK-CH-Group":    "SLACK:",
 		"DINGTALK-Group":    "DINGTALK:",
-		"OpenQQ-Group-T:":   "OpenQQ-Member-T:",
+		"OpenQQ-Group:":     "OpenQQ:",
 		"UI-Group:":         "UI:",
 	}
 
