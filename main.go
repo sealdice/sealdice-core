@@ -171,11 +171,10 @@ func main() {
 		UpdateTest             bool   `description:"更新测试"                                                            long:"update-test"`
 		LogLevel               int8   `choice:"-1"                                                                   choice:"0"              choice:"1" choice:"2" choice:"3" choice:"4" choice:"5" default:"0" description:"设置日志等级"             long:"log-level"`
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
+		MutexProfileRate       int    `description:"对互斥锁竞用的采样速率，小于等于0=关闭，1=所有，其他N=N分之1采样率" long:"mutex-profile" default:"5"`
+		BlockProfileRate       int    `description:"对阻塞事件的采样速率，小于等于0=关闭，1=所有，其他N=每N纳秒1次采样" long:"block-profile" default:"5000"`
 	}
-	// pprof
-	// go func() {
-	//	http.ListenAndServe("0.0.0.0:8899", nil)
-	// }()
+
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
@@ -192,6 +191,11 @@ func main() {
 		}
 		return
 	}
+
+	// 在启动主要组件前开始采样
+	runtime.SetMutexProfileFraction(opts.MutexProfileRate)
+	runtime.SetBlockProfileRate(opts.BlockProfileRate)
+
 	// 提前到最开始初始化所有日志
 	uiWriter := logger.NewUIWriter()
 	log := logger.InitLogger(zapcore.Level(opts.LogLevel), uiWriter).Named(logger.LogKeyMain)
@@ -205,6 +209,14 @@ func main() {
 	if err != nil {
 		log.Errorf("未读取到.env参数，若您未使用docker或第三方数据库，可安全忽略。")
 	}
+
+	if opts.MutexProfileRate > 0 {
+		log.Infof("互斥锁采样率: 1/%d", opts.MutexProfileRate)
+	}
+	if opts.BlockProfileRate > 0 {
+		log.Infof("阻塞采样率: 1/%dns", opts.BlockProfileRate)
+	}
+
 	// 初始化文件加锁系统
 	locked, err := sealLock.TryLock()
 	// 如果有错误，或者未能取到锁
