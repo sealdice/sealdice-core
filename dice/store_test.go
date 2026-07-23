@@ -272,6 +272,42 @@ func TestStoreManagerFindPackageMatchesByIDAndVersionAfterRefreshInstalled(t *te
 	}
 }
 
+func TestStoreManagerResolvePackageBuildsCanonicalDownloadURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	withOfficialStoreBackendBaseURL(t, server.URL)
+
+	manager := NewStoreManager(&Dice{})
+	pkg, err := manager.ResolvePackage("alice/demo", "1.2.3")
+	if err != nil {
+		t.Fatalf("ResolvePackage() error = %v", err)
+	}
+	if got, want := pkg.Download.URL, server.URL+"/dice/api/store/packages/alice/demo/1.2.3/demo@1.2.3.sealpack"; got != want {
+		t.Fatalf("Download.URL = %q, want %q", got, want)
+	}
+	if pkg.ID != "alice/demo" || pkg.Version != "1.2.3" {
+		t.Fatalf("resolved package = %#v", pkg)
+	}
+}
+
+func TestStoreManagerResolvePackageRejectsInvalidCoordinate(t *testing.T) {
+	manager := &StoreManager{lock: new(sync.RWMutex), packageCache: make(map[string]*StorePackage)}
+	if _, err := manager.ResolvePackage("invalid", "1.2.3"); err == nil {
+		t.Fatal("ResolvePackage() accepted invalid package ID")
+	}
+	if _, err := manager.ResolvePackage("alice/demo", "latest"); err == nil {
+		t.Fatal("ResolvePackage() accepted invalid version")
+	}
+}
+
 func TestStoreQueryPageResolvesSealrepoRelativeDownloadURLs(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -349,6 +385,41 @@ func TestStorePackageFilesAndPreviewProxy(t *testing.T) {
 	}
 	if string(data) != "png-data" {
 		t.Fatalf("preview data = %q", string(data))
+	}
+}
+
+func TestStoreQueryPackageManifestReadsExactPackageName(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"]}`))
+		case "/dice/api/store/file/alice/demo/1.2.3":
+			if got := r.URL.Query().Get("path"); got != "info.toml" {
+				http.Error(w, "unexpected path: "+got, http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(`
+format_version = "1.0.0"
+
+[package]
+id = "alice/demo"
+name = "Readable Extension Name"
+version = "1.2.3"
+`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	withOfficialStoreBackendBaseURL(t, server.URL)
+	manager := NewStoreManager(&Dice{})
+	manifest, err := manager.StoreQueryPackageManifest(context.Background(), "alice/demo", "1.2.3")
+	if err != nil {
+		t.Fatalf("StoreQueryPackageManifest() error = %v", err)
+	}
+	if got, want := manifest.Package.Name, "Readable Extension Name"; got != want {
+		t.Fatalf("Package.Name = %q, want %q", got, want)
 	}
 }
 

@@ -38,6 +38,7 @@ const (
 )
 
 const storeBackendInfoCacheTTL = 5 * time.Minute
+const maxStoreManifestSize int64 = 1 << 20
 
 type StoreBackend struct {
 	Url string `json:"url"`
@@ -874,6 +875,52 @@ func (m *StoreManager) StorePreviewPackageFile(ctx context.Context, namespace, p
 	return resp, nil
 }
 
+func (m *StoreManager) StoreQueryPackageManifest(ctx context.Context, id, version string) (*sealpack.Manifest, error) {
+	id = strings.TrimSpace(id)
+	version = strings.TrimSpace(version)
+	namespace, packageName, err := sealpack.ParsePackageID(id)
+	if err != nil {
+		return nil, err
+	}
+	targetVersion, err := semver.NewVersion(version)
+	if err != nil {
+		return nil, fmt.Errorf("无效的版本号: %w", err)
+	}
+
+	resp, err := m.StorePreviewPackageFile(ctx, namespace, packageName, version, sealpack.InfoFile)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		if len(message) == 0 {
+			message = []byte(http.StatusText(resp.StatusCode))
+		}
+		return nil, fmt.Errorf("读取扩展包清单失败: %s", strings.TrimSpace(string(message)))
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxStoreManifestSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxStoreManifestSize {
+		return nil, errors.New("扩展包 info.toml 不能超过 1 MB")
+	}
+	manifest, err := sealpack.ParseManifest(data)
+	if err != nil {
+		return nil, err
+	}
+	if manifest.Package.ID != id {
+		return nil, fmt.Errorf("扩展包 ID 不匹配，期望 %s，实际 %s", id, manifest.Package.ID)
+	}
+	manifestVersion, err := semver.NewVersion(manifest.Package.Version)
+	if err != nil || !manifestVersion.Equal(targetVersion) {
+		return nil, fmt.Errorf("扩展包版本不匹配，期望 %s，实际 %s", version, manifest.Package.Version)
+	}
+	return manifest, nil
+}
+
 func (m *StoreManager) RefreshInstalled(packages []*StorePackage) {
 	installed := map[string]bool{}
 	if m.parent != nil && m.parent.PackageManager != nil {
@@ -910,6 +957,60 @@ func (m *StoreManager) FindPackage(id, version string) (*StorePackage, bool) {
 		return nil, false
 	}
 	return pkg, true
+}
+
+// ResolvePackage resolves an exact package coordinate against the active store.
+// List queries populate richer metadata in the cache, while list installation can
+// still use the protocol's canonical artifact URL for versions outside those pages.
+func (m *StoreManager) ResolvePackage(id, version string) (*StorePackage, error) {
+	id = strings.TrimSpace(id)
+	version = strings.TrimSpace(version)
+	if cached, ok := m.FindPackage(id, version); ok {
+		return cached, nil
+	}
+
+	namespace, packageName, err := sealpack.ParsePackageID(id)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := semver.NewVersion(version); err != nil {
+		return nil, fmt.Errorf("无效的版本号: %w", err)
+	}
+
+	backend, err := m.currentBackend()
+	if err != nil {
+		return nil, err
+	}
+	if !backend.Health {
+		m.refreshStoreBackend()
+		backend, err = m.currentBackend()
+		if err != nil {
+			return nil, err
+		}
+		if !backend.Health {
+			return nil, fmt.Errorf("当前扩展商店后端不可用: %s", backend.Url)
+		}
+	}
+
+	downloadURL, err := buildStoreBackendResourceURL(
+		backend.Url,
+		"packages",
+		namespace,
+		packageName,
+		version,
+		sealpack.PackageSourceFileName(id, version),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &StorePackage{
+		ID:      id,
+		Version: version,
+		FullID:  BuildStorePackageFullID(id, version),
+		Download: StorePackageDownload{
+			URL: downloadURL,
+		},
+	}, nil
 }
 
 type StoreUploadFormOption struct {

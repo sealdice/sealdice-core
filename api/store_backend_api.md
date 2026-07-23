@@ -264,6 +264,51 @@ Request body:
 
 Implementation note: the local client may still cache entries internally by `author/package@version`, but that cache key is not part of the public API.
 
+### Install an extension list
+
+`POST /store/install-list`
+
+The UI parses the SealRepo TOML list and submits exact package coordinates:
+
+```json
+{
+  "packages": [
+    { "id": "author/base", "version": "1.0.0" },
+    { "id": "author/package", "version": "1.2.3" }
+  ]
+}
+```
+
+The endpoint accepts at most 200 unique package IDs. It retries packages whose declared dependencies may be installed later in the same list. An already installed exact version is skipped, while an installed newer version is reported as a failure.
+
+```json
+{
+  "result": true,
+  "data": {
+    "items": [
+      { "id": "author/base", "version": "1.0.0", "status": "installed" },
+      {
+        "id": "author/package",
+        "version": "1.2.3",
+        "status": "skipped",
+        "message": "已安装目标版本"
+      }
+    ],
+    "installed": 1,
+    "skipped": 1,
+    "failed": 0
+  }
+}
+```
+
+Item status is one of `installed`, `skipped`, or `failed`. A partial failure still returns `result: true`; callers should inspect each item and the aggregate counts.
+
+### Query extension list metadata
+
+`POST /store/package-info-list`
+
+Accepts the same `packages` array as `/store/install-list`. Each response item contains the exact version's `package.name`, or an `error` when its `info.toml` cannot be read. This endpoint only reads package metadata and does not install the package.
+
 ## Validation rules
 
 The SealDice client validates backend responses before exposing them locally:
