@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -932,15 +933,39 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID       uint64 `json:"appID"       yaml:"appID"`
-		Token       string `json:"token"       yaml:"token"`
-		AppSecret   string `json:"appSecret"   yaml:"appSecret"`
-		OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
+		AppID       interface{} `json:"appID"         yaml:"appID"`
+		Token       string      `json:"token"         yaml:"token"`
+		AppSecret   string      `json:"appSecret"     yaml:"appSecret"`
+		OnlyQQGuild bool        `json:"onlyQQGuild"   yaml:"onlyQQGuild"`
+		// Webhook配置
+		UseWebhook  bool   `json:"useWebhook"    yaml:"useWebhook"`
+		WebhookPath string `json:"webhookPath"   yaml:"webhookPath"`
+		WebhookPort int    `json:"webhookPort"   yaml:"webhookPort"`
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
-		conn := dice.NewOfficialQQConnItem(v.AppID, v.Token, v.AppSecret, v.OnlyQQGuild)
+		var appIDStr string
+		if v.AppID != nil {
+			switch val := v.AppID.(type) {
+			case string:
+				appIDStr = val
+			case float64:
+				appIDStr = strconv.FormatInt(int64(val), 10)
+			case int64:
+				appIDStr = strconv.FormatInt(val, 10)
+			case int:
+				appIDStr = strconv.Itoa(val)
+			default:
+				appIDStr = fmt.Sprintf("%v", val)
+			}
+		}
+		conn := dice.NewOfficialQQConnItem(appIDStr, v.Token, v.AppSecret, v.OnlyQQGuild)
 		conn.BindRuntime(myDice.ImSession)
+		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
+		// 设置Webhook配置
+		pa.UseWebhook = v.UseWebhook
+		pa.WebhookPath = v.WebhookPath
+		pa.WebhookPort = v.WebhookPort
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)

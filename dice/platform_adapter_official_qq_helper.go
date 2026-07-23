@@ -3,7 +3,6 @@ package dice
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -14,7 +13,7 @@ import (
 	logger "sealdice-core/logger"
 )
 
-func NewOfficialQQConnItem(appID uint64, token string, appSecret string, onlyQQGuild bool) *EndPointInfo {
+func NewOfficialQQConnItem(appID string, token string, appSecret string, onlyQQGuild bool) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
@@ -102,20 +101,11 @@ func output(v ...interface{}) string {
 	return fmt.Sprintf(logFormat, file, line, funcName)
 }
 
+// 链接现在原样发送；注释掉下面的正则防止以后要用
 // 参考: https://gist.github.com/brydavis/0c7da92bd508195744708eeb2b54ac96
-var reUrlExtract = regexp.MustCompile(`(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/|\/|\/\/)?[A-z0-9_-]*?[:]?[A-z0-9_-]*?[@]?[A-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?`)
+// var reUrlExtract = regexp.MustCompile(`(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/|\/|\/\/)?[A-z0-9_-]*?[:]?[A-z0-9_-]*?[@]?[A-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?`)
 
+// 不再使用，为了防止以后要用，暂时保留
 func textLinkStrip(text string) string {
-	urls := reUrlExtract.FindAllString(text, -1)
-
-	// 在每个URL中将"."替换为"_"
-	for _, url := range urls {
-		replacedURL := strings.ReplaceAll(url, ".", "_")
-		replacedURL = strings.ReplaceAll(replacedURL, "https://", "https_")
-		replacedURL = strings.ReplaceAll(replacedURL, "http://", "http_")
-		// replacedURL = strings.ReplaceAll(replacedURL, "/", "_")
-		text = strings.ReplaceAll(text, url, replacedURL)
-	}
-
 	return text
 }
