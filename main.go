@@ -210,11 +210,18 @@ func main() {
 		log.Errorf("未读取到.env参数，若您未使用docker或第三方数据库，可安全忽略。")
 	}
 
-	if opts.MutexProfileRate > 0 {
+	switch opts.MutexProfileRate {
+	case 0:
+		log.Info("关闭互斥锁分析采样")
+	default:
 		log.Infof("互斥锁采样率: 1/%d", opts.MutexProfileRate)
 	}
-	if opts.BlockProfileRate > 0 {
-		log.Infof("阻塞采样率: 1/%dns", opts.BlockProfileRate)
+
+	switch opts.BlockProfileRate {
+	case 0:
+		log.Info("关闭同步阻塞分析采样")
+	default:
+		log.Infof("阻塞采样率: 1 every %dns", opts.BlockProfileRate)
 	}
 
 	// 初始化文件加锁系统
