@@ -628,6 +628,57 @@ func TestSanitizeStorePackageRejectsMismatchedFullID(t *testing.T) {
 	}
 }
 
+func TestSanitizeStorePackageRejectsInvalidDownloadURLs(t *testing.T) {
+	tests := []struct {
+		name           string
+		download       StorePackageDownload
+		backendBaseURL string
+		wantErr        string
+	}{
+		{
+			name: "relative download URL without backend base URL",
+			download: StorePackageDownload{
+				URL: "/dice/api/store/packages/alice/demo/1.2.3/demo@1.2.3.sealpack",
+			},
+			wantErr: "download.url 无效: download.url 必须是绝对 URL",
+		},
+		{
+			name: "download URL without sealpack extension",
+			download: StorePackageDownload{
+				URL: "https://example.com/demo-1.2.3",
+			},
+			wantErr: "download.url 必须指向 .sealpack 文件",
+		},
+		{
+			name: "invalid zip URL",
+			download: StorePackageDownload{
+				URL:    "https://example.com/demo-1.2.3.sealpack",
+				ZipURL: "%zz",
+			},
+			backendBaseURL: "https://example.com",
+			wantErr:        "download.zipUrl 无效",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := sanitizeStorePackage(&StorePackage{
+				ID:       "alice/demo",
+				Version:  "1.2.3",
+				Name:     "Demo",
+				Contents: []string{"scripts"},
+				Download: tt.download,
+			}, tt.backendBaseURL)
+			if err == nil {
+				t.Fatal("sanitizeStorePackage() accepted invalid download URL")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("sanitizeStorePackage() error = %q, want error containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestSanitizeStorePackageMarksCanonicalFields(t *testing.T) {
 	pkg, err := sanitizeStorePackage(&StorePackage{
 		ID:       "alice/demo",

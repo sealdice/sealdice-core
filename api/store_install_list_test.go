@@ -1,4 +1,4 @@
-package api
+package api //nolint:testpackage // Tests exercise unexported batch-install coordination.
 
 import (
 	"testing"

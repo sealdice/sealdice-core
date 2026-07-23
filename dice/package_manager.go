@@ -415,7 +415,7 @@ func (pm *PackageManager) listPackageFiles(installPath string) []string {
 		}
 		packagePath := filepath.ToSlash(relPath)
 		if err := sealpack.ValidateRelativePackagePath(packagePath); err != nil {
-			return nil
+			return nil //nolint:nilerr // Skip paths that cannot be represented safely in a package.
 		}
 		files = append(files, packagePath)
 		return nil

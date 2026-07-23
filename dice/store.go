@@ -26,7 +26,7 @@ var (
 	// OfficialStorePublicKey 官方商店公钥。
 	OfficialStorePublicKey = ``
 
-	officialStoreBackendBaseURL = "https://repo-test.sealdice.com"
+	officialStoreBackendBaseURL = "https://repo.sealdice.com"
 )
 
 type StoreBackendType string
@@ -846,8 +846,8 @@ func (m *StoreManager) StorePreviewPackageFile(ctx context.Context, namespace, p
 	if filePath == "" {
 		return nil, errors.New("文件路径不能为空")
 	}
-	if err := sealpack.ValidateRelativePackagePath(filePath); err != nil {
-		return nil, err
+	if pathErr := sealpack.ValidateRelativePackagePath(filePath); pathErr != nil {
+		return nil, pathErr
 	}
 
 	requestURL, err := buildStoreBackendResourceURL(backend.Url, "file", namespace, packageName, version)
@@ -973,8 +973,8 @@ func (m *StoreManager) ResolvePackage(id, version string) (*StorePackage, error)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := semver.NewVersion(version); err != nil {
-		return nil, fmt.Errorf("无效的版本号: %w", err)
+	if _, versionErr := semver.NewVersion(version); versionErr != nil {
+		return nil, fmt.Errorf("无效的版本号: %w", versionErr)
 	}
 
 	backend, err := m.currentBackend()
