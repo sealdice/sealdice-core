@@ -354,6 +354,7 @@ func (pm *PackageManager) materializeCandidate(candidate *packageArtifactCandida
 		UserDataPath:  userDataPath,
 		Config:        config,
 		SourceStatus:  sealpack.PackageSourceStatusPresent,
+		Files:         pm.listPackageFiles(installPath),
 		PendingReload: pendingReload,
 	}, nil
 }
@@ -394,8 +395,35 @@ func (pm *PackageManager) materializeCacheCandidate(candidate *packageCacheCandi
 		Config:        config,
 		SourceStatus:  sealpack.PackageSourceStatusCacheOnly,
 		SourceWarning: packageCacheOnlyWarning(sourcePath),
+		Files:         pm.listPackageFiles(candidate.InstallPath),
 		PendingReload: pendingReload,
 	}, nil
+}
+
+func (pm *PackageManager) listPackageFiles(installPath string) []string {
+	files := make([]string, 0)
+	if installPath == "" {
+		return files
+	}
+	if err := filepath.WalkDir(installPath, func(currentPath string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() {
+			return walkErr
+		}
+		relPath, err := filepath.Rel(installPath, currentPath)
+		if err != nil {
+			return err
+		}
+		packagePath := filepath.ToSlash(relPath)
+		if err := sealpack.ValidateRelativePackagePath(packagePath); err != nil {
+			return nil //nolint:nilerr // Skip paths that cannot be represented safely in a package.
+		}
+		files = append(files, packagePath)
+		return nil
+	}); err != nil && pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Warnf("扫描扩展包文件清单失败 %s: %v", installPath, err)
+	}
+	sort.Strings(files)
+	return files
 }
 
 func (pm *PackageManager) ensureInstallCache(candidate *packageArtifactCandidate, installPath string) error {
@@ -797,6 +825,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		UserDataPath:  userDataPath,
 		Config:        config,
 		SourceStatus:  sealpack.PackageSourceStatusPresent,
+		Files:         archiveInfo.Files,
 		PendingReload: pendingReload,
 	}
 

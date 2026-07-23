@@ -257,6 +257,9 @@ func TestPackageManagerRefreshAddsOrphanCacheAsCacheOnly(t *testing.T) {
 	if pkg.SourceStatus != sealpack.PackageSourceStatusCacheOnly {
 		t.Fatalf("SourceStatus = %q, want %q", pkg.SourceStatus, sealpack.PackageSourceStatusCacheOnly)
 	}
+	if got, want := strings.Join(pkg.Files, ","), "info.toml,reply/main.yaml"; got != want {
+		t.Fatalf("Files = %q, want %q", got, want)
+	}
 }
 
 func TestPackageManagerRefreshRemovesMissingSourceAndCache(t *testing.T) {
@@ -353,6 +356,9 @@ func TestPackageManagerInstallFromStream(t *testing.T) {
 	}
 	if _, err := os.Stat(pkg.SourcePath); err != nil {
 		t.Fatalf("expected streamed source artifact to exist: %v", err)
+	}
+	if got, want := strings.Join(pkg.Files, ","), "info.toml,scripts/main.js"; got != want {
+		t.Fatalf("Files = %q, want %q", got, want)
 	}
 }
 
