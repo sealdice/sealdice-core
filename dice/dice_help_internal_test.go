@@ -59,14 +59,15 @@ func TestHelpManagerSaveHelpIndexMetaWritesToConfiguredPath(t *testing.T) {
 }
 
 type fakeHelpSearchEngine struct {
-	docs map[string]*docengine.HelpTextItem
+	docs     map[string]*docengine.HelpTextItem
+	pageDocs []*docengine.HelpTextItem
 }
 
 func (f *fakeHelpSearchEngine) GetSuffixText() string { return "" }
 
 func (f *fakeHelpSearchEngine) GetPrefixText() string { return "" }
 
-func (f *fakeHelpSearchEngine) GetShowBestOffset() int { return 0 }
+func (f *fakeHelpSearchEngine) GetShowBestRelativeGap() float64 { return 0 }
 
 func (f *fakeHelpSearchEngine) Init() error { return nil }
 
@@ -84,12 +85,16 @@ func (f *fakeHelpSearchEngine) GetHelpTextItemByTermTitle(string) (*docengine.He
 	return nil, errFakeSearchNotImplemented
 }
 
-func (f *fakeHelpSearchEngine) GetItemByID(id string) (*docengine.HelpTextItem, error) {
-	return f.docs[id], nil
+func (f *fakeHelpSearchEngine) GetItemByInternalID(id string) (*docengine.HelpTextItem, error) {
+	item, ok := f.docs[id]
+	if !ok {
+		return nil, errors.New("document not found")
+	}
+	return item, nil
 }
 
 func (f *fakeHelpSearchEngine) PaginateDocuments(int, int, string, string, string) (uint64, []*docengine.HelpTextItem, error) {
-	return 0, nil, nil
+	return uint64(len(f.pageDocs)), f.pageDocs, nil
 }
 
 func (f *fakeHelpSearchEngine) GetTotalID() uint64 { return uint64(len(f.docs)) }
@@ -164,6 +169,41 @@ func TestHelpManagerGetItemByNumericID_ValidResolvesCorrectDoc(t *testing.T) {
 	}
 	if item != expected {
 		t.Fatalf("GetItemByNumericID(1) item = %#v, want %#v", item, expected)
+	}
+}
+
+func TestHelpManagerGetHelpItemPageResolvesNumericID(t *testing.T) {
+	manager := &HelpManager{
+		docIDs: []string{"internal-1"},
+		searchEngine: &fakeHelpSearchEngine{docs: map[string]*docengine.HelpTextItem{
+			"internal-1": {Title: "example"},
+		}},
+	}
+
+	total, items := manager.GetHelpItemPage(1, 20, "1", "", "", "")
+	if total != 1 || len(items) != 1 {
+		t.Fatalf("GetHelpItemPage() total/items = %d/%d, want 1/1", total, len(items))
+	}
+	if items[0].ID != 1 || items[0].Title != "example" {
+		t.Fatalf("GetHelpItemPage() item = %#v, want numeric ID 1 and title example", items[0])
+	}
+}
+
+func TestHelpManagerGetHelpItemPageMapsPaginationInternalIDs(t *testing.T) {
+	manager := &HelpManager{
+		docIDs: []string{"internal-1", "internal-2"},
+		searchEngine: &fakeHelpSearchEngine{pageDocs: []*docengine.HelpTextItem{
+			{InternalID: "internal-2", Title: "second"},
+			{InternalID: "internal-1", Title: "first"},
+		}},
+	}
+
+	total, items := manager.GetHelpItemPage(1, 20, "", "", "", "")
+	if total != 2 || len(items) != 2 {
+		t.Fatalf("GetHelpItemPage() total/items = %d/%d, want 2/2", total, len(items))
+	}
+	if items[0].ID != 2 || items[1].ID != 1 {
+		t.Fatalf("GetHelpItemPage() IDs = %d/%d, want 2/1", items[0].ID, items[1].ID)
 	}
 }
 

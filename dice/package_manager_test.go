@@ -322,6 +322,32 @@ func TestPackageManagerInstallRejectsSourceOutsideTempDir(t *testing.T) {
 	}
 }
 
+func TestPackageManagerTempDirUsesInstanceCache(t *testing.T) {
+	t.Chdir(t.TempDir())
+	d := &Dice{BaseConfig: BaseConfig{Name: "default", DataDir: filepath.Join("data", "default")}}
+	pm := NewPackageManager(d)
+
+	want := filepath.Join("cache", "temp", "default")
+	if got := pm.getPackageTempDir(); got != want {
+		t.Fatalf("getPackageTempDir() = %q, want %q", got, want)
+	}
+
+	legacyDir := filepath.Join(d.BaseConfig.DataDir, "temp")
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacyFile := filepath.Join(legacyDir, "old.sealpack")
+	if err := os.WriteFile(legacyFile, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := pm.cleanupLegacyPackageTempDir(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(legacyDir); !os.IsNotExist(err) {
+		t.Fatalf("legacy temp directory still exists: %v", err)
+	}
+}
+
 func TestPackageManagerInstallFromStream(t *testing.T) {
 	_, pm := newTestPackageManager(t)
 	if err := pm.Init(); err != nil {
