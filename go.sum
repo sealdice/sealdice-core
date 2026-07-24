@@ -39,8 +39,8 @@ github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPd
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
-github.com/baiyu-yu/botgo v0.0.0-20260624160657-82be3f005789 h1:4NDEwCYrevxCTij1GLhPehmLmLEk8ZPKGLhpWbxENzY=
-github.com/baiyu-yu/botgo v0.0.0-20260624160657-82be3f005789/go.mod h1:oQhXm1mfLdV+1/d27LhnUHVNfhtl5RYwdREQnb4cewI=
+github.com/baiyu-yu/botgo v0.0.0-20260724092016-620fecba07da h1:gvwcNchbzpswk/7R/E8MUsBFxb9zHYmlOKHV0Anh6J0=
+github.com/baiyu-yu/botgo v0.0.0-20260724092016-620fecba07da/go.mod h1:oQhXm1mfLdV+1/d27LhnUHVNfhtl5RYwdREQnb4cewI=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/bits-and-blooms/bitset v1.2.0/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
 github.com/bits-and-blooms/bitset v1.2.2/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
