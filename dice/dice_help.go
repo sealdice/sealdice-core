@@ -743,8 +743,8 @@ func (m *HelpManager) GetPrefixText() string {
 	return m.searchEngine.GetPrefixText()
 }
 
-func (m *HelpManager) GetShowBestOffset() int {
-	return m.searchEngine.GetShowBestOffset()
+func (m *HelpManager) GetShowBestRelativeGap() float64 {
+	return m.searchEngine.GetShowBestRelativeGap()
 }
 
 func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string {

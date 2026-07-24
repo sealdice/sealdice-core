@@ -66,7 +66,7 @@ func (f *fakeHelpSearchEngine) GetSuffixText() string { return "" }
 
 func (f *fakeHelpSearchEngine) GetPrefixText() string { return "" }
 
-func (f *fakeHelpSearchEngine) GetShowBestOffset() int { return 0 }
+func (f *fakeHelpSearchEngine) GetShowBestRelativeGap() float64 { return 0 }
 
 func (f *fakeHelpSearchEngine) Init() error { return nil }
 

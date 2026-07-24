@@ -70,8 +70,8 @@ func (d *BlugeSearchEngine) GetPrefixText() string {
 	return "[全文搜索]"
 }
 
-func (d *BlugeSearchEngine) GetShowBestOffset() int {
-	return 1
+func (d *BlugeSearchEngine) GetShowBestRelativeGap() float64 {
+	return 0.25
 }
 
 func inspectIndexDir(path string) (hasBlugeSnapshot, hasBleveMarker, schemaCurrent bool, err error) {

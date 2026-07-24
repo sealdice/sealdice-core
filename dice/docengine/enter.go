@@ -31,7 +31,7 @@ type HelpTextItem struct {
 type SearchEngine interface {
 	GetSuffixText() string
 	GetPrefixText() string
-	GetShowBestOffset() int
+	GetShowBestRelativeGap() float64
 	// Init 初始化搜索引擎
 	Init() error
 	// Close 关闭搜索引擎
