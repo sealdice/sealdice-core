@@ -39,8 +39,6 @@ github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPd
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
-github.com/baiyu-yu/botgo v0.0.0-20260624160657-82be3f005789 h1:4NDEwCYrevxCTij1GLhPehmLmLEk8ZPKGLhpWbxENzY=
-github.com/baiyu-yu/botgo v0.0.0-20260624160657-82be3f005789/go.mod h1:oQhXm1mfLdV+1/d27LhnUHVNfhtl5RYwdREQnb4cewI=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
 github.com/bits-and-blooms/bitset v1.2.0/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
 github.com/bits-and-blooms/bitset v1.2.2/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
@@ -508,6 +506,8 @@ github.com/samber/lo v1.52.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRo
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/schollz/progressbar/v3 v3.18.0 h1:uXdoHABRFmNIjUfte/Ex7WtuyVslrw2wVPQmCN62HpA=
 github.com/schollz/progressbar/v3 v3.18.0/go.mod h1:IsO3lpbaGuzh8zIMzgY3+J8l4C8GjO0Y9S69eFvNsec=
+github.com/sealdice/botgo v0.0.0-20260723172410-174570888e38 h1:pZT8k8bOe1V8iAraOnzItI2i31Zzds/hDKKIvX8UXcI=
+github.com/sealdice/botgo v0.0.0-20260723172410-174570888e38/go.mod h1:oQhXm1mfLdV+1/d27LhnUHVNfhtl5RYwdREQnb4cewI=
 github.com/sealdice/dicescript v0.0.0-20260511210507-209e4d20a070 h1:C5zwdWiRpgMl3g3Q68csBaDWJLdUhYKfPGwJUkHXed0=
 github.com/sealdice/dicescript v0.0.0-20260511210507-209e4d20a070/go.mod h1:uof752qJvEQ4Kze+NVag+RKGgj5C4K3kMHoK3e2vOLg=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=
