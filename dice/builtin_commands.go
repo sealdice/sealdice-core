@@ -133,63 +133,75 @@ func parseQQGroupRole(role string) (string, bool) {
 	return normalized, true
 }
 
-func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+// checkBotGroupRole 查询 bot 在指定群中归一化后的角色(owner/admin/member)。
+// 返回值: ok 表示该适配器是否支持并成功完成角色检查;
+// detail 在 ok=true 时为归一化后的角色字符串,在 ok=false 时为失败原因描述。
+// 不支持角色检查的适配器返回 ok=false, 调用方应保持原有行为, 不做阻断。
+func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
-		return false, false, "context invalid"
+		return "context invalid", false
 	}
 
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
 		if pa.sendEmitter == nil {
-			return false, false, "onebot emitter unavailable"
+			return "onebot emitter unavailable", false
 		}
 		botID, ok := getOnebotBotQQID(ctx)
 		if !ok {
-			return false, false, "cannot resolve bot qq id"
+			return "cannot resolve bot qq id", false
 		}
 		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, false)
 		if err != nil || memberInfo == nil {
 			if err != nil {
-				return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+				return fmt.Sprintf("get_group_member_info failed: %v", err), false
 			}
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	case *PlatformAdapterGocq:
 		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
 		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
 		if botIDRaw == "" || groupIDRaw == "" {
-			return false, false, "cannot resolve bot/group id"
+			return "cannot resolve bot/group id", false
 		}
 		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
 		if memberInfo == nil {
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	case *PlatformAdapterMilky:
 		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
 		if err != nil {
-			return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+			return fmt.Sprintf("get_group_member_info failed: %v", err), false
 		}
 		if memberInfo == nil {
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	default:
-		return false, false, "adapter does not support group role check"
+		return "adapter does not support group role check", false
 	}
+}
+
+func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+	detail, ok := checkBotGroupRole(ctx, groupID)
+	if !ok {
+		return false, false, detail
+	}
+	return detail == "owner", true, detail
 }
 
 func normalizeDismissTargetGroupID(ctx *MsgContext, rawGroupID string) string {
