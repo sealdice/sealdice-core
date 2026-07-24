@@ -1,9 +1,8 @@
-package dice_test
+//nolint:testpackage // This test validates internal GroupInfo extension state serialization helpers.
+package dice
 
 import (
 	"testing"
-
-	"sealdice-core/dice"
 
 	"gopkg.in/yaml.v3"
 )
@@ -12,16 +11,16 @@ import (
 func TestGroupInfoSerialization(t *testing.T) {
 	tests := []struct {
 		name     string
-		group    *dice.GroupInfo
-		validate func(*testing.T, *dice.GroupInfo)
+		group    *GroupInfo
+		validate func(*testing.T, *GroupInfo)
 	}{
 		{
 			name: "有数据的情况",
-			group: &dice.GroupInfo{
-				InactivatedExtSet: dice.StringSet{"ext1": {}, "ext2": {}},
+			group: &GroupInfo{
+				InactivatedExtSet: StringSet{"ext1": {}, "ext2": {}},
 				ExtAppliedVersion: 123,
 			},
-			validate: func(t *testing.T, g *dice.GroupInfo) {
+			validate: func(t *testing.T, g *GroupInfo) {
 				if len(g.InactivatedExtSet) != 2 {
 					t.Errorf("InactivatedExtSet 长度不匹配: got %d, want 2", len(g.InactivatedExtSet))
 				}
@@ -35,27 +34,27 @@ func TestGroupInfoSerialization(t *testing.T) {
 		},
 		{
 			name: "nil 字段的情况",
-			group: &dice.GroupInfo{
+			group: &GroupInfo{
 				InactivatedExtSet: nil,
 				ExtAppliedVersion: 0,
 			},
-			validate: func(t *testing.T, g *dice.GroupInfo) {
+			validate: func(t *testing.T, g *GroupInfo) {
 				// YAML 会将 nil map/slice 反序列化为空集合，这是预期行为
 				if g.InactivatedExtSet == nil {
-					g.InactivatedExtSet = dice.StringSet{}
+					g.InactivatedExtSet = StringSet{}
 				}
 				// 验证空集合也能正常工作
-				if g.IsExtInactivated("any") {
+				if g.isExtInactivated("any") {
 					t.Error("空的 InactivatedExtSet 不应该包含任何扩展")
 				}
 			},
 		},
 		{
 			name: "空但非 nil 的情况",
-			group: &dice.GroupInfo{
-				InactivatedExtSet: dice.StringSet{},
+			group: &GroupInfo{
+				InactivatedExtSet: StringSet{},
 			},
-			validate: func(t *testing.T, g *dice.GroupInfo) {
+			validate: func(t *testing.T, g *GroupInfo) {
 				if len(g.InactivatedExtSet) != 0 {
 					t.Errorf("InactivatedExtSet 应该为空: got %d items", len(g.InactivatedExtSet))
 				}
@@ -74,7 +73,7 @@ func TestGroupInfoSerialization(t *testing.T) {
 			t.Logf("YAML 输出:\n%s", string(data))
 
 			// 反序列化
-			var restored dice.GroupInfo
+			var restored GroupInfo
 			err = yaml.Unmarshal(data, &restored)
 			if err != nil {
 				t.Fatalf("反序列化失败: %v", err)
@@ -94,29 +93,29 @@ inactivatedExtSet:
   - ext2
 `
 
-	var group dice.GroupInfo
+	var group GroupInfo
 	err := yaml.Unmarshal([]byte(yamlData), &group)
 	if err != nil {
 		t.Fatalf("反序列化失败: %v", err)
 	}
 
 	// 测试查询
-	if !group.IsExtInactivated("ext1") {
+	if !group.isExtInactivated("ext1") {
 		t.Error("ext1 应该在 InactivatedExtSet 中")
 	}
-	if group.IsExtInactivated("ext3") {
+	if group.isExtInactivated("ext3") {
 		t.Error("ext3 不应该在 InactivatedExtSet 中")
 	}
 
 	// 测试删除
-	group.RemoveFromInactivated("ext1")
-	if group.IsExtInactivated("ext1") {
+	group.removeFromInactivated("ext1")
+	if group.isExtInactivated("ext1") {
 		t.Error("ext1 应该已经被移除")
 	}
 
 	// 测试添加
-	group.AddToInactivated("ext5")
-	if !group.IsExtInactivated("ext5") {
+	group.addToInactivated("ext5")
+	if !group.isExtInactivated("ext5") {
 		t.Error("ext5 应该已经被添加")
 	}
 }

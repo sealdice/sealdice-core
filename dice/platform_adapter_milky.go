@@ -558,7 +558,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 				pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 			}
 			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(ctx.Group.GroupID); ok {
-				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
+				groupInfo.triggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 					if ext.OnBecomeFriend == nil {
 						return nil
 					}

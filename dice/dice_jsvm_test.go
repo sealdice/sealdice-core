@@ -1,6 +1,7 @@
 package dice //nolint:testpackage
 
 import (
+	"reflect"
 	"testing"
 
 	"go.uber.org/zap"
@@ -45,5 +46,24 @@ func TestJsInit_WhenExtLoopManagerNil_DoesNotPanic(t *testing.T) {
 	}
 	if !d.Config.JsEnable {
 		t.Fatalf("expected JsEnable to be true after JsInit")
+	}
+}
+
+func TestGroupInfoDoesNotDefineLegacyExtMethods(t *testing.T) {
+	typ := reflect.TypeOf(&GroupInfo{})
+	for _, name := range []string{
+		"ExtActive",
+		"ExtInactive",
+		"ExtGetActive",
+		"GetActivatedExtListRaw",
+		"GetActivatedExtList",
+		"SetActivatedExtList",
+		"TriggerExtHook",
+		"SyncWrapperStatus",
+		"SyncExtensionsOnMessage",
+	} {
+		if _, ok := typ.MethodByName(name); ok {
+			t.Fatalf("GroupInfo should not define legacy ext method %s", name)
+		}
 	}
 }

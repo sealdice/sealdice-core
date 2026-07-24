@@ -459,7 +459,7 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 				}
 			}
 
-			ctx.Group.ExtActive(ctx.Dice.ExtFind("coc7", false))
+			ctx.Group.extActive(ctx.Dice, ctx.Dice.ExtFind("coc7", false))
 			ctx.Group.System = "coc7"
 			ctx.Group.MarkDirty(ctx.Dice)
 			return CmdExecuteResult{Matched: true, Solved: true}

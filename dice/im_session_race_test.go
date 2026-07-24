@@ -1,11 +1,10 @@
-package dice_test
+//nolint:testpackage // This test needs package-level access to internal extension state helpers for race coverage.
+package dice
 
 import (
 	"encoding/json"
 	"sync"
 	"testing"
-
-	"sealdice-core/dice"
 
 	"go.uber.org/zap"
 )
@@ -13,8 +12,8 @@ import (
 // TestGetActivatedExtListRace 测试 GetActivatedExtList 的并发安全性
 func TestGetActivatedExtListRace(t *testing.T) {
 	// 创建一个模拟的 Dice 对象
-	d := &dice.Dice{
-		ExtList: []*dice.ExtInfo{
+	d := &Dice{
+		ExtList: []*ExtInfo{
 			{Name: "ext1", AutoActive: true},
 			{Name: "ext2", AutoActive: true},
 			{Name: "ext3", AutoActive: false},
@@ -25,11 +24,11 @@ func TestGetActivatedExtListRace(t *testing.T) {
 
 	t.Run("concurrent_get_during_init", func(t *testing.T) {
 		// 测试多个 goroutine 同时调用 GetActivatedExtList 进行初始化
-		group := &dice.GroupInfo{
+		group := &GroupInfo{
 			GroupID: "test-group-1",
 		}
 		// 设置初始扩展列表
-		group.SetActivatedExtList([]*dice.ExtInfo{
+		group.setActivatedExtList([]*ExtInfo{
 			{Name: "ext1"},
 		}, nil)
 		// 重置 ExtAppliedTime 为 0 以触发初始化
@@ -42,7 +41,7 @@ func TestGetActivatedExtListRace(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_ = group.GetActivatedExtList(d)
+				_ = group.activatedExtList(d)
 			}()
 		}
 		wg.Wait()
@@ -50,10 +49,10 @@ func TestGetActivatedExtListRace(t *testing.T) {
 
 	t.Run("concurrent_get_and_set", func(t *testing.T) {
 		// 测试 GetActivatedExtList 和 SetActivatedExtList 的并发
-		group := &dice.GroupInfo{
+		group := &GroupInfo{
 			GroupID: "test-group-2",
 		}
-		group.SetActivatedExtList([]*dice.ExtInfo{
+		group.setActivatedExtList([]*ExtInfo{
 			{Name: "ext1"},
 		}, d)
 
@@ -65,7 +64,7 @@ func TestGetActivatedExtListRace(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_ = group.GetActivatedExtList(d)
+				_ = group.activatedExtList(d)
 			}()
 		}
 
@@ -74,7 +73,7 @@ func TestGetActivatedExtListRace(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				group.SetActivatedExtList([]*dice.ExtInfo{
+				group.setActivatedExtList([]*ExtInfo{
 					{Name: "ext1"},
 					{Name: "ext2"},
 				}, d)
@@ -86,10 +85,10 @@ func TestGetActivatedExtListRace(t *testing.T) {
 
 	t.Run("concurrent_get_and_marshal", func(t *testing.T) {
 		// 测试 GetActivatedExtList 和 MarshalJSON 的并发
-		group := &dice.GroupInfo{
+		group := &GroupInfo{
 			GroupID: "test-group-3",
 		}
-		group.SetActivatedExtList([]*dice.ExtInfo{
+		group.setActivatedExtList([]*ExtInfo{
 			{Name: "ext1"},
 			{Name: "ext2"},
 		}, d)
@@ -102,7 +101,7 @@ func TestGetActivatedExtListRace(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_ = group.GetActivatedExtList(d)
+				_ = group.activatedExtList(d)
 			}()
 		}
 
@@ -120,10 +119,10 @@ func TestGetActivatedExtListRace(t *testing.T) {
 
 	t.Run("concurrent_init_and_set", func(t *testing.T) {
 		// 测试初始化期间的 Set 操作
-		group := &dice.GroupInfo{
+		group := &GroupInfo{
 			GroupID: "test-group-4",
 		}
-		group.SetActivatedExtList([]*dice.ExtInfo{
+		group.setActivatedExtList([]*ExtInfo{
 			{Name: "ext1"},
 		}, nil)
 		// 重置以触发初始化
@@ -137,7 +136,7 @@ func TestGetActivatedExtListRace(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_ = group.GetActivatedExtList(d)
+				_ = group.activatedExtList(d)
 			}()
 		}
 
@@ -146,7 +145,7 @@ func TestGetActivatedExtListRace(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				group.SetActivatedExtList([]*dice.ExtInfo{
+				group.setActivatedExtList([]*ExtInfo{
 					{Name: "newExt"},
 				}, d)
 			}()

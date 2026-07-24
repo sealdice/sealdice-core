@@ -1789,7 +1789,7 @@ func (d *Dice) registerCoreCommands() {
 				text.WriteString("检测到以下扩展(名称-版本-作者)：\n")
 				for index, i := range ctx.Dice.ExtList {
 					state := "关"
-					for _, j := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+					for _, j := range ctx.Group.activatedExtList(ctx.Dice) {
 						if i.Name == j.Name {
 							state = "开"
 							break
@@ -1836,7 +1836,7 @@ func (d *Dice) registerCoreCommands() {
 
 				checkConflict := func(ext *ExtInfo) []string {
 					var actived []string
-					for _, i := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+					for _, i := range ctx.Group.activatedExtList(ctx.Dice) {
 						actived = append(actived, i.Name)
 					}
 
@@ -1857,7 +1857,7 @@ func (d *Dice) registerCoreCommands() {
 				if cmdArgs.IsArgEqual(1, "all") {
 					for _, ext := range ctx.Dice.ExtList {
 						isActive := false
-						for _, activated := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+						for _, activated := range ctx.Group.activatedExtList(ctx.Dice) {
 							if ext.Name == activated.Name {
 								isActive = true
 								break
@@ -1866,8 +1866,8 @@ func (d *Dice) registerCoreCommands() {
 						if !isActive {
 							extNames = append(extNames, ext.Name)
 							conflictsAll = append(conflictsAll, checkConflict(ext)...)
-							ctx.Group.RemoveFromInactivated(ext.Name)
-							ctx.Group.ExtActive(ext)
+							ctx.Group.removeFromInactivated(ext.Name)
+							ctx.Group.extActive(ctx.Dice, ext)
 						}
 					}
 
@@ -1888,7 +1888,7 @@ func (d *Dice) registerCoreCommands() {
 
 				// 记录激活前已有的扩展
 				beforeActivate := make(map[string]bool)
-				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+				for _, ext := range ctx.Group.activatedExtList(ctx.Dice) {
 					beforeActivate[ext.Name] = true
 				}
 
@@ -1901,13 +1901,13 @@ func (d *Dice) registerCoreCommands() {
 						extNames = append(extNames, i.Name)
 						userActivatedNames[i.Name] = true
 						conflictsAll = append(conflictsAll, checkConflict(i)...)
-						ctx.Group.RemoveFromInactivated(i.Name)
-						ctx.Group.ExtActive(i)
+						ctx.Group.removeFromInactivated(i.Name)
+						ctx.Group.extActive(ctx.Dice, i)
 					}
 				}
 
 				// 循环结束后统一检查新激活的伴随扩展
-				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+				for _, ext := range ctx.Group.activatedExtList(ctx.Dice) {
 					if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
 						companionExtNames = append(companionExtNames, ext.Name)
 					}
@@ -1934,7 +1934,7 @@ func (d *Dice) registerCoreCommands() {
 
 				// 判断是否是 .ext all off
 				if cmdArgs.IsArgEqual(1, "all") {
-					before := ctx.Group.GetActivatedExtList(ctx.Dice)
+					before := ctx.Group.activatedExtList(ctx.Dice)
 					if len(before) == 0 {
 						ReplyToSender(ctx, msg, "当前群没有开启任何扩展。")
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -1948,10 +1948,10 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					for _, name := range beforeNames {
-						_ = ctx.Group.ExtInactiveByName(name)
+						_ = ctx.Group.extInactiveByName(ctx.Dice, name)
 					}
 
-					after := ctx.Group.GetActivatedExtList(ctx.Dice)
+					after := ctx.Group.activatedExtList(ctx.Dice)
 					if len(after) == 0 {
 						ReplyToSender(ctx, msg, fmt.Sprintf("已关闭全部扩展: %s", strings.Join(beforeNames, ", ")))
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -1989,7 +1989,7 @@ func (d *Dice) registerCoreCommands() {
 
 				// 记录关闭前的扩展列表
 				beforeDeactivate := make(map[string]bool)
-				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+				for _, ext := range ctx.Group.activatedExtList(ctx.Dice) {
 					beforeDeactivate[ext.Name] = true
 				}
 				directlyClosed := make(map[string]struct{})
@@ -1999,7 +1999,7 @@ func (d *Dice) registerCoreCommands() {
 					extName := cmdArgs.Args[index]
 					extName = d.ExtAliasToName(extName)
 
-					ei := ctx.Group.ExtInactiveByName(extName)
+					ei := ctx.Group.extInactiveByName(ctx.Dice, extName)
 					if ei != nil {
 						closed = append(closed, ei.Name)
 						directlyClosed[ei.Name] = struct{}{}
@@ -2010,7 +2010,7 @@ func (d *Dice) registerCoreCommands() {
 
 				// 检查被连带关闭的伴随扩展：差集 = 关闭前 - 关闭后 - 主动关闭
 				afterDeactivate := make(map[string]bool)
-				for _, ext := range ctx.Group.GetActivatedExtList(ctx.Dice) {
+				for _, ext := range ctx.Group.activatedExtList(ctx.Dice) {
 					afterDeactivate[ext.Name] = true
 				}
 				for closedExtName := range beforeDeactivate {
@@ -2194,7 +2194,7 @@ func (d *Dice) registerCoreCommands() {
 						// 开启相关扩展
 						ei := ctx.Dice.ExtFind(name, false)
 						if ei != nil {
-							ctx.Group.ExtActive(ei)
+							ctx.Group.extActive(ctx.Dice, ei)
 						}
 					}
 					return false
@@ -2638,18 +2638,18 @@ func (d *Dice) registerCoreCommands() {
 			switch val {
 			case "on":
 				onText := "开"
-				if ctx.Group.ExtGetActive("reply") == nil {
+				if ctx.Group.extGetActive(ctx.Dice, "reply") == nil {
 					onText = "关"
 				}
 				extReply := ctx.Dice.ExtFind("reply", false)
-				ctx.Group.ExtActive(extReply)
+				ctx.Group.extActive(ctx.Dice, extReply)
 				ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群开启自定义回复(%s➯开)。\n此指令等价于.ext reply on", onText))
 			case "off":
 				onText := "开"
-				if ctx.Group.ExtGetActive("reply") == nil {
+				if ctx.Group.extGetActive(ctx.Dice, "reply") == nil {
 					onText = "关"
 				}
-				ctx.Group.ExtInactiveByName("reply")
+				ctx.Group.extInactiveByName(ctx.Dice, "reply")
 				ReplyToSender(ctx, msg, fmt.Sprintf("已在当前群关闭自定义回复(%s➯关)。\n此指令等价于.ext reply off", onText))
 			default:
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -2707,7 +2707,7 @@ func setRuleByName(ctx *MsgContext, name string) {
 				// 开启相关扩展
 				ei := ctx.Dice.ExtFind(name, false)
 				if ei != nil {
-					ctx.Group.ExtActive(ei)
+					ctx.Group.extActive(ctx.Dice, ei)
 				}
 			}
 			return false

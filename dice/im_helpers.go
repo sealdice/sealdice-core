@@ -245,17 +245,17 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 	} else {
 		// 设定扩展情况
 		sort.Sort(ExtDefaultSettingItemSlice(session.Parent.Config.ExtDefaultSettings))
-		var extLst []*ExtInfo
+		var extNames []string
 		for _, i := range session.Parent.Config.ExtDefaultSettings {
 			if i.ExtItem != nil {
 				if i.AutoActive {
-					extLst = append(extLst, i.ExtItem)
+					extNames = append(extNames, i.ExtItem.Name)
 				}
 			}
 		}
 		group = &GroupInfo{
 			Active:            true,
-			activatedExtList:  extLst,
+			activatedExtNames: extNames,
 			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
 			InactivatedExtSet: StringSet{},
 			Players:           new(SyncMap[string, *GroupPlayerInfo]),
@@ -327,8 +327,8 @@ func GetPlayerInfoBySenderRaw(ctx *MsgContext, msg *MessageWrapper) (*GroupInfo,
 	}
 
 	if ctx.Dice != nil {
-		groupInfo.SyncWrapperStatus(ctx.Dice)       // 移除无效 wrapper
-		groupInfo.SyncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
+		groupInfo.syncWrapperStatus(ctx.Dice)       // 移除无效 wrapper
+		groupInfo.syncExtensionsOnMessage(ctx.Dice) // 新增 AutoActive 扩展
 	}
 
 	p := groupInfo.PlayerGet(ctx.Dice.DBOperator, msg.Sender.UserID)

@@ -311,7 +311,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 		}
 
 		if groupInfo, ok := mctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
-			groupInfo.TriggerExtHook(mctx.Dice, func(ext *ExtInfo) func() {
+			groupInfo.triggerExtHook(mctx.Dice, func(ext *ExtInfo) func() {
 				if ext.OnGuildJoined == nil {
 					return nil
 				}
