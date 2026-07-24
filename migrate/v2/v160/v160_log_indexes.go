@@ -40,7 +40,7 @@ func V160LogRawMsgIDIndexMigrate(dboperator operator.DatabaseOperator, logf func
 }
 
 var V160LogRawMsgIDIndexMigration = upgrade.Upgrade{
-	ID: "008a_V160LogRawMsgIDIndexMigration",
+	ID: "009_V160LogRawMsgIDIndexMigration",
 	Description: `
 # 升级说明
 为日志消息回查补齐(group_id, raw_msg_id, id)复合索引
