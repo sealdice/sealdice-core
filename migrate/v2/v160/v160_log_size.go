@@ -1,6 +1,7 @@
 package v160
 
 import (
+	"errors"
 	"fmt"
 
 	"sealdice-core/model"
@@ -38,7 +39,7 @@ func V160LogSizeRepairMigrate(dboperator operator.DatabaseOperator, logf func(st
 	// 用裸 SQL（而非 gorm.Model().Update()）以绕开 GORM “无 WHERE 的批量更新”保护，
 	// 这里确实需要更新全部行。该相关子查询与 008 迁移的重算口径一致，三种数据库均支持。
 	if !migrator.HasTable(&model.LogOneItem{}) {
-		return fmt.Errorf("logs 表存在但 log_items 表缺失，数据库状态异常，无法重算 size")
+		return errors.New("logs 表存在但 log_items 表缺失，数据库状态异常，无法重算 size")
 	}
 	var rowsAffected int64
 	res := db.Exec("UPDATE logs SET size = (SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)")
