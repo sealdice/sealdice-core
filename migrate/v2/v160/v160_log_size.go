@@ -1,0 +1,74 @@
+package v160
+
+import (
+	"errors"
+	"fmt"
+
+	"sealdice-core/model"
+	"sealdice-core/utils/constant"
+	operator "sealdice-core/utils/dboperator/engine"
+	upgrade "sealdice-core/utils/upgrader"
+)
+
+// V160LogSizeRepairMigrate 修复 logs.size 列：缺失则补建，并全量重算每条日志的条目数。
+func V160LogSizeRepairMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
+	db := dboperator.GetLogDB(constant.WRITE)
+
+	// 没有 logs 表（例如全新库或尚未初始化日志库）时，无需处理
+	if !db.Migrator().HasTable(&model.LogInfo{}) {
+		return nil
+	}
+
+	migrator := db.Migrator()
+
+	// 步骤 1：检测 size 列，缺失则补建
+	columnCreated := false
+	if !migrator.HasColumn(&model.LogInfo{}, "size") {
+		if err := migrator.AddColumn(&model.LogInfo{}, "Size"); err != nil {
+			return fmt.Errorf("为 logs 表补建 size 列失败: %w", err)
+		}
+		columnCreated = true
+		logf("数据修复 - Logs表，检测到缺失 size 列，已补建")
+	}
+
+	// 步骤 2：全量重算 size
+	// size = 该日志下 removed IS NULL 的条目数。
+	// 前置条件：log_items 表必须存在。logs 与 log_items 由 V120 一同创建，理论上不会出现
+	// “logs 存在而 log_items 缺失”的状态；若真的出现，说明数据库状态异常，这里显式报错中断，
+	// 而不是让裸 SQL 在子查询里抛出难以理解的错误。
+	// 用裸 SQL（而非 gorm.Model().Update()）以绕开 GORM “无 WHERE 的批量更新”保护，
+	// 这里确实需要更新全部行。该相关子查询与 008 迁移的重算口径一致，三种数据库均支持。
+	if !migrator.HasTable(&model.LogOneItem{}) {
+		return errors.New("logs 表存在但 log_items 表缺失，数据库状态异常，无法重算 size")
+	}
+	var rowsAffected int64
+	res := db.Exec("UPDATE logs SET size = (SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)")
+	if res.Error != nil {
+		return res.Error
+	}
+	rowsAffected = res.RowsAffected
+
+	if columnCreated {
+		logf(fmt.Sprintf("数据修复 - Logs表，已补建 size 列并重算了 %d 条记录", rowsAffected))
+	} else {
+		logf(fmt.Sprintf("数据修复 - Logs表，size 列已存在，重算了 %d 条记录", rowsAffected))
+	}
+	return nil
+}
+
+var V160LogSizeRepairMigration = upgrade.Upgrade{
+	ID: "010_V160LogSizeRepairMigration",
+	Description: `
+# 升级说明
+兜底修复 V150 历史升级失误：若 logs 表缺少 size 列则补建，并对所有日志全量重算 size（该日志下未删除的条目数）。
+`,
+	Apply: func(logf func(string), dbOperator operator.DatabaseOperator) error {
+		logf("[INFO] V160 logs.size 修复开始")
+		err := V160LogSizeRepairMigrate(dbOperator, logf)
+		if err != nil {
+			return err
+		}
+		logf("[INFO] V160 logs.size 修复处置完毕")
+		return nil
+	},
+}

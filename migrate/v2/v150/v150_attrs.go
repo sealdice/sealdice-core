@@ -1173,8 +1173,6 @@ func logDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 		if err := ensureSQLiteLogSchema(writeDB); err != nil {
 			return err
 		}
-		logf("LOGS 日志数据库初始化完成")
-		return nil
 	case "mysql":
 		if err := writeDB.AutoMigrate(&model.LogInfoHookMySQL{}); err != nil {
 			return err
@@ -1191,12 +1189,6 @@ func logDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 		if err != nil {
 			return err
 		}
-		err = calculateLogSize(writeDB)
-		if err != nil {
-			return err
-		}
-		logf("LOGS 日志数据库初始化完成")
-		return nil
 	default:
 		if err := writeDB.AutoMigrate(&model.LogInfo{}); err != nil {
 			return err
@@ -1205,9 +1197,13 @@ func logDBInit(dboperator operator.DatabaseOperator, logf func(string)) error {
 		if err != nil {
 			return err
 		}
-		logf("LOGS 日志数据库初始化完成")
-		return nil
 	}
+	err := calculateLogSize(writeDB)
+	if err != nil {
+		return err
+	}
+	logf("LOGS 日志数据库初始化完成")
+	return nil
 }
 
 func calculateLogSize(logsDB *gorm.DB) error {
