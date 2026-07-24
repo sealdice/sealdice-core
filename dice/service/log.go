@@ -22,39 +22,82 @@ type LogOne struct {
 	Info  model.LogInfo      `json:"info"`
 }
 
-// LogGetInfo 查询日志简略信息，使用通用函数替代SQLITE专属函数
-// TODO: 换回去，因为现在已经分离了引擎
+var ErrLogNotFound = errors.New("日志不存在")
+
+// LogGetInfo 查询日志简略信息（近似估算）
+// 返回值保持原结构：logs 最大 ID、log_items 最大 ID、logs 近似行数、log_items 近似行数。
 func LogGetInfo(operator engine2.DatabaseOperator) ([]int, error) {
 	db := operator.GetLogDB(constant.READ)
-	lst := []int{0, 0, 0, 0}
-
-	var maxID sql.NullInt64      // 使用sql.NullInt64来处理NULL值
-	var itemsMaxID sql.NullInt64 // 使用sql.NullInt64来处理NULL值
-	// 获取 logs 表的记录数和最大 ID
-	err := db.Model(&model.LogInfo{}).Select("COUNT(*)").Scan(&lst[2]).Error
+	dbType := operator.Type()
+	logMaxID, logRows, err := logTableApproxInfo(db, dbType, "logs", &model.LogInfo{})
 	if err != nil {
 		return nil, err
 	}
-
-	err = db.Model(&model.LogInfo{}).Select("MAX(id)").Scan(&maxID).Error
+	itemMaxID, itemRows, err := logTableApproxInfo(db, dbType, "log_items", &model.LogOneItem{})
 	if err != nil {
 		return nil, err
 	}
-	lst[0] = int(maxID.Int64)
+	return []int{int(logMaxID), int(itemMaxID), int(logRows), int(itemRows)}, nil
+}
 
-	// 获取 log_items 表的记录数和最大 ID
-	err = db.Model(&model.LogOneItem{}).Select("COUNT(*)").Scan(&lst[3]).Error
+func logTableApproxInfo(db *gorm.DB, dbType string, tableName string, modelValue interface{}) (maxID int64, rows int64, err error) {
+	maxID, err = queryMaxID(db, modelValue)
 	if err != nil {
-		return nil, err
+		return 0, 0, err
 	}
-
-	err = db.Model(&model.LogOneItem{}).Select("MAX(id)").Scan(&itemsMaxID).Error
-	if err != nil {
-		return nil, err
+	rows = maxID
+	switch dbType {
+	case constant.SQLITE:
+		if seq, ok := querySQLiteSequence(db, tableName); ok {
+			rows = seq
+		}
+	case constant.MYSQL:
+		if tableRows, ok := queryMySQLTableRows(db, tableName); ok {
+			rows = tableRows
+		}
+	case constant.POSTGRESQL, "pgsql":
+		if tableRows, ok := queryPostgreSQLTableRows(db, tableName); ok {
+			rows = tableRows
+		}
 	}
-	lst[1] = int(itemsMaxID.Int64)
+	return maxID, rows, nil
+}
 
-	return lst, nil
+func querySQLiteSequence(db *gorm.DB, tableName string) (int64, bool) {
+	var seq sql.NullInt64
+	if err := db.Raw("SELECT seq FROM sqlite_sequence WHERE name = ?", tableName).Scan(&seq).Error; err != nil {
+		return 0, false
+	}
+	return seq.Int64, seq.Valid
+}
+
+func queryMySQLTableRows(db *gorm.DB, tableName string) (int64, bool) {
+	var rows sql.NullInt64
+	err := db.Raw(
+		"SELECT TABLE_ROWS FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+		tableName,
+	).Scan(&rows).Error
+	if err != nil || !rows.Valid || rows.Int64 < 0 {
+		return 0, false
+	}
+	return rows.Int64, true
+}
+
+func queryPostgreSQLTableRows(db *gorm.DB, tableName string) (int64, bool) {
+	var rows sql.NullInt64
+	err := db.Raw("SELECT reltuples::BIGINT FROM pg_class WHERE oid = ?::regclass", tableName).Scan(&rows).Error
+	if err != nil || !rows.Valid || rows.Int64 < 0 {
+		return 0, false
+	}
+	return rows.Int64, true
+}
+
+func queryMaxID(db *gorm.DB, modelValue interface{}) (int64, error) {
+	var maxID sql.NullInt64
+	if err := db.Model(modelValue).Select("MAX(id)").Scan(&maxID).Error; err != nil {
+		return 0, err
+	}
+	return maxID.Int64, nil
 }
 
 // Deprecated: replaced by page
@@ -138,19 +181,107 @@ func LogGetList(operator engine2.DatabaseOperator, groupID string) ([]string, er
 
 // getIDByGroupIDAndName 获取ID 私有函数，可以直接使用db
 func getIDByGroupIDAndName(db *gorm.DB, groupID string, logName string) (logID uint64, err error) {
+	var logInfo model.LogInfo
 	err = db.Model(&model.LogInfo{}).
 		Select("id").
 		Where("group_id = ? AND name = ?", groupID, logName).
-		Scan(&logID).Error
+		Take(&logInfo).Error
 
 	if err != nil {
-		// 如果出现错误，判断是否没有找到对应的记录
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, nil
+			return 0, ErrLogNotFound
 		}
 		return 0, err
 	}
+	if logInfo.ID == 0 {
+		return 0, ErrLogNotFound
+	}
+	return logInfo.ID, nil
+}
 
+func getLogInfoByID(db *gorm.DB, logID uint64) (*model.LogInfo, error) {
+	var logInfo model.LogInfo
+	err := db.Model(&model.LogInfo{}).
+		Where("id = ?", logID).
+		Take(&logInfo).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrLogNotFound
+		}
+		return nil, err
+	}
+	if logInfo.ID == 0 {
+		return nil, ErrLogNotFound
+	}
+	return &logInfo, nil
+}
+
+func getLogInfoByRawMsgID(db *gorm.DB, groupID string, rawID interface{}) (*model.LogInfo, error) {
+	rid := fmt.Sprintf("%v", rawID)
+	if rid == "" {
+		return nil, ErrLogNotFound
+	}
+
+	// NOTE:
+	// - 这里依赖 log_items 上的复合索引 (group_id, raw_msg_id, id)，以支撑 WHERE + ORDER BY 的查询模式。
+	// - 正常情况下，同一群内不应存在多条相同 raw_msg_id 的日志项；若出现，默认以最新一条为准。
+	var candidates []struct {
+		ID    uint64 `gorm:"column:id"`
+		LogID uint64 `gorm:"column:log_id"`
+	}
+	err := db.Model(&model.LogOneItem{}).
+		Select("id, log_id").
+		Where("group_id = ? AND raw_msg_id = ?", groupID, rid).
+		Order("id DESC").
+		Limit(2).
+		Find(&candidates).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if len(candidates) == 0 || candidates[0].LogID == 0 {
+		return nil, ErrLogNotFound
+	}
+
+	if len(candidates) > 1 {
+		zap.S().Named(logger.LogKeyDatabase).Warnf("日志RawMsgID出现重复，按最新记录处理: group=%s raw_msg_id=%s latest_item_id=%d", groupID, rid, candidates[0].ID)
+	}
+
+	return getLogInfoByID(db, candidates[0].LogID)
+}
+
+func createLog(tx *gorm.DB, groupID string, logName string, nowTimestamp int64) (uint64, error) {
+	newLog := model.LogInfo{Name: logName, GroupID: groupID, CreatedAt: nowTimestamp, UpdatedAt: nowTimestamp}
+	if err := tx.Create(&newLog).Error; err != nil {
+		existedLogID, findErr := getIDByGroupIDAndName(tx, groupID, logName)
+		if findErr != nil {
+			return 0, err
+		}
+		return existedLogID, nil
+	}
+	return newLog.ID, nil
+}
+
+// LogGetOrCreate 返回指定群和日志名对应的内部 log_id，不存在时自动创建。
+func LogGetOrCreate(operator engine2.DatabaseOperator, groupID string, logName string) (uint64, error) {
+	db := operator.GetLogDB(constant.WRITE)
+	logID, err := getIDByGroupIDAndName(db, groupID, logName)
+	if err == nil {
+		return logID, nil
+	}
+	if !errors.Is(err, ErrLogNotFound) {
+		return 0, err
+	}
+
+	nowTimestamp := time.Now().Unix()
+	err = db.Transaction(func(tx *gorm.DB) error {
+		var createErr error
+		logID, createErr = createLog(tx, groupID, logName, nowTimestamp)
+		return createErr
+	})
+	if err != nil {
+		return 0, err
+	}
 	return logID, nil
 }
 
@@ -226,6 +357,9 @@ func LogGetAllLines(operator engine2.DatabaseOperator, groupID string, logName s
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []*model.LogOneItem{}, nil
+		}
 		return nil, err
 	}
 
@@ -249,6 +383,9 @@ func LogGetCommandInfoStrList(operator engine2.DatabaseOperator, groupID string,
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []string{}, nil
+		}
 		return nil, err
 	}
 
@@ -271,6 +408,9 @@ func LogGetCursorLines(operator engine2.DatabaseOperator, groupID string, logNam
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []model.LogOneItem{}, paginator.Cursor{}, nil
+		}
 		return nil, paginator.Cursor{}, err
 	}
 	var items []model.LogOneItem
@@ -296,6 +436,9 @@ func LogGetExportCursorLines(operator engine2.DatabaseOperator, groupID string, 
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []model.LogOneItemParquet{}, paginator.Cursor{}, nil
+		}
 		return nil, paginator.Cursor{}, err
 	}
 	var items []model.LogOneItemParquet
@@ -329,6 +472,9 @@ func LogGetLinePage(operator engine2.DatabaseOperator, param *QueryLogLinePage) 
 	// 获取log的ID
 	logID, err := getIDByGroupIDAndName(db, param.GroupID, param.LogName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return []*model.LogOneItem{}, nil
+		}
 		return nil, err
 	}
 
@@ -355,7 +501,7 @@ func LogLinesCountGet(operator engine2.DatabaseOperator, groupID string, logName
 	db := operator.GetLogDB(constant.READ)
 	// 获取日志 ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil || logID == 0 {
+	if err != nil {
 		return 0, false
 	}
 
@@ -373,12 +519,12 @@ func LogLinesCountGet(operator engine2.DatabaseOperator, groupID string, logName
 }
 
 // LogDelete 删除log
-func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string) bool {
+func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string) error {
 	db := operator.GetLogDB(constant.WRITE)
 	// 获取 log ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil || logID == 0 {
-		return false
+	if err != nil {
+		return err
 	}
 	err = db.Transaction(func(tx *gorm.DB) error {
 		// 删除 log_id 相关的 log_items 记录
@@ -393,7 +539,7 @@ func LogDelete(operator engine2.DatabaseOperator, groupID string, logName string
 		return nil
 	})
 
-	return err == nil
+	return err
 }
 
 // LogAppend 向指定的log中添加一条信息
@@ -402,7 +548,11 @@ func LogAppend(operator engine2.DatabaseOperator, groupID string, logName string
 	// 获取 log ID
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
-		return false
+		if errors.Is(err, ErrLogNotFound) {
+			logID = 0
+		} else {
+			return false
+		}
 	}
 
 	// 获取当前时间戳
@@ -426,15 +576,70 @@ func LogAppend(operator engine2.DatabaseOperator, groupID string, logName string
 			// 创建一个新的 log
 			newLog := model.LogInfo{Name: logName, GroupID: groupID, CreatedAt: nowTimestamp, UpdatedAt: nowTimestamp}
 			if err = tx.Create(&newLog).Error; err != nil {
-				return err
+				// 并发场景下可能被其他事务先创建，回查既有log并继续写入
+				existedLogID, findErr := getIDByGroupIDAndName(tx, groupID, logName)
+				if findErr != nil {
+					return err
+				}
+				logID = existedLogID
+			} else {
+				logID = newLog.ID
 			}
-			logID = newLog.ID
 		}
+		newLogItem.LogID = logID
 		if err = tx.Create(&newLogItem).Error; err != nil {
 			return err
 		}
 		// 更新 logs 表中的 updated_at 字段 和 size 字段
 		if err = tx.Model(&model.LogInfo{}).
+			Where("id = ?", logID).
+			Updates(map[string]interface{}{
+				"updated_at": nowTimestamp,
+				"size":       gorm.Expr("COALESCE(size, 0) + ?", 1),
+			}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+
+	return err == nil
+}
+
+// LogAppendByID 向指定 log_id 的日志中追加一条消息。
+func LogAppendByID(operator engine2.DatabaseOperator, logID uint64, groupID string, logItem *model.LogOneItem) bool {
+	db := operator.GetLogDB(constant.WRITE)
+	if logID == 0 {
+		return false
+	}
+
+	now := time.Now()
+	nowTimestamp := now.Unix()
+	newLogItem := model.LogOneItem{
+		LogID:       logID,
+		GroupID:     groupID,
+		Nickname:    logItem.Nickname,
+		IMUserID:    logItem.IMUserID,
+		Time:        nowTimestamp,
+		Message:     logItem.Message,
+		IsDice:      logItem.IsDice,
+		CommandID:   logItem.CommandID,
+		CommandInfo: logItem.CommandInfo,
+		RawMsgID:    logItem.RawMsgID,
+		UniformID:   logItem.UniformID,
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		logInfo, getErr := getLogInfoByID(tx, logID)
+		if getErr != nil {
+			return getErr
+		}
+		if logInfo.GroupID != groupID {
+			return fmt.Errorf("log append by id: log %d 不属于群 %s", logID, groupID)
+		}
+		if err := tx.Create(&newLogItem).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.LogInfo{}).
 			Where("id = ?", logID).
 			Updates(map[string]interface{}{
 				"updated_at": nowTimestamp,
@@ -454,6 +659,9 @@ func LogMarkDeleteByMsgID(operator engine2.DatabaseOperator, groupID string, log
 	// 获取 log id
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return nil
+		}
 		return err
 	}
 	rid := fmt.Sprintf("%v", rawID)
@@ -475,11 +683,27 @@ func LogMarkDeleteByMsgID(operator engine2.DatabaseOperator, groupID string, log
 	return err
 }
 
+// LogMarkDeleteByRawMsgID 根据消息 ID 反查所属日志并删除，避免依赖当前日志名。
+func LogMarkDeleteByRawMsgID(operator engine2.DatabaseOperator, groupID string, rawID interface{}) error {
+	db := operator.GetLogDB(constant.WRITE)
+	logInfo, err := getLogInfoByRawMsgID(db, groupID, rawID)
+	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return nil
+		}
+		return err
+	}
+	return LogMarkDeleteByMsgID(operator, logInfo.GroupID, logInfo.Name, rawID)
+}
+
 // LogEditByMsgID 编辑日志
 func LogEditByMsgID(operator engine2.DatabaseOperator, groupID, logName, newContent string, rawID interface{}) error {
 	db := operator.GetLogDB(constant.WRITE)
 	logID, err := getIDByGroupIDAndName(db, groupID, logName)
 	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return nil
+		}
 		return err
 	}
 
@@ -499,4 +723,17 @@ func LogEditByMsgID(operator engine2.DatabaseOperator, groupID, logName, newCont
 	}
 
 	return nil
+}
+
+// LogEditByRawMsgID 根据消息 ID 反查所属日志并编辑，避免依赖当前日志名。
+func LogEditByRawMsgID(operator engine2.DatabaseOperator, groupID, newContent string, rawID interface{}) error {
+	db := operator.GetLogDB(constant.WRITE)
+	logInfo, err := getLogInfoByRawMsgID(db, groupID, rawID)
+	if err != nil {
+		if errors.Is(err, ErrLogNotFound) {
+			return nil
+		}
+		return err
+	}
+	return LogEditByMsgID(operator, logInfo.GroupID, logInfo.Name, newContent, rawID)
 }

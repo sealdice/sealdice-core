@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
 	"gopkg.in/yaml.v3"
@@ -26,6 +27,34 @@ type Attrs struct {
 
 // Alias defines alias dictionary for attributes.
 type Alias map[string][]string
+
+const attrsTemplateVersionKey = "$ver"
+
+func readAttrsTemplateVersion(attrs *AttributesItem) *semver.Version {
+	if attrs == nil {
+		return nil
+	}
+	v, exists := attrs.LoadX(attrsTemplateVersionKey)
+	if !exists || v == nil {
+		return nil
+	}
+	verText := strings.TrimSpace(v.ToString())
+	if verText == "" {
+		return nil
+	}
+	ver, err := semver.NewVersion(verText)
+	if err != nil {
+		return nil
+	}
+	return ver
+}
+
+func writeAttrsTemplateVersion(attrs *AttributesItem, version string) {
+	if attrs == nil || strings.TrimSpace(version) == "" {
+		return
+	}
+	attrs.Store(attrsTemplateVersionKey, ds.NewStrVal(version))
+}
 
 // Commands wraps command-related configuration.
 type Commands struct {
@@ -161,6 +190,60 @@ func (t *GameSystemTemplateV2) GetDefaultValue(varname string) (*ds.VMValue, str
 	return nil, "", false, false
 }
 
+func (ctx *MsgContext) syncAttrsForTemplate(attrs *AttributesItem, tmpl *GameSystemTemplateV2) {
+	if ctx == nil || attrs == nil || tmpl == nil {
+		return
+	}
+	// 这里只在“模板已经确定、并且马上要按这个模板读取”时做一次同步，
+	// 避免在 LoadByCtx 阶段过早修改卡片数据。
+	if attrs.SheetType == "" || attrs.SheetType != tmpl.Name {
+		return
+	}
+
+	tmplVersion, err := semver.NewVersion(strings.TrimSpace(tmpl.Version))
+	if err != nil {
+		return
+	}
+	storedVersion := readAttrsTemplateVersion(attrs)
+	if storedVersion != nil && !storedVersion.LessThan(tmplVersion) {
+		return
+	}
+
+	existing := map[string]*ds.VMValue{}
+	attrs.Range(func(key string, value *ds.VMValue) bool {
+		existing[key] = value
+		return true
+	})
+
+	toDelete := map[string]struct{}{}
+	toAdd := map[string]*ds.VMValue{}
+	for key, value := range existing {
+		canonicalKey := tmpl.GetAlias(key)
+		if canonicalKey == key {
+			continue
+		}
+		// 只在同模板下把旧 key 同步到当前主 key；如果新 key 已存在，则保持用户现有数据优先。
+		if _, exists := existing[canonicalKey]; exists {
+			continue
+		}
+		if _, exists := toAdd[canonicalKey]; exists {
+			continue
+		}
+		toDelete[key] = struct{}{}
+		toAdd[canonicalKey] = value
+	}
+
+	for key := range toDelete {
+		attrs.Delete(key)
+	}
+	for key, value := range toAdd {
+		attrs.Store(key, value)
+	}
+	// $ver 是角色卡内部版本字段，不在常规 st show 中展示；
+	// 缺失或低于模板版本时，视为旧卡并在此处完成一次迁移。
+	writeAttrsTemplateVersion(attrs, tmpl.Version)
+}
+
 func (t *GameSystemTemplateV2) GetShowKeyAs(ctx *MsgContext, k string) (string, error) {
 	if t == nil || ctx == nil {
 		return k, nil
@@ -234,14 +317,18 @@ func (t *GameSystemTemplateV2) GetShowValueAs(ctx *MsgContext, k string) (*ds.VM
 
 // 获取用户录入的值
 func (t *GameSystemTemplateV2) GetAttrValue(ctx *MsgContext, k string) (*ds.VMValue, bool) {
-	am := ctx.Dice.AttrsManager
-	curAttrs := lo.Must(am.Load(ctx.Group.GroupID, ctx.Player.UserID))
+	if ctx == nil || ctx.Dice == nil {
+		return nil, false
+	}
+	curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	ctx.syncAttrsForTemplate(curAttrs, t)
 	return curAttrs.LoadX(k)
 }
 
 func (t *GameSystemTemplateV2) GetRealValueBase(ctx *MsgContext, k string) (*ds.VMValue, error) {
 	if ctx.Dice != nil {
 		curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+		ctx.syncAttrsForTemplate(curAttrs, t)
 		if v, exists := curAttrs.LoadX(k); exists {
 			return v, nil
 		}
@@ -456,6 +543,7 @@ func (t *GameSystemTemplate) GetRealValueBase(ctx *MsgContext, k string) (*ds.VM
 	}
 
 	curAttrs := lo.Must(ctx.Dice.AttrsManager.LoadByCtx(ctx))
+	ctx.syncAttrsForTemplate(curAttrs, t.GameSystemTemplateV2)
 	if v, exists := curAttrs.LoadX(k); exists {
 		return v, nil
 	}

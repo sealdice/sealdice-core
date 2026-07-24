@@ -397,6 +397,14 @@ func DiceConfigSet(c echo.Context) error {
 		config.QQEnablePoke = val.(bool)
 	}
 
+	if val, ok := jsonMap["officialQQFileSendBase64"]; ok {
+		config.OfficialQQFileSendBase64 = val.(bool)
+	}
+
+	if val, ok := jsonMap["officialQQUseMarkdown"]; ok {
+		config.OfficialQQUseMarkdown = val.(bool)
+	}
+
 	if val, ok := jsonMap["playerNameWrapEnable"]; ok {
 		config.PlayerNameWrapEnable = val.(bool)
 	}
@@ -433,6 +441,12 @@ func DiceConfigSet(c echo.Context) error {
 		}
 		if set {
 			myDice.ResetQuitInactiveCron()
+		}
+	}
+
+	if val, ok := jsonMap["quitInactiveNoticeSummaryMode"]; ok {
+		if v, ok := val.(bool); ok {
+			config.QuitInactiveNoticeSummaryMode = v
 		}
 	}
 

@@ -1,8 +1,10 @@
 package dice
 
 import (
+	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"os"
 	"path"
@@ -10,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang-module/carbon"
@@ -20,6 +23,298 @@ import (
 
 	"sealdice-core/dice/docengine"
 )
+
+type dismissConfirmState struct {
+	Code      string
+	ExpiresAt int64
+}
+
+var dismissConfirmCodes SyncMap[string, *dismissConfirmState]
+var dismissConfirmLastCleanup atomic.Int64
+
+const dismissConfirmTTL = 10 * time.Minute
+const dismissConfirmCleanupInterval = 30 * time.Minute
+
+const (
+	errGetGroupMemberInfoNil       = "get_group_member_info returned nil"
+	errGetGroupMemberInfoEmptyRole = "empty role from get_group_member_info"
+)
+
+func getDismissConfirmKeyForGroup(ctx *MsgContext, operatorID string, targetGroupID string) string {
+	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, targetGroupID, operatorID)
+}
+
+func cleanupExpiredDismissConfirmCodes() {
+	now := time.Now()
+	last := dismissConfirmLastCleanup.Load()
+	if last != 0 && now.Unix()-last < int64(dismissConfirmCleanupInterval/time.Second) {
+		return
+	}
+	dismissConfirmLastCleanup.Store(now.Unix())
+	dismissConfirmCodes.Range(func(key string, state *dismissConfirmState) bool {
+		if state == nil || now.Unix() > state.ExpiresAt {
+			dismissConfirmCodes.Delete(key)
+		}
+		return true
+	})
+}
+
+func generateFourDigitCode() string {
+	n, err := crand.Int(crand.Reader, big.NewInt(9000))
+	if err != nil {
+		return strconv.FormatInt(time.Now().UnixNano()%9000+1000, 10)
+	}
+	return strconv.FormatInt(n.Int64()+1000, 10)
+}
+
+func storeDismissConfirmCode(key string, code string) {
+	cleanupExpiredDismissConfirmCodes()
+	dismissConfirmCodes.Store(key, &dismissConfirmState{Code: code, ExpiresAt: time.Now().Add(dismissConfirmTTL).Unix()})
+}
+
+func loadDismissConfirmCode(key string) (string, bool) {
+	state, ok := dismissConfirmCodes.Load(key)
+	if !ok || state == nil {
+		return "", false
+	}
+	if time.Now().Unix() > state.ExpiresAt {
+		dismissConfirmCodes.Delete(key)
+		return "", false
+	}
+	return state.Code, true
+}
+
+func getOnebotBotQQID(ctx *MsgContext) (int64, bool) {
+	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return 0, false
+	}
+
+	if userID := strings.TrimSpace(ctx.EndPoint.UserID); userID != "" {
+		if botID := ExtractQQEmitterUserID(userID); botID > 0 {
+			return botID, true
+		}
+	}
+
+	switch pa := ctx.EndPoint.Adapter.(type) {
+	case *PlatformAdapterOnebot:
+		if pa.sendEmitter == nil {
+			return 0, false
+		}
+		info, err := pa.sendEmitter.GetLoginInfo(pa.ctx)
+		if err != nil || info == nil || info.UserId <= 0 {
+			return 0, false
+		}
+		return info.UserId, true
+	default:
+		return 0, false
+	}
+}
+
+func normalizeQQGroupRole(role string) string {
+	norm := strings.ToLower(strings.TrimSpace(role))
+
+	switch norm {
+	case "owner", "creator", "群主":
+		return "owner"
+	case "admin", "administrator", "管理员":
+		return "admin"
+	case "member", "membernormal", "成员":
+		return "member"
+	default:
+		return norm
+	}
+}
+
+func parseQQGroupRole(role string) (string, bool) {
+	normalized := normalizeQQGroupRole(role)
+	if normalized == "" {
+		return "", false
+	}
+	return normalized, true
+}
+
+// checkBotGroupRole 查询 bot 在指定群中归一化后的角色(owner/admin/member)。
+// 返回值: ok 表示该适配器是否支持并成功完成角色检查;
+// detail 在 ok=true 时为归一化后的角色字符串,在 ok=false 时为失败原因描述。
+// 不支持角色检查的适配器返回 ok=false, 调用方应保持原有行为, 不做阻断。
+func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool) {
+	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
+		return "context invalid", false
+	}
+
+	switch pa := ctx.EndPoint.Adapter.(type) {
+	case *PlatformAdapterOnebot:
+		if pa.sendEmitter == nil {
+			return "onebot emitter unavailable", false
+		}
+		botID, ok := getOnebotBotQQID(ctx)
+		if !ok {
+			return "cannot resolve bot qq id", false
+		}
+		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, false)
+		if err != nil || memberInfo == nil {
+			if err != nil {
+				return fmt.Sprintf("get_group_member_info failed: %v", err), false
+			}
+			return errGetGroupMemberInfoNil, false
+		}
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return errGetGroupMemberInfoEmptyRole, false
+		}
+		return role, true
+	case *PlatformAdapterGocq:
+		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
+		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
+		if botIDRaw == "" || groupIDRaw == "" {
+			return "cannot resolve bot/group id", false
+		}
+		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
+		if memberInfo == nil {
+			return errGetGroupMemberInfoNil, false
+		}
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return errGetGroupMemberInfoEmptyRole, false
+		}
+		return role, true
+	case *PlatformAdapterMilky:
+		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
+		if err != nil {
+			return fmt.Sprintf("get_group_member_info failed: %v", err), false
+		}
+		if memberInfo == nil {
+			return errGetGroupMemberInfoNil, false
+		}
+		role, ok := parseQQGroupRole(memberInfo.Role)
+		if !ok {
+			return errGetGroupMemberInfoEmptyRole, false
+		}
+		return role, true
+	default:
+		return "adapter does not support group role check", false
+	}
+}
+
+func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+	detail, ok := checkBotGroupRole(ctx, groupID)
+	if !ok {
+		return false, false, detail
+	}
+	return detail == "owner", true, detail
+}
+
+func normalizeDismissTargetGroupID(ctx *MsgContext, rawGroupID string) string {
+	groupID := strings.TrimSpace(rawGroupID)
+	if groupID == "" {
+		return ""
+	}
+	if strings.Contains(groupID, ":") {
+		return groupID
+	}
+	return FormatDiceID(ctx, groupID, true)
+}
+
+func isDismissConfirmCode(text string) bool {
+	if len(text) != 4 {
+		return false
+	}
+	for _, ch := range text {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGroupID string, targetGroup *GroupInfo) CmdExecuteResult {
+	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
+
+	userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserID)
+	groupName := targetGroupID
+	if targetGroup != nil && targetGroup.GroupName != "" {
+		groupName = targetGroup.GroupName
+	} else if name := ctx.Dice.Parent.TryGetGroupName(targetGroupID); name != "" {
+		groupName = name
+	}
+	txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
+		groupName, targetGroupID, userName, msg.Sender.UserID)
+	d.Logger.Info(txt)
+	ctx.Notice(txt)
+
+	time.Sleep(3 * time.Second)
+	if targetGroup != nil {
+		targetGroup.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
+		targetGroup.MarkDirty(ctx.Dice)
+	}
+	ctx.EndPoint.Adapter.QuitGroup(ctx, targetGroupID)
+
+	return CmdExecuteResult{Matched: true, Solved: true}
+}
+
+func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGroupID string, targetGroup *GroupInfo, inputCode string, hasExtraArgs bool, confirmCommand string) CmdExecuteResult {
+	processDismissConfirmation := func(roleDetail string, issueLogTpl string, issueReplyTpl string, successLogTpl string) CmdExecuteResult {
+		confirmKey := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, targetGroupID)
+		if inputCode == "" || hasExtraArgs {
+			confirmCode := generateFourDigitCode()
+			confirmCmdWithCode := fmt.Sprintf("%s %s", confirmCommand, confirmCode)
+			storeDismissConfirmCode(confirmKey, confirmCode)
+			d.Logger.Infof(issueLogTpl, targetGroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
+			ReplyToSender(ctx, msg, fmt.Sprintf(issueReplyTpl, confirmCmdWithCode))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		}
+
+		confirmCode, ok := loadDismissConfirmCode(confirmKey)
+		if !ok || inputCode != confirmCode {
+			d.Logger.Warnf("指令退群确认失败: 群组<%s>中，操作者<%s>提供的确认码无效，本次不执行退群。", targetGroupID, msg.Sender.UserID)
+			ReplyToSender(ctx, msg, fmt.Sprintf("退群确认码无效，请重新输入 `%s` 获取新的确认码。", confirmCommand))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		}
+
+		d.Logger.Infof(successLogTpl, targetGroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
+		dismissConfirmCodes.Delete(confirmKey)
+		return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
+	}
+
+	if needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, targetGroupID); checked {
+		if needConfirm {
+			return processDismissConfirmation(
+				detail,
+				"指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为%s，已发出确认码。",
+				"当前骰子账号在本群是群主，继续 `%s` 将会直接解散群聊。\n请在当前群内重新输入上面的完整命令进行二次确认。",
+				"指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为%s，这将导致群聊被解散。",
+			)
+		}
+	} else if ctx.EndPoint.ProtocolType == "onebot" || ctx.EndPoint.Platform == "QQ" {
+		return processDismissConfirmation(
+			detail,
+			"指令退群进入安全确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；但当前无法确认该账号群内身份(%s)，为避免误解散群聊，已改为二次确认。",
+			"当前无法确认骰子账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `%s`。",
+			"指令退群安全确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；此前未能确认该账号群内身份(%s)。",
+		)
+	}
+
+	if inputCode != "" || hasExtraArgs {
+		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+	}
+
+	return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
+}
+
+func shouldShowBestHelpResult(hits docengine.MatchCollection, bestTitle, query string, minRelativeGap float64) bool {
+	if len(hits) == 0 {
+		return false
+	}
+	if len(hits) == 1 || query != "" && bestTitle == query {
+		return true
+	}
+
+	bestScore := hits[0].Score
+	if bestScore <= 0 {
+		return false
+	}
+	return (bestScore-hits[1].Score)/bestScore >= minRelativeGap
+}
 
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
@@ -261,9 +556,11 @@ func (d *Dice) registerCoreCommands() {
 
 			var id string
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
-				// FIXME: byd WHAT IS THAT
-				_id := rand.Uint64()%d.Parent.Help.CurID + 1
-				id = strconv.FormatUint(_id, 10)
+				count := d.Parent.Help.GetNumericIDCount()
+				if count > 0 {
+					_id := rand.Intn(count) + 1
+					id = strconv.Itoa(_id)
+				}
 			}
 
 			if id == "" {
@@ -282,9 +579,8 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			if id != "" {
-				text, err := d.Parent.Help.searchEngine.GetItemByID(id)
+				text, err := d.Parent.Help.GetItemByNumericIDString(id)
 				if err == nil {
-					// Copied from 支援换行符 By Fripine #963
 					text.Content = ctx.TranslateSplit(text.Content)
 					content := d.Parent.Help.GetContent(text, 0)
 					ReplyToSender(ctx, msg, fmt.Sprintf("词条: %s:%s\n%s", text.PackageName, text.Title, content))
@@ -350,7 +646,6 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			hasSecond := len(search.Hits) >= 2
 			// 准备接下来读取这里面的Fields
 			bestRaw := search.Hits[0].Fields
 			best := &docengine.HelpTextItem{
@@ -378,22 +673,12 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			var showBest bool
-			if hasSecond {
-				offset := d.Parent.Help.GetShowBestOffset()
-				val := search.Hits[1].Score - search.Hits[0].Score
-				if val < 0 {
-					val = -val
-				}
-				if val > float64(offset) {
-					showBest = true
-				}
-				if best.Title == text {
-					showBest = true
-				}
-			} else {
-				showBest = true
-			}
+			showBest := shouldShowBestHelpResult(
+				search.Hits,
+				best.Title,
+				text,
+				d.Parent.Help.GetShowBestRelativeGap(),
+			)
 
 			var bestResult string
 			if showBest {
@@ -448,11 +733,11 @@ func (d *Dice) registerCoreCommands() {
 					}
 
 					if !dm.IsHelpReloading {
-						dm.IsHelpReloading = true
-						dm.Help.Close()
-
-						dm.InitHelp()
-						ReplyToSender(ctx, msg, "帮助文档已经重新装载")
+						if err := dm.ReloadHelp(); err != nil {
+							ReplyToSender(ctx, msg, "帮助文档重载失败: "+err.Error())
+						} else {
+							ReplyToSender(ctx, msg, "帮助文档已经重新装载")
+						}
 					} else {
 						ReplyToSender(ctx, msg, "帮助文档正在重新装载，请稍后...")
 					}
@@ -539,19 +824,21 @@ func (d *Dice) registerCoreCommands() {
 
 				cmdArgs.ChopPrefixToArgsWith("on", "off")
 
-				matchNumber := func() (bool, bool) {
-					txt := cmdArgs.GetArgN(2)
-					if len(txt) >= 4 {
-						if strings.HasSuffix(ctx.EndPoint.UserID, txt) {
-							return true, txt != ""
+				if cmdArgs.IsArgEqual(1, "on", "off") {
+					matchNumber := func() (bool, bool) {
+						txt := cmdArgs.GetArgN(2)
+						if len(txt) >= 4 {
+							if strings.HasSuffix(ctx.EndPoint.UserID, txt) {
+								return true, txt != ""
+							}
 						}
+						return false, txt != ""
 					}
-					return false, txt != ""
-				}
 
-				isMe, exists := matchNumber()
-				if exists && !isMe {
-					return CmdExecuteResult{Matched: true, Solved: false}
+					isMe, exists := matchNumber()
+					if exists && !isMe {
+						return CmdExecuteResult{Matched: true, Solved: false}
+					}
 				}
 
 				if cmdArgs.IsArgEqual(1, "on") {
@@ -571,7 +858,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.IsCurGroupBotOn = true
 
 					text := DiceFormatTmpl(ctx, "核心:骰子开启")
-					if ctx.Group.LogOn {
+					if ctx.Group.GetLogState().On {
 						text += "\n请特别注意: 日志记录处于开启状态"
 					}
 					ReplyToSender(ctx, msg, text)
@@ -592,10 +879,6 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子关闭"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				} else if cmdArgs.IsArgEqual(1, "bye", "exit", "quit") {
-					if cmdArgs.GetArgN(2) != "" {
-						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-					}
-
 					if ctx.IsPrivate {
 						ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_私聊不可用"))
 						return CmdExecuteResult{Matched: true, Solved: true}
@@ -614,21 +897,40 @@ func (d *Dice) registerCoreCommands() {
 						return CmdExecuteResult{Matched: true, Solved: true}
 					}
 
-					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
+					targetGroupID := msg.GroupID
+					targetGroup := ctx.Group
+					inputCode := ""
+					hasExtraArgs := false
+					confirmCommand := ".bot bye"
 
-					userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserID)
-					txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
-						ctx.Group.GroupName, msg.GroupID, userName, msg.Sender.UserID)
-					d.Logger.Info(txt)
-					ctx.Notice(txt)
+					arg2 := strings.TrimSpace(cmdArgs.GetArgN(2))
+					arg3 := strings.TrimSpace(cmdArgs.GetArgN(3))
+					arg4 := strings.TrimSpace(cmdArgs.GetArgN(4))
+					if arg2 != "" {
+						confirmKey := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, msg.GroupID)
+						if arg3 == "" && isDismissConfirmCode(arg2) {
+							if confirmCode, ok := loadDismissConfirmCode(confirmKey); ok && confirmCode == arg2 {
+								inputCode = arg2
+							} else {
+								targetGroupID = normalizeDismissTargetGroupID(ctx, arg2)
+								confirmCommand = ".bot bye " + arg2
+							}
+						} else {
+							targetGroupID = normalizeDismissTargetGroupID(ctx, arg2)
+							inputCode = arg3
+							hasExtraArgs = arg4 != ""
+							confirmCommand = ".bot bye " + arg2
+						}
+					}
 
-					// SetBotOffAtGroup(ctx, ctx.Group.GroupID)
-					time.Sleep(3 * time.Second)
-					ctx.Group.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
-					ctx.Group.MarkDirty(ctx.Dice)
-					ctx.EndPoint.Adapter.QuitGroup(ctx, msg.GroupID)
+					if targetGroupID == "" {
+						return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+					}
+					if targetGroupID != msg.GroupID {
+						targetGroup, _ = ctx.Session.ServiceAtNew.Load(targetGroupID)
+					}
 
-					return CmdExecuteResult{Matched: true, Solved: true}
+					return d.executeDismissWithConfirm(ctx, msg, targetGroupID, targetGroup, inputCode, hasExtraArgs, confirmCommand)
 				} else if cmdArgs.IsArgEqual(1, "save") {
 					d.Save(false)
 
@@ -723,16 +1025,8 @@ func (d *Dice) registerCoreCommands() {
 				}
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
-			rest := cmdArgs.GetArgN(1)
-			if rest != "" {
-				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-			}
-			cmdArgs.Args = []string{"bye"}
-			cmdArgs.RawArgs = "bye " + cmdArgs.RawArgs
-			if rest != "" {
-				cmdArgs.Args = append(cmdArgs.Args, rest)
-			}
-			return cmdBot.Solve(ctx, msg, cmdArgs)
+
+			return d.executeDismissWithConfirm(ctx, msg, msg.GroupID, ctx.Group, cmdArgs.GetArgN(1), cmdArgs.GetArgN(2) != "", ".dismiss")
 		},
 	}
 	d.CmdMap["dismiss"] = cmdDismiss
@@ -1044,7 +1338,7 @@ func (d *Dice) registerCoreCommands() {
 					if dm.AppVersionOnline != nil {
 						text = fmt.Sprintf("当前本地版本为: %s\n当前线上版本为: %s", VERSION.String(), dm.AppVersionOnline.VersionLatestDetail)
 						if dm.AppVersionCode != dm.AppVersionOnline.VersionLatestCode {
-							updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
+							updateCode = generateFourDigitCode()
 							text += fmt.Sprintf("\n如需升级，请输入.master checkupdate %s 确认进行升级\n升级将花费约2分钟，升级失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
 						}
 					} else {
@@ -1093,7 +1387,7 @@ func (d *Dice) registerCoreCommands() {
 
 				code := cmdArgs.GetArgN(2)
 				if code == "" {
-					updateCode = strconv.FormatInt(rand.Int63()%8999+1000, 10)
+					updateCode = generateFourDigitCode()
 					text := fmt.Sprintf("进程重启:\n如需重启，请输入.master reboot %s 确认进行重启\n重启将花费约2分钟，失败可能导致进程关闭，建议在接触服务器情况下操作。\n当前进程启动时间: %s", updateCode, time.Unix(dm.AppBootTime, 0).Format("2006-01-02 15:04:05"))
 					ReplyToSender(ctx, msg, text)
 					break
@@ -1131,10 +1425,11 @@ func (d *Dice) registerCoreCommands() {
 				case "help", "helpdoc":
 					dm := dice.Parent
 					if !dm.IsHelpReloading {
-						dm.IsHelpReloading = true
-						dm.Help.Close()
-						dm.InitHelp()
-						ReplyToSender(ctx, msg, "帮助文档已重载")
+						if err := dm.ReloadHelp(); err != nil {
+							ReplyToSender(ctx, msg, "帮助文档重载失败: "+err.Error())
+						} else {
+							ReplyToSender(ctx, msg, "帮助文档已重载")
+						}
 					} else {
 						ReplyToSender(ctx, msg, "帮助文档正在重新装载")
 					}

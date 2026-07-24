@@ -128,8 +128,7 @@ type CardMessageModuleFile struct {
 
 // PlatformAdapterKook 与 PlatformAdapterDiscord 基本相同的实现，因此不详细写注释了，可以去参考隔壁的实现
 type PlatformAdapterKook struct {
-	Session       *IMSession    `json:"-"     yaml:"-"`
-	Token         string        `json:"token" yaml:"token"`
+	Token         string        `json:"-" yaml:"token"`
 	EndPoint      *EndPointInfo `json:"-"     yaml:"-"`
 	IntentSession *kook.Session `json:"-"     yaml:"-"`
 }
@@ -139,8 +138,8 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 	if pa.IntentSession == nil {
 		return
 	}
-	logger := pa.Session.Parent.Logger
-	dm := pa.Session.Parent.Parent
+	logger := pa.EndPoint.Session.Parent.Logger
+	dm := pa.EndPoint.Session.Parent.Parent
 	go pa.updateChannelNum()
 	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelID(groupID))
 	if err != nil {
@@ -151,11 +150,11 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 		Name: channel.Name,
 		time: time.Now().Unix(),
 	})
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := pa.EndPoint.Session.ServiceAtNew.Load(groupID)
 	if ok {
 		if channel.Name != groupInfo.GroupName {
 			groupInfo.GroupName = channel.Name
-			groupInfo.MarkDirty(pa.Session.Parent)
+			groupInfo.MarkDirty(pa.EndPoint.Session.Parent)
 		}
 	}
 }
@@ -172,7 +171,7 @@ func (pa *PlatformAdapterKook) updateChannelNum() {
 }
 
 func (pa *PlatformAdapterKook) updateGameStatus() {
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	// 注释掉的部分是遗留代码，用于在kook中注册一个叫做SealDice的GameStatus，只需要执行一次因此注释掉
 	// gameupdate := new(kook.GameUpdate)
 	// gameupdate.ID = int64(768222)
@@ -200,7 +199,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 			return
 		}
 		if ctx.Common.Type == kook.MessageTypeKMarkdown || ctx.Common.Type == kook.MessageTypeImage {
-			pa.Session.Execute(pa.EndPoint, pa.toStdMessage(ctx), false)
+			pa.EndPoint.Session.Execute(pa.EndPoint, pa.toStdMessage(ctx), false)
 			return
 		}
 	})
@@ -224,7 +223,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 		}
 		msg.Message = fmt.Sprintf("[CQ:image,file=someimage,url=%s]", ctx.Common.Content)
 		msg.Sender = *send
-		pa.Session.Execute(pa.EndPoint, msg, false)
+		pa.EndPoint.Session.Execute(pa.EndPoint, msg, false)
 	})
 	s.AddHandler(func(ctx *kook.MessageDeleteContext) {
 		msg := new(Message)
@@ -238,9 +237,9 @@ func (pa *PlatformAdapterKook) Serve() int {
 		} else {
 			msg.MessageType = "group"
 		}
-		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
-		// pa.Session.Parent.Logger.Infof("删除信息#%s(%s)", msg.RawId, msg.GroupId)
-		pa.Session.OnMessageDeleted(mctx, msg)
+		mctx := &MsgContext{Session: pa.EndPoint.Session, EndPoint: pa.EndPoint, Dice: pa.EndPoint.Session.Parent, MessageType: msg.MessageType}
+		// pa.EndPoint.Session.Parent.Logger.Infof("删除信息#%s(%s)", msg.RawId, msg.GroupId)
+		pa.EndPoint.Session.OnMessageDeleted(mctx, msg)
 	})
 
 	s.AddHandler(func(ctx *kook.BotJoinContext) {
@@ -277,7 +276,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 			msg.MessageType = "group"
 		}
 
-		mctx := &MsgContext{Session: pa.Session, EndPoint: pa.EndPoint, Dice: pa.Session.Parent, MessageType: msg.MessageType}
+		mctx := &MsgContext{Session: pa.EndPoint.Session, EndPoint: pa.EndPoint, Dice: pa.EndPoint.Session.Parent, MessageType: msg.MessageType}
 		pa.GetGroupInfoAsync(msg.GroupID)
 		go func() {
 			defer func() {
@@ -336,13 +335,13 @@ func (pa *PlatformAdapterKook) Serve() int {
 		msg.GuildID = FormatDiceIDKookGuild(ctx.Common.TargetID)
 
 		mctx := &MsgContext{
-			Session:     pa.Session,
+			Session:     pa.EndPoint.Session,
 			EndPoint:    pa.EndPoint,
-			Dice:        pa.Session.Parent,
+			Dice:        pa.EndPoint.Session.Parent,
 			MessageType: msg.MessageType,
 			Player:      &GroupPlayerInfo{},
 		}
-		pa.Session.OnMessageEdit(mctx, msg)
+		pa.EndPoint.Session.OnMessageEdit(mctx, msg)
 	})
 
 	err := s.Open()
@@ -358,7 +357,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 	pa.EndPoint.Nickname = self.Nickname
 	pa.EndPoint.UserID = FormatDiceIDKook(self.ID)
 	log.Infof("KOOK 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserID)
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	return 0
@@ -404,7 +403,7 @@ func (pa *PlatformAdapterKook) SetEnable(enable bool) {
 		_ = pa.IntentSession.Close()
 		pa.IntentSession = nil
 	}
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 }
@@ -429,7 +428,7 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userID string, text
 	if err != nil {
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "KOOK",
 		MessageType: "private",
 		Message:     text,
@@ -449,7 +448,7 @@ func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupID string, text
 	if err != nil {
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "KOOK",
 		MessageType: "group",
 		Message:     text,
@@ -476,7 +475,7 @@ func (pa *PlatformAdapterKook) SendFileToPerson(ctx *MsgContext, userID string, 
 	if err != nil {
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "KOOK",
 		MessageType: "private",
 		Segment: []message.IMessageElement{
@@ -500,7 +499,7 @@ func (pa *PlatformAdapterKook) SendFileToGroup(ctx *MsgContext, groupID string, 
 	if err != nil {
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "KOOK",
 		MessageType: "group",
 		Segment: []message.IMessageElement{
@@ -647,7 +646,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 		// case *message.FileElement:
 		//	assert, err := bot.AssetCreate(e.File, streamToByte(e.Stream))
 		//	if err != nil {
-		//		pa.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
+		//		pa.EndPoint.Session.Parent.Logger.Errorf("Kook创建asserts时出错:%s", err)
 		//		break
 		//	}
 		//	cardModule := CardMessageModuleFile{
@@ -679,7 +678,7 @@ func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private 
 		return nil, err
 	}
 	msgb.Content = string(sendText)
-	// pa.Session.Parent.Logger.Infof("Kook发送消息:%s", msgb.Content)
+	// pa.EndPoint.Session.Parent.Logger.Infof("Kook发送消息:%s", msgb.Content)
 	resp, err := pa.MessageCreateRaw(msgb, id, private)
 	if err != nil {
 		log.Errorf("向Kook频道#%s发送消息时出错:%s", id, err)
@@ -727,7 +726,7 @@ func (pa *PlatformAdapterKook) MessageCreateRaw(base kook.MessageCreateBase, id 
 	}
 	base.TargetID = id
 	resp, err := bot.MessageCreate(&kook.MessageCreate{MessageCreateBase: base})
-	// pa.Session.Parent.Logger.Infof("Kook发送消息返回:%s", ret)
+	// pa.EndPoint.Session.Parent.Logger.Infof("Kook发送消息返回:%s", ret)
 	return resp, err
 }
 

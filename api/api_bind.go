@@ -280,15 +280,54 @@ var (
 	lastGroupExecTime   int64
 )
 
+func isValidUITestReplySplitLen(splitLen int) bool {
+	switch splitLen {
+	case dice.UITestReplySplitLenShort,
+		dice.UITestReplySplitLenQQ,
+		dice.UITestReplySplitLenUnlimited:
+		return true
+	default:
+		return false
+	}
+}
+
+func DiceExecSplitOptions(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+
+	return c.JSON(200, map[string]interface{}{
+		"defaultKey": "qq",
+		"options": []map[string]interface{}{
+			{
+				"key":             "short",
+				"label":           fmt.Sprintf("短分段 %d", dice.UITestReplySplitLenShort),
+				"messageSplitLen": dice.UITestReplySplitLenShort,
+			},
+			{
+				"key":             "qq",
+				"label":           fmt.Sprintf("QQ 分段 %d", dice.UITestReplySplitLenQQ),
+				"messageSplitLen": dice.UITestReplySplitLenQQ,
+			},
+			{
+				"key":             "unlimited",
+				"label":           "无限",
+				"messageSplitLen": dice.UITestReplySplitLenUnlimited,
+			},
+		},
+	})
+}
+
 func DiceExec(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
 	v := struct {
-		ID          string `form:"id"          json:"id"`
-		Message     string `form:"message"`
-		MessageType string `form:"messageType"`
+		ID              string `form:"id"              json:"id"`
+		Message         string `form:"message"`
+		MessageType     string `form:"messageType"`
+		MessageSplitLen *int   `form:"messageSplitLen" json:"messageSplitLen"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -296,6 +335,9 @@ func DiceExec(c echo.Context) error {
 	}
 	if v.Message == "" {
 		return c.JSON(400, "格式错误")
+	}
+	if v.MessageSplitLen != nil && !isValidUITestReplySplitLen(*v.MessageSplitLen) {
+		return c.JSON(400, "分段长度无效")
 	}
 	timeNeed := int64(500)
 	if dm.JustForTest {
@@ -326,9 +368,10 @@ func DiceExec(c echo.Context) error {
 	}
 
 	msg := &dice.Message{
-		MessageType: messageType,
-		Message:     v.Message,
-		Platform:    "UI",
+		MessageType:         messageType,
+		Message:             v.Message,
+		Platform:            "UI",
+		UITestReplySplitLen: v.MessageSplitLen,
 		Sender: dice.SenderBase{
 			Nickname:  "User",
 			UserID:    userID,
@@ -575,6 +618,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/addSealChat", ImConnectionsAddSealChat)
 	e.POST(prefix+"/im_connections/addSatori", ImConnectionsAddSatori)
 	e.POST(prefix+"/im_connections/addMilky", ImConnectionsAddMilky)
+	e.POST(prefix+"/im_connections/addMilkyInternal", ImConnectionsAddMilkyInternal)
 
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
@@ -603,6 +647,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/dice/config/advanced/get", DiceAdvancedConfigGet)
 	e.POST(prefix+"/dice/config/advanced/set", DiceAdvancedConfigSet)
 	e.POST(prefix+"/dice/config/mail_test", DiceMailTest)
+	e.GET(prefix+"/dice/exec/split_options", DiceExecSplitOptions)
 	e.POST(prefix+"/dice/exec", DiceExec)
 	e.GET(prefix+"/dice/recentMessage", DiceRecentMessage)
 	e.GET(prefix+"/dice/cmdList", DiceAllCommand)
@@ -719,9 +764,39 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.GET(prefix+"/store/backend/list", storeBackendList)
 	e.POST(prefix+"/store/backend/add", storeAddBackend)
+	e.POST(prefix+"/store/backend/enable", storeEnableBackend)
+	e.POST(prefix+"/store/backend/disable", storeDisableBackend)
 	e.DELETE(prefix+"/store/backend/remove", storeRemoveBackend)
 	e.GET(prefix+"/store/recommend", storeRecommend)
 	e.GET(prefix+"/store/page", storeGetPage)
+	e.GET(prefix+"/store/files/:namespace/:package/:version", storePackageFiles)
+	e.GET(prefix+"/store/file/:namespace/:package/:version", storePackageFilePreview)
+	e.GET("/dice/api/store/files/:namespace/:package/:version", storePackageFiles)
+	e.GET("/dice/api/store/file/:namespace/:package/:version", storePackageFilePreview)
+	e.POST(prefix+"/store/preview-download", storePreviewDownload)
 	e.POST(prefix+"/store/download", storeDownload)
+	e.POST(prefix+"/store/package-info-list", storePackageInfoList)
+	e.POST(prefix+"/store/install-list", storeInstallList)
 	e.POST(prefix+"/store/rating", storeRating)
+
+	// 扩展包管理
+	e.GET(prefix+"/package/list", packageList)
+	e.POST(prefix+"/package/refresh", packageRefresh)
+	e.GET(prefix+"/package/asset", packageAsset)
+	e.GET(prefix+"/package/:id", packageGet)
+	e.POST(prefix+"/package/preview-upload", packagePreviewFromUpload)
+	e.POST(prefix+"/package/upload-preview", packagePreviewFromUpload)
+	e.POST(prefix+"/package/install-upload", packageInstallFromUpload)
+	e.POST(prefix+"/package/upload-install", packageInstallFromUpload)
+	e.POST(prefix+"/package/install-url", packageInstallFromURL)
+	e.POST(prefix+"/package/install-from-url", packageInstallFromURL)
+	e.POST(prefix+"/package/uninstall", packageUninstall)
+	e.POST(prefix+"/package/enable", packageEnable)
+	e.POST(prefix+"/package/disable", packageDisable)
+	e.POST(prefix+"/package/reload", packageReload)
+	e.POST(prefix+"/package/reload-content", packageReloadContent)
+	e.POST(prefix+"/package/reload-all", packageReloadAll)
+	e.GET(prefix+"/package/:id/config", packageGetConfig)
+	e.POST(prefix+"/package/:id/config", packageSetConfig)
+	e.GET(prefix+"/package/:id/config-schema", packageGetConfigSchema)
 }

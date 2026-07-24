@@ -11,13 +11,14 @@ type Fields struct {
 
 type MatchCollection []*MatchResult
 
-// GeneralSearchResult Copied from bleve
 type GeneralSearchResult struct {
 	Hits  MatchCollection
 	Total uint64
 }
 
 type HelpTextItem struct {
+	// InternalID is the search engine document ID. It is not exposed to API callers.
+	InternalID  string `json:"-"`
 	Group       string
 	From        string
 	Title       string
@@ -32,7 +33,7 @@ type HelpTextItem struct {
 type SearchEngine interface {
 	GetSuffixText() string
 	GetPrefixText() string
-	GetShowBestOffset() int
+	GetShowBestRelativeGap() float64
 	// Init 初始化搜索引擎
 	Init() error
 	// Close 关闭搜索引擎
@@ -45,10 +46,12 @@ type SearchEngine interface {
 	Search(helpPackages []string, text string, titleOnly bool, pageSize, pageNum int, group string) (*GeneralSearchResult, int, int, int, error)
 	// GetHelpTextItemByTermTitle 精确查询title，用于嵌套获取数据的情形
 	GetHelpTextItemByTermTitle(title string) (*HelpTextItem, error)
-	// GetItemByID 通过ID获取Item数据的方案
-	GetItemByID(id string) (*HelpTextItem, error)
+	// GetItemByInternalID 通过搜索引擎内部 ID 获取 Item 数据
+	GetItemByInternalID(id string) (*HelpTextItem, error)
 	// PaginateDocuments 分页获取数据
 	PaginateDocuments(pageSize, pageNum int, group, from, title string) (uint64, []*HelpTextItem, error)
-	// GetTotalID 获取当前ID总数，注意，ID必须是顺序排列的
+	// GetTotalID 获取当前ID总数，注意，ID必须是顺序排列的 - 废弃该接口，改用外层管理数据
 	GetTotalID() uint64
+	DeleteByFrom(from string) error
+	DeleteByGroup(group string) error
 }

@@ -126,6 +126,8 @@ type DeckInfo struct {
 	Cloud              bool                          `json:"cloud"         yaml:"cloud"` // 含有云端内容
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `json:"-"             yaml:"-"`
 	StoreID            string                        `json:"storeID"       yaml:"storeID"`
+	/** 所属扩展包ID，空表示独立安装 */
+	PackageID string `json:"packageId"     yaml:"-"`
 }
 
 func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error {
@@ -525,6 +527,46 @@ func DecksDetect(d *Dice) {
 		}
 		return nil
 	})
+
+	// 加载扩展包内的牌堆
+	if d.PackageManager != nil {
+		for _, deckFile := range d.PackageManager.GetEnabledContentFiles("decks") {
+			ext := filepath.Ext(deckFile.Path)
+			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" {
+				d.Logger.Infof("正在加载扩展包 %s 的牌堆: %s", deckFile.PackageID, deckFile.Path)
+				DeckTryParseWithPackage(d, deckFile.Path, deckFile.PackageID)
+			}
+		}
+	}
+}
+
+// DeckTryParseWithPackage 解析牌堆并设置所属扩展包ID
+func DeckTryParseWithPackage(d *Dice, fn string, packageID string) {
+	content, err := os.ReadFile(fn)
+	if err != nil {
+		d.Logger.Infof("牌堆文件 %s 加载失败", fn)
+		return
+	}
+	deckInfo := new(DeckInfo)
+	if deckInfo.DeckItems == nil {
+		deckInfo.DeckItems = map[string][]string{}
+	}
+	if deckInfo.Command == nil {
+		deckInfo.Command = map[string]bool{}
+	}
+	if deckInfo.CloudDeckItemInfos == nil {
+		deckInfo.CloudDeckItemInfos = map[string]*CloudDeckItemInfo{}
+	}
+	_ = parseDeck(d, fn, content, deckInfo)
+	deckInfo.Filename = fn
+	deckInfo.PackageID = packageID
+
+	if deckInfo.Name == "" {
+		deckInfo.Name = filepath.Base(fn)
+	}
+
+	d.DeckList = append(d.DeckList, deckInfo)
+	d.MarkModified()
 }
 
 func DeckDelete(_ *Dice, deck *DeckInfo) {
@@ -1242,7 +1284,19 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return errors.New("无法解析获取到的牌堆数据")
 	}
 
-	err = os.WriteFile(deckInfo.Filename, newData, 0755)
+	// 更新牌堆，验证文件路径在牌堆目录内以防止路径穿越
+	decksDirAbs, err := filepath.Abs("data/decks")
+	if err != nil {
+		return fmt.Errorf("获取牌堆目录绝对路径失败: %w", err)
+	}
+	filenameAbs, err := filepath.Abs(deckInfo.Filename)
+	if err != nil {
+		return fmt.Errorf("获取牌堆文件绝对路径失败: %w", err)
+	}
+	if !strings.HasPrefix(filenameAbs, decksDirAbs+string(filepath.Separator)) {
+		return fmt.Errorf("deck filename %q is outside decks directory", deckInfo.Filename)
+	}
+	err = os.WriteFile(filenameAbs, newData, 0755) //nolint:gosec
 	if err != nil {
 		d.Logger.Errorf("牌堆“%s”更新时保存文件出错，%s", deckInfo.Name, err.Error())
 		return err

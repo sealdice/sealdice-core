@@ -44,6 +44,9 @@ type ReplyConditionExprTrue struct {
 	Value    string `json:"value"    yaml:"value"`
 }
 
+// 这个是用于测试回复条件中表达式求值的测试桩
+var replyExprEvalFn = DiceExprEvalBase
+
 // ReplyConditionTextLenLimit 文本长度限制 // textLenLimit
 type ReplyConditionTextLenLimit struct {
 	CondType string `json:"condType" yaml:"condType"`
@@ -151,15 +154,35 @@ func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, 
 		V1Only: ctx.Dice.getTargetVmEngineVersion(VMVersionReply) == "v1",
 	}
 
-	r, _, err := DiceExprEvalBase(ctx, m.Value, flags)
+	r, _, err := replyExprEvalFn(ctx, m.Value, flags)
 
 	if err != nil {
-		ctx.Dice.Logger.Infof("自定义回复表达式执行失败: %s", m.Value)
+		ctx.Dice.Logger.Warnf(
+			"自定义回复表达式执行失败: expr=%q err=%v flags={V1Only:%v V2Only:%v}",
+			m.Value, err, flags.V1Only, flags.V2Only,
+		)
+		return false
+	}
+	if r == nil {
+		ctx.Dice.Logger.Warnf(
+			"自定义回复表达式执行失败(返回为空): expr=%q flags={V1Only:%v V2Only:%v}",
+			m.Value, flags.V1Only, flags.V2Only,
+		)
 		return false
 	}
 
 	if r.GetRestInput() != "" {
-		ctx.Dice.Logger.Infof("自定义回复表达式执行失败(后半部分不能识别 %s): %s", r.GetRestInput(), m.Value)
+		ctx.Dice.Logger.Warnf(
+			"自定义回复表达式执行失败(后半部分不能识别): rest=%q matched=%q expr=%q",
+			r.GetRestInput(), r.GetMatched(), m.Value,
+		)
+		return false
+	}
+	if r.VMValue == nil {
+		ctx.Dice.Logger.Warnf(
+			"自定义回复表达式执行失败(结果为空): expr=%q version=%d flags={V1Only:%v V2Only:%v}",
+			m.Value, r.GetVersion(), flags.V1Only, flags.V2Only,
+		)
 		return false
 	}
 
@@ -297,17 +320,29 @@ type ReplyConfig struct {
 	Conditions ReplyConditions `json:"conditions" yaml:"conditions"`
 
 	// web专用
-	Filename string `json:"filename" yaml:"-"`
+	Filename    string `json:"filename" yaml:"-"`
+	PackageID   string `json:"packageId,omitempty" yaml:"-"`
+	CacheBacked bool   `json:"cacheBacked,omitempty" yaml:"-"`
+	Warning     string `json:"warning,omitempty" yaml:"-"`
 }
 
 func (c *ReplyConfig) Save(dice *Dice) {
+	if c.PackageID != "" {
+		dice.Logger.Warnf("跳过保存扩展包自定义回复到普通目录: package=%s file=%s", c.PackageID, c.Filename)
+		return
+	}
 	attrConfigFn := dice.GetExtConfigFilePath("reply", c.Filename)
+	if err := c.SaveToPath(attrConfigFn); err != nil {
+		dice.Logger.Error("ReplyConfig.Save", err)
+	}
+}
+
+func (c *ReplyConfig) SaveToPath(filePath string) error {
 	buf, err := yaml.Marshal(c)
 	if err != nil {
-		dice.Logger.Error("ReplyConfig.Save", err)
-	} else {
-		_ = os.WriteFile(attrConfigFn, buf, 0644)
+		return err
 	}
+	return os.WriteFile(filePath, buf, 0644)
 }
 
 func (c *ReplyConfig) Clean() {

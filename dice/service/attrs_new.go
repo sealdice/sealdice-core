@@ -141,13 +141,24 @@ func AttrsPutsByIDBatch(operator engine2.DatabaseOperator, saveList []*Attribute
 		})
 	}
 
-	// 使用GORM Upsert进行批量插入/更新
-	err := writeDB.Clauses(clause.OnConflict{
+	// SQLite 默认变量上限为 999，AttributesItemModel 有 10 个数据库字段，
+	// 因此每批最多写入 floor(999/10) = 99 条记录，以避免 "too many SQL variables" 错误。
+	const batchSize = 99
+	conflictClause := clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"data", "name", "sheet_type", "updated_at"}),
-	}).Create(&records).Error
-
-	return err
+	}
+	for i := 0; i < len(records); i += batchSize {
+		end := i + batchSize
+		if end > len(records) {
+			end = len(records)
+		}
+		batch := records[i:end]
+		if err := writeDB.Clauses(conflictClause).Create(batch).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 func AttrsDeleteById(operator engine2.DatabaseOperator, id string) error {
 	db := operator.GetDataDB(constant.WRITE)

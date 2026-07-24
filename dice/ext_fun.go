@@ -14,6 +14,7 @@ import (
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/dice/events"
+	"sealdice-core/message"
 )
 
 var guguText = `
@@ -338,6 +339,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 					if cmdValue != nil && cmdValue.TypeId == ds.VMTypeString {
 						args[0] = cmdValue.Value.(string)
 						targetCmd := strings.Join(args, " ")
+						msg.Message = targetCmd
+						msg.Segment = message.ConvertStringMessage(targetCmd)
 						targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
 						if targetArgs != nil {
 							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
@@ -363,6 +366,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					args[0] = cmdValue.Value.(string)
 					targetCmd := strings.Join(args, " ")
 					msg.Message = targetCmd
+					msg.Segment = message.ConvertStringMessage(targetCmd)
 					targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
 					if targetArgs != nil {
 						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
@@ -421,8 +425,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if ctx.PrivilegeLevel >= 100 {
 					uid := cmdArgs.GetArgN(2)
 					txt := cmdArgs.GetRestArgsFrom(3)
-					if uid != "" && strings.HasPrefix(uid, ctx.EndPoint.Platform) && txt != "" {
-						isGroup := strings.Contains(uid, "-Group:")
+					platform := ""
+					if colonIdx := strings.Index(uid, ":"); colonIdx != -1 {
+						platform = uid[:colonIdx]
+					}
+					if uid != "" && strings.Contains(strings.ToLower(platform), strings.ToLower(ctx.EndPoint.Platform)) && txt != "" {
+						isGroup := strings.Contains(uid, "-Group:") || strings.Contains(uid, "-Channel:") || strings.Contains(uid, "-Guild:")
 						txt = fmt.Sprintf("本消息由骰主<%s>通过指令发送:\n", ctx.Player.Name) + txt
 						if isGroup {
 							ReplyGroup(ctx, &Message{GroupID: uid}, txt)
@@ -453,7 +461,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					}
 
 					text += cmdArgs.CleanArgs
-					if strings.Contains(uid, "Group") {
+					if strings.Contains(uid, "Group") || strings.Contains(uid, "Channel") || strings.Contains(uid, "Guild") {
 						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
 					} else {
 						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")

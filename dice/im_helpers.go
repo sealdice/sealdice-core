@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -129,9 +130,25 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 		return false
 	}
 
-	// 避免绕过“仅输出回复”的敏感词拦截逻辑：此模式下回退到普通 ReplyToSender 流程
 	if ctx.Dice.Config.EnableCensor && ctx.Dice.Config.CensorMode == OnlyOutputReply {
-		return false
+		for i, content := range contents {
+			checkText := sealCodeRe.ReplaceAllString(content, "")
+			checkText = cqCodeRe.ReplaceAllString(checkText, "")
+
+			hit, words, needToTerminate, _ := ctx.Dice.CensorMsg(ctx, msg, checkText, content)
+			if needToTerminate {
+				return true
+			}
+			if hit {
+				ctx.Dice.Logger.Infof(
+					"拒绝回复命中敏感词「%s」的内容（合并转发）- 来自<%s>(%s)",
+					strings.Join(words, "|"),
+					msg.Sender.Nickname,
+					msg.Sender.UserID,
+				)
+				contents[i] = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
+			}
+		}
 	}
 
 	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
@@ -166,7 +183,7 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 	case "group":
 		ok := s.SendGroupForwardMsg(ctx, msg.GroupID, nodes)
 		if ok && ctx.Group != nil {
-			ctx.Group.RecentDiceSendTime = time.Now().Unix()
+			atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
 			ctx.Group.MarkDirty(ctx.Dice)
 		}
 		return ok
@@ -236,8 +253,7 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 				}
 			}
 		}
-
-		session.ServiceAtNew.Store(groupID, &GroupInfo{
+		group = &GroupInfo{
 			Active:            true,
 			activatedExtList:  extLst,
 			ExtAppliedTime:    session.Parent.ExtUpdateTime, // 标记已初始化
@@ -248,9 +264,8 @@ func SetBotOnAtGroup(ctx *MsgContext, groupID string) *GroupInfo {
 			DiceIDExistsMap:   new(SyncMap[string, bool]),
 			CocRuleIndex:      int(session.Parent.Config.DefaultCocRuleIndex),
 			UpdatedAtTime:     time.Now().Unix(),
-		})
-		// TODO: Pinenutn:总觉得这里不太对，但是又觉得合理,GPT也没说怎么改更好一些，求教
-		group, _ = session.ServiceAtNew.Load(groupID)
+		}
+		session.ServiceAtNew.Store(groupID, group)
 	}
 
 	if group.DiceIDActiveMap == nil {
@@ -439,7 +454,7 @@ func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag strin
 		text = "要发送的文本过长"
 	}
 	if ctx.Group != nil {
-		ctx.Group.RecentDiceSendTime = time.Now().Unix()
+		atomic.StoreInt64(&ctx.Group.RecentDiceSendTime, time.Now().Unix())
 		ctx.Group.MarkDirty(ctx.Dice)
 	}
 	text = strings.TrimSpace(text)

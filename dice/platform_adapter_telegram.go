@@ -31,8 +31,7 @@ func (b *BotLoggerWrapper) Printf(format string, v ...interface{}) {
 }
 
 type PlatformAdapterTelegram struct {
-	Session       *IMSession       `json:"-"        yaml:"-"`
-	Token         string           `json:"token"    yaml:"token"`
+	Token         string           `json:"-"    yaml:"token"`
 	ProxyURL      string           `json:"proxyURL" yaml:"proxyURL"`
 	EndPoint      *EndPointInfo    `json:"-"        yaml:"-"`
 	IntentSession *tgbotapi.BotAPI `json:"-"        yaml:"-"`
@@ -52,12 +51,12 @@ func (pa *PlatformAdapterTelegram) GetGroupInfoAsync(groupID string) {
 	if err != nil {
 		return
 	}
-	dm := pa.Session.Parent.Parent
+	dm := pa.EndPoint.Session.Parent.Parent
 	dm.GroupNameCache.Store(groupID, &GroupNameCacheItem{
 		Name: chat.Title,
 		time: time.Now().Unix(),
 	})
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(groupID)
+	groupInfo, ok := pa.EndPoint.Session.ServiceAtNew.Load(groupID)
 	if ok {
 		groupInfo.GroupName = chat.Title
 	}
@@ -84,10 +83,10 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 		bot, err = tgbotapi.NewBotAPI(pa.Token)
 	}
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("与Telegram服务进行连接时出错:%s", err.Error())
+		pa.EndPoint.Session.Parent.Logger.Errorf("与Telegram服务进行连接时出错:%s", err.Error())
 		ep.State = 3
 		ep.Enable = false
-		d := pa.Session.Parent
+		d := pa.EndPoint.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		return 1
@@ -98,11 +97,11 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	ep.Nickname = bot.Self.UserName
 	ep.State = 1
 	ep.Enable = true
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 
-	pa.Session.Parent.Logger.Infof("Telegram 服务连接成功，账号<%s>(%s)", bot.Self.UserName, pa.EndPoint.UserID)
+	pa.EndPoint.Session.Parent.Logger.Infof("Telegram 服务连接成功，账号<%s>(%s)", bot.Self.UserName, pa.EndPoint.UserID)
 
 	updateConfig := tgbotapi.NewUpdate(0)
 	updateConfig.Timeout = 30
@@ -124,17 +123,17 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 
 				msg := pa.toStdMessage(update.EditedMessage)
 				mctx := &MsgContext{
-					Session:     pa.Session,
+					Session:     pa.EndPoint.Session,
 					EndPoint:    pa.EndPoint,
-					Dice:        pa.Session.Parent,
+					Dice:        pa.EndPoint.Session.Parent,
 					MessageType: msg.MessageType,
 				}
-				if groupInfo, ok := pa.Session.ServiceAtNew.Load(msg.GroupID); ok {
+				if groupInfo, ok := pa.EndPoint.Session.ServiceAtNew.Load(msg.GroupID); ok {
 					if p, ok2 := groupInfo.Players.Load(msg.Sender.UserID); ok2 {
 						mctx.Player = p
 					}
 				}
-				go pa.Session.OnMessageEdit(mctx, msg)
+				go pa.EndPoint.Session.OnMessageEdit(mctx, msg)
 				continue
 			}
 
@@ -170,17 +169,17 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 				go pa.friendAdded(msg)
 				continue
 			}
-			go pa.Session.Execute(pa.EndPoint, msg, false)
+			go pa.EndPoint.Session.Execute(pa.EndPoint, msg, false)
 		}
 	}()
 	return 0
 }
 
 func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi.Message, member *tgbotapi.User) {
-	ucache := &pa.Session.Parent.Parent.UserIDCache
-	logger := pa.Session.Parent.Logger
+	ucache := &pa.EndPoint.Session.Parent.Parent.UserIDCache
+	logger := pa.EndPoint.Session.Parent.Logger
 	ep := pa.EndPoint
-	groupInfo, ok := pa.Session.ServiceAtNew.Load(msg.GroupID)
+	groupInfo, ok := pa.EndPoint.Session.ServiceAtNew.Load(msg.GroupID)
 	if member.UserName != "" {
 		_, cacheExist := ucache.Load(member.UserName)
 		if !cacheExist {
@@ -188,7 +187,7 @@ func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi
 		}
 	}
 	if ok && groupInfo.ShowGroupWelcome {
-		ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
+		ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.EndPoint.Session, Dice: pa.EndPoint.Session.Parent}
 		ctx.Player = &GroupPlayerInfo{}
 		uidRaw := strconv.FormatInt(member.ID, 10)
 		VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
@@ -206,9 +205,9 @@ func (pa *PlatformAdapterTelegram) groupNewMember(msg *Message, msgRaw *tgbotapi
 }
 
 func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Message) {
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	ep := pa.EndPoint
-	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
+	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.EndPoint.Session, Dice: pa.EndPoint.Session.Parent}
 	gi := SetBotOnAtGroup(ctx, msg.GroupID)
 	gi.InviteUserID = msg.Sender.UserID
 	gi.EnteredTime = msg.Time
@@ -232,9 +231,9 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 }
 
 func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
-	logger := pa.Session.Parent.Logger
+	logger := pa.EndPoint.Session.Parent.Logger
 	ep := pa.EndPoint
-	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.Session, Dice: pa.Session.Parent}
+	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: pa.EndPoint.Session, Dice: pa.EndPoint.Session.Parent}
 	ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 	uid := msg.Sender.UserID
 	welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
@@ -253,8 +252,8 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 }
 
 func (pa *PlatformAdapterTelegram) toStdMessage(m *tgbotapi.Message) *Message {
-	ucache := &pa.Session.Parent.Parent.UserIDCache
-	logger := pa.Session.Parent.Logger
+	ucache := &pa.EndPoint.Session.Parent.Parent.UserIDCache
+	logger := pa.EndPoint.Session.Parent.Logger
 	self := pa.IntentSession.Self
 	msg := new(Message)
 	msg.Time = int64(m.Date)
@@ -362,7 +361,7 @@ func (pa *PlatformAdapterTelegram) MemberBan(_ string, _ string, _ int64) {}
 func (pa *PlatformAdapterTelegram) MemberKick(_ string, _ string) {}
 
 func (pa *PlatformAdapterTelegram) DoRelogin() bool {
-	pa.Session.Parent.Logger.Infof("正在启用Telegram服务……")
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用Telegram服务……")
 	if pa.IntentSession == nil {
 		go pa.Serve()
 		return true
@@ -378,7 +377,7 @@ func (pa *PlatformAdapterTelegram) DoRelogin() bool {
 func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 	ep := pa.EndPoint
 	if enable {
-		pa.Session.Parent.Logger.Infof("正在启用Telegram服务……")
+		pa.EndPoint.Session.Parent.Logger.Infof("正在启用Telegram服务……")
 		if pa.IntentSession == nil {
 			go pa.Serve()
 			return
@@ -409,7 +408,7 @@ func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, userID string, 
 	if err != nil {
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "private",
 		Message:     text,
@@ -426,7 +425,7 @@ func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text
 	if err != nil {
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "group",
 		Message:     text,
@@ -443,7 +442,7 @@ func (pa *PlatformAdapterTelegram) SendFileToPerson(ctx *MsgContext, uid string,
 	userID := ExtractTelegramUserID(uid)
 	id, _ := strconv.ParseInt(userID, 10, 64)
 	bot := pa.IntentSession
-	dice := pa.Session.Parent
+	dice := pa.EndPoint.Session.Parent
 
 	e, err := message.FilepathToFileElement(path)
 	if err != nil {
@@ -457,7 +456,7 @@ func (pa *PlatformAdapterTelegram) SendFileToPerson(ctx *MsgContext, uid string,
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "private",
 		Segment: []message.IMessageElement{
@@ -477,7 +476,7 @@ func (pa *PlatformAdapterTelegram) SendFileToGroup(ctx *MsgContext, uid string, 
 	groupID := ExtractTelegramGroupID(uid)
 	id, _ := strconv.ParseInt(groupID, 10, 64)
 	bot := pa.IntentSession
-	dice := pa.Session.Parent
+	dice := pa.EndPoint.Session.Parent
 
 	e, err := message.FilepathToFileElement(path)
 	if err != nil {
@@ -491,7 +490,7 @@ func (pa *PlatformAdapterTelegram) SendFileToGroup(ctx *MsgContext, uid string, 
 		dice.Logger.Errorf("向Telegram聊天#%d发送文件[path=%s]时出错:%s", id, path, err.Error())
 		return
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "group",
 		Segment: []message.IMessageElement{
@@ -550,7 +549,7 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) (*tgbo
 		//		_, err = bot.Send(msg)
 		//	}
 		//	if err != nil {
-		//		pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+		//		pa.EndPoint.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
 		//		return
 		//	}
 		//	msg = tgbotapi.NewMessage(id, "")
@@ -569,7 +568,7 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) (*tgbo
 			f.Thumb = data
 			_, err = bot.Send(f)
 			if err != nil {
-				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+				pa.EndPoint.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
 				return nil, err
 			}
 		case *message.TTSElement:
@@ -577,20 +576,20 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) (*tgbo
 		case *message.ReplyElement:
 			parseInt, errParse := strconv.ParseInt(e.ReplySeq, 10, 64)
 			if errParse != nil {
-				pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, errParse)
+				pa.EndPoint.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, errParse)
 				break
 			}
 			msg.ReplyToMessageID = int(parseInt)
 		}
 		if err != nil {
-			pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+			pa.EndPoint.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
 			return nil, err
 		}
 	}
 	if msg.Text != "" || len(msg.Entities) > 0 {
 		resp, err := bot.Send(msg)
 		if err != nil {
-			pa.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
+			pa.EndPoint.Session.Parent.Logger.Errorf("向Telegram聊天#%d发送消息时出错:%s", id, err)
 		}
 		return &resp, err
 	}
@@ -600,13 +599,13 @@ func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) (*tgbo
 func (pa *PlatformAdapterTelegram) QuitGroup(_ *MsgContext, id string) {
 	parseInt, err := strconv.ParseInt(ExtractTelegramGroupID(id), 10, 64)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("退出Telegram群组%s时出错:%s", id, err.Error())
+		pa.EndPoint.Session.Parent.Logger.Errorf("退出Telegram群组%s时出错:%s", id, err.Error())
 		return
 	}
 	msg := &tgbotapi.LeaveChatConfig{ChatID: parseInt}
 	_, err = pa.IntentSession.Send(msg)
 	if err != nil {
-		pa.Session.Parent.Logger.Errorf("退出Telegram群组%s时出错:%s", id, err.Error())
+		pa.EndPoint.Session.Parent.Logger.Errorf("退出Telegram群组%s时出错:%s", id, err.Error())
 	}
 }
 

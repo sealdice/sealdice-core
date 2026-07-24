@@ -110,7 +110,7 @@ func V131DeprecatedConfig2CustomText() error {
 			return err
 		}
 		// 先备份
-		err = os.WriteFile(customTextBakPath, customTextData, 0o644)
+		err = os.WriteFile(customTextBakPath, customTextData, 0o644) //nolint:gosec
 		if err != nil {
 			return err
 		}

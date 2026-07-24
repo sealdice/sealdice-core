@@ -52,7 +52,6 @@ type echoMapInfo struct {
 
 type PlatformAdapterGocq struct {
 	EndPoint *EndPointInfo `json:"-" yaml:"-"`
-	Session  *IMSession    `json:"-" yaml:"-"`
 
 	IsReverse   bool       `json:"isReverse"   yaml:"isReverse"`
 	ReverseAddr string     `json:"reverseAddr" yaml:"reverseAddr"`
@@ -126,6 +125,7 @@ type OnebotUserInfo struct {
 	GroupName       string `json:"group_name"`
 	MaxMemberCount  int32  `json:"max_member_count"`
 	Card            string `json:"card"`
+	Role            string `json:"role"`
 }
 
 type MessageQQBase struct {
@@ -162,6 +162,7 @@ type MessageQQBase struct {
 
 		// 群成员信息
 		Card string `json:"card"`
+		Role string `json:"role"`
 	} `json:"data"`
 	Retcode int64 `json:"retcode"`
 	// Status string `json:"status"`
@@ -414,13 +415,13 @@ func (pa *PlatformAdapterGocq) SendSegmentToPerson(ctx *MsgContext, userID strin
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
-	if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
+	if pa.BuiltinMode == "lagrange" {
 		pa.Implementation = "lagrange"
 	} else {
 		pa.Implementation = "gocq"
 	}
 	ep := pa.EndPoint
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
 	dm := s.Parent.Parent
 	interrupt := make(chan os.Signal, 1)
@@ -437,7 +438,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	ep.State = 2
 	socket.OnConnected = func(socket gowebsocket.Socket) {
-		defer ErrorLogAndContinue(pa.Session.Parent)
+		defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 		ep.State = 1
 		if pa.IsReverse {
 			log.Info("onebot v11 反向ws连接成功")
@@ -451,7 +452,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
-		defer ErrorLogAndContinue(pa.Session.Parent)
+		defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 		// if CheckDialErr(err) != syscall.ECONNREFUSED {
 		// refused 不算大事
 		log.Error("onebot v11 connection error: ", err)
@@ -475,7 +476,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
-		defer ErrorLogAndContinue(pa.Session.Parent)
+		defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 		// if strings.Contains(message, `.`) {
 		//	log.Info("...", message)
 		// }
@@ -531,7 +532,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			log.Debug("骰子信息已刷新")
 			ep.RefreshGroupNum()
 
-			d := pa.Session.Parent
+			d := pa.EndPoint.Session.Parent
 			d.LastUpdatedTime = time.Now().Unix()
 			d.Save(false)
 			return
@@ -982,6 +983,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			string(msgQQ.OperatorID) == string(msgQQ.SelfID) {
 			// 群解散
 			// {"group_id":564808710,"notice_type":"group_decrease","operator_id":2589922907,"post_type":"notice","self_id":2589922907,"sub_type":"leave","time":1651584460,"user_id":2589922907}
+			pendingQuit := session.ConsumePendingQuit(msg.GroupID, ep.UserID)
 			groupName := dm.TryGetGroupName(msg.GroupID)
 			txt := fmt.Sprintf("离开群组或群解散: <%s>(%s)", groupName, msgQQ.GroupID)
 			// 这个就是要删除的部分，离开这个群组=群组退出=删除对应的群聊绑定信息（也就是用户的骰子和这个群聊无关了）
@@ -990,14 +992,18 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if !exists {
 				txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, msgQQ.GroupID)
 				log.Error(txtErr)
-				ctx.Notice(txtErr)
+				if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
+					ctx.Notice(txtErr)
+				}
 				return
 			}
 			// TODO：存疑，根据DISMISS的代码复制而来
 			group.DiceIDExistsMap.Delete(ep.UserID)
 			group.MarkDirty(ctx.Dice)
 			log.Info(txt)
-			ctx.Notice(txt)
+			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
+				ctx.Notice(txt)
+			}
 			return
 		}
 
@@ -1039,9 +1045,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 			go func() {
-				defer ErrorLogAndContinue(pa.Session.Parent)
+				defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 				isPrivate := msg.MessageType == "private"
-				pa.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
+				pa.EndPoint.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
 					GroupID:   msg.GroupID,
 					SenderID:  FormatDiceIDQQ(string(msgQQ.UserID)),
 					TargetID:  FormatDiceIDQQ(string(msgQQ.TargetID)),
@@ -1095,7 +1101,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		lastDisconnect = now
 
 		log.Info("onebot 服务的连接被对方关闭")
-		_ = pa.Session.Parent.SendMail("", MailTypeConnectClose)
+		_ = pa.EndPoint.Session.Parent.SendMail("", MailTypeConnectClose)
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
 
@@ -1174,7 +1180,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 }
 
 func (pa *PlatformAdapterGocq) DoRelogin() bool {
-	myDice := pa.Session.Parent
+	myDice := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
 	if pa.Socket != nil {
 		go func() {
@@ -1200,7 +1206,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 		if pa.InPackGoCqhttpDisconnectedCH != nil {
 			pa.InPackGoCqhttpDisconnectedCH <- -1
 		}
-		if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
+		if pa.BuiltinMode == "lagrange" {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
 			pa.CurLoginIndex++
 			pa.GoCqhttpState = StateCodeInit
@@ -1241,13 +1247,13 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	c := pa.EndPoint
 	if enable {
 		c.Enable = true
 
 		if pa.UseInPackClient {
-			if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
+			if pa.BuiltinMode == "lagrange" {
 				BuiltinQQServeProcessKill(d, c)
 				time.Sleep(1 * time.Second)
 				LagrangeServe(d, c, LagrangeLoginInfo{
@@ -1290,7 +1296,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 	pa.InPackGoCqhttpProtocol = protocol
 
 	// ep.Session.Parent.GetDiceDataPath(ep.RelWorkDir)
-	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	workDir := filepath.Join(pa.EndPoint.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	deviceFilePath := filepath.Join(workDir, "device.json")
 	if _, err := os.Stat(deviceFilePath); err == nil {
 		configFile, _ := os.ReadFile(deviceFilePath)
@@ -1310,7 +1316,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 }
 
 func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig) bool {
-	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	workDir := filepath.Join(pa.EndPoint.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	configFilePath := filepath.Join(workDir, "config.yml")
 	if _, err := os.Stat(configFilePath); err == nil {
 		configFile, _ := os.ReadFile(configFilePath)
@@ -1350,7 +1356,7 @@ func (pa *PlatformAdapterGocq) IsLoginSuccessed() bool {
 
 func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgContext {
 	ep := pa.EndPoint
-	session := pa.Session
+	session := pa.EndPoint.Session
 
 	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
 
