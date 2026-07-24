@@ -585,6 +585,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 			msg.Sender.Nickname = "用户"
 		}
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
+		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)
@@ -638,6 +639,7 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 			msg.Sender.Nickname = "用户"
 		}
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
+		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)

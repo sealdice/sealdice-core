@@ -916,7 +916,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			rawMsg.At(res.Target)
+			rawMsg = rawMsg.At(res.Target)
 			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", res.Target)
 		case message.Text:
 			res, ok := v.(*message.TextElement)

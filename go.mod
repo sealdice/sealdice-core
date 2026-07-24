@@ -42,8 +42,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.4
-	github.com/labstack/echo/v4 v4.13.4
-	github.com/lascape/sat v1.0.4
+	github.com/labstack/echo/v4 v4.15.0
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/looplab/fsm v1.0.3
@@ -167,7 +166,9 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/labstack/echo-contrib v0.50.1 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
+	github.com/lascape/sat v1.0.4 // indirect
 	github.com/lxzan/gws v1.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
@@ -217,7 +218,7 @@ require (
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	modernc.org/libc v1.22.5 // indirect
@@ -233,7 +234,5 @@ replace (
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0 => github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105 => github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6
-	// QQ官方机器人: 指向 baiyu-yu/botgo fork (tongbu 分支)，支持 webhook + OAuth2 + C2C消息等
-	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 => github.com/baiyu-yu/botgo v0.0.0-20260624160657-82be3f005789
-// github.com/PaienNate/pineutil v0.0.0-20251014070632-4c5ebfdc92e5 => C:\Users\11018\Documents\goutil
+	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 => github.com/baiyu-yu/botgo v0.0.0-20260724092016-620fecba07da
 )

@@ -14,6 +14,7 @@ import (
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/dice/events"
+	"sealdice-core/message"
 )
 
 var guguText = `
@@ -338,6 +339,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 					if cmdValue != nil && cmdValue.TypeId == ds.VMTypeString {
 						args[0] = cmdValue.Value.(string)
 						targetCmd := strings.Join(args, " ")
+						msg.Message = targetCmd
+						msg.Segment = message.ConvertStringMessage(targetCmd)
 						targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
 						if targetArgs != nil {
 							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
@@ -363,6 +366,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					args[0] = cmdValue.Value.(string)
 					targetCmd := strings.Join(args, " ")
 					msg.Message = targetCmd
+					msg.Segment = message.ConvertStringMessage(targetCmd)
 					targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
 					if targetArgs != nil {
 						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
