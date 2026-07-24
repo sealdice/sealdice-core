@@ -246,7 +246,7 @@ func newExecuteNewTestDice(t *testing.T) (*Dice, *EndPointInfo, *mockPlatformAda
 		// Stop package-owned workers first.
 		d.AttrsManager.Stop()
 
-		// Close help search engine if it was initialized (bleve workers).
+		// Close the help search engine and its background workers.
 		if d.Parent != nil && d.Parent.Help != nil {
 			d.Parent.Help.Close()
 		}
