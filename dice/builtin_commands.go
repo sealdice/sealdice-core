@@ -134,9 +134,10 @@ func parseQQGroupRole(role string) (string, bool) {
 }
 
 // checkBotGroupRole 查询 bot 在指定群中归一化后的角色(owner/admin/member)。
-// 返回值: role 为归一化后的角色字符串; ok 表示该适配器是否支持并成功完成角色检查; errMsg 在失败时给出原因。
+// 返回值: role 为归一化后的角色字符串; ok 表示该适配器是否支持并成功完成角色检查;
+// detail 在 ok=true 时为角色字符串(与 role 相同),在 ok=false 时为失败原因描述。
 // 不支持角色检查的适配器返回 ok=false, 调用方应保持原有行为, 不做阻断。
-func checkBotGroupRole(ctx *MsgContext, groupID string) (role string, ok bool, errMsg string) {
+func checkBotGroupRole(ctx *MsgContext, groupID string) (role string, ok bool, detail string) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
 		return "", false, "context invalid"
 	}
