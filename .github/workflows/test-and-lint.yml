@@ -41,4 +41,4 @@ jobs:
         if: github.event_name != 'pull_request'
         with:
           version: latest
-          args: '--timeout 9999s'
+          args: '--timeout 10m'
