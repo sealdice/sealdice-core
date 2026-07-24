@@ -33,6 +33,7 @@ frontend/
 frontend_overwrite/
 backups/
 update/
+/cache/
 walle-q/
 _help_cache
 .DS_Store
