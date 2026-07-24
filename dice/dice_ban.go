@@ -23,6 +23,13 @@ const (
 
 const defaultBlacklistedHelpMasterCooldown = time.Hour
 
+const defaultBlacklistedUserNoticeCooldown = 20 * time.Minute
+
+type blacklistedUserNoticeKey struct {
+	GroupID string
+	UserID  string
+}
+
 type BanListInfoItem struct {
 	ID      string      `jsbind:"id"      json:"ID"`
 	Name    string      `jsbind:"name"    json:"name"`
@@ -73,13 +80,16 @@ type BanListInfo struct {
 	ScoreGroupKicked          int64 `json:"scoreGroupKicked"     yaml:"scoreGroupKicked"`               // 群组踢出
 	ScoreTooManyCommand       int64 `json:"scoreTooManyCommand"  yaml:"scoreTooManyCommand"`            // 刷指令
 	HelpMasterCooldownMinutes int64 `json:"helpMasterCooldownMinutes" yaml:"helpMasterCooldownMinutes"` // 黑名单用户使用.help 骰主的冷却分钟数
+	BanNotifyIntervalMinutes  int64 `json:"banNotifyIntervalMinutes" yaml:"banNotifyIntervalMinutes"`   // 同一用户同一群内通报间隔；0 为默认 20 分钟，负数表示每次通报
 
 	JointScorePercentOfGroup   float64 `json:"jointScorePercentOfGroup"   yaml:"jointScorePercentOfGroup"`   // 群组连带责任
 	JointScorePercentOfInviter float64 `json:"jointScorePercentOfInviter" yaml:"jointScorePercentOfInviter"` // 邀请人连带责任
 
-	helpMasterReplyMu sync.Mutex           `json:"-" yaml:"-"`
-	helpMasterReplyAt map[string]time.Time `json:"-" yaml:"-"`
-	cronID            cron.EntryID         `json:"-" yaml:"-"`
+	helpMasterReplyMu sync.Mutex                             `json:"-" yaml:"-"`
+	helpMasterReplyAt map[string]time.Time                   `json:"-" yaml:"-"`
+	banNoticeMu       sync.Mutex                             `json:"-" yaml:"-"`
+	banNoticeAt       map[blacklistedUserNoticeKey]time.Time `json:"-" yaml:"-"`
+	cronID            cron.EntryID                           `json:"-" yaml:"-"`
 }
 
 func (i *BanListInfo) Init() {
@@ -96,11 +106,13 @@ func (i *BanListInfo) Init() {
 	i.ScoreGroupKicked = 200
 	i.ScoreTooManyCommand = 100
 	i.HelpMasterCooldownMinutes = int64(defaultBlacklistedHelpMasterCooldown / time.Minute)
+	i.BanNotifyIntervalMinutes = int64(defaultBlacklistedUserNoticeCooldown / time.Minute)
 
 	i.JointScorePercentOfGroup = 0.5
 	i.JointScorePercentOfInviter = 0.3
 	i.Map = new(SyncMap[string, *BanListInfoItem])
 	i.helpMasterReplyAt = map[string]time.Time{}
+	i.banNoticeAt = map[blacklistedUserNoticeKey]time.Time{}
 }
 
 func (i *BanListInfo) BlacklistedHelpMasterCooldown() time.Duration {
@@ -136,6 +148,44 @@ func (i *BanListInfo) CanReplyBlacklistedHelpMaster(userID string, now time.Time
 	return true
 }
 
+func (i *BanListInfo) BlacklistedUserNoticeCooldown() time.Duration {
+	if i.BanNotifyIntervalMinutes == 0 {
+		return defaultBlacklistedUserNoticeCooldown
+	}
+	return time.Duration(i.BanNotifyIntervalMinutes) * time.Minute
+}
+
+func (i *BanListInfo) cleanupBlacklistedUserNoticeAtLocked(now time.Time, cooldown time.Duration) {
+	for key, noticeAt := range i.banNoticeAt {
+		if now.Sub(noticeAt) >= cooldown {
+			delete(i.banNoticeAt, key)
+		}
+	}
+}
+
+func (i *BanListInfo) CanNotifyBlacklistedUser(groupID string, userID string, now time.Time) bool {
+	cooldown := i.BlacklistedUserNoticeCooldown()
+	if cooldown < 0 {
+		return true
+	}
+
+	i.banNoticeMu.Lock()
+	defer i.banNoticeMu.Unlock()
+
+	if i.banNoticeAt == nil {
+		i.banNoticeAt = map[blacklistedUserNoticeKey]time.Time{}
+	}
+	i.cleanupBlacklistedUserNoticeAtLocked(now, cooldown)
+
+	key := blacklistedUserNoticeKey{GroupID: groupID, UserID: userID}
+	if lastNoticeAt, ok := i.banNoticeAt[key]; ok && now.Sub(lastNoticeAt) < cooldown {
+		return false
+	}
+
+	i.banNoticeAt[key] = now
+	return true
+}
+
 func (i *BanListInfo) Loads() {
 }
 
@@ -146,6 +196,13 @@ func (i *BanListInfo) AfterLoads() {
 		i.helpMasterReplyMu.Lock()
 		i.cleanupBlacklistedHelpMasterReplyAtLocked(time.Now(), i.BlacklistedHelpMasterCooldown())
 		i.helpMasterReplyMu.Unlock()
+
+		banNoticeCooldown := i.BlacklistedUserNoticeCooldown()
+		if banNoticeCooldown >= 0 {
+			i.banNoticeMu.Lock()
+			i.cleanupBlacklistedUserNoticeAtLocked(time.Now(), banNoticeCooldown)
+			i.banNoticeMu.Unlock()
+		}
 
 		if d.DBOperator == nil {
 			return

@@ -1924,7 +1924,7 @@ func isBlacklistedHelpMasterRequest(cmdArgs *CmdArgs) bool {
 	return len(cmdArgs.Args) == 1 && cmdArgs.IsArgEqual(1, "骰主")
 }
 
-func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGroup bool, banQuitGroup func()) bool {
+func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGroup bool, now time.Time, banQuitGroup func()) bool {
 	d := ctx.Dice
 	log := d.Logger
 	banListInfoItem, _ := d.Config.BanList.GetByID(msg.Sender.UserID)
@@ -1953,10 +1953,14 @@ func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGrou
 	}
 
 	if d.Config.BanList.BanBehaviorQuitIfAdmin {
+		if !d.Config.BanList.CanNotifyBlacklistedUser(groupID, msg.Sender.UserID, now) {
+			return true
+		}
+
 		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		log.Info(noticeMsg)
 
-		text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
+		text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。\n%s", msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
 		ctx.Notice(noticeMsg)
@@ -1973,7 +1977,7 @@ func handleBlacklistedUser(ctx *MsgContext, msg *Message, isWhiteGroup bool, now
 	log := d.Logger
 
 	if (d.Config.BanList.BanBehaviorQuitIfAdmin || d.Config.BanList.BanBehaviorQuitIfAdminSilentIfNotAdmin) && msg.MessageType == "group" {
-		return handleBlacklistedUserQuitIfAdmin(ctx, msg, isWhiteGroup, banQuitGroup)
+		return handleBlacklistedUserQuitIfAdmin(ctx, msg, isWhiteGroup, now, banQuitGroup)
 	}
 
 	if d.Config.BanList.BanBehaviorQuitPlaceImmediately && msg.MessageType == "group" {

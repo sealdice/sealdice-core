@@ -143,6 +143,10 @@ func getLevelConfig(
 		// 仅增加怒气值
 		h = append(h, dice.CensorHandlerText[dice.AddScore])
 	}
+	if handler&(1<<dice.SendEncodedDetails) != 0 {
+		// 向当前会话发送编码后的命中详情
+		h = append(h, dice.CensorHandlerText[dice.SendEncodedDetails])
+	}
 	return LevelConfig{
 		Threshold: thresholds[level],
 		Handlers:  h,
@@ -259,6 +263,8 @@ func setLevelHandlers(level censor.Level, handlers []string) {
 			newHandlers[dice.BanInviter] = true
 		case "AddScore":
 			newHandlers[dice.AddScore] = true
+		case "SendEncodedDetails":
+			newHandlers[dice.SendEncodedDetails] = true
 		}
 	}
 
@@ -269,6 +275,7 @@ func setLevelHandlers(level censor.Level, handlers []string) {
 	handlerVal = newHandlerVal(handlerVal, dice.BanGroup, newHandlers)
 	handlerVal = newHandlerVal(handlerVal, dice.BanInviter, newHandlers)
 	handlerVal = newHandlerVal(handlerVal, dice.AddScore, newHandlers)
+	handlerVal = newHandlerVal(handlerVal, dice.SendEncodedDetails, newHandlers)
 
 	(&myDice.Config).CensorHandlers[level] = handlerVal
 }

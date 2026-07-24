@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -35,15 +36,18 @@ const (
 	BanInviter
 	// AddScore 增加怒气值
 	AddScore
+	// SendEncodedDetails 向当前会话发送 Base64 编码的命中词和上下文
+	SendEncodedDetails
 )
 
 var CensorHandlerText = map[CensorHandler]string{
-	SendWarning: "SendWarning",
-	SendNotice:  "SendNotice",
-	BanUser:     "BanUser",
-	BanGroup:    "BanGroup",
-	BanInviter:  "BanInviter",
-	AddScore:    "AddScore",
+	SendWarning:        "SendWarning",
+	SendNotice:         "SendNotice",
+	BanUser:            "BanUser",
+	BanGroup:           "BanGroup",
+	BanInviter:         "BanInviter",
+	AddScore:           "AddScore",
+	SendEncodedDetails: "SendEncodedDetails",
 }
 
 type CensorHandler int
@@ -122,6 +126,7 @@ func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent strin
 	for word := range res.SensitiveWords {
 		words = append(words, word)
 	}
+	sort.Strings(words)
 	return &MsgCheckResult{
 		UserID:            msg.Sender.UserID,
 		Level:             res.HighestLevel,
@@ -135,6 +140,20 @@ type MsgCheckResult struct {
 	Level             censor.Level
 	HitCounts         map[censor.Level]int
 	CurSensitiveWords []string
+}
+
+func formatCensorHitDetails(levelText string, words []string, content string) string {
+	encodedWords := make([]string, 0, len(words))
+	for _, word := range words {
+		encodedWords = append(encodedWords, base64.StdEncoding.EncodeToString([]byte(word)))
+	}
+
+	return fmt.Sprintf(
+		"检测到<%s>级敏感词。\n命中词(Base64): %s\n上下文(Base64): %s",
+		levelText,
+		strings.Join(encodedWords, " | "),
+		base64.StdEncoding.EncodeToString([]byte(content)),
+	)
 }
 
 func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, sendContent string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
@@ -191,6 +210,9 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			if handler&(1<<SendWarning) != 0 {
 				tmplText := fmt.Sprintf("核心:拦截_警告内容_%s级", censor.LevelText[level])
 				ReplyToSenderNoCheck(mctx, msg, DiceFormatTmpl(mctx, tmplText))
+			}
+			if handler&(1<<SendEncodedDetails) != 0 {
+				ReplyToSenderNoCheck(mctx, msg, formatCensorHitDetails(levelText, checkResult.CurSensitiveWords, checkContent))
 			}
 			if handler&(1<<SendNotice) != 0 {
 				// 向通知列表/邮件发送通知
