@@ -5,12 +5,17 @@ on:
     paths:
       - '**.go'
       - 'go.mod'
-      - 'test-and-lint.yml'
+      - 'go.sum'
+      - '.github/workflows/test-and-lint.yml'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
-      - 'test-and-lint.yml'
+      - 'go.sum'
+      - '.github/workflows/test-and-lint.yml'
+
+permissions:
+  contents: read
 
 jobs:
   test-and-lint:
@@ -19,11 +24,13 @@ jobs:
     steps:
       - name: Code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-      - run: go get
+      - run: go mod download
       - run: go generate ./...
 
       - run: go test -v -race ./...
