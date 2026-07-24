@@ -904,22 +904,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				tmpUID = msg.TmpUID
 			}
 			for _, i := range ats {
-				// 特殊处理 OpenQQ 和 OpenQQCH
 				if i.UserID == tmpUID {
 					amIBeMentioned = true
 					break
-				} else if strings.HasPrefix(i.UserID, "OpenQQ:") ||
-					strings.HasPrefix(i.UserID, "OpenQQCH:") {
-					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
-					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid {
-						amIBeMentioned = true
-						break
-					}
 				}
 			}
 		}
 
 		mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+		VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 		mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
 		if mctx.Group != nil && mctx.Group.System != "" {
@@ -983,11 +976,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			mctx.CommandID = getNextCommandID()
 
 			var tmpUID string
-			if platformPrefix == "OpenQQCH" {
+			switch platformPrefix {
+			case "OpenQQCH":
 				// 特殊处理 OpenQQ频道
 				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
 				tmpUID = "OpenQQCH:" + uid
-			} else {
+			default:
 				tmpUID = ep.UserID
 			}
 			if msg.TmpUID != "" {
@@ -1294,6 +1288,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 
 	mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+	VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 	mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
 	if mctx.Group != nil && mctx.Group.System != "" {
@@ -2125,15 +2120,8 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				// 允许代骰时，发一句话
 				cur := -1
 				for index, i := range cmdArgs.At {
-					if i.UserID == ctx.EndPoint.UserID {
+					if i.UserID == ctx.EndPoint.UserID || (cmdArgs.uidForAtInfo != "" && i.UserID == cmdArgs.uidForAtInfo) {
 						continue
-					} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-						// 特殊处理 OpenQQ频道
-						uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
-						diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
-						if uid == diceId {
-							continue
-						}
 					}
 					cur = index
 				}
