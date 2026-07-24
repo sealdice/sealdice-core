@@ -16,6 +16,7 @@ import (
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
+	"golang.org/x/sync/singleflight"
 
 	"sealdice-core/dice"
 )
@@ -173,6 +174,42 @@ const (
 	checkTimeout time.Duration = 5 * time.Second
 )
 
+type networkHealthTarget struct {
+	Target   string        `json:"target"`
+	Ok       bool          `json:"ok"`
+	Duration time.Duration `json:"duration"`
+}
+
+type networkHealthResult struct {
+	Total     int
+	Ok        []string
+	Targets   []networkHealthTarget
+	Timestamp int64
+}
+
+type networkHealthChecker struct {
+	group singleflight.Group
+	run   func() networkHealthResult
+}
+
+func (checker *networkHealthChecker) check(ctx context.Context) (networkHealthResult, error) {
+	result := checker.group.DoChan("network-health", func() (any, error) {
+		return checker.run(), nil
+	})
+
+	select {
+	case <-ctx.Done():
+		return networkHealthResult{}, ctx.Err()
+	case call := <-result:
+		if call.Err != nil {
+			return networkHealthResult{}, call.Err
+		}
+		return call.Val.(networkHealthResult), nil
+	}
+}
+
+var sharedNetworkHealthChecker = networkHealthChecker{run: runNetworkHealthCheck}
+
 func checkHTTPConnectivity(url string) (bool, time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
@@ -228,22 +265,16 @@ func checkHTTPConnectivity(url string) (bool, time.Duration) {
 	return ok, time.Duration(duration)
 }
 
-func checkNetworkHealth(c echo.Context) error {
+func runNetworkHealthCheck() networkHealthResult {
 	total := 5 // baidu, seal, sign, google, github
 	var wg sync.WaitGroup
-
-	type rs struct {
-		Target   string        `json:"target"`
-		Ok       bool          `json:"ok"`
-		Duration time.Duration `json:"duration"`
-	}
-	rsChan := make(chan rs, total)
+	rsChan := make(chan networkHealthTarget, total)
 
 	checkUrls := func(target string, urls []string) {
 		for _, url := range urls {
 			ok, duration := checkHTTPConnectivity(url)
 			if ok {
-				rsChan <- rs{
+				rsChan <- networkHealthTarget{
 					Target:   target,
 					Ok:       true,
 					Duration: duration,
@@ -251,7 +282,7 @@ func checkNetworkHealth(c echo.Context) error {
 				return
 			}
 		}
-		rsChan <- rs{
+		rsChan <- networkHealthTarget{
 			Target:   target,
 			Ok:       false,
 			Duration: 0,
@@ -297,7 +328,7 @@ func checkNetworkHealth(c echo.Context) error {
 	close(rsChan)
 
 	var ok []string
-	var targets []rs
+	var targets []networkHealthTarget
 	for target := range rsChan {
 		targets = append(targets, target)
 		if target.Ok {
@@ -305,10 +336,24 @@ func checkNetworkHealth(c echo.Context) error {
 		}
 	}
 
+	return networkHealthResult{
+		Total:     total,
+		Ok:        ok,
+		Targets:   targets,
+		Timestamp: time.Now().Unix(),
+	}
+}
+
+func checkNetworkHealth(c echo.Context) error {
+	result, err := sharedNetworkHealthChecker.check(c.Request().Context())
+	if err != nil {
+		return err
+	}
+
 	return Success(&c, Response{
-		"total":     total,
-		"ok":        ok, // 被 targets 代替，可废弃，但先为接口兼容保留
-		"targets":   targets,
-		"timestamp": time.Now().Unix(),
+		"total":     result.Total,
+		"ok":        result.Ok, // 被 targets 代替，可废弃，但先为接口兼容保留
+		"targets":   result.Targets,
+		"timestamp": result.Timestamp,
 	})
 }
