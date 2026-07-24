@@ -241,7 +241,5 @@ replace (
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0 => github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105 => github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6
-	// QQ官方机器人: 指向 baiyu-yu/botgo fork (tongbu 分支)，支持 webhook + OAuth2 + C2C消息等
-	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 => github.com/baiyu-yu/botgo v0.0.0-20260624160657-82be3f005789
-// github.com/PaienNate/pineutil v0.0.0-20251014070632-4c5ebfdc92e5 => C:\Users\11018\Documents\goutil
+	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 => github.com/baiyu-yu/botgo v0.0.0-20260724092016-620fecba07da
 )
