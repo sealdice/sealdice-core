@@ -647,7 +647,7 @@ func (m *HelpManager) GetItemByNumericID(id int) (*docengine.HelpTextItem, error
 		return nil, errors.New("无效的帮助条目ID")
 	}
 	internalID := m.docIDs[id-1]
-	return m.searchEngine.GetItemByID(internalID)
+	return m.searchEngine.GetItemByInternalID(internalID)
 }
 
 func (m *HelpManager) GetItemByNumericIDString(id string) (*docengine.HelpTextItem, error) {
@@ -659,6 +659,14 @@ func (m *HelpManager) GetItemByNumericIDString(id string) (*docengine.HelpTextIt
 		return nil, err
 	}
 	return m.GetItemByNumericID(v)
+}
+
+func (m *HelpManager) getNumericIDByInternalID(internalID string) (int, bool) {
+	index := sort.SearchStrings(m.docIDs, internalID)
+	if index >= len(m.docIDs) || m.docIDs[index] != internalID {
+		return 0, false
+	}
+	return index + 1, true
 }
 
 func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res *docengine.GeneralSearchResult, total, pageStart, pageEnd int, err error) {
@@ -1140,8 +1148,12 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 
 	// 如果ID不为空
 	if id != "" {
-		// 加载对应ID的数据
-		item, err := m.searchEngine.GetItemByID(id)
+		numericID, err := strconv.Atoi(id)
+		if err != nil {
+			return 0, HelpTextVos{}
+		}
+		// 加载对应数字 ID 的数据
+		item, err := m.GetItemByNumericID(numericID)
 		// 若成功
 		if err == nil {
 			// 返回这条数据
@@ -1153,7 +1165,7 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 				PackageName: item.PackageName,
 				KeyWords:    item.KeyWords,
 			}
-			vo.ID, _ = strconv.Atoi(id)
+			vo.ID = numericID
 			return 1, HelpTextVos{vo}
 		}
 		return 0, HelpTextVos{}
@@ -1165,7 +1177,13 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 	}
 	var items = make(HelpTextVos, 0)
 	for _, item := range result {
+		numericID, ok := m.getNumericIDByInternalID(item.InternalID)
+		if !ok {
+			logger.M().Warnf("帮助文档内部 ID 不在数字 ID 映射中: %s", item.InternalID)
+			continue
+		}
 		vo := HelpTextVo{
+			ID:          numericID,
 			Group:       item.Group,
 			From:        item.From,
 			Title:       item.Title,
@@ -1173,7 +1191,6 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 			PackageName: item.PackageName,
 			KeyWords:    item.KeyWords,
 		}
-		vo.ID, _ = strconv.Atoi(id)
 		items = append(items, vo)
 	}
 	return int(total), items

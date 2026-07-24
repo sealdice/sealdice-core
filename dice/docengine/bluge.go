@@ -223,8 +223,9 @@ func storedFields(match *search.DocumentMatch) (string, map[string]interface{}, 
 	return id, fields, err
 }
 
-func helpItemFromFields(fields map[string]interface{}) *HelpTextItem {
+func helpItemFromFields(internalID string, fields map[string]interface{}) *HelpTextItem {
 	return &HelpTextItem{
+		InternalID:  internalID,
 		Group:       fmt.Sprintf("%v", fields["group"]),
 		From:        fmt.Sprintf("%v", fields["from"]),
 		Title:       fmt.Sprintf("%v", fields["title"]),
@@ -527,16 +528,16 @@ func (d *BlugeSearchEngine) PaginateDocuments(pageSize, pageNum int, group, from
 		if match == nil {
 			break
 		}
-		_, fields, visitErr := storedFields(match)
+		id, fields, visitErr := storedFields(match)
 		if visitErr != nil {
 			return 0, nil, visitErr
 		}
-		items = append(items, helpItemFromFields(fields))
+		items = append(items, helpItemFromFields(id, fields))
 	}
 	return matches.Aggregations().Count(), items, nil
 }
 
-func (d *BlugeSearchEngine) GetItemByID(id string) (*HelpTextItem, error) {
+func (d *BlugeSearchEngine) GetItemByInternalID(id string) (*HelpTextItem, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.getItemByIDLocked(id)
@@ -561,11 +562,11 @@ func (d *BlugeSearchEngine) getItemByIDLocked(id string) (*HelpTextItem, error) 
 	if match == nil {
 		return nil, errors.New("未找到匹配的文档")
 	}
-	_, fields, err := storedFields(match)
+	internalID, fields, err := storedFields(match)
 	if err != nil {
 		return nil, err
 	}
-	return helpItemFromFields(fields), nil
+	return helpItemFromFields(internalID, fields), nil
 }
 
 func (d *BlugeSearchEngine) GetHelpTextItemByTermTitle(title string) (*HelpTextItem, error) {
@@ -590,11 +591,11 @@ func (d *BlugeSearchEngine) GetHelpTextItemByTermTitle(title string) (*HelpTextI
 	if match == nil {
 		return nil, errors.New("查询失败，未查询到数据")
 	}
-	_, fields, err := storedFields(match)
+	internalID, fields, err := storedFields(match)
 	if err != nil {
 		return nil, err
 	}
-	return helpItemFromFields(fields), nil
+	return helpItemFromFields(internalID, fields), nil
 }
 
 var _ SearchEngine = (*BlugeSearchEngine)(nil)

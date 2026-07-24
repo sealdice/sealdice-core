@@ -79,12 +79,42 @@ func TestBlugeSearchEngineDeleteByFromRemovesAllMatches(t *testing.T) {
 	}
 
 	for _, id := range idsAfter {
-		item, getErr := engine.GetItemByID(id)
+		item, getErr := engine.GetItemByInternalID(id)
 		if getErr != nil {
-			t.Fatalf("GetItemByID(%q) error = %v", id, getErr)
+			t.Fatalf("GetItemByInternalID(%q) error = %v", id, getErr)
 		}
 		if item.From == targetFrom {
 			t.Fatalf("document %q from deleted source still exists", id)
+		}
+	}
+}
+
+func TestBlugeSearchEnginePaginateDocumentsIncludesInternalIDs(t *testing.T) {
+	engine := newTestBlugeSearchEngine(t)
+	addTestHelpItems(t, engine, 2, "group", "from", "item-")
+	if err := engine.AddItemApply(true); err != nil {
+		t.Fatal(err)
+	}
+
+	ids, err := engine.ListAllDocumentIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantIDs := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		wantIDs[id] = true
+	}
+
+	total, items, err := engine.PaginateDocuments(10, 1, "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 || len(items) != 2 {
+		t.Fatalf("PaginateDocuments() total/items = %d/%d, want 2/2", total, len(items))
+	}
+	for _, item := range items {
+		if !wantIDs[item.InternalID] {
+			t.Fatalf("PaginateDocuments() returned unexpected internal ID %q", item.InternalID)
 		}
 	}
 }
