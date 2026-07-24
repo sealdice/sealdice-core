@@ -34,6 +34,7 @@ import (
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 
+	sealcrypto "sealdice-core/utils/plugin/crypto"
 	sealws "sealdice-core/utils/plugin/websocket"
 )
 
@@ -100,6 +101,7 @@ func (d *Dice) JsInit() {
 	printer := &PrinterFunc{d, false, []string{}}
 	d.JsPrinter = printer
 	reg.RegisterNativeModule("console", console.RequireWithPrinter(printer))
+	reg.RegisterNativeModule("crypto", sealcrypto.Require)
 
 	d.JsScriptCron = cron.New()
 	d.JsScriptCronLock = &sync.Mutex{}
@@ -118,6 +120,7 @@ func (d *Dice) JsInit() {
 		sealws.Enable(vm, loop)
 		// require 模块
 		reg.Enable(vm)
+		sealcrypto.Enable(vm)
 
 		seal := vm.NewObject()
 
