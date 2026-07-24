@@ -289,6 +289,21 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 	return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
 }
 
+func shouldShowBestHelpResult(hits docengine.MatchCollection, bestTitle, query string, minRelativeGap float64) bool {
+	if len(hits) == 0 {
+		return false
+	}
+	if len(hits) == 1 || query != "" && bestTitle == query {
+		return true
+	}
+
+	bestScore := hits[0].Score
+	if bestScore <= 0 {
+		return false
+	}
+	return (bestScore-hits[1].Score)/bestScore >= minRelativeGap
+}
+
 /** 这几条指令不能移除 */
 func (d *Dice) registerCoreCommands() {
 	helpForBlack := ".ban add user <帐号> [<原因>] //添加个人\n" +
@@ -619,7 +634,6 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			hasSecond := len(search.Hits) >= 2
 			// 准备接下来读取这里面的Fields
 			bestRaw := search.Hits[0].Fields
 			best := &docengine.HelpTextItem{
@@ -647,22 +661,12 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			var showBest bool
-			if hasSecond {
-				offset := d.Parent.Help.GetShowBestOffset()
-				val := search.Hits[1].Score - search.Hits[0].Score
-				if val < 0 {
-					val = -val
-				}
-				if val > float64(offset) {
-					showBest = true
-				}
-				if best.Title == text {
-					showBest = true
-				}
-			} else {
-				showBest = true
-			}
+			showBest := shouldShowBestHelpResult(
+				search.Hits,
+				best.Title,
+				text,
+				d.Parent.Help.GetShowBestRelativeGap(),
+			)
 
 			var bestResult string
 			if showBest {
