@@ -11,7 +11,6 @@ type Fields struct {
 
 type MatchCollection []*MatchResult
 
-// GeneralSearchResult Copied from bleve
 type GeneralSearchResult struct {
 	Hits  MatchCollection
 	Total uint64
