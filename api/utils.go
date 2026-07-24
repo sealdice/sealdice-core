@@ -16,9 +16,9 @@ import (
 	"github.com/alexmullins/zip"
 	"github.com/labstack/echo/v4"
 	"github.com/samber/lo"
-	"golang.org/x/sync/singleflight"
 
 	"sealdice-core/dice"
+	sharedflight "sealdice-core/utils/singleflight"
 )
 
 type Response map[string]interface{}
@@ -187,28 +187,7 @@ type networkHealthResult struct {
 	Timestamp int64
 }
 
-type networkHealthChecker struct {
-	group singleflight.Group
-	run   func() networkHealthResult
-}
-
-func (checker *networkHealthChecker) check(ctx context.Context) (networkHealthResult, error) {
-	result := checker.group.DoChan("network-health", func() (any, error) {
-		return checker.run(), nil
-	})
-
-	select {
-	case <-ctx.Done():
-		return networkHealthResult{}, ctx.Err()
-	case call := <-result:
-		if call.Err != nil {
-			return networkHealthResult{}, call.Err
-		}
-		return call.Val.(networkHealthResult), nil
-	}
-}
-
-var sharedNetworkHealthChecker = networkHealthChecker{run: runNetworkHealthCheck}
+var networkHealthChecks sharedflight.Group[networkHealthResult]
 
 func checkHTTPConnectivity(url string) (bool, time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
@@ -345,7 +324,11 @@ func runNetworkHealthCheck() networkHealthResult {
 }
 
 func checkNetworkHealth(c echo.Context) error {
-	result, err := sharedNetworkHealthChecker.check(c.Request().Context())
+	result, err := networkHealthChecks.Do(
+		c.Request().Context(),
+		"network-health",
+		func() (networkHealthResult, error) { return runNetworkHealthCheck(), nil },
+	)
 	if err != nil {
 		return err
 	}
