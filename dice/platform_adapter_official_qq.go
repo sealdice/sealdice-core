@@ -80,9 +80,7 @@ type PlatformAdapterOfficialQQ struct {
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep := pa.EndPoint
-	s := pa.EndPoint.Session
-	log := s.Parent.Logger
-	d := pa.EndPoint.Session.Parent
+	log := pa.EndPoint.Session.Parent.Logger
 
 	if pa.Ctx != nil {
 		log.Info("official qq session already running, skip Serve")
@@ -93,24 +91,27 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	pa.AppSecret = strings.TrimSpace(pa.AppSecret)
 
 	// AppID 为空时进入扫码登录分支：异步生成二维码并轮询，
-	// 扫码成功后凭据写入本 adapter，再回调 doServe 走正常连接流程
+	// 扫码成功后凭据写入本 adapter，直接调用 connect 启动连接
 	if pa.AppID == "" {
 		ctx, cancel := context.WithCancel(context.Background())
 		pa.Ctx, pa.CancelFunc = ctx, cancel
 		ep.State = 2
 		log.Info("official qq AppID 为空，进入扫码登录流程")
 		pa.serveQrLogin("sealdice", func() {
-			// 扫码成功后重新走 Serve，此时 AppID/AppSecret 已就绪
-			// 先清空 Ctx 以便重新进入
-			if pa.CancelFunc != nil {
-				pa.CancelFunc()
-			}
-			pa.Ctx = nil
-			pa.CancelFunc = nil
-			pa.Serve()
+			pa.connect()
 		})
 		return 0
 	}
+
+	return pa.connect()
+}
+
+// connect 执行真正的连接建立逻辑（token 初始化、OpenAPI 客户端、WebSocket/Webhook 启动）
+// 由 Serve() 和扫码成功后的回调共同调用，调用方需确保 AppID/AppSecret 已就绪
+func (pa *PlatformAdapterOfficialQQ) connect() int {
+	ep := pa.EndPoint
+	log := ep.Session.Parent.Logger
+	d := ep.Session.Parent
 
 	log.Debug("official qq server")
 	qqbot.SetLogger(NewDummyLogger())
@@ -2235,7 +2236,6 @@ func qqBotHttpPost(url string, body []byte) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		_ = resp.Body.Close()
 		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
 	}
 
@@ -2245,7 +2245,7 @@ func qqBotHttpPost(url string, body []byte) ([]byte, error) {
 // serveQrLogin 在 adapter 内执行扫码登录全流程
 // 由 Serve() 在 AppID 为空时调用，异步轮询绑定状态：
 //   - 生成二维码后写入 QrCodeData（供 qrcode 端点读取），状态置为 QRWaitingForScan
-//   - 二维码过期自动刷新
+//   - 二维码过期自动刷新并重新生成 QrCodeData
 //   - 扫码成功后写入 AppID/AppSecret，置状态为 Connecting，再回调 doServe() 走正常连接
 //   - 失败/取消置状态为 Failed
 //
@@ -2359,7 +2359,7 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string, doServe func())
 				return
 
 			case qqBotBindStatusExpired:
-				// 二维码过期，刷新任务
+				// 二维码过期，刷新任务并重新生成二维码图片
 				newTaskID, newKey, cerr := qqBotCreateBindTask()
 				if cerr != nil {
 					curSession.mu.Unlock()
@@ -2367,20 +2367,26 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string, doServe func())
 					pa.qrMu.Lock()
 					pa.QrLoginState = OfficialQQLoginStateFailed
 					pa.QrURL = ""
+					pa.QrCodeData = nil
 					pa.qrSession = nil
 					pa.qrMu.Unlock()
 					ep.State = 3
 					ep.Enable = false
 					return
 				}
+				newQrURL := qqBotBuildConnectURL(newTaskID, curSession.Source)
+				newQrCodeData, qerr := qrcode.Encode(newQrURL, qrcode.Medium, 256)
+				if qerr != nil {
+					log.Error("official qq 生成新二维码失败: ", qerr)
+				}
 				curSession.TaskID = newTaskID
 				curSession.Key = newKey
-				curSession.QrURL = qqBotBuildConnectURL(newTaskID, curSession.Source)
-				newQrURL := curSession.QrURL
+				curSession.QrURL = newQrURL
 				curSession.mu.Unlock()
 
 				pa.qrMu.Lock()
 				pa.QrURL = newQrURL
+				pa.QrCodeData = newQrCodeData
 				pa.QrLoginState = OfficialQQLoginStateQRWaitingForScan
 				pa.qrMu.Unlock()
 				log.Info("official qq 二维码已刷新")
