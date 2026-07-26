@@ -43,6 +43,7 @@ require (
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.4
 	github.com/labstack/echo/v4 v4.15.0
+	github.com/lascape/sat v1.0.4
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
 	github.com/looplab/fsm v1.0.3
@@ -72,6 +73,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 // replaced below
 	github.com/sealdice/dicescript v0.0.0-20260511210507-209e4d20a070
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/slack-go/slack v0.17.3
 	github.com/sunshineplan/imgconv v1.1.15
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
@@ -166,9 +168,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/labstack/echo-contrib v0.50.1 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
-	github.com/lascape/sat v1.0.4 // indirect
 	github.com/lxzan/gws v1.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect

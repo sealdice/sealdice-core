@@ -301,6 +301,13 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
 				})
 			}
+		case "official":
+			pa := i.Adapter.(*dice.PlatformAdapterOfficialQQ)
+			if pa.QrLoginState == dice.OfficialQQLoginStateQRWaitingForScan {
+				return c.JSON(http.StatusOK, map[string]string{
+					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
+				})
+			}
 		}
 		return c.JSON(http.StatusOK, i)
 	}
@@ -935,11 +942,10 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID       interface{} `json:"appID"         yaml:"appID"`
-		Token       string      `json:"token"         yaml:"token"` // Deprecated: preserved for old clients but never used.
-		AppSecret   string      `json:"appSecret"     yaml:"appSecret"`
-		TestOnly    bool        `json:"testOnly"      yaml:"testOnly"`
-		OnlyQQGuild bool        `json:"onlyQQGuild"   yaml:"onlyQQGuild"`
+		AppID     interface{} `json:"appID"         yaml:"appID"`
+		Token     string      `json:"token"         yaml:"token"` // Deprecated: preserved for old clients but never used.
+		AppSecret string      `json:"appSecret"     yaml:"appSecret"`
+		TestOnly  bool        `json:"testOnly"      yaml:"testOnly"`
 		// Webhook配置
 		UseWebhook  bool   `json:"useWebhook"    yaml:"useWebhook"`
 		WebhookPath string `json:"webhookPath"   yaml:"webhookPath"`
@@ -967,6 +973,26 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	appIDStr = strings.TrimSpace(appIDStr)
 	appSecret := strings.TrimSpace(v.AppSecret)
 
+	// AppID 为空时走扫码登录：入口时尚无凭据，探测与重复检查在扫码成功后进行
+	if appIDStr == "" {
+		if v.TestOnly {
+			return Error(&c, "扫码登录不支持连接测试", Response{})
+		}
+		conn := dice.NewOfficialQQConnItem("", "", "", false)
+		conn.BindRuntime(myDice.ImSession)
+		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
+		pa.UseWebhook = v.UseWebhook
+		pa.WebhookPath = v.WebhookPath
+		pa.WebhookPort = v.WebhookPort
+		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+		myDice.LastUpdatedTime = time.Now().Unix()
+		myDice.Save(false)
+		go dice.ServerOfficialQQ(myDice, conn)
+		return Success(&c, Response{
+			"id": conn.ID,
+		})
+	}
+
 	probeCtx, cancel := context.WithTimeout(c.Request().Context(), 15*time.Second)
 	defer cancel()
 	probe, err := dice.ProbeOfficialQQAccount(probeCtx, appIDStr, appSecret)
@@ -975,13 +1001,7 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	userID := "OpenQQ:" + probe.UIN
-	var existingEndpoint *dice.EndPointInfo
-	for _, endpoint := range myDice.ImSession.EndPoints {
-		if endpoint.Platform == "QQ" && endpoint.ProtocolType == "official" && endpoint.UserID == userID {
-			existingEndpoint = endpoint
-			break
-		}
-	}
+	existingEndpoint := dice.FindOfficialQQEndpointByUIN(myDice.ImSession, probe.UIN, "")
 	if v.TestOnly {
 		result := Response{
 			"testOnly": true,
@@ -1004,7 +1024,8 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 		})
 	}
 
-	conn := dice.NewOfficialQQConnItem(appIDStr, appSecret, probe.UIN, v.OnlyQQGuild)
+	// onlyQQGuild 已废弃，新建连接默认全局使用
+	conn := dice.NewOfficialQQConnItem(appIDStr, appSecret, probe.UIN, false)
 	conn.UserID = userID
 	conn.Nickname = probe.Nickname
 	conn.BindRuntime(myDice.ImSession)

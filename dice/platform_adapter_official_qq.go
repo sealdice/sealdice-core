@@ -1,7 +1,11 @@
 package dice
 
 import (
+	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	crand "crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,9 +22,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	qqconstant "github.com/sealdice/botgo/constant"
 	"github.com/sealdice/botgo/event"
 	"github.com/sealdice/botgo/interaction/signature"
+	"github.com/skip2/go-qrcode"
 
 	qqbot "github.com/sealdice/botgo"
 	"github.com/sealdice/botgo/dto"
@@ -67,19 +73,31 @@ type PlatformAdapterOfficialQQ struct {
 
 	paginationCache map[string]*PaginationItem `json:"-" yaml:"-"`
 	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
+
+	// 扫码登录状态（参考 milky 的 BuiltInLoginState / QrCodeData 设计）
+	// 当 AppID 为空时，Serve() 会进入扫码登录分支
+	QrLoginState OfficialQQLoginState      `json:"qrLoginState" yaml:"-"`
+	QrURL        string                    `json:"qrUrl"       yaml:"-"` // 当前二维码 URL
+	QrCodeData   []byte                    `json:"-"           yaml:"-"` // 当前二维码图片数据（PNG），参考 milky 的 QrCodeData
+	qrSession    *QQOfficialQrLoginSession `json:"-" yaml:"-"`
+	qrMu         sync.Mutex                `json:"-" yaml:"-"`
 }
 
 type officialQQAdapterJSON struct {
-	AppID               string `json:"appID"`
-	UIN                 string `json:"uin"`
-	AppSecretConfigured bool   `json:"appSecretConfigured"`
-	OnlyQQGuild         bool   `json:"onlyQQGuild"`
-	UseWebhook          bool   `json:"useWebhook"`
-	WebhookPath         string `json:"webhookPath"`
-	WebhookPort         int    `json:"webhookPort"`
+	AppID               string               `json:"appID"`
+	UIN                 string               `json:"uin"`
+	AppSecretConfigured bool                 `json:"appSecretConfigured"`
+	OnlyQQGuild         bool                 `json:"onlyQQGuild"`
+	UseWebhook          bool                 `json:"useWebhook"`
+	WebhookPath         string               `json:"webhookPath"`
+	WebhookPort         int                  `json:"webhookPort"`
+	QrLoginState        OfficialQQLoginState `json:"qrLoginState"`
 }
 
 func (pa *PlatformAdapterOfficialQQ) MarshalJSON() ([]byte, error) {
+	pa.qrMu.Lock()
+	qrLoginState := pa.QrLoginState
+	pa.qrMu.Unlock()
 	return json.Marshal(officialQQAdapterJSON{
 		AppID:               pa.AppID,
 		UIN:                 pa.UIN,
@@ -88,6 +106,7 @@ func (pa *PlatformAdapterOfficialQQ) MarshalJSON() ([]byte, error) {
 		UseWebhook:          pa.UseWebhook,
 		WebhookPath:         pa.WebhookPath,
 		WebhookPort:         pa.WebhookPort,
+		QrLoginState:        qrLoginState,
 	})
 }
 
@@ -230,17 +249,101 @@ func ProbeOfficialQQAccount(ctx context.Context, appID, appSecret string) (*Offi
 	return botInfo, nil
 }
 
+// FindOfficialQQEndpointByUIN 按 UIN 查找已存在的官方 QQ 连接；excludeID 非空时排除自身
+func FindOfficialQQEndpointByUIN(s *IMSession, uin, excludeID string) *EndPointInfo {
+	if s == nil {
+		return nil
+	}
+	userID := formatDiceIDOfficialQQ(strings.TrimSpace(uin))
+	if userID == "OpenQQ:" {
+		return nil
+	}
+	for _, endpoint := range s.EndPoints {
+		if endpoint == nil {
+			continue
+		}
+		if endpoint.Platform == "QQ" && endpoint.ProtocolType == "official" && endpoint.UserID == userID && endpoint.ID != excludeID {
+			return endpoint
+		}
+	}
+	return nil
+}
+
+func (pa *PlatformAdapterOfficialQQ) applyProbeResult(probe *OfficialQQAccountProbeResult) {
+	if probe == nil || pa.EndPoint == nil {
+		return
+	}
+	pa.UIN = strings.TrimSpace(probe.UIN)
+	pa.botID = strings.TrimSpace(probe.BotID)
+	pa.EndPoint.UserID = formatDiceIDOfficialQQ(pa.UIN)
+	pa.EndPoint.Nickname = probe.Nickname
+}
+
+func (pa *PlatformAdapterOfficialQQ) stopSessionContext() {
+	if pa.CancelFunc != nil {
+		pa.CancelFunc()
+	}
+	pa.Ctx = nil
+	pa.CancelFunc = nil
+}
+
+func (pa *PlatformAdapterOfficialQQ) failConnect() int {
+	ep := pa.EndPoint
+	if ep != nil {
+		ep.State = 3
+	}
+	if pa.CancelFunc != nil {
+		pa.CancelFunc()
+	}
+	pa.Api = nil
+	pa.SessionManager = nil
+	pa.Ctx = nil
+	pa.CancelFunc = nil
+	// 仅扫码流程需要同步更新二维码状态，避免普通重连误标 Failed
+	pa.qrMu.Lock()
+	isQrFlow := pa.QrLoginState == OfficialQQLoginStateConnecting ||
+		pa.QrLoginState == OfficialQQLoginStateQRWaitingForScan ||
+		pa.QrLoginState == OfficialQQLoginStateQRScanned
+	pa.qrMu.Unlock()
+	if isQrFlow {
+		pa.markQrLoginFailed()
+	}
+	return 1
+}
+
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	ep := pa.EndPoint
-	s := pa.EndPoint.Session
-	log := s.Parent.Logger
-	d := pa.EndPoint.Session.Parent
+	log := pa.EndPoint.Session.Parent.Logger
 
 	if pa.Ctx != nil {
 		log.Info("official qq session already running, skip Serve")
 		return 0
 	}
 
+	pa.AppID = strings.TrimSpace(pa.AppID)
+	pa.AppSecret = strings.TrimSpace(pa.AppSecret)
+	pa.UIN = strings.TrimSpace(pa.UIN)
+
+	// AppID 为空时进入扫码登录：异步生成二维码并轮询，
+	// 扫码成功后探测凭据、检查重复账号，再启动连接
+	if pa.AppID == "" {
+		ctx, cancel := context.WithCancel(context.Background())
+		pa.Ctx, pa.CancelFunc = ctx, cancel
+		ep.State = 2
+		log.Info("official qq AppID 为空，进入扫码登录流程")
+		pa.serveQrLogin("sealdice")
+		return 0
+	}
+
+	return pa.connect(nil)
+}
+
+// connect 建立正式连接。probe 非空时复用探测结果，避免重复拉取机器人信息。
+// 调用方需确保 AppID/AppSecret 已就绪。
+func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult) int {
+	ep := pa.EndPoint
+	log := ep.Session.Parent.Logger
+	d := ep.Session.Parent
 	pa.AppID = strings.TrimSpace(pa.AppID)
 	pa.AppSecret = strings.TrimSpace(pa.AppSecret)
 	pa.UIN = strings.TrimSpace(pa.UIN)
@@ -260,44 +363,25 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	// 启动 token 自动刷新
 	if err := qqtoken.StartRefreshAccessToken(ctx, pa.tokenSource); err != nil {
 		log.Error("official qq 启动 token 刷新失败: ", err)
-		ep.State = 3
-		if pa.CancelFunc != nil {
-			pa.CancelFunc()
-		}
-		pa.Api = nil
-		pa.Ctx = nil
-		pa.CancelFunc = nil
-		return 1
+		return pa.failConnect()
 	}
 
-	// 创建 OpenAPI 客户端
 	pa.Api = qqbot.NewOpenAPI(pa.AppID, pa.tokenSource).WithTimeout(3 * time.Second)
 
-	// 获取机器人信息和 UIN。使用原始响应读取 botgo DTO 尚未包含的 share_url。
-	botInfo, err := getOfficialQQBotInfo(ctx, pa.Api)
-	if err != nil {
-		log.Error("official qq 获取机器人信息失败: ", err)
-		ep.State = 3
-		if pa.CancelFunc != nil {
-			pa.CancelFunc()
+	botInfo := probe
+	if botInfo == nil {
+		var err error
+		botInfo, err = getOfficialQQBotInfo(ctx, pa.Api)
+		if err != nil {
+			log.Error("official qq 获取机器人信息失败: ", err)
+			return pa.failConnect()
 		}
-		pa.Api = nil
-		pa.Ctx = nil
-		pa.CancelFunc = nil
-		return 1
 	}
 
 	uin := botInfo.UIN
 	if pa.UIN != "" && pa.UIN != uin {
 		log.Errorf("official qq UIN 校验失败: 配置为 %s，远端返回 %s", pa.UIN, uin)
-		ep.State = 3
-		if pa.CancelFunc != nil {
-			pa.CancelFunc()
-		}
-		pa.Api = nil
-		pa.Ctx = nil
-		pa.CancelFunc = nil
-		return 1
+		return pa.failConnect()
 	}
 	if err := ensureOfficialQQIdentity(d, pa, botInfo.BotID, uin); err != nil {
 		var migrationErr *officialQQIdentityMigrationError
@@ -305,14 +389,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 			log.Error("official qq 身份数据迁移失败，将继续启动并在下次连接时重试: ", err)
 		} else {
 			log.Error("official qq 身份初始化失败: ", err)
-			ep.State = 3
-			if pa.CancelFunc != nil {
-				pa.CancelFunc()
-			}
-			pa.Api = nil
-			pa.Ctx = nil
-			pa.CancelFunc = nil
-			return 1
+			return pa.failConnect()
 		}
 	}
 
@@ -358,97 +435,79 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 
 		ep.State = 1
 		ep.Enable = true
+		pa.clearQrLoginState()
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		log.Info("official qq webhook模式启动成功")
-	} else {
-		// WebSocket 模式
-		pa.SessionManager = qqbot.NewSessionManager()
+		return 0
+	}
 
-		ep.State = 2
-		log.Debug("official qq connecting")
-		ws, err := pa.Api.WS(ctx, nil, "")
-		if err != nil || ws == nil {
-			log.Error("official qq 获取 ws 接入点失败? ", err)
-			log.Error("official qq 提示：请确认在机器人后台配置 IP 白名单，并检查 AppID/AppSecret 是否正确")
-			ep.State = 3
-			if pa.CancelFunc != nil {
-				pa.CancelFunc()
-			}
-			pa.Api = nil
-			pa.SessionManager = nil
-			pa.Ctx = nil
-			pa.CancelFunc = nil
-			return 1
-		}
-		// 极端情况：shards = 0 会导致 session manager 阻塞在 channel range
-		if ws.Shards == 0 {
-			ws.Shards = 1
-		}
-		// 频控不满足时，botgo 会直接返回错误；这里提前检查避免在 goroutine 内“静默失败”
-		if ws.Shards > ws.SessionStartLimit.Remaining {
-			log.Errorf(
-				"official qq session limited: shards=%d remaining=%d resetAfter=%d maxConcurrency=%d",
-				ws.Shards, ws.SessionStartLimit.Remaining, ws.SessionStartLimit.ResetAfter, ws.SessionStartLimit.MaxConcurrency,
-			)
-			ep.State = 3
-			if pa.CancelFunc != nil {
-				pa.CancelFunc()
-			}
-			pa.Api = nil
-			pa.SessionManager = nil
-			pa.Ctx = nil
-			pa.CancelFunc = nil
-			return 1
-		}
+	pa.SessionManager = qqbot.NewSessionManager()
+	ep.State = 2
+	log.Debug("official qq connecting")
+	ws, err := pa.Api.WS(ctx, nil, "")
+	if err != nil || ws == nil {
+		log.Error("official qq 获取 ws 接入点失败? ", err)
+		log.Error("official qq 提示：请确认在机器人后台配置 IP 白名单，并检查 AppID/AppSecret 是否正确")
+		return pa.failConnect()
+	}
+	if ws.Shards == 0 {
+		ws.Shards = 1
+	}
+	if ws.Shards > ws.SessionStartLimit.Remaining {
+		log.Errorf(
+			"official qq session limited: shards=%d remaining=%d resetAfter=%d maxConcurrency=%d",
+			ws.Shards, ws.SessionStartLimit.Remaining, ws.SessionStartLimit.ResetAfter, ws.SessionStartLimit.MaxConcurrency,
+		)
+		return pa.failConnect()
+	}
 
-		var intent dto.Intent
-		// 文字子频道at消息
-		intent |= dto.IntentGuildAtMessage
-		// 频道私信
-		intent |= dto.IntentDirectMessages
-		// 互动事件
-		intent |= dto.IntentInteraction
+	var intent dto.Intent
+	// 文字子频道at消息
+	intent |= dto.IntentGuildAtMessage
+	// 频道私信
+	intent |= dto.IntentDirectMessages
+	// 互动事件
+	intent |= dto.IntentInteraction
 
-		if !pa.OnlyQQGuild {
-			// 群聊@消息、单聊、好友关系事件
-			intent |= dto.IntentGroupMessages
-		}
+	if !pa.OnlyQQGuild {
+		// 群聊@消息、单聊、好友关系事件
+		intent |= dto.IntentGroupMessages
+	}
 
-		go func() {
-			currentCtx := ctx
-			defer func() {
-				isCurrent := pa.Ctx == currentCtx
-				// 防止崩掉进程
-				if r := recover(); r != nil {
-					log.Error("official qq 启动失败: ", r)
-					if isCurrent {
-						ep.State = 3
-						ep.Enable = false
-					}
-				}
+	go func() {
+		currentCtx := ctx
+		defer func() {
+			isCurrent := pa.Ctx == currentCtx
+			// 防止崩掉进程
+			if r := recover(); r != nil {
+				log.Error("official qq 启动失败: ", r)
 				if isCurrent {
-					pa.Ctx = nil
-					pa.CancelFunc = nil
-					pa.SessionManager = nil
-				}
-			}()
-			if startErr := pa.SessionManager.Start(currentCtx, ws, pa.tokenSource, &intent); startErr != nil {
-				log.Error("official qq session manager 启动失败: ", startErr)
-				if pa.Ctx == currentCtx {
 					ep.State = 3
 					ep.Enable = false
 				}
 			}
+			if isCurrent {
+				pa.Ctx = nil
+				pa.CancelFunc = nil
+				pa.SessionManager = nil
+			}
 		}()
+		if startErr := pa.SessionManager.Start(currentCtx, ws, pa.tokenSource, &intent); startErr != nil {
+			log.Error("official qq session manager 启动失败: ", startErr)
+			if pa.Ctx == currentCtx {
+				ep.State = 3
+				ep.Enable = false
+			}
+		}
+	}()
 
-		ep.State = 1
-		ep.Enable = true
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
-		log.Info("official qq 连接成功")
-	}
-
+	ep.State = 1
+	ep.Enable = true
+	pa.clearQrLoginState()
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
+	log.Info("official qq 连接成功")
 	return 0
 }
 
@@ -1176,6 +1235,7 @@ func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
 	pa.Ctx = nil
 	pa.CancelFunc = nil
 	pa.tokenSource = nil
+	pa.clearQrLoginState()
 	pa.shutdownWebhookServer()
 	return pa.Serve() == 0
 }
@@ -1203,6 +1263,7 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 		pa.CancelFunc = nil
 		pa.Ctx = nil
 		pa.tokenSource = nil
+		pa.clearQrLoginState()
 	}
 	d.LastUpdatedTime = time.Now().Unix()
 }
@@ -2158,4 +2219,405 @@ func (pa *PlatformAdapterOfficialQQ) parseBotSelfOpenID(event *dto.WSPayload) st
 		}
 	}
 	return ""
+}
+
+// ============================================================
+// QQ官方机器人扫码登录（第三方 Agent 接入）
+// 参考 https://bot.q.qq.com/wiki/agent-qqbot/#第三方-agent-接入
+// ============================================================
+
+// QQ官方机器人扫码登录相关常量
+const (
+	qqBotCreateBindTaskURL = "https://q.qq.com/lite/create_bind_task"
+	qqBotPollBindResultURL = "https://q.qq.com/lite/poll_bind_result"
+	qqBotConnectPageURL    = "https://q.qq.com/qqbot/openclaw/connect.html"
+
+	// 扫码绑定任务状态
+	qqBotBindStatusNone     = 0 // 未知/初始
+	qqBotBindStatusPending  = 1 // 等待扫码确认
+	qqBotBindStatusComplete = 2 // 扫码完成
+	qqBotBindStatusExpired  = 3 // 二维码已过期
+
+	qqBotBindTaskTimeout = 10 * time.Second // 单次HTTP请求超时
+)
+
+// OfficialQQLoginState 扫码登录状态（参考 milky 的 MilkyLoginState）
+type OfficialQQLoginState int64
+
+const (
+	OfficialQQLoginStateInit             OfficialQQLoginState = iota // 初始
+	OfficialQQLoginStateQRWaitingForScan                             // 等待扫码
+	OfficialQQLoginStateQRScanned                                    // 已扫码，等待确认（暂未细分使用）
+	OfficialQQLoginStateConnecting                                   // 扫码成功，正在连接
+	OfficialQQLoginStateFailed                                       // 失败/取消
+)
+
+// QQOfficialQrLoginSession 单次扫码登录会话
+type QQOfficialQrLoginSession struct {
+	ID        string
+	TaskID    string
+	Key       string // base64 编码的 32 字节随机密钥
+	Source    string // 接入平台标识
+	QrURL     string // 当前二维码对应的 URL
+	CreatedAt time.Time
+	mu        sync.Mutex
+}
+
+// clearQrLoginState 清理扫码登录相关状态
+func (pa *PlatformAdapterOfficialQQ) clearQrLoginState() {
+	pa.qrMu.Lock()
+	defer pa.qrMu.Unlock()
+	pa.QrLoginState = OfficialQQLoginStateInit
+	pa.QrURL = ""
+	pa.QrCodeData = nil
+	pa.qrSession = nil
+}
+
+// markQrLoginFailed 标记扫码登录失败并清理会话
+func (pa *PlatformAdapterOfficialQQ) markQrLoginFailed() {
+	pa.qrMu.Lock()
+	defer pa.qrMu.Unlock()
+	pa.QrLoginState = OfficialQQLoginStateFailed
+	pa.QrURL = ""
+	pa.QrCodeData = nil
+	pa.qrSession = nil
+}
+
+// qqBotGenerateBindKey 生成 32 字节随机密钥并 base64 编码
+func qqBotGenerateBindKey() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := crand.Read(buf); err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(buf), nil
+}
+
+// qqBotBuildConnectURL 构造二维码扫描对应的 URL
+func qqBotBuildConnectURL(taskID, source string) string {
+	return fmt.Sprintf("%s?task_id=%s&source=%s&_wv=2",
+		qqBotConnectPageURL,
+		url.QueryEscape(taskID),
+		url.QueryEscape(source),
+	)
+}
+
+// qqBotCreateBindTask 创建绑定任务
+func qqBotCreateBindTask() (taskID string, key string, err error) {
+	key, err = qqBotGenerateBindKey()
+	if err != nil {
+		return "", "", fmt.Errorf("生成密钥失败: %w", err)
+	}
+
+	reqBody, _ := json.Marshal(map[string]string{"key": key})
+	resp, err := qqBotHttpPost(qqBotCreateBindTaskURL, reqBody)
+	if err != nil {
+		return "", "", fmt.Errorf("创建绑定任务失败: %w", err)
+	}
+
+	var result struct {
+		RetCode int    `json:"retcode"`
+		Msg     string `json:"msg"`
+		Data    struct {
+			TaskID string `json:"task_id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return "", "", fmt.Errorf("解析创建任务响应失败: %w", err)
+	}
+	if result.RetCode != 0 {
+		msg := result.Msg
+		if msg == "" {
+			msg = "create_bind_task failed"
+		}
+		return "", "", errors.New(msg)
+	}
+	if result.Data.TaskID == "" {
+		return "", "", errors.New("create_bind_task: missing task_id")
+	}
+	return result.Data.TaskID, key, nil
+}
+
+// qqBotBindResult 轮询绑定结果
+type qqBotBindResult struct {
+	Status           int    // 绑定状态
+	BotAppID         string // 机器人 AppID
+	BotEncryptSecret string // 加密的 AppSecret
+	UserOpenID       string // 扫码用户 openid
+}
+
+func qqBotPollBindResult(taskID string) (*qqBotBindResult, error) {
+	reqBody, _ := json.Marshal(map[string]string{"task_id": taskID})
+	resp, err := qqBotHttpPost(qqBotPollBindResultURL, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("轮询绑定结果失败: %w", err)
+	}
+
+	var result struct {
+		RetCode int    `json:"retcode"`
+		Msg     string `json:"msg"`
+		Data    struct {
+			Status           int    `json:"status"`
+			BotAppID         any    `json:"bot_appid"`
+			BotEncryptSecret string `json:"bot_encrypt_secret"`
+			UserOpenID       string `json:"user_openid"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return nil, fmt.Errorf("解析轮询响应失败: %w", err)
+	}
+	if result.RetCode != 0 {
+		msg := result.Msg
+		if msg == "" {
+			msg = "poll_bind_result failed"
+		}
+		return nil, errors.New(msg)
+	}
+
+	return &qqBotBindResult{
+		Status:           result.Data.Status,
+		BotAppID:         fmt.Sprintf("%v", result.Data.BotAppID),
+		BotEncryptSecret: result.Data.BotEncryptSecret,
+		UserOpenID:       result.Data.UserOpenID,
+	}, nil
+}
+
+// qqBotDecryptSecret 使用 AES-256-GCM 解密 AppSecret
+// key 为 base64 编码的 32 字节密钥；encryptedSecret 为 base64 编码的
+// nonce(12B) || ciphertext || tag(16B)
+func qqBotDecryptSecret(encryptedSecret, key string) (string, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return "", fmt.Errorf("解码密钥失败: %w", err)
+	}
+	if len(keyBytes) != 32 {
+		return "", fmt.Errorf("密钥长度非法: %d", len(keyBytes))
+	}
+
+	data, err := base64.StdEncoding.DecodeString(encryptedSecret)
+	if err != nil {
+		return "", fmt.Errorf("解码密文失败: %w", err)
+	}
+	if len(data) < 12+16 {
+		return "", errors.New("密文长度不足")
+	}
+
+	nonce := data[:12]
+	tag := data[len(data)-16:]
+	ciphertext := data[12 : len(data)-16]
+
+	block, err := aes.NewCipher(keyBytes)
+	if err != nil {
+		return "", fmt.Errorf("创建 AES cipher 失败: %w", err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", fmt.Errorf("创建 GCM 失败: %w", err)
+	}
+
+	// Go 的 GCM.Open 期望 ciphertext || tag
+	ct := make([]byte, 0, len(ciphertext)+len(tag))
+	ct = append(ct, ciphertext...)
+	ct = append(ct, tag...)
+
+	plaintext, err := gcm.Open(nil, nonce, ct, nil)
+	if err != nil {
+		return "", fmt.Errorf("解密失败: %w", err)
+	}
+	return string(plaintext), nil
+}
+
+// qqBotHttpPost 发送 JSON POST 请求
+func qqBotHttpPost(url string, body []byte) ([]byte, error) {
+	client := &http.Client{Timeout: qqBotBindTaskTimeout}
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
+	}
+
+	return io.ReadAll(resp.Body)
+}
+
+func (pa *PlatformAdapterOfficialQQ) failQrLogin(logMsg string, err error) {
+	ep := pa.EndPoint
+	d := ep.Session.Parent
+	log := d.Logger
+	if err != nil {
+		log.Error(logMsg, err)
+	} else {
+		log.Error(logMsg)
+	}
+	pa.markQrLoginFailed()
+	ep.State = 3
+	ep.Enable = false
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
+}
+
+// serveQrLogin 在 adapter 内执行扫码登录全流程：
+//   - 生成二维码后写入 QrCodeData，状态置为 QRWaitingForScan
+//   - 二维码过期自动刷新
+//   - 扫码成功后落盘凭据、显式探测、检查重复账号，再启动连接
+//   - 失败/取消置状态为 Failed
+func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
+	ep := pa.EndPoint
+	d := ep.Session.Parent
+	log := d.Logger
+
+	pa.qrMu.Lock()
+	pa.QrLoginState = OfficialQQLoginStateInit
+	pa.qrMu.Unlock()
+
+	// 启动扫码会话
+	taskID, key, err := qqBotCreateBindTask()
+	if err != nil {
+		pa.failQrLogin("official qq 创建扫码任务失败: ", err)
+		return
+	}
+
+	session := &QQOfficialQrLoginSession{
+		ID:        uuid.New().String(),
+		TaskID:    taskID,
+		Key:       key,
+		Source:    source,
+		QrURL:     qqBotBuildConnectURL(taskID, source),
+		CreatedAt: time.Now(),
+	}
+
+	qrCodeData, err := qrcode.Encode(session.QrURL, qrcode.Medium, 256)
+	if err != nil {
+		pa.failQrLogin("official qq 生成二维码失败: ", err)
+		return
+	}
+
+	pa.qrMu.Lock()
+	pa.qrSession = session
+	pa.QrURL = session.QrURL
+	pa.QrCodeData = qrCodeData
+	pa.QrLoginState = OfficialQQLoginStateQRWaitingForScan
+	pa.qrMu.Unlock()
+	log.Info("official qq 扫码二维码已就绪")
+
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-pa.Ctx.Done():
+				return
+			case <-ticker.C:
+			}
+
+			pa.qrMu.Lock()
+			curSession := pa.qrSession
+			pa.qrMu.Unlock()
+			if curSession == nil {
+				return
+			}
+
+			curSession.mu.Lock()
+			result, perr := qqBotPollBindResult(curSession.TaskID)
+			if perr != nil {
+				curSession.mu.Unlock()
+				log.Debugf("official qq 轮询扫码状态失败: %v", perr)
+				continue
+			}
+
+			switch result.Status {
+			case qqBotBindStatusComplete:
+				// 扫码成功，解密 AppSecret
+				secret, derr := qqBotDecryptSecret(result.BotEncryptSecret, curSession.Key)
+				curSession.mu.Unlock()
+				if derr != nil {
+					pa.failQrLogin("official qq 解密 AppSecret 失败: ", derr)
+					return
+				}
+
+				pa.AppID = result.BotAppID
+				pa.AppSecret = secret
+				pa.qrMu.Lock()
+				pa.QrLoginState = OfficialQQLoginStateConnecting
+				pa.QrURL = ""
+				pa.QrCodeData = nil
+				pa.qrSession = nil
+				pa.qrMu.Unlock()
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+				log.Infof("official qq 扫码成功，AppID=%s，开始探测凭据", pa.AppID)
+
+				// 停止扫码 context；后续探测与 connect 使用独立生命周期
+				pa.stopSessionContext()
+
+				probeCtx, probeCancel := context.WithTimeout(context.Background(), 15*time.Second)
+				probe, probeErr := ProbeOfficialQQAccount(probeCtx, pa.AppID, pa.AppSecret)
+				probeCancel()
+				if probeErr != nil {
+					pa.failQrLogin("official qq 扫码后凭据探测失败: ", probeErr)
+					return
+				}
+
+				if existing := FindOfficialQQEndpointByUIN(d.ImSession, probe.UIN, ep.ID); existing != nil {
+					pa.AppID = ""
+					pa.AppSecret = ""
+					pa.UIN = ""
+					ep.UserID = ""
+					ep.Nickname = ""
+					pa.failQrLogin(fmt.Sprintf("official qq 扫码账号已存在: UIN=%s existingID=%s", probe.UIN, existing.ID), nil)
+					return
+				}
+
+				pa.applyProbeResult(probe)
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+				log.Infof("official qq 扫码探测完成，UIN=%s，开始连接", probe.UIN)
+				if pa.connect(probe) != 0 {
+					ep.Enable = false
+					d.LastUpdatedTime = time.Now().Unix()
+					d.Save(false)
+				}
+				return
+
+			case qqBotBindStatusExpired:
+				newTaskID, newKey, cerr := qqBotCreateBindTask()
+				if cerr != nil {
+					curSession.mu.Unlock()
+					pa.failQrLogin("official qq 刷新扫码任务失败: ", cerr)
+					return
+				}
+				newQrURL := qqBotBuildConnectURL(newTaskID, curSession.Source)
+				newQrCodeData, qerr := qrcode.Encode(newQrURL, qrcode.Medium, 256)
+				if qerr != nil {
+					curSession.mu.Unlock()
+					pa.failQrLogin("official qq 生成新二维码失败: ", qerr)
+					return
+				}
+				curSession.TaskID = newTaskID
+				curSession.Key = newKey
+				curSession.QrURL = newQrURL
+				curSession.mu.Unlock()
+
+				pa.qrMu.Lock()
+				pa.QrURL = newQrURL
+				pa.QrCodeData = newQrCodeData
+				pa.QrLoginState = OfficialQQLoginStateQRWaitingForScan
+				pa.qrMu.Unlock()
+				log.Info("official qq 二维码已刷新")
+
+			default:
+				curSession.mu.Unlock()
+			}
+		}
+	}()
 }
