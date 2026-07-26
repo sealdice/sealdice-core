@@ -315,6 +315,68 @@ func TestPublicDiceEndpointAppID(t *testing.T) {
 	}
 }
 
+func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
+	const appID = "123456789"
+
+	dbOperator, err := newMockDatabaseOperator(filepath.Join(t.TempDir(), "official-qq-probe.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(dbOperator.Close)
+	if err := dbOperator.db.AutoMigrate(&model.GroupInfo{}); err != nil {
+		t.Fatal(err)
+	}
+
+	migration := &officialQQIdentityMigration{appID: appID}
+	prefix := migration.oldGroupPrefix()
+	upperBound := strings.TrimSuffix(prefix, "-") + "."
+	timestamp := int64(1)
+	for _, id := range []string{
+		"OpenQQ-Group:1-new-group",
+		"OpenQQ-Group-T:123456788-other-app",
+		upperBound,
+	} {
+		if err := dbOperator.db.Create(&model.GroupInfo{ID: id, CreatedAt: timestamp, UpdatedAt: &timestamp}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	hasLegacyGroups, err := migration.hasLegacyGroups(dbOperator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasLegacyGroups {
+		t.Fatal("legacy group probe matched an unrelated group")
+	}
+
+	legacyID := prefix + "group-open-id"
+	if err := dbOperator.db.Create(&model.GroupInfo{ID: legacyID, CreatedAt: timestamp, UpdatedAt: &timestamp}).Error; err != nil {
+		t.Fatal(err)
+	}
+	hasLegacyGroups, err = migration.hasLegacyGroups(dbOperator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasLegacyGroups {
+		t.Fatal("legacy group probe missed an old official QQ group")
+	}
+
+	type queryPlanRow struct {
+		Detail string `gorm:"column:detail"`
+	}
+	var plan []queryPlanRow
+	if err := dbOperator.db.Raw(
+		"EXPLAIN QUERY PLAN SELECT id FROM group_info WHERE id >= ? AND id < ? LIMIT 1",
+		prefix,
+		upperBound,
+	).Scan(&plan).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(plan) == 0 || !strings.Contains(plan[0].Detail, "SEARCH") || strings.Contains(plan[0].Detail, "SCAN") {
+		t.Fatalf("legacy group probe does not use an indexed search: %#v", plan)
+	}
+}
+
 func TestOfficialQQIdentityMigration(t *testing.T) {
 	const (
 		appID        = "123456789"
