@@ -108,6 +108,7 @@ type PlatformAdapterGocq struct {
 type Sender struct {
 	Age      int32           `json:"age"`
 	Card     string          `json:"card"`
+	IsRobot  bool            `json:"is_robot"`
 	Nickname string          `json:"nickname"`
 	Role     string          `json:"role"` // owner 群主
 	UserID   json.RawMessage `json:"user_id"`
@@ -262,6 +263,7 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 		}
 		msg.Sender.GroupRole = msgQQ.Sender.Role
 		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.Sender.UserID))
+		msg.Sender.IsRobot = msgQQ.Sender.IsRobot || isQQBotUserID(msg.Sender.UserID)
 	}
 	return msg
 }
@@ -1073,6 +1075,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if msgQQ.MessageType == "private" {
 				if msg.Sender.UserID == "QQ:" {
 					msg.Sender.UserID = "QQ:" + string(msgQQ.UserID)
+					msg.Sender.IsRobot = isQQBotUserID(msg.Sender.UserID)
 				}
 				if msg.Sender.Nickname == "" {
 					msg.Sender.Nickname = "未知用户"

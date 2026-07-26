@@ -170,7 +170,8 @@ func (t *TextElement) FromCQData(dMap map[string]string) error {
 }
 
 type AtElement struct {
-	Target string `jsbind:"target"`
+	Target  string `jsbind:"target"`
+	IsRobot bool   `jsbind:"isRobot"`
 }
 
 func (t *AtElement) Type() ElementType {
