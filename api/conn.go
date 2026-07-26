@@ -973,7 +973,7 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	appIDStr = strings.TrimSpace(appIDStr)
 	appSecret := strings.TrimSpace(v.AppSecret)
 
-	// AppID 为空时走扫码登录：跳过凭据探测，直接创建连接并启动 Serve
+	// AppID 为空时走扫码登录：入口时尚无凭据，探测与重复检查在扫码成功后进行
 	if appIDStr == "" {
 		if v.TestOnly {
 			return Error(&c, "扫码登录不支持连接测试", Response{})
@@ -1001,13 +1001,7 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	userID := "OpenQQ:" + probe.UIN
-	var existingEndpoint *dice.EndPointInfo
-	for _, endpoint := range myDice.ImSession.EndPoints {
-		if endpoint.Platform == "QQ" && endpoint.ProtocolType == "official" && endpoint.UserID == userID {
-			existingEndpoint = endpoint
-			break
-		}
-	}
+	existingEndpoint := dice.FindOfficialQQEndpointByUIN(myDice.ImSession, probe.UIN, "")
 	if v.TestOnly {
 		result := Response{
 			"testOnly": true,
