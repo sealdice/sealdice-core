@@ -228,11 +228,11 @@ func (m *officialQQIdentityMigration) migrateAttrsID(id, attrsType string) strin
 
 func (m *officialQQIdentityMigration) run(d *Dice) error {
 	if d.DBOperator != nil {
-		hasLegacyGroups, err := m.hasLegacyGroups(d.DBOperator)
+		shouldMigrate, err := m.shouldRunIdentityMigration(d.DBOperator)
 		if err != nil {
 			return fmt.Errorf("检查 QQ 官方旧群组数据失败: %w", err)
 		}
-		if !hasLegacyGroups {
+		if !shouldMigrate {
 			if err := m.syncCharacterCache(d, d.DBOperator); err != nil {
 				return fmt.Errorf("同步角色卡缓存失败: %w", err)
 			}
@@ -302,10 +302,10 @@ func hasTable(db *gorm.DB, value any) bool {
 	return db != nil && db.Migrator().HasTable(value)
 }
 
-func (m *officialQQIdentityMigration) hasLegacyGroups(operator engine.DatabaseOperator) (bool, error) {
+func (m *officialQQIdentityMigration) shouldRunIdentityMigration(operator engine.DatabaseOperator) (bool, error) {
 	db := operator.GetDataDB(constant.READ)
 	if !hasTable(db, &model.GroupInfo{}) {
-		// Keep the full fallback for incomplete and test databases that do not have group_info.
+		// Without group_info the optimized probe is unavailable, so preserve the full fallback.
 		return true, nil
 	}
 

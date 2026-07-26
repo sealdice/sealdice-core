@@ -341,11 +341,11 @@ func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 		}
 	}
 
-	hasLegacyGroups, probeErr := migration.hasLegacyGroups(dbOperator)
+	shouldMigrate, probeErr := migration.shouldRunIdentityMigration(dbOperator)
 	if probeErr != nil {
 		t.Fatal(probeErr)
 	}
-	if hasLegacyGroups {
+	if shouldMigrate {
 		t.Fatal("legacy group probe matched an unrelated group")
 	}
 
@@ -353,11 +353,11 @@ func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 	if err := dbOperator.db.Create(&model.GroupInfo{ID: legacyID, CreatedAt: timestamp, UpdatedAt: &timestamp}).Error; err != nil {
 		t.Fatal(err)
 	}
-	hasLegacyGroups, probeErr = migration.hasLegacyGroups(dbOperator)
+	shouldMigrate, probeErr = migration.shouldRunIdentityMigration(dbOperator)
 	if probeErr != nil {
 		t.Fatal(probeErr)
 	}
-	if !hasLegacyGroups {
+	if !shouldMigrate {
 		t.Fatal("legacy group probe missed an old official QQ group")
 	}
 
@@ -372,7 +372,18 @@ func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 	).Scan(&plan).Error; err != nil {
 		t.Fatal(err)
 	}
-	if len(plan) == 0 || !strings.Contains(plan[0].Detail, "SEARCH") || strings.Contains(plan[0].Detail, "SCAN") {
+	usesIndexedSearch := false
+	for _, row := range plan {
+		detail := strings.ToUpper(row.Detail)
+		if !strings.Contains(detail, "GROUP_INFO") {
+			continue
+		}
+		if strings.Contains(detail, "SCAN") {
+			t.Fatalf("legacy group probe uses a table scan: %#v", plan)
+		}
+		usesIndexedSearch = usesIndexedSearch || strings.Contains(detail, "SEARCH")
+	}
+	if !usesIndexedSearch {
 		t.Fatalf("legacy group probe does not use an indexed search: %#v", plan)
 	}
 }
