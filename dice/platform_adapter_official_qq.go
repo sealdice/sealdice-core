@@ -269,6 +269,27 @@ func FindOfficialQQEndpointByUIN(s *IMSession, uin, excludeID string) *EndPointI
 	return nil
 }
 
+// FindOfficialQQEndpointByAppID 按 AppID 查找已存在的官方 QQ 连接；excludeID 非空时排除自身。
+func FindOfficialQQEndpointByAppID(s *IMSession, appID, excludeID string) *EndPointInfo {
+	if s == nil {
+		return nil
+	}
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil
+	}
+	for _, endpoint := range s.EndPoints {
+		if endpoint == nil || endpoint.Platform != "QQ" || endpoint.ProtocolType != "official" || endpoint.ID == excludeID {
+			continue
+		}
+		adapter, ok := endpoint.Adapter.(*PlatformAdapterOfficialQQ)
+		if ok && strings.TrimSpace(adapter.AppID) == appID {
+			return endpoint
+		}
+	}
+	return nil
+}
+
 func (pa *PlatformAdapterOfficialQQ) applyProbeResult(probe *OfficialQQAccountProbeResult) {
 	if probe == nil || pa.EndPoint == nil {
 		return
@@ -2537,15 +2558,31 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 
 			switch result.Status {
 			case qqBotBindStatusComplete:
-				// 扫码成功，解密 AppSecret
-				secret, derr := qqBotDecryptSecret(result.BotEncryptSecret, curSession.Key)
+				pa.AppID = strings.TrimSpace(result.BotAppID)
 				curSession.mu.Unlock()
+				if pa.AppID == "" {
+					pa.failQrLogin("official qq 扫码结果缺少 AppID: ", nil)
+					return
+				}
+
+				// 扫码结果已包含 AppID，先去重，避免重复账号继续解密凭据、获取 token 或建立连接。
+				if existing := FindOfficialQQEndpointByAppID(d.ImSession, pa.AppID, ep.ID); existing != nil {
+					appID := pa.AppID
+					pa.AppID = ""
+					pa.AppSecret = ""
+					pa.UIN = ""
+					ep.UserID = ""
+					ep.Nickname = ""
+					pa.failQrLogin(fmt.Sprintf("official qq 扫码账号已存在: AppID=%s existingID=%s", appID, existing.ID), nil)
+					return
+				}
+
+				// AppID 去重通过后，解密 AppSecret 并继续探测 UIN。
+				secret, derr := qqBotDecryptSecret(result.BotEncryptSecret, curSession.Key)
 				if derr != nil {
 					pa.failQrLogin("official qq 解密 AppSecret 失败: ", derr)
 					return
 				}
-
-				pa.AppID = result.BotAppID
 				pa.AppSecret = secret
 				pa.qrMu.Lock()
 				pa.QrLoginState = OfficialQQLoginStateConnecting
