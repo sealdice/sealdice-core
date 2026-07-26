@@ -318,9 +318,9 @@ func TestPublicDiceEndpointAppID(t *testing.T) {
 func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 	const appID = "123456789"
 
-	dbOperator, err := newMockDatabaseOperator(filepath.Join(t.TempDir(), "official-qq-probe.db"))
-	if err != nil {
-		t.Fatal(err)
+	dbOperator, openErr := newMockDatabaseOperator(filepath.Join(t.TempDir(), "official-qq-probe.db"))
+	if openErr != nil {
+		t.Fatal(openErr)
 	}
 	t.Cleanup(dbOperator.Close)
 	if err := dbOperator.db.AutoMigrate(&model.GroupInfo{}); err != nil {
@@ -341,9 +341,9 @@ func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 		}
 	}
 
-	hasLegacyGroups, err := migration.hasLegacyGroups(dbOperator)
-	if err != nil {
-		t.Fatal(err)
+	hasLegacyGroups, probeErr := migration.hasLegacyGroups(dbOperator)
+	if probeErr != nil {
+		t.Fatal(probeErr)
 	}
 	if hasLegacyGroups {
 		t.Fatal("legacy group probe matched an unrelated group")
@@ -353,9 +353,9 @@ func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 	if err := dbOperator.db.Create(&model.GroupInfo{ID: legacyID, CreatedAt: timestamp, UpdatedAt: &timestamp}).Error; err != nil {
 		t.Fatal(err)
 	}
-	hasLegacyGroups, err = migration.hasLegacyGroups(dbOperator)
-	if err != nil {
-		t.Fatal(err)
+	hasLegacyGroups, probeErr = migration.hasLegacyGroups(dbOperator)
+	if probeErr != nil {
+		t.Fatal(probeErr)
 	}
 	if !hasLegacyGroups {
 		t.Fatal("legacy group probe missed an old official QQ group")
