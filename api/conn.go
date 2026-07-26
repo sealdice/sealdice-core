@@ -299,6 +299,13 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
 				})
 			}
+		case "official":
+			pa := i.Adapter.(*dice.PlatformAdapterOfficialQQ)
+			if pa.QrLoginState == dice.OfficialQQLoginStateQRWaitingForScan {
+				return c.JSON(http.StatusOK, map[string]string{
+					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
+				})
+			}
 		}
 		return c.JSON(http.StatusOK, i)
 	}
@@ -934,7 +941,6 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 
 	v := struct {
 		AppID       interface{} `json:"appID"         yaml:"appID"`
-		Token       string      `json:"token"         yaml:"token"`
 		AppSecret   string      `json:"appSecret"     yaml:"appSecret"`
 		OnlyQQGuild bool        `json:"onlyQQGuild"   yaml:"onlyQQGuild"`
 		// Webhook配置
@@ -959,7 +965,7 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 				appIDStr = fmt.Sprintf("%v", val)
 			}
 		}
-		conn := dice.NewOfficialQQConnItem(appIDStr, v.Token, v.AppSecret, v.OnlyQQGuild)
+		conn := dice.NewOfficialQQConnItem(appIDStr, v.AppSecret, v.OnlyQQGuild)
 		conn.BindRuntime(myDice.ImSession)
 		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
 		// 设置Webhook配置

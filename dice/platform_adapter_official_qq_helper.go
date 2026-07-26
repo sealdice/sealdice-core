@@ -13,7 +13,7 @@ import (
 	logger "sealdice-core/logger"
 )
 
-func NewOfficialQQConnItem(appID string, token string, appSecret string, onlyQQGuild bool) *EndPointInfo {
+func NewOfficialQQConnItem(appID string, appSecret string, onlyQQGuild bool) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
@@ -23,7 +23,6 @@ func NewOfficialQQConnItem(appID string, token string, appSecret string, onlyQQG
 	conn.Adapter = &PlatformAdapterOfficialQQ{
 		EndPoint:    conn,
 		AppID:       appID,
-		Token:       token,
 		AppSecret:   appSecret,
 		OnlyQQGuild: onlyQQGuild,
 	}
