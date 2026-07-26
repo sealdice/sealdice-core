@@ -32,6 +32,10 @@ func customTextSave(c echo.Context) error {
 	}{}
 	err := c.Bind(&v)
 	if err == nil {
+		previousTextMapRaw := cloneTextTemplateWithWeightDict(myDice.TextMapRaw)
+		previousTextMapHelpInfo := cloneTextTemplateWithHelpDict(myDice.TextMapHelpInfo)
+		previousTextMap := myDice.TextMap
+
 		for _, v1 := range v.Data {
 			for _, v2 := range v1 {
 				v2[0] = strings.TrimSpace(v2[0].(string))
@@ -41,7 +45,12 @@ func customTextSave(c echo.Context) error {
 		myDice.TextMapRaw[v.Category] = v.Data
 		dice.SetupTextHelpInfo(myDice, myDice.TextMapHelpInfo, myDice.TextMapRaw, "configs/text-template.yaml")
 		myDice.GenerateTextMap()
-		myDice.SaveText()
+		if err := myDice.SaveText(); err != nil {
+			myDice.TextMapRaw = previousTextMapRaw
+			myDice.TextMapHelpInfo = previousTextMapHelpInfo
+			myDice.TextMap = previousTextMap
+			return c.String(http.StatusInternalServerError, err.Error())
+		}
 
 		for k, v2 := range myDice.TextMapRaw[v.Category] {
 			dice.TextMapCompatibleCheck(myDice, v.Category, k, v2)

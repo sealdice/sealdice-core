@@ -2056,7 +2056,7 @@ func setupTextTemplate(d *Dice) {
 	// 加载硬盘设置
 	loadTextTemplate(d, "configs/text-template.yaml")
 
-	d.SaveText()
+	_ = d.SaveText()
 	d.GenerateTextMap()
 }
 
@@ -2222,7 +2222,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText()
 			})
 		}
 
@@ -2253,7 +2253,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText()
 			})
 		}
 
@@ -2269,7 +2269,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText()
 			})
 		}
 
@@ -2288,7 +2288,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText()
 			})
 		}
 
@@ -2303,7 +2303,7 @@ func (d *Dice) loads() {
 			}
 			SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 			d.GenerateTextMap()
-			d.SaveText()
+			_ = d.SaveText()
 		})
 
 		d.Config = config
@@ -2415,21 +2415,52 @@ func (d *Dice) loadAdvanced() {
 	d.AdvancedConfig = advancedConfig
 }
 
-func (d *Dice) SaveText() {
-	buf, err := yaml.Marshal(d.TextMapRaw)
+func (d *Dice) SaveText() error {
+	buf, err := marshalTextTemplateYAML(d.TextMapRaw)
 	if err != nil {
-		d.Logger.Error("Dice.SaveText", err)
-	} else {
-		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
-		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
-		current, err := os.ReadFile(newFn)
-		if err != nil {
-			_ = os.WriteFile(bakFn, current, 0o644) //nolint:gosec
-		}
-
-		_ = os.WriteFile(newFn, buf, 0o644)
+		return d.saveTextError(fmt.Errorf("生成自定义文案 YAML 失败: %w", err))
 	}
+
+	var verified TextTemplateWithWeightDict
+	if err := yaml.Unmarshal(buf, &verified); err != nil {
+		return d.saveTextError(fmt.Errorf("校验自定义文案 YAML 失败: %w", err))
+	}
+
+	newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
+	bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
+	if err := os.MkdirAll(filepath.Dir(newFn), 0o755); err != nil {
+		return d.saveTextError(fmt.Errorf("创建自定义文案目录失败: %w", err))
+	}
+
+	current, err := os.ReadFile(newFn)
+	if err == nil {
+		if err := writeFileAtomically(bakFn, current, 0o644); err != nil {
+			return d.saveTextError(fmt.Errorf("备份自定义文案文件失败: %w", err))
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return d.saveTextError(fmt.Errorf("读取旧自定义文案文件失败，已取消保存: %w", err))
+	}
+
+	if err := writeFileAtomically(newFn, buf, 0o644); err != nil {
+		return d.saveTextError(fmt.Errorf("保存自定义文案文件失败: %w", err))
+	}
+	return nil
+}
+
+func marshalTextTemplateYAML(texts TextTemplateWithWeightDict) (buf []byte, err error) {
+	defer func() {
+		if v := recover(); v != nil {
+			err = fmt.Errorf("marshal panic: %v", v)
+		}
+	}()
+	return yaml.Marshal(texts)
+}
+
+func (d *Dice) saveTextError(err error) error {
+	if d.Logger != nil {
+		d.Logger.Error("Dice.SaveText", err)
+	}
+	return err
 }
 
 // ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
