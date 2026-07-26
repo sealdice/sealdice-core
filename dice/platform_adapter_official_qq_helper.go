@@ -13,7 +13,7 @@ import (
 	logger "sealdice-core/logger"
 )
 
-func NewOfficialQQConnItem(appID string, token string, appSecret string, onlyQQGuild bool) *EndPointInfo {
+func NewOfficialQQConnItem(appID, appSecret, uin string, onlyQQGuild bool) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
@@ -23,8 +23,8 @@ func NewOfficialQQConnItem(appID string, token string, appSecret string, onlyQQG
 	conn.Adapter = &PlatformAdapterOfficialQQ{
 		EndPoint:    conn,
 		AppID:       appID,
-		Token:       token,
 		AppSecret:   appSecret,
+		UIN:         uin,
 		OnlyQQGuild: onlyQQGuild,
 	}
 	return conn
@@ -56,13 +56,9 @@ func NewDummyLogger() DummyLogger {
 	}
 }
 
-func (d DummyLogger) Debug(v ...interface{}) {
-	d.logger.Debug(output(v...))
-}
+func (d DummyLogger) Debug(_ ...interface{}) {}
 
-func (d DummyLogger) Info(v ...interface{}) {
-	d.logger.Debug(output(v...))
-}
+func (d DummyLogger) Info(_ ...interface{}) {}
 
 func (d DummyLogger) Warn(v ...interface{}) {
 	d.logger.Warn(output(v...))
@@ -72,13 +68,9 @@ func (d DummyLogger) Error(v ...interface{}) {
 	d.logger.Error(output(v...))
 }
 
-func (d DummyLogger) Debugf(format string, v ...interface{}) {
-	d.logger.Debug(output(fmt.Sprintf(format, v...)))
-}
+func (d DummyLogger) Debugf(_ string, _ ...interface{}) {}
 
-func (d DummyLogger) Infof(format string, v ...interface{}) {
-	d.logger.Debug(output(fmt.Sprintf(format, v...)))
-}
+func (d DummyLogger) Infof(_ string, _ ...interface{}) {}
 
 func (d DummyLogger) Warnf(format string, v ...interface{}) {
 	d.logger.Warn(output(fmt.Sprintf(format, v...)))

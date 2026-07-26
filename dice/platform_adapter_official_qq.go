@@ -13,10 +13,12 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	qqconstant "github.com/sealdice/botgo/constant"
 	"github.com/sealdice/botgo/event"
 	"github.com/sealdice/botgo/interaction/signature"
 
@@ -43,8 +45,9 @@ type PlatformAdapterOfficialQQ struct {
 	DiceServing bool          `yaml:"-"`
 
 	AppID       string `json:"appID"       yaml:"appID"`
-	AppSecret   string `json:"appSecret"   yaml:"appSecret"`
-	Token       string `json:"token"       yaml:"token"`
+	AppSecret   string `json:"-"           yaml:"appSecret"`
+	Token       string `json:"-"           yaml:"token,omitempty"` // Deprecated: preserved for old configurations and never used.
+	UIN         string `json:"uin"         yaml:"uin,omitempty"`
 	OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
 
 	// Webhook配置
@@ -57,12 +60,174 @@ type PlatformAdapterOfficialQQ struct {
 	Ctx            context.Context      `json:"-" yaml:"-"`
 	CancelFunc     context.CancelFunc   `json:"-" yaml:"-"`
 	tokenSource    oauth2.TokenSource   `json:"-" yaml:"-"`
+	botID          string               `json:"-" yaml:"-"`
 
 	// Webhook服务
 	webhookServer *http.Server `json:"-" yaml:"-"`
 
 	paginationCache map[string]*PaginationItem `json:"-" yaml:"-"`
 	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
+}
+
+type officialQQAdapterJSON struct {
+	AppID               string `json:"appID"`
+	UIN                 string `json:"uin"`
+	AppSecretConfigured bool   `json:"appSecretConfigured"`
+	OnlyQQGuild         bool   `json:"onlyQQGuild"`
+	UseWebhook          bool   `json:"useWebhook"`
+	WebhookPath         string `json:"webhookPath"`
+	WebhookPort         int    `json:"webhookPort"`
+}
+
+func (pa *PlatformAdapterOfficialQQ) MarshalJSON() ([]byte, error) {
+	return json.Marshal(officialQQAdapterJSON{
+		AppID:               pa.AppID,
+		UIN:                 pa.UIN,
+		AppSecretConfigured: strings.TrimSpace(pa.AppSecret) != "",
+		OnlyQQGuild:         pa.OnlyQQGuild,
+		UseWebhook:          pa.UseWebhook,
+		WebhookPath:         pa.WebhookPath,
+		WebhookPort:         pa.WebhookPort,
+	})
+}
+
+type OfficialQQAccountProbeResult struct {
+	UIN      string
+	BotID    string
+	Nickname string
+}
+
+type officialQQBotInfoResponse struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	ShareURL string `json:"share_url"`
+}
+
+type officialQQTransport interface {
+	Transport(ctx context.Context, method, url string, body interface{}) ([]byte, error)
+}
+
+func extractOfficialQQBotUIN(link string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(link))
+	if err != nil {
+		return "", fmt.Errorf("解析机器人分享链接失败: %w", err)
+	}
+	uin := strings.TrimSpace(parsed.Query().Get("robot_uin"))
+	if uin == "" {
+		return "", errors.New("机器人分享链接中缺少 robot_uin")
+	}
+	value, err := strconv.ParseUint(uin, 10, 64)
+	if err != nil || value == 0 {
+		return "", fmt.Errorf("机器人 UIN 无效: %q", uin)
+	}
+	return uin, nil
+}
+
+func extractOfficialQQBotUINFromResponse(body []byte) (string, error) {
+	var response struct {
+		URL     string `json:"url"`
+		URLLink string `json:"url_link"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("解析机器人分享链接响应失败: %w", err)
+	}
+	link := strings.TrimSpace(response.URLLink)
+	if link == "" {
+		link = strings.TrimSpace(response.URL) // Compatibility with SDKs that expose this field as url.
+	}
+	if link == "" {
+		return "", errors.New("机器人分享链接响应中缺少 url_link")
+	}
+	return extractOfficialQQBotUIN(link)
+}
+
+func getOfficialQQBotUINFromGeneratedLink(ctx context.Context, api officialQQTransport) (string, error) {
+	body, err := api.Transport(
+		ctx,
+		http.MethodPost,
+		qqconstant.APIDomain+"/v2/generate_url_link",
+		map[string]string{"callback_data": "sealdice"},
+	)
+	if err != nil {
+		return "", fmt.Errorf("生成机器人分享链接失败: %w", err)
+	}
+	return extractOfficialQQBotUINFromResponse(body)
+}
+
+func parseOfficialQQBotInfo(body []byte) (*officialQQBotInfoResponse, error) {
+	var response officialQQBotInfoResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("解析机器人信息失败: %w", err)
+	}
+	response.ID = strings.TrimSpace(response.ID)
+	response.Username = strings.TrimSpace(response.Username)
+	response.ShareURL = strings.TrimSpace(response.ShareURL)
+	if response.ID == "" {
+		return nil, errors.New("机器人信息响应中缺少 id")
+	}
+	return &response, nil
+}
+
+func getOfficialQQBotInfo(ctx context.Context, api officialQQTransport) (*OfficialQQAccountProbeResult, error) {
+	body, err := api.Transport(ctx, http.MethodGet, qqconstant.APIDomain+"/users/@me", nil)
+	if err != nil {
+		return nil, fmt.Errorf("获取机器人信息失败: %w", err)
+	}
+	botInfo, err := parseOfficialQQBotInfo(body)
+	if err != nil {
+		return nil, err
+	}
+
+	var shareURLErr error
+	if botInfo.ShareURL != "" {
+		if uin, err := extractOfficialQQBotUIN(botInfo.ShareURL); err == nil {
+			return &OfficialQQAccountProbeResult{UIN: uin, BotID: botInfo.ID, Nickname: botInfo.Username}, nil
+		} else {
+			shareURLErr = err
+		}
+	} else {
+		shareURLErr = errors.New("机器人信息响应中缺少 share_url")
+	}
+
+	// Older deployments may not include share_url in /users/@me yet.
+	uin, generatedLinkErr := getOfficialQQBotUINFromGeneratedLink(ctx, api)
+	if generatedLinkErr != nil {
+		return nil, fmt.Errorf("无法从机器人信息或生成的分享链接获取 UIN: %w; %w", shareURLErr, generatedLinkErr)
+	}
+	return &OfficialQQAccountProbeResult{UIN: uin, BotID: botInfo.ID, Nickname: botInfo.Username}, nil
+}
+
+func ProbeOfficialQQAccount(ctx context.Context, appID, appSecret string) (*OfficialQQAccountProbeResult, error) {
+	appID = strings.TrimSpace(appID)
+	appSecret = strings.TrimSpace(appSecret)
+	if appID == "" {
+		return nil, errors.New("AppID 不能为空")
+	}
+	if appSecret == "" {
+		return nil, errors.New("AppSecret 不能为空")
+	}
+	qqbot.SetLogger(NewDummyLogger())
+
+	tokenSource := qqtoken.NewQQBotTokenSource(&qqtoken.QQBotCredentials{
+		AppID:     appID,
+		AppSecret: appSecret,
+	})
+	if _, err := tokenSource.Token(); err != nil {
+		return nil, fmt.Errorf("获取 Access Token 失败: %w", err)
+	}
+	api := qqbot.NewOpenAPI(appID, tokenSource).WithTimeout(5 * time.Second)
+	botInfo, err := getOfficialQQBotInfo(ctx, api)
+	if err != nil {
+		return nil, err
+	}
+	ws, err := api.WS(ctx, nil, "")
+	if err != nil {
+		return nil, fmt.Errorf("获取 QQ 官方机器人网关接入点失败，请检查 IP 白名单: %w", err)
+	}
+	if ws == nil {
+		return nil, errors.New("QQ 官方机器人未返回网关接入点，请检查 IP 白名单")
+	}
+	return botInfo, nil
 }
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
@@ -78,7 +243,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 
 	pa.AppID = strings.TrimSpace(pa.AppID)
 	pa.AppSecret = strings.TrimSpace(pa.AppSecret)
-	pa.Token = strings.TrimSpace(pa.Token)
+	pa.UIN = strings.TrimSpace(pa.UIN)
 
 	log.Debug("official qq server")
 	qqbot.SetLogger(NewDummyLogger())
@@ -108,14 +273,8 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	// 创建 OpenAPI 客户端
 	pa.Api = qqbot.NewOpenAPI(pa.AppID, pa.tokenSource).WithTimeout(3 * time.Second)
 
-	// 注册事件处理器
-	event.RegisterHandlersByAppID(
-		pa.AppID,
-		pa.makeHandlers()...,
-	)
-
-	// 获取机器人信息
-	botInfo, err := pa.Api.Me(ctx)
+	// 获取机器人信息和 UIN。使用原始响应读取 botgo DTO 尚未包含的 share_url。
+	botInfo, err := getOfficialQQBotInfo(ctx, pa.Api)
 	if err != nil {
 		log.Error("official qq 获取机器人信息失败: ", err)
 		ep.State = 3
@@ -128,8 +287,43 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 		return 1
 	}
 
-	ep.UserID = formatDiceIDOfficialQQ(botInfo.ID)
-	ep.Nickname = botInfo.Username
+	uin := botInfo.UIN
+	if pa.UIN != "" && pa.UIN != uin {
+		log.Errorf("official qq UIN 校验失败: 配置为 %s，远端返回 %s", pa.UIN, uin)
+		ep.State = 3
+		if pa.CancelFunc != nil {
+			pa.CancelFunc()
+		}
+		pa.Api = nil
+		pa.Ctx = nil
+		pa.CancelFunc = nil
+		return 1
+	}
+	if err := ensureOfficialQQIdentity(d, pa, botInfo.BotID, uin); err != nil {
+		var migrationErr *officialQQIdentityMigrationError
+		if errors.As(err, &migrationErr) {
+			log.Error("official qq 身份数据迁移失败，将继续启动并在下次连接时重试: ", err)
+		} else {
+			log.Error("official qq 身份初始化失败: ", err)
+			ep.State = 3
+			if pa.CancelFunc != nil {
+				pa.CancelFunc()
+			}
+			pa.Api = nil
+			pa.Ctx = nil
+			pa.CancelFunc = nil
+			return 1
+		}
+	}
+
+	pa.botID = botInfo.BotID
+	ep.Nickname = botInfo.Nickname
+
+	// 身份校验和迁移完成后再开始接收事件。
+	event.RegisterHandlersByAppID(
+		pa.AppID,
+		pa.makeHandlers()...,
+	)
 
 	// 区分 Webhook 还是 WebSocket 模式
 	if pa.UseWebhook {
@@ -405,8 +599,7 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 			log.Errorf("official qq 翻页发送群聊消息失败：%v", err)
 		} else if msg != nil {
 			ctx.MessageType = "group"
-			appID := pa.AppID
-			groupID := formatDiceIDOfficialQQGroupOpenID(appID, data.GroupOpenID)
+			groupID := formatDiceIDOfficialQQGroupOpenID(pa.UIN, data.GroupOpenID)
 			pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 				Platform:    "QQ",
 				MessageType: "group",
@@ -444,8 +637,7 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 				log.Errorf("official qq 翻页发送群聊消息失败： %v", err)
 			} else if msg != nil {
 				ctx.MessageType = "group"
-				appID := pa.AppID
-				groupID := formatDiceIDOfficialQQGroupOpenID(appID, data.GroupOpenID)
+				groupID := formatDiceIDOfficialQQGroupOpenID(pa.UIN, data.GroupOpenID)
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
 					MessageType: "group",
@@ -567,7 +759,6 @@ func (pa *PlatformAdapterOfficialQQ) GroupAtMessageReceive(event *dto.WSPayload,
 }
 
 func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQQ *dto.WSGroupATMessageData) *Message {
-	appID := pa.AppID
 	msg := new(Message)
 	timestamp, _ := msgQQ.Timestamp.Time()
 	msg.Time = timestamp.Unix()
@@ -575,7 +766,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 	msg.Message = msgQQ.Content
 	msg.RawID = msgQQ.ID
 	msg.Platform = "OpenQQ"
-	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
+	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(pa.UIN, msgQQ.GroupOpenID)
 	if msgQQ.Author != nil {
 		if msgQQ.Author.Username != "" {
 			msg.Sender.Nickname = msgQQ.Author.Username
@@ -584,16 +775,14 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 		} else {
 			msg.Sender.Nickname = "用户"
 		}
-		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
+		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(pa.UIN, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
 	if botSelfOpenID == "" {
-		botSelfOpenID = pa.EndPoint.UserID
-		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "OpenQQ:")
-		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "QQ:")
+		botSelfOpenID = pa.botID
 	}
 
 	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
@@ -621,7 +810,6 @@ func (pa *PlatformAdapterOfficialQQ) GroupMessageReceive(event *dto.WSPayload, d
 
 // groupNormalMsgToStdMsg 将群聊普通消息转换为标准消息
 func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload, msgQQ *dto.WSGroupMessageData) *Message {
-	appID := pa.AppID
 	msg := new(Message)
 	timestamp, _ := msgQQ.Timestamp.Time()
 	msg.Time = timestamp.Unix()
@@ -629,7 +817,7 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 	msg.Message = msgQQ.Content
 	msg.RawID = msgQQ.ID
 	msg.Platform = "OpenQQ"
-	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(appID, msgQQ.GroupOpenID)
+	msg.GroupID = formatDiceIDOfficialQQGroupOpenID(pa.UIN, msgQQ.GroupOpenID)
 	if msgQQ.Author != nil {
 		if msgQQ.Author.Username != "" {
 			msg.Sender.Nickname = msgQQ.Author.Username
@@ -638,16 +826,14 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 		} else {
 			msg.Sender.Nickname = "用户"
 		}
-		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(appID, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
+		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(pa.UIN, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
 	if botSelfOpenID == "" {
-		botSelfOpenID = pa.EndPoint.UserID
-		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "OpenQQ:")
-		botSelfOpenID = strings.TrimPrefix(botSelfOpenID, "QQ:")
+		botSelfOpenID = pa.botID
 	}
 
 	for _, match := range officialQQAtRegex.FindAllStringSubmatch(msgQQ.Content, -1) {
@@ -675,7 +861,6 @@ func (pa *PlatformAdapterOfficialQQ) C2CMessageReceiveFromEvent(payload *dto.WSP
 
 // c2cMsgToStdMsg 将单聊消息转换为标准消息
 func (pa *PlatformAdapterOfficialQQ) c2cMsgToStdMsg(msgQQ *dto.WSC2CMessageData) *Message {
-	appID := pa.AppID
 	msg := new(Message)
 	timestamp, _ := msgQQ.Timestamp.Time()
 	msg.Time = timestamp.Unix()
@@ -692,7 +877,7 @@ func (pa *PlatformAdapterOfficialQQ) c2cMsgToStdMsg(msgQQ *dto.WSC2CMessageData)
 		} else {
 			msg.Sender.Nickname = "用户"
 		}
-		msg.Sender.UserID = formatDiceIDOfficialQQUserOpenID(appID, userOpenID)
+		msg.Sender.UserID = formatDiceIDOfficialQQUserOpenID(pa.UIN, userOpenID)
 	}
 	appendAttachmentsToMessage(msg, msgQQ.Attachments)
 	return msg
@@ -704,9 +889,8 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群成员增加事件：%v, %v", event, data)
 
-	appID := pa.AppID
-	groupID := formatDiceIDOfficialQQGroupOpenID(appID, data.GroupOpenID)
-	userID := formatDiceIDOfficialQQMemberOpenID(appID, data.GroupOpenID, data.MemberOpenID)
+	groupID := formatDiceIDOfficialQQGroupOpenID(pa.UIN, data.GroupOpenID)
+	userID := formatDiceIDOfficialQQMemberOpenID(pa.UIN, data.GroupOpenID, data.MemberOpenID)
 
 	// 如果是机器人自己加入群聊
 	if userID == pa.EndPoint.UserID || data.MemberOpenID == "" || data.MemberOpenID == "BOT" {
@@ -764,9 +948,8 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberRemoveReceive(event *dto.WSPaylo
 	log := s.Parent.Logger
 	log.Debugf("official qq: 收到群成员减少事件：%v, %v", event, data)
 
-	appID := pa.AppID
-	groupID := formatDiceIDOfficialQQGroupOpenID(appID, data.GroupOpenID)
-	userID := formatDiceIDOfficialQQMemberOpenID(appID, data.GroupOpenID, data.MemberOpenID)
+	groupID := formatDiceIDOfficialQQGroupOpenID(pa.UIN, data.GroupOpenID)
+	userID := formatDiceIDOfficialQQMemberOpenID(pa.UIN, data.GroupOpenID, data.MemberOpenID)
 
 	// 如果是机器人自己被移出群
 	if userID == pa.EndPoint.UserID || data.MemberOpenID == "" || data.MemberOpenID == "BOT" {
@@ -825,8 +1008,7 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 
 	switch event.Type {
 	case dto.EventC2CFriendAdd:
-		appID := pa.AppID
-		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
+		userID := formatDiceIDOfficialQQUserOpenID(pa.UIN, data.OpenID)
 
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
 		if event != nil && event.EventID != "" {
@@ -866,8 +1048,7 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 			}
 		}()
 	case dto.EventC2CFriendDel:
-		appID := pa.AppID
-		userID := formatDiceIDOfficialQQUserOpenID(appID, data.OpenID)
+		userID := formatDiceIDOfficialQQUserOpenID(pa.UIN, data.OpenID)
 		log.Infof("official qq: 与 %s 解除好友关系", userID)
 	default:
 		// 忽略其他事件
@@ -1672,23 +1853,23 @@ func formatDiceIDOfficialQQChannel(guildID, channelID string) string {
 	return fmt.Sprintf("OpenQQCH-Channel:%s-%s", guildID, channelID)
 }
 
-func formatDiceIDOfficialQQ(userUnionID string) string {
-	return fmt.Sprintf("OpenQQ:%s", userUnionID)
+func formatDiceIDOfficialQQ(uin string) string {
+	return fmt.Sprintf("OpenQQ:%s", uin)
 }
 
-func formatDiceIDOfficialQQGroupOpenID(botID, groupOpenID string) string {
+func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
 	// 官方QQ群ID格式
-	return fmt.Sprintf("OpenQQ-Group:%s", groupOpenID)
+	return fmt.Sprintf("OpenQQ-Group:%s-%s", uin, groupOpenID)
 }
 
-func formatDiceIDOfficialQQMemberOpenID(botID, groupOpenID, memberOpenID string) string {
+func formatDiceIDOfficialQQMemberOpenID(uin, _ string, memberOpenID string) string {
 	// 官方QQ群成员ID格式
-	return fmt.Sprintf("OpenQQ:%s", memberOpenID)
+	return fmt.Sprintf("OpenQQ:%s-%s", uin, memberOpenID)
 }
 
-func formatDiceIDOfficialQQUserOpenID(botID, userOpenID string) string {
+func formatDiceIDOfficialQQUserOpenID(uin, userOpenID string) string {
 	// 官方QQ单聊用户ID格式
-	return fmt.Sprintf("OpenQQ:%s", userOpenID)
+	return fmt.Sprintf("OpenQQ:%s-%s", uin, userOpenID)
 }
 
 type OpenQQIDType = int
@@ -1712,43 +1893,22 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractID(text string) (string, OpenQQI
 }
 
 func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, string, OpenQQIDType) {
-	if strings.HasPrefix(text, "OpenQQ-Group:") {
-		temp := text[len("OpenQQ-Group:"):]
-		lst := strings.Split(temp, "-")
-		if len(lst) >= 2 {
-			return lst[1], "", OpenQQGroupOpenid
+	if raw, ok := strings.CutPrefix(text, "OpenQQ-Group:"); ok {
+		groupOpenID, ok := strings.CutPrefix(raw, pa.UIN+"-")
+		if pa.UIN == "" || !ok || groupOpenID == "" {
+			return "", "", OpenQQUnknown
 		}
-		return lst[0], "", OpenQQGroupOpenid
+		return groupOpenID, "", OpenQQGroupOpenid
 	}
-	if strings.HasPrefix(text, "Group:") {
-		temp := text[len("Group:"):]
-		lst := strings.Split(temp, "-")
-		if len(lst) >= 2 {
-			return lst[1], "", OpenQQGroupOpenid
+	if raw, ok := strings.CutPrefix(text, "OpenQQ:"); ok {
+		if pa.UIN != "" && raw == pa.UIN {
+			return raw, "", OpenQQUser
 		}
-		return lst[0], "", OpenQQGroupOpenid
-	}
-	if idx := strings.Index(text, "-Group:"); idx != -1 {
-		temp := text[idx+len("-Group:"):]
-		lst := strings.Split(temp, "-")
-		if len(lst) >= 2 {
-			return lst[1], "", OpenQQGroupOpenid
+		userOpenID, ok := strings.CutPrefix(raw, pa.UIN+"-")
+		if pa.UIN == "" || !ok || userOpenID == "" {
+			return "", "", OpenQQUnknown
 		}
-		return lst[0], "", OpenQQGroupOpenid
-	}
-	if strings.HasPrefix(text, "OpenQQ:") {
-		id := text[len("OpenQQ:"):]
-		if id == pa.AppID {
-			return id, "", OpenQQUser
-		}
-		return id, "", OpenQQUserOpenid
-	}
-	if strings.HasPrefix(text, "QQ:") {
-		id := text[len("QQ:"):]
-		if id == pa.AppID {
-			return id, "", OpenQQUser
-		}
-		return id, "", OpenQQUserOpenid
+		return userOpenID, "", OpenQQUserOpenid
 	}
 	if strings.HasPrefix(text, "OpenQQCH:") {
 		return text[len("OpenQQCH:"):], "", OpenQQCHUser

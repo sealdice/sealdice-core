@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -934,45 +936,92 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 
 	v := struct {
 		AppID       interface{} `json:"appID"         yaml:"appID"`
-		Token       string      `json:"token"         yaml:"token"`
+		Token       string      `json:"token"         yaml:"token"` // Deprecated: preserved for old clients but never used.
 		AppSecret   string      `json:"appSecret"     yaml:"appSecret"`
+		TestOnly    bool        `json:"testOnly"      yaml:"testOnly"`
 		OnlyQQGuild bool        `json:"onlyQQGuild"   yaml:"onlyQQGuild"`
 		// Webhook配置
 		UseWebhook  bool   `json:"useWebhook"    yaml:"useWebhook"`
 		WebhookPath string `json:"webhookPath"   yaml:"webhookPath"`
 		WebhookPort int    `json:"webhookPort"   yaml:"webhookPort"`
 	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		var appIDStr string
-		if v.AppID != nil {
-			switch val := v.AppID.(type) {
-			case string:
-				appIDStr = val
-			case float64:
-				appIDStr = strconv.FormatInt(int64(val), 10)
-			case int64:
-				appIDStr = strconv.FormatInt(val, 10)
-			case int:
-				appIDStr = strconv.Itoa(val)
-			default:
-				appIDStr = fmt.Sprintf("%v", val)
-			}
-		}
-		conn := dice.NewOfficialQQConnItem(appIDStr, v.Token, v.AppSecret, v.OnlyQQGuild)
-		conn.BindRuntime(myDice.ImSession)
-		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
-		// 设置Webhook配置
-		pa.UseWebhook = v.UseWebhook
-		pa.WebhookPath = v.WebhookPath
-		pa.WebhookPort = v.WebhookPort
-		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
-		myDice.LastUpdatedTime = time.Now().Unix()
-		myDice.Save(false)
-		go dice.ServerOfficialQQ(myDice, conn)
-		return Success(&c, Response{})
+	if err := c.Bind(&v); err != nil {
+		return c.String(430, "")
 	}
-	return c.String(430, "")
+
+	var appIDStr string
+	if v.AppID != nil {
+		switch val := v.AppID.(type) {
+		case string:
+			appIDStr = val
+		case float64:
+			appIDStr = strconv.FormatInt(int64(val), 10)
+		case int64:
+			appIDStr = strconv.FormatInt(val, 10)
+		case int:
+			appIDStr = strconv.Itoa(val)
+		default:
+			appIDStr = fmt.Sprintf("%v", val)
+		}
+	}
+	appIDStr = strings.TrimSpace(appIDStr)
+	appSecret := strings.TrimSpace(v.AppSecret)
+
+	probeCtx, cancel := context.WithTimeout(c.Request().Context(), 15*time.Second)
+	defer cancel()
+	probe, err := dice.ProbeOfficialQQAccount(probeCtx, appIDStr, appSecret)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	userID := "OpenQQ:" + probe.UIN
+	var existingEndpoint *dice.EndPointInfo
+	for _, endpoint := range myDice.ImSession.EndPoints {
+		if endpoint.Platform == "QQ" && endpoint.ProtocolType == "official" && endpoint.UserID == userID {
+			existingEndpoint = endpoint
+			break
+		}
+	}
+	if v.TestOnly {
+		result := Response{
+			"testOnly": true,
+			"userId":   userID,
+			"uin":      probe.UIN,
+			"nickname": probe.Nickname,
+			"exists":   existingEndpoint != nil,
+		}
+		if existingEndpoint != nil {
+			result["id"] = existingEndpoint.ID
+		}
+		return Success(&c, result)
+	}
+	if existingEndpoint != nil {
+		return Error(&c, "该 QQ 官方机器人账号已存在，请先删除已有账号后重新添加", Response{
+			"code":   CodeAlreadyExists,
+			"id":     existingEndpoint.ID,
+			"userId": existingEndpoint.UserID,
+			"uin":    probe.UIN,
+		})
+	}
+
+	conn := dice.NewOfficialQQConnItem(appIDStr, appSecret, probe.UIN, v.OnlyQQGuild)
+	conn.UserID = userID
+	conn.Nickname = probe.Nickname
+	conn.BindRuntime(myDice.ImSession)
+	pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
+	pa.Token = v.Token // Deprecated: preserve values submitted by old clients, but do not use them.
+	pa.UseWebhook = v.UseWebhook
+	pa.WebhookPath = v.WebhookPath
+	pa.WebhookPort = v.WebhookPort
+	myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+	myDice.LastUpdatedTime = time.Now().Unix()
+	myDice.Save(false)
+	go dice.ServerOfficialQQ(myDice, conn)
+	return Success(&c, Response{
+		"id":     conn.ID,
+		"userId": conn.UserID,
+		"uin":    probe.UIN,
+	})
 }
 
 func ImConnectionsAddSatori(c echo.Context) error {
