@@ -228,6 +228,17 @@ func (m *officialQQIdentityMigration) migrateAttrsID(id, attrsType string) strin
 
 func (m *officialQQIdentityMigration) run(d *Dice) error {
 	if d.DBOperator != nil {
+		shouldMigrate, err := m.shouldRunIdentityMigration(d.DBOperator)
+		if err != nil {
+			return fmt.Errorf("检查 QQ 官方旧群组数据失败: %w", err)
+		}
+		if !shouldMigrate {
+			if err := m.syncCharacterCache(d, d.DBOperator); err != nil {
+				return fmt.Errorf("同步角色卡缓存失败: %w", err)
+			}
+			m.migrateMemory(d)
+			return nil
+		}
 		if err := m.collectDatabase(d.DBOperator); err != nil {
 			return err
 		}
@@ -240,14 +251,14 @@ func (m *officialQQIdentityMigration) run(d *Dice) error {
 		}
 	}
 	if d.DBOperator != nil {
-		if err := m.migrateDataDB(d.DBOperator); err != nil {
-			return fmt.Errorf("迁移主数据库失败: %w", err)
-		}
 		if err := m.migrateLogDB(d.DBOperator); err != nil {
 			return fmt.Errorf("迁移日志数据库失败: %w", err)
 		}
 		if err := m.migrateCensorDB(d.DBOperator); err != nil {
 			return fmt.Errorf("迁移敏感词数据库失败: %w", err)
+		}
+		if err := m.migrateDataDB(d.DBOperator); err != nil {
+			return fmt.Errorf("迁移主数据库失败: %w", err)
 		}
 		if err := m.syncCharacterCache(d, d.DBOperator); err != nil {
 			return fmt.Errorf("同步角色卡缓存失败: %w", err)
@@ -289,6 +300,24 @@ func (m *officialQQIdentityMigration) syncCharacterCache(d *Dice, operator engin
 
 func hasTable(db *gorm.DB, value any) bool {
 	return db != nil && db.Migrator().HasTable(value)
+}
+
+func (m *officialQQIdentityMigration) shouldRunIdentityMigration(operator engine.DatabaseOperator) (bool, error) {
+	db := operator.GetDataDB(constant.READ)
+	if !hasTable(db, &model.GroupInfo{}) {
+		// Without group_info the optimized probe is unavailable, so preserve the full fallback.
+		return true, nil
+	}
+
+	prefix := m.oldGroupPrefix()
+	// The IDs are ASCII; '.' is the exclusive upper bound for a prefix ending in '-'.
+	upperBound := strings.TrimSuffix(prefix, "-") + "."
+	var row model.GroupInfo
+	result := db.Select("id").Where("id >= ? AND id < ?", prefix, upperBound).Limit(1).Find(&row)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected != 0, nil
 }
 
 func (m *officialQQIdentityMigration) collectDatabase(operator engine.DatabaseOperator) error {
