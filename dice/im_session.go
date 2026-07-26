@@ -36,6 +36,7 @@ import (
 type SenderBase struct {
 	Nickname  string `jsbind:"nickname" json:"nickname"`
 	UserID    string `jsbind:"userId"   json:"userId"`
+	IsRobot   bool   `jsbind:"isRobot"  json:"isRobot"`
 	GroupRole string `json:"-"` // 群内角色 admin管理员 owner群主
 }
 
@@ -1108,7 +1109,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					// 屏蔽机器人发送的消息
 					if mctx.MessageType == "group" {
 						// fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
-						if mctx.Group.BotList.Exists(msg.Sender.UserID) {
+						if mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 							log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 							return
 						}
@@ -1119,7 +1120,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 								// 忽略自己
 								continue
 							}
-							if mctx.Group.BotList.Exists(uid) {
+							if mctx.Group.IsBot(uid, i.IsRobot) {
 								return
 							}
 						}
@@ -1142,7 +1143,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 试图匹配自定义回复
 			isSenderBot := false
 			if mctx.MessageType == "group" {
-				if mctx.Group != nil && mctx.Group.BotList.Exists(msg.Sender.UserID) {
+				if mctx.Group != nil && mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 					isSenderBot = true
 				}
 			}
@@ -1433,7 +1434,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		// 试图匹配自定义回复
 		isSenderBot := false
 		if mctx.MessageType == "group" {
-			if mctx.Group != nil && mctx.Group.BotList.Exists(msg.Sender.UserID) {
+			if mctx.Group != nil && mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 				isSenderBot = true
 			}
 		}
@@ -1529,7 +1530,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 		// 屏蔽机器人发送的消息
 		if mctx.MessageType == "group" {
 			// fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
-			if mctx.Group.BotList.Exists(msg.Sender.UserID) {
+			if mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 				log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 				return
 			}
@@ -1540,7 +1541,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 					// 忽略自己
 					continue
 				}
-				if mctx.Group.BotList.Exists(uid) {
+				if mctx.Group.IsBot(uid, i.IsRobot) {
 					return
 				}
 			}

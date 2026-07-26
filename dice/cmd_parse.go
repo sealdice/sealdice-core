@@ -31,7 +31,8 @@ func (kwa *Kwarg) String() string {
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserID string `jsbind:"userId" json:"userId"`
+	UserID  string `jsbind:"userId"  json:"userId"`
+	IsRobot bool   `jsbind:"isRobot" json:"isRobot"`
 	// UID    string `json:"uid"`
 }
 
@@ -526,7 +527,8 @@ func parseAtInfo(cmdArgs *CmdArgs, msg *Message, botUserID string) {
 
 			// 记录@信息
 			atInfo = append(atInfo, &AtInfo{
-				UserID: userID,
+				UserID:  userID,
+				IsRobot: e.IsRobot,
 			})
 		}
 	}
@@ -756,6 +758,7 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 		if len(i) == 2 {
 			at := new(AtInfo)
 			at.UserID = prefix + ":" + i[1]
+			at.IsRobot = prefix == "QQ" && isQQBotUserID(at.UserID)
 			ret = append(ret, at)
 		}
 	}

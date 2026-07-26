@@ -707,6 +707,7 @@ func (msgQQ *MessageOBQQ) toStdMessage() *Message {
 		}
 		msg.Sender.GroupRole = msgQQ.Sender.Role
 		msg.Sender.UserID = canonicalOnebotUserID(string(msgQQ.Sender.UserID))
+		msg.Sender.IsRobot = msgQQ.Sender.IsRobot || isQQBotUserID(msg.Sender.UserID)
 	}
 	return msg
 }
@@ -771,8 +772,12 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			}
 			seg = append(seg, &recordRaw)
 		case "at":
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", dataObj.Get("qq").String())
-			seg = append(seg, &message.AtElement{Target: dataObj.Get("qq").String()})
+			target := dataObj.Get("qq").String()
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", target)
+			seg = append(seg, &message.AtElement{
+				Target:  target,
+				IsRobot: dataObj.Get("is_robot").Bool() || isQQBotUserID(canonicalOnebotUserID(target)),
+			})
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 			seg = append(seg, &message.PokeElement{})

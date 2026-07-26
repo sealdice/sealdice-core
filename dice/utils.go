@@ -289,6 +289,18 @@ func ReadCardTypeEx(mctx *MsgContext, curType string) string {
 	return extra
 }
 
+// IsBot reports whether a user is manually marked as a bot or reported as one
+// by its platform adapter. Adapter matches are never persisted.
+func (group *GroupInfo) IsBot(userID string, detectedAsRobot bool) bool {
+	if detectedAsRobot {
+		return true
+	}
+	if group != nil && group.BotList != nil && group.BotList.Exists(userID) {
+		return true
+	}
+	return false
+}
+
 // GetCtxProxyFirst 第三个参数是否取消再观察一下
 func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs) *MsgContext {
 	return GetCtxProxyAtPosRaw(ctx, cmdArgs, 0, true)
@@ -313,18 +325,8 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		}
 
 		// 这个其实无用，因为有@其他bot的指令不会进入到solve阶段
-		if ctx.Group != nil {
-			isBot := false
-			ctx.Group.BotList.Range(func(botUid string, _ bool) bool {
-				if i.UserID == botUid {
-					isBot = true
-					return false
-				}
-				return true
-			})
-			if isBot {
-				continue
-			}
+		if ctx.Group != nil && ctx.Group.IsBot(i.UserID, i.IsRobot) {
+			continue
 		}
 
 		// theChoosen := i.UID
