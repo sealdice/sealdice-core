@@ -175,7 +175,6 @@ func (i *BanListInfo) CanNotifyBlacklistedUser(groupID string, userID string, no
 	if i.banNoticeAt == nil {
 		i.banNoticeAt = map[blacklistedUserNoticeKey]time.Time{}
 	}
-	i.cleanupBlacklistedUserNoticeAtLocked(now, cooldown)
 
 	key := blacklistedUserNoticeKey{GroupID: groupID, UserID: userID}
 	if lastNoticeAt, ok := i.banNoticeAt[key]; ok && now.Sub(lastNoticeAt) < cooldown {
