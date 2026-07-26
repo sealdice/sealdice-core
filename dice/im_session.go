@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"regexp"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -831,8 +830,24 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 	return ctx.PrivilegeLevel
 }
 
-func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
+// ensureSegment is a compatibility wrapper; normalization happens at input boundaries.
+func ensureSegment(msg *Message) {
+	NormalizeIncomingMessage(msg)
+}
+
+// ensureMessage is a compatibility wrapper; normalization happens at input boundaries.
+func ensureMessage(msg *Message) {
+	NormalizeIncomingMessage(msg)
+}
+
+// executeCore 是 Execute 与 ExecuteNew 的统一命令处理入口。
+// 以 msg.Segment 为唯一处理依据（入口处 NormalizeIncomingMessage 兜底），保留旧路全部语义：
+// TmpUID/OpenQQCH 交叉匹配、未知命令不返回 nil、runInSync 同步选项。
+func (s *IMSession) executeCore(ep *EndPointInfo, msg *Message, runInSync bool) {
 	d := s.Parent
+
+	// Input-boundary normalization keeps Segment canonical and Message as a compatibility view.
+	NormalizeIncomingMessage(msg)
 
 	mctx := &MsgContext{}
 	mctx.Dice = d
@@ -891,20 +906,17 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
-		// 当文本可能是在发送命令时，必须加载信息
-		maybeCommand := CommandCheckPrefix(msg.Message, d.CommandPrefix, msg.Platform)
+		// 重新赋值群名（与 ExecuteNew 行为对齐：已存在的群也要刷新 GroupName）
+		if groupInfo != nil && msg.GroupName != "" {
+			groupInfo.GroupName = msg.GroupName
+		}
 
+		// 从消息段检测@（统一路径，兼容 TmpUID/OpenQQCH）
+		atUID := computeAtUID(ep, msg)
 		amIBeMentioned := false
-		if true {
-			// 被@时，必须加载信息
-			// 这段代码重复了，以后重构
-			_, ats := AtParse(msg.Message, msg.Platform)
-			tmpUID := ep.UserID
-			if msg.TmpUID != "" {
-				tmpUID = msg.TmpUID
-			}
-			for _, i := range ats {
-				if i.UserID == tmpUID {
+		for _, elem := range msg.Segment {
+			if e, ok := elem.(*message.AtElement); ok {
+				if isAtMe(msg.Platform, e.Target, atUID) {
 					amIBeMentioned = true
 					break
 				}
@@ -948,48 +960,14 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 
-		var cmdLst []string
-		if maybeCommand {
-			// 兼容模式检查已经移除
-			for k := range d.CmdMap {
-				cmdLst = append(cmdLst, k)
-			}
-			// 这里不用group是为了私聊
-			g := mctx.Group
-			if g != nil {
-				for _, wrapper := range g.GetActivatedExtList(d) {
-					for k := range wrapper.GetCmdMap() {
-						cmdLst = append(cmdLst, k)
-					}
-				}
-			}
-			sort.Sort(ByLength(cmdLst))
-		}
-
 		if notReply := checkBan(mctx, msg); notReply {
 			return
 		}
 
-		platformPrefix := msg.Platform
-		cmdArgs := CommandParse(msg.Message, cmdLst, d.CommandPrefix, platformPrefix, false)
+		// 统一走 Segment 解析路径（@/TmpUID/OpenQQCH 由 parseAtInfo 内部处理）
+		cmdArgs := CommandParseNew(mctx, msg)
 		if cmdArgs != nil {
 			mctx.CommandID = getNextCommandID()
-
-			var tmpUID string
-			switch platformPrefix {
-			case "OpenQQCH":
-				// 特殊处理 OpenQQ频道
-				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
-				tmpUID = "OpenQQCH:" + uid
-			default:
-				tmpUID = ep.UserID
-			}
-			if msg.TmpUID != "" {
-				tmpUID = msg.TmpUID
-			}
-
-			// 设置at信息
-			cmdArgs.SetupAtInfo(tmpUID)
 		}
 
 		// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
@@ -1195,358 +1173,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	}
 }
 
-// ExecuteNew Note(Szzrain): 既不破坏兼容性还要支持新 feature 我真是草了，这里是 copy paste 的代码稍微改了一下，我知道这是在屎山上建房子，但是没办法
-// 只有在 Adapter 内部实现了新的消息段解析才能使用这个方法，即 Message.Segment 有值
-// 为了避免破坏兼容性，Message.Message 中的内容不会被解析但仍然会赋值
-// 这个 ExcuteNew 方法优化了对消息段的解析，其他平台应当尽快实现消息段解析并使用这个方法
-func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
-	d := s.Parent
-
-	mctx := &MsgContext{}
-	mctx.Dice = d
-	mctx.MessageType = msg.MessageType
-	mctx.IsPrivate = mctx.MessageType == "private"
-	mctx.Session = s
-	mctx.EndPoint = ep
-	mctx.UITestReplySplitLen = msg.UITestReplySplitLen
-	log := d.Logger
-
-	// 处理消息段，如果 2.0 要完全抛弃依赖 Message.Message 的字符串解析，把这里删掉
-	if msg.Message == "" {
-		for _, elem := range msg.Segment {
-			// 类型断言
-			if e, ok := elem.(*message.TextElement); ok {
-				msg.Message += e.Content
-			}
-		}
-	}
-
-	if msg.MessageType != "group" && msg.MessageType != "private" {
-		return
-	}
-
-	// 处理命令
-	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
-	if !ok && msg.GroupID != "" {
-		// 注意: 此处必须开启，不然下面mctx.player取不到
-		autoOn := true
-		if msg.Platform == "QQ-CH" {
-			autoOn = d.Config.QQChannelAutoOn
-		}
-		groupInfo = SetBotOnAtGroup(mctx, msg.GroupID)
-		groupInfo.Active = autoOn
-		groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
-		if msg.GroupName != "" {
-			groupInfo.GroupName = msg.GroupName
-		}
-		groupInfo.MarkDirty(d) // SetBotOnAtGroup 已调用过一次，这里确保后续修改也被标记
-
-		// dm := d.Parent
-		// 愚蠢调用，改了
-		// groupName := dm.TryGetGroupName(group.GroupID)
-		groupName := msg.GroupName
-
-		txt := fmt.Sprintf("自动激活: 发现无记录群组%s(%s)，因为已是群成员，所以自动激活，开启状态: %t", groupName, groupInfo.GroupID, autoOn)
-		// 意义不明，删掉
-		// 疑似是为了获取群信息然后塞到奇怪的地方
-		// ep.Adapter.GetGroupInfoAsync(msg.GroupID)
-		log.Info(txt)
-		mctx.Notice(txt)
-
-		if msg.Platform == "QQ" || msg.Platform == "TG" {
-			groupInfo, ok = mctx.Session.ServiceAtNew.Load(msg.GroupID)
-			if ok {
-				for _, wrapper := range groupInfo.GetActivatedExtList(mctx.Dice) {
-					ext := wrapper.GetRealExt()
-					if ext == nil {
-						continue
-					}
-					if ext.OnGroupJoined != nil {
-						ext.callWithJsCheck(mctx.Dice, func() {
-							ext.OnGroupJoined(mctx, msg)
-						})
-					}
-				}
-			}
-		}
-	}
-	// 重新赋值
-	if groupInfo != nil && msg.GroupName != "" {
-		groupInfo.GroupName = msg.GroupName
-	}
-
-	// Note(Szzrain): 判断是否被@
-	amIBeMentioned := false
-	for _, elem := range msg.Segment {
-		// 类型断言
-		if e, ok := elem.(*message.AtElement); ok {
-			if msg.Platform+":"+e.Target == ep.UserID {
-				amIBeMentioned = true
-				break
-			}
-		}
-	}
-
-	mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
-	VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
-	mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
-
-	if mctx.Group != nil && mctx.Group.System != "" {
-		mctx.SystemTemplate = mctx.Group.GetCharTemplate(d)
-		// tmpl, _ := d.GameSystemMap.Load(group.System)
-		// mctx.SystemTemplate = tmpl
-	}
-
-	if groupInfo != nil {
-		// 自动激活存在状态
-		if _, exists := groupInfo.DiceIDExistsMap.Load(ep.UserID); !exists {
-			groupInfo.DiceIDExistsMap.Store(ep.UserID, true)
-			groupInfo.MarkDirty(mctx.Dice)
-		}
-	}
-
-	// 权限设置
-	_ = mctx.fillPrivilege(msg)
-
-	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
-		if mctx.PrivilegeLevel != -30 {
-			for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
-				ext := wrapper.GetRealExt()
-				if ext == nil {
-					continue
-				}
-				if ext.OnMessageReceived != nil {
-					ext.callWithJsCheck(mctx.Dice, func() {
-						ext.OnMessageReceived(mctx, msg)
-					})
-				}
-			}
-		}
-	}
-
-	// Note(Szzrain): 兼容模式相关的代码被挪到了 cmdArgs.commandParseNew 里面
-
-	if notReply := checkBan(mctx, msg); notReply {
-		return
-	}
-
-	// Note(Szzrain): platformPrefix 弃用
-	// platformPrefix := msg.Platform
-	cmdArgs := CommandParseNew(mctx, msg)
-	if cmdArgs != nil {
-		mctx.CommandID = getNextCommandID()
-		// var tmpUID string
-		// if platformPrefix == "OpenQQCH" {
-		//	// 特殊处理 OpenQQ频道
-		//	uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
-		//	tmpUID = "OpenQQCH:" + uid
-		// } else {
-		//	tmpUID = ep.UserID
-		// }
-		// if msg.TmpUID != "" {
-		//	tmpUID = msg.TmpUID
-		// }
-
-		// 设置at信息，这里不再需要，因为已经在 CommandParseNew 里面设置了
-		// cmdArgs.SetupAtInfo(tmpUID)
-	}
-
-	// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
-	if msg.MessageType == "group" {
-		// TODO(Szzrain):  需要优化的写法，不应根据 CommandID 来判断是否是指令，而应该根据 cmdArgs 是否 match 到指令来判断
-		if mctx.CommandID != 0 {
-			// 关闭状态下，如果被@，且是第一个被@的，那么视为开启
-			if !mctx.IsCurGroupBotOn && cmdArgs.AmIBeMentionedFirst {
-				mctx.IsCurGroupBotOn = true
-			}
-
-			log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-		} else {
-			doLog := true
-			if d.Config.OnlyLogCommandInGroup {
-				// 检查上级选项
-				doLog = false
-			}
-			if doLog {
-				// 检查QQ频道的独立选项
-				if msg.Platform == "QQ-CH" && (!d.Config.QQChannelLogMessage) {
-					doLog = false
-				}
-			}
-			if doLog {
-				log.Infof("收到群(%s)内<%s>(%s)的消息: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-				// fmt.Printf("消息长度 %v 内容 %v \n", len(msg.Message), []byte(msg.Message))
-			}
-		}
-	}
-
-	// Note(Szzrain): 这里的代码本来在敏感词检测下面，会产生预期之外的行为，所以挪到这里
-	if msg.MessageType == "private" {
-		// TODO(Szzrain): 需要优化的写法，不应根据 CommandID 来判断是否是指令，而应该根据 cmdArgs 是否 match 到指令来判断，同上
-		if mctx.CommandID != 0 {
-			log.Infof("收到<%s>(%s)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-		} else if !d.Config.OnlyLogCommandInPrivate {
-			log.Infof("收到<%s>(%s)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-		}
-	}
-
-	// 敏感词拦截：全部输入
-	if mctx.IsCurGroupBotOn && d.Config.EnableCensor && d.Config.CensorMode == AllInput {
-		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
-		if needToTerminate {
-			return
-		}
-		if hit {
-			text := DiceFormatTmpl(mctx, "核心:拦截_完全拦截_收到的所有消息")
-			if text != "" {
-				ReplyToSender(mctx, msg, text)
-			}
-			if msg.MessageType == "group" {
-				log.Infof(
-					"拒绝处理命中敏感词「%s」的内容「%s」- 来自群(%s)内<%s>(%s)",
-					strings.Join(words, "|"),
-					msg.Message, msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID,
-				)
-			} else {
-				log.Infof(
-					"拒绝处理命中敏感词「%s」的内容「%s」- 来自<%s>(%s)",
-					strings.Join(words, "|"),
-					msg.Message,
-					msg.Sender.Nickname,
-					msg.Sender.UserID,
-				)
-			}
-			return
-		}
-	}
-	// Note(Szzrain): 赋值临时变量，不然有些地方没法用
-	SetTempVars(mctx, msg.Sender.Nickname)
-	if cmdArgs != nil {
-		go s.PreTriggerCommand(mctx, msg, cmdArgs)
-	} else {
-		// if cmdArgs == nil will execute this block
-		if mctx.PrivilegeLevel == -30 {
-			// 黑名单用户
-			return
-		}
-
-		// 试图匹配自定义回复
-		isSenderBot := false
-		if mctx.MessageType == "group" {
-			if mctx.Group != nil && mctx.Group.BotList.Exists(msg.Sender.UserID) {
-				isSenderBot = true
-			}
-		}
-
-		if !isSenderBot {
-			if mctx.Group != nil && (mctx.Group.IsActive(mctx) || amIBeMentioned) {
-				for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
-					ext := wrapper.GetRealExt()
-					if ext == nil {
-						continue
-					}
-					i := ext // 保留引用
-					if i.OnNotCommandReceived != nil {
-						notCommandReceiveCall := func() {
-							if i.IsJsExt {
-								loop, err := d.ExtLoopManager.GetLoop(i.JSLoopVersion)
-								if err != nil {
-									// 打个DEBUG日志？
-									i.dice.Logger.Errorf("扩展<%s>运行环境已经过期: %v", i.Name, err)
-									return
-								}
-								waitRun := make(chan int, 1)
-								loop.RunOnLoop(func(runtime *goja.Runtime) {
-									defer func() {
-										if r := recover(); r != nil {
-											mctx.Dice.Logger.Errorf("扩展<%s>处理非指令消息异常: %v 堆栈: %v", i.Name, r, string(debug.Stack()))
-										}
-										waitRun <- 1
-									}()
-									i.OnNotCommandReceived(mctx, msg)
-								})
-								<-waitRun
-							} else {
-								i.OnNotCommandReceived(mctx, msg)
-							}
-						}
-
-						go notCommandReceiveCall()
-					}
-				}
-			}
-		}
-	}
+// Execute 是外部适配器调用的命令处理入口，薄壳转发到 executeCore。
+func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
+	s.executeCore(ep, msg, runInSync)
 }
 
-func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) {
-	d := s.Parent
-	ep := mctx.EndPoint
-	log := d.Logger
-	defer func() {
-		if r := recover(); r != nil {
-			//  + fmt.Sprintf("%s", r)
-			log.Errorf("异常: %v 堆栈: %v", r, string(debug.Stack()))
-			ReplyToSender(mctx, msg, DiceFormatTmpl(mctx, "核心:骰子执行异常"))
-		}
-	}()
-
-	// 敏感词拦截：命令输入
-	if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.Config.EnableCensor && d.Config.CensorMode == OnlyInputCommand {
-		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
-		if needToTerminate {
-			return
-		}
-		if hit {
-			text := DiceFormatTmpl(mctx, "核心:拦截_完全拦截_收到的指令")
-			if text != "" {
-				ReplyToSender(mctx, msg, text)
-			}
-			if msg.MessageType == "group" {
-				log.Infof(
-					"拒绝处理命中敏感词「%s」的指令「%s」- 来自群(%s)内<%s>(%s)",
-					strings.Join(words, "|"),
-					msg.Message,
-					msg.GroupID,
-					msg.Sender.Nickname,
-					msg.Sender.UserID,
-				)
-			} else {
-				log.Infof(
-					"拒绝处理命中敏感词「%s」的指令「%s」- 来自<%s>(%s)",
-					strings.Join(words, "|"),
-					msg.Message,
-					msg.Sender.Nickname,
-					msg.Sender.UserID,
-				)
-			}
-			return
-		}
-	}
-
-	if cmdArgs.Command != "botlist" && !cmdArgs.AmIBeMentioned {
-		myuid := ep.UserID
-		// 屏蔽机器人发送的消息
-		if mctx.MessageType == "group" {
-			// fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
-			if mctx.Group.BotList.Exists(msg.Sender.UserID) {
-				log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
-				return
-			}
-			// 当其他机器人被@，不回应
-			for _, i := range cmdArgs.At {
-				uid := i.UserID
-				if uid == myuid {
-					// 忽略自己
-					continue
-				}
-				if mctx.Group.BotList.Exists(uid) {
-					return
-				}
-			}
-		}
-	}
-	ep.TriggerCommand(mctx, msg, cmdArgs)
+// ExecuteNew 是已统一到 executeCore 的薄壳，保留签名兼容现有适配器调用点。
+// 行为与 Execute(ep, msg, false) 完全等价。
+func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
+	s.executeCore(ep, msg, false)
 }
 
 func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *CmdArgs) bool {
@@ -1899,12 +1534,8 @@ func FormatBlacklistReasons(v *BanListInfoItem) string {
 }
 
 func tryHandleBlacklistedHelpMasterRequest(ctx *MsgContext, msg *Message, now time.Time) bool {
-	var cmdArgs *CmdArgs
-	if len(msg.Segment) > 0 {
-		cmdArgs = CommandParseNew(ctx, msg)
-	} else {
-		cmdArgs = CommandParse(msg.Message, []string{"help"}, ctx.Dice.CommandPrefix, msg.Platform, false)
-	}
+	// 统一走 Segment 解析路径（executeCore 入口已确保 msg.Segment 有值）
+	cmdArgs := CommandParseNew(ctx, msg)
 	if !isBlacklistedHelpMasterRequest(cmdArgs) {
 		return false
 	}
@@ -2120,8 +1751,15 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				// 允许代骰时，发一句话
 				cur := -1
 				for index, i := range cmdArgs.At {
-					if i.UserID == ctx.EndPoint.UserID || (cmdArgs.uidForAtInfo != "" && i.UserID == cmdArgs.uidForAtInfo) {
+					if i.UserID == ctx.EndPoint.UserID {
 						continue
+					} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
+						// 特殊处理 OpenQQ频道
+						uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
+						diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
+						if uid == diceId {
+							continue
+						}
 					}
 					cur = index
 				}
