@@ -155,7 +155,8 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			Time:     m.Time,
 			RawID:    m.MessageSeq,
 			Sender: SenderBase{
-				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderId, 10)),
+				UserID:  FormatDiceIDQQ(strconv.FormatInt(m.SenderId, 10)),
+				IsRobot: isQQBotUIN(m.SenderId),
 			},
 		}
 		if msg.Sender.UserID == pa.EndPoint.UserID {
@@ -201,7 +202,8 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				case *milky.AtElement:
 					log.Debugf(" At: %d", seg.UserID)
 					msg.Segment = append(msg.Segment, &message.AtElement{
-						Target: strconv.FormatInt(seg.UserID, 10),
+						Target:  strconv.FormatInt(seg.UserID, 10),
+						IsRobot: isQQBotUIN(seg.UserID),
 					})
 				case *milky.ReplyElement:
 					log.Debugf(" Reply to message ID: %d", seg.MessageSeq)
