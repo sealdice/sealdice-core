@@ -1095,6 +1095,7 @@ func (d *Dice) PublicDiceEndpointRefresh() {
 		endpointItems = append(endpointItems, &public_dice.Endpoint{
 			Platform: i.Platform,
 			UID:      i.UserID,
+			AppID:    publicDiceEndpointAppID(i),
 			IsOnline: i.State == 1,
 		})
 	}
@@ -1142,6 +1143,7 @@ func (d *Dice) PublicDiceSetupTick() {
 			}
 			tickEndpointItems = append(tickEndpointItems, &public_dice.TickEndpoint{
 				UID:      i.UserID,
+				AppID:    publicDiceEndpointAppID(i),
 				IsOnline: i.State == 1,
 			})
 		}
@@ -1162,6 +1164,17 @@ func (d *Dice) PublicDiceSetupTick() {
 	}()
 
 	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3m", doTickUpdate)
+}
+
+func publicDiceEndpointAppID(endpoint *EndPointInfo) string {
+	if endpoint == nil || endpoint.Platform != "QQ" || endpoint.ProtocolType != "official" {
+		return ""
+	}
+	adapter, ok := endpoint.Adapter.(*PlatformAdapterOfficialQQ)
+	if !ok || adapter == nil {
+		return ""
+	}
+	return adapter.AppID
 }
 
 func (d *Dice) PublicDiceSetup() {
