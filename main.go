@@ -550,6 +550,7 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.ProtocolType == "official" {
 						dice.ServerOfficialQQ(d, conn)
+						return
 					}
 					if conn.ProtocolType == "satori" {
 						dice.ServeSatori(d, conn)

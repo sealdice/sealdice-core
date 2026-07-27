@@ -218,6 +218,9 @@ func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) {
 }
 
 func serverOfficialQQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterOfficialQQ) {
+	if conn.Ctx != nil {
+		return
+	}
 	if conn.DiceServing {
 		return
 	}

@@ -26,6 +26,28 @@ func (f officialQQTransportFunc) Transport(ctx context.Context, method, url stri
 	return f(ctx, method, url, body)
 }
 
+func TestServerOfficialQQSkipsRunningSessionBeforeStateChange(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn := &PlatformAdapterOfficialQQ{Ctx: ctx}
+	ep := &EndPointInfo{EndPointInfoBase: EndPointInfoBase{
+		State:  StateConnected,
+		Enable: true,
+	}}
+
+	serverOfficialQQ(&Dice{}, ep, conn)
+
+	if conn.DiceServing {
+		t.Fatal("running session was marked as a new server")
+	}
+	if ep.State != StateConnected || !ep.Enable {
+		t.Fatalf("endpoint state changed for running session: state=%d enable=%t", ep.State, ep.Enable)
+	}
+}
+
 func TestExtractOfficialQQBotUIN(t *testing.T) {
 	t.Parallel()
 
