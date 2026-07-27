@@ -1,5 +1,7 @@
-import { normalizeAdvancedConfig } from './advancedSettings';
+import { hasAdvancedSettingsAccess, normalizeAdvancedConfig, setAdvancedSettingsVisible } from './advancedSettings';
+import { useAdvancedSettingsStore } from './advancedSettingsStore';
 import { it } from 'vitest';
+import { appPinia } from '@/pinia';
 
 it('passes', async () => {
 
@@ -35,4 +37,12 @@ assertDeepEqual(
     storyLogBackendToken: 'token',
   },
 );
+
+const store = useAdvancedSettingsStore(appPinia);
+store.setAdvancedSettingsVisible(false);
+assertDeepEqual(hasAdvancedSettingsAccess.value, false);
+
+setAdvancedSettingsVisible(true);
+assertDeepEqual(store.advancedSettingsVisible, true);
+assertDeepEqual(hasAdvancedSettingsAccess.value, true);
 });

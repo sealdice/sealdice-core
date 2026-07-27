@@ -1,41 +1,24 @@
-import { computed, ref } from 'vue';
+import { storeToRefs } from 'pinia';
+import { appPinia } from '@/pinia';
+import { useAuthStore } from './store';
 
-const accessTokenStorageKey = 'token';
-const accessTokenRef = ref(readTokenFromStorage());
+const authStore = useAuthStore(appPinia);
+const { hasAccessToken } = storeToRefs(authStore);
 
-function readTokenFromStorage(): string {
-  try {
-    return localStorage.getItem(accessTokenStorageKey)?.trim() ?? '';
-  } catch {
-    return '';
-  }
-}
-
-// currentAccessToken 返回当前内存中的 access token。
+// 兼容层：旧代码仍从 state.ts 读取认证状态，新代码优先直接使用 useAuthStore。
 export function currentAccessToken(): string {
-  return accessTokenRef.value;
+  return authStore.currentAccessToken();
 }
 
 // hasAccessToken 用于统一判断当前是否存在登录态。
-export const hasAccessToken = computed(() => accessTokenRef.value !== '');
+export { hasAccessToken };
 
 // setAccessToken 同步更新内存和本地存储中的 access token。
 export function setAccessToken(token: string): void {
-  const normalized = token.trim();
-  accessTokenRef.value = normalized;
-
-  try {
-    if (normalized) {
-      localStorage.setItem(accessTokenStorageKey, normalized);
-    } else {
-      localStorage.removeItem(accessTokenStorageKey);
-    }
-  } catch {
-    // 忽略本地存储异常，避免阻断主流程。
-  }
+  authStore.setAccessToken(token);
 }
 
 // clearAccessToken 清理当前 access token。
 export function clearAccessToken(): void {
-  setAccessToken('');
+  authStore.clearAccessToken();
 }

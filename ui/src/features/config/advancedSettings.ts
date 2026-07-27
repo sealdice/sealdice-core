@@ -1,12 +1,16 @@
-import { computed, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 import type { AdvancedConfig } from '@/api';
+import { appPinia } from '@/pinia';
+import { useAdvancedSettingsStore } from './advancedSettingsStore';
 
-const advancedSettingsVisible = ref(false);
+const advancedSettingsStore = useAdvancedSettingsStore(appPinia);
+const { hasAdvancedSettingsAccess } = storeToRefs(advancedSettingsStore);
 
-export const hasAdvancedSettingsAccess = computed(() => advancedSettingsVisible.value);
+// 兼容层：旧代码仍从 advancedSettings.ts 读取可见性，新代码优先直接使用 store。
+export { hasAdvancedSettingsAccess };
 
 export function setAdvancedSettingsVisible(value: boolean): void {
-  advancedSettingsVisible.value = value;
+  advancedSettingsStore.setAdvancedSettingsVisible(value);
 }
 
 function cleanText(value: unknown): string {
