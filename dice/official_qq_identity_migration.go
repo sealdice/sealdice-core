@@ -931,8 +931,8 @@ func (m *officialQQIdentityMigration) migrateDataDB(operator engine.DatabaseOper
 			if err != nil {
 				return err
 			}
-			if err := m.mergeCollidingUserAttrs(tx); err != nil {
-				return err
+			if mergeErr := m.mergeCollidingUserAttrs(tx); mergeErr != nil {
+				return mergeErr
 			}
 			err = officialQQIdentityMigrationFindInBatches(
 				m.legacyAttrsQuery(tx).Select("id, attrs_type, owner_id"),
@@ -945,16 +945,16 @@ func (m *officialQQIdentityMigration) migrateDataDB(operator engine.DatabaseOper
 							continue
 						}
 						if newID != row.Id {
-							if err := ensureNoTarget(tx, &model.AttributesItemModel{}, "id = ?", newID); err != nil {
-								return err
+							if targetErr := ensureNoTarget(tx, &model.AttributesItemModel{}, "id = ?", newID); targetErr != nil {
+								return targetErr
 							}
 						}
 						updates := map[string]any{"id": newID, "owner_id": newOwnerID}
 						if rename {
 							updates["name"] = newName
 						}
-						if err := tx.Model(&model.AttributesItemModel{}).Where("id = ?", row.Id).Updates(updates).Error; err != nil {
-							return err
+						if updateErr := tx.Model(&model.AttributesItemModel{}).Where("id = ?", row.Id).Updates(updates).Error; updateErr != nil {
+							return updateErr
 						}
 					}
 					return nil

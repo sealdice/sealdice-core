@@ -1,3 +1,4 @@
+//nolint:testpackage // This test verifies the unexported cacher implementation directly.
 package cache
 
 import (
@@ -18,8 +19,8 @@ func TestDatabaseCacheDisabledContext(t *testing.T) {
 	disabledCtx := WithDatabaseCacheDisabled(normalCtx)
 	query := &caches.Query[any]{Dest: map[string]int{"value": 1}, RowsAffected: 1}
 
-	if err := cacher.Store(disabledCtx, "disabled-store", query); err != nil {
-		t.Fatal(err)
+	if storeErr := cacher.Store(disabledCtx, "disabled-store", query); storeErr != nil {
+		t.Fatal(storeErr)
 	}
 	got, err := cacher.Get(normalCtx, "disabled-store", &caches.Query[any]{})
 	if err != nil {
@@ -29,8 +30,8 @@ func TestDatabaseCacheDisabledContext(t *testing.T) {
 		t.Fatal("cache-disabled query was stored")
 	}
 
-	if err := cacher.Store(normalCtx, "normal-store", query); err != nil {
-		t.Fatal(err)
+	if storeErr := cacher.Store(normalCtx, "normal-store", query); storeErr != nil {
+		t.Fatal(storeErr)
 	}
 	got, err = cacher.Get(disabledCtx, "normal-store", &caches.Query[any]{})
 	if err != nil {
