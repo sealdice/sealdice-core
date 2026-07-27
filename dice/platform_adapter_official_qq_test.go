@@ -320,6 +320,52 @@ func TestOfficialQQAdapterSerializationDoesNotExposeSecrets(t *testing.T) {
 	}
 }
 
+func TestReplaceOfficialQQCredentials(t *testing.T) {
+	t.Parallel()
+
+	existing := NewOfficialQQConnItem("old-app", "old-secret", "123", false)
+	existing.UserID = "OpenQQ:123"
+	existing.Nickname = "old bot"
+	source := &PlatformAdapterOfficialQQ{
+		AppID:     "new-app",
+		AppSecret: "new-secret",
+	}
+	probe := &OfficialQQAccountProbeResult{
+		UIN:      "123",
+		BotID:    "new-bot-id",
+		Nickname: "new bot",
+	}
+
+	adapter, err := replaceOfficialQQCredentials(existing, source, probe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adapter != existing.Adapter {
+		t.Fatal("replacement returned a different adapter")
+	}
+	if adapter.AppID != "new-app" || adapter.AppSecret != "new-secret" || adapter.UIN != "123" {
+		t.Fatalf("credentials were not replaced: %+v", adapter)
+	}
+	if existing.UserID != "OpenQQ:123" || existing.Nickname != "new bot" {
+		t.Fatalf("endpoint identity was not updated: userID=%s nickname=%s", existing.UserID, existing.Nickname)
+	}
+}
+
+func TestReplaceOfficialQQCredentialsRejectsUINMismatch(t *testing.T) {
+	t.Parallel()
+
+	existing := NewOfficialQQConnItem("old-app", "old-secret", "123", false)
+	existing.UserID = "OpenQQ:123"
+	_, err := replaceOfficialQQCredentials(
+		existing,
+		&PlatformAdapterOfficialQQ{AppID: "new-app", AppSecret: "new-secret"},
+		&OfficialQQAccountProbeResult{UIN: "456"},
+	)
+	if err == nil {
+		t.Fatal("UIN mismatch was accepted")
+	}
+}
+
 func TestPublicDiceEndpointAppID(t *testing.T) {
 	t.Parallel()
 
