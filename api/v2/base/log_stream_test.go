@@ -3,7 +3,7 @@ package base_test
 import (
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/labstack/echo/v4"
 
 	base "sealdice-core/api/v2/base"
 	"sealdice-core/dice"
@@ -16,5 +16,5 @@ func TestRegisterLogStreamRouteSkipsEmptyDiceManager(t *testing.T) {
 		}
 	}()
 
-	base.RegisterLogStreamRoute(fiber.New(), &dice.DiceManager{})
+	base.RegisterLogStreamRoute(echo.New(), &dice.DiceManager{})
 }

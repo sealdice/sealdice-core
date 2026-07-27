@@ -2,10 +2,9 @@ package base
 
 import (
 	"encoding/json"
-	"net/http"
 
-	"github.com/codecat/melody"
-	"github.com/gofiber/fiber/v2"
+	"github.com/labstack/echo/v4"
+	"github.com/olahol/melody"
 
 	"sealdice-core/api/v2/middleware"
 	"sealdice-core/dice"
@@ -20,12 +19,12 @@ type logStreamMessage struct {
 	Item  *logger.LogItem   `json:"item,omitempty"`
 }
 
-func RegisterLogStreamRoute(e fiber.Router, dm *dice.DiceManager) {
+func RegisterLogStreamRoute(e *echo.Echo, dm *dice.DiceManager) {
 	if e == nil || dm == nil || len(dm.Dice) == 0 || dm.Dice[0] == nil || dm.Dice[0].LogWriter == nil {
 		return
 	}
 	hub := newLogStreamHub(dm.Dice[0])
-	e.Get(logStreamPath, hub.handle)
+	e.GET(logStreamPath, hub.handle)
 }
 
 type logStreamHub struct {
@@ -57,18 +56,18 @@ func newLogStreamHub(d *dice.Dice) *logStreamHub {
 	return h
 }
 
-func (h *logStreamHub) handle(c *fiber.Ctx) error {
-	token := middleware.TokenFromFiberCtx(c)
+func (h *logStreamHub) handle(c echo.Context) error {
+	token := middleware.TokenFromEchoContext(c)
 	if !middleware.IsAuthorized(h.dice, token) {
-		return c.SendStatus(http.StatusUnauthorized)
+		return c.NoContent(401)
 	}
-	return h.melody.HandleRequest(c.Context())
+	return h.melody.HandleRequest(c.Response(), c.Request())
 }
 
-func writeLogStreamMessage(s *melody.Session, msg logStreamMessage) {
+func writeLogStreamMessage(conn *melody.Session, msg logStreamMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return
 	}
-	_ = s.Write(data)
+	_ = conn.Write(data)
 }

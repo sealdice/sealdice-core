@@ -1,11 +1,11 @@
 package main
 
 import (
+	"net/http"
 	"net/http/pprof"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
 	"sealdice-core/logger"
@@ -24,31 +24,32 @@ func newPprofWebConfig(enabled bool) *pprofWebConfig {
 	return cfg
 }
 
-func registerPprofWebRoutes(router fiber.Router, cfg *pprofWebConfig) {
+func registerPprofWebRoutes(router *echo.Echo, cfg *pprofWebConfig) {
 	if router == nil || cfg == nil || !cfg.Enabled || strings.TrimSpace(cfg.Token) == "" {
 		return
 	}
 
-	tokenGuard := func(c *fiber.Ctx) error {
-		if c.Query("token") != cfg.Token {
-			return c.SendStatus(fiber.StatusUnauthorized)
+	group := router.Group("/debug/pprof", func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if c.QueryParam("token") != cfg.Token {
+				return c.NoContent(http.StatusUnauthorized)
+			}
+			return next(c)
 		}
-		return c.Next()
-	}
+	})
 
-	group := router.Group("/debug/pprof", tokenGuard)
-	group.Get("/", adaptor.HTTPHandlerFunc(pprof.Index))
-	group.Get("/cmdline", adaptor.HTTPHandlerFunc(pprof.Cmdline))
-	group.Get("/profile", adaptor.HTTPHandlerFunc(pprof.Profile))
-	group.Post("/symbol", adaptor.HTTPHandlerFunc(pprof.Symbol))
-	group.Get("/symbol", adaptor.HTTPHandlerFunc(pprof.Symbol))
-	group.Get("/trace", adaptor.HTTPHandlerFunc(pprof.Trace))
-	group.Get("/allocs", adaptor.HTTPHandler(pprof.Handler("allocs")))
-	group.Get("/block", adaptor.HTTPHandler(pprof.Handler("block")))
-	group.Get("/goroutine", adaptor.HTTPHandler(pprof.Handler("goroutine")))
-	group.Get("/heap", adaptor.HTTPHandler(pprof.Handler("heap")))
-	group.Get("/mutex", adaptor.HTTPHandler(pprof.Handler("mutex")))
-	group.Get("/threadcreate", adaptor.HTTPHandler(pprof.Handler("threadcreate")))
+	group.GET("/", echo.WrapHandler(http.HandlerFunc(pprof.Index)))
+	group.GET("/cmdline", echo.WrapHandler(http.HandlerFunc(pprof.Cmdline)))
+	group.GET("/profile", echo.WrapHandler(http.HandlerFunc(pprof.Profile)))
+	group.POST("/symbol", echo.WrapHandler(http.HandlerFunc(pprof.Symbol)))
+	group.GET("/symbol", echo.WrapHandler(http.HandlerFunc(pprof.Symbol)))
+	group.GET("/trace", echo.WrapHandler(http.HandlerFunc(pprof.Trace)))
+	group.GET("/allocs", echo.WrapHandler(pprof.Handler("allocs")))
+	group.GET("/block", echo.WrapHandler(pprof.Handler("block")))
+	group.GET("/goroutine", echo.WrapHandler(pprof.Handler("goroutine")))
+	group.GET("/heap", echo.WrapHandler(pprof.Handler("heap")))
+	group.GET("/mutex", echo.WrapHandler(pprof.Handler("mutex")))
+	group.GET("/threadcreate", echo.WrapHandler(pprof.Handler("threadcreate")))
 }
 
 func logPprofWebEnabled(cfg *pprofWebConfig, serveAddress string) {

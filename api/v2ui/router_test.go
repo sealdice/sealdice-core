@@ -9,13 +9,13 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/labstack/echo/v4"
 
 	"sealdice-core/api/v2ui"
 )
 
 func TestRegisterServesV2UIWithCachePolicy(t *testing.T) {
-	app := fiber.New()
+	app := echo.New()
 	source := fstest.MapFS{
 		"dist/index.html": {
 			Data: []byte("<!doctype html><title>v2 ui</title>"),
@@ -33,8 +33,8 @@ func TestRegisterServesV2UIWithCachePolicy(t *testing.T) {
 	}
 
 	resp := request(t, app, http.MethodGet, "/v2ui")
-	if resp.StatusCode != fiber.StatusPermanentRedirect {
-		t.Fatalf("/v2ui status = %d, want %d", resp.StatusCode, fiber.StatusPermanentRedirect)
+	if resp.StatusCode != http.StatusPermanentRedirect {
+		t.Fatalf("/v2ui status = %d, want %d", resp.StatusCode, http.StatusPermanentRedirect)
 	}
 	if got := resp.Header.Get("Location"); got != "v2ui/" {
 		t.Fatalf("Location = %q, want v2ui/", got)
@@ -53,29 +53,29 @@ func TestRegisterServesV2UIWithCachePolicy(t *testing.T) {
 	}
 
 	resp = request(t, app, http.MethodGet, "/v2ui/mod/story?tab=detail")
-	if resp.StatusCode != fiber.StatusPermanentRedirect {
-		t.Fatalf("history route status = %d, want %d", resp.StatusCode, fiber.StatusPermanentRedirect)
+	if resp.StatusCode != http.StatusPermanentRedirect {
+		t.Fatalf("history route status = %d, want %d", resp.StatusCode, http.StatusPermanentRedirect)
 	}
 	if got := resp.Header.Get("Location"); got != "../#/mod/story?tab=detail" {
 		t.Fatalf("history route Location = %q, want ../#/mod/story?tab=detail", got)
 	}
 
 	resp = request(t, app, http.MethodGet, "/v2ui/mod")
-	if resp.StatusCode != fiber.StatusPermanentRedirect {
-		t.Fatalf("single segment history route status = %d, want %d", resp.StatusCode, fiber.StatusPermanentRedirect)
+	if resp.StatusCode != http.StatusPermanentRedirect {
+		t.Fatalf("single segment history route status = %d, want %d", resp.StatusCode, http.StatusPermanentRedirect)
 	}
 	if got := resp.Header.Get("Location"); got != "./#/mod" {
 		t.Fatalf("single segment history route Location = %q, want ./#/mod", got)
 	}
 
 	resp = request(t, app, http.MethodGet, "/v2ui/assets/missing.js")
-	if resp.StatusCode != fiber.StatusNotFound {
-		t.Fatalf("missing asset status = %d, want %d", resp.StatusCode, fiber.StatusNotFound)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("missing asset status = %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
 }
 
 func TestRegisterFallsBackToPlaceholderWhenDistMissing(t *testing.T) {
-	app := fiber.New()
+	app := echo.New()
 	source := fstest.MapFS{
 		"placeholder/index.html": {
 			Data: []byte("<!doctype html><title>placeholder</title>"),
@@ -91,7 +91,7 @@ func TestRegisterFallsBackToPlaceholderWhenDistMissing(t *testing.T) {
 }
 
 func TestRegisterReturnsErrorWithoutDistOrPlaceholder(t *testing.T) {
-	app := fiber.New()
+	app := echo.New()
 	err := v2ui.Register(app, fstest.MapFS{})
 	if err == nil {
 		t.Fatal("Register returned nil, want error")
@@ -101,12 +101,12 @@ func TestRegisterReturnsErrorWithoutDistOrPlaceholder(t *testing.T) {
 	}
 }
 
-func request(t *testing.T, app *fiber.App, method string, path string) *http.Response {
+func request(t *testing.T, app *echo.Echo, method string, path string) *http.Response {
 	t.Helper()
-	resp, err := app.Test(httptest.NewRequest(method, path, nil))
-	if err != nil {
-		t.Fatalf("%s %s: %v", method, path, err)
-	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(method, path, nil)
+	app.ServeHTTP(rec, req)
+	resp := rec.Result()
 	t.Cleanup(func() {
 		_ = resp.Body.Close()
 	})
@@ -115,8 +115,8 @@ func request(t *testing.T, app *fiber.App, method string, path string) *http.Res
 
 func assertBodyContains(t *testing.T, resp *http.Response, want string) {
 	t.Helper()
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("status = %d, want %d", resp.StatusCode, fiber.StatusOK)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

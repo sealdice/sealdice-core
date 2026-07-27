@@ -2,7 +2,7 @@ package v2
 
 import (
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/gofiber/fiber/v2"
+	"github.com/labstack/echo/v4"
 
 	"sealdice-core/api/v2/backup"
 	"sealdice-core/api/v2/ban"
@@ -27,7 +27,7 @@ import (
 
 // InitV2Router 初始化v2版本的API路由
 // 使用依赖注入模式，将dice实例传递给各个模块
-func InitV2Router(api huma.API, e fiber.Router, dm *dice.DiceManager) {
+func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	baseGroup := huma.NewGroup(api, "/sd-api/v2/base")
 	baseGroup.UseSimpleModifier(huma.OperationTags("base"))
 	baseService := base.NewBaseService(dm)

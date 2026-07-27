@@ -6,19 +6,19 @@ import (
 	"path/filepath"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
-	"github.com/gofiber/fiber/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humaecho"
+	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 )
 
-// BuildOpenAPI registers the v2 router on a throwaway Fiber instance and returns
+// BuildOpenAPI registers the v2 router on a throwaway Echo instance and returns
 // the generated OpenAPI document. The minimal DiceManager is intentionally not
 // loaded from disk, so spec generation stays side-effect free.
 func BuildOpenAPI() *huma.OpenAPI {
-	app := fiber.New()
-	api := humafiber.New(app, huma.DefaultConfig("Sealdice API", "2.0.0"))
+	app := echo.New()
+	api := humaecho.New(app, huma.DefaultConfig("Sealdice API", "2.0.0"))
 	InitV2Router(api, app, newOpenAPIDiceManager())
 	return api.OpenAPI()
 }

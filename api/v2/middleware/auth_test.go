@@ -8,10 +8,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/humatest"
-	"github.com/gofiber/fiber/v2"
+	"github.com/labstack/echo/v4"
 
-	"sealdice-core/dice"
 	middleware "sealdice-core/api/v2/middleware"
+	"sealdice-core/dice"
 )
 
 func TestTokenFromHTTPRequestPrefersBearerAuthorization(t *testing.T) {
@@ -38,44 +38,41 @@ func TestTokenFromHTTPRequestFallsBackToTokenHeaderAndQuery(t *testing.T) {
 	}
 }
 
-func TestTokenFromFiberCtxPrefersBearerAuthorization(t *testing.T) {
-	app := fiber.New()
+func TestTokenFromEchoContextPrefersBearerAuthorization(t *testing.T) {
+	app := echo.New()
 	var token string
-	app.Get("/ws", func(c *fiber.Ctx) error {
-		token = middleware.TokenFromFiberCtx(c)
-		return c.SendStatus(http.StatusNoContent)
+	app.GET("/ws", func(c echo.Context) error {
+		token = middleware.TokenFromEchoContext(c)
+		return c.NoContent(http.StatusNoContent)
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/ws?token=query-token", nil)
 	req.Header.Set("Authorization", "Bearer header-token")
 	req.Header.Set("Token", "legacy-header-token")
-	if _, err := app.Test(req); err != nil {
-		t.Fatalf("fiber test request: %v", err)
-	}
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, req)
 
 	if token != "header-token" {
 		t.Fatalf("token = %q, want header-token", token)
 	}
 }
 
-func TestTokenFromFiberCtxFallsBackToTokenHeaderAndQuery(t *testing.T) {
-	app := fiber.New()
+func TestTokenFromEchoContextFallsBackToTokenHeaderAndQuery(t *testing.T) {
+	app := echo.New()
 	var tokens []string
-	app.Get("/ws", func(c *fiber.Ctx) error {
-		tokens = append(tokens, middleware.TokenFromFiberCtx(c))
-		return c.SendStatus(http.StatusNoContent)
+	app.GET("/ws", func(c echo.Context) error {
+		tokens = append(tokens, middleware.TokenFromEchoContext(c))
+		return c.NoContent(http.StatusNoContent)
 	})
 
 	reqWithHeader := httptest.NewRequest(http.MethodGet, "/ws?token=query-token", nil)
 	reqWithHeader.Header.Set("Token", "legacy-header-token")
-	if _, err := app.Test(reqWithHeader); err != nil {
-		t.Fatalf("fiber header request: %v", err)
-	}
+	recHeader := httptest.NewRecorder()
+	app.ServeHTTP(recHeader, reqWithHeader)
 
 	reqWithQuery := httptest.NewRequest(http.MethodGet, "/ws?token=query-token", nil)
-	if _, err := app.Test(reqWithQuery); err != nil {
-		t.Fatalf("fiber query request: %v", err)
-	}
+	recQuery := httptest.NewRecorder()
+	app.ServeHTTP(recQuery, reqWithQuery)
 
 	if tokens[0] != "legacy-header-token" {
 		t.Fatalf("header fallback token = %q, want legacy-header-token", tokens[0])

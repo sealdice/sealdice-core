@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"sync"
 	"time"
 
-	"github.com/codecat/melody"
-	"github.com/gofiber/fiber/v2"
+	"github.com/labstack/echo/v4"
+	"github.com/olahol/melody"
 
 	apimiddleware "sealdice-core/api/v2/middleware"
 	"sealdice-core/dice"
@@ -37,7 +38,7 @@ type Server struct {
 	unsubscribeLogs func()
 }
 
-func RegisterRoutes(e fiber.Router, dm *dice.DiceManager) *Server {
+func RegisterRoutes(e *echo.Echo, dm *dice.DiceManager) *Server {
 	if e == nil {
 		return nil
 	}
@@ -53,8 +54,8 @@ func RegisterRoutes(e fiber.Router, dm *dice.DiceManager) *Server {
 
 	srv.Start()
 
-	e.Get(realtimeWSPath, srv.handleWS)
-	e.Get(realtimeSSEPath, srv.handleSSE)
+	e.GET(realtimeWSPath, srv.handleWS)
+	e.GET(realtimeSSEPath, srv.handleSSE)
 
 	return srv
 }
@@ -67,7 +68,6 @@ func NewServer(dm *dice.DiceManager) *Server {
 		watcher: NewStateWatcher(dm, NewBus()),
 	}
 	srv.watcher = NewStateWatcher(dm, srv.bus)
-
 	srv.ws.HandleConnect(func(session *melody.Session) {
 		unsubscribe := srv.attachWSSession(session)
 		session.Set(wsUnsubscribeSessionKey, unsubscribe)
@@ -101,64 +101,74 @@ func (s *Server) Start() {
 	}()
 }
 
-func (s *Server) handleWS(c *fiber.Ctx) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromFiberCtx(c)) {
-		return c.SendStatus(fiber.StatusUnauthorized)
+func (s *Server) handleWS(c echo.Context) error {
+	if !isAuthorized(s.dm, apimiddleware.TokenFromEchoContext(c)) {
+		return c.NoContent(401)
 	}
-	return s.ws.HandleRequest(c.Context())
+	return s.ws.HandleRequest(c.Response(), c.Request())
 }
 
-func (s *Server) handleSSE(c *fiber.Ctx) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromFiberCtx(c)) {
-		return c.SendStatus(fiber.StatusUnauthorized)
+func (s *Server) handleSSE(c echo.Context) error {
+	if !isAuthorized(s.dm, apimiddleware.TokenFromEchoContext(c)) {
+		return c.NoContent(http.StatusUnauthorized)
 	}
 
-	c.Set(fiber.HeaderContentType, "text/event-stream")
-	c.Set(fiber.HeaderCacheControl, "no-cache")
-	c.Set(fiber.HeaderConnection, "keep-alive")
-	c.Set("X-Accel-Buffering", "no")
-	c.Status(fiber.StatusOK)
+	res := c.Response()
+	req := c.Request()
+	res.Header().Set(echo.HeaderContentType, "text/event-stream")
+	res.Header().Set(echo.HeaderCacheControl, "no-cache")
+	res.Header().Set(echo.HeaderConnection, "keep-alive")
+	res.Header().Set("X-Accel-Buffering", "no")
+	res.WriteHeader(http.StatusOK)
 
-	c.Context().SetBodyStreamWriter(func(writer *bufio.Writer) {
-		writeAndFlush := func(fn func() error) bool {
-			if err := fn(); err != nil {
-				return false
-			}
-			return writer.Flush() == nil
+	flusher, ok := res.Writer.(http.Flusher)
+	if !ok {
+		return echo.NewHTTPError(http.StatusInternalServerError, "streaming unsupported")
+	}
+	writer := bufio.NewWriter(res.Writer)
+	writeAndFlush := func(fn func() error) bool {
+		if err := fn(); err != nil {
+			return false
 		}
+		if err := writer.Flush(); err != nil {
+			return false
+		}
+		flusher.Flush()
+		return true
+	}
 
-		for _, evt := range buildBootstrapEvents(s.dm) {
+	for _, evt := range buildBootstrapEvents(s.dm) {
+		if !writeAndFlush(func() error { return writeSSEEvent(writer, evt) }) {
+			return nil
+		}
+	}
+
+	ch, unsubscribe := s.bus.Subscribe(128)
+	defer unsubscribe()
+
+	heartbeat := time.NewTicker(sseHeartbeatInterval)
+	defer heartbeat.Stop()
+
+	for {
+		select {
+		case evt, ok := <-ch:
+			if !ok {
+				return nil
+			}
 			if !writeAndFlush(func() error { return writeSSEEvent(writer, evt) }) {
-				return
+				return nil
 			}
-		}
-
-		ch, unsubscribe := s.bus.Subscribe(128)
-		defer unsubscribe()
-
-		heartbeat := time.NewTicker(sseHeartbeatInterval)
-		defer heartbeat.Stop()
-
-		for {
-			select {
-			case evt, ok := <-ch:
-				if !ok {
-					return
-				}
-				if !writeAndFlush(func() error { return writeSSEEvent(writer, evt) }) {
-					return
-				}
-			case <-heartbeat.C:
-				if !writeAndFlush(func() error {
-					_, err := io.WriteString(writer, ": ping\n\n")
-					return err
-				}) {
-					return
-				}
+		case <-heartbeat.C:
+			if !writeAndFlush(func() error {
+				_, err := io.WriteString(writer, ": ping\n\n")
+				return err
+			}) {
+				return nil
 			}
+		case <-req.Context().Done():
+			return nil
 		}
-	})
-	return nil
+	}
 }
 
 func (s *Server) attachWSSession(session *melody.Session) func() {

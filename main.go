@@ -18,24 +18,16 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/adaptor"
-	"github.com/gofiber/fiber/v2/middleware/compress"
-
-	//"github.com/gofiber/fiber/v2/middleware/compress"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/gofiber/fiber/v2/middleware/helmet"
+	"github.com/danielgtaylor/huma/v2/adapters/humaecho"
 	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
 	apiv2 "sealdice-core/api/v2"
-	apiv2middleware "sealdice-core/api/v2/middleware"
 	v2ui "sealdice-core/api/v2ui"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
@@ -613,66 +605,62 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool, enablePProfWeb 
 	log := logger.M()
 	log.Info("即将启动webui")
 
-	e := fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-	})
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
 	pprofCfg := newPprofWebConfig(enablePProfWeb)
 	registerPprofWebRoutes(e, pprofCfg)
 
-	e.Use(logger.FiberLogMiddleware())
-	e.Use(cors.New(cors.Config{
-		AllowHeaders: strings.Join([]string{
-			fiber.HeaderOrigin,
-			fiber.HeaderContentType,
-			fiber.HeaderAccept,
-			fiber.HeaderAuthorization,
+	e.Use(logger.EchoLogMiddleware())
+	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
 			"token",
-		}, ","),
-		AllowOrigins: "*",
-		AllowMethods: strings.Join([]string{
+		},
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{
 			http.MethodGet,
 			http.MethodHead,
 			http.MethodPut,
 			http.MethodPatch,
 			http.MethodPost,
 			http.MethodDelete,
-		}, ","),
+		},
 	}))
 
-	e.Use(func(c *fiber.Ctx) error {
-		c.Set(fiber.HeaderServer, "Sealdice Fiber")
-		return c.Next()
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set(echo.HeaderServer, "Sealdice Echo")
+			return next(c)
+		}
 	})
 
 	mimePatch()
-	e.Use(helmet.New(helmet.Config{
+	e.Use(echomiddleware.SecureWithConfig(echomiddleware.SecureConfig{
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
 		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
 	}))
 
-	e.Use(func(c *fiber.Ctx) error {
-		if c.Path() == "/" {
-			c.Set(fiber.HeaderCacheControl, "no-cache, no-store, must-revalidate")
-			c.Set("Pragma", "no-cache")
-			c.Set(fiber.HeaderExpires, "0")
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if c.Request().URL.Path == "/" {
+				c.Response().Header().Set(echo.HeaderCacheControl, "no-cache, no-store, must-revalidate")
+				c.Response().Header().Set("Pragma", "no-cache")
+				c.Response().Header().Set("Expires", "0")
+			}
+			return next(c)
 		}
-		return c.Next()
 	})
 
-	e.Use("/sd-api/v2", apiv2middleware.V2DataETagMiddleware())
-	// 废弃
-	// e.Use(compress.New())
-	e.Use("/sd-api/v2", compress.New())
-
-	apier := humafiber.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
+	apier := humaecho.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
 	apiv2.InitV2Router(apier, e, dm)
 
-	legacy := echo.New()
-	legacy.HideBanner = true
-	api.BindV1(legacy, dm)
-	e.Use("/sd-api", adaptor.HTTPHandler(legacy))
+	api.BindV1(e, dm)
 
 	v2UIRoot, err := fs.Sub(static.V2UI, "v2ui")
 	if err != nil {
@@ -683,12 +671,16 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool, enablePProfWeb 
 
 	if useBuiltin {
 		frontend, _ := fs.Sub(static.Frontend, "frontend")
-		e.Use("/", filesystem.New(filesystem.Config{
-			Root:         http.FS(frontend),
-			NotFoundFile: "index.html",
+		e.Use(echomiddleware.StaticWithConfig(echomiddleware.StaticConfig{
+			Root:       ".",
+			HTML5:      true,
+			Filesystem: http.FS(frontend),
 		}))
 	} else {
-		e.Static("/", "./frontend_overwrite")
+		e.Use(echomiddleware.StaticWithConfig(echomiddleware.StaticConfig{
+			Root:  "./frontend_overwrite",
+			HTML5: true,
+		}))
 	}
 
 	logPprofWebEnabled(pprofCfg, dm.ServeAddress)

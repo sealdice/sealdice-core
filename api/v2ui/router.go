@@ -7,8 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/labstack/echo/v4"
 )
 
 const (
@@ -19,45 +18,42 @@ const (
 	placeholderIndexPath   = "placeholder/index.html"
 )
 
-func Register(router fiber.Router, source fs.FS) error {
+func Register(router *echo.Echo, source fs.FS) error {
 	root, err := selectRoot(source)
 	if err != nil {
 		return err
 	}
 
-	router.Use(PathPrefix, redirectBarePrefix())
-	router.Use(PathPrefix, redirectHashRouteFallback())
-	router.Use(PathPrefix, v2UICacheHeaders())
-	router.Use(PathPrefix, filesystem.New(filesystem.Config{
-		Root: http.FS(root),
-	}))
-	router.Use(PathPrefix, v2UINotFound())
+	group := router.Group(PathPrefix)
+	group.Use(redirectHashRouteFallback(), v2UICacheHeaders())
+	group.StaticFS("/", root)
+	router.GET(PathPrefix, redirectBarePrefix())
 	return nil
 }
 
-func redirectBarePrefix() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		if c.Method() == fiber.MethodGet && c.Path() == PathPrefix {
-			return c.Redirect(strings.TrimPrefix(PathPrefix, "/")+"/", fiber.StatusPermanentRedirect)
-		}
-		return c.Next()
+func redirectBarePrefix() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		return c.Redirect(http.StatusPermanentRedirect, strings.TrimPrefix(PathPrefix, "/")+"/")
 	}
 }
 
-func redirectHashRouteFallback() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		method := c.Method()
-		if method != fiber.MethodGet && method != fiber.MethodHead {
-			return c.Next()
-		}
+func redirectHashRouteFallback() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			method := c.Request().Method
+			if method != http.MethodGet && method != http.MethodHead {
+				return next(c)
+			}
 
-		relativePath := strings.TrimPrefix(c.Path(), PathPrefix)
-		if relativePath == "" || relativePath == "/" || path.Ext(relativePath) != "" {
-			return c.Next()
-		}
+			requestPath := c.Request().URL.Path
+			relativePath := strings.TrimPrefix(requestPath, PathPrefix)
+			if relativePath == "" || relativePath == "/" || path.Ext(relativePath) != "" {
+				return next(c)
+			}
 
-		location := hashRouteFallbackLocation(relativePath, string(c.Request().URI().QueryString()))
-		return c.Redirect(location, fiber.StatusPermanentRedirect)
+			location := hashRouteFallbackLocation(relativePath, c.Request().URL.RawQuery)
+			return c.Redirect(http.StatusPermanentRedirect, location)
+		}
 	}
 }
 
@@ -91,12 +87,6 @@ func hashRouteFallbackLocation(relativePath string, query string) string {
 	return location
 }
 
-func v2UINotFound() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return fiber.ErrNotFound
-	}
-}
-
 func selectRoot(source fs.FS) (fs.FS, error) {
 	if _, err := fs.Stat(source, distIndexPath); err == nil {
 		return fs.Sub(source, "dist")
@@ -107,16 +97,12 @@ func selectRoot(source fs.FS) (fs.FS, error) {
 	return nil, fmt.Errorf("static v2ui: missing %s and %s", distIndexPath, placeholderIndexPath)
 }
 
-func v2UICacheHeaders() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		if err := c.Next(); err != nil {
-			return err
+func v2UICacheHeaders() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set(echo.HeaderCacheControl, cacheControlForPath(c.Request().URL.Path))
+			return next(c)
 		}
-		if c.Response().StatusCode() != fiber.StatusOK {
-			return nil
-		}
-		c.Set(fiber.HeaderCacheControl, cacheControlForPath(c.Path()))
-		return nil
 	}
 }
 
