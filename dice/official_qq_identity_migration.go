@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/model"
+	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/dboperator/engine"
 )
@@ -25,6 +26,30 @@ type officialQQIdentityMigration struct {
 	groups         map[string]string
 	users          map[string]string
 	characterNames map[string]string
+}
+
+const officialQQIdentityMigrationBatchSize = 200
+
+func officialQQIdentityMigrationFindInBatches[T any](query *gorm.DB, process func([]T) error) error {
+	var rows []T
+	query = officialQQIdentityMigrationWithoutCache(query)
+	return query.FindInBatches(&rows, officialQQIdentityMigrationBatchSize, func(_ *gorm.DB, _ int) error {
+		return process(rows)
+	}).Error
+}
+
+func officialQQIdentityMigrationWithoutCache(db *gorm.DB) *gorm.DB {
+	return db.WithContext(cache.WithDatabaseCacheDisabled(db.Statement.Context))
+}
+
+func officialQQIdentityMigrationForEachChunk[T any](items []T, process func([]T) error) error {
+	for start := 0; start < len(items); start += officialQQIdentityMigrationBatchSize {
+		end := min(start+officialQQIdentityMigrationBatchSize, len(items))
+		if err := process(items[start:end]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type officialQQIdentityMigrationError struct {
@@ -93,6 +118,24 @@ func ensureOfficialQQIdentity(d *Dice, pa *PlatformAdapterOfficialQQ, botID, uin
 
 func (m *officialQQIdentityMigration) oldGroupPrefix() string {
 	return "OpenQQ-Group-T:" + m.appID + "-"
+}
+
+func officialQQIdentityMigrationPrefixBounds(prefix string) (string, string) {
+	// All legacy identity prefixes are ASCII and end in '-'. Replacing that
+	// byte with '.' gives the smallest exclusive upper bound for the prefix.
+	return prefix, strings.TrimSuffix(prefix, "-") + "."
+}
+
+func (m *officialQQIdentityMigration) oldGroupBounds() (string, string) {
+	return officialQQIdentityMigrationPrefixBounds(m.oldGroupPrefix())
+}
+
+func (m *officialQQIdentityMigration) oldMemberRootPrefix() string {
+	return "OpenQQ-Member-T:" + m.appID + "-"
+}
+
+func (m *officialQQIdentityMigration) oldMemberBounds() (string, string) {
+	return officialQQIdentityMigrationPrefixBounds(m.oldMemberRootPrefix())
 }
 
 func (m *officialQQIdentityMigration) oldMemberPrefix(groupOpenID string) string {
@@ -285,17 +328,20 @@ func (m *officialQQIdentityMigration) syncCharacterCache(d *Dice, operator engin
 	if !hasTable(db, &model.AttributesItemModel{}) {
 		return nil
 	}
-	var rows []model.AttributesItemModel
-	if err := db.Select("id, name").Where("attrs_type = ? AND id IN ?", "character", ids).Find(&rows).Error; err != nil {
-		return err
-	}
-	for _, row := range rows {
-		if item, ok := d.AttrsManager.m.Load(row.Id); ok && item != nil {
-			item.Name = row.Name
-			item.IsSaved = true
+	db = officialQQIdentityMigrationWithoutCache(db)
+	return officialQQIdentityMigrationForEachChunk(ids, func(batchIDs []string) error {
+		var rows []model.AttributesItemModel
+		if err := db.Select("id, name").Where("attrs_type = ? AND id IN ?", "character", batchIDs).Find(&rows).Error; err != nil {
+			return err
 		}
-	}
-	return nil
+		for _, row := range rows {
+			if item, ok := d.AttrsManager.m.Load(row.Id); ok && item != nil {
+				item.Name = row.Name
+				item.IsSaved = true
+			}
+		}
+		return nil
+	})
 }
 
 func hasTable(db *gorm.DB, value any) bool {
@@ -303,114 +349,196 @@ func hasTable(db *gorm.DB, value any) bool {
 }
 
 func (m *officialQQIdentityMigration) shouldRunIdentityMigration(operator engine.DatabaseOperator) (bool, error) {
-	db := operator.GetDataDB(constant.READ)
-	if !hasTable(db, &model.GroupInfo{}) {
-		// Without group_info the optimized probe is unavailable, so preserve the full fallback.
+	groupPrefix, groupUpperBound := m.oldGroupBounds()
+	memberPrefix, memberUpperBound := m.oldMemberBounds()
+
+	probes := []*gorm.DB{}
+	dataDB := operator.GetDataDB(constant.READ)
+	if !hasTable(dataDB, &model.GroupInfo{}) {
+		// Without group_info the optimized database probe cannot rule out
+		// legacy identities held only in memory, so preserve the full fallback.
 		return true, nil
 	}
+	probes = append(probes, dataDB.Model(&model.GroupInfo{}).Where("id >= ? AND id < ?", groupPrefix, groupUpperBound))
 
-	prefix := m.oldGroupPrefix()
-	// The IDs are ASCII; '.' is the exclusive upper bound for a prefix ending in '-'.
-	upperBound := strings.TrimSuffix(prefix, "-") + "."
-	var row model.GroupInfo
-	result := db.Select("id").Where("id >= ? AND id < ?", prefix, upperBound).Limit(1).Find(&row)
-	if result.Error != nil {
-		return false, result.Error
+	logDB := operator.GetLogDB(constant.READ)
+	if hasTable(logDB, &model.LogInfo{}) {
+		probes = append(probes, logDB.Model(&model.LogInfo{}).Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound))
 	}
-	return result.RowsAffected != 0, nil
+	if hasTable(logDB, &model.LogOneItem{}) {
+		probes = append(probes, logDB.Model(&model.LogOneItem{}).Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound))
+	}
+
+	if hasTable(dataDB, &model.GroupPlayerInfoBase{}) {
+		probes = append(probes, dataDB.Model(&model.GroupPlayerInfoBase{}).Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound))
+	}
+	if hasTable(dataDB, &model.AttributesItemModel{}) {
+		probes = append(probes, m.legacyAttrsQuery(dataDB.Model(&model.AttributesItemModel{})))
+	}
+	if hasTable(dataDB, &model.BanInfo{}) {
+		probes = append(probes, dataDB.Model(&model.BanInfo{}).Where(
+			"(id >= ? AND id < ?) OR (id >= ? AND id < ?)",
+			groupPrefix,
+			groupUpperBound,
+			memberPrefix,
+			memberUpperBound,
+		))
+	}
+	if hasTable(dataDB, &model.EndpointInfo{}) {
+		probes = append(probes, dataDB.Model(&model.EndpointInfo{}).Where("user_id = ?", m.oldEndpoint))
+	}
+
+	censorDB := operator.GetCensorDB(constant.READ)
+	if hasTable(censorDB, &model.CensorLog{}) {
+		probes = append(probes, censorDB.Model(&model.CensorLog{}).Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound))
+	}
+
+	for _, probe := range probes {
+		var found int
+		result := officialQQIdentityMigrationWithoutCache(probe).Select("1").Limit(1).Scan(&found)
+		if result.Error != nil {
+			return false, result.Error
+		}
+		if result.RowsAffected != 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (m *officialQQIdentityMigration) collectDatabase(operator engine.DatabaseOperator) error {
+	groupPrefix, groupUpperBound := m.oldGroupBounds()
+	memberPrefix, memberUpperBound := m.oldMemberBounds()
 	dataDB := operator.GetDataDB(constant.READ)
 	if hasTable(dataDB, &model.GroupInfo{}) {
-		var rows []model.GroupInfo
-		if err := dataDB.Where("id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+		err := officialQQIdentityMigrationFindInBatches(
+			dataDB.Select("id").Where("id >= ? AND id < ?", groupPrefix, groupUpperBound),
+			func(rows []model.GroupInfo) error {
+				for _, row := range rows {
+					m.addGroup(row.ID)
+				}
+				return nil
+			},
+		)
+		if err != nil {
 			return err
-		}
-		for _, row := range rows {
-			m.addGroup(row.ID)
 		}
 	}
 	if hasTable(dataDB, &model.GroupPlayerInfoBase{}) {
-		var rows []model.GroupPlayerInfoBase
-		if err := dataDB.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+		err := officialQQIdentityMigrationFindInBatches(
+			dataDB.Select("id, group_id, user_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+			func(rows []model.GroupPlayerInfoBase) error {
+				for _, row := range rows {
+					m.addGroup(row.GroupID)
+					m.addMember(row.GroupID, row.UserID)
+				}
+				return nil
+			},
+		)
+		if err != nil {
 			return err
-		}
-		for _, row := range rows {
-			m.addGroup(row.GroupID)
-			m.addMember(row.GroupID, row.UserID)
 		}
 	}
 
 	logDB := operator.GetLogDB(constant.READ)
 	if hasTable(logDB, &model.LogInfo{}) {
-		var rows []model.LogInfo
-		if err := logDB.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+		err := officialQQIdentityMigrationFindInBatches(
+			logDB.Select("id, group_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+			func(rows []model.LogInfo) error {
+				for _, row := range rows {
+					m.addGroup(row.GroupID)
+				}
+				return nil
+			},
+		)
+		if err != nil {
 			return err
-		}
-		for _, row := range rows {
-			m.addGroup(row.GroupID)
 		}
 	}
 	if hasTable(logDB, &model.LogOneItem{}) {
-		var rows []model.LogOneItem
-		if err := logDB.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+		err := officialQQIdentityMigrationFindInBatches(
+			logDB.Select("id, group_id, im_userid, user_uniform_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+			func(rows []model.LogOneItem) error {
+				for _, row := range rows {
+					m.addGroup(row.GroupID)
+					m.addMember(row.GroupID, row.IMUserID)
+					m.addMember(row.GroupID, row.UniformID)
+				}
+				return nil
+			},
+		)
+		if err != nil {
 			return err
-		}
-		for _, row := range rows {
-			m.addGroup(row.GroupID)
-			m.addMember(row.GroupID, row.IMUserID)
-			m.addMember(row.GroupID, row.UniformID)
 		}
 	}
 
 	censorDB := operator.GetCensorDB(constant.READ)
 	if hasTable(censorDB, &model.CensorLog{}) {
-		var rows []model.CensorLog
-		if err := censorDB.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+		err := officialQQIdentityMigrationFindInBatches(
+			censorDB.Select("id, group_id, user_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+			func(rows []model.CensorLog) error {
+				for _, row := range rows {
+					m.addGroup(row.GroupID)
+					m.addMember(row.GroupID, row.UserID)
+				}
+				return nil
+			},
+		)
+		if err != nil {
 			return err
-		}
-		for _, row := range rows {
-			m.addGroup(row.GroupID)
-			m.addMember(row.GroupID, row.UserID)
 		}
 	}
 
 	if hasTable(dataDB, &model.AttributesItemModel{}) {
-		var rows []model.AttributesItemModel
-		query := "id LIKE ? OR id LIKE ? OR owner_id LIKE ?"
-		if err := dataDB.Where(query, m.oldGroupPrefix()+"%", "%"+"OpenQQ-Member-T:"+m.appID+"-%", "OpenQQ-Member-T:"+m.appID+"-%").Find(&rows).Error; err != nil {
-			return err
-		}
 		groupUserMarker := "-OpenQQ-Member-T:" + m.appID + "-"
-		for _, row := range rows {
-			if marker := strings.Index(row.Id, groupUserMarker); marker > 0 {
-				oldGroupID := row.Id[:marker]
-				if m.addGroup(oldGroupID) {
-					m.addMember(oldGroupID, row.Id[marker+1:])
+		err := officialQQIdentityMigrationFindInBatches(
+			m.legacyAttrsQuery(dataDB.Select("id, owner_id")),
+			func(rows []model.AttributesItemModel) error {
+				for _, row := range rows {
+					if marker := strings.Index(row.Id, groupUserMarker); marker > 0 {
+						oldGroupID := row.Id[:marker]
+						if m.addGroup(oldGroupID) {
+							m.addMember(oldGroupID, row.Id[marker+1:])
+						}
+					} else if strings.HasPrefix(row.Id, m.oldGroupPrefix()) {
+						m.addGroup(row.Id)
+					}
+					m.addMemberID(row.Id)
+					m.addMemberID(row.OwnerId)
 				}
-			} else if strings.HasPrefix(row.Id, m.oldGroupPrefix()) {
-				m.addGroup(row.Id)
-			}
-			m.addMemberID(row.Id)
-			m.addMemberID(row.OwnerId)
+				return nil
+			},
+		)
+		if err != nil {
+			return err
 		}
 	}
 
 	if hasTable(dataDB, &model.BanInfo{}) {
-		var rows []model.BanInfo
-		if err := dataDB.Where("id LIKE ? OR id LIKE ?", m.oldGroupPrefix()+"%", "OpenQQ-Member-T:"+m.appID+"-%").Find(&rows).Error; err != nil {
+		err := officialQQIdentityMigrationFindInBatches(
+			dataDB.Select("id, data").Where(
+				"(id >= ? AND id < ?) OR (id >= ? AND id < ?)",
+				groupPrefix,
+				groupUpperBound,
+				memberPrefix,
+				memberUpperBound,
+			),
+			func(rows []model.BanInfo) error {
+				for _, row := range rows {
+					var item BanListInfoItem
+					if json.Unmarshal(row.Data, &item) != nil {
+						continue
+					}
+					for _, place := range item.Places {
+						m.addGroup(place)
+						m.addMember(place, row.ID)
+					}
+				}
+				return nil
+			},
+		)
+		if err != nil {
 			return err
-		}
-		for _, row := range rows {
-			var item BanListInfoItem
-			if json.Unmarshal(row.Data, &item) != nil {
-				continue
-			}
-			for _, place := range item.Places {
-				m.addGroup(place)
-				m.addMember(place, row.ID)
-			}
 		}
 	}
 	return nil
@@ -458,7 +586,23 @@ func ensureNoTarget(db *gorm.DB, value any, where string, args ...any) error {
 	return nil
 }
 
-func mergeOfficialQQUserAttrs(rows []model.AttributesItemModel) (model.AttributesItemModel, error) {
+func (m *officialQQIdentityMigration) legacyAttrsQuery(db *gorm.DB) *gorm.DB {
+	groupPrefix, groupUpperBound := m.oldGroupBounds()
+	memberPrefix, memberUpperBound := m.oldMemberBounds()
+	return db.Where(
+		"(id >= ? AND id < ?) OR (id >= ? AND id < ?) OR (owner_id >= ? AND owner_id < ?)",
+		groupPrefix,
+		groupUpperBound,
+		memberPrefix,
+		memberUpperBound,
+		memberPrefix,
+		memberUpperBound,
+	)
+}
+
+const officialQQIdentityMigrationAttrsMetadataColumns = "id, attrs_type, binding_sheet_id, name, owner_id, sheet_type, is_hidden, created_at, updated_at"
+
+func mergeOfficialQQUserAttrs(tx *gorm.DB, rows []model.AttributesItemModel) (model.AttributesItemModel, error) {
 	if len(rows) == 0 {
 		return model.AttributesItemModel{}, errors.New("没有可合并的 QQ 官方用户属性")
 	}
@@ -484,26 +628,50 @@ func mergeOfficialQQUserAttrs(rows []model.AttributesItemModel) (model.Attribute
 		if row.BindingSheetId != "" {
 			return model.AttributesItemModel{}, fmt.Errorf("无法合并带角色绑定的 QQ 官方用户属性 %s", row.Id)
 		}
-		value, err := ds.VMValueFromJSON(row.Data)
-		if err != nil {
-			return model.AttributesItemModel{}, fmt.Errorf("解析 QQ 官方用户属性 %s 失败: %w", row.Id, err)
-		}
-		dict, ok := value.ReadDictData()
-		if !ok {
-			return model.AttributesItemModel{}, fmt.Errorf("QQ 官方用户属性 %s 不是字典", row.Id)
-		}
-		if dict.Dict != nil {
-			dict.Dict.Range(func(key string, value *ds.VMValue) bool {
-				merged.Store(key, value)
-				return true
-			})
-		}
 		if row.CreatedAt < createdAt {
 			createdAt = row.CreatedAt
 		}
 		if row.UpdatedAt > updatedAt {
 			updatedAt = row.UpdatedAt
 		}
+	}
+	tx = officialQQIdentityMigrationWithoutCache(tx)
+	if err := officialQQIdentityMigrationForEachChunk(ordered, func(batch []model.AttributesItemModel) error {
+		ids := make([]string, 0, len(batch))
+		for _, row := range batch {
+			ids = append(ids, row.Id)
+		}
+		var dataRows []model.AttributesItemModel
+		if err := tx.Select("id, data").Where("id IN ?", ids).Find(&dataRows).Error; err != nil {
+			return err
+		}
+		dataByID := make(map[string][]byte, len(dataRows))
+		for _, row := range dataRows {
+			dataByID[row.Id] = row.Data
+		}
+		for _, row := range batch {
+			data, exists := dataByID[row.Id]
+			if !exists {
+				return fmt.Errorf("QQ 官方用户属性 %s 在合并期间不存在", row.Id)
+			}
+			value, err := ds.VMValueFromJSON(data)
+			if err != nil {
+				return fmt.Errorf("解析 QQ 官方用户属性 %s 失败: %w", row.Id, err)
+			}
+			dict, ok := value.ReadDictData()
+			if !ok {
+				return fmt.Errorf("QQ 官方用户属性 %s 不是字典", row.Id)
+			}
+			if dict.Dict != nil {
+				dict.Dict.Range(func(key string, value *ds.VMValue) bool {
+					merged.Store(key, value)
+					return true
+				})
+			}
+		}
+		return nil
+	}); err != nil {
+		return model.AttributesItemModel{}, err
 	}
 
 	data, err := ds.NewDictVal(merged).V().ToJSON()
@@ -519,14 +687,24 @@ func mergeOfficialQQUserAttrs(rows []model.AttributesItemModel) (model.Attribute
 	return result, nil
 }
 
-func (m *officialQQIdentityMigration) mergeCollidingUserAttrs(tx *gorm.DB, rows []model.AttributesItemModel) (map[string]struct{}, error) {
+func (m *officialQQIdentityMigration) mergeCollidingUserAttrs(tx *gorm.DB) error {
+	tx = officialQQIdentityMigrationWithoutCache(tx)
 	byTarget := map[string][]model.AttributesItemModel{}
-	for _, row := range rows {
-		newID := m.migrateUserID(row.Id)
-		if newID == row.Id {
-			continue
-		}
-		byTarget[newID] = append(byTarget[newID], row)
+	err := officialQQIdentityMigrationFindInBatches(
+		m.legacyAttrsQuery(tx).Select(officialQQIdentityMigrationAttrsMetadataColumns),
+		func(rows []model.AttributesItemModel) error {
+			for _, row := range rows {
+				newID := m.migrateUserID(row.Id)
+				if newID == row.Id {
+					continue
+				}
+				byTarget[newID] = append(byTarget[newID], row)
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return err
 	}
 
 	targets := make([]string, 0, len(byTarget))
@@ -537,21 +715,20 @@ func (m *officialQQIdentityMigration) mergeCollidingUserAttrs(tx *gorm.DB, rows 
 	}
 	sort.Strings(targets)
 
-	mergedSourceIDs := map[string]struct{}{}
 	for _, target := range targets {
 		sources := byTarget[target]
 		var existing model.AttributesItemModel
-		result := tx.Where("id = ?", target).Limit(1).Find(&existing)
+		result := tx.Select(officialQQIdentityMigrationAttrsMetadataColumns).Where("id = ?", target).Limit(1).Find(&existing)
 		if result.Error != nil {
-			return nil, result.Error
+			return result.Error
 		}
 		if result.RowsAffected != 0 {
 			sources = append(sources, existing)
 		}
 
-		merged, err := mergeOfficialQQUserAttrs(sources)
+		merged, err := mergeOfficialQQUserAttrs(tx, sources)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		merged.Id = target
 		merged.OwnerId = m.migrateUserID(merged.OwnerId)
@@ -559,21 +736,21 @@ func (m *officialQQIdentityMigration) mergeCollidingUserAttrs(tx *gorm.DB, rows 
 		ids := make([]string, 0, len(sources))
 		for _, source := range sources {
 			ids = append(ids, source.Id)
-			if source.Id != target {
-				mergedSourceIDs[source.Id] = struct{}{}
-			}
 		}
-		if err := tx.Where("id IN ?", ids).Delete(&model.AttributesItemModel{}).Error; err != nil {
-			return nil, err
+		if err := officialQQIdentityMigrationForEachChunk(ids, func(batchIDs []string) error {
+			return tx.Where("id IN ?", batchIDs).Delete(&model.AttributesItemModel{}).Error
+		}); err != nil {
+			return err
 		}
 		if err := tx.Create(&merged).Error; err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return mergedSourceIDs, nil
+	return nil
 }
 
-func (m *officialQQIdentityMigration) planCharacterNames(tx *gorm.DB, rows []model.AttributesItemModel) (map[string]string, error) {
+func (m *officialQQIdentityMigration) planCharacterNames(tx *gorm.DB) (map[string]string, error) {
+	tx = officialQQIdentityMigrationWithoutCache(tx)
 	type ownerName struct {
 		owner string
 		name  string
@@ -587,19 +764,28 @@ func (m *officialQQIdentityMigration) planCharacterNames(tx *gorm.DB, rows []mod
 
 	owners := map[string]struct{}{}
 	groups := map[ownerName][]candidate{}
-	for _, row := range rows {
-		newOwnerID := m.migrateUserID(row.OwnerId)
-		if row.AttrsType != "character" || newOwnerID == row.OwnerId {
-			continue
-		}
-		owners[newOwnerID] = struct{}{}
-		key := ownerName{owner: newOwnerID, name: row.Name}
-		groups[key] = append(groups[key], candidate{
-			id:        row.Id,
-			owner:     newOwnerID,
-			name:      row.Name,
-			createdAt: row.CreatedAt,
-		})
+	err := officialQQIdentityMigrationFindInBatches(
+		m.legacyAttrsQuery(tx).Select("id, attrs_type, name, owner_id, created_at"),
+		func(rows []model.AttributesItemModel) error {
+			for _, row := range rows {
+				newOwnerID := m.migrateUserID(row.OwnerId)
+				if row.AttrsType != "character" || newOwnerID == row.OwnerId {
+					continue
+				}
+				owners[newOwnerID] = struct{}{}
+				key := ownerName{owner: newOwnerID, name: row.Name}
+				groups[key] = append(groups[key], candidate{
+					id:        row.Id,
+					owner:     newOwnerID,
+					name:      row.Name,
+					createdAt: row.CreatedAt,
+				})
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return nil, err
 	}
 	if len(owners) == 0 {
 		return map[string]string{}, nil
@@ -609,17 +795,23 @@ func (m *officialQQIdentityMigration) planCharacterNames(tx *gorm.DB, rows []mod
 	for ownerID := range owners {
 		ownerIDs = append(ownerIDs, ownerID)
 	}
-	var existing []model.AttributesItemModel
-	if err := tx.Where("attrs_type = ? AND owner_id IN ?", "character", ownerIDs).Find(&existing).Error; err != nil {
-		return nil, err
-	}
 
 	usedNames := map[string]map[string]struct{}{}
 	for ownerID := range owners {
 		usedNames[ownerID] = map[string]struct{}{}
 	}
-	for _, row := range existing {
-		usedNames[row.OwnerId][row.Name] = struct{}{}
+	if err := officialQQIdentityMigrationForEachChunk(ownerIDs, func(batchOwnerIDs []string) error {
+		return officialQQIdentityMigrationFindInBatches(
+			tx.Select("id, owner_id, name").Where("attrs_type = ? AND owner_id IN ?", "character", batchOwnerIDs),
+			func(rows []model.AttributesItemModel) error {
+				for _, row := range rows {
+					usedNames[row.OwnerId][row.Name] = struct{}{}
+				}
+				return nil
+			},
+		)
+	}); err != nil {
+		return nil, err
 	}
 
 	keys := make([]ownerName, 0, len(groups))
@@ -680,112 +872,131 @@ func (m *officialQQIdentityMigration) migrateDataDB(operator engine.DatabaseOper
 	if db == nil {
 		return nil
 	}
+	groupPrefix, groupUpperBound := m.oldGroupBounds()
 	return db.Transaction(func(tx *gorm.DB) error {
 		if hasTable(tx, &model.GroupInfo{}) {
-			var rows []model.GroupInfo
-			if err := tx.Where("id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+			err := officialQQIdentityMigrationFindInBatches(
+				tx.Select("id, data").Where("id >= ? AND id < ?", groupPrefix, groupUpperBound),
+				func(rows []model.GroupInfo) error {
+					for _, row := range rows {
+						newID := m.migrateGroupID(row.ID)
+						if newID == row.ID {
+							continue
+						}
+						if err := ensureNoTarget(tx, &model.GroupInfo{}, "id = ?", newID); err != nil {
+							return err
+						}
+						var group GroupInfo
+						if err := json.Unmarshal(row.Data, &group); err != nil {
+							return fmt.Errorf("解析群组 %s 失败: %w", row.ID, err)
+						}
+						m.migrateGroup(&group, row.ID)
+						data, err := json.Marshal(&group)
+						if err != nil {
+							return err
+						}
+						if err := tx.Model(&model.GroupInfo{}).Where("id = ?", row.ID).Updates(map[string]any{"id": newID, "data": data}).Error; err != nil {
+							return err
+						}
+					}
+					return nil
+				},
+			)
+			if err != nil {
 				return err
-			}
-			for _, row := range rows {
-				newID := m.migrateGroupID(row.ID)
-				if newID == row.ID {
-					continue
-				}
-				if err := ensureNoTarget(tx, &model.GroupInfo{}, "id = ?", newID); err != nil {
-					return err
-				}
-				var group GroupInfo
-				if err := json.Unmarshal(row.Data, &group); err != nil {
-					return fmt.Errorf("解析群组 %s 失败: %w", row.ID, err)
-				}
-				m.migrateGroup(&group, row.ID)
-				data, err := json.Marshal(&group)
-				if err != nil {
-					return err
-				}
-				if err := tx.Model(&model.GroupInfo{}).Where("id = ?", row.ID).Updates(map[string]any{"id": newID, "data": data}).Error; err != nil {
-					return err
-				}
 			}
 		}
 
 		if hasTable(tx, &model.GroupPlayerInfoBase{}) {
-			var rows []model.GroupPlayerInfoBase
-			if err := tx.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+			err := officialQQIdentityMigrationFindInBatches(
+				tx.Select("id, group_id, user_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+				func(rows []model.GroupPlayerInfoBase) error {
+					for _, row := range rows {
+						newGroupID := m.migrateGroupID(row.GroupID)
+						newUserID := m.migrateContextUserID(row.GroupID, row.UserID)
+						if err := tx.Model(&model.GroupPlayerInfoBase{}).Where("id = ?", row.ID).Updates(map[string]any{"group_id": newGroupID, "user_id": newUserID}).Error; err != nil {
+							return err
+						}
+					}
+					return nil
+				},
+			)
+			if err != nil {
 				return err
-			}
-			for _, row := range rows {
-				newGroupID := m.migrateGroupID(row.GroupID)
-				newUserID := m.migrateContextUserID(row.GroupID, row.UserID)
-				if err := tx.Model(&model.GroupPlayerInfoBase{}).Where("id = ?", row.ID).Updates(map[string]any{"group_id": newGroupID, "user_id": newUserID}).Error; err != nil {
-					return err
-				}
 			}
 		}
 
 		if hasTable(tx, &model.AttributesItemModel{}) {
-			var rows []model.AttributesItemModel
-			query := "id LIKE ? OR id LIKE ? OR owner_id LIKE ?"
-			if err := tx.Where(query, m.oldGroupPrefix()+"%", "%"+"OpenQQ-Member-T:"+m.appID+"-%", "OpenQQ-Member-T:"+m.appID+"-%").Find(&rows).Error; err != nil {
-				return err
-			}
-			characterNames, err := m.planCharacterNames(tx, rows)
+			characterNames, err := m.planCharacterNames(tx)
 			if err != nil {
 				return err
 			}
-			mergedUserAttrs, err := m.mergeCollidingUserAttrs(tx, rows)
-			if err != nil {
+			if err := m.mergeCollidingUserAttrs(tx); err != nil {
 				return err
 			}
-			for _, row := range rows {
-				if _, merged := mergedUserAttrs[row.Id]; merged {
-					continue
-				}
-				newID := m.migrateAttrsID(row.Id, row.AttrsType)
-				newOwnerID := m.migrateUserID(row.OwnerId)
-				newName, rename := characterNames[row.Id]
-				if newID == row.Id && newOwnerID == row.OwnerId && !rename {
-					continue
-				}
-				if newID != row.Id {
-					if err := ensureNoTarget(tx, &model.AttributesItemModel{}, "id = ?", newID); err != nil {
-						return err
+			err = officialQQIdentityMigrationFindInBatches(
+				m.legacyAttrsQuery(tx).Select("id, attrs_type, owner_id"),
+				func(rows []model.AttributesItemModel) error {
+					for _, row := range rows {
+						newID := m.migrateAttrsID(row.Id, row.AttrsType)
+						newOwnerID := m.migrateUserID(row.OwnerId)
+						newName, rename := characterNames[row.Id]
+						if newID == row.Id && newOwnerID == row.OwnerId && !rename {
+							continue
+						}
+						if newID != row.Id {
+							if err := ensureNoTarget(tx, &model.AttributesItemModel{}, "id = ?", newID); err != nil {
+								return err
+							}
+						}
+						updates := map[string]any{"id": newID, "owner_id": newOwnerID}
+						if rename {
+							updates["name"] = newName
+						}
+						if err := tx.Model(&model.AttributesItemModel{}).Where("id = ?", row.Id).Updates(updates).Error; err != nil {
+							return err
+						}
 					}
-				}
-				updates := map[string]any{"id": newID, "owner_id": newOwnerID}
-				if rename {
-					updates["name"] = newName
-				}
-				if err := tx.Model(&model.AttributesItemModel{}).Where("id = ?", row.Id).Updates(updates).Error; err != nil {
-					return err
-				}
+					return nil
+				},
+			)
+			if err != nil {
+				return err
 			}
 		}
 
 		if hasTable(tx, &model.BanInfo{}) {
-			var rows []model.BanInfo
-			if err := tx.Find(&rows).Error; err != nil {
-				return err
-			}
-			for _, row := range rows {
-				newID := m.migrateAnyID(row.ID)
-				var item BanListInfoItem
-				if err := json.Unmarshal(row.Data, &item); err != nil {
-					continue
-				}
-				m.migrateBanItem(&item)
-				data, err := json.Marshal(&item)
-				if err != nil {
-					return err
-				}
-				if newID != row.ID {
-					if err := ensureNoTarget(tx, &model.BanInfo{}, "id = ?", newID); err != nil {
-						return err
+			err := officialQQIdentityMigrationFindInBatches(
+				tx.Select("id, data"),
+				func(rows []model.BanInfo) error {
+					for _, row := range rows {
+						newID := m.migrateAnyID(row.ID)
+						var item BanListInfoItem
+						if err := json.Unmarshal(row.Data, &item); err != nil {
+							continue
+						}
+						changed := m.migrateBanItem(&item) || newID != row.ID
+						if !changed {
+							continue
+						}
+						data, err := json.Marshal(&item)
+						if err != nil {
+							return err
+						}
+						if newID != row.ID {
+							if err := ensureNoTarget(tx, &model.BanInfo{}, "id = ?", newID); err != nil {
+								return err
+							}
+						}
+						if err := tx.Model(&model.BanInfo{}).Where("id = ?", row.ID).Updates(map[string]any{"id": newID, "data": data}).Error; err != nil {
+							return err
+						}
 					}
-				}
-				if err := tx.Model(&model.BanInfo{}).Where("id = ?", row.ID).Updates(map[string]any{"id": newID, "data": data}).Error; err != nil {
-					return err
-				}
+					return nil
+				},
+			)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -830,36 +1041,47 @@ func (m *officialQQIdentityMigration) migrateLogDB(operator engine.DatabaseOpera
 	if db == nil {
 		return nil
 	}
+	groupPrefix, groupUpperBound := m.oldGroupBounds()
 	return db.Transaction(func(tx *gorm.DB) error {
 		if hasTable(tx, &model.LogInfo{}) {
-			var rows []model.LogInfo
-			if err := tx.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+			err := officialQQIdentityMigrationFindInBatches(
+				tx.Select("id, name, group_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+				func(rows []model.LogInfo) error {
+					for _, row := range rows {
+						newGroupID := m.migrateGroupID(row.GroupID)
+						if err := ensureNoTarget(tx, &model.LogInfo{}, "group_id = ? AND name = ?", newGroupID, row.Name); err != nil {
+							return err
+						}
+						if err := tx.Model(&model.LogInfo{}).Where("id = ?", row.ID).Update("group_id", newGroupID).Error; err != nil {
+							return err
+						}
+					}
+					return nil
+				},
+			)
+			if err != nil {
 				return err
-			}
-			for _, row := range rows {
-				newGroupID := m.migrateGroupID(row.GroupID)
-				if err := ensureNoTarget(tx, &model.LogInfo{}, "group_id = ? AND name = ?", newGroupID, row.Name); err != nil {
-					return err
-				}
-				if err := tx.Model(&model.LogInfo{}).Where("id = ?", row.ID).Update("group_id", newGroupID).Error; err != nil {
-					return err
-				}
 			}
 		}
 		if hasTable(tx, &model.LogOneItem{}) {
-			var rows []model.LogOneItem
-			if err := tx.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+			err := officialQQIdentityMigrationFindInBatches(
+				tx.Select("id, group_id, im_userid, user_uniform_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+				func(rows []model.LogOneItem) error {
+					for _, row := range rows {
+						updates := map[string]any{
+							"group_id":        m.migrateGroupID(row.GroupID),
+							"im_userid":       m.migrateContextUserID(row.GroupID, row.IMUserID),
+							"user_uniform_id": m.migrateContextUserID(row.GroupID, row.UniformID),
+						}
+						if err := tx.Model(&model.LogOneItem{}).Where("id = ?", row.ID).Updates(updates).Error; err != nil {
+							return err
+						}
+					}
+					return nil
+				},
+			)
+			if err != nil {
 				return err
-			}
-			for _, row := range rows {
-				updates := map[string]any{
-					"group_id":        m.migrateGroupID(row.GroupID),
-					"im_userid":       m.migrateContextUserID(row.GroupID, row.IMUserID),
-					"user_uniform_id": m.migrateContextUserID(row.GroupID, row.UniformID),
-				}
-				if err := tx.Model(&model.LogOneItem{}).Where("id = ?", row.ID).Updates(updates).Error; err != nil {
-					return err
-				}
 			}
 		}
 		return nil
@@ -871,19 +1093,25 @@ func (m *officialQQIdentityMigration) migrateCensorDB(operator engine.DatabaseOp
 	if db == nil || !hasTable(db, &model.CensorLog{}) {
 		return nil
 	}
+	groupPrefix, groupUpperBound := m.oldGroupBounds()
 	return db.Transaction(func(tx *gorm.DB) error {
-		var rows []model.CensorLog
-		if err := tx.Where("group_id LIKE ?", m.oldGroupPrefix()+"%").Find(&rows).Error; err != nil {
+		err := officialQQIdentityMigrationFindInBatches(
+			tx.Select("id, group_id, user_id").Where("group_id >= ? AND group_id < ?", groupPrefix, groupUpperBound),
+			func(rows []model.CensorLog) error {
+				for _, row := range rows {
+					updates := map[string]any{
+						"group_id": m.migrateGroupID(row.GroupID),
+						"user_id":  m.migrateContextUserID(row.GroupID, row.UserID),
+					}
+					if err := tx.Model(&model.CensorLog{}).Where("id = ?", row.ID).Updates(updates).Error; err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+		)
+		if err != nil {
 			return err
-		}
-		for _, row := range rows {
-			updates := map[string]any{
-				"group_id": m.migrateGroupID(row.GroupID),
-				"user_id":  m.migrateContextUserID(row.GroupID, row.UserID),
-			}
-			if err := tx.Model(&model.CensorLog{}).Where("id = ?", row.ID).Updates(updates).Error; err != nil {
-				return err
-			}
 		}
 		return nil
 	})
@@ -968,14 +1196,24 @@ func (m *officialQQIdentityMigration) migrateGroup(group *GroupInfo, oldGroupID 
 	}
 }
 
-func (m *officialQQIdentityMigration) migrateBanItem(item *BanListInfoItem) {
+func (m *officialQQIdentityMigration) migrateBanItem(item *BanListInfoItem) bool {
 	if item == nil {
-		return
+		return false
 	}
-	item.ID = m.migrateAnyID(item.ID)
+	changed := false
+	newID := m.migrateAnyID(item.ID)
+	if newID != item.ID {
+		item.ID = newID
+		changed = true
+	}
 	for index, place := range item.Places {
-		item.Places[index] = m.migrateAnyID(place)
+		newPlace := m.migrateAnyID(place)
+		if newPlace != place {
+			item.Places[index] = newPlace
+			changed = true
+		}
 	}
+	return changed
 }
 
 func (m *officialQQIdentityMigration) migrateMemory(d *Dice) {
