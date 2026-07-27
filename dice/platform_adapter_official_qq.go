@@ -422,7 +422,7 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 	pa.botID = botInfo.BotID
 	ep.Nickname = botInfo.Nickname
 
-	// 身份校验和迁移完成后再开始接收事件。
+	// 身份校验和可选的数据迁移完成后再开始接收事件。
 	event.RegisterHandlersByAppID(
 		pa.AppID,
 		pa.makeHandlers()...,
