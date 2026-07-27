@@ -778,9 +778,9 @@ func buildMilkyForwardElement(nodes []forwardNode) (*milky.ForwardElement, error
 			return nil, fmt.Errorf("forward node %d has no supported message segments", index)
 		}
 		messages = append(messages, milky.OutgoingForwardedMessage{
-			UserID:   userID,
-			Name:     node.Data.Name,
-			Segments: segments,
+			UserID:     userID,
+			SenderName: node.Data.Name,
+			Segments:   segments,
 		})
 	}
 
