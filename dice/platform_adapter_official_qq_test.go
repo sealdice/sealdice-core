@@ -325,15 +325,16 @@ func TestReplaceOfficialQQCredentials(t *testing.T) {
 	t.Parallel()
 
 	existing := NewOfficialQQConnItem("old-app", "old-secret", "123", false)
-	existing.UserID = "OpenQQ:123"
+	existing.Adapter.(*PlatformAdapterOfficialQQ).UIN = ""
+	existing.UserID = "OpenQQ: 123 "
 	existing.Nickname = "old bot"
 	source := &PlatformAdapterOfficialQQ{
-		AppID:     "new-app",
-		AppSecret: "new-secret",
+		AppID:     " new-app ",
+		AppSecret: " new-secret ",
 	}
 	probe := &OfficialQQAccountProbeResult{
-		UIN:      "123",
-		BotID:    "new-bot-id",
+		UIN:      " 123 ",
+		BotID:    " new-bot-id ",
 		Nickname: "new bot",
 	}
 
@@ -344,7 +345,7 @@ func TestReplaceOfficialQQCredentials(t *testing.T) {
 	if adapter != existing.Adapter {
 		t.Fatal("replacement returned a different adapter")
 	}
-	if adapter.AppID != "new-app" || adapter.AppSecret != "new-secret" || adapter.UIN != "123" {
+	if adapter.AppID != "new-app" || adapter.AppSecret != "new-secret" || adapter.UIN != "123" || adapter.botID != "new-bot-id" {
 		t.Fatalf("credentials were not replaced: %+v", adapter)
 	}
 	if existing.UserID != "OpenQQ:123" || existing.Nickname != "new bot" {

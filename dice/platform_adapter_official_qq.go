@@ -255,7 +255,7 @@ func FindOfficialQQEndpointByUIN(s *IMSession, uin, excludeID string) *EndPointI
 		return nil
 	}
 	userID := formatDiceIDOfficialQQ(strings.TrimSpace(uin))
-	if userID == "OpenQQ:" {
+	if userID == formatDiceIDOfficialQQ("") {
 		return nil
 	}
 	for _, endpoint := range s.EndPoints {
@@ -279,8 +279,8 @@ func replaceOfficialQQCredentials(existing *EndPointInfo, source *PlatformAdapte
 	}
 
 	existingUIN := strings.TrimSpace(adapter.UIN)
-	if existingUIN == "" && strings.HasPrefix(existing.UserID, "OpenQQ:") {
-		existingUIN = strings.TrimPrefix(existing.UserID, "OpenQQ:")
+	if existingUIN == "" {
+		existingUIN, _ = extractOfficialQQUINFromUserID(existing.UserID)
 	}
 	if existingUIN != "" && existingUIN != strings.TrimSpace(probe.UIN) {
 		return nil, fmt.Errorf("official qq existing endpoint UIN mismatch: existing=%s scanned=%s", existingUIN, probe.UIN)
@@ -1940,8 +1940,19 @@ func formatDiceIDOfficialQQChannel(guildID, channelID string) string {
 	return fmt.Sprintf("OpenQQCH-Channel:%s-%s", guildID, channelID)
 }
 
+const officialQQUserIDPrefix = "OpenQQ:"
+
 func formatDiceIDOfficialQQ(uin string) string {
-	return fmt.Sprintf("OpenQQ:%s", uin)
+	return fmt.Sprintf("%s%s", officialQQUserIDPrefix, uin)
+}
+
+func extractOfficialQQUINFromUserID(userID string) (string, bool) {
+	raw, ok := strings.CutPrefix(strings.TrimSpace(userID), officialQQUserIDPrefix)
+	if !ok {
+		return "", false
+	}
+	raw = strings.TrimSpace(raw)
+	return raw, raw != ""
 }
 
 func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
@@ -1951,12 +1962,12 @@ func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
 
 func formatDiceIDOfficialQQMemberOpenID(uin, _ string, memberOpenID string) string {
 	// 官方QQ群成员ID格式
-	return fmt.Sprintf("OpenQQ:%s-%s", uin, memberOpenID)
+	return fmt.Sprintf("%s%s-%s", officialQQUserIDPrefix, uin, memberOpenID)
 }
 
 func formatDiceIDOfficialQQUserOpenID(uin, userOpenID string) string {
 	// 官方QQ单聊用户ID格式
-	return fmt.Sprintf("OpenQQ:%s-%s", uin, userOpenID)
+	return fmt.Sprintf("%s%s-%s", officialQQUserIDPrefix, uin, userOpenID)
 }
 
 type OpenQQIDType = int
@@ -1987,7 +1998,7 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 		}
 		return groupOpenID, "", OpenQQGroupOpenid
 	}
-	if raw, ok := strings.CutPrefix(text, "OpenQQ:"); ok {
+	if raw, ok := strings.CutPrefix(text, officialQQUserIDPrefix); ok {
 		if pa.UIN != "" && raw == pa.UIN {
 			return raw, "", OpenQQUser
 		}
@@ -2605,8 +2616,6 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 						pa.failQrLogin("official qq 替换已有账号失败: ", replaceErr)
 						return
 					}
-					d.LastUpdatedTime = time.Now().Unix()
-					d.Save(false)
 					reloginOK := existingAdapter.DoRelogin()
 					if !reloginOK {
 						log.Errorf("official qq 替换后重连已有端点失败: UIN=%s", probe.UIN)
