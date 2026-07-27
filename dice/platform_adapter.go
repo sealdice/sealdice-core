@@ -54,3 +54,5 @@ var (
 
 	// _ PlatformAdapter = (*PlatformAdapterLagrangeGo)(nil)
 )
+
+var _ forwardMsgSender = (*PlatformAdapterMilky)(nil)
