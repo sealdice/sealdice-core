@@ -550,6 +550,8 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.ProtocolType == "official" {
 						dice.ServerOfficialQQ(d, conn)
+						// 官方 QQ 已由统一入口启动，避免继续进入通用 QQ 延迟启动流程。
+						return
 					}
 					if conn.ProtocolType == "satori" {
 						dice.ServeSatori(d, conn)

@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -33,16 +32,9 @@ func NewOfficialQQConnItem(appID, appSecret, uin string, onlyQQGuild bool) *EndP
 func ServerOfficialQQ(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "QQ" && ep.ProtocolType == "official" {
-		conn := ep.Adapter.(*PlatformAdapterOfficialQQ)
 		ep.BindRuntime(d.ImSession)
-		d.Logger.Infof("official qq 尝试连接")
-		if conn.Serve() != 0 {
-			d.Logger.Infof("official qq 连接失败")
-			ep.State = 3
-			ep.Enable = false
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
+		// 连接状态、重试和日志统一由 ServeQQ 及其官方 QQ 分支负责。
+		ServeQQ(d, ep)
 	}
 }
 
