@@ -447,11 +447,14 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
 				if self.Config.MailEnable {
-					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
+					if err := ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote, NoticeTypeSend); err != nil {
+						ctx.Dice.Logger.Errorf("留言邮件发送失败: %v", err)
+					}
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				for _, uid := range ctx.Dice.DiceMasters {
+				for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, NoticeTypeSend) {
+					uid := target.ID
 					text := ""
 
 					if ctx.IsCurGroupBotOn {
@@ -461,7 +464,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					}
 
 					text += cmdArgs.CleanArgs
-					if strings.Contains(uid, "Group") || strings.Contains(uid, "Channel") || strings.Contains(uid, "Guild") {
+					if target.IsGroup() {
 						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
 					} else {
 						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
