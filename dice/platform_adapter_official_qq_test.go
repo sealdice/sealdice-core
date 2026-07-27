@@ -316,6 +316,19 @@ func TestPublicDiceEndpointAppID(t *testing.T) {
 	}
 }
 
+func TestOfficialQQIdentityMigrationConfigRequiresOptIn(t *testing.T) {
+	config := DefaultConfig
+	if config.OfficialQQMigrationEnable {
+		t.Fatal("official QQ identity migration is enabled by default")
+	}
+	if err := yaml.Unmarshal([]byte("officialQQEnableIdentityMigration: true\n"), &config); err != nil {
+		t.Fatal(err)
+	}
+	if !config.OfficialQQMigrationEnable {
+		t.Fatal("serve.yaml did not enable official QQ identity migration")
+	}
+}
+
 func TestOfficialQQIdentityMigrationLegacyDataProbe(t *testing.T) {
 	const appID = "123456789"
 
@@ -575,6 +588,13 @@ func TestOfficialQQIdentityMigration(t *testing.T) {
 	d.ImSession.EndPoints = []*EndPointInfo{endpoint}
 
 	if err := ensureOfficialQQIdentity(d, adapter, botID, uin); err != nil {
+		t.Fatalf("identity initialization with migration disabled failed: %v", err)
+	}
+	assertOfficialQQMigrationRow(t, db, &model.GroupInfo{}, "id = ?", oldGroupID)
+	assertOfficialQQMigrationMissing(t, db, &model.GroupInfo{}, "id = ?", newGroupID)
+
+	d.Config.OfficialQQMigrationEnable = true
+	if err := ensureOfficialQQIdentity(d, adapter, botID, uin); err != nil {
 		t.Fatalf("first migration failed: %v", err)
 	}
 	// Simulate stale memory after the data phase succeeded but a later phase failed.
@@ -803,6 +823,7 @@ func TestOfficialQQIdentityMigrationRetriesAfterFailure(t *testing.T) {
 	}
 	d.ImSession.Parent = d
 	d.Config = NewConfig(d)
+	d.Config.OfficialQQMigrationEnable = true
 	d.AttrsManager = &AttrsManager{db: dbOperator}
 	endpoint.BindRuntime(d.ImSession)
 

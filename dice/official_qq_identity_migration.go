@@ -93,22 +93,23 @@ func ensureOfficialQQIdentity(d *Dice, pa *PlatformAdapterOfficialQQ, botID, uin
 	if current := pa.EndPoint.UserID; current != "" && current != oldEndpoint && current != expectedEndpoint {
 		return fmt.Errorf("无法识别旧账号 ID %q，期望 %q", current, oldEndpoint)
 	}
-	// Apply the remotely verified identity even if data migration fails. The
-	// adapter can keep running, and the same migration will be retried on the
-	// next connection or after the account is added again.
+	// The verified runtime identity is required even when the optional legacy
+	// data migration is disabled or fails.
 	pa.UIN = uin
 	pa.EndPoint.UserID = expectedEndpoint
 
-	migration := &officialQQIdentityMigration{
-		appID:       pa.AppID,
-		uin:         uin,
-		oldEndpoint: oldEndpoint,
-		newEndpoint: expectedEndpoint,
-		groups:      map[string]string{},
-		users:       map[string]string{},
-	}
-	if err := migration.run(d); err != nil {
-		return &officialQQIdentityMigrationError{cause: err}
+	if d.Config.OfficialQQMigrationEnable {
+		migration := &officialQQIdentityMigration{
+			appID:       pa.AppID,
+			uin:         uin,
+			oldEndpoint: oldEndpoint,
+			newEndpoint: expectedEndpoint,
+			groups:      map[string]string{},
+			users:       map[string]string{},
+		}
+		if err := migration.run(d); err != nil {
+			return &officialQQIdentityMigrationError{cause: err}
+		}
 	}
 
 	d.LastUpdatedTime = time.Now().Unix()
