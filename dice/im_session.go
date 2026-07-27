@@ -2478,6 +2478,72 @@ func sendNoticeToTarget(ctx *MsgContext, target NoticeTarget, txt string) {
 	}
 }
 
+func noticeTargetMatchesEndpoint(target NoticeTarget, ep *EndPointInfo) bool {
+	if ep == nil || !target.MatchesEndpoint(ep.Platform, ep.ProtocolType) {
+		return false
+	}
+
+	targetPlatform, _ := target.Platform()
+	if targetPlatform != "OpenQQ" {
+		return true
+	}
+
+	// 多个官方 QQ 账号共存时，只让 ID 中 UIN 对应的账号发送。
+	pa, ok := ep.Adapter.(*PlatformAdapterOfficialQQ)
+	if !ok || pa.UIN == "" {
+		return false
+	}
+	_, rawID, ok := strings.Cut(target.ID, ":")
+	return ok && (rawID == pa.UIN || strings.HasPrefix(rawID, pa.UIN+"-"))
+}
+
+func noticeTargetContext(session *IMSession, ep *EndPointInfo, target NoticeTarget) *MsgContext {
+	if ep.Session == nil {
+		ep.BindRuntime(session)
+	}
+
+	msg := &Message{Sender: SenderBase{UserID: target.ID}, MessageType: "private"}
+	if target.IsGroup() {
+		msg.MessageType = "group"
+		msg.GroupID = target.ID
+	}
+	return CreateTempCtx(ep, msg)
+}
+
+func findNoticeEndpoint(session *IMSession, target NoticeTarget) *EndPointInfo {
+	if session == nil {
+		return nil
+	}
+	for _, ep := range session.EndPoints {
+		if ep != nil && ep.Enable && ep.State == StateConnected && noticeTargetMatchesEndpoint(target, ep) {
+			return ep
+		}
+	}
+	return nil
+}
+
+// sendNoticeTargetCrossPlatform 优先使用当前 Endpoint，否则寻找兼容且在线的 Endpoint。
+func sendNoticeTargetCrossPlatform(ctx *MsgContext, target NoticeTarget, txt string) bool {
+	if ctx == nil {
+		return false
+	}
+	if ctx.EndPoint != nil && ctx.EndPoint.Enable && noticeTargetMatchesEndpoint(target, ctx.EndPoint) {
+		sendNoticeToTarget(ctx, target, txt)
+		return true
+	}
+
+	session := ctx.Session
+	if session == nil && ctx.Dice != nil {
+		session = ctx.Dice.ImSession
+	}
+	ep := findNoticeEndpoint(session, target)
+	if ep == nil {
+		return false
+	}
+	sendNoticeToTarget(noticeTargetContext(session, ep, target), target, txt)
+	return true
+}
+
 // NoticeForEveryEndpoint 向每个平台的在线账号发送一遍指定分类的通知。
 func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool, noticeTypes ...NoticeType) {
 	_ = allowCrossPlatform
@@ -2504,20 +2570,10 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool, notic
 				continue
 			}
 			for _, target := range filterNoticeTargets(d.Config.NoticeIDs, noticeType) {
-				platform, ok := target.Platform()
-				if !ok || platform == "Mail" || platform != ep.Platform {
+				if !noticeTargetMatchesEndpoint(target, ep) {
 					continue
 				}
-				if ep.Session == nil {
-					ep.BindRuntime(d.ImSession)
-				}
-				messageType := "private"
-				msg := &Message{Sender: SenderBase{UserID: target.ID}, MessageType: messageType}
-				if target.IsGroup() {
-					msg.MessageType = "group"
-					msg.GroupID = target.ID
-				}
-				ctx := CreateTempCtx(ep, msg)
+				ctx := noticeTargetContext(d.ImSession, ep, target)
 				sendNoticeToTarget(ctx, target, txt)
 				time.Sleep(time.Second)
 			}
@@ -2548,18 +2604,7 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string, noticeTypes ...NoticeType
 
 		sent := false
 		for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, noticeType) {
-			platform, ok := target.Platform()
-			if !ok || platform == "Mail" {
-				continue
-			}
-			if ctx.EndPoint != nil && ctx.EndPoint.Enable && ctx.EndPoint.Platform == platform {
-				sendNoticeToTarget(ctx, target, txt)
-				sent = true
-				time.Sleep(time.Second)
-				continue
-			}
-
-			if done := CrossMsgBySearch(ctx.Session, platform, target.ID, txt, !target.IsGroup()); !done {
+			if !sendNoticeTargetCrossPlatform(ctx, target, txt) {
 				ctx.Dice.Logger.Errorf("尝试跨平台后仍未能向 %s 发送通知：%s", target.ID, txt)
 			} else {
 				sent = true
@@ -2597,8 +2642,7 @@ func (ctx *MsgContext) Notice(txt string, noticeTypes ...NoticeType) {
 		sent := false
 		if ctx.EndPoint != nil && ctx.EndPoint.Enable {
 			for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, noticeType) {
-				platform, ok := target.Platform()
-				if !ok || platform == "Mail" || platform != ctx.EndPoint.Platform {
+				if !noticeTargetMatchesEndpoint(target, ctx.EndPoint) {
 					continue
 				}
 				sendNoticeToTarget(ctx, target, txt)

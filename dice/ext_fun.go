@@ -453,21 +453,17 @@ func RegisterBuiltinExtFun(self *Dice) {
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				text := ""
+				if ctx.IsCurGroupBotOn {
+					text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
+				} else {
+					text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
+				}
+				text += cmdArgs.CleanArgs
+
 				for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, NoticeTypeSend) {
-					uid := target.ID
-					text := ""
-
-					if ctx.IsCurGroupBotOn {
-						text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
-					} else {
-						text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
-					}
-
-					text += cmdArgs.CleanArgs
-					if target.IsGroup() {
-						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
-					} else {
-						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
+					if !sendNoticeTargetCrossPlatform(ctx, target, text) {
+						ctx.Dice.Logger.Errorf("未能向通知目标 %s 发送留言", target.ID)
 					}
 				}
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))

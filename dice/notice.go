@@ -139,6 +139,26 @@ func (target NoticeTarget) Platform() (string, bool) {
 	return platform, platform != ""
 }
 
+// MatchesEndpoint 判断通知目标是否可由指定平台和协议的 Endpoint 发送。
+//
+// 官方 QQ 的统一 ID 使用 OpenQQ/OpenQQCH 前缀，但 Endpoint 平台仍是 QQ，
+// 因此还必须结合 protocolType 区分它与普通 QQ 连接。
+func (target NoticeTarget) MatchesEndpoint(platform, protocolType string) bool {
+	targetPlatform, ok := target.Platform()
+	if !ok || targetPlatform == "Mail" {
+		return false
+	}
+
+	switch targetPlatform {
+	case "OpenQQ", "OpenQQCH":
+		return platform == "QQ" && protocolType == "official"
+	case "QQ":
+		return platform == "QQ" && protocolType != "official"
+	default:
+		return targetPlatform == platform
+	}
+}
+
 // IsGroup 判断目标是否为群、频道或服务器消息目标。
 func (target NoticeTarget) IsGroup() bool {
 	prefix, _, ok := strings.Cut(target.ID, ":")

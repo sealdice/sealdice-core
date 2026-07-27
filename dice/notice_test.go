@@ -139,3 +139,30 @@ func TestNoticeTargetAddressing(t *testing.T) {
 		}
 	}
 }
+
+func TestNoticeTargetMatchesEndpoint(t *testing.T) {
+	tests := []struct {
+		name         string
+		raw          string
+		platform     string
+		protocolType string
+		want         bool
+	}{
+		{name: "ordinary QQ target matches onebot", raw: "QQ:1", platform: "QQ", protocolType: "onebot", want: true},
+		{name: "ordinary QQ target rejects official", raw: "QQ:1", platform: "QQ", protocolType: "official", want: false},
+		{name: "OpenQQ target matches official", raw: "OpenQQ:100-user", platform: "QQ", protocolType: "official", want: true},
+		{name: "OpenQQ group rejects onebot", raw: "OpenQQ-Group:100-group", platform: "QQ", protocolType: "onebot", want: false},
+		{name: "OpenQQ channel matches official", raw: "OpenQQCH-Channel:guild-channel", platform: "QQ", protocolType: "official", want: true},
+		{name: "Discord target matches Discord", raw: "DISCORD:1", platform: "DISCORD", protocolType: "", want: true},
+		{name: "Discord target rejects QQ", raw: "DISCORD:1", platform: "QQ", protocolType: "onebot", want: false},
+		{name: "mail is not an instant-message endpoint", raw: "Mail:user@example.com", platform: "Mail", protocolType: "", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := ParseNoticeTarget(test.raw).MatchesEndpoint(test.platform, test.protocolType); got != test.want {
+				t.Fatalf("MatchesEndpoint(%q, %q) = %t, want %t", test.platform, test.protocolType, got, test.want)
+			}
+		})
+	}
+}
