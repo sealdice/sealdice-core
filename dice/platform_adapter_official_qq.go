@@ -85,7 +85,7 @@ type PlatformAdapterOfficialQQ struct {
 	// 主动消息发送队列
 	c2cSendQuota   *OfficialQQSendQuota `json:"-" yaml:"-"`
 	groupSendQuota *OfficialQQSendQuota `json:"-" yaml:"-"`
-	sendQuotaMu    sync.Mutex           `json:"-" yaml:"-"`
+	sendQuotaOnce  sync.Once            `json:"-" yaml:"-"`
 }
 
 type officialQQAdapterJSON struct {
@@ -1640,7 +1640,7 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 		}
 		// 主动消息（无 msg_id/event_id）需要排队限流
 		if toCreate.MsgID == "" && toCreate.EventID == "" {
-			if err := pa.waitC2CActiveQuota(userOpenID); err != nil {
+			if err := pa.waitC2CActiveQuota(qctx, userOpenID); err != nil {
 				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
 				lastErr = err
 				return
@@ -1732,14 +1732,16 @@ type OfficialQQSendQuota struct {
 	dailyCount map[string]int
 }
 
+var officialQQTimeZone = time.FixedZone("CST", 8*3600)
+
 // reserve 为 targetID 的一次主动发送预约时刻。
 func (q *OfficialQQSendQuota) reserve(targetID string) (time.Time, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	now := time.Now()
+	now := time.Now().In(officialQQTimeZone)
 
-	// 每日计数按本地日期重置
+	// 每日计数按UTC+8日期重置
 	day := now.Format("2006-01-02")
 	if day != q.dailyDay {
 		q.dailyDay = day
@@ -1793,49 +1795,53 @@ func (q *OfficialQQSendQuota) reserve(targetID string) (time.Time, error) {
 	return t, nil
 }
 
-// acquire 阻塞直到 targetID 可以发送一条主动消息；返回错误时应放弃该条消息
-func (q *OfficialQQSendQuota) acquire(targetID string) error {
+// acquire 阻塞直到 targetID 可以发送一条主动消息；支持 Context 取消
+func (q *OfficialQQSendQuota) acquire(ctx context.Context, targetID string) error {
 	t, err := q.reserve(targetID)
 	if err != nil {
 		return err
 	}
-	if d := time.Until(t); d > 0 {
-		time.Sleep(d)
+	d := time.Until(t)
+	if d <= 0 {
+		return nil
 	}
-	return nil
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (pa *PlatformAdapterOfficialQQ) initSendQuota() {
-	pa.sendQuotaMu.Lock()
-	defer pa.sendQuotaMu.Unlock()
-	if pa.c2cSendQuota == nil {
+	pa.sendQuotaOnce.Do(func() {
 		pa.c2cSendQuota = &OfficialQQSendQuota{
 			botLimit:   officialQQC2CBotLimit,
 			botPeriod:  officialQQC2CBotPeriod,
 			relStamps:  make(map[string][]time.Time),
 			dailyCount: make(map[string]int),
 		}
-	}
-	if pa.groupSendQuota == nil {
 		pa.groupSendQuota = &OfficialQQSendQuota{
 			botLimit:   officialQQGroupBotLimit,
 			botPeriod:  officialQQGroupBotPeriod,
 			relStamps:  make(map[string][]time.Time),
 			dailyCount: make(map[string]int),
 		}
-	}
+	})
 }
 
 // waitC2CActiveQuota 主动单聊消息排队限流，返回错误时应放弃发送
-func (pa *PlatformAdapterOfficialQQ) waitC2CActiveQuota(userOpenID string) error {
+func (pa *PlatformAdapterOfficialQQ) waitC2CActiveQuota(ctx context.Context, userOpenID string) error {
 	pa.initSendQuota()
-	return pa.c2cSendQuota.acquire(userOpenID)
+	return pa.c2cSendQuota.acquire(ctx, userOpenID)
 }
 
 // waitGroupActiveQuota 主动群聊消息排队限流，返回错误时应放弃发送
-func (pa *PlatformAdapterOfficialQQ) waitGroupActiveQuota(groupOpenID string) error {
+func (pa *PlatformAdapterOfficialQQ) waitGroupActiveQuota(ctx context.Context, groupOpenID string) error {
 	pa.initSendQuota()
-	return pa.groupSendQuota.acquire(groupOpenID)
+	return pa.groupSendQuota.acquire(ctx, groupOpenID)
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -1970,7 +1976,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 		}
 		// 主动消息排队限流
 		if toCreate.MsgID == "" && toCreate.EventID == "" {
-			if err := pa.waitGroupActiveQuota(groupID); err != nil {
+			if err := pa.waitGroupActiveQuota(qctx, groupID); err != nil {
 				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
 				lastErr = err
 				return
