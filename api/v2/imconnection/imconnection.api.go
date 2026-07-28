@@ -368,9 +368,8 @@ func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.E
 		}
 		conn := dice.NewLagrangeConnectInfoItem(account)
 		conn.UserID = dice.FormatDiceIDQQ(account)
-		conn.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-		pa.Session = s.dice.ImSession
 		pa.SignServerName = asString(cfg, "signServerName")
 		pa.SignServerVer = asString(cfg, "signServerVersion")
 		return conn, nil
@@ -386,9 +385,7 @@ func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.E
 			Mode:       "client",
 		})
 		conn.UserID = dice.FormatDiceIDQQ(account)
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "onebot-reverse":
 		account := asString(cfg, "account")
@@ -401,9 +398,7 @@ func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.E
 			Mode:          "server",
 		})
 		conn.UserID = dice.FormatDiceIDQQ(account)
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "milky":
 		conn := dice.NewMilkyConnItem(dice.AddMilkyEcho{
@@ -428,15 +423,11 @@ func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.E
 		return conn, nil
 	case "sealchat":
 		conn := dice.NewSealChatConnItem(asString(cfg, "url"), asString(cfg, "token"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterSealChat)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "satori":
 		conn := dice.NewSatoriConnItem(asString(cfg, "platform"), asString(cfg, "host"), asInt(cfg, "port"), asString(cfg, "token"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterSatori)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "discord":
 		conn := dice.NewDiscordConnItem(dice.AddDiscordEcho{
@@ -445,51 +436,37 @@ func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.E
 			ReverseProxyUrl:    asString(cfg, "reverseProxyUrl"),
 			ReverseProxyCDNUrl: asString(cfg, "reverseProxyCDNUrl"),
 		})
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "kook":
 		conn := dice.NewKookConnItem(asString(cfg, "token"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterKook)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "telegram":
 		conn := dice.NewTelegramConnItem(asString(cfg, "token"), asString(cfg, "proxyURL"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterTelegram)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "minecraft":
 		conn := dice.NewMinecraftConnItem(asString(cfg, "url"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterMinecraft)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "dodo":
 		conn := dice.NewDodoConnItem(asString(cfg, "clientID"), asString(cfg, "token"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDodo)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "dingtalk":
 		conn := dice.NewDingTalkConnItem(asString(cfg, "clientID"), asString(cfg, "token"), asString(cfg, "nickname"), asString(cfg, "robotCode"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDingTalk)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "slack":
 		conn := dice.NewSlackConnItem(asString(cfg, "appToken"), asString(cfg, "botToken"))
-		conn.Session = s.dice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterSlack)
-		pa.Session = s.dice.ImSession
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "officialqq":
-		conn := dice.NewOfficialQQConnItem(uint64(asInt(cfg, "appID")), asString(cfg, "token"), asString(cfg, "appSecret"), asBool(cfg, "onlyQQGuild"))
-		conn.Session = s.dice.ImSession
+		conn := dice.NewOfficialQQConnItem(asIDString(cfg, "appID"), asString(cfg, "appSecret"), "", asBool(cfg, "onlyQQGuild"))
 		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
-		pa.Session = s.dice.ImSession
+		pa.Token = asString(cfg, "token")
+		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	default:
 		return nil, huma.Error501NotImplemented("not implemented")
@@ -497,9 +474,7 @@ func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.E
 }
 
 func setMilkySession(d *dice.Dice, conn *dice.EndPointInfo) {
-	conn.Session = d.ImSession
-	pa := conn.Adapter.(*dice.PlatformAdapterMilky)
-	pa.Session = d.ImSession
+	conn.BindRuntime(d.ImSession)
 }
 
 func (s *Service) appendAndSave(conn *dice.EndPointInfo) {
@@ -962,8 +937,8 @@ func (s *Service) applyUpdate(ep *dice.EndPointInfo, key string, cfg map[string]
 		if !ok {
 			return huma.Error500InternalServerError("adapter error")
 		}
-		if appID := asInt(cfg, "appID"); appID != 0 {
-			pa.AppID = uint64(appID)
+		if appID := asIDString(cfg, "appID"); appID != "" {
+			pa.AppID = appID
 		}
 		pa.AppSecret = asStringOrKeep(cfg, "appSecret", pa.AppSecret)
 		pa.Token = asStringOrKeep(cfg, "token", pa.Token)
@@ -1107,6 +1082,17 @@ func asString(m map[string]interface{}, key string) string {
 	default:
 		return ""
 	}
+}
+
+func asIDString(m map[string]interface{}, key string) string {
+	value := strings.TrimSpace(asString(m, key))
+	if value != "" {
+		return value
+	}
+	if value := asInt(m, key); value != 0 {
+		return strconv.Itoa(value)
+	}
+	return ""
 }
 
 func asStringOrKeep(m map[string]interface{}, key string, old string) string {

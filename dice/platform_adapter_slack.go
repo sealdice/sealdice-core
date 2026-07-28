@@ -15,7 +15,6 @@ import (
 )
 
 type PlatformAdapterSlack struct {
-	Session   *IMSession    `json:"-"        yaml:"-"`
 	EndPoint  *EndPointInfo `json:"-"        yaml:"-"`
 	Client    *sm.Client    `json:"-"        yaml:"-"`
 	BotToken  string        `json:"-" yaml:"botToken"`
@@ -27,7 +26,7 @@ type PlatformAdapterSlack struct {
 
 func (pa *PlatformAdapterSlack) Serve() int {
 	ep := pa.EndPoint
-	s := pa.Session
+	s := ep.Session
 	log := s.Parent.Logger
 	api := slack.New(pa.BotToken, slack.OptionAppLevelToken(pa.AppToken))
 	client := sm.New(api)
@@ -208,7 +207,7 @@ func (pa *PlatformAdapterSlack) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterSlack) QuitGroup(ctx *MsgContext, id string) {
-	pa.Session.Parent.Logger.Error("Slack 退出群组失败：暂不支持")
+	pa.EndPoint.Session.Parent.Logger.Error("Slack 退出群组失败：暂不支持")
 }
 
 func (pa *PlatformAdapterSlack) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
@@ -219,7 +218,7 @@ func (pa *PlatformAdapterSlack) SendSegmentToPerson(ctx *MsgContext, userID stri
 
 func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
 	pa.send(ctx, ExtractSlackUserID(userID), text, flag)
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "private",
 		Platform:    "SLACK",
 		Message:     text,
@@ -232,7 +231,7 @@ func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, userID string, tex
 
 func (pa *PlatformAdapterSlack) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
 	pa.send(ctx, ExtractSlackChannelID(groupID), text, flag)
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "group",
 		Platform:    "SLACK",
 		Message:     text,
@@ -245,7 +244,7 @@ func (pa *PlatformAdapterSlack) SendToGroup(ctx *MsgContext, groupID string, tex
 }
 
 func (pa *PlatformAdapterSlack) SetGroupCardName(ctx *MsgContext, name string) {
-	pa.Session.Parent.Logger.Error("Slack 设置群名片失败：暂不支持")
+	pa.EndPoint.Session.Parent.Logger.Error("Slack 设置群名片失败：暂不支持")
 }
 
 func (pa *PlatformAdapterSlack) MemberBan(groupId string, userId string, duration int64) {
@@ -269,7 +268,7 @@ func (pa *PlatformAdapterSlack) send(_ *MsgContext, id string, text string, _ st
 	// 频道以 C 开头 用户以 U 开头 老粗暴了
 	messageCtx, s, s2, err := pa.Client.SendMessage(id, slack.MsgOptionText(text, false))
 	if err != nil {
-		pa.Session.Parent.Logger.Error("Slack 发送消息失败", messageCtx, s, s2, err.Error())
+		pa.EndPoint.Session.Parent.Logger.Error("Slack 发送消息失败", messageCtx, s, s2, err.Error())
 	}
 }
 
@@ -282,7 +281,7 @@ func (pa *PlatformAdapterSlack) getUser(user string) *slack.User {
 	}
 	info, err := pa.Client.GetUserInfo(user)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("Slack 获取用户数据失败：", err.Error())
+		pa.EndPoint.Session.Parent.Logger.Error("Slack 获取用户数据失败：", err.Error())
 		return &slack.User{}
 	}
 	pa.userCache.Store(user, info)

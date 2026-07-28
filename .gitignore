@@ -37,6 +37,7 @@ frontend/
 frontend_overwrite/
 backups/
 update/
+/cache/
 walle-q/
 _help_cache
 .DS_Store
@@ -47,6 +48,7 @@ _help_cache
 .vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+.worktrees/
 sealdice-lock.lock
 upgrade_metadata.json
 

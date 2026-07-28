@@ -303,11 +303,12 @@ func SetTempVars(ctx *MsgContext, qqNickname string) {
 		VarSetValueStr(ctx, "$t游戏模式", ctx.Group.System)
 		VarSetValueStr(ctx, "$t规则模板", ctx.Group.System)
 		VarSetValueStr(ctx, "$tSystem", ctx.Group.System)
-		VarSetValueStr(ctx, "$t当前记录", ctx.Group.LogCurName)
+		logState := ctx.Group.GetLogState()
+		VarSetValueStr(ctx, "$t当前记录", logState.Name)
 		VarSetValueInt64(ctx, "$t权限等级", int64(ctx.PrivilegeLevel))
 
 		var isLogOn int64
-		if ctx.Group.LogOn {
+		if logState.On {
 			isLogOn = 1
 		}
 		VarSetValueInt64(ctx, "$t日志开启", isLogOn)

@@ -30,9 +30,7 @@ func newTestService(t *testing.T) (*Service, *dice.PlatformAdapterHTTP) {
 	d.Config = dice.NewConfig(d)
 	d.CommandPrefix = []string{"."}
 
-	adapter := &dice.PlatformAdapterHTTP{
-		Session: d.ImSession,
-	}
+	adapter := &dice.PlatformAdapterHTTP{}
 	ep := &dice.EndPointInfo{
 		EndPointInfoBase: dice.EndPointInfoBase{
 			ID:       "ui-endpoint",
@@ -40,11 +38,11 @@ func newTestService(t *testing.T) (*Service, *dice.PlatformAdapterHTTP) {
 			Nickname: "SealDice",
 			Platform: "UI",
 			Enable:   true,
-			Session:  d.ImSession,
 		},
 		Adapter: adapter,
 	}
 	adapter.EndPoint = ep
+	ep.BindRuntime(d.ImSession)
 	d.UIEndpoint = ep
 
 	svc := NewService(dm)

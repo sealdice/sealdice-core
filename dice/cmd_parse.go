@@ -31,13 +31,23 @@ func (kwa *Kwarg) String() string {
 
 // [CQ:at,qq=22]
 type AtInfo struct {
-	UserID string `jsbind:"userId" json:"userId"`
+	UserID  string `jsbind:"userId"  json:"userId"`
+	IsRobot bool   `jsbind:"isRobot" json:"isRobot"`
 	// UID    string `json:"uid"`
 }
 
 func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 	mctx := ctx.ShallowCopy() // 复制一个ctx，用于其他用途
 	mctx.vm = nil
+
+	// 复制临时的消息ID和事件ID，以支持官方QQ的被动消息发送
+	if msgID, ok := VarGetValueStr(ctx, "$tMsgID"); ok {
+		VarSetValueStr(mctx, "$tMsgID", msgID)
+	}
+	if eventID, ok := VarGetValueStr(ctx, "$tEventID"); ok {
+		VarSetValueStr(mctx, "$tEventID", eventID)
+	}
+
 	if ctx.Group != nil {
 		p := ctx.Group.PlayerGet(ctx.Dice.DBOperator, i.UserID)
 		if p != nil {
@@ -53,8 +63,8 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 			// 特殊处理 official qq
 			if strings.HasPrefix(i.UserID, "OpenQQCH:") {
 				mctx.Player.Name = "<@!" + strings.TrimPrefix(i.UserID, "OpenQQCH:") + ">"
-			} else if strings.HasPrefix(i.UserID, "OpenQQ-Member-T:") {
-				mctx.Player.Name = i.UserID[len(i.UserID)-4:]
+			} else if strings.HasPrefix(i.UserID, "OpenQQ:") {
+				mctx.Player.Name = "<@" + strings.TrimPrefix(i.UserID, "OpenQQ:") + ">"
 			}
 		}
 		return mctx, p != nil
@@ -502,8 +512,10 @@ func parseAtInfo(cmdArgs *CmdArgs, msg *Message, botUserID string) {
 	var atInfo []*AtInfo
 	for _, elem := range msg.Segment {
 		if e, ok := elem.(*message.AtElement); ok {
+			userID := msg.Platform + ":" + e.Target
+
 			// 检查是否@了机器人
-			if msg.Platform+":"+e.Target == botUserID {
+			if userID == botUserID {
 				cmdArgs.AmIBeMentioned = true
 				cmdArgs.SomeoneBeMentionedButNotMe = false
 				if len(atInfo) == 0 {
@@ -515,7 +527,8 @@ func parseAtInfo(cmdArgs *CmdArgs, msg *Message, botUserID string) {
 
 			// 记录@信息
 			atInfo = append(atInfo, &AtInfo{
-				UserID: msg.Platform + ":" + e.Target,
+				UserID:  userID,
+				IsRobot: e.IsRobot,
 			})
 		}
 	}
@@ -721,7 +734,9 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	switch prefix {
 	case "QQ":
 		re = regexp.MustCompile(`\[CQ:at,qq=(\d+)(?:,name=(?:.*?))?\]`)
-	case "OpenQQ", "OpenQQCH":
+	case "OpenQQ":
+		re = regexp.MustCompile(`<@!?(\S+?)>`)
+	case "OpenQQCH":
 		re = regexp.MustCompile(`<@!?(\S+?)>`)
 	case "DISCORD":
 		re = regexp.MustCompile(`<@(\d+?)>`)
@@ -743,6 +758,7 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 		if len(i) == 2 {
 			at := new(AtInfo)
 			at.UserID = prefix + ":" + i[1]
+			at.IsRobot = prefix == "QQ" && isQQBotUserID(at.UserID)
 			ret = append(ret, at)
 		}
 	}

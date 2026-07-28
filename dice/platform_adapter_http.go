@@ -22,7 +22,6 @@ type HTTPSimpleMessage struct {
 }
 
 type PlatformAdapterHTTP struct {
-	Session       *IMSession
 	EndPoint      *EndPointInfo
 	RecentMessage []HTTPSimpleMessage
 }
@@ -57,7 +56,7 @@ func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text st
 	for _, sub := range sp {
 		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "private"})
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "private",
 		Platform:    "UI",
 		Message:     text,
@@ -73,7 +72,7 @@ func (pa *PlatformAdapterHTTP) SendToGroup(ctx *MsgContext, uid string, text str
 	for _, sub := range sp {
 		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "group"})
 	}
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "group",
 		Platform:    "UI",
 		Message:     text,

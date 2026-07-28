@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"runtime"
 
-	_ "github.com/ncruces/go-sqlite3/embed"
-	sqlite "github.com/ncruces/go-sqlite3/gormlite"
+	"github.com/glebarez/sqlite"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
+	"sealdice-core/logger"
 	"sealdice-core/utils/cache"
 )
 
@@ -22,8 +21,7 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	// 使用即时事务
 	path = fmt.Sprintf("file:%v?_txlock=immediate&_busy_timeout=15000", path)
 	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
-		// 注意，这里虽然是Info,但实际上打印就变成了Debug.
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.DefaultSealLogger,
 	})
 	if err != nil {
 		return nil, err
@@ -85,7 +83,7 @@ func createWriteDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
 	// 由于现在我们只有一个写入连接，所以不需要使用事务
 	gormConf := gorm.Config{
-		Logger:                 logger.Default.LogMode(logger.Info),
+		Logger:                 logger.DefaultSealLogger,
 		SkipDefaultTransaction: true,
 	}
 	readDB, err := createReadDB(path, gormConf)
@@ -130,8 +128,8 @@ func SetDefaultPragmas(db *sql.DB) error {
 		// 在 WAL 模式下使用 synchronous=NORMAL 提交的事务可能会在断电或系统崩溃后回滚。
 		// 无论同步设置或日志模式如何，事务在应用程序崩溃时都是持久的。
 		// 对于在 WAL 模式下运行的大多数应用程序来说，synchronous=NORMAL 设置是一个不错的选择。
-		"synchronous": "1",         // NORMAL --> https://www.sqlite.org/pragma.html#pragma_synchronous
-		"cache_size":  "536870912", // 536870912 = 512MB --> https://www.sqlite.org/pragma.html#pragma_cache_size
+		"synchronous": "1",       // NORMAL --> https://www.sqlite.org/pragma.html#pragma_synchronous
+		"cache_size":  "-524288", // Negative values are KiB, so this caps the page cache at 512 MiB.
 	}
 
 	// set the pragmas

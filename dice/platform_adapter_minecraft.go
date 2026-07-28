@@ -12,7 +12,6 @@ import (
 )
 
 type PlatformAdapterMinecraft struct {
-	Session      *IMSession          `json:"-"          yaml:"-"`
 	EndPoint     *EndPointInfo       `json:"-"          yaml:"-"`
 	Socket       *gowebsocket.Socket `json:"-"          yaml:"-"`
 	RetryTimes   int                 `json:"-"          yaml:"-"`
@@ -50,7 +49,7 @@ func (pa *PlatformAdapterMinecraft) Serve() int {
 	pa.Socket = &socket
 	pa.EndPoint.Nickname = "A Minecraft Server"
 	pa.EndPoint.UserID = "WebSocket"
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	pa.socketSetup()
@@ -59,7 +58,7 @@ func (pa *PlatformAdapterMinecraft) Serve() int {
 }
 
 func (pa *PlatformAdapterMinecraft) tryReconnect(socket gowebsocket.Socket) bool {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	if pa.Reconnecting {
 		return false
 	}
@@ -77,7 +76,7 @@ func (pa *PlatformAdapterMinecraft) tryReconnect(socket gowebsocket.Socket) bool
 
 func (pa *PlatformAdapterMinecraft) socketSetup() {
 	ep := pa.EndPoint
-	log := pa.Session.Parent.Logger
+	log := ep.Session.Parent.Logger
 	socket := pa.Socket
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		pa.Reconnecting = true
@@ -85,7 +84,7 @@ func (pa *PlatformAdapterMinecraft) socketSetup() {
 		ep.Enable = true
 		pa.RetryTimes = 0
 
-		d := pa.Session.Parent
+		d := ep.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 
@@ -97,7 +96,7 @@ func (pa *PlatformAdapterMinecraft) socketSetup() {
 		msgMC := new(MessageMinecraft)
 		err := json.Unmarshal([]byte(message), msgMC)
 		if err == nil {
-			pa.Session.Execute(ep, pa.toStdMessage(msgMC), false)
+			ep.Session.Execute(ep, pa.toStdMessage(msgMC), false)
 		}
 	}
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
@@ -154,7 +153,7 @@ func ExtractMCUserID(id string) string {
 }
 
 func (pa *PlatformAdapterMinecraft) DoRelogin() bool {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	pa.Reconnecting = true
 	pa.Socket.Close()
 	socket := gowebsocket.New(pa.ConnectURL)
@@ -167,7 +166,7 @@ func (pa *PlatformAdapterMinecraft) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	if enable {
 		log.Infof("MC server 连接中")
 		if pa.Socket != nil && pa.Socket.IsConnected {
@@ -209,7 +208,7 @@ func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, te
 	msg.MessageType = "private"
 	parse, _ := json.Marshal(msg)
 	pa.Socket.SendText(string(parse))
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "MC",
 		MessageType: "private",
 		Message:     text,
@@ -226,7 +225,7 @@ func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, tex
 	msg.MessageType = "group"
 	parse, _ := json.Marshal(msg)
 	pa.Socket.SendText(string(parse))
-	pa.Session.OnMessageSend(ctx, &Message{
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "MC",
 		MessageType: "group",
 		Message:     text,

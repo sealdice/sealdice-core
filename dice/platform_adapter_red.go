@@ -26,7 +26,6 @@ import (
 )
 
 type PlatformAdapterRed struct {
-	Session     *IMSession    `json:"-" yaml:"-"`
 	EndPoint    *EndPointInfo `json:"-" yaml:"-"`
 	DiceServing bool          `yaml:"-"` // 是否正在连接中
 
@@ -351,9 +350,9 @@ type GroupMember struct {
 
 func (pa *PlatformAdapterRed) Serve() int {
 	ep := pa.EndPoint
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
-	dm := pa.Session.Parent.Parent
+	dm := pa.EndPoint.Session.Parent.Parent
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -417,10 +416,10 @@ func (pa *PlatformAdapterRed) Serve() int {
 	botInfo := pa.getBotInfo()
 	ep.Nickname = botInfo.Name
 	ep.UserID = botInfo.SelfId
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-	pa.Session.Parent.Logger.Infof("red 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserID)
+	pa.EndPoint.Session.Parent.Logger.Infof("red 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserID)
 
 	// 获得好友列表
 	refreshFriends := func() {
@@ -460,7 +459,7 @@ func (pa *PlatformAdapterRed) Serve() int {
 					_ = json.Unmarshal(msgData, &msgRow)
 					log.Debug("recv: %+v", msgRow)
 					for _, msg := range *msgRow.Payload {
-						pa.Session.Execute(pa.EndPoint, pa.decodeMessage(msg), false)
+						pa.EndPoint.Session.Execute(pa.EndPoint, pa.decodeMessage(msg), false)
 					}
 				}
 			case websocket.BinaryMessage:
@@ -495,7 +494,7 @@ func (pa *PlatformAdapterRed) Serve() int {
 }
 
 func (pa *PlatformAdapterRed) DoRelogin() bool {
-	pa.Session.Parent.Logger.Infof("正在启用 red 连接……")
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 red 连接……")
 	pa.EndPoint.State = 0
 	pa.EndPoint.Enable = false
 	if pa.conn != nil {
@@ -506,7 +505,7 @@ func (pa *PlatformAdapterRed) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterRed) SetEnable(enable bool) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	e := pa.EndPoint
 	if enable {
 		e.Enable = true
@@ -528,7 +527,7 @@ func (pa *PlatformAdapterRed) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterRed) QuitGroup(_ *MsgContext, id string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Warnf("red: 尝试退出群组(%s)，但尚不支持该功能", id)
 }
 
@@ -616,7 +615,7 @@ func (pa *PlatformAdapterRed) sendRow(redMsg *RedMessageSend) {
 	pa.muxSend.Lock()
 	defer pa.muxSend.Unlock()
 	if pa.conn != nil {
-		log := pa.Session.Parent.Logger
+		log := pa.EndPoint.Session.Parent.Logger
 		conn := pa.conn
 
 		param := &RedPack[RedMessageSend]{
@@ -644,7 +643,7 @@ func (pa *PlatformAdapterRed) mustExtractId(id string) (int64, RedChatType) {
 }
 
 func (pa *PlatformAdapterRed) SetGroupCardName(ctx *MsgContext, name string) {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	log.Warn("red: 尚未实现该功能")
 }
 
@@ -666,10 +665,10 @@ func (pa *PlatformAdapterRed) RecallMessage(_ *MsgContext, _ string) {}
 
 func (pa *PlatformAdapterRed) GetGroupInfoAsync(_ string) {
 	// 触发更新群信息
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	dm := d.Parent
 	ep := pa.EndPoint
-	s := pa.Session
+	s := pa.EndPoint.Session
 	session := s
 	if pa.memberMap == nil {
 		// Pinenutn: 不清楚在这种情况下，内部结构的兼容性如何，只能是走一步看一步
@@ -786,7 +785,7 @@ func (pa *PlatformAdapterRed) getMemberList(group string, size int) (members []*
 	}
 	groupID, err := strconv.ParseInt(group, 10, 64)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		pa.EndPoint.Session.Parent.Logger.Error("red 获取群成员失败", err)
 		return members
 	}
 	paramData, err := json.Marshal(map[string]interface{}{
@@ -794,12 +793,12 @@ func (pa *PlatformAdapterRed) getMemberList(group string, size int) (members []*
 		"size":  size,
 	})
 	if err != nil {
-		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		pa.EndPoint.Session.Parent.Logger.Error("red 获取群成员失败", err)
 		return members
 	}
 	data, err := pa.httpDo("POST", "group/getMemberList", nil, bytes.NewBuffer(paramData))
 	if err != nil {
-		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		pa.EndPoint.Session.Parent.Logger.Error("red 获取群成员失败", err)
 		return members
 	}
 	type memberInfo struct {
@@ -809,7 +808,7 @@ func (pa *PlatformAdapterRed) getMemberList(group string, size int) (members []*
 	var body []memberInfo
 	err = json.Unmarshal(data, &body)
 	if err != nil {
-		pa.Session.Parent.Logger.Error("red 获取群成员失败", err)
+		pa.EndPoint.Session.Parent.Logger.Error("red 获取群成员失败", err)
 		return []*GroupMember{}
 	}
 	members = lo.Map(body, func(item memberInfo, _ int) *GroupMember {
@@ -946,7 +945,7 @@ func (pa *PlatformAdapterRed) encodeMessage( /* ctx */ _ *MsgContext, content st
 
 // decodeMessage 将 red 格式的信息解析成海豹所需格式
 func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
-	log := pa.Session.Parent.Logger
+	log := pa.EndPoint.Session.Parent.Logger
 	msg := new(Message)
 	if t, err := strconv.ParseInt(message.MsgTime, 10, 64); err == nil {
 		msg.Time = t
@@ -1039,7 +1038,7 @@ func (pa *PlatformAdapterRed) decodeMessage(message *RedMessage) *Message {
 	if message.ChatType == 1 {
 		// 私聊消息
 		msg.MessageType = "private"
-		dm := pa.Session.Parent.Parent
+		dm := pa.EndPoint.Session.Parent.Parent
 		if nick, ok := dm.UserNameCache.Load(uid); ok {
 			send.Nickname = nick.Name
 		}

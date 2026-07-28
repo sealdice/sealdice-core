@@ -88,6 +88,9 @@ func NewPackageManager(parent *Dice) *PackageManager {
 
 // Init 初始化包管理器，并恢复已安装的包。
 func (pm *PackageManager) Init() error {
+	if err := pm.cleanupLegacyPackageTempDir(); err != nil && pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Warnf("清理旧扩展包临时目录失败: %v", err)
+	}
 	if err := pm.ensurePackageDirs(); err != nil {
 		return err
 	}
@@ -354,6 +357,7 @@ func (pm *PackageManager) materializeCandidate(candidate *packageArtifactCandida
 		UserDataPath:  userDataPath,
 		Config:        config,
 		SourceStatus:  sealpack.PackageSourceStatusPresent,
+		Files:         pm.listPackageFiles(installPath),
 		PendingReload: pendingReload,
 	}, nil
 }
@@ -394,8 +398,35 @@ func (pm *PackageManager) materializeCacheCandidate(candidate *packageCacheCandi
 		Config:        config,
 		SourceStatus:  sealpack.PackageSourceStatusCacheOnly,
 		SourceWarning: packageCacheOnlyWarning(sourcePath),
+		Files:         pm.listPackageFiles(candidate.InstallPath),
 		PendingReload: pendingReload,
 	}, nil
+}
+
+func (pm *PackageManager) listPackageFiles(installPath string) []string {
+	files := make([]string, 0)
+	if installPath == "" {
+		return files
+	}
+	if err := filepath.WalkDir(installPath, func(currentPath string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() {
+			return walkErr
+		}
+		relPath, err := filepath.Rel(installPath, currentPath)
+		if err != nil {
+			return err
+		}
+		packagePath := filepath.ToSlash(relPath)
+		if err := sealpack.ValidateRelativePackagePath(packagePath); err != nil {
+			return nil //nolint:nilerr // Skip paths that cannot be represented safely in a package.
+		}
+		files = append(files, packagePath)
+		return nil
+	}); err != nil && pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Warnf("扫描扩展包文件清单失败 %s: %v", installPath, err)
+	}
+	sort.Strings(files)
+	return files
 }
 
 func (pm *PackageManager) ensureInstallCache(candidate *packageArtifactCandidate, installPath string) error {
@@ -797,6 +828,7 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		UserDataPath:  userDataPath,
 		Config:        config,
 		SourceStatus:  sealpack.PackageSourceStatusPresent,
+		Files:         archiveInfo.Files,
 		PendingReload: pendingReload,
 	}
 
@@ -995,11 +1027,34 @@ func copyPackageArchive(dst io.Writer, src io.Reader) (int64, error) {
 }
 
 func (pm *PackageManager) getPackageTempDir() string {
+	if pm != nil && pm.parent != nil && pm.parent.BaseConfig.Name != "" {
+		return filepath.Join(".", "cache", "temp", pm.parent.BaseConfig.Name)
+	}
 	baseDir := "."
 	if pm != nil && pm.parent != nil && pm.parent.BaseConfig.DataDir != "" {
 		baseDir = pm.parent.BaseConfig.DataDir
 	}
 	return filepath.Join(baseDir, "temp")
+}
+
+func (pm *PackageManager) cleanupLegacyPackageTempDir() error {
+	if pm == nil || pm.parent == nil || pm.parent.BaseConfig.Name == "" || pm.parent.BaseConfig.DataDir == "" {
+		return nil
+	}
+	legacyDir := filepath.Join(pm.parent.BaseConfig.DataDir, "temp")
+	newDir := pm.getPackageTempDir()
+	legacyAbs, err := filepath.Abs(legacyDir)
+	if err != nil {
+		return err
+	}
+	newAbs, err := filepath.Abs(newDir)
+	if err != nil {
+		return err
+	}
+	if legacyAbs == newAbs {
+		return nil
+	}
+	return os.RemoveAll(legacyAbs)
 }
 
 func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, error) {

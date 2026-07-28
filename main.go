@@ -177,11 +177,10 @@ func main() {
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
 		GenOpenAPI             string `description:"生成 Huma v2 OpenAPI JSON 到指定路径并退出"                                      long:"gen-openapi"`
 		PProfWeb               bool   `description:"在当前 Web 服务挂载 pprof 调试页面，需要使用启动时生成的 token 访问"                          long:"pprof-web"`
+		MutexProfileRate       int    `description:"对互斥锁竞用的采样速率，小于等于0=关闭，1=所有，其他N=N分之1采样率" long:"mutex-profile" default:"5"`
+		BlockProfileRate       int    `description:"对阻塞事件的采样速率，小于等于0=关闭，1=所有，其他N=每N纳秒1次采样" long:"block-profile" default:"5000"`
 	}
-	// pprof
-	// go func() {
-	//	http.ListenAndServe("0.0.0.0:8899", nil)
-	// }()
+
 	// 读取命令行传参
 	_, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
@@ -206,6 +205,11 @@ func main() {
 		}
 		return
 	}
+
+	// 在启动主要组件前开始采样
+	runtime.SetMutexProfileFraction(opts.MutexProfileRate)
+	runtime.SetBlockProfileRate(opts.BlockProfileRate)
+
 	// 提前到最开始初始化所有日志
 	uiWriter := logger.NewUIWriter()
 	log := logger.InitLogger(zapcore.Level(opts.LogLevel), uiWriter).Named(logger.LogKeyMain)
@@ -219,6 +223,21 @@ func main() {
 	if err != nil {
 		log.Errorf("未读取到.env参数，若您未使用docker或第三方数据库，可安全忽略。")
 	}
+
+	switch opts.MutexProfileRate {
+	case 0:
+		log.Info("关闭互斥锁分析采样")
+	default:
+		log.Infof("互斥锁采样率: 1/%d", opts.MutexProfileRate)
+	}
+
+	switch opts.BlockProfileRate {
+	case 0:
+		log.Info("关闭同步阻塞分析采样")
+	default:
+		log.Infof("阻塞采样率: 1 every %dns", opts.BlockProfileRate)
+	}
+
 	// 初始化文件加锁系统
 	locked, err := sealLock.TryLock()
 	// 如果有错误，或者未能取到锁
@@ -514,7 +533,7 @@ func diceServe(d *dice.Dice) {
 	d.UIEndpoint.ID = "1"
 	d.UIEndpoint.State = 1
 	d.UIEndpoint.UserID = "UI:1000"
-	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{Session: d.ImSession, EndPoint: d.UIEndpoint}
+	d.UIEndpoint.Adapter = &dice.PlatformAdapterHTTP{EndPoint: d.UIEndpoint}
 	d.UIEndpoint.Session = d.ImSession
 
 	dice.TextMapCompatibleCheckAll(d)
@@ -545,6 +564,8 @@ func diceServe(d *dice.Dice) {
 					}
 					if conn.ProtocolType == "official" {
 						dice.ServerOfficialQQ(d, conn)
+						// 官方 QQ 已由统一入口启动，避免继续进入通用 QQ 延迟启动流程。
+						return
 					}
 					if conn.ProtocolType == "satori" {
 						dice.ServeSatori(d, conn)

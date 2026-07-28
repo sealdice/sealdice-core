@@ -1,10 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -298,6 +301,13 @@ func ImConnectionsQrcodeGet(c echo.Context) error {
 					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
 				})
 			}
+		case "official":
+			pa := i.Adapter.(*dice.PlatformAdapterOfficialQQ)
+			if pa.QrLoginState == dice.OfficialQQLoginStateQRWaitingForScan {
+				return c.JSON(http.StatusOK, map[string]string{
+					"img": "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData),
+				})
+			}
 		}
 		return c.JSON(http.StatusOK, i)
 	}
@@ -475,9 +485,7 @@ func ImConnectionsAddDiscord(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewDiscordConnItem(dice.AddDiscordEcho(*v))
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDiscord)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -503,9 +511,7 @@ func ImConnectionsAddKook(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewKookConnItem(v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterKook)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -532,11 +538,9 @@ func ImConnectionsAddTelegram(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewTelegramConnItem(v.Token, v.ProxyURL)
-		conn.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 
 		// myDice.Logger.Infof("成功创建endpoint")
-		pa := conn.Adapter.(*dice.PlatformAdapterTelegram)
-		pa.Session = myDice.ImSession
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -562,9 +566,7 @@ func ImConnectionsAddMinecraft(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewMinecraftConnItem(v.URL)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterMinecraft)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -591,9 +593,7 @@ func ImConnectionsAddSealChat(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewSealChatConnItem(v.URL, v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterSealChat)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -620,9 +620,7 @@ func ImConnectionsAddDodo(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewDodoConnItem(v.ClientID, v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDodo)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -646,9 +644,7 @@ func ImConnectionsAddDingTalk(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewDingTalkConnItem(v.ClientID, v.Token, v.Nickname, v.RobotCode)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterDingTalk)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -675,8 +671,7 @@ func ImConnectionsAddSlack(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewSlackConnItem(v.AppToken, v.BotToken)
-		pa := conn.Adapter.(*dice.PlatformAdapterSlack)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -709,8 +704,7 @@ func ImConnectionsAddMilky(c echo.Context) error {
 			RestGateway: v.RestGateway,
 			BuiltInMode: "",
 		})
-		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -755,8 +749,7 @@ func ImConnectionsAddMilkyInternal(c echo.Context) error {
 			BuiltInMode: v.ClientMode,
 		})
 		conn.UserID = dice.FormatDiceIDQQ(strconv.FormatUint(v.Uin, 10))
-		pa := conn.Adapter.(*dice.PlatformAdapterMilky)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -800,12 +793,11 @@ func ImConnectionsAddBuiltinGocq(c echo.Context) error {
 
 		conn := dice.NewGoCqhttpConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		pa.InPackGoCqhttpProtocol = v.Protocol
 		pa.InPackGoCqhttpPassword = v.Password
 		pa.InPackGoCqhttpAppVersion = v.AppVersion
-		pa.Session = myDice.ImSession
 		pa.UseSignServer = v.UseSignServer
 		pa.SignServerConfig = v.SignServerConfig
 
@@ -858,8 +850,7 @@ func ImConnectionsAddGocqSeparate(c echo.Context) error {
 			Mode:          "client",
 		})
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		// 设置正在使用中 千万不要设置这个
 		// conn.SetEnable(myDice, true)
@@ -902,8 +893,7 @@ func ImConnectionsAddReverseWs(c echo.Context) error {
 			Mode:          "server",
 		})
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		pa := conn.Adapter.(*dice.PlatformAdapterOnebot)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		// 设置正在使用中 千万不要设置这个
 		// conn.SetEnable(myDice, true)
@@ -933,9 +923,7 @@ func ImConnectionsAddRed(c echo.Context) error {
 	err := c.Bind(&v)
 	if err == nil {
 		conn := dice.NewRedConnItem(v.Host, v.Port, v.Token)
-		conn.Session = myDice.ImSession
-		pa := conn.Adapter.(*dice.PlatformAdapterRed)
-		pa.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
@@ -954,24 +942,107 @@ func ImConnectionsAddOfficialQQ(c echo.Context) error {
 	}
 
 	v := struct {
-		AppID       uint64 `json:"appID"       yaml:"appID"`
-		Token       string `json:"token"       yaml:"token"`
-		AppSecret   string `json:"appSecret"   yaml:"appSecret"`
-		OnlyQQGuild bool   `json:"onlyQQGuild" yaml:"onlyQQGuild"`
+		AppID     interface{} `json:"appID"         yaml:"appID"`
+		Token     string      `json:"token"         yaml:"token"` // Deprecated: preserved for old clients but never used.
+		AppSecret string      `json:"appSecret"     yaml:"appSecret"`
+		TestOnly  bool        `json:"testOnly"      yaml:"testOnly"`
+		// Webhook配置
+		UseWebhook  bool   `json:"useWebhook"    yaml:"useWebhook"`
+		WebhookPath string `json:"webhookPath"   yaml:"webhookPath"`
+		WebhookPort int    `json:"webhookPort"   yaml:"webhookPort"`
 	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		conn := dice.NewOfficialQQConnItem(v.AppID, v.Token, v.AppSecret, v.OnlyQQGuild)
-		conn.Session = myDice.ImSession
+	if err := c.Bind(&v); err != nil {
+		return c.String(430, "")
+	}
+
+	var appIDStr string
+	if v.AppID != nil {
+		switch val := v.AppID.(type) {
+		case string:
+			appIDStr = val
+		case float64:
+			appIDStr = strconv.FormatInt(int64(val), 10)
+		case int64:
+			appIDStr = strconv.FormatInt(val, 10)
+		case int:
+			appIDStr = strconv.Itoa(val)
+		default:
+			appIDStr = fmt.Sprintf("%v", val)
+		}
+	}
+	appIDStr = strings.TrimSpace(appIDStr)
+	appSecret := strings.TrimSpace(v.AppSecret)
+
+	// AppID 为空时走扫码登录：入口时尚无凭据，探测与重复检查在扫码成功后进行
+	if appIDStr == "" {
+		if v.TestOnly {
+			return Error(&c, "扫码登录不支持连接测试", Response{})
+		}
+		conn := dice.NewOfficialQQConnItem("", "", "", false)
+		conn.BindRuntime(myDice.ImSession)
 		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
-		pa.Session = myDice.ImSession
+		pa.UseWebhook = v.UseWebhook
+		pa.WebhookPath = v.WebhookPath
+		pa.WebhookPort = v.WebhookPort
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()
 		myDice.Save(false)
 		go dice.ServerOfficialQQ(myDice, conn)
-		return Success(&c, Response{})
+		return Success(&c, Response{
+			"id": conn.ID,
+		})
 	}
-	return c.String(430, "")
+
+	probeCtx, cancel := context.WithTimeout(c.Request().Context(), 15*time.Second)
+	defer cancel()
+	probe, err := dice.ProbeOfficialQQAccount(probeCtx, appIDStr, appSecret)
+	if err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+
+	userID := "OpenQQ:" + probe.UIN
+	existingEndpoint := dice.FindOfficialQQEndpointByUIN(myDice.ImSession, probe.UIN, "")
+	if v.TestOnly {
+		result := Response{
+			"testOnly": true,
+			"userId":   userID,
+			"uin":      probe.UIN,
+			"nickname": probe.Nickname,
+			"exists":   existingEndpoint != nil,
+		}
+		if existingEndpoint != nil {
+			result["id"] = existingEndpoint.ID
+		}
+		return Success(&c, result)
+	}
+	if existingEndpoint != nil {
+		return Error(&c, "该 QQ 官方机器人账号已存在，请先删除已有账号后重新添加", Response{
+			"code":   CodeAlreadyExists,
+			"id":     existingEndpoint.ID,
+			"userId": existingEndpoint.UserID,
+			"uin":    probe.UIN,
+		})
+	}
+
+	// onlyQQGuild 已废弃，新建连接默认全局使用
+	conn := dice.NewOfficialQQConnItem(appIDStr, appSecret, probe.UIN, false)
+	conn.UserID = userID
+	conn.Nickname = probe.Nickname
+	conn.BindRuntime(myDice.ImSession)
+	pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
+	pa.Token = v.Token // Deprecated: preserve values submitted by old clients, but do not use them.
+	pa.UseWebhook = v.UseWebhook
+	pa.WebhookPath = v.WebhookPath
+	pa.WebhookPort = v.WebhookPort
+	myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
+	myDice.LastUpdatedTime = time.Now().Unix()
+	myDice.Save(false)
+	go dice.ServerOfficialQQ(myDice, conn)
+	return Success(&c, Response{
+		"id":     conn.ID,
+		"userId": conn.UserID,
+		"uin":    probe.UIN,
+	})
 }
 
 func ImConnectionsAddSatori(c echo.Context) error {
@@ -994,9 +1065,7 @@ func ImConnectionsAddSatori(c echo.Context) error {
 	}
 
 	conn := dice.NewSatoriConnItem(v.Platform, v.Host, v.Port, v.Token)
-	conn.Session = myDice.ImSession
-	pa := conn.Adapter.(*dice.PlatformAdapterSatori)
-	pa.Session = myDice.ImSession
+	conn.BindRuntime(myDice.ImSession)
 	myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 	myDice.LastUpdatedTime = time.Now().Unix()
 	myDice.Save(false)
@@ -1026,10 +1095,9 @@ func ImConnectionsAddBuiltinLagrange(c echo.Context) error {
 
 		conn := dice.NewLagrangeConnectInfoItem(v.Account)
 		conn.UserID = dice.FormatDiceIDQQ(uid)
-		conn.Session = myDice.ImSession
+		conn.BindRuntime(myDice.ImSession)
 		pa := conn.Adapter.(*dice.PlatformAdapterGocq)
 		// pa.InPackGoCqhttpProtocol = v.Protocol
-		pa.Session = myDice.ImSession
 
 		myDice.ImSession.EndPoints = append(myDice.ImSession.EndPoints, conn)
 		myDice.LastUpdatedTime = time.Now().Unix()

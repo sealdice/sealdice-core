@@ -52,7 +52,6 @@ type echoMapInfo struct {
 
 type PlatformAdapterGocq struct {
 	EndPoint *EndPointInfo `json:"-" yaml:"-"`
-	Session  *IMSession    `json:"-" yaml:"-"`
 
 	IsReverse   bool       `json:"isReverse"   yaml:"isReverse"`
 	ReverseAddr string     `json:"reverseAddr" yaml:"reverseAddr"`
@@ -109,6 +108,7 @@ type PlatformAdapterGocq struct {
 type Sender struct {
 	Age      int32           `json:"age"`
 	Card     string          `json:"card"`
+	IsRobot  bool            `json:"is_robot"`
 	Nickname string          `json:"nickname"`
 	Role     string          `json:"role"` // owner 群主
 	UserID   json.RawMessage `json:"user_id"`
@@ -263,6 +263,7 @@ func (msgQQ *MessageQQ) toStdMessage() *Message {
 		}
 		msg.Sender.GroupRole = msgQQ.Sender.Role
 		msg.Sender.UserID = FormatDiceIDQQ(string(msgQQ.Sender.UserID))
+		msg.Sender.IsRobot = msgQQ.Sender.IsRobot || isQQBotUserID(msg.Sender.UserID)
 	}
 	return msg
 }
@@ -422,7 +423,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		pa.Implementation = "gocq"
 	}
 	ep := pa.EndPoint
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
 	dm := s.Parent.Parent
 	interrupt := make(chan os.Signal, 1)
@@ -439,7 +440,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 	ep.State = 2
 	socket.OnConnected = func(socket gowebsocket.Socket) {
-		defer ErrorLogAndContinue(pa.Session.Parent)
+		defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 		ep.State = 1
 		if pa.IsReverse {
 			log.Info("onebot v11 反向ws连接成功")
@@ -453,7 +454,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
-		defer ErrorLogAndContinue(pa.Session.Parent)
+		defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 		// if CheckDialErr(err) != syscall.ECONNREFUSED {
 		// refused 不算大事
 		log.Error("onebot v11 connection error: ", err)
@@ -477,7 +478,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	tempFriendInviteSent := map[string]int64{}     // gocq会重新发送已经发过的邀请
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
-		defer ErrorLogAndContinue(pa.Session.Parent)
+		defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 		// if strings.Contains(message, `.`) {
 		//	log.Info("...", message)
 		// }
@@ -533,7 +534,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			log.Debug("骰子信息已刷新")
 			ep.RefreshGroupNum()
 
-			d := pa.Session.Parent
+			d := pa.EndPoint.Session.Parent
 			d.LastUpdatedTime = time.Now().Unix()
 			d.Save(false)
 			return
@@ -1046,9 +1047,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
 			go func() {
-				defer ErrorLogAndContinue(pa.Session.Parent)
+				defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 				isPrivate := msg.MessageType == "private"
-				pa.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
+				pa.EndPoint.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
 					GroupID:   msg.GroupID,
 					SenderID:  FormatDiceIDQQ(string(msgQQ.UserID)),
 					TargetID:  FormatDiceIDQQ(string(msgQQ.TargetID)),
@@ -1074,6 +1075,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			if msgQQ.MessageType == "private" {
 				if msg.Sender.UserID == "QQ:" {
 					msg.Sender.UserID = "QQ:" + string(msgQQ.UserID)
+					msg.Sender.IsRobot = isQQBotUserID(msg.Sender.UserID)
 				}
 				if msg.Sender.Nickname == "" {
 					msg.Sender.Nickname = "未知用户"
@@ -1102,7 +1104,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		lastDisconnect = now
 
 		log.Info("onebot 服务的连接被对方关闭")
-		_ = pa.Session.Parent.SendMail("", MailTypeConnectClose)
+		_ = pa.EndPoint.Session.Parent.SendMail("", MailTypeConnectClose)
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
 
@@ -1181,7 +1183,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 }
 
 func (pa *PlatformAdapterGocq) DoRelogin() bool {
-	myDice := pa.Session.Parent
+	myDice := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
 	if pa.Socket != nil {
 		go func() {
@@ -1248,7 +1250,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	c := pa.EndPoint
 	if enable {
 		c.Enable = true
@@ -1297,7 +1299,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 	pa.InPackGoCqhttpProtocol = protocol
 
 	// ep.Session.Parent.GetDiceDataPath(ep.RelWorkDir)
-	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	workDir := filepath.Join(pa.EndPoint.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	deviceFilePath := filepath.Join(workDir, "device.json")
 	if _, err := os.Stat(deviceFilePath); err == nil {
 		configFile, _ := os.ReadFile(deviceFilePath)
@@ -1317,7 +1319,7 @@ func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {
 }
 
 func (pa *PlatformAdapterGocq) SetSignServer(signServerConfig *SignServerConfig) bool {
-	workDir := filepath.Join(pa.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
+	workDir := filepath.Join(pa.EndPoint.Session.Parent.BaseConfig.DataDir, pa.EndPoint.RelWorkDir)
 	configFilePath := filepath.Join(workDir, "config.yml")
 	if _, err := os.Stat(configFilePath); err == nil {
 		configFile, _ := os.ReadFile(configFilePath)
@@ -1357,7 +1359,7 @@ func (pa *PlatformAdapterGocq) IsLoginSuccessed() bool {
 
 func (pa *PlatformAdapterGocq) packTempCtx(msgQQ *MessageQQ, msg *Message) *MsgContext {
 	ep := pa.EndPoint
-	session := pa.Session
+	session := pa.EndPoint.Session
 
 	ctx := &MsgContext{MessageType: msg.MessageType, EndPoint: ep, Session: session, Dice: session.Parent}
 

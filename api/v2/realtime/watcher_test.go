@@ -41,10 +41,8 @@ func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T
 	ep := dice.NewMilkyConnItem(dice.AddMilkyEcho{BuiltInMode: "yogurt"})
 	ep.Enable = true
 	ep.State = dice.StateConnecting
-	ep.Session = dm.GetDice().ImSession
+	ep.BindRuntime(dm.GetDice().ImSession)
 	pa := ep.Adapter.(*dice.PlatformAdapterMilky)
-	pa.Session = dm.GetDice().ImSession
-	pa.EndPoint = ep
 	pa.BuiltInLoginState = dice.MilkyLoginStateQRWaitingForScan
 	pa.QrCodeData = []byte("fake-png")
 	dm.GetDice().ImSession.EndPoints = append(dm.GetDice().ImSession.EndPoints, ep)

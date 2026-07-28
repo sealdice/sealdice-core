@@ -446,7 +446,7 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, 
 		return
 	}
 
-	dice := pa.Session.Parent
+	dice := pa.EndPoint.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := message.ExtractLocalTempFile(path)
 
@@ -488,7 +488,7 @@ func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, 
 		return
 	}
 
-	dice := pa.Session.Parent
+	dice := pa.EndPoint.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
 	fileName, temp, err := message.ExtractLocalTempFile(path)
 

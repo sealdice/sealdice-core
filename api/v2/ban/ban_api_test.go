@@ -68,7 +68,7 @@ func newTestBanService(t *testing.T) *BanService {
 		PendingQuits: new(dice.SyncMap[string, *dice.PendingQuitInfo]),
 	}
 
-	adapter := &dice.PlatformAdapterHTTP{Session: d.ImSession}
+	adapter := &dice.PlatformAdapterHTTP{}
 	ep := &dice.EndPointInfo{
 		EndPointInfoBase: dice.EndPointInfoBase{
 			ID:       "ui-endpoint",
@@ -76,11 +76,11 @@ func newTestBanService(t *testing.T) *BanService {
 			UserID:   "UI:1000",
 			Platform: "UI",
 			Enable:   true,
-			Session:  d.ImSession,
 		},
 		Adapter: adapter,
 	}
 	adapter.EndPoint = ep
+	ep.BindRuntime(d.ImSession)
 	d.ImSession.EndPoints = []*dice.EndPointInfo{ep}
 	d.UIEndpoint = ep
 

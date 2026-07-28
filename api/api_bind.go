@@ -768,14 +768,21 @@ func BindV1(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.DELETE(prefix+"/store/backend/remove", storeRemoveBackend)
 	e.GET(prefix+"/store/recommend", storeRecommend)
 	e.GET(prefix+"/store/page", storeGetPage)
+	e.GET(prefix+"/store/files/:namespace/:package/:version", storePackageFiles)
+	e.GET(prefix+"/store/file/:namespace/:package/:version", storePackageFilePreview)
+	e.GET("/dice/api/store/files/:namespace/:package/:version", storePackageFiles)
+	e.GET("/dice/api/store/file/:namespace/:package/:version", storePackageFilePreview)
 	e.POST(prefix+"/store/preview-download", storePreviewDownload)
 	e.POST(prefix+"/store/download", storeDownload)
+	e.POST(prefix+"/store/package-info-list", storePackageInfoList)
+	e.POST(prefix+"/store/install-list", storeInstallList)
 	e.POST(prefix+"/store/rating", storeRating)
 	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
 
 	// 扩展包管理
 	e.GET(prefix+"/package/list", packageList)
 	e.POST(prefix+"/package/refresh", packageRefresh)
+	e.GET(prefix+"/package/asset", packageAsset)
 	e.GET(prefix+"/package/:id", packageGet)
 	e.POST(prefix+"/package/preview-upload", packagePreviewFromUpload)
 	e.POST(prefix+"/package/upload-preview", packagePreviewFromUpload)
@@ -792,4 +799,6 @@ func BindV1(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/package/:id/config", packageGetConfig)
 	e.POST(prefix+"/package/:id/config", packageSetConfig)
 	e.GET(prefix+"/package/:id/config-schema", packageGetConfigSchema)
+
+	bindPProfAPIs(e, prefix)
 }

@@ -25,7 +25,6 @@ import (
 
 type PlatformAdapterWalleQ struct {
 	EndPoint        *EndPointInfo       `json:"-"               yaml:"-"`
-	Session         *IMSession          `json:"-"               yaml:"-"`
 	Socket          *gowebsocket.Socket `json:"-"               yaml:"-"`
 	ConnectURL      string              `json:"connectUrl"      yaml:"connectUrl"`      // 连接地址
 	UseInPackWalleQ bool                `json:"useInPackWalleQ" yaml:"useInPackWalleQ"` // 是否使用内置的WalleQ
@@ -173,7 +172,7 @@ type OnebotV12UserInfo struct {
 func (pa *PlatformAdapterWalleQ) Serve() int {
 	pa.Implementation = "walle-q"
 	ep := pa.EndPoint
-	s := pa.Session
+	s := pa.EndPoint.Session
 	log := s.Parent.Logger
 	dm := s.Parent.Parent
 	interrupt := make(chan os.Signal, 1)
@@ -338,7 +337,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				}
 			}
 
-			pa.Session.Execute(pa.EndPoint, msg, false) // wq 还没有频道支持，直接执行
+			pa.EndPoint.Session.Execute(pa.EndPoint, msg, false) // wq 还没有频道支持，直接执行
 		}
 
 		//nolint:nestif
@@ -440,8 +439,8 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			case "group_message_delete": // 消息撤回
 				groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
 				if ok {
-					if groupInfo.LogOn {
-						_ = service.LogMarkDeleteByMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, groupInfo.LogCurName, n.MessageID)
+					if groupInfo.GetLogState().On {
+						_ = service.LogMarkDeleteByRawMsgID(ctx.Dice.DBOperator, groupInfo.GroupID, n.MessageID)
 					}
 				}
 				return
@@ -622,7 +621,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			case "get_self_info":
 				ep.Nickname = m["user_name"].(string)
 				ep.UserID = FormatDiceIDQQV12(m["user_id"].(string))
-				d := pa.Session.Parent
+				d := pa.EndPoint.Session.Parent
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
 				return
@@ -729,7 +728,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 /* 标准方法实现 */
 
 func (pa *PlatformAdapterWalleQ) DoRelogin() bool {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
 	if pa.Socket != nil {
 		go pa.Socket.Close()
@@ -753,7 +752,7 @@ func (pa *PlatformAdapterWalleQ) DoRelogin() bool {
 }
 
 func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
-	d := pa.Session.Parent
+	d := pa.EndPoint.Session.Parent
 	c := pa.EndPoint
 	if enable {
 		c.Enable = true
@@ -1208,7 +1207,7 @@ func (pa *PlatformAdapterWalleQ) TextToMessageSegment(text string) []MessageSegm
 		}
 		pa2, err := filepath.Abs(path)
 		if err != nil {
-			pa.Session.Parent.Logger.Info("路径转换错误，将使用原路径", err)
+			pa.EndPoint.Session.Parent.Logger.Info("路径转换错误，将使用原路径", err)
 			pa2 = path
 		}
 		return pa2

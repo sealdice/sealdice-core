@@ -133,63 +133,75 @@ func parseQQGroupRole(role string) (string, bool) {
 	return normalized, true
 }
 
-func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+// checkBotGroupRole 查询 bot 在指定群中归一化后的角色(owner/admin/member)。
+// 返回值: ok 表示该适配器是否支持并成功完成角色检查;
+// detail 在 ok=true 时为归一化后的角色字符串,在 ok=false 时为失败原因描述。
+// 不支持角色检查的适配器返回 ok=false, 调用方应保持原有行为, 不做阻断。
+func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
-		return false, false, "context invalid"
+		return "context invalid", false
 	}
 
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
 		if pa.sendEmitter == nil {
-			return false, false, "onebot emitter unavailable"
+			return "onebot emitter unavailable", false
 		}
 		botID, ok := getOnebotBotQQID(ctx)
 		if !ok {
-			return false, false, "cannot resolve bot qq id"
+			return "cannot resolve bot qq id", false
 		}
 		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, false)
 		if err != nil || memberInfo == nil {
 			if err != nil {
-				return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+				return fmt.Sprintf("get_group_member_info failed: %v", err), false
 			}
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	case *PlatformAdapterGocq:
 		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
 		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
 		if botIDRaw == "" || groupIDRaw == "" {
-			return false, false, "cannot resolve bot/group id"
+			return "cannot resolve bot/group id", false
 		}
 		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
 		if memberInfo == nil {
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	case *PlatformAdapterMilky:
 		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
 		if err != nil {
-			return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+			return fmt.Sprintf("get_group_member_info failed: %v", err), false
 		}
 		if memberInfo == nil {
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	default:
-		return false, false, "adapter does not support group role check"
+		return "adapter does not support group role check", false
 	}
+}
+
+func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+	detail, ok := checkBotGroupRole(ctx, groupID)
+	if !ok {
+		return false, false, detail
+	}
+	return detail == "owner", true, detail
 }
 
 func normalizeDismissTargetGroupID(ctx *MsgContext, rawGroupID string) string {
@@ -287,6 +299,21 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 	}
 
 	return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
+}
+
+func shouldShowBestHelpResult(hits docengine.MatchCollection, bestTitle, query string, minRelativeGap float64) bool {
+	if len(hits) == 0 {
+		return false
+	}
+	if len(hits) == 1 || query != "" && bestTitle == query {
+		return true
+	}
+
+	bestScore := hits[0].Score
+	if bestScore <= 0 {
+		return false
+	}
+	return (bestScore-hits[1].Score)/bestScore >= minRelativeGap
 }
 
 /** 这几条指令不能移除 */
@@ -619,7 +646,6 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			hasSecond := len(search.Hits) >= 2
 			// 准备接下来读取这里面的Fields
 			bestRaw := search.Hits[0].Fields
 			best := &docengine.HelpTextItem{
@@ -647,22 +673,12 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			var showBest bool
-			if hasSecond {
-				offset := d.Parent.Help.GetShowBestOffset()
-				val := search.Hits[1].Score - search.Hits[0].Score
-				if val < 0 {
-					val = -val
-				}
-				if val > float64(offset) {
-					showBest = true
-				}
-				if best.Title == text {
-					showBest = true
-				}
-			} else {
-				showBest = true
-			}
+			showBest := shouldShowBestHelpResult(
+				search.Hits,
+				best.Title,
+				text,
+				d.Parent.Help.GetShowBestRelativeGap(),
+			)
 
 			var bestResult string
 			if showBest {
@@ -842,7 +858,7 @@ func (d *Dice) registerCoreCommands() {
 					ctx.IsCurGroupBotOn = true
 
 					text := DiceFormatTmpl(ctx, "核心:骰子开启")
-					if ctx.Group.LogOn {
+					if ctx.Group.GetLogState().On {
 						text += "\n请特别注意: 日志记录处于开启状态"
 					}
 					ReplyToSender(ctx, msg, text)

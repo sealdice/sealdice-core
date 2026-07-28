@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"regexp"
@@ -35,6 +36,7 @@ import (
 type SenderBase struct {
 	Nickname  string `jsbind:"nickname" json:"nickname"`
 	UserID    string `jsbind:"userId"   json:"userId"`
+	IsRobot   bool   `jsbind:"isRobot"  json:"isRobot"`
 	GroupRole string `json:"-"` // 群内角色 admin管理员 owner群主
 }
 
@@ -87,10 +89,12 @@ type GroupInfo struct {
 	DiceSideExpr    string                 `json:"diceSideExpr"    yaml:"diceSideExpr"` //
 	System          string                 `json:"system"          yaml:"system"`       // 规则系统，概念同bcdice的gamesystem，距离如dnd5e coc7
 
-	HelpPackages []string `json:"helpPackages"   yaml:"-"`
-	CocRuleIndex int      `jsbind:"cocRuleIndex" json:"cocRuleIndex" yaml:"cocRuleIndex"`
-	LogCurName   string   `jsbind:"logCurName"   json:"logCurName"   yaml:"logCurFile"`
-	LogOn        bool     `jsbind:"logOn"        json:"logOn"        yaml:"logOn"`
+	HelpPackages []string      `json:"helpPackages"   yaml:"-"`
+	CocRuleIndex int           `jsbind:"cocRuleIndex" json:"cocRuleIndex" yaml:"cocRuleIndex"`
+	logStateMu   *sync.RWMutex `json:"-" yaml:"-"`
+	LogCurID     uint64        `json:"-" yaml:"-"`
+	LogCurName   string        `jsbind:"logCurName"   json:"logCurName"   yaml:"logCurFile"`
+	LogOn        bool          `jsbind:"logOn"        json:"logOn"        yaml:"logOn"`
 
 	QuitMarkAutoClean   bool   `json:"-"                     yaml:"-"` // 自动清群 - 播报，即将自动退出群组
 	QuitMarkMaster      bool   `json:"-"                     yaml:"-"` // 骰主命令退群 - 播报，即将自动退出群组
@@ -281,6 +285,55 @@ func (g *GroupInfo) MarkDirty(d *Dice) {
 	if d != nil && d.DirtyGroups != nil {
 		d.DirtyGroups.Store(g.GroupID, now)
 	}
+}
+
+type GroupLogState struct {
+	ID   uint64
+	Name string
+	On   bool
+}
+
+func (g *GroupInfo) ensureLogStateMu() *sync.RWMutex {
+	if g.logStateMu == nil {
+		g.logStateMu = &sync.RWMutex{}
+	}
+	return g.logStateMu
+}
+
+func (g *GroupInfo) GetLogState() GroupLogState {
+	mu := g.ensureLogStateMu()
+	mu.RLock()
+	defer mu.RUnlock()
+	return GroupLogState{
+		ID:   g.LogCurID,
+		Name: g.LogCurName,
+		On:   g.LogOn,
+	}
+}
+
+func (g *GroupInfo) SetLogState(logID uint64, logName string, logOn bool) {
+	mu := g.ensureLogStateMu()
+	mu.Lock()
+	g.LogCurID = logID
+	g.LogCurName = logName
+	g.LogOn = logOn
+	mu.Unlock()
+}
+
+func (g *GroupInfo) SetLogOn(logOn bool) {
+	mu := g.ensureLogStateMu()
+	mu.Lock()
+	g.LogOn = logOn
+	mu.Unlock()
+}
+
+func (g *GroupInfo) ClearLogState() {
+	mu := g.ensureLogStateMu()
+	mu.Lock()
+	g.LogCurID = 0
+	g.LogCurName = ""
+	g.LogOn = false
+	mu.Unlock()
 }
 
 func (group *GroupInfo) IsActive(ctx *MsgContext) bool {
@@ -604,6 +657,61 @@ type IMSession struct {
 	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
 }
 
+func (s *IMSession) ResolveLiveEndpoint(ep *EndPointInfo) (*EndPointInfo, error) {
+	if ep == nil {
+		return nil, errors.New("endpoint is nil")
+	}
+	if s == nil {
+		return nil, errors.New("session is nil")
+	}
+
+	for _, cur := range s.EndPoints {
+		if cur == ep {
+			if cur.Session == nil {
+				cur.BindRuntime(s)
+			}
+			return cur, nil
+		}
+	}
+
+	if ep.ID != "" {
+		for _, cur := range s.EndPoints {
+			if cur != nil && cur.ID == ep.ID {
+				if cur.Session == nil {
+					cur.BindRuntime(s)
+				}
+				return cur, nil
+			}
+		}
+	}
+
+	var matched *EndPointInfo
+	for _, cur := range s.EndPoints {
+		if cur == nil {
+			continue
+		}
+		if cur.UserID != ep.UserID || cur.Platform != ep.Platform || cur.ProtocolType != ep.ProtocolType {
+			continue
+		}
+		if matched != nil && matched != cur {
+			return nil, fmt.Errorf("endpoint resolution ambiguous for userId=%s platform=%s protocolType=%s", ep.UserID, ep.Platform, ep.ProtocolType)
+		}
+		matched = cur
+	}
+	if matched != nil {
+		if matched.Session == nil {
+			matched.BindRuntime(s)
+		}
+		return matched, nil
+	}
+
+	if ep.Platform == "UI" && ep.Session == s {
+		return ep, nil
+	}
+
+	return nil, fmt.Errorf("endpoint not found: id=%s userId=%s platform=%s protocolType=%s", ep.ID, ep.UserID, ep.Platform, ep.ProtocolType)
+}
+
 type PendingQuitInfo struct {
 	Origin    string
 	CreatedAt time.Time
@@ -797,22 +905,15 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				tmpUID = msg.TmpUID
 			}
 			for _, i := range ats {
-				// 特殊处理 OpenQQ 和 OpenQQCH
 				if i.UserID == tmpUID {
 					amIBeMentioned = true
 					break
-				} else if strings.HasPrefix(i.UserID, "OpenQQ:") ||
-					strings.HasPrefix(i.UserID, "OpenQQCH:") {
-					uid := strings.TrimPrefix(tmpUID, "OpenQQ:")
-					if i.UserID == "OpenQQ:"+uid || i.UserID == "OpenQQCH:"+uid {
-						amIBeMentioned = true
-						break
-					}
 				}
 			}
 		}
 
 		mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+		VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 		mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
 		if mctx.Group != nil && mctx.Group.System != "" {
@@ -876,11 +977,12 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			mctx.CommandID = getNextCommandID()
 
 			var tmpUID string
-			if platformPrefix == "OpenQQCH" {
+			switch platformPrefix {
+			case "OpenQQCH":
 				// 特殊处理 OpenQQ频道
 				uid := strings.TrimPrefix(ep.UserID, "OpenQQ:")
 				tmpUID = "OpenQQCH:" + uid
-			} else {
+			default:
 				tmpUID = ep.UserID
 			}
 			if msg.TmpUID != "" {
@@ -1007,7 +1109,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 					// 屏蔽机器人发送的消息
 					if mctx.MessageType == "group" {
 						// fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
-						if mctx.Group.BotList.Exists(msg.Sender.UserID) {
+						if mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 							log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 							return
 						}
@@ -1018,7 +1120,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 								// 忽略自己
 								continue
 							}
-							if mctx.Group.BotList.Exists(uid) {
+							if mctx.Group.IsBot(uid, i.IsRobot) {
 								return
 							}
 						}
@@ -1041,7 +1143,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			// 试图匹配自定义回复
 			isSenderBot := false
 			if mctx.MessageType == "group" {
-				if mctx.Group != nil && mctx.Group.BotList.Exists(msg.Sender.UserID) {
+				if mctx.Group != nil && mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 					isSenderBot = true
 				}
 			}
@@ -1187,6 +1289,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	}
 
 	mctx.Group, mctx.Player = GetPlayerInfoBySender(mctx, msg)
+	VarSetValueStr(mctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 	mctx.IsCurGroupBotOn = msg.MessageType == "group" && mctx.Group.IsActive(mctx)
 
 	if mctx.Group != nil && mctx.Group.System != "" {
@@ -1331,7 +1434,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		// 试图匹配自定义回复
 		isSenderBot := false
 		if mctx.MessageType == "group" {
-			if mctx.Group != nil && mctx.Group.BotList.Exists(msg.Sender.UserID) {
+			if mctx.Group != nil && mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 				isSenderBot = true
 			}
 		}
@@ -1427,7 +1530,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 		// 屏蔽机器人发送的消息
 		if mctx.MessageType == "group" {
 			// fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
-			if mctx.Group.BotList.Exists(msg.Sender.UserID) {
+			if mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
 				log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
 				return
 			}
@@ -1438,7 +1541,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 					// 忽略自己
 					continue
 				}
-				if mctx.Group.BotList.Exists(uid) {
+				if mctx.Group.IsBot(uid, i.IsRobot) {
 					return
 				}
 			}
@@ -1822,7 +1925,7 @@ func isBlacklistedHelpMasterRequest(cmdArgs *CmdArgs) bool {
 	return len(cmdArgs.Args) == 1 && cmdArgs.IsArgEqual(1, "骰主")
 }
 
-func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGroup bool, banQuitGroup func()) bool {
+func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGroup bool, now time.Time, banQuitGroup func()) bool {
 	d := ctx.Dice
 	log := d.Logger
 	banListInfoItem, _ := d.Config.BanList.GetByID(msg.Sender.UserID)
@@ -1851,10 +1954,14 @@ func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGrou
 	}
 
 	if d.Config.BanList.BanBehaviorQuitIfAdmin {
+		if !d.Config.BanList.CanNotifyBlacklistedUser(groupID, msg.Sender.UserID, now) {
+			return true
+		}
+
 		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是普通群员，进行群内通告\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		log.Info(noticeMsg)
 
-		text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。", msg.Sender.Nickname, msg.Sender.UserID)
+		text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。\n%s", msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
 		ctx.Notice(noticeMsg)
@@ -1871,7 +1978,7 @@ func handleBlacklistedUser(ctx *MsgContext, msg *Message, isWhiteGroup bool, now
 	log := d.Logger
 
 	if (d.Config.BanList.BanBehaviorQuitIfAdmin || d.Config.BanList.BanBehaviorQuitIfAdminSilentIfNotAdmin) && msg.MessageType == "group" {
-		return handleBlacklistedUserQuitIfAdmin(ctx, msg, isWhiteGroup, banQuitGroup)
+		return handleBlacklistedUserQuitIfAdmin(ctx, msg, isWhiteGroup, now, banQuitGroup)
 	}
 
 	if d.Config.BanList.BanBehaviorQuitPlaceImmediately && msg.MessageType == "group" {
@@ -2018,15 +2125,8 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 				// 允许代骰时，发一句话
 				cur := -1
 				for index, i := range cmdArgs.At {
-					if i.UserID == ctx.EndPoint.UserID {
+					if i.UserID == ctx.EndPoint.UserID || (cmdArgs.uidForAtInfo != "" && i.UserID == cmdArgs.uidForAtInfo) {
 						continue
-					} else if strings.HasPrefix(ctx.EndPoint.UserID, "OpenQQ:") {
-						// 特殊处理 OpenQQ频道
-						uid := strings.TrimPrefix(i.UserID, "OpenQQCH:")
-						diceId := strings.TrimPrefix(ctx.EndPoint.UserID, "OpenQQ:")
-						if uid == diceId {
-							continue
-						}
 					}
 					cur = index
 				}
@@ -2163,6 +2263,13 @@ func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
 
 	_ = mctx.fillPrivilege(msg)
 
+	log := d.Logger
+	if msg.MessageType == "group" {
+		log.Infof("收到群(%s)内<%s>(%s)的撤回消息事件: rawId=%v", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.RawID)
+	} else {
+		log.Infof("收到<%s>(%s)的撤回消息事件: rawId=%v", msg.Sender.Nickname, msg.Sender.UserID, msg.RawID)
+	}
+
 	for _, i := range s.Parent.ExtList {
 		i.CallOnMessageDeleted(mctx.Dice, mctx, msg)
 	}
@@ -2266,79 +2373,76 @@ func (ep *EndPointInfo) SetEnable(_ *Dice, enable bool) {
 	}
 }
 
-func (ep *EndPointInfo) AdapterSetup() {
+func (ep *EndPointInfo) BindRuntime(session *IMSession) {
+	if ep == nil {
+		return
+	}
+	ep.Session = session
+
+	if ep.Adapter == nil {
+		return
+	}
+
 	switch ep.Platform {
 	case "QQ":
 		switch ep.ProtocolType {
 		case "onebot":
 			pa := ep.Adapter.(*PlatformAdapterGocq)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "walle-q":
 			pa := ep.Adapter.(*PlatformAdapterWalleQ)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "red":
 			pa := ep.Adapter.(*PlatformAdapterRed)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "official":
 			pa := ep.Adapter.(*PlatformAdapterOfficialQQ)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "satori":
 			pa := ep.Adapter.(*PlatformAdapterSatori)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "milky":
 			pa := ep.Adapter.(*PlatformAdapterMilky)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 		case "pureonebot":
 			pa := ep.Adapter.(*PlatformAdapterOnebot)
 			log := zap.S().Named(logger.LogKeyAdapter)
-			pa.Session = ep.Session
 			pa.EndPoint = ep
 			pa.logger = log
 			pa.desiredEnabled = ep.Enable
 			// case "LagrangeGo":
 			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
-			//	pa.Session = ep.Session
 			//	pa.EndPoint = ep
 		}
 	case "DISCORD":
 		pa := ep.Adapter.(*PlatformAdapterDiscord)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "KOOK":
 		pa := ep.Adapter.(*PlatformAdapterKook)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "TG":
 		pa := ep.Adapter.(*PlatformAdapterTelegram)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "MC":
 		pa := ep.Adapter.(*PlatformAdapterMinecraft)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "DODO":
 		pa := ep.Adapter.(*PlatformAdapterDodo)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "DINGTALK":
 		pa := ep.Adapter.(*PlatformAdapterDingTalk)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "SLACK":
 		pa := ep.Adapter.(*PlatformAdapterSlack)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	case "SEALCHAT":
 		pa := ep.Adapter.(*PlatformAdapterSealChat)
-		pa.Session = ep.Session
 		pa.EndPoint = ep
 	}
+}
+
+func (ep *EndPointInfo) AdapterSetup() {
+	ep.BindRuntime(ep.Session)
 }
 
 func (ep *EndPointInfo) RefreshGroupNum() {

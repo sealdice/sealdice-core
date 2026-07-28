@@ -77,7 +77,7 @@ func (s *SQLiteEngine) getDBByModeAndKey(mode constant.DBMode, key dbName) *gorm
 	case constant.WRITE:
 		return s.writeList[key]
 	case constant.READ:
-		return s.writeList[key]
+		return s.readList[key]
 	default:
 		// 默认获取写的，牺牲性能为代价，防止多个写
 		return s.writeList[key]
