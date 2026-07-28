@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,28 @@ type officialQQTransportFunc func(ctx context.Context, method, url string, body 
 
 func (f officialQQTransportFunc) Transport(ctx context.Context, method, url string, body interface{}) ([]byte, error) {
 	return f(ctx, method, url, body)
+}
+
+func TestServerOfficialQQSkipsRunningSessionBeforeStateChange(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn := &PlatformAdapterOfficialQQ{Ctx: ctx}
+	ep := &EndPointInfo{EndPointInfoBase: EndPointInfoBase{
+		State:  StateConnected,
+		Enable: true,
+	}}
+
+	serverOfficialQQ(&Dice{}, ep, conn)
+
+	if conn.DiceServing {
+		t.Fatal("running session was marked as a new server")
+	}
+	if ep.State != StateConnected || !ep.Enable {
+		t.Fatalf("endpoint state changed for running session: state=%d enable=%t", ep.State, ep.Enable)
+	}
 }
 
 func TestExtractOfficialQQBotUIN(t *testing.T) {
@@ -298,6 +321,53 @@ func TestOfficialQQAdapterSerializationDoesNotExposeSecrets(t *testing.T) {
 	}
 }
 
+func TestReplaceOfficialQQCredentials(t *testing.T) {
+	t.Parallel()
+
+	existing := NewOfficialQQConnItem("old-app", "old-secret", "123", false)
+	existing.Adapter.(*PlatformAdapterOfficialQQ).UIN = ""
+	existing.UserID = "OpenQQ: 123 "
+	existing.Nickname = "old bot"
+	source := &PlatformAdapterOfficialQQ{
+		AppID:     " new-app ",
+		AppSecret: " new-secret ",
+	}
+	probe := &OfficialQQAccountProbeResult{
+		UIN:      " 123 ",
+		BotID:    " new-bot-id ",
+		Nickname: "new bot",
+	}
+
+	adapter, err := replaceOfficialQQCredentials(existing, source, probe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adapter != existing.Adapter {
+		t.Fatal("replacement returned a different adapter")
+	}
+	if adapter.AppID != "new-app" || adapter.AppSecret != "new-secret" || adapter.UIN != "123" || adapter.botID != "new-bot-id" {
+		t.Fatalf("credentials were not replaced: %+v", adapter)
+	}
+	if existing.UserID != "OpenQQ:123" || existing.Nickname != "new bot" {
+		t.Fatalf("endpoint identity was not updated: userID=%s nickname=%s", existing.UserID, existing.Nickname)
+	}
+}
+
+func TestReplaceOfficialQQCredentialsRejectsUINMismatch(t *testing.T) {
+	t.Parallel()
+
+	existing := NewOfficialQQConnItem("old-app", "old-secret", "123", false)
+	existing.UserID = "OpenQQ:123"
+	_, err := replaceOfficialQQCredentials(
+		existing,
+		&PlatformAdapterOfficialQQ{AppID: "new-app", AppSecret: "new-secret"},
+		&OfficialQQAccountProbeResult{UIN: "456"},
+	)
+	if err == nil {
+		t.Fatal("UIN mismatch was accepted")
+	}
+}
+
 func TestPublicDiceEndpointAppID(t *testing.T) {
 	t.Parallel()
 
@@ -315,7 +385,20 @@ func TestPublicDiceEndpointAppID(t *testing.T) {
 	}
 }
 
-func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
+func TestOfficialQQIdentityMigrationConfigRequiresOptIn(t *testing.T) {
+	config := DefaultConfig
+	if config.OfficialQQMigrationEnable {
+		t.Fatal("official QQ identity migration is enabled by default")
+	}
+	if err := yaml.Unmarshal([]byte("officialQQEnableIdentityMigration: true\n"), &config); err != nil {
+		t.Fatal(err)
+	}
+	if !config.OfficialQQMigrationEnable {
+		t.Fatal("serve.yaml did not enable official QQ identity migration")
+	}
+}
+
+func TestOfficialQQIdentityMigrationLegacyDataProbe(t *testing.T) {
 	const appID = "123456789"
 
 	dbOperator, openErr := newMockDatabaseOperator(filepath.Join(t.TempDir(), "official-qq-probe.db"))
@@ -323,13 +406,13 @@ func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 		t.Fatal(openErr)
 	}
 	t.Cleanup(dbOperator.Close)
-	if err := dbOperator.db.AutoMigrate(&model.GroupInfo{}); err != nil {
+	if err := dbOperator.db.AutoMigrate(&model.GroupInfo{}, &model.LogInfo{}, &model.LogOneItem{}); err != nil {
 		t.Fatal(err)
 	}
 
 	migration := &officialQQIdentityMigration{appID: appID}
 	prefix := migration.oldGroupPrefix()
-	upperBound := strings.TrimSuffix(prefix, "-") + "."
+	_, upperBound := migration.oldGroupBounds()
 	timestamp := int64(1)
 	for _, id := range []string{
 		"OpenQQ-Group:1-new-group",
@@ -359,6 +442,19 @@ func TestOfficialQQIdentityMigrationLegacyGroupProbe(t *testing.T) {
 	}
 	if !shouldMigrate {
 		t.Fatal("legacy group probe missed an old official QQ group")
+	}
+	if err := dbOperator.db.Delete(&model.GroupInfo{}, "id = ?", legacyID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := dbOperator.db.Create(&model.LogOneItem{GroupID: legacyID, Time: 1}).Error; err != nil {
+		t.Fatal(err)
+	}
+	shouldMigrate, probeErr = migration.shouldRunIdentityMigration(dbOperator)
+	if probeErr != nil {
+		t.Fatal(probeErr)
+	}
+	if !shouldMigrate {
+		t.Fatal("legacy data probe missed residual official QQ log items")
 	}
 
 	type queryPlanRow struct {
@@ -561,6 +657,13 @@ func TestOfficialQQIdentityMigration(t *testing.T) {
 	d.ImSession.EndPoints = []*EndPointInfo{endpoint}
 
 	if err := ensureOfficialQQIdentity(d, adapter, botID, uin); err != nil {
+		t.Fatalf("identity initialization with migration disabled failed: %v", err)
+	}
+	assertOfficialQQMigrationRow(t, db, &model.GroupInfo{}, "id = ?", oldGroupID)
+	assertOfficialQQMigrationMissing(t, db, &model.GroupInfo{}, "id = ?", newGroupID)
+
+	d.Config.OfficialQQMigrationEnable = true
+	if err := ensureOfficialQQIdentity(d, adapter, botID, uin); err != nil {
 		t.Fatalf("first migration failed: %v", err)
 	}
 	// Simulate stale memory after the data phase succeeded but a later phase failed.
@@ -635,6 +738,108 @@ func TestOfficialQQIdentityMigration(t *testing.T) {
 	}
 }
 
+func TestOfficialQQIdentityMigrationProcessesMultipleBatches(t *testing.T) {
+	const (
+		appID = "123456789"
+		uin   = "1"
+	)
+	rowCount := officialQQIdentityMigrationBatchSize*2 + 17
+
+	dbOperator, openErr := newMockDatabaseOperator(filepath.Join(t.TempDir(), "official-qq-batches.db"))
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
+	t.Cleanup(dbOperator.Close)
+	db := dbOperator.db
+	if err := db.AutoMigrate(&model.GroupInfo{}, &model.LogOneItem{}); err != nil {
+		t.Fatal(err)
+	}
+
+	groups := make([]model.GroupInfo, 0, rowCount)
+	logItems := make([]model.LogOneItem, 0, rowCount)
+	for index := range rowCount {
+		groupOpenID := fmt.Sprintf("group-%04d", index)
+		memberOpenID := fmt.Sprintf("member-%04d", index)
+		oldGroupID := "OpenQQ-Group-T:" + appID + "-" + groupOpenID
+		oldUserID := "OpenQQ-Member-T:" + appID + "-" + groupOpenID + "-" + memberOpenID
+		groupData, err := json.Marshal(&GroupInfo{GroupID: oldGroupID, InviteUserID: oldUserID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		timestamp := int64(index + 1)
+		groups = append(groups, model.GroupInfo{ID: oldGroupID, CreatedAt: timestamp, UpdatedAt: &timestamp, Data: groupData})
+		logItems = append(logItems, model.LogOneItem{
+			GroupID:   oldGroupID,
+			IMUserID:  oldUserID,
+			UniformID: oldUserID,
+			Time:      timestamp,
+			Message:   "batch migration payload",
+		})
+	}
+	if err := db.CreateInBatches(&groups, officialQQIdentityMigrationBatchSize).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.CreateInBatches(&logItems, officialQQIdentityMigrationBatchSize).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	migration := &officialQQIdentityMigration{
+		appID:       appID,
+		uin:         uin,
+		oldEndpoint: "OpenQQ:legacy-bot",
+		newEndpoint: formatDiceIDOfficialQQ(uin),
+		groups:      map[string]string{},
+		users:       map[string]string{},
+	}
+	if err := migration.collectDatabase(dbOperator); err != nil {
+		t.Fatalf("collecting migration identities failed: %v", err)
+	}
+	if len(migration.groups) != rowCount || len(migration.users) != rowCount {
+		t.Fatalf("collected groups/users = %d/%d, want %d/%d", len(migration.groups), len(migration.users), rowCount, rowCount)
+	}
+	if err := migration.migrateLogDB(dbOperator); err != nil {
+		t.Fatalf("batched log migration failed: %v", err)
+	}
+	if err := migration.migrateDataDB(dbOperator); err != nil {
+		t.Fatalf("batched data migration failed: %v", err)
+	}
+
+	var oldGroupCount int64
+	if err := db.Model(&model.GroupInfo{}).Where("id LIKE ?", migration.oldGroupPrefix()+"%").Count(&oldGroupCount).Error; err != nil {
+		t.Fatal(err)
+	}
+	var oldLogCount int64
+	if err := db.Model(&model.LogOneItem{}).Where("group_id LIKE ?", migration.oldGroupPrefix()+"%").Count(&oldLogCount).Error; err != nil {
+		t.Fatal(err)
+	}
+	var newGroupCount int64
+	if err := db.Model(&model.GroupInfo{}).Where("id LIKE ?", "OpenQQ-Group:"+uin+"-%").Count(&newGroupCount).Error; err != nil {
+		t.Fatal(err)
+	}
+	var newLogCount int64
+	if err := db.Model(&model.LogOneItem{}).Where("group_id LIKE ?", "OpenQQ-Group:"+uin+"-%").Count(&newLogCount).Error; err != nil {
+		t.Fatal(err)
+	}
+	if oldGroupCount != 0 || oldLogCount != 0 || newGroupCount != int64(rowCount) || newLogCount != int64(rowCount) {
+		t.Fatalf(
+			"migration counts old groups/logs=%d/%d new groups/logs=%d/%d, want 0/0/%d/%d",
+			oldGroupCount,
+			oldLogCount,
+			newGroupCount,
+			newLogCount,
+			rowCount,
+			rowCount,
+		)
+	}
+	var migratedLogItem model.LogOneItem
+	if err := db.Where("group_id LIKE ?", "OpenQQ-Group:"+uin+"-%").First(&migratedLogItem).Error; err != nil {
+		t.Fatal(err)
+	}
+	if migratedLogItem.Message != "batch migration payload" {
+		t.Fatalf("migrated log message = %q", migratedLogItem.Message)
+	}
+}
+
 func TestOfficialQQIdentityMigrationRetriesAfterFailure(t *testing.T) {
 	const (
 		appID    = "123456789"
@@ -687,6 +892,7 @@ func TestOfficialQQIdentityMigrationRetriesAfterFailure(t *testing.T) {
 	}
 	d.ImSession.Parent = d
 	d.Config = NewConfig(d)
+	d.Config.OfficialQQMigrationEnable = true
 	d.AttrsManager = &AttrsManager{db: dbOperator}
 	endpoint.BindRuntime(d.ImSession)
 

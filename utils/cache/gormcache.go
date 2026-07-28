@@ -24,7 +24,19 @@ const (
 	LogsDBCacheKey    cacheKey = "logs-db::"
 	DataDBCacheKey    cacheKey = "data-db::"
 	CensorsDBCacheKey cacheKey = "censor-db::"
+	cacheDisabledKey  cacheKey = "gorm_cache_disabled"
 )
+
+// WithDatabaseCacheDisabled prevents one-off queries from filling the shared
+// result cache. Mutations still invalidate existing cached results.
+func WithDatabaseCacheDisabled(ctx context.Context) context.Context {
+	return context.WithValue(ctx, cacheDisabledKey, true)
+}
+
+func isDatabaseCacheDisabled(ctx context.Context) bool {
+	disabled, _ := ctx.Value(cacheDisabledKey).(bool)
+	return disabled
+}
 
 func (c *OtterDBCacher) getKeyWithCtx(ctx context.Context, key string) string {
 	// 获取ctx中的key字段
@@ -44,6 +56,9 @@ func (c *OtterDBCacher) getKeyWithCtx(ctx context.Context, key string) string {
 // 如果成功获取数据，将返回填充了数据的查询对象。
 // TODO: 有点奇怪的逻辑，或许我应该直接存储Byte？
 func (c *OtterDBCacher) Get(ctx context.Context, key string, q *caches.Query[any]) (*caches.Query[any], error) {
+	if isDatabaseCacheDisabled(ctx) {
+		return nil, nil //nolint:nilnil
+	}
 	result, ok := c.otter.Get(c.getKeyWithCtx(ctx, key))
 	if !ok {
 		// 设计如此
@@ -69,6 +84,9 @@ func (c *OtterDBCacher) Get(ctx context.Context, key string, q *caches.Query[any
 //
 //	error: 在序列化或存储过程中遇到的错误，如果没有错误则返回nil。
 func (c *OtterDBCacher) Store(ctx context.Context, key string, val *caches.Query[any]) error {
+	if isDatabaseCacheDisabled(ctx) {
+		return nil
+	}
 	storeBytes, err := val.Marshal()
 	if err != nil {
 		return err

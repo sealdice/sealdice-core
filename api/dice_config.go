@@ -405,6 +405,10 @@ func DiceConfigSet(c echo.Context) error {
 		config.OfficialQQUseMarkdown = val.(bool)
 	}
 
+	if val, ok := jsonMap["officialQQEnableIdentityMigration"]; ok {
+		config.OfficialQQMigrationEnable = val.(bool)
+	}
+
 	if val, ok := jsonMap["playerNameWrapEnable"]; ok {
 		config.PlayerNameWrapEnable = val.(bool)
 	}

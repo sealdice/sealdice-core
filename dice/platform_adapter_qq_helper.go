@@ -218,6 +218,10 @@ func serverSatori(d *Dice, ep *EndPointInfo, conn *PlatformAdapterSatori) {
 }
 
 func serverOfficialQQ(d *Dice, ep *EndPointInfo, conn *PlatformAdapterOfficialQQ) {
+	// Ctx 非空表示会话已经建立或正在运行，不能重复启动并覆盖端点状态。
+	if conn.Ctx != nil {
+		return
+	}
 	if conn.DiceServing {
 		return
 	}

@@ -260,7 +260,7 @@ func FindOfficialQQEndpointByUIN(s *IMSession, uin, excludeID string) *EndPointI
 		return nil
 	}
 	userID := formatDiceIDOfficialQQ(strings.TrimSpace(uin))
-	if userID == "OpenQQ:" {
+	if userID == formatDiceIDOfficialQQ("") {
 		return nil
 	}
 	for _, endpoint := range s.EndPoints {
@@ -274,25 +274,30 @@ func FindOfficialQQEndpointByUIN(s *IMSession, uin, excludeID string) *EndPointI
 	return nil
 }
 
-// FindOfficialQQEndpointByAppID 按 AppID 查找已存在的官方 QQ 连接；excludeID 非空时排除自身。
-func FindOfficialQQEndpointByAppID(s *IMSession, appID, excludeID string) *EndPointInfo {
-	if s == nil {
-		return nil
+func replaceOfficialQQCredentials(existing *EndPointInfo, source *PlatformAdapterOfficialQQ, probe *OfficialQQAccountProbeResult) (*PlatformAdapterOfficialQQ, error) {
+	if existing == nil || source == nil || probe == nil {
+		return nil, errors.New("official qq replacement data is incomplete")
 	}
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil
+	adapter, ok := existing.Adapter.(*PlatformAdapterOfficialQQ)
+	if !ok {
+		return nil, errors.New("official qq existing endpoint adapter is invalid")
 	}
-	for _, endpoint := range s.EndPoints {
-		if endpoint == nil || endpoint.Platform != "QQ" || endpoint.ProtocolType != "official" || endpoint.ID == excludeID {
-			continue
-		}
-		adapter, ok := endpoint.Adapter.(*PlatformAdapterOfficialQQ)
-		if ok && strings.TrimSpace(adapter.AppID) == appID {
-			return endpoint
-		}
+
+	existingUIN := strings.TrimSpace(adapter.UIN)
+	if existingUIN == "" {
+		existingUIN, _ = extractOfficialQQUINFromUserID(existing.UserID)
 	}
-	return nil
+	if existingUIN != "" && existingUIN != strings.TrimSpace(probe.UIN) {
+		return nil, fmt.Errorf("official qq existing endpoint UIN mismatch: existing=%s scanned=%s", existingUIN, probe.UIN)
+	}
+
+	adapter.AppID = strings.TrimSpace(source.AppID)
+	adapter.AppSecret = strings.TrimSpace(source.AppSecret)
+	adapter.UIN = strings.TrimSpace(probe.UIN)
+	adapter.botID = strings.TrimSpace(probe.BotID)
+	existing.UserID = formatDiceIDOfficialQQ(adapter.UIN)
+	existing.Nickname = probe.Nickname
+	return adapter, nil
 }
 
 func (pa *PlatformAdapterOfficialQQ) applyProbeResult(probe *OfficialQQAccountProbeResult) {
@@ -422,7 +427,7 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 	pa.botID = botInfo.BotID
 	ep.Nickname = botInfo.Nickname
 
-	// 身份校验和迁移完成后再开始接收事件。
+	// 身份校验和可选的数据迁移完成后再开始接收事件。
 	event.RegisterHandlersByAppID(
 		pa.AppID,
 		pa.makeHandlers()...,
@@ -2092,8 +2097,19 @@ func formatDiceIDOfficialQQChannel(guildID, channelID string) string {
 	return fmt.Sprintf("OpenQQCH-Channel:%s-%s", guildID, channelID)
 }
 
+const officialQQUserIDPrefix = "OpenQQ:"
+
 func formatDiceIDOfficialQQ(uin string) string {
-	return fmt.Sprintf("OpenQQ:%s", uin)
+	return fmt.Sprintf("%s%s", officialQQUserIDPrefix, uin)
+}
+
+func extractOfficialQQUINFromUserID(userID string) (string, bool) {
+	raw, ok := strings.CutPrefix(strings.TrimSpace(userID), officialQQUserIDPrefix)
+	if !ok {
+		return "", false
+	}
+	raw = strings.TrimSpace(raw)
+	return raw, raw != ""
 }
 
 func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
@@ -2103,12 +2119,12 @@ func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
 
 func formatDiceIDOfficialQQMemberOpenID(uin, _ string, memberOpenID string) string {
 	// 官方QQ群成员ID格式
-	return fmt.Sprintf("OpenQQ:%s-%s", uin, memberOpenID)
+	return fmt.Sprintf("%s%s-%s", officialQQUserIDPrefix, uin, memberOpenID)
 }
 
 func formatDiceIDOfficialQQUserOpenID(uin, userOpenID string) string {
 	// 官方QQ单聊用户ID格式
-	return fmt.Sprintf("OpenQQ:%s-%s", uin, userOpenID)
+	return fmt.Sprintf("%s%s-%s", officialQQUserIDPrefix, uin, userOpenID)
 }
 
 type OpenQQIDType = int
@@ -2139,7 +2155,7 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 		}
 		return groupOpenID, "", OpenQQGroupOpenid
 	}
-	if raw, ok := strings.CutPrefix(text, "OpenQQ:"); ok {
+	if raw, ok := strings.CutPrefix(text, officialQQUserIDPrefix); ok {
 		if pa.UIN != "" && raw == pa.UIN {
 			return raw, "", OpenQQUser
 		}
@@ -2722,19 +2738,6 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 					return
 				}
 
-				// 扫码结果已包含 AppID，先去重，避免重复账号继续解密凭据、获取 token 或建立连接。
-				if existing := FindOfficialQQEndpointByAppID(d.ImSession, pa.AppID, ep.ID); existing != nil {
-					appID := pa.AppID
-					pa.AppID = ""
-					pa.AppSecret = ""
-					pa.UIN = ""
-					ep.UserID = ""
-					ep.Nickname = ""
-					pa.failQrLogin(fmt.Sprintf("official qq 扫码账号已存在: AppID=%s existingID=%s", appID, existing.ID), nil)
-					return
-				}
-
-				// AppID 去重通过后，解密 AppSecret 并继续探测 UIN。
 				secret, derr := qqBotDecryptSecret(result.BotEncryptSecret, curSession.Key)
 				if derr != nil {
 					pa.failQrLogin("official qq 解密 AppSecret 失败: ", derr)
@@ -2762,13 +2765,31 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 					return
 				}
 
-				if existing := FindOfficialQQEndpointByUIN(d.ImSession, probe.UIN, ep.ID); existing != nil {
+				existing := FindOfficialQQEndpointByUIN(d.ImSession, probe.UIN, ep.ID)
+				if existing != nil {
+					log.Infof("official qq 扫码账号重复，准备替换已有端点: UIN=%s temporaryID=%s", probe.UIN, ep.ID)
+					existingAdapter, replaceErr := replaceOfficialQQCredentials(existing, pa, probe)
+					if replaceErr != nil {
+						pa.failQrLogin("official qq 替换已有账号失败: ", replaceErr)
+						return
+					}
+					reloginOK := existingAdapter.DoRelogin()
+					if !reloginOK {
+						log.Errorf("official qq 替换后重连已有端点失败: UIN=%s", probe.UIN)
+					} else {
+						log.Infof("official qq 重复账号替换成功，已有端点已开始重连: UIN=%s", probe.UIN)
+					}
 					pa.AppID = ""
 					pa.AppSecret = ""
 					pa.UIN = ""
 					ep.UserID = ""
 					ep.Nickname = ""
-					pa.failQrLogin(fmt.Sprintf("official qq 扫码账号已存在: UIN=%s existingID=%s", probe.UIN, existing.ID), nil)
+					pa.markQrLoginFailed()
+					ep.State = 3
+					ep.Enable = false
+					d.LastUpdatedTime = time.Now().Unix()
+					d.Save(false)
+					log.Infof("official qq 临时扫码端点已禁用: UIN=%s temporaryID=%s", probe.UIN, ep.ID)
 					return
 				}
 

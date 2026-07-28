@@ -48,6 +48,8 @@ var DefaultConfig = Config{
 		VMVersionForMsg:          "v2",
 		Name:                     "default",
 		DataDir:                  "data/default",
+
+		OfficialQQMigrationEnable: false,
 	},
 	RateLimitConfig{
 		RateLimitEnabled:         false,
