@@ -1,4 +1,4 @@
-package dice
+package dice //nolint:testpackage // Tests exercise the unexported restore transaction implementation.
 
 import (
 	"archive/zip"

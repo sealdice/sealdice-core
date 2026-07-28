@@ -1,4 +1,4 @@
-package api
+package api //nolint:testpackage // Tests exercise the unexported Runtime maintenance gate.
 
 import (
 	"net/http"

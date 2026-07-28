@@ -187,7 +187,7 @@ func (supervisor *runtimeSupervisor) restore(_ context.Context) (resultErr error
 	supervisor.mu.Lock()
 	defer supervisor.mu.Unlock()
 	if supervisor.current == nil {
-		return errors.New("Runtime 尚未启动")
+		return errors.New("runtime 尚未启动")
 	}
 	restoreStatus := dice.GetRestoreStatus()
 	operationID := restoreStatus.OperationID

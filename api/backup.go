@@ -24,13 +24,20 @@ func backupGetList(c echo.Context) error {
 	}
 
 	var items []*dice.BackupArchiveInfo
-	_ = filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() || !strings.EqualFold(filepath.Ext(info.Name()), ".zip") {
+	err := filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info == nil || info.IsDir() || !strings.EqualFold(filepath.Ext(info.Name()), ".zip") {
 			return nil
 		}
 		items = append(items, dice.InspectBackupArchive(path))
 		return nil
 	})
+	if err != nil {
+		logger.M().Errorw("[备份列表] 读取备份目录失败", "error", err)
+		return Error(&c, "读取备份列表失败: "+err.Error(), Response{})
+	}
 
 	slices.Reverse(items)
 	return c.JSON(http.StatusOK, map[string]interface{}{

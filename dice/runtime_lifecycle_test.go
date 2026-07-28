@@ -1,4 +1,4 @@
-package dice
+package dice //nolint:testpackage // Tests exercise unexported Runtime task coordination.
 
 import (
 	"context"
