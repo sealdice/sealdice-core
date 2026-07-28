@@ -2613,7 +2613,11 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string, noticeTypes ...NoticeType
 		}
 
 		if !sent {
-			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			platform := "<未知平台>"
+			if ctx.EndPoint != nil {
+				platform = ctx.EndPoint.Platform
+			}
+			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", platform, txt)
 		}
 	}
 	go foo()
@@ -2652,10 +2656,14 @@ func (ctx *MsgContext) Notice(txt string, noticeTypes ...NoticeType) {
 		}
 
 		if !sent {
+			platform := "<未知平台>"
+			if ctx.EndPoint != nil {
+				platform = ctx.EndPoint.Platform
+			}
 			if len(filterNoticeTargets(ctx.Dice.Config.NoticeIDs, noticeType)) != 0 {
-				ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+				ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", platform, txt)
 			} else {
-				ctx.Dice.Logger.Warnf("因为没有启用接收 %s 分类的通知目标，无法发送来自%s的通知：%s", noticeType, ctx.EndPoint.Platform, txt)
+				ctx.Dice.Logger.Warnf("因为没有启用接收 %s 分类的通知目标，无法发送来自%s的通知：%s", noticeType, platform, txt)
 			}
 		}
 	}
