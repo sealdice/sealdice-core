@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -124,9 +127,62 @@ func hello2(c echo.Context) error {
 }
 
 var (
-	myDice *dice.Dice
-	dm     *dice.DiceManager
+	myDice             *dice.Dice
+	dm                 *dice.DiceManager
+	runtimeGate        sync.RWMutex
+	runtimeMaintenance atomic.Bool
+	runtimeRestoreFn   func(context.Context) error
 )
+
+func runtimeMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		requestPath := c.Request().URL.Path
+		if !strings.HasPrefix(requestPath, "/sd-api/") && !strings.HasPrefix(requestPath, "/dice/api/") {
+			return next(c)
+		}
+		if requestPath == "/sd-api/backup/restore/status" {
+			return next(c)
+		}
+		if runtimeMaintenance.Load() {
+			return c.JSON(http.StatusServiceUnavailable, map[string]any{
+				"result": false,
+				"err":    "Runtime 正在重新加载，请稍后重试",
+			})
+		}
+		runtimeGate.RLock()
+		defer runtimeGate.RUnlock()
+		if dm == nil {
+			return c.JSON(http.StatusServiceUnavailable, map[string]any{
+				"result": false,
+				"err":    "Runtime 当前不可用",
+			})
+		}
+		return next(c)
+	}
+}
+
+func BeginRuntimeMaintenance() {
+	runtimeMaintenance.Store(true)
+	runtimeGate.Lock()
+}
+
+func ReplaceRuntime(manager *dice.DiceManager) {
+	dm = manager
+	if manager == nil || len(manager.Dice) == 0 {
+		myDice = nil
+		return
+	}
+	myDice = manager.Dice[0]
+}
+
+func EndRuntimeMaintenance() {
+	runtimeGate.Unlock()
+	runtimeMaintenance.Store(false)
+}
+
+func SetRuntimeRestoreFunc(fn func(context.Context) error) {
+	runtimeRestoreFn = fn
+}
 
 type fStopEcho struct {
 	Key string `json:"key"`
@@ -577,8 +633,8 @@ func checkCronExpr(c echo.Context) error {
 }
 
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
-	dm = _myDice
-	myDice = _myDice.Dice[0]
+	ReplaceRuntime(_myDice)
+	e.Use(runtimeMiddleware)
 
 	prefix := "/sd-api"
 
@@ -669,6 +725,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/backup/download", backupDownload)
 	e.POST(prefix+"/backup/delete", backupDelete)
 	e.POST(prefix+"/backup/batch_delete", backupBatchDelete)
+	e.POST(prefix+"/backup/upload", backupUpload)
+	e.POST(prefix+"/backup/restore", backupRestore)
+	e.GET(prefix+"/backup/restore/status", backupRestoreStatus)
 
 	e.GET(prefix+"/group/list", groupList)
 	e.POST(prefix+"/group/set_one", groupSetOne)

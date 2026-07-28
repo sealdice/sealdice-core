@@ -315,7 +315,9 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 		logger.Infof("正在启用Dodo……")
 		pa.Serve()
 	} else {
-		pa.WebSocket.Close()
+		if pa.WebSocket != nil {
+			pa.WebSocket.Close()
+		}
 		pa.Client = nil
 		pa.WebSocket = nil
 		pa.EndPoint.State = 0

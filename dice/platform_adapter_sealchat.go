@@ -504,7 +504,7 @@ func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 	} else {
 		pa.EndPoint.Enable = false
 		pa.Reconnecting = true
-		if pa.Socket != nil && pa.Socket.IsConnected {
+		if pa.Socket != nil {
 			pa.Socket.Close()
 		}
 		pa.Reconnecting = false

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alexmullins/zip"
@@ -23,6 +24,8 @@ import (
 )
 
 const BackupDir = "./backups"
+
+var backupOperationMu sync.Mutex
 
 type BackupCleanStrategy int
 
@@ -82,6 +85,12 @@ const (
 )
 
 func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error) {
+	backupOperationMu.Lock()
+	defer backupOperationMu.Unlock()
+	return dm.backup(sel, fromAuto)
+}
+
+func (dm *DiceManager) backup(sel BackupSelection, fromAuto bool) (string, error) {
 	_ = os.MkdirAll(BackupDir, 0o755)
 	logger := dm.Dice[0].Logger
 

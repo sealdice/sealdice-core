@@ -1281,6 +1281,11 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		}
 	} else {
 		c.Enable = false
+		if pa.Socket != nil {
+			pa.Socket.Close()
+			pa.Socket = nil
+		}
+		pa.diceServing = false
 		if pa.UseInPackClient {
 			BuiltinQQServeProcessKill(d, c)
 		}

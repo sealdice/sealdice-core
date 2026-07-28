@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -107,32 +108,39 @@ func UpdateRequestListen(dm *dice.DiceManager) {
 
 func doReboot(dm *dice.DiceManager) {
 	log := logger.M()
-	executablePath, err := filepath.Abs(os.Args[0])
-	if err != nil {
-		return
-	}
-
-	binary, err := exec.LookPath(executablePath)
+	executablePath, err := os.Executable()
 	if err != nil {
 		log.Errorf("Restart Error: %s", err)
 		return
 	}
+	binary, err := filepath.Abs(executablePath)
+	if err != nil {
+		log.Errorf("Restart Error: %s", err)
+		return
+	}
+	probe, err := os.Open(binary)
+	if err != nil {
+		log.Errorf("Restart Error: %s", err)
+		return
+	}
+	_ = probe.Close()
+
+	restartArgs := buildRestartArgs(os.Args[1:], "1")
 	platform := runtime.GOOS
 	if platform == "windows" {
+		restartArgs = buildRestartArgs(os.Args[1:], "3")
+	}
+	if platform == "windows" {
 		cleanupCreate(dm)()
-
-		// name, _ := filepath.Abs(binary)
-		// err = exec.Command(`cmd`, `/C`, "start", name, "--delay=15").Start()
-		cmd := executeWin(binary, "--delay=15")
+		cmd := executeWin(binary, restartArgs...)
 		err := cmd.Start()
 		if err != nil {
 			log.Errorf("Restart error: %s %v", binary, err)
 		}
 	} else {
-		// 手动cleanup
 		cleanupCreate(dm)()
-		// os.Args[1:]...
-		execErr := syscall.Exec(binary, []string{os.Args[0], "--delay=25"}, os.Environ()) //nolint:gosec
+		execArgs := append([]string{os.Args[0]}, restartArgs...)
+		execErr := syscall.Exec(binary, execArgs, os.Environ()) //nolint:gosec
 		if execErr != nil {
 			log.Errorf("Restart error: %s %v", binary, execErr)
 		}
@@ -140,8 +148,29 @@ func doReboot(dm *dice.DiceManager) {
 	os.Exit(0)
 }
 
-func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
-	resp, err := http.Get(backendUrl + "/dice/api/version?versionCode=" + strconv.FormatInt(dm.AppVersionCode, 10) + "&v=" + strconv.FormatInt(rand.Int63(), 10))
+func buildRestartArgs(args []string, delay string) []string {
+	restartArgs := make([]string, 0, len(args)+1)
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--delay" {
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--delay=") {
+			continue
+		}
+		restartArgs = append(restartArgs, arg)
+	}
+	return append(restartArgs, "--delay="+delay)
+}
+
+func checkVersionBase(ctx context.Context, backendUrl string, dm *dice.DiceManager) *dice.VersionInfo {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, backendUrl+"/dice/api/version?versionCode="+strconv.FormatInt(dm.AppVersionCode, 10)+"&v="+strconv.FormatInt(rand.Int63(), 10), nil)
+	if err != nil {
+		return nil
+	}
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(request)
 	if err != nil {
 		// logger.Errorf("获取新版本失败: %s", err.Error())
 		return nil
@@ -160,12 +189,16 @@ func checkVersionBase(backendUrl string, dm *dice.DiceManager) *dice.VersionInfo
 }
 
 func CheckVersion(dm *dice.DiceManager) *dice.VersionInfo {
+	return CheckVersionContext(context.Background(), dm)
+}
+
+func CheckVersionContext(ctx context.Context, dm *dice.DiceManager) *dice.VersionInfo {
 	if runtime.GOOS == "android" {
 		return nil
 	}
 	// 逐个尝试所有后端地址
 	for _, i := range dice.BackendUrls {
-		ret := checkVersionBase(i, dm)
+		ret := checkVersionBase(ctx, i, dm)
 		if ret != nil {
 			return ret
 		}

@@ -2,6 +2,7 @@ package main
 
 // _ "net/http/pprof"
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -28,7 +29,6 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
-	v2 "sealdice-core/migrate/v2"
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
 	"sealdice-core/utils/dboperator"
@@ -60,61 +60,14 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 				exec.Command("pause") // windows专属
 			}
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if stopErr := diceManager.Stop(ctx); stopErr != nil {
+			log.Errorf("停止 Runtime 失败: %v", stopErr)
+		}
 		err = sealLock.Unlock()
 		if err != nil {
 			log.Errorf("文件锁归还出现异常 %v", err)
-		}
-
-		if !diceManager.CleanupFlag.CompareAndSwap(0, 1) {
-			// 尝试更新cleanup标记，如果已经为1则退出
-			return
-		}
-
-		for _, i := range diceManager.Dice {
-			if i.IsAlreadyLoadConfig {
-				i.Config.BanList.SaveChanged(i)
-				i.Save(true)
-				i.AttrsManager.Stop()
-				for _, j := range i.ExtList {
-					if j.Storage != nil {
-						// 关闭
-						err := j.StorageClose()
-						if err != nil {
-							showWindow()
-							log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
-							// 木落没有加该检查 补充上
-							if runtime.GOOS == "windows" {
-								exec.Command("pause") // windows专属
-							}
-						}
-					}
-				}
-				i.IsAlreadyLoadConfig = false
-			}
-		}
-
-		for _, i := range diceManager.Dice {
-			d := i
-			d.DBOperator.Close()
-		}
-
-		// 清理gocqhttp
-		for _, i := range diceManager.Dice {
-			if i.ImSession != nil && i.ImSession.EndPoints != nil {
-				for _, j := range i.ImSession.EndPoints {
-					dice.BuiltinQQServeProcessKill(i, j)
-				}
-			}
-		}
-
-		if diceManager.Help != nil {
-			diceManager.Help.Close()
-		}
-		if diceManager.IsReady {
-			diceManager.Save()
-		}
-		if diceManager.Cron != nil {
-			diceManager.Cron.Stop()
 		}
 	}
 }
@@ -195,6 +148,9 @@ func main() {
 	// 在启动主要组件前开始采样
 	runtime.SetMutexProfileFraction(opts.MutexProfileRate)
 	runtime.SetBlockProfileRate(opts.BlockProfileRate)
+	if opts.Delay != 0 {
+		time.Sleep(time.Duration(opts.Delay) * time.Second)
+	}
 
 	// 提前到最开始初始化所有日志
 	uiWriter := logger.NewUIWriter()
@@ -251,21 +207,20 @@ func main() {
 	}
 	deleteOldWrongFile()
 
-	if opts.Delay != 0 {
-		log.Infof("延迟启动 %d 秒", opts.Delay)
-		time.Sleep(time.Duration(opts.Delay) * time.Second)
-	}
-
 	if runtime.GOOS == "android" {
 		fixTimezone()
 	}
 
 	_ = os.MkdirAll("./data", 0o755)
+	if restoreErr := dice.RecoverInterruptedRestore(); restoreErr != nil {
+		log.Errorf("恢复未完成事务失败，为避免继续写入异常数据而停止启动: %v", restoreErr)
+		return
+	}
 
 	// 提早初始化是为了读取ServiceName
 
 	// diceManager初始化数据库
-	operator, err := dboperator.GetDatabaseOperator()
+	operator, err := dboperator.NewDatabaseOperator(context.Background())
 	if err != nil {
 		log.Errorf("Failed to init database: %v", err)
 		return
@@ -430,39 +385,43 @@ func main() {
 	//	log.Fatalf("您的146数据库可能存在问题，为保护数据，已经停止执行150升级命令。请尝试联系开发者，并提供你的日志。\n"+
 	//		"数据已回滚，您可暂时使用旧版本等待进一步的修复和更新。您的报错内容为: %v", err)
 	// }
-	err = v2.InitUpgrader(operator)
-	if err != nil {
-		log.Warnf("升级流程出现问题，请检查，问题为: %v", err)
-	}
-
 	if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 		hideWindow()
 	}
 
 	go dice.TryGetBackendURL()
 
-	cleanUp := cleanupCreate(diceManager)
+	bootstrapStopCtx, bootstrapStopCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	if stopErr := diceManager.Stop(bootstrapStopCtx); stopErr != nil {
+		bootstrapStopCancel()
+		log.Errorf("关闭启动阶段 Runtime 失败: %v", stopErr)
+		return
+	}
+	bootstrapStopCancel()
+	supervisor := newRuntimeSupervisor(runtimeBuildOptions{
+		address:       opts.Address,
+		containerMode: opts.ContainerMode,
+		justForTest:   opts.JustForTest,
+		uiWriter:      uiWriter,
+	})
+	runtimeManager, err := supervisor.start()
+	if err != nil {
+		log.Errorf("Runtime 启动失败: %v", err)
+		return
+	}
+	api.SetRuntimeRestoreFunc(supervisor.restore)
+	cleanUp := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if stopErr := supervisor.stop(ctx); stopErr != nil {
+			log.Errorf("停止 Runtime 失败: %v", stopErr)
+		}
+		if unlockErr := sealLock.Unlock(); unlockErr != nil {
+			log.Errorf("文件锁归还出现异常 %v", unlockErr)
+		}
+	}
 	defer dice.CrashLog()
 	defer cleanUp()
-
-	// 初始化核心
-	diceManager.TryCreateDefault()
-	diceManager.InitDice(uiWriter)
-
-	if opts.JustForTest {
-		diceManager.JustForTest = true
-	}
-
-	go func() {
-		// 每5分钟做一次新版本检查
-		for {
-			go CheckVersion(diceManager)
-			time.Sleep(5 * time.Minute)
-		}
-	}()
-	go RebootRequestListen(diceManager)
-	go UpdateRequestListen(diceManager)
-	go UpdateCheckRequestListen(diceManager)
 
 	// 强制清理机制
 	go (func() {
@@ -479,11 +438,7 @@ func main() {
 		log.Infof("由参数输入了服务地址: %s", opts.Address)
 	}
 
-	for _, d := range diceManager.Dice {
-		go diceServe(d)
-	}
-
-	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
+	go uiServe(runtimeManager, opts.HideUIWhenBoot, useBuiltinUI)
 	// OOM分析工具
 	// err = nil
 	// err = http.ListenAndServe(":9090", nil)
@@ -492,7 +447,7 @@ func main() {
 	// }
 
 	// darwin 的托盘菜单似乎需要在主线程启动才能工作，调整到这里
-	trayInit(diceManager)
+	trayInit(runtimeManager)
 }
 
 func removeUpdateFiles() {
@@ -506,9 +461,8 @@ func removeUpdateFiles() {
 	_ = os.RemoveAll("./update")
 }
 
-func diceServe(d *dice.Dice) {
+func diceServePrepare(d *dice.Dice) []*dice.EndPointInfo {
 	log := d.Logger
-	defer dice.CrashLog()
 	if len(d.ImSession.EndPoints) == 0 {
 		log.Infof("未检测到任何帐号，请先到“帐号设置”进行添加")
 	}
@@ -524,87 +478,92 @@ func diceServe(d *dice.Dice) {
 
 	dice.TextMapCompatibleCheckAll(d)
 
-	for _, _conn := range d.ImSession.EndPoints {
-		if _conn.Enable {
-			go func(conn *dice.EndPointInfo) {
-				defer dice.ErrorLogAndContinue(d)
-
-				switch conn.Platform {
-				case "QQ":
-					if conn.ProtocolType == "walle-q" {
-						pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
-						dice.WalleQServe(d, conn, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, false)
-					}
-					if conn.ProtocolType == "onebot" {
-						pa := conn.Adapter.(*dice.PlatformAdapterGocq)
-						if pa.BuiltinMode == "lagrange" {
-							dice.LagrangeServe(d, conn, dice.LagrangeLoginInfo{
-								IsAsyncRun: true,
-							})
-							return
-						}
-						log.Errorf("不支持或已经废弃的内置适配器模式: %s", pa.BuiltinMode)
-					}
-					if conn.ProtocolType == "red" {
-						dice.ServeRed(d, conn)
-					}
-					if conn.ProtocolType == "official" {
-						dice.ServerOfficialQQ(d, conn)
-						// 官方 QQ 已由统一入口启动，避免继续进入通用 QQ 延迟启动流程。
-						return
-					}
-					if conn.ProtocolType == "satori" {
-						dice.ServeSatori(d, conn)
-					}
-					if conn.ProtocolType == "LagrangeGo" {
-						// dice.ServeLagrangeGo(d, conn)
-						return
-					}
-					if conn.ProtocolType == "milky" {
-						pa := conn.Adapter.(*dice.PlatformAdapterMilky)
-						switch pa.BuiltInMode {
-						case "lagrangeV2":
-							if runtime.GOOS == "android" {
-								return
-							}
-							dice.ServeMilkyBuiltIn(d, conn)
-							return
-						case "yogurt":
-							dice.ServeMilkyBuiltIn(d, conn)
-							return
-						default:
-							// 分离
-							dice.ServeMilky(d, conn)
-						}
-						return
-					}
-					if conn.ProtocolType == "pureonebot" {
-						dice.ServePureOnebot(d, conn)
-						return
-					}
-					time.Sleep(10 * time.Second) // 稍作等待再连接
-					dice.ServeQQ(d, conn)
-				case "DISCORD":
-					dice.ServeDiscord(d, conn)
-				case "KOOK":
-					dice.ServeKook(d, conn)
-				case "TG":
-					dice.ServeTelegram(d, conn)
-				case "MC":
-					dice.ServeMinecraft(d, conn)
-				case "DODO":
-					dice.ServeDodo(d, conn)
-				case "SLACK":
-					dice.ServeSlack(d, conn)
-				case "DINGTALK":
-					dice.ServeDingTalk(d, conn)
-				case "SEALCHAT":
-					dice.ServeSealChat(d, conn)
-				}
-			}(_conn)
+	connections := make([]*dice.EndPointInfo, 0, len(d.ImSession.EndPoints))
+	for _, conn := range d.ImSession.EndPoints {
+		if conn.Enable {
+			connections = append(connections, conn)
 		} else {
-			_conn.State = 0 // 重置状态
+			conn.State = 0 // 重置状态
 		}
+	}
+	return connections
+}
+
+func diceServeEndpoint(ctx context.Context, d *dice.Dice, conn *dice.EndPointInfo) {
+	defer dice.ErrorLogAndContinue(d)
+	log := d.Logger
+	switch conn.Platform {
+	case "QQ":
+		if conn.ProtocolType == "walle-q" {
+			pa := conn.Adapter.(*dice.PlatformAdapterWalleQ)
+			dice.WalleQServe(d, conn, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, false)
+		}
+		if conn.ProtocolType == "onebot" {
+			pa := conn.Adapter.(*dice.PlatformAdapterGocq)
+			if pa.BuiltinMode == "lagrange" {
+				dice.LagrangeServe(d, conn, dice.LagrangeLoginInfo{IsAsyncRun: true})
+				return
+			}
+			log.Errorf("不支持或已经废弃的内置适配器模式: %s", pa.BuiltinMode)
+		}
+		if conn.ProtocolType == "red" {
+			dice.ServeRed(d, conn)
+		}
+		if conn.ProtocolType == "official" {
+			dice.ServerOfficialQQ(d, conn)
+			return
+		}
+		if conn.ProtocolType == "satori" {
+			dice.ServeSatori(d, conn)
+		}
+		if conn.ProtocolType == "LagrangeGo" {
+			return
+		}
+		if conn.ProtocolType == "milky" {
+			pa := conn.Adapter.(*dice.PlatformAdapterMilky)
+			switch pa.BuiltInMode {
+			case "lagrangeV2":
+				if runtime.GOOS == "android" {
+					return
+				}
+				dice.ServeMilkyBuiltIn(d, conn)
+			case "yogurt":
+				dice.ServeMilkyBuiltIn(d, conn)
+			default:
+				dice.ServeMilky(d, conn)
+			}
+			return
+		}
+		if conn.ProtocolType == "pureonebot" {
+			dice.ServePureOnebot(d, conn)
+			return
+		}
+		timer := time.NewTimer(10 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+		if conn.Enable {
+			dice.ServeQQ(d, conn)
+		}
+	case "DISCORD":
+		dice.ServeDiscord(d, conn)
+	case "KOOK":
+		dice.ServeKook(d, conn)
+	case "TG":
+		dice.ServeTelegram(d, conn)
+	case "MC":
+		dice.ServeMinecraft(d, conn)
+	case "DODO":
+		dice.ServeDodo(d, conn)
+	case "SLACK":
+		dice.ServeSlack(d, conn)
+	case "DINGTALK":
+		dice.ServeDingTalk(d, conn)
+	case "SEALCHAT":
+		dice.ServeSealChat(d, conn)
 	}
 }
 
@@ -618,7 +577,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
 	e.Use(logger.EchoLogMiddleware())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		Skipper:      middleware.DefaultSkipper,
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token", "X-Seal-Restore-Operation", "X-Seal-Restore-Token"},
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
 	}))

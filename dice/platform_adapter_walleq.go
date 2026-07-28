@@ -769,6 +769,10 @@ func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
 	} else {
 		c.Enable = false
 		pa.DiceServing = false
+		if pa.Socket != nil {
+			pa.Socket.Close()
+			pa.Socket = nil
+		}
 		if pa.UseInPackWalleQ {
 			WalleQServeProcessKill(d, c)
 		}

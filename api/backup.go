@@ -1,68 +1,38 @@
 package api
 
 import (
+	"context"
+	"errors"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
-	"regexp"
-	"strconv"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
-	"sealdice-core/utils/crypto"
+	"sealdice-core/logger"
 )
-
-type backupFileItem struct {
-	Name      string `json:"name"`
-	FileSize  int64  `json:"fileSize"`
-	Selection int64  `json:"selection"`
-}
-
-func ReverseSlice(s interface{}) {
-	size := reflect.ValueOf(s).Len()
-	swap := reflect.Swapper(s)
-	for i, j := 0, size-1; i < j; i, j = i+1, j-1 {
-		swap(i, j)
-	}
-}
 
 func backupGetList(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	reFn := regexp.MustCompile(`^(bak_\d{6}_\d{6}(?:_auto)?_r([0-9a-f]+))_([0-9a-f]{8})\.zip$`)
-
-	var items []*backupFileItem
+	var items []*dice.BackupArchiveInfo
 	_ = filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
-		if !info.IsDir() {
-			fn := info.Name()
-			matches := reFn.FindStringSubmatch(fn)
-			selection := int64(0)
-			if len(matches) == 4 {
-				hashed := crypto.CalculateSHA512Str([]byte(matches[1]))
-				if hashed[:8] == matches[3] {
-					selection, _ = strconv.ParseInt(matches[2], 16, 64)
-				} else {
-					selection = -1
-				}
-			}
-
-			items = append(items, &backupFileItem{
-				Name:      fn,
-				FileSize:  info.Size(),
-				Selection: selection,
-			})
+		if err != nil || info == nil || info.IsDir() || !strings.EqualFold(filepath.Ext(info.Name()), ".zip") {
+			return nil
 		}
-		return err
+		items = append(items, dice.InspectBackupArchive(path))
+		return nil
 	})
 
-	ReverseSlice(items)
+	slices.Reverse(items)
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"items": items,
 	})
@@ -98,6 +68,9 @@ func backupDelete(c echo.Context) error {
 	var err error
 	name := c.QueryParam("name")
 	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
+		if dice.BackupInUse(name) {
+			return c.JSON(http.StatusConflict, map[string]interface{}{"success": false, "err": "恢复任务正在使用该备份"})
+		}
 		err = os.Remove(dice.BackupDir + "/" + name)
 	}
 
@@ -125,6 +98,10 @@ func backupBatchDelete(c echo.Context) error {
 	fails := make([]string, 0, len(v.Names))
 	for _, name := range v.Names {
 		if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
+			if dice.BackupInUse(name) {
+				fails = append(fails, name)
+				continue
+			}
 			err = os.Remove(dice.BackupDir + "/" + name)
 			if err != nil {
 				fails = append(fails, name)
@@ -138,6 +115,107 @@ func backupBatchDelete(c echo.Context) error {
 	return Error(&c, "失败列表", Response{
 		"fails": fails,
 	})
+}
+
+func backupUpload(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+	reader, err := c.Request().MultipartReader()
+	if err != nil {
+		return Error(&c, "无法读取上传内容: "+err.Error(), Response{})
+	}
+	for {
+		part, nextErr := reader.NextPart()
+		if nextErr != nil {
+			if errors.Is(nextErr, io.EOF) {
+				break
+			}
+			return Error(&c, nextErr.Error(), Response{})
+		}
+		if part.FormName() != "file" {
+			_ = part.Close()
+			continue
+		}
+		originalName := filepath.Base(part.FileName())
+		logger.M().Infow("[备份导入] 开始接收并校验备份", "file", originalName)
+		item, importErr := dice.ImportBackup(part)
+		_ = part.Close()
+		if importErr != nil {
+			logger.M().Errorw("[备份导入] 导入失败", "file", originalName, "error", importErr)
+			return Error(&c, importErr.Error(), Response{})
+		}
+		if item.Reused {
+			logger.M().Infow("[备份导入] 内容已存在，复用已有文件: "+item.Name, "file", originalName, "storedAs", item.Name, "size", item.FileSize)
+		} else {
+			logger.M().Infow("[备份导入] 新文件已保存: "+item.Name, "file", originalName, "storedAs", item.Name, "size", item.FileSize)
+		}
+		return Success(&c, Response{"item": item})
+	}
+	return Error(&c, "请上传备份文件", Response{})
+}
+
+func backupRestore(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
+	if dm.JustForTest {
+		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
+	}
+	var request struct {
+		Name string `json:"name"`
+	}
+	if err := c.Bind(&request); err != nil {
+		return Error(&c, err.Error(), Response{})
+	}
+	logger.M().Infow("[备份恢复] 收到恢复请求", "source", request.Name)
+	operation, err := dm.ScheduleRestore(request.Name)
+	if err != nil {
+		logger.M().Errorw("[备份恢复] 创建恢复任务失败", "source", request.Name, "error", err)
+		return Error(&c, err.Error(), Response{})
+	}
+	logger.M().Infow(
+		"[备份恢复] 恢复任务已创建",
+		"operationId", operation.OperationID,
+		"source", request.Name,
+		"safetyBackup", operation.SafetyBackupName,
+	)
+	responseErr := Success(&c, Response{
+		"safetyBackupName": operation.SafetyBackupName,
+		"operationId":      operation.OperationID,
+		"statusToken":      operation.StatusToken,
+		"reloading":        true,
+		"switchMode":       "runtime",
+	})
+	go func() {
+		time.Sleep(250 * time.Millisecond)
+		if runtimeRestoreFn != nil {
+			if restoreErr := runtimeRestoreFn(context.Background()); restoreErr != nil {
+				logger.M().Errorw(
+					"[备份恢复] Runtime 恢复流程结束，但恢复未成功",
+					"operationId", operation.OperationID,
+					"error", restoreErr,
+				)
+			}
+		} else {
+			logger.M().Errorw("[备份恢复] Runtime 恢复入口未初始化", "operationId", operation.OperationID)
+		}
+	}()
+	return responseErr
+}
+
+func backupRestoreStatus(c echo.Context) error {
+	if !dice.ValidateRestoreStatusToken(c.Request().Header.Get("X-Seal-Restore-Operation"), c.Request().Header.Get("X-Seal-Restore-Token")) {
+		runtimeGate.RLock()
+		defer runtimeGate.RUnlock()
+		if myDice == nil || !doAuth(c) {
+			return c.JSON(http.StatusForbidden, nil)
+		}
+	}
+	return Success(&c, Response{"status": dice.GetRestoreStatus()})
 }
 
 // 快速备份

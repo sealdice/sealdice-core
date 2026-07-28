@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"os"
 	"sync"
@@ -84,6 +85,9 @@ type DiceManager struct { //nolint:revive
 
 	ContainerMode bool          // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
 	CleanupFlag   atomic.Uint32 // 1 为正在清理，0为普通状态
+	runtimeCtx    context.Context
+	runtimeCancel context.CancelFunc
+	runtimeWG     sync.WaitGroup
 }
 
 type Configs struct { //nolint:revive
@@ -231,6 +235,27 @@ func (dm *DiceManager) LoadDice() {
 	}
 }
 
+// SetRuntimeContext 设置当前 Runtime 的取消域，必须在 InitDice 前调用。
+func (dm *DiceManager) SetRuntimeContext(ctx context.Context, cancel context.CancelFunc) {
+	dm.runtimeCtx = ctx
+	dm.runtimeCancel = cancel
+}
+
+func (dm *DiceManager) context() context.Context {
+	if dm.runtimeCtx == nil {
+		return context.Background()
+	}
+	return dm.runtimeCtx
+}
+
+func (dm *DiceManager) goRuntime(fn func(context.Context)) {
+	dm.runtimeWG.Add(1)
+	go func() {
+		defer dm.runtimeWG.Done()
+		fn(dm.context())
+	}()
+}
+
 func (dm *DiceManager) Save() {
 	var dc Configs
 	dc.ServeAddress = dm.ServeAddress
@@ -285,7 +310,7 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 		i.Init(dm.Operator, writer)
 	}
 
-	go func() {
+	dm.goRuntime(func(ctx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Warn("帮助文档加载失败。可能是由于退出程序过快，帮助文档还未加载完成所致", r)
@@ -294,9 +319,14 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 				}
 			}
 		}()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		// 加载帮助
 		dm.InitHelp()
-	}()
+	})
 
 	dm.ResetAutoBackup()
 	dm.ResetBackupClean()

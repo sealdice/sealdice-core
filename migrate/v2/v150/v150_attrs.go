@@ -417,6 +417,8 @@ func attrsUserMigrate(db *gorm.DB) (int, int, int, error) {
 }
 
 func V150AttrsMigrate(dboperator operator.DatabaseOperator, logf func(string)) error {
+	// Runtime 热重载可能在同一进程中再次迁移较旧的备份。
+	sheetIdBindByGroupUserId = make(map[string]string)
 	log := zap.S().Named(logger.LogKeyDatabase)
 	err := dataDBInit(dboperator, logf)
 	if err != nil {
