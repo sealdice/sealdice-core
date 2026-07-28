@@ -1,10 +1,12 @@
-package v161
+package v161_test
 
 import (
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	v161 "sealdice-core/migrate/v2/v161"
 
 	"gopkg.in/yaml.v3"
 )
@@ -28,7 +30,7 @@ commandPrefix:
 		t.Fatal(err)
 	}
 
-	added, err := V161CopyDiceMastersToNoticeIDs(configPath)
+	added, err := v161.V161CopyDiceMastersToNoticeIDs(configPath)
 	if err != nil {
 		t.Fatalf("迁移失败: %v", err)
 	}
@@ -57,7 +59,7 @@ commandPrefix:
 }
 
 func TestV161CopyDiceMastersToNoticeIDsMissingConfigIsNoOp(t *testing.T) {
-	added, err := V161CopyDiceMastersToNoticeIDs(filepath.Join(t.TempDir(), "serve.yaml"))
+	added, err := v161.V161CopyDiceMastersToNoticeIDs(filepath.Join(t.TempDir(), "serve.yaml"))
 	if err != nil {
 		t.Fatalf("新安装缺少 serve.yaml 时应直接跳过: %v", err)
 	}

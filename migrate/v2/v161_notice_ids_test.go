@@ -30,10 +30,8 @@ func TestV161NoticeIDsMigrationRunsOnlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.Chdir(workDir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldWorkDir) })
+	t.Chdir(workDir)
+	t.Cleanup(func() { t.Chdir(oldWorkDir) })
 
 	mgr := &upgrade.Manager{
 		Store:    store.NewGormStore(op.GetDataDB(constant.WRITE)),
