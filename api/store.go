@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -106,7 +107,7 @@ func storeSetBackendEnabled(c echo.Context, enabled bool) error {
 }
 
 func storeRecommend(c echo.Context) error {
-	data, err := myDice.StoreManager.StoreQueryRecommend()
+	data, err := myDice.StoreManager.StoreQueryRecommendContext(c.Request().Context())
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
@@ -122,7 +123,7 @@ func storeGetPage(c echo.Context) error {
 		return Error(&c, err.Error(), Response{})
 	}
 
-	page, err := myDice.StoreManager.StoreQueryPage(params)
+	page, err := myDice.StoreManager.StoreQueryPageContext(c.Request().Context(), params)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
@@ -136,7 +137,7 @@ func storeGetPage(c echo.Context) error {
 }
 
 func storePackageFiles(c echo.Context) error {
-	files, err := myDice.StoreManager.StoreQueryPackageFiles(c.Param("namespace"), c.Param("package"), c.Param("version"))
+	files, err := myDice.StoreManager.StoreQueryPackageFilesContext(c.Request().Context(), c.Param("namespace"), c.Param("package"), c.Param("version"))
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
@@ -194,7 +195,7 @@ func storeDownload(c echo.Context) error {
 		return Error(&c, err.Error(), Response{})
 	}
 
-	if _, err := installStorePackage(target, true); err != nil {
+	if _, err := installStorePackageContext(c.Request().Context(), target, true); err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
 
@@ -315,7 +316,10 @@ func storeInstallList(c echo.Context) error {
 		pending = append(pending, pendingStoreInstall{target: target, resultIndex: index})
 	}
 
-	installStorePackageBatch(results, pending, installStorePackage)
+	ctx := c.Request().Context()
+	installStorePackageBatch(results, pending, func(target *dice.StorePackage, reinstallExactVersion bool) (string, error) {
+		return installStorePackageContext(ctx, target, reinstallExactVersion)
+	})
 
 	installedCount := 0
 	skippedCount := 0
@@ -385,7 +389,10 @@ func installStorePackageBatch(
 	}
 }
 
-func installStorePackage(target *dice.StorePackage, reinstallExactVersion bool) (string, error) {
+func installStorePackageContext(ctx context.Context, target *dice.StorePackage, reinstallExactVersion bool) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if installedPkg, exists := myDice.PackageManager.Get(target.ID); exists && installedPkg != nil && installedPkg.Manifest != nil {
 		existingVer, existingErr := semver.NewVersion(installedPkg.Manifest.Package.Version)
 		targetVer, targetErr := semver.NewVersion(target.Version)
@@ -402,7 +409,10 @@ func installStorePackage(target *dice.StorePackage, reinstallExactVersion bool) 
 		}
 	}
 
-	if err := myDice.PackageManager.InstallFromURL(target.Download.URL, target.Download.Hash); err != nil {
+	if err := myDice.PackageManager.InstallFromURLWithOptionsContext(ctx, target.Download.URL, dice.PackageDownloadOptions{
+		Hashes:       target.Download.Hash,
+		ExpectedSize: target.Download.Size,
+	}); err != nil {
 		return "", err
 	}
 	myDice.StoreManager.RefreshInstalled([]*dice.StorePackage{target})
@@ -426,7 +436,10 @@ func storePreviewDownload(c echo.Context) error {
 		return Error(&c, "未找到已缓存的商店包，请先刷新商店列表后重试", Response{})
 	}
 
-	preview, err := myDice.PackageManager.PreviewFromURL(target.Download.URL, target.Download.Hash)
+	preview, err := myDice.PackageManager.PreviewFromURLWithOptionsContext(c.Request().Context(), target.Download.URL, dice.PackageDownloadOptions{
+		Hashes:       target.Download.Hash,
+		ExpectedSize: target.Download.Size,
+	})
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}

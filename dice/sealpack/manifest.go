@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,9 +17,17 @@ import (
 
 // ParseManifestFile parses an info.toml file from disk.
 func ParseManifestFile(path string) (*Manifest, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, MaxManifestSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > MaxManifestSize {
+		return nil, fmt.Errorf("package %s exceeds %d MiB", InfoFile, MaxManifestSize/(1024*1024))
 	}
 	return ParseManifest(data)
 }

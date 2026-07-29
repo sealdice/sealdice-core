@@ -3,6 +3,8 @@ package dice //nolint:testpackage
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -703,5 +705,60 @@ func TestSanitizeStorePackageMarksCanonicalFields(t *testing.T) {
 	}
 	if pkg.StoreAssets.Screenshots == nil {
 		t.Fatal("expected StoreAssets.Screenshots to be initialized")
+	}
+}
+
+func TestStoreQueryPageRejectsOversizedPageBeforeBackendRequest(t *testing.T) {
+	manager := &StoreManager{}
+	_, err := manager.StoreQueryPageContext(context.Background(), StoreQueryPageParams{PageSize: maxStorePageSize + 1})
+	if err == nil || !strings.Contains(err.Error(), "pageSize") {
+		t.Fatalf("StoreQueryPageContext() error = %v, want page size rejection", err)
+	}
+}
+
+func TestStorePackageCacheIsBounded(t *testing.T) {
+	manager := &StoreManager{
+		lock:         new(sync.RWMutex),
+		packageCache: make(map[string]*StorePackage),
+	}
+	packages := make([]*StorePackage, 0, maxStorePackageCache+1)
+	for i := 0; i <= maxStorePackageCache; i++ {
+		packages = append(packages, &StorePackage{ID: "alice/demo", Version: fmt.Sprintf("1.0.%d", i)})
+	}
+	manager.RefreshInstalled(packages)
+	if len(manager.packageCache) != maxStorePackageCache {
+		t.Fatalf("package cache size = %d, want %d", len(manager.packageCache), maxStorePackageCache)
+	}
+	if _, ok := manager.FindPackage("alice/demo", "1.0.0"); ok {
+		t.Fatal("oldest package remained in bounded cache")
+	}
+	if _, ok := manager.FindPackage("alice/demo", fmt.Sprintf("1.0.%d", maxStorePackageCache)); !ok {
+		t.Fatal("newest package missing from bounded cache")
+	}
+}
+
+func TestInvalidateStoreBackendClearsPackageCache(t *testing.T) {
+	manager := &StoreManager{
+		lock:              new(sync.RWMutex),
+		packageCache:      map[string]*StorePackage{"alice/demo@1.0.0": {ID: "alice/demo", Version: "1.0.0"}},
+		packageCacheOrder: []string{"alice/demo@1.0.0"},
+	}
+	manager.invalidateStoreBackendLocked()
+	if len(manager.packageCache) != 0 || len(manager.packageCacheOrder) != 0 {
+		t.Fatalf("cache not cleared: packages=%d order=%d", len(manager.packageCache), len(manager.packageCacheOrder))
+	}
+}
+
+func TestDecodeStoreJSONResponseEnforcesLimit(t *testing.T) {
+	body := `{"name":"Official Store"}`
+	var result storeBackendInfoResponse
+	if err := decodeStoreJSONResponse(strings.NewReader(body), int64(len(body)), &result); err != nil {
+		t.Fatalf("decodeStoreJSONResponse() error = %v", err)
+	}
+	if result.Name != "Official Store" {
+		t.Fatalf("Name = %q", result.Name)
+	}
+	if err := decodeStoreJSONResponse(strings.NewReader(body), int64(len(body)-1), &result); !errors.Is(err, errStoreResponseTooLarge) {
+		t.Fatalf("decodeStoreJSONResponse() error = %v, want size rejection", err)
 	}
 }

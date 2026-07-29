@@ -2,8 +2,10 @@ package dice //nolint:testpackage
 
 import (
 	"archive/zip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,9 +14,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -366,8 +369,8 @@ func TestPackageManagerInstallFromStream(t *testing.T) {
 	}
 	defer src.Close()
 
-	if err := pm.InstallFromStream(src); err != nil {
-		t.Fatalf("InstallFromStream() error = %v", err)
+	if installErr := pm.InstallFromStream(src); installErr != nil {
+		t.Fatalf("InstallFromStream() error = %v", installErr)
 	}
 
 	pkg, ok := pm.Get(pkgID)
@@ -380,26 +383,18 @@ func TestPackageManagerInstallFromStream(t *testing.T) {
 	if !strings.HasSuffix(filepath.ToSlash(pkg.SourcePath), "data/packages/alice/uploaded@1.0.0.sealpack") {
 		t.Fatalf("SourcePath = %q", pkg.SourcePath)
 	}
-	if _, err := os.Stat(pkg.SourcePath); err != nil {
-		t.Fatalf("expected streamed source artifact to exist: %v", err)
+	if _, statErr := os.Stat(pkg.SourcePath); statErr != nil {
+		t.Fatalf("expected streamed source artifact to exist: %v", statErr)
 	}
 	if got, want := strings.Join(pkg.Files, ","), "info.toml,scripts/main.js"; got != want {
 		t.Fatalf("Files = %q, want %q", got, want)
 	}
-}
-
-func TestPackageManagerInstallFromStreamRejectsOversizedArchive(t *testing.T) {
-	_, pm := newTestPackageManager(t)
-	if err := pm.Init(); err != nil {
-		t.Fatalf("Init() error = %v", err)
+	staged, err := os.ReadDir(pm.getPackageStagingDir())
+	if err != nil {
+		t.Fatalf("ReadDir(staging) error = %v", err)
 	}
-
-	err := pm.InstallFromStream(io.LimitReader(zeroReader{}, maxPackageArchiveSize+1))
-	if err == nil {
-		t.Fatal("InstallFromStream() error = nil, want size rejection")
-	}
-	if !strings.Contains(err.Error(), "超过大小限制") {
-		t.Fatalf("InstallFromStream() error = %v, want size rejection", err)
+	if len(staged) != 0 {
+		t.Fatalf("staging directory contains %d files after install", len(staged))
 	}
 }
 
@@ -480,20 +475,66 @@ func TestPackageManagerPreviewFromURL(t *testing.T) {
 	}
 }
 
-func TestDownloadPackageArchiveRejectsOversizedResponse(t *testing.T) {
+func TestPackageManagerPreviewFromURLRejectsKnownSizeBeforeRequest(t *testing.T) {
+	_, pm := newTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	originalProbe := probePackageDiskSpace
+	t.Cleanup(func() { probePackageDiskSpace = originalProbe })
+	probePackageDiskSpace = func(string) (packageDiskSpace, error) {
+		return packageDiskSpace{Volume: "test", Available: packageDiskReserve, Total: packageDiskReserve}, nil
+	}
+	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Length", strconv.FormatInt(maxPackageArchiveSize+1, 10))
+		requests.Add(1)
 		w.WriteHeader(http.StatusOK)
-		_, _ = io.Copy(w, io.LimitReader(zeroReader{}, maxPackageArchiveSize+1))
 	}))
 	defer server.Close()
 
-	_, _, err := downloadPackageArchive(server.URL)
-	if err == nil {
-		t.Fatal("downloadPackageArchive() error = nil, want size rejection")
+	_, err := pm.PreviewFromURLWithOptionsContext(context.Background(), server.URL, PackageDownloadOptions{ExpectedSize: 1})
+	if err == nil || !strings.Contains(err.Error(), "磁盘空间不足") {
+		t.Fatalf("PreviewFromURLWithOptionsContext() error = %v, want disk rejection", err)
 	}
-	if !strings.Contains(err.Error(), "超过大小限制") {
-		t.Fatalf("downloadPackageArchive() error = %v, want size rejection", err)
+	if requests.Load() != 0 {
+		t.Fatalf("server received %d requests, want 0", requests.Load())
+	}
+}
+
+func TestPackageManagerPreviewFromURLStopsAfterIdleTimeout(t *testing.T) {
+	_, pm := newTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	pm.downloadIdleTimeout = 50 * time.Millisecond
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	_, err := pm.PreviewFromURLContext(context.Background(), server.URL, nil)
+	if err == nil || !strings.Contains(err.Error(), "没有接收到数据") {
+		t.Fatalf("PreviewFromURLContext() error = %v, want idle timeout", err)
+	}
+}
+
+func TestAcquirePackageOperationHonorsCancellation(t *testing.T) {
+	release, err := acquirePackageOperation(context.Background())
+	if err != nil {
+		t.Fatalf("acquirePackageOperation() error = %v", err)
+	}
+	defer release()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := acquirePackageOperation(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("acquirePackageOperation() error = %v, want context cancellation", err)
 	}
 }
 
@@ -960,6 +1001,32 @@ func (zeroReader) Read(p []byte) (int, error) {
 		p[i] = 0
 	}
 	return len(p), nil
+}
+
+func BenchmarkCopyPackageArchiveStreaming(b *testing.B) {
+	const packageSize = 160 << 20
+	b.ReportAllocs()
+	b.SetBytes(packageSize)
+	for range b.N {
+		written, err := copyPackageArchive(io.Discard, io.LimitReader(zeroReader{}, packageSize))
+		if err != nil {
+			b.Fatalf("copyPackageArchive() error = %v", err)
+		}
+		if written != packageSize {
+			b.Fatalf("copyPackageArchive() wrote %d bytes, want %d", written, packageSize)
+		}
+	}
+}
+
+func TestCopyPackageArchiveHasNoFixedSizeLimit(t *testing.T) {
+	const formerLimit = int64(128 << 20)
+	written, err := copyPackageArchive(io.Discard, io.LimitReader(zeroReader{}, formerLimit+1))
+	if err != nil {
+		t.Fatalf("copyPackageArchive() error = %v", err)
+	}
+	if written != formerLimit+1 {
+		t.Fatalf("copyPackageArchive() wrote %d bytes, want %d", written, formerLimit+1)
+	}
 }
 
 func copyTestFile(t *testing.T, src, dst string) {
