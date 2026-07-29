@@ -28,7 +28,7 @@ func BenchmarkDiceRandomSourceUint64(b *testing.B) {
 			}
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				benchUint64Sink = src.Uint64()
 			}
 		})
@@ -51,7 +51,7 @@ func BenchmarkDiceRandomSourceRollD100(b *testing.B) {
 			}
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				benchRollSink = int64(ds.Roll(src, 100, 0))
 			}
 		})

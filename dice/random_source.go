@@ -201,13 +201,6 @@ func randIntnFromSource(src ds.DiceSource, n int) int {
 	return int(randUint64n(src, uint64(n)))
 }
 
-func randInt64nFromSource(src ds.DiceSource, n int64) int64 {
-	if n <= 0 {
-		panic("invalid bound")
-	}
-	return int64(randUint64n(src, uint64(n)))
-}
-
 func randUint64n(src ds.DiceSource, n uint64) uint64 {
 	if n == 0 {
 		panic("invalid bound")
