@@ -64,13 +64,17 @@ var _trayPortStr = "3211"
 var systrayQuited bool = false
 
 func onReady() {
+	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹核心")
-	systray.SetTooltip("海豹TRPG骰点核心")
+	systray.SetTooltip(formatTrayTooltip(theDm, ver, _trayPortStr))
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mOpen.SetIcon(icon.Data)
 	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "访达访问程序所在目录")
+	startTrayAccountMenu(theDm, func() {
+		_ = exec.Command(`open`, `http://localhost:`+_trayPortStr+`/#/connect`).Start()
+	})
 	mQuit := systray.AddMenuItem("退出", "退出程序")
 
 	go func() {
@@ -100,6 +104,7 @@ func onExit() {
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	log := logger.M()
 	portStr := "3211"
+	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 
 	go func() {
 		for {
@@ -108,7 +113,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				break
 			}
 			runtime.LockOSThread()
-			systray.SetTooltip("海豹TRPG骰点核心 #" + portStr)
+			systray.SetTooltip(formatTrayTooltip(dm, ver, portStr))
 			runtime.UnlockOSThread()
 		}
 	}()
@@ -117,6 +122,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	m := rePort.FindStringSubmatch(dm.ServeAddress)
 	if len(m) > 0 {
 		portStr = m[1]
+		_trayPortStr = portStr
 	}
 
 	ln, err := net.Listen("tcp", ":"+portStr)

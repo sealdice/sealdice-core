@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/time/rate"
@@ -25,6 +26,7 @@ type DiceConfigInfo struct {
 	MaxExecuteTime      string   `json:"maxExecuteTime"`      // 最大骰点次数
 	MaxCocCardGen       string   `json:"maxCocCardGen"`       // 最大coc制卡数
 	ServerAddress       string   `form:"serveAddress"        json:"serveAddress"`
+	TrayTooltip         string   `json:"trayTooltip"`
 	HelpDocEngineType   int      `json:"helpDocEngineType"`
 }
 
@@ -76,6 +78,7 @@ func DiceConfig(c echo.Context) error {
 		LogPageItemLimit:    limit,
 		DefaultCocRuleIndex: cocRule,
 		ServerAddress:       myDice.Parent.ServeAddress,
+		TrayTooltip:         myDice.Parent.GetTrayTooltip(),
 		HelpDocEngineType:   myDice.Parent.HelpDocEngineType,
 		MaxExecuteTime:      maxExec,
 		MaxCocCardGen:       maxCard,
@@ -111,6 +114,28 @@ func DiceConfigSet(c echo.Context) error {
 		myDice.Logger.Error("DiceConfigSet", err)
 		return c.JSON(http.StatusOK, nil)
 	}
+
+	trayTooltip := ""
+	trayTooltipModified := false
+	if val, ok := jsonMap["trayTooltip"]; ok {
+		value, ok := val.(string)
+		if !ok {
+			return c.JSON(http.StatusBadRequest, Response{
+				"result": false,
+				"err":    "托盘提示文本必须是字符串",
+			})
+		}
+		value = strings.TrimSpace(value)
+		if utf8.RuneCountInString(value) > 10 {
+			return c.JSON(http.StatusBadRequest, Response{
+				"result": false,
+				"err":    "托盘提示文本不能超过10个字符",
+			})
+		}
+		trayTooltip = value
+		trayTooltipModified = true
+	}
+
 	if val, ok := jsonMap["commandPrefix"]; ok {
 		myDice.CommandPrefix = stringConvert(val)
 	}
@@ -346,6 +371,9 @@ func DiceConfigSet(c echo.Context) error {
 		if !dm.JustForTest {
 			myDice.Parent.ServeAddress = val.(string)
 		}
+	}
+	if trayTooltipModified {
+		myDice.Parent.SetTrayTooltip(trayTooltip)
 	}
 
 	// if val, ok := jsonMap["customBotExtraText"]; ok {

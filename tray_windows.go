@@ -106,10 +106,13 @@ func onReady() {
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹TRPG骰点核心")
-	systray.SetTooltip("海豹TRPG骰点核心 " + ver)
+	systray.SetTooltip(formatTrayTooltip(theDM, ver, _trayPortStr))
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "资源管理器访问程序所在目录")
+	startTrayAccountMenu(theDM, func() {
+		_ = exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+_trayPortStr+`/#/connect`).Start()
+	})
 	mShowHide := systray.AddMenuItemCheckbox("显示终端窗口", "显示终端窗口", false)
 	mAutoBoot := systray.AddMenuItemCheckbox("开机自启动", "开机自启动", false)
 	mQuit := systray.AddMenuItem("退出", "退出程序")
@@ -199,7 +202,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				break
 			}
 			runtime.LockOSThread()
-			systray.SetTooltip("海豹TRPG骰点核心 " + ver + " #" + portStr)
+			systray.SetTooltip(formatTrayTooltip(dm, ver, portStr))
 			runtime.UnlockOSThread()
 		}
 	}()
