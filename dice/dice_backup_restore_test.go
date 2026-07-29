@@ -123,6 +123,54 @@ func TestRestoreTransactionIncludesSQLiteSidecars(t *testing.T) {
 	assertRestoreTestFile(t, "data/default.db-shm", "old-shm")
 }
 
+func TestRestoreArchiveSQLiteSidecarIsJournaledOnceAndRollsBack(t *testing.T) {
+	source := prepareRestoreTest(t)
+	for name, content := range map[string]string{
+		"data/default.db":     "old-db",
+		"data/default.db-wal": "old-wal",
+	} {
+		if err := os.WriteFile(name, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeRestoreTestArchive(t, source, VERSION_CODE, map[string]string{
+		"data/dice.yaml":      "config",
+		"data/default.db":     "new-db",
+		"data/default.db-wal": "new-wal",
+		"data/new.txt":        "new-file",
+	})
+	if err := writeJSONAtomic(restorePendingPath(), restorePending{Phase: "pending", OperationID: "op", SourceName: "source.zip"}); err != nil {
+		t.Fatal(err)
+	}
+	originalRename := restoreRename
+	restoreRename = func(oldPath, newPath string) error {
+		if filepath.Base(oldPath) == "new.txt" && filepath.Clean(newPath) == filepath.Clean("data/new.txt") {
+			return errors.New("injected rename failure")
+		}
+		return os.Rename(oldPath, newPath)
+	}
+	t.Cleanup(func() { restoreRename = originalRename })
+
+	if err := ApplyScheduledRestore(); err == nil {
+		t.Fatal("ApplyScheduledRestore() unexpectedly succeeded")
+	}
+	assertRestoreTestFile(t, "data/default.db", "old-db")
+	assertRestoreTestFile(t, "data/default.db-wal", "old-wal")
+	journal, err := readRestoreJournal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := 0
+	for _, entry := range journal.Entries {
+		if filepath.Clean(entry.Target) == filepath.Clean("data/default.db-wal") {
+			seen++
+		}
+	}
+	if seen != 1 {
+		t.Fatalf("WAL journal entries = %d, want 1", seen)
+	}
+}
+
 func TestRecoverInterruptedRestoreMigratesLegacySwitchingState(t *testing.T) {
 	prepareRestoreTest(t)
 	pending := restorePending{Phase: "switching", SourceName: "source.zip", SafetyBackupName: "safety.zip"}
@@ -138,6 +186,98 @@ func TestRecoverInterruptedRestoreMigratesLegacySwitchingState(t *testing.T) {
 	}
 	if updated.Phase != "pending" {
 		t.Fatalf("phase = %q, want pending", updated.Phase)
+	}
+}
+
+func TestRecoverInterruptedRestoreResetsPendingPhase(t *testing.T) {
+	for _, journalState := range []string{"applying", "rolled_back"} {
+		t.Run(journalState, func(t *testing.T) {
+			prepareRestoreTest(t)
+			pending := restorePending{Phase: "applying", OperationID: "op", SourceName: "source.zip", SafetyBackupName: "safety.zip"}
+			if err := writeJSONAtomic(restorePendingPath(), pending); err != nil {
+				t.Fatal(err)
+			}
+			if err := writeRestoreJournal(&restoreJournal{OperationID: "op", State: journalState}); err != nil {
+				t.Fatal(err)
+			}
+			if err := RecoverInterruptedRestore(); err != nil {
+				t.Fatal(err)
+			}
+			updated, err := readPendingRestore()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if updated.Phase != "pending" {
+				t.Fatalf("phase = %q, want pending", updated.Phase)
+			}
+			if status := GetRestoreStatus(); status.State != "rolled_back" {
+				t.Fatalf("status = %q, want rolled_back", status.State)
+			}
+		})
+	}
+}
+
+func TestCommitScheduledRestoreCleanupFailureRemainsCommitted(t *testing.T) {
+	prepareRestoreTest(t)
+	pending := restorePending{Phase: "applied", OperationID: "op", SourceName: "source.zip"}
+	if err := writeJSONAtomic(restorePendingPath(), pending); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeRestoreJournal(&restoreJournal{OperationID: "op", State: "applied"}); err != nil {
+		t.Fatal(err)
+	}
+	originalRemoveAll := restoreRemoveAll
+	restoreRemoveAll = func(target string) error {
+		if filepath.Base(target) == restoreRollbackName {
+			return errors.New("injected cleanup failure")
+		}
+		return os.RemoveAll(target)
+	}
+	t.Cleanup(func() { restoreRemoveAll = originalRemoveAll })
+
+	if err := CommitScheduledRestore(); err != nil {
+		t.Fatalf("CommitScheduledRestore() error = %v", err)
+	}
+	journal, err := readRestoreJournal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if journal.State != "committed" {
+		t.Fatalf("journal state = %q, want committed", journal.State)
+	}
+	if status := GetRestoreStatus(); status.State != "succeeded" {
+		t.Fatalf("status = %q, want succeeded", status.State)
+	}
+	restoreRemoveAll = originalRemoveAll
+	if err := RecoverInterruptedRestore(); err != nil {
+		t.Fatalf("RecoverInterruptedRestore() error = %v", err)
+	}
+	if _, err := os.Stat(restoreJournalPath()); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("committed journal was not cleaned on retry: %v", err)
+	}
+	if _, err := os.Stat(restorePendingPath()); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("committed pending marker was not cleaned on retry: %v", err)
+	}
+}
+
+func TestBuildRestoreJournalRejectsLinkedTargetDirectory(t *testing.T) {
+	prepareRestoreTest(t)
+	external := t.TempDir()
+	if err := os.Symlink(external, filepath.Join("data", "link")); err != nil {
+		t.Skipf("当前环境不能创建符号链接: %v", err)
+	}
+	staged := filepath.Join(restoreDir(), restoreStagingName, "data", "link")
+	if err := os.MkdirAll(staged, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staged, "outside.txt"), []byte("unsafe"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := buildRestoreJournal("op", filepath.Join(restoreDir(), restoreStagingName)); err == nil {
+		t.Fatal("buildRestoreJournal() accepted a linked target directory")
+	}
+	if _, err := os.Stat(filepath.Join(external, "outside.txt")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("restore wrote outside data: %v", err)
 	}
 }
 

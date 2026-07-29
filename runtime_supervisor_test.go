@@ -91,3 +91,27 @@ func TestRuntimeSupervisorRollsBackAndRebuildsAfterStartFailure(t *testing.T) {
 		t.Fatal("fallback Runtime was not installed")
 	}
 }
+
+func TestRuntimeSupervisorStaysDegradedWhenRollbackFails(t *testing.T) {
+	supervisor := newRuntimeSupervisor(runtimeBuildOptions{})
+	supervisor.current = newSupervisorTestRuntime()
+	buildCalls := 0
+	supervisor.buildFn = func() (*applicationRuntime, error) {
+		buildCalls++
+		return nil, errors.New("injected start failure")
+	}
+	supervisor.applyFn = func() error { return nil }
+	supervisor.rollbackFn = func(string) error { return errors.New("injected rollback failure") }
+	supervisor.statusFn = func(string, string) error { return nil }
+	t.Cleanup(func() { api.ReplaceRuntime(nil) })
+
+	if err := supervisor.restore(context.Background()); err == nil {
+		t.Fatal("restore() unexpectedly succeeded")
+	}
+	if buildCalls != 1 {
+		t.Fatalf("build calls = %d, want 1", buildCalls)
+	}
+	if supervisor.current != nil || supervisor.state.Load() != "degraded" {
+		t.Fatal("Runtime was rebuilt after rollback failure")
+	}
+}

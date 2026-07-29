@@ -26,6 +26,9 @@ type PGSQLEngine struct {
 
 func (s *PGSQLEngine) Close() {
 	log := zap.S().Named(logger.LogKeyDatabase)
+	if s.DB == nil {
+		return
+	}
 	db, err := s.DB.DB()
 	if err != nil {
 		log.Errorf("failed to close db: %v", err)

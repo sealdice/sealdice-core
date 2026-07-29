@@ -26,6 +26,9 @@ type MYSQLEngine struct {
 
 func (s *MYSQLEngine) Close() {
 	log := zap.S().Named(logger.LogKeyDatabase)
+	if s.DB == nil {
+		return
+	}
 
 	db, err := s.DB.DB()
 	if err != nil {

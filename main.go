@@ -447,7 +447,7 @@ func main() {
 	// }
 
 	// darwin 的托盘菜单似乎需要在主线程启动才能工作，调整到这里
-	trayInit(runtimeManager)
+	trayInit(cleanUp)
 }
 
 func removeUpdateFiles() {

@@ -16,7 +16,7 @@ import (
 	"sealdice-core/logger"
 )
 
-func trayInit(dm *dice.DiceManager) {
+func trayInit(_ func()) {
 	select {}
 }
 

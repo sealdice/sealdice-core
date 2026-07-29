@@ -21,10 +21,10 @@ import (
 	"sealdice-core/logger"
 )
 
-var theDm *dice.DiceManager
+var trayCleanup func()
 
-func trayInit(dm *dice.DiceManager) {
-	theDm = dm
+func trayInit(cleanup func()) {
+	trayCleanup = cleanup
 	runtime.LockOSThread()
 	systray.Run(onReady, onExit)
 }
@@ -85,7 +85,7 @@ func onReady() {
 			_ = exec.Command(`open`, filepath.Dir(os.Args[0])).Start()
 		case <-mQuit.ClickedCh:
 			systrayQuited = true
-			cleanupCreate(theDm)()
+			trayCleanup()
 			systray.Quit()
 			time.Sleep(3 * time.Second)
 			os.Exit(0)

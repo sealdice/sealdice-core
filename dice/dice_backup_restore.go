@@ -90,7 +90,11 @@ type restoreStatusAuth struct {
 	ExpiresAt   int64  `json:"expiresAt"`
 }
 
-var restoreRename = os.Rename
+var (
+	restoreRename    = os.Rename
+	restoreRemove    = os.Remove
+	restoreRemoveAll = os.RemoveAll
+)
 
 type backupManifest struct {
 	Config      json.RawMessage `json:"config"`
@@ -730,6 +734,10 @@ func rollbackRestoreJournal(journal *restoreJournal) error {
 	var rollbackErr error
 	for index := len(journal.Entries) - 1; index >= 0; index-- {
 		entry := &journal.Entries[index]
+		if err := ensureRestoreTargetSafe(entry.Target); err != nil {
+			rollbackErr = errors.Join(rollbackErr, err)
+			continue
+		}
 		if entry.State == "installing" || entry.State == "applied" {
 			if err := os.Remove(entry.Target); err != nil && !errors.Is(err, os.ErrNotExist) {
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("移除已恢复文件 %s: %w", entry.Target, err))
@@ -769,6 +777,7 @@ func rollbackRestoreJournal(journal *restoreJournal) error {
 
 func buildRestoreJournal(operationID, staging string) (*restoreJournal, error) {
 	journal := &restoreJournal{OperationID: operationID, State: "applying"}
+	targets := map[string]struct{}{}
 	err := filepath.WalkDir(filepath.Join(staging, "data"), func(stagedPath string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -781,8 +790,12 @@ func buildRestoreJournal(operationID, staging string) (*restoreJournal, error) {
 			return err
 		}
 		target := filepath.Clean(relative)
+		if err = ensureRestoreTargetSafe(target); err != nil {
+			return err
+		}
 		rollback := filepath.Join(restoreDir(), restoreRollbackName, relative)
 		_, statErr := os.Stat(target)
+		targets[strings.ToLower(target)] = struct{}{}
 		journal.Entries = append(journal.Entries, restoreJournalEntry{
 			Target:      target,
 			Rollback:    rollback,
@@ -790,23 +803,33 @@ func buildRestoreJournal(operationID, staging string) (*restoreJournal, error) {
 			HadOriginal: statErr == nil,
 			State:       "planned",
 		})
-		if strings.HasSuffix(strings.ToLower(target), ".db") {
-			for _, suffix := range []string{"-wal", "-shm"} {
-				sidecar := target + suffix
-				if _, err = os.Stat(sidecar); err == nil {
-					journal.Entries = append(journal.Entries, restoreJournalEntry{
-						Target:      sidecar,
-						Rollback:    filepath.Join(restoreDir(), restoreRollbackName, sidecar),
-						HadOriginal: true,
-						State:       "planned",
-					})
-				}
-			}
-		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+	entries := append([]restoreJournalEntry(nil), journal.Entries...)
+	for _, entry := range entries {
+		if !strings.HasSuffix(strings.ToLower(entry.Target), ".db") {
+			continue
+		}
+		for _, suffix := range []string{"-wal", "-shm"} {
+			sidecar := entry.Target + suffix
+			if _, exists := targets[strings.ToLower(sidecar)]; exists {
+				continue
+			}
+			if err = ensureRestoreTargetSafe(sidecar); err != nil {
+				return nil, err
+			}
+			if _, statErr := os.Stat(sidecar); statErr == nil {
+				journal.Entries = append(journal.Entries, restoreJournalEntry{
+					Target:      sidecar,
+					Rollback:    filepath.Join(restoreDir(), restoreRollbackName, sidecar),
+					HadOriginal: true,
+					State:       "planned",
+				})
+			}
+		}
 	}
 	sort.Slice(journal.Entries, func(i, j int) bool { return journal.Entries[i].Target < journal.Entries[j].Target })
 	return journal, nil
@@ -820,6 +843,9 @@ func applyRestoreJournal(journal *restoreJournal) (resultErr error) {
 	}()
 	for index := range journal.Entries {
 		entry := &journal.Entries[index]
+		if err := ensureRestoreTargetSafe(entry.Target); err != nil {
+			return err
+		}
 		if entry.HadOriginal {
 			if err := os.MkdirAll(filepath.Dir(entry.Rollback), 0o700); err != nil {
 				return err
@@ -881,10 +907,39 @@ func RecoverInterruptedRestore() error {
 	if err != nil {
 		return fmt.Errorf("读取恢复事务日志: %w", err)
 	}
-	if journal.State == "committed" || journal.State == "rolled_back" {
+	if journal.State == "committed" {
+		pending, pendingErr := readPendingRestore()
+		if pendingErr == nil {
+			finishCommittedRestore(pending, journal.OperationID)
+		} else if errors.Is(pendingErr, os.ErrNotExist) {
+			finishCommittedRestore(nil, journal.OperationID)
+		} else if !errors.Is(pendingErr, os.ErrNotExist) {
+			logger.M().Errorw("[备份恢复] 清理已提交事务时读取任务失败", "error", pendingErr)
+		}
 		return nil
 	}
-	return rollbackRestoreJournal(journal)
+	if journal.State == "rolled_back" {
+		return resetRolledBackPending()
+	}
+	if err = rollbackRestoreJournal(journal); err != nil {
+		return err
+	}
+	return resetRolledBackPending()
+}
+
+func resetRolledBackPending() error {
+	pending, err := readPendingRestore()
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("读取已回滚恢复任务: %w", err)
+	}
+	pending.Phase = "pending"
+	if err = writeJSONAtomic(restorePendingPath(), pending); err != nil {
+		return fmt.Errorf("重置已回滚恢复任务: %w", err)
+	}
+	return setRestoreStatus(RestoreStatus{State: "rolled_back", OperationID: pending.OperationID, SourceName: pending.SourceName, SafetyBackupName: pending.SafetyBackupName, Message: "检测到进程中断，原数据已自动回滚；可重新发起恢复"})
 }
 
 // ApplyScheduledRestore 在 Runtime 已完全停止后应用待恢复文件。
@@ -952,8 +1007,11 @@ func CommitScheduledRestore() error {
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	if err != nil || pending.Phase != "applied" {
+	if err != nil {
 		return err
+	}
+	if pending.Phase != "applied" {
+		return fmt.Errorf("恢复任务尚未应用完成，当前阶段为 %s", pending.Phase)
 	}
 	journal, err := readRestoreJournal()
 	if err != nil {
@@ -963,14 +1021,42 @@ func CommitScheduledRestore() error {
 	if err = writeRestoreJournal(journal); err != nil {
 		return err
 	}
-	if err = os.RemoveAll(filepath.Join(restoreDir(), restoreRollbackName)); err != nil {
-		return err
+	finishCommittedRestore(pending, journal.OperationID)
+	return nil
+}
+
+func finishCommittedRestore(pending *restorePending, operationID string) {
+	var cleanupErr error
+	if pending != nil {
+		if err := setRestoreStatus(RestoreStatus{State: "succeeded", OperationID: pending.OperationID, SourceName: pending.SourceName, SafetyBackupName: pending.SafetyBackupName}); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("写入成功状态: %w", err))
+		}
 	}
-	_ = os.RemoveAll(filepath.Join(restoreDir(), restoreStagingName))
-	_ = os.Remove(filepath.Join(restoreDir(), restoreSourceName))
-	_ = os.Remove(restorePendingPath())
-	_ = os.Remove(restoreJournalPath())
-	return setRestoreStatus(RestoreStatus{State: "succeeded", OperationID: pending.OperationID, SourceName: pending.SourceName, SafetyBackupName: pending.SafetyBackupName})
+	for _, directory := range []string{restoreRollbackName, restoreStagingName} {
+		if err := restoreRemoveAll(filepath.Join(restoreDir(), directory)); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("清理 %s: %w", directory, err))
+		}
+	}
+	if err := restoreRemove(filepath.Join(restoreDir(), restoreSourceName)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		cleanupErr = errors.Join(cleanupErr, fmt.Errorf("清理恢复源文件: %w", err))
+	}
+	if cleanupErr == nil {
+		if err := restoreRemove(restorePendingPath()); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				cleanupErr = fmt.Errorf("清理恢复任务: %w", err)
+			}
+		}
+	}
+	if cleanupErr == nil {
+		if err := restoreRemove(restoreJournalPath()); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				cleanupErr = fmt.Errorf("清理恢复事务日志: %w", err)
+			}
+		}
+	}
+	if cleanupErr != nil {
+		logger.M().Warnw("[备份恢复] 恢复已提交，但事务清理未完成，将在下次启动重试", "operationId", operationID, "error", cleanupErr)
+	}
 }
 
 func RollbackScheduledRestore(message string) error {

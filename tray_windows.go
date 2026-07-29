@@ -35,10 +35,10 @@ func showWindow() {
 	win.ShowWindow(win.GetConsoleWindow(), win.SW_SHOW)
 }
 
-var theDM *dice.DiceManager
+var trayCleanup func()
 
-func trayInit(dm *dice.DiceManager) {
-	theDM = dm
+func trayInit(cleanup func()) {
+	trayCleanup = cleanup
 	// 确保能收到系统消息，从而避免不能弹出菜单
 	runtime.LockOSThread()
 	systray.Run(onReady, onExit)
@@ -145,7 +145,7 @@ func onReady() {
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			systrayQuited = true
-			cleanupCreate(theDM)()
+			trayCleanup()
 			time.Sleep(3 * time.Second)
 			os.Exit(0)
 		case <-mAutoBoot.ClickedCh:

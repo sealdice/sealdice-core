@@ -253,17 +253,22 @@ func (supervisor *runtimeSupervisor) rebuildAfterFailure(prefix string, cause er
 	_ = supervisor.statusFn("rolling_back", message)
 	rollbackErr := supervisor.rollbackFn(message)
 	if rollbackErr != nil {
+		supervisor.current = nil
+		api.ReplaceRuntime(nil)
+		supervisor.state.Store("degraded")
+		degradedMessage := message + "；回滚失败，Runtime 已保持停止: " + rollbackErr.Error()
+		_ = supervisor.statusFn("degraded", degradedMessage)
 		logger.M().Errorw("[备份恢复] 回滚恢复事务失败", "operationId", operationID, "error", rollbackErr)
-	} else {
-		logger.M().Infow("[备份恢复] 原数据已回滚", "operationId", operationID)
+		return errors.Join(cause, rollbackErr)
 	}
+	logger.M().Infow("[备份恢复] 原数据已回滚", "operationId", operationID)
 	logger.M().Infow("[备份恢复] 正在重新初始化回滚后的 Runtime", "operationId", operationID)
 	oldRuntime, rebuildErr := supervisor.buildFn()
 	if rebuildErr != nil {
 		supervisor.state.Store("degraded")
 		_ = supervisor.statusFn("degraded", message+"；回滚后的 Runtime 也无法启动: "+rebuildErr.Error())
 		logger.M().Errorw("[备份恢复] 回滚后的 Runtime 初始化失败", "operationId", operationID, "error", rebuildErr)
-		return errors.Join(cause, rollbackErr, rebuildErr)
+		return errors.Join(cause, rebuildErr)
 	}
 	supervisor.current = oldRuntime
 	api.ReplaceRuntime(oldRuntime.manager)
