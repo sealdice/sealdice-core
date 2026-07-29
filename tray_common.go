@@ -4,36 +4,20 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fy0/systray"
-	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice"
-	"sealdice-core/logger"
 )
 
 const defaultTrayTooltip = "海豹TRPG骰点核心"
-
-type trayAccountConfig struct {
-	IMSession struct {
-		EndPoints []struct {
-			BaseInfo struct {
-				Nickname string `yaml:"nickname"`
-				UserID   string `yaml:"userId"`
-			} `yaml:"baseInfo"`
-		} `yaml:"endPoints"`
-	} `yaml:"imSession"`
-}
 
 type trayAccountMenu struct {
 	root       *systray.MenuItem
 	addAccount *systray.MenuItem
 	account    []*systray.MenuItem
-	lastError  string
 }
 
 func formatTrayTooltip(dm *dice.DiceManager, version, port string) string {
@@ -68,19 +52,7 @@ func startTrayAccountMenu(dm *dice.DiceManager, openAccountSettings func()) {
 }
 
 func (menu *trayAccountMenu) refresh(dm *dice.DiceManager) {
-	titles, err := loadTrayAccountTitles(dm)
-	if err != nil {
-		message := err.Error()
-		if message != menu.lastError {
-			logger.M().Warnf("刷新托盘账号列表失败: %v", err)
-			menu.lastError = message
-		}
-		return
-	}
-	if menu.lastError != "" {
-		logger.M().Info("托盘账号列表已恢复刷新")
-		menu.lastError = ""
-	}
+	titles := loadTrayAccountTitles(dm)
 
 	for len(menu.account) < len(titles) {
 		item := menu.root.AddSubMenuItem(titles[len(menu.account)], "")
@@ -104,25 +76,38 @@ func (menu *trayAccountMenu) refresh(dm *dice.DiceManager) {
 	}
 }
 
-func loadTrayAccountTitles(dm *dice.DiceManager) ([]string, error) {
+func loadTrayAccountTitles(dm *dice.DiceManager) []string {
 	var titles []string
 	for _, instance := range dm.Dice {
-		path := filepath.Join(instance.BaseConfig.DataDir, "serve.yaml")
-		data, err := os.ReadFile(path)
-		if err != nil {
-			if os.IsNotExist(err) {
+		if instance == nil || instance.ImSession == nil {
+			continue
+		}
+		for _, endpoint := range instance.ImSession.EndPoints {
+			if endpoint == nil {
 				continue
 			}
-			return nil, fmt.Errorf("读取 %s: %w", path, err)
-		}
-
-		var config trayAccountConfig
-		if err = yaml.Unmarshal(data, &config); err != nil {
-			return nil, fmt.Errorf("解析 %s: %w", path, err)
-		}
-		for _, endpoint := range config.IMSession.EndPoints {
-			titles = append(titles, fmt.Sprintf("%s(%s)", endpoint.BaseInfo.Nickname, endpoint.BaseInfo.UserID))
+			titles = append(titles, fmt.Sprintf(
+				"%s(%s) [%s]",
+				endpoint.Nickname,
+				endpoint.UserID,
+				trayEndpointStateText(endpoint.State),
+			))
 		}
 	}
-	return titles, nil
+	return titles
+}
+
+func trayEndpointStateText(state dice.EndpointState) string {
+	switch state {
+	case dice.StateDisconnected:
+		return "已断开"
+	case dice.StateConnected:
+		return "已连接"
+	case dice.StateConnecting:
+		return "连接中"
+	case dice.StateConnectionFailed:
+		return "连接失败"
+	default:
+		return "未知状态"
+	}
 }
