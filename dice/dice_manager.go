@@ -25,6 +25,9 @@ type VersionInfo struct {
 	UpdaterURLPrefix        string `json:"updaterUrlPrefix"        yaml:"updaterUrlPrefix"`
 }
 
+// MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
+const MaxTrayTooltipPrefixLength = 10
+
 type GroupNameCacheItem struct {
 	Name string
 	time int64

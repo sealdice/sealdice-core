@@ -655,6 +655,29 @@ type IMSession struct {
 	EndPoints    []*EndPointInfo                    `yaml:"endPoints"`
 	ServiceAtNew *SyncMap[string, *GroupInfo]       `json:"servicesAt" yaml:"-"`
 	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
+
+	endPointsSnapshot atomic.Pointer[[]*EndPointInfo]
+}
+
+// RefreshEndPointsSnapshot 发布当前端点列表的只读快照。
+func (s *IMSession) RefreshEndPointsSnapshot() {
+	if s == nil {
+		return
+	}
+	snapshot := append([]*EndPointInfo(nil), s.EndPoints...)
+	s.endPointsSnapshot.Store(&snapshot)
+}
+
+// EndPointsSnapshot 返回最近发布的端点列表，调用方不得修改返回的切片。
+func (s *IMSession) EndPointsSnapshot() []*EndPointInfo {
+	if s == nil {
+		return nil
+	}
+	snapshot := s.endPointsSnapshot.Load()
+	if snapshot == nil {
+		return nil
+	}
+	return *snapshot
 }
 
 func (s *IMSession) ResolveLiveEndpoint(ep *EndPointInfo) (*EndPointInfo, error) {

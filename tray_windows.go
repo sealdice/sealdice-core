@@ -230,8 +230,9 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		m := rePort.FindStringSubmatch(dm.ServeAddress)
 		if len(m) > 0 {
 			portStr = m[1]
-			_trayPortStr = portStr
 		}
+		// 同步托盘菜单使用的端口，确保自定义端口和自动换端口后链接正确。
+		_trayPortStr = portStr
 
 		err := e.Start(dm.ServeAddress)
 

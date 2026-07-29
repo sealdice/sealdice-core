@@ -126,10 +126,10 @@ func DiceConfigSet(c echo.Context) error {
 			})
 		}
 		value = strings.TrimSpace(value)
-		if utf8.RuneCountInString(value) > 10 {
+		if utf8.RuneCountInString(value) > dice.MaxTrayTooltipPrefixLength {
 			return c.JSON(http.StatusBadRequest, Response{
 				"result": false,
-				"err":    "托盘提示文本不能超过10个字符",
+				"err":    "托盘提示文本前缀不能超过" + strconv.Itoa(dice.MaxTrayTooltipPrefixLength) + "个字符",
 			})
 		}
 		trayTooltip = value
