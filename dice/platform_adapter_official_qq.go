@@ -81,6 +81,11 @@ type PlatformAdapterOfficialQQ struct {
 	QrCodeData   []byte                    `json:"-"           yaml:"-"` // 当前二维码图片数据（PNG），参考 milky 的 QrCodeData
 	qrSession    *QQOfficialQrLoginSession `json:"-" yaml:"-"`
 	qrMu         sync.Mutex                `json:"-" yaml:"-"`
+
+	// 主动消息发送队列
+	c2cSendQuota   *OfficialQQSendQuota `json:"-" yaml:"-"`
+	groupSendQuota *OfficialQQSendQuota `json:"-" yaml:"-"`
+	sendQuotaOnce  sync.Once            `json:"-" yaml:"-"`
 }
 
 type officialQQAdapterJSON struct {
@@ -499,6 +504,8 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 	if !pa.OnlyQQGuild {
 		// 群聊@消息、单聊、好友关系事件
 		intent |= dto.IntentGroupMessages
+		// 群成员进退群事件
+		intent |= dto.IntentGroupMembers
 	}
 
 	go func() {
@@ -1633,6 +1640,14 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
 			return
 		}
+		// 主动消息（无 msg_id/event_id）需要排队限流
+		if toCreate.MsgID == "" && toCreate.EventID == "" {
+			if err := pa.waitC2CActiveQuota(qctx, userOpenID); err != nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
+				lastErr = err
+				return
+			}
+		}
 		res, err := pa.Api.PostC2CMessage(qctx, userOpenID, toCreate)
 		if err != nil {
 			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
@@ -1689,6 +1704,146 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 
 	sendCurrent(true)
 	return lastRes, lastErr
+}
+
+// 官方QQ主动消息频率限制：
+// 超出频率时消息进入排队，按预约顺序依次发出；
+const (
+	officialQQC2CBotLimit      = 10 // 单聊：10次/秒
+	officialQQC2CBotPeriod     = time.Second
+	officialQQGroupBotLimit    = 60 // 群聊：60次/分钟
+	officialQQGroupBotPeriod   = time.Minute
+	officialQQRelationLimit    = 20 // 单个用户/群：20次/分钟
+	officialQQRelationPeriod   = time.Minute
+	officialQQDailyLimit       = 1000            // 每日上限：1000条/用户或群
+	officialQQMaxQueueDelay    = 5 * time.Minute // 最大排队等待时长
+	officialQQRelationMapLimit = 2048            // 清理阈值
+)
+
+// OfficialQQSendQuota 主动消息发送队列。
+type OfficialQQSendQuota struct {
+	mu sync.Mutex
+
+	botLimit  int
+	botPeriod time.Duration
+	botStamps []time.Time
+
+	relStamps map[string][]time.Time
+
+	dailyDay   string
+	dailyCount map[string]int
+}
+
+var officialQQTimeZone = time.FixedZone("CST", 8*3600)
+
+// reserve 为 targetID 的一次主动发送预约时刻。
+func (q *OfficialQQSendQuota) reserve(targetID string) (time.Time, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	now := time.Now().In(officialQQTimeZone)
+
+	// 每日计数按UTC+8日期重置
+	day := now.Format("2006-01-02")
+	if day != q.dailyDay {
+		q.dailyDay = day
+		q.dailyCount = make(map[string]int)
+	}
+	if q.dailyCount[targetID] >= officialQQDailyLimit {
+		return time.Time{}, fmt.Errorf("对 %s 的主动消息已达当日上限(%d条)", targetID, officialQQDailyLimit)
+	}
+
+	// 取两个窗口都允许的最早时刻
+	t := now
+	rel := q.relStamps[targetID]
+	if len(rel) >= officialQQRelationLimit {
+		if c := rel[len(rel)-officialQQRelationLimit].Add(officialQQRelationPeriod); c.After(t) {
+			t = c
+		}
+	}
+	if len(q.botStamps) >= q.botLimit {
+		if c := q.botStamps[len(q.botStamps)-q.botLimit].Add(q.botPeriod); c.After(t) {
+			t = c
+		}
+	}
+
+	if t.Sub(now) > officialQQMaxQueueDelay {
+		return time.Time{}, fmt.Errorf("对 %s 的主动消息排队等待超过 %v，放弃发送", targetID, officialQQMaxQueueDelay)
+	}
+
+	// 提交预约
+	rel = append(rel, t)
+	if len(rel) > officialQQRelationLimit {
+		rel = rel[len(rel)-officialQQRelationLimit:]
+	}
+	q.relStamps[targetID] = rel
+
+	q.botStamps = append(q.botStamps, t)
+	if len(q.botStamps) > q.botLimit {
+		q.botStamps = q.botStamps[len(q.botStamps)-q.botLimit:]
+	}
+
+	q.dailyCount[targetID]++
+
+	// 防止关系级记录无限增长，剔除窗口早已滑过的目标
+	if len(q.relStamps) > officialQQRelationMapLimit {
+		for id, stamps := range q.relStamps {
+			if len(stamps) == 0 || now.Sub(stamps[len(stamps)-1]) > officialQQRelationPeriod {
+				delete(q.relStamps, id)
+			}
+		}
+	}
+
+	return t, nil
+}
+
+// acquire 阻塞直到 targetID 可以发送一条主动消息；支持 Context 取消
+func (q *OfficialQQSendQuota) acquire(ctx context.Context, targetID string) error {
+	t, err := q.reserve(targetID)
+	if err != nil {
+		return err
+	}
+	d := time.Until(t)
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func (pa *PlatformAdapterOfficialQQ) initSendQuota() {
+	pa.sendQuotaOnce.Do(func() {
+		pa.c2cSendQuota = &OfficialQQSendQuota{
+			botLimit:   officialQQC2CBotLimit,
+			botPeriod:  officialQQC2CBotPeriod,
+			relStamps:  make(map[string][]time.Time),
+			dailyCount: make(map[string]int),
+		}
+		pa.groupSendQuota = &OfficialQQSendQuota{
+			botLimit:   officialQQGroupBotLimit,
+			botPeriod:  officialQQGroupBotPeriod,
+			relStamps:  make(map[string][]time.Time),
+			dailyCount: make(map[string]int),
+		}
+	})
+}
+
+// waitC2CActiveQuota 主动单聊消息排队限流，返回错误时应放弃发送
+func (pa *PlatformAdapterOfficialQQ) waitC2CActiveQuota(ctx context.Context, userOpenID string) error {
+	pa.initSendQuota()
+	return pa.c2cSendQuota.acquire(ctx, userOpenID)
+}
+
+// waitGroupActiveQuota 主动群聊消息排队限流，返回错误时应放弃发送
+func (pa *PlatformAdapterOfficialQQ) waitGroupActiveQuota(ctx context.Context, groupOpenID string) error {
+	pa.initSendQuota()
+	return pa.groupSendQuota.acquire(ctx, groupOpenID)
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -1820,6 +1975,14 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 		pa.finalizeMessageToCreate(toCreate, content, keyboardObj, isFinal)
 		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
 			return
+		}
+		// 主动消息排队限流
+		if toCreate.MsgID == "" && toCreate.EventID == "" {
+			if err := pa.waitGroupActiveQuota(qctx, groupID); err != nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
+				lastErr = err
+				return
+			}
 		}
 		res, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate)
 		if err != nil {
