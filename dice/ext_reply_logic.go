@@ -225,7 +225,7 @@ func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *Cmd
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
-	expr := p.Pick().(string)
+	expr := pickChooserWithSource(p, ctx.getDiceSource()).(string)
 	ReplyToSender(ctx, msg, formatExprForReply(ctx, expr))
 	// }()
 }
@@ -245,7 +245,7 @@ func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdA
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 
-	expr := p.Pick().(string)
+	expr := pickChooserWithSource(p, ctx.getDiceSource()).(string)
 	ReplyPerson(ctx, msg, formatExprForReply(ctx, expr))
 }
 
@@ -265,7 +265,7 @@ func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArg
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 
-	expr := p.Pick().(string)
+	expr := pickChooserWithSource(p, ctx.getDiceSource()).(string)
 	ReplyGroup(ctx, msg, formatExprForReply(ctx, expr))
 	// }()
 }

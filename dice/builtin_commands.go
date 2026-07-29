@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"os"
 	"path"
 	"regexp"
@@ -558,7 +557,7 @@ func (d *Dice) registerCoreCommands() {
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
 				count := d.Parent.Help.GetNumericIDCount()
 				if count > 0 {
-					_id := rand.Intn(count) + 1
+					_id := ctx.RandIntn(count) + 1
 					id = strconv.Itoa(_id)
 				}
 			}

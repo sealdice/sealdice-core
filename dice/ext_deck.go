@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"math/rand"
 	"net/http"
 	"os"
 	"path"
@@ -23,6 +22,7 @@ import (
 	wr "github.com/mroth/weightedrand"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/sahilm/fuzzy"
+	ds "github.com/sealdice/dicescript"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
 )
@@ -1040,18 +1040,18 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 			return "", errors.New("牌组为空，请检查格式是否正确")
 		}
 		if ctx.DeckPools[deckInfo][deckName] == nil {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
 		if len(ctx.DeckPools[deckInfo][deckName].data) == 0 {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
 		pool = ctx.DeckPools[deckInfo][deckName]
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
-		key = pool.Pick().(string)
+		key = pool.PickWithSource(ctx.getDiceSource()).(string)
 	} else {
 		deckGroup := getDeckGroup(deckInfo, deckName)
 		if len(deckGroup) == 0 {
@@ -1061,7 +1061,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
-		key = pool.PickSource(randSourceDrawAndTmplSelect).(string)
+		key = pickChooserWithSource(pool, ctx.getDiceSource()).(string)
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
@@ -1133,7 +1133,11 @@ type ShuffleRandomPool struct {
 }
 
 func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
-	rand.Shuffle(len(choices), func(i, j int) {
+	return NewChooserWithSource(randSource, choices...)
+}
+
+func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice) (*ShuffleRandomPool, error) {
+	shuffleWithSource(src, len(choices), func(i, j int) {
 		choices[i], choices[j] = choices[j], choices[i]
 	})
 
@@ -1155,13 +1159,15 @@ func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
 	return &ShuffleRandomPool{data: choices, totals: totals, max: runningTotal}, nil
 }
 
-var randSourceDrawAndTmplSelect = rand.New(rand.NewSource(time.Now().UnixMilli()))
-
 // Pick returns a single weighted random Choice.Item from the Chooser.
 //
-// Utilizes global rand as the source of randomness.
+// Utilizes the provided dice source.
 func (c *ShuffleRandomPool) Pick() interface{} {
-	r := randSourceDrawAndTmplSelect.Intn(c.max) + 1
+	return c.PickWithSource(randSource)
+}
+
+func (c *ShuffleRandomPool) PickWithSource(src ds.DiceSource) interface{} {
+	r := randIntnFromSource(src, c.max) + 1
 	i := searchInts(c.totals, r)
 
 	theOne := c.data[i]
@@ -1187,12 +1193,16 @@ func searchInts(a []int, x int) int {
 }
 
 func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
+	return DeckToShuffleRandomPoolWithSource(randSource, deck)
+}
+
+func DeckToShuffleRandomPoolWithSource(src ds.DiceSource, deck []string) *ShuffleRandomPool {
 	var choices []wr.Choice
 	for _, i := range deck {
 		weight, text := extractWeight(i)
 		choices = append(choices, wr.Choice{Item: text, Weight: weight})
 	}
-	randomPool, _ := NewChooser(choices...)
+	randomPool, _ := NewChooserWithSource(src, choices...)
 	return randomPool
 }
 

@@ -42,6 +42,7 @@ var DefaultConfig = Config{
 		AliveNoticeValue:         "@every 3h",
 		ReplyDebugMode:           false,
 		PlayerNameWrapEnable:     true,
+		DiceRandomMode:           string(DiceRandomModePCG),
 		VMVersionForReply:        "v1",
 		VMVersionForDeck:         "v2",
 		VMVersionForCustomText:   "v2",

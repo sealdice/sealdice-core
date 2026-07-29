@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
+	ds "github.com/sealdice/dicescript"
 )
 
 type Type uint8
@@ -1394,7 +1394,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 	return &stack[0], calcDetail, nil
 }
 
-func DiceDCRollVM(randSrc *rand2.PCGSource, e *RollExpression, addLine *VMValue, pool *VMValue, points *VMValue) (*VMValue, int64, int64, []string) { //nolint:revive
+func DiceDCRollVM(randSrc ds.DiceSource, e *RollExpression, addLine *VMValue, pool *VMValue, points *VMValue) (*VMValue, int64, int64, []string) { //nolint:revive
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}
@@ -1432,7 +1432,7 @@ func DiceDCRollVM(randSrc *rand2.PCGSource, e *RollExpression, addLine *VMValue,
 	return &VMValue{TypeID: VMTypeInt64, Value: ret1}, ret2, ret3, details
 }
 
-func DiceDCRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int64) (int64, int64, int64, []string) { //nolint:revive
+func DiceDCRoll(randSrc ds.DiceSource, addLine int64, pool int64, points int64) (int64, int64, int64, []string) { //nolint:revive
 	var details []string
 	addTimes := 1
 
@@ -1490,7 +1490,7 @@ func DiceDCRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int6
 	return resultDice, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) { //nolint:revive
+func DiceWodRoll(randSrc ds.DiceSource, addLine int64, pool int64, points int64, threshold int64, isGE bool) (int64, int64, int64, []string) { //nolint:revive
 	var details []string
 	addTimes := 1
 
@@ -1558,7 +1558,7 @@ func DiceWodRoll(randSrc *rand2.PCGSource, addLine int64, pool int64, points int
 	return successCount, allRollCount, int64(addTimes), details
 }
 
-func DiceWodRollVM(randSrc *rand2.PCGSource, e *RollExpression, addLine *VMStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) { //nolint:revive
+func DiceWodRollVM(randSrc ds.DiceSource, e *RollExpression, addLine *VMStack, pool *VMValue, points *VMValue, threshold *VMValue, isGE bool) (*VMValue, int64, int64, []string) { //nolint:revive
 	makeE6 := func() {
 		e.Error = errors.New("E6: 类型错误")
 	}

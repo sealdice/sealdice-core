@@ -24,7 +24,6 @@ import (
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
-	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
 
 	"sealdice-core/dice/events"
 	"sealdice-core/logger"
@@ -283,6 +282,10 @@ type Dice struct {
 	JsExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"` // JS 扩展真实 ExtInfo 注册表
 	ExtUpdateTime int64                      `json:"-" yaml:"-"` // 扩展变更时间戳，用于触发群组延迟更新
 	JsReloading   bool                       `json:"-" yaml:"-"` // JS 扩展正在重载中
+
+	randomSourceMu   sync.Mutex     `json:"-" yaml:"-"`
+	systemDiceSource ds.DiceSource  `json:"-" yaml:"-"`
+	systemDiceMode   DiceRandomMode `json:"-" yaml:"-"`
 
 	/* 保存优化 */
 	DirtyGroups *SyncMap[string, int64] `json:"-" yaml:"-"` // 脏群组列表：groupID -> UpdatedAtTime
@@ -869,7 +872,7 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 	if d.Config.AliveNoticeEnable {
 		entry, err := d.Cron.AddFunc((&d.Config).AliveNoticeValue, func() {
-			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
+			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", d.Roll64(100)), false)
 		})
 		if err == nil {
 			d.AliveNoticeEntry = entry
@@ -1008,7 +1011,7 @@ func generateRandSeed() uint64 {
 	return h.Sum64()
 }
 
-var randSource = rand2.NewSource(generateRandSeed()).(*rand2.PCGSource)
+var randSource ds.DiceSource = newPCGDiceSource(generateRandSeed())
 
 func DiceRoll(dicePoints int) int { //nolint:revive
 	if dicePoints <= 0 {
@@ -1018,7 +1021,7 @@ func DiceRoll(dicePoints int) int { //nolint:revive
 	return int(val)
 }
 
-func DiceRoll64x(src *rand2.PCGSource, dicePoints int64) int64 { //nolint:revive
+func DiceRoll64x(src ds.DiceSource, dicePoints int64) int64 { //nolint:revive
 	if src == nil {
 		src = randSource
 	}
