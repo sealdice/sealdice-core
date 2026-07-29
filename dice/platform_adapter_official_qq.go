@@ -863,6 +863,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(pa.UIN, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
+	pa.populateGroupMentionedInfo(msg, msgQQ.Mentions)
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
@@ -914,6 +915,7 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(pa.UIN, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
+	pa.populateGroupMentionedInfo(msg, msgQQ.Mentions)
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
@@ -1963,6 +1965,47 @@ func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
 func formatDiceIDOfficialQQMemberOpenID(uin, _ string, memberOpenID string) string {
 	// 官方QQ群成员ID格式
 	return fmt.Sprintf("%s%s-%s", officialQQUserIDPrefix, uin, memberOpenID)
+}
+
+func (pa *PlatformAdapterOfficialQQ) populateGroupMentionedInfo(msg *Message, mentions []*dto.User) {
+	for _, mentioned := range mentions {
+		if mentioned == nil {
+			continue
+		}
+		memberOpenID := strings.TrimSpace(mentioned.MemberOpenID)
+		if memberOpenID == "" {
+			memberOpenID = strings.TrimSpace(mentioned.ID)
+		}
+		nickname := strings.TrimSpace(mentioned.Username)
+		if memberOpenID == "" || nickname == "" {
+			continue
+		}
+		if msg.MentionedInfo == nil {
+			msg.MentionedInfo = map[string]string{}
+		}
+
+		// 官方 QQ 的消息正文仍使用裸 MemberOpenID，而人物卡使用规范 ID；
+		// 同时记录两种键，让旧字符串解析和未来的消息段解析都能取得昵称。
+		msg.MentionedInfo[officialQQUserIDPrefix+memberOpenID] = nickname
+		msg.MentionedInfo[formatDiceIDOfficialQQMemberOpenID(pa.UIN, "", memberOpenID)] = nickname
+	}
+}
+
+// normalizeDiceIDOfficialQQMentionUserID converts the bare MemberOpenID carried
+// by an official QQ mention into the canonical user ID used by player cards.
+// Mentions currently arrive as OpenQQ:<MemberOpenID>, while senders and stored
+// attributes use OpenQQ:<UIN>-<MemberOpenID>.
+func normalizeDiceIDOfficialQQMentionUserID(uin, userID string) string {
+	raw, ok := strings.CutPrefix(userID, officialQQUserIDPrefix)
+	if !ok || uin == "" || raw == "" {
+		return userID
+	}
+
+	// Keep endpoint IDs and already-normalized user IDs unchanged.
+	if raw == uin || strings.HasPrefix(raw, uin+"-") {
+		return userID
+	}
+	return formatDiceIDOfficialQQMemberOpenID(uin, "", raw)
 }
 
 func formatDiceIDOfficialQQUserOpenID(uin, userOpenID string) string {

@@ -81,6 +81,8 @@ const (
 
 const HelpConfigFilename = "help_config.yaml"
 
+const helpContentParserVersion = 1
+
 type HelpConfig struct {
 	Aliases map[string][]string `json:"aliases" yaml:"aliases"`
 }
@@ -105,11 +107,15 @@ type HelpFileMeta struct {
 }
 
 type HelpIndexMeta struct {
-	Files map[string]HelpFileMeta `json:"files"`
+	ContentParserVersion int                     `json:"contentParserVersion"`
+	Files                map[string]HelpFileMeta `json:"files"`
 }
 
 func newEmptyHelpIndexMeta() *HelpIndexMeta {
-	return &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}
+	return &HelpIndexMeta{
+		ContentParserVersion: helpContentParserVersion,
+		Files:                make(map[string]HelpFileMeta),
+	}
 }
 
 func reconcileHelpIndexMeta(indexMeta *HelpIndexMeta, metaTrusted, indexFreshlyCreated bool) (*HelpIndexMeta, bool) {
@@ -477,7 +483,7 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 						}
 					}
 					key := keyBuilder.String()
-					content := row[synonymCount+1]
+					content := unescapeXlsxHelpContent(row[synonymCount+1])
 
 					_ = m.AddItem(docengine.HelpTextItem{
 						Group:       group,
@@ -497,6 +503,33 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		return true
 	}
 	return false
+}
+
+func unescapeXlsxHelpContent(content string) string {
+	if !strings.Contains(content, `\`) {
+		return content
+	}
+
+	var result strings.Builder
+	result.Grow(len(content))
+	for i := 0; i < len(content); i++ {
+		if content[i] != '\\' || i+1 >= len(content) {
+			result.WriteByte(content[i])
+			continue
+		}
+
+		switch content[i+1] {
+		case 'n':
+			result.WriteByte('\n')
+			i++
+		case '\\':
+			result.WriteByte('\\')
+			i++
+		default:
+			result.WriteByte(content[i])
+		}
+	}
+	return result.String()
 }
 
 // validateXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym（可能有多列） Content Description Catalogue Tag
@@ -686,6 +719,14 @@ func (m *HelpManager) loadHelpIndexMeta() (*HelpIndexMeta, bool) {
 	}
 	if meta.Files == nil {
 		meta.Files = make(map[string]HelpFileMeta)
+	}
+	if meta.ContentParserVersion != helpContentParserVersion {
+		logger.M().Infof(
+			"[帮助文档] 内容解析版本已更新(%d -> %d)，将重新构建索引",
+			meta.ContentParserVersion,
+			helpContentParserVersion,
+		)
+		return newEmptyHelpIndexMeta(), false
 	}
 	return &meta, true
 }

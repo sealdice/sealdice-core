@@ -58,6 +58,9 @@ type Message struct {
 	GroupName           string      `json:"groupName"`
 	TmpUID              string      `json:"-"             yaml:"-"`
 	UITestReplySplitLen *int        `json:"-"             yaml:"-"`
+	// MentionedInfo carries platform-provided display names keyed by normalized
+	// or legacy mention user ID. It is runtime metadata and is not persisted.
+	MentionedInfo map[string]string `json:"-" yaml:"-"`
 	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 Milky 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
 	Segment []message.IMessageElement `jsbind:"segment" json:"-" yaml:"-"`
 }
@@ -975,6 +978,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 		platformPrefix := msg.Platform
 		cmdArgs := CommandParse(msg.Message, cmdLst, d.CommandPrefix, platformPrefix, false)
 		if cmdArgs != nil {
+			cmdArgs.applyMentionedInfo(msg)
 			mctx.CommandID = getNextCommandID()
 
 			var tmpUID string
