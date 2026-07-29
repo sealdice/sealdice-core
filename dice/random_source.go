@@ -4,14 +4,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	mathrand "math/rand"
 	randv2 "math/rand/v2"
 	"reflect"
 	"strings"
 	"sync"
 
 	gmrand "github.com/emmansun/gmsm/rand"
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	ds "github.com/sealdice/dicescript"
 	ctrdrbg "github.com/sixafter/aes-ctr-drbg"
 )
@@ -33,10 +32,6 @@ type readerDiceSource struct {
 type pcgDiceSource struct {
 	mu  sync.Mutex
 	pcg *randv2.PCG
-}
-
-type legacyRandSourceAdapter struct {
-	src ds.DiceSource
 }
 
 func (s *readerDiceSource) Uint64() uint64 {
@@ -74,16 +69,6 @@ func (s *pcgDiceSource) UnmarshalBinary(data []byte) error {
 	}
 	return s.pcg.UnmarshalBinary(data)
 }
-
-func (s *legacyRandSourceAdapter) Int63() int64 {
-	return int64(s.src.Uint64() >> 1)
-}
-
-func (s *legacyRandSourceAdapter) Uint64() uint64 {
-	return s.src.Uint64()
-}
-
-func (s *legacyRandSourceAdapter) Seed(seed int64) {}
 
 func normalizeDiceRandomMode(raw string) DiceRandomMode {
 	switch DiceRandomMode(strings.ToLower(strings.TrimSpace(raw))) {
@@ -197,11 +182,16 @@ func (d *Dice) Shuffle(n int, swap func(i, j int)) {
 	shuffleWithSource(d.getSystemDiceSource(), n, swap)
 }
 
-func pickChooserWithSource(chooser *wr.Chooser, src ds.DiceSource) interface{} {
+type chooserWeight interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+func pickChooserWithSource[T any, W chooserWeight](chooser *wr.Chooser[T, W], src ds.DiceSource) T {
 	if chooser == nil {
-		return nil
+		var zero T
+		return zero
 	}
-	return chooser.PickSource(mathrand.New(&legacyRandSourceAdapter{src: src}))
+	return chooser.PickWith(randv2.New(normalizeDiceSource(src)))
 }
 
 func randIntnFromSource(src ds.DiceSource, n int) int {

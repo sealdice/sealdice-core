@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	ds "github.com/sealdice/dicescript"
 )
 
@@ -157,8 +157,8 @@ func TestDiceFormatTmpl_UsesContextDiceSource(t *testing.T) {
 	ctx.diceRandSrc = src
 
 	chooser, err := wr.NewChooser(
-		wr.Choice{Item: "A", Weight: 1},
-		wr.Choice{Item: "B", Weight: 1},
+		wr.NewChoice("A", uint(1)),
+		wr.NewChoice("B", uint(1)),
 	)
 	if err != nil {
 		t.Fatalf("NewChooser() error = %v", err)
@@ -209,4 +209,78 @@ func TestExecuteDeck_UsesContextDiceSource(t *testing.T) {
 	if src.index == 0 {
 		t.Fatal("expected shuffle deck draw to consume values from bound source")
 	}
+}
+
+func TestDiceFormatV1_UsesContextDiceSourceForTextTemplates(t *testing.T) {
+	ctx, cleanup := newRandomModeTestCtx(t)
+	defer cleanup()
+
+	src := &stubDiceSource{values: []uint64{0}}
+	ctx.diceRandSrc = src
+
+	chooser, err := wr.NewChooser(
+		wr.NewChoice("A", uint(1)),
+		wr.NewChoice("B", uint(1)),
+	)
+	if err != nil {
+		t.Fatalf("NewChooser() error = %v", err)
+	}
+	ctx.Dice.TextMap["测试:随机"] = chooser
+
+	got, err := DiceFormatV1(ctx, "{测试:随机}")
+	if err != nil {
+		t.Fatalf("DiceFormatV1() error = %v", err)
+	}
+	if got != "A" {
+		t.Fatalf("DiceFormatV1() = %q, want %q", got, "A")
+	}
+	if src.index != 1 {
+		t.Fatalf("expected text template selection to consume 1 value from bound source, got %d", src.index)
+	}
+}
+
+func TestShuffleRandomPool_ReweightsRemainingChoices(t *testing.T) {
+	pool, err := NewChooserWithSource(
+		&stubDiceSource{values: []uint64{0, 0}},
+		wr.NewChoice("A", uint(1)),
+		wr.NewChoice("B", uint(10)),
+		wr.NewChoice("C", uint(1)),
+	)
+	if err != nil {
+		t.Fatalf("NewChooserWithSource() error = %v", err)
+	}
+
+	first := pool.PickWithSource(&stubDiceSource{values: []uint64{0}}).(string)
+	if first != "B" {
+		t.Fatalf("first pick = %q, want %q", first, "B")
+	}
+
+	second := pool.PickWithSource(&stubDiceSource{values: []uint64{1}}).(string)
+	if second != "A" {
+		t.Fatalf("second pick after removing heavy item = %q, want %q", second, "A")
+	}
+}
+
+func TestShuffleRandomPool_EmptyPoolPanicsClearly(t *testing.T) {
+	pool, err := NewChooserWithSource(
+		&stubDiceSource{values: []uint64{}},
+		wr.NewChoice("only", uint(1)),
+	)
+	if err != nil {
+		t.Fatalf("NewChooserWithSource() error = %v", err)
+	}
+
+	_ = pool.PickWithSource(&stubDiceSource{values: []uint64{0}})
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic when picking from an exhausted shuffle pool")
+		}
+		if msg, ok := r.(string); !ok || msg != "shuffle random pool exhausted" {
+			t.Fatalf("panic = %#v, want %q", r, "shuffle random pool exhausted")
+		}
+	}()
+
+	_ = pool.PickWithSource(&stubDiceSource{values: []uint64{0}})
 }

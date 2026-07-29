@@ -926,7 +926,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 					textTmpl := ctx.Dice.TextMap[varname]
 					if textTmpl != nil {
 						vType = VMTypeString
-						v = DiceFormat(ctx, textTmpl.Pick().(string))
+						v = DiceFormat(ctx, pickChooserWithSource(textTmpl, ctx.getDiceSource()))
 					} else if strings.Contains(varname, ":") {
 						vType = VMTypeString
 						v = "<%未定义值-" + varname + "%>"

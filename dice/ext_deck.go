@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/sahilm/fuzzy"
 	ds "github.com/sealdice/dicescript"
@@ -1061,7 +1061,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
-		key = pickChooserWithSource(pool, ctx.getDiceSource()).(string)
+		key = pickChooserWithSource(pool, ctx.getDiceSource())
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
@@ -1115,39 +1115,37 @@ func extractWeight(s string) (uint, string) {
 	return uint(weight), s
 }
 
-func DeckToRandomPool(deck []string) *wr.Chooser {
-	choices := []wr.Choice{}
+func DeckToRandomPool(deck []string) *wr.Chooser[string, uint] {
+	choices := []wr.Choice[string, uint]{}
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.Choice{Item: text, Weight: weight})
+		choices = append(choices, wr.NewChoice(text, weight))
 	}
 	randomPool, _ := wr.NewChooser(choices...)
 	return randomPool
 }
 
-// 临时乱写的
 type ShuffleRandomPool struct {
-	data   []wr.Choice
+	data   []wr.Choice[string, uint]
 	totals []int
 	max    int
 }
 
-func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
+func NewChooser(choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
 	return NewChooserWithSource(randSource, choices...)
 }
 
-func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice) (*ShuffleRandomPool, error) {
-	shuffleWithSource(src, len(choices), func(i, j int) {
-		choices[i], choices[j] = choices[j], choices[i]
+func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
+	shuffled := append([]wr.Choice[string, uint](nil), choices...)
+
+	shuffleWithSource(src, len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
 
-	totals := make([]int, len(choices))
+	totals := make([]int, len(shuffled))
 	runningTotal := 0
-	for i, c := range choices {
+	for i, c := range shuffled {
 		weight := int(c.Weight)
-		// if (maxInt - runningTotal) <= weight {
-		// 	return nil, errWeightOverflow
-		// }
 		runningTotal += weight
 		totals[i] = runningTotal
 	}
@@ -1156,7 +1154,7 @@ func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice) (*ShuffleRand
 		return nil, errors.New("zero Choices with Weight >= 1")
 	}
 
-	return &ShuffleRandomPool{data: choices, totals: totals, max: runningTotal}, nil
+	return &ShuffleRandomPool{data: shuffled, totals: totals, max: runningTotal}, nil
 }
 
 // Pick returns a single weighted random Choice.Item from the Chooser.
@@ -1167,11 +1165,19 @@ func (c *ShuffleRandomPool) Pick() interface{} {
 }
 
 func (c *ShuffleRandomPool) PickWithSource(src ds.DiceSource) interface{} {
+	if len(c.data) == 0 || c.max < 1 {
+		panic("shuffle random pool exhausted")
+	}
+
 	r := randIntnFromSource(src, c.max) + 1
 	i := searchInts(c.totals, r)
 
 	theOne := c.data[i]
-	c.max -= int(theOne.Weight)
+	weight := int(theOne.Weight)
+	for j := i + 1; j < len(c.totals); j++ {
+		c.totals[j] -= weight
+	}
+	c.max -= weight
 	c.totals = append(c.totals[:i], c.totals[i+1:]...)
 	c.data = append(c.data[:i], c.data[i+1:]...)
 	return theOne.Item
@@ -1197,10 +1203,10 @@ func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
 }
 
 func DeckToShuffleRandomPoolWithSource(src ds.DiceSource, deck []string) *ShuffleRandomPool {
-	var choices []wr.Choice
+	var choices []wr.Choice[string, uint]
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.Choice{Item: text, Weight: weight})
+		choices = append(choices, wr.NewChoice(text, weight))
 	}
 	randomPool, _ := NewChooserWithSource(src, choices...)
 	return randomPool

@@ -19,7 +19,7 @@ import (
 
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/lascape/sat"
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
@@ -198,12 +198,12 @@ type Dice struct {
 	// 访问时必须通过 activeWithGraph() 方法，确保并发安全。
 	ActiveWithGraph *SyncMap[string, []string] `json:"-" yaml:"-"`
 	// ActiveWithGraphMu 保护 ActiveWithGraph 的并发读写
-	ActiveWithGraphMu  sync.RWMutex           `json:"-" yaml:"-"`
-	ExtRegistryVersion int64                  `json:"-" yaml:"-"`
-	RollParser         *DiceRollParser        `yaml:"-"`
-	LastUpdatedTime    int64                  `yaml:"-"`
-	TextMap            map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig         BaseConfig             `yaml:"-"`
+	ActiveWithGraphMu  sync.RWMutex                         `json:"-" yaml:"-"`
+	ExtRegistryVersion int64                                `json:"-" yaml:"-"`
+	RollParser         *DiceRollParser                      `yaml:"-"`
+	LastUpdatedTime    int64                                `yaml:"-"`
+	TextMap            map[string]*wr.Chooser[string, uint] `yaml:"-"`
+	BaseConfig         BaseConfig                           `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator

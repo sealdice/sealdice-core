@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	"github.com/xuri/excelize/v2"
 
 	"sealdice-core/logger"
@@ -99,10 +99,10 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 		return result
 	}
 
-	parseWeight := func(inner string) (c *wr.Chooser, restText string, err error) {
+	parseWeight := func(inner string) (c *wr.Chooser[int, uint], restText string, err error) {
 		// TODO: 可加缓存，避免每次解析
 		sp := strings.SplitN(inner, "@", 2)
-		var choices []wr.Choice
+		var choices []wr.Choice[int, uint]
 		if len(sp) > 1 {
 			lst := getList(sp[0])
 			weightLst := getIntList(sp[1])
@@ -123,7 +123,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 			// 但是没关系，因为不需要生成带权随机器
 			lst := getList(inner)
 			for index := range lst {
-				choices = append(choices, wr.NewChoice(index, 1))
+				choices = append(choices, wr.NewChoice(index, uint(1)))
 			}
 			restText = inner
 		}
@@ -134,7 +134,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 		return c, restText, err
 	}
 
-	parseInner := func(inner string, c *wr.Chooser) string {
+	parseInner := func(inner string, c *wr.Chooser[int, uint]) string {
 		sp := strings.Split(inner, "#")
 		if len(sp) > 1 {
 			// 读取位置流程
@@ -150,7 +150,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 				tmpVars[inner+".index"] = 0
 				return ""
 			}
-			index := c.Pick().(int) // 取得权重
+			index := c.Pick() // 取得权重
 			tmpVars[inner+".index"] = index
 			return lst[index]
 		}
@@ -160,7 +160,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 	var result strings.Builder
 	lastLeft := 0
 	for _, i := range re.FindAllStringIndex(rule, -1) {
-		var c *wr.Chooser
+		var c *wr.Chooser[int, uint]
 		var err error
 		inner := rule[i[0]+1 : i[1]-1]
 		result.WriteString(rule[lastLeft:i[0]])
