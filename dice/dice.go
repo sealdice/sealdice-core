@@ -869,7 +869,7 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 	if d.Config.AliveNoticeEnable {
 		entry, err := d.Cron.AddFunc((&d.Config).AliveNoticeValue, func() {
-			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
+			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false, NoticeTypeSystem)
 		})
 		if err == nil {
 			d.AliveNoticeEntry = entry

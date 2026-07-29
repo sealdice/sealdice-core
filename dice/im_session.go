@@ -873,7 +873,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 				ep.Adapter.GetGroupInfoAsync(msg.GroupID)
 			}
 			log.Info(txt)
-			mctx.Notice(txt)
+			mctx.Notice(txt, NoticeTypeGroup)
 
 			if msg.Platform == "QQ" || msg.Platform == "TG" {
 				// ServiceAtNew changed
@@ -1256,7 +1256,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 		// 疑似是为了获取群信息然后塞到奇怪的地方
 		// ep.Adapter.GetGroupInfoAsync(msg.GroupID)
 		log.Info(txt)
-		mctx.Notice(txt)
+		mctx.Notice(txt, NoticeTypeGroup)
 
 		if msg.Platform == "QQ" || msg.Platform == "TG" {
 			groupInfo, ok = mctx.Session.ServiceAtNew.Load(msg.GroupID)
@@ -1642,7 +1642,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	}()
 	txt := fmt.Sprintf("加入群组: <%s>(%s)", groupName, msg.GroupID)
 	log.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeGroup)
 	for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
 		ext := wrapper.GetRealExt()
 		if ext == nil {
@@ -1819,7 +1819,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 	var noticeCtx *MsgContext
 	if summaryMode {
 		noticeCtx = &MsgContext{EndPoint: selectedGroupEndpoints[0].Endpoint, Session: s, Dice: s.Parent}
-		noticeCtx.Notice(fmt.Sprintf("自动退群任务开始：本轮预计处理 %d 个群。", len(selectedGroupEndpoints)))
+		noticeCtx.Notice(fmt.Sprintf("自动退群任务开始：本轮预计处理 %d 个群。", len(selectedGroupEndpoints)), NoticeTypeInactive)
 	}
 
 	go func() {
@@ -1869,7 +1869,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			ep.Adapter.QuitGroup(msgCtx, grp.GroupID)
 			quitStarted++
 			if !summaryMode {
-				msgCtx.Notice(hint)
+				msgCtx.Notice(hint, NoticeTypeInactive)
 			}
 			// 生成一个随机值（8~11秒随机）
 			randomSleep := time.Duration(rand.Intn(3000)+8000) * time.Millisecond
@@ -1877,7 +1877,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			time.Sleep(randomSleep)
 		}
 		if summaryMode && noticeCtx != nil {
-			noticeCtx.Notice(fmt.Sprintf("自动退群任务结束：候选 %d 个，开始处理 %d 个，已发起退群 %d 个，跳过 %d 个，取消 %d 个。", len(selectedGroupEndpoints), processed, quitStarted, skipped, cancelled))
+			noticeCtx.Notice(fmt.Sprintf("自动退群任务结束：候选 %d 个，开始处理 %d 个，已发起退群 %d 个，跳过 %d 个，取消 %d 个。", len(selectedGroupEndpoints), processed, quitStarted, skipped, cancelled), NoticeTypeInactive)
 		}
 	}()
 }
@@ -1947,7 +1947,7 @@ func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGrou
 
 		noticeMsg := fmt.Sprintf("检测到群(%s)内黑名单用户<%s>(%s)，因是管理以上权限，执行通告后自动退群\n%s", groupID, msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		log.Info(noticeMsg)
-		ctx.Notice(noticeMsg)
+		ctx.Notice(noticeMsg, NoticeTypeBan)
 		banQuitGroup()
 		return true
 	}
@@ -1968,7 +1968,7 @@ func handleBlacklistedUserQuitIfAdmin(ctx *MsgContext, msg *Message, isWhiteGrou
 		text := fmt.Sprintf("警告: <%s>(%s)是黑名单用户，将对骰主进行通知。\n%s", msg.Sender.Nickname, msg.Sender.UserID, reasontext)
 		ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
-		ctx.Notice(noticeMsg)
+		ctx.Notice(noticeMsg, NoticeTypeBan)
 		return true
 	}
 
@@ -2035,7 +2035,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 		text := fmt.Sprintf("因<%s>(%s)是黑名单用户，将自动退群。", msg.Sender.Nickname, msg.Sender.UserID)
 		ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
 
-		ctx.Notice(noticeMsg)
+		ctx.Notice(noticeMsg, NoticeTypeBan)
 
 		time.Sleep(1 * time.Second)
 		ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
@@ -2059,7 +2059,7 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 
 				ReplyGroupRaw(ctx, &Message{GroupID: groupID}, "因本群处于黑名单中，将自动退群。", "")
 
-				ctx.Notice(noticeMsg)
+				ctx.Notice(noticeMsg, NoticeTypeBan)
 
 				time.Sleep(1 * time.Second)
 				ctx.EndPoint.Adapter.QuitGroup(ctx, groupID)
@@ -2474,11 +2474,87 @@ func (ep *EndPointInfo) RefreshGroupNum() {
 	}
 }
 
-func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
+func sendNoticeToTarget(ctx *MsgContext, target NoticeTarget, txt string) {
+	if target.IsGroup() {
+		ReplyGroup(ctx, &Message{GroupID: target.ID}, txt)
+	} else {
+		ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: target.ID}}, txt)
+	}
+}
+
+func noticeTargetMatchesEndpoint(target NoticeTarget, ep *EndPointInfo) bool {
+	if ep == nil || !target.MatchesEndpoint(ep.Platform, ep.ProtocolType) {
+		return false
+	}
+
+	targetPlatform, _ := target.Platform()
+	if targetPlatform != "OpenQQ" {
+		return true
+	}
+
+	// 多个官方 QQ 账号共存时，只让 ID 中 UIN 对应的账号发送。
+	pa, ok := ep.Adapter.(*PlatformAdapterOfficialQQ)
+	if !ok || pa.UIN == "" {
+		return false
+	}
+	_, rawID, ok := strings.Cut(target.ID, ":")
+	return ok && (rawID == pa.UIN || strings.HasPrefix(rawID, pa.UIN+"-"))
+}
+
+func noticeTargetContext(session *IMSession, ep *EndPointInfo, target NoticeTarget) *MsgContext {
+	if ep.Session == nil {
+		ep.BindRuntime(session)
+	}
+
+	msg := &Message{Sender: SenderBase{UserID: target.ID}, MessageType: "private"}
+	if target.IsGroup() {
+		msg.MessageType = "group"
+		msg.GroupID = target.ID
+	}
+	return CreateTempCtx(ep, msg)
+}
+
+func findNoticeEndpoint(session *IMSession, target NoticeTarget) *EndPointInfo {
+	if session == nil {
+		return nil
+	}
+	for _, ep := range session.EndPoints {
+		if ep != nil && ep.Enable && ep.State == StateConnected && noticeTargetMatchesEndpoint(target, ep) {
+			return ep
+		}
+	}
+	return nil
+}
+
+// sendNoticeTargetCrossPlatform 优先使用当前 Endpoint，否则寻找兼容且在线的 Endpoint。
+func sendNoticeTargetCrossPlatform(ctx *MsgContext, target NoticeTarget, txt string) bool {
+	if ctx == nil {
+		return false
+	}
+	if ctx.EndPoint != nil && ctx.EndPoint.Enable && noticeTargetMatchesEndpoint(target, ctx.EndPoint) {
+		sendNoticeToTarget(ctx, target, txt)
+		return true
+	}
+
+	session := ctx.Session
+	if session == nil && ctx.Dice != nil {
+		session = ctx.Dice.ImSession
+	}
+	ep := findNoticeEndpoint(session, target)
+	if ep == nil {
+		return false
+	}
+	sendNoticeToTarget(noticeTargetContext(session, ep, target), target, txt)
+	return true
+}
+
+// NoticeForEveryEndpoint 向每个平台的在线账号发送一遍指定分类的通知。
+func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool, noticeTypes ...NoticeType) {
 	_ = allowCrossPlatform
-	// 通知种类之一：每个noticeId  *  每个平台匹配的ep：存活
-	// TODO: 先复制几次实现，后面重构
-	// Pinenutn: 啥时候重构啊.jpg
+	noticeType := NoticeTypeSystem
+	if len(noticeTypes) > 0 {
+		noticeType = noticeTypes[0]
+	}
 	foo := func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -2487,99 +2563,35 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool) {
 		}()
 
 		if d.Config.MailEnable {
-			_ = d.SendMail(txt, MailTypeNotice)
+			if err := d.SendMail(txt, MailTypeNotice, noticeType); err != nil {
+				d.Logger.Errorf("邮件通知发送失败: %v", err)
+			}
 			return
 		}
 
 		for _, ep := range d.ImSession.EndPoints {
-			for _, i := range d.Config.NoticeIDs {
-				n := strings.Split(i, ":")
-				// 如果文本中没有-，则会取到整个字符串
-				// 但好像不严谨，比如QQ-CH-Group
-				prefix := strings.Split(n[0], "-")[0]
-
-				if len(n) >= 2 && prefix == ep.Platform && ep.Enable && ep.State == 1 {
-					if ep.Session == nil {
-						ep.Session = d.ImSession
-					}
-					if strings.HasSuffix(n[0], "-Group") {
-						msg := &Message{GroupID: i, MessageType: "private", Sender: SenderBase{UserID: i}}
-						ctx := CreateTempCtx(ep, msg)
-						ReplyGroup(ctx, msg, txt)
-					} else {
-						msg := &Message{GroupID: i, MessageType: "group", Sender: SenderBase{UserID: i}}
-						ctx := CreateTempCtx(ep, msg)
-						ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: i}}, txt)
-					}
-				}
-				time.Sleep(1 * time.Second)
-			}
-		}
-	}
-	go foo()
-}
-
-func (ctx *MsgContext) NoticeCrossPlatform(txt string) {
-	// 通知种类之二：每个noticeID  *  第一个平台匹配的ep：跨平台通知
-	// TODO: 先复制几次实现，后面重构
-	foo := func() {
-		defer func() {
-			if r := recover(); r != nil {
-				ctx.Dice.Logger.Errorf("发送通知异常: %v 堆栈: %v", r, string(debug.Stack()))
-			}
-		}()
-
-		if ctx.Dice.Config.MailEnable {
-			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
-			return
-		}
-
-		sent := false
-
-		for _, i := range ctx.Dice.Config.NoticeIDs {
-			n := strings.Split(i, ":")
-			if len(n) < 2 {
+			if ep == nil || !ep.Enable || ep.State != StateConnected {
 				continue
 			}
-
-			seg := strings.Split(n[0], "-")[0]
-
-			messageType := "private"
-			if strings.HasSuffix(n[0], "-Group") {
-				messageType = "group"
-			}
-
-			if ctx.EndPoint.Platform == seg {
-				if messageType == "group" {
-					ReplyGroup(ctx, &Message{GroupID: i}, txt)
-				} else {
-					ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: i}}, txt)
+			for _, target := range filterNoticeTargets(d.Config.NoticeIDs, noticeType) {
+				if !noticeTargetMatchesEndpoint(target, ep) {
+					continue
 				}
-				time.Sleep(1 * time.Second)
-				sent = true
-				continue // 找到对应平台、调用了发送的在此即切出循环
+				ctx := noticeTargetContext(d.ImSession, ep, target)
+				sendNoticeToTarget(ctx, target, txt)
+				time.Sleep(time.Second)
 			}
-
-			// 如果走到这里，说明当前ep不是noticeID对应的平台
-			if done := CrossMsgBySearch(ctx.Session, seg, i, txt, messageType == "private"); !done {
-				ctx.Dice.Logger.Errorf("尝试跨平台后仍未能向 %s 发送通知：%s", i, txt)
-			} else {
-				sent = true
-				time.Sleep(1 * time.Second)
-			}
-		}
-
-		if !sent {
-			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
 		}
 	}
 	go foo()
 }
 
-func (ctx *MsgContext) Notice(txt string) {
-	// Notice
-	// 通知种类之三：每个noticeID  * 当前mctx的ep：不跨平台通知
-	// TODO: 先复制几次实现，后面重构
+// NoticeCrossPlatform 优先用当前账号发送，并为其他平台寻找第一个启用账号。
+func (ctx *MsgContext) NoticeCrossPlatform(txt string, noticeTypes ...NoticeType) {
+	noticeType := NoticeTypeSystem
+	if len(noticeTypes) > 0 {
+		noticeType = noticeTypes[0]
+	}
 	foo := func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -2588,31 +2600,74 @@ func (ctx *MsgContext) Notice(txt string) {
 		}()
 
 		if ctx.Dice.Config.MailEnable {
-			_ = ctx.Dice.SendMail(txt, MailTypeNotice)
+			if err := ctx.Dice.SendMail(txt, MailTypeNotice, noticeType); err != nil {
+				ctx.Dice.Logger.Errorf("邮件通知发送失败: %v", err)
+			}
 			return
 		}
 
 		sent := false
-		if ctx.EndPoint.Enable {
-			for _, i := range ctx.Dice.Config.NoticeIDs {
-				n := strings.Split(i, ":")
-				if len(n) >= 2 {
-					if strings.HasSuffix(n[0], "-Group") {
-						ReplyGroup(ctx, &Message{GroupID: i}, txt)
-					} else {
-						ReplyPerson(ctx, &Message{Sender: SenderBase{UserID: i}}, txt)
-					}
-					sent = true
-				}
-				time.Sleep(1 * time.Second)
+		for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, noticeType) {
+			if !sendNoticeTargetCrossPlatform(ctx, target, txt) {
+				ctx.Dice.Logger.Errorf("尝试跨平台后仍未能向 %s 发送通知：%s", target.ID, txt)
+			} else {
+				sent = true
+				time.Sleep(time.Second)
 			}
 		}
 
 		if !sent {
-			if len(ctx.Dice.Config.NoticeIDs) != 0 {
-				ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+			platform := "<未知平台>"
+			if ctx.EndPoint != nil {
+				platform = ctx.EndPoint.Platform
+			}
+			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", platform, txt)
+		}
+	}
+	go foo()
+}
+
+// Notice 使用当前消息上下文的账号发送指定分类通知。
+func (ctx *MsgContext) Notice(txt string, noticeTypes ...NoticeType) {
+	noticeType := NoticeTypeSystem
+	if len(noticeTypes) > 0 {
+		noticeType = noticeTypes[0]
+	}
+	foo := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				ctx.Dice.Logger.Errorf("发送通知异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		if ctx.Dice.Config.MailEnable {
+			if err := ctx.Dice.SendMail(txt, MailTypeNotice, noticeType); err != nil {
+				ctx.Dice.Logger.Errorf("邮件通知发送失败: %v", err)
+			}
+			return
+		}
+
+		sent := false
+		if ctx.EndPoint != nil && ctx.EndPoint.Enable {
+			for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, noticeType) {
+				if !noticeTargetMatchesEndpoint(target, ctx.EndPoint) {
+					continue
+				}
+				sendNoticeToTarget(ctx, target, txt)
+				sent = true
+				time.Sleep(time.Second)
+			}
+		}
+
+		if !sent {
+			platform := "<未知平台>"
+			if ctx.EndPoint != nil {
+				platform = ctx.EndPoint.Platform
+			}
+			if len(filterNoticeTargets(ctx.Dice.Config.NoticeIDs, noticeType)) != 0 {
+				ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", platform, txt)
 			} else {
-				ctx.Dice.Logger.Warnf("因为没有配置通知列表，无法发送来自%s的通知：%s", ctx.EndPoint.Platform, txt)
+				ctx.Dice.Logger.Warnf("因为没有启用接收 %s 分类的通知目标，无法发送来自%s的通知：%s", noticeType, platform, txt)
 			}
 		}
 	}
