@@ -71,7 +71,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/samber/lo v1.52.0
 	github.com/schollz/progressbar/v3 v3.19.1
-	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 // replaced below
+	github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b
 	github.com/sealdice/dicescript v0.0.0-20260511210507-209e4d20a070
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/slack-go/slack v0.17.3
@@ -234,5 +234,4 @@ replace (
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0 => github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105 => github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6
-	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 => github.com/baiyu-yu/botgo v0.0.0-20260724092016-620fecba07da
 )
