@@ -2139,11 +2139,25 @@ func (d *Dice) registerCoreCommands() {
 	randalgoHelp := formatDiceRandomModeHelpText()
 	d.CmdMap["randalgo"] = &CmdItemInfo{
 		Name:      "randalgo",
-		ShortHelp: ".randalgo // 查看当前随机算法与规范\n.randalgo set <模式> // 设置随机模式，仅Master可用",
+		ShortHelp: ".randalgo // 查看当前随机算法与规范\n.randalgo get [面数] // 对全部随机源各掷一次并显示单次耗时\n.randalgo set <模式> // 设置随机模式，仅Master可用",
 		Help:      randalgoHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "help") {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			if cmdArgs.IsArgEqual(1, "get") {
+				points := int64(100)
+				if rawPoints := cmdArgs.GetArgN(2); rawPoints != "" {
+					parsedPoints, err := strconv.ParseInt(rawPoints, 10, 64)
+					if err != nil || parsedPoints <= 0 {
+						ReplyToSender(ctx, msg, formatDiceRandomModeGetInvalidPointsText(rawPoints))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					points = parsedPoints
+				}
+
+				ReplyToSender(ctx, msg, formatDiceRandomModeGetText(points, ctx.Dice.Logger))
+				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			if cmdArgs.IsArgEqual(1, "set") {
 				if ctx.PrivilegeLevel < 100 {
@@ -2162,6 +2176,10 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, formatDiceRandomModeSetInvalidModeText(rawMode))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				if err := getGlobalDiceSourceInitError(mode, ctx.Dice.Logger); err != nil {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(mode, err))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				ctx.Dice.Config.DiceRandomMode = string(mode)
 				ctx.Dice.getSystemDiceSource()
@@ -2172,11 +2190,8 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			mode := ctx.Dice.getDiceRandomMode()
-			var src ds.DiceSource
-			if mode == DiceRandomModeNIST {
-				src = ctx.Dice.getSystemDiceSource()
-			}
-			ReplyToSender(ctx, msg, formatDiceRandomModeCommandText(mode, src))
+			src, effectiveMode, initErr := getGlobalDiceSource(mode, ctx.Dice.Logger)
+			ReplyToSender(ctx, msg, formatDiceRandomModeStatusText(mode, effectiveMode, src, initErr))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}

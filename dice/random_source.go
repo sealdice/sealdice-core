@@ -2,6 +2,7 @@ package dice
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	randv2 "math/rand/v2"
@@ -25,6 +26,7 @@ const (
 	DiceRandomModeGM     DiceRandomMode = "gm"
 	DiceRandomModeNIST   DiceRandomMode = "nist"
 	DiceRandomModeCrypto DiceRandomMode = "crypto"
+	DiceRandomModeHybrid DiceRandomMode = "hybrid"
 )
 
 const (
@@ -54,6 +56,11 @@ type readerDiceSource struct {
 type pcgDiceSource struct {
 	mu  sync.Mutex
 	pcg *randv2.PCG
+}
+
+type hybridDiceSource struct {
+	sources     []ds.DiceSource
+	runtimeNote string
 }
 
 func (s *readerDiceSource) Uint64() uint64 {
@@ -120,6 +127,17 @@ func (s *pcgDiceSource) UnmarshalBinary(data []byte) error {
 	return s.pcg.UnmarshalBinary(data)
 }
 
+func (s *hybridDiceSource) Uint64() uint64 {
+	var value uint64
+	for _, src := range s.sources {
+		if src == nil {
+			continue
+		}
+		value ^= src.Uint64()
+	}
+	return value
+}
+
 func normalizeDiceRandomMode(raw string) DiceRandomMode {
 	switch DiceRandomMode(strings.ToLower(strings.TrimSpace(raw))) {
 	case DiceRandomModeGM:
@@ -128,6 +146,8 @@ func normalizeDiceRandomMode(raw string) DiceRandomMode {
 		return DiceRandomModeNIST
 	case DiceRandomModeCrypto:
 		return DiceRandomModeCrypto
+	case DiceRandomModeHybrid:
+		return DiceRandomModeHybrid
 	default:
 		return DiceRandomModePCG
 	}
@@ -138,7 +158,15 @@ var supportedDiceRandomModes = []DiceRandomMode{
 	DiceRandomModeGM,
 	DiceRandomModeNIST,
 	DiceRandomModeCrypto,
+	DiceRandomModeHybrid,
 }
+
+var (
+	globalDiceSourceMu     sync.Mutex
+	globalDiceSources      = map[DiceRandomMode]ds.DiceSource{}
+	globalDiceSourceErrors = map[DiceRandomMode]error{}
+	globalDiceSourcesReady bool
+)
 
 func parseDiceRandomModeStrict(raw string) (DiceRandomMode, bool) {
 	switch DiceRandomMode(strings.ToLower(strings.TrimSpace(raw))) {
@@ -150,9 +178,151 @@ func parseDiceRandomModeStrict(raw string) (DiceRandomMode, bool) {
 		return DiceRandomModeNIST, true
 	case DiceRandomModeCrypto:
 		return DiceRandomModeCrypto, true
+	case DiceRandomModeHybrid:
+		return DiceRandomModeHybrid, true
 	default:
 		return "", false
 	}
+}
+
+func getHybridBaseModes() []DiceRandomMode {
+	return []DiceRandomMode{
+		DiceRandomModePCG,
+		DiceRandomModeGM,
+		DiceRandomModeNIST,
+		DiceRandomModeCrypto,
+	}
+}
+
+func buildHybridDiceSourceFromAvailable(available map[DiceRandomMode]ds.DiceSource) (ds.DiceSource, error) {
+	sources := make([]ds.DiceSource, 0, len(available))
+	labels := make([]string, 0, len(available))
+	for _, mode := range getHybridBaseModes() {
+		src := available[mode]
+		if src == nil {
+			continue
+		}
+		sources = append(sources, src)
+		labels = append(labels, getDiceRandomModeSpec(mode).label)
+	}
+
+	if len(sources) == 0 {
+		return nil, errors.New("no available random source to build hybrid mode")
+	}
+
+	return &hybridDiceSource{
+		sources:     sources,
+		runtimeNote: "当前混合源包含: " + strings.Join(labels, ", "),
+	}, nil
+}
+
+func ensureHybridDiceSourceLocked() {
+	if src, exists := globalDiceSources[DiceRandomModeHybrid]; exists && src != nil {
+		return
+	}
+
+	available := map[DiceRandomMode]ds.DiceSource{}
+	for _, mode := range getHybridBaseModes() {
+		if src, exists := globalDiceSources[mode]; exists && src != nil {
+			available[mode] = src
+		}
+	}
+
+	src, err := buildHybridDiceSourceFromAvailable(available)
+	if err != nil {
+		globalDiceSourceErrors[DiceRandomModeHybrid] = err
+		delete(globalDiceSources, DiceRandomModeHybrid)
+		return
+	}
+
+	globalDiceSources[DiceRandomModeHybrid] = src
+	delete(globalDiceSourceErrors, DiceRandomModeHybrid)
+}
+
+func ensureGlobalDiceSources(logger *zap.SugaredLogger) {
+	globalDiceSourceMu.Lock()
+	defer globalDiceSourceMu.Unlock()
+
+	if globalDiceSourcesReady {
+		return
+	}
+
+	globalDiceSources[DiceRandomModePCG] = randSource
+	delete(globalDiceSourceErrors, DiceRandomModePCG)
+
+	for _, mode := range supportedDiceRandomModes {
+		if mode == DiceRandomModePCG {
+			continue
+		}
+
+		src, err := newDiceSourceForMode(mode, logger)
+		if err != nil {
+			globalDiceSourceErrors[mode] = err
+			if logger != nil {
+				logger.Errorf("[随机源] %s 模式初始化失败: %v", getDiceRandomModeSpec(mode).label, err)
+			}
+			continue
+		}
+
+		globalDiceSources[mode] = src
+		delete(globalDiceSourceErrors, mode)
+	}
+
+	ensureHybridDiceSourceLocked()
+
+	globalDiceSourcesReady = true
+}
+
+func getGlobalDiceSource(mode DiceRandomMode, logger *zap.SugaredLogger) (ds.DiceSource, DiceRandomMode, error) {
+	ensureGlobalDiceSources(logger)
+
+	globalDiceSourceMu.Lock()
+	defer globalDiceSourceMu.Unlock()
+
+	if mode == DiceRandomModeHybrid {
+		ensureHybridDiceSourceLocked()
+	}
+
+	if src, exists := globalDiceSources[mode]; exists && src != nil {
+		return src, mode, nil
+	}
+
+	initErr := globalDiceSourceErrors[mode]
+	if src, exists := globalDiceSources[DiceRandomModePCG]; exists && src != nil {
+		return src, DiceRandomModePCG, initErr
+	}
+
+	return randSource, DiceRandomModePCG, initErr
+}
+
+func getGlobalDiceSourceInitError(mode DiceRandomMode, logger *zap.SugaredLogger) error {
+	ensureGlobalDiceSources(logger)
+
+	globalDiceSourceMu.Lock()
+	defer globalDiceSourceMu.Unlock()
+	if mode == DiceRandomModeHybrid {
+		ensureHybridDiceSourceLocked()
+	}
+	return globalDiceSourceErrors[mode]
+}
+
+func getStrictGlobalDiceSource(mode DiceRandomMode, logger *zap.SugaredLogger) (ds.DiceSource, error) {
+	ensureGlobalDiceSources(logger)
+
+	globalDiceSourceMu.Lock()
+	defer globalDiceSourceMu.Unlock()
+
+	if mode == DiceRandomModeHybrid {
+		ensureHybridDiceSourceLocked()
+	}
+
+	if src, exists := globalDiceSources[mode]; exists && src != nil {
+		return src, nil
+	}
+	if err, exists := globalDiceSourceErrors[mode]; exists && err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("mode %s source unavailable", mode)
 }
 
 func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
@@ -187,6 +357,15 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 				"Linux 默认使用 getrandom(2) 获取随机字节，较老系统可能回退 /dev/urandom；" +
 				"Windows 使用 ProcessPrng API DRBG 从系统安全子系统取数。" +
 				"速度一般，依赖操作系统原生安全能力。",
+		}
+	case DiceRandomModeHybrid:
+		return diceRandomModeSpec{
+			label:     "Hybrid 混合",
+			algorithm: "对所有可用随机源输出做按位异或混合",
+			standard:  "组合模式：混合 PCG、GM 国密、NIST、系统级随机源等全部可用来源",
+			shortDesc: "多源异或混合，性能最差",
+			description: "Hybrid 混合模式通过将多个高质量随机源进行按位异或混合，其输出的密码学随机性不会低于任何一个单独的源。" +
+				"只要其中一个源是真正不可预测的，最终结果就是不可预测的。即使某个源被攻破或存在弱点，其他源的随机性仍能保证整体安全性。性能最差。",
 		}
 	case DiceRandomModePCG:
 		fallthrough
@@ -263,6 +442,19 @@ func newDiceSourceForMode(mode DiceRandomMode, logger *zap.SugaredLogger) (ds.Di
 		return &readerDiceSource{reader: reader, spec: spec, logger: logger, runtimeNote: runtimeNote}, nil
 	case DiceRandomModeCrypto:
 		return ds.NewCryptoDiceSource(), nil
+	case DiceRandomModeHybrid:
+		available := map[DiceRandomMode]ds.DiceSource{}
+		for _, baseMode := range getHybridBaseModes() {
+			src, err := newDiceSourceForMode(baseMode, logger)
+			if err != nil {
+				if logger != nil {
+					logger.Warnf("[随机源] Hybrid 模式跳过不可用底层源 %s: %v", baseMode, err)
+				}
+				continue
+			}
+			available[baseMode] = src
+		}
+		return buildHybridDiceSourceFromAvailable(available)
 	case DiceRandomModePCG:
 		fallthrough
 	default:
@@ -283,17 +475,31 @@ func (d *Dice) newDiceSource() ds.DiceSource {
 }
 
 func (d *Dice) getSystemDiceSource() ds.DiceSource {
-	mode := d.getDiceRandomMode()
-
-	d.randomSourceMu.Lock()
-	defer d.randomSourceMu.Unlock()
-
-	if d.systemDiceSource == nil || d.systemDiceMode != mode {
-		d.systemDiceSource = d.newDiceSource()
-		d.systemDiceMode = mode
-		d.logDiceRandomMode(mode, d.systemDiceSource)
+	if d != nil && d.systemDiceSource != nil {
+		return d.systemDiceSource
 	}
-	return d.systemDiceSource
+
+	configuredMode := DiceRandomModePCG
+	var logger *zap.SugaredLogger
+	if d != nil {
+		configuredMode = d.getDiceRandomMode()
+		logger = d.Logger
+	}
+
+	src, effectiveMode, initErr := getGlobalDiceSource(configuredMode, logger)
+	if d != nil && d.systemDiceMode != effectiveMode {
+		d.systemDiceMode = effectiveMode
+		d.logDiceRandomMode(effectiveMode, src)
+		if initErr != nil && logger != nil && effectiveMode != configuredMode {
+			logger.Warnf(
+				"[随机源] 配置模式 %s 不可用，当前运行时已回退到 %s。错误: %v",
+				configuredMode,
+				effectiveMode,
+				initErr,
+			)
+		}
+	}
+	return src
 }
 
 func (d *Dice) logDiceRandomMode(mode DiceRandomMode, src ds.DiceSource) {
@@ -302,12 +508,8 @@ func (d *Dice) logDiceRandomMode(mode DiceRandomMode, src ds.DiceSource) {
 	}
 	spec := getDiceRandomModeSpec(mode)
 	details := spec.description
-	if mode == DiceRandomModeNIST {
-		if readerSrc, ok := src.(*readerDiceSource); ok {
-			if note := strings.TrimSpace(readerSrc.runtimeNote); note != "" {
-				details += " 熵补充: " + note
-			}
-		}
+	if note := getDiceSourceRuntimeNote(mode, src); note != "" {
+		details += " " + note
 	}
 	d.Logger.Infof(
 		"[随机源] 当前使用 %s 模式：算法=%s；标准/口径=%s；特点=%s",
@@ -321,12 +523,8 @@ func (d *Dice) logDiceRandomMode(mode DiceRandomMode, src ds.DiceSource) {
 func formatDiceRandomModeCommandText(mode DiceRandomMode, src ds.DiceSource) string {
 	spec := getDiceRandomModeSpec(mode)
 	description := spec.description
-	if mode == DiceRandomModeNIST {
-		if readerSrc, ok := src.(*readerDiceSource); ok {
-			if note := strings.TrimSpace(readerSrc.runtimeNote); note != "" {
-				description += "\n熵补充: " + note
-			}
-		}
+	if note := getDiceSourceRuntimeNote(mode, src); note != "" {
+		description += "\n" + note
 	}
 	return fmt.Sprintf(
 		"当前随机模式: %s\n算法: %s\n规范: %s\n特点: %s",
@@ -334,6 +532,42 @@ func formatDiceRandomModeCommandText(mode DiceRandomMode, src ds.DiceSource) str
 		spec.algorithm,
 		spec.standard,
 		description,
+	)
+}
+
+func getDiceSourceRuntimeNote(mode DiceRandomMode, src ds.DiceSource) string {
+	switch mode {
+	case DiceRandomModeNIST:
+		if readerSrc, ok := src.(*readerDiceSource); ok {
+			if note := strings.TrimSpace(readerSrc.runtimeNote); note != "" {
+				return "熵补充: " + note
+			}
+		}
+	case DiceRandomModeHybrid:
+		if hybridSrc, ok := src.(*hybridDiceSource); ok {
+			return strings.TrimSpace(hybridSrc.runtimeNote)
+		}
+	default:
+		return ""
+	}
+	return ""
+}
+
+func formatDiceRandomModeStatusText(configuredMode, effectiveMode DiceRandomMode, src ds.DiceSource, initErr error) string {
+	if initErr == nil || effectiveMode == configuredMode {
+		return formatDiceRandomModeCommandText(configuredMode, src)
+	}
+
+	effectiveText := formatDiceRandomModeCommandText(effectiveMode, src)
+	effectiveHeader := "当前随机模式: " + getDiceRandomModeSpec(effectiveMode).label + "\n"
+	effectiveText = strings.TrimPrefix(effectiveText, effectiveHeader)
+
+	return fmt.Sprintf(
+		"当前随机模式: %s\n当前生效模式: %s\n回退原因: %v\n%s",
+		getDiceRandomModeSpec(configuredMode).label,
+		getDiceRandomModeSpec(effectiveMode).label,
+		initErr,
+		effectiveText,
 	)
 }
 
@@ -350,6 +584,7 @@ func formatDiceRandomModeHelpText() string {
 	return strings.Join([]string{
 		"查看随机算法:",
 		".randalgo // 查看当前随机算法、对应规范和简介",
+		".randalgo get [面数] // 对全部随机源各掷一次并显示单次耗时",
 		".randalgo set <模式> // 设置随机模式，仅Master可用",
 		"支持的模式:",
 		formatSupportedDiceRandomModesText(),
@@ -368,6 +603,34 @@ func formatDiceRandomModeSetInvalidModeText(raw string) string {
 	return fmt.Sprintf("不支持的随机模式: %s\n支持的模式:\n%s", raw, formatSupportedDiceRandomModesText())
 }
 
+func formatDiceRandomModeSetUnavailableText(mode DiceRandomMode, err error) string {
+	if err == nil {
+		return fmt.Sprintf("随机模式 %s 当前不可用", mode)
+	}
+	return fmt.Sprintf("随机模式 %s 当前不可用: %v", mode, err)
+}
+
+func formatDiceRandomModeGetInvalidPointsText(raw string) string {
+	return fmt.Sprintf("无效的骰面: %s\n请提供一个大于 0 的整数，例如 `.randalgo get 20`", raw)
+}
+
+func formatDiceRandomModeGetText(points int64, logger *zap.SugaredLogger) string {
+	lines := []string{fmt.Sprintf("随机源单次骰点测速 D%d", points)}
+	for _, mode := range supportedDiceRandomModes {
+		src, err := getStrictGlobalDiceSource(mode, logger)
+		if err != nil {
+			lines = append(lines, fmt.Sprintf("%s: 不可用 (%v)", mode, err))
+			continue
+		}
+
+		start := time.Now()
+		value := ds.Roll(src, ds.IntType(points), 0)
+		elapsed := time.Since(start)
+		lines = append(lines, fmt.Sprintf("%s: 出目=%d 耗时=%s", mode, value, elapsed))
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (d *Dice) Roll(points int) int {
 	if points <= 0 {
 		return 0
@@ -384,17 +647,14 @@ func (ctx *MsgContext) getDiceSource() ds.DiceSource {
 		ctx._v1Rand = ctx.diceRandSrc
 		return ctx.diceRandSrc
 	}
+	var src ds.DiceSource
 	if ctx.Dice != nil {
-		if ctx.Dice.getDiceRandomMode() == DiceRandomModeNIST {
-			ctx.diceRandSrc = ctx.Dice.getSystemDiceSource()
-		} else {
-			ctx.diceRandSrc = ctx.Dice.newDiceSource()
-		}
+		src = ctx.Dice.getSystemDiceSource()
 	} else {
-		ctx.diceRandSrc = randSource
+		src = randSource
 	}
-	ctx._v1Rand = ctx.diceRandSrc
-	return ctx.diceRandSrc
+	ctx._v1Rand = src
+	return src
 }
 
 func (ctx *MsgContext) getChooserRand() *randv2.Rand {

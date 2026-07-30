@@ -283,7 +283,6 @@ type Dice struct {
 	ExtUpdateTime int64                      `json:"-" yaml:"-"` // 扩展变更时间戳，用于触发群组延迟更新
 	JsReloading   bool                       `json:"-" yaml:"-"` // JS 扩展正在重载中
 
-	randomSourceMu   sync.Mutex     `json:"-" yaml:"-"`
 	systemDiceSource ds.DiceSource  `json:"-" yaml:"-"`
 	systemDiceMode   DiceRandomMode `json:"-" yaml:"-"`
 
@@ -307,6 +306,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	loggerInstance := logger.M()
 	d.Logger = loggerInstance
 	d.LogWriter = uiWriter
+	ensureGlobalDiceSources(loggerInstance)
 
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
 	_ = os.MkdirAll(d.BaseConfig.DataDir, 0o755)
