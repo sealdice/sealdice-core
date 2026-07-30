@@ -1328,8 +1328,10 @@ func (m *officialQQIdentityMigration) migrateMemory(d *Dice) {
 	for index, id := range d.DiceMasters {
 		d.DiceMasters[index] = m.migrateAnyID(id)
 	}
-	for index, id := range d.Config.NoticeIDs {
-		d.Config.NoticeIDs[index] = m.migrateAnyID(id)
+	for index, rawTarget := range d.Config.NoticeIDs {
+		target := ParseNoticeTarget(rawTarget)
+		target.ID = m.migrateAnyID(target.ID)
+		d.Config.NoticeIDs[index] = target.String()
 	}
 	d.Config.UpgradeWindowID = m.migrateAnyID(d.Config.UpgradeWindowID)
 

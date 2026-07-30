@@ -28,6 +28,7 @@
 | `008_V160LogIDZeroCleanMigration` | v1.6.0 | log_id=0 清理 | 删除 log_items.log_id=0 与 logs.id=0 的残留并重算 size |
 | `009_V160LogRawMsgIDIndexMigration` | v1.6.0 | 日志复合索引 | 为 log_items 建 `(group_id, raw_msg_id, id)` 复合索引 |
 | `010_V160LogSizeRepairMigration` | v1.6.0 | logs.size 兜底修复 | 补建缺失的 size 列并全量重算（兜底 V150 失误） |
+| `011_V161NoticeIDsMigration` | v1.6.1 | 骰主通知目标初始化 | 将骰主 ID 一次性补入通知列表，仅开启 send 通知 |
 
 > ⚠️ ID 冲突提醒：`007_` 前缀同时被 `V150FixGroupInfoMigration` 与 `V151GORMCleanMigration` 使用，靠后缀字典序保证 V150 先于 V151 执行。代码内多处 `TODO` 标注“需要合理的生成逻辑”，建议后续改为更稳健的编号方案。
 
@@ -134,6 +135,14 @@
 - **失败**：返回错误 → 中断升级。
 - **设计说明**：用裸 `db.Exec` 而非 `db.Model().Update()`，以绕开 GORM “无 WHERE 的批量更新”保护——这里确实需要更新全部行；相关子查询与 008 重算口径完全一致，三种数据库均支持。
 
+### 011 — V161NoticeIDsMigration（骰主通知目标初始化）
+
+- **触发条件**：存在 `data/default/serve.yaml`；新安装尚未生成配置文件时跳过，由默认配置初始化。
+- **行为**：按实际 ID（忽略既有 `disable` / `only=` 后缀）保留已有通知目标；将尚未出现的骰主 ID 以 `ID:only=send` 形式追加到 `noticeIds`，仅允许接收 send 分类通知。
+- **仅执行一次**：升级框架记录迁移完成状态；用户之后手动清空通知列表，不会在后续启动时被重新填充。
+- **新安装**：默认骰主 `UI:1001` 同时也是默认通知目标，无需等待配置迁移。
+- **失败**：配置读取、解析或写入失败时返回错误并中断升级，以免迁移被错误标记为完成。
+
 ---
 
 ## size 语义（请重点审阅）
@@ -158,6 +167,7 @@
 - `v120_test.go`：V120 自检守卫（`attrs` 存在 → 跳过迁移 + 重命名 `data.bdb`）。
 - `v160_log_size_test.go`：010 的“补建缺失列+重算”、“已有列重算”、“无 logs 表无操作”。
 - `v160_logid0_test.go`：008 的“清理+重算”、“size 列缺失时不报错”、“无数据无操作”。
+- `v161/v161_test.go`、`v161_notice_ids_test.go`：011 的“合并且去重”、“缺少配置时跳过”，以及迁移完成后用户手动清空不会再次填充。
 - `full_flow_test.go`：用 `testdata/full_setup_logs.sql` + `testdata/full_setup_data.sql` 造假库，跑完整 V120→V010 链路并断言结果，再跑第二次验证幂等。
 
 测试仅覆盖 SQLite（本仓库无 MySQL/PG 的 CI 实例）；迁移代码本身对三种数据库都做了分支处理。

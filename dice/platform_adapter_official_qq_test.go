@@ -218,6 +218,192 @@ func TestOfficialQQIDRoundTrip(t *testing.T) {
 	}
 }
 
+func TestOfficialQQDelegatedContextUsesCanonicalMemberID(t *testing.T) {
+	t.Parallel()
+
+	const (
+		uin          = "3889204361"
+		memberOpenID = "B1F55BD9471139B4427175CC638920CB"
+	)
+	legacyMentionID := "OpenQQ:" + memberOpenID
+	canonicalUserID := formatDiceIDOfficialQQMemberOpenID(uin, "", memberOpenID)
+	targetPlayer := &GroupPlayerInfo{
+		Name:   "target",
+		UserID: canonicalUserID,
+	}
+	group := &GroupInfo{
+		Players: new(SyncMap[string, *GroupPlayerInfo]),
+	}
+	group.Players.Store(canonicalUserID, targetPlayer)
+	ctx := &MsgContext{
+		Dice:  &Dice{},
+		Group: group,
+		Player: &GroupPlayerInfo{
+			ValueMapTemp: &ds.ValueMap{},
+		},
+		EndPoint: &EndPointInfo{
+			Adapter: &PlatformAdapterOfficialQQ{UIN: uin},
+		},
+	}
+	ctx.CreateVmIfNotExists()
+	ctx.vm.StoreNameLocal("$tMsgID", ds.NewStrVal("test-message"))
+	ctx.vm.StoreNameLocal("$tEventID", ds.NewStrVal("test-event"))
+
+	// AtParse reflects the actual legacy command path: the wire mention contains
+	// only MemberOpenID, so CopyCtx must resolve it before looking up the player.
+	_, mentions := AtParse("<@"+memberOpenID+"> .st show", "OpenQQ")
+	if len(mentions) != 1 || mentions[0].UserID != legacyMentionID {
+		t.Fatalf("parsed mentions = %#v, want legacy ID %q", mentions, legacyMentionID)
+	}
+	delegatedCtx, found := mentions[0].CopyCtx(ctx)
+	if !found {
+		t.Fatal("canonical official QQ player was not found for delegated context")
+	}
+	if delegatedCtx.Player != targetPlayer || delegatedCtx.Player.UserID != canonicalUserID {
+		t.Fatalf("delegated player = %#v, want canonical ID %q", delegatedCtx.Player, canonicalUserID)
+	}
+}
+
+func TestOfficialQQDelegatedContextKeepsRawMentionTarget(t *testing.T) {
+	t.Parallel()
+
+	const (
+		uin          = "3889204361"
+		memberOpenID = "B1F55BD9471139B4427175CC638920CB"
+	)
+	ctx := &MsgContext{
+		Dice: &Dice{DBOperator: nil},
+		Group: &GroupInfo{
+			Players: new(SyncMap[string, *GroupPlayerInfo]),
+		},
+		Player: &GroupPlayerInfo{
+			ValueMapTemp: &ds.ValueMap{},
+		},
+		EndPoint: &EndPointInfo{
+			Adapter: &PlatformAdapterOfficialQQ{UIN: uin},
+		},
+	}
+	ctx.CreateVmIfNotExists()
+	ctx.vm.StoreNameLocal("$tMsgID", ds.NewStrVal("test-message"))
+	ctx.vm.StoreNameLocal("$tEventID", ds.NewStrVal("test-event"))
+	canonicalUserID := formatDiceIDOfficialQQMemberOpenID(uin, "", memberOpenID)
+	// Avoid a database lookup while exercising the fallback player-name path.
+	ctx.Group.Players.Store(canonicalUserID, nil)
+
+	delegatedCtx, found := (&AtInfo{UserID: canonicalUserID}).CopyCtx(ctx)
+	if found {
+		t.Fatal("unexpected existing player")
+	}
+	if delegatedCtx.Player.UserID != canonicalUserID {
+		t.Fatalf("delegated user ID = %q, want %q", delegatedCtx.Player.UserID, canonicalUserID)
+	}
+	if delegatedCtx.Player.Name != "<@"+memberOpenID+">" {
+		t.Fatalf("delegated mention name = %q, want raw MemberOpenID", delegatedCtx.Player.Name)
+	}
+}
+
+func TestOfficialQQDelegatedContextUsesMentionNickname(t *testing.T) {
+	t.Parallel()
+
+	const (
+		uin          = "3889204361"
+		memberOpenID = "B1F55BD9471139B4427175CC638920CB"
+		nickname     = "(`ᝫ´ )"
+	)
+	pa := &PlatformAdapterOfficialQQ{UIN: uin}
+	msg := pa.groupNormalMsgToStdMsg(nil, &dto.WSGroupMessageData{
+		Content:     "<@" + memberOpenID + "> .st 测试100",
+		GroupOpenID: "group-open-id",
+		Mentions: []*dto.User{{
+			// Current group payloads may expose the mention target through id
+			// instead of member_openid; the adapter supports both forms.
+			ID:       memberOpenID,
+			Username: nickname,
+		}},
+	})
+	cmdArgs := CommandParse(msg.Message, []string{"st"}, []string{"."}, msg.Platform, false)
+	if cmdArgs == nil {
+		t.Fatal("delegated st command was not parsed")
+	}
+	cmdArgs.applyMentionedInfo(msg)
+	if len(cmdArgs.At) != 1 || cmdArgs.At[0].Name != nickname {
+		t.Fatalf("parsed mention = %#v, want nickname %q", cmdArgs.At, nickname)
+	}
+
+	canonicalUserID := formatDiceIDOfficialQQMemberOpenID(uin, "", memberOpenID)
+	ctx := &MsgContext{
+		Dice: &Dice{DBOperator: nil},
+		Group: &GroupInfo{
+			Players: new(SyncMap[string, *GroupPlayerInfo]),
+		},
+		Player: &GroupPlayerInfo{
+			ValueMapTemp: &ds.ValueMap{},
+		},
+		EndPoint: &EndPointInfo{Adapter: pa},
+	}
+	ctx.CreateVmIfNotExists()
+	ctx.vm.StoreNameLocal("$tMsgID", ds.NewStrVal("test-message"))
+	ctx.vm.StoreNameLocal("$tEventID", ds.NewStrVal("test-event"))
+	// Avoid a database lookup and force the same uncached-player branch as the log.
+	ctx.Group.Players.Store(canonicalUserID, nil)
+
+	delegatedCtx, found := cmdArgs.At[0].CopyCtx(ctx)
+	if found {
+		t.Fatal("unexpected existing player")
+	}
+	if delegatedCtx.Player.UserID != canonicalUserID {
+		t.Fatalf("delegated user ID = %q, want %q", delegatedCtx.Player.UserID, canonicalUserID)
+	}
+	if delegatedCtx.Player.Name != nickname {
+		t.Fatalf("delegated player name = %q, want mention nickname %q", delegatedCtx.Player.Name, nickname)
+	}
+}
+
+func TestOfficialQQDelegatedContextDoesNotMutateCachedPlayerName(t *testing.T) {
+	t.Parallel()
+
+	const (
+		uin          = "3889204361"
+		memberOpenID = "B1F55BD9471139B4427175CC638920CB"
+		nickname     = "(`ᝫ´ )"
+	)
+	canonicalUserID := formatDiceIDOfficialQQMemberOpenID(uin, "", memberOpenID)
+	cachedPlayer := &GroupPlayerInfo{
+		UserID:       canonicalUserID,
+		ValueMapTemp: &ds.ValueMap{},
+	}
+	group := &GroupInfo{Players: new(SyncMap[string, *GroupPlayerInfo])}
+	group.Players.Store(canonicalUserID, cachedPlayer)
+	ctx := &MsgContext{
+		Dice:   &Dice{},
+		Group:  group,
+		Player: &GroupPlayerInfo{ValueMapTemp: &ds.ValueMap{}},
+		EndPoint: &EndPointInfo{
+			Adapter: &PlatformAdapterOfficialQQ{UIN: uin},
+		},
+	}
+	ctx.CreateVmIfNotExists()
+	ctx.vm.StoreNameLocal("$tMsgID", ds.NewStrVal("test-message"))
+	ctx.vm.StoreNameLocal("$tEventID", ds.NewStrVal("test-event"))
+
+	delegatedCtx, found := (&AtInfo{
+		UserID: "OpenQQ:" + memberOpenID,
+		Name:   nickname,
+	}).CopyCtx(ctx)
+	if !found {
+		t.Fatal("cached player was not found")
+	}
+	if delegatedCtx.Player == cachedPlayer {
+		t.Fatal("delegated context reused the shared player while adding a message-only nickname")
+	}
+	if delegatedCtx.Player.Name != nickname {
+		t.Fatalf("delegated player name = %q, want %q", delegatedCtx.Player.Name, nickname)
+	}
+	if cachedPlayer.Name != "" {
+		t.Fatalf("shared cached player name was mutated to %q", cachedPlayer.Name)
+	}
+}
+
 func TestOfficialQQLegacyEmptyGroupIdentity(t *testing.T) {
 	t.Parallel()
 

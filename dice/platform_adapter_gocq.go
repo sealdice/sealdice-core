@@ -642,7 +642,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			userName := dm.TryGetUserName(uid)
 			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", groupName, msgQQ.GroupID, userName, msgQQ.UserID)
 			log.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeInvite)
 			tempInviteMap[msg.GroupID] = time.Now().Unix()
 			tempInviteMap2[msg.GroupID] = uid
 
@@ -757,7 +757,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", msgQQ.UserID, comment, willAccept, extra)
 			log.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeInvite)
 
 			// 忽略邀请
 			if pa.IgnoreFriendRequest {
@@ -892,7 +892,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			}()
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeGroup)
 			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
 				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 					if ext.OnGroupJoined == nil {
@@ -995,7 +995,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, msgQQ.GroupID)
 				log.Error(txtErr)
 				if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
-					ctx.Notice(txtErr)
+					ctx.Notice(txtErr, NoticeTypeGroup)
 				}
 				return
 			}
@@ -1004,7 +1004,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			group.MarkDirty(ctx.Dice)
 			log.Info(txt)
 			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
-				ctx.Notice(txt)
+				ctx.Notice(txt, NoticeTypeGroup)
 			}
 			return
 		}
@@ -1020,7 +1020,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
 				txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, msgQQ.GroupID, msgQQ.Duration, userName, msgQQ.OperatorID)
 				log.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, NoticeTypeGroup)
 			}
 			return
 		}
@@ -1039,7 +1039,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				pa.riskAlertShieldCount--
 			} else {
 				log.Warn("群消息发送失败: 账号可能被风控")
-				_ = ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock)
+				_ = ctx.Dice.SendMail("群消息发送失败: 账号可能被风控", MailTypeCIAMLock, NoticeTypeSystem)
 			}
 		}
 
@@ -1104,7 +1104,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		lastDisconnect = now
 
 		log.Info("onebot 服务的连接被对方关闭")
-		_ = pa.EndPoint.Session.Parent.SendMail("", MailTypeConnectClose)
+		_ = pa.EndPoint.Session.Parent.SendMail("", MailTypeConnectClose, NoticeTypeSystem)
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
 
