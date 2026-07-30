@@ -159,11 +159,10 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 			activated[item.Name] = true
 		}
 	}
-	preserveExistingPriority := len(newList) > 0
-
 	// 延迟激活新扩展：检查 ExtList 中是否有新扩展需要激活
 	// 新扩展 = 不在 activatedExtList 中，也不在 InactivatedExtSet 中
 	g.ensureInactivatedSet()
+	preserveExistingPriority := hasExistingExtensionState(newList, g.InactivatedExtSet)
 	newExtCount := 0
 	for _, ext := range d.ExtList {
 		if ext == nil {

@@ -38,6 +38,13 @@ const (
 // ActiveWithGraph 描述扩展伴随关系：A -> [B,C] 表示激活 A 时需要附带 B、C。
 type ActiveWithGraph map[string][]string
 
+type extensionActivationPlacement uint8
+
+const (
+	extensionActivationPromote extensionActivationPlacement = iota
+	extensionActivationAppend
+)
+
 func (d *Dice) rebuildActiveWithGraph() {
 	d.ActiveWithGraphMu.Lock()
 	defer d.ActiveWithGraphMu.Unlock()
@@ -593,13 +600,16 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 	group.ensureInactivatedSet()
 
 	// 构建已知扩展集合
-	known := make(map[string]struct{}, len(group.activatedExtList))
+	known := make(map[string]struct{}, len(group.activatedExtList)+len(group.InactivatedExtSet))
 	for _, ext := range group.activatedExtList {
 		if ext != nil {
 			known[ext.Name] = struct{}{}
 		}
 	}
-	preserveExistingPriority := len(known) > 0
+	for name := range group.InactivatedExtSet {
+		known[name] = struct{}{}
+	}
+	preserveExistingPriority := hasExistingExtensionState(group.activatedExtList, group.InactivatedExtSet)
 
 	for _, ext := range extInfos {
 		if ext == nil {
@@ -609,21 +619,15 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 		if _, exists := known[ext.Name]; exists {
 			continue
 		}
-		// 跳过被用户关闭的扩展
-		if group.IsExtInactivated(ext.Name) {
-			continue
-		}
 		// 首次加载的扩展直接激活
 		if first, exists := isFirstTimeLoad[ext.Name]; exists && first {
-			group.autoActivateInternal(ext, preserveExistingPriority)
-			for _, activated := range group.activatedExtList {
+			for _, activated := range group.autoActivateInternal(ext, preserveExistingPriority, known) {
 				known[activated.Name] = struct{}{}
 			}
 			continue
 		}
 		if ext.AutoActive {
-			group.autoActivateInternal(ext, preserveExistingPriority)
-			for _, activated := range group.activatedExtList {
+			for _, activated := range group.autoActivateInternal(ext, preserveExistingPriority, known) {
 				known[activated.Name] = struct{}{}
 			}
 		} else {
@@ -671,23 +675,71 @@ func (group *GroupInfo) ExtGetActive(name string) *ExtInfo {
 	return nil
 }
 
+func hasExistingExtensionState(activated []*ExtInfo, inactivated StringSet) bool {
+	if len(inactivated) > 0 {
+		return true
+	}
+	for _, ext := range activated {
+		if ext != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (group *GroupInfo) extActivateInternal(ei *ExtInfo, reason ActivateReason) {
+	group.activateExtensionChain(ei, reason, extensionActivationPromote, nil)
+}
+
+// activateExtensionChain 统一处理主扩展及其伴随扩展的激活顺序和状态更新。
+func (group *GroupInfo) activateExtensionChain(
+	ei *ExtInfo,
+	reason ActivateReason,
+	placement extensionActivationPlacement,
+	known map[string]struct{},
+) []*ExtInfo {
 	if ei == nil || ei.dice == nil {
-		return
+		return nil
 	}
 	group.ensureInactivatedSet()
 	d := ei.dice
-	graph := d.activeWithGraph()
-	// 先激活主扩展
-	group.promoteExt(ei)
-	// 再激活伴随扩展，使其指令优先级更高（越晚激活优先级越高）
-	names := collectChainedNames(d.Logger, graph, ei.Name, maxChainDepth)
-	for _, name := range names {
-		if ext := d.ExtFind(name, false); ext != nil {
-			group.promoteExt(ext)
+	activationOrder := []*ExtInfo{ei}
+	for _, name := range collectChainedNames(d.Logger, d.activeWithGraph(), ei.Name, maxChainDepth) {
+		if chained := d.ExtFind(name, false); chained != nil {
+			activationOrder = append(activationOrder, chained)
 		}
 	}
-	group.MarkDirty(d)
+
+	activated := make([]*ExtInfo, 0, len(activationOrder))
+	switch placement {
+	case extensionActivationAppend:
+		// 头插会反转激活链顺序；尾插也按反序追加，以保持相同的链内优先级。
+		for index := len(activationOrder) - 1; index >= 0; index-- {
+			item := activationOrder[index]
+			if group.IsExtInactivated(item.Name) {
+				continue
+			}
+			if known != nil {
+				if _, exists := known[item.Name]; exists {
+					continue
+				}
+			} else if group.indexOfActivated(item.Name) != -1 {
+				continue
+			}
+			group.activatedExtList = append(group.activatedExtList, item)
+			activated = append(activated, item)
+		}
+	default:
+		for _, item := range activationOrder {
+			group.promoteExt(item)
+			activated = append(activated, item)
+		}
+	}
+
+	if len(activated) > 0 {
+		group.MarkDirty(d)
+	}
+	return activated
 }
 
 func (group *GroupInfo) promoteExt(ext *ExtInfo) {
@@ -699,37 +751,17 @@ func (group *GroupInfo) promoteExt(ext *ExtInfo) {
 	group.activatedExtList = append([]*ExtInfo{ext}, group.activatedExtList...)
 }
 
-// autoActivateInternal 自动激活新扩展。已有扩展时追加到末尾，避免安装插件改变群内现有规则优先级。
-func (group *GroupInfo) autoActivateInternal(ext *ExtInfo, preserveExistingPriority bool) {
-	if !preserveExistingPriority {
-		group.extActivateInternal(ext, ActivateReasonFirstMessage)
-		return
+// autoActivateInternal 自动激活新扩展。已有扩展状态时追加到末尾，避免改变群内现有规则优先级。
+func (group *GroupInfo) autoActivateInternal(
+	ext *ExtInfo,
+	preserveExistingPriority bool,
+	known map[string]struct{},
+) []*ExtInfo {
+	placement := extensionActivationPromote
+	if preserveExistingPriority {
+		placement = extensionActivationAppend
 	}
-	if ext == nil || ext.dice == nil {
-		return
-	}
-
-	d := ext.dice
-	activationOrder := []*ExtInfo{ext}
-	for _, name := range collectChainedNames(d.Logger, d.activeWithGraph(), ext.Name, maxChainDepth) {
-		if chained := d.ExtFind(name, false); chained != nil {
-			activationOrder = append(activationOrder, chained)
-		}
-	}
-
-	changed := false
-	// 手动激活通过依次前插得到反向优先级；低优先级追加时也保持同样的链内顺序。
-	for index := len(activationOrder) - 1; index >= 0; index-- {
-		item := activationOrder[index]
-		if group.IsExtInactivated(item.Name) || group.indexOfActivated(item.Name) != -1 {
-			continue
-		}
-		group.activatedExtList = append(group.activatedExtList, item)
-		changed = true
-	}
-	if changed {
-		group.MarkDirty(d)
-	}
+	return group.activateExtensionChain(ext, ActivateReasonFirstMessage, placement, known)
 }
 
 func (group *GroupInfo) extDeactivateInternal(ei *ExtInfo, reason DeactivateReason, markInactivated bool) *ExtInfo {
@@ -787,15 +819,14 @@ func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
 	for name := range group.InactivatedExtSet {
 		known[name] = struct{}{}
 	}
-	preserveExistingPriority := len(group.activatedExtList) > 0
+	preserveExistingPriority := hasExistingExtensionState(group.activatedExtList, group.InactivatedExtSet)
 
 	for _, ext := range d.ExtList {
 		if _, exists := known[ext.Name]; exists {
 			continue
 		}
 		if ext != nil && ext.AutoActive {
-			group.autoActivateInternal(ext, preserveExistingPriority)
-			for _, activated := range group.activatedExtList {
+			for _, activated := range group.autoActivateInternal(ext, preserveExistingPriority, known) {
 				known[activated.Name] = struct{}{}
 			}
 		} else {
