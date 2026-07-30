@@ -1562,7 +1562,7 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	var ret bool
 	// 试图匹配自定义指令
 	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
-		for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+		for _, wrapper := range commandExtensionOrder(mctx.Group, mctx.Dice) {
 			ext := wrapper.GetRealExt()
 			if ext == nil {
 				continue
@@ -2218,7 +2218,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 
 		if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
-			for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+			for _, wrapper := range commandExtensionOrder(group, ctx.Dice) {
 				cmdMap := wrapper.GetCmdMap()
 				item := cmdMap[cmdArgs.Command]
 				if tryItemSolve(wrapper, item) {
