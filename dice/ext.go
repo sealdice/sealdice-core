@@ -599,6 +599,7 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 			known[ext.Name] = struct{}{}
 		}
 	}
+	preserveExistingPriority := len(known) > 0
 
 	for _, ext := range extInfos {
 		if ext == nil {
@@ -614,13 +615,17 @@ func (group *GroupInfo) ExtActivateBatch(extInfos []*ExtInfo, isFirstTimeLoad ma
 		}
 		// 首次加载的扩展直接激活
 		if first, exists := isFirstTimeLoad[ext.Name]; exists && first {
-			group.extActivateInternal(ext, ActivateReasonFirstMessage)
-			known[ext.Name] = struct{}{}
+			group.autoActivateInternal(ext, preserveExistingPriority)
+			for _, activated := range group.activatedExtList {
+				known[activated.Name] = struct{}{}
+			}
 			continue
 		}
 		if ext.AutoActive {
-			group.extActivateInternal(ext, ActivateReasonFirstMessage)
-			known[ext.Name] = struct{}{}
+			group.autoActivateInternal(ext, preserveExistingPriority)
+			for _, activated := range group.activatedExtList {
+				known[activated.Name] = struct{}{}
+			}
 		} else {
 			group.AddToInactivated(ext.Name)
 		}
@@ -694,6 +699,39 @@ func (group *GroupInfo) promoteExt(ext *ExtInfo) {
 	group.activatedExtList = append([]*ExtInfo{ext}, group.activatedExtList...)
 }
 
+// autoActivateInternal 自动激活新扩展。已有扩展时追加到末尾，避免安装插件改变群内现有规则优先级。
+func (group *GroupInfo) autoActivateInternal(ext *ExtInfo, preserveExistingPriority bool) {
+	if !preserveExistingPriority {
+		group.extActivateInternal(ext, ActivateReasonFirstMessage)
+		return
+	}
+	if ext == nil || ext.dice == nil {
+		return
+	}
+
+	d := ext.dice
+	activationOrder := []*ExtInfo{ext}
+	for _, name := range collectChainedNames(d.Logger, d.activeWithGraph(), ext.Name, maxChainDepth) {
+		if chained := d.ExtFind(name, false); chained != nil {
+			activationOrder = append(activationOrder, chained)
+		}
+	}
+
+	changed := false
+	// 手动激活通过依次前插得到反向优先级；低优先级追加时也保持同样的链内顺序。
+	for index := len(activationOrder) - 1; index >= 0; index-- {
+		item := activationOrder[index]
+		if group.IsExtInactivated(item.Name) || group.indexOfActivated(item.Name) != -1 {
+			continue
+		}
+		group.activatedExtList = append(group.activatedExtList, item)
+		changed = true
+	}
+	if changed {
+		group.MarkDirty(d)
+	}
+}
+
 func (group *GroupInfo) extDeactivateInternal(ei *ExtInfo, reason DeactivateReason, markInactivated bool) *ExtInfo {
 	if ei == nil || ei.dice == nil {
 		return nil
@@ -749,13 +787,17 @@ func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
 	for name := range group.InactivatedExtSet {
 		known[name] = struct{}{}
 	}
+	preserveExistingPriority := len(group.activatedExtList) > 0
 
 	for _, ext := range d.ExtList {
 		if _, exists := known[ext.Name]; exists {
 			continue
 		}
 		if ext != nil && ext.AutoActive {
-			group.extActivateInternal(ext, ActivateReasonFirstMessage)
+			group.autoActivateInternal(ext, preserveExistingPriority)
+			for _, activated := range group.activatedExtList {
+				known[activated.Name] = struct{}{}
+			}
 		} else {
 			group.AddToInactivated(ext.Name)
 		}

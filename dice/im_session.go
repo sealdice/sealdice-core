@@ -159,6 +159,7 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 			activated[item.Name] = true
 		}
 	}
+	preserveExistingPriority := len(newList) > 0
 
 	// 延迟激活新扩展：检查 ExtList 中是否有新扩展需要激活
 	// 新扩展 = 不在 activatedExtList 中，也不在 InactivatedExtSet 中
@@ -178,7 +179,12 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 		}
 		// 新扩展：根据 AutoActive 决定是否激活
 		if ext.AutoActive {
-			newList = append([]*ExtInfo{ext}, newList...) // 插入头部
+			if preserveExistingPriority {
+				// 已有群保持当前规则优先级，新安装扩展仅追加到末尾。
+				newList = append(newList, ext)
+			} else {
+				newList = append([]*ExtInfo{ext}, newList...)
+			}
 			activated[ext.Name] = true
 			newExtCount++
 		} else {
