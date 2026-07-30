@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -178,7 +179,7 @@ func readAnalysisCSV(path string) ([]analysisRow, error) {
 		return nil, err
 	}
 	if len(rows) <= 1 {
-		return nil, fmt.Errorf("no analysis rows")
+		return nil, errors.New("no analysis rows")
 	}
 
 	header := rows[0]
