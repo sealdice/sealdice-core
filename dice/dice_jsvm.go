@@ -111,6 +111,7 @@ func (d *Dice) JsInit() {
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
+		vm.SetRandSource(d.newGojaRandSource())
 
 		// console 模块
 		console.Enable(vm)

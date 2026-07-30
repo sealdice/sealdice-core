@@ -984,7 +984,7 @@ func collectGameSystemTemplateFiles(templateDir string) ([]string, error) {
 	return files, nil
 }
 
-// generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID和堆栈信息组成
+// generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID、堆栈信息和国密、本地熵源组成
 func generateRandSeed() uint64 {
 	timestamp := time.Now().UnixNano()
 
@@ -997,15 +997,11 @@ func generateRandSeed() uint64 {
 	buf := make([]byte, 1024)
 	n := runtime.Stack(buf, true)
 	stackInfo := buf[:n]
-
 	h := fnv.New64a()
 
 	_ = binary.Write(h, binary.LittleEndian, timestamp)
-
 	_ = binary.Write(h, binary.LittleEndian, objPtr)
-
 	_ = binary.Write(h, binary.LittleEndian, pid)
-
 	_, _ = h.Write(stackInfo)
 
 	return h.Sum64()

@@ -340,7 +340,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 	if a == nil {
 		text = "<%未知项-" + s + "%>"
 	} else {
-		text = pickChooserWithSource(ctx.Dice.TextMap[s], ctx.getDiceSource())
+		text = pickChooserWithRand(ctx.Dice.TextMap[s], ctx.getChooserRand())
 
 		// 找出其兼容情况，以决定使用什么版本的引擎
 		engineVersion := ctx.Dice.getTargetVmEngineVersion(VMVersionCustomText)
@@ -810,7 +810,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		if value == nil && ctx.Dice != nil && strings.Contains(name, ":") {
 			textTmpl := ctx.Dice.TextMap[name]
 			if textTmpl != nil {
-				if v2, err := DiceFormatV2(ctx, pickChooserWithSource(textTmpl, ctx.getDiceSource())); err == nil {
+				if v2, err := DiceFormatV2(ctx, pickChooserWithRand(textTmpl, ctx.getChooserRand())); err == nil {
 					return ds.NewStrVal(v2)
 				}
 			} else {

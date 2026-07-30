@@ -2136,6 +2136,46 @@ func (d *Dice) registerCoreCommands() {
 		},
 	}
 
+	randalgoHelp := formatDiceRandomModeHelpText()
+	d.CmdMap["randalgo"] = &CmdItemInfo{
+		Name:      "randalgo",
+		ShortHelp: ".randalgo // 查看当前随机算法与规范\n.randalgo set <模式> // 设置随机模式，仅Master可用",
+		Help:      randalgoHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			if cmdArgs.IsArgEqual(1, "set") {
+				if ctx.PrivilegeLevel < 100 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				rawMode := cmdArgs.GetArgN(2)
+				if rawMode == "" {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetMissingModeText())
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				mode, ok := parseDiceRandomModeStrict(rawMode)
+				if !ok {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetInvalidModeText(rawMode))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				ctx.Dice.Config.DiceRandomMode = string(mode)
+				ctx.Dice.getSystemDiceSource()
+				ctx.Dice.MarkModified()
+				ctx.Dice.Save(false)
+				ReplyToSender(ctx, msg, formatDiceRandomModeSetSuccessText(mode))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			ReplyToSender(ctx, msg, ctx.Dice.formatCurrentDiceRandomModeCommandText())
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
 	helpSet := ".set info// 查看当前面数设置\n" +
 		".set dnd/coc // 设置群内骰子面数为20/100，并自动开启对应扩展 \n" +
 		".set <面数> // 设置群内骰子面数\n" +

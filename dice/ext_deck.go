@@ -1061,7 +1061,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
-		key = pickChooserWithSource(pool, ctx.getDiceSource())
+		key = pickChooserWithRand(pool, ctx.getChooserRand())
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err

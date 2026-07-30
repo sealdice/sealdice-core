@@ -10,6 +10,7 @@ import (
 var (
 	benchUint64Sink uint64
 	benchRollSink   int64
+	benchSrcSink    ds.DiceSource
 )
 
 func BenchmarkDiceRandomSourceUint64(b *testing.B) {
@@ -56,4 +57,32 @@ func BenchmarkDiceRandomSourceRollD100(b *testing.B) {
 			}
 		})
 	}
+}
+
+func BenchmarkNISTContextSourceBinding(b *testing.B) {
+	cfg := DefaultConfig
+	cfg.DiceRandomMode = string(DiceRandomModeNIST)
+	d := &Dice{Config: cfg}
+	ctx := &MsgContext{Dice: d}
+
+	b.Run("reuse_system_source", func(b *testing.B) {
+		benchSrcSink = d.getSystemDiceSource()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for range b.N {
+			ctx.diceRandSrc = nil
+			ctx._v1Rand = nil
+			ctx.chooserRand = nil
+			ctx.chooserSrc = nil
+			benchSrcSink = ctx.getDiceSource()
+		}
+	})
+
+	b.Run("new_source_baseline", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for range b.N {
+			benchSrcSink = d.newDiceSource()
+		}
+	})
 }

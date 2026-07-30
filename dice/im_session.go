@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	randv2 "math/rand/v2"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -790,6 +791,8 @@ type MsgContext struct {
 	vm          *ds.Context
 	_v1Rand     ds.DiceSource
 	diceRandSrc ds.DiceSource
+	chooserRand *randv2.Rand
+	chooserSrc  ds.DiceSource
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
@@ -2689,6 +2692,8 @@ func (ctx *MsgContext) ShallowCopy() *MsgContext {
 		vm:                  ctx.vm,
 		_v1Rand:             ctx._v1Rand,
 		diceRandSrc:         ctx.diceRandSrc,
+		chooserRand:         ctx.chooserRand,
+		chooserSrc:          ctx.chooserSrc,
 	}
 	copyCtx.SetSplitKey(ctx.getSplitKey())
 	return copyCtx

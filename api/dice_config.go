@@ -248,6 +248,21 @@ func DiceConfigSet(c echo.Context) error {
 		config.WorkInQQChannel = val.(bool)
 	}
 
+	if val, ok := jsonMap["diceRandomMode"]; ok {
+		if v, ok := val.(string); ok {
+			switch strings.ToLower(strings.TrimSpace(v)) {
+			case string(dice.DiceRandomModeGM):
+				config.DiceRandomMode = string(dice.DiceRandomModeGM)
+			case string(dice.DiceRandomModeNIST):
+				config.DiceRandomMode = string(dice.DiceRandomModeNIST)
+			case string(dice.DiceRandomModeCrypto):
+				config.DiceRandomMode = string(dice.DiceRandomModeCrypto)
+			default:
+				config.DiceRandomMode = string(dice.DiceRandomModePCG)
+			}
+		}
+	}
+
 	if val, ok := jsonMap["QQChannelLogMessage"]; ok {
 		config.QQChannelLogMessage = val.(bool)
 	}
