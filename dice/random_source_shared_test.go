@@ -31,7 +31,7 @@ func completeSourceMap(overrides ...sourceOverride) map[DiceRandomMode]ds.DiceSo
 		DiceRandomModePCG:    nil,
 		DiceRandomModeGM:     nil,
 		DiceRandomModeNIST:   nil,
-		DiceRandomModeCrypto: nil,
+		DiceRandomModeCRNG:   nil,
 		DiceRandomModeHybrid: nil,
 	}
 	for _, item := range overrides {
@@ -45,7 +45,7 @@ func completeErrorMap(overrides ...errorOverride) map[DiceRandomMode]error {
 		DiceRandomModePCG:    nil,
 		DiceRandomModeGM:     nil,
 		DiceRandomModeNIST:   nil,
-		DiceRandomModeCrypto: nil,
+		DiceRandomModeCRNG:   nil,
 		DiceRandomModeHybrid: nil,
 	}
 	for _, item := range overrides {
@@ -170,7 +170,7 @@ func TestGetSystemDiceSource_HybridXorsAvailableSources(t *testing.T) {
 		sourceOverride{mode: DiceRandomModePCG, src: &countingDiceSource{values: []uint64{1}}},
 		sourceOverride{mode: DiceRandomModeGM, src: &countingDiceSource{values: []uint64{2}}},
 		sourceOverride{mode: DiceRandomModeNIST, src: &countingDiceSource{values: []uint64{4}}},
-		sourceOverride{mode: DiceRandomModeCrypto, src: &countingDiceSource{values: []uint64{8}}},
+		sourceOverride{mode: DiceRandomModeCRNG, src: &countingDiceSource{values: []uint64{8}}},
 	), nil)
 
 	d := &Dice{Config: NewConfig(nil)}
@@ -259,7 +259,7 @@ func TestRandalgoGetReportsEachModeWithCustomPoints(t *testing.T) {
 		sourceOverride{mode: DiceRandomModePCG, src: &countingDiceSource{values: []uint64{0}}},
 		sourceOverride{mode: DiceRandomModeGM, src: &countingDiceSource{values: []uint64{1}}},
 		sourceOverride{mode: DiceRandomModeNIST, src: &countingDiceSource{values: []uint64{2}}},
-		sourceOverride{mode: DiceRandomModeCrypto, src: &countingDiceSource{values: []uint64{3}}},
+		sourceOverride{mode: DiceRandomModeCRNG, src: &countingDiceSource{values: []uint64{3}}},
 	)
 	installGlobalDiceSourceState(t, sources, nil)
 
@@ -304,7 +304,7 @@ func TestRandalgoGetReportsUnavailableModeWithoutBlockingOthers(t *testing.T) {
 	installGlobalDiceSourceState(t, completeSourceMap(
 		sourceOverride{mode: DiceRandomModePCG, src: &countingDiceSource{values: []uint64{0}}},
 		sourceOverride{mode: DiceRandomModeNIST, src: &countingDiceSource{values: []uint64{2}}},
-		sourceOverride{mode: DiceRandomModeCrypto, src: &countingDiceSource{values: []uint64{3}}},
+		sourceOverride{mode: DiceRandomModeCRNG, src: &countingDiceSource{values: []uint64{3}}},
 	), completeErrorMap(
 		errorOverride{mode: DiceRandomModeGM, err: errors.New("gm init failed")},
 	))
@@ -324,7 +324,7 @@ func TestRandalgoGetReportsUnavailableModeWithoutBlockingOthers(t *testing.T) {
 	if !ok {
 		t.Fatal("expected get reply")
 	}
-	if !strings.Contains(reply, "pcg: 出目=") || !strings.Contains(reply, "nist: 出目=") || !strings.Contains(reply, "crypto: 出目=") {
+	if !strings.Contains(reply, "pcg: 出目=") || !strings.Contains(reply, "nist: 出目=") || !strings.Contains(reply, "crng: 出目=") {
 		t.Fatalf("expected available modes in get reply: %q", reply)
 	}
 	if !strings.Contains(reply, "hybrid: 出目=") {
@@ -339,7 +339,7 @@ func TestRandalgoQuery_HybridShowsAvailableSources(t *testing.T) {
 	installGlobalDiceSourceState(t, completeSourceMap(
 		sourceOverride{mode: DiceRandomModePCG, src: &countingDiceSource{values: []uint64{1}}},
 		sourceOverride{mode: DiceRandomModeNIST, src: &countingDiceSource{values: []uint64{4}}},
-		sourceOverride{mode: DiceRandomModeCrypto, src: &countingDiceSource{values: []uint64{8}}},
+		sourceOverride{mode: DiceRandomModeCRNG, src: &countingDiceSource{values: []uint64{8}}},
 	), completeErrorMap(
 		errorOverride{mode: DiceRandomModeGM, err: errors.New("gm init failed")},
 	))
@@ -363,7 +363,7 @@ func TestRandalgoQuery_HybridShowsAvailableSources(t *testing.T) {
 	if !strings.Contains(reply, "当前随机模式: Hybrid 混合") {
 		t.Fatalf("expected hybrid mode label in reply: %q", reply)
 	}
-	if !strings.Contains(reply, "当前混合源包含: 默认 PCG, NIST, 系统级随机数") {
+	if !strings.Contains(reply, "当前混合源包含: 默认 PCG, NIST, 系统级 CRNG") {
 		t.Fatalf("expected hybrid available source summary in reply: %q", reply)
 	}
 }

@@ -261,8 +261,8 @@ func DiceConfigSet(c echo.Context) error {
 				config.DiceRandomMode = string(dice.DiceRandomModeGM)
 			case string(dice.DiceRandomModeNIST):
 				config.DiceRandomMode = string(dice.DiceRandomModeNIST)
-			case string(dice.DiceRandomModeCrypto):
-				config.DiceRandomMode = string(dice.DiceRandomModeCrypto)
+			case string(dice.DiceRandomModeCRNG):
+				config.DiceRandomMode = string(dice.DiceRandomModeCRNG)
 			default:
 				config.DiceRandomMode = string(dice.DiceRandomModePCG)
 			}

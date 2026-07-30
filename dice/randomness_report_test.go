@@ -19,7 +19,7 @@ func TestGenerateRandomnessSamples(t *testing.T) {
 	}
 
 	outDir := getenvOr("SEALDICE_RANDOMNESS_OUT_DIR", filepath.Join("temp", "randomness", "samples"))
-	modesRaw := getenvOr("SEALDICE_RANDOMNESS_MODES", "pcg,crypto,nist,gm")
+	modesRaw := getenvOr("SEALDICE_RANDOMNESS_MODES", "pcg,crng,nist,gm")
 	sampleCount := mustParsePositiveInt(t, "SEALDICE_RANDOMNESS_SAMPLES", 20)
 	bitCount := mustParsePositiveInt(t, "SEALDICE_RANDOMNESS_BITS", 1000000)
 	if bitCount%8 != 0 {
@@ -105,4 +105,14 @@ func getenvOr(key string, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func TestParseRandomnessModes_AcceptsCRNG(t *testing.T) {
+	modes := parseRandomnessModes(t, "pcg,crng,nist,gm")
+	if len(modes) != 4 {
+		t.Fatalf("expected 4 modes, got %d", len(modes))
+	}
+	if modes[1] != DiceRandomModeCRNG {
+		t.Fatalf("expected second mode to be %q, got %q", DiceRandomModeCRNG, modes[1])
+	}
 }

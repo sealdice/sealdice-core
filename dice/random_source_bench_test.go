@@ -18,7 +18,7 @@ func BenchmarkDiceRandomSourceUint64(b *testing.B) {
 		DiceRandomModePCG,
 		DiceRandomModeGM,
 		DiceRandomModeNIST,
-		DiceRandomModeCrypto,
+		DiceRandomModeCRNG,
 	}
 
 	for _, mode := range modes {
@@ -41,7 +41,7 @@ func BenchmarkDiceRandomSourceRollD100(b *testing.B) {
 		DiceRandomModePCG,
 		DiceRandomModeGM,
 		DiceRandomModeNIST,
-		DiceRandomModeCrypto,
+		DiceRandomModeCRNG,
 	}
 
 	for _, mode := range modes {

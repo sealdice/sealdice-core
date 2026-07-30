@@ -25,7 +25,7 @@ const (
 	DiceRandomModePCG    DiceRandomMode = "pcg"
 	DiceRandomModeGM     DiceRandomMode = "gm"
 	DiceRandomModeNIST   DiceRandomMode = "nist"
-	DiceRandomModeCrypto DiceRandomMode = "crypto"
+	DiceRandomModeCRNG   DiceRandomMode = "crng"
 	DiceRandomModeHybrid DiceRandomMode = "hybrid"
 )
 
@@ -144,8 +144,8 @@ func normalizeDiceRandomMode(raw string) DiceRandomMode {
 		return DiceRandomModeGM
 	case DiceRandomModeNIST:
 		return DiceRandomModeNIST
-	case DiceRandomModeCrypto:
-		return DiceRandomModeCrypto
+	case DiceRandomModeCRNG:
+		return DiceRandomModeCRNG
 	case DiceRandomModeHybrid:
 		return DiceRandomModeHybrid
 	default:
@@ -157,7 +157,7 @@ var supportedDiceRandomModes = []DiceRandomMode{
 	DiceRandomModePCG,
 	DiceRandomModeGM,
 	DiceRandomModeNIST,
-	DiceRandomModeCrypto,
+	DiceRandomModeCRNG,
 	DiceRandomModeHybrid,
 }
 
@@ -176,8 +176,8 @@ func parseDiceRandomModeStrict(raw string) (DiceRandomMode, bool) {
 		return DiceRandomModeGM, true
 	case DiceRandomModeNIST:
 		return DiceRandomModeNIST, true
-	case DiceRandomModeCrypto:
-		return DiceRandomModeCrypto, true
+	case DiceRandomModeCRNG:
+		return DiceRandomModeCRNG, true
 	case DiceRandomModeHybrid:
 		return DiceRandomModeHybrid, true
 	default:
@@ -190,7 +190,7 @@ func getHybridBaseModes() []DiceRandomMode {
 		DiceRandomModePCG,
 		DiceRandomModeGM,
 		DiceRandomModeNIST,
-		DiceRandomModeCrypto,
+		DiceRandomModeCRNG,
 	}
 }
 
@@ -347,16 +347,16 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 				"prediction resistance、已知答案自检、连续健康检测、主动重播种与密钥轮换策略，" +
 				"在标准一致性、持续保护与审计可解释性方面表现突出。",
 		}
-	case DiceRandomModeCrypto:
+	case DiceRandomModeCRNG:
 		return diceRandomModeSpec{
-			label:     "系统级随机数",
-			algorithm: "操作系统原生随机数接口",
-			standard:  "Linux 默认 getrandom(2)，老版本回退 /dev/urandom；Windows 使用 ProcessPrng API DRBG",
-			shortDesc: "操作系统随机源",
-			description: "基于操作系统提供的密码学安全随机源，直接调用系统级熵池能力，来源可靠、与平台安全机制天然集成。" +
-				"Linux 默认使用 getrandom(2) 获取随机字节，较老系统可能回退 /dev/urandom；" +
-				"Windows 使用 ProcessPrng API DRBG 从系统安全子系统取数。" +
-				"速度一般，依赖操作系统原生安全能力。",
+			label:     "系统级 CRNG",
+			algorithm: "操作系统 CSPRNG/CRNG 接口",
+			standard:  "Linux 优先 getrandom(2) 内核 CRNG，必要时回退 /dev/urandom；Windows 使用 ProcessPrng API（系统 DRBG）",
+			shortDesc: "操作系统 CSPRNG/CRNG",
+			description: "直接使用操作系统提供的密码学安全随机数接口，随机性由内核或系统安全子系统维护的 CRNG/CSPRNG 提供。" +
+				"Linux 路径优先走 getrandom(2) 从内核 CRNG 取数，旧环境可能回退到 /dev/urandom；" +
+				"Windows 路径调用 ProcessPrng API，从系统级 DRBG 取数。" +
+				"安全边界清晰、平台集成度高，性能通常介于纯伪随机与较重型标准 DRBG 实现之间。",
 		}
 	case DiceRandomModeHybrid:
 		return diceRandomModeSpec{
@@ -440,7 +440,7 @@ func newDiceSourceForMode(mode DiceRandomMode, logger *zap.SugaredLogger) (ds.Di
 		}
 		clear(buf)
 		return &readerDiceSource{reader: reader, spec: spec, logger: logger, runtimeNote: runtimeNote}, nil
-	case DiceRandomModeCrypto:
+	case DiceRandomModeCRNG:
 		return ds.NewCryptoDiceSource(), nil
 	case DiceRandomModeHybrid:
 		available := map[DiceRandomMode]ds.DiceSource{}
