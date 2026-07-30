@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/fy0/systray"
@@ -21,7 +20,7 @@ type trayAccountMenu struct {
 }
 
 func formatTrayTooltip(dm *dice.DiceManager, version, port string) string {
-	text := strings.TrimSpace(dm.GetTrayTooltip())
+	text := dice.NormalizeTrayTooltipPrefix(dm.GetTrayTooltip())
 	if text == "" {
 		text = defaultTrayTooltip
 	}
@@ -29,7 +28,6 @@ func formatTrayTooltip(dm *dice.DiceManager, version, port string) string {
 }
 
 func startTrayAccountMenu(dm *dice.DiceManager, openAccountSettings func()) {
-	instances := append([]*dice.Dice(nil), dm.Dice...)
 	root := systray.AddMenuItem("账号列表", "查看已配置的平台账号")
 	menu := &trayAccountMenu{
 		root:       root,
@@ -42,12 +40,12 @@ func startTrayAccountMenu(dm *dice.DiceManager, openAccountSettings func()) {
 		}
 	}()
 
-	menu.refresh(instances)
+	menu.refresh(dm.DiceSnapshot())
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			menu.refresh(instances)
+			menu.refresh(dm.DiceSnapshot())
 		}
 	}()
 }
@@ -84,9 +82,6 @@ func loadTrayAccountTitles(instances []*dice.Dice) []string {
 			continue
 		}
 		for _, endpoint := range instance.ImSession.EndPointsSnapshot() {
-			if endpoint == nil {
-				continue
-			}
 			titles = append(titles, fmt.Sprintf(
 				"%s(%s) [%s]",
 				endpoint.Nickname,
