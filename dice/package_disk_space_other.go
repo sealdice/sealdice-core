@@ -1,4 +1,4 @@
-//go:build !windows && !aix && !darwin && !dragonfly && !freebsd && !linux && !netbsd && !openbsd && !solaris
+//go:build !windows && !aix && !darwin && !dragonfly && !freebsd && !linux
 
 package dice
 

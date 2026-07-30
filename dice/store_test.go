@@ -243,6 +243,36 @@ func TestStoreQueryPageUsesSingleResolvedBackend(t *testing.T) {
 	}
 }
 
+func TestStoreQueryPageOmitsDefaultPaginationParameters(t *testing.T) {
+	pageQuery := make(chan map[string][]string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/dice/api/store/info":
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","name":"Official Store","protocolVersions":["2.0"]}`))
+		case "/dice/api/store/page":
+			pageQuery <- r.URL.Query()
+			_, _ = w.Write([]byte(`{"formatVersion":"2.0","result":true,"data":{"formatVersion":"2.0","data":[],"pageNum":1,"pageSize":20,"next":false},"err":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	withOfficialStoreBackendBaseURL(t, server.URL)
+	manager := NewStoreManager(&Dice{})
+	if _, err := manager.StoreQueryPage(StoreQueryPageParams{}); err != nil {
+		t.Fatalf("StoreQueryPage() error = %v", err)
+	}
+
+	query := <-pageQuery
+	if _, exists := query["pageNum"]; exists {
+		t.Fatalf("pageNum query = %q, want omitted default", query["pageNum"])
+	}
+	if _, exists := query["pageSize"]; exists {
+		t.Fatalf("pageSize query = %q, want omitted default", query["pageSize"])
+	}
+}
+
 func TestStoreManagerFindPackageMatchesByIDAndVersionAfterRefreshInstalled(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
