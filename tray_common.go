@@ -14,9 +14,10 @@ import (
 const defaultTrayTooltip = "海豹TRPG骰点核心"
 
 type trayAccountMenu struct {
-	root       *systray.MenuItem
-	addAccount *systray.MenuItem
-	account    []*systray.MenuItem
+	root                *systray.MenuItem
+	addAccount          *systray.MenuItem
+	account             []*systray.MenuItem
+	openAccountSettings func()
 }
 
 func formatTrayTooltip(dm *dice.DiceManager, version, port string) string {
@@ -30,8 +31,9 @@ func formatTrayTooltip(dm *dice.DiceManager, version, port string) string {
 func startTrayAccountMenu(dm *dice.DiceManager, openAccountSettings func()) {
 	root := systray.AddMenuItem("账号列表", "查看已配置的平台账号")
 	menu := &trayAccountMenu{
-		root:       root,
-		addAccount: root.AddSubMenuItem("添加账号", "打开账号设置"),
+		root:                root,
+		addAccount:          root.AddSubMenuItem("添加账号", "打开账号设置"),
+		openAccountSettings: openAccountSettings,
 	}
 
 	go func() {
@@ -55,7 +57,11 @@ func (menu *trayAccountMenu) refresh(instances []*dice.Dice) {
 
 	for len(menu.account) < len(titles) {
 		item := menu.root.AddSubMenuItem(titles[len(menu.account)], "")
-		item.Disable()
+		go func(item *systray.MenuItem) {
+			for range item.ClickedCh {
+				menu.openAccountSettings()
+			}
+		}(item)
 		menu.account = append(menu.account, item)
 	}
 
