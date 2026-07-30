@@ -23,7 +23,7 @@ func BenchmarkDiceRandomSourceUint64(b *testing.B) {
 
 	for _, mode := range modes {
 		b.Run(string(mode), func(b *testing.B) {
-			src, err := newDiceSourceForMode(mode)
+			src, err := newDiceSourceForMode(mode, nil)
 			if err != nil {
 				b.Fatalf("newDiceSourceForMode(%s) error = %v", mode, err)
 			}
@@ -46,7 +46,7 @@ func BenchmarkDiceRandomSourceRollD100(b *testing.B) {
 
 	for _, mode := range modes {
 		b.Run(string(mode), func(b *testing.B) {
-			src, err := newDiceSourceForMode(mode)
+			src, err := newDiceSourceForMode(mode, nil)
 			if err != nil {
 				b.Fatalf("newDiceSourceForMode(%s) error = %v", mode, err)
 			}

@@ -984,7 +984,7 @@ func collectGameSystemTemplateFiles(templateDir string) ([]string, error) {
 	return files, nil
 }
 
-// generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID、堆栈信息和国密、本地熵源组成
+// generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID和运行时堆栈信息混合得到
 func generateRandSeed() uint64 {
 	timestamp := time.Now().UnixNano()
 

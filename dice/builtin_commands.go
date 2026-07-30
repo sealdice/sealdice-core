@@ -2171,7 +2171,12 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			ReplyToSender(ctx, msg, ctx.Dice.formatCurrentDiceRandomModeCommandText())
+			mode := ctx.Dice.getDiceRandomMode()
+			var src ds.DiceSource
+			if mode == DiceRandomModeNIST {
+				src = ctx.Dice.getSystemDiceSource()
+			}
+			ReplyToSender(ctx, msg, formatDiceRandomModeCommandText(mode, src))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}

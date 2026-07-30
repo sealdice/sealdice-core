@@ -35,7 +35,6 @@ const (
 )
 
 type diceRandomModeSpec struct {
-	mode        DiceRandomMode
 	label       string
 	algorithm   string
 	standard    string
@@ -57,21 +56,25 @@ type pcgDiceSource struct {
 	pcg *randv2.PCG
 }
 
-type diceReseeder interface {
-	Reseed(additionalInput []byte) error
-}
-
 func (s *readerDiceSource) Uint64() uint64 {
 	s.mu.Lock()
 	if s.reader == nil {
-		fallback := s.ensureFallbackLocked()
+		fallback := s.fallback
+		if fallback == nil {
+			fallback = newPCGDiceSource(generateRandSeed())
+			s.fallback = fallback
+		}
 		s.mu.Unlock()
 		return fallback.Uint64()
 	}
 
 	var data [8]byte
 	if _, err := io.ReadFull(s.reader, data[:]); err != nil {
-		fallback := s.ensureFallbackLocked()
+		fallback := s.fallback
+		if fallback == nil {
+			fallback = newPCGDiceSource(generateRandSeed())
+			s.fallback = fallback
+		}
 		s.reader = nil
 		spec := s.spec
 		logger := s.logger
@@ -90,13 +93,6 @@ func (s *readerDiceSource) Uint64() uint64 {
 	}
 	s.mu.Unlock()
 	return binary.BigEndian.Uint64(data[:])
-}
-
-func (s *readerDiceSource) ensureFallbackLocked() ds.DiceSource {
-	if s.fallback == nil {
-		s.fallback = newPCGDiceSource(generateRandSeed())
-	}
-	return s.fallback
 }
 
 func newPCGDiceSource(seed uint64) ds.StatefulDiceSource {
@@ -137,13 +133,11 @@ func normalizeDiceRandomMode(raw string) DiceRandomMode {
 	}
 }
 
-func supportedDiceRandomModes() []DiceRandomMode {
-	return []DiceRandomMode{
-		DiceRandomModePCG,
-		DiceRandomModeGM,
-		DiceRandomModeNIST,
-		DiceRandomModeCrypto,
-	}
+var supportedDiceRandomModes = []DiceRandomMode{
+	DiceRandomModePCG,
+	DiceRandomModeGM,
+	DiceRandomModeNIST,
+	DiceRandomModeCrypto,
 }
 
 func parseDiceRandomModeStrict(raw string) (DiceRandomMode, bool) {
@@ -165,7 +159,6 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 	switch mode {
 	case DiceRandomModeGM:
 		return diceRandomModeSpec{
-			mode:      mode,
 			label:     "GM 国密",
 			algorithm: "SM3 Hash DRBG",
 			standard:  "GM/T 0105-2021（并结合 SP 800-90B 健康检测）",
@@ -176,7 +169,6 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 		}
 	case DiceRandomModeNIST:
 		return diceRandomModeSpec{
-			mode:      mode,
 			label:     "NIST",
 			algorithm: "AES-CTR-DRBG",
 			standard:  "NIST SP 800-90A Rev.1（启用 prediction resistance、自检、连续健康检测与主动重播种策略）",
@@ -187,7 +179,6 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 		}
 	case DiceRandomModeCrypto:
 		return diceRandomModeSpec{
-			mode:      mode,
 			label:     "系统级随机数",
 			algorithm: "操作系统原生随机数接口",
 			standard:  "Linux 默认 getrandom(2)，老版本回退 /dev/urandom；Windows 使用 ProcessPrng API DRBG",
@@ -201,7 +192,6 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 		fallthrough
 	default:
 		return diceRandomModeSpec{
-			mode:      DiceRandomModePCG,
 			label:     "默认 PCG",
 			algorithm: "PCG",
 			standard:  "通过 TestU01、PractRand 等常见随机性测试",
@@ -213,58 +203,16 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 	}
 }
 
-func mixGMEntropyIntoNISTReader(reader diceReseeder, read func([]byte) (int, error)) (err error) {
-	buf := make([]byte, gmEntropyMixSize)
-	defer clear(buf)
-
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("read gm entropy panic: %v", r)
-		}
-	}()
-
-	n, err := read(buf)
-	if err != nil {
-		return fmt.Errorf("read gm entropy: %w", err)
-	}
-	if n != len(buf) {
-		return fmt.Errorf("read gm entropy: short read %d/%d", n, len(buf))
-	}
-	if err := reader.Reseed(buf); err != nil {
-		return fmt.Errorf("reseed nist reader with gm entropy: %w", err)
-	}
-	return nil
-}
-
-func diceSourceToGojaRandFloat64(src ds.DiceSource) float64 {
-	if src == nil {
-		src = randSource
-	}
-	return float64(src.Uint64()>>11) * gojaRandScale
-}
-
 func (d *Dice) newGojaRandSource() goja.RandSource {
 	return func() float64 {
 		if d == nil {
-			return diceSourceToGojaRandFloat64(nil)
+			return float64(randSource.Uint64()>>11) * gojaRandScale
 		}
-		return diceSourceToGojaRandFloat64(d.getSystemDiceSource())
+		return float64(d.getSystemDiceSource().Uint64()>>11) * gojaRandScale
 	}
 }
 
-func getDiceSourceRuntimeNote(src ds.DiceSource) string {
-	readerSrc, ok := src.(*readerDiceSource)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(readerSrc.runtimeNote)
-}
-
-func newDiceSourceForMode(mode DiceRandomMode) (ds.DiceSource, error) {
-	return newDiceSourceForModeWithLogger(mode, nil)
-}
-
-func newDiceSourceForModeWithLogger(mode DiceRandomMode, logger *zap.SugaredLogger) (ds.DiceSource, error) {
+func newDiceSourceForMode(mode DiceRandomMode, logger *zap.SugaredLogger) (ds.DiceSource, error) {
 	spec := getDiceRandomModeSpec(mode)
 	switch mode {
 	case DiceRandomModeGM:
@@ -284,11 +232,34 @@ func newDiceSourceForModeWithLogger(mode DiceRandomMode, logger *zap.SugaredLogg
 		if err != nil {
 			return nil, err
 		}
-		if err := mixGMEntropyIntoNISTReader(reader, gmrand.Read); err != nil && logger != nil {
-			logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: %v", err)
-		} else if err == nil {
-			runtimeNote = "启动时额外注入了基于 GM/T 0105-2021、SM3 Hash DRBG 的国密随机源输出，作为 reseed seed material 的附加输入，在密码学上进一步扩充了熵输入强度。"
+
+		buf := make([]byte, gmEntropyMixSize)
+		n := 0
+		readErr := func() (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("read gm entropy panic: %v", r)
+				}
+			}()
+			n, err = gmrand.Read(buf)
+			return err
+		}()
+		if readErr == nil && n == len(buf) {
+			if err := reader.Reseed(buf); err != nil {
+				if logger != nil {
+					logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: reseed nist reader with gm entropy: %v", err)
+				}
+			} else {
+				runtimeNote = "启动时额外注入了基于 GM/T 0105-2021、SM3 Hash DRBG 的国密随机源输出，作为 reseed seed material 的附加输入，在密码学上进一步扩充了熵输入强度。"
+			}
+		} else if logger != nil {
+			if readErr != nil {
+				logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: read gm entropy: %v", readErr)
+			} else {
+				logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: read gm entropy: short read %d/%d", n, len(buf))
+			}
 		}
+		clear(buf)
 		return &readerDiceSource{reader: reader, spec: spec, logger: logger, runtimeNote: runtimeNote}, nil
 	case DiceRandomModeCrypto:
 		return ds.NewCryptoDiceSource(), nil
@@ -304,7 +275,7 @@ func (d *Dice) getDiceRandomMode() DiceRandomMode {
 }
 
 func (d *Dice) newDiceSource() ds.DiceSource {
-	src, err := newDiceSourceForModeWithLogger(d.getDiceRandomMode(), d.Logger)
+	src, err := newDiceSourceForMode(d.getDiceRandomMode(), d.Logger)
 	if err != nil {
 		panic(fmt.Errorf("dice random mode %q init failed: %w", d.getDiceRandomMode(), err))
 	}
@@ -320,20 +291,22 @@ func (d *Dice) getSystemDiceSource() ds.DiceSource {
 	if d.systemDiceSource == nil || d.systemDiceMode != mode {
 		d.systemDiceSource = d.newDiceSource()
 		d.systemDiceMode = mode
-		d.logDiceRandomMode(mode)
+		d.logDiceRandomMode(mode, d.systemDiceSource)
 	}
 	return d.systemDiceSource
 }
 
-func (d *Dice) logDiceRandomMode(mode DiceRandomMode) {
+func (d *Dice) logDiceRandomMode(mode DiceRandomMode, src ds.DiceSource) {
 	if d == nil || d.Logger == nil {
 		return
 	}
 	spec := getDiceRandomModeSpec(mode)
 	details := spec.description
 	if mode == DiceRandomModeNIST {
-		if note := getDiceSourceRuntimeNote(d.systemDiceSource); note != "" {
-			details += " 熵补充: " + note
+		if readerSrc, ok := src.(*readerDiceSource); ok {
+			if note := strings.TrimSpace(readerSrc.runtimeNote); note != "" {
+				details += " 熵补充: " + note
+			}
 		}
 	}
 	d.Logger.Infof(
@@ -345,11 +318,15 @@ func (d *Dice) logDiceRandomMode(mode DiceRandomMode) {
 	)
 }
 
-func formatDiceRandomModeCommandText(mode DiceRandomMode, runtimeNote string) string {
+func formatDiceRandomModeCommandText(mode DiceRandomMode, src ds.DiceSource) string {
 	spec := getDiceRandomModeSpec(mode)
 	description := spec.description
-	if runtimeNote != "" {
-		description += "\n熵补充: " + runtimeNote
+	if mode == DiceRandomModeNIST {
+		if readerSrc, ok := src.(*readerDiceSource); ok {
+			if note := strings.TrimSpace(readerSrc.runtimeNote); note != "" {
+				description += "\n熵补充: " + note
+			}
+		}
 	}
 	return fmt.Sprintf(
 		"当前随机模式: %s\n算法: %s\n规范: %s\n特点: %s",
@@ -360,18 +337,9 @@ func formatDiceRandomModeCommandText(mode DiceRandomMode, runtimeNote string) st
 	)
 }
 
-func (d *Dice) formatCurrentDiceRandomModeCommandText() string {
-	mode := d.getDiceRandomMode()
-	runtimeNote := ""
-	if mode == DiceRandomModeNIST {
-		runtimeNote = getDiceSourceRuntimeNote(d.getSystemDiceSource())
-	}
-	return formatDiceRandomModeCommandText(mode, runtimeNote)
-}
-
 func formatSupportedDiceRandomModesText() string {
-	lines := make([]string, 0, len(supportedDiceRandomModes()))
-	for _, mode := range supportedDiceRandomModes() {
+	lines := make([]string, 0, len(supportedDiceRandomModes))
+	for _, mode := range supportedDiceRandomModes {
 		spec := getDiceRandomModeSpec(mode)
 		lines = append(lines, fmt.Sprintf("%s // %s", mode, spec.shortDesc))
 	}

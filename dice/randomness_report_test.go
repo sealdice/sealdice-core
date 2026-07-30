@@ -34,7 +34,7 @@ func TestGenerateRandomnessSamples(t *testing.T) {
 			t.Fatalf("mkdir %s: %v", modeDir, err)
 		}
 		for i := range sampleCount {
-			src, err := newDiceSourceForMode(mode)
+			src, err := newDiceSourceForMode(mode, nil)
 			if err != nil {
 				t.Fatalf("newDiceSourceForMode(%s): %v", mode, err)
 			}
