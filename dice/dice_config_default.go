@@ -14,7 +14,7 @@ var DefaultConfig = Config{
 	BaseConfig{
 		CommandCompatibleMode:    true, // 一直为true即可
 		LastSavedTime:            nil,
-		NoticeIDs:                []string{},
+		NoticeIDs:                []string{"UI:1001"},
 		OnlyLogCommandInGroup:    false,
 		OnlyLogCommandInPrivate:  false,
 		VersionCode:              ConfigVersionCode,

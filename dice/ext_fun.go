@@ -447,24 +447,23 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
 				if self.Config.MailEnable {
-					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
+					if err := ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote, NoticeTypeSend); err != nil {
+						ctx.Dice.Logger.Errorf("留言邮件发送失败: %v", err)
+					}
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				for _, uid := range ctx.Dice.DiceMasters {
-					text := ""
+				text := ""
+				if ctx.IsCurGroupBotOn {
+					text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
+				} else {
+					text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
+				}
+				text += cmdArgs.CleanArgs
 
-					if ctx.IsCurGroupBotOn {
-						text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
-					} else {
-						text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
-					}
-
-					text += cmdArgs.CleanArgs
-					if strings.Contains(uid, "Group") || strings.Contains(uid, "Channel") || strings.Contains(uid, "Guild") {
-						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
-					} else {
-						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
+				for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, NoticeTypeSend) {
+					if !sendNoticeTargetCrossPlatform(ctx, target, text) {
+						ctx.Dice.Logger.Errorf("未能向通知目标 %s 发送留言", target.ID)
 					}
 				}
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))

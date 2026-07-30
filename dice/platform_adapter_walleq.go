@@ -274,7 +274,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			}()
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupID)
 			log.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeGroup)
 		}
 
 		// 入群的另一种情况: 管理员审核
@@ -426,14 +426,14 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 					txt := fmt.Sprintf("被踢出群: 在QQ群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, event.GroupID, userName, n.OperatorID, extra)
 					log.Info(txt)
-					ctx.Notice(txt)
+					ctx.Notice(txt, NoticeTypeGroup)
 				}
 			case "group_member_ban": // 被禁言
 				if event.UserID == event.Self.UserID {
 					ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, msg.GroupID, ctx)
 					txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, msg.GroupID, n.Duration, userName, n.OperatorID)
 					log.Info(txt)
-					ctx.Notice(txt)
+					ctx.Notice(txt, NoticeTypeGroup)
 				}
 				return
 			case "group_message_delete": // 消息撤回
@@ -529,7 +529,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 				txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", event.UserID, comment, willAccept, extra)
 				log.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, NoticeTypeInvite)
 
 				// 忽略邀请
 				if pa.IgnoreFriendRequest {
@@ -560,7 +560,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 				userName := dm.TryGetUserName(uid)
 				txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", groupName, event.GroupID, userName, event.UserID)
 				log.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, NoticeTypeInvite)
 				// tempInviteMap[msg.GroupId] = time.Now().Unix()
 				// tempInviteMap2[msg.GroupId] = uid
 

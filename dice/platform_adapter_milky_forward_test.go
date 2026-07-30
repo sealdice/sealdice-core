@@ -19,9 +19,10 @@ type milkyForwardRequest struct {
 		Type string `json:"type"`
 		Data struct {
 			Messages []struct {
-				UserID   int64  `json:"user_id"`
-				Name     string `json:"name"`
-				Segments []struct {
+				UserID     int64  `json:"user_id"`
+				SenderName string `json:"sender_name"`
+				LegacyName string `json:"name"`
+				Segments   []struct {
 					Type string `json:"type"`
 					Data struct {
 						Text string `json:"text"`
@@ -185,8 +186,11 @@ func TestPlatformAdapterMilkySendForwardMessage(t *testing.T) {
 				t.Fatalf("forward node count = %d, want %d", len(messages), len(nodes))
 			}
 			for i, node := range messages {
-				if node.UserID != 10010 || node.Name != "MilkyBot" {
-					t.Errorf("node %d sender = (%d, %q), want (10010, %q)", i, node.UserID, node.Name, "MilkyBot")
+				if node.UserID != 10010 || node.SenderName != "MilkyBot" {
+					t.Errorf("node %d sender = (%d, %q), want (10010, %q)", i, node.UserID, node.SenderName, "MilkyBot")
+				}
+				if node.LegacyName != "" {
+					t.Errorf("node %d contains deprecated name field %q", i, node.LegacyName)
 				}
 				if len(node.Segments) != 1 || node.Segments[0].Type != string(milky.Text) || node.Segments[0].Data.Text != nodes[i].Data.Content {
 					t.Errorf("node %d segments = %#v, want text %q", i, node.Segments, nodes[i].Data.Content)
