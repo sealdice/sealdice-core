@@ -356,7 +356,7 @@ func getDiceRandomModeSpec(mode DiceRandomMode) diceRandomModeSpec {
 			description: "直接使用操作系统提供的密码学安全随机数接口，随机性由内核或系统安全子系统维护的 CRNG/CSPRNG 提供。" +
 				"Linux 路径优先走 getrandom(2) 从内核 CRNG 取数，旧环境可能回退到 /dev/urandom；" +
 				"Windows 路径调用 ProcessPrng API，从系统级 DRBG 取数。" +
-				"安全边界清晰、平台集成度高，性能通常介于纯伪随机与较重型标准 DRBG 实现之间。",
+				"安全边界清晰、平台集成度高，性能通常介于高吞吐 PCG 类置换同余生成器与较重型标准 DRBG 实现之间。",
 		}
 	case DiceRandomModeHybrid:
 		return diceRandomModeSpec{
