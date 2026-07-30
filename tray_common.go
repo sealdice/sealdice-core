@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/fy0/systray"
@@ -11,7 +12,26 @@ import (
 	"sealdice-core/dice"
 )
 
-const defaultTrayTooltip = "海豹TRPG骰点核心"
+const (
+	defaultTrayTooltip = "海豹TRPG骰点核心"
+	defaultTrayPort    = "3211"
+)
+
+var (
+	trayPort atomic.Pointer[string]
+)
+
+func getTrayPort() string {
+	port := trayPort.Load()
+	if port == nil {
+		return defaultTrayPort
+	}
+	return *port
+}
+
+func setTrayPort(port string) {
+	trayPort.Store(&port)
+}
 
 type trayAccountMenu struct {
 	root                *systray.MenuItem
