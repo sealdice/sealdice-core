@@ -918,7 +918,7 @@ func (pm *PackageManager) installFromSourceContext(ctx context.Context, pkgPath 
 	return nil
 }
 
-func (pm *PackageManager) prepareDownloadedPackageContext(ctx context.Context, url string, options PackageDownloadOptions, targetDir, pattern string, forInstall bool) (string, uint64, error) {
+func (pm *PackageManager) prepareDownloadedPackageContext(ctx context.Context, url string, options PackageDownloadOptions, targetDir, pattern string) (string, uint64, error) {
 	if strings.TrimSpace(url) == "" {
 		return "", 0, errors.New("未提供下载链接")
 	}
@@ -929,7 +929,7 @@ func (pm *PackageManager) prepareDownloadedPackageContext(ctx context.Context, u
 		return "", 0, errors.New("创建临时目录失败: " + err.Error())
 	}
 	if options.ExpectedSize > 0 {
-		if err := pm.checkIncomingPackageEstimate(targetDir, options.ExpectedSize, forInstall); err != nil {
+		if err := pm.checkIncomingPackageEstimate(targetDir, options.ExpectedSize); err != nil {
 			return "", 0, err
 		}
 	}
@@ -960,7 +960,7 @@ func (pm *PackageManager) prepareDownloadedPackageContext(ctx context.Context, u
 	expectedSize := options.ExpectedSize
 	if resp.ContentLength > 0 {
 		expectedSize = uint64(resp.ContentLength)
-		if diskErr := pm.checkIncomingPackageEstimate(targetDir, expectedSize, forInstall); diskErr != nil {
+		if diskErr := pm.checkIncomingPackageEstimate(targetDir, expectedSize); diskErr != nil {
 			return "", 0, diskErr
 		}
 	}
@@ -988,12 +988,11 @@ func (pm *PackageManager) prepareDownloadedPackageContext(ctx context.Context, u
 	return path, written, nil
 }
 
-func (pm *PackageManager) checkIncomingPackageEstimate(targetDir string, compressedSize uint64, forInstall bool) error {
-	requirements := []packageDiskRequirement{{path: targetDir, bytes: compressedSize}}
-	if forInstall {
-		requirements = append(requirements, packageDiskRequirement{path: pm.getCachePackagesPath(), bytes: compressedSize})
-	}
-	return pm.checkPackageDiskRequirements(requirements...)
+func (pm *PackageManager) checkIncomingPackageEstimate(targetDir string, compressedSize uint64) error {
+	return pm.checkPackageDiskRequirements(
+		packageDiskRequirement{path: targetDir, bytes: compressedSize},
+		packageDiskRequirement{path: pm.getCachePackagesPath(), bytes: compressedSize},
+	)
 }
 
 // InstallFromStream streams an uploaded .sealpack into managed staging, then installs it.
@@ -1022,12 +1021,7 @@ func (pm *PackageManager) InstallFromStreamContext(ctx context.Context, src io.R
 	return pm.installFromSourceContext(ctx, stagedPath, true)
 }
 
-// PreviewFromStream streams an uploaded .sealpack into a temporary file, then inspects it.
-func (pm *PackageManager) PreviewFromStream(src io.Reader) (*PackageUploadPreview, error) {
-	return pm.PreviewFromStreamContext(context.Background(), src)
-}
-
-// PreviewFromStreamContext is the cancellable form of PreviewFromStream.
+// PreviewFromStreamContext streams an uploaded .sealpack into a temporary file, then inspects it.
 func (pm *PackageManager) PreviewFromStreamContext(ctx context.Context, src io.Reader) (*PackageUploadPreview, error) {
 	if src == nil {
 		return nil, errors.New("未提供上传内容")
@@ -1044,19 +1038,6 @@ func (pm *PackageManager) PreviewFromStreamContext(ctx context.Context, src io.R
 	}
 	defer os.Remove(path)
 	return pm.previewFromSourceContext(ctx, path)
-}
-
-func (pm *PackageManager) Preview(pkgPath string) (*PackageUploadPreview, error) {
-	return pm.PreviewContext(context.Background(), pkgPath)
-}
-
-// PreviewContext inspects a managed package source with cancellation support.
-func (pm *PackageManager) PreviewContext(ctx context.Context, pkgPath string) (*PackageUploadPreview, error) {
-	validatedPath, err := pm.validateManagedPackageSource(pkgPath)
-	if err != nil {
-		return nil, err
-	}
-	return pm.previewFromSourceContext(ctx, validatedPath)
 }
 
 func (pm *PackageManager) previewFromSourceContext(ctx context.Context, pkgPath string) (*PackageUploadPreview, error) {
@@ -2398,42 +2379,12 @@ func (pm *PackageManager) InstallFromURLWithOptionsContext(ctx context.Context, 
 	if dirErr := pm.ensurePackageDirs(); dirErr != nil {
 		return dirErr
 	}
-	stagedPath, _, err := pm.prepareDownloadedPackageContext(ctx, url, options, pm.getPackageStagingDir(), "package_download_*.part", true)
+	stagedPath, _, err := pm.prepareDownloadedPackageContext(ctx, url, options, pm.getPackageStagingDir(), "package_download_*.part")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(stagedPath)
 	return pm.installFromSourceContext(ctx, stagedPath, true)
-}
-
-// PreviewFromURL 从 URL 下载扩展包并返回包内容预览。
-func (pm *PackageManager) PreviewFromURL(url string, hashes map[string]string) (*PackageUploadPreview, error) {
-	return pm.PreviewFromURLContext(context.Background(), url, hashes)
-}
-
-// PreviewFromURLContext is the cancellable form of PreviewFromURL.
-func (pm *PackageManager) PreviewFromURLContext(ctx context.Context, url string, hashes map[string]string) (*PackageUploadPreview, error) {
-	return pm.PreviewFromURLWithOptionsContext(ctx, url, PackageDownloadOptions{Hashes: hashes})
-}
-
-// PreviewFromURLWithOptionsContext downloads a package into temporary storage and inspects it.
-func (pm *PackageManager) PreviewFromURLWithOptionsContext(ctx context.Context, url string, options PackageDownloadOptions) (*PackageUploadPreview, error) {
-	release, err := acquirePackageOperation(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
-	tmpPath, _, err := pm.prepareDownloadedPackageContext(ctx, url, options, pm.getPackageTempDir(), "package_preview_download_*.sealpack", false)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if removeErr := os.Remove(tmpPath); removeErr != nil && pm.parent != nil && pm.parent.Logger != nil {
-			pm.parent.Logger.Warnf("清理临时扩展包文件失败 %s: %v", tmpPath, removeErr)
-		}
-	}()
-
-	return pm.previewFromSourceContext(ctx, tmpPath)
 }
 
 func acquirePackageOperation(ctx context.Context) (func(), error) {

@@ -419,36 +419,6 @@ func installStorePackageContext(ctx context.Context, target *dice.StorePackage, 
 	return "installed", nil
 }
 
-func storePreviewDownload(c echo.Context) error {
-	if !doAuth(c) {
-		return c.JSON(http.StatusForbidden, "auth")
-	}
-	var params struct {
-		ID      string `json:"id"`
-		Version string `json:"version"`
-	}
-	if err := c.Bind(&params); err != nil {
-		return Error(&c, err.Error(), Response{})
-	}
-
-	target, ok := myDice.StoreManager.FindPackage(params.ID, params.Version)
-	if !ok {
-		return Error(&c, "未找到已缓存的商店包，请先刷新商店列表后重试", Response{})
-	}
-
-	preview, err := myDice.PackageManager.PreviewFromURLWithOptionsContext(c.Request().Context(), target.Download.URL, dice.PackageDownloadOptions{
-		Hashes:       target.Download.Hash,
-		ExpectedSize: target.Download.Size,
-	})
-	if err != nil {
-		return Error(&c, err.Error(), Response{})
-	}
-
-	return Success(&c, Response{
-		"data": preview,
-	})
-}
-
 func storeRating(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, "auth")

@@ -398,7 +398,7 @@ func TestPackageManagerInstallFromStream(t *testing.T) {
 	}
 }
 
-func TestPackageManagerPreviewFromStream(t *testing.T) {
+func TestPackageManagerPreviewFromStreamContext(t *testing.T) {
 	_, pm := newTestPackageManager(t)
 	if err := pm.Init(); err != nil {
 		t.Fatalf("Init() error = %v", err)
@@ -418,9 +418,9 @@ func TestPackageManagerPreviewFromStream(t *testing.T) {
 	}
 	defer src.Close()
 
-	preview, err := pm.PreviewFromStream(src)
+	preview, err := pm.PreviewFromStreamContext(context.Background(), src)
 	if err != nil {
-		t.Fatalf("PreviewFromStream() error = %v", err)
+		t.Fatalf("PreviewFromStreamContext() error = %v", err)
 	}
 	if preview.Manifest.Package.ID != pkgID {
 		t.Fatalf("preview package ID = %q, want %q", preview.Manifest.Package.ID, pkgID)
@@ -436,18 +436,18 @@ func TestPackageManagerPreviewFromStream(t *testing.T) {
 	}
 }
 
-func TestPackageManagerPreviewFromURL(t *testing.T) {
+func TestPackageManagerInstallFromURL(t *testing.T) {
 	_, pm := newTestPackageManager(t)
 	if err := pm.Init(); err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
 
-	pkgID := "alice/preview-url"
+	pkgID := "alice/install-url"
 	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
 		"scripts": {"scripts/*.js"},
 		"reply":   {"reply/*.yaml"},
 	}, map[string]string{
-		"scripts/main.js": "// preview-url",
+		"scripts/main.js": "// install-url",
 		"reply/main.yaml": "replies: []",
 	})
 	data, err := os.ReadFile(archive)
@@ -460,22 +460,19 @@ func TestPackageManagerPreviewFromURL(t *testing.T) {
 	}))
 	defer server.Close()
 
-	preview, err := pm.PreviewFromURL(server.URL, map[string]string{"sha256": hex.EncodeToString(sum[:])})
-	if err != nil {
-		t.Fatalf("PreviewFromURL() error = %v", err)
+	if err := pm.InstallFromURL(server.URL, map[string]string{"sha256": hex.EncodeToString(sum[:])}); err != nil {
+		t.Fatalf("InstallFromURL() error = %v", err)
 	}
-	if preview.Manifest.Package.ID != pkgID {
-		t.Fatalf("preview package ID = %q, want %q", preview.Manifest.Package.ID, pkgID)
+	pkg, ok := pm.Get(pkgID)
+	if !ok || pkg == nil || pkg.Manifest == nil {
+		t.Fatalf("expected package %s to be installed", pkgID)
 	}
-	if preview.FileCount != 3 {
-		t.Fatalf("FileCount = %d, want 3", preview.FileCount)
-	}
-	if preview.ContentCounts["scripts"] != 1 || preview.ContentCounts["reply"] != 1 {
-		t.Fatalf("ContentCounts = %#v, want scripts/reply counts", preview.ContentCounts)
+	if pkg.Manifest.Package.ID != pkgID {
+		t.Fatalf("installed package ID = %q, want %q", pkg.Manifest.Package.ID, pkgID)
 	}
 }
 
-func TestPackageManagerPreviewFromURLRejectsKnownSizeBeforeRequest(t *testing.T) {
+func TestPackageManagerInstallFromURLRejectsKnownSizeBeforeRequest(t *testing.T) {
 	_, pm := newTestPackageManager(t)
 	if err := pm.Init(); err != nil {
 		t.Fatalf("Init() error = %v", err)
@@ -493,16 +490,16 @@ func TestPackageManagerPreviewFromURLRejectsKnownSizeBeforeRequest(t *testing.T)
 	}))
 	defer server.Close()
 
-	_, err := pm.PreviewFromURLWithOptionsContext(context.Background(), server.URL, PackageDownloadOptions{ExpectedSize: 1})
+	err := pm.InstallFromURLWithOptionsContext(context.Background(), server.URL, PackageDownloadOptions{ExpectedSize: 1})
 	if err == nil || !strings.Contains(err.Error(), "磁盘空间不足") {
-		t.Fatalf("PreviewFromURLWithOptionsContext() error = %v, want disk rejection", err)
+		t.Fatalf("InstallFromURLWithOptionsContext() error = %v, want disk rejection", err)
 	}
 	if requests.Load() != 0 {
 		t.Fatalf("server received %d requests, want 0", requests.Load())
 	}
 }
 
-func TestPackageManagerPreviewFromURLStopsAfterIdleTimeout(t *testing.T) {
+func TestPackageManagerInstallFromURLStopsAfterIdleTimeout(t *testing.T) {
 	_, pm := newTestPackageManager(t)
 	if err := pm.Init(); err != nil {
 		t.Fatalf("Init() error = %v", err)
@@ -518,9 +515,9 @@ func TestPackageManagerPreviewFromURLStopsAfterIdleTimeout(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := pm.PreviewFromURLContext(context.Background(), server.URL, nil)
+	err := pm.InstallFromURLContext(context.Background(), server.URL, nil)
 	if err == nil || !strings.Contains(err.Error(), "没有接收到数据") {
-		t.Fatalf("PreviewFromURLContext() error = %v, want idle timeout", err)
+		t.Fatalf("InstallFromURLContext() error = %v, want idle timeout", err)
 	}
 }
 
