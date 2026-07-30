@@ -134,7 +134,13 @@ func DiceConfigSet(c echo.Context) error {
 
 	config := &myDice.Config
 	if val, ok := jsonMap["noticeIds"]; ok {
-		config.NoticeIDs = stringConvert(val)
+		rawTargets := stringConvert(val)
+		config.NoticeIDs = make([]string, 0, len(rawTargets))
+		for _, rawTarget := range rawTargets {
+			if target := dice.ParseNoticeTarget(rawTarget); target.ID != "" {
+				config.NoticeIDs = append(config.NoticeIDs, target.String())
+			}
+		}
 	}
 
 	if val, ok := jsonMap["defaultCocRuleIndex"]; ok { //nolint:nestif
@@ -499,7 +505,7 @@ func DiceMailTest(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 
-	err := myDice.SendMail("", dice.MailTest)
+	err := myDice.SendMail("", dice.MailTest, dice.NoticeTypeSystem)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}

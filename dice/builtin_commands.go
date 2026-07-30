@@ -239,7 +239,7 @@ func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGrou
 	txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
 		groupName, targetGroupID, userName, msg.Sender.UserID)
 	d.Logger.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeGroup)
 
 	time.Sleep(3 * time.Second)
 	if targetGroup != nil {

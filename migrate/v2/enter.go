@@ -10,6 +10,7 @@ import (
 	v150 "sealdice-core/migrate/v2/v150"
 	v151 "sealdice-core/migrate/v2/v151"
 	v160 "sealdice-core/migrate/v2/v160"
+	v161 "sealdice-core/migrate/v2/v161"
 	"sealdice-core/utils/constant"
 	operator "sealdice-core/utils/dboperator/engine"
 	upgrade "sealdice-core/utils/upgrader"
@@ -40,6 +41,8 @@ func InitUpgrader(operator operator.DatabaseOperator) error {
 	mgr.Register(v160.V160LogIDZeroCleanMigration)
 	mgr.Register(v160.V160LogRawMsgIDIndexMigration)
 	mgr.Register(v160.V160LogSizeRepairMigration)
+	// v161注册
+	mgr.Register(v161.V161NoticeIDsMigration)
 	err := mgr.ApplyAll()
 	if err != nil {
 		return err
