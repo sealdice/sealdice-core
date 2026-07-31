@@ -142,6 +142,9 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		return "context invalid", false
 	}
 
+	// Permission changes must be visible immediately; cached member data can retain a stale role.
+	const bypassCache = true
+
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
 		if pa.sendEmitter == nil {
@@ -151,7 +154,7 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		if !ok {
 			return "cannot resolve bot qq id", false
 		}
-		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, false)
+		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, bypassCache)
 		if err != nil || memberInfo == nil {
 			if err != nil {
 				return fmt.Sprintf("get_group_member_info failed: %v", err), false
@@ -169,7 +172,7 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		if botIDRaw == "" || groupIDRaw == "" {
 			return "cannot resolve bot/group id", false
 		}
-		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
+		memberInfo := pa.getGroupMemberInfo(groupIDRaw, botIDRaw, bypassCache)
 		if memberInfo == nil {
 			return errGetGroupMemberInfoNil, false
 		}
@@ -179,7 +182,7 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		}
 		return role, true
 	case *PlatformAdapterMilky:
-		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
+		memberInfo, err := pa.getGroupMemberInfo(groupID, ctx.EndPoint.UserID, bypassCache)
 		if err != nil {
 			return fmt.Sprintf("get_group_member_info failed: %v", err), false
 		}

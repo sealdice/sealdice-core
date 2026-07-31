@@ -983,6 +983,10 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 }
 
 func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string) (*milky.GroupMemberInfo, error) {
+	return pa.getGroupMemberInfo(groupID, userID, false)
+}
+
+func (pa *PlatformAdapterMilky) getGroupMemberInfo(groupID string, userID string, noCache bool) (*milky.GroupMemberInfo, error) {
 	if pa == nil || pa.IntentSession == nil {
 		return nil, errors.New("milky session unavailable")
 	}
@@ -1001,7 +1005,7 @@ func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string
 	if err != nil {
 		return nil, fmt.Errorf("invalid milky user id %q: %w", userID, err)
 	}
-	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, false)
+	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, noCache)
 }
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {
