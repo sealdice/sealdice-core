@@ -111,7 +111,10 @@ func (d *Dice) JsInit() {
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
-		vm.SetRandSource(d.newGojaRandSource())
+		// 直接绑定进程内唯一全局随机源，避免再包一层无意义的适配。
+		vm.SetRandSource(func() float64 {
+			return float64(globalRandSource.Uint64()>>11) / (1 << 53)
+		})
 
 		// console 模块
 		console.Enable(vm)

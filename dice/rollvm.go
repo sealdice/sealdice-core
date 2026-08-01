@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"regexp"
 	"sort"
 	"strconv"
@@ -1274,7 +1273,7 @@ func (e *RollExpression) Evaluate(_ *Dice, ctx *MsgContext) (*VMStack, string, e
 			text := ""
 			sum := int64(0)
 			for range 4 {
-				n := rand.Int63()%3 - 1
+				n := int64(randIntnFromSource(globalRandSource, 3) - 1)
 				sum += n
 				switch n {
 				case -1:

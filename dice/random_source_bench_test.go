@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	ds "github.com/sealdice/dicescript"
+
+	randcore "sealdice-core/utils/random"
 )
 
 var (
@@ -23,9 +25,9 @@ func BenchmarkDiceRandomSourceUint64(b *testing.B) {
 
 	for _, mode := range modes {
 		b.Run(string(mode), func(b *testing.B) {
-			src, err := newDiceSourceForMode(mode, nil)
+			src, err := randcore.NewSourceForMode(mode, nil)
 			if err != nil {
-				b.Fatalf("newDiceSourceForMode(%s) error = %v", mode, err)
+				b.Fatalf("NewSourceForMode(%s) error = %v", mode, err)
 			}
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -46,9 +48,9 @@ func BenchmarkDiceRandomSourceRollD100(b *testing.B) {
 
 	for _, mode := range modes {
 		b.Run(string(mode), func(b *testing.B) {
-			src, err := newDiceSourceForMode(mode, nil)
+			src, err := randcore.NewSourceForMode(mode, nil)
 			if err != nil {
-				b.Fatalf("newDiceSourceForMode(%s) error = %v", mode, err)
+				b.Fatalf("NewSourceForMode(%s) error = %v", mode, err)
 			}
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -65,8 +67,8 @@ func BenchmarkNISTContextSourceBinding(b *testing.B) {
 	d := &Dice{Config: cfg}
 	ctx := &MsgContext{Dice: d}
 
-	b.Run("reuse_system_source", func(b *testing.B) {
-		benchSrcSink = d.getSystemDiceSource()
+	b.Run("reuse_global_source", func(b *testing.B) {
+		benchSrcSink = globalRandSource
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
@@ -78,11 +80,15 @@ func BenchmarkNISTContextSourceBinding(b *testing.B) {
 		}
 	})
 
-	b.Run("new_source_baseline", func(b *testing.B) {
+	b.Run("factory_baseline", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
-			benchSrcSink = d.newDiceSource()
+			var err error
+			benchSrcSink, err = randcore.NewSourceForMode(DiceRandomModeNIST, nil)
+			if err != nil {
+				b.Fatalf("NewSourceForMode(nist) error = %v", err)
+			}
 		}
 	})
 }

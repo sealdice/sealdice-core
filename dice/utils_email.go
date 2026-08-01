@@ -74,7 +74,7 @@ func (d *Dice) SendMailRow(subject string, to []string, content string, attachme
 	// NOTE(Xiangze Li): 按理说应当统一用DiceFotmatTmpl, 但是那样还得有一个MsgContext, 好复杂
 	diceName := "海豹核心"
 	if v := d.TextMap["核心:骰子名字"]; v != nil {
-		if s := v.Pick(); s != "" {
+		if s := pickChooserWithSource(v, globalRandSource); s != "" {
 			diceName = s
 		}
 	}

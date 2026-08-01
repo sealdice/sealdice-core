@@ -150,7 +150,7 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 				tmpVars[inner+".index"] = 0
 				return ""
 			}
-			index := c.Pick() // 取得权重
+			index := pickChooserWithSource(c, globalRandSource) // 取得权重
 			tmpVars[inner+".index"] = index
 			return lst[index]
 		}

@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	ds "github.com/sealdice/dicescript"
+
+	randcore "sealdice-core/utils/random"
 )
 
 func TestGenerateRandomnessSamples(t *testing.T) {
@@ -34,9 +36,9 @@ func TestGenerateRandomnessSamples(t *testing.T) {
 			t.Fatalf("mkdir %s: %v", modeDir, err)
 		}
 		for i := range sampleCount {
-			src, err := newDiceSourceForMode(mode, nil)
+			src, err := randcore.NewSourceForMode(mode, nil)
 			if err != nil {
-				t.Fatalf("newDiceSourceForMode(%s): %v", mode, err)
+				t.Fatalf("NewSourceForMode(%s): %v", mode, err)
 			}
 			buf := make([]byte, byteCount)
 			fillRandomnessBuffer(src, buf)

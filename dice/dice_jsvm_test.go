@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"go.uber.org/zap"
 )
 
 type countingDiceSource struct {
@@ -26,7 +25,6 @@ func (s *countingDiceSource) Uint64() uint64 {
 
 func TestJsInit_WhenExtLoopManagerNil_DoesNotPanic(t *testing.T) {
 	d := &Dice{
-		Logger: zap.NewNop().Sugar(),
 		BaseConfig: BaseConfig{
 			DataDir: t.TempDir(),
 		},
@@ -66,18 +64,23 @@ func TestJsInit_WhenExtLoopManagerNil_DoesNotPanic(t *testing.T) {
 	}
 }
 
-func TestJsInit_BindsGojaRandSourceToSystemDiceSource(t *testing.T) {
+func TestJsInit_BindsGojaRandSourceToGlobalRandSource(t *testing.T) {
 	src := &countingDiceSource{values: []uint64{1 << 63}}
+	installGlobalDiceSourceState(t, completeSourceMap(
+		sourceOverride{mode: DiceRandomModePCG, src: src},
+	), nil)
+	if _, err := globalRandSource.SetActive(DiceRandomModePCG); err != nil {
+		t.Fatalf("activate pcg source: %v", err)
+	}
 	d := &Dice{
-		Logger:           zap.NewNop().Sugar(),
-		Config:           NewConfig(nil),
-		systemDiceSource: src,
-		systemDiceMode:   DiceRandomModePCG,
+		Config: NewConfig(nil),
 	}
 	d.Config.DiceRandomMode = string(DiceRandomModePCG)
 
 	vm := goja.New()
-	vm.SetRandSource(d.newGojaRandSource())
+	vm.SetRandSource(func() float64 {
+		return float64(globalRandSource.Uint64()>>11) / (1 << 53)
+	})
 	var got float64
 	var runErr error
 	value, err := vm.RunString("Math.random()")

@@ -2159,7 +2159,7 @@ func (d *Dice) registerCoreCommands() {
 					points = parsedPoints
 				}
 
-				ReplyToSender(ctx, msg, formatDiceRandomModeGetText(points, ctx.Dice.Logger))
+				ReplyToSender(ctx, msg, globalRandSource.ReportGetText(points))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			if cmdArgs.IsArgEqual(1, "set") {
@@ -2179,13 +2179,13 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, formatDiceRandomModeSetInvalidModeText(rawMode))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				if err := getGlobalDiceSourceInitError(mode, ctx.Dice.Logger); err != nil {
+				if err := globalRandSource.InitError(mode); err != nil {
 					ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(mode, err))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				ctx.Dice.Config.DiceRandomMode = string(mode)
-				ctx.Dice.getSystemDiceSource()
+				_ = ctx.Dice.ActivateDiceRandomMode()
 				ctx.Dice.MarkModified()
 				ctx.Dice.Save(false)
 				ReplyToSender(ctx, msg, formatDiceRandomModeSetSuccessText(mode))
@@ -2193,8 +2193,7 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			mode := ctx.Dice.getDiceRandomMode()
-			src, effectiveMode, initErr := getGlobalDiceSource(mode, ctx.Dice.Logger)
-			ReplyToSender(ctx, msg, formatDiceRandomModeStatusText(mode, effectiveMode, src, initErr))
+			ReplyToSender(ctx, msg, globalRandSource.ReportStatusText(mode))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}

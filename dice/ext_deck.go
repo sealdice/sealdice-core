@@ -1043,15 +1043,28 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
-		if len(ctx.DeckPools[deckInfo][deckName].data) == 0 {
+		pool = ctx.DeckPools[deckInfo][deckName]
+		if pool == nil || len(pool.data) == 0 || pool.max < 1 {
 			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
 		pool = ctx.DeckPools[deckInfo][deckName]
 		if pool == nil {
-			return "", errors.New("牌组为空，可能尚未加载完成")
+			return "", errors.New("牌组无有效条目，请检查权重配置")
 		}
-		key = pool.PickWithSource(ctx.getDiceSource()).(string)
+		var pickErr error
+		key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+		if errors.Is(pickErr, errShuffleRandomPoolExhausted) {
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+			pool = ctx.DeckPools[deckInfo][deckName]
+			if pool == nil {
+				return "", errors.New("牌组无有效条目，请检查权重配置")
+			}
+			key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+		}
+		if pickErr != nil {
+			return "", fmt.Errorf("牌组抽取失败: %w", pickErr)
+		}
 	} else {
 		deckGroup := getDeckGroup(deckInfo, deckName)
 		if len(deckGroup) == 0 {
@@ -1131,8 +1144,10 @@ type ShuffleRandomPool struct {
 	max    int
 }
 
+var errShuffleRandomPoolExhausted = errors.New("shuffle random pool exhausted")
+
 func NewChooser(choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
-	return NewChooserWithSource(randSource, choices...)
+	return NewChooserWithSource(globalRandSource, choices...)
 }
 
 func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
@@ -1161,12 +1176,15 @@ func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice[string, uint])
 //
 // Utilizes the provided dice source.
 func (c *ShuffleRandomPool) Pick() interface{} {
-	return c.PickWithSource(randSource)
+	return c.PickWithSource(globalRandSource)
 }
 
-func (c *ShuffleRandomPool) PickWithSource(src ds.DiceSource) interface{} {
+func (c *ShuffleRandomPool) TryPickWithSource(src ds.DiceSource) (string, error) {
+	if c == nil {
+		return "", errors.New("shuffle random pool unavailable")
+	}
 	if len(c.data) == 0 || c.max < 1 {
-		panic("shuffle random pool exhausted")
+		return "", errShuffleRandomPoolExhausted
 	}
 
 	r := randIntnFromSource(src, c.max) + 1
@@ -1180,7 +1198,15 @@ func (c *ShuffleRandomPool) PickWithSource(src ds.DiceSource) interface{} {
 	c.max -= weight
 	c.totals = append(c.totals[:i], c.totals[i+1:]...)
 	c.data = append(c.data[:i], c.data[i+1:]...)
-	return theOne.Item
+	return theOne.Item, nil
+}
+
+func (c *ShuffleRandomPool) PickWithSource(src ds.DiceSource) interface{} {
+	item, err := c.TryPickWithSource(src)
+	if err != nil {
+		panic(err.Error())
+	}
+	return item
 }
 
 func searchInts(a []int, x int) int {
@@ -1199,7 +1225,7 @@ func searchInts(a []int, x int) int {
 }
 
 func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
-	return DeckToShuffleRandomPoolWithSource(randSource, deck)
+	return DeckToShuffleRandomPoolWithSource(globalRandSource, deck)
 }
 
 func DeckToShuffleRandomPoolWithSource(src ds.DiceSource, deck []string) *ShuffleRandomPool {
