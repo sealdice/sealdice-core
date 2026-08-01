@@ -30,7 +30,7 @@ func (f officialQQTransportFunc) Transport(ctx context.Context, method, url stri
 func TestServerOfficialQQSkipsRunningSessionBeforeStateChange(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	conn := &PlatformAdapterOfficialQQ{Ctx: ctx}
@@ -141,7 +141,7 @@ func TestGetOfficialQQBotInfoUsesShareURL(t *testing.T) {
 		}`), nil
 	})
 
-	botInfo, err := getOfficialQQBotInfo(context.Background(), api)
+	botInfo, err := getOfficialQQBotInfo(t.Context(), api)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestGetOfficialQQBotInfoGeneratedLinkFallback(t *testing.T) {
 		}
 	})
 
-	botInfo, err := getOfficialQQBotInfo(context.Background(), api)
+	botInfo, err := getOfficialQQBotInfo(t.Context(), api)
 	if err != nil {
 		t.Fatal(err)
 	}

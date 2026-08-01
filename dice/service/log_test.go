@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -242,6 +243,76 @@ func seedLogInfoTestDB(t *testing.T, db *gorm.DB) {
 	}
 	if err := db.Where("id = ?", 2).Delete(&model.LogOneItem{}).Error; err != nil {
 		t.Fatalf("delete log item gap: %v", err)
+	}
+}
+
+func TestLogGetUploadInfoReturnsNotFoundWhenLogMissing(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+
+	_, _, _, err := service.LogGetUploadInfo(op, "QQ-Group:upload-missing", "missing-log")
+	if !errors.Is(err, service.ErrLogNotFound) {
+		t.Fatalf("LogGetUploadInfo() error = %v, want %v", err, service.ErrLogNotFound)
+	}
+}
+
+func TestLogSetUploadInfoReturnsNotFoundWhenLogMissing(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+
+	err := service.LogSetUploadInfo(op, "QQ-Group:upload-missing", "missing-log", "https://example.com/log")
+	if !errors.Is(err, service.ErrLogNotFound) {
+		t.Fatalf("LogSetUploadInfo() error = %v, want %v", err, service.ErrLogNotFound)
+	}
+
+	var count int64
+	if err := db.Model(&model.LogInfo{}).
+		Where("group_id = ? AND name = ?", "QQ-Group:upload-missing", "missing-log").
+		Count(&count).Error; err != nil {
+		t.Fatalf("count missing log rows: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("missing log row count = %d, want 0", count)
+	}
+}
+
+func TestLogSetUploadInfoDoesNotChangeUpdatedAt(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+
+	const (
+		groupID   = "QQ-Group:upload-existing"
+		logName   = "upload-log"
+		createdAt = int64(111)
+		updatedAt = int64(222)
+		uploadURL = "https://example.com/log"
+	)
+
+	if err := db.Create(&model.LogInfo{
+		Name:      logName,
+		GroupID:   groupID,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}).Error; err != nil {
+		t.Fatalf("create log info: %v", err)
+	}
+
+	if err := service.LogSetUploadInfo(op, groupID, logName, uploadURL); err != nil {
+		t.Fatalf("LogSetUploadInfo() error = %v", err)
+	}
+
+	var got model.LogInfo
+	if err := db.Where("group_id = ? AND name = ?", groupID, logName).Take(&got).Error; err != nil {
+		t.Fatalf("load updated log info: %v", err)
+	}
+	if got.UpdatedAt != updatedAt {
+		t.Fatalf("updated_at = %d, want %d", got.UpdatedAt, updatedAt)
+	}
+	if got.UploadURL != uploadURL {
+		t.Fatalf("upload_url = %q, want %q", got.UploadURL, uploadURL)
+	}
+	if got.UploadTime == 0 {
+		t.Fatal("upload_time = 0, want non-zero")
 	}
 }
 
