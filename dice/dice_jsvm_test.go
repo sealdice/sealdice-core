@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
+	"go.uber.org/zap"
 )
 
 type countingDiceSource struct {
@@ -25,6 +26,7 @@ func (s *countingDiceSource) Uint64() uint64 {
 
 func TestJsInit_WhenExtLoopManagerNil_DoesNotPanic(t *testing.T) {
 	d := &Dice{
+		Logger: zap.NewNop().Sugar(),
 		BaseConfig: BaseConfig{
 			DataDir: t.TempDir(),
 		},
@@ -73,6 +75,7 @@ func TestJsInit_BindsGojaRandSourceToGlobalRandSource(t *testing.T) {
 		t.Fatalf("activate pcg source: %v", err)
 	}
 	d := &Dice{
+		Logger: zap.NewNop().Sugar(),
 		Config: NewConfig(nil),
 	}
 	d.Config.DiceRandomMode = string(DiceRandomModePCG)
