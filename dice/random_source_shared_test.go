@@ -171,15 +171,15 @@ func TestGlobalRandSourceReportStatusText(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected SetActive(gm) to return fallback error")
 	}
-	if mode != DiceRandomModePCG {
-		t.Fatalf("SetActive(gm) fallback mode = %s, want pcg", mode)
+	if mode == DiceRandomModeGM {
+		t.Fatal("expected SetActive(gm) to fall back to another available mode")
 	}
 
 	got := globalRandSource.ReportStatusText(DiceRandomModeGM)
 	if !strings.Contains(got, "当前随机模式: GM 国密") {
 		t.Fatalf("expected configured mode in status text, got %q", got)
 	}
-	if !strings.Contains(got, "当前生效模式: 默认 PCG") {
+	if !strings.Contains(got, "当前生效模式: "+randcore.ModeSpecFor(mode).Label) {
 		t.Fatalf("expected fallback mode in status text, got %q", got)
 	}
 	if !strings.Contains(got, "gm init failed") {

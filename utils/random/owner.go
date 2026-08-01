@@ -1,6 +1,7 @@
 package random
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -88,11 +89,67 @@ func (g *GlobalOwner) registerSourceErrorLocked(mode Mode, err error) {
 	g.errs[mode] = err
 }
 
+func (g *GlobalOwner) sourceAvailableLocked(mode Mode) ds.DiceSource {
+	src := g.sources[mode]
+	if src == nil {
+		return nil
+	}
+	if checker, ok := src.(sourceAvailability); ok && !checker.Available() {
+		return nil
+	}
+	return src
+}
+
+func (g *GlobalOwner) sourceErrorLocked(mode Mode) error {
+	if err := g.errs[mode]; err != nil {
+		return err
+	}
+	return sourceErrorFromSource(g.sources[mode])
+}
+
+func fallbackModesAfter(preferred Mode) []Mode {
+	modes := SupportedModes()
+	if preferred == "" {
+		return modes
+	}
+
+	index := -1
+	for i, mode := range modes {
+		if mode == preferred {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return modes
+	}
+
+	rotated := make([]Mode, 0, len(modes)-1)
+	rotated = append(rotated, modes[index+1:]...)
+	rotated = append(rotated, modes[:index]...)
+	return rotated
+}
+
+func (g *GlobalOwner) pickAvailableSourceLocked(preferred Mode) (Mode, ds.DiceSource) {
+	if src := g.sourceAvailableLocked(preferred); src != nil {
+		return preferred, src
+	}
+	for _, mode := range fallbackModesAfter(preferred) {
+		if src := g.sourceAvailableLocked(mode); src != nil {
+			return mode, src
+		}
+	}
+	return "", nil
+}
+
 func (g *GlobalOwner) RegisterHybridSource() error {
 	g.mu.RLock()
 	available := make(map[Mode]ds.DiceSource, len(g.sources))
 	for _, mode := range HybridBaseModes() {
 		if src := g.sources[mode]; src != nil {
+			if checker, ok := src.(sourceAvailability); ok && !checker.Available() {
+				continue
+			}
 			available[mode] = src
 		}
 	}
@@ -121,59 +178,61 @@ func (g *GlobalOwner) RegisterHybridSource() error {
 func (g *GlobalOwner) SetActive(mode Mode) (Mode, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if src := g.sources[mode]; src != nil {
+	if src := g.sourceAvailableLocked(mode); src != nil {
 		g.activeMode = mode
 		return mode, nil
 	}
 
-	initErr := g.errs[mode]
-	if src := g.sources[ModePCG]; src != nil {
-		g.activeMode = ModePCG
-		if initErr == nil {
-			initErr = fmt.Errorf("mode %s source unavailable", mode)
+	fallbackMode, fallbackSrc := g.pickAvailableSourceLocked(mode)
+	if fallbackSrc != nil {
+		g.activeMode = fallbackMode
+		if initErr := g.sourceErrorLocked(mode); initErr != nil {
+			return fallbackMode, initErr
 		}
-		return ModePCG, initErr
+		return fallbackMode, fmt.Errorf("mode %s source unavailable", mode)
 	}
 
-	panic("global random source owner has no PCG fallback")
+	if initErr := g.sourceErrorLocked(mode); initErr != nil {
+		return "", initErr
+	}
+	return "", fmt.Errorf("mode %s source unavailable", mode)
+}
+
+func sourceErrorFromSource(src ds.DiceSource) error {
+	if src == nil {
+		return nil
+	}
+	if checker, ok := src.(sourceErrorProvider); ok {
+		return checker.SourceError()
+	}
+	return nil
 }
 
 func (g *GlobalOwner) InitError(mode Mode) error {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
-	return g.errs[mode]
+	if err := g.errs[mode]; err != nil {
+		return err
+	}
+	return sourceErrorFromSource(g.sources[mode])
 }
 
 func (g *GlobalOwner) CurrentMode() Mode {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-	if src := g.sources[g.activeMode]; src != nil {
-		return g.activeMode
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	mode, src := g.currentSourceLocked()
+	if src == nil {
+		return ""
 	}
-	if src := g.sources[ModePCG]; src != nil {
-		return ModePCG
-	}
-	for _, mode := range SupportedModes() {
-		if src := g.sources[mode]; src != nil {
-			return mode
-		}
-	}
-	return ""
+	return mode
 }
 
-func (g *GlobalOwner) currentSourceLocked() ds.DiceSource {
-	if src := g.sources[g.activeMode]; src != nil {
-		return src
+func (g *GlobalOwner) currentSourceLocked() (Mode, ds.DiceSource) {
+	mode, src := g.pickAvailableSourceLocked(g.activeMode)
+	if src != nil && mode != "" && mode != g.activeMode {
+		g.activeMode = mode
 	}
-	if src := g.sources[ModePCG]; src != nil {
-		return src
-	}
-	for _, mode := range SupportedModes() {
-		if src := g.sources[mode]; src != nil {
-			return src
-		}
-	}
-	return nil
+	return mode, src
 }
 
 func (g *GlobalOwner) snapshotSources() (map[Mode]ds.DiceSource, map[Mode]error, Mode) {
@@ -192,9 +251,9 @@ func (g *GlobalOwner) snapshotSources() (map[Mode]ds.DiceSource, map[Mode]error,
 }
 
 func (g *GlobalOwner) Uint64() uint64 {
-	g.mu.RLock()
-	src := g.currentSourceLocked()
-	g.mu.RUnlock()
+	g.mu.Lock()
+	_, src := g.currentSourceLocked()
+	g.mu.Unlock()
 	if src == nil {
 		panic("global random source owner has no active source")
 	}
@@ -214,6 +273,14 @@ func (g *GlobalOwner) ReportGetText(points int64) string {
 			lines = append(lines, fmt.Sprintf("%s: 不可用 (mode %s source unavailable)", mode, mode))
 			continue
 		}
+		if checker, ok := src.(sourceAvailability); ok && !checker.Available() {
+			if err := sourceErrorFromSource(src); err != nil {
+				lines = append(lines, fmt.Sprintf("%s: 不可用 (%v)", mode, err))
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("%s: 不可用 (mode %s source unavailable)", mode, mode))
+			continue
+		}
 
 		start := time.Now()
 		value := ds.Roll(src, ds.IntType(points), 0)
@@ -224,9 +291,20 @@ func (g *GlobalOwner) ReportGetText(points int64) string {
 }
 
 func (g *GlobalOwner) ReportStatusText(configuredMode Mode) string {
-	sources, _, effectiveMode := g.snapshotSources()
-	src := sources[effectiveMode]
+	g.mu.Lock()
+	effectiveMode, src := g.currentSourceLocked()
+	g.mu.Unlock()
 	initErr := g.InitError(configuredMode)
+	if effectiveMode == "" || src == nil {
+		if initErr == nil {
+			initErr = errors.New("no available random source")
+		}
+		return fmt.Sprintf(
+			"当前随机模式: %s\n当前生效模式: 无可用随机源\n回退原因: %v",
+			ModeSpecFor(configuredMode).Label,
+			initErr,
+		)
+	}
 	if initErr == nil || effectiveMode == configuredMode {
 		return formatModeCommandText(configuredMode, src)
 	}
@@ -248,10 +326,9 @@ func (g *GlobalOwner) LogActiveMode(logger *zap.SugaredLogger) {
 	if logger == nil {
 		return
 	}
-	g.mu.RLock()
-	mode := g.activeMode
-	src := g.currentSourceLocked()
-	g.mu.RUnlock()
+	g.mu.Lock()
+	mode, src := g.currentSourceLocked()
+	g.mu.Unlock()
 	if src == nil {
 		return
 	}

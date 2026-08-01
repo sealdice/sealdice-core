@@ -22,52 +22,87 @@ const (
 	gmEntropyMixSize   = 32
 )
 
-type readerSource struct {
+type sourceAvailability interface {
+	Available() bool
+}
+
+type sourceErrorProvider interface {
+	SourceError() error
+}
+
+type runtimeNoteProvider interface {
+	RuntimeNote() string
+}
+
+type readerSourceState struct {
 	reader      io.Reader
 	mu          sync.Mutex
-	fallback    ds.DiceSource
+	failed      bool
+	failErr     error
 	spec        ModeSpec
 	logger      *zap.SugaredLogger
 	runtimeNote string
 }
 
-func (s *readerSource) Uint64() uint64 {
+func (s *readerSourceState) Uint64() uint64 {
 	s.mu.Lock()
-	if s.reader == nil {
-		fallback := s.fallback
-		if fallback == nil {
-			fallback = NewPCGSource(generateRandSeed())
-			s.fallback = fallback
-		}
+	if s.failed || s.reader == nil {
 		s.mu.Unlock()
-		return fallback.Uint64()
+		return 0
 	}
 
 	var data [8]byte
 	if _, err := io.ReadFull(s.reader, data[:]); err != nil {
-		fallback := s.fallback
-		if fallback == nil {
-			fallback = NewPCGSource(generateRandSeed())
-			s.fallback = fallback
-		}
+		s.failed = true
+		s.failErr = err
 		s.reader = nil
 		spec := s.spec
 		logger := s.logger
+		note := strings.TrimSpace(s.runtimeNote)
 		s.mu.Unlock()
 		if logger != nil {
 			logger.Errorf(
-				"[随机源][降级] %s 模式读取失败，算法=%s，标准/口径=%s，特点=%s。已自动切换到 PCG 默认模式。错误: %v",
+				"[随机源][降级] %s 模式读取失败，算法=%s，标准/口径=%s，特点=%s。该源已标记为不可用，后续将由全局随机源选择其他可用源。错误: %v",
 				spec.Label,
 				spec.Algorithm,
 				spec.Standard,
 				spec.Description,
 				err,
 			)
+			if note != "" {
+				logger.Debugf("[随机源] %s 模式运行时说明: %s", spec.Label, note)
+			}
 		}
-		return fallback.Uint64()
+		return 0
 	}
 	s.mu.Unlock()
 	return binary.BigEndian.Uint64(data[:])
+}
+
+func (s *readerSourceState) Available() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.failed && s.reader != nil
+}
+
+func (s *readerSourceState) SourceError() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.failErr
+}
+
+func (s *readerSourceState) RuntimeNote() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return strings.TrimSpace(s.runtimeNote)
+}
+
+type gmSource struct {
+	readerSourceState
+}
+
+type nistSource struct {
+	readerSourceState
 }
 
 type pcgSource struct {
@@ -116,20 +151,23 @@ func (s *hybridSource) Uint64() uint64 {
 	return value
 }
 
+func (s *hybridSource) RuntimeNote() string {
+	return strings.TrimSpace(s.runtimeNote)
+}
+
 func SourceRuntimeNote(mode Mode, src ds.DiceSource) string {
-	switch mode {
-	case ModeNIST:
-		if readerSrc, ok := src.(*readerSource); ok {
-			if note := strings.TrimSpace(readerSrc.runtimeNote); note != "" {
-				return "熵补充: " + note
-			}
-		}
-	case ModeHybrid:
-		if hybridSrc, ok := src.(*hybridSource); ok {
-			return strings.TrimSpace(hybridSrc.runtimeNote)
-		}
-	default:
+	if src == nil {
 		return ""
+	}
+	if noter, ok := src.(runtimeNoteProvider); ok {
+		note := strings.TrimSpace(noter.RuntimeNote())
+		if note == "" {
+			return ""
+		}
+		if mode == ModeNIST {
+			return "熵补充: " + note
+		}
+		return note
 	}
 	return ""
 }
@@ -140,6 +178,9 @@ func buildHybridSourceFromAvailable(available map[Mode]ds.DiceSource) (ds.DiceSo
 	for _, mode := range HybridBaseModes() {
 		src := available[mode]
 		if src == nil {
+			continue
+		}
+		if avail, ok := src.(sourceAvailability); ok && !avail.Available() {
 			continue
 		}
 		sources = append(sources, src)
@@ -161,7 +202,13 @@ func NewSourceForMode(mode Mode, logger *zap.SugaredLogger) (ds.DiceSource, erro
 	spec := ModeSpecFor(mode)
 	switch mode {
 	case ModeGM:
-		return &readerSource{reader: gmrand.Reader, spec: spec, logger: logger}, nil
+		return &gmSource{
+			readerSourceState: readerSourceState{
+				reader: gmrand.Reader,
+				spec:   spec,
+				logger: logger,
+			},
+		}, nil
 	case ModeNIST:
 		runtimeNote := "系统熵路径。"
 		reader, err := ctrdrbg.NewReader(
@@ -205,7 +252,14 @@ func NewSourceForMode(mode Mode, logger *zap.SugaredLogger) (ds.DiceSource, erro
 			}
 		}
 		clear(buf)
-		return &readerSource{reader: reader, spec: spec, logger: logger, runtimeNote: runtimeNote}, nil
+		return &nistSource{
+			readerSourceState: readerSourceState{
+				reader:      reader,
+				spec:        spec,
+				logger:      logger,
+				runtimeNote: runtimeNote,
+			},
+		}, nil
 	case ModeCRNG:
 		return ds.NewCryptoDiceSource(), nil
 	case ModePCG:
