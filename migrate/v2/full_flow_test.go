@@ -33,6 +33,25 @@ func TestFullUpgradeFlow(t *testing.T) {
 		t.Fatalf("log 2 的 size 期望 1，实际 %d", sizes[2])
 	}
 
+	type updatedAtRow struct {
+		ID        int   `gorm:"column:id"`
+		UpdatedAt int64 `gorm:"column:updated_at"`
+	}
+	var updatedAtRows []updatedAtRow
+	if err := logDB.Raw("SELECT id, updated_at FROM logs WHERE id > 0 ORDER BY id").Scan(&updatedAtRows).Error; err != nil {
+		t.Fatalf("查询 logs.updated_at 失败: %v", err)
+	}
+	updatedAts := map[int]int64{}
+	for _, row := range updatedAtRows {
+		updatedAts[row.ID] = row.UpdatedAt
+	}
+	if updatedAts[1] != 1700000004 {
+		t.Fatalf("log 1 的 updated_at 期望 1700000004，实际 %d", updatedAts[1])
+	}
+	if updatedAts[2] != 1700000201 {
+		t.Fatalf("log 2 的 updated_at 期望 1700000201，实际 %d", updatedAts[2])
+	}
+
 	var logZero, itemLogZero int64
 	logDB.Raw("SELECT COUNT(1) FROM logs WHERE id = 0").Scan(&logZero)
 	logDB.Raw("SELECT COUNT(1) FROM log_items WHERE log_id = 0").Scan(&itemLogZero)

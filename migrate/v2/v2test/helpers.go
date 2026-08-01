@@ -88,6 +88,7 @@ func NewTestManager(t *testing.T, op engine.DatabaseOperator) *upgrade.Manager {
 	mgr.Register(v160.V160LogRawMsgIDIndexMigration)
 	mgr.Register(v160.V160LogSizeRepairMigration)
 	mgr.Register(v161.V161NoticeIDsMigration)
+	mgr.Register(v161.V161LogUpdatedAtRepairMigration)
 	return mgr
 }
 
