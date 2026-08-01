@@ -49,11 +49,11 @@ func completeErrorMap(overrides ...errorOverride) map[DiceRandomMode]error {
 	return result
 }
 
-func snapshotGlobalDiceSourceState() *randcore.GlobalOwner {
+func snapshotGlobalDiceSourceState() *randcore.GlobalRand {
 	return globalRandSource
 }
 
-func restoreGlobalDiceSourceState(owner *randcore.GlobalOwner) {
+func restoreGlobalDiceSourceState(owner *randcore.GlobalRand) {
 	globalRandSource = owner
 }
 

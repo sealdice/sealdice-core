@@ -11,22 +11,22 @@ import (
 	"go.uber.org/zap"
 )
 
-type GlobalOwner struct {
+type GlobalRand struct {
 	mu         sync.RWMutex
 	sources    map[Mode]ds.DiceSource
 	errs       map[Mode]error
 	activeMode Mode
 }
 
-func NewEmptyGlobalOwner() *GlobalOwner {
-	return &GlobalOwner{
+func NewEmptyGlobalOwner() *GlobalRand {
+	return &GlobalRand{
 		sources:    map[Mode]ds.DiceSource{},
 		errs:       map[Mode]error{},
 		activeMode: ModePCG,
 	}
 }
 
-func NewGlobalOwner(logger *zap.SugaredLogger) *GlobalOwner {
+func NewGlobalOwner(logger *zap.SugaredLogger) *GlobalRand {
 	owner := NewEmptyGlobalOwner()
 	owner.RegisterSource(ModePCG, NewPCGSource(generateRandSeed()))
 	for _, mode := range []Mode{ModeGM, ModeNIST, ModeCRNG} {
@@ -47,19 +47,19 @@ func NewGlobalOwner(logger *zap.SugaredLogger) *GlobalOwner {
 	return owner
 }
 
-func (g *GlobalOwner) RegisterSource(mode Mode, src ds.DiceSource) {
+func (g *GlobalRand) RegisterSource(mode Mode, src ds.DiceSource) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.registerSourceLocked(mode, src)
 }
 
-func (g *GlobalOwner) RegisterSourceError(mode Mode, err error) {
+func (g *GlobalRand) RegisterSourceError(mode Mode, err error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.registerSourceErrorLocked(mode, err)
 }
 
-func (g *GlobalOwner) registerSourceLocked(mode Mode, src ds.DiceSource) {
+func (g *GlobalRand) registerSourceLocked(mode Mode, src ds.DiceSource) {
 	if g.sources == nil {
 		g.sources = map[Mode]ds.DiceSource{}
 	}
@@ -75,7 +75,7 @@ func (g *GlobalOwner) registerSourceLocked(mode Mode, src ds.DiceSource) {
 	delete(g.errs, mode)
 }
 
-func (g *GlobalOwner) registerSourceErrorLocked(mode Mode, err error) {
+func (g *GlobalRand) registerSourceErrorLocked(mode Mode, err error) {
 	if g.errs == nil {
 		g.errs = map[Mode]error{}
 	}
@@ -89,7 +89,7 @@ func (g *GlobalOwner) registerSourceErrorLocked(mode Mode, err error) {
 	g.errs[mode] = err
 }
 
-func (g *GlobalOwner) sourceAvailableLocked(mode Mode) ds.DiceSource {
+func (g *GlobalRand) sourceAvailableLocked(mode Mode) ds.DiceSource {
 	src := g.sources[mode]
 	if src == nil {
 		return nil
@@ -100,7 +100,7 @@ func (g *GlobalOwner) sourceAvailableLocked(mode Mode) ds.DiceSource {
 	return src
 }
 
-func (g *GlobalOwner) sourceErrorLocked(mode Mode) error {
+func (g *GlobalRand) sourceErrorLocked(mode Mode) error {
 	if err := g.errs[mode]; err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func fallbackModesAfter(preferred Mode) []Mode {
 	return rotated
 }
 
-func (g *GlobalOwner) pickAvailableSourceLocked(preferred Mode) (Mode, ds.DiceSource) {
+func (g *GlobalRand) pickAvailableSourceLocked(preferred Mode) (Mode, ds.DiceSource) {
 	if src := g.sourceAvailableLocked(preferred); src != nil {
 		return preferred, src
 	}
@@ -142,7 +142,7 @@ func (g *GlobalOwner) pickAvailableSourceLocked(preferred Mode) (Mode, ds.DiceSo
 	return "", nil
 }
 
-func (g *GlobalOwner) RegisterHybridSource() error {
+func (g *GlobalRand) RegisterHybridSource() error {
 	g.mu.RLock()
 	available := make(map[Mode]ds.DiceSource, len(g.sources))
 	for _, mode := range HybridBaseModes() {
@@ -175,7 +175,7 @@ func (g *GlobalOwner) RegisterHybridSource() error {
 	return nil
 }
 
-func (g *GlobalOwner) SetActive(mode Mode) (Mode, error) {
+func (g *GlobalRand) SetActive(mode Mode) (Mode, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if src := g.sourceAvailableLocked(mode); src != nil {
@@ -208,7 +208,7 @@ func sourceErrorFromSource(src ds.DiceSource) error {
 	return nil
 }
 
-func (g *GlobalOwner) InitError(mode Mode) error {
+func (g *GlobalRand) InitError(mode Mode) error {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	if err := g.errs[mode]; err != nil {
@@ -217,7 +217,7 @@ func (g *GlobalOwner) InitError(mode Mode) error {
 	return sourceErrorFromSource(g.sources[mode])
 }
 
-func (g *GlobalOwner) CurrentMode() Mode {
+func (g *GlobalRand) CurrentMode() Mode {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	mode, src := g.currentSourceLocked()
@@ -227,7 +227,7 @@ func (g *GlobalOwner) CurrentMode() Mode {
 	return mode
 }
 
-func (g *GlobalOwner) currentSourceLocked() (Mode, ds.DiceSource) {
+func (g *GlobalRand) currentSourceLocked() (Mode, ds.DiceSource) {
 	mode, src := g.pickAvailableSourceLocked(g.activeMode)
 	if src != nil && mode != "" && mode != g.activeMode {
 		g.activeMode = mode
@@ -235,7 +235,7 @@ func (g *GlobalOwner) currentSourceLocked() (Mode, ds.DiceSource) {
 	return mode, src
 }
 
-func (g *GlobalOwner) snapshotSources() (map[Mode]ds.DiceSource, map[Mode]error, Mode) {
+func (g *GlobalRand) snapshotSources() (map[Mode]ds.DiceSource, map[Mode]error, Mode) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
@@ -250,7 +250,7 @@ func (g *GlobalOwner) snapshotSources() (map[Mode]ds.DiceSource, map[Mode]error,
 	return sources, errs, g.activeMode
 }
 
-func (g *GlobalOwner) Uint64() uint64 {
+func (g *GlobalRand) Uint64() uint64 {
 	g.mu.Lock()
 	_, src := g.currentSourceLocked()
 	g.mu.Unlock()
@@ -260,7 +260,7 @@ func (g *GlobalOwner) Uint64() uint64 {
 	return src.Uint64()
 }
 
-func (g *GlobalOwner) ReportGetText(points int64) string {
+func (g *GlobalRand) ReportGetText(points int64) string {
 	sources, errs, _ := g.snapshotSources()
 	lines := []string{fmt.Sprintf("随机源单次骰点测速 D%d", points)}
 	for _, mode := range SupportedModes() {
@@ -290,7 +290,7 @@ func (g *GlobalOwner) ReportGetText(points int64) string {
 	return strings.Join(lines, "\n")
 }
 
-func (g *GlobalOwner) ReportStatusText(configuredMode Mode) string {
+func (g *GlobalRand) ReportStatusText(configuredMode Mode) string {
 	g.mu.Lock()
 	effectiveMode, src := g.currentSourceLocked()
 	g.mu.Unlock()
@@ -322,7 +322,7 @@ func (g *GlobalOwner) ReportStatusText(configuredMode Mode) string {
 	)
 }
 
-func (g *GlobalOwner) LogActiveMode(logger *zap.SugaredLogger) {
+func (g *GlobalRand) LogActiveMode(logger *zap.SugaredLogger) {
 	if logger == nil {
 		return
 	}

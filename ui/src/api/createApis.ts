@@ -19,8 +19,12 @@ import { Method } from 'alova';
 import apiDefinitions from './apiDefinitions';
 
 const cache = Object.create(null);
+type ApiItem = readonly [string?, string?];
+type ApiDefinitionMap = Record<string, ApiItem | undefined>;
+type PathParams = Record<string, string>;
+
 const createFunctionalProxy = (array: (string | symbol)[], alovaInstance: Alova<AlovaGenerics>, configMap: any) => {
-  const apiPathKey = array.join('.') as keyof typeof apiDefinitions;
+  const apiPathKey = array.join('.');
   if (cache[apiPathKey]) {
     return cache[apiPathKey];
   }
@@ -33,7 +37,7 @@ const createFunctionalProxy = (array: (string | symbol)[], alovaInstance: Alova<
       return createFunctionalProxy(newArray, alovaInstance, configMap);
     },
     apply(_, __, [config]) {
-      const apiItem = apiDefinitions[apiPathKey];
+      const apiItem = (apiDefinitions as ApiDefinitionMap)[apiPathKey];
       if (!apiItem) {
         throw new Error(`the api path of \`${apiPathKey}\` is not found`);
       }
@@ -42,8 +46,8 @@ const createFunctionalProxy = (array: (string | symbol)[], alovaInstance: Alova<
         ...config
       };
       const [method, url] = apiItem;
-      const pathParams = mergedConfig.pathParams;
-      const urlReplaced = url!.replace(/\{([^}]+)\}/g, (_, key) => {
+      const pathParams: PathParams = mergedConfig.pathParams ?? {};
+      const urlReplaced = (url ?? '').replace(/\{([^}]+)\}/g, (_: string, key: string) => {
         const pathParam = pathParams[key];
         return pathParam;
       });
@@ -60,7 +64,7 @@ const createFunctionalProxy = (array: (string | symbol)[], alovaInstance: Alova<
         }
         data = hasBlobData ? formData : data;
       }
-      return new Method(method!.toUpperCase() as MethodType, alovaInstance, urlReplaced, mergedConfig, data);
+      return new Method(String(method ?? 'GET').toUpperCase() as MethodType, alovaInstance, urlReplaced, mergedConfig, data);
     }
   });
   cache[apiPathKey] = proxy;

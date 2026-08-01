@@ -285,6 +285,8 @@ type Dice struct {
 	DirtyGroups *SyncMap[string, int64] `json:"-" yaml:"-"` // 脏群组列表：groupID -> UpdatedAtTime
 }
 
+var globalRandSource = randcore.NewGlobalOwner(logger.M())
+
 func (d *Dice) MarkModified() {
 	d.LastUpdatedTime = time.Now().Unix()
 }
@@ -301,9 +303,6 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	loggerInstance := logger.M()
 	d.Logger = loggerInstance
 	d.LogWriter = uiWriter
-	if globalRandSource == nil {
-		globalRandSource = randcore.NewGlobalOwner(loggerInstance)
-	}
 
 	d.BaseConfig.DataDir = filepath.Join("./data", d.BaseConfig.Name)
 	_ = os.MkdirAll(d.BaseConfig.DataDir, 0o755)

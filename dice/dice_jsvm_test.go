@@ -78,6 +78,9 @@ func TestJsInit_BindsGojaRandSourceToGlobalRandSource(t *testing.T) {
 		Logger: zap.NewNop().Sugar(),
 		Config: NewConfig(nil),
 	}
+	if d.Logger == nil {
+		t.Fatal("expected logger to be initialized")
+	}
 	d.Config.DiceRandomMode = string(DiceRandomModePCG)
 
 	vm := goja.New()
