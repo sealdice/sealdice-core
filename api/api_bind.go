@@ -773,7 +773,6 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/store/file/:namespace/:package/:version", storePackageFilePreview)
 	e.GET("/dice/api/store/files/:namespace/:package/:version", storePackageFiles)
 	e.GET("/dice/api/store/file/:namespace/:package/:version", storePackageFilePreview)
-	e.POST(prefix+"/store/preview-download", storePreviewDownload)
 	e.POST(prefix+"/store/download", storeDownload)
 	e.POST(prefix+"/store/package-info-list", storePackageInfoList)
 	e.POST(prefix+"/store/install-list", storeInstallList)
