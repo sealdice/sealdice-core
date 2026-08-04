@@ -7,10 +7,15 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/samber/lo"
 	ds "github.com/sealdice/dicescript"
+
+	"sealdice-core/utils"
 )
+
+const teamListPageMaxLength = 14000
 
 type attributeContainer struct {
 	UserID string
@@ -19,8 +24,9 @@ type attributeContainer struct {
 
 var cmdTeam = &CmdItemInfo{
 	Name:      "team",
-	ShortHelp: ".team <团队名> add/del/clear/call/st/ra/rc [attr-expr]",
+	ShortHelp: ".team list 或 .team <团队名> add/del/clear/call/st/ra/rc [attr-expr]",
 	Help: `队伍管理指令:
+.team list // 列出当前群的所有团队及成员
 .team <团队名> add/del <@成员...> // 增减队伍列表，若无团队会自动新建
 .team <团队名> clear // 清空队伍
 .team <团队名> call // 艾特队伍
@@ -47,6 +53,10 @@ var cmdTeam = &CmdItemInfo{
 		group := context.Group
 		if group.PlayerGroups == nil {
 			group.PlayerGroups = new(SyncMap[string, []string])
+		}
+		if teamIsListRequest(arguments) {
+			teamReplyList(context, message, group)
+			return execResult
 		}
 		playerGroup, groupExists := group.PlayerGroups.Load(groupName)
 
@@ -227,6 +237,77 @@ var cmdTeam = &CmdItemInfo{
 
 		return execResult
 	},
+}
+
+func teamIsListRequest(arguments *CmdArgs) bool {
+	return arguments.GetArgN(1) == "list" && arguments.GetArgN(2) == ""
+}
+
+func teamReplyList(context *MsgContext, message *Message, group *GroupInfo) {
+	text := teamListText(context, group)
+	for _, page := range teamListPages(text) {
+		ReplyToSender(context, message, page)
+	}
+}
+
+func teamListPages(text string) []string {
+	return utils.SplitLongText(text, teamListPageMaxLength, "团队列表（%d/%d）\n")
+}
+
+func teamListText(context *MsgContext, group *GroupInfo) string {
+	teamNames := make([]string, 0, group.PlayerGroups.Len())
+	group.PlayerGroups.Range(func(teamName string, _ []string) bool {
+		teamNames = append(teamNames, teamName)
+		return true
+	})
+	slices.Sort(teamNames)
+
+	if len(teamNames) == 0 {
+		return "当前群尚未创建团队"
+	}
+
+	lines := make([]string, 0, len(teamNames)+1)
+	lines = append(lines, fmt.Sprintf("当前群共有%d个团队：", len(teamNames)))
+	for _, teamName := range teamNames {
+		members, _ := group.PlayerGroups.Load(teamName)
+		formattedMembers := make([]string, 0, len(members))
+		for _, userID := range members {
+			formattedMembers = append(formattedMembers, teamMemberDisplayName(context, group, userID))
+		}
+
+		memberText := "无成员"
+		if len(formattedMembers) > 0 {
+			memberText = strings.Join(formattedMembers, "、")
+		}
+		lines = append(lines, fmt.Sprintf("%s（%d人）：%s", teamSanitizeDisplayName(teamName), len(members), memberText))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func teamMemberDisplayName(context *MsgContext, group *GroupInfo, userID string) string {
+	name := ""
+	player := group.PlayerGet(context.Dice.DBOperator, userID)
+	if player != nil {
+		name = teamSanitizeDisplayName(player.Name)
+	}
+
+	if name == "" || name == "%未知用户%" {
+		name = teamSanitizeDisplayName(context.Dice.Parent.TryGetUserName(userID))
+	}
+	if name == "" || name == "%未知用户%" {
+		return userID
+	}
+	return fmt.Sprintf("%s（%s）", name, userID)
+}
+
+func teamSanitizeDisplayName(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, name)
+	return strings.Join(strings.Fields(name), " ")
 }
 
 func teamStripPlatformPrefix(userID string) string {
