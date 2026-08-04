@@ -1,6 +1,7 @@
 package dice //nolint:testpackage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
