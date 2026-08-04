@@ -1,7 +1,6 @@
 package dice //nolint:testpackage
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -740,7 +739,7 @@ func TestSanitizeStorePackageMarksCanonicalFields(t *testing.T) {
 
 func TestStoreQueryPageRejectsOversizedPageBeforeBackendRequest(t *testing.T) {
 	manager := &StoreManager{}
-	_, err := manager.StoreQueryPageContext(context.Background(), StoreQueryPageParams{PageSize: maxStorePageSize + 1})
+	_, err := manager.StoreQueryPageContext(t.Context(), StoreQueryPageParams{PageSize: maxStorePageSize + 1})
 	if err == nil || !strings.Contains(err.Error(), "pageSize") {
 		t.Fatalf("StoreQueryPageContext() error = %v, want page size rejection", err)
 	}
