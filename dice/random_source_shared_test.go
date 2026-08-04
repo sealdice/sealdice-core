@@ -176,7 +176,7 @@ func TestGlobalRandSourceReportStatusText(t *testing.T) {
 	}
 
 	got := globalRandSource.ReportStatusText(DiceRandomModeGM)
-	if !strings.Contains(got, "当前随机模式: GM 国密") {
+	if !strings.Contains(got, "当前随机模式: 国密 SM3") {
 		t.Fatalf("expected configured mode in status text, got %q", got)
 	}
 	if !strings.Contains(got, "当前生效模式: "+randcore.ModeSpecFor(mode).Label) {
