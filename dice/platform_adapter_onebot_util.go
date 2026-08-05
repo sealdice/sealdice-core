@@ -428,7 +428,6 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 				p.logger.Infof("重复好友申请已跳过: flag=%s user_id=%s", flag, userID)
 				return nil
 			}
-			cache.Delete(flag)
 			cache.Set(flag, struct{}{})
 		}
 	}

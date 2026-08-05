@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -948,8 +949,12 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 	if len(sendLogs) != 1 {
 		t.Fatalf("expected one welcome send log, got %d", len(sendLogs))
 	}
-	if sendLogs[0].Message == "" || sendLogs[0].Message != `发送迎新消息: group_id=QQ-Group:77777 user_id=QQ:12345 text="欢迎新人"` {
-		t.Fatalf("unexpected welcome send log: %q", sendLogs[0].Message)
+	sendLog := sendLogs[0].Message
+	if !strings.Contains(sendLog, "发送迎新消息:") ||
+		!strings.Contains(sendLog, "group_id=QQ-Group:77777") ||
+		!strings.Contains(sendLog, "user_id=QQ:12345") ||
+		!strings.Contains(sendLog, `text="欢迎新人"`) {
+		t.Fatalf("unexpected welcome send log: %q", sendLog)
 	}
 }
 

@@ -800,7 +800,12 @@ func (p *PlatformAdapterOnebot) ensureFriendRequestDedupeCache() (*otter.Cache[s
 		ttl = 5 * time.Minute
 	}
 
-	cache, err := otter.MustBuilder[string, struct{}](1024).
+	builder, err := otter.NewBuilder[string, struct{}](1024)
+	if err != nil {
+		return nil, err
+	}
+
+	cache, err := builder.
 		WithTTL(ttl).
 		Build()
 	if err != nil {
