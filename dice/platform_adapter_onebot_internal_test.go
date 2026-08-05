@@ -235,6 +235,7 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	d.Config.BanList.Map.Store("QQ:12345", &BanListInfoItem{
 		ID:   "QQ:12345",
 		Rank: BanRankBanned,
@@ -255,6 +256,11 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	if len(em.friendReqCalls) != 1 {
 		t.Fatalf("expected one friend request action, got %d", len(em.friendReqCalls))
 	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected friend invite notice to be sent")
+	}
 	if em.friendReqCalls[0].Approve {
 		t.Fatalf("expected banned inviter to be rejected, got %#v", em.friendReqCalls[0])
 	}
@@ -264,6 +270,7 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	pa.EndPoint.Session.Parent.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	req := gjson.Parse(`{
 		"post_type":"request",
 		"request_type":"group",
@@ -287,6 +294,11 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 
 	if len(em.groupReqCalls) != 1 {
 		t.Fatalf("expected one group request action, got %d", len(em.groupReqCalls))
+	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected group invite notice to be sent")
 	}
 	if em.groupReqCalls[0].SubType != "invite" {
 		t.Fatalf("expected reject path to preserve sub_type invite, got %#v", em.groupReqCalls[0])
@@ -955,6 +967,33 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		!strings.Contains(sendLog, "user_id=QQ:12345") ||
 		!strings.Contains(sendLog, `text="欢迎新人"`) {
 		t.Fatalf("unexpected welcome send log: %q", sendLog)
+	}
+}
+
+func TestPureOnebotGroupInviteNoticesInviteListBeforeDecision(t *testing.T) {
+	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	pa.EndPoint.Session.Parent.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
+	pa.EndPoint.Session.Parent.Config.RefuseGroupInvite = true
+
+	req := gjson.Parse(`{
+		"post_type":"request",
+		"request_type":"group",
+		"sub_type":"invite",
+		"flag":"group-invite-flag",
+		"group_id":123456,
+		"user_id":11111
+	}`)
+
+	if err := pa.handleReqGroupAction(req, nil); err != nil {
+		t.Fatalf("handleReqGroupAction returned error: %v", err)
+	}
+
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected invite notice to be sent before decision")
 	}
 }
 
