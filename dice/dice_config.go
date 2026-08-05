@@ -166,6 +166,7 @@ type BaseConfig struct {
 	AliveNoticeValue         string     `json:"aliveNoticeValue"        yaml:"aliveNoticeValue"`     // 定时通知间隔
 	ReplyDebugMode           bool       `json:"replyDebugMode"          yaml:"replyDebugMode"`       // 回复调试
 	PlayerNameWrapEnable     bool       `json:"playerNameWrapEnable"    yaml:"playerNameWrapEnable"` // 启用玩家名称外框
+	DiceRandomMode           string     `json:"diceRandomMode"          yaml:"diceRandomMode"`       // 骰点随机模式
 
 	VMVersionForReply      string `json:"VMVersionForReply"      yaml:"VMVersionForReply"`      // 自定义回复使用的vm版本
 	VMVersionForDeck       string `json:"VMVersionForDeck"       yaml:"VMVersionForDeck"`       // 牌堆使用的vm版本
