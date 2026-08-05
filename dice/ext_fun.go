@@ -579,7 +579,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				failedCount := int64(0)
 				var results []string
 				for range num {
-					v := DiceRoll64(6)
+					v := ctx.Roll64(6)
 					if v >= 5 {
 						successDegrees++
 					} else if v == 1 {
@@ -748,7 +748,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			successDegrees := int64(0)
 			var results []string
 			for range diceNum {
-				v := DiceRoll64(10)
+				v := ctx.Roll64(10)
 				if v <= checkVal {
 					successDegrees++
 				}
@@ -837,7 +837,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			for i = 0; i < val; i++ {
 				randMap := map[int64]bool{}
 				for j := 0; j < 6; j++ {
-					n := DiceRoll64(24)
+					n := ctx.Roll64(24)
 					if randMap[n] {
 						j-- // 如果已经存在，重新roll
 					} else {
@@ -887,12 +887,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 						break
 					}
 				}
-				rand.Shuffle(len(nums2), func(i, j int) {
+				ctx.Shuffle(len(nums2), func(i, j int) {
 					nums2[i], nums2[j] = nums2[j], nums2[i]
 				})
 
 				text := fmt.Sprintf("身体:%d 灵巧:%d 精神:%d 五感:%d 知力:%d 魅力:%d 社会:%d", nums2...)
-				text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", DiceRoll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
+				text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", ctx.Roll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
 
 				ss = append(ss, text)
 			}
@@ -1151,7 +1151,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			var pool []int
 			ma := make(map[int]bool)
 			for len(pool) < t {
-				n := rand.Intn(m) + 1
+				n := ctx.RandIntn(m) + 1
 				if !ma[n] {
 					ma[n] = true
 					pool = append(pool, n)
@@ -1163,7 +1163,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 			allArgClean = strings.Join(allArgs, " ")
 			for i := range pool {
-				j := rand.Intn(i + 1)
+				j := ctx.RandIntn(i + 1)
 				pool[i], pool[j] = pool[j], pool[i]
 			}
 			roulette := singleRoulette{
@@ -1250,7 +1250,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				for idx := range roulette.Time {
 					i := int(roulette.Face) - 1 - idx
-					j := rand.Intn(i + 1)
+					j := ctx.RandIntn(i + 1)
 					allNum[i], allNum[j] = allNum[j], allNum[i]
 					pool[idx] = allNum[i]
 				}
