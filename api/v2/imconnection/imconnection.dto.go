@@ -22,10 +22,6 @@ type EnableBody struct {
 	Enable bool `json:"enable"`
 }
 
-type createConnectionInput struct {
-	Body CreateBody
-}
-
 type UpdateReq struct {
 	ID   string                 `path:"id"`
 	Body map[string]interface{} `json:"body"`

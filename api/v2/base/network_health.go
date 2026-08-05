@@ -57,7 +57,6 @@ func (s *BaseService) NetworkHealth(_ context.Context, _ *request.Empty) (*respo
 	targets := make([]NetworkHealthTarget, len(specs))
 	var wg sync.WaitGroup
 	for index, spec := range specs {
-		index, spec := index, spec
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

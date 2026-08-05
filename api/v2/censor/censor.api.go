@@ -234,7 +234,7 @@ func (s *Service) UploadFile(_ context.Context, req *CensorUploadReq) (*response
 	if !isAllowedWordFile(filename) {
 		return nil, huma.Error400BadRequest("仅支持 txt 和 toml 词库文件")
 	}
-	if err := os.MkdirAll("./data/censor", 0o755); err != nil {
+	if mkdirErr := os.MkdirAll("./data/censor", 0o755); mkdirErr != nil {
 		return nil, huma.Error500InternalServerError("创建词库目录失败")
 	}
 	dst, err := os.Create(filepath.Join("./data/censor", filename))

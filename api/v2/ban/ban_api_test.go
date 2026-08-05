@@ -1,13 +1,12 @@
+//nolint:testpackage // Tests intentionally exercise package-internal wiring.
 package ban
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -24,23 +23,14 @@ import (
 func newTestBanService(t *testing.T) *BanService {
 	t.Helper()
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
 	tempDir := t.TempDir()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Chdir(%q): %v", tempDir, err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(cwd)
-	})
-	if err := os.MkdirAll(filepath.Join("data"), 0o755); err != nil {
+	t.Chdir(tempDir)
+	if err := os.MkdirAll("data", 0o755); err != nil {
 		t.Fatalf("mkdir data dir: %v", err)
 	}
 
 	operator := &sqliteengine.SQLiteEngine{}
-	if err := operator.Init(context.Background()); err != nil {
+	if err := operator.Init(t.Context()); err != nil {
 		t.Fatalf("init sqlite operator: %v", err)
 	}
 	t.Cleanup(operator.Close)
@@ -214,11 +204,11 @@ func TestImportAddsSuffixAndPersistsItems(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFormFile: %v", err)
 	}
-	if _, err := part.Write(payload); err != nil {
-		t.Fatalf("write multipart payload: %v", err)
+	if _, writeErr := part.Write(payload); writeErr != nil {
+		t.Fatalf("write multipart payload: %v", writeErr)
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("writer.Close: %v", err)
+	if closeErr := writer.Close(); closeErr != nil {
+		t.Fatalf("writer.Close: %v", closeErr)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, "/import", &buf)
@@ -226,8 +216,8 @@ func TestImportAddsSuffixAndPersistsItems(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if err := req.ParseMultipartForm(1024 * 1024); err != nil {
-		t.Fatalf("ParseMultipartForm: %v", err)
+	if parseErr := req.ParseMultipartForm(1024 * 1024); parseErr != nil {
+		t.Fatalf("ParseMultipartForm: %v", parseErr)
 	}
 
 	raw := huma.MultipartFormFiles[ImportForm]{}

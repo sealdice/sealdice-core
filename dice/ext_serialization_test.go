@@ -18,7 +18,7 @@ func TestGroupInfoSerialization(t *testing.T) {
 		{
 			name: "有数据的情况",
 			group: &dice.GroupInfo{
-				InactivatedExtSet: dice.StringSet{"ext1": {}, "ext2": {}},
+				InactivatedExtSet: dice.StringSet{"ext1": struct{}{}, "ext2": struct{}{}},
 				ExtAppliedVersion: 123,
 			},
 			validate: func(t *testing.T, g *dice.GroupInfo) {

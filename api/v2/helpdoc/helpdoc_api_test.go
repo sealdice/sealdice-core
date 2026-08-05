@@ -16,17 +16,8 @@ import (
 func newTestHelpDocService(t *testing.T) *Service {
 	t.Helper()
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
 	tempDir := t.TempDir()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Chdir(%q): %v", tempDir, err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(cwd)
-	})
+	t.Chdir(tempDir)
 	if err := os.MkdirAll(filepath.Join("data", "helpdoc"), 0o755); err != nil {
 		t.Fatalf("mkdir helpdoc dir: %v", err)
 	}
@@ -135,12 +126,12 @@ func TestChunkUploadCompletesIntoSelectedGroup(t *testing.T) {
 
 	chunks := [][]byte{content[:16], content[16:32], content[32:]}
 	for index, chunk := range chunks {
-		if _, err := svc.UploadChunk(t.Context(), &UploadChunkReq{
+		if _, uploadErr := svc.UploadChunk(t.Context(), &UploadChunkReq{
 			SessionID: sessionID,
 			Index:     index,
 			RawBody:   chunk,
-		}); err != nil {
-			t.Fatalf("UploadChunk(%d) returned error: %v", index, err)
+		}); uploadErr != nil {
+			t.Fatalf("UploadChunk(%d) returned error: %v", index, uploadErr)
 		}
 	}
 

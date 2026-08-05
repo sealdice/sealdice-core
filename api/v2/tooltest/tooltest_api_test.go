@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests intentionally exercise unexported service hooks.
 package tooltest
 
 import (

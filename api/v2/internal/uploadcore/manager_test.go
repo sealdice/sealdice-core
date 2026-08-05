@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests intentionally stay in-package for compact fixtures.
 package uploadcore
 
 import "testing"

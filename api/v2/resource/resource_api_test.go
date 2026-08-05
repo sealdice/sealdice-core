@@ -18,17 +18,8 @@ import (
 func newTestService(t *testing.T) *Service {
 	t.Helper()
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
 	tempDir := t.TempDir()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Chdir(%q): %v", tempDir, err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(cwd)
-	})
+	t.Chdir(tempDir)
 	if err := os.MkdirAll(filepath.Join("data", "images"), 0o755); err != nil {
 		t.Fatalf("mkdir image dir: %v", err)
 	}

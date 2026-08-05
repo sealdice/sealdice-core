@@ -2,6 +2,7 @@ package story_test
 
 import (
 	"bytes"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -294,7 +295,7 @@ func TestExportParquetWritesV105LogWithoutUploadSideEffects(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	ctx := humatest.NewContext(nil, httptest.NewRequest("GET", "/sd-api/v2/story/log/export-parquet", nil), recorder)
+	ctx := humatest.NewContext(nil, httptest.NewRequest(http.MethodGet, "/sd-api/v2/story/log/export-parquet", nil), recorder)
 	stream.Body(ctx)
 
 	if got := recorder.Header().Get("Content-Type"); got != "application/octet-stream" {

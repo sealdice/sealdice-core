@@ -1,7 +1,6 @@
 package dice //nolint:testpackage
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -371,7 +370,7 @@ func TestStorePackageFilesAndPreviewProxy(t *testing.T) {
 		t.Fatalf("files = %#v", files)
 	}
 
-	preview, err := manager.StorePreviewPackageFile(context.Background(), "alice", "demo", "1.2.3", "assets/icon.png")
+	preview, err := manager.StorePreviewPackageFile(t.Context(), "alice", "demo", "1.2.3", "assets/icon.png")
 	if err != nil {
 		t.Fatalf("StorePreviewPackageFile() error = %v", err)
 	}
@@ -414,7 +413,7 @@ version = "1.2.3"
 
 	withOfficialStoreBackendBaseURL(t, server.URL)
 	manager := NewStoreManager(&Dice{})
-	manifest, err := manager.StoreQueryPackageManifest(context.Background(), "alice/demo", "1.2.3")
+	manifest, err := manager.StoreQueryPackageManifest(t.Context(), "alice/demo", "1.2.3")
 	if err != nil {
 		t.Fatalf("StoreQueryPackageManifest() error = %v", err)
 	}
