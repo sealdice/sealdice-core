@@ -159,7 +159,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, groupId)
 			p.logger.Error(txtErr)
 			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
-				ctx.Notice(txtErr, NoticeTypeGroup)
+				ctx.Notice(txtErr)
 			}
 			return nil
 		}
@@ -167,7 +167,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 		group.MarkDirty(session.Parent)
 		p.logger.Info(txt)
 		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
-			ctx.Notice(txt, NoticeTypeGroup)
+			ctx.Notice(txt)
 		}
 	}
 
@@ -223,7 +223,7 @@ func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsock
 			ctx.Dice.Config.BanList.AddScoreByGroupMuted(operatorID, groupId, ctx)
 			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupId, duration, userName, operatorID)
 			p.logger.Info(txt)
-			ctx.Notice(txt, NoticeTypeGroup)
+			ctx.Notice(txt)
 		}
 	}
 	return nil
@@ -309,24 +309,37 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 			}
 		})
 	} else {
-		p.logger.Infof("收到非自己的入群请求，准备迎新")
+		p.logger.Infof("收到非自己的入群通知: group_id=%s user_id=%s", groupId, userId)
 		_ = p.submitAsync(func() {
 			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况（此时会出现大量的迎新），先等一下再取数据
-			group, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID)
+			targetGroupID := groupId
+			group, ok := ctx.Session.ServiceAtNew.Load(targetGroupID)
+			needWelcome := false
+			reason := "group_not_loaded"
 			if ok && group.ShowGroupWelcome {
-				ctx.Group = group
-				ctx.Player = &GroupPlayerInfo{}
-				uidRaw := req.Get("user_id").String()
-				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
-				VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
-				stdID := userId
-				VarSetValueStr(ctx, "$t帐号ID", stdID)
-				VarSetValueStr(ctx, "$t账号ID", stdID)
-				text := DiceFormat(ctx, group.GroupWelcomeMessage)
-				for _, i := range ctx.SplitText(text) {
-					doSleepQQ(ctx)
-					p.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
-				}
+				needWelcome = true
+				reason = "welcome_enabled"
+			} else if ok {
+				reason = "welcome_disabled"
+			}
+			p.logger.Infof("检查是否需要迎新: need_welcome=%t reason=%s group_id=%s user_id=%s", needWelcome, reason, targetGroupID, userId)
+			if !needWelcome {
+				return
+			}
+
+			ctx.Group = group
+			ctx.Player = &GroupPlayerInfo{}
+			uidRaw := req.Get("user_id").String()
+			VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
+			VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
+			stdID := userId
+			VarSetValueStr(ctx, "$t帐号ID", stdID)
+			VarSetValueStr(ctx, "$t账号ID", stdID)
+			text := DiceFormat(ctx, group.GroupWelcomeMessage)
+			p.logger.Infof("发送迎新消息: group_id=%s user_id=%s text=%q", targetGroupID, userId, text)
+			for _, i := range ctx.SplitText(text) {
+				doSleepQQ(ctx)
+				p.SendToGroup(ctx, targetGroupID, strings.TrimSpace(i), "")
 			}
 		})
 	}
@@ -363,7 +376,7 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		if !ok {
 			p.logger.Infof("群组 %s 加群请求被拒绝，原因为 %s", req.Get("group_id").String(), reason)
 			err := p.submitAsync(func() {
-				err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), false, reason)
+				err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), req.Get("sub_type").String(), false, reason)
 				if err != nil {
 					p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
 				}
@@ -377,8 +390,8 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		_ = p.submitAsync(func() {
 			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
 			p.logger.Info(txt)
-			ctx.Notice(txt, NoticeTypeInvite)
-			err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), true, "")
+			ctx.Notice(txt)
+			err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), req.Get("sub_type").String(), true, "")
 			if err != nil {
 				p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
 			}
@@ -404,6 +417,21 @@ func checkPassBlackListGroup(inviterID string, groupID string, ctx *MsgContext) 
 func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsocket.EventPayload) error {
 	// 只有一种情况 就是好友添加
 	// 获取请求详情
+	flag := req.Get("flag").String()
+	userID := req.Get("user_id").String()
+	if flag != "" {
+		cache, err := p.ensureFriendRequestDedupeCache()
+		if err != nil {
+			p.logger.Warnf("好友申请去重缓存不可用，跳过去重: flag=%s user_id=%s err=%v", flag, userID, err)
+		} else {
+			if _, exists := cache.Get(flag); exists {
+				p.logger.Infof("重复好友申请已跳过: flag=%s user_id=%s", flag, userID)
+				return nil
+			}
+			cache.Delete(flag)
+			cache.Set(flag, struct{}{})
+		}
+	}
 	var comment string
 	if req.Get("comment").Exists() {
 		comment = normalizeOnebotFriendRequestComment(req.Get("comment").String())
@@ -439,7 +467,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	}
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
-	ctx.Notice(txt, NoticeTypeInvite)
+	ctx.Notice(txt)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
 	if !p.IgnoreFriendRequest {
 		err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), result.Passed && passQuestion, "")

@@ -50,6 +50,10 @@ type PlatformAdapterOnebot struct {
 	antPool *ants.Pool
 	// 群缓存
 	groupCache *otter.Cache[string, *GroupCache] // 群ID和群信息的缓存
+	// 好友申请去重缓存
+	friendRequestDedupeCache *otter.Cache[string, struct{}]
+	friendRequestDedupeMu    sync.Mutex
+	friendRequestDedupTTL    time.Duration
 
 	retryAttempts  uint         // 当前重试次数
 	isRetrying     bool         // 是否正在重试
@@ -626,6 +630,10 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 		p.groupCache = &cacher
 	}
 
+	if _, err := p.ensureFriendRequestDedupeCache(); err != nil {
+		p.logger.Warnf("初始化好友申请去重缓存失败: %v", err)
+	}
+
 	p.ensureFSM()
 }
 
@@ -764,6 +772,11 @@ func (p *PlatformAdapterOnebot) cleanupResources() {
 		p.antPool = nil
 	}
 
+	if p.friendRequestDedupeCache != nil {
+		p.friendRequestDedupeCache.Close()
+		p.friendRequestDedupeCache = nil
+	}
+
 	// 5. 重置连接状态标志
 	p.connectionMutex.Lock()
 	p.isConnecting = false
@@ -772,6 +785,29 @@ func (p *PlatformAdapterOnebot) cleanupResources() {
 
 	// 6. 重置主动关闭标志
 	p.isShuttingDown = false
+}
+
+func (p *PlatformAdapterOnebot) ensureFriendRequestDedupeCache() (*otter.Cache[string, struct{}], error) {
+	p.friendRequestDedupeMu.Lock()
+	defer p.friendRequestDedupeMu.Unlock()
+
+	if p.friendRequestDedupeCache != nil {
+		return p.friendRequestDedupeCache, nil
+	}
+
+	ttl := p.friendRequestDedupTTL
+	if ttl <= 0 {
+		ttl = 5 * time.Minute
+	}
+
+	cache, err := otter.MustBuilder[string, struct{}](1024).
+		WithTTL(ttl).
+		Build()
+	if err != nil {
+		return nil, err
+	}
+	p.friendRequestDedupeCache = &cache
+	return p.friendRequestDedupeCache, nil
 }
 
 // startConnection 启动连接（统一的连接启动逻辑）
