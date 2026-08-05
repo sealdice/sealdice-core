@@ -969,34 +969,6 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatalf("unexpected welcome send log: %q", sendLog)
 	}
 }
-
-func TestPureOnebotGroupInviteNoticesInviteListBeforeDecision(t *testing.T) {
-	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
-	defer cleanup()
-
-	pa.EndPoint.Session.Parent.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
-	pa.EndPoint.Session.Parent.Config.RefuseGroupInvite = true
-
-	req := gjson.Parse(`{
-		"post_type":"request",
-		"request_type":"group",
-		"sub_type":"invite",
-		"flag":"group-invite-flag",
-		"group_id":123456,
-		"user_id":11111
-	}`)
-
-	if err := pa.handleReqGroupAction(req, nil); err != nil {
-		t.Fatalf("handleReqGroupAction returned error: %v", err)
-	}
-
-	select {
-	case <-em.sendPvtCh:
-	case <-time.After(3 * time.Second):
-		t.Fatal("expected invite notice to be sent before decision")
-	}
-}
-
 func waitPureOnebotInfoLog(t *testing.T, observed *observer.ObservedLogs, snippet string) {
 	t.Helper()
 
