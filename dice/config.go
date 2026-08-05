@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
@@ -431,8 +431,8 @@ func (cm *ConfigManager) Load() error {
 	return nil
 }
 
-func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
-	var choices []wr.Choice
+func (i *TextTemplateItemList) toRandomPool() *wr.Chooser[string, uint] {
+	var choices []wr.Choice[string, uint]
 	for _, i := range *i {
 		// weight, text := extractWeight(i)
 		if len(i) == 1 {
@@ -441,11 +441,11 @@ func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
 		}
 
 		if w, ok := i[1].(int); ok {
-			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+			choices = append(choices, wr.NewChoice(i[0].(string), uint(w)))
 		}
 
 		if w, ok := i[1].(float64); ok {
-			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+			choices = append(choices, wr.NewChoice(i[0].(string), uint(w)))
 		}
 	}
 	randomPool, _ := wr.NewChooser(choices...)
@@ -2062,13 +2062,13 @@ func setupTextTemplate(d *Dice) {
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	newTextMap := map[string]*wr.Chooser{}
+	newTextMap := map[string]*wr.Chooser[string, uint]{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
-			var choices []wr.Choice
+			var choices []wr.Choice[string, uint]
 			for _, textItem := range v {
-				choices = append(choices, wr.Choice{Item: textItem[0].(string), Weight: getNumVal(textItem[1])})
+				choices = append(choices, wr.NewChoice(textItem[0].(string), getNumVal(textItem[1])))
 			}
 
 			pool, _ := wr.NewChooser(choices...)
@@ -2076,10 +2076,10 @@ func (d *Dice) GenerateTextMap() {
 		}
 	}
 
-	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
+	picker, _ := wr.NewChooser(wr.NewChoice(APPNAME, uint(1)))
 	newTextMap["常量:APPNAME"] = picker
 
-	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
+	picker, _ = wr.NewChooser(wr.NewChoice(VERSION.String(), uint(1)))
 	newTextMap["常量:VERSION"] = picker
 
 	d.TextMap = newTextMap

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"os"
 	"path"
 	"regexp"
@@ -133,63 +132,78 @@ func parseQQGroupRole(role string) (string, bool) {
 	return normalized, true
 }
 
-func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+// checkBotGroupRole 查询 bot 在指定群中归一化后的角色(owner/admin/member)。
+// 返回值: ok 表示该适配器是否支持并成功完成角色检查;
+// detail 在 ok=true 时为归一化后的角色字符串,在 ok=false 时为失败原因描述。
+// 不支持角色检查的适配器返回 ok=false, 调用方应保持原有行为, 不做阻断。
+func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
-		return false, false, "context invalid"
+		return "context invalid", false
 	}
+
+	// Permission changes must be visible immediately; cached member data can retain a stale role.
+	const bypassCache = true
 
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
 		if pa.sendEmitter == nil {
-			return false, false, "onebot emitter unavailable"
+			return "onebot emitter unavailable", false
 		}
 		botID, ok := getOnebotBotQQID(ctx)
 		if !ok {
-			return false, false, "cannot resolve bot qq id"
+			return "cannot resolve bot qq id", false
 		}
-		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, false)
+		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, bypassCache)
 		if err != nil || memberInfo == nil {
 			if err != nil {
-				return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+				return fmt.Sprintf("get_group_member_info failed: %v", err), false
 			}
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	case *PlatformAdapterGocq:
 		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
 		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
 		if botIDRaw == "" || groupIDRaw == "" {
-			return false, false, "cannot resolve bot/group id"
+			return "cannot resolve bot/group id", false
 		}
-		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
+		memberInfo := pa.getGroupMemberInfo(groupIDRaw, botIDRaw, bypassCache)
 		if memberInfo == nil {
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	case *PlatformAdapterMilky:
-		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
+		memberInfo, err := pa.getGroupMemberInfo(groupID, ctx.EndPoint.UserID, bypassCache)
 		if err != nil {
-			return false, false, fmt.Sprintf("get_group_member_info failed: %v", err)
+			return fmt.Sprintf("get_group_member_info failed: %v", err), false
 		}
 		if memberInfo == nil {
-			return false, false, errGetGroupMemberInfoNil
+			return errGetGroupMemberInfoNil, false
 		}
 		role, ok := parseQQGroupRole(memberInfo.Role)
 		if !ok {
-			return false, false, errGetGroupMemberInfoEmptyRole
+			return errGetGroupMemberInfoEmptyRole, false
 		}
-		return role == "owner", true, role
+		return role, true
 	default:
-		return false, false, "adapter does not support group role check"
+		return "adapter does not support group role check", false
 	}
+}
+
+func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
+	detail, ok := checkBotGroupRole(ctx, groupID)
+	if !ok {
+		return false, false, detail
+	}
+	return detail == "owner", true, detail
 }
 
 func normalizeDismissTargetGroupID(ctx *MsgContext, rawGroupID string) string {
@@ -228,7 +242,7 @@ func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGrou
 	txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
 		groupName, targetGroupID, userName, msg.Sender.UserID)
 	d.Logger.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeGroup)
 
 	time.Sleep(3 * time.Second)
 	if targetGroup != nil {
@@ -287,6 +301,21 @@ func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGr
 	}
 
 	return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
+}
+
+func shouldShowBestHelpResult(hits docengine.MatchCollection, bestTitle, query string, minRelativeGap float64) bool {
+	if len(hits) == 0 {
+		return false
+	}
+	if len(hits) == 1 || query != "" && bestTitle == query {
+		return true
+	}
+
+	bestScore := hits[0].Score
+	if bestScore <= 0 {
+		return false
+	}
+	return (bestScore-hits[1].Score)/bestScore >= minRelativeGap
 }
 
 /** 这几条指令不能移除 */
@@ -531,7 +560,7 @@ func (d *Dice) registerCoreCommands() {
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
 				count := d.Parent.Help.GetNumericIDCount()
 				if count > 0 {
-					_id := rand.Intn(count) + 1
+					_id := ctx.RandIntn(count) + 1
 					id = strconv.Itoa(_id)
 				}
 			}
@@ -619,7 +648,6 @@ func (d *Dice) registerCoreCommands() {
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 
-			hasSecond := len(search.Hits) >= 2
 			// 准备接下来读取这里面的Fields
 			bestRaw := search.Hits[0].Fields
 			best := &docengine.HelpTextItem{
@@ -647,22 +675,12 @@ func (d *Dice) registerCoreCommands() {
 				}
 			}
 
-			var showBest bool
-			if hasSecond {
-				offset := d.Parent.Help.GetShowBestOffset()
-				val := search.Hits[1].Score - search.Hits[0].Score
-				if val < 0 {
-					val = -val
-				}
-				if val > float64(offset) {
-					showBest = true
-				}
-				if best.Title == text {
-					showBest = true
-				}
-			} else {
-				showBest = true
-			}
+			showBest := shouldShowBestHelpResult(
+				search.Hits,
+				best.Title,
+				text,
+				d.Parent.Help.GetShowBestRelativeGap(),
+			)
 
 			var bestResult string
 			if showBest {
@@ -2117,6 +2135,65 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			ReplyToSender(ctx, msg, text)
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
+	randalgoHelp := formatDiceRandomModeHelpText()
+	d.CmdMap["randalgo"] = &CmdItemInfo{
+		Name:      "randalgo",
+		ShortHelp: ".randalgo // 查看当前随机算法与规范\n.randalgo get [面数] // 对全部随机源各掷一次并显示单次耗时\n.randalgo set <模式> // 设置随机模式，仅Master可用",
+		Help:      randalgoHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			if cmdArgs.IsArgEqual(1, "get") {
+				points := int64(100)
+				if rawPoints := cmdArgs.GetArgN(2); rawPoints != "" {
+					parsedPoints, err := strconv.ParseInt(rawPoints, 10, 64)
+					if err != nil || parsedPoints <= 0 {
+						ReplyToSender(ctx, msg, formatDiceRandomModeGetInvalidPointsText(rawPoints))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					points = parsedPoints
+				}
+
+				ReplyToSender(ctx, msg, globalRandSource.ReportGetText(points))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if cmdArgs.IsArgEqual(1, "set") {
+				if ctx.PrivilegeLevel < 100 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				rawMode := cmdArgs.GetArgN(2)
+				if rawMode == "" {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetMissingModeText())
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				mode, ok := parseDiceRandomModeStrict(rawMode)
+				if !ok {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetInvalidModeText(rawMode))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if err := globalRandSource.InitError(mode); err != nil {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(mode, err))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				ctx.Dice.Config.DiceRandomMode = string(mode)
+				_ = ctx.Dice.ActivateDiceRandomMode()
+				ctx.Dice.MarkModified()
+				ctx.Dice.Save(false)
+				ReplyToSender(ctx, msg, formatDiceRandomModeSetSuccessText(mode))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			mode := ctx.Dice.getDiceRandomMode()
+			ReplyToSender(ctx, msg, globalRandSource.ReportStatusText(mode))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}

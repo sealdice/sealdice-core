@@ -14,6 +14,7 @@ import (
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/dice/events"
+	"sealdice-core/message"
 )
 
 var guguText = `
@@ -338,6 +339,8 @@ func RegisterBuiltinExtFun(self *Dice) {
 					if cmdValue != nil && cmdValue.TypeId == ds.VMTypeString {
 						args[0] = cmdValue.Value.(string)
 						targetCmd := strings.Join(args, " ")
+						msg.Message = targetCmd
+						msg.Segment = message.ConvertStringMessage(targetCmd)
 						targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
 						if targetArgs != nil {
 							log.Infof("群快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
@@ -363,6 +366,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 					args[0] = cmdValue.Value.(string)
 					targetCmd := strings.Join(args, " ")
 					msg.Message = targetCmd
+					msg.Segment = message.ConvertStringMessage(targetCmd)
 					targetArgs := CommandParse(targetCmd, []string{}, self.CommandPrefix, msg.Platform, false)
 					if targetArgs != nil {
 						log.Infof("个人快捷指令映射: .&%s -> %s", cmdArgs.CleanArgs, targetCmd)
@@ -421,8 +425,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 				if ctx.PrivilegeLevel >= 100 {
 					uid := cmdArgs.GetArgN(2)
 					txt := cmdArgs.GetRestArgsFrom(3)
-					if uid != "" && strings.HasPrefix(uid, ctx.EndPoint.Platform) && txt != "" {
-						isGroup := strings.Contains(uid, "-Group:")
+					platform := ""
+					if colonIdx := strings.Index(uid, ":"); colonIdx != -1 {
+						platform = uid[:colonIdx]
+					}
+					if uid != "" && strings.Contains(strings.ToLower(platform), strings.ToLower(ctx.EndPoint.Platform)) && txt != "" {
+						isGroup := strings.Contains(uid, "-Group:") || strings.Contains(uid, "-Channel:") || strings.Contains(uid, "-Guild:")
 						txt = fmt.Sprintf("本消息由骰主<%s>通过指令发送:\n", ctx.Player.Name) + txt
 						if isGroup {
 							ReplyGroup(ctx, &Message{GroupID: uid}, txt)
@@ -439,24 +447,23 @@ func RegisterBuiltinExtFun(self *Dice) {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			default:
 				if self.Config.MailEnable {
-					_ = ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote)
+					if err := ctx.Dice.SendMail(cmdArgs.CleanArgs, MailTypeSendNote, NoticeTypeSend); err != nil {
+						ctx.Dice.Logger.Errorf("留言邮件发送失败: %v", err)
+					}
 					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				for _, uid := range ctx.Dice.DiceMasters {
-					text := ""
+				text := ""
+				if ctx.IsCurGroupBotOn {
+					text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
+				} else {
+					text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
+				}
+				text += cmdArgs.CleanArgs
 
-					if ctx.IsCurGroupBotOn {
-						text += fmt.Sprintf("一条来自群组<%s>(%s)，作者<%s>(%s)的留言:\n", ctx.Group.GroupName, ctx.Group.GroupID, ctx.Player.Name, ctx.Player.UserID)
-					} else {
-						text += fmt.Sprintf("一条来自私聊，作者<%s>(%s)的留言:\n", ctx.Player.Name, ctx.Player.UserID)
-					}
-
-					text += cmdArgs.CleanArgs
-					if strings.Contains(uid, "Group") {
-						ctx.EndPoint.Adapter.SendToGroup(ctx, uid, text, "")
-					} else {
-						ctx.EndPoint.Adapter.SendToPerson(ctx, uid, text, "")
+				for _, target := range filterNoticeTargets(ctx.Dice.Config.NoticeIDs, NoticeTypeSend) {
+					if !sendNoticeTargetCrossPlatform(ctx, target, text) {
+						ctx.Dice.Logger.Errorf("未能向通知目标 %s 发送留言", target.ID)
 					}
 				}
 				ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:留言_已记录"))
@@ -572,7 +579,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				failedCount := int64(0)
 				var results []string
 				for range num {
-					v := DiceRoll64(6)
+					v := ctx.Roll64(6)
 					if v >= 5 {
 						successDegrees++
 					} else if v == 1 {
@@ -741,7 +748,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			successDegrees := int64(0)
 			var results []string
 			for range diceNum {
-				v := DiceRoll64(10)
+				v := ctx.Roll64(10)
 				if v <= checkVal {
 					successDegrees++
 				}
@@ -830,7 +837,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			for i = 0; i < val; i++ {
 				randMap := map[int64]bool{}
 				for j := 0; j < 6; j++ {
-					n := DiceRoll64(24)
+					n := ctx.Roll64(24)
 					if randMap[n] {
 						j-- // 如果已经存在，重新roll
 					} else {
@@ -880,12 +887,12 @@ func RegisterBuiltinExtFun(self *Dice) {
 						break
 					}
 				}
-				rand.Shuffle(len(nums2), func(i, j int) {
+				ctx.Shuffle(len(nums2), func(i, j int) {
 					nums2[i], nums2[j] = nums2[j], nums2[i]
 				})
 
 				text := fmt.Sprintf("身体:%d 灵巧:%d 精神:%d 五感:%d 知力:%d 魅力:%d 社会:%d", nums2...)
-				text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", DiceRoll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
+				text += fmt.Sprintf(" 运势:%d hp:%d mp:%d", ctx.Roll64(6), nums2[0].(int64)+10, nums2[2].(int64)+nums2[4].(int64))
 
 				ss = append(ss, text)
 			}
@@ -1144,7 +1151,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			var pool []int
 			ma := make(map[int]bool)
 			for len(pool) < t {
-				n := rand.Intn(m) + 1
+				n := ctx.RandIntn(m) + 1
 				if !ma[n] {
 					ma[n] = true
 					pool = append(pool, n)
@@ -1156,7 +1163,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 			}
 			allArgClean = strings.Join(allArgs, " ")
 			for i := range pool {
-				j := rand.Intn(i + 1)
+				j := ctx.RandIntn(i + 1)
 				pool[i], pool[j] = pool[j], pool[i]
 			}
 			roulette := singleRoulette{
@@ -1243,7 +1250,7 @@ func RegisterBuiltinExtFun(self *Dice) {
 				}
 				for idx := range roulette.Time {
 					i := int(roulette.Face) - 1 - idx
-					j := rand.Intn(i + 1)
+					j := ctx.RandIntn(i + 1)
 					allNum[i], allNum[j] = allNum[j], allNum[i]
 					pool[idx] = allNum[i]
 				}

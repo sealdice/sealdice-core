@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"sealdice-core/dice/docengine"
+
+	"github.com/xuri/excelize/v2"
 )
 
 var errFakeSearchNotImplemented = errors.New("fake search engine: term title lookup not implemented")
@@ -28,6 +31,7 @@ func TestHelpManagerSaveHelpIndexMetaWritesToConfiguredPath(t *testing.T) {
 	}()
 
 	meta := &HelpIndexMeta{
+		ContentParserVersion: helpContentParserVersion,
 		Files: map[string]HelpFileMeta{
 			"data/helpdoc/example.json": {
 				Hash:  1,
@@ -53,26 +57,38 @@ func TestHelpManagerSaveHelpIndexMetaWritesToConfiguredPath(t *testing.T) {
 	if len(got.Files) != 1 {
 		t.Fatalf("saved meta files count = %d, want 1", len(got.Files))
 	}
+	if got.ContentParserVersion != helpContentParserVersion {
+		t.Fatalf(
+			"saved content parser version = %d, want %d",
+			got.ContentParserVersion,
+			helpContentParserVersion,
+		)
+	}
 	if got.Files["data/helpdoc/example.json"].Group != "default" {
 		t.Fatalf("saved meta group = %q, want %q", got.Files["data/helpdoc/example.json"].Group, "default")
 	}
 }
 
 type fakeHelpSearchEngine struct {
-	docs map[string]*docengine.HelpTextItem
+	docs     map[string]*docengine.HelpTextItem
+	pageDocs []*docengine.HelpTextItem
+	added    []docengine.HelpTextItem
 }
 
 func (f *fakeHelpSearchEngine) GetSuffixText() string { return "" }
 
 func (f *fakeHelpSearchEngine) GetPrefixText() string { return "" }
 
-func (f *fakeHelpSearchEngine) GetShowBestOffset() int { return 0 }
+func (f *fakeHelpSearchEngine) GetShowBestRelativeGap() float64 { return 0 }
 
 func (f *fakeHelpSearchEngine) Init() error { return nil }
 
 func (f *fakeHelpSearchEngine) Close() {}
 
-func (f *fakeHelpSearchEngine) AddItem(docengine.HelpTextItem) (string, error) { return "", nil }
+func (f *fakeHelpSearchEngine) AddItem(item docengine.HelpTextItem) (string, error) {
+	f.added = append(f.added, item)
+	return "", nil
+}
 
 func (f *fakeHelpSearchEngine) AddItemApply(bool) error { return nil }
 
@@ -84,12 +100,16 @@ func (f *fakeHelpSearchEngine) GetHelpTextItemByTermTitle(string) (*docengine.He
 	return nil, errFakeSearchNotImplemented
 }
 
-func (f *fakeHelpSearchEngine) GetItemByID(id string) (*docengine.HelpTextItem, error) {
-	return f.docs[id], nil
+func (f *fakeHelpSearchEngine) GetItemByInternalID(id string) (*docengine.HelpTextItem, error) {
+	item, ok := f.docs[id]
+	if !ok {
+		return nil, errors.New("document not found")
+	}
+	return item, nil
 }
 
 func (f *fakeHelpSearchEngine) PaginateDocuments(int, int, string, string, string) (uint64, []*docengine.HelpTextItem, error) {
-	return 0, nil, nil
+	return uint64(len(f.pageDocs)), f.pageDocs, nil
 }
 
 func (f *fakeHelpSearchEngine) GetTotalID() uint64 { return uint64(len(f.docs)) }
@@ -97,6 +117,78 @@ func (f *fakeHelpSearchEngine) GetTotalID() uint64 { return uint64(len(f.docs)) 
 func (f *fakeHelpSearchEngine) DeleteByFrom(string) error { return nil }
 
 func (f *fakeHelpSearchEngine) DeleteByGroup(string) error { return nil }
+
+func TestUnescapeXlsxHelpContent(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+	}{
+		{
+			name:    "escaped newline",
+			content: `first\nsecond`,
+			want:    "first\nsecond",
+		},
+		{
+			name:    "real newline remains unchanged",
+			content: "first\nsecond",
+			want:    "first\nsecond",
+		},
+		{
+			name:    "escaped backslash protects newline sequence",
+			content: `first\\nsecond`,
+			want:    `first\nsecond`,
+		},
+		{
+			name:    "unknown escape remains unchanged",
+			content: `first\xsecond`,
+			want:    `first\xsecond`,
+		},
+		{
+			name:    "trailing backslash remains unchanged",
+			content: `first\`,
+			want:    `first\`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := unescapeXlsxHelpContent(tt.content); got != tt.want {
+				t.Fatalf("unescapeXlsxHelpContent(%q) = %q, want %q", tt.content, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHelpManagerLoadHelpDocUnescapesXlsxContent(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "help.xlsx")
+	file := excelize.NewFile()
+	sheet := file.GetSheetName(0)
+	if err := file.SetSheetRow(sheet, "A1", &[]any{"Key", "Synonym", "Content"}); err != nil {
+		t.Fatalf("SetSheetRow(header) error = %v", err)
+	}
+	if err := file.SetSheetRow(sheet, "A2", &[]any{"entry", "", `first\nsecond`}); err != nil {
+		t.Fatalf("SetSheetRow(content) error = %v", err)
+	}
+	if err := file.SaveAs(filePath); err != nil {
+		t.Fatalf("SaveAs(%q) error = %v", filePath, err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	searchEngine := &fakeHelpSearchEngine{}
+	manager := &HelpManager{searchEngine: searchEngine}
+	if ok := manager.loadHelpDoc("test", filePath); !ok {
+		t.Fatal("loadHelpDoc() = false, want true")
+	}
+	if len(searchEngine.added) != 1 {
+		t.Fatalf("added help items = %d, want 1", len(searchEngine.added))
+	}
+	if got, want := searchEngine.added[0].Content, "first\nsecond"; got != want {
+		t.Fatalf("loaded XLSX content = %q, want %q", got, want)
+	}
+}
 
 func TestHelpManagerGetItemByNumericID_InvalidBounds(t *testing.T) {
 	manager := &HelpManager{
@@ -167,8 +259,44 @@ func TestHelpManagerGetItemByNumericID_ValidResolvesCorrectDoc(t *testing.T) {
 	}
 }
 
+func TestHelpManagerGetHelpItemPageResolvesNumericID(t *testing.T) {
+	manager := &HelpManager{
+		docIDs: []string{"internal-1"},
+		searchEngine: &fakeHelpSearchEngine{docs: map[string]*docengine.HelpTextItem{
+			"internal-1": {Title: "example"},
+		}},
+	}
+
+	total, items := manager.GetHelpItemPage(1, 20, "1", "", "", "")
+	if total != 1 || len(items) != 1 {
+		t.Fatalf("GetHelpItemPage() total/items = %d/%d, want 1/1", total, len(items))
+	}
+	if items[0].ID != 1 || items[0].Title != "example" {
+		t.Fatalf("GetHelpItemPage() item = %#v, want numeric ID 1 and title example", items[0])
+	}
+}
+
+func TestHelpManagerGetHelpItemPageMapsPaginationInternalIDs(t *testing.T) {
+	manager := &HelpManager{
+		docIDs: []string{"internal-1", "internal-2"},
+		searchEngine: &fakeHelpSearchEngine{pageDocs: []*docengine.HelpTextItem{
+			{InternalID: "internal-2", Title: "second"},
+			{InternalID: "internal-1", Title: "first"},
+		}},
+	}
+
+	total, items := manager.GetHelpItemPage(1, 20, "", "", "", "")
+	if total != 2 || len(items) != 2 {
+		t.Fatalf("GetHelpItemPage() total/items = %d/%d, want 2/2", total, len(items))
+	}
+	if items[0].ID != 2 || items[1].ID != 1 {
+		t.Fatalf("GetHelpItemPage() IDs = %d/%d, want 2/1", items[0].ID, items[1].ID)
+	}
+}
+
 func TestReconcileHelpIndexMeta(t *testing.T) {
 	existing := &HelpIndexMeta{
+		ContentParserVersion: helpContentParserVersion,
 		Files: map[string]HelpFileMeta{
 			"data/helpdoc/example.json": {
 				Hash:  1,

@@ -155,7 +155,8 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			Time:     m.Time,
 			RawID:    m.MessageSeq,
 			Sender: SenderBase{
-				UserID: FormatDiceIDQQ(strconv.FormatInt(m.SenderId, 10)),
+				UserID:  FormatDiceIDQQ(strconv.FormatInt(m.SenderId, 10)),
+				IsRobot: isQQBotUIN(m.SenderId),
 			},
 		}
 		if msg.Sender.UserID == pa.EndPoint.UserID {
@@ -201,7 +202,8 @@ func (pa *PlatformAdapterMilky) Serve() int {
 				case *milky.AtElement:
 					log.Debugf(" At: %d", seg.UserID)
 					msg.Segment = append(msg.Segment, &message.AtElement{
-						Target: strconv.FormatInt(seg.UserID, 10),
+						Target:  strconv.FormatInt(seg.UserID, 10),
+						IsRobot: isQQBotUIN(seg.UserID),
 					})
 				case *milky.ReplyElement:
 					log.Debugf(" Reply to message ID: %d", seg.MessageSeq)
@@ -330,7 +332,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, groupId, ctx)
 			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, groupId, m.Duration, userName, m.OperatorID)
 			log.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeGroup)
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
@@ -351,7 +353,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		userName := dm.TryGetUserName(uid)
 		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%d)", groupName, groupId, userName, m.InitiatorID)
 		log.Info(txt)
-		ctx.Notice(txt)
+		ctx.Notice(txt, NoticeTypeInvite)
 
 		// 邀请人在黑名单上
 		banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
@@ -505,7 +507,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", strconv.FormatInt(event.InitiatorID, 10), comment, willAccept, extra)
 	log.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeInvite)
 
 	// 忽略邀请
 	if pa.IgnoreFriendRequest {
@@ -756,6 +758,120 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 	return elements
 }
 
+func buildMilkyForwardElement(nodes []forwardNode) (*milky.ForwardElement, error) {
+	if len(nodes) == 0 {
+		return nil, errors.New("forward message has no nodes")
+	}
+
+	messages := make([]milky.OutgoingForwardedMessage, 0, len(nodes))
+	for index, node := range nodes {
+		userID, err := strconv.ParseInt(strings.TrimSpace(node.Data.Uin), 10, 64)
+		if err != nil || userID <= 0 {
+			return nil, fmt.Errorf("forward node %d has invalid user ID %q", index, node.Data.Uin)
+		}
+		if strings.TrimSpace(node.Data.Content) == "" {
+			return nil, fmt.Errorf("forward node %d has empty content", index)
+		}
+
+		segments := ParseMessageToMilky(message.ConvertStringMessage(node.Data.Content))
+		if len(segments) == 0 {
+			return nil, fmt.Errorf("forward node %d has no supported message segments", index)
+		}
+		messages = append(messages, milky.OutgoingForwardedMessage{
+			UserID:     userID,
+			SenderName: node.Data.Name,
+			Segments:   segments,
+		})
+	}
+
+	return &milky.ForwardElement{Messages: messages}, nil
+}
+
+func (pa *PlatformAdapterMilky) recordForwardMessageSent(ctx *MsgContext, messageType string, targetID string, nodes []forwardNode, messageSeq int64) {
+	if ctx == nil || pa == nil || pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return
+	}
+
+	msg := &Message{
+		Platform:    "QQ",
+		MessageType: messageType,
+		Message:     forwardNodesToText(nodes),
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+		RawID: messageSeq,
+	}
+	if messageType == "group" {
+		msg.GroupID = targetID
+	}
+	pa.EndPoint.Session.OnMessageSend(ctx, msg, "")
+}
+
+func (pa *PlatformAdapterMilky) SendGroupForwardMsg(ctx *MsgContext, groupID string, nodes []forwardNode) bool {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	if pa == nil || pa.IntentSession == nil {
+		log.Error("Failed to send Milky group forward message: session unavailable")
+		return false
+	}
+
+	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
+	if err != nil || id <= 0 {
+		log.Errorf("Invalid group ID %s for Milky forward message", groupID)
+		return false
+	}
+	forward, err := buildMilkyForwardElement(nodes)
+	if err != nil {
+		log.Errorf("Failed to build Milky group forward message: %v", err)
+		return false
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+	elements := []milky.IMessageElement{forward}
+	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
+	if err != nil {
+		log.Errorf("Failed to send group forward message to %s: %v", groupID, err)
+		return false
+	}
+
+	pa.recordForwardMessageSent(ctx, "group", groupID, nodes, ret.MessageSeq)
+	return true
+}
+
+func (pa *PlatformAdapterMilky) SendPrivateForwardMsg(ctx *MsgContext, userID string, nodes []forwardNode) bool {
+	log := zap.S().Named(logger.LogKeyAdapter)
+	if pa == nil || pa.IntentSession == nil {
+		log.Error("Failed to send Milky private forward message: session unavailable")
+		return false
+	}
+
+	id, err := strconv.ParseInt(ExtractQQUserID(userID), 10, 64)
+	if err != nil || id <= 0 {
+		log.Errorf("Invalid user ID %s for Milky forward message", userID)
+		return false
+	}
+	forward, err := buildMilkyForwardElement(nodes)
+	if err != nil {
+		log.Errorf("Failed to build Milky private forward message: %v", err)
+		return false
+	}
+
+	if ctx != nil && ctx.EndPoint != nil && ctx.EndPoint.Platform == "QQ" {
+		doSleepQQ(ctx)
+	}
+	elements := []milky.IMessageElement{forward}
+	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
+	if err != nil {
+		log.Errorf("Failed to send private forward message to %s: %v", userID, err)
+		return false
+	}
+
+	pa.recordForwardMessageSent(ctx, "private", userID, nodes, ret.MessageSeq)
+	return true
+}
+
 func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	send := message.ConvertStringMessage(text)
@@ -867,6 +983,10 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 }
 
 func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string) (*milky.GroupMemberInfo, error) {
+	return pa.getGroupMemberInfo(groupID, userID, false)
+}
+
+func (pa *PlatformAdapterMilky) getGroupMemberInfo(groupID string, userID string, noCache bool) (*milky.GroupMemberInfo, error) {
 	if pa == nil || pa.IntentSession == nil {
 		return nil, errors.New("milky session unavailable")
 	}
@@ -885,7 +1005,7 @@ func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string
 	if err != nil {
 		return nil, fmt.Errorf("invalid milky user id %q: %w", userID, err)
 	}
-	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, false)
+	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, noCache)
 }
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {

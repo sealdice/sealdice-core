@@ -1,13 +1,10 @@
 package dice
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"slices"
 	"strconv"
@@ -15,21 +12,20 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/dop251/goja_nodejs/eventloop"
-	"github.com/go-creed/sat"
-	wr "github.com/mroth/weightedrand"
+	"github.com/lascape/sat"
+	wr "github.com/mroth/weightedrand/v3"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
-	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
 
 	"sealdice-core/dice/events"
 	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
 	"sealdice-core/utils/public_dice"
+	randcore "sealdice-core/utils/random"
 )
 
 type CmdExecuteResult struct {
@@ -188,6 +184,7 @@ func (x ExtDefaultSettingItemSlice) Len() int           { return len(x) }
 func (x ExtDefaultSettingItemSlice) Less(i, _ int) bool { return x[i].Name == "coc7" }
 func (x ExtDefaultSettingItemSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
+// 原有的设计试图创建多个Dice。事实证明，代码无法支撑，已经完全废弃这种行为，现在只有一个Dice！在未来，将会把Dice单例化！不要再考虑多个Dice实例的情况了！
 type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
 	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
@@ -199,12 +196,12 @@ type Dice struct {
 	// 访问时必须通过 activeWithGraph() 方法，确保并发安全。
 	ActiveWithGraph *SyncMap[string, []string] `json:"-" yaml:"-"`
 	// ActiveWithGraphMu 保护 ActiveWithGraph 的并发读写
-	ActiveWithGraphMu  sync.RWMutex           `json:"-" yaml:"-"`
-	ExtRegistryVersion int64                  `json:"-" yaml:"-"`
-	RollParser         *DiceRollParser        `yaml:"-"`
-	LastUpdatedTime    int64                  `yaml:"-"`
-	TextMap            map[string]*wr.Chooser `yaml:"-"`
-	BaseConfig         BaseConfig             `yaml:"-"`
+	ActiveWithGraphMu  sync.RWMutex                         `json:"-" yaml:"-"`
+	ExtRegistryVersion int64                                `json:"-" yaml:"-"`
+	RollParser         *DiceRollParser                      `yaml:"-"`
+	LastUpdatedTime    int64                                `yaml:"-"`
+	TextMap            map[string]*wr.Chooser[string, uint] `yaml:"-"`
+	BaseConfig         BaseConfig                           `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
@@ -288,6 +285,8 @@ type Dice struct {
 	DirtyGroups *SyncMap[string, int64] `json:"-" yaml:"-"` // 脏群组列表：groupID -> UpdatedAtTime
 }
 
+var globalRandSource = randcore.NewGlobalOwner(logger.M())
+
 func (d *Dice) MarkModified() {
 	d.LastUpdatedTime = time.Now().Unix()
 }
@@ -348,6 +347,9 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	if err := d.ActivateDiceRandomMode(); err != nil && d.Logger != nil {
+		d.Logger.Warnf("[随机源] 激活配置模式失败，已使用 PCG 回退: %v", err)
+	}
 	d.loadAdvanced()
 	(&d.Config).BanList.Loads()
 	(&d.Config).BanList.AfterLoads()
@@ -869,7 +871,7 @@ func (d *Dice) ApplyAliveNotice() {
 	}
 	if d.Config.AliveNoticeEnable {
 		entry, err := d.Cron.AddFunc((&d.Config).AliveNoticeValue, func() {
-			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", DiceRoll64(100)), false)
+			d.NoticeForEveryEndpoint(fmt.Sprintf("存活, D100=%d", d.Roll64(100)), false, NoticeTypeSystem)
 		})
 		if err == nil {
 			d.AliveNoticeEntry = entry
@@ -981,47 +983,16 @@ func collectGameSystemTemplateFiles(templateDir string) ([]string, error) {
 	return files, nil
 }
 
-// generateRandSeed 生成一个随机种子，由当前时间戳、对象指针、进程ID和堆栈信息组成
-func generateRandSeed() uint64 {
-	timestamp := time.Now().UnixNano()
-
-	type tempObj struct{ val int }
-	obj := tempObj{val: 42}
-	objPtr := uint64(uintptr(unsafe.Pointer(&obj)))
-
-	pid := uint64(os.Getpid())
-
-	buf := make([]byte, 1024)
-	n := runtime.Stack(buf, true)
-	stackInfo := buf[:n]
-
-	h := fnv.New64a()
-
-	_ = binary.Write(h, binary.LittleEndian, timestamp)
-
-	_ = binary.Write(h, binary.LittleEndian, objPtr)
-
-	_ = binary.Write(h, binary.LittleEndian, pid)
-
-	_, _ = h.Write(stackInfo)
-
-	return h.Sum64()
-}
-
-var randSource = rand2.NewSource(generateRandSeed()).(*rand2.PCGSource)
-
 func DiceRoll(dicePoints int) int { //nolint:revive
 	if dicePoints <= 0 {
 		return 0
 	}
-	val := ds.Roll(randSource, ds.IntType(dicePoints), 0)
+	val := ds.Roll(globalRandSource, ds.IntType(dicePoints), 0)
 	return int(val)
 }
 
-func DiceRoll64x(src *rand2.PCGSource, dicePoints int64) int64 { //nolint:revive
-	if src == nil {
-		src = randSource
-	}
+func DiceRoll64x(src ds.DiceSource, dicePoints int64) int64 { //nolint:revive
+	src = normalizeDiceSource(src)
 	val := ds.Roll(src, ds.IntType(dicePoints), 0)
 	return int64(val)
 }
@@ -1095,6 +1066,7 @@ func (d *Dice) PublicDiceEndpointRefresh() {
 		endpointItems = append(endpointItems, &public_dice.Endpoint{
 			Platform: i.Platform,
 			UID:      i.UserID,
+			AppID:    publicDiceEndpointAppID(i),
 			IsOnline: i.State == 1,
 		})
 	}
@@ -1142,6 +1114,7 @@ func (d *Dice) PublicDiceSetupTick() {
 			}
 			tickEndpointItems = append(tickEndpointItems, &public_dice.TickEndpoint{
 				UID:      i.UserID,
+				AppID:    publicDiceEndpointAppID(i),
 				IsOnline: i.State == 1,
 			})
 		}
@@ -1162,6 +1135,17 @@ func (d *Dice) PublicDiceSetupTick() {
 	}()
 
 	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3m", doTickUpdate)
+}
+
+func publicDiceEndpointAppID(endpoint *EndPointInfo) string {
+	if endpoint == nil || endpoint.Platform != "QQ" || endpoint.ProtocolType != "official" {
+		return ""
+	}
+	adapter, ok := endpoint.Adapter.(*PlatformAdapterOfficialQQ)
+	if !ok || adapter == nil {
+		return ""
+	}
+	return adapter.AppID
 }
 
 func (d *Dice) PublicDiceSetup() {

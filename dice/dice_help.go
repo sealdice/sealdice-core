@@ -8,7 +8,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -75,12 +74,14 @@ type HelpManager struct {
 type EngineType int
 
 const (
-	BleveSearch EngineType = iota // 0
+	BlugeSearch EngineType = iota // 0
 	Clover                        // 1
 	MeiliSearch                   // 2
 )
 
 const HelpConfigFilename = "help_config.yaml"
+
+const helpContentParserVersion = 1
 
 type HelpConfig struct {
 	Aliases map[string][]string `json:"aliases" yaml:"aliases"`
@@ -94,7 +95,10 @@ type HelpDocFormat struct {
 	Helpdoc map[string]string `json:"helpdoc"`
 }
 
-const helpIndexMetaPath = "./data/_help_cache/help_index_meta.json"
+const (
+	helpIndexMetaPath  = docengine.DefaultCacheDir + "/help_index_meta.json"
+	legacyHelpCacheDir = "./data/_help_cache"
+)
 
 type HelpFileMeta struct {
 	Hash  uint64 `json:"hash"`
@@ -103,11 +107,15 @@ type HelpFileMeta struct {
 }
 
 type HelpIndexMeta struct {
-	Files map[string]HelpFileMeta `json:"files"`
+	ContentParserVersion int                     `json:"contentParserVersion"`
+	Files                map[string]HelpFileMeta `json:"files"`
 }
 
 func newEmptyHelpIndexMeta() *HelpIndexMeta {
-	return &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}
+	return &HelpIndexMeta{
+		ContentParserVersion: helpContentParserVersion,
+		Files:                make(map[string]HelpFileMeta),
+	}
 }
 
 func reconcileHelpIndexMeta(indexMeta *HelpIndexMeta, metaTrusted, indexFreshlyCreated bool) (*HelpIndexMeta, bool) {
@@ -121,15 +129,11 @@ func reconcileHelpIndexMeta(indexMeta *HelpIndexMeta, metaTrusted, indexFreshlyC
 }
 
 func (m *HelpManager) loadSearchEngine() bool {
-	if runtime.GOARCH == "arm64" {
-		// 等木落测试，测试之前先不实现这个Clover模式，如果直接就能用，那也不必再实现他了
-		m.EngineType = BleveSearch
-	}
 	switch m.EngineType {
 	case Clover:
 		return false
-	case BleveSearch:
-		engine, err := docengine.NewBleveSearchEngine()
+	case BlugeSearch:
+		engine, err := docengine.NewBlugeSearchEngine()
 		if err != nil {
 			logger.M().Errorf("初始化帮助文档失败，帮助文档不可用!")
 			return false
@@ -137,7 +141,7 @@ func (m *HelpManager) loadSearchEngine() bool {
 		m.searchEngine = engine
 		return engine.IndexFreshlyCreated()
 	default:
-		// 如果BleveSearch兼容性差，到时候全部回退到Clover查询
+		// 如果全文搜索兼容性差，到时候全部回退到Clover查询
 		panic("unhandled default case")
 	}
 }
@@ -151,17 +155,18 @@ func (m *HelpManager) Close() {
 func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtInfo) {
 	log := logger.M()
 	_ = os.RemoveAll("./data/_index") // 删除旧索引
+	_ = os.RemoveAll(legacyHelpCacheDir)
 
 	// 先读取索引 meta 和 docIDs 文件，判断缓存是否可信
 	indexMeta, metaTrusted := m.loadHelpIndexMeta()
 	if !metaTrusted {
-		log.Warnf("[帮助文档] 检测到索引缓存不可信(metaTrusted=%v)，删除旧索引 ./data/_help_cache/_index 并准备全量重建", metaTrusted)
-		_ = os.RemoveAll("./data/_help_cache/_index")
+		log.Warnf("[帮助文档] 检测到索引缓存不可信(metaTrusted=%v)，删除旧索引 %s 并准备全量重建", metaTrusted, docengine.DefaultIndexDir)
+		_ = os.RemoveAll(docengine.DefaultIndexDir)
 	}
 
 	indexFreshlyCreated := m.loadSearchEngine()
 	if metaTrusted && indexFreshlyCreated {
-		log.Warnf("[帮助文档] 检测到 Bleve 索引已重新创建，将忽略旧 meta 并执行全量重建")
+		log.Warnf("[帮助文档] 检测到 Bluge 索引已重新创建，将忽略旧 meta 并执行全量重建")
 	}
 	indexMeta, _ = reconcileHelpIndexMeta(indexMeta, metaTrusted, indexFreshlyCreated)
 
@@ -478,7 +483,7 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 						}
 					}
 					key := keyBuilder.String()
-					content := row[synonymCount+1]
+					content := unescapeXlsxHelpContent(row[synonymCount+1])
 
 					_ = m.AddItem(docengine.HelpTextItem{
 						Group:       group,
@@ -498,6 +503,33 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		return true
 	}
 	return false
+}
+
+func unescapeXlsxHelpContent(content string) string {
+	if !strings.Contains(content, `\`) {
+		return content
+	}
+
+	var result strings.Builder
+	result.Grow(len(content))
+	for i := 0; i < len(content); i++ {
+		if content[i] != '\\' || i+1 >= len(content) {
+			result.WriteByte(content[i])
+			continue
+		}
+
+		switch content[i+1] {
+		case 'n':
+			result.WriteByte('\n')
+			i++
+		case '\\':
+			result.WriteByte('\\')
+			i++
+		default:
+			result.WriteByte(content[i])
+		}
+	}
+	return result.String()
 }
 
 // validateXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym（可能有多列） Content Description Catalogue Tag
@@ -633,8 +665,8 @@ func (m *HelpManager) IsAvailable() bool {
 	if m == nil || m.searchEngine == nil {
 		return false
 	}
-	if engine, ok := m.searchEngine.(*docengine.BleveSearchEngine); ok {
-		return engine.Index != nil
+	if engine, ok := m.searchEngine.(*docengine.BlugeSearchEngine); ok {
+		return engine.Writer != nil
 	}
 	return true
 }
@@ -648,7 +680,7 @@ func (m *HelpManager) GetItemByNumericID(id int) (*docengine.HelpTextItem, error
 		return nil, errors.New("无效的帮助条目ID")
 	}
 	internalID := m.docIDs[id-1]
-	return m.searchEngine.GetItemByID(internalID)
+	return m.searchEngine.GetItemByInternalID(internalID)
 }
 
 func (m *HelpManager) GetItemByNumericIDString(id string) (*docengine.HelpTextItem, error) {
@@ -660,6 +692,14 @@ func (m *HelpManager) GetItemByNumericIDString(id string) (*docengine.HelpTextIt
 		return nil, err
 	}
 	return m.GetItemByNumericID(v)
+}
+
+func (m *HelpManager) getNumericIDByInternalID(internalID string) (int, bool) {
+	index := sort.SearchStrings(m.docIDs, internalID)
+	if index >= len(m.docIDs) || m.docIDs[index] != internalID {
+		return 0, false
+	}
+	return index + 1, true
 }
 
 func (m *HelpManager) Search(ctx *MsgContext, text string, titleOnly bool, pageSize, pageNum int, group string) (res *docengine.GeneralSearchResult, total, pageStart, pageEnd int, err error) {
@@ -679,6 +719,14 @@ func (m *HelpManager) loadHelpIndexMeta() (*HelpIndexMeta, bool) {
 	}
 	if meta.Files == nil {
 		meta.Files = make(map[string]HelpFileMeta)
+	}
+	if meta.ContentParserVersion != helpContentParserVersion {
+		logger.M().Infof(
+			"[帮助文档] 内容解析版本已更新(%d -> %d)，将重新构建索引",
+			meta.ContentParserVersion,
+			helpContentParserVersion,
+		)
+		return newEmptyHelpIndexMeta(), false
 	}
 	return &meta, true
 }
@@ -718,9 +766,9 @@ func computeHelpFileHash(filePath string) (uint64, int64, error) {
 }
 
 func (m *HelpManager) rebuildDocIDs() {
-	engine, ok := m.searchEngine.(*docengine.BleveSearchEngine)
+	engine, ok := m.searchEngine.(*docengine.BlugeSearchEngine)
 	if !ok {
-		logger.M().Warnf("[帮助文档] 当前搜索引擎不是 BleveSearchEngine，无法重建 docIDs 映射")
+		logger.M().Warnf("[帮助文档] 当前搜索引擎不是 BlugeSearchEngine，无法重建 docIDs 映射")
 		m.docIDs = make([]string, 0)
 		m.CurID = 0
 		return
@@ -744,8 +792,8 @@ func (m *HelpManager) GetPrefixText() string {
 	return m.searchEngine.GetPrefixText()
 }
 
-func (m *HelpManager) GetShowBestOffset() int {
-	return m.searchEngine.GetShowBestOffset()
+func (m *HelpManager) GetShowBestRelativeGap() float64 {
+	return m.searchEngine.GetShowBestRelativeGap()
 }
 
 func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string {
@@ -1141,8 +1189,12 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 
 	// 如果ID不为空
 	if id != "" {
-		// 加载对应ID的数据
-		item, err := m.searchEngine.GetItemByID(id)
+		numericID, err := strconv.Atoi(id)
+		if err != nil {
+			return 0, HelpTextVos{}
+		}
+		// 加载对应数字 ID 的数据
+		item, err := m.GetItemByNumericID(numericID)
 		// 若成功
 		if err == nil {
 			// 返回这条数据
@@ -1154,7 +1206,7 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 				PackageName: item.PackageName,
 				KeyWords:    item.KeyWords,
 			}
-			vo.ID, _ = strconv.Atoi(id)
+			vo.ID = numericID
 			return 1, HelpTextVos{vo}
 		}
 		return 0, HelpTextVos{}
@@ -1166,7 +1218,13 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 	}
 	var items = make(HelpTextVos, 0)
 	for _, item := range result {
+		numericID, ok := m.getNumericIDByInternalID(item.InternalID)
+		if !ok {
+			logger.M().Warnf("帮助文档内部 ID 不在数字 ID 映射中: %s", item.InternalID)
+			continue
+		}
 		vo := HelpTextVo{
+			ID:          numericID,
 			Group:       item.Group,
 			From:        item.From,
 			Title:       item.Title,
@@ -1174,7 +1232,6 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 			PackageName: item.PackageName,
 			KeyWords:    item.KeyWords,
 		}
-		vo.ID, _ = strconv.Atoi(id)
 		items = append(items, vo)
 	}
 	return int(total), items

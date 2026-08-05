@@ -58,6 +58,7 @@ func banConfigSet(c echo.Context) error {
 
 	config.BanList.JointScorePercentOfGroup = v.JointScorePercentOfGroup
 	config.BanList.JointScorePercentOfInviter = v.JointScorePercentOfInviter
+	config.BanList.BanNotifyIntervalMinutes = v.BanNotifyIntervalMinutes
 	myDice.MarkModified()
 
 	return c.JSON(http.StatusOK, myDice.Config.BanList)

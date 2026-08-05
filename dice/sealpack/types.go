@@ -133,6 +133,7 @@ type Instance struct {
 	ErrText       string                 `json:"errText"`
 	SourceStatus  PackageSourceStatus    `json:"sourceStatus,omitempty"`
 	SourceWarning string                 `json:"sourceWarning,omitempty"`
+	Files         []string               `json:"files,omitempty"` // 包内文件清单，使用 / 分隔的相对路径
 
 	// PendingReload 待重载的内容类型列表
 	// 当包状态变更（启用/禁用）后设置，重载后清空
@@ -159,8 +160,9 @@ type InstancePersist struct {
 
 // ArchiveInfo describes a validated .sealpack archive.
 type ArchiveInfo struct {
-	Manifest *Manifest `json:"manifest"`
-	Files    []string  `json:"files"`
+	Manifest         *Manifest `json:"manifest"`
+	Files            []string  `json:"files"`
+	UncompressedSize uint64    `json:"-"`
 }
 
 // OperationResult 包操作结果

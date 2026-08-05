@@ -48,11 +48,19 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 	}
 
 	// log_id=0 清理后，回填剩余日志 (size 仅需更新 id>0 的有效日志行)
-	recountResult := db.Model(&model.LogInfo{}).Where("id > 0").Update("size", gorm.Expr(
-		"(SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)",
-	))
-	if recountResult.Error != nil {
-		return recountResult.Error
+	// 注意：若 size 列不存在（V150 历史升级失误的遗留情况），这里跳过重算，
+	// 由后续的 V160LogSizeRepairMigration 负责“建列 + 全量重算”，避免在此处因列缺失而报错。
+	var recountRows int64
+	if migrator.HasColumn(&model.LogInfo{}, "size") {
+		recountResult := db.Model(&model.LogInfo{}).Where("id > 0").Update("size", gorm.Expr(
+			"(SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)",
+		))
+		if recountResult.Error != nil {
+			return recountResult.Error
+		}
+		recountRows = recountResult.RowsAffected
+	} else {
+		logf("数据修复 - Logs表，size 列不存在，跳过重算，将由 V160 size 修复迁移处理")
 	}
 
 	if itemResult.RowsAffected > 0 {
@@ -66,7 +74,7 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 	} else {
 		logf("数据修复 - Logs表，没有需要删除的记录")
 	}
-	logf(fmt.Sprintf("数据修复 - Logs表，重算了 %d 条size字段", recountResult.RowsAffected))
+	logf(fmt.Sprintf("数据修复 - Logs表，重算了 %d 条size字段", recountRows))
 
 	return nil
 }

@@ -2,6 +2,9 @@ package api
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -88,6 +91,65 @@ func packageGet(c echo.Context) error {
 	})
 }
 
+// packageAsset serves a package-internal asset file from the installed cache.
+// GET /package/asset?id=author/package&path=assets/icon.png
+func packageAsset(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
+
+	pkgID := c.QueryParam("id")
+	assetPath := strings.TrimSpace(c.QueryParam("path"))
+	if pkgID == "" || assetPath == "" {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if err := sealpack.ValidateRelativePackagePath(assetPath); err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	pkg, exists := myDice.PackageManager.Get(pkgID)
+	if !exists || pkg == nil || pkg.InstallPath == "" {
+		return c.NoContent(http.StatusNotFound)
+	}
+
+	targetPath, err := resolvePackageAssetPath(pkg.InstallPath, assetPath)
+	if err != nil {
+		return c.NoContent(http.StatusForbidden)
+	}
+	info, err := os.Stat(targetPath)
+	if err != nil || info.IsDir() {
+		return c.NoContent(http.StatusNotFound)
+	}
+	headers := c.Response().Header()
+	headers.Set("X-Content-Type-Options", "nosniff")
+	headers.Set("Content-Security-Policy", filePreviewContentSecurityPolicy)
+	return c.File(targetPath)
+}
+
+func resolvePackageAssetPath(installPath string, assetPath string) (string, error) {
+	root, err := filepath.Abs(filepath.Clean(installPath))
+	if err != nil {
+		return "", err
+	}
+	target, err := filepath.Abs(filepath.Join(root, filepath.FromSlash(assetPath)))
+	if err != nil {
+		return "", err
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", err
+	}
+	resolvedTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(resolvedRoot, resolvedTarget)
+	if err != nil || rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", os.ErrPermission
+	}
+	return resolvedTarget, nil
+}
+
 // packageInstallFromUpload 从请求体流式上传并安装扩展包。
 // POST /package/install-upload
 // 请求体: application/octet-stream 的 .sealpack 文件内容
@@ -108,7 +170,7 @@ func packageInstallFromUpload(c echo.Context) error {
 	}
 	defer req.Body.Close()
 
-	if err := myDice.PackageManager.InstallFromStream(req.Body); err != nil {
+	if err := myDice.PackageManager.InstallFromStreamContext(req.Context(), req.Body); err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
 
@@ -137,7 +199,7 @@ func packagePreviewFromUpload(c echo.Context) error {
 	}
 	defer req.Body.Close()
 
-	preview, err := myDice.PackageManager.PreviewFromStream(req.Body)
+	preview, err := myDice.PackageManager.PreviewFromStreamContext(req.Context(), req.Body)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
@@ -169,7 +231,7 @@ func packageInstallFromURL(c echo.Context) error {
 		return Error(&c, err.Error(), Response{})
 	}
 
-	err = myDice.PackageManager.InstallFromURL(params.URL, nil)
+	err = myDice.PackageManager.InstallFromURLContext(c.Request().Context(), params.URL, nil)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}

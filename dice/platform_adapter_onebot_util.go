@@ -159,7 +159,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 			txtErr := fmt.Sprintf("离开群组或群解散，删除对应群聊信息失败: <%s>(%s)", groupName, groupId)
 			p.logger.Error(txtErr)
 			if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
-				ctx.Notice(txtErr)
+				ctx.Notice(txtErr, NoticeTypeGroup)
 			}
 			return nil
 		}
@@ -167,7 +167,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 		group.MarkDirty(session.Parent)
 		p.logger.Info(txt)
 		if pendingQuit == nil || pendingQuit.Origin != QuitOriginAutoInactive || !session.Parent.Config.QuitInactiveNoticeSummaryMode {
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeGroup)
 		}
 	}
 
@@ -223,7 +223,7 @@ func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsock
 			ctx.Dice.Config.BanList.AddScoreByGroupMuted(operatorID, groupId, ctx)
 			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%s)", groupName, groupId, duration, userName, operatorID)
 			p.logger.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeGroup)
 		}
 	}
 	return nil
@@ -377,7 +377,7 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		_ = p.submitAsync(func() {
 			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
 			p.logger.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeInvite)
 			err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), true, "")
 			if err != nil {
 				p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
@@ -439,7 +439,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	}
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeInvite)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
 	if !p.IgnoreFriendRequest {
 		err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), result.Passed && passQuestion, "")
@@ -707,6 +707,7 @@ func (msgQQ *MessageOBQQ) toStdMessage() *Message {
 		}
 		msg.Sender.GroupRole = msgQQ.Sender.Role
 		msg.Sender.UserID = canonicalOnebotUserID(string(msgQQ.Sender.UserID))
+		msg.Sender.IsRobot = msgQQ.Sender.IsRobot || isQQBotUserID(msg.Sender.UserID)
 	}
 	return msg
 }
@@ -771,8 +772,12 @@ func arrayByte2SealdiceMessage(log *zap.SugaredLogger, raw []byte) (*Message, er
 			}
 			seg = append(seg, &recordRaw)
 		case "at":
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", dataObj.Get("qq").String())
-			seg = append(seg, &message.AtElement{Target: dataObj.Get("qq").String()})
+			target := dataObj.Get("qq").String()
+			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", target)
+			seg = append(seg, &message.AtElement{
+				Target:  target,
+				IsRobot: dataObj.Get("is_robot").Bool() || isQQBotUserID(canonicalOnebotUserID(target)),
+			})
 		case "poke":
 			cqMessage.WriteString("[CQ:poke]")
 			seg = append(seg, &message.PokeElement{})
@@ -916,7 +921,7 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			rawMsg.At(res.Target)
+			rawMsg = rawMsg.At(res.Target)
 			_, _ = fmt.Fprintf(&cqMessage, "[CQ:at,qq=%v]", res.Target)
 		case message.Text:
 			res, ok := v.(*message.TextElement)

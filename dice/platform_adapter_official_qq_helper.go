@@ -3,10 +3,8 @@ package dice
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -14,7 +12,7 @@ import (
 	logger "sealdice-core/logger"
 )
 
-func NewOfficialQQConnItem(appID uint64, token string, appSecret string, onlyQQGuild bool) *EndPointInfo {
+func NewOfficialQQConnItem(appID, appSecret, uin string, onlyQQGuild bool) *EndPointInfo {
 	conn := new(EndPointInfo)
 	conn.ID = uuid.New().String()
 	conn.Platform = "QQ"
@@ -24,8 +22,8 @@ func NewOfficialQQConnItem(appID uint64, token string, appSecret string, onlyQQG
 	conn.Adapter = &PlatformAdapterOfficialQQ{
 		EndPoint:    conn,
 		AppID:       appID,
-		Token:       token,
 		AppSecret:   appSecret,
+		UIN:         uin,
 		OnlyQQGuild: onlyQQGuild,
 	}
 	return conn
@@ -34,16 +32,9 @@ func NewOfficialQQConnItem(appID uint64, token string, appSecret string, onlyQQG
 func ServerOfficialQQ(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "QQ" && ep.ProtocolType == "official" {
-		conn := ep.Adapter.(*PlatformAdapterOfficialQQ)
 		ep.BindRuntime(d.ImSession)
-		d.Logger.Infof("official qq 尝试连接")
-		if conn.Serve() != 0 {
-			d.Logger.Infof("official qq 连接失败")
-			ep.State = 3
-			ep.Enable = false
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
+		// 连接状态、重试和日志统一由 ServeQQ 及其官方 QQ 分支负责。
+		ServeQQ(d, ep)
 	}
 }
 
@@ -57,13 +48,9 @@ func NewDummyLogger() DummyLogger {
 	}
 }
 
-func (d DummyLogger) Debug(v ...interface{}) {
-	d.logger.Debug(output(v...))
-}
+func (d DummyLogger) Debug(_ ...interface{}) {}
 
-func (d DummyLogger) Info(v ...interface{}) {
-	d.logger.Debug(output(v...))
-}
+func (d DummyLogger) Info(_ ...interface{}) {}
 
 func (d DummyLogger) Warn(v ...interface{}) {
 	d.logger.Warn(output(v...))
@@ -73,13 +60,9 @@ func (d DummyLogger) Error(v ...interface{}) {
 	d.logger.Error(output(v...))
 }
 
-func (d DummyLogger) Debugf(format string, v ...interface{}) {
-	d.logger.Debug(output(fmt.Sprintf(format, v...)))
-}
+func (d DummyLogger) Debugf(_ string, _ ...interface{}) {}
 
-func (d DummyLogger) Infof(format string, v ...interface{}) {
-	d.logger.Debug(output(fmt.Sprintf(format, v...)))
-}
+func (d DummyLogger) Infof(_ string, _ ...interface{}) {}
 
 func (d DummyLogger) Warnf(format string, v ...interface{}) {
 	d.logger.Warn(output(fmt.Sprintf(format, v...)))
@@ -102,20 +85,11 @@ func output(v ...interface{}) string {
 	return fmt.Sprintf(logFormat, file, line, funcName)
 }
 
+// 链接现在原样发送；注释掉下面的正则防止以后要用
 // 参考: https://gist.github.com/brydavis/0c7da92bd508195744708eeb2b54ac96
-var reUrlExtract = regexp.MustCompile(`(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/|\/|\/\/)?[A-z0-9_-]*?[:]?[A-z0-9_-]*?[@]?[A-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?`)
+// var reUrlExtract = regexp.MustCompile(`(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/|\/|\/\/)?[A-z0-9_-]*?[:]?[A-z0-9_-]*?[@]?[A-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?`)
 
+// 不再使用，为了防止以后要用，暂时保留
 func textLinkStrip(text string) string {
-	urls := reUrlExtract.FindAllString(text, -1)
-
-	// 在每个URL中将"."替换为"_"
-	for _, url := range urls {
-		replacedURL := strings.ReplaceAll(url, ".", "_")
-		replacedURL = strings.ReplaceAll(replacedURL, "https://", "https_")
-		replacedURL = strings.ReplaceAll(replacedURL, "http://", "http_")
-		// replacedURL = strings.ReplaceAll(replacedURL, "/", "_")
-		text = strings.ReplaceAll(text, url, replacedURL)
-	}
-
 	return text
 }

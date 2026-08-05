@@ -95,6 +95,7 @@ func DiceConfigSet(c echo.Context) error {
 
 	jsonMap := make(map[string]interface{})
 	err := json.NewDecoder(c.Request().Body).Decode(&jsonMap)
+	randomModeModified := false
 
 	stringConvert := func(val interface{}) []string {
 		var lst []string
@@ -134,7 +135,13 @@ func DiceConfigSet(c echo.Context) error {
 
 	config := &myDice.Config
 	if val, ok := jsonMap["noticeIds"]; ok {
-		config.NoticeIDs = stringConvert(val)
+		rawTargets := stringConvert(val)
+		config.NoticeIDs = make([]string, 0, len(rawTargets))
+		for _, rawTarget := range rawTargets {
+			if target := dice.ParseNoticeTarget(rawTarget); target.ID != "" {
+				config.NoticeIDs = append(config.NoticeIDs, target.String())
+			}
+		}
 	}
 
 	if val, ok := jsonMap["defaultCocRuleIndex"]; ok { //nolint:nestif
@@ -246,6 +253,24 @@ func DiceConfigSet(c echo.Context) error {
 
 	if val, ok := jsonMap["workInQQChannel"]; ok {
 		config.WorkInQQChannel = val.(bool)
+	}
+
+	if val, ok := jsonMap["diceRandomMode"]; ok {
+		if v, ok := val.(string); ok {
+			switch strings.ToLower(strings.TrimSpace(v)) {
+			case string(dice.DiceRandomModeGM):
+				config.DiceRandomMode = string(dice.DiceRandomModeGM)
+			case string(dice.DiceRandomModeNIST):
+				config.DiceRandomMode = string(dice.DiceRandomModeNIST)
+			case string(dice.DiceRandomModeCRNG):
+				config.DiceRandomMode = string(dice.DiceRandomModeCRNG)
+			case string(dice.DiceRandomModeHybrid):
+				config.DiceRandomMode = string(dice.DiceRandomModeHybrid)
+			default:
+				config.DiceRandomMode = string(dice.DiceRandomModePCG)
+			}
+			randomModeModified = true
+		}
 	}
 
 	if val, ok := jsonMap["QQChannelLogMessage"]; ok {
@@ -397,6 +422,18 @@ func DiceConfigSet(c echo.Context) error {
 		config.QQEnablePoke = val.(bool)
 	}
 
+	if val, ok := jsonMap["officialQQFileSendBase64"]; ok {
+		config.OfficialQQFileSendBase64 = val.(bool)
+	}
+
+	if val, ok := jsonMap["officialQQUseMarkdown"]; ok {
+		config.OfficialQQUseMarkdown = val.(bool)
+	}
+
+	if val, ok := jsonMap["officialQQEnableIdentityMigration"]; ok {
+		config.OfficialQQMigrationEnable = val.(bool)
+	}
+
 	if val, ok := jsonMap["playerNameWrapEnable"]; ok {
 		config.PlayerNameWrapEnable = val.(bool)
 	}
@@ -459,6 +496,11 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	// 统一标记为修改
+	if randomModeModified {
+		if err := myDice.ActivateDiceRandomMode(); err != nil {
+			myDice.Logger.Warnf("[随机源] 应用管理界面随机模式失败，已使用 PCG 回退: %v", err)
+		}
+	}
 	myDice.MarkModified()
 	myDice.Parent.Save()
 	return c.JSON(http.StatusOK, nil)
@@ -472,7 +514,7 @@ func DiceMailTest(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 
-	err := myDice.SendMail("", dice.MailTest)
+	err := myDice.SendMail("", dice.MailTest, dice.NoticeTypeSystem)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}
