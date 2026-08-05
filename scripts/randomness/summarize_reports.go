@@ -239,18 +239,18 @@ func readAnalysisCSV(path string) ([]analysisRow, error) {
 func buildMarkdown(profile string, reports []modeReport) string {
 	var b strings.Builder
 	b.WriteString("# SealDice 随机性检测汇总报告\n\n")
-	b.WriteString(fmt.Sprintf("- 检测配置：`%s`\n", profile))
+	fmt.Fprintf(&b, "- 检测配置：`%s`\n", profile)
 	if len(reports) > 0 {
-		b.WriteString(fmt.Sprintf("- 样本规模：每轮每模式 `%d` 个文件，每文件 `%d` bit\n", reports[0].SampleCount, reports[0].BitsPerSample))
+		fmt.Fprintf(&b, "- 样本规模：每轮每模式 `%d` 个文件，每文件 `%d` bit\n", reports[0].SampleCount, reports[0].BitsPerSample)
 	}
 	b.WriteString("- 检测工具：`rddetector`（GM/T 0005-2021 15 项检测）\n\n")
 	if len(reports) > 0 {
 		required := requiredPassCount(reports[0].SampleCount)
-		b.WriteString(fmt.Sprintf(
+		fmt.Fprintf(&b,
 			"说明：在当前配置下，单项检测默认要求每轮至少 `%d/%d` 个样本满足规范阈值（约 `98.1%%`）。因此低于该阈值的结果会被记为未满通过，但仍应结合样本规模、轮次和项目类型一起解读。\n\n",
 			required,
 			reports[0].SampleCount,
-		))
+		)
 	}
 
 	comparisons := buildComparisons(reports)
@@ -259,7 +259,7 @@ func buildMarkdown(profile string, reports []modeReport) string {
 		b.WriteString("| 模式 | 检测项目数 | 各轮稳定通过项目数 | 平均单项通过率 | 最低单项通过率 | 最低项 |\n")
 		b.WriteString("| --- | ---: | ---: | ---: | ---: | --- |\n")
 		for _, item := range comparisons {
-			b.WriteString(fmt.Sprintf(
+			fmt.Fprintf(&b,
 				"| `%s` | %d | %d | %.4f | %.4f | %s |\n",
 				item.Mode,
 				item.TotalTests,
@@ -267,19 +267,19 @@ func buildMarkdown(profile string, reports []modeReport) string {
 				item.AveragePassRate,
 				item.LowestPassRate,
 				item.LowestPassRateKey,
-			))
+			)
 		}
 		b.WriteString("\n")
 	}
 
 	for _, report := range reports {
-		b.WriteString(fmt.Sprintf("## `%s`\n\n", report.Mode))
+		fmt.Fprintf(&b, "## `%s`\n\n", report.Mode)
 		b.WriteString(report.SummaryLine + "\n\n")
 		b.WriteString("| 检测项目 | 通过轮次 | 平均通过率 | 最低通过率 | 最高通过率 | 平均通过样本数 |\n")
 		b.WriteString("| --- | ---: | ---: | ---: | ---: | ---: |\n")
 		for _, testName := range report.OrderedTests {
 			row := report.RowsByTest[testName]
-			b.WriteString(fmt.Sprintf(
+			fmt.Fprintf(&b,
 				"| %s | %d/%d | %.4f | %.4f | %.4f | %.2f/%.2f |\n",
 				row.TestName,
 				row.PassedRounds,
@@ -289,7 +289,7 @@ func buildMarkdown(profile string, reports []modeReport) string {
 				row.MaxPassRate,
 				row.AveragePassCount,
 				row.AverageTotalCount,
-			))
+			)
 		}
 		b.WriteString("\n")
 	}
