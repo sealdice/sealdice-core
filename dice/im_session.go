@@ -441,6 +441,9 @@ type EndPointInfo struct {
 	EndPointInfoBase `jsbind:"baseInfo" yaml:"baseInfo"`
 
 	Adapter PlatformAdapter `json:"adapter" yaml:"adapter"`
+	// lifecycle is runtime-only. It centralizes adapter start/stop/retry state
+	// for adapters that opt in via EndpointLifecycleDriver.
+	lifecycle *EndpointLifecycleSupervisor `json:"-" yaml:"-"`
 }
 
 func (ep *EndPointInfo) UnmarshalYAML(value *yaml.Node) error {
@@ -2376,8 +2379,10 @@ func (s *IMSession) GetEpByPlatform(p string) *EndPointInfo {
 // SetEnable
 /* 如果已连接，将断开连接，如果开着GCQ将自动结束。如果启用的话，则反过来  */
 func (ep *EndPointInfo) SetEnable(_ *Dice, enable bool) {
-	if ep.Enable != enable {
-		ep.Adapter.SetEnable(enable)
+	if enable {
+		_ = StartEndpointLifecycle(nil, ep)
+	} else {
+		_ = StopEndpointLifecycle(nil, ep)
 	}
 }
 
@@ -2417,7 +2422,6 @@ func (ep *EndPointInfo) BindRuntime(session *IMSession) {
 			log := zap.S().Named(logger.LogKeyAdapter)
 			pa.EndPoint = ep
 			pa.logger = log
-			pa.desiredEnabled = ep.Enable
 			// case "LagrangeGo":
 			//	pa := ep.Adapter.(*PlatformAdapterLagrangeGo)
 			//	pa.EndPoint = ep

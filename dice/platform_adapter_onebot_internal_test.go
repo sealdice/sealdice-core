@@ -11,7 +11,6 @@ import (
 
 	socketio "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/bytedance/sonic"
-	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
@@ -207,28 +206,41 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	return d, pa, em, cleanupAll
 }
 
-func newPureOnebotRetryFSM(eventCh chan string) *loopfsm.FSM {
-	return loopfsm.NewFSM(
-		"connecting",
-		loopfsm.Events{
-			{Name: "connect_ok", Src: []string{"connecting"}, Dst: "connected"},
-			{Name: "connect_fail", Src: []string{"connecting"}, Dst: "failed"},
-		},
-		loopfsm.Callbacks{
-			"enter_connected": func(_ context.Context, _ *loopfsm.Event) {
-				select {
-				case eventCh <- "connect_ok":
-				default:
-				}
-			},
-			"enter_failed": func(_ context.Context, _ *loopfsm.Event) {
-				select {
-				case eventCh <- "connect_fail":
-				default:
-				}
-			},
-		},
-	)
+type onebotLifecycleReporter struct {
+	started chan struct{}
+	failed  chan error
+	closed  chan error
+}
+
+func newOnebotLifecycleReporter() *onebotLifecycleReporter {
+	return &onebotLifecycleReporter{
+		started: make(chan struct{}, 1),
+		failed:  make(chan error, 1),
+		closed:  make(chan error, 1),
+	}
+}
+
+func (r *onebotLifecycleReporter) Generation() uint64 { return 1 }
+
+func (r *onebotLifecycleReporter) Started() {
+	select {
+	case r.started <- struct{}{}:
+	default:
+	}
+}
+
+func (r *onebotLifecycleReporter) Failed(err error) {
+	select {
+	case r.failed <- err:
+	default:
+	}
+}
+
+func (r *onebotLifecycleReporter) Closed(err error) {
+	select {
+	case r.closed <- err:
+	default:
+	}
 }
 
 func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
@@ -593,10 +605,11 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectFailOnLoginInfoError(t *tes
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
-	events := make(chan string, 2)
+	reporter := newOnebotLifecycleReporter()
+	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
-	pa.desiredEnabled = true
-	pa.sm = newPureOnebotRetryFSM(events)
 	pa.loginInitRetrySleep = func(delay time.Duration) {
 		select {
 		case sleepDurations <- delay:
@@ -617,16 +630,12 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectFailOnLoginInfoError(t *tes
 	}
 
 	select {
-	case event := <-events:
-		if event != "connect_fail" {
-			t.Fatalf("expected connect_fail event, got %q", event)
+	case err := <-reporter.failed:
+		if !errors.Is(err, em.loginInfoErr) {
+			t.Fatalf("expected login-info error, got %v", err)
 		}
 	case <-time.After(1 * time.Second):
-		t.Fatal("expected connect_fail event")
-	}
-
-	if got := pa.sm.Current(); got != "failed" {
-		t.Fatalf("expected FSM to transition to failed, got %q", got)
+		t.Fatal("expected lifecycle failure report")
 	}
 }
 
@@ -634,10 +643,11 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testin
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
-	events := make(chan string, 2)
+	reporter := newOnebotLifecycleReporter()
+	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
-	pa.desiredEnabled = true
-	pa.sm = newPureOnebotRetryFSM(events)
 	pa.loginInitRetrySleep = func(delay time.Duration) {
 		select {
 		case sleepDurations <- delay:
@@ -661,16 +671,9 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testin
 	}
 
 	select {
-	case event := <-events:
-		if event != "connect_ok" {
-			t.Fatalf("expected connect_ok event, got %q", event)
-		}
+	case <-reporter.started:
 	case <-time.After(1 * time.Second):
-		t.Fatal("expected connect_ok event")
-	}
-
-	if got := pa.sm.Current(); got != "connected" {
-		t.Fatalf("expected FSM to transition to connected, got %q", got)
+		t.Fatal("expected lifecycle started report")
 	}
 	if pa.EndPoint.UserID != "QQ:123456" {
 		t.Fatalf("expected EndPoint.UserID to be set, got %q", pa.EndPoint.UserID)
@@ -683,23 +686,23 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testin
 func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
 	tests := []struct {
 		name      string
-		configure func(pa *PlatformAdapterOnebot)
+		configure func(pa *PlatformAdapterOnebot, cancel context.CancelFunc)
 	}{
 		{
-			name: "disabled adapter",
-			configure: func(pa *PlatformAdapterOnebot) {
-				pa.desiredEnabled = false
+			name: "cancelled lifecycle",
+			configure: func(_ *PlatformAdapterOnebot, cancel context.CancelFunc) {
+				cancel()
 			},
 		},
 		{
 			name: "nil emitter",
-			configure: func(pa *PlatformAdapterOnebot) {
+			configure: func(pa *PlatformAdapterOnebot, _ context.CancelFunc) {
 				pa.sendEmitter = nil
 			},
 		},
 		{
 			name: "nil ctx",
-			configure: func(pa *PlatformAdapterOnebot) {
+			configure: func(pa *PlatformAdapterOnebot, _ context.CancelFunc) {
 				pa.ctx = nil
 			},
 		},
@@ -710,17 +713,18 @@ func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
 			_, pa, _, cleanup := newPureOnebotTestAdapter(t)
 			defer cleanup()
 
-			events := make(chan string, 1)
+			reporter := newOnebotLifecycleReporter()
+			lifecycleCtx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			pa.setLifecycleRun(lifecycleCtx, reporter)
 			sleepDurations := make(chan time.Duration, 1)
-			pa.desiredEnabled = true
-			pa.sm = newPureOnebotRetryFSM(events)
 			pa.loginInitRetrySleep = func(delay time.Duration) {
 				select {
 				case sleepDurations <- delay:
 				default:
 				}
 			}
-			tc.configure(pa)
+			tc.configure(pa, cancel)
 
 			pa.scheduleLoginInfoRetry()
 
@@ -730,15 +734,7 @@ func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
 			case <-time.After(100 * time.Millisecond):
 			}
 
-			select {
-			case event := <-events:
-				t.Fatalf("expected no FSM event, got %q", event)
-			case <-time.After(100 * time.Millisecond):
-			}
-
-			if got := pa.sm.Current(); got != "connecting" {
-				t.Fatalf("expected FSM to remain connecting, got %q", got)
-			}
+			assertNoOnebotLifecycleReport(t, reporter)
 		})
 	}
 }
@@ -747,12 +743,13 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
-	events := make(chan string, 1)
+	reporter := newOnebotLifecycleReporter()
+	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
-	pa.desiredEnabled = true
-	pa.sm = newPureOnebotRetryFSM(events)
 	pa.loginInitRetrySleep = func(delay time.Duration) {
-		pa.desiredEnabled = false
+		cancel()
 		select {
 		case sleepDurations <- delay:
 		default:
@@ -776,20 +773,25 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 		t.Fatal("expected retry sleep hook to be invoked")
 	}
 
-	select {
-	case event := <-events:
-		t.Fatalf("expected no FSM event after desiredEnabled changed during sleep, got %q", event)
-	case <-time.After(100 * time.Millisecond):
-	}
-
-	if got := pa.sm.Current(); got != "connecting" {
-		t.Fatalf("expected FSM to remain connecting, got %q", got)
-	}
+	assertNoOnebotLifecycleReport(t, reporter)
 	if pa.EndPoint.UserID != originalUserID {
 		t.Fatalf("expected EndPoint.UserID to remain %q, got %q", originalUserID, pa.EndPoint.UserID)
 	}
 	if pa.EndPoint.Nickname != originalNickname {
 		t.Fatalf("expected EndPoint.Nickname to remain %q, got %q", originalNickname, pa.EndPoint.Nickname)
+	}
+}
+
+func assertNoOnebotLifecycleReport(t *testing.T, reporter *onebotLifecycleReporter) {
+	t.Helper()
+	select {
+	case <-reporter.started:
+		t.Fatal("unexpected lifecycle started report")
+	case <-reporter.failed:
+		t.Fatal("unexpected lifecycle failed report")
+	case <-reporter.closed:
+		t.Fatal("unexpected lifecycle closed report")
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 
