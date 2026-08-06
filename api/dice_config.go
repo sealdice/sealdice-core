@@ -95,6 +95,7 @@ func DiceConfigSet(c echo.Context) error {
 
 	jsonMap := make(map[string]interface{})
 	err := json.NewDecoder(c.Request().Body).Decode(&jsonMap)
+	randomModeModified := false
 
 	stringConvert := func(val interface{}) []string {
 		var lst []string
@@ -252,6 +253,24 @@ func DiceConfigSet(c echo.Context) error {
 
 	if val, ok := jsonMap["workInQQChannel"]; ok {
 		config.WorkInQQChannel = val.(bool)
+	}
+
+	if val, ok := jsonMap["diceRandomMode"]; ok {
+		if v, ok := val.(string); ok {
+			switch strings.ToLower(strings.TrimSpace(v)) {
+			case string(dice.DiceRandomModeGM):
+				config.DiceRandomMode = string(dice.DiceRandomModeGM)
+			case string(dice.DiceRandomModeNIST):
+				config.DiceRandomMode = string(dice.DiceRandomModeNIST)
+			case string(dice.DiceRandomModeCRNG):
+				config.DiceRandomMode = string(dice.DiceRandomModeCRNG)
+			case string(dice.DiceRandomModeHybrid):
+				config.DiceRandomMode = string(dice.DiceRandomModeHybrid)
+			default:
+				config.DiceRandomMode = string(dice.DiceRandomModePCG)
+			}
+			randomModeModified = true
+		}
 	}
 
 	if val, ok := jsonMap["QQChannelLogMessage"]; ok {
@@ -477,6 +496,11 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	// 统一标记为修改
+	if randomModeModified {
+		if err := myDice.ActivateDiceRandomMode(); err != nil {
+			myDice.Logger.Warnf("[随机源] 应用管理界面随机模式失败，已使用 PCG 回退: %v", err)
+		}
+	}
 	myDice.MarkModified()
 	myDice.Parent.Save()
 	return c.JSON(http.StatusOK, nil)
