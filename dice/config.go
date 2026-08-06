@@ -2457,8 +2457,9 @@ func saveTextTemplateFile(filename string, data []byte) error {
 
 	current, err := os.ReadFile(filename)
 	if err == nil {
-		if err := writeFileAtomically(filename+".bak", current, 0o644); err != nil {
-			return fmt.Errorf("备份文案文件失败: %w", err)
+		backupErr := writeFileAtomically(filename+".bak", current, 0o644)
+		if backupErr != nil {
+			return fmt.Errorf("备份文案文件失败: %w", backupErr)
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("读取现有文案文件失败: %w", err)
@@ -2494,7 +2495,6 @@ func writeFileAtomically(filename string, data []byte, perm os.FileMode) error {
 		return err
 	}
 
-	// 临时文件和目标文件位于同一目录，替换不会跨文件系统。
 	return os.Rename(tmpName, filename)
 }
 
