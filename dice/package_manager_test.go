@@ -418,7 +418,7 @@ func TestPackageManagerPreviewFromStreamContext(t *testing.T) {
 	}
 	defer src.Close()
 
-	preview, err := pm.PreviewFromStreamContext(context.Background(), src)
+	preview, err := pm.PreviewFromStreamContext(t.Context(), src)
 	if err != nil {
 		t.Fatalf("PreviewFromStreamContext() error = %v", err)
 	}
@@ -490,7 +490,7 @@ func TestPackageManagerInstallFromURLRejectsKnownSizeBeforeRequest(t *testing.T)
 	}))
 	defer server.Close()
 
-	err := pm.InstallFromURLWithOptionsContext(context.Background(), server.URL, PackageDownloadOptions{ExpectedSize: 1})
+	err := pm.InstallFromURLWithOptionsContext(t.Context(), server.URL, PackageDownloadOptions{ExpectedSize: 1})
 	if err == nil || !strings.Contains(err.Error(), "磁盘空间不足") {
 		t.Fatalf("InstallFromURLWithOptionsContext() error = %v, want disk rejection", err)
 	}
@@ -515,20 +515,20 @@ func TestPackageManagerInstallFromURLStopsAfterIdleTimeout(t *testing.T) {
 	}))
 	defer server.Close()
 
-	err := pm.InstallFromURLContext(context.Background(), server.URL, nil)
+	err := pm.InstallFromURLContext(t.Context(), server.URL, nil)
 	if err == nil || !strings.Contains(err.Error(), "没有接收到数据") {
 		t.Fatalf("InstallFromURLContext() error = %v, want idle timeout", err)
 	}
 }
 
 func TestAcquirePackageOperationHonorsCancellation(t *testing.T) {
-	release, err := acquirePackageOperation(context.Background())
+	release, err := acquirePackageOperation(t.Context())
 	if err != nil {
 		t.Fatalf("acquirePackageOperation() error = %v", err)
 	}
 	defer release()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	if _, err := acquirePackageOperation(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("acquirePackageOperation() error = %v, want context cancellation", err)

@@ -111,6 +111,10 @@ func (d *Dice) JsInit() {
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
+		// 直接绑定进程内唯一全局随机源，避免再包一层无意义的适配。
+		vm.SetRandSource(func() float64 {
+			return float64(globalRandSource.Uint64()>>11) / (1 << 53)
+		})
 
 		// console 模块
 		console.Enable(vm)
@@ -219,6 +223,10 @@ func (d *Dice) JsInit() {
 				wrapper.IsDeleted = false         // 重新激活（清除删除标记）
 				wrapper.dice = d                  // 确保 dice 引用正确（可能从配置恢复时为 nil）
 				wrapper.JSLoopVersion = versionID // 同步新的 loop 版本号，避免 callWithJsCheck 时版本不匹配
+				d.ActiveWithGraphMu.Lock()
+				wrapper.ActiveWith = append([]string(nil), realExt.ActiveWith...)
+				d.ActiveWithGraph = nil
+				d.ActiveWithGraphMu.Unlock()
 			} else {
 				// 首次加载：创建新 wrapper
 				wrapper = &ExtInfo{
@@ -233,6 +241,7 @@ func (d *Dice) JsInit() {
 					IsJsExt:       true,               // 标记为 JS 扩展
 					Brief:         "一个JS自定义扩展",
 					Official:      realExt.Official,
+					ActiveWith:    append([]string(nil), realExt.ActiveWith...),
 					CmdMap:        CmdMapCls{},
 					JSLoopVersion: versionID,
 					dice:          d,

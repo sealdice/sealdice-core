@@ -3,7 +3,6 @@ package dice
 import (
 	"cmp"
 	"fmt"
-	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -148,7 +147,7 @@ var cmdTeam = &CmdItemInfo{
 			copy(availableMembers, playerGroup)
 			selectedMembers := make([]string, 0, count)
 			for i := 0; i < count && len(availableMembers) > 0; i++ {
-				index := rand.IntN(len(availableMembers))
+				index := context.RandIntn(len(availableMembers))
 				selectedUserID := availableMembers[index]
 				selectedMembers = append(selectedMembers, selectedUserID)
 				availableMembers = append(availableMembers[:index], availableMembers[index+1:]...)

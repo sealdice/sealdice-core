@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	randv2 "math/rand/v2"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -785,10 +786,13 @@ type MsgContext struct {
 	SpamCheckedPerson   bool
 	UITestReplySplitLen *int
 
-	splitKeyMu sync.RWMutex
-	splitKey   string
-	vm         *ds.Context
-	_v1Rand    *rand2.PCGSource
+	splitKeyMu  sync.RWMutex
+	splitKey    string
+	vm          *ds.Context
+	_v1Rand     ds.DiceSource
+	diceRandSrc ds.DiceSource
+	chooserRand *randv2.Rand
+	chooserSrc  ds.DiceSource
 }
 
 // fillPrivilege 填写MsgContext中的权限字段, 并返回填写的权限等级
@@ -1562,7 +1566,7 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	var ret bool
 	// 试图匹配自定义指令
 	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
-		for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+		for _, wrapper := range commandExtensionOrder(mctx.Group, mctx.Dice) {
 			ext := wrapper.GetRealExt()
 			if ext == nil {
 				continue
@@ -2218,7 +2222,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 
 		if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
-			for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+			for _, wrapper := range commandExtensionOrder(group, ctx.Dice) {
 				cmdMap := wrapper.GetCmdMap()
 				item := cmdMap[cmdArgs.Command]
 				if tryItemSolve(wrapper, item) {
@@ -2742,6 +2746,9 @@ func (ctx *MsgContext) ShallowCopy() *MsgContext {
 		UITestReplySplitLen: ctx.UITestReplySplitLen,
 		vm:                  ctx.vm,
 		_v1Rand:             ctx._v1Rand,
+		diceRandSrc:         ctx.diceRandSrc,
+		chooserRand:         ctx.chooserRand,
+		chooserSrc:          ctx.chooserSrc,
 	}
 	copyCtx.SetSplitKey(ctx.getSplitKey())
 	return copyCtx

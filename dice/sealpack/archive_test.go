@@ -194,7 +194,7 @@ func TestInspectArchiveHonorsCancellation(t *testing.T) {
 	archivePath := createArchiveForTest(t, map[string]string{
 		"info.toml": minimalManifestForArchiveTest("alice/demo", "1.0.0"),
 	})
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	if _, err := InspectArchiveContext(ctx, archivePath); err == nil || !strings.Contains(err.Error(), "canceled") {
 		t.Fatalf("InspectArchiveContext() error = %v, want cancellation", err)

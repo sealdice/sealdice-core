@@ -15,7 +15,7 @@ func TestDatabaseCacheDisabledContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	cacher := &OtterDBCacher{otter: &cacheInstance}
-	normalCtx := context.WithValue(context.Background(), CacheKey, DataDBCacheKey)
+	normalCtx := context.WithValue(t.Context(), CacheKey, DataDBCacheKey)
 	disabledCtx := WithDatabaseCacheDisabled(normalCtx)
 	query := &caches.Query[any]{Dest: map[string]int{"value": 1}, RowsAffected: 1}
 
