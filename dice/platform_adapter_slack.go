@@ -2,6 +2,7 @@ package dice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -212,7 +213,7 @@ func (pa *PlatformAdapterSlack) SetEnable(enable bool) {
 // loop inherits the supervisor context so disable/relogin can cancel it.
 func (pa *PlatformAdapterSlack) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.serveWithLifecycle(ctx, run) != 0 {
-		return fmt.Errorf("slack serve failed")
+		return errors.New("slack serve failed")
 	}
 	return nil
 }

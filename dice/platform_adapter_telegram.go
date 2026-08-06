@@ -377,7 +377,7 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 // supervisor generation. Any retry is scheduled by EndpointLifecycleSupervisor.
 func (pa *PlatformAdapterTelegram) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("telegram endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("telegram endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {

@@ -606,7 +606,7 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectFailOnLoginInfoError(t *tes
 	defer cleanup()
 
 	reporter := newOnebotLifecycleReporter()
-	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	lifecycleCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
@@ -644,7 +644,7 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testin
 	defer cleanup()
 
 	reporter := newOnebotLifecycleReporter()
-	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	lifecycleCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
@@ -714,7 +714,7 @@ func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
 			defer cleanup()
 
 			reporter := newOnebotLifecycleReporter()
-			lifecycleCtx, cancel := context.WithCancel(context.Background())
+			lifecycleCtx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			pa.setLifecycleRun(lifecycleCtx, reporter)
 			sleepDurations := make(chan time.Duration, 1)
@@ -744,7 +744,7 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 	defer cleanup()
 
 	reporter := newOnebotLifecycleReporter()
-	lifecycleCtx, cancel := context.WithCancel(context.Background())
+	lifecycleCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)

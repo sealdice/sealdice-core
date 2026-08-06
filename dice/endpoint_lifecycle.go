@@ -3,7 +3,6 @@ package dice
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -71,24 +70,24 @@ const (
 	LifecycleFailureStop
 )
 
-// EndpointLifecycleFailure wraps a driver error with retry policy metadata
+// EndpointLifecycleError wraps a driver error with retry policy metadata
 // without forcing the reporter interface to grow more methods.
-type EndpointLifecycleFailure struct {
+type EndpointLifecycleError struct {
 	err    error
 	policy EndpointLifecycleFailurePolicy
 }
 
-// NewEndpointLifecycleFailure marks err with a retry policy for supervisor
+// NewEndpointLifecycleError marks err with a retry policy for supervisor
 // decisions. A nil err is normalized so callers can still express the policy.
-func NewEndpointLifecycleFailure(err error, policy EndpointLifecycleFailurePolicy) error {
+func NewEndpointLifecycleError(err error, policy EndpointLifecycleFailurePolicy) error {
 	if err == nil {
 		err = errors.New("endpoint lifecycle failure")
 	}
-	return &EndpointLifecycleFailure{err: err, policy: policy}
+	return &EndpointLifecycleError{err: err, policy: policy}
 }
 
 // Error implements error while preserving the wrapped protocol error text.
-func (e *EndpointLifecycleFailure) Error() string {
+func (e *EndpointLifecycleError) Error() string {
 	if e == nil || e.err == nil {
 		return "endpoint lifecycle failure"
 	}
@@ -96,7 +95,7 @@ func (e *EndpointLifecycleFailure) Error() string {
 }
 
 // Unwrap exposes the protocol error to errors.Is/errors.As callers.
-func (e *EndpointLifecycleFailure) Unwrap() error {
+func (e *EndpointLifecycleError) Unwrap() error {
 	if e == nil {
 		return nil
 	}
@@ -104,7 +103,7 @@ func (e *EndpointLifecycleFailure) Unwrap() error {
 }
 
 // Policy returns the supervisor retry policy carried by this error.
-func (e *EndpointLifecycleFailure) Policy() EndpointLifecycleFailurePolicy {
+func (e *EndpointLifecycleError) Policy() EndpointLifecycleFailurePolicy {
 	if e == nil {
 		return LifecycleFailureRetry
 	}
@@ -112,7 +111,7 @@ func (e *EndpointLifecycleFailure) Policy() EndpointLifecycleFailurePolicy {
 }
 
 func endpointLifecycleFailurePolicy(err error) EndpointLifecycleFailurePolicy {
-	var lifecycleFailure *EndpointLifecycleFailure
+	var lifecycleFailure *EndpointLifecycleError
 	if errors.As(err, &lifecycleFailure) {
 		return lifecycleFailure.Policy()
 	}
@@ -345,7 +344,7 @@ func (s *EndpointLifecycleSupervisor) onEnterConnecting(_ context.Context, _ *lo
 	reporter := &endpointLifecycleRunReporter{supervisor: s, generation: generation}
 	go func() {
 		if driver == nil {
-			reporter.Failed(fmt.Errorf("endpoint lifecycle driver is nil"))
+			reporter.Failed(errors.New("endpoint lifecycle driver is nil"))
 			return
 		}
 		if err := driver.LifecycleStart(runCtx, reporter); err != nil {
@@ -448,6 +447,8 @@ func (s *EndpointLifecycleSupervisor) reportFailed(generation uint64, err error)
 		_ = s.eventLocked(context.Background(), LifecycleEventConnectFail)
 	case LifecycleConnected:
 		_ = s.eventLocked(context.Background(), LifecycleEventConnectionLost)
+	case LifecycleDisconnected, LifecycleFailed:
+		return
 	}
 }
 
@@ -464,6 +465,8 @@ func (s *EndpointLifecycleSupervisor) reportClosed(generation uint64, err error)
 		_ = s.eventLocked(context.Background(), LifecycleEventConnectionLost)
 	case LifecycleConnecting:
 		_ = s.eventLocked(context.Background(), LifecycleEventConnectFail)
+	case LifecycleDisconnected, LifecycleFailed:
+		return
 	}
 }
 
@@ -533,7 +536,7 @@ func ensureEndpointLifecycle(d *Dice, ep *EndPointInfo, driver EndpointLifecycle
 func StartEndpointLifecycle(d *Dice, ep *EndPointInfo) error {
 	driver, ok := endpointLifecycleDriver(ep)
 	if !ok {
-		return fmt.Errorf("endpoint lifecycle driver is unavailable")
+		return errors.New("endpoint lifecycle driver is unavailable")
 	}
 	return ensureEndpointLifecycle(d, ep, driver).Enable(context.Background())
 }
@@ -543,7 +546,7 @@ func StartEndpointLifecycle(d *Dice, ep *EndPointInfo) error {
 func StopEndpointLifecycle(d *Dice, ep *EndPointInfo) error {
 	driver, ok := endpointLifecycleDriver(ep)
 	if !ok {
-		return fmt.Errorf("endpoint lifecycle driver is unavailable")
+		return errors.New("endpoint lifecycle driver is unavailable")
 	}
 	return ensureEndpointLifecycle(d, ep, driver).Disable(context.Background())
 }
@@ -553,7 +556,7 @@ func StopEndpointLifecycle(d *Dice, ep *EndPointInfo) error {
 func ReloginEndpointLifecycle(d *Dice, ep *EndPointInfo) error {
 	driver, ok := endpointLifecycleDriver(ep)
 	if !ok {
-		return fmt.Errorf("endpoint lifecycle driver is unavailable")
+		return errors.New("endpoint lifecycle driver is unavailable")
 	}
 	return ensureEndpointLifecycle(d, ep, driver).Relogin(context.Background())
 }

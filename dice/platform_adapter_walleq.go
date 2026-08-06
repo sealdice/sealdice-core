@@ -785,7 +785,7 @@ func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
 // login helpers may complete asynchronously and report Started from callbacks.
 func (pa *PlatformAdapterWalleQ) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("walle-q endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("walle-q endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {

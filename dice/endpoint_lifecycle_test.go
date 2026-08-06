@@ -1,3 +1,4 @@
+//nolint:testpackage
 package dice
 
 import (
@@ -96,11 +97,11 @@ func TestEndpointLifecycleConcurrentEnableStartsOnce(t *testing.T) {
 	supervisor, ep, driver := newEndpointLifecycleTestSupervisor(t)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := supervisor.Enable(context.Background()); err != nil {
+			if err := supervisor.Enable(t.Context()); err != nil {
 				t.Errorf("Enable returned error: %v", err)
 			}
 		}()
@@ -127,12 +128,12 @@ func TestEndpointLifecycleConcurrentEnableStartsOnce(t *testing.T) {
 func TestEndpointLifecycleDisableIgnoresLateStarted(t *testing.T) {
 	supervisor, ep, driver := newEndpointLifecycleTestSupervisor(t)
 
-	if err := supervisor.Enable(context.Background()); err != nil {
+	if err := supervisor.Enable(t.Context()); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
 	run := waitLifecycleRun(t, driver)
 
-	if err := supervisor.Disable(context.Background()); err != nil {
+	if err := supervisor.Disable(t.Context()); err != nil {
 		t.Fatalf("Disable returned error: %v", err)
 	}
 	run.run.Started()
@@ -151,13 +152,13 @@ func TestEndpointLifecycleDisableIgnoresLateStarted(t *testing.T) {
 func TestEndpointLifecycleReloginStopsOldGenerationBeforeStartingNew(t *testing.T) {
 	supervisor, ep, driver := newEndpointLifecycleTestSupervisor(t)
 
-	if err := supervisor.Enable(context.Background()); err != nil {
+	if err := supervisor.Enable(t.Context()); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
 	first := waitLifecycleRun(t, driver)
 	first.run.Started()
 
-	if err := supervisor.Relogin(context.Background()); err != nil {
+	if err := supervisor.Relogin(t.Context()); err != nil {
 		t.Fatalf("Relogin returned error: %v", err)
 	}
 	second := waitLifecycleRun(t, driver)
@@ -186,13 +187,13 @@ func TestEndpointLifecycleReloginStopsOldGenerationBeforeStartingNew(t *testing.
 func TestEndpointLifecycleOldGenerationClosedDoesNotReconnect(t *testing.T) {
 	supervisor, _, driver := newEndpointLifecycleTestSupervisor(t)
 
-	if err := supervisor.Enable(context.Background()); err != nil {
+	if err := supervisor.Enable(t.Context()); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
 	first := waitLifecycleRun(t, driver)
 	first.run.Started()
 
-	if err := supervisor.Relogin(context.Background()); err != nil {
+	if err := supervisor.Relogin(t.Context()); err != nil {
 		t.Fatalf("Relogin returned error: %v", err)
 	}
 	second := waitLifecycleRun(t, driver)
@@ -209,7 +210,7 @@ func TestEndpointLifecycleOldGenerationClosedDoesNotReconnect(t *testing.T) {
 func TestEndpointLifecycleConnectFailKeepsEnableAndRetries(t *testing.T) {
 	supervisor, ep, driver := newEndpointLifecycleTestSupervisor(t)
 
-	if err := supervisor.Enable(context.Background()); err != nil {
+	if err := supervisor.Enable(t.Context()); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
 	first := waitLifecycleRun(t, driver)
@@ -233,11 +234,11 @@ func TestEndpointLifecyclePermanentFailureKeepsEnableWithoutRetry(t *testing.T) 
 	supervisor.retryInitialDelay = 10 * time.Millisecond
 	supervisor.retryMaxDelay = 10 * time.Millisecond
 
-	if err := supervisor.Enable(context.Background()); err != nil {
+	if err := supervisor.Enable(t.Context()); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
 	first := waitLifecycleRun(t, driver)
-	first.run.Failed(NewEndpointLifecycleFailure(errors.New("bad token"), LifecycleFailureStop))
+	first.run.Failed(NewEndpointLifecycleError(errors.New("bad token"), LifecycleFailureStop))
 
 	if !ep.Enable {
 		t.Fatal("expected endpoint desired enable to stay true after permanent failure")
@@ -253,13 +254,13 @@ func TestEndpointLifecycleDisableCancelsPendingRetry(t *testing.T) {
 	supervisor.retryInitialDelay = 80 * time.Millisecond
 	supervisor.retryMaxDelay = 80 * time.Millisecond
 
-	if err := supervisor.Enable(context.Background()); err != nil {
+	if err := supervisor.Enable(t.Context()); err != nil {
 		t.Fatalf("Enable returned error: %v", err)
 	}
 	first := waitLifecycleRun(t, driver)
 	first.run.Failed(errors.New("dial failed"))
 
-	if err := supervisor.Disable(context.Background()); err != nil {
+	if err := supervisor.Disable(t.Context()); err != nil {
 		t.Fatalf("Disable returned error: %v", err)
 	}
 	assertNoLifecycleRun(t, driver, 120*time.Millisecond)

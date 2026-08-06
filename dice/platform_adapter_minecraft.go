@@ -3,6 +3,7 @@ package dice
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -207,7 +208,7 @@ func (pa *PlatformAdapterMinecraft) LifecycleStart(ctx context.Context, run Endp
 		pa.Socket = nil
 	}
 	if pa.serveWithLifecycle(ctx, run) != 0 {
-		return fmt.Errorf("minecraft serve failed")
+		return errors.New("minecraft serve failed")
 	}
 	return nil
 }

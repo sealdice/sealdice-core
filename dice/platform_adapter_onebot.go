@@ -127,7 +127,7 @@ func (p *PlatformAdapterOnebot) reportLifecycleClosed(err error) {
 // callbacks report into the shared endpoint supervisor instead of an adapter FSM.
 func (p *PlatformAdapterOnebot) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if p.EndPoint == nil || p.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("pure onebot endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("pure onebot endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -152,7 +152,7 @@ func (p *PlatformAdapterOnebot) LifecycleStart(ctx context.Context, run Endpoint
 // supervisor updates endpoint state after this method returns.
 func (p *PlatformAdapterOnebot) LifecycleStop(context.Context) error {
 	p.cleanupResources()
-	p.setLifecycleRun(nil, nil)
+	p.setLifecycleRun(context.TODO(), nil)
 	return nil
 }
 

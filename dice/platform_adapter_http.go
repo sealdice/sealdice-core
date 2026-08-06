@@ -56,7 +56,7 @@ func (pa *PlatformAdapterHTTP) SetEnable(enable bool) {
 // socket to open, but still participates in the shared lifecycle contract.
 func (pa *PlatformAdapterHTTP) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil {
-		return NewEndpointLifecycleFailure(errors.New("http endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("http endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {

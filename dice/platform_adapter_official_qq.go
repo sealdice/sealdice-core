@@ -341,7 +341,7 @@ func (pa *PlatformAdapterOfficialQQ) failConnect() int {
 	if isQrFlow {
 		pa.markQrLoginFailed()
 	}
-	pa.reportLifecycleFailed(NewEndpointLifecycleFailure(errors.New("official qq connect failed"), LifecycleFailureStop))
+	pa.reportLifecycleFailed(NewEndpointLifecycleError(errors.New("official qq connect failed"), LifecycleFailureStop))
 	return 1
 }
 
@@ -1314,7 +1314,7 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 // connect/webhook success paths.
 func (pa *PlatformAdapterOfficialQQ) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("official qq endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("official qq endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {
@@ -1326,7 +1326,7 @@ func (pa *PlatformAdapterOfficialQQ) LifecycleStart(ctx context.Context, run End
 	pa.setLifecycleRun(run)
 	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 official qq 服务")
 	if pa.Serve() != 0 {
-		return NewEndpointLifecycleFailure(errors.New("official qq serve failed"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("official qq serve failed"), LifecycleFailureStop)
 	}
 	if pa.Ctx != nil && pa.EndPoint.State == StateConnected {
 		pa.reportLifecycleStarted()

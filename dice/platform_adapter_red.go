@@ -527,7 +527,7 @@ func (pa *PlatformAdapterRed) SetEnable(enable bool) {
 // blocking read loop reports Started/Closed through the generation reporter.
 func (pa *PlatformAdapterRed) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("red endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("red endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	_ = pa.LifecycleStop(ctx)
 	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 red 连接……")

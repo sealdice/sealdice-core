@@ -282,7 +282,7 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 // generation. Any later reconnect is scheduled by the shared lifecycle FSM.
 func (pa *PlatformAdapterDiscord) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("discord endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("discord endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {

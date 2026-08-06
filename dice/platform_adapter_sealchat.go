@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -520,7 +521,7 @@ func (pa *PlatformAdapterSealChat) LifecycleStart(ctx context.Context, run Endpo
 		pa.Socket = nil
 	}
 	if pa.serveWithLifecycle(ctx, run) != 0 {
-		return fmt.Errorf("sealchat serve failed")
+		return errors.New("sealchat serve failed")
 	}
 	return nil
 }

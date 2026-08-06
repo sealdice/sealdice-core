@@ -310,7 +310,7 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 // generation. The adapter no longer performs its own retry loop.
 func (pa *PlatformAdapterDodo) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("dodo endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("dodo endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	_ = pa.LifecycleStop(ctx)
 	pa.EndPoint.Session.Parent.Logger.Infof("正在启用Dodo……")

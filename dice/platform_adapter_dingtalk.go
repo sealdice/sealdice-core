@@ -41,7 +41,7 @@ func (pa *PlatformAdapterDingTalk) SetEnable(enable bool) {
 // generation. Reconnect policy is intentionally owned by EndpointLifecycleSupervisor.
 func (pa *PlatformAdapterDingTalk) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("dingtalk endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("dingtalk endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {
@@ -310,26 +310,4 @@ func (pa *PlatformAdapterDingTalk) closeSessionLocked() error {
 		return nil
 	}
 	return session.Close()
-}
-
-func (pa *PlatformAdapterDingTalk) openSessionLocked() error {
-	pa.sessionMu.Lock()
-	defer pa.sessionMu.Unlock()
-	if pa.IntentSession == nil {
-		pa.IntentSession = dingtalk.New(pa.ClientID, pa.Token)
-		pa.IntentSession.AddEventHandler(pa.OnChatReceive)
-		pa.IntentSession.AddEventHandler(pa.OnGroupJoined)
-	}
-	if pa.sessionOpened {
-		return nil
-	}
-	session := pa.IntentSession
-
-	if err := session.Open(); err != nil {
-		pa.sessionOpened = false
-		return err
-	}
-
-	pa.sessionOpened = true
-	return nil
 }

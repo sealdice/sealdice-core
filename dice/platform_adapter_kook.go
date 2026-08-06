@@ -381,7 +381,7 @@ func (pa *PlatformAdapterKook) SetEnable(enable bool) {
 // The adapter no longer owns top-level reconnect scheduling.
 func (pa *PlatformAdapterKook) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("kook endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("kook endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {

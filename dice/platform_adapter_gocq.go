@@ -1239,7 +1239,7 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 // start their external process here; websocket callbacks report Started/Closed.
 func (pa *PlatformAdapterGocq) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
 	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
-		return NewEndpointLifecycleFailure(errors.New("gocq endpoint runtime is not bound"), LifecycleFailureStop)
+		return NewEndpointLifecycleError(errors.New("gocq endpoint runtime is not bound"), LifecycleFailureStop)
 	}
 	if ctx != nil {
 		select {
