@@ -180,15 +180,9 @@ func NewMilkyConnItem(v AddMilkyEcho) *EndPointInfo {
 func ServeMilky(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "QQ" {
-		conn := ep.Adapter.(*PlatformAdapterMilky)
 		ep.BindRuntime(d.ImSession)
 		d.Logger.Infof("Milky 尝试连接")
-		if conn.Serve() != 0 {
-			d.Logger.Errorf("连接Milky失败")
-			ep.State = 3
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }
 
@@ -226,21 +220,26 @@ func BuiltinMilkyClientKill(dice *Dice, conn *EndPointInfo) {
 }
 
 func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
+	ep.BindRuntime(d.ImSession)
+	_ = StartEndpointLifecycle(d, ep)
+}
+
+func serveMilkyBuiltIn(ctx context.Context, d *Dice, ep *EndPointInfo, reporter EndpointRunReporter) error {
 	defer CrashLog()
 	if d.ContainerMode {
 		d.Logger.Warnf("当前处于容器模式，Milky 内置版本不可用")
-		ep.State = 3
+		ep.State = StateConnectionFailed
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
-		return
+		return errors.New("milky built-in is unavailable in container mode")
 	}
 	uin, err := strconv.ParseInt(ExtractQQUserID(ep.UserID), 10, 64)
 	if err != nil {
 		d.Logger.Errorf("解析QQ号失败: %s", ep.UserID)
-		ep.State = 3
+		ep.State = StateConnectionFailed
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
-		return
+		return err
 	}
 	conn := ep.Adapter.(*PlatformAdapterMilky)
 	doServe := func() {
@@ -248,10 +247,17 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 			d.Logger.Infof("Milky 尝试连接")
 			if conn.Serve() != 0 {
 				d.Logger.Errorf("连接Milky失败")
-				ep.State = 3
+				ep.State = StateConnectionFailed
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
 				BuiltinMilkyClientKill(d, ep)
+				if reporter != nil {
+					reporter.Failed(errors.New("milky built-in websocket connect failed"))
+				}
+				return
+			}
+			if reporter != nil {
+				reporter.Started()
 			}
 		}
 	}
@@ -283,10 +289,10 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		p, err := GetRandomFreePort()
 		if err != nil {
 			log.Errorf("获取随机端口失败: %s", err)
-			ep.State = 3
+			ep.State = StateConnectionFailed
 			d.LastUpdatedTime = time.Now().Unix()
 			d.Save(false)
-			return
+			return err
 		}
 		pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", p)
 		pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", p)
@@ -297,6 +303,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		err = os.WriteFile(configFilePath, c, 0o644)
 		if err != nil {
 			log.Errorf("写入 Milky 配置文件失败: %s", err)
+			return err
 		}
 	}
 	command := fmt.Sprintf(`"%s"`, milkyExePath)
@@ -349,6 +356,9 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 				pa.BuiltInLoginState = MilkyLoginStateFailed
 				log.Infof("Milky 二维码过期，登录失败，账号：%s", ep.UserID)
 				BuiltinMilkyClientKill(d, ep)
+				if reporter != nil {
+					reporter.Failed(errors.New("milky qrcode expired"))
+				}
 			}
 		}
 
@@ -411,12 +421,19 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		if errRun != nil {
 			log.Info("Milky 进程异常退出: ", errRun)
 			// Maybe some state change here
+			if reporter != nil && ctx.Err() == nil {
+				reporter.Closed(errRun)
+			}
 		} else {
 			log.Info("Milky 进程退出")
+			if reporter != nil && ctx.Err() == nil {
+				reporter.Closed(nil)
+			}
 		}
 	}
 
 	go run()
+	return nil
 }
 
 // GenerateMilkyConfig 似乎暂时不需要 APPInfo, 如果以后需要了再改成双返回值

@@ -1,10 +1,6 @@
 package dice
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 func NewSatoriConnItem(platform string, host string, port int, token string) *EndPointInfo {
 	conn := new(EndPointInfo)
@@ -26,14 +22,7 @@ func NewSatoriConnItem(platform string, host string, port int, token string) *En
 
 func ServeSatori(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
-	conn := ep.Adapter.(*PlatformAdapterSatori)
 	d.Logger.Infof("satori 尝试连接")
 	ep.BindRuntime(d.ImSession)
-	if conn.Serve() == 0 {
-	} else {
-		d.Logger.Errorf("连接 satori 服务失败")
-		ep.State = 3
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
-	}
+	_ = StartEndpointLifecycle(d, ep)
 }

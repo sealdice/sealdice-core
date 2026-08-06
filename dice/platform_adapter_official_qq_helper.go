@@ -33,8 +33,7 @@ func ServerOfficialQQ(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "QQ" && ep.ProtocolType == "official" {
 		ep.BindRuntime(d.ImSession)
-		// 连接状态、重试和日志统一由 ServeQQ 及其官方 QQ 分支负责。
-		ServeQQ(d, ep)
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }
 

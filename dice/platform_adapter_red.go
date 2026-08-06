@@ -2,8 +2,10 @@ package dice
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -349,6 +351,10 @@ type GroupMember struct {
 }
 
 func (pa *PlatformAdapterRed) Serve() int {
+	return pa.serveWithLifecycle(context.Background(), nil)
+}
+
+func (pa *PlatformAdapterRed) serveWithLifecycle(ctx context.Context, run EndpointRunReporter) int {
 	ep := pa.EndPoint
 	s := pa.EndPoint.Session
 	log := s.Parent.Logger
@@ -367,10 +373,10 @@ func (pa *PlatformAdapterRed) Serve() int {
 		Path:   "/api",
 	}
 	log.Infof("connecting to %s", wsUrl.String())
-	conn, resp, err := websocket.DefaultDialer.Dial(wsUrl.String(), nil)
+	conn, resp, err := websocket.DefaultDialer.DialContext(ctx, wsUrl.String(), nil)
 	if err != nil {
 		log.Error("dial:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 	defer resp.Body.Close()
@@ -378,7 +384,7 @@ func (pa *PlatformAdapterRed) Serve() int {
 		_ = conn.Close()
 	}(conn)
 	pa.conn = conn
-	pa.EndPoint.State = 2
+	pa.EndPoint.State = StateConnecting
 
 	// 鉴权
 	auth := &RedPack[RedConnectReq]{
@@ -389,20 +395,20 @@ func (pa *PlatformAdapterRed) Serve() int {
 	err = conn.WriteMessage(websocket.TextMessage, authData)
 	if err != nil {
 		log.Error("auth failed:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 	_, authRespData, err := conn.ReadMessage()
 	if err != nil {
 		log.Error("auth failed:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 	var authResp RedPack[RedConnectResp]
 	err = json.Unmarshal(authRespData, &authResp)
 	if err != nil {
 		log.Error("auth failed:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 	log.Debugf("red auth resp:%+v", authResp)
@@ -410,7 +416,7 @@ func (pa *PlatformAdapterRed) Serve() int {
 	pa.wsUrl = &wsUrl
 	pa.httpUrl = &httpUrl
 	pa.RedVersion = authResp.Payload.Version
-	pa.EndPoint.State = 1
+	pa.EndPoint.State = StateConnected
 
 	// 获得用户信息
 	botInfo := pa.getBotInfo()
@@ -420,6 +426,9 @@ func (pa *PlatformAdapterRed) Serve() int {
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	pa.EndPoint.Session.Parent.Logger.Infof("red 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserID)
+	if run != nil {
+		run.Started()
+	}
 
 	// 获得好友列表
 	refreshFriends := func() {
@@ -476,6 +485,14 @@ func (pa *PlatformAdapterRed) Serve() int {
 	for {
 		select {
 		case <-done:
+			if ctx == nil || ctx.Err() == nil {
+				if run != nil {
+					run.Closed(errors.New("red websocket closed"))
+				}
+			}
+			return 0
+		case <-ctx.Done():
+			return 0
 		case <-interrupt:
 			log.Debug("red interrupt")
 
@@ -489,41 +506,46 @@ func (pa *PlatformAdapterRed) Serve() int {
 			case <-done:
 			case <-time.After(time.Second):
 			}
+			return 0
 		}
 	}
 }
 
 func (pa *PlatformAdapterRed) DoRelogin() bool {
-	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 red 连接……")
-	pa.EndPoint.State = 0
-	pa.EndPoint.Enable = false
-	if pa.conn != nil {
-		_ = pa.conn.Close()
-	}
-	pa.conn = nil
-	return pa.Serve() == 0
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterRed) SetEnable(enable bool) {
-	d := pa.EndPoint.Session.Parent
-	e := pa.EndPoint
 	if enable {
-		e.Enable = true
-		pa.DiceServing = false
-
-		if pa.conn == nil {
-			go ServeQQ(d, e)
-		}
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		e.State = 0
-		e.Enable = false
-		if pa.conn != nil {
-			_ = pa.conn.Close()
-			pa.conn = nil
-		}
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
 	}
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+}
+
+// LifecycleStart opens one Red websocket for the supervisor generation. The
+// blocking read loop reports Started/Closed through the generation reporter.
+func (pa *PlatformAdapterRed) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleFailure(errors.New("red endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	_ = pa.LifecycleStop(ctx)
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 red 连接……")
+	if pa.serveWithLifecycle(ctx, run) != 0 {
+		return errors.New("red serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop closes the active Red websocket; the supervisor owns endpoint
+// state changes after this method returns.
+func (pa *PlatformAdapterRed) LifecycleStop(context.Context) error {
+	if pa.conn == nil {
+		return nil
+	}
+	err := pa.conn.Close()
+	pa.conn = nil
+	return err
 }
 
 func (pa *PlatformAdapterRed) QuitGroup(_ *MsgContext, id string) {

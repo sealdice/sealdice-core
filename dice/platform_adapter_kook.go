@@ -2,7 +2,9 @@ package dice
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -351,7 +353,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 	}
 	pa.IntentSession = s
 	go pa.updateGameStatus()
-	pa.EndPoint.State = 1
+	pa.EndPoint.State = StateConnected
 	pa.EndPoint.Enable = true
 	self, _ := s.UserMe()
 	pa.EndPoint.Nickname = self.Nickname
@@ -364,48 +366,48 @@ func (pa *PlatformAdapterKook) Serve() int {
 }
 
 func (pa *PlatformAdapterKook) DoRelogin() bool {
-	log := zap.S().Named(logger.LogKeyAdapter)
-	log.Infof("正在重新登录KOOK服务……")
-	pa.EndPoint.State = 0
-	pa.EndPoint.Enable = false
-	if pa.IntentSession != nil {
-		_ = pa.IntentSession.Close()
-	}
-	pa.IntentSession = nil
-	return pa.Serve() == 0
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterKook) SetEnable(enable bool) {
-	log := zap.S().Named(logger.LogKeyAdapter)
 	if enable {
-		log.Infof("正在启用KOOK服务……")
-		if pa.IntentSession == nil {
-			pa.Serve()
-			return
-		}
-		err := pa.IntentSession.Open()
-		if err != nil {
-			log.Errorf("与KOOK服务进行连接时出错:%s", err)
-			pa.EndPoint.State = 0
-			pa.EndPoint.Enable = false
-			return
-		}
-		pa.updateGameStatus()
-		pa.EndPoint.State = 1
-		pa.EndPoint.Enable = true
-		log.Infof("KOOK 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserID)
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		if pa.IntentSession == nil {
-			return
-		}
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
-		_ = pa.IntentSession.Close()
-		pa.IntentSession = nil
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
 	}
-	d := pa.EndPoint.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+}
+
+// LifecycleStart opens one KOOK gateway session for the supervisor generation.
+// The adapter no longer owns top-level reconnect scheduling.
+func (pa *PlatformAdapterKook) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleFailure(errors.New("kook endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+	}
+	_ = pa.LifecycleStop(ctx)
+	zap.S().Named(logger.LogKeyAdapter).Infof("正在启用KOOK服务……")
+	if pa.Serve() != 0 {
+		return errors.New("kook serve failed")
+	}
+	run.Started()
+	return nil
+}
+
+// LifecycleStop closes the current KOOK session. Endpoint state is updated by
+// EndpointLifecycleSupervisor after the stop operation.
+func (pa *PlatformAdapterKook) LifecycleStop(context.Context) error {
+	if pa.IntentSession == nil {
+		return nil
+	}
+	err := pa.IntentSession.Close()
+	pa.IntentSession = nil
+	return err
 }
 
 func (pa *PlatformAdapterKook) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {

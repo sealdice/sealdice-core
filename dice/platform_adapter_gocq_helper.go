@@ -515,8 +515,8 @@ func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) 
 		}
 
 		// 重置状态
-		conn.State = 0
-		pa.GoCqhttpState = 0
+		conn.State = StateDisconnected
+		pa.GoCqhttpState = StateCodeInit
 		pa.GoCqhttpQrcodeData = nil
 
 		if pa.BuiltinMode == "lagrange" {
@@ -617,7 +617,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 
 		if dice.ContainerMode {
 			log.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
-			conn.State = 3
+			conn.State = StateConnectionFailed
 			pa.GoCqhttpState = StateCodeLoginFailed
 			dice.Save(false)
 			return
@@ -632,7 +632,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
-		go ServeQQ(dice, conn)
+		go startQQProtocolConnection(dice, conn)
 	}
 }
 
@@ -878,7 +878,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
 
-					go ServeQQ(dice, conn)
+					go startQQProtocolConnection(dice, conn)
 				}
 			}
 
@@ -1014,10 +1014,10 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 				BuiltinQQServeProcessKill(dice, conn)
 
 				if isInLogin {
-					conn.State = 3
+					conn.State = StateConnectionFailed
 					pa.GoCqhttpState = StateCodeLoginFailed
 				} else {
-					conn.State = 0
+					conn.State = StateDisconnected
 					pa.GoCqhttpState = GoCqhttpStateCodeClosed
 				}
 			}

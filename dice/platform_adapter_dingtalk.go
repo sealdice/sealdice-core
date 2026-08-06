@@ -1,6 +1,8 @@
 package dice
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -24,41 +26,45 @@ type PlatformAdapterDingTalk struct {
 }
 
 func (pa *PlatformAdapterDingTalk) DoRelogin() bool {
-	if err := pa.closeSessionLocked(); err != nil {
-		pa.EndPoint.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
-		return false
-	}
-	pa.EndPoint.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
-	if err := pa.openSessionLocked(); err != nil {
-		pa.EndPoint.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
-		pa.EndPoint.State = 3
-		pa.EndPoint.Enable = false
-		return false
-	}
-	pa.EndPoint.State = 1
-	pa.EndPoint.Enable = true
-	return true
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterDingTalk) SetEnable(enable bool) {
 	if enable {
-		pa.EndPoint.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
-		if err := pa.openSessionLocked(); err != nil {
-			pa.EndPoint.Session.Parent.Logger.Errorf("与DingTalk服务进行连接时出错:%s", err.Error())
-			pa.EndPoint.State = 3
-			pa.EndPoint.Enable = false
-			return
-		}
-		pa.EndPoint.State = 1
-		pa.EndPoint.Enable = true
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		if err := pa.closeSessionLocked(); err != nil {
-			pa.EndPoint.Session.Parent.Logger.Error("Dingtalk 断开连接失败: ", err)
-			return
-		}
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
 	}
+}
+
+// LifecycleStart opens one DingTalk stream session for the supervisor
+// generation. Reconnect policy is intentionally owned by EndpointLifecycleSupervisor.
+func (pa *PlatformAdapterDingTalk) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleFailure(errors.New("dingtalk endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+	}
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用DingTalk服务……")
+	if pa.Serve() != 0 {
+		return errors.New("dingtalk serve failed")
+	}
+	run.Started()
+	return nil
+}
+
+// LifecycleStop closes the current DingTalk stream session and leaves endpoint
+// state persistence to the shared lifecycle supervisor.
+func (pa *PlatformAdapterDingTalk) LifecycleStop(context.Context) error {
+	if pa.EndPoint != nil && pa.EndPoint.Session != nil {
+		pa.EndPoint.Session.Parent.Logger.Infof("正在禁用DingTalk服务……")
+	}
+	return pa.closeSessionLocked()
 }
 
 func (pa *PlatformAdapterDingTalk) QuitGroup(ctx *MsgContext, id string) {
@@ -262,7 +268,7 @@ func (pa *PlatformAdapterDingTalk) Serve() int {
 	pa.sessionOpened = true
 
 	logger.Info("Dingtalk 连接成功")
-	pa.EndPoint.State = 1
+	pa.EndPoint.State = StateConnected
 	pa.EndPoint.Enable = true
 	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()

@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -42,6 +43,10 @@ type SendMessageMinecraft struct {
 func (pa *PlatformAdapterMinecraft) GetGroupInfoAsync(_ string) {}
 
 func (pa *PlatformAdapterMinecraft) Serve() int {
+	return pa.serveWithLifecycle(context.Background(), nil)
+}
+
+func (pa *PlatformAdapterMinecraft) serveWithLifecycle(ctx context.Context, reporter EndpointRunReporter) int {
 	if !strings.HasPrefix(pa.ConnectURL, "ws://") {
 		pa.ConnectURL = "ws://" + pa.ConnectURL
 	}
@@ -52,7 +57,17 @@ func (pa *PlatformAdapterMinecraft) Serve() int {
 	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-	pa.socketSetup()
+	pa.socketSetupWithLifecycle(reporter)
+	if reporter != nil {
+		// Connect is asynchronous, so bind cancellation to the current socket
+		// until LifecycleStop gets a chance to close it explicitly.
+		go func(socket *gowebsocket.Socket) {
+			<-ctx.Done()
+			if pa.Socket == socket {
+				socket.Close()
+			}
+		}(&socket)
+	}
 	socket.Connect()
 	return 0
 }
@@ -75,12 +90,16 @@ func (pa *PlatformAdapterMinecraft) tryReconnect(socket gowebsocket.Socket) bool
 }
 
 func (pa *PlatformAdapterMinecraft) socketSetup() {
+	pa.socketSetupWithLifecycle(nil)
+}
+
+func (pa *PlatformAdapterMinecraft) socketSetupWithLifecycle(reporter EndpointRunReporter) {
 	ep := pa.EndPoint
 	log := ep.Session.Parent.Logger
 	socket := pa.Socket
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		pa.Reconnecting = true
-		ep.State = 1
+		ep.State = StateConnected
 		ep.Enable = true
 		pa.RetryTimes = 0
 
@@ -89,6 +108,9 @@ func (pa *PlatformAdapterMinecraft) socketSetup() {
 		d.Save(false)
 
 		log.Info("Minecraft 连接成功")
+		if reporter != nil {
+			reporter.Started()
+		}
 		time.Sleep(time.Duration(5) * time.Second)
 		pa.Reconnecting = false
 	}
@@ -101,21 +123,29 @@ func (pa *PlatformAdapterMinecraft) socketSetup() {
 	}
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
 		log.Errorf("MC websocket出现错误: %s", err)
+		if reporter != nil {
+			reporter.Failed(err)
+			return
+		}
 		if !socket.IsConnected {
 			// socket.Close()
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
-				ep.State = 3
+				ep.State = StateConnectionFailed
 				ep.Enable = false
 			}
 		}
 	}
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Errorf("与MC服务器断开连接")
+		if reporter != nil {
+			reporter.Closed(err)
+			return
+		}
 		time.Sleep(time.Duration(2) * time.Second)
 		if !pa.tryReconnect(*pa.Socket) {
 			log.Errorf("短时间内连接失败次数过多，不再进行重连")
-			ep.State = 3
+			ep.State = StateConnectionFailed
 			ep.Enable = false
 		}
 	}
@@ -153,45 +183,44 @@ func ExtractMCUserID(id string) string {
 }
 
 func (pa *PlatformAdapterMinecraft) DoRelogin() bool {
-	log := pa.EndPoint.Session.Parent.Logger
-	pa.Reconnecting = true
-	pa.Socket.Close()
-	socket := gowebsocket.New(pa.ConnectURL)
-	log.Infof("MC server 重新连接")
-	pa.Socket = &socket
-	pa.socketSetup()
-	socket.Connect()
-	pa.Reconnecting = false
-	return true
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 	log := pa.EndPoint.Session.Parent.Logger
 	if enable {
 		log.Infof("MC server 连接中")
-		if pa.Socket != nil && pa.Socket.IsConnected {
-			pa.Reconnecting = true
-			pa.Socket.Close()
-			socket := gowebsocket.New(pa.ConnectURL)
-			pa.Socket = &socket
-			pa.socketSetup()
-			socket.Connect()
-			pa.Reconnecting = false
-		} else {
-			pa.Reconnecting = true
-			socket := gowebsocket.New(pa.ConnectURL)
-			pa.Socket = &socket
-			pa.socketSetup()
-			socket.Connect()
-			pa.Reconnecting = false
+		if err := StartEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			log.Errorf("MC server 连接失败: %s", err.Error())
 		}
 	} else {
-		pa.Reconnecting = true
-		if pa.Socket != nil && pa.Socket.IsConnected {
-			pa.Socket.Close()
+		if err := StopEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			log.Errorf("MC server 断开失败: %s", err.Error())
 		}
-		pa.Reconnecting = false
 	}
+}
+
+// LifecycleStart starts one Minecraft websocket owned by the supervisor.
+func (pa *PlatformAdapterMinecraft) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.Socket != nil {
+		pa.Socket.Close()
+		pa.Socket = nil
+	}
+	if pa.serveWithLifecycle(ctx, run) != 0 {
+		return fmt.Errorf("minecraft serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop closes the active Minecraft websocket for the current
+// supervisor generation.
+func (pa *PlatformAdapterMinecraft) LifecycleStop(ctx context.Context) error {
+	if pa.Socket != nil {
+		pa.Socket.Close()
+		pa.Socket = nil
+	}
+	pa.Reconnecting = false
+	return ctx.Err()
 }
 
 func (pa *PlatformAdapterMinecraft) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {

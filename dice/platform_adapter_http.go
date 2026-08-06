@@ -1,6 +1,8 @@
 package dice
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -39,10 +41,41 @@ func (pa *PlatformAdapterHTTP) Serve() int {
 }
 
 func (pa *PlatformAdapterHTTP) DoRelogin() bool {
-	return false
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
-func (pa *PlatformAdapterHTTP) SetEnable(_ bool) {}
+func (pa *PlatformAdapterHTTP) SetEnable(enable bool) {
+	if enable {
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
+	} else {
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
+	}
+}
+
+// LifecycleStart marks the in-process UI adapter as available. It has no
+// socket to open, but still participates in the shared lifecycle contract.
+func (pa *PlatformAdapterHTTP) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil {
+		return NewEndpointLifecycleFailure(errors.New("http endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+	}
+	pa.EndPoint.State = StateConnected
+	pa.EndPoint.Enable = true
+	run.Started()
+	return nil
+}
+
+// LifecycleStop has no external resource to close for the UI adapter; the
+// supervisor handles the persisted endpoint state.
+func (pa *PlatformAdapterHTTP) LifecycleStop(context.Context) error {
+	return nil
+}
 
 func getUITestReplySplitLen(ctx *MsgContext) int {
 	if ctx == nil || ctx.UITestReplySplitLen == nil {

@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -131,7 +132,7 @@ func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
 
 func (pa *PlatformAdapterMilky) Serve() int {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	pa.EndPoint.State = 2 // 设置状态为连接中
+	pa.EndPoint.State = StateConnecting
 
 	if pa.RestGateway[len(pa.RestGateway)-1] == '/' {
 		pa.RestGateway = pa.RestGateway[:len(pa.RestGateway)-1] // 去掉末尾的斜杠
@@ -417,7 +418,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	err = pa.IntentSession.Open()
 	if err != nil {
 		log.Errorf("Failed to open Milky session: %v", err)
-		pa.EndPoint.State = 3 // 设置状态为连接失败
+		pa.EndPoint.State = StateConnectionFailed
 		pa.EndPoint.Enable = false
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
@@ -428,7 +429,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		// 获取登录信息失败，视为连接失败
 		log.Errorf("Failed to get login info: %v", err)
 		_ = pa.IntentSession.Close()
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		pa.EndPoint.Enable = false
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
@@ -438,7 +439,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
 	pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
 	pa.EndPoint.Nickname = info.Nickname
-	pa.EndPoint.State = 1
+	pa.EndPoint.State = StateConnected
 	pa.EndPoint.Enable = true
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -642,89 +643,68 @@ func (pa *PlatformAdapterMilky) SetFriendAddRequest(initiatorUid string, approve
 }
 
 func (pa *PlatformAdapterMilky) DoRelogin() bool {
-	log := zap.S().Named(logger.LogKeyAdapter)
-	pa.EndPoint.State = 2
-	// 分离
-	if pa.BuiltInMode == "" {
-		if pa.IntentSession == nil {
-			success := pa.Serve()
-			return success == 0
-		}
-		_ = pa.IntentSession.Close()
-		err := pa.IntentSession.Open()
-		if err != nil {
-			log.Errorf("Milky Connect Error:%s", err.Error())
-			pa.EndPoint.State = 0
-			return false
-		}
-		pa.EndPoint.State = 1
-		pa.EndPoint.Enable = true
-		d := pa.EndPoint.Session.Parent
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
-		return true
-	}
-	// 内置
-	// 先断开连接
-	if pa.IntentSession != nil {
-		_ = pa.IntentSession.Close()
-	}
-	// kill
-	BuiltinMilkyClientKill(pa.EndPoint.Session.Parent, pa.EndPoint)
-	MilkyRemoveSession(pa.EndPoint.Session.Parent, pa.EndPoint)
-	go ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
-	return true
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	if pa.BuiltInMode == "" {
-		if enable {
-			log.Infof("正在启用Milky服务……")
-			if pa.IntentSession == nil {
-				pa.Serve()
-				return
-			}
-			err := pa.IntentSession.Open()
-			if err != nil {
-				log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
-				pa.EndPoint.State = 3
-				pa.EndPoint.Enable = false
-				return
-			}
-			info, err := pa.IntentSession.GetLoginInfo()
-			if err != nil {
-				log.Errorf("Failed to get login info: %v", err)
-			} else {
-				pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
-				pa.EndPoint.Nickname = info.Nickname
-				log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
-			}
-			pa.EndPoint.State = 1
-			pa.EndPoint.Enable = true
-		} else {
-			pa.EndPoint.State = 0
-			pa.EndPoint.Enable = false
-			_ = pa.IntentSession.Close()
-		}
-		d := pa.EndPoint.Session.Parent
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
-		return
-	}
 	if enable {
-		go ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
-	} else {
-		if pa.IntentSession != nil {
-			_ = pa.IntentSession.Close()
+		log.Infof("正在启用Milky服务……")
+		if err := StartEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			log.Errorf("与Milky服务进行连接时出错:%s", err.Error())
 		}
-		BuiltinMilkyClientKill(pa.EndPoint.Session.Parent, pa.EndPoint)
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
-		d := pa.EndPoint.Session.Parent
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
+	} else {
+		if err := StopEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			log.Errorf("断开Milky服务时出错:%s", err.Error())
+		}
 	}
+}
+
+// LifecycleStart opens one supervisor-owned Milky run. A fresh generation always
+// closes any previously remembered SDK session before creating the new one.
+func (pa *PlatformAdapterMilky) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if pa.BuiltInMode != "" {
+		return serveMilkyBuiltIn(ctx, pa.EndPoint.Session.Parent, pa.EndPoint, run)
+	}
+
+	if pa.IntentSession != nil {
+		_ = pa.IntentSession.Close()
+		pa.IntentSession = nil
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	if pa.Serve() != 0 {
+		return errors.New("milky serve failed")
+	}
+	select {
+	case <-ctx.Done():
+		_ = pa.IntentSession.Close()
+		pa.IntentSession = nil
+		return ctx.Err()
+	default:
+		run.Started()
+		return nil
+	}
+}
+
+// LifecycleStop closes the SDK websocket and, for built-in Milky, stops the
+// managed client process as part of the same supervisor generation shutdown.
+func (pa *PlatformAdapterMilky) LifecycleStop(ctx context.Context) error {
+	if pa.IntentSession != nil {
+		_ = pa.IntentSession.Close()
+		pa.IntentSession = nil
+	}
+	if pa.BuiltInMode != "" && pa.EndPoint != nil && pa.EndPoint.Session != nil {
+		BuiltinMilkyClientKill(pa.EndPoint.Session.Parent, pa.EndPoint)
+	}
+	return ctx.Err()
 }
 
 func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {

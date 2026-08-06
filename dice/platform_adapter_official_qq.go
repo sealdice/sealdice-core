@@ -67,6 +67,8 @@ type PlatformAdapterOfficialQQ struct {
 	CancelFunc     context.CancelFunc   `json:"-" yaml:"-"`
 	tokenSource    oauth2.TokenSource   `json:"-" yaml:"-"`
 	botID          string               `json:"-" yaml:"-"`
+	lifecycleMu    sync.Mutex           `json:"-" yaml:"-"`
+	lifecycleRun   EndpointRunReporter  `json:"-" yaml:"-"`
 
 	// Webhook服务
 	webhookServer *http.Server `json:"-" yaml:"-"`
@@ -321,7 +323,7 @@ func (pa *PlatformAdapterOfficialQQ) stopSessionContext() {
 func (pa *PlatformAdapterOfficialQQ) failConnect() int {
 	ep := pa.EndPoint
 	if ep != nil {
-		ep.State = 3
+		ep.State = StateConnectionFailed
 	}
 	if pa.CancelFunc != nil {
 		pa.CancelFunc()
@@ -339,7 +341,41 @@ func (pa *PlatformAdapterOfficialQQ) failConnect() int {
 	if isQrFlow {
 		pa.markQrLoginFailed()
 	}
+	pa.reportLifecycleFailed(NewEndpointLifecycleFailure(errors.New("official qq connect failed"), LifecycleFailureStop))
 	return 1
+}
+
+func (pa *PlatformAdapterOfficialQQ) setLifecycleRun(run EndpointRunReporter) {
+	pa.lifecycleMu.Lock()
+	defer pa.lifecycleMu.Unlock()
+	pa.lifecycleRun = run
+}
+
+func (pa *PlatformAdapterOfficialQQ) reportLifecycleStarted() {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Started()
+	}
+}
+
+func (pa *PlatformAdapterOfficialQQ) reportLifecycleFailed(err error) {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Failed(err)
+	}
+}
+
+func (pa *PlatformAdapterOfficialQQ) reportLifecycleClosed(err error) {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Closed(err)
+	}
 }
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
@@ -360,7 +396,7 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 	if pa.AppID == "" {
 		ctx, cancel := context.WithCancel(context.Background())
 		pa.Ctx, pa.CancelFunc = ctx, cancel
-		ep.State = 2
+		ep.State = StateConnecting
 		log.Info("official qq AppID 为空，进入扫码登录流程")
 		pa.serveQrLogin("sealdice")
 		return 0
@@ -458,23 +494,24 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 			if err := pa.webhookServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				log.Error("official qq webhook服务器启动失败: ", err)
 				if pa.Ctx == ctx {
-					ep.State = 3
-					ep.Enable = false
+					ep.State = StateConnectionFailed
+					pa.reportLifecycleClosed(err)
 				}
 			}
 		}()
 
-		ep.State = 1
+		ep.State = StateConnected
 		ep.Enable = true
 		pa.clearQrLoginState()
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		log.Info("official qq webhook模式启动成功")
+		pa.reportLifecycleStarted()
 		return 0
 	}
 
 	pa.SessionManager = qqbot.NewSessionManager()
-	ep.State = 2
+	ep.State = StateConnecting
 	log.Debug("official qq connecting")
 	ws, err := pa.Api.WS(ctx, nil, "")
 	if err != nil || ws == nil {
@@ -516,8 +553,8 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 			if r := recover(); r != nil {
 				log.Error("official qq 启动失败: ", r)
 				if isCurrent {
-					ep.State = 3
-					ep.Enable = false
+					ep.State = StateConnectionFailed
+					pa.reportLifecycleFailed(fmt.Errorf("official qq session panic: %v", r))
 				}
 			}
 			if isCurrent {
@@ -529,18 +566,19 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 		if startErr := pa.SessionManager.Start(currentCtx, ws, pa.tokenSource, &intent); startErr != nil {
 			log.Error("official qq session manager 启动失败: ", startErr)
 			if pa.Ctx == currentCtx {
-				ep.State = 3
-				ep.Enable = false
+				ep.State = StateConnectionFailed
+				pa.reportLifecycleClosed(startErr)
 			}
 		}
 	}()
 
-	ep.State = 1
+	ep.State = StateConnected
 	ep.Enable = true
 	pa.clearQrLoginState()
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	log.Info("official qq 连接成功")
+	pa.reportLifecycleStarted()
 	return 0
 }
 
@@ -1260,47 +1298,57 @@ func (pa *PlatformAdapterOfficialQQ) shutdownWebhookServer() {
 }
 
 func (pa *PlatformAdapterOfficialQQ) DoRelogin() bool {
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
+}
+
+func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
+	if enable {
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
+	} else {
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
+	}
+}
+
+// LifecycleStart starts one Official QQ lifecycle generation. In QR-login mode
+// Serve returns after creating the QR task, so Started is reported later from
+// connect/webhook success paths.
+func (pa *PlatformAdapterOfficialQQ) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleFailure(errors.New("official qq endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+	}
+	pa.setLifecycleRun(run)
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 official qq 服务")
+	if pa.Serve() != 0 {
+		return NewEndpointLifecycleFailure(errors.New("official qq serve failed"), LifecycleFailureStop)
+	}
+	if pa.Ctx != nil && pa.EndPoint.State == StateConnected {
+		pa.reportLifecycleStarted()
+	}
+	return nil
+}
+
+// LifecycleStop cancels Official QQ websocket/webhook/QR resources. Endpoint
+// state is then persisted by EndpointLifecycleSupervisor.
+func (pa *PlatformAdapterOfficialQQ) LifecycleStop(context.Context) error {
 	if pa.CancelFunc != nil {
 		pa.CancelFunc()
 	}
-	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 official qq 服务")
-	pa.EndPoint.State = 0
-	pa.EndPoint.Enable = false
+	pa.shutdownWebhookServer()
 	pa.Api = nil
+	pa.SessionManager = nil
 	pa.Ctx = nil
 	pa.CancelFunc = nil
 	pa.tokenSource = nil
 	pa.clearQrLoginState()
-	pa.shutdownWebhookServer()
-	return pa.Serve() == 0
-}
-
-func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
-	d := pa.EndPoint.Session.Parent
-	ep := pa.EndPoint
-	if enable {
-		if pa.Ctx == nil {
-			ep.Enable = false
-			pa.DiceServing = false
-			ep.State = 2
-			ServerOfficialQQ(d, ep)
-		} else {
-			ep.Enable = true
-			ep.State = 1
-		}
-	} else {
-		ep.State = 0
-		ep.Enable = false
-		if pa.CancelFunc != nil {
-			pa.CancelFunc()
-		}
-		pa.shutdownWebhookServer()
-		pa.CancelFunc = nil
-		pa.Ctx = nil
-		pa.tokenSource = nil
-		pa.clearQrLoginState()
-	}
-	d.LastUpdatedTime = time.Now().Unix()
+	pa.setLifecycleRun(nil)
+	return nil
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
@@ -2702,7 +2750,7 @@ func (pa *PlatformAdapterOfficialQQ) failQrLogin(logMsg string, err error) {
 		log.Error(logMsg)
 	}
 	pa.markQrLoginFailed()
-	ep.State = 3
+	ep.State = StateConnectionFailed
 	ep.Enable = false
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -2834,7 +2882,7 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 					ep.UserID = ""
 					ep.Nickname = ""
 					pa.markQrLoginFailed()
-					ep.State = 3
+					ep.State = StateConnectionFailed
 					ep.Enable = false
 					d.LastUpdatedTime = time.Now().Unix()
 					d.Save(false)

@@ -25,6 +25,10 @@ type PlatformAdapterSlack struct {
 }
 
 func (pa *PlatformAdapterSlack) Serve() int {
+	return pa.serveWithLifecycle(context.Background(), nil)
+}
+
+func (pa *PlatformAdapterSlack) serveWithLifecycle(ctx context.Context, reporter EndpointRunReporter) int {
 	ep := pa.EndPoint
 	s := ep.Session
 	log := s.Parent.Logger
@@ -33,7 +37,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	sh := sm.NewSocketmodeHandler(client)
 	// Connect
 	sh.Handle(sm.EventTypeConnecting, func(event *sm.Event, client *sm.Client) {
-		ep.State = 2
+		ep.State = StateConnecting
 		log.Info("使用 Socket Mode/套接字模式 连接到 Slack 中")
 	})
 	sh.Handle(sm.EventTypeConnected, func(event *sm.Event, client *sm.Client) {
@@ -45,16 +49,25 @@ func (pa *PlatformAdapterSlack) Serve() int {
 		log.Infof("Slack 连接成功：账号<%s>(%s)", test.User, FormatDiceIDSlack(test.UserID))
 		pa.EndPoint.UserID = FormatDiceIDSlack(test.UserID)
 		pa.EndPoint.Nickname = test.User
-		ep.State = 1
+		ep.State = StateConnected
 		ep.Enable = true
+		if reporter != nil {
+			reporter.Started()
+		}
 	})
 	sh.Handle(sm.EventTypeConnectionError, func(event *sm.Event, client *sm.Client) {
-		ep.State = 0
+		ep.State = StateDisconnected
 		log.Errorf("Slack 账号 <%s> 连接失败: %v", pa.EndPoint.UserID, event.Data)
+		if reporter != nil {
+			reporter.Failed(fmt.Errorf("slack connection error: %v", event.Data))
+		}
 	})
 	sh.Handle(sm.EventTypeDisconnect, func(event *sm.Event, client *sm.Client) {
-		ep.State = 0
+		ep.State = StateDisconnected
 		log.Errorf("Slack 账号 <%s> 连接断开：%v", pa.EndPoint.UserID, event.Data)
+		if reporter != nil {
+			reporter.Closed(fmt.Errorf("slack disconnected: %v", event.Data))
+		}
 	})
 	sh.HandleEvents(se.AppMention, func(event *sm.Event, client *sm.Client) {
 		go client.Ack(*event.Request)
@@ -146,10 +159,13 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	// Start
 	pa.Client = client
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	pa.cancel = cancel
 	err := sh.RunEventLoopContext(ctx)
 	if err != nil {
+		if reporter != nil && ctx.Err() == nil {
+			reporter.Closed(err)
+		}
 		log.Error("SlackEventLoopErr：", err.Error())
 		return 1
 	}
@@ -177,33 +193,39 @@ func (pa *PlatformAdapterSlack) SendFileToGroup(ctx *MsgContext, groupID string,
 }
 
 func (pa *PlatformAdapterSlack) DoRelogin() bool {
-	if pa.cancel != nil {
-		pa.cancel()
-	}
-	pa.Client = nil
-	pa.EndPoint.Enable = false
-	pa.EndPoint.State = 0
-	go pa.Serve()
-	return true
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterSlack) SetEnable(enable bool) {
 	if enable {
-		if pa.Client == nil {
-			go pa.Serve()
-		} else {
-			pa.Client = nil
-			pa.cancel = nil
-			go pa.Serve()
+		if err := StartEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			pa.EndPoint.Session.Parent.Logger.Errorf("启用Slack服务失败：%s", err.Error())
 		}
 	} else {
-		if pa.cancel != nil {
-			pa.cancel()
+		if err := StopEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			pa.EndPoint.Session.Parent.Logger.Errorf("断开Slack服务失败：%s", err.Error())
 		}
-		pa.Client = nil
-		pa.EndPoint.Enable = false
-		pa.EndPoint.State = 0
 	}
+}
+
+// LifecycleStart runs one Socket Mode event loop owned by the supervisor. The
+// loop inherits the supervisor context so disable/relogin can cancel it.
+func (pa *PlatformAdapterSlack) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.serveWithLifecycle(ctx, run) != 0 {
+		return fmt.Errorf("slack serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop cancels the current Socket Mode loop before clearing pointers,
+// preventing the old loop from surviving a repeated enable.
+func (pa *PlatformAdapterSlack) LifecycleStop(ctx context.Context) error {
+	if pa.cancel != nil {
+		pa.cancel()
+	}
+	pa.cancel = nil
+	pa.Client = nil
+	return ctx.Err()
 }
 
 func (pa *PlatformAdapterSlack) QuitGroup(ctx *MsgContext, id string) {

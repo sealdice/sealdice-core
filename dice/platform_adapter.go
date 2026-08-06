@@ -3,6 +3,8 @@ package dice
 import "sealdice-core/message"
 
 type PlatformAdapter interface {
+	EndpointLifecycleDriver
+
 	Serve() int
 	DoRelogin() bool
 	SetEnable(enable bool)

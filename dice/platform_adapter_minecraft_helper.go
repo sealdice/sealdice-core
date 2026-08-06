@@ -19,9 +19,8 @@ func NewMinecraftConnItem(url string) *EndPointInfo {
 func ServeMinecraft(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "MC" {
-		conn := ep.Adapter.(*PlatformAdapterMinecraft)
 		ep.BindRuntime(d.ImSession)
 		d.Logger.Infof("Minecraft 尝试连接")
-		conn.Serve()
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }

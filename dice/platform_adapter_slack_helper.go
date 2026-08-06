@@ -1,10 +1,6 @@
 package dice
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 func NewSlackConnItem(at string, bt string) *EndPointInfo {
 	conn := new(EndPointInfo)
@@ -24,14 +20,8 @@ func NewSlackConnItem(at string, bt string) *EndPointInfo {
 func ServeSlack(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "SLACK" {
-		conn := ep.Adapter.(*PlatformAdapterSlack)
 		ep.BindRuntime(d.ImSession)
-		if conn.Serve() != 0 {
-			ep.State = 3
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-			d.Logger.Info("连接失败！")
-		}
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }
 

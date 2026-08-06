@@ -1,8 +1,6 @@
 package dice
 
 import (
-	"time"
-
 	"github.com/bwmarrin/discordgo"
 	"github.com/google/uuid"
 )
@@ -36,16 +34,9 @@ func NewDiscordConnItem(v AddDiscordEcho) *EndPointInfo {
 func ServeDiscord(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "DISCORD" {
-		conn := ep.Adapter.(*PlatformAdapterDiscord)
 		ep.BindRuntime(d.ImSession)
 		d.Logger.Infof("DiscordGo 尝试连接")
-		if conn.Serve() != 0 {
-			d.Logger.Errorf("连接Discord服务失败")
-			ep.State = 3
-			ep.Enable = false
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }
 

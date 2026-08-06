@@ -1,10 +1,6 @@
 package dice
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 func NewDingTalkConnItem(clientID string, token string, nickname string, robotCode string) *EndPointInfo {
 	conn := new(EndPointInfo)
@@ -26,15 +22,8 @@ func NewDingTalkConnItem(clientID string, token string, nickname string, robotCo
 func ServeDingTalk(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "DINGTALK" {
-		conn := ep.Adapter.(*PlatformAdapterDingTalk)
 		ep.BindRuntime(d.ImSession)
 		d.Logger.Infof("Dingtalk 尝试连接")
-		if conn.Serve() != 0 {
-			d.Logger.Errorf("连接Dingtalk 失败")
-			ep.State = 3
-			ep.Enable = false
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }

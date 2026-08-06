@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -43,6 +44,10 @@ type PlatformAdapterSealChat struct {
 }
 
 func (pa *PlatformAdapterSealChat) Serve() int {
+	return pa.serveWithLifecycle(context.Background(), nil)
+}
+
+func (pa *PlatformAdapterSealChat) serveWithLifecycle(ctx context.Context, reporter EndpointRunReporter) int {
 	if !strings.HasPrefix(pa.ConnectURL, "ws://") && !strings.HasPrefix(pa.ConnectURL, "wss://") {
 		pa.ConnectURL = "ws://" + pa.ConnectURL
 	}
@@ -56,7 +61,17 @@ func (pa *PlatformAdapterSealChat) Serve() int {
 	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-	pa.socketSetup()
+	pa.socketSetupWithLifecycle(reporter)
+	if reporter != nil {
+		// Stop normally arrives through LifecycleStop, but watching ctx prevents
+		// an abandoned async connect attempt from surviving cancellation.
+		go func(socket *gowebsocket.Socket) {
+			<-ctx.Done()
+			if pa.Socket == socket {
+				socket.Close()
+			}
+		}(&socket)
+	}
 	socket.Connect()
 	return 0
 }
@@ -72,11 +87,15 @@ func (pa *PlatformAdapterSealChat) _sendJSON(socket *gowebsocket.Socket, data an
 }
 
 func (pa *PlatformAdapterSealChat) socketSetup() {
+	pa.socketSetupWithLifecycle(nil)
+}
+
+func (pa *PlatformAdapterSealChat) socketSetupWithLifecycle(reporter EndpointRunReporter) {
 	ep := pa.EndPoint
 	log := pa.EndPoint.Session.Parent.Logger
 	socket := pa.Socket
 	socket.OnConnected = func(socket gowebsocket.Socket) {
-		ep.State = 2
+		ep.State = StateConnecting
 		ep.Enable = true
 
 		d := pa.EndPoint.Session.Parent
@@ -108,7 +127,7 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 				info := gatewayMsg.Body.(map[string]any)
 				if info["errorMsg"] != nil {
 					log.Infof("SealChat 连接失败: %s", info["errorMsg"])
-					ep.State = 3
+					ep.State = StateConnectionFailed
 				} else {
 					data := struct {
 						Body struct {
@@ -122,12 +141,15 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 						pa.UserID = data.Body.User.ID
 						ep.UserID = FormatDiceIDSealChat(data.Body.User.ID)
 						ep.Nickname = data.Body.User.Nick
-						ep.State = 1
+						ep.State = StateConnected
 						log.Infof("SealChat 连接成功: %s", ep.Nickname)
 
 						// 握手成功，通过验证
 						pa.RetryTimes = 0
 						pa.RetryTimesLimit = 15
+						if reporter != nil {
+							reporter.Started()
+						}
 					}
 
 					go func() {
@@ -179,21 +201,29 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
 		log.Errorf("SealChat websocket出现错误: %s", err)
 		pa.stopHeartbeat()
+		if reporter != nil {
+			reporter.Failed(err)
+			return
+		}
 		if !socket.IsConnected {
 			pa.Reconnecting = false
 			time.Sleep(time.Duration(10) * time.Second)
 			if !pa.tryReconnect(*pa.Socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
-				ep.State = 3
+				ep.State = StateConnectionFailed
 			}
 		}
 	}
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("与SealChat服务器断开连接，尝试进行重连")
 		pa.stopHeartbeat()
+		if reporter != nil {
+			reporter.Closed(err)
+			return
+		}
 		time.Sleep(time.Duration(2) * time.Second)
 		if !pa.tryReconnect(*pa.Socket) {
-			ep.State = 3
+			ep.State = StateConnectionFailed
 			log.Errorf("到达连接次数上限，不再进行重连")
 		}
 	}
@@ -465,50 +495,46 @@ func FormatDiceIDSealChatGroup(id string) string {
 }
 
 func (pa *PlatformAdapterSealChat) DoRelogin() bool {
-	log := pa.EndPoint.Session.Parent.Logger
-	pa.Reconnecting = true
-	if pa.Socket != nil {
-		pa.Socket.Close()
-	}
-
-	socket := gowebsocket.New(pa.ConnectURL)
-	log.Infof("SealChat 重新连接")
-	pa.Socket = &socket
-	pa.socketSetup()
-	socket.Connect()
-	pa.Reconnecting = false
-	return true
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 	log := pa.EndPoint.Session.Parent.Logger
 	if enable {
-		pa.EndPoint.Enable = true
 		log.Infof("Sealchat 连接中")
-		if pa.Socket != nil && pa.Socket.IsConnected {
-			pa.Reconnecting = true
-			pa.Socket.Close()
-			socket := gowebsocket.New(pa.ConnectURL)
-			pa.Socket = &socket
-			pa.socketSetup()
-			socket.Connect()
-			pa.Reconnecting = false
-		} else {
-			pa.Reconnecting = true
-			socket := gowebsocket.New(pa.ConnectURL)
-			pa.Socket = &socket
-			pa.socketSetup()
-			socket.Connect()
-			pa.Reconnecting = false
+		if err := StartEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			log.Errorf("Sealchat 连接失败: %s", err.Error())
 		}
 	} else {
-		pa.EndPoint.Enable = false
-		pa.Reconnecting = true
-		if pa.Socket != nil && pa.Socket.IsConnected {
-			pa.Socket.Close()
+		if err := StopEndpointLifecycle(nil, pa.EndPoint); err != nil {
+			log.Errorf("Sealchat 断开失败: %s", err.Error())
 		}
-		pa.Reconnecting = false
 	}
+}
+
+// LifecycleStart starts one SealChat websocket owned by the supervisor. In this
+// mode reconnect decisions are reported upward instead of handled locally.
+func (pa *PlatformAdapterSealChat) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.Socket != nil {
+		pa.Socket.Close()
+		pa.Socket = nil
+	}
+	if pa.serveWithLifecycle(ctx, run) != 0 {
+		return fmt.Errorf("sealchat serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop closes the active SealChat socket and heartbeat for the current
+// supervisor generation.
+func (pa *PlatformAdapterSealChat) LifecycleStop(ctx context.Context) error {
+	pa.stopHeartbeat()
+	if pa.Socket != nil {
+		pa.Socket.Close()
+		pa.Socket = nil
+	}
+	pa.Reconnecting = false
+	return ctx.Err()
 }
 
 func (pa *PlatformAdapterSealChat) sendAPIWithEcho(api string, data any) (string, chan any) {
@@ -859,14 +885,9 @@ func (pa *PlatformAdapterSealChat) registerCommands() {
 func ServeSealChat(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "SEALCHAT" {
-		conn := ep.Adapter.(*PlatformAdapterSealChat)
+		ep.BindRuntime(d.ImSession)
 		d.Logger.Infof("SealChat 尝试连接")
-		if conn.Serve() != 0 {
-			d.Logger.Errorf("连接SealChat服务失败")
-			ep.State = 3
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }
 
