@@ -86,7 +86,7 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 				mctx.Player.Name = "<@!" + strings.TrimPrefix(i.UserID, "OpenQQCH:") + ">"
 			} else if mctx.Player.Name == "" && strings.HasPrefix(i.UserID, "OpenQQ:") {
 				mentionTarget := normalizeOfficialQQGroupAtTarget(officialQQUIN, i.UserID)
-				mctx.Player.Name = formatOfficialQQAtUser(mentionTarget)
+				mctx.Player.Name = "<@" + mentionTarget + ">"
 			}
 		}
 		return mctx, p != nil
