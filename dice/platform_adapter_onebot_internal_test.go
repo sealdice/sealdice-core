@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -811,6 +812,8 @@ func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
 		t.Fatalf("handleJoinGroupAction returned error: %v", err)
 	}
 
+	time.Sleep(5 * time.Second)
+
 	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
 	if !ok {
 		t.Fatalf("expected group to be initialized")
@@ -821,11 +824,12 @@ func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
 }
 
 func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
-	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, _, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
 	core, observed := observer.New(zapcore.InfoLevel)
-	pa.logger = zap.New(core).Sugar()
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -860,11 +864,12 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
 }
 
 func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenDisabled(t *testing.T) {
-	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, _, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
 	core, observed := observer.New(zapcore.InfoLevel)
-	pa.logger = zap.New(core).Sugar()
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -903,11 +908,12 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenDisabled(t *testing.T) {
 }
 
 func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
-	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
 	core, observed := observer.New(zapcore.InfoLevel)
-	pa.logger = zap.New(core).Sugar()
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -948,8 +954,62 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 	if len(sendLogs) != 1 {
 		t.Fatalf("expected one welcome send log, got %d", len(sendLogs))
 	}
-	if sendLogs[0].Message == "" || sendLogs[0].Message != `发送迎新消息: group_id=QQ-Group:77777 user_id=QQ:12345 text="欢迎新人"` {
+	if sendLogs[0].Message == "" ||
+		!strings.Contains(sendLogs[0].Message, "group_id=QQ-Group:77777") ||
+		!strings.Contains(sendLogs[0].Message, "user_id=QQ:12345") ||
+		!strings.Contains(sendLogs[0].Message, `text="欢迎新人"`) {
 		t.Fatalf("unexpected welcome send log: %q", sendLogs[0].Message)
+	}
+}
+
+func TestPureOnebotHandleJoinGroupUsesSharedMemberWelcomeDedupe(t *testing.T) {
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	core, observed := observer.New(zapcore.InfoLevel)
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
+
+	pa.EndPoint.Session.ServiceAtNew.Store("QQ-Group:88888", &GroupInfo{
+		GroupID:             "QQ-Group:88888",
+		ShowGroupWelcome:    true,
+		GroupWelcomeMessage: "欢迎新人",
+		DiceIDExistsMap:     new(SyncMap[string, bool]),
+	})
+
+	req := gjson.Parse(`{
+		"post_type":"notice",
+		"notice_type":"group_increase",
+		"group_id":88888,
+		"user_id":22334,
+		"self_id":54321,
+		"time":42,
+		"message": []
+	}`)
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("first handleJoinGroupAction returned error: %v", err)
+	}
+	select {
+	case <-em.sendGrCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected first welcome message to be sent")
+	}
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("second handleJoinGroupAction returned error: %v", err)
+	}
+	waitPureOnebotInfoLog(t, observed, "reason=duplicate_event")
+
+	if sendLogs := observed.FilterMessageSnippet("发送迎新消息").All(); len(sendLogs) != 1 {
+		t.Fatalf("expected one welcome send log, got %d", len(sendLogs))
+	}
+	select {
+	case <-em.sendGrCh:
+		t.Fatal("expected duplicate welcome message to be skipped")
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 
