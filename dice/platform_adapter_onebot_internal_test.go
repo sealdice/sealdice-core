@@ -33,6 +33,7 @@ type onebotTestEmitter struct {
 	loginInfoErr   error
 	sendPvtCh      chan time.Time
 	sendGrCh       chan time.Time
+	lastGrID       int64
 }
 
 type friendReqCall struct {
@@ -60,7 +61,8 @@ func (m *onebotTestEmitter) SendPvtMsg(context.Context, int64, schema.MessageCha
 	return &emitterTypes.SendMsgRes{}, nil
 }
 
-func (m *onebotTestEmitter) SendGrMsg(context.Context, int64, schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+func (m *onebotTestEmitter) SendGrMsg(_ context.Context, groupID int64, _ schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+	m.lastGrID = groupID
 	if m.sendGrCh != nil {
 		select {
 		case m.sendGrCh <- time.Now():
@@ -829,6 +831,7 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -868,6 +871,7 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenDisabled(t *testing.T) {
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -911,6 +915,7 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -920,6 +925,10 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		GroupWelcomeMessage: "欢迎新人",
 		DiceIDExistsMap:     new(SyncMap[string, bool]),
 	})
+
+	oldLastWelcome := lastGroupMemberWelcome
+	defer func() { lastGroupMemberWelcome = oldLastWelcome }()
+	lastGroupMemberWelcome = nil
 
 	req := gjson.Parse(`{
 		"post_type":"notice",
@@ -941,6 +950,10 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatal("expected welcome message to be sent")
 	}
 
+	if em.lastGrID != 77777 {
+		t.Fatalf("expected welcome sent to normalized group 77777, got %d", em.lastGrID)
+	}
+
 	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
 		t.Fatalf("expected need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
 	}
@@ -957,6 +970,64 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		!strings.Contains(sendLog, "user_id=QQ:12345") ||
 		!strings.Contains(sendLog, `text="欢迎新人"`) {
 		t.Fatalf("unexpected welcome send log: %q", sendLog)
+	}
+}
+
+func TestPureOnebotHandleJoinGroupDeduplicatesRepeatedEvent(t *testing.T) {
+	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	core, observed := observer.New(zapcore.InfoLevel)
+	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
+
+	pa.EndPoint.Session.ServiceAtNew.Store("QQ-Group:88888", &GroupInfo{
+		GroupID:             "QQ-Group:88888",
+		ShowGroupWelcome:    true,
+		GroupWelcomeMessage: "欢迎新人",
+		DiceIDExistsMap:     new(SyncMap[string, bool]),
+	})
+
+	oldLastWelcome := lastGroupMemberWelcome
+	defer func() { lastGroupMemberWelcome = oldLastWelcome }()
+	lastGroupMemberWelcome = nil
+
+	req := gjson.Parse(`{
+		"post_type":"notice",
+		"notice_type":"group_increase",
+		"group_id":88888,
+		"user_id":22222,
+		"self_id":54321,
+		"time": 2,
+		"message": []
+	}`)
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("handleJoinGroupAction returned error for first event: %v", err)
+	}
+
+	select {
+	case <-em.sendGrCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected welcome message to be sent for first event")
+	}
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("handleJoinGroupAction returned error for repeated event: %v", err)
+	}
+
+	waitPureOnebotInfoLog(t, observed, "reason=duplicate_event")
+
+	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
+		t.Fatalf("expected exactly one need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
+	}
+	if len(observed.FilterMessageSnippet("reason=duplicate_event").All()) != 1 {
+		t.Fatalf("expected one duplicate_event reason log, got %d", len(observed.FilterMessageSnippet("reason=duplicate_event").All()))
+	}
+	if len(observed.FilterMessageSnippet("发送迎新消息").All()) != 1 {
+		t.Fatalf("expected exactly one welcome send log, got %d", len(observed.FilterMessageSnippet("发送迎新消息").All()))
 	}
 }
 

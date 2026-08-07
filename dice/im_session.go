@@ -1663,7 +1663,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	}
 }
 
-var lastWelcome *LastWelcomeInfo
+var lastGroupMemberWelcome *LastWelcomeInfo
 
 // OnGroupMemberJoined 群成员进群事件处理，除了 bot 自己以外的群成员入群时调用。其他 Adapter 应当尽快迁移至此方法实现
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
@@ -1673,44 +1673,61 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	// 进群的是别人，是否迎新？
 	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
-	if ok && groupInfo.ShowGroupWelcome {
-		isDouble := false
-		if lastWelcome != nil {
-			isDouble = msg.GroupID == lastWelcome.GroupID &&
-				msg.Sender.UserID == lastWelcome.UserID &&
-				msg.Time == lastWelcome.Time
-		}
-		lastWelcome = &LastWelcomeInfo{
-			GroupID: msg.GroupID,
-			UserID:  msg.Sender.UserID,
-			Time:    msg.Time,
-		}
+	needWelcome := false
+	reason := "group_not_loaded"
+	if ok {
+		if groupInfo.ShowGroupWelcome {
+			isDouble := false
+			if lastGroupMemberWelcome != nil {
+				isDouble = msg.GroupID == lastGroupMemberWelcome.GroupID &&
+					msg.Sender.UserID == lastGroupMemberWelcome.UserID &&
+					msg.Time == lastGroupMemberWelcome.Time
+			}
+			lastGroupMemberWelcome = &LastWelcomeInfo{
+				GroupID: msg.GroupID,
+				UserID:  msg.Sender.UserID,
+				Time:    msg.Time,
+			}
 
-		if !isDouble {
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
-					}
-				}()
-
-				// Ensure context has group set for formatting and attrs access
-				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
-				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
-				uidRaw := UserIDExtract(msg.Sender.UserID)
-				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
-				VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
-				stdID := msg.Sender.UserID
-				VarSetValueStr(ctx, "$t帐号ID", stdID)
-				VarSetValueStr(ctx, "$t账号ID", stdID)
-				text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
-				for _, i := range ctx.SplitText(text) {
-					doSleepQQ(ctx)
-					ReplyGroup(ctx, msg, strings.TrimSpace(i))
-				}
-			}()
+			if isDouble {
+				reason = "duplicate_event"
+			} else {
+				needWelcome = true
+				reason = "welcome_enabled"
+			}
+		} else {
+			reason = "welcome_disabled"
 		}
 	}
+	log.Infof("检查是否需要迎新: need_welcome=%t reason=%s group_id=%s user_id=%s", needWelcome, reason, msg.GroupID, msg.Sender.UserID)
+
+	if !needWelcome {
+		return
+	}
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		// Ensure context has group set for formatting and attrs access
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
+		uidRaw := UserIDExtract(msg.Sender.UserID)
+		VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
+		VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
+		stdID := msg.Sender.UserID
+		VarSetValueStr(ctx, "$t帐号ID", stdID)
+		VarSetValueStr(ctx, "$t账号ID", stdID)
+		text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
+		log.Infof("发送迎新消息: group_id=%s user_id=%s text=%q", msg.GroupID, msg.Sender.UserID, text)
+		for _, i := range ctx.SplitText(text) {
+			doSleepQQ(ctx)
+			ReplyGroup(ctx, msg, strings.TrimSpace(i))
+		}
+	}()
 }
 
 var platformRE = regexp.MustCompile(`^(.*)-Group:`)
