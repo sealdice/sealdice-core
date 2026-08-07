@@ -31,9 +31,11 @@ func TestEscapeUnescapeCQParamRoundTrip(t *testing.T) {
 // 海豹码 [图:URL] 经 SealCodeToCqCode 转义后，解析 CQ 参数必须逆转义，
 // 否则 URL 中的 & 会变成 &amp; 或 amp;，导致图床查询参数失效。
 func TestConvertStringMessageRemoteImageQueryParams(t *testing.T) {
+	var calls atomic.Int32
 	var gotQuery atomic.Value
 	fake := []byte("fake image bytes")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
 		gotQuery.Store(r.URL.RawQuery)
 		_, _ = w.Write(fake)
 	}))
@@ -59,6 +61,11 @@ func TestConvertStringMessageRemoteImageQueryParams(t *testing.T) {
 	}
 	if q.Get("cy") != "33.0078%" {
 		t.Fatalf("cy param corrupted/lost in final URL: img.URL=%q query=%q", img.URL, parsed.RawQuery)
+	}
+
+	// 必须真实发起过图片服务器请求，否则下方的“无转义残留”断言会空洞通过
+	if calls.Load() == 0 {
+		t.Fatal("expected the image server to be requested")
 	}
 
 	// 图床实际收到的请求也不能含转义残留（&amp; 或 amp;）
