@@ -16,7 +16,7 @@ func RegisterBuiltinExtTrpg(d *Dice) {
 		Official:    true,
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
-			"st": getCmdStBase(CmdStOverrideInfo{}),
+			"st": getCmdTrpgSt(),
 		},
 	})
 }
