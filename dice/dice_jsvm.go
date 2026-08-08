@@ -1025,6 +1025,26 @@ type JsScriptDepends struct {
 	RawKey string `json:"rawKey"`
 }
 
+func isJSAPIVersionCompatible(
+	constraint *semver.Constraints,
+	rawConstraint string,
+	currentVersion *semver.Version,
+	compatibleVersions []*semver.Version,
+) bool {
+	// 有特殊符号时，进行严格的版本检查（只检查当前版本）。
+	if strings.ContainsAny(rawConstraint, "~*^<=>|") || strings.Contains(rawConstraint, " - ") {
+		// SealPack 的最低/最高版本检查按 SemVer 优先级比较，预发行版本也参与排序。
+		strictConstraint := *constraint
+		strictConstraint.IncludePrerelease = true
+		return strictConstraint.Check(currentVersion)
+	}
+
+	_, ok := lo.Find(compatibleVersions, func(version *semver.Version) bool {
+		return constraint.Check(version)
+	})
+	return ok
+}
+
 func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, builtin bool) (*JsScriptInfo, error) {
 	// 读取文件内容填空，类似油猴脚本那种形式
 	jsInfo := &JsScriptInfo{
@@ -1117,17 +1137,7 @@ func (d *Dice) JsParseMeta(s string, installTime time.Time, rawData []byte, buil
 					continue
 				}
 
-				var verOK bool
-				// 有特殊符号时，进行严格的版本检查(只检查当前版本)
-				if strings.ContainsAny(v, "~*^<=>|") || strings.Contains(v, " - ") {
-					verOK = vc.Check(VERSION)
-				} else {
-					_, verOK = lo.Find(VERSION_JSAPI_COMPATIBLE, func(v *semver.Version) bool {
-						return vc.Check(v)
-					})
-				}
-
-				if !verOK {
+				if !isJSAPIVersionCompatible(vc, v, VERSION, VERSION_JSAPI_COMPATIBLE) {
 					errMsg = append(errMsg, fmt.Sprintf("插件「%s」依赖的海豹版本限制在 %s，与海豹版本(%s)的JSAPI不兼容", jsInfo.Name, v, VERSION.String()))
 				}
 			case "needCompiled":
