@@ -470,7 +470,11 @@ func TestClearDetachedReloadScopeLockedPreservesNewerGeneration(t *testing.T) {
 }
 
 func TestPackageManagerReloadAllPreservesFailedDetachedScope(t *testing.T) {
-	_, pm := newDisableDeckTestPackageManager(t)
+	testDice, pm := newDisableDeckTestPackageManager(t)
+	if testDice.Parent != nil {
+		t.Fatal("测试要求 Dice.Parent 为空，以确保帮助文档重载因缺少 DiceManager 而失败")
+	}
+	// 牌堆应重载成功；帮助文档因缺少 DiceManager 失败，用于验证只保留失败的重载范围。
 	pm.detachedReload = packageReloadContentFlags{decks: true, helpdoc: true}
 	pm.detachedReloadGen = 1
 
@@ -480,6 +484,12 @@ func TestPackageManagerReloadAllPreservesFailedDetachedScope(t *testing.T) {
 	}
 	if result.Success {
 		t.Fatalf("ReloadAll() Success = true, want false: %#v", result.ReloadedItems)
+	}
+	if got := result.ReloadedItems["decks"]; got != "牌堆已重载" {
+		t.Fatalf("ReloadAll() decks result = %q, want successful reload", got)
+	}
+	if got := result.ReloadedItems["helpdoc"]; !strings.Contains(got, "help manager is unavailable") {
+		t.Fatalf("ReloadAll() helpdoc result = %q, want missing help manager failure", got)
 	}
 	if pm.detachedReload.decks || !pm.detachedReload.helpdoc {
 		t.Fatalf("detachedReload = %#v, want only helpdoc", pm.detachedReload)
