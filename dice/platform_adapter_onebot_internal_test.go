@@ -36,7 +36,7 @@ type onebotTestEmitter struct {
 	loginInfo            *emitterTypes.LoginInfo
 	loginInfoErr         error
 	sendPvtCh            chan time.Time
-	sendGrCh       chan time.Time
+	sendGrCh             chan time.Time
 }
 
 type friendReqCall struct {
