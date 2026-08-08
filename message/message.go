@@ -76,6 +76,16 @@ func EscapeCQParam(v string) string {
 	return safeV
 }
 
+// UnescapeCQParam 还原 EscapeCQParam 的转义，用于解析 CQ 码参数值。
+// 还原顺序需与转义顺序相反：其它占位符先还原，最后才还原 &amp;，避免二次解码。
+func UnescapeCQParam(v string) string {
+	safeV := strings.ReplaceAll(v, "&#44;", ",")
+	safeV = strings.ReplaceAll(safeV, "&#93;", "]")
+	safeV = strings.ReplaceAll(safeV, "&#91;", "[")
+	safeV = strings.ReplaceAll(safeV, "&amp;", "&")
+	return safeV
+}
+
 func (c *CQCommand) Compile() string {
 	if c.Overwrite != "" {
 		return c.Overwrite
@@ -750,7 +760,7 @@ func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElemen
 			if i+1 > len(text) {
 				return r
 			}
-			dMap[key] = text[:i]
+			dMap[key] = UnescapeCQParam(text[:i])
 			text = text[i:]
 			i = 0
 		}

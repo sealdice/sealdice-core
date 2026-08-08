@@ -659,6 +659,49 @@ type IMSession struct {
 	EndPoints    []*EndPointInfo                    `yaml:"endPoints"`
 	ServiceAtNew *SyncMap[string, *GroupInfo]       `json:"servicesAt" yaml:"-"`
 	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
+
+	endPointsSnapshot atomic.Pointer[[]*EndPointInfo]
+}
+
+// EndPointDisplaySnapshot 是托盘菜单所需的端点展示值快照。
+// 它不包含适配器、会话、锁或通道，发布后不会随原端点对象继续变化。
+type EndPointDisplaySnapshot struct {
+	Nickname string
+	UserID   string
+	State    EndpointState
+}
+
+// RefreshEndPointsSnapshot 发布当前端点列表的只读快照。
+func (s *IMSession) RefreshEndPointsSnapshot() {
+	if s == nil {
+		return
+	}
+	snapshot := append([]*EndPointInfo(nil), s.EndPoints...)
+	s.endPointsSnapshot.Store(&snapshot)
+}
+
+// EndPointsSnapshot 返回最近发布列表中各端点展示字段的单次采样。
+// 端点状态由各适配器独立更新，因此该快照提供最终一致的托盘展示语义。
+func (s *IMSession) EndPointsSnapshot() []EndPointDisplaySnapshot {
+	if s == nil {
+		return nil
+	}
+	snapshot := s.endPointsSnapshot.Load()
+	if snapshot == nil {
+		return nil
+	}
+	display := make([]EndPointDisplaySnapshot, 0, len(*snapshot))
+	for _, endpoint := range *snapshot {
+		if endpoint == nil {
+			continue
+		}
+		display = append(display, EndPointDisplaySnapshot{
+			Nickname: endpoint.Nickname,
+			UserID:   endpoint.UserID,
+			State:    endpoint.State,
+		})
+	}
+	return display
 }
 
 func (s *IMSession) ResolveLiveEndpoint(ep *EndPointInfo) (*EndPointInfo, error) {
@@ -1566,7 +1609,7 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	var ret bool
 	// 试图匹配自定义指令
 	if mctx.Group != nil && mctx.Group.IsActive(mctx) {
-		for _, wrapper := range mctx.Group.GetActivatedExtList(mctx.Dice) {
+		for _, wrapper := range commandExtensionOrder(mctx.Group, mctx.Dice) {
 			ext := wrapper.GetRealExt()
 			if ext == nil {
 				continue
@@ -2222,7 +2265,7 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 		}
 
 		if group != nil && (group.Active || ctx.IsCurGroupBotOn) {
-			for _, wrapper := range group.GetActivatedExtList(ctx.Dice) {
+			for _, wrapper := range commandExtensionOrder(group, ctx.Dice) {
 				cmdMap := wrapper.GetCmdMap()
 				item := cmdMap[cmdArgs.Command]
 				if tryItemSolve(wrapper, item) {
