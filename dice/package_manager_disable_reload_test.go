@@ -99,6 +99,137 @@ func TestPackageManagerReloadAllAppliesDisabledDeckPackage(t *testing.T) {
 	}
 }
 
+func TestPackageManagerReloadAllAppliesUninstalledDeckPackage(t *testing.T) {
+	for _, mode := range []sealpack.UninstallMode{
+		sealpack.UninstallModeFull,
+		sealpack.UninstallModeKeepData,
+	} {
+		t.Run(string(mode), func(t *testing.T) {
+			testDice, pm := newDisableDeckTestPackageManager(t)
+			if err := pm.Init(); err != nil {
+				t.Fatalf("Init() error = %v", err)
+			}
+
+			const pkgID = "alice/deck-pack"
+			installAndReloadDeckTestPackage(t, testDice, pm, pkgID, "1.0.0")
+
+			if err := pm.Uninstall(pkgID, mode); err != nil {
+				t.Fatalf("Uninstall(%s) error = %v", mode, err)
+			}
+			if _, ok := pm.Get(pkgID); ok {
+				t.Fatalf("expected package %s to be removed", pkgID)
+			}
+
+			result, err := pm.ReloadAll()
+			if err != nil {
+				t.Fatalf("ReloadAll() error = %v", err)
+			}
+			if _, ok := result.ReloadedItems["decks"]; !ok {
+				t.Fatalf("ReloadedItems = %#v, want decks", result.ReloadedItems)
+			}
+			assertDisableDeckTestDeckCount(t, testDice, 0)
+
+			result, err = pm.ReloadAll()
+			if err != nil {
+				t.Fatalf("second ReloadAll() error = %v", err)
+			}
+			if len(result.ReloadedItems) != 0 {
+				t.Fatalf("second ReloadedItems = %#v, want empty", result.ReloadedItems)
+			}
+		})
+	}
+}
+
+func TestPackageManagerReloadAllAppliesDiskRemovedDeckPackage(t *testing.T) {
+	testDice, pm := newDisableDeckTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	const pkgID = "alice/disk-removed-deck-pack"
+	installAndReloadDeckTestPackage(t, testDice, pm, pkgID, "1.0.0")
+
+	pkg, ok := pm.Get(pkgID)
+	if !ok || pkg == nil {
+		t.Fatalf("expected package %s to exist", pkgID)
+	}
+	if err := os.Remove(pkg.SourcePath); err != nil {
+		t.Fatalf("Remove(source) error = %v", err)
+	}
+	if err := os.RemoveAll(pkg.InstallPath); err != nil {
+		t.Fatalf("RemoveAll(install) error = %v", err)
+	}
+
+	refreshResult, err := pm.RefreshFromDisk()
+	if err != nil {
+		t.Fatalf("RefreshFromDisk() error = %v", err)
+	}
+	if !containsString(refreshResult.Removed, pkgID) {
+		t.Fatalf("Removed = %#v, want %s", refreshResult.Removed, pkgID)
+	}
+
+	reloadResult, err := pm.ReloadAll()
+	if err != nil {
+		t.Fatalf("ReloadAll() error = %v", err)
+	}
+	if _, ok := reloadResult.ReloadedItems["decks"]; !ok {
+		t.Fatalf("ReloadedItems = %#v, want decks", reloadResult.ReloadedItems)
+	}
+	assertDisableDeckTestDeckCount(t, testDice, 0)
+}
+
+func TestPackageManagerReloadAllAppliesPreviousContentsAfterInstallUpgrade(t *testing.T) {
+	testDice, pm := newDisableDeckTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	const pkgID = "alice/install-upgrade-deck-pack"
+	installAndReloadDeckTestPackage(t, testDice, pm, pkgID, "1.0.0")
+	v2 := createTestSealPack(t, "", pkgID, "2.0.0", nil, nil)
+	if err := pm.Install(v2); err != nil {
+		t.Fatalf("Install(v2) error = %v", err)
+	}
+
+	result, err := pm.ReloadAll()
+	if err != nil {
+		t.Fatalf("ReloadAll() error = %v", err)
+	}
+	if _, ok := result.ReloadedItems["decks"]; !ok {
+		t.Fatalf("ReloadedItems = %#v, want decks", result.ReloadedItems)
+	}
+	assertDisableDeckTestDeckCount(t, testDice, 0)
+}
+
+func TestPackageManagerReloadAllAppliesPreviousContentsAfterRefreshUpgrade(t *testing.T) {
+	testDice, pm := newDisableDeckTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	const pkgID = "alice/refresh-upgrade-deck-pack"
+	installAndReloadDeckTestPackage(t, testDice, pm, pkgID, "1.0.0")
+	v2 := createTestSealPack(t, "", pkgID, "2.0.0", nil, nil)
+	copyTestFile(t, v2, filepath.Join("data", "packages", "alice", "refresh-upgrade-deck-pack@2.0.0.sealpack"))
+
+	refreshResult, err := pm.RefreshFromDisk()
+	if err != nil {
+		t.Fatalf("RefreshFromDisk() error = %v", err)
+	}
+	if !containsString(refreshResult.Updated, pkgID) {
+		t.Fatalf("Updated = %#v, want %s", refreshResult.Updated, pkgID)
+	}
+
+	reloadResult, err := pm.ReloadAll()
+	if err != nil {
+		t.Fatalf("ReloadAll() error = %v", err)
+	}
+	if _, ok := reloadResult.ReloadedItems["decks"]; !ok {
+		t.Fatalf("ReloadedItems = %#v, want decks", reloadResult.ReloadedItems)
+	}
+	assertDisableDeckTestDeckCount(t, testDice, 0)
+}
+
 func TestPackageManagerReloadClearsPendingReloadAcrossPackagesOfSameKind(t *testing.T) {
 	testDice, pm := newDisableDeckTestPackageManager(t)
 	if err := pm.Init(); err != nil {
@@ -168,6 +299,21 @@ func assertDisableDeckTestDeckCount(t *testing.T, testDice *Dice, want int) {
 	if got := len(testDice.DeckList); got != want {
 		t.Fatalf("deck count = %d, want %d", got, want)
 	}
+}
+
+func installAndReloadDeckTestPackage(t *testing.T, testDice *Dice, pm *PackageManager, pkgID, version string) {
+	t.Helper()
+	archive := createDisableDeckTestPackage(t, pkgID, version)
+	if err := pm.Install(archive); err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	if _, err := pm.Enable(pkgID); err != nil {
+		t.Fatalf("Enable() error = %v", err)
+	}
+	if _, err := pm.Reload(pkgID); err != nil {
+		t.Fatalf("Reload() error = %v", err)
+	}
+	assertDisableDeckTestDeckCount(t, testDice, 1)
 }
 
 func newDisableDeckTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
@@ -249,4 +395,146 @@ func TestClearPendingReloadLockedPreservesUnreloadedKinds(t *testing.T) {
 	if len(pkg.PendingReload) != 1 || pkg.PendingReload[0] != "helpdoc" {
 		t.Fatalf("PendingReload = %#v", pkg.PendingReload)
 	}
+}
+
+func TestPackageReloadContentFlagsFromPreviousInstanceCoversAllKinds(t *testing.T) {
+	tests := []struct {
+		name     string
+		kind     string
+		contents sealpack.Contents
+	}{
+		{name: "scripts", kind: "scripts", contents: sealpack.Contents{Scripts: []string{"scripts/*.js"}}},
+		{name: "decks", kind: "decks", contents: sealpack.Contents{Decks: []string{"decks/*.json"}}},
+		{name: "reply", kind: "reply", contents: sealpack.Contents{Reply: []string{"reply/*.yaml"}}},
+		{name: "helpdoc", kind: "helpdoc", contents: sealpack.Contents{Helpdoc: []string{"helpdoc/*.json"}}},
+		{name: "templates", kind: "templates", contents: sealpack.Contents{Templates: []string{"templates/*.yaml"}}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			flags := packageReloadContentFlagsFromPreviousInstance(&sealpack.Instance{
+				State: sealpack.PackageStateEnabled,
+				Manifest: &sealpack.Manifest{
+					Contents: test.contents,
+				},
+			})
+			if !flags.contains(test.kind) || flags.count() != 1 {
+				t.Fatalf("flags = %#v, want only %s", flags, test.kind)
+			}
+		})
+	}
+}
+
+func TestPackageReloadContentFlagsFromPreviousDisabledInstanceUsesPendingHints(t *testing.T) {
+	flags := packageReloadContentFlagsFromPreviousInstance(&sealpack.Instance{
+		State: sealpack.PackageStateDisabled,
+		Manifest: &sealpack.Manifest{
+			Contents: sealpack.Contents{
+				Scripts: []string{"scripts/*.js"},
+				Decks:   []string{"decks/*.json"},
+			},
+		},
+		PendingReload: []string{"牌堆 - 可通过重载接口生效"},
+	})
+	if !flags.decks || flags.count() != 1 {
+		t.Fatalf("flags = %#v, want only decks", flags)
+	}
+}
+
+func TestClearDetachedReloadScopeLockedPreservesUnreloadedKinds(t *testing.T) {
+	pm := &PackageManager{
+		detachedReload:    packageReloadContentFlags{scripts: true, helpdoc: true},
+		detachedReloadGen: 1,
+	}
+
+	pm.clearDetachedReloadScopeLocked(packageReloadContentFlags{scripts: true}, 1)
+	if pm.detachedReload.scripts || !pm.detachedReload.helpdoc {
+		t.Fatalf("detachedReload = %#v, want only helpdoc", pm.detachedReload)
+	}
+}
+
+func TestClearDetachedReloadScopeLockedPreservesNewerGeneration(t *testing.T) {
+	pm := &PackageManager{
+		detachedReload:    packageReloadContentFlags{scripts: true},
+		detachedReloadGen: 1,
+	}
+
+	startedGeneration := pm.detachedReloadGen
+	pm.detachedReload = pm.detachedReload.merge(packageReloadContentFlags{decks: true})
+	pm.detachedReloadGen++
+	pm.clearDetachedReloadScopeLocked(packageReloadContentFlags{scripts: true}, startedGeneration)
+
+	if !pm.detachedReload.scripts || !pm.detachedReload.decks {
+		t.Fatalf("detachedReload = %#v, want scripts and decks", pm.detachedReload)
+	}
+}
+
+func TestPackageManagerReloadAllPreservesFailedDetachedScope(t *testing.T) {
+	_, pm := newDisableDeckTestPackageManager(t)
+	pm.detachedReload = packageReloadContentFlags{decks: true, helpdoc: true}
+	pm.detachedReloadGen = 1
+
+	result, err := pm.ReloadAll()
+	if err != nil {
+		t.Fatalf("ReloadAll() error = %v", err)
+	}
+	if result.Success {
+		t.Fatalf("ReloadAll() Success = true, want false: %#v", result.ReloadedItems)
+	}
+	if pm.detachedReload.decks || !pm.detachedReload.helpdoc {
+		t.Fatalf("detachedReload = %#v, want only helpdoc", pm.detachedReload)
+	}
+}
+
+func TestPackageManagerReloadAllExecutesDetachedScriptScope(t *testing.T) {
+	testDice, pm := newScriptReloadTestPackageManager(t)
+	pm.detachedReload = packageReloadContentFlags{scripts: true}
+	pm.detachedReloadGen = 1
+
+	result, err := pm.ReloadAll()
+	if err != nil {
+		t.Fatalf("ReloadAll() error = %v", err)
+	}
+	if _, ok := result.ReloadedItems["scripts"]; !ok {
+		t.Fatalf("ReloadedItems = %#v, want scripts", result.ReloadedItems)
+	}
+	if pm.detachedReload.scripts {
+		t.Fatal("successful script reload should clear detached scope")
+	}
+	if testDice.ExtLoopManager == nil {
+		t.Fatal("script reload should initialize the JS loop manager")
+	}
+}
+
+func newScriptReloadTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	testDice := &Dice{
+		BaseConfig: BaseConfig{DataDir: "."},
+		Logger:     zap.NewNop().Sugar(),
+		ImSession: &IMSession{
+			ServiceAtNew: new(SyncMap[string, *GroupInfo]),
+			EndPoints:    []*EndPointInfo{},
+		},
+		DirtyGroups:        new(SyncMap[string, int64]),
+		AttrsManager:       &AttrsManager{},
+		JsBuiltinDigestSet: map[string]bool{},
+	}
+	testDice.Config = NewConfig(testDice)
+	testDice.ConfigManager = NewConfigManager(filepath.Join(tmpDir, "plugin-configs.json"))
+	pm := NewPackageManager(testDice)
+	testDice.PackageManager = pm
+
+	t.Cleanup(func() {
+		if testDice.JsScriptCron != nil {
+			testDice.JsScriptCron.Stop()
+			testDice.JsScriptCron = nil
+		}
+		if testDice.ExtLoopManager != nil {
+			testDice.ExtLoopManager.SetLoop(nil)
+		}
+	})
+	return testDice, pm
 }
