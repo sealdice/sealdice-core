@@ -250,9 +250,18 @@ func TestLogGetUploadInfoReturnsNotFoundWhenLogMissing(t *testing.T) {
 	db := newLogInfoTestDB(t)
 	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
 
-	_, _, _, err := service.LogGetUploadInfo(op, "QQ-Group:upload-missing", "missing-log")
+	uploadURL, uploadTime, updatedAt, err := service.LogGetUploadInfo(op, "QQ-Group:upload-missing", "missing-log")
 	if !errors.Is(err, service.ErrLogNotFound) {
 		t.Fatalf("LogGetUploadInfo() error = %v, want %v", err, service.ErrLogNotFound)
+	}
+	if updatedAt != 0 {
+		t.Fatalf("LogGetUploadInfo() updatedAt = %d, want 0", updatedAt)
+	}
+	if uploadURL != "" {
+		t.Fatalf("LogGetUploadInfo() uploadURL = %q, want empty string", uploadURL)
+	}
+	if uploadTime != 0 {
+		t.Fatalf("LogGetUploadInfo() uploadTime = %d, want 0", uploadTime)
 	}
 }
 
