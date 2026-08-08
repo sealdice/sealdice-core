@@ -85,10 +85,8 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 			if mctx.Player.Name == "" && strings.HasPrefix(i.UserID, "OpenQQCH:") {
 				mctx.Player.Name = "<@!" + strings.TrimPrefix(i.UserID, "OpenQQCH:") + ">"
 			} else if mctx.Player.Name == "" && strings.HasPrefix(i.UserID, "OpenQQ:") {
-				mentionTarget := strings.TrimPrefix(i.UserID, "OpenQQ:")
-				// 若调用方已经传入规范 ID，回复 QQ 时仍只能发送 MemberOpenID。
-				mentionTarget = strings.TrimPrefix(mentionTarget, officialQQUIN+"-")
-				mctx.Player.Name = "<@" + mentionTarget + ">"
+				mentionTarget := normalizeOfficialQQGroupAtTarget(officialQQUIN, i.UserID)
+				mctx.Player.Name = formatOfficialQQAtUser(mentionTarget)
 			}
 		}
 		return mctx, p != nil
@@ -772,7 +770,7 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	case "QQ":
 		re = regexp.MustCompile(`\[CQ:at,qq=(\d+)(?:,name=(?:.*?))?\]`)
 	case "OpenQQ":
-		re = regexp.MustCompile(`<@!?(\S+?)>`)
+		re = officialQQAtRegex
 	case "OpenQQCH":
 		re = regexp.MustCompile(`<@!?(\S+?)>`)
 	case "DISCORD":
@@ -792,11 +790,17 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	m := re.FindAllStringSubmatch(cmd, -1)
 
 	for _, i := range m {
-		if len(i) == 2 {
-			at := new(AtInfo)
-			at.UserID = prefix + ":" + i[1]
-			at.IsRobot = prefix == "QQ" && isQQBotUserID(at.UserID)
-			ret = append(ret, at)
+		if len(i) >= 2 {
+			target := i[1]
+			if prefix == "OpenQQ" {
+				target = officialQQMentionTarget(i)
+			}
+			if target != "" {
+				at := new(AtInfo)
+				at.UserID = prefix + ":" + target
+				at.IsRobot = prefix == "QQ" && isQQBotUserID(at.UserID)
+				ret = append(ret, at)
+			}
 		}
 	}
 
@@ -808,7 +812,7 @@ func AtBuild(uid string) string {
 	if uid == "" {
 		return ""
 	}
-	re := regexp.MustCompile("(QQ|DISCORD|KOOK|TG|DODO).*?:(.*)")
+	re := regexp.MustCompile("^(OpenQQ|QQ|DISCORD|KOOK|TG|DODO).*?:(.*)")
 	m := re.FindStringSubmatch(uid)
 	var text string
 	if len(m) == 3 {

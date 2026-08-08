@@ -44,6 +44,10 @@ type PackageManager struct {
 	parent              *Dice
 	downloadIdleTimeout time.Duration
 
+	// 记录已脱离当前 manifest、但仍需从当前进程运行时清理的内容；进程重启后无需保留。
+	detachedReload    packageReloadContentFlags
+	detachedReloadGen uint64 // 防止重载结束时清除执行期间新增的范围
+
 	// 已安装的包
 	packages map[string]*sealpack.Instance
 
@@ -178,10 +182,14 @@ func (pm *PackageManager) refreshFromDiskLocked(markPendingReload bool) (*Packag
 			if err != nil {
 				pm.parent.Logger.Warnf("恢复扩展包 %s 失败: %v", pkgID, err)
 			} else {
-				if markPendingReload && packageNeedsRefreshPendingReload(pkg, instance, wasStale) {
-					pm.addPendingReloadHints(instance, pm.generateReloadHints(instance.Manifest).ReloadHints)
+				changed := packageSourceChanged(pkg, instance) || wasStale
+				if markPendingReload && changed {
+					pm.retainDetachedReloadScopeLocked(pkg)
+					if packageNeedsRefreshPendingReload(pkg, instance, wasStale) {
+						pm.addPendingReloadHints(instance, pm.generateReloadHints(instance.Manifest).ReloadHints)
+					}
 				}
-				if packageSourceChanged(pkg, instance) || wasStale {
+				if changed {
 					result.Updated = append(result.Updated, pkgID)
 				}
 				loaded[pkgID] = instance
@@ -204,6 +212,9 @@ func (pm *PackageManager) refreshFromDiskLocked(markPendingReload bool) (*Packag
 			}
 		}
 
+		if markPendingReload {
+			pm.retainDetachedReloadScopeLocked(pkg)
+		}
 		pm.parent.Logger.Warnf("扩展包 %s 的源文件和缓存均丢失，已移除记录", pkgID)
 		result.Removed = append(result.Removed, pkgID)
 	}
@@ -891,6 +902,9 @@ func (pm *PackageManager) installFromSourceContext(ctx context.Context, pkgPath 
 		pm.parent.Logger.Warnf("读取扩展包 %s 用户配置失败: %v", pkgID, readErr)
 	}
 
+	if existing != nil {
+		pm.retainDetachedReloadScopeLocked(existing)
+	}
 	pm.packages[pkgID] = &sealpack.Instance{
 		Manifest:      manifest,
 		State:         state,
@@ -1416,6 +1430,7 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpack.UninstallMode) e
 			}
 			pm.removeEmptyParents(filepath.Dir(pkg.UserDataPath), filepath.Join(".", "data", "extensions"))
 		}
+		pm.retainDetachedReloadScopeLocked(pkg)
 		delete(pm.packages, pkgID)
 
 	case sealpack.UninstallModeKeepData:
@@ -1427,6 +1442,7 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpack.UninstallMode) e
 			_ = os.Remove(pkg.SourcePath)
 			pm.removeEmptyParents(filepath.Dir(pkg.SourcePath), pm.getSourcePackagesPath())
 		}
+		pm.retainDetachedReloadScopeLocked(pkg)
 		delete(pm.packages, pkgID)
 
 	case sealpack.UninstallModeDisable:
@@ -1963,6 +1979,7 @@ func (pm *PackageManager) generateReloadHints(manifest *sealpack.Manifest) *seal
 func (pm *PackageManager) Reload(pkgID string) (*sealpack.ReloadResult, error) {
 	pm.lock.RLock()
 	pkg, exists := pm.packages[pkgID]
+	detachedReloadGen := pm.detachedReloadGen
 	pm.lock.RUnlock()
 
 	if !exists {
@@ -1978,6 +1995,7 @@ func (pm *PackageManager) Reload(pkgID string) (*sealpack.ReloadResult, error) {
 
 	pm.lock.Lock()
 	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
+	pm.clearDetachedReloadScopeLocked(exec.succeeded, detachedReloadGen)
 	if pendingChanged {
 		if err := pm.saveState(); err != nil {
 			pm.parent.Logger.Warnf("failed to save package state: %v", err)
@@ -1996,12 +2014,16 @@ func (pm *PackageManager) ReloadByContent(contentType string) (*sealpack.ReloadR
 	if err != nil {
 		return nil, err
 	}
+	pm.lock.RLock()
+	detachedReloadGen := pm.detachedReloadGen
+	pm.lock.RUnlock()
 
 	exec := pm.reloadPackageContent(flags)
 	result := exec.result
 
 	pm.lock.Lock()
 	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
+	pm.clearDetachedReloadScopeLocked(exec.succeeded, detachedReloadGen)
 	if pendingChanged {
 		if err := pm.saveState(); err != nil {
 			pm.parent.Logger.Warnf("failed to save package state: %v", err)
@@ -2015,7 +2037,8 @@ func (pm *PackageManager) ReloadByContent(contentType string) (*sealpack.ReloadR
 
 func (pm *PackageManager) ReloadAll() (*sealpack.ReloadResult, error) {
 	pm.lock.RLock()
-	flags := packageReloadContentFlags{}
+	flags := pm.detachedReload
+	detachedReloadGen := pm.detachedReloadGen
 	for _, pkg := range pm.packages {
 		if pkg == nil || pkg.Manifest == nil {
 			continue
@@ -2031,12 +2054,8 @@ func (pm *PackageManager) ReloadAll() (*sealpack.ReloadResult, error) {
 	result := exec.result
 
 	pm.lock.Lock()
-	pendingChanged := false
-	for _, pkg := range pm.packages {
-		if pm.clearPendingReloadLocked(pkg, exec.succeeded) {
-			pendingChanged = true
-		}
-	}
+	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
+	pm.clearDetachedReloadScopeLocked(exec.succeeded, detachedReloadGen)
 	if pendingChanged {
 		_ = pm.saveState()
 	}
@@ -2097,6 +2116,63 @@ func (flags packageReloadContentFlags) merge(other packageReloadContentFlags) pa
 	flags.helpdoc = flags.helpdoc || other.helpdoc
 	flags.templates = flags.templates || other.templates
 	return flags
+}
+
+func (flags packageReloadContentFlags) without(other packageReloadContentFlags) packageReloadContentFlags {
+	if other.scripts {
+		flags.scripts = false
+	}
+	if other.decks {
+		flags.decks = false
+	}
+	if other.reply {
+		flags.reply = false
+	}
+	if other.helpdoc {
+		flags.helpdoc = false
+	}
+	if other.templates {
+		flags.templates = false
+	}
+	return flags
+}
+
+func packageReloadContentFlagsFromHints(hints []string) packageReloadContentFlags {
+	flags := packageReloadContentFlags{}
+	for _, hint := range hints {
+		flags.scripts = flags.scripts || reloadHintMatchesContentType(hint, "scripts")
+		flags.decks = flags.decks || reloadHintMatchesContentType(hint, "decks")
+		flags.reply = flags.reply || reloadHintMatchesContentType(hint, "reply")
+		flags.helpdoc = flags.helpdoc || reloadHintMatchesContentType(hint, "helpdoc")
+		flags.templates = flags.templates || reloadHintMatchesContentType(hint, "templates")
+	}
+	return flags
+}
+
+func packageReloadContentFlagsFromPreviousInstance(pkg *sealpack.Instance) packageReloadContentFlags {
+	if pkg == nil {
+		return packageReloadContentFlags{}
+	}
+	if pkg.State == sealpack.PackageStateEnabled {
+		return packageReloadContentFlagsFromManifest(pkg.Manifest)
+	}
+	return packageReloadContentFlagsFromHints(pkg.PendingReload)
+}
+
+func (pm *PackageManager) retainDetachedReloadScopeLocked(pkg *sealpack.Instance) {
+	flags := packageReloadContentFlagsFromPreviousInstance(pkg)
+	if flags.count() == 0 {
+		return
+	}
+	pm.detachedReload = pm.detachedReload.merge(flags)
+	pm.detachedReloadGen++
+}
+
+func (pm *PackageManager) clearDetachedReloadScopeLocked(succeeded packageReloadContentFlags, generation uint64) {
+	if pm.detachedReloadGen != generation {
+		return
+	}
+	pm.detachedReload = pm.detachedReload.without(succeeded)
 }
 
 func (flags packageReloadContentFlags) contains(kind string) bool {

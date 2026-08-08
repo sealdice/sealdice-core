@@ -25,15 +25,18 @@ import (
 )
 
 type onebotTestEmitter struct {
-	friendReqCalls []friendReqCall
-	groupReqCalls  []groupReqCall
-	groupInfo      *emitterTypes.GroupInfo
-	groupInfoErr   error
-	groupReqCh     chan struct{}
-	loginInfo      *emitterTypes.LoginInfo
-	loginInfoErr   error
-	sendPvtCh      chan time.Time
-	sendGrCh       chan time.Time
+	friendReqCalls       []friendReqCall
+	groupReqCalls        []groupReqCall
+	groupInfo            *emitterTypes.GroupInfo
+	groupInfoErr         error
+	groupMemberInfo      *emitterTypes.GroupMemberInfo
+	groupMemberInfoErr   error
+	groupMemberInfoCalls []groupMemberInfoCall
+	groupReqCh           chan struct{}
+	loginInfo            *emitterTypes.LoginInfo
+	loginInfoErr         error
+	sendPvtCh            chan time.Time
+	sendGrCh             chan time.Time
 }
 
 type friendReqCall struct {
@@ -47,6 +50,12 @@ type groupReqCall struct {
 	SubType string
 	Approve bool
 	Reason  string
+}
+
+type groupMemberInfoCall struct {
+	GroupID int64
+	UserID  int64
+	NoCache bool
 }
 
 var _ emitter.Emitter = (*onebotTestEmitter)(nil)
@@ -146,7 +155,18 @@ func (m *onebotTestEmitter) GetGroupInfo(context.Context, int64, bool) (*emitter
 	return m.groupInfo, nil
 }
 
-func (m *onebotTestEmitter) GetGroupMemberInfo(context.Context, int64, int64, bool) (*emitterTypes.GroupMemberInfo, error) {
+func (m *onebotTestEmitter) GetGroupMemberInfo(_ context.Context, groupID int64, userID int64, noCache bool) (*emitterTypes.GroupMemberInfo, error) {
+	m.groupMemberInfoCalls = append(m.groupMemberInfoCalls, groupMemberInfoCall{
+		GroupID: groupID,
+		UserID:  userID,
+		NoCache: noCache,
+	})
+	if m.groupMemberInfoErr != nil {
+		return nil, m.groupMemberInfoErr
+	}
+	if m.groupMemberInfo != nil {
+		return m.groupMemberInfo, nil
+	}
 	return &emitterTypes.GroupMemberInfo{}, nil
 }
 
@@ -157,6 +177,34 @@ func (m *onebotTestEmitter) Raw(context.Context, emitter.Action, any) ([]byte, e
 func (m *onebotTestEmitter) HandleEcho(emitter.Response[sonic.NoCopyRawMessage]) {}
 
 func (m *onebotTestEmitter) GetDroppedEchoCount() uint64 { return 0 }
+
+func TestCheckBotGroupRoleOnebotBypassesCache(t *testing.T) {
+	em := &onebotTestEmitter{
+		groupMemberInfo: &emitterTypes.GroupMemberInfo{Role: "admin"},
+	}
+	pa := &PlatformAdapterOnebot{
+		ctx:         t.Context(),
+		sendEmitter: em,
+	}
+	ctx := &MsgContext{
+		EndPoint: &EndPointInfo{
+			EndPointInfoBase: EndPointInfoBase{UserID: "QQ:10010"},
+			Adapter:          pa,
+		},
+	}
+
+	role, ok := checkBotGroupRole(ctx, "QQ-Group:2010")
+	if !ok || role != "admin" {
+		t.Fatalf("checkBotGroupRole() = (%q, %v), want (%q, true)", role, ok, "admin")
+	}
+	if len(em.groupMemberInfoCalls) != 1 {
+		t.Fatalf("GetGroupMemberInfo call count = %d, want 1", len(em.groupMemberInfoCalls))
+	}
+	call := em.groupMemberInfoCalls[0]
+	if call.GroupID != 2010 || call.UserID != 10010 || !call.NoCache {
+		t.Fatalf("unexpected GetGroupMemberInfo call: %#v", call)
+	}
+}
 
 func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *onebotTestEmitter, func()) {
 	t.Helper()
@@ -235,6 +283,7 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	d.Config.BanList.Map.Store("QQ:12345", &BanListInfoItem{
 		ID:   "QQ:12345",
 		Rank: BanRankBanned,
@@ -255,6 +304,11 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	if len(em.friendReqCalls) != 1 {
 		t.Fatalf("expected one friend request action, got %d", len(em.friendReqCalls))
 	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected friend invite notice to be sent")
+	}
 	if em.friendReqCalls[0].Approve {
 		t.Fatalf("expected banned inviter to be rejected, got %#v", em.friendReqCalls[0])
 	}
@@ -264,6 +318,7 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	pa.EndPoint.Session.Parent.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	req := gjson.Parse(`{
 		"post_type":"request",
 		"request_type":"group",
@@ -287,6 +342,11 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 
 	if len(em.groupReqCalls) != 1 {
 		t.Fatalf("expected one group request action, got %d", len(em.groupReqCalls))
+	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected group invite notice to be sent")
 	}
 	if em.groupReqCalls[0].SubType != "invite" {
 		t.Fatalf("expected reject path to preserve sub_type invite, got %#v", em.groupReqCalls[0])
@@ -957,7 +1017,6 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatalf("unexpected welcome send log: %q", sendLog)
 	}
 }
-
 func waitPureOnebotInfoLog(t *testing.T, observed *observer.ObservedLogs, snippet string) {
 	t.Helper()
 
