@@ -299,8 +299,8 @@ func TestOfficialQQDelegatedContextKeepsRawMentionTarget(t *testing.T) {
 	if delegatedCtx.Player.UserID != canonicalUserID {
 		t.Fatalf("delegated user ID = %q, want %q", delegatedCtx.Player.UserID, canonicalUserID)
 	}
-	if delegatedCtx.Player.Name != "<@"+memberOpenID+">" {
-		t.Fatalf("delegated mention name = %q, want raw MemberOpenID", delegatedCtx.Player.Name)
+	if delegatedCtx.Player.Name != formatOfficialQQAtUser(memberOpenID) {
+		t.Fatalf("delegated mention name = %q, want qqbot-at-user with raw MemberOpenID", delegatedCtx.Player.Name)
 	}
 }
 

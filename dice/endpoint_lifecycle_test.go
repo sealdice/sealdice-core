@@ -93,6 +93,16 @@ func assertNoLifecycleRun(t *testing.T, driver *endpointLifecycleTestDriver, tim
 	}
 }
 
+func snapshotEndpointState(supervisor *EndpointLifecycleSupervisor, ep *EndPointInfo) (enabled bool, state EndpointState) {
+	supervisor.mu.Lock()
+	defer supervisor.mu.Unlock()
+
+	if ep == nil {
+		return false, StateConnectionFailed
+	}
+	return ep.Enable, ep.State
+}
+
 func TestEndpointLifecycleConcurrentEnableStartsOnce(t *testing.T) {
 	supervisor, ep, driver := newEndpointLifecycleTestSupervisor(t)
 
@@ -117,11 +127,12 @@ func TestEndpointLifecycleConcurrentEnableStartsOnce(t *testing.T) {
 	if got := driver.startCount(); got != 1 {
 		t.Fatalf("expected one LifecycleStart call, got %d", got)
 	}
-	if !ep.Enable {
+	enabled, state := snapshotEndpointState(supervisor, ep)
+	if !enabled {
 		t.Fatal("expected endpoint desired enable to remain true")
 	}
-	if ep.State != StateConnecting {
-		t.Fatalf("expected endpoint state %v, got %v", StateConnecting, ep.State)
+	if state != StateConnecting {
+		t.Fatalf("expected endpoint state %v, got %v", StateConnecting, state)
 	}
 }
 
@@ -141,11 +152,12 @@ func TestEndpointLifecycleDisableIgnoresLateStarted(t *testing.T) {
 	if got := driver.stopCount(); got != 1 {
 		t.Fatalf("expected one LifecycleStop call, got %d", got)
 	}
-	if ep.Enable {
+	enabled, state := snapshotEndpointState(supervisor, ep)
+	if enabled {
 		t.Fatal("expected endpoint desired enable to be false")
 	}
-	if ep.State != StateDisconnected {
-		t.Fatalf("expected endpoint state %v, got %v", StateDisconnected, ep.State)
+	if state != StateDisconnected {
+		t.Fatalf("expected endpoint state %v, got %v", StateDisconnected, state)
 	}
 }
 
@@ -176,11 +188,12 @@ func TestEndpointLifecycleReloginStopsOldGenerationBeforeStartingNew(t *testing.
 	if got := driver.startCount(); got != 2 {
 		t.Fatalf("expected exactly two starts, got %d", got)
 	}
-	if !ep.Enable {
+	enabled, state := snapshotEndpointState(supervisor, ep)
+	if !enabled {
 		t.Fatal("expected endpoint desired enable to remain true")
 	}
-	if ep.State != StateConnected {
-		t.Fatalf("expected endpoint state %v, got %v", StateConnected, ep.State)
+	if state != StateConnected {
+		t.Fatalf("expected endpoint state %v, got %v", StateConnected, state)
 	}
 }
 
@@ -216,11 +229,12 @@ func TestEndpointLifecycleConnectFailKeepsEnableAndRetries(t *testing.T) {
 	first := waitLifecycleRun(t, driver)
 	first.run.Failed(errors.New("dial failed"))
 
-	if !ep.Enable {
+	enabled, state := snapshotEndpointState(supervisor, ep)
+	if !enabled {
 		t.Fatal("expected endpoint desired enable to stay true after connect failure")
 	}
-	if ep.State != StateConnectionFailed {
-		t.Fatalf("expected endpoint state %v, got %v", StateConnectionFailed, ep.State)
+	if state != StateConnectionFailed {
+		t.Fatalf("expected endpoint state %v, got %v", StateConnectionFailed, state)
 	}
 
 	second := waitLifecycleRun(t, driver)
@@ -240,11 +254,12 @@ func TestEndpointLifecyclePermanentFailureKeepsEnableWithoutRetry(t *testing.T) 
 	first := waitLifecycleRun(t, driver)
 	first.run.Failed(NewEndpointLifecycleError(errors.New("bad token"), LifecycleFailureStop))
 
-	if !ep.Enable {
+	enabled, state := snapshotEndpointState(supervisor, ep)
+	if !enabled {
 		t.Fatal("expected endpoint desired enable to stay true after permanent failure")
 	}
-	if ep.State != StateConnectionFailed {
-		t.Fatalf("expected endpoint state %v, got %v", StateConnectionFailed, ep.State)
+	if state != StateConnectionFailed {
+		t.Fatalf("expected endpoint state %v, got %v", StateConnectionFailed, state)
 	}
 	assertNoLifecycleRun(t, driver, 50*time.Millisecond)
 }
@@ -265,11 +280,12 @@ func TestEndpointLifecycleDisableCancelsPendingRetry(t *testing.T) {
 	}
 	assertNoLifecycleRun(t, driver, 120*time.Millisecond)
 
-	if ep.Enable {
+	enabled, state := snapshotEndpointState(supervisor, ep)
+	if enabled {
 		t.Fatal("expected endpoint desired enable to be false after disable")
 	}
-	if ep.State != StateDisconnected {
-		t.Fatalf("expected endpoint state %v, got %v", StateDisconnected, ep.State)
+	if state != StateDisconnected {
+		t.Fatalf("expected endpoint state %v, got %v", StateDisconnected, state)
 	}
 }
 

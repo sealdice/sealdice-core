@@ -354,6 +354,10 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 			}
 		}
 		// 先判断是否需要加群
+		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
+		p.logger.Info(txt)
+		ctx.Notice(txt, NoticeTypeInvite)
+
 		ok, reason := checkPassBlackListGroup(diceUserId, diceGroupId, ctx)
 		if !ok {
 			p.logger.Infof("群组 %s 加群请求被拒绝，原因为 %s", req.Get("group_id").String(), reason)
@@ -370,9 +374,6 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		}
 		// 没问题，加群
 		_ = p.submitAsync(func() {
-			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
-			p.logger.Info(txt)
-			ctx.Notice(txt)
 			err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), req.Get("sub_type").String(), true, "")
 			if err != nil {
 				p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
@@ -448,7 +449,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	}
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeInvite)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
 	if !p.IgnoreFriendRequest {
 		err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), result.Passed && passQuestion, "")

@@ -39,7 +39,42 @@ import (
 	"sealdice-core/utils"
 )
 
-var officialQQAtRegex = regexp.MustCompile(`<@!?(\S+?)>`)
+// Official QQ 当前使用 qqbot-at-user 标签表示提及；解析端继续兼容旧的
+// <@userID> 格式，以便平滑处理旧事件和已持久化消息。
+var officialQQAtRegex = regexp.MustCompile(`(?:<qqbot-at-user\s+id="([^"]+)"\s*/>|<@!?(\S+?)>)`)
+
+func officialQQMentionTarget(match []string) string {
+	if len(match) < 2 {
+		return ""
+	}
+	for _, target := range match[1:] {
+		if target != "" {
+			return target
+		}
+	}
+	return ""
+}
+
+func formatOfficialQQAtUser(target string) string {
+	return fmt.Sprintf(`<qqbot-at-user id="%s" />`, target)
+}
+
+func renderOfficialQQGroupAtTarget(target string) string {
+	if target == "all" {
+		return ""
+	}
+	return formatOfficialQQAtUser(target)
+}
+
+func rewriteOfficialQQGroupAtTags(text string, normalizeTarget func(string) string) string {
+	return officialQQAtRegex.ReplaceAllStringFunc(text, func(tag string) string {
+		target := officialQQMentionTarget(officialQQAtRegex.FindStringSubmatch(tag))
+		if target == "" {
+			return tag
+		}
+		return renderOfficialQQGroupAtTarget(normalizeTarget(target))
+	})
+}
 
 type PaginationItem struct {
 	Pages     []string
@@ -917,8 +952,8 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 	}
 
 	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
-	if len(m) == 2 {
-		msg.TmpUID = "OpenQQ:" + m[1]
+	if target := officialQQMentionTarget(m); target != "" {
+		msg.TmpUID = officialQQUserIDPrefix + target
 	} else if botSelfOpenID != "" {
 		msg.TmpUID = "OpenQQ:" + botSelfOpenID
 	}
@@ -969,8 +1004,8 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 	}
 
 	for _, match := range officialQQAtRegex.FindAllStringSubmatch(msgQQ.Content, -1) {
-		if len(match) == 2 && match[1] == botSelfOpenID {
-			msg.TmpUID = "OpenQQ:" + match[1]
+		if target := officialQQMentionTarget(match); target == botSelfOpenID {
+			msg.TmpUID = officialQQUserIDPrefix + target
 			break
 		}
 	}
@@ -2044,7 +2079,9 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	for _, element := range elems {
 		switch elem := element.(type) {
 		case *message.TextElement:
-			content += textLinkStrip(elem.Content)
+			content += rewriteOfficialQQGroupAtTags(textLinkStrip(elem.Content), func(target string) string {
+				return normalizeOfficialQQGroupAtTarget(pa.UIN, target)
+			})
 		case *message.ReplyElement:
 			msgRef = &dto.MessageReference{
 				MessageID:             elem.ReplySeq,
@@ -2052,11 +2089,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			}
 			toCreate.MessageReference = msgRef
 		case *message.AtElement:
-			target := strings.TrimPrefix(elem.Target, "OpenQQ:")
-			target = strings.TrimPrefix(target, "QQ:")
-			if target != "all" {
-				content += fmt.Sprintf("<qqbot-at-user id=\"%s\" />", target)
-			}
+			target := normalizeOfficialQQGroupAtTarget(pa.UIN, elem.Target)
+			content += renderOfficialQQGroupAtTarget(target)
 		case *message.ImageElement:
 			media, err := pa.uploadGroupMedia(qctx, groupID, elem.File, 1)
 			if err != nil {
@@ -2176,6 +2210,16 @@ func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
 func formatDiceIDOfficialQQMemberOpenID(uin, _ string, memberOpenID string) string {
 	// 官方QQ群成员ID格式
 	return fmt.Sprintf("%s%s-%s", officialQQUserIDPrefix, uin, memberOpenID)
+}
+
+func normalizeOfficialQQGroupAtTarget(uin, target string) string {
+	target = strings.TrimSpace(target)
+	target = strings.TrimPrefix(target, officialQQUserIDPrefix)
+	target = strings.TrimPrefix(target, "QQ:")
+	if uin != "" {
+		target = strings.TrimPrefix(target, uin+"-")
+	}
+	return target
 }
 
 func (pa *PlatformAdapterOfficialQQ) populateGroupMentionedInfo(msg *Message, mentions []*dto.User) {
