@@ -25,15 +25,18 @@ import (
 )
 
 type onebotTestEmitter struct {
-	friendReqCalls []friendReqCall
-	groupReqCalls  []groupReqCall
-	groupInfo      *emitterTypes.GroupInfo
-	groupInfoErr   error
-	groupReqCh     chan struct{}
-	loginInfo      *emitterTypes.LoginInfo
-	loginInfoErr   error
-	sendPvtCh      chan time.Time
-	sendGrCh       chan time.Time
+	friendReqCalls       []friendReqCall
+	groupReqCalls        []groupReqCall
+	groupInfo            *emitterTypes.GroupInfo
+	groupInfoErr         error
+	groupMemberInfo      *emitterTypes.GroupMemberInfo
+	groupMemberInfoErr   error
+	groupMemberInfoCalls []groupMemberInfoCall
+	groupReqCh           chan struct{}
+	loginInfo            *emitterTypes.LoginInfo
+	loginInfoErr         error
+	sendPvtCh            chan time.Time
+	sendGrCh             chan time.Time
 }
 
 type friendReqCall struct {
@@ -47,6 +50,12 @@ type groupReqCall struct {
 	SubType string
 	Approve bool
 	Reason  string
+}
+
+type groupMemberInfoCall struct {
+	GroupID int64
+	UserID  int64
+	NoCache bool
 }
 
 var _ emitter.Emitter = (*onebotTestEmitter)(nil)
@@ -146,7 +155,18 @@ func (m *onebotTestEmitter) GetGroupInfo(context.Context, int64, bool) (*emitter
 	return m.groupInfo, nil
 }
 
-func (m *onebotTestEmitter) GetGroupMemberInfo(context.Context, int64, int64, bool) (*emitterTypes.GroupMemberInfo, error) {
+func (m *onebotTestEmitter) GetGroupMemberInfo(_ context.Context, groupID int64, userID int64, noCache bool) (*emitterTypes.GroupMemberInfo, error) {
+	m.groupMemberInfoCalls = append(m.groupMemberInfoCalls, groupMemberInfoCall{
+		GroupID: groupID,
+		UserID:  userID,
+		NoCache: noCache,
+	})
+	if m.groupMemberInfoErr != nil {
+		return nil, m.groupMemberInfoErr
+	}
+	if m.groupMemberInfo != nil {
+		return m.groupMemberInfo, nil
+	}
 	return &emitterTypes.GroupMemberInfo{}, nil
 }
 
@@ -157,6 +177,34 @@ func (m *onebotTestEmitter) Raw(context.Context, emitter.Action, any) ([]byte, e
 func (m *onebotTestEmitter) HandleEcho(emitter.Response[sonic.NoCopyRawMessage]) {}
 
 func (m *onebotTestEmitter) GetDroppedEchoCount() uint64 { return 0 }
+
+func TestCheckBotGroupRoleOnebotBypassesCache(t *testing.T) {
+	em := &onebotTestEmitter{
+		groupMemberInfo: &emitterTypes.GroupMemberInfo{Role: "admin"},
+	}
+	pa := &PlatformAdapterOnebot{
+		ctx:         t.Context(),
+		sendEmitter: em,
+	}
+	ctx := &MsgContext{
+		EndPoint: &EndPointInfo{
+			EndPointInfoBase: EndPointInfoBase{UserID: "QQ:10010"},
+			Adapter:          pa,
+		},
+	}
+
+	role, ok := checkBotGroupRole(ctx, "QQ-Group:2010")
+	if !ok || role != "admin" {
+		t.Fatalf("checkBotGroupRole() = (%q, %v), want (%q, true)", role, ok, "admin")
+	}
+	if len(em.groupMemberInfoCalls) != 1 {
+		t.Fatalf("GetGroupMemberInfo call count = %d, want 1", len(em.groupMemberInfoCalls))
+	}
+	call := em.groupMemberInfoCalls[0]
+	if call.GroupID != 2010 || call.UserID != 10010 || !call.NoCache {
+		t.Fatalf("unexpected GetGroupMemberInfo call: %#v", call)
+	}
+}
 
 func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *onebotTestEmitter, func()) {
 	t.Helper()
