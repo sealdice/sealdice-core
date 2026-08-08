@@ -39,14 +39,14 @@ func TestGroupSharesInFlightResult(t *testing.T) {
 
 	first := make(chan testResult, 1)
 	go func() {
-		result, _ := group.Do(context.Background(), "key", run)
+		result, _ := group.Do(t.Context(), "key", run)
 		first <- result
 	}()
 	<-started
 
 	timer := time.AfterFunc(20*time.Millisecond, func() { close(release) })
 	defer timer.Stop()
-	second, err := group.Do(context.Background(), "key", run)
+	second, err := group.Do(t.Context(), "key", run)
 	if err != nil {
 		t.Fatalf("second call returned error: %v", err)
 	}
@@ -86,12 +86,12 @@ func TestGroupCanceledWaiterDoesNotCancelSharedCall(t *testing.T) {
 
 	first := make(chan testResult, 1)
 	go func() {
-		result, _ := group.Do(context.Background(), "key", run)
+		result, _ := group.Do(t.Context(), "key", run)
 		first <- result
 	}()
 	<-started
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	if _, err := group.Do(ctx, "key", run); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled waiter error = %v, want context.Canceled", err)

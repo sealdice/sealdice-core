@@ -281,7 +281,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 						levelText,
 					)
 				}
-				mctx.Notice(text)
+				mctx.Notice(text, NoticeTypeCensor)
 			}
 			if handler&(1<<BanUser) != 0 {
 				// 拉黑用户

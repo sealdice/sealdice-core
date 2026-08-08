@@ -42,3 +42,29 @@ func TestDeckLast(t *testing.T) {
 	//nolint:forbidigo // just a test
 	fmt.Println(m) // map[Last=1:1413 Last=2:1452 Last=3:1420 Last=4:1401 Last=5:1423 Last=6:1460 Last=7:1431]
 }
+
+func TestShuffleRandomPoolTryPickWithSource_NilPoolReturnsError(t *testing.T) {
+	var pool *dice.ShuffleRandomPool
+
+	_, err := pool.TryPickWithSource(nil)
+	if err == nil {
+		t.Fatal("expected nil pool pick to return error")
+	}
+}
+
+func TestShuffleRandomPoolTryPickWithSource_ReturnsErrorAfterExhaustion(t *testing.T) {
+	pool := dice.DeckToShuffleRandomPool([]string{"only"})
+
+	got, err := pool.TryPickWithSource(nil)
+	if err != nil {
+		t.Fatalf("first pick returned error: %v", err)
+	}
+	if got != "only" {
+		t.Fatalf("first pick = %q, want %q", got, "only")
+	}
+
+	_, err = pool.TryPickWithSource(nil)
+	if err == nil {
+		t.Fatal("expected exhausted pool pick to return error")
+	}
+}
