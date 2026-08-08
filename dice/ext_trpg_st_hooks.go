@@ -3,6 +3,7 @@ package dice
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	ds "github.com/sealdice/dicescript"
@@ -196,6 +197,15 @@ func trpgStHookExtensions(ctx *MsgContext, system string) []*ExtInfo {
 	return ret
 }
 
+type trpgStHookPanicError struct {
+	extension string
+	recovered any
+}
+
+func (err *trpgStHookPanicError) Error() string {
+	return fmt.Sprintf("扩展<%s>执行trpg.st hook时发生panic: %v", err.extension, err.recovered)
+}
+
 func invokeTrpgStHook(d *Dice, ext *ExtInfo, hook func()) (panicErr error) {
 	if ext == nil || hook == nil {
 		return nil
@@ -206,7 +216,10 @@ func invokeTrpgStHook(d *Dice, ext *ExtInfo, hook func()) (panicErr error) {
 	ext.callWithJsCheck(d, func() {
 		defer func() {
 			if recovered := recover(); recovered != nil {
-				panicErr = fmt.Errorf("扩展<%s>执行trpg.st hook异常: %v", ext.Name, recovered)
+				if d != nil && d.Logger != nil {
+					d.Logger.Errorf("扩展<%s>执行trpg.st hook时发生panic: %v\n%s", ext.Name, recovered, debug.Stack())
+				}
+				panicErr = &trpgStHookPanicError{extension: ext.Name, recovered: recovered}
 			}
 		}()
 		hook()

@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"errors"
 	"reflect"
 	"slices"
 	"strings"
@@ -324,6 +325,20 @@ registerHooks(ext, {
 	ext.TrpgStHooks.AfterEvaluate(&TrpgStCommandEvent{System: "fu"}, operation)
 	if operation.ProposedValue == nil || operation.ProposedValue.IntValue != 10 {
 		t.Fatalf("JS hook proposed value = %#v, want int 10", operation.ProposedValue)
+	}
+}
+
+func TestInvokeTrpgStHookPreservesPanicType(t *testing.T) {
+	d := newTestDice(nil)
+	ext := &ExtInfo{Name: "panicking-hook"}
+
+	err := invokeTrpgStHook(d, ext, func() { panic("boom") })
+	var panicErr *trpgStHookPanicError
+	if !errors.As(err, &panicErr) {
+		t.Fatalf("invokeTrpgStHook() error = %T %v, want *trpgStHookPanicError", err, err)
+	}
+	if panicErr.extension != ext.Name || panicErr.recovered != "boom" {
+		t.Fatalf("panic error = %#v", panicErr)
 	}
 }
 
