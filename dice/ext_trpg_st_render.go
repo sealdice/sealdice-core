@@ -47,12 +47,15 @@ func trpgStGetItemsForShow(
 
 		if index >= topNum && useLimit {
 			compareValue := ds.IntType(0)
-			if value.TypeId == ds.VMTypeInt {
+			switch value.TypeId {
+			case ds.VMTypeInt:
 				compareValue = value.MustReadInt()
-			} else if value.TypeId == ds.VMTypeString {
+			case ds.VMTypeString:
 				if parsed, parseErr := strconv.ParseInt(value.ToString(), 10, 64); parseErr == nil {
 					compareValue = ds.IntType(parsed)
 				}
+			default:
+				// Keep the zero comparison value used by generic .st.
 			}
 			if int64(compareValue) < limit {
 				dropped++

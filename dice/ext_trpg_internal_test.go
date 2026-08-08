@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
 	ds "github.com/sealdice/dicescript"
@@ -56,6 +57,11 @@ func solveTrpgStForTest(t *testing.T, cmd *CmdItemInfo, ctx *MsgContext, input s
 		CleanArgs: input,
 		RawArgs:   input,
 	})
+	if adapter, ok := ctx.EndPoint.Adapter.(*mockPlatformAdapter); ok {
+		if _, received := adapter.waitForMsg(time.Second); !received {
+			t.Fatalf("timed out waiting for .st reply to %q", input)
+		}
+	}
 	return result
 }
 
@@ -304,8 +310,6 @@ registerHooks(ext, {
 }
 
 func TestStProviderFollowsSelectedGameSystem(t *testing.T) {
-	t.Parallel()
-
 	exts := []*ExtInfo{
 		{Name: "coc7", CmdMap: CmdMapCls{"st": {Name: "coc7-st"}}},
 		{Name: "dnd5e", CmdMap: CmdMapCls{"st": {Name: "dnd5e-st"}}},
