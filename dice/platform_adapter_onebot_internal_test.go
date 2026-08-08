@@ -235,6 +235,7 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	d.Config.BanList.Map.Store("QQ:12345", &BanListInfoItem{
 		ID:   "QQ:12345",
 		Rank: BanRankBanned,
@@ -255,6 +256,11 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	if len(em.friendReqCalls) != 1 {
 		t.Fatalf("expected one friend request action, got %d", len(em.friendReqCalls))
 	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected friend invite notice to be sent")
+	}
 	if em.friendReqCalls[0].Approve {
 		t.Fatalf("expected banned inviter to be rejected, got %#v", em.friendReqCalls[0])
 	}
@@ -264,6 +270,7 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	pa.EndPoint.Session.Parent.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	req := gjson.Parse(`{
 		"post_type":"request",
 		"request_type":"group",
@@ -287,6 +294,11 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 
 	if len(em.groupReqCalls) != 1 {
 		t.Fatalf("expected one group request action, got %d", len(em.groupReqCalls))
+	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected group invite notice to be sent")
 	}
 	if em.groupReqCalls[0].SubType != "invite" {
 		t.Fatalf("expected reject path to preserve sub_type invite, got %#v", em.groupReqCalls[0])
@@ -957,7 +969,6 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatalf("unexpected welcome send log: %q", sendLog)
 	}
 }
-
 func waitPureOnebotInfoLog(t *testing.T, observed *observer.ObservedLogs, snippet string) {
 	t.Helper()
 
