@@ -11,7 +11,7 @@ import (
 	ds "github.com/sealdice/dicescript"
 )
 
-func TestBuiltinTrpgExtensionIsOptIn(t *testing.T) {
+func TestBuiltinTrpgExtensionOwnsRuleNeutralCommands(t *testing.T) {
 	t.Parallel()
 
 	d := newTestDice(nil)
@@ -21,11 +21,29 @@ func TestBuiltinTrpgExtensionIsOptIn(t *testing.T) {
 	if ext == nil {
 		t.Fatal("trpg extension was not registered")
 	}
-	if ext.AutoActive {
-		t.Fatal("trpg extension must remain opt-in")
+	if !ext.AutoActive {
+		t.Fatal("trpg extension must be active by default")
 	}
-	if ext.CmdMap["st"] == nil {
-		t.Fatal("trpg extension does not provide st")
+	for _, command := range []string{"st", "sn", "team"} {
+		if ext.CmdMap[command] == nil {
+			t.Fatalf("trpg extension does not provide %s", command)
+		}
+	}
+}
+
+func TestSnAndTeamRegistrationsMovedToTrpg(t *testing.T) {
+	d, _, _, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+
+	if cmd := d.ExtFind("log", false).CmdMap["sn"]; cmd != nil {
+		t.Fatal("log extension still provides sn")
+	}
+	if cmd := d.ExtFind("core", false).CmdMap["team"]; cmd != nil {
+		t.Fatal("core extension still provides team")
+	}
+	trpg := d.ExtFind("trpg", false)
+	if trpg.CmdMap["sn"] == nil || trpg.CmdMap["team"] == nil {
+		t.Fatal("trpg extension must provide both sn and team")
 	}
 }
 
