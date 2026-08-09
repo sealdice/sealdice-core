@@ -145,6 +145,9 @@
               <n-text>{{ item.version || '<未定义>' }}</n-text>
               <n-tag v-if="item.official" size="small" type="primary" :bordered="false">官方</n-tag>
               <n-tag v-if="item.filename.toLowerCase().endsWith('.ts')" size="small" type="info" :bordered="false">TS</n-tag>
+              <n-tag v-if="item.packageID" size="small" type="warning" :bordered="false">
+                来源包 {{ item.packageID }}
+              </n-tag>
             </n-flex>
           </template>
 

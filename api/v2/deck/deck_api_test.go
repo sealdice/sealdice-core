@@ -229,3 +229,15 @@ func TestChunkUploadCompletesDeckFile(t *testing.T) {
 		t.Fatalf("chunked upload file not found: %v", err)
 	}
 }
+
+func TestFromDeckInfoCarriesPackageID(t *testing.T) {
+	item := FromDeckInfo(&dice.DeckInfo{
+		Name:      "Pkg Deck",
+		Filename:  "pkg.deck",
+		PackageID: "author/pkg",
+	})
+
+	if item.PackageID != "author/pkg" {
+		t.Fatalf("PackageID = %q, want author/pkg", item.PackageID)
+	}
+}

@@ -24,6 +24,17 @@ export type ToolTestCommandOption = {
   value: string;
 };
 
+export type ToolTestSplitOption = {
+  key: string;
+  label: string;
+  messageSplitLen: number;
+};
+
+export type ToolTestSplitOptionsState = {
+  defaultKey: string;
+  options: ToolTestSplitOption[];
+};
+
 type AppendSelfInput = {
   text: string;
   mode: ToolTestMode;
@@ -36,6 +47,12 @@ const READY_MESSAGE_BY_MODE: Record<ToolTestMode, string> = {
 };
 
 const TIP_MESSAGE = '请注意，当前会话记录在刷新页面后会消失。';
+
+const DEFAULT_SPLIT_OPTIONS: ToolTestSplitOption[] = [
+  { key: 'short', label: '短分段 300', messageSplitLen: 300 },
+  { key: 'qq', label: 'QQ 分段 2000', messageSplitLen: 2000 },
+  { key: 'unlimited', label: '无限', messageSplitLen: 0 },
+];
 
 function buildMessageId(prefix: string, mode: ToolTestMode, timestamp: number, index: number) {
   return `${prefix}-${mode}-${timestamp}-${index}`;
@@ -138,4 +155,33 @@ export function buildToolTestCommandOptions(
       label: `${prefix}${command}`,
       value: `${prefix}${command}`,
     }));
+}
+
+export function normalizeToolTestSplitOptions(
+  value:
+    | {
+        defaultKey?: string | null;
+        options?: Array<Partial<ToolTestSplitOption> | null | undefined> | null;
+      }
+    | undefined,
+): ToolTestSplitOptionsState {
+  const options = (value?.options ?? [])
+    .flatMap(item => {
+      if (!item?.key || !item.label || typeof item.messageSplitLen !== 'number') return [];
+      return [{
+        key: item.key,
+        label: item.label,
+        messageSplitLen: item.messageSplitLen,
+      }];
+    });
+
+  if (!options.length) {
+    return {
+      defaultKey: 'qq',
+      options: DEFAULT_SPLIT_OPTIONS,
+    };
+  }
+
+  const defaultKey = options.some(item => item.key === value?.defaultKey) ? String(value?.defaultKey) : options[0].key;
+  return { defaultKey, options };
 }

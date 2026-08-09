@@ -3,6 +3,7 @@ import {
   appendSelfToolTestMessage,
   buildToolTestCommandOptions,
   createInitialToolTestMessages,
+  normalizeToolTestSplitOptions,
 } from './model.js';
 import { it } from 'vitest';
 
@@ -73,4 +74,27 @@ assertDeepEqual(buildToolTestCommandOptions(['reply', 'r', 'roll'], '.r'), [
 assertDeepEqual(buildToolTestCommandOptions(['reply', 'r', 'roll'], '!ro'), [
   { label: '!roll', value: '!roll' },
 ]);
+
+assertDeepEqual(normalizeToolTestSplitOptions(undefined), {
+  defaultKey: 'qq',
+  options: [
+    { key: 'short', label: '短分段 300', messageSplitLen: 300 },
+    { key: 'qq', label: 'QQ 分段 2000', messageSplitLen: 2000 },
+    { key: 'unlimited', label: '无限', messageSplitLen: 0 },
+  ],
+});
+
+assertDeepEqual(normalizeToolTestSplitOptions({
+  defaultKey: 'short',
+  options: [
+    { key: 'short', label: '短分段 300', messageSplitLen: 300 },
+    { key: 'qq', label: 'QQ 分段 2000', messageSplitLen: 2000 },
+  ],
+}), {
+  defaultKey: 'short',
+  options: [
+    { key: 'short', label: '短分段 300', messageSplitLen: 300 },
+    { key: 'qq', label: 'QQ 分段 2000', messageSplitLen: 2000 },
+  ],
+});
 });

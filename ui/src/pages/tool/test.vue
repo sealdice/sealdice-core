@@ -18,10 +18,24 @@
 
     <section class="tool-test-page__toolbar">
       <n-flex align="center" justify="space-between" wrap class="tool-test-page__toolbar-inner">
-        <NRadioGroup v-model:value="toolTest.mode.value" size="small">
-          <NRadioButton value="private">私聊</NRadioButton>
-          <NRadioButton value="group">群聊</NRadioButton>
-        </NRadioGroup>
+        <n-flex align="center" wrap class="tool-test-page__toolbar-controls">
+          <NRadioGroup v-model:value="toolTest.mode.value" size="small">
+            <NRadioButton value="private">私聊</NRadioButton>
+            <NRadioButton value="group">群聊</NRadioButton>
+          </NRadioGroup>
+          <n-flex align="center" wrap size="small">
+            <n-text depth="3">分段：</n-text>
+            <NRadioGroup v-model:value="toolTest.splitOptionKey.value" size="small">
+              <NRadioButton
+                v-for="option in toolTest.splitOptions.value"
+                :key="option.key"
+                :value="option.key"
+              >
+                {{ option.label }}
+              </NRadioButton>
+            </NRadioGroup>
+          </n-flex>
+        </n-flex>
 
         <n-popover placement="bottom-end" trigger="click">
           <template #trigger>
@@ -131,6 +145,10 @@ const toolTest = useToolTest();
 
 .tool-test-page__toolbar-inner {
   width: 100%;
+}
+
+.tool-test-page__toolbar-controls {
+  min-width: 0;
 }
 
 .tool-test-page__quick-actions {

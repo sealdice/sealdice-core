@@ -34,6 +34,7 @@ type DeckItem struct {
 	Etag          string          `json:"etag"`
 	Cloud         bool            `json:"cloud"`
 	StoreID       string          `json:"storeID"`
+	PackageID     string          `json:"packageId,omitempty"`
 }
 
 type DeckListResp = response.HPageResult[*DeckItem]
@@ -163,6 +164,7 @@ func FromDeckInfo(item *deckd.DeckInfo) *DeckItem {
 		Etag:          item.Etag,
 		Cloud:         item.Cloud,
 		StoreID:       item.StoreID,
+		PackageID:     item.PackageID,
 	}
 }
 

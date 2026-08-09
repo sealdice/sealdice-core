@@ -165,6 +165,8 @@ func (s *Service) buildValue() BaseSettingValueResp {
 		TrustOnlyMode:           s.dice.Config.TrustOnlyMode,
 		BotExtFreeSwitch:        s.dice.Config.BotExtFreeSwitch,
 		QQEnablePoke:            s.dice.Config.QQEnablePoke,
+		OfficialQQFileSendBase64: s.dice.Config.OfficialQQFileSendBase64,
+		OfficialQQUseMarkdown:   s.dice.Config.OfficialQQUseMarkdown,
 		TextCmdTrustOnly:        s.dice.Config.TextCmdTrustOnly,
 		IgnoreUnaddressedBotCmd: s.dice.Config.IgnoreUnaddressedBotCmd,
 		AliveNoticeEnable:       s.dice.Config.AliveNoticeEnable,
@@ -180,6 +182,7 @@ func (s *Service) buildValue() BaseSettingValueResp {
 		GroupReplenishRate:      s.dice.Config.GroupReplenishRateStr,
 		GroupBurst:              s.dice.Config.GroupBurst,
 		ServeAddress:            s.dice.Parent.ServeAddress,
+		TrayTooltip:             s.dice.Parent.GetTrayTooltip(),
 		RefuseGroupInvite:       s.dice.Config.RefuseGroupInvite,
 		FriendAddComment:        s.dice.Config.FriendAddComment,
 		WorkInQQChannel:         s.dice.Config.WorkInQQChannel,
@@ -229,6 +232,21 @@ func (s *Service) applyPatch(jsonMap map[string]interface{}) error {
 	config := &s.dice.Config
 	if val, ok := jsonMap["noticeIds"]; ok {
 		config.NoticeIDs = stringConvert(val)
+	}
+	if val, ok := jsonMap["officialQQFileSendBase64"]; ok {
+		if parsed, ok := val.(bool); ok {
+			config.OfficialQQFileSendBase64 = parsed
+		}
+	}
+	if val, ok := jsonMap["officialQQUseMarkdown"]; ok {
+		if parsed, ok := val.(bool); ok {
+			config.OfficialQQUseMarkdown = parsed
+		}
+	}
+	if val, ok := jsonMap["trayTooltip"]; ok {
+		if parsed, ok := stringify(val); ok {
+			s.dice.Parent.SetTrayTooltip(parsed)
+		}
 	}
 	if val, ok := jsonMap["defaultCocRuleIndex"]; ok {
 		if valStr, ok := stringify(val); ok {
@@ -568,6 +586,7 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 						Fields: []*BaseSettingFieldSchema{
 							field("friend-add-comment", "friendAddComment", "加好友验证", "text", "好友验证", "加好友"),
 							field("refuse-group-invite", "refuseGroupInvite", "拒绝加入新群", "boolean", "拒绝加群", "群邀请"),
+							field("tray-tooltip", "trayTooltip", "托盘提示文本", "text", "托盘", "提示文本"),
 						},
 					},
 				},
@@ -584,6 +603,8 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 							field("qq-channel-auto-on", "QQChannelAutoOn", "自动 bot on", "boolean", "自动开启", "频道自动开启"),
 							field("qq-channel-log-message", "QQChannelLogMessage", "记录消息日志", "boolean", "频道日志", "QQ频道日志"),
 							field("qq-enable-poke", "QQEnablePoke", "启用戳一戳", "boolean", "戳一戳", "QQ特性"),
+							field("officialqq-file-send-base64", "officialQQFileSendBase64", "以 Base64 发送文件", "boolean", "官方QQ", "Base64", "文件发送"),
+							field("officialqq-use-markdown", "officialQQUseMarkdown", "使用 Markdown", "boolean", "官方QQ", "Markdown", "消息格式"),
 						},
 					},
 				},

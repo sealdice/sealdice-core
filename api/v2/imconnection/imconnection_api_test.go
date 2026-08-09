@@ -29,7 +29,12 @@ func newTestService(t *testing.T, containerMode bool) *Service {
 		ContainerMode: containerMode,
 	}
 	d.Parent = dm
-	return NewServiceWithOptions(dm, false, false)
+	return NewServiceWithOfficialProbe(dm, false, false, func(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error) {
+		return &dice.OfficialQQAccountProbeResult{
+			UIN:      "202401",
+			Nickname: "Test Official",
+		}, nil
+	})
 }
 
 func protocolByKey(tree []*PlatformTreeNode, key string) *ProtocolDefinition {
@@ -75,6 +80,14 @@ func TestGetProtocolsReturnsCapabilitiesAndContainerAvailability(t *testing.T) {
 	red := protocolByKey(items, "red")
 	if red == nil || !red.Deprecated {
 		t.Fatalf("red should be listed as deprecated")
+	}
+
+	official := protocolByKey(items, "officialqq")
+	if official == nil {
+		t.Fatalf("officialqq protocol missing")
+	}
+	if !official.Capabilities.Workflow || !official.Capabilities.QRCode {
+		t.Fatalf("officialqq capabilities should include workflow and qrcode")
 	}
 }
 
@@ -227,6 +240,24 @@ func TestProtocolSchemasUseSensitiveMetadata(t *testing.T) {
 	if _, err := dynamicform.BuildParamsByConfig(resp.Body.Item["discord"], map[string]interface{}{}); err == nil {
 		t.Fatalf("missing required token should fail")
 	}
+
+	officialSchema := resp.Body.Item["officialqq"]
+	if len(officialSchema) == 0 {
+		t.Fatalf("officialqq schema missing")
+	}
+	fields := map[string]*dynamicform.FormConfigItem{}
+	for _, item := range officialSchema {
+		fields[item.FieldName] = item
+	}
+	if fields["useWebhook"] == nil || fields["webhookPath"] == nil || fields["webhookPort"] == nil {
+		t.Fatalf("officialqq schema fields = %#v, want webhook fields", fields)
+	}
+	if fields["appID"] == nil || fields["appID"].IsRequired != dynamicform.RequiredFalse {
+		t.Fatalf("officialqq appID required = %#v, want optional", fields["appID"])
+	}
+	if fields["appSecret"] == nil || fields["appSecret"].IsRequired != dynamicform.RequiredFalse {
+		t.Fatalf("officialqq appSecret required = %#v, want optional", fields["appSecret"])
+	}
 }
 
 func TestEditableConfigMasksSensitiveFieldsAndIncludesPlaceholders(t *testing.T) {
@@ -269,6 +300,71 @@ func TestEditableConfigMasksSensitiveFieldsAndIncludesPlaceholders(t *testing.T)
 		if item.FieldName == "account" && !item.Readonly {
 			t.Fatalf("identity field account should be readonly in edit schema")
 		}
+	}
+}
+
+func TestCreateConnectionSupportsOfficialQQQRCodeModeAndWorkflow(t *testing.T) {
+	svc := newTestService(t, false)
+
+	createResp, err := svc.CreateConnection(t.Context(), &CreateReq{
+		Body: CreateBody{
+			Platform: "officialqq",
+			Config: map[string]interface{}{
+				"appID":       "",
+				"appSecret":   "",
+				"useWebhook":  true,
+				"webhookPath": "/webhook",
+				"webhookPort": 8099,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateConnection returned error: %v", err)
+	}
+
+	ep := createResp.Body.Item
+	if ep.ProtocolType != "official" {
+		t.Fatalf("ProtocolType = %q, want official", ep.ProtocolType)
+	}
+	pa, ok := ep.Adapter.(*dice.PlatformAdapterOfficialQQ)
+	if !ok {
+		t.Fatalf("adapter type = %T, want official qq", ep.Adapter)
+	}
+	if !pa.UseWebhook || pa.WebhookPath != "/webhook" || pa.WebhookPort != 8099 {
+		t.Fatalf("official adapter webhook config = %#v", pa)
+	}
+
+	pa.QrLoginState = dice.OfficialQQLoginStateQRWaitingForScan
+	pa.QrCodeData = []byte("official-qr")
+
+	workflow, err := svc.GetWorkflow(t.Context(), &IDPath{ID: ep.ID})
+	if err != nil {
+		t.Fatalf("GetWorkflow returned error: %v", err)
+	}
+	if workflow.Body.Item.State != "qrcode" || !workflow.Body.Item.HasQRCode {
+		t.Fatalf("workflow = %#v, want qrcode", workflow.Body.Item)
+	}
+
+	qrcode, err := svc.GetQRCode(t.Context(), &IDPath{ID: ep.ID})
+	if err != nil {
+		t.Fatalf("GetQRCode returned error: %v", err)
+	}
+	if !strings.HasPrefix(qrcode.Body.Item.Img, "data:image/png;base64,") {
+		t.Fatalf("qrcode img = %q, want data url", qrcode.Body.Item.Img)
+	}
+
+	configResp, err := svc.GetEditableConfig(t.Context(), &IDPath{ID: ep.ID})
+	if err != nil {
+		t.Fatalf("GetEditableConfig returned error: %v", err)
+	}
+	if got := configResp.Body.Item.Config["useWebhook"]; got != true {
+		t.Fatalf("editable config useWebhook = %#v, want true", got)
+	}
+	if got := configResp.Body.Item.Config["webhookPath"]; got != "/webhook" {
+		t.Fatalf("editable config webhookPath = %#v, want /webhook", got)
+	}
+	if got := configResp.Body.Item.Config["webhookPort"]; got != 8099 {
+		t.Fatalf("editable config webhookPort = %#v, want 8099", got)
 	}
 }
 

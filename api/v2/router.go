@@ -13,11 +13,13 @@ import (
 	"sealdice-core/api/v2/customreply"
 	"sealdice-core/api/v2/customtext"
 	"sealdice-core/api/v2/deck"
+	"sealdice-core/api/v2/extension"
 	"sealdice-core/api/v2/group"
 	"sealdice-core/api/v2/helpdoc"
 	"sealdice-core/api/v2/imconnection"
 	"sealdice-core/api/v2/js"
 	"sealdice-core/api/v2/middleware"
+	"sealdice-core/api/v2/pprof"
 	"sealdice-core/api/v2/realtime"
 	"sealdice-core/api/v2/resource"
 	"sealdice-core/api/v2/story"
@@ -196,6 +198,23 @@ func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	resourceProtected.UseSimpleModifier(huma.OperationTags("resource"))
 	resourceProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
 	resourceService.RegisterProtectedRoutes(resourceProtected)
+
+	extensionAuth := huma.NewGroup(api, "/sd-api/v2/extension")
+	extensionAuth.UseSimpleModifier(huma.OperationTags("extension"))
+	extensionAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	extensionService := extension.NewService(dm)
+	extensionService.RegisterRoutes(extensionAuth)
+
+	extensionProtected := huma.NewGroup(api, "/sd-api/v2/extension")
+	extensionProtected.UseSimpleModifier(huma.OperationTags("extension"))
+	extensionProtected.UseMiddleware(middleware.WriteProtectedMiddleware(api, dm.GetDice()))
+	extensionService.RegisterProtectedRoutes(extensionProtected)
+
+	pprofAuth := huma.NewGroup(api, "/sd-api/v2/pprof")
+	pprofAuth.UseSimpleModifier(huma.OperationTags("pprof"))
+	pprofAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	pprofService := pprof.NewService()
+	pprofService.RegisterRoutes(pprofAuth)
 	// TODO: 后续可以在这里添加其他模块
 	// configService := config.NewConfigService(dice)
 	// protected := huma.NewGroup(api, "/sd-api/v2")

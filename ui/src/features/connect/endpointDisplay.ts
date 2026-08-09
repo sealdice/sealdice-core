@@ -2,6 +2,7 @@ export type EndpointDisplayAdapter = {
   builtinMode?: string;
   built_in_mode?: string;
   reverseAddr?: string;
+  useWebhook?: boolean;
 };
 
 export type EndpointDisplaySource = {
@@ -30,6 +31,7 @@ export function getEndpointProtocolLabel(endpoint: EndpointDisplaySource) {
   if (endpoint.protocolType === 'milky') return 'QQ(Milky)';
   if (endpoint.protocolType === 'pureonebot' && adapter.reverseAddr) return 'QQ(onebot11反向WS)';
   if (endpoint.protocolType === 'pureonebot') return 'QQ(onebot11正向WS)';
+  if (endpoint.protocolType === 'official') return adapter.useWebhook ? 'QQ(官方机器人 Webhook)' : 'QQ(官方机器人)';
   if (endpoint.protocolType === 'satori') return 'Satori';
   return endpoint.platform;
 }

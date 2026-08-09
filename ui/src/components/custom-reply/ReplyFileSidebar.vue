@@ -102,6 +102,9 @@
             <n-tag size="tiny" :bordered="false" :type="getFileEnableStatus(item.filename, item.enable) ? 'success' : 'warning'">
               {{ getFileEnableStatus(item.filename, item.enable) ? '启用' : '停用' }}
             </n-tag>
+            <n-tag v-if="item.packageId" size="tiny" type="warning" :bordered="false">
+              来源包 {{ item.packageId }}
+            </n-tag>
             <span>{{ formatUpdateTime(item.updateTimestamp) }}</span>
             <span>{{ item.itemCount }} 条</span>
           </div>
@@ -129,9 +132,10 @@ import { overwriteSearchFormValues } from '@/features/searchForm/viewModel';
 import type { ReplyFileQuery } from '@/features/customReply/useCustomReplyEditor';
 
 type ReplyFileSearchFormValues = Pick<ReplyFileQuery, 'keyword' | 'sortBy' | 'sortOrder'>;
+type ReplySidebarFile = FileInfo & { packageId?: string };
 
 const props = defineProps<{
-  files: FileInfo[];
+  files: ReplySidebarFile[];
   total: number;
   selectedFilename: string;
   query: ReplyFileQuery;

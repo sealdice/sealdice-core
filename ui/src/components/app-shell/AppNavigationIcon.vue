@@ -4,6 +4,7 @@
   <i-ep-edit-pen v-else-if="name === 'edit'" />
   <i-ep-chat-line-round v-else-if="name === 'reply'" />
   <i-ep-collection v-else-if="name === 'deck'" />
+  <i-ep-box v-else-if="name === 'package'" />
   <i-ep-notebook v-else-if="name === 'story'" />
   <i-ep-cpu v-else-if="name === 'js'" />
   <i-ep-document v-else-if="name === 'helpdoc'" />
@@ -17,6 +18,7 @@
   <i-ep-tools v-else-if="name === 'advanced-setting' || name === 'tools'" />
   <i-ep-magic-stick v-else-if="name === 'test'" />
   <i-ep-folder v-else-if="name === 'resource'" />
+  <i-ep-histogram v-else-if="name === 'profile'" />
   <i-ep-star-filled v-else-if="name === 'star'" />
   <i-ep-menu v-else />
 </template>

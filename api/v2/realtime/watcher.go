@@ -149,6 +149,13 @@ func workflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
 			HasQRCode:  hasQR,
 			LoginState: int64(pa.BuiltInLoginState),
 		}
+	case *dice.PlatformAdapterOfficialQQ:
+		state, hasQR := mapOfficialQQWorkflow(pa.QrLoginState, len(pa.QrCodeData) > 0, ep.State)
+		return imconnm.WorkflowResp{
+			State:      state,
+			HasQRCode:  hasQR,
+			LoginState: int64(pa.QrLoginState),
+		}
 	default:
 		return imconnm.WorkflowResp{State: "none"}
 	}
@@ -166,6 +173,10 @@ func qrCodeOfEndpoint(ep *dice.EndPointInfo) string {
 		}
 	case *dice.PlatformAdapterMilky:
 		if pa.BuiltInLoginState == dice.MilkyLoginStateQRWaitingForScan && len(pa.QrCodeData) > 0 {
+			return "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData)
+		}
+	case *dice.PlatformAdapterOfficialQQ:
+		if pa.QrLoginState == dice.OfficialQQLoginStateQRWaitingForScan && len(pa.QrCodeData) > 0 {
 			return "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData)
 		}
 	}
@@ -199,6 +210,28 @@ func mapMilkyWorkflow(state dice.MilkyLoginState, hasQR bool) (string, bool) {
 		return "failed", false
 	default:
 		return "idle", false
+	}
+}
+
+func mapOfficialQQWorkflow(state dice.OfficialQQLoginState, hasQR bool, endpointState dice.EndpointState) (string, bool) {
+	switch state {
+	case dice.OfficialQQLoginStateQRWaitingForScan:
+		return "qrcode", hasQR
+	case dice.OfficialQQLoginStateQRScanned, dice.OfficialQQLoginStateConnecting:
+		return "pending", false
+	case dice.OfficialQQLoginStateFailed:
+		return "failed", false
+	default:
+		switch endpointState {
+		case dice.StateConnected:
+			return "success", false
+		case dice.StateConnecting:
+			return "pending", false
+		case dice.StateConnectionFailed:
+			return "failed", false
+		default:
+			return "idle", false
+		}
 	}
 }
 

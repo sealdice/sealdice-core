@@ -91,6 +91,30 @@
     </div>
 
     <div v-if="wizardStep === 4" class="wizard-step-panel">
+      <n-alert
+        v-if="selectedProtocolKey === 'officialqq'"
+        type="info"
+        :show-icon="false"
+        class="mb-4"
+      >
+        <n-space vertical size="small">
+          <n-radio-group
+            :value="officialQQMode"
+            @update:value="(value: 'manual' | 'qrcode') => emit('update:officialQQMode', value)"
+          >
+            <n-radio-button value="manual">手动填写 AppID</n-radio-button>
+            <n-radio-button value="qrcode">扫码登录</n-radio-button>
+          </n-radio-group>
+          <n-text depth="3">
+            {{
+              officialQQMode === 'qrcode'
+                ? '扫码模式会在创建后生成二维码；AppID 与密钥留空即可。'
+                : '手动模式会在添加前先测试机器人凭据，确认账号是否已存在。'
+            }}
+          </n-text>
+        </n-space>
+      </n-alert>
+
       <n-alert v-if="selectedProtocol && !selectedProtocol.available" type="warning" :show-icon="false">
         {{ selectedProtocol.disabledReason }}
       </n-alert>
@@ -148,6 +172,13 @@
             v-else-if="item.input_type === 0"
             :value="value as string"
             :type="item.sensitive ? 'password' : 'text'"
+            :disabled="
+              (selectedProtocolKey === 'officialqq' &&
+                officialQQMode === 'qrcode' &&
+                (fieldKey === 'appID' || fieldKey === 'appSecret')) ||
+              submitting ||
+              testModeDisabled
+            "
             :placeholder="item.placeholder"
             show-password-on="mousedown"
             @update:value="setValue"
@@ -205,6 +236,7 @@ defineProps<{
   isMobile: boolean;
   canSubmit: boolean;
   submitting: boolean;
+  officialQQMode?: 'manual' | 'qrcode';
   testModeDisabled?: boolean;
 }>();
 
@@ -220,6 +252,7 @@ const emit = defineEmits<{
   previous: [];
   submit: [];
   retrySignInfo: [];
+  'update:officialQQMode': [value: 'manual' | 'qrcode'];
 }>();
 </script>
 

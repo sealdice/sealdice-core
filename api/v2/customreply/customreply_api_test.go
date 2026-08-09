@@ -97,6 +97,32 @@ func TestGetFileListSupportsKeywordSortAndPagination(t *testing.T) {
 	}
 }
 
+func TestGetFileListCarriesPackageID(t *testing.T) {
+	svc := newTestService(t)
+	svc.Dice().CustomReplyConfig = append(svc.Dice().CustomReplyConfig, &dice.ReplyConfig{
+		Filename:  "pkg.yaml",
+		PackageID: "author/reply-pack",
+	})
+
+	resp, err := svc.GetFileList(t.Context(), &FileListQuery{})
+	if err != nil {
+		t.Fatalf("GetFileList returned error: %v", err)
+	}
+
+	var found bool
+	for _, item := range resp.Body.Item.List {
+		if item.Filename == "pkg.yaml" {
+			found = true
+			if item.PackageID != "author/reply-pack" {
+				t.Fatalf("PackageID = %q, want author/reply-pack", item.PackageID)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("package-backed reply file not found in list")
+	}
+}
+
 func TestGetConfigReturnsCurrentReplyConfig(t *testing.T) {
 	svc := newTestService(t)
 	writeReplyFile(t, svc.Dice(), "reply.yaml", "enable: true\ninterval: 7\ncreateTimestamp: 11\nupdateTimestamp: 12\nitems: []\nconditions: []\n")

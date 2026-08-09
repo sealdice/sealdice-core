@@ -160,6 +160,7 @@ func (s *BanService) SetConfig(_ context.Context, req *ConfigReq) (*ConfigItemRe
 	banList.ScoreGroupMuted = body.ScoreGroupMuted
 	banList.ScoreGroupKicked = body.ScoreGroupKicked
 	banList.ScoreTooManyCommand = body.ScoreTooManyCommand
+	banList.BanNotifyIntervalMinutes = body.BanNotifyIntervalMinutes
 	banList.JointScorePercentOfGroup = body.JointScorePercentOfGroup
 	banList.JointScorePercentOfInviter = body.JointScorePercentOfInviter
 
@@ -341,6 +342,7 @@ func buildBanConfig(source *dice.BanListInfo) BanConfig {
 		ScoreGroupMuted:                        source.ScoreGroupMuted,
 		ScoreGroupKicked:                       source.ScoreGroupKicked,
 		ScoreTooManyCommand:                    source.ScoreTooManyCommand,
+		BanNotifyIntervalMinutes:               source.BanNotifyIntervalMinutes,
 		JointScorePercentOfGroup:               source.JointScorePercentOfGroup,
 		JointScorePercentOfInviter:             source.JointScorePercentOfInviter,
 	}

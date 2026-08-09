@@ -2,6 +2,7 @@ package tooltest
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -59,6 +60,10 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 		o.Description = "获取指令测试命令补全列表"
 		o.Summary = "获取指令测试命令列表"
 	})
+	huma.Get(grp, "/split-options", s.GetSplitOptions, func(o *huma.Operation) {
+		o.Description = "获取指令测试回复分段选项"
+		o.Summary = "获取指令测试分段选项"
+	})
 }
 
 func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
@@ -95,6 +100,7 @@ func (s *Service) PostMessage(_ context.Context, req *PostMessageReq) (*SimpleIt
 			Nickname: "User",
 			UserID:   "UI:1001",
 		},
+		UITestReplySplitLen: body.MessageSplitLen,
 	}
 	if mode == groupMode {
 		msg.GroupID = "UI-Group:2001"
@@ -146,6 +152,29 @@ func (s *Service) GetCommands(_ context.Context, _ *request.Empty) (*CommandsIte
 	sort.Sort(dice.ByLength(commands))
 
 	return response.NewItemResponse(CommandsResp{Items: commands}), nil
+}
+
+func (s *Service) GetSplitOptions(_ context.Context, _ *request.Empty) (*SplitOptionsItemResponse, error) {
+	return response.NewItemResponse(SplitOptionsResp{
+		DefaultKey: "qq",
+		Options: []*SplitOption{
+			{
+				Key:             "short",
+				Label:           fmt.Sprintf("短分段 %d", dice.UITestReplySplitLenShort),
+				MessageSplitLen: dice.UITestReplySplitLenShort,
+			},
+			{
+				Key:             "qq",
+				Label:           fmt.Sprintf("QQ 分段 %d", dice.UITestReplySplitLenQQ),
+				MessageSplitLen: dice.UITestReplySplitLenQQ,
+			},
+			{
+				Key:             "unlimited",
+				Label:           "无限",
+				MessageSplitLen: dice.UITestReplySplitLenUnlimited,
+			},
+		},
+	}), nil
 }
 
 func (s *Service) uiAdapter() (*dice.PlatformAdapterHTTP, error) {

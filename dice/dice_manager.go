@@ -3,6 +3,7 @@ package dice
 import (
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,6 +15,9 @@ import (
 	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
 )
+
+// MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
+const MaxTrayTooltipPrefixLength = 10
 
 type VersionInfo struct {
 	VersionLatest           string `json:"versionLatest"           yaml:"versionLatest"`
@@ -34,6 +38,8 @@ type DiceManager struct { //nolint:revive
 	Dice                 []*Dice
 	Operator             engine.DatabaseOperator
 	ServeAddress         string
+	trayTooltip          string
+	trayTooltipLock      sync.RWMutex
 	Help                 *HelpManager
 	IsHelpReloading      bool
 	helpReloadLock       sync.Mutex
@@ -89,6 +95,7 @@ type DiceManager struct { //nolint:revive
 type Configs struct { //nolint:revive
 	DiceConfigs       []BaseConfig `yaml:"diceConfigs"`
 	ServeAddress      string       `yaml:"serveAddress"`
+	TrayTooltip       string       `yaml:"trayTooltip"`
 	WebUIAddress      string       `yaml:"webUIAddress"`
 	HelpDocEngineType int          `yaml:"helpDocEngineType"`
 
@@ -203,6 +210,7 @@ func (dm *DiceManager) LoadDice() {
 	}
 
 	dm.ServeAddress = dc.ServeAddress
+	dm.SetTrayTooltip(dc.TrayTooltip)
 	dm.HelpDocEngineType = dc.HelpDocEngineType
 	dm.UIPasswordHash = dc.UIPasswordHash
 	dm.UIPasswordSalt = dc.UIPasswordSalt
@@ -238,6 +246,7 @@ func (dm *DiceManager) LoadDice() {
 func (dm *DiceManager) Save() {
 	var dc Configs
 	dc.ServeAddress = dm.ServeAddress
+	dc.TrayTooltip = dm.GetTrayTooltip()
 	dc.HelpDocEngineType = dm.HelpDocEngineType
 	dc.UIPasswordSalt = dm.UIPasswordSalt
 	dc.UIPasswordHash = dm.UIPasswordHash
@@ -266,6 +275,28 @@ func (dm *DiceManager) Save() {
 	if err == nil {
 		_ = os.WriteFile("./data/dice.yaml", data, 0644)
 	}
+}
+
+func (dm *DiceManager) GetTrayTooltip() string {
+	dm.trayTooltipLock.RLock()
+	defer dm.trayTooltipLock.RUnlock()
+	return dm.trayTooltip
+}
+
+// NormalizeTrayTooltipPrefix trims and caps the tray tooltip prefix by rune count.
+func NormalizeTrayTooltipPrefix(tooltip string) string {
+	tooltip = strings.TrimSpace(tooltip)
+	runes := []rune(tooltip)
+	if len(runes) > MaxTrayTooltipPrefixLength {
+		return string(runes[:MaxTrayTooltipPrefixLength])
+	}
+	return tooltip
+}
+
+func (dm *DiceManager) SetTrayTooltip(tooltip string) {
+	dm.trayTooltipLock.Lock()
+	defer dm.trayTooltipLock.Unlock()
+	dm.trayTooltip = NormalizeTrayTooltipPrefix(tooltip)
 }
 
 func (dm *DiceManager) InitDice(writer *logger.UIWriter) {

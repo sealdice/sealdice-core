@@ -129,6 +129,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/mod/package': RouteRecordInfo<
+      '/mod/package',
+      '/mod/package',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/mod/reply': RouteRecordInfo<
       '/mod/reply',
       '/mod/reply',
@@ -139,6 +146,13 @@ declare module 'vue-router/auto-routes' {
     '/mod/story': RouteRecordInfo<
       '/mod/story',
       '/mod/story',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/tool/profile': RouteRecordInfo<
+      '/tool/profile',
+      '/tool/profile',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -254,6 +268,12 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/pages/mod/package.vue': {
+      routes:
+        | '/mod/package'
+      views:
+        | never
+    }
     'src/pages/mod/reply.vue': {
       routes:
         | '/mod/reply'
@@ -263,6 +283,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/mod/story.vue': {
       routes:
         | '/mod/story'
+      views:
+        | never
+    }
+    'src/pages/tool/profile.vue': {
+      routes:
+        | '/tool/profile'
       views:
         | never
     }

@@ -2,6 +2,7 @@
 package tooltest
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -123,6 +124,36 @@ func TestPostMessageBuildsGroupUISender(t *testing.T) {
 	}
 	if dispatched.GroupID != "UI-Group:2001" {
 		t.Fatalf("GroupID = %q, want UI-Group:2001", dispatched.GroupID)
+	}
+}
+
+func TestPostMessageCarriesSplitLenFromJSONBody(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	var req PostMessageReq
+	if err := json.Unmarshal([]byte(`{
+		"body": {
+			"text": ".ping",
+			"mode": "private",
+			"messageSplitLen": 300
+		}
+	}`), &req); err != nil {
+		t.Fatalf("unmarshal request: %v", err)
+	}
+
+	var dispatched *dice.Message
+	svc.dispatch = func(_ *dice.EndPointInfo, msg *dice.Message) {
+		dispatched = msg
+	}
+
+	if _, err := svc.PostMessage(t.Context(), &req); err != nil {
+		t.Fatalf("PostMessage returned error: %v", err)
+	}
+	if dispatched == nil {
+		t.Fatal("dispatch was not called")
+	}
+	if dispatched.UITestReplySplitLen == nil || *dispatched.UITestReplySplitLen != 300 {
+		t.Fatalf("UITestReplySplitLen = %#v, want 300", dispatched.UITestReplySplitLen)
 	}
 }
 

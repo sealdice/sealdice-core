@@ -49,6 +49,7 @@ type BanConfig struct {
 	ScoreGroupMuted                        int64   `json:"scoreGroupMuted"`
 	ScoreGroupKicked                       int64   `json:"scoreGroupKicked"`
 	ScoreTooManyCommand                    int64   `json:"scoreTooManyCommand"`
+	BanNotifyIntervalMinutes               int64   `json:"banNotifyIntervalMinutes"`
 	JointScorePercentOfGroup               float64 `json:"jointScorePercentOfGroup"`
 	JointScorePercentOfInviter             float64 `json:"jointScorePercentOfInviter"`
 }

@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -106,7 +105,7 @@ func onReady() {
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹TRPG骰点核心")
-	systray.SetTooltip("海豹TRPG骰点核心 " + ver)
+	systray.SetTooltip(formatTrayTooltip(theDM, ver, _trayPortStr))
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "资源管理器访问程序所在目录")
@@ -199,7 +198,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				break
 			}
 			runtime.LockOSThread()
-			systray.SetTooltip("海豹TRPG骰点核心 " + ver + " #" + portStr)
+			systray.SetTooltip(formatTrayTooltip(dm, ver, portStr))
 			runtime.UnlockOSThread()
 		}
 	}()
@@ -207,8 +206,8 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	showUI := func() {
 		if !hideUI {
 			time.Sleep(2 * time.Second)
-			url := fmt.Sprintf(`http://localhost:%s`, portStr)
-			url2 := fmt.Sprintf(`http://127.0.0.1:%s`, portStr) // 因为dns被换了，localhost不能解析
+			url := "http://localhost:" + portStr
+			url2 := "http://127.0.0.1:" + portStr // 因为dns被换了，localhost不能解析
 			c := request.Client{
 				URL:     url2,
 				Method:  "GET",

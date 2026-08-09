@@ -5,8 +5,9 @@ import (
 )
 
 type PostMessageReqBody struct {
-	Text string `json:"text"`
-	Mode string `json:"mode"`
+	Text            string `json:"text"`
+	Mode            string `json:"mode"`
+	MessageSplitLen *int   `json:"messageSplitLen,omitempty"`
 }
 
 type PostMessageReq struct {
@@ -27,6 +28,18 @@ type CommandsResp struct {
 	Items []string `json:"items"`
 }
 
+type SplitOption struct {
+	Key             string `json:"key"`
+	Label           string `json:"label"`
+	MessageSplitLen int    `json:"messageSplitLen"`
+}
+
+type SplitOptionsResp struct {
+	DefaultKey string         `json:"defaultKey"`
+	Options    []*SplitOption `json:"options"`
+}
+
 type PendingMessagesItemResponse = response.ItemResponse[PendingMessagesResp]
 type CommandsItemResponse = response.ItemResponse[CommandsResp]
+type SplitOptionsItemResponse = response.ItemResponse[SplitOptionsResp]
 type SimpleItemResponse = response.ItemResponse[response.SimpleOK]

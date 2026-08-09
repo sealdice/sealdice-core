@@ -60,6 +60,7 @@
         :is-mobile="isMobile"
         :can-submit="wizardCanNext"
         :submitting="createMutation.isPending.value"
+        v-model:official-qq-mode="officialQQMode"
         :test-mode-disabled="isTestMode"
         @cancel="dialogVisible = false"
         @previous="goPrev"
@@ -146,6 +147,7 @@ import {
   getSdApiV2ImconnectionSchemasOptions,
   getSdApiV2ImconnectionSignInfoOptions,
   postSdApiV2Imconnection,
+  postSdApiV2ImconnectionOfficialqqTest,
   putSdApiV2ImconnectionById,
   putSdApiV2ImconnectionByIdEnable,
   type EndPointInfo,
@@ -182,6 +184,9 @@ type AdapterView = {
   host?: string;
   port?: number;
   platform?: string;
+  useWebhook?: boolean;
+  webhookPath?: string;
+  webhookPort?: number;
 };
 
 const message = useMessage();
@@ -205,6 +210,7 @@ const formModel = ref<DynamicFormModel>({});
 const editingEndpoint = ref<EndPointInfo | null>(null);
 const editingConfig = ref<EditableConfigResp | null>(null);
 const editFormModel = ref<DynamicFormModel>({});
+const officialQQMode = ref<'manual' | 'qrcode'>('manual');
 
 // Step wizard state
 const wizardStep = ref(1);
@@ -310,18 +316,38 @@ watch(signInfoQuery.data, data => {
 
 const createMutation = useMutation({
   mutationFn: async () => {
+    const payload = buildCreatePayload();
+    if (payload.platform === 'officialqq' && officialQQMode.value === 'manual') {
+      const appID = String(payload.config.appID ?? '').trim();
+      const appSecret = String(payload.config.appSecret ?? '').trim();
+      if (!appID || !appSecret) {
+        throw new Error('请填写 AppID 与 AppSecret，或切换到扫码登录。');
+      }
+      const { data: testData } = await postSdApiV2ImconnectionOfficialqqTest({
+        body: { config: payload.config },
+        throwOnError: true,
+      });
+      if (testData.item.exists) {
+        throw new Error(`该 QQ 官方机器人账号已存在：${testData.item.userId}`);
+      }
+    }
     const { data } = await postSdApiV2Imconnection({
-      body: {
-        platform: selectedProtocolKey.value,
-        config: formModel.value,
-      },
+      body: payload,
       throwOnError: true,
     });
-    return data;
+    return {
+      data,
+      platform: payload.platform,
+      officialQQMode: officialQQMode.value,
+    };
   },
-  onSuccess: () => {
+  onSuccess: ({ data, platform, officialQQMode: mode }) => {
     message.success('账号已添加');
     dialogVisible.value = false;
+    if (platform === 'officialqq' && mode === 'qrcode') {
+      qrDialogEndpointId.value = data.item.id;
+      qrDialogVisible.value = true;
+    }
     resetWizard();
   },
   onError: error => {
@@ -528,6 +554,9 @@ const detailRows = (endpoint: EndPointInfo) => {
     ['签名版本', adapter.signServerVer || ''],
     ['签名服务', adapter.signServerName || ''],
     ['协议端', adapter.built_in_mode || adapter.builtinMode || ''],
+    ['接入方式', endpoint.protocolType === 'official' ? (adapter.useWebhook ? 'Webhook' : 'WebSocket') : ''],
+    ['Webhook 路径', adapter.webhookPath || ''],
+    ['Webhook 端口', adapter.webhookPort ? String(adapter.webhookPort) : ''],
     ['主机', adapter.host ? `${adapter.host}${adapter.port ? `:${adapter.port}` : ''}` : ''],
   ].filter(([, value]) => value);
 };
@@ -683,6 +712,7 @@ const goNext = () => {
   if (wizardStep.value === 3 && wizardProtocol.value) {
     selectedProtocolKey.value = wizardProtocol.value.key;
     formModel.value = buildDynamicFormInitialModel(selectedSchema.value);
+    officialQQMode.value = 'manual';
   }
   if (wizardStep.value < 4) {
     wizardStep.value++;
@@ -702,6 +732,7 @@ const resetWizard = () => {
   wizardProtocol.value = null;
   selectedProtocolKey.value = '';
   formModel.value = {};
+  officialQQMode.value = 'manual';
 };
 
 const submit = () => {
@@ -719,6 +750,18 @@ const submitEdit = () => {
   }
   if (canSubmitEdit.value) updateMutation.mutate();
 };
+
+function buildCreatePayload() {
+  const config = { ...formModel.value };
+  if (selectedProtocolKey.value === 'officialqq' && officialQQMode.value === 'qrcode') {
+    config.appID = '';
+    config.appSecret = '';
+  }
+  return {
+    platform: selectedProtocolKey.value,
+    config,
+  };
+}
 </script>
 
 <style scoped>

@@ -71,6 +71,8 @@ type BaseSettingValueResp struct {
 	TrustOnlyMode           bool                                `json:"trustOnlyMode"`
 	BotExtFreeSwitch        bool                                `json:"botExtFreeSwitch"`
 	QQEnablePoke            bool                                `json:"QQEnablePoke"`
+	OfficialQQFileSendBase64 bool                               `json:"officialQQFileSendBase64"`
+	OfficialQQUseMarkdown   bool                                `json:"officialQQUseMarkdown"`
 	TextCmdTrustOnly        bool                                `json:"textCmdTrustOnly"`
 	IgnoreUnaddressedBotCmd bool                                `json:"ignoreUnaddressedBotCmd"`
 	AliveNoticeEnable       bool                                `json:"aliveNoticeEnable"`
@@ -86,6 +88,7 @@ type BaseSettingValueResp struct {
 	GroupReplenishRate      string                              `json:"groupReplenishRate"`
 	GroupBurst              int64                               `json:"groupBurst"`
 	ServeAddress            string                              `json:"serveAddress"`
+	TrayTooltip             string                              `json:"trayTooltip"`
 	RefuseGroupInvite       bool                                `json:"refuseGroupInvite"`
 	FriendAddComment        string                              `json:"friendAddComment"`
 	WorkInQQChannel         bool                                `json:"workInQQChannel"`

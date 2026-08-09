@@ -93,6 +93,7 @@ assertDeepEqual(normalizeBanConfig({
   scoreGroupMuted: 100,
   scoreGroupKicked: 200,
   scoreTooManyCommand: 100,
+  banNotifyIntervalMinutes: -1,
   jointScorePercentOfGroup: 0.5,
   jointScorePercentOfInviter: 0.3,
 }), {
@@ -109,6 +110,7 @@ assertDeepEqual(normalizeBanConfig({
   scoreGroupMuted: 100,
   scoreGroupKicked: 200,
   scoreTooManyCommand: 100,
+  banNotifyIntervalMinutes: -1,
   jointScorePercentOfGroup: 0.5,
   jointScorePercentOfInviter: 0.3,
 });

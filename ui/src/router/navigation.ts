@@ -44,6 +44,13 @@ export const appNavigation: NavigationItem[] = [
         layout: 'wide',
       },
       {
+        label: '包管理',
+        title: '包管理',
+        path: '/mod/package',
+        icon: 'package',
+        layout: 'wide',
+      },
+      {
         label: '跑团日志',
         title: '跑团日志',
         path: '/mod/story',
@@ -138,6 +145,13 @@ export const appNavigation: NavigationItem[] = [
         title: '资源管理',
         path: '/tool/resource',
         icon: 'resource',
+        layout: 'wide',
+      },
+      {
+        label: '性能分析',
+        title: '性能分析',
+        path: '/tool/profile',
+        icon: 'profile',
         layout: 'wide',
       },
     ],

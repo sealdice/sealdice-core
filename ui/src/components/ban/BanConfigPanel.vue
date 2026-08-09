@@ -56,6 +56,22 @@
         <n-form-item label="刷屏增加">
           <n-input-number v-model:value="config.scoreTooManyCommand" :min="0" :step="1" :precision="0" />
         </n-form-item>
+        <n-form-item label="黑名单通报间隔">
+          <n-flex align="center" wrap>
+            <n-input-number
+              v-model:value="config.banNotifyIntervalMinutes"
+              :min="-1"
+              :step="1"
+              :precision="0"
+            />
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-text depth="3">分钟</n-text>
+              </template>
+              -1 表示每次通报；0 表示使用默认的 20 分钟；正整数表示自定义冷却分钟数。
+            </n-tooltip>
+          </n-flex>
+        </n-form-item>
         <n-form-item label="每分钟下降">
           <n-input-number v-model:value="config.scoreReducePerMinute" :min="0" :step="1" :precision="0" />
         </n-form-item>

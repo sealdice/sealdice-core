@@ -126,6 +126,56 @@ func TestGetAndSetConfigRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSetConfigAcceptsBanNotifyIntervalMinutesFromJSON(t *testing.T) {
+	svc := newTestBanService(t)
+
+	var req ConfigReq
+	if err := json.Unmarshal([]byte(`{
+		"body": {
+			"banBehaviorRefuseReply": true,
+			"banBehaviorRefuseInvite": true,
+			"banBehaviorQuitLastPlace": false,
+			"banBehaviorQuitPlaceImmediately": false,
+			"banBehaviorQuitIfAdmin": false,
+			"banBehaviorQuitIfAdminSilentIfNotAdmin": false,
+			"thresholdWarn": 100,
+			"thresholdBan": 200,
+			"autoBanMinutes": 720,
+			"scoreReducePerMinute": 1,
+			"scoreGroupMuted": 100,
+			"scoreGroupKicked": 200,
+			"scoreTooManyCommand": 100,
+			"jointScorePercentOfGroup": 0.5,
+			"jointScorePercentOfInviter": 0.3,
+			"banNotifyIntervalMinutes": -1
+		}
+	}`), &req); err != nil {
+		t.Fatalf("unmarshal config req: %v", err)
+	}
+
+	if _, err := svc.SetConfig(t.Context(), &req); err != nil {
+		t.Fatalf("SetConfig returned error: %v", err)
+	}
+
+	resp, err := svc.GetConfig(t.Context(), &request.Empty{})
+	if err != nil {
+		t.Fatalf("GetConfig returned error: %v", err)
+	}
+
+	data, err := json.Marshal(resp.Body.Item)
+	if err != nil {
+		t.Fatalf("marshal config resp: %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal config resp: %v", err)
+	}
+	if value, ok := got["banNotifyIntervalMinutes"].(float64); !ok || value != -1 {
+		t.Fatalf("banNotifyIntervalMinutes = %#v, want -1", got["banNotifyIntervalMinutes"])
+	}
+}
+
 func TestAddEntryStoresBannedAndTrustedItems(t *testing.T) {
 	svc := newTestBanService(t)
 

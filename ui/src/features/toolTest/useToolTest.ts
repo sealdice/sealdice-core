@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/vue-query';
 import {
   getSdApiV2ToolTestCommands,
   getSdApiV2ToolTestMessagesPending,
+  getSdApiV2ToolTestSplitOptions,
   postSdApiV2DeckReload,
   postSdApiV2HelpdocReload,
   postSdApiV2JsReload,
@@ -18,6 +19,8 @@ import {
   createInitialToolTestMessages,
   type ToolTestMessage,
   type ToolTestMode,
+  normalizeToolTestSplitOptions,
+  type ToolTestSplitOption,
 } from './model';
 
 const POLL_INTERVAL_MS = 1000;
@@ -32,6 +35,8 @@ export function useToolTest() {
   const commandErrorText = ref('');
   const pollingErrorText = ref('');
   const pollingActive = ref(false);
+  const splitOptions = ref<ToolTestSplitOption[]>(normalizeToolTestSplitOptions(undefined).options);
+  const splitOptionKey = ref(normalizeToolTestSplitOptions(undefined).defaultKey);
   const sessions = reactive<ToolTestSessions>({
     private: createInitialToolTestMessages('private'),
     group: createInitialToolTestMessages('group'),
@@ -40,12 +45,15 @@ export function useToolTest() {
   const commandOptions = computed(() => buildToolTestCommandOptions(commandList.value, input.value));
   const currentMessages = computed(() => sessions[mode.value]);
   const modeTitle = computed(() => (mode.value === 'private' ? '私聊测试窗口' : '群聊测试窗口'));
+  const selectedSplitLen = computed(
+    () => splitOptions.value.find(item => item.key === splitOptionKey.value)?.messageSplitLen ?? 2000,
+  );
 
   let pollTimer: number | null = null;
   let polling = false;
 
   const sendMutation = useMutation({
-    mutationFn: async (payload: { text: string; mode: ToolTestMode }) => {
+    mutationFn: async (payload: { text: string; mode: ToolTestMode; messageSplitLen: number }) => {
       const { data } = await postSdApiV2ToolTestMessages({
         body: payload,
         throwOnError: true,
@@ -104,6 +112,20 @@ export function useToolTest() {
       commandErrorText.value = getErrorMessage(error, '指令列表读取失败');
     } finally {
       commandLoading.value = false;
+    }
+  }
+
+  async function loadSplitOptions() {
+    if (!hasAccessToken.value) return;
+    try {
+      const { data } = await getSdApiV2ToolTestSplitOptions({ throwOnError: true });
+      const state = normalizeToolTestSplitOptions(data.item);
+      splitOptions.value = state.options;
+      splitOptionKey.value = state.defaultKey;
+    } catch {
+      const state = normalizeToolTestSplitOptions(undefined);
+      splitOptions.value = state.options;
+      splitOptionKey.value = state.defaultKey;
     }
   }
 
@@ -173,6 +195,7 @@ export function useToolTest() {
       await sendMutation.mutateAsync({
         text,
         mode: activeMode,
+        messageSplitLen: selectedSplitLen.value,
       });
       if (!pollingActive.value) {
         startPolling();
@@ -232,6 +255,7 @@ export function useToolTest() {
     (canAccess) => {
       if (canAccess) {
         void loadCommands();
+        void loadSplitOptions();
         startPolling();
         return;
       }
@@ -257,6 +281,8 @@ export function useToolTest() {
     modeTitle,
     pollingActive,
     pollingErrorText,
+    splitOptionKey,
+    splitOptions,
     reloadDeck,
     reloadDeckMutation,
     reloadHelpdoc,

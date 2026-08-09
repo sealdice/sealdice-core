@@ -13,6 +13,7 @@ type FileInfo struct {
 	CreateTimestamp int64  `json:"createTimestamp"`
 	UpdateTimestamp int64  `json:"updateTimestamp"`
 	ItemCount       int    `json:"itemCount"`
+	PackageID       string `json:"packageId,omitempty"`
 }
 
 type ReplyFileListResp = response.HPageResult[*FileInfo]
@@ -94,6 +95,7 @@ type ReplyFileDetail struct {
 	UpdateTimestamp int64                `json:"updateTimestamp"`
 	Desc            string               `json:"desc"`
 	StoreID         string               `json:"storeID"`
+	PackageID       string               `json:"packageId,omitempty"`
 	Conditions      dice.ReplyConditions `json:"conditions"`
 	Filename        string               `json:"filename"`
 	ItemCount       int                  `json:"itemCount"`

@@ -18,6 +18,14 @@ type CreateReq struct {
 	Body CreateBody `json:"body"`
 }
 
+type OfficialQQTestBody struct {
+	Config map[string]interface{} `json:"config"`
+}
+
+type OfficialQQTestReq struct {
+	Body OfficialQQTestBody `json:"body"`
+}
+
 type EnableBody struct {
 	Enable bool `json:"enable"`
 }
@@ -115,4 +123,13 @@ type WorkflowResp struct {
 
 type QRCodeResp struct {
 	Img string `json:"img"`
+}
+
+type OfficialQQTestResp struct {
+	TestOnly bool   `json:"testOnly"`
+	ID       string `json:"id,omitempty"`
+	UserID   string `json:"userId"`
+	UIN      string `json:"uin"`
+	Nickname string `json:"nickname"`
+	Exists   bool   `json:"exists"`
 }

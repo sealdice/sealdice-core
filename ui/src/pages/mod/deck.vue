@@ -136,6 +136,9 @@
               >
                 {{ item.fileFormat }}
               </n-tag>
+              <n-tag v-if="item.packageId" size="small" type="warning" :bordered="false">
+                来源包 {{ item.packageId }}
+              </n-tag>
             </n-flex>
           </template>
 
@@ -324,6 +327,8 @@ type DeckSearchFormValues = {
   sortOrder: string;
 };
 
+type DeckItemExt = DeckItem & { packageId?: string };
+
 const defaultDeckSearchFormValues = (): DeckSearchFormValues => ({
   keyword: '',
   sortBy: 'name',
@@ -421,7 +426,9 @@ const deckListQuery = useQuery({
   },
 });
 
-const items = computed(() => deckListQuery.data.value?.list ?? []);
+const items = computed<DeckItemExt[]>(() =>
+  (deckListQuery.data.value?.list ?? []).map(item => item as DeckItemExt),
+);
 const total = computed(() => deckListQuery.data.value?.total ?? 0);
 const filterCount = computed(() => {
   const count = Number(total.value) - items.value.length;

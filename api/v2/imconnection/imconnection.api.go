@@ -23,6 +23,7 @@ type Service struct {
 	autoSave     bool
 	protocolTree []*PlatformTreeNode
 	protocolBy   map[string]*ProtocolDefinition
+	officialProbe func(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error)
 }
 
 func NewService(dm *dice.DiceManager) *Service {
@@ -33,6 +34,19 @@ func NewServiceWithOptions(dm *dice.DiceManager, autoServe bool, autoSave bool) 
 	return newService(dm, autoServe, autoSave)
 }
 
+func NewServiceWithOfficialProbe(
+	dm *dice.DiceManager,
+	autoServe bool,
+	autoSave bool,
+	officialProbe func(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error),
+) *Service {
+	svc := newService(dm, autoServe, autoSave)
+	if officialProbe != nil {
+		svc.officialProbe = officialProbe
+	}
+	return svc
+}
+
 func newService(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
 	_ = loadForms()
 	s := &Service{
@@ -41,6 +55,11 @@ func newService(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
 		autoServe:  autoServe,
 		autoSave:   autoSave,
 		protocolBy: map[string]*ProtocolDefinition{},
+		officialProbe: func(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error) {
+			probeCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			return dice.ProbeOfficialQQAccount(probeCtx, appID, appSecret)
+		},
 	}
 	s.protocolTree = s.buildProtocolTree()
 	for _, platform := range s.protocolTree {
@@ -84,6 +103,9 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 	})
 	huma.Get(grp, "/{id}/qrcode", s.GetQRCode, func(o *huma.Operation) {
 		o.Description = "获取连接登录二维码"
+	})
+	huma.Post(grp, "/officialqq/test", s.TestOfficialQQ, func(o *huma.Operation) {
+		o.Description = "测试 QQ 官方机器人连接并返回账号信息"
 	})
 	huma.Get(grp, "/", s.ListConnections, func(o *huma.Operation) {
 		o.Description = "获取当前所有连接列表"
@@ -132,7 +154,7 @@ func (s *Service) buildProtocolTree() []*PlatformTreeNode {
 			{Key: "milky", Name: "Milky (外部)", Platform: "QQ", SchemaKey: "milky", Available: true, Description: "外部 Milky 协议端，需自行部署后连接。", Capabilities: baseCapabilities},
 			{Key: "gocq-separate", Name: "OneBot11 正向WS", Platform: "QQ", SchemaKey: "gocq-separate", Available: true, Description: "OneBot 11 正向 WebSocket 协议，需配合协议端使用。", Capabilities: baseCapabilities},
 			{Key: "onebot-reverse", Name: "OneBot11 反向WS", Platform: "QQ", SchemaKey: "onebot-reverse", Available: true, Description: "OneBot 11 反向 WebSocket 协议，需配合协议端使用。", Capabilities: baseCapabilities},
-			{Key: "officialqq", Name: "QQ 官方机器人", Platform: "QQ", SchemaKey: "officialqq", Available: true, Description: "QQ 官方机器人接口，仅支持频道消息。", Capabilities: baseCapabilities},
+			{Key: "officialqq", Name: "QQ 官方机器人", Platform: "QQ", SchemaKey: "officialqq", Available: true, Description: "QQ 官方机器人接口，支持 AppID/AppSecret 直连与扫码登录。", Capabilities: withWorkflow(baseCapabilities, true, true, false)},
 			{Key: "red", Name: "Red 协议", Platform: "QQ", SchemaKey: "red", Deprecated: true, Available: false, DisabledReason: "Red 协议已弃用", Description: "QQ Red 协议，已废弃。", Capabilities: ProtocolCapability{}},
 		},
 	}
@@ -304,6 +326,38 @@ func (s *Service) GetSignInfo(_ context.Context, _ *request.Empty) (*response.It
 	return response.NewItemResponse[SignInfoResp](SignInfoResp{Items: out}), nil
 }
 
+func (s *Service) TestOfficialQQ(_ context.Context, req *OfficialQQTestReq) (*response.ItemResponse[OfficialQQTestResp], error) {
+	params, err := dynamicform.BuildParamsByConfig(dynamicform.GetFormConfig("officialqq"), req.Body.Config)
+	if err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
+	}
+	appID := asIDString(params, "appID")
+	appSecret := strings.TrimSpace(asString(params, "appSecret"))
+	if appID == "" {
+		return nil, huma.Error400BadRequest("扫码登录不支持连接测试")
+	}
+	if appSecret == "" {
+		return nil, huma.Error400BadRequest("missing appSecret")
+	}
+
+	probe, err := s.probeOfficialQQ(appID, appSecret)
+	if err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
+	}
+
+	result := OfficialQQTestResp{
+		TestOnly: true,
+		UserID:   "OpenQQ:" + probe.UIN,
+		UIN:      probe.UIN,
+		Nickname: probe.Nickname,
+	}
+	if existing := dice.FindOfficialQQEndpointByUIN(s.dice.ImSession, probe.UIN, ""); existing != nil {
+		result.Exists = true
+		result.ID = existing.ID
+	}
+	return response.NewItemResponse(result), nil
+}
+
 func (s *Service) ListConnections(_ context.Context, _ *request.Empty) (*response.ItemResponse[EndpointListResp], error) {
 	return response.NewItemResponse[EndpointListResp](EndpointListResp{Items: s.dice.ImSession.EndPoints}), nil
 }
@@ -463,10 +517,41 @@ func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.E
 		conn.BindRuntime(s.dice.ImSession)
 		return conn, nil
 	case "officialqq":
-		conn := dice.NewOfficialQQConnItem(asIDString(cfg, "appID"), asString(cfg, "appSecret"), "", asBool(cfg, "onlyQQGuild"))
-		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
-		pa.Token = asString(cfg, "token")
+		appID := asIDString(cfg, "appID")
+		appSecret := strings.TrimSpace(asString(cfg, "appSecret"))
+		useWebhook := asBool(cfg, "useWebhook")
+		webhookPath := asString(cfg, "webhookPath")
+		webhookPort := asInt(cfg, "webhookPort")
+
+		if appID == "" {
+			conn := dice.NewOfficialQQConnItem("", "", "", false)
+			conn.BindRuntime(s.dice.ImSession)
+			pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
+			pa.UseWebhook = useWebhook
+			pa.WebhookPath = webhookPath
+			pa.WebhookPort = webhookPort
+			return conn, nil
+		}
+		if appSecret == "" {
+			return nil, huma.Error400BadRequest("missing appSecret")
+		}
+
+		probe, err := s.probeOfficialQQ(appID, appSecret)
+		if err != nil {
+			return nil, huma.Error400BadRequest(err.Error())
+		}
+		if existing := dice.FindOfficialQQEndpointByUIN(s.dice.ImSession, probe.UIN, ""); existing != nil {
+			return nil, huma.Error409Conflict("official qq account already exists")
+		}
+
+		conn := dice.NewOfficialQQConnItem(appID, appSecret, probe.UIN, false)
+		conn.UserID = "OpenQQ:" + probe.UIN
+		conn.Nickname = probe.Nickname
 		conn.BindRuntime(s.dice.ImSession)
+		pa := conn.Adapter.(*dice.PlatformAdapterOfficialQQ)
+		pa.UseWebhook = useWebhook
+		pa.WebhookPath = webhookPath
+		pa.WebhookPort = webhookPort
 		return conn, nil
 	default:
 		return nil, huma.Error501NotImplemented("not implemented")
@@ -766,8 +851,9 @@ func editableConfigOf(ep *dice.EndPointInfo, key string) (map[string]interface{}
 		return map[string]interface{}{
 			"appID":       pa.AppID,
 			"appSecret":   "",
-			"token":       "",
-			"onlyQQGuild": pa.OnlyQQGuild,
+			"useWebhook":  pa.UseWebhook,
+			"webhookPath": pa.WebhookPath,
+			"webhookPort": pa.WebhookPort,
 		}, nil
 	default:
 		return nil, huma.Error501NotImplemented("not implemented")
@@ -937,13 +1023,33 @@ func (s *Service) applyUpdate(ep *dice.EndPointInfo, key string, cfg map[string]
 		if !ok {
 			return huma.Error500InternalServerError("adapter error")
 		}
+		nextAppID := pa.AppID
 		if appID := asIDString(cfg, "appID"); appID != "" {
-			pa.AppID = appID
+			nextAppID = appID
 		}
-		pa.AppSecret = asStringOrKeep(cfg, "appSecret", pa.AppSecret)
-		pa.Token = asStringOrKeep(cfg, "token", pa.Token)
-		if _, ok := cfg["onlyQQGuild"]; ok {
-			pa.OnlyQQGuild = asBool(cfg, "onlyQQGuild")
+		nextAppSecret := asStringOrKeep(cfg, "appSecret", pa.AppSecret)
+		if nextAppID != "" && (nextAppID != pa.AppID || nextAppSecret != pa.AppSecret) {
+			probe, err := s.probeOfficialQQ(nextAppID, nextAppSecret)
+			if err != nil {
+				return huma.Error400BadRequest(err.Error())
+			}
+			if existing := dice.FindOfficialQQEndpointByUIN(s.dice.ImSession, probe.UIN, ep.ID); existing != nil {
+				return huma.Error409Conflict("official qq account already exists")
+			}
+			pa.AppID = nextAppID
+			pa.AppSecret = nextAppSecret
+			pa.UIN = probe.UIN
+			ep.UserID = "OpenQQ:" + probe.UIN
+			ep.Nickname = probe.Nickname
+		}
+		if _, ok := cfg["useWebhook"]; ok {
+			pa.UseWebhook = asBool(cfg, "useWebhook")
+		}
+		if _, ok := cfg["webhookPath"]; ok {
+			pa.WebhookPath = asStringIfPresent(cfg, "webhookPath", pa.WebhookPath)
+		}
+		if _, ok := cfg["webhookPort"]; ok {
+			pa.WebhookPort = asIntIfPresent(cfg, "webhookPort", pa.WebhookPort)
 		}
 	default:
 		return huma.Error501NotImplemented("not implemented")
@@ -991,6 +1097,13 @@ func workflowOf(ep *dice.EndPointInfo) WorkflowResp {
 			HasQRCode:  hasQR,
 			LoginState: int64(pa.BuiltInLoginState),
 		}
+	case *dice.PlatformAdapterOfficialQQ:
+		state, hasQR := mapOfficialQQWorkflow(pa.QrLoginState, len(pa.QrCodeData) > 0, ep.State)
+		return WorkflowResp{
+			State:      state,
+			HasQRCode:  hasQR,
+			LoginState: int64(pa.QrLoginState),
+		}
 	default:
 		return WorkflowResp{State: "none"}
 	}
@@ -1026,6 +1139,28 @@ func mapMilkyWorkflow(state dice.MilkyLoginState, hasQR bool) (string, bool) {
 	}
 }
 
+func mapOfficialQQWorkflow(state dice.OfficialQQLoginState, hasQR bool, endpointState dice.EndpointState) (string, bool) {
+	switch state {
+	case dice.OfficialQQLoginStateQRWaitingForScan:
+		return "qrcode", hasQR
+	case dice.OfficialQQLoginStateQRScanned, dice.OfficialQQLoginStateConnecting:
+		return "pending", false
+	case dice.OfficialQQLoginStateFailed:
+		return "failed", false
+	default:
+		switch endpointState {
+		case dice.StateConnected:
+			return "success", false
+		case dice.StateConnecting:
+			return "pending", false
+		case dice.StateConnectionFailed:
+			return "failed", false
+		default:
+			return "idle", false
+		}
+	}
+}
+
 func (s *Service) GetQRCode(_ context.Context, p *IDPath) (*response.ItemResponse[QRCodeResp], error) {
 	ep := s.findEndpoint(p.ID)
 	if ep == nil {
@@ -1039,6 +1174,10 @@ func (s *Service) GetQRCode(_ context.Context, p *IDPath) (*response.ItemRespons
 		}
 	case *dice.PlatformAdapterMilky:
 		if pa.BuiltInLoginState == dice.MilkyLoginStateQRWaitingForScan && len(pa.QrCodeData) > 0 {
+			img = "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData)
+		}
+	case *dice.PlatformAdapterOfficialQQ:
+		if pa.QrLoginState == dice.OfficialQQLoginStateQRWaitingForScan && len(pa.QrCodeData) > 0 {
 			img = "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData)
 		}
 	}
@@ -1135,6 +1274,13 @@ func asInt(m map[string]interface{}, key string) int {
 	}
 }
 
+func asIntIfPresent(m map[string]interface{}, key string, old int) int {
+	if _, ok := m[key]; !ok {
+		return old
+	}
+	return asInt(m, key)
+}
+
 func asBool(m map[string]interface{}, key string) bool {
 	v, ok := m[key]
 	if !ok || v == nil {
@@ -1148,4 +1294,11 @@ func asBool(m map[string]interface{}, key string) bool {
 	default:
 		return false
 	}
+}
+
+func (s *Service) probeOfficialQQ(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error) {
+	if s == nil || s.officialProbe == nil {
+		return nil, huma.Error500InternalServerError("official probe unavailable")
+	}
+	return s.officialProbe(strings.TrimSpace(appID), strings.TrimSpace(appSecret))
 }

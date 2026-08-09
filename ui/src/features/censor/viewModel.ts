@@ -4,6 +4,7 @@ import type { CensorConfigBody, CensorWordItem } from '@/api';
 export const CENSOR_HANDLERS = [
   { key: 'SendWarning', name: '发送警告' },
   { key: 'SendNotice', name: '通知 Master' },
+  { key: 'SendEncodedDetails', name: '发送命中详情（Base64）' },
   { key: 'BanUser', name: '拉黑用户' },
   { key: 'BanGroup', name: '拉黑群' },
   { key: 'BanInviter', name: '拉黑邀请人' },

@@ -87,6 +87,7 @@ func (s *Service) GetFileList(_ context.Context, req *FileListQuery) (*response.
 			CreateTimestamp: item.CreateTimestamp,
 			UpdateTimestamp: item.UpdateTimestamp,
 			ItemCount:       len(item.Items),
+			PackageID:       item.PackageID,
 		})
 	}
 	keyword := strings.TrimSpace(req.Keyword)
@@ -151,6 +152,12 @@ func (s *Service) GetConfig(_ context.Context, req *FilenamePath) (*response.Ite
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
+	for _, item := range s.dice.CustomReplyConfig {
+		if item != nil && item.Filename == rc.Filename && rc.PackageID == "" {
+			rc.PackageID = item.PackageID
+			break
+		}
+	}
 	return response.NewItemResponse(ReplyFileDetail{
 		Enable:          rc.Enable,
 		Interval:        rc.Interval,
@@ -161,6 +168,7 @@ func (s *Service) GetConfig(_ context.Context, req *FilenamePath) (*response.Ite
 		UpdateTimestamp: rc.UpdateTimestamp,
 		Desc:            rc.Desc,
 		StoreID:         rc.StoreID,
+		PackageID:       rc.PackageID,
 		Conditions:      rc.Conditions,
 		Filename:        rc.Filename,
 		ItemCount:       len(rc.Items),
