@@ -660,7 +660,9 @@ type IMSession struct {
 	ServiceAtNew *SyncMap[string, *GroupInfo]       `json:"servicesAt" yaml:"-"`
 	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
 
-	endPointsSnapshot atomic.Pointer[[]*EndPointInfo]
+	endPointsSnapshot      atomic.Pointer[[]*EndPointInfo]
+	groupMemberWelcomeMu   sync.Mutex
+	lastGroupMemberWelcome *LastWelcomeInfo
 }
 
 // EndPointDisplaySnapshot 是托盘菜单所需的端点展示值快照。
@@ -1703,7 +1705,22 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	}
 }
 
-var lastGroupMemberWelcome *LastWelcomeInfo
+func (s *IMSession) isDuplicateGroupMemberWelcome(msg *Message) bool {
+	s.groupMemberWelcomeMu.Lock()
+	defer s.groupMemberWelcomeMu.Unlock()
+
+	last := s.lastGroupMemberWelcome
+	isDuplicate := last != nil &&
+		msg.GroupID == last.GroupID &&
+		msg.Sender.UserID == last.UserID &&
+		msg.Time == last.Time
+	s.lastGroupMemberWelcome = &LastWelcomeInfo{
+		GroupID: msg.GroupID,
+		UserID:  msg.Sender.UserID,
+		Time:    msg.Time,
+	}
+	return isDuplicate
+}
 
 // OnGroupMemberJoined 群成员进群事件处理，除了 bot 自己以外的群成员入群时调用。其他 Adapter 应当尽快迁移至此方法实现
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
@@ -1728,19 +1745,7 @@ func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	// 进群的是别人，是否迎新？
 	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
-	isDouble := false
-	if lastGroupMemberWelcome != nil {
-		isDouble = msg.GroupID == lastGroupMemberWelcome.GroupID &&
-			msg.Sender.UserID == lastGroupMemberWelcome.UserID &&
-			msg.Time == lastGroupMemberWelcome.Time
-	}
-	lastGroupMemberWelcome = &LastWelcomeInfo{
-		GroupID: msg.GroupID,
-		UserID:  msg.Sender.UserID,
-		Time:    msg.Time,
-	}
-
-	if isDouble {
+	if s.isDuplicateGroupMemberWelcome(msg) {
 		log.Infof("检查是否需要迎新: need_welcome=false reason=duplicate_event group_id=%s user_id=%s", msg.GroupID, msg.Sender.UserID)
 		return
 	}

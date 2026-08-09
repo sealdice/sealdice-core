@@ -274,6 +274,10 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 	userId := canonicalOnebotUserID(req.Get("user_id").String())
 	selfId := canonicalOnebotUserID(req.Get("self_id").String())
 	groupId := canonicalOnebotGroupID(req.Get("group_id").String())
+	msg.MessageType = "group"
+	msg.Platform = "QQ"
+	msg.GroupID = groupId
+	msg.Sender.UserID = userId
 	// 迎新逻辑
 	// 发送入群致辞逻辑
 	if userId == selfId {
@@ -283,19 +287,11 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 		if operatorID != "" && operatorID != selfId {
 			msg.Sender.UserID = operatorID
 		}
-		ctx.Group.InviteUserID = msg.Sender.UserID
-		msg.MessageType = "group"
-		msg.Platform = "QQ"
-		msg.GroupID = groupId
 		_ = p.submitAsync(func() {
 			session.OnGroupJoined(ctx, msg)
 		})
 	} else {
 		p.logger.Infof("收到非自己的入群通知: group_id=%s user_id=%s", groupId, userId)
-		msg.MessageType = "group"
-		msg.Platform = "QQ"
-		msg.GroupID = groupId
-		msg.Sender.UserID = userId
 		_ = p.submitAsync(func() {
 			session.OnGroupMemberJoined(ctx, msg)
 		})

@@ -856,8 +856,9 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 }
 
 func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
-	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=group"}
 
 	req := gjson.Parse(`{
 		"post_type":"notice",
@@ -872,6 +873,11 @@ func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
 
 	if err := pa.handleJoinGroupAction(req, nil); err != nil {
 		t.Fatalf("handleJoinGroupAction returned error: %v", err)
+	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected self join processing to complete")
 	}
 
 	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
@@ -1084,10 +1090,6 @@ func TestPureOnebotHandleJoinGroupDeduplicatesRepeatedEvent(t *testing.T) {
 		DiceIDExistsMap:     new(SyncMap[string, bool]),
 	})
 
-	oldLastWelcome := lastGroupMemberWelcome
-	defer func() { lastGroupMemberWelcome = oldLastWelcome }()
-	lastGroupMemberWelcome = nil
-
 	req := gjson.Parse(`{
 		"post_type":"notice",
 		"notice_type":"group_increase",
@@ -1098,27 +1100,32 @@ func TestPureOnebotHandleJoinGroupDeduplicatesRepeatedEvent(t *testing.T) {
 		"message": []
 	}`)
 
-	if err := pa.handleJoinGroupAction(req, nil); err != nil {
-		t.Fatalf("handleJoinGroupAction returned error for first event: %v", err)
+	const eventCount = 8
+	for i := range eventCount {
+		if err := pa.handleJoinGroupAction(req, nil); err != nil {
+			t.Fatalf("handleJoinGroupAction returned error for event %d: %v", i+1, err)
+		}
 	}
 
 	select {
 	case <-em.sendGrCh:
 	case <-time.After(3 * time.Second):
-		t.Fatal("expected welcome message to be sent for first event")
+		t.Fatal("expected one welcome message to be sent")
 	}
 
-	if err := pa.handleJoinGroupAction(req, nil); err != nil {
-		t.Fatalf("handleJoinGroupAction returned error for repeated event: %v", err)
-	}
+	waitPureOnebotInfoLogCount(t, observed, "检查是否需要迎新", eventCount)
 
-	waitPureOnebotInfoLog(t, observed, "reason=duplicate_event")
+	select {
+	case <-em.sendGrCh:
+		t.Fatal("expected repeated concurrent events to be deduplicated")
+	default:
+	}
 
 	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
 		t.Fatalf("expected exactly one need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
 	}
-	if len(observed.FilterMessageSnippet("reason=duplicate_event").All()) != 1 {
-		t.Fatalf("expected one duplicate_event reason log, got %d", len(observed.FilterMessageSnippet("reason=duplicate_event").All()))
+	if len(observed.FilterMessageSnippet("reason=duplicate_event").All()) != eventCount-1 {
+		t.Fatalf("expected %d duplicate_event logs, got %d", eventCount-1, len(observed.FilterMessageSnippet("reason=duplicate_event").All()))
 	}
 	if len(observed.FilterMessageSnippet("发送迎新消息").All()) != 1 {
 		t.Fatalf("expected exactly one welcome send log, got %d", len(observed.FilterMessageSnippet("发送迎新消息").All()))
@@ -1127,13 +1134,18 @@ func TestPureOnebotHandleJoinGroupDeduplicatesRepeatedEvent(t *testing.T) {
 
 func waitPureOnebotInfoLog(t *testing.T, observed *observer.ObservedLogs, snippet string) {
 	t.Helper()
+	waitPureOnebotInfoLogCount(t, observed, snippet, 1)
+}
+
+func waitPureOnebotInfoLogCount(t *testing.T, observed *observer.ObservedLogs, snippet string, count int) {
+	t.Helper()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(observed.FilterMessageSnippet(snippet).All()) > 0 {
+		if len(observed.FilterMessageSnippet(snippet).All()) >= count {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("timed out waiting for log snippet %q", snippet)
+	t.Fatalf("timed out waiting for %d log entries containing %q", count, snippet)
 }
