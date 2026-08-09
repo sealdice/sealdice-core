@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	milky "github.com/Szzrain/Milky-go-sdk"
@@ -34,6 +35,9 @@ type PlatformAdapterMilky struct {
 	MilkyProcess      *procs.Process  `json:"-" yaml:"-"`
 	BuiltInLoginState MilkyLoginState `json:"loginState" yaml:"-"`
 	QrCodeData        []byte          `json:"-"                          yaml:"-"`
+	// Serializes ownership changes for the built-in child process.
+	builtInProcessMu   sync.Mutex
+	builtInProcessDone chan struct{}
 }
 
 type MilkyLoginState int64

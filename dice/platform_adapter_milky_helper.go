@@ -193,29 +193,13 @@ func BuiltinMilkyClientKill(dice *Dice, conn *EndPointInfo) {
 		}
 	}()
 	pa, ok := conn.Adapter.(*PlatformAdapterMilky)
-	if !ok {
+	if !ok || pa.BuiltInMode == "" {
 		return
 	}
-	if pa.BuiltInMode == "" {
-		return
-	}
-	defer func() {
-		pa.MilkyProcess = nil
-	}()
-	if pa.MilkyProcess != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		go func() {
-			<-ctx.Done()
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				dice.Logger.Error("Milky 进程未能在 5 秒内退出，可能需要手动结束")
-			}
-		}()
-		err := pa.MilkyProcess.Stop()
-		if err != nil {
-			dice.Logger.Error("停止 Milky 进程失败: ", err)
-		}
-		_ = pa.MilkyProcess.Wait()
+	pa.builtInProcessMu.Lock()
+	defer pa.builtInProcessMu.Unlock()
+	if err := stopMilkyBuiltInLocked(pa); err != nil {
+		dice.Logger.Error("停止 Milky 进程失败: ", err)
 	}
 }
 
@@ -226,6 +210,13 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 
 func serveMilkyBuiltIn(ctx context.Context, d *Dice, ep *EndPointInfo, reporter EndpointRunReporter) error {
 	defer CrashLog()
+	pa, ok := ep.Adapter.(*PlatformAdapterMilky)
+	if !ok || pa.BuiltInMode == "" {
+		return errors.New("milky built-in adapter is unavailable")
+	}
+	pa.builtInProcessMu.Lock()
+	defer pa.builtInProcessMu.Unlock()
+
 	if d.ContainerMode {
 		d.Logger.Warnf("当前处于容器模式，Milky 内置版本不可用")
 		ep.State = StateConnectionFailed
@@ -241,11 +232,10 @@ func serveMilkyBuiltIn(ctx context.Context, d *Dice, ep *EndPointInfo, reporter 
 		d.Save(false)
 		return err
 	}
-	conn := ep.Adapter.(*PlatformAdapterMilky)
 	doServe := func() {
 		if ep.Platform == "QQ" {
 			d.Logger.Infof("Milky 尝试连接")
-			if conn.Serve() != 0 {
+			if pa.Serve() != 0 {
 				d.Logger.Errorf("连接Milky失败")
 				ep.State = StateConnectionFailed
 				d.LastUpdatedTime = time.Now().Unix()
@@ -261,7 +251,6 @@ func serveMilkyBuiltIn(ctx context.Context, d *Dice, ep *EndPointInfo, reporter 
 			}
 		}
 	}
-	pa := conn
 	ep.BindRuntime(d.ImSession)
 	log := zap.S().Named(logger.LogKeyAdapter)
 
@@ -282,29 +271,23 @@ func serveMilkyBuiltIn(ctx context.Context, d *Dice, ep *EndPointInfo, reporter 
 	}
 	_ = os.MkdirAll(workDir, 0o755)
 	_ = os.Chmod(milkyExePath, 0o755)
-	if pa.MilkyProcess != nil {
-		BuiltinMilkyClientKill(d, ep)
+	if pa.IntentSession != nil {
+		_ = pa.IntentSession.Close()
+		pa.IntentSession = nil
 	}
-	if pa.WsGateway == "" {
-		p, err := GetRandomFreePort()
-		if err != nil {
-			log.Errorf("获取随机端口失败: %s", err)
-			ep.State = StateConnectionFailed
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-			return err
-		}
-		pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", p)
-		pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", p)
-		// 生成配置写入文件
-		accessToken := uuid.NewString()
-		pa.Token = accessToken
-		c := GenerateMilkyConfig(p, SealSignV3Url, accessToken, ep)
-		err = os.WriteFile(configFilePath, c, 0o644)
-		if err != nil {
-			log.Errorf("写入 Milky 配置文件失败: %s", err)
-			return err
-		}
+	if err := stopMilkyBuiltInLocked(pa); err != nil {
+		log.Errorf("停止已有 Milky 进程失败: %s", err)
+		ep.State = StateConnectionFailed
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return err
+	}
+	if err := prepareMilkyBuiltInConfig(ep, configFilePath); err != nil {
+		log.Errorf("生成 Milky 启动配置失败: %s", err)
+		ep.State = StateConnectionFailed
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return err
 	}
 	command := fmt.Sprintf(`"%s"`, milkyExePath)
 	p := procs.NewProcess(command)
@@ -397,43 +380,103 @@ func serveMilkyBuiltIn(ctx context.Context, d *Dice, ep *EndPointInfo, reporter 
 		}
 	}()
 
-	run := func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("MilkyInternal 异常: %v 堆栈: %v", r, string(debug.Stack()))
-			}
-		}()
+	if err := p.Start(); err != nil {
+		log.Info("Milky 进程启动失败: ", err)
+		ep.State = StateConnectionFailed
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return err
+	}
+	done := make(chan struct{})
+	pa.MilkyProcess = p
+	pa.builtInProcessDone = done
+	go waitMilkyBuiltIn(d, pa, p, done, reporter, ctx)
 
-		conn.MilkyProcess = p
-		// processStartTime := time.Now().Unix()
-		errRun := p.Start()
-
-		if errRun == nil {
-			if d.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
-				errAdd := d.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
-				if errAdd != nil {
-					log.Warn("添加到进程组失败，若主进程崩溃，Milky 进程可能需要手动结束")
-				}
-			}
-			errRun = p.Wait() //nolint:ineffassign
-		}
-
-		if errRun != nil {
-			log.Info("Milky 进程异常退出: ", errRun)
-			// Maybe some state change here
-			if reporter != nil && ctx.Err() == nil {
-				reporter.Closed(errRun)
-			}
-		} else {
-			log.Info("Milky 进程退出")
-			if reporter != nil && ctx.Err() == nil {
-				reporter.Closed(nil)
-			}
+	if d.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
+		if err := d.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process); err != nil {
+			log.Warn("添加到进程组失败，若主进程崩溃，Milky 进程可能需要手动结束")
 		}
 	}
 
-	go run()
+	d.LastUpdatedTime = time.Now().Unix()
+	d.Save(false)
 	return nil
+}
+
+func prepareMilkyBuiltInConfig(ep *EndPointInfo, configFilePath string) error {
+	port, err := GetRandomFreePort()
+	if err != nil {
+		return fmt.Errorf("获取随机端口失败: %w", err)
+	}
+	accessToken := uuid.NewString()
+	config := GenerateMilkyConfig(port, SealSignV3Url, accessToken, ep)
+	if len(config) == 0 {
+		return errors.New("不支持的内置 Milky 模式")
+	}
+	if err := os.WriteFile(configFilePath, config, 0o644); err != nil {
+		return fmt.Errorf("写入 Milky 配置文件失败: %w", err)
+	}
+
+	pa := ep.Adapter.(*PlatformAdapterMilky)
+	pa.WsGateway = fmt.Sprintf("ws://127.0.0.1:%d/event", port)
+	pa.RestGateway = fmt.Sprintf("http://127.0.0.1:%d/api", port)
+	pa.Token = accessToken
+	return nil
+}
+
+func stopMilkyBuiltInLocked(pa *PlatformAdapterMilky) error {
+	process := pa.MilkyProcess
+	if process == nil {
+		return nil
+	}
+	done := pa.builtInProcessDone
+	stopErr := process.Stop()
+	if done == nil {
+		return errors.New("milky 进程缺少退出通知")
+	}
+
+	select {
+	case <-done:
+		if pa.MilkyProcess == process {
+			pa.MilkyProcess = nil
+			pa.builtInProcessDone = nil
+		}
+		return nil
+	case <-time.After(5 * time.Second):
+		if stopErr != nil {
+			return fmt.Errorf("结束进程失败: %w", stopErr)
+		}
+		return errors.New("milky 进程未能在 5 秒内退出，可能需要手动结束")
+	}
+}
+
+func waitMilkyBuiltIn(d *Dice, pa *PlatformAdapterMilky, process *procs.Process, done chan struct{}, reporter EndpointRunReporter, ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			d.Logger.Errorf("MilkyInternal 异常: %v 堆栈: %v", r, string(debug.Stack()))
+		}
+		close(done)
+
+		pa.builtInProcessMu.Lock()
+		defer pa.builtInProcessMu.Unlock()
+		if pa.MilkyProcess == process {
+			pa.MilkyProcess = nil
+			pa.builtInProcessDone = nil
+		}
+	}()
+
+	err := process.Wait()
+	if err != nil {
+		d.Logger.Info("Milky 进程异常退出: ", err)
+		if reporter != nil && ctx.Err() == nil {
+			reporter.Closed(err)
+		}
+	} else {
+		d.Logger.Info("Milky 进程退出")
+		if reporter != nil && ctx.Err() == nil {
+			reporter.Closed(nil)
+		}
+	}
 }
 
 // GenerateMilkyConfig 似乎暂时不需要 APPInfo, 如果以后需要了再改成双返回值
