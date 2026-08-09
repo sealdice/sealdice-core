@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	milky "github.com/Szzrain/Milky-go-sdk"
@@ -33,6 +34,9 @@ type PlatformAdapterMilky struct {
 	MilkyProcess      *procs.Process  `json:"-" yaml:"-"`
 	BuiltInLoginState MilkyLoginState `json:"loginState" yaml:"-"`
 	QrCodeData        []byte          `json:"-"                          yaml:"-"`
+	// Serializes ownership changes for the built-in child process.
+	builtInProcessMu   sync.Mutex
+	builtInProcessDone chan struct{}
 }
 
 type MilkyLoginState int64
@@ -664,16 +668,8 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 		d.Save(false)
 		return true
 	}
-	// 内置
-	// 先断开连接
-	if pa.IntentSession != nil {
-		_ = pa.IntentSession.Close()
-	}
-	// kill
-	BuiltinMilkyClientKill(pa.EndPoint.Session.Parent, pa.EndPoint)
-	MilkyRemoveSession(pa.EndPoint.Session.Parent, pa.EndPoint)
-	go ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
-	return true
+	// 内置客户端的停止、会话清理和重启必须是一个串行操作。
+	return ReloginMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
 }
 
 func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
