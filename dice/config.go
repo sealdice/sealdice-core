@@ -2418,20 +2418,86 @@ func (d *Dice) loadAdvanced() {
 }
 
 func (d *Dice) SaveText() {
-	buf, err := yaml.Marshal(d.TextMapRaw)
+	buf, err := marshalTextTemplate(d.TextMapRaw)
 	if err != nil {
 		d.Logger.Error("Dice.SaveText", err)
-	} else {
-		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
-		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
-		current, err := os.ReadFile(newFn)
-		if err != nil {
-			_ = os.WriteFile(bakFn, current, 0o644) //nolint:gosec
-		}
-
-		_ = os.WriteFile(newFn, buf, 0o644)
+		return
 	}
+
+	newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
+	if err := saveTextTemplateFile(newFn, buf); err != nil {
+		d.Logger.Error("Dice.SaveText", err)
+	}
+}
+
+func marshalTextTemplate(texts TextTemplateWithWeightDict) (buf []byte, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			buf = nil
+			err = fmt.Errorf("序列化文案失败: %v", recovered)
+		}
+	}()
+
+	buf, err = yaml.Marshal(texts)
+	if err != nil {
+		return nil, fmt.Errorf("序列化文案失败: %w", err)
+	}
+
+	// 再次解析序列化结果，避免异常数据覆盖掉现有文案文件。
+	var parsed TextTemplateWithWeightDict
+	if err := yaml.Unmarshal(buf, &parsed); err != nil {
+		return nil, fmt.Errorf("校验生成的文案 YAML 失败: %w", err)
+	}
+	return buf, nil
+}
+
+func saveTextTemplateFile(filename string, data []byte) error {
+	dir := filepath.Dir(filename)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("创建文案目录失败: %w", err)
+	}
+
+	current, err := os.ReadFile(filename)
+	if err == nil {
+		backupErr := writeFileAtomically(filename+".bak", current, 0o644)
+		if backupErr != nil {
+			return fmt.Errorf("备份文案文件失败: %w", backupErr)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("读取现有文案文件失败: %w", err)
+	}
+
+	if err := writeFileAtomically(filename, data, 0o644); err != nil {
+		return fmt.Errorf("写入文案文件失败: %w", err)
+	}
+	return nil
+}
+
+func writeFileAtomically(filename string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(filename), "."+filepath.Base(filename)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName) //nolint:gosec
+	}()
+
+	if err := tmp.Chmod(perm); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpName, filename)
 }
 
 // ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
