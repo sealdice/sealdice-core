@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"strings"
 
 	"gorm.io/gorm"
@@ -26,9 +27,23 @@ func FlushWAL(db *gorm.DB) error {
 		return nil
 	}
 
-	// 执行 WAL 检查点操作
-	if err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE);").Error; err != nil {
-		return err // 返回错误
+	// SQLite reports a busy checkpoint in the result row instead of returning
+	// an SQL error. Treat any uncheckpointed page as a hard backup failure.
+	var checkpoint struct {
+		Busy         int `gorm:"column:busy"`
+		LogPages     int `gorm:"column:log"`
+		Checkpointed int `gorm:"column:checkpointed"`
+	}
+	if err := db.Raw("PRAGMA wal_checkpoint(TRUNCATE);").Scan(&checkpoint).Error; err != nil {
+		return err
+	}
+	if checkpoint.Busy != 0 || checkpoint.LogPages != checkpoint.Checkpointed {
+		return fmt.Errorf(
+			"sqlite WAL checkpoint 未完成: busy=%d log=%d checkpointed=%d",
+			checkpoint.Busy,
+			checkpoint.LogPages,
+			checkpoint.Checkpointed,
+		)
 	}
 	// 执行内存收缩操作
 	err := db.Exec("PRAGMA shrink_memory;").Error

@@ -1,8 +1,11 @@
 package dice
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,6 +31,54 @@ type VersionInfo struct {
 
 // MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
 const MaxTrayTooltipPrefixLength = 10
+
+var windowsReservedDiceNames = map[string]struct{}{
+	"CON": {}, "PRN": {}, "AUX": {}, "NUL": {}, "CLOCK$": {},
+	"COM1": {}, "COM2": {}, "COM3": {}, "COM4": {}, "COM5": {},
+	"COM6": {}, "COM7": {}, "COM8": {}, "COM9": {},
+	"LPT1": {}, "LPT2": {}, "LPT3": {}, "LPT4": {}, "LPT5": {},
+	"LPT6": {}, "LPT7": {}, "LPT8": {}, "LPT9": {},
+}
+
+// ValidateDiceConfigNames ensures every Dice name is a portable single path
+// segment before Dice.Init derives a data directory from it.
+func ValidateDiceConfigNames(configs []BaseConfig) error {
+	names := make([]string, 0, len(configs))
+	for index, config := range configs {
+		name := config.Name
+		if name == "" || strings.TrimSpace(name) != name {
+			return fmt.Errorf("第 %d 个 Dice 名称为空或含首尾空白", index+1)
+		}
+		if name == "." || name == ".." || filepath.IsAbs(name) || filepath.VolumeName(name) != "" {
+			return fmt.Errorf("dice 名称 %q 不是安全的单一路径段", name)
+		}
+		if strings.ContainsAny(name, `/\\:<>"|?*`) {
+			return fmt.Errorf("dice 名称 %q 含路径分隔符或非法字符", name)
+		}
+		if strings.HasSuffix(name, ".") {
+			return fmt.Errorf("dice 名称 %q 不能以点结尾", name)
+		}
+		for _, current := range name {
+			if current < 0x20 {
+				return fmt.Errorf("dice 名称 %q 含控制字符", name)
+			}
+		}
+		base := name
+		if dot := strings.IndexByte(base, '.'); dot >= 0 {
+			base = base[:dot]
+		}
+		if _, reserved := windowsReservedDiceNames[strings.ToUpper(base)]; reserved {
+			return fmt.Errorf("dice 名称 %q 是 Windows 保留设备名", name)
+		}
+		for _, previous := range names {
+			if strings.EqualFold(previous, name) {
+				return fmt.Errorf("dice 名称 %q 与 %q 仅大小写不同", name, previous)
+			}
+		}
+		names = append(names, name)
+	}
+	return nil
+}
 
 type GroupNameCacheItem struct {
 	Name string
@@ -89,8 +140,17 @@ type DiceManager struct { //nolint:revive
 	JsRegistry           *require.Registry
 	UpdateSealdiceByFile func(packName string) bool // 使用指定压缩包升级海豹，如果出错返回false，如果成功进程会自动结束
 
-	ContainerMode bool          // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
-	CleanupFlag   atomic.Uint32 // 1 为正在清理，0为普通状态
+	ContainerMode            bool          // 容器模式：禁用内置适配器，不允许使用内置Lagrange和旧的内置Gocq
+	CleanupFlag              atomic.Uint32 // 0 为运行中，1 为静默中，2 为已完成释放
+	runtimeCtx               context.Context
+	runtimeCancel            context.CancelFunc
+	runtimeMu                sync.Mutex
+	runtimeClosing           bool
+	runtimeListenAddress     string
+	runtimeConfiguredAddress string
+	runtimeWG                sync.WaitGroup
+	quiescePhase             lifecyclePhase
+	finalizePhase            lifecyclePhase
 }
 
 type Configs struct { //nolint:revive
@@ -240,9 +300,82 @@ func (dm *DiceManager) LoadDice() {
 	}
 }
 
+// SetRuntimeContext 设置当前 Runtime 的取消域，必须在 InitDice 前调用。
+func (dm *DiceManager) SetRuntimeContext(ctx context.Context, cancel context.CancelFunc) {
+	dm.runtimeMu.Lock()
+	defer dm.runtimeMu.Unlock()
+	dm.runtimeCtx = ctx
+	dm.runtimeCancel = cancel
+	dm.runtimeClosing = false
+}
+
+// SetRuntimeServeAddress separates the process listener from the address that
+// should be persisted for the next process start.
+func (dm *DiceManager) SetRuntimeServeAddress(listenAddress, configuredAddress string) {
+	dm.runtimeMu.Lock()
+	defer dm.runtimeMu.Unlock()
+	dm.runtimeListenAddress = listenAddress
+	dm.runtimeConfiguredAddress = configuredAddress
+	dm.ServeAddress = listenAddress
+}
+
+func (dm *DiceManager) context() context.Context {
+	if dm.runtimeCtx == nil {
+		return context.Background()
+	}
+	return dm.runtimeCtx
+}
+
+func (dm *DiceManager) goRuntime(fn func(context.Context)) bool {
+	dm.runtimeMu.Lock()
+	if dm.runtimeClosing {
+		dm.runtimeMu.Unlock()
+		return false
+	}
+	ctx := dm.context()
+	dm.runtimeWG.Add(1)
+	dm.runtimeMu.Unlock()
+	go func() {
+		defer dm.runtimeWG.Done()
+		fn(ctx)
+	}()
+	return true
+}
+
+// GoRuntime 注册属于当前 Runtime generation 的后台任务。
+// Runtime 进入关闭阶段后会拒绝新任务，避免 Wait 与 Add 并发。
+func (dm *DiceManager) GoRuntime(fn func(context.Context)) bool {
+	if fn == nil {
+		return false
+	}
+	return dm.goRuntime(fn)
+}
+
+func (dm *DiceManager) beginRuntimeTask() (func(), bool) {
+	dm.runtimeMu.Lock()
+	defer dm.runtimeMu.Unlock()
+	if dm.runtimeClosing {
+		return nil, false
+	}
+	dm.runtimeWG.Add(1)
+	return dm.runtimeWG.Done, true
+}
+
 func (dm *DiceManager) Save() {
 	var dc Configs
-	dc.ServeAddress = dm.ServeAddress
+	dm.runtimeMu.Lock()
+	serveAddress := dm.ServeAddress
+	if dm.runtimeListenAddress != "" {
+		if serveAddress != dm.runtimeListenAddress {
+			dm.runtimeConfiguredAddress = serveAddress
+			dm.ServeAddress = dm.runtimeListenAddress
+		}
+		if dm.runtimeConfiguredAddress != "" {
+			serveAddress = dm.runtimeConfiguredAddress
+		}
+	}
+	dm.runtimeMu.Unlock()
+	dc.ServeAddress = serveAddress
 	dc.TrayTooltip = dm.GetTrayTooltip()
 	dc.HelpDocEngineType = dm.HelpDocEngineType
 	dc.UIPasswordSalt = dm.UIPasswordSalt
@@ -330,7 +463,7 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 		i.Init(dm.Operator, writer)
 	}
 
-	go func() {
+	dm.goRuntime(func(ctx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Warn("帮助文档加载失败。可能是由于退出程序过快，帮助文档还未加载完成所致", r)
@@ -339,9 +472,14 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 				}
 			}
 		}()
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		// 加载帮助
 		dm.InitHelp()
-	}()
+	})
 
 	dm.ResetAutoBackup()
 	dm.ResetBackupClean()

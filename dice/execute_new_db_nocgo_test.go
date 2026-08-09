@@ -12,6 +12,7 @@ package dice
 // execute_new_db_cgo_test.go.
 
 import (
+	_ "github.com/ncruces/go-sqlite3/embed"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 

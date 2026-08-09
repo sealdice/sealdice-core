@@ -668,7 +668,12 @@ func (d *Dice) JsInit() {
 		// `)
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
+	loopDone := make(chan struct{})
+	d.jsLoopMu.Lock()
+	d.jsLoopDone = loopDone
+	d.jsLoopMu.Unlock()
 	go func() {
+		defer close(loopDone)
 		defer func() {
 			if r := recover(); r != nil {
 				d.Logger.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -692,6 +697,7 @@ func (d *Dice) JsShutdown() {
 }
 
 func (d *Dice) jsClear() {
+	sealws.GlobalConnManager.CloseAll()
 	// Wrapper 架构：不再调用 ExtRemove，只清空 JsExtRegistry
 	// 注意：不标记 wrapper 为 IsDeleted，否则重载期间消息到达会导致 wrapper 被移除
 	// IsDeleted 只在 JsDelete/ExtRemove（永久删除脚本）时设置

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -124,9 +127,158 @@ func hello2(c echo.Context) error {
 }
 
 var (
-	myDice *dice.Dice
-	dm     *dice.DiceManager
+	myDice               *dice.Dice
+	dm                   *dice.DiceManager
+	runtimeGate          sync.RWMutex
+	runtimeMaintenanceMu sync.Mutex
+	runtimeState         atomic.Int32
+	runtimeAuth          atomic.Pointer[runtimeAuthSnapshot]
+	runtimeRestoreFn     func(operationID string) bool
 )
+
+const (
+	runtimeStateRunning int32 = iota
+	runtimeStateReloading
+	runtimeStateUnavailable
+	runtimeGatePollInterval = 5 * time.Millisecond
+)
+
+type runtimeAuthSnapshot struct {
+	Salt             string
+	PasswordRequired bool
+}
+
+func runtimeUnavailableResponse(c echo.Context) error {
+	code := "RUNTIME_RELOADING"
+	message := "Runtime 正在重新加载，请稍后重试"
+	if runtimeState.Load() == runtimeStateUnavailable {
+		code = "RUNTIME_UNAVAILABLE"
+		message = "Runtime 当前不可用"
+	}
+	return c.JSON(http.StatusServiceUnavailable, map[string]any{
+		"result": false,
+		"code":   code,
+		"err":    message,
+	})
+}
+
+func runtimeMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		requestPath := c.Request().URL.Path
+		if !strings.HasPrefix(requestPath, "/sd-api/") && !strings.HasPrefix(requestPath, "/dice/api/") {
+			return next(c)
+		}
+		if requestPath == "/sd-api/backup/restore/status" || requestPath == "/sd-api/signin/salt" {
+			return next(c)
+		}
+		if runtimeState.Load() != runtimeStateRunning {
+			return runtimeUnavailableResponse(c)
+		}
+		runtimeGate.RLock()
+		defer runtimeGate.RUnlock()
+		if runtimeState.Load() != runtimeStateRunning || dm == nil || myDice == nil {
+			return runtimeUnavailableResponse(c)
+		}
+		return next(c)
+	}
+}
+
+func lockRuntimeGateContext(ctx context.Context, tryLock func() bool, unlock func()) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	ticker := time.NewTicker(runtimeGatePollInterval)
+	defer ticker.Stop()
+	for {
+		if tryLock() {
+			if err := ctx.Err(); err != nil {
+				unlock()
+				return err
+			}
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+func restoreRuntimeAvailabilityState() {
+	if dm == nil || myDice == nil {
+		runtimeState.Store(runtimeStateUnavailable)
+	} else {
+		runtimeState.Store(runtimeStateRunning)
+	}
+}
+
+func BeginRuntimeMaintenanceContext(ctx context.Context) error {
+	if err := lockRuntimeGateContext(ctx, runtimeMaintenanceMu.TryLock, runtimeMaintenanceMu.Unlock); err != nil {
+		return err
+	}
+	previousState := runtimeState.Swap(runtimeStateReloading)
+	if err := lockRuntimeGateContext(ctx, runtimeGate.TryLock, runtimeGate.Unlock); err != nil {
+		runtimeState.Store(previousState)
+		runtimeMaintenanceMu.Unlock()
+		return err
+	}
+	return nil
+}
+
+func BeginRuntimeMaintenance() {
+	runtimeMaintenanceMu.Lock()
+	runtimeState.Store(runtimeStateReloading)
+	runtimeGate.Lock()
+}
+
+func ReplaceRuntime(manager *dice.DiceManager) {
+	if manager == nil || len(manager.Dice) == 0 || manager.Dice[0] == nil {
+		dm = nil
+		myDice = nil
+		if runtimeState.Load() != runtimeStateReloading {
+			runtimeState.Store(runtimeStateUnavailable)
+		}
+		return
+	}
+	dm = manager
+	myDice = manager.Dice[0]
+	runtimeAuth.Store(&runtimeAuthSnapshot{
+		Salt:             manager.UIPasswordSalt,
+		PasswordRequired: manager.UIPasswordHash != "",
+	})
+	if runtimeState.Load() != runtimeStateReloading {
+		runtimeState.Store(runtimeStateRunning)
+	}
+}
+
+func EndRuntimeMaintenance() {
+	restoreRuntimeAvailabilityState()
+	runtimeGate.Unlock()
+	runtimeMaintenanceMu.Unlock()
+}
+
+// WithCurrentRuntime executes fn while the published Runtime is protected
+// from replacement. Callers must copy any data they need before fn returns.
+func WithCurrentRuntime(fn func(*dice.DiceManager)) bool {
+	if runtimeState.Load() != runtimeStateRunning {
+		return false
+	}
+	runtimeGate.RLock()
+	defer runtimeGate.RUnlock()
+	if runtimeState.Load() != runtimeStateRunning || dm == nil || myDice == nil || fn == nil {
+		return false
+	}
+	fn(dm)
+	return true
+}
+
+func SetRuntimeRestoreFunc(fn func(operationID string) bool) {
+	runtimeRestoreFn = fn
+}
 
 type fStopEcho struct {
 	Key string `json:"key"`
@@ -216,8 +368,14 @@ func forceStop(c echo.Context) error {
 }
 
 func doSignInGetSalt(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]string{
-		"salt": myDice.Parent.UIPasswordSalt,
+	c.Response().Header().Set(echo.HeaderCacheControl, "no-store")
+	auth := runtimeAuth.Load()
+	if auth == nil {
+		return runtimeUnavailableResponse(c)
+	}
+	return c.JSON(http.StatusOK, map[string]any{
+		"salt":             auth.Salt,
+		"passwordRequired": auth.PasswordRequired,
 	})
 }
 
@@ -577,8 +735,8 @@ func checkCronExpr(c echo.Context) error {
 }
 
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
-	dm = _myDice
-	myDice = _myDice.Dice[0]
+	ReplaceRuntime(_myDice)
+	e.Use(runtimeMiddleware)
 
 	prefix := "/sd-api"
 
@@ -669,6 +827,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.GET(prefix+"/backup/download", backupDownload)
 	e.POST(prefix+"/backup/delete", backupDelete)
 	e.POST(prefix+"/backup/batch_delete", backupBatchDelete)
+	e.POST(prefix+"/backup/upload", backupUpload)
+	e.POST(prefix+"/backup/restore", backupRestore)
+	e.GET(prefix+"/backup/restore/status", backupRestoreStatus)
 
 	e.GET(prefix+"/group/list", groupList)
 	e.POST(prefix+"/group/set_one", groupSetOne)

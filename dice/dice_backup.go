@@ -1,6 +1,8 @@
 package dice
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alexmullins/zip"
@@ -23,6 +26,8 @@ import (
 )
 
 const BackupDir = "./backups"
+
+var backupOperationMu sync.Mutex
 
 type BackupCleanStrategy int
 
@@ -82,8 +87,27 @@ const (
 )
 
 func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error) {
-	_ = os.MkdirAll(BackupDir, 0o755)
-	logger := dm.Dice[0].Logger
+	backupOperationMu.Lock()
+	defer backupOperationMu.Unlock()
+	return dm.backup(sel, fromAuto)
+}
+
+func (dm *DiceManager) backup(sel BackupSelection, fromAuto bool) (string, error) {
+	return dm.backupWithOptions(sel, fromAuto, false)
+}
+
+func (dm *DiceManager) backupStrict(sel BackupSelection) (string, error) {
+	return dm.backupWithOptions(sel, false, true)
+}
+
+func (dm *DiceManager) backupWithOptions(sel BackupSelection, fromAuto, strict bool) (result string, resultErr error) {
+	if dm == nil || len(dm.Dice) == 0 {
+		return "", errors.New("没有可备份的骰子实例")
+	}
+	if err := ensureBackupDirectoryLocked(); err != nil {
+		return "", err
+	}
+	log := logger.M()
 
 	cfgGlb := backupConfigGlobal{
 		Global: true,
@@ -106,73 +130,141 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	bakFn += "_" + fnHashed + ".zip"
 
 	fzip, err := os.OpenFile(filepath.Join(BackupDir, bakFn),
-		os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
+		os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o600)
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = fzip.Close() }()
-
 	writer := zip.NewWriter(fzip)
-	defer func(writer *zip.Writer) {
-		_ = writer.Close()
-	}(writer)
+	completed := false
+	defer func() {
+		if !completed {
+			_ = writer.Close()
+			_ = fzip.Close()
+			_ = os.Remove(fzip.Name())
+		}
+	}()
 
 	fileOK := func(fn string) bool {
-		stat, err := os.Stat(fn)
-		return err == nil && !stat.IsDir()
+		stat, statErr := os.Stat(fn)
+		return statErr == nil && !stat.IsDir()
 	}
 	dirOK := func(fn string) bool {
-		stat, err := os.Stat(fn)
-		return err == nil && stat.IsDir()
+		stat, statErr := os.Stat(fn)
+		return statErr == nil && stat.IsDir()
 	}
 
-	backup := func(d *Dice, fn string) {
-		file, err := os.Open(fn)
-		if err != nil && !strings.Contains(fn, "session.token") {
-			if d != nil {
-				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
-			} else {
-				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
-			}
+	manifestFiles := make([]backupManifestFile, 0, 32)
+	seen := map[string]struct{}{}
+	var strictErr error
+	logBackupError := func(d *Dice, fn string, err error) {
+		if d != nil && d.Logger != nil {
+			d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			return
 		}
-		defer file.Close()
-
-		h := &zip.FileHeader{Name: fn, Method: zip.Deflate, Flags: 0x800}
-		fileWriter, err := writer.CreateHeader(h)
-		if err != nil {
-			if d != nil {
-				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
-			} else {
-				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
-			}
+		log.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+	}
+	backupFile := func(d *Dice, fn string, required bool) {
+		if strict && strictErr != nil {
 			return
 		}
-
-		_, err = io.Copy(fileWriter, file)
-		if err != nil {
-			if d != nil {
-				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
-			} else {
-				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+		info, statErr := os.Lstat(fn)
+		if statErr != nil {
+			if errors.Is(statErr, os.ErrNotExist) && !required {
+				return
 			}
+			logBackupError(d, fn, statErr)
+			strictErr = errors.Join(strictErr, fmt.Errorf("备份 %s: %w", fn, statErr))
+			return
+		}
+		if !info.Mode().IsRegular() {
+			err = errors.New("不是普通文件或为符号链接")
+			logBackupError(d, fn, err)
+			strictErr = errors.Join(strictErr, fmt.Errorf("备份 %s: %w", fn, err))
+			return
+		}
+		archiveName, pathErr := managedArchivePath(fn)
+		if pathErr != nil {
+			logBackupError(d, fn, pathErr)
+			strictErr = errors.Join(strictErr, pathErr)
+			return
+		}
+		if isProcessOwnedRestorePath(archiveName) {
+			log.Warnf("跳过进程级占用文件: %s", archiveName)
+			return
+		}
+		key := strings.ToLower(archiveName)
+		if _, exists := seen[key]; exists {
+			err = fmt.Errorf("备份路径重复: %s", archiveName)
+			logBackupError(d, fn, err)
+			strictErr = errors.Join(strictErr, err)
+			return
+		}
+		file, openErr := os.Open(fn)
+		if openErr != nil {
+			logBackupError(d, fn, openErr)
+			strictErr = errors.Join(strictErr, fmt.Errorf("打开 %s: %w", fn, openErr))
+			return
+		}
+		h := &zip.FileHeader{Name: filepath.ToSlash(archiveName), Method: zip.Deflate, Flags: 0x800}
+		h.SetMode(0o600)
+		fileWriter, createErr := writer.CreateHeader(h)
+		if createErr != nil {
+			_ = file.Close()
+			logBackupError(d, fn, createErr)
+			strictErr = errors.Join(strictErr, fmt.Errorf("创建 ZIP 条目 %s: %w", archiveName, createErr))
+			return
+		}
+		hasher := sha256.New()
+		written, copyErr := io.Copy(io.MultiWriter(fileWriter, hasher), file)
+		closeErr := file.Close()
+		if copyErr != nil || closeErr != nil || written != info.Size() {
+			if copyErr == nil {
+				if closeErr != nil {
+					copyErr = closeErr
+				} else {
+					copyErr = fmt.Errorf("读取大小变化: 预期 %d，实际 %d", info.Size(), written)
+				}
+			}
+			logBackupError(d, fn, copyErr)
+			strictErr = errors.Join(strictErr, fmt.Errorf("写入 ZIP 条目 %s: %w", archiveName, copyErr))
+			return
+		}
+		seen[key] = struct{}{}
+		manifestFiles = append(manifestFiles, backupManifestFile{
+			Path:   filepath.ToSlash(archiveName),
+			Size:   uint64(written),
+			SHA256: hex.EncodeToString(hasher.Sum(nil)),
+		})
+	}
+	walkFiles := func(root string, visit func(string, fs.DirEntry) error) {
+		if strict && strictErr != nil {
+			return
+		}
+		walkErr := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				if errors.Is(walkErr, os.ErrNotExist) && path == root {
+					return filepath.SkipDir
+				}
+				return walkErr
+			}
+			if entry.Type()&os.ModeSymlink != 0 {
+				return fmt.Errorf("备份目录包含符号链接: %s", path)
+			}
+			return visit(path, entry)
+		})
+		if walkErr != nil {
+			logBackupError(nil, root, walkErr)
+			strictErr = errors.Join(strictErr, walkErr)
 		}
 	}
 
-	backupDir := func(path string, info fs.FileInfo, _ error) error {
-		if !info.IsDir() {
-			backup(nil, path)
-		}
-		return nil
-	}
-
-	backup(nil, "data/dice.yaml")
+	backupFile(nil, "data/dice.yaml", true)
 
 	if sel&BackupSelectionDecks != 0 {
 		cfgGlb.Decks = true
-		_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, _ error) error {
+		walkFiles("data/decks", func(path string, info fs.DirEntry) error {
 			if !info.IsDir() {
-				backup(nil, path)
+				backupFile(nil, path, true)
 				return nil
 			}
 			base := filepath.Base(path)
@@ -188,37 +280,57 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 
 	if sel&BackupSelectionHelpDoc != 0 {
 		if !dirOK("data/helpdoc") {
-			logger.Warn("备份 helpdoc 失败: 不存在或不是目录")
+			log.Warn("备份 helpdoc 失败: 不存在或不是目录")
 		} else {
 			cfgGlb.HelpDoc = true
-			_ = filepath.Walk("data/helpdoc", backupDir)
+			walkFiles("data/helpdoc", func(path string, info fs.DirEntry) error {
+				if !info.IsDir() {
+					backupFile(nil, path, true)
+				}
+				return nil
+			})
 		}
 	}
 
 	if sel&BackupSelectionCensor != 0 {
 		if !dirOK("data/censor") {
-			logger.Warn("备份 censor 失败: 不存在或不是目录")
+			log.Warn("备份 censor 失败: 不存在或不是目录")
 		} else {
 			cfgGlb.Censor = true
-			_ = filepath.Walk("data/censor", backupDir)
+			walkFiles("data/censor", func(path string, info fs.DirEntry) error {
+				if !info.IsDir() {
+					backupFile(nil, path, true)
+				}
+				return nil
+			})
 		}
 	}
 
 	if sel&BackupSelectionNames != 0 {
 		if !dirOK("data/names") {
-			logger.Warn("备份 names 失败: 不存在或不是目录")
+			log.Warn("备份 names 失败: 不存在或不是目录")
 		} else {
 			cfgGlb.Names = true
-			_ = filepath.Walk("data/names", backupDir)
+			walkFiles("data/names", func(path string, info fs.DirEntry) error {
+				if !info.IsDir() {
+					backupFile(nil, path, true)
+				}
+				return nil
+			})
 		}
 	}
 
 	if sel&BackupSelectionImages != 0 {
 		if !dirOK("data/images") {
-			logger.Warn("备份 images 失败: 不存在或不是目录")
+			log.Warn("备份 images 失败: 不存在或不是目录")
 		} else {
 			cfgGlb.Images = true
-			_ = filepath.Walk("data/images", backupDir)
+			walkFiles("data/images", func(path string, info fs.DirEntry) error {
+				if !info.IsDir() {
+					backupFile(nil, path, true)
+				}
+				return nil
+			})
 		}
 	}
 
@@ -226,41 +338,27 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	cfgDice.JSScripts = withJS
 
 	for _, d := range dm.Dice {
+		if d == nil {
+			strictErr = errors.Join(strictErr, errors.New("备份列表包含空 Dice 实例"))
+			if strict {
+				break
+			}
+			continue
+		}
 		cfgGlb.Dices[d.BaseConfig.Name] = &cfgDice
 		dataDir := d.BaseConfig.DataDir
 
-		backup(d, filepath.Join(dataDir, "serve.yaml"))
+		backupFile(d, filepath.Join(dataDir, "serve.yaml"), true)
 		if fn := filepath.Join(dataDir, "advanced.yaml"); fileOK(fn) {
-			backup(d, fn)
+			backupFile(d, fn, true)
 		}
 		if fn := filepath.Join(dataDir, "configs", "plugin-configs.json"); fileOK(fn) {
-			backup(d, fn)
+			backupFile(d, fn, true)
 		}
 
-		err := service.FlushWAL(d.DBOperator.GetDataDB(constant.WRITE))
-		if err != nil {
-			d.Logger.Errorf("备份时data数据库flush出错 错误为:%v", err.Error())
-		} else {
-			backup(d, filepath.Join(dataDir, "data.db"))
-		}
-		err = service.FlushWAL(d.DBOperator.GetLogDB(constant.WRITE))
-		if err != nil {
-			d.Logger.Errorf("备份时logs数据库flush出错 错误为:%v", err.Error())
-		} else {
-			backup(d, filepath.Join(dataDir, "data-logs.db"))
-		}
-		if d.CensorManager != nil && d.CensorManager.DB != nil {
-			err = service.FlushWAL(d.DBOperator.GetCensorDB(constant.WRITE))
-			if err != nil {
-				d.Logger.Errorf("备份时censor数据库flush出错 %v", err.Error())
-			} else {
-				backup(d, filepath.Join(dataDir, "data-censor.db"))
-			}
-		}
+		backupFile(d, filepath.Join(dataDir, "configs/text-template.yaml"), false)
 
-		backup(d, filepath.Join(dataDir, "configs/text-template.yaml"))
-
-		_ = filepath.WalkDir(filepath.Join(dataDir, "extensions/reply"), func(path string, info fs.DirEntry, _ error) error {
+		walkFiles(filepath.Join(dataDir, "extensions/reply"), func(path string, info fs.DirEntry) error {
 			// NOTE(Xiangze Li): copied from dice.ReplyReload. Should extract as function, but I'm lazy
 			if info.IsDir() {
 				if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
@@ -274,30 +372,35 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 
 			ext := filepath.Ext(path)
 			if ext == ".yaml" || ext == "" {
-				backup(d, path)
+				backupFile(d, path, true)
 			}
 			return nil
 		})
 
-		for _, i := range d.ImSession.EndPoints {
-			if i.Platform == "QQ" {
-				if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
-					workDir := i.RelWorkDir
-					if pa.BuiltinMode == "lagrange" {
-						backup(d, filepath.Join(dataDir, workDir, "appsettings.json"))
-						backup(d, filepath.Join(dataDir, workDir, "device.json"))
-						backup(d, filepath.Join(dataDir, workDir, "keystore.json"))
-					} else {
-						backup(d, filepath.Join(dataDir, workDir, "config.yml"))
-						backup(d, filepath.Join(dataDir, workDir, "device.json"))
-						backup(d, filepath.Join(dataDir, workDir, "session.token"))
+		if d.ImSession != nil {
+			for _, i := range d.ImSession.EndPoints {
+				if i == nil {
+					continue
+				}
+				if i.Platform == "QQ" {
+					if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
+						workDir := i.RelWorkDir
+						if pa.BuiltinMode == "lagrange" {
+							backupFile(d, filepath.Join(dataDir, workDir, "appsettings.json"), false)
+							backupFile(d, filepath.Join(dataDir, workDir, "device.json"), false)
+							backupFile(d, filepath.Join(dataDir, workDir, "keystore.json"), false)
+						} else {
+							backupFile(d, filepath.Join(dataDir, workDir, "config.yml"), false)
+							backupFile(d, filepath.Join(dataDir, workDir, "device.json"), false)
+							backupFile(d, filepath.Join(dataDir, workDir, "session.token"), false)
+						}
 					}
 				}
 			}
 		}
 
 		if withJS {
-			_ = filepath.WalkDir(filepath.Join(dataDir, "scripts"), func(path string, info fs.DirEntry, _ error) error {
+			walkFiles(filepath.Join(dataDir, "scripts"), func(path string, info fs.DirEntry) error {
 				if info.IsDir() {
 					if info.Name() == "_builtin" {
 						return filepath.SkipDir
@@ -305,12 +408,12 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 					return nil
 				}
 				if filepath.Ext(info.Name()) == ".js" {
-					backup(d, path)
+					backupFile(d, path, true)
 				}
 				return nil
 			})
 			extDataDir := filepath.Join(dataDir, "extensions")
-			_ = filepath.WalkDir(extDataDir, func(path string, info fs.DirEntry, err error) error {
+			walkFiles(extDataDir, func(path string, info fs.DirEntry) error {
 				if info.IsDir() {
 					if filepath.Dir(path) == extDataDir {
 						if ext := d.ExtFind(info.Name(), false); ext == nil || !ext.IsJsExt {
@@ -319,23 +422,109 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 					}
 					return nil
 				}
-				backup(d, path)
+				backupFile(d, path, true)
 				return nil
 			})
 		}
 	}
 
+	databaseType := ""
+	if dm.Operator != nil {
+		databaseType = dm.Operator.Type()
+	}
+	if databaseType == "" {
+		strictErr = errors.Join(strictErr, errors.New("数据库类型为空，无法创建可验证备份"))
+	}
+	if databaseType == constant.SQLITE {
+		databaseFiles, pathErr := managedSQLiteDatabaseFiles(dm, strict)
+		if pathErr != nil {
+			strictErr = errors.Join(strictErr, pathErr)
+			if !strict {
+				log.Errorf("备份 SQLite 数据库失败: %v", pathErr)
+			}
+		} else {
+			dbHandles := []struct {
+				name string
+				db   func() error
+			}{
+				{name: "data", db: func() error {
+					database := dm.Operator.GetDataDB(constant.WRITE)
+					if database == nil {
+						return errors.New("data 数据库句柄为空")
+					}
+					return service.FlushWAL(database)
+				}},
+				{name: "logs", db: func() error {
+					database := dm.Operator.GetLogDB(constant.WRITE)
+					if database == nil {
+						return errors.New("logs 数据库句柄为空")
+					}
+					return service.FlushWAL(database)
+				}},
+				{name: "censor", db: func() error {
+					database := dm.Operator.GetCensorDB(constant.WRITE)
+					if database == nil {
+						return errors.New("censor 数据库句柄为空")
+					}
+					return service.FlushWAL(database)
+				}},
+			}
+			for index, databaseFile := range databaseFiles {
+				flushErr := dbHandles[index].db()
+				if flushErr != nil {
+					log.Errorf("备份时 %s 数据库 flush 出错: %v", dbHandles[index].name, flushErr)
+					if strict || databaseFile.Name != "data-censor.db" {
+						strictErr = errors.Join(strictErr, fmt.Errorf("flush %s 数据库: %w", dbHandles[index].name, flushErr))
+					}
+					continue
+				}
+				backupFile(nil, databaseFile.Path, strict || databaseFile.Name != "data-censor.db")
+			}
+		}
+	} else if strict {
+		strictErr = errors.Join(strictErr, fmt.Errorf("安全备份仅支持 SQLite，当前数据库类型为 %q", databaseType))
+	}
+	if strictErr != nil {
+		return "", strictErr
+	}
+	sort.Slice(manifestFiles, func(i, j int) bool { return manifestFiles[i].Path < manifestFiles[j].Path })
+
 	// 写入文件信息
-	data, _ := json.Marshal(map[string]interface{}{
-		"config":      cfgGlb,
-		"version":     VERSION.String(),
-		"versionCode": VERSION_CODE,
+	data, err := json.Marshal(backupManifest{
+		FormatVersion: backupManifestFormatVersion,
+		RestorePolicy: backupRestorePolicyOverlay,
+		DatabaseType:  databaseType,
+		Files:         manifestFiles,
+		Config:        mustMarshalJSON(cfgGlb),
+		Version:       mustMarshalJSON(VERSION.String()),
+		VersionCode:   VERSION_CODE,
 	})
+	if err != nil {
+		return "", err
+	}
 
 	h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
-	fileWriter, _ := writer.CreateHeader(h)
-	_, _ = fileWriter.Write(data)
-
+	h.SetMode(0o600)
+	fileWriter, err := writer.CreateHeader(h)
+	if err != nil {
+		return "", err
+	}
+	if _, err = fileWriter.Write(data); err != nil {
+		return "", err
+	}
+	if err = writer.Close(); err != nil {
+		return "", err
+	}
+	if err = fzip.Sync(); err != nil {
+		return "", err
+	}
+	if err = fzip.Close(); err != nil {
+		return "", err
+	}
+	if err = syncDirectory(BackupDir); err != nil {
+		return "", err
+	}
+	completed = true
 	return fzip.Name(), nil
 }
 
@@ -351,6 +540,11 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 
 	if fromAuto && (dm.BackupCleanTrigger&BackupCleanTriggerRotate == 0) {
 		return nil
+	}
+	backupOperationMu.Lock()
+	defer backupOperationMu.Unlock()
+	if err = validateBackupDirectoryLocked(); err != nil {
+		return err
 	}
 
 	log := logger.M()
@@ -408,7 +602,11 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 
 	errDel := []string{}
 	for i, fi := range fileInfoOld {
-		_, _ = fmt.Fprintf(&logMsg, "\n%d. %s", i+1, fi.Name())     //nolint:gosec
+		_, _ = fmt.Fprintf(&logMsg, "\n%d. %s", i+1, fi.Name()) //nolint:gosec
+		if BackupInUse(fi.Name()) {
+			_, _ = fmt.Fprintf(&logMsg, "（恢复事务正在使用，已跳过）") //nolint:gosec
+			continue
+		}
 		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name())) //nolint:gosec
 		if errDelete != nil {
 			errDel = append(errDel, errDelete.Error())

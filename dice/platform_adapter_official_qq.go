@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -104,7 +105,12 @@ type PlatformAdapterOfficialQQ struct {
 	botID          string               `json:"-" yaml:"-"`
 
 	// Webhook服务
-	webhookServer *http.Server `json:"-" yaml:"-"`
+	webhookServer   *http.Server `json:"-" yaml:"-"`
+	runtimeMu       sync.Mutex
+	sessionDone     chan struct{}
+	webhookDone     chan struct{}
+	qrDone          chan struct{}
+	runtimeStopping atomic.Bool
 
 	paginationCache map[string]*PaginationItem `json:"-" yaml:"-"`
 	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
@@ -378,6 +384,7 @@ func (pa *PlatformAdapterOfficialQQ) failConnect() int {
 }
 
 func (pa *PlatformAdapterOfficialQQ) Serve() int {
+	pa.runtimeStopping.Store(false)
 	ep := pa.EndPoint
 	log := pa.EndPoint.Session.Parent.Logger
 
@@ -407,6 +414,9 @@ func (pa *PlatformAdapterOfficialQQ) Serve() int {
 // connect 建立正式连接。probe 非空时复用探测结果，避免重复拉取机器人信息。
 // 调用方需确保 AppID/AppSecret 已就绪。
 func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult) int {
+	if pa.runtimeStopping.Load() {
+		return 1
+	}
 	ep := pa.EndPoint
 	log := ep.Session.Parent.Logger
 	d := ep.Session.Parent
@@ -488,16 +498,22 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 			ReadHeaderTimeout: 3 * time.Second,
 		}
 
-		go func() {
+		webhookDone := make(chan struct{})
+		pa.runtimeMu.Lock()
+		pa.webhookDone = webhookDone
+		server := pa.webhookServer
+		pa.runtimeMu.Unlock()
+		runDiceRuntimeTask(ep.Session.Parent, func() {
+			defer close(webhookDone)
 			log.Infof("official qq webhook: 监听地址 %s%s", addr, pa.WebhookPath)
-			if err := pa.webhookServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				log.Error("official qq webhook服务器启动失败: ", err)
 				if pa.Ctx == ctx {
 					ep.State = 3
 					ep.Enable = false
 				}
 			}
-		}()
+		})
 
 		ep.State = 1
 		ep.Enable = true
@@ -543,14 +559,20 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 		intent |= dto.IntentGroupMembers
 	}
 
+	sessionManager := pa.SessionManager
+	sessionDone := make(chan struct{})
+	pa.runtimeMu.Lock()
+	pa.sessionDone = sessionDone
+	pa.runtimeMu.Unlock()
 	go func() {
+		defer close(sessionDone)
 		currentCtx := ctx
 		defer func() {
 			isCurrent := pa.Ctx == currentCtx
 			// 防止崩掉进程
 			if r := recover(); r != nil {
 				log.Error("official qq 启动失败: ", r)
-				if isCurrent {
+				if isCurrent && !pa.runtimeStopping.Load() {
 					ep.State = 3
 					ep.Enable = false
 				}
@@ -561,9 +583,9 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 				pa.SessionManager = nil
 			}
 		}()
-		if startErr := pa.SessionManager.Start(currentCtx, ws, pa.tokenSource, &intent); startErr != nil {
+		if startErr := sessionManager.Start(currentCtx, ws, pa.tokenSource, &intent); startErr != nil {
 			log.Error("official qq session manager 启动失败: ", startErr)
-			if pa.Ctx == currentCtx {
+			if pa.Ctx == currentCtx && !pa.runtimeStopping.Load() {
 				ep.State = 3
 				ep.Enable = false
 			}
@@ -1036,14 +1058,14 @@ func (pa *PlatformAdapterOfficialQQ) GroupMemberAddReceive(event *dto.WSPayload,
 		log.Infof("official qq: 机器人加入群 %s", groupID)
 
 		// 发送入群致辞
-		go func() {
+		runDiceRuntimeTask(s.Parent, func() {
 			time.Sleep(2 * time.Second)
 			ctx.Player = &GroupPlayerInfo{}
 			text := DiceFormatTmpl(ctx, "核心:骰子进群")
 			for _, i := range ctx.SplitText(text) {
 				pa.SendToGroup(ctx, groupID, strings.TrimSpace(i), "")
 			}
-		}()
+		})
 	} else {
 		// 普通成员进群
 		ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: s.Parent}
@@ -1162,8 +1184,14 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 		welcomeStr := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 		log.Infof("official qq: 与%s 成为好友，发送好友致辞 %s", userID, welcomeStr)
 
-		go func() {
-			time.Sleep(2 * time.Second)
+		runDiceRuntimeTaskContext(s.Parent, func(runtimeCtx context.Context) {
+			timer := time.NewTimer(2 * time.Second)
+			defer timer.Stop()
+			select {
+			case <-runtimeCtx.Done():
+				return
+			case <-timer.C:
+			}
 			for _, i := range ctx.SplitText(welcomeStr) {
 				pa.SendToPerson(ctx, userID, strings.TrimSpace(i), "")
 			}
@@ -1175,7 +1203,7 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 					return func() { ext.OnBecomeFriend(ctx, msg) }
 				})
 			}
-		}()
+		})
 	case dto.EventC2CFriendDel:
 		userID := formatDiceIDOfficialQQUserOpenID(pa.UIN, data.OpenID)
 		log.Infof("official qq: 与 %s 解除好友关系", userID)
@@ -2351,7 +2379,7 @@ func (pa *PlatformAdapterOfficialQQ) handleWebhookCallback(w http.ResponseWriter
 	}
 
 	// 异步处理事件
-	go func() {
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
 		defer func() {
 			if rec := recover(); rec != nil {
 				log.Errorf("official qq webhook: 处理事件异常: %v", rec)
@@ -2360,7 +2388,7 @@ func (pa *PlatformAdapterOfficialQQ) handleWebhookCallback(w http.ResponseWriter
 		if err := event.ParseAndHandle(&payload); err != nil {
 			log.Errorf("official qq webhook: 事件处理失败: %v", err)
 		}
-	}()
+	})
 }
 
 // verifyWebhookSignature 验证Webhook签名
@@ -2796,7 +2824,12 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 	pa.qrMu.Unlock()
 	log.Info("official qq 扫码二维码已就绪")
 
+	qrDone := make(chan struct{})
+	pa.runtimeMu.Lock()
+	pa.qrDone = qrDone
+	pa.runtimeMu.Unlock()
 	go func() {
+		defer close(qrDone)
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
@@ -2824,6 +2857,10 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 
 			switch result.Status {
 			case qqBotBindStatusComplete:
+				if pa.runtimeStopping.Load() {
+					curSession.mu.Unlock()
+					return
+				}
 				pa.AppID = strings.TrimSpace(result.BotAppID)
 				curSession.mu.Unlock()
 				if pa.AppID == "" {

@@ -12,11 +12,10 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"sealdice-core/dice"
 	"sealdice-core/logger"
 )
 
-func trayInit(dm *dice.DiceManager) {
+func trayInit(_ func()) {
 	select {}
 }
 
@@ -38,26 +37,26 @@ func showMsgBox(title string, message string) {
 	logger.M().Info(title, message)
 }
 
-func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
+func httpServe(e *echo.Echo, serveAddress string, hideUI bool) {
 	log := logger.M()
 	portStr := "3211"
 	rePort := regexp.MustCompile(`:(\d+)$`)
-	m := rePort.FindStringSubmatch(dm.ServeAddress)
+	m := rePort.FindStringSubmatch(serveAddress)
 	if len(m) > 0 {
 		portStr = m[1]
 	}
 
 	ln, err := net.Listen("tcp", ":"+portStr)
 	if err != nil {
-		log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+		log.Errorf("端口已被占用，即将自动退出: %s", serveAddress)
 		runtime.Goexit()
 	}
 	_ = ln.Close()
 
 	log.Infof("如果浏览器没有自动打开，请手动访问:\nhttp://localhost:%s", portStr)
-	err = e.Start(dm.ServeAddress)
+	err = e.Start(serveAddress)
 	if err != nil {
-		log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+		log.Errorf("端口已被占用，即将自动退出: %s", serveAddress)
 		return
 	}
 }

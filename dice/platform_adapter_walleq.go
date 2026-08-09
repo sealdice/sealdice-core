@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -11,6 +12,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -32,6 +35,11 @@ type PlatformAdapterWalleQ struct {
 	CurLoginIndex   int                 `json:"curLoginIndex"   yaml:"-"`               // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
 	WalleQProcess           *procs.Process `json:"-"                    yaml:"-"`
+	processMu               sync.Mutex     `json:"-"                    yaml:"-"`
+	processStarted          bool           `json:"-"                    yaml:"-"`
+	processDone             chan struct{}  `json:"-"                    yaml:"-"`
+	runtimeMu               sync.Mutex     `json:"-"                    yaml:"-"`
+	runtimeStopping         atomic.Bool    `json:"-"                    yaml:"-"`
 	WalleQLoginFailedReason string         `json:"curLoginFailedReason" yaml:"-"` // 当前登录失败原因
 
 	WalleQLoginVerifyCode    string `json:"WalleQLoginVerifyCode"    yaml:"-"`
@@ -170,6 +178,9 @@ type OnebotV12UserInfo struct {
 }
 
 func (pa *PlatformAdapterWalleQ) Serve() int {
+	if pa.runtimeStopping.Load() {
+		return 0
+	}
 	pa.Implementation = "walle-q"
 	ep := pa.EndPoint
 	s := pa.EndPoint.Session
@@ -177,11 +188,33 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	dm := s.Parent.Parent
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(interrupt)
 
-	pa.InPackWalleQDisconnectedCH = make(chan int, 1)
+	pa.runtimeMu.Lock()
+	if pa.runtimeStopping.Load() {
+		pa.runtimeMu.Unlock()
+		return 0
+	}
+	disconnected := make(chan int, 1)
+	pa.InPackWalleQDisconnectedCH = disconnected
+	pa.runtimeMu.Unlock()
+	defer func() {
+		pa.runtimeMu.Lock()
+		if pa.InPackWalleQDisconnectedCH == disconnected {
+			pa.InPackWalleQDisconnectedCH = nil
+		}
+		pa.runtimeMu.Unlock()
+	}()
 
 	socket := gowebsocket.New(pa.ConnectURL)
+	pa.runtimeMu.Lock()
+	if pa.runtimeStopping.Load() {
+		pa.runtimeMu.Unlock()
+		socket.Close()
+		return 0
+	}
 	pa.Socket = &socket
+	pa.runtimeMu.Unlock()
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		ep.State = 1
@@ -193,7 +226,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 		// refused 不算大事
 		log.Error("onebot connection error: ", err)
 		// }
-		pa.InPackWalleQDisconnectedCH <- 2
+		signalAdapterStop(disconnected, 2)
 	}
 	var lastWelcome *LastWelcomeInfoWQ
 
@@ -245,7 +278,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 			time.Sleep(2 * time.Second)
 			groupName := dm.TryGetGroupName(msg.GroupID)
-			go func() {
+			runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
 				defer func() {
 					if r := recover(); r != nil {
 						log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -271,7 +304,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 						return func() { ext.OnGroupJoined(ctx, msg) }
 					})
 				}
-			}()
+			})
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, event.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt, NoticeTypeGroup)
@@ -697,29 +730,32 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("onebot 服务的连接被对方关闭 ")
-		pa.InPackWalleQDisconnectedCH <- 1
+		signalAdapterStop(disconnected, 1)
 	}
 
 	socket.Connect()
 	defer func() {
 		log.Info("socket close")
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Error("关闭连接时遭遇异常", r)
-				}
-			}()
-			socket.Close()
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("关闭连接时遭遇异常", r)
+			}
 		}()
+		socket.Close()
+		pa.runtimeMu.Lock()
+		if pa.Socket == &socket {
+			pa.Socket = nil
+		}
+		pa.runtimeMu.Unlock()
 	}()
 
 	for {
 		select {
 		case <-interrupt:
 			log.Info("interrupt")
-			pa.InPackWalleQDisconnectedCH <- 0
+			signalAdapterStop(disconnected, 0)
 			return 0
-		case val := <-pa.InPackWalleQDisconnectedCH:
+		case val := <-disconnected:
 			return val
 		}
 	}
@@ -731,18 +767,21 @@ func (pa *PlatformAdapterWalleQ) DoRelogin() bool {
 	d := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
 	if pa.Socket != nil {
-		go pa.Socket.Close()
+		socket := pa.Socket
+		runDiceRuntimeTask(d, socket.Close)
 		pa.Socket = nil
 	}
 	if pa.UseInPackWalleQ {
 		if pa.InPackWalleQDisconnectedCH != nil {
-			pa.InPackWalleQDisconnectedCH <- -1
+			signalAdapterStop(pa.InPackWalleQDisconnectedCH, -1)
 		}
 		d.Logger.Infof(fmt.Sprintf("重启 Walle-q，账号<%s>(%s)", ep.Nickname, ep.UserID))
 		pa.CurLoginIndex++
 		pa.WalleQState = WqStateCodeInit
-		go WalleQServeProcessKill(d, ep)
-		time.Sleep(10 * time.Second)
+		WalleQServeProcessKill(d, ep)
+		if !waitRuntimeDelay(diceRuntimeContext(d), 10*time.Second) {
+			return false
+		}
 		WalleQServeRemoveSessionToken(d, ep)
 		pa.WalleQLastRestrictedTime = 0
 		WalleQServe(d, ep, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, true)
@@ -760,15 +799,29 @@ func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
 
 		if pa.UseInPackWalleQ {
 			WalleQServeProcessKill(d, c)
-			time.Sleep(1 * time.Second)
+			if !waitRuntimeDelay(diceRuntimeContext(d), time.Second) {
+				return
+			}
 			WalleQServe(d, c, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, true)
-			go ServeQQ(d, c)
+			runDiceRuntimeTaskWithContext(d, func(ctx context.Context) {
+				if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+					ServeQQ(d, c)
+				}
+			})
 		} else {
-			go ServeQQ(d, c)
+			runDiceRuntimeTaskWithContext(d, func(ctx context.Context) {
+				if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+					ServeQQ(d, c)
+				}
+			})
 		}
 	} else {
 		c.Enable = false
 		pa.DiceServing = false
+		if pa.Socket != nil {
+			pa.Socket.Close()
+			pa.Socket = nil
+		}
 		if pa.UseInPackWalleQ {
 			WalleQServeProcessKill(d, c)
 		}

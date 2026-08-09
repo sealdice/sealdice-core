@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	crand "crypto/rand"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ShiraazMoollatjie/goluhn"
@@ -25,6 +27,138 @@ import (
 	"sealdice-core/utils"
 	"sealdice-core/utils/procs"
 )
+
+func runDiceRuntimeTaskWithContext(d *Dice, task func(context.Context)) bool {
+	if d != nil && d.Parent != nil {
+		return d.Parent.GoRuntime(task)
+	}
+	go task(context.Background())
+	return true
+}
+
+func diceRuntimeContext(d *Dice) context.Context {
+	if d != nil && d.Parent != nil {
+		return d.Parent.context()
+	}
+	return context.Background()
+}
+
+func waitRuntimeDelay(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func startManagedProcess(
+	ctx context.Context,
+	mu *sync.Mutex,
+	current **procs.Process,
+	started *bool,
+	done *chan struct{},
+	process *procs.Process,
+) error {
+	for {
+		mu.Lock()
+		if err := ctx.Err(); err != nil {
+			mu.Unlock()
+			return err
+		}
+		if *current == nil {
+			break
+		}
+		previousDone := *done
+		mu.Unlock()
+		if previousDone == nil {
+			return errors.New("内置客户端进程状态不完整")
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-previousDone:
+		}
+	}
+	*current = process
+	*done = make(chan struct{})
+	if err := process.Start(); err != nil {
+		*current = nil
+		close(*done)
+		*done = nil
+		mu.Unlock()
+		return err
+	}
+	*started = true
+	mu.Unlock()
+	return nil
+}
+
+func waitManagedProcess(
+	mu *sync.Mutex,
+	current **procs.Process,
+	started *bool,
+	done *chan struct{},
+	process *procs.Process,
+) error {
+	err := process.Wait()
+	mu.Lock()
+	if *current == process {
+		*current = nil
+		*started = false
+		if *done != nil {
+			close(*done)
+			*done = nil
+		}
+	}
+	mu.Unlock()
+	return err
+}
+
+func stopManagedProcess(
+	mu *sync.Mutex,
+	current **procs.Process,
+	started *bool,
+	expected *procs.Process,
+) error {
+	mu.Lock()
+	defer mu.Unlock()
+	if *current == nil || !*started || (expected != nil && *current != expected) {
+		return nil
+	}
+	if err := (*current).KillProcess(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		return err
+	}
+	return nil
+}
+
+func (pa *PlatformAdapterGocq) startGoCqhttpProcess(ctx context.Context, process *procs.Process) error {
+	if pa.runtimeStopping.Load() {
+		return context.Canceled
+	}
+	return startManagedProcess(ctx, &pa.processMu, &pa.GoCqhttpProcess, &pa.processStarted, &pa.processDone, process)
+}
+
+func (pa *PlatformAdapterGocq) waitGoCqhttpProcess(process *procs.Process) error {
+	return waitManagedProcess(&pa.processMu, &pa.GoCqhttpProcess, &pa.processStarted, &pa.processDone, process)
+}
+
+func (pa *PlatformAdapterGocq) stopGoCqhttpProcess() error {
+	return stopManagedProcess(&pa.processMu, &pa.GoCqhttpProcess, &pa.processStarted, nil)
+}
+
+func (pa *PlatformAdapterGocq) stopGoCqhttpRuntime() error {
+	pa.runtimeMu.Lock()
+	pa.runtimeStopping.Store(true)
+	pa.runtimeMu.Unlock()
+	return pa.stopGoCqhttpProcess()
+}
+
+func (pa *PlatformAdapterGocq) stopGoCqhttpProcessInstance(process *procs.Process) error {
+	return stopManagedProcess(&pa.processMu, &pa.GoCqhttpProcess, &pa.processStarted, process)
+}
 
 type deviceFile struct {
 	Display      string         `json:"display"`
@@ -528,13 +662,8 @@ func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) 
 				dice.Logger.Info("onebot: 删除已存在的二维码文件")
 			}
 
-			// 注意这个会panic，因此recover捕获了
-			if pa.GoCqhttpProcess != nil {
-				p := pa.GoCqhttpProcess
-				pa.GoCqhttpProcess = nil
-				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
-				_ = p.Stop()
-				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+			if err := pa.stopGoCqhttpProcess(); err != nil {
+				dice.Logger.Error("停止内置 QQ 客户端失败: ", err)
 			}
 		} else {
 			pa.GoCqhttpLoginDeviceLockURL = ""
@@ -547,21 +676,13 @@ func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) 
 				dice.Logger.Info("onebot: 删除已存在的二维码文件")
 			}
 
-			// 注意这个会panic，因此recover捕获了
-			if pa.GoCqhttpProcess != nil {
-				p := pa.GoCqhttpProcess
-				pa.GoCqhttpProcess = nil
-				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
-				_ = p.Stop()
-				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+			if err := pa.stopGoCqhttpProcess(); err != nil {
+				dice.Logger.Error("停止内置 QQ 客户端失败: ", err)
 			}
 		}
 	}
-	if isSync {
-		f()
-	} else {
-		go f()
-	}
+	_ = isSync
+	f()
 }
 
 func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
@@ -632,7 +753,11 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
-		go ServeQQ(dice, conn)
+		runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+			if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+				ServeQQ(dice, conn)
+			}
+		})
 	}
 }
 
@@ -720,13 +845,16 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 		chCaptcha := make(chan string, 1)
 
 		p.OutputHandler = func(line string, _type string) string {
+			if pa.runtimeStopping.Load() {
+				return ""
+			}
 			if loginIndex != pa.CurLoginIndex {
 				// 当前连接已经无用，进程自杀
 				if !isSelfKilling {
 					dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
 					// 注: 这里不要调用kill
 					isSelfKilling = true
-					_ = p.Stop()
+					_ = pa.stopGoCqhttpProcessInstance(p)
 				}
 				return ""
 			}
@@ -735,7 +863,10 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			if pa.IsInLogin() {
 				// 请使用手机QQ扫描二维码 (qrcode.png) :
 				if strings.Contains(line, "qrcode.png") {
-					chQrCode <- 1
+					select {
+					case chQrCode <- 1:
+					default:
+					}
 				}
 
 				// 获取二维码失败，登录失败
@@ -821,20 +952,33 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 
 							dice.Logger.Info("进入滑条验证码流程，等待输入")
 							pa.GoCqhttpLoginCaptcha = ""
-							go func() {
+							started := runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+								code := ""
 								// 检查是否有短信验证码
 								for range 100 {
 									if pa.GoCqhttpState != GoCqhttpStateCodeInLoginBar {
 										break
 									}
-									time.Sleep(6 * time.Second)
+									if !waitRuntimeDelay(ctx, 6*time.Second) {
+										break
+									}
 									if pa.GoCqhttpLoginCaptcha != "" {
-										chCaptcha <- pa.GoCqhttpLoginCaptcha
+										code = pa.GoCqhttpLoginCaptcha
 										break
 									}
 								}
-							}()
+								select {
+								case chCaptcha <- code:
+								default:
+								}
+							})
+							if !started {
+								return ""
+							}
 							code := <-chCaptcha
+							if code == "" {
+								return ""
+							}
 							dice.Logger.Infof("即将输入token: %v", code)
 							return code + "\n"
 						}
@@ -845,20 +989,33 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					dice.Logger.Info("进入短信验证码流程，等待输入")
 					pa.GoCqhttpState = GoCqhttpStateCodeInLoginVerifyCode
 					pa.GoCqhttpLoginVerifyCode = ""
-					go func() {
+					started := runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+						code := ""
 						// 检查是否有短信验证码
 						for range 100 {
 							if pa.GoCqhttpState != GoCqhttpStateCodeInLoginVerifyCode {
 								break
 							}
-							time.Sleep(6 * time.Second)
+							if !waitRuntimeDelay(ctx, 6*time.Second) {
+								break
+							}
 							if pa.GoCqhttpLoginVerifyCode != "" {
-								chSMS <- pa.GoCqhttpLoginVerifyCode
+								code = pa.GoCqhttpLoginVerifyCode
 								break
 							}
 						}
-					}()
+						select {
+						case chSMS <- code:
+						default:
+						}
+					})
+					if !started {
+						return ""
+					}
 					code := <-chSMS
+					if code == "" {
+						return ""
+					}
 					dice.Logger.Infof("即将输入短信验证码: %v", code)
 					return code + "\n"
 				}
@@ -878,7 +1035,11 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					dice.LastUpdatedTime = time.Now().Unix()
 					dice.Save(false)
 
-					go ServeQQ(dice, conn)
+					runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+						if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+							ServeQQ(dice, conn)
+						}
+					})
 				}
 			}
 
@@ -962,8 +1123,15 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			return ""
 		}
 
-		go func() {
-			<-chQrCode
+		runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+			select {
+			case <-ctx.Done():
+				return
+			case <-chQrCode:
+			}
+			if ctx.Err() != nil || pa.runtimeStopping.Load() {
+				return
+			}
 			if _, err := os.Stat(qrcodeFile); err == nil {
 				dice.Logger.Info("onebot: 二维码已经就绪")
 				fmt.Fprintln(os.Stdout, "如控制台二维码不好扫描，可以手动打开 ./data/default/extra/go-cqhttp-qqXXXXX 目录下qrcode.png")
@@ -984,9 +1152,9 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 					dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
 				}
 			}
-		}()
+		})
 
-		run := func() {
+		run := func(ctx context.Context) {
 			defer func() {
 				if r := recover(); r != nil {
 					dice.Logger.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -994,8 +1162,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			}()
 
 			// 启动gocqhttp，开始登录
-			pa.GoCqhttpProcess = p
-			err := p.Start()
+			err := pa.startGoCqhttpProcess(ctx, p)
 
 			if err == nil {
 				if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
@@ -1004,15 +1171,19 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 						dice.Logger.Warn("添加到进程组失败，若主进程崩溃，gocqhttp进程可能需要手动结束")
 					}
 				}
-				_ = p.Wait()
+				err = pa.waitGoCqhttpProcess(p)
+			}
+			if ctx.Err() != nil || pa.runtimeStopping.Load() {
+				return
+			}
+			if loginIndex != pa.CurLoginIndex {
+				return
 			}
 
 			isInLogin := pa.IsInLogin()
 			isDeviceLockLogin := pa.GoCqhttpState == StateCodeInLoginDeviceLock
 			if !isDeviceLockLogin {
-				// 如果在设备锁流程中，不清空数据
-				BuiltinQQServeProcessKill(dice, conn)
-
+				// Wait 已清理进程槽；此处只更新旧登录尝试的状态，不能再按当前槽停止进程。
 				if isInLogin {
 					conn.State = 3
 					pa.GoCqhttpState = StateCodeLoginFailed
@@ -1030,9 +1201,9 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 		}
 
 		if loginInfo.IsAsyncRun {
-			go run()
+			runDiceRuntimeTaskWithContext(dice, run)
 		} else {
-			run()
+			run(diceRuntimeContext(dice))
 		}
 	}
 }

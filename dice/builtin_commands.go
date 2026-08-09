@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -1290,12 +1291,18 @@ func (d *Dice) registerCoreCommands() {
 				reloginFlag = true
 				ReplyToSender(ctx, msg, "将在30s后重新登录，期间可以输入.master relogin --cancel解除\n若遭遇风控，可能会没有任何输出。静等或输入.master relogin --now立即执行\n此指令每5分钟只能执行一次，可能解除风控，也可能使骰子失联。后果自负")
 
-				go func() {
-					time.Sleep(30 * time.Second)
+				ctx.Dice.Parent.GoRuntime(func(runtimeCtx context.Context) {
+					timer := time.NewTimer(30 * time.Second)
+					defer timer.Stop()
+					select {
+					case <-runtimeCtx.Done():
+						return
+					case <-timer.C:
+					}
 					if reloginFlag {
 						doRelogin()
 					}
-				}()
+				})
 			case "backup":
 				ReplyToSender(ctx, msg, "开始备份数据")
 
@@ -1356,8 +1363,13 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				ReplyToSender(ctx, msg, "开始下载新版本，完成后将自动进行一次备份")
-				go func() {
-					ret := <-dm.UpdateDownloadedChan
+				dm.GoRuntime(func(runtimeCtx context.Context) {
+					var ret string
+					select {
+					case <-runtimeCtx.Done():
+						return
+					case ret = <-dm.UpdateDownloadedChan:
+					}
 
 					if ctx.IsPrivate {
 						ctx.Dice.Config.UpgradeWindowID = msg.Sender.UserID
@@ -1378,7 +1390,7 @@ func (d *Dice) registerCoreCommands() {
 					} else {
 						ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
 					}
-				}()
+				})
 				dm.UpdateRequestChan <- d
 			case "reboot":
 				var dm = ctx.Dice.Parent

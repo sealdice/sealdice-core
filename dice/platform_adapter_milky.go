@@ -9,6 +9,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	milky "github.com/Szzrain/Milky-go-sdk"
@@ -31,6 +33,11 @@ type PlatformAdapterMilky struct {
 	// BuiltInMode 留空则视为分离，目前支持的字段为 lagrangeV2
 	BuiltInMode       string          `json:"built_in_mode" yaml:"built_in_mode"`
 	MilkyProcess      *procs.Process  `json:"-" yaml:"-"`
+	processMu         sync.Mutex      `json:"-" yaml:"-"`
+	processStarted    bool            `json:"-" yaml:"-"`
+	processDone       chan struct{}   `json:"-" yaml:"-"`
+	runtimeMu         sync.Mutex      `json:"-" yaml:"-"`
+	runtimeStopping   atomic.Bool     `json:"-" yaml:"-"`
 	BuiltInLoginState MilkyLoginState `json:"loginState" yaml:"-"`
 	QrCodeData        []byte          `json:"-"                          yaml:"-"`
 }
@@ -138,6 +145,9 @@ func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterMilky) Serve() int {
+	if pa.runtimeStopping.Load() {
+		return 0
+	}
 	log := zap.S().Named(logger.LogKeyAdapter)
 	pa.EndPoint.State = 2 // 设置状态为连接中
 
@@ -152,7 +162,13 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		log.Errorf("Milky SDK initialization failed: %v", err)
 		return 1
 	}
+	pa.runtimeMu.Lock()
+	if pa.runtimeStopping.Load() {
+		pa.runtimeMu.Unlock()
+		return 0
+	}
 	pa.IntentSession = session
+	pa.runtimeMu.Unlock()
 	session.AddHandler(func(session2 *milky.Session, m *milky.ReceiveMessage) {
 		if m == nil {
 			return
@@ -422,7 +438,25 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		pa.EndPoint.Session.OnMessageDeleted(mctx, msg)
 	})
 	d := pa.EndPoint.Session.Parent
-	err = pa.IntentSession.Open()
+	if pa.runtimeStopping.Load() {
+		_ = session.Close()
+		pa.runtimeMu.Lock()
+		if pa.IntentSession == session {
+			pa.IntentSession = nil
+		}
+		pa.runtimeMu.Unlock()
+		return 0
+	}
+	err = session.Open()
+	if pa.runtimeStopping.Load() {
+		_ = session.Close()
+		pa.runtimeMu.Lock()
+		if pa.IntentSession == session {
+			pa.IntentSession = nil
+		}
+		pa.runtimeMu.Unlock()
+		return 0
+	}
 	if err != nil {
 		log.Errorf("Failed to open Milky session: %v", err)
 		pa.EndPoint.State = 3 // 设置状态为连接失败
@@ -433,14 +467,26 @@ func (pa *PlatformAdapterMilky) Serve() int {
 	}
 	info, err := session.GetLoginInfo()
 	if err != nil {
+		if pa.runtimeStopping.Load() {
+			return 0
+		}
 		// 获取登录信息失败，视为连接失败
 		log.Errorf("Failed to get login info: %v", err)
-		_ = pa.IntentSession.Close()
+		_ = session.Close()
 		pa.EndPoint.State = 3
 		pa.EndPoint.Enable = false
 		d.LastUpdatedTime = time.Now().Unix()
 		d.Save(false)
 		return 1
+	}
+	if pa.runtimeStopping.Load() {
+		_ = session.Close()
+		pa.runtimeMu.Lock()
+		if pa.IntentSession == session {
+			pa.IntentSession = nil
+		}
+		pa.runtimeMu.Unlock()
+		return 0
 	}
 
 	log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
@@ -556,7 +602,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 		welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 		log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 
-		go func() {
+		runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
 			defer func() {
 				if r := recover(); r != nil {
 					log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -575,7 +621,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 					return func() { ext.OnBecomeFriend(ctx, msg) }
 				})
 			}
-		}()
+		})
 	}
 	if willAccept {
 		sendSpeech()
@@ -680,7 +726,9 @@ func (pa *PlatformAdapterMilky) DoRelogin() bool {
 	// kill
 	BuiltinMilkyClientKill(pa.EndPoint.Session.Parent, pa.EndPoint)
 	MilkyRemoveSession(pa.EndPoint.Session.Parent, pa.EndPoint)
-	go ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
+		ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
+	})
 	return true
 }
 
@@ -721,7 +769,9 @@ func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 		return
 	}
 	if enable {
-		go ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
+		runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
+			ServeMilkyBuiltIn(pa.EndPoint.Session.Parent, pa.EndPoint)
+		})
 	} else {
 		if pa.IntentSession != nil {
 			_ = pa.IntentSession.Close()
@@ -946,13 +996,13 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
 	}
-	go func(targets []int64) {
-		for _, userID := range targets {
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
+		for _, userID := range nudgeTargets {
 			log.Debugf("Sending group Nudge: %d", userID)
 			_ = pa.IntentSession.SendGroupNudge(id, userID)
 			doSleepQQ(ctx)
 		}
-	}(nudgeTargets)
+	})
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",

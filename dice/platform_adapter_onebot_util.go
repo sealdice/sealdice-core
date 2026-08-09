@@ -175,7 +175,7 @@ func (p *PlatformAdapterOnebot) handleGroupDecreaseAction(req gjson.Result, _ *e
 }
 
 func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsocket.EventPayload) error {
-	go func() {
+	runDiceRuntimeTask(p.EndPoint.Session.Parent, func() {
 		session := p.EndPoint.Session
 		defer ErrorLogAndContinue(session.Parent)
 		msgContext := p.makeCtx(req)
@@ -190,7 +190,7 @@ func (p *PlatformAdapterOnebot) handleGroupPokeAction(req gjson.Result, _ *evsoc
 			TargetID:  FormatDiceIDQQ(req.Get("target_id").String()),
 			IsPrivate: isPrivate,
 		})
-	}()
+	})
 	return nil
 }
 
@@ -566,10 +566,34 @@ func checkBlackList(id string, checkType string, inviterID string, ctx *MsgConte
 }
 
 func (p *PlatformAdapterOnebot) submitAsync(task func()) error {
-	if p != nil && p.antPool != nil {
-		return p.antPool.Submit(task)
+	var currentDice *Dice
+	if p != nil && p.EndPoint != nil && p.EndPoint.Session != nil {
+		currentDice = p.EndPoint.Session.Parent
 	}
-	return ants.Submit(task)
+	done, accepted := beginDiceRuntimeTask(currentDice)
+	if !accepted {
+		return errors.New("runtime is closing")
+	}
+	if p == nil || p.runtimeStopping.Load() {
+		done()
+		return errors.New("runtime is closing")
+	}
+	wrapped := func() {
+		defer done()
+		task()
+	}
+	if p.antPool != nil {
+		if err := p.antPool.Submit(wrapped); err != nil {
+			done()
+			return err
+		}
+		return nil
+	}
+	if err := ants.Submit(wrapped); err != nil {
+		done()
+		return err
+	}
+	return nil
 }
 
 func (p *PlatformAdapterOnebot) onOnebotMetaDataEvent(ep *evsocket.EventPayload) {

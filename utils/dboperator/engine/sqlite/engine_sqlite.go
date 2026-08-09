@@ -39,6 +39,9 @@ const (
 )
 
 func (s *SQLiteEngine) Close() {
+	if s == nil {
+		return
+	}
 	log := zap.S().Named(logger.LogKeyDatabase)
 
 	s.mu.Lock()
@@ -46,6 +49,9 @@ func (s *SQLiteEngine) Close() {
 
 	// 关闭 readList 中的连接
 	for name, db := range s.readList {
+		if db == nil {
+			continue
+		}
 		sqlDB, err := db.DB()
 		if err != nil {
 			log.Errorf("failed to get sql.DB for %s: %v", name, err)
@@ -58,6 +64,9 @@ func (s *SQLiteEngine) Close() {
 
 	// 关闭 writeList 中的连接
 	for name, db := range s.writeList {
+		if db == nil {
+			continue
+		}
 		sqlDB, err := db.DB()
 		if err != nil {
 			log.Errorf("failed to get sql.DB for %s: %v", name, err)
@@ -67,6 +76,8 @@ func (s *SQLiteEngine) Close() {
 			log.Errorf("failed to close db %s: %v", name, err)
 		}
 	}
+	s.readList = nil
+	s.writeList = nil
 }
 
 func (s *SQLiteEngine) getDBByModeAndKey(mode constant.DBMode, key dbName) *gorm.DB {

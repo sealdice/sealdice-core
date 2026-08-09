@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -36,13 +38,16 @@ type PlatformAdapterSealChat struct {
 
 	// 心跳相关
 	heartbeatStop chan struct{}
+	heartbeatMu   sync.Mutex
 	lastPong      int64
 
 	// 角色卡写入速率限制器 (60次/分钟)
 	characterSetLimiter *rate.Limiter
+	runtimeStopping     atomic.Bool
 }
 
 func (pa *PlatformAdapterSealChat) Serve() int {
+	pa.runtimeStopping.Store(false)
 	if !strings.HasPrefix(pa.ConnectURL, "ws://") && !strings.HasPrefix(pa.ConnectURL, "wss://") {
 		pa.ConnectURL = "ws://" + pa.ConnectURL
 	}
@@ -76,6 +81,16 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 	log := pa.EndPoint.Session.Parent.Logger
 	socket := pa.Socket
 	socket.OnConnected = func(socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			socket.Close()
+			return
+		}
+		defer done()
+		if pa.runtimeStopping.Load() {
+			socket.Close()
+			return
+		}
 		ep.State = 2
 		ep.Enable = true
 
@@ -94,6 +109,11 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		pa.Reconnecting = false
 	}
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			return
+		}
+		defer done()
 		gatewayMsg := satori.GatewayPayloadStructure2{}
 		err := json.Unmarshal([]byte(message), &gatewayMsg)
 		if len(message) == 0 {
@@ -130,11 +150,17 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 						pa.RetryTimesLimit = 15
 					}
 
-					go func() {
+					runDiceRuntimeTaskContext(ep.Session.Parent, func(ctx context.Context) {
 						// 等一会再发，因为好像有的模块会在这个事件之后注册指令
-						time.Sleep(time.Duration(5) * time.Second)
-						pa.registerCommands()
-					}()
+						timer := time.NewTimer(5 * time.Second)
+						defer timer.Stop()
+						select {
+						case <-ctx.Done():
+							return
+						case <-timer.C:
+							pa.registerCommands()
+						}
+					})
 				}
 				// 启动心跳
 				pa.startHeartbeat()
@@ -177,8 +203,16 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		}
 	}
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			return
+		}
+		defer done()
 		log.Errorf("SealChat websocket出现错误: %s", err)
 		pa.stopHeartbeat()
+		if pa.runtimeStopping.Load() {
+			return
+		}
 		if !socket.IsConnected {
 			pa.Reconnecting = false
 			time.Sleep(time.Duration(10) * time.Second)
@@ -189,6 +223,14 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		}
 	}
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			return
+		}
+		defer done()
+		if pa.runtimeStopping.Load() {
+			return
+		}
 		log.Info("与SealChat服务器断开连接，尝试进行重连")
 		pa.stopHeartbeat()
 		time.Sleep(time.Duration(2) * time.Second)
@@ -202,6 +244,9 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 
 func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool {
 	log := pa.EndPoint.Session.Parent.Logger
+	if pa.runtimeStopping.Load() {
+		return false
+	}
 	if socket.IsConnected {
 		return true
 	}
@@ -233,16 +278,24 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 // startHeartbeat 启动心跳协程
 func (pa *PlatformAdapterSealChat) startHeartbeat() {
 	pa.stopHeartbeat()
-	pa.heartbeatStop = make(chan struct{})
+	stop := make(chan struct{})
+	pa.heartbeatMu.Lock()
+	pa.heartbeatStop = stop
+	pa.heartbeatMu.Unlock()
 	atomic.StoreInt64(&pa.lastPong, time.Now().Unix())
 	log := pa.EndPoint.Session.Parent.Logger
 
-	go func() {
+	runDiceRuntimeTaskContext(pa.EndPoint.Session.Parent, func(ctx context.Context) {
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-ticker.C:
+				if pa.runtimeStopping.Load() {
+					return
+				}
 				if pa.Socket == nil || !pa.Socket.IsConnected {
 					return
 				}
@@ -258,23 +311,21 @@ func (pa *PlatformAdapterSealChat) startHeartbeat() {
 					pa.Socket.Close()
 					return
 				}
-			case <-pa.heartbeatStop:
+			case <-stop:
 				return
 			}
 		}
-	}()
+	})
 }
 
 // stopHeartbeat 停止心跳协程
 func (pa *PlatformAdapterSealChat) stopHeartbeat() {
-	if pa.heartbeatStop != nil {
-		select {
-		case <-pa.heartbeatStop:
-			// 已关闭
-		default:
-			close(pa.heartbeatStop)
-		}
-		pa.heartbeatStop = nil
+	pa.heartbeatMu.Lock()
+	stop := pa.heartbeatStop
+	pa.heartbeatStop = nil
+	pa.heartbeatMu.Unlock()
+	if stop != nil {
+		close(stop)
 	}
 }
 
@@ -504,7 +555,7 @@ func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 	} else {
 		pa.EndPoint.Enable = false
 		pa.Reconnecting = true
-		if pa.Socket != nil && pa.Socket.IsConnected {
+		if pa.Socket != nil {
 			pa.Socket.Close()
 		}
 		pa.Reconnecting = false

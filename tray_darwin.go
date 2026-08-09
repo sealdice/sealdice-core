@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -21,10 +22,10 @@ import (
 	"sealdice-core/logger"
 )
 
-var theDm *dice.DiceManager
+var trayCleanup func()
 
-func trayInit(dm *dice.DiceManager) {
-	theDm = dm
+func trayInit(cleanup func()) {
+	trayCleanup = cleanup
 	runtime.LockOSThread()
 	systray.Run(onReady, onExit)
 }
@@ -59,18 +60,18 @@ func executeWin(name string, arg ...string) *exec.Cmd {
 	return cmd
 }
 
-var systrayQuited bool = false
+var systrayQuited atomic.Bool
 
 func onReady() {
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹核心")
-	systray.SetTooltip(formatTrayTooltip(theDm, ver, getTrayPort()))
+	systray.SetTooltip(currentTrayTooltip(ver, getTrayPort()))
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mOpen.SetIcon(icon.Data)
 	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "访达访问程序所在目录")
-	startTrayAccountMenu(theDm, func() {
+	startTrayAccountMenu(func() {
 		_ = exec.Command(`open`, `http://localhost:`+getTrayPort()+`/#/connect`).Start()
 	})
 	mQuit := systray.AddMenuItem("退出", "退出程序")
@@ -86,8 +87,8 @@ func onReady() {
 		case <-mOpenExeDir.ClickedCh:
 			_ = exec.Command(`open`, filepath.Dir(os.Args[0])).Start()
 		case <-mQuit.ClickedCh:
-			systrayQuited = true
-			cleanupCreate(theDm)()
+			systrayQuited.Store(true)
+			trayCleanup()
 			systray.Quit()
 			time.Sleep(3 * time.Second)
 			os.Exit(0)
@@ -99,7 +100,7 @@ func onExit() {
 	// clean up hear
 }
 
-func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
+func httpServe(e *echo.Echo, serveAddress string, hideUI bool) {
 	log := logger.M()
 	portStr := defaultTrayPort
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
@@ -107,17 +108,17 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
-			if systrayQuited {
+			if systrayQuited.Load() {
 				break
 			}
 			runtime.LockOSThread()
-			systray.SetTooltip(formatTrayTooltip(dm, ver, getTrayPort()))
+			systray.SetTooltip(currentTrayTooltip(ver, getTrayPort()))
 			runtime.UnlockOSThread()
 		}
 	}()
 
 	rePort := regexp.MustCompile(`:(\d+)$`)
-	m := rePort.FindStringSubmatch(dm.ServeAddress)
+	m := rePort.FindStringSubmatch(serveAddress)
 	if len(m) > 0 {
 		portStr = m[1]
 		setTrayPort(portStr)
@@ -125,16 +126,16 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 
 	ln, err := net.Listen("tcp", ":"+portStr)
 	if err != nil {
-		log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+		log.Errorf("端口已被占用，即将自动退出: %s", serveAddress)
 		runtime.Goexit()
 	}
 	_ = ln.Close()
 
 	// exec.Command(`cmd`, `/c`, `start`, fmt.Sprintf(`http://localhost:%s`, portStr)).Start()
 	log.Infof("如果浏览器没有自动打开，请手动访问:\nhttp://localhost:%s", portStr)
-	err = e.Start(dm.ServeAddress)
+	err = e.Start(serveAddress)
 	if err != nil {
-		log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+		log.Errorf("端口已被占用，即将自动退出: %s", serveAddress)
 		return
 	}
 }

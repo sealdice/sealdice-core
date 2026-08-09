@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -237,6 +238,8 @@ type Dice struct {
 	JsScriptCronLock *sync.Mutex     `json:"-" yaml:"-"`
 	// 重载使用的互斥锁
 	JsReloadLock sync.Mutex `json:"-" yaml:"-"`
+	jsLoopMu     sync.Mutex
+	jsLoopDone   chan struct{}
 	// 内置脚本摘要表，用于判断内置脚本是否有更新
 	JsBuiltinDigestSet map[string]bool `json:"-" yaml:"-"`
 	// 当前在加载的脚本路径，用于关联 jsScriptInfo 和 ExtInfo
@@ -359,9 +362,16 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		d.NewCensorManager()
 	}
 
-	go d.PublicDiceSetup()
+	d.Parent.goRuntime(func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			d.PublicDiceSetup()
+		}
+	})
 
-	go d.StoreSetup()
+	d.StoreSetup()
 
 	// 创建js运行时
 	if d.Config.JsEnable {
@@ -394,11 +404,16 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	}
 	d.RunAfterLoaded = []func(){}
 
-	autoSave := func() {
+	autoSave := func(ctx context.Context) {
 		count := 0
 		t := time.NewTicker(30 * time.Second)
+		defer t.Stop()
 		for {
-			<-t.C
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
 			if d.IsAlreadyLoadConfig {
 				count++
 				d.Save(true)
@@ -418,10 +433,11 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 			}
 		}
 	}
-	go autoSave()
+	d.Parent.goRuntime(autoSave)
 
-	refreshGroupInfo := func() {
+	refreshGroupInfo := func(ctx context.Context) {
 		t := time.NewTicker(35 * time.Second)
+		defer t.Stop()
 		defer func() {
 			// 防止报错
 			if r := recover(); r != nil {
@@ -430,7 +446,11 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		}()
 
 		for {
-			<-t.C
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
 
 			// 自动更新群信息
 			for _, i := range d.ImSession.EndPoints {
@@ -457,7 +477,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 			}
 		}
 	}
-	go refreshGroupInfo()
+	d.Parent.goRuntime(refreshGroupInfo)
 
 	d.ApplyAliveNotice()
 	if d.Config.JsEnable {
@@ -468,7 +488,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	}
 
 	if d.Config.UpgradeWindowID != "" {
-		go func() {
+		d.Parent.goRuntime(func(ctx context.Context) {
 			defer ErrorLogAndContinue(d)
 
 			var ep *EndPointInfo
@@ -485,7 +505,13 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 			}
 
 			for {
-				time.Sleep(30 * time.Second)
+				timer := time.NewTimer(30 * time.Second)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return
+				case <-timer.C:
+				}
 				text := fmt.Sprintf("升级完成，当前版本: %s", VERSION.String())
 
 				if ep.State == 2 {
@@ -509,7 +535,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 				d.Save(false)
 				break
 			}
-		}()
+		})
 	}
 
 	d.ResetQuitInactiveCron()
@@ -1134,11 +1160,17 @@ func (d *Dice) PublicDiceSetupTick() {
 		d.Cron.Remove(d.PublicDiceTimerId)
 	}
 
-	go func() {
+	d.Parent.goRuntime(func(ctx context.Context) {
 		// 20s后进行第一次调用，此后3min进行一次更新
-		time.Sleep(20 * time.Second)
-		doTickUpdate()
-	}()
+		timer := time.NewTimer(20 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			doTickUpdate()
+		}
+	})
 
 	d.PublicDiceTimerId, _ = d.Cron.AddFunc("@every 3m", doTickUpdate)
 }

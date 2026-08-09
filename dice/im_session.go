@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -884,8 +885,37 @@ func (ctx *MsgContext) fillPrivilege(msg *Message) int {
 	return ctx.PrivilegeLevel
 }
 
+func runDiceRuntimeTask(d *Dice, task func()) {
+	runDiceRuntimeTaskContext(d, func(context.Context) { task() })
+}
+
+func runDiceRuntimeTaskContext(d *Dice, task func(context.Context)) bool {
+	if d != nil && d.Parent != nil {
+		return d.Parent.GoRuntime(task)
+	}
+	go task(context.Background())
+	return true
+}
+
+func beginDiceRuntimeTask(d *Dice) (func(), bool) {
+	if d == nil || d.Parent == nil {
+		return func() {}, true
+	}
+	return d.Parent.beginRuntimeTask()
+}
+
 func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	d := s.Parent
+	if d == nil {
+		return
+	}
+	if d.Parent != nil {
+		done, ok := d.Parent.beginRuntimeTask()
+		if !ok {
+			return
+		}
+		defer done()
+	}
 
 	mctx := &MsgContext{}
 	mctx.Dice = d
@@ -1185,7 +1215,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			if runInSync {
 				f()
 			} else {
-				go f()
+				runDiceRuntimeTask(d, f)
 			}
 		} else {
 			if mctx.PrivilegeLevel == -30 {
@@ -1239,7 +1269,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 							if runInSync {
 								notCommandReceiveCall()
 							} else {
-								go notCommandReceiveCall()
+								runDiceRuntimeTask(d, notCommandReceiveCall)
 							}
 						}
 					}
@@ -1255,6 +1285,16 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 // 这个 ExcuteNew 方法优化了对消息段的解析，其他平台应当尽快实现消息段解析并使用这个方法
 func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	d := s.Parent
+	if d == nil {
+		return
+	}
+	if d.Parent != nil {
+		done, ok := d.Parent.beginRuntimeTask()
+		if !ok {
+			return
+		}
+		defer done()
+	}
 
 	mctx := &MsgContext{}
 	mctx.Dice = d
@@ -1476,7 +1516,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	// Note(Szzrain): 赋值临时变量，不然有些地方没法用
 	SetTempVars(mctx, msg.Sender.Nickname)
 	if cmdArgs != nil {
-		go s.PreTriggerCommand(mctx, msg, cmdArgs)
+		runDiceRuntimeTask(d, func() { s.PreTriggerCommand(mctx, msg, cmdArgs) })
 	} else {
 		// if cmdArgs == nil will execute this block
 		if mctx.PrivilegeLevel == -30 {
@@ -1525,7 +1565,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 							}
 						}
 
-						go notCommandReceiveCall()
+						runDiceRuntimeTask(d, notCommandReceiveCall)
 					}
 				}
 			}
@@ -1671,7 +1711,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	}
 	time.Sleep(2 * time.Second)
 	groupName := dm.TryGetGroupName(msg.GroupID)
-	go func() {
+	welcomeTask := func(runtimeCtx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -1679,16 +1719,32 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 		}()
 
 		// 稍作等待后发送入群致词
-		time.Sleep(2 * time.Second)
+		timer := time.NewTimer(2 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-runtimeCtx.Done():
+			return
+		case <-timer.C:
+		}
 
 		ctx.Player = &GroupPlayerInfo{}
 		log.Infof("发送入群致辞，群: <%s>(%s)", groupName, msg.GroupID)
 		text := DiceFormatTmpl(ctx, "核心:骰子进群")
 		for _, i := range ctx.SplitText(text) {
+			select {
+			case <-runtimeCtx.Done():
+				return
+			default:
+			}
 			doSleepQQ(ctx)
 			ReplyGroup(ctx, msg, strings.TrimSpace(i))
 		}
-	}()
+	}
+	if d.Parent != nil {
+		d.Parent.GoRuntime(welcomeTask)
+	} else {
+		go welcomeTask(context.Background())
+	}
 	txt := fmt.Sprintf("加入群组: <%s>(%s)", groupName, msg.GroupID)
 	log.Info(txt)
 	ctx.Notice(txt, NoticeTypeGroup)
@@ -1891,7 +1947,7 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		noticeCtx.Notice(fmt.Sprintf("自动退群任务开始：本轮预计处理 %d 个群。", len(selectedGroupEndpoints)), NoticeTypeInactive)
 	}
 
-	go func() {
+	quitTask := func(runtimeCtx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				log := zap.S().Named(logger.LogKeyAdapter)
@@ -1903,6 +1959,11 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 		cancelled := 0
 		quitStarted := 0
 		for i, pair := range selectedGroupEndpoints {
+			select {
+			case <-runtimeCtx.Done():
+				return
+			default:
+			}
 			grp := pair.Group
 			ep := pair.Endpoint
 			if !isAutoQuitEndpointReady(grp, ep, "QQ", "send") {
@@ -1924,7 +1985,13 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			msgText := DiceFormatTmpl(msgCtx, "核心:骰子自动退群告别语")
 			ep.Adapter.SendToGroup(msgCtx, grp.GroupID, msgText, "")
 			// 退群在退群消息延迟两秒后发送，确保消息发送完成
-			time.Sleep(2 * time.Second)
+			timer := time.NewTimer(2 * time.Second)
+			select {
+			case <-runtimeCtx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
 			if !isAutoQuitEndpointReady(grp, ep, "QQ", "quit") {
 				s.Parent.Logger.Infof("自动退群已取消: 当前账号状态发生变化，本次不再继续退群。group=%s endpoint=%s", grp.GroupID, ep.UserID)
 				cancelled++
@@ -1943,12 +2010,23 @@ func (s *IMSession) LongTimeQuitInactiveGroupReborn(threshold time.Time, groupsP
 			// 生成一个随机值（8~11秒随机）
 			randomSleep := time.Duration(rand.Intn(3000)+8000) * time.Millisecond
 			logger.M().Infof("退群等待，等待 %f 秒后继续", randomSleep.Seconds())
-			time.Sleep(randomSleep)
+			timer = time.NewTimer(randomSleep)
+			select {
+			case <-runtimeCtx.Done():
+				timer.Stop()
+				return
+			case <-timer.C:
+			}
 		}
 		if summaryMode && noticeCtx != nil {
 			noticeCtx.Notice(fmt.Sprintf("自动退群任务结束：候选 %d 个，开始处理 %d 个，已发起退群 %d 个，跳过 %d 个，取消 %d 个。", len(selectedGroupEndpoints), processed, quitStarted, skipped, cancelled), NoticeTypeInactive)
 		}
-	}()
+	}
+	if s.Parent.Parent != nil {
+		s.Parent.Parent.GoRuntime(quitTask)
+	} else {
+		go quitTask(context.Background())
+	}
 }
 
 // FormatBlacklistReasons 格式化黑名单原因文本
@@ -2652,7 +2730,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool, notic
 			}
 		}
 	}
-	go foo()
+	runDiceRuntimeTask(d, foo)
 }
 
 // NoticeCrossPlatform 优先用当前账号发送，并为其他平台寻找第一个启用账号。
@@ -2693,7 +2771,7 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string, noticeTypes ...NoticeType
 			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", platform, txt)
 		}
 	}
-	go foo()
+	runDiceRuntimeTask(ctx.Dice, foo)
 }
 
 // Notice 使用当前消息上下文的账号发送指定分类通知。
@@ -2740,7 +2818,7 @@ func (ctx *MsgContext) Notice(txt string, noticeTypes ...NoticeType) {
 			}
 		}
 	}
-	go foo()
+	runDiceRuntimeTask(ctx.Dice, foo)
 }
 
 var randSourceSplitKey = rand2.NewSource(uint64(time.Now().Unix()))
