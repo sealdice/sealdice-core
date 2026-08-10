@@ -25,12 +25,17 @@
           <template v-if="help?.notBuiltin">
             <n-tooltip placement="bottom-end">
               <template #trigger>
-                <n-icon
-                  class="entry-action-icon"
+                <n-button
+                  class="entry-action-button"
+                  quaternary
+                  circle
+                  size="tiny"
+                  type="error"
+                  aria-label="删除旧版文案"
                   @click="emit('deleteKey', category, keyName)"
                 >
-                  <i-ep-delete />
-                </n-icon>
+                  <template #icon><i-ep-delete /></template>
+                </n-button>
               </template>
               移除 - 这个文本在新版的默认配置中不被使用，<br />
               但升级而来时仍可能被使用，请确认无用后删除
@@ -40,12 +45,16 @@
           <template v-if="help?.modified">
             <n-tooltip placement="bottom-end">
               <template #trigger>
-                <n-icon
-                  class="entry-action-icon"
+                <n-button
+                  class="entry-action-button"
+                  quaternary
+                  circle
+                  size="tiny"
+                  aria-label="重置文案为初始值"
                   @click="emit('resetKey', category, keyName)"
                 >
-                  <i-ep-brush />
-                </n-icon>
+                  <template #icon><i-ep-brush /></template>
+                </n-button>
               </template>
               重置为初始值
             </n-tooltip>
@@ -68,10 +77,19 @@
             <div>
               <n-tooltip placement="bottom-start">
                 <template #trigger>
-                  <n-icon>
-                    <i-ep-circle-plus-filled v-if="index === 0" @click="emit('addItem', keyName)" />
-                    <i-ep-circle-close v-else @click="emit('removeItem', items, index)" />
-                  </n-icon>
+                  <n-button
+                    quaternary
+                    circle
+                    size="tiny"
+                    :type="index === 0 ? 'primary' : 'error'"
+                    :aria-label="index === 0 ? '新增回复条目' : '删除回复条目'"
+                    @click="index === 0 ? emit('addItem', keyName) : emit('removeItem', items, index)"
+                  >
+                    <template #icon>
+                      <i-ep-circle-plus-filled v-if="index === 0" />
+                      <i-ep-circle-close v-else />
+                    </template>
+                  </n-button>
                 </template>
                 {{
                   index === 0
@@ -166,7 +184,7 @@ const emit = defineEmits<{
   margin-right: 0.5rem;
 }
 
-.entry-action-icon {
+.entry-action-button {
   float: right;
   margin-left: 1rem;
 }
