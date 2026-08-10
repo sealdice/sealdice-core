@@ -51,26 +51,6 @@
           <span class="search-shortcut">Ctrl k</span>
         </button>
 
-        <n-badge :show="!newsChecked" value="new">
-          <n-tooltip>
-            <template #trigger>
-              <n-button
-                quaternary
-                circle
-                :type="newsChecked ? 'default' : 'error'"
-                @click="dialogFeed = true"
-              >
-                <template #icon>
-                  <n-icon size="1.3rem">
-                    <i-ep-bell />
-                  </n-icon>
-                </template>
-              </n-button>
-            </template>
-            海豹新闻
-          </n-tooltip>
-        </n-badge>
-
         <div class="version-summary">
           <n-tag
             :bordered="false"
@@ -94,26 +74,10 @@
     </template>
   </n-page-header>
 
-  <n-modal
-    v-model:show="dialogFeed"
-    :closable="false"
-    :mask-closable="false"
-    class="feed-modal"
-    preset="card"
-    title="海豹新闻"
-    style="max-width: 800px;"
-  >
-    <template #header-extra>
-      <n-button type="primary" @click="dialogFeed = false">
-        确认已读
-      </n-button>
-    </template>
-    <div class="feed-content" v-safe-html="newsData"></div>
-  </n-modal>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { appNavigation } from '@/router/navigation';
@@ -133,9 +97,6 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const dialogFeed = ref(false);
-const newsChecked = ref(true);
-const newsData = ref('<div>暂无内容</div>');
 const { overview, isStable, hasNewVersion } = useBaseOverview();
 
 const breadcrumbItems = computed(() =>
