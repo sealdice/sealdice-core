@@ -157,13 +157,6 @@ const saveConfigMutation = useMutation({
     message.success('已保存');
     await configQuery.refetch();
   },
-  onError: error => {
-    if (isTestModeApiError(error)) {
-      message.warning(getTestModeBlockMessage(error));
-      return;
-    }
-    message.error(getErrorMessage(error, '保存备份设置失败'));
-  },
 });
 
 const execMutation = useMutation({
@@ -265,10 +258,7 @@ watch(
 useUnsavedChanges('backup-config', {
   label: '备份设置',
   dirty: configDirty,
-  save: async () => {
-    if (!configDraft.value) return;
-    await saveConfigMutation.mutateAsync(configDraft.value);
-  },
+  save: saveConfig,
   saving: computed(() => saveConfigMutation.isPending.value),
   canSave: computed(() => Boolean(configDraft.value) && configDirty.value),
   confirmMessage: '备份设置还有修改，确定要忽略？',
@@ -297,6 +287,10 @@ async function saveConfig() {
   try {
     await saveConfigMutation.mutateAsync(configDraft.value);
   } catch (error) {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
     message.error(getErrorMessage(error, '保存备份设置失败'));
   }
 }

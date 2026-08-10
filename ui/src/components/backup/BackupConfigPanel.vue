@@ -9,7 +9,7 @@
         type="primary"
         :disabled="!dirty || disabled"
         :loading="saving"
-        @click="emit('save')"
+        @click="handleSave"
       >
         <template #icon>
           <n-icon>
@@ -20,7 +20,13 @@
       </n-button>
     </header>
 
-    <n-form :model="config" label-placement="top" :disabled="disabled">
+    <n-form
+      ref="formRef"
+      :model="config"
+      :rules="rules"
+      label-placement="top"
+      :disabled="disabled"
+    >
       <section class="backup-config-panel__section">
         <div class="backup-config-panel__section-title">
           <h3>自动备份</h3>
@@ -137,7 +143,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import type { FormInst, FormRules } from 'naive-ui';
 import type { BackupCleanTriggerKey, BackupConfigDraft } from '@/features/backup/viewModel';
 import { buildBackupConfigPayload, buildBackupFilenamePreview } from '@/features/backup/viewModel';
 import BackupSelectionGroup from './BackupSelectionGroup.vue';
@@ -154,6 +161,54 @@ const props = defineProps<{
 const emit = defineEmits<{
   save: [];
 }>();
+
+const formRef = ref<FormInst | null>(null);
+
+const rules: FormRules = {
+  autoBackupTime: {
+    validator: () =>
+      !config.value.autoBackupEnable || config.value.autoBackupTime.trim().length > 0 || new Error('请输入备份间隔'),
+    trigger: ['blur', 'change'],
+  },
+  backupCleanKeepCount: {
+    validator: () =>
+      config.value.backupCleanStrategy !== 1 ||
+      (Number.isInteger(config.value.backupCleanKeepCount) && config.value.backupCleanKeepCount >= 1) ||
+      new Error('保留数量至少为 1'),
+    trigger: ['blur', 'change'],
+  },
+  backupCleanKeepDur: {
+    validator: () =>
+      config.value.backupCleanStrategy !== 2 ||
+      /^[0-9]+(ns|us|ms|s|m|h)$/.test(config.value.backupCleanKeepDur.trim()) ||
+      new Error('请输入有效时长，例如 720h'),
+    trigger: ['blur', 'change'],
+  },
+  backupCleanTriggers: {
+    validator: () =>
+      config.value.backupCleanStrategy === 0 ||
+      config.value.backupCleanTriggers.length > 0 ||
+      new Error('至少选择一种触发方式'),
+    trigger: ['change'],
+  },
+  backupCleanCron: {
+    validator: () =>
+      config.value.backupCleanStrategy === 0 ||
+      !config.value.backupCleanTriggers.includes('cron') ||
+      config.value.backupCleanCron.trim().length > 0 ||
+      new Error('请输入定时间隔'),
+    trigger: ['blur', 'change'],
+  },
+};
+
+async function handleSave() {
+  try {
+    await formRef.value?.validate();
+    emit('save');
+  } catch {
+    // Form items render their own validation messages.
+  }
+}
 
 const cleanTriggerOptions: Array<{ value: BackupCleanTriggerKey; label: string }> = [
   { value: 'afterAutoBackup', label: '自动备份后' },
