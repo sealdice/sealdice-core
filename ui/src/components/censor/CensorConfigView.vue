@@ -145,8 +145,8 @@ const LevelConfigEditor = defineComponent({
   emits: ['update:config'],
   setup(props) {
     return () => (
-      <n-flex align='center'>
-        <n-flex align='center' wrap>
+      <n-flex align='start' class='level-config-editor'>
+        <n-flex align='center' class='level-config-threshold'>
           <n-text>用户触发超过</n-text>
           <n-input-number
             v-model:value={props.config.threshold}
@@ -158,15 +158,15 @@ const LevelConfigEditor = defineComponent({
           />
           <n-text>次时：</n-text>
         </n-flex>
-        <n-flex justify='center' vertical wrap>
-          <n-checkbox-group v-model:value={props.config.handlers}>
+        <n-flex vertical class='level-config-actions'>
+          <n-checkbox-group v-model:value={props.config.handlers} class='level-config-handlers'>
             {CENSOR_HANDLERS.map(handle => (
               <n-checkbox key={handle.key} value={handle.key}>
                 {handle.name}
               </n-checkbox>
             ))}
           </n-checkbox-group>
-          <n-flex align='center'>
+          <n-flex align='center' class='level-config-score'>
             <n-text>怒气值</n-text>
             <n-input-number
               v-model:value={props.config.score}
@@ -196,9 +196,35 @@ const LevelConfigEditor = defineComponent({
   width: min(100%, 12rem);
 }
 
+.level-config-editor {
+  display: grid !important;
+  grid-template-columns: minmax(15rem, 18rem) minmax(18rem, 1fr);
+  gap: 0.75rem 1.5rem;
+  width: 100%;
+}
+
+.level-config-threshold,
+.level-config-actions {
+  min-width: 0;
+}
+
+.level-config-handlers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.35rem 0.75rem;
+}
+
+.level-config-score {
+  margin-top: 0.35rem;
+}
+
 @media screen and (max-width: 639.9px) {
   .censor-regex-input {
     width: 100%;
+  }
+
+  .level-config-editor {
+    grid-template-columns: 1fr;
   }
 }
 </style>
