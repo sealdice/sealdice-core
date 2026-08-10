@@ -299,6 +299,7 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { storyInfoQueryKey } from '@/features/story/queryKeys';
+import { summarizeStoryLogs } from '@/features/story/deleteSummary';
 import { setStoryLogsSelected } from '@/features/story/selection';
 
 const message = useMessage();
@@ -536,7 +537,12 @@ function handlePageSizeChange(value: number) {
 function delLog(log: LogView, refresh = true) {
   dialog.warning({
     title: '删除',
-    content: '是否删除此跑团日志？',
+    content: () => (
+      <NFlex vertical>
+        <NText>此操作不可撤销，将永久删除以下日志：</NText>
+        <NText strong>{summarizeStoryLogs([log])}</NText>
+      </NFlex>
+    ),
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -554,13 +560,19 @@ function delLog(log: LogView, refresh = true) {
 }
 
 function delLogs() {
+  const selected = logs.value.filter(item => item.pitch);
+  if (selected.length === 0) return;
   dialog.warning({
     title: '删除',
-    content: '是否删除所选跑团日志？',
+    content: () => (
+      <NFlex vertical>
+        <NText>此操作不可撤销，将永久删除以下日志：</NText>
+        <NText strong>{summarizeStoryLogs(selected)}</NText>
+      </NFlex>
+    ),
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
-      const selected = logs.value.filter(item => item.pitch);
       for (const log of selected) {
         const result = await deleteLogMutation.mutateAsync(log);
         if (result.success) {
