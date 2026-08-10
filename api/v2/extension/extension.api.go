@@ -25,6 +25,13 @@ const filePreviewContentSecurityPolicy = "sandbox; default-src 'none'; img-src '
 
 const maxStoreInstallListPackages = 200
 
+type uploadStreamContextKey struct{}
+
+type uploadStreamResult struct {
+	preview *dice.PackageUploadPreview
+	done    bool
+}
+
 type Service struct {
 	dice *dice.Dice
 	dm   *dice.DiceManager
@@ -54,8 +61,12 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 
 func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	huma.Post(grp, "/packages/refresh", s.RefreshPackages)
-	huma.Post(grp, "/preview-upload", s.PreviewUpload)
-	huma.Post(grp, "/install-upload", s.InstallUpload)
+	huma.Post(grp, "/preview-upload", s.PreviewUpload, func(o *huma.Operation) {
+		o.Middlewares = append(o.Middlewares, s.streamUploadMiddleware(grp, true))
+	})
+	huma.Post(grp, "/install-upload", s.InstallUpload, func(o *huma.Operation) {
+		o.Middlewares = append(o.Middlewares, s.streamUploadMiddleware(grp, false))
+	})
 	huma.Post(grp, "/install-url", s.InstallURL)
 	huma.Post(grp, "/uninstall", s.Uninstall)
 	huma.Post(grp, "/enable", s.Enable)
@@ -94,7 +105,10 @@ func (s *Service) RefreshPackages(_ context.Context, _ *request.Empty) (*respons
 	return response.NewItemResponse(result), nil
 }
 
-func (s *Service) PreviewUpload(_ context.Context, req *UploadReq) (*response.ItemResponse[*dice.PackageUploadPreview], error) {
+func (s *Service) PreviewUpload(ctx context.Context, req *UploadReq) (*response.ItemResponse[*dice.PackageUploadPreview], error) {
+	if streamed, ok := ctx.Value(uploadStreamContextKey{}).(uploadStreamResult); ok && streamed.done {
+		return response.NewItemResponse(streamed.preview), nil
+	}
 	pm := s.packageManager()
 	if pm == nil {
 		return nil, huma.Error500InternalServerError("package manager unavailable")
@@ -102,14 +116,17 @@ func (s *Service) PreviewUpload(_ context.Context, req *UploadReq) (*response.It
 	if len(req.RawBody) == 0 {
 		return nil, huma.Error400BadRequest("未上传扩展包文件")
 	}
-	preview, err := pm.PreviewFromStream(bytes.NewReader(req.RawBody))
+	preview, err := pm.PreviewFromStreamContext(ctx, bytes.NewReader(req.RawBody))
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	return response.NewItemResponse(preview), nil
 }
 
-func (s *Service) InstallUpload(_ context.Context, req *UploadReq) (*response.ItemResponse[ExtensionActionResp], error) {
+func (s *Service) InstallUpload(ctx context.Context, req *UploadReq) (*response.ItemResponse[ExtensionActionResp], error) {
+	if streamed, ok := ctx.Value(uploadStreamContextKey{}).(uploadStreamResult); ok && streamed.done {
+		return response.NewItemResponse(ExtensionActionResp{Success: true, Message: "扩展包安装成功"}), nil
+	}
 	pm := s.packageManager()
 	if pm == nil {
 		return nil, huma.Error500InternalServerError("package manager unavailable")
@@ -117,18 +134,18 @@ func (s *Service) InstallUpload(_ context.Context, req *UploadReq) (*response.It
 	if len(req.RawBody) == 0 {
 		return nil, huma.Error400BadRequest("未上传扩展包文件")
 	}
-	if err := pm.InstallFromStream(bytes.NewReader(req.RawBody)); err != nil {
+	if err := pm.InstallFromStreamContext(ctx, bytes.NewReader(req.RawBody)); err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	return response.NewItemResponse(ExtensionActionResp{Success: true, Message: "扩展包安装成功"}), nil
 }
 
-func (s *Service) InstallURL(_ context.Context, req *InstallURLReq) (*response.ItemResponse[ExtensionActionResp], error) {
+func (s *Service) InstallURL(ctx context.Context, req *InstallURLReq) (*response.ItemResponse[ExtensionActionResp], error) {
 	pm := s.packageManager()
 	if pm == nil {
 		return nil, huma.Error500InternalServerError("package manager unavailable")
 	}
-	if err := pm.InstallFromURL(strings.TrimSpace(req.Body.URL), nil); err != nil {
+	if err := pm.InstallFromURLContext(ctx, strings.TrimSpace(req.Body.URL), nil); err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	return response.NewItemResponse(ExtensionActionResp{Success: true, Message: "扩展包安装成功"}), nil
@@ -350,12 +367,12 @@ func (s *Service) setStoreBackendEnabled(req *StoreBackendReq, enabled bool) (*r
 	return response.NewItemResponse(ExtensionActionResp{Success: true}), nil
 }
 
-func (s *Service) StoreRecommend(_ context.Context, _ *request.Empty) (*response.ItemResponse[StorePackagesResp], error) {
+func (s *Service) StoreRecommend(ctx context.Context, _ *request.Empty) (*response.ItemResponse[StorePackagesResp], error) {
 	sm := s.storeManager()
 	if sm == nil {
 		return nil, huma.Error500InternalServerError("store manager unavailable")
 	}
-	items, err := sm.StoreQueryRecommend()
+	items, err := sm.StoreQueryRecommendContext(ctx)
 	if err != nil {
 		return nil, huma.Error502BadGateway(err.Error())
 	}
@@ -363,12 +380,12 @@ func (s *Service) StoreRecommend(_ context.Context, _ *request.Empty) (*response
 	return response.NewItemResponse(StorePackagesResp{Items: items}), nil
 }
 
-func (s *Service) StorePage(_ context.Context, req *StorePageQuery) (*response.ItemResponse[StorePageResp], error) {
+func (s *Service) StorePage(ctx context.Context, req *StorePageQuery) (*response.ItemResponse[StorePageResp], error) {
 	sm := s.storeManager()
 	if sm == nil {
 		return nil, huma.Error500InternalServerError("store manager unavailable")
 	}
-	page, err := sm.StoreQueryPage(*req)
+	page, err := sm.StoreQueryPageContext(ctx, *req)
 	if err != nil {
 		return nil, huma.Error502BadGateway(err.Error())
 	}
@@ -381,12 +398,12 @@ func (s *Service) StorePage(_ context.Context, req *StorePageQuery) (*response.I
 	}), nil
 }
 
-func (s *Service) StorePackageFiles(_ context.Context, req *StorePackageLocator) (*response.ItemResponse[StorePackageFilesResp], error) {
+func (s *Service) StorePackageFiles(ctx context.Context, req *StorePackageLocator) (*response.ItemResponse[StorePackageFilesResp], error) {
 	sm := s.storeManager()
 	if sm == nil {
 		return nil, huma.Error500InternalServerError("store manager unavailable")
 	}
-	items, err := sm.StoreQueryPackageFiles(req.Namespace, req.PackageName, req.Version)
+	items, err := sm.StoreQueryPackageFilesContext(ctx, req.Namespace, req.PackageName, req.Version)
 	if err != nil {
 		return nil, huma.Error502BadGateway(err.Error())
 	}
@@ -482,7 +499,7 @@ func (s *Service) StorePackageInfoList(ctx context.Context, req *StorePackageInf
 	return response.NewItemResponse(results), nil
 }
 
-func (s *Service) StorePreviewDownload(_ context.Context, req *StorePreviewDownloadReq) (*response.ItemResponse[*dice.PackageUploadPreview], error) {
+func (s *Service) StorePreviewDownload(ctx context.Context, req *StorePreviewDownloadReq) (*response.ItemResponse[*dice.PackageUploadPreview], error) {
 	sm := s.storeManager()
 	pm := s.packageManager()
 	if sm == nil || pm == nil {
@@ -492,14 +509,17 @@ func (s *Service) StorePreviewDownload(_ context.Context, req *StorePreviewDownl
 	if !ok {
 		return nil, huma.Error400BadRequest("未找到已缓存的商店包，请先刷新商店列表后重试")
 	}
-	preview, err := pm.PreviewFromURL(target.Download.URL, target.Download.Hash)
+	preview, err := pm.PreviewFromURLWithOptionsContext(ctx, target.Download.URL, dice.PackageDownloadOptions{
+		Hashes:       target.Download.Hash,
+		ExpectedSize: target.Download.Size,
+	})
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	return response.NewItemResponse(preview), nil
 }
 
-func (s *Service) StoreDownload(_ context.Context, req *StoreDownloadReq) (*response.ItemResponse[StoreInstallListItemResult], error) {
+func (s *Service) StoreDownload(ctx context.Context, req *StoreDownloadReq) (*response.ItemResponse[StoreInstallListItemResult], error) {
 	sm := s.storeManager()
 	pm := s.packageManager()
 	if sm == nil || pm == nil {
@@ -509,7 +529,7 @@ func (s *Service) StoreDownload(_ context.Context, req *StoreDownloadReq) (*resp
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
-	status, err := s.installStorePackage(target, true)
+	status, err := s.installStorePackage(ctx, target, true)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
@@ -524,7 +544,7 @@ func (s *Service) StoreDownload(_ context.Context, req *StoreDownloadReq) (*resp
 	return response.NewItemResponse(result), nil
 }
 
-func (s *Service) StoreInstallList(_ context.Context, req *StoreInstallListReq) (*response.ItemResponse[StoreInstallListResp], error) {
+func (s *Service) StoreInstallList(ctx context.Context, req *StoreInstallListReq) (*response.ItemResponse[StoreInstallListResp], error) {
 	sm := s.storeManager()
 	if sm == nil {
 		return nil, huma.Error500InternalServerError("store manager unavailable")
@@ -553,7 +573,7 @@ func (s *Service) StoreInstallList(_ context.Context, req *StoreInstallListReq) 
 		pending = append(pending, pendingStoreInstall{target: target, resultIndex: index})
 	}
 
-	s.installStorePackageBatch(results, pending)
+	s.installStorePackageBatch(ctx, results, pending)
 
 	summary := StoreInstallListResp{Items: results}
 	for _, item := range results {
@@ -575,12 +595,12 @@ type pendingStoreInstall struct {
 	lastError   error
 }
 
-func (s *Service) installStorePackageBatch(results []StoreInstallListItemResult, pending []pendingStoreInstall) {
+func (s *Service) installStorePackageBatch(ctx context.Context, results []StoreInstallListItemResult, pending []pendingStoreInstall) {
 	for len(pending) > 0 {
 		nextPending := make([]pendingStoreInstall, 0, len(pending))
 		installedThisPass := 0
 		for _, item := range pending {
-			status, err := s.installStorePackage(item.target, false)
+			status, err := s.installStorePackage(ctx, item.target, false)
 			if err == nil {
 				results[item.resultIndex].Status = status
 				if status == "skipped" {
@@ -615,7 +635,7 @@ func (s *Service) installStorePackageBatch(results []StoreInstallListItemResult,
 	}
 }
 
-func (s *Service) installStorePackage(target *dice.StorePackage, reinstallExactVersion bool) (string, error) {
+func (s *Service) installStorePackage(ctx context.Context, target *dice.StorePackage, reinstallExactVersion bool) (string, error) {
 	pm := s.packageManager()
 	sm := s.storeManager()
 	if pm == nil || sm == nil {
@@ -637,11 +657,37 @@ func (s *Service) installStorePackage(target *dice.StorePackage, reinstallExactV
 		}
 	}
 
-	if err := pm.InstallFromURL(target.Download.URL, target.Download.Hash); err != nil {
+	if err := pm.InstallFromURLWithOptionsContext(ctx, target.Download.URL, dice.PackageDownloadOptions{
+		Hashes:       target.Download.Hash,
+		ExpectedSize: target.Download.Size,
+	}); err != nil {
 		return "", err
 	}
 	sm.RefreshInstalled([]*dice.StorePackage{target})
 	return "installed", nil
+}
+
+func (s *Service) streamUploadMiddleware(api huma.API, preview bool) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		pm := s.packageManager()
+		if pm == nil {
+			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "package manager unavailable")
+			return
+		}
+
+		result := uploadStreamResult{done: true}
+		var err error
+		if preview {
+			result.preview, err = pm.PreviewFromStreamContext(ctx.Context(), ctx.BodyReader())
+		} else {
+			err = pm.InstallFromStreamContext(ctx.Context(), ctx.BodyReader())
+		}
+		if err != nil {
+			_ = huma.WriteErr(api, ctx, http.StatusBadRequest, err.Error())
+			return
+		}
+		next(huma.WithValue(ctx, uploadStreamContextKey{}, result))
+	}
 }
 
 func sameStorePackageVersion(left, right string) bool {

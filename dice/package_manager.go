@@ -2463,6 +2463,24 @@ func (pm *PackageManager) InstallFromURLWithOptionsContext(ctx context.Context, 
 	return pm.installFromSourceContext(ctx, stagedPath, true)
 }
 
+// PreviewFromURLWithOptionsContext downloads a package into staging and inspects it without installing it.
+func (pm *PackageManager) PreviewFromURLWithOptionsContext(ctx context.Context, url string, options PackageDownloadOptions) (*PackageUploadPreview, error) {
+	release, err := acquirePackageOperation(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	if dirErr := pm.ensurePackageDirs(); dirErr != nil {
+		return nil, dirErr
+	}
+	stagedPath, _, err := pm.prepareDownloadedPackageContext(ctx, url, options, pm.getPackageStagingDir(), "package_preview_download_*.part")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(stagedPath)
+	return pm.previewFromSourceContext(ctx, stagedPath)
+}
+
 func acquirePackageOperation(ctx context.Context) (func(), error) {
 	select {
 	case packageOperations <- struct{}{}:
