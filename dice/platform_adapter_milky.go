@@ -54,6 +54,10 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		return
 	}
 	elements := ParseMessageToMilky(msg)
+	if len(elements) == 0 {
+		log.Warnf("Skipping Milky group message to %s: no supported message elements", groupID)
+		return
+	}
 	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
@@ -80,6 +84,10 @@ func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID stri
 		return
 	}
 	elements := ParseMessageToMilky(msg)
+	if len(elements) == 0 {
+		log.Warnf("Skipping Milky private message to %s: no supported message elements", userID)
+		return
+	}
 	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send private message to %s: %v", userID, err)
@@ -881,6 +889,10 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 		log.Errorf("Invalid user ID %s: %v", uid, err)
 		return
 	}
+	if len(elements) == 0 {
+		log.Warnf("Skipping Milky private message to %s: no supported message elements", uid)
+		return
+	}
 	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send private message to %s: %v", uid, err)
@@ -907,9 +919,25 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
+	nudgeTargets := make([]int64, 0)
+	for _, element := range send {
+		poke, ok := element.(*message.PokeElement)
+		if !ok {
+			continue
+		}
+		userID, parseErr := strconv.ParseInt(poke.Target, 10, 64)
+		if parseErr != nil || userID <= 0 {
+			log.Warnf("Skipping invalid Milky group nudge target %q", poke.Target)
+			continue
+		}
+		nudgeTargets = append(nudgeTargets, userID)
+	}
+	if len(elements) == 0 && len(nudgeTargets) == 0 {
+		log.Warnf("Skipping Milky group message to %s: no supported message elements", groupID)
+		return
+	}
 	var ret *milky.MessageRet
 	if len(elements) == 0 {
-		log.Debugf("No valid message elements to send to group %s", groupID)
 		ret = &milky.MessageRet{}
 	} else {
 		ret, err = pa.IntentSession.SendGroupMessage(id, &elements)
@@ -918,19 +946,13 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
 	}
-	go func() {
-		for _, element := range send {
-			if poke, ok := element.(*message.PokeElement); ok {
-				log.Debugf("Sending group Nudge: %s", poke.Target)
-				userid, err2 := strconv.ParseInt(poke.Target, 10, 64)
-				if err2 != nil {
-					return
-				}
-				_ = pa.IntentSession.SendGroupNudge(id, userid)
-				doSleepQQ(ctx)
-			}
+	go func(targets []int64) {
+		for _, userID := range targets {
+			log.Debugf("Sending group Nudge: %d", userID)
+			_ = pa.IntentSession.SendGroupNudge(id, userID)
+			doSleepQQ(ctx)
 		}
-	}()
+	}(nudgeTargets)
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
