@@ -25,11 +25,11 @@
 
           <section class="story-action-block">
             <n-flex size="small" align="center" class="story-tools">
-              <n-button type="primary" size="small" @click="logs.forEach(item => (item.pitch = !item.pitch))">
+              <n-button type="primary" size="small" @click="toggleSelectAll">
                 <template #icon>
                   <n-icon><i-ep-check /></n-icon>
                 </template>
-                全选
+                {{ allLogsSelected ? '全不选' : '全选' }}
               </n-button>
               <n-button
                 v-show="(logs?.filter(item => item.pitch)?.length ?? 0) > 0"
@@ -299,6 +299,7 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { storyInfoQueryKey } from '@/features/story/queryKeys';
+import { setStoryLogsSelected } from '@/features/story/selection';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -364,6 +365,7 @@ const cleanupPreview = ref<{
 } | null>(null);
 
 const logs = ref<LogView[]>([]);
+const allLogsSelected = computed(() => logs.value.length > 0 && logs.value.every(item => item.pitch));
 const itemData = ref<LogOneItem[]>([]);
 const currentPainterLog = ref<LogView | null>(null);
 const users = ref<Record<string, [string, string]>>({});
@@ -480,6 +482,10 @@ const refreshLogs = async () => {
     searchLogs(),
   ]);
 };
+
+function toggleSelectAll() {
+  setStoryLogsSelected(logs.value, !allLogsSelected.value);
+}
 
 const deleteLogMutation = useMutation({
   mutationFn: async (log: LogView) => {
