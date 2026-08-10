@@ -30,7 +30,12 @@
         运行环境：{{ overview ? `${overview.runtime.OS} - ${overview.runtime.arch}` : '读取中' }}
       </n-text>
 
-      <div class="network-health-line" @click="refreshNetworkHealth">
+      <n-button
+        text
+        class="network-health-line"
+        aria-label="重新检测网络质量"
+        @click="refreshNetworkHealth"
+      >
         <n-tooltip>
           <template #trigger>
             <span>网络质量：</span>
@@ -74,7 +79,7 @@
           </template>
           {{ formatNetworkHealthTimestamp(networkHealth.timestamp) }}
         </n-tooltip>
-      </div>
+      </n-button>
 
       <div v-if="networkHealth.timestamp !== 0" class="network-health-targets">
         <n-text size="small">
@@ -329,10 +334,13 @@ h4 {
 
 .network-health-line {
   display: flex;
+  width: 100%;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.25rem;
-  cursor: pointer;
+  padding: 0;
+  text-align: left;
 }
 
 .network-health-line__bad {
