@@ -53,8 +53,8 @@ assertEqual(isThemeHexColor('#ABCDEF'), true);
 assertEqual(isThemeHexColor('#abcd'), false);
 
 const lightOverrides = createThemeOverrides(customPalette, 'light');
-assertEqual(lightOverrides.common?.primaryColor, '#0ea5e9');
-assertEqual(lightOverrides.common?.infoColor, '#6366f1');
+assertEqual(lightOverrides.common?.primaryColor, '#0f7baf');
+assertEqual(lightOverrides.common?.infoColor, '#5f62e7');
 assertEqual(lightOverrides.Menu?.itemTextColor, '#ffffff');
 assertEqual(lightOverrides.Menu?.itemIconColorCollapsed, '#ffffff');
 
@@ -72,7 +72,7 @@ const fakeRoot = {
 } as HTMLElement;
 
 syncDocumentThemePalette(fakeRoot, customPalette);
-assertEqual(styleValues.get('--sd-primary'), '#0ea5e9');
-assertEqual(styleValues.get('--sd-error'), '#ef4444');
+assertEqual(styleValues.get('--sd-primary'), '#0f7baf');
+assertEqual(styleValues.get('--sd-error'), '#ce3d40');
 assertEqual(styleValues.has('--sd-bg-selected'), true);
 });

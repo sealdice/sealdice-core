@@ -133,19 +133,110 @@ function getSoftGeneratedColor(color: string, theme: ResolvedTheme): string {
   return getGeneratedColor(color, theme === 'dark' ? 1 : 0, theme);
 }
 
+function hexToRgb(color: string): [number, number, number] {
+  return [
+    Number.parseInt(color.slice(1, 3), 16),
+    Number.parseInt(color.slice(3, 5), 16),
+    Number.parseInt(color.slice(5, 7), 16),
+  ];
+}
+
+function rgbToHex(rgb: [number, number, number]): string {
+  return `#${rgb.map(value => Math.round(value).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function mixHex(start: string, end: string, ratio: number): string {
+  const startRgb = hexToRgb(start);
+  const endRgb = hexToRgb(end);
+  return rgbToHex(startRgb.map((value, index) => value + (endRgb[index] - value) * ratio) as [number, number, number]);
+}
+
+function relativeLuminance(color: string): number {
+  return hexToRgb(color)
+    .map(channel => channel / 255)
+    .map(channel => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
+    .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function getAccessibleSemanticColor(color: string, theme: ResolvedTheme): string {
+  const background = theme === 'dark' ? '#182133' : '#ffffff';
+  const target = theme === 'dark' ? '#ffffff' : '#111827';
+  if (contrastRatio(color, background) >= 4.5) return color;
+
+  for (let step = 1; step <= 20; step += 1) {
+    const candidate = mixHex(color, target, step / 20);
+    if (contrastRatio(candidate, background) >= 4.5) return candidate;
+  }
+  return target;
+}
+
+function getButtonTextColor(background: string): string {
+  return contrastRatio('#ffffff', background) >= contrastRatio('#111827', background)
+    ? '#ffffff'
+    : '#111827';
+}
+
 function createStatusColorOverrides(
   key: ThemeColorKey,
   color: string,
   theme: ResolvedTheme,
 ): NonNullable<GlobalThemeOverrides['common']> {
   const tokenNames = colorTokenNames[key];
+  const accessibleColor = getAccessibleSemanticColor(color, theme);
+  const accessibleHoverColor = getAccessibleSemanticColor(getGeneratedColor(color, 4, theme), theme);
+  const accessiblePressedColor = getAccessibleSemanticColor(getGeneratedColor(color, 6, theme), theme);
 
   return {
-    [tokenNames.base]: color,
-    [tokenNames.hover]: getGeneratedColor(color, 4, theme),
-    [tokenNames.pressed]: getGeneratedColor(color, 6, theme),
-    [tokenNames.suppl]: getGeneratedColor(color, 4, theme),
+    [tokenNames.base]: accessibleColor,
+    [tokenNames.hover]: accessibleHoverColor,
+    [tokenNames.pressed]: accessiblePressedColor,
+    [tokenNames.suppl]: accessibleHoverColor,
   };
+}
+
+function createButtonColorOverrides(
+  key: ThemeColorKey,
+  color: string,
+  theme: ResolvedTheme,
+): NonNullable<GlobalThemeOverrides['Button']> {
+  const typeName = `${key[0].toUpperCase()}${key.slice(1)}`;
+  const accessibleColor = getAccessibleSemanticColor(color, theme);
+  const accessibleHoverColor = getAccessibleSemanticColor(getGeneratedColor(color, 4, theme), theme);
+  const accessiblePressedColor = getAccessibleSemanticColor(getGeneratedColor(color, 6, theme), theme);
+  const buttonTextColor = getButtonTextColor(accessibleColor);
+  const buttonHoverTextColor = getButtonTextColor(accessibleHoverColor);
+  const buttonPressedTextColor = getButtonTextColor(accessiblePressedColor);
+
+  return {
+    [`color${typeName}`]: accessibleColor,
+    [`colorHover${typeName}`]: accessibleHoverColor,
+    [`colorPressed${typeName}`]: accessiblePressedColor,
+    [`colorFocus${typeName}`]: accessibleHoverColor,
+    [`colorDisabled${typeName}`]: accessibleColor,
+    [`textColor${typeName}`]: buttonTextColor,
+    [`textColorHover${typeName}`]: buttonHoverTextColor,
+    [`textColorPressed${typeName}`]: buttonPressedTextColor,
+    [`textColorFocus${typeName}`]: buttonHoverTextColor,
+    [`textColorDisabled${typeName}`]: buttonTextColor,
+    [`textColorText${typeName}`]: accessibleColor,
+    [`textColorTextHover${typeName}`]: accessibleHoverColor,
+    [`textColorTextPressed${typeName}`]: accessiblePressedColor,
+    [`textColorTextFocus${typeName}`]: accessibleHoverColor,
+    [`textColorTextDisabled${typeName}`]: accessibleColor,
+    [`textColorGhost${typeName}`]: accessibleColor,
+    [`textColorGhostHover${typeName}`]: accessibleHoverColor,
+    [`textColorGhostPressed${typeName}`]: accessiblePressedColor,
+    [`textColorGhostFocus${typeName}`]: accessibleHoverColor,
+    [`textColorGhostDisabled${typeName}`]: accessibleColor,
+  } as NonNullable<GlobalThemeOverrides['Button']>;
 }
 
 function createCommonOverrides(
@@ -214,6 +305,10 @@ export function createThemeOverrides(
   // Naive UI 组件主题只接收最终 token；项目壳层背景仍由 --sd-* 管，避免 provider 外层取不到变量。
   const overrides: GlobalThemeOverrides = {
     common: createCommonOverrides(palette, theme),
+    Button: THEME_COLOR_KEYS.reduce<Record<string, string>>((result, key) => ({
+      ...result,
+      ...createButtonColorOverrides(key, palette[key], theme),
+    }), {}) as NonNullable<GlobalThemeOverrides['Button']>,
     Menu: sharedMenuOverrides,
     Layout: sharedLayoutOverrides,
   };
@@ -247,7 +342,10 @@ export function syncDocumentThemePalette(root: HTMLElement | undefined, palette:
 
   // 这里同步的是项目级语义色，Tailwind 和少量自定义 CSS 可以直接读这些变量。
   for (const key of THEME_COLOR_KEYS) {
-    root.style.setProperty(paletteVariableNames[key], palette[key]);
+    root.style.setProperty(
+      paletteVariableNames[key],
+      getAccessibleSemanticColor(palette[key], theme),
+    );
 
     const softColor = getSoftGeneratedColor(palette[key], theme);
     for (const variableName of semanticColorVariableNames[key]) {
