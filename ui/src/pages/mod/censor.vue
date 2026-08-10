@@ -1,6 +1,6 @@
 <template>
   <main class="censor-page">
-    <n-flex align="center" justify="space-between" wrap>
+    <PageHeader title="拦截管理" description="配置敏感词拦截规则、词库和拦截日志。">
       <n-switch
         v-model:value="censorEnable"
         :loading="statusBusy"
@@ -22,7 +22,7 @@
         </template>
         重载拦截
       </n-button>
-    </n-flex>
+    </PageHeader>
 
     <ReloadNotice :show="needReload" />
 
@@ -84,6 +84,7 @@ import CensorWordsView from '@/components/censor/CensorWordsView.vue';
 import CensorWordTip from '@/components/censor/CensorWordTip.vue';
 import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import TipBox from '@/components/shared/TipBox.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { useCensorConfigDraft } from '@/features/censor/configDraft';
 import { useCensorMutations } from '@/features/censor/mutations';
 import {

@@ -1,6 +1,6 @@
 <template>
   <header class="reply-meta-section">
-    <n-flex align="center" justify="space-between" wrap>
+    <PageHeader title="自定义回复" description="管理回复文件、条件和回复规则。">
       <n-switch
         :value="replyEnabled"
         :loading="switchLoading"
@@ -23,11 +23,13 @@
         </template>
         保存
       </n-button>
-    </n-flex>
+    </PageHeader>
   </header>
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/shared/PageHeader.vue';
+
 defineProps<{
   replyEnabled: boolean;
   switchLoading: boolean;
@@ -43,6 +45,6 @@ const emit = defineEmits<{
 
 <style scoped>
 .reply-meta-section {
-  margin-bottom: 1rem;
+  min-width: 0;
 }
 </style>

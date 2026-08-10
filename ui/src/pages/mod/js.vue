@@ -1,6 +1,6 @@
 <template>
   <main class="js-page">
-    <header class="page-header">
+    <PageHeader title="JS 扩展" description="管理脚本扩展、配置和运行数据。">
       <n-flex align="center" justify="space-between" wrap>
         <n-switch
           :value="jsEnable"
@@ -18,7 +18,7 @@
           重载 JS
         </n-button>
       </n-flex>
-    </header>
+    </PageHeader>
 
     <ReloadNotice :show="needReload" />
 
@@ -126,6 +126,7 @@ import {
   postSdApiV2JsShutdown,
 } from '@/api';
 import ReloadNotice from '@/components/layout/ReloadNotice.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { getTestModeBlockMessage, isTestModeApiError, useTestMode } from '@/features/testMode/state';
@@ -384,11 +385,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .js-page {
-  padding: 0 1rem;
-}
-
-.page-header {
-  margin-bottom: 1rem;
+  min-width: 0;
 }
 
 .js-console-grid {

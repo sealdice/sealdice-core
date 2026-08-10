@@ -1,6 +1,6 @@
 <template>
   <main class="helpdoc-page">
-    <header class="page-header">
+    <PageHeader title="帮助文档" description="维护帮助文档文件和可检索词条。">
       <n-button
         type="primary"
         :loading="reloadMutation.isPending.value"
@@ -12,7 +12,7 @@
         </template>
         重载帮助文档
       </n-button>
-    </header>
+    </PageHeader>
 
     <ReloadNotice :show="needReload" />
 
@@ -82,6 +82,7 @@ import HelpdocFilePane from '@/components/helpdoc/HelpdocFilePane.vue';
 import HelpdocItemPane from '@/components/helpdoc/HelpdocItemPane.vue';
 import HelpdocUploadDialog from '@/components/helpdoc/HelpdocUploadDialog.vue';
 import ReloadNotice from '@/components/layout/ReloadNotice.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useHelpdocConfigDraft } from '@/features/helpdoc/configDraft';
 import { useHelpdocMutations } from '@/features/helpdoc/mutations';
@@ -305,10 +306,6 @@ function retryTask(task: ResumableUploadTask) {
   width: 100%;
 }
 
-.page-header {
-  margin-bottom: 1rem;
-}
-
 .helpdoc-tabs {
   padding-bottom: 2rem;
 }
@@ -333,10 +330,5 @@ function retryTask(task: ResumableUploadTask) {
     justify-content: flex-start !important;
   }
 
-  .page-header {
-    display: flex;
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 </style>

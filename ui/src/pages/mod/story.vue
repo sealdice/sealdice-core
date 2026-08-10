@@ -1,16 +1,15 @@
 <template>
   <main class="story-page">
+    <PageHeader title="跑团日志" description="查看、上传、清理和备份跑团日志。" />
     <n-tabs v-model:value="tab">
       <n-tab-pane tab="跑团日志" name="list">
         <template v-if="mode === 'logs'">
-          <header class="page-header">
-            <n-card title="跑团日志 / Story" :bordered="false">
-              <n-flex vertical align="flex-start">
-                <n-text>记录过 {{ summary?.totalLogs ?? 0 }} 份日志，共计 {{ summary?.totalItems ?? 0 }} 条消息</n-text>
-                <n-text>现有 {{ summary?.currentLogs ?? 0 }} 份日志，共计 {{ summary?.currentItems ?? 0 }} 条消息</n-text>
-              </n-flex>
-            </n-card>
-          </header>
+          <n-card :bordered="false" class="story-summary-card">
+            <n-flex vertical align="flex-start">
+              <n-text>记录过 {{ summary?.totalLogs ?? 0 }} 份日志，共计 {{ summary?.totalItems ?? 0 }} 条消息</n-text>
+              <n-text>现有 {{ summary?.currentLogs ?? 0 }} 份日志，共计 {{ summary?.currentItems ?? 0 }} 条消息</n-text>
+            </n-flex>
+          </n-card>
           <section class="story-search-block">
             <ProSearchForm
               :form="storySearchForm"
@@ -182,14 +181,12 @@
 
       <n-tab-pane tab="日志清理" name="cleanup">
         <section class="story-cleanup-page">
-          <header class="page-header">
-            <n-card title="日志清理" :bordered="false">
-              <n-flex vertical align="flex-start">
-                <n-text>按“超过 N 个月未更新”筛选日志并批量删除。</n-text>
-                <n-text depth="3">清理只影响日志库，不影响 v1 接口。</n-text>
-              </n-flex>
-            </n-card>
-          </header>
+          <n-card :bordered="false" class="story-summary-card">
+            <n-flex vertical align="flex-start">
+              <n-text>按“超过 N 个月未更新”筛选日志并批量删除。</n-text>
+              <n-text depth="3">清理只影响日志库，不影响 v1 接口。</n-text>
+            </n-flex>
+          </n-card>
 
           <section class="cleanup-panel">
             <div class="cleanup-panel-head">
@@ -301,6 +298,7 @@ import {
 } from '@/api';
 import StoryBackup from '@/components/story/StoryBackup.vue';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { storyInfoQueryKey } from '@/features/story/queryKeys';
@@ -777,7 +775,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header {
+.story-summary-card {
   margin-bottom: 1rem;
 }
 

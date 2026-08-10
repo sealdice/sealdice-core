@@ -1,32 +1,31 @@
 <template>
   <main class="public-dice-page">
-    <n-card class="public-dice-card" title="公骰设置" :bordered="false">
-      <template #header-extra>
-        <n-space align="center" :wrap="false">
-          <n-switch
-            :value="draft?.config.publicDiceEnable ?? false"
-            :disabled="!draft || saving.value"
-            :loading="enableMutation.isPending.value"
-            @update:value="handleEnableUpdate"
-          >
-            <template #checked>启用</template>
-            <template #unchecked>关闭</template>
-          </n-switch>
-          <n-button
-            type="primary"
-            :disabled="!canSave"
-            :loading="saveMutation.isPending.value"
-            @click="saveDraft"
-          >
-            <template #icon>
-              <n-icon>
-                <i-ep-document-checked />
-              </n-icon>
-            </template>
-            保存
-          </n-button>
-        </n-space>
-      </template>
+    <PageHeader title="公骰设置" description="配置公共骰服务的启用状态、账号信息和可用端点。">
+      <n-switch
+        :value="draft?.config.publicDiceEnable ?? false"
+        :disabled="!draft || saving.value"
+        :loading="enableMutation.isPending.value"
+        @update:value="handleEnableUpdate"
+      >
+        <template #checked>启用</template>
+        <template #unchecked>关闭</template>
+      </n-switch>
+      <n-button
+        type="primary"
+        :disabled="!canSave"
+        :loading="saveMutation.isPending.value"
+        @click="saveDraft"
+      >
+        <template #icon>
+          <n-icon>
+            <i-ep-document-checked />
+          </n-icon>
+        </template>
+        保存
+      </n-button>
+    </PageHeader>
+
+    <n-card class="public-dice-card" :bordered="false">
 
       <n-alert v-if="queryErrorText" class="public-dice-card__alert" type="error">
         {{ queryErrorText }}
@@ -88,6 +87,7 @@ import {
 import imgSeal from '@/assets/seal.png';
 import PublicDiceEndpointSelector from '@/components/public-dice/PublicDiceEndpointSelector.vue';
 import PublicDiceProfileForm from '@/components/public-dice/PublicDiceProfileForm.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';

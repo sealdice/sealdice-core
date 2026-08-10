@@ -1,11 +1,6 @@
 <template>
   <main class="ban-page">
-    <header class="ban-page__header">
-      <div>
-        <h1>黑白名单</h1>
-        <p>管理黑白名单条目与拉黑惩罚策略，当前页面已迁移至 V2 API。</p>
-      </div>
-    </header>
+    <PageHeader title="黑白名单" description="管理黑白名单条目与拉黑惩罚策略，当前页面已迁移至 V2 API。" />
 
     <n-tabs v-model:value="tab" animated>
       <n-tab-pane name="list" tab="黑白名单">
@@ -62,6 +57,7 @@ import { downloadApiFile } from '@/api/download';
 import BanAddDialog from '@/components/ban/BanAddDialog.vue';
 import BanConfigPanel from '@/components/ban/BanConfigPanel.vue';
 import BanListPanel from '@/components/ban/BanListPanel.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
@@ -259,14 +255,4 @@ async function saveConfig() {
   gap: 1rem;
 }
 
-.ban-page__header h1 {
-  margin: 0;
-  color: var(--sd-text-primary);
-  font-size: 1.75rem;
-}
-
-.ban-page__header p {
-  margin: 0.5rem 0 0;
-  color: var(--sd-text-secondary);
-}
 </style>

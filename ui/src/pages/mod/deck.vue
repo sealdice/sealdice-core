@@ -1,13 +1,13 @@
 <template>
   <main class="deck-page">
-    <header class="page-header">
+    <PageHeader title="牌堆管理" description="搜索、上传和更新可用于指令测试的牌堆。">
       <n-button type="primary" :loading="reloadMutation.isPending.value" @click="doReload">
         <template #icon>
           <n-icon><i-ep-refresh /></n-icon>
         </template>
         重载牌堆
       </n-button>
-    </header>
+    </PageHeader>
 
     <n-spin :show="pageBusy">
       <section class="deck-search-block">
@@ -297,6 +297,7 @@ import {
   type UpdateCheckResult,
 } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { getApiBaseUrl } from '@/api/config';
 import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse } from '@/features/testMode/state';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
@@ -647,10 +648,6 @@ function deckUpdate() {
 <style scoped>
 .deck-page {
   width: 100%;
-}
-
-.page-header {
-  margin-bottom: 1rem;
 }
 
 .deck-search-block {

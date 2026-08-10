@@ -1,17 +1,13 @@
 <template>
   <main class="package-page">
-    <header class="package-header">
-      <div>
-        <h2>扩展包管理</h2>
-        <p>已安装包、商店列表、仓库后端和上传 / URL 安装。</p>
-      </div>
+    <PageHeader title="扩展包管理" description="管理已安装包、商店列表、仓库后端和上传 / URL 安装。">
       <n-space>
         <n-button secondary @click="refreshAll" :loading="refreshing">刷新</n-button>
         <n-dropdown :options="reloadMenuOptions" @select="handleReloadSelect">
           <n-button type="primary" :loading="reloading">重载</n-button>
         </n-dropdown>
       </n-space>
-    </header>
+    </PageHeader>
 
     <n-alert v-if="loadErrorText" type="error" class="mb-4">
       {{ loadErrorText }}
@@ -204,6 +200,7 @@ import { getErrorMessage } from '@/features/auth/error';
 import { isTestModeApiError, getTestModeBlockMessage } from '@/features/testMode/state';
 import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 
 type ConfigFieldSchema = {
   type?: string;
@@ -766,22 +763,6 @@ function handleError(error: unknown, fallback: string) {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.package-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-}
-
-.package-header h2 {
-  margin: 0;
-}
-
-.package-header p {
-  margin: 6px 0 0;
-  color: var(--sd-text-secondary);
 }
 
 .package-name {
