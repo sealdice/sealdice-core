@@ -4,6 +4,7 @@ import {
   getEndpointDetailRows,
   getWorkflowTag,
   getWorkflowText,
+  getEndpointTargetLabel,
 } from './endpointDisplay';
 
 const endpoint: EndPointInfo = {
@@ -50,3 +51,7 @@ it('builds endpoint detail rows without platform logic in the page', () => {
   }
   if (rowMap.get('签名服务') !== 'sealdice') throw new Error(`unexpected sign server = ${rowMap.get('签名服务')}`);
 });
+
+if (getEndpointTargetLabel(endpoint) !== 'QQ:10001（QQ，ID: ep-1）') {
+  throw new Error(`unexpected endpoint target = ${getEndpointTargetLabel(endpoint)}`);
+}

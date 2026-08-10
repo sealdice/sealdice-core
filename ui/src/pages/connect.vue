@@ -127,6 +127,7 @@ import {
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { createConnectTableColumns } from '@/components/connect/ConnectTableColumns';
+import { getEndpointTargetLabel } from '@/features/connect/endpointDisplay';
 import {
   advanceConnectWizard,
   buildConnectCreatePayload,
@@ -318,7 +319,7 @@ const confirmDelete = (endpoint: EndPointInfo) => {
   }
   dialog.warning({
     title: '删除账号',
-    content: '删除此项帐号，确定吗？删除账号不会影响人物卡和 logs 等数据。',
+    content: `确认删除账号「${getEndpointTargetLabel(endpoint)}」吗？删除账号不会影响人物卡和 logs 等数据。`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: () => deleteMutation.mutate(endpoint.id),
@@ -332,7 +333,7 @@ const confirmEnable = (endpoint: EndPointInfo, enable: boolean) => {
   }
   dialog.warning({
     title: '修改账号状态',
-    content: '确认修改此账号的在线状态吗？',
+    content: `确认${enable ? '启用' : '禁用'}账号「${getEndpointTargetLabel(endpoint)}」吗？`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: () => enableMutation.mutate({ id: endpoint.id, enable }),

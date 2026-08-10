@@ -51,6 +51,12 @@ export function getEndpointProtocolLabel(endpoint: EndpointDisplaySource) {
   return endpoint.platform;
 }
 
+export function getEndpointTargetLabel(endpoint: EndPointInfo) {
+  const account = endpoint.nickname || endpoint.userId || endpoint.id;
+  const protocol = getEndpointProtocolLabel(endpoint);
+  return `${account}（${protocol}，ID: ${endpoint.id}）`;
+}
+
 export function adapterOf(endpoint: EndPointInfo): EndpointDisplayAdapter {
   if (endpoint.adapter && typeof endpoint.adapter === 'object') {
     return endpoint.adapter as EndpointDisplayAdapter;
