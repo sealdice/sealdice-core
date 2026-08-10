@@ -69,7 +69,7 @@
         </n-text>
 
         <div
-          v-for="(item, index) in items"
+          v-for="(item, index) in visibleItems"
           :key="textItemKeyOf(keyName, item)"
           class="entry-item"
         >
@@ -103,7 +103,7 @@
                 v-model:value="item[0]"
                 class="w-full"
                 type="textarea"
-                :autosize="{ minRows: 3 }"
+                :autosize="{ minRows: 1, maxRows: 4 }"
                 @update:value="emit('change', category, keyName)"
               />
 
@@ -138,6 +138,16 @@
             </div>
           </n-flex>
         </div>
+        <n-button
+          v-if="isLongList"
+          text
+          size="small"
+          class="entry-expand-button"
+          :aria-expanded="!collapsed"
+          @click="collapsed = !collapsed"
+        >
+          {{ collapsed ? `展开其余 ${items.length - visibleItems.length} 条` : '收起多余条目' }}
+        </n-button>
         <n-flex size="small" wrap>
           <n-tag
             v-for="item in help?.vars ?? []"
@@ -155,11 +165,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue';
 import type { TextItemCompatibleInfo, Value } from '@/api';
 import CustomTextPreviewInfo from './CustomTextPreviewInfo.vue';
 import type { TextTemplateItem } from '@/features/customText/types';
 
 const items = defineModel<TextTemplateItem[]>({ required: true });
+const collapsed = ref(true);
+const isLongList = computed(() => items.value.length > 3);
+const visibleItems = computed(() =>
+  isLongList.value && collapsed.value ? items.value.slice(0, 3) : items.value,
+);
 
 defineProps<{
   category: string;
@@ -192,6 +208,10 @@ const emit = defineEmits<{
 .entry-item {
   width: 100%;
   margin-bottom: 0.5rem;
+}
+
+.entry-expand-button {
+  align-self: flex-start;
 }
 
 .preview-icon {
