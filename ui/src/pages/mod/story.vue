@@ -61,23 +61,18 @@
                 <template #action>
                   <n-flex size="small" wrap>
                     <n-button size="small" secondary @click="openItem(log)">查看</n-button>
-                    <n-button size="small" secondary @click="openRawItem(log)">分页文本</n-button>
                     <n-button size="small" type="primary" secondary @click="uploadLog(log)">
                       <template #icon>
                         <n-icon><i-ep-upload /></n-icon>
                       </template>
                       提取日志
                     </n-button>
-                    <n-button size="small" secondary @click="uploadLog(log, true)">强制上传</n-button>
-                    <n-button size="small" secondary :disabled="!log.uploadUrl" @click="openLink(log.uploadUrl)">
-                      查看链接
-                    </n-button>
-                    <n-button size="small" type="error" secondary @click="delLog(log)">
-                      <template #icon>
-                        <n-icon><i-ep-delete /></n-icon>
-                      </template>
-                      删除
-                    </n-button>
+                    <n-dropdown :options="logActionOptions(log)" @select="key => handleLogAction(key, log)">
+                      <n-button size="small" secondary>
+                        更多
+                        <template #icon><i-ep-more-filled /></template>
+                      </n-button>
+                    </n-dropdown>
                   </n-flex>
                 </template>
 
@@ -624,6 +619,23 @@ function uploadLog(log: LogView, force = false) {
       showUploadResult(log, result);
     },
   });
+}
+
+function logActionOptions(log: LogView) {
+  return [
+    { label: '分页文本', key: 'raw' },
+    { label: '强制上传', key: 'force-upload' },
+    { label: '查看链接', key: 'link', disabled: !log.uploadUrl },
+    { type: 'divider', key: 'divider' },
+    { label: '删除', key: 'delete' },
+  ];
+}
+
+function handleLogAction(key: string, log: LogView) {
+  if (key === 'raw') void openRawItem(log);
+  if (key === 'force-upload') uploadLog(log, true);
+  if (key === 'link' && log.uploadUrl) openLink(log.uploadUrl);
+  if (key === 'delete') delLog(log);
 }
 
 async function openItem(log: LogView) {
