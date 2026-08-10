@@ -763,6 +763,80 @@ func TestPackageManagerReloadAllLoadsTemplateFilesFromEnabledPackages(t *testing
 	}
 }
 
+func TestPackageSetupRestoresEnabledPackageTemplatesAfterRestart(t *testing.T) {
+	_, pm := newTestPackageManager(t)
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	const pkgID = "alice/template-restart-pack"
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
+		"templates": {"templates/*.yaml"},
+	}, map[string]string{
+		"templates/restart.yaml": loadTemplateFixture(t, "restart-template"),
+	})
+	if err := pm.Install(archive); err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	if _, err := pm.Enable(pkgID); err != nil {
+		t.Fatalf("Enable() error = %v", err)
+	}
+
+	restarted := &Dice{
+		BaseConfig:    BaseConfig{DataDir: "."},
+		Logger:        zap.NewNop().Sugar(),
+		GameSystemMap: new(SyncMap[string, *GameSystemTemplate]),
+	}
+	restarted.PackageSetup()
+
+	pkg, exists := restarted.PackageManager.Get(pkgID)
+	if !exists || pkg.State != sealpack.PackageStateEnabled {
+		t.Fatalf("expected package %s to be restored as enabled, got %#v", pkgID, pkg)
+	}
+	if _, exists := restarted.GameSystemMap.Load("restart-template"); !exists {
+		t.Fatal("expected enabled package template to be restored during PackageSetup")
+	}
+}
+
+func TestJsClearRestoresEnabledPackageTemplates(t *testing.T) {
+	testDice, pm := newTestPackageManager(t)
+	testDice.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
+	if err := pm.Init(); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	const pkgID = "alice/template-js-clear-pack"
+	archive := createTestSealPack(t, "", pkgID, "1.0.0", map[string][]string{
+		"templates": {"templates/*.yaml"},
+	}, map[string]string{
+		"templates/static.yaml": loadTemplateFixture(t, "static-template"),
+	})
+	if err := pm.Install(archive); err != nil {
+		t.Fatalf("Install() error = %v", err)
+	}
+	if _, err := pm.Enable(pkgID); err != nil {
+		t.Fatalf("Enable() error = %v", err)
+	}
+	if err := pm.reloadTemplates(); err != nil {
+		t.Fatalf("reloadTemplates() error = %v", err)
+	}
+
+	testDice.GameSystemTemplateAddEx(&GameSystemTemplate{
+		GameSystemTemplateV2: &GameSystemTemplateV2{Name: "js-only-template"},
+	}, true)
+	testDice.jsClear()
+
+	if _, exists := testDice.GameSystemMap.Load("static-template"); !exists {
+		t.Fatal("expected enabled package template to survive jsClear")
+	}
+	if _, exists := testDice.GameSystemMap.Load("js-only-template"); exists {
+		t.Fatal("expected JS-only template to be removed by jsClear")
+	}
+	if _, exists := testDice.GameSystemMap.Load("coc7"); !exists {
+		t.Fatal("expected builtin templates to remain available after jsClear")
+	}
+}
+
 func TestPackageManagerReloadHelpdocUsesReloadHelp(t *testing.T) {
 	testDice, pm := newTestPackageManager(t)
 	manager := &DiceManager{

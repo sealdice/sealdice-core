@@ -711,10 +711,15 @@ func (d *Dice) jsClear() {
 	d.CocExtraRules = map[int]*CocRuleInfo{}
 	// 清理脚本列表
 	d.JsScriptList = []*JsScriptInfo{}
-	// 清理规则模板
-	// Pinenutn: 由于切换成了其他的syncMap，所以初始化策略需要修改
-	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
-	d.RegisterBuiltinSystemTemplate()
+	// 清理 JS 注册的规则模板，同时恢复内置、用户和已启用扩展包模板。
+	if d.PackageManager == nil {
+		d.resetGameSystemTemplates()
+	} else if err := d.PackageManager.reloadTemplates(); err != nil {
+		d.resetGameSystemTemplates()
+		if d.Logger != nil {
+			d.Logger.Errorf("JS 环境清理后恢复用户及 sealpack 规则模板失败，当前仅保留内置模板: %v", err)
+		}
+	}
 	// JsEnable=false 的启动状态下 ExtLoopManager 可能尚未初始化
 	if d.ExtLoopManager != nil {
 		d.ExtLoopManager.SetLoop(nil)
