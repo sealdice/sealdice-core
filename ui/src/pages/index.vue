@@ -1,20 +1,16 @@
 <template>
   <main class="home-page">
-    <div class="upgrade-bar">
+    <PageHeader title="主页" description="查看运行状态、网络质量和实时日志。">
       <n-tooltip v-if="hasNewVersion && isContainerMode">
         <template #trigger>
-          <n-button type="primary" disabled>
-            升级新版
-          </n-button>
+          <n-button type="primary" disabled>升级新版</n-button>
         </template>
         容器模式下禁止直接更新，请手动拉取最新镜像
       </n-tooltip>
-      <n-button v-else-if="hasNewVersion" type="primary" disabled>
-        升级新版
-      </n-button>
-    </div>
+      <n-button v-else-if="hasNewVersion" type="primary" disabled>升级新版</n-button>
+    </PageHeader>
 
-    <h4>状态</h4>
+    <h2>状态</h2>
     <div class="status-block">
       <div class="status-line">
         <n-text>内存占用：</n-text>
@@ -114,7 +110,7 @@
     </div>
 
     <div class="log-head">
-      <h4>日志</h4>
+      <h2>日志</h2>
       <div class="log-controls">
         <n-button size="small" secondary @click="scrollToLatestLog">
           <template #icon>
@@ -179,6 +175,7 @@ import {
   normalizeNetworkHealthData,
 } from '@/features/base/networkHealth';
 import { hasAccessToken } from '@/features/auth/state';
+import PageHeader from '@/components/shared/PageHeader.vue';
 
 const themeVars = useThemeVars();
 const breakpoints = useBreakpoints(breakpointsTailwind);
@@ -321,16 +318,10 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
   margin: 0 auto;
 }
 
-.upgrade-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-h4 {
+.home-page h2 {
   margin: 1rem 0 0.75rem;
   color: var(--sd-text-primary);
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 

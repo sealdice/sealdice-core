@@ -1,6 +1,7 @@
 <template>
   <main class="custom-text-page">
     <n-spin :show="editor.customTextQuery.isFetching.value && !editor.customTextQuery.data.value">
+      <PageHeader :title="category" description="编辑当前分类的自定义回复文案。" />
       <CustomTextHelp />
 
       <CustomTextToolbar
@@ -78,6 +79,7 @@ import CustomTextEntryCard from './CustomTextEntryCard.vue';
 import CustomTextFilterBar from './CustomTextFilterBar.vue';
 import CustomTextHelp from './CustomTextHelp.vue';
 import CustomTextImportModal from './CustomTextImportModal.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import CustomTextToolbar from './CustomTextToolbar.vue';
 import { useCustomTextEditor } from '@/features/customText/useCustomTextEditor';
 

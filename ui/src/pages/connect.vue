@@ -1,11 +1,10 @@
 <template>
   <main class="connect-page">
-    <div class="page-head">
-      <h4>账号设置</h4>
+    <PageHeader title="账号设置" description="管理已接入平台账号及其连接配置。">
       <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
         添加账号
       </n-button>
-    </div>
+    </PageHeader>
 
     <n-alert v-if="realtimeErrorText" type="error" class="mb-4">
       {{ realtimeErrorText }}
@@ -131,6 +130,7 @@ import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { createConnectTableColumns } from '@/components/connect/ConnectTableColumns';
 import { getEndpointTargetLabel } from '@/features/connect/endpointDisplay';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import {
   advanceConnectWizard,
   buildConnectCreatePayload,
@@ -435,24 +435,7 @@ const submitEdit = () => {
 
 <style scoped>
 .connect-page {
-  max-width: 1180px;
-  margin: 0 auto;
   text-align: left;
-}
-
-.page-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-h4 {
-  margin: 0;
-  color: var(--sd-text-primary);
-  font-size: 1rem;
-  font-weight: 700;
 }
 
 .account-cell {
@@ -487,11 +470,6 @@ h4 {
 }
 
 @media screen and (max-width: 639.9px) {
-  .page-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .account-dialog {
     width: calc(100vw - 24px);
   }

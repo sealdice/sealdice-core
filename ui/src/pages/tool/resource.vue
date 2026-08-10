@@ -1,16 +1,12 @@
 <template>
   <main class="resource-page">
-    <section class="resource-page__hero">
-      <div class="resource-page__hero-main">
-        <n-tag :bordered="false" type="info">V2 API</n-tag>
-        <h1>资源管理</h1>
-        <p>上传图片后可直接复制海豹码，在回复、牌堆或指令中引用本地图片资源。</p>
-      </div>
-      <div class="resource-page__hero-stats">
+    <PageHeader title="资源管理" description="上传图片后可直接复制海豹码，在回复、牌堆或指令中引用本地图片资源。">
+      <n-tag :bordered="false" type="info">V2 API</n-tag>
+      <div class="resource-page__stats">
         <n-statistic label="图片资源" :value="total" />
         <n-statistic label="本页数量" :value="currentCount" />
       </div>
-    </section>
+    </PageHeader>
 
     <n-alert v-if="listErrorText" type="error" :bordered="false">
       {{ listErrorText }}
@@ -92,6 +88,7 @@ import {
 import { downloadApiFile } from '@/api/download';
 import ResourceListPanel from '@/components/resource/ResourceListPanel.vue';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { copyText } from '@/features/clipboard';
@@ -282,50 +279,11 @@ function showDetail(item: ResourceItem) {
   min-width: 0;
 }
 
-.resource-page__hero {
+.resource-page__stats {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: end;
-  padding: 22px;
-  overflow: hidden;
-  border: 1px solid var(--sd-border-soft);
-  border-radius: 22px;
-  background: linear-gradient(135deg, var(--sd-bg-elevated), var(--sd-bg-elevated-soft));
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--sd-primary), transparent 78%), transparent 34%),
-    linear-gradient(135deg, var(--sd-bg-elevated), var(--sd-bg-elevated-soft));
-}
-
-.resource-page__hero-main {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.resource-page__hero-main h1 {
-  margin: 0;
-  font-size: clamp(24px, 4vw, 38px);
-  line-height: 1.1;
-}
-
-.resource-page__hero-main p {
-  max-width: 760px;
-  margin: 0;
-  color: var(--sd-text-secondary);
-}
-
-.resource-page__hero-stats {
-  display: grid;
-  min-width: 220px;
+  min-width: 210px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--sd-border-soft);
-  border-radius: 18px;
-  background: var(--sd-bg-elevated-tint);
 }
 
 .resource-page__card {
@@ -339,12 +297,7 @@ function showDetail(item: ResourceItem) {
 }
 
 @media (max-width: 760px) {
-  .resource-page__hero {
-    grid-template-columns: 1fr;
-    padding: 18px;
-  }
-
-  .resource-page__hero-stats {
+  .resource-page__stats {
     min-width: 0;
   }
 }

@@ -1,6 +1,6 @@
 <template>
   <main class="advanced-page">
-    <h2 class="h-2">高级设置</h2>
+    <PageHeader title="高级设置" description="面向开发者和进阶用户的高级配置。" />
     <TipBox type="warning" class="my-4">
       <n-text>
         此处是面向开发者或进阶用户的隐藏设置页，下列的设置项可能会对海豹核心的功能造成重大影响。<br />
@@ -143,6 +143,7 @@ import {
   type AdvancedConfig,
 } from '@/api';
 import TipBox from '@/components/shared/TipBox.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { normalizeAdvancedConfig, setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
 import { isErudaEnabled, setErudaEnabled } from '@/features/debug/eruda';

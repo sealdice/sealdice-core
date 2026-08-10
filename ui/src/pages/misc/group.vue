@@ -1,23 +1,23 @@
 <template>
   <main class="group-page">
-    <header class="page-header">
-      <n-card title="群组管理 / Group" :bordered="false">
-        <n-grid cols="1 s:2 m:4" responsive="screen" x-gap="12" y-gap="12">
-          <n-gi>
-            <n-statistic label="当前结果" :value="total" />
-          </n-gi>
-          <n-gi>
-            <n-statistic label="本页群组" :value="groups.length" />
-          </n-gi>
-          <n-gi>
-            <n-statistic label="记录日志中" :value="loggingCount" />
-          </n-gi>
-          <n-gi>
-            <n-statistic label="多账号群" :value="multiDiceCount" />
-          </n-gi>
-        </n-grid>
-      </n-card>
-    </header>
+    <PageHeader title="群组管理" description="查看群组状态、日志设置及群内账号。" />
+
+    <n-card :bordered="false" class="group-summary-card">
+      <n-grid cols="1 s:2 m:4" responsive="screen" x-gap="12" y-gap="12">
+        <n-gi>
+          <n-statistic label="当前结果" :value="total" />
+        </n-gi>
+        <n-gi>
+          <n-statistic label="本页群组" :value="groups.length" />
+        </n-gi>
+        <n-gi>
+          <n-statistic label="记录日志中" :value="loggingCount" />
+        </n-gi>
+        <n-gi>
+          <n-statistic label="多账号群" :value="multiDiceCount" />
+        </n-gi>
+      </n-grid>
+    </n-card>
 
     <n-spin :show="listLoading">
       <section class="group-search-block">
@@ -202,6 +202,7 @@ import {
   type GroupInfo,
 } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   readGroupQuitDefaultText,
@@ -549,7 +550,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header {
+.group-summary-card {
   margin-bottom: 1rem;
 }
 
