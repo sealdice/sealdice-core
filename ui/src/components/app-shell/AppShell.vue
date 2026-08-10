@@ -31,7 +31,10 @@
           @toggle-sidebar="toggleSidebar"
           @open-search="openSearch"
         />
-        <div class="sd-floating-panel-layer" :class="{ 'sd-floating-panel-layer--active': !!activeUnsavedChangesSource }">
+        <div
+          class="sd-floating-panel-layer"
+          :class="{ 'sd-floating-panel-layer--active': !!activeUnsavedChangesSource }"
+        >
           <AppUnsavedChangesPanel />
         </div>
         <main :class="getAppShellContentClass(props.contentMode)">
@@ -56,7 +59,6 @@
       </n-drawer-content>
     </n-drawer>
 
-    <AppUnlockDialog />
     <AppSearchMenu
       v-if="renderSearchMenu"
       ref="searchMenuRef"
@@ -80,8 +82,6 @@ import {
 import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
-import AppUnlockDialog from './AppUnlockDialog.vue';
-import { useAuthSession } from '@/features/auth/useAuthSession';
 import {
   activeUnsavedChangesSource,
   hasUnsavedChanges,
@@ -92,13 +92,16 @@ interface AppSearchMenuHandle {
   open: () => void;
 }
 
-const props = withDefaults(defineProps<{
-  contentMode?: AppShellContentMode;
-  containerMode?: AppShellContainerMode;
-}>(), {
-  contentMode: 'default',
-  containerMode: 'default',
-});
+const props = withDefaults(
+  defineProps<{
+    contentMode?: AppShellContentMode;
+    containerMode?: AppShellContainerMode;
+  }>(),
+  {
+    contentMode: 'default',
+    containerMode: 'default',
+  }
+);
 
 const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
 const AppSearchMenu = defineAsyncComponent(loadAppSearchMenu);
@@ -113,7 +116,6 @@ const renderSearchMenu = ref(false);
 const searchMenuRef = ref<AppSearchMenuHandle | null>(null);
 const message = useMessage();
 const dialog = useDialog();
-const authSession = useAuthSession();
 
 function enableAdvancedConfig() {
   advancedConfigCounter.value += 1;
@@ -154,21 +156,22 @@ useEventListener(window, 'beforeunload', event => {
   event.returnValue = '';
 });
 
-setUnsavedChangesConfirmHandler(source => new Promise(resolve => {
-  dialog.warning({
-    title: '确认离开',
-    content: source.confirmMessage,
-    positiveText: '确定忽略',
-    negativeText: '取消',
-    onPositiveClick: () => resolve(true),
-    onNegativeClick: () => resolve(false),
-    onClose: () => resolve(false),
-    onMaskClick: () => resolve(false),
-    onEsc: () => resolve(false),
-  });
-}));
-
-void authSession.tryDefaultSignin();
+setUnsavedChangesConfirmHandler(
+  source =>
+    new Promise(resolve => {
+      dialog.warning({
+        title: '确认离开',
+        content: source.confirmMessage,
+        positiveText: '确定忽略',
+        negativeText: '取消',
+        onPositiveClick: () => resolve(true),
+        onNegativeClick: () => resolve(false),
+        onClose: () => resolve(false),
+        onMaskClick: () => resolve(false),
+        onEsc: () => resolve(false),
+      });
+    })
+);
 </script>
 
 <style scoped>
@@ -222,13 +225,16 @@ void authSession.tryDefaultSignin();
 
 .sd-main-container {
   box-sizing: border-box;
+  width: min(100%, 1180px);
   min-height: 100%;
+  margin-inline: auto;
   padding: 1.5rem 2rem 2rem;
 }
 
 .sd-main-container--wide {
   width: 100%;
   max-width: none;
+  margin-inline: 0;
 }
 
 .sd-page-shell {

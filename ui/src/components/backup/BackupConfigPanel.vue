@@ -1,28 +1,26 @@
 <template>
-  <n-card class="backup-config-panel" :bordered="false">
-    <template #header>
-      <div class="backup-config-panel__head">
-        <div>
-          <h2>备份设置</h2>
-          <p>配置自动备份、备份范围和历史备份清理策略。</p>
-        </div>
-        <n-button
-          type="primary"
-          :disabled="!dirty || disabled"
-          :loading="saving"
-          @click="emit('save')"
-        >
-          <template #icon>
-            <n-icon>
-              <i-ep-document-checked />
-            </n-icon>
-          </template>
-          保存设置
-        </n-button>
+  <section class="backup-config-panel">
+    <header class="backup-config-panel__head">
+      <div>
+        <h2>备份设置</h2>
+        <p>配置自动备份、备份范围和历史备份清理策略。</p>
       </div>
-    </template>
+      <n-button
+        type="primary"
+        :disabled="!dirty || disabled"
+        :loading="saving"
+        @click="emit('save')"
+      >
+        <template #icon>
+          <n-icon>
+            <i-ep-document-checked />
+          </n-icon>
+        </template>
+        保存设置
+      </n-button>
+    </header>
 
-      <n-form :model="config" label-placement="top" :disabled="disabled">
+    <n-form :model="config" label-placement="top" :disabled="disabled">
       <section class="backup-config-panel__section">
         <div class="backup-config-panel__section-title">
           <h3>自动备份</h3>
@@ -75,7 +73,11 @@
           </n-radio-group>
         </n-form-item>
 
-        <n-form-item v-if="config.backupCleanStrategy === 1" path="backupCleanKeepCount" label="保留数量">
+        <n-form-item
+          v-if="config.backupCleanStrategy === 1"
+          path="backupCleanKeepCount"
+          label="保留数量"
+        >
           <n-input-number v-model:value="config.backupCleanKeepCount" :min="1" :step="1" />
         </n-form-item>
 
@@ -111,7 +113,10 @@
                 </n-tooltip>
               </span>
             </template>
-            <n-checkbox-group v-model:value="config.backupCleanTriggers" :options="cleanTriggerOptions" />
+            <n-checkbox-group
+              v-model:value="config.backupCleanTriggers"
+              :options="cleanTriggerOptions"
+            />
           </n-form-item>
 
           <n-form-item path="backupCleanCron" label="定时间隔">
@@ -128,7 +133,7 @@
         恢复备份时，将骰子彻底关闭，解压备份压缩包到骰子目录。若提示是否覆盖，选择全部即可。
       </n-alert>
     </n-form>
-  </n-card>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -159,8 +164,8 @@ const autoBackupPreview = computed(() =>
   buildBackupFilenamePreview(
     props.timestamp,
     buildBackupConfigPayload(config.value).autoBackupSelection,
-    true,
-  ),
+    true
+  )
 );
 </script>
 

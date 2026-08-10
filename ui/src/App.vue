@@ -16,13 +16,23 @@
                   :banner-text="testMode.bannerText.value"
                   :watermark-text="testMode.watermarkText.value"
                 >
-                  <component :is="layouts[route.meta.layout ?? 'default']">
+                  <PlainLayout v-if="route.meta.layout === 'plain'">
                     <Transition name="page-fade" mode="out-in">
                       <component :is="Component" :key="route.path" />
                     </Transition>
-                  </component>
+                  </PlainLayout>
+                  <AppShell
+                    v-else
+                    :content-mode="getAppShellContentMode(route.meta.layout)"
+                    :container-mode="getAppShellContainerMode(route.meta.layout)"
+                  >
+                    <Transition name="page-fade" mode="out-in">
+                      <component :is="Component" :key="route.path" />
+                    </Transition>
+                  </AppShell>
                 </AppTestModeFrame>
               </RouterView>
+              <AppUnlockDialog />
               <AppThemeTransition ref="themeTransitionRef" />
             </n-loading-bar-provider>
           </n-dialog-provider>
@@ -35,10 +45,18 @@
 <script setup lang="ts">
 import { darkTheme, lightTheme, dateZhCN } from 'naive-ui';
 import { ProConfigProvider, zhCN } from 'pro-naive-ui';
-import { computed, defineAsyncComponent, provide, ref } from 'vue';
+import { computed, provide, ref } from 'vue';
 import { RouterView } from 'vue-router';
 import AppTestModeFrame from './components/app-shell/AppTestModeFrame.vue';
 import AppThemeTransition from './components/app-shell/AppThemeTransition.vue';
+import AppShell from './components/app-shell/AppShell.vue';
+import AppUnlockDialog from './components/app-shell/AppUnlockDialog.vue';
+import PlainLayout from './layouts/PlainLayout.vue';
+import {
+  getAppShellContentMode,
+  getAppShellContainerMode,
+} from './components/app-shell/appShellLayout';
+import { useAuthSession } from './features/auth/useAuthSession';
 import { useRealtimeClient } from './features/realtime/client';
 import { useTestMode } from './features/testMode/state';
 import { useAppTheme } from './features/theme';
@@ -46,15 +64,6 @@ import {
   type ThemeTransitionSource,
   triggerThemeTransitionKey,
 } from './features/theme/themeTransition';
-import type { AppLayoutName } from './router/types';
-
-const layouts = {
-  default: defineAsyncComponent(() => import('./layouts/DefaultLayout.vue')),
-  plain: defineAsyncComponent(() => import('./layouts/PlainLayout.vue')),
-  wide: defineAsyncComponent(() => import('./layouts/WideLayout.vue')),
-  workspace: defineAsyncComponent(() => import('./layouts/WorkspaceLayout.vue')),
-} satisfies Record<AppLayoutName, unknown>;
-
 // App 是全局 provider 和 layout 分发层。页面不要直接挂全局 provider，
 // 否则会出现消息、弹窗、QueryClient 或主题状态多实例的问题。
 const { resolvedTheme, themeOverrides, toggleTheme } = useAppTheme();
@@ -72,6 +81,7 @@ provide(triggerThemeTransitionKey, (source?: ThemeTransitionSource) => {
 
 const activeTheme = computed(() => (resolvedTheme.value === 'dark' ? darkTheme : lightTheme));
 const testMode = useTestMode();
+const authSession = useAuthSession();
 
 // 全局 provider 只接收最终主题对象。颜色计算集中在 features/theme，
 // 避免根组件和业务页面各自维护一套主色、状态色和暗色覆盖。
@@ -79,7 +89,7 @@ const testMode = useTestMode();
 // 实时通道是全局单例：App 挂载后根据 token 自动连接，业务模块只订阅事件。
 // 这样首页日志、连接管理等页面可以共享同一条 WS/SSE 连接。
 useRealtimeClient();
-
+void authSession.tryDefaultSignin();
 </script>
 
 <style>

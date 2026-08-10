@@ -1,5 +1,12 @@
 <template>
   <main class="backup-page">
+    <header class="page-head">
+      <div class="page-head-copy">
+        <h1>备份</h1>
+        <p>管理自动备份策略与历史备份文件。</p>
+      </div>
+    </header>
+
     <n-alert v-if="configErrorText" type="error" :bordered="false">
       {{ configErrorText }}
     </n-alert>
@@ -7,31 +14,35 @@
       {{ listErrorText }}
     </n-alert>
 
-    <section class="backup-page__grid">
-      <n-spin :show="configQuery.isLoading.value && !configDraft">
-        <BackupConfigPanel
-          v-if="configDraft"
-          v-model:config="configDraft"
-          :dirty="configDirty"
-          :saving="saveConfigMutation.isPending.value"
-          :timestamp="timestamp"
-          :disabled="isTestMode"
-          @save="saveConfig"
-        />
-      </n-spin>
+    <n-tabs v-model:value="activeTab" type="line" animated class="backup-tabs">
+      <n-tab-pane name="settings" tab="备份设置">
+        <n-spin :show="configQuery.isLoading.value && !configDraft">
+          <BackupConfigPanel
+            v-if="configDraft"
+            v-model:config="configDraft"
+            :dirty="configDirty"
+            :saving="saveConfigMutation.isPending.value"
+            :timestamp="timestamp"
+            :disabled="isTestMode"
+            @save="saveConfig"
+          />
+        </n-spin>
+      </n-tab-pane>
 
-      <BackupFileList
-        :items="items"
-        :loading="listQuery.isFetching.value"
-        :downloading-name="downloadingName"
-        :deleting-name="deletingName"
-        :disabled="isTestMode"
-        @download="downloadBackup"
-        @delete="confirmDelete"
-        @open-batch-delete="openBatchDeleteDialog"
-        @open-backup="openBackupDialog"
-      />
-    </section>
+      <n-tab-pane name="files" tab="备份文件">
+        <BackupFileList
+          :items="items"
+          :loading="listQuery.isFetching.value"
+          :downloading-name="downloadingName"
+          :deleting-name="deletingName"
+          :disabled="isTestMode"
+          @download="downloadBackup"
+          @delete="confirmDelete"
+          @open-batch-delete="openBatchDeleteDialog"
+          @open-backup="openBackupDialog"
+        />
+      </n-tab-pane>
+    </n-tabs>
 
     <BackupExecDialog
       v-model:show="execDialogVisible"
@@ -83,7 +94,11 @@ import {
   type BackupConfigDraft,
   type BackupSelectionKey,
 } from '@/features/backup/viewModel';
-import { getTestModeBlockMessage, isTestModeApiError, useTestMode } from '@/features/testMode/state';
+import {
+  getTestModeBlockMessage,
+  isTestModeApiError,
+  useTestMode,
+} from '@/features/testMode/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
@@ -91,6 +106,7 @@ const dialog = useDialog();
 const { isTestMode } = useTestMode();
 
 const timestamp = shallowRef(dayjs().format('YYMMDD_HHmmss'));
+const activeTab = shallowRef<'settings' | 'files'>('settings');
 const configDraft = ref<BackupConfigDraft | null>(null);
 const configBaseline = ref<ConfigWritable | null>(null);
 const execDialogVisible = shallowRef(false);
@@ -114,13 +130,17 @@ const listQuery = useQuery({
 
 const items = computed<FileItem[]>(() => listQuery.data.value?.item.items ?? []);
 const configDirty = computed(() =>
-  Boolean(configDraft.value && configBaseline.value && !isEqual(buildBackupConfigPayload(configDraft.value), configBaseline.value)),
+  Boolean(
+    configDraft.value &&
+      configBaseline.value &&
+      !isEqual(buildBackupConfigPayload(configDraft.value), configBaseline.value)
+  )
 );
 const configErrorText = computed(() =>
-  configQuery.isError.value ? getErrorMessage(configQuery.error.value, '读取备份设置失败') : '',
+  configQuery.isError.value ? getErrorMessage(configQuery.error.value, '读取备份设置失败') : ''
 );
 const listErrorText = computed(() =>
-  listQuery.isError.value ? getErrorMessage(listQuery.error.value, '读取备份文件列表失败') : '',
+  listQuery.isError.value ? getErrorMessage(listQuery.error.value, '读取备份文件列表失败') : ''
 );
 
 const saveConfigMutation = useMutation({
@@ -239,7 +259,7 @@ watch(
     configDraft.value = structuredClone(next);
     configBaseline.value = buildBackupConfigPayload(next);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 useUnsavedChanges('backup-config', {
@@ -290,7 +310,7 @@ async function downloadBackup(item: FileItem) {
         responseType: 'blob',
         throwOnError: true,
       }),
-      item.name,
+      item.name
     );
   } catch (error) {
     message.error(getErrorMessage(error, '下载备份失败'));
@@ -355,16 +375,30 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.backup-page__grid {
-  display: grid;
-  grid-template-columns: minmax(360px, 0.82fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-@media (max-width: 1080px) {
-  .backup-page__grid {
-    grid-template-columns: 1fr;
+.page-head-copy h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.page-head-copy p {
+  margin: 0.35rem 0 0;
+  color: var(--sd-text-muted);
+}
+
+.backup-tabs {
+  min-width: 0;
+}
+
+@media (max-width: 639.9px) {
+  .page-head {
+    gap: 0.65rem;
   }
 }
 </style>

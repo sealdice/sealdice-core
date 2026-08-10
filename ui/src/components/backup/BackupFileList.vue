@@ -1,26 +1,29 @@
 <template>
-  <n-card class="backup-file-list" :bordered="false">
-    <template #header>
-      <div class="backup-file-list__head">
-        <div>
-          <h2>已备份文件</h2>
-          <p>{{ items.length }} 个备份文件</p>
-        </div>
-        <n-space>
-          <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
-            立即备份
-          </n-button>
-          <n-button type="error" secondary :disabled="disabled || items.length === 0" @click="emit('openBatchDelete')">
-            <template #icon>
-              <n-icon>
-                <i-ep-delete />
-              </n-icon>
-            </template>
-            批量删除
-          </n-button>
-        </n-space>
+  <section class="backup-file-list">
+    <header class="backup-file-list__head">
+      <div>
+        <h2>已备份文件</h2>
+        <p>{{ items.length }} 个备份文件</p>
       </div>
-    </template>
+      <n-space>
+        <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
+          立即备份
+        </n-button>
+        <n-button
+          type="error"
+          secondary
+          :disabled="disabled || items.length === 0"
+          @click="emit('openBatchDelete')"
+        >
+          <template #icon>
+            <n-icon>
+              <i-ep-delete />
+            </n-icon>
+          </template>
+          批量删除
+        </n-button>
+      </n-space>
+    </header>
 
     <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
       <template #extra>
@@ -40,7 +43,7 @@
       :scroll-x="680"
       size="small"
     />
-  </n-card>
+  </section>
 </template>
 
 <script setup lang="tsx">
@@ -73,12 +76,12 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
     render: row => {
       const desc = describeBackupSelection(row.selection);
       return (
-        <div class='backup-file-list__file'>
+        <div class="backup-file-list__file">
           <strong>{row.name}</strong>
           {desc.length > 0 ? (
             <span>包含：{desc.join('、')}</span>
           ) : (
-            <span class='backup-file-list__unknown'>内容无法识别</span>
+            <span class="backup-file-list__unknown">内容无法识别</span>
           )}
         </div>
       );
@@ -88,16 +91,20 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
     title: '大小',
     key: 'fileSize',
     width: 110,
-    render: row => <NTag size='small' bordered={false}>{filesize(row.fileSize)}</NTag>,
+    render: row => (
+      <NTag size="small" bordered={false}>
+        {filesize(row.fileSize)}
+      </NTag>
+    ),
   },
   {
     title: '操作',
     key: 'actions',
     width: 180,
     render: row => (
-      <n-space justify='end'>
+      <n-space justify="end">
         <NButton
-          size='small'
+          size="small"
           secondary
           loading={props.downloadingName === row.name}
           onClick={() => emit('download', row)}
@@ -105,8 +112,8 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
           下载
         </NButton>
         <NButton
-          size='small'
-          type='error'
+          size="small"
+          type="error"
           secondary
           loading={props.deletingName === row.name}
           disabled={props.disabled}
