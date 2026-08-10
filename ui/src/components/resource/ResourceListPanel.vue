@@ -37,6 +37,32 @@
       </n-flex>
     </header>
 
+    <section v-if="uploadTasks.length" class="resource-upload-queue" aria-live="polite">
+      <header class="resource-upload-queue__header">
+        <div>
+          <strong>上传队列</strong>
+          <n-text depth="3">{{ uploadQueueSummary }}</n-text>
+        </div>
+        <n-button v-if="completedUploadCount" text size="small" @click="clearCompletedUploads">
+          清除已完成
+        </n-button>
+      </header>
+      <div v-for="task in uploadTasks" :key="task.id" class="resource-upload-queue__item">
+        <div class="resource-upload-queue__file">
+          <strong>{{ task.file.name }}</strong>
+          <n-tag size="small" :type="getUploadTaskTagType(task.status)" :bordered="false">
+            {{ getUploadTaskLabel(task.status) }}
+          </n-tag>
+        </div>
+        <n-text v-if="task.errorText" type="error" class="resource-upload-queue__error">
+          {{ task.errorText }}
+        </n-text>
+        <n-button v-if="task.status === 'error'" size="small" secondary @click="retryUploadTask(task)">
+          重试
+        </n-button>
+      </div>
+    </section>
+
     <n-spin :show="loading && isMobile">
       <div v-if="isMobile" class="resource-list-panel__cards">
         <article v-for="item in items" :key="getResourceKey(item)" class="resource-list-panel__card">
@@ -145,7 +171,7 @@ const props = defineProps<{
   total: number;
   loading: boolean;
   query: ResourceListQueryModel;
-  uploadPending: boolean;
+  uploadResource: (file: File) => Promise<void>;
   deletingPath: string;
   downloadingPath: string;
   disabled?: boolean;
@@ -153,7 +179,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   updateQuery: [patch: Partial<ResourceListQueryModel>];
-  upload: [file: File];
   copy: [item: ResourceItem];
   download: [item: ResourceItem];
   delete: [item: ResourceItem];
@@ -168,6 +193,16 @@ const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 const pageSizeOptions = [...RESOURCE_PAGE_SIZE_OPTIONS];
 const syncingFromProps = ref(false);
+type ResourceUploadTaskStatus = 'uploading' | 'success' | 'error';
+type ResourceUploadTask = {
+  id: number;
+  file: File;
+  status: ResourceUploadTaskStatus;
+  errorText: string;
+};
+
+const uploadTasks = ref<ResourceUploadTask[]>([]);
+let nextUploadTaskId = 1;
 
 const defaultResourceSearchFormValues = (): ResourceSearchFormValues => ({
   keyword: '',
@@ -224,6 +259,13 @@ const summary = computed(() => formatResourcePageSummary({
   page: props.query.page,
   pageSize: props.query.pageSize,
 }));
+const completedUploadCount = computed(() => uploadTasks.value.filter(task => task.status === 'success').length);
+const uploadPending = computed(() => uploadTasks.value.some(task => task.status === 'uploading'));
+const uploadQueueSummary = computed(() => {
+  const uploading = uploadTasks.value.filter(task => task.status === 'uploading').length;
+  const failed = uploadTasks.value.filter(task => task.status === 'error').length;
+  return `${uploading ? `${uploading} 个上传中` : ''}${uploading && failed ? '，' : ''}${failed ? `${failed} 个失败` : uploading ? '' : '已完成'}`;
+});
 
 const columns = computed<DataTableColumns<ResourceItem>>(() => [
   {
@@ -344,8 +386,50 @@ async function uploadResourceFile(options: UploadCustomRequestOptions) {
     return;
   }
 
-  emit('upload', file);
-  options.onFinish?.();
+  const task: ResourceUploadTask = {
+    id: nextUploadTaskId++,
+    file,
+    status: 'uploading',
+    errorText: '',
+  };
+  uploadTasks.value.push(task);
+  try {
+    await props.uploadResource(file);
+    task.status = 'success';
+    options.onFinish?.();
+  } catch (error) {
+    task.status = 'error';
+    task.errorText = error instanceof Error ? error.message : '上传失败';
+    options.onError?.();
+  }
+}
+
+async function retryUploadTask(task: ResourceUploadTask) {
+  task.status = 'uploading';
+  task.errorText = '';
+  try {
+    await props.uploadResource(task.file);
+    task.status = 'success';
+  } catch (error) {
+    task.status = 'error';
+    task.errorText = error instanceof Error ? error.message : '上传失败';
+  }
+}
+
+function clearCompletedUploads() {
+  uploadTasks.value = uploadTasks.value.filter(task => task.status !== 'success');
+}
+
+function getUploadTaskTagType(status: ResourceUploadTaskStatus) {
+  if (status === 'success') return 'success' as const;
+  if (status === 'error') return 'error' as const;
+  return 'info' as const;
+}
+
+function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
+  if (status === 'success') return '已完成';
+  if (status === 'error') return '失败';
+  return '上传中';
 }
 </script>
 
@@ -361,6 +445,42 @@ async function uploadResourceFile(options: UploadCustomRequestOptions) {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   align-items: start;
+}
+
+.resource-upload-queue {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 6px;
+  background: var(--sd-bg-elevated-soft);
+}
+
+.resource-upload-queue__header,
+.resource-upload-queue__item,
+.resource-upload-queue__file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.resource-upload-queue__header,
+.resource-upload-queue__item {
+  justify-content: space-between;
+}
+
+.resource-upload-queue__header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.resource-upload-queue__error {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 :deep(.resource-list-panel__file-cell) {
