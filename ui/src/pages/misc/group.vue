@@ -38,7 +38,14 @@
           <n-button size="small" secondary :disabled="!selectedGroupIDs.length" @click="openBatchNotify">
             批量通知群
           </n-button>
-          <n-button size="small" type="error" secondary :disabled="!selectedGroupIDs.length" @click="openBatchQuit">
+          <n-button
+            size="small"
+            type="error"
+            secondary
+            :loading="quitSubmitting"
+            :disabled="quitSubmitting || !selectedGroupIDs.length"
+            @click="openBatchQuit"
+          >
             批量退群
           </n-button>
         </n-flex>
@@ -56,7 +63,15 @@
           </template>
 
           <template #title-extra>
-            <n-button v-if="group.changed" type="success" size="small" secondary @click="saveGroup(group)">
+            <n-button
+              v-if="group.changed"
+              type="success"
+              size="small"
+              secondary
+              :loading="isSavingGroup(group.groupId)"
+              :disabled="isSavingGroup(group.groupId)"
+              @click="saveGroup(group)"
+            >
               保存
             </n-button>
           </template>
@@ -128,7 +143,7 @@
         />
         <n-flex justify="end">
           <n-button @click="notifyDialogVisible = false">取消</n-button>
-          <n-button type="primary" @click="submitNotify">发送通知</n-button>
+          <n-button type="primary" :loading="notifySubmitting" @click="submitNotify">发送通知</n-button>
         </n-flex>
       </n-flex>
     </n-modal>
@@ -161,7 +176,9 @@
         />
         <n-flex justify="end">
           <n-button @click="quitDialogVisible = false">取消</n-button>
-          <n-button type="error" @click="submitQuit">确认退群</n-button>
+          <n-button type="error" :loading="quitSubmitting" :disabled="quitSubmitting" @click="submitQuit">
+            确认退群
+          </n-button>
         </n-flex>
       </n-flex>
     </n-modal>
@@ -236,12 +253,15 @@ const defaultGroupSearchFormValues = (): GroupSearchFormValues => ({
 const groups = ref<GroupRow[]>([]);
 const total = ref(0);
 const listLoading = ref(false);
+const savingGroupIDs = ref(new Set<string>());
 
 const notifyDialogVisible = ref(false);
 const notifyText = ref('');
+const notifySubmitting = ref(false);
 
 const quitDialogVisible = ref(false);
 const quitAction = ref<QuitAction | null>(null);
+const quitSubmitting = ref(false);
 const quitForm = reactive({
   silence: false,
   extraText: readGroupQuitDefaultText(),
@@ -382,21 +402,40 @@ function markGroupChanged(group: GroupRow) {
   group.changed = group.originalActive !== group.active;
 }
 
+function isSavingGroup(groupId: string): boolean {
+  return savingGroupIDs.value.has(groupId);
+}
+
+function reportOperationError(fallback: string, error: unknown) {
+  const detail = error instanceof Error && error.message ? `：${error.message}` : '';
+  message.error(`${fallback}${detail}`);
+}
+
 async function saveGroup(group: GroupRow) {
-  const { data } = await postSdApiV2GroupModify({
-    body: {
-      active: group.active,
-      groupId: group.groupId,
-    },
-    throwOnError: true,
-  });
-  if (data.message !== 'ok') {
-    message.error(data.message || '保存失败');
-    return;
+  if (isSavingGroup(group.groupId)) return;
+  savingGroupIDs.value = new Set(savingGroupIDs.value).add(group.groupId);
+  try {
+    const { data } = await postSdApiV2GroupModify({
+      body: {
+        active: group.active,
+        groupId: group.groupId,
+      },
+      throwOnError: true,
+    });
+    if (data.message !== 'ok') {
+      message.error(data.message || '保存失败');
+      return;
+    }
+    group.originalActive = group.active;
+    group.changed = false;
+    message.success('群服务状态已保存');
+  } catch (error) {
+    reportOperationError('群服务状态保存失败', error);
+  } finally {
+    const next = new Set(savingGroupIDs.value);
+    next.delete(group.groupId);
+    savingGroupIDs.value = next;
   }
-  group.originalActive = group.active;
-  group.changed = false;
-  message.success('群服务状态已保存');
 }
 
 function openSingleQuit(group: GroupRow, diceId: string) {
@@ -427,40 +466,47 @@ function openBatchQuit() {
 }
 
 async function submitQuit() {
-  if (!quitAction.value) return;
+  if (!quitAction.value || quitSubmitting.value) return;
+  quitSubmitting.value = true;
 
-  if (quitAction.value.mode === 'single') {
-    const { data } = await postSdApiV2GroupQuit({
-      body: {
-        groupId: quitAction.value.target.groupId,
-        diceId: quitAction.value.target.diceId ?? '',
-        silence: quitForm.silence,
-        extraText: quitForm.extraText,
-      },
-      throwOnError: true,
-    });
-    if (data.message !== 'ok') {
-      message.error(data.message || '退群失败');
-      return;
+  try {
+    if (quitAction.value.mode === 'single') {
+      const { data } = await postSdApiV2GroupQuit({
+        body: {
+          groupId: quitAction.value.target.groupId,
+          diceId: quitAction.value.target.diceId ?? '',
+          silence: quitForm.silence,
+          extraText: quitForm.extraText,
+        },
+        throwOnError: true,
+      });
+      if (data.message !== 'ok') {
+        message.error(data.message || '退群失败');
+        return;
+      }
+      message.success('退群完成');
+    } else {
+      const { data } = await postSdApiV2GroupBatchQuit({
+        body: {
+          groupIds: quitAction.value.targets.map(target => target.groupId),
+          silence: quitForm.silence,
+          extraText: quitForm.extraText,
+        },
+        throwOnError: true,
+      });
+      message.success(`批量退群完成，共处理 ${data.item} 个群组`);
     }
-    message.success('退群完成');
-  } else {
-    const { data } = await postSdApiV2GroupBatchQuit({
-      body: {
-        groupIds: quitAction.value.targets.map(target => target.groupId),
-        silence: quitForm.silence,
-        extraText: quitForm.extraText,
-      },
-      throwOnError: true,
-    });
-    message.success(`批量退群完成，共处理 ${data.item} 个群组`);
-  }
 
-  if (quitForm.saveAsDefault) {
-    writeGroupQuitDefaultText(quitForm.extraText);
+    if (quitForm.saveAsDefault) {
+      writeGroupQuitDefaultText(quitForm.extraText);
+    }
+    quitDialogVisible.value = false;
+    await searchGroups();
+  } catch (error) {
+    reportOperationError('退群失败', error);
+  } finally {
+    quitSubmitting.value = false;
   }
-  quitDialogVisible.value = false;
-  await searchGroups();
 }
 
 function openBatchNotify() {
@@ -472,21 +518,29 @@ function openBatchNotify() {
 }
 
 async function submitNotify() {
+  if (notifySubmitting.value) return;
   const text = notifyText.value.trim();
   if (!text) {
     message.warning('请输入通知内容');
     return;
   }
-  const { data } = await postSdApiV2GroupBatchNotify({
-    body: {
-      groupIds: selectedGroupIDs.value,
-      text,
-    },
-    throwOnError: true,
-  });
-  notifyDialogVisible.value = false;
-  notifyText.value = '';
-  message.success(`已通知 ${data.item} 个群组`);
+  notifySubmitting.value = true;
+  try {
+    const { data } = await postSdApiV2GroupBatchNotify({
+      body: {
+        groupIds: selectedGroupIDs.value,
+        text,
+      },
+      throwOnError: true,
+    });
+    notifyDialogVisible.value = false;
+    notifyText.value = '';
+    message.success(`已通知 ${data.item} 个群组`);
+  } catch (error) {
+    reportOperationError('批量通知失败', error);
+  } finally {
+    notifySubmitting.value = false;
+  }
 }
 
 onMounted(async () => {
