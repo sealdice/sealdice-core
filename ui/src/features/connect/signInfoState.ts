@@ -1,5 +1,5 @@
 export interface BuildSignInfoStateInput {
-  selectedProtocolKey: string;
+  enabled: boolean;
   isLoading: boolean;
   isFetching: boolean;
   isError: boolean;
@@ -18,7 +18,7 @@ export interface SignInfoState {
 }
 
 export function buildSignInfoState(input: BuildSignInfoStateInput): SignInfoState {
-  if (input.selectedProtocolKey !== 'lagrange') {
+  if (!input.enabled) {
     return {
       visible: false,
       mode: 'hidden',

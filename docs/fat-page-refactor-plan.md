@@ -2,7 +2,7 @@
 
 > 面向：所有参与 `ui/` 开发的同学。
 >
-> 状态：**待执行**。依赖：公共 helper 抽象（§三）必须先于页面重构完成。
+> 状态：**connect 阶段已完成，其他页面与公共 helper 仍待执行**。本次落地范围为 §4.4。
 >
 > 关联文档：[状态管理规范与 Pinia 迁移方案](./state-management-pinia-migration.md)——本文的 feature 内状态迁移与之合并推进。
 
@@ -22,7 +22,7 @@
 | 页面 | 行数 | 页面内 query | 页面内 mutation | 命令式 fetch | 本地 ref | 函数 | 已下沉的 feature |
 |---|---|---|---|---|---|---|---|
 | `pages/mod/story.vue` | 886 | 1 | 3 | 4 处 | 10 | 19 | 仅 backup（`useStoryBackup`） |
-| `pages/connect.vue` | 791 | 4 | 4 | 2 处 | 13 | 17 | realtime + endpointDisplay |
+| `pages/connect.vue` | 494 | 0 | 0 | 0 | 页面状态 + 回调 | 页面组装 | realtime + connect feature modules |
 | `pages/mod/deck.vue` | 791 | 1 | 3 | 1 处 | 5 | 7 | **无（`features/deck/` 不存在）** |
 | `pages/misc/group.vue` | 554 | 2 | 0 | 5 处裸调 | — | — | 无 |
 
@@ -321,22 +321,25 @@ components/story/
 
 ---
 
-### 4.4 `pages/connect.vue`（791 行 → 目标 ≤ 250 行）
+### 4.4 `pages/connect.vue`（791 行 → 494 行，职责完成下沉）
 
 **现状**：最复杂——4 query + 4 mutation + 创建向导状态机 + 签名服务联动 + TSX 表格列 + realtime 桥接。
 
-**新增 feature**：
+**已完成的 feature**：
 
 ```
 features/connect/
 ├── endpointDisplay.ts     ← 已有，扩展 workflowTag/workflowText/detailRows
 ├── realtime.ts            ← 已有，不动（分层最干净）
-├── queryKeys.ts           ← 新建
-├── queries.ts             ← 4 个 useAuthedQuery + REST/realtime 合并 watch
-├── mutations.ts           ← 4 个 mutation（用 makeMutationErrorHandler）
-├── createWizard.ts        ← 向导状态机（step/platform/method/protocol + goNext/goPrev）
-├── signInfo.ts            ← lagrange 签名服务联动（query + watch + 派生）
-└── endpointRow.ts         ← adapterOf/workflowOf/detailRows（并入 endpointDisplay 或独立）
+├── queryKeys.ts           ← connect 查询 key 的唯一来源
+├── queries.ts             ← 连接、协议、schema、签名信息、编辑配置查询
+├── mutations.ts           ← 创建/编辑/启停/删除及协议创建前置检查
+├── createWizard.ts        ← 向导状态机与创建 payload
+├── signInfo.ts            ← 签名服务联动（query + watch + 派生）
+└── protocols/              ← 协议模块注册表与通用 fallback
+    ├── generic.ts
+    ├── officialqq.ts
+    └── lagrange.ts
 ```
 
 **新增组件**：
@@ -350,8 +353,10 @@ components/connect/
 
 **关键注意**：
 - realtime 这条线（`useRealtimeConnections`）**保持不动**——它已经是这个页面的最佳实践样板。
-- 向导状态机下沉后，`ConnectCreateWizard` 可以直接消费 composable，12 个 props 大幅瘦身。
-- `getSdApiV2ImconnectionByIdConfig`（编辑配置读取，行 569）当前是裸 await，下沉时改为 query。
+- `ConnectCreateWizard` 只负责平台/方式/协议选择与布局，配置区域统一交给 `ConnectProtocolForm`。
+- 协议是扩展边界，而不是 `signInfo` 或平台名：未知协议默认使用 `genericProtocolModule`；只有配置、校验、前置检查或专属控件确实不同，才注册独立协议模块。
+- Milky 等可能继续分化的实现必须由后端返回不同的 `protocol.key`（例如 `milky-aaa`、`milky-bbb`），前端再按 key 注册差异模块；同一 key 不承载多个不兼容协议。
+- `getSdApiV2ImconnectionByIdConfig` 已迁移到 `useConnectEndpointConfigQuery`，创建/编辑/启停/删除由 `useConnectMutations` 统一管理。
 
 ---
 
@@ -409,10 +414,10 @@ components/connect/
   ├── 建 components/story/ 3 个组件
   └── 4 处命令式 fetch → useQuery
 
-阶段 5：connect 下沉（§4.4，最复杂）
-  ├── 建 features/connect/ queries/mutations/wizard/signInfo
-  ├── ConnectCreateWizard props 瘦身
-  └── TSX 列外移
+阶段 5：connect 下沉（§4.4，已完成）
+  ├── 建 features/connect/ queries/mutations/wizard/signInfo/protocols
+  ├── ConnectCreateWizard 配置区协议化
+  └── ConnectTableColumns.tsx 与 ConnectEditDialog.vue 外移
 
 每个阶段独立验证（type-check + vitest + 手动），可停在任意节点。
 ```

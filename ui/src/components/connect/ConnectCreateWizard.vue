@@ -14,7 +14,7 @@
             v-for="platform in protocols"
             :key="platform.id"
             :class="['split-item', { 'split-item--selected': wizardPlatform?.id === platform.id }]"
-            @click="wizardPlatform = platform"
+            @click="emit('selectPlatform', platform)"
           >
             <span class="split-item-name">{{ platform.name }}</span>
           </div>
@@ -36,7 +36,7 @@
             v-for="method in wizardPlatform?.methods"
             :key="method.id"
             :class="['split-item', { 'split-item--selected': wizardMethod?.id === method.id }]"
-            @click="wizardMethod = method"
+            @click="emit('selectMethod', method)"
           >
             <span class="split-item-name">{{ method.name }}</span>
           </div>
@@ -62,7 +62,7 @@
               { 'split-item--selected': wizardProtocol?.key === protocol.key },
               { 'split-item--disabled': !protocol.available },
             ]"
-            @click="protocol.available ? (wizardProtocol = protocol) : null"
+            @click="protocol.available ? emit('selectProtocol', protocol) : null"
           >
             <span class="split-item-name">{{ protocol.name }}</span>
             <n-tag v-if="protocol.deprecated" type="warning" size="small">已废弃</n-tag>
@@ -91,110 +91,28 @@
     </div>
 
     <div v-if="wizardStep === 4" class="wizard-step-panel">
-      <n-alert
-        v-if="selectedProtocolKey === 'officialqq'"
-        type="info"
-        :show-icon="false"
-        class="mb-4"
-      >
-        <n-space vertical size="small">
-          <n-radio-group
-            :value="officialQQMode"
-            @update:value="(value: 'manual' | 'qrcode') => emit('update:officialQQMode', value)"
-          >
-            <n-radio-button value="manual">手动填写 AppID</n-radio-button>
-            <n-radio-button value="qrcode">扫码登录</n-radio-button>
-          </n-radio-group>
-          <n-text depth="3">
-            {{
-              officialQQMode === 'qrcode'
-                ? '扫码模式会在创建后生成二维码；AppID 与密钥留空即可。'
-                : '手动模式会在添加前先测试机器人凭据，确认账号是否已存在。'
-            }}
-          </n-text>
-        </n-space>
-      </n-alert>
-
-      <n-alert v-if="selectedProtocol && !selectedProtocol.available" type="warning" :show-icon="false">
-        {{ selectedProtocol.disabledReason }}
-      </n-alert>
-
-      <n-alert v-if="schemasError" type="error" :show-icon="false">
-        配置项读取失败，请稍后重试。
-      </n-alert>
-
-      <DynamicForm
+      <ConnectProtocolForm
         v-model="formModel"
+        :official-qq-mode="officialQQMode ?? 'manual'"
+        :protocol="selectedProtocol"
         :schema="selectedSchema"
-        :disabled="submitting || testModeDisabled"
-        :label-placement="isMobile ? 'top' : 'left'"
-        :label-width="isMobile ? undefined : 108"
-      >
-        <template #field="{ item, fieldKey, value, setValue }">
-          <AsyncFieldSection
-            v-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerVersion'"
-            :loading="signInfoState.mode === 'loading'"
-            :message="signInfoState.message"
-            :error="signInfoErrorMessage"
-            @retry="emit('retrySignInfo')"
-          >
-            <n-select
-              :value="value as string"
-              :options="signVersionOptions"
-              :disabled="!signInfoState.canSelectVersion"
-              placeholder="请选择签名版本"
-              @update:value="setValue"
-            />
-          </AsyncFieldSection>
-          <AsyncFieldSection
-            v-else-if="selectedProtocolKey === 'lagrange' && fieldKey === 'signServerName'"
-            :loading="signInfoState.mode === 'loading'"
-            :message="signInfoState.mode === 'manual-fallback' ? '' : signInfoState.message"
-            :error="fieldKey === 'signServerName' ? signInfoErrorMessage : ''"
-            @retry="emit('retrySignInfo')"
-          >
-            <n-select
-              v-if="!signInfoState.showCustomServerInput"
-              :value="value as string"
-              :options="signServers"
-              :disabled="!signInfoState.canSelectServer"
-              placeholder="请选择签名服务"
-              @update:value="setValue"
-            />
-            <n-input
-              v-else
-              :value="value as string"
-              placeholder="请输入自定义签名地址"
-              @update:value="setValue"
-            />
-          </AsyncFieldSection>
-          <n-input
-            v-else-if="item.input_type === 0"
-            :value="value as string"
-            :type="item.sensitive ? 'password' : 'text'"
-            :disabled="
-              (selectedProtocolKey === 'officialqq' &&
-                officialQQMode === 'qrcode' &&
-                (fieldKey === 'appID' || fieldKey === 'appSecret')) ||
-              submitting ||
-              testModeDisabled
-            "
-            :placeholder="item.placeholder"
-            show-password-on="mousedown"
-            @update:value="setValue"
-          />
-        </template>
-      </DynamicForm>
+        :schemas-error="schemasError"
+        :sign-info-state="signInfoState"
+        :sign-info-error-message="signInfoErrorMessage"
+        :sign-version-options="signVersionOptions"
+        :sign-servers="signServers"
+        :is-mobile="isMobile"
+        :submitting="submitting"
+        :test-mode-disabled="testModeDisabled"
+        @update:official-qq-mode="emit('update:officialQQMode', $event)"
+        @retry-sign-info="emit('retrySignInfo')"
+      />
     </div>
   </n-space>
 
   <div class="wizard-actions">
-    <n-button @click="emit('cancel')">
-      取消
-    </n-button>
-    <n-button v-if="wizardStep > 1" @click="emit('previous')">
-      上一步
-    </n-button>
+    <n-button @click="emit('cancel')"> 取消 </n-button>
+    <n-button v-if="wizardStep > 1" @click="emit('previous')"> 上一步 </n-button>
     <n-button
       v-if="wizardStep < 4"
       type="primary"
@@ -218,8 +136,7 @@
 <script setup lang="ts">
 import type { SelectOption } from 'naive-ui';
 import type { FormConfigItem, MethodTreeNode, PlatformTreeNode, ProtocolDefinition } from '@/api';
-import AsyncFieldSection from '@/components/shared/AsyncFieldSection.vue';
-import DynamicForm from '@/components/shared/DynamicForm.vue';
+import ConnectProtocolForm from '@/components/connect/ConnectProtocolForm.vue';
 import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
 import type { SignInfoState } from '@/features/connect/signInfoState';
 
@@ -227,7 +144,6 @@ defineProps<{
   protocols: PlatformTreeNode[];
   schemasError: boolean;
   selectedProtocol: ProtocolDefinition | null;
-  selectedProtocolKey: string;
   selectedSchema: FormConfigItem[];
   signInfoState: SignInfoState;
   signInfoErrorMessage: string;
@@ -248,6 +164,9 @@ const wizardProtocol = defineModel<ProtocolDefinition | null>('wizardProtocol', 
 
 const emit = defineEmits<{
   cancel: [];
+  selectPlatform: [platform: PlatformTreeNode];
+  selectMethod: [method: MethodTreeNode];
+  selectProtocol: [protocol: ProtocolDefinition];
   next: [];
   previous: [];
   submit: [];
@@ -375,15 +294,15 @@ const emit = defineEmits<{
 }
 /* 当屏幕宽度小于400px时应用这些样式 */
 @media (max-width: 500px) {
-  .n-steps>.n-step {
+  .n-steps > .n-step {
     max-width: 300px;
-    
+
     /* 添加动画过渡功能 */
     transition: all 0.3s ease-in-out; /* 你可以根据需要调整过渡时间和缓动函数 */
     flex: none;
     margin-right: 20px;
   }
-  .n-step>.n-step-content {
+  .n-step > .n-step-content {
     max-width: 300px;
     width: 0;
     flex: none;
@@ -395,7 +314,7 @@ const emit = defineEmits<{
     flex: 1;
     margin: none;
   }
-  .n-step--process-status .n-step-content{
+  .n-step--process-status .n-step-content {
     width: 75px;
   }
 }

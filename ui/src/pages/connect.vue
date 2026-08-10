@@ -51,7 +51,6 @@
         :protocols="protocols"
         :schemas-error="Boolean(schemasQuery.error.value)"
         :selected-protocol="selectedProtocol"
-        :selected-protocol-key="selectedProtocolKey"
         :selected-schema="selectedSchema"
         :sign-info-state="signInfoState"
         :sign-info-error-message="signInfoErrorMessage"
@@ -60,55 +59,33 @@
         :is-mobile="isMobile"
         :can-submit="wizardCanNext"
         :submitting="createMutation.isPending.value"
-        v-model:official-qq-mode="officialQQMode"
+        :official-qq-mode="officialQQMode"
         :test-mode-disabled="isTestMode"
         @cancel="dialogVisible = false"
+        @select-platform="selectPlatform"
+        @select-method="selectMethod"
+        @select-protocol="selectProtocol"
         @previous="goPrev"
         @next="goNext"
         @submit="submit"
+        @update:official-qq-mode="officialQQMode = $event"
         @retry-sign-info="retrySignInfo"
       />
     </n-modal>
 
-    <n-modal
-      v-model:show="editDialogVisible"
-      preset="dialog"
-      title="修改账号配置"
-      class="account-dialog"
-      :show-icon="false"
-      :mask-closable="false"
-    >
-      <n-spin :show="!editingConfig">
-        <n-space vertical size="large">
-          <n-alert v-if="editingConfig?.restartRequired" type="warning" :show-icon="false">
-            保存后会重新连接此账号。Token、密码等敏感字段留空时保持原值不变。
-          </n-alert>
-          <DynamicForm
-            v-model="editFormModel"
-            :schema="editSchema"
-            :disabled="updateMutation.isPending.value || isTestMode"
-            :label-placement="isMobile ? 'top' : 'left'"
-            :label-width="isMobile ? undefined : 108"
-          />
-        </n-space>
-      </n-spin>
-
-      <template #action>
-        <n-button
-          @click="editDialogVisible = false"
-        >
-          取消
-        </n-button>
-        <n-button
-          type="primary"
-          :loading="updateMutation.isPending.value"
-          :disabled="!editingConfig || !canSubmitEdit || isTestMode"
-          @click="submitEdit"
-        >
-          保存
-        </n-button>
-      </template>
-    </n-modal>
+    <ConnectEditDialog
+      :visible="editDialogVisible"
+      :config="editingConfig"
+      :form-model="editFormModel"
+      :schema="editSchema"
+      :is-mobile="isMobile"
+      :saving="updateMutation.isPending.value"
+      :disabled="isTestMode"
+      :can-submit="canSubmitEdit"
+      @update:visible="editDialogVisible = $event"
+      @update:form-model="editFormModel = $event"
+      @submit="submitEdit"
+    />
 
     <n-modal
       v-model:show="qrDialogVisible"
@@ -118,12 +95,7 @@
       :show-icon="false"
     >
       <n-space vertical align="center" size="large">
-        <n-image
-          v-if="activeQRCode"
-          :src="activeQRCode"
-          width="280"
-          preview-disabled
-        />
+        <n-image v-if="activeQRCode" :src="activeQRCode" width="280" preview-disabled />
         <n-empty v-else description="当前没有可用二维码" />
         <n-button size="small" secondary @click="realtimeConnections.reconnect">
           刷新连接
@@ -133,33 +105,20 @@
   </main>
 </template>
 
-<script setup lang="tsx">
-import { computed, ref, watch } from 'vue';
+<script setup lang="ts">
+import { computed, reactive, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
-import { useMutation, useQuery } from '@tanstack/vue-query';
-import dayjs from 'dayjs';
-import { useDialog, useMessage, type DataTableColumns } from 'naive-ui';
-import {
-  deleteSdApiV2ImconnectionById,
-  getSdApiV2ImconnectionByIdConfig,
-  getSdApiV2ImconnectionOptions,
-  getSdApiV2ImconnectionProtocolsOptions,
-  getSdApiV2ImconnectionSchemasOptions,
-  getSdApiV2ImconnectionSignInfoOptions,
-  postSdApiV2Imconnection,
-  postSdApiV2ImconnectionOfficialqqTest,
-  putSdApiV2ImconnectionById,
-  putSdApiV2ImconnectionByIdEnable,
-  type EndPointInfo,
-  type EditableConfigResp,
-  type FormConfigItem,
-  type ProtocolDefinition,
-  type PlatformTreeNode,
-  type MethodTreeNode,
-  type WorkflowResp,
+import { useDialog, useMessage } from 'naive-ui';
+import type {
+  EditableConfigResp,
+  EndPointInfo,
+  FormConfigItem,
+  MethodTreeNode,
+  PlatformTreeNode,
+  ProtocolDefinition,
 } from '@/api';
 import ConnectCreateWizard from '@/components/connect/ConnectCreateWizard.vue';
-import DynamicForm from '@/components/shared/DynamicForm.vue';
+import ConnectEditDialog from '@/components/connect/ConnectEditDialog.vue';
 import {
   buildDynamicFormInitialModel,
   validateDynamicFormModel,
@@ -167,27 +126,28 @@ import {
 } from '@/components/shared/dynamicFormModel';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
-import { getEndpointProtocolLabel, getEndpointStateMeta } from '@/features/connect/endpointDisplay';
+import { createConnectTableColumns } from '@/components/connect/ConnectTableColumns';
+import {
+  advanceConnectWizard,
+  buildConnectCreatePayload,
+  createConnectWizardState,
+  resetConnectWizard,
+  selectConnectMethod,
+  selectConnectPlatform,
+  selectConnectProtocol,
+  validateConnectWizardForm,
+} from '@/features/connect/createWizard';
+import {
+  useConnectEndpointConfigQuery,
+  useConnectConnectionsQuery,
+  useConnectProtocolsQuery,
+  useConnectSchemasQuery,
+} from '@/features/connect/queries';
+import { useConnectMutations } from '@/features/connect/mutations';
+import { useConnectSignInfo } from '@/features/connect/signInfo';
 import { useRealtimeConnections } from '@/features/connect/realtime';
-import { buildSignInfoState } from '@/features/connect/signInfoState';
-import { getTestModeBlockMessage, isTestModeApiError, useTestMode } from '@/features/testMode/state';
-
-type AdapterView = {
-  connectUrl?: string;
-  reverseAddr?: string;
-  signServerVer?: string;
-  signServerName?: string;
-  builtinMode?: string;
-  built_in_mode?: string;
-  ws_gateway?: string;
-  rest_gateway?: string;
-  host?: string;
-  port?: number;
-  platform?: string;
-  useWebhook?: boolean;
-  webhookPath?: string;
-  webhookPort?: number;
-};
+import type { OfficialQQMode } from '@/features/connect/officialQQ';
+import { useTestMode } from '@/features/testMode/state';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -196,369 +156,159 @@ const { isTestMode } = useTestMode();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 
-// 连接管理页的设计：
-// - 协议定义和表单 schema 来自后端，用 DynamicForm 渲染；
-// - 连接列表、登录工作流、二维码来自实时事件；
-// - 创建/编辑/启停/删除仍走标准 HTTP mutation。
-// 这样页面既能实时更新，又保持写操作有明确的成功/失败反馈。
 const dialogVisible = ref(false);
 const editDialogVisible = ref(false);
 const qrDialogVisible = ref(false);
 const qrDialogEndpointId = ref('');
-const selectedProtocolKey = ref('');
-const formModel = ref<DynamicFormModel>({});
 const editingEndpoint = ref<EndPointInfo | null>(null);
 const editingConfig = ref<EditableConfigResp | null>(null);
 const editFormModel = ref<DynamicFormModel>({});
-const officialQQMode = ref<'manual' | 'qrcode'>('manual');
 
-// Step wizard state
-const wizardStep = ref(1);
-const wizardPlatform = ref<PlatformTreeNode | null>(null);
-const wizardMethod = ref<MethodTreeNode | null>(null);
-const wizardProtocol = ref<ProtocolDefinition | null>(null);
+const wizardState = reactive(createConnectWizardState());
+const wizardStep = computed({
+  get: () => wizardState.step,
+  set: value => {
+    wizardState.step = value;
+  },
+});
+const wizardPlatform = computed<PlatformTreeNode | null>({
+  get: () => wizardState.platform,
+  set: value => {
+    wizardState.platform = value;
+  },
+});
+const wizardMethod = computed<MethodTreeNode | null>({
+  get: () => wizardState.method,
+  set: value => {
+    wizardState.method = value;
+  },
+});
+const wizardProtocol = computed<ProtocolDefinition | null>({
+  get: () => wizardState.protocol,
+  set: value => {
+    wizardState.protocol = value;
+  },
+});
+const formModel = computed<DynamicFormModel>({
+  get: () => wizardState.formModel,
+  set: value => {
+    wizardState.formModel = value;
+  },
+});
+const officialQQMode = computed<OfficialQQMode>({
+  get: () => wizardState.officialQQMode,
+  set: value => {
+    wizardState.officialQQMode = value;
+  },
+});
 
-const connectionsQuery = useQuery({
-  ...getSdApiV2ImconnectionOptions(),
-  enabled: hasAccessToken,
+const connectionsQuery = useConnectConnectionsQuery();
+const protocolsQuery = useConnectProtocolsQuery();
+const schemasQuery = useConnectSchemasQuery();
+const protocols = computed<PlatformTreeNode[]>(() => protocolsQuery.data.value?.item.items ?? []);
+const schemas = computed<Record<string, FormConfigItem[]>>(() => {
+  const raw = schemasQuery.data.value?.item ?? {};
+  return Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, value ?? []])
+  ) as Record<string, FormConfigItem[]>;
 });
-const protocolsQuery = useQuery({
-  ...getSdApiV2ImconnectionProtocolsOptions(),
-  enabled: hasAccessToken,
-});
-const schemasQuery = useQuery({
-  ...getSdApiV2ImconnectionSchemasOptions(),
-  enabled: hasAccessToken,
-});
-const signInfoQuery = useQuery({
-  ...getSdApiV2ImconnectionSignInfoOptions(),
-  enabled: computed(() => hasAccessToken.value && selectedProtocolKey.value === 'lagrange'),
-});
-
-// ProtocolDefinition 是后端对“可创建哪些连接”的声明。
-// 前端只过滤 deprecated/available，不在这里硬编码某个平台是否可用。
-const protocols = computed<PlatformTreeNode[]>(() => (protocolsQuery.data.value?.item.items ?? []) as PlatformTreeNode[]);
-const schemas = computed(() => schemasQuery.data.value?.item ?? {});
 const connections = realtimeConnections.connections;
 
-const allProtocols = computed<ProtocolDefinition[]>(() => {
-  const result: ProtocolDefinition[] = [];
-  for (const platform of protocols.value) {
-    for (const method of platform.methods ?? []) {
-      for (const protocol of method.protocols ?? []) {
-        result.push(protocol);
-      }
-    }
-  }
-  return result;
-});
-
-const selectedProtocol = computed(
-  () => allProtocols.value.find(item => item.key === selectedProtocolKey.value) ?? null
-);
+const selectedProtocol = computed(() => wizardState.protocol);
 const selectedSchema = computed<FormConfigItem[]>(() => {
-  const protocol = selectedProtocol.value;
-  if (!protocol) return [];
-  return schemas.value[protocol.schemaKey] ?? [];
+  const schemaKey = selectedProtocol.value?.schemaKey;
+  return schemaKey ? (schemas.value[schemaKey] ?? []) : [];
 });
 const editSchema = computed<FormConfigItem[]>(() => editingConfig.value?.schema ?? []);
 
-const canSubmit = computed(() => {
-  if (!selectedProtocol.value?.available) return false;
-  return validateDynamicFormModel(selectedSchema.value, formModel.value).valid;
-});
-const canSubmitEdit = computed(() => validateDynamicFormModel(editSchema.value, editFormModel.value).valid);
-const activeQRCode = computed(() => realtimeConnections.qrCodes.value[qrDialogEndpointId.value] ?? '');
+const signInfo = useConnectSignInfo(selectedProtocol, formModel);
+const signInfoState = signInfo.state;
+const signInfoErrorMessage = signInfo.errorMessage;
+const signVersionOptions = signInfo.versionOptions;
+const signServers = signInfo.servers;
+
+const canSubmit = computed(
+  () => validateConnectWizardForm(wizardState, selectedSchema.value).valid
+);
+const canSubmitEdit = computed(
+  () => validateDynamicFormModel(editSchema.value, editFormModel.value).valid
+);
+const activeQRCode = computed(
+  () => realtimeConnections.qrCodes.value[qrDialogEndpointId.value] ?? ''
+);
 const realtimeErrorText = computed(() =>
   realtimeConnections.lastError.value ? '实时连接异常，账号状态可能延迟。' : ''
 );
-const connectionsReady = computed(() =>
-  realtimeConnections.ready.value || connectionsQuery.isSuccess.value || connectionsQuery.isError.value,
+const connectionsReady = computed(
+  () =>
+    realtimeConnections.ready.value ||
+    connectionsQuery.isSuccess.value ||
+    connectionsQuery.isError.value
 );
 const connectionsErrorText = computed(() =>
   connectionsQuery.isError.value && !realtimeConnections.ready.value
     ? getErrorMessage(connectionsQuery.error.value, '账号列表读取失败')
     : ''
 );
-const connectionsLoading = computed(() =>
-  hasAccessToken.value && !connectionsReady.value,
-);
+const connectionsLoading = computed(() => hasAccessToken.value && !connectionsReady.value);
 
 watch(
   () => connectionsQuery.data.value,
   data => {
-    // 实时首帧可能早于页面订阅发出；REST 首屏快照只在 ready 前兜底，后续仍由实时事件增量更新。
-    if (!data) return;
-    realtimeConnections.applyInitialSnapshot(data.item.items ?? null);
+    if (data) realtimeConnections.applyInitialSnapshot(data.item.items ?? null);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
-watch(selectedSchema, schema => {
-  formModel.value = buildDynamicFormInitialModel(schema);
-});
+const editConfigQuery = useConnectEndpointConfigQuery(
+  computed(() => editingEndpoint.value?.id ?? ''),
+  editDialogVisible
+);
 
-watch(signInfoQuery.data, data => {
-  // Lagrange 创建表单需要后端推荐的签名服务。这里把推荐值写入动态表单 model，
-  // 用户仍可在表单里按需覆盖。
-  if (selectedProtocolKey.value !== 'lagrange') return;
-  const items = data?.item.items ?? [];
-  const selectedVersion = items.find(item => item.selected && !item.ignored) ?? items.find(item => !item.ignored);
-  const selectedServer =
-    selectedVersion?.servers?.find(item => item.selected && !item.ignored) ??
-    selectedVersion?.servers?.find(item => !item.ignored);
-  formModel.value = {
-    ...formModel.value,
-    signServerVersion: selectedVersion?.version ?? '',
-    signServerName: selectedServer?.name ?? '',
+watch(editConfigQuery.data, data => {
+  if (!data || !editingEndpoint.value) return;
+  editingConfig.value = data;
+  editFormModel.value = {
+    ...buildDynamicFormInitialModel(data.schema ?? []),
+    ...data.config,
   };
 });
 
-const createMutation = useMutation({
-  mutationFn: async () => {
-    const payload = buildCreatePayload();
-    if (payload.platform === 'officialqq' && officialQQMode.value === 'manual') {
-      const appID = String(payload.config.appID ?? '').trim();
-      const appSecret = String(payload.config.appSecret ?? '').trim();
-      if (!appID || !appSecret) {
-        throw new Error('请填写 AppID 与 AppSecret，或切换到扫码登录。');
-      }
-      const { data: testData } = await postSdApiV2ImconnectionOfficialqqTest({
-        body: { config: payload.config },
-        throwOnError: true,
-      });
-      if (testData.item.exists) {
-        throw new Error(`该 QQ 官方机器人账号已存在：${testData.item.userId}`);
-      }
-    }
-    const { data } = await postSdApiV2Imconnection({
-      body: payload,
-      throwOnError: true,
-    });
-    return {
-      data,
-      platform: payload.platform,
-      officialQQMode: officialQQMode.value,
-    };
-  },
-  onSuccess: ({ data, platform, officialQQMode: mode }) => {
+watch(editConfigQuery.error, error => {
+  if (!error || !editDialogVisible.value) return;
+  message.error('账号配置读取失败');
+  editDialogVisible.value = false;
+  editingEndpoint.value = null;
+  editingConfig.value = null;
+});
+
+const { createMutation, updateMutation, enableMutation, deleteMutation } = useConnectMutations({
+  message,
+  onCreated: ({ endpoint, platform, officialQQMode: mode }) => {
     message.success('账号已添加');
     dialogVisible.value = false;
     if (platform === 'officialqq' && mode === 'qrcode') {
-      qrDialogEndpointId.value = data.item.id;
+      qrDialogEndpointId.value = endpoint.id;
       qrDialogVisible.value = true;
     }
     resetWizard();
   },
-  onError: error => {
-    if (isTestModeApiError(error)) {
-      message.warning(getTestModeBlockMessage(error));
-      return;
-    }
-    message.error('添加账号失败');
-  },
-});
-
-const updateMutation = useMutation({
-  mutationFn: async () => {
-    if (!editingEndpoint.value) throw new Error('missing endpoint');
-    const { data } = await putSdApiV2ImconnectionById({
-      path: { id: editingEndpoint.value.id },
-      body: editFormModel.value,
-      throwOnError: true,
-    });
-    return data;
-  },
-  onSuccess: () => {
+  onUpdated: () => {
     message.success('账号配置已更新');
     editDialogVisible.value = false;
     editingEndpoint.value = null;
     editingConfig.value = null;
     editFormModel.value = {};
   },
-  onError: error => {
-    if (isTestModeApiError(error)) {
-      message.warning(getTestModeBlockMessage(error));
-      return;
-    }
-    message.error('账号配置更新失败');
-  },
+  onEnabled: () => undefined,
+  onDeleted: () => undefined,
 });
 
-const enableMutation = useMutation({
-  mutationFn: async ({ endpoint, enable }: { endpoint: EndPointInfo; enable: boolean }) => {
-    const { data } = await putSdApiV2ImconnectionByIdEnable({
-      path: { id: endpoint.id },
-      body: { enable },
-      throwOnError: true,
-    });
-    return data;
-  },
-  onSuccess: () => {
-    message.success('账号状态已更新');
-  },
-  onError: error => {
-    if (isTestModeApiError(error)) {
-      message.warning(getTestModeBlockMessage(error));
-      return;
-    }
-    message.error('账号状态更新失败');
-  },
-});
-
-const deleteMutation = useMutation({
-  mutationFn: async (endpoint: EndPointInfo) => {
-    const { data } = await deleteSdApiV2ImconnectionById({
-      path: { id: endpoint.id },
-      throwOnError: true,
-    });
-    return data;
-  },
-  onSuccess: () => {
-    message.success('账号已删除');
-  },
-  onError: error => {
-    if (isTestModeApiError(error)) {
-      message.warning(getTestModeBlockMessage(error));
-      return;
-    }
-    message.error('删除账号失败');
-  },
-});
-
-const signVersions = computed(() =>
-  (signInfoQuery.data.value?.item.items ?? [])
-    .filter(item => !item.ignored)
-    .map(item => ({
-      label: item.selected ? `${item.version} 最新` : item.version,
-      value: item.version,
-    }))
-    .concat({ label: '自定义', value: '自定义' })
-);
-
-const signServers = computed(() => {
-  const version = formModel.value.signServerVersion;
-  const info = (signInfoQuery.data.value?.item.items ?? []).find(item => item.version === version);
-  return (info?.servers ?? [])
-    .filter(item => !item.ignored)
-    .map(item => ({
-      label: item.latency > 0 ? `${item.name} (${item.latency}ms)` : item.name,
-      value: item.name,
-    }));
-});
-
-const signInfoState = computed(() =>
-  buildSignInfoState({
-    selectedProtocolKey: selectedProtocolKey.value,
-    isLoading: signInfoQuery.isLoading.value,
-    isFetching: signInfoQuery.isFetching.value,
-    isError: signInfoQuery.isError.value,
-    hasData: (signInfoQuery.data.value?.item.items?.length ?? 0) > 0,
-    signServerVersion: String(formModel.value.signServerVersion ?? ''),
-  }),
-);
-
-const signVersionOptions = computed(() => {
-  if (signInfoState.value.mode === 'manual-fallback') {
-    return [{ label: '自定义', value: '自定义' }];
-  }
-  return signVersions.value;
-});
-
-const signInfoErrorMessage = computed(() =>
-  signInfoState.value.mode === 'manual-fallback' ? signInfoState.value.message : '',
-);
-
-watch(
-  () => formModel.value.signServerVersion,
-  version => {
-    if (selectedProtocolKey.value !== 'lagrange' || version === '自定义') return;
-    const info = (signInfoQuery.data.value?.item.items ?? []).find(item => item.version === version);
-    const server = info?.servers?.find(item => item.selected && !item.ignored) ?? info?.servers?.find(item => !item.ignored);
-    if (server && formModel.value.signServerName !== server.name) {
-      formModel.value = {
-        ...formModel.value,
-        signServerName: server.name,
-      };
-    }
-  }
-);
-
-const adapterOf = (endpoint: EndPointInfo): AdapterView => {
-  if (endpoint.adapter && typeof endpoint.adapter === 'object') {
-    return endpoint.adapter as AdapterView;
-  }
-  return {};
-};
-
-const workflowOf = (endpoint: EndPointInfo): WorkflowResp | null =>
-  realtimeConnections.workflows.value[endpoint.id] ?? null;
-
-const workflowTag = (endpoint: EndPointInfo) => {
-  const workflow = workflowOf(endpoint);
-  switch (workflow?.state) {
-    case 'qrcode':
-      return { type: 'warning' as const, text: '等待扫码' };
-    case 'pending':
-      return { type: 'info' as const, text: '登录中' };
-    case 'failed':
-      return { type: 'error' as const, text: '登录失败' };
-    default:
-      return null;
-  }
-};
-
-const workflowText = (endpoint: EndPointInfo) => {
-  const workflow = workflowOf(endpoint);
-  switch (workflow?.state) {
-    case 'qrcode':
-      return '等待扫码';
-    case 'pending':
-      return '登录中';
-    case 'success':
-      return '登录成功';
-    case 'failed':
-      return workflow.failedReason ? `登录失败：${workflow.failedReason}` : '登录失败';
-    default:
-      return '';
-  }
-};
+const workflowOf = (endpointId: string) => realtimeConnections.workflows.value[endpointId] ?? null;
 
 const openQRCode = (endpoint: EndPointInfo) => {
   qrDialogEndpointId.value = endpoint.id;
   qrDialogVisible.value = true;
-};
-
-const protocolLabel = (endpoint: EndPointInfo) =>
-  getEndpointProtocolLabel({
-    platform: endpoint.platform,
-    protocolType: endpoint.protocolType,
-    adapter: adapterOf(endpoint),
-  });
-
-const detailRows = (endpoint: EndPointInfo) => {
-  const adapter = adapterOf(endpoint);
-  return [
-    ['账号', endpoint.userId],
-    ['登录流程', workflowText(endpoint)],
-    ['群组数量', String(endpoint.groupNum)],
-    ['累计响应指令', String(endpoint.cmdExecutedNum)],
-    [
-      '上次执行指令',
-      endpoint.cmdExecutedLastTime > 0
-        ? dayjs.unix(endpoint.cmdExecutedLastTime).format('YYYY-MM-DD HH:mm:ss')
-        : '尚无记录',
-    ],
-    ['连接地址', adapter.connectUrl || adapter.ws_gateway || ''],
-    ['服务地址', adapter.reverseAddr ? `${adapter.reverseAddr}/ws` : ''],
-    ['签名版本', adapter.signServerVer || ''],
-    ['签名服务', adapter.signServerName || ''],
-    ['协议端', adapter.built_in_mode || adapter.builtinMode || ''],
-    ['接入方式', endpoint.protocolType === 'official' ? (adapter.useWebhook ? 'Webhook' : 'WebSocket') : ''],
-    ['Webhook 路径', adapter.webhookPath || ''],
-    ['Webhook 端口', adapter.webhookPort ? String(adapter.webhookPort) : ''],
-    ['主机', adapter.host ? `${adapter.host}${adapter.port ? `:${adapter.port}` : ''}` : ''],
-  ].filter(([, value]) => value);
 };
 
 const confirmDelete = (endpoint: EndPointInfo) => {
@@ -571,7 +321,7 @@ const confirmDelete = (endpoint: EndPointInfo) => {
     content: '删除此项帐号，确定吗？删除账号不会影响人物卡和 logs 等数据。',
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => deleteMutation.mutate(endpoint),
+    onPositiveClick: () => deleteMutation.mutate(endpoint.id),
   });
 };
 
@@ -585,31 +335,15 @@ const confirmEnable = (endpoint: EndPointInfo, enable: boolean) => {
     content: '确认修改此账号的在线状态吗？',
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => enableMutation.mutate({ endpoint, enable }),
+    onPositiveClick: () => enableMutation.mutate({ id: endpoint.id, enable }),
   });
 };
 
-const openEditDialog = async (endpoint: EndPointInfo) => {
+const openEditDialog = (endpoint: EndPointInfo) => {
   editingEndpoint.value = endpoint;
-  editDialogVisible.value = true;
   editingConfig.value = null;
   editFormModel.value = {};
-  try {
-    const { data } = await getSdApiV2ImconnectionByIdConfig({
-      path: { id: endpoint.id },
-      throwOnError: true,
-    });
-    const item = data.item;
-    editingConfig.value = item;
-    editFormModel.value = {
-      ...buildDynamicFormInitialModel(item.schema ?? []),
-      ...item.config,
-    };
-  } catch {
-    message.error('账号配置读取失败');
-    editDialogVisible.value = false;
-    editingEndpoint.value = null;
-  }
+  editDialogVisible.value = true;
 };
 
 const openCreateDialog = () => {
@@ -622,146 +356,72 @@ const openCreateDialog = () => {
 };
 
 const retrySignInfo = () => {
-  void signInfoQuery.refetch();
+  void signInfo.retry();
 };
 
-const columns = computed<DataTableColumns<EndPointInfo>>(() => [
-  {
-    title: '账号',
-    key: 'account',
-    minWidth: 180,
-    render: row => {
-      const tag = getEndpointStateMeta(row.state);
-      const loginTag = workflowTag(row);
-      return (
-        <div class='account-cell'>
-          <div class='account-title'>
-            <span>{row.nickname || row.userId || row.id}</span>
-            <n-tag size='small' type={tag.tagType} bordered={false}>
-              {tag.text}
-            </n-tag>
-            {!row.enable ? (
-              <n-tag size='small' type='warning' bordered={false}>
-                已禁用
-              </n-tag>
-            ) : null}
-            {loginTag ? (
-              <n-tag size='small' type={loginTag.type} bordered={false}>
-                {loginTag.text}
-              </n-tag>
-            ) : null}
-          </div>
-          <div class='account-subtitle'>{protocolLabel(row)}</div>
-        </div>
-      );
-    },
-  },
-  {
-    title: '详情',
-    key: 'detail',
-    minWidth: 320,
-    render: row => (
-      <n-descriptions size='small' label-placement='left' column={isMobile.value ? 1 : 2}>
-        {detailRows(row).map(([label, value]) => (
-          <n-descriptions-item key={label} label={label}>
-            <span class='account-detail-value'>{value}</span>
-          </n-descriptions-item>
-        ))}
-      </n-descriptions>
-    ),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 280,
-    render: row => (
-      <n-space justify='end'>
-        {realtimeConnections.qrCodes.value[row.id] ? (
-          <n-button size='small' tertiary onClick={() => openQRCode(row)}>
-            二维码
-          </n-button>
-        ) : null}
-        <n-button size='small' disabled={isTestMode.value} onClick={() => openEditDialog(row)}>
-          修改
-        </n-button>
-        <n-button size='small' disabled={isTestMode.value} onClick={() => confirmEnable(row, !row.enable)}>
-          {row.enable ? '禁用' : '启用'}
-        </n-button>
-        <n-button size='small' type='error' disabled={isTestMode.value} onClick={() => confirmDelete(row)}>
-          删除
-        </n-button>
-      </n-space>
-    ),
-  },
-]);
+const columns = computed(() =>
+  createConnectTableColumns({
+    isMobile,
+    qrCodes: realtimeConnections.qrCodes,
+    isTestMode,
+    workflowOf,
+    openQRCode,
+    openEditDialog,
+    confirmEnable,
+    confirmDelete,
+  })
+);
 
 const wizardCanNext = computed(() => {
   switch (wizardStep.value) {
-    case 1: return !!wizardPlatform.value;
-    case 2: return !!wizardMethod.value;
+    case 1:
+      return !!wizardPlatform.value;
+    case 2:
+      return !!wizardMethod.value;
     case 3: {
-      const p = wizardProtocol.value;
-      return !!p && p.available && !p.deprecated;
+      const protocol = wizardProtocol.value;
+      return !!protocol && protocol.available && !protocol.deprecated;
     }
-    case 4: return canSubmit.value;
+    case 4:
+      return canSubmit.value;
+    default:
+      return false;
   }
-  return false;
 });
 
+const selectPlatform = (platform: PlatformTreeNode) => selectConnectPlatform(wizardState, platform);
+const selectMethod = (method: MethodTreeNode) => selectConnectMethod(wizardState, method);
+const selectProtocol = (protocol: ProtocolDefinition) =>
+  selectConnectProtocol(wizardState, protocol, []);
+
 const goNext = () => {
-  if (wizardStep.value === 3 && wizardProtocol.value) {
-    selectedProtocolKey.value = wizardProtocol.value.key;
-    formModel.value = buildDynamicFormInitialModel(selectedSchema.value);
-    officialQQMode.value = 'manual';
-  }
-  if (wizardStep.value < 4) {
-    wizardStep.value++;
-  }
+  advanceConnectWizard(wizardState, selectedSchema.value);
 };
 
 const goPrev = () => {
-  if (wizardStep.value > 1) {
-    wizardStep.value--;
-  }
+  if (wizardState.step > 1) wizardState.step -= 1;
 };
 
-const resetWizard = () => {
-  wizardStep.value = 1;
-  wizardPlatform.value = null;
-  wizardMethod.value = null;
-  wizardProtocol.value = null;
-  selectedProtocolKey.value = '';
-  formModel.value = {};
-  officialQQMode.value = 'manual';
-};
+const resetWizard = () => resetConnectWizard(wizardState);
 
 const submit = () => {
   if (isTestMode.value) {
     message.warning('展示模式不支持该操作');
     return;
   }
-  if (canSubmit.value) createMutation.mutate();
+  if (!canSubmit.value) return;
+  const payload = buildConnectCreatePayload(wizardState);
+  createMutation.mutate({
+    platform: payload.platform,
+    config: payload.config,
+    officialQQMode: officialQQMode.value,
+  });
 };
 
 const submitEdit = () => {
-  if (isTestMode.value) {
-    message.warning('展示模式不支持该操作');
-    return;
-  }
-  if (canSubmitEdit.value) updateMutation.mutate();
+  if (isTestMode.value || !editingEndpoint.value || !canSubmitEdit.value) return;
+  updateMutation.mutate({ id: editingEndpoint.value.id, config: editFormModel.value });
 };
-
-function buildCreatePayload() {
-  const config = { ...formModel.value };
-  if (selectedProtocolKey.value === 'officialqq' && officialQQMode.value === 'qrcode') {
-    config.appID = '';
-    config.appSecret = '';
-  }
-  return {
-    platform: selectedProtocolKey.value,
-    config,
-  };
-}
 </script>
 
 <style scoped>

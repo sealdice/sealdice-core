@@ -15,7 +15,7 @@ const assertDeepEqual = (actual: unknown, expected: unknown) => {
 
 assertDeepEqual(
   buildSignInfoState({
-    selectedProtocolKey: 'qq',
+    enabled: false,
     isLoading: false,
     isFetching: false,
     isError: false,
@@ -35,7 +35,7 @@ assertDeepEqual(
 
 assertDeepEqual(
   buildSignInfoState({
-    selectedProtocolKey: 'lagrange',
+    enabled: true,
     isLoading: true,
     isFetching: true,
     isError: false,
@@ -55,7 +55,7 @@ assertDeepEqual(
 
 assertDeepEqual(
   buildSignInfoState({
-    selectedProtocolKey: 'lagrange',
+    enabled: true,
     isLoading: false,
     isFetching: false,
     isError: true,
@@ -74,7 +74,7 @@ assertDeepEqual(
 );
 
 const readyAuto = buildSignInfoState({
-  selectedProtocolKey: 'lagrange',
+  enabled: true,
   isLoading: false,
   isFetching: false,
   isError: false,
@@ -89,7 +89,7 @@ assertEqual(readyAuto.showCustomServerInput, false);
 assertEqual(readyAuto.showRetry, false);
 
 const readyManual = buildSignInfoState({
-  selectedProtocolKey: 'lagrange',
+  enabled: true,
   isLoading: false,
   isFetching: false,
   isError: false,
