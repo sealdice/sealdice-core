@@ -122,6 +122,7 @@
           v-for="(item, index) in items"
           :key="item.filename || index"
           class="deck-item"
+          :default-fold="true"
           :err-title="item.filename"
           :err-text="item.errText"
         >

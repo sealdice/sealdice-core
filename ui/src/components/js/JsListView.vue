@@ -132,7 +132,12 @@
       <div class="js-panel-body">
         <section v-if="hasItems" class="js-list-main">
           <template v-for="item in items" :key="item.filename">
-            <FoldableCard class="js-plugin-card" :err-title="item.filename" :err-text="item.errText">
+            <FoldableCard
+              class="js-plugin-card"
+              :default-fold="true"
+              :err-title="item.filename"
+              :err-text="item.errText"
+            >
           <template #title>
             <n-flex align="center">
               <n-checkbox v-model:checked="item.pitch" />
