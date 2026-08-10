@@ -64,7 +64,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			if pa.BuiltinMode == "lagrange" {
 				helper.Warn("onebot: 尝试启动内置客户端，但内置客户端在容器模式下被禁用")
 			}
-			conn.State = 3
+			conn.State = StateConnectionFailed
 			pa.GoCqhttpState = StateCodeLoginFailed
 			dice.Save(false)
 			return
@@ -153,7 +153,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			command = fmt.Sprintf(`"%s"`, exeFilePath)
 		}
 		helper.Info("onebot: 正在启动 onebot 客户端…… ", command)
-		conn.State = 2
+		conn.State = StateConnecting
 		conn.Enable = true
 		p := procs.NewProcess(command)
 		p.Dir = workDir
@@ -197,7 +197,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 
 					// 经测试，若不延时，登录成功的同一时刻进行ws正向连接有几率导致第一次连接失败
 					time.Sleep(1 * time.Second)
-					go ServeQQ(dice, conn)
+					go startQQProtocolConnection(dice, conn)
 				}
 
 				if strings.Contains(line, qrcodeExpiredSignal) {
@@ -269,10 +269,10 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 
 			isInLogin := pa.IsInLogin()
 			if isInLogin {
-				conn.State = 3
+				conn.State = StateConnectionFailed
 				pa.GoCqhttpState = StateCodeLoginFailed
 			} else {
-				conn.State = 0
+				conn.State = StateDisconnected
 				pa.GoCqhttpState = GoCqhttpStateCodeClosed
 			}
 
@@ -325,7 +325,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
-		go ServeQQ(dice, conn)
+		go startQQProtocolConnection(dice, conn)
 	}
 }
 

@@ -91,6 +91,11 @@ func (m *mockPlatformAdapter) SendToPerson(_ *MsgContext, _ string, text string,
 func (m *mockPlatformAdapter) Serve() int       { return 0 }
 func (m *mockPlatformAdapter) DoRelogin() bool  { return true }
 func (m *mockPlatformAdapter) SetEnable(_ bool) {}
+func (m *mockPlatformAdapter) LifecycleStart(_ context.Context, run EndpointRunReporter) error {
+	run.Started()
+	return nil
+}
+func (m *mockPlatformAdapter) LifecycleStop(context.Context) error { return nil }
 func (m *mockPlatformAdapter) QuitGroup(_ *MsgContext, groupID string) {
 	m.mu.Lock()
 	m.quitGroups = append(m.quitGroups, groupID)

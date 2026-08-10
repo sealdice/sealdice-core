@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -84,7 +85,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	}
 	if err != nil {
 		pa.EndPoint.Session.Parent.Logger.Errorf("与Telegram服务进行连接时出错:%s", err.Error())
-		ep.State = 3
+		ep.State = StateConnectionFailed
 		ep.Enable = false
 		d := pa.EndPoint.Session.Parent
 		d.LastUpdatedTime = time.Now().Unix()
@@ -95,7 +96,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	pa.IntentSession = bot
 	ep.UserID = FormatDiceIDTelegram(strconv.FormatInt(bot.Self.ID, 10))
 	ep.Nickname = bot.Self.UserName
-	ep.State = 1
+	ep.State = StateConnected
 	ep.Enable = true
 	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
@@ -361,40 +362,47 @@ func (pa *PlatformAdapterTelegram) MemberBan(_ string, _ string, _ int64) {}
 func (pa *PlatformAdapterTelegram) MemberKick(_ string, _ string) {}
 
 func (pa *PlatformAdapterTelegram) DoRelogin() bool {
-	pa.EndPoint.Session.Parent.Logger.Infof("正在启用Telegram服务……")
-	if pa.IntentSession == nil {
-		go pa.Serve()
-		return true
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
+}
+
+func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
+	if enable {
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
+	} else {
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
 	}
+}
+
+// LifecycleStart creates one Telegram polling session for the current
+// supervisor generation. Any retry is scheduled by EndpointLifecycleSupervisor.
+func (pa *PlatformAdapterTelegram) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleError(errors.New("telegram endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+	}
+	_ = pa.LifecycleStop(ctx)
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用Telegram服务……")
+	if pa.Serve() != 0 {
+		return errors.New("telegram serve failed")
+	}
+	run.Started()
+	return nil
+}
+
+// LifecycleStop stops Telegram long polling for the active generation. The
+// shared supervisor owns endpoint state and persistence.
+func (pa *PlatformAdapterTelegram) LifecycleStop(context.Context) error {
 	if pa.IntentSession != nil {
 		pa.IntentSession.StopReceivingUpdates()
 		pa.IntentSession = nil
 	}
-	go pa.Serve()
-	return true
-}
-
-func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
-	ep := pa.EndPoint
-	if enable {
-		pa.EndPoint.Session.Parent.Logger.Infof("正在启用Telegram服务……")
-		if pa.IntentSession == nil {
-			go pa.Serve()
-			return
-		}
-		if pa.IntentSession != nil {
-			pa.IntentSession.StopReceivingUpdates()
-			pa.IntentSession = nil
-		}
-		go pa.Serve()
-	} else {
-		if pa.IntentSession != nil {
-			pa.IntentSession.StopReceivingUpdates()
-			pa.IntentSession = nil
-		}
-		pa.EndPoint.State = 0
-		ep.Enable = false
-	}
+	return nil
 }
 
 func (pa *PlatformAdapterTelegram) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {

@@ -1,10 +1,6 @@
 package dice
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 func NewRedConnItem(host string, port int, token string) *EndPointInfo {
 	conn := new(EndPointInfo)
@@ -24,13 +20,7 @@ func NewRedConnItem(host string, port int, token string) *EndPointInfo {
 
 func ServeRed(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
-	conn := ep.Adapter.(*PlatformAdapterRed)
 	d.Logger.Infof("red 尝试连接")
-	if conn.Serve() == 0 {
-	} else {
-		d.Logger.Errorf("连接 red 服务失败")
-		ep.State = 3
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
-	}
+	ep.BindRuntime(d.ImSession)
+	_ = StartEndpointLifecycle(d, ep)
 }

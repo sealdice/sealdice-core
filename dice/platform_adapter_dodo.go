@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -57,9 +58,21 @@ func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
 }
 
 func (pa *PlatformAdapterDodo) Serve() int {
+	return pa.serveWithLifecycle(context.Background(), nil)
+}
+
+func (pa *PlatformAdapterDodo) serveWithLifecycle(ctx context.Context, run EndpointRunReporter) int {
 	logger := pa.EndPoint.Session.Parent.Logger
 	clientID := pa.ClientID
 	token := pa.Token
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return 1
+		default:
+		}
+	}
+
 	instance, err := client.New(clientID, token, client.WithTimeout(time.Second*3))
 	pa.Client = instance
 	if err != nil {
@@ -101,51 +114,50 @@ func (pa *PlatformAdapterDodo) Serve() int {
 	msgHandlers.ChannelMessage = channelMessageHandler
 	msgHandlers.PersonalMessage = personalMessageHandler
 
-	ws, _ := websocket.New(instance, websocket.WithMessageHandlers(msgHandlers))
+	ws, err := websocket.New(instance, websocket.WithMessageHandlers(msgHandlers))
+	if err != nil {
+		logger.Errorf("Dodo WebSocket 初始化错误:%s", err.Error())
+		pa.EndPoint.State = StateConnectionFailed
+		d := pa.EndPoint.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return 1
+	}
 	// 主动连接到 WebSocket 服务器
 	if err = ws.Connect(); err != nil {
 		logger.Errorf("Dodo连接错误:%s", err.Error())
-		for pa.RetryConnectTimes <= 5 {
-			pa.RetryConnectTimes++
-			time.Sleep(time.Second * 5)
-			pa.EndPoint.Session.Parent.Logger.Infof("Dodo 尝试重连, 第 [%d/5] 次", pa.RetryConnectTimes)
-			ws.Close()
-			if err = ws.Connect(); err == nil {
-				pa.RetryConnectTimes = 0
-				pa.EndPoint.State = 1
-				break
-			} else {
-				logger.Errorf("Dodo连接错误:%s", err.Error())
-			}
-		}
-		if err != nil {
-			logger.Errorf("Dodo 短时间内重试次数过多，先行中断")
-			pa.EndPoint.State = 3
-			d := pa.EndPoint.Session.Parent
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-			return 1
-		}
+		pa.EndPoint.State = StateConnectionFailed
+		d := pa.EndPoint.Session.Parent
+		d.LastUpdatedTime = time.Now().Unix()
+		d.Save(false)
+		return 1
 	}
 	pa.WebSocket = ws
-	pa.EndPoint.State = 1
+	pa.EndPoint.State = StateConnected
 	pa.RetryConnectTimes = 0
 	pa.EndPoint.Session.Parent.Logger.Infof("Dodo 连接成功")
 	pa.EndPoint.Enable = true
 	d := pa.EndPoint.Session.Parent
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
+	if run != nil {
+		run.Started()
+	}
 	go func() {
 		err := ws.Listen()
 		if err != nil {
 			logger.Errorf("Dodo监听错误:%s", err.Error())
+			if ctx != nil && ctx.Err() != nil {
+				return
+			}
 			if pa.EndPoint.Enable {
-				pa.EndPoint.State = 3
+				pa.EndPoint.State = StateConnectionFailed
 				d := pa.EndPoint.Session.Parent
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
-				logger.Infof("Dodo 连接断开，正在尝试重连……")
-				pa.DoRelogin()
+				if run != nil {
+					run.Closed(err)
+				}
 			}
 		}
 	}()
@@ -283,44 +295,40 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 }
 
 func (pa *PlatformAdapterDodo) DoRelogin() bool {
-	defer func() {
-		_ = recover()
-	}()
-	logger := pa.EndPoint.Session.Parent.Logger
-	if pa.WebSocket != nil {
-		pa.WebSocket.Close()
-		pa.Client = nil
-		pa.WebSocket = nil
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
-	}
-	logger.Infof("正在启用Dodo……")
-	pa.Serve()
-	return false
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
-	defer func() {
-		_ = recover()
-	}()
-	logger := pa.EndPoint.Session.Parent.Logger
 	if enable {
-		if pa.Client != nil && pa.WebSocket != nil {
-			pa.WebSocket.Close()
-			pa.Client = nil
-			pa.WebSocket = nil
-			pa.EndPoint.State = 0
-			pa.EndPoint.Enable = false
-		}
-		logger.Infof("正在启用Dodo……")
-		pa.Serve()
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		pa.WebSocket.Close()
-		pa.Client = nil
-		pa.WebSocket = nil
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
 	}
+}
+
+// LifecycleStart opens one Dodo websocket connection for the supervisor
+// generation. The adapter no longer performs its own retry loop.
+func (pa *PlatformAdapterDodo) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleError(errors.New("dodo endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	_ = pa.LifecycleStop(ctx)
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用Dodo……")
+	if pa.serveWithLifecycle(ctx, run) != 0 {
+		return errors.New("dodo serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop closes the current Dodo websocket. State transitions are
+// written by EndpointLifecycleSupervisor.
+func (pa *PlatformAdapterDodo) LifecycleStop(context.Context) error {
+	if pa.WebSocket != nil {
+		pa.WebSocket.Close()
+	}
+	pa.Client = nil
+	pa.WebSocket = nil
+	return nil
 }
 
 func (pa *PlatformAdapterDodo) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {

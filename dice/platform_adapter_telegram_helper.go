@@ -20,9 +20,8 @@ func NewTelegramConnItem(token string, proxy string) *EndPointInfo {
 func ServeTelegram(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
 	if ep.Platform == "TG" {
-		conn := ep.Adapter.(*PlatformAdapterTelegram)
 		ep.BindRuntime(d.ImSession)
 		d.Logger.Infof("Telegram 尝试连接")
-		conn.Serve()
+		_ = StartEndpointLifecycle(d, ep)
 	}
 }

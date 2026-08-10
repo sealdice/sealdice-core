@@ -101,8 +101,8 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 		}
 		if pa.UseInPackWalleQ {
 			// 重置状态
-			conn.State = 0
-			pa.WalleQState = 0
+			conn.State = StateDisconnected
+			pa.WalleQState = WqStateCodeInit
 
 			pa.DiceServing = false
 			pa.WalleQQrcodeData = nil
@@ -224,7 +224,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 			}
 
 			if strings.Contains(line, "Walle-Q Login success with") {
-				go ServeQQ(dice, conn)
+				go startQQProtocolConnection(dice, conn)
 			}
 		}
 

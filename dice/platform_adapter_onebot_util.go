@@ -310,37 +310,19 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 		})
 	} else {
 		p.logger.Infof("收到非自己的入群通知: group_id=%s user_id=%s", groupId, userId)
+		// 仅构造规范化消息后交由 IMSession.OnGroupMemberJoined 统一处理迎新：
+		// 群状态判断、玩家初始化、变量设置、模板渲染和发送循环均与 Milky 共用。
+		msg := &Message{
+			Time:        req.Get("time").Int(),
+			MessageType: "group",
+			Platform:    "QQ",
+			GroupID:     groupId,
+			Sender: SenderBase{
+				UserID: userId,
+			},
+		}
 		_ = p.submitAsync(func() {
-			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况（此时会出现大量的迎新），先等一下再取数据
-			targetGroupID := groupId
-			group, ok := ctx.Session.ServiceAtNew.Load(targetGroupID)
-			needWelcome := false
-			reason := "group_not_loaded"
-			if ok && group.ShowGroupWelcome {
-				needWelcome = true
-				reason = "welcome_enabled"
-			} else if ok {
-				reason = "welcome_disabled"
-			}
-			p.logger.Infof("检查是否需要迎新: need_welcome=%t reason=%s group_id=%s user_id=%s", needWelcome, reason, targetGroupID, userId)
-			if !needWelcome {
-				return
-			}
-
-			ctx.Group = group
-			ctx.Player = &GroupPlayerInfo{}
-			uidRaw := req.Get("user_id").String()
-			VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
-			VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
-			stdID := userId
-			VarSetValueStr(ctx, "$t帐号ID", stdID)
-			VarSetValueStr(ctx, "$t账号ID", stdID)
-			text := DiceFormat(ctx, group.GroupWelcomeMessage)
-			p.logger.Infof("发送迎新消息: group_id=%s user_id=%s text=%q", targetGroupID, userId, text)
-			for _, i := range ctx.SplitText(text) {
-				doSleepQQ(ctx)
-				p.SendToGroup(ctx, targetGroupID, strings.TrimSpace(i), "")
-			}
+			ctx.EndPoint.Session.OnGroupMemberJoined(ctx, msg)
 		})
 	}
 

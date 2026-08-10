@@ -11,7 +11,6 @@ import (
 
 	socketio "github.com/PaienNate/pineutil/evsocket/v2"
 	"github.com/bytedance/sonic"
-	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
 	"github.com/tidwall/gjson"
@@ -37,6 +36,7 @@ type onebotTestEmitter struct {
 	loginInfoErr         error
 	sendPvtCh            chan time.Time
 	sendGrCh             chan time.Time
+	lastGrID             int64
 }
 
 type friendReqCall struct {
@@ -70,7 +70,8 @@ func (m *onebotTestEmitter) SendPvtMsg(context.Context, int64, schema.MessageCha
 	return &emitterTypes.SendMsgRes{}, nil
 }
 
-func (m *onebotTestEmitter) SendGrMsg(context.Context, int64, schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+func (m *onebotTestEmitter) SendGrMsg(_ context.Context, groupID int64, _ schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+	m.lastGrID = groupID
 	if m.sendGrCh != nil {
 		select {
 		case m.sendGrCh <- time.Now():
@@ -255,28 +256,41 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	return d, pa, em, cleanupAll
 }
 
-func newPureOnebotRetryFSM(eventCh chan string) *loopfsm.FSM {
-	return loopfsm.NewFSM(
-		"connecting",
-		loopfsm.Events{
-			{Name: "connect_ok", Src: []string{"connecting"}, Dst: "connected"},
-			{Name: "connect_fail", Src: []string{"connecting"}, Dst: "failed"},
-		},
-		loopfsm.Callbacks{
-			"enter_connected": func(_ context.Context, _ *loopfsm.Event) {
-				select {
-				case eventCh <- "connect_ok":
-				default:
-				}
-			},
-			"enter_failed": func(_ context.Context, _ *loopfsm.Event) {
-				select {
-				case eventCh <- "connect_fail":
-				default:
-				}
-			},
-		},
-	)
+type onebotLifecycleReporter struct {
+	started chan struct{}
+	failed  chan error
+	closed  chan error
+}
+
+func newOnebotLifecycleReporter() *onebotLifecycleReporter {
+	return &onebotLifecycleReporter{
+		started: make(chan struct{}, 1),
+		failed:  make(chan error, 1),
+		closed:  make(chan error, 1),
+	}
+}
+
+func (r *onebotLifecycleReporter) Generation() uint64 { return 1 }
+
+func (r *onebotLifecycleReporter) Started() {
+	select {
+	case r.started <- struct{}{}:
+	default:
+	}
+}
+
+func (r *onebotLifecycleReporter) Failed(err error) {
+	select {
+	case r.failed <- err:
+	default:
+	}
+}
+
+func (r *onebotLifecycleReporter) Closed(err error) {
+	select {
+	case r.closed <- err:
+	default:
+	}
 }
 
 func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
@@ -653,10 +667,11 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectFailOnLoginInfoError(t *tes
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
-	events := make(chan string, 2)
+	reporter := newOnebotLifecycleReporter()
+	lifecycleCtx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
-	pa.desiredEnabled = true
-	pa.sm = newPureOnebotRetryFSM(events)
 	pa.loginInitRetrySleep = func(delay time.Duration) {
 		select {
 		case sleepDurations <- delay:
@@ -677,16 +692,12 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectFailOnLoginInfoError(t *tes
 	}
 
 	select {
-	case event := <-events:
-		if event != "connect_fail" {
-			t.Fatalf("expected connect_fail event, got %q", event)
+	case err := <-reporter.failed:
+		if !errors.Is(err, em.loginInfoErr) {
+			t.Fatalf("expected login-info error, got %v", err)
 		}
 	case <-time.After(1 * time.Second):
-		t.Fatal("expected connect_fail event")
-	}
-
-	if got := pa.sm.Current(); got != "failed" {
-		t.Fatalf("expected FSM to transition to failed, got %q", got)
+		t.Fatal("expected lifecycle failure report")
 	}
 }
 
@@ -694,10 +705,11 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testin
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
-	events := make(chan string, 2)
+	reporter := newOnebotLifecycleReporter()
+	lifecycleCtx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
-	pa.desiredEnabled = true
-	pa.sm = newPureOnebotRetryFSM(events)
 	pa.loginInitRetrySleep = func(delay time.Duration) {
 		select {
 		case sleepDurations <- delay:
@@ -721,16 +733,9 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testin
 	}
 
 	select {
-	case event := <-events:
-		if event != "connect_ok" {
-			t.Fatalf("expected connect_ok event, got %q", event)
-		}
+	case <-reporter.started:
 	case <-time.After(1 * time.Second):
-		t.Fatal("expected connect_ok event")
-	}
-
-	if got := pa.sm.Current(); got != "connected" {
-		t.Fatalf("expected FSM to transition to connected, got %q", got)
+		t.Fatal("expected lifecycle started report")
 	}
 	if pa.EndPoint.UserID != "QQ:123456" {
 		t.Fatalf("expected EndPoint.UserID to be set, got %q", pa.EndPoint.UserID)
@@ -743,23 +748,23 @@ func TestPureOnebotScheduleLoginInfoRetryEmitsConnectOkAndSetsEndpoint(t *testin
 func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
 	tests := []struct {
 		name      string
-		configure func(pa *PlatformAdapterOnebot)
+		configure func(pa *PlatformAdapterOnebot, cancel context.CancelFunc)
 	}{
 		{
-			name: "disabled adapter",
-			configure: func(pa *PlatformAdapterOnebot) {
-				pa.desiredEnabled = false
+			name: "cancelled lifecycle",
+			configure: func(_ *PlatformAdapterOnebot, cancel context.CancelFunc) {
+				cancel()
 			},
 		},
 		{
 			name: "nil emitter",
-			configure: func(pa *PlatformAdapterOnebot) {
+			configure: func(pa *PlatformAdapterOnebot, _ context.CancelFunc) {
 				pa.sendEmitter = nil
 			},
 		},
 		{
 			name: "nil ctx",
-			configure: func(pa *PlatformAdapterOnebot) {
+			configure: func(pa *PlatformAdapterOnebot, _ context.CancelFunc) {
 				pa.ctx = nil
 			},
 		},
@@ -770,17 +775,18 @@ func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
 			_, pa, _, cleanup := newPureOnebotTestAdapter(t)
 			defer cleanup()
 
-			events := make(chan string, 1)
+			reporter := newOnebotLifecycleReporter()
+			lifecycleCtx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			pa.setLifecycleRun(lifecycleCtx, reporter)
 			sleepDurations := make(chan time.Duration, 1)
-			pa.desiredEnabled = true
-			pa.sm = newPureOnebotRetryFSM(events)
 			pa.loginInitRetrySleep = func(delay time.Duration) {
 				select {
 				case sleepDurations <- delay:
 				default:
 				}
 			}
-			tc.configure(pa)
+			tc.configure(pa, cancel)
 
 			pa.scheduleLoginInfoRetry()
 
@@ -790,15 +796,7 @@ func TestPureOnebotScheduleLoginInfoRetryGuardsBeforeSleeping(t *testing.T) {
 			case <-time.After(100 * time.Millisecond):
 			}
 
-			select {
-			case event := <-events:
-				t.Fatalf("expected no FSM event, got %q", event)
-			case <-time.After(100 * time.Millisecond):
-			}
-
-			if got := pa.sm.Current(); got != "connecting" {
-				t.Fatalf("expected FSM to remain connecting, got %q", got)
-			}
+			assertNoOnebotLifecycleReport(t, reporter)
 		})
 	}
 }
@@ -807,12 +805,13 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
-	events := make(chan string, 1)
+	reporter := newOnebotLifecycleReporter()
+	lifecycleCtx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	pa.setLifecycleRun(lifecycleCtx, reporter)
 	sleepDurations := make(chan time.Duration, 1)
-	pa.desiredEnabled = true
-	pa.sm = newPureOnebotRetryFSM(events)
 	pa.loginInitRetrySleep = func(delay time.Duration) {
-		pa.desiredEnabled = false
+		cancel()
 		select {
 		case sleepDurations <- delay:
 		default:
@@ -836,20 +835,25 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 		t.Fatal("expected retry sleep hook to be invoked")
 	}
 
-	select {
-	case event := <-events:
-		t.Fatalf("expected no FSM event after desiredEnabled changed during sleep, got %q", event)
-	case <-time.After(100 * time.Millisecond):
-	}
-
-	if got := pa.sm.Current(); got != "connecting" {
-		t.Fatalf("expected FSM to remain connecting, got %q", got)
-	}
+	assertNoOnebotLifecycleReport(t, reporter)
 	if pa.EndPoint.UserID != originalUserID {
 		t.Fatalf("expected EndPoint.UserID to remain %q, got %q", originalUserID, pa.EndPoint.UserID)
 	}
 	if pa.EndPoint.Nickname != originalNickname {
 		t.Fatalf("expected EndPoint.Nickname to remain %q, got %q", originalNickname, pa.EndPoint.Nickname)
+	}
+}
+
+func assertNoOnebotLifecycleReport(t *testing.T, reporter *onebotLifecycleReporter) {
+	t.Helper()
+	select {
+	case <-reporter.started:
+		t.Fatal("unexpected lifecycle started report")
+	case <-reporter.failed:
+		t.Fatal("unexpected lifecycle failed report")
+	case <-reporter.closed:
+		t.Fatal("unexpected lifecycle closed report")
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 
@@ -887,6 +891,7 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -926,6 +931,7 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenDisabled(t *testing.T) {
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -969,6 +975,7 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -978,6 +985,10 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		GroupWelcomeMessage: "欢迎新人",
 		DiceIDExistsMap:     new(SyncMap[string, bool]),
 	})
+
+	oldLastWelcome := lastGroupMemberWelcome
+	defer func() { lastGroupMemberWelcome = oldLastWelcome }()
+	lastGroupMemberWelcome = nil
 
 	req := gjson.Parse(`{
 		"post_type":"notice",
@@ -999,6 +1010,10 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatal("expected welcome message to be sent")
 	}
 
+	if em.lastGrID != 77777 {
+		t.Fatalf("expected welcome sent to normalized group 77777, got %d", em.lastGrID)
+	}
+
 	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
 		t.Fatalf("expected need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
 	}
@@ -1017,6 +1032,64 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatalf("unexpected welcome send log: %q", sendLog)
 	}
 }
+func TestPureOnebotHandleJoinGroupDeduplicatesRepeatedEvent(t *testing.T) {
+	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	core, observed := observer.New(zapcore.InfoLevel)
+	pa.logger = zap.New(core).Sugar()
+	pa.EndPoint.Session.Parent.Logger = pa.logger
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
+
+	pa.EndPoint.Session.ServiceAtNew.Store("QQ-Group:88888", &GroupInfo{
+		GroupID:             "QQ-Group:88888",
+		ShowGroupWelcome:    true,
+		GroupWelcomeMessage: "欢迎新人",
+		DiceIDExistsMap:     new(SyncMap[string, bool]),
+	})
+
+	oldLastWelcome := lastGroupMemberWelcome
+	defer func() { lastGroupMemberWelcome = oldLastWelcome }()
+	lastGroupMemberWelcome = nil
+
+	req := gjson.Parse(`{
+		"post_type":"notice",
+		"notice_type":"group_increase",
+		"group_id":88888,
+		"user_id":22222,
+		"self_id":54321,
+		"time": 2,
+		"message": []
+	}`)
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("handleJoinGroupAction returned error for first event: %v", err)
+	}
+
+	select {
+	case <-em.sendGrCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected welcome message to be sent for first event")
+	}
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("handleJoinGroupAction returned error for repeated event: %v", err)
+	}
+
+	waitPureOnebotInfoLog(t, observed, "reason=duplicate_event")
+
+	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
+		t.Fatalf("expected exactly one need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
+	}
+	if len(observed.FilterMessageSnippet("reason=duplicate_event").All()) != 1 {
+		t.Fatalf("expected one duplicate_event reason log, got %d", len(observed.FilterMessageSnippet("reason=duplicate_event").All()))
+	}
+	if len(observed.FilterMessageSnippet("发送迎新消息").All()) != 1 {
+		t.Fatalf("expected exactly one welcome send log, got %d", len(observed.FilterMessageSnippet("发送迎新消息").All()))
+	}
+}
+
 func waitPureOnebotInfoLog(t *testing.T, observed *observer.ObservedLogs, snippet string) {
 	t.Helper()
 

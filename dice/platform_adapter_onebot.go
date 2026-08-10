@@ -12,12 +12,10 @@ import (
 	"time"
 
 	socketio "github.com/PaienNate/pineutil/evsocket/v2"
-	"github.com/avast/retry-go"
 	"github.com/bytedance/sonic"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	loopfsm "github.com/looplab/fsm"
 	"github.com/maypok86/otter"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/zap"
@@ -41,6 +39,9 @@ type PlatformAdapterOnebot struct {
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	logger              *zap.SugaredLogger
+	lifecycleMu         sync.Mutex
+	lifecycleRun        EndpointRunReporter
+	lifecycleCtx        context.Context
 
 	// 保护这几个
 	sendEmitter emitter.Emitter
@@ -55,10 +56,7 @@ type PlatformAdapterOnebot struct {
 	friendRequestDedupeMu    sync.Mutex
 	friendRequestDedupTTL    time.Duration
 
-	retryAttempts  uint         // 当前重试次数
-	isRetrying     bool         // 是否正在重试
-	retryMutex     sync.RWMutex // 重试状态锁
-	isShuttingDown bool         // 是否正在主动关闭连接
+	isShuttingDown bool // 是否正在主动关闭连接
 
 	// 连接建立互斥锁，确保同时只有一个连接建立过程
 	connectionMutex sync.Mutex
@@ -66,37 +64,96 @@ type PlatformAdapterOnebot struct {
 
 	echoServer *echo.Echo
 
-	sm                  *loopfsm.FSM
-	desiredEnabled      bool
 	loginInitRetry      func()
 	loginInitRetrySleep func(time.Duration)
 }
 
 func (p *PlatformAdapterOnebot) Serve() int {
-	p.ensureFSM()
-	p.desiredEnabled = true
-	_ = p.sm.Event(context.Background(), "enable")
+	if err := StartEndpointLifecycle(nil, p.EndPoint); err != nil {
+		return 1
+	}
 	return 0
 }
 
 // DoRelogin 重新登录/重连
 func (p *PlatformAdapterOnebot) DoRelogin() bool {
-	p.logger.Warn("因协议端不支持所谓重新登录，重新登录功能无实际用途。")
-	return true
+	return ReloginEndpointLifecycle(nil, p.EndPoint) == nil
 }
 
 // SetEnable 启用或禁用适配器
 func (p *PlatformAdapterOnebot) SetEnable(enable bool) {
-	p.ensureFSM()
 	if enable {
-		p.logger.Info("正在启用 OneBot 适配器...")
-		p.desiredEnabled = true
-		_ = p.sm.Event(context.Background(), "enable")
+		_ = StartEndpointLifecycle(nil, p.EndPoint)
 	} else {
-		p.logger.Info("正在禁用 OneBot 适配器...")
-		p.desiredEnabled = false
-		_ = p.sm.Event(context.Background(), "disable")
+		_ = StopEndpointLifecycle(nil, p.EndPoint)
 	}
+}
+
+func (p *PlatformAdapterOnebot) setLifecycleRun(ctx context.Context, run EndpointRunReporter) {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+	p.lifecycleCtx = ctx
+	p.lifecycleRun = run
+}
+
+func (p *PlatformAdapterOnebot) lifecycleReporter() (context.Context, EndpointRunReporter) {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+	return p.lifecycleCtx, p.lifecycleRun
+}
+
+func (p *PlatformAdapterOnebot) reportLifecycleStarted() {
+	_, run := p.lifecycleReporter()
+	if run != nil {
+		run.Started()
+	}
+}
+
+func (p *PlatformAdapterOnebot) reportLifecycleFailed(err error) {
+	_, run := p.lifecycleReporter()
+	if run != nil {
+		run.Failed(err)
+	}
+}
+
+func (p *PlatformAdapterOnebot) reportLifecycleClosed(err error) {
+	_, run := p.lifecycleReporter()
+	if run != nil {
+		run.Closed(err)
+	}
+}
+
+// LifecycleStart starts one Pure OneBot client/server connection. Connection
+// callbacks report into the shared endpoint supervisor instead of an adapter FSM.
+func (p *PlatformAdapterOnebot) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if p.EndPoint == nil || p.EndPoint.Session == nil {
+		return NewEndpointLifecycleError(errors.New("pure onebot endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+	p.setLifecycleRun(ctx, run)
+	if p.logger == nil {
+		p.logger = zap.S().Named(logger.LogKeyAdapter)
+	}
+	p.logger.Info("正在启用 OneBot 适配器...")
+	if err := p.startConnection(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// LifecycleStop shuts down the Pure OneBot server/client resources. The
+// supervisor updates endpoint state after this method returns.
+func (p *PlatformAdapterOnebot) LifecycleStop(context.Context) error {
+	p.cleanupResources()
+	p.setLifecycleRun(context.TODO(), nil)
+	return nil
 }
 
 func (p *PlatformAdapterOnebot) QuitGroup(_ *MsgContext, id string) {
@@ -553,7 +610,7 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
 	p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
 	p.EndPoint.Nickname = info.NickName
-	_ = p.sm.Event(context.Background(), "connect_ok")
+	p.reportLifecycleStarted()
 }
 
 // initializeCommonResources 初始化公共资源（移除sync.Once限制，允许重新初始化）
@@ -633,8 +690,6 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 	if _, err := p.ensureFriendRequestDedupeCache(); err != nil {
 		p.logger.Warnf("初始化好友申请去重缓存失败: %v", err)
 	}
-
-	p.ensureFSM()
 }
 
 // setupClientConnection 设置客户端连接
@@ -650,7 +705,7 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 
 	client.OnConnectError = func(err error) {
 		p.logger.Errorf("连接失败: %v", err)
-		_ = p.sm.Event(context.Background(), "connect_fail")
+		p.reportLifecycleFailed(err)
 	}
 
 	client.OnDisconnected = func(err error) {
@@ -666,7 +721,7 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 		} else {
 			p.logger.Warn("连接意外断开")
 		}
-		_ = p.sm.Event(context.Background(), "connection_lost")
+		p.reportLifecycleClosed(err)
 	}
 
 	return client.Connect()
@@ -700,7 +755,8 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 	retryFn := p.loginInitRetry
 	if retryFn == nil {
 		retryFn = func() {
-			if !p.desiredEnabled || p.sendEmitter == nil || p.ctx == nil {
+			lifecycleCtx, _ := p.lifecycleReporter()
+			if lifecycleCtx == nil || lifecycleCtx.Err() != nil || p.sendEmitter == nil || p.ctx == nil {
 				return
 			}
 			sleepFn := p.loginInitRetrySleep
@@ -708,19 +764,20 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 				sleepFn = time.Sleep
 			}
 			sleepFn(3 * time.Second)
-			if !p.desiredEnabled || p.sendEmitter == nil || p.ctx == nil {
+			lifecycleCtx, _ = p.lifecycleReporter()
+			if lifecycleCtx == nil || lifecycleCtx.Err() != nil || p.sendEmitter == nil || p.ctx == nil {
 				return
 			}
 			info, err := p.sendEmitter.GetLoginInfo(p.ctx)
 			if err != nil {
 				p.logger.Errorf("重试获取登录信息异常 %v", err)
-				_ = p.sm.Event(context.Background(), "connect_fail")
+				p.reportLifecycleFailed(err)
 				return
 			}
 			p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
 			p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
 			p.EndPoint.Nickname = info.NickName
-			_ = p.sm.Event(context.Background(), "connect_ok")
+			p.reportLifecycleStarted()
 		}
 	}
 	go retryFn()
@@ -859,160 +916,11 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 				} else {
 					p.logger.Errorf("启动服务器失败: %v", err)
 				}
-				_ = p.sm.Event(context.Background(), "connect_fail")
+				p.reportLifecycleFailed(err)
 			}
 		}()
 		return nil
 	default:
 		return fmt.Errorf("未知的连接模式: %s", p.Mode)
 	}
-}
-
-// retryConnect 重试连接方法
-func (p *PlatformAdapterOnebot) retryConnect() {
-	// 检查适配器是否已被禁用
-	if !p.desiredEnabled {
-		p.logger.Info("适配器已被禁用，取消重连")
-		return
-	}
-
-	p.retryMutex.Lock()
-	if p.isRetrying {
-		p.retryMutex.Unlock()
-		return // 已经在重试中，避免重复重试
-	}
-	p.isRetrying = true
-	p.retryMutex.Unlock()
-
-	defer func() {
-		p.retryMutex.Lock()
-		p.isRetrying = false
-		p.retryAttempts = 0
-		p.retryMutex.Unlock()
-	}()
-
-	const maxRetries = 5
-	const baseDelay = 2 * time.Second
-
-	err := retry.Do(
-		func() error {
-			// 在每次重试前再次检查适配器是否已被禁用
-			if !p.desiredEnabled {
-				return errors.New("适配器已被禁用，停止重连")
-			}
-
-			p.retryMutex.Lock()
-			p.retryAttempts++
-			currentAttempt := p.retryAttempts
-			p.retryMutex.Unlock()
-
-			// 计算下次重试时间（指数退避）
-			nextRetryDelay := time.Duration(1<<(currentAttempt-1)) * baseDelay
-			if currentAttempt < maxRetries {
-				p.logger.Infof("尝试重新连接 OneBot [%d/%d]，下次重试间隔: %v", currentAttempt, maxRetries, nextRetryDelay)
-			} else {
-				p.logger.Infof("尝试重新连接 OneBot [%d/%d]，最后一次尝试", currentAttempt, maxRetries)
-			}
-
-			// 调用startConnection重新建立连接，确保遵循连接互斥锁机制
-			return p.startConnection()
-		},
-		retry.Attempts(maxRetries),
-		retry.Delay(baseDelay),
-		retry.DelayType(retry.BackOffDelay),
-		retry.OnRetry(func(n uint, err error) {
-			// 在重试前再次检查适配器是否已被禁用
-			if !p.desiredEnabled {
-				p.logger.Info("适配器已被禁用，停止重试")
-				return
-			}
-			nextDelay := time.Duration(1<<n) * baseDelay
-			p.logger.Warnf("重连失败 (第%d次): %v，%v后进行下次重试", n+1, err, nextDelay)
-		}),
-	)
-
-	if err != nil {
-		// 检查是否是因为适配器被禁用而失败
-		if strings.Contains(err.Error(), "适配器已被禁用") {
-			p.logger.Info("重连已停止：适配器被禁用")
-		} else {
-			p.logger.Errorf("重连最终失败，已达到最大重试次数 %d: %v", maxRetries, err)
-			p.EndPoint.State = StateConnectionFailed
-		}
-	} else {
-		p.logger.Infof("OneBot 重连成功")
-		// 重置重试状态
-		p.retryMutex.Lock()
-		p.retryAttempts = 0
-		p.retryMutex.Unlock()
-	}
-}
-
-func (p *PlatformAdapterOnebot) updateAndSave() {
-	session := p.EndPoint.Session
-	if session == nil || session.Parent == nil {
-		return
-	}
-	d := session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
-}
-
-func (p *PlatformAdapterOnebot) ensureFSM() {
-	if p.sm != nil {
-		return
-	}
-	p.sm = loopfsm.NewFSM(
-		"disconnected",
-		loopfsm.Events{
-			{Name: "enable", Src: []string{"disconnected", "failed"}, Dst: "connecting"},
-			{Name: "connect_ok", Src: []string{"connecting"}, Dst: "connected"},
-			{Name: "connect_fail", Src: []string{"connecting"}, Dst: "failed"},
-			{Name: "disable", Src: []string{"connecting", "connected", "failed", "disconnected"}, Dst: "disconnected"},
-			{Name: "connection_lost", Src: []string{"connected"}, Dst: "connecting"},
-		},
-		loopfsm.Callbacks{
-			"enter_connecting":   p.cbEnterConnecting,
-			"enter_connected":    p.cbEnterConnected,
-			"enter_failed":       p.cbEnterFailed,
-			"enter_disconnected": p.cbEnterDisconnected,
-			"after_disable":      p.cbAfterDisable,
-		},
-	)
-}
-
-func (p *PlatformAdapterOnebot) cbEnterConnecting(_ context.Context, _ *loopfsm.Event) {
-	p.EndPoint.State = StateConnecting
-	// Enable 表示“用户期望启用”，不应由连接成功与否决定；否则连接中/失败会把配置写成禁用，重启后不会自动启动。
-	p.EndPoint.Enable = p.desiredEnabled
-	p.updateAndSave()
-	if err := p.startConnection(); err != nil {
-		_ = p.sm.Event(context.Background(), "connect_fail")
-	}
-}
-
-func (p *PlatformAdapterOnebot) cbEnterConnected(_ context.Context, _ *loopfsm.Event) {
-	p.EndPoint.State = StateConnected
-	p.EndPoint.Enable = true
-	p.updateAndSave()
-}
-
-func (p *PlatformAdapterOnebot) cbEnterFailed(_ context.Context, _ *loopfsm.Event) {
-	p.EndPoint.State = StateConnectionFailed
-	// 连接失败不等于用户禁用；保持 Enable 不变，避免持久化成“禁用”导致重启后不再自动连接。
-	p.EndPoint.Enable = p.desiredEnabled
-	p.updateAndSave()
-	if p.desiredEnabled {
-		go p.retryConnect()
-	}
-}
-
-func (p *PlatformAdapterOnebot) cbEnterDisconnected(_ context.Context, _ *loopfsm.Event) {
-	p.EndPoint.State = StateDisconnected
-	p.EndPoint.Enable = false
-	p.updateAndSave()
-}
-
-func (p *PlatformAdapterOnebot) cbAfterDisable(_ context.Context, _ *loopfsm.Event) {
-	p.cleanupResources()
 }

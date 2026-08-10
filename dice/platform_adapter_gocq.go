@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -103,6 +105,42 @@ type PlatformAdapterGocq struct {
 	lagrangeRebootTimes  int
 	SignServerVer        string `json:"signServerVer"  yaml:"signServerVer"`  // 用于前端显示
 	SignServerName       string `json:"signServerName" yaml:"signServerName"` // 用于前端显示
+
+	lifecycleMu  sync.Mutex          `json:"-" yaml:"-"`
+	lifecycleRun EndpointRunReporter `json:"-" yaml:"-"`
+}
+
+func (pa *PlatformAdapterGocq) setLifecycleRun(run EndpointRunReporter) {
+	pa.lifecycleMu.Lock()
+	defer pa.lifecycleMu.Unlock()
+	pa.lifecycleRun = run
+}
+
+func (pa *PlatformAdapterGocq) reportLifecycleStarted() {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Started()
+	}
+}
+
+func (pa *PlatformAdapterGocq) reportLifecycleFailed(err error) {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Failed(err)
+	}
+}
+
+func (pa *PlatformAdapterGocq) reportLifecycleClosed(err error) {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Closed(err)
+	}
 }
 
 type Sender struct {
@@ -438,10 +476,10 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	}
 	pa.Socket = &socket
 
-	ep.State = 2
+	ep.State = StateConnecting
 	socket.OnConnected = func(socket gowebsocket.Socket) {
 		defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
-		ep.State = 1
+		ep.State = StateConnected
 		if pa.IsReverse {
 			log.Info("onebot v11 反向ws连接成功")
 		} else {
@@ -451,6 +489,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		pa.lagrangeRebootTimes = 0
 		//  {"data":{"nickname":"闃斧鐗岃�佽檸鏈�","user_id":1001},"retcode":0,"status":"ok"}
 		pa.GetLoginInfo()
+		pa.reportLifecycleStarted()
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
@@ -460,6 +499,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		log.Error("onebot v11 connection error: ", err)
 		log.Info("onebot wss connection addr: ", socket.Url)
 		// }
+		pa.reportLifecycleFailed(err)
 		pa.InPackGoCqhttpDisconnectedCH <- 2
 	}
 
@@ -1105,6 +1145,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 		log.Info("onebot 服务的连接被对方关闭")
 		_ = pa.EndPoint.Session.Parent.SendMail("", MailTypeConnectClose, NoticeTypeSystem)
+		pa.reportLifecycleClosed(err)
 		pa.InPackGoCqhttpDisconnectedCH <- 1
 	}
 
@@ -1136,7 +1177,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// 注: 只能管一个socket，不过不管了
 				pa.Socket = &socketClone
 
-				pa.EndPoint.State = 1
+				pa.EndPoint.State = StateConnected
 				socketClone.NewClient(ws)
 				return nil
 			})
@@ -1183,115 +1224,88 @@ func (pa *PlatformAdapterGocq) Serve() int {
 }
 
 func (pa *PlatformAdapterGocq) DoRelogin() bool {
-	myDice := pa.EndPoint.Session.Parent
-	ep := pa.EndPoint
-	if pa.Socket != nil {
-		go func() {
-			defer func() {
-				_ = recover()
-			}()
-			pa.Socket.Close()
-			pa.diceServing = false
-		}()
-	}
-
-	if pa.IsReverse {
-		if pa.reverseApp != nil {
-			_ = pa.reverseApp.Close()
-			pa.reverseApp = nil
-		}
-
-		go pa.Serve()
-		return true
-	}
-
-	if pa.UseInPackClient {
-		if pa.InPackGoCqhttpDisconnectedCH != nil {
-			pa.InPackGoCqhttpDisconnectedCH <- -1
-		}
-		if pa.BuiltinMode == "lagrange" {
-			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-			pa.CurLoginIndex++
-			pa.GoCqhttpState = StateCodeInit
-			ep.Enable = false // 拉格朗进程杀死前应先禁用账号，否则拉格朗会自动重启（该行为在LagrangeServe中）
-			go BuiltinQQServeProcessKill(myDice, ep)
-			time.Sleep(10 * time.Second)           // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
-			LagrangeServeRemoveSession(myDice, ep) // 删除 keystore
-			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
-			ep.Enable = true
-			myDice.LastUpdatedTime = time.Now().Unix()
-			myDice.Save(false)
-			LagrangeServe(myDice, ep, LagrangeLoginInfo{
-				IsAsyncRun: true,
-			})
-			return true
-		} else {
-			myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-			pa.CurLoginIndex++
-			pa.GoCqhttpState = StateCodeInit
-			go BuiltinQQServeProcessKill(myDice, ep)
-			time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
-			GoCqhttpServeRemoveSessionToken(myDice, ep) // 删除session.token
-			pa.GoCqhttpLastRestrictedTime = 0           // 重置风控时间
-			myDice.LastUpdatedTime = time.Now().Unix()
-			myDice.Save(false)
-			GoCqhttpServe(myDice, ep, GoCqhttpLoginInfo{
-				Password:         pa.InPackGoCqhttpPassword,
-				Protocol:         pa.InPackGoCqhttpProtocol,
-				AppVersion:       pa.InPackGoCqhttpAppVersion,
-				IsAsyncRun:       true,
-				UseSignServer:    pa.UseSignServer,
-				SignServerConfig: pa.SignServerConfig,
-			})
-			return true
-		}
-	}
-	return false
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
-	d := pa.EndPoint.Session.Parent
-	c := pa.EndPoint
 	if enable {
-		c.Enable = true
-
-		if pa.UseInPackClient {
-			if pa.BuiltinMode == "lagrange" {
-				BuiltinQQServeProcessKill(d, c)
-				time.Sleep(1 * time.Second)
-				LagrangeServe(d, c, LagrangeLoginInfo{
-					IsAsyncRun: true,
-				})
-			} else {
-				BuiltinQQServeProcessKill(d, c)
-				time.Sleep(1 * time.Second)
-				GoCqhttpServe(d, c, GoCqhttpLoginInfo{
-					Password:         pa.InPackGoCqhttpPassword,
-					Protocol:         pa.InPackGoCqhttpProtocol,
-					AppVersion:       pa.InPackGoCqhttpAppVersion,
-					IsAsyncRun:       true,
-					UseSignServer:    pa.UseSignServer,
-					SignServerConfig: pa.SignServerConfig,
-				})
-				go ServeQQ(d, c)
-			}
-		} else {
-			pa.GoCqhttpState = StateCodeLoginSuccessed
-			go ServeQQ(d, c)
-		}
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		c.Enable = false
-		if pa.UseInPackClient {
-			BuiltinQQServeProcessKill(d, c)
-		}
-		if pa.IsReverse && pa.reverseApp != nil {
-			_ = pa.reverseApp.Close()
-			pa.reverseApp = nil
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
+	}
+}
+
+// LifecycleStart owns one gocq/lagrange lifecycle generation. Built-in clients
+// start their external process here; websocket callbacks report Started/Closed.
+func (pa *PlatformAdapterGocq) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleError(errors.New("gocq endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
 	}
+	pa.setLifecycleRun(run)
+	d := pa.EndPoint.Session.Parent
+	ep := pa.EndPoint
+	ep.Enable = true
 
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+	if pa.UseInPackClient {
+		BuiltinQQServeProcessKill(d, ep)
+		time.Sleep(1 * time.Second)
+		if pa.BuiltinMode == "lagrange" {
+			LagrangeServe(d, ep, LagrangeLoginInfo{IsAsyncRun: true})
+			return nil
+		}
+		GoCqhttpServe(d, ep, GoCqhttpLoginInfo{
+			Password:         pa.InPackGoCqhttpPassword,
+			Protocol:         pa.InPackGoCqhttpProtocol,
+			AppVersion:       pa.InPackGoCqhttpAppVersion,
+			IsAsyncRun:       true,
+			UseSignServer:    pa.UseSignServer,
+			SignServerConfig: pa.SignServerConfig,
+		})
+		return nil
+	}
+
+	pa.GoCqhttpState = StateCodeLoginSuccessed
+	if pa.Serve() != 0 {
+		return errors.New("gocq serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop closes gocq websocket/reverse server/process resources. The
+// supervisor has already invalidated the generation before calling this method.
+func (pa *PlatformAdapterGocq) LifecycleStop(context.Context) error {
+	ep := pa.EndPoint
+	if ep == nil {
+		return nil
+	}
+	d := endpointDice(nil, ep)
+	pa.diceServing = false
+	if pa.Socket != nil {
+		pa.Socket.Close()
+		pa.Socket = nil
+	}
+	if pa.InPackGoCqhttpDisconnectedCH != nil {
+		select {
+		case pa.InPackGoCqhttpDisconnectedCH <- -1:
+		default:
+		}
+	}
+	if pa.IsReverse && pa.reverseApp != nil {
+		_ = pa.reverseApp.Close()
+		pa.reverseApp = nil
+	}
+	if d != nil && pa.UseInPackClient {
+		BuiltinQQServeProcessKill(d, ep)
+	}
+	pa.setLifecycleRun(nil)
+	return nil
 }
 
 func (pa *PlatformAdapterGocq) SetQQProtocol(protocol int) bool {

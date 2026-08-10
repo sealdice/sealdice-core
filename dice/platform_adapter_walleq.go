@@ -1,7 +1,9 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -51,6 +54,42 @@ type PlatformAdapterWalleQ struct {
 	echoMap        *SyncMap[string, chan *EventWalleQBase] `yaml:"-"`
 	FileMap        *SyncMap[string, string]                // 记录上传文件后得到的 id
 	Implementation string                                  `json:"implementation" yaml:"implementation"`
+
+	lifecycleMu  sync.Mutex          `json:"-" yaml:"-"`
+	lifecycleRun EndpointRunReporter `json:"-" yaml:"-"`
+}
+
+func (pa *PlatformAdapterWalleQ) setLifecycleRun(run EndpointRunReporter) {
+	pa.lifecycleMu.Lock()
+	defer pa.lifecycleMu.Unlock()
+	pa.lifecycleRun = run
+}
+
+func (pa *PlatformAdapterWalleQ) reportLifecycleStarted() {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Started()
+	}
+}
+
+func (pa *PlatformAdapterWalleQ) reportLifecycleFailed(err error) {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Failed(err)
+	}
+}
+
+func (pa *PlatformAdapterWalleQ) reportLifecycleClosed(err error) {
+	pa.lifecycleMu.Lock()
+	run := pa.lifecycleRun
+	pa.lifecycleMu.Unlock()
+	if run != nil {
+		run.Closed(err)
+	}
 }
 
 type EventWalleQBase struct {
@@ -184,8 +223,9 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 	pa.Socket = &socket
 
 	socket.OnConnected = func(socket gowebsocket.Socket) {
-		ep.State = 1
+		ep.State = StateConnected
 		log.Info("onebot 连接成功")
+		pa.reportLifecycleStarted()
 	}
 
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
@@ -193,6 +233,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 		// refused 不算大事
 		log.Error("onebot connection error: ", err)
 		// }
+		pa.reportLifecycleFailed(err)
 		pa.InPackWalleQDisconnectedCH <- 2
 	}
 	var lastWelcome *LastWelcomeInfoWQ
@@ -297,7 +338,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 			}
 			// 连接成功事件
 			if event.DetailType == "connect" {
-				ep.State = 1
+				ep.State = StateConnected
 				log.Info(meta.Version.Impl + "连接成功 >>> Walle-q 版本：" + meta.Version.Version + " | OneBot 协议版本：" + meta.Version.OneBotVersion)
 			}
 
@@ -697,6 +738,7 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
 		log.Info("onebot 服务的连接被对方关闭 ")
+		pa.reportLifecycleClosed(err)
 		pa.InPackWalleQDisconnectedCH <- 1
 	}
 
@@ -728,54 +770,71 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 /* 标准方法实现 */
 
 func (pa *PlatformAdapterWalleQ) DoRelogin() bool {
-	d := pa.EndPoint.Session.Parent
-	ep := pa.EndPoint
-	if pa.Socket != nil {
-		go pa.Socket.Close()
-		pa.Socket = nil
-	}
-	if pa.UseInPackWalleQ {
-		if pa.InPackWalleQDisconnectedCH != nil {
-			pa.InPackWalleQDisconnectedCH <- -1
-		}
-		d.Logger.Infof(fmt.Sprintf("重启 Walle-q，账号<%s>(%s)", ep.Nickname, ep.UserID))
-		pa.CurLoginIndex++
-		pa.WalleQState = WqStateCodeInit
-		go WalleQServeProcessKill(d, ep)
-		time.Sleep(10 * time.Second)
-		WalleQServeRemoveSessionToken(d, ep)
-		pa.WalleQLastRestrictedTime = 0
-		WalleQServe(d, ep, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, true)
-		return true
-	}
-	return false
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
-	d := pa.EndPoint.Session.Parent
-	c := pa.EndPoint
 	if enable {
-		c.Enable = true
-		pa.DiceServing = false
-
-		if pa.UseInPackWalleQ {
-			WalleQServeProcessKill(d, c)
-			time.Sleep(1 * time.Second)
-			WalleQServe(d, c, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, true)
-			go ServeQQ(d, c)
-		} else {
-			go ServeQQ(d, c)
-		}
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		c.Enable = false
-		pa.DiceServing = false
-		if pa.UseInPackWalleQ {
-			WalleQServeProcessKill(d, c)
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
+	}
+}
+
+// LifecycleStart owns one Walle-q process/websocket generation. Built-in
+// login helpers may complete asynchronously and report Started from callbacks.
+func (pa *PlatformAdapterWalleQ) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleError(errors.New("walle-q endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
 	}
+	pa.setLifecycleRun(run)
+	d := pa.EndPoint.Session.Parent
+	ep := pa.EndPoint
+	ep.Enable = true
 
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+	if pa.UseInPackWalleQ {
+		WalleQServeProcessKill(d, ep)
+		time.Sleep(1 * time.Second)
+		WalleQServe(d, ep, pa.InPackWalleQPassword, pa.InPackWalleQProtocol, true)
+		return nil
+	}
+
+	if pa.Serve() != 0 {
+		return errors.New("walle-q serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop closes Walle-q websocket and built-in process resources.
+func (pa *PlatformAdapterWalleQ) LifecycleStop(context.Context) error {
+	ep := pa.EndPoint
+	if ep == nil {
+		return nil
+	}
+	d := endpointDice(nil, ep)
+	pa.DiceServing = false
+	if pa.Socket != nil {
+		pa.Socket.Close()
+		pa.Socket = nil
+	}
+	if pa.InPackWalleQDisconnectedCH != nil {
+		select {
+		case pa.InPackWalleQDisconnectedCH <- -1:
+		default:
+		}
+	}
+	if d != nil && pa.UseInPackWalleQ {
+		WalleQServeProcessKill(d, ep)
+	}
+	pa.setLifecycleRun(nil)
+	return nil
 }
 
 func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {

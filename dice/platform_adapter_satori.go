@@ -42,6 +42,13 @@ type PlatformAdapterSatori struct {
 }
 
 func (pa *PlatformAdapterSatori) Serve() int {
+	return pa.serveWithLifecycle(context.Background(), nil)
+}
+
+func (pa *PlatformAdapterSatori) serveWithLifecycle(ctx context.Context, run EndpointRunReporter) int {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ep := pa.EndPoint
 	s := pa.EndPoint.Session
 	log := s.Parent.Logger
@@ -57,7 +64,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 		Host:   fmt.Sprintf("%s:%d", pa.Host, pa.Port),
 		Path:   fmt.Sprintf("/%s", pa.Version),
 	}
-	pa.Ctx, pa.CancelFunc = context.WithCancel(context.Background())
+	pa.Ctx, pa.CancelFunc = context.WithCancel(ctx)
 	defer func() {
 		if pa.CancelFunc != nil {
 			pa.CancelFunc()
@@ -68,12 +75,12 @@ func (pa *PlatformAdapterSatori) Serve() int {
 	conn, resp, err := websocket.DefaultDialer.DialContext(pa.Ctx, wsUrl.String(), nil)
 	if err != nil {
 		log.Error("dial:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 	defer resp.Body.Close()
 	pa.conn = conn
-	pa.EndPoint.State = 2
+	pa.EndPoint.State = StateConnecting
 
 	// 鉴权
 	auth := &SatoriPayload[SatoriIdentify]{
@@ -84,21 +91,21 @@ func (pa *PlatformAdapterSatori) Serve() int {
 	err = conn.WriteMessage(websocket.TextMessage, authData)
 	if err != nil {
 		log.Error("auth failed:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 
 	_, authRespData, err := conn.ReadMessage()
 	if err != nil {
 		log.Error("auth failed:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 	var authResp SatoriPayload[SatoriReady]
 	err = json.Unmarshal(authRespData, &authResp)
 	if err != nil {
 		log.Error("auth failed:", err)
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	}
 	log.Debugf("satori auth resp:%+v", authResp)
@@ -106,7 +113,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 	var login *SatoriLogin
 	if len(logins) < 1 {
 		log.Error("invalid satori login info")
-		pa.EndPoint.State = 3
+		pa.EndPoint.State = StateConnectionFailed
 		return 1
 	} else if len(logins) > 1 {
 		for _, loginResp := range logins {
@@ -117,7 +124,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 		}
 		if login == nil {
 			log.Error("invalid satori login info")
-			pa.EndPoint.State = 3
+			pa.EndPoint.State = StateConnectionFailed
 			return 1
 		}
 	} else {
@@ -126,7 +133,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 
 	pa.wsUrl = &wsUrl
 	pa.httpUrl = &httpUrl
-	pa.EndPoint.State = 1
+	pa.EndPoint.State = StateConnected
 	ep.UserID = formatDiceIDSatori(pa.Platform, login.SelfID)
 	if login.User != nil {
 		ep.Nickname = login.User.Name
@@ -134,6 +141,9 @@ func (pa *PlatformAdapterSatori) Serve() int {
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	log.Infof("satori 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserID)
+	if run != nil {
+		run.Started()
+	}
 
 	go func() {
 		for {
@@ -150,6 +160,9 @@ func (pa *PlatformAdapterSatori) Serve() int {
 					if pa.CancelFunc != nil {
 						pa.CancelFunc()
 						pa.CancelFunc = nil
+					}
+					if pa.Ctx != nil && pa.Ctx.Err() == nil && run != nil {
+						run.Closed(err)
 					}
 					return
 				}
@@ -391,33 +404,44 @@ func (pa *PlatformAdapterSatori) refreshMembers(group SatoriGuild) {
 }
 
 func (pa *PlatformAdapterSatori) DoRelogin() bool {
-	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 satori 连接，请稍后...")
-	pa.EndPoint.State = 0
-	pa.EndPoint.Enable = false
-	if pa.CancelFunc != nil {
-		pa.CancelFunc()
-	}
-	return pa.Serve() == 0
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 func (pa *PlatformAdapterSatori) SetEnable(enable bool) {
-	d := pa.EndPoint.Session.Parent
-	e := pa.EndPoint
 	if enable {
-		e.Enable = true
-		pa.DiceServing = false
-		if pa.conn == nil {
-			go ServeQQ(d, e)
-		}
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		e.State = 0
-		e.Enable = false
-		if pa.CancelFunc != nil {
-			pa.CancelFunc()
-		}
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
 	}
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+}
+
+// LifecycleStart opens one Satori websocket and binds its context to the
+// supervisor generation so stale connections cannot report into new runs.
+func (pa *PlatformAdapterSatori) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleError(errors.New("satori endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	_ = pa.LifecycleStop(ctx)
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 satori 连接，请稍后...")
+	if pa.serveWithLifecycle(ctx, run) != 0 {
+		return errors.New("satori serve failed")
+	}
+	return nil
+}
+
+// LifecycleStop cancels heartbeat/read loops and closes the active Satori
+// websocket. Endpoint state is handled by EndpointLifecycleSupervisor.
+func (pa *PlatformAdapterSatori) LifecycleStop(context.Context) error {
+	if pa.CancelFunc != nil {
+		pa.CancelFunc()
+		pa.CancelFunc = nil
+	}
+	if pa.conn == nil {
+		return nil
+	}
+	err := pa.conn.Close()
+	pa.conn = nil
+	return err
 }
 
 func (pa *PlatformAdapterSatori) QuitGroup(ctx *MsgContext, _ string) {

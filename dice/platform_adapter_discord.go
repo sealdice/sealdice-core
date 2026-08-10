@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -253,7 +254,7 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 	_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
 	pa.EndPoint.UserID = FormatDiceIDDiscord(pa.IntentSession.State.User.ID)
 	pa.EndPoint.Nickname = pa.IntentSession.State.User.Username
-	pa.EndPoint.State = 1
+	pa.EndPoint.State = StateConnected
 	pa.EndPoint.Enable = true
 	pa.EndPoint.Session.Parent.Logger.Infof("Discord 服务连接成功，账号<%s>(%s)", pa.IntentSession.State.User.Username, FormatDiceIDDiscord(pa.IntentSession.State.User.ID))
 
@@ -265,55 +266,49 @@ func (pa *PlatformAdapterDiscord) Serve() int {
 
 // DoRelogin 重新登录，虽然似乎没什么实现的必要，但还是写一下
 func (pa *PlatformAdapterDiscord) DoRelogin() bool {
-	if pa.IntentSession == nil {
-		success := pa.Serve()
-		return success == 0
-	}
-	_ = pa.IntentSession.Close()
-	err := pa.IntentSession.Open()
-	if err != nil {
-		pa.EndPoint.Session.Parent.Logger.Errorf("与Discord服务进行连接时出错:%s", err.Error())
-		pa.EndPoint.State = 0
-		return false
-	}
-	_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
-	pa.EndPoint.State = 1
-	pa.EndPoint.Enable = true
-	d := pa.EndPoint.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
-	return true
+	return ReloginEndpointLifecycle(nil, pa.EndPoint) == nil
 }
 
 // SetEnable 禁用之后骰子仍然有可能显示在线一段时间，可能是因为没有挥手机制，不过已经不会接收到事件了
 func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 	if enable {
-		pa.EndPoint.Session.Parent.Logger.Infof("正在启用Discord服务……")
-		if pa.IntentSession == nil {
-			pa.Serve()
-			return
-		}
-		err := pa.IntentSession.Open()
-		if err != nil {
-			pa.EndPoint.Session.Parent.Logger.Errorf("与Discord服务进行连接时出错:%s", err.Error())
-			pa.EndPoint.State = 3
-			pa.EndPoint.Enable = false
-			return
-		}
-		_ = pa.IntentSession.UpdateGameStatus(0, "SealDice")
-		pa.EndPoint.Session.Parent.Logger.Infof("Discord 服务连接成功，账号<%s>(%s)", pa.IntentSession.State.User.Username, FormatDiceIDDiscord(pa.IntentSession.State.User.ID))
-		pa.EndPoint.State = 1
-		pa.EndPoint.Enable = true
+		_ = StartEndpointLifecycle(nil, pa.EndPoint)
 	} else {
-		pa.EndPoint.State = 0
-		pa.EndPoint.Enable = false
-		if pa.IntentSession != nil {
-			_ = pa.IntentSession.Close()
+		_ = StopEndpointLifecycle(nil, pa.EndPoint)
+	}
+}
+
+// LifecycleStart creates one Discord session for the current supervisor
+// generation. Any later reconnect is scheduled by the shared lifecycle FSM.
+func (pa *PlatformAdapterDiscord) LifecycleStart(ctx context.Context, run EndpointRunReporter) error {
+	if pa.EndPoint == nil || pa.EndPoint.Session == nil {
+		return NewEndpointLifecycleError(errors.New("discord endpoint runtime is not bound"), LifecycleFailureStop)
+	}
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
 	}
-	d := pa.EndPoint.Session.Parent
-	d.LastUpdatedTime = time.Now().Unix()
-	d.Save(false)
+	_ = pa.LifecycleStop(ctx)
+	pa.EndPoint.Session.Parent.Logger.Infof("正在启用Discord服务……")
+	if pa.Serve() != 0 {
+		return errors.New("discord serve failed")
+	}
+	run.Started()
+	return nil
+}
+
+// LifecycleStop closes Discord resources for the current generation. The
+// supervisor owns endpoint state updates after this method returns.
+func (pa *PlatformAdapterDiscord) LifecycleStop(context.Context) error {
+	if pa.IntentSession == nil {
+		return nil
+	}
+	err := pa.IntentSession.Close()
+	pa.IntentSession = nil
+	return err
 }
 
 func (pa *PlatformAdapterDiscord) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
