@@ -16,7 +16,14 @@
             <div class="foldable-card-title-extra">
               <slot name="title-extra" />
             </div>
-            <n-button text size="small" @click="folded = !folded">
+            <n-button
+              text
+              size="small"
+              :aria-label="folded ? '展开内容' : '收起内容'"
+              :aria-expanded="!folded"
+              :aria-controls="panelId"
+              @click="folded = !folded"
+            >
               <template #icon>
                 <span class="text-sd-muted text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
               </template>
@@ -35,14 +42,16 @@
       </header>
 
       <template v-if="!folded">
-        <div class="w-full">
-          <slot name="default" />
-        </div>
-        <div class="w-full">
-          <slot name="extra" />
+        <div :id="panelId" class="w-full" role="region">
+          <div class="w-full">
+            <slot name="default" />
+          </div>
+          <div class="w-full">
+            <slot name="extra" />
+          </div>
         </div>
       </template>
-      <div v-else class="w-full">
+      <div v-else :id="panelId" class="w-full" role="region">
         <slot name="unfolded-extra" />
       </div>
     </template>
@@ -84,7 +93,14 @@
             <div class="foldable-card-title-extra">
               <slot name="title-extra" />
             </div>
-            <n-button text size="small" @click="folded = !folded">
+            <n-button
+              text
+              size="small"
+              :aria-label="folded ? '展开内容' : '收起内容'"
+              :aria-expanded="!folded"
+              :aria-controls="panelId"
+              @click="folded = !folded"
+            >
               <template #icon>
                 <span class="text-sd-muted text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
               </template>
@@ -103,14 +119,16 @@
       </header>
 
       <template v-if="!folded">
-        <div class="w-full">
-          <slot name="default" />
-        </div>
-        <div class="w-full">
-          <slot name="extra" />
+        <div :id="panelId" class="w-full" role="region">
+          <div class="w-full">
+            <slot name="default" />
+          </div>
+          <div class="w-full">
+            <slot name="extra" />
+          </div>
         </div>
       </template>
-      <div v-else class="w-full">
+      <div v-else :id="panelId" class="w-full" role="region">
         <slot name="unfolded-extra" />
       </div>
     </template>
@@ -143,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, useId, watch, onMounted } from 'vue';
 import { useEventListener } from '@vueuse/core';
 
 const props = withDefaults(
@@ -164,6 +182,7 @@ const props = withDefaults(
 );
 
 const folded = ref<boolean | undefined>(undefined);
+const panelId = `foldable-panel-${useId()}`;
 
 const open = () => {
   folded.value = false;

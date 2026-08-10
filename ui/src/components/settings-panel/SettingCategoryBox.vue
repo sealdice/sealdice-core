@@ -2,7 +2,7 @@
   <section :class="['setting-category-box', { 'setting-category-box-wide': wide }]">
     <n-thing class="setting-category-thing">
       <template #header>
-        <span class="setting-category-title">{{ title }}</span>
+        <span :id="headingId" class="setting-category-title">{{ title }}</span>
       </template>
       <template v-if="description" #description>
         <span class="setting-category-description">{{ description }}</span>
@@ -12,6 +12,9 @@
           text
           size="small"
           class="setting-category-toggle"
+          :aria-label="expanded ? `收起${title}` : `展开${title}`"
+          :aria-expanded="expanded"
+          :aria-controls="panelId"
           @click="emit('toggle')"
         >
           {{ expanded ? '收起' : '展开' }}
@@ -19,7 +22,13 @@
       </template>
     </n-thing>
 
-    <div v-if="!collapsible || expanded" class="setting-category-panel">
+    <div
+      v-if="!collapsible || expanded"
+      :id="panelId"
+      class="setting-category-panel"
+      role="region"
+      :aria-labelledby="headingId"
+    >
       <slot name="notes" />
       <slot />
     </div>
@@ -27,6 +36,11 @@
 </template>
 
 <script setup lang="ts">
+import { useId } from 'vue';
+
+const panelId = `setting-category-panel-${useId()}`;
+const headingId = `setting-category-heading-${useId()}`;
+
 defineProps<{
   title: string;
   description?: string;
