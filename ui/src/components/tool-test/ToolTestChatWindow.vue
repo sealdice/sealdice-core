@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, useTemplateRef, watch } from 'vue';
+import { nextTick, ref, useTemplateRef, watch } from 'vue';
 import ToolTestChatMessage from './ToolTestChatMessage.vue';
 import type { ToolTestMessage } from '@/features/toolTest/model';
 
@@ -9,6 +9,13 @@ const props = defineProps<{
 }>();
 
 const scrollRef = useTemplateRef<HTMLDivElement>('scrollRef');
+const newMessageCount = ref(0);
+
+function isNearBottom() {
+  const element = scrollRef.value;
+  if (!element) return true;
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 48;
+}
 
 async function scrollToBottom() {
   await nextTick();
@@ -18,15 +25,24 @@ async function scrollToBottom() {
     top: element.scrollHeight,
     behavior: 'smooth',
   });
+  newMessageCount.value = 0;
 }
 
 watch(
   () => props.messages.length,
-  () => {
-    void scrollToBottom();
+  (messageCount, previousMessageCount) => {
+    if (messageCount === previousMessageCount || isNearBottom()) {
+      void scrollToBottom();
+      return;
+    }
+    newMessageCount.value += Math.max(messageCount - previousMessageCount, 1);
   },
   { immediate: true },
 );
+
+function handleScroll() {
+  if (isNearBottom()) newMessageCount.value = 0;
+}
 </script>
 
 <template>
@@ -34,10 +50,25 @@ watch(
     <header class="tool-test-chat-window__header">
       <strong class="tool-test-chat-window__title">{{ props.title }}</strong>
       <div class="tool-test-chat-window__actions">
+        <n-button
+          v-if="newMessageCount > 0"
+          size="small"
+          secondary
+          aria-label="跳转到最新消息"
+          @click="scrollToBottom"
+        >
+          新消息（{{ newMessageCount }}）
+        </n-button>
         <slot name="actions" />
       </div>
     </header>
-    <div ref="scrollRef" class="tool-test-chat-window__scroll" role="log" aria-live="polite">
+    <div
+      ref="scrollRef"
+      class="tool-test-chat-window__scroll"
+      role="log"
+      aria-live="polite"
+      @scroll="handleScroll"
+    >
       <div class="tool-test-chat-window__messages">
         <ToolTestChatMessage
           v-for="message in props.messages"
