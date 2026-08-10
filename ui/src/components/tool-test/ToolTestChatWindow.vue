@@ -1,21 +1,5 @@
-<template>
-  <section class="tool-test-chat-window">
-    <QHeader>{{ props.title }}</QHeader>
-    <div ref="scrollRef" class="tool-test-chat-window__scroll">
-      <QMain>
-        <ToolTestChatMessage
-          v-for="message in props.messages"
-          :key="message.id"
-          :message="message"
-        />
-      </QMain>
-    </div>
-  </section>
-</template>
-
 <script setup lang="ts">
 import { nextTick, useTemplateRef, watch } from 'vue';
-import { QHeader, QMain } from 'fake-qq-ui';
 import ToolTestChatMessage from './ToolTestChatMessage.vue';
 import type { ToolTestMessage } from '@/features/toolTest/model';
 
@@ -45,6 +29,26 @@ watch(
 );
 </script>
 
+<template>
+  <section class="tool-test-chat-window">
+    <header class="tool-test-chat-window__header">
+      <strong class="tool-test-chat-window__title">{{ props.title }}</strong>
+      <div class="tool-test-chat-window__actions">
+        <slot name="actions" />
+      </div>
+    </header>
+    <div ref="scrollRef" class="tool-test-chat-window__scroll" role="log" aria-live="polite">
+      <div class="tool-test-chat-window__messages">
+        <ToolTestChatMessage
+          v-for="message in props.messages"
+          :key="message.id"
+          :message="message"
+        />
+      </div>
+    </div>
+  </section>
+</template>
+
 <style scoped>
 .tool-test-chat-window {
   display: flex;
@@ -53,22 +57,63 @@ watch(
   overflow: hidden;
   border: 1px solid var(--sd-border-soft);
   border-radius: 16px;
-  background: var(--qq-background-03);
+  background: var(--sd-bg-page);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated), transparent 6%) 0%, transparent 100%),
-    var(--qq-background-03);
+    var(--sd-bg-page);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
+.tool-test-chat-window__header {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--sd-border-soft);
+  background: color-mix(in srgb, var(--sd-bg-elevated), transparent 8%);
+}
+
+.tool-test-chat-window__title {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--sd-text-primary);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-test-chat-window__actions {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .tool-test-chat-window__scroll {
-  min-height: 420px;
+  min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
 }
 
+.tool-test-chat-window__messages {
+  display: grid;
+  align-content: start;
+  gap: 0.3rem;
+  padding: 1rem clamp(0.75rem, 3vw, 1.5rem);
+}
+
 @media (max-width: 640px) {
+  .tool-test-chat-window__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tool-test-chat-window__actions {
+    flex: 0 0 auto;
+  }
+
   .tool-test-chat-window__scroll {
-    min-height: 58vh;
+    min-height: 0;
   }
 }
 </style>

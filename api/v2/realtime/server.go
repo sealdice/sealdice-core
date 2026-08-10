@@ -101,6 +101,15 @@ func (s *Server) Start() {
 	}()
 }
 
+// Publish makes the shared realtime bus available to feature services without
+// exposing the bus implementation or coupling them to websocket/SSE details.
+func (s *Server) Publish(name string, payload any) {
+	if s == nil || s.bus == nil {
+		return
+	}
+	s.bus.Publish(Event{Name: name, Payload: payload})
+}
+
 func (s *Server) handleWS(c echo.Context) error {
 	if !isAuthorized(s.dm, apimiddleware.TokenFromEchoContext(c)) {
 		return c.NoContent(401)

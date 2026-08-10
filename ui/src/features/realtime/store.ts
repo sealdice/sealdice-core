@@ -19,6 +19,7 @@ const knownEventNames = [
   'imconnection/updated',
   'imconnection/workflow',
   'imconnection/qrcode',
+  'tooltest/message',
 ] as const;
 
 const RECONNECT_BASE_DELAY = 1000;

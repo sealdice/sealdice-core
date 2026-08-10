@@ -33,11 +33,11 @@ const paletteVariableNames: Record<ThemeColorKey, string> = {
   error: '--sd-error',
 };
 const semanticColorVariableNames: Record<ThemeColorKey, string[]> = {
-  primary: ['--qq-overlay_hover_brand', '--qq-tag_blue_bg'],
+  primary: ['--sd-bg-selected'],
   info: [],
-  success: ['--qq-tag_sage_green_bg'],
-  warning: ['--qq-tag_orange_bg'],
-  error: ['--qq-tag_red_bg'],
+  success: [],
+  warning: [],
+  error: [],
 };
 const colorTokenNames: Record<ThemeColorKey, {
   base: keyof NonNullable<GlobalThemeOverrides['common']>;

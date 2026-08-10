@@ -34,7 +34,7 @@ func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	baseGroup.UseSimpleModifier(huma.OperationTags("base"))
 	baseService := base.NewBaseService(dm)
 	baseService.RegisterRoutes(baseGroup)
-	realtime.RegisterRoutes(e, dm)
+	realtimeServer := realtime.RegisterRoutes(e, dm)
 
 	baseSettingAuth := huma.NewGroup(api, "/sd-api/v2/base-setting")
 	baseSettingAuth.UseSimpleModifier(huma.OperationTags("base-setting"))
@@ -181,6 +181,7 @@ func InitV2Router(api huma.API, e *echo.Echo, dm *dice.DiceManager) {
 	toolTestAuth.UseSimpleModifier(huma.OperationTags("tool-test"))
 	toolTestAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
 	toolTestService := tooltest.NewService(dm)
+	toolTestService.SetPublisher(realtimeServer)
 	toolTestService.RegisterRoutes(toolTestAuth)
 
 	toolTestProtected := huma.NewGroup(api, "/sd-api/v2/tool-test")

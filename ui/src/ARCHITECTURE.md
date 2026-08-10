@@ -134,7 +134,6 @@
 - 它负责：
   - 管理当前模式 `private/group`
   - 管理输入框内容
-  - 拉取指令列表
   - 发送测试消息
   - 轮询 pending 消息
   - 触发牌堆 / JS / 帮助文档重载
@@ -142,11 +141,9 @@
   - 初始消息
   - 追加自发消息
   - 追加 pending 消息
-  - 生成命令联想项
 
 ### 4. 数据来源
 
-- 指令列表来自 `getSdApiV2ToolTestCommands()`。
 - 待处理消息来自 `getSdApiV2ToolTestMessagesPending()`。
 - 发送消息来自 `postSdApiV2ToolTestMessages()`。
 - 快捷操作来自：
@@ -156,7 +153,7 @@
 
 ### 5. 状态流转
 
-- 有 token 时，`watch(hasAccessToken)` 会自动加载指令并启动轮询。
+- 有 token 时，`watch(hasAccessToken)` 会加载上下文并启动轮询。
 - 用户发送消息时：
   - 先把自己的消息追加到本地会话里。
   - 再发请求给后端。

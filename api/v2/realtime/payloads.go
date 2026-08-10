@@ -14,6 +14,7 @@ const (
 	EventIMConnectionUpdated  = "imconnection/updated"
 	EventIMConnectionWorkflow = "imconnection/workflow"
 	EventIMConnectionQRCode   = "imconnection/qrcode"
+	EventToolTestMessage      = "tooltest/message"
 )
 
 type SystemReadyPayload struct{}

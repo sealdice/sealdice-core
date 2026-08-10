@@ -59,6 +59,8 @@ type Message struct {
 	GroupName           string      `json:"groupName"`
 	TmpUID              string      `json:"-"             yaml:"-"`
 	UITestReplySplitLen *int        `json:"-"             yaml:"-"`
+	UITestRole          string      `json:"-"             yaml:"-"`
+	UITestGroupAccess   string      `json:"-"             yaml:"-"`
 	// MentionedInfo carries platform-provided display names keyed by normalized
 	// or legacy mention user ID. It is runtime metadata and is not persisted.
 	MentionedInfo map[string]string `json:"-" yaml:"-"`
@@ -126,6 +128,23 @@ type GroupInfo struct {
 
 	/* Wrapper 架构 */
 	ExtAppliedTime int64 `json:"-" yaml:"-"` // 群组应用扩展的时间戳，运行时使用，不序列化（强制每次启动重新初始化）
+
+	UITest *UITestConfig `json:"uiTest,omitempty" yaml:"uiTest,omitempty"`
+}
+
+// UITestConfig stores persistent identities used by the UI command test page.
+// It is intentionally part of GroupInfo so UI: IDs follow the same persistence
+// lifecycle as other adapter users without introducing a second account table.
+type UITestConfig struct {
+	Initialized bool                     `json:"initialized" yaml:"initialized"`
+	Access      string                   `json:"access,omitempty" yaml:"access,omitempty"`
+	Members     map[string]*UITestMember `json:"members,omitempty" yaml:"members,omitempty"`
+}
+
+type UITestMember struct {
+	Role      string `json:"role" yaml:"role"`
+	AvatarKey string `json:"avatarKey" yaml:"avatarKey"`
+	Enabled   bool   `json:"enabled" yaml:"enabled"`
 }
 
 // GetActivatedExtList 获取激活的扩展列表，自动处理延迟初始化
@@ -830,6 +849,8 @@ type MsgContext struct {
 	SpamCheckedGroup    bool
 	SpamCheckedPerson   bool
 	UITestReplySplitLen *int
+	UITestRole          string
+	UITestGroupAccess   string
 
 	splitKeyMu  sync.RWMutex
 	splitKey    string
@@ -845,6 +866,25 @@ type MsgContext struct {
 //
 // MsgContext.Dice需要指向一个有效的Dice对象
 func (ctx *MsgContext) fillPrivilege(msg *Message) int {
+	if msg.Platform == "UI" && msg.UITestRole != "" {
+		switch msg.UITestRole {
+		case "owner":
+			ctx.PrivilegeLevel = 60
+		case "admin":
+			ctx.PrivilegeLevel = 50
+		case "inviter":
+			ctx.PrivilegeLevel = 40
+		case "master":
+			ctx.PrivilegeLevel = 100
+		case "blacklisted":
+			ctx.PrivilegeLevel = -30
+		default:
+			ctx.PrivilegeLevel = 0
+		}
+		ctx.GroupRoleLevel = ctx.PrivilegeLevel
+		return ctx.PrivilegeLevel
+	}
+
 	switch {
 	case msg.Sender.GroupRole == "owner":
 		ctx.PrivilegeLevel = 60 // 群主
@@ -894,6 +934,8 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 	mctx.Session = s
 	mctx.EndPoint = ep
 	mctx.UITestReplySplitLen = msg.UITestReplySplitLen
+	mctx.UITestRole = msg.UITestRole
+	mctx.UITestGroupAccess = msg.UITestGroupAccess
 	log := d.Logger
 
 	// 处理命令
@@ -2092,6 +2134,21 @@ func checkBan(ctx *MsgContext, msg *Message) (notReply bool) {
 				isWhiteGroup = true
 			}
 		}
+		if msg.Platform == "UI" {
+			switch ctx.UITestGroupAccess {
+			case "blacklisted":
+				isBanGroup = true
+			case "trusted":
+				isWhiteGroup = true
+			}
+		}
+	}
+
+	// UI test identities must exercise the same blocked-message boundary while
+	// avoiding sleeps, adapter side effects, and writes to the global ban list.
+	if msg.Platform == "UI" && ctx.PrivilegeLevel == -30 {
+		log.Infof("忽略 UI 测试黑名单用户消息: 来自<%s>(%s): %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+		return true
 	}
 
 	banQuitGroup := func() {

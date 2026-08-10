@@ -1,0 +1,5 @@
+allowBuilds:
+  '@tailwindcss/oxide': true
+  core-js: set this to true or false
+  esbuild: true
+  vue-demi: set this to true or false

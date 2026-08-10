@@ -1,6 +1,3 @@
-import 'fake-qq-ui/styles/fake-qq-ui.css';
-import 'fake-qq-ui/styles/light.css';
-import 'fake-qq-ui/styles/dark.css';
 import './assets/main.css';
 import './polyfills/resizeObserver';
 import './polyfills/structuredClone';
