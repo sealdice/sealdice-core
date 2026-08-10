@@ -54,16 +54,19 @@
             搜索历史
           </div>
 
-          <button
+          <div
             v-for="(item, index) in visibleItems"
             :key="item.path"
-            type="button"
             class="sd-search-item"
             :class="{ selected: index === selectedIndex }"
-            @click="selectItem(item)"
             @mouseenter="onMouseEnter(index)"
           >
-            <span class="sd-search-item-main">
+            <button
+              type="button"
+              class="sd-search-item-main"
+              :aria-label="`打开${item.label}`"
+              @click="selectItem(item)"
+            >
               <n-icon class="sd-search-item-icon">
                 <AppNavigationIcon :name="item.icon" />
               </n-icon>
@@ -71,12 +74,18 @@
                 <span class="sd-search-item-label">{{ item.label }}</span>
                 <span class="sd-search-item-path">{{ item.path }}</span>
               </span>
-            </span>
+            </button>
 
-            <span class="sd-search-actions">
+            <span class="sd-search-actions" @keydown.stop>
               <n-tooltip>
                 <template #trigger>
-                  <n-button circle quaternary size="small" @click="copyLink(item, $event)">
+                  <n-button
+                    circle
+                    quaternary
+                    size="small"
+                    aria-label="复制链接"
+                    @click="copyLink(item, $event)"
+                  >
                     <template #icon>
                       <n-icon>
                         <i-ep-link />
@@ -89,7 +98,13 @@
 
               <n-tooltip>
                 <template #trigger>
-                  <n-button circle quaternary size="small" @click="openInNewWindow(item, $event)">
+                  <n-button
+                    circle
+                    quaternary
+                    size="small"
+                    aria-label="新窗口打开"
+                    @click="openInNewWindow(item, $event)"
+                  >
                     <template #icon>
                       <n-icon>
                         <i-ep-top-right />
@@ -102,7 +117,13 @@
 
               <n-tooltip v-if="!trimmedKeyword">
                 <template #trigger>
-                  <n-button circle quaternary size="small" @click="removeHistory(item, $event)">
+                  <n-button
+                    circle
+                    quaternary
+                    size="small"
+                    aria-label="删除记录"
+                    @click="removeHistory(item, $event)"
+                  >
                     <template #icon>
                       <n-icon>
                         <i-ep-close />
@@ -113,7 +134,7 @@
                 删除记录
               </n-tooltip>
             </span>
-          </button>
+          </div>
         </n-scrollbar>
 
         <div v-else class="sd-search-empty">
@@ -286,7 +307,6 @@ defineExpose({ open });
   border-bottom-color: var(--sd-border);
   border-radius: 6px;
   background: transparent;
-  cursor: pointer;
   gap: 0.75rem;
   margin-bottom: 5px;
   padding: 0.45rem 0.75rem;
@@ -301,9 +321,23 @@ defineExpose({ open });
 
 .sd-search-item-main {
   display: flex;
+  flex: 1;
   min-width: 0;
   align-items: center;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
   gap: 0.45rem;
+}
+
+.sd-search-item-main:focus-visible {
+  outline: 2px solid var(--sd-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .sd-search-item-icon {
