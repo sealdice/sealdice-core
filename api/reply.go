@@ -20,15 +20,51 @@ type customReplySaveResponse struct {
 	Warning string `json:"warning,omitempty"`
 }
 
+func normalizeCustomReplyVMVersion(version string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(version)) {
+	case "", dice.ReplyVMVersionV1:
+		return "", true
+	case dice.ReplyVMVersionV2:
+		return dice.ReplyVMVersionV2, true
+	default:
+		return "", false
+	}
+}
+
+func existingCustomReplyVMVersion(packageID, filename string) string {
+	for _, item := range myDice.CustomReplyConfig {
+		if item == nil {
+			continue
+		}
+		if strings.EqualFold(item.PackageID, packageID) && strings.EqualFold(item.Filename, filename) {
+			return item.VMVersion
+		}
+	}
+	return ""
+}
+
 func customReplySave(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	v := dice.ReplyConfig{}
-	err := c.Bind(&v)
+	vReq := struct {
+		dice.ReplyConfig
+		VMVersion *string `json:"vmVersion"`
+	}{}
+	err := c.Bind(&vReq)
 	if err != nil {
 		return c.String(430, err.Error())
+	}
+	v := vReq.ReplyConfig
+	if vReq.VMVersion == nil {
+		v.VMVersion = existingCustomReplyVMVersion(v.PackageID, v.Filename)
+	} else {
+		vmVersion, validVMVersion := normalizeCustomReplyVMVersion(*vReq.VMVersion)
+		if !validVMVersion {
+			return c.String(http.StatusBadRequest, "不支持的自定义回复 VM 版本")
+		}
+		v.VMVersion = vmVersion
 	}
 
 	v.Clean()
@@ -56,6 +92,7 @@ func customReplySave(c echo.Context) error {
 	for index, i := range myDice.CustomReplyConfig {
 		if i != nil && i.PackageID == "" && strings.EqualFold(i.Filename, v.Filename) {
 			myDice.CustomReplyConfig[index].Enable = v.Enable
+			myDice.CustomReplyConfig[index].VMVersion = v.VMVersion
 			myDice.CustomReplyConfig[index].Conditions = v.Conditions
 			myDice.CustomReplyConfig[index].Items = v.Items
 			myDice.CustomReplyConfig[index].Warning = ""
@@ -114,6 +151,7 @@ func customReplyGet(c echo.Context) error {
 type ReplyConfigInfo struct {
 	Enable      bool   `json:"enable"   yaml:"enable"`
 	Filename    string `json:"filename" yaml:"-"`
+	VMVersion   string `json:"vmVersion,omitempty" yaml:"-"`
 	PackageID   string `json:"packageId,omitempty" yaml:"-"`
 	CacheBacked bool   `json:"cacheBacked,omitempty" yaml:"-"`
 	Warning     string `json:"warning,omitempty" yaml:"-"`
@@ -143,6 +181,7 @@ func customReplyFileList(c echo.Context) error {
 		items = append(items, &ReplyConfigInfo{
 			Enable:      i.Enable,
 			Filename:    i.Filename,
+			VMVersion:   i.VMVersion,
 			PackageID:   i.PackageID,
 			CacheBacked: cacheBacked,
 			Warning:     warning,
@@ -211,17 +250,27 @@ func customReplyFileNew(c echo.Context) error {
 	}
 
 	v := struct {
-		Filename string `json:"filename"`
+		Filename  string `json:"filename"`
+		VMVersion string `json:"vmVersion"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
 		return c.String(430, err.Error())
 	}
 
+	if v.VMVersion == "" {
+		v.VMVersion = dice.ReplyVMVersionV2
+	}
+	vmVersion, validVMVersion := normalizeCustomReplyVMVersion(v.VMVersion)
+	if !validVMVersion {
+		return c.String(http.StatusBadRequest, "不支持的自定义回复 VM 版本")
+	}
+
 	if v.Filename != "" && !dice.CustomReplyConfigCheckExists(myDice, v.Filename) {
-		rc := dice.CustomReplyConfigNew(myDice, v.Filename)
+		rc := dice.CustomReplyConfigNewWithVMVersion(myDice, v.Filename, vmVersion)
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"success": rc != nil,
+			"success":   rc != nil,
+			"vmVersion": v.VMVersion,
 		})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
