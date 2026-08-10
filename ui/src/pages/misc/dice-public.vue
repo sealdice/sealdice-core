@@ -35,7 +35,7 @@
       <n-spin :show="loadingInitial">
         <div
           v-if="draft"
-          :class="['public-dice-card__body', { 'public-dice-card__body--disabled': contentDisabled }]"
+          class="public-dice-card__body"
         >
           <aside class="public-dice-card__seal" aria-hidden="true">
             <img :src="imgSeal" alt="" />
@@ -46,12 +46,20 @@
             :disabled="contentDisabled"
           />
         </div>
+        <n-alert
+          v-if="draft && !draft.config.publicDiceEnable"
+          type="info"
+          :bordered="false"
+          class="public-dice-card__disabled-note"
+        >
+          公骰已关闭，配置保持只读；启用公骰后可继续编辑。
+        </n-alert>
       </n-spin>
 
       <template #footer>
         <div
           v-if="draft"
-          :class="['public-dice-card__footer', { 'public-dice-card__footer--disabled': contentDisabled }]"
+          class="public-dice-card__footer"
         >
           <PublicDiceEndpointSelector
             v-model:checked-row-keys="checkedRowKeys"
@@ -228,9 +236,8 @@ useUnsavedChanges('public-dice', {
   align-items: stretch;
 }
 
-.public-dice-card__body--disabled,
-.public-dice-card__footer--disabled {
-  opacity: 0.72;
+.public-dice-card__disabled-note {
+  margin-top: 16px;
 }
 
 .public-dice-card__body--disabled .public-dice-card__seal img {
