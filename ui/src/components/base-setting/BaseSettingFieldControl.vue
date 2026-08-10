@@ -11,6 +11,12 @@
       @update:model-value="updateFieldValue(fieldKey, $event)"
     />
 
+    <BaseSettingNoticeTargetsField
+      v-else-if="field.kind === 'notice-targets' && fieldKey"
+      :model-value="(fieldValue as string[]) ?? []"
+      @update:model-value="updateFieldValue(fieldKey, $event)"
+    />
+
     <n-switch
       v-else-if="field.kind === 'boolean' && fieldKey"
       :value="Boolean(fieldValue)"
@@ -21,6 +27,8 @@
       v-else-if="field.kind === 'text' && fieldKey"
       :value="String(fieldValue ?? '')"
       :placeholder="field.placeholder"
+      :maxlength="field.maxLength || undefined"
+      :show-count="Boolean(field.maxLength)"
       @update:value="updateFieldValue(fieldKey, $event)"
     />
 
@@ -82,9 +90,7 @@
     </n-button>
 
     <div v-else-if="field.kind === 'upload'" class="upgrade-block">
-      <n-checkbox v-model:checked="upgradeConfirmed">
-        我已阅读功能描述
-      </n-checkbox>
+      <n-checkbox v-model:checked="upgradeConfirmed"> 我已阅读功能描述 </n-checkbox>
       <n-flex v-if="isContainerMode" wrap>
         <n-tooltip>
           <template #trigger>
@@ -120,8 +126,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { UploadCustomRequestOptions } from 'naive-ui';
-import type { BaseSettingFieldModel, BaseSettingValueModel } from '@/features/baseSetting/viewModel';
+import type {
+  BaseSettingFieldModel,
+  BaseSettingValueModel,
+} from '@/features/baseSetting/viewModel';
 import BaseSettingExtDefaultsField from './BaseSettingExtDefaultsField.vue';
+import BaseSettingNoticeTargetsField from './BaseSettingNoticeTargetsField.vue';
 import BaseSettingStringListField from './BaseSettingStringListField.vue';
 
 const props = defineProps<{
@@ -147,7 +157,9 @@ const fieldValue = computed(() => {
   return props.model[fieldKey.value as keyof BaseSettingValueModel];
 });
 
-const pairValues = computed(() => props.field.keys.map(key => props.model[key as keyof BaseSettingValueModel]));
+const pairValues = computed(() =>
+  props.field.keys.map(key => props.model[key as keyof BaseSettingValueModel])
+);
 
 function updateFieldValue(key: string, value: unknown) {
   emit('updateField', key, value);

@@ -28,6 +28,7 @@ type BaseSettingFieldSchema struct {
 	Options          []*BaseSettingOption `json:"options,omitempty"`
 	ConfirmMessage   string               `json:"confirmMessage,omitempty"`
 	AllowCustomValue bool                 `json:"allowCustomValue,omitempty"`
+	MaxLength        int                  `json:"maxLength,omitempty"`
 }
 
 type BaseSettingGroupSchema struct {
@@ -59,50 +60,51 @@ type BaseSettingExtDefaultSettingItem struct {
 }
 
 type BaseSettingValueResp struct {
-	CommandPrefix           []string                            `json:"commandPrefix"`
-	DiceMasters             []string                            `json:"diceMasters"`
-	NoticeIds               []string                            `json:"noticeIds"`
-	MasterUnlockCode        string                              `json:"masterUnlockCode"`
-	UIPassword              string                              `json:"uiPassword"`
-	MailEnable              bool                                `json:"mailEnable"`
-	MailFrom                string                              `json:"mailFrom"`
-	MailPassword            string                              `json:"mailPassword"`
-	MailSmtp                string                              `json:"mailSmtp"`
-	TrustOnlyMode           bool                                `json:"trustOnlyMode"`
-	BotExtFreeSwitch        bool                                `json:"botExtFreeSwitch"`
-	QQEnablePoke            bool                                `json:"QQEnablePoke"`
-	OfficialQQFileSendBase64 bool                               `json:"officialQQFileSendBase64"`
-	OfficialQQUseMarkdown   bool                                `json:"officialQQUseMarkdown"`
-	TextCmdTrustOnly        bool                                `json:"textCmdTrustOnly"`
-	IgnoreUnaddressedBotCmd bool                                `json:"ignoreUnaddressedBotCmd"`
-	AliveNoticeEnable       bool                                `json:"aliveNoticeEnable"`
-	AliveNoticeValue        string                              `json:"aliveNoticeValue"`
-	LogSizeNoticeEnable     bool                                `json:"logSizeNoticeEnable"`
-	LogSizeNoticeCount      int                                 `json:"logSizeNoticeCount"`
-	PlayerNameWrapEnable    bool                                `json:"playerNameWrapEnable"`
-	OnlyLogCommandInGroup   bool                                `json:"onlyLogCommandInGroup"`
-	OnlyLogCommandInPrivate bool                                `json:"onlyLogCommandInPrivate"`
-	RateLimitEnabled        bool                                `json:"rateLimitEnabled"`
-	PersonalReplenishRate   string                              `json:"personalReplenishRate"`
-	PersonalBurst           int64                               `json:"personalBurst"`
-	GroupReplenishRate      string                              `json:"groupReplenishRate"`
-	GroupBurst              int64                               `json:"groupBurst"`
-	ServeAddress            string                              `json:"serveAddress"`
-	TrayTooltip             string                              `json:"trayTooltip"`
-	RefuseGroupInvite       bool                                `json:"refuseGroupInvite"`
-	FriendAddComment        string                              `json:"friendAddComment"`
-	WorkInQQChannel         bool                                `json:"workInQQChannel"`
-	QQChannelAutoOn         bool                                `json:"QQChannelAutoOn"`
-	QQChannelLogMessage     bool                                `json:"QQChannelLogMessage"`
-	DefaultCocRuleIndex     string                              `json:"defaultCocRuleIndex"`
-	MaxCocCardGen           string                              `json:"maxCocCardGen"`
-	MaxExecuteTime          string                              `json:"maxExecuteTime"`
-	MessageDelayRangeStart  float64                             `json:"messageDelayRangeStart"`
-	MessageDelayRangeEnd    float64                             `json:"messageDelayRangeEnd"`
-	QuitInactiveThreshold   float64                             `json:"quitInactiveThreshold"`
-	QuitInactiveBatchSize   int64                               `json:"quitInactiveBatchSize"`
-	QuitInactiveBatchWait   int64                               `json:"quitInactiveBatchWait"`
-	ExtDefaultSettings      []*BaseSettingExtDefaultSettingItem `json:"extDefaultSettings"`
+	CommandPrefix            []string                            `json:"commandPrefix"`
+	DiceMasters              []string                            `json:"diceMasters"`
+	NoticeIds                []string                            `json:"noticeIds"`
+	MasterUnlockCode         string                              `json:"masterUnlockCode"`
+	UIPassword               string                              `json:"uiPassword"`
+	MailEnable               bool                                `json:"mailEnable"`
+	MailFrom                 string                              `json:"mailFrom"`
+	MailPassword             string                              `json:"mailPassword"`
+	MailSmtp                 string                              `json:"mailSmtp"`
+	TrustOnlyMode            bool                                `json:"trustOnlyMode"`
+	BotExtFreeSwitch         bool                                `json:"botExtFreeSwitch"`
+	QQEnablePoke             bool                                `json:"QQEnablePoke"`
+	OfficialQQFileSendBase64 bool                                `json:"officialQQFileSendBase64"`
+	OfficialQQUseMarkdown    bool                                `json:"officialQQUseMarkdown"`
+	TextCmdTrustOnly         bool                                `json:"textCmdTrustOnly"`
+	IgnoreUnaddressedBotCmd  bool                                `json:"ignoreUnaddressedBotCmd"`
+	AliveNoticeEnable        bool                                `json:"aliveNoticeEnable"`
+	AliveNoticeValue         string                              `json:"aliveNoticeValue"`
+	LogSizeNoticeEnable      bool                                `json:"logSizeNoticeEnable"`
+	LogSizeNoticeCount       int                                 `json:"logSizeNoticeCount"`
+	PlayerNameWrapEnable     bool                                `json:"playerNameWrapEnable"`
+	DiceRandomMode           string                              `json:"diceRandomMode"`
+	OnlyLogCommandInGroup    bool                                `json:"onlyLogCommandInGroup"`
+	OnlyLogCommandInPrivate  bool                                `json:"onlyLogCommandInPrivate"`
+	RateLimitEnabled         bool                                `json:"rateLimitEnabled"`
+	PersonalReplenishRate    string                              `json:"personalReplenishRate"`
+	PersonalBurst            int64                               `json:"personalBurst"`
+	GroupReplenishRate       string                              `json:"groupReplenishRate"`
+	GroupBurst               int64                               `json:"groupBurst"`
+	ServeAddress             string                              `json:"serveAddress"`
+	TrayTooltip              string                              `json:"trayTooltip"`
+	RefuseGroupInvite        bool                                `json:"refuseGroupInvite"`
+	FriendAddComment         string                              `json:"friendAddComment"`
+	WorkInQQChannel          bool                                `json:"workInQQChannel"`
+	QQChannelAutoOn          bool                                `json:"QQChannelAutoOn"`
+	QQChannelLogMessage      bool                                `json:"QQChannelLogMessage"`
+	DefaultCocRuleIndex      string                              `json:"defaultCocRuleIndex"`
+	MaxCocCardGen            string                              `json:"maxCocCardGen"`
+	MaxExecuteTime           string                              `json:"maxExecuteTime"`
+	MessageDelayRangeStart   float64                             `json:"messageDelayRangeStart"`
+	MessageDelayRangeEnd     float64                             `json:"messageDelayRangeEnd"`
+	QuitInactiveThreshold    float64                             `json:"quitInactiveThreshold"`
+	QuitInactiveBatchSize    int64                               `json:"quitInactiveBatchSize"`
+	QuitInactiveBatchWait    int64                               `json:"quitInactiveBatchWait"`
+	ExtDefaultSettings       []*BaseSettingExtDefaultSettingItem `json:"extDefaultSettings"`
 }
 
 type BaseSettingUpdateReq struct {

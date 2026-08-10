@@ -54,7 +54,12 @@ export type BaseSettingSearchEntry = {
 
 export type BaseSettingFieldLayout = 'inline' | 'auto' | 'stacked';
 export type ExtDefaultSettingsFilterMode = 'all' | 'modified';
-export type ExtDefaultSettingsSortKey = 'source' | 'modified' | 'name' | 'auto-active' | 'disabled-count';
+export type ExtDefaultSettingsSortKey =
+  | 'source'
+  | 'modified'
+  | 'name'
+  | 'auto-active'
+  | 'disabled-count';
 
 export type ExtDefaultSettingsViewItem = {
   item: BaseSettingExtDefaultSettingItem;
@@ -103,18 +108,14 @@ export function normalizeBaseSettingSchema(schema: BaseSettingSchemaResp): BaseS
   };
 }
 
-export function buildBaseSettingSearchIndex(schema: BaseSettingSchemaModel): BaseSettingSearchEntry[] {
+export function buildBaseSettingSearchIndex(
+  schema: BaseSettingSchemaModel
+): BaseSettingSearchEntry[] {
   const entries: BaseSettingSearchEntry[] = [];
   for (const tab of schema.tabs) {
     for (const group of tab.groups) {
       for (const field of group.fields) {
-        const tokens = [
-          tab.title,
-          group.title,
-          field.label,
-          field.hint,
-          ...(field.keywords ?? []),
-        ]
+        const tokens = [tab.title, group.title, field.label, field.hint, ...(field.keywords ?? [])]
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
@@ -145,8 +146,11 @@ export function isBaseSettingGroupWide(groupId: string) {
   return ['ext-default-settings', 'upgrade', 'rate-limit-main'].includes(groupId);
 }
 
-export function getBaseSettingFieldLayout(field: Pick<BaseSettingFieldModel, 'kind'>): BaseSettingFieldLayout {
-  if (['ext-default-settings', 'string-list', 'upload'].includes(field.kind)) return 'stacked';
+export function getBaseSettingFieldLayout(
+  field: Pick<BaseSettingFieldModel, 'kind'>
+): BaseSettingFieldLayout {
+  if (['ext-default-settings', 'string-list', 'notice-targets', 'upload'].includes(field.kind))
+    return 'stacked';
   if (['boolean', 'action', 'unlock-code'].includes(field.kind)) return 'inline';
   return 'auto';
 }
@@ -174,15 +178,12 @@ export function buildBaseSettingStringListOptions(values: string[]) {
 }
 
 function normalizeExtDefaultSearchText(item: BaseSettingExtDefaultSettingItem) {
-  return [item.name, ...Object.keys(item.disabledCommand ?? {})]
-    .join(' ')
-    .trim()
-    .toLowerCase();
+  return [item.name, ...Object.keys(item.disabledCommand ?? {})].join(' ').trim().toLowerCase();
 }
 
 function collectChangedCommands(
   current: BaseSettingExtDefaultSettingItem,
-  initial?: BaseSettingExtDefaultSettingItem,
+  initial?: BaseSettingExtDefaultSettingItem
 ) {
   const changed = new Set<string>();
   const currentCommands = current.disabledCommand ?? {};
@@ -198,12 +199,14 @@ function collectChangedCommands(
 
 export function buildExtDefaultSettingsView(
   currentItems: BaseSettingExtDefaultSettingItem[],
-  initialItems: BaseSettingExtDefaultSettingItem[],
+  initialItems: BaseSettingExtDefaultSettingItem[]
 ): ExtDefaultSettingsViewItem[] {
   const initialMap = new Map(initialItems.map(item => [item.name, item]));
   return currentItems.map((item, index) => {
     const initialItem = initialMap.get(item.name);
-    const commandNames = Object.keys(item.disabledCommand ?? {}).sort((left, right) => left.localeCompare(right));
+    const commandNames = Object.keys(item.disabledCommand ?? {}).sort((left, right) =>
+      left.localeCompare(right)
+    );
     const changedCommands = collectChangedCommands(item, initialItem);
     const autoActiveDirty = !initialItem || item.autoActive !== initialItem.autoActive;
     const disabledCommandDirty = changedCommands.length > 0;
@@ -233,7 +236,7 @@ export function searchExtDefaultSettingsView(items: ExtDefaultSettingsViewItem[]
 
 export function filterExtDefaultSettingsView(
   items: ExtDefaultSettingsViewItem[],
-  mode: ExtDefaultSettingsFilterMode,
+  mode: ExtDefaultSettingsFilterMode
 ) {
   if (mode === 'modified') return items.filter(item => item.dirty);
   return items;
@@ -241,7 +244,7 @@ export function filterExtDefaultSettingsView(
 
 export function sortExtDefaultSettingsView(
   items: ExtDefaultSettingsViewItem[],
-  sortKey: ExtDefaultSettingsSortKey,
+  sortKey: ExtDefaultSettingsSortKey
 ) {
   const collator = new Intl.Collator('zh-CN', { numeric: true, sensitivity: 'base' });
   const sorted = [...items];
@@ -259,7 +262,8 @@ export function sortExtDefaultSettingsView(
         if (left.item.autoActive !== right.item.autoActive) return left.item.autoActive ? -1 : 1;
         break;
       case 'disabled-count':
-        if (left.disabledCount !== right.disabledCount) return right.disabledCount - left.disabledCount;
+        if (left.disabledCount !== right.disabledCount)
+          return right.disabledCount - left.disabledCount;
         break;
       case 'source':
       default:
@@ -273,7 +277,7 @@ export function sortExtDefaultSettingsView(
 export function getExtDefaultSettingPage(
   items: ExtDefaultSettingsViewItem[],
   page: number,
-  pageSize: number,
+  pageSize: number
 ) {
   const safePageSize = Math.max(1, pageSize);
   const total = items.length;
@@ -292,21 +296,29 @@ export function isBaseSettingDirty(current: BaseSettingValueModel, initial: Base
   return JSON.stringify(current) !== JSON.stringify(initial);
 }
 
-export function buildBaseSettingPatch(current: BaseSettingValueModel, initial: BaseSettingValueModel) {
+export function buildBaseSettingPatch(
+  current: BaseSettingValueModel,
+  initial: BaseSettingValueModel
+) {
   const changes = (object: Record<string, unknown>, base: Record<string, unknown>) =>
-    transform(object, (result: Record<string, unknown>, value, key) => {
-      if (isArray(value)) {
-        if (!isEqual(value, base[key])) {
-          result[key] = value;
+    transform(
+      object,
+      (result: Record<string, unknown>, value, key) => {
+        if (isArray(value)) {
+          if (!isEqual(value, base[key])) {
+            result[key] = value;
+          }
+          return;
         }
-        return;
-      }
-      if (!isEqual(value, base[key])) {
-        result[key] = isObject(value) && isObject(base[key])
-          ? changes(value as Record<string, unknown>, base[key] as Record<string, unknown>)
-          : value;
-      }
-    }, {});
+        if (!isEqual(value, base[key])) {
+          result[key] =
+            isObject(value) && isObject(base[key])
+              ? changes(value as Record<string, unknown>, base[key] as Record<string, unknown>)
+              : value;
+        }
+      },
+      {}
+    );
 
   return changes(current as Record<string, unknown>, initial as Record<string, unknown>);
 }

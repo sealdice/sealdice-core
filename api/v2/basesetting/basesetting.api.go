@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/danielgtaylor/huma/v2"
 	"golang.org/x/time/rate"
@@ -153,60 +154,70 @@ func (s *Service) buildValue() BaseSettingValueResp {
 	}
 
 	return BaseSettingValueResp{
-		CommandPrefix:           append([]string{}, s.dice.CommandPrefix...),
-		DiceMasters:             append([]string{}, s.dice.DiceMasters...),
-		NoticeIds:               append([]string{}, s.dice.Config.NoticeIDs...),
-		MasterUnlockCode:        s.dice.MasterUnlockCode,
-		UIPassword:              password,
-		MailEnable:              s.dice.Config.MailEnable,
-		MailFrom:                s.dice.Config.MailFrom,
-		MailPassword:            emailPassword,
-		MailSmtp:                s.dice.Config.MailSMTP,
-		TrustOnlyMode:           s.dice.Config.TrustOnlyMode,
-		BotExtFreeSwitch:        s.dice.Config.BotExtFreeSwitch,
-		QQEnablePoke:            s.dice.Config.QQEnablePoke,
+		CommandPrefix:            append([]string{}, s.dice.CommandPrefix...),
+		DiceMasters:              append([]string{}, s.dice.DiceMasters...),
+		NoticeIds:                append([]string{}, s.dice.Config.NoticeIDs...),
+		MasterUnlockCode:         s.dice.MasterUnlockCode,
+		UIPassword:               password,
+		MailEnable:               s.dice.Config.MailEnable,
+		MailFrom:                 s.dice.Config.MailFrom,
+		MailPassword:             emailPassword,
+		MailSmtp:                 s.dice.Config.MailSMTP,
+		TrustOnlyMode:            s.dice.Config.TrustOnlyMode,
+		BotExtFreeSwitch:         s.dice.Config.BotExtFreeSwitch,
+		QQEnablePoke:             s.dice.Config.QQEnablePoke,
 		OfficialQQFileSendBase64: s.dice.Config.OfficialQQFileSendBase64,
-		OfficialQQUseMarkdown:   s.dice.Config.OfficialQQUseMarkdown,
-		TextCmdTrustOnly:        s.dice.Config.TextCmdTrustOnly,
-		IgnoreUnaddressedBotCmd: s.dice.Config.IgnoreUnaddressedBotCmd,
-		AliveNoticeEnable:       s.dice.Config.AliveNoticeEnable,
-		AliveNoticeValue:        s.dice.Config.AliveNoticeValue,
-		LogSizeNoticeEnable:     s.dice.Config.LogSizeNoticeEnable,
-		LogSizeNoticeCount:      s.dice.Config.LogSizeNoticeCount,
-		PlayerNameWrapEnable:    s.dice.Config.PlayerNameWrapEnable,
-		OnlyLogCommandInGroup:   s.dice.Config.OnlyLogCommandInGroup,
-		OnlyLogCommandInPrivate: s.dice.Config.OnlyLogCommandInPrivate,
-		RateLimitEnabled:        s.dice.Config.RateLimitEnabled,
-		PersonalReplenishRate:   s.dice.Config.PersonalReplenishRateStr,
-		PersonalBurst:           s.dice.Config.PersonalBurst,
-		GroupReplenishRate:      s.dice.Config.GroupReplenishRateStr,
-		GroupBurst:              s.dice.Config.GroupBurst,
-		ServeAddress:            s.dice.Parent.ServeAddress,
-		TrayTooltip:             s.dice.Parent.GetTrayTooltip(),
-		RefuseGroupInvite:       s.dice.Config.RefuseGroupInvite,
-		FriendAddComment:        s.dice.Config.FriendAddComment,
-		WorkInQQChannel:         s.dice.Config.WorkInQQChannel,
-		QQChannelAutoOn:         s.dice.Config.QQChannelAutoOn,
-		QQChannelLogMessage:     s.dice.Config.QQChannelLogMessage,
-		DefaultCocRuleIndex:     cocRule,
-		MaxCocCardGen:           maxCard,
-		MaxExecuteTime:          maxExec,
-		MessageDelayRangeStart:  s.dice.Config.MessageDelayRangeStart,
-		MessageDelayRangeEnd:    s.dice.Config.MessageDelayRangeEnd,
-		QuitInactiveThreshold:   s.dice.Config.QuitInactiveThreshold.Hours() / 24,
-		QuitInactiveBatchSize:   s.dice.Config.QuitInactiveBatchSize,
-		QuitInactiveBatchWait:   s.dice.Config.QuitInactiveBatchWait,
-		ExtDefaultSettings:      extDefaultSettings,
+		OfficialQQUseMarkdown:    s.dice.Config.OfficialQQUseMarkdown,
+		TextCmdTrustOnly:         s.dice.Config.TextCmdTrustOnly,
+		IgnoreUnaddressedBotCmd:  s.dice.Config.IgnoreUnaddressedBotCmd,
+		AliveNoticeEnable:        s.dice.Config.AliveNoticeEnable,
+		AliveNoticeValue:         s.dice.Config.AliveNoticeValue,
+		LogSizeNoticeEnable:      s.dice.Config.LogSizeNoticeEnable,
+		LogSizeNoticeCount:       s.dice.Config.LogSizeNoticeCount,
+		PlayerNameWrapEnable:     s.dice.Config.PlayerNameWrapEnable,
+		DiceRandomMode:           string(dice.NormalizeDiceRandomMode(s.dice.Config.DiceRandomMode)),
+		OnlyLogCommandInGroup:    s.dice.Config.OnlyLogCommandInGroup,
+		OnlyLogCommandInPrivate:  s.dice.Config.OnlyLogCommandInPrivate,
+		RateLimitEnabled:         s.dice.Config.RateLimitEnabled,
+		PersonalReplenishRate:    s.dice.Config.PersonalReplenishRateStr,
+		PersonalBurst:            s.dice.Config.PersonalBurst,
+		GroupReplenishRate:       s.dice.Config.GroupReplenishRateStr,
+		GroupBurst:               s.dice.Config.GroupBurst,
+		ServeAddress:             s.dice.Parent.ServeAddress,
+		TrayTooltip:              s.dice.Parent.GetTrayTooltip(),
+		RefuseGroupInvite:        s.dice.Config.RefuseGroupInvite,
+		FriendAddComment:         s.dice.Config.FriendAddComment,
+		WorkInQQChannel:          s.dice.Config.WorkInQQChannel,
+		QQChannelAutoOn:          s.dice.Config.QQChannelAutoOn,
+		QQChannelLogMessage:      s.dice.Config.QQChannelLogMessage,
+		DefaultCocRuleIndex:      cocRule,
+		MaxCocCardGen:            maxCard,
+		MaxExecuteTime:           maxExec,
+		MessageDelayRangeStart:   s.dice.Config.MessageDelayRangeStart,
+		MessageDelayRangeEnd:     s.dice.Config.MessageDelayRangeEnd,
+		QuitInactiveThreshold:    s.dice.Config.QuitInactiveThreshold.Hours() / 24,
+		QuitInactiveBatchSize:    s.dice.Config.QuitInactiveBatchSize,
+		QuitInactiveBatchWait:    s.dice.Config.QuitInactiveBatchWait,
+		ExtDefaultSettings:       extDefaultSettings,
 	}
 }
 
 func (s *Service) applyPatch(jsonMap map[string]interface{}) error {
 	stringConvert := func(val interface{}) []string {
 		var list []string
-		for _, item := range val.([]interface{}) {
-			text, ok := item.(string)
-			if ok && text != "" {
-				list = append(list, text)
+		switch items := val.(type) {
+		case []interface{}:
+			for _, item := range items {
+				text, ok := item.(string)
+				if ok && strings.TrimSpace(text) != "" {
+					list = append(list, text)
+				}
+			}
+		case []string:
+			for _, text := range items {
+				if strings.TrimSpace(text) != "" {
+					list = append(list, text)
+				}
 			}
 		}
 		return list
@@ -231,7 +242,13 @@ func (s *Service) applyPatch(jsonMap map[string]interface{}) error {
 
 	config := &s.dice.Config
 	if val, ok := jsonMap["noticeIds"]; ok {
-		config.NoticeIDs = stringConvert(val)
+		rawTargets := stringConvert(val)
+		config.NoticeIDs = make([]string, 0, len(rawTargets))
+		for _, rawTarget := range rawTargets {
+			if target := dice.ParseNoticeTarget(rawTarget); target.ID != "" {
+				config.NoticeIDs = append(config.NoticeIDs, target.String())
+			}
+		}
 	}
 	if val, ok := jsonMap["officialQQFileSendBase64"]; ok {
 		if parsed, ok := val.(bool); ok {
@@ -245,7 +262,19 @@ func (s *Service) applyPatch(jsonMap map[string]interface{}) error {
 	}
 	if val, ok := jsonMap["trayTooltip"]; ok {
 		if parsed, ok := stringify(val); ok {
+			parsed = strings.TrimSpace(parsed)
+			if utf8.RuneCountInString(parsed) > dice.MaxTrayTooltipPrefixLength {
+				return huma.Error400BadRequest("托盘提示文本不能超过" + strconv.Itoa(dice.MaxTrayTooltipPrefixLength) + "个字符")
+			}
 			s.dice.Parent.SetTrayTooltip(parsed)
+		}
+	}
+	if val, ok := jsonMap["diceRandomMode"]; ok {
+		if parsed, ok := stringify(val); ok {
+			config.DiceRandomMode = string(dice.NormalizeDiceRandomMode(parsed))
+			if err := s.dice.ActivateDiceRandomMode(); err != nil && s.dice.Logger != nil {
+				s.dice.Logger.Warnf("[随机源] 应用管理界面随机模式失败，已使用 PCG 回退: %v", err)
+			}
 		}
 	}
 	if val, ok := jsonMap["defaultCocRuleIndex"]; ok {
@@ -503,7 +532,7 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 						ID:    "notice-mail",
 						Title: "通知与邮件",
 						Fields: []*BaseSettingFieldSchema{
-							{ID: "notice-ids", Key: "noticeIds", Label: "消息通知列表", Kind: "string-list", Keywords: []string{"通知列表", "通知ID", "邮件通知目标"}},
+							{ID: "notice-ids", Key: "noticeIds", Label: "消息通知列表", Kind: "notice-targets", Keywords: []string{"通知列表", "通知ID", "邮件通知目标", "通知分类"}},
 							field("mail-enable", "mailEnable", "邮箱通知", "boolean", "邮件", "邮件通知"),
 							field("mail-from", "mailFrom", "发件邮箱", "text", "邮箱", "发件人"),
 							{ID: "mail-password", Key: "mailPassword", Label: "邮箱密钥", Kind: "password", Sensitive: true, Keywords: []string{"邮箱密钥", "授权码", "邮箱密码"}},
@@ -525,6 +554,13 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 							field("bot-ext-free-switch", "botExtFreeSwitch", "允许自由开关", "boolean", "自由开关", "bot on", "ext on"),
 							field("text-cmd-trust-only", "textCmdTrustOnly", "限制 .text 指令", "boolean", ".text", "信任限制"),
 							field("ignore-unaddressed-bot", "ignoreUnaddressedBotCmd", "忽略 .bot 裸指令", "boolean", ".bot", "裸指令"),
+							{ID: "dice-random-mode", Key: "diceRandomMode", Label: "骰点随机模式", Kind: "select", Options: []*BaseSettingOption{
+								option("PCG（默认）", string(dice.DiceRandomModePCG)),
+								option("国密 SM3", string(dice.DiceRandomModeGM)),
+								option("NIST AES-CTR-DRBG", string(dice.DiceRandomModeNIST)),
+								option("系统 CRNG", string(dice.DiceRandomModeCRNG)),
+								option("混合模式", string(dice.DiceRandomModeHybrid)),
+							}, Keywords: []string{"随机源", "随机算法", "randalgo"}},
 							{ID: "player-name-wrap", Key: "playerNameWrapEnable", Label: "<玩家名> 外框", Kind: "boolean", ConfirmMessage: "不推荐：用户可能会改名为 .bot/.dismiss 等指令，并利用骰点播报让群内其他骰子刷屏，确定要关闭吗？", Keywords: []string{"玩家名外框", "名称外框", "刷屏防护"}},
 						},
 					},
@@ -586,7 +622,7 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 						Fields: []*BaseSettingFieldSchema{
 							field("friend-add-comment", "friendAddComment", "加好友验证", "text", "好友验证", "加好友"),
 							field("refuse-group-invite", "refuseGroupInvite", "拒绝加入新群", "boolean", "拒绝加群", "群邀请"),
-							field("tray-tooltip", "trayTooltip", "托盘提示文本", "text", "托盘", "提示文本"),
+							{ID: "tray-tooltip", Key: "trayTooltip", Label: "托盘提示文本", Kind: "text", MaxLength: dice.MaxTrayTooltipPrefixLength, Keywords: []string{"托盘", "提示文本"}},
 						},
 					},
 				},
