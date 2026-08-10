@@ -29,6 +29,7 @@
 | `009_V160LogRawMsgIDIndexMigration` | v1.6.0 | 日志复合索引 | 为 log_items 建 `(group_id, raw_msg_id, id)` 复合索引 |
 | `010_V160LogSizeRepairMigration` | v1.6.0 | logs.size 兜底修复 | 补建缺失的 size 列并全量重算（兜底 V150 失误） |
 | `011_V161NoticeIDsMigration` | v1.6.1 | 骰主通知目标初始化 | 将骰主 ID 一次性补入通知列表，仅开启 send 通知 |
+| `012_V161LogUpdatedAtRepairMigration` | v1.6.1 | logs.updated_at 回填修复 | 按最后一条日志时间回填 updated_at；无日志则回退到 created_at |
 
 > ⚠️ ID 冲突提醒：`007_` 前缀同时被 `V150FixGroupInfoMigration` 与 `V151GORMCleanMigration` 使用，靠后缀字典序保证 V150 先于 V151 执行。代码内多处 `TODO` 标注“需要合理的生成逻辑”，建议后续改为更稳健的编号方案。
 
@@ -116,6 +117,7 @@
   3. **重算 size**：`UPDATE logs SET size = (该日志下 removed IS NULL 的条目数)`（仅 id>0）。
 - **幂等**：是。
 - **失败**：返回错误 → 中断升级。
+- **本轮修复**：重算 size 改为 `UpdateColumn("size", ...)`，避免 GORM 自动把 `logs.updated_at` 刷成迁移执行时间。
 - **本轮加固**：重算前增加 `HasColumn(logs, size)` 判断——若 size 列不存在（V150 失误遗留），则**跳过重算**（不报错），改由 010 负责“建列+重算”。此前缺少此判断时，一旦“无 size 列 + 存在 log_id=0 数据”同时出现，本迁移会因 `UPDATE … SET size …` 列缺失而报错、阻塞后续迁移。
 
 ### 009 — V160LogRawMsgIDIndexMigration（日志复合索引）
@@ -142,6 +144,17 @@
 - **仅执行一次**：升级框架记录迁移完成状态；用户之后手动清空通知列表，不会在后续启动时被重新填充。
 - **新安装**：默认骰主 `UI:1001` 同时也是默认通知目标，无需等待配置迁移。
 - **失败**：配置读取、解析或写入失败时返回错误并中断升级，以免迁移被错误标记为完成。
+
+### 012 — V161LogUpdatedAtRepairMigration（logs.updated_at 回填修复）★ 本轮新增
+
+- **触发条件**：存在 `logs` 表；否则跳过。
+- **行为**：
+  1. 要求 `log_items` 表存在；若缺失则返回错误中断升级；
+  2. 对所有日志执行回填：`updated_at = COALESCE(MAX(log_items.time), created_at)`；
+  3. 不区分 `removed`，按“该 log 最后一条日志时间”回填；若该 log 没有任何条目，则回退到 `created_at`。
+- **幂等**：是（重复执行结果一致）。
+- **失败**：返回错误 → 中断升级。
+- **设计目的**：修复已执行过旧版 008 迁移的数据库中，`logs.updated_at` 被错误刷新成升级执行时间的问题。
 
 ---
 
