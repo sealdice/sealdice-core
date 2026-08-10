@@ -11,6 +11,7 @@ import {
 } from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
 import { copyText } from '@/features/clipboard';
+import { getErrorMessage } from '@/features/auth/error';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import {
   normalizeCustomTextData,
@@ -156,21 +157,42 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   }
 
   async function doImport() {
+    let normalized: TextTemplateWithWeightDict;
     try {
-      const normalized = parseCustomTextImportContent(configForImport.value);
-      for (const [targetCategory, value] of Object.entries(normalized)) {
-        if (!texts.value[targetCategory]) {
-          continue;
-        }
-        texts.value[targetCategory] = value;
+      normalized = parseCustomTextImportContent(configForImport.value);
+    } catch {
+      message.error('导入内容格式不正确，请检查 JSON 结构后重试');
+      return;
+    }
+
+    const savedCategories: string[] = [];
+    const failedCategories: string[] = [];
+    for (const [targetCategory, value] of Object.entries(normalized)) {
+      if (!texts.value[targetCategory]) continue;
+      texts.value[targetCategory] = value;
+      try {
         await saveMutation.mutateAsync(targetCategory);
         initialTexts.value[targetCategory] = cloneDeep(value);
+        savedCategories.push(targetCategory);
+      } catch (error) {
+        failedCategories.push(`${targetCategory}（${getErrorMessage(error, '保存失败')}）`);
       }
-      syncLocalTexts(true);
-      message.success('已保存');
+    }
+
+    if (!savedCategories.length && !failedCategories.length) {
+      message.warning('导入内容中没有当前可用的文案分类');
+      return;
+    }
+
+    if (failedCategories.length) {
+      const savedText = savedCategories.length ? `已保存：${savedCategories.join('、')}；` : '';
+      message.error(`${savedText}保存失败：${failedCategories.join('、')}。请修正后重试`);
+      return;
+    }
+
+    if (savedCategories.length) {
+      message.success(`已保存：${savedCategories.join('、')}`);
       dialogImportVisible.value = false;
-    } catch {
-      message.error('格式不正确');
     }
   }
 
