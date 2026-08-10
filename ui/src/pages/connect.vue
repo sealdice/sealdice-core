@@ -78,12 +78,15 @@
       :config="editingConfig"
       :form-model="editFormModel"
       :schema="editSchema"
+      :loading="editConfigQuery.isFetching.value"
+      :error-message="editConfigErrorText"
       :is-mobile="isMobile"
       :saving="updateMutation.isPending.value"
       :disabled="isTestMode"
       :can-submit="canSubmitEdit"
       @update:visible="editDialogVisible = $event"
       @update:form-model="editFormModel = $event"
+      @retry="retryEditConfig"
       @submit="submitEdit"
     />
 
@@ -266,6 +269,10 @@ const editConfigQuery = useConnectEndpointConfigQuery(
   editDialogVisible
 );
 
+const editConfigErrorText = computed(() =>
+  editConfigQuery.error.value ? getErrorMessage(editConfigQuery.error.value, '账号配置读取失败') : ''
+);
+
 watch(editConfigQuery.data, data => {
   if (!data || !editingEndpoint.value) return;
   editingConfig.value = data;
@@ -278,10 +285,11 @@ watch(editConfigQuery.data, data => {
 watch(editConfigQuery.error, error => {
   if (!error || !editDialogVisible.value) return;
   message.error('账号配置读取失败');
-  editDialogVisible.value = false;
-  editingEndpoint.value = null;
-  editingConfig.value = null;
 });
+
+const retryEditConfig = () => {
+  void editConfigQuery.refetch();
+};
 
 const { createMutation, updateMutation, enableMutation, deleteMutation } = useConnectMutations({
   message,

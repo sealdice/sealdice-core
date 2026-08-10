@@ -8,7 +8,10 @@
     :mask-closable="false"
     @update:show="emit('update:visible', $event)"
   >
-    <n-spin :show="!config">
+    <n-alert v-if="errorMessage" type="error" :show-icon="false">
+      {{ errorMessage }}
+    </n-alert>
+    <n-spin :show="loading && !config">
       <n-space vertical size="large">
         <n-alert v-if="config?.restartRequired" type="warning" :show-icon="false">
           保存后会重新连接此账号。Token、密码等敏感字段留空时保持原值不变。
@@ -26,6 +29,7 @@
 
     <template #action>
       <n-button @click="emit('update:visible', false)"> 取消 </n-button>
+      <n-button v-if="errorMessage" :loading="loading" @click="emit('retry')">重试</n-button>
       <n-button
         type="primary"
         :loading="saving"
@@ -50,6 +54,8 @@ defineProps<{
   schema: FormConfigItem[];
   isMobile: boolean;
   saving: boolean;
+  loading: boolean;
+  errorMessage: string;
   disabled: boolean;
   canSubmit: boolean;
 }>();
@@ -57,6 +63,7 @@ defineProps<{
 const emit = defineEmits<{
   'update:visible': [value: boolean];
   'update:formModel': [value: DynamicFormModel];
+  retry: [];
   submit: [];
 }>();
 </script>
