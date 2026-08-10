@@ -206,14 +206,24 @@
             </div>
 
             <div class="cleanup-panel-body">
-              <div class="cleanup-toolbar">
-                <n-input-number v-model:value="cleanupForm.months" :min="0" class="cleanup-months" />
-                <n-switch v-model:value="cleanupForm.vacuum" />
-              </div>
-              <div class="cleanup-toolbar-labels">
-                <n-text depth="3">N 个月未更新</n-text>
-                <n-text depth="3">执行 VACUUM</n-text>
-              </div>
+              <n-form
+                class="cleanup-toolbar-form"
+                label-placement="top"
+                label-width="auto"
+                size="small"
+              >
+                <n-form-item label="未更新月数">
+                  <n-input-number
+                    v-model:value="cleanupForm.months"
+                    :min="0"
+                    class="cleanup-months"
+                    :input-props="{ 'aria-label': '未更新月数' }"
+                  />
+                </n-form-item>
+                <n-form-item label="执行 VACUUM">
+                  <n-switch v-model:value="cleanupForm.vacuum" aria-label="执行 VACUUM" />
+                </n-form-item>
+              </n-form>
             </div>
           </section>
 
@@ -838,13 +848,16 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 
-.cleanup-toolbar,
-.cleanup-toolbar-labels,
+.cleanup-toolbar-form,
 .cleanup-actions {
   display: grid;
   grid-template-columns: minmax(120px, 180px) 120px;
   gap: 0.75rem;
   align-items: center;
+}
+
+.cleanup-toolbar-form :deep(.n-form-item) {
+  margin-bottom: 0;
 }
 
 .cleanup-months {
@@ -876,8 +889,7 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .cleanup-toolbar,
-  .cleanup-toolbar-labels,
+  .cleanup-toolbar-form,
   .cleanup-actions {
     grid-template-columns: 1fr;
   }
