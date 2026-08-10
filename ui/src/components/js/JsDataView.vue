@@ -59,6 +59,8 @@
       </div>
     </template>
 
+    <n-empty v-else description="请选择插件查看数据" />
+
     <!-- Edit Modal -->
     <n-modal v-model:show="showEditModal" title="编辑数据" preset="card" style="width: 90vw; max-width: 700px">
       <n-flex vertical size="medium">
