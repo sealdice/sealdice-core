@@ -30,32 +30,39 @@
     </div>
 
     <div class="tool-test-member-rail__list">
-      <button
+      <div
         v-for="profile in enabledProfiles"
         :key="profile.userId"
-        type="button"
         class="tool-test-member-rail__member"
         :class="{ 'tool-test-member-rail__member--active': profile.userId === props.currentUserId }"
-        @click="emit('select', profile)"
       >
-        <NAvatar
-          round
-          :size="42"
-          :src="avatarDataUrl(profile.avatarKey, profile.name)"
-          :title="`编辑 ${profile.name} 资料`"
-          @click.stop="openEditor(profile)"
-        />
-        <span class="tool-test-member-rail__member-info">
-          <strong>{{ profile.name }}</strong>
-          <small>{{ profile.userId }}</small>
-        </span>
-        <NTag v-if="profile.userId === props.currentUserId" size="small" type="warning">当前</NTag>
-        <NButton quaternary circle size="tiny" title="编辑身份" @click.stop="openEditor(profile)">
+        <button
+          type="button"
+          class="tool-test-member-rail__member-select"
+          :aria-pressed="profile.userId === props.currentUserId"
+          :aria-label="`选择${profile.name}（${profile.userId}）`"
+          @click="emit('select', profile)"
+        >
+          <NAvatar round :size="42" :src="avatarDataUrl(profile.avatarKey, profile.name)" />
+          <span class="tool-test-member-rail__member-info">
+            <strong>{{ profile.name }}</strong>
+            <small>{{ profile.userId }}</small>
+          </span>
+          <NTag v-if="profile.userId === props.currentUserId" size="small" type="warning">当前</NTag>
+        </button>
+        <NButton
+          quaternary
+          circle
+          size="tiny"
+          title="编辑身份"
+          :aria-label="`编辑${profile.name}身份`"
+          @click="openEditor(profile)"
+        >
           <template #icon
             ><NIcon><i-ep-edit /></NIcon
           ></template>
         </NButton>
-      </button>
+      </div>
     </div>
 
     <NModal
@@ -211,9 +218,22 @@ function saveEditor() {
   width: 100%;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.55rem;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: 8px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+.tool-test-member-rail__member-select {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem;
+  border: 0;
   color: inherit;
   background: transparent;
   text-align: left;
