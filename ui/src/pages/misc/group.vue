@@ -135,9 +135,21 @@
 
     <n-modal v-model:show="quitDialogVisible" preset="card" title="退群确认" class="group-dialog">
       <n-flex vertical>
-        <n-text depth="3">
-          {{ quitAction?.mode === 'single' ? '将退出当前选择的群组。' : `将批量退出 ${quitAction?.count ?? 0} 个群组。` }}
-        </n-text>
+        <n-alert type="warning" :show-icon="false">
+          <template v-if="quitAction?.mode === 'single'">
+            将退出：{{ formatGroupQuitTarget(quitAction.target) }}
+          </template>
+          <template v-else>
+            将批量退出以下 {{ quitAction?.targets.length ?? 0 }} 个群组：
+            <n-scrollbar class="quit-target-list" :style="{ maxHeight: '180px' }">
+              <ul>
+                <li v-for="target in quitAction?.targets" :key="target.groupId">
+                  {{ formatGroupQuitTarget(target) }}
+                </li>
+              </ul>
+            </n-scrollbar>
+          </template>
+        </n-alert>
         <n-checkbox v-model:checked="quitForm.silence">静默退出</n-checkbox>
         <n-checkbox v-model:checked="quitForm.saveAsDefault">保存为默认留言</n-checkbox>
         <n-input
@@ -178,6 +190,7 @@ import {
   readGroupQuitDefaultText,
   writeGroupQuitDefaultText,
 } from '@/features/group/quitPreference';
+import { formatGroupQuitTarget, type GroupQuitTarget } from '@/features/group/quitSummary';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 
 type GroupRow = GroupInfo & {
@@ -187,8 +200,8 @@ type GroupRow = GroupInfo & {
 };
 
 type QuitAction =
-  | { mode: 'single'; count: 1; groupId: string; diceId: string }
-  | { mode: 'batch'; count: number; groupIds: string[] };
+  | { mode: 'single'; target: GroupQuitTarget }
+  | { mode: 'batch'; targets: GroupQuitTarget[] };
 
 const message = useMessage();
 const breakpoints = useBreakpoints(breakpointsTailwind);
@@ -389,9 +402,11 @@ async function saveGroup(group: GroupRow) {
 function openSingleQuit(group: GroupRow, diceId: string) {
   quitAction.value = {
     mode: 'single',
-    count: 1,
-    groupId: group.groupId,
-    diceId,
+    target: {
+      groupId: group.groupId,
+      groupName: group.groupName,
+      diceId,
+    },
   };
   quitDialogVisible.value = true;
 }
@@ -403,8 +418,10 @@ function openBatchQuit() {
   }
   quitAction.value = {
     mode: 'batch',
-    count: selectedGroupIDs.value.length,
-    groupIds: [...selectedGroupIDs.value],
+    targets: selectedGroups.value.map(group => ({
+      groupId: group.groupId,
+      groupName: group.groupName,
+    })),
   };
   quitDialogVisible.value = true;
 }
@@ -415,8 +432,8 @@ async function submitQuit() {
   if (quitAction.value.mode === 'single') {
     const { data } = await postSdApiV2GroupQuit({
       body: {
-        groupId: quitAction.value.groupId,
-        diceId: quitAction.value.diceId,
+        groupId: quitAction.value.target.groupId,
+        diceId: quitAction.value.target.diceId ?? '',
         silence: quitForm.silence,
         extraText: quitForm.extraText,
       },
@@ -430,7 +447,7 @@ async function submitQuit() {
   } else {
     const { data } = await postSdApiV2GroupBatchQuit({
       body: {
-        groupIds: quitAction.value.groupIds,
+        groupIds: quitAction.value.targets.map(target => target.groupId),
         silence: quitForm.silence,
         extraText: quitForm.extraText,
       },
