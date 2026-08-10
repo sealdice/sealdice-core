@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { usePreferredReducedMotion } from '@vueuse/core';
 import { useAppTheme } from '@/features/theme';
 
@@ -17,6 +17,7 @@ const { isDark, toggleTheme } = useAppTheme();
 const prefersReducedMotion = usePreferredReducedMotion();
 const active = ref(false);
 const origin = ref({ x: 0, y: 0 });
+let resetTimer: ReturnType<typeof window.setTimeout> | undefined;
 
 const overlayStyle = computed(() => ({
   left: `${origin.value.x}px`,
@@ -56,13 +57,21 @@ function toggle(source?: DOMRect | MouseEvent) {
   requestAnimationFrame(() => {
     active.value = true;
     toggleTheme();
+    resetTimer = window.setTimeout(() => {
+      active.value = false;
+    }, 700);
   });
 }
 
 function handleTransitionEnd(event: TransitionEvent) {
   if (event.propertyName !== 'transform') return;
+  if (resetTimer) window.clearTimeout(resetTimer);
   active.value = false;
 }
+
+onBeforeUnmount(() => {
+  if (resetTimer) window.clearTimeout(resetTimer);
+});
 
 defineExpose({
   toggle,
