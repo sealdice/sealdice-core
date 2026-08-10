@@ -290,3 +290,26 @@ func TestPublicDiceConfigUpdateSavesConfigAndSelectedEndpoints(t *testing.T) {
 		t.Fatalf("endpoint-update calls = %d, want 1", calls["/dice/api/public-dice/endpoint-update"])
 	}
 }
+
+func TestPublicDiceEnableUpdatesOnlyEnableState(t *testing.T) {
+	svc := newTestService(t)
+	defer svc.Dice().AttrsManager.Stop()
+	svc.Dice().Config.PublicDiceConfig = dice.PublicDiceConfig{
+		Enable: true,
+		ID:     "dice-id",
+		Name:   "公骰",
+	}
+
+	resp, err := svc.SetPublicDiceEnable(t.Context(), &PublicDiceEnableReq{
+		Body: PublicDiceEnableBody{PublicDiceEnable: false},
+	})
+	if err != nil {
+		t.Fatalf("SetPublicDiceEnable returned error: %v", err)
+	}
+	if resp.Body.Item.Config.PublicDiceEnable {
+		t.Fatal("public dice should be disabled")
+	}
+	if resp.Body.Item.Config.PublicDiceID != "dice-id" || resp.Body.Item.Config.PublicDiceName != "公骰" {
+		t.Fatalf("non-enable config changed: %+v", resp.Body.Item.Config)
+	}
+}

@@ -45,3 +45,11 @@ type PublicDiceUpdateBody struct {
 type PublicDiceUpdateReq struct {
 	Body PublicDiceUpdateBody `json:"body"`
 }
+
+type PublicDiceEnableBody struct {
+	PublicDiceEnable bool `json:"publicDiceEnable"`
+}
+
+type PublicDiceEnableReq struct {
+	Body PublicDiceEnableBody `json:"body"`
+}

@@ -50,6 +50,9 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	huma.Put(grp, "/public-dice", s.SetPublicDiceConfig, func(o *huma.Operation) {
 		o.Description = "保存公骰设置配置和上报终端选择"
 	})
+	huma.Put(grp, "/public-dice/enable", s.SetPublicDiceEnable, func(o *huma.Operation) {
+		o.Description = "更新公骰启用状态"
+	})
 }
 
 func (s *Service) GetReplyConfig(_ context.Context, _ *request.Empty) (*response.ItemResponse[ReplyModuleConfig], error) {
@@ -96,6 +99,20 @@ func (s *Service) SetPublicDiceConfig(_ context.Context, req *PublicDiceUpdateRe
 	s.ensurePublicDiceRuntime()
 	s.dice.PublicDiceInfoRegister()
 	s.dice.PublicDiceEndpointRefresh()
+	s.dice.PublicDiceSetupTick()
+	s.dice.MarkModified()
+	s.dice.Save(false)
+
+	return response.NewItemResponse(s.buildPublicDiceInfoResp()), nil
+}
+
+func (s *Service) SetPublicDiceEnable(_ context.Context, req *PublicDiceEnableReq) (*response.ItemResponse[PublicDiceInfoResp], error) {
+	s.dice.Config.PublicDiceConfig.Enable = req.Body.PublicDiceEnable
+	s.ensurePublicDiceRuntime()
+	if req.Body.PublicDiceEnable {
+		s.dice.PublicDiceInfoRegister()
+		s.dice.PublicDiceEndpointRefresh()
+	}
 	s.dice.PublicDiceSetupTick()
 	s.dice.MarkModified()
 	s.dice.Save(false)

@@ -5,8 +5,8 @@
         <n-space align="center" :wrap="false">
           <n-switch
             :value="draft?.config.publicDiceEnable ?? false"
-            :disabled="!draft || saveMutation.isPending.value"
-            :loading="saveMutation.isPending.value"
+            :disabled="!draft || saving.value"
+            :loading="enableMutation.isPending.value"
             @update:value="handleEnableUpdate"
           >
             <template #checked>启用</template>
@@ -73,6 +73,7 @@ import {
   getSdApiV2ConfigPublicDice,
   getSdApiV2ConfigPublicDiceQueryKey,
   putSdApiV2ConfigPublicDice,
+  putSdApiV2ConfigPublicDiceEnable,
   type PublicDiceInfoResp,
   type PublicDiceUpdateBodyWritable,
 } from '@/api';
@@ -108,9 +109,10 @@ const publicDiceQuery = useQuery({
 
 const endpointRows = computed(() => getPublicDiceEndpointRows(publicDiceQuery.data.value?.endpoints));
 const loadingInitial = computed(() => publicDiceQuery.isLoading.value && !draft.value);
-const contentDisabled = computed(() => !draft.value?.config.publicDiceEnable || saveMutation.isPending.value);
+const saving = computed(() => saveMutation.isPending.value || enableMutation.isPending.value);
+const contentDisabled = computed(() => !draft.value?.config.publicDiceEnable || saving.value);
 const dirty = computed(() => isPublicDiceDirty(draft.value, initialDraft.value));
-const canSave = computed(() => Boolean(draft.value?.config.publicDiceEnable) && dirty.value && !saveMutation.isPending.value);
+const canSave = computed(() => Boolean(draft.value?.config.publicDiceEnable) && dirty.value && !saving.value);
 const queryErrorText = computed(() =>
   publicDiceQuery.isError.value ? getErrorMessage(publicDiceQuery.error.value, '读取公骰设置失败') : ''
 );
@@ -127,6 +129,16 @@ const saveMutation = useMutation({
   mutationFn: async (payload: PublicDiceUpdateBodyWritable) => {
     const { data } = await putSdApiV2ConfigPublicDice({
       body: payload,
+      throwOnError: true,
+    });
+    return data.item;
+  },
+});
+
+const enableMutation = useMutation({
+  mutationFn: async (publicDiceEnable: boolean) => {
+    const { data } = await putSdApiV2ConfigPublicDiceEnable({
+      body: { publicDiceEnable },
       throwOnError: true,
     });
     return data.item;
@@ -162,7 +174,14 @@ async function handleEnableUpdate(value: boolean) {
   const previous = draft.value.config.publicDiceEnable;
   draft.value.config.publicDiceEnable = value;
   try {
-    await submitCurrentDraft(value ? '公骰已启用' : '公骰已关闭');
+    const item = await enableMutation.mutateAsync(value);
+    if (draft.value) {
+      draft.value.config.publicDiceEnable = item.config.publicDiceEnable;
+    }
+    if (initialDraft.value) {
+      initialDraft.value.config.publicDiceEnable = item.config.publicDiceEnable;
+    }
+    message.success(value ? '公骰已启用' : '公骰已关闭');
   } catch (error) {
     if (draft.value) {
       draft.value.config.publicDiceEnable = previous;
@@ -183,7 +202,7 @@ useUnsavedChanges('public-dice', {
   label: '公骰设置',
   dirty,
   save: saveDraft,
-  saving: computed(() => saveMutation.isPending.value),
+  saving,
   canSave,
   confirmMessage: '公骰设置还有修改，确定要忽略？',
 });
