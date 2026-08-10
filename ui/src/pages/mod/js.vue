@@ -271,42 +271,48 @@ function startRecordPolling() {
   }, 3000);
 }
 
-async function handleReload() {
+async function handleReload(): Promise<boolean> {
   if (isTestMode.value) {
     message.warning('展示模式不支持该操作');
-    return;
+    return false;
   }
   try {
     await postSdApiV2JsReload({ throwOnError: true });
     message.success('已重载');
     needReload.value = false;
-    statusQuery.refetch();
+    await statusQuery.refetch();
+    return true;
   } catch (error) {
     if (isTestModeApiError(error)) {
       message.warning(getTestModeBlockMessage(error));
-      return;
+      return false;
     }
     message.error('重载失败');
+    await statusQuery.refetch();
+    return false;
   }
 }
 
-async function handleShutdown() {
+async function handleShutdown(): Promise<boolean> {
   if (isTestMode.value) {
     message.warning('展示模式不支持该操作');
-    return;
+    return false;
   }
   try {
     await postSdApiV2JsShutdown({ throwOnError: true });
     jsLines.value = [];
     jsEnable.value = false;
     message.success('已关闭 JS 支持');
-    statusQuery.refetch();
+    await statusQuery.refetch();
+    return true;
   } catch (error) {
     if (isTestModeApiError(error)) {
       message.warning(getTestModeBlockMessage(error));
-      return;
+      return false;
     }
     message.error('关闭失败');
+    await statusQuery.refetch();
+    return false;
   }
 }
 
@@ -316,10 +322,8 @@ async function handleJsEnableToggle(value: boolean) {
   try {
     if (value) {
       await handleReload();
-      jsEnable.value = true;
     } else {
       await handleShutdown();
-      jsEnable.value = false;
     }
   } finally {
     jsSwitchBusy.value = false;
