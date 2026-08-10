@@ -199,10 +199,11 @@ useUnsavedChanges('helpdoc-config', {
 });
 
 const columns: DataTableColumns<HelpTextVo> = [
-  { title: '序号', key: 'id', align: 'center' },
+  { title: '序号', key: 'id', width: 80, align: 'center' },
   {
     title: '分组',
     key: 'group',
+    width: 120,
     align: 'center',
     render: row =>
       h(
@@ -211,12 +212,12 @@ const columns: DataTableColumns<HelpTextVo> = [
         { default: () => row.group || '-' },
       ),
   },
-  { title: '来源文件', key: 'from', minWidth: 180, ellipsis: { tooltip: true } },
-  { title: '词条名', key: 'title', minWidth: 140, ellipsis: { tooltip: true } },
+  { title: '来源文件', key: 'from', width: 200, ellipsis: { tooltip: true } },
+  { title: '词条名', key: 'title', width: 180, ellipsis: { tooltip: true } },
   {
     title: '内容',
     key: 'content',
-    minWidth: 320,
+    width: 480,
     render: row =>
       h(
         NTooltip,
@@ -232,7 +233,7 @@ const columns: DataTableColumns<HelpTextVo> = [
         },
       ),
   },
-  { title: '分类', key: 'packageName', minWidth: 130, ellipsis: { tooltip: true } },
+  { title: '分类', key: 'packageName', width: 150, ellipsis: { tooltip: true } },
 ];
 
 onMounted(() => {
@@ -317,8 +318,10 @@ function retryTask(task: ResumableUploadTask) {
 }
 
 :deep(.help-content-preview) {
-  display: inline-block;
-  max-width: 30rem;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

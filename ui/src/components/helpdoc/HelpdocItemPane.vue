@@ -13,7 +13,7 @@
         />
       </header>
 
-      <n-data-table class="item-list" :columns="columns" :data="items" size="small" :bordered="false" remote :scroll-x="980" />
+      <n-data-table class="item-list" :columns="columns" :data="items" size="small" :bordered="false" remote :scroll-x="1210" />
 
       <footer>
         <n-flex class="item-list-pagination" align="center" justify="end" wrap>
