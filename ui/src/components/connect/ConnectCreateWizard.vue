@@ -10,14 +10,16 @@
     <div v-if="wizardStep === 1" class="wizard-step-panel">
       <div class="split-layout">
         <div class="split-left">
-          <div
+          <button
             v-for="platform in protocols"
             :key="platform.id"
+            type="button"
             :class="['split-item', { 'split-item--selected': wizardPlatform?.id === platform.id }]"
+            :aria-pressed="wizardPlatform?.id === platform.id"
             @click="emit('selectPlatform', platform)"
           >
             <span class="split-item-name">{{ platform.name }}</span>
-          </div>
+          </button>
         </div>
         <div class="split-right">
           <n-empty v-if="!wizardPlatform" description="请在左侧选择一个平台" />
@@ -32,14 +34,16 @@
     <div v-if="wizardStep === 2" class="wizard-step-panel">
       <div class="split-layout">
         <div class="split-left">
-          <div
+          <button
             v-for="method in wizardPlatform?.methods"
             :key="method.id"
+            type="button"
             :class="['split-item', { 'split-item--selected': wizardMethod?.id === method.id }]"
+            :aria-pressed="wizardMethod?.id === method.id"
             @click="emit('selectMethod', method)"
           >
             <span class="split-item-name">{{ method.name }}</span>
-          </div>
+          </button>
         </div>
         <div class="split-right">
           <n-empty v-if="!wizardMethod" description="请在左侧选择一种方式" />
@@ -54,20 +58,23 @@
     <div v-if="wizardStep === 3" class="wizard-step-panel">
       <div class="split-layout">
         <div class="split-left">
-          <div
+          <button
             v-for="protocol in wizardMethod?.protocols"
             :key="protocol.key"
+            type="button"
             :class="[
               'split-item',
               { 'split-item--selected': wizardProtocol?.key === protocol.key },
               { 'split-item--disabled': !protocol.available },
             ]"
-            @click="protocol.available ? emit('selectProtocol', protocol) : null"
+            :aria-pressed="wizardProtocol?.key === protocol.key"
+            :disabled="!protocol.available"
+            @click="emit('selectProtocol', protocol)"
           >
             <span class="split-item-name">{{ protocol.name }}</span>
             <n-tag v-if="protocol.deprecated" type="warning" size="small">已废弃</n-tag>
             <n-tag v-else-if="!protocol.available" type="error" size="small">不可用</n-tag>
-          </div>
+          </button>
         </div>
         <div class="split-right">
           <n-empty v-if="!wizardProtocol" description="请在左侧选择一个协议" />
@@ -197,6 +204,12 @@ const emit = defineEmits<{
 }
 
 .split-item {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
   padding: 10px 12px;
   border-radius: 6px;
   cursor: pointer;
@@ -224,6 +237,11 @@ const emit = defineEmits<{
 
 .split-item--disabled:hover {
   background-color: transparent;
+}
+
+.split-item:focus-visible {
+  outline: 2px solid var(--sd-primary);
+  outline-offset: 2px;
 }
 
 .split-item-name {
