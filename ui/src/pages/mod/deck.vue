@@ -253,6 +253,9 @@
       </div>
 
       <n-modal v-model:show="showDiff" preset="card" title="牌堆内容对比" class="diff-dialog">
+        <n-alert v-if="diffErrorText" type="error" :show-icon="false" class="mb-3">
+          {{ diffErrorText }}
+        </n-alert>
         <DiffViewer :lang="deckCheck.format ?? 'text'" :old="deckCheck.old ?? ''" :new="deckCheck.new ?? ''" :theme="isDark ? 'dark' : 'light'" />
         <template #footer>
           <n-flex wrap>
@@ -266,7 +269,7 @@
               <template #icon>
                 <n-icon><i-ep-document-checked /></n-icon>
               </template>
-              确认更新
+              {{ diffErrorText ? '重试更新' : '确认更新' }}
             </n-button>
           </n-flex>
         </template>
@@ -396,6 +399,7 @@ const deckSearchColumns: ProSearchFormColumns<DeckSearchFormValues> = [
 
 const showDiff = ref(false);
 const diffLoading = ref(false);
+const diffErrorText = ref('');
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const deckCheck = ref<UpdateCheckResult>({
   success: false,
@@ -514,17 +518,19 @@ const updateMutation = useMutation({
     return data.item;
   },
   onSuccess: async item => {
-    showDiff.value = false;
     if (!item.success) {
-      message.error('更新失败');
+      diffErrorText.value = item.err || '更新失败，请重试';
+      message.error(diffErrorText.value);
       return;
     }
+    diffErrorText.value = '';
+    showDiff.value = false;
     message.success('更新成功，即将自动重载牌堆');
     await invalidateDeckList();
   },
   onError: () => {
-    showDiff.value = false;
-    message.error('更新失败');
+    diffErrorText.value = '更新请求失败，请检查网络后重试';
+    message.error(diffErrorText.value);
   },
 });
 
@@ -622,6 +628,7 @@ async function doCheckUpdate(item: DeckItem) {
       return;
     }
     deckCheck.value = data.item;
+    diffErrorText.value = '';
     showDiff.value = true;
   } catch {
     message.error('检查更新失败');
@@ -631,6 +638,7 @@ async function doCheckUpdate(item: DeckItem) {
 }
 
 function deckUpdate() {
+  diffErrorText.value = '';
   void updateMutation.mutateAsync();
 }
 </script>
