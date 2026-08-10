@@ -70,6 +70,7 @@ import {
   buildBanListPayload,
   createDefaultBanAddForm,
   createDefaultBanListQuery,
+  getBanRankMeta,
   isBanImportFileAccepted,
   normalizeBanConfig,
 } from '@/features/ban/viewModel';
@@ -206,9 +207,11 @@ function openAddDialog() {
 }
 
 function confirmDelete(item: BanListInfoItem) {
+  const rankLabel = getBanRankMeta(item.rank).label;
+  const targetName = item.name ? `「${item.name}」` : '未命名条目';
   dialog.warning({
     title: '删除',
-    content: '是否删除此记录？',
+    content: `确认删除 ${targetName}（ID: ${item.ID}，级别：${rankLabel}，怒气值：${item.score}）吗？`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
