@@ -179,7 +179,7 @@
               :page-slot="isMobile ? 3 : 5"
               :item-count="logItemPage.size"
               @update:page="handleItemPageChange"
-              @update:page-size="handleItemPageChange"
+              @update:page-size="handleItemPageSizeChange"
             />
           </div>
         </template>
@@ -300,6 +300,7 @@ import { hasAccessToken } from '@/features/auth/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { storyInfoQueryKey } from '@/features/story/queryKeys';
 import { summarizeStoryLogs } from '@/features/story/deleteSummary';
+import { getStoryPageSizeChange } from '@/features/story/pagination';
 import { setStoryLogsSelected } from '@/features/story/selection';
 
 const message = useMessage();
@@ -631,6 +632,11 @@ async function openRawItem(log: LogView) {
   logItemPage.value.logId = log.id;
   logItemPage.value.size = log.size ?? 0;
   logItemPage.value.pageNum = 1;
+  await loadStoryItems();
+  mode.value = 'items';
+}
+
+async function loadStoryItems() {
   const { data } = await getSdApiV2StoryItemsPage({
     query: {
       logId: logItemPage.value.logId,
@@ -640,20 +646,16 @@ async function openRawItem(log: LogView) {
     throwOnError: true,
   });
   itemData.value = data.item ?? [];
-  mode.value = 'items';
 }
 
 async function handleItemPageChange(value: number) {
   logItemPage.value.pageNum = value;
-  const { data } = await getSdApiV2StoryItemsPage({
-    query: {
-      logId: logItemPage.value.logId,
-      pageNum: logItemPage.value.pageNum,
-      pageSize: logItemPage.value.pageSize,
-    },
-    throwOnError: true,
-  });
-  itemData.value = data.item ?? [];
+  await loadStoryItems();
+}
+
+async function handleItemPageSizeChange(value: number) {
+  Object.assign(logItemPage.value, getStoryPageSizeChange(value));
+  await loadStoryItems();
 }
 
 function closeItem() {
