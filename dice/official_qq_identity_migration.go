@@ -1053,7 +1053,7 @@ func (m *officialQQIdentityMigration) migrateLogDB(operator engine.DatabaseOpera
 						if err := ensureNoTarget(tx, &model.LogInfo{}, "group_id = ? AND name = ?", newGroupID, row.Name); err != nil {
 							return err
 						}
-						if err := tx.Model(&model.LogInfo{}).Where("id = ?", row.ID).Update("group_id", newGroupID).Error; err != nil {
+						if err := tx.Model(&model.LogInfo{}).Where("id = ?", row.ID).UpdateColumn("group_id", newGroupID).Error; err != nil {
 							return err
 						}
 					}
