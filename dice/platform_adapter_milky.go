@@ -54,6 +54,10 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		return
 	}
 	elements := ParseMessageToMilky(msg)
+	if len(elements) == 0 {
+		log.Warnf("Skipping Milky group message to %s: no supported message elements", groupID)
+		return
+	}
 	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
@@ -80,6 +84,10 @@ func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID stri
 		return
 	}
 	elements := ParseMessageToMilky(msg)
+	if len(elements) == 0 {
+		log.Warnf("Skipping Milky private message to %s: no supported message elements", userID)
+		return
+	}
 	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send private message to %s: %v", userID, err)
@@ -332,7 +340,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 			ctx.Dice.Config.BanList.AddScoreByGroupMuted(opUID, groupId, ctx)
 			txt := fmt.Sprintf("被禁言: 在群组<%s>(%s)中被禁言，时长%d秒，操作者:<%s>(%d)", groupName, groupId, m.Duration, userName, m.OperatorID)
 			log.Info(txt)
-			ctx.Notice(txt)
+			ctx.Notice(txt, NoticeTypeGroup)
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.FriendRequest) {
@@ -353,7 +361,7 @@ func (pa *PlatformAdapterMilky) Serve() int {
 		userName := dm.TryGetUserName(uid)
 		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%d)", groupName, groupId, userName, m.InitiatorID)
 		log.Info(txt)
-		ctx.Notice(txt)
+		ctx.Notice(txt, NoticeTypeInvite)
 
 		// 邀请人在黑名单上
 		banInfo, ok := ctx.Dice.Config.BanList.GetByID(uid)
@@ -507,7 +515,7 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", strconv.FormatInt(event.InitiatorID, 10), comment, willAccept, extra)
 	log.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeInvite)
 
 	// 忽略邀请
 	if pa.IgnoreFriendRequest {
@@ -881,6 +889,10 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 		log.Errorf("Invalid user ID %s: %v", uid, err)
 		return
 	}
+	if len(elements) == 0 {
+		log.Warnf("Skipping Milky private message to %s: no supported message elements", uid)
+		return
+	}
 	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
 	if err != nil {
 		log.Errorf("Failed to send private message to %s: %v", uid, err)
@@ -907,9 +919,25 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
+	nudgeTargets := make([]int64, 0)
+	for _, element := range send {
+		poke, ok := element.(*message.PokeElement)
+		if !ok {
+			continue
+		}
+		userID, parseErr := strconv.ParseInt(poke.Target, 10, 64)
+		if parseErr != nil || userID <= 0 {
+			log.Warnf("Skipping invalid Milky group nudge target %q", poke.Target)
+			continue
+		}
+		nudgeTargets = append(nudgeTargets, userID)
+	}
+	if len(elements) == 0 && len(nudgeTargets) == 0 {
+		log.Warnf("Skipping Milky group message to %s: no supported message elements", groupID)
+		return
+	}
 	var ret *milky.MessageRet
 	if len(elements) == 0 {
-		log.Debugf("No valid message elements to send to group %s", groupID)
 		ret = &milky.MessageRet{}
 	} else {
 		ret, err = pa.IntentSession.SendGroupMessage(id, &elements)
@@ -918,19 +946,13 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 		log.Errorf("Failed to send group message to %s: %v", groupID, err)
 		return
 	}
-	go func() {
-		for _, element := range send {
-			if poke, ok := element.(*message.PokeElement); ok {
-				log.Debugf("Sending group Nudge: %s", poke.Target)
-				userid, err2 := strconv.ParseInt(poke.Target, 10, 64)
-				if err2 != nil {
-					return
-				}
-				_ = pa.IntentSession.SendGroupNudge(id, userid)
-				doSleepQQ(ctx)
-			}
+	go func(targets []int64) {
+		for _, userID := range targets {
+			log.Debugf("Sending group Nudge: %d", userID)
+			_ = pa.IntentSession.SendGroupNudge(id, userID)
+			doSleepQQ(ctx)
 		}
-	}()
+	}(nudgeTargets)
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
@@ -983,6 +1005,10 @@ func (pa *PlatformAdapterMilky) QuitGroup(ctx *MsgContext, groupID string) {
 }
 
 func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string) (*milky.GroupMemberInfo, error) {
+	return pa.getGroupMemberInfo(groupID, userID, false)
+}
+
+func (pa *PlatformAdapterMilky) getGroupMemberInfo(groupID string, userID string, noCache bool) (*milky.GroupMemberInfo, error) {
 	if pa == nil || pa.IntentSession == nil {
 		return nil, errors.New("milky session unavailable")
 	}
@@ -1001,7 +1027,7 @@ func (pa *PlatformAdapterMilky) GetGroupMemberInfo(groupID string, userID string
 	if err != nil {
 		return nil, fmt.Errorf("invalid milky user id %q: %w", userID, err)
 	}
-	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, false)
+	return pa.IntentSession.GetGroupMemberInfo(groupIDInt, userIDInt, noCache)
 }
 
 func (pa *PlatformAdapterMilky) SetGroupCardName(ctx *MsgContext, cardName string) {

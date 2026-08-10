@@ -352,9 +352,12 @@ func LogGetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 	err = db.Model(&model.LogInfo{}).
 		Select("updated_at, upload_url, upload_time").
 		Where("group_id = ? AND name = ?", groupID, logName).
-		Find(&logInfo).Error
+		Take(&logInfo).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", 0, 0, ErrLogNotFound
+		}
 		return "", 0, 0, err
 	}
 
@@ -397,13 +400,20 @@ func LogSetUploadInfo(operator engine2.DatabaseOperator, groupID string, logName
 
 	now := time.Now().Unix()
 
-	// 使用 GORM 更新上传信息
-	err := db.Model(&model.LogInfo{}).Where("group_id = ? AND name = ?", groupID, logName).
-		Update("upload_url", url).
-		Update("upload_time", now).
-		Error
-
-	return err
+	// 元数据写回不能刷新 logs.updated_at；该字段只表示日志内容最后变更时间。
+	result := db.Model(&model.LogInfo{}).
+		Where("group_id = ? AND name = ?", groupID, logName).
+		UpdateColumns(map[string]interface{}{
+			"upload_url":  url,
+			"upload_time": now,
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrLogNotFound
+	}
+	return nil
 }
 
 func LogSetUploadInfoByID(operator engine2.DatabaseOperator, logID uint64, url string) error {

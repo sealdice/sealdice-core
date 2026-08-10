@@ -36,6 +36,7 @@ type GroupNameCacheItem struct {
 
 type DiceManager struct { //nolint:revive
 	Dice                 []*Dice
+	diceLock             sync.RWMutex
 	Operator             engine.DatabaseOperator
 	ServeAddress         string
 	trayTooltip          string
@@ -239,7 +240,7 @@ func (dm *DiceManager) LoadDice() {
 		newDice := new(Dice)
 		newDice.BaseConfig = i
 		newDice.ContainerMode = dm.ContainerMode
-		dm.Dice = append(dm.Dice, newDice)
+		dm.appendDice(newDice)
 	}
 }
 
@@ -283,7 +284,7 @@ func (dm *DiceManager) GetTrayTooltip() string {
 	return dm.trayTooltip
 }
 
-// NormalizeTrayTooltipPrefix trims and caps the tray tooltip prefix by rune count.
+// NormalizeTrayTooltipPrefix 规范化托盘提示前缀，并按 Unicode 字符数限制长度。
 func NormalizeTrayTooltipPrefix(tooltip string) string {
 	tooltip = strings.TrimSpace(tooltip)
 	runes := []rune(tooltip)
@@ -297,6 +298,19 @@ func (dm *DiceManager) SetTrayTooltip(tooltip string) {
 	dm.trayTooltipLock.Lock()
 	defer dm.trayTooltipLock.Unlock()
 	dm.trayTooltip = NormalizeTrayTooltipPrefix(tooltip)
+}
+
+// DiceSnapshot 返回当前 Dice 实例切片的副本。
+func (dm *DiceManager) DiceSnapshot() []*Dice {
+	dm.diceLock.RLock()
+	defer dm.diceLock.RUnlock()
+	return append([]*Dice(nil), dm.Dice...)
+}
+
+func (dm *DiceManager) appendDice(instance *Dice) {
+	dm.diceLock.Lock()
+	defer dm.diceLock.Unlock()
+	dm.Dice = append(dm.Dice, instance)
 }
 
 func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
@@ -389,6 +403,8 @@ func (dm *DiceManager) TryCreateDefault() {
 		dm.ServeAddress = "0.0.0.0:3211"
 	}
 
+	dm.diceLock.Lock()
+	defer dm.diceLock.Unlock()
 	if len(dm.Dice) == 0 {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"

@@ -54,7 +54,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.21.0
-	github.com/mroth/weightedrand v1.0.0
+	github.com/mroth/weightedrand/v3 v3.0.0
 	github.com/ncruces/go-sqlite3 v0.32.0
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/oklog/ulid/v2 v2.1.2
@@ -72,8 +72,8 @@ require (
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/samber/lo v1.52.0
 	github.com/schollz/progressbar/v3 v3.19.1
-	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 // replaced below
-	github.com/sealdice/dicescript v0.0.0-20260511210507-209e4d20a070
+	github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6
+	github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/slack-go/slack v0.17.3
 	github.com/sunshineplan/imgconv v1.1.15
@@ -103,6 +103,11 @@ require (
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.2
+)
+
+require (
+	github.com/emmansun/gmsm v0.44.1
+	github.com/sixafter/aes-ctr-drbg v1.16.0
 )
 
 require (
@@ -235,5 +240,4 @@ replace (
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0 => github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105 => github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6
-	github.com/sealdice/botgo v0.0.0-20240102160217-e61d5bdfe083 => github.com/baiyu-yu/botgo v0.0.0-20260724092016-620fecba07da
 )

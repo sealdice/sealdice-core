@@ -274,6 +274,10 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 	userId := canonicalOnebotUserID(req.Get("user_id").String())
 	selfId := canonicalOnebotUserID(req.Get("self_id").String())
 	groupId := canonicalOnebotGroupID(req.Get("group_id").String())
+	msg.MessageType = "group"
+	msg.Platform = "QQ"
+	msg.GroupID = groupId
+	msg.Sender.UserID = userId
 	// 迎新逻辑
 	// 发送入群致辞逻辑
 	if userId == selfId {
@@ -283,16 +287,11 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 		if operatorID != "" && operatorID != selfId {
 			msg.Sender.UserID = operatorID
 		}
-		ctx.Group.InviteUserID = msg.Sender.UserID
 		_ = p.submitAsync(func() {
 			session.OnGroupJoined(ctx, msg)
 		})
 	} else {
 		p.logger.Infof("收到非自己的入群通知: group_id=%s user_id=%s", groupId, userId)
-		msg.MessageType = "group"
-		msg.Platform = "QQ"
-		msg.GroupID = groupId
-		msg.Sender.UserID = userId
 		_ = p.submitAsync(func() {
 			session.OnGroupMemberJoined(ctx, msg)
 		})
@@ -326,6 +325,10 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 			}
 		}
 		// 先判断是否需要加群
+		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
+		p.logger.Info(txt)
+		ctx.Notice(txt, NoticeTypeInvite)
+
 		ok, reason := checkPassBlackListGroup(diceUserId, diceGroupId, ctx)
 		if !ok {
 			p.logger.Infof("群组 %s 加群请求被拒绝，原因为 %s", req.Get("group_id").String(), reason)
@@ -342,9 +345,6 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		}
 		// 没问题，加群
 		_ = p.submitAsync(func() {
-			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
-			p.logger.Info(txt)
-			ctx.Notice(txt)
 			err := p.sendEmitter.SetGroupAddRequest(p.ctx, req.Get("flag").String(), req.Get("sub_type").String(), true, "")
 			if err != nil {
 				p.logger.Errorf("处理加群请求时发送消息失败 %s", err)
@@ -382,7 +382,6 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 				p.logger.Infof("重复好友申请已跳过: flag=%s user_id=%s", flag, userID)
 				return nil
 			}
-			cache.Delete(flag)
 			cache.Set(flag, struct{}{})
 		}
 	}
@@ -421,7 +420,7 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	}
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeInvite)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
 	if !p.IgnoreFriendRequest {
 		err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), result.Passed && passQuestion, "")
@@ -924,9 +923,10 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			fileVal := res.File
+			// URL 保存可直接发送的完整资源引用；File 对本地文件通常只有文件名。
+			fileVal := res.URL
 			if fileVal == "" {
-				fileVal = res.URL
+				fileVal = res.File
 			}
 			if fileVal == "" {
 				continue

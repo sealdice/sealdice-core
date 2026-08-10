@@ -39,7 +39,42 @@ import (
 	"sealdice-core/utils"
 )
 
-var officialQQAtRegex = regexp.MustCompile(`<@!?(\S+?)>`)
+// Official QQ 当前使用 qqbot-at-user 标签表示提及；解析端继续兼容旧的
+// <@userID> 格式，以便平滑处理旧事件和已持久化消息。
+var officialQQAtRegex = regexp.MustCompile(`(?:<qqbot-at-user\s+id="([^"]+)"\s*/>|<@!?(\S+?)>)`)
+
+func officialQQMentionTarget(match []string) string {
+	if len(match) < 2 {
+		return ""
+	}
+	for _, target := range match[1:] {
+		if target != "" {
+			return target
+		}
+	}
+	return ""
+}
+
+func formatOfficialQQAtUser(target string) string {
+	return fmt.Sprintf(`<qqbot-at-user id="%s" />`, target)
+}
+
+func renderOfficialQQGroupAtTarget(target string) string {
+	if target == "all" {
+		return ""
+	}
+	return formatOfficialQQAtUser(target)
+}
+
+func rewriteOfficialQQGroupAtTags(text string, normalizeTarget func(string) string) string {
+	return officialQQAtRegex.ReplaceAllStringFunc(text, func(tag string) string {
+		target := officialQQMentionTarget(officialQQAtRegex.FindStringSubmatch(tag))
+		if target == "" {
+			return tag
+		}
+		return renderOfficialQQGroupAtTarget(normalizeTarget(target))
+	})
+}
 
 type PaginationItem struct {
 	Pages     []string
@@ -81,6 +116,11 @@ type PlatformAdapterOfficialQQ struct {
 	QrCodeData   []byte                    `json:"-"           yaml:"-"` // 当前二维码图片数据（PNG），参考 milky 的 QrCodeData
 	qrSession    *QQOfficialQrLoginSession `json:"-" yaml:"-"`
 	qrMu         sync.Mutex                `json:"-" yaml:"-"`
+
+	// 主动消息发送队列
+	c2cSendQuota   *OfficialQQSendQuota `json:"-" yaml:"-"`
+	groupSendQuota *OfficialQQSendQuota `json:"-" yaml:"-"`
+	sendQuotaOnce  sync.Once            `json:"-" yaml:"-"`
 }
 
 type officialQQAdapterJSON struct {
@@ -499,6 +539,8 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 	if !pa.OnlyQQGuild {
 		// 群聊@消息、单聊、好友关系事件
 		intent |= dto.IntentGroupMessages
+		// 群成员进退群事件
+		intent |= dto.IntentGroupMembers
 	}
 
 	go func() {
@@ -863,6 +905,7 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(pa.UIN, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
+	pa.populateGroupMentionedInfo(msg, msgQQ.Mentions)
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
@@ -871,8 +914,8 @@ func (pa *PlatformAdapterOfficialQQ) groupMsgToStdMsg(event *dto.WSPayload, msgQ
 	}
 
 	m := officialQQAtRegex.FindStringSubmatch(msgQQ.Content)
-	if len(m) == 2 {
-		msg.TmpUID = "OpenQQ:" + m[1]
+	if target := officialQQMentionTarget(m); target != "" {
+		msg.TmpUID = officialQQUserIDPrefix + target
 	} else if botSelfOpenID != "" {
 		msg.TmpUID = "OpenQQ:" + botSelfOpenID
 	}
@@ -914,6 +957,7 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 		msg.Sender.UserID = formatDiceIDOfficialQQMemberOpenID(pa.UIN, msgQQ.GroupOpenID, msgQQ.Author.MemberOpenID)
 		msg.Sender.GroupRole = msgQQ.Author.MemberRole
 	}
+	pa.populateGroupMentionedInfo(msg, msgQQ.Mentions)
 
 	botSelfOpenID := pa.parseBotSelfOpenID(event)
 
@@ -922,8 +966,8 @@ func (pa *PlatformAdapterOfficialQQ) groupNormalMsgToStdMsg(event *dto.WSPayload
 	}
 
 	for _, match := range officialQQAtRegex.FindAllStringSubmatch(msgQQ.Content, -1) {
-		if len(match) == 2 && match[1] == botSelfOpenID {
-			msg.TmpUID = "OpenQQ:" + match[1]
+		if target := officialQQMentionTarget(match); target == botSelfOpenID {
+			msg.TmpUID = officialQQUserIDPrefix + target
 			break
 		}
 	}
@@ -1631,6 +1675,14 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
 			return
 		}
+		// 主动消息（无 msg_id/event_id）需要排队限流
+		if toCreate.MsgID == "" && toCreate.EventID == "" {
+			if err := pa.waitC2CActiveQuota(qctx, userOpenID); err != nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
+				lastErr = err
+				return
+			}
+		}
 		res, err := pa.Api.PostC2CMessage(qctx, userOpenID, toCreate)
 		if err != nil {
 			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息失败：" + err.Error())
@@ -1687,6 +1739,146 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 
 	sendCurrent(true)
 	return lastRes, lastErr
+}
+
+// 官方QQ主动消息频率限制：
+// 超出频率时消息进入排队，按预约顺序依次发出；
+const (
+	officialQQC2CBotLimit      = 10 // 单聊：10次/秒
+	officialQQC2CBotPeriod     = time.Second
+	officialQQGroupBotLimit    = 60 // 群聊：60次/分钟
+	officialQQGroupBotPeriod   = time.Minute
+	officialQQRelationLimit    = 20 // 单个用户/群：20次/分钟
+	officialQQRelationPeriod   = time.Minute
+	officialQQDailyLimit       = 1000            // 每日上限：1000条/用户或群
+	officialQQMaxQueueDelay    = 5 * time.Minute // 最大排队等待时长
+	officialQQRelationMapLimit = 2048            // 清理阈值
+)
+
+// OfficialQQSendQuota 主动消息发送队列。
+type OfficialQQSendQuota struct {
+	mu sync.Mutex
+
+	botLimit  int
+	botPeriod time.Duration
+	botStamps []time.Time
+
+	relStamps map[string][]time.Time
+
+	dailyDay   string
+	dailyCount map[string]int
+}
+
+var officialQQTimeZone = time.FixedZone("CST", 8*3600)
+
+// reserve 为 targetID 的一次主动发送预约时刻。
+func (q *OfficialQQSendQuota) reserve(targetID string) (time.Time, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	now := time.Now().In(officialQQTimeZone)
+
+	// 每日计数按UTC+8日期重置
+	day := now.Format("2006-01-02")
+	if day != q.dailyDay {
+		q.dailyDay = day
+		q.dailyCount = make(map[string]int)
+	}
+	if q.dailyCount[targetID] >= officialQQDailyLimit {
+		return time.Time{}, fmt.Errorf("对 %s 的主动消息已达当日上限(%d条)", targetID, officialQQDailyLimit)
+	}
+
+	// 取两个窗口都允许的最早时刻
+	t := now
+	rel := q.relStamps[targetID]
+	if len(rel) >= officialQQRelationLimit {
+		if c := rel[len(rel)-officialQQRelationLimit].Add(officialQQRelationPeriod); c.After(t) {
+			t = c
+		}
+	}
+	if len(q.botStamps) >= q.botLimit {
+		if c := q.botStamps[len(q.botStamps)-q.botLimit].Add(q.botPeriod); c.After(t) {
+			t = c
+		}
+	}
+
+	if t.Sub(now) > officialQQMaxQueueDelay {
+		return time.Time{}, fmt.Errorf("对 %s 的主动消息排队等待超过 %v，放弃发送", targetID, officialQQMaxQueueDelay)
+	}
+
+	// 提交预约
+	rel = append(rel, t)
+	if len(rel) > officialQQRelationLimit {
+		rel = rel[len(rel)-officialQQRelationLimit:]
+	}
+	q.relStamps[targetID] = rel
+
+	q.botStamps = append(q.botStamps, t)
+	if len(q.botStamps) > q.botLimit {
+		q.botStamps = q.botStamps[len(q.botStamps)-q.botLimit:]
+	}
+
+	q.dailyCount[targetID]++
+
+	// 防止关系级记录无限增长，剔除窗口早已滑过的目标
+	if len(q.relStamps) > officialQQRelationMapLimit {
+		for id, stamps := range q.relStamps {
+			if len(stamps) == 0 || now.Sub(stamps[len(stamps)-1]) > officialQQRelationPeriod {
+				delete(q.relStamps, id)
+			}
+		}
+	}
+
+	return t, nil
+}
+
+// acquire 阻塞直到 targetID 可以发送一条主动消息；支持 Context 取消
+func (q *OfficialQQSendQuota) acquire(ctx context.Context, targetID string) error {
+	t, err := q.reserve(targetID)
+	if err != nil {
+		return err
+	}
+	d := time.Until(t)
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func (pa *PlatformAdapterOfficialQQ) initSendQuota() {
+	pa.sendQuotaOnce.Do(func() {
+		pa.c2cSendQuota = &OfficialQQSendQuota{
+			botLimit:   officialQQC2CBotLimit,
+			botPeriod:  officialQQC2CBotPeriod,
+			relStamps:  make(map[string][]time.Time),
+			dailyCount: make(map[string]int),
+		}
+		pa.groupSendQuota = &OfficialQQSendQuota{
+			botLimit:   officialQQGroupBotLimit,
+			botPeriod:  officialQQGroupBotPeriod,
+			relStamps:  make(map[string][]time.Time),
+			dailyCount: make(map[string]int),
+		}
+	})
+}
+
+// waitC2CActiveQuota 主动单聊消息排队限流，返回错误时应放弃发送
+func (pa *PlatformAdapterOfficialQQ) waitC2CActiveQuota(ctx context.Context, userOpenID string) error {
+	pa.initSendQuota()
+	return pa.c2cSendQuota.acquire(ctx, userOpenID)
+}
+
+// waitGroupActiveQuota 主动群聊消息排队限流，返回错误时应放弃发送
+func (pa *PlatformAdapterOfficialQQ) waitGroupActiveQuota(ctx context.Context, groupOpenID string) error {
+	pa.initSendQuota()
+	return pa.groupSendQuota.acquire(ctx, groupOpenID)
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
@@ -1819,6 +2011,14 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
 			return
 		}
+		// 主动消息排队限流
+		if toCreate.MsgID == "" && toCreate.EventID == "" {
+			if err := pa.waitGroupActiveQuota(qctx, groupID); err != nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
+				lastErr = err
+				return
+			}
+		}
 		res, err := pa.Api.PostGroupMessage(qctx, groupID, toCreate)
 		if err != nil {
 			pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息失败：" + err.Error())
@@ -1831,7 +2031,9 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	for _, element := range elems {
 		switch elem := element.(type) {
 		case *message.TextElement:
-			content += textLinkStrip(elem.Content)
+			content += rewriteOfficialQQGroupAtTags(textLinkStrip(elem.Content), func(target string) string {
+				return normalizeOfficialQQGroupAtTarget(pa.UIN, target)
+			})
 		case *message.ReplyElement:
 			msgRef = &dto.MessageReference{
 				MessageID:             elem.ReplySeq,
@@ -1839,11 +2041,8 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			}
 			toCreate.MessageReference = msgRef
 		case *message.AtElement:
-			target := strings.TrimPrefix(elem.Target, "OpenQQ:")
-			target = strings.TrimPrefix(target, "QQ:")
-			if target != "all" {
-				content += fmt.Sprintf("<qqbot-at-user id=\"%s\" />", target)
-			}
+			target := normalizeOfficialQQGroupAtTarget(pa.UIN, elem.Target)
+			content += renderOfficialQQGroupAtTarget(target)
 		case *message.ImageElement:
 			media, err := pa.uploadGroupMedia(qctx, groupID, elem.File, 1)
 			if err != nil {
@@ -1963,6 +2162,57 @@ func formatDiceIDOfficialQQGroupOpenID(uin, groupOpenID string) string {
 func formatDiceIDOfficialQQMemberOpenID(uin, _ string, memberOpenID string) string {
 	// 官方QQ群成员ID格式
 	return fmt.Sprintf("%s%s-%s", officialQQUserIDPrefix, uin, memberOpenID)
+}
+
+func normalizeOfficialQQGroupAtTarget(uin, target string) string {
+	target = strings.TrimSpace(target)
+	target = strings.TrimPrefix(target, officialQQUserIDPrefix)
+	target = strings.TrimPrefix(target, "QQ:")
+	if uin != "" {
+		target = strings.TrimPrefix(target, uin+"-")
+	}
+	return target
+}
+
+func (pa *PlatformAdapterOfficialQQ) populateGroupMentionedInfo(msg *Message, mentions []*dto.User) {
+	for _, mentioned := range mentions {
+		if mentioned == nil {
+			continue
+		}
+		memberOpenID := strings.TrimSpace(mentioned.MemberOpenID)
+		if memberOpenID == "" {
+			memberOpenID = strings.TrimSpace(mentioned.ID)
+		}
+		nickname := strings.TrimSpace(mentioned.Username)
+		if memberOpenID == "" || nickname == "" {
+			continue
+		}
+		if msg.MentionedInfo == nil {
+			msg.MentionedInfo = map[string]string{}
+		}
+
+		// 官方 QQ 的消息正文仍使用裸 MemberOpenID，而人物卡使用规范 ID；
+		// 同时记录两种键，让旧字符串解析和未来的消息段解析都能取得昵称。
+		msg.MentionedInfo[officialQQUserIDPrefix+memberOpenID] = nickname
+		msg.MentionedInfo[formatDiceIDOfficialQQMemberOpenID(pa.UIN, "", memberOpenID)] = nickname
+	}
+}
+
+// normalizeDiceIDOfficialQQMentionUserID converts the bare MemberOpenID carried
+// by an official QQ mention into the canonical user ID used by player cards.
+// Mentions currently arrive as OpenQQ:<MemberOpenID>, while senders and stored
+// attributes use OpenQQ:<UIN>-<MemberOpenID>.
+func normalizeDiceIDOfficialQQMentionUserID(uin, userID string) string {
+	raw, ok := strings.CutPrefix(userID, officialQQUserIDPrefix)
+	if !ok || uin == "" || raw == "" {
+		return userID
+	}
+
+	// Keep endpoint IDs and already-normalized user IDs unchanged.
+	if raw == uin || strings.HasPrefix(raw, uin+"-") {
+		return userID
+	}
+	return formatDiceIDOfficialQQMemberOpenID(uin, "", raw)
 }
 
 func formatDiceIDOfficialQQUserOpenID(uin, userOpenID string) string {

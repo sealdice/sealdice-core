@@ -813,12 +813,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 
 			// sn 指令(除 help 外)需要骰子具有群管理员权限。提前检测 bot 在群中的角色,
-			// 若明确无管理权限则给出明确提示, 避免用户反复尝试。不支持角色检查的适配器
+			// 若明确无管理权限则给出明确提示, 由于协议端问题，目前只能做提示。不支持角色检查的适配器
 			// 返回 ok=false, 此时保持原有行为(直接尝试设置)不做阻断。
 			if valLower != "help" && ctx.Group != nil {
 				if detail, ok := checkBotGroupRole(ctx, ctx.Group.GroupID); ok && detail != "owner" && detail != "admin" {
-					ReplyToSender(ctx, msg, "设置群名片需要骰子具有群管理员权限，请在群内将骰子设为管理员后重试 .sn 指令。")
-					return CmdExecuteResult{Matched: true, Solved: true}
+					ReplyToSender(ctx, msg, "【警告】骰子当前可能不具备管理员权限，请检查，若确认具备管理员权限可无视此误报。")
 				}
 			}
 

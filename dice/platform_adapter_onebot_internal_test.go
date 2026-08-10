@@ -25,15 +25,19 @@ import (
 )
 
 type onebotTestEmitter struct {
-	friendReqCalls []friendReqCall
-	groupReqCalls  []groupReqCall
-	groupInfo      *emitterTypes.GroupInfo
-	groupInfoErr   error
-	groupReqCh     chan struct{}
-	loginInfo      *emitterTypes.LoginInfo
-	loginInfoErr   error
-	sendPvtCh      chan time.Time
-	sendGrCh       chan time.Time
+	friendReqCalls       []friendReqCall
+	groupReqCalls        []groupReqCall
+	groupInfo            *emitterTypes.GroupInfo
+	groupInfoErr         error
+	groupMemberInfo      *emitterTypes.GroupMemberInfo
+	groupMemberInfoErr   error
+	groupMemberInfoCalls []groupMemberInfoCall
+	groupReqCh           chan struct{}
+	loginInfo            *emitterTypes.LoginInfo
+	loginInfoErr         error
+	sendPvtCh            chan time.Time
+	sendGrCh             chan time.Time
+	lastGrID             int64
 }
 
 type friendReqCall struct {
@@ -49,6 +53,12 @@ type groupReqCall struct {
 	Reason  string
 }
 
+type groupMemberInfoCall struct {
+	GroupID int64
+	UserID  int64
+	NoCache bool
+}
+
 var _ emitter.Emitter = (*onebotTestEmitter)(nil)
 
 func (m *onebotTestEmitter) SendPvtMsg(context.Context, int64, schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
@@ -61,7 +71,8 @@ func (m *onebotTestEmitter) SendPvtMsg(context.Context, int64, schema.MessageCha
 	return &emitterTypes.SendMsgRes{}, nil
 }
 
-func (m *onebotTestEmitter) SendGrMsg(context.Context, int64, schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+func (m *onebotTestEmitter) SendGrMsg(_ context.Context, groupID int64, _ schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+	m.lastGrID = groupID
 	if m.sendGrCh != nil {
 		select {
 		case m.sendGrCh <- time.Now():
@@ -146,7 +157,18 @@ func (m *onebotTestEmitter) GetGroupInfo(context.Context, int64, bool) (*emitter
 	return m.groupInfo, nil
 }
 
-func (m *onebotTestEmitter) GetGroupMemberInfo(context.Context, int64, int64, bool) (*emitterTypes.GroupMemberInfo, error) {
+func (m *onebotTestEmitter) GetGroupMemberInfo(_ context.Context, groupID int64, userID int64, noCache bool) (*emitterTypes.GroupMemberInfo, error) {
+	m.groupMemberInfoCalls = append(m.groupMemberInfoCalls, groupMemberInfoCall{
+		GroupID: groupID,
+		UserID:  userID,
+		NoCache: noCache,
+	})
+	if m.groupMemberInfoErr != nil {
+		return nil, m.groupMemberInfoErr
+	}
+	if m.groupMemberInfo != nil {
+		return m.groupMemberInfo, nil
+	}
 	return &emitterTypes.GroupMemberInfo{}, nil
 }
 
@@ -157,6 +179,34 @@ func (m *onebotTestEmitter) Raw(context.Context, emitter.Action, any) ([]byte, e
 func (m *onebotTestEmitter) HandleEcho(emitter.Response[sonic.NoCopyRawMessage]) {}
 
 func (m *onebotTestEmitter) GetDroppedEchoCount() uint64 { return 0 }
+
+func TestCheckBotGroupRoleOnebotBypassesCache(t *testing.T) {
+	em := &onebotTestEmitter{
+		groupMemberInfo: &emitterTypes.GroupMemberInfo{Role: "admin"},
+	}
+	pa := &PlatformAdapterOnebot{
+		ctx:         t.Context(),
+		sendEmitter: em,
+	}
+	ctx := &MsgContext{
+		EndPoint: &EndPointInfo{
+			EndPointInfoBase: EndPointInfoBase{UserID: "QQ:10010"},
+			Adapter:          pa,
+		},
+	}
+
+	role, ok := checkBotGroupRole(ctx, "QQ-Group:2010")
+	if !ok || role != "admin" {
+		t.Fatalf("checkBotGroupRole() = (%q, %v), want (%q, true)", role, ok, "admin")
+	}
+	if len(em.groupMemberInfoCalls) != 1 {
+		t.Fatalf("GetGroupMemberInfo call count = %d, want 1", len(em.groupMemberInfoCalls))
+	}
+	call := em.groupMemberInfoCalls[0]
+	if call.GroupID != 2010 || call.UserID != 10010 || !call.NoCache {
+		t.Fatalf("unexpected GetGroupMemberInfo call: %#v", call)
+	}
+}
 
 func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *onebotTestEmitter, func()) {
 	t.Helper()
@@ -235,6 +285,7 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	d.Config.BanList.Map.Store("QQ:12345", &BanListInfoItem{
 		ID:   "QQ:12345",
 		Rank: BanRankBanned,
@@ -255,6 +306,11 @@ func TestPureOnebotFriendRequestUsesCanonicalUserIDForBlacklist(t *testing.T) {
 	if len(em.friendReqCalls) != 1 {
 		t.Fatalf("expected one friend request action, got %d", len(em.friendReqCalls))
 	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected friend invite notice to be sent")
+	}
 	if em.friendReqCalls[0].Approve {
 		t.Fatalf("expected banned inviter to be rejected, got %#v", em.friendReqCalls[0])
 	}
@@ -264,6 +320,7 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
+	pa.EndPoint.Session.Parent.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=invite"}
 	req := gjson.Parse(`{
 		"post_type":"request",
 		"request_type":"group",
@@ -287,6 +344,11 @@ func TestPureOnebotGroupInviteRejectStopsWithoutApprove(t *testing.T) {
 
 	if len(em.groupReqCalls) != 1 {
 		t.Fatalf("expected one group request action, got %d", len(em.groupReqCalls))
+	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected group invite notice to be sent")
 	}
 	if em.groupReqCalls[0].SubType != "invite" {
 		t.Fatalf("expected reject path to preserve sub_type invite, got %#v", em.groupReqCalls[0])
@@ -794,8 +856,50 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 }
 
 func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
-	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=group"}
+
+	req := gjson.Parse(`{
+		"post_type":"notice",
+		"notice_type":"group_increase",
+		"group_id":"66666",
+		"user_id":"54321",
+		"self_id":"54321",
+		"operator_id":"12345",
+		"time": 1,
+		"message": []
+	}`)
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("handleJoinGroupAction returned error: %v", err)
+	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected self join processing to complete")
+	}
+
+	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
+	if !ok {
+		t.Fatalf("expected group to be initialized")
+	}
+	if group.InviteUserID != "QQ:12345" {
+		t.Fatalf("expected inviter to be preserved, got %q", group.InviteUserID)
+	}
+}
+
+func TestPureOnebotHandleJoinGroupSelfJoinUsesIMSessionNoticeFlow(t *testing.T) {
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	core, observed := observer.New(zapcore.InfoLevel)
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=group"}
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
 	req := gjson.Parse(`{
 		"post_type":"notice",
@@ -812,15 +916,13 @@ func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
 		t.Fatalf("handleJoinGroupAction returned error: %v", err)
 	}
 
-	time.Sleep(5 * time.Second)
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected self join to send group notice via IMSession flow")
+	}
 
-	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
-	if !ok {
-		t.Fatalf("expected group to be initialized")
-	}
-	if group.InviteUserID != "QQ:12345" {
-		t.Fatalf("expected inviter to be preserved, got %q", group.InviteUserID)
-	}
+	waitPureOnebotInfoLog(t, observed, "加入群组:")
 }
 
 func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
@@ -830,6 +932,7 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
 	core, observed := observer.New(zapcore.InfoLevel)
 	d.Logger = zap.New(core).Sugar()
 	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -870,6 +973,7 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenDisabled(t *testing.T) {
 	core, observed := observer.New(zapcore.InfoLevel)
 	d.Logger = zap.New(core).Sugar()
 	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -914,6 +1018,7 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 	core, observed := observer.New(zapcore.InfoLevel)
 	d.Logger = zap.New(core).Sugar()
 	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -944,6 +1049,10 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatal("expected welcome message to be sent")
 	}
 
+	if em.lastGrID != 77777 {
+		t.Fatalf("expected welcome sent to normalized group 77777, got %d", em.lastGrID)
+	}
+
 	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
 		t.Fatalf("expected need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
 	}
@@ -954,21 +1063,23 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 	if len(sendLogs) != 1 {
 		t.Fatalf("expected one welcome send log, got %d", len(sendLogs))
 	}
-	if sendLogs[0].Message == "" ||
-		!strings.Contains(sendLogs[0].Message, "group_id=QQ-Group:77777") ||
-		!strings.Contains(sendLogs[0].Message, "user_id=QQ:12345") ||
-		!strings.Contains(sendLogs[0].Message, `text="欢迎新人"`) {
-		t.Fatalf("unexpected welcome send log: %q", sendLogs[0].Message)
+	sendLog := sendLogs[0].Message
+	if !strings.Contains(sendLog, "发送迎新消息:") ||
+		!strings.Contains(sendLog, "group_id=QQ-Group:77777") ||
+		!strings.Contains(sendLog, "user_id=QQ:12345") ||
+		!strings.Contains(sendLog, `text="欢迎新人"`) {
+		t.Fatalf("unexpected welcome send log: %q", sendLog)
 	}
 }
 
-func TestPureOnebotHandleJoinGroupUsesSharedMemberWelcomeDedupe(t *testing.T) {
+func TestPureOnebotHandleJoinGroupDeduplicatesRepeatedEvent(t *testing.T) {
 	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
 	core, observed := observer.New(zapcore.InfoLevel)
 	d.Logger = zap.New(core).Sugar()
 	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -983,45 +1094,58 @@ func TestPureOnebotHandleJoinGroupUsesSharedMemberWelcomeDedupe(t *testing.T) {
 		"post_type":"notice",
 		"notice_type":"group_increase",
 		"group_id":88888,
-		"user_id":22334,
+		"user_id":22222,
 		"self_id":54321,
-		"time":42,
+		"time": 2,
 		"message": []
 	}`)
 
-	if err := pa.handleJoinGroupAction(req, nil); err != nil {
-		t.Fatalf("first handleJoinGroupAction returned error: %v", err)
+	const eventCount = 8
+	for i := range eventCount {
+		if err := pa.handleJoinGroupAction(req, nil); err != nil {
+			t.Fatalf("handleJoinGroupAction returned error for event %d: %v", i+1, err)
+		}
 	}
+
 	select {
 	case <-em.sendGrCh:
 	case <-time.After(3 * time.Second):
-		t.Fatal("expected first welcome message to be sent")
+		t.Fatal("expected one welcome message to be sent")
 	}
 
-	if err := pa.handleJoinGroupAction(req, nil); err != nil {
-		t.Fatalf("second handleJoinGroupAction returned error: %v", err)
-	}
-	waitPureOnebotInfoLog(t, observed, "reason=duplicate_event")
+	waitPureOnebotInfoLogCount(t, observed, "检查是否需要迎新", eventCount)
 
-	if sendLogs := observed.FilterMessageSnippet("发送迎新消息").All(); len(sendLogs) != 1 {
-		t.Fatalf("expected one welcome send log, got %d", len(sendLogs))
-	}
 	select {
 	case <-em.sendGrCh:
-		t.Fatal("expected duplicate welcome message to be skipped")
-	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected repeated concurrent events to be deduplicated")
+	default:
+	}
+
+	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
+		t.Fatalf("expected exactly one need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
+	}
+	if len(observed.FilterMessageSnippet("reason=duplicate_event").All()) != eventCount-1 {
+		t.Fatalf("expected %d duplicate_event logs, got %d", eventCount-1, len(observed.FilterMessageSnippet("reason=duplicate_event").All()))
+	}
+	if len(observed.FilterMessageSnippet("发送迎新消息").All()) != 1 {
+		t.Fatalf("expected exactly one welcome send log, got %d", len(observed.FilterMessageSnippet("发送迎新消息").All()))
 	}
 }
 
 func waitPureOnebotInfoLog(t *testing.T, observed *observer.ObservedLogs, snippet string) {
 	t.Helper()
+	waitPureOnebotInfoLogCount(t, observed, snippet, 1)
+}
+
+func waitPureOnebotInfoLogCount(t *testing.T, observed *observer.ObservedLogs, snippet string, count int) {
+	t.Helper()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(observed.FilterMessageSnippet(snippet).All()) > 0 {
+		if len(observed.FilterMessageSnippet(snippet).All()) >= count {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("timed out waiting for log snippet %q", snippet)
+	t.Fatalf("timed out waiting for %d log entries containing %q", count, snippet)
 }

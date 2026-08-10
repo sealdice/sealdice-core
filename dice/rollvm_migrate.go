@@ -340,7 +340,7 @@ func DiceFormatTmpl(ctx *MsgContext, s string) string {
 	if a == nil {
 		text = "<%未知项-" + s + "%>"
 	} else {
-		text = ctx.Dice.TextMap[s].PickSource(randSourceDrawAndTmplSelect).(string)
+		text = pickChooserWithRand(ctx.Dice.TextMap[s], ctx.getChooserRand())
 
 		// 找出其兼容情况，以决定使用什么版本的引擎
 		engineVersion := ctx.Dice.getTargetVmEngineVersion(VMVersionCustomText)
@@ -767,6 +767,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 	}
 	// 初始化骰子
 	ctx.vm = ds.NewVM()
+	ctx.vm.RandSrc = ctx.getDiceSource()
 
 	ctx.vm.Config = *ctx.GenDefaultRollVmConfig()
 
@@ -809,7 +810,7 @@ func (ctx *MsgContext) CreateVmIfNotExists() {
 		if value == nil && ctx.Dice != nil && strings.Contains(name, ":") {
 			textTmpl := ctx.Dice.TextMap[name]
 			if textTmpl != nil {
-				if v2, err := DiceFormatV2(ctx, textTmpl.PickSource(randSourceDrawAndTmplSelect).(string)); err == nil {
+				if v2, err := DiceFormatV2(ctx, pickChooserWithRand(textTmpl, ctx.getChooserRand())); err == nil {
 					return ds.NewStrVal(v2)
 				}
 			} else {
@@ -901,7 +902,6 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 
 		tmpSeed := []byte("1234567890ABCDEF")
 		tmpSeed2 := uint64(time.Now().UnixMicro())
-		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
 
 		setupTestAttrs := func(ctx *MsgContext) {
 			// 标记为兼容性测试环境，跳过不必要的数据库查询
@@ -929,6 +929,7 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		// v2 部分
 		ctx := CreateTempCtx(d.UIEndpoint, msg)
 		setupTestAttrs(ctx)
+		ctx.diceRandSrc = newPCGDiceSource(tmpSeed2)
 		ctx.CreateVmIfNotExists()
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
@@ -948,12 +949,12 @@ func TextMapCompatibleCheck(d *Dice, category, k string, textItems []TextTemplat
 		// v1 部分
 		ctx = CreateTempCtx(d.UIEndpoint, msg)
 		setupTestAttrs(ctx)
+		ctx.diceRandSrc = newPCGDiceSource(tmpSeed2)
 		ctx.CreateVmIfNotExists() // 也要设置，因为牌堆要用
 		ctx.vm.Seed = tmpSeed
 		ctx.vm.Init()
 		ctx.SetSplitKey("###SPLIT-KEY###")
 		ctx._v1Rand = ctx.vm.RandSrc
-		randSourceDrawAndTmplSelect.Seed(int64(tmpSeed2))
 
 		_, presetExists := _textMapTestData2[key]
 		if a, exists := _textMapTestData2[key]; exists {

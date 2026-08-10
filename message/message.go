@@ -76,6 +76,16 @@ func EscapeCQParam(v string) string {
 	return safeV
 }
 
+// UnescapeCQParam 还原 EscapeCQParam 的转义，用于解析 CQ 码参数值。
+// 还原顺序需与转义顺序相反：其它占位符先还原，最后才还原 &amp;，避免二次解码。
+func UnescapeCQParam(v string) string {
+	safeV := strings.ReplaceAll(v, "&#44;", ",")
+	safeV = strings.ReplaceAll(safeV, "&#93;", "]")
+	safeV = strings.ReplaceAll(safeV, "&#91;", "[")
+	safeV = strings.ReplaceAll(safeV, "&amp;", "&")
+	return safeV
+}
+
 func (c *CQCommand) Compile() string {
 	if c.Overwrite != "" {
 		return c.Overwrite
@@ -148,6 +158,22 @@ func (t *DefaultElement) Type() ElementType {
 }
 
 func (t *DefaultElement) FromCQData(dMap map[string]string) error {
+	// 未注册的 CQ 资源类型也可能携带本地文件，发送前统一规范化其路径。
+	if rawFile, exists := dMap["file"]; exists && strings.TrimSpace(dMap["url"]) == "" {
+		normalized, err := NormalizeLocalResourcePath(rawFile)
+		if err != nil {
+			return err
+		}
+		if normalized != rawFile {
+			cloned := make(map[string]string, len(dMap))
+			for key, value := range dMap {
+				cloned[key] = value
+			}
+			cloned["file"] = normalized
+			dMap = cloned
+		}
+	}
+
 	marshal, err := sonic.Marshal(dMap)
 	if err != nil {
 		return err
@@ -376,6 +402,108 @@ func normalizeRemoteURL(raw string) (string, error) {
 	return parsed.String(), nil
 }
 
+func isPassthroughResourceReference(raw string) bool {
+	lower := strings.ToLower(raw)
+	return strings.HasPrefix(lower, "http://") ||
+		strings.HasPrefix(lower, "https://") ||
+		strings.HasPrefix(lower, "base64://")
+}
+
+func localPathFromResourceReference(raw string) (string, error) {
+	if !strings.HasPrefix(strings.ToLower(raw), "file://") {
+		return raw, nil
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil || !strings.EqualFold(parsed.Scheme, "file") {
+		return "", &CQFileError{Kind: CQFileErrInvalidURL, Raw: raw, Cause: err}
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", &CQFileError{Kind: CQFileErrInvalidURL, Raw: raw, Cause: errors.New("file URL cannot contain query or fragment")}
+	}
+
+	localPath := parsed.Path
+	if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
+		localPath = "//" + parsed.Host + parsed.Path
+	}
+	// net/url 已完成路径解码；Windows 盘符还需要去掉 URL 路径的前导斜杠。
+	if runtime.GOOS == "windows" && len(localPath) >= 3 && localPath[0] == '/' && localPath[2] == ':' {
+		localPath = localPath[1:]
+	}
+	return filepath.FromSlash(localPath), nil
+}
+
+func pathWithinRoot(candidate, root string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil || filepath.IsAbs(rel) {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func localPathToFileURL(absolutePath string) string {
+	fileURLPath := filepath.ToSlash(absolutePath)
+	// Windows 盘符必须写成 /C:/...，url.URL 才会生成标准的 file:///C:/...。
+	if runtime.GOOS == "windows" && !strings.HasPrefix(fileURLPath, "/") {
+		fileURLPath = "/" + fileURLPath
+	}
+	return (&url.URL{Scheme: "file", Path: fileURLPath}).String()
+}
+
+func normalizeLocalFileReference(raw string) (string, string, os.FileInfo, error) {
+	localPath, err := localPathFromResourceReference(raw)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	absolutePath, err := filepath.Abs(localPath)
+	if err != nil {
+		return "", "", nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: raw, Normalized: localPath, Cause: err}
+	}
+	absolutePath = filepath.Clean(absolutePath)
+
+	// 本地资源仍只允许来自程序目录或系统临时目录。filepath.Rel 能正确区分
+	// 同名前缀的相邻目录，避免简单字符串前缀判断造成越界。
+	cwd, cwdErr := os.Getwd()
+	tempDir, tempErr := filepath.Abs(os.TempDir())
+	allowed := cwdErr == nil && pathWithinRoot(absolutePath, filepath.Clean(cwd))
+	allowed = allowed || tempErr == nil && pathWithinRoot(absolutePath, filepath.Clean(tempDir))
+	if !allowed {
+		return "", "", nil, &CQFileError{Kind: CQFileErrRestricted, Raw: raw, Normalized: absolutePath}
+	}
+
+	info, err := os.Stat(absolutePath) //nolint:gosec
+	if err != nil {
+		return "", "", nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: raw, Normalized: absolutePath, Cause: err}
+	}
+	return localPathToFileURL(absolutePath), absolutePath, info, nil
+}
+
+// NormalizeLocalResourcePath 将本地资源引用规范化为绝对 file URL。
+// 此过程只检查路径和文件状态，不读取文件内容，也不会转换为 Base64；远程 URL、
+// Base64 数据及适配器使用的不透明资源 ID 均保持原样。
+func NormalizeLocalResourcePath(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || isPassthroughResourceReference(raw) {
+		return raw, nil
+	}
+	if strings.Contains(raw, "://") && !strings.HasPrefix(strings.ToLower(raw), "file://") {
+		return raw, nil
+	}
+
+	isLocal := strings.HasPrefix(strings.ToLower(raw), "file://")
+	if !isLocal {
+		_, err := os.Stat(raw)
+		isLocal = err == nil
+	}
+	if !isLocal {
+		return raw, nil
+	}
+
+	normalized, _, _, err := normalizeLocalFileReference(raw)
+	return normalized, err
+}
+
 func FilepathToFileElement(fp string) (*FileElement, error) {
 	fp = strings.TrimSpace(fp)
 
@@ -441,60 +569,28 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 		}
 		return r, nil
 	} else {
-		// 本地文件路径处理
-		localPath := fp
-
-		// 处理 file:// URL
-		if strings.HasPrefix(fp, "file://") {
-			fu, err := url.Parse(fp)
-			if err != nil {
-				return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Cause: err}
-			}
-			// 对路径进行URL解码，处理%20等编码的中文/空格
-			localPath, _ = url.PathUnescape(fu.Path)
-			if runtime.GOOS == `windows` && strings.HasPrefix(localPath, "/") {
-				localPath = localPath[1:]
-			}
-			localPath = filepath.FromSlash(localPath)
-		}
-
-		info, err := os.Stat(localPath) //nolint:gosec
+		// 本地文件路径处理。路径解析和访问范围校验与其他本地资源保持一致。
+		fileURL, absolutePath, info, err := normalizeLocalFileReference(fp)
 		if err != nil {
-			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: localPath, Cause: err}
+			return nil, err
 		}
 		if info.Size() == 0 || info.Size() >= maxFileSize {
-			return nil, &CQFileError{Kind: CQFileErrInvalidSize, Raw: fp, Normalized: localPath}
+			return nil, &CQFileError{Kind: CQFileErrInvalidSize, Raw: fp, Normalized: absolutePath}
 		}
-		afn, err := filepath.Abs(localPath)
+		filesuffix := path.Ext(absolutePath)
+		content, err := os.ReadFile(absolutePath) //nolint:gosec
 		if err != nil {
-			return nil, &CQFileError{Kind: CQFileErrInvalidURL, Raw: fp, Normalized: localPath, Cause: err}
-		}
-		cwd, _ := os.Getwd()
-		if !strings.HasPrefix(afn, cwd) && !strings.HasPrefix(afn, os.TempDir()) {
-			return nil, &CQFileError{Kind: CQFileErrRestricted, Raw: fp, Normalized: afn}
-		}
-		filesuffix := path.Ext(localPath)
-		content, err := os.ReadFile(localPath) //nolint:gosec
-		if err != nil {
-			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: localPath, Cause: err}
+			return nil, &CQFileError{Kind: CQFileErrUnavailable, Raw: fp, Normalized: absolutePath, Cause: err}
 		}
 		contenttype := mime.TypeByExtension(filesuffix)
 		if len(contenttype) == 0 {
 			contenttype = "application/octet-stream"
 		}
-		fileURLPath := filepath.ToSlash(afn)
-		if runtime.GOOS == `windows` && !strings.HasPrefix(fileURLPath, "/") {
-			fileURLPath = "/" + fileURLPath
-		}
-		fileURL := url.URL{
-			Scheme: "file",
-			Path:   fileURLPath,
-		}
 		r := &FileElement{
 			Stream:      bytes.NewReader(content),
 			ContentType: contenttype,
 			File:        info.Name(),
-			URL:         fileURL.String(),
+			URL:         fileURL,
 		}
 		return r, nil
 	}
@@ -545,7 +641,7 @@ func SealCodeToCqCode(text string) string {
 
 	fn = strings.TrimSpace(fn)
 
-	if strings.HasPrefix(fn, "file://") || strings.HasPrefix(fn, "http://") || strings.HasPrefix(fn, "https://") {
+	if isPassthroughResourceReference(fn) {
 		u, err := url.Parse(fn)
 		if err != nil {
 			return text
@@ -557,30 +653,24 @@ func SealCodeToCqCode(text string) string {
 		return cq.Compile()
 	}
 
-	afn, err := filepath.Abs(fn)
+	normalized, _, _, err := normalizeLocalFileReference(fn)
 	if err != nil {
-		return text // 不是文件路径，不管
+		var fileErr *CQFileError
+		if errors.As(err, &fileErr) {
+			if fileErr.Kind == CQFileErrUnavailable && errors.Is(fileErr.Cause, os.ErrNotExist) {
+				return "[找不到图片/文件]"
+			}
+			if fileErr.Kind == CQFileErrRestricted {
+				return "[图片/文件指向非当前程序目录，已禁止]"
+			}
+		}
+		return text
 	}
-	cwd, _ := os.Getwd()
-	if strings.HasPrefix(afn, cwd) {
-		if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
-			return "[找不到图片/文件]"
-		}
-		// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
-		if runtime.GOOS == `windows` {
-			afn = "/" + afn
-		}
-		u := url.URL{
-			Scheme: "file",
-			Path:   filepath.ToSlash(afn),
-		}
-		cq := CQCommand{
-			Type: cqType,
-			Args: map[string]string{"file": u.String()},
-		}
-		return cq.Compile()
+	cq := CQCommand{
+		Type: cqType,
+		Args: map[string]string{"file": normalized},
 	}
-	return "[图片/文件指向非当前程序目录，已禁止]"
+	return cq.Compile()
 }
 
 // convertConfig ConvertStringMessage的配置
@@ -750,7 +840,7 @@ func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElemen
 			if i+1 > len(text) {
 				return r
 			}
-			dMap[key] = text[:i]
+			dMap[key] = UnescapeCQParam(text[:i])
 			text = text[i:]
 			i = 0
 		}

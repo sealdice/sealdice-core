@@ -59,19 +59,20 @@ func executeWin(name string, arg ...string) *exec.Cmd {
 	return cmd
 }
 
-var _trayPortStr = "3211"
-
 var systrayQuited bool = false
 
 func onReady() {
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹核心")
-	systray.SetTooltip(formatTrayTooltip(theDm, ver, _trayPortStr))
+	systray.SetTooltip(formatTrayTooltip(theDm, ver, getTrayPort()))
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mOpen.SetIcon(icon.Data)
 	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "访达访问程序所在目录")
+	startTrayAccountMenu(theDm, func() {
+		_ = exec.Command(`open`, `http://localhost:`+getTrayPort()+`/#/connect`).Start()
+	})
 	mQuit := systray.AddMenuItem("退出", "退出程序")
 
 	go func() {
@@ -81,7 +82,7 @@ func onReady() {
 	for {
 		select {
 		case <-mOpen.ClickedCh:
-			_ = exec.Command(`open`, `http://localhost:`+_trayPortStr).Start()
+			_ = exec.Command(`open`, `http://localhost:`+getTrayPort()).Start()
 		case <-mOpenExeDir.ClickedCh:
 			_ = exec.Command(`open`, filepath.Dir(os.Args[0])).Start()
 		case <-mQuit.ClickedCh:
@@ -100,7 +101,7 @@ func onExit() {
 
 func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	log := logger.M()
-	portStr := "3211"
+	portStr := defaultTrayPort
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 
 	go func() {
@@ -110,7 +111,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 				break
 			}
 			runtime.LockOSThread()
-			systray.SetTooltip(formatTrayTooltip(dm, ver, portStr))
+			systray.SetTooltip(formatTrayTooltip(dm, ver, getTrayPort()))
 			runtime.UnlockOSThread()
 		}
 	}()
@@ -119,7 +120,7 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 	m := rePort.FindStringSubmatch(dm.ServeAddress)
 	if len(m) > 0 {
 		portStr = m[1]
-		_trayPortStr = portStr
+		setTrayPort(portStr)
 	}
 
 	ln, err := net.Listen("tcp", ":"+portStr)

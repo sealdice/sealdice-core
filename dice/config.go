@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
@@ -431,8 +431,8 @@ func (cm *ConfigManager) Load() error {
 	return nil
 }
 
-func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
-	var choices []wr.Choice
+func (i *TextTemplateItemList) toRandomPool() *wr.Chooser[string, uint] {
+	var choices []wr.Choice[string, uint]
 	for _, i := range *i {
 		// weight, text := extractWeight(i)
 		if len(i) == 1 {
@@ -441,11 +441,11 @@ func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
 		}
 
 		if w, ok := i[1].(int); ok {
-			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+			choices = append(choices, wr.NewChoice(i[0].(string), uint(w)))
 		}
 
 		if w, ok := i[1].(float64); ok {
-			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+			choices = append(choices, wr.NewChoice(i[0].(string), uint(w)))
 		}
 	}
 	randomPool, _ := wr.NewChooser(choices...)
@@ -2062,13 +2062,13 @@ func setupTextTemplate(d *Dice) {
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	newTextMap := map[string]*wr.Chooser{}
+	newTextMap := map[string]*wr.Chooser[string, uint]{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
-			var choices []wr.Choice
+			var choices []wr.Choice[string, uint]
 			for _, textItem := range v {
-				choices = append(choices, wr.Choice{Item: textItem[0].(string), Weight: getNumVal(textItem[1])})
+				choices = append(choices, wr.NewChoice(textItem[0].(string), getNumVal(textItem[1])))
 			}
 
 			pool, _ := wr.NewChooser(choices...)
@@ -2076,10 +2076,10 @@ func (d *Dice) GenerateTextMap() {
 		}
 	}
 
-	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
+	picker, _ := wr.NewChooser(wr.NewChoice(APPNAME, uint(1)))
 	newTextMap["常量:APPNAME"] = picker
 
-	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
+	picker, _ = wr.NewChooser(wr.NewChoice(VERSION.String(), uint(1)))
 	newTextMap["常量:VERSION"] = picker
 
 	d.TextMap = newTextMap
@@ -2371,10 +2371,12 @@ func (d *Dice) loads() {
 func (d *Dice) loadIMSessionEndpoints(imSession *IMSession) bool {
 	if imSession == nil || imSession.EndPoints == nil {
 		d.ImSession.EndPoints = make([]*EndPointInfo, 0)
+		d.ImSession.RefreshEndPointsSnapshot()
 		return true
 	}
 
 	d.ImSession.EndPoints = imSession.EndPoints
+	d.ImSession.RefreshEndPointsSnapshot()
 	return false
 }
 
@@ -2416,20 +2418,86 @@ func (d *Dice) loadAdvanced() {
 }
 
 func (d *Dice) SaveText() {
-	buf, err := yaml.Marshal(d.TextMapRaw)
+	buf, err := marshalTextTemplate(d.TextMapRaw)
 	if err != nil {
 		d.Logger.Error("Dice.SaveText", err)
-	} else {
-		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
-		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
-		current, err := os.ReadFile(newFn)
-		if err != nil {
-			_ = os.WriteFile(bakFn, current, 0o644) //nolint:gosec
-		}
-
-		_ = os.WriteFile(newFn, buf, 0o644)
+		return
 	}
+
+	newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
+	if err := saveTextTemplateFile(newFn, buf); err != nil {
+		d.Logger.Error("Dice.SaveText", err)
+	}
+}
+
+func marshalTextTemplate(texts TextTemplateWithWeightDict) (buf []byte, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			buf = nil
+			err = fmt.Errorf("序列化文案失败: %v", recovered)
+		}
+	}()
+
+	buf, err = yaml.Marshal(texts)
+	if err != nil {
+		return nil, fmt.Errorf("序列化文案失败: %w", err)
+	}
+
+	// 再次解析序列化结果，避免异常数据覆盖掉现有文案文件。
+	var parsed TextTemplateWithWeightDict
+	if err := yaml.Unmarshal(buf, &parsed); err != nil {
+		return nil, fmt.Errorf("校验生成的文案 YAML 失败: %w", err)
+	}
+	return buf, nil
+}
+
+func saveTextTemplateFile(filename string, data []byte) error {
+	dir := filepath.Dir(filename)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("创建文案目录失败: %w", err)
+	}
+
+	current, err := os.ReadFile(filename)
+	if err == nil {
+		backupErr := writeFileAtomically(filename+".bak", current, 0o644)
+		if backupErr != nil {
+			return fmt.Errorf("备份文案文件失败: %w", backupErr)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("读取现有文案文件失败: %w", err)
+	}
+
+	if err := writeFileAtomically(filename, data, 0o644); err != nil {
+		return fmt.Errorf("写入文案文件失败: %w", err)
+	}
+	return nil
+}
+
+func writeFileAtomically(filename string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(filename), "."+filepath.Base(filename)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName) //nolint:gosec
+	}()
+
+	if err := tmp.Chmod(perm); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpName, filename)
 }
 
 // ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
@@ -2502,6 +2570,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 }
 
 func (d *Dice) Save(isAuto bool) {
+	d.ImSession.RefreshEndPointsSnapshot()
 	saveStartTime := time.Now()
 
 	configStartTime := time.Now()

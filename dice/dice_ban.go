@@ -371,7 +371,7 @@ func (i *BanListInfo) NoticeCheck(uid string, place string, oldRank BanRankType,
 
 	if ctx != nil {
 		// 做出通知
-		ctx.Notice(txt)
+		ctx.Notice(txt, NoticeTypeBan)
 
 		if ctx.Player == nil {
 			ctx.Player = &GroupPlayerInfo{} // 为了能存 $t 变量，God bless this design

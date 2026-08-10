@@ -33,6 +33,7 @@ func (kwa *Kwarg) String() string {
 type AtInfo struct {
 	UserID  string `jsbind:"userId"  json:"userId"`
 	IsRobot bool   `jsbind:"isRobot" json:"isRobot"`
+	Name    string `jsbind:"name"    json:"name"`
 	// UID    string `json:"uid"`
 }
 
@@ -49,22 +50,43 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 	}
 
 	if ctx.Group != nil {
-		p := ctx.Group.PlayerGet(ctx.Dice.DBOperator, i.UserID)
+		playerUserID := i.UserID
+		officialQQUIN := ""
+		if ctx.EndPoint != nil {
+			if pa, ok := ctx.EndPoint.Adapter.(*PlatformAdapterOfficialQQ); ok {
+				officialQQUIN = pa.UIN
+				// 官方 QQ 的 @ 仅提供 MemberOpenID；人物卡则以
+				// OpenQQ:<UIN>-<MemberOpenID> 为键，代骰时必须先补全身份。
+				playerUserID = normalizeDiceIDOfficialQQMentionUserID(officialQQUIN, playerUserID)
+			}
+		}
+
+		p := ctx.Group.PlayerGet(ctx.Dice.DBOperator, playerUserID)
 		if p != nil {
-			mctx.Player = p
+			// 平台事件中的 @ 昵称只用于当前代骰消息。PlayerGet 可能返回
+			// 群缓存中的共享指针，因此必须复制后再补名称，不能修改原对象。
+			if p.Name == "" && i.Name != "" {
+				playerCopy := *p
+				playerCopy.Name = i.Name
+				mctx.Player = &playerCopy
+			} else {
+				mctx.Player = p
+			}
 		} else {
 			// TODO: 主动获取用户名
 			mctx.Player = &GroupPlayerInfo{
-				Name:          "",
-				UserID:        i.UserID,
+				Name:          i.Name,
+				UserID:        playerUserID,
 				ValueMapTemp:  &ds.ValueMap{},
 				UpdatedAtTime: 0,
 			}
 			// 特殊处理 official qq
-			if strings.HasPrefix(i.UserID, "OpenQQCH:") {
+			// 只有平台没有提供昵称时，才退回到可发送的 @ 文本。
+			if mctx.Player.Name == "" && strings.HasPrefix(i.UserID, "OpenQQCH:") {
 				mctx.Player.Name = "<@!" + strings.TrimPrefix(i.UserID, "OpenQQCH:") + ">"
-			} else if strings.HasPrefix(i.UserID, "OpenQQ:") {
-				mctx.Player.Name = "<@" + strings.TrimPrefix(i.UserID, "OpenQQ:") + ">"
+			} else if mctx.Player.Name == "" && strings.HasPrefix(i.UserID, "OpenQQ:") {
+				mentionTarget := normalizeOfficialQQGroupAtTarget(officialQQUIN, i.UserID)
+				mctx.Player.Name = formatOfficialQQAtUser(mentionTarget)
 			}
 		}
 		return mctx, p != nil
@@ -189,7 +211,19 @@ func (cmdArgs *CmdArgs) RevokeExecuteTimesParse(ctx *MsgContext, msg *Message) {
 		cmdArgs.commandParseNew(ctx, msg, true)
 	} else {
 		cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, true)
+		cmdArgs.applyMentionedInfo(msg)
 		cmdArgs.SetupAtInfo(cmdArgs.uidForAtInfo)
+	}
+}
+
+func (cmdArgs *CmdArgs) applyMentionedInfo(msg *Message) {
+	if cmdArgs == nil || msg == nil || len(msg.MentionedInfo) == 0 {
+		return
+	}
+	for _, at := range cmdArgs.At {
+		if name := msg.MentionedInfo[at.UserID]; name != "" {
+			at.Name = name
+		}
 	}
 }
 
@@ -355,6 +389,7 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 	// === 第二步：解析@信息 ===
 	// 分析消息段中的@元素，设置机器人被@状态
 	parseAtInfo(cmdArgs, msg, ctx.EndPoint.UserID)
+	cmdArgs.applyMentionedInfo(msg)
 
 	// === 第三步：处理特殊执行次数和命令前缀 ===
 	restText := strings.TrimSpace(rawCmd)
@@ -735,7 +770,7 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	case "QQ":
 		re = regexp.MustCompile(`\[CQ:at,qq=(\d+)(?:,name=(?:.*?))?\]`)
 	case "OpenQQ":
-		re = regexp.MustCompile(`<@!?(\S+?)>`)
+		re = officialQQAtRegex
 	case "OpenQQCH":
 		re = regexp.MustCompile(`<@!?(\S+?)>`)
 	case "DISCORD":
@@ -755,11 +790,17 @@ func AtParse(cmd string, prefix string) (string, []*AtInfo) {
 	m := re.FindAllStringSubmatch(cmd, -1)
 
 	for _, i := range m {
-		if len(i) == 2 {
-			at := new(AtInfo)
-			at.UserID = prefix + ":" + i[1]
-			at.IsRobot = prefix == "QQ" && isQQBotUserID(at.UserID)
-			ret = append(ret, at)
+		if len(i) >= 2 {
+			target := i[1]
+			if prefix == "OpenQQ" {
+				target = officialQQMentionTarget(i)
+			}
+			if target != "" {
+				at := new(AtInfo)
+				at.UserID = prefix + ":" + target
+				at.IsRobot = prefix == "QQ" && isQQBotUserID(at.UserID)
+				ret = append(ret, at)
+			}
 		}
 	}
 
@@ -771,7 +812,7 @@ func AtBuild(uid string) string {
 	if uid == "" {
 		return ""
 	}
-	re := regexp.MustCompile("(QQ|DISCORD|KOOK|TG|DODO).*?:(.*)")
+	re := regexp.MustCompile("^(OpenQQ|QQ|DISCORD|KOOK|TG|DODO).*?:(.*)")
 	m := re.FindStringSubmatch(uid)
 	var text string
 	if len(m) == 3 {

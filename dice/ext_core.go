@@ -29,7 +29,7 @@ func RegisterBuiltinExtCore(dice *Dice) {
 				if opUID == "" {
 					txt := fmt.Sprintf("退出群组<%s>(%s)，但操作者ID为空，停止继续处理", groupName, event.GroupID)
 					dice.Logger.Info(txt)
-					ctx.Notice(txt)
+					ctx.Notice(txt, NoticeTypeGroup)
 					return
 				}
 
@@ -56,7 +56,7 @@ func RegisterBuiltinExtCore(dice *Dice) {
 
 				txt := fmt.Sprintf("被踢出群: 在群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, event.GroupID, userName, event.OperatorID, extra)
 				dice.Logger.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, NoticeTypeGroup)
 			}
 		},
 	}
