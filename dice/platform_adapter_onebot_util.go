@@ -923,9 +923,10 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			fileVal := res.File
+			// URL 保存可直接发送的完整资源引用；File 对本地文件通常只有文件名。
+			fileVal := res.URL
 			if fileVal == "" {
-				fileVal = res.URL
+				fileVal = res.File
 			}
 			if fileVal == "" {
 				continue
