@@ -94,6 +94,7 @@ import { useHelpdocUpload } from '@/features/helpdoc/upload';
 import {
   getHelpdocTextPreview,
   getHelpdocTextTooltip,
+  summarizeHelpdocDelete,
 } from '@/features/helpdoc/viewModel';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
@@ -262,9 +263,14 @@ function deleteFiles() {
     message.error('未选择文件');
     return;
   }
+  const summary = summarizeHelpdocDelete(docTree.value, keys);
   dialog.warning({
     title: '删除',
-    content: '确认删除选择的文件吗？',
+    content: () => h('div', { class: 'delete-summary' }, [
+      h('p', `将删除 ${summary.count} 个选中项：`),
+      h('ul', summary.labels.map(label => h('li', label))),
+      h('p', '删除的内容无法找回。'),
+    ]),
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {

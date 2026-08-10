@@ -55,6 +55,28 @@ export function convertHelpdocTree(doc: HelpDoc): HelpDocTreeOption {
   };
 }
 
+export function summarizeHelpdocDelete(tree: HelpdocTreeOption[], keys: Array<string | number>) {
+  const selected = new Set(keys.map(String));
+  const resolved = new Set<string>();
+  const labels: string[] = [];
+
+  function visit(nodes: HelpdocTreeOption[]) {
+    for (const node of nodes) {
+      if (selected.has(node.key)) {
+        resolved.add(node.key);
+        labels.push(node.raw.isDir ? `${node.label}（目录）` : node.label);
+      }
+      if (node.children?.length) visit(node.children);
+    }
+  }
+
+  visit(tree);
+  for (const key of selected) {
+    if (!resolved.has(key)) labels.push(key);
+  }
+  return { count: keys.length, labels };
+}
+
 export function getHelpdocTextPreview(row: string) {
   const text = trim(row);
   if (text.length <= 200) return text;

@@ -8,6 +8,7 @@ import {
   isHelpdocConfigDirty,
   isHelpdocUploadFileAccepted,
   normalizeHelpdocAliases,
+  summarizeHelpdocDelete,
 } from './viewModel.js';
 import type { HelpDoc } from '@/api';
 import { it } from 'vitest';
@@ -59,6 +60,10 @@ const converted = convertHelpdocTree(tree[0]);
 assertEqual(converted.icon, 'folder');
 assertEqual(converted.children?.[0]?.icon, 'json');
 assertDeepEqual(converted.children?.[0]?.tag, { type: 'success', label: 'default' });
+assertDeepEqual(summarizeHelpdocDelete([converted], ['default/test.json']), {
+  count: 1,
+  labels: ['test.json'],
+});
 
 assertDeepEqual(getHelpdocTag(0, false, 'default'), { type: 'warning', label: '未加载' });
 assertDeepEqual(getHelpdocTag(2, false, 'default'), { type: 'error', label: '格式有误' });
