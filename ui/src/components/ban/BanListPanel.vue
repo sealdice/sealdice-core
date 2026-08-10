@@ -12,7 +12,7 @@
         :collapse-button-props="false"
       />
 
-      <n-flex align="center" wrap>
+      <n-flex align="center" wrap class="ban-list-panel__actions">
         <n-button type="success" secondary :loading="addPending" @click="emit('openAdd')">
           <template #icon>
             <n-icon><i-ep-plus /></n-icon>
@@ -270,6 +270,10 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
 
 .ban-list-panel__search {
   width: min(20rem, 80vw);
+}
+
+.ban-list-panel__actions {
+  flex: 0 0 auto;
 }
 
 .ban-list-panel__list {

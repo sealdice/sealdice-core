@@ -5,13 +5,21 @@
       <n-text v-if="filterCount > 0" type="info" class="text-xs">
         已过滤 {{ filterCount }} 条
       </n-text>
-      <span>
-        <n-input v-model:value="filter" size="small" placeholder="" clearable>
+      <label class="censor-words-filter__field" for="censor-word-filter">
+        <span>筛选敏感词</span>
+        <n-input
+          id="censor-word-filter"
+          v-model:value="filter"
+          size="small"
+          placeholder="输入敏感词或匹配词"
+          clearable
+          aria-label="筛选敏感词"
+        >
           <template #prefix>
             <n-icon><i-ep-search /></n-icon>
           </template>
         </n-input>
-      </span>
+      </label>
     </n-flex>
   </n-flex>
 
@@ -71,9 +79,21 @@ const columns: DataTableColumns<CensorWordItem> = [
   overflow-wrap: anywhere;
 }
 
+.censor-words-filter__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
 @media screen and (max-width: 639.9px) {
   .censor-words-header,
   .censor-words-filter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .censor-words-filter__field {
     align-items: flex-start;
     flex-direction: column;
   }
