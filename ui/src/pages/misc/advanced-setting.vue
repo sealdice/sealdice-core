@@ -118,7 +118,7 @@
         <n-form-item v-if="modified" label="" label-width="1rem" class="mt-4">
           <n-flex>
             <n-button type="error" @click="reload">放弃改动</n-button>
-            <n-button type="success" :loading="saveMutation.isPending.value" @click="save">
+            <n-button type="success" :loading="saving" :disabled="saving" @click="save">
               保存设置
             </n-button>
           </n-flex>
@@ -211,40 +211,84 @@ const modified = computed(() => {
     || replyDebugMode.value !== initialReplyDebugMode.value;
 });
 
+const advancedSaveMutation = useMutation({
+  mutationFn: async () => {
+    const { data } = await putSdApiV2ConfigAdvanced({
+      body: config.value,
+      throwOnError: true,
+    });
+    return data.item;
+  },
+});
+
+const debugModeSaveMutation = useMutation({
+  mutationFn: async () => {
+    const { data } = await putSdApiV2CustomReplyDebugMode({
+      body: { value: replyDebugMode.value },
+      throwOnError: true,
+    });
+    return data.item;
+  },
+});
+
+const saving = computed(
+  () => advancedSaveMutation.isPending.value || debugModeSaveMutation.isPending.value,
+);
+
 useUnsavedChanges('advanced-setting', {
   label: '高级设置',
   dirty: modified,
   save,
-  saving: computed(() => saveMutation.isPending.value),
+  saving,
   confirmMessage: '高级设置还有修改，确定要忽略？',
 });
 
-const saveMutation = useMutation({
-  mutationFn: async () => {
-    await putSdApiV2ConfigAdvanced({
-      body: config.value,
-      throwOnError: true,
-    });
-    await putSdApiV2CustomReplyDebugMode({
-      body: { value: replyDebugMode.value },
-      throwOnError: true,
-    });
-  },
-  onSuccess: async () => {
+async function save() {
+  if (saving.value) return;
+
+  const advancedChanged =
+    Boolean(initialConfig.value) && JSON.stringify(config.value) !== JSON.stringify(initialConfig.value);
+  const debugModeChanged = replyDebugMode.value !== initialReplyDebugMode.value;
+  const tasks: Array<{ kind: 'advanced' | 'debug'; promise: Promise<unknown> }> = [];
+
+  if (advancedChanged) {
+    tasks.push({ kind: 'advanced', promise: advancedSaveMutation.mutateAsync() });
+  }
+  if (debugModeChanged) {
+    tasks.push({ kind: 'debug', promise: debugModeSaveMutation.mutateAsync() });
+  }
+  if (!tasks.length) return;
+
+  const results = await Promise.allSettled(tasks.map(task => task.promise));
+  const succeeded = new Set(
+    results
+      .map((result, index) => (result.status === 'fulfilled' ? tasks[index]?.kind : null))
+      .filter((kind): kind is 'advanced' | 'debug' => Boolean(kind)),
+  );
+  const failed = results
+    .map((result, index) => (result.status === 'rejected' ? tasks[index]?.kind : null))
+    .filter((kind): kind is 'advanced' | 'debug' => Boolean(kind))
+    .map(kind => (kind === 'advanced' ? '高级配置' : '回复调试日志'));
+
+  if (succeeded.has('advanced')) {
     await queryClient.invalidateQueries({ queryKey: getSdApiV2ConfigAdvancedQueryKey() });
-    await queryClient.invalidateQueries({ queryKey: getSdApiV2CustomReplyDebugModeQueryKey() });
     setAdvancedSettingsVisible(config.value.show);
     initialConfig.value = normalizeAdvancedConfig(config.value);
+  }
+  if (succeeded.has('debug')) {
+    await queryClient.invalidateQueries({ queryKey: getSdApiV2CustomReplyDebugModeQueryKey() });
     initialReplyDebugMode.value = replyDebugMode.value;
-    message.success('已保存');
-  },
-  onError: () => {
-    message.error('保存失败');
-  },
-});
+  }
 
-async function save() {
-  await saveMutation.mutateAsync();
+  if (failed.length) {
+    const succeededLabels = Array.from(succeeded).map(kind =>
+      kind === 'advanced' ? '高级配置' : '回复调试日志',
+    );
+    const succeededText = succeededLabels.length ? `已保存${succeededLabels.join('、')}；` : '';
+    message.error(`${succeededText}保存失败：${failed.join('、')}`);
+  } else {
+    message.success('已保存');
+  }
 }
 
 async function reload() {
