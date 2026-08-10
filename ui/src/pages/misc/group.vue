@@ -557,6 +557,11 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
+.group-search-block :deep(.n-form-item-label) {
+  min-width: 7rem;
+  white-space: nowrap;
+}
+
 .tool-label {
   margin-right: 0.5rem;
 }

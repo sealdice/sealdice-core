@@ -23,7 +23,8 @@ withDefaults(defineProps<{
 
 <style scoped>
 .setting-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(13rem, 18rem) minmax(13rem, 26rem);
   align-items: center;
   gap: 1.25rem;
   min-height: 2.75rem;
@@ -49,8 +50,7 @@ withDefaults(defineProps<{
 }
 
 .setting-row-copy {
-  flex: 1 1 auto;
-  min-width: 13rem;
+  min-width: 0;
 }
 
 .setting-row-label {
@@ -69,14 +69,16 @@ withDefaults(defineProps<{
 
 .setting-row-control {
   display: flex;
-  flex: 0 1 26rem;
   justify-content: flex-start;
-  min-width: 13rem;
+  min-width: 0;
 }
 
 .setting-row-inline .setting-row-control {
-  flex: 0 0 auto;
   min-width: 0;
+}
+
+.setting-row-inline {
+  grid-template-columns: auto max-content;
 }
 
 .setting-row-stacked .setting-row-copy,
@@ -96,17 +98,18 @@ withDefaults(defineProps<{
   }
 
   .setting-row-copy {
-    min-width: 11rem;
+    min-width: 0;
   }
 
   .setting-row-control {
-    min-width: 11rem;
+    min-width: 0;
   }
 }
 
 @media (max-width: 780px) {
   .setting-row-auto,
   .setting-row-stacked {
+    display: flex;
     align-items: stretch;
     flex-direction: column;
     gap: 0.35rem;
