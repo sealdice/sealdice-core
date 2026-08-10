@@ -22,6 +22,8 @@
                 v-for="[fieldKey, fieldSchema] in schemaEntries"
                 :key="fieldKey"
                 :label="fieldSchema.title || fieldKey"
+                :validation-status="jsonFieldErrors[fieldKey] ? 'error' : undefined"
+                :feedback="jsonFieldErrors[fieldKey]"
               >
                 <n-switch
                   v-if="fieldSchema.type === 'boolean'"
@@ -62,7 +64,12 @@
 
             <template #footer>
               <n-space justify="end">
-                <n-button :loading="saving" type="primary" @click="emit('save-config', { ...draft })">
+                <n-button
+                  :loading="saving"
+                  :disabled="hasJsonErrors"
+                  type="primary"
+                  @click="emit('save-config', { ...draft })"
+                >
                   保存配置
                 </n-button>
               </n-space>
@@ -107,6 +114,7 @@ const emit = defineEmits<{
 }>();
 
 const draft = reactive<Record<string, unknown>>({});
+const jsonFieldErrors = reactive<Record<string, string>>({});
 
 const packageTitle = computed(() => props.pkg?.manifest?.package?.name || '扩展包详情');
 const schemaEntries = computed(() => Object.entries(props.schema ?? {}));
@@ -117,6 +125,9 @@ watch(
     for (const key of Object.keys(draft)) {
       delete draft[key];
     }
+    for (const key of Object.keys(jsonFieldErrors)) {
+      delete jsonFieldErrors[key];
+    }
     const config = props.config ?? {};
     for (const [fieldKey, fieldSchema] of schemaEntries.value) {
       draft[fieldKey] = config[fieldKey] ?? fieldSchema.default ?? defaultValueOf(fieldSchema.type);
@@ -124,6 +135,8 @@ watch(
   },
   { immediate: true },
 );
+
+const hasJsonErrors = computed(() => Object.keys(jsonFieldErrors).length > 0);
 
 function defaultValueOf(type?: string) {
   switch (type) {
@@ -142,8 +155,10 @@ function updateValue(fieldKey: string, value: unknown) {
 function updateJsonValue(fieldKey: string, value: string) {
   try {
     draft[fieldKey] = value.trim() ? JSON.parse(value) : null;
+    delete jsonFieldErrors[fieldKey];
   } catch {
     draft[fieldKey] = value;
+    jsonFieldErrors[fieldKey] = '请输入有效 JSON';
   }
 }
 
