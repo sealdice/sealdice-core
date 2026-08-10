@@ -206,7 +206,7 @@ function createButtonColorOverrides(
   key: ThemeColorKey,
   color: string,
   theme: ResolvedTheme,
-): NonNullable<GlobalThemeOverrides['Button']> {
+): Record<string, string> {
   const typeName = `${key[0].toUpperCase()}${key.slice(1)}`;
   const accessibleColor = getAccessibleSemanticColor(color, theme);
   const accessibleHoverColor = getAccessibleSemanticColor(getGeneratedColor(color, 4, theme), theme);
@@ -236,7 +236,7 @@ function createButtonColorOverrides(
     [`textColorGhostPressed${typeName}`]: accessiblePressedColor,
     [`textColorGhostFocus${typeName}`]: accessibleHoverColor,
     [`textColorGhostDisabled${typeName}`]: accessibleColor,
-  } as NonNullable<GlobalThemeOverrides['Button']>;
+  } as Record<string, string>;
 }
 
 function createCommonOverrides(

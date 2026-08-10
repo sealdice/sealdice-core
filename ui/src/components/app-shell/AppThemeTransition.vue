@@ -17,7 +17,7 @@ const { isDark, toggleTheme } = useAppTheme();
 const prefersReducedMotion = usePreferredReducedMotion();
 const active = ref(false);
 const origin = ref({ x: 0, y: 0 });
-let resetTimer: ReturnType<typeof window.setTimeout> | undefined;
+let resetTimer: number | undefined;
 
 const overlayStyle = computed(() => ({
   left: `${origin.value.x}px`,

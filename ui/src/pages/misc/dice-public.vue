@@ -3,7 +3,7 @@
     <PageHeader title="公骰设置" description="配置公共骰服务的启用状态、账号信息和可用端点。">
       <n-switch
         :value="draft?.config.publicDiceEnable ?? false"
-        :disabled="!draft || saving.value"
+        :disabled="!draft || saving"
         :loading="enableMutation.isPending.value"
         @update:value="handleEnableUpdate"
       >

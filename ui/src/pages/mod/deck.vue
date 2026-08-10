@@ -521,7 +521,7 @@ const updateMutation = useMutation({
   },
   onSuccess: async item => {
     if (!item.success) {
-      diffErrorText.value = item.err || '更新失败，请重试';
+      diffErrorText.value = '更新失败，请重试';
       message.error(diffErrorText.value);
       return;
     }

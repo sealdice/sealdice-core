@@ -55,12 +55,12 @@ export function convertHelpdocTree(doc: HelpDoc): HelpDocTreeOption {
   };
 }
 
-export function summarizeHelpdocDelete(tree: HelpdocTreeOption[], keys: Array<string | number>) {
+export function summarizeHelpdocDelete(tree: HelpDocTreeOption[], keys: Array<string | number>) {
   const selected = new Set(keys.map(String));
   const resolved = new Set<string>();
   const labels: string[] = [];
 
-  function visit(nodes: HelpdocTreeOption[]) {
+  function visit(nodes: HelpDocTreeOption[]) {
     for (const node of nodes) {
       if (selected.has(node.key)) {
         resolved.add(node.key);

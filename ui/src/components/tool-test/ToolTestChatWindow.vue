@@ -35,7 +35,8 @@ watch(
       void scrollToBottom();
       return;
     }
-    newMessageCount.value += Math.max(messageCount - previousMessageCount, 1);
+    const previousCount = previousMessageCount ?? messageCount;
+    newMessageCount.value += Math.max(messageCount - previousCount, 1);
   },
   { immediate: true },
 );
