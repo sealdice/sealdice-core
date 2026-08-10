@@ -227,7 +227,7 @@ setUnsavedChangesConfirmHandler(
   box-sizing: border-box;
   width: min(100%, 1180px);
   min-height: 100%;
-  margin-inline: auto;
+  margin-inline: 0 auto;
   padding: 1.5rem 2rem 2rem;
 }
 
