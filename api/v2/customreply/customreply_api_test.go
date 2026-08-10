@@ -227,7 +227,7 @@ func TestSaveConfigWritesReplyFile(t *testing.T) {
 
 	_, err := svc.SaveConfig(t.Context(), &SaveReq{
 		Filename: "reply.yaml",
-		Body: dice.ReplyConfig{
+		Body: SaveBody{ReplyConfig: dice.ReplyConfig{
 			Enable:   true,
 			Interval: 6,
 			Items: []*dice.ReplyItem{
@@ -250,6 +250,7 @@ func TestSaveConfigWritesReplyFile(t *testing.T) {
 				},
 			},
 			Conditions: dice.ReplyConditions{},
+		},
 		},
 	})
 	if err != nil {

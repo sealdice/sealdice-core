@@ -43,16 +43,22 @@ type ConditionPageQuery struct {
 }
 
 type FileBody struct {
-	Filename string `json:"filename"`
+	Filename  string `json:"filename"`
+	VMVersion string `json:"vmVersion,omitempty"`
 }
 
 type FileReq struct {
 	Body FileBody `json:"body"`
 }
 
+type SaveBody struct {
+	dice.ReplyConfig
+	VMVersion *string `json:"vmVersion,omitempty"`
+}
+
 type SaveReq struct {
-	Filename string           `path:"filename"`
-	Body     dice.ReplyConfig `json:"body"`
+	Filename string   `path:"filename"`
+	Body     SaveBody `json:"body"`
 }
 
 type DebugModeResp struct {
@@ -87,6 +93,7 @@ type ConditionPageResp = response.HPageResult[*ConditionInfo]
 
 type ReplyFileDetail struct {
 	Enable          bool                 `json:"enable"`
+	VMVersion       string               `json:"vmVersion"`
 	Interval        float64              `json:"interval"`
 	Name            string               `json:"name"`
 	Author          []string             `json:"author"`

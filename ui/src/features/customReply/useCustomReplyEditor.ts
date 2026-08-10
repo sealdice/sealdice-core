@@ -30,6 +30,7 @@ import {
   type ReplyCondition,
   type ReplyFileDraft,
   type ReplyTask,
+  type ReplyVMVersion,
 } from './model';
 
 export type ReplyFileQuery = {
@@ -115,7 +116,12 @@ export function useCustomReplyEditor() {
   });
 
   const currentConditionsPageQuery = useQuery({
-    queryKey: ['custom-reply-file-conditions', selectedFilename, commonConditionsPage, commonConditionsPageSize],
+    queryKey: [
+      'custom-reply-file-conditions',
+      selectedFilename,
+      commonConditionsPage,
+      commonConditionsPageSize,
+    ],
     enabled: computed(() => hasAccessToken.value && selectedFilename.value !== ''),
     queryFn: async () => {
       const { data } = await getSdApiV2CustomReplyFilesByFilenameConditions({
@@ -156,7 +162,9 @@ export function useCustomReplyEditor() {
     );
   });
 
-  const replyEnabled = computed(() => replyConfigQuery.data.value?.item.customReplyConfigEnable === true);
+  const replyEnabled = computed(
+    () => replyConfigQuery.data.value?.item.customReplyConfigEnable === true
+  );
   const fileItems = computed(() => fileListQuery.data.value?.list ?? []);
   const fileTotal = computed(() => fileListQuery.data.value?.total ?? 0);
   const currentFileDraft = computed(() => {
@@ -167,21 +175,29 @@ export function useCustomReplyEditor() {
     if (!selectedFilename.value) return null;
     return initialDrafts.value[selectedFilename.value] ?? null;
   });
-  const rulesTotal = computed(() => currentFileDraft.value?.itemCount ?? currentFileDraft.value?.items.length ?? 0);
+  const rulesTotal = computed(
+    () => currentFileDraft.value?.itemCount ?? currentFileDraft.value?.items.length ?? 0
+  );
   const rulePageStart = computed(() => (rulesPage.value - 1) * rulesPageSize.value);
   const commonConditionsTotal = computed(() => currentFileDraft.value?.conditions.length ?? 0);
-  const commonConditionsPageStart = computed(() => (commonConditionsPage.value - 1) * commonConditionsPageSize.value);
+  const commonConditionsPageStart = computed(
+    () => (commonConditionsPage.value - 1) * commonConditionsPageSize.value
+  );
   const pagedCommonConditions = computed<ReplyCondition[]>({
     get: () => {
       if (!currentFileDraft.value) return [];
       return currentFileDraft.value.conditions.slice(
         commonConditionsPageStart.value,
-        commonConditionsPageStart.value + commonConditionsPageSize.value,
+        commonConditionsPageStart.value + commonConditionsPageSize.value
       );
     },
     set: value => {
       if (!currentFileDraft.value || syncingRemote.value) return;
-      currentFileDraft.value.conditions.splice(commonConditionsPageStart.value, value.length, ...value);
+      currentFileDraft.value.conditions.splice(
+        commonConditionsPageStart.value,
+        value.length,
+        ...value
+      );
       markModified();
     },
   });
@@ -238,7 +254,7 @@ export function useCustomReplyEditor() {
       }
       modified.value = JSON.stringify(current) !== JSON.stringify(initial);
     },
-    { deep: true, immediate: true },
+    { deep: true, immediate: true }
   );
 
   useUnsavedChanges('custom-reply', {
@@ -269,7 +285,7 @@ export function useCustomReplyEditor() {
         selectedFilename.value = items[0]?.filename ?? '';
       }
     },
-    { immediate: true },
+    { immediate: true }
   );
 
   watch(
@@ -292,7 +308,7 @@ export function useCustomReplyEditor() {
         syncingRemote.value = false;
       });
     },
-    { immediate: true },
+    { immediate: true }
   );
 
   watch(
@@ -309,7 +325,7 @@ export function useCustomReplyEditor() {
         syncingRemote.value = false;
       });
     },
-    { immediate: true },
+    { immediate: true }
   );
 
   watch(
@@ -328,7 +344,7 @@ export function useCustomReplyEditor() {
         syncingRemote.value = false;
       });
     },
-    { immediate: true },
+    { immediate: true }
   );
 
   watch(selectedFilename, () => {
@@ -337,12 +353,9 @@ export function useCustomReplyEditor() {
     rulePageItems.value = [];
   });
 
-  watch(
-    [rulesPage, rulesPageSize, currentFileDraft],
-    () => {
-      syncRulePageItemsFromDraft();
-    },
-  );
+  watch([rulesPage, rulesPageSize, currentFileDraft], () => {
+    syncRulePageItemsFromDraft();
+  });
 
   watch(
     rulePageItems,
@@ -355,7 +368,7 @@ export function useCustomReplyEditor() {
       currentFileDraft.value.itemCount = currentFileDraft.value.items.filter(Boolean).length;
       modified.value = true;
     },
-    { deep: true },
+    { deep: true }
   );
 
   function updateFileQuery(nextQuery: ReplyFileQuery) {
@@ -407,7 +420,10 @@ export function useCustomReplyEditor() {
       matchType: 'matchExact',
       value: '要匹配的文本',
     });
-    const lastPage = Math.max(1, Math.ceil(commonConditionsTotal.value / commonConditionsPageSize.value));
+    const lastPage = Math.max(
+      1,
+      Math.ceil(commonConditionsTotal.value / commonConditionsPageSize.value)
+    );
     commonConditionsPage.value = lastPage;
     markModified();
   }
@@ -416,7 +432,10 @@ export function useCustomReplyEditor() {
     if (!currentFileDraft.value) return;
     const absoluteIndex = commonConditionsPageStart.value + index;
     currentFileDraft.value.conditions.splice(absoluteIndex, 1);
-    const lastPage = Math.max(1, Math.ceil(commonConditionsTotal.value / commonConditionsPageSize.value));
+    const lastPage = Math.max(
+      1,
+      Math.ceil(commonConditionsTotal.value / commonConditionsPageSize.value)
+    );
     if (commonConditionsPage.value > lastPage) {
       commonConditionsPage.value = lastPage;
     }
@@ -426,6 +445,12 @@ export function useCustomReplyEditor() {
   function toggleCurrentFileEnable() {
     if (!currentFileDraft.value) return;
     currentFileDraft.value.enable = !currentFileDraft.value.enable;
+    markModified();
+  }
+
+  function setCurrentVMVersion(value: ReplyVMVersion) {
+    if (!currentFileDraft.value || currentFileDraft.value.vmVersion === value) return;
+    currentFileDraft.value.vmVersion = value;
     markModified();
   }
 
@@ -521,7 +546,7 @@ export function useCustomReplyEditor() {
         responseType: 'blob',
         throwOnError: true,
       }),
-      selectedFilename.value,
+      selectedFilename.value
     );
   }
 
@@ -624,6 +649,7 @@ export function useCustomReplyEditor() {
     addCommonCondition,
     deleteCommonCondition,
     toggleCurrentFileEnable,
+    setCurrentVMVersion,
     getFileEnableStatus,
     addReplyItem,
     deleteReplyItem,

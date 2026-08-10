@@ -37,18 +37,23 @@
           />
 
           <section class="reply-content">
-            <n-empty v-if="!editor.selectedFilename.value || !editor.currentFileDraft.value" description="请选择一个文件" />
+            <n-empty
+              v-if="!editor.selectedFilename.value || !editor.currentFileDraft.value"
+              description="请选择一个文件"
+            />
 
             <template v-else>
               <ReplyCommonConditionsSection
                 v-model="editor.pagedCommonConditions.value"
                 :file-enabled="editor.currentFileDraft.value.enable"
+                :vm-version="editor.currentFileDraft.value.vmVersion"
                 :page="editor.commonConditionsPage.value"
                 :page-size="editor.commonConditionsPageSize.value"
                 :total="editor.commonConditionsTotal.value"
                 @add="editor.addCommonCondition"
                 @delete="editor.deleteCommonCondition"
                 @toggle-file-enabled="editor.toggleCurrentFileEnable"
+                @update-vm-version="editor.setCurrentVMVersion"
                 @update-page="editor.commonConditionsPage.value = $event"
               />
 

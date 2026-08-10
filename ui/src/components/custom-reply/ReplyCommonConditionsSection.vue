@@ -6,6 +6,14 @@
         <p>该文件下所有规则执行前都需要先满足这些条件。</p>
       </div>
       <n-space size="small" align="center">
+        <n-select
+          class="vm-version-select"
+          size="small"
+          :value="vmVersion"
+          :options="vmVersionOptions"
+          :consistent-menu-width="false"
+          @update:value="emit('updateVmVersion', $event as ReplyVMVersion)"
+        />
         <n-button
           size="small"
           :type="fileEnabled ? 'success' : 'warning'"
@@ -39,12 +47,7 @@
     </div>
 
     <div class="section-footer">
-      <n-pagination
-        v-model:page="pageModel"
-        :page-size="pageSize"
-        :item-count="total"
-        simple
-      />
+      <n-pagination v-model:page="pageModel" :page-size="pageSize" :item-count="total" simple />
     </div>
   </section>
 </template>
@@ -52,11 +55,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ConditionBuilder from './ConditionBuilder.vue';
-import type { ReplyCondition } from '@/features/customReply/model';
+import type { ReplyCondition, ReplyVMVersion } from '@/features/customReply/model';
 
 const conditions = defineModel<ReplyCondition[]>({ required: true });
 const props = defineProps<{
   fileEnabled: boolean;
+  vmVersion: ReplyVMVersion;
   page: number;
   pageSize: number;
   total: number;
@@ -66,8 +70,14 @@ const emit = defineEmits<{
   add: [];
   delete: [index: number];
   toggleFileEnabled: [];
+  updateVmVersion: [value: ReplyVMVersion];
   updatePage: [page: number];
 }>();
+
+const vmVersionOptions = [
+  { label: 'VM V2', value: 'v2' },
+  { label: 'VM V1', value: 'v1' },
+] satisfies Array<{ label: string; value: ReplyVMVersion }>;
 
 const pageModel = computed({
   get: () => props.page,
@@ -111,6 +121,10 @@ const pageModel = computed({
 .section-footer {
   border-top: 1px solid var(--sd-border-soft);
   padding: 0.75rem 1rem;
+}
+
+.vm-version-select {
+  width: 6.5rem;
 }
 
 @media screen and (max-width: 1023.9px) {

@@ -9,6 +9,8 @@ export type ReplyCondition = {
 
 export type ReplyMessage = [string, number];
 
+export type ReplyVMVersion = 'v1' | 'v2';
+
 export type ReplyResult = {
   resultType: string;
   delay: number;
@@ -23,6 +25,7 @@ export type ReplyTask = {
 
 export type ReplyFileDraft = {
   enable: boolean;
+  vmVersion: ReplyVMVersion;
   interval: number;
   name: string;
   author: string[];
@@ -80,6 +83,7 @@ export function cloneReplyFileDraft(item: ReplyFileDraft): ReplyFileDraft {
 export function normalizeReplyFileDetail(detail: ReplyFileDetail): ReplyFileDraft {
   return {
     enable: detail.enable,
+    vmVersion: detail.vmVersion === 'v2' ? 'v2' : 'v1',
     interval: Number(detail.interval ?? 0),
     name: String(detail.name ?? ''),
     author: (detail.author ?? []).map(item => String(item)),
@@ -139,6 +143,7 @@ export function normalizeMessages(items: unknown[] | null | undefined): ReplyMes
 export function toApiReplyConfig(draft: ReplyFileDraft) {
   return {
     enable: draft.enable,
+    vmVersion: draft.vmVersion,
     interval: Number(draft.interval) || 0,
     items: draft.items.filter(Boolean).map(item => ({
       enable: item.enable,

@@ -160,6 +160,7 @@ func (s *Service) GetConfig(_ context.Context, req *FilenamePath) (*response.Ite
 	}
 	return response.NewItemResponse(ReplyFileDetail{
 		Enable:          rc.Enable,
+		VMVersion:       displayReplyVMVersion(rc.VMVersion),
 		Interval:        rc.Interval,
 		Name:            rc.Name,
 		Author:          rc.Author,
@@ -265,7 +266,15 @@ func (s *Service) CreateFile(_ context.Context, req *FileReq) (*response.ItemRes
 	if dice.CustomReplyConfigCheckExists(s.dice, filename) {
 		return response.NewItemResponse(response.SimpleOK{Success: false}), nil
 	}
-	rc := dice.CustomReplyConfigNew(s.dice, filename)
+	vmVersion := req.Body.VMVersion
+	if vmVersion == "" {
+		vmVersion = dice.ReplyVMVersionV2
+	}
+	vmVersion, ok := normalizeReplyVMVersion(vmVersion)
+	if !ok {
+		return nil, huma.Error400BadRequest("不支持的自定义回复 VM 版本")
+	}
+	rc := dice.CustomReplyConfigNewWithVMVersion(s.dice, filename, vmVersion)
 	dice.ReplyReload(s.dice)
 	return response.NewItemResponse(response.SimpleOK{Success: rc != nil}), nil
 }
@@ -287,7 +296,16 @@ func (s *Service) SaveConfig(_ context.Context, req *SaveReq) (*response.ItemRes
 	if err != nil {
 		return nil, err
 	}
-	rc := req.Body
+	rc := req.Body.ReplyConfig
+	if req.Body.VMVersion == nil {
+		rc.VMVersion = s.existingReplyVMVersion(filename)
+	} else {
+		vmVersion, ok := normalizeReplyVMVersion(*req.Body.VMVersion)
+		if !ok {
+			return nil, huma.Error400BadRequest("不支持的自定义回复 VM 版本")
+		}
+		rc.VMVersion = vmVersion
+	}
 	rc.Filename = filename
 	rc.UpdateTimestamp = time.Now().Unix()
 	if rc.CreateTimestamp == 0 {
@@ -297,6 +315,7 @@ func (s *Service) SaveConfig(_ context.Context, req *SaveReq) (*response.ItemRes
 	for index, item := range s.dice.CustomReplyConfig {
 		if item != nil && item.Filename == filename {
 			s.dice.CustomReplyConfig[index].Enable = rc.Enable
+			s.dice.CustomReplyConfig[index].VMVersion = rc.VMVersion
 			s.dice.CustomReplyConfig[index].Conditions = rc.Conditions
 			s.dice.CustomReplyConfig[index].Items = rc.Items
 			s.dice.CustomReplyConfig[index].Interval = rc.Interval
@@ -313,6 +332,33 @@ func (s *Service) SaveConfig(_ context.Context, req *SaveReq) (*response.ItemRes
 	rc.Save(s.dice)
 	dice.ReplyReload(s.dice)
 	return response.NewItemResponse(response.SimpleOK{Success: true}), nil
+}
+
+func normalizeReplyVMVersion(version string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(version)) {
+	case "", dice.ReplyVMVersionV1:
+		return "", true
+	case dice.ReplyVMVersionV2:
+		return dice.ReplyVMVersionV2, true
+	default:
+		return "", false
+	}
+}
+
+func displayReplyVMVersion(version string) string {
+	if strings.EqualFold(strings.TrimSpace(version), dice.ReplyVMVersionV2) {
+		return dice.ReplyVMVersionV2
+	}
+	return dice.ReplyVMVersionV1
+}
+
+func (s *Service) existingReplyVMVersion(filename string) string {
+	for _, item := range s.dice.CustomReplyConfig {
+		if item != nil && strings.EqualFold(item.Filename, filename) {
+			return item.VMVersion
+		}
+	}
+	return ""
 }
 
 func (s *Service) Download(_ context.Context, req *FilenamePath) (*huma.StreamResponse, error) {
