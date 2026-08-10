@@ -148,6 +148,8 @@
         :class="isMobile ? 'w-full' : ''"
         :bordered="false"
         size="small"
+        :max-height="isMobile ? 420 : 620"
+        :virtual-scroll="!isMobile"
       />
 
       <n-empty v-if="!logStream.hasLogs.value" description="暂无日志" class="empty-log" />
@@ -241,9 +243,16 @@ function getWebsiteHealthOK(target: string): boolean {
 }
 
 function scrollToLatestLog() {
-  const element = logsContainer.value;
-  if (!element) return;
-  element.scrollIntoView({
+  const tableBody = logsContainer.value?.querySelector<HTMLElement>('.n-data-table-base-table-body');
+  if (tableBody) {
+    tableBody.scrollTo({
+      top: displayReverse.value ? 0 : tableBody.scrollHeight,
+      behavior: 'smooth',
+    });
+    return;
+  }
+
+  logsContainer.value?.scrollIntoView({
     behavior: 'smooth',
     block: displayReverse.value ? 'start' : 'end',
   });
@@ -399,6 +408,7 @@ h4 {
 }
 
 .logs {
+  min-height: 0;
   padding-bottom: 2rem;
 }
 
