@@ -303,6 +303,12 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
     }
   }
 
+  function clearFilters() {
+    filterMode.value = 'all';
+    currentFilterGroup.value = '';
+    currentFilterName.value = '';
+  }
+
   return {
     category,
     texts,
@@ -333,5 +339,6 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
     askDeleteValue,
     askResetValue,
     handleFilterModeChange,
+    clearFilters,
   };
 }

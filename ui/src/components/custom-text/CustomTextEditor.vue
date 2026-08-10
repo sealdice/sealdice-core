@@ -19,6 +19,12 @@
 
       <n-empty v-if="!editor.hasCategory.value" description="未找到当前文案分类" />
 
+      <n-empty v-else-if="editor.sortedCategory.value.length === 0" description="没有匹配的文案">
+        <template #extra>
+          <n-button size="small" @click="editor.clearFilters">清除筛选</n-button>
+        </template>
+      </n-empty>
+
       <n-collapse v-else class="text-collapse" :default-expanded-names="['__others__']">
         <CustomTextBox
           v-for="[group, values] in editor.sortedCategory.value"
