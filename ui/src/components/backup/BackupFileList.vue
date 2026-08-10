@@ -41,6 +41,8 @@
       :bordered="false"
       :row-key="(row: FileItem) => row.name"
       :scroll-x="680"
+      :max-height="520"
+      virtual-scroll
       size="small"
     />
   </section>
