@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests need access to the unexported VM resolution helper.
 package dice
 
 import (
@@ -26,6 +27,7 @@ func TestCustomReplyConfigVMVersionDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			path := filepath.Join(t.TempDir(), "reply.yaml")
 			if err := os.WriteFile(path, []byte(tt.body), 0o644); err != nil {
 				t.Fatal(err)
@@ -64,7 +66,8 @@ func TestReplyConfigSavePreservesV2Declaration(t *testing.T) {
 	}
 
 	config.VMVersion = ReplyVMVersionV1
-	if err := config.SaveToPath(path); err != nil {
+	err = config.SaveToPath(path)
+	if err != nil {
 		t.Fatalf("SaveToPath() legacy error = %v", err)
 	}
 	data, err = os.ReadFile(path)
