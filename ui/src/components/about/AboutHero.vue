@@ -171,11 +171,11 @@ const props = defineProps<{
 }
 
 .about-hero__stat strong {
-  overflow: hidden;
+  min-width: 0;
   color: var(--sd-text-primary);
   font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .about-hero__alert {
