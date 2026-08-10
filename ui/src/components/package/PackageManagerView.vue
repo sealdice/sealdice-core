@@ -111,8 +111,7 @@
                     <n-text depth="3">{{ uploadFileName || '未选择文件' }}</n-text>
                   </n-space>
                   <n-space>
-                    <n-button :disabled="!selectedUploadFile" :loading="uploadPreviewLoading" @click="previewUpload">预览</n-button>
-                    <n-button type="primary" :disabled="!selectedUploadFile" :loading="uploadInstallLoading" @click="installUpload">上传并安装</n-button>
+                    <n-button type="primary" :disabled="!selectedUploadFile" :loading="uploadPreviewLoading" @click="previewUpload">预览并安装</n-button>
                   </n-space>
                 </n-space>
               </n-card>
@@ -121,7 +120,7 @@
               <n-card title="URL 安装" size="small">
                 <n-space vertical>
                   <n-input v-model:value="installUrlInput" clearable placeholder="https://example.com/demo.sealpack" />
-                  <n-button type="primary" :loading="installUrlLoading" @click="installByUrl">从 URL 安装</n-button>
+                  <n-button type="primary" :disabled="!installUrlInput.trim()" :loading="installUrlLoading" @click="previewUrl">预览并安装</n-button>
                 </n-space>
               </n-card>
             </n-grid-item>
@@ -183,6 +182,7 @@ import {
   postSdApiV2ExtensionInstallUrl,
   postSdApiV2ExtensionPackagesRefresh,
   postSdApiV2ExtensionPreviewUpload,
+  postSdApiV2ExtensionPreviewUrl,
   postSdApiV2ExtensionReload,
   postSdApiV2ExtensionReloadAll,
   postSdApiV2ExtensionReloadContent,
@@ -250,8 +250,9 @@ const currentPackageSchema = ref<Record<string, ConfigFieldSchema> | null>(null)
 const previewVisible = ref(false);
 const previewTitle = ref('安装预览');
 const previewData = ref<PackageUploadPreview | null>(null);
-const previewSource = ref<'store' | 'upload' | 'none'>('none');
+const previewSource = ref<'store' | 'upload' | 'url' | 'none'>('none');
 const previewStoreTarget = ref<StorePackage | null>(null);
+const previewUrlTarget = ref('');
 
 const packagesQuery = useQuery({
   queryKey: ['extension-packages'],
@@ -403,8 +404,7 @@ const storeColumns: DataTableColumns<StorePackage> = [
     key: 'actions',
     width: 180,
     render: (row: StorePackage) => h('div', { class: 'table-actions' }, [
-      h('button', { onClick: () => previewStoreInstall(row), class: 'action-link' }, '预览'),
-      h('button', { onClick: () => installStorePackage(row), class: 'action-link' }, row.installed ? '重装' : '安装'),
+      h('button', { onClick: () => previewStoreInstall(row), class: 'action-link' }, row.installed ? '预览重装' : '预览安装'),
     ]),
   },
 ];
@@ -623,8 +623,8 @@ async function previewUpload() {
   }
 }
 
-async function installUpload() {
-  if (!selectedUploadFile.value) return;
+async function installUpload(): Promise<boolean> {
+  if (!selectedUploadFile.value) return false;
   uploadInstallLoading.value = true;
   try {
     await postSdApiV2ExtensionInstallUpload({
@@ -633,26 +633,51 @@ async function installUpload() {
     });
     message.success('已安装');
     await packagesQuery.refetch();
+    return true;
   } catch (error) {
     handleError(error, '上传安装失败');
+    return false;
   } finally {
     uploadInstallLoading.value = false;
   }
 }
 
-async function installByUrl() {
-  if (!installUrlInput.value.trim()) return;
+async function installByUrl(url = installUrlInput.value.trim()): Promise<boolean> {
+  if (!url) return false;
   installUrlLoading.value = true;
   try {
     await postSdApiV2ExtensionInstallUrl({
-      body: { url: installUrlInput.value.trim() },
+      body: { url },
       throwOnError: true,
     });
     message.success('已安装');
     installUrlInput.value = '';
     await packagesQuery.refetch();
+    return true;
   } catch (error) {
     handleError(error, 'URL 安装失败');
+    return false;
+  } finally {
+    installUrlLoading.value = false;
+  }
+}
+
+async function previewUrl() {
+  const url = installUrlInput.value.trim();
+  if (!url) return;
+  installUrlLoading.value = true;
+  try {
+    const { data } = await postSdApiV2ExtensionPreviewUrl({
+      body: { url },
+      throwOnError: true,
+    });
+    previewSource.value = 'url';
+    previewUrlTarget.value = url;
+    previewTitle.value = 'URL 安装预览';
+    previewData.value = data.item;
+    previewVisible.value = true;
+  } catch (error) {
+    handleError(error, 'URL 预览失败');
   } finally {
     installUrlLoading.value = false;
   }
@@ -677,10 +702,8 @@ async function previewStoreInstall(pkg: StorePackage) {
   }
 }
 
-async function installStorePackage(pkg: StorePackage) {
+async function installStorePackage(pkg: StorePackage): Promise<boolean> {
   previewStoreTarget.value = pkg;
-  previewVisible.value = false;
-  installPreviewConfirmLoading.value = true;
   try {
     await postSdApiV2ExtensionStoreDownload({
       body: { id: pkg.id, version: pkg.version },
@@ -688,10 +711,10 @@ async function installStorePackage(pkg: StorePackage) {
     });
     message.success('已安装');
     await packagesQuery.refetch();
+    return true;
   } catch (error) {
     handleError(error, '商店安装失败');
-  } finally {
-    installPreviewConfirmLoading.value = false;
+    return false;
   }
 }
 
@@ -699,12 +722,17 @@ async function confirmPreviewInstall() {
   if (!previewData.value) return;
   installPreviewConfirmLoading.value = true;
   try {
+    let installed = false;
     if (previewSource.value === 'store' && previewStoreTarget.value) {
-      await installStorePackage(previewStoreTarget.value);
+      installed = await installStorePackage(previewStoreTarget.value);
     } else if (previewSource.value === 'upload' && selectedUploadFile.value) {
-      await installUpload();
+      installed = await installUpload();
+    } else if (previewSource.value === 'url' && previewUrlTarget.value) {
+      installed = await installByUrl(previewUrlTarget.value);
     }
-    previewVisible.value = false;
+    if (installed) {
+      previewVisible.value = false;
+    }
   } finally {
     installPreviewConfirmLoading.value = false;
   }

@@ -64,6 +64,7 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	huma.Post(grp, "/preview-upload", s.PreviewUpload, func(o *huma.Operation) {
 		o.Middlewares = append(o.Middlewares, s.streamUploadMiddleware(grp, true))
 	})
+	huma.Post(grp, "/preview-url", s.PreviewURL)
 	huma.Post(grp, "/install-upload", s.InstallUpload, func(o *huma.Operation) {
 		o.Middlewares = append(o.Middlewares, s.streamUploadMiddleware(grp, false))
 	})
@@ -149,6 +150,22 @@ func (s *Service) InstallURL(ctx context.Context, req *InstallURLReq) (*response
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	return response.NewItemResponse(ExtensionActionResp{Success: true, Message: "扩展包安装成功"}), nil
+}
+
+func (s *Service) PreviewURL(ctx context.Context, req *InstallURLReq) (*response.ItemResponse[*dice.PackageUploadPreview], error) {
+	pm := s.packageManager()
+	if pm == nil {
+		return nil, huma.Error500InternalServerError("package manager unavailable")
+	}
+	url := strings.TrimSpace(req.Body.URL)
+	if url == "" {
+		return nil, huma.Error400BadRequest("未提供扩展包 URL")
+	}
+	preview, err := pm.PreviewFromURLWithOptionsContext(ctx, url, dice.PackageDownloadOptions{})
+	if err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
+	}
+	return response.NewItemResponse(preview), nil
 }
 
 func (s *Service) Uninstall(_ context.Context, req *UninstallReq) (*response.ItemResponse[ExtensionActionResp], error) {
