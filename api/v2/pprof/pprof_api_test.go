@@ -1,4 +1,4 @@
-package pprof
+package pprof_test
 
 import (
 	"net/http"
@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/humatest"
+
+	. "sealdice-core/api/v2/pprof"
 )
 
 func TestGetCmdlineStreamsText(t *testing.T) {

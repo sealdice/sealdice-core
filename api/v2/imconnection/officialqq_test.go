@@ -1,8 +1,9 @@
-package imconnection
+package imconnection_test
 
 import (
 	"testing"
 
+	. "sealdice-core/api/v2/imconnection"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 )
@@ -22,13 +23,12 @@ func TestTestOfficialQQReturnsProbeMetadataAndDuplicateState(t *testing.T) {
 	dm := &dice.DiceManager{Dice: []*dice.Dice{d}}
 	d.Parent = dm
 
-	svc := NewServiceWithOptions(dm, false, false)
-	svc.officialProbe = func(_ string, _ string) (*dice.OfficialQQAccountProbeResult, error) {
+	svc := NewServiceWithOfficialProbe(dm, false, false, func(_ string, _ string) (*dice.OfficialQQAccountProbeResult, error) {
 		return &dice.OfficialQQAccountProbeResult{
 			UIN:      "202401",
 			Nickname: "Seal Bot",
 		}, nil
-	}
+	})
 
 	existing := dice.NewOfficialQQConnItem("10001", "secret", "202401", false)
 	existing.UserID = "OpenQQ:202401"

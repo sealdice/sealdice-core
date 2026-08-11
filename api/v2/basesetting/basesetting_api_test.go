@@ -1,4 +1,4 @@
-package basesetting
+package basesetting_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 
+	. "sealdice-core/api/v2/basesetting"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 	"sealdice-core/model/common/request"
@@ -45,7 +46,7 @@ func (o *testDatabaseOperator) Close() {
 	}
 }
 
-func newTestBaseSettingService(t *testing.T) *Service {
+func newTestBaseSettingService(t *testing.T) (*Service, *dice.Dice) {
 	t.Helper()
 
 	dataDir := t.TempDir()
@@ -71,13 +72,13 @@ func newTestBaseSettingService(t *testing.T) *Service {
 	}
 	d.Parent = dm
 
-	return NewService(dm)
+	return NewService(dm), d
 }
 
 func TestGetValueIncludesOfficialQQAndTrayTooltipFields(t *testing.T) {
-	svc := newTestBaseSettingService(t)
-	svc.dice.Config.OfficialQQFileSendBase64 = true
-	svc.dice.Config.OfficialQQUseMarkdown = true
+	svc, testDice := newTestBaseSettingService(t)
+	testDice.Config.OfficialQQFileSendBase64 = true
+	testDice.Config.OfficialQQUseMarkdown = true
 
 	resp, err := svc.GetValue(t.Context(), &request.Empty{})
 	if err != nil {
@@ -106,7 +107,7 @@ func TestGetValueIncludesOfficialQQAndTrayTooltipFields(t *testing.T) {
 }
 
 func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
-	svc := newTestBaseSettingService(t)
+	svc, _ := newTestBaseSettingService(t)
 
 	if _, err := svc.SetValue(t.Context(), &BaseSettingUpdateReq{
 		Body: map[string]any{

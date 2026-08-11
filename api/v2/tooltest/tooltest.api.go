@@ -126,8 +126,8 @@ func (s *Service) PostMessage(_ context.Context, req *PostMessageReq) (*SimpleIt
 	if err != nil {
 		return nil, err
 	}
-	if err := s.checkRateLimit(mode); err != nil {
-		return nil, err
+	if rateLimitErr := s.checkRateLimit(mode); rateLimitErr != nil {
+		return nil, rateLimitErr
 	}
 
 	senderID := strings.TrimSpace(body.SenderID)

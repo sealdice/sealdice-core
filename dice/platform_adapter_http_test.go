@@ -1,4 +1,4 @@
-package dice
+package dice //nolint:testpackage // Tests exercise the unexported raw segment parser directly.
 
 import (
 	"testing"

@@ -17,12 +17,12 @@ import (
 )
 
 type Service struct {
-	dice         *dice.Dice
-	dm           *dice.DiceManager
-	autoServe    bool
-	autoSave     bool
-	protocolTree []*PlatformTreeNode
-	protocolBy   map[string]*ProtocolDefinition
+	dice          *dice.Dice
+	dm            *dice.DiceManager
+	autoServe     bool
+	autoSave      bool
+	protocolTree  []*PlatformTreeNode
+	protocolBy    map[string]*ProtocolDefinition
 	officialProbe func(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error)
 }
 

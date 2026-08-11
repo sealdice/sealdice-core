@@ -1,4 +1,4 @@
-package extension
+package extension_test
 
 import (
 	"archive/zip"
@@ -12,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 
+	. "sealdice-core/api/v2/extension"
 	"sealdice-core/dice"
 	"sealdice-core/dice/sealpack"
 	"sealdice-core/model/common/request"
@@ -185,7 +186,7 @@ func newTestExtensionService(t *testing.T, backendURL string) (*Service, *dice.D
 		Config:     dice.NewConfig(nil),
 		Logger:     zap.NewNop().Sugar(),
 	}
-	testDice.Config.BaseConfig.DataDir = "."
+	testDice.Config.DataDir = "."
 	if backendURL != "" {
 		testDice.Config.BackendUrls = []string{backendURL}
 	}

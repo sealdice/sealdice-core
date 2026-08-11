@@ -107,7 +107,7 @@ func (s *Service) SetPublicDiceConfig(_ context.Context, req *PublicDiceUpdateRe
 }
 
 func (s *Service) SetPublicDiceEnable(_ context.Context, req *PublicDiceEnableReq) (*response.ItemResponse[PublicDiceInfoResp], error) {
-	s.dice.Config.PublicDiceConfig.Enable = req.Body.PublicDiceEnable
+	s.dice.Config.Enable = req.Body.PublicDiceEnable
 	s.ensurePublicDiceRuntime()
 	if req.Body.PublicDiceEnable {
 		s.dice.PublicDiceInfoRegister()

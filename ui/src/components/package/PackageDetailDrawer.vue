@@ -38,9 +38,9 @@
                 />
                 <n-select
                   v-else-if="Array.isArray(fieldSchema.enum) && fieldSchema.enum.length > 0"
-                  :value="draft[fieldKey] as string | number | null"
+                  :value="selectValueOf(fieldKey)"
                   :options="enumOptions(fieldSchema.enum)"
-                  @update:value="(value: string | number | null) => updateValue(fieldKey, value)"
+                  @update:value="(value: SelectValue | null) => updateValue(fieldKey, value)"
                 />
                 <n-input
                   v-else-if="fieldSchema.type === 'string'"
@@ -98,6 +98,8 @@ type ConfigFieldSchema = {
   secret?: boolean;
   enum?: unknown[] | null;
 };
+
+type SelectValue = string | number | boolean;
 
 const props = defineProps<{
   show: boolean;
@@ -165,8 +167,12 @@ function updateJsonValue(fieldKey: string, value: string) {
 function enumOptions(values: readonly unknown[]) {
   return values.map(value => ({
     label: String(value),
-    value: value as string | number,
+    value: value as SelectValue,
   }));
+}
+
+function selectValueOf(fieldKey: string) {
+  return draft[fieldKey] as SelectValue | null;
 }
 
 function numberValueOf(fieldKey: string) {
