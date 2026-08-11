@@ -6,50 +6,56 @@
         <template v-if="mode === 'logs'">
           <n-card :bordered="false" class="story-summary-card">
             <n-flex vertical align="flex-start">
-              <n-text>记录过 {{ summary?.totalLogs ?? 0 }} 份日志，共计 {{ summary?.totalItems ?? 0 }} 条消息</n-text>
-              <n-text>现有 {{ summary?.currentLogs ?? 0 }} 份日志，共计 {{ summary?.currentItems ?? 0 }} 条消息</n-text>
+              <n-text
+                >记录过 {{ summary?.totalLogs ?? 0 }} 份日志，共计
+                {{ summary?.totalItems ?? 0 }} 条消息</n-text
+              >
+              <n-text
+                >现有 {{ summary?.currentLogs ?? 0 }} 份日志，共计
+                {{ summary?.currentItems ?? 0 }} 条消息</n-text
+              >
             </n-flex>
           </n-card>
-          <section class="story-search-block">
-            <ProSearchForm
-              :form="storySearchForm"
-              :columns="storySearchColumns"
-              size="small"
-              label-placement="left"
-              label-width="72"
-              cols="1 s:2 l:3"
-              :collapse-button-props="false"
-            />
-          </section>
+          <QueryToolbar :form="storySearchForm" :columns="storySearchColumns" cols="1 s:2 l:3" />
 
-          <section class="story-action-block">
-            <n-flex size="small" align="center" class="story-tools">
-              <n-button type="primary" size="small" @click="toggleSelectAll">
-                <template #icon>
-                  <n-icon><i-ep-check /></n-icon>
-                </template>
-                {{ allLogsSelected ? '全不选' : '全选' }}
-              </n-button>
-              <n-button
-                v-show="(logs?.filter(item => item.pitch)?.length ?? 0) > 0"
-                type="error"
-                size="small"
-                @click="delLogs"
+          <ResultToolbar class="story-list-toolbar">
+            <template #meta>
+              <n-checkbox
+                :checked="allLogsSelected"
+                aria-label="全选当前页日志"
+                @update:checked="toggleSelectAll"
               >
-                <template #icon>
-                  <n-icon><i-ep-delete /></n-icon>
-                </template>
-                删除所选
-              </n-button>
-            </n-flex>
-          </section>
+                {{ allLogsSelected ? '全不选' : '全选' }}
+              </n-checkbox>
+              <n-text depth="3" class="story-selected-count">已选 {{ selectedCount }} 项</n-text>
+            </template>
+
+            <n-button
+              v-if="selectedCount > 0"
+              size="small"
+              type="primary"
+              :loading="uploadLogMutation.isPending.value"
+              @click="batchUploadLogs"
+            >
+              <template #icon>
+                <n-icon><i-ep-upload /></n-icon>
+              </template>
+              批量提取日志
+            </n-button>
+            <n-button v-if="selectedCount > 0" size="small" type="error" @click="delLogs">
+              <template #icon>
+                <n-icon><i-ep-delete /></n-icon>
+              </template>
+              删除所选
+            </n-button>
+          </ResultToolbar>
 
           <section class="story-data-block">
             <template v-for="log in logs" :key="log.id">
               <FoldableCard class="story-log-card">
                 <template #title>
                   <n-flex align="center">
-                    <n-checkbox v-model:checked="log.pitch" />
+                    <n-checkbox v-model:checked="log.pitch" :aria-label="`选择日志 ${log.name}`" />
                     <n-flex align="center" wrap>
                       <n-text class="text-base" tag="strong">{{ log.name }}</n-text>
                       <n-text>({{ log.groupId }})</n-text>
@@ -59,17 +65,21 @@
 
                 <template #action>
                   <n-flex size="small" wrap>
-                    <n-button size="small" secondary @click="openItem(log)">查看</n-button>
-                    <n-button size="small" type="primary" secondary @click="uploadLog(log)">
+                    <n-button text type="primary" @click="openItem(log)">查看</n-button>
+                    <n-button size="small" type="primary" @click="uploadLog(log)">
                       <template #icon>
                         <n-icon><i-ep-upload /></n-icon>
                       </template>
                       提取日志
                     </n-button>
-                    <n-dropdown :options="logActionOptions(log)" @select="key => handleLogAction(key, log)">
-                      <n-button size="small" secondary>
+                    <n-dropdown
+                      trigger="click"
+                      :options="logActionOptions(log)"
+                      @select="key => handleLogAction(key, log)"
+                    >
+                      <n-button text aria-label="更多操作">
                         更多
-                        <template #icon><i-ep-more-filled /></template>
+                        <template #icon><n-icon><i-ep-more-filled /></n-icon></template>
                       </n-button>
                     </n-dropdown>
                   </n-flex>
@@ -82,11 +92,13 @@
                   <n-flex align="center">
                     <n-text>链接状态：{{ linkStateText(log) }}</n-text>
                     <n-tag size="small" :type="linkStateType(log)" :bordered="false">
-                      {{ log.linkState }}
+                      {{ linkStateBadge(log) }}
                     </n-tag>
                   </n-flex>
                   <n-flex v-if="log.uploadTime">
-                    <n-text>上传于：{{ dayjs.unix(log.uploadTime).format('YYYY-MM-DD HH:mm') }}</n-text>
+                    <n-text
+                      >上传于：{{ dayjs.unix(log.uploadTime).format('YYYY-MM-DD HH:mm') }}</n-text
+                    >
                   </n-flex>
                   <n-flex>
                     <n-text>创建于：{{ dayjs.unix(log.createdAt).format('YYYY-MM-DD') }}</n-text>
@@ -144,7 +156,16 @@
                         v-model:value="users[id][0]"
                         :modes="['hex']"
                         :show-alpha="false"
-                        :swatches="['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#9333ea', '#db2777']"
+                        :swatches="[
+                          '#dc2626',
+                          '#ea580c',
+                          '#ca8a04',
+                          '#16a34a',
+                          '#0891b2',
+                          '#2563eb',
+                          '#9333ea',
+                          '#db2777',
+                        ]"
                       />
                     </n-descriptions-item>
                   </n-descriptions>
@@ -158,7 +179,8 @@
               <p :style="{ color: users[item.IMUserId][0] }">
                 <span>{{ item.nickname }}：</span>
                 <template v-for="(line, lineIndex) in item.message.split('\n')" :key="lineIndex">
-                  <span>{{ line }}</span><br />
+                  <span>{{ line }}</span
+                  ><br />
                 </template>
               </p>
             </template>
@@ -237,13 +259,21 @@
               <n-card size="small">
                 <n-statistic
                   label="最早更新时间"
-                  :value="cleanupPreview?.oldestUpdated ? dayjs.unix(cleanupPreview.oldestUpdated).format('YYYY-MM-DD') : '--'"
+                  :value="
+                    cleanupPreview?.oldestUpdated
+                      ? dayjs.unix(cleanupPreview.oldestUpdated).format('YYYY-MM-DD')
+                      : '--'
+                  "
                 />
               </n-card>
               <n-card size="small">
                 <n-statistic
                   label="最近更新时间"
-                  :value="cleanupPreview?.newestUpdated ? dayjs.unix(cleanupPreview.newestUpdated).format('YYYY-MM-DD') : '--'"
+                  :value="
+                    cleanupPreview?.newestUpdated
+                      ? dayjs.unix(cleanupPreview.newestUpdated).format('YYYY-MM-DD')
+                      : '--'
+                  "
                 />
               </n-card>
             </div>
@@ -257,12 +287,21 @@
               </div>
             </div>
 
-            <n-alert v-if="cleanupForm.vacuum" type="warning" :show-icon="false" class="cleanup-alert">
+            <n-alert
+              v-if="cleanupForm.vacuum"
+              type="warning"
+              :show-icon="false"
+              class="cleanup-alert"
+            >
               这将可能导致海豹记录log用户运行缓慢，请注意
             </n-alert>
 
             <div class="cleanup-actions">
-              <n-button :loading="cleanupMutation.isPending.value" type="error" @click="openCleanupDialog">
+              <n-button
+                :loading="cleanupMutation.isPending.value"
+                type="error"
+                @click="openCleanupDialog"
+              >
                 确认并执行
               </n-button>
               <n-button secondary @click="executeCleanup" v-if="false">执行清理</n-button>
@@ -284,7 +323,9 @@ import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import { NButton, NFlex, NText, useDialog, useMessage } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import {
   getSdApiV2StoryCleanupPreview,
   getSdApiV2StoryInfoOptions,
@@ -311,7 +352,9 @@ const dialog = useDialog();
 const queryClient = useQueryClient();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
-const StoryPainterViewer = defineAsyncComponent(() => import('@/components/storyPainter/StoryPainterViewer.vue'));
+const StoryPainterViewer = defineAsyncComponent(
+  () => import('@/components/storyPainter/StoryPainterViewer.vue')
+);
 
 // 跑团日志页包含三类工作流：
 // 1. 日志列表与条目查看；
@@ -370,7 +413,10 @@ const cleanupPreview = ref<{
 } | null>(null);
 
 const logs = ref<LogView[]>([]);
-const allLogsSelected = computed(() => logs.value.length > 0 && logs.value.every(item => item.pitch));
+const allLogsSelected = computed(
+  () => logs.value.length > 0 && logs.value.every(item => item.pitch)
+);
+const selectedCount = computed(() => logs.value.filter(item => item.pitch).length);
 const itemData = ref<LogOneItem[]>([]);
 const currentPainterLog = ref<LogView | null>(null);
 const users = ref<Record<string, [string, string]>>({});
@@ -435,6 +481,17 @@ function linkStateText(log: LogView): string {
       return '已有最新链接';
     case 'stale':
       return '链接已过期，建议重传';
+    default:
+      return '无链接';
+  }
+}
+
+function linkStateBadge(log: LogView): string {
+  switch (log.linkState) {
+    case 'fresh':
+      return '已最新';
+    case 'stale':
+      return '已过期';
     default:
       return '无链接';
   }
@@ -590,10 +647,39 @@ function delLogs() {
   });
 }
 
-function showUploadResult(log: LogView, result: { url: string; reused: boolean; forced: boolean; unofficial: boolean }) {
+function batchUploadLogs() {
+  const selected = logs.value.filter(item => item.pitch);
+  if (selected.length === 0) return;
+  dialog.warning({
+    title: '批量提取日志',
+    content: `将上传所选 ${selected.length} 份日志到海豹服务器，是否继续？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      let ok = 0;
+      for (const log of selected) {
+        try {
+          const result = await uploadLogMutation.mutateAsync({ log, force: false });
+          showUploadResult(log, result);
+          ok += 1;
+        } catch {
+          // 单条失败由全局错误提示承载，继续处理其余项。
+        }
+      }
+      if (ok > 0) message.success(`已处理 ${ok} 份日志`);
+    },
+  });
+}
+
+function showUploadResult(
+  log: LogView,
+  result: { url: string; reused: boolean; forced: boolean; unofficial: boolean }
+) {
   message.success(() => (
     <NFlex vertical>
-      <NText>{result.reused ? '复用已有日志链接' : result.forced ? '强制重新上传成功' : '日志上传成功'}</NText>
+      <NText>
+        {result.reused ? '复用已有日志链接' : result.forced ? '强制重新上传成功' : '日志上传成功'}
+      </NText>
       <NButton text type="primary" onClick={() => openLink(result.url)}>
         打开链接
       </NButton>
@@ -608,7 +694,9 @@ function showUploadResult(log: LogView, result: { url: string; reused: boolean; 
 function uploadLog(log: LogView, force = false) {
   dialog.warning({
     title: force ? '强制上传' : '上传日志',
-    content: force ? '将重新上传此跑团日志并覆盖当前链接记录，是否继续？' : '将此跑团日志上传至海豹服务器？',
+    content: force
+      ? '将重新上传此跑团日志并覆盖当前链接记录，是否继续？'
+      : '将此跑团日志上传至海豹服务器？',
     positiveText: '确定',
     negativeText: '取消',
     closable: false,
@@ -621,9 +709,9 @@ function uploadLog(log: LogView, force = false) {
 
 function logActionOptions(log: LogView) {
   return [
-    { label: '分页文本', key: 'raw' },
-    { label: '强制上传', key: 'force-upload' },
-    { label: '查看链接', key: 'link', disabled: !log.uploadUrl },
+    { label: '查看文本明细', key: 'raw' },
+    { label: '复制链接', key: 'copy-link', disabled: !log.uploadUrl },
+    { label: '强制重传', key: 'force-upload' },
     { type: 'divider', key: 'divider' },
     { label: '删除', key: 'delete' },
   ];
@@ -631,9 +719,19 @@ function logActionOptions(log: LogView) {
 
 function handleLogAction(key: string, log: LogView) {
   if (key === 'raw') void openRawItem(log);
+  if (key === 'copy-link' && log.uploadUrl) void copyLink(log.uploadUrl);
   if (key === 'force-upload') uploadLog(log, true);
   if (key === 'link' && log.uploadUrl) openLink(log.uploadUrl);
   if (key === 'delete') delLog(log);
+}
+
+async function copyLink(url: string) {
+  try {
+    await navigator.clipboard.writeText(url);
+    message.success('已复制链接到剪贴板');
+  } catch {
+    message.error('复制失败，请手动复制');
+  }
 }
 
 async function openItem(log: LogView) {
@@ -697,7 +795,9 @@ async function openCleanupDialog() {
     title: '日志清理',
     content: () => (
       <NFlex vertical>
-        <NText>将删除 {preview.logs} 份超过 {months} 个月未更新的日志，共 {preview.items} 条消息。</NText>
+        <NText>
+          将删除 {preview.logs} 份超过 {months} 个月未更新的日志，共 {preview.items} 条消息。
+        </NText>
         {cleanupForm.value.vacuum ? (
           <NText type="warning">这将可能导致海豹记录log用户运行缓慢，请注意</NText>
         ) : null}
@@ -710,7 +810,9 @@ async function openCleanupDialog() {
         months,
         vacuum: cleanupForm.value.vacuum,
       });
-      message.success(`已删除 ${result.logs} 份日志、${result.items} 条消息${result.vacuumed ? '，并执行 VACUUM' : ''}`);
+      message.success(
+        `已删除 ${result.logs} 份日志、${result.items} 条消息${result.vacuumed ? '，并执行 VACUUM' : ''}`
+      );
       await refreshLogs();
     },
   });
@@ -731,7 +833,9 @@ async function executeCleanup() {
     months,
     vacuum: cleanupForm.value.vacuum,
   });
-  message.success(`已删除 ${result.logs} 份日志、${result.items} 条消息${result.vacuumed ? '，并执行 VACUUM' : ''}`);
+  message.success(
+    `已删除 ${result.logs} 份日志、${result.items} 条消息${result.vacuumed ? '，并执行 VACUUM' : ''}`
+  );
   await Promise.all([refreshLogs(), refreshCleanupPreview()]);
 }
 
@@ -779,24 +883,23 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
+.story-list-toolbar {
+  margin-bottom: 0.5rem;
+}
+
+.story-selected-count {
+  font-size: 0.85rem;
+}
+
 .story-tabs :deep(.n-tabs-nav-scroll-content) {
   min-width: max-content;
-}
-
-.story-search-block {
-  margin-bottom: 1rem;
-}
-
-.story-action-block {
-  display: flex;
-  justify-content: flex-start;
-  margin-bottom: 1rem;
 }
 
 .story-data-block {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  padding-top: 0.25rem;
 }
 
 .story-log-card {
@@ -910,14 +1013,9 @@ onMounted(async () => {
     justify-content: flex-start !important;
   }
 
-  .story-action-block,
   .cleanup-panel-head {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .story-tools {
-    margin-left: 0;
   }
 
   .story-pagination,

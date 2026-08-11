@@ -1,18 +1,13 @@
 <template>
   <section class="resource-list-panel">
-    <header class="resource-list-panel__toolbar">
-      <ProSearchForm
-        :form="searchForm"
-        :columns="searchColumns"
-        size="small"
-        label-placement="left"
-        label-width="78"
-        cols="1 m:2 xl:3"
-        :show-suffix-grid-item="false"
-        :collapse-button-props="false"
-      />
-
-      <n-flex align="center" justify="end" wrap>
+    <QueryToolbar
+      :form="searchForm"
+      :columns="searchColumns"
+      :loading="loading"
+      label-width="84"
+      cols="1 m:2 xl:3"
+    >
+      <template #actions>
         <n-button secondary :loading="loading" @click="emit('refresh')">
           <template #icon>
             <n-icon><i-ep-refresh /></n-icon>
@@ -34,8 +29,8 @@
             上传图片
           </n-button>
         </n-upload>
-      </n-flex>
-    </header>
+      </template>
+    </QueryToolbar>
 
     <section v-if="uploadTasks.length" class="resource-upload-queue" aria-live="polite">
       <header class="resource-upload-queue__header">
@@ -57,7 +52,12 @@
         <n-text v-if="task.errorText" type="error" class="resource-upload-queue__error">
           {{ task.errorText }}
         </n-text>
-        <n-button v-if="task.status === 'error'" size="small" secondary @click="retryUploadTask(task)">
+        <n-button
+          v-if="task.status === 'error'"
+          size="small"
+          secondary
+          @click="retryUploadTask(task)"
+        >
           重试
         </n-button>
       </div>
@@ -65,8 +65,16 @@
 
     <n-spin :show="loading && isMobile">
       <div v-if="isMobile" class="resource-list-panel__cards">
-        <article v-for="item in items" :key="getResourceKey(item)" class="resource-list-panel__card">
-          <button class="resource-list-panel__preview-button" type="button" @click="emit('detail', item)">
+        <article
+          v-for="item in items"
+          :key="getResourceKey(item)"
+          class="resource-list-panel__card"
+        >
+          <button
+            class="resource-list-panel__preview-button"
+            type="button"
+            @click="emit('detail', item)"
+          >
             <ResourcePreview :item="item" thumbnail />
           </button>
           <div class="resource-list-panel__card-main">
@@ -83,9 +91,7 @@
                 <n-button size="tiny" secondary type="info" @click="emit('copy', item)">
                   复制码
                 </n-button>
-                <n-button size="tiny" secondary @click="emit('detail', item)">
-                  详情
-                </n-button>
+                <n-button size="tiny" secondary @click="emit('detail', item)"> 详情 </n-button>
                 <n-button
                   size="tiny"
                   secondary
@@ -122,7 +128,11 @@
         size="small"
       />
 
-      <n-empty v-if="!loading && items.length === 0" description="暂无图片资源" class="resource-list-panel__empty">
+      <n-empty
+        v-if="!loading && items.length === 0"
+        description="暂无图片资源"
+        class="resource-list-panel__empty"
+      >
         <template #extra>
           <n-text depth="3">上传图片后可在骰子消息中使用 [图:路径] 引用。</n-text>
         </template>
@@ -148,10 +158,18 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { filesize } from 'filesize';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
-import { NButton, NSpace, NTag, type DataTableColumns, type UploadCustomRequestOptions, useMessage } from 'naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import {
+  NButton,
+  NSpace,
+  NTag,
+  type DataTableColumns,
+  type UploadCustomRequestOptions,
+  useMessage,
+} from 'naive-ui';
 import type { ResourceItem } from '@/api';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import {
   formatResourcePageSummary,
   formatResourceTypeLabel,
@@ -161,10 +179,7 @@ import {
   RESOURCE_PAGE_SIZE_OPTIONS,
   type ResourceListQueryModel,
 } from '@/features/resource/viewModel';
-import {
-  cloneSearchFormValues,
-  overwriteSearchFormValues,
-} from '@/features/searchForm/viewModel';
+import { cloneSearchFormValues, overwriteSearchFormValues } from '@/features/searchForm/viewModel';
 
 const props = defineProps<{
   items: ResourceItem[];
@@ -254,12 +269,16 @@ const searchColumns: ProSearchFormColumns<ResourceSearchFormValues> = [
   },
 ];
 
-const summary = computed(() => formatResourcePageSummary({
-  total: props.total,
-  page: props.query.page,
-  pageSize: props.query.pageSize,
-}));
-const completedUploadCount = computed(() => uploadTasks.value.filter(task => task.status === 'success').length);
+const summary = computed(() =>
+  formatResourcePageSummary({
+    total: props.total,
+    page: props.query.page,
+    pageSize: props.query.pageSize,
+  })
+);
+const completedUploadCount = computed(
+  () => uploadTasks.value.filter(task => task.status === 'success').length
+);
 const uploadPending = computed(() => uploadTasks.value.some(task => task.status === 'uploading'));
 const uploadQueueSummary = computed(() => {
   const uploading = uploadTasks.value.filter(task => task.status === 'uploading').length;
@@ -279,7 +298,7 @@ const columns = computed<DataTableColumns<ResourceItem>>(() => [
     key: 'name',
     minWidth: 280,
     render: row => (
-      <div class='resource-list-panel__file-cell'>
+      <div class="resource-list-panel__file-cell">
         <strong>{row.name}</strong>
         <span>{row.path}</span>
       </div>
@@ -290,7 +309,7 @@ const columns = computed<DataTableColumns<ResourceItem>>(() => [
     key: 'type',
     width: 96,
     render: row => (
-      <NTag size='small' bordered={false} type={getResourceTypeTagType(row.type)}>
+      <NTag size="small" bordered={false} type={getResourceTypeTagType(row.type)}>
         {formatResourceTypeLabel(row.type)}
       </NTag>
     ),
@@ -299,33 +318,37 @@ const columns = computed<DataTableColumns<ResourceItem>>(() => [
     title: '大小',
     key: 'size',
     width: 112,
-    render: row => <NTag size='small' bordered={false}>{filesize(row.size)}</NTag>,
+    render: row => (
+      <NTag size="small" bordered={false}>
+        {filesize(row.size)}
+      </NTag>
+    ),
   },
   {
     title: '操作',
     key: 'actions',
     width: 300,
     render: row => (
-      <NSpace justify='end' size='small'>
-        <NButton size='small' secondary type='info' onClick={() => emit('copy', row)}>
+      <NSpace justify="end" size="small">
+        <NButton size="small" secondary type="info" onClick={() => emit('copy', row)}>
           复制海豹码
         </NButton>
-        <NButton size='small' secondary onClick={() => emit('detail', row)}>
+        <NButton size="small" secondary onClick={() => emit('detail', row)}>
           详情
         </NButton>
         <NButton
-          size='small'
+          size="small"
           secondary
-          type='success'
+          type="success"
           loading={props.downloadingPath === row.path}
           onClick={() => emit('download', row)}
         >
           下载
         </NButton>
         <NButton
-          size='small'
+          size="small"
           secondary
-          type='error'
+          type="error"
           loading={props.deletingPath === row.path}
           onClick={() => emit('delete', row)}
         >
@@ -349,7 +372,7 @@ watch(
       syncingFromProps.value = false;
     });
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(
@@ -363,7 +386,7 @@ watch(
       page: 1,
     });
   },
-  { deep: true },
+  { deep: true }
 );
 
 function updatePage(page: number) {
@@ -440,13 +463,6 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
   gap: 16px;
 }
 
-.resource-list-panel__toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: start;
-}
-
 .resource-upload-queue {
   display: grid;
   gap: 8px;
@@ -512,7 +528,7 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 16px;
+  border-radius: 6px;
   background: var(--sd-bg-elevated);
 }
 
@@ -556,12 +572,6 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-@media (max-width: 1080px) {
-  .resource-list-panel__toolbar {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 760px) {

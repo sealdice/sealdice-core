@@ -1,19 +1,17 @@
 <template>
   <n-spin :show="loading">
     <main class="item-list-container">
-      <header>
-        <ProSearchForm
-          :form="searchForm"
-          :columns="searchColumns"
-          size="small"
-          label-width="72"
-          label-placement="left"
-          cols="1 s:2 l:4"
-          :collapse-button-props="false"
-        />
-      </header>
+      <QueryToolbar :form="searchForm" :columns="searchColumns" cols="1 s:2 l:4" />
 
-      <n-data-table class="item-list" :columns="columns" :data="items" size="small" :bordered="false" remote :scroll-x="1210" />
+      <n-data-table
+        class="item-list"
+        :columns="columns"
+        :data="items"
+        size="small"
+        :bordered="false"
+        remote
+        :scroll-x="1210"
+      />
 
       <footer>
         <n-flex class="item-list-pagination" align="center" justify="end" wrap>
@@ -36,16 +34,14 @@
 <script setup lang="tsx">
 import { computed, watch } from 'vue';
 import { NFlex, NText, type DataTableColumns } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import type { HelpTextVo } from '@/api';
 import {
   createDefaultHelpdocItemQuery,
   type HelpdocItemQueryModel,
 } from '@/features/helpdoc/queries';
-import {
-  cloneSearchFormValues,
-  overwriteSearchFormValues,
-} from '@/features/searchForm/viewModel';
+import { cloneSearchFormValues, overwriteSearchFormValues } from '@/features/searchForm/viewModel';
 
 const query = defineModel<HelpdocItemQueryModel>('query', { required: true });
 
@@ -133,7 +129,7 @@ watch(
       title: next.title,
     });
   },
-  { deep: true, immediate: true },
+  { deep: true, immediate: true }
 );
 </script>
 

@@ -10,26 +10,20 @@
     </PageHeader>
 
     <n-spin :show="pageBusy">
-      <section class="deck-search-block">
-        <ProSearchForm
-          :form="deckSearchForm"
-          :columns="deckSearchColumns"
-          size="small"
-          label-placement="left"
-          label-width="84"
-          cols="1 s:2 l:3"
-          :collapse-button-props="false"
-        />
-      </section>
-
-      <section class="deck-action-block">
-        <n-flex size="small" align="center" class="deck-tools">
+      <QueryToolbar
+        :form="deckSearchForm"
+        :columns="deckSearchColumns"
+        :loading="pageBusy"
+        label-width="84"
+        cols="1 s:2 l:3"
+      >
+        <template #actions>
           <n-button
             type="info"
-            size="tiny"
-            text
+            secondary
             tag="a"
             target="_blank"
+            rel="noreferrer"
             href="https://github.com/sealdice/draw"
           >
             <template #icon>
@@ -51,8 +45,24 @@
             </template>
             上传牌堆
           </n-button>
-        </n-flex>
-      </section>
+        </template>
+        <template #meta>
+          <n-text v-if="filterCount > 0" type="info"> 已过滤 {{ filterCount }} 条 </n-text>
+          <n-text class="deck-format-note">支持 json、yaml、deck、toml 格式</n-text>
+          <n-tooltip>
+            <template #trigger>
+              <n-button text size="tiny" aria-label="查看牌堆格式说明">
+                <template #icon>
+                  <n-icon><i-ep-question-filled /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            deck 牌堆：一种单文件带图的牌堆格式。在牌堆文件中使用 ./images/xxx.png
+            的相对路径引用图片，并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作。<br /><br />
+            toml 牌堆：海豹支持的新牌堆格式，提供包括云牌组在内的更多功能支持。
+          </n-tooltip>
+        </template>
+      </QueryToolbar>
 
       <section v-if="activeUploadTasks.length" class="upload-panel">
         <div class="upload-panel-head">
@@ -73,11 +83,22 @@
                 <n-tag
                   size="small"
                   :bordered="false"
-                  :type="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : 'warning'"
+                  :type="
+                    task.status === 'error'
+                      ? 'error'
+                      : task.status === 'success'
+                        ? 'success'
+                        : 'warning'
+                  "
                 >
                   {{ task.status }}
                 </n-tag>
-                <n-button v-if="task.status === 'error'" size="tiny" secondary @click="retryTask(task)">
+                <n-button
+                  v-if="task.status === 'error'"
+                  size="tiny"
+                  secondary
+                  @click="retryTask(task)"
+                >
                   重试
                 </n-button>
               </div>
@@ -86,36 +107,26 @@
             <n-progress
               type="line"
               :percentage="task.progress"
-              :status="task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : 'default'"
+              :status="
+                task.status === 'error'
+                  ? 'error'
+                  : task.status === 'success'
+                    ? 'success'
+                    : 'default'
+              "
               :show-indicator="true"
             />
 
             <div class="upload-detail">
-              <span>分块 {{ Array.isArray(task.uploadedChunks) ? task.uploadedChunks.length : 0 }} / {{ task.expectedChunks || '-' }}</span>
+              <span
+                >分块 {{ Array.isArray(task.uploadedChunks) ? task.uploadedChunks.length : 0 }} /
+                {{ task.expectedChunks || '-' }}</span
+              >
               <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
             </div>
           </article>
         </div>
       </section>
-
-      <aside class="deck-meta">
-        <n-text v-if="filterCount > 0" class="text-xs" type="info">
-          已过滤 {{ filterCount }} 条
-        </n-text>
-
-        <n-flex size="small" align="center" class="deck-meta-right">
-          <n-text class="text-xs">目前支持 json/yaml/deck/toml 格式的牌堆</n-text>
-          <n-tooltip>
-            <template #trigger>
-              <n-icon size="small"><i-ep-question-filled /></n-icon>
-            </template>
-            deck 牌堆：一种单文件带图的牌堆格式<br />
-            在牌堆文件中使用./images/xxx.png 的相对路径引用图片。并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作<br />
-            <br />
-            toml 牌堆：海豹支持的新牌堆格式。格式更加友好，还提供了包括云牌组在内的更多功能支持。
-          </n-tooltip>
-        </n-flex>
-      </aside>
 
       <main class="deck-data-block">
         <FoldableCard
@@ -257,7 +268,12 @@
         <n-alert v-if="diffErrorText" type="error" :show-icon="false" class="mb-3">
           {{ diffErrorText }}
         </n-alert>
-        <DiffViewer :lang="deckCheck.format ?? 'text'" :old="deckCheck.old ?? ''" :new="deckCheck.new ?? ''" :theme="isDark ? 'dark' : 'light'" />
+        <DiffViewer
+          :lang="deckCheck.format ?? 'text'"
+          :old="deckCheck.old ?? ''"
+          :new="deckCheck.new ?? ''"
+          :theme="isDark ? 'dark' : 'light'"
+        />
         <template #footer>
           <n-flex wrap>
             <n-button @click="showDiff = false">取消</n-button>
@@ -284,7 +300,7 @@ import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useDialog, useMessage } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   getSdApiV2DeckList,
   postSdApiV2DeckCheckUpdate,
@@ -298,8 +314,13 @@ import {
 } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import { getApiBaseUrl } from '@/api/config';
-import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse } from '@/features/testMode/state';
+import {
+  getTestModeBlockMessage,
+  isTestModeApiError,
+  isTestModeResponse,
+} from '@/features/testMode/state';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { hasAccessToken } from '@/features/auth/state';
 import { useAppTheme } from '@/features/theme';
@@ -433,7 +454,7 @@ const deckListQuery = useQuery({
 });
 
 const items = computed<DeckItemExt[]>(() =>
-  (deckListQuery.data.value?.list ?? []).map(item => item as DeckItemExt),
+  (deckListQuery.data.value?.list ?? []).map(item => item as DeckItemExt)
 );
 const total = computed(() => deckListQuery.data.value?.total ?? 0);
 const filterCount = computed(() => {
@@ -446,14 +467,14 @@ watch(
   () => listQuery.keyword,
   () => {
     listQuery.page = 1;
-  },
+  }
 );
 
 watch(
   () => [listQuery.sortBy, listQuery.sortOrder] as const,
   () => {
     listQuery.page = 1;
-  },
+  }
 );
 
 const invalidateDeckList = () =>
@@ -578,7 +599,7 @@ const uploader = useResumableUpload('sd-deck-upload-state', {
 });
 
 const activeUploadTasks = computed(() =>
-  uploader.tasks.value.filter(task => task.status !== 'success'),
+  uploader.tasks.value.filter(task => task.status !== 'success')
 );
 
 onMounted(() => {
@@ -650,25 +671,12 @@ function deckUpdate() {
   width: 100%;
 }
 
-.deck-search-block {
-  margin-bottom: 0.75rem;
-}
-
-.deck-action-block {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.deck-tools {
-  margin-left: auto;
-}
-
 .deck-file-input {
   display: none;
+}
+
+.deck-format-note {
+  color: var(--sd-text-secondary);
 }
 
 .upload-panel {
@@ -747,22 +755,12 @@ function deckUpdate() {
   color: var(--n-error-color);
 }
 
-.deck-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.deck-meta-right {
-  margin-left: auto;
-}
-
 .deck-data-block {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  border-top: 1px solid var(--sd-border-soft);
+  padding-top: 0.25rem;
 }
 
 .deck-item {
@@ -784,17 +782,10 @@ function deckUpdate() {
 }
 
 @media screen and (max-width: 700px) {
-  .deck-meta,
-  .deck-action-block,
   .upload-item-head,
   .upload-detail {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .deck-tools,
-  .deck-meta-right {
-    margin-left: 0;
   }
 
   .deck-pagination-block {

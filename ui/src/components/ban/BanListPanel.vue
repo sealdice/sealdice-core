@@ -1,18 +1,13 @@
 <template>
   <section class="ban-list-panel">
-    <header class="ban-list-panel__toolbar">
-      <ProSearchForm
-        :form="searchForm"
-        :columns="searchColumns"
-        size="small"
-        label-placement="left"
-        label-width="72"
-        cols="1 s:2 l:3"
-        :show-suffix-grid-item="false"
-        :collapse-button-props="false"
-      />
-
-      <n-flex align="center" wrap class="ban-list-panel__actions">
+    <QueryToolbar
+      :form="searchForm"
+      :columns="searchColumns"
+      :loading="loading"
+      label-width="84"
+      cols="1 s:2 l:3"
+    >
+      <template #actions>
         <n-button type="success" secondary :loading="addPending" @click="emit('openAdd')">
           <template #icon>
             <n-icon><i-ep-plus /></n-icon>
@@ -38,8 +33,8 @@
           </template>
           导出
         </n-button>
-      </n-flex>
-    </header>
+      </template>
+    </QueryToolbar>
 
     <n-spin :show="loading">
       <n-list hoverable clickable class="ban-list-panel__list">
@@ -80,7 +75,9 @@
                       {{ dayjs.unix(item.times?.[index] ?? item.banTime).fromNow() }}
                     </n-tag>
                   </template>
-                  {{ dayjs.unix(item.times?.[index] ?? item.banTime).format('YYYY-MM-DD HH:mm:ss') }}
+                  {{
+                    dayjs.unix(item.times?.[index] ?? item.banTime).format('YYYY-MM-DD HH:mm:ss')
+                  }}
                 </n-tooltip>
                 <n-text>
                   在 &lt;{{ item.places?.[index] || '未知地点' }}&gt;，原因：「{{ reason }}」
@@ -109,23 +106,14 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch, toValue } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import dayjs from 'dayjs';
 import type { UploadCustomRequestOptions } from 'naive-ui';
-import { 
-  createProSearchForm, 
-  ProSearchForm, 
-  type ProSearchFormColumns 
-} from 'pro-naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import type { BanListInfoItem } from '@/api';
-import {
-  getBanRankMeta,
-  type BanListQueryModel,
-} from '@/features/ban/viewModel';
-import {
-  cloneSearchFormValues,
-  overwriteSearchFormValues,
-} from '@/features/searchForm/viewModel';
+import { getBanRankMeta, type BanListQueryModel } from '@/features/ban/viewModel';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 
 const props = defineProps<{
   items: BanListInfoItem[];
@@ -204,16 +192,16 @@ const searchColumns: ProSearchFormColumns<BanSearchFormValues> = [
 
 watch(
   () => [props.query.keyword, props.query.sortBy, props.query.ranks] as const,
-    ([keyword, sortBy, ranks]) => {
-      syncingFromProps.value = true;
-      searchForm.values.value.keyword = keyword
-      searchForm.values.value.sortBy = sortBy
-      searchForm.values.value.ranks = ranks
-      void nextTick(() => {
-        syncingFromProps.value = false;
-      });
-    },
-  { deep: true, immediate: true },
+  ([keyword, sortBy, ranks]) => {
+    syncingFromProps.value = true;
+    searchForm.values.value.keyword = keyword;
+    searchForm.values.value.sortBy = sortBy;
+    searchForm.values.value.ranks = ranks;
+    void nextTick(() => {
+      syncingFromProps.value = false;
+    });
+  },
+  { deep: true, immediate: true }
 );
 
 watch(
@@ -227,7 +215,7 @@ watch(
       page: 1,
     });
   },
-  { deep: true },
+  { deep: true }
 );
 
 function updatePage(page: number) {
@@ -260,24 +248,8 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
   gap: 1rem;
 }
 
-.ban-list-panel__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.ban-list-panel__search {
-  width: min(20rem, 80vw);
-}
-
-.ban-list-panel__actions {
-  flex: 0 0 auto;
-}
-
 .ban-list-panel__list {
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--sd-bg-elevated);
 }
 

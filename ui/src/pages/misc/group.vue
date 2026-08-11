@@ -20,42 +20,45 @@
     </n-card>
 
     <n-spin :show="listLoading">
-      <section class="group-search-block">
-        <ProSearchForm
-          :form="groupSearchForm"
-          :columns="groupSearchColumns"
-          size="small"
-          label-placement="left"
-          label-width="96"
-          cols="1 s:2 l:3 xl:5"
-          :collapse-button-props="false"
-        />
-      </section>
+      <QueryToolbar :form="groupSearchForm" :columns="groupSearchColumns" cols="1 s:2 l:3" />
 
-      <section class="group-action-block">
-        <n-tag size="small" :bordered="false" type="info">已选择 {{ selectedGroupIDs.length }} 项</n-tag>
-        <n-flex size="small" align="center" class="group-meta-right">
-          <n-button size="small" secondary :disabled="!selectedGroupIDs.length" @click="openBatchNotify">
-            批量通知群
-          </n-button>
-          <n-button
-            size="small"
-            type="error"
-            secondary
-            :loading="quitSubmitting"
-            :disabled="quitSubmitting || !selectedGroupIDs.length"
-            @click="openBatchQuit"
+      <ResultToolbar class="group-list-toolbar">
+        <template #meta>
+          <n-checkbox
+            :checked="allGroupsSelected"
+            aria-label="全选当前页群组"
+            @update:checked="toggleSelectAllGroups"
           >
-            批量退群
-          </n-button>
-        </n-flex>
-      </section>
+            {{ allGroupsSelected ? '全不选' : '全选' }}
+          </n-checkbox>
+          <n-text depth="3" class="group-selected-count">已选 {{ selectedGroupIDs.length }} 项</n-text>
+        </template>
+
+        <n-button
+          size="small"
+          secondary
+          :disabled="!selectedGroupIDs.length"
+          @click="openBatchNotify"
+        >
+          批量通知群
+        </n-button>
+        <n-button
+          size="small"
+          type="error"
+          secondary
+          :loading="quitSubmitting"
+          :disabled="quitSubmitting || !selectedGroupIDs.length"
+          @click="openBatchQuit"
+        >
+          批量退群
+        </n-button>
+      </ResultToolbar>
 
       <section class="group-data-block">
         <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
           <template #title>
             <n-flex align="center" size="small" wrap>
-              <n-checkbox v-model:checked="group.selected" />
+              <n-checkbox v-model:checked="group.selected" :aria-label="`选择群组 ${group.groupId}`" />
               <n-switch v-model:value="group.active" @update:value="markGroupChanged(group)" />
               <n-text class="group-id" tag="strong">{{ group.groupId }}</n-text>
               <n-text>「{{ group.groupName || '未获取到' }}」</n-text>
@@ -92,12 +95,24 @@
           </template>
 
           <n-descriptions label-placement="left" size="small" :column="isMobile ? 1 : 3" bordered>
-            <n-descriptions-item label="上次使用">{{ recentText(group.recentDiceSendTime) }}</n-descriptions-item>
-            <n-descriptions-item label="入群时间">{{ group.enteredTime ? recentText(group.enteredTime) : '未知' }}</n-descriptions-item>
-            <n-descriptions-item label="邀请人">{{ group.inviteUserId || '未知' }}</n-descriptions-item>
-            <n-descriptions-item label="Log 状态">{{ group.logOn ? '开启' : '关闭' }}</n-descriptions-item>
-            <n-descriptions-item label="迎新">{{ group.showGroupWelcome ? '开启' : '关闭' }}</n-descriptions-item>
-            <n-descriptions-item label="群内账号">{{ groupDiceIDs(group).length || '未知' }}</n-descriptions-item>
+            <n-descriptions-item label="上次使用">{{
+              recentText(group.recentDiceSendTime)
+            }}</n-descriptions-item>
+            <n-descriptions-item label="入群时间">{{
+              group.enteredTime ? recentText(group.enteredTime) : '未知'
+            }}</n-descriptions-item>
+            <n-descriptions-item label="邀请人">{{
+              group.inviteUserId || '未知'
+            }}</n-descriptions-item>
+            <n-descriptions-item label="Log 状态">{{
+              group.logOn ? '开启' : '关闭'
+            }}</n-descriptions-item>
+            <n-descriptions-item label="迎新">{{
+              group.showGroupWelcome ? '开启' : '关闭'
+            }}</n-descriptions-item>
+            <n-descriptions-item label="群内账号">{{
+              groupDiceIDs(group).length || '未知'
+            }}</n-descriptions-item>
             <n-descriptions-item label="启用扩展" :span="3">
               <n-space v-if="activeExtNames(group).length" size="small" wrap>
                 <n-tag
@@ -115,7 +130,11 @@
           </n-descriptions>
         </FoldableCard>
 
-        <n-empty v-if="!groups.length && !listLoading" description="暂无匹配的群组" class="group-empty" />
+        <n-empty
+          v-if="!groups.length && !listLoading"
+          description="暂无匹配的群组"
+          class="group-empty"
+        />
       </section>
 
       <div class="group-pagination-block">
@@ -132,7 +151,12 @@
       </div>
     </n-spin>
 
-    <n-modal v-model:show="notifyDialogVisible" preset="card" title="批量通知群" class="group-dialog">
+    <n-modal
+      v-model:show="notifyDialogVisible"
+      preset="card"
+      title="批量通知群"
+      class="group-dialog"
+    >
       <n-flex vertical>
         <n-text depth="3">将向 {{ selectedGroupIDs.length }} 个群组发送同一条通知。</n-text>
         <n-input
@@ -143,7 +167,9 @@
         />
         <n-flex justify="end">
           <n-button @click="notifyDialogVisible = false">取消</n-button>
-          <n-button type="primary" :loading="notifySubmitting" @click="submitNotify">发送通知</n-button>
+          <n-button type="primary" :loading="notifySubmitting" @click="submitNotify"
+            >发送通知</n-button
+          >
         </n-flex>
       </n-flex>
     </n-modal>
@@ -176,7 +202,12 @@
         />
         <n-flex justify="end">
           <n-button @click="quitDialogVisible = false">取消</n-button>
-          <n-button type="error" :loading="quitSubmitting" :disabled="quitSubmitting" @click="submitQuit">
+          <n-button
+            type="error"
+            :loading="quitSubmitting"
+            :disabled="quitSubmitting"
+            @click="submitQuit"
+          >
             确认退群
           </n-button>
         </n-flex>
@@ -191,7 +222,7 @@ import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import { useMessage } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   getSdApiV2GroupPlatformsOptions,
   postSdApiV2GroupBatchNotify,
@@ -203,6 +234,8 @@ import {
 } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   readGroupQuitDefaultText,
@@ -278,7 +311,7 @@ const platformOptions = computed(() =>
   (platformsQuery.data.value?.item ?? []).map(item => ({
     label: item.text,
     value: item.value,
-  })),
+  }))
 );
 
 const groupSearchForm = createProSearchForm<GroupSearchFormValues>({
@@ -343,8 +376,20 @@ const groupSearchColumns = computed<ProSearchFormColumns<GroupSearchFormValues>>
 
 const selectedGroups = computed(() => groups.value.filter(item => item.selected));
 const selectedGroupIDs = computed(() => selectedGroups.value.map(item => item.groupId));
+const allGroupsSelected = computed(
+  () => groups.value.length > 0 && groups.value.every(item => item.selected)
+);
+
+function toggleSelectAllGroups() {
+  const next = !allGroupsSelected.value;
+  groups.value.forEach(item => {
+    item.selected = next;
+  });
+}
 const loggingCount = computed(() => groups.value.filter(item => item.logOn).length);
-const multiDiceCount = computed(() => groups.value.filter(item => groupDiceIDs(item).length > 1).length);
+const multiDiceCount = computed(
+  () => groups.value.filter(item => groupDiceIDs(item).length > 1).length
+);
 
 function groupDiceIDs(group: GroupInfo): string[] {
   return Object.keys((group.diceIdExistsMap ?? {}) as Record<string, unknown>).sort();
@@ -554,35 +599,23 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.group-search-block {
-  margin-bottom: 1rem;
+.group-list-toolbar {
+  margin-bottom: 0.5rem;
 }
 
-.group-search-block :deep(.n-form-item-label) {
-  min-width: 7rem;
-  white-space: nowrap;
+.group-selected-count {
+  font-size: 0.85rem;
 }
 
 .tool-label {
   margin-right: 0.5rem;
 }
 
-.group-action-block {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.group-meta-right {
-  margin-left: auto;
-}
-
 .group-data-block {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  padding-top: 0.25rem;
 }
 
 .group-card {
@@ -611,15 +644,6 @@ onMounted(async () => {
 }
 
 @media screen and (max-width: 700px) {
-  .group-action-block {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .group-meta-right {
-    margin-left: 0;
-  }
-
   .group-id {
     max-width: 100%;
   }

@@ -1,16 +1,6 @@
 <template>
   <div>
-    <header class="mb-4">
-      <ProSearchForm
-        :form="searchForm"
-        :columns="searchColumns"
-        size="small"
-        label-placement="left"
-        label-width="72"
-        cols="1 s:2"
-        :collapse-button-props="false"
-      />
-    </header>
+    <QueryToolbar :form="searchForm" :columns="searchColumns" cols="1 s:2" />
 
     <template v-if="selectedPlugin">
       <!-- Info -->
@@ -29,11 +19,7 @@
 
       <!-- List -->
       <section class="data-list">
-        <div
-          v-for="kv in dataListQuery.data.value?.keys ?? []"
-          :key="kv.key"
-          class="data-row"
-        >
+        <div v-for="kv in dataListQuery.data.value?.keys ?? []" :key="kv.key" class="data-row">
           <n-flex align="center" justify="space-between" wrap>
             <n-flex align="center" size="small">
               <n-text class="data-key">{{ kv.key }}</n-text>
@@ -41,7 +27,9 @@
             </n-flex>
             <n-flex size="small">
               <n-button size="tiny" @click="openEdit(kv.key, kv.value, kv.isJson)">编辑</n-button>
-              <n-button size="tiny" type="error" secondary @click="handleDeleteKey(kv.key)">删除</n-button>
+              <n-button size="tiny" type="error" secondary @click="handleDeleteKey(kv.key)"
+                >删除</n-button
+              >
             </n-flex>
           </n-flex>
         </div>
@@ -49,7 +37,10 @@
       </section>
 
       <!-- Pagination -->
-      <div v-if="(dataListQuery.data.value?.total ?? 0) > dataPage.pageSize" class="js-data-pagination">
+      <div
+        v-if="(dataListQuery.data.value?.total ?? 0) > dataPage.pageSize"
+        class="js-data-pagination"
+      >
         <n-pagination
           v-model:page="dataPage.page"
           :page-size="dataPage.pageSize"
@@ -62,7 +53,12 @@
     <n-empty v-else description="请选择插件查看数据" />
 
     <!-- Edit Modal -->
-    <n-modal v-model:show="showEditModal" title="编辑数据" preset="card" style="width: 90vw; max-width: 700px">
+    <n-modal
+      v-model:show="showEditModal"
+      title="编辑数据"
+      preset="card"
+      style="width: 90vw; max-width: 700px"
+    >
       <n-flex vertical size="medium">
         <n-flex align="center">
           <n-text depth="3" class="w-16">Key:</n-text>
@@ -78,10 +74,16 @@
             v-model:value="editValue"
             type="textarea"
             rows="10"
-            @input="() => {
-              jsonError = '';
-              try { JSON.parse(editValue); } catch { if (editIsJson) jsonError = 'JSON 格式不合法'; }
-            }"
+            @input="
+              () => {
+                jsonError = '';
+                try {
+                  JSON.parse(editValue);
+                } catch {
+                  if (editIsJson) jsonError = 'JSON 格式不合法';
+                }
+              }
+            "
           />
         </n-flex>
         <n-alert v-if="jsonError" type="warning" :show-icon="true">
@@ -91,11 +93,7 @@
       <template #footer>
         <n-flex justify="end">
           <n-button @click="showEditModal = false">取消</n-button>
-          <n-button
-            type="primary"
-            :loading="setMutation.isPending.value"
-            @click="confirmSave"
-          >
+          <n-button type="primary" :loading="setMutation.isPending.value" @click="confirmSave">
             保存
           </n-button>
         </n-flex>
@@ -118,8 +116,9 @@ import {
   useMessage,
   NAlert,
 } from 'naive-ui';
-import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import { useJsData } from '@/features/js/useJsData';
 
 const message = useMessage();
