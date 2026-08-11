@@ -162,7 +162,7 @@
           :max-height="isMobile ? 420 : 620"
           :virtual-scroll="!isMobile"
         />
-        <n-empty v-if="!logStream.hasLogs.value" description="暂无日志" class="empty-log" />
+        <n-empty v-if="!logData.length" description="暂无日志" class="empty-log" />
         <n-back-top :right="30" />
       </div>
     </section>
@@ -176,7 +176,6 @@ import { useQuery } from '@tanstack/vue-query';
 import { filesize } from 'filesize';
 import dayjs from 'dayjs';
 import type { DataTableColumns } from 'naive-ui';
-import { useThemeVars } from 'naive-ui';
 import {
   getSdApiV2BaseNetworkHealthOptions,
   getSdApiV2BaseOverviewOptions,
@@ -192,7 +191,6 @@ import {
 } from '@/features/base/networkHealth';
 import { hasAccessToken } from '@/features/auth/state';
 
-const themeVars = useThemeVars();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 
@@ -329,13 +327,27 @@ function scrollToLatestLog() {
   });
 }
 
-const getMsgColor = (row: BaseLogItem): string | undefined => {
-  if (row.msg.startsWith('onebot | ')) return themeVars.value.warningColor;
-  if (row.msg.startsWith('发给')) return themeVars.value.infoColor;
-  if (row.level === 'warn') return themeVars.value.warningColor;
-  if (row.level === 'error') return themeVars.value.errorColor;
-  return undefined;
-};
+type LogLevelTone = 'neutral' | 'info' | 'warning' | 'error';
+
+function getLogLevelMeta(level: string): { label: string; tone: LogLevelTone } {
+  switch (level.toLowerCase()) {
+    case 'info':
+      return { label: 'INFO', tone: 'info' };
+    case 'warn':
+    case 'warning':
+      return { label: 'WARN', tone: 'warning' };
+    case 'error':
+    case 'fatal':
+      return { label: level.toUpperCase(), tone: 'error' };
+    default:
+      return { label: level.toUpperCase() || 'LOG', tone: 'neutral' };
+  }
+}
+
+function renderLogLevel(row: BaseLogItem) {
+  const meta = getLogLevelMeta(row.level);
+  return <span class={['log-level', `log-level--${meta.tone}`]}>{meta.label}</span>;
+}
 
 const columns = computed<DataTableColumns<BaseLogItem>>(() => {
   const data: DataTableColumns<BaseLogItem> = [
@@ -343,38 +355,27 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
       title: '时间',
       key: 'ts',
       width: isMobile.value ? 70 : 100,
-      render: row => {
-        const color = getMsgColor(row);
-        return (
-          <div class="log-time" style={{ color }}>
-            <span class="log-time-text">
-              {dayjs.unix(row.ts).format(isMobile.value ? 'HH:mm' : 'HH:mm:ss')}
-            </span>
-          </div>
-        );
-      },
+      render: row => (
+        <div class="log-time">
+          <span class="log-time-text">
+            {dayjs.unix(row.ts).format(isMobile.value ? 'HH:mm' : 'HH:mm:ss')}
+          </span>
+        </div>
+      ),
     },
   ];
 
-  if (!isMobile.value) {
-    data.push({
-      title: '级别',
-      key: 'level',
-      width: 70,
-      render: row => {
-        const color = getMsgColor(row);
-        return <span style={{ color }}>{row.level}</span>;
-      },
-    });
-  }
+  data.push({
+    title: '级别',
+    key: 'level',
+    width: isMobile.value ? 68 : 76,
+    render: renderLogLevel,
+  });
 
   data.push({
     title: '信息',
     key: 'msg',
-    render: row => {
-      const color = getMsgColor(row);
-      return <span style={{ color }}>{row.msg}</span>;
-    },
+    render: row => <div class="log-message">{row.msg}</div>,
   });
 
   return data;
@@ -642,10 +643,57 @@ h1 {
 :deep(.log-time) {
   display: flex;
   align-items: center;
+  color: var(--sd-text-muted);
 }
 
 :deep(.log-time-text) {
   font-variant-numeric: tabular-nums;
+}
+
+:deep(.log-level) {
+  display: inline-flex;
+  min-width: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sd-border-soft);
+  border-radius: var(--sd-radius-xs);
+  background: var(--sd-bg-elevated-muted);
+  color: var(--sd-text-secondary);
+  font-size: 0.67rem;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  line-height: 1.45;
+  padding: 0.08rem 0.32rem;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+:deep(.log-level--info) {
+  border-color: color-mix(in srgb, var(--sd-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--sd-primary) 9%, transparent);
+  color: var(--sd-primary);
+}
+
+:deep(.log-level--warning) {
+  border-color: color-mix(in srgb, var(--sd-warning) 22%, transparent);
+  background: color-mix(in srgb, var(--sd-warning) 10%, transparent);
+  color: var(--sd-warning);
+  font-weight: 600;
+}
+
+:deep(.log-level--error) {
+  border-color: color-mix(in srgb, var(--sd-error) 22%, transparent);
+  background: color-mix(in srgb, var(--sd-error) 10%, transparent);
+  color: var(--sd-error);
+  font-weight: 600;
+}
+
+:deep(.log-message) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: var(--sd-text-primary);
 }
 
 @media (max-width: 1100px) {
