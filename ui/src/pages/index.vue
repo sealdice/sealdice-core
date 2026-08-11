@@ -30,6 +30,26 @@
         </div>
       </article>
 
+      <article class="status-card group-card">
+        <div class="status-card__heading">
+          <span class="status-card__icon">
+            <n-icon><i-tabler-users-group /></n-icon>
+          </span>
+          <span>群组服务</span>
+        </div>
+
+        <div class="group-metrics">
+          <div class="group-metric">
+            <strong>{{ groupSummary?.joined ?? '—' }}</strong>
+            <span>已加入</span>
+          </div>
+          <div class="group-metric group-metric--enabled">
+            <strong>{{ groupSummary?.enabled ?? '—' }}</strong>
+            <span>已启用</span>
+          </div>
+        </div>
+      </article>
+
       <article class="status-card network-card">
         <div class="status-card__heading">
           <span class="status-card__icon">
@@ -157,7 +177,11 @@ import { filesize } from 'filesize';
 import dayjs from 'dayjs';
 import type { DataTableColumns } from 'naive-ui';
 import { useThemeVars } from 'naive-ui';
-import { getSdApiV2BaseNetworkHealthOptions, getSdApiV2BaseOverviewOptions } from '@/api';
+import {
+  getSdApiV2BaseNetworkHealthOptions,
+  getSdApiV2BaseOverviewOptions,
+  postSdApiV2GroupList,
+} from '@/api';
 import { useBaseLogStream, type BaseLogItem } from '@/features/base/logStream';
 import { applyLogDisplayUpdate } from '@/features/base/logDisplayState';
 import {
@@ -186,8 +210,17 @@ const networkHealthQuery = useQuery({
   refetchInterval: 300000,
 });
 
+const groupSummaryQuery = useQuery({
+  queryKey: ['home', 'group-summary'],
+  queryFn: fetchGroupSummary,
+  enabled: hasAccessToken,
+  staleTime: 30000,
+  refetchInterval: 60000,
+});
+
 const overview = computed(() => overviewQuery.data.value?.item);
 const memoryUsed = computed(() => overview.value?.memory.usedSys ?? 0);
+const groupSummary = computed(() => groupSummaryQuery.data.value);
 const hasNewVersion = computed(() => {
   const version = overview.value?.version;
   if (!version) return false;
@@ -234,6 +267,41 @@ logStream.reconnect();
 const logData = computed(() => {
   return displayReverse.value ? [...visibleLogs.value].reverse() : visibleLogs.value;
 });
+
+async function fetchGroupSummary() {
+  const firstPageSize = 100;
+  const firstResponse = await postSdApiV2GroupList({
+    body: {
+      page: 1,
+      pageSize: firstPageSize,
+      keyword: '',
+      filter: {},
+    },
+    throwOnError: true,
+  });
+
+  let total = Number(firstResponse.data.item.total ?? 0);
+  let groups = firstResponse.data.item.list ?? [];
+
+  if (groups.length < total) {
+    const fullResponse = await postSdApiV2GroupList({
+      body: {
+        page: 1,
+        pageSize: total,
+        keyword: '',
+        filter: {},
+      },
+      throwOnError: true,
+    });
+    total = Number(fullResponse.data.item.total ?? total);
+    groups = fullResponse.data.item.list ?? [];
+  }
+
+  return {
+    joined: total,
+    enabled: groups.filter(group => group.active).length,
+  };
+}
 
 function refreshNetworkHealth() {
   void networkHealthQuery.refetch();
@@ -343,7 +411,7 @@ h1 {
 
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -409,6 +477,45 @@ h1 {
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.group-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1.15rem;
+}
+
+.group-metric {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.group-metric + .group-metric {
+  margin-left: 1rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--sd-border-soft);
+}
+
+.group-metric strong {
+  overflow: hidden;
+  color: var(--sd-text-primary);
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+
+.group-metric span {
+  color: var(--sd-text-muted);
+  font-size: 0.76rem;
+}
+
+.group-metric--enabled strong {
+  color: var(--sd-primary);
 }
 
 .network-card {
@@ -539,6 +646,12 @@ h1 {
 
 :deep(.log-time-text) {
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
