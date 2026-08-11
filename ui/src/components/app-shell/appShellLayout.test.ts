@@ -1,27 +1,38 @@
 import {
-  APP_SHELL_DESKTOP_BREAKPOINT,
+  APP_SHELL_DESKTOP_MIN_WIDTH,
   APP_SHELL_MOBILE_MAX_WIDTH,
+  APP_SHELL_TABLET_MIN_WIDTH,
   getAppShellContainerClass,
   getAppShellContentClass,
   getAppShellDrawerWidth,
-  isAppShellMobileWidth,
+  getAppShellViewportMode,
+  shouldCollapseAppShellSidebar,
 } from './appShellLayout.ts';
-import { it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-it('passes', async () => {
+describe('app shell layout', () => {
+  it('keeps the established content and container classes', () => {
+    expect(getAppShellContentClass('default')).toBe('sd-main-container');
+    expect(getAppShellContentClass('wide')).toBe('sd-main-container sd-main-container--wide');
+    expect(getAppShellContainerClass('default')).toBe('sd-page-shell');
+    expect(getAppShellContainerClass('workspace')).toBe('sd-page-shell sd-page-shell--workspace');
+    expect(getAppShellDrawerWidth()).toBe('min(200px, 76vw)');
+  });
 
-const assertEqual = (actual: unknown, expected: unknown) => {
-  if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-};
+  it('uses mobile, tablet and desktop modes at the exact boundaries', () => {
+    expect(APP_SHELL_MOBILE_MAX_WIDTH).toBe(767.9);
+    expect(APP_SHELL_TABLET_MIN_WIDTH).toBe(768);
+    expect(APP_SHELL_DESKTOP_MIN_WIDTH).toBe(1024);
+    expect(getAppShellViewportMode(320)).toBe('mobile');
+    expect(getAppShellViewportMode(767)).toBe('mobile');
+    expect(getAppShellViewportMode(768)).toBe('tablet');
+    expect(getAppShellViewportMode(1023.9)).toBe('tablet');
+    expect(getAppShellViewportMode(1024)).toBe('desktop');
+  });
 
-assertEqual(getAppShellContentClass('default'), 'sd-main-container');
-assertEqual(getAppShellContentClass('wide'), 'sd-main-container sd-main-container--wide');
-assertEqual(getAppShellContainerClass('default'), 'sd-page-shell');
-assertEqual(getAppShellContainerClass('workspace'), 'sd-page-shell sd-page-shell--workspace');
-assertEqual(getAppShellDrawerWidth(), 'min(200px, 76vw)');
-assertEqual(APP_SHELL_DESKTOP_BREAKPOINT, 'md');
-assertEqual(APP_SHELL_MOBILE_MAX_WIDTH, 767.9);
-assertEqual(isAppShellMobileWidth(640), true);
-assertEqual(isAppShellMobileWidth(767), true);
-assertEqual(isAppShellMobileWidth(768), false);
+  it('defaults tablet sidebars to collapsed and desktop sidebars to expanded', () => {
+    expect(shouldCollapseAppShellSidebar('mobile')).toBe(true);
+    expect(shouldCollapseAppShellSidebar('tablet')).toBe(true);
+    expect(shouldCollapseAppShellSidebar('desktop')).toBe(false);
+  });
 });

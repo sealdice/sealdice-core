@@ -27,7 +27,7 @@
       >
         <AppBreadcrumb
           :collapsed="collapsedMenu"
-          :mobile-mode="!isDesktop"
+          :viewport-mode="viewportMode"
           @toggle-sidebar="toggleSidebar"
           @open-search="openSearch"
         />
@@ -68,14 +68,15 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, nextTick, ref } from 'vue';
-import { breakpointsTailwind, useBreakpoints, useEventListener } from '@vueuse/core';
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
+import { useEventListener, useWindowSize } from '@vueuse/core';
 import { useDialog, useMessage } from 'naive-ui';
 import {
-  APP_SHELL_DESKTOP_BREAKPOINT,
   getAppShellContainerClass,
   getAppShellContentClass,
   getAppShellDrawerWidth,
+  getAppShellViewportMode,
+  shouldCollapseAppShellSidebar,
   type AppShellContainerMode,
   type AppShellContentMode,
 } from './appShellLayout';
@@ -106,11 +107,11 @@ const props = withDefaults(
 const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
 const AppSearchMenu = defineAsyncComponent(loadAppSearchMenu);
 
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const isDesktop = breakpoints.greaterOrEqual(APP_SHELL_DESKTOP_BREAKPOINT);
+const { width: viewportWidth } = useWindowSize();
+const viewportMode = computed(() => getAppShellViewportMode(viewportWidth.value));
 
 const drawerMenu = ref(false);
-const collapsedMenu = ref(!isDesktop.value);
+const collapsedMenu = ref(shouldCollapseAppShellSidebar(viewportMode.value));
 const advancedConfigCounter = ref(0);
 const renderSearchMenu = ref(false);
 const searchMenuRef = ref<AppSearchMenuHandle | null>(null);
@@ -129,11 +130,11 @@ function enableAdvancedConfig() {
 }
 
 function toggleSidebar() {
-  if (isDesktop.value) {
-    collapsedMenu.value = !collapsedMenu.value;
-  } else {
+  if (viewportMode.value === 'mobile') {
     drawerMenu.value = true;
+    return;
   }
+  collapsedMenu.value = !collapsedMenu.value;
 }
 
 async function openSearch() {
@@ -142,6 +143,11 @@ async function openSearch() {
   await nextTick();
   searchMenuRef.value?.open();
 }
+
+watch(viewportMode, mode => {
+  collapsedMenu.value = shouldCollapseAppShellSidebar(mode);
+  drawerMenu.value = false;
+});
 
 useEventListener(window, 'keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
@@ -230,9 +236,7 @@ setUnsavedChangesConfirmHandler(
   min-height: 100%;
   min-width: 0;
   margin-inline: auto;
-  padding:
-    var(--sd-space-xl)
-    clamp(var(--sd-space-md), 2vw, var(--sd-space-2xl))
+  padding: var(--sd-space-xl) clamp(var(--sd-space-md), 2vw, var(--sd-space-2xl))
     var(--sd-space-2xl);
 }
 

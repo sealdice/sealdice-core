@@ -1,20 +1,20 @@
 <template>
-  <n-page-header class="sd-breadcrumb-bar">
+  <n-page-header class="sd-breadcrumb-bar" :class="{ 'sd-breadcrumb-bar--compact': isCompactMode }">
     <template #title>
       <div class="sd-breadcrumb-title">
         <!-- 桌面收起态用主题主色提示侧栏状态，移动端仍保持普通菜单按钮。 -->
         <n-button
           class="sd-sidebar-toggle"
-          :class="{ 'sd-sidebar-toggle--collapsed': props.collapsed && !props.mobileMode }"
+          :class="{ 'sd-sidebar-toggle--collapsed': props.collapsed && !isMobileMode }"
           size="small"
           quaternary
           circle
-          :type="props.collapsed && !props.mobileMode ? 'primary' : 'default'"
+          :type="props.collapsed && !isMobileMode ? 'primary' : 'default'"
           @click="emit('toggleSidebar')"
         >
           <template #icon>
             <n-icon size="1.2rem">
-              <i-ep-menu v-if="props.mobileMode" />
+              <i-ep-menu v-if="isMobileMode" />
               <i-ep-expand v-else-if="props.collapsed" />
               <i-ep-fold v-else />
             </n-icon>
@@ -38,8 +38,8 @@
     <template #extra>
       <div class="sd-page-actions">
         <AppThemeSwitch />
-        <AppInstallButton v-if="!props.mobileMode" />
-        <n-button tag="a" secondary class="legacy-entry" :href="oldUIUrl">
+        <AppInstallButton v-if="!isCompactMode" />
+        <n-button v-if="!isCompactMode" tag="a" secondary class="legacy-entry" :href="oldUIUrl">
           回退老 UI
         </n-button>
 
@@ -53,7 +53,7 @@
           <span class="search-shortcut">Ctrl k</span>
         </button>
 
-        <div class="version-summary">
+        <div v-if="!isCompactMode" class="version-summary">
           <n-tag
             :bordered="false"
             :type="isStable ? 'success' : 'default'"
@@ -72,10 +72,10 @@
             新版本 {{ overview?.version.latest }}
           </span>
         </div>
+        <AppHeaderOverflowMenu v-if="isCompactMode" />
       </div>
     </template>
   </n-page-header>
-
 </template>
 
 <script setup lang="ts">
@@ -86,11 +86,13 @@ import { resolveOldUIUrlFromLocation } from '@/api/config';
 import { appNavigation } from '@/router/navigation';
 import { buildBreadcrumbItems } from '@/router/navigationModel';
 import AppInstallButton from './AppInstallButton.vue';
+import AppHeaderOverflowMenu from './AppHeaderOverflowMenu.vue';
 import AppThemeSwitch from './AppThemeSwitch.vue';
+import type { AppShellViewportMode } from './appShellLayout';
 
 const props = defineProps<{
   collapsed: boolean;
-  mobileMode: boolean;
+  viewportMode: AppShellViewportMode;
 }>();
 
 const emit = defineEmits<{
@@ -104,10 +106,12 @@ const oldUIUrl =
   typeof window !== 'undefined' ? resolveOldUIUrlFromLocation(window.location) : '/old-ui/';
 
 const breadcrumbItems = computed(() =>
-  buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面')),
+  buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面'))
 );
+const isCompactMode = computed(() => props.viewportMode !== 'desktop');
+const isMobileMode = computed(() => props.viewportMode === 'mobile');
 const visibleBreadcrumbItems = computed(() =>
-  props.mobileMode ? breadcrumbItems.value.slice(0, -1) : breadcrumbItems.value,
+  isCompactMode.value ? breadcrumbItems.value.slice(0, -1) : breadcrumbItems.value
 );
 </script>
 
@@ -235,6 +239,44 @@ const visibleBreadcrumbItems = computed(() =>
   text-decoration: none;
 }
 
+.sd-breadcrumb-bar--compact :deep(.n-page-header__main) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sd-breadcrumb-bar--compact :deep(.n-page-header__title),
+.sd-breadcrumb-bar--compact :deep(.n-page-header__extra) {
+  min-width: 0;
+}
+
+.sd-breadcrumb-bar--compact .sd-breadcrumb-title {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sd-breadcrumb-bar--compact :deep(.n-breadcrumb) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sd-breadcrumb-bar--compact .sd-page-actions {
+  flex-shrink: 0;
+  gap: 0.25rem;
+}
+
+.sd-breadcrumb-bar--compact .search-entry {
+  flex: 0 0 34px;
+  width: 34px;
+  justify-content: center;
+  padding: 0;
+}
+
+.sd-breadcrumb-bar--compact .search-label span,
+.sd-breadcrumb-bar--compact .search-shortcut {
+  display: none;
+}
+
 @media screen and (max-width: 639.9px) {
   :deep(.n-page-header__main) {
     flex: 1 1 auto;
@@ -257,32 +299,8 @@ const visibleBreadcrumbItems = computed(() =>
     white-space: nowrap;
   }
 
-  .sd-page-actions {
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-  }
-
-  .search-entry {
-    flex: 0 0 34px;
-    width: 34px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .search-label span,
-  .search-shortcut {
-    display: none;
-  }
-
-  .version-summary {
-    display: flex;
-    margin-left: auto;
-  }
-
-  .version-channel,
-  .new-version {
-    display: none;
+  .sd-breadcrumb-bar {
+    padding-inline: 0.75rem;
   }
 }
 </style>
