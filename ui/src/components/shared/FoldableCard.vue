@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="type === 'card'"
-    class="rounded-lg border border-sd-border bg-sd-elevated p-4"
+    class="rounded border border-sd-border bg-sd-elevated p-4"
     :class="{
       'shadow-sm': shadow === 'always',
       'shadow-sm hover:shadow-md transition-shadow': shadow === 'hover',

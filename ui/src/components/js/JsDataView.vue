@@ -18,7 +18,7 @@
       </n-flex>
 
       <!-- List -->
-      <section class="data-list">
+      <ListPanel>
         <div v-for="kv in dataListQuery.data.value?.keys ?? []" :key="kv.key" class="data-row">
           <n-flex align="center" justify="space-between" wrap>
             <n-flex align="center" size="small">
@@ -34,7 +34,7 @@
           </n-flex>
         </div>
         <n-text v-if="!dataListQuery.data.value?.keys?.length" depth="3">无数据</n-text>
-      </section>
+      </ListPanel>
 
       <!-- Pagination -->
       <div
@@ -119,6 +119,7 @@ import {
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
 import { useJsData } from '@/features/js/useJsData';
 
 const message = useMessage();

@@ -4,40 +4,40 @@
       :form="searchForm"
       :columns="searchColumns"
       :loading="loading"
-      label-width="84"
       cols="1 s:2 l:3"
-    >
-      <template #actions>
-        <n-button type="success" secondary :loading="addPending" @click="emit('openAdd')">
+    />
+
+    <ListActions>
+      <n-button type="success" secondary :loading="addPending" @click="emit('openAdd')">
+        <template #icon>
+          <n-icon><i-ep-plus /></n-icon>
+        </template>
+        添加
+      </n-button>
+      <n-upload
+        action=""
+        accept=".json,application/json"
+        :show-file-list="false"
+        :custom-request="uploadBanFile"
+      >
+        <n-button type="info" secondary :loading="importPending">
           <template #icon>
-            <n-icon><i-ep-plus /></n-icon>
+            <n-icon><i-ep-upload /></n-icon>
           </template>
-          添加
+          导入
         </n-button>
-        <n-upload
-          action=""
-          accept=".json,application/json"
-          :show-file-list="false"
-          :custom-request="uploadBanFile"
-        >
-          <n-button type="info" secondary :loading="importPending">
-            <template #icon>
-              <n-icon><i-ep-upload /></n-icon>
-            </template>
-            导入
-          </n-button>
-        </n-upload>
-        <n-button type="info" secondary @click="emit('export')">
-          <template #icon>
-            <n-icon><i-ep-download /></n-icon>
-          </template>
-          导出
-        </n-button>
-      </template>
-    </QueryToolbar>
+      </n-upload>
+      <n-button type="info" secondary @click="emit('export')">
+        <template #icon>
+          <n-icon><i-ep-download /></n-icon>
+        </template>
+        导出
+      </n-button>
+    </ListActions>
 
     <n-spin :show="loading">
-      <n-list hoverable clickable class="ban-list-panel__list">
+      <ListPanel>
+        <n-list hoverable clickable class="ban-list-panel__list">
         <n-list-item v-for="item in items" :key="item.ID">
           <n-thing>
             <template #header>
@@ -89,6 +89,7 @@
       </n-list>
 
       <n-empty v-if="!items.length" description="暂无黑白名单条目" class="ban-list-panel__empty" />
+      </ListPanel>
     </n-spin>
 
     <footer class="ban-list-panel__footer">
@@ -114,6 +115,8 @@ import type { BanListInfoItem } from '@/api';
 import { getBanRankMeta, type BanListQueryModel } from '@/features/ban/viewModel';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ListActions from '@/components/shared/ListActions.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
 
 const props = defineProps<{
   items: BanListInfoItem[];

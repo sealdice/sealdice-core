@@ -22,7 +22,9 @@
     <n-spin :show="listLoading">
       <QueryToolbar :form="groupSearchForm" :columns="groupSearchColumns" cols="1 s:2 l:3" />
 
-      <ResultToolbar class="group-list-toolbar">
+      <ListPanel>
+        <template #toolbar>
+          <ResultToolbar>
         <template #meta>
           <n-checkbox
             :checked="allGroupsSelected"
@@ -53,8 +55,8 @@
           批量退群
         </n-button>
       </ResultToolbar>
+        </template>
 
-      <section class="group-data-block">
         <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
           <template #title>
             <n-flex align="center" size="small" wrap>
@@ -135,7 +137,7 @@
           description="暂无匹配的群组"
           class="group-empty"
         />
-      </section>
+      </ListPanel>
 
       <div class="group-pagination-block">
         <n-pagination
@@ -236,6 +238,7 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   readGroupQuitDefaultText,
@@ -264,24 +267,24 @@ const listQuery = reactive({
   keyword: '',
   platforms: [] as string[],
   queryUnusedDays: 0,
-  isLogging: false,
-  orderByLastTime: true,
+  isLogging: '' as '' | 'true',
+  orderByLastTime: 'true' as '' | 'true',
 });
 
 type GroupSearchFormValues = {
   keyword: string;
   platforms: string[];
   queryUnusedDays: number;
-  isLogging: boolean;
-  orderByLastTime: boolean;
+  isLogging: '' | 'true';
+  orderByLastTime: '' | 'true';
 };
 
 const defaultGroupSearchFormValues = (): GroupSearchFormValues => ({
   keyword: '',
   platforms: [],
   queryUnusedDays: 0,
-  isLogging: false,
-  orderByLastTime: true,
+  isLogging: '',
+  orderByLastTime: 'true',
 });
 
 const groups = ref<GroupRow[]>([]);
@@ -365,12 +368,24 @@ const groupSearchColumns = computed<ProSearchFormColumns<GroupSearchFormValues>>
   {
     label: '仅记录日志',
     path: 'isLogging',
-    field: 'switch',
+    field: 'select',
+    fieldProps: {
+      options: [
+        { label: '全部', value: '' },
+        { label: '仅记录日志', value: 'true' },
+      ],
+    },
   },
   {
-    label: '按最后使用排序',
+    label: '排序方式',
     path: 'orderByLastTime',
-    field: 'switch',
+    field: 'select',
+    fieldProps: {
+      options: [
+        { label: '默认排序', value: '' },
+        { label: '按最后使用排序', value: 'true' },
+      ],
+    },
   },
 ]);
 
@@ -413,9 +428,9 @@ async function searchGroups() {
         keyword: listQuery.keyword || '',
         filter: {
           platforms: listQuery.platforms.length ? listQuery.platforms : undefined,
-          orderByLastTime: listQuery.orderByLastTime,
+          orderByLastTime: listQuery.orderByLastTime === 'true',
           queryUnusedDays: listQuery.queryUnusedDays || undefined,
-          isLogging: listQuery.isLogging || undefined,
+          isLogging: listQuery.isLogging === 'true' ? true : undefined,
         },
       },
       throwOnError: true,
@@ -599,23 +614,12 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.group-list-toolbar {
-  margin-bottom: 0.5rem;
-}
-
 .group-selected-count {
   font-size: 0.85rem;
 }
 
 .tool-label {
   margin-right: 0.5rem;
-}
-
-.group-data-block {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding-top: 0.25rem;
 }
 
 .group-card {

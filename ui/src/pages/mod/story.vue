@@ -18,7 +18,9 @@
           </n-card>
           <QueryToolbar :form="storySearchForm" :columns="storySearchColumns" cols="1 s:2 l:3" />
 
-          <ResultToolbar class="story-list-toolbar">
+          <ListPanel>
+            <template #toolbar>
+              <ResultToolbar>
             <template #meta>
               <n-checkbox
                 :checked="allLogsSelected"
@@ -48,10 +50,10 @@
               </template>
               删除所选
             </n-button>
-          </ResultToolbar>
+              </ResultToolbar>
+            </template>
 
-          <section class="story-data-block">
-            <template v-for="log in logs" :key="log.id">
+          <template v-for="log in logs" :key="log.id">
               <FoldableCard class="story-log-card">
                 <template #title>
                   <n-flex align="center">
@@ -115,7 +117,7 @@
                 </n-flex>
               </FoldableCard>
             </template>
-          </section>
+          </ListPanel>
 
           <div class="story-pagination-block">
             <n-pagination
@@ -326,6 +328,7 @@ import { NButton, NFlex, NText, useDialog, useMessage } from 'naive-ui';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
 import {
   getSdApiV2StoryCleanupPreview,
   getSdApiV2StoryInfoOptions,
@@ -883,23 +886,12 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.story-list-toolbar {
-  margin-bottom: 0.5rem;
-}
-
 .story-selected-count {
   font-size: 0.85rem;
 }
 
 .story-tabs :deep(.n-tabs-nav-scroll-content) {
   min-width: max-content;
-}
-
-.story-data-block {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding-top: 0.25rem;
 }
 
 .story-log-card {

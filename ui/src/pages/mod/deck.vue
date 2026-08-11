@@ -14,55 +14,38 @@
         :form="deckSearchForm"
         :columns="deckSearchColumns"
         :loading="pageBusy"
-        label-width="84"
         cols="1 s:2 l:3"
-      >
-        <template #actions>
-          <n-button
-            type="info"
-            secondary
-            tag="a"
-            target="_blank"
-            rel="noreferrer"
-            href="https://github.com/sealdice/draw"
-          >
-            <template #icon>
-              <n-icon><i-ep-link /></n-icon>
-            </template>
-            获取牌堆
-          </n-button>
+      />
 
-          <input
-            ref="fileInputRef"
-            type="file"
-            class="deck-file-input"
-            multiple
-            @change="onFileSelection"
-          />
-          <n-button type="info" secondary :loading="uploader.busy.value" @click="openFilePicker">
-            <template #icon>
-              <n-icon><i-ep-upload /></n-icon>
-            </template>
-            上传牌堆
-          </n-button>
-        </template>
-        <template #meta>
-          <n-text v-if="filterCount > 0" type="info"> 已过滤 {{ filterCount }} 条 </n-text>
-          <n-text class="deck-format-note">支持 json、yaml、deck、toml 格式</n-text>
-          <n-tooltip>
-            <template #trigger>
-              <n-button text size="tiny" aria-label="查看牌堆格式说明">
-                <template #icon>
-                  <n-icon><i-ep-question-filled /></n-icon>
-                </template>
-              </n-button>
-            </template>
-            deck 牌堆：一种单文件带图的牌堆格式。在牌堆文件中使用 ./images/xxx.png
-            的相对路径引用图片，并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作。<br /><br />
-            toml 牌堆：海豹支持的新牌堆格式，提供包括云牌组在内的更多功能支持。
-          </n-tooltip>
-        </template>
-      </QueryToolbar>
+      <ListActions>
+        <n-button
+          type="info"
+          secondary
+          tag="a"
+          target="_blank"
+          rel="noreferrer"
+          href="https://github.com/sealdice/draw"
+        >
+          <template #icon>
+            <n-icon><i-ep-link /></n-icon>
+          </template>
+          获取牌堆
+        </n-button>
+
+        <input
+          ref="fileInputRef"
+          type="file"
+          class="deck-file-input"
+          multiple
+          @change="onFileSelection"
+        />
+        <n-button type="info" secondary :loading="uploader.busy.value" @click="openFilePicker">
+          <template #icon>
+            <n-icon><i-ep-upload /></n-icon>
+          </template>
+          上传牌堆
+        </n-button>
+      </ListActions>
 
       <section v-if="activeUploadTasks.length" class="upload-panel">
         <div class="upload-panel-head">
@@ -128,7 +111,25 @@
         </div>
       </section>
 
-      <main class="deck-data-block">
+      <ListPanel>
+        <template #toolbar>
+          <n-text v-if="filterCount > 0" type="info"> 已过滤 {{ filterCount }} 条 </n-text>
+          <n-text class="deck-format-note">支持 json、yaml、deck、toml 格式</n-text>
+          <n-tooltip>
+            <template #trigger>
+              <n-button text size="tiny" aria-label="查看牌堆格式说明">
+                <template #icon>
+                  <n-icon><i-ep-question-filled /></n-icon>
+                </template>
+              </n-button>
+            </template>
+            deck 牌堆：一种单文件带图的牌堆格式。在牌堆文件中使用 ./images/xxx.png
+            的相对路径引用图片，并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作。<br /><br />
+            toml 牌堆：海豹支持的新牌堆格式，提供包括云牌组在内的更多功能支持。
+          </n-tooltip>
+        </template>
+
+        <main class="deck-data-block">
         <FoldableCard
           v-for="(item, index) in items"
           :key="item.filename || index"
@@ -253,7 +254,8 @@
         </FoldableCard>
 
         <n-empty v-if="!items.length" description="暂无牌堆" class="deck-empty" />
-      </main>
+        </main>
+      </ListPanel>
 
       <div class="deck-pagination-block">
         <n-pagination
@@ -315,6 +317,8 @@ import {
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ListActions from '@/components/shared/ListActions.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
 import { getApiBaseUrl } from '@/api/config';
 import {
   getTestModeBlockMessage,

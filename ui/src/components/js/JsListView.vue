@@ -4,42 +4,38 @@
       :form="searchForm"
       :columns="searchColumns"
       :loading="listQueryResult.isFetching.value"
-    >
-      <template #actions>
-        <n-upload
-          action=""
-          multiple
-          accept="application/javascript,application/typescript,.js,.ts"
-          :show-file-list="false"
-          :custom-request="uploadPlugin"
-        >
-          <n-button type="info" secondary :loading="uploader.busy.value">
-            <template #icon>
-              <n-icon><i-ep-upload /></n-icon>
-            </template>
-            上传插件
-          </n-button>
-        </n-upload>
-        <n-button
-          type="info"
-          text
-          tag="a"
-          target="_blank"
-          rel="noreferrer"
-          href="https://github.com/sealdice/javascript"
-          style="text-decoration: none"
-        >
+    />
+
+    <ListActions>
+      <n-upload
+        action=""
+        multiple
+        accept="application/javascript,application/typescript,.js,.ts"
+        :show-file-list="false"
+        :custom-request="uploadPlugin"
+      >
+        <n-button type="info" secondary :loading="uploader.busy.value">
           <template #icon>
-            <n-icon><i-ep-link /></n-icon>
+            <n-icon><i-ep-upload /></n-icon>
           </template>
-          获取插件
+          上传插件
         </n-button>
-      </template>
-      <template #meta>
-        <n-text v-if="filterHint" type="info">{{ filterHint }}</n-text>
-        <n-text v-else>支持按插件名称、简介和作者筛选</n-text>
-      </template>
-    </QueryToolbar>
+      </n-upload>
+      <n-button
+        type="info"
+        text
+        tag="a"
+        target="_blank"
+        rel="noreferrer"
+        href="https://github.com/sealdice/javascript"
+        style="text-decoration: none"
+      >
+        <template #icon>
+          <n-icon><i-ep-link /></n-icon>
+        </template>
+        获取插件
+      </n-button>
+    </ListActions>
 
     <section v-if="activeUploadTasks.length" class="js-panel upload-panel">
       <div class="upload-panel-head">
@@ -101,38 +97,40 @@
       </div>
     </section>
 
-    <section class="js-panel">
-      <header class="js-panel-header js-data-header">
-        <div class="js-batch-actions">
-          <n-checkbox
-            :checked="allSelected"
-            :disabled="!hasItems"
-            aria-label="全选当前页插件"
-            @update:checked="toggleSelectAll"
-          >
-            全选
-          </n-checkbox>
-          <n-text depth="3" class="text-xs">
-            {{
-              hasItems
-                ? `本页 ${items.length} 项，已选 ${selectedCount} 项`
-                : '当前没有可操作的插件'
-            }}
-          </n-text>
-        </div>
-        <n-button
-          type="error"
-          size="small"
-          secondary
-          :disabled="selectedCount === 0"
-          @click="delSelected"
-        >
-          <template #icon>
-            <n-icon><i-ep-delete /></n-icon>
+    <ListPanel>
+      <template #toolbar>
+        <ResultToolbar>
+          <template #meta>
+            <n-checkbox
+              :checked="allSelected"
+              :disabled="!hasItems"
+              aria-label="全选当前页插件"
+              @update:checked="toggleSelectAll"
+            >
+              全选
+            </n-checkbox>
+            <n-text depth="3" class="text-xs">
+              {{
+                hasItems
+                  ? `本页 ${items.length} 项，已选 ${selectedCount} 项`
+                  : '当前没有可操作的插件'
+              }}
+            </n-text>
           </template>
-          删除所选
-        </n-button>
-      </header>
+          <n-button
+            type="error"
+            size="small"
+            secondary
+            :disabled="selectedCount === 0"
+            @click="delSelected"
+          >
+            <template #icon>
+              <n-icon><i-ep-delete /></n-icon>
+            </template>
+            删除所选
+          </n-button>
+        </ResultToolbar>
+      </template>
 
       <div class="js-panel-body">
         <section v-if="hasItems" class="js-list-main">
@@ -292,7 +290,7 @@
           </n-empty>
         </div>
       </div>
-    </section>
+    </ListPanel>
 
     <section v-if="showPagination" class="js-panel js-pagination-panel">
       <div class="js-pagination-block">
@@ -355,6 +353,9 @@
     import { type JsInfo as JsInfoType } from '@/api';
     import FoldableCard from '@/components/shared/FoldableCard.vue';
     import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+    import ListActions from '@/components/shared/ListActions.vue';
+    import ListPanel from '@/components/shared/ListPanel.vue';
+    import ResultToolbar from '@/components/shared/ResultToolbar.vue';
     import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
     import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
     import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
@@ -496,10 +497,6 @@
     const selectedCount = computed(() => items.value.filter(item => item.pitch).length);
     const allSelected = computed(() => hasItems.value && items.value.every(item => item.pitch));
     const showPagination = computed(() => total.value > listQuery.pageSize);
-    const filterHint = computed(() => {
-      if (!listQuery.keyword.trim()) return '';
-      return `当前匹配 ${total.value} 条`;
-    });
 
     const showDiff = ref(false);
     const diffLoading = ref(false);

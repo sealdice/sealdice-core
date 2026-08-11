@@ -30,6 +30,7 @@ body {
   --sd-text-inverse: #ffffff;
   --sd-border: rgba(17, 24, 39, 0.1);
   --sd-border-soft: rgba(17, 24, 39, 0.08);
+  --sd-radius-xs: 4px;
   --sd-radius-sm: 6px;
   --sd-radius-md: 8px;
   --sd-radius-lg: 12px;

@@ -4,33 +4,32 @@
       :form="searchForm"
       :columns="searchColumns"
       :loading="loading"
-      label-width="84"
       cols="1 m:2 xl:3"
-    >
-      <template #actions>
-        <n-button secondary :loading="loading" @click="emit('refresh')">
+    />
+
+    <ListActions>
+      <n-button secondary :loading="loading" @click="emit('refresh')">
+        <template #icon>
+          <n-icon><i-ep-refresh /></n-icon>
+        </template>
+        刷新
+      </n-button>
+      <n-upload
+        action=""
+        multiple
+        accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
+        :disabled="disabled"
+        :show-file-list="false"
+        :custom-request="uploadResourceFile"
+      >
+        <n-button type="primary" :loading="uploadPending" :disabled="disabled">
           <template #icon>
-            <n-icon><i-ep-refresh /></n-icon>
+            <n-icon><i-ep-upload /></n-icon>
           </template>
-          刷新
+          上传图片
         </n-button>
-        <n-upload
-          action=""
-          multiple
-          accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
-          :disabled="disabled"
-          :show-file-list="false"
-          :custom-request="uploadResourceFile"
-        >
-          <n-button type="primary" :loading="uploadPending" :disabled="disabled">
-            <template #icon>
-              <n-icon><i-ep-upload /></n-icon>
-            </template>
-            上传图片
-          </n-button>
-        </n-upload>
-      </template>
-    </QueryToolbar>
+      </n-upload>
+    </ListActions>
 
     <section v-if="uploadTasks.length" class="resource-upload-queue" aria-live="polite">
       <header class="resource-upload-queue__header">
@@ -64,7 +63,8 @@
     </section>
 
     <n-spin :show="loading && isMobile">
-      <div v-if="isMobile" class="resource-list-panel__cards">
+      <ListPanel>
+        <div v-if="isMobile" class="resource-list-panel__cards">
         <article
           v-for="item in items"
           :key="getResourceKey(item)"
@@ -137,6 +137,7 @@
           <n-text depth="3">上传图片后可在骰子消息中使用 [图:路径] 引用。</n-text>
         </template>
       </n-empty>
+      </ListPanel>
     </n-spin>
 
     <footer class="resource-list-panel__footer">
@@ -170,6 +171,8 @@ import {
 import type { ResourceItem } from '@/api';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ListActions from '@/components/shared/ListActions.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
 import {
   formatResourcePageSummary,
   formatResourceTypeLabel,
