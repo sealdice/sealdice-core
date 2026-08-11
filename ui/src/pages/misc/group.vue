@@ -3,7 +3,7 @@
     <PageHeader title="群组管理" description="查看群组状态、日志设置及群内账号。" />
 
     <n-card :bordered="false" class="group-summary-card">
-      <n-grid cols="1 s:2 m:4" responsive="screen" x-gap="12" y-gap="12">
+      <n-grid cols="2 m:4" responsive="screen" x-gap="12" y-gap="12">
         <n-gi>
           <n-statistic label="当前结果" :value="total" />
         </n-gi>
@@ -25,42 +25,47 @@
       <ListPanel>
         <template #toolbar>
           <ResultToolbar>
-        <template #meta>
-          <n-checkbox
-            :checked="allGroupsSelected"
-            aria-label="全选当前页群组"
-            @update:checked="toggleSelectAllGroups"
-          >
-            {{ allGroupsSelected ? '全不选' : '全选' }}
-          </n-checkbox>
-          <n-text depth="3" class="group-selected-count">已选 {{ selectedGroupIDs.length }} 项</n-text>
-        </template>
+            <template #meta>
+              <n-checkbox
+                :checked="allGroupsSelected"
+                aria-label="全选当前页群组"
+                @update:checked="toggleSelectAllGroups"
+              >
+                {{ allGroupsSelected ? '全不选' : '全选' }}
+              </n-checkbox>
+              <n-text depth="3" class="group-selected-count"
+                >已选 {{ selectedGroupIDs.length }} 项</n-text
+              >
+            </template>
 
-        <n-button
-          size="small"
-          secondary
-          :disabled="!selectedGroupIDs.length"
-          @click="openBatchNotify"
-        >
-          批量通知群
-        </n-button>
-        <n-button
-          size="small"
-          type="error"
-          secondary
-          :loading="quitSubmitting"
-          :disabled="quitSubmitting || !selectedGroupIDs.length"
-          @click="openBatchQuit"
-        >
-          批量退群
-        </n-button>
-      </ResultToolbar>
+            <n-button
+              size="small"
+              secondary
+              :disabled="!selectedGroupIDs.length"
+              @click="openBatchNotify"
+            >
+              批量通知群
+            </n-button>
+            <n-button
+              size="small"
+              type="error"
+              secondary
+              :loading="quitSubmitting"
+              :disabled="quitSubmitting || !selectedGroupIDs.length"
+              @click="openBatchQuit"
+            >
+              批量退群
+            </n-button>
+          </ResultToolbar>
         </template>
 
         <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
           <template #title>
             <n-flex align="center" size="small" wrap>
-              <n-checkbox v-model:checked="group.selected" :aria-label="`选择群组 ${group.groupId}`" />
+              <n-checkbox
+                v-model:checked="group.selected"
+                :aria-label="`选择群组 ${group.groupId}`"
+              />
               <n-switch v-model:value="group.active" @update:value="markGroupChanged(group)" />
               <n-text class="group-id" tag="strong">{{ group.groupId }}</n-text>
               <n-text>「{{ group.groupName || '未获取到' }}」</n-text>

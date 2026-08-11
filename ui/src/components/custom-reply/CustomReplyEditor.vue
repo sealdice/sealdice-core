@@ -11,7 +11,7 @@
       />
     </template>
 
-    <n-spin :show="editor.pageBusy.value">
+    <n-spin class="reply-editor-container" :show="editor.pageBusy.value">
       <template v-if="!editor.replyEnabled.value">
         <section class="reply-empty">
           <n-text type="error" class="text-xl">请先启用总开关！</n-text>
@@ -119,6 +119,13 @@ const editor = useCustomReplyEditor();
   padding: 2rem 0;
 }
 
+.reply-editor-container {
+  flex: 1 1 auto;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: reply-editor;
+}
+
 .reply-layout {
   display: flex;
   min-width: 0;
@@ -138,13 +145,7 @@ const editor = useCustomReplyEditor();
   background: var(--sd-bg-page);
 }
 
-@media screen and (max-width: 1023.9px) {
-  .reply-layout {
-    min-height: 560px;
-  }
-}
-
-@media screen and (max-width: 639.9px) {
+@container reply-editor (max-width: 720px) {
   .reply-layout {
     height: auto;
     min-height: 0;

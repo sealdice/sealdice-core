@@ -48,7 +48,13 @@
 
         <n-tooltip>
           <template #trigger>
-            <n-button size="small" quaternary circle :disabled="!selectedFilename" @click="emit('download')">
+            <n-button
+              size="small"
+              quaternary
+              circle
+              :disabled="!selectedFilename"
+              @click="emit('download')"
+            >
               <template #icon>
                 <n-icon><i-ep-download /></n-icon>
               </template>
@@ -59,7 +65,14 @@
 
         <n-tooltip>
           <template #trigger>
-            <n-button size="small" quaternary circle type="error" :disabled="!selectedFilename" @click="emit('delete')">
+            <n-button
+              size="small"
+              quaternary
+              circle
+              type="error"
+              :disabled="!selectedFilename"
+              @click="emit('delete')"
+            >
               <template #icon>
                 <n-icon><i-ep-delete /></n-icon>
               </template>
@@ -99,7 +112,11 @@
             <span class="file-item-name">{{ item.filename }}</span>
           </div>
           <div class="file-item-meta">
-            <n-tag size="tiny" :bordered="false" :type="getFileEnableStatus(item.filename, item.enable) ? 'success' : 'warning'">
+            <n-tag
+              size="tiny"
+              :bordered="false"
+              :type="getFileEnableStatus(item.filename, item.enable) ? 'success' : 'warning'"
+            >
               {{ getFileEnableStatus(item.filename, item.enable) ? '启用' : '停用' }}
             </n-tag>
             <n-tag v-if="item.packageId" size="tiny" type="warning" :bordered="false">
@@ -113,12 +130,7 @@
     </div>
 
     <div class="panel-footer">
-      <n-pagination
-        v-model:page="page"
-        :page-size="query.pageSize"
-        :item-count="total"
-        simple
-      />
+      <n-pagination v-model:page="page" :page-size="query.pageSize" :item-count="total" simple />
     </div>
   </aside>
 </template>
@@ -214,7 +226,7 @@ watch(
       syncingFromProps.value = false;
     });
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(
@@ -229,7 +241,7 @@ watch(
       page: 1,
     });
   },
-  { deep: true },
+  { deep: true }
 );
 </script>
 
@@ -341,16 +353,10 @@ watch(
   font-size: 0.78rem;
 }
 
-@media screen and (max-width: 1023.9px) {
-  .reply-sidebar {
-    width: 240px;
-    min-width: 220px;
-  }
-}
-
-@media screen and (max-width: 639.9px) {
+@container reply-editor (max-width: 720px) {
   .reply-sidebar {
     width: 100%;
+    min-width: 0;
     max-width: none;
     border-right: 0;
     border-bottom: 1px solid var(--sd-border);

@@ -1,11 +1,19 @@
 <template>
   <n-space vertical size="large">
-    <n-steps :current="wizardStep" size="small">
-      <n-step title="选择平台" />
-      <n-step title="选择方式" />
-      <n-step title="选择协议" />
-      <n-step title="填写信息" />
+    <n-steps class="wizard-steps" :current="wizardStep" size="small">
+      <n-step v-for="step in wizardSteps" :key="step" :title="step" />
     </n-steps>
+
+    <div class="wizard-progress" role="status" aria-live="polite">
+      <div class="wizard-progress__current">
+        <span>第 {{ wizardStep }} / {{ wizardSteps.length }} 步</span>
+        <strong>{{ currentWizardStepTitle }}</strong>
+      </div>
+      <span v-if="remainingWizardStepTitles.length" class="wizard-progress__remaining">
+        接下来：{{ remainingWizardStepTitles.join('、') }}
+      </span>
+      <span v-else class="wizard-progress__remaining">完成当前信息后即可添加账号</span>
+    </div>
 
     <div v-if="wizardStep === 1" class="wizard-step-panel">
       <div class="split-layout">
@@ -141,6 +149,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import type { FormConfigItem, MethodTreeNode, PlatformTreeNode, ProtocolDefinition } from '@/api';
 import ConnectProtocolForm from '@/components/connect/ConnectProtocolForm.vue';
@@ -168,6 +177,9 @@ const wizardStep = defineModel<number>('wizardStep', { required: true });
 const wizardPlatform = defineModel<PlatformTreeNode | null>('wizardPlatform', { required: true });
 const wizardMethod = defineModel<MethodTreeNode | null>('wizardMethod', { required: true });
 const wizardProtocol = defineModel<ProtocolDefinition | null>('wizardProtocol', { required: true });
+const wizardSteps = ['选择平台', '选择方式', '选择协议', '填写信息'];
+const currentWizardStepTitle = computed(() => wizardSteps[wizardStep.value - 1] ?? wizardSteps[0]);
+const remainingWizardStepTitles = computed(() => wizardSteps.slice(wizardStep.value));
 
 const emit = defineEmits<{
   cancel: [];
@@ -182,7 +194,11 @@ const emit = defineEmits<{
 }>();
 </script>
 
-<style>
+<style scoped>
+.wizard-progress {
+  display: none;
+}
+
 .wizard-step-panel {
   min-height: 240px;
 }
@@ -310,30 +326,30 @@ const emit = defineEmits<{
     flex-wrap: wrap;
   }
 }
-/* 当屏幕宽度小于400px时应用这些样式 */
 @media (max-width: 500px) {
-  .n-steps > .n-step {
-    max-width: 300px;
+  .wizard-steps {
+    display: none;
+  }
 
-    /* 添加动画过渡功能 */
-    transition: all 0.3s ease-in-out; /* 你可以根据需要调整过渡时间和缓动函数 */
-    flex: none;
-    margin-right: 20px;
+  .wizard-progress {
+    display: grid;
+    gap: 0.35rem;
+    border-left: 3px solid var(--sd-primary);
+    background: var(--sd-bg-elevated-soft);
+    padding: 0.65rem 0.75rem;
   }
-  .n-step > .n-step-content {
-    max-width: 300px;
-    width: 0;
-    flex: none;
-    /* 添加动画过渡功能 */
-    transition: all 0.3s ease-in-out; /* 你可以根据需要调整过渡时间和缓动函数 */
-    overflow: hidden;
+
+  .wizard-progress__current {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
   }
-  .n-step--process-status {
-    flex: 1;
-    margin: none;
-  }
-  .n-step--process-status .n-step-content {
-    width: 75px;
+
+  .wizard-progress__remaining {
+    color: var(--sd-text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.5;
   }
 }
 </style>

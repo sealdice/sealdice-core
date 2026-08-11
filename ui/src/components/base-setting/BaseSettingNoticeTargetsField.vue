@@ -102,6 +102,7 @@ function removeTarget(index: number) {
   width: 100%;
   flex-direction: column;
   gap: 0.625rem;
+  container-type: inline-size;
 }
 
 .notice-target-row {
@@ -120,7 +121,7 @@ function removeTarget(index: number) {
   align-self: flex-start;
 }
 
-@media screen and (max-width: 767.9px) {
+@container (max-width: 680px) {
   .notice-target-row {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }

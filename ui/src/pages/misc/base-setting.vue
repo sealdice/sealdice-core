@@ -27,11 +27,16 @@
     />
 
     <n-spin :show="pageBusy">
-      <n-tabs v-model:value="activeTab" type="line" animated class="setting-tabs">
-        <n-tab-pane v-for="tab in tabs" :key="tab.id" :name="tab.id" :tab="tab.title">
+      <ResponsiveTabs
+        v-model:value="activeTab"
+        class="setting-tabs"
+        :compact-at="760"
+        :options="tabOptions"
+      >
+        <template #panel="{ option }">
           <div class="setting-groups">
             <SettingCategoryBox
-              v-for="group in tab.groups"
+              v-for="group in findTab(option.value)?.groups ?? []"
               :key="group.id"
               :title="group.title"
               :description="group.description"
@@ -69,8 +74,8 @@
               </div>
             </SettingCategoryBox>
           </div>
-        </n-tab-pane>
-      </n-tabs>
+        </template>
+      </ResponsiveTabs>
     </n-spin>
   </main>
 </template>
@@ -81,8 +86,9 @@ import { useQueryClient } from '@tanstack/vue-query';
 import BaseSettingFieldRenderer from '@/components/base-setting/BaseSettingFieldRenderer.vue';
 import BaseSettingSearchBar from '@/components/base-setting/BaseSettingSearchBar.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
-import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import ResponsiveTabs from '@/components/shared/ResponsiveTabs.vue';
+import TipBox from '@/components/shared/TipBox.vue';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { useBaseSettingDraft } from '@/features/baseSetting/draft';
 import {
@@ -139,6 +145,12 @@ watch(
 );
 
 const tabs = computed(() => schemaQuery.data.value?.tabs ?? []);
+const tabOptions = computed(() =>
+  tabs.value.map(tab => ({
+    label: tab.title,
+    value: tab.id,
+  }))
+);
 const searchIndex = computed(() =>
   schemaQuery.data.value ? buildBaseSettingSearchIndex(schemaQuery.data.value) : []
 );
@@ -212,6 +224,10 @@ async function runAction(fieldId: string, payload?: unknown) {
 
 function toggleGroup(groupId: string) {
   expandedGroups[groupId] = !expandedGroups[groupId];
+}
+
+function findTab(tabId: string) {
+  return tabs.value.find(tab => tab.id === tabId);
 }
 
 async function jumpToField(entry: BaseSettingSearchEntry) {
