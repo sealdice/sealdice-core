@@ -2,29 +2,13 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
-function normalizeBasePath(pathname: string): string {
-  let normalized = pathname.trim() || '/';
-  if (!normalized.startsWith('/')) {
-    normalized = `/${normalized}`;
-  }
-
-  if (normalized.endsWith('/index.html')) {
-    normalized = normalized.slice(0, -'/index.html'.length) || '/';
-  }
-
-  normalized = trimTrailingSlash(normalized);
-  return normalized || '/';
-}
-
 export interface ApiLocationLike {
   origin: string;
   pathname: string;
 }
 
 export function resolveApiBaseUrlFromLocation(location: ApiLocationLike): string {
-  const basePath = normalizeBasePath(location.pathname || '/');
-  if (basePath === '/') return trimTrailingSlash(location.origin);
-  return trimTrailingSlash(`${trimTrailingSlash(location.origin)}${basePath}`);
+  return trimTrailingSlash(location.origin);
 }
 
 export function joinApiBasePath(baseUrl: string, path: string): string {
