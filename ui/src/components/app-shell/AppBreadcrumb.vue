@@ -40,6 +40,9 @@
         <AppThemeSwitch />
         <AppThemePaletteButton />
         <AppInstallButton />
+        <n-button tag="a" secondary class="legacy-entry" :href="oldUIUrl">
+          回退老 UI
+        </n-button>
 
         <button type="button" class="search-entry" @click="emit('openSearch')">
           <span class="search-label">
@@ -80,6 +83,7 @@
 import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
+import { resolveOldUIUrlFromLocation } from '@/api/config';
 import { appNavigation } from '@/router/navigation';
 import { buildBreadcrumbItems } from '@/router/navigationModel';
 import AppInstallButton from './AppInstallButton.vue';
@@ -98,6 +102,8 @@ const emit = defineEmits<{
 
 const route = useRoute();
 const { overview, isStable, hasNewVersion } = useBaseOverview();
+const oldUIUrl =
+  typeof window !== 'undefined' ? resolveOldUIUrlFromLocation(window.location) : '/old-ui/';
 
 const breadcrumbItems = computed(() =>
   buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面')),
@@ -174,6 +180,10 @@ const breadcrumbItems = computed(() =>
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.legacy-entry {
+  white-space: nowrap;
 }
 
 .search-entry {

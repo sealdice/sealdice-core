@@ -1,0 +1,21 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { it } from 'vitest';
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+
+it('renders an old-ui fallback entry in the breadcrumb action area', async () => {
+  const source = readFileSync(path.resolve(currentDir, 'AppBreadcrumb.vue'), 'utf8');
+
+  const assertMatch = (pattern: RegExp, label: string) => {
+    if (!pattern.test(source)) {
+      throw new Error(`expected ${label}`);
+    }
+  };
+
+  assertMatch(/resolveOldUIUrlFromLocation/, 'AppBreadcrumb.vue to resolve the old UI URL from shared config');
+  assertMatch(/tag="a"/, 'AppBreadcrumb.vue to render the fallback entry as a real link');
+  assertMatch(/:href="oldUIUrl"/, 'AppBreadcrumb.vue to bind the fallback entry href');
+  assertMatch(/回退老 UI/, 'AppBreadcrumb.vue to expose the old UI fallback label');
+});

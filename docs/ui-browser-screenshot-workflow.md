@@ -132,7 +132,7 @@ VITE_API_PROXY_TARGET=http://127.0.0.1:3211 pnpm --dir ui run dev
 
 ```text
 正确：http://127.0.0.1:5175
-不要：http://127.0.0.1:3211/v2ui/
+不要：http://127.0.0.1:3211/
 ```
 
 ### 4.4 基础连通性检查

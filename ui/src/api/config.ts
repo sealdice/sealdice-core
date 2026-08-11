@@ -2,19 +2,18 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
-function findV2UIPathSegment(pathname: string): number {
-  const marker = '/v2ui';
-  let index = pathname.indexOf(marker);
-
-  while (index >= 0) {
-    const nextChar = pathname[index + marker.length];
-    if (nextChar === undefined || nextChar === '/') {
-      return index;
-    }
-    index = pathname.indexOf(marker, index + marker.length);
+function normalizeBasePath(pathname: string): string {
+  let normalized = pathname.trim() || '/';
+  if (!normalized.startsWith('/')) {
+    normalized = `/${normalized}`;
   }
 
-  return -1;
+  if (normalized.endsWith('/index.html')) {
+    normalized = normalized.slice(0, -'/index.html'.length) || '/';
+  }
+
+  normalized = trimTrailingSlash(normalized);
+  return normalized || '/';
 }
 
 export interface ApiLocationLike {
@@ -23,10 +22,9 @@ export interface ApiLocationLike {
 }
 
 export function resolveApiBaseUrlFromLocation(location: ApiLocationLike): string {
-  const pathname = location.pathname || '/';
-  const v2UIIndex = findV2UIPathSegment(pathname);
-  if (v2UIIndex < 0) return trimTrailingSlash(location.origin);
-  return trimTrailingSlash(`${trimTrailingSlash(location.origin)}${pathname.slice(0, v2UIIndex)}`);
+  const basePath = normalizeBasePath(location.pathname || '/');
+  if (basePath === '/') return trimTrailingSlash(location.origin);
+  return trimTrailingSlash(`${trimTrailingSlash(location.origin)}${basePath}`);
 }
 
 export function joinApiBasePath(baseUrl: string, path: string): string {
@@ -34,6 +32,10 @@ export function joinApiBasePath(baseUrl: string, path: string): string {
   const normalizedPath = path.replace(/^\/+/, '');
   if (!normalizedBase) return `/${normalizedPath}`;
   return `${normalizedBase}/${normalizedPath}`;
+}
+
+export function resolveOldUIUrlFromLocation(location: ApiLocationLike): string {
+  return joinApiBasePath(resolveApiBaseUrlFromLocation(location), '/old-ui/');
 }
 
 /**

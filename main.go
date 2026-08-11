@@ -28,7 +28,6 @@ import (
 
 	"sealdice-core/api"
 	apiv2 "sealdice-core/api/v2"
-	v2ui "sealdice-core/api/v2ui"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
@@ -403,17 +402,17 @@ func main() {
 		return
 	}
 
-	useBuiltinUI := false
-	checkFrontendExists := func() bool {
+	useBuiltinOldUI := false
+	checkFrontendOverwriteExists := func() bool {
 		var stat os.FileInfo
 		stat, err = os.Stat("./frontend_overwrite")
 		return err == nil && stat.IsDir()
 	}
-	if !checkFrontendExists() {
-		log.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
-		useBuiltinUI = true
+	if !checkFrontendOverwriteExists() {
+		log.Info("未检测到 frontend_overwrite，将使用内置老 UI 作为 /old-ui/ 回退入口")
+		useBuiltinOldUI = true
 	} else {
-		log.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
+		log.Info("检测到 frontend_overwrite，将使用外置老 UI 作为 /old-ui/ 回退入口")
 	}
 
 	// // 尝试进行升级
@@ -497,7 +496,7 @@ func main() {
 		go diceServe(d)
 	}
 
-	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI, opts.PProfWeb)
+	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinOldUI, opts.PProfWeb)
 	// OOM分析工具
 	// err = nil
 	// err = http.ListenAndServe(":9090", nil)
@@ -622,7 +621,7 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
-func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool, enablePProfWeb bool) {
+func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePProfWeb bool) {
 	log := logger.M()
 	log.Info("即将启动webui")
 
@@ -679,29 +678,26 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool, enablePProfWeb 
 	})
 
 	apier := humaecho.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
-	apiv2.InitV2Router(apier, e, dm)
+	apiv2.InitV2Router(apier, dm)
 
 	api.BindV1(e, dm)
 
-	v2UIRoot, err := fs.Sub(static.V2UI, "v2ui")
-	if err != nil {
-		log.Warnf("加载内置V2 UI资源失败: %v", err)
-	} else if err := v2ui.Register(e, v2UIRoot); err != nil {
-		log.Warnf("注册内置V2 UI资源失败: %v", err)
+	if err := registerRemovedV2UIRoutes(e); err != nil {
+		log.Warnf("注册已移除的 /v2ui 路径失败: %v", err)
 	}
 
-	if useBuiltin {
+	v2UIRoot, err := fs.Sub(static.V2UI, "v2ui")
+	if err != nil {
+		log.Warnf("加载内置新 UI 资源失败: %v", err)
+	} else if err := registerRootUI(e, v2UIRoot); err != nil {
+		log.Warnf("注册根路径新 UI 资源失败: %v", err)
+	}
+
+	if useBuiltinOldUI {
 		frontend, _ := fs.Sub(static.Frontend, "frontend")
-		e.Use(echomiddleware.StaticWithConfig(echomiddleware.StaticConfig{
-			Root:       ".",
-			HTML5:      true,
-			Filesystem: http.FS(frontend),
-		}))
+		registerLegacyUI(e, frontend)
 	} else {
-		e.Use(echomiddleware.StaticWithConfig(echomiddleware.StaticConfig{
-			Root:  "./frontend_overwrite",
-			HTML5: true,
-		}))
+		registerLegacyUI(e, os.DirFS("./frontend_overwrite"))
 	}
 
 	logPprofWebEnabled(pprofCfg, dm.ServeAddress)

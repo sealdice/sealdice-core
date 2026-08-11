@@ -1,4 +1,4 @@
-import { joinApiBasePath, resolveApiBaseUrlFromLocation } from './config';
+import { joinApiBasePath, resolveApiBaseUrlFromLocation, resolveOldUIUrlFromLocation } from './config';
 import { it } from 'vitest';
 
 it('passes', async () => {
@@ -9,29 +9,39 @@ const assertEqual = (actual: unknown, expected: unknown) => {
 
 assertEqual(resolveApiBaseUrlFromLocation({
   origin: 'https://example.test',
-  pathname: '/v2ui/',
+  pathname: '/',
 }), 'https://example.test');
 
 assertEqual(resolveApiBaseUrlFromLocation({
   origin: 'https://example.test',
-  pathname: '/dice/v2ui/',
+  pathname: '/dice/',
 }), 'https://example.test/dice');
 
 assertEqual(resolveApiBaseUrlFromLocation({
   origin: 'https://example.test',
-  pathname: '/dice/nested/v2ui/mod/story',
-}), 'https://example.test/dice/nested');
+  pathname: '/dice',
+}), 'https://example.test/dice');
 
 assertEqual(resolveApiBaseUrlFromLocation({
   origin: 'https://example.test',
-  pathname: '/dice/v2ui-assets/',
-}), 'https://example.test');
+  pathname: '/dice/index.html',
+}), 'https://example.test/dice');
 
 assertEqual(resolveApiBaseUrlFromLocation({
+  origin: 'https://example.test',
+  pathname: '/index.html',
+}), 'https://example.test');
+
+assertEqual(resolveOldUIUrlFromLocation({
   origin: 'https://example.test',
   pathname: '/',
-}), 'https://example.test');
+}), 'https://example.test/old-ui/');
+
+assertEqual(resolveOldUIUrlFromLocation({
+  origin: 'https://example.test',
+  pathname: '/dice/',
+}), 'https://example.test/dice/old-ui/');
 
 assertEqual(joinApiBasePath('https://example.test/dice', '/sd-api/v2/base/health'), 'https://example.test/dice/sd-api/v2/base/health');
-assertEqual(joinApiBasePath('https://example.test/dice/', 'sd-api/v2/realtime/ws'), 'https://example.test/dice/sd-api/v2/realtime/ws');
+assertEqual(joinApiBasePath('https://example.test/dice/', 'sd-api/v2/realtime/sse'), 'https://example.test/dice/sd-api/v2/realtime/sse');
 });
