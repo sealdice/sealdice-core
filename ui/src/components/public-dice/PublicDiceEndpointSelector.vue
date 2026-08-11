@@ -7,45 +7,52 @@
 
     <n-empty v-if="!loading && rows.length === 0" description="暂无可上报终端" />
 
-    <n-data-table
-      v-else
-      v-model:checked-row-keys="checkedRowKeys"
-      class="public-dice-endpoints__table"
-      :columns="columns"
-      :data="rows"
-      :loading="loading"
-      :row-key="rowKey"
-      :bordered="false"
-      :scroll-x="640"
-      size="small"
-    />
-
-    <div class="public-dice-endpoints__mobile-list">
-      <label
-        v-for="row in rows"
-        :key="row.id"
-        :class="['public-dice-endpoint-card', { 'public-dice-endpoint-card--disabled': disabled }]"
-      >
-        <n-checkbox
-          :checked="checkedSet.has(row.id)"
-          :disabled="disabled"
-          @update:checked="setRowChecked(row.id, $event === true)"
+    <ResponsiveDataView v-else :compact-at="760" aria-label="可上报终端">
+      <template #table>
+        <n-data-table
+          v-model:checked-row-keys="checkedRowKeys"
+          :columns="columns"
+          :data="rows"
+          :loading="loading"
+          :row-key="rowKey"
+          :bordered="false"
+          :scroll-x="640"
+          size="small"
         />
-        <span class="public-dice-endpoint-card__main">
-          <strong>{{ row.userId }}</strong>
-          <span>{{ row.protocol }}</span>
-        </span>
-        <n-tag size="small" :type="row.stateTagType" :bordered="false">
-          {{ row.stateText }}
-        </n-tag>
-      </label>
-    </div>
+      </template>
+      <template #compact>
+        <div class="public-dice-endpoints__mobile-list">
+          <label
+            v-for="row in rows"
+            :key="row.id"
+            :class="[
+              'public-dice-endpoint-card',
+              { 'public-dice-endpoint-card--disabled': disabled },
+            ]"
+          >
+            <n-checkbox
+              :checked="checkedSet.has(row.id)"
+              :disabled="disabled"
+              @update:checked="setRowChecked(row.id, $event === true)"
+            />
+            <span class="public-dice-endpoint-card__main">
+              <strong>{{ row.userId }}</strong>
+              <span>{{ row.protocol }}</span>
+            </span>
+            <n-tag size="small" :type="row.stateTagType" :bordered="false">
+              {{ row.stateText }}
+            </n-tag>
+          </label>
+        </div>
+      </template>
+    </ResponsiveDataView>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, h } from 'vue';
 import { NTag, type DataTableColumns, type DataTableRowKey } from 'naive-ui';
+import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import type { PublicDiceEndpointRow } from '@/features/publicDice/viewModel';
 
 const props = defineProps<{
@@ -88,7 +95,12 @@ const columns = computed<DataTableColumns<PublicDiceEndpointRow>>(() => [
     key: 'stateText',
     sorter: 'default',
     width: 110,
-    render: row => h(NTag, { size: 'small', type: row.stateTagType, bordered: false }, { default: () => row.stateText }),
+    render: row =>
+      h(
+        NTag,
+        { size: 'small', type: row.stateTagType, bordered: false },
+        { default: () => row.stateText }
+      ),
   },
 ]);
 
@@ -129,7 +141,8 @@ function setRowChecked(id: string, checked: boolean) {
 }
 
 .public-dice-endpoints__mobile-list {
-  display: none;
+  display: grid;
+  gap: 10px;
 }
 
 .public-dice-endpoint-card {
@@ -164,16 +177,5 @@ function setRowChecked(id: string, checked: boolean) {
 .public-dice-endpoint-card__main span {
   color: var(--sd-text-muted);
   font-size: 12px;
-}
-
-@media (max-width: 760px) {
-  .public-dice-endpoints__table {
-    display: none;
-  }
-
-  .public-dice-endpoints__mobile-list {
-    display: grid;
-    gap: 10px;
-  }
 }
 </style>

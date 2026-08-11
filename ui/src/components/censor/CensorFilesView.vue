@@ -31,13 +31,31 @@
     </n-flex>
   </header>
   <main class="mt-4">
-    <n-data-table :columns="columns" :data="files" :scroll-x="520" />
+    <ResponsiveDataView :compact-at="560" aria-label="审查词库文件">
+      <template #table>
+        <n-data-table :columns="columns" :data="files" :scroll-x="520" />
+      </template>
+      <template #compact>
+        <ul class="censor-files-list">
+          <li v-for="file in files" :key="file.key" class="censor-files-list__item">
+            <strong>{{ file.name }}</strong>
+            <div class="censor-files-list__counts">
+              <span v-for="level in sensitiveLevels" :key="level">
+                <CensorSensitiveTag :level="level" />
+                <b>{{ file.count?.[level] ?? 0 }}</b>
+              </span>
+            </div>
+          </li>
+        </ul>
+      </template>
+    </ResponsiveDataView>
   </main>
 </template>
 
 <script setup lang="tsx">
 import type { DataTableColumns, UploadCustomRequestOptions } from 'naive-ui';
 import type { CensorFileInfo } from '@/api';
+import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import CensorSensitiveTag from './CensorSensitiveTag.vue';
 
 const props = defineProps<{
@@ -79,6 +97,7 @@ const columns: DataTableColumns<CensorFileInfo> = [
     render: row => row.count?.[4] ?? 0,
   },
 ];
+const sensitiveLevels = [1, 2, 3, 4] as const;
 
 async function handleUpload(options: UploadCustomRequestOptions) {
   try {
@@ -97,6 +116,39 @@ async function handleUpload(options: UploadCustomRequestOptions) {
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.censor-files-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0.625rem;
+  list-style: none;
+}
+
+.censor-files-list__item {
+  display: grid;
+  min-width: 0;
+  border-bottom: 1px solid var(--sd-border-soft);
+  gap: 0.65rem;
+  padding: 0.75rem 0;
+}
+
+.censor-files-list__item strong {
+  overflow-wrap: anywhere;
+}
+
+.censor-files-list__counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+}
+
+.censor-files-list__counts span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 @media screen and (max-width: 639.9px) {

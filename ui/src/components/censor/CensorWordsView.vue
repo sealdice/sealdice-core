@@ -24,7 +24,37 @@
   </n-flex>
 
   <main class="mt-2 mb-8">
-    <n-data-table class="w-full" :columns="columns" :data="filteredWords" :scroll-x="480" virtual-scroll />
+    <ResponsiveDataView :compact-at="520" aria-label="敏感词列表">
+      <template #table>
+        <n-data-table
+          class="w-full"
+          :columns="columns"
+          :data="filteredWords"
+          :scroll-x="480"
+          virtual-scroll
+        />
+      </template>
+      <template #compact>
+        <ul class="censor-words-list">
+          <li
+            v-for="(word, index) in filteredWords"
+            :key="`${word.main}-${index}`"
+            class="censor-words-list__item"
+          >
+            <CensorSensitiveTag :level="word.level" />
+            <div class="censor-words-list__tokens">
+              <n-text
+                v-for="related in word.related?.length ? word.related : [{ word: word.main }]"
+                :key="related.word"
+                class="censor-word-token"
+              >
+                {{ related.word }}
+              </n-text>
+            </div>
+          </li>
+        </ul>
+      </template>
+    </ResponsiveDataView>
   </main>
 </template>
 
@@ -32,6 +62,7 @@
 import { computed, ref } from 'vue';
 import type { DataTableColumns } from 'naive-ui';
 import type { CensorWordItem } from '@/api';
+import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import CensorSensitiveTag from './CensorSensitiveTag.vue';
 import { filterCensorWords } from '@/features/censor/viewModel';
 
@@ -57,16 +88,18 @@ const columns: DataTableColumns<CensorWordItem> = [
     render: row => {
       if (row.related?.length) {
         return (
-          <n-flex size='small' wrap>
+          <n-flex size="small" wrap>
             {row.related.map(word => (
-              <n-text key={word.word} class='censor-word-token'>{word.word}</n-text>
+              <n-text key={word.word} class="censor-word-token">
+                {word.word}
+              </n-text>
             ))}
           </n-flex>
         );
       }
       return (
         <n-flex>
-          <n-text class='censor-word-token'>{row.main}</n-text>
+          <n-text class="censor-word-token">{row.main}</n-text>
         </n-flex>
       );
     },
@@ -77,6 +110,30 @@ const columns: DataTableColumns<CensorWordItem> = [
 <style scoped>
 :deep(.censor-word-token) {
   overflow-wrap: anywhere;
+}
+
+.censor-words-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0.625rem;
+  list-style: none;
+}
+
+.censor-words-list__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  border-bottom: 1px solid var(--sd-border-soft);
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+}
+
+.censor-words-list__tokens {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
 }
 
 .censor-words-filter__field {

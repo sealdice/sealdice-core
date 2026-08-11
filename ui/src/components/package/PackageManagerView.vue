@@ -1,6 +1,9 @@
 <template>
   <main class="package-page">
-    <PageHeader title="扩展包管理" description="管理已安装包、商店列表、仓库后端和上传 / URL 安装。">
+    <PageHeader
+      title="扩展包管理"
+      description="管理已安装包、商店列表、仓库后端和上传 / URL 安装。"
+    >
       <n-space>
         <n-button secondary @click="refreshAll" :loading="refreshing">刷新</n-button>
         <n-dropdown :options="reloadMenuOptions" @select="handleReloadSelect">
@@ -16,39 +19,51 @@
     <n-tabs type="line" animated>
       <n-tab-pane name="installed" tab="已安装">
         <n-space vertical size="large">
-          <n-space>
-            <n-input v-model:value="installedKeyword" clearable placeholder="搜索名称 / ID / 关键词" style="width: 280px" />
-            <n-select v-model:value="installedContent" :options="contentOptions" style="width: 160px" />
-            <n-button secondary @click="refreshPackages" :loading="packagesLoading">刷新磁盘</n-button>
+          <n-space class="package-filter-row" wrap>
+            <n-input
+              v-model:value="installedKeyword"
+              clearable
+              placeholder="搜索名称 / ID / 关键词"
+              style="width: min(100%, 280px)"
+            />
+            <n-select
+              v-model:value="installedContent"
+              :options="contentOptions"
+              style="width: min(100%, 160px)"
+            />
+            <n-button secondary @click="refreshPackages" :loading="packagesLoading"
+              >刷新磁盘</n-button
+            >
           </n-space>
 
-          <n-data-table
-            :columns="installedColumns"
-            :data="filteredInstalledPackages"
+          <PackageInstalledDataView
+            :rows="filteredInstalledPackages"
             :loading="packagesLoading"
-            :row-key="installedRowKey"
-            :scroll-x="1160"
-            striped
-            size="small"
+            @detail="openDetail"
+            @toggle="changePackageState"
+            @reload="reloadPackage"
+            @uninstall="uninstallPackage"
           />
         </n-space>
       </n-tab-pane>
 
       <n-tab-pane name="store" tab="商店">
         <n-space vertical size="large">
-          <n-space>
-            <n-input v-model:value="storeKeyword" clearable placeholder="搜索扩展包名称" style="width: 280px" @keyup.enter="fetchStorePage" />
+          <n-space class="package-filter-row" wrap>
+            <n-input
+              v-model:value="storeKeyword"
+              clearable
+              placeholder="搜索扩展包名称"
+              style="width: min(100%, 280px)"
+              @keyup.enter="fetchStorePage"
+            />
             <n-button secondary @click="fetchStorePage" :loading="storeLoading">搜索</n-button>
           </n-space>
 
-          <n-data-table
-            :columns="storeColumns"
-            :data="storePackages"
+          <PackageStoreDataView
+            :rows="storePackages"
             :loading="storeLoading"
-            :row-key="storeRowKey"
-            :scroll-x="1040"
-            striped
-            size="small"
+            @preview-install="previewStoreInstall"
           />
 
           <n-pagination
@@ -68,9 +83,17 @@
         <n-space vertical size="large">
           <n-card title="仓库后端" size="small">
             <n-space vertical>
-              <n-space>
-                <n-input v-model:value="backendUrlInput" clearable placeholder="输入仓库 URL" style="width: 420px" @keyup.enter="addBackend" />
-                <n-button type="primary" :loading="backendMutationPending" @click="addBackend">添加</n-button>
+              <n-space wrap>
+                <n-input
+                  v-model:value="backendUrlInput"
+                  clearable
+                  placeholder="输入仓库 URL"
+                  style="width: min(100%, 420px)"
+                  @keyup.enter="addBackend"
+                />
+                <n-button type="primary" :loading="backendMutationPending" @click="addBackend"
+                  >添加</n-button
+                >
               </n-space>
               <n-list bordered>
                 <n-list-item v-for="backend in backends" :key="backend.url">
@@ -86,10 +109,21 @@
                       <n-text depth="3">{{ backend.url }}</n-text>
                     </div>
                     <n-space>
-                      <n-button secondary size="small" @click="toggleBackend(backend, !backend.enabled)">
+                      <n-button
+                        secondary
+                        size="small"
+                        @click="toggleBackend(backend, !backend.enabled)"
+                      >
                         {{ backend.enabled ? '禁用' : '启用' }}
                       </n-button>
-                      <n-button v-if="!backend.builtin" size="small" tertiary type="error" @click="removeBackend(backend)">删除</n-button>
+                      <n-button
+                        v-if="!backend.builtin"
+                        size="small"
+                        tertiary
+                        type="error"
+                        @click="removeBackend(backend)"
+                        >删除</n-button
+                      >
                     </n-space>
                   </n-space>
                 </n-list-item>
@@ -97,17 +131,29 @@
             </n-space>
           </n-card>
 
-          <n-grid :cols="2" :x-gap="16" :y-gap="16">
+          <n-grid cols="1 m:2" responsive="screen" :x-gap="16" :y-gap="16">
             <n-grid-item>
               <n-card title="上传安装" size="small">
                 <n-space vertical>
-                  <input ref="uploadInputRef" type="file" accept=".sealpack" hidden @change="handleUploadInput" />
+                  <input
+                    ref="uploadInputRef"
+                    type="file"
+                    accept=".sealpack"
+                    hidden
+                    @change="handleUploadInput"
+                  />
                   <n-space align="center">
                     <n-button secondary @click="uploadInputRef?.click()">选择文件</n-button>
                     <n-text depth="3">{{ uploadFileName || '未选择文件' }}</n-text>
                   </n-space>
                   <n-space>
-                    <n-button type="primary" :disabled="!selectedUploadFile" :loading="uploadPreviewLoading" @click="previewUpload">预览并安装</n-button>
+                    <n-button
+                      type="primary"
+                      :disabled="!selectedUploadFile"
+                      :loading="uploadPreviewLoading"
+                      @click="previewUpload"
+                      >预览并安装</n-button
+                    >
                   </n-space>
                 </n-space>
               </n-card>
@@ -115,8 +161,18 @@
             <n-grid-item>
               <n-card title="URL 安装" size="small">
                 <n-space vertical>
-                  <n-input v-model:value="installUrlInput" clearable placeholder="https://example.com/demo.sealpack" />
-                  <n-button type="primary" :disabled="!installUrlInput.trim()" :loading="installUrlLoading" @click="previewUrl">预览并安装</n-button>
+                  <n-input
+                    v-model:value="installUrlInput"
+                    clearable
+                    placeholder="https://example.com/demo.sealpack"
+                  />
+                  <n-button
+                    type="primary"
+                    :disabled="!installUrlInput.trim()"
+                    :loading="installUrlLoading"
+                    @click="previewUrl"
+                    >预览并安装</n-button
+                  >
                 </n-space>
               </n-card>
             </n-grid-item>
@@ -135,16 +191,30 @@
       @save-config="savePackageConfig"
     />
 
-    <n-modal v-model:show="previewVisible" preset="card" style="width: 760px" :title="previewTitle" :mask-closable="!previewBusy">
+    <n-modal
+      v-model:show="previewVisible"
+      preset="card"
+      class="the-dialog"
+      :title="previewTitle"
+      :mask-closable="!previewBusy"
+    >
       <n-spin :show="previewBusy">
         <n-space vertical size="large" v-if="previewData">
           <n-descriptions bordered label-placement="left" :column="2">
-            <n-descriptions-item label="包 ID">{{ previewData.manifest.package.id }}</n-descriptions-item>
-            <n-descriptions-item label="版本">{{ previewData.manifest.package.version }}</n-descriptions-item>
-            <n-descriptions-item label="名称">{{ previewData.manifest.package.name }}</n-descriptions-item>
+            <n-descriptions-item label="包 ID">{{
+              previewData.manifest.package.id
+            }}</n-descriptions-item>
+            <n-descriptions-item label="版本">{{
+              previewData.manifest.package.version
+            }}</n-descriptions-item>
+            <n-descriptions-item label="名称">{{
+              previewData.manifest.package.name
+            }}</n-descriptions-item>
             <n-descriptions-item label="动作">{{ previewData.installAction }}</n-descriptions-item>
             <n-descriptions-item label="文件数量">{{ previewData.fileCount }}</n-descriptions-item>
-            <n-descriptions-item label="安装前版本">{{ previewData.existingVersion || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="安装前版本">{{
+              previewData.existingVersion || '-'
+            }}</n-descriptions-item>
           </n-descriptions>
           <PackageFileTree :files="previewData.files" />
         </n-space>
@@ -152,7 +222,12 @@
       <template #footer>
         <n-space justify="end">
           <n-button @click="previewVisible = false">关闭</n-button>
-          <n-button v-if="previewData" type="primary" :loading="installPreviewConfirmLoading" @click="confirmPreviewInstall">
+          <n-button
+            v-if="previewData"
+            type="primary"
+            :loading="installPreviewConfirmLoading"
+            @click="confirmPreviewInstall"
+          >
             {{ previewData.installAction === 'upgrade' ? '升级安装' : '安装' }}
           </n-button>
         </n-space>
@@ -162,8 +237,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, ref, watch } from 'vue';
-import { useDialog, useMessage, type DataTableColumns } from 'naive-ui';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useDialog, useMessage } from 'naive-ui';
 import { useQuery } from '@tanstack/vue-query';
 import {
   deleteSdApiV2ExtensionStoreBackends,
@@ -200,6 +275,8 @@ import { getErrorMessage } from '@/features/auth/error';
 import { isTestModeApiError, getTestModeBlockMessage } from '@/features/testMode/state';
 import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
+import PackageInstalledDataView from '@/components/package/PackageInstalledDataView.vue';
+import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 
 type ConfigFieldSchema = {
@@ -229,7 +306,9 @@ const previewBusy = ref(false);
 const installPreviewConfirmLoading = ref(false);
 
 const installedKeyword = ref('');
-const installedContent = ref<'all' | 'scripts' | 'decks' | 'reply' | 'helpdoc' | 'templates'>('all');
+const installedContent = ref<'all' | 'scripts' | 'decks' | 'reply' | 'helpdoc' | 'templates'>(
+  'all'
+);
 const storeKeyword = ref('');
 const storePage = ref(1);
 const storePageSize = ref(20);
@@ -270,7 +349,12 @@ const storeBackendsQuery = useQuery({
 });
 
 const storePageQuery = useQuery({
-  queryKey: computed(() => ['extension-store-page', storeKeyword.value, storePage.value, storePageSize.value]),
+  queryKey: computed(() => [
+    'extension-store-page',
+    storeKeyword.value,
+    storePage.value,
+    storePageSize.value,
+  ]),
   queryFn: async () => {
     const { data } = await getSdApiV2ExtensionStorePage({
       query: {
@@ -288,7 +372,11 @@ const storePageQuery = useQuery({
 const packages = computed(() => packagesQuery.data.value ?? []);
 const backends = computed(() => storeBackendsQuery.data.value ?? []);
 const storePackages = computed(() => storePageQuery.data.value?.items ?? []);
-const storeTotal = computed(() => storePageQuery.data.value?.next ? storePage.value * storePageSize.value + 1 : storePackages.value.length);
+const storeTotal = computed(() =>
+  storePageQuery.data.value?.next
+    ? storePage.value * storePageSize.value + 1
+    : storePackages.value.length
+);
 
 const filteredInstalledPackages = computed(() =>
   packages.value.filter(pkg => {
@@ -305,13 +393,16 @@ const filteredInstalledPackages = computed(() =>
       .join(' ')
       .toLowerCase();
     return haystack.includes(keyword);
-  }),
+  })
 );
 
 const loadErrorText = computed(() => {
-  if (packagesQuery.isError.value) return getErrorMessage(packagesQuery.error.value, '扩展包读取失败');
-  if (storeBackendsQuery.isError.value) return getErrorMessage(storeBackendsQuery.error.value, '仓库后端读取失败');
-  if (storePageQuery.isError.value) return getErrorMessage(storePageQuery.error.value, '商店列表读取失败');
+  if (packagesQuery.isError.value)
+    return getErrorMessage(packagesQuery.error.value, '扩展包读取失败');
+  if (storeBackendsQuery.isError.value)
+    return getErrorMessage(storeBackendsQuery.error.value, '仓库后端读取失败');
+  if (storePageQuery.isError.value)
+    return getErrorMessage(storePageQuery.error.value, '商店列表读取失败');
   return '';
 });
 
@@ -333,88 +424,15 @@ const reloadMenuOptions = [
   { label: '重载模板', key: 'templates' },
 ];
 
-const installedRowKey = (row: Instance) => row.manifest.package.id;
-const storeRowKey = (row: StorePackage) => `${row.id}@${row.version}`;
-
-const installedColumns: DataTableColumns<Instance> = [
-  {
-    title: '扩展包',
-    key: 'name',
-    minWidth: 260,
-    render: (row: Instance) => h('div', { class: 'package-name-cell' }, [
-      h('div', { class: 'package-name' }, row.manifest.package.name),
-      h('div', { class: 'package-meta' }, `${row.manifest.package.id} · ${row.manifest.package.version}`),
-    ]),
-  },
-  {
-    title: '状态',
-    key: 'state',
-    width: 110,
-    render: (row: Instance) => h('span', { class: `state-${row.state}` }, row.state),
-  },
-  {
-    title: '内容',
-    key: 'contents',
-    minWidth: 180,
-    render: (row: Instance) => (row.manifest.contents ? listContentLabels(row.manifest).map(label => h('span', { class: 'content-chip' }, label)) : '-'),
-  },
-  {
-    title: '来源',
-    key: 'source',
-    minWidth: 220,
-    render: (row: Instance) => h('div', null, [
-      h('div', null, row.sourceStatus === 'cache_only' ? '仅缓存' : '原始包存在'),
-      h('div', { class: 'package-meta' }, row.sourceWarning || row.sourcePath || '-'),
-    ]),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 260,
-    render: (row: Instance) => h('div', { class: 'table-actions' }, [
-      h('button', { onClick: () => openDetail(row), class: 'action-link' }, '详情'),
-      row.state === 'enabled'
-        ? h('button', { onClick: () => changePackageState(row, false), class: 'action-link' }, '禁用')
-        : h('button', { onClick: () => changePackageState(row, true), class: 'action-link' }, '启用'),
-      h('button', { onClick: () => reloadPackage(row), class: 'action-link' }, '重载'),
-      h('button', { onClick: () => uninstallPackage(row), class: 'action-link danger' }, '卸载'),
-    ]),
-  },
-];
-
-const storeColumns: DataTableColumns<StorePackage> = [
-  {
-    title: '扩展包',
-    key: 'name',
-    minWidth: 260,
-    render: (row: StorePackage) => h('div', { class: 'package-name-cell' }, [
-      h('div', { class: 'package-name' }, row.name),
-      h('div', { class: 'package-meta' }, `${row.id} · ${row.version}`),
-    ]),
-  },
-  { title: '作者', key: 'authors', minWidth: 160, render: (row: StorePackage) => row.authors?.join(' / ') || '-' },
-  { title: '分类', key: 'category', width: 120, render: (row: StorePackage) => row.storeAssets?.category || '-' },
-  { title: '更新时间', key: 'updateTime', width: 150, render: (row: StorePackage) => new Date((row.download?.updateTime ?? 0) * 1000).toLocaleString() },
-  { title: '安装状态', key: 'installed', width: 100, render: (row: StorePackage) => (row.installed ? '已安装' : '未安装') },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 180,
-    render: (row: StorePackage) => h('div', { class: 'table-actions' }, [
-      h('button', { onClick: () => previewStoreInstall(row), class: 'action-link' }, row.installed ? '预览重装' : '预览安装'),
-    ]),
-  },
-];
-
 watch(
   () => authStore.hasAccessToken,
-  (hasToken) => {
+  hasToken => {
     if (!hasToken) {
       previewVisible.value = false;
       detailVisible.value = false;
     }
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 onMounted(async () => {
@@ -424,7 +442,11 @@ onMounted(async () => {
 async function refreshAll() {
   refreshing.value = true;
   try {
-    await Promise.all([packagesQuery.refetch(), storeBackendsQuery.refetch(), storePageQuery.refetch()]);
+    await Promise.all([
+      packagesQuery.refetch(),
+      storeBackendsQuery.refetch(),
+      storePageQuery.refetch(),
+    ]);
   } finally {
     refreshing.value = false;
   }
@@ -460,7 +482,10 @@ async function openDetail(pkg: Instance) {
   try {
     const [configResp, schemaResp] = await Promise.all([
       getSdApiV2ExtensionConfig({ query: { id: pkg.manifest.package.id }, throwOnError: true }),
-      getSdApiV2ExtensionConfigSchema({ query: { id: pkg.manifest.package.id }, throwOnError: true }),
+      getSdApiV2ExtensionConfigSchema({
+        query: { id: pkg.manifest.package.id },
+        throwOnError: true,
+      }),
     ]);
     currentPackageConfig.value = configResp.data.item;
     currentPackageSchema.value = schemaResp.data.item;
@@ -494,9 +519,15 @@ async function savePackageConfig(nextConfig: Record<string, unknown>) {
 async function changePackageState(pkg: Instance, enable: boolean) {
   try {
     if (enable) {
-      await postSdApiV2ExtensionEnable({ body: { id: pkg.manifest.package.id }, throwOnError: true });
+      await postSdApiV2ExtensionEnable({
+        body: { id: pkg.manifest.package.id },
+        throwOnError: true,
+      });
     } else {
-      await postSdApiV2ExtensionDisable({ body: { id: pkg.manifest.package.id }, throwOnError: true });
+      await postSdApiV2ExtensionDisable({
+        body: { id: pkg.manifest.package.id },
+        throwOnError: true,
+      });
     }
     message.success('状态已更新');
     await packagesQuery.refetch();
@@ -523,7 +554,10 @@ async function uninstallPackage(pkg: Instance) {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await postSdApiV2ExtensionUninstall({ body: { id: pkg.manifest.package.id, mode: 'full' }, throwOnError: true });
+        await postSdApiV2ExtensionUninstall({
+          body: { id: pkg.manifest.package.id, mode: 'full' },
+          throwOnError: true,
+        });
         message.success('已卸载');
         await packagesQuery.refetch();
       } catch (error) {
@@ -554,7 +588,10 @@ async function addBackend() {
   if (!backendUrlInput.value.trim()) return;
   backendMutationPending.value = true;
   try {
-    await postSdApiV2ExtensionStoreBackends({ body: { url: backendUrlInput.value.trim() }, throwOnError: true });
+    await postSdApiV2ExtensionStoreBackends({
+      body: { url: backendUrlInput.value.trim() },
+      throwOnError: true,
+    });
     backendUrlInput.value = '';
     message.success('后端已添加');
     await storeBackendsQuery.refetch();
@@ -585,7 +622,10 @@ async function toggleBackend(backend: StoreBackend, enabled: boolean) {
 async function removeBackend(backend: StoreBackend) {
   backendMutationPending.value = true;
   try {
-    await deleteSdApiV2ExtensionStoreBackends({ body: { id: backend.id || '', backendID: backend.id || '', url: backend.url || '' }, throwOnError: true });
+    await deleteSdApiV2ExtensionStoreBackends({
+      body: { id: backend.id || '', backendID: backend.id || '', url: backend.url || '' },
+      throwOnError: true,
+    });
     await storeBackendsQuery.refetch();
   } catch (error) {
     handleError(error, '删除后端失败');
@@ -738,14 +778,10 @@ async function confirmPreviewInstall() {
 function matchesContentFilter(manifest: Manifest, filter: string) {
   if (filter === 'all') return true;
   const contents = manifest.contents ?? {};
-  return Array.isArray((contents as Record<string, unknown>)[filter]) && ((contents as Record<string, string[]>)[filter]?.length ?? 0) > 0;
-}
-
-function listContentLabels(manifest: Manifest) {
-  const contents = manifest.contents ?? {};
-  return Object.entries(contents)
-    .filter(([, items]) => Array.isArray(items) && items.length > 0)
-    .map(([key]) => key);
+  return (
+    Array.isArray((contents as Record<string, unknown>)[filter]) &&
+    ((contents as Record<string, string[]>)[filter]?.length ?? 0) > 0
+  );
 }
 
 function handleError(error: unknown, fallback: string) {
@@ -755,7 +791,6 @@ function handleError(error: unknown, fallback: string) {
   }
   message.error(getErrorMessage(error, fallback));
 }
-
 </script>
 
 <style scoped>
@@ -765,42 +800,7 @@ function handleError(error: unknown, fallback: string) {
   gap: 16px;
 }
 
-.package-name {
-  font-weight: 700;
-}
-
-.package-meta {
-  color: var(--sd-text-secondary);
-  font-size: 12px;
-}
-
-.table-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.action-link {
-  border: 0;
-  background: transparent;
-  color: var(--sd-color-primary);
-  cursor: pointer;
-  padding: 0;
-}
-
-.action-link.danger {
-  color: var(--sd-color-error);
-}
-
-.state-enabled {
-  color: var(--sd-color-success);
-}
-
-.content-chip {
-  display: inline-block;
-  margin-right: 6px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--sd-bg-hover);
+.package-filter-row {
+  max-width: 100%;
 }
 </style>

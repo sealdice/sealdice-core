@@ -4,15 +4,36 @@
       <QueryToolbar :form="searchForm" :columns="searchColumns" cols="1 s:2 l:4" />
 
       <ListPanel>
-        <n-data-table
-          class="item-list"
-          :columns="columns"
-          :data="items"
-          size="small"
-          :bordered="false"
-          remote
-          :scroll-x="1210"
-        />
+        <ResponsiveDataView :compact-at="900" aria-label="帮助文档词条">
+          <template #table>
+            <n-data-table
+              class="item-list"
+              :columns="columns"
+              :data="items"
+              size="small"
+              :bordered="false"
+              remote
+              :scroll-x="1210"
+            />
+          </template>
+          <template #compact>
+            <ul class="item-compact-list">
+              <li v-for="item in items" :key="item.id" class="item-compact-list__item">
+                <div class="item-compact-list__heading">
+                  <strong>{{ item.title }}</strong>
+                  <span>#{{ item.id }}</span>
+                </div>
+                <n-flex size="small" wrap>
+                  <n-tag size="small" :bordered="false" type="info">
+                    {{ item.group || '未分组' }}
+                  </n-tag>
+                  <n-text depth="3">{{ item.packageName || item.from || '未知来源' }}</n-text>
+                </n-flex>
+                <p>{{ item.content || '暂无内容' }}</p>
+              </li>
+            </ul>
+          </template>
+        </ResponsiveDataView>
       </ListPanel>
 
       <footer>
@@ -39,6 +60,7 @@ import { NFlex, NText, type DataTableColumns } from 'naive-ui';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import type { HelpTextVo } from '@/api';
 import {
   createDefaultHelpdocItemQuery,
@@ -149,5 +171,50 @@ watch(
 
 .item-list-pagination {
   margin-top: 10px;
+}
+
+.item-compact-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0.625rem;
+  list-style: none;
+}
+
+.item-compact-list__item {
+  display: grid;
+  min-width: 0;
+  border-bottom: 1px solid var(--sd-border-soft);
+  gap: 0.55rem;
+  padding: 0.75rem 0;
+}
+
+.item-compact-list__heading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.item-compact-list__heading strong,
+.item-compact-list__item p {
+  overflow-wrap: anywhere;
+}
+
+.item-compact-list__heading span {
+  color: var(--sd-text-muted);
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+}
+
+.item-compact-list__item p {
+  display: -webkit-box;
+  margin: 0;
+  color: var(--sd-text-secondary);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  white-space: pre-wrap;
 }
 </style>

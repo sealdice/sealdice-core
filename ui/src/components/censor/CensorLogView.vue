@@ -17,7 +17,37 @@
       />
     </header>
     <n-spin :show="loading">
-      <n-data-table :columns="columns" :data="logs" class="mt-4" :scroll-x="940" />
+      <ResponsiveDataView class="mt-4" :compact-at="960" aria-label="审查命中日志">
+        <template #table>
+          <n-data-table :columns="columns" :data="logs" :scroll-x="940" />
+        </template>
+        <template #compact>
+          <ul class="censor-log-list">
+            <li v-for="log in logs" :key="log.id" class="censor-log-list__item">
+              <div class="censor-log-list__heading">
+                <n-flex size="small" align="center" wrap>
+                  <CensorSensitiveTag :level="log.highestLevel" />
+                  <n-tag size="small" :bordered="false">
+                    {{ formatCensorMessageType(log.msgType) }}
+                  </n-tag>
+                </n-flex>
+                <time>{{ formatCensorLogTime(log.createdAt) }}</time>
+              </div>
+              <dl>
+                <div>
+                  <dt>用户</dt>
+                  <dd>{{ log.userId || '-' }}</dd>
+                </div>
+                <div>
+                  <dt>群组</dt>
+                  <dd>{{ log.groupId || '-' }}</dd>
+                </div>
+              </dl>
+              <p>{{ log.content }}</p>
+            </li>
+          </ul>
+        </template>
+      </ResponsiveDataView>
     </n-spin>
   </div>
 </template>
@@ -25,6 +55,7 @@
 <script setup lang="tsx">
 import type { DataTableColumns } from 'naive-ui';
 import type { CensorLog } from '@/api';
+import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import type { CensorLogQueryModel } from '@/features/censor/viewModel';
 import CensorSensitiveTag from './CensorSensitiveTag.vue';
 import { formatCensorLogTime, formatCensorMessageType } from '@/features/censor/viewModel';
@@ -81,5 +112,59 @@ const columns: DataTableColumns<CensorLog> = [
   text-align: center;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.censor-log-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0.75rem;
+  list-style: none;
+}
+
+.censor-log-list__item {
+  display: grid;
+  min-width: 0;
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 6px;
+  background: var(--sd-bg-elevated);
+  gap: 0.65rem;
+  padding: 0.75rem;
+}
+
+.censor-log-list__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.censor-log-list__heading time {
+  color: var(--sd-text-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.censor-log-list__item dl {
+  display: grid;
+  margin: 0;
+  gap: 0.35rem;
+}
+
+.censor-log-list__item dl div {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.censor-log-list__item dt {
+  color: var(--sd-text-muted);
+}
+
+.censor-log-list__item dd,
+.censor-log-list__item p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 </style>
