@@ -31,11 +31,12 @@ dist/
 ui/openapi.json
 ui/src/api/generated/
 static/v2ui/dist/
+static/frontend/
 ui/dev-dist/
 go-cqhttp/
 lagrange/
-frontend/
-frontend_overwrite/
+/frontend/
+/frontend_overwrite/
 backups/
 update/
 /cache/
