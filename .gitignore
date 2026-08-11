@@ -31,7 +31,8 @@ dist/
 ui/openapi.json
 ui/src/api/generated/
 static/v2ui/dist/
-static/frontend/
+static/frontend/*
+!static/frontend/index.html
 ui/dev-dist/
 go-cqhttp/
 lagrange/
