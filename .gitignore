@@ -24,6 +24,7 @@ configs/
 data/
 pegtest/
 temp/
+/docs/
 
 .goreleaser.yaml
 dist/
