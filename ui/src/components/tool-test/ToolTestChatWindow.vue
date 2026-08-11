@@ -1,3 +1,38 @@
+<template>
+  <section class="tool-test-chat-window">
+    <header class="tool-test-chat-window__header">
+      <strong class="tool-test-chat-window__title">{{ props.title }}</strong>
+      <div class="tool-test-chat-window__actions">
+        <n-button
+          v-if="newMessageCount > 0"
+          size="small"
+          secondary
+          aria-label="跳转到最新消息"
+          @click="scrollToBottom"
+        >
+          新消息（{{ newMessageCount }}）
+        </n-button>
+        <slot name="actions" />
+      </div>
+    </header>
+    <div
+      ref="scrollRef"
+      class="tool-test-chat-window__scroll"
+      role="log"
+      aria-live="polite"
+      @scroll="handleScroll"
+    >
+      <div class="tool-test-chat-window__messages">
+        <ToolTestChatMessage
+          v-for="message in props.messages"
+          :key="message.id"
+          :message="message"
+        />
+      </div>
+    </div>
+  </section>
+</template>
+
 <script setup lang="ts">
 import { nextTick, ref, useTemplateRef, watch } from 'vue';
 import ToolTestChatMessage from './ToolTestChatMessage.vue';
@@ -45,41 +80,6 @@ function handleScroll() {
   if (isNearBottom()) newMessageCount.value = 0;
 }
 </script>
-
-<template>
-  <section class="tool-test-chat-window">
-    <header class="tool-test-chat-window__header">
-      <strong class="tool-test-chat-window__title">{{ props.title }}</strong>
-      <div class="tool-test-chat-window__actions">
-        <n-button
-          v-if="newMessageCount > 0"
-          size="small"
-          secondary
-          aria-label="跳转到最新消息"
-          @click="scrollToBottom"
-        >
-          新消息（{{ newMessageCount }}）
-        </n-button>
-        <slot name="actions" />
-      </div>
-    </header>
-    <div
-      ref="scrollRef"
-      class="tool-test-chat-window__scroll"
-      role="log"
-      aria-live="polite"
-      @scroll="handleScroll"
-    >
-      <div class="tool-test-chat-window__messages">
-        <ToolTestChatMessage
-          v-for="message in props.messages"
-          :key="message.id"
-          :message="message"
-        />
-      </div>
-    </div>
-  </section>
-</template>
 
 <style scoped>
 .tool-test-chat-window {

@@ -1,32 +1,6 @@
 <template>
   <section class="backup-config-panel">
-    <header class="backup-config-panel__head">
-      <div>
-        <h2>备份设置</h2>
-        <p>配置自动备份、备份范围和历史备份清理策略。</p>
-      </div>
-      <n-button
-        type="primary"
-        :disabled="!dirty || disabled"
-        :loading="saving"
-        @click="handleSave"
-      >
-        <template #icon>
-          <n-icon>
-            <i-ep-document-checked />
-          </n-icon>
-        </template>
-        保存设置
-      </n-button>
-    </header>
-
-    <n-form
-      ref="formRef"
-      :model="config"
-      :rules="rules"
-      label-placement="top"
-      :disabled="disabled"
-    >
+    <n-form ref="formRef" :model="config" :rules="rules" label-placement="top" :disabled="disabled">
       <section class="backup-config-panel__section">
         <div class="backup-config-panel__section-title">
           <h3>自动备份</h3>
@@ -158,22 +132,21 @@ const props = defineProps<{
   disabled?: boolean;
 }>();
 
-const emit = defineEmits<{
-  save: [];
-}>();
-
 const formRef = ref<FormInst | null>(null);
 
 const rules: FormRules = {
   autoBackupTime: {
     validator: () =>
-      !config.value.autoBackupEnable || config.value.autoBackupTime.trim().length > 0 || new Error('请输入备份间隔'),
+      !config.value.autoBackupEnable ||
+      config.value.autoBackupTime.trim().length > 0 ||
+      new Error('请输入备份间隔'),
     trigger: ['blur', 'change'],
   },
   backupCleanKeepCount: {
     validator: () =>
       config.value.backupCleanStrategy !== 1 ||
-      (Number.isInteger(config.value.backupCleanKeepCount) && config.value.backupCleanKeepCount >= 1) ||
+      (Number.isInteger(config.value.backupCleanKeepCount) &&
+        config.value.backupCleanKeepCount >= 1) ||
       new Error('保留数量至少为 1'),
     trigger: ['blur', 'change'],
   },
@@ -201,15 +174,6 @@ const rules: FormRules = {
   },
 };
 
-async function handleSave() {
-  try {
-    await formRef.value?.validate();
-    emit('save');
-  } catch {
-    // Form items render their own validation messages.
-  }
-}
-
 const cleanTriggerOptions: Array<{ value: BackupCleanTriggerKey; label: string }> = [
   { value: 'afterAutoBackup', label: '自动备份后' },
   { value: 'cron', label: '定时' },
@@ -225,7 +189,6 @@ const autoBackupPreview = computed(() =>
 </script>
 
 <style scoped>
-.backup-config-panel__head,
 .backup-config-panel__section-title {
   display: flex;
   align-items: flex-start;
@@ -233,15 +196,8 @@ const autoBackupPreview = computed(() =>
   gap: 16px;
 }
 
-.backup-config-panel__head h2,
 .backup-config-panel__section-title h3 {
   margin: 0;
-}
-
-.backup-config-panel__head p {
-  margin: 4px 0 0;
-  color: var(--sd-text-muted);
-  font-size: 13px;
 }
 
 .backup-config-panel__section {
@@ -271,12 +227,5 @@ const autoBackupPreview = computed(() =>
 
 .backup-config-panel__preview {
   word-break: break-all;
-}
-
-@media (max-width: 720px) {
-  .backup-config-panel__head {
-    align-items: stretch;
-    flex-direction: column;
-  }
 }
 </style>

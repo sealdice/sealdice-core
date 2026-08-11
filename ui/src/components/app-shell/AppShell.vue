@@ -225,10 +225,10 @@ setUnsavedChangesConfirmHandler(
 
 .sd-main-container {
   box-sizing: border-box;
-  width: min(100%, 1180px);
+  width: 100%;
   min-height: 100%;
-  margin-inline: 0 auto;
-  padding: 1.5rem 2rem 2rem;
+  margin-inline: 0;
+  padding: 1.5rem clamp(1rem, 2vw, 2rem) 2rem;
 }
 
 .sd-main-container--wide {

@@ -1,3 +1,49 @@
+<template>
+  <div class="notice-targets">
+    <div v-for="(target, index) in targets" :key="index" class="notice-target-row">
+      <n-switch
+        :value="target.enabled"
+        size="small"
+        @update:value="updateTarget(index, { enabled: $event })"
+      />
+      <n-input
+        class="notice-target-id"
+        :value="target.id"
+        placeholder="平台:账号或群组 ID"
+        @update:value="updateTarget(index, { id: $event })"
+      />
+      <n-select
+        class="notice-target-types"
+        :value="target.noticeTypes"
+        :options="noticeTypeOptions"
+        multiple
+        clearable
+        max-tag-count="responsive"
+        @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
+      />
+      <n-tooltip>
+        <template #trigger>
+          <n-button
+            quaternary
+            circle
+            type="error"
+            aria-label="删除通知目标"
+            @click="removeTarget(index)"
+          >
+            <template #icon><i-ep-delete /></template>
+          </n-button>
+        </template>
+        删除通知目标
+      </n-tooltip>
+    </div>
+
+    <n-button dashed class="notice-target-add" @click="addTarget">
+      <template #icon><i-ep-plus /></template>
+      添加通知目标
+    </n-button>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import {
@@ -49,52 +95,6 @@ function removeTarget(index: number) {
   commit(targets.value.filter((_, targetIndex) => targetIndex !== index));
 }
 </script>
-
-<template>
-  <div class="notice-targets">
-    <div v-for="(target, index) in targets" :key="index" class="notice-target-row">
-      <n-switch
-        :value="target.enabled"
-        size="small"
-        @update:value="updateTarget(index, { enabled: $event })"
-      />
-      <n-input
-        class="notice-target-id"
-        :value="target.id"
-        placeholder="平台:账号或群组 ID"
-        @update:value="updateTarget(index, { id: $event })"
-      />
-      <n-select
-        class="notice-target-types"
-        :value="target.noticeTypes"
-        :options="noticeTypeOptions"
-        multiple
-        clearable
-        max-tag-count="responsive"
-        @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
-      />
-      <n-tooltip>
-        <template #trigger>
-          <n-button
-            quaternary
-            circle
-            type="error"
-            aria-label="删除通知目标"
-            @click="removeTarget(index)"
-          >
-            <template #icon><i-ep-delete /></template>
-          </n-button>
-        </template>
-        删除通知目标
-      </n-tooltip>
-    </div>
-
-    <n-button dashed class="notice-target-add" @click="addTarget">
-      <template #icon><i-ep-plus /></template>
-      添加通知目标
-    </n-button>
-  </div>
-</template>
 
 <style scoped>
 .notice-targets {

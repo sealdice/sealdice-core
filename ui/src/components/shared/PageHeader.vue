@@ -4,17 +4,67 @@
       <h1>{{ title }}</h1>
       <p v-if="description">{{ description }}</p>
     </div>
-    <div v-if="$slots.default" class="sd-page-header__actions">
+    <div v-if="$slots.default || unsavedScope" class="sd-page-header__actions">
+      <template v-if="unsavedScope">
+        <n-button v-if="dirty" secondary :disabled="!dirty || saving" @click="discard">
+          <template #icon>
+            <n-icon><i-ep-refresh-left /></n-icon>
+          </template>
+          放弃改动
+        </n-button>
+        <n-button
+          v-if="dirty"
+          type="primary"
+          :loading="saving"
+          :disabled="!dirty || saving"
+          @click="save"
+        >
+          <template #icon>
+            <n-icon><i-ep-document-checked /></n-icon>
+          </template>
+          保存设置
+        </n-button>
+      </template>
       <slot />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue';
+import { useMessage } from 'naive-ui';
+import { activeUnsavedChangesSource, saveActiveUnsavedChanges } from '@/features/unsavedChanges';
+
+const props = defineProps<{
   title: string;
   description?: string;
+  unsavedScope?: string;
 }>();
+
+const message = useMessage();
+const activeSource = computed(() => (props.unsavedScope ? activeUnsavedChangesSource.value : null));
+const dirty = computed(() =>
+  Boolean(activeSource.value && activeSource.value.scope === props.unsavedScope)
+);
+const saving = computed(() =>
+  Boolean(
+    activeSource.value &&
+      activeSource.value.scope === props.unsavedScope &&
+      activeSource.value.saving
+  )
+);
+
+async function save() {
+  if (!props.unsavedScope) return;
+  const saved = await saveActiveUnsavedChanges();
+  if (!saved) {
+    message.error('保存失败');
+  }
+}
+
+async function discard() {
+  message.info('请使用页面内的“放弃改动”按钮');
+}
 </script>
 
 <style scoped>
@@ -53,6 +103,7 @@ defineProps<{
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 640px) {

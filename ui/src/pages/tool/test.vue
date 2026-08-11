@@ -1,43 +1,3 @@
-<script setup lang="ts">
-import { computed, shallowRef } from 'vue';
-import {
-  NAlert,
-  NButton,
-  NIcon,
-  NPopover,
-  NRadioButton,
-  NRadioGroup,
-  NSelect,
-  NTag,
-} from 'naive-ui';
-import ToolTestChatWindow from '@/components/tool-test/ToolTestChatWindow.vue';
-import ToolTestCommandComposer from '@/components/tool-test/ToolTestCommandComposer.vue';
-import ToolTestMemberRail from '@/components/tool-test/ToolTestMemberRail.vue';
-import { useToolTest } from '@/features/toolTest/useToolTest';
-import type { ToolTestProfile } from '@/features/toolTest/model';
-
-const toolTest = useToolTest();
-const memberRailOpen = shallowRef(false);
-
-const privateSenderOptions = computed(
-  () =>
-    toolTest.contexts.private?.members
-      .filter(profile => profile.enabled)
-      .map(profile => ({ label: `${profile.name} · ${profile.userId}`, value: profile.userId })) ??
-    []
-);
-
-const workspaceClass = computed(() => ({
-  'tool-test-page__workspace--private': toolTest.mode.value === 'private',
-  'tool-test-page__workspace--group': toolTest.mode.value === 'group',
-}));
-
-async function handleSelectProfile(profile: ToolTestProfile) {
-  await toolTest.selectSender(profile);
-  memberRailOpen.value = false;
-}
-</script>
-
 <template>
   <main class="tool-test-page">
     <header class="tool-test-page__header">
@@ -171,6 +131,46 @@ async function handleSelectProfile(profile: ToolTestProfile) {
     </section>
   </main>
 </template>
+
+<script setup lang="ts">
+import { computed, shallowRef } from 'vue';
+import {
+  NAlert,
+  NButton,
+  NIcon,
+  NPopover,
+  NRadioButton,
+  NRadioGroup,
+  NSelect,
+  NTag,
+} from 'naive-ui';
+import ToolTestChatWindow from '@/components/tool-test/ToolTestChatWindow.vue';
+import ToolTestCommandComposer from '@/components/tool-test/ToolTestCommandComposer.vue';
+import ToolTestMemberRail from '@/components/tool-test/ToolTestMemberRail.vue';
+import { useToolTest } from '@/features/toolTest/useToolTest';
+import type { ToolTestProfile } from '@/features/toolTest/model';
+
+const toolTest = useToolTest();
+const memberRailOpen = shallowRef(false);
+
+const privateSenderOptions = computed(
+  () =>
+    toolTest.contexts.private?.members
+      .filter(profile => profile.enabled)
+      .map(profile => ({ label: `${profile.name} · ${profile.userId}`, value: profile.userId })) ??
+    []
+);
+
+const workspaceClass = computed(() => ({
+  'tool-test-page__workspace--private': toolTest.mode.value === 'private',
+  'tool-test-page__workspace--group': toolTest.mode.value === 'group',
+}));
+
+async function handleSelectProfile(profile: ToolTestProfile) {
+  await toolTest.selectSender(profile);
+  memberRailOpen.value = false;
+}
+</script>
 
 <style scoped>
 .tool-test-page {

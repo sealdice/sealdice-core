@@ -83,7 +83,6 @@ import CensorLogView from '@/components/censor/CensorLogView.vue';
 import CensorWordsView from '@/components/censor/CensorWordsView.vue';
 import CensorWordTip from '@/components/censor/CensorWordTip.vue';
 import ReloadNotice from '@/components/layout/ReloadNotice.vue';
-import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { useCensorConfigDraft } from '@/features/censor/configDraft';
 import { useCensorMutations } from '@/features/censor/mutations';

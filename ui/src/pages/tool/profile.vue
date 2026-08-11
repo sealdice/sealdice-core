@@ -1,13 +1,11 @@
 <template>
   <main class="pprof-page">
-    <header class="pprof-page__header">
-      <div>
-        <h1>性能分析</h1>
-        <p>通过 V2 pprof 接口导出采样数据，下载后可用 `go tool pprof` / `go tool trace` 离线分析。</p>
-      </div>
-    </header>
+    <PageHeader
+      title="性能分析"
+      description="通过 V2 pprof 接口导出采样数据，下载后可用 `go tool pprof` / `go tool trace` 离线分析。"
+    />
 
-    <n-collapse arrow-placement="right">
+    <n-collapse arrow-placement="right" class="pprof-page__help">
       <n-collapse-item title="查看帮助" name="help">
         <n-space vertical size="small">
           <n-text>本页调用 Go 标准库 `net/http/pprof` 相关端点。</n-text>
@@ -78,6 +76,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useWindowSize } from '@vueuse/core';
 import { getApiBaseUrl } from '@/api';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { currentAccessToken } from '@/features/auth/state';
 import {
   buildPprofBinaryPath,
@@ -164,18 +163,21 @@ function triggerBlobDownload(blob: Blob, filename: string) {
 async function handleDownload(entry: PprofEntry) {
   if (isPending(entry.key)) return;
 
-  const durationMs = entry.key === 'profile'
-    ? profileSeconds.value * 1000
-    : entry.key === 'trace'
-      ? traceSeconds.value * 1000
-      : 1500;
+  const durationMs =
+    entry.key === 'profile'
+      ? profileSeconds.value * 1000
+      : entry.key === 'trace'
+        ? traceSeconds.value * 1000
+        : 1500;
   markPending(entry.key, durationMs);
 
   try {
-    const response = await fetchPprof(buildPprofBinaryPath(entry, {
-      profileSeconds: profileSeconds.value,
-      traceSeconds: traceSeconds.value,
-    }));
+    const response = await fetchPprof(
+      buildPprofBinaryPath(entry, {
+        profileSeconds: profileSeconds.value,
+        traceSeconds: traceSeconds.value,
+      })
+    );
     const blob = await response.blob();
     triggerBlobDownload(blob, entry.filename);
   } catch (error) {
@@ -233,18 +235,6 @@ onMounted(() => {
   gap: 1rem;
 }
 
-.pprof-page__header h1 {
-  margin: 0;
-  color: var(--sd-text-primary);
-  font-size: 1.75rem;
-}
-
-.pprof-page__header p {
-  margin: 0.5rem 0 0;
-  color: var(--sd-text-secondary);
-  line-height: 1.7;
-}
-
 .pprof-page__card {
   height: 100%;
 }
@@ -255,5 +245,11 @@ onMounted(() => {
   word-break: break-all;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.pprof-page__help {
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 6px;
+  background: var(--sd-bg-elevated-soft);
 }
 </style>

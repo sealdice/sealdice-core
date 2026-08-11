@@ -1,19 +1,16 @@
 <template>
   <main class="resource-page">
-    <PageHeader title="资源管理" description="上传图片后可直接复制海豹码，在回复、牌堆或指令中引用本地图片资源。">
-      <n-tag :bordered="false" type="info">V2 API</n-tag>
-      <div class="resource-page__stats">
-        <n-statistic label="图片资源" :value="total" />
-        <n-statistic label="本页数量" :value="currentCount" />
-      </div>
-    </PageHeader>
+    <PageHeader
+      title="资源管理"
+      description="上传图片后可直接复制海豹码，在回复、牌堆或指令中引用本地图片资源。"
+    />
 
     <n-alert v-if="listErrorText" type="error" :bordered="false">
       {{ listErrorText }}
     </n-alert>
 
-    <n-card :bordered="false" class="resource-page__card">
-      <ResourceListPanel
+    <ResourceListPanel
+      class="resource-page__panel"
         :items="items"
         :total="total"
         :loading="resourceListQuery.isFetching.value"
@@ -28,8 +25,7 @@
         @delete="confirmDelete"
         @detail="showDetail"
         @refresh="refreshList"
-      />
-    </n-card>
+    />
 
     <n-drawer v-model:show="detailVisible" width="420" placement="right">
       <n-drawer-content title="资源详情" closable>
@@ -92,7 +88,12 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { copyText } from '@/features/clipboard';
-import { getTestModeBlockMessage, isTestModeApiError, isTestModeResponse, useTestMode } from '@/features/testMode/state';
+import {
+  getTestModeBlockMessage,
+  isTestModeApiError,
+  isTestModeResponse,
+  useTestMode,
+} from '@/features/testMode/state';
 import {
   buildResourceListQuery,
   buildSealImageCode,
@@ -127,11 +128,12 @@ const resourceListQuery = useQuery({
 
 const items = computed(() => resourceListQuery.data.value?.list ?? []);
 const total = computed(() => Number(resourceListQuery.data.value?.total ?? 0));
-const currentCount = computed(() => items.value.length);
 const formatFileSize = filesize;
-const listErrorText = computed(() => (
-  resourceListQuery.error.value ? getErrorMessage(resourceListQuery.error.value, '加载资源列表失败') : ''
-));
+const listErrorText = computed(() =>
+  resourceListQuery.error.value
+    ? getErrorMessage(resourceListQuery.error.value, '加载资源列表失败')
+    : ''
+);
 
 const invalidateResourceList = () =>
   queryClient.invalidateQueries({
@@ -204,11 +206,12 @@ const deleteMutation = useMutation({
 });
 
 watch(
-  () => [items.value.length, total.value, listQuery.page, resourceListQuery.isFetching.value] as const,
+  () =>
+    [items.value.length, total.value, listQuery.page, resourceListQuery.isFetching.value] as const,
   ([count, itemTotal, page, fetching]) => {
     if (fetching || itemTotal <= 0 || count > 0 || page <= 1) return;
     listQuery.page = page - 1;
-  },
+  }
 );
 
 function updateListQuery(patch: Partial<typeof listQuery>) {
@@ -243,7 +246,7 @@ async function downloadResource(item: ResourceItem) {
         responseType: 'blob',
         throwOnError: true,
       }),
-      item.name,
+      item.name
     );
   } catch (error) {
     message.error(getErrorMessage(error, '下载资源失败'));
@@ -279,14 +282,7 @@ function showDetail(item: ResourceItem) {
   min-width: 0;
 }
 
-.resource-page__stats {
-  display: grid;
-  min-width: 210px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.resource-page__card {
+.resource-page__panel {
   min-width: 0;
 }
 
@@ -294,11 +290,5 @@ function showDetail(item: ResourceItem) {
   display: grid;
   gap: 16px;
   justify-items: center;
-}
-
-@media (max-width: 760px) {
-  .resource-page__stats {
-    min-width: 0;
-  }
 }
 </style>

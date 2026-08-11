@@ -1,10 +1,28 @@
 <template>
   <main class="advanced-page">
-    <PageHeader title="高级设置" description="面向开发者和进阶用户的高级配置。" />
+    <PageHeader
+      title="高级设置"
+      description="面向开发者和进阶用户的高级配置。"
+      unsaved-scope="advanced-setting"
+    >
+      <n-button secondary :disabled="!modified" @click="reload">
+        <template #icon>
+          <n-icon><i-ep-refresh-left /></n-icon>
+        </template>
+        放弃改动
+      </n-button>
+      <n-button type="primary" :loading="saving" :disabled="saving || !modified" @click="save">
+        <template #icon>
+          <n-icon><i-ep-document-checked /></n-icon>
+        </template>
+        保存设置
+      </n-button>
+    </PageHeader>
     <TipBox type="warning" class="my-4">
       <n-text>
         此处是面向开发者或进阶用户的隐藏设置页，下列的设置项可能会对海豹核心的功能造成重大影响。<br />
-        一些尚在测试的不稳定设置项，以及 <strong>普通骰主无需关注</strong> 的设置项会被放在此处。<br />
+        一些尚在测试的不稳定设置项，以及
+        <strong>普通骰主无需关注</strong> 的设置项会被放在此处。<br />
         此处的设置项不保证稳定提供，在未来版本随时可能会被移除。<br /><br />
         <strong>除非你知道自己在做什么，否则不要修改此处的任何设置项！</strong><br /><br />
         <em>
@@ -86,7 +104,10 @@
               设置第三方跑团日志后端 URL
             </n-tooltip>
           </template>
-          <n-input v-model:value="config.storyLogBackendUrl" class="advanced-input advanced-input--long" />
+          <n-input
+            v-model:value="config.storyLogBackendUrl"
+            class="advanced-input advanced-input--long"
+          />
         </n-form-item>
 
         <n-form-item label="API 版本">
@@ -99,7 +120,10 @@
               指定后端的 API 版本
             </n-tooltip>
           </template>
-          <n-input v-model:value="config.storyLogApiVersion" class="advanced-input advanced-input--short" />
+          <n-input
+            v-model:value="config.storyLogApiVersion"
+            class="advanced-input advanced-input--short"
+          />
         </n-form-item>
 
         <n-form-item label="Token">
@@ -112,16 +136,10 @@
               指定传递给后端的 token
             </n-tooltip>
           </template>
-          <n-input v-model:value="config.storyLogBackendToken" class="advanced-input advanced-input--long" />
-        </n-form-item>
-
-        <n-form-item v-if="modified" label="" label-width="1rem" class="mt-4">
-          <n-flex>
-            <n-button type="error" @click="reload">放弃改动</n-button>
-            <n-button type="success" :loading="saving" :disabled="saving" @click="save">
-              保存设置
-            </n-button>
-          </n-flex>
+          <n-input
+            v-model:value="config.storyLogBackendToken"
+            class="advanced-input advanced-input--long"
+          />
         </n-form-item>
       </n-form>
     </n-spin>
@@ -145,7 +163,10 @@ import {
 import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { hasAccessToken } from '@/features/auth/state';
-import { normalizeAdvancedConfig, setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
+import {
+  normalizeAdvancedConfig,
+  setAdvancedSettingsVisible,
+} from '@/features/config/advancedSettings';
 import { isErudaEnabled, setErudaEnabled } from '@/features/debug/eruda';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 
@@ -194,7 +215,7 @@ watch(
     config.value = next;
     initialConfig.value = normalizeAdvancedConfig(next);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(
@@ -203,13 +224,15 @@ watch(
     replyDebugMode.value = value ?? false;
     initialReplyDebugMode.value = value ?? false;
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 const modified = computed(() => {
   if (!initialConfig.value) return false;
-  return JSON.stringify(config.value) !== JSON.stringify(initialConfig.value)
-    || replyDebugMode.value !== initialReplyDebugMode.value;
+  return (
+    JSON.stringify(config.value) !== JSON.stringify(initialConfig.value) ||
+    replyDebugMode.value !== initialReplyDebugMode.value
+  );
 });
 
 const advancedSaveMutation = useMutation({
@@ -233,7 +256,7 @@ const debugModeSaveMutation = useMutation({
 });
 
 const saving = computed(
-  () => advancedSaveMutation.isPending.value || debugModeSaveMutation.isPending.value,
+  () => advancedSaveMutation.isPending.value || debugModeSaveMutation.isPending.value
 );
 
 useUnsavedChanges('advanced-setting', {
@@ -248,7 +271,8 @@ async function save() {
   if (saving.value) return;
 
   const advancedChanged =
-    Boolean(initialConfig.value) && JSON.stringify(config.value) !== JSON.stringify(initialConfig.value);
+    Boolean(initialConfig.value) &&
+    JSON.stringify(config.value) !== JSON.stringify(initialConfig.value);
   const debugModeChanged = replyDebugMode.value !== initialReplyDebugMode.value;
   const tasks: Array<{ kind: 'advanced' | 'debug'; promise: Promise<unknown> }> = [];
 
@@ -264,7 +288,7 @@ async function save() {
   const succeeded = new Set(
     results
       .map((result, index) => (result.status === 'fulfilled' ? tasks[index]?.kind : null))
-      .filter((kind): kind is 'advanced' | 'debug' => Boolean(kind)),
+      .filter((kind): kind is 'advanced' | 'debug' => Boolean(kind))
   );
   const failed = results
     .map((result, index) => (result.status === 'rejected' ? tasks[index]?.kind : null))
@@ -283,7 +307,7 @@ async function save() {
 
   if (failed.length) {
     const succeededLabels = Array.from(succeeded).map(kind =>
-      kind === 'advanced' ? '高级配置' : '回复调试日志',
+      kind === 'advanced' ? '高级配置' : '回复调试日志'
     );
     const succeededText = succeededLabels.length ? `已保存${succeededLabels.join('、')}；` : '';
     message.error(`${succeededText}保存失败：${failed.join('、')}`);

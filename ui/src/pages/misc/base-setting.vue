@@ -1,19 +1,24 @@
 <template>
   <main class="base-setting-page">
-    <header class="page-head">
-      <div class="page-head-copy">
-        <h1>基本设置</h1>
-        <p>按业务分栏管理海豹基础配置，并支持跨分栏搜索与定位。</p>
-      </div>
-      <n-flex>
-        <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
-          放弃改动
-        </n-button>
-        <n-button type="primary" :loading="saveMutation.isPending.value" :disabled="!draft.dirty.value" @click="saveChanges">
-          保存设置
-        </n-button>
-      </n-flex>
-    </header>
+    <PageHeader title="基本设置" description="按业务分栏管理海豹基础配置，并支持跨分栏搜索与定位。">
+      <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
+        <template #icon>
+          <n-icon><i-ep-refresh-left /></n-icon>
+        </template>
+        放弃改动
+      </n-button>
+      <n-button
+        type="primary"
+        :loading="saveMutation.isPending.value"
+        :disabled="!draft.dirty.value"
+        @click="saveChanges"
+      >
+        <template #icon>
+          <n-icon><i-ep-document-checked /></n-icon>
+        </template>
+        保存设置
+      </n-button>
+    </PageHeader>
 
     <BaseSettingSearchBar
       v-model:keyword="searchKeyword"
@@ -23,12 +28,7 @@
 
     <n-spin :show="pageBusy">
       <n-tabs v-model:value="activeTab" type="line" animated class="setting-tabs">
-        <n-tab-pane
-          v-for="tab in tabs"
-          :key="tab.id"
-          :name="tab.id"
-          :tab="tab.title"
-        >
+        <n-tab-pane v-for="tab in tabs" :key="tab.id" :name="tab.id" :tab="tab.title">
           <div class="setting-groups">
             <SettingCategoryBox
               v-for="group in tab.groups"
@@ -82,6 +82,7 @@ import BaseSettingFieldRenderer from '@/components/base-setting/BaseSettingField
 import BaseSettingSearchBar from '@/components/base-setting/BaseSettingSearchBar.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import TipBox from '@/components/shared/TipBox.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { useBaseSettingDraft } from '@/features/baseSetting/draft';
 import {
@@ -125,7 +126,7 @@ watch(
       }
     }
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(
@@ -134,12 +135,16 @@ watch(
     if (!value) return;
     draft.syncRemote(value);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 const tabs = computed(() => schemaQuery.data.value?.tabs ?? []);
-const searchIndex = computed(() => (schemaQuery.data.value ? buildBaseSettingSearchIndex(schemaQuery.data.value) : []));
-const searchResults = computed(() => searchBaseSettingFields(searchIndex.value, searchKeyword.value));
+const searchIndex = computed(() =>
+  schemaQuery.data.value ? buildBaseSettingSearchIndex(schemaQuery.data.value) : []
+);
+const searchResults = computed(() =>
+  searchBaseSettingFields(searchIndex.value, searchKeyword.value)
+);
 const currentValue = computed(() => draft.currentValue.value);
 const initialValue = computed(() => draft.initialValue.value);
 const pageBusy = computed(() => schemaQuery.isFetching.value || valueQuery.isFetching.value);
@@ -165,7 +170,7 @@ async function saveChanges() {
   const payload = await prepareBaseSettingSavePayload(
     draft.currentValue.value,
     draft.initialValue.value,
-    buildBaseSettingPatch,
+    buildBaseSettingPatch
   );
   if (Object.keys(payload).length === 0) {
     message.info('没有可保存的改动');
@@ -232,25 +237,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
   min-width: 0;
 }
 
-.page-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.page-head-copy h1 {
-  margin: 0;
-  font-size: 1.6rem;
-}
-
-.page-head-copy p {
-  margin: 0.35rem 0 0;
-  color: var(--sd-text-muted);
-}
-
 .setting-tabs {
   margin-top: 1rem;
 }
@@ -280,20 +266,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 }
 
 @media (max-width: 639.9px) {
-  .page-head {
-    gap: 0.65rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .page-head-copy h1 {
-    font-size: 1.35rem;
-  }
-
-  .page-head-copy p {
-    margin-top: 0.2rem;
-    font-size: 0.84rem;
-  }
-
   .setting-tabs {
     margin-top: 0.65rem;
   }

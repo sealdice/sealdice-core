@@ -1,34 +1,3 @@
-<script setup lang="ts">
-import { computed, shallowRef } from 'vue';
-import { McBubble } from '@matechat/core/Bubble';
-import { NAvatar, NButton, NIcon, NTooltip } from 'naive-ui';
-import ToolTestMessageContent from './ToolTestMessageContent.vue';
-import { avatarDataUrl, type ToolTestMessage } from '@/features/toolTest/model';
-
-const props = defineProps<{
-  message: ToolTestMessage;
-}>();
-
-const showRaw = shallowRef(false);
-const roleMeta = computed(() => {
-  if (props.message.isBot) return { label: '骰子', color: 'blue' };
-  switch (props.message.senderRole) {
-    case 'owner':
-      return { label: '群主', color: 'red' };
-    case 'admin':
-      return { label: '管理员', color: 'orange' };
-    case 'inviter':
-      return { label: '邀请人', color: 'purple' };
-    case 'master':
-      return { label: '骰主', color: 'sage' };
-    case 'blacklisted':
-      return { label: '黑名单', color: 'grey' };
-    default:
-      return undefined;
-  }
-});
-</script>
-
 <template>
   <div
     v-if="props.message.kind === 'tip'"
@@ -90,6 +59,37 @@ const roleMeta = computed(() => {
     </div>
   </article>
 </template>
+
+<script setup lang="ts">
+import { computed, shallowRef } from 'vue';
+import { McBubble } from '@matechat/core/Bubble';
+import { NAvatar, NButton, NIcon, NTooltip } from 'naive-ui';
+import ToolTestMessageContent from './ToolTestMessageContent.vue';
+import { avatarDataUrl, type ToolTestMessage } from '@/features/toolTest/model';
+
+const props = defineProps<{
+  message: ToolTestMessage;
+}>();
+
+const showRaw = shallowRef(false);
+const roleMeta = computed(() => {
+  if (props.message.isBot) return { label: '骰子', color: 'blue' };
+  switch (props.message.senderRole) {
+    case 'owner':
+      return { label: '群主', color: 'red' };
+    case 'admin':
+      return { label: '管理员', color: 'orange' };
+    case 'inviter':
+      return { label: '邀请人', color: 'purple' };
+    case 'master':
+      return { label: '骰主', color: 'sage' };
+    case 'blacklisted':
+      return { label: '黑名单', color: 'grey' };
+    default:
+      return undefined;
+  }
+});
+</script>
 
 <style scoped>
 .tool-test-chat-message {

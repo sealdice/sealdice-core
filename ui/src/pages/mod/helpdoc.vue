@@ -83,7 +83,6 @@ import HelpdocItemPane from '@/components/helpdoc/HelpdocItemPane.vue';
 import HelpdocUploadDialog from '@/components/helpdoc/HelpdocUploadDialog.vue';
 import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import TipBox from '@/components/shared/TipBox.vue';
 import { useHelpdocConfigDraft } from '@/features/helpdoc/configDraft';
 import { useHelpdocMutations } from '@/features/helpdoc/mutations';
 import {

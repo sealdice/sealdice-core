@@ -1,6 +1,10 @@
 <template>
   <main class="ban-page">
-    <PageHeader title="黑白名单" description="管理黑白名单条目与拉黑惩罚策略，当前页面已迁移至 V2 API。" />
+    <PageHeader
+      title="黑白名单"
+      description="管理黑白名单条目与拉黑惩罚策略，当前页面已迁移至 V2 API。"
+      unsaved-scope="ban-config"
+    />
 
     <n-tabs v-model:value="tab" animated>
       <n-tab-pane name="list" tab="黑白名单">
@@ -82,7 +86,11 @@ const configDraft = ref<BanConfig | null>(null);
 const initialConfig = ref<BanConfig | null>(null);
 
 const listParams = computed(() => buildBanListPayload(listQuery));
-const configDirty = computed(() => Boolean(configDraft.value && initialConfig.value && !isEqual(configDraft.value, initialConfig.value)));
+const configDirty = computed(() =>
+  Boolean(
+    configDraft.value && initialConfig.value && !isEqual(configDraft.value, initialConfig.value)
+  )
+);
 
 const listQueryResult = useQuery({
   queryKey: computed(() => ['ban-list', listParams.value]),
@@ -108,14 +116,14 @@ const configQuery = useQuery({
 });
 watch(
   configQuery.data,
-  (value) => {
+  value => {
     if (!value) return;
     // 代理对象不能被直接克隆，需要先通过toRaw转为普通对象才能克隆
-    const rawValue = toRaw(value)
+    const rawValue = toRaw(value);
     configDraft.value = structuredClone(rawValue);
     initialConfig.value = structuredClone(rawValue);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 const addMutation = useMutation({
@@ -171,7 +179,7 @@ const saveConfigMutation = useMutation({
     });
     return normalizeBanConfig(data.item);
   },
-  onSuccess: (config) => {
+  onSuccess: config => {
     configDraft.value = structuredClone(config);
     initialConfig.value = structuredClone(config);
     message.success('已保存');
@@ -235,7 +243,7 @@ async function exportFile() {
         responseType: 'blob',
         throwOnError: true,
       }),
-      '黑白名单.json',
+      '黑白名单.json'
     );
   } catch (error) {
     message.error(getErrorMessage(error, '导出黑白名单失败'));
@@ -254,5 +262,4 @@ async function saveConfig() {
   flex-direction: column;
   gap: 1rem;
 }
-
 </style>

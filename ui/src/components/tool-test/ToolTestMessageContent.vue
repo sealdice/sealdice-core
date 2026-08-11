@@ -1,16 +1,3 @@
-<script setup lang="ts">
-import { safeMediaSource, type ToolTestMessage, type ToolTestSegment } from '@/features/toolTest/model';
-
-const props = defineProps<{
-  message: ToolTestMessage;
-  showRaw: boolean;
-}>();
-
-function mediaSource(segment: ToolTestSegment) {
-  return safeMediaSource(segment.data?.url || segment.data?.file);
-}
-</script>
-
 <template>
   <div class="tool-test-message-content">
     <template v-if="props.showRaw">
@@ -68,6 +55,19 @@ function mediaSource(segment: ToolTestSegment) {
     </template>
   </div>
 </template>
+
+<script setup lang="ts">
+import { safeMediaSource, type ToolTestMessage, type ToolTestSegment } from '@/features/toolTest/model';
+
+const props = defineProps<{
+  message: ToolTestMessage;
+  showRaw: boolean;
+}>();
+
+function mediaSource(segment: ToolTestSegment) {
+  return safeMediaSource(segment.data?.url || segment.data?.file);
+}
+</script>
 
 <style scoped>
 .tool-test-message-content {

@@ -1,29 +1,27 @@
 <template>
   <section class="backup-file-list">
-    <header class="backup-file-list__head">
-      <div>
-        <h2>已备份文件</h2>
-        <p>{{ items.length }} 个备份文件</p>
-      </div>
-      <n-space>
-        <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
-          立即备份
-        </n-button>
-        <n-button
-          type="error"
-          secondary
-          :disabled="disabled || items.length === 0"
-          @click="emit('openBatchDelete')"
-        >
-          <template #icon>
-            <n-icon>
-              <i-ep-delete />
-            </n-icon>
-          </template>
-          批量删除
-        </n-button>
-      </n-space>
-    </header>
+    <div class="backup-file-list__head backup-file-list__summary">
+      <n-text strong>已备份文件</n-text>
+      <n-text depth="3">{{ items.length }} 个备份文件</n-text>
+    </div>
+    <div class="backup-file-list__head backup-file-list__toolbar">
+      <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
+        立即备份
+      </n-button>
+      <n-button
+        type="error"
+        secondary
+        :disabled="disabled || items.length === 0"
+        @click="emit('openBatchDelete')"
+      >
+        <template #icon>
+          <n-icon>
+            <i-ep-delete />
+          </n-icon>
+        </template>
+        批量删除
+      </n-button>
+    </div>
 
     <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
       <template #extra>
@@ -130,21 +128,25 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
 </script>
 
 <style scoped>
-.backup-file-list__head {
+.backup-file-list {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backup-file-list__summary,
+.backup-file-list__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.backup-file-list__summary {
   justify-content: space-between;
-  gap: 16px;
 }
 
-.backup-file-list__head h2 {
-  margin: 0;
-}
-
-.backup-file-list__head p {
-  margin: 4px 0 0;
-  color: var(--sd-text-muted);
-  font-size: 13px;
+.backup-file-list__toolbar {
+  justify-content: flex-end;
 }
 
 :deep(.backup-file-list__file) {
@@ -169,9 +171,14 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
 }
 
 @media (max-width: 760px) {
-  .backup-file-list__head {
-    align-items: stretch;
+  .backup-file-list__summary,
+  .backup-file-list__toolbar {
+    align-items: flex-start;
     flex-direction: column;
+  }
+
+  .backup-file-list__toolbar {
+    align-items: stretch;
   }
 }
 </style>

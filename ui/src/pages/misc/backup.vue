@@ -1,11 +1,10 @@
 <template>
   <main class="backup-page">
-    <header class="page-head">
-      <div class="page-head-copy">
-        <h1>备份</h1>
-        <p>管理自动备份策略与历史备份文件。</p>
-      </div>
-    </header>
+    <PageHeader
+      title="备份"
+      description="管理自动备份策略与历史备份文件。"
+      unsaved-scope="backup-config"
+    />
 
     <n-alert v-if="configErrorText" type="error" :bordered="false">
       {{ configErrorText }}
@@ -83,6 +82,7 @@ import BackupBatchDeleteDialog from '@/components/backup/BackupBatchDeleteDialog
 import BackupConfigPanel from '@/components/backup/BackupConfigPanel.vue';
 import BackupExecDialog from '@/components/backup/BackupExecDialog.vue';
 import BackupFileList from '@/components/backup/BackupFileList.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import {
@@ -369,30 +369,7 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.page-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.page-head-copy h1 {
-  margin: 0;
-  font-size: 1.6rem;
-}
-
-.page-head-copy p {
-  margin: 0.35rem 0 0;
-  color: var(--sd-text-muted);
-}
-
 .backup-tabs {
   min-width: 0;
-}
-
-@media (max-width: 639.9px) {
-  .page-head {
-    gap: 0.65rem;
-  }
 }
 </style>

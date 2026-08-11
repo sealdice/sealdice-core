@@ -1,3 +1,42 @@
+<template>
+  <McMention
+    v-model="mentionOpen"
+    :prefix="props.prefixes"
+    :options-count="props.options.length"
+    menu-class="tool-test-command-mention"
+    @search-change="handleSearchChange"
+  >
+    <McInput
+      ref="inputRef"
+      :value="props.modelValue"
+      :loading="props.loading"
+      :disabled="props.disabled"
+      :placeholder="props.placeholder || '输入消息，回车发送'"
+      :max-length="2000"
+      @change="updateInput"
+      @submit="submitInput"
+    >
+      <template #head>
+        <div class="tool-test-command-composer__prefixes">
+          <span class="tool-test-command-composer__label">指令前缀</span>
+          <div class="tool-test-command-composer__values">
+            <code v-for="prefix in props.prefixes" :key="prefix">{{ prefix }}</code>
+          </div>
+          <span class="tool-test-command-composer__hint">当前上下文</span>
+        </div>
+      </template>
+    </McInput>
+    <template #menu>
+      <McList
+        :data="props.options"
+        :input-el="inputElement"
+        enable-short-key
+        @select="selectOption"
+      />
+    </template>
+  </McMention>
+</template>
+
 <script setup lang="ts">
 import { nextTick, onMounted, shallowRef } from 'vue';
 import { McInput } from '@matechat/core/Input';
@@ -61,45 +100,6 @@ onMounted(() => {
   inputElement.value = inputRef.value?.getInput() as HTMLInputElement | HTMLTextAreaElement | undefined;
 });
 </script>
-
-<template>
-  <McMention
-    v-model="mentionOpen"
-    :prefix="props.prefixes"
-    :options-count="props.options.length"
-    menu-class="tool-test-command-mention"
-    @search-change="handleSearchChange"
-  >
-    <McInput
-      ref="inputRef"
-      :value="props.modelValue"
-      :loading="props.loading"
-      :disabled="props.disabled"
-      :placeholder="props.placeholder || '输入消息，回车发送'"
-      :max-length="2000"
-      @change="updateInput"
-      @submit="submitInput"
-    >
-      <template #head>
-        <div class="tool-test-command-composer__prefixes">
-          <span class="tool-test-command-composer__label">指令前缀</span>
-          <div class="tool-test-command-composer__values">
-            <code v-for="prefix in props.prefixes" :key="prefix">{{ prefix }}</code>
-          </div>
-          <span class="tool-test-command-composer__hint">当前上下文</span>
-        </div>
-      </template>
-    </McInput>
-    <template #menu>
-      <McList
-        :data="props.options"
-        :input-el="inputElement"
-        enable-short-key
-        @select="selectOption"
-      />
-    </template>
-  </McMention>
-</template>
 
 <style scoped>
 .tool-test-command-composer__prefixes {
