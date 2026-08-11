@@ -11,7 +11,7 @@ import CustomReplyEditor from '@/components/custom-reply/CustomReplyEditor.vue';
 <style scoped>
 .reply-page {
   display: flex;
-  min-width: 0;
-  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
 }
 </style>

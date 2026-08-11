@@ -882,6 +882,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.story-page{
+    display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+}
 .story-summary-card {
   margin-bottom: 1rem;
 }

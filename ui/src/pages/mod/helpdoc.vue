@@ -302,7 +302,9 @@ function retryTask(task: ResumableUploadTask) {
 
 <style scoped>
 .helpdoc-page {
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .helpdoc-tabs {
