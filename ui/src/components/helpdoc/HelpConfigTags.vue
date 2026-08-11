@@ -27,7 +27,7 @@
     </n-button>
     <n-button v-else size="tiny" tertiary @click="showInput">
       <template #icon>
-        <n-icon><i-ep-plus /></n-icon>
+        <n-icon><i-tabler-plus /></n-icon>
       </template>
       新别名
     </n-button>

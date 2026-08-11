@@ -71,7 +71,7 @@
           @click="addTemplateItem"
         >
           <template #icon>
-            <n-icon><i-ep-plus /></n-icon>
+            <n-icon><i-tabler-plus /></n-icon>
           </template>
         </n-button>
         <n-button
@@ -83,7 +83,7 @@
           @click="removeTemplateItem(index)"
         >
           <template #icon>
-            <n-icon><i-ep-close /></n-icon>
+            <n-icon><i-tabler-x /></n-icon>
           </template>
         </n-button>
       </div>

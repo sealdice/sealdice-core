@@ -4,6 +4,11 @@
     preset="dialog"
     title="修改账号配置"
     class="account-dialog"
+    style="
+      width: min(720px, calc(100vw - 24px));
+      max-width: 720px;
+      border-radius: var(--sd-radius-md);
+    "
     :show-icon="false"
     :mask-closable="false"
     @update:show="emit('update:visible', $event)"

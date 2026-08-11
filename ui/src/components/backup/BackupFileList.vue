@@ -16,7 +16,7 @@
       >
         <template #icon>
           <n-icon>
-            <i-ep-delete />
+            <i-tabler-trash />
           </n-icon>
         </template>
         批量删除

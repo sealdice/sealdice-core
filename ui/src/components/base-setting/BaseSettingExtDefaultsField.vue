@@ -8,7 +8,7 @@
         class="ext-defaults-search"
       >
         <template #prefix>
-          <i-ep-search />
+          <i-tabler-search />
         </template>
       </n-input>
 

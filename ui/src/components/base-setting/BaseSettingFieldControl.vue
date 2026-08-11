@@ -96,7 +96,7 @@
           <template #trigger>
             <n-button type="primary" disabled>
               <template #icon>
-                <i-ep-upload />
+                <i-tabler-upload />
               </template>
               上传压缩包
             </n-button>
@@ -114,7 +114,7 @@
       >
         <n-button type="primary" :disabled="!upgradeConfirmed" :loading="busyActionId === field.id">
           <template #icon>
-            <i-ep-upload />
+            <i-tabler-upload />
           </template>
           上传压缩包
         </n-button>

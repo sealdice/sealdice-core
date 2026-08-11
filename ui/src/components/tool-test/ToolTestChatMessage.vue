@@ -49,7 +49,7 @@
               @click.stop="showRaw = !showRaw"
             >
               <template #icon>
-                <NIcon><i-ep-document v-if="showRaw" /><i-ep-view v-else /></NIcon>
+                <NIcon><i-tabler-file-text v-if="showRaw" /><i-tabler-eye v-else /></NIcon>
               </template>
             </NButton>
           </template>

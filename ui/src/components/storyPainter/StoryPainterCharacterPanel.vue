@@ -10,7 +10,7 @@
         <div class="character-primary">
           <n-button size="small" type="error" secondary :disabled="props.disabled" @click="emit('deleteChar', index)">
             <template #icon>
-              <n-icon><i-ep-delete /></n-icon>
+              <n-icon><i-tabler-trash /></n-icon>
             </template>
           </n-button>
           <n-input

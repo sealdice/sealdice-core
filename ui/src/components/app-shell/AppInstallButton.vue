@@ -13,7 +13,7 @@
         >
           <template #icon>
             <n-icon size="1.05rem">
-              <i-ep-download />
+              <i-tabler-download />
             </n-icon>
           </template>
           <span class="install-label">{{ buttonText }}</span>

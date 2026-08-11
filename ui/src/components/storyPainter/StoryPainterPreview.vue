@@ -21,7 +21,7 @@
         </n-checkbox>
         <n-button size="small" type="primary" secondary @click="copyPreviewText">
           <template #icon>
-            <n-icon><i-ep-copy-document /></n-icon>
+            <n-icon><i-tabler-copy /></n-icon>
           </template>
           复制
         </n-button>

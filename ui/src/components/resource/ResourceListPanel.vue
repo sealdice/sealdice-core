@@ -10,7 +10,7 @@
     <ListActions>
       <n-button secondary :loading="loading" @click="emit('refresh')">
         <template #icon>
-          <n-icon><i-ep-refresh /></n-icon>
+          <n-icon><i-tabler-refresh /></n-icon>
         </template>
         刷新
       </n-button>
@@ -24,7 +24,7 @@
       >
         <n-button type="primary" :loading="uploadPending" :disabled="disabled">
           <template #icon>
-            <n-icon><i-ep-upload /></n-icon>
+            <n-icon><i-tabler-upload /></n-icon>
           </template>
           上传图片
         </n-button>

@@ -16,7 +16,7 @@
             <span>{{ keyName }}</span>
             <n-tooltip v-if="help?.extraText">
               <template #trigger>
-                <n-icon><i-ep-question-filled /></n-icon>
+                <n-icon><i-tabler-help-circle /></n-icon>
               </template>
               {{ help.extraText }}
             </n-tooltip>
@@ -34,7 +34,7 @@
                   aria-label="删除旧版文案"
                   @click="emit('deleteKey', category, keyName)"
                 >
-                  <template #icon><i-ep-delete /></template>
+                  <template #icon><i-tabler-trash /></template>
                 </n-button>
               </template>
               移除 - 这个文本在新版的默认配置中不被使用，<br />
@@ -53,7 +53,7 @@
                   aria-label="重置文案为初始值"
                   @click="emit('resetKey', category, keyName)"
                 >
-                  <template #icon><i-ep-brush /></template>
+                  <template #icon><i-tabler-restore /></template>
                 </n-button>
               </template>
               重置为初始值
@@ -86,8 +86,8 @@
                     @click="index === 0 ? emit('addItem', keyName) : emit('removeItem', items, index)"
                   >
                     <template #icon>
-                      <i-ep-circle-plus-filled v-if="index === 0" />
-                      <i-ep-circle-close v-else />
+                      <i-tabler-circle-plus-filled v-if="index === 0" />
+                      <i-tabler-circle-x v-else />
                     </template>
                   </n-button>
                 </template>
@@ -114,20 +114,20 @@
                       v-if="getPreviewCheckErr(keyName, item[0])"
                       class="text-red-500 preview-icon"
                     >
-                      <n-icon><i-ep-circle-close-filled /></n-icon>
+                      <n-icon><i-tabler-circle-x-filled /></n-icon>
                     </span>
                     <n-flex v-else>
                       <span
                         v-if="getPreview(keyName, item[0])?.version === 'v2'"
                         class="text-blue-500 preview-icon"
                       >
-                        <n-icon><i-ep-success-filled /></n-icon>
+                        <n-icon><i-tabler-circle-check-filled /></n-icon>
                       </span>
                       <span
                         v-if="getPreview(keyName, item[0])?.version === 'v1'"
                         class="text-yellow-500 preview-icon"
                       >
-                        <n-icon><i-ep-success-filled /></n-icon>
+                        <n-icon><i-tabler-circle-check-filled /></n-icon>
                       </span>
                     </n-flex>
                   </template>

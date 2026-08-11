@@ -7,19 +7,13 @@ export type ThemePalette = Record<ThemeColorKey, string>;
 
 export const THEME_PALETTE_STORAGE_KEY = 'sd-theme-palette';
 
-export const THEME_COLOR_KEYS: ThemeColorKey[] = [
-  'primary',
-  'info',
-  'success',
-  'warning',
-  'error',
-];
+export const THEME_COLOR_KEYS: ThemeColorKey[] = ['primary', 'info', 'success', 'warning', 'error'];
 
 export const DEFAULT_THEME_PALETTE: ThemePalette = {
-  primary: '#1d4ed8',
-  info: '#0891b2',
-  success: '#16a34a',
-  warning: '#ca8a04',
+  primary: '#2563eb',
+  info: '#2563eb',
+  success: '#15803d',
+  warning: '#b45309',
   error: '#dc2626',
 };
 
@@ -39,12 +33,15 @@ const semanticColorVariableNames: Record<ThemeColorKey, string[]> = {
   warning: [],
   error: [],
 };
-const colorTokenNames: Record<ThemeColorKey, {
-  base: keyof NonNullable<GlobalThemeOverrides['common']>;
-  hover: keyof NonNullable<GlobalThemeOverrides['common']>;
-  pressed: keyof NonNullable<GlobalThemeOverrides['common']>;
-  suppl: keyof NonNullable<GlobalThemeOverrides['common']>;
-}> = {
+const colorTokenNames: Record<
+  ThemeColorKey,
+  {
+    base: keyof NonNullable<GlobalThemeOverrides['common']>;
+    hover: keyof NonNullable<GlobalThemeOverrides['common']>;
+    pressed: keyof NonNullable<GlobalThemeOverrides['common']>;
+    suppl: keyof NonNullable<GlobalThemeOverrides['common']>;
+  }
+> = {
   primary: {
     base: 'primaryColor',
     hover: 'primaryColorHover',
@@ -111,7 +108,7 @@ export function readStoredThemePalette(storage: ThemeStorage | undefined): Theme
 
 export function writeStoredThemePalette(
   storage: ThemeStorage | undefined,
-  palette: ThemePalette,
+  palette: ThemePalette
 ): void {
   if (!storage) return;
 
@@ -123,9 +120,10 @@ export function writeStoredThemePalette(
 }
 
 function getGeneratedColor(color: string, index: number, theme: ResolvedTheme): string {
-  const colors = theme === 'dark'
-    ? generate(color, { theme: 'dark', backgroundColor: darkBackground })
-    : generate(color);
+  const colors =
+    theme === 'dark'
+      ? generate(color, { theme: 'dark', backgroundColor: darkBackground })
+      : generate(color);
   return colors[index] ?? color;
 }
 
@@ -148,7 +146,13 @@ function rgbToHex(rgb: [number, number, number]): string {
 function mixHex(start: string, end: string, ratio: number): string {
   const startRgb = hexToRgb(start);
   const endRgb = hexToRgb(end);
-  return rgbToHex(startRgb.map((value, index) => value + (endRgb[index] - value) * ratio) as [number, number, number]);
+  return rgbToHex(
+    startRgb.map((value, index) => value + (endRgb[index] - value) * ratio) as [
+      number,
+      number,
+      number,
+    ]
+  );
 }
 
 function relativeLuminance(color: string): number {
@@ -187,12 +191,18 @@ function getButtonTextColor(background: string): string {
 function createStatusColorOverrides(
   key: ThemeColorKey,
   color: string,
-  theme: ResolvedTheme,
+  theme: ResolvedTheme
 ): NonNullable<GlobalThemeOverrides['common']> {
   const tokenNames = colorTokenNames[key];
   const accessibleColor = getAccessibleSemanticColor(color, theme);
-  const accessibleHoverColor = getAccessibleSemanticColor(getGeneratedColor(color, 4, theme), theme);
-  const accessiblePressedColor = getAccessibleSemanticColor(getGeneratedColor(color, 6, theme), theme);
+  const accessibleHoverColor = getAccessibleSemanticColor(
+    getGeneratedColor(color, 4, theme),
+    theme
+  );
+  const accessiblePressedColor = getAccessibleSemanticColor(
+    getGeneratedColor(color, 6, theme),
+    theme
+  );
 
   return {
     [tokenNames.base]: accessibleColor,
@@ -205,12 +215,18 @@ function createStatusColorOverrides(
 function createButtonColorOverrides(
   key: ThemeColorKey,
   color: string,
-  theme: ResolvedTheme,
+  theme: ResolvedTheme
 ): Record<string, string> {
   const typeName = `${key[0].toUpperCase()}${key.slice(1)}`;
   const accessibleColor = getAccessibleSemanticColor(color, theme);
-  const accessibleHoverColor = getAccessibleSemanticColor(getGeneratedColor(color, 4, theme), theme);
-  const accessiblePressedColor = getAccessibleSemanticColor(getGeneratedColor(color, 6, theme), theme);
+  const accessibleHoverColor = getAccessibleSemanticColor(
+    getGeneratedColor(color, 4, theme),
+    theme
+  );
+  const accessiblePressedColor = getAccessibleSemanticColor(
+    getGeneratedColor(color, 6, theme),
+    theme
+  );
   const buttonTextColor = getButtonTextColor(accessibleColor);
   const buttonHoverTextColor = getButtonTextColor(accessibleHoverColor);
   const buttonPressedTextColor = getButtonTextColor(accessiblePressedColor);
@@ -241,7 +257,7 @@ function createButtonColorOverrides(
 
 function createCommonOverrides(
   palette: ThemePalette,
-  theme: ResolvedTheme,
+  theme: ResolvedTheme
 ): NonNullable<GlobalThemeOverrides['common']> {
   const common = THEME_COLOR_KEYS.reduce<Record<string, string>>((result, key) => {
     return {
@@ -265,29 +281,29 @@ function createCommonOverrides(
 }
 
 const sharedMenuOverrides: NonNullable<GlobalThemeOverrides['Menu']> = {
-  itemTextColor: '#ffffff',
+  itemTextColor: 'rgba(255, 255, 255, 0.72)',
   itemTextColorHover: '#ffffff',
-  itemTextColorActive: '#fcd34d',
-  itemTextColorActiveHover: '#fcd34d',
+  itemTextColorActive: '#ffffff',
+  itemTextColorActiveHover: '#ffffff',
   itemTextColorChildActive: '#ffffff',
   itemTextColorChildActiveHover: '#ffffff',
-  itemIconColor: '#ffffff',
+  itemIconColor: 'rgba(255, 255, 255, 0.64)',
   itemIconColorHover: '#ffffff',
-  itemIconColorActive: '#fcd34d',
-  itemIconColorActiveHover: '#fcd34d',
+  itemIconColorActive: '#ffffff',
+  itemIconColorActiveHover: '#ffffff',
   itemIconColorChildActive: '#ffffff',
   itemIconColorChildActiveHover: '#ffffff',
   // 侧栏使用深色背景，折叠后 Naive UI 会读取 collapsed 专用 token；这里显式保持白色避免回落成深色图标。
   itemIconColorCollapsed: '#ffffff',
   itemIconColorCollapsedInverted: '#ffffff',
-  arrowColor: '#ffffff',
+  arrowColor: 'rgba(255, 255, 255, 0.52)',
   arrowColorHover: '#ffffff',
-  arrowColorActive: '#fcd34d',
-  itemColorHover: 'rgba(67, 74, 84, 0.76)',
-  itemColorActive: 'transparent',
-  itemColorActiveHover: 'rgba(67, 74, 84, 0.76)',
-  itemColorActiveCollapsed: 'transparent',
-  borderRadius: '0',
+  arrowColorActive: '#ffffff',
+  itemColorHover: 'rgba(255, 255, 255, 0.07)',
+  itemColorActive: 'rgba(37, 99, 235, 0.26)',
+  itemColorActiveHover: 'rgba(37, 99, 235, 0.32)',
+  itemColorActiveCollapsed: 'rgba(37, 99, 235, 0.26)',
+  borderRadius: '6px',
 };
 
 const sharedLayoutOverrides: NonNullable<GlobalThemeOverrides['Layout']> = {
@@ -300,15 +316,18 @@ const sharedLayoutOverrides: NonNullable<GlobalThemeOverrides['Layout']> = {
 
 export function createThemeOverrides(
   palette: ThemePalette,
-  theme: ResolvedTheme,
+  theme: ResolvedTheme
 ): GlobalThemeOverrides {
   // Naive UI 组件主题只接收最终 token；项目壳层背景仍由 --sd-* 管，避免 provider 外层取不到变量。
   const overrides: GlobalThemeOverrides = {
     common: createCommonOverrides(palette, theme),
-    Button: THEME_COLOR_KEYS.reduce<Record<string, string>>((result, key) => ({
-      ...result,
-      ...createButtonColorOverrides(key, palette[key], theme),
-    }), {}) as NonNullable<GlobalThemeOverrides['Button']>,
+    Button: THEME_COLOR_KEYS.reduce<Record<string, string>>(
+      (result, key) => ({
+        ...result,
+        ...createButtonColorOverrides(key, palette[key], theme),
+      }),
+      {}
+    ) as NonNullable<GlobalThemeOverrides['Button']>,
     Menu: sharedMenuOverrides,
     Layout: sharedLayoutOverrides,
   };
@@ -335,7 +354,10 @@ export function createThemeOverrides(
   return overrides;
 }
 
-export function syncDocumentThemePalette(root: HTMLElement | undefined, palette: ThemePalette): void {
+export function syncDocumentThemePalette(
+  root: HTMLElement | undefined,
+  palette: ThemePalette
+): void {
   if (!root) return;
 
   const theme = root.dataset?.theme === 'dark' ? 'dark' : 'light';
@@ -344,7 +366,7 @@ export function syncDocumentThemePalette(root: HTMLElement | undefined, palette:
   for (const key of THEME_COLOR_KEYS) {
     root.style.setProperty(
       paletteVariableNames[key],
-      getAccessibleSemanticColor(palette[key], theme),
+      getAccessibleSemanticColor(palette[key], theme)
     );
 
     const softColor = getSoftGeneratedColor(palette[key], theme);

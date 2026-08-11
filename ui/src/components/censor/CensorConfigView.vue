@@ -2,7 +2,7 @@
   <header class="censor-config-header">
     <n-button type="info" secondary :loading="saving" @click="emit('save')">
       <template #icon>
-        <i-ep-document-checked />
+        <i-tabler-device-floppy />
       </template>
       保存设置
     </n-button>
@@ -18,7 +18,7 @@
         <n-tooltip>
           <template #trigger>
             <n-icon>
-              <i-ep-question-filled />
+              <i-tabler-help-circle />
             </n-icon>
           </template>
           发出的消息： 拦截骰子发出的内容，进行检查。未通过检查，替换为
@@ -48,7 +48,7 @@
         <n-tooltip>
           <template #trigger>
             <n-icon>
-              <i-ep-question-filled />
+              <i-tabler-help-circle />
             </n-icon>
           </template>
           匹配敏感词拼音，勾选大小写敏感时该项无效。
@@ -62,7 +62,7 @@
         <n-tooltip>
           <template #trigger>
             <n-icon>
-              <i-ep-question-filled />
+              <i-tabler-help-circle />
             </n-icon>
           </template>
           判断敏感词时，忽略过滤字符。如敏感词为 "114514"，指定过滤字符为空白，则 "114&nbsp;&nbsp;&nbsp;514" 也会命中敏感词。

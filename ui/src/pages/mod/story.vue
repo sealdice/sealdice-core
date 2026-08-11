@@ -40,13 +40,13 @@
               @click="batchUploadLogs"
             >
               <template #icon>
-                <n-icon><i-ep-upload /></n-icon>
+                <n-icon><i-tabler-upload /></n-icon>
               </template>
               批量提取日志
             </n-button>
             <n-button v-if="selectedCount > 0" size="small" type="error" @click="delLogs">
               <template #icon>
-                <n-icon><i-ep-delete /></n-icon>
+                <n-icon><i-tabler-trash /></n-icon>
               </template>
               删除所选
             </n-button>
@@ -70,7 +70,7 @@
                     <n-button text type="primary" @click="openItem(log)">查看</n-button>
                     <n-button size="small" type="primary" @click="uploadLog(log)">
                       <template #icon>
-                        <n-icon><i-ep-upload /></n-icon>
+                        <n-icon><i-tabler-upload /></n-icon>
                       </template>
                       提取日志
                     </n-button>
@@ -81,7 +81,7 @@
                     >
                       <n-button text aria-label="更多操作">
                         更多
-                        <template #icon><n-icon><i-ep-more-filled /></n-icon></template>
+                        <template #icon><n-icon><i-tabler-dots /></n-icon></template>
                       </n-button>
                     </n-dropdown>
                   </n-flex>
@@ -142,7 +142,7 @@
             <template #header-extra>
               <n-button type="primary" @click="closeItem">
                 <template #icon>
-                  <n-icon><i-ep-arrow-left /></n-icon>
+                  <n-icon><i-tabler-arrow-left /></n-icon>
                 </template>
                 返回列表
               </n-button>

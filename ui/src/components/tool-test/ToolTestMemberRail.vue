@@ -14,7 +14,7 @@
         @click="emit('close-mobile')"
       >
         <template #icon
-          ><NIcon><i-ep-close /></NIcon
+          ><NIcon><i-tabler-x /></NIcon
         ></template>
       </NButton>
     </div>
@@ -59,7 +59,7 @@
           @click="openEditor(profile)"
         >
           <template #icon
-            ><NIcon><i-ep-edit /></NIcon
+            ><NIcon><i-tabler-pencil /></NIcon
           ></template>
         </NButton>
       </div>

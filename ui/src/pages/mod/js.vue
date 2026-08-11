@@ -13,7 +13,7 @@
         </n-switch>
         <n-button v-show="jsEnable" type="primary" :disabled="isTestMode" @click="handleReload">
           <template #icon>
-            <n-icon><i-ep-refresh /></n-icon>
+            <n-icon><i-tabler-refresh /></n-icon>
           </template>
           重载 JS
         </n-button>
@@ -28,7 +28,7 @@
           <n-text type="error" tag="strong" class="text-base">配置内容已修改，不要忘记保存！</n-text>
           <n-button type="info" secondary :disabled="!jsConfigEdited || isTestMode" @click="saveJsConfig">
             <template #icon>
-              <n-icon><i-ep-document-checked /></n-icon>
+              <n-icon><i-tabler-device-floppy /></n-icon>
             </template>
             点我保存
           </n-button>
@@ -44,7 +44,7 @@
               <n-flex align="center" justify="space-between" wrap>
                 <n-text class="js-panel-title">JS 扩展执行环境</n-text>
                 <n-button type="info" secondary :disabled="!jsEnable || jsRunning || isTestMode" @click="doExecute">
-                  <template #icon><n-icon><i-ep-video-play /></n-icon></template>
+                  <template #icon><n-icon><i-tabler-player-play /></n-icon></template>
                   执行代码
                 </n-button>
               </n-flex>
@@ -77,7 +77,7 @@
                   <n-text depth="3" class="js-panel-subtitle">执行结果与轮询日志统一显示在这里</n-text>
                 </div>
                 <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
-                  <template #icon><n-icon><i-ep-delete /></n-icon></template>
+                  <template #icon><n-icon><i-tabler-trash /></n-icon></template>
                   清空日志
                 </n-button>
               </n-flex>

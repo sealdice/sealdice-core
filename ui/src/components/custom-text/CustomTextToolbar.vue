@@ -5,7 +5,7 @@
       <span class="custom-text-search-input">
         <n-input v-model:value="keyword" size="small" clearable>
           <template #prefix>
-            <n-icon><i-ep-search /></n-icon>
+            <n-icon><i-tabler-search /></n-icon>
           </template>
         </n-input>
       </span>

@@ -16,7 +16,7 @@
           aria-label="筛选敏感词"
         >
           <template #prefix>
-            <n-icon><i-ep-search /></n-icon>
+            <n-icon><i-tabler-search /></n-icon>
           </template>
         </n-input>
       </label>

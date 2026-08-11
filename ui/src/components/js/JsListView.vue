@@ -16,7 +16,7 @@
       >
         <n-button type="info" secondary :loading="uploader.busy.value">
           <template #icon>
-            <n-icon><i-ep-upload /></n-icon>
+            <n-icon><i-tabler-upload /></n-icon>
           </template>
           上传插件
         </n-button>
@@ -31,7 +31,7 @@
         style="text-decoration: none"
       >
         <template #icon>
-          <n-icon><i-ep-link /></n-icon>
+          <n-icon><i-tabler-link /></n-icon>
         </template>
         获取插件
       </n-button>
@@ -125,7 +125,7 @@
             @click="delSelected"
           >
             <template #icon>
-              <n-icon><i-ep-delete /></n-icon>
+              <n-icon><i-tabler-trash /></n-icon>
             </template>
             删除所选
           </n-button>
@@ -177,7 +177,7 @@
                     disabled
                   >
                     <template #icon>
-                      <n-icon><i-ep-download /></n-icon>
+                      <n-icon><i-tabler-download /></n-icon>
                     </template>
                     更新
                   </n-button>
@@ -190,7 +190,7 @@
                     @click="handleCheckUpdate(item)"
                   >
                     <template #icon>
-                      <n-icon><i-ep-download /></n-icon>
+                      <n-icon><i-tabler-download /></n-icon>
                     </template>
                     更新
                   </n-button>
@@ -203,7 +203,7 @@
                     @click="handleDelete(item)"
                   >
                     <template #icon>
-                      <n-icon><i-ep-delete /></n-icon>
+                      <n-icon><i-tabler-trash /></n-icon>
                     </template>
                     卸载更新
                   </n-button>
@@ -215,7 +215,7 @@
                     @click="handleDelete(item)"
                   >
                     <template #icon>
-                      <n-icon><i-ep-delete /></n-icon>
+                      <n-icon><i-tabler-trash /></n-icon>
                     </template>
                     删除
                   </n-button>
@@ -232,7 +232,7 @@
                     @click="handleDelete(item)"
                   >
                     <template #icon>
-                      <n-icon><i-ep-delete /></n-icon>
+                      <n-icon><i-tabler-trash /></n-icon>
                     </template>
                     卸载更新
                   </n-button>
@@ -244,7 +244,7 @@
                     @click="handleDelete(item)"
                   >
                     <template #icon>
-                      <n-icon><i-ep-delete /></n-icon>
+                      <n-icon><i-tabler-trash /></n-icon>
                     </template>
                     删除
                   </n-button>
@@ -282,7 +282,7 @@
         <div v-else-if="!listQueryResult.isFetching.value" class="js-empty-state">
           <n-empty description="暂无插件">
             <template #icon>
-              <n-icon size="40"><i-ep-box /></n-icon>
+              <n-icon size="40"><i-tabler-package /></n-icon>
             </template>
             <template #extra>
               <n-text depth="3">可以先上传插件，或到插件仓库获取脚本后再导入。</n-text>
