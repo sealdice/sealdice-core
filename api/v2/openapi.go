@@ -19,7 +19,7 @@ import (
 func BuildOpenAPI() *huma.OpenAPI {
 	app := echo.New()
 	api := humaecho.New(app, huma.DefaultConfig("Sealdice API", "2.0.0"))
-	InitV2Router(api, app, newOpenAPIDiceManager())
+	InitV2Router(api, newOpenAPIDiceManager())
 	return api.OpenAPI()
 }
 

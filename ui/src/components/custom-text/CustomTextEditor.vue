@@ -96,8 +96,6 @@ function isMultiValue(keyName: string): boolean {
 
 <style scoped>
 .custom-text-page {
-  max-width: 1180px;
-  margin: 0 auto;
   text-align: left;
 }
 

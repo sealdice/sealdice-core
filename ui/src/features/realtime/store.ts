@@ -6,11 +6,6 @@ import { useAuthStore } from '@/features/auth/store';
 
 type RealtimeEventHandler<T = unknown> = (payload: T) => void;
 
-type RealtimeEnvelope = {
-  event?: string;
-  payload?: unknown;
-};
-
 const knownEventNames = [
   'system/ready',
   'logs/snapshot',
@@ -31,12 +26,11 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   const connected = shallowRef(false);
   const connecting = shallowRef(false);
   const lastError = shallowRef('');
-  const activeTransport = shallowRef<'ws' | 'sse' | ''>('');
+  const activeTransport = shallowRef<'sse' | ''>('');
   const hasError = computed(() => lastError.value !== '');
 
   const listeners = new Map<string, Set<RealtimeEventHandler>>();
 
-  let websocket: WebSocket | null = null;
   let eventSource: EventSource | null = null;
   let reconnectTimer: number | null = null;
   let reconnectAttempt = 0;
@@ -62,19 +56,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       url.searchParams.set('token', token);
     }
 
-    if (path.endsWith('/ws')) {
-      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    }
-
     return url.toString();
-  }
-
-  function parseEnvelope(raw: string): RealtimeEnvelope | null {
-    try {
-      return JSON.parse(raw) as RealtimeEnvelope;
-    } catch {
-      return null;
-    }
   }
 
   function clearReconnectTimer(): void {
@@ -106,16 +88,6 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     }, delay);
   }
 
-  function closeWS(): void {
-    if (!websocket) return;
-    websocket.onopen = null;
-    websocket.onmessage = null;
-    websocket.onerror = null;
-    websocket.onclose = null;
-    websocket.close();
-    websocket = null;
-  }
-
   function closeSSE(): void {
     if (!eventSource) return;
     eventSource.onopen = null;
@@ -125,13 +97,12 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   }
 
   function cleanupTransports(): void {
-    closeWS();
     closeSSE();
     activeTransport.value = '';
   }
 
-  function connectSSE(generation: number): void {
-    // SSE 是 WS 失败后的降级通道；业务层只订阅事件，不需要感知当前传输方式。
+  function connectRealtime(generation: number): void {
+    // realtime 固定走 SSE；业务层只订阅事件，不需要感知底层传输细节。
     if (typeof EventSource === 'undefined') {
       connected.value = false;
       connecting.value = false;
@@ -166,69 +137,17 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       source.addEventListener(eventName, (event) => {
         if (generation !== connectGeneration) return;
         const messageEvent = event as MessageEvent<string>;
-        const payload = messageEvent.data ? JSON.parse(messageEvent.data) : null;
+        let payload: unknown = null;
+        if (messageEvent.data) {
+          try {
+            payload = JSON.parse(messageEvent.data);
+          } catch {
+            return;
+          }
+        }
         dispatch(eventName, payload);
       });
     }
-  }
-
-  function connectWS(generation: number): void {
-    if (typeof WebSocket === 'undefined') {
-      connectSSE(generation);
-      return;
-    }
-
-    cleanupTransports();
-    activeTransport.value = 'ws';
-
-    const ws = new WebSocket(buildRealtimeURL('/sd-api/v2/realtime/ws'));
-    websocket = ws;
-    let opened = false;
-    let fellBack = false;
-
-    const fallbackToSSE = () => {
-      if (fellBack || generation !== connectGeneration) return;
-      fellBack = true;
-      closeWS();
-      connectSSE(generation);
-    };
-
-    ws.onopen = () => {
-      if (generation !== connectGeneration) return;
-      opened = true;
-      resetReconnectAttempt();
-      connected.value = true;
-      connecting.value = false;
-      lastError.value = '';
-    };
-
-    ws.onmessage = (event) => {
-      if (generation !== connectGeneration) return;
-      const envelope = parseEnvelope(String(event.data));
-      if (!envelope?.event) return;
-      dispatch(envelope.event, envelope.payload);
-    };
-
-    ws.onerror = () => {
-      if (!opened) {
-        fallbackToSSE();
-        return;
-      }
-      if (generation !== connectGeneration) return;
-      lastError.value = '实时连接异常';
-    };
-
-    ws.onclose = () => {
-      if (!opened) {
-        fallbackToSSE();
-        return;
-      }
-      if (generation !== connectGeneration) return;
-      connected.value = false;
-      connecting.value = true;
-      lastError.value = '实时连接已断开';
-      scheduleReconnect();
-    };
   }
 
   function ensureInitialized(): void {
@@ -261,7 +180,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     connecting.value = true;
     lastError.value = '';
 
-    connectWS(connectGeneration);
+    connectRealtime(connectGeneration);
   }
 
   function reconnect(): void {

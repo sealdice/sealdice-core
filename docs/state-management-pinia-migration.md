@@ -220,7 +220,7 @@ export function useAppTheme() {
 目标：把最常被引用的全局基础设施状态转成 store，让 Devtools 立即能看到核心状态、确立团队写法。
 
 - `features/auth/state.ts` → `features/auth/store.ts`（token 唯一源）
-- `features/realtime/` 的全局 ref（connected/connecting/lastError/activeTransport）→ realtime store；`client.ts` **保留连接逻辑**，只把状态抽到 store
+- `features/realtime/` 的全局 ref（connected/connecting/lastError/activeTransport）→ realtime store；`client.ts` **保留 SSE 连接逻辑**，只把状态抽到 store
 - `features/unsavedChanges/state.ts` → store
 
 > ⚠️ auth 敏感：`currentAccessToken()` 被 `api/client.ts` 拦截器**同步**调用。

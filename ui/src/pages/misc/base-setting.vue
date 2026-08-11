@@ -238,19 +238,18 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 }
 
 .setting-tabs {
-  margin-top: 1rem;
+  margin-top: var(--sd-space-md);
 }
 
 .setting-groups {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.25rem;
-  max-width: 1040px;
-  padding-bottom: 1.5rem;
+  gap: var(--sd-space-2xs);
+  padding-bottom: var(--sd-space-xl);
 }
 
 .group-note {
-  margin: 0.75rem 1rem 0.35rem;
+  margin: var(--sd-space-sm) var(--sd-space-md) 0.35rem;
 }
 
 .setting-fields {
@@ -260,18 +259,17 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 
 @media (max-width: 768px) {
   .setting-groups {
-    max-width: none;
     gap: 0.15rem;
   }
 }
 
 @media (max-width: 639.9px) {
   .setting-tabs {
-    margin-top: 0.65rem;
+    margin-top: var(--sd-space-xs);
   }
 
   .group-note {
-    margin: 0.55rem 0.75rem 0.3rem;
+    margin: var(--sd-space-xs) var(--sd-space-sm) 0.3rem;
   }
 }
 </style>

@@ -423,8 +423,6 @@ github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 h1:zYyBkD/k9seD2A7fsi6
 github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646/go.mod h1:jpp1/29i3P1S/RLdc7JQKbRpFeM1dOBd8T9ki5s+AY8=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
-github.com/olahol/melody v1.4.0 h1:Pa5SdeZL/zXPi1tJuMAPDbl4n3gQOThSL6G1p4qZ4SI=
-github.com/olahol/melody v1.4.0/go.mod h1:GgkTl6Y7yWj/HtfD48Q5vLKPVoZOH+Qqgfa7CvJgJM4=
 github.com/oklog/ulid/v2 v2.1.2 h1:IEclFb9JNvzYA6MW2SCxbLzcHTVsfqm3PrqGQJH5zec=
 github.com/oklog/ulid/v2 v2.1.2/go.mod h1:rcEKHmBBKfef9DhnvX7y1HZBYxjXb0cP5ExxNsTT1QQ=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
@@ -498,10 +496,10 @@ github.com/samber/lo v1.52.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRo
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/schollz/progressbar/v3 v3.19.1 h1:iv8BgwOvdML/S3p84uBpy/IMigv4U9594vPZYa2EdrU=
 github.com/schollz/progressbar/v3 v3.19.1/go.mod h1:LFL7jqimKxfhero4K1eCkUr/6R39AgQeiPCJtlTWIW8=
-github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6 h1:Dlyo4ciDW5GUK7jBCgs8kIgEF8gdIxIx78YqqOvB/no=
-github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6/go.mod h1:cjBy9hhhUWy8A3LT8OOu9TkkLebx31hrkxv0KCbOve0=
 github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b h1:z+8xWdjgJ/ZO27U5klh3uQ3KbLhL+Yz6cjhst9871AY=
 github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b/go.mod h1:oQhXm1mfLdV+1/d27LhnUHVNfhtl5RYwdREQnb4cewI=
+github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6 h1:Dlyo4ciDW5GUK7jBCgs8kIgEF8gdIxIx78YqqOvB/no=
+github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6/go.mod h1:cjBy9hhhUWy8A3LT8OOu9TkkLebx31hrkxv0KCbOve0=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=
 github.com/sealdice/kook v0.0.3/go.mod h1:WjHC7AmbmNjInT/U/etBVOmAw7T6EqdCwApceRGs1sk=
 github.com/sergeymakinen/go-bmp v1.0.0 h1:SdGTzp9WvCV0A1V0mBeaS7kQAwNLdVJbmHlqNWq0R+M=

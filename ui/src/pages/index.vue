@@ -313,13 +313,8 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
 </script>
 
 <style scoped>
-.home-page {
-  max-width: 1180px;
-  margin: 0 auto;
-}
-
 .home-page h2 {
-  margin: 1rem 0 0.75rem;
+  margin: var(--sd-space-md) 0 var(--sd-space-sm);
   color: var(--sd-text-primary);
   font-size: 1.1rem;
   font-weight: 700;
@@ -329,7 +324,7 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1rem;
+  gap: var(--sd-space-md);
 }
 
 .network-health-line {
@@ -344,7 +339,7 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
 }
 
 .network-health-line__bad {
-  margin-right: 1rem;
+  margin-right: var(--sd-space-md);
 }
 
 .network-health-line__tip,
@@ -359,8 +354,8 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
 .network-health-targets {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin: 0 0.5rem;
+  gap: var(--sd-space-md);
+  margin: 0 var(--sd-space-xs);
 }
 
 .status-line {
@@ -371,7 +366,7 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
 }
 
 .memory-value {
-  margin-right: 0.5rem;
+  margin-right: var(--sd-space-xs);
 }
 
 .memory-tip {
@@ -382,8 +377,8 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: var(--sd-space-md);
+  margin-top: var(--sd-space-md);
 }
 
 .log-controls {
@@ -391,20 +386,20 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: var(--sd-space-sm);
 }
 
 .log-alert {
-  margin-bottom: 1rem;
+  margin-bottom: var(--sd-space-md);
 }
 
 .logs {
   min-height: 0;
-  padding-bottom: 2rem;
+  padding-bottom: var(--sd-space-2xl);
 }
 
 .empty-log {
-  padding: 2rem 0;
+  padding: var(--sd-space-2xl) 0;
 }
 
 :deep(.log-time) {
@@ -413,7 +408,7 @@ const columns = computed<DataTableColumns<BaseLogItem>>(() => {
 }
 
 :deep(.log-time-text) {
-  margin-left: 0.25rem;
+  margin-left: var(--sd-space-2xs);
 }
 
 @media (max-width: 720px) {

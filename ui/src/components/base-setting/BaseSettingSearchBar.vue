@@ -43,11 +43,11 @@ const emit = defineEmits<{
 <style scoped>
 .base-setting-search {
   position: relative;
-  margin-bottom: 1rem;
+  margin-bottom: var(--sd-space-md);
 }
 
 .search-result-card {
-  margin-top: 0.5rem;
+  margin-top: var(--sd-space-xs);
 }
 
 .search-result-item {
@@ -55,10 +55,10 @@ const emit = defineEmits<{
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--sd-space-md);
   border: 0;
   background: transparent;
-  padding: 0.5rem 0.25rem;
+  padding: var(--sd-space-xs) var(--sd-space-2xs);
   text-align: left;
   cursor: pointer;
 }
@@ -75,7 +75,7 @@ const emit = defineEmits<{
 
 @media (max-width: 639.9px) {
   .base-setting-search {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--sd-space-sm);
   }
 
   .search-result-item {

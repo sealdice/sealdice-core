@@ -1,49 +1,37 @@
 package realtime
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"io"
+	"context"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/olahol/melody"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/sse"
 
-	apimiddleware "sealdice-core/api/v2/middleware"
 	"sealdice-core/dice"
 )
 
 const (
-	realtimeWSPath          = "/sd-api/v2/realtime/ws"
-	realtimeSSEPath         = "/sd-api/v2/realtime/sse"
-	sseHeartbeatInterval    = 20 * time.Second
-	wsUnsubscribeSessionKey = "realtime-unsubscribe"
+	realtimeSSEPath      = "/sd-api/v2/realtime/sse"
+	realtimeSSEOpPath    = "/sse"
+	sseHeartbeatInterval = 20 * time.Second
 )
-
-type envelope struct {
-	Event   string `json:"event"`
-	Payload any    `json:"payload"`
-}
 
 type Server struct {
 	dm *dice.DiceManager
 
 	bus     *Bus
-	ws      *melody.Melody
 	watcher *StateWatcher
 
 	unsubscribeLogs func()
 }
 
-func RegisterRoutes(e *echo.Echo, dm *dice.DiceManager) *Server {
-	if e == nil {
+func RegisterRoutes(api huma.API, dm *dice.DiceManager) *Server {
+	if api == nil {
 		return nil
 	}
 	d := primaryDice(dm)
-	if d == nil || d.ImSession == nil || d.LogWriter == nil {
+	if d == nil || d.ImSession == nil {
 		return nil
 	}
 
@@ -53,9 +41,18 @@ func RegisterRoutes(e *echo.Echo, dm *dice.DiceManager) *Server {
 	}
 
 	srv.Start()
-
-	e.GET(realtimeWSPath, srv.handleWS)
-	e.GET(realtimeSSEPath, srv.handleSSE)
+	sse.Register(api, huma.Operation{
+		OperationID: "realtime-sse",
+		Method:      http.MethodGet,
+		Path:        realtimeSSEOpPath,
+		Middlewares: huma.Middlewares{
+			func(ctx huma.Context, next func(huma.Context)) {
+				ctx.SetHeader("Cache-Control", "no-cache")
+				ctx.SetHeader("X-Accel-Buffering", "no")
+				next(ctx)
+			},
+		},
+	}, realtimeEventTypeMap(), srv.stream)
 
 	return srv
 }
@@ -64,21 +61,9 @@ func NewServer(dm *dice.DiceManager) *Server {
 	srv := &Server{
 		dm:      dm,
 		bus:     NewBus(),
-		ws:      melody.New(),
 		watcher: NewStateWatcher(dm, NewBus()),
 	}
 	srv.watcher = NewStateWatcher(dm, srv.bus)
-	srv.ws.HandleConnect(func(session *melody.Session) {
-		unsubscribe := srv.attachWSSession(session)
-		session.Set(wsUnsubscribeSessionKey, unsubscribe)
-	})
-	srv.ws.HandleDisconnect(func(session *melody.Session) {
-		srv.detachWSSession(session)
-	})
-	srv.ws.HandleError(func(session *melody.Session, _ error) {
-		srv.detachWSSession(session)
-	})
-
 	return srv
 }
 
@@ -101,8 +86,6 @@ func (s *Server) Start() {
 	}()
 }
 
-// Publish makes the shared realtime bus available to feature services without
-// exposing the bus implementation or coupling them to websocket/SSE details.
 func (s *Server) Publish(name string, payload any) {
 	if s == nil || s.bus == nil {
 		return
@@ -110,45 +93,10 @@ func (s *Server) Publish(name string, payload any) {
 	s.bus.Publish(Event{Name: name, Payload: payload})
 }
 
-func (s *Server) handleWS(c echo.Context) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromEchoContext(c)) {
-		return c.NoContent(401)
-	}
-	return s.ws.HandleRequest(c.Response(), c.Request())
-}
-
-func (s *Server) handleSSE(c echo.Context) error {
-	if !isAuthorized(s.dm, apimiddleware.TokenFromEchoContext(c)) {
-		return c.NoContent(http.StatusUnauthorized)
-	}
-
-	res := c.Response()
-	req := c.Request()
-	res.Header().Set(echo.HeaderContentType, "text/event-stream")
-	res.Header().Set(echo.HeaderCacheControl, "no-cache")
-	res.Header().Set(echo.HeaderConnection, "keep-alive")
-	res.Header().Set("X-Accel-Buffering", "no")
-	res.WriteHeader(http.StatusOK)
-
-	flusher, ok := res.Writer.(http.Flusher)
-	if !ok {
-		return echo.NewHTTPError(http.StatusInternalServerError, "streaming unsupported")
-	}
-	writer := bufio.NewWriter(res.Writer)
-	writeAndFlush := func(fn func() error) bool {
-		if err := fn(); err != nil {
-			return false
-		}
-		if err := writer.Flush(); err != nil {
-			return false
-		}
-		flusher.Flush()
-		return true
-	}
-
+func (s *Server) stream(ctx context.Context, _ *struct{}, send sse.Sender) {
 	for _, evt := range buildBootstrapEvents(s.dm) {
-		if !writeAndFlush(func() error { return writeSSEEvent(writer, evt) }) {
-			return nil
+		if err := sendRealtimeEvent(send, evt); err != nil {
+			return
 		}
 	}
 
@@ -162,61 +110,19 @@ func (s *Server) handleSSE(c echo.Context) error {
 		select {
 		case evt, ok := <-ch:
 			if !ok {
-				return nil
-			}
-			if !writeAndFlush(func() error { return writeSSEEvent(writer, evt) }) {
-				return nil
-			}
-		case <-heartbeat.C:
-			if !writeAndFlush(func() error {
-				_, err := io.WriteString(writer, ": ping\n\n")
-				return err
-			}) {
-				return nil
-			}
-		case <-req.Context().Done():
-			return nil
-		}
-	}
-}
-
-func (s *Server) attachWSSession(session *melody.Session) func() {
-	ch, unsubscribe := s.bus.Subscribe(128)
-
-	for _, evt := range buildBootstrapEvents(s.dm) {
-		if data, err := encodeEnvelope(evt); err == nil {
-			_ = session.Write(data)
-		}
-	}
-
-	var once sync.Once
-	go func() {
-		for evt := range ch {
-			data, err := encodeEnvelope(evt)
-			if err != nil {
-				continue
-			}
-			if err := session.Write(data); err != nil {
-				once.Do(unsubscribe)
 				return
 			}
+			if err := sendRealtimeEvent(send, evt); err != nil {
+				return
+			}
+		case <-heartbeat.C:
+			if err := send.Data(SystemHeartbeatPayload{}); err != nil {
+				return
+			}
+		case <-ctx.Done():
+			return
 		}
-	}()
-
-	return func() {
-		once.Do(unsubscribe)
 	}
-}
-
-func (s *Server) detachWSSession(session *melody.Session) {
-	value, exists := session.Get(wsUnsubscribeSessionKey)
-	if !exists {
-		return
-	}
-	if unsubscribe, ok := value.(func()); ok {
-		unsubscribe()
-	}
-	session.UnSet(wsUnsubscribeSessionKey)
 }
 
 func buildBootstrapEvents(dm *dice.DiceManager) []Event {
@@ -283,40 +189,43 @@ func BuildBootstrapEvents(dm *dice.DiceManager) []Event {
 	return buildBootstrapEvents(dm)
 }
 
-func encodeEnvelope(evt Event) ([]byte, error) {
-	return json.Marshal(envelope{
-		Event:   evt.Name,
-		Payload: evt.Payload,
-	})
-}
-
-func EncodeEnvelope(evt Event) ([]byte, error) {
-	return encodeEnvelope(evt)
-}
-
-func writeSSEEvent(w io.Writer, evt Event) error {
-	data, err := json.Marshal(evt.Payload)
-	if err != nil {
-		return err
+func realtimeEventTypeMap() map[string]any {
+	return map[string]any{
+		EventSystemReady:          SystemReadyPayload{},
+		EventSystemHeartbeat:      SystemHeartbeatPayload{},
+		EventLogsSnapshot:         LogSnapshotPayload{},
+		EventLogsAppend:           LogAppendPayload{},
+		EventIMConnectionList:     IMConnectionListPayload{},
+		EventIMConnectionUpdated:  IMConnectionUpdatedPayload{},
+		EventIMConnectionWorkflow: IMConnectionWorkflowPayload{},
+		EventIMConnectionQRCode:   IMConnectionQRCodePayload{},
+		EventToolTestMessage:      dice.HTTPTestMessage{},
 	}
-	_, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", evt.Name, data)
-	return err
 }
 
-func WriteSSEEvent(w io.Writer, evt Event) error {
-	return writeSSEEvent(w, evt)
-}
-
-func isAuthorized(dm *dice.DiceManager, token string) bool {
-	d := primaryDice(dm)
-	if d == nil {
-		return false
+func sendRealtimeEvent(send sse.Sender, evt Event) error {
+	switch payload := evt.Payload.(type) {
+	case SystemReadyPayload:
+		return send.Data(payload)
+	case SystemHeartbeatPayload:
+		return send.Data(payload)
+	case LogSnapshotPayload:
+		return send.Data(payload)
+	case LogAppendPayload:
+		return send.Data(payload)
+	case IMConnectionListPayload:
+		return send.Data(payload)
+	case IMConnectionUpdatedPayload:
+		return send.Data(payload)
+	case IMConnectionWorkflowPayload:
+		return send.Data(payload)
+	case IMConnectionQRCodePayload:
+		return send.Data(payload)
+	case dice.HTTPTestMessage:
+		return send.Data(payload)
+	default:
+		return nil
 	}
-	return apimiddleware.IsAuthorized(d, token)
-}
-
-func IsAuthorized(dm *dice.DiceManager, token string) bool {
-	return isAuthorized(dm, token)
 }
 
 func primaryDice(dm *dice.DiceManager) *dice.Dice {

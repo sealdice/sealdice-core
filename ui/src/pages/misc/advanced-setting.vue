@@ -338,7 +338,6 @@ async function handleErudaToggle(value: boolean) {
 
 <style scoped>
 .advanced-page {
-  max-width: 1180px;
   text-align: left;
 }
 

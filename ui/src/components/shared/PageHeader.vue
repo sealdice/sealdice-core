@@ -72,9 +72,9 @@ async function discard() {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
+  gap: var(--sd-space-md);
+  margin-bottom: var(--sd-space-lg);
+  padding-bottom: var(--sd-space-md);
   border-bottom: 1px solid var(--sd-border-soft);
 }
 
@@ -102,7 +102,7 @@ async function discard() {
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: var(--sd-space-sm);
   flex-wrap: wrap;
 }
 

@@ -71,7 +71,7 @@
   - 这里定义默认缓存、重试和错误策略。
   - 业务层不要重复创建一套全局 query client。
 - 实时连接统一在 `src/features/realtime/client.ts`。
-  - WebSocket / SSE 的建连、降级、重连、事件分发都在这里。
+  - SSE 的建连、重连、事件分发都在这里。
   - 业务 feature 只负责订阅事件并把 payload 转成自己的状态。
 - 路由语义统一在 `src/router/navigation.ts`、`src/router/routeMeta.ts`、`src/router/navigationModel.ts`。
   - 新页面一般只需要先补导航模型，标题、布局、面包屑等会一起派生。
@@ -189,7 +189,7 @@
 
 - 不手改或提交 `src/api/generated/`。需要变更 API 类型时改后端 OpenAPI，再重新生成本地产物。
 - 不在页面里实现全局错误处理、token 注入、401 清理，这些属于 `src/api/client.ts`。
-- 不在页面里直接创建 WebSocket / SSE，这些属于 `src/features/realtime/client.ts`。
+- 不在页面里直接创建 SSE，这些属于 `src/features/realtime/client.ts`。
 - 不把老前端的大 store 模式搬进来。每个业务域维护自己的最小状态。
 - 不把公共能力散落到页面和组件里。能下沉就下沉到对应 feature / api / router / app-shell。
 

@@ -56,7 +56,7 @@ const emit = defineEmits<{
 
 <style scoped>
 .setting-category-box {
-  padding: 0.45rem 0 0.8rem;
+  padding: var(--sd-space-xs) 0 var(--sd-space-sm);
 }
 
 .setting-category-box-wide {
@@ -64,7 +64,7 @@ const emit = defineEmits<{
 }
 
 .setting-category-thing {
-  margin: 0 1rem 0.45rem;
+  margin: 0 var(--sd-space-md) var(--sd-space-xs);
 }
 
 .setting-category-title {
@@ -95,11 +95,11 @@ const emit = defineEmits<{
 
 @media (max-width: 639.9px) {
   .setting-category-box {
-    padding-bottom: 0.6rem;
+    padding-bottom: var(--sd-space-xs);
   }
 
   .setting-category-thing {
-    margin: 0 0.45rem 0.35rem;
+    margin: 0 var(--sd-space-xs) var(--sd-space-2xs);
   }
 }
 </style>

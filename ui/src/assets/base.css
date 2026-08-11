@@ -35,6 +35,14 @@ body {
   --sd-radius-md: 8px;
   --sd-radius-lg: 12px;
   --sd-radius-pill: 999px;
+  --sd-content-max-width: 1180px;
+  --sd-space-2xs: 0.25rem;
+  --sd-space-xs: 0.5rem;
+  --sd-space-sm: 0.75rem;
+  --sd-space-md: 1rem;
+  --sd-space-lg: 1.25rem;
+  --sd-space-xl: 1.5rem;
+  --sd-space-2xl: 2rem;
   --sd-scrollbar-thumb: rgba(31, 41, 55, 0.34);
   --sd-scrollbar-thumb-hover: rgba(31, 41, 55, 0.45);
   --sd-bg-elevated-soft: #f0f2f6;

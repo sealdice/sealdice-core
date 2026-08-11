@@ -26,9 +26,9 @@ withDefaults(defineProps<{
   display: grid;
   grid-template-columns: minmax(13rem, 18rem) minmax(13rem, 26rem);
   align-items: center;
-  gap: 1.25rem;
+  gap: var(--sd-space-lg);
   min-height: 2.75rem;
-  padding: 0.46rem 1rem;
+  padding: var(--sd-space-xs) var(--sd-space-md);
   border-radius: 6px;
   transition: background-color 0.16s ease;
 }
@@ -93,8 +93,8 @@ withDefaults(defineProps<{
 
 @media (max-width: 959.9px) {
   .setting-row {
-    gap: 0.9rem;
-    padding-inline: 0.85rem;
+    gap: var(--sd-space-md);
+    padding-inline: var(--sd-space-sm);
   }
 
   .setting-row-copy {
@@ -125,7 +125,7 @@ withDefaults(defineProps<{
 
   .setting-row {
     min-height: 2.55rem;
-    padding: 0.42rem 0.75rem;
+    padding: var(--sd-space-xs) var(--sd-space-sm);
   }
 
   .setting-row-label {

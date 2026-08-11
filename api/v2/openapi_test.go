@@ -29,6 +29,7 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/base/health",
 		"/sd-api/v2/base/login",
 		"/sd-api/v2/base/network-health",
+		"/sd-api/v2/realtime/sse",
 		"/sd-api/v2/base-setting/schema",
 		"/sd-api/v2/base-setting/value",
 		"/sd-api/v2/base-setting/mail-test",
@@ -155,6 +156,10 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		if spec.Paths[path] == nil {
 			t.Fatalf("expected path %s in OpenAPI spec", path)
 		}
+	}
+
+	if spec.Paths["/sd-api/v2/realtime/ws"] != nil {
+		t.Fatal("expected legacy websocket realtime route to be absent from OpenAPI spec")
 	}
 }
 

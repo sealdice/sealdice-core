@@ -24,8 +24,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.625rem 0.875rem;
+  gap: var(--sd-space-xs);
+  padding: var(--sd-space-sm) var(--sd-space-md);
   border-bottom: 1px solid var(--sd-border-soft);
   background: var(--sd-bg-elevated-soft);
 }
@@ -34,8 +34,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 0.5rem;
-  padding: 0.75rem;
+  gap: var(--sd-space-xs);
+  padding: var(--sd-space-sm);
 }
 
 @media (max-width: 640px) {

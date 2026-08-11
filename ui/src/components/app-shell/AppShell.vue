@@ -226,9 +226,14 @@ setUnsavedChangesConfirmHandler(
 .sd-main-container {
   box-sizing: border-box;
   width: 100%;
+  max-width: var(--sd-content-max-width);
   min-height: 100%;
-  margin-inline: 0;
-  padding: 1.5rem clamp(1rem, 2vw, 2rem) 2rem;
+  min-width: 0;
+  margin-inline: auto;
+  padding:
+    var(--sd-space-xl)
+    clamp(var(--sd-space-md), 2vw, var(--sd-space-2xl))
+    var(--sd-space-2xl);
 }
 
 .sd-main-container--wide {
@@ -273,7 +278,7 @@ setUnsavedChangesConfirmHandler(
   }
 
   .sd-main-container {
-    padding: 1rem;
+    padding: var(--sd-space-md);
   }
 
   .sd-floating-panel-layer {

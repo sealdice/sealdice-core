@@ -8,6 +8,7 @@ import (
 
 const (
 	EventSystemReady          = "system/ready"
+	EventSystemHeartbeat      = "system/heartbeat"
 	EventLogsSnapshot         = "logs/snapshot"
 	EventLogsAppend           = "logs/append"
 	EventIMConnectionList     = "imconnection/list"
@@ -18,6 +19,8 @@ const (
 )
 
 type SystemReadyPayload struct{}
+
+type SystemHeartbeatPayload struct{}
 
 type LogSnapshotPayload struct {
 	Items []*logger.LogItem `json:"items"`

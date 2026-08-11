@@ -87,6 +87,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue';
+import type { SelectOption } from 'naive-ui';
 import type { Instance } from '@/api';
 import PackageFileTree from './PackageFileTree.vue';
 
@@ -99,7 +100,7 @@ type ConfigFieldSchema = {
   enum?: unknown[] | null;
 };
 
-type SelectValue = string | number | boolean;
+type SelectValue = string | number;
 
 const props = defineProps<{
   show: boolean;
@@ -164,7 +165,7 @@ function updateJsonValue(fieldKey: string, value: string) {
   }
 }
 
-function enumOptions(values: readonly unknown[]) {
+function enumOptions(values: readonly unknown[]): SelectOption[] {
   return values.map(value => ({
     label: String(value),
     value: value as SelectValue,
@@ -172,7 +173,8 @@ function enumOptions(values: readonly unknown[]) {
 }
 
 function selectValueOf(fieldKey: string) {
-  return draft[fieldKey] as SelectValue | null;
+  const value = draft[fieldKey];
+  return typeof value === 'string' || typeof value === 'number' ? value : null;
 }
 
 function numberValueOf(fieldKey: string) {
