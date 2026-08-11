@@ -33,7 +33,6 @@
                 </AppTestModeFrame>
               </RouterView>
               <AppUnlockDialog />
-              <AppThemeTransition ref="themeTransitionRef" />
             </n-loading-bar-provider>
           </n-dialog-provider>
         </n-modal-provider>
@@ -45,10 +44,9 @@
 <script setup lang="ts">
 import { darkTheme, lightTheme, dateZhCN } from 'naive-ui';
 import { ProConfigProvider, zhCN } from 'pro-naive-ui';
-import { computed, provide, ref } from 'vue';
+import { computed } from 'vue';
 import { RouterView } from 'vue-router';
 import AppTestModeFrame from './components/app-shell/AppTestModeFrame.vue';
-import AppThemeTransition from './components/app-shell/AppThemeTransition.vue';
 import AppShell from './components/app-shell/AppShell.vue';
 import AppUnlockDialog from './components/app-shell/AppUnlockDialog.vue';
 import PlainLayout from './layouts/PlainLayout.vue';
@@ -60,24 +58,9 @@ import { useAuthSession } from './features/auth/useAuthSession';
 import { useRealtimeClient } from './features/realtime/client';
 import { useTestMode } from './features/testMode/state';
 import { useAppTheme } from './features/theme';
-import {
-  type ThemeTransitionSource,
-  triggerThemeTransitionKey,
-} from './features/theme/themeTransition';
 // App 是全局 provider 和 layout 分发层。页面不要直接挂全局 provider，
 // 否则会出现消息、弹窗、QueryClient 或主题状态多实例的问题。
-const { resolvedTheme, themeOverrides, toggleTheme } = useAppTheme();
-const themeTransitionRef = ref<InstanceType<typeof AppThemeTransition> | null>(null);
-
-// 主题切换动画需要知道点击来源坐标，所以通过 provide 暴露给任意按钮调用。
-// 如果动画组件尚未挂载，则回退到普通主题切换，保证首屏不会因为 ref 为空失败。
-provide(triggerThemeTransitionKey, (source?: ThemeTransitionSource) => {
-  if (themeTransitionRef.value) {
-    themeTransitionRef.value.toggle(source);
-  } else {
-    toggleTheme();
-  }
-});
+const { resolvedTheme, themeOverrides } = useAppTheme();
 
 const activeTheme = computed(() => (resolvedTheme.value === 'dark' ? darkTheme : lightTheme));
 const testMode = useTestMode();

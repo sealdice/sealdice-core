@@ -1,7 +1,7 @@
 <template>
   <n-tooltip placement="bottom">
     <template #trigger>
-      <span ref="triggerRef" class="theme-switch-trigger">
+      <span class="theme-switch-trigger">
         <n-button
           quaternary
           circle
@@ -24,19 +24,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
+import { computed } from 'vue';
 import { useAppTheme } from '@/features/theme';
-import { triggerThemeTransitionKey } from '@/features/theme/themeTransition';
 
-const { isDark } = useAppTheme();
-const triggerThemeTransition = inject(triggerThemeTransitionKey);
-const triggerRef = ref<HTMLElement | null>(null);
+const { isDark, toggleTheme } = useAppTheme();
 // Naive UI 的 quaternary 按钮颜色由 color prop 写入内部 token；亮色态用深色图标，深色态用黄色图标。
 const switchIconColor = computed(() => (isDark.value ? 'var(--sd-accent)' : 'var(--sd-text-primary)'));
 
-function toggle(event: MouseEvent) {
-  const rect = triggerRef.value?.getBoundingClientRect();
-  triggerThemeTransition?.(rect ?? event);
+function toggle() {
+  toggleTheme();
 }
 </script>
 

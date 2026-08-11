@@ -18,4 +18,15 @@ it('renders an old-ui fallback entry in the breadcrumb action area', async () =>
   assertMatch(/tag="a"/, 'AppBreadcrumb.vue to render the fallback entry as a real link');
   assertMatch(/:href="oldUIUrl"/, 'AppBreadcrumb.vue to bind the fallback entry href');
   assertMatch(/回退老 UI/, 'AppBreadcrumb.vue to expose the old UI fallback label');
+  assertMatch(
+    /<AppInstallButton v-if="!props\.mobileMode" \/>/,
+    'AppBreadcrumb.vue to hide the install action on mobile',
+  );
+  assertMatch(
+    /visibleBreadcrumbItems/,
+    'AppBreadcrumb.vue to hide the current page title on mobile',
+  );
+  if (source.includes('AppThemePaletteButton')) {
+    throw new Error('AppBreadcrumb.vue should not render the theme settings action');
+  }
 });
