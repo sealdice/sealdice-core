@@ -1,3 +1,7 @@
+html {
+  font-size: 16px;
+}
+
 html,
 body {
   height: 100%;
@@ -26,6 +30,10 @@ body {
   --sd-text-inverse: #ffffff;
   --sd-border: rgba(17, 24, 39, 0.1);
   --sd-border-soft: rgba(17, 24, 39, 0.08);
+  --sd-radius-sm: 6px;
+  --sd-radius-md: 8px;
+  --sd-radius-lg: 12px;
+  --sd-radius-pill: 999px;
   --sd-scrollbar-thumb: rgba(31, 41, 55, 0.34);
   --sd-scrollbar-thumb-hover: rgba(31, 41, 55, 0.45);
   --sd-bg-elevated-soft: #f0f2f6;

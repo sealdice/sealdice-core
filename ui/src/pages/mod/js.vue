@@ -401,26 +401,14 @@ onBeforeUnmount(() => {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--sd-border);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, var(--sd-bg-elevated-tint) 0%, var(--sd-bg-elevated) 14%, var(--sd-bg-elevated) 100%);
-  box-shadow:
-    0 14px 32px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-
-.dark .js-panel {
-  box-shadow:
-    0 20px 44px rgba(2, 6, 23, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border-radius: var(--sd-radius-lg);
+  background: var(--sd-bg-elevated);
 }
 
 .js-panel-header {
   padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--sd-border-soft);
   background: var(--sd-bg-elevated-soft);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated-soft), transparent 10%) 0%, transparent 100%);
 }
 
 .js-panel-heading {

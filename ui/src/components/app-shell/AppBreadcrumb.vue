@@ -149,7 +149,7 @@ const breadcrumbItems = computed(() =>
 }
 
 .version-channel {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .version-text {
@@ -208,7 +208,7 @@ const breadcrumbItems = computed(() =>
   border-radius: 6px;
   background: var(--sd-bg-elevated);
   color: var(--sd-text-muted);
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   line-height: 1;
   padding: 0 0.45rem;
   white-space: nowrap;
