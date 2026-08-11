@@ -96,6 +96,14 @@ func (s *SQLiteEngine) GetCensorDB(mode constant.DBMode) *gorm.DB {
 	return s.getDBByModeAndKey(mode, CensorsDBKey)
 }
 
+func (s *SQLiteEngine) GetBackupInfo() (string, map[string]string) {
+	return constant.SQLITE, map[string]string{
+		"data":   filepath.Join(s.DataDir, "data.db"),
+		"logs":   filepath.Join(s.DataDir, "data-logs.db"),
+		"censor": filepath.Join(s.DataDir, "data-censor.db"),
+	}
+}
+
 const defaultDataDir = "./data/default"
 
 func (s *SQLiteEngine) Init(ctx context.Context) error {

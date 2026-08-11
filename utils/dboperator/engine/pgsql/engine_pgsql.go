@@ -49,6 +49,10 @@ func (s *PGSQLEngine) GetCensorDB(_ constant.DBMode) *gorm.DB {
 	return s.censorDB
 }
 
+func (s *PGSQLEngine) GetBackupInfo() (string, map[string]string) {
+	return constant.POSTGRESQL, nil
+}
+
 func (s *PGSQLEngine) Init(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("ctx is missing")

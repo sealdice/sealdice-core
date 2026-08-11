@@ -135,6 +135,9 @@ func (m *mockDatabaseOperator) DBCheck()                               {}
 func (m *mockDatabaseOperator) GetDataDB(_ constant.DBMode) *gorm.DB   { return m.db }
 func (m *mockDatabaseOperator) GetLogDB(_ constant.DBMode) *gorm.DB    { return m.db }
 func (m *mockDatabaseOperator) GetCensorDB(_ constant.DBMode) *gorm.DB { return m.db }
+func (m *mockDatabaseOperator) GetBackupInfo() (string, map[string]string) {
+	return constant.SQLITE, nil
+}
 func (m *mockDatabaseOperator) Close() {
 	if sqlDB, err := m.db.DB(); err == nil {
 		_ = sqlDB.Close()
