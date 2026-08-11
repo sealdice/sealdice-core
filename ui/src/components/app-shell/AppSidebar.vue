@@ -149,6 +149,18 @@ watch(
   transform: translateY(-0.5px);
 }
 
+:deep(.sd-sidebar-menu.n-menu .n-menu-item-content .n-menu-item-content__arrow) {
+  transform: rotate(90deg);
+}
+
+:deep(
+  .sd-sidebar-menu.n-menu
+    .n-menu-item-content.n-menu-item-content--collapsed
+    .n-menu-item-content__arrow
+) {
+  transform: rotate(0deg);
+}
+
 :deep(.sd-sidebar-menu .n-menu-item-content-header) {
   display: flex;
   align-items: center;

@@ -30,20 +30,40 @@
         </div>
       </article>
 
-      <button type="button" class="status-card network-card" @click="refreshNetworkHealth">
+      <article class="status-card network-card">
         <div class="status-card__heading">
           <span class="status-card__icon">
             <n-icon><i-tabler-world /></n-icon>
           </span>
           <span>网络质量</span>
-          <n-tooltip v-if="networkHealth.timestamp !== 0">
-            <template #trigger>
-              <span class="checked-time">
-                {{ formatNetworkHealthRelativeTime(networkHealth.timestamp) }}检测
-              </span>
-            </template>
-            {{ formatNetworkHealthTimestamp(networkHealth.timestamp) }}
-          </n-tooltip>
+          <div class="network-card__actions">
+            <n-tooltip v-if="networkHealth.timestamp !== 0">
+              <template #trigger>
+                <span class="checked-time">
+                  {{ formatNetworkHealthRelativeTime(networkHealth.timestamp) }}检测
+                </span>
+              </template>
+              {{ formatNetworkHealthTimestamp(networkHealth.timestamp) }}
+            </n-tooltip>
+            <n-tooltip>
+              <template #trigger>
+                <n-button
+                  quaternary
+                  circle
+                  size="tiny"
+                  aria-label="重新检测网络质量"
+                  :loading="networkHealthRefreshing"
+                  :disabled="networkHealthRefreshing"
+                  @click="refreshNetworkHealth"
+                >
+                  <template #icon>
+                    <n-icon><i-tabler-refresh /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              重新检测
+            </n-tooltip>
+          </div>
         </div>
 
         <div class="network-result">
@@ -84,7 +104,7 @@
             {{ target.label }}
           </span>
         </div>
-      </button>
+      </article>
     </section>
 
     <section class="log-panel">
@@ -189,6 +209,7 @@ const logStream = useBaseLogStream();
 const networkHealth = computed(() =>
   normalizeNetworkHealthData(networkHealthQuery.data.value?.item)
 );
+const networkHealthRefreshing = computed(() => networkHealthQuery.isFetching.value);
 
 watch(
   [logStream.logs, autoRefresh],
@@ -392,17 +413,16 @@ h1 {
 
 .network-card {
   width: 100%;
-  font: inherit;
-  cursor: pointer;
 }
 
-.network-card:hover {
-  border-color: var(--sd-border);
-  background: var(--sd-bg-elevated-soft);
+.network-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
 }
 
 .checked-time {
-  margin-left: auto;
   color: var(--sd-text-muted);
   font-size: 0.72rem;
   font-weight: 400;
