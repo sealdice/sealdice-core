@@ -299,6 +299,8 @@ const sharedMenuOverrides: NonNullable<GlobalThemeOverrides['Menu']> = {
   arrowColor: 'rgba(255, 255, 255, 0.52)',
   arrowColorHover: '#ffffff',
   arrowColorActive: '#ffffff',
+  arrowColorChildActive: 'var(--sd-text-inverse-soft)',
+  arrowColorChildActiveHover: '#ffffff',
   itemColorHover: 'rgba(255, 255, 255, 0.07)',
   itemColorActive: 'rgba(37, 99, 235, 0.26)',
   itemColorActiveHover: 'rgba(37, 99, 235, 0.32)',
