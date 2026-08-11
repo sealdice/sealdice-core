@@ -91,12 +91,7 @@ body {
   background: var(--sd-bg-app);
   color: var(--sd-text-primary);
   font-family:
-    'PingFang SC',
-    'Helvetica Neue',
-    'Hiragino Sans GB',
-    'Segoe UI',
-    'Microsoft YaHei',
-    '微软雅黑',
+    'PingFang SC', 'Helvetica Neue', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei', '微软雅黑',
     sans-serif;
   font-size: 15px;
   line-height: 1.6;
@@ -167,7 +162,9 @@ select {
   justify-content: center;
 }
 
+.the-dialog.n-card,
 .the-dialog .n-card,
+.feed-modal.n-card,
 .feed-modal .n-card {
   width: min(760px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);

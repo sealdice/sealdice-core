@@ -11,23 +11,23 @@
 
     <ResourceListPanel
       class="resource-page__panel"
-        :items="items"
-        :total="total"
-        :loading="resourceListQuery.isFetching.value"
-        :query="listQuery"
-        :upload-resource="uploadResource"
-        :deleting-path="deletingPath"
-        :downloading-path="downloadingPath"
-        :disabled="isTestMode"
-        @update-query="updateListQuery"
-        @copy="copySealCode"
-        @download="downloadResource"
-        @delete="confirmDelete"
-        @detail="showDetail"
-        @refresh="refreshList"
+      :items="items"
+      :total="total"
+      :loading="resourceListQuery.isFetching.value"
+      :query="listQuery"
+      :upload-resource="uploadResource"
+      :deleting-path="deletingPath"
+      :downloading-path="downloadingPath"
+      :disabled="isTestMode"
+      @update-query="updateListQuery"
+      @copy="copySealCode"
+      @download="downloadResource"
+      @delete="confirmDelete"
+      @detail="showDetail"
+      @refresh="refreshList"
     />
 
-    <n-drawer v-model:show="detailVisible" width="420" placement="right">
+    <n-drawer v-model:show="detailVisible" :width="detailDrawerWidth" placement="right">
       <n-drawer-content title="资源详情" closable>
         <div v-if="currentResource" class="resource-page__detail">
           <ResourcePreview :item="currentResource" :thumbnail="false" size="large" />
@@ -88,6 +88,7 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { copyText } from '@/features/clipboard';
+import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
@@ -105,6 +106,7 @@ const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
 const { isTestMode } = useTestMode();
+const { width: detailDrawerWidth } = useResponsiveOverlayWidth({ maxWidth: 420, gutter: 16 });
 
 const listQuery = reactive(createDefaultResourceListQuery());
 const deletingPath = ref('');

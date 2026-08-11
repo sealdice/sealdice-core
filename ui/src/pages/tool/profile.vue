@@ -74,10 +74,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useWindowSize } from '@vueuse/core';
 import { getApiBaseUrl } from '@/api';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { currentAccessToken } from '@/features/auth/state';
+import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
 import {
   buildPprofBinaryPath,
   buildPprofTextPath,
@@ -86,7 +86,7 @@ import {
 } from '@/features/pprof/model';
 
 const message = useMessage();
-const { width } = useWindowSize();
+const { width: drawerWidth } = useResponsiveOverlayWidth({ maxWidth: 880, gutter: 16 });
 
 const entries = createPprofEntries();
 const profileSeconds = ref(30);
@@ -98,8 +98,6 @@ const previewLoading = ref(false);
 const pendingExpiry = ref<Record<string, number>>({});
 const pendingStorageKey = 'sd-v2-pprof-pending';
 const pprofBase = computed(() => `${getApiBaseUrl()}/sd-api/v2/pprof`);
-const windowWidth = computed(() => Math.max(320, width.value - 24));
-const drawerWidth = computed(() => Math.min(880, windowWidth.value));
 
 function persistPending() {
   try {

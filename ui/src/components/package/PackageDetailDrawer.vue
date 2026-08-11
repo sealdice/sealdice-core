@@ -1,15 +1,30 @@
 <template>
-  <n-drawer :show="show" width="720" placement="right" @update:show="emit('update:show', $event)">
+  <n-drawer
+    :show="show"
+    :width="drawerWidth"
+    placement="right"
+    @update:show="emit('update:show', $event)"
+  >
     <n-drawer-content :title="packageTitle" closable>
       <n-spin :show="loading">
         <n-space vertical size="large">
           <n-descriptions bordered label-placement="left" :column="1">
-            <n-descriptions-item label="包 ID">{{ pkg?.manifest?.package?.id || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="版本">{{ pkg?.manifest?.package?.version || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="包 ID">{{
+              pkg?.manifest?.package?.id || '-'
+            }}</n-descriptions-item>
+            <n-descriptions-item label="版本">{{
+              pkg?.manifest?.package?.version || '-'
+            }}</n-descriptions-item>
             <n-descriptions-item label="状态">{{ pkg?.state || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="作者">{{ pkg?.manifest?.package?.authors?.join(' / ') || '-' }}</n-descriptions-item>
-            <n-descriptions-item label="描述">{{ pkg?.manifest?.package?.description || '暂无描述' }}</n-descriptions-item>
-            <n-descriptions-item label="安装路径">{{ pkg?.installPath || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="作者">{{
+              pkg?.manifest?.package?.authors?.join(' / ') || '-'
+            }}</n-descriptions-item>
+            <n-descriptions-item label="描述">{{
+              pkg?.manifest?.package?.description || '暂无描述'
+            }}</n-descriptions-item>
+            <n-descriptions-item label="安装路径">{{
+              pkg?.installPath || '-'
+            }}</n-descriptions-item>
             <n-descriptions-item label="源文件">{{ pkg?.sourcePath || '-' }}</n-descriptions-item>
           </n-descriptions>
 
@@ -34,7 +49,10 @@
                   v-else-if="fieldSchema.type === 'number' || fieldSchema.type === 'integer'"
                   :value="numberValueOf(fieldKey)"
                   class="w-full"
-                  @update:value="(value: number | null) => updateValue(fieldKey, value ?? fieldSchema.default ?? 0)"
+                  @update:value="
+                    (value: number | null) =>
+                      updateValue(fieldKey, value ?? fieldSchema.default ?? 0)
+                  "
                 />
                 <n-select
                   v-else-if="Array.isArray(fieldSchema.enum) && fieldSchema.enum.length > 0"
@@ -89,6 +107,7 @@
 import { computed, reactive, watch } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import type { Instance } from '@/api';
+import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
 import PackageFileTree from './PackageFileTree.vue';
 
 type ConfigFieldSchema = {
@@ -118,6 +137,7 @@ const emit = defineEmits<{
 
 const draft = reactive<Record<string, unknown>>({});
 const jsonFieldErrors = reactive<Record<string, string>>({});
+const { width: drawerWidth } = useResponsiveOverlayWidth({ maxWidth: 720, gutter: 16 });
 
 const packageTitle = computed(() => props.pkg?.manifest?.package?.name || '扩展包详情');
 const schemaEntries = computed(() => Object.entries(props.schema ?? {}));
@@ -136,18 +156,22 @@ watch(
       draft[fieldKey] = config[fieldKey] ?? fieldSchema.default ?? defaultValueOf(fieldSchema.type);
     }
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 const hasJsonErrors = computed(() => Object.keys(jsonFieldErrors).length > 0);
 
 function defaultValueOf(type?: string) {
   switch (type) {
-    case 'boolean': return false;
+    case 'boolean':
+      return false;
     case 'number':
-    case 'integer': return 0;
-    case 'string': return '';
-    default: return null;
+    case 'integer':
+      return 0;
+    case 'string':
+      return '';
+    default:
+      return null;
   }
 }
 
