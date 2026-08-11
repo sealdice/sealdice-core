@@ -385,7 +385,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .js-page {
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .js-console-grid {

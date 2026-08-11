@@ -338,7 +338,9 @@ async function handleErudaToggle(value: boolean) {
 
 <style scoped>
 .advanced-page {
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .advanced-input {

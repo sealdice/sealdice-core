@@ -237,7 +237,9 @@ function refreshLogs() {
 
 <style scoped>
 .censor-page {
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .censor-tabs :deep(.n-tabs-nav-scroll-content) {

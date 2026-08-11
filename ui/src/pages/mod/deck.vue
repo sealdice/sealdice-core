@@ -672,7 +672,9 @@ function deckUpdate() {
 
 <style scoped>
 .deck-page {
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .deck-file-input {
