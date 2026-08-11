@@ -23,7 +23,7 @@
 
         <n-breadcrumb>
           <n-breadcrumb-item
-            v-for="(item, index) in breadcrumbItems"
+            v-for="(item, index) in visibleBreadcrumbItems"
             :key="`${index}-${item.label}`"
           >
             <RouterLink v-if="item.to" :to="item.to">
@@ -38,8 +38,7 @@
     <template #extra>
       <div class="sd-page-actions">
         <AppThemeSwitch />
-        <AppThemePaletteButton />
-        <AppInstallButton />
+        <AppInstallButton v-if="!props.mobileMode" />
         <n-button tag="a" secondary class="legacy-entry" :href="oldUIUrl">
           回退老 UI
         </n-button>
@@ -87,7 +86,6 @@ import { resolveOldUIUrlFromLocation } from '@/api/config';
 import { appNavigation } from '@/router/navigation';
 import { buildBreadcrumbItems } from '@/router/navigationModel';
 import AppInstallButton from './AppInstallButton.vue';
-import AppThemePaletteButton from './AppThemePaletteButton.vue';
 import AppThemeSwitch from './AppThemeSwitch.vue';
 
 const props = defineProps<{
@@ -108,21 +106,19 @@ const oldUIUrl =
 const breadcrumbItems = computed(() =>
   buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面')),
 );
+const visibleBreadcrumbItems = computed(() =>
+  props.mobileMode ? breadcrumbItems.value.slice(0, -1) : breadcrumbItems.value,
+);
 </script>
 
 <style scoped>
 .sd-breadcrumb-bar {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 10;
   border-bottom: 1px solid var(--sd-border-soft);
-  background: var(--sd-bg-elevated-tint);
+  background: var(--sd-bg-elevated);
   padding: 0.65rem 1rem;
-}
-
-@supports (color: color-mix(in srgb, white, black)) {
-  .sd-breadcrumb-bar {
-    background: color-mix(in srgb, var(--sd-bg-elevated), transparent 12%);
-  }
 }
 
 .sd-breadcrumb-title {
@@ -240,7 +236,35 @@ const breadcrumbItems = computed(() =>
 }
 
 @media screen and (max-width: 639.9px) {
+  :deep(.n-page-header__main) {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  :deep(.n-page-header__title),
+  :deep(.n-page-header__extra) {
+    min-width: 0;
+  }
+
+  .sd-breadcrumb-title {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  :deep(.n-breadcrumb) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sd-page-actions {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
   .search-entry {
+    flex: 0 0 34px;
     width: 34px;
     justify-content: center;
     padding: 0;
@@ -252,6 +276,12 @@ const breadcrumbItems = computed(() =>
   }
 
   .version-summary {
+    display: flex;
+    margin-left: auto;
+  }
+
+  .version-channel,
+  .new-version {
     display: none;
   }
 }

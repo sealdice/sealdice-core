@@ -105,6 +105,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html.sd-theme-transition-disabled *,
+html.sd-theme-transition-disabled *::before,
+html.sd-theme-transition-disabled *::after {
+  transition: none !important;
+}
+
 button,
 input,
 textarea,
