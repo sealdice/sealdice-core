@@ -77,7 +77,7 @@
                     <n-dropdown
                       trigger="click"
                       :options="logActionOptions(log)"
-                      @select="key => handleLogAction(key, log)"
+                      @select="(key: string) => handleLogAction(key, log)"
                     >
                       <n-button text aria-label="更多操作">
                         更多
