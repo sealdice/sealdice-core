@@ -116,6 +116,20 @@ func TestRegisterLegacyUIServesFilesUnderOldUI(t *testing.T) {
 	assertBodyContains(t, resp, "legacy")
 }
 
+func TestRegisterLegacyUIRewritesLegacyAPIPath(t *testing.T) {
+	app := echo.New()
+	app.GET("/sd-api/signin/salt", func(c echo.Context) error {
+		return c.String(http.StatusOK, "salt")
+	})
+
+	registerLegacyUI(app, fstest.MapFS{
+		"index.html": {Data: []byte("legacy ui")},
+	})
+
+	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/old-ui/sd-api/signin/salt", nil))
+	assertBodyContains(t, resp, "salt")
+}
+
 func assertBodyContains(t *testing.T, resp *http.Response, want string) {
 	t.Helper()
 	if resp.StatusCode != http.StatusOK {

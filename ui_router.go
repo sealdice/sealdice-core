@@ -13,6 +13,7 @@ import (
 const (
 	removedV2UIPathPrefix      = "/v2ui"
 	oldUIPathPrefix            = "/old-ui"
+	oldUIAPIPathPrefix         = oldUIPathPrefix + "/sd-api"
 	rootUICacheControlNoCache  = "no-cache"
 	rootUICacheControlAssets   = "public, max-age=31536000, immutable"
 	rootUIDistIndexPath        = "dist/index.html"
@@ -54,7 +55,32 @@ func registerRootUI(router *echo.Echo, source fs.FS) error {
 }
 
 func registerLegacyUI(router *echo.Echo, filesystem fs.FS) {
+	// The legacy bundle derives its API base from the current pathname, so it
+	// requests /old-ui/sd-api/* when served below /old-ui/. Route those requests
+	// through the existing /sd-api handlers without changing the public UI path.
+	router.Pre(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			requestPath := c.Request().URL.Path
+			if requestPath == oldUIAPIPathPrefix || strings.HasPrefix(requestPath, oldUIAPIPathPrefix+"/") {
+				c.Request().URL.Path = strings.TrimPrefix(requestPath, oldUIPathPrefix)
+				c.Request().URL.RawPath = ""
+			}
+			return next(c)
+		}
+	})
+
 	group := router.Group(oldUIPathPrefix)
+	group.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			cleanPath := strings.TrimSuffix(c.Request().URL.Path, "/")
+			if cleanPath == oldUIPathPrefix || cleanPath == oldUIPathPrefix+"/index.html" {
+				c.Response().Header().Set(echo.HeaderCacheControl, "no-cache, no-store, must-revalidate")
+				c.Response().Header().Set("Pragma", "no-cache")
+				c.Response().Header().Set("Expires", "0")
+			}
+			return next(c)
+		}
+	})
 	group.StaticFS("/", filesystem)
 	router.GET(oldUIPathPrefix, func(c echo.Context) error {
 		return c.Redirect(http.StatusPermanentRedirect, strings.TrimPrefix(oldUIPathPrefix, "/")+"/")

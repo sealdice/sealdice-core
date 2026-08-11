@@ -25,7 +25,7 @@ export function getAppShellContainerClass(mode: AppShellContainerMode): string {
 }
 
 export function getAppShellDrawerWidth(): string {
-  return 'min(320px, 86vw)';
+  return 'min(200px, 76vw)';
 }
 
 export function isAppShellMobileWidth(width: number): boolean {

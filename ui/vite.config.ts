@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => {
       includeAssets: ['favicon.ico', 'pwa-192.svg', 'pwa-512.svg', 'pwa-maskable.svg'],
       workbox: {
         globIgnores: ['**/stats.html'],
+        navigateFallbackDenylist: [/^\/old-ui(?:\/|$)/],
       },
       manifest: {
         name: 'SealDice 控制台',
