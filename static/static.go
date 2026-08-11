@@ -9,7 +9,7 @@ import (
 //go:embed frontend
 var Frontend embed.FS
 
-//go:embed v2ui
+//go:embed all:v2ui
 var V2UI embed.FS
 
 //go:embed scripts
