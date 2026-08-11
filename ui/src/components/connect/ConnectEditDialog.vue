@@ -11,6 +11,14 @@
     <n-alert v-if="errorMessage" type="error" :show-icon="false">
       {{ errorMessage }}
     </n-alert>
+    <n-alert
+      v-if="submitError"
+      type="error"
+      :show-icon="false"
+      class="connect-edit-dialog__submit-error"
+    >
+      {{ submitError }}。请检查配置后重试。
+    </n-alert>
     <n-spin :show="loading && !config">
       <n-space vertical size="large">
         <n-alert v-if="config?.restartRequired" type="warning" :show-icon="false">
@@ -56,6 +64,7 @@ defineProps<{
   saving: boolean;
   loading: boolean;
   errorMessage: string;
+  submitError: string;
   disabled: boolean;
   canSubmit: boolean;
 }>();
@@ -67,3 +76,9 @@ const emit = defineEmits<{
   submit: [];
 }>();
 </script>
+
+<style scoped>
+.connect-edit-dialog__submit-error {
+  margin-top: var(--sd-space-sm);
+}
+</style>

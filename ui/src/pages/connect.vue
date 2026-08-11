@@ -2,16 +2,35 @@
   <main class="connect-page">
     <PageHeader title="账号设置" description="管理已接入平台账号及其连接配置。">
       <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
+        <template #icon
+          ><n-icon><i-ep-plus /></n-icon
+        ></template>
         添加账号
       </n-button>
     </PageHeader>
 
     <n-alert v-if="realtimeErrorText" type="error" class="mb-4">
-      {{ realtimeErrorText }}
+      <div class="connect-alert-content">
+        <span>{{ realtimeErrorText }}</span>
+        <n-button size="small" secondary @click="realtimeConnections.reconnect">
+          <template #icon
+            ><n-icon><i-ep-refresh-right /></n-icon
+          ></template>
+          重新连接
+        </n-button>
+      </div>
     </n-alert>
 
     <n-alert v-if="connectionsErrorText" type="error" class="mb-4">
-      {{ connectionsErrorText }}
+      <div class="connect-alert-content">
+        <span>{{ connectionsErrorText }}</span>
+        <n-button size="small" secondary @click="retryConnections">
+          <template #icon
+            ><n-icon><i-ep-refresh-right /></n-icon
+          ></template>
+          重试
+        </n-button>
+      </div>
     </n-alert>
 
     <n-empty v-if="connections.length === 0 && connectionsReady" description="似乎还没有账号">
@@ -22,14 +41,19 @@
       </template>
     </n-empty>
 
-    <n-data-table
+    <ConnectAccountGrid
       v-else
-      :columns="columns"
-      :data="connections"
+      :connections="connections"
+      :workflows="realtimeConnections.workflows.value"
+      :qr-codes="realtimeConnections.qrCodes.value"
       :loading="connectionsLoading"
-      :bordered="false"
-      :scroll-x="780"
-      size="small"
+      :is-test-mode="isTestMode"
+      :pending-action="pendingEndpointAction"
+      :operation-errors="endpointOperationErrors"
+      @show-q-r-code="openQRCode"
+      @edit="openEditDialog"
+      @toggle-enable="confirmEnable"
+      @delete="confirmDelete"
     />
 
     <n-modal
@@ -41,35 +65,40 @@
       :mask-closable="false"
       @after-leave="resetWizard"
     >
-      <ConnectCreateWizard
-        v-model:form-model="formModel"
-        v-model:wizard-step="wizardStep"
-        v-model:wizard-platform="wizardPlatform"
-        v-model:wizard-method="wizardMethod"
-        v-model:wizard-protocol="wizardProtocol"
-        :protocols="protocols"
-        :schemas-error="Boolean(schemasQuery.error.value)"
-        :selected-protocol="selectedProtocol"
-        :selected-schema="selectedSchema"
-        :sign-info-state="signInfoState"
-        :sign-info-error-message="signInfoErrorMessage"
-        :sign-version-options="signVersionOptions"
-        :sign-servers="signServers"
-        :is-mobile="isMobile"
-        :can-submit="wizardCanNext"
-        :submitting="createMutation.isPending.value"
-        :official-qq-mode="officialQQMode"
-        :test-mode-disabled="isTestMode"
-        @cancel="dialogVisible = false"
-        @select-platform="selectPlatform"
-        @select-method="selectMethod"
-        @select-protocol="selectProtocol"
-        @previous="goPrev"
-        @next="goNext"
-        @submit="submit"
-        @update:official-qq-mode="officialQQMode = $event"
-        @retry-sign-info="retrySignInfo"
-      />
+      <div class="connect-dialog-content">
+        <n-alert v-if="createSubmitError" type="error" :show-icon="false">
+          {{ createSubmitError }}。请检查配置后重试。
+        </n-alert>
+        <ConnectCreateWizard
+          v-model:form-model="formModel"
+          v-model:wizard-step="wizardStep"
+          v-model:wizard-platform="wizardPlatform"
+          v-model:wizard-method="wizardMethod"
+          v-model:wizard-protocol="wizardProtocol"
+          :protocols="protocols"
+          :schemas-error="Boolean(schemasQuery.error.value)"
+          :selected-protocol="selectedProtocol"
+          :selected-schema="selectedSchema"
+          :sign-info-state="signInfoState"
+          :sign-info-error-message="signInfoErrorMessage"
+          :sign-version-options="signVersionOptions"
+          :sign-servers="signServers"
+          :is-mobile="isMobile"
+          :can-submit="wizardCanNext"
+          :submitting="createMutation.isPending.value"
+          :official-qq-mode="officialQQMode"
+          :test-mode-disabled="isTestMode"
+          @cancel="dialogVisible = false"
+          @select-platform="selectPlatform"
+          @select-method="selectMethod"
+          @select-protocol="selectProtocol"
+          @previous="goPrev"
+          @next="goNext"
+          @submit="submit"
+          @update:official-qq-mode="officialQQMode = $event"
+          @retry-sign-info="retrySignInfo"
+        />
+      </div>
     </n-modal>
 
     <ConnectEditDialog
@@ -79,6 +108,7 @@
       :schema="editSchema"
       :loading="editConfigQuery.isFetching.value"
       :error-message="editConfigErrorText"
+      :submit-error="editSubmitError"
       :is-mobile="isMobile"
       :saving="updateMutation.isPending.value"
       :disabled="isTestMode"
@@ -128,7 +158,8 @@ import {
 } from '@/components/shared/dynamicFormModel';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
-import { createConnectTableColumns } from '@/components/connect/ConnectTableColumns';
+import ConnectAccountGrid from '@/components/connect/ConnectAccountGrid.vue';
+import { updateEndpointOperationErrors } from '@/features/connect/endpointActionState';
 import { getEndpointTargetLabel } from '@/features/connect/endpointDisplay';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import {
@@ -167,6 +198,8 @@ const qrDialogEndpointId = ref('');
 const editingEndpoint = ref<EndPointInfo | null>(null);
 const editingConfig = ref<EditableConfigResp | null>(null);
 const editFormModel = ref<DynamicFormModel>({});
+const pendingEndpointAction = ref<{ endpointId: string; action: 'enable' | 'delete' } | null>(null);
+const endpointOperationErrors = ref<Record<string, string>>({});
 
 const wizardState = reactive(createConnectWizardState());
 const wizardStep = computed({
@@ -270,7 +303,9 @@ const editConfigQuery = useConnectEndpointConfigQuery(
 );
 
 const editConfigErrorText = computed(() =>
-  editConfigQuery.error.value ? getErrorMessage(editConfigQuery.error.value, '账号配置读取失败') : ''
+  editConfigQuery.error.value
+    ? getErrorMessage(editConfigQuery.error.value, '账号配置读取失败')
+    : ''
 );
 
 watch(editConfigQuery.data, data => {
@@ -289,6 +324,10 @@ watch(editConfigQuery.error, error => {
 
 const retryEditConfig = () => {
   void editConfigQuery.refetch();
+};
+
+const retryConnections = () => {
+  void connectionsQuery.refetch();
 };
 
 const { createMutation, updateMutation, enableMutation, deleteMutation } = useConnectMutations({
@@ -313,7 +352,42 @@ const { createMutation, updateMutation, enableMutation, deleteMutation } = useCo
   onDeleted: () => undefined,
 });
 
-const workflowOf = (endpointId: string) => realtimeConnections.workflows.value[endpointId] ?? null;
+const createSubmitError = computed(() =>
+  createMutation.isError.value ? getErrorMessage(createMutation.error.value, '添加账号失败') : ''
+);
+const editSubmitError = computed(() =>
+  updateMutation.isError.value
+    ? getErrorMessage(updateMutation.error.value, '账号配置更新失败')
+    : ''
+);
+const runEndpointOperation = async (
+  endpoint: EndPointInfo,
+  action: 'enable' | 'delete',
+  operation: () => Promise<unknown>,
+  fallbackError: string
+) => {
+  if (pendingEndpointAction.value) {
+    message.warning('正在处理另一个账号操作，请稍候');
+    return;
+  }
+
+  pendingEndpointAction.value = { endpointId: endpoint.id, action };
+  endpointOperationErrors.value = updateEndpointOperationErrors(
+    endpointOperationErrors.value,
+    endpoint.id
+  );
+  try {
+    await operation();
+  } catch (error) {
+    endpointOperationErrors.value = updateEndpointOperationErrors(
+      endpointOperationErrors.value,
+      endpoint.id,
+      getErrorMessage(error, fallbackError)
+    );
+  } finally {
+    pendingEndpointAction.value = null;
+  }
+};
 
 const openQRCode = (endpoint: EndPointInfo) => {
   qrDialogEndpointId.value = endpoint.id;
@@ -321,8 +395,9 @@ const openQRCode = (endpoint: EndPointInfo) => {
 };
 
 const confirmDelete = (endpoint: EndPointInfo) => {
-  if (isTestMode.value) {
-    message.warning('展示模式不支持该操作');
+  if (isTestMode.value || pendingEndpointAction.value) {
+    if (pendingEndpointAction.value) message.warning('正在处理另一个账号操作，请稍候');
+    if (isTestMode.value) message.warning('展示模式不支持该操作');
     return;
   }
   dialog.warning({
@@ -330,13 +405,20 @@ const confirmDelete = (endpoint: EndPointInfo) => {
     content: `确认删除账号「${getEndpointTargetLabel(endpoint)}」吗？删除账号不会影响人物卡和 logs 等数据。`,
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => deleteMutation.mutate(endpoint.id),
+    onPositiveClick: () =>
+      runEndpointOperation(
+        endpoint,
+        'delete',
+        () => deleteMutation.mutateAsync(endpoint.id),
+        '账号删除失败'
+      ),
   });
 };
 
 const confirmEnable = (endpoint: EndPointInfo, enable: boolean) => {
-  if (isTestMode.value) {
-    message.warning('展示模式不支持该操作');
+  if (isTestMode.value || pendingEndpointAction.value) {
+    if (pendingEndpointAction.value) message.warning('正在处理另一个账号操作，请稍候');
+    if (isTestMode.value) message.warning('展示模式不支持该操作');
     return;
   }
   dialog.warning({
@@ -344,11 +426,18 @@ const confirmEnable = (endpoint: EndPointInfo, enable: boolean) => {
     content: `确认${enable ? '启用' : '禁用'}账号「${getEndpointTargetLabel(endpoint)}」吗？`,
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => enableMutation.mutate({ id: endpoint.id, enable }),
+    onPositiveClick: () =>
+      runEndpointOperation(
+        endpoint,
+        'enable',
+        () => enableMutation.mutateAsync({ id: endpoint.id, enable }),
+        '账号状态更新失败'
+      ),
   });
 };
 
 const openEditDialog = (endpoint: EndPointInfo) => {
+  updateMutation.reset();
   editingEndpoint.value = endpoint;
   editingConfig.value = null;
   editFormModel.value = {};
@@ -360,6 +449,7 @@ const openCreateDialog = () => {
     message.warning('展示模式不支持该操作');
     return;
   }
+  createMutation.reset();
   resetWizard();
   dialogVisible.value = true;
 };
@@ -367,19 +457,6 @@ const openCreateDialog = () => {
 const retrySignInfo = () => {
   void signInfo.retry();
 };
-
-const columns = computed(() =>
-  createConnectTableColumns({
-    isMobile,
-    qrCodes: realtimeConnections.qrCodes,
-    isTestMode,
-    workflowOf,
-    openQRCode,
-    openEditDialog,
-    confirmEnable,
-    confirmDelete,
-  })
-);
 
 const wizardCanNext = computed(() => {
   switch (wizardStep.value) {
@@ -438,27 +515,18 @@ const submitEdit = () => {
   text-align: left;
 }
 
-.account-cell {
-  min-width: 180px;
-}
-
-.account-title {
+.connect-alert-content {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  font-weight: 700;
-  color: var(--sd-text-primary);
+  justify-content: space-between;
+  gap: var(--sd-space-sm);
 }
 
-.account-subtitle {
-  margin-top: 0.25rem;
-  color: var(--sd-text-muted);
-  font-size: 0.82rem;
-}
-
-:deep(.account-detail-value) {
-  overflow-wrap: anywhere;
+.connect-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sd-space-md);
 }
 
 .account-dialog {

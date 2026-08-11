@@ -23,6 +23,7 @@ export type EndpointDisplaySource = {
 };
 
 export type EndpointDetailRow = [label: string, value: string];
+export type EndpointMetricRow = [label: string, value: string];
 
 export function getEndpointStateMeta(state: number) {
   switch (state) {
@@ -96,14 +97,8 @@ export function getWorkflowText(workflow: WorkflowResp | null): string {
   }
 }
 
-export function getEndpointDetailRows(
-  endpoint: EndPointInfo,
-  workflow: WorkflowResp | null
-): EndpointDetailRow[] {
-  const adapter = adapterOf(endpoint);
+export function getEndpointMetricRows(endpoint: EndPointInfo): EndpointMetricRow[] {
   return [
-    ['账号', endpoint.userId],
-    ['登录流程', getWorkflowText(workflow)],
     ['群组数量', String(endpoint.groupNum)],
     ['累计响应指令', String(endpoint.cmdExecutedNum)],
     [
@@ -112,6 +107,17 @@ export function getEndpointDetailRows(
         ? dayjs.unix(endpoint.cmdExecutedLastTime).format('YYYY-MM-DD HH:mm:ss')
         : '尚无记录',
     ],
+  ];
+}
+
+export function getEndpointDetailRows(
+  endpoint: EndPointInfo,
+  workflow: WorkflowResp | null
+): EndpointDetailRow[] {
+  const adapter = adapterOf(endpoint);
+  return [
+    ['账号', endpoint.userId],
+    ['登录流程', getWorkflowText(workflow)],
     ['连接地址', adapter.connectUrl || adapter.ws_gateway || ''],
     ['服务地址', adapter.reverseAddr ? `${adapter.reverseAddr}/ws` : ''],
     ['签名版本', adapter.signServerVer || ''],
