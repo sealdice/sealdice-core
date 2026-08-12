@@ -57,7 +57,11 @@
 </template>
 
 <script setup lang="ts">
-import { safeMediaSource, type ToolTestMessage, type ToolTestSegment } from '@/features/toolTest/model';
+import {
+  safeMediaSource,
+  type ToolTestMessage,
+  type ToolTestSegment,
+} from '@/features/toolTest/model';
 
 const props = defineProps<{
   message: ToolTestMessage;
@@ -86,7 +90,7 @@ function mediaSource(segment: ToolTestSegment) {
   display: block;
   max-width: min(18rem, 100%);
   max-height: 14rem;
-  border-radius: 8px;
+  border-radius: var(--sd-radius-md);
   object-fit: contain;
 }
 
@@ -98,7 +102,7 @@ function mediaSource(segment: ToolTestSegment) {
   max-width: 100%;
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 7px;
+  border-radius: var(--sd-radius-sm);
   color: var(--sd-text-primary);
   text-decoration: none;
 }
@@ -138,7 +142,7 @@ function mediaSource(segment: ToolTestSegment) {
   display: inline-block;
   margin: 0 0.1rem;
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--sd-radius-xs);
   background: color-mix(in srgb, var(--sd-accent-strong), transparent 88%);
   color: var(--sd-accent-strong);
   font-size: 0.85em;

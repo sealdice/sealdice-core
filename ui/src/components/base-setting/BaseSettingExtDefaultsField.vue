@@ -252,8 +252,7 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   background: color-mix(in srgb, var(--sd-bg-page), var(--sd-bg-elevated) 72%);
   transition:
     border-color 0.16s ease,
-    background-color 0.16s ease,
-    box-shadow 0.16s ease;
+    background-color 0.16s ease;
 }
 
 .ext-default-row:hover {
@@ -262,7 +261,6 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
 
 .ext-default-row-dirty {
   border-color: color-mix(in srgb, var(--sd-warning), var(--sd-border) 55%);
-  box-shadow: inset 0 0 0 1px var(--sd-warning-soft-strong);
 }
 
 .ext-default-row-head {
@@ -294,7 +292,7 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   gap: 0.55rem;
   min-height: 1.75rem;
   padding: 0.18rem 0.22rem 0.18rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--sd-radius-pill);
   background: color-mix(in srgb, var(--sd-bg-hover), transparent 24%);
 }
 
@@ -327,7 +325,7 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   cursor: pointer;
   padding: 0.36rem 0.66rem;
   border: 1px solid color-mix(in srgb, var(--sd-border), transparent 8%);
-  border-radius: 999px;
+  border-radius: var(--sd-radius-pill);
   background: var(--sd-bg-elevated);
   color: var(--sd-text-secondary);
   font: inherit;
@@ -351,7 +349,8 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
 }
 
 .ext-default-command-chip-dirty {
-  box-shadow: inset 0 0 0 1px var(--sd-warning-border);
+  border-color: var(--sd-warning-border);
+  background: var(--sd-warning-soft);
 }
 
 .ext-defaults-empty {

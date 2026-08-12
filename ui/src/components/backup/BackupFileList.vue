@@ -226,7 +226,7 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
   display: grid;
   min-width: 0;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
   gap: 0.65rem;
   padding: 0.75rem;

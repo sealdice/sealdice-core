@@ -10,7 +10,11 @@
       object-fit="cover"
       lazy
     />
-    <div v-else class="resource-preview__fallback" :class="{ 'resource-preview__fallback--failed': failed }">
+    <div
+      v-else
+      class="resource-preview__fallback"
+      :class="{ 'resource-preview__fallback--failed': failed }"
+    >
       <n-icon size="22">
         <i-tabler-photo />
       </n-icon>
@@ -31,12 +35,12 @@ const props = withDefaults(
   {
     thumbnail: true,
     size: 'normal',
-  },
+  }
 );
 
 const { objectUrl, loading, failed } = useResourcePreview(
   () => props.item,
-  () => props.thumbnail,
+  () => props.thumbnail
 );
 </script>
 
@@ -48,18 +52,15 @@ const { objectUrl, loading, failed } = useResourcePreview(
   overflow: hidden;
   place-items: center;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 14px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated-soft);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--sd-bg-control), transparent 10%), transparent),
-    var(--sd-bg-elevated-soft);
 }
 
 .resource-preview--large {
   width: min(100%, 360px);
   height: auto;
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
+  border-radius: var(--sd-radius-md);
 }
 
 .resource-preview__image {

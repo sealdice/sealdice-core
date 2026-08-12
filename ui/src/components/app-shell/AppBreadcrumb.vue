@@ -185,7 +185,7 @@ const visibleBreadcrumbItems = computed(() =>
   height: 34px;
   align-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--sd-radius-sm);
   background: var(--sd-bg-control);
   color: var(--sd-text-secondary);
   cursor: pointer;
@@ -212,7 +212,7 @@ const visibleBreadcrumbItems = computed(() =>
   display: inline-flex;
   height: 22px;
   align-items: center;
-  border-radius: 6px;
+  border-radius: var(--sd-radius-sm);
   background: var(--sd-bg-elevated);
   color: var(--sd-text-muted);
   font-size: 0.75rem;

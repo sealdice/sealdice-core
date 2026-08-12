@@ -88,16 +88,8 @@ function handleScroll() {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 16px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--sd-bg-elevated), transparent 6%) 0%,
-      transparent 100%
-    ),
-    var(--sd-bg-page);
-  box-shadow: var(--sd-shadow-panel);
 }
 
 .tool-test-chat-window__header {

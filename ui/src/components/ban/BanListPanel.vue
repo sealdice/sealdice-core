@@ -251,7 +251,7 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
 }
 
 .ban-list-panel__list {
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

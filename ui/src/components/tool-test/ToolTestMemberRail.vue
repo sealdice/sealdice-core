@@ -222,7 +222,7 @@ function saveEditor() {
   gap: 0.65rem;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--sd-radius-md);
   color: inherit;
   background: transparent;
   text-align: left;
@@ -281,7 +281,7 @@ function saveEditor() {
 .tool-test-member-editor__avatar {
   padding: 0.2rem;
   border: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--sd-radius-pill);
   background: transparent;
   cursor: pointer;
 }

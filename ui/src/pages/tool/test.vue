@@ -225,8 +225,9 @@ async function handleSelectProfile(profile: ToolTestProfile) {
 .tool-test-page h1 {
   margin: 0;
   color: var(--sd-text-primary);
-  font-size: 1.75rem;
-  line-height: 1.2;
+  font-size: var(--sd-page-title-size);
+  font-weight: var(--sd-page-title-weight);
+  line-height: var(--sd-page-title-line-height);
 }
 
 .tool-test-page__summary {
@@ -265,7 +266,7 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 16px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 
@@ -356,7 +357,7 @@ async function handleSelectProfile(profile: ToolTestProfile) {
 
   .tool-test-page__workspace {
     margin-inline: -0.25rem;
-    border-radius: 12px;
+    border-radius: var(--sd-radius-md);
   }
 
   .tool-test-page__summary {

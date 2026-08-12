@@ -467,7 +467,7 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated-soft);
 }
 
@@ -527,7 +527,7 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

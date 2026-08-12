@@ -1,17 +1,10 @@
 <template>
-  <div
-    v-for="(cond, index) in listModel"
-    :key="conditionKeyOf(cond)"
-    class="condition-item">
+  <div v-for="(cond, index) in listModel" :key="conditionKeyOf(cond)" class="condition-item">
     <div class="condition-head">
       <div class="condition-fields">
         <label class="condition-field condition-mode">
           <span>模式</span>
-          <n-select
-            v-model:value="cond.condType"
-            :options="condTypeOptions"
-            size="small"
-          />
+          <n-select v-model:value="cond.condType" :options="condTypeOptions" size="small" />
         </label>
 
         <template v-if="cond.condType === 'textMatch'">
@@ -24,7 +17,7 @@
                     <i-tabler-help-circle />
                   </n-icon>
                 </template>
-                匹配方式一览：<br/>精确匹配：完全相同时触发。<br/>任意相符：如aa|bb，则aa或bb都能触发。<br/>包含文本：包含此文本触发。<br/>不含文本：不包含此文本触发。<br/>模糊匹配：文本相似时触发<br/>正则匹配：正则表达式匹配<br/>前缀匹配：文本以内容为开头<br/>后缀匹配：文本以此内容为结尾
+                匹配方式一览：<br />精确匹配：完全相同时触发。<br />任意相符：如aa|bb，则aa或bb都能触发。<br />包含文本：包含此文本触发。<br />不含文本：不包含此文本触发。<br />模糊匹配：文本相似时触发<br />正则匹配：正则表达式匹配<br />前缀匹配：文本以内容为开头<br />后缀匹配：文本以此内容为结尾
               </n-tooltip>
             </span>
             <n-select
@@ -37,7 +30,7 @@
 
           <label class="condition-field condition-value">
             <span>内容</span>
-            <n-input v-model:value="(cond.value as string)" size="small" />
+            <n-input v-model:value="cond.value as string" size="small" />
           </label>
         </template>
 
@@ -51,10 +44,15 @@
                     <i-tabler-help-circle />
                   </n-icon>
                 </template>
-                举例：<br/>$t1 == '张三' // 正则匹配的第一个组内容是张三<br/>$m个人计数器 >= 10<br/>友情提醒，匹配失败时无提示，请先自行在「指令测试」测好
+                举例：<br />$t1 == '张三' // 正则匹配的第一个组内容是张三<br />$m个人计数器 >= 10<br />友情提醒，匹配失败时无提示，请先自行在「指令测试」测好
               </n-tooltip>
             </span>
-            <n-input v-model:value="(cond.value as string)" type="textarea" size="small" :autosize="{ minRows: 1, maxRows: 10 }" />
+            <n-input
+              v-model:value="cond.value as string"
+              type="textarea"
+              size="small"
+              :autosize="{ minRows: 1, maxRows: 10 }"
+            />
           </label>
         </template>
 
@@ -71,7 +69,7 @@
 
           <label class="condition-field condition-number">
             <span>长度</span>
-            <n-input-number v-model:value="(cond.value as number)" :min="0" size="small" />
+            <n-input-number v-model:value="cond.value as number" :min="0" size="small" />
           </label>
         </template>
       </div>
@@ -148,7 +146,7 @@ const deleteByIndex = (index: number) => {
 .condition-item {
   min-width: 0;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
   padding: 0.65rem;
 }

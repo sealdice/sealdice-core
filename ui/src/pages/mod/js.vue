@@ -440,7 +440,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--sd-border);
-  border-radius: var(--sd-radius-lg);
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 
@@ -488,7 +488,7 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 100%;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 12px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
 }
 
@@ -536,7 +536,7 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 100%;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 12px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
   font-family:
     'Fira Code', 'DengXian', 'Microsoft YaHei Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
@@ -548,7 +548,7 @@ onBeforeUnmount(() => {
 }
 
 .js-output-log :deep(.n-scrollbar-container) {
-  border-radius: 12px;
+  border-radius: var(--sd-radius-md);
 }
 
 .js-output-log :deep(.n-log-line) {

@@ -15,7 +15,7 @@
 .sd-list-panel {
   overflow: hidden;
   border: 1px solid var(--sd-border);
-  border-radius: var(--sd-radius-xs);
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

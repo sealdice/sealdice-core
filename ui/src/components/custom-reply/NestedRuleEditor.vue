@@ -326,7 +326,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--sd-border);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 
@@ -390,7 +390,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
 .rule-block {
   min-width: 0;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated-muted);
   padding: 0.75rem;
 }

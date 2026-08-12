@@ -1,5 +1,7 @@
 <template>
-  <div :class="['setting-row', `setting-row-${layout}`, { 'setting-row-highlighted': highlighted }]">
+  <div
+    :class="['setting-row', `setting-row-${layout}`, { 'setting-row-highlighted': highlighted }]"
+  >
     <div class="setting-row-copy">
       <div class="setting-row-label">{{ label }}</div>
       <p v-if="description" class="setting-row-description">{{ description }}</p>
@@ -11,14 +13,17 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
-  label: string;
-  description?: string;
-  layout?: 'inline' | 'auto' | 'stacked';
-  highlighted?: boolean;
-}>(), {
-  layout: 'auto',
-});
+withDefaults(
+  defineProps<{
+    label: string;
+    description?: string;
+    layout?: 'inline' | 'auto' | 'stacked';
+    highlighted?: boolean;
+  }>(),
+  {
+    layout: 'auto',
+  }
+);
 </script>
 
 <style scoped>
@@ -29,7 +34,7 @@ withDefaults(defineProps<{
   gap: var(--sd-space-lg);
   min-height: 2.75rem;
   padding: var(--sd-space-xs) var(--sd-space-md);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-sm);
   transition: background-color 0.16s ease;
 }
 

@@ -198,12 +198,18 @@ function createButtonColorOverrides(
 }
 
 function createCommonOverrides(theme: ResolvedTheme): NonNullable<GlobalThemeOverrides['common']> {
-  const common = componentColorKeys.reduce<Record<string, string>>((result, key) => {
-    return {
-      ...result,
-      ...createStatusColorOverrides(key, theme),
-    };
-  }, {});
+  const common = componentColorKeys.reduce<Record<string, string>>(
+    (result, key) => {
+      return {
+        ...result,
+        ...createStatusColorOverrides(key, theme),
+      };
+    },
+    {
+      borderRadius: 'var(--sd-radius-sm)',
+      borderRadiusSmall: 'var(--sd-radius-xs)',
+    }
+  );
 
   if (theme === 'dark') {
     return {

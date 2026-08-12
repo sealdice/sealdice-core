@@ -22,7 +22,5 @@
 }
 
 #nprogress .peg {
-  box-shadow:
-    0 0 10px var(--sd-accent),
-    0 0 5px var(--sd-accent);
+  box-shadow: none;
 }

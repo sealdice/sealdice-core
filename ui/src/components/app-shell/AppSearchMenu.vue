@@ -7,18 +7,18 @@
     transform-origin="center"
   >
     <n-card
-        class="sd-search-card"
-        :bordered="false"
-        content-style="padding: 0"
-        header-style="padding: 0"
-        footer-style="padding: 0"
-        role="dialog"
-        aria-modal="true"
-        @keydown.esc.prevent="close"
-        @keydown.arrow-up.prevent="moveSelection(-1)"
-        @keydown.arrow-down.prevent="moveSelection(1)"
-        @keydown.enter.prevent="selectItem()"
-      >
+      class="sd-search-card"
+      :bordered="false"
+      content-style="padding: 0"
+      header-style="padding: 0"
+      footer-style="padding: 0"
+      role="dialog"
+      aria-modal="true"
+      @keydown.esc.prevent="close"
+      @keydown.arrow-up.prevent="moveSelection(-1)"
+      @keydown.arrow-down.prevent="moveSelection(1)"
+      @keydown.enter.prevent="selectItem()"
+    >
       <template #header>
         <div class="sd-search-header">
           <n-input
@@ -145,9 +145,7 @@
             <template v-if="trimmedKeyword">
               没有找到 <strong>“{{ trimmedKeyword }}”</strong> 的结果
             </template>
-            <template v-else>
-              输入搜索关键字开始搜索吧~
-            </template>
+            <template v-else> 输入搜索关键字开始搜索吧~ </template>
           </n-text>
         </div>
       </div>
@@ -187,7 +185,7 @@ const props = withDefaults(
   }>(),
   {
     advancedConfigCounter: 0,
-  },
+  }
 );
 
 const show = ref(false);
@@ -209,7 +207,9 @@ const visibleItems = computed(() => (trimmedKeyword.value ? results.value : hist
 const hasList = computed(() => visibleItems.value.length > 0);
 
 watch(visibleItems, items => {
-  selectedIndex.value = items.length ? Math.min(Math.max(selectedIndex.value, 0), items.length - 1) : -1;
+  selectedIndex.value = items.length
+    ? Math.min(Math.max(selectedIndex.value, 0), items.length - 1)
+    : -1;
 });
 
 function open() {
@@ -305,7 +305,7 @@ defineExpose({ open });
   justify-content: space-between;
   border: 1px dashed transparent;
   border-bottom-color: var(--sd-border);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-sm);
   background: transparent;
   gap: 0.75rem;
   margin-bottom: 5px;
@@ -337,7 +337,7 @@ defineExpose({ open });
 .sd-search-item-main:focus-visible {
   outline: 2px solid var(--sd-primary);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--sd-radius-xs);
 }
 
 .sd-search-item-icon {
@@ -401,7 +401,7 @@ defineExpose({ open });
   height: 22px;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--sd-radius-xs);
   background: var(--sd-bg-hover);
   color: var(--sd-text-muted);
   font-size: 0.75rem;

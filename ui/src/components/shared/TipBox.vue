@@ -39,7 +39,7 @@ const bgColor = computed(() => `${borderColor.value}10`);
 <style scoped>
 .tip-box {
   border-left: 3px solid v-bind('borderColor');
-  border-radius: 2px;
+  border-radius: var(--sd-radius-xs);
   background: v-bind('bgColor');
   padding: 1rem;
 }

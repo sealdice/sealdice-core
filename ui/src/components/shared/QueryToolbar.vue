@@ -38,7 +38,7 @@ withDefaults(
 .sd-query-toolbar {
   padding: var(--sd-space-sm) var(--sd-space-md);
   border: 1px solid var(--sd-border);
-  border-radius: var(--sd-radius-xs);
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated-soft);
 }
 </style>

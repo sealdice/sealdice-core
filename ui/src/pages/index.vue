@@ -409,10 +409,9 @@ p {
 
 h1 {
   color: var(--sd-text-primary);
-  font-size: 1.65rem;
-  font-weight: 650;
-  letter-spacing: -0.025em;
-  line-height: 1.3;
+  font-size: var(--sd-page-title-size);
+  font-weight: var(--sd-page-title-weight);
+  line-height: var(--sd-page-title-line-height);
 }
 
 .overview-grid {

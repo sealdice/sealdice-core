@@ -16,6 +16,8 @@ it('uses four fixed semantic colors and maps info to primary', async () => {
 
   const lightOverrides = createThemeOverrides('light');
   assertEqual(lightOverrides.common?.primaryColor, lightOverrides.common?.infoColor);
+  assertEqual(lightOverrides.common?.borderRadius, 'var(--sd-radius-sm)');
+  assertEqual(lightOverrides.common?.borderRadiusSmall, 'var(--sd-radius-xs)');
   assertEqual(lightOverrides.Menu?.itemTextColor, 'var(--sd-text-inverse-soft)');
   assertEqual(lightOverrides.Menu?.itemIconColorCollapsed, 'var(--sd-text-inverse)');
   assertEqual(lightOverrides.Menu?.itemColorActive, 'var(--sd-bg-sidebar-selected)');

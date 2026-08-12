@@ -195,7 +195,7 @@ const columns: DataTableColumns<Instance> = [
   display: grid;
   min-width: 0;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
   gap: 0.75rem;
   padding: 0.875rem;

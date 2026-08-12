@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="type === 'card'"
-    class="rounded border border-sd-border bg-sd-elevated p-4"
+    class="foldable-card border border-sd-border bg-sd-elevated p-4"
     :class="{
       'shadow-sm': shadow === 'always',
       'shadow-sm hover:shadow-md transition-shadow': shadow === 'hover',
@@ -187,7 +187,7 @@ const props = withDefaults(
     compact?: boolean;
   }>(),
   {
-    shadow: 'hover',
+    shadow: 'never',
     type: 'card',
     defaultFold: 'auto',
     compact: false,
@@ -227,6 +227,10 @@ defineExpose({ open, close });
 </script>
 
 <style scoped>
+.foldable-card {
+  border-radius: var(--sd-radius-md);
+}
+
 .foldable-card-header {
   display: flex;
   flex-direction: column;

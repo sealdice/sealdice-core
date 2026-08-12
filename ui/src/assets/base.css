@@ -48,6 +48,9 @@ body {
   --sd-radius-md: 8px;
   --sd-radius-lg: 10px;
   --sd-radius-pill: 999px;
+  --sd-page-title-size: 1.5rem;
+  --sd-page-title-weight: 700;
+  --sd-page-title-line-height: 1.25;
   --sd-content-max-width: 1180px;
   --sd-space-2xs: 0.25rem;
   --sd-space-xs: 0.5rem;

@@ -640,7 +640,7 @@ function toggleSelectAll(checked: boolean) {
 .js-panel {
   overflow: hidden;
   border: 1px solid var(--sd-border);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

@@ -85,9 +85,9 @@ async function discard() {
 .sd-page-header h1 {
   margin: 0;
   color: var(--sd-text-primary);
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: var(--sd-page-title-size);
+  font-weight: var(--sd-page-title-weight);
+  line-height: var(--sd-page-title-line-height);
 }
 
 .sd-page-header p {

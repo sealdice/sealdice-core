@@ -143,7 +143,7 @@ const roleMeta = computed(() => {
 .tool-test-chat-message__role {
   flex: 0 0 auto;
   padding: 0.08rem 0.3rem;
-  border-radius: 4px;
+  border-radius: var(--sd-radius-xs);
   font-size: 0.68rem;
   line-height: 1.2;
   color: var(--sd-text-secondary);
@@ -222,7 +222,7 @@ const roleMeta = computed(() => {
 
 .tool-test-chat-message__tip {
   padding: 0.3rem 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--sd-radius-pill);
   color: var(--sd-text-muted);
   background: var(--sd-bg-control);
   font-size: 0.75rem;
