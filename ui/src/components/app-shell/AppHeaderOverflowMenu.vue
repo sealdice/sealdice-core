@@ -4,7 +4,7 @@
       <n-button quaternary circle aria-label="更多操作">
         <template #icon>
           <n-icon size="1.2rem">
-            <i-ep-more-filled />
+            <i-tabler-dots-vertical />
           </n-icon>
         </template>
       </n-button>

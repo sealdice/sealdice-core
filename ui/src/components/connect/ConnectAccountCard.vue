@@ -62,7 +62,7 @@
           <div class="connect-account-card__actions">
             <n-button v-if="qrCode" size="small" tertiary @click="emit('showQRCode', endpoint)">
               <template #icon
-                ><n-icon><i-ep-picture /></n-icon
+                ><n-icon><i-tabler-photo /></n-icon
               ></template>
               二维码
             </n-button>
@@ -73,7 +73,7 @@
               @click="emit('edit', endpoint)"
             >
               <template #icon
-                ><n-icon><i-ep-edit /></n-icon
+                ><n-icon><i-tabler-pencil /></n-icon
               ></template>
               修改
             </n-button>
@@ -86,7 +86,7 @@
               @click="emit('toggleEnable', endpoint, !endpoint.enable)"
             >
               <template #icon
-                ><n-icon><i-ep-switch-button /></n-icon
+                ><n-icon><i-tabler-power /></n-icon
               ></template>
               {{ endpoint.enable ? '禁用' : '启用' }}
             </n-button>
@@ -99,7 +99,7 @@
               @click="emit('delete', endpoint)"
             >
               <template #icon
-                ><n-icon><i-ep-delete /></n-icon
+                ><n-icon><i-tabler-trash /></n-icon
               ></template>
               删除
             </n-button>
