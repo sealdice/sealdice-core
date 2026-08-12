@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/sse"
 
+	"sealdice-core/api/v2/imconnection"
 	"sealdice-core/dice"
 )
 
@@ -94,14 +95,17 @@ func (s *Server) Publish(name string, payload any) {
 }
 
 func (s *Server) stream(ctx context.Context, _ *struct{}, send sse.Sender) {
-	for _, evt := range buildBootstrapEvents(s.dm) {
+	s.watcher.mu.Lock()
+	ch, unsubscribe := s.bus.Subscribe(128)
+	bootstrapEvents := buildBootstrapEvents(s.dm)
+	s.watcher.mu.Unlock()
+	defer unsubscribe()
+
+	for _, evt := range bootstrapEvents {
 		if err := sendRealtimeEvent(send, evt); err != nil {
 			return
 		}
 	}
-
-	ch, unsubscribe := s.bus.Subscribe(128)
-	defer unsubscribe()
 
 	heartbeat := time.NewTicker(sseHeartbeatInterval)
 	defer heartbeat.Stop()
@@ -154,7 +158,7 @@ func buildBootstrapEvents(dm *dice.DiceManager) []Event {
 	events = append(events, Event{
 		Name: EventIMConnectionList,
 		Payload: IMConnectionListPayload{
-			Items: d.ImSession.EndPoints,
+			Items: imconnection.NewEndPointInfoList(d.ImSession.EndPoints),
 		},
 	})
 

@@ -67,7 +67,7 @@ func (w *StateWatcher) Scan() {
 		w.bus.Publish(Event{
 			Name: EventIMConnectionList,
 			Payload: IMConnectionListPayload{
-				Items: endpoints,
+				Items: imconnm.NewEndPointInfoList(endpoints),
 			},
 		})
 	}
@@ -85,7 +85,7 @@ func (w *StateWatcher) Scan() {
 			w.bus.Publish(Event{
 				Name: EventIMConnectionUpdated,
 				Payload: IMConnectionUpdatedPayload{
-					Item: ep,
+					Item: imconnm.NewEndPointInfo(ep),
 				},
 			})
 		}

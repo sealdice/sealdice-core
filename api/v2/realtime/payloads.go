@@ -2,7 +2,6 @@ package realtime
 
 import (
 	"sealdice-core/api/v2/imconnection"
-	"sealdice-core/dice"
 	"sealdice-core/logger"
 )
 
@@ -31,11 +30,11 @@ type LogAppendPayload struct {
 }
 
 type IMConnectionListPayload struct {
-	Items []*dice.EndPointInfo `json:"items"`
+	Items []*imconnection.EndPointInfo `json:"items"`
 }
 
 type IMConnectionUpdatedPayload struct {
-	Item *dice.EndPointInfo `json:"item"`
+	Item *imconnection.EndPointInfo `json:"item"`
 }
 
 type IMConnectionWorkflowPayload struct {
