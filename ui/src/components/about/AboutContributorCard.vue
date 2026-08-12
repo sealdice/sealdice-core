@@ -2,6 +2,7 @@
   <a
     v-if="href"
     class="about-contributor-card"
+    :class="{ 'about-contributor-card--muted': props.contributor.muted }"
     :href="href"
     target="_blank"
     rel="noopener noreferrer"
@@ -70,6 +71,15 @@ const avatarSrc = computed(() =>
 .about-contributor-card--plain:hover {
   border-color: var(--sd-border-soft);
   background: var(--sd-bg-elevated-soft);
+}
+
+.about-contributor-card--muted {
+  color: var(--sd-text-muted);
+}
+
+.about-contributor-card--muted :deep(.n-avatar) {
+  filter: grayscale(1);
+  opacity: 0.6;
 }
 
 .about-contributor-card__body {

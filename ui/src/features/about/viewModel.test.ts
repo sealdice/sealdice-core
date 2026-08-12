@@ -84,6 +84,27 @@ it('passes', async () => {
   assertEqual(fallbackSummary.uptimeText, '读取中');
 
   assertEqual(ABOUT_CREDIT_SECTIONS[0]?.title, '社区协力');
+  const v16Section = ABOUT_CREDIT_SECTIONS.find(section => section.title === 'V1.6 版本');
+  assertEqual(v16Section?.contributors?.length, 15);
+  assertEqual(
+    v16Section?.contributors?.some(contributor => contributor.user === 'Wesley-Young'),
+    true
+  );
+  assertEqual(
+    v16Section?.contributors?.some(contributor => contributor.user === 'ShiaNyaa'),
+    true
+  );
+
+  const v15Section = ABOUT_CREDIT_SECTIONS.find(section => section.title === 'V1.5 版本');
+  assertEqual(v15Section?.contributors?.length, 19);
+  assertEqual(
+    v15Section?.contributors?.some(contributor => contributor.user === 'GUERdugujian'),
+    true
+  );
+  assertEqual(
+    v15Section?.contributors?.some(contributor => contributor.user === 'conglinyizhi'),
+    true
+  );
   assertEqual(
     ABOUT_CREDIT_SECTIONS.some(section => section.title === 'V1.5 版本'),
     true

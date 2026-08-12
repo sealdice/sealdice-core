@@ -14,6 +14,7 @@ export type AboutContributor = {
   user?: string;
   src?: string;
   onlyName?: boolean;
+  muted?: boolean;
   href?: string;
   info?: string;
 };
@@ -104,6 +105,16 @@ export const ABOUT_LINKS: AboutLink[] = [
   },
 ];
 
+const pickRandom = <T>(items: readonly T[]): T => {
+  const fallback = items[0];
+  if (fallback === undefined) throw new Error('Cannot pick from an empty list');
+  return items[Math.floor(Math.random() * items.length)] ?? fallback;
+};
+
+const wesleyYoungName = pickRandom(['Wesley-Young', '白圣女', '盐巴猫'] as const);
+const paienNateName =
+  Math.random() < 0.35 ? pickRandom(['*走丢了', '*这个人上班去了'] as const) : 'PaienNate';
+
 export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
   {
     title: '社区协力',
@@ -111,6 +122,30 @@ export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
       {
         text: '特别鸣谢参与测试、反馈问题，帮助完善海豹指令的各位。以下名单排名不分先后。',
       },
+    ],
+  },
+  {
+    title: 'V1.6 版本',
+    contributors: [
+      { username: 'Szzrain' },
+      { username: '木落' },
+      { username: '暮星' },
+      { username: '山本健一', user: 'kenichiLyon' },
+      {
+        username: paienNateName,
+        user: 'PaienNate',
+        muted: paienNateName !== 'PaienNate',
+      },
+      { username: '白鱼', user: 'baiyu-yu' },
+      { username: 'SomeOne', user: 'lyjjl' },
+      { username: 'SilverDragon', user: 'kagangtuya-star' },
+      { username: '檀轶步棋' },
+      { username: 'BQxiaojiao' },
+      { username: 'Kai', user: 'kainordherd' },
+      { username: wesleyYoungName, user: 'Wesley-Young' },
+      { username: '莉尔维斯(Lirvis) (sealrepo)', user: 'Lirvis' },
+      { username: 'Dontplay', user: 'Dontplay0112', info: 'UI' },
+      { username: '希亚', user: 'ShiaNyaa', info: 'UI' },
     ],
   },
   {
@@ -125,6 +160,20 @@ export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
       { username: 'JohNSoN' },
       { username: 'Bugtower100' },
       { username: '希望潇洒的风：Ceeling', info: 'UI', user: 'charyflys' },
+      { username: 'Szzrain' },
+      { username: '冬子', user: 'asterson', info: 'UI' },
+      { username: '咕之勇者独孤剑', user: 'GUERdugujian', info: 'dnd5文档' },
+      { username: '檀轶步棋' },
+      {
+        username: '山本健一',
+        user: 'kenichiLyon',
+        src: 'https://d1.sealdice.com/images/kenichiLyon.jpg',
+      },
+      { username: 'error2913' },
+      { username: '白鱼', user: 'baiyu-yu' },
+      { username: 'FairyOwO' },
+      { username: '丛林意志', user: 'conglinyizhi', info: 'UI' },
+      { username: '炽热', user: 'yichere' },
     ],
   },
   {
