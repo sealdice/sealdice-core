@@ -291,13 +291,6 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   align-items: center;
   gap: 0.55rem;
   min-height: 1.75rem;
-  padding: 0.18rem 0.22rem 0.18rem 0.55rem;
-  border-radius: var(--sd-radius-pill);
-  background: color-mix(in srgb, var(--sd-bg-hover), transparent 24%);
-}
-
-.ext-default-row-switch-dirty {
-  background: var(--sd-warning-soft);
 }
 
 .ext-default-row-switch-label {
@@ -305,6 +298,10 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   font-size: 0.78rem;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.ext-default-row-switch-dirty .ext-default-row-switch-label {
+  color: var(--sd-warning);
 }
 
 .ext-default-row-meta {

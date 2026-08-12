@@ -2,15 +2,16 @@
   <main class="js-page">
     <PageHeader title="JS 扩展">
       <n-flex align="center" justify="space-between" wrap>
-        <n-switch
-          :value="jsEnable"
-          :disabled="isTestMode"
-          :loading="jsSwitchBusy"
-          @update:value="handleJsEnableToggle"
-        >
-          <template #checked>启用</template>
-          <template #unchecked>关闭</template>
-        </n-switch>
+        <n-flex align="center" size="small">
+          <n-text depth="3">启用 JS 扩展</n-text>
+          <n-switch
+            :value="jsEnable"
+            :disabled="isTestMode"
+            :loading="jsSwitchBusy"
+            aria-label="启用 JS 扩展"
+            @update:value="handleJsEnableToggle"
+          />
+        </n-flex>
         <n-button v-show="jsEnable" type="primary" :disabled="isTestMode" @click="handleReload">
           <template #icon>
             <n-icon><i-tabler-refresh /></n-icon>

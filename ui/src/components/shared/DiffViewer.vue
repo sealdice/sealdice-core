@@ -15,11 +15,11 @@
       </template>
     </n-space>
 
-    <n-space v-if="changed" vertical align="center">
-      <n-switch v-model:value="split">
-        <template #checked>双列</template>
-        <template #unchecked>单列</template>
-      </n-switch>
+    <n-space v-if="changed" vertical align="end">
+      <n-radio-group v-model:value="split" size="small" aria-label="对比布局">
+        <n-radio-button :value="false">单列</n-radio-button>
+        <n-radio-button :value="true">双列</n-radio-button>
+      </n-radio-group>
       <n-checkbox v-model:checked="folding">折叠无变更</n-checkbox>
     </n-space>
   </div>

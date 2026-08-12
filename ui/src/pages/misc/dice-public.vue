@@ -1,15 +1,16 @@
 <template>
   <main class="public-dice-page">
     <PageHeader title="公骰设置">
-      <n-switch
-        :value="draft?.config.publicDiceEnable ?? false"
-        :disabled="!draft || saving"
-        :loading="enableMutation.isPending.value"
-        @update:value="handleEnableUpdate"
-      >
-        <template #checked>启用</template>
-        <template #unchecked>关闭</template>
-      </n-switch>
+      <n-flex align="center" size="small">
+        <n-text depth="3">启用公骰</n-text>
+        <n-switch
+          :value="draft?.config.publicDiceEnable ?? false"
+          :disabled="!draft || saving"
+          :loading="enableMutation.isPending.value"
+          aria-label="启用公骰"
+          @update:value="handleEnableUpdate"
+        />
+      </n-flex>
       <n-button
         type="primary"
         :disabled="!canSave"

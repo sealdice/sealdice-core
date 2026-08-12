@@ -260,6 +260,30 @@ const sharedLayoutOverrides: NonNullable<GlobalThemeOverrides['Layout']> = {
   colorEmbedded: 'var(--sd-bg-page)',
 };
 
+const sharedSwitchOverrides: NonNullable<GlobalThemeOverrides['Switch']> = {
+  railColor: 'var(--sd-border)',
+  railColorActive: 'var(--sd-primary)',
+  loadingColor: 'var(--sd-primary)',
+  buttonColor: 'var(--sd-text-inverse)',
+  buttonBoxShadow: 'none',
+  boxShadowFocus: '0 0 0 3px var(--sd-primary-border)',
+  railHeightSmall: '18px',
+  railHeightMedium: '20px',
+  railHeightLarge: '24px',
+  railWidthSmall: '30px',
+  railWidthMedium: '36px',
+  railWidthLarge: '44px',
+  buttonHeightSmall: '14px',
+  buttonHeightMedium: '16px',
+  buttonHeightLarge: '20px',
+  buttonWidthSmall: '14px',
+  buttonWidthMedium: '16px',
+  buttonWidthLarge: '20px',
+  buttonWidthPressedSmall: '18px',
+  buttonWidthPressedMedium: '20px',
+  buttonWidthPressedLarge: '24px',
+};
+
 export function createThemeOverrides(theme: ResolvedTheme): GlobalThemeOverrides {
   const overrides: GlobalThemeOverrides = {
     common: createCommonOverrides(theme),
@@ -270,6 +294,7 @@ export function createThemeOverrides(theme: ResolvedTheme): GlobalThemeOverrides
       }),
       {}
     ) as NonNullable<GlobalThemeOverrides['Button']>,
+    Switch: sharedSwitchOverrides,
     Menu: sharedMenuOverrides,
     Layout: sharedLayoutOverrides,
   };
