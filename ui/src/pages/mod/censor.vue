@@ -71,7 +71,10 @@
       </n-tabs>
     </template>
     <template v-else>
-      <n-text type="error" class="mt-4 block text-2xl">请先启用拦截！</n-text>
+      <FeatureDisabledState
+        title="拦截已关闭"
+        description="启用后可管理拦截设置、敏感词和拦截日志。"
+      />
     </template>
   </main>
 </template>
@@ -87,6 +90,7 @@ import CensorLogView from '@/components/censor/CensorLogView.vue';
 import CensorWordsView from '@/components/censor/CensorWordsView.vue';
 import CensorWordTip from '@/components/censor/CensorWordTip.vue';
 import ReloadNotice from '@/components/layout/ReloadNotice.vue';
+import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { useCensorConfigDraft } from '@/features/censor/configDraft';
 import { useCensorMutations } from '@/features/censor/mutations';

@@ -13,9 +13,10 @@
 
     <n-spin class="reply-editor-container" :show="editor.pageBusy.value">
       <template v-if="!editor.replyEnabled.value">
-        <section class="reply-empty">
-          <n-text type="error" class="text-xl">请先启用总开关！</n-text>
-        </section>
+        <FeatureDisabledState
+          title="自定义回复已关闭"
+          description="启用后可管理回复文件、前置条件和回复规则。"
+        />
       </template>
 
       <template v-else>
@@ -103,6 +104,7 @@
 
 <script setup lang="ts">
 import WorkspaceFrame from '@/components/layout/WorkspaceFrame.vue';
+import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import ReplyCommonConditionsSection from './ReplyCommonConditionsSection.vue';
 import ReplyFileSidebar from './ReplyFileSidebar.vue';
 import ReplyImportModal from './ReplyImportModal.vue';
@@ -115,10 +117,6 @@ const editor = useCustomReplyEditor();
 </script>
 
 <style scoped>
-.reply-empty {
-  padding: 2rem 0;
-}
-
 .reply-editor-container {
   flex: 1 1 auto;
   min-width: 0;
