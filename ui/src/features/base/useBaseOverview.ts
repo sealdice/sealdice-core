@@ -10,7 +10,7 @@ export function useBaseOverview() {
   });
 
   const overview = computed(() => overviewQuery.data.value?.item);
-  const appName = computed(() => overview.value?.appName || 'SealDice-CE');
+  const appName = computed(() => overview.value?.appName || 'SealDice');
   const runtimeText = computed(() =>
     overview.value ? `${overview.value.runtime.OS} - ${overview.value.runtime.arch}` : '',
   );

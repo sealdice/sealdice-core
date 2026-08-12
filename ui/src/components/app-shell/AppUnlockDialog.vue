@@ -11,6 +11,12 @@
     @positive-click="doUnlock"
     @keyup.enter="doUnlock"
   >
+    <template #icon>
+      <n-icon>
+        <i-tabler-lock />
+      </n-icon>
+    </template>
+
     <n-input
       v-model:value="password"
       type="password"
