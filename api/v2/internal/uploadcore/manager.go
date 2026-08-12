@@ -178,9 +178,9 @@ func (m *Manager) Complete(sessionID string, dstPath string) (*Session, error) {
 }
 
 func (m *Manager) CompleteWithoutCleanup(sessionID string, dstPath string) (*Session, error) {
-	session, err := m.Get(sessionID)
-	if err != nil {
-		return nil, err
+	session, getErr := m.Get(sessionID)
+	if getErr != nil {
+		return nil, getErr
 	}
 	session.mu.Lock()
 	defer session.mu.Unlock()
