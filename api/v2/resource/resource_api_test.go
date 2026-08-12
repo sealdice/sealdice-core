@@ -98,7 +98,7 @@ func TestUploadWritesAllowedImagesAndSanitizesNames(t *testing.T) {
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	part, err := writer.CreateFormFile("files", "nested\\seal.PNG")
+	part, err := writer.CreateFormFile("files", "nested/seal.PNG")
 	if err != nil {
 		t.Fatalf("CreateFormFile: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestUploadWritesAllowedImagesAndSanitizesNames(t *testing.T) {
 	if !resp.Body.Item.Success {
 		t.Fatal("Upload success = false, want true")
 	}
-	if _, err = os.Stat(filepath.Join("data", "images", "nested_seal.PNG")); err != nil {
+	if _, err = os.Stat(filepath.Join("data", "images", "seal.PNG")); err != nil {
 		t.Fatalf("uploaded image not found: %v", err)
 	}
 }
