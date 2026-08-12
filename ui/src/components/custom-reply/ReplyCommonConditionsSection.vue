@@ -22,15 +22,15 @@
         >
           <template #icon>
             <n-icon>
-              <i-ep-success-filled v-if="fileEnabled" />
-              <i-ep-circle-close v-else />
+              <i-tabler-circle-check-filled v-if="fileEnabled" />
+              <i-tabler-circle-x v-else />
             </n-icon>
           </template>
           {{ fileEnabled ? '文件已启用' : '文件未启用' }}
         </n-button>
         <n-button size="small" secondary @click="emit('add')">
           <template #icon>
-            <n-icon><i-ep-plus /></n-icon>
+            <n-icon><i-tabler-plus /></n-icon>
           </template>
           添加条件
         </n-button>

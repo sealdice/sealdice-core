@@ -30,7 +30,7 @@
           </button>
         </div>
         <div class="split-right">
-          <n-empty v-if="!wizardPlatform" description="请在左侧选择一个平台" />
+          <n-empty v-if="!wizardPlatform" description="请选择一个平台" />
           <template v-else>
             <h3 class="split-detail-title">{{ wizardPlatform.name }}</h3>
             <p class="split-detail-desc">{{ wizardPlatform.description }}</p>
@@ -54,7 +54,7 @@
           </button>
         </div>
         <div class="split-right">
-          <n-empty v-if="!wizardMethod" description="请在左侧选择一种方式" />
+          <n-empty v-if="!wizardMethod" description="请选择一种方式" />
           <template v-else>
             <h3 class="split-detail-title">{{ wizardMethod.name }}</h3>
             <p class="split-detail-desc">{{ wizardMethod.description }}</p>
@@ -85,7 +85,7 @@
           </button>
         </div>
         <div class="split-right">
-          <n-empty v-if="!wizardProtocol" description="请在左侧选择一个协议" />
+          <n-empty v-if="!wizardProtocol" description="请选择一个协议" />
           <template v-else>
             <h3 class="split-detail-title">
               {{ wizardProtocol.name }}
@@ -130,7 +130,7 @@
     <n-button v-if="wizardStep > 1" @click="emit('previous')"> 上一步 </n-button>
     <n-button
       v-if="wizardStep < 4"
-      type="primary"
+      :type="canSubmit && !testModeDisabled ? 'primary' : 'default'"
       :disabled="!canSubmit || testModeDisabled"
       @click="emit('next')"
     >
@@ -138,7 +138,7 @@
     </n-button>
     <n-button
       v-if="wizardStep === 4"
-      type="primary"
+      :type="canSubmit && !testModeDisabled ? 'primary' : 'default'"
       :loading="submitting"
       :disabled="!canSubmit || testModeDisabled"
       @click="emit('submit')"
@@ -227,9 +227,11 @@ const emit = defineEmits<{
   text-align: left;
   background: transparent;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--sd-radius-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color var(--sd-transition-fast),
+    color var(--sd-transition-fast);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -295,7 +297,9 @@ const emit = defineEmits<{
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin-top: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sd-border-soft);
 }
 
 @media screen and (max-width: 639.9px) {

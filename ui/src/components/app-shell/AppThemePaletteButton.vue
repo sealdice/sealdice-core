@@ -10,7 +10,7 @@
       >
         <template #icon>
           <n-icon size="1.2rem">
-            <i-ep-brush />
+            <i-tabler-palette />
           </n-icon>
         </template>
       </n-button>

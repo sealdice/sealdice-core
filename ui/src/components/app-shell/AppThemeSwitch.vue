@@ -7,19 +7,20 @@
           circle
           class="theme-switch"
           :color="switchIconColor"
-          :aria-label="isDark ? '切换到亮色模式' : '切换到深色模式'"
+          :aria-label="tooltipText"
           @click="toggle"
         >
           <template #icon>
             <n-icon size="1.25rem">
-              <i-ep-moon v-if="isDark" />
-              <i-ep-sunny v-else />
+              <i-tabler-sun v-if="themeMode === 'light'" />
+              <i-tabler-moon v-else-if="themeMode === 'dark'" />
+              <i-tabler-sun-moon v-else />
             </n-icon>
           </template>
         </n-button>
       </span>
     </template>
-    {{ isDark ? '切换到亮色模式' : '切换到深色模式' }}
+    {{ tooltipText }}
   </n-tooltip>
 </template>
 
@@ -27,9 +28,15 @@
 import { computed } from 'vue';
 import { useAppTheme } from '@/features/theme';
 
-const { isDark, toggleTheme } = useAppTheme();
-// Naive UI 的 quaternary 按钮颜色由 color prop 写入内部 token；亮色态用深色图标，深色态用黄色图标。
-const switchIconColor = computed(() => (isDark.value ? 'var(--sd-accent)' : 'var(--sd-text-primary)'));
+const { isDark, themeMode, toggleTheme } = useAppTheme();
+const switchIconColor = computed(() =>
+  themeMode.value === 'dark' ? 'var(--sd-accent)' : 'var(--sd-text-primary)'
+);
+const tooltipText = computed(() => {
+  if (themeMode.value === 'light') return '亮色模式 · 点击切换到深色模式';
+  if (themeMode.value === 'dark') return '深色模式 · 点击切换为跟随系统';
+  return `跟随系统（当前${isDark.value ? '深色' : '亮色'}）· 点击切换到亮色模式`;
+});
 
 function toggle() {
   toggleTheme();

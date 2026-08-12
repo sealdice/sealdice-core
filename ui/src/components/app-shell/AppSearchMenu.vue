@@ -32,14 +32,14 @@
           >
             <template #prefix>
               <n-icon>
-                <i-ep-search />
+                <i-tabler-search />
               </n-icon>
             </template>
             <template #suffix>
               <n-button circle quaternary size="small" @click="close">
                 <template #icon>
                   <n-icon>
-                    <i-ep-close />
+                    <i-tabler-x />
                   </n-icon>
                 </template>
               </n-button>
@@ -88,7 +88,7 @@
                   >
                     <template #icon>
                       <n-icon>
-                        <i-ep-link />
+                        <i-tabler-link />
                       </n-icon>
                     </template>
                   </n-button>
@@ -107,7 +107,7 @@
                   >
                     <template #icon>
                       <n-icon>
-                        <i-ep-top-right />
+                        <i-tabler-external-link />
                       </n-icon>
                     </template>
                   </n-button>
@@ -126,7 +126,7 @@
                   >
                     <template #icon>
                       <n-icon>
-                        <i-ep-close />
+                        <i-tabler-x />
                       </n-icon>
                     </template>
                   </n-button>
@@ -139,7 +139,7 @@
 
         <div v-else class="sd-search-empty">
           <n-icon size="38" class="sd-search-empty-icon">
-            <i-ep-aim />
+            <i-tabler-search-off />
           </n-icon>
           <n-text depth="3">
             <template v-if="trimmedKeyword">

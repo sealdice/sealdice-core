@@ -12,7 +12,7 @@
             随机文本：默认一种显示结果，如果需要多种反馈结果，使用＋添加条目，使用 - 删除条目
           </div>
           <div>
-            遇到有此标记 (<n-icon><i-ep-brush /></n-icon>)
+            遇到有此标记 (<n-icon><i-tabler-brush /></n-icon>)
             的条目，说明和默认值不同，是一个自定义条目
           </div>
           <div class="help-block">

@@ -3,7 +3,7 @@
     <header class="ban-config-panel__header">
       <n-button type="primary" :loading="saving" @click="emit('save')">
         <template #icon>
-          <n-icon><i-ep-document-checked /></n-icon>
+          <n-icon><i-tabler-device-floppy /></n-icon>
         </template>
         保存设置
       </n-button>

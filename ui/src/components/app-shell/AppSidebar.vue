@@ -38,7 +38,7 @@ const props = withDefaults(
   {
     collapsed: false,
     advancedConfigCounter: 0,
-  },
+  }
 );
 
 const emit = defineEmits<{
@@ -55,13 +55,17 @@ function link(path: string, label: string) {
 
 function icon(name?: string) {
   if (!name) return undefined;
-  return () => <n-icon><AppNavigationIcon name={name} /></n-icon>;
+  return () => (
+    <n-icon>
+      <AppNavigationIcon name={name} />
+    </n-icon>
+  );
 }
 
 function expandIcon() {
   return (
     <n-icon>
-      <i-ep-caret-right />
+      <i-tabler-chevron-right />
     </n-icon>
   );
 }
@@ -94,7 +98,7 @@ watch(
   () => {
     expandedKeys.value = getNavigationExpandedKeys(navigationTree.value, route.path);
   },
-  { immediate: true },
+  { immediate: true }
 );
 </script>
 
@@ -111,7 +115,12 @@ watch(
   flex: 1 1 auto;
   min-height: 0;
   background: transparent;
-  padding: 0;
+  padding: 0 0.6rem 1rem;
+  transition: padding-inline var(--sd-transition-base);
+}
+
+:deep(.sd-sidebar-menu.n-menu--collapsed) {
+  padding-inline: 0;
 }
 
 :deep(.sd-menu-link) {
@@ -125,7 +134,28 @@ watch(
 }
 
 :deep(.sd-sidebar-menu .n-menu-item-content) {
-  border-radius: 10px;
+  border-radius: var(--sd-radius-sm);
+  transition:
+    background-color var(--sd-transition-fast),
+    color var(--sd-transition-fast),
+    box-shadow var(--sd-transition-fast);
+}
+
+:deep(.sd-sidebar-menu .n-menu-item-content--selected) {
+  box-shadow: none;
+}
+
+:deep(.sd-sidebar-menu > .n-menu-item > .n-menu-item-content--selected::before),
+:deep(
+  .sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before
+) {
+  box-shadow: inset 3px 0 var(--sd-primary);
+}
+
+:deep(
+  .sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before
+) {
+  background-color: transparent;
 }
 
 :deep(.sd-sidebar-menu .n-menu-item-content__icon .n-icon) {
@@ -135,6 +165,18 @@ watch(
   align-items: center;
   justify-content: center;
   transform: translateY(-0.5px);
+}
+
+:deep(.sd-sidebar-menu.n-menu .n-menu-item-content .n-menu-item-content__arrow) {
+  transform: rotate(90deg);
+}
+
+:deep(
+  .sd-sidebar-menu.n-menu
+    .n-menu-item-content.n-menu-item-content--collapsed
+    .n-menu-item-content__arrow
+) {
+  transform: rotate(0deg);
 }
 
 :deep(.sd-sidebar-menu .n-menu-item-content-header) {

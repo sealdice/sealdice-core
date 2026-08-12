@@ -14,9 +14,9 @@
         >
           <template #icon>
             <n-icon size="1.2rem">
-              <i-ep-menu v-if="isMobileMode" />
-              <i-ep-expand v-else-if="props.collapsed" />
-              <i-ep-fold v-else />
+              <i-tabler-menu-2 v-if="isMobileMode" />
+              <i-tabler-layout-sidebar-left-expand v-else-if="props.collapsed" />
+              <i-tabler-layout-sidebar-left-collapse v-else />
             </n-icon>
           </template>
         </n-button>
@@ -46,7 +46,7 @@
         <button type="button" class="search-entry" @click="emit('openSearch')">
           <span class="search-label">
             <n-icon size="1.1rem">
-              <i-ep-search />
+              <i-tabler-search />
             </n-icon>
             <span>搜索</span>
           </span>
@@ -117,6 +117,7 @@ const visibleBreadcrumbItems = computed(() =>
 
 <style scoped>
 .sd-breadcrumb-bar {
+  min-height: 56px;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -134,6 +135,9 @@ const visibleBreadcrumbItems = computed(() =>
 
 .sd-sidebar-toggle {
   flex: 0 0 auto;
+  transition:
+    background-color var(--sd-transition-fast),
+    color var(--sd-transition-fast);
 }
 
 .sd-sidebar-toggle--collapsed {
@@ -166,7 +170,7 @@ const visibleBreadcrumbItems = computed(() =>
 }
 
 .new-version {
-  color: var(--sd-accent-strong);
+  color: var(--sd-warning);
   font-size: 0.78rem;
   line-height: 1;
   white-space: nowrap;
@@ -179,7 +183,7 @@ const visibleBreadcrumbItems = computed(() =>
 .sd-page-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .legacy-entry {
@@ -199,6 +203,9 @@ const visibleBreadcrumbItems = computed(() =>
   gap: 0.55rem;
   line-height: 1;
   padding: 0 0.5rem 0 0.7rem;
+  transition:
+    background-color var(--sd-transition-fast),
+    color var(--sd-transition-fast);
 }
 
 .search-entry:hover {
@@ -222,6 +229,11 @@ const visibleBreadcrumbItems = computed(() =>
   line-height: 1;
   padding: 0 0.45rem;
   white-space: nowrap;
+}
+
+:deep(.n-breadcrumb-item:last-child .n-breadcrumb-item__link) {
+  color: var(--sd-text-primary);
+  font-weight: 600;
 }
 
 .feed-content {

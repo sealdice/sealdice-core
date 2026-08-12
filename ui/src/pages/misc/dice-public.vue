@@ -18,7 +18,7 @@
       >
         <template #icon>
           <n-icon>
-            <i-ep-document-checked />
+            <i-tabler-device-floppy />
           </n-icon>
         </template>
         保存

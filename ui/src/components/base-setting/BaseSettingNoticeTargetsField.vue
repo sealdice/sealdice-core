@@ -30,7 +30,7 @@
             aria-label="删除通知目标"
             @click="removeTarget(index)"
           >
-            <template #icon><i-ep-delete /></template>
+            <template #icon><i-tabler-trash /></template>
           </n-button>
         </template>
         删除通知目标
@@ -38,7 +38,7 @@
     </div>
 
     <n-button dashed class="notice-target-add" @click="addTarget">
-      <template #icon><i-ep-plus /></template>
+      <template #icon><i-tabler-plus /></template>
       添加通知目标
     </n-button>
   </div>

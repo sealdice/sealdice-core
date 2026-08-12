@@ -18,7 +18,7 @@
         @click="handleSave"
       >
         <template #icon>
-          <n-icon><i-ep-document-checked /></n-icon>
+          <n-icon><i-tabler-device-floppy /></n-icon>
         </template>
         保存
       </n-button>

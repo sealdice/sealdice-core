@@ -5,7 +5,7 @@
         <div class="viewer-title">
           <n-button quaternary @click="emit('back')">
             <template #icon>
-              <n-icon><i-ep-arrow-left /></n-icon>
+              <n-icon><i-tabler-arrow-left /></n-icon>
             </template>
             返回列表
           </n-button>
@@ -13,7 +13,7 @@
         </div>
         <n-flex size="small" wrap>
           <n-button type="primary" secondary :loading="loading" @click="loadLog">
-            <template #icon><n-icon><i-ep-refresh /></n-icon></template>
+            <template #icon><n-icon><i-tabler-refresh /></n-icon></template>
             重新加载
           </n-button>
           <n-button type="primary" text @click="painter.refreshSwatches">

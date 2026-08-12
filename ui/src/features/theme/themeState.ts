@@ -2,7 +2,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
 export const THEME_STORAGE_KEY = 'sd-theme-mode';
-export const DEFAULT_THEME_MODE: ThemeMode = 'light';
+export const DEFAULT_THEME_MODE: ThemeMode = 'system';
 
 export interface ThemeStorage {
   getItem(key: string): string | null;
@@ -50,6 +50,23 @@ export function writeStoredThemeMode(storage: ThemeStorage | undefined, mode: Th
 export function resolveThemeMode(mode: ThemeMode, systemPrefersDark: boolean): ResolvedTheme {
   if (mode === 'system') return systemPrefersDark ? 'dark' : 'light';
   return mode;
+}
+
+export function nextThemeMode(mode: ThemeMode): ThemeMode {
+  if (mode === 'light') return 'dark';
+  if (mode === 'dark') return 'system';
+  return 'light';
+}
+
+export function shouldTransitionTheme(
+  currentMode: ThemeMode,
+  nextMode: ThemeMode,
+  systemPrefersDark: boolean
+): boolean {
+  return (
+    resolveThemeMode(currentMode, systemPrefersDark) !==
+    resolveThemeMode(nextMode, systemPrefersDark)
+  );
 }
 
 export function syncDocumentTheme(root: HTMLElement | undefined, theme: ResolvedTheme): void {

@@ -18,7 +18,7 @@
                 <n-tooltip placement="top">
                   <template #trigger>
                     <n-icon class="backup-config-panel__help">
-                      <i-ep-question-filled />
+                      <i-tabler-help-circle />
                     </n-icon>
                   </template>
                   备份间隔表达式使用 robfig/cron 格式，例如 @every 12h。
@@ -68,7 +68,7 @@
               <n-tooltip placement="top">
                 <template #trigger>
                   <n-icon class="backup-config-panel__help">
-                    <i-ep-question-filled />
+                    <i-tabler-help-circle />
                   </n-icon>
                 </template>
                 支持 h、m、s，例如 720h 表示保留 30 天内的备份。
@@ -86,7 +86,7 @@
                 <n-tooltip placement="top">
                   <template #trigger>
                     <n-icon class="backup-config-panel__help">
-                      <i-ep-question-filled />
+                      <i-tabler-help-circle />
                     </n-icon>
                   </template>
                   自动备份后会在每次自动备份完成后顺便清理；定时会按照 cron 表达式单独清理。

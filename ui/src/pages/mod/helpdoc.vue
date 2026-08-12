@@ -8,7 +8,7 @@
         @click="reloadMutation.mutate()"
       >
         <template #icon>
-          <n-icon><i-ep-refresh /></n-icon>
+          <n-icon><i-tabler-refresh /></n-icon>
         </template>
         重载帮助文档
       </n-button>

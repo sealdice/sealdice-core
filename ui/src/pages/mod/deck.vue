@@ -3,7 +3,7 @@
     <PageHeader title="牌堆管理" description="搜索、上传和更新可用于指令测试的牌堆。">
       <n-button type="primary" :loading="reloadMutation.isPending.value" @click="doReload">
         <template #icon>
-          <n-icon><i-ep-refresh /></n-icon>
+          <n-icon><i-tabler-refresh /></n-icon>
         </template>
         重载牌堆
       </n-button>
@@ -27,7 +27,7 @@
           href="https://github.com/sealdice/draw"
         >
           <template #icon>
-            <n-icon><i-ep-link /></n-icon>
+            <n-icon><i-tabler-link /></n-icon>
           </template>
           获取牌堆
         </n-button>
@@ -41,7 +41,7 @@
         />
         <n-button type="info" secondary :loading="uploader.busy.value" @click="openFilePicker">
           <template #icon>
-            <n-icon><i-ep-upload /></n-icon>
+            <n-icon><i-tabler-upload /></n-icon>
           </template>
           上传牌堆
         </n-button>
@@ -119,7 +119,7 @@
             <template #trigger>
               <n-button text size="tiny" aria-label="查看牌堆格式说明">
                 <template #icon>
-                  <n-icon><i-ep-question-filled /></n-icon>
+                  <n-icon><i-tabler-help-circle /></n-icon>
                 </template>
               </n-button>
             </template>
@@ -164,7 +164,7 @@
                 <template #trigger>
                   <n-button type="info" size="small" secondary :loading="diffLoading">
                     <template #icon>
-                      <n-icon><i-ep-download /></n-icon>
+                      <n-icon><i-tabler-download /></n-icon>
                     </template>
                     更新
                   </n-button>
@@ -173,7 +173,7 @@
               </n-popconfirm>
               <n-button type="error" size="small" secondary @click="doDelete(item)">
                 <template #icon>
-                  <n-icon><i-ep-delete /></n-icon>
+                  <n-icon><i-tabler-trash /></n-icon>
                 </template>
                 删除
               </n-button>
@@ -183,7 +183,7 @@
           <template #title-extra-error>
             <n-button type="error" size="small" secondary @click="doDelete(item)">
               <template #icon>
-                <n-icon><i-ep-delete /></n-icon>
+                <n-icon><i-tabler-trash /></n-icon>
               </template>
               删除
             </n-button>
@@ -192,11 +192,11 @@
           <template #description>
             <n-flex size="small" vertical align="normal">
               <n-text v-if="item.cloud" type="info" class="text-xs">
-                <n-icon><i-ep-cloudy /></n-icon>
+                <n-icon><i-tabler-cloud /></n-icon>
                 作者提供云端内容，请自行鉴别安全性
               </n-text>
               <n-text v-if="item.fileFormat === 'jsonc'" type="warning" class="text-xs">
-                <n-icon><i-ep-warning-filled /></n-icon>
+                <n-icon><i-tabler-alert-triangle-filled /></n-icon>
                 注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
               </n-text>
             </n-flex>
@@ -286,7 +286,7 @@
               @click="deckUpdate"
             >
               <template #icon>
-                <n-icon><i-ep-document-checked /></n-icon>
+                <n-icon><i-tabler-device-floppy /></n-icon>
               </template>
               {{ diffErrorText ? '重试更新' : '确认更新' }}
             </n-button>

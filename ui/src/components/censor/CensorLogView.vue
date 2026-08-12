@@ -3,7 +3,7 @@
     <header class="censor-log-header">
       <n-button type="info" secondary @click="emit('refresh')">
         <template #icon>
-          <n-icon><i-ep-refresh /></n-icon>
+          <n-icon><i-tabler-refresh /></n-icon>
         </template>
         刷新
       </n-button>

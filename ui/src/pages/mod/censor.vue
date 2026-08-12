@@ -18,7 +18,7 @@
         @click="restartCensor"
       >
         <template #icon>
-          <i-ep-refresh />
+          <i-tabler-refresh />
         </template>
         重载拦截
       </n-button>

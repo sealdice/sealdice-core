@@ -1,26 +1,27 @@
 <template>
-  <i-ep-house v-if="name === 'home'" />
-  <i-ep-connection v-else-if="name === 'connection'" />
-  <i-ep-edit-pen v-else-if="name === 'edit'" />
-  <i-ep-chat-line-round v-else-if="name === 'reply'" />
-  <i-ep-collection v-else-if="name === 'deck'" />
-  <i-ep-box v-else-if="name === 'package'" />
-  <i-ep-notebook v-else-if="name === 'story'" />
-  <i-ep-cpu v-else-if="name === 'js'" />
-  <i-ep-document v-else-if="name === 'helpdoc'" />
-  <i-ep-warning v-else-if="name === 'censor'" />
-  <i-ep-operation v-else-if="name === 'operation'" />
-  <i-ep-setting v-else-if="name === 'setting' || name === 'base-setting'" />
-  <i-ep-user-filled v-else-if="name === 'group'" />
-  <i-ep-circle-close-filled v-else-if="name === 'ban'" />
-  <i-ep-grid v-else-if="name === 'dice'" />
-  <i-ep-folder-opened v-else-if="name === 'backup'" />
-  <i-ep-tools v-else-if="name === 'advanced-setting' || name === 'tools'" />
-  <i-ep-magic-stick v-else-if="name === 'test'" />
-  <i-ep-folder v-else-if="name === 'resource'" />
-  <i-ep-histogram v-else-if="name === 'profile'" />
-  <i-ep-star-filled v-else-if="name === 'star'" />
-  <i-ep-menu v-else />
+  <i-tabler-home v-if="name === 'home'" />
+  <i-tabler-plug-connected v-else-if="name === 'connection'" />
+  <i-tabler-message-cog v-else-if="name === 'setting'" />
+  <i-tabler-puzzle v-else-if="name === 'edit'" />
+  <i-tabler-messages v-else-if="name === 'reply'" />
+  <i-tabler-cards v-else-if="name === 'deck'" />
+  <i-tabler-packages v-else-if="name === 'package'" />
+  <i-tabler-book-2 v-else-if="name === 'story'" />
+  <i-tabler-file-code v-else-if="name === 'js'" />
+  <i-tabler-books v-else-if="name === 'helpdoc'" />
+  <i-tabler-shield-exclamation v-else-if="name === 'censor'" />
+  <i-tabler-adjustments-horizontal v-else-if="name === 'operation'" />
+  <i-tabler-settings v-else-if="name === 'base-setting'" />
+  <i-tabler-users-group v-else-if="name === 'group'" />
+  <i-tabler-user-cancel v-else-if="name === 'ban'" />
+  <i-tabler-dice-5 v-else-if="name === 'dice'" />
+  <i-tabler-archive v-else-if="name === 'backup'" />
+  <i-tabler-tool v-else-if="name === 'advanced-setting' || name === 'tools'" />
+  <i-tabler-command v-else-if="name === 'test'" />
+  <i-tabler-photo v-else-if="name === 'resource'" />
+  <i-tabler-activity v-else-if="name === 'profile'" />
+  <i-tabler-info-circle v-else-if="name === 'star'" />
+  <i-tabler-menu-2 v-else />
 </template>
 
 <script setup lang="ts">

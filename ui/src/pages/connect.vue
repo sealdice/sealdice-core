@@ -61,6 +61,11 @@
       preset="dialog"
       title="添加账号"
       class="account-dialog wizard-dialog"
+      style="
+        width: min(860px, calc(100vw - 24px));
+        max-width: 860px;
+        border-radius: var(--sd-radius-md);
+      "
       :show-icon="false"
       :mask-closable="false"
       @after-leave="resetWizard"
@@ -529,20 +534,12 @@ const submitEdit = () => {
   gap: var(--sd-space-md);
 }
 
-.account-dialog {
-  width: min(720px, calc(100vw - 32px));
-}
-
-.wizard-dialog {
-  max-width: 720px;
-}
-
 @media screen and (max-width: 639.9px) {
   .account-dialog {
     width: calc(100vw - 24px);
   }
 
-  .wizard-dialog :deep(.n-step-content-header) {
+  :global(.wizard-dialog .n-step-content-header) {
     font-size: 0.78rem;
   }
 }

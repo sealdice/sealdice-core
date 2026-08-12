@@ -5,7 +5,7 @@
         class="sd-sidebar no-scrollbar"
         collapse-mode="width"
         :collapsed-width="64"
-        :width="216"
+        :width="224"
         :collapsed="collapsedMenu"
         bordered
         :native-scrollbar="false"
@@ -213,8 +213,10 @@ setUnsavedChangesConfirmHandler(
 
 .sd-sidebar {
   height: 100%;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   background: var(--sd-bg-sidebar);
   text-align: left;
+  transition: width var(--sd-transition-base);
 }
 
 .sd-content-pane {

@@ -3,7 +3,7 @@
     <PageHeader title="基本设置" description="按业务分栏管理海豹基础配置，并支持跨分栏搜索与定位。">
       <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
         <template #icon>
-          <n-icon><i-ep-refresh-left /></n-icon>
+          <n-icon><i-tabler-arrow-back-up /></n-icon>
         </template>
         放弃改动
       </n-button>
@@ -14,7 +14,7 @@
         @click="saveChanges"
       >
         <template #icon>
-          <n-icon><i-ep-document-checked /></n-icon>
+          <n-icon><i-tabler-device-floppy /></n-icon>
         </template>
         保存设置
       </n-button>

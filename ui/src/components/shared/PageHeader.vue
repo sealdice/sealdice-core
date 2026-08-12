@@ -8,7 +8,7 @@
       <template v-if="unsavedScope">
         <n-button v-if="dirty" secondary :disabled="!dirty || saving" @click="discard">
           <template #icon>
-            <n-icon><i-ep-refresh-left /></n-icon>
+            <n-icon><i-tabler-arrow-back-up /></n-icon>
           </template>
           放弃改动
         </n-button>
@@ -20,7 +20,7 @@
           @click="save"
         >
           <template #icon>
-            <n-icon><i-ep-document-checked /></n-icon>
+            <n-icon><i-tabler-device-floppy /></n-icon>
           </template>
           保存设置
         </n-button>

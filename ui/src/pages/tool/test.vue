@@ -36,7 +36,7 @@
           <template #trigger>
             <NButton secondary size="small" title="快捷操作">
               <template #icon>
-                <NIcon><i-ep-more /></NIcon>
+                <NIcon><i-tabler-dots /></NIcon>
               </template>
               操作
             </NButton>
@@ -91,7 +91,7 @@
               @click="memberRailOpen = true"
             >
               <template #icon
-                ><NIcon><i-ep-user /></NIcon
+                ><NIcon><i-tabler-users /></NIcon
               ></template>
               群成员
             </NButton>
