@@ -313,13 +313,18 @@ const editConfigErrorText = computed(() =>
     : ''
 );
 
-watch(editConfigQuery.data, data => {
+const applyEditConfig = (data: EditableConfigResp | undefined) => {
   if (!data || !editingEndpoint.value) return;
   editingConfig.value = data;
   editFormModel.value = {
     ...buildDynamicFormInitialModel(data.schema ?? []),
     ...data.config,
   };
+};
+
+watch([editConfigQuery.data, editDialogVisible], ([data, visible]) => {
+  if (!visible) return;
+  applyEditConfig(data);
 });
 
 watch(editConfigQuery.error, error => {
