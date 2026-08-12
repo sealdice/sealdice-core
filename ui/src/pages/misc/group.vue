@@ -75,7 +75,7 @@
           <template #title-extra>
             <n-button
               v-if="group.changed"
-              type="success"
+              type="primary"
               size="small"
               secondary
               :loading="isSavingGroup(group.groupId)"

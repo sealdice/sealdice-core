@@ -3,12 +3,7 @@
     <n-form-item class="w-full">
       <template #label>
         <div>
-          <n-tag
-            type="default"
-            size="small"
-            class="entry-tag"
-            :bordered="false"
-          >
+          <n-tag type="default" size="small" class="entry-tag" :bordered="false">
             {{ help?.subType || (help?.notBuiltin ? '旧版文本' : '其它') }}
           </n-tag>
 
@@ -83,7 +78,9 @@
                     size="tiny"
                     :type="index === 0 ? 'primary' : 'error'"
                     :aria-label="index === 0 ? '新增回复条目' : '删除回复条目'"
-                    @click="index === 0 ? emit('addItem', keyName) : emit('removeItem', items, index)"
+                    @click="
+                      index === 0 ? emit('addItem', keyName) : emit('removeItem', items, index)
+                    "
                   >
                     <template #icon>
                       <i-tabler-circle-plus-filled v-if="index === 0" />
@@ -132,7 +129,10 @@
                     </n-flex>
                   </template>
 
-                  <CustomTextPreviewInfo v-if="getPreview(keyName, item[0])" :info="getPreview(keyName, item[0])!" />
+                  <CustomTextPreviewInfo
+                    v-if="getPreview(keyName, item[0])"
+                    :info="getPreview(keyName, item[0])!"
+                  />
                 </n-popover>
               </div>
             </div>
@@ -149,13 +149,7 @@
           {{ collapsed ? `展开其余 ${items.length - visibleItems.length} 条` : '收起多余条目' }}
         </n-button>
         <n-flex size="small" wrap>
-          <n-tag
-            v-for="item in help?.vars ?? []"
-            :key="item"
-            size="small"
-            type="info"
-            :bordered="false"
-          >
+          <n-tag v-for="item in help?.vars ?? []" :key="item" size="small" :bordered="false">
             {{ item }}
           </n-tag>
         </n-flex>
@@ -174,7 +168,7 @@ const items = defineModel<TextTemplateItem[]>({ required: true });
 const collapsed = ref(true);
 const isLongList = computed(() => items.value.length > 3);
 const visibleItems = computed(() =>
-  isLongList.value && collapsed.value ? items.value.slice(0, 3) : items.value,
+  isLongList.value && collapsed.value ? items.value.slice(0, 3) : items.value
 );
 
 defineProps<{

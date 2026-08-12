@@ -97,7 +97,10 @@ function submitInput(value: string) {
 }
 
 onMounted(() => {
-  inputElement.value = inputRef.value?.getInput() as HTMLInputElement | HTMLTextAreaElement | undefined;
+  inputElement.value = inputRef.value?.getInput() as
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | undefined;
 });
 </script>
 
@@ -129,7 +132,7 @@ onMounted(() => {
 .tool-test-command-composer__values code {
   padding: 0.16rem 0.45rem;
   border: 1px solid var(--devui-dividing-line);
-  border-radius: var(--devui-border-radius, 4px);
+  border-radius: var(--devui-border-radius, var(--sd-radius-xs));
   color: var(--devui-primary);
   background: var(--devui-list-item-hover-bg);
   font-family: inherit;
@@ -143,7 +146,7 @@ onMounted(() => {
 }
 
 :global(.tool-test-command-mention) {
-  --devui-border-radius: 8px;
+  --devui-border-radius: var(--sd-radius-md);
   --devui-connected-overlay-bg: var(--sd-bg-elevated);
   --devui-dividing-line: var(--sd-border-soft);
   --devui-font-size: 0.875rem;

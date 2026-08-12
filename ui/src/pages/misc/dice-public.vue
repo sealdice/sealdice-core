@@ -26,16 +26,12 @@
     </PageHeader>
 
     <n-card class="public-dice-card" :bordered="false">
-
       <n-alert v-if="queryErrorText" class="public-dice-card__alert" type="error">
         {{ queryErrorText }}
       </n-alert>
 
       <n-spin :show="loadingInitial">
-        <div
-          v-if="draft"
-          class="public-dice-card__body"
-        >
+        <div v-if="draft" class="public-dice-card__body">
           <aside class="public-dice-card__seal" aria-hidden="true">
             <img :src="imgSeal" alt="" />
           </aside>
@@ -56,10 +52,7 @@
       </n-spin>
 
       <template #footer>
-        <div
-          v-if="draft"
-          class="public-dice-card__footer"
-        >
+        <div v-if="draft" class="public-dice-card__footer">
           <PublicDiceEndpointSelector
             v-model:checked-row-keys="checkedRowKeys"
             :rows="endpointRows"
@@ -115,14 +108,20 @@ const publicDiceQuery = useQuery({
   },
 });
 
-const endpointRows = computed(() => getPublicDiceEndpointRows(publicDiceQuery.data.value?.endpoints));
+const endpointRows = computed(() =>
+  getPublicDiceEndpointRows(publicDiceQuery.data.value?.endpoints)
+);
 const loadingInitial = computed(() => publicDiceQuery.isLoading.value && !draft.value);
 const saving = computed(() => saveMutation.isPending.value || enableMutation.isPending.value);
 const contentDisabled = computed(() => !draft.value?.config.publicDiceEnable || saving.value);
 const dirty = computed(() => isPublicDiceDirty(draft.value, initialDraft.value));
-const canSave = computed(() => Boolean(draft.value?.config.publicDiceEnable) && dirty.value && !saving.value);
+const canSave = computed(
+  () => Boolean(draft.value?.config.publicDiceEnable) && dirty.value && !saving.value
+);
 const queryErrorText = computed(() =>
-  publicDiceQuery.isError.value ? getErrorMessage(publicDiceQuery.error.value, '读取公骰设置失败') : ''
+  publicDiceQuery.isError.value
+    ? getErrorMessage(publicDiceQuery.error.value, '读取公骰设置失败')
+    : ''
 );
 
 const checkedRowKeys = computed<DataTableRowKey[]>({
@@ -165,13 +164,13 @@ watch(
     if (!value) return;
     syncDraft(value);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 async function submitCurrentDraft(successText: string) {
   if (!draft.value) return;
   const item = await saveMutation.mutateAsync(
-    buildPublicDicePayload(draft.value.config, draft.value.selectedEndpointIds),
+    buildPublicDicePayload(draft.value.config, draft.value.selectedEndpointIds)
   );
   syncDraft(item);
   message.success(successText);
@@ -249,11 +248,8 @@ useUnsavedChanges('public-dice', {
   place-items: center;
   min-height: 248px;
   border: 1px solid var(--sd-border);
-  border-radius: 8px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated-soft);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--sd-primary) 9%, transparent), transparent 52%),
-    var(--sd-bg-elevated-soft);
   overflow: hidden;
 }
 

@@ -3,19 +3,15 @@
     <n-space>
       <template v-if="changed">
         <n-icon size="18" color="var(--n-primary-color)">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+          <i-tabler-info-circle />
         </n-icon>
-        <n-text type="info">
-          变更如下：
-        </n-text>
+        <n-text type="info"> 变更如下： </n-text>
       </template>
       <template v-else>
         <n-icon size="18" color="var(--n-text-color-3)">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="0.5" fill="currentColor"/></svg>
+          <i-tabler-info-circle />
         </n-icon>
-        <n-text type="tertiary">
-          无变更
-        </n-text>
+        <n-text type="tertiary"> 无变更 </n-text>
       </template>
     </n-space>
 
@@ -31,7 +27,7 @@
   <div v-show="split" class="flex items-center justify-around py-2">
     <h3 class="pl-8">原内容</h3>
     <n-icon size="18">
-      <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2"/><polyline points="12 5 19 12 12 19" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <i-tabler-arrow-right />
     </n-icon>
     <h3 class="pr-8">新内容</h3>
   </div>

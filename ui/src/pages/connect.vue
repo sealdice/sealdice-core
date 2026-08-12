@@ -3,7 +3,7 @@
     <PageHeader title="账号设置" description="管理已接入平台账号及其连接配置。">
       <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
         <template #icon
-          ><n-icon><i-ep-plus /></n-icon
+          ><n-icon><i-tabler-plus /></n-icon
         ></template>
         添加账号
       </n-button>
@@ -14,7 +14,7 @@
         <span>{{ realtimeErrorText }}</span>
         <n-button size="small" secondary @click="realtimeConnections.reconnect">
           <template #icon
-            ><n-icon><i-ep-refresh-right /></n-icon
+            ><n-icon><i-tabler-refresh /></n-icon
           ></template>
           重新连接
         </n-button>
@@ -26,7 +26,7 @@
         <span>{{ connectionsErrorText }}</span>
         <n-button size="small" secondary @click="retryConnections">
           <template #icon
-            ><n-icon><i-ep-refresh-right /></n-icon
+            ><n-icon><i-tabler-refresh /></n-icon
           ></template>
           重试
         </n-button>

@@ -1,6 +1,6 @@
 <template>
   <n-flex align="center" wrap class="help-config-tags">
-    <n-tag type="success" size="small" :bordered="false">{{ props.group.value }}</n-tag>
+    <n-tag size="small" :bordered="false">{{ props.group.value }}</n-tag>
     <n-tag
       v-for="alias in groupAliases"
       :key="alias"
@@ -22,9 +22,7 @@
       @keyup.enter="confirmInput"
       @blur="confirmInput"
     />
-    <n-button v-if="inputVisible" size="tiny" tertiary @click="confirmInput">
-      确定
-    </n-button>
+    <n-button v-if="inputVisible" size="tiny" tertiary @click="confirmInput"> 确定 </n-button>
     <n-button v-else size="tiny" tertiary @click="showInput">
       <template #icon>
         <n-icon><i-tabler-plus /></n-icon>

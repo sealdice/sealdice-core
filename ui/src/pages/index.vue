@@ -24,9 +24,7 @@
         <div class="status-card__value">{{ filesize(memoryUsed) }}</div>
         <div class="status-card__footer">
           <span>运行环境</span>
-          <strong>{{
-            overview ? `${overview.runtime.OS} · ${overview.runtime.arch}` : '读取中'
-          }}</strong>
+          <strong>{{ runtimeSummary }}</strong>
         </div>
       </article>
 
@@ -219,6 +217,13 @@ const groupSummaryQuery = useQuery({
 const overview = computed(() => overviewQuery.data.value?.item);
 const memoryUsed = computed(() => overview.value?.memory.usedSys ?? 0);
 const groupSummary = computed(() => groupSummaryQuery.data.value);
+const runtimeSummary = computed(() => {
+  const runtime = overview.value?.runtime;
+  if (!runtime) return '读取中';
+  return [runtime.OS, runtime.arch, runtime.containerMode ? '容器模式' : '']
+    .filter(Boolean)
+    .join(' · ');
+});
 const hasNewVersion = computed(() => {
   const version = overview.value?.version;
   if (!version) return false;
@@ -404,10 +409,9 @@ p {
 
 h1 {
   color: var(--sd-text-primary);
-  font-size: 1.65rem;
-  font-weight: 650;
-  letter-spacing: -0.025em;
-  line-height: 1.3;
+  font-size: var(--sd-page-title-size);
+  font-weight: var(--sd-page-title-weight);
+  line-height: var(--sd-page-title-line-height);
 }
 
 .overview-grid {
@@ -670,21 +674,21 @@ h1 {
 }
 
 :deep(.log-level--info) {
-  border-color: color-mix(in srgb, var(--sd-primary) 18%, transparent);
-  background: color-mix(in srgb, var(--sd-primary) 9%, transparent);
+  border-color: var(--sd-primary-border);
+  background: var(--sd-primary-soft);
   color: var(--sd-primary);
 }
 
 :deep(.log-level--warning) {
-  border-color: color-mix(in srgb, var(--sd-warning) 22%, transparent);
-  background: color-mix(in srgb, var(--sd-warning) 10%, transparent);
+  border-color: var(--sd-warning-border);
+  background: var(--sd-warning-soft);
   color: var(--sd-warning);
   font-weight: 600;
 }
 
 :deep(.log-level--error) {
-  border-color: color-mix(in srgb, var(--sd-error) 22%, transparent);
-  background: color-mix(in srgb, var(--sd-error) 10%, transparent);
+  border-color: var(--sd-error-border);
+  background: var(--sd-error-soft);
   color: var(--sd-error);
   font-weight: 600;
 }

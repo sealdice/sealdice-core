@@ -89,7 +89,7 @@ const emit = defineEmits<{
   flex-direction: column;
   gap: 0.15rem;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

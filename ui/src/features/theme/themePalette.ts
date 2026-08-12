@@ -1,40 +1,27 @@
 import { generate } from '@ant-design/colors';
 import type { GlobalThemeOverrides } from 'naive-ui';
-import type { ResolvedTheme, ThemeStorage } from './themeState';
+import type { ResolvedTheme } from './themeState';
 
-export type ThemeColorKey = 'primary' | 'info' | 'success' | 'warning' | 'error';
+export type ThemeColorKey = 'primary' | 'success' | 'warning' | 'error';
 export type ThemePalette = Record<ThemeColorKey, string>;
 
-export const THEME_PALETTE_STORAGE_KEY = 'sd-theme-palette';
+type ComponentColorKey = ThemeColorKey | 'info';
 
-export const THEME_COLOR_KEYS: ThemeColorKey[] = ['primary', 'info', 'success', 'warning', 'error'];
+export const THEME_COLOR_KEYS: ThemeColorKey[] = ['primary', 'success', 'warning', 'error'];
 
+// 应用仅维护四种有彩语义。info 是组件库兼容名称，始终映射到 primary。
 export const DEFAULT_THEME_PALETTE: ThemePalette = {
   primary: '#2563eb',
-  info: '#2563eb',
   success: '#15803d',
   warning: '#b45309',
   error: '#dc2626',
 };
 
+const componentColorKeys: ComponentColorKey[] = ['primary', 'info', 'success', 'warning', 'error'];
 const darkBackground = '#0f172a';
-const hexColorPattern = /^#[\da-fA-F]{6}$/;
-const paletteVariableNames: Record<ThemeColorKey, string> = {
-  primary: '--sd-primary',
-  info: '--sd-info',
-  success: '--sd-success',
-  warning: '--sd-warning',
-  error: '--sd-error',
-};
-const semanticColorVariableNames: Record<ThemeColorKey, string[]> = {
-  primary: ['--sd-bg-selected'],
-  info: [],
-  success: [],
-  warning: [],
-  error: [],
-};
+
 const colorTokenNames: Record<
-  ThemeColorKey,
+  ComponentColorKey,
   {
     base: keyof NonNullable<GlobalThemeOverrides['common']>;
     hover: keyof NonNullable<GlobalThemeOverrides['common']>;
@@ -74,49 +61,8 @@ const colorTokenNames: Record<
   },
 };
 
-export function isThemeColorKey(value: unknown): value is ThemeColorKey {
-  return typeof value === 'string' && THEME_COLOR_KEYS.includes(value as ThemeColorKey);
-}
-
-export function isThemeHexColor(value: unknown): value is string {
-  return typeof value === 'string' && hexColorPattern.test(value);
-}
-
-export function normalizeThemePalette(value: unknown): ThemePalette {
-  if (!value || typeof value !== 'object') return { ...DEFAULT_THEME_PALETTE };
-
-  const palette = { ...DEFAULT_THEME_PALETTE };
-  const source = value as Partial<Record<ThemeColorKey, unknown>>;
-  for (const key of THEME_COLOR_KEYS) {
-    if (isThemeHexColor(source[key])) {
-      palette[key] = source[key];
-    }
-  }
-  return palette;
-}
-
-export function readStoredThemePalette(storage: ThemeStorage | undefined): ThemePalette {
-  if (!storage) return { ...DEFAULT_THEME_PALETTE };
-
-  try {
-    const value = storage.getItem(THEME_PALETTE_STORAGE_KEY);
-    return value ? normalizeThemePalette(JSON.parse(value)) : { ...DEFAULT_THEME_PALETTE };
-  } catch {
-    return { ...DEFAULT_THEME_PALETTE };
-  }
-}
-
-export function writeStoredThemePalette(
-  storage: ThemeStorage | undefined,
-  palette: ThemePalette
-): void {
-  if (!storage) return;
-
-  try {
-    storage.setItem(THEME_PALETTE_STORAGE_KEY, JSON.stringify(normalizeThemePalette(palette)));
-  } catch {
-    // localStorage 在隐私模式或嵌入环境里可能不可写，主题色失败时保持当前内存态即可。
-  }
+function getPaletteColor(key: ComponentColorKey): string {
+  return key === 'info' ? DEFAULT_THEME_PALETTE.primary : DEFAULT_THEME_PALETTE[key];
 }
 
 function getGeneratedColor(color: string, index: number, theme: ResolvedTheme): string {
@@ -125,10 +71,6 @@ function getGeneratedColor(color: string, index: number, theme: ResolvedTheme): 
       ? generate(color, { theme: 'dark', backgroundColor: darkBackground })
       : generate(color);
   return colors[index] ?? color;
-}
-
-function getSoftGeneratedColor(color: string, theme: ResolvedTheme): string {
-  return getGeneratedColor(color, theme === 'dark' ? 1 : 0, theme);
 }
 
 function hexToRgb(color: string): [number, number, number] {
@@ -189,10 +131,10 @@ function getButtonTextColor(background: string): string {
 }
 
 function createStatusColorOverrides(
-  key: ThemeColorKey,
-  color: string,
+  key: ComponentColorKey,
   theme: ResolvedTheme
 ): NonNullable<GlobalThemeOverrides['common']> {
+  const color = getPaletteColor(key);
   const tokenNames = colorTokenNames[key];
   const accessibleColor = getAccessibleSemanticColor(color, theme);
   const accessibleHoverColor = getAccessibleSemanticColor(
@@ -213,10 +155,10 @@ function createStatusColorOverrides(
 }
 
 function createButtonColorOverrides(
-  key: ThemeColorKey,
-  color: string,
+  key: ComponentColorKey,
   theme: ResolvedTheme
 ): Record<string, string> {
+  const color = getPaletteColor(key);
   const typeName = `${key[0].toUpperCase()}${key.slice(1)}`;
   const accessibleColor = getAccessibleSemanticColor(color, theme);
   const accessibleHoverColor = getAccessibleSemanticColor(
@@ -255,16 +197,19 @@ function createButtonColorOverrides(
   } as Record<string, string>;
 }
 
-function createCommonOverrides(
-  palette: ThemePalette,
-  theme: ResolvedTheme
-): NonNullable<GlobalThemeOverrides['common']> {
-  const common = THEME_COLOR_KEYS.reduce<Record<string, string>>((result, key) => {
-    return {
-      ...result,
-      ...createStatusColorOverrides(key, palette[key], theme),
-    };
-  }, {});
+function createCommonOverrides(theme: ResolvedTheme): NonNullable<GlobalThemeOverrides['common']> {
+  const common = componentColorKeys.reduce<Record<string, string>>(
+    (result, key) => {
+      return {
+        ...result,
+        ...createStatusColorOverrides(key, theme),
+      };
+    },
+    {
+      borderRadius: 'var(--sd-radius-sm)',
+      borderRadiusSmall: 'var(--sd-radius-xs)',
+    }
+  );
 
   if (theme === 'dark') {
     return {
@@ -281,31 +226,30 @@ function createCommonOverrides(
 }
 
 const sharedMenuOverrides: NonNullable<GlobalThemeOverrides['Menu']> = {
-  itemTextColor: 'rgba(255, 255, 255, 0.72)',
-  itemTextColorHover: '#ffffff',
-  itemTextColorActive: '#ffffff',
-  itemTextColorActiveHover: '#ffffff',
-  itemTextColorChildActive: '#ffffff',
-  itemTextColorChildActiveHover: '#ffffff',
-  itemIconColor: 'rgba(255, 255, 255, 0.64)',
-  itemIconColorHover: '#ffffff',
-  itemIconColorActive: '#ffffff',
-  itemIconColorActiveHover: '#ffffff',
-  itemIconColorChildActive: '#ffffff',
-  itemIconColorChildActiveHover: '#ffffff',
-  // 侧栏使用深色背景，折叠后 Naive UI 会读取 collapsed 专用 token；这里显式保持白色避免回落成深色图标。
-  itemIconColorCollapsed: '#ffffff',
-  itemIconColorCollapsedInverted: '#ffffff',
-  arrowColor: 'rgba(255, 255, 255, 0.52)',
-  arrowColorHover: '#ffffff',
-  arrowColorActive: '#ffffff',
+  itemTextColor: 'var(--sd-text-inverse-soft)',
+  itemTextColorHover: 'var(--sd-text-inverse)',
+  itemTextColorActive: 'var(--sd-text-inverse)',
+  itemTextColorActiveHover: 'var(--sd-text-inverse)',
+  itemTextColorChildActive: 'var(--sd-text-inverse)',
+  itemTextColorChildActiveHover: 'var(--sd-text-inverse)',
+  itemIconColor: 'var(--sd-text-inverse-muted)',
+  itemIconColorHover: 'var(--sd-text-inverse)',
+  itemIconColorActive: 'var(--sd-text-inverse)',
+  itemIconColorActiveHover: 'var(--sd-text-inverse)',
+  itemIconColorChildActive: 'var(--sd-text-inverse)',
+  itemIconColorChildActiveHover: 'var(--sd-text-inverse)',
+  itemIconColorCollapsed: 'var(--sd-text-inverse)',
+  itemIconColorCollapsedInverted: 'var(--sd-text-inverse)',
+  arrowColor: 'var(--sd-text-inverse-muted)',
+  arrowColorHover: 'var(--sd-text-inverse)',
+  arrowColorActive: 'var(--sd-text-inverse)',
   arrowColorChildActive: 'var(--sd-text-inverse-soft)',
-  arrowColorChildActiveHover: '#ffffff',
-  itemColorHover: 'rgba(255, 255, 255, 0.07)',
-  itemColorActive: 'rgba(37, 99, 235, 0.26)',
-  itemColorActiveHover: 'rgba(37, 99, 235, 0.32)',
-  itemColorActiveCollapsed: 'rgba(37, 99, 235, 0.26)',
-  borderRadius: '6px',
+  arrowColorChildActiveHover: 'var(--sd-text-inverse)',
+  itemColorHover: 'var(--sd-bg-sidebar-hover)',
+  itemColorActive: 'var(--sd-bg-sidebar-selected)',
+  itemColorActiveHover: 'var(--sd-bg-sidebar-selected-strong)',
+  itemColorActiveCollapsed: 'var(--sd-bg-sidebar-selected)',
+  borderRadius: 'var(--sd-radius-sm)',
 };
 
 const sharedLayoutOverrides: NonNullable<GlobalThemeOverrides['Layout']> = {
@@ -316,17 +260,13 @@ const sharedLayoutOverrides: NonNullable<GlobalThemeOverrides['Layout']> = {
   colorEmbedded: 'var(--sd-bg-page)',
 };
 
-export function createThemeOverrides(
-  palette: ThemePalette,
-  theme: ResolvedTheme
-): GlobalThemeOverrides {
-  // Naive UI 组件主题只接收最终 token；项目壳层背景仍由 --sd-* 管，避免 provider 外层取不到变量。
+export function createThemeOverrides(theme: ResolvedTheme): GlobalThemeOverrides {
   const overrides: GlobalThemeOverrides = {
-    common: createCommonOverrides(palette, theme),
-    Button: THEME_COLOR_KEYS.reduce<Record<string, string>>(
+    common: createCommonOverrides(theme),
+    Button: componentColorKeys.reduce<Record<string, string>>(
       (result, key) => ({
         ...result,
-        ...createButtonColorOverrides(key, palette[key], theme),
+        ...createButtonColorOverrides(key, theme),
       }),
       {}
     ) as NonNullable<GlobalThemeOverrides['Button']>,
@@ -338,17 +278,17 @@ export function createThemeOverrides(
     return {
       ...overrides,
       DataTable: {
-        thColor: '#111827',
-        tdColor: '#182133',
-        tdColorHover: '#1f2a40',
-        hoverColor: '#1f2a40',
-        borderColor: '#334155',
+        thColor: 'var(--sd-bg-elevated-soft)',
+        tdColor: 'var(--sd-bg-elevated)',
+        tdColorHover: 'var(--sd-bg-control)',
+        hoverColor: 'var(--sd-bg-control)',
+        borderColor: 'var(--sd-border)',
       },
       Drawer: {
-        color: '#182133',
+        color: 'var(--sd-bg-elevated)',
       },
       Dropdown: {
-        color: '#182133',
+        color: 'var(--sd-bg-elevated)',
       },
     };
   }
@@ -356,24 +296,26 @@ export function createThemeOverrides(
   return overrides;
 }
 
-export function syncDocumentThemePalette(
-  root: HTMLElement | undefined,
-  palette: ThemePalette
-): void {
+export function syncDocumentThemePalette(root: HTMLElement | undefined): void {
   if (!root) return;
 
   const theme = root.dataset?.theme === 'dark' ? 'dark' : 'light';
+  const resolvedColors = Object.fromEntries(
+    THEME_COLOR_KEYS.map(key => [
+      key,
+      getAccessibleSemanticColor(DEFAULT_THEME_PALETTE[key], theme),
+    ])
+  ) as ThemePalette;
 
-  // 这里同步的是项目级语义色，Tailwind 和少量自定义 CSS 可以直接读这些变量。
   for (const key of THEME_COLOR_KEYS) {
-    root.style.setProperty(
-      paletteVariableNames[key],
-      getAccessibleSemanticColor(palette[key], theme)
-    );
-
-    const softColor = getSoftGeneratedColor(palette[key], theme);
-    for (const variableName of semanticColorVariableNames[key]) {
-      root.style.setProperty(variableName, softColor);
-    }
+    root.style.setProperty(`--sd-${key}`, resolvedColors[key]);
   }
+
+  // 兼容组件库的 info API；它不是独立语义色。
+  root.style.setProperty('--sd-info', resolvedColors.primary);
+  root.style.setProperty('--sd-accent', resolvedColors.primary);
+  root.style.setProperty(
+    '--sd-accent-strong',
+    getAccessibleSemanticColor(getGeneratedColor(DEFAULT_THEME_PALETTE.primary, 6, theme), theme)
+  );
 }

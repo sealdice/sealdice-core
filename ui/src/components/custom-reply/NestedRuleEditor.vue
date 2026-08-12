@@ -6,13 +6,19 @@
     handle=".rule-drag-handle"
     :group="{ name: 'g1' }"
     :item-key="getTaskKey"
-    @end="emit('change')">
+    @end="emit('change')"
+  >
     <template #item="{ element: el, index }">
-      <article class="rule-panel" :class="{ 'is-collapsed': isFolded(index), 'is-disabled': !el.enable }">
+      <article
+        class="rule-panel"
+        :class="{ 'is-collapsed': isFolded(index), 'is-disabled': !el.enable }"
+      >
         <header class="rule-panel-head">
           <div class="rule-title">
             <span class="rule-index">#{{ props.startIndex + index + 1 }}</span>
-            <n-checkbox v-model:checked="el.enable" @update:checked="emit('change')">开启</n-checkbox>
+            <n-checkbox v-model:checked="el.enable" @update:checked="emit('change')"
+              >开启</n-checkbox
+            >
             <span v-if="isFolded(index)" class="rule-summary">{{ summarizeRule(el) }}</span>
           </div>
 
@@ -46,7 +52,7 @@
                 <h4>条件</h4>
                 <p>需同时满足，即 and</p>
               </div>
-              <n-button type="success" size="small" secondary @click="addCond(el.conditions)">
+              <n-button type="primary" size="small" secondary @click="addCond(el.conditions)">
                 <template #icon>
                   <n-icon><i-tabler-plus /></n-icon>
                 </template>
@@ -66,7 +72,7 @@
                 <h4>结果</h4>
                 <p>顺序执行</p>
               </div>
-              <n-button type="success" size="small" secondary @click="addResult(el.results)">
+              <n-button type="primary" size="small" secondary @click="addResult(el.results)">
                 <template #icon>
                   <n-icon><i-tabler-plus /></n-icon>
                 </template>
@@ -107,7 +113,12 @@
                     </label>
                   </div>
 
-                  <n-button type="error" size="small" secondary @click="deleteAnyItem(el.results, Number(rIdx))">
+                  <n-button
+                    type="error"
+                    size="small"
+                    secondary
+                    @click="deleteAnyItem(el.results, Number(rIdx))"
+                  >
                     <template #icon>
                       <n-icon><i-tabler-trash /></n-icon>
                     </template>
@@ -128,7 +139,7 @@
                       <template #trigger>
                         <n-button
                           v-if="mIdx === 0"
-                          type="success"
+                          type="primary"
                           size="tiny"
                           quaternary
                           circle
@@ -151,7 +162,11 @@
                           </template>
                         </n-button>
                       </template>
-                      {{ mIdx === 0 ? '点击添加一个回复语，海豹将会随机抽取一个回复' : '点击删除你不想要的回复语' }}
+                      {{
+                        mIdx === 0
+                          ? '点击添加一个回复语，海豹将会随机抽取一个回复'
+                          : '点击删除你不想要的回复语'
+                      }}
                     </n-tooltip>
                     <n-input
                       v-model:value="msg[0]"
@@ -206,7 +221,7 @@ const props = withDefaults(
   }>(),
   {
     startIndex: 0,
-  },
+  }
 );
 const emit = defineEmits<{
   change: [];
@@ -311,7 +326,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--sd-border);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 
@@ -375,7 +390,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
 .rule-block {
   min-width: 0;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated-muted);
   padding: 0.75rem;
 }

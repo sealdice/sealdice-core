@@ -39,9 +39,6 @@
       <div class="sd-page-actions">
         <AppThemeSwitch />
         <AppInstallButton v-if="!isCompactMode" />
-        <n-button v-if="!isCompactMode" tag="a" secondary class="legacy-entry" :href="oldUIUrl">
-          回退老 UI
-        </n-button>
 
         <button type="button" class="search-entry" @click="emit('openSearch')">
           <span class="search-label">
@@ -82,7 +79,6 @@
 import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
-import { resolveOldUIUrlFromLocation } from '@/api/config';
 import { appNavigation } from '@/router/navigation';
 import { buildBreadcrumbItems } from '@/router/navigationModel';
 import AppInstallButton from './AppInstallButton.vue';
@@ -102,8 +98,6 @@ const emit = defineEmits<{
 
 const route = useRoute();
 const { overview, isStable, hasNewVersion } = useBaseOverview();
-const oldUIUrl =
-  typeof window !== 'undefined' ? resolveOldUIUrlFromLocation(window.location) : '/old-ui/';
 
 const breadcrumbItems = computed(() =>
   buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面'))
@@ -186,16 +180,12 @@ const visibleBreadcrumbItems = computed(() =>
   gap: 0.4rem;
 }
 
-.legacy-entry {
-  white-space: nowrap;
-}
-
 .search-entry {
   display: inline-flex;
   height: 34px;
   align-items: center;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--sd-radius-sm);
   background: var(--sd-bg-control);
   color: var(--sd-text-secondary);
   cursor: pointer;
@@ -222,7 +212,7 @@ const visibleBreadcrumbItems = computed(() =>
   display: inline-flex;
   height: 22px;
   align-items: center;
-  border-radius: 6px;
+  border-radius: var(--sd-radius-sm);
   background: var(--sd-bg-elevated);
   color: var(--sd-text-muted);
   font-size: 0.75rem;

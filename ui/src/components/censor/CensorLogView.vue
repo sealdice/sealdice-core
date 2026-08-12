@@ -1,7 +1,7 @@
 <template>
   <div class="censor-log-container">
     <header class="censor-log-header">
-      <n-button type="info" secondary @click="emit('refresh')">
+      <n-button secondary @click="emit('refresh')">
         <template #icon>
           <n-icon><i-tabler-refresh /></n-icon>
         </template>
@@ -126,7 +126,7 @@ const columns: DataTableColumns<CensorLog> = [
   display: grid;
   min-width: 0;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
   gap: 0.65rem;
   padding: 0.75rem;

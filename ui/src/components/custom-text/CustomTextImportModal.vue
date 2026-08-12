@@ -32,8 +32,8 @@
     <template #footer>
       <n-flex>
         <n-button @click="show = false">返回</n-button>
-        <n-button type="warning" @click="emit('clear')">清空</n-button>
-        <n-button type="info" @click="emit('copy')">复制</n-button>
+        <n-button type="error" secondary @click="emit('clear')">清空</n-button>
+        <n-button secondary @click="emit('copy')">复制</n-button>
         <n-button
           type="primary"
           :loading="saving"

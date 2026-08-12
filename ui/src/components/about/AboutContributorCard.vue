@@ -40,7 +40,9 @@ const props = defineProps<{
 }>();
 
 const href = computed(() => buildContributorHref(props.contributor));
-const avatarSrc = computed(() => (props.contributor.onlyName ? sealImage : buildAvatarUrl(props.contributor)));
+const avatarSrc = computed(() =>
+  props.contributor.onlyName ? sealImage : buildAvatarUrl(props.contributor)
+);
 </script>
 
 <style scoped>
@@ -64,7 +66,7 @@ const avatarSrc = computed(() => (props.contributor.onlyName ? sealImage : build
 .about-contributor-card:hover {
   border-color: var(--sd-primary);
   border-color: color-mix(in srgb, var(--sd-primary), transparent 62%);
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--sd-shadow-panel);
   transform: translateY(-1px);
 }
 

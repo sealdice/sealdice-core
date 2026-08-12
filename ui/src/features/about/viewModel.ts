@@ -74,13 +74,13 @@ const contributorUsers = new Map<string, string>([
 export const ABOUT_LINKS: AboutLink[] = [
   {
     label: '官方网站',
-    href: 'https://github.com/sealdice-ce/sealdice-ce',
-    description: '社区版项目主页、发布信息与议题反馈入口。',
+    href: 'https://dice.weizaima.com/',
+    description: 'SealDice 项目主页，提供下载、在线试用与社区服务入口。',
   },
   {
     label: '使用手册',
-    href: 'https://dice.weizaima.com/manual/',
-    description: '指令、部署、扩展与常见问题文档。',
+    href: 'https://docs.sealdice.com/',
+    description: '指令、部署、扩展开发与常见问题文档。',
   },
   {
     label: '投喂海豹',
@@ -90,7 +90,7 @@ export const ABOUT_LINKS: AboutLink[] = [
   {
     label: '源码',
     href: 'https://github.com/sealdice/sealdice-core',
-    description: '核心仓库源码与开发进度。',
+    description: 'SealDice 核心源码、开发进度、Issue 反馈与贡献协作入口。',
   },
 ];
 

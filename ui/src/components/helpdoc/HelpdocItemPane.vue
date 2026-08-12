@@ -24,7 +24,7 @@
                   <span>#{{ item.id }}</span>
                 </div>
                 <n-flex size="small" wrap>
-                  <n-tag size="small" :bordered="false" type="info">
+                  <n-tag size="small" :bordered="false">
                     {{ item.group || '未分组' }}
                   </n-tag>
                   <n-text depth="3">{{ item.packageName || item.from || '未知来源' }}</n-text>

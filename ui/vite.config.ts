@@ -155,6 +155,11 @@ export default defineConfig(({ mode }) => {
       port: 5175,
       strictPort: true,
       proxy: {
+        '^/old-ui(?:/.*)?$': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          xfwd: true,
+        },
         '^/api': {
           target: apiProxyTarget,
           changeOrigin: true,

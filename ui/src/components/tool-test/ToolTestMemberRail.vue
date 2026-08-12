@@ -48,7 +48,9 @@
             <strong>{{ profile.name }}</strong>
             <small>{{ profile.userId }}</small>
           </span>
-          <NTag v-if="profile.userId === props.currentUserId" size="small" type="warning">当前</NTag>
+          <NTag v-if="profile.userId === props.currentUserId" size="small" type="primary"
+            >当前</NTag
+          >
         </button>
         <NButton
           quaternary
@@ -220,7 +222,7 @@ function saveEditor() {
   gap: 0.65rem;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--sd-radius-md);
   color: inherit;
   background: transparent;
   text-align: left;
@@ -279,7 +281,7 @@ function saveEditor() {
 .tool-test-member-editor__avatar {
   padding: 0.2rem;
   border: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--sd-radius-pill);
   background: transparent;
   cursor: pointer;
 }
@@ -297,7 +299,7 @@ function saveEditor() {
     bottom: 0;
     width: min(19rem, 88vw);
     border-left: 1px solid var(--sd-border-soft);
-    box-shadow: -18px 0 42px rgba(15, 23, 42, 0.18);
+    box-shadow: var(--sd-shadow-drawer);
     transform: translateX(100%);
     transition: transform 180ms ease;
   }

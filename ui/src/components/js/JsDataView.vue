@@ -23,7 +23,7 @@
           <n-flex align="center" justify="space-between" wrap>
             <n-flex align="center" size="small">
               <n-text class="data-key">{{ kv.key }}</n-text>
-              <n-tag v-if="kv.isJson" size="small" type="info" :bordered="false">JSON</n-tag>
+              <n-tag v-if="kv.isJson" size="small" :bordered="false">JSON</n-tag>
             </n-flex>
             <n-flex size="small">
               <n-button size="tiny" @click="openEdit(kv.key, kv.value, kv.isJson)">编辑</n-button>
@@ -66,7 +66,7 @@
         </n-flex>
         <n-flex align="center" v-if="editIsJson">
           <n-text depth="3" class="w-16">格式:</n-text>
-          <n-tag size="small" type="info" :bordered="false">JSON</n-tag>
+          <n-tag size="small" :bordered="false">JSON</n-tag>
         </n-flex>
         <n-flex vertical>
           <n-text depth="3">Value:</n-text>

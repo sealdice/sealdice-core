@@ -23,10 +23,17 @@
     <ReloadNotice :show="needReload" />
 
     <n-affix v-if="jsConfigEdited" :top="70">
-      <TipBox type="error">
+      <TipBox type="warning">
         <n-flex wrap>
-          <n-text type="error" tag="strong" class="text-base">配置内容已修改，不要忘记保存！</n-text>
-          <n-button type="info" secondary :disabled="!jsConfigEdited || isTestMode" @click="saveJsConfig">
+          <n-text type="warning" tag="strong" class="text-base"
+            >配置内容已修改，不要忘记保存！</n-text
+          >
+          <n-button
+            type="primary"
+            secondary
+            :disabled="!jsConfigEdited || isTestMode"
+            @click="saveJsConfig"
+          >
             <template #icon>
               <n-icon><i-tabler-device-floppy /></n-icon>
             </template>
@@ -43,8 +50,15 @@
             <header class="js-panel-header">
               <n-flex align="center" justify="space-between" wrap>
                 <n-text class="js-panel-title">JS 扩展执行环境</n-text>
-                <n-button type="info" secondary :disabled="!jsEnable || jsRunning || isTestMode" @click="doExecute">
-                  <template #icon><n-icon><i-tabler-player-play /></n-icon></template>
+                <n-button
+                  type="primary"
+                  secondary
+                  :disabled="!jsEnable || jsRunning || isTestMode"
+                  @click="doExecute"
+                >
+                  <template #icon
+                    ><n-icon><i-tabler-player-play /></n-icon
+                  ></template>
                   执行代码
                 </n-button>
               </n-flex>
@@ -63,7 +77,7 @@
             </div>
 
             <footer class="js-panel-footer">
-              <n-text type="error" tag="p" class="js-console-tip">
+              <n-text type="warning" tag="p" class="js-console-tip">
                 注意：延迟执行的代码，其输出不会立即出现
               </n-text>
             </footer>
@@ -74,23 +88,21 @@
               <n-flex align="center" justify="space-between" wrap>
                 <div class="js-panel-heading">
                   <n-text class="js-panel-title">运行日志</n-text>
-                  <n-text depth="3" class="js-panel-subtitle">执行结果与轮询日志统一显示在这里</n-text>
+                  <n-text depth="3" class="js-panel-subtitle"
+                    >执行结果与轮询日志统一显示在这里</n-text
+                  >
                 </div>
                 <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
-                  <template #icon><n-icon><i-tabler-trash /></n-icon></template>
+                  <template #icon
+                    ><n-icon><i-tabler-trash /></n-icon
+                  ></template>
                   清空日志
                 </n-button>
               </n-flex>
             </header>
 
             <div class="js-panel-body js-output-body">
-              <n-log
-                ref="logRef"
-                class="js-output-log"
-                :lines="jsLines"
-                :rows="24"
-                trim
-              />
+              <n-log ref="logRef" class="js-output-log" :lines="jsLines" :rows="24" trim />
             </div>
           </section>
         </section>
@@ -101,10 +113,7 @@
       </n-tab-pane>
 
       <n-tab-pane tab="插件设置" name="config">
-        <JsConfigView
-          ref="jsConfigViewRef"
-          @dirty-change="handleConfigDirtyChange"
-        />
+        <JsConfigView ref="jsConfigViewRef" @dirty-change="handleConfigDirtyChange" />
       </n-tab-pane>
 
       <n-tab-pane tab="数据管理" name="data">
@@ -115,9 +124,29 @@
 </template>
 
 <script setup lang="tsx">
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue';
 import { useQuery } from '@tanstack/vue-query';
-import { NButton, NFlex, NIcon, NLog, NTabs, NTabPane, NText, NSwitch, useMessage, type LogInst } from 'naive-ui';
+import {
+  NButton,
+  NFlex,
+  NIcon,
+  NLog,
+  NTabs,
+  NTabPane,
+  NText,
+  NSwitch,
+  useMessage,
+  type LogInst,
+} from 'naive-ui';
 import {
   getSdApiV2JsRecord,
   getSdApiV2JsStatusOptions,
@@ -129,7 +158,11 @@ import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
-import { getTestModeBlockMessage, isTestModeApiError, useTestMode } from '@/features/testMode/state';
+import {
+  getTestModeBlockMessage,
+  isTestModeApiError,
+  useTestMode,
+} from '@/features/testMode/state';
 import JsListView from '@/components/js/JsListView.vue';
 import JsConfigView from '@/components/js/JsConfigView.vue';
 import JsDataView from '@/components/js/JsDataView.vue';
@@ -203,7 +236,7 @@ watch(
   status => {
     jsEnable.value = status === true;
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 function appendLogLines(lines: string[]) {
@@ -360,18 +393,22 @@ async function loadEditorExtensions() {
   editorDarkTheme.value = oneDark;
 }
 
-watch(tab, value => {
-  if (value === 'console') {
-    void loadEditorExtensions();
-  }
-}, { immediate: true });
+watch(
+  tab,
+  value => {
+    if (value === 'console') {
+      void loadEditorExtensions();
+    }
+  },
+  { immediate: true }
+);
 
 watch(
   () => jsLines.value.length,
   async () => {
     await nextTick();
     logRef.value?.scrollTo({ position: 'bottom', silent: true });
-  },
+  }
 );
 
 onMounted(async () => {
@@ -403,7 +440,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--sd-border);
-  border-radius: var(--sd-radius-lg);
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 
@@ -451,7 +488,7 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 100%;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 12px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
 }
 
@@ -460,15 +497,8 @@ onBeforeUnmount(() => {
   color: var(--sd-text-primary);
   background: var(--sd-bg-page);
   font-family:
-    'Fira Code',
-    'DengXian',
-    'Microsoft YaHei Mono',
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    monospace;
+    'Fira Code', 'DengXian', 'Microsoft YaHei Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
 }
 
 .js-editor :deep(.cm-scroller) {
@@ -506,18 +536,11 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 100%;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 12px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
   font-family:
-    'Fira Code',
-    'DengXian',
-    'Microsoft YaHei Mono',
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Monaco,
-    Consolas,
-    monospace;
+    'Fira Code', 'DengXian', 'Microsoft YaHei Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
 }
 
 .js-output-log :deep(.n-log) {
@@ -525,7 +548,7 @@ onBeforeUnmount(() => {
 }
 
 .js-output-log :deep(.n-scrollbar-container) {
-  border-radius: 12px;
+  border-radius: var(--sd-radius-md);
 }
 
 .js-output-log :deep(.n-log-line) {

@@ -19,7 +19,7 @@
 
       <ListActions>
         <n-button
-          type="info"
+          type="primary"
           secondary
           tag="a"
           target="_blank"
@@ -39,7 +39,7 @@
           multiple
           @change="onFileSelection"
         />
-        <n-button type="info" secondary :loading="uploader.busy.value" @click="openFilePicker">
+        <n-button type="primary" secondary :loading="uploader.busy.value" @click="openFilePicker">
           <template #icon>
             <n-icon><i-tabler-upload /></n-icon>
           </template>
@@ -50,9 +50,7 @@
       <section v-if="activeUploadTasks.length" class="upload-panel">
         <div class="upload-panel-head">
           <h3>上传队列</h3>
-          <n-tag size="small" :bordered="false" type="info">
-            {{ activeUploadTasks.length }} 项
-          </n-tag>
+          <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
         </div>
 
         <div class="upload-list">
@@ -113,7 +111,7 @@
 
       <ListPanel>
         <template #toolbar>
-          <n-text v-if="filterCount > 0" type="info"> 已过滤 {{ filterCount }} 条 </n-text>
+          <n-text v-if="filterCount > 0" depth="3"> 已过滤 {{ filterCount }} 条 </n-text>
           <n-text class="deck-format-note">支持 json、yaml、deck、toml 格式</n-text>
           <n-tooltip>
             <template #trigger>
@@ -130,130 +128,126 @@
         </template>
 
         <main class="deck-data-block">
-        <FoldableCard
-          v-for="(item, index) in items"
-          :key="item.filename || index"
-          class="deck-item"
-          :default-fold="true"
-          :err-title="item.filename"
-          :err-text="item.errText"
-        >
-          <template #title>
-            <n-flex size="small" align="center">
-              <n-text class="text-base" tag="b">{{ item.name }}</n-text>
-              <n-text>{{ item.version }}</n-text>
-              <n-tag
-                size="small"
-                :type="item.fileFormat === 'toml' ? 'success' : 'info'"
-                :bordered="false"
-              >
-                {{ item.fileFormat }}
-              </n-tag>
-              <n-tag v-if="item.packageId" size="small" type="warning" :bordered="false">
-                来源包 {{ item.packageId }}
-              </n-tag>
-            </n-flex>
-          </template>
+          <FoldableCard
+            v-for="(item, index) in items"
+            :key="item.filename || index"
+            class="deck-item"
+            :default-fold="true"
+            :err-title="item.filename"
+            :err-text="item.errText"
+          >
+            <template #title>
+              <n-flex size="small" align="center">
+                <n-text class="text-base" tag="b">{{ item.name }}</n-text>
+                <n-text>{{ item.version }}</n-text>
+                <n-tag size="small" :bordered="false">
+                  {{ item.fileFormat }}
+                </n-tag>
+                <n-tag v-if="item.packageId" size="small" :bordered="false">
+                  来源包 {{ item.packageId }}
+                </n-tag>
+              </n-flex>
+            </template>
 
-          <template #title-extra>
-            <n-flex>
-              <n-popconfirm
-                v-if="item.updateUrls && item.updateUrls.length > 0"
-                @positive-click="doCheckUpdate(item)"
-              >
-                <template #trigger>
-                  <n-button type="info" size="small" secondary :loading="diffLoading">
-                    <template #icon>
-                      <n-icon><i-tabler-download /></n-icon>
-                    </template>
-                    更新
-                  </n-button>
-                </template>
-                更新地址由牌堆作者提供，是否确认要检查该牌堆更新？
-              </n-popconfirm>
+            <template #title-extra>
+              <n-flex>
+                <n-popconfirm
+                  v-if="item.updateUrls && item.updateUrls.length > 0"
+                  @positive-click="doCheckUpdate(item)"
+                >
+                  <template #trigger>
+                    <n-button type="primary" size="small" secondary :loading="diffLoading">
+                      <template #icon>
+                        <n-icon><i-tabler-download /></n-icon>
+                      </template>
+                      更新
+                    </n-button>
+                  </template>
+                  更新地址由牌堆作者提供，是否确认要检查该牌堆更新？
+                </n-popconfirm>
+                <n-button type="error" size="small" secondary @click="doDelete(item)">
+                  <template #icon>
+                    <n-icon><i-tabler-trash /></n-icon>
+                  </template>
+                  删除
+                </n-button>
+              </n-flex>
+            </template>
+
+            <template #title-extra-error>
               <n-button type="error" size="small" secondary @click="doDelete(item)">
                 <template #icon>
                   <n-icon><i-tabler-trash /></n-icon>
                 </template>
                 删除
               </n-button>
-            </n-flex>
-          </template>
+            </template>
 
-          <template #title-extra-error>
-            <n-button type="error" size="small" secondary @click="doDelete(item)">
-              <template #icon>
-                <n-icon><i-tabler-trash /></n-icon>
-              </template>
-              删除
-            </n-button>
-          </template>
-
-          <template #description>
-            <n-flex size="small" vertical align="normal">
-              <n-text v-if="item.cloud" type="info" class="text-xs">
-                <n-icon><i-tabler-cloud /></n-icon>
-                作者提供云端内容，请自行鉴别安全性
-              </n-text>
-              <n-text v-if="item.fileFormat === 'jsonc'" type="warning" class="text-xs">
-                <n-icon><i-tabler-alert-triangle-filled /></n-icon>
-                注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
-              </n-text>
-            </n-flex>
-          </template>
-
-          <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
-            <n-descriptions-item :span="3" label="作者">
-              {{ item.author || '<佚名>' }}
-            </n-descriptions-item>
-            <n-descriptions-item v-if="item.desc" :span="3" label="简介">
-              {{ item.desc }}
-            </n-descriptions-item>
-            <n-descriptions-item :span="3" label="牌组列表">
-              <n-flex size="small">
-                <n-tag
-                  v-for="(visible, command) of item.command"
-                  :key="command"
-                  size="small"
-                  :type="visible ? 'info' : 'default'"
-                  :bordered="false"
-                >
-                  {{ command }}
-                </n-tag>
+            <template #description>
+              <n-flex size="small" vertical align="normal">
+                <n-text v-if="item.cloud" type="info" class="text-xs">
+                  <n-icon><i-tabler-cloud /></n-icon>
+                  作者提供云端内容，请自行鉴别安全性
+                </n-text>
+                <n-text v-if="item.fileFormat === 'jsonc'" type="warning" class="text-xs">
+                  <n-icon><i-tabler-alert-triangle-filled /></n-icon>
+                  注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
+                </n-text>
               </n-flex>
-            </n-descriptions-item>
-            <n-descriptions-item v-if="item.license" label="许可协议">
-              {{ item.license }}
-            </n-descriptions-item>
-            <n-descriptions-item v-if="item.date" label="发布时间">
-              {{ item.date }}
-            </n-descriptions-item>
-            <n-descriptions-item v-if="item.updateDate" label="更新时间">
-              {{ item.updateDate }}
-            </n-descriptions-item>
-          </n-descriptions>
+            </template>
 
-          <template #unfolded-extra>
             <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
-              <n-descriptions-item :span="3" label="可见牌组列表">
+              <n-descriptions-item :span="3" label="作者">
+                {{ item.author || '<佚名>' }}
+              </n-descriptions-item>
+              <n-descriptions-item v-if="item.desc" :span="3" label="简介">
+                {{ item.desc }}
+              </n-descriptions-item>
+              <n-descriptions-item :span="3" label="牌组列表">
                 <n-flex size="small">
                   <n-tag
                     v-for="(visible, command) of item.command"
                     :key="command"
                     size="small"
-                    :type="visible ? 'info' : 'default'"
+                    :type="visible ? 'primary' : 'default'"
                     :bordered="false"
-                    :style="{ display: visible ? '' : 'none' }"
                   >
                     {{ command }}
                   </n-tag>
                 </n-flex>
               </n-descriptions-item>
+              <n-descriptions-item v-if="item.license" label="许可协议">
+                {{ item.license }}
+              </n-descriptions-item>
+              <n-descriptions-item v-if="item.date" label="发布时间">
+                {{ item.date }}
+              </n-descriptions-item>
+              <n-descriptions-item v-if="item.updateDate" label="更新时间">
+                {{ item.updateDate }}
+              </n-descriptions-item>
             </n-descriptions>
-          </template>
-        </FoldableCard>
 
-        <n-empty v-if="!items.length" description="暂无牌堆" class="deck-empty" />
+            <template #unfolded-extra>
+              <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
+                <n-descriptions-item :span="3" label="可见牌组列表">
+                  <n-flex size="small">
+                    <n-tag
+                      v-for="(visible, command) of item.command"
+                      :key="command"
+                      size="small"
+                      :type="visible ? 'primary' : 'default'"
+                      :bordered="false"
+                      :style="{ display: visible ? '' : 'none' }"
+                    >
+                      {{ command }}
+                    </n-tag>
+                  </n-flex>
+                </n-descriptions-item>
+              </n-descriptions>
+            </template>
+          </FoldableCard>
+
+          <n-empty v-if="!items.length" description="暂无牌堆" class="deck-empty" />
         </main>
       </ListPanel>
 
@@ -281,7 +275,7 @@
             <n-button @click="showDiff = false">取消</n-button>
             <n-button
               v-if="deckCheck.old !== deckCheck.new"
-              type="success"
+              type="primary"
               :loading="updateMutation.isPending.value"
               @click="deckUpdate"
             >

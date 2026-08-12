@@ -63,13 +63,13 @@ export function formatResourceTypeLabel(type: string): string {
 }
 
 export function getResourceTypeTagType(type: string) {
-  if (type === 'image') return 'info' as const;
-  if (type === 'audio') return 'success' as const;
-  if (type === 'video') return 'warning' as const;
+  if (type === 'image' || type === 'audio' || type === 'video') return 'default' as const;
   return 'default' as const;
 }
 
-export function formatResourcePageSummary(page: Pick<ResourceListQueryModel, 'page' | 'pageSize'> & { total: number }): string {
+export function formatResourcePageSummary(
+  page: Pick<ResourceListQueryModel, 'page' | 'pageSize'> & { total: number }
+): string {
   return `第 ${normalizePage(page.page)} 页，每页 ${normalizePageSize(page.pageSize)} 个，共 ${Math.max(0, page.total)} 个资源`;
 }
 
@@ -87,7 +87,8 @@ function normalizePage(page: number): number {
 }
 
 function normalizePageSize(pageSize: number): number {
-  if (!RESOURCE_PAGE_SIZE_OPTIONS.includes(pageSize as (typeof RESOURCE_PAGE_SIZE_OPTIONS)[number])) return 20;
+  if (!RESOURCE_PAGE_SIZE_OPTIONS.includes(pageSize as (typeof RESOURCE_PAGE_SIZE_OPTIONS)[number]))
+    return 20;
   return pageSize;
 }
 

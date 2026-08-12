@@ -33,7 +33,7 @@
           </n-form-item>
 
           <n-form-item label="备份文件名预览">
-            <n-text type="info" class="backup-config-panel__preview">
+            <n-text code class="backup-config-panel__preview">
               {{ autoBackupPreview }}
             </n-text>
           </n-form-item>

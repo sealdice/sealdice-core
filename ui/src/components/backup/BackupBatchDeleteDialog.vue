@@ -1,5 +1,11 @@
 <template>
-  <n-modal v-model:show="show" preset="card" title="批量删除备份" class="backup-dialog" :mask-closable="false">
+  <n-modal
+    v-model:show="show"
+    preset="card"
+    title="批量删除备份"
+    class="backup-dialog"
+    :mask-closable="false"
+  >
     <n-alert type="warning" :bordered="false" class="backup-dialog__alert">
       默认勾选最近的 5 个备份之前的历史备份，可自行调整。删除后无法找回。
     </n-alert>
@@ -9,7 +15,7 @@
         <n-checkbox v-model:checked="checkedAll" :indeterminate="indeterminate" :disabled="pending">
           {{ checkedAll ? '取消全选' : '全选' }}
         </n-checkbox>
-        <n-text type="info">
+        <n-text depth="3">
           已勾选 {{ selectedNames.length }} 个，共 {{ filesize(selectedSize) }}
         </n-text>
       </div>
@@ -17,11 +23,7 @@
       <n-checkbox-group v-model:value="selectedNames" :disabled="pending">
         <n-scrollbar class="backup-dialog__scroll">
           <n-space vertical size="small">
-            <n-checkbox
-              v-for="option in options"
-              :key="String(option.value)"
-              :value="option.value"
-            >
+            <n-checkbox v-for="option in options" :key="String(option.value)" :value="option.value">
               {{ option.label }}
             </n-checkbox>
           </n-space>
@@ -31,9 +33,7 @@
 
     <template #footer>
       <n-space justify="end">
-        <n-button :disabled="pending" @click="show = false">
-          取消
-        </n-button>
+        <n-button :disabled="pending" @click="show = false"> 取消 </n-button>
         <n-button
           type="error"
           :disabled="selectedNames.length === 0"
@@ -73,15 +73,15 @@ const options = computed<CheckboxOption[]>(() =>
   props.items.map(item => ({
     label: item.name,
     value: item.name,
-  })),
+  }))
 );
 
 const selectedItems = computed(() =>
-  props.items.filter(item => selectedNames.value.includes(item.name)),
+  props.items.filter(item => selectedNames.value.includes(item.name))
 );
 
 const selectedSize = computed(() =>
-  selectedItems.value.reduce((sum, item) => sum + item.fileSize, 0),
+  selectedItems.value.reduce((sum, item) => sum + item.fileSize, 0)
 );
 
 const checkedAll = computed({
@@ -91,8 +91,8 @@ const checkedAll = computed({
   },
 });
 
-const indeterminate = computed(() =>
-  selectedNames.value.length > 0 && selectedNames.value.length < props.items.length,
+const indeterminate = computed(
+  () => selectedNames.value.length > 0 && selectedNames.value.length < props.items.length
 );
 </script>
 

@@ -175,8 +175,8 @@ async function handleSelectProfile(profile: ToolTestProfile) {
 <style scoped>
 .tool-test-page {
   --devui-primary: var(--sd-primary);
-  --devui-primary-hover: color-mix(in srgb, var(--sd-primary), white 12%);
-  --devui-primary-active: color-mix(in srgb, var(--sd-primary), black 12%);
+  --devui-primary-hover: var(--sd-accent-strong);
+  --devui-primary-active: var(--sd-accent-strong);
   --devui-base-bg: var(--sd-bg-elevated);
   --devui-global-bg: var(--sd-bg-control);
   --devui-form-control-bg: var(--sd-bg-elevated);
@@ -225,8 +225,9 @@ async function handleSelectProfile(profile: ToolTestProfile) {
 .tool-test-page h1 {
   margin: 0;
   color: var(--sd-text-primary);
-  font-size: 1.75rem;
-  line-height: 1.2;
+  font-size: var(--sd-page-title-size);
+  font-weight: var(--sd-page-title-weight);
+  line-height: var(--sd-page-title-line-height);
 }
 
 .tool-test-page__summary {
@@ -265,7 +266,7 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 16px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 
@@ -299,7 +300,7 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   position: fixed;
   z-index: 19;
   inset: 0;
-  background: rgba(15, 23, 42, 0.34);
+  background: var(--sd-overlay);
 }
 
 .tool-test-page__composer {
@@ -356,7 +357,7 @@ async function handleSelectProfile(profile: ToolTestProfile) {
 
   .tool-test-page__workspace {
     margin-inline: -0.25rem;
-    border-radius: 12px;
+    border-radius: var(--sd-radius-md);
   }
 
   .tool-test-page__summary {

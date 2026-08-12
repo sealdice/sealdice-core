@@ -17,6 +17,25 @@
       accordion
       @update:expanded-keys="expandedKeys = $event"
     />
+    <footer class="sd-sidebar-footer" :class="{ 'sd-sidebar-footer--collapsed': props.collapsed }">
+      <n-tooltip :disabled="!props.collapsed" placement="right">
+        <template #trigger>
+          <n-button
+            tag="a"
+            quaternary
+            class="sd-sidebar-footer-action"
+            aria-label="旧版 UI"
+            :href="oldUIUrl"
+          >
+            <template #icon>
+              <n-icon><i-tabler-history /></n-icon>
+            </template>
+            <span v-if="!props.collapsed">旧版 UI</span>
+          </n-button>
+        </template>
+        旧版 UI
+      </n-tooltip>
+    </footer>
   </div>
 </template>
 
@@ -24,6 +43,7 @@
 import { computed, h, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import type { MenuOption } from 'naive-ui';
+import { resolveOldUIUrlFromLocation } from '@/api/config';
 import AppNavigationIcon from './AppNavigationIcon.vue';
 import AppSidebarBrand from './AppSidebarBrand.vue';
 import { getNavigationExpandedKeys } from '@/router/navigationModel';
@@ -46,6 +66,8 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
+const oldUIUrl =
+  typeof window !== 'undefined' ? resolveOldUIUrlFromLocation(window.location) : '/old-ui/';
 const { navigationTree } = useAppNavigation(() => props.advancedConfigCounter);
 const expandedKeys = ref<string[]>([]);
 
@@ -114,9 +136,56 @@ watch(
 .sd-sidebar-menu {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
   background: transparent;
   padding: 0 0.6rem 1rem;
+  scrollbar-width: none;
   transition: padding-inline var(--sd-transition-base);
+}
+
+.sd-sidebar-menu::-webkit-scrollbar {
+  display: none;
+}
+
+.sd-sidebar-footer {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+  margin-top: auto;
+  border-top: 1px solid var(--sd-border-sidebar);
+  background: var(--sd-bg-sidebar);
+  padding: 0.65rem;
+  transition: padding var(--sd-transition-base);
+}
+
+.sd-sidebar-footer--collapsed {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 0.55rem 0;
+}
+
+.sd-sidebar-footer-action {
+  --n-color-focus: var(--sd-bg-sidebar-hover) !important;
+  --n-color-hover: var(--sd-bg-sidebar-hover) !important;
+  --n-color-pressed: var(--sd-bg-sidebar-pressed) !important;
+  --n-text-color: var(--sd-text-inverse-soft) !important;
+  --n-text-color-focus: var(--sd-text-inverse) !important;
+  --n-text-color-hover: var(--sd-text-inverse) !important;
+  --n-text-color-pressed: var(--sd-text-inverse) !important;
+  width: 100%;
+  min-width: 0;
+  color: var(--sd-text-inverse-soft);
+  font-size: 0.78rem;
+}
+
+.sd-sidebar-footer-action:hover {
+  color: var(--sd-text-inverse);
+}
+
+.sd-sidebar-footer--collapsed .sd-sidebar-footer-action {
+  width: 40px;
+  padding-inline: 0;
 }
 
 :deep(.sd-sidebar-menu.n-menu--collapsed) {
@@ -146,15 +215,11 @@ watch(
 }
 
 :deep(.sd-sidebar-menu > .n-menu-item > .n-menu-item-content--selected::before),
-:deep(
-  .sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before
-) {
+:deep(.sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before) {
   box-shadow: inset 3px 0 var(--sd-primary);
 }
 
-:deep(
-  .sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before
-) {
+:deep(.sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before) {
   background-color: transparent;
 }
 

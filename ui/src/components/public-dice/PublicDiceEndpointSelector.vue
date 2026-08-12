@@ -152,7 +152,7 @@ function setRowChecked(id: string, checked: boolean) {
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--sd-border);
-  border-radius: 8px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

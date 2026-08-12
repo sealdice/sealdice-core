@@ -17,7 +17,7 @@
       >
         {{ checkAllBackups ? '取消全选' : '全选' }}
       </n-checkbox>
-      <n-text type="info" class="text-xs">
+      <n-text depth="3" class="text-xs">
         已勾选 {{ selectedBackups.length }} 个备份，共 {{ filesize(selectedBytes) }}
       </n-text>
     </n-flex>

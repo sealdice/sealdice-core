@@ -65,78 +65,75 @@
     <n-spin :show="loading && isMobile">
       <ListPanel>
         <div v-if="isMobile" class="resource-list-panel__cards">
-        <article
-          v-for="item in items"
-          :key="getResourceKey(item)"
-          class="resource-list-panel__card"
-        >
-          <button
-            class="resource-list-panel__preview-button"
-            type="button"
-            @click="emit('detail', item)"
+          <article
+            v-for="item in items"
+            :key="getResourceKey(item)"
+            class="resource-list-panel__card"
           >
-            <ResourcePreview :item="item" thumbnail />
-          </button>
-          <div class="resource-list-panel__card-main">
-            <div class="resource-list-panel__card-title">
-              <strong>{{ item.name }}</strong>
-              <n-tag size="small" :bordered="false" :type="getResourceTypeTagType(item.type)">
-                {{ formatResourceTypeLabel(item.type) }}
-              </n-tag>
-            </div>
-            <n-text code class="resource-list-panel__path">{{ item.path }}</n-text>
-            <n-flex align="center" justify="space-between" wrap>
-              <n-tag size="small" :bordered="false">{{ filesize(item.size) }}</n-tag>
-              <n-flex size="small" justify="end">
-                <n-button size="tiny" secondary type="info" @click="emit('copy', item)">
-                  复制码
-                </n-button>
-                <n-button size="tiny" secondary @click="emit('detail', item)"> 详情 </n-button>
-                <n-button
-                  size="tiny"
-                  secondary
-                  type="success"
-                  :loading="downloadingPath === item.path"
-                  @click="emit('download', item)"
-                >
-                  下载
-                </n-button>
-                <n-button
-                  size="tiny"
-                  secondary
-                  type="error"
-                  :disabled="disabled"
-                  :loading="deletingPath === item.path"
-                  @click="emit('delete', item)"
-                >
-                  删除
-                </n-button>
+            <button
+              class="resource-list-panel__preview-button"
+              type="button"
+              @click="emit('detail', item)"
+            >
+              <ResourcePreview :item="item" thumbnail />
+            </button>
+            <div class="resource-list-panel__card-main">
+              <div class="resource-list-panel__card-title">
+                <strong>{{ item.name }}</strong>
+                <n-tag size="small" :bordered="false" :type="getResourceTypeTagType(item.type)">
+                  {{ formatResourceTypeLabel(item.type) }}
+                </n-tag>
+              </div>
+              <n-text code class="resource-list-panel__path">{{ item.path }}</n-text>
+              <n-flex align="center" justify="space-between" wrap>
+                <n-tag size="small" :bordered="false">{{ filesize(item.size) }}</n-tag>
+                <n-flex size="small" justify="end">
+                  <n-button size="tiny" secondary @click="emit('copy', item)"> 复制码 </n-button>
+                  <n-button size="tiny" secondary @click="emit('detail', item)"> 详情 </n-button>
+                  <n-button
+                    size="tiny"
+                    secondary
+                    :loading="downloadingPath === item.path"
+                    @click="emit('download', item)"
+                  >
+                    下载
+                  </n-button>
+                  <n-button
+                    size="tiny"
+                    secondary
+                    type="error"
+                    :disabled="disabled"
+                    :loading="deletingPath === item.path"
+                    @click="emit('delete', item)"
+                  >
+                    删除
+                  </n-button>
+                </n-flex>
               </n-flex>
-            </n-flex>
-          </div>
-        </article>
-      </div>
+            </div>
+          </article>
+        </div>
 
-      <n-data-table
-        v-else
-        :columns="columns"
-        :data="items"
-        :loading="loading"
-        :bordered="false"
-        :row-key="getResourceKey"
-        :scroll-x="900"
-        size="small"
-      />
+        <n-data-table
+          v-else
+          :columns="columns"
+          :data="items"
+          :loading="loading"
+          :bordered="false"
+          :row-key="getResourceKey"
+          :scroll-x="900"
+          size="small"
+        />
 
-      <n-empty
-        v-if="!loading && items.length === 0"
-        description="暂无图片资源"
-        class="resource-list-panel__empty"
-      >
-        <template #extra>
-          <n-text depth="3">上传图片后可在骰子消息中使用 [图:路径] 引用。</n-text>
-        </template>
-      </n-empty>
+        <n-empty
+          v-if="!loading && items.length === 0"
+          description="暂无图片资源"
+          class="resource-list-panel__empty"
+        >
+          <template #extra>
+            <n-text depth="3">上传图片后可在骰子消息中使用 [图:路径] 引用。</n-text>
+          </template>
+        </n-empty>
       </ListPanel>
     </n-spin>
 
@@ -333,7 +330,7 @@ const columns = computed<DataTableColumns<ResourceItem>>(() => [
     width: 300,
     render: row => (
       <NSpace justify="end" size="small">
-        <NButton size="small" secondary type="info" onClick={() => emit('copy', row)}>
+        <NButton size="small" secondary onClick={() => emit('copy', row)}>
           复制海豹码
         </NButton>
         <NButton size="small" secondary onClick={() => emit('detail', row)}>
@@ -342,7 +339,6 @@ const columns = computed<DataTableColumns<ResourceItem>>(() => [
         <NButton
           size="small"
           secondary
-          type="success"
           loading={props.downloadingPath === row.path}
           onClick={() => emit('download', row)}
         >
@@ -471,7 +467,7 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated-soft);
 }
 
@@ -531,7 +527,7 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--sd-border-soft);
-  border-radius: 6px;
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

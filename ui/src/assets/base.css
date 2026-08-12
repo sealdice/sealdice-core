@@ -8,13 +8,25 @@ body {
 }
 
 :root {
-  --sd-accent: #2563eb;
-  --sd-accent-strong: #1d4ed8;
   --sd-primary: #2563eb;
-  --sd-info: #2563eb;
   --sd-success: #15803d;
   --sd-warning: #b45309;
   --sd-error: #dc2626;
+  --sd-info: var(--sd-primary);
+  --sd-accent: var(--sd-primary);
+  --sd-accent-strong: #1d4ed8;
+  --sd-primary-soft: color-mix(in srgb, var(--sd-primary) 9%, transparent);
+  --sd-primary-soft-strong: color-mix(in srgb, var(--sd-primary) 16%, transparent);
+  --sd-primary-border: color-mix(in srgb, var(--sd-primary) 22%, transparent);
+  --sd-success-soft: color-mix(in srgb, var(--sd-success) 9%, transparent);
+  --sd-success-soft-strong: color-mix(in srgb, var(--sd-success) 16%, transparent);
+  --sd-success-border: color-mix(in srgb, var(--sd-success) 22%, transparent);
+  --sd-warning-soft: color-mix(in srgb, var(--sd-warning) 10%, transparent);
+  --sd-warning-soft-strong: color-mix(in srgb, var(--sd-warning) 18%, transparent);
+  --sd-warning-border: color-mix(in srgb, var(--sd-warning) 24%, transparent);
+  --sd-error-soft: color-mix(in srgb, var(--sd-error) 10%, transparent);
+  --sd-error-soft-strong: color-mix(in srgb, var(--sd-error) 18%, transparent);
+  --sd-error-border: color-mix(in srgb, var(--sd-error) 24%, transparent);
   --sd-bg-app: #f4f6f9;
   --sd-bg-page: #f4f6f9;
   --sd-bg-shell: #f4f6f9;
@@ -23,8 +35,8 @@ body {
   --sd-bg-control: #f1f4f8;
   --sd-bg-control-hover: #e8edf4;
   --sd-bg-hover: rgba(15, 23, 42, 0.055);
-  --sd-bg-selected: rgba(37, 99, 235, 0.1);
-  --sd-bg-selected-strong: rgba(37, 99, 235, 0.16);
+  --sd-bg-selected: var(--sd-primary-soft);
+  --sd-bg-selected-strong: var(--sd-primary-soft-strong);
   --sd-text-primary: #172033;
   --sd-text-secondary: #526078;
   --sd-text-muted: #8490a3;
@@ -36,6 +48,9 @@ body {
   --sd-radius-md: 8px;
   --sd-radius-lg: 10px;
   --sd-radius-pill: 999px;
+  --sd-page-title-size: 1.5rem;
+  --sd-page-title-weight: 700;
+  --sd-page-title-line-height: 1.25;
   --sd-content-max-width: 1180px;
   --sd-space-2xs: 0.25rem;
   --sd-space-xs: 0.5rem;
@@ -51,7 +66,15 @@ body {
   --sd-bg-elevated-tint: rgba(255, 255, 255, 0.94);
   --sd-text-inverse-soft: rgba(255, 255, 255, 0.82);
   --sd-text-inverse-muted: rgba(255, 255, 255, 0.56);
+  --sd-bg-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --sd-bg-sidebar-pressed: rgba(255, 255, 255, 0.12);
+  --sd-bg-sidebar-selected: color-mix(in srgb, var(--sd-primary) 26%, transparent);
+  --sd-bg-sidebar-selected-strong: color-mix(in srgb, var(--sd-primary) 32%, transparent);
+  --sd-border-sidebar: rgba(255, 255, 255, 0.07);
+  --sd-overlay: rgba(15, 23, 42, 0.34);
   --sd-shadow-floating: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --sd-shadow-panel: 0 10px 26px rgba(15, 23, 42, 0.08);
+  --sd-shadow-drawer: -18px 0 42px rgba(15, 23, 42, 0.18);
   --sd-transition-fast: 140ms ease;
   --sd-transition-base: 180ms ease;
   --qq-background-03: var(--sd-bg-page);
@@ -66,33 +89,43 @@ body {
   --qq-icon_tertiary: var(--sd-text-muted);
   --qq-on_bg_text: var(--sd-text-secondary);
   --qq-overlay_hover: var(--sd-bg-hover);
-  --qq-overlay_hover_brand: #e6f4ff;
+  --qq-overlay_hover_brand: var(--sd-primary-soft);
   --qq-text-secondary-01: var(--sd-text-muted);
-  --qq-text_white: #ffffff;
+  --qq-text_white: var(--sd-text-inverse);
   --qq-text_link: var(--sd-primary);
   --qq-text_primary: var(--sd-text-primary);
   --qq-text_primary_light: rgba(17, 24, 39, 0.64);
   --qq-text_secondary: rgba(17, 24, 39, 0.54);
   --on_brand_primary: var(--sd-text-inverse);
   --on_bubble_host_text: var(--sd-text-inverse);
-  --qq-tag_red_bg: #fff1f0;
+  --qq-tag_red_bg: var(--sd-error-soft);
   --qq-tag_red_text: var(--sd-error);
-  --qq-tag_orange_bg: #fff7e6;
+  --qq-tag_orange_bg: var(--sd-warning-soft);
   --qq-tag_orange_text: var(--sd-warning);
-  --qq-tag_purple_bg: rgba(139, 92, 246, 0.18);
-  --qq-tag_purple_text: #8b5cf6;
-  --qq-tag_blue_bg: #e6f4ff;
+  --qq-tag_purple_bg: var(--sd-primary-soft-strong);
+  --qq-tag_purple_text: var(--sd-primary);
+  --qq-tag_blue_bg: var(--sd-primary-soft);
   --qq-tag_blue_text: var(--sd-primary);
-  --qq-tag_gray_bg: rgba(75, 85, 99, 0.12);
+  --qq-tag_gray_bg: var(--sd-bg-hover);
   --qq-tag_gray_text: var(--sd-text-secondary);
-  --qq-tag_sage_green_bg: #f6ffed;
+  --qq-tag_sage_green_bg: var(--sd-success-soft);
   --qq-tag_sage_green_text: var(--sd-success);
   --nt_blur_bottom_superlight_2_30_2_alpha: var(--sd-bg-elevated-tint);
 }
 
 .dark {
-  --sd-accent: #60a5fa;
-  --sd-accent-strong: #93c5fd;
+  --sd-primary-soft: color-mix(in srgb, var(--sd-primary) 16%, transparent);
+  --sd-primary-soft-strong: color-mix(in srgb, var(--sd-primary) 24%, transparent);
+  --sd-primary-border: color-mix(in srgb, var(--sd-primary) 28%, transparent);
+  --sd-success-soft: color-mix(in srgb, var(--sd-success) 14%, transparent);
+  --sd-success-soft-strong: color-mix(in srgb, var(--sd-success) 22%, transparent);
+  --sd-success-border: color-mix(in srgb, var(--sd-success) 28%, transparent);
+  --sd-warning-soft: color-mix(in srgb, var(--sd-warning) 14%, transparent);
+  --sd-warning-soft-strong: color-mix(in srgb, var(--sd-warning) 22%, transparent);
+  --sd-warning-border: color-mix(in srgb, var(--sd-warning) 28%, transparent);
+  --sd-error-soft: color-mix(in srgb, var(--sd-error) 14%, transparent);
+  --sd-error-soft-strong: color-mix(in srgb, var(--sd-error) 22%, transparent);
+  --sd-error-border: color-mix(in srgb, var(--sd-error) 28%, transparent);
   --sd-bg-app: #0c111d;
   --sd-bg-page: #0f1522;
   --sd-bg-shell: #0c111d;
@@ -101,8 +134,8 @@ body {
   --sd-bg-control: #1c2636;
   --sd-bg-control-hover: #253246;
   --sd-bg-hover: rgba(255, 255, 255, 0.08);
-  --sd-bg-selected: rgba(96, 165, 250, 0.16);
-  --sd-bg-selected-strong: rgba(96, 165, 250, 0.24);
+  --sd-bg-selected: var(--sd-primary-soft);
+  --sd-bg-selected-strong: var(--sd-primary-soft-strong);
   --sd-text-primary: #f8fafc;
   --sd-text-secondary: #cbd5e1;
   --sd-text-muted: rgba(203, 213, 225, 0.64);
@@ -116,6 +149,10 @@ body {
   --sd-bg-elevated-tint: rgba(24, 33, 51, 0.92);
   --sd-text-inverse-soft: rgba(255, 255, 255, 0.9);
   --sd-text-inverse-muted: rgba(255, 255, 255, 0.7);
+  --sd-overlay: rgba(2, 6, 23, 0.54);
+  --sd-shadow-floating: 0 12px 34px rgba(2, 6, 23, 0.36);
+  --sd-shadow-panel: 0 10px 28px rgba(2, 6, 23, 0.28);
+  --sd-shadow-drawer: -18px 0 42px rgba(2, 6, 23, 0.42);
 }
 
 *,

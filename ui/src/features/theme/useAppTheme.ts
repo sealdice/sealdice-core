@@ -5,18 +5,14 @@ import { useThemeStore } from './store';
 // 新代码请直接用 const themeStore = useThemeStore()。
 export function useAppTheme() {
   const store = useThemeStore();
-  const { isDark, resolvedTheme, themeMode, themeOverrides, themePalette } = storeToRefs(store);
+  const { isDark, resolvedTheme, themeMode, themeOverrides } = storeToRefs(store);
 
   return {
     isDark,
     resolvedTheme,
     themeMode,
     themeOverrides,
-    themePalette,
     setThemeMode: store.setThemeMode,
     toggleTheme: store.toggleTheme,
-    setThemePalette: store.setThemePalette,
-    setThemeColor: store.setThemeColor,
-    resetThemePalette: store.resetThemePalette,
   };
 }

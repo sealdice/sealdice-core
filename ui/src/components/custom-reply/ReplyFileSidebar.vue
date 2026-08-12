@@ -119,7 +119,7 @@
             >
               {{ getFileEnableStatus(item.filename, item.enable) ? '启用' : '停用' }}
             </n-tag>
-            <n-tag v-if="item.packageId" size="tiny" type="warning" :bordered="false">
+            <n-tag v-if="item.packageId" size="tiny" :bordered="false">
               来源包 {{ item.packageId }}
             </n-tag>
             <span>{{ formatUpdateTime(item.updateTimestamp) }}</span>

@@ -4,23 +4,14 @@
       <div class="js-config-item__meta">
         <n-flex align="center" size="small" wrap>
           <n-text strong>{{ item.key }}</n-text>
-          <n-tag v-if="item.deprecated" size="small" type="error" :bordered="false">
-            废弃
-          </n-tag>
-          <n-tag v-if="type.startsWith('task:')" size="small" type="warning" :bordered="false">
-            定时任务
-          </n-tag>
+          <n-tag v-if="item.deprecated" size="small" type="error" :bordered="false"> 废弃 </n-tag>
+          <n-tag v-if="type.startsWith('task:')" size="small" :bordered="false"> 定时任务 </n-tag>
         </n-flex>
         <n-text v-if="item.description" depth="3" class="js-config-item__description">
           {{ item.description }}
         </n-text>
       </div>
-      <n-button
-        v-if="isChanged"
-        size="tiny"
-        secondary
-        @click="emit('reset', pluginName, item.key)"
-      >
+      <n-button v-if="isChanged" size="tiny" secondary @click="emit('reset', pluginName, item.key)">
         重置
       </n-button>
     </header>
@@ -63,13 +54,7 @@
           :value="templateValue"
           @update:value="value => updateTemplateItem(index, value)"
         />
-        <n-button
-          v-if="index === 0"
-          size="small"
-          secondary
-          circle
-          @click="addTemplateItem"
-        >
+        <n-button v-if="index === 0" size="small" secondary circle @click="addTemplateItem">
           <template #icon>
             <n-icon><i-tabler-plus /></n-icon>
           </template>
@@ -119,9 +104,7 @@
 import { computed, ref, watch } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import type { ConfigItem } from '@/api';
-import {
-  normalizeTemplateValue,
-} from '@/features/js/configModel';
+import { normalizeTemplateValue } from '@/features/js/configModel';
 
 const props = defineProps<{
   item: ConfigItem;
@@ -139,7 +122,9 @@ const emit = defineEmits<{
 const localValue = ref<unknown>(props.item.value ?? props.item.defaultValue);
 const type = computed(() => props.item.type ?? 'string');
 const value = computed(() => localValue.value);
-const isChanged = computed(() => JSON.stringify(value.value) !== JSON.stringify(props.item.defaultValue));
+const isChanged = computed(
+  () => JSON.stringify(value.value) !== JSON.stringify(props.item.defaultValue)
+);
 const optionItems = computed<SelectOption[]>(() => {
   if (!Array.isArray(props.item.option)) return [];
   return props.item.option.map(option => ({
@@ -153,7 +138,7 @@ watch(
   () => [props.item.value, props.item.defaultValue] as const,
   ([nextValue, nextDefaultValue]) => {
     localValue.value = nextValue ?? nextDefaultValue;
-  },
+  }
 );
 
 function updateValue(nextValue: unknown) {
