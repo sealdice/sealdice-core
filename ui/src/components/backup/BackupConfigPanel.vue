@@ -1,117 +1,116 @@
 <template>
   <section class="backup-config-panel">
     <n-form ref="formRef" :model="config" :rules="rules" label-placement="top" :disabled="disabled">
-      <section class="backup-config-panel__section">
-        <div class="backup-config-panel__section-title">
-          <h3>自动备份</h3>
+      <SettingCategoryBox
+        title="自动备份"
+        padded
+        :columns="2"
+        :show-panel="config.autoBackupEnable"
+      >
+        <template #title-extra>
           <n-switch v-model:value="config.autoBackupEnable" aria-label="启用自动备份" />
-        </div>
+        </template>
 
-        <div v-show="config.autoBackupEnable" class="backup-config-panel__fields">
-          <n-form-item path="autoBackupTime">
-            <template #label>
-              <span class="backup-config-panel__label">
-                备份间隔
-                <n-tooltip placement="top">
-                  <template #trigger>
-                    <n-icon class="backup-config-panel__help">
-                      <i-tabler-help-circle />
-                    </n-icon>
-                  </template>
-                  备份间隔表达式使用 robfig/cron 格式，例如 @every 12h。
-                </n-tooltip>
-              </span>
-            </template>
-            <n-input v-model:value="config.autoBackupTime" placeholder="@every 12h" />
-          </n-form-item>
+        <n-form-item path="autoBackupTime">
+          <template #label>
+            <span class="backup-config-panel__label">
+              备份间隔
+              <n-tooltip placement="top">
+                <template #trigger>
+                  <n-icon class="backup-config-panel__help">
+                    <i-tabler-help-circle />
+                  </n-icon>
+                </template>
+                备份间隔表达式使用 robfig/cron 格式，例如 @every 12h。
+              </n-tooltip>
+            </span>
+          </template>
+          <n-input v-model:value="config.autoBackupTime" placeholder="@every 12h" />
+        </n-form-item>
 
-          <n-form-item path="autoBackupSelectionList" label="备份范围">
-            <BackupSelectionGroup v-model:value="config.autoBackupSelectionList" />
-          </n-form-item>
+        <n-form-item path="autoBackupSelectionList" label="备份范围">
+          <BackupSelectionGroup v-model:value="config.autoBackupSelectionList" />
+        </n-form-item>
 
-          <n-form-item label="备份文件名预览">
-            <n-text code class="backup-config-panel__preview">
-              {{ autoBackupPreview }}
-            </n-text>
-          </n-form-item>
-        </div>
-      </section>
+        <n-form-item label="备份文件名预览">
+          <n-text code class="backup-config-panel__preview">
+            {{ autoBackupPreview }}
+          </n-text>
+        </n-form-item>
+      </SettingCategoryBox>
 
-      <section class="backup-config-panel__section">
-        <div class="backup-config-panel__section-title">
-          <h3>自动清理</h3>
+      <SettingCategoryBox title="自动清理" padded :columns="2" :show-panel="cleaningEnabled">
+        <template #title-extra>
           <n-switch v-model:value="cleaningEnabled" aria-label="启用自动清理" />
-        </div>
+        </template>
 
-        <div v-show="cleaningEnabled" class="backup-config-panel__fields">
-          <n-form-item path="backupCleanStrategy" label="保留规则">
-            <n-radio-group v-model:value="config.backupCleanStrategy" size="small">
-              <n-radio-button :value="1">按数量保留</n-radio-button>
-              <n-radio-button :value="2">按时间保留</n-radio-button>
-            </n-radio-group>
-          </n-form-item>
+        <n-form-item path="backupCleanStrategy" label="保留规则">
+          <n-radio-group v-model:value="config.backupCleanStrategy" size="small">
+            <n-radio-button :value="1">按数量保留</n-radio-button>
+            <n-radio-button :value="2">按时间保留</n-radio-button>
+          </n-radio-group>
+        </n-form-item>
 
-          <n-form-item
-            v-if="config.backupCleanStrategy === 1"
-            path="backupCleanKeepCount"
-            label="保留数量"
-          >
-            <n-input-number v-model:value="config.backupCleanKeepCount" :min="1" :step="1" />
-          </n-form-item>
+        <n-form-item
+          v-if="config.backupCleanStrategy === 1"
+          path="backupCleanKeepCount"
+          label="保留数量"
+        >
+          <n-input-number v-model:value="config.backupCleanKeepCount" :min="1" :step="1" />
+        </n-form-item>
 
-          <n-form-item v-if="config.backupCleanStrategy === 2" path="backupCleanKeepDur">
-            <template #label>
-              <span class="backup-config-panel__label">
-                保留时间
-                <n-tooltip placement="top">
-                  <template #trigger>
-                    <n-icon class="backup-config-panel__help">
-                      <i-tabler-help-circle />
-                    </n-icon>
-                  </template>
-                  支持 h、m、s，例如 720h 表示保留 30 天内的备份。
-                </n-tooltip>
-              </span>
-            </template>
-            <n-input v-model:value="config.backupCleanKeepDur" placeholder="720h" />
-          </n-form-item>
+        <n-form-item v-if="config.backupCleanStrategy === 2" path="backupCleanKeepDur">
+          <template #label>
+            <span class="backup-config-panel__label">
+              保留时间
+              <n-tooltip placement="top">
+                <template #trigger>
+                  <n-icon class="backup-config-panel__help">
+                    <i-tabler-help-circle />
+                  </n-icon>
+                </template>
+                支持 h、m、s，例如 720h 表示保留 30 天内的备份。
+              </n-tooltip>
+            </span>
+          </template>
+          <n-input v-model:value="config.backupCleanKeepDur" placeholder="720h" />
+        </n-form-item>
 
-          <n-form-item path="backupCleanTriggers">
-            <template #label>
-              <span class="backup-config-panel__label">
-                触发方式
-                <n-tooltip placement="top">
-                  <template #trigger>
-                    <n-icon class="backup-config-panel__help">
-                      <i-tabler-help-circle />
-                    </n-icon>
-                  </template>
-                  自动备份后会在每次自动备份完成后顺便清理；定时会按照 cron 表达式单独清理。
-                </n-tooltip>
-              </span>
-            </template>
-            <n-checkbox-group v-model:value="config.backupCleanTriggers">
-              <n-flex align="center" wrap>
-                <n-checkbox
-                  v-for="option in cleanTriggerOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </n-checkbox>
-              </n-flex>
-            </n-checkbox-group>
-          </n-form-item>
+        <n-form-item path="backupCleanTriggers">
+          <template #label>
+            <span class="backup-config-panel__label">
+              触发方式
+              <n-tooltip placement="top">
+                <template #trigger>
+                  <n-icon class="backup-config-panel__help">
+                    <i-tabler-help-circle />
+                  </n-icon>
+                </template>
+                自动备份后会在每次自动备份完成后顺便清理；定时会按照 cron 表达式单独清理。
+              </n-tooltip>
+            </span>
+          </template>
+          <n-checkbox-group v-model:value="config.backupCleanTriggers">
+            <n-flex align="center" wrap>
+              <n-checkbox
+                v-for="option in cleanTriggerOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </n-checkbox>
+            </n-flex>
+          </n-checkbox-group>
+        </n-form-item>
 
-          <n-form-item path="backupCleanCron" label="定时间隔">
-            <n-input
-              v-model:value="config.backupCleanCron"
-              :disabled="!config.backupCleanTriggers.includes('cron')"
-              placeholder="0 0 * * *"
-            />
-          </n-form-item>
-        </div>
-      </section>
+        <n-form-item path="backupCleanCron" label="定时间隔">
+          <n-input
+            v-model:value="config.backupCleanCron"
+            :disabled="!config.backupCleanTriggers.includes('cron')"
+            placeholder="0 0 * * *"
+          />
+        </n-form-item>
+      </SettingCategoryBox>
 
       <n-alert type="info" :bordered="false">
         恢复备份时，将骰子彻底关闭，解压备份压缩包到骰子目录。若提示是否覆盖，选择全部即可。
@@ -125,6 +124,7 @@ import { computed, ref, watch } from 'vue';
 import type { FormInst, FormRules } from 'naive-ui';
 import type { BackupCleanTriggerKey, BackupConfigDraft } from '@/features/backup/viewModel';
 import { buildBackupConfigPayload, buildBackupFilenamePreview } from '@/features/backup/viewModel';
+import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import BackupSelectionGroup from './BackupSelectionGroup.vue';
 
 const config = defineModel<BackupConfigDraft>('config', { required: true });
@@ -215,33 +215,10 @@ const autoBackupPreview = computed(() =>
 </script>
 
 <style scoped>
-.backup-config-panel__section-title {
+.backup-config-panel :deep(.n-form) {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.backup-config-panel__section-title h3 {
-  margin: 0;
-  color: var(--sd-text-primary);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 20px;
-}
-
-.backup-config-panel__section {
-  padding-top: 18px;
-  border-top: 1px solid var(--sd-border-soft);
-}
-
-.backup-config-panel__section:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.backup-config-panel__fields {
-  margin-top: 12px;
+  flex-direction: column;
+  gap: var(--sd-space-xs);
 }
 
 .backup-config-panel__label {

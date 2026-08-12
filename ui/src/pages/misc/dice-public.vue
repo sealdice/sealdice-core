@@ -26,43 +26,44 @@
       </n-button>
     </PageHeader>
 
-    <n-card class="public-dice-card" :bordered="false">
-      <n-alert v-if="queryErrorText" class="public-dice-card__alert" type="error">
-        {{ queryErrorText }}
-      </n-alert>
+    <n-alert v-if="queryErrorText" class="public-dice-alert" type="error">
+      {{ queryErrorText }}
+    </n-alert>
 
-      <n-spin :show="loadingInitial">
-        <div v-if="draft" class="public-dice-card__body">
-          <aside class="public-dice-card__seal" aria-hidden="true">
-            <img :src="imgSeal" alt="" />
-          </aside>
-          <PublicDiceProfileForm
-            v-model:config="draft.config"
-            class="public-dice-card__form"
-            :disabled="contentDisabled"
-          />
-        </div>
-        <n-alert
-          v-if="draft && !draft.config.publicDiceEnable"
-          type="info"
-          :bordered="false"
-          class="public-dice-card__disabled-note"
-        >
-          公骰已关闭，配置保持只读；启用公骰后可继续编辑。
-        </n-alert>
-      </n-spin>
+    <n-spin :show="loadingInitial">
+      <div v-if="draft" class="public-dice-groups">
+        <SettingCategoryBox title="公骰资料" padded>
+          <div class="public-dice-profile">
+            <aside class="public-dice-profile__seal" aria-hidden="true">
+              <img :src="imgSeal" alt="" />
+            </aside>
+            <PublicDiceProfileForm
+              v-model:config="draft.config"
+              class="public-dice-profile__form"
+              :disabled="contentDisabled"
+            />
+          </div>
+        </SettingCategoryBox>
 
-      <template #footer>
-        <div v-if="draft" class="public-dice-card__footer">
+        <SettingCategoryBox title="上报终端" padded>
           <PublicDiceEndpointSelector
             v-model:checked-row-keys="checkedRowKeys"
             :rows="endpointRows"
             :disabled="contentDisabled"
             :loading="publicDiceQuery.isFetching.value && endpointRows.length === 0"
           />
-        </div>
-      </template>
-    </n-card>
+        </SettingCategoryBox>
+
+        <n-alert
+          v-if="!draft.config.publicDiceEnable"
+          type="info"
+          :bordered="false"
+          class="public-dice-disabled-note"
+        >
+          公骰已关闭，配置保持只读；启用公骰后可继续编辑。
+        </n-alert>
+      </div>
+    </n-spin>
   </main>
 </template>
 
@@ -81,6 +82,7 @@ import {
 import imgSeal from '@/assets/seal.png';
 import PublicDiceEndpointSelector from '@/components/public-dice/PublicDiceEndpointSelector.vue';
 import PublicDiceProfileForm from '@/components/public-dice/PublicDiceProfileForm.vue';
+import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
@@ -221,30 +223,27 @@ useUnsavedChanges('public-dice', {
   min-width: 0;
 }
 
-.public-dice-card {
-  --public-dice-gap: 28px;
+.public-dice-groups {
+  display: grid;
+  gap: var(--sd-space-2xs);
 }
 
-.public-dice-card__alert {
-  margin-bottom: 16px;
+.public-dice-alert {
+  margin-bottom: var(--sd-space-md);
 }
 
-.public-dice-card__body {
+.public-dice-profile {
   display: grid;
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-  gap: var(--public-dice-gap);
+  gap: 28px;
   align-items: stretch;
 }
 
-.public-dice-card__disabled-note {
-  margin-top: 16px;
+.public-dice-disabled-note {
+  margin-top: var(--sd-space-xs);
 }
 
-.public-dice-card__body--disabled .public-dice-card__seal img {
-  filter: grayscale(1);
-}
-
-.public-dice-card__seal {
+.public-dice-profile__seal {
   display: grid;
   place-items: center;
   min-height: 248px;
@@ -254,50 +253,29 @@ useUnsavedChanges('public-dice', {
   overflow: hidden;
 }
 
-.public-dice-card__seal img {
+.public-dice-profile__seal img {
   display: block;
   width: min(76%, 190px);
   height: auto;
   transition: filter 0.2s ease;
 }
 
-.public-dice-card__form {
+.public-dice-profile__form {
   min-width: 0;
 }
 
-.public-dice-card__footer {
-  padding-top: 4px;
-}
-
 @media (max-width: 860px) {
-  .public-dice-card__body {
+  .public-dice-profile {
     grid-template-columns: 1fr;
     gap: 18px;
   }
 
-  .public-dice-card__seal {
+  .public-dice-profile__seal {
     min-height: 180px;
   }
 
-  .public-dice-card__seal img {
+  .public-dice-profile__seal img {
     width: min(52%, 150px);
-  }
-}
-
-@media (max-width: 560px) {
-  .public-dice-card :deep(.n-card-header) {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .public-dice-card :deep(.n-card-header__extra) {
-    width: 100%;
-  }
-
-  .public-dice-card :deep(.n-card-header__extra .n-space) {
-    justify-content: space-between;
-    width: 100%;
   }
 }
 </style>

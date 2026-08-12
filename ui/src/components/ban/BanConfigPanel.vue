@@ -13,9 +13,8 @@
       <n-text type="warning" tag="strong">内容已修改，不要忘记保存。</n-text>
     </TipBox>
 
-    <section class="ban-config-panel__section">
-      <h3>基本设置</h3>
-      <n-flex wrap>
+    <SettingCategoryBox title="基本设置" padded>
+      <n-flex wrap class="ban-config-panel__checks">
         <n-checkbox v-model:checked="config.banBehaviorRefuseReply">拒绝回复</n-checkbox>
         <n-checkbox v-model:checked="config.banBehaviorRefuseInvite">拒绝邀请</n-checkbox>
         <n-checkbox v-model:checked="config.banBehaviorQuitLastPlace">退出事发群</n-checkbox>
@@ -29,10 +28,9 @@
           使用者为管理员立即退群，为普通群员仅拒绝回复
         </n-checkbox>
       </n-flex>
-    </section>
+    </SettingCategoryBox>
 
-    <section class="ban-config-panel__section">
-      <h3>怒气值设置</h3>
+    <SettingCategoryBox title="怒气值设置" padded>
       <TipBox type="info" class="ban-config-panel__tip">
         <n-text type="info">
           海豹的黑名单使用积分制。用户做出恶意行为时怒气值上涨，达到阈值后进入警告或黑名单。
@@ -114,12 +112,13 @@
           />
         </n-form-item>
       </n-form>
-    </section>
+    </SettingCategoryBox>
   </section>
 </template>
 
 <script setup lang="ts">
 import type { BanConfig } from '@/api';
+import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 
 const config = defineModel<BanConfig>('config', { required: true });
@@ -141,16 +140,8 @@ const emit = defineEmits<{
   gap: 1rem;
 }
 
-.ban-config-panel__section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.ban-config-panel__section h3 {
-  margin: 0;
-  color: var(--sd-text-primary);
-  font-size: 1rem;
+.ban-config-panel__checks {
+  align-items: flex-start;
 }
 
 .ban-config-panel__form {

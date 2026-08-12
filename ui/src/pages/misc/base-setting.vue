@@ -57,7 +57,7 @@
                 </TipBox>
               </template>
 
-              <div v-if="currentValue" class="setting-fields">
+              <template v-if="currentValue">
                 <BaseSettingFieldRenderer
                   v-for="field in group.fields"
                   :key="field.id"
@@ -70,7 +70,7 @@
                   :run-action="runAction"
                   @update-field="updateField"
                 />
-              </div>
+              </template>
             </SettingCategoryBox>
           </div>
         </template>
@@ -265,11 +265,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 
 .group-note {
   margin: var(--sd-space-sm) var(--sd-space-md) 0.35rem;
-}
-
-.setting-fields {
-  display: flex;
-  flex-direction: column;
 }
 
 @media (max-width: 768px) {

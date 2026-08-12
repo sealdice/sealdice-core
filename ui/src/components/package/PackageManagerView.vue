@@ -79,8 +79,8 @@
       </n-tab-pane>
 
       <n-tab-pane name="manage" tab="后端与安装">
-        <n-space vertical size="large">
-          <n-card title="仓库后端" size="small">
+        <div class="package-setting-groups">
+          <SettingCategoryBox title="仓库后端" padded>
             <n-space vertical>
               <n-space wrap>
                 <n-input
@@ -128,55 +128,51 @@
                 </n-list-item>
               </n-list>
             </n-space>
-          </n-card>
+          </SettingCategoryBox>
 
-          <n-grid cols="1 m:2" responsive="screen" :x-gap="16" :y-gap="16">
-            <n-grid-item>
-              <n-card title="上传安装" size="small">
-                <n-space vertical>
-                  <input
-                    ref="uploadInputRef"
-                    type="file"
-                    accept=".sealpack"
-                    hidden
-                    @change="handleUploadInput"
-                  />
-                  <n-space align="center">
-                    <n-button secondary @click="uploadInputRef?.click()">选择文件</n-button>
-                    <n-text depth="3">{{ uploadFileName || '未选择文件' }}</n-text>
-                  </n-space>
-                  <n-space>
-                    <n-button
-                      type="primary"
-                      :disabled="!selectedUploadFile"
-                      :loading="uploadPreviewLoading"
-                      @click="previewUpload"
-                      >预览并安装</n-button
-                    >
-                  </n-space>
+          <div class="package-install-groups">
+            <SettingCategoryBox title="上传安装" padded>
+              <n-space vertical>
+                <input
+                  ref="uploadInputRef"
+                  type="file"
+                  accept=".sealpack"
+                  hidden
+                  @change="handleUploadInput"
+                />
+                <n-space align="center">
+                  <n-button secondary @click="uploadInputRef?.click()">选择文件</n-button>
+                  <n-text depth="3">{{ uploadFileName || '未选择文件' }}</n-text>
                 </n-space>
-              </n-card>
-            </n-grid-item>
-            <n-grid-item>
-              <n-card title="URL 安装" size="small">
-                <n-space vertical>
-                  <n-input
-                    v-model:value="installUrlInput"
-                    clearable
-                    placeholder="https://example.com/demo.sealpack"
-                  />
+                <n-space>
                   <n-button
                     type="primary"
-                    :disabled="!installUrlInput.trim()"
-                    :loading="installUrlLoading"
-                    @click="previewUrl"
+                    :disabled="!selectedUploadFile"
+                    :loading="uploadPreviewLoading"
+                    @click="previewUpload"
                     >预览并安装</n-button
                   >
                 </n-space>
-              </n-card>
-            </n-grid-item>
-          </n-grid>
-        </n-space>
+              </n-space>
+            </SettingCategoryBox>
+            <SettingCategoryBox title="URL 安装" padded>
+              <n-space vertical>
+                <n-input
+                  v-model:value="installUrlInput"
+                  clearable
+                  placeholder="https://example.com/demo.sealpack"
+                />
+                <n-button
+                  type="primary"
+                  :disabled="!installUrlInput.trim()"
+                  :loading="installUrlLoading"
+                  @click="previewUrl"
+                  >预览并安装</n-button
+                >
+              </n-space>
+            </SettingCategoryBox>
+          </div>
+        </div>
       </n-tab-pane>
     </n-tabs>
 
@@ -275,6 +271,7 @@ import { getErrorMessage } from '@/features/auth/error';
 import { isTestModeApiError, getTestModeBlockMessage } from '@/features/testMode/state';
 import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
+import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import PackageInstalledDataView from '@/components/package/PackageInstalledDataView.vue';
 import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
 import ListActions from '@/components/shared/ListActions.vue';
@@ -815,5 +812,23 @@ function handleError(error: unknown, fallback: string) {
 
 .package-filter-row {
   max-width: 100%;
+}
+
+.package-setting-groups {
+  display: grid;
+  gap: var(--sd-space-2xs);
+}
+
+.package-install-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sd-space-md);
+}
+
+@media (max-width: 760px) {
+  .package-install-groups {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sd-space-2xs);
+  }
 }
 </style>
