@@ -97,6 +97,42 @@
       >
         <n-input v-model:value="editor.newFilename.value" placeholder="reply2.yaml" />
       </n-modal>
+
+      <n-modal
+        v-model:show="editor.fileSwitchDialogVisible.value"
+        preset="dialog"
+        title="切换回复文件"
+        :show-icon="false"
+        :mask-closable="false"
+        :close-on-esc="false"
+        @close="editor.cancelFileSwitch"
+      >
+        <n-text>
+          当前文件 {{ editor.selectedFilename.value }} 有未保存的修改，是否保存后切换到
+          {{ editor.pendingFilename.value }}？
+        </n-text>
+
+        <template #action>
+          <n-space justify="end">
+            <n-button :disabled="editor.saveMutation.isPending.value" @click="editor.cancelFileSwitch">
+              取消
+            </n-button>
+            <n-button
+              :disabled="editor.saveMutation.isPending.value"
+              @click="editor.discardAndSwitchFile"
+            >
+              不保存
+            </n-button>
+            <n-button
+              type="primary"
+              :loading="editor.saveMutation.isPending.value"
+              @click="editor.saveAndSwitchFile"
+            >
+              保存并切换
+            </n-button>
+          </n-space>
+        </template>
+      </n-modal>
     </n-spin>
   </WorkspaceFrame>
 </template>
