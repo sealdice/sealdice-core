@@ -20,7 +20,14 @@ const assertIncludes = (actual: string, expected: string) => {
 
 assertEqual(ABOUT_LINKS.length, 4);
 assertEqual(ABOUT_LINKS[0]?.label, '官方网站');
-assertEqual(ABOUT_LINKS[0]?.href, 'https://github.com/sealdice-ce/sealdice-ce');
+assertEqual(ABOUT_LINKS[0]?.href, 'https://dice.weizaima.com/');
+assertEqual(
+  ABOUT_LINKS[0]?.description,
+  'SealDice 项目主页，提供下载、在线试用与社区服务入口。'
+);
+assertEqual(ABOUT_LINKS[1]?.href, 'https://docs.sealdice.com/');
+assertEqual(ABOUT_LINKS[3]?.href, 'https://github.com/sealdice/sealdice-core');
+assertIncludes(ABOUT_LINKS[3]?.description ?? '', 'Issue 反馈');
 
 assertEqual(resolveContributorUser({ username: '木落' }), 'fy0');
 assertEqual(resolveContributorUser({ username: '希望潇洒的风：Ceeling', user: 'charyflys' }), 'charyflys');
