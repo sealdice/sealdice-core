@@ -41,7 +41,84 @@ type EnableReq struct {
 }
 
 type EndpointListResp struct {
-	Items []*dice.EndPointInfo `json:"items"`
+	Items []*EndPointInfo `json:"items"`
+}
+
+type EndPointInfo struct {
+	ID                  string                 `json:"id"`
+	Nickname            string                 `json:"nickname"`
+	State               dice.EndpointState     `json:"state"`
+	UserID              string                 `json:"userId"`
+	GroupNum            int64                  `json:"groupNum"`
+	CmdExecutedNum      int64                  `json:"cmdExecutedNum"`
+	CmdExecutedLastTime int64                  `json:"cmdExecutedLastTime"`
+	OnlineTotalTime     int64                  `json:"onlineTotalTime"`
+	Platform            string                 `json:"platform"`
+	RelWorkDir          string                 `json:"relWorkDir"`
+	Enable              bool                   `json:"enable"`
+	ProtocolType        string                 `json:"protocolType"`
+	IsPublic            bool                   `json:"isPublic"`
+	Adapter             map[string]interface{} `json:"adapter"`
+}
+
+func NewEndPointInfo(ep *dice.EndPointInfo) *EndPointInfo {
+	if ep == nil {
+		return nil
+	}
+	return &EndPointInfo{
+		ID:                  ep.ID,
+		Nickname:            ep.Nickname,
+		State:               ep.State,
+		UserID:              ep.UserID,
+		GroupNum:            ep.GroupNum,
+		CmdExecutedNum:      ep.CmdExecutedNum,
+		CmdExecutedLastTime: ep.CmdExecutedLastTime,
+		OnlineTotalTime:     ep.OnlineTotalTime,
+		Platform:            ep.Platform,
+		RelWorkDir:          ep.RelWorkDir,
+		Enable:              ep.Enable,
+		ProtocolType:        ep.ProtocolType,
+		IsPublic:            ep.IsPublic,
+		Adapter:             publicAdapterFields(ep.Adapter),
+	}
+}
+
+func NewEndPointInfoList(endpoints []*dice.EndPointInfo) []*EndPointInfo {
+	items := make([]*EndPointInfo, 0, len(endpoints))
+	for _, ep := range endpoints {
+		if item := NewEndPointInfo(ep); item != nil {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+func publicAdapterFields(adapter dice.PlatformAdapter) map[string]interface{} {
+	fields := map[string]interface{}{}
+	switch pa := adapter.(type) {
+	case *dice.PlatformAdapterGocq:
+		fields["reverseAddr"] = pa.ReverseAddr
+		fields["connectUrl"] = pa.ConnectURL
+		fields["builtinMode"] = pa.BuiltinMode
+		fields["signServerVer"] = pa.SignServerVer
+		fields["signServerName"] = pa.SignServerName
+	case *dice.PlatformAdapterOnebot:
+		fields["connectUrl"] = pa.ConnectURL
+		fields["reverseAddr"] = pa.ReverseUrl
+	case *dice.PlatformAdapterMilky:
+		fields["ws_gateway"] = pa.WsGateway
+		fields["built_in_mode"] = pa.BuiltInMode
+	case *dice.PlatformAdapterOfficialQQ:
+		fields["useWebhook"] = pa.UseWebhook
+		fields["webhookPath"] = pa.WebhookPath
+		fields["webhookPort"] = pa.WebhookPort
+	case *dice.PlatformAdapterSatori:
+		fields["host"] = pa.Host
+		fields["port"] = pa.Port
+	case *dice.PlatformAdapterSealChat:
+		fields["connectUrl"] = pa.ConnectURL
+	}
+	return fields
 }
 
 type ProtocolCapability struct {

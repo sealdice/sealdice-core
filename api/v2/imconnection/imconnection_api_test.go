@@ -11,7 +11,7 @@ import (
 	"sealdice-core/model/common/request"
 )
 
-func newTestService(t *testing.T, containerMode bool) *Service {
+func newTestService(t *testing.T, containerMode bool) (*Service, *dice.Dice) {
 	t.Helper()
 	d := &dice.Dice{
 		Logger: logger.M(),
@@ -29,12 +29,13 @@ func newTestService(t *testing.T, containerMode bool) *Service {
 		ContainerMode: containerMode,
 	}
 	d.Parent = dm
-	return NewServiceWithOfficialProbe(dm, false, false, func(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error) {
+	service := NewServiceWithOfficialProbe(dm, false, false, func(appID string, appSecret string) (*dice.OfficialQQAccountProbeResult, error) {
 		return &dice.OfficialQQAccountProbeResult{
 			UIN:      "202401",
 			Nickname: "Test Official",
 		}, nil
 	})
+	return service, d
 }
 
 func protocolByKey(tree []*PlatformTreeNode, key string) *ProtocolDefinition {
@@ -51,7 +52,7 @@ func protocolByKey(tree []*PlatformTreeNode, key string) *ProtocolDefinition {
 }
 
 func TestGetProtocolsReturnsCapabilitiesAndContainerAvailability(t *testing.T) {
-	svc := newTestService(t, true)
+	svc, _ := newTestService(t, true)
 
 	resp, err := svc.GetProtocols(t.Context(), &request.Empty{})
 	if err != nil {
@@ -92,7 +93,7 @@ func TestGetProtocolsReturnsCapabilitiesAndContainerAvailability(t *testing.T) {
 }
 
 func TestCreateConnectionSupportsRetainedProtocolsWithoutStartingServers(t *testing.T) {
-	svc := newTestService(t, false)
+	svc, _ := newTestService(t, false)
 
 	tests := []struct {
 		name         string
@@ -145,7 +146,7 @@ func TestCreateConnectionSupportsRetainedProtocolsWithoutStartingServers(t *test
 }
 
 func TestCreateConnectionRejectsDeprecatedAndInvalidConfig(t *testing.T) {
-	svc := newTestService(t, false)
+	svc, _ := newTestService(t, false)
 
 	if _, err := svc.CreateConnection(t.Context(), &CreateReq{
 		Body: CreateBody{
@@ -167,7 +168,7 @@ func TestCreateConnectionRejectsDeprecatedAndInvalidConfig(t *testing.T) {
 }
 
 func TestEnableWorkflowAndQRCode(t *testing.T) {
-	svc := newTestService(t, false)
+	svc, testDice := newTestService(t, false)
 	resp, err := svc.CreateConnection(t.Context(), &CreateReq{
 		Body: CreateBody{
 			Platform: "milky-internal",
@@ -177,7 +178,7 @@ func TestEnableWorkflowAndQRCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateConnection returned error: %v", err)
 	}
-	ep := resp.Body.Item
+	ep := requireTestEndpoint(t, testDice, resp.Body.Item.ID)
 
 	if _, enableErr := svc.SetEnable(t.Context(), &EnableReq{
 		ID:   ep.ID,
@@ -220,7 +221,7 @@ func TestEnableWorkflowAndQRCode(t *testing.T) {
 }
 
 func TestProtocolSchemasUseSensitiveMetadata(t *testing.T) {
-	svc := newTestService(t, false)
+	svc, _ := newTestService(t, false)
 	resp, err := svc.GetSchemas(t.Context(), &request.Empty{})
 	if err != nil {
 		t.Fatalf("GetSchemas returned error: %v", err)
@@ -261,7 +262,7 @@ func TestProtocolSchemasUseSensitiveMetadata(t *testing.T) {
 }
 
 func TestEditableConfigMasksSensitiveFieldsAndIncludesPlaceholders(t *testing.T) {
-	svc := newTestService(t, false)
+	svc, _ := newTestService(t, false)
 	createResp, err := svc.CreateConnection(t.Context(), &CreateReq{
 		Body: CreateBody{
 			Platform: "discord",
@@ -304,7 +305,7 @@ func TestEditableConfigMasksSensitiveFieldsAndIncludesPlaceholders(t *testing.T)
 }
 
 func TestCreateConnectionSupportsOfficialQQQRCodeModeAndWorkflow(t *testing.T) {
-	svc := newTestService(t, false)
+	svc, testDice := newTestService(t, false)
 
 	createResp, err := svc.CreateConnection(t.Context(), &CreateReq{
 		Body: CreateBody{
@@ -322,7 +323,7 @@ func TestCreateConnectionSupportsOfficialQQQRCodeModeAndWorkflow(t *testing.T) {
 		t.Fatalf("CreateConnection returned error: %v", err)
 	}
 
-	ep := createResp.Body.Item
+	ep := requireTestEndpoint(t, testDice, createResp.Body.Item.ID)
 	if ep.ProtocolType != "official" {
 		t.Fatalf("ProtocolType = %q, want official", ep.ProtocolType)
 	}
@@ -369,7 +370,7 @@ func TestCreateConnectionSupportsOfficialQQQRCodeModeAndWorkflow(t *testing.T) {
 }
 
 func TestUpdateConnectionPreservesSensitiveFieldsAndRejectsIdentityChange(t *testing.T) {
-	svc := newTestService(t, false)
+	svc, testDice := newTestService(t, false)
 	createResp, err := svc.CreateConnection(t.Context(), &CreateReq{
 		Body: CreateBody{
 			Platform: "gocq-separate",
@@ -383,7 +384,7 @@ func TestUpdateConnectionPreservesSensitiveFieldsAndRejectsIdentityChange(t *tes
 	if err != nil {
 		t.Fatalf("CreateConnection returned error: %v", err)
 	}
-	ep := createResp.Body.Item
+	ep := requireTestEndpoint(t, testDice, createResp.Body.Item.ID)
 	pa := ep.Adapter.(*dice.PlatformAdapterOnebot)
 
 	if _, err := svc.UpdateConnection(t.Context(), &UpdateReq{
@@ -405,4 +406,15 @@ func TestUpdateConnectionPreservesSensitiveFieldsAndRejectsIdentityChange(t *tes
 	if pa.Token != "old-token" {
 		t.Fatalf("empty sensitive accessToken should preserve old value, got %q", pa.Token)
 	}
+}
+
+func requireTestEndpoint(t *testing.T, d *dice.Dice, id string) *dice.EndPointInfo {
+	t.Helper()
+	for _, ep := range d.ImSession.EndPoints {
+		if ep != nil && ep.ID == id {
+			return ep
+		}
+	}
+	t.Fatalf("created endpoint %q not found", id)
+	return nil
 }

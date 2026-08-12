@@ -359,7 +359,7 @@ func (s *Service) TestOfficialQQ(_ context.Context, req *OfficialQQTestReq) (*re
 }
 
 func (s *Service) ListConnections(_ context.Context, _ *request.Empty) (*response.ItemResponse[EndpointListResp], error) {
-	return response.NewItemResponse[EndpointListResp](EndpointListResp{Items: s.dice.ImSession.EndPoints}), nil
+	return response.NewItemResponse[EndpointListResp](EndpointListResp{Items: NewEndPointInfoList(s.dice.ImSession.EndPoints)}), nil
 }
 
 func (s *Service) GetEditableConfig(_ context.Context, p *IDPath) (*response.ItemResponse[EditableConfigResp], error) {
@@ -390,7 +390,7 @@ func (s *Service) GetEditableConfig(_ context.Context, p *IDPath) (*response.Ite
 	), nil
 }
 
-func (s *Service) CreateConnection(_ context.Context, req *CreateReq) (*response.ItemResponse[*dice.EndPointInfo], error) {
+func (s *Service) CreateConnection(_ context.Context, req *CreateReq) (*response.ItemResponse[*EndPointInfo], error) {
 	key := req.Body.Platform
 	protocol, ok := s.protocolBy[key]
 	if !ok {
@@ -410,7 +410,7 @@ func (s *Service) CreateConnection(_ context.Context, req *CreateReq) (*response
 	}
 	s.appendAndSave(conn)
 	s.serve(key, conn)
-	return response.NewItemResponse[*dice.EndPointInfo](conn), nil
+	return response.NewItemResponse[*EndPointInfo](NewEndPointInfo(conn)), nil
 }
 
 func (s *Service) newConnection(key string, cfg map[string]interface{}) (*dice.EndPointInfo, error) {
@@ -615,9 +615,15 @@ func (s *Service) checkQQAccount(account string) error {
 	if account == "" {
 		return huma.Error400BadRequest("missing account")
 	}
-	uid := dice.FormatDiceIDQQ(account)
+	return s.checkQQUserID(dice.FormatDiceIDQQ(account), nil)
+}
+
+func (s *Service) checkQQUserID(userID string, exclude *dice.EndPointInfo) error {
+	if !strings.HasPrefix(userID, "QQ:") && !strings.HasPrefix(userID, "OpenQQ:") {
+		return nil
+	}
 	for _, ep := range s.dice.ImSession.EndPoints {
-		if ep != nil && ep.Enable && ep.UserID == uid {
+		if ep != nil && ep != exclude && ep.UserID == userID {
 			return huma.Error409Conflict("account already exists")
 		}
 	}
@@ -646,7 +652,7 @@ func (s *Service) DeleteConnection(_ context.Context, p *IDPath) (*response.Item
 	return response.NewItemResponse[bool](true), nil
 }
 
-func (s *Service) UpdateConnection(_ context.Context, req *UpdateReq) (*response.ItemResponse[*dice.EndPointInfo], error) {
+func (s *Service) UpdateConnection(_ context.Context, req *UpdateReq) (*response.ItemResponse[*EndPointInfo], error) {
 	ep := s.findEndpoint(req.ID)
 	if ep == nil {
 		return nil, huma.Error404NotFound("not found")
@@ -669,13 +675,18 @@ func (s *Service) UpdateConnection(_ context.Context, req *UpdateReq) (*response
 	s.dice.LastUpdatedTime = time.Now().Unix()
 	s.save()
 	s.reconnectIfEnabled(ep)
-	return response.NewItemResponse[*dice.EndPointInfo](ep), nil
+	return response.NewItemResponse[*EndPointInfo](NewEndPointInfo(ep)), nil
 }
 
-func (s *Service) SetEnable(_ context.Context, req *EnableReq) (*response.ItemResponse[*dice.EndPointInfo], error) {
+func (s *Service) SetEnable(_ context.Context, req *EnableReq) (*response.ItemResponse[*EndPointInfo], error) {
 	ep := s.findEndpoint(req.ID)
 	if ep == nil {
 		return nil, huma.Error404NotFound("not found")
+	}
+	if req.Body.Enable && !ep.Enable {
+		if err := s.checkQQUserID(ep.UserID, ep); err != nil {
+			return nil, err
+		}
 	}
 	if s.autoServe {
 		ep.SetEnable(s.dice, req.Body.Enable)
@@ -684,7 +695,7 @@ func (s *Service) SetEnable(_ context.Context, req *EnableReq) (*response.ItemRe
 	}
 	s.dice.LastUpdatedTime = time.Now().Unix()
 	s.save()
-	return response.NewItemResponse[*dice.EndPointInfo](ep), nil
+	return response.NewItemResponse[*EndPointInfo](NewEndPointInfo(ep)), nil
 }
 
 func protocolKeyOfEndpoint(ep *dice.EndPointInfo) (string, error) {
