@@ -1,4 +1,4 @@
-package static
+package static_test
 
 import (
 	"io/fs"
@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	staticfs "sealdice-core/static"
 )
 
 func TestV2UIEmbedIncludesLeadingUnderscoreAssets(t *testing.T) {
@@ -24,7 +26,7 @@ func TestV2UIEmbedIncludesLeadingUnderscoreAssets(t *testing.T) {
 
 		checked++
 		embeddedPath := pathJoinSlash(diskAssetsDir, entry.Name())
-		if _, err := fs.Stat(V2UI, embeddedPath); err != nil {
+		if _, err := fs.Stat(staticfs.V2UI, embeddedPath); err != nil {
 			t.Fatalf("fs.Stat(V2UI, %q) error = %v", embeddedPath, err)
 		}
 	}
