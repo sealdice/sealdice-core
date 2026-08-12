@@ -223,7 +223,7 @@ func (s *Service) GetUploadChunkStatus(_ context.Context, req *UploadChunkQuery)
 		return nil, huma.Error404NotFound("上传会话不存在")
 	}
 	return response.NewItemResponse(HelpDocUploadChunkResp{
-		Success:       session.UploadedChunks[req.Index],
+		Success:       s.uploadManager.IsChunkUploaded(session, req.Index),
 		UploadedBytes: s.uploadManager.UploadedBytes(session),
 		UploadedChunk: req.Index,
 	}), nil
@@ -242,6 +242,8 @@ func (s *Service) UploadChunk(_ context.Context, req *UploadChunkReq) (*response
 			return nil, huma.Error400BadRequest("chunk index超出范围")
 		case errors.Is(err, uploadcore.ErrChunkEmpty):
 			return nil, huma.Error400BadRequest("分块内容不能为空")
+		case errors.Is(err, uploadcore.ErrChunkSize):
+			return nil, huma.Error400BadRequest("分块大小与上传会话不一致")
 		default:
 			return nil, huma.Error500InternalServerError("写入分块失败")
 		}
@@ -268,10 +270,14 @@ func (s *Service) CompleteUpload(_ context.Context, req *UploadCompleteReq) (*re
 	session, err := s.uploadManager.CompleteWithoutCleanup(req.Body.SessionID, tmpPath)
 	if err != nil {
 		switch {
+		case errors.Is(err, uploadcore.ErrSessionNotFound):
+			return nil, huma.Error404NotFound("上传会话不存在")
 		case errors.Is(err, uploadcore.ErrIncomplete):
 			return nil, huma.Error400BadRequest("上传分块不完整")
 		case errors.Is(err, uploadcore.ErrHashMismatch):
 			return nil, huma.Error400BadRequest("文件校验失败")
+		case errors.Is(err, uploadcore.ErrFileSize):
+			return nil, huma.Error400BadRequest("文件大小校验失败")
 		default:
 			return nil, huma.Error500InternalServerError("完成上传失败")
 		}
