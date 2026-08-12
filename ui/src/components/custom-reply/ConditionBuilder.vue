@@ -30,7 +30,11 @@
 
           <label class="condition-field condition-value">
             <span>内容</span>
-            <n-input v-model:value="cond.value as string" size="small" />
+            <n-input
+              v-model:value="cond.value as string"
+              size="small"
+              :class="{ 'sd-code-text': cond.matchType === 'matchRegex' }"
+            />
           </label>
         </template>
 
@@ -44,13 +48,17 @@
                     <i-tabler-help-circle />
                   </n-icon>
                 </template>
-                举例：<br />$t1 == '张三' // 正则匹配的第一个组内容是张三<br />$m个人计数器 >= 10<br />友情提醒，匹配失败时无提示，请先自行在「指令测试」测好
+                举例：<br />
+                <span class="sd-code-text">$t1 == '张三'</span> // 正则匹配的第一个组内容是张三<br />
+                <span class="sd-code-text">$m个人计数器 >= 10</span
+                ><br />友情提醒，匹配失败时无提示，请先自行在「指令测试」测好
               </n-tooltip>
             </span>
             <n-input
               v-model:value="cond.value as string"
               type="textarea"
               size="small"
+              class="sd-code-text"
               :autosize="{ minRows: 1, maxRows: 10 }"
             />
           </label>

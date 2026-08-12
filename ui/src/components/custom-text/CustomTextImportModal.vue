@@ -26,7 +26,7 @@
         placeholder="填入数据"
         type="textarea"
         :autosize="{ minRows: 4 }"
-        class="import-edit"
+        class="import-edit sd-code-text"
         id="import-edit"
       />
     </n-flex>

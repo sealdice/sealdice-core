@@ -18,7 +18,9 @@
           <div class="help-block">
             文本下方的
             <n-tag size="small" :bordered="false">标签</n-tag>
-            代表了被默认文本所使用的特殊变量，你可以使用 {变量名} 来插入他们，例如 {$t判定值}
+            代表了被默认文本所使用的特殊变量，你可以使用
+            <span class="sd-code-text">{变量名}</span> 来插入他们，例如
+            <span class="sd-code-text">{$t判定值}</span>
           </div>
           <div>
             除此之外，这些变量可以在所有文本中使用：
@@ -28,6 +30,7 @@
                 :key="item"
                 size="small"
                 :bordered="false"
+                class="sd-code-text"
               >
                 {{ item }}
               </n-tag>
@@ -36,7 +39,7 @@
           <div>
             <span>以及，所有的自定义文本都可以嵌套使用，例如：</span>
             <div>
-              <b>这里是{核心：骰子名字}，我是一个示例</b>
+              <b>这里是<span class="sd-code-text">{核心：骰子名字}</span>，我是一个示例</b>
             </div>
             <div>默认会被解析为：</div>
             <div>
@@ -47,15 +50,15 @@
 
           <div class="help-block">
             <div>此外，支持插入图片，将图片放在骰子的适当目录，再写这样一句话即可：</div>
-            <div><n-text code>[图:data/images/sealdice.png]</n-text></div>
+            <div><n-text code class="sd-code-text">[图:data/images/sealdice.png]</n-text></div>
             <div>可以参考 核心：骰子进群 词条</div>
             <div>同样的，可以使用 CQ 码插入图片和其他内容，关于 CQ 码，请参阅 onebot 项目文档</div>
           </div>
 
           <div class="help-block">
             <b>
-              COC 的“判定 - 常规”和“判定 - 简短”主要区别是，多重检定会默认使用简短版本 (.ra
-              3#射击)
+              COC 的“判定 - 常规”和“判定 - 简短”主要区别是，多重检定会默认使用简短版本
+              <span class="sd-code-text">(.ra 3#射击)</span>
             </b>
             <b>进行调整后，可以在左侧面板“指令测试”中进行测试！</b>
           </div>

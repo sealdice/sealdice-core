@@ -63,7 +63,7 @@ body {
   --sd-page-title-size: 1.5rem;
   --sd-page-title-weight: 700;
   --sd-page-title-line-height: 1.25;
-  --sd-font-log-code:
+  --sd-font-code:
     'JetBrains Mono Variable', 'PingFang SC', 'Helvetica Neue', 'Hiragino Sans GB', 'Segoe UI',
     'Microsoft YaHei', '微软雅黑', sans-serif;
   --sd-content-max-width: 1180px;
@@ -189,6 +189,15 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.sd-code-text,
+.sd-code-text input,
+.sd-code-text textarea,
+.sd-code-text code,
+.sd-code-text pre,
+.sd-code-text [contenteditable] {
+  font-family: var(--sd-font-code);
 }
 
 html.sd-theme-transition-disabled *,

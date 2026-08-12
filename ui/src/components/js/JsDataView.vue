@@ -62,7 +62,7 @@
       <n-flex vertical size="medium">
         <n-flex align="center">
           <n-text depth="3" class="w-16">Key:</n-text>
-          <n-text>{{ editKey }}</n-text>
+          <n-text class="sd-code-text">{{ editKey }}</n-text>
         </n-flex>
         <n-flex align="center" v-if="editIsJson">
           <n-text depth="3" class="w-16">格式:</n-text>
@@ -72,6 +72,7 @@
           <n-text depth="3">Value:</n-text>
           <n-input
             v-model:value="editValue"
+            class="sd-code-text"
             type="textarea"
             rows="10"
             @input="
@@ -285,7 +286,7 @@ function formatFileSize(bytes: number): string {
   border-top: 1px solid var(--sd-border-soft);
 }
 .data-key {
-  font-family: monospace;
+  font-family: var(--sd-font-code);
   font-size: 0.9rem;
   word-break: break-all;
 }

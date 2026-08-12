@@ -8,6 +8,7 @@
   >
     <McInput
       ref="inputRef"
+      class="tool-test-command-composer__input sd-code-text"
       :value="props.modelValue"
       :loading="props.loading"
       :disabled="props.disabled"
@@ -135,8 +136,13 @@ onMounted(() => {
   border-radius: var(--devui-border-radius, var(--sd-radius-xs));
   color: var(--devui-primary);
   background: var(--devui-list-item-hover-bg);
-  font-family: inherit;
+  font-family: var(--sd-font-code);
   font-weight: 600;
+}
+
+.tool-test-command-composer__input :deep(.mc-textarea),
+.tool-test-command-composer__input :deep(.editable-container) {
+  font-family: var(--sd-font-code);
 }
 
 .tool-test-command-composer__hint {

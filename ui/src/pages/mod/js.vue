@@ -489,16 +489,16 @@ onBeforeUnmount(() => {
   min-height: 100%;
   color: var(--sd-text-primary);
   background: var(--sd-bg-page);
-  font-family: var(--sd-font-log-code);
+  font-family: var(--sd-font-code);
 }
 
 .js-editor :deep(.cm-scroller) {
-  font-family: var(--sd-font-log-code);
+  font-family: var(--sd-font-code);
 }
 
 .js-editor :deep(.cm-content),
 .js-editor :deep(.cm-gutters) {
-  font-family: var(--sd-font-log-code);
+  font-family: var(--sd-font-code);
 }
 
 .js-editor :deep(.cm-gutters) {
@@ -534,7 +534,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--sd-border-soft);
   border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
-  font-family: var(--sd-font-log-code);
+  font-family: var(--sd-font-code);
 }
 
 .js-output-log :deep(.n-log) {

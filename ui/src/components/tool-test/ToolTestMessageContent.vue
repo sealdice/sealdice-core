@@ -82,7 +82,7 @@ function mediaSource(segment: ToolTestSegment) {
 .tool-test-message-content__raw {
   margin: 0;
   color: inherit;
-  font-family: var(--sd-font-mono, monospace);
+  font-family: var(--sd-font-code);
   font-size: 0.82rem;
 }
 

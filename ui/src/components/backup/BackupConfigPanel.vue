@@ -25,7 +25,11 @@
               </n-tooltip>
             </span>
           </template>
-          <n-input v-model:value="config.autoBackupTime" placeholder="@every 12h" />
+          <n-input
+            v-model:value="config.autoBackupTime"
+            class="sd-code-text"
+            placeholder="@every 12h"
+          />
         </n-form-item>
 
         <n-form-item path="autoBackupSelectionList" label="备份范围">
@@ -106,6 +110,7 @@
         <n-form-item path="backupCleanCron" label="定时间隔">
           <n-input
             v-model:value="config.backupCleanCron"
+            class="sd-code-text"
             :disabled="!config.backupCleanTriggers.includes('cron')"
             placeholder="0 0 * * *"
           />

@@ -237,6 +237,7 @@ onMounted(() => {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-all;
+  font-family: var(--sd-font-code);
   font-size: 12px;
   line-height: 1.5;
 }
