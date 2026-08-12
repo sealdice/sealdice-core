@@ -7,7 +7,7 @@ it('validates and prepares official QQ creation through the protocol module', as
     { appID: '', appSecret: '' },
     { officialQQMode: 'manual' }
   );
-  if (!invalid || invalid.valid || !invalid.message.includes('AppID')) {
+  if (!invalid || invalid.valid || !invalid.message.includes('机器人 ID')) {
     throw new Error(`unexpected invalid result = ${JSON.stringify(invalid)}`);
   }
 
@@ -17,6 +17,20 @@ it('validates and prepares official QQ creation through the protocol module', as
   );
   if (JSON.stringify(prepared) !== JSON.stringify({ appID: '', appSecret: '', useWebhook: true })) {
     throw new Error(`unexpected prepared config = ${JSON.stringify(prepared)}`);
+  }
+
+  const qrWebhook = module.prepareCreateConfig?.(
+    { appID: '10001', appSecret: 'secret', useWebhook: true, webhookPath: '/webhook', webhookPort: 8099 },
+    { officialQQMode: 'qrcode' }
+  );
+  if (JSON.stringify(qrWebhook) !== JSON.stringify({
+    appID: '',
+    appSecret: '',
+    useWebhook: true,
+    webhookPath: '/webhook',
+    webhookPort: 8099,
+  })) {
+    throw new Error(`unexpected QR webhook config = ${JSON.stringify(qrWebhook)}`);
   }
 });
 

@@ -24,13 +24,13 @@
           :value="(valueOf(fieldKeyOf(item)) as number | null)"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
-          @update:value="updateValue(fieldKeyOf(item))"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         />
         <n-switch
           v-else-if="item.input_type === 10"
           :value="Boolean(valueOf(fieldKeyOf(item)))"
           :disabled="isDisabled(item)"
-          @update:value="updateValue(fieldKeyOf(item))"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         />
         <n-select
           v-else-if="item.input_type === 12"
@@ -38,13 +38,13 @@
           :options="optionList(item)"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
-          @update:value="updateValue(fieldKeyOf(item))"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         />
         <n-radio-group
           v-else-if="item.input_type === 5"
           :value="(valueOf(fieldKeyOf(item)) as string | number | null)"
           :disabled="isDisabled(item)"
-          @update:value="updateValue(fieldKeyOf(item))"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         >
           <n-radio-button
             v-for="option in optionList(item)"
@@ -58,7 +58,7 @@
           v-else-if="item.input_type === 6"
           :value="(valueOf(fieldKeyOf(item)) as Array<string | number>)"
           :disabled="isDisabled(item)"
-          @update:value="updateValue(fieldKeyOf(item))"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         >
           <n-space>
             <n-checkbox
@@ -75,7 +75,7 @@
           :value="(valueOf(fieldKeyOf(item)) as number | [number, number] | null)"
           :type="item.input_type === 11 ? 'datetimerange' : 'datetime'"
           :disabled="isDisabled(item)"
-          @update:value="updateValue(fieldKeyOf(item))"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         />
         <n-input
           v-else
@@ -84,7 +84,7 @@
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
           show-password-on="mousedown"
-          @update:value="updateValue(fieldKeyOf(item))"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         />
       </slot>
       <template v-if="item.hint" #feedback>
@@ -161,7 +161,7 @@ const optionList = (item: FormConfigItem) =>
   }));
 
 const valueOf = (key: string) => props.modelValue[key];
-const updateValue = (key: string) => (value: unknown) => setValue(key, value);
+const updateValue = (key: string, value: unknown) => setValue(key, value);
 
 const getPayload = () => buildDynamicFormPayload(props.schema, props.modelValue);
 const isValid = () => validation.value.valid;

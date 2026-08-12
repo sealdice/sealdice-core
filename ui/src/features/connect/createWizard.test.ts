@@ -88,7 +88,10 @@ it('uses the protocol module to validate and prepare a create payload', () => {
   const validation = validateConnectWizardForm(state, []);
   if (!validation.valid) throw new Error(validation.message);
   const payload = buildConnectCreatePayload(state);
-  if (JSON.stringify(payload) !== JSON.stringify({ platform: 'officialqq', config: { appID: '', appSecret: '' } })) {
+  if (JSON.stringify(payload) !== JSON.stringify({
+    platform: 'officialqq',
+    config: { appID: '', appSecret: '', useWebhook: false },
+  })) {
     throw new Error(`unexpected create payload = ${JSON.stringify(payload)}`);
   }
 });

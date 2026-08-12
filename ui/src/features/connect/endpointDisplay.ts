@@ -127,8 +127,8 @@ export function getEndpointDetailRows(
       '接入方式',
       endpoint.protocolType === 'official' ? (adapter.useWebhook ? 'Webhook' : 'WebSocket') : '',
     ],
-    ['Webhook 路径', adapter.webhookPath || ''],
-    ['Webhook 端口', adapter.webhookPort ? String(adapter.webhookPort) : ''],
+    ['Webhook 路径', adapter.useWebhook ? adapter.webhookPath || '' : ''],
+    ['Webhook 端口', adapter.useWebhook && adapter.webhookPort ? String(adapter.webhookPort) : ''],
     ['主机', adapter.host ? `${adapter.host}${adapter.port ? `:${adapter.port}` : ''}` : ''],
   ].filter(([, value]) => value) as EndpointDetailRow[];
 }

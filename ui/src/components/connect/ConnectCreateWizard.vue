@@ -108,7 +108,7 @@
     <div v-if="wizardStep === 4" class="wizard-step-panel">
       <ConnectProtocolForm
         v-model="formModel"
-        :official-qq-mode="officialQQMode ?? 'manual'"
+        :official-qq-mode="officialQqMode ?? 'manual'"
         :protocol="selectedProtocol"
         :schema="selectedSchema"
         :schemas-error="schemasError"
@@ -119,7 +119,7 @@
         :is-mobile="isMobile"
         :submitting="submitting"
         :test-mode-disabled="testModeDisabled"
-        @update:official-qq-mode="emit('update:officialQQMode', $event)"
+        @update:official-qq-mode="emit('update:officialQqMode', $event)"
         @retry-sign-info="emit('retrySignInfo')"
       />
     </div>
@@ -168,7 +168,7 @@ defineProps<{
   isMobile: boolean;
   canSubmit: boolean;
   submitting: boolean;
-  officialQQMode?: 'manual' | 'qrcode';
+  officialQqMode?: 'manual' | 'qrcode';
   testModeDisabled?: boolean;
 }>();
 
@@ -190,7 +190,7 @@ const emit = defineEmits<{
   previous: [];
   submit: [];
   retrySignInfo: [];
-  'update:officialQQMode': [value: 'manual' | 'qrcode'];
+  'update:officialQqMode': [value: 'manual' | 'qrcode'];
 }>();
 </script>
 

@@ -158,6 +158,7 @@ import ConnectCreateWizard from '@/components/connect/ConnectCreateWizard.vue';
 import ConnectEditDialog from '@/components/connect/ConnectEditDialog.vue';
 import {
   buildDynamicFormInitialModel,
+  fieldKeyOf,
   validateDynamicFormModel,
   type DynamicFormModel,
 } from '@/components/shared/dynamicFormModel';
@@ -261,7 +262,17 @@ const selectedSchema = computed<FormConfigItem[]>(() => {
   const schemaKey = selectedProtocol.value?.schemaKey;
   return schemaKey ? (schemas.value[schemaKey] ?? []) : [];
 });
-const editSchema = computed<FormConfigItem[]>(() => editingConfig.value?.schema ?? []);
+const editSchema = computed<FormConfigItem[]>(() => {
+  const schema = editingConfig.value?.schema ?? [];
+  if (editingEndpoint.value?.protocolType !== 'official' || editFormModel.value.useWebhook) {
+    return schema;
+  }
+
+  return schema.filter(item => {
+    const fieldKey = fieldKeyOf(item);
+    return fieldKey !== 'webhookPath' && fieldKey !== 'webhookPort';
+  });
+});
 
 const signInfo = useConnectSignInfo(selectedProtocol, formModel);
 const signInfoState = signInfo.state;
