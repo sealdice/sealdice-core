@@ -73,7 +73,7 @@ watch(
     const previousCount = previousMessageCount ?? messageCount;
     newMessageCount.value += Math.max(messageCount - previousCount, 1);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 function handleScroll() {
@@ -91,9 +91,13 @@ function handleScroll() {
   border-radius: 16px;
   background: var(--sd-bg-page);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--sd-bg-elevated), transparent 6%) 0%, transparent 100%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sd-bg-elevated), transparent 6%) 0%,
+      transparent 100%
+    ),
     var(--sd-bg-page);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--sd-shadow-panel);
 }
 
 .tool-test-chat-window__header {

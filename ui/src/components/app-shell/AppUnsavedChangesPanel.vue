@@ -5,9 +5,7 @@
         <n-text class="unsaved-panel-title" tag="strong">
           {{ activeUnsavedChangesSource.label }} 有修改
         </n-text>
-        <n-text depth="3" class="unsaved-panel-subtitle">
-          不要忘记保存
-        </n-text>
+        <n-text depth="3" class="unsaved-panel-subtitle"> 不要忘记保存 </n-text>
       </div>
 
       <n-button
@@ -41,25 +39,12 @@ async function handleSave() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid rgba(248, 113, 113, 0.28);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 247, 237, 0.96) 100%);
-  box-shadow:
-    0 18px 40px rgba(15, 23, 42, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(14px);
+  border: 1px solid var(--sd-warning-border);
+  border-radius: var(--sd-radius-md);
+  background: var(--sd-bg-elevated);
+  box-shadow: var(--sd-shadow-floating);
   padding: 0.85rem 1rem;
   pointer-events: auto;
-}
-
-:global(.dark) .unsaved-panel {
-  border-color: rgba(251, 191, 36, 0.28);
-  background:
-    linear-gradient(180deg, rgba(24, 33, 51, 0.92) 0%, rgba(30, 41, 59, 0.96) 100%);
-  box-shadow:
-    0 24px 52px rgba(2, 6, 23, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .unsaved-panel-copy {
@@ -102,7 +87,7 @@ async function handleSave() {
     gap: 0.75rem;
     flex-wrap: wrap;
     align-items: stretch;
-    border-radius: 14px;
+    border-radius: var(--sd-radius-md);
     padding: 0.75rem 0.875rem;
   }
 

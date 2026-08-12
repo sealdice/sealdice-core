@@ -1,5 +1,11 @@
 <template>
-  <n-modal v-model:show="show" preset="card" title="立即备份" class="backup-dialog" :mask-closable="false">
+  <n-modal
+    v-model:show="show"
+    preset="card"
+    title="立即备份"
+    class="backup-dialog"
+    :mask-closable="false"
+  >
     <n-space vertical size="large">
       <div>
         <div class="backup-dialog__label">备份范围</div>
@@ -8,7 +14,7 @@
 
       <div>
         <div class="backup-dialog__label">备份文件名预览</div>
-        <n-text type="info" class="backup-dialog__preview">
+        <n-text code class="backup-dialog__preview">
           {{ preview }}
         </n-text>
       </div>
@@ -16,12 +22,8 @@
 
     <template #footer>
       <n-space justify="end">
-        <n-button :disabled="pending" @click="show = false">
-          取消
-        </n-button>
-        <n-button type="primary" :loading="pending" @click="emit('submit')">
-          立即备份
-        </n-button>
+        <n-button :disabled="pending" @click="show = false"> 取消 </n-button>
+        <n-button type="primary" :loading="pending" @click="emit('submit')"> 立即备份 </n-button>
       </n-space>
     </template>
   </n-modal>
@@ -49,7 +51,7 @@ const emit = defineEmits<{
 }>();
 
 const preview = computed(() =>
-  buildBackupFilenamePreview(props.timestamp, formatBackupSelection(selections.value), false),
+  buildBackupFilenamePreview(props.timestamp, formatBackupSelection(selections.value), false)
 );
 </script>
 

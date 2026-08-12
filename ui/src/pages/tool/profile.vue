@@ -19,9 +19,7 @@
       <n-grid-item v-for="entry in entries" :key="entry.key">
         <n-card :title="entry.title" size="small" class="pprof-page__card">
           <template #header-extra>
-            <n-tag v-if="entry.secondsModel" type="warning" size="small" :bordered="false">
-              需时长
-            </n-tag>
+            <n-tag v-if="entry.secondsModel" size="small" :bordered="false"> 需时长 </n-tag>
           </template>
 
           <n-space vertical size="small">

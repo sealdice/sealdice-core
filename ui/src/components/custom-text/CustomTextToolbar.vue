@@ -11,15 +11,10 @@
       </span>
     </n-flex>
     <n-flex align="center" size="small" class="custom-text-actions">
-      <n-button
-        type="info"
-        secondary
-        :loading="previewLoading"
-        @click="emit('refreshPreview')"
-      >
+      <n-button secondary :loading="previewLoading" @click="emit('refreshPreview')">
         刷新预览
       </n-button>
-      <n-button type="info" secondary @click="emit('openImport')">导入/导出</n-button>
+      <n-button secondary @click="emit('openImport')">导入/导出</n-button>
     </n-flex>
   </div>
 </template>

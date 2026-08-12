@@ -1,12 +1,12 @@
 <template>
   <header class="censor-config-header">
-    <n-button type="info" secondary :loading="saving" @click="emit('save')">
+    <n-button type="primary" secondary :loading="saving" @click="emit('save')">
       <template #icon>
         <i-tabler-device-floppy />
       </template>
       保存设置
     </n-button>
-    <n-text v-if="modified" type="error" tag="strong" class="ml-4 text-base">
+    <n-text v-if="modified" type="warning" tag="strong" class="ml-4 text-base">
       内容已修改，不要忘记保存！
     </n-text>
   </header>
@@ -22,14 +22,14 @@
             </n-icon>
           </template>
           发出的消息： 拦截骰子发出的内容，进行检查。未通过检查，替换为
-          <n-tag size="small" type="info" :bordered="false">拦截_完全拦截_发出的消息</n-tag>
+          <n-tag size="small" :bordered="false">拦截_完全拦截_发出的消息</n-tag>
           的内容。<br />
           收到的指令： 拦截骰子收到的命令文本进行检查，如收到「.rd
           进行一次骰点」时，会检查其中的「进行一次骰点」，未通过检查则发送
-          <n-tag size="small" type="info" :bordered="false">拦截_完全拦截_收到的指令</n-tag>
+          <n-tag size="small" :bordered="false">拦截_完全拦截_收到的指令</n-tag>
           的内容<br />
           收到的所有消息： 会对所有收到的消息(所有群内聊天)进行检查，未通过检查默认不做响应，如
-          <n-tag size="small" type="info" :bordered="false">拦截_完全拦截_收到的所有消息</n-tag>
+          <n-tag size="small" :bordered="false">拦截_完全拦截_收到的所有消息</n-tag>
           不为空时会发送拦截提示。
         </n-tooltip>
       </template>
@@ -65,7 +65,8 @@
               <i-tabler-help-circle />
             </n-icon>
           </template>
-          判断敏感词时，忽略过滤字符。如敏感词为 "114514"，指定过滤字符为空白，则 "114&nbsp;&nbsp;&nbsp;514" 也会命中敏感词。
+          判断敏感词时，忽略过滤字符。如敏感词为 "114514"，指定过滤字符为空白，则
+          "114&nbsp;&nbsp;&nbsp;514" 也会命中敏感词。
         </n-tooltip>
       </template>
       <n-input v-model:value="config.filterRegex" placeholder="" class="censor-regex-input" />
@@ -145,33 +146,33 @@ const LevelConfigEditor = defineComponent({
   emits: ['update:config'],
   setup(props) {
     return () => (
-      <n-flex align='start' class='level-config-editor'>
-        <n-flex align='center' class='level-config-threshold'>
+      <n-flex align="start" class="level-config-editor">
+        <n-flex align="center" class="level-config-threshold">
           <n-text>用户触发超过</n-text>
           <n-input-number
             v-model:value={props.config.threshold}
-            class='w-28'
-            size='small'
+            class="w-28"
+            size="small"
             step={1}
             min={0}
             precision={0}
           />
           <n-text>次时：</n-text>
         </n-flex>
-        <n-flex vertical class='level-config-actions'>
-          <n-checkbox-group v-model:value={props.config.handlers} class='level-config-handlers'>
+        <n-flex vertical class="level-config-actions">
+          <n-checkbox-group v-model:value={props.config.handlers} class="level-config-handlers">
             {CENSOR_HANDLERS.map(handle => (
               <n-checkbox key={handle.key} value={handle.key}>
                 {handle.name}
               </n-checkbox>
             ))}
           </n-checkbox-group>
-          <n-flex align='center' class='level-config-score'>
+          <n-flex align="center" class="level-config-score">
             <n-text>怒气值</n-text>
             <n-input-number
               v-model:value={props.config.score}
-              class='w-28'
-              size='small'
+              class="w-28"
+              size="small"
               step={1}
               min={0}
               precision={0}

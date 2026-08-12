@@ -12,18 +12,10 @@
         </template>
       </n-input>
 
-      <n-select
-        v-model:value="sortKey"
-        :options="sortOptions"
-        class="ext-defaults-sort"
-      />
+      <n-select v-model:value="sortKey" :options="sortOptions" class="ext-defaults-sort" />
 
       <n-radio-group v-model:value="filterMode" size="small" class="ext-defaults-filter">
-        <n-radio-button
-          v-for="option in filterOptions"
-          :key="option.value"
-          :value="option.value"
-        >
+        <n-radio-button v-for="option in filterOptions" :key="option.value" :value="option.value">
           {{ option.label }}
         </n-radio-button>
       </n-radio-group>
@@ -47,7 +39,12 @@
             </n-tag>
           </div>
 
-          <div :class="['ext-default-row-switch', { 'ext-default-row-switch-dirty': entry.autoActiveDirty }]">
+          <div
+            :class="[
+              'ext-default-row-switch',
+              { 'ext-default-row-switch-dirty': entry.autoActiveDirty },
+            ]"
+          >
             <span class="ext-default-row-switch-label">入群自动开启</span>
             <n-switch
               :value="entry.item.autoActive"
@@ -58,7 +55,9 @@
         </div>
 
         <div class="ext-default-row-meta">
-          <n-text depth="3">禁用 {{ entry.disabledCount }} / {{ entry.commandCount }} 条指令</n-text>
+          <n-text depth="3"
+            >禁用 {{ entry.disabledCount }} / {{ entry.commandCount }} 条指令</n-text
+          >
           <n-text v-if="entry.changedCommands.length" depth="3">
             变更 {{ entry.changedCommands.length }} 项
           </n-text>
@@ -115,11 +114,14 @@ import {
   type ExtDefaultSettingsSortKey,
 } from '@/features/baseSetting/viewModel';
 
-const props = withDefaults(defineProps<{
-  initialItems?: BaseSettingExtDefaultSettingItem[];
-}>(), {
-  initialItems: () => [],
-});
+const props = withDefaults(
+  defineProps<{
+    initialItems?: BaseSettingExtDefaultSettingItem[];
+  }>(),
+  {
+    initialItems: () => [],
+  }
+);
 
 const model = defineModel<BaseSettingExtDefaultSettingItem[]>({ required: true });
 
@@ -131,10 +133,16 @@ const pageSize = ref(10);
 
 const viewItems = computed(() => buildExtDefaultSettingsView(model.value, props.initialItems));
 const modifiedCount = computed(() => getExtDefaultSettingModifiedCount(viewItems.value));
-const filteredByKeyword = computed(() => searchExtDefaultSettingsView(viewItems.value, keyword.value));
-const filteredItems = computed(() => filterExtDefaultSettingsView(filteredByKeyword.value, filterMode.value));
+const filteredByKeyword = computed(() =>
+  searchExtDefaultSettingsView(viewItems.value, keyword.value)
+);
+const filteredItems = computed(() =>
+  filterExtDefaultSettingsView(filteredByKeyword.value, filterMode.value)
+);
 const sortedItems = computed(() => sortExtDefaultSettingsView(filteredItems.value, sortKey.value));
-const pagedItems = computed(() => getExtDefaultSettingPage(sortedItems.value, page.value, pageSize.value));
+const pagedItems = computed(() =>
+  getExtDefaultSettingPage(sortedItems.value, page.value, pageSize.value)
+);
 
 const filterOptions = computed(() => [
   { label: '全部', value: 'all' },
@@ -166,7 +174,7 @@ watch(
     if (page.value !== nextPage) {
       page.value = nextPage;
     }
-  },
+  }
 );
 
 function updateItem(name: string, updater: (item: BaseSettingExtDefaultSettingItem) => void) {
@@ -190,7 +198,9 @@ function updateAutoActive(name: string, value: boolean) {
 }
 
 function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
-  return Object.entries(item.disabledCommand ?? {}).sort(([left], [right]) => left.localeCompare(right));
+  return Object.entries(item.disabledCommand ?? {}).sort(([left], [right]) =>
+    left.localeCompare(right)
+  );
 }
 </script>
 
@@ -237,24 +247,22 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   flex-direction: column;
   gap: 0.7rem;
   padding: 0.85rem 0.95rem;
-  border: 1px solid var(--sd-border-soft);
-  border: 1px solid color-mix(in srgb, var(--sd-border-color), transparent 10%);
-  border-radius: 8px;
-  background: var(--sd-bg-elevated-soft);
+  border: 1px solid color-mix(in srgb, var(--sd-border), transparent 10%);
+  border-radius: var(--sd-radius-md);
   background: color-mix(in srgb, var(--sd-bg-page), var(--sd-bg-elevated) 72%);
-  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .ext-default-row:hover {
-  border-color: var(--sd-primary);
-  border-color: color-mix(in srgb, var(--sd-primary-color), var(--sd-border-color) 70%);
+  border-color: color-mix(in srgb, var(--sd-primary), var(--sd-border) 70%);
 }
 
 .ext-default-row-dirty {
-  border-color: var(--n-warning-color);
-  border-color: color-mix(in srgb, var(--n-warning-color), var(--sd-border-color) 55%);
-  box-shadow: inset 0 0 0 1px rgba(202, 138, 4, 0.18);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--n-warning-color), transparent 82%);
+  border-color: color-mix(in srgb, var(--sd-warning), var(--sd-border) 55%);
+  box-shadow: inset 0 0 0 1px var(--sd-warning-soft-strong);
 }
 
 .ext-default-row-head {
@@ -287,13 +295,11 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   min-height: 1.75rem;
   padding: 0.18rem 0.22rem 0.18rem 0.55rem;
   border-radius: 999px;
-  background: var(--sd-bg-hover);
   background: color-mix(in srgb, var(--sd-bg-hover), transparent 24%);
 }
 
 .ext-default-row-switch-dirty {
-  background: rgba(202, 138, 4, 0.12);
-  background: color-mix(in srgb, var(--n-warning-color), transparent 88%);
+  background: var(--sd-warning-soft);
 }
 
 .ext-default-row-switch-label {
@@ -320,34 +326,32 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   appearance: none;
   cursor: pointer;
   padding: 0.36rem 0.66rem;
-  border: 1px solid var(--sd-border-soft);
-  border: 1px solid color-mix(in srgb, var(--sd-border-color), transparent 8%);
+  border: 1px solid color-mix(in srgb, var(--sd-border), transparent 8%);
   border-radius: 999px;
   background: var(--sd-bg-elevated);
   color: var(--sd-text-secondary);
   font: inherit;
   font-size: 0.78rem;
   line-height: 1.25;
-  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease;
 }
 
 .ext-default-command-chip:hover {
-  border-color: var(--sd-primary);
-  border-color: color-mix(in srgb, var(--sd-primary-color), var(--sd-border-color) 55%);
+  border-color: color-mix(in srgb, var(--sd-primary), var(--sd-border) 55%);
   color: var(--sd-text-primary);
 }
 
 .ext-default-command-chip-disabled {
-  border-color: var(--n-error-color);
-  border-color: color-mix(in srgb, var(--n-error-color), transparent 52%);
-  background: rgba(220, 38, 38, 0.08);
-  background: color-mix(in srgb, var(--n-error-color), transparent 92%);
-  color: var(--n-error-color);
+  border-color: var(--sd-error-border);
+  background: var(--sd-error-soft);
+  color: var(--sd-error);
 }
 
 .ext-default-command-chip-dirty {
-  box-shadow: inset 0 0 0 1px rgba(202, 138, 4, 0.28);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--n-warning-color), transparent 72%);
+  box-shadow: inset 0 0 0 1px var(--sd-warning-border);
 }
 
 .ext-defaults-empty {

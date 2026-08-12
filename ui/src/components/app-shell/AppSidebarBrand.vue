@@ -63,7 +63,7 @@ const { overview, appName, runtimeText } = useBaseOverview();
   gap: 0.65rem;
   margin-bottom: 0.65rem;
   padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--sd-border-sidebar);
   color: var(--sd-text-inverse);
   line-height: 1;
 }
@@ -84,11 +84,11 @@ const { overview, appName, runtimeText } = useBaseOverview();
   justify-content: center;
   border: 0;
   border-radius: var(--sd-radius-sm);
-  background: #5f7fa5;
+  background: var(--sd-primary);
   background: linear-gradient(
     145deg,
-    color-mix(in srgb, var(--sd-primary) 58%, #94a3b8),
-    color-mix(in srgb, var(--sd-primary) 52%, #cbd5e1)
+    color-mix(in srgb, var(--sd-primary) 76%, var(--sd-bg-elevated)),
+    color-mix(in srgb, var(--sd-primary) 54%, var(--sd-bg-elevated))
   );
   cursor: pointer;
   margin: 0;

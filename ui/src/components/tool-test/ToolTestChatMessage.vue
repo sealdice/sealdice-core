@@ -73,18 +73,18 @@ const props = defineProps<{
 
 const showRaw = shallowRef(false);
 const roleMeta = computed(() => {
-  if (props.message.isBot) return { label: '骰子', color: 'blue' };
+  if (props.message.isBot) return { label: '骰子', color: 'primary' };
   switch (props.message.senderRole) {
     case 'owner':
-      return { label: '群主', color: 'red' };
+      return { label: '群主', color: 'neutral' };
     case 'admin':
-      return { label: '管理员', color: 'orange' };
+      return { label: '管理员', color: 'neutral' };
     case 'inviter':
-      return { label: '邀请人', color: 'purple' };
+      return { label: '邀请人', color: 'neutral' };
     case 'master':
-      return { label: '骰主', color: 'sage' };
+      return { label: '骰主', color: 'neutral' };
     case 'blacklisted':
-      return { label: '黑名单', color: 'grey' };
+      return { label: '黑名单', color: 'error' };
     default:
       return undefined;
   }
@@ -146,36 +146,18 @@ const roleMeta = computed(() => {
   border-radius: 4px;
   font-size: 0.68rem;
   line-height: 1.2;
+  color: var(--sd-text-secondary);
+  background: var(--sd-bg-control);
 }
 
-.tool-test-chat-message__role--red {
-  color: #f74c30;
-  background: #ff3f3233;
+.tool-test-chat-message__role--primary {
+  color: var(--sd-primary);
+  background: var(--sd-primary-soft);
 }
 
-.tool-test-chat-message__role--orange {
-  color: #ff8d40;
-  background: #ff862e33;
-}
-
-.tool-test-chat-message__role--purple {
-  color: #aa76f6;
-  background: #aa76f633;
-}
-
-.tool-test-chat-message__role--blue {
-  color: #087fca;
-  background: #0099ff33;
-}
-
-.tool-test-chat-message__role--sage {
-  color: #769698;
-  background: #76969833;
-}
-
-.tool-test-chat-message__role--grey {
-  color: #9e9e9e;
-  background: #9e9e9e33;
+.tool-test-chat-message__role--error {
+  color: var(--sd-error);
+  background: var(--sd-error-soft);
 }
 
 .tool-test-chat-message__body {

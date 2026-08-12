@@ -6,9 +6,19 @@
     </div>
 
     <div class="character-list">
-      <div v-for="(char, index) in props.chars" :key="`${char.name}-${char.IMUserId}`" class="character-row">
+      <div
+        v-for="(char, index) in props.chars"
+        :key="`${char.name}-${char.IMUserId}`"
+        class="character-row"
+      >
         <div class="character-primary">
-          <n-button size="small" type="error" secondary :disabled="props.disabled" @click="emit('deleteChar', index)">
+          <n-button
+            size="small"
+            type="error"
+            secondary
+            :disabled="props.disabled"
+            @click="emit('deleteChar', index)"
+          >
             <template #icon>
               <n-icon><i-tabler-trash /></n-icon>
             </template>
@@ -115,7 +125,7 @@ function updateCharColor(index: number, value: string): void {
   padding: 0.5rem;
   border: 1px solid var(--sd-border);
   background: var(--sd-bg-elevated);
-  background: color-mix(in srgb, var(--sd-bg-elevated) 92%, var(--sd-bg-base));
+  background: color-mix(in srgb, var(--sd-bg-elevated) 92%, var(--sd-bg-page));
 }
 
 .character-primary {

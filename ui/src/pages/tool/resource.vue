@@ -43,12 +43,9 @@
             </n-descriptions-item>
           </n-descriptions>
           <n-flex size="small" justify="end" wrap>
-            <n-button secondary type="info" @click="copySealCode(currentResource)">
-              复制海豹码
-            </n-button>
+            <n-button secondary @click="copySealCode(currentResource)"> 复制海豹码 </n-button>
             <n-button
               secondary
-              type="success"
               :loading="downloadingPath === currentResource.path"
               @click="downloadResource(currentResource)"
             >

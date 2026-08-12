@@ -675,21 +675,21 @@ h1 {
 }
 
 :deep(.log-level--info) {
-  border-color: color-mix(in srgb, var(--sd-primary) 18%, transparent);
-  background: color-mix(in srgb, var(--sd-primary) 9%, transparent);
+  border-color: var(--sd-primary-border);
+  background: var(--sd-primary-soft);
   color: var(--sd-primary);
 }
 
 :deep(.log-level--warning) {
-  border-color: color-mix(in srgb, var(--sd-warning) 22%, transparent);
-  background: color-mix(in srgb, var(--sd-warning) 10%, transparent);
+  border-color: var(--sd-warning-border);
+  background: var(--sd-warning-soft);
   color: var(--sd-warning);
   font-weight: 600;
 }
 
 :deep(.log-level--error) {
-  border-color: color-mix(in srgb, var(--sd-error) 22%, transparent);
-  background: color-mix(in srgb, var(--sd-error) 10%, transparent);
+  border-color: var(--sd-error-border);
+  background: var(--sd-error-soft);
   color: var(--sd-error);
   font-weight: 600;
 }

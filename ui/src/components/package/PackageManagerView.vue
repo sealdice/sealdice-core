@@ -104,7 +104,7 @@
                         <n-tag size="small" :type="backend.enabled ? 'success' : 'default'">
                           {{ backend.enabled ? '启用' : '禁用' }}
                         </n-tag>
-                        <n-tag v-if="backend.official" size="small" type="info">官方</n-tag>
+                        <n-tag v-if="backend.official" size="small">官方</n-tag>
                       </n-space>
                       <n-text depth="3">{{ backend.url }}</n-text>
                     </div>

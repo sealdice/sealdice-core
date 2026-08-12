@@ -1,80 +1,44 @@
 import {
   DEFAULT_THEME_PALETTE,
-  THEME_PALETTE_STORAGE_KEY,
+  THEME_COLOR_KEYS,
   createThemeOverrides,
-  isThemeColorKey,
-  isThemeHexColor,
-  readStoredThemePalette,
   syncDocumentThemePalette,
-  writeStoredThemePalette,
-  type ThemePalette,
 } from './themePalette';
-import { createThemeStorage } from './themeState';
 import { it } from 'vitest';
 
-it('passes', async () => {
+it('uses four fixed semantic colors and maps info to primary', async () => {
   const assertEqual = (actual: unknown, expected: unknown) => {
     if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
   };
 
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
+  assertEqual(THEME_COLOR_KEYS.join(','), 'primary,success,warning,error');
+  assertEqual(Object.keys(DEFAULT_THEME_PALETTE).join(','), 'primary,success,warning,error');
 
-  const storage = createThemeStorage();
-  assertDeepEqual(readStoredThemePalette(storage), DEFAULT_THEME_PALETTE);
+  const lightOverrides = createThemeOverrides('light');
+  assertEqual(lightOverrides.common?.primaryColor, lightOverrides.common?.infoColor);
+  assertEqual(lightOverrides.Menu?.itemTextColor, 'var(--sd-text-inverse-soft)');
+  assertEqual(lightOverrides.Menu?.itemIconColorCollapsed, 'var(--sd-text-inverse)');
+  assertEqual(lightOverrides.Menu?.itemColorActive, 'var(--sd-bg-sidebar-selected)');
 
-  storage.setItem(
-    THEME_PALETTE_STORAGE_KEY,
-    JSON.stringify({
-      primary: '#0ea5e9',
-      info: 'not-a-color',
-      unknown: '#ffffff',
-    })
-  );
-  assertDeepEqual(readStoredThemePalette(storage), {
-    ...DEFAULT_THEME_PALETTE,
-    primary: '#0ea5e9',
-  });
-
-  const customPalette: ThemePalette = {
-    primary: '#0ea5e9',
-    info: '#6366f1',
-    success: '#22c55e',
-    warning: '#f59e0b',
-    error: '#ef4444',
-  };
-  writeStoredThemePalette(storage, customPalette);
-  assertDeepEqual(readStoredThemePalette(storage), customPalette);
-
-  assertEqual(isThemeColorKey('primary'), true);
-  assertEqual(isThemeColorKey('brand'), false);
-  assertEqual(isThemeHexColor('#ABCDEF'), true);
-  assertEqual(isThemeHexColor('#abcd'), false);
-
-  const lightOverrides = createThemeOverrides(customPalette, 'light');
-  assertEqual(lightOverrides.common?.primaryColor, '#0f7baf');
-  assertEqual(lightOverrides.common?.infoColor, '#5f62e7');
-  assertEqual(lightOverrides.Menu?.itemTextColor, 'rgba(255, 255, 255, 0.72)');
-  assertEqual(lightOverrides.Menu?.itemIconColorCollapsed, '#ffffff');
-
-  const darkOverrides = createThemeOverrides(customPalette, 'dark');
+  const darkOverrides = createThemeOverrides('dark');
   assertEqual(darkOverrides.common?.bodyColor, '#0f172a');
-  assertEqual(darkOverrides.Drawer?.color, '#182133');
+  assertEqual(darkOverrides.Drawer?.color, 'var(--sd-bg-elevated)');
 
   const styleValues = new Map<string, string>();
   const fakeRoot = {
+    dataset: { theme: 'light' },
     style: {
       setProperty(name: string, value: string) {
         styleValues.set(name, value);
       },
     },
-  } as HTMLElement;
+  } as unknown as HTMLElement;
 
-  syncDocumentThemePalette(fakeRoot, customPalette);
-  assertEqual(styleValues.get('--sd-primary'), '#0f7baf');
-  assertEqual(styleValues.get('--sd-error'), '#ce3d40');
-  assertEqual(styleValues.has('--sd-bg-selected'), true);
+  syncDocumentThemePalette(fakeRoot);
+  assertEqual(styleValues.get('--sd-primary'), '#2563eb');
+  assertEqual(styleValues.get('--sd-info'), styleValues.get('--sd-primary'));
+  assertEqual(styleValues.get('--sd-accent'), styleValues.get('--sd-primary'));
+  assertEqual(styleValues.has('--sd-success'), true);
+  assertEqual(styleValues.has('--sd-warning'), true);
+  assertEqual(styleValues.has('--sd-error'), true);
 });

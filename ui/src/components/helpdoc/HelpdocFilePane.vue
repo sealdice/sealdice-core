@@ -1,19 +1,25 @@
 <template>
   <section class="helpdoc-action-block">
     <n-flex justify="end" align="center" wrap>
-      <n-button v-show="checkedKeys.length > 0" type="error" secondary :loading="deleting" @click="emit('deleteFiles')">
+      <n-button
+        v-show="checkedKeys.length > 0"
+        type="error"
+        secondary
+        :loading="deleting"
+        @click="emit('deleteFiles')"
+      >
         <template #icon>
           <n-icon><i-tabler-trash /></n-icon>
         </template>
         删除所选
       </n-button>
-      <n-button type="info" secondary @click="emit('openUpload')">
+      <n-button type="primary" secondary @click="emit('openUpload')">
         <template #icon>
           <n-icon><i-tabler-upload /></n-icon>
         </template>
         上传
       </n-button>
-      <n-button type="info" secondary @click="emit('openConfig')">
+      <n-button secondary @click="emit('openConfig')">
         <template #icon>
           <n-icon><i-tabler-settings /></n-icon>
         </template>
@@ -25,9 +31,7 @@
   <section v-if="activeUploadTasks.length" class="upload-panel">
     <div class="upload-panel-head">
       <h3>上传队列</h3>
-      <n-tag size="small" :bordered="false" type="info">
-        {{ activeUploadTasks.length }} 项
-      </n-tag>
+      <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
     </div>
     <article v-for="task in activeUploadTasks" :key="task.id" class="upload-item">
       <div class="upload-item-head">
@@ -35,15 +39,16 @@
           <strong>{{ task.filename }}</strong>
           <span class="upload-meta">{{ Math.round(task.fileSize / 1024) }} KB</span>
         </div>
-        <n-button v-if="task.status === 'error'" size="tiny" secondary @click="emit('retryTask', task)">
+        <n-button
+          v-if="task.status === 'error'"
+          size="tiny"
+          secondary
+          @click="emit('retryTask', task)"
+        >
           重试
         </n-button>
       </div>
-      <n-progress
-        type="line"
-        :percentage="task.progress"
-        :status="getTaskStatusType(task)"
-      />
+      <n-progress type="line" :percentage="task.progress" :status="getTaskStatusType(task)" />
       <div class="upload-detail">
         <span>分块 {{ task.uploadedChunks.length }} / {{ task.expectedChunks || '-' }}</span>
         <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
@@ -76,13 +81,7 @@
 
 <script setup lang="tsx">
 import { h } from 'vue';
-import {
-  NButton,
-  NFlex,
-  NProgress,
-  NTag,
-  NText,
-} from 'naive-ui';
+import { NButton, NFlex, NProgress, NTag, NText } from 'naive-ui';
 import type { HelpDocTreeOption } from '@/features/helpdoc/viewModel';
 import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
 
@@ -111,9 +110,10 @@ const emit = defineEmits<{
 function renderPrefix({ option }: TreeRenderContext) {
   const raw = option as HelpDocTreeOption | undefined;
   const icon = raw?.icon;
-  if (icon === 'folder') return <i-tabler-folder color='var(--sd-muted-fg, #606266)' />;
-  if (icon === 'json') return <i-tabler-file-text color='#d97706' />;
-  if (icon === 'xlsx') return <i-tabler-file-text color='#16a34a' />;
+  if (icon === 'folder') return <i-tabler-folder color="var(--sd-text-muted)" />;
+  if (icon === 'json' || icon === 'xlsx') {
+    return <i-tabler-file-text color="var(--sd-text-secondary)" />;
+  }
   return <i-tabler-file-text />;
 }
 
@@ -122,7 +122,7 @@ function renderLabel({ option }: TreeRenderContext) {
   return h(
     NText,
     { class: raw?.raw.deleted ? 'del-line file-info' : 'file-info' },
-    { default: () => option.label as string },
+    { default: () => option.label as string }
   );
 }
 
@@ -132,7 +132,7 @@ function renderSuffix({ option }: TreeRenderContext) {
   return h(
     NTag,
     { size: 'small', type: raw.tag.type, bordered: false },
-    { default: () => raw.tag?.label ?? '' },
+    { default: () => raw.tag?.label ?? '' }
   );
 }
 
@@ -149,8 +149,8 @@ function getTaskStatusType(task: ResumableUploadTask) {
 }
 
 .helpdoc-file-block {
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 6px;
+  border: 1px solid var(--sd-border);
+  border-radius: var(--sd-radius-sm);
   background: var(--sd-bg-elevated);
   color: var(--sd-text-primary);
   padding: 0.75rem;
@@ -160,7 +160,7 @@ function getTaskStatusType(task: ResumableUploadTask) {
   display: flex;
   justify-content: space-between;
   padding: 0 23px 6px 50px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  border-bottom: 1px solid var(--sd-border);
   margin-bottom: 0.5rem;
 }
 
@@ -177,11 +177,11 @@ function getTaskStatusType(task: ResumableUploadTask) {
 }
 
 .upload-panel {
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 6px;
+  border: 1px solid var(--sd-border);
+  border-radius: var(--sd-radius-sm);
   padding: 0.75rem;
   margin-bottom: 0.75rem;
-  background: rgba(148, 163, 184, 0.06);
+  background: var(--sd-bg-elevated-soft);
 }
 
 .upload-panel-head,
@@ -198,8 +198,8 @@ function getTaskStatusType(task: ResumableUploadTask) {
 }
 
 .upload-item {
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 6px;
+  border: 1px solid var(--sd-border-soft);
+  border-radius: var(--sd-radius-sm);
   padding: 0.625rem;
   background: var(--sd-bg-elevated);
 }
@@ -226,7 +226,7 @@ function getTaskStatusType(task: ResumableUploadTask) {
 }
 
 .upload-error {
-  color: #ef4444;
+  color: var(--sd-error);
 }
 
 @media screen and (max-width: 639.9px) {

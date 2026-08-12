@@ -213,10 +213,14 @@ setUnsavedChangesConfirmHandler(
 
 .sd-sidebar {
   height: 100%;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid var(--sd-border-sidebar);
   background: var(--sd-bg-sidebar);
   text-align: left;
   transition: width var(--sd-transition-base);
+}
+
+:global(.sd-sidebar > .n-scrollbar > .n-scrollbar-container > .n-scrollbar-content) {
+  height: 100%;
 }
 
 .sd-content-pane {

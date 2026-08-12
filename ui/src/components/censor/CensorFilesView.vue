@@ -8,7 +8,7 @@
       :show-file-list="false"
       :custom-request="handleUpload"
     >
-      <n-button type="info" secondary>
+      <n-button type="primary" secondary>
         <template #icon>
           <n-icon><i-tabler-upload /></n-icon>
         </template>

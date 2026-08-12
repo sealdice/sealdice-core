@@ -9,8 +9,8 @@
       </n-button>
     </header>
 
-    <TipBox v-if="dirty" type="error" class="ban-config-panel__warning">
-      <n-text type="error" tag="strong">内容已修改，不要忘记保存。</n-text>
+    <TipBox v-if="dirty" type="warning" class="ban-config-panel__warning">
+      <n-text type="warning" tag="strong">内容已修改，不要忘记保存。</n-text>
     </TipBox>
 
     <section class="ban-config-panel__section">
@@ -19,7 +19,9 @@
         <n-checkbox v-model:checked="config.banBehaviorRefuseReply">拒绝回复</n-checkbox>
         <n-checkbox v-model:checked="config.banBehaviorRefuseInvite">拒绝邀请</n-checkbox>
         <n-checkbox v-model:checked="config.banBehaviorQuitLastPlace">退出事发群</n-checkbox>
-        <n-checkbox v-model:checked="config.banBehaviorQuitPlaceImmediately">使用时立即退出群</n-checkbox>
+        <n-checkbox v-model:checked="config.banBehaviorQuitPlaceImmediately"
+          >使用时立即退出群</n-checkbox
+        >
         <n-checkbox v-model:checked="config.banBehaviorQuitIfAdmin">
           使用者为管理员立即退群，为普通群员进行通告
         </n-checkbox>
@@ -48,13 +50,28 @@
           <n-input-number v-model:value="config.autoBanMinutes" :min="0" :step="1" :precision="0" />
         </n-form-item>
         <n-form-item label="禁言增加">
-          <n-input-number v-model:value="config.scoreGroupMuted" :min="0" :step="1" :precision="0" />
+          <n-input-number
+            v-model:value="config.scoreGroupMuted"
+            :min="0"
+            :step="1"
+            :precision="0"
+          />
         </n-form-item>
         <n-form-item label="踢出增加">
-          <n-input-number v-model:value="config.scoreGroupKicked" :min="0" :step="1" :precision="0" />
+          <n-input-number
+            v-model:value="config.scoreGroupKicked"
+            :min="0"
+            :step="1"
+            :precision="0"
+          />
         </n-form-item>
         <n-form-item label="刷屏增加">
-          <n-input-number v-model:value="config.scoreTooManyCommand" :min="0" :step="1" :precision="0" />
+          <n-input-number
+            v-model:value="config.scoreTooManyCommand"
+            :min="0"
+            :step="1"
+            :precision="0"
+          />
         </n-form-item>
         <n-form-item label="黑名单通报间隔">
           <n-flex align="center" wrap>
@@ -73,13 +90,28 @@
           </n-flex>
         </n-form-item>
         <n-form-item label="每分钟下降">
-          <n-input-number v-model:value="config.scoreReducePerMinute" :min="0" :step="1" :precision="0" />
+          <n-input-number
+            v-model:value="config.scoreReducePerMinute"
+            :min="0"
+            :step="1"
+            :precision="0"
+          />
         </n-form-item>
         <n-form-item label="群组连带责任">
-          <n-input-number v-model:value="config.jointScorePercentOfGroup" :min="0" :max="1" :step="0.1" />
+          <n-input-number
+            v-model:value="config.jointScorePercentOfGroup"
+            :min="0"
+            :max="1"
+            :step="0.1"
+          />
         </n-form-item>
         <n-form-item label="邀请人连带责任">
-          <n-input-number v-model:value="config.jointScorePercentOfInviter" :min="0" :max="1" :step="0.1" />
+          <n-input-number
+            v-model:value="config.jointScorePercentOfInviter"
+            :min="0"
+            :max="1"
+            :step="0.1"
+          />
         </n-form-item>
       </n-form>
     </section>

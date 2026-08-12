@@ -21,39 +21,41 @@
           <ListPanel>
             <template #toolbar>
               <ResultToolbar>
-            <template #meta>
-              <n-checkbox
-                :checked="allLogsSelected"
-                aria-label="全选当前页日志"
-                @update:checked="toggleSelectAll"
-              >
-                {{ allLogsSelected ? '全不选' : '全选' }}
-              </n-checkbox>
-              <n-text depth="3" class="story-selected-count">已选 {{ selectedCount }} 项</n-text>
-            </template>
+                <template #meta>
+                  <n-checkbox
+                    :checked="allLogsSelected"
+                    aria-label="全选当前页日志"
+                    @update:checked="toggleSelectAll"
+                  >
+                    {{ allLogsSelected ? '全不选' : '全选' }}
+                  </n-checkbox>
+                  <n-text depth="3" class="story-selected-count"
+                    >已选 {{ selectedCount }} 项</n-text
+                  >
+                </template>
 
-            <n-button
-              v-if="selectedCount > 0"
-              size="small"
-              type="primary"
-              :loading="uploadLogMutation.isPending.value"
-              @click="batchUploadLogs"
-            >
-              <template #icon>
-                <n-icon><i-tabler-upload /></n-icon>
-              </template>
-              批量提取日志
-            </n-button>
-            <n-button v-if="selectedCount > 0" size="small" type="error" @click="delLogs">
-              <template #icon>
-                <n-icon><i-tabler-trash /></n-icon>
-              </template>
-              删除所选
-            </n-button>
+                <n-button
+                  v-if="selectedCount > 0"
+                  size="small"
+                  type="primary"
+                  :loading="uploadLogMutation.isPending.value"
+                  @click="batchUploadLogs"
+                >
+                  <template #icon>
+                    <n-icon><i-tabler-upload /></n-icon>
+                  </template>
+                  批量提取日志
+                </n-button>
+                <n-button v-if="selectedCount > 0" size="small" type="error" @click="delLogs">
+                  <template #icon>
+                    <n-icon><i-tabler-trash /></n-icon>
+                  </template>
+                  删除所选
+                </n-button>
               </ResultToolbar>
             </template>
 
-          <template v-for="log in logs" :key="log.id">
+            <template v-for="log in logs" :key="log.id">
               <FoldableCard class="story-log-card">
                 <template #title>
                   <n-flex align="center">
@@ -81,7 +83,9 @@
                     >
                       <n-button text aria-label="更多操作">
                         更多
-                        <template #icon><n-icon><i-tabler-dots /></n-icon></template>
+                        <template #icon
+                          ><n-icon><i-tabler-dots /></n-icon
+                        ></template>
                       </n-button>
                     </n-dropdown>
                   </n-flex>
@@ -104,13 +108,13 @@
                   </n-flex>
                   <n-flex>
                     <n-text>创建于：{{ dayjs.unix(log.createdAt).format('YYYY-MM-DD') }}</n-text>
-                    <n-tag type="info" size="small" :bordered="false">
+                    <n-tag size="small" :bordered="false">
                       {{ dayjs.unix(log.createdAt).fromNow() }}
                     </n-tag>
                   </n-flex>
                   <n-flex>
                     <n-text>更新于：{{ dayjs.unix(log.updatedAt).format('YYYY-MM-DD') }}</n-text>
-                    <n-tag type="info" size="small" :bordered="false">
+                    <n-tag size="small" :bordered="false">
                       {{ dayjs.unix(log.updatedAt).fromNow() }}
                     </n-tag>
                   </n-flex>
@@ -882,11 +886,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.story-page{
-    display: flex;
+.story-page {
+  display: flex;
   flex-direction: column;
   gap: 1rem;
-
 }
 .story-summary-card {
   margin-bottom: 1rem;

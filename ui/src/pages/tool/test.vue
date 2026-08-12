@@ -175,8 +175,8 @@ async function handleSelectProfile(profile: ToolTestProfile) {
 <style scoped>
 .tool-test-page {
   --devui-primary: var(--sd-primary);
-  --devui-primary-hover: color-mix(in srgb, var(--sd-primary), white 12%);
-  --devui-primary-active: color-mix(in srgb, var(--sd-primary), black 12%);
+  --devui-primary-hover: var(--sd-accent-strong);
+  --devui-primary-active: var(--sd-accent-strong);
   --devui-base-bg: var(--sd-bg-elevated);
   --devui-global-bg: var(--sd-bg-control);
   --devui-form-control-bg: var(--sd-bg-elevated);
@@ -299,7 +299,7 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   position: fixed;
   z-index: 19;
   inset: 0;
-  background: rgba(15, 23, 42, 0.34);
+  background: var(--sd-overlay);
 }
 
 .tool-test-page__composer {

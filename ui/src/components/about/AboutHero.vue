@@ -6,13 +6,9 @@
 
     <div class="about-hero__content">
       <div class="about-hero__title-row">
-        <n-tag :bordered="false" type="info">SealDice UI</n-tag>
-        <n-tag v-if="props.summary.containerMode" :bordered="false" type="warning">
-          容器模式
-        </n-tag>
-        <n-tag v-if="props.summary.justForTest" :bordered="false" type="warning">
-          展示模式
-        </n-tag>
+        <n-tag :bordered="false">SealDice UI</n-tag>
+        <n-tag v-if="props.summary.containerMode" :bordered="false"> 容器模式 </n-tag>
+        <n-tag v-if="props.summary.justForTest" :bordered="false" type="warning"> 展示模式 </n-tag>
       </div>
 
       <h1>{{ props.summary.appName }}</h1>
@@ -94,8 +90,16 @@ const props = defineProps<{
   border-radius: 28px;
   background: linear-gradient(135deg, var(--sd-bg-elevated), var(--sd-bg-elevated-soft));
   background:
-    radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--sd-accent), transparent 52%), transparent 28%),
-    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--sd-primary), transparent 78%), transparent 32%),
+    radial-gradient(
+      circle at 12% 12%,
+      color-mix(in srgb, var(--sd-accent), transparent 52%),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 88% 8%,
+      color-mix(in srgb, var(--sd-primary), transparent 78%),
+      transparent 32%
+    ),
     linear-gradient(135deg, var(--sd-bg-elevated), var(--sd-bg-elevated-soft));
 }
 
@@ -105,15 +109,18 @@ const props = defineProps<{
   align-items: center;
   justify-content: center;
   border-radius: 24px;
-  background: rgba(252, 211, 77, 0.24);
   background:
-    linear-gradient(160deg, color-mix(in srgb, var(--sd-bg-elevated), transparent 14%), transparent),
-    color-mix(in srgb, var(--sd-accent), transparent 76%);
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--sd-bg-elevated), transparent 14%),
+      transparent
+    ),
+    var(--sd-primary-soft-strong);
 }
 
 .about-hero__mascot img {
   width: min(220px, 80%);
-  filter: drop-shadow(0 18px 28px rgba(15, 23, 42, 0.16));
+  filter: drop-shadow(var(--sd-shadow-panel));
 }
 
 .about-hero__content {
@@ -208,7 +215,7 @@ const props = defineProps<{
 .about-hero__link:hover {
   border-color: var(--sd-primary);
   border-color: color-mix(in srgb, var(--sd-primary), transparent 62%);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--sd-shadow-panel);
   transform: translateY(-1px);
 }
 

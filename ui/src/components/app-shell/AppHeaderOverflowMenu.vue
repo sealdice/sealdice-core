@@ -12,7 +12,6 @@
 
     <div class="header-overflow" aria-label="更多操作">
       <AppInstallButton />
-      <n-button tag="a" secondary block :href="oldUIUrl"> 回退老 UI </n-button>
       <n-divider class="header-overflow__divider" />
       <div class="header-overflow__version">
         <n-tag :bordered="false" :type="isStable ? 'success' : 'default'" size="small">
@@ -35,13 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { resolveOldUIUrlFromLocation } from '@/api/config';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import AppInstallButton from './AppInstallButton.vue';
 
 const { overview, isStable, hasNewVersion } = useBaseOverview();
-const oldUIUrl =
-  typeof window !== 'undefined' ? resolveOldUIUrlFromLocation(window.location) : '/old-ui/';
 </script>
 
 <style scoped>
