@@ -54,6 +54,7 @@ export function useCustomReplyEditor() {
   const rulePageItems = ref<ReplyTask[]>([]);
   const modified = ref(false);
   const syncingRemote = ref(false);
+  let remoteSyncCount = 0;
   const importDialogVisible = ref(false);
   const licenseDialogVisible = ref(false);
   const pendingReplyEnable = ref<boolean | null>(null);
@@ -235,6 +236,7 @@ export function useCustomReplyEditor() {
           ...initialDrafts.value,
           [selectedFilename.value]: cloneReplyFileDraft(currentFileDraft.value),
         };
+        modified.value = false;
       }
       message.success('已保存');
     },
@@ -246,6 +248,7 @@ export function useCustomReplyEditor() {
   watch(
     [currentFileDraft, currentInitialDraft],
     () => {
+      if (syncingRemote.value) return;
       const current = currentFileDraft.value;
       const initial = currentInitialDraft.value;
       if (!current || !initial) {
@@ -292,57 +295,88 @@ export function useCustomReplyEditor() {
     () => currentFileDetailQuery.data.value,
     detail => {
       if (!detail) return;
-      syncingRemote.value = true;
+      beginRemoteSync();
       const normalized = normalizeReplyFileDetail(detail);
       const existing = drafts.value[detail.filename];
+      const existingInitial = initialDrafts.value[detail.filename];
+      const locallyModified =
+        existing !== undefined &&
+        existingInitial !== undefined &&
+        JSON.stringify(existing) !== JSON.stringify(existingInitial);
+      const nextDraft = existing
+        ? locallyModified
+          ? existing
+          : {
+              ...normalized,
+              conditions: existing.conditions,
+              items: existing.items,
+              itemCount: existing.itemCount,
+            }
+        : normalized;
       drafts.value = {
         ...drafts.value,
-        [detail.filename]: existing ?? normalized,
+        [detail.filename]: nextDraft,
       };
       initialDrafts.value = {
         ...initialDrafts.value,
-        [detail.filename]: cloneReplyFileDraft(normalized),
+        [detail.filename]: locallyModified ? existingInitial! : cloneReplyFileDraft(nextDraft),
       };
-      modified.value = false;
-      void nextTick(() => {
-        syncingRemote.value = false;
-      });
+      modified.value = locallyModified;
+      void nextTick(finishRemoteSync);
     },
     { immediate: true }
   );
 
   watch(
-    () => currentConditionsPageQuery.data.value,
-    pageData => {
-      if (!pageData || !currentFileDraft.value) return;
-      syncingRemote.value = true;
+    [() => currentConditionsPageQuery.data.value, currentFileDraft, currentInitialDraft],
+    ([pageData]) => {
+      if (!pageData || !currentFileDraft.value || !currentInitialDraft.value) return;
+      beginRemoteSync();
       const draft = currentFileDraft.value;
+      const initial = currentInitialDraft.value;
       ensureConditionLength(draft, pageData.total);
+      ensureConditionLength(initial, pageData.total);
       for (const condition of pageData.list ?? []) {
-        draft.conditions[condition.index] = normalizeCondition(condition.item);
+        const normalized = normalizeCondition(condition.item);
+        const currentCondition = draft.conditions[condition.index];
+        const initialCondition = initial.conditions[condition.index];
+        const locallyModified =
+          JSON.stringify(currentCondition) !== JSON.stringify(initialCondition);
+        if (!locallyModified) {
+          draft.conditions[condition.index] = normalized;
+          initial.conditions[condition.index] = { ...normalized };
+        }
       }
-      void nextTick(() => {
-        syncingRemote.value = false;
-      });
+      void nextTick(finishRemoteSync);
     },
     { immediate: true }
   );
 
   watch(
-    () => currentRulesPageQuery.data.value,
-    pageData => {
-      if (!pageData || !currentFileDraft.value) return;
-      syncingRemote.value = true;
+    [() => currentRulesPageQuery.data.value, currentFileDraft, currentInitialDraft],
+    ([pageData]) => {
+      if (!pageData || !currentFileDraft.value || !currentInitialDraft.value) return;
+      beginRemoteSync();
       const draft = currentFileDraft.value;
+      const initial = currentInitialDraft.value;
       ensureDraftItemLength(draft, pageData.total);
+      ensureDraftItemLength(initial, pageData.total);
       for (const rule of pageData.list ?? []) {
-        draft.items[rule.index] = normalizeReplyTask(rule.item);
+        const normalized = normalizeReplyTask(rule.item);
+        const currentItem = draft.items[rule.index];
+        const initialItem = initial.items[rule.index];
+        const locallyModified = JSON.stringify(currentItem) !== JSON.stringify(initialItem);
+        if (!locallyModified) {
+          draft.items[rule.index] = normalized;
+          initial.items[rule.index] = cloneReplyTask(normalized);
+        }
       }
-      draft.itemCount = pageData.total;
-      syncRulePageItemsFromDraft();
-      void nextTick(() => {
-        syncingRemote.value = false;
-      });
+      if (draft.itemCount === initial.itemCount) {
+        draft.itemCount = pageData.total;
+        initial.itemCount = pageData.total;
+      }
+      syncRulePageItemsFromDraft(true);
+      void nextTick(finishRemoteSync);
     },
     { immediate: true }
   );
@@ -350,11 +384,11 @@ export function useCustomReplyEditor() {
   watch(selectedFilename, () => {
     commonConditionsPage.value = 1;
     rulesPage.value = 1;
-    rulePageItems.value = [];
+    syncRulePageItemsFromDraft(true);
   });
 
   watch([rulesPage, rulesPageSize, currentFileDraft], () => {
-    syncRulePageItemsFromDraft();
+    syncRulePageItemsFromDraft(true);
   });
 
   watch(
@@ -366,7 +400,7 @@ export function useCustomReplyEditor() {
         currentFileDraft.value!.items[start + index] = cloneReplyTask(item);
       });
       currentFileDraft.value.itemCount = currentFileDraft.value.items.filter(Boolean).length;
-      modified.value = true;
+      markModified();
     },
     { deep: true }
   );
@@ -469,7 +503,7 @@ export function useCustomReplyEditor() {
     }
     const lastPage = Math.max(1, Math.ceil(rulesTotal.value / rulesPageSize.value));
     rulesPage.value = lastPage;
-    syncRulePageItemsFromDraft();
+    syncRulePageItemsFromDraft(false);
     markModified();
   }
 
@@ -482,7 +516,7 @@ export function useCustomReplyEditor() {
     if (rulesPage.value > lastPage) {
       rulesPage.value = lastPage;
     }
-    syncRulePageItemsFromDraft();
+    syncRulePageItemsFromDraft(false);
     markModified();
   }
 
@@ -579,7 +613,7 @@ export function useCustomReplyEditor() {
     currentFileDraft.value.itemCount = currentFileDraft.value.items.filter(Boolean).length;
     const lastPage = Math.max(1, Math.ceil(rulesTotal.value / rulesPageSize.value));
     rulesPage.value = lastPage;
-    syncRulePageItemsFromDraft();
+    syncRulePageItemsFromDraft(false);
     markModified();
     message.success('导入成功！');
   }
@@ -589,6 +623,17 @@ export function useCustomReplyEditor() {
     const current = currentFileDraft.value;
     const initial = currentInitialDraft.value;
     modified.value = !!current && !!initial && JSON.stringify(current) !== JSON.stringify(initial);
+  }
+
+  function beginRemoteSync() {
+    remoteSyncCount += 1;
+    syncingRemote.value = true;
+  }
+
+  function finishRemoteSync() {
+    remoteSyncCount = Math.max(0, remoteSyncCount - 1);
+    syncingRemote.value = remoteSyncCount > 0;
+    if (!syncingRemote.value) markModified();
   }
 
   function ensureDraftItemLength(draft: ReplyFileDraft, total: number) {
@@ -601,19 +646,19 @@ export function useCustomReplyEditor() {
     draft.conditions.length = total;
   }
 
-  function syncRulePageItemsFromDraft() {
+  function syncRulePageItemsFromDraft(remote = true) {
     if (!currentFileDraft.value) {
       rulePageItems.value = [];
       return;
     }
-    syncingRemote.value = true;
+    if (remote) beginRemoteSync();
     rulePageItems.value = currentFileDraft.value.items
       .slice(rulePageStart.value, rulePageStart.value + rulesPageSize.value)
       .filter(Boolean)
       .map(item => cloneReplyTask(item));
-    void nextTick(() => {
-      syncingRemote.value = false;
-    });
+    if (remote) {
+      void nextTick(finishRemoteSync);
+    }
   }
 
   return {
