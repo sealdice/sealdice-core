@@ -12,7 +12,7 @@ it('passes', async () => {
   };
 
   const connection: EndPointInfo = {
-    adapter: null,
+    adapter: {},
     cmdExecutedLastTime: 0,
     cmdExecutedNum: 0,
     enable: true,

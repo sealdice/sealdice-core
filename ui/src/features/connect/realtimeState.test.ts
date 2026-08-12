@@ -17,7 +17,7 @@ const assertDeepEqual = (actual: unknown, expected: unknown) => {
 };
 
 const connA: EndPointInfo = {
-  adapter: null,
+  adapter: {},
   cmdExecutedLastTime: 0,
   cmdExecutedNum: 0,
   enable: true,
