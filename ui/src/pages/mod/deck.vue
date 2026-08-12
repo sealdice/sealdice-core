@@ -660,6 +660,12 @@ function deckUpdate() {
   gap: 1rem;
 }
 
+.deck-page > :deep(.n-spin-container > .n-spin-content) {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .deck-file-input {
   display: none;
 }

@@ -15,7 +15,7 @@
         导入
       </n-button>
     </n-upload>
-    <n-flex class="censor-files-template-actions">
+    <n-flex class="censor-files-template-actions" wrap>
       <n-button type="primary" size="tiny" text @click="downloadTomlTemplate">
         <template #icon>
           <n-icon><i-tabler-download /></n-icon>
@@ -118,6 +118,10 @@ async function handleUpload(options: UploadCustomRequestOptions) {
   flex-wrap: wrap;
 }
 
+.censor-files-header :deep(.n-upload) {
+  width: auto;
+}
+
 .censor-files-list {
   display: grid;
   margin: 0;
@@ -152,8 +156,7 @@ async function handleUpload(options: UploadCustomRequestOptions) {
 }
 
 @media screen and (max-width: 639.9px) {
-  .censor-files-header,
-  .censor-files-template-actions {
+  .censor-files-header {
     align-items: flex-start;
     flex-direction: column;
   }

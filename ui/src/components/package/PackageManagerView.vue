@@ -19,7 +19,7 @@
     <n-tabs :value="activeTab" type="line" animated @update:value="handleTabUpdate">
       <n-tab-pane name="installed" tab="已安装">
         <n-space vertical size="large">
-          <n-space class="package-filter-row" wrap>
+          <ListActions>
             <n-input
               v-model:value="installedKeyword"
               clearable
@@ -31,10 +31,12 @@
               :options="contentOptions"
               style="width: min(100%, 160px)"
             />
-            <n-button secondary @click="refreshPackages" :loading="packagesLoading"
-              >刷新磁盘</n-button
-            >
-          </n-space>
+            <template #end>
+              <n-button secondary @click="refreshPackages" :loading="packagesLoading">
+                刷新磁盘
+              </n-button>
+            </template>
+          </ListActions>
 
           <PackageInstalledDataView
             :rows="filteredInstalledPackages"
@@ -278,6 +280,7 @@ import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
 import PackageInstalledDataView from '@/components/package/PackageInstalledDataView.vue';
 import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
+import ListActions from '@/components/shared/ListActions.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
 

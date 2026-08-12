@@ -25,14 +25,9 @@ defineProps<{
 
 <style scoped>
 .backup-selection-group {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 16px;
-}
-
-@media (max-width: 720px) {
-  .backup-selection-group {
-    grid-template-columns: 1fr;
-  }
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sd-space-sm) var(--sd-space-lg);
 }
 </style>

@@ -8,12 +8,6 @@
     />
 
     <ListActions>
-      <n-button secondary :loading="loading" @click="emit('refresh')">
-        <template #icon>
-          <n-icon><i-tabler-refresh /></n-icon>
-        </template>
-        刷新
-      </n-button>
       <n-upload
         action=""
         multiple
@@ -29,6 +23,14 @@
           上传图片
         </n-button>
       </n-upload>
+      <template #end>
+        <n-button secondary :loading="loading" @click="emit('refresh')">
+          <template #icon>
+            <n-icon><i-tabler-refresh /></n-icon>
+          </template>
+          刷新
+        </n-button>
+      </template>
     </ListActions>
 
     <section v-if="uploadTasks.length" class="resource-upload-queue" aria-live="polite">

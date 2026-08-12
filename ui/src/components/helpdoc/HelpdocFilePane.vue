@@ -1,6 +1,18 @@
 <template>
-  <section class="helpdoc-action-block">
-    <n-flex justify="end" align="center" wrap>
+  <ListActions class="helpdoc-action-block">
+    <n-button type="primary" secondary @click="emit('openUpload')">
+      <template #icon>
+        <n-icon><i-tabler-upload /></n-icon>
+      </template>
+      上传
+    </n-button>
+    <template #end>
+      <n-button secondary @click="emit('openConfig')">
+        <template #icon>
+          <n-icon><i-tabler-settings /></n-icon>
+        </template>
+        设置
+      </n-button>
       <n-button
         v-show="checkedKeys.length > 0"
         type="error"
@@ -13,20 +25,8 @@
         </template>
         删除所选
       </n-button>
-      <n-button type="primary" secondary @click="emit('openUpload')">
-        <template #icon>
-          <n-icon><i-tabler-upload /></n-icon>
-        </template>
-        上传
-      </n-button>
-      <n-button secondary @click="emit('openConfig')">
-        <template #icon>
-          <n-icon><i-tabler-settings /></n-icon>
-        </template>
-        设置
-      </n-button>
-    </n-flex>
-  </section>
+    </template>
+  </ListActions>
 
   <section v-if="activeUploadTasks.length" class="upload-panel">
     <div class="upload-panel-head">
@@ -81,7 +81,8 @@
 
 <script setup lang="tsx">
 import { h } from 'vue';
-import { NButton, NFlex, NProgress, NTag, NText } from 'naive-ui';
+import { NButton, NProgress, NTag, NText } from 'naive-ui';
+import ListActions from '@/components/shared/ListActions.vue';
 import type { HelpDocTreeOption } from '@/features/helpdoc/viewModel';
 import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
 
@@ -230,7 +231,6 @@ function getTaskStatusType(task: ResumableUploadTask) {
 }
 
 @media screen and (max-width: 639.9px) {
-  .helpdoc-action-block :deep(.n-flex),
   .upload-panel-head,
   .upload-item-head,
   .upload-detail {

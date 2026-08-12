@@ -7,6 +7,7 @@
     />
 
     <ListActions>
+      <PackageStoreLink>获取插件</PackageStoreLink>
       <n-upload
         action=""
         multiple
@@ -21,7 +22,6 @@
           上传插件
         </n-button>
       </n-upload>
-      <PackageStoreLink>获取插件</PackageStoreLink>
     </ListActions>
 
     <section v-if="activeUploadTasks.length" class="js-panel upload-panel">
