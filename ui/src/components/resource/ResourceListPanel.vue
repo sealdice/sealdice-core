@@ -16,7 +16,7 @@
         :show-file-list="false"
         :custom-request="uploadResourceFile"
       >
-        <n-button type="primary" :loading="uploadPending" :disabled="disabled">
+        <n-button type="primary" secondary :loading="uploadPending" :disabled="disabled">
           <template #icon>
             <n-icon><i-tabler-upload /></n-icon>
           </template>
@@ -24,7 +24,7 @@
         </n-button>
       </n-upload>
       <template #end>
-        <n-button secondary :loading="loading" @click="emit('refresh')">
+        <n-button type="primary" :loading="loading" @click="emit('refresh')">
           <template #icon>
             <n-icon><i-tabler-refresh /></n-icon>
           </template>
