@@ -21,20 +21,7 @@
           上传插件
         </n-button>
       </n-upload>
-      <n-button
-        type="primary"
-        text
-        tag="a"
-        target="_blank"
-        rel="noreferrer"
-        href="https://github.com/sealdice/javascript"
-        style="text-decoration: none"
-      >
-        <template #icon>
-          <n-icon><i-tabler-link /></n-icon>
-        </template>
-        获取插件
-      </n-button>
+      <PackageStoreLink>获取插件</PackageStoreLink>
     </ListActions>
 
     <section v-if="activeUploadTasks.length" class="js-panel upload-panel">
@@ -351,6 +338,7 @@ import {
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { type JsInfo as JsInfoType } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
+import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';

@@ -37,13 +37,6 @@ export const appNavigation: NavigationItem[] = [
         layout: 'workspace',
       },
       {
-        label: '牌堆管理',
-        title: '牌堆管理',
-        path: '/mod/deck',
-        icon: 'deck',
-        layout: 'wide',
-      },
-      {
         label: '包管理',
         title: '包管理',
         path: '/mod/package',
@@ -51,17 +44,24 @@ export const appNavigation: NavigationItem[] = [
         layout: 'wide',
       },
       {
-        label: '跑团日志',
-        title: '跑团日志',
-        path: '/mod/story',
-        icon: 'story',
-        layout: 'wide',
-      },
-      {
         label: 'JS 扩展',
         title: 'JS 扩展',
         path: '/mod/js',
         icon: 'js',
+        layout: 'wide',
+      },
+      {
+        label: '牌堆管理',
+        title: '牌堆管理',
+        path: '/mod/deck',
+        icon: 'deck',
+        layout: 'wide',
+      },
+      {
+        label: '跑团日志',
+        title: '跑团日志',
+        path: '/mod/story',
+        icon: 'story',
         layout: 'wide',
       },
       {

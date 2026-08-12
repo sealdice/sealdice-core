@@ -18,19 +18,7 @@
       />
 
       <ListActions>
-        <n-button
-          type="primary"
-          secondary
-          tag="a"
-          target="_blank"
-          rel="noreferrer"
-          href="https://github.com/sealdice/draw"
-        >
-          <template #icon>
-            <n-icon><i-tabler-link /></n-icon>
-          </template>
-          获取牌堆
-        </n-button>
+        <PackageStoreLink>获取牌堆</PackageStoreLink>
 
         <input
           ref="fileInputRef"
@@ -313,6 +301,7 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import { getApiBaseUrl } from '@/api/config';
 import {
   getTestModeBlockMessage,

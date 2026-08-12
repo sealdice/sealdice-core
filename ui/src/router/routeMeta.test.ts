@@ -27,6 +27,12 @@ it('passes', async () => {
   assertEqual(routeMeta['/connect']?.layout, 'default');
   assertEqual(routeMeta['/about']?.layout, 'wide');
 
+  const extensionNavigation = appNavigation.find(item => item.label === '扩展功能');
+  assertEqual(
+    extensionNavigation?.children?.map(item => item.label).join(','),
+    '自定义回复,包管理,JS 扩展,牌堆管理,跑团日志,帮助文档,拦截管理'
+  );
+
   const expectedRouteMeta = buildRouteMeta(appNavigation);
   const assertDeepEqual = (actual: unknown, expected: unknown) => {
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {

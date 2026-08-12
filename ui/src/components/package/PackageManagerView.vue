@@ -16,7 +16,7 @@
       {{ loadErrorText }}
     </n-alert>
 
-    <n-tabs type="line" animated>
+    <n-tabs :value="activeTab" type="line" animated @update:value="handleTabUpdate">
       <n-tab-pane name="installed" tab="已安装">
         <n-space vertical size="large">
           <n-space class="package-filter-row" wrap>
@@ -240,6 +240,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { useQuery } from '@tanstack/vue-query';
+import { useRoute, useRouter } from 'vue-router';
 import {
   deleteSdApiV2ExtensionStoreBackends,
   getSdApiV2ExtensionConfig,
@@ -278,6 +279,7 @@ import PackageFileTree from '@/components/package/PackageFileTree.vue';
 import PackageInstalledDataView from '@/components/package/PackageInstalledDataView.vue';
 import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import { resolvePackageManagerTab } from '@/features/package/navigation';
 
 type ConfigFieldSchema = {
   type?: string;
@@ -291,6 +293,17 @@ type ConfigFieldSchema = {
 const message = useMessage();
 const dialog = useDialog();
 const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
+const activeTab = computed(() => resolvePackageManagerTab(route.query.tab));
+
+function handleTabUpdate(value: string | number) {
+  const tab = resolvePackageManagerTab(value);
+  const query = { ...route.query };
+  if (tab === 'installed') delete query.tab;
+  else query.tab = tab;
+  void router.replace({ query });
+}
 
 const packagesLoading = ref(false);
 const storeLoading = ref(false);
