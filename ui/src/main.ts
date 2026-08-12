@@ -34,7 +34,6 @@ import { queryClient } from './queryClient';
 
 // 引入字体: 通用字体 / 等宽字体
 import 'vfonts/Lato.css';
-import 'vfonts/FiraCode.css';
 
 // 配置 dayjs
 dayjs.locale('zh-cn');

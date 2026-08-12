@@ -489,13 +489,16 @@ onBeforeUnmount(() => {
   min-height: 100%;
   color: var(--sd-text-primary);
   background: var(--sd-bg-page);
-  font-family:
-    'Fira Code', 'DengXian', 'Microsoft YaHei Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, monospace;
+  font-family: var(--sd-font-log-code);
 }
 
 .js-editor :deep(.cm-scroller) {
-  font-family: inherit;
+  font-family: var(--sd-font-log-code);
+}
+
+.js-editor :deep(.cm-content),
+.js-editor :deep(.cm-gutters) {
+  font-family: var(--sd-font-log-code);
 }
 
 .js-editor :deep(.cm-gutters) {
@@ -531,9 +534,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--sd-border-soft);
   border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
-  font-family:
-    'Fira Code', 'DengXian', 'Microsoft YaHei Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, monospace;
+  font-family: var(--sd-font-log-code);
 }
 
 .js-output-log :deep(.n-log) {
