@@ -15,7 +15,7 @@
       <n-divider class="header-overflow__divider" />
       <div class="header-overflow__version">
         <n-tag :bordered="false" :type="isStable ? 'success' : 'default'" size="small">
-          {{ isStable ? '正式版' : '测试版' }}
+          {{ channelText }}
         </n-tag>
         <span class="header-overflow__version-text">
           {{ overview?.version.simple ?? '-' }}
@@ -32,7 +32,7 @@
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import AppInstallButton from './AppInstallButton.vue';
 
-const { overview, isStable, hasNewVersion } = useBaseOverview();
+const { overview, isStable, channelText, hasNewVersion } = useBaseOverview();
 </script>
 
 <style scoped>

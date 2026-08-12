@@ -1,7 +1,12 @@
+import { formatAppChannel } from '@/features/base/appChannel';
+
+export type AboutLinkIcon = 'website' | 'manual' | 'support' | 'source';
+
 export type AboutLink = {
   label: string;
   href: string;
   description: string;
+  icon: AboutLinkIcon;
 };
 
 export type AboutContributor = {
@@ -53,6 +58,7 @@ export type AboutOverviewSummary = {
   latestNote: string;
   channelText: string;
   runtimeText: string;
+  modeText: string;
   uptimeText: string;
   hasNewVersion: boolean;
   containerMode: boolean;
@@ -76,21 +82,25 @@ export const ABOUT_LINKS: AboutLink[] = [
     label: '官方网站',
     href: 'https://dice.weizaima.com/',
     description: 'SealDice 项目主页，提供下载、在线试用与社区服务入口。',
+    icon: 'website',
   },
   {
     label: '使用手册',
     href: 'https://docs.sealdice.com/',
     description: '指令、部署、扩展开发与常见问题文档。',
+    icon: 'manual',
   },
   {
     label: '投喂海豹',
     href: 'https://dice.weizaima.com/feed/',
     description: '支持项目持续维护与基础设施开销。',
+    icon: 'support',
   },
   {
     label: '源码',
     href: 'https://github.com/sealdice/sealdice-core',
     description: 'SealDice 核心源码、开发进度、Issue 反馈与贡献协作入口。',
+    icon: 'source',
   },
 ];
 
@@ -167,17 +177,11 @@ export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
   },
   {
     title: 'V1.4 安卓端',
-    contributors: [
-      { username: 'Szzrain' },
-      { username: 'PaienNate' },
-      { username: '木落' },
-    ],
+    contributors: [{ username: 'Szzrain' }, { username: 'PaienNate' }, { username: '木落' }],
   },
   {
     title: 'V1.4.5 特别致谢',
-    contributors: [
-      { username: 'Linwenxuan', user: 'Linwenxuan04' },
-    ],
+    contributors: [{ username: 'Linwenxuan', user: 'Linwenxuan04' }],
   },
   {
     title: 'V1.3 版本',
@@ -192,10 +196,7 @@ export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
   },
   {
     title: 'V1.3 安卓端',
-    contributors: [
-      { username: 'Szzrain' },
-      { username: 'PaienNate' },
-    ],
+    contributors: [{ username: 'Szzrain' }, { username: 'PaienNate' }],
   },
   {
     title: 'V1.2 版本',
@@ -222,9 +223,17 @@ export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
   {
     title: 'V1.1 版本',
     lines: [
-      { text: 'Szzrain - 实现了 Discord 和 Kook(开黑啦) 两个平台的海豹接入' },
       {
-        text: '于言诺 - 制作了很多海豹扩展和牌堆，如养猫、踢海豹、赛博功德、风味月饼、万圣节糖果等等。协助撰写了一些海豹的文档和教程，并找出了众多海豹的 bug',
+        text: '',
+        linkText: 'Szzrain',
+        href: 'https://github.com/Szzrain',
+        tail: ' - 实现了 Discord 和 Kook（开黑啦）两个平台的海豹接入',
+      },
+      {
+        text: '',
+        linkText: '于言诺',
+        href: 'https://github.com/yuyannuo',
+        tail: ' - 制作了很多海豹扩展和牌堆，如养猫、踢海豹、赛博功德、风味月饼、万圣节糖果等等。协助撰写了一些海豹的文档和教程，并找出了众多海豹的 bug',
       },
       { text: '云陌 - 海豹文档教程协力，同时也找了很多海豹的 bug' },
       {
@@ -243,7 +252,9 @@ export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
       { text: 'kuma - 早期测试参与者，海豹的第一次全指令全流程测试' },
       { text: '卟啵 - 早期测试参与者，回报了中文路径和空格路径问题，协助解决了登录流程问题' },
       { text: '蜜瓜包 - 早期测试参与者，默认文档中“怪物之锤查询”的编纂者之一' },
-      { text: '月森优姬 - 早期测试参与者，提出了大量各种各样建议和 BUG 反馈，纠正了一些与规则书不统一的问题，COC 同义词和默认技能点数的编纂者' },
+      {
+        text: '月森优姬 - 早期测试参与者，提出了大量各种各样建议和 BUG 反馈，纠正了一些与规则书不统一的问题，COC 同义词和默认技能点数的编纂者',
+      },
       { text: '清茶 - 在 4 月 7 日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令' },
       { text: '脑 - 在 4 月 7 日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令' },
       { text: 'Greed锦鲤 - 在 4 月 7 日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令' },
@@ -303,17 +314,20 @@ export function buildAvatarUrl(contributor: AboutContributor): string {
   return `/sd-api/utils/ga/${encodeURIComponent(resolveContributorUser(contributor))}`;
 }
 
-export function getAboutOverviewSummary(overview: AboutOverviewInput | undefined): AboutOverviewSummary {
+export function getAboutOverviewSummary(
+  overview: AboutOverviewInput | undefined
+): AboutOverviewSummary {
   const version = overview?.version;
   const runtime = overview?.runtime;
 
   return {
-    appName: cleanText(overview?.appName, 'SealDice-CE'),
+    appName: cleanText(overview?.appName, 'SealDice'),
     versionText: cleanText(version?.value || version?.simple, '读取中'),
     latestVersionText: cleanText(version?.latest, '读取中'),
     latestNote: cleanText(version?.latestNote),
-    channelText: formatChannel(overview?.appChannel),
+    channelText: formatAppChannel(overview?.appChannel),
     runtimeText: runtime?.OS && runtime.arch ? `${runtime.OS} - ${runtime.arch}` : '读取中',
+    modeText: formatRuntimeMode(runtime),
     uptimeText: formatUptime(runtime?.uptime),
     hasNewVersion: Number(version?.code ?? 0) < Number(version?.latestCode ?? 0),
     containerMode: runtime?.containerMode === true,
@@ -321,11 +335,11 @@ export function getAboutOverviewSummary(overview: AboutOverviewInput | undefined
   };
 }
 
-function formatChannel(channel: string | undefined): string {
-  if (channel === 'stable') return '稳定版';
-  if (channel === 'dev') return '开发版';
-  if (channel === 'nightly') return '每日构建';
-  return channel ? channel : '未知';
+function formatRuntimeMode(runtime: AboutOverviewInput['runtime']): string {
+  if (!runtime) return '读取中';
+  if (runtime.justForTest) return '展示模式';
+  if (runtime.containerMode) return '容器模式';
+  return '本机运行';
 }
 
 function formatUptime(seconds: number | undefined): string {

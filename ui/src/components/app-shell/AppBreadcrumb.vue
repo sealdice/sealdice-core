@@ -57,7 +57,7 @@
             size="small"
             class="version-channel"
           >
-            {{ isStable ? '正式版' : '测试版' }}
+            {{ channelText }}
           </n-tag>
           <span class="version-text">{{ overview?.version.simple ?? '-' }}</span>
           <span v-if="hasNewVersion" class="new-version">
@@ -92,7 +92,7 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const { overview, isStable, hasNewVersion } = useBaseOverview();
+const { overview, isStable, channelText, hasNewVersion } = useBaseOverview();
 
 const breadcrumbItems = computed(() =>
   buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面'))

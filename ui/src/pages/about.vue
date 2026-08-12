@@ -24,7 +24,8 @@ const loading = computed(() => overviewQuery.isFetching.value && !overview.value
 <style scoped>
 .about-page {
   display: grid;
-  gap: 22px;
+  gap: 28px;
   min-width: 0;
+  padding-bottom: var(--sd-space-xl);
 }
 </style>
