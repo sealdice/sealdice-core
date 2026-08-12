@@ -5,9 +5,14 @@
     :class="{
       'shadow-sm': shadow === 'always',
       'shadow-sm hover:shadow-md transition-shadow': shadow === 'hover',
-    }">
+    }"
+  >
     <template v-if="!errText">
-      <header :class="compact ? 'foldable-card-header foldable-card-header--compact' : 'foldable-card-header'">
+      <header
+        :class="
+          compact ? 'foldable-card-header foldable-card-header--compact' : 'foldable-card-header'
+        "
+      >
         <div class="foldable-card-title-row">
           <div class="foldable-card-title">
             <slot name="title" />
@@ -25,7 +30,8 @@
               @click="folded = !folded"
             >
               <template #icon>
-                <span class="text-sd-muted text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
+                <i-tabler-chevron-right v-if="folded" class="text-sd-muted" />
+                <i-tabler-chevron-down v-else class="text-sd-muted" />
               </template>
             </n-button>
           </div>
@@ -60,7 +66,7 @@
       <header class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <n-icon size="20" color="var(--n-error-color)">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/><line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+            <i-tabler-circle-x />
           </n-icon>
           <n-text type="error" :depth="1">
             <del>{{ errTitle }}</del>
@@ -84,7 +90,13 @@
 
   <div v-else>
     <template v-if="!errText">
-      <header :class="compact ? 'foldable-card-header foldable-card-header--compact' : 'foldable-card-header foldable-card-header--tight'">
+      <header
+        :class="
+          compact
+            ? 'foldable-card-header foldable-card-header--compact'
+            : 'foldable-card-header foldable-card-header--tight'
+        "
+      >
         <div class="foldable-card-title-row">
           <div class="foldable-card-title">
             <slot name="title" />
@@ -102,7 +114,8 @@
               @click="folded = !folded"
             >
               <template #icon>
-                <span class="text-sd-muted text-xs">{{ folded ? '\u25B6' : '\u25BC' }}</span>
+                <i-tabler-chevron-right v-if="folded" class="text-sd-muted" />
+                <i-tabler-chevron-down v-else class="text-sd-muted" />
               </template>
             </n-button>
           </div>
@@ -137,7 +150,7 @@
       <header class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <n-icon size="20" color="var(--n-error-color)">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2"/><line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2"/></svg>
+            <i-tabler-circle-x />
           </n-icon>
           <n-text type="error" :depth="1">
             <del>{{ errTitle }}</del>
@@ -178,7 +191,7 @@ const props = withDefaults(
     type: 'card',
     defaultFold: 'auto',
     compact: false,
-  },
+  }
 );
 
 const folded = ref<boolean | undefined>(undefined);
@@ -202,7 +215,7 @@ const updateFolded = () => {
 
 watch(
   () => props.defaultFold,
-  () => updateFolded(),
+  () => updateFolded()
 );
 
 useEventListener(window, 'resize', updateFolded);
