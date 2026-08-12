@@ -1,10 +1,6 @@
 <template>
   <main class="advanced-page">
-    <PageHeader
-      title="高级设置"
-      description="面向开发者和进阶用户的高级配置。"
-      unsaved-scope="advanced-setting"
-    >
+    <PageHeader title="高级设置" unsaved-scope="advanced-setting">
       <n-button secondary :disabled="!modified" @click="reload">
         <template #icon>
           <n-icon><i-tabler-arrow-back-up /></n-icon>
@@ -95,15 +91,6 @@
 
         <h3>跑团日志</h3>
         <n-form-item label="自定义后端 URL">
-          <template #label>
-            <span>自定义后端 URL</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
-              </template>
-              设置第三方跑团日志后端 URL
-            </n-tooltip>
-          </template>
           <n-input
             v-model:value="config.storyLogBackendUrl"
             class="advanced-input advanced-input--long"
@@ -111,15 +98,6 @@
         </n-form-item>
 
         <n-form-item label="API 版本">
-          <template #label>
-            <span>API 版本</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
-              </template>
-              指定后端的 API 版本
-            </n-tooltip>
-          </template>
           <n-input
             v-model:value="config.storyLogApiVersion"
             class="advanced-input advanced-input--short"
@@ -127,15 +105,6 @@
         </n-form-item>
 
         <n-form-item label="Token">
-          <template #label>
-            <span>Token</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
-              </template>
-              指定传递给后端的 token
-            </n-tooltip>
-          </template>
           <n-input
             v-model:value="config.storyLogBackendToken"
             class="advanced-input advanced-input--long"

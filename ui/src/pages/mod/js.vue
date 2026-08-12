@@ -1,6 +1,6 @@
 <template>
   <main class="js-page">
-    <PageHeader title="JS 扩展" description="管理脚本扩展、配置和运行数据。">
+    <PageHeader title="JS 扩展">
       <n-flex align="center" justify="space-between" wrap>
         <n-switch
           :value="jsEnable"
@@ -88,9 +88,6 @@
               <n-flex align="center" justify="space-between" wrap>
                 <div class="js-panel-heading">
                   <n-text class="js-panel-title">运行日志</n-text>
-                  <n-text depth="3" class="js-panel-subtitle"
-                    >执行结果与轮询日志统一显示在这里</n-text
-                  >
                 </div>
                 <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
                   <template #icon
@@ -462,11 +459,6 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--sd-text-primary);
-}
-
-.js-panel-subtitle {
-  font-size: 0.78rem;
-  line-height: 1.4;
 }
 
 .js-panel-body {

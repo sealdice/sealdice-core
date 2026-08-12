@@ -17,14 +17,9 @@
         <n-tag :bordered="false" :type="isStable ? 'success' : 'default'" size="small">
           {{ isStable ? '正式版' : '测试版' }}
         </n-tag>
-        <n-tooltip placement="left">
-          <template #trigger>
-            <span class="header-overflow__version-text">
-              {{ overview?.version.simple ?? '-' }}
-            </span>
-          </template>
-          {{ overview?.version.value ?? '-' }}
-        </n-tooltip>
+        <span class="header-overflow__version-text">
+          {{ overview?.version.simple ?? '-' }}
+        </span>
       </div>
       <n-text v-if="hasNewVersion" depth="3" class="header-overflow__update">
         新版本 {{ overview?.version.latest }}

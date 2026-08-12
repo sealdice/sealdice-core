@@ -59,12 +59,7 @@
           >
             {{ isStable ? '正式版' : '测试版' }}
           </n-tag>
-          <n-tooltip placement="bottom">
-            <template #trigger>
-              <span class="version-text">{{ overview?.version.simple ?? '-' }}</span>
-            </template>
-            {{ overview?.version.value ?? '-' }}
-          </n-tooltip>
+          <span class="version-text">{{ overview?.version.simple ?? '-' }}</span>
           <span v-if="hasNewVersion" class="new-version">
             新版本 {{ overview?.version.latest }}
           </span>

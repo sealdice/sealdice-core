@@ -92,17 +92,12 @@
     <div v-else-if="field.kind === 'upload'" class="upgrade-block">
       <n-checkbox v-model:checked="upgradeConfirmed"> 我已阅读功能描述 </n-checkbox>
       <n-flex v-if="isContainerMode" wrap>
-        <n-tooltip>
-          <template #trigger>
-            <n-button type="primary" disabled>
-              <template #icon>
-                <i-tabler-upload />
-              </template>
-              上传压缩包
-            </n-button>
+        <n-button type="primary" disabled>
+          <template #icon>
+            <i-tabler-upload />
           </template>
-          容器模式下固件升级被禁用，请手动拉取最新镜像
-        </n-tooltip>
+          上传压缩包
+        </n-button>
         <n-text type="warning" class="text-xs">容器模式下固件升级被禁用，请手动拉取最新镜像</n-text>
       </n-flex>
       <n-upload

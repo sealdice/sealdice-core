@@ -5,8 +5,8 @@ import type { NavigationItem } from './types';
 // 路由标题、布局和面包屑也从这里派生，避免多个文件维护同一份页面语义。
 export const appNavigation: NavigationItem[] = [
   {
-    label: '主页',
-    title: '主页',
+    label: '运行概览',
+    title: '运行概览',
     path: '/',
     icon: 'home',
     layout: 'default',
@@ -37,8 +37,8 @@ export const appNavigation: NavigationItem[] = [
         layout: 'workspace',
       },
       {
-        label: '包管理',
-        title: '包管理',
+        label: '扩展包管理',
+        title: '扩展包管理',
         path: '/mod/package',
         icon: 'package',
         layout: 'wide',

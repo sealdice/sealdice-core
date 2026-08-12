@@ -2,7 +2,6 @@
   <aside class="tool-test-member-rail" :class="{ 'tool-test-member-rail--open': props.mobileOpen }">
     <div class="tool-test-member-rail__header">
       <div>
-        <span class="tool-test-member-rail__eyebrow">测试身份</span>
         <h2>{{ props.mode === 'group' ? '群组用户' : '私聊用户' }}</h2>
       </div>
       <NButton
@@ -191,13 +190,8 @@ function saveEditor() {
   justify-content: space-between;
 }
 
-.tool-test-member-rail__eyebrow {
-  color: var(--sd-text-muted);
-  font-size: 0.75rem;
-}
-
 .tool-test-member-rail h2 {
-  margin: 0.25rem 0 0;
+  margin: 0;
   color: var(--sd-text-primary);
   font-size: 1.1rem;
 }

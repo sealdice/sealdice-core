@@ -1,6 +1,6 @@
 <template>
   <main class="censor-page">
-    <PageHeader title="拦截管理" description="配置敏感词拦截规则、词库和拦截日志。">
+    <PageHeader title="拦截管理">
       <n-switch
         v-model:value="censorEnable"
         :loading="statusBusy"

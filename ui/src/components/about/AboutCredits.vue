@@ -1,9 +1,7 @@
 <template>
   <section class="about-credits">
     <div class="about-credits__header">
-      <p class="about-credits__eyebrow">Credits</p>
       <h2>感谢</h2>
-      <p>感谢参与测试、反馈、文档、扩展和指令设计的社区成员。</p>
     </div>
 
     <div class="about-credits__sections">
@@ -74,25 +72,11 @@ const props = defineProps<{
   padding: 0 2px;
 }
 
-.about-credits__eyebrow {
-  margin: 0;
-  color: var(--sd-primary);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .about-credits__header h2 {
   margin: 0;
   color: var(--sd-text-primary);
   font-size: clamp(24px, 3vw, 34px);
   line-height: 1.15;
-}
-
-.about-credits__header p {
-  margin: 0;
-  color: var(--sd-text-secondary);
 }
 
 .about-credits__sections {

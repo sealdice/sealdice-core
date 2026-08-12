@@ -1,10 +1,6 @@
 <template>
   <main class="backup-page">
-    <PageHeader
-      title="备份"
-      description="管理自动备份策略与历史备份文件。"
-      unsaved-scope="backup-config"
-    />
+    <PageHeader title="备份" unsaved-scope="backup-config" />
 
     <n-alert v-if="configErrorText" type="error" :bordered="false">
       {{ configErrorText }}

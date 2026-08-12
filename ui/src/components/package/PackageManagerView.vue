@@ -1,9 +1,6 @@
 <template>
   <main class="package-page">
-    <PageHeader
-      title="扩展包管理"
-      description="管理已安装包、商店列表、仓库后端和上传 / URL 安装。"
-    >
+    <PageHeader title="扩展包管理">
       <n-space>
         <n-button secondary @click="refreshAll" :loading="refreshing">刷新</n-button>
         <n-dropdown :options="reloadMenuOptions" @select="handleReloadSelect">

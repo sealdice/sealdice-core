@@ -5,16 +5,15 @@
     </div>
 
     <div class="about-hero__content">
-      <div class="about-hero__title-row">
-        <n-tag :bordered="false">SealDice UI</n-tag>
+      <div
+        v-if="props.summary.containerMode || props.summary.justForTest"
+        class="about-hero__title-row"
+      >
         <n-tag v-if="props.summary.containerMode" :bordered="false"> 容器模式 </n-tag>
         <n-tag v-if="props.summary.justForTest" :bordered="false" type="warning"> 展示模式 </n-tag>
       </div>
 
       <h1>{{ props.summary.appName }}</h1>
-      <p class="about-hero__summary">
-        海豹核心管理后台。这里保留版本信息、项目链接和旧版关于页的社区鸣谢名单。
-      </p>
 
       <div class="about-hero__stats" :class="{ 'about-hero__stats--loading': props.loading }">
         <div class="about-hero__stat">
@@ -143,13 +142,6 @@ const props = defineProps<{
   font-weight: 900;
   letter-spacing: -0.05em;
   line-height: 0.98;
-}
-
-.about-hero__summary {
-  max-width: 720px;
-  margin: 0;
-  color: var(--sd-text-secondary);
-  font-size: 16px;
 }
 
 .about-hero__stats {

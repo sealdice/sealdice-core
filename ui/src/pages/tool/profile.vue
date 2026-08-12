@@ -1,9 +1,6 @@
 <template>
   <main class="pprof-page">
-    <PageHeader
-      title="性能分析"
-      description="通过 V2 pprof 接口导出采样数据，下载后可用 `go tool pprof` / `go tool trace` 离线分析。"
-    />
+    <PageHeader title="性能分析" />
 
     <n-collapse arrow-placement="right" class="pprof-page__help">
       <n-collapse-item title="查看帮助" name="help">
@@ -11,6 +8,7 @@
           <n-text>本页调用 Go 标准库 `net/http/pprof` 相关端点。</n-text>
           <n-text>CPU profile 和 trace 会持续采样，排障完成后应尽快停止，不建议长时间运行。</n-text>
           <n-text>文本视图适合快速浏览，二进制文件更适合交给本地工具深入分析。</n-text>
+          <n-text>下载后可使用 `go tool pprof` 或 `go tool trace` 进行离线分析。</n-text>
         </n-space>
       </n-collapse-item>
     </n-collapse>

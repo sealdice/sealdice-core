@@ -30,7 +30,7 @@ it('passes', async () => {
   const extensionNavigation = appNavigation.find(item => item.label === '扩展功能');
   assertEqual(
     extensionNavigation?.children?.map(item => item.label).join(','),
-    '自定义回复,包管理,JS 扩展,牌堆管理,跑团日志,帮助文档,拦截管理'
+    '自定义回复,扩展包管理,JS 扩展,牌堆管理,跑团日志,帮助文档,拦截管理'
   );
 
   const expectedRouteMeta = buildRouteMeta(appNavigation);

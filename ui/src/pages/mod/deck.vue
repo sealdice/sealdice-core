@@ -1,6 +1,6 @@
 <template>
   <main class="deck-page">
-    <PageHeader title="牌堆管理" description="搜索、上传和更新可用于指令测试的牌堆。">
+    <PageHeader title="牌堆管理">
       <n-button type="primary" :loading="reloadMutation.isPending.value" @click="doReload">
         <template #icon>
           <n-icon><i-tabler-refresh /></n-icon>

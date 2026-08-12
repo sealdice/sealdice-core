@@ -1,6 +1,6 @@
 <template>
   <main class="public-dice-page">
-    <PageHeader title="公骰设置" description="配置公共骰服务的启用状态、账号信息和可用端点。">
+    <PageHeader title="公骰设置">
       <n-switch
         :value="draft?.config.publicDiceEnable ?? false"
         :disabled="!draft || saving"

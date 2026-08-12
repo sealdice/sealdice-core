@@ -1,10 +1,6 @@
 <template>
   <main class="ban-page">
-    <PageHeader
-      title="黑白名单"
-      description="管理黑白名单条目与拉黑惩罚策略，当前页面已迁移至 V2 API。"
-      unsaved-scope="ban-config"
-    />
+    <PageHeader title="黑白名单" unsaved-scope="ban-config" />
 
     <n-tabs v-model:value="tab" animated>
       <n-tab-pane name="list" tab="黑白名单">

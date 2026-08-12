@@ -270,9 +270,6 @@
             <template #icon>
               <n-icon size="40"><i-tabler-package /></n-icon>
             </template>
-            <template #extra>
-              <n-text depth="3">可以先上传插件，或到插件仓库获取脚本后再导入。</n-text>
-            </template>
           </n-empty>
         </div>
       </div>

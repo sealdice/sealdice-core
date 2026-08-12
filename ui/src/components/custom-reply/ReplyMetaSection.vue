@@ -1,6 +1,6 @@
 <template>
   <header class="reply-meta-section">
-    <PageHeader title="自定义回复" description="管理回复文件、条件和回复规则。">
+    <PageHeader title="自定义回复">
       <n-switch
         :value="replyEnabled"
         :loading="switchLoading"

@@ -2,7 +2,6 @@
   <header class="sd-page-header">
     <div class="sd-page-header__copy">
       <h1>{{ title }}</h1>
-      <p v-if="description">{{ description }}</p>
     </div>
     <div v-if="$slots.default || unsavedScope" class="sd-page-header__actions">
       <template v-if="unsavedScope">
@@ -37,7 +36,6 @@ import { activeUnsavedChangesSource, saveActiveUnsavedChanges } from '@/features
 
 const props = defineProps<{
   title: string;
-  description?: string;
   unsavedScope?: string;
 }>();
 
@@ -88,13 +86,6 @@ async function discard() {
   font-size: var(--sd-page-title-size);
   font-weight: var(--sd-page-title-weight);
   line-height: var(--sd-page-title-line-height);
-}
-
-.sd-page-header p {
-  max-width: 60rem;
-  margin: 0.4rem 0 0;
-  color: var(--sd-text-secondary);
-  line-height: 1.5;
 }
 
 .sd-page-header__actions {

@@ -4,9 +4,6 @@
       <template #header>
         <span :id="headingId" class="setting-category-title">{{ title }}</span>
       </template>
-      <template v-if="description" #description>
-        <span class="setting-category-description">{{ description }}</span>
-      </template>
       <template v-if="collapsible" #header-extra>
         <n-button
           text
@@ -43,7 +40,6 @@ const headingId = `setting-category-heading-${useId()}`;
 
 defineProps<{
   title: string;
-  description?: string;
   collapsible?: boolean;
   expanded?: boolean;
   wide?: boolean;
@@ -72,12 +68,6 @@ const emit = defineEmits<{
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.35;
-}
-
-.setting-category-description {
-  color: var(--sd-text-muted);
-  font-size: 0.82rem;
-  line-height: 1.45;
 }
 
 .setting-category-toggle {
