@@ -24,9 +24,7 @@
         <div class="status-card__value">{{ filesize(memoryUsed) }}</div>
         <div class="status-card__footer">
           <span>运行环境</span>
-          <strong>{{
-            overview ? `${overview.runtime.OS} · ${overview.runtime.arch}` : '读取中'
-          }}</strong>
+          <strong>{{ runtimeSummary }}</strong>
         </div>
       </article>
 
@@ -219,6 +217,13 @@ const groupSummaryQuery = useQuery({
 const overview = computed(() => overviewQuery.data.value?.item);
 const memoryUsed = computed(() => overview.value?.memory.usedSys ?? 0);
 const groupSummary = computed(() => groupSummaryQuery.data.value);
+const runtimeSummary = computed(() => {
+  const runtime = overview.value?.runtime;
+  if (!runtime) return '读取中';
+  return [runtime.OS, runtime.arch, runtime.containerMode ? '容器模式' : '']
+    .filter(Boolean)
+    .join(' · ');
+});
 const hasNewVersion = computed(() => {
   const version = overview.value?.version;
   if (!version) return false;
