@@ -33,12 +33,17 @@
         />
         <div
           class="sd-floating-panel-layer"
-          :class="{ 'sd-floating-panel-layer--active': !!activeUnsavedChangesSource }"
+          :class="{ 'sd-floating-panel-layer--active': hasPendingActions }"
         >
           <AppUnsavedChangesPanel />
         </div>
         <main :class="getAppShellContentClass(props.contentMode)">
-          <div :class="getAppShellContainerClass(props.containerMode)">
+          <div
+            :class="[
+              getAppShellContainerClass(props.containerMode),
+              { 'sd-main-container--pending': hasPendingActions },
+            ]"
+          >
             <slot />
           </div>
         </main>
@@ -84,7 +89,7 @@ import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
 import {
-  activeUnsavedChangesSource,
+  hasPendingActions,
   hasUnsavedChanges,
   setUnsavedChangesConfirmHandler,
 } from '@/features/unsavedChanges';
@@ -255,6 +260,14 @@ setUnsavedChangesConfirmHandler(
   margin-inline: 0;
 }
 
+/* 移动端沉底状态条会盖住页面末尾，脏态出现时补足底部空间。
+   位移与状态条淡入同时发生，读起来是一个动作。 */
+@media screen and (max-width: 767.9px) {
+  .sd-main-container--pending {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .sd-page-shell {
   min-width: 0;
 }
@@ -281,6 +294,17 @@ setUnsavedChangesConfirmHandler(
   pointer-events: none;
 }
 
+/* 移动端把待处理状态条沉到底部：拇指可达，且不与面包屑争夺顶部空间。 */
+@media screen and (max-width: 767.9px) {
+  .sd-floating-panel-layer {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    transform: none;
+  }
+}
+
 :global(.sd-drawer .n-drawer-content) {
   background: var(--sd-bg-sidebar);
 }
@@ -294,9 +318,5 @@ setUnsavedChangesConfirmHandler(
     padding: var(--sd-space-md);
   }
 
-  .sd-floating-panel-layer {
-    top: 4rem;
-    width: calc(100vw - 1rem);
-  }
 }
 </style>

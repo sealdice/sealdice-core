@@ -1,7 +1,9 @@
 <template>
   <main class="helpdoc-page">
-    <PageHeader title="帮助文档">
+    <PageHeader title="帮助文档" :unsaved-scope="['helpdoc-config', 'helpdoc-reload']">
+      <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
       <n-button
+        v-if="!needReload"
         type="primary"
         :loading="reloadMutation.isPending.value"
         :disabled="reloadMutation.isPending.value"
@@ -13,8 +15,6 @@
         重载帮助文档
       </n-button>
     </PageHeader>
-
-    <ReloadNotice :show="needReload" />
 
     <n-tabs v-model:value="tab">
       <n-tab-pane tab="文件" name="file">
@@ -81,7 +81,6 @@ import HelpdocConfigDialog from '@/components/helpdoc/HelpdocConfigDialog.vue';
 import HelpdocFilePane from '@/components/helpdoc/HelpdocFilePane.vue';
 import HelpdocItemPane from '@/components/helpdoc/HelpdocItemPane.vue';
 import HelpdocUploadDialog from '@/components/helpdoc/HelpdocUploadDialog.vue';
-import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { useHelpdocConfigDraft } from '@/features/helpdoc/configDraft';
 import { useHelpdocMutations } from '@/features/helpdoc/mutations';
@@ -96,7 +95,7 @@ import {
   getHelpdocTextTooltip,
   summarizeHelpdocDelete,
 } from '@/features/helpdoc/viewModel';
-import { useUnsavedChanges } from '@/features/unsavedChanges';
+import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
 
 const message = useMessage();
@@ -196,6 +195,15 @@ useUnsavedChanges('helpdoc-config', {
   saving: computed(() => saveConfigMutation.isPending.value),
   canSave: computed(() => configDraft.dirty.value),
   confirmMessage: '帮助文档设置还有修改，确定要忽略？',
+});
+
+usePendingReload('helpdoc-reload', {
+  label: '帮助文档',
+  pending: computed(() => needReload.value),
+  reload: () => reloadMutation.mutateAsync(),
+  reloading: computed(() => reloadMutation.isPending.value),
+  canReload: computed(() => !reloadMutation.isPending.value),
+  actionText: '重载帮助文档',
 });
 
 const columns: DataTableColumns<HelpTextVo> = [

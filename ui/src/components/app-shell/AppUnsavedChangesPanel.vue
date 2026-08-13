@@ -1,33 +1,33 @@
 <template>
   <transition name="unsaved-panel">
-    <section v-if="activeUnsavedChangesSource" class="unsaved-panel">
-      <div class="unsaved-panel-copy">
-        <n-text class="unsaved-panel-title" tag="strong">
-          {{ activeUnsavedChangesSource.label }} 有修改
-        </n-text>
-      </div>
-
-      <n-button
-        type="primary"
-        class="unsaved-panel-action"
-        :loading="activeUnsavedChangesSource.saving"
-        :disabled="!activeUnsavedChangesSource.canSave"
-        @click="handleSave"
-      >
-        <template #icon>
-          <n-icon><i-tabler-device-floppy /></n-icon>
-        </template>
-        保存
-      </n-button>
+    <section v-if="visible" class="unsaved-panel" role="status" aria-live="polite">
+      <PendingActionRow
+        v-for="action in actions"
+        :key="action.scope"
+        :action="action"
+        with-label
+        @run="handleRun(action.scope)"
+      />
     </section>
   </transition>
 </template>
 
 <script setup lang="ts">
-import { activeUnsavedChangesSource, saveActiveUnsavedChanges } from '@/features/unsavedChanges';
+import { computed } from 'vue';
+import PendingActionRow from '@/components/shared/PendingActionRow.vue';
+import {
+  activePendingActions,
+  isPendingActionAnchorVisible,
+  runPendingAction,
+} from '@/features/unsavedChanges';
 
-async function handleSave() {
-  await saveActiveUnsavedChanges();
+const actions = computed(() => activePendingActions.value);
+
+// 与 PageHeader 内的状态区互斥：锚点还在视口里时不出现，避免两处重复且相互遮挡。
+const visible = computed(() => actions.value.length > 0 && !isPendingActionAnchorVisible.value);
+
+async function handleRun(scope: string) {
+  await runPendingAction(scope);
 }
 </script>
 
@@ -35,10 +35,9 @@ async function handleSave() {
 .unsaved-panel {
   display: flex;
   width: min(32rem, calc(100vw - 2rem));
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border: 1px solid var(--sd-warning-border);
+  flex-direction: column;
+  gap: var(--sd-space-sm);
+  border: 1px solid var(--sd-border);
   border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
   box-shadow: var(--sd-shadow-floating);
@@ -46,45 +45,34 @@ async function handleSave() {
   pointer-events: auto;
 }
 
-.unsaved-panel-copy {
-  min-width: 0;
-}
-
-.unsaved-panel-title {
-  color: var(--sd-text-primary);
-  font-size: 0.96rem;
-  line-height: 1.25;
-}
-
-.unsaved-panel-action {
-  flex: 0 0 auto;
-}
-
 .unsaved-panel-enter-active,
 .unsaved-panel-leave-active {
   transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
 
 .unsaved-panel-enter-from,
 .unsaved-panel-leave-to {
   opacity: 0;
-  transform: translateY(-10px) scale(0.98);
+  transform: translateY(-8px);
 }
 
-@media (max-width: 640px) {
+/* 移动端沉底通栏：长表单里拇指可达，且不与顶部面包屑争夺空间。 */
+@media (max-width: 767.9px) {
   .unsaved-panel {
-    width: min(100%, calc(100vw - 1rem));
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    align-items: stretch;
-    border-radius: var(--sd-radius-md);
-    padding: 0.75rem 0.875rem;
+    width: 100%;
+    gap: var(--sd-space-xs);
+    border: none;
+    border-top: 1px solid var(--sd-border);
+    border-radius: var(--sd-radius-md) var(--sd-radius-md) 0 0;
+    padding: var(--sd-space-sm) var(--sd-space-md);
+    padding-bottom: calc(var(--sd-space-sm) + env(safe-area-inset-bottom, 0px));
   }
 
-  .unsaved-panel-action {
-    width: 100%;
+  .unsaved-panel-enter-from,
+  .unsaved-panel-leave-to {
+    transform: translateY(8px);
   }
 }
 </style>

@@ -1,15 +1,4 @@
 <template>
-  <header class="censor-config-header">
-    <n-button type="primary" secondary :loading="saving" @click="emit('save')">
-      <template #icon>
-        <i-tabler-device-floppy />
-      </template>
-      保存设置
-    </n-button>
-    <n-text v-if="modified" type="warning" tag="strong" class="ml-4 text-base">
-      内容已修改，不要忘记保存！
-    </n-text>
-  </header>
   <SettingCategoryBox title="匹配选项" padded>
     <n-form label-placement="left" label-width="auto">
       <n-form-item>
@@ -95,25 +84,25 @@
         <template #label>
           <CensorSensitiveTag :level="1" />
         </template>
-        <LevelConfigEditor v-model:config="config.levelConfig.notice" />
+        <LevelConfigEditor v-model:level="config.levelConfig.notice" />
       </n-form-item>
       <n-form-item>
         <template #label>
           <CensorSensitiveTag :level="2" />
         </template>
-        <LevelConfigEditor v-model:config="config.levelConfig.caution" />
+        <LevelConfigEditor v-model:level="config.levelConfig.caution" />
       </n-form-item>
       <n-form-item>
         <template #label>
           <CensorSensitiveTag :level="3" />
         </template>
-        <LevelConfigEditor v-model:config="config.levelConfig.warning" />
+        <LevelConfigEditor v-model:level="config.levelConfig.warning" />
       </n-form-item>
       <n-form-item>
         <template #label>
           <CensorSensitiveTag :level="4" />
         </template>
-        <LevelConfigEditor v-model:config="config.levelConfig.danger" />
+        <LevelConfigEditor v-model:level="config.levelConfig.danger" />
       </n-form-item>
     </n-form>
   </SettingCategoryBox>
@@ -129,31 +118,24 @@ import { CENSOR_HANDLERS, CENSOR_MODES } from '@/features/censor/viewModel';
 
 const config = defineModel<CensorConfigBody>('config', { required: true });
 
-defineProps<{
-  saving: boolean;
-  modified: boolean;
-}>();
-
-const emit = defineEmits<{
-  save: [];
-}>();
-
+// 内层编辑器的 prop 名与外层 defineModel 同名会让 lint 把模板里的 config
+// 误判为 prop，因此这里改用 level。
 const LevelConfigEditor = defineComponent({
   name: 'LevelConfigEditor',
   props: {
-    config: {
+    level: {
       type: Object as () => CensorLevelConfig,
       required: true,
     },
   },
-  emits: ['update:config'],
+  emits: ['update:level'],
   setup(props) {
     return () => (
       <n-flex align="start" class="level-config-editor">
         <n-flex align="center" class="level-config-threshold">
           <n-text>用户触发超过</n-text>
           <n-input-number
-            v-model:value={props.config.threshold}
+            v-model:value={props.level.threshold}
             class="w-28"
             size="small"
             step={1}
@@ -163,7 +145,7 @@ const LevelConfigEditor = defineComponent({
           <n-text>次时：</n-text>
         </n-flex>
         <n-flex vertical class="level-config-actions">
-          <n-checkbox-group v-model:value={props.config.handlers} class="level-config-handlers">
+          <n-checkbox-group v-model:value={props.level.handlers} class="level-config-handlers">
             {CENSOR_HANDLERS.map(handle => (
               <n-checkbox key={handle.key} value={handle.key}>
                 {handle.name}
@@ -173,7 +155,7 @@ const LevelConfigEditor = defineComponent({
           <n-flex align="center" class="level-config-score">
             <n-text>怒气值</n-text>
             <n-input-number
-              v-model:value={props.config.score}
+              v-model:value={props.level.score}
               class="w-28"
               size="small"
               step={1}
@@ -189,17 +171,6 @@ const LevelConfigEditor = defineComponent({
 </script>
 
 <style scoped>
-.censor-config-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.censor-config-header + :deep(.setting-category-box) {
-  margin-top: var(--sd-space-xs);
-}
-
 .censor-regex-input {
   width: min(100%, 12rem);
 }

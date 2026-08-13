@@ -1,6 +1,6 @@
 <template>
   <main class="js-page">
-    <PageHeader title="JS 扩展">
+    <PageHeader title="JS 扩展" :unsaved-scope="['js-config', 'js-reload']">
       <n-flex align="center" justify="space-between" wrap>
         <n-flex align="center" size="small">
           <n-text depth="3">启用 JS 扩展</n-text>
@@ -12,7 +12,13 @@
             @update:value="handleJsEnableToggle"
           />
         </n-flex>
-        <n-button v-show="jsEnable" type="primary" :disabled="isTestMode" @click="handleReload">
+        <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
+        <n-button
+          v-show="jsEnable && !needReload"
+          type="primary"
+          :disabled="isTestMode"
+          @click="handleReload"
+        >
           <template #icon>
             <n-icon><i-tabler-refresh /></n-icon>
           </template>
@@ -20,29 +26,6 @@
         </n-button>
       </n-flex>
     </PageHeader>
-
-    <ReloadNotice :show="needReload" />
-
-    <n-affix v-if="jsConfigEdited" :top="70">
-      <TipBox type="warning">
-        <n-flex wrap>
-          <n-text type="warning" tag="strong" class="text-base"
-            >配置内容已修改，不要忘记保存！</n-text
-          >
-          <n-button
-            type="primary"
-            secondary
-            :disabled="!jsConfigEdited || isTestMode"
-            @click="saveJsConfig"
-          >
-            <template #icon>
-              <n-icon><i-tabler-device-floppy /></n-icon>
-            </template>
-            点我保存
-          </n-button>
-        </n-flex>
-      </TipBox>
-    </n-affix>
 
     <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="js-tabs">
       <n-tab-pane tab="控制台" name="console">
@@ -152,10 +135,9 @@ import {
   postSdApiV2JsReload,
   postSdApiV2JsShutdown,
 } from '@/api';
-import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
+import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
@@ -378,6 +360,22 @@ async function saveJsConfig() {
   }
   await jsConfigViewRef.value.saveAll();
 }
+
+useUnsavedChanges('js-config', {
+  label: 'JS 配置',
+  dirty: jsConfigEdited,
+  save: saveJsConfig,
+  canSave: computed(() => jsConfigEdited.value && !isTestMode.value),
+  confirmMessage: 'JS 配置还有修改，确定要忽略？',
+});
+
+usePendingReload('js-reload', {
+  label: 'JS 扩展',
+  pending: needReload,
+  reload: handleReload,
+  canReload: computed(() => !isTestMode.value),
+  actionText: '重载 JS',
+});
 
 async function loadEditorExtensions() {
   // CodeMirror 体积较大，仅进入 console tab 时加载，避免拖慢 JS 管理页首屏。

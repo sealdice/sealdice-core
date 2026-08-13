@@ -3,6 +3,7 @@ import { appPinia } from '@/pinia';
 import {
   useUnsavedChangesStore,
   type ActiveUnsavedChangesSource,
+  type PendingActionKind,
   type UnsavedChangesSourceOptions,
   type UnsavedConfirmHandler,
   type UnsavedChangesEvents,
@@ -10,16 +11,23 @@ import {
 
 export type {
   ActiveUnsavedChangesSource,
+  PendingActionKind,
   UnsavedChangesSourceOptions,
   UnsavedConfirmHandler,
   UnsavedChangesEvents,
 };
 
 const unsavedChangesStore = useUnsavedChangesStore(appPinia);
-const { activeUnsavedChangesSource, hasUnsavedChanges } = storeToRefs(unsavedChangesStore);
+const { activePendingActions, activeUnsavedChangesSource, hasUnsavedChanges, hasPendingActions } =
+  storeToRefs(unsavedChangesStore);
 
 // 兼容层：旧代码继续从 state.ts 使用未保存变更 API，实际状态已集中到 Pinia store。
-export { activeUnsavedChangesSource, hasUnsavedChanges };
+export {
+  activePendingActions,
+  activeUnsavedChangesSource,
+  hasUnsavedChanges,
+  hasPendingActions,
+};
 export const unsavedChangesEmitter = unsavedChangesStore.unsavedChangesEmitter;
 
 export function registerUnsavedChangesSource(scope: string, options: UnsavedChangesSourceOptions): void {
@@ -40,4 +48,8 @@ export async function confirmDiscardUnsavedChanges(): Promise<boolean> {
 
 export async function saveActiveUnsavedChanges(): Promise<boolean> {
   return unsavedChangesStore.saveActive();
+}
+
+export async function runPendingAction(scope: string): Promise<boolean> {
+  return unsavedChangesStore.runPendingAction(scope);
 }

@@ -1,9 +1,22 @@
 export {
+  activePendingActions,
   activeUnsavedChangesSource,
+  hasPendingActions,
   hasUnsavedChanges,
+  runPendingAction,
   saveActiveUnsavedChanges,
   setUnsavedChangesConfirmHandler,
 } from './state';
 export { setupUnsavedChangesGuard } from './guard';
 export { useUnsavedChanges } from './useUnsavedChanges';
-export type { ActiveUnsavedChangesSource, UnsavedChangesSourceOptions } from './state';
+export { usePendingReload } from './usePendingReload';
+export type { PendingReloadOptions } from './usePendingReload';
+export {
+  isPendingActionAnchorVisible,
+  setPendingActionAnchor,
+} from './usePendingActionAnchor';
+export type {
+  ActiveUnsavedChangesSource,
+  PendingActionKind,
+  UnsavedChangesSourceOptions,
+} from './state';

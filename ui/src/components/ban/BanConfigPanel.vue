@@ -1,18 +1,5 @@
 <template>
   <section class="ban-config-panel">
-    <header class="ban-config-panel__header">
-      <n-button type="primary" :loading="saving" @click="emit('save')">
-        <template #icon>
-          <n-icon><i-tabler-device-floppy /></n-icon>
-        </template>
-        保存设置
-      </n-button>
-    </header>
-
-    <TipBox v-if="dirty" type="warning" class="ban-config-panel__warning">
-      <n-text type="warning" tag="strong">内容已修改，不要忘记保存。</n-text>
-    </TipBox>
-
     <SettingCategoryBox title="基本设置" padded>
       <n-flex wrap class="ban-config-panel__checks">
         <n-checkbox v-model:checked="config.banBehaviorRefuseReply">拒绝回复</n-checkbox>
@@ -31,10 +18,8 @@
     </SettingCategoryBox>
 
     <SettingCategoryBox title="怒气值设置" padded>
-      <TipBox type="info" class="ban-config-panel__tip">
-        <n-text type="info">
-          海豹的黑名单使用积分制。用户做出恶意行为时怒气值上涨，达到阈值后进入警告或黑名单。
-        </n-text>
+      <TipBox type="info">
+        海豹的黑名单使用积分制。用户做出恶意行为时怒气值上涨，达到阈值后进入警告或黑名单。
       </TipBox>
 
       <n-form size="small" label-placement="left" label-width="112" class="ban-config-panel__form">
@@ -122,15 +107,6 @@ import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.v
 import TipBox from '@/components/shared/TipBox.vue';
 
 const config = defineModel<BanConfig>('config', { required: true });
-
-defineProps<{
-  dirty: boolean;
-  saving: boolean;
-}>();
-
-const emit = defineEmits<{
-  save: [];
-}>();
 </script>
 
 <style scoped>

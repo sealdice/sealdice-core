@@ -19,13 +19,7 @@
         />
       </n-tab-pane>
       <n-tab-pane name="config" tab="拉黑设置">
-        <BanConfigPanel
-          v-if="configDraft"
-          v-model:config="configDraft"
-          :dirty="configDirty"
-          :saving="saveConfigMutation.isPending.value"
-          @save="saveConfig"
-        />
+        <BanConfigPanel v-if="configDraft" v-model:config="configDraft" />
       </n-tab-pane>
     </n-tabs>
 
@@ -246,10 +240,6 @@ async function exportFile() {
   }
 }
 
-async function saveConfig() {
-  if (!configDraft.value) return;
-  await saveConfigMutation.mutateAsync(configDraft.value);
-}
 </script>
 
 <style scoped>
