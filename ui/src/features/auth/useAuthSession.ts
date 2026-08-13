@@ -7,7 +7,15 @@ import {
   getSdApiV2BaseOverviewQueryKey,
   getSdApiV2BaseSecurityCheckQueryKey,
 } from '@/api';
-import { clearAccessToken, currentAccessToken, hasAccessToken, setAccessToken } from './state';
+import {
+  clearAccessToken,
+  currentAccessToken,
+  finishAuthInitialization,
+  hasAccessToken,
+  isInitializing,
+  needsUnlock,
+  setAccessToken,
+} from './state';
 import { passwordHash } from './crypto';
 
 const defaultSigninPassword = 'defaultSignin';
@@ -47,19 +55,23 @@ export function useAuthSession() {
   const tryDefaultSignin = async () => {
     // 首次启动未设置密码时，后端允许 defaultSignin 快速进入后台。
     // 失败是正常路径，AppUnlockDialog 会继续展示密码输入。
-    if (currentAccessToken()) {
-      return true;
-    }
     try {
+      if (currentAccessToken()) {
+        return true;
+      }
       await signinWithHash(defaultSigninPassword);
       return true;
     } catch {
       return false;
+    } finally {
+      finishAuthInitialization();
     }
   };
 
   return {
     hasAccessToken,
+    isInitializing,
+    needsUnlock,
     currentUser: computed(() => null),
     currentUserErrorText: computed(() => ''),
     signinMutation,

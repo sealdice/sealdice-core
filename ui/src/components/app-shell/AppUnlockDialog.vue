@@ -71,7 +71,7 @@ const dialogCheckPassword = ref(false);
 const canSkipSecurityDialog = ref(false);
 const hasCheckedSecurity = ref(false);
 
-const showDialog = computed(() => !authSession.hasAccessToken.value);
+const showDialog = computed(() => authSession.needsUnlock.value);
 const errorText = computed(() =>
   authSession.signinMutation.isError.value
     ? getErrorMessage(authSession.signinMutation.error.value, '密码错误')

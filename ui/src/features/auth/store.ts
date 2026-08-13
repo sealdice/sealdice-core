@@ -26,7 +26,9 @@ function writeTokenToStorage(token: string): void {
 
 export const useAuthStore = defineStore('auth', () => {
   const token = shallowRef(readTokenFromStorage());
+  const isInitializing = shallowRef(true);
   const hasAccessToken = computed(() => token.value !== '');
+  const needsUnlock = computed(() => !isInitializing.value && !hasAccessToken.value);
 
   function currentAccessToken(): string {
     return token.value;
@@ -42,11 +44,18 @@ export const useAuthStore = defineStore('auth', () => {
     setAccessToken('');
   }
 
+  function finishInitialization(): void {
+    isInitializing.value = false;
+  }
+
   return {
     token,
+    isInitializing,
     hasAccessToken,
+    needsUnlock,
     currentAccessToken,
     setAccessToken,
     clearAccessToken,
+    finishInitialization,
   };
 });
