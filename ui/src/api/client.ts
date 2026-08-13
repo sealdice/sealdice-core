@@ -236,7 +236,10 @@ export function createApiErrorFeedback(
     return {
       kind: 'dialog',
       title: '身份信息',
-      content: dialogContent([['无效的令牌'], ['错误码:', 401, `错误信息:${formatError(error)}`]]),
+      content: dialogContent([
+        ['无效的令牌'],
+        ['错误码：', 401, `错误信息：${formatError(error)}`],
+      ]),
       positiveText: '重新登录',
       negativeText: '取消',
       clearSession: true,

@@ -148,7 +148,7 @@ it('passes', async () => {
       protocolType: 'onebot',
       adapter: { builtinMode: 'lagrange' },
     }),
-    'QQ(内置客户端)'
+    'QQ（内置客户端）'
   );
   assertEqual(
     getEndpointProtocolLabel({
@@ -156,14 +156,14 @@ it('passes', async () => {
       protocolType: 'milky',
       adapter: { built_in_mode: 'milky' },
     }),
-    'QQ(内置Milky)'
+    'QQ（内置 Milky）'
   );
   assertEqual(
     getEndpointProtocolLabel({
       platform: 'QQ',
       protocolType: 'milky',
     }),
-    'QQ(Milky)'
+    'QQ（Milky）'
   );
   assertEqual(
     getEndpointProtocolLabel({
@@ -207,7 +207,7 @@ it('passes', async () => {
         id: 'ep-2',
         userId: '1002',
         platform: 'QQ',
-        protocol: 'QQ(Milky)',
+        protocol: 'QQ（Milky）',
         protocolType: 'milky',
         stateText: '失败',
         stateTagType: 'error',

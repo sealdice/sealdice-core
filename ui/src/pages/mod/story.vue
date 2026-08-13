@@ -774,7 +774,7 @@ async function openCleanupDialog() {
           将删除 {preview.logs} 份超过 {months} 个月未更新的日志，共 {preview.items} 条消息。
         </NText>
         {cleanupForm.value.vacuum ? (
-          <NText type="warning">这将可能导致海豹记录log用户运行缓慢，请注意</NText>
+          <NText type="warning">这将可能导致海豹记录 log 用户运行缓慢，请注意</NText>
         ) : null}
       </NFlex>
     ),

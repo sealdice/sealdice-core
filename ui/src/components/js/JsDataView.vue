@@ -65,7 +65,7 @@
           <n-text class="sd-code-text">{{ editKey }}</n-text>
         </n-flex>
         <n-flex align="center" v-if="editIsJson">
-          <n-text depth="3" class="w-16">格式:</n-text>
+          <n-text depth="3" class="w-16">格式：</n-text>
           <n-tag size="small" :bordered="false">JSON</n-tag>
         </n-flex>
         <n-flex vertical>
@@ -236,7 +236,7 @@ function confirmSave() {
 function handleDeleteKey(key: string) {
   dialog.warning({
     title: '删除 Key',
-    content: `确认删除 "${key}"？`,
+    content: `确认删除「${key}」？`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: () => deleteKeys([key]),

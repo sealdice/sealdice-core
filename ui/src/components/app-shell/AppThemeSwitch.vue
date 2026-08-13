@@ -33,9 +33,9 @@ const switchIconColor = computed(() =>
   themeMode.value === 'dark' ? 'var(--sd-accent)' : 'var(--sd-text-primary)'
 );
 const tooltipText = computed(() => {
-  if (themeMode.value === 'light') return '亮色模式 · 点击切换到深色模式';
-  if (themeMode.value === 'dark') return '深色模式 · 点击切换为跟随系统';
-  return `跟随系统（当前${isDark.value ? '深色' : '亮色'}）· 点击切换到亮色模式`;
+  if (themeMode.value === 'light') return '亮色模式・点击切换到深色模式';
+  if (themeMode.value === 'dark') return '深色模式・点击切换为跟随系统';
+  return `跟随系统（当前${isDark.value ? '深色' : '亮色'}）・点击切换到亮色模式`;
 });
 
 function toggle() {

@@ -10,14 +10,15 @@
                 <i-tabler-help-circle />
               </n-icon>
             </template>
-            发出的消息： 拦截骰子发出的内容，进行检查。未通过检查，替换为
+            发出的消息：拦截骰子发出的内容，进行检查。未通过检查，替换为
             <n-tag size="small" :bordered="false">拦截_完全拦截_发出的消息</n-tag>
             的内容。<br />
-            收到的指令： 拦截骰子收到的命令文本进行检查，如收到「.rd
-            进行一次骰点」时，会检查其中的「进行一次骰点」，未通过检查则发送
+            收到的指令：拦截骰子收到的命令文本进行检查，如收到
+            <n-text code class="sd-code-text">.rd 进行一次骰点</n-text>
+            时，会检查其中的「进行一次骰点」，未通过检查则发送
             <n-tag size="small" :bordered="false">拦截_完全拦截_收到的指令</n-tag>
             的内容<br />
-            收到的所有消息： 会对所有收到的消息(所有群内聊天)进行检查，未通过检查默认不做响应，如
+            收到的所有消息：会对所有收到的消息（所有群内聊天）进行检查，未通过检查默认不做响应，如
             <n-tag size="small" :bordered="false">拦截_完全拦截_收到的所有消息</n-tag>
             不为空时会发送拦截提示。
           </n-tooltip>
@@ -25,7 +26,7 @@
         <n-radio-group v-model:value="config.mode" size="small">
           <n-radio :value="CENSOR_MODES.replyOutput">发出的消息</n-radio>
           <n-radio :value="CENSOR_MODES.commandInput">收到的指令</n-radio>
-          <n-radio :value="CENSOR_MODES.allInput">收到的所有消息(慎用)</n-radio>
+          <n-radio :value="CENSOR_MODES.allInput">收到的所有消息（慎用）</n-radio>
         </n-radio-group>
       </n-form-item>
       <n-form-item label="大小写敏感">
@@ -54,8 +55,11 @@
                 <i-tabler-help-circle />
               </n-icon>
             </template>
-            判断敏感词时，忽略过滤字符。如敏感词为 "114514"，指定过滤字符为空白，则
-            "114&nbsp;&nbsp;&nbsp;514" 也会命中敏感词。
+            判断敏感词时，忽略过滤字符。如敏感词为
+            <n-text code class="sd-code-text">114514</n-text>
+            ，指定过滤字符为空白，则
+            <n-text code class="sd-code-text">114&nbsp;&nbsp;&nbsp;514</n-text>
+            也会命中敏感词。
           </n-tooltip>
         </template>
         <n-input v-model:value="config.filterRegex" placeholder="" class="censor-regex-input" />

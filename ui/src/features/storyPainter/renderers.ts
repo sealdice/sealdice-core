@@ -252,7 +252,7 @@ function renderTrgCommandText(commandInfo: unknown): string {
             item =>
               `<hitpoint>:(${pcName},${Math.max(numberValue(item.valOld, 0), numberValue(item.valNew, 0))},${stringValue(item.valOld)},${stringValue(item.valNew)})`
           );
-        return `# 请注意，当前版本需要手动调整下方最大生命值(第二项)\n${hpItems.join('\n')}`;
+        return `# 请注意，当前版本需要手动调整下方最大生命值（第二项）\n${hpItems.join('\n')}`;
       }
       case 'sc':
         return `<dice>:${items

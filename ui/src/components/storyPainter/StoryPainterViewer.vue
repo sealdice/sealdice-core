@@ -245,7 +245,7 @@ const docxSupported = supportsStoryPainterDocxExport();
 const modeOptions: Array<{ label: string; value: StoryPainterPreviewDisplayMode }> = [
   { label: '预览', value: 'preview' },
   { label: '论坛代码', value: 'bbs' },
-  { label: '论坛代码(内容多行)', value: 'bbspineapple' },
+  { label: '论坛代码（内容多行）', value: 'bbspineapple' },
   { label: '回声工坊', value: 'trg' },
 ];
 
@@ -284,7 +284,7 @@ function exportRaw(): void {
     void saveStoryPainterBlob(sourceBlob.value, `${props.log.name}.parquet`);
     return;
   }
-  void saveStoryPainterText(renderRawText(painter.items.value), '跑团记录(未处理).txt');
+  void saveStoryPainterText(renderRawText(painter.items.value), '跑团记录（未处理）.txt');
 }
 
 async function exportRawText(): Promise<void> {
@@ -296,7 +296,7 @@ async function exportRawText(): Promise<void> {
   } else {
     chunks.push(renderRawText(painter.items.value));
   }
-  await saveStoryPainterText(chunks.join('\n'), '跑团记录(未处理).txt');
+  await saveStoryPainterText(chunks.join('\n'), '跑团记录（未处理）.txt');
 }
 
 async function buildForumText(): Promise<string> {
@@ -311,7 +311,7 @@ async function buildForumText(): Promise<string> {
 }
 
 async function exportForumText(): Promise<void> {
-  await saveStoryPainterText(await buildForumText(), '跑团记录(论坛代码).txt');
+  await saveStoryPainterText(await buildForumText(), '跑团记录（论坛代码）.txt');
 }
 
 async function buildTrgText(): Promise<string> {
@@ -324,7 +324,7 @@ async function buildTrgText(): Promise<string> {
 }
 
 async function exportTrgText(): Promise<void> {
-  await saveStoryPainterText(await buildTrgText(), '跑团记录(回声工坊).txt');
+  await saveStoryPainterText(await buildTrgText(), '跑团记录（回声工坊）.txt');
 }
 
 async function buildCopyText(): Promise<string> {

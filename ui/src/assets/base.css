@@ -189,6 +189,11 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 中西混排间距交由渲染层承担：按 CLREQ 补入四分之一汉字宽的间隙，
+     且不写入文本内容，复制和搜索都不会带上多余空格。
+     浏览器计算值默认为 no-autospace，必须显式声明才生效。
+     不支持该属性的浏览器只是拿不到间隙，属于渐进增强。 */
+  text-autospace: normal;
 }
 
 .sd-code-text,
@@ -198,6 +203,20 @@ body {
 .sd-code-text pre,
 .sd-code-text [contenteditable] {
   font-family: var(--sd-font-code);
+}
+
+/* 等宽块按字符对齐，自动间距会破坏对齐；海豹码与豹语变量含汉字，
+   补空格还会改变视觉宽度，故在这些容器内部关闭。
+   注意只关容器内部：给行内 code 本身声明 no-autospace 会连带取消
+   它与前后中文之间的边界间隙，而那个间隙正是需要保留的。 */
+.sd-code-text input,
+.sd-code-text textarea,
+.sd-code-text pre,
+.sd-code-text [contenteditable],
+pre,
+kbd,
+samp {
+  text-autospace: no-autospace;
 }
 
 html.sd-theme-transition-disabled *,

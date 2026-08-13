@@ -81,7 +81,7 @@ it('passes', async () => {
     assertHasParagraphs(unauthorized.content(), 2);
     assertNotEqual(
       String(unauthorized.content()),
-      '无效的令牌。错误码: 401 错误信息:ApiError: unauthorized'
+      '无效的令牌。错误码：401 错误信息：ApiError: unauthorized'
     );
     if (!findStyledCodeNode(unauthorized.content(), '401')) {
       throw new Error('expected 401 to be rendered as a red span vnode');

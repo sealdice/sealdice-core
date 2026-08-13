@@ -22,7 +22,7 @@ export async function saveStoryPainterText(text: string, filename: string): Prom
 
 export async function exportStoryPainterRaw(
   items: StoryPainterLogItem[],
-  filename = '跑团记录(未处理).txt'
+  filename = '跑团记录（未处理）.txt'
 ): Promise<void> {
   const text = items
     .map(item => `${item.nickname}(${item.IMUserId}) ${item.time}\n${item.message}\n`)
