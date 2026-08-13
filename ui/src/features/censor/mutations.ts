@@ -24,17 +24,19 @@ export function useCensorMutations(options: {
   onConfigSaved: () => void;
   onFilesChanged: () => void;
 }) {
+  // 启用与重载走同一个接口，反馈文案需按调用意图区分，
+  // 否则首次开启拦截会提示「重载成功」。
   const restartMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (intent: 'enable' | 'reload' = 'reload') => {
       const { data } = await postSdApiV2CensorRestart({ throwOnError: true });
-      return data.item;
+      return { item: data.item, intent };
     },
-    onSuccess: async item => {
+    onSuccess: async ({ item, intent }) => {
       if (isTestModeResponse(item)) {
         options.message.warning('展示模式无法启用拦截');
         return;
       }
-      options.message.success('重载拦截成功');
+      options.message.success(intent === 'enable' ? '拦截已启用' : '重载拦截成功');
       options.onReloaded();
       await invalidateCensorQueries(options.queryClient);
     },

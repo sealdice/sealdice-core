@@ -34,7 +34,9 @@ async function handleRun(scope: string) {
 <style scoped>
 .unsaved-panel {
   display: flex;
-  width: min(32rem, calc(100vw - 2rem));
+  /* 宽度贴合内容，避免出现远长于文案的空面板；上限防止长标签把面板拉满屏。 */
+  width: fit-content;
+  max-width: min(32rem, calc(100vw - 2rem));
   flex-direction: column;
   gap: var(--sd-space-sm);
   border: 1px solid var(--sd-border);
@@ -62,6 +64,7 @@ async function handleRun(scope: string) {
 @media (max-width: 767.9px) {
   .unsaved-panel {
     width: 100%;
+    max-width: none;
     gap: var(--sd-space-xs);
     border: none;
     border-top: 1px solid var(--sd-border);

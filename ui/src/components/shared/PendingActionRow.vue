@@ -1,8 +1,7 @@
 <template>
   <div class="pending-action-row" :class="`pending-action-row--${action.kind}`">
     <n-icon class="pending-action-row__icon" :size="16" aria-hidden="true">
-      <i-tabler-alert-triangle v-if="action.kind === 'unsaved'" />
-      <i-tabler-refresh-alert v-else />
+      <i-tabler-alert-triangle />
     </n-icon>
 
     <n-text class="pending-action-row__label">{{ statusText }}</n-text>
@@ -59,21 +58,19 @@ const statusText = computed(() => {
   gap: var(--sd-space-xs);
 }
 
+/* 未保存与待重载同为 warning：即使保存成功，
+   未重载时实际运行效果仍不符合用户预期。 */
 .pending-action-row__icon {
   flex: 0 0 auto;
-}
-
-.pending-action-row--unsaved .pending-action-row__icon {
+  display: flex;
+  align-items: center;
   color: var(--sd-warning);
 }
 
-.pending-action-row--reload .pending-action-row__icon {
-  color: var(--sd-info);
-}
-
 .pending-action-row__label {
+  /* 文案占据剩余宽度，把操作按钮推到行尾，避免内容缩在悬浮面板左侧。 */
+  flex: 1 1 auto;
   min-width: 0;
-  margin-right: var(--sd-space-2xs);
   color: var(--sd-text-secondary);
   font-size: 0.9rem;
   line-height: 1.3;

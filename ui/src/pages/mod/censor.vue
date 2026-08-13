@@ -197,7 +197,7 @@ watch(
 );
 
 async function restartCensor() {
-  await restartMutation.mutateAsync();
+  await restartMutation.mutateAsync('reload');
 }
 
 async function stopCensor() {
@@ -208,7 +208,7 @@ async function enableChange(value: boolean | number | string) {
   const next = value === true;
   try {
     if (next) {
-      await restartCensor();
+      await restartMutation.mutateAsync('enable');
     } else {
       await stopCensor();
     }

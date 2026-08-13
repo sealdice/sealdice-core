@@ -66,8 +66,11 @@ const iconVisible = computed(
 
 .tip-box__icon {
   flex: 0 0 auto;
-  /* 与首行文字基线对齐，而非按外接框机械居中。 */
-  margin-top: 0.15em;
+  display: flex;
+  /* 与首行文字视觉居中对齐：撑满一个行高再在其中居中，
+     而不是靠 margin 估算偏移。多行时图标仍留在首行。 */
+  height: calc(1em * 1.6);
+  align-items: center;
   color: var(--tip-box-accent);
 }
 

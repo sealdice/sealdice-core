@@ -9,6 +9,11 @@
       {{ listErrorText }}
     </TipBox>
 
+    <!-- 恢复方式对两个标签页都成立，属于备份的共同说明，放在标签选择器之上。 -->
+    <TipBox type="info">
+      恢复备份时，将骰子彻底关闭，解压备份压缩包到骰子目录。若提示是否覆盖，选择全部即可。
+    </TipBox>
+
     <n-tabs v-model:value="activeTab" type="line" animated class="backup-tabs">
       <n-tab-pane name="settings" tab="备份设置">
         <n-spin :show="configQuery.isLoading.value && !configDraft">
@@ -25,10 +30,6 @@
       </n-tab-pane>
 
       <n-tab-pane name="files" tab="备份文件">
-        <!-- 恢复说明放在备份文件旁，用户在此下载备份才需要它。 -->
-        <TipBox type="info" class="backup-restore-tip">
-          恢复备份时，将骰子彻底关闭，解压备份压缩包到骰子目录。若提示是否覆盖，选择全部即可。
-        </TipBox>
         <BackupFileList
           :items="items"
           :loading="listQuery.isFetching.value"
