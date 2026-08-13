@@ -309,6 +309,21 @@ setUnsavedChangesConfirmHandler(
   background: var(--sd-bg-sidebar);
 }
 
+/* 抽屉里的滚动容器高度由内容决定，侧边栏的 height: 100% 会退化成 auto，
+   footer 因此停在内容末尾而不是底部。给这一段确定高度，让侧边栏拿到与桌面
+   sider 相同的约束：footer 始终黏底，超长时由菜单自身滚动而非整个抽屉。 */
+:global(.sd-drawer .n-drawer-body-content-wrapper) {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+:global(.sd-drawer .sd-sidebar-content) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 @media screen and (max-width: 767.9px) {
   .sd-sidebar {
     display: none;
