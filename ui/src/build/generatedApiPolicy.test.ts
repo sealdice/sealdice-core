@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { it } from 'vitest';
 
 it('passes', async () => {
 
-const rootDir = resolve(new URL('../..', import.meta.url).pathname);
+const rootDir = fileURLToPath(new URL('../..', import.meta.url));
 
 const packageJson = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf8')) as {
   scripts: Record<string, string>;

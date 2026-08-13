@@ -1,8 +1,30 @@
 import { nextTick } from 'vue';
-import { it } from 'vitest';
+import { afterEach, beforeEach, it, vi } from 'vitest';
 import type { EndPointInfo } from '@/api';
 import { clearAccessToken, setAccessToken } from '@/features/auth/state';
 import { useRealtimeConnections } from './realtime';
+
+class FakeEventSource {
+  onopen: ((this: EventSource, ev: Event) => unknown) | null = null;
+  onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
+
+  constructor(_url: string | URL) {
+    void _url;
+  }
+
+  addEventListener(): void {}
+
+  close(): void {}
+}
+
+beforeEach(() => {
+  vi.stubGlobal('EventSource', FakeEventSource);
+});
+
+afterEach(() => {
+  clearAccessToken();
+  vi.unstubAllGlobals();
+});
 
 it('passes', async () => {
   const assertEqual = (actual: unknown, expected: unknown) => {
