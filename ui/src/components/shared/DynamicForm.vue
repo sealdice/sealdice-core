@@ -21,7 +21,7 @@
       >
         <n-input-number
           v-if="item.input_type === 1"
-          :value="(valueOf(fieldKeyOf(item)) as number | null)"
+          :value="numberValueOf(item)"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
           @update:value="value => updateValue(fieldKeyOf(item), value)"
@@ -34,7 +34,7 @@
         />
         <n-select
           v-else-if="item.input_type === 12"
-          :value="(valueOf(fieldKeyOf(item)) as string | null)"
+          :value="selectValueOf(item)"
           :options="optionList(item)"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
@@ -42,7 +42,7 @@
         />
         <n-radio-group
           v-else-if="item.input_type === 5"
-          :value="(valueOf(fieldKeyOf(item)) as string | number | null)"
+          :value="radioValueOf(item)"
           :disabled="isDisabled(item)"
           @update:value="value => updateValue(fieldKeyOf(item), value)"
         >
@@ -56,7 +56,7 @@
         </n-radio-group>
         <n-checkbox-group
           v-else-if="item.input_type === 6"
-          :value="(valueOf(fieldKeyOf(item)) as Array<string | number>)"
+          :value="checkboxValueOf(item)"
           :disabled="isDisabled(item)"
           @update:value="value => updateValue(fieldKeyOf(item), value)"
         >
@@ -72,7 +72,7 @@
         </n-checkbox-group>
         <n-date-picker
           v-else-if="item.input_type === 4 || item.input_type === 11"
-          :value="(valueOf(fieldKeyOf(item)) as number | [number, number] | null)"
+          :value="dateValueOf(item)"
           :type="item.input_type === 11 ? 'datetimerange' : 'datetime'"
           :disabled="isDisabled(item)"
           @update:value="value => updateValue(fieldKeyOf(item), value)"
@@ -162,6 +162,17 @@ const optionList = (item: FormConfigItem) =>
 
 const valueOf = (key: string) => props.modelValue[key];
 const updateValue = (key: string, value: unknown) => setValue(key, value);
+
+// 模板里不能直接写 `x as A | B`：Prettier 会去掉外层括号，
+// 之后 vue-eslint-parser 会把顶层 `|` 当成 Vue 2 过滤器语法而报错。
+// 所以按控件类型在这里收口类型断言。
+const numberValueOf = (item: FormConfigItem) => valueOf(fieldKeyOf(item)) as number | null;
+const selectValueOf = (item: FormConfigItem) => valueOf(fieldKeyOf(item)) as string | null;
+const radioValueOf = (item: FormConfigItem) => valueOf(fieldKeyOf(item)) as string | number | null;
+const checkboxValueOf = (item: FormConfigItem) =>
+  valueOf(fieldKeyOf(item)) as Array<string | number>;
+const dateValueOf = (item: FormConfigItem) =>
+  valueOf(fieldKeyOf(item)) as number | [number, number] | null;
 
 const getPayload = () => buildDynamicFormPayload(props.schema, props.modelValue);
 const isValid = () => validation.value.valid;

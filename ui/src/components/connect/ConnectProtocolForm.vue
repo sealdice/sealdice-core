@@ -41,7 +41,7 @@
       />
       <n-input-number
         v-else-if="item.input_type === 1"
-        :value="value as number | null"
+        :value="asNumberValue(value)"
         :disabled="submitting || testModeDisabled"
         :min="1"
         :max="65535"
@@ -99,6 +99,10 @@ const officialQqMode = computed({
 });
 
 const protocolModule = computed(() => getConnectProtocolModule(props.protocol?.key ?? ''));
+
+// 模板里不能直接写 `value as number | null`：Prettier 会去掉外层括号，
+// 之后 vue-eslint-parser 会把顶层 `|` 当成 Vue 2 过滤器语法而报错。
+const asNumberValue = (value: unknown) => value as number | null;
 
 const visibleSchema = computed(() => {
   if (protocolModule.value.formKind !== 'officialqq') return props.schema;
