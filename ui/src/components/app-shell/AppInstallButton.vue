@@ -1,31 +1,25 @@
 <template>
-  <n-tooltip>
+  <!-- 不支持安装且未安装时不占位：侧边栏页脚不放一个永远点不动的按钮。 -->
+  <n-tooltip v-if="isSupported || isInstalled" :placement="props.collapsed ? 'right' : 'top'">
     <template #trigger>
-      <span class="install-trigger">
-        <n-button
-          v-if="isSupported && !isInstalled"
-          class="install-button"
-          secondary
-          :type="canInstall ? 'primary' : 'default'"
-          :loading="installing"
-          :disabled="installing"
-          @click="handleClick"
-        >
-          <template #icon>
-            <n-icon size="1.05rem">
-              <i-tabler-download />
-            </n-icon>
-          </template>
-          <span class="install-label">{{ buttonText }}</span>
-        </n-button>
-        <n-tag v-else :bordered="false" class="install-tag" size="small" type="success">
-          已安装
-        </n-tag>
-      </span>
+      <n-button
+        quaternary
+        class="sd-sidebar-footer-action install-button"
+        :loading="installing"
+        :disabled="installing || isInstalled"
+        :aria-label="buttonText"
+        @click="handleClick"
+      >
+        <template #icon>
+          <n-icon>
+            <i-tabler-circle-check v-if="isInstalled" />
+            <i-tabler-download v-else />
+          </n-icon>
+        </template>
+        <span v-if="!props.collapsed" class="install-label">{{ buttonText }}</span>
+      </n-button>
     </template>
-    {{
-      isInstalled ? '已安装到当前设备' : canInstall ? '安装到桌面 / 启动器' : '浏览器菜单也可以安装'
-    }}
+    {{ tooltipText }}
   </n-tooltip>
 </template>
 
@@ -34,13 +28,21 @@ import { computed } from 'vue';
 import { useMessage } from 'naive-ui';
 import { usePwaInstall } from '@/features/pwa/usePwaInstall';
 
+const props = withDefaults(defineProps<{ collapsed?: boolean }>(), { collapsed: false });
+
 const message = useMessage();
 const { isSupported, canInstall, isInstalled, installing, install } = usePwaInstall();
 
 const buttonText = computed(() => {
-  if (isInstalled.value) return '已安装';
+  if (isInstalled.value) return '已安装 PWA';
   if (installing.value) return '正在安装';
-  return '安装应用';
+  return '安装 PWA';
+});
+
+const tooltipText = computed(() => {
+  if (isInstalled.value) return '已安装到当前设备';
+  if (canInstall.value) return '安装到桌面或启动器';
+  return '当前浏览器需从其菜单中安装';
 });
 
 async function handleClick() {
@@ -58,22 +60,14 @@ async function handleClick() {
 </script>
 
 <style scoped>
-.install-trigger {
-  display: inline-flex;
-  align-items: center;
-}
-
-.install-button {
+.install-label {
   white-space: nowrap;
 }
 
-.install-tag {
-  white-space: nowrap;
-}
+/* 已安装是状态而非可用操作，禁用后仍需保持页脚文字的可读性。 */
+.install-button:disabled {
+  --n-text-color-disabled: var(--sd-text-inverse-soft) !important;
 
-@media screen and (max-width: 639.9px) {
-  .install-label {
-    display: none;
-  }
+  opacity: 0.75;
 }
 </style>

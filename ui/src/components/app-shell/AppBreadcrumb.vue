@@ -37,9 +37,6 @@
 
     <template #extra>
       <div class="sd-page-actions">
-        <AppThemeSwitch />
-        <AppInstallButton v-if="!isCompactMode" />
-
         <button type="button" class="search-entry" @click="emit('openSearch')">
           <span class="search-label">
             <n-icon size="1.1rem">
@@ -50,21 +47,18 @@
           <span class="search-shortcut">Ctrl k</span>
         </button>
 
-        <div v-if="!isCompactMode" class="version-summary">
-          <n-tag
-            :bordered="false"
-            :type="isStable ? 'success' : 'default'"
-            size="small"
-            class="version-channel"
-          >
-            {{ channelText }}
-          </n-tag>
-          <span class="version-text">{{ overview?.version.simple ?? '-' }}</span>
-          <span v-if="hasNewVersion" class="new-version">
-            新版本 {{ overview?.version.latest }}
-          </span>
-        </div>
-        <AppHeaderOverflowMenu v-if="isCompactMode" />
+        <AppThemeSwitch />
+
+        <!-- 窄屏下 badge 兼作版本信息入口，桌面端版本信息已经常驻，badge 只表达渠道。 -->
+        <template v-if="isCompactMode">
+          <AppVersionPopover />
+        </template>
+        <template v-else>
+          <div class="version-summary">
+            <AppChannelTag />
+            <AppVersionDetails />
+          </div>
+        </template>
       </div>
     </template>
   </n-page-header>
@@ -73,12 +67,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
-import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { appNavigation } from '@/router/navigation';
 import { buildBreadcrumbItems } from '@/router/navigationModel';
-import AppInstallButton from './AppInstallButton.vue';
-import AppHeaderOverflowMenu from './AppHeaderOverflowMenu.vue';
+import AppChannelTag from './AppChannelTag.vue';
 import AppThemeSwitch from './AppThemeSwitch.vue';
+import AppVersionDetails from './AppVersionDetails.vue';
+import AppVersionPopover from './AppVersionPopover.vue';
 import type { AppShellViewportMode } from './appShellLayout';
 
 const props = defineProps<{
@@ -92,7 +86,6 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const { overview, isStable, channelText, hasNewVersion } = useBaseOverview();
 
 const breadcrumbItems = computed(() =>
   buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面'))
@@ -139,30 +132,13 @@ const visibleBreadcrumbItems = computed(() =>
   color: var(--sd-primary);
 }
 
+/* 渠道 badge 与版本信息是一组，badge 与两行文字整体居中对齐。 */
 .version-summary {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   margin-left: 0.25rem;
-}
-
-.version-channel {
-  font-size: 0.75rem;
-}
-
-.version-text {
-  color: var(--sd-text-secondary);
-  cursor: default;
-  font-size: 0.82rem;
-  line-height: 1;
-}
-
-.new-version {
-  color: var(--sd-warning);
-  font-size: 0.78rem;
-  line-height: 1;
-  white-space: nowrap;
 }
 
 :deep(.n-page-header__title) {
