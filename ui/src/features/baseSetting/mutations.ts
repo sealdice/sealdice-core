@@ -12,21 +12,26 @@ import type { BaseSettingValueModel } from './viewModel';
 const uiPasswordMasked = '------';
 const mailPasswordMasked = '******';
 
+/**
+ * 后端 SetValue 的 Body 是 map[string]any，huma 直接把请求体解成这个 map，
+ * 补丁必须是请求体本身。多包一层 body 会让 applyPatch 读不到任何键 ——
+ * 请求照样返回成功，但设置没有变化。
+ */
+export async function saveBaseSettingValue(payload: Record<string, unknown>) {
+  const { data } = await putSdApiV2BaseSettingValue({
+    body: payload,
+    throwOnError: true,
+  });
+  return data.item;
+}
+
 export function useBaseSettingMutations(options: {
   queryClient: QueryClient;
   message: MessageApi;
   onSaved: () => void;
 }) {
   const saveMutation = useMutation({
-    mutationFn: async (payload: Record<string, unknown>) => {
-      const { data } = await putSdApiV2BaseSettingValue({
-        body: {
-          body: payload,
-        },
-        throwOnError: true,
-      });
-      return data.item;
-    },
+    mutationFn: saveBaseSettingValue,
     onSuccess: async () => {
       options.message.success('保存设置成功');
       options.onSaved();
