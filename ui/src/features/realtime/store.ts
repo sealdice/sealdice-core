@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, shallowRef, watch } from 'vue';
-import { getApiBaseUrl, joinApiBasePath } from '@/api';
+import { getApiBaseUrl, joinApiBasePath, showNetworkErrorDialog } from '@/api';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 
@@ -37,6 +37,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   let initialized = false;
   let connectGeneration = 0;
   let manualDisconnect = false;
+  let disconnectDialogShown = false;
 
   function dispatch(event: string, payload: unknown): void {
     const handlers = listeners.get(event);
@@ -107,6 +108,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       connected.value = false;
       connecting.value = false;
       lastError.value = '浏览器不支持实时连接';
+      notifyDisconnect();
       return;
     }
 
@@ -122,6 +124,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       connected.value = true;
       connecting.value = false;
       lastError.value = '';
+      disconnectDialogShown = false;
     };
 
     source.onerror = () => {
@@ -129,12 +132,13 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       connected.value = false;
       connecting.value = true;
       lastError.value = '实时连接异常';
+      notifyDisconnect();
       closeSSE();
       scheduleReconnect();
     };
 
     for (const eventName of knownEventNames) {
-      source.addEventListener(eventName, (event) => {
+      source.addEventListener(eventName, event => {
         if (generation !== connectGeneration) return;
         const messageEvent = event as MessageEvent<string>;
         let payload: unknown = null;
@@ -150,6 +154,12 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     }
   }
 
+  function notifyDisconnect(): void {
+    if (disconnectDialogShown) return;
+    disconnectDialogShown = true;
+    showNetworkErrorDialog();
+  }
+
   function ensureInitialized(): void {
     // 连接生命周期完全跟随 token：有 token 自动连接，没 token 立即断开并清理状态。
     if (initialized) return;
@@ -157,7 +167,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
 
     watch(
       () => authStore.hasAccessToken,
-      (canAccess) => {
+      canAccess => {
         if (canAccess) {
           reconnect();
         } else {
@@ -165,7 +175,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
           lastError.value = '';
         }
       },
-      { immediate: true },
+      { immediate: true }
     );
   }
 
@@ -201,18 +211,19 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     cleanupTransports();
     connected.value = false;
     connecting.value = false;
+    disconnectDialogShown = false;
   }
 
   function subscribeRealtimeEvent<T = unknown>(
     event: string,
-    handler: RealtimeEventHandler<T>,
+    handler: RealtimeEventHandler<T>
   ): () => void {
-    // 订阅时顺便保证底层连接初始化，页面层只需要关心事件本身。
-    ensureInitialized();
-
     const handlers = listeners.get(event) ?? new Set<RealtimeEventHandler>();
     handlers.add(handler as RealtimeEventHandler);
     listeners.set(event, handlers);
+
+    // 先登记监听器再启动连接，避免 SSE 首帧在业务订阅完成前到达。
+    ensureInitialized();
 
     return () => {
       const current = listeners.get(event);

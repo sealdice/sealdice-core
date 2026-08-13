@@ -8,8 +8,8 @@ const realtimeConnectionRefs = storeToRefs(realtimeConnectionsStore);
 
 // 兼容层：旧代码继续用 useRealtimeConnections()，内部状态已经迁到 Pinia。
 export function useRealtimeConnections() {
-  const realtime = useRealtimeClient();
   realtimeConnectionsStore.ensureInitialized();
+  const realtime = useRealtimeClient();
 
   return {
     connections: realtimeConnectionRefs.connections,

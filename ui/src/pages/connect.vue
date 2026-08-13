@@ -9,18 +9,6 @@
       </n-button>
     </PageHeader>
 
-    <n-alert v-if="realtimeErrorText" type="error" class="mb-4">
-      <div class="connect-alert-content">
-        <span>{{ realtimeErrorText }}</span>
-        <n-button size="small" secondary @click="realtimeConnections.reconnect">
-          <template #icon
-            ><n-icon><i-tabler-refresh /></n-icon
-          ></template>
-          重新连接
-        </n-button>
-      </div>
-    </n-alert>
-
     <n-alert v-if="connectionsErrorText" type="error" class="mb-4">
       <div class="connect-alert-content">
         <span>{{ connectionsErrorText }}</span>
@@ -289,8 +277,8 @@ const canSubmitEdit = computed(
 const activeQRCode = computed(
   () => realtimeConnections.qrCodes.value[qrDialogEndpointId.value] ?? ''
 );
-const realtimeErrorText = computed(() =>
-  realtimeConnections.lastError.value ? '实时连接异常，账号状态可能延迟。' : ''
+const activeQRWorkflow = computed(
+  () => realtimeConnections.workflows.value[qrDialogEndpointId.value] ?? null
 );
 const connectionsReady = computed(
   () =>
@@ -304,6 +292,16 @@ const connectionsErrorText = computed(() =>
     : ''
 );
 const connectionsLoading = computed(() => hasAccessToken.value && !connectionsReady.value);
+
+watch(
+  [qrDialogVisible, activeQRWorkflow],
+  ([visible, workflow]) => {
+    if (!visible || workflow?.state !== 'success') return;
+    qrDialogVisible.value = false;
+    qrDialogEndpointId.value = '';
+  },
+  { immediate: true }
+);
 
 watch(
   () => connectionsQuery.data.value,

@@ -45,7 +45,7 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
       connections.value,
       workflows.value,
       qrCodes.value,
-      nextConnections ?? null,
+      nextConnections ?? null
     );
     connections.value = nextState.connections;
     workflows.value = nextState.workflows;
@@ -63,35 +63,44 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
     if (initialized) return;
     initialized = true;
 
-    realtimeStore.subscribeRealtimeEvent<ConnectionListPayload>('imconnection/list', (payload) => {
+    realtimeStore.subscribeRealtimeEvent<ConnectionListPayload>('imconnection/list', payload => {
       replaceSnapshot(payload?.items ?? null);
     });
 
-    realtimeStore.subscribeRealtimeEvent<ConnectionUpdatedPayload>('imconnection/updated', (payload) => {
-      connections.value = applyConnectionUpdate(connections.value, payload?.item ?? null);
-    });
+    realtimeStore.subscribeRealtimeEvent<ConnectionUpdatedPayload>(
+      'imconnection/updated',
+      payload => {
+        connections.value = applyConnectionUpdate(connections.value, payload?.item ?? null);
+      }
+    );
 
-    realtimeStore.subscribeRealtimeEvent<ConnectionWorkflowPayload>('imconnection/workflow', (payload) => {
-      if (!payload) return;
-      workflows.value = applyConnectionWorkflow(
-        workflows.value,
-        payload.endpointId,
-        payload.workflow ?? null,
-      );
-    });
+    realtimeStore.subscribeRealtimeEvent<ConnectionWorkflowPayload>(
+      'imconnection/workflow',
+      payload => {
+        if (!payload) return;
+        workflows.value = applyConnectionWorkflow(
+          workflows.value,
+          payload.endpointId,
+          payload.workflow ?? null
+        );
+      }
+    );
 
-    realtimeStore.subscribeRealtimeEvent<ConnectionQRCodePayload>('imconnection/qrcode', (payload) => {
-      if (!payload) return;
-      qrCodes.value = applyConnectionQRCode(
-        qrCodes.value,
-        payload.endpointId,
-        payload.img ?? null,
-      );
-    });
+    realtimeStore.subscribeRealtimeEvent<ConnectionQRCodePayload>(
+      'imconnection/qrcode',
+      payload => {
+        if (!payload) return;
+        qrCodes.value = applyConnectionQRCode(
+          qrCodes.value,
+          payload.endpointId,
+          payload.img ?? null
+        );
+      }
+    );
 
     watch(
       () => authStore.hasAccessToken,
-      (canAccess) => {
+      canAccess => {
         if (!canAccess) {
           connections.value = [];
           workflows.value = {};
@@ -99,8 +108,11 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
           ready.value = false;
         }
       },
-      { immediate: true },
+      { immediate: true }
     );
+
+    // 全局 SSE 可能早于账号模块启动；重连以重新获取当前二维码和工作流快照。
+    realtimeStore.reconnect();
   }
 
   const workflowOf = computed(() => (endpointId: string) => workflows.value[endpointId] ?? null);
