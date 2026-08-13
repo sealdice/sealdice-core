@@ -65,18 +65,13 @@
 
   <SettingCategoryBox title="响应设置" padded>
     <TipBox type="warning">
-      <n-text type="warning">
-        <span>提示：</span>
-        <ul class="ml-4 list-disc">
-          <li><p>超过阈值时，对应用户该等级的计数会被清空重新计算。</p></li>
-          <li>
-            <p>
-              增加怒气值时，会计算群组和邀请人的连带责任。连带责任比例在
-              <strong>综合设置 > 黑白名单 > 设置选项</strong> 中调整。
-            </p>
-          </li>
-        </ul>
-      </n-text>
+      <ul class="ml-4 list-disc">
+        <li>超过阈值时，对应用户该等级的计数会被清空重新计算。</li>
+        <li>
+          增加怒气值时，会计算群组和邀请人的连带责任。连带责任比例在
+          <strong>综合设置 &gt; 黑白名单 &gt; 设置选项</strong> 中调整。
+        </li>
+      </ul>
     </TipBox>
 
     <n-form label-placement="left" label-width="auto">
