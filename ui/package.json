@@ -68,7 +68,8 @@
     "vue-codemirror6": "^1.5.2",
     "vue-diff": "^1.2.4",
     "vue-draggable-next": "^2.3.0",
-    "vue-router": "^5.0.7"
+    "vue-router": "^5.0.7",
+    "workbox-window": "^7.4.1"
   },
   "devDependencies": {
     "@csstools/postcss-color-mix-function": "^3.0.12",

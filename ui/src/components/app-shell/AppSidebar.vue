@@ -16,6 +16,7 @@
       :expand-icon="expandIcon"
       accordion
       @update:expanded-keys="expandedKeys = $event"
+      @update:value="handleMenuSelect"
     />
     <footer class="sd-sidebar-footer" :class="{ 'sd-sidebar-footer--collapsed': props.collapsed }">
       <n-tooltip :disabled="!props.collapsed" placement="right">
@@ -41,12 +42,12 @@
 
 <script setup lang="tsx">
 import { computed, h, ref, watch } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import type { MenuOption } from 'naive-ui';
 import { resolveOldUIUrlFromLocation } from '@/api/config';
 import AppNavigationIcon from './AppNavigationIcon.vue';
 import AppSidebarBrand from './AppSidebarBrand.vue';
-import { getNavigationExpandedKeys } from '@/router/navigationModel';
+import { getNavigationExpandedKeys, resolveMenuNavigationTarget } from '@/router/navigationModel';
 import type { NavigationItem } from '@/router/types';
 import { useAppNavigation } from '@/router/useAppNavigation';
 
@@ -66,6 +67,7 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
+const router = useRouter();
 const oldUIUrl =
   typeof window !== 'undefined' ? resolveOldUIUrlFromLocation(window.location) : '/old-ui/';
 const { navigationTree } = useAppNavigation(() => props.advancedConfigCounter);
@@ -114,6 +116,11 @@ function normalizePath(path: string) {
 const activeValue = computed(() => {
   return normalizePath(route.path);
 });
+
+function handleMenuSelect(key: string) {
+  const target = resolveMenuNavigationTarget(key, route.path, props.collapsed);
+  if (target) void router.push(target);
+}
 
 watch(
   [navigationTree, () => route.path],

@@ -169,6 +169,19 @@ export function getNavigationExpandedKeys(items: NavigationItem[], activePath: s
   return [];
 }
 
+// 侧边栏折叠态下 n-menu 不渲染 label 区域（RouterLink 在其中），整行点击不会触发导航。
+// 仅折叠态由菜单选中事件兜底跳转；展开态仍交给 RouterLink，避免一次点击触发两次导航。
+export function resolveMenuNavigationTarget(
+  key: string,
+  currentPath: string,
+  collapsed: boolean,
+): string | null {
+  if (!collapsed) return null;
+  if (!key.startsWith('/')) return null;
+  if (key === normalizePath(currentPath)) return null;
+  return key;
+}
+
 export function matchesNavigationSearch(item: NavigationSearchItem, query: string): boolean {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return false;
