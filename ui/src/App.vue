@@ -33,6 +33,7 @@
                 </AppTestModeFrame>
               </RouterView>
               <AppUnlockDialog />
+              <AppUpdatePrompt />
             </n-loading-bar-provider>
           </n-dialog-provider>
         </n-modal-provider>
@@ -49,6 +50,7 @@ import { RouterView } from 'vue-router';
 import AppTestModeFrame from './components/app-shell/AppTestModeFrame.vue';
 import AppShell from './components/app-shell/AppShell.vue';
 import AppUnlockDialog from './components/app-shell/AppUnlockDialog.vue';
+import AppUpdatePrompt from './components/app-shell/AppUpdatePrompt.vue';
 import PlainLayout from './layouts/PlainLayout.vue';
 import {
   getAppShellContentMode,

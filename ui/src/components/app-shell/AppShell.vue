@@ -88,6 +88,7 @@ import {
   hasUnsavedChanges,
   setUnsavedChangesConfirmHandler,
 } from '@/features/unsavedChanges';
+import { isControlledReloadArmed } from '@/features/pwa/swUpdate';
 
 interface AppSearchMenuHandle {
   open: () => void;
@@ -157,6 +158,8 @@ useEventListener(window, 'keydown', event => {
 });
 
 useEventListener(window, 'beforeunload', event => {
+  // 升级提示的受控刷新已征得用户同意，不再弹浏览器原生离开确认。
+  if (isControlledReloadArmed()) return;
   if (!hasUnsavedChanges.value) return;
   event.preventDefault();
   event.returnValue = '';

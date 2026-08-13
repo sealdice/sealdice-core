@@ -24,6 +24,7 @@ import { appPinia } from './pinia';
 
 import { setupApiClient } from './api';
 import { syncErudaFromStorage } from './features/debug/eruda';
+import { setupPwaUpdateHandling } from './features/pwa/swUpdate';
 import { queryClient } from './queryClient';
 
 // 应用入口只负责装配全局基础设施：
@@ -47,6 +48,9 @@ document.head.appendChild(meta);
 
 // 生成客户端本身不带业务态。这里集中注入 baseUrl、token、401 清理和错误反馈。
 setupApiClient();
+
+// SW 换版监听 + 受控刷新：避免旧页面与新预缓存错配后异步 chunk 404。
+setupPwaUpdateHandling();
 void syncErudaFromStorage().catch(error => {
   console.error('[eruda] failed to restore debug console', error);
 });

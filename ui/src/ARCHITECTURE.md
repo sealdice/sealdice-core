@@ -203,3 +203,4 @@
 - 路由派生元信息：`src/router/routeMeta.ts`
 - App 壳宽度逻辑：`src/components/app-shell/appShellLayout.ts`
 - 未保存拦截：`src/features/unsavedChanges/`
+- PWA 升级与受控刷新：`src/features/pwa/swUpdate.ts`（SW 换版/异步 chunk 404 时统一走升级提示，见 `AppUpdatePrompt.vue`）

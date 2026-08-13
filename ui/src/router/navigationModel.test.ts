@@ -7,9 +7,10 @@ import {
   getNavigationExpandedKeys,
   matchesNavigationSearch,
   removeSearchHistoryItem,
+  resolveMenuNavigationTarget,
 } from './navigationModel.ts';
 import type { AppLayoutName, NavigationItem } from './types.ts';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
 it('passes', async () => {
 
@@ -130,4 +131,17 @@ assertDeepEqual(buildBreadcrumbItems(sourceItems, '/custom-text/默认'), [
   { label: '自定义文案' },
   { label: '默认' },
 ]);
+});
+
+it('resolveMenuNavigationTarget 只在折叠态兜底跳转', () => {
+  // 折叠态：点击路由项返回目标路径
+  expect(resolveMenuNavigationTarget('/mod/story', '/', true)).toBe('/mod/story');
+  // 展开态：交给菜单项内的 RouterLink，不重复导航
+  expect(resolveMenuNavigationTarget('/mod/story', '/', false)).toBe(null);
+  // 当前页不重复跳转
+  expect(resolveMenuNavigationTarget('/mod/story', '/mod/story', true)).toBe(null);
+  // 分组标题等非路由 key 不跳转
+  expect(resolveMenuNavigationTarget('综合设置', '/', true)).toBe(null);
+  // 当前路径带 URL 编码时按解码后比较
+  expect(resolveMenuNavigationTarget('/custom-text/默认', '/custom-text/%E9%BB%98%E8%AE%A4', true)).toBe(null);
 });
