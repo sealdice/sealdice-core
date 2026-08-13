@@ -4,7 +4,7 @@ import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 import { useRealtimeClientStore } from '@/features/realtime/store';
 import { applyLogAppend, applyLogSnapshot } from './logStreamState';
-import type { BaseLogItem } from './logStream';
+import type { BaseLogEntry, BaseLogItem } from './logStream';
 
 type LogSnapshotPayload = {
   items?: BaseLogItem[] | null;
@@ -18,7 +18,7 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
   const authStore = useAuthStore(appPinia);
   const realtimeStore = useRealtimeClientStore(appPinia);
 
-  const logs = ref<BaseLogItem[]>([]);
+  const logs = ref<BaseLogEntry[]>([]);
   let initialized = false;
 
   function applySnapshot(items?: BaseLogItem[] | null): void {

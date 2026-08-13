@@ -1,17 +1,28 @@
-import type { BaseLogItem } from './logStream';
+import type { BaseLogEntry, BaseLogItem } from './logStream';
+
+// 快照与追加共用一个自增序列，保证同一次会话内 id 不会重复，也不会随倒序显示变化。
+let nextLogId = 0;
+
+export function resetLogIdSequence(): void {
+  nextLogId = 0;
+}
+
+function toEntry(item: BaseLogItem): BaseLogEntry {
+  return { ...item, id: nextLogId++ };
+}
 
 export function applyLogSnapshot(
-  _current: BaseLogItem[],
+  _current: BaseLogEntry[],
   items?: BaseLogItem[] | null
-): BaseLogItem[] {
-  return items ? [...items] : [];
+): BaseLogEntry[] {
+  return items ? items.map(toEntry) : [];
 }
 
 export function applyLogAppend(
-  current: BaseLogItem[],
+  current: BaseLogEntry[],
   item?: BaseLogItem | null,
   limit = 500
-): BaseLogItem[] {
+): BaseLogEntry[] {
   if (!item) return current;
-  return [...current, item].slice(-limit);
+  return [...current, toEntry(item)].slice(-limit);
 }

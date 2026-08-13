@@ -138,9 +138,12 @@
           <n-checkbox v-model:checked="autoRefresh">保持刷新</n-checkbox>
           <n-button size="small" secondary @click="logStream.reconnect">重连</n-button>
           <n-button size="small" type="primary" secondary @click="scrollToLatestLog">
-            <template #icon
-              ><n-icon><i-tabler-chevron-down /></n-icon
-            ></template>
+            <template #icon>
+              <n-icon>
+                <i-tabler-chevron-up v-if="displayReverse" />
+                <i-tabler-chevron-down v-else />
+              </n-icon>
+            </template>
             最新日志
           </n-button>
         </div>
@@ -152,8 +155,10 @@
 
       <div ref="logsContainer" class="logs">
         <n-data-table
+          ref="logTable"
           :data="logData"
           :columns="columns"
+          :row-key="getLogRowKey"
           :class="isMobile ? 'w-full' : ''"
           :bordered="false"
           size="small"
@@ -173,13 +178,13 @@ import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 import { filesize } from 'filesize';
 import dayjs from 'dayjs';
-import type { DataTableColumns } from 'naive-ui';
+import type { DataTableColumns, DataTableInst } from 'naive-ui';
 import {
   getSdApiV2BaseNetworkHealthOptions,
   getSdApiV2BaseOverviewOptions,
   postSdApiV2GroupList,
 } from '@/api';
-import { useBaseLogStream, type BaseLogItem } from '@/features/base/logStream';
+import { useBaseLogStream, type BaseLogEntry } from '@/features/base/logStream';
 import { applyLogDisplayUpdate } from '@/features/base/logDisplayState';
 import {
   formatNetworkHealthRelativeTime,
@@ -231,7 +236,7 @@ const isContainerMode = computed(() => overview.value?.runtime.containerMode ===
 
 const displayReverse = ref(true);
 const autoRefresh = ref(true);
-const visibleLogs = ref<BaseLogItem[]>([]);
+const visibleLogs = ref<BaseLogEntry[]>([]);
 const networkTargets = [
   { key: 'seal', label: '官网' },
   { key: 'sign', label: 'Lagrange Sign' },
@@ -239,6 +244,7 @@ const networkTargets = [
   { key: 'github', label: 'GitHub' },
 ];
 const logsContainer = useTemplateRef<HTMLElement>('logsContainer');
+const logTable = useTemplateRef<DataTableInst>('logTable');
 const logStream = useBaseLogStream();
 const networkHealth = computed(() =>
   normalizeNetworkHealthData(networkHealthQuery.data.value?.item)
@@ -268,6 +274,10 @@ logStream.reconnect();
 const logData = computed(() => {
   return displayReverse.value ? [...visibleLogs.value].reverse() : visibleLogs.value;
 });
+
+function getLogRowKey(row: BaseLogEntry) {
+  return row.id;
+}
 
 async function fetchGroupSummary() {
   const firstPageSize = 100;
@@ -312,22 +322,31 @@ function getWebsiteHealthOK(target: string): boolean {
   return isNetworkHealthTargetOK(networkHealth.value, target);
 }
 
+// 「最新日志」始终跳到最新那一条：倒序显示时它在顶部，正序显示时在尾部。
+// 走表格实例的 scrollTo，因为虚拟滚动下真正的滚动元素是内部的 .v-vl，
+// .n-data-table-base-table-body 只是外层 scrollbar 包装，对它 scrollTo 不会生效。
 function scrollToLatestLog() {
-  const tableBody = logsContainer.value?.querySelector<HTMLElement>(
-    '.n-data-table-base-table-body'
-  );
-  if (tableBody) {
-    tableBody.scrollTo({
-      top: displayReverse.value ? 0 : tableBody.scrollHeight,
-      behavior: 'smooth',
-    });
+  if (!logData.value.length) return;
+
+  // 到底部用一个足够大的 top 交给浏览器 clamp：scrollTo 的公开类型里没有
+  // position 字段，而它内部实现就是 top: MAX_SAFE_INTEGER。
+  const top = displayReverse.value ? 0 : Number.MAX_SAFE_INTEGER;
+  const table = logTable.value;
+  if (table) {
+    table.scrollTo({ top, behavior: 'smooth' });
     return;
   }
 
-  logsContainer.value?.scrollIntoView({
-    behavior: 'smooth',
-    block: displayReverse.value ? 'start' : 'end',
-  });
+  getLogScrollElement()?.scrollTo({ top, behavior: 'smooth' });
+}
+
+function getLogScrollElement(): HTMLElement | null {
+  const root = logsContainer.value;
+  if (!root) return null;
+  return (
+    root.querySelector<HTMLElement>('.n-data-table-base-table-body .v-vl') ??
+    root.querySelector<HTMLElement>('.n-data-table-base-table-body')
+  );
 }
 
 type LogLevelTone = 'neutral' | 'info' | 'warning' | 'error';
@@ -347,13 +366,13 @@ function getLogLevelMeta(level: string): { label: string; tone: LogLevelTone } {
   }
 }
 
-function renderLogLevel(row: BaseLogItem) {
+function renderLogLevel(row: BaseLogEntry) {
   const meta = getLogLevelMeta(row.level);
   return <span class={['log-level', `log-level--${meta.tone}`]}>{meta.label}</span>;
 }
 
-const columns = computed<DataTableColumns<BaseLogItem>>(() => {
-  const data: DataTableColumns<BaseLogItem> = [
+const columns = computed<DataTableColumns<BaseLogEntry>>(() => {
+  const data: DataTableColumns<BaseLogEntry> = [
     {
       title: '时间',
       key: 'ts',

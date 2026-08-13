@@ -1,4 +1,4 @@
-import type { BaseLogItem } from './logStream';
+import type { BaseLogEntry } from './logStream';
 import { applyLogDisplayUpdate } from './logDisplayState';
 import { it } from 'vitest';
 
@@ -9,22 +9,25 @@ it('passes', async () => {
     }
   };
 
-  const first: BaseLogItem = {
+  const first: BaseLogEntry = {
     level: 'info',
     msg: 'first',
     ts: 1,
+    id: 0,
   };
 
-  const second: BaseLogItem = {
+  const second: BaseLogEntry = {
     level: 'warn',
     msg: 'second',
     ts: 2,
+    id: 1,
   };
 
-  const third: BaseLogItem = {
+  const third: BaseLogEntry = {
     level: 'error',
     msg: 'third',
     ts: 3,
+    id: 2,
   };
 
   assertDeepEqual(applyLogDisplayUpdate([], [first, second], true), [first, second]);
