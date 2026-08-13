@@ -14,7 +14,7 @@
         <n-input v-model:value="form.name" placeholder="可留空，后端会使用缓存名或未知名" />
       </n-form-item>
       <n-form-item label="原因">
-        <n-input v-model:value="form.reason" placeholder="默认使用“骰主后台设置”" />
+        <n-input v-model:value="form.reason" placeholder="默认使用「骰主后台设置」" />
       </n-form-item>
       <n-form-item label="身份">
         <n-radio-group v-model:value="form.rank">

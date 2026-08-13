@@ -215,7 +215,7 @@
       <n-tab-pane tab="日志清理" name="cleanup">
         <section class="story-cleanup-page">
           <TipBox type="info">
-            按“超过 N 个月未更新”筛选日志并批量删除。清理只影响日志库，不影响 v1 接口。
+            按「超过 N 个月未更新」筛选日志并批量删除。清理只影响日志库，不影响 v1 接口。
           </TipBox>
 
           <SettingCategoryBox title="清理参数" padded :columns="2">
