@@ -8,181 +8,179 @@
     :item-key="getTaskKey"
     @end="emit('change')"
   >
-    <template #item="{ element: el, index }">
-      <article
-        class="rule-panel"
-        :class="{ 'is-collapsed': isFolded(index), 'is-disabled': !el.enable }"
-      >
-        <header class="rule-panel-head">
-          <div class="rule-title">
-            <span class="rule-index">#{{ props.startIndex + index + 1 }}</span>
-            <n-checkbox v-model:checked="el.enable" @update:checked="emit('change')"
-              >开启</n-checkbox
-            >
-            <span v-if="isFolded(index)" class="rule-summary">{{ summarizeRule(el) }}</span>
+    <article
+      v-for="(el, index) in tasks"
+      :key="getTaskKey(el)"
+      class="rule-panel"
+      :class="{ 'is-collapsed': isFolded(index), 'is-disabled': !el.enable }"
+    >
+      <header class="rule-panel-head">
+        <div class="rule-title">
+          <span class="rule-index">#{{ props.startIndex + index + 1 }}</span>
+          <n-checkbox v-model:checked="el.enable" @update:checked="emit('change')">开启</n-checkbox>
+          <span v-if="isFolded(index)" class="rule-summary">{{ summarizeRule(el) }}</span>
+        </div>
+
+        <div class="rule-actions">
+          <n-button class="rule-drag-handle" size="small" quaternary circle>
+            <template #icon>
+              <n-icon><i-tabler-grip-vertical /></n-icon>
+            </template>
+          </n-button>
+          <n-button type="error" size="small" secondary @click="deleteItem(index)">
+            <template #icon>
+              <n-icon><i-tabler-trash /></n-icon>
+            </template>
+            <template v-if="notMobile" #default>删除</template>
+          </n-button>
+          <n-button size="small" quaternary circle @click="toggleFold(index)">
+            <template #icon>
+              <n-icon>
+                <i-tabler-chevron-right v-if="isFolded(index)" />
+                <i-tabler-chevron-down v-else />
+              </n-icon>
+            </template>
+          </n-button>
+        </div>
+      </header>
+
+      <div v-if="!isFolded(index)" class="rule-panel-body">
+        <section class="rule-block condition-block">
+          <div class="rule-block-head">
+            <div>
+              <h4>条件</h4>
+              <p>需同时满足，即 and</p>
+            </div>
+            <n-button type="primary" size="small" secondary @click="addCond(el.conditions)">
+              <template #icon>
+                <n-icon><i-tabler-plus /></n-icon>
+              </template>
+              增加
+            </n-button>
           </div>
 
-          <div class="rule-actions">
-            <n-button class="rule-drag-handle" size="small" quaternary circle>
+          <div class="rule-block-body">
+            <ConditionBuilder v-if="el.conditions?.length" v-model="el.conditions" />
+            <n-empty v-else description="当前无条件" size="small" />
+          </div>
+        </section>
+
+        <section class="rule-block result-block">
+          <div class="rule-block-head">
+            <div>
+              <h4>结果</h4>
+              <p>顺序执行</p>
+            </div>
+            <n-button type="primary" size="small" secondary @click="addResult(el.results)">
               <template #icon>
-                <n-icon><i-tabler-grip-vertical /></n-icon>
+                <n-icon><i-tabler-plus /></n-icon>
               </template>
-            </n-button>
-            <n-button type="error" size="small" secondary @click="deleteItem(index)">
-              <template #icon>
-                <n-icon><i-tabler-trash /></n-icon>
-              </template>
-              <template v-if="notMobile" #default>删除</template>
-            </n-button>
-            <n-button size="small" quaternary circle @click="toggleFold(index)">
-              <template #icon>
-                <n-icon>
-                  <i-tabler-chevron-right v-if="isFolded(index)" />
-                  <i-tabler-chevron-down v-else />
-                </n-icon>
-              </template>
+              增加
             </n-button>
           </div>
-        </header>
 
-        <div v-if="!isFolded(index)" class="rule-panel-body">
-          <section class="rule-block condition-block">
-            <div class="rule-block-head">
-              <div>
-                <h4>条件</h4>
-                <p>需同时满足，即 and</p>
-              </div>
-              <n-button type="primary" size="small" secondary @click="addCond(el.conditions)">
-                <template #icon>
-                  <n-icon><i-tabler-plus /></n-icon>
-                </template>
-                增加
-              </n-button>
-            </div>
-
-            <div class="rule-block-body">
-              <ConditionBuilder v-if="el.conditions?.length" v-model="el.conditions" />
-              <n-empty v-else description="当前无条件" size="small" />
-            </div>
-          </section>
-
-          <section class="rule-block result-block">
-            <div class="rule-block-head">
-              <div>
-                <h4>结果</h4>
-                <p>顺序执行</p>
-              </div>
-              <n-button type="primary" size="small" secondary @click="addResult(el.results)">
-                <template #icon>
-                  <n-icon><i-tabler-plus /></n-icon>
-                </template>
-                增加
-              </n-button>
-            </div>
-
-            <div class="rule-block-body">
-              <n-empty v-if="!el.results?.length" description="当前无结果" size="small" />
-              <article v-for="(result, rIdx) in el.results || []" :key="rIdx" class="result-panel">
-                <div class="result-head">
-                  <div class="result-fields">
-                    <label class="result-field result-mode">
-                      <span>模式</span>
-                      <n-select
-                        v-model:value="result.resultType"
-                        :options="resultTypeOptions"
-                        size="small"
-                        @update:value="emit('change')"
-                      />
-                    </label>
-
-                    <label class="result-field result-delay">
-                      <span>
-                        延迟
-                        <n-tooltip trigger="hover">
-                          <template #trigger>
-                            <n-icon size="14"><i-tabler-help-circle /></n-icon>
-                          </template>
-                          文本将在此延迟后发送，单位秒，可小数。<br />注意随机延迟仍会被加入，如果你希望保证发言顺序，记得考虑这点。
-                        </n-tooltip>
-                      </span>
-                      <n-input-number
-                        v-model:value="result.delay"
-                        size="small"
-                        @update:value="emit('change')"
-                      />
-                    </label>
-                  </div>
-
-                  <n-button
-                    type="error"
-                    size="small"
-                    secondary
-                    @click="deleteAnyItem(el.results, Number(rIdx))"
-                  >
-                    <template #icon>
-                      <n-icon><i-tabler-trash /></n-icon>
-                    </template>
-                    <template v-if="notMobile" #default>删除结果</template>
-                  </n-button>
-                </div>
-
-                <div
-                  v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(result.resultType)"
-                  class="result-content"
-                >
-                  <div class="result-options">
-                    <n-text>回复文本（随机选择）</n-text>
-                  </div>
-
-                  <div v-for="(msg, mIdx) in result.message" :key="mIdx" class="message-row">
-                    <n-tooltip trigger="hover">
-                      <template #trigger>
-                        <n-button
-                          v-if="mIdx === 0"
-                          type="primary"
-                          size="tiny"
-                          quaternary
-                          circle
-                          @click="addMessageItem(result.message)"
-                        >
-                          <template #icon>
-                            <n-icon><i-tabler-circle-plus-filled /></n-icon>
-                          </template>
-                        </n-button>
-                        <n-button
-                          v-else
-                          type="error"
-                          size="tiny"
-                          quaternary
-                          circle
-                          @click="removeMessageItem(result.message, Number(mIdx))"
-                        >
-                          <template #icon>
-                            <n-icon><i-tabler-circle-x /></n-icon>
-                          </template>
-                        </n-button>
-                      </template>
-                      {{
-                        mIdx === 0
-                          ? '点击添加一个回复语，海豹将会随机抽取一个回复'
-                          : '点击删除你不想要的回复语'
-                      }}
-                    </n-tooltip>
-                    <n-input
-                      v-model:value="msg[0]"
-                      type="textarea"
-                      class="reply-text sd-code-text"
-                      :autosize="{ minRows: 1 }"
+          <div class="rule-block-body">
+            <n-empty v-if="!el.results?.length" description="当前无结果" size="small" />
+            <article v-for="(result, rIdx) in el.results || []" :key="rIdx" class="result-panel">
+              <div class="result-head">
+                <div class="result-fields">
+                  <label class="result-field result-mode">
+                    <span>模式</span>
+                    <n-select
+                      v-model:value="result.resultType"
+                      :options="resultTypeOptions"
+                      size="small"
                       @update:value="emit('change')"
                     />
-                  </div>
+                  </label>
+
+                  <label class="result-field result-delay">
+                    <span>
+                      延迟
+                      <n-tooltip trigger="hover">
+                        <template #trigger>
+                          <n-icon size="14"><i-tabler-help-circle /></n-icon>
+                        </template>
+                        文本将在此延迟后发送，单位秒，可小数。<br />注意随机延迟仍会被加入，如果你希望保证发言顺序，记得考虑这点。
+                      </n-tooltip>
+                    </span>
+                    <n-input-number
+                      v-model:value="result.delay"
+                      size="small"
+                      @update:value="emit('change')"
+                    />
+                  </label>
                 </div>
-              </article>
-            </div>
-          </section>
-        </div>
-      </article>
-    </template>
+
+                <n-button
+                  type="error"
+                  size="small"
+                  secondary
+                  @click="deleteAnyItem(el.results, Number(rIdx))"
+                >
+                  <template #icon>
+                    <n-icon><i-tabler-trash /></n-icon>
+                  </template>
+                  <template v-if="notMobile" #default>删除结果</template>
+                </n-button>
+              </div>
+
+              <div
+                v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(result.resultType)"
+                class="result-content"
+              >
+                <div class="result-options">
+                  <n-text>回复文本（随机选择）</n-text>
+                </div>
+
+                <div v-for="(msg, mIdx) in result.message" :key="mIdx" class="message-row">
+                  <n-tooltip trigger="hover">
+                    <template #trigger>
+                      <n-button
+                        v-if="mIdx === 0"
+                        type="primary"
+                        size="tiny"
+                        quaternary
+                        circle
+                        @click="addMessageItem(result.message)"
+                      >
+                        <template #icon>
+                          <n-icon><i-tabler-circle-plus-filled /></n-icon>
+                        </template>
+                      </n-button>
+                      <n-button
+                        v-else
+                        type="error"
+                        size="tiny"
+                        quaternary
+                        circle
+                        @click="removeMessageItem(result.message, Number(mIdx))"
+                      >
+                        <template #icon>
+                          <n-icon><i-tabler-circle-x /></n-icon>
+                        </template>
+                      </n-button>
+                    </template>
+                    {{
+                      mIdx === 0
+                        ? '点击添加一个回复语，海豹将会随机抽取一个回复'
+                        : '点击删除你不想要的回复语'
+                    }}
+                  </n-tooltip>
+                  <n-input
+                    v-model:value="msg[0]"
+                    type="textarea"
+                    class="reply-text sd-code-text"
+                    :autosize="{ minRows: 1 }"
+                    @update:value="emit('change')"
+                  />
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </article>
   </VueDraggableNext>
 </template>
 
@@ -191,28 +189,7 @@ import { reactive } from 'vue';
 import { VueDraggableNext } from 'vue-draggable-next';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import ConditionBuilder from './ConditionBuilder.vue';
-
-interface ReplyCondition {
-  condType: string;
-  value: string | number | undefined;
-  matchType?: string;
-  matchOp?: string;
-}
-
-type ReplyMessage = [string, number];
-
-interface ReplyResult {
-  resultType: string;
-  delay: number;
-  message: ReplyMessage[];
-}
-
-interface ReplyTask {
-  name?: string;
-  enable: boolean;
-  conditions: ReplyCondition[];
-  results: ReplyResult[];
-}
+import type { ReplyCondition, ReplyResult, ReplyTask } from '@/features/customReply/model';
 
 const props = withDefaults(
   defineProps<{
@@ -300,12 +277,12 @@ const addResult = (results: ReplyResult[]) => {
   emit('change');
 };
 
-const addMessageItem = (messages: ReplyMessage[]) => {
+const addMessageItem = (messages: ReplyResult['message']) => {
   messages.push(['怎么辉石呢', 1]);
   emit('change');
 };
 
-const removeMessageItem = (messages: ReplyMessage[], index: number) => {
+const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
   messages.splice(index, 1);
   emit('change');
 };

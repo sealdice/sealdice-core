@@ -114,7 +114,7 @@ export function useCustomReplyEditor() {
         throwOnError: true,
       });
       const detail = detailData.item;
-      const { data: rulesData } = await getSdApiV2CustomReplyFilesByFilenameRules({
+      let rulesDataResponse = await getSdApiV2CustomReplyFilesByFilenameRules({
         path: { filename },
         query: {
           page: 1,
@@ -122,12 +122,25 @@ export function useCustomReplyEditor() {
         },
         throwOnError: true,
       });
-      if ((rulesData.item.list?.length ?? 0) !== rulesData.item.total) {
+
+      if ((rulesDataResponse.data.item.list?.length ?? 0) !== rulesDataResponse.data.item.total) {
+        rulesDataResponse = await getSdApiV2CustomReplyFilesByFilenameRules({
+          path: { filename },
+          query: {
+            page: 1,
+            pageSize: Math.max(1, rulesDataResponse.data.item.total),
+          },
+          throwOnError: true,
+        });
+      }
+
+      const rulesData = rulesDataResponse.data.item;
+      if ((rulesData.list?.length ?? 0) !== rulesData.total) {
         throw new Error('未能加载完整的自定义回复规则');
       }
       return {
         detail,
-        rules: rulesData.item,
+        rules: rulesData,
       };
     },
   });
@@ -283,11 +296,7 @@ export function useCustomReplyEditor() {
         existing !== undefined &&
         existingInitial !== undefined &&
         JSON.stringify(existing) !== JSON.stringify(existingInitial);
-      const nextDraft = existing
-        ? locallyModified
-          ? existing
-          : normalized
-        : normalized;
+      const nextDraft = existing ? (locallyModified ? existing : normalized) : normalized;
       drafts.value = {
         ...drafts.value,
         [detail.filename]: nextDraft,
