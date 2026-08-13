@@ -24,7 +24,7 @@ function readStoredErudaEnabled(storage: ErudaStorage | undefined = getBrowserSt
 
 function writeStoredErudaEnabled(
   enabled: boolean,
-  storage: ErudaStorage | undefined = getBrowserStorage(),
+  storage: ErudaStorage | undefined = getBrowserStorage()
 ): void {
   try {
     storage?.setItem(ERUDA_STORAGE_KEY, enabled ? '1' : '0');
@@ -104,9 +104,5 @@ export async function syncErudaFromStorage(storage?: ErudaStorage): Promise<void
   await erudaController.enable();
 }
 
-export {
-  ERUDA_STORAGE_KEY,
-  readStoredErudaEnabled,
-  writeStoredErudaEnabled,
-};
+export { ERUDA_STORAGE_KEY, readStoredErudaEnabled, writeStoredErudaEnabled };
 export type { ErudaStorage };

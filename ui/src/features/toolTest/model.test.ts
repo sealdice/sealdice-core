@@ -135,19 +135,22 @@ it('builds command options with optional description and source metadata', () =>
   ];
 
   const result = buildToolTestCommandOptions(metadataCommands, '.r');
-  if (JSON.stringify(result) !== JSON.stringify([
-    {
-      label: '.reply',
-      value: '.reply',
-      description: '.reply on/off // 控制自动回复',
-      source: '核心',
-    },
-    {
-      label: '.roll',
-      value: '.roll',
-      source: '测试扩展',
-    },
-  ])) {
+  if (
+    JSON.stringify(result) !==
+    JSON.stringify([
+      {
+        label: '.reply',
+        value: '.reply',
+        description: '.reply on/off // 控制自动回复',
+        source: '核心',
+      },
+      {
+        label: '.roll',
+        value: '.roll',
+        source: '测试扩展',
+      },
+    ])
+  ) {
     throw new Error(`unexpected command options: ${JSON.stringify(result)}`);
   }
 });

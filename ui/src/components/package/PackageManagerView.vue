@@ -9,9 +9,9 @@
       </n-space>
     </PageHeader>
 
-    <n-alert v-if="loadErrorText" type="error" class="mb-4">
+    <TipBox v-if="loadErrorText" type="error">
       {{ loadErrorText }}
-    </n-alert>
+    </TipBox>
 
     <n-tabs :value="activeTab" type="line" animated @update:value="handleTabUpdate">
       <n-tab-pane name="installed" tab="已安装">
@@ -277,6 +277,7 @@ import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue'
 import ListActions from '@/components/shared/ListActions.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
+import TipBox from '@/components/shared/TipBox.vue';
 
 type ConfigFieldSchema = {
   type?: string;

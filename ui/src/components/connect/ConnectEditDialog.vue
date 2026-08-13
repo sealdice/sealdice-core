@@ -13,22 +13,17 @@
     :mask-closable="false"
     @update:show="emit('update:visible', $event)"
   >
-    <n-alert v-if="errorMessage" type="error" :show-icon="false">
+    <TipBox v-if="errorMessage" type="error">
       {{ errorMessage }}
-    </n-alert>
-    <n-alert
-      v-if="submitError"
-      type="error"
-      :show-icon="false"
-      class="connect-edit-dialog__submit-error"
-    >
+    </TipBox>
+    <TipBox v-if="submitError" type="error" class="connect-edit-dialog__submit-error">
       {{ submitError }}。请检查配置后重试。
-    </n-alert>
+    </TipBox>
     <n-spin :show="loading && !config">
       <n-space vertical size="large">
-        <n-alert v-if="config?.restartRequired" type="warning" :show-icon="false">
+        <TipBox v-if="config?.restartRequired" type="warning">
           保存后会重新连接此账号。Token、密码等敏感字段留空时保持原值不变。
-        </n-alert>
+        </TipBox>
         <DynamicForm
           :model-value="formModel"
           :schema="schema"
@@ -59,6 +54,7 @@
 import type { EditableConfigResp, FormConfigItem } from '@/api';
 import DynamicForm from '@/components/shared/DynamicForm.vue';
 import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
+import TipBox from '@/components/shared/TipBox.vue';
 
 defineProps<{
   visible: boolean;

@@ -48,7 +48,12 @@ it('clears dependent selections when the wizard parent selection changes', () =>
 
   state.protocol = protocol;
   state.selectedProtocolKey = protocol.key;
-  selectConnectMethod(state, { id: 'default', name: '默认', description: '', protocols: [protocol] });
+  selectConnectMethod(state, {
+    id: 'default',
+    name: '默认',
+    description: '',
+    protocols: [protocol],
+  });
   if (state.protocol !== null || state.selectedProtocolKey !== '') {
     throw new Error(`method selection did not clear protocol: ${JSON.stringify(state)}`);
   }
@@ -57,23 +62,29 @@ it('clears dependent selections when the wizard parent selection changes', () =>
 it('initializes protocol form and advances to the form step', () => {
   const state = createConnectWizardState();
   state.step = 3;
-  const schema: FormConfigItem[] = [{
-    check_type: 0,
-    default: '',
-    err_msg: '',
-    field_name: 'appID',
-    hint: '',
-    id: 1,
-    input_type: 0,
-    is_required: 0,
-    name: '机器人 ID',
-    placeholder: '',
-    size_range: { max: 0, min: 0 },
-    sub_option: null,
-  }];
+  const schema: FormConfigItem[] = [
+    {
+      check_type: 0,
+      default: '',
+      err_msg: '',
+      field_name: 'appID',
+      hint: '',
+      id: 1,
+      input_type: 0,
+      is_required: 0,
+      name: '机器人 ID',
+      placeholder: '',
+      size_range: { max: 0, min: 0 },
+      sub_option: null,
+    },
+  ];
   selectConnectProtocol(state, protocol, schema);
   advanceConnectWizard(state, schema);
-  if (state.step !== 4 || state.selectedProtocolKey !== 'officialqq' || state.formModel.appID !== '') {
+  if (
+    state.step !== 4 ||
+    state.selectedProtocolKey !== 'officialqq' ||
+    state.formModel.appID !== ''
+  ) {
     throw new Error(`unexpected wizard state = ${JSON.stringify(state)}`);
   }
 });
@@ -88,10 +99,13 @@ it('uses the protocol module to validate and prepare a create payload', () => {
   const validation = validateConnectWizardForm(state, []);
   if (!validation.valid) throw new Error(validation.message);
   const payload = buildConnectCreatePayload(state);
-  if (JSON.stringify(payload) !== JSON.stringify({
-    platform: 'officialqq',
-    config: { appID: '', appSecret: '', useWebhook: false },
-  })) {
+  if (
+    JSON.stringify(payload) !==
+    JSON.stringify({
+      platform: 'officialqq',
+      config: { appID: '', appSecret: '', useWebhook: false },
+    })
+  ) {
     throw new Error(`unexpected create payload = ${JSON.stringify(payload)}`);
   }
 });

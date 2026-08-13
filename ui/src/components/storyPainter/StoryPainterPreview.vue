@@ -5,7 +5,9 @@
         <template v-if="mode === 'bbs' || mode === 'bbspineapple'">
           <n-checkbox
             :checked="forumOptions.bbsUseSpaceWithMultiLine"
-            @update:checked="value => emit('updateForumOptions', { bbsUseSpaceWithMultiLine: value })"
+            @update:checked="
+              value => emit('updateForumOptions', { bbsUseSpaceWithMultiLine: value })
+            "
           >
             多行空格缩进
           </n-checkbox>
@@ -16,7 +18,11 @@
             使用颜色名
           </n-checkbox>
         </template>
-        <n-checkbox v-if="mode === 'trg'" :checked="addVoiceMark" @update:checked="value => emit('updateAddVoiceMark', value)">
+        <n-checkbox
+          v-if="mode === 'trg'"
+          :checked="addVoiceMark"
+          @update:checked="value => emit('updateAddVoiceMark', value)"
+        >
           添加语音合成标记
         </n-checkbox>
         <n-button size="small" type="primary" secondary @click="copyPreviewText">
@@ -32,7 +38,11 @@
       <n-empty description="没有可展示的日志条目" />
     </div>
 
-    <div v-else-if="mode === 'preview' || mode === 'bbs' || mode === 'trg'" ref="previewList" class="preview-list">
+    <div
+      v-else-if="mode === 'preview' || mode === 'bbs' || mode === 'trg'"
+      ref="previewList"
+      class="preview-list"
+    >
       <div class="preview-virtual-spacer" :style="{ height: `${virtualTotalSize}px` }">
         <div
           v-for="{ virtualRow, item } in renderedRows"
@@ -58,14 +68,24 @@
     </div>
 
     <div v-else class="preview-list">
-      <div v-if="props.itemIndexes.length > 0" class="copy-note">长文本复制/导出会分块读取完整内容。</div>
+      <div v-if="props.itemIndexes.length > 0" class="copy-note">
+        长文本复制/导出会分块读取完整内容。
+      </div>
       <pre v-for="item in textItems" :key="item.index" class="text-row">{{ item.text }}</pre>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 import { useVirtualizer, type VirtualItem, type Virtualizer } from '@tanstack/vue-virtual';
 import type { VNodeRef } from 'vue';
 import { storyPainterDebug } from '@/features/storyPainter/debug';
@@ -77,7 +97,11 @@ import type {
   StoryPainterPreviewDisplayMode,
 } from '@/features/storyPainter/types';
 import { packStoryPainterNameId } from '@/features/storyPainter/types';
-import { renderForumText, renderPineappleForumBlocks, renderTrgText } from '@/features/storyPainter/renderers';
+import {
+  renderForumText,
+  renderPineappleForumBlocks,
+  renderTrgText,
+} from '@/features/storyPainter/renderers';
 import {
   buildStoryPainterPreviewSources,
   collectMissingVisibleIndexes,
@@ -124,33 +148,41 @@ let scrollLoadTimer: ReturnType<typeof setTimeout> | undefined;
 
 const pcMap = computed(() => {
   const map = new Map<string, StoryPainterChar>();
-  props.chars.forEach((char) => map.set(packStoryPainterNameId(char), char));
+  props.chars.forEach(char => map.set(packStoryPainterNameId(char), char));
   return map;
 });
 
-const previewSources = computed<PreviewSource[]>(() => buildStoryPainterPreviewSources(props.itemIndexes, props.items));
+const previewSources = computed<PreviewSource[]>(() =>
+  buildStoryPainterPreviewSources(props.itemIndexes, props.items)
+);
 
-const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>(computed(() => ({
-  count: previewSources.value.length,
-  getScrollElement: () => previewListRef.value,
-  estimateSize: () => 28,
-  overscan: virtualRenderOverscan,
-  getItemKey: index => previewSources.value[index]?.key ?? index,
-  onChange: handleVirtualizerChange,
-  useAnimationFrameWithResizeObserver: true,
-})));
+const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>(
+  computed(() => ({
+    count: previewSources.value.length,
+    getScrollElement: () => previewListRef.value,
+    estimateSize: () => 28,
+    overscan: virtualRenderOverscan,
+    getItemKey: index => previewSources.value[index]?.key ?? index,
+    onChange: handleVirtualizerChange,
+    useAnimationFrameWithResizeObserver: true,
+  }))
+);
 
 const virtualItems = computed(() => rowVirtualizer.value.getVirtualItems());
 const virtualTotalSize = computed(() => rowVirtualizer.value.getTotalSize());
-const renderedRows = computed<PreviewRenderedRow[]>(() => virtualItems.value.flatMap((virtualRow) => {
-  const source = previewSources.value[virtualRow.index];
-  if (!source) return [];
-  return [{
-    virtualRow,
-    item: source.item ?? loadedItems.value.get(source.index),
-  }];
-}));
-const measureVirtualRow: VNodeRef = (node) => {
+const renderedRows = computed<PreviewRenderedRow[]>(() =>
+  virtualItems.value.flatMap(virtualRow => {
+    const source = previewSources.value[virtualRow.index];
+    if (!source) return [];
+    return [
+      {
+        virtualRow,
+        item: source.item ?? loadedItems.value.get(source.index),
+      },
+    ];
+  })
+);
+const measureVirtualRow: VNodeRef = node => {
   if (node === null || node instanceof HTMLDivElement) {
     rowVirtualizer.value.measureElement(node);
   }
@@ -159,10 +191,15 @@ const measureVirtualRow: VNodeRef = (node) => {
 const textItems = computed(() => {
   if (props.mode === 'bbspineapple') {
     const items = props.itemIndexes.length > 0 ? props.items : materializedItems.value;
-    return renderPineappleForumBlocks(items, props.chars, props.options, props.forumOptions, colorByItem)
-      .map((text, index) => ({ index, text }));
+    return renderPineappleForumBlocks(
+      items,
+      props.chars,
+      props.options,
+      props.forumOptions,
+      colorByItem
+    ).map((text, index) => ({ index, text }));
   }
-  return materializedItems.value.map((item) => ({
+  return materializedItems.value.map(item => ({
     index: item.index ?? item.id,
     text: renderText(item),
   }));
@@ -190,7 +227,7 @@ watch(
       });
     }
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(
@@ -209,7 +246,7 @@ watch(
     rowVirtualizer.value.measure();
     void loadVisibleItems({ start: 0, end: 79 });
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 onMounted(() => {
@@ -242,7 +279,7 @@ async function copyPreviewText(): Promise<void> {
     emit('copy', await props.copyText());
     return;
   }
-  emit('copy', textItems.value.map((item) => item.text).join('\n'));
+  emit('copy', textItems.value.map(item => item.text).join('\n'));
 }
 
 async function loadVisibleItems(range: StoryPainterVirtualRange): Promise<void> {
@@ -282,11 +319,13 @@ async function loadVisibleItems(range: StoryPainterVirtualRange): Promise<void> 
   try {
     const rows = props.readItems
       ? await props.readItems(indexes)
-      : (await Promise.all(indexes.map(index => props.readItem?.(index)))).filter((item): item is StoryPainterLogItem => Boolean(item));
+      : (await Promise.all(indexes.map(index => props.readItem?.(index)))).filter(
+          (item): item is StoryPainterLogItem => Boolean(item)
+        );
     const visibleSet = new Set(props.itemIndexes);
     const next = new Map(loadedItems.value);
     let insertedCount = 0;
-    rows.forEach((item) => {
+    rows.forEach(item => {
       if (item.index === undefined) return;
       if (!visibleSet.has(item.index)) return;
       if (next.has(item.index)) next.delete(item.index);
@@ -308,7 +347,10 @@ async function loadVisibleItems(range: StoryPainterVirtualRange): Promise<void> 
   }
 }
 
-function handleVirtualizerChange(instance: Virtualizer<HTMLDivElement, HTMLDivElement>, sync: boolean): void {
+function handleVirtualizerChange(
+  instance: Virtualizer<HTMLDivElement, HTMLDivElement>,
+  sync: boolean
+): void {
   const range = virtualItemsToStoryPainterRange(instance.getVirtualItems());
   scheduleVisibleLoad(range, {
     source: 'tanstack',
@@ -320,7 +362,7 @@ function handleVirtualizerChange(instance: Virtualizer<HTMLDivElement, HTMLDivEl
 
 function scheduleVisibleLoad(
   range: StoryPainterVirtualRange | undefined,
-  context: Record<string, number | boolean | string | undefined>,
+  context: Record<string, number | boolean | string | undefined>
 ): void {
   if (!range) {
     storyPainterDebug('preview:scroll-skip', {
@@ -374,7 +416,7 @@ function compactRange(range: StoryPainterVirtualRange): Record<string, number | 
 
 function trimLoadedItems(
   source: Map<number, StoryPainterLogItem>,
-  protectedIndexes: number[],
+  protectedIndexes: number[]
 ): Map<number, StoryPainterLogItem> {
   const protectedSet = new Set(protectedIndexes);
   const next = new Map(source);

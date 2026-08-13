@@ -32,7 +32,9 @@ export function summarizeStoreInstallResult(result?: StoreInstallResultLike) {
     installed: result?.installed ?? items.filter(item => item.status === 'installed').length,
     skipped: result?.skipped ?? items.filter(item => item.status === 'skipped').length,
     failed: result?.failed ?? items.filter(item => item.status === 'failed').length,
-    failedItems: items.filter(item => item.status === 'failed' && item.id).map(item => item.id as string),
+    failedItems: items
+      .filter(item => item.status === 'failed' && item.id)
+      .map(item => item.id as string),
   };
 }
 

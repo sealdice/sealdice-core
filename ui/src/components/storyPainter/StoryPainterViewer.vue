@@ -13,24 +13,27 @@
         </div>
         <n-flex size="small" wrap>
           <n-button type="primary" secondary :loading="loading" @click="loadLog">
-            <template #icon><n-icon><i-tabler-refresh /></n-icon></template>
+            <template #icon
+              ><n-icon><i-tabler-refresh /></n-icon
+            ></template>
             重新加载
           </n-button>
-          <n-button type="primary" text @click="painter.refreshSwatches">
-            刷新色板
-          </n-button>
+          <n-button type="primary" text @click="painter.refreshSwatches"> 刷新色板 </n-button>
         </n-flex>
       </n-flex>
     </header>
 
-    <n-alert v-if="errorText" type="error" class="viewer-alert">
+    <TipBox v-if="errorText" type="error" class="viewer-alert">
       {{ errorText }}
-    </n-alert>
+    </TipBox>
 
     <n-spin :show="loading">
       <div class="viewer-grid">
         <aside class="viewer-side">
-          <StoryPainterOptionsPanel v-model:options="exportOptionsModel" v-model:editor-highlight="editorHighlightModel" />
+          <StoryPainterOptionsPanel
+            v-model:options="exportOptionsModel"
+            v-model:editor-highlight="editorHighlightModel"
+          />
           <StoryPainterCharacterPanel
             :chars="painter.chars.value"
             :swatches="painter.swatches.value"
@@ -66,16 +69,40 @@
               </n-flex>
 
               <n-flex size="small" wrap>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.raw" @click="withBusy('raw', exportRaw)">
+                <n-button
+                  size="small"
+                  type="primary"
+                  secondary
+                  :loading="exportBusy.raw"
+                  @click="withBusy('raw', exportRaw)"
+                >
                   下载原始文件
                 </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.rawText" @click="withBusy('rawText', exportRawText)">
+                <n-button
+                  size="small"
+                  type="primary"
+                  secondary
+                  :loading="exportBusy.rawText"
+                  @click="withBusy('rawText', exportRawText)"
+                >
                   下载原始文本
                 </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.doc" @click="withBusy('doc', () => exportDoc(false))">
+                <n-button
+                  size="small"
+                  type="primary"
+                  secondary
+                  :loading="exportBusy.doc"
+                  @click="withBusy('doc', () => exportDoc(false))"
+                >
                   下载带图 doc
                 </n-button>
-                <n-button size="small" type="primary" secondary :loading="exportBusy.talkDoc" @click="withBusy('talkDoc', () => exportDoc(true))">
+                <n-button
+                  size="small"
+                  type="primary"
+                  secondary
+                  :loading="exportBusy.talkDoc"
+                  @click="withBusy('talkDoc', () => exportDoc(true))"
+                >
                   下载对话 doc
                 </n-button>
                 <n-button
@@ -94,11 +121,14 @@
                     { label: '保存论坛代码', key: 'bbs' },
                     { label: '保存回声工坊', key: 'trg' },
                   ]"
-                  @select="(key: string) => key === 'bbs' ? withBusy('forum', exportForumText) : withBusy('trg', exportTrgText)"
+                  @select="
+                    (key: string) =>
+                      key === 'bbs'
+                        ? withBusy('forum', exportForumText)
+                        : withBusy('trg', exportTrgText)
+                  "
                 >
-                  <n-button size="small" type="primary" secondary>
-                    更多导出
-                  </n-button>
+                  <n-button size="small" type="primary" secondary> 更多导出 </n-button>
                 </n-dropdown>
               </n-flex>
             </n-flex>
@@ -127,8 +157,16 @@
             :add-voice-mark="painter.trgIsAddVoiceMark.value"
             :copy-text="buildCopyText"
             @copy="handleCopy"
-            @update-add-voice-mark="value => { painter.trgIsAddVoiceMark.value = value; }"
-            @update-forum-options="value => { Object.assign(painter.forumOptions, value); }"
+            @update-add-voice-mark="
+              value => {
+                painter.trgIsAddVoiceMark.value = value;
+              }
+            "
+            @update-forum-options="
+              value => {
+                Object.assign(painter.forumOptions, value);
+              }
+            "
           />
         </main>
       </div>
@@ -145,7 +183,10 @@ import { fetchStoryLogParquet } from '@/features/storyPainter/api';
 import { createStoryPainterParquetDataset } from '@/features/storyPainter/parquetDataset';
 import { useStoryPainter } from '@/features/storyPainter/useStoryPainter';
 import { renderPreviewHtml, renderRawText } from '@/features/storyPainter/renderers';
-import { collectStoryPainterForumText, collectStoryPainterTrgText } from '@/features/storyPainter/textExport';
+import {
+  collectStoryPainterForumText,
+  collectStoryPainterTrgText,
+} from '@/features/storyPainter/textExport';
 import {
   exportStoryPainterDoc,
   exportStoryPainterDocx,
@@ -156,12 +197,16 @@ import {
   supportsStoryPainterDocxExport,
   type StoryPainterDocxEntry,
 } from '@/features/storyPainter/exporter';
-import type { StoryPainterOptions as StoryPainterOptionsModel, StoryPainterPreviewDisplayMode } from '@/features/storyPainter/types';
+import type {
+  StoryPainterOptions as StoryPainterOptionsModel,
+  StoryPainterPreviewDisplayMode,
+} from '@/features/storyPainter/types';
 import { toggleStoryPainterMode } from '@/features/storyPainter/viewMode';
 import StoryPainterCharacterPanel from './StoryPainterCharacterPanel.vue';
 import StoryPainterEditor from './StoryPainterEditor.vue';
 import StoryPainterOptionsPanel from './StoryPainterOptions.vue';
 import StoryPainterPreview from './StoryPainterPreview.vue';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const props = defineProps<{
   log: StoryLogView;
@@ -205,7 +250,7 @@ const modeOptions: Array<{ label: string; value: StoryPainterPreviewDisplayMode 
 ];
 
 const title = computed(() => `${props.log.name} (${props.log.groupId})`);
-const editorItems = computed(() => painter.fullItemsLoaded.value ? painter.items.value : []);
+const editorItems = computed(() => (painter.fullItemsLoaded.value ? painter.items.value : []));
 
 async function loadLog(): Promise<void> {
   loading.value = true;
@@ -230,7 +275,7 @@ async function loadLog(): Promise<void> {
 function handleCopy(text: string): void {
   void copyText(text).then(
     () => message.success('已复制'),
-    () => message.error('复制失败'),
+    () => message.error('复制失败')
   );
 }
 
@@ -284,28 +329,33 @@ async function exportTrgText(): Promise<void> {
 
 async function buildCopyText(): Promise<string> {
   if (painter.mode.value === 'trg') return await buildTrgText();
-  if (painter.mode.value === 'bbs' || painter.mode.value === 'bbspineapple') return await buildForumText();
+  if (painter.mode.value === 'bbs' || painter.mode.value === 'bbspineapple')
+    return await buildForumText();
   return '';
 }
 
 async function exportDoc(talk = false): Promise<void> {
   const chunks: string[] = [];
   for await (const items of painter.iterPreviewChunks()) {
-    chunks.push(...items.map((item) => {
-      const color = painter.colorByItem(item);
-      return talk
-        ? `<tr><td style="color:#999;white-space:nowrap;padding-right:8px">${item.time}</td><td style="color:${color};white-space:nowrap;padding-right:8px">${item.nickname}</td><td style="color:${color}">${renderPreviewHtml(item, painter.chars.value, painter.exportOptions, color)}</td></tr>`
-        : `<p>${renderPreviewHtml(item, painter.chars.value, painter.exportOptions, color)}</p>`;
-    }));
+    chunks.push(
+      ...items.map(item => {
+        const color = painter.colorByItem(item);
+        return talk
+          ? `<tr><td style="color:#999;white-space:nowrap;padding-right:8px">${item.time}</td><td style="color:${color};white-space:nowrap;padding-right:8px">${item.nickname}</td><td style="color:${color}">${renderPreviewHtml(item, painter.chars.value, painter.exportOptions, color)}</td></tr>`
+          : `<p>${renderPreviewHtml(item, painter.chars.value, painter.exportOptions, color)}</p>`;
+      })
+    );
   }
-  const html = talk ? `<table style="border-collapse: collapse;"><tbody>${chunks.join('\n')}</tbody></table>` : chunks.join('\n');
+  const html = talk
+    ? `<table style="border-collapse: collapse;"><tbody>${chunks.join('\n')}</tbody></table>`
+    : chunks.join('\n');
   await exportStoryPainterDoc(html);
 }
 
 async function exportDocx(): Promise<void> {
   const entries: StoryPainterDocxEntry[] = [];
   for await (const items of painter.iterPreviewChunks()) {
-    items.forEach((item) => {
+    items.forEach(item => {
       const color = painter.colorByItem(item);
       const mount = document.createElement('div');
       mount.innerHTML = renderPreviewHtml(item, painter.chars.value, painter.exportOptions, color);
@@ -345,7 +395,7 @@ async function showEditor(): Promise<void> {
 function withBusy(key: keyof typeof exportBusy, action: () => void | Promise<void>): void {
   exportBusy[key] = true;
   Promise.resolve(action())
-    .catch((error) => message.error(error instanceof Error ? error.message : '导出失败'))
+    .catch(error => message.error(error instanceof Error ? error.message : '导出失败'))
     .finally(() => {
       exportBusy[key] = false;
     });

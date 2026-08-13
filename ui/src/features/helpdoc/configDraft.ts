@@ -35,7 +35,10 @@ export function useHelpdocConfigDraft() {
 
   function removeAlias(groupKey: string, alias: string) {
     const next = cloneHelpdocAliases(currentAliases.value);
-    next.set(groupKey, (next.get(groupKey) ?? []).filter(item => item !== alias));
+    next.set(
+      groupKey,
+      (next.get(groupKey) ?? []).filter(item => item !== alias)
+    );
     currentAliases.value = next;
   }
 

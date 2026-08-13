@@ -58,7 +58,9 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
 
   let registerOrder = 0;
 
-  function resolveSource(source: RegisteredUnsavedChangesSource): ActiveUnsavedChangesSource | null {
+  function resolveSource(
+    source: RegisteredUnsavedChangesSource
+  ): ActiveUnsavedChangesSource | null {
     if (!toValue(source.dirty)) return null;
 
     const kind = source.kind ?? 'unsaved';

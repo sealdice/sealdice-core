@@ -4,7 +4,7 @@ import { formatGroupQuitTarget } from './quitSummary';
 describe('formatGroupQuitTarget', () => {
   it('includes the group name and account for a single quit', () => {
     expect(formatGroupQuitTarget({ groupId: 'group-1', groupName: '测试群', diceId: 'QQ:1' })).toBe(
-      'group-1「测试群」，账号 QQ:1',
+      'group-1「测试群」，账号 QQ:1'
     );
   });
 

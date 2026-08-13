@@ -2,13 +2,15 @@ import { getWorkspaceFrameClass, getWorkspaceSplitClass } from './workspaceFrame
 import { it } from 'vitest';
 
 it('passes', async () => {
+  const assertEqual = (actual: unknown, expected: unknown) => {
+    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
+  };
 
-const assertEqual = (actual: unknown, expected: unknown) => {
-  if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-};
-
-assertEqual(getWorkspaceFrameClass('fluid'), 'workspace-frame');
-assertEqual(getWorkspaceFrameClass('fixed-height'), 'workspace-frame workspace-frame--fixed-height');
-assertEqual(getWorkspaceSplitClass('row'), 'workspace-split');
-assertEqual(getWorkspaceSplitClass('column'), 'workspace-split workspace-split--column');
+  assertEqual(getWorkspaceFrameClass('fluid'), 'workspace-frame');
+  assertEqual(
+    getWorkspaceFrameClass('fixed-height'),
+    'workspace-frame workspace-frame--fixed-height'
+  );
+  assertEqual(getWorkspaceSplitClass('row'), 'workspace-split');
+  assertEqual(getWorkspaceSplitClass('column'), 'workspace-split workspace-split--column');
 });

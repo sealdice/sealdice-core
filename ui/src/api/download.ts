@@ -33,7 +33,7 @@ function getHeader(headers: Record<string, unknown>, name: string): string | nul
 
 export function getDownloadFilename(
   response: { headers: Record<string, unknown> },
-  suggestedFilename?: string,
+  suggestedFilename?: string
 ): string {
   return (
     suggestedFilename?.trim() ||
@@ -54,7 +54,7 @@ function saveBlobFile(blob: Blob, filename: string): void {
 
 export async function downloadApiFile(
   resultPromise: Promise<DownloadResult>,
-  suggestedFilename?: string,
+  suggestedFilename?: string
 ): Promise<void> {
   const result = await resultPromise;
   if (!(result.data instanceof Blob)) {

@@ -1,10 +1,6 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue';
 import { useQuery, type QueryClient } from '@tanstack/vue-query';
-import {
-  getSdApiV2HelpdocConfig,
-  getSdApiV2HelpdocItemsPage,
-  getSdApiV2HelpdocTree,
-} from '@/api';
+import { getSdApiV2HelpdocConfig, getSdApiV2HelpdocItemsPage, getSdApiV2HelpdocTree } from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   buildHelpdocGroupOptions,

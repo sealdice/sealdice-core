@@ -69,13 +69,7 @@
 <script setup lang="tsx">
 import { computed, h, onMounted, reactive, ref, shallowRef, watch, type CSSProperties } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
-import {
-  NTag,
-  NText,
-  NTooltip,
-  type DataTableColumns,
-  type UploadFileInfo,
-} from 'naive-ui';
+import { NTag, NText, NTooltip, type DataTableColumns, type UploadFileInfo } from 'naive-ui';
 import type { HelpTextVo } from '@/api';
 import HelpdocConfigDialog from '@/components/helpdoc/HelpdocConfigDialog.vue';
 import HelpdocFilePane from '@/components/helpdoc/HelpdocFilePane.vue';
@@ -130,14 +124,14 @@ watch(
   aliases => {
     configDraft.syncRemote(aliases ?? {});
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(
   () => [itemQuery.pageNum, itemQuery.pageSize] as const,
   () => {
     appliedItemQuery.value = { ...itemQuery };
-  },
+  }
 );
 
 watch(uploadDialogVisible, visible => {
@@ -168,7 +162,7 @@ const uploader = useHelpdocUpload({
 });
 
 const activeUploadTasks = computed(() =>
-  uploader.tasks.value.filter(task => task.status !== 'success'),
+  uploader.tasks.value.filter(task => task.status !== 'success')
 );
 
 const { reloadMutation, deleteMutation, saveConfigMutation } = useHelpdocMutations({
@@ -217,7 +211,7 @@ const columns: DataTableColumns<HelpTextVo> = [
       h(
         NTag,
         { type: row.group === 'builtin' ? 'info' : 'success', size: 'small', bordered: false },
-        { default: () => row.group || '-' },
+        { default: () => row.group || '-' }
       ),
   },
   { title: '来源文件', key: 'from', width: 200, ellipsis: { tooltip: true } },
@@ -236,9 +230,13 @@ const columns: DataTableColumns<HelpTextVo> = [
         },
         {
           trigger: () =>
-            h(NText, { class: 'help-content-preview' }, { default: () => getHelpdocTextPreview(row.content ?? '') }),
+            h(
+              NText,
+              { class: 'help-content-preview' },
+              { default: () => getHelpdocTextPreview(row.content ?? '') }
+            ),
           default: () => getHelpdocTextTooltip(row.content ?? ''),
-        },
+        }
       ),
   },
   { title: '分类', key: 'packageName', width: 150, ellipsis: { tooltip: true } },
@@ -275,11 +273,15 @@ function deleteFiles() {
   const summary = summarizeHelpdocDelete(docTree.value, keys);
   dialog.warning({
     title: '删除',
-    content: () => h('div', { class: 'delete-summary' }, [
-      h('p', `将删除 ${summary.count} 个选中项：`),
-      h('ul', summary.labels.map(label => h('li', label))),
-      h('p', '删除的内容无法找回。'),
-    ]),
+    content: () =>
+      h('div', { class: 'delete-summary' }, [
+        h('p', `将删除 ${summary.count} 个选中项：`),
+        h(
+          'ul',
+          summary.labels.map(label => h('li', label))
+        ),
+        h('p', '删除的内容无法找回。'),
+      ]),
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -338,6 +340,5 @@ function retryTask(task: ResumableUploadTask) {
   .helpdoc-tabs :deep(.n-tabs-nav-scroll-content) {
     justify-content: flex-start !important;
   }
-
 }
 </style>

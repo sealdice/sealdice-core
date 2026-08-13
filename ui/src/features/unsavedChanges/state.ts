@@ -22,15 +22,13 @@ const { activePendingActions, activeUnsavedChangesSource, hasUnsavedChanges, has
   storeToRefs(unsavedChangesStore);
 
 // 兼容层：旧代码继续从 state.ts 使用未保存变更 API，实际状态已集中到 Pinia store。
-export {
-  activePendingActions,
-  activeUnsavedChangesSource,
-  hasUnsavedChanges,
-  hasPendingActions,
-};
+export { activePendingActions, activeUnsavedChangesSource, hasUnsavedChanges, hasPendingActions };
 export const unsavedChangesEmitter = unsavedChangesStore.unsavedChangesEmitter;
 
-export function registerUnsavedChangesSource(scope: string, options: UnsavedChangesSourceOptions): void {
+export function registerUnsavedChangesSource(
+  scope: string,
+  options: UnsavedChangesSourceOptions
+): void {
   unsavedChangesStore.registerSource(scope, options);
 }
 

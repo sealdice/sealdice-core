@@ -7,7 +7,5 @@ export function getWorkspaceFrameClass(mode: WorkspaceFrameMode): string {
 }
 
 export function getWorkspaceSplitClass(direction: 'row' | 'column'): string {
-  return direction === 'column'
-    ? 'workspace-split workspace-split--column'
-    : 'workspace-split';
+  return direction === 'column' ? 'workspace-split workspace-split--column' : 'workspace-split';
 }

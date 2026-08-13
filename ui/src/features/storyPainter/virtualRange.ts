@@ -21,7 +21,7 @@ export function isStoryPainterVirtualRange(value: unknown): value is StoryPainte
 }
 
 export function virtualItemsToStoryPainterRange(
-  virtualItems: StoryPainterVirtualItemLike[],
+  virtualItems: StoryPainterVirtualItemLike[]
 ): StoryPainterVirtualRange | undefined {
   const first = virtualItems[0];
   const last = virtualItems.at(-1);
@@ -40,7 +40,7 @@ export interface StoryPainterPreviewSource<T> {
 
 export function buildStoryPainterPreviewSources<T extends { id?: number; index?: number }>(
   itemIndexes: number[],
-  items: T[],
+  items: T[]
 ): Array<StoryPainterPreviewSource<T>> {
   if (itemIndexes.length > 0) {
     return itemIndexes.map(index => ({ key: index, index }));
@@ -68,10 +68,11 @@ export function collectMissingVisibleIndexes(options: {
   for (let position = start; position <= end; position += 1) {
     const index = options.visibleIndexes[position];
     if (
-      index === undefined
-      || options.loadedIndexes.has(index)
-      || options.pendingIndexes?.has(index)
-    ) continue;
+      index === undefined ||
+      options.loadedIndexes.has(index) ||
+      options.pendingIndexes?.has(index)
+    )
+      continue;
     indexes.push(index);
   }
   return indexes;

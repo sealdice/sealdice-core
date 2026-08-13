@@ -91,7 +91,7 @@ export function createPprofEntries(): PprofEntry[] {
 
 export function buildPprofBinaryPath(
   entry: PprofEntry,
-  options: { profileSeconds: number; traceSeconds: number },
+  options: { profileSeconds: number; traceSeconds: number }
 ): string {
   if (entry.key === 'profile') return `/profile?seconds=${options.profileSeconds}`;
   if (entry.key === 'trace') return `/trace?seconds=${options.traceSeconds}`;

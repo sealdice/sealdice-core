@@ -4,7 +4,7 @@ export function cloneSearchFormValues<T>(values: T): T {
 
 export function overwriteSearchFormValues<T extends Record<string, unknown>>(
   target: T,
-  source: Partial<T>,
+  source: Partial<T>
 ): T {
   const next = cloneSearchFormValues(source) as Partial<T> & Record<string, unknown>;
 

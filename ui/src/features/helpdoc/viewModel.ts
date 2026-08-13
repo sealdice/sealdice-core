@@ -48,7 +48,13 @@ export function convertHelpdocTree(doc: HelpDoc): HelpDocTreeOption {
     raw: doc,
     disabled: doc.deleted,
     children: doc.children?.map(convertHelpdocTree) ?? undefined,
-    icon: doc.isDir ? 'folder' : doc.type === '.json' ? 'json' : doc.type === '.xlsx' ? 'xlsx' : 'file',
+    icon: doc.isDir
+      ? 'folder'
+      : doc.type === '.json'
+        ? 'json'
+        : doc.type === '.xlsx'
+          ? 'xlsx'
+          : 'file',
     tag: doc.isDir
       ? undefined
       : getHelpdocTag(doc.loadStatus ?? 0, Boolean(doc.deleted), doc.group ?? ''),
@@ -114,7 +120,10 @@ export function getHelpdocItemGroupOptions(tree: HelpDoc[] | undefined) {
   return [{ label: '内置', value: 'builtin' }, ...buildHelpdocGroupOptions(tree)];
 }
 
-export function isHelpdocConfigDirty(current: Map<string, string[]>, initial: Map<string, string[]>) {
+export function isHelpdocConfigDirty(
+  current: Map<string, string[]>,
+  initial: Map<string, string[]>
+) {
   if (current.size !== initial.size) return true;
   for (const [key, value] of current) {
     const other = initial.get(key) ?? [];
@@ -134,4 +143,7 @@ export function cloneHelpdocAliases(source: Map<string, string[]>) {
   return new Map(Array.from(source.entries(), ([key, value]) => [key, [...value]]));
 }
 
-export type HelpdocItemRow = Pick<HelpTextVo, 'id' | 'group' | 'from' | 'title' | 'content' | 'packageName'>;
+export type HelpdocItemRow = Pick<
+  HelpTextVo,
+  'id' | 'group' | 'from' | 'title' | 'content' | 'packageName'
+>;

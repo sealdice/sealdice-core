@@ -10,7 +10,7 @@ function getBrowserStorage(): GroupQuitTextStorage | undefined {
 }
 
 export function readGroupQuitDefaultText(
-  storage: GroupQuitTextStorage | undefined = getBrowserStorage(),
+  storage: GroupQuitTextStorage | undefined = getBrowserStorage()
 ): string {
   try {
     return storage?.getItem(groupQuitDefaultTextStorageKey) || defaultGroupQuitText;
@@ -21,7 +21,7 @@ export function readGroupQuitDefaultText(
 
 export function writeGroupQuitDefaultText(
   value: string,
-  storage: GroupQuitTextStorage | undefined = getBrowserStorage(),
+  storage: GroupQuitTextStorage | undefined = getBrowserStorage()
 ): void {
   try {
     storage?.setItem(groupQuitDefaultTextStorageKey, value);

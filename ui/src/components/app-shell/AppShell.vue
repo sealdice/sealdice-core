@@ -317,6 +317,5 @@ setUnsavedChangesConfirmHandler(
   .sd-main-container {
     padding: var(--sd-space-md);
   }
-
 }
 </style>

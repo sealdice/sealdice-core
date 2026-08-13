@@ -69,16 +69,20 @@ export function parseReplyImportText(input: string): ReplyTask[] {
     if (conditions.length && replies.length) {
       tasks.push({
         enable: true,
-        conditions: [{
-          condType: 'textMatch',
-          matchType: 'matchMulti',
-          value: conditions.join('|'),
-        }],
-        results: [{
-          resultType: 'replyToSender',
-          delay: 0,
-          message: replies.map(reply => [reply, 1]),
-        }],
+        conditions: [
+          {
+            condType: 'textMatch',
+            matchType: 'matchMulti',
+            value: conditions.join('|'),
+          },
+        ],
+        results: [
+          {
+            resultType: 'replyToSender',
+            delay: 0,
+            message: replies.map(reply => [reply, 1]),
+          },
+        ],
       });
     }
     text = rest;

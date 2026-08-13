@@ -125,7 +125,7 @@ export function useResumableUpload(storageKey: string, adapter: ResumableUploadA
           task.filename === file.name &&
           task.fileSize === file.size &&
           task.fileHash === fileHash &&
-          task.status !== 'success',
+          task.status !== 'success'
       );
       if (existing) {
         existing.file = file;
@@ -200,7 +200,13 @@ export function useResumableUpload(storageKey: string, adapter: ResumableUploadA
         const end = Math.min(task.fileSize, start + session.chunkSize);
         const chunk = task.file.slice(start, end);
         const chunkBytes = chunk.size;
-        await uploadChunk(task, index, chunk, session.chunkSize, adapter.buildChunkUrl(task, index));
+        await uploadChunk(
+          task,
+          index,
+          chunk,
+          session.chunkSize,
+          adapter.buildChunkUrl(task, index)
+        );
         task.uploadedChunks.push(index);
         task.uploadedBytes += chunkBytes;
         task.progress = calcProgress(task.uploadedBytes, task.fileSize);
@@ -244,7 +250,7 @@ async function uploadChunk(
   index: number,
   chunk: Blob,
   chunkSize: number,
-  url: string,
+  url: string
 ) {
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -274,7 +280,7 @@ async function uploadChunk(
           status: xhr.status,
           statusText: xhr.statusText,
           data: xhr.response ?? xhr.responseText,
-        }),
+        })
       );
     };
     xhr.onerror = () => reject(new Error('网络错误'));

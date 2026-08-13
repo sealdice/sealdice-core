@@ -20,9 +20,7 @@
     <template #footer>
       <n-flex justify="end">
         <n-button @click="show = false">取消</n-button>
-        <n-button type="primary" :loading="saving" @click="emit('save')">
-          保存
-        </n-button>
+        <n-button type="primary" :loading="saving" @click="emit('save')"> 保存 </n-button>
       </n-flex>
     </template>
   </n-modal>

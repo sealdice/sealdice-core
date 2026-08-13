@@ -3,7 +3,7 @@ import { getSdApiV2ResourceData, type ResourceItem } from '@/api';
 
 export function useResourcePreview(
   item: MaybeRefOrGetter<ResourceItem>,
-  thumbnail: MaybeRefOrGetter<boolean>,
+  thumbnail: MaybeRefOrGetter<boolean>
 ) {
   const objectUrl = shallowRef('');
   const loading = shallowRef(false);
@@ -59,7 +59,7 @@ export function useResourcePreview(
     () => {
       void loadImage();
     },
-    { immediate: true },
+    { immediate: true }
   );
 
   onBeforeUnmount(() => {

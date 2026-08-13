@@ -2,12 +2,12 @@
   <main class="backup-page">
     <PageHeader title="备份" unsaved-scope="backup-config" />
 
-    <n-alert v-if="configErrorText" type="error" :bordered="false">
+    <TipBox v-if="configErrorText" type="error">
       {{ configErrorText }}
-    </n-alert>
-    <n-alert v-if="listErrorText" type="error" :bordered="false">
+    </TipBox>
+    <TipBox v-if="listErrorText" type="error">
       {{ listErrorText }}
-    </n-alert>
+    </TipBox>
 
     <n-tabs v-model:value="activeTab" type="line" animated class="backup-tabs">
       <n-tab-pane name="settings" tab="备份设置">
@@ -25,6 +25,10 @@
       </n-tab-pane>
 
       <n-tab-pane name="files" tab="备份文件">
+        <!-- 恢复说明放在备份文件旁，用户在此下载备份才需要它。 -->
+        <TipBox type="info" class="backup-restore-tip">
+          恢复备份时，将骰子彻底关闭，解压备份压缩包到骰子目录。若提示是否覆盖，选择全部即可。
+        </TipBox>
         <BackupFileList
           :items="items"
           :loading="listQuery.isFetching.value"
@@ -78,6 +82,7 @@ import BackupBatchDeleteDialog from '@/components/backup/BackupBatchDeleteDialog
 import BackupConfigPanel from '@/components/backup/BackupConfigPanel.vue';
 import BackupExecDialog from '@/components/backup/BackupExecDialog.vue';
 import BackupFileList from '@/components/backup/BackupFileList.vue';
+import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';

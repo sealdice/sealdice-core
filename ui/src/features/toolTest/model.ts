@@ -323,11 +323,7 @@ export function buildToolTestCommandOptions(
   return commands.flatMap(command => {
     const normalizedCommand = command.name.trim();
     const commandKey = normalizedCommand.toLowerCase();
-    if (
-      !normalizedCommand ||
-      seen.has(commandKey) ||
-      !commandKey.startsWith(normalizedQuery)
-    ) {
+    if (!normalizedCommand || seen.has(commandKey) || !commandKey.startsWith(normalizedQuery)) {
       return [];
     }
     seen.add(commandKey);

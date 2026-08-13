@@ -10,15 +10,22 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { getWorkspaceFrameClass, getWorkspaceSplitClass, type WorkspaceFrameMode } from './workspaceFrame';
+import {
+  getWorkspaceFrameClass,
+  getWorkspaceSplitClass,
+  type WorkspaceFrameMode,
+} from './workspaceFrame';
 
-const props = withDefaults(defineProps<{
-  mode?: WorkspaceFrameMode;
-  direction?: 'row' | 'column';
-}>(), {
-  mode: 'fluid',
-  direction: 'row',
-});
+const props = withDefaults(
+  defineProps<{
+    mode?: WorkspaceFrameMode;
+    direction?: 'row' | 'column';
+  }>(),
+  {
+    mode: 'fluid',
+    direction: 'row',
+  }
+);
 
 const frameClass = computed(() => getWorkspaceFrameClass(props.mode));
 const splitClass = computed(() => getWorkspaceSplitClass(props.direction));

@@ -1,13 +1,11 @@
 <template>
   <OfficialQQModePanel v-if="protocolModule.formKind === 'officialqq'" v-model="officialQqMode" />
 
-  <n-alert v-if="protocol && !protocol.available" type="warning" :show-icon="false">
+  <TipBox v-if="protocol && !protocol.available" type="warning">
     {{ protocol.disabledReason }}
-  </n-alert>
+  </TipBox>
 
-  <n-alert v-if="schemasError" type="error" :show-icon="false">
-    配置项读取失败，请稍后重试。
-  </n-alert>
+  <TipBox v-if="schemasError" type="error"> 配置项读取失败，请稍后重试。 </TipBox>
 
   <DynamicForm
     :model-value="modelValue"
@@ -72,6 +70,7 @@ import LagrangeSignInfoField from './protocol/LagrangeSignInfoField.vue';
 import { getConnectProtocolModule } from '@/features/connect/protocols';
 import type { OfficialQQMode } from '@/features/connect/officialQQ';
 import type { SignInfoState } from '@/features/connect/signInfoState';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const props = defineProps<{
   protocol: ProtocolDefinition | null;

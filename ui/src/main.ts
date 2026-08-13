@@ -11,13 +11,13 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import safeHtmlDirective from './directives/safeHtml';
 import {
   create,
-  ProInput ,
-  ProSelect ,
-  ProDigit ,
+  ProInput,
+  ProSelect,
+  ProDigit,
   ProSwitch,
   ProDateRange,
-  ProRadioGroup
-} from 'pro-naive-ui'
+  ProRadioGroup,
+} from 'pro-naive-ui';
 import App from './App.vue';
 import router from './router';
 import { appPinia } from './pinia';
@@ -61,10 +61,10 @@ app.use(appPinia);
 
 // 未来考虑换掉这个玩意，现在它承担的是所有的表单，感觉可以直接封装一个而不是用这个，这个还得手动引入，真麻烦啊。
 const proNaive = create({
-  components: [ProInput, ProSelect, ProDigit, ProSwitch,ProDateRange,ProRadioGroup]
-})
+  components: [ProInput, ProSelect, ProDigit, ProSwitch, ProDateRange, ProRadioGroup],
+});
 
-app.use(proNaive)
+app.use(proNaive);
 
 app.directive('safe-html', safeHtmlDirective);
 app.use(router);

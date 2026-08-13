@@ -146,9 +146,9 @@
         </div>
       </div>
 
-      <n-alert v-if="logStream.errorText.value" type="error" class="log-alert">
+      <TipBox v-if="logStream.errorText.value" type="error" class="log-alert">
         {{ logStream.errorText.value }}
-      </n-alert>
+      </TipBox>
 
       <div ref="logsContainer" class="logs">
         <n-data-table
@@ -188,6 +188,7 @@ import {
   normalizeNetworkHealthData,
 } from '@/features/base/networkHealth';
 import { hasAccessToken } from '@/features/auth/state';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');

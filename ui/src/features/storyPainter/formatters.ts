@@ -13,31 +13,44 @@ export function escapeStoryPainterHtml(html: string): string {
     .replace(/'/g, '&#39;');
 }
 
-export function formatStoryPainterImages(message: string, options: StoryPainterOptions, htmlText = false): string {
+export function formatStoryPainterImages(
+  message: string,
+  options: StoryPainterOptions,
+  htmlText = false
+): string {
   let msg = message;
   if (options.imageHide) {
     msg = msg.replace(/\[CQ:(image|face)(,summary=\[动画表情\])?,[^\]]+\]/g, '');
   } else if (htmlText) {
     msg = msg.replace(
       /\[CQ:image(,summary=\[动画表情\])?,[^\]]+?file_unique=([a-zA-Z0-9]{32})\]/g,
-      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$2/0?term=2" crossorigin="anonymous" />`,
+      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$2/0?term=2" crossorigin="anonymous" />`
     );
     msg = msg.replace(
       /\[CQ:image,summary=\[动画表情\],[^\]]+?url=([^\]]+)\]/g,
-      `<img style="${imageStyle}" src="$1" />`,
+      `<img style="${imageStyle}" src="$1" />`
     );
-    msg = msg.replace(/\[CQ:image,[^\]]+?url=([^\]]+)\]/g, `<img style="${imageStyle}" src="$1" />`);
-    msg = msg.replace(/\[CQ:image,file=(https?:\/\/[^\]]+)\]/g, `<img style="${imageStyle}" src="$1" />`);
+    msg = msg.replace(
+      /\[CQ:image,[^\]]+?url=([^\]]+)\]/g,
+      `<img style="${imageStyle}" src="$1" />`
+    );
+    msg = msg.replace(
+      /\[CQ:image,file=(https?:\/\/[^\]]+)\]/g,
+      `<img style="${imageStyle}" src="$1" />`
+    );
     msg = msg.replace(
       /\[CQ:image,file=([A-Za-z0-9]{32,64})(\.[a-zA-Z]+?)\]/g,
-      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1/0?term=2,subType=1" />`,
+      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1/0?term=2,subType=1" />`
     );
-    msg = msg.replace(/\[CQ:image,file=file:\/\/[^\]]+([A-Za-z0-9]{32})(\.[a-zA-Z]+?)\]/g, (_m: string, p1: string) => {
-      return `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-${String(p1).toUpperCase()}/0?term=2,subType=1" />`;
-    });
+    msg = msg.replace(
+      /\[CQ:image,file=file:\/\/[^\]]+([A-Za-z0-9]{32})(\.[a-zA-Z]+?)\]/g,
+      (_m: string, p1: string) => {
+        return `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-${String(p1).toUpperCase()}/0?term=2,subType=1" />`;
+      }
+    );
     msg = msg.replace(
       /\[CQ:image,file=\{([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)}([^\]]+?)\]/g,
-      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1$2$3$4$5/0?term=2" />`,
+      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1$2$3$4$5/0?term=2" />`
     );
   }
 
@@ -46,20 +59,27 @@ export function formatStoryPainterImages(message: string, options: StoryPainterO
   } else if (htmlText) {
     msg = msg.replace(
       /\[mirai:image:\{([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)-([A-Z0-9]+)}([^\]]+?)\]/g,
-      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1$2$3$4$5/0?term=2" />`,
+      `<img style="${imageStyle}" src="https://gchat.qpic.cn/gchatpic_new/0/0-0-$1$2$3$4$5/0?term=2" />`
     );
   }
 
   if (options.imageHide) {
     msg = msg.replace(/\[(image|图):[^\]]+\]/g, '');
   } else if (htmlText) {
-    msg = msg.replace(/\[(?:image|图):([^\]]+)?([^\]]+)\]/g, `<img style="${imageStyle}" src="$1" />`);
+    msg = msg.replace(
+      /\[(?:image|图):([^\]]+)?([^\]]+)\]/g,
+      `<img style="${imageStyle}" src="$1" />`
+    );
   }
 
   return msg;
 }
 
-export function formatStoryPainterOffTopic(message: string, options: StoryPainterOptions, isDice = false): string {
+export function formatStoryPainterOffTopic(
+  message: string,
+  options: StoryPainterOptions,
+  isDice = false
+): string {
   if (!options.offTopicHide || isDice) return message;
   return message.replace(/^\s*(?:@\S+\s+)*[（(].*/gm, '');
 }
@@ -69,7 +89,11 @@ export function formatStoryPainterCommands(message: string, options: StoryPainte
   return message.replace(/^[.。/](?![.。/])(.|\n)*$/g, '');
 }
 
-export function finishStoryPainterMessage(message: string, options: StoryPainterOptions, isDice = false): string {
+export function finishStoryPainterMessage(
+  message: string,
+  options: StoryPainterOptions,
+  isDice = false
+): string {
   let msg = message;
   if (isDice) {
     msg = replaceAllText(replaceAllText(msg, '<', ''), '>', '');
@@ -84,7 +108,7 @@ export function formatStoryPainterAt(message: string, pcList: StoryPainterChar[]
   msg = msg.replace(/((\[CQ:at,[^\]]*qq=([0-9]+)[^\]]*\])) \[CQ:at,[^\]]*qq=\3[^\]]*\]/g, '$1');
 
   const pcMap = new Map<string, string>();
-  pcList.forEach((pc) => {
+  pcList.forEach(pc => {
     if (pc.IMUserId) pcMap.set(String(pc.IMUserId), pc.name);
   });
 
@@ -100,7 +124,7 @@ export function formatStoryPainterAt(message: string, pcList: StoryPainterChar[]
     const attrMap = new Map<string, string>();
     String(attrStr)
       .split(',')
-      .forEach((part) => {
+      .forEach(part => {
         const [key, ...rest] = part.split('=');
         if (key) attrMap.set(key.trim(), rest.join('=') || '');
       });
@@ -118,9 +142,12 @@ export function formatStoryPainterAt(message: string, pcList: StoryPainterChar[]
     return '@未知用户';
   });
 
-  pcList.forEach((pc) => {
+  pcList.forEach(pc => {
     msg = msg.replace(new RegExp(`&lt;@${escapeRegExp(pc.IMUserId)}&gt;`, 'g'), `@${pc.name}`);
-    msg = msg.replace(new RegExp(`\\(met\\)${escapeRegExp(pc.IMUserId)}\\(met\\)`, 'g'), `@${pc.name}`);
+    msg = msg.replace(
+      new RegExp(`\\(met\\)${escapeRegExp(pc.IMUserId)}\\(met\\)`, 'g'),
+      `@${pc.name}`
+    );
   });
 
   return msg;
@@ -130,7 +157,7 @@ export function normalizeStoryPainterMessage(
   item: StoryPainterLogItem,
   pcList: StoryPainterChar[],
   options: StoryPainterOptions,
-  htmlText = true,
+  htmlText = true
 ): string {
   let msg = formatStoryPainterImages(escapeStoryPainterHtml(item.message), options, htmlText);
   msg = formatStoryPainterAt(msg, pcList);
@@ -140,7 +167,11 @@ export function normalizeStoryPainterMessage(
   return formatStoryPainterOffTopic(msg, options, item.isDice);
 }
 
-export function storyPainterNickname(item: StoryPainterLogItem, options: StoryPainterOptions, trailingColon = true): string {
+export function storyPainterNickname(
+  item: StoryPainterLogItem,
+  options: StoryPainterOptions,
+  trailingColon = true
+): string {
   const userId = options.userIdHide ? '' : `(${item.IMUserId})`;
   return `<${item.nickname}${userId}>${trailingColon ? ':' : ''}`;
 }

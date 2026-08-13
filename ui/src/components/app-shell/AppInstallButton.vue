@@ -18,18 +18,14 @@
           </template>
           <span class="install-label">{{ buttonText }}</span>
         </n-button>
-        <n-tag
-          v-else
-          :bordered="false"
-          class="install-tag"
-          size="small"
-          type="success"
-        >
+        <n-tag v-else :bordered="false" class="install-tag" size="small" type="success">
           已安装
         </n-tag>
       </span>
     </template>
-    {{ isInstalled ? '已安装到当前设备' : canInstall ? '安装到桌面 / 启动器' : '浏览器菜单也可以安装' }}
+    {{
+      isInstalled ? '已安装到当前设备' : canInstall ? '安装到桌面 / 启动器' : '浏览器菜单也可以安装'
+    }}
   </n-tooltip>
 </template>
 

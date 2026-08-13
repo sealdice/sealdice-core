@@ -1,10 +1,6 @@
 import { computed, ref } from 'vue';
 import type { CensorConfigBody } from '@/api';
-import {
-  cloneCensorConfig,
-  createDefaultCensorConfig,
-  isCensorConfigDirty,
-} from './viewModel';
+import { cloneCensorConfig, createDefaultCensorConfig, isCensorConfigDirty } from './viewModel';
 
 export function useCensorConfigDraft() {
   const currentConfig = ref<CensorConfigBody>(createDefaultCensorConfig());

@@ -47,25 +47,20 @@
     </n-text>
 
     <template #action>
-      <n-button
-        type="primary"
-        @click="dialogCheckPassword = false"
-      >
-        我已知晓！
-      </n-button>
+      <n-button type="primary" @click="dialogCheckPassword = false"> 我已知晓！ </n-button>
     </template>
   </n-modal>
 </template>
 
 <script setup lang="tsx">
 import { computed, ref, watch } from 'vue';
-import { useNotification } from 'naive-ui';
+import { useMessage } from 'naive-ui';
 import { getSdApiV2BaseSecurityCheck } from '@/api';
 import { getErrorMessage } from '@/features/auth/error';
 import { useAuthSession } from '@/features/auth/useAuthSession';
 
 const authSession = useAuthSession();
-const notification = useNotification();
+const message = useMessage();
 const password = ref('');
 const dialogCheckPassword = ref(false);
 const canSkipSecurityDialog = ref(false);
@@ -75,27 +70,17 @@ const showDialog = computed(() => authSession.needsUnlock.value);
 const errorText = computed(() =>
   authSession.signinMutation.isError.value
     ? getErrorMessage(authSession.signinMutation.error.value, '密码错误')
-    : '',
+    : ''
 );
 
 async function doUnlock() {
   try {
     await authSession.signin({ password: password.value });
     password.value = '';
-    notification.success({
-      title: '登录成功！',
-      content: '欢迎回来，请开始使用',
-      duration: 3000,
-      closable: false,
-    });
+    message.success('登录成功，欢迎回来');
     await checkPasswordSecurity();
   } catch {
-    notification.error({
-      title: '登录失败',
-      content: errorText.value || '密码错误',
-      duration: 3000,
-      closable: false,
-    });
+    message.error(errorText.value || '密码错误');
     password.value = '';
   }
 }
@@ -110,13 +95,17 @@ async function checkPasswordSecurity() {
   }
 }
 
-watch(authSession.hasAccessToken, canAccess => {
-  if (canAccess) {
-    void checkPasswordSecurity();
-  } else {
-    hasCheckedSecurity.value = false;
-  }
-}, { immediate: true });
+watch(
+  authSession.hasAccessToken,
+  canAccess => {
+    if (canAccess) {
+      void checkPasswordSecurity();
+    } else {
+      hasCheckedSecurity.value = false;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>

@@ -1,9 +1,7 @@
 export function classifyVendorChunk(id: string): string | undefined {
   if (!id.includes('/node_modules/')) return undefined;
 
-  if (
-    id.includes('/eruda/')
-  ) {
+  if (id.includes('/eruda/')) {
     return 'vendor-debug';
   }
 
@@ -21,10 +19,7 @@ export function classifyVendorChunk(id: string): string | undefined {
     return 'vendor-lodash';
   }
 
-  if (
-    id.includes('/dayjs/') ||
-    id.includes('/date-fns/')
-  ) {
+  if (id.includes('/dayjs/') || id.includes('/date-fns/')) {
     return 'vendor-date';
   }
 

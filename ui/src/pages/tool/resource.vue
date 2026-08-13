@@ -2,9 +2,9 @@
   <main class="resource-page">
     <PageHeader title="资源管理" />
 
-    <n-alert v-if="listErrorText" type="error" :bordered="false">
+    <TipBox v-if="listErrorText" type="error">
       {{ listErrorText }}
-    </n-alert>
+    </TipBox>
 
     <ResourceListPanel
       class="resource-page__panel"
@@ -83,6 +83,7 @@ import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { copyText } from '@/features/clipboard';
 import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
+import TipBox from '@/components/shared/TipBox.vue';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,

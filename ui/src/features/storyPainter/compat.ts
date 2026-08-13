@@ -12,7 +12,7 @@ export interface StoryPainterAdvancedModeSupportResult {
 }
 
 export function detectStoryPainterAdvancedModeSupport(
-  options: StoryPainterAdvancedModeSupportOptions,
+  options: StoryPainterAdvancedModeSupportOptions
 ): StoryPainterAdvancedModeSupportResult {
   if (!options.hasResizeObserver) {
     return {

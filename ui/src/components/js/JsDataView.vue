@@ -87,9 +87,9 @@
             "
           />
         </n-flex>
-        <n-alert v-if="jsonError" type="warning" :show-icon="true">
+        <TipBox v-if="jsonError" type="warning">
           {{ jsonError }}
-        </n-alert>
+        </TipBox>
       </n-flex>
       <template #footer>
         <n-flex justify="end">
@@ -115,13 +115,13 @@ import {
   NText,
   useDialog,
   useMessage,
-  NAlert,
 } from 'naive-ui';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import { useJsData } from '@/features/js/useJsData';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const message = useMessage();
 const dialog = useDialog();

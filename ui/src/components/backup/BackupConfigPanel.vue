@@ -116,10 +116,6 @@
           />
         </n-form-item>
       </SettingCategoryBox>
-
-      <n-alert type="info" :bordered="false">
-        恢复备份时，将骰子彻底关闭，解压备份压缩包到骰子目录。若提示是否覆盖，选择全部即可。
-      </n-alert>
     </n-form>
   </section>
 </template>

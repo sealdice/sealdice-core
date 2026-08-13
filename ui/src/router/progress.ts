@@ -19,7 +19,7 @@ export function setupRouterProgress(router: Router): void {
     return true;
   });
 
-  router.afterEach((to) => {
+  router.afterEach(to => {
     document.title = formatDocumentTitle(to);
     NProgress.done();
   });

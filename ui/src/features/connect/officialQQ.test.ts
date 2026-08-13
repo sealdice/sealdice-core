@@ -16,45 +16,66 @@ it('passes', async () => {
     }
   };
 
-  assertDeepEqual(buildOfficialQQCreateConfig({
-    appID: '10001',
-    appSecret: 'secret',
-    useWebhook: true,
-  }, 'qrcode'), {
-    appID: '',
-    appSecret: '',
-    useWebhook: true,
-  });
+  assertDeepEqual(
+    buildOfficialQQCreateConfig(
+      {
+        appID: '10001',
+        appSecret: 'secret',
+        useWebhook: true,
+      },
+      'qrcode'
+    ),
+    {
+      appID: '',
+      appSecret: '',
+      useWebhook: true,
+    }
+  );
 
-  assertDeepEqual(buildOfficialQQCreateConfig({
-    appID: '10001',
-    appSecret: 'secret',
-    useWebhook: true,
-    webhookPath: '/qq/webhook',
-    webhookPort: 8099,
-  }, 'qrcode'), {
-    appID: '',
-    appSecret: '',
-    useWebhook: true,
-    webhookPath: '/qq/webhook',
-    webhookPort: 8099,
-  });
+  assertDeepEqual(
+    buildOfficialQQCreateConfig(
+      {
+        appID: '10001',
+        appSecret: 'secret',
+        useWebhook: true,
+        webhookPath: '/qq/webhook',
+        webhookPort: 8099,
+      },
+      'qrcode'
+    ),
+    {
+      appID: '',
+      appSecret: '',
+      useWebhook: true,
+      webhookPath: '/qq/webhook',
+      webhookPort: 8099,
+    }
+  );
 
-  assertDeepEqual(validateOfficialQQManualConfig({
-    appID: '',
-    appSecret: 'secret',
-  }), {
-    valid: false,
-    message: '请填写机器人 ID 和机器人密钥，或切换到扫码登录。',
-  });
+  assertDeepEqual(
+    validateOfficialQQManualConfig({
+      appID: '',
+      appSecret: 'secret',
+    }),
+    {
+      valid: false,
+      message: '请填写机器人 ID 和机器人密钥，或切换到扫码登录。',
+    }
+  );
 
-  assertDeepEqual(validateOfficialQQManualConfig({
-    appID: '10001',
-    appSecret: 'secret',
-  }), {
-    valid: true,
-    message: '',
-  });
+  assertDeepEqual(
+    validateOfficialQQManualConfig({
+      appID: '10001',
+      appSecret: 'secret',
+    }),
+    {
+      valid: true,
+      message: '',
+    }
+  );
 
-  assertEqual(buildOfficialQQDuplicateMessage('OpenQQ:202401'), '该 QQ 官方机器人账号已存在：OpenQQ:202401');
+  assertEqual(
+    buildOfficialQQDuplicateMessage('OpenQQ:202401'),
+    '该 QQ 官方机器人账号已存在：OpenQQ:202401'
+  );
 });

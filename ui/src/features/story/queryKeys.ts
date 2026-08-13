@@ -1,7 +1,4 @@
-import {
-  getSdApiV2StoryBackupListQueryKey,
-  getSdApiV2StoryInfoQueryKey,
-} from '@/api';
+import { getSdApiV2StoryBackupListQueryKey, getSdApiV2StoryInfoQueryKey } from '@/api';
 
 export const storyInfoQueryKey = () => getSdApiV2StoryInfoQueryKey();
 

@@ -1,4 +1,9 @@
-import type { PublicDiceConfig, PublicDiceEndpointItem, PublicDiceInfoResp, PublicDiceUpdateBodyWritable } from '@/api';
+import type {
+  PublicDiceConfig,
+  PublicDiceEndpointItem,
+  PublicDiceInfoResp,
+  PublicDiceUpdateBodyWritable,
+} from '@/api';
 import { getEndpointProtocolLabel, getEndpointStateMeta } from '@/features/connect/endpointDisplay';
 
 export type PublicDiceDraft = {
@@ -22,10 +27,14 @@ function cleanText(value: unknown) {
 }
 
 function normalizeSelectedEndpointIds(ids: Array<string | number>) {
-  return Array.from(new Set(ids.map(id => cleanText(String(id))).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  return Array.from(new Set(ids.map(id => cleanText(String(id))).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
-export function normalizePublicDiceConfig(config?: Partial<PublicDiceConfig> | null): PublicDiceConfig {
+export function normalizePublicDiceConfig(
+  config?: Partial<PublicDiceConfig> | null
+): PublicDiceConfig {
   return {
     publicDiceEnable: Boolean(config?.publicDiceEnable),
     publicDiceId: cleanText(config?.publicDiceId),
@@ -39,13 +48,15 @@ export function normalizePublicDiceConfig(config?: Partial<PublicDiceConfig> | n
 export function createPublicDiceDraft(info: PublicDiceInfoResp): PublicDiceDraft {
   return {
     config: normalizePublicDiceConfig(info.config),
-    selectedEndpointIds: normalizeSelectedEndpointIds((info.endpoints ?? []).filter(item => item.isPublic).map(item => item.id)),
+    selectedEndpointIds: normalizeSelectedEndpointIds(
+      (info.endpoints ?? []).filter(item => item.isPublic).map(item => item.id)
+    ),
   };
 }
 
 export function buildPublicDicePayload(
   config: PublicDiceConfig,
-  selectedEndpointIds: Array<string | number>,
+  selectedEndpointIds: Array<string | number>
 ): PublicDiceUpdateBodyWritable {
   return {
     config: normalizePublicDiceConfig(config),
@@ -60,7 +71,9 @@ export function isPublicDiceDirty(a: PublicDiceDraft | null, b: PublicDiceDraft 
   return JSON.stringify(left) !== JSON.stringify(right);
 }
 
-export function getPublicDiceEndpointRows(endpoints: PublicDiceEndpointItem[] | null | undefined): PublicDiceEndpointRow[] {
+export function getPublicDiceEndpointRows(
+  endpoints: PublicDiceEndpointItem[] | null | undefined
+): PublicDiceEndpointRow[] {
   return (endpoints ?? []).map(endpoint => {
     const state = getEndpointStateMeta(endpoint.state);
     return {

@@ -38,15 +38,11 @@
         </div>
       </div>
 
-      <n-alert
-        v-if="props.summary.hasNewVersion"
-        type="warning"
-        :bordered="false"
-        class="about-hero__alert"
-      >
+      <!-- 发现新版本是信息，不是风险，用 info 而非 warning。 -->
+      <TipBox v-if="props.summary.hasNewVersion" type="info" class="about-hero__alert">
         检测到新版本 {{ props.summary.latestVersionText }}。
         <span v-if="props.summary.latestNote">{{ props.summary.latestNote }}</span>
-      </n-alert>
+      </TipBox>
 
       <nav class="about-hero__links" aria-label="SealDice 项目链接">
         <a
@@ -80,6 +76,7 @@
 
 <script setup lang="ts">
 import sealImage from '@/assets/seal.png';
+import TipBox from '@/components/shared/TipBox.vue';
 import type { AboutLink, AboutOverviewSummary } from '@/features/about/viewModel';
 
 const props = defineProps<{

@@ -7,7 +7,7 @@ type RouteMetaMap = Record<string, RouteRecordRaw['meta']>;
 export function withRouteMeta(
   records: readonly RouteRecordRaw[],
   routeMeta: RouteMetaMap,
-  parentPath = '',
+  parentPath = ''
 ): RouteRecordRaw[] {
   return records.map(record => {
     const baseRecord = record as RouteRecordRaw;
@@ -18,14 +18,18 @@ export function withRouteMeta(
         ...baseRecord.meta,
         ...routeMeta[fullPath],
       },
-      children: baseRecord.children ? withRouteMeta(baseRecord.children, routeMeta, fullPath) : baseRecord.children,
+      children: baseRecord.children
+        ? withRouteMeta(baseRecord.children, routeMeta, fullPath)
+        : baseRecord.children,
     } as RouteRecordRaw;
 
     // 文件路由会正确生成动态 path，但页面组件需要稳定的 string prop。
     // 在这里统一转换，页面就不用关心 route.params 的 string/string[] 分支。
     if (fullPath === '/custom-text/:category') {
       nextRecord.props = (route: RouteLocationNormalized) => ({
-        category: String((route.params as Record<string, string | string[] | undefined>)['category'] ?? ''),
+        category: String(
+          (route.params as Record<string, string | string[] | undefined>)['category'] ?? ''
+        ),
       });
     }
 

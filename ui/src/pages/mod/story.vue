@@ -291,14 +291,9 @@
               </div>
             </div>
 
-            <n-alert
-              v-if="cleanupForm.vacuum"
-              type="warning"
-              :show-icon="false"
-              class="cleanup-alert"
-            >
-              这将可能导致海豹记录log用户运行缓慢，请注意
-            </n-alert>
+            <TipBox v-if="cleanupForm.vacuum" type="warning" class="cleanup-alert">
+              这将可能导致海豹记录 log 用户运行缓慢，请注意。
+            </TipBox>
 
             <div class="cleanup-actions">
               <n-button
@@ -351,6 +346,7 @@ import { storyInfoQueryKey } from '@/features/story/queryKeys';
 import { summarizeStoryLogs } from '@/features/story/deleteSummary';
 import { getStoryPageSizeChange } from '@/features/story/pagination';
 import { setStoryLogsSelected } from '@/features/story/selection';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const message = useMessage();
 const dialog = useDialog();

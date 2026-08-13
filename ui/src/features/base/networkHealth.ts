@@ -1,5 +1,8 @@
 import dayjs from 'dayjs';
-import type { NetworkHealthData as ApiNetworkHealthData, NetworkHealthTarget as ApiNetworkHealthTarget } from '@/api';
+import type {
+  NetworkHealthData as ApiNetworkHealthData,
+  NetworkHealthTarget as ApiNetworkHealthTarget,
+} from '@/api';
 
 export type NetworkHealthTarget = Omit<ApiNetworkHealthTarget, 'durationMs'> & {
   durationMs: number;
@@ -19,7 +22,9 @@ export function createEmptyNetworkHealth(): NetworkHealthData {
   };
 }
 
-export function normalizeNetworkHealthData(data: ApiNetworkHealthData | undefined): NetworkHealthData {
+export function normalizeNetworkHealthData(
+  data: ApiNetworkHealthData | undefined
+): NetworkHealthData {
   if (!data) return createEmptyNetworkHealth();
   return {
     total: Number(data.total ?? 0),

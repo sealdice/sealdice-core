@@ -1,6 +1,9 @@
 <template>
   <n-flex class="custom-text-filter-row mb-8 mt-4" align="center" wrap>
-    <n-radio-group v-model:value="mode" @update:value="emit('modeChange', $event as CustomTextFilterMode)">
+    <n-radio-group
+      v-model:value="mode"
+      @update:value="emit('modeChange', $event as CustomTextFilterMode)"
+    >
       <n-radio
         v-for="item of filterModes"
         :key="item.value"

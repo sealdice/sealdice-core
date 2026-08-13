@@ -6,38 +6,36 @@
     :theme-overrides="themeOverrides"
   >
     <n-message-provider>
-      <n-notification-provider>
-        <n-modal-provider>
-          <n-dialog-provider>
-            <n-loading-bar-provider>
-              <RouterView v-slot="{ Component, route }">
-                <AppTestModeFrame
-                  :active="testMode.isTestMode.value"
-                  :banner-text="testMode.bannerText.value"
-                  :watermark-text="testMode.watermarkText.value"
+      <n-modal-provider>
+        <n-dialog-provider>
+          <n-loading-bar-provider>
+            <RouterView v-slot="{ Component, route }">
+              <AppTestModeFrame
+                :active="testMode.isTestMode.value"
+                :banner-text="testMode.bannerText.value"
+                :watermark-text="testMode.watermarkText.value"
+              >
+                <PlainLayout v-if="route.meta.layout === 'plain'">
+                  <Transition name="page-fade" mode="out-in">
+                    <component :is="Component" :key="route.path" />
+                  </Transition>
+                </PlainLayout>
+                <AppShell
+                  v-else
+                  :content-mode="getAppShellContentMode(route.meta.layout)"
+                  :container-mode="getAppShellContainerMode(route.meta.layout)"
                 >
-                  <PlainLayout v-if="route.meta.layout === 'plain'">
-                    <Transition name="page-fade" mode="out-in">
-                      <component :is="Component" :key="route.path" />
-                    </Transition>
-                  </PlainLayout>
-                  <AppShell
-                    v-else
-                    :content-mode="getAppShellContentMode(route.meta.layout)"
-                    :container-mode="getAppShellContainerMode(route.meta.layout)"
-                  >
-                    <Transition name="page-fade" mode="out-in">
-                      <component :is="Component" :key="route.path" />
-                    </Transition>
-                  </AppShell>
-                </AppTestModeFrame>
-              </RouterView>
-              <AppUnlockDialog />
-              <AppUpdatePrompt />
-            </n-loading-bar-provider>
-          </n-dialog-provider>
-        </n-modal-provider>
-      </n-notification-provider>
+                  <Transition name="page-fade" mode="out-in">
+                    <component :is="Component" :key="route.path" />
+                  </Transition>
+                </AppShell>
+              </AppTestModeFrame>
+            </RouterView>
+            <AppUnlockDialog />
+            <AppUpdatePrompt />
+          </n-loading-bar-provider>
+        </n-dialog-provider>
+      </n-modal-provider>
     </n-message-provider>
   </ProConfigProvider>
 </template>

@@ -8,7 +8,7 @@ export interface BuildNavigationOptions {
 
 export function buildNavigationTree(
   sourceItems: NavigationItem[],
-  options: BuildNavigationOptions,
+  options: BuildNavigationOptions
 ): NavigationItem[] {
   return sourceItems
     .map(item => buildNavigationItem(item, options))
@@ -17,22 +17,23 @@ export function buildNavigationTree(
 
 function buildNavigationItem(
   item: NavigationItem,
-  options: BuildNavigationOptions,
+  options: BuildNavigationOptions
 ): NavigationItem | undefined {
   if (item.hidden) return undefined;
   if (item.requiresAdvancedConfig && !options.advancedConfigEnabled) return undefined;
 
-  const children = item.dynamicChildren === 'customTextCategories'
-    ? options.customTextCategories.map(category => ({
-        label: category,
-        path: `/custom-text/${category}`,
-        icon: 'dice',
-        title: category,
-        layout: item.layout,
-      }))
-    : item.children
-      ?.map(child => buildNavigationItem(child, options))
-      .filter((child): child is NavigationItem => Boolean(child));
+  const children =
+    item.dynamicChildren === 'customTextCategories'
+      ? options.customTextCategories.map(category => ({
+          label: category,
+          path: `/custom-text/${category}`,
+          icon: 'dice',
+          title: category,
+          layout: item.layout,
+        }))
+      : item.children
+          ?.map(child => buildNavigationItem(child, options))
+          .filter((child): child is NavigationItem => Boolean(child));
 
   return {
     ...item,
@@ -71,7 +72,7 @@ export function buildRouteMeta(items: NavigationItem[]) {
 export function buildBreadcrumbItems(
   items: NavigationItem[],
   activePath: string,
-  fallbackTitle = '当前页面',
+  fallbackTitle = '当前页面'
 ): NavigationBreadcrumbItem[] {
   const path = activePath === '/home' ? '/' : normalizePath(activePath);
 
@@ -87,7 +88,7 @@ export function buildBreadcrumbItems(
 function findStaticBreadcrumb(
   items: NavigationItem[],
   activePath: string,
-  parents: NavigationBreadcrumbItem[],
+  parents: NavigationBreadcrumbItem[]
 ): NavigationBreadcrumbItem[] | undefined {
   for (const item of items) {
     if (item.hidden) continue;
@@ -108,7 +109,7 @@ function findStaticBreadcrumb(
 function findDynamicBreadcrumb(
   items: NavigationItem[],
   activePath: string,
-  parents: NavigationBreadcrumbItem[],
+  parents: NavigationBreadcrumbItem[]
 ): NavigationBreadcrumbItem[] | undefined {
   for (const item of items) {
     if (item.hidden) continue;
@@ -174,7 +175,7 @@ export function getNavigationExpandedKeys(items: NavigationItem[], activePath: s
 export function resolveMenuNavigationTarget(
   key: string,
   currentPath: string,
-  collapsed: boolean,
+  collapsed: boolean
 ): string | null {
   if (!collapsed) return null;
   if (!key.startsWith('/')) return null;
@@ -186,24 +187,21 @@ export function matchesNavigationSearch(item: NavigationSearchItem, query: strin
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return false;
 
-  return [
-    item.label,
-    item.path,
-    toPinyin(item.label),
-    toPinyinInitials(item.label),
-  ].some(value => normalize(value).includes(normalizedQuery));
+  return [item.label, item.path, toPinyin(item.label), toPinyinInitials(item.label)].some(value =>
+    normalize(value).includes(normalizedQuery)
+  );
 }
 
 export function addSearchHistory(
   history: NavigationSearchItem[],
-  item: NavigationSearchItem,
+  item: NavigationSearchItem
 ): NavigationSearchItem[] {
   return [item, ...history.filter(historyItem => historyItem.path !== item.path)].slice(0, 10);
 }
 
 export function removeSearchHistoryItem(
   history: NavigationSearchItem[],
-  path: string,
+  path: string
 ): NavigationSearchItem[] {
   return history.filter(item => item.path !== path);
 }

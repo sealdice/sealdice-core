@@ -20,16 +20,25 @@ it('validates and prepares official QQ creation through the protocol module', as
   }
 
   const qrWebhook = module.prepareCreateConfig?.(
-    { appID: '10001', appSecret: 'secret', useWebhook: true, webhookPath: '/webhook', webhookPort: 8099 },
+    {
+      appID: '10001',
+      appSecret: 'secret',
+      useWebhook: true,
+      webhookPath: '/webhook',
+      webhookPort: 8099,
+    },
     { officialQQMode: 'qrcode' }
   );
-  if (JSON.stringify(qrWebhook) !== JSON.stringify({
-    appID: '',
-    appSecret: '',
-    useWebhook: true,
-    webhookPath: '/webhook',
-    webhookPort: 8099,
-  })) {
+  if (
+    JSON.stringify(qrWebhook) !==
+    JSON.stringify({
+      appID: '',
+      appSecret: '',
+      useWebhook: true,
+      webhookPath: '/webhook',
+      webhookPort: 8099,
+    })
+  ) {
     throw new Error(`unexpected QR webhook config = ${JSON.stringify(qrWebhook)}`);
   }
 });

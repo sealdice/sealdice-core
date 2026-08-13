@@ -76,10 +76,17 @@ export function useBaseSettingMutations(options: {
 export async function prepareBaseSettingSavePayload(
   current: BaseSettingValueModel,
   initial: BaseSettingValueModel,
-  diffBuilder: (currentValue: BaseSettingValueModel, initialValue: BaseSettingValueModel) => Record<string, unknown>,
+  diffBuilder: (
+    currentValue: BaseSettingValueModel,
+    initialValue: BaseSettingValueModel
+  ) => Record<string, unknown>
 ) {
   const payload = diffBuilder(current, initial);
-  if (typeof payload.uiPassword === 'string' && payload.uiPassword !== '' && payload.uiPassword !== uiPasswordMasked) {
+  if (
+    typeof payload.uiPassword === 'string' &&
+    payload.uiPassword !== '' &&
+    payload.uiPassword !== uiPasswordMasked
+  ) {
     const salt = await getSdApiV2BaseLoginSalt({ throwOnError: true });
     payload.uiPassword = await passwordHash(salt.data.item.salt, payload.uiPassword);
   } else {

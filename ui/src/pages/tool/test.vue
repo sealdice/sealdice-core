@@ -66,12 +66,12 @@
       </div>
     </header>
 
-    <NAlert v-if="toolTest.commandErrorText.value" type="warning" class="tool-test-page__alert">
+    <TipBox v-if="toolTest.commandErrorText.value" type="warning" class="tool-test-page__alert">
       {{ toolTest.commandErrorText.value }}
-    </NAlert>
-    <NAlert v-if="toolTest.pollingErrorText.value" type="error" class="tool-test-page__alert">
+    </TipBox>
+    <TipBox v-if="toolTest.pollingErrorText.value" type="error" class="tool-test-page__alert">
       {{ toolTest.pollingErrorText.value }}
-    </NAlert>
+    </TipBox>
 
     <section class="tool-test-page__workspace" :class="workspaceClass">
       <div class="tool-test-page__chat-column">
@@ -131,21 +131,13 @@
 
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue';
-import {
-  NAlert,
-  NButton,
-  NIcon,
-  NPopover,
-  NRadioButton,
-  NRadioGroup,
-  NSelect,
-  NTag,
-} from 'naive-ui';
+import { NButton, NIcon, NPopover, NRadioButton, NRadioGroup, NSelect, NTag } from 'naive-ui';
 import ToolTestChatWindow from '@/components/tool-test/ToolTestChatWindow.vue';
 import ToolTestCommandComposer from '@/components/tool-test/ToolTestCommandComposer.vue';
 import ToolTestMemberRail from '@/components/tool-test/ToolTestMemberRail.vue';
 import { useToolTest } from '@/features/toolTest/useToolTest';
 import type { ToolTestProfile } from '@/features/toolTest/model';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const toolTest = useToolTest();
 const memberRailOpen = shallowRef(false);

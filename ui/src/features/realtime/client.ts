@@ -7,7 +7,7 @@ const realtimeRefs = storeToRefs(realtimeStore);
 
 export function subscribeRealtimeEvent<T = unknown>(
   event: string,
-  handler: (payload: T) => void,
+  handler: (payload: T) => void
 ): () => void {
   return realtimeStore.subscribeRealtimeEvent(event, handler);
 }

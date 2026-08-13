@@ -92,14 +92,12 @@
               <n-tag v-if="wizardProtocol.deprecated" type="warning" size="small">已废弃</n-tag>
             </h3>
             <p class="split-detail-desc">{{ wizardProtocol.description }}</p>
-            <n-alert
+            <TipBox
               v-if="!wizardProtocol.available && wizardProtocol.disabledReason"
               type="warning"
-              :show-icon="false"
-              class="mt-2"
             >
               {{ wizardProtocol.disabledReason }}
-            </n-alert>
+            </TipBox>
           </template>
         </div>
       </div>
@@ -155,6 +153,7 @@ import type { FormConfigItem, MethodTreeNode, PlatformTreeNode, ProtocolDefiniti
 import ConnectProtocolForm from '@/components/connect/ConnectProtocolForm.vue';
 import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
 import type { SignInfoState } from '@/features/connect/signInfoState';
+import TipBox from '@/components/shared/TipBox.vue';
 
 defineProps<{
   protocols: PlatformTreeNode[];

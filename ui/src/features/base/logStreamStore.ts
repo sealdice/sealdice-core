@@ -38,22 +38,22 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
     if (initialized) return;
     initialized = true;
 
-    realtimeStore.subscribeRealtimeEvent<LogSnapshotPayload>('logs/snapshot', (payload) => {
+    realtimeStore.subscribeRealtimeEvent<LogSnapshotPayload>('logs/snapshot', payload => {
       applySnapshot(payload?.items ?? null);
     });
 
-    realtimeStore.subscribeRealtimeEvent<LogAppendPayload>('logs/append', (payload) => {
+    realtimeStore.subscribeRealtimeEvent<LogAppendPayload>('logs/append', payload => {
       applyAppend(payload?.item ?? null, 500);
     });
 
     watch(
       () => authStore.hasAccessToken,
-      (canAccess) => {
+      canAccess => {
         if (!canAccess) {
           clearLogs();
         }
       },
-      { immediate: true },
+      { immediate: true }
     );
   }
 
