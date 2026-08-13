@@ -25,7 +25,7 @@
     <div
       v-if="showPanel && (!collapsible || expanded)"
       :id="panelId"
-      class="setting-category-panel"
+      :class="['setting-category-panel', { 'setting-category-panel-padded': padded }]"
       role="region"
       :aria-labelledby="headingId"
     >
@@ -106,12 +106,21 @@ const emit = defineEmits<{
   background: var(--sd-bg-elevated);
 }
 
-/* 说明块与子面板内的字段共用同一组左右内边距，
-   不能紧贴子面板边缘。下边距留出与首个字段的间隔。 */
+/*
+ * 说明块与子面板内的字段左右对齐，且上下内边距必须与面板底部一致。
+ * 底部内边距的来源随 padded 变化，因此这里的顶部内边距也要跟着变：
+ * - 未 padded：字段由 SettingRow 自带 --sd-space-xs 纵向内边距，底部即 xs；
+ * - 已 padded：由 SettingFieldLayout 提供 --sd-space-md 四边内边距，底部即 md。
+ * 与字段之间的间隔由后续容器自身的顶部内边距提供，故这里 bottom 为 0。
+ */
 .setting-category-notes {
   display: flex;
   flex-direction: column;
   gap: var(--sd-space-xs);
+  padding: var(--sd-space-xs) var(--sd-space-md) 0;
+}
+
+.setting-category-panel-padded .setting-category-notes {
   padding: var(--sd-space-md) var(--sd-space-md) 0;
 }
 
@@ -124,7 +133,12 @@ const emit = defineEmits<{
     margin: 0 var(--sd-space-xs) var(--sd-space-2xs);
   }
 
+  /* 窄屏下字段内边距收窄为 sm，说明块跟随。 */
   .setting-category-notes {
+    padding: var(--sd-space-xs) var(--sd-space-sm) 0;
+  }
+
+  .setting-category-panel-padded .setting-category-notes {
     padding: var(--sd-space-sm) var(--sd-space-sm) 0;
   }
 }
