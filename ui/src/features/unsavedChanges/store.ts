@@ -22,6 +22,11 @@ export interface UnsavedChangesSourceOptions {
   kind?: PendingActionKind;
   /** 操作按钮文案，默认按 kind 推导（保存设置 / 立即重载）。 */
   actionText?: MaybeRefOrGetter<string>;
+  /**
+   * 把草稿恢复为远端值。提供后，待处理状态条会一并显示「放弃改动」，
+   * 使「保存」有对称的撤销出口。未提供的来源不显示该按钮。
+   */
+  discard?: () => Promise<unknown> | unknown;
 }
 
 interface RegisteredUnsavedChangesSource extends UnsavedChangesSourceOptions {
@@ -35,6 +40,7 @@ export interface ActiveUnsavedChangesSource {
   label: string;
   actionText: string;
   save?: () => Promise<unknown> | unknown;
+  discard?: () => Promise<unknown> | unknown;
   saving: boolean;
   canSave: boolean;
   confirmMessage: string;
@@ -78,6 +84,7 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
       label,
       actionText,
       save: source.save,
+      discard: source.discard,
       saving: source.saving ? Boolean(toValue(source.saving)) : false,
       canSave: source.canSave ? Boolean(toValue(source.canSave)) : Boolean(source.save),
       confirmMessage,
@@ -176,6 +183,18 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
     return runPendingAction(source.scope);
   }
 
+  async function discardPendingAction(scope: string): Promise<boolean> {
+    const source = activePendingActions.value.find(item => item.scope === scope);
+    if (!source?.discard) return false;
+
+    try {
+      await source.discard();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   return {
     activePendingActions,
     activeUnsavedChangesSource,
@@ -188,6 +207,7 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
     setConfirmHandler,
     confirmDiscard,
     runPendingAction,
+    discardPendingAction,
     saveActive,
   };
 });

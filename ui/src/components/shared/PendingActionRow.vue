@@ -6,22 +6,37 @@
 
     <n-text class="pending-action-row__label">{{ statusText }}</n-text>
 
-    <n-button
-      type="primary"
-      class="pending-action-row__button"
-      :size="size"
-      :loading="action.saving"
-      :disabled="!action.canSave || action.saving"
-      @click="emit('run')"
-    >
-      <template #icon>
-        <n-icon>
-          <i-tabler-device-floppy v-if="action.kind === 'unsaved'" />
-          <i-tabler-refresh v-else />
-        </n-icon>
-      </template>
-      {{ action.actionText }}
-    </n-button>
+    <div class="pending-action-row__actions">
+      <!-- 「放弃改动」使保存有对称的撤销出口，仅在来源提供 discard 时出现。 -->
+      <n-button
+        v-if="action.discard"
+        secondary
+        :size="size"
+        :disabled="action.saving"
+        @click="emit('discard')"
+      >
+        <template #icon>
+          <n-icon><i-tabler-arrow-back-up /></n-icon>
+        </template>
+        放弃改动
+      </n-button>
+
+      <n-button
+        type="primary"
+        :size="size"
+        :loading="action.saving"
+        :disabled="!action.canSave || action.saving"
+        @click="emit('run')"
+      >
+        <template #icon>
+          <n-icon>
+            <i-tabler-device-floppy v-if="action.kind === 'unsaved'" />
+            <i-tabler-refresh v-else />
+          </n-icon>
+        </template>
+        {{ action.actionText }}
+      </n-button>
+    </div>
   </div>
 </template>
 
@@ -42,7 +57,7 @@ const props = withDefaults(
   }
 );
 
-const emit = defineEmits<{ run: [] }>();
+const emit = defineEmits<{ run: []; discard: [] }>();
 
 const statusText = computed(() => {
   const state = props.action.kind === 'unsaved' ? '未保存' : '待重载';
@@ -76,8 +91,11 @@ const statusText = computed(() => {
   line-height: 1.3;
 }
 
-.pending-action-row__button {
+.pending-action-row__actions {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: var(--sd-space-xs);
 }
 
 @media (max-width: 640px) {
@@ -87,11 +105,15 @@ const statusText = computed(() => {
   }
 
   .pending-action-row__label {
-    flex: 1 1 auto;
+    flex: 1 1 100%;
   }
 
-  .pending-action-row__button {
+  .pending-action-row__actions {
     width: 100%;
+  }
+
+  .pending-action-row__actions :deep(.n-button) {
+    flex: 1 1 0;
     min-height: 44px;
   }
 }

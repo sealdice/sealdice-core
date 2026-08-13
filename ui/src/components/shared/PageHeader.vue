@@ -10,6 +10,7 @@
           :key="action.scope"
           :action="action"
           @run="handleRun(action.scope)"
+          @discard="handleDiscard(action.scope)"
         />
       </div>
       <slot />
@@ -22,6 +23,7 @@ import { computed, onBeforeUnmount, useTemplateRef, watch } from 'vue';
 import PendingActionRow from '@/components/shared/PendingActionRow.vue';
 import {
   activePendingActions,
+  discardPendingAction,
   runPendingAction,
   setPendingActionAnchor,
 } from '@/features/unsavedChanges';
@@ -54,6 +56,10 @@ onBeforeUnmount(() => setPendingActionAnchor(null));
 
 async function handleRun(scope: string) {
   await runPendingAction(scope);
+}
+
+async function handleDiscard(scope: string) {
+  await discardPendingAction(scope);
 }
 </script>
 

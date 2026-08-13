@@ -7,6 +7,7 @@
         :action="action"
         with-label
         @run="handleRun(action.scope)"
+        @discard="handleDiscard(action.scope)"
       />
     </section>
   </transition>
@@ -18,6 +19,7 @@ import PendingActionRow from '@/components/shared/PendingActionRow.vue';
 import {
   activePendingActions,
   isPendingActionAnchorVisible,
+  discardPendingAction,
   runPendingAction,
 } from '@/features/unsavedChanges';
 
@@ -28,6 +30,10 @@ const visible = computed(() => actions.value.length > 0 && !isPendingActionAncho
 
 async function handleRun(scope: string) {
   await runPendingAction(scope);
+}
+
+async function handleDiscard(scope: string) {
+  await discardPendingAction(scope);
 }
 </script>
 

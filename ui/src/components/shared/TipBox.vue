@@ -33,7 +33,9 @@ const iconVisible = computed(
 <style scoped>
 .tip-box {
   display: flex;
-  align-items: flex-start;
+  /* 图标相对整个提示框垂直居中。规范限定「一条提示只讲一个主题」，
+     正文不会长到让居中的图标显得脱离文字。 */
+  align-items: center;
   gap: var(--sd-space-xs);
   border-left: 3px solid var(--tip-box-accent);
   border-radius: var(--sd-radius-xs);
@@ -67,9 +69,6 @@ const iconVisible = computed(
 .tip-box__icon {
   flex: 0 0 auto;
   display: flex;
-  /* 与首行文字视觉居中对齐：撑满一个行高再在其中居中，
-     而不是靠 margin 估算偏移。多行时图标仍留在首行。 */
-  height: calc(1em * 1.6);
   align-items: center;
   color: var(--tip-box-accent);
 }

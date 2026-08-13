@@ -29,7 +29,9 @@
       role="region"
       :aria-labelledby="headingId"
     >
-      <slot name="notes" />
+      <div v-if="$slots.notes" class="setting-category-notes">
+        <slot name="notes" />
+      </div>
       <SettingFieldLayout :columns="columns" :padded="padded">
         <slot />
       </SettingFieldLayout>
@@ -104,6 +106,15 @@ const emit = defineEmits<{
   background: var(--sd-bg-elevated);
 }
 
+/* 说明块与子面板内的字段共用同一组左右内边距，
+   不能紧贴子面板边缘。下边距留出与首个字段的间隔。 */
+.setting-category-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sd-space-xs);
+  padding: var(--sd-space-md) var(--sd-space-md) 0;
+}
+
 @media (max-width: 639.9px) {
   .setting-category-box {
     padding-bottom: var(--sd-space-xs);
@@ -111,6 +122,10 @@ const emit = defineEmits<{
 
   .setting-category-thing {
     margin: 0 var(--sd-space-xs) var(--sd-space-2xs);
+  }
+
+  .setting-category-notes {
+    padding: var(--sd-space-sm) var(--sd-space-sm) 0;
   }
 }
 </style>

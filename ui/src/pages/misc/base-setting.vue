@@ -1,24 +1,6 @@
 <template>
   <main class="base-setting-page">
-    <PageHeader title="基本设置">
-      <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
-        <template #icon>
-          <n-icon><i-tabler-arrow-back-up /></n-icon>
-        </template>
-        放弃改动
-      </n-button>
-      <n-button
-        type="primary"
-        :loading="saveMutation.isPending.value"
-        :disabled="!draft.dirty.value"
-        @click="saveChanges"
-      >
-        <template #icon>
-          <n-icon><i-tabler-device-floppy /></n-icon>
-        </template>
-        保存设置
-      </n-button>
-    </PageHeader>
+    <PageHeader title="基本设置" unsaved-scope="base-setting" />
 
     <BaseSettingSearchBar
       v-model:keyword="searchKeyword"
@@ -49,7 +31,6 @@
                   v-for="(note, noteIndex) in group.notes"
                   :key="`${group.id}-${noteIndex}`"
                   :type="note.tone === 'warning' ? 'warning' : 'info'"
-                  class="group-note"
                 >
                   <div v-for="(line, lineIndex) in note.lines" :key="lineIndex">
                     {{ line }}
@@ -173,6 +154,7 @@ useUnsavedChanges('base-setting', {
   save: saveChanges,
   saving: computed(() => saveMutation.isPending.value),
   canSave: computed(() => draft.dirty.value),
+  discard: resetChanges,
   confirmMessage: '基本设置还有修改，确定要忽略？',
 });
 
@@ -263,10 +245,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
   padding-bottom: var(--sd-space-xl);
 }
 
-.group-note {
-  margin: var(--sd-space-sm) var(--sd-space-md) 0.35rem;
-}
-
 @media (max-width: 768px) {
   .setting-groups {
     gap: 0.15rem;
@@ -276,10 +254,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 @media (max-width: 639.9px) {
   .setting-tabs {
     margin-top: var(--sd-space-xs);
-  }
-
-  .group-note {
-    margin: var(--sd-space-xs) var(--sd-space-sm) 0.3rem;
   }
 }
 </style>

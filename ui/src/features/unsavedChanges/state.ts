@@ -51,3 +51,7 @@ export async function saveActiveUnsavedChanges(): Promise<boolean> {
 export async function runPendingAction(scope: string): Promise<boolean> {
   return unsavedChangesStore.runPendingAction(scope);
 }
+
+export async function discardPendingAction(scope: string): Promise<boolean> {
+  return unsavedChangesStore.discardPendingAction(scope);
+}

@@ -1,19 +1,6 @@
 <template>
   <main class="advanced-page">
-    <PageHeader title="高级设置" unsaved-scope="advanced-setting">
-      <n-button secondary :disabled="!modified" @click="reload">
-        <template #icon>
-          <n-icon><i-tabler-arrow-back-up /></n-icon>
-        </template>
-        放弃改动
-      </n-button>
-      <n-button type="primary" :loading="saving" :disabled="saving || !modified" @click="save">
-        <template #icon>
-          <n-icon><i-tabler-device-floppy /></n-icon>
-        </template>
-        保存设置
-      </n-button>
-    </PageHeader>
+    <PageHeader title="高级设置" unsaved-scope="advanced-setting" />
     <TipBox type="warning">
       <p>
         <strong>除非你知道自己在做什么，否则不要修改此处的任何设置项。</strong>
@@ -245,6 +232,7 @@ useUnsavedChanges('advanced-setting', {
   dirty: modified,
   save,
   saving,
+  discard: reload,
   confirmMessage: '高级设置还有修改，确定要忽略？',
 });
 

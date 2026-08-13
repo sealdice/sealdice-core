@@ -5,6 +5,7 @@ import {
   activePendingActions,
   activeUnsavedChangesSource,
   confirmDiscardUnsavedChanges,
+  discardPendingAction,
   hasPendingActions,
   hasUnsavedChanges,
   registerUnsavedChangesSource,
@@ -67,6 +68,29 @@ it('按 scope 执行对应的待处理动作', async () => {
   expect(calls).toEqual(['b']);
 
   expect(await runPendingAction('missing')).toBe(false);
+});
+
+it('仅在来源提供 discard 时可放弃改动', async () => {
+  resetStore();
+
+  let discarded = false;
+  registerUnsavedChangesSource('with-discard', {
+    label: 'A',
+    dirty: true,
+    save: () => {},
+    discard: () => {
+      discarded = true;
+    },
+  });
+  registerUnsavedChangesSource('without-discard', { label: 'B', dirty: true, save: () => {} });
+
+  const byScope = new Map(activePendingActions.value.map(item => [item.scope, item]));
+  expect(typeof byScope.get('with-discard')?.discard).toBe('function');
+  expect(byScope.get('without-discard')?.discard).toBeUndefined();
+
+  expect(await discardPendingAction('with-discard')).toBe(true);
+  expect(discarded).toBe(true);
+  expect(await discardPendingAction('without-discard')).toBe(false);
 });
 
 it('操作文案按类型给默认值，可被覆盖', () => {

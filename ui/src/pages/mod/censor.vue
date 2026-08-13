@@ -175,6 +175,7 @@ useUnsavedChanges('censor-config', {
   save: saveConfig,
   saving: computed(() => saveConfigMutation.isPending.value),
   canSave: computed(() => enabledForContent.value && configDraft.dirty.value),
+  discard: () => configDraft.resetToRemote(),
   confirmMessage: '拦截设置还有修改，确定要忽略？',
 });
 

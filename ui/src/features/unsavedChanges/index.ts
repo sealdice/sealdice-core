@@ -2,6 +2,7 @@ export {
   activePendingActions,
   activeUnsavedChangesSource,
   hasPendingActions,
+  discardPendingAction,
   hasUnsavedChanges,
   runPendingAction,
   saveActiveUnsavedChanges,

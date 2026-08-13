@@ -188,6 +188,7 @@ useUnsavedChanges('helpdoc-config', {
   save: saveConfig,
   saving: computed(() => saveConfigMutation.isPending.value),
   canSave: computed(() => configDraft.dirty.value),
+  discard: () => configDraft.resetToRemote(),
   confirmMessage: '帮助文档设置还有修改，确定要忽略？',
 });
 
