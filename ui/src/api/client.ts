@@ -124,40 +124,43 @@ export function setupApiClient(): void {
     return config;
   });
 
-  client.instance.interceptors.response.use(response => {
-    // 后端可通过 new-token 滚动刷新会话。刷新只更新唯一 token 源，
-    // 不再维护旧版 localStorage.t。
-    const newToken = response.headers['new-token'];
-    if (newToken) {
-      setAccessToken(Array.isArray(newToken) ? String(newToken[0]) : String(newToken));
+  client.instance.interceptors.response.use(
+    response => {
+      // 后端可通过 new-token 滚动刷新会话。刷新只更新唯一 token 源，
+      // 不再维护旧版 localStorage.t。
+      const newToken = response.headers['new-token'];
+      if (newToken) {
+        setAccessToken(Array.isArray(newToken) ? String(newToken[0]) : String(newToken));
+      }
+
+      return response;
+    },
+    error => {
+      // 路由切换会让 TanStack Query 取消仍在进行中的请求，这属于正常控制流，
+      // 不应再被用户看到为 “Canceled” 弹窗或错误提示。
+      if (isRequestCanceledError(error)) {
+        return Promise.reject(error);
+      }
+
+      const axiosError = axios.isAxiosError(error) ? error : undefined;
+      if (!axiosError?.response) {
+        showApiFeedback(createNetworkErrorFeedback(error), clearApiSession);
+        return Promise.reject(error);
+      }
+
+      const apiError = toApiError(axiosError);
+      const pathname = getRequestPathname(axiosError.config);
+
+      // 登录接口自身的 401 只代表密码错误，不应清空当前页面其它状态；
+      // 其它接口 401 才视作会话失效。
+      if (apiError.status === 401 && pathname !== '/sd-api/v2/base/login') {
+        clearApiSession();
+      }
+      showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearApiSession);
+
+      return Promise.reject(apiError);
     }
-
-    return response;
-  }, error => {
-    // 路由切换会让 TanStack Query 取消仍在进行中的请求，这属于正常控制流，
-    // 不应再被用户看到为 “Canceled” 弹窗或错误提示。
-    if (isRequestCanceledError(error)) {
-      return Promise.reject(error);
-    }
-
-    const axiosError = axios.isAxiosError(error) ? error : undefined;
-    if (!axiosError?.response) {
-      showApiFeedback(createNetworkErrorFeedback(error), clearApiSession);
-      return Promise.reject(error);
-    }
-
-    const apiError = toApiError(axiosError);
-    const pathname = getRequestPathname(axiosError.config);
-
-    // 登录接口自身的 401 只代表密码错误，不应清空当前页面其它状态；
-    // 其它接口 401 才视作会话失效。
-    if (apiError.status === 401 && pathname !== '/sd-api/v2/base/login') {
-      clearApiSession();
-    }
-    showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearApiSession);
-
-    return Promise.reject(apiError);
-  });
+  );
 }
 
 function clearApiSession(): void {
@@ -171,7 +174,8 @@ function pickErrorMessage(error: ApiError): string {
 }
 
 function isTestModeBlockedError(error: ApiError): boolean {
-  const data = typeof error.data === 'object' && error.data ? error.data as Record<string, unknown> : null;
+  const data =
+    typeof error.data === 'object' && error.data ? (error.data as Record<string, unknown>) : null;
   return (
     error.code === TEST_MODE_ERROR_CODE ||
     data?.testMode === true ||
@@ -195,7 +199,7 @@ function dialogParagraph(parts: Array<string | number>, key: number): VNodeChild
     parts.map((part, index) => {
       if (typeof part === 'number') return errorCodeNode(part);
       return h('span', { key: index }, part);
-    }),
+    })
   );
 }
 
@@ -204,13 +208,13 @@ function dialogContent(paragraphs: Array<Array<string | number>>): () => VNodeCh
     h(
       'div',
       { class: 'api-error-dialog-content' },
-      paragraphs.map((paragraph, index) => dialogParagraph(paragraph, index)),
+      paragraphs.map((paragraph, index) => dialogParagraph(paragraph, index))
     );
 }
 
 export function createApiErrorFeedback(
   error: ApiError,
-  options: { pathname?: string } = {},
+  options: { pathname?: string } = {}
 ): ApiErrorFeedback {
   const errorMessage = pickErrorMessage(error);
 
@@ -232,10 +236,7 @@ export function createApiErrorFeedback(
     return {
       kind: 'dialog',
       title: '身份信息',
-      content: dialogContent([
-        ['无效的令牌'],
-        ['错误码:', 401, `错误信息:${formatError(error)}`],
-      ]),
+      content: dialogContent([['无效的令牌'], ['错误码:', 401, `错误信息:${formatError(error)}`]]),
       positiveText: '重新登录',
       negativeText: '取消',
       clearSession: true,
@@ -290,20 +291,25 @@ export function createApiErrorFeedback(
   };
 }
 
-export function createNetworkErrorFeedback(error: unknown): ApiErrorFeedback {
+export function createNetworkErrorFeedback(_error?: unknown): ApiErrorFeedback {
+  void _error;
   return {
     kind: 'dialog',
     title: '请求报错',
-    content: dialogContent([
-      ['检测到请求错误'],
-      [formatError(error)],
-    ]),
+    content: dialogContent([['正在自动重连，页面数据可能暂时不是最新，请检查后台是否正常运行。']]),
     positiveText: '稍后重试',
     negativeText: '取消',
   };
 }
 
-function showDialog(feedback: Extract<ApiErrorFeedback, { kind: 'dialog' }>, onClearSession: () => void) {
+export function showNetworkErrorDialog(): void {
+  showApiFeedback(createNetworkErrorFeedback(), () => undefined);
+}
+
+function showDialog(
+  feedback: Extract<ApiErrorFeedback, { kind: 'dialog' }>,
+  onClearSession: () => void
+) {
   const key = `${feedback.title}:${pickDialogText(feedback.content())}`;
   if (activeDialogKey === key) return;
 

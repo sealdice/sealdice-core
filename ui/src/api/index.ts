@@ -1,4 +1,4 @@
-export { ApiError, setupApiClient } from './client';
+export { ApiError, setupApiClient, showNetworkErrorDialog } from './client';
 export { getApiBaseUrl, joinApiBasePath } from './config';
 
 // Generated API (hey-api / openapi-ts output)
