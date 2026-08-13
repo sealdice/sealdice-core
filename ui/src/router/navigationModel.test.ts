@@ -25,10 +25,10 @@ const assertDeepEqual = (actual: unknown, expected: unknown) => {
 
 const sourceItems: NavigationItem[] = [
   {
-    label: '主页',
+    label: '运行概览',
     path: '/',
     icon: 'home',
-    title: '主页',
+    title: '运行概览',
     layout: 'default',
   },
   {
@@ -115,13 +115,13 @@ assertDeepEqual(addSearchHistory(history, baseSetting), [baseSetting]);
 assertDeepEqual(removeSearchHistoryItem(history, baseSetting.path), []);
 
 const routeMeta = buildRouteMeta(sourceItems);
-assertDeepEqual(routeMeta['/'], { title: '主页', layout: 'default' satisfies AppLayoutName });
+assertDeepEqual(routeMeta['/'], { title: '运行概览', layout: 'default' satisfies AppLayoutName });
 assertDeepEqual(routeMeta['/custom-text/:category'], { title: '自定义文案', layout: 'default' satisfies AppLayoutName });
 assertDeepEqual(routeMeta['/misc/base-setting'], { title: '基本设置', layout: 'default' satisfies AppLayoutName });
 assertDeepEqual(routeMeta['/mod/reply'], { title: '自定义回复', layout: 'workspace' satisfies AppLayoutName });
 assertEqual(routeMeta['/hidden'], undefined);
 
-assertDeepEqual(buildBreadcrumbItems(sourceItems, '/'), [{ label: '主页' }]);
+assertDeepEqual(buildBreadcrumbItems(sourceItems, '/'), [{ label: '运行概览' }]);
 assertDeepEqual(buildBreadcrumbItems(sourceItems, '/misc/base-setting'), [
   { label: '综合设置' },
   { label: '基本设置' },

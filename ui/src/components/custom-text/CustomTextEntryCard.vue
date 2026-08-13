@@ -98,7 +98,7 @@
             <div class="relative flex-auto">
               <n-input
                 v-model:value="item[0]"
-                class="w-full"
+                class="w-full sd-code-text"
                 type="textarea"
                 :autosize="{ minRows: 1, maxRows: 4 }"
                 @update:value="emit('change', category, keyName)"

@@ -1,6 +1,6 @@
 <template>
   <main class="story-page">
-    <PageHeader title="跑团日志" description="查看、上传、清理和备份跑团日志。" />
+    <PageHeader title="跑团日志" />
     <n-tabs v-model:value="tab">
       <n-tab-pane tab="跑团日志" name="list">
         <template v-if="mode === 'logs'">
@@ -220,7 +220,6 @@
             <div class="cleanup-panel-head">
               <div>
                 <h3>清理参数</h3>
-                <p>先预览，再执行危险操作。</p>
               </div>
               <n-button secondary @click="refreshCleanupPreview">刷新预览</n-button>
             </div>
@@ -251,7 +250,6 @@
             <div class="cleanup-panel-head">
               <div>
                 <h3>预览结果</h3>
-                <p>依据当前阈值估算待删除范围。</p>
               </div>
             </div>
 

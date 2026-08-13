@@ -2,10 +2,10 @@
   <section :class="['setting-category-box', { 'setting-category-box-wide': wide }]">
     <n-thing class="setting-category-thing">
       <template #header>
-        <span :id="headingId" class="setting-category-title">{{ title }}</span>
-      </template>
-      <template v-if="description" #description>
-        <span class="setting-category-description">{{ description }}</span>
+        <span class="setting-category-heading">
+          <span :id="headingId" class="setting-category-title">{{ title }}</span>
+          <slot name="title-extra" />
+        </span>
       </template>
       <template v-if="collapsible" #header-extra>
         <n-button
@@ -23,31 +23,41 @@
     </n-thing>
 
     <div
-      v-if="!collapsible || expanded"
+      v-if="showPanel && (!collapsible || expanded)"
       :id="panelId"
       class="setting-category-panel"
       role="region"
       :aria-labelledby="headingId"
     >
       <slot name="notes" />
-      <slot />
+      <SettingFieldLayout :columns="columns" :padded="padded">
+        <slot />
+      </SettingFieldLayout>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { useId } from 'vue';
+import SettingFieldLayout from './SettingFieldLayout.vue';
 
 const panelId = `setting-category-panel-${useId()}`;
 const headingId = `setting-category-heading-${useId()}`;
 
-defineProps<{
-  title: string;
-  description?: string;
-  collapsible?: boolean;
-  expanded?: boolean;
-  wide?: boolean;
-}>();
+withDefaults(
+  defineProps<{
+    title: string;
+    collapsible?: boolean;
+    expanded?: boolean;
+    wide?: boolean;
+    padded?: boolean;
+    columns?: 1 | 2;
+    showPanel?: boolean;
+  }>(),
+  {
+    showPanel: true,
+  }
+);
 
 const emit = defineEmits<{
   toggle: [];
@@ -74,10 +84,11 @@ const emit = defineEmits<{
   line-height: 1.35;
 }
 
-.setting-category-description {
-  color: var(--sd-text-muted);
-  font-size: 0.82rem;
-  line-height: 1.45;
+.setting-category-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sd-space-xs);
+  min-width: 0;
 }
 
 .setting-category-toggle {

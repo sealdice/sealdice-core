@@ -1,6 +1,6 @@
 <template>
   <main class="connect-page">
-    <PageHeader title="账号设置" description="管理已接入平台账号及其连接配置。">
+    <PageHeader title="账号设置">
       <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
         <template #icon
           ><n-icon><i-tabler-plus /></n-icon

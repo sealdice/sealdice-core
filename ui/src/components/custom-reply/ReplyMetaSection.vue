@@ -1,15 +1,15 @@
 <template>
   <header class="reply-meta-section">
-    <PageHeader title="自定义回复" description="管理回复文件、条件和回复规则。">
-      <n-switch
-        :value="replyEnabled"
-        :loading="switchLoading"
-        @update:value="emit('toggleReplyEnabled', $event)"
-      >
-        <template #checked>启用</template>
-        <template #unchecked>关闭</template>
-        总开关
-      </n-switch>
+    <PageHeader title="自定义回复">
+      <n-flex align="center" size="small">
+        <n-text depth="3">启用自定义回复</n-text>
+        <n-switch
+          :value="replyEnabled"
+          :loading="switchLoading"
+          aria-label="启用自定义回复"
+          @update:value="emit('toggleReplyEnabled', $event)"
+        />
+      </n-flex>
 
       <n-button
         v-if="replyEnabled"

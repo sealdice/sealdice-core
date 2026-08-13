@@ -1,6 +1,6 @@
 <template>
   <main class="deck-page">
-    <PageHeader title="牌堆管理" description="搜索、上传和更新可用于指令测试的牌堆。">
+    <PageHeader title="牌堆管理">
       <n-button type="primary" :loading="reloadMutation.isPending.value" @click="doReload">
         <template #icon>
           <n-icon><i-tabler-refresh /></n-icon>
@@ -18,19 +18,7 @@
       />
 
       <ListActions>
-        <n-button
-          type="primary"
-          secondary
-          tag="a"
-          target="_blank"
-          rel="noreferrer"
-          href="https://github.com/sealdice/draw"
-        >
-          <template #icon>
-            <n-icon><i-tabler-link /></n-icon>
-          </template>
-          获取牌堆
-        </n-button>
+        <PackageStoreLink>获取牌堆</PackageStoreLink>
 
         <input
           ref="fileInputRef"
@@ -313,6 +301,7 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import { getApiBaseUrl } from '@/api/config';
 import {
   getTestModeBlockMessage,
@@ -666,6 +655,12 @@ function deckUpdate() {
 
 <style scoped>
 .deck-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.deck-page > :deep(.n-spin-container > .n-spin-content) {
   display: flex;
   flex-direction: column;
   gap: 1rem;

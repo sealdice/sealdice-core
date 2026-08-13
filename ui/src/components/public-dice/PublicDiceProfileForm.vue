@@ -25,19 +25,7 @@
       </n-form-item>
 
       <n-form-item path="publicDiceName">
-        <template #label>
-          <span class="public-dice-profile-form__label">
-            公骰昵称
-            <n-tooltip placement="top">
-              <template #trigger>
-                <n-icon class="public-dice-profile-form__help">
-                  <i-tabler-help-circle />
-                </n-icon>
-              </template>
-              展示在公骰列表中的昵称。
-            </n-tooltip>
-          </span>
-        </template>
+        <template #label>公骰昵称</template>
         <n-input
           v-model:value="config.publicDiceName"
           :disabled="disabled"
@@ -46,19 +34,7 @@
       </n-form-item>
 
       <n-form-item path="publicDiceAvatar">
-        <template #label>
-          <span class="public-dice-profile-form__label">
-            公骰头像
-            <n-tooltip placement="top">
-              <template #trigger>
-                <n-icon class="public-dice-profile-form__help">
-                  <i-tabler-help-circle />
-                </n-icon>
-              </template>
-              展示在公骰列表中的头像 URL。
-            </n-tooltip>
-          </span>
-        </template>
+        <template #label>公骰头像</template>
         <n-input
           v-model:value="config.publicDiceAvatar"
           :disabled="disabled"
@@ -67,19 +43,7 @@
       </n-form-item>
 
       <n-form-item path="publicDiceNote">
-        <template #label>
-          <span class="public-dice-profile-form__label">
-            骰主留言
-            <n-tooltip placement="top">
-              <template #trigger>
-                <n-icon class="public-dice-profile-form__help">
-                  <i-tabler-help-circle />
-                </n-icon>
-              </template>
-              展示在公骰列表中的骰主留言。
-            </n-tooltip>
-          </span>
-        </template>
+        <template #label>骰主留言</template>
         <n-input
           v-model:value="config.publicDiceNote"
           :disabled="disabled"

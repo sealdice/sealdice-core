@@ -190,6 +190,7 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
 }
 
 .backup-file-list__toolbar {
+  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
@@ -246,14 +247,13 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
 }
 
 @media (max-width: 760px) {
-  .backup-file-list__summary,
-  .backup-file-list__toolbar {
+  .backup-file-list__summary {
     align-items: flex-start;
     flex-direction: column;
   }
 
   .backup-file-list__toolbar {
-    align-items: stretch;
+    justify-content: flex-start;
   }
 }
 </style>

@@ -1,23 +1,14 @@
 <template>
   <section class="about-credits">
-    <div class="about-credits__header">
-      <p class="about-credits__eyebrow">Credits</p>
-      <h2>感谢</h2>
-      <p>感谢参与测试、反馈、文档、扩展和指令设计的社区成员。</p>
-    </div>
+    <h2>感谢</h2>
 
     <div class="about-credits__sections">
-      <n-card
+      <section
         v-for="section in props.sections"
         :key="section.title"
-        :bordered="false"
         class="about-credits__section"
       >
-        <template #header>
-          <div class="about-credits__section-title">
-            {{ section.title }}
-          </div>
-        </template>
+        <h3>{{ section.title }}</h3>
 
         <div v-if="section.contributors?.length" class="about-credits__contributors">
           <AboutContributorCard
@@ -48,7 +39,7 @@
             <span v-if="line.tail">{{ line.tail }}</span>
           </p>
         </div>
-      </n-card>
+      </section>
     </div>
   </section>
 </template>
@@ -65,71 +56,65 @@ const props = defineProps<{
 <style scoped>
 .about-credits {
   display: grid;
-  gap: 16px;
-}
-
-.about-credits__header {
-  display: grid;
-  gap: 6px;
-  padding: 0 2px;
-}
-
-.about-credits__eyebrow {
-  margin: 0;
-  color: var(--sd-primary);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.about-credits__header h2 {
-  margin: 0;
-  color: var(--sd-text-primary);
-  font-size: clamp(24px, 3vw, 34px);
-  line-height: 1.15;
-}
-
-.about-credits__header p {
-  margin: 0;
-  color: var(--sd-text-secondary);
-}
-
-.about-credits__sections {
-  display: grid;
   gap: 14px;
 }
 
-.about-credits__section {
-  border: 1px solid var(--sd-border-soft);
-  border-radius: 22px;
+.about-credits > h2 {
+  margin: 0;
+  color: var(--sd-text-primary);
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.about-credits__sections {
+  overflow: hidden;
+  border: 1px solid var(--sd-border);
+  border-radius: var(--sd-radius-lg);
   background: var(--sd-bg-elevated);
 }
 
-.about-credits__section-title {
+.about-credits__section {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border-top: 1px solid var(--sd-border-soft);
+}
+
+.about-credits__section:first-child {
+  border-top: 0;
+  background: linear-gradient(90deg, var(--sd-primary-soft), transparent 72%);
+}
+
+.about-credits__section h3 {
+  margin: 0;
   color: var(--sd-text-primary);
-  font-size: 17px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.3;
 }
 
 .about-credits__contributors {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
 }
 
 .about-credits__lines {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .about-credits__line {
   margin: 0;
   color: var(--sd-text-secondary);
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 @media screen and (max-width: 639.9px) {
+  .about-credits__section {
+    padding: 16px;
+  }
+
   .about-credits__contributors {
     grid-template-columns: minmax(0, 1fr);
   }

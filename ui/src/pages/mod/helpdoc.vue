@@ -1,6 +1,6 @@
 <template>
   <main class="helpdoc-page">
-    <PageHeader title="帮助文档" description="维护帮助文档文件和可检索词条。">
+    <PageHeader title="帮助文档">
       <n-button
         type="primary"
         :loading="reloadMutation.isPending.value"

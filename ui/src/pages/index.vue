@@ -664,6 +664,7 @@ h1 {
   border-radius: var(--sd-radius-xs);
   background: var(--sd-bg-elevated-muted);
   color: var(--sd-text-secondary);
+  font-family: var(--sd-font-code);
   font-size: 0.67rem;
   font-weight: 500;
   letter-spacing: 0.025em;
@@ -698,6 +699,7 @@ h1 {
   align-items: flex-start;
   gap: 0.55rem;
   color: var(--sd-text-primary);
+  font-family: var(--sd-font-code);
 }
 
 @media (max-width: 1100px) {

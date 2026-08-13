@@ -15,16 +15,11 @@
       <n-divider class="header-overflow__divider" />
       <div class="header-overflow__version">
         <n-tag :bordered="false" :type="isStable ? 'success' : 'default'" size="small">
-          {{ isStable ? '正式版' : '测试版' }}
+          {{ channelText }}
         </n-tag>
-        <n-tooltip placement="left">
-          <template #trigger>
-            <span class="header-overflow__version-text">
-              {{ overview?.version.simple ?? '-' }}
-            </span>
-          </template>
-          {{ overview?.version.value ?? '-' }}
-        </n-tooltip>
+        <span class="header-overflow__version-text">
+          {{ overview?.version.simple ?? '-' }}
+        </span>
       </div>
       <n-text v-if="hasNewVersion" depth="3" class="header-overflow__update">
         新版本 {{ overview?.version.latest }}
@@ -37,7 +32,7 @@
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import AppInstallButton from './AppInstallButton.vue';
 
-const { overview, isStable, hasNewVersion } = useBaseOverview();
+const { overview, isStable, channelText, hasNewVersion } = useBaseOverview();
 </script>
 
 <style scoped>

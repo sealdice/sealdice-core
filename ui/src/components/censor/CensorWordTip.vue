@@ -56,7 +56,7 @@
             <n-text tag="p">
               格式示例如下：<br />
               <br />
-              <n-text code>
+              <n-text code class="sd-code-text">
                 #notice<br />
                 提醒级词汇 1<br />
                 提醒级词汇 2<br />

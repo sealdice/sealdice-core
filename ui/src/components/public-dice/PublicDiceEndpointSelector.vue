@@ -1,8 +1,7 @@
 <template>
   <section class="public-dice-endpoints">
     <div class="public-dice-endpoints__head">
-      <h2>选择要上报的终端</h2>
-      <span>{{ checkedRowKeys.length }} / {{ rows.length }}</span>
+      <span>已选择 {{ checkedRowKeys.length }} / {{ rows.length }}</span>
     </div>
 
     <n-empty v-if="!loading && rows.length === 0" description="暂无可上报终端" />
@@ -124,15 +123,9 @@ function setRowChecked(id: string, checked: boolean) {
 .public-dice-endpoints__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   margin-bottom: 12px;
-}
-
-.public-dice-endpoints__head h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 650;
 }
 
 .public-dice-endpoints__head span {

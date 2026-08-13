@@ -16,7 +16,8 @@
   <i-tabler-user-cancel v-else-if="name === 'ban'" />
   <i-tabler-dice-5 v-else-if="name === 'dice'" />
   <i-tabler-archive v-else-if="name === 'backup'" />
-  <i-tabler-tool v-else-if="name === 'advanced-setting' || name === 'tools'" />
+  <i-tabler-settings-exclamation v-else-if="name === 'advanced-setting'" />
+  <i-tabler-tool v-else-if="name === 'tools'" />
   <i-tabler-command v-else-if="name === 'test'" />
   <i-tabler-photo v-else-if="name === 'resource'" />
   <i-tabler-activity v-else-if="name === 'profile'" />

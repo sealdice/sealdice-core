@@ -1,10 +1,6 @@
 <template>
   <main class="advanced-page">
-    <PageHeader
-      title="高级设置"
-      description="面向开发者和进阶用户的高级配置。"
-      unsaved-scope="advanced-setting"
-    >
+    <PageHeader title="高级设置" unsaved-scope="advanced-setting">
       <n-button secondary :disabled="!modified" @click="reload">
         <template #icon>
           <n-icon><i-tabler-arrow-back-up /></n-icon>
@@ -34,114 +30,100 @@
     </TipBox>
 
     <n-spin :show="pageBusy">
-      <n-form :label-placement="isMobile ? 'top' : 'left'" label-width="auto">
-        <n-form-item label="显示高级设置页">
-          <template #label>
-            <span>显示高级设置页</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
+      <div class="advanced-groups">
+        <SettingCategoryBox title="页面与功能" padded>
+          <n-form :label-placement="isMobile ? 'top' : 'left'" label-width="auto">
+            <n-form-item label="显示高级设置页">
+              <template #label>
+                <span>显示高级设置页</span>
+                <n-tooltip>
+                  <template #trigger>
+                    <n-icon><i-tabler-help-circle /></n-icon>
+                  </template>
+                  设置是否显示高级设置页，只影响展示
+                </n-tooltip>
               </template>
-              设置是否显示高级设置页，只影响展示
-            </n-tooltip>
-          </template>
-          <n-switch v-model:value="config.show" />
-        </n-form-item>
+              <n-switch v-model:value="config.show" />
+            </n-form-item>
 
-        <n-form-item label="启用高级设置">
-          <template #label>
-            <span>启用高级设置</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
+            <n-form-item label="启用高级设置">
+              <template #label>
+                <span>启用高级设置</span>
+                <n-tooltip>
+                  <template #trigger>
+                    <n-icon><i-tabler-help-circle /></n-icon>
+                  </template>
+                  设置是否启用高级设置，关闭时下列设置无效
+                </n-tooltip>
               </template>
-              设置是否启用高级设置，关闭时下列设置无效
-            </n-tooltip>
-          </template>
-          <n-switch v-model:value="config.enable" />
-        </n-form-item>
+              <n-switch v-model:value="config.enable" />
+            </n-form-item>
+          </n-form>
+        </SettingCategoryBox>
 
-        <h3>前端调试</h3>
-        <n-form-item label="启用 Eruda 调试面板">
-          <template #label>
-            <span>Eruda 调试面板</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
+        <SettingCategoryBox title="前端调试" padded>
+          <n-form :label-placement="isMobile ? 'top' : 'left'" label-width="auto">
+            <n-form-item label="启用 Eruda 调试面板">
+              <template #label>
+                <span>Eruda 调试面板</span>
+                <n-tooltip>
+                  <template #trigger>
+                    <n-icon><i-tabler-help-circle /></n-icon>
+                  </template>
+                  仅对当前浏览器生效，状态保存在本机，不会同步到后端。
+                </n-tooltip>
               </template>
-              仅对当前浏览器生效，状态保存在本机，不会同步到后端。
-            </n-tooltip>
-          </template>
-          <n-switch
-            :value="erudaEnabled"
-            :loading="erudaPending"
-            @update:value="handleErudaToggle"
-          />
-        </n-form-item>
+              <n-switch
+                :value="erudaEnabled"
+                :loading="erudaPending"
+                @update:value="handleErudaToggle"
+              />
+            </n-form-item>
+          </n-form>
+        </SettingCategoryBox>
 
-        <h3>自定义回复</h3>
-        <n-form-item label="开启回复调试日志">
-          <template #label>
-            <span>回复调试日志</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
+        <SettingCategoryBox title="自定义回复" padded>
+          <n-form :label-placement="isMobile ? 'top' : 'left'" label-width="auto">
+            <n-form-item label="开启回复调试日志">
+              <template #label>
+                <span>回复调试日志</span>
+                <n-tooltip>
+                  <template #trigger>
+                    <n-icon><i-tabler-help-circle /></n-icon>
+                  </template>
+                  开启自定义回复调试日志，打印字符细节
+                </n-tooltip>
               </template>
-              开启自定义回复调试日志，打印字符细节
-            </n-tooltip>
-          </template>
-          <n-checkbox v-model:checked="replyDebugMode">开启</n-checkbox>
-        </n-form-item>
+              <n-checkbox v-model:checked="replyDebugMode">开启</n-checkbox>
+            </n-form-item>
+          </n-form>
+        </SettingCategoryBox>
 
-        <h3>跑团日志</h3>
-        <n-form-item label="自定义后端 URL">
-          <template #label>
-            <span>自定义后端 URL</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
-              </template>
-              设置第三方跑团日志后端 URL
-            </n-tooltip>
-          </template>
-          <n-input
-            v-model:value="config.storyLogBackendUrl"
-            class="advanced-input advanced-input--long"
-          />
-        </n-form-item>
+        <SettingCategoryBox title="跑团日志" padded>
+          <n-form :label-placement="isMobile ? 'top' : 'left'" label-width="auto">
+            <n-form-item label="自定义后端 URL">
+              <n-input
+                v-model:value="config.storyLogBackendUrl"
+                class="advanced-input advanced-input--long"
+              />
+            </n-form-item>
 
-        <n-form-item label="API 版本">
-          <template #label>
-            <span>API 版本</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
-              </template>
-              指定后端的 API 版本
-            </n-tooltip>
-          </template>
-          <n-input
-            v-model:value="config.storyLogApiVersion"
-            class="advanced-input advanced-input--short"
-          />
-        </n-form-item>
+            <n-form-item label="API 版本">
+              <n-input
+                v-model:value="config.storyLogApiVersion"
+                class="advanced-input advanced-input--short"
+              />
+            </n-form-item>
 
-        <n-form-item label="Token">
-          <template #label>
-            <span>Token</span>
-            <n-tooltip>
-              <template #trigger>
-                <n-icon><i-tabler-help-circle /></n-icon>
-              </template>
-              指定传递给后端的 token
-            </n-tooltip>
-          </template>
-          <n-input
-            v-model:value="config.storyLogBackendToken"
-            class="advanced-input advanced-input--long"
-          />
-        </n-form-item>
-      </n-form>
+            <n-form-item label="Token">
+              <n-input
+                v-model:value="config.storyLogBackendToken"
+                class="advanced-input advanced-input--long"
+              />
+            </n-form-item>
+          </n-form>
+        </SettingCategoryBox>
+      </div>
     </n-spin>
   </main>
 </template>
@@ -162,6 +144,7 @@ import {
 } from '@/api';
 import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   normalizeAdvancedConfig,
@@ -341,6 +324,11 @@ async function handleErudaToggle(value: boolean) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.advanced-groups {
+  display: grid;
+  gap: var(--sd-space-2xs);
 }
 
 .advanced-input {

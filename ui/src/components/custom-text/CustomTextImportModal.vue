@@ -8,15 +8,17 @@
     :closable="false"
     class="the-dialog"
   >
-    <template #header-extra>
-      <n-flex>
-        <n-switch v-model:value="onlyCurrent">
-          <template #checked>仅当前页面</template>
-          <template #unchecked>全部文案</template>
-        </n-switch>
-        <n-checkbox v-model:checked="compact">紧凑</n-checkbox>
+    <n-flex class="import-options" align="center" justify="space-between" size="small" wrap>
+      <n-flex align="center" size="small" wrap>
+        <n-text depth="3">文案范围</n-text>
+        <n-radio-group v-model:value="onlyCurrent" size="small" aria-label="文案范围">
+          <n-radio-button :value="false">全部文案</n-radio-button>
+          <n-radio-button :value="true">仅当前页面</n-radio-button>
+        </n-radio-group>
       </n-flex>
-    </template>
+      <n-checkbox v-model:checked="compact">紧凑</n-checkbox>
+    </n-flex>
+
     <n-flex vertical>
       <n-text tag="strong">以下为导出内容，可以复制给别人</n-text>
       <n-input
@@ -24,7 +26,7 @@
         placeholder="填入数据"
         type="textarea"
         :autosize="{ minRows: 4 }"
-        class="import-edit"
+        class="import-edit sd-code-text"
         id="import-edit"
       />
     </n-flex>
@@ -65,6 +67,10 @@ const emit = defineEmits<{
 </script>
 
 <style scoped>
+.import-options {
+  margin-bottom: var(--sd-space-sm);
+}
+
 .import-edit :deep(textarea) {
   max-height: 65vh;
 }

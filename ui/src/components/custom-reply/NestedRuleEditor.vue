@@ -171,7 +171,7 @@
                     <n-input
                       v-model:value="msg[0]"
                       type="textarea"
-                      class="reply-text"
+                      class="reply-text sd-code-text"
                       :autosize="{ minRows: 1 }"
                       @update:value="emit('change')"
                     />
@@ -355,7 +355,7 @@ const removeMessageItem = (messages: ReplyMessage[], index: number) => {
 .rule-index {
   flex: 0 0 auto;
   color: var(--sd-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--sd-font-code);
   font-size: 0.8rem;
 }
 

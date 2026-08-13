@@ -45,7 +45,6 @@
               circle
               size="tiny"
               class="tool-test-chat-message__toggle"
-              :title="showRaw ? '显示渲染效果' : '显示原始内容'"
               @click.stop="showRaw = !showRaw"
             >
               <template #icon>

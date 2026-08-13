@@ -1,9 +1,6 @@
 <template>
   <main class="resource-page">
-    <PageHeader
-      title="资源管理"
-      description="上传图片后可直接复制海豹码，在回复、牌堆或指令中引用本地图片资源。"
-    />
+    <PageHeader title="资源管理" />
 
     <n-alert v-if="listErrorText" type="error" :bordered="false">
       {{ listErrorText }}

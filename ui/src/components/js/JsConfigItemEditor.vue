@@ -49,6 +49,7 @@
       >
         <n-input
           type="textarea"
+          class="sd-code-text"
           size="small"
           autosize
           :value="templateValue"
@@ -82,7 +83,7 @@
       :status="errorText ? 'error' : undefined"
       :loading="checking"
       :value="String(value ?? '')"
-      class="js-config-item__control"
+      class="js-config-item__control sd-code-text"
       @update:value="updateTaskValue"
     />
 

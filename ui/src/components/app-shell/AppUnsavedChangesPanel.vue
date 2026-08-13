@@ -5,7 +5,6 @@
         <n-text class="unsaved-panel-title" tag="strong">
           {{ activeUnsavedChangesSource.label }} 有修改
         </n-text>
-        <n-text depth="3" class="unsaved-panel-subtitle"> 不要忘记保存 </n-text>
       </div>
 
       <n-button
@@ -48,20 +47,13 @@ async function handleSave() {
 }
 
 .unsaved-panel-copy {
-  display: flex;
   min-width: 0;
-  flex-direction: column;
-  gap: 0.15rem;
 }
 
 .unsaved-panel-title {
   color: var(--sd-text-primary);
   font-size: 0.96rem;
   line-height: 1.25;
-}
-
-.unsaved-panel-subtitle {
-  font-size: 0.8rem;
 }
 
 .unsaved-panel-action {

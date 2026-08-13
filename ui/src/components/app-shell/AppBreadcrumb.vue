@@ -57,14 +57,9 @@
             size="small"
             class="version-channel"
           >
-            {{ isStable ? '正式版' : '测试版' }}
+            {{ channelText }}
           </n-tag>
-          <n-tooltip placement="bottom">
-            <template #trigger>
-              <span class="version-text">{{ overview?.version.simple ?? '-' }}</span>
-            </template>
-            {{ overview?.version.value ?? '-' }}
-          </n-tooltip>
+          <span class="version-text">{{ overview?.version.simple ?? '-' }}</span>
           <span v-if="hasNewVersion" class="new-version">
             新版本 {{ overview?.version.latest }}
           </span>
@@ -97,7 +92,7 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
-const { overview, isStable, hasNewVersion } = useBaseOverview();
+const { overview, isStable, channelText, hasNewVersion } = useBaseOverview();
 
 const breadcrumbItems = computed(() =>
   buildBreadcrumbItems(appNavigation, route.path, String(route.meta.title ?? '当前页面'))

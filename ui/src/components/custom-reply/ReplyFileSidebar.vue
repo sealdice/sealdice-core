@@ -290,6 +290,10 @@ watch(
   margin-top: 0.5rem;
 }
 
+.panel-toolbar :deep(.n-upload) {
+  width: auto;
+}
+
 .panel-controls {
   min-width: 0;
 }

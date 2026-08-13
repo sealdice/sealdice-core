@@ -70,6 +70,7 @@
                 <n-input
                   v-else
                   :value="jsonValueOf(fieldKey)"
+                  class="sd-code-text"
                   type="textarea"
                   :autosize="{ minRows: 3, maxRows: 8 }"
                   @update:value="(value: string) => updateJsonValue(fieldKey, value)"

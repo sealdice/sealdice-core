@@ -2,9 +2,7 @@
   <main class="tool-test-page">
     <header class="tool-test-page__header">
       <div class="tool-test-page__heading">
-        <p class="tool-test-page__eyebrow">SealDice UI</p>
         <h1>指令测试</h1>
-        <p class="tool-test-page__summary">在私聊或群聊上下文中验证指令、权限和消息段表现。</p>
       </div>
 
       <div class="tool-test-page__controls">
@@ -34,7 +32,7 @@
         </NTag>
         <NPopover placement="bottom-end" trigger="click">
           <template #trigger>
-            <NButton secondary size="small" title="快捷操作">
+            <NButton secondary size="small">
               <template #icon>
                 <NIcon><i-tabler-dots /></NIcon>
               </template>
@@ -87,7 +85,6 @@
               secondary
               size="small"
               class="tool-test-page__mobile-members-button"
-              title="群成员"
               @click="memberRailOpen = true"
             >
               <template #icon
@@ -213,27 +210,12 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   min-width: 0;
 }
 
-.tool-test-page__eyebrow {
-  margin: 0 0 0.375rem;
-  color: var(--sd-accent-strong);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .tool-test-page h1 {
   margin: 0;
   color: var(--sd-text-primary);
   font-size: var(--sd-page-title-size);
   font-weight: var(--sd-page-title-weight);
   line-height: var(--sd-page-title-line-height);
-}
-
-.tool-test-page__summary {
-  margin: 0.5rem 0 0;
-  color: var(--sd-text-secondary);
-  line-height: 1.6;
 }
 
 .tool-test-page__controls {
@@ -358,10 +340,6 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   .tool-test-page__workspace {
     margin-inline: -0.25rem;
     border-radius: var(--sd-radius-md);
-  }
-
-  .tool-test-page__summary {
-    font-size: 0.875rem;
   }
 }
 </style>

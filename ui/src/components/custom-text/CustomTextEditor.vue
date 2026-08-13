@@ -1,7 +1,7 @@
 <template>
   <main class="custom-text-page">
     <n-spin :show="editor.customTextQuery.isFetching.value && !editor.customTextQuery.data.value">
-      <PageHeader :title="category" description="编辑当前分类的自定义回复文案。" />
+      <PageHeader :title="category" />
       <CustomTextHelp />
 
       <CustomTextToolbar

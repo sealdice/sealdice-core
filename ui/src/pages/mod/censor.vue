@@ -1,15 +1,16 @@
 <template>
   <main class="censor-page">
-    <PageHeader title="拦截管理" description="配置敏感词拦截规则、词库和拦截日志。">
-      <n-switch
-        v-model:value="censorEnable"
-        :loading="statusBusy"
-        :disabled="statusBusy || statusQuery.isFetching.value"
-        @update:value="enableChange"
-      >
-        <template #checked>启用</template>
-        <template #unchecked>关闭</template>
-      </n-switch>
+    <PageHeader title="拦截管理">
+      <n-flex align="center" size="small">
+        <n-text depth="3">启用拦截</n-text>
+        <n-switch
+          v-model:value="censorEnable"
+          :loading="statusBusy"
+          :disabled="statusBusy || statusQuery.isFetching.value"
+          aria-label="启用拦截"
+          @update:value="enableChange"
+        />
+      </n-flex>
       <n-button
         v-show="censorEnable"
         type="primary"
@@ -40,7 +41,13 @@
         </n-tab-pane>
 
         <n-tab-pane tab="敏感词管理" name="word">
-          <n-spin :show="filesQuery.isFetching.value || wordsQuery.isFetching.value || uploadFileMutation.isPending.value">
+          <n-spin
+            :show="
+              filesQuery.isFetching.value ||
+              wordsQuery.isFetching.value ||
+              uploadFileMutation.isPending.value
+            "
+          >
             <CensorWordTip />
             <CensorFilesView
               :files="files"
@@ -64,7 +71,10 @@
       </n-tabs>
     </template>
     <template v-else>
-      <n-text type="error" class="mt-4 block text-2xl">请先启用拦截！</n-text>
+      <FeatureDisabledState
+        title="拦截已关闭"
+        description="启用后可管理拦截设置、敏感词和拦截日志。"
+      />
     </template>
   </main>
 </template>
@@ -72,10 +82,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
-import {
-  getSdApiV2CensorFilesTemplateToml,
-  getSdApiV2CensorFilesTemplateTxt,
-} from '@/api';
+import { getSdApiV2CensorFilesTemplateToml, getSdApiV2CensorFilesTemplateTxt } from '@/api';
 import { downloadApiFile } from '@/api/download';
 import CensorConfigView from '@/components/censor/CensorConfigView.vue';
 import CensorFilesView from '@/components/censor/CensorFilesView.vue';
@@ -83,6 +90,7 @@ import CensorLogView from '@/components/censor/CensorLogView.vue';
 import CensorWordsView from '@/components/censor/CensorWordsView.vue';
 import CensorWordTip from '@/components/censor/CensorWordTip.vue';
 import ReloadNotice from '@/components/layout/ReloadNotice.vue';
+import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { useCensorConfigDraft } from '@/features/censor/configDraft';
 import { useCensorMutations } from '@/features/censor/mutations';
@@ -111,16 +119,25 @@ watch(
   item => {
     censorEnable.value = Boolean(item?.enable);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 const enabledForContent = computed(() => censorEnable.value);
 const configDraft = useCensorConfigDraft();
 
-const configQuery = useCensorConfigQuery(computed(() => enabledForContent.value && tab.value === 'setting'));
-const filesQuery = useCensorFilesQuery(computed(() => enabledForContent.value && tab.value === 'word'));
-const wordsQuery = useCensorWordsQuery(computed(() => enabledForContent.value && tab.value === 'word'));
-const logsQuery = useCensorLogsQuery(logQuery, computed(() => enabledForContent.value && tab.value === 'log'));
+const configQuery = useCensorConfigQuery(
+  computed(() => enabledForContent.value && tab.value === 'setting')
+);
+const filesQuery = useCensorFilesQuery(
+  computed(() => enabledForContent.value && tab.value === 'word')
+);
+const wordsQuery = useCensorWordsQuery(
+  computed(() => enabledForContent.value && tab.value === 'word')
+);
+const logsQuery = useCensorLogsQuery(
+  logQuery,
+  computed(() => enabledForContent.value && tab.value === 'log')
+);
 
 watch(
   () => configQuery.data.value,
@@ -128,7 +145,7 @@ watch(
     if (!value) return;
     configDraft.syncRemote(value);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 const files = computed(() => filesQuery.data.value ?? []);
@@ -137,31 +154,27 @@ const logs = computed(() => logsQuery.data.value?.data ?? []);
 const logTotal = computed(() => Number(logsQuery.data.value?.total ?? 0));
 const statusBusy = computed(() => restartMutation.isPending.value || stopMutation.isPending.value);
 
-const {
-  restartMutation,
-  stopMutation,
-  saveConfigMutation,
-  uploadFileMutation,
-} = useCensorMutations({
-  queryClient,
-  message,
-  getConfigPayload: () => configDraft.currentConfig.value,
-  onReloaded: () => {
-    needReload.value = false;
-    censorEnable.value = true;
-  },
-  onStopped: () => {
-    needReload.value = false;
-    censorEnable.value = false;
-  },
-  onConfigSaved: () => {
-    configDraft.commitSaved();
-    needReload.value = true;
-  },
-  onFilesChanged: () => {
-    needReload.value = true;
-  },
-});
+const { restartMutation, stopMutation, saveConfigMutation, uploadFileMutation } =
+  useCensorMutations({
+    queryClient,
+    message,
+    getConfigPayload: () => configDraft.currentConfig.value,
+    onReloaded: () => {
+      needReload.value = false;
+      censorEnable.value = true;
+    },
+    onStopped: () => {
+      needReload.value = false;
+      censorEnable.value = false;
+    },
+    onConfigSaved: () => {
+      configDraft.commitSaved();
+      needReload.value = true;
+    },
+    onFilesChanged: () => {
+      needReload.value = true;
+    },
+  });
 
 useUnsavedChanges('censor-config', {
   label: '拦截设置',
@@ -178,7 +191,7 @@ watch(
     if (tab.value === 'log' && enabledForContent.value) {
       void logsQuery.refetch();
     }
-  },
+  }
 );
 
 async function restartCensor() {
@@ -216,7 +229,7 @@ async function downloadTomlTemplate() {
       responseType: 'blob',
       throwOnError: true,
     }),
-    '词库模板.toml',
+    '词库模板.toml'
   );
 }
 
@@ -226,7 +239,7 @@ async function downloadTxtTemplate() {
       responseType: 'blob',
       throwOnError: true,
     }),
-    '词库模板.txt',
+    '词库模板.txt'
   );
 }
 

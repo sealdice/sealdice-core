@@ -1,16 +1,17 @@
 <template>
   <main class="js-page">
-    <PageHeader title="JS 扩展" description="管理脚本扩展、配置和运行数据。">
+    <PageHeader title="JS 扩展">
       <n-flex align="center" justify="space-between" wrap>
-        <n-switch
-          :value="jsEnable"
-          :disabled="isTestMode"
-          :loading="jsSwitchBusy"
-          @update:value="handleJsEnableToggle"
-        >
-          <template #checked>启用</template>
-          <template #unchecked>关闭</template>
-        </n-switch>
+        <n-flex align="center" size="small">
+          <n-text depth="3">启用 JS 扩展</n-text>
+          <n-switch
+            :value="jsEnable"
+            :disabled="isTestMode"
+            :loading="jsSwitchBusy"
+            aria-label="启用 JS 扩展"
+            @update:value="handleJsEnableToggle"
+          />
+        </n-flex>
         <n-button v-show="jsEnable" type="primary" :disabled="isTestMode" @click="handleReload">
           <template #icon>
             <n-icon><i-tabler-refresh /></n-icon>
@@ -88,9 +89,6 @@
               <n-flex align="center" justify="space-between" wrap>
                 <div class="js-panel-heading">
                   <n-text class="js-panel-title">运行日志</n-text>
-                  <n-text depth="3" class="js-panel-subtitle"
-                    >执行结果与轮询日志统一显示在这里</n-text
-                  >
                 </div>
                 <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
                   <template #icon
@@ -464,11 +462,6 @@ onBeforeUnmount(() => {
   color: var(--sd-text-primary);
 }
 
-.js-panel-subtitle {
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
 .js-panel-body {
   display: flex;
   min-height: 0;
@@ -496,13 +489,16 @@ onBeforeUnmount(() => {
   min-height: 100%;
   color: var(--sd-text-primary);
   background: var(--sd-bg-page);
-  font-family:
-    'Fira Code', 'DengXian', 'Microsoft YaHei Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, monospace;
+  font-family: var(--sd-font-code);
 }
 
 .js-editor :deep(.cm-scroller) {
-  font-family: inherit;
+  font-family: var(--sd-font-code);
+}
+
+.js-editor :deep(.cm-content),
+.js-editor :deep(.cm-gutters) {
+  font-family: var(--sd-font-code);
 }
 
 .js-editor :deep(.cm-gutters) {
@@ -538,9 +534,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--sd-border-soft);
   border-radius: var(--sd-radius-md);
   background: var(--sd-bg-page);
-  font-family:
-    'Fira Code', 'DengXian', 'Microsoft YaHei Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, monospace;
+  font-family: var(--sd-font-code);
 }
 
 .js-output-log :deep(.n-log) {

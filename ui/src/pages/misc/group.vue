@@ -1,6 +1,6 @@
 <template>
   <main class="group-page">
-    <PageHeader title="群组管理" description="查看群组状态、日志设置及群内账号。" />
+    <PageHeader title="群组管理" />
 
     <n-card :bordered="false" class="group-summary-card">
       <n-grid cols="2 m:4" responsive="screen" x-gap="12" y-gap="12">

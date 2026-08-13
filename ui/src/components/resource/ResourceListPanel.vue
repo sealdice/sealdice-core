@@ -8,12 +8,6 @@
     />
 
     <ListActions>
-      <n-button secondary :loading="loading" @click="emit('refresh')">
-        <template #icon>
-          <n-icon><i-tabler-refresh /></n-icon>
-        </template>
-        刷新
-      </n-button>
       <n-upload
         action=""
         multiple
@@ -22,13 +16,21 @@
         :show-file-list="false"
         :custom-request="uploadResourceFile"
       >
-        <n-button type="primary" :loading="uploadPending" :disabled="disabled">
+        <n-button type="primary" secondary :loading="uploadPending" :disabled="disabled">
           <template #icon>
             <n-icon><i-tabler-upload /></n-icon>
           </template>
           上传图片
         </n-button>
       </n-upload>
+      <template #end>
+        <n-button type="primary" :loading="loading" @click="emit('refresh')">
+          <template #icon>
+            <n-icon><i-tabler-refresh /></n-icon>
+          </template>
+          刷新
+        </n-button>
+      </template>
     </ListActions>
 
     <section v-if="uploadTasks.length" class="resource-upload-queue" aria-live="polite">
