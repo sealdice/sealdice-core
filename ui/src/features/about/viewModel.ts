@@ -1,4 +1,5 @@
 import { formatAppChannel } from '@/features/base/appChannel';
+import { formatRuntimeMode, formatRuntimeSummary } from '@/features/base/runtimeSummary';
 
 export type AboutLinkIcon = 'website' | 'manual' | 'support' | 'source';
 
@@ -375,20 +376,13 @@ export function getAboutOverviewSummary(
     latestVersionText: cleanText(version?.latest, '读取中'),
     latestNote: cleanText(version?.latestNote),
     channelText: formatAppChannel(overview?.appChannel),
-    runtimeText: runtime?.OS && runtime.arch ? `${runtime.OS} - ${runtime.arch}` : '读取中',
+    runtimeText: formatRuntimeSummary(runtime),
     modeText: formatRuntimeMode(runtime),
     uptimeText: formatUptime(runtime?.uptime),
     hasNewVersion: Number(version?.code ?? 0) < Number(version?.latestCode ?? 0),
     containerMode: runtime?.containerMode === true,
     justForTest: runtime?.justForTest === true,
   };
-}
-
-function formatRuntimeMode(runtime: AboutOverviewInput['runtime']): string {
-  if (!runtime) return '读取中';
-  if (runtime.justForTest) return '展示模式';
-  if (runtime.containerMode) return '容器模式';
-  return '本机运行';
 }
 
 function formatUptime(seconds: number | undefined): string {

@@ -12,9 +12,6 @@ export function useBaseOverview() {
 
   const overview = computed(() => overviewQuery.data.value?.item);
   const appName = computed(() => overview.value?.appName || 'SealDice');
-  const runtimeText = computed(() =>
-    overview.value ? `${overview.value.runtime.OS} - ${overview.value.runtime.arch}` : ''
-  );
   const isStable = computed(() => overview.value?.appChannel === 'stable');
   const channelText = computed(() => formatAppChannel(overview.value?.appChannel));
   const hasNewVersion = computed(() => {
@@ -27,7 +24,6 @@ export function useBaseOverview() {
     overviewQuery,
     overview,
     appName,
-    runtimeText,
     isStable,
     channelText,
     hasNewVersion,

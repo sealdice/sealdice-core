@@ -187,6 +187,7 @@ import {
   isNetworkHealthTargetOK,
   normalizeNetworkHealthData,
 } from '@/features/base/networkHealth';
+import { formatRuntimeSummary } from '@/features/base/runtimeSummary';
 import { hasAccessToken } from '@/features/auth/state';
 import TipBox from '@/components/shared/TipBox.vue';
 
@@ -218,13 +219,9 @@ const groupSummaryQuery = useQuery({
 const overview = computed(() => overviewQuery.data.value?.item);
 const memoryUsed = computed(() => overview.value?.memory.usedSys ?? 0);
 const groupSummary = computed(() => groupSummaryQuery.data.value);
-const runtimeSummary = computed(() => {
-  const runtime = overview.value?.runtime;
-  if (!runtime) return '读取中';
-  return [runtime.OS, runtime.arch, runtime.containerMode ? '容器模式' : '']
-    .filter(Boolean)
-    .join(' · ');
-});
+const runtimeSummary = computed(() =>
+  formatRuntimeSummary(overview.value?.runtime, { withMode: true })
+);
 const hasNewVersion = computed(() => {
   const version = overview.value?.version;
   if (!version) return false;
