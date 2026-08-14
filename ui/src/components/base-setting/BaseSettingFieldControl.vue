@@ -42,7 +42,7 @@
       v-else-if="field.kind === 'password' && fieldKey"
       :value="String(fieldValue ?? '')"
       type="password"
-      show-password-on="mousedown"
+      show-password-on="click"
       :placeholder="field.placeholder"
       @update:value="updateFieldValue(fieldKey, $event)"
     />

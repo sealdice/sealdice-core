@@ -13,7 +13,13 @@
       {{ loadErrorText }}
     </TipBox>
 
-    <n-tabs :value="activeTab" type="line" animated @update:value="handleTabUpdate">
+    <n-tabs
+      :value="activeTab"
+      class="sd-scrollable-tabs"
+      type="line"
+      animated
+      @update:value="handleTabUpdate"
+    >
       <n-tab-pane name="installed" tab="已安装">
         <ListWorkspace>
           <QueryToolbar

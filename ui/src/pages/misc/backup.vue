@@ -14,7 +14,7 @@
       恢复备份时，将骰子彻底关闭，解压备份压缩包到骰子目录。若提示是否覆盖，选择全部即可。
     </TipBox>
 
-    <n-tabs v-model:value="activeTab" type="line" animated class="backup-tabs">
+    <n-tabs v-model:value="activeTab" type="line" animated class="backup-tabs sd-scrollable-tabs">
       <n-tab-pane name="settings" tab="备份设置">
         <n-spin :show="configQuery.isLoading.value && !configDraft">
           <BackupConfigPanel

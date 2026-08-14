@@ -16,7 +16,7 @@
       </n-button>
     </PageHeader>
 
-    <n-tabs v-model:value="tab" class="helpdoc-tabs">
+    <n-tabs v-model:value="tab" class="helpdoc-tabs sd-scrollable-tabs">
       <n-tab-pane tab="文件" name="file">
         <HelpdocFilePane
           v-model:checked-keys="checkedFileKeys"
@@ -322,10 +322,6 @@ function retryTask(task: ResumableUploadTask) {
   padding-bottom: 2rem;
 }
 
-.helpdoc-tabs :deep(.n-tabs-nav-scroll-content) {
-  min-width: max-content;
-}
-
 :deep(.help-content-preview) {
   display: block;
   width: 100%;
@@ -335,11 +331,5 @@ function retryTask(task: ResumableUploadTask) {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
-}
-
-@media screen and (max-width: 639.9px) {
-  .helpdoc-tabs :deep(.n-tabs-nav-scroll-content) {
-    justify-content: flex-start !important;
-  }
 }
 </style>

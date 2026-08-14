@@ -27,7 +27,7 @@
     </PageHeader>
 
     <template v-if="censorEnable">
-      <n-tabs v-model:value="tab" class="censor-tabs">
+      <n-tabs v-model:value="tab" class="censor-tabs sd-scrollable-tabs">
         <n-tab-pane tab="拦截设置" name="setting">
           <n-spin :show="configQuery.isFetching.value">
             <CensorConfigView v-model:config="configDraft.currentConfig.value" />
@@ -258,15 +258,5 @@ function refreshLogs() {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.censor-tabs :deep(.n-tabs-nav-scroll-content) {
-  min-width: max-content;
-}
-
-@media screen and (max-width: 639.9px) {
-  .censor-tabs :deep(.n-tabs-nav-scroll-content) {
-    justify-content: flex-start !important;
-  }
 }
 </style>

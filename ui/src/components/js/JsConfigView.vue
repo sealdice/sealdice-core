@@ -7,26 +7,16 @@
         :title="cfg.pluginName"
         :name="cfg.pluginName"
       >
-        <n-tabs v-if="cfg.items.length" type="line" size="small" animated>
-          <n-tab-pane
-            v-for="group in getPluginGroups(cfg.items)"
-            :key="`${cfg.pluginName}-${group.name}`"
-            :name="group.name"
-            :tab="group.name"
-          >
-            <JsConfigItemEditor
-              v-for="item in group.items"
-              :key="item.key"
-              :item="item"
-              :plugin-name="cfg.pluginName"
-              :error-text="configErrors[buildConfigErrorKey(cfg.pluginName, item.key)]"
-              :checking="!!checkingKeys[buildConfigErrorKey(cfg.pluginName, item.key)]"
-              @change="setEdited"
-              @reset="resetSingleConfig"
-              @validate="validateConfigValue"
-            />
-          </n-tab-pane>
-        </n-tabs>
+        <JsConfigGroups
+          v-if="cfg.items.length"
+          :plugin-name="cfg.pluginName"
+          :items="cfg.items"
+          :config-errors="configErrors"
+          :checking-keys="checkingKeys"
+          @change="setEdited"
+          @reset="resetSingleConfig"
+          @validate="validateConfigValue"
+        />
         <n-text v-if="!cfg.items.length" depth="3">无配置项</n-text>
       </n-collapse-item>
     </n-collapse>
@@ -64,10 +54,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { NCollapse, NCollapseItem, NFlex, NText, NButton, useDialog, useMessage } from 'naive-ui';
 import { postSdApiV2JsCronCheck } from '@/api';
-import JsConfigItemEditor from '@/components/js/JsConfigItemEditor.vue';
+import JsConfigGroups from '@/components/js/JsConfigGroups.vue';
 import {
   buildConfigErrorKey,
-  groupPluginConfigItems,
   isDailyTaskExpressionValid,
   setConfigError,
   shouldBlockConfigSave,
@@ -109,10 +98,6 @@ function setEdited(pluginName: string, key: string, value: unknown) {
     editedValues.value[pluginName] = {};
   }
   editedValues.value[pluginName][key] = value;
-}
-
-function getPluginGroups(items: Parameters<typeof groupPluginConfigItems>[0]) {
-  return groupPluginConfigItems(items);
 }
 
 function handleDeleteDead(deadList: { name: string }[]) {

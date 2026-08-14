@@ -2,7 +2,7 @@
   <main class="ban-page sd-page-flow">
     <PageHeader title="黑白名单" unsaved-scope="ban-config" />
 
-    <n-tabs v-model:value="tab" animated>
+    <n-tabs v-model:value="tab" class="sd-scrollable-tabs" animated>
       <n-tab-pane name="list" tab="黑白名单">
         <BanListPanel
           :items="listItems"

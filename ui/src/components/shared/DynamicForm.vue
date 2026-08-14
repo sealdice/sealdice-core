@@ -83,7 +83,7 @@
           :type="item.sensitive ? 'password' : 'text'"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
-          show-password-on="mousedown"
+          show-password-on="click"
           @update:value="value => updateValue(fieldKeyOf(item), value)"
         />
       </slot>

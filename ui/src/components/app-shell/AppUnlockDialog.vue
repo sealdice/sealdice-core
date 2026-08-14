@@ -20,7 +20,7 @@
     <n-input
       v-model:value="password"
       type="password"
-      show-password-on="mousedown"
+      show-password-on="click"
       placeholder="请输入 UI 密码"
       :disabled="authSession.signinMutation.isPending.value"
     />
@@ -98,13 +98,17 @@ async function checkPasswordSecurity() {
   }
 }
 
-watch(canCheckSecurity, canAccess => {
-  if (canAccess) {
-    void checkPasswordSecurity();
-  } else if (!authSession.hasAccessToken.value) {
-    hasCheckedSecurity.value = false;
-  }
-}, { immediate: true });
+watch(
+  canCheckSecurity,
+  canAccess => {
+    if (canAccess) {
+      void checkPasswordSecurity();
+    } else if (!authSession.hasAccessToken.value) {
+      hasCheckedSecurity.value = false;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>

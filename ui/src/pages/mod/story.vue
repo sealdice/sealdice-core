@@ -1,7 +1,7 @@
 <template>
   <main class="story-page sd-page-flow">
     <PageHeader title="跑团日志" />
-    <n-tabs v-model:value="tab" class="story-tabs">
+    <n-tabs v-model:value="tab" class="story-tabs sd-scrollable-tabs">
       <n-tab-pane tab="跑团日志" name="list">
         <template v-if="mode === 'logs'">
           <ListWorkspace class="story-tab-body">
@@ -884,10 +884,6 @@ onMounted(async () => {
   font-size: 0.85rem;
 }
 
-.story-tabs :deep(.n-tabs-nav-scroll-content) {
-  min-width: max-content;
-}
-
 .story-log-card {
   width: 100%;
 }
@@ -939,10 +935,6 @@ onMounted(async () => {
 }
 
 @media screen and (max-width: 700px) {
-  .story-tabs :deep(.n-tabs-nav-scroll-content) {
-    justify-content: flex-start !important;
-  }
-
   .story-pagination,
   .story-pagination-block {
     justify-content: flex-start;

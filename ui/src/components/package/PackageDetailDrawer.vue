@@ -64,7 +64,7 @@
                   v-else-if="fieldSchema.type === 'string'"
                   :value="String(draft[fieldKey] ?? '')"
                   :type="fieldSchema.secret ? 'password' : 'text'"
-                  show-password-on="mousedown"
+                  show-password-on="click"
                   @update:value="(value: string) => updateValue(fieldKey, value)"
                 />
                 <n-input

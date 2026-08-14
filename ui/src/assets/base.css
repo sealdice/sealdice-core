@@ -387,6 +387,17 @@ select {
   padding-top: var(--sd-page-section-gap);
 }
 
+/* 少量短标签在空间不足时横向滚动，不压缩、不换行。分类较多或数量动态时使用
+   ResponsiveTabs，在窄容器中改用选择器。 */
+.sd-scrollable-tabs .n-tabs-nav-scroll-content {
+  min-width: max-content;
+  justify-content: flex-start !important;
+}
+
+.sd-scrollable-tabs .n-tabs-tab {
+  flex: none;
+}
+
 .the-dialog.n-card,
 .the-dialog .n-card,
 .feed-modal.n-card,

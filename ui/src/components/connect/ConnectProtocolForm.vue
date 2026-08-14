@@ -37,7 +37,7 @@
           :type="item.sensitive ? 'password' : 'text'"
           :disabled="submitting || testModeDisabled"
           :placeholder="item.placeholder"
-          show-password-on="mousedown"
+          show-password-on="click"
           @update:value="setValue"
         />
         <n-input-number

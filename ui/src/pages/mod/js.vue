@@ -27,9 +27,9 @@
       </n-flex>
     </PageHeader>
 
-    <n-tabs v-model:value="tab" justify-content="space-evenly" class="js-tabs">
-      <n-tab-pane tab="控制台" name="console">
-        <section class="js-console-grid">
+    <ResponsiveTabs v-model:value="tab" class="js-tabs" :options="jsTabOptions">
+      <template #panel="{ option }">
+        <section v-if="option.value === 'console'" class="js-console-grid">
           <section class="js-panel js-editor-panel">
             <header class="js-panel-header">
               <n-flex align="center" justify="space-between" wrap>
@@ -87,20 +87,18 @@
             </div>
           </section>
         </section>
-      </n-tab-pane>
 
-      <n-tab-pane tab="插件列表" name="list">
-        <JsListView @mark-need-reload="handleMarkNeedReload" />
-      </n-tab-pane>
+        <JsListView v-if="option.value === 'list'" @mark-need-reload="handleMarkNeedReload" />
 
-      <n-tab-pane tab="插件设置" name="config">
-        <JsConfigView ref="jsConfigViewRef" @dirty-change="handleConfigDirtyChange" />
-      </n-tab-pane>
+        <JsConfigView
+          v-if="option.value === 'config'"
+          ref="jsConfigViewRef"
+          @dirty-change="handleConfigDirtyChange"
+        />
 
-      <n-tab-pane tab="数据管理" name="data">
-        <JsDataView />
-      </n-tab-pane>
-    </n-tabs>
+        <JsDataView v-if="option.value === 'data'" />
+      </template>
+    </ResponsiveTabs>
   </main>
 </template>
 
@@ -116,18 +114,7 @@ import {
   watch,
 } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
-import {
-  NButton,
-  NFlex,
-  NIcon,
-  NLog,
-  NTabs,
-  NTabPane,
-  NText,
-  NSwitch,
-  useMessage,
-  type LogInst,
-} from 'naive-ui';
+import { NButton, NFlex, NIcon, NLog, NText, NSwitch, useMessage, type LogInst } from 'naive-ui';
 import {
   getSdApiV2JsRecord,
   getSdApiV2JsStatusOptions,
@@ -136,6 +123,7 @@ import {
   postSdApiV2JsShutdown,
 } from '@/api';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import ResponsiveTabs from '@/components/shared/ResponsiveTabs.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 import {
@@ -156,6 +144,12 @@ const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
 const message = useMessage();
 const { isTestMode } = useTestMode();
 const tab = ref<string>('list');
+const jsTabOptions = [
+  { label: '控制台', value: 'console' },
+  { label: '插件列表', value: 'list' },
+  { label: '插件设置', value: 'config' },
+  { label: '数据管理', value: 'data' },
+];
 
 const defaultText = [
   '// 学习制作可以看这里：https://github.com/sealdice/javascript/tree/main/examples',
@@ -568,11 +562,6 @@ onBeforeUnmount(() => {
 @media (max-width: 640px) {
   .js-page {
     padding: 0;
-  }
-
-  .js-tabs :deep(.n-tabs-nav-scroll-content) {
-    min-width: max-content;
-    justify-content: flex-start !important;
   }
 
   .js-panel-header :deep(.n-flex) {
