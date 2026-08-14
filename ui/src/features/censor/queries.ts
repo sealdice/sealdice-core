@@ -56,7 +56,7 @@ export function useCensorWordsQuery(enabled: MaybeRefOrGetter<boolean>) {
 
 export function useCensorLogsQuery(
   query: MaybeRefOrGetter<CensorLogQueryModel>,
-  enabled: MaybeRefOrGetter<boolean>,
+  enabled: MaybeRefOrGetter<boolean>
 ) {
   const queryState = computed(() => ({ ...toValue(query) }));
   return useQuery({

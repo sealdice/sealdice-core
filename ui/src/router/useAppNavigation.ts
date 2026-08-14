@@ -6,7 +6,10 @@ import {
   getSdApiV2CustomTextOptions,
 } from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
-import { normalizeAdvancedConfig, setAdvancedSettingsVisible } from '@/features/config/advancedSettings';
+import {
+  normalizeAdvancedConfig,
+  setAdvancedSettingsVisible,
+} from '@/features/config/advancedSettings';
 import { appNavigation } from './navigation';
 import { buildNavigationTree, flattenNavigationItems } from './navigationModel';
 
@@ -27,7 +30,7 @@ export function useAppNavigation(advancedConfigCounter: MaybeRefOrGetter<number>
   });
 
   const customTextCategories = computed(() =>
-    Object.keys(customTextQuery.data.value?.item.texts ?? {}),
+    Object.keys(customTextQuery.data.value?.item.texts ?? {})
   );
   const advancedConfigEnabled = computed(() => {
     return toValue(advancedConfigCounter) >= 8 || advancedConfigQuery.data.value?.show === true;
@@ -41,7 +44,7 @@ export function useAppNavigation(advancedConfigCounter: MaybeRefOrGetter<number>
     buildNavigationTree(appNavigation, {
       advancedConfigEnabled: advancedConfigEnabled.value,
       customTextCategories: customTextCategories.value,
-    }),
+    })
   );
 
   const searchItems = computed(() => flattenNavigationItems(navigationTree.value));

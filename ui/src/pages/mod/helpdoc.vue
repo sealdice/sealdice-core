@@ -1,7 +1,9 @@
 <template>
   <main class="helpdoc-page">
-    <PageHeader title="帮助文档">
+    <PageHeader title="帮助文档" :unsaved-scope="['helpdoc-config', 'helpdoc-reload']">
+      <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
       <n-button
+        v-if="!needReload"
         type="primary"
         :loading="reloadMutation.isPending.value"
         :disabled="reloadMutation.isPending.value"
@@ -13,8 +15,6 @@
         重载帮助文档
       </n-button>
     </PageHeader>
-
-    <ReloadNotice :show="needReload" />
 
     <n-tabs v-model:value="tab">
       <n-tab-pane tab="文件" name="file">
@@ -69,19 +69,12 @@
 <script setup lang="tsx">
 import { computed, h, onMounted, reactive, ref, shallowRef, watch, type CSSProperties } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
-import {
-  NTag,
-  NText,
-  NTooltip,
-  type DataTableColumns,
-  type UploadFileInfo,
-} from 'naive-ui';
+import { NTag, NText, NTooltip, type DataTableColumns, type UploadFileInfo } from 'naive-ui';
 import type { HelpTextVo } from '@/api';
 import HelpdocConfigDialog from '@/components/helpdoc/HelpdocConfigDialog.vue';
 import HelpdocFilePane from '@/components/helpdoc/HelpdocFilePane.vue';
 import HelpdocItemPane from '@/components/helpdoc/HelpdocItemPane.vue';
 import HelpdocUploadDialog from '@/components/helpdoc/HelpdocUploadDialog.vue';
-import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { useHelpdocConfigDraft } from '@/features/helpdoc/configDraft';
 import { useHelpdocMutations } from '@/features/helpdoc/mutations';
@@ -96,7 +89,7 @@ import {
   getHelpdocTextTooltip,
   summarizeHelpdocDelete,
 } from '@/features/helpdoc/viewModel';
-import { useUnsavedChanges } from '@/features/unsavedChanges';
+import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
 
 const message = useMessage();
@@ -131,14 +124,14 @@ watch(
   aliases => {
     configDraft.syncRemote(aliases ?? {});
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 watch(
   () => [itemQuery.pageNum, itemQuery.pageSize] as const,
   () => {
     appliedItemQuery.value = { ...itemQuery };
-  },
+  }
 );
 
 watch(uploadDialogVisible, visible => {
@@ -169,7 +162,7 @@ const uploader = useHelpdocUpload({
 });
 
 const activeUploadTasks = computed(() =>
-  uploader.tasks.value.filter(task => task.status !== 'success'),
+  uploader.tasks.value.filter(task => task.status !== 'success')
 );
 
 const { reloadMutation, deleteMutation, saveConfigMutation } = useHelpdocMutations({
@@ -195,7 +188,17 @@ useUnsavedChanges('helpdoc-config', {
   save: saveConfig,
   saving: computed(() => saveConfigMutation.isPending.value),
   canSave: computed(() => configDraft.dirty.value),
+  discard: () => configDraft.resetToRemote(),
   confirmMessage: '帮助文档设置还有修改，确定要忽略？',
+});
+
+usePendingReload('helpdoc-reload', {
+  label: '帮助文档',
+  pending: computed(() => needReload.value),
+  reload: () => reloadMutation.mutateAsync(),
+  reloading: computed(() => reloadMutation.isPending.value),
+  canReload: computed(() => !reloadMutation.isPending.value),
+  actionText: '重载帮助文档',
 });
 
 const columns: DataTableColumns<HelpTextVo> = [
@@ -209,7 +212,7 @@ const columns: DataTableColumns<HelpTextVo> = [
       h(
         NTag,
         { type: row.group === 'builtin' ? 'info' : 'success', size: 'small', bordered: false },
-        { default: () => row.group || '-' },
+        { default: () => row.group || '-' }
       ),
   },
   { title: '来源文件', key: 'from', width: 200, ellipsis: { tooltip: true } },
@@ -228,9 +231,13 @@ const columns: DataTableColumns<HelpTextVo> = [
         },
         {
           trigger: () =>
-            h(NText, { class: 'help-content-preview' }, { default: () => getHelpdocTextPreview(row.content ?? '') }),
+            h(
+              NText,
+              { class: 'help-content-preview' },
+              { default: () => getHelpdocTextPreview(row.content ?? '') }
+            ),
           default: () => getHelpdocTextTooltip(row.content ?? ''),
-        },
+        }
       ),
   },
   { title: '分类', key: 'packageName', width: 150, ellipsis: { tooltip: true } },
@@ -267,11 +274,15 @@ function deleteFiles() {
   const summary = summarizeHelpdocDelete(docTree.value, keys);
   dialog.warning({
     title: '删除',
-    content: () => h('div', { class: 'delete-summary' }, [
-      h('p', `将删除 ${summary.count} 个选中项：`),
-      h('ul', summary.labels.map(label => h('li', label))),
-      h('p', '删除的内容无法找回。'),
-    ]),
+    content: () =>
+      h('div', { class: 'delete-summary' }, [
+        h('p', `将删除 ${summary.count} 个选中项：`),
+        h(
+          'ul',
+          summary.labels.map(label => h('li', label))
+        ),
+        h('p', '删除的内容无法找回。'),
+      ]),
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -330,6 +341,5 @@ function retryTask(task: ResumableUploadTask) {
   .helpdoc-tabs :deep(.n-tabs-nav-scroll-content) {
     justify-content: flex-start !important;
   }
-
 }
 </style>

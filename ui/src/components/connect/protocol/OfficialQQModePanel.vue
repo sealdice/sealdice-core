@@ -1,5 +1,5 @@
 <template>
-  <n-alert type="info" :show-icon="false" class="mb-4">
+  <TipBox type="info" class="mb-4">
     <n-space vertical size="small">
       <n-radio-group v-model:value="mode">
         <n-radio-button value="manual">手动填写机器人 ID</n-radio-button>
@@ -13,11 +13,12 @@
         }}
       </n-text>
     </n-space>
-  </n-alert>
+  </TipBox>
 </template>
 
 <script setup lang="ts">
 import type { OfficialQQMode } from '@/features/connect/officialQQ';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const mode = defineModel<OfficialQQMode>({ required: true });
 </script>

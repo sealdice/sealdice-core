@@ -27,10 +27,6 @@
           当前以容器模式启动，部分功能受到限制。
         </n-tooltip>
       </div>
-
-      <div v-if="runtimeText" class="runtime-text">
-        {{ runtimeText }}
-      </div>
     </div>
   </div>
 </template>
@@ -52,7 +48,7 @@ const emit = defineEmits<{
   enableAdvancedConfig: [];
 }>();
 
-const { overview, appName, runtimeText } = useBaseOverview();
+const { overview, appName } = useBaseOverview();
 </script>
 
 <style scoped>
@@ -125,6 +121,7 @@ const { overview, appName, runtimeText } = useBaseOverview();
   gap: 0.2rem;
 }
 
+/* 产品名与 logo 同为品牌标识，字号取到与图标块同一视觉层级。 */
 .brand-title {
   overflow: hidden;
   border: 0;
@@ -132,9 +129,10 @@ const { overview, appName, runtimeText } = useBaseOverview();
   color: var(--sd-text-inverse);
   cursor: pointer;
   font: inherit;
-  font-size: 1.05rem;
-  font-weight: 650;
-  line-height: 1.25;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
   padding: 0;
   text-align: left;
   text-overflow: ellipsis;
@@ -145,23 +143,9 @@ const { overview, appName, runtimeText } = useBaseOverview();
   color: var(--sd-text-inverse-soft);
 }
 
-.runtime-text {
-  overflow: hidden;
-  color: var(--sd-text-inverse-muted);
-  font-size: 0.68rem;
-  line-height: 1.35;
-  margin-top: 0.18rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @supports (color: color-mix(in srgb, white, black)) {
   .container-indicator {
     color: color-mix(in srgb, var(--sd-text-inverse), transparent 14%);
-  }
-
-  .runtime-text {
-    color: color-mix(in srgb, var(--sd-text-inverse), transparent 32%);
   }
 }
 </style>

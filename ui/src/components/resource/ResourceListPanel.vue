@@ -133,7 +133,11 @@
           class="resource-list-panel__empty"
         >
           <template #extra>
-            <n-text depth="3">上传图片后可在骰子消息中使用 [图:路径] 引用。</n-text>
+            <n-text depth="3">
+              上传图片后可在骰子消息中使用
+              <n-text code class="sd-code-text">[图:路径]</n-text>
+              引用。
+            </n-text>
           </template>
         </n-empty>
       </ListPanel>

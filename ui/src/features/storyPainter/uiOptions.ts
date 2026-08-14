@@ -19,7 +19,7 @@ export const storyPainterOptionList: StoryPainterOptionItem[] = [
   },
   {
     label: '场外发言过滤',
-    desc: '开启后，所有以(和（为开头的发言将被吃掉不显示',
+    desc: '开启后，所有以「(」和「（」为开头的发言将被吃掉不显示',
     key: 'offTopicHide',
   },
   {
@@ -34,7 +34,7 @@ export const storyPainterOptionList: StoryPainterOptionItem[] = [
   },
   {
     label: '年月日不展示',
-    desc: '开启后，导出结果的日期将只显示几点几分(如果可能)',
+    desc: '开启后，导出结果的日期将只显示几点几分（如果可能）',
     key: 'yearHide',
   },
   {

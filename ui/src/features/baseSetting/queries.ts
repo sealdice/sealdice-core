@@ -1,8 +1,5 @@
 import { useQuery } from '@tanstack/vue-query';
-import {
-  getSdApiV2BaseSettingSchema,
-  getSdApiV2BaseSettingValue,
-} from '@/api';
+import { getSdApiV2BaseSettingSchema, getSdApiV2BaseSettingValue } from '@/api';
 import { hasAccessToken } from '@/features/auth/state';
 import { normalizeBaseSettingSchema } from './viewModel';
 

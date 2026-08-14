@@ -24,7 +24,17 @@ import type { StoryPainterViewMode } from './viewMode';
 
 const storageKey = 'storyPainterPcNameColorMap';
 const indexColumns = ['id', 'nickname', 'IMUserId', 'time', 'isDice'] as const;
-const previewColumns = ['id', 'nickname', 'IMUserId', 'time', 'message', 'isDice', 'commandId', 'commandInfo', 'uniformId'] as const;
+const previewColumns = [
+  'id',
+  'nickname',
+  'IMUserId',
+  'time',
+  'message',
+  'isDice',
+  'commandId',
+  'commandInfo',
+  'uniformId',
+] as const;
 const previewReadChunkSize = 120;
 const rowCacheLimit = 3000;
 
@@ -60,7 +70,10 @@ export function useStoryPainter() {
     rowSourceVersion += 1;
     rowCache.clear();
     rowChunkInflight.clear();
-    items.value = nextItems.map((item) => ({ ...item, message: replaceAllText(item.message, '\r\n', '\n') }));
+    items.value = nextItems.map(item => ({
+      ...item,
+      message: replaceAllText(item.message, '\r\n', '\n'),
+    }));
     chars.value = buildStoryPainterChars(items.value, pcNameColorMap);
     refreshPreviewFromItems();
   }
@@ -129,9 +142,11 @@ export function useStoryPainter() {
     const current = chars.value[index];
     if (!current) return;
     deletedOriginalCharKeys.add(originalCharKey(current));
-    const removed = new Set(items.value
-      .filter(item => item.IMUserId === current.IMUserId && item.nickname === current.name)
-      .map(item => item.index ?? 0));
+    const removed = new Set(
+      items.value
+        .filter(item => item.IMUserId === current.IMUserId && item.nickname === current.name)
+        .map(item => item.index ?? 0)
+    );
     items.value = deleteStoryPainterChar(items.value, current);
     previewItems.value = deleteStoryPainterChar(previewItems.value, current);
     visibleIndexes.value = visibleIndexes.value.filter(itemIndex => !removed.has(itemIndex));
@@ -151,8 +166,11 @@ export function useStoryPainter() {
   }
 
   function refreshPreviewFromItems(): void {
-    previewItems.value = buildStoryPainterPreviewItems(items.value, chars.value, exportOptions, (item) =>
-      normalizeStoryPainterMessage(item, chars.value, exportOptions, false),
+    previewItems.value = buildStoryPainterPreviewItems(
+      items.value,
+      chars.value,
+      exportOptions,
+      item => normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
     );
     visibleIndexes.value = previewItems.value.map(item => item.index ?? item.id - 1);
   }
@@ -163,10 +181,10 @@ export function useStoryPainter() {
     const indexes: number[] = [];
     for await (const chunk of source.iterRows({ columns: [...previewColumns], chunkSize: 2000 })) {
       const overridden = chunk.filter(item => !isDeletedOriginalItem(item)).map(applyCharOverrides);
-      const visible = buildStoryPainterPreviewItems(overridden, chars.value, exportOptions, (item) =>
-        normalizeStoryPainterMessage(item, chars.value, exportOptions, false),
+      const visible = buildStoryPainterPreviewItems(overridden, chars.value, exportOptions, item =>
+        normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
       );
-      visible.forEach((item) => {
+      visible.forEach(item => {
         indexes.push(item.index ?? 0);
       });
     }
@@ -189,7 +207,11 @@ export function useStoryPainter() {
         .filter((item): item is StoryPainterLogItem => Boolean(item));
     }
     const missing = uniqueIndexes.filter(index => !rowCache.has(index));
-    const chunkStarts = [...new Set(missing.map(index => Math.floor(index / previewReadChunkSize) * previewReadChunkSize))];
+    const chunkStarts = [
+      ...new Set(
+        missing.map(index => Math.floor(index / previewReadChunkSize) * previewReadChunkSize)
+      ),
+    ];
     const sourceVersion = rowSourceVersion;
     storyPainterDebug('painter:read-preview-items', {
       requestedCount: indexes.length,
@@ -235,8 +257,8 @@ export function useStoryPainter() {
     }
     for await (const chunk of source.iterRows({ columns: [...previewColumns], chunkSize })) {
       const overridden = chunk.filter(item => !isDeletedOriginalItem(item)).map(applyCharOverrides);
-      yield buildStoryPainterPreviewItems(overridden, chars.value, exportOptions, (item) =>
-        normalizeStoryPainterMessage(item, chars.value, exportOptions, false),
+      yield buildStoryPainterPreviewItems(overridden, chars.value, exportOptions, item =>
+        normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
       );
     }
   }
@@ -258,7 +280,12 @@ export function useStoryPainter() {
     let next = item;
     for (const [packed, nextName] of charNameOverrides) {
       const { name: oldName, IMUserId } = unpackStoryPainterNameId(packed);
-      next = renameStoryPainterChar(next === item ? [item] : [next], { name: oldName, IMUserId, role: '角色', color: '' }, nextName)[0] ?? next;
+      next =
+        renameStoryPainterChar(
+          next === item ? [item] : [next],
+          { name: oldName, IMUserId, role: '角色', color: '' },
+          nextName
+        )[0] ?? next;
     }
     return next;
   }
@@ -273,7 +300,11 @@ export function useStoryPainter() {
     }
   }
 
-  function readPreviewChunk(source: StoryPainterParquetDataset, start: number, sourceVersion: number): Promise<void> {
+  function readPreviewChunk(
+    source: StoryPainterParquetDataset,
+    start: number,
+    sourceVersion: number
+  ): Promise<void> {
     const inflight = rowChunkInflight.get(start);
     if (inflight) {
       storyPainterDebug('painter:read-preview-chunk-reuse', {
@@ -290,7 +321,11 @@ export function useStoryPainter() {
         sourceVersion,
         currentSourceVersion: rowSourceVersion,
       });
-      const rows = await source.readRows(start, Math.min(start + previewReadChunkSize, source.numRows), [...previewColumns]);
+      const rows = await source.readRows(
+        start,
+        Math.min(start + previewReadChunkSize, source.numRows),
+        [...previewColumns]
+      );
       if (sourceVersion !== rowSourceVersion) {
         storyPainterDebug('painter:read-preview-chunk-skip', {
           start,
@@ -303,7 +338,7 @@ export function useStoryPainter() {
         return;
       }
       let cachedCount = 0;
-      rows.forEach((item) => {
+      rows.forEach(item => {
         if (isDeletedOriginalItem(item)) return;
         const overridden = applyCharOverrides(item);
         if (overridden.index !== undefined) {
@@ -360,10 +395,13 @@ export function useStoryPainter() {
 }
 
 function syncChars(current: StoryPainterChar[], next: StoryPainterChar[]): StoryPainterChar[] {
-  const currentMap = new Map(current.map((item) => [packStoryPainterNameId(item), item]));
+  const currentMap = new Map(current.map(item => [packStoryPainterNameId(item), item]));
   return next.map((item, index) => ({
     ...item,
-    color: currentMap.get(packStoryPainterNameId(item))?.color || item.color || storyPainterPalette[index % storyPainterPalette.length],
+    color:
+      currentMap.get(packStoryPainterNameId(item))?.color ||
+      item.color ||
+      storyPainterPalette[index % storyPainterPalette.length],
     role: currentMap.get(packStoryPainterNameId(item))?.role || item.role,
   }));
 }

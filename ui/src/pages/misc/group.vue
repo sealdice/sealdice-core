@@ -183,7 +183,7 @@
 
     <n-modal v-model:show="quitDialogVisible" preset="card" title="退群确认" class="group-dialog">
       <n-flex vertical>
-        <n-alert type="warning" :show-icon="false">
+        <TipBox type="warning">
           <template v-if="quitAction?.mode === 'single'">
             将退出：{{ formatGroupQuitTarget(quitAction.target) }}
           </template>
@@ -197,7 +197,7 @@
               </ul>
             </n-scrollbar>
           </template>
-        </n-alert>
+        </TipBox>
         <n-checkbox v-model:checked="quitForm.silence">静默退出</n-checkbox>
         <n-checkbox v-model:checked="quitForm.saveAsDefault">保存为默认留言</n-checkbox>
         <n-input
@@ -251,6 +251,7 @@ import {
 } from '@/features/group/quitPreference';
 import { formatGroupQuitTarget, type GroupQuitTarget } from '@/features/group/quitSummary';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import TipBox from '@/components/shared/TipBox.vue';
 
 type GroupRow = GroupInfo & {
   selected?: boolean;

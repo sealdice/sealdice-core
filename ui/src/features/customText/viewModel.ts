@@ -1,4 +1,10 @@
-import { normalizeTextDict, type TextTemplateHelpDict, type TextTemplateHelpGroup, type TextTemplateItem, type TextTemplateWithWeightDict } from './types';
+import {
+  normalizeTextDict,
+  type TextTemplateHelpDict,
+  type TextTemplateHelpGroup,
+  type TextTemplateItem,
+  type TextTemplateWithWeightDict,
+} from './types';
 
 export type CustomTextFilterMode = 'all' | 'unmodified' | 'modified' | 'group' | 'deprecated';
 
@@ -18,12 +24,14 @@ export function getCustomTextGroups(helpGroup: TextTemplateHelpGroup = {}): stri
     new Set(
       Object.values(helpGroup)
         .map(info => firstGroupName(info.subType))
-        .filter(group => group !== ''),
-    ),
+        .filter(group => group !== '')
+    )
   ).sort((a, b) => a.localeCompare(b));
 }
 
-export function sortCustomTextCategory(input: SortCustomTextCategoryInput): SortedCustomTextCategory {
+export function sortCustomTextCategory(
+  input: SortCustomTextCategoryInput
+): SortedCustomTextCategory {
   const categoryHelpInfo = input.helpInfo[input.category] ?? {};
   let items = Object.entries(input.texts[input.category] ?? {});
   const filterName = input.filterName ?? '';
@@ -49,7 +57,9 @@ export function sortCustomTextCategory(input: SortCustomTextCategoryInput): Sort
       break;
     case 'group': {
       const targetGroup = input.filterGroup ?? '';
-      items = items.filter(([keyName]) => firstGroupName(categoryHelpInfo[keyName]?.subType).startsWith(targetGroup));
+      items = items.filter(([keyName]) =>
+        firstGroupName(categoryHelpInfo[keyName]?.subType).startsWith(targetGroup)
+      );
       break;
     }
   }
@@ -65,10 +75,13 @@ export function sortCustomTextCategory(input: SortCustomTextCategoryInput): Sort
   }
 
   return Array.from(groups.entries())
-    .map(([group, groupItems]) => [
-      group,
-      groupItems.sort((a, b) => compareTextItems(a[0], b[0], categoryHelpInfo)),
-    ] as [string, Array<[string, TextTemplateItem[]]>])
+    .map(
+      ([group, groupItems]) =>
+        [group, groupItems.sort((a, b) => compareTextItems(a[0], b[0], categoryHelpInfo))] as [
+          string,
+          Array<[string, TextTemplateItem[]]>,
+        ]
+    )
     .sort(([aGroup], [bGroup]) => {
       if (aGroup === '__others__') return -1;
       if (bGroup === '__others__') return 1;
@@ -92,7 +105,7 @@ export function buildCustomTextExportContent(input: {
         },
       },
       null,
-      indent,
+      indent
     );
   }
   return JSON.stringify(input.texts, null, indent);
@@ -150,5 +163,9 @@ function compareTextItems(aKey: string, bKey: string, helpGroup: TextTemplateHel
 }
 
 function firstGroupName(subType?: string): string {
-  return String(subType ?? '').trim().split(' ')[0] ?? '';
+  return (
+    String(subType ?? '')
+      .trim()
+      .split(' ')[0] ?? ''
+  );
 }

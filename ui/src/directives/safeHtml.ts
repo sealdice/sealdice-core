@@ -37,7 +37,8 @@ function applySafeHtml(el: HTMLElement, value: SafeHtmlValue): void {
   }
 
   const html = typeof value === 'string' ? value : value.html;
-  const config = typeof value === 'string' ? DEFAULT_CONFIG : { ...DEFAULT_CONFIG, ...value.config };
+  const config =
+    typeof value === 'string' ? DEFAULT_CONFIG : { ...DEFAULT_CONFIG, ...value.config };
   el.innerHTML = DOMPurify.sanitize(html, config);
 }
 

@@ -19,13 +19,7 @@
         />
       </n-tab-pane>
       <n-tab-pane name="config" tab="拉黑设置">
-        <BanConfigPanel
-          v-if="configDraft"
-          v-model:config="configDraft"
-          :dirty="configDirty"
-          :saving="saveConfigMutation.isPending.value"
-          @save="saveConfig"
-        />
+        <BanConfigPanel v-if="configDraft" v-model:config="configDraft" />
       </n-tab-pane>
     </n-tabs>
 
@@ -211,7 +205,7 @@ function confirmDelete(item: BanListInfoItem) {
   const targetName = item.name ? `「${item.name}」` : '未命名条目';
   dialog.warning({
     title: '删除',
-    content: `确认删除 ${targetName}（ID: ${item.ID}，级别：${rankLabel}，怒气值：${item.score}）吗？`,
+    content: `确认删除 ${targetName}（ID：${item.ID}，级别：${rankLabel}，怒气值：${item.score}）吗？`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -244,11 +238,6 @@ async function exportFile() {
   } catch (error) {
     message.error(getErrorMessage(error, '导出黑白名单失败'));
   }
-}
-
-async function saveConfig() {
-  if (!configDraft.value) return;
-  await saveConfigMutation.mutateAsync(configDraft.value);
 }
 </script>
 

@@ -62,9 +62,9 @@ export function formatBackupSelection(selections: BackupSelectionKey[]): number 
 export function describeBackupSelection(selection: number): string[] {
   if (selection < 0) return [];
   const selected = new Set(parseBackupSelection(selection));
-  return BACKUP_SELECTION_OPTIONS
-    .filter(option => selected.has(option.key))
-    .map(option => option.label.replace('（含自定义回复）', ''));
+  return BACKUP_SELECTION_OPTIONS.filter(option => selected.has(option.key)).map(option =>
+    option.label.replace('（含自定义回复）', '')
+  );
 }
 
 export function parseCleanTriggers(trigger: number): BackupCleanTriggerKey[] {
@@ -75,15 +75,20 @@ export function parseCleanTriggers(trigger: number): BackupCleanTriggerKey[] {
 
 export function formatCleanTriggers(triggers: BackupCleanTriggerKey[]): number {
   const selected = new Set(triggers);
-  return (Object.entries(CLEAN_TRIGGER_BITS) as Array<[BackupCleanTriggerKey, number]>).reduce((mask, [key, bit]) => {
-    return selected.has(key) ? mask | bit : mask;
-  }, 0);
+  return (Object.entries(CLEAN_TRIGGER_BITS) as Array<[BackupCleanTriggerKey, number]>).reduce(
+    (mask, [key, bit]) => {
+      return selected.has(key) ? mask | bit : mask;
+    },
+    0
+  );
 }
 
 export function normalizeBackupConfig(config: Config): BackupConfigDraft {
   const autoBackupSelection = Number(config.autoBackupSelection ?? 0);
   const backupCleanTrigger = Number(config.backupCleanTrigger ?? 0);
-  const backupCleanStrategy = [0, 1, 2].includes(config.backupCleanStrategy) ? config.backupCleanStrategy : 0;
+  const backupCleanStrategy = [0, 1, 2].includes(config.backupCleanStrategy)
+    ? config.backupCleanStrategy
+    : 0;
 
   return {
     autoBackupEnable: Boolean(config.autoBackupEnable),

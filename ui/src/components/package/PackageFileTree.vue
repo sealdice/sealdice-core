@@ -19,7 +19,9 @@ const props = defineProps<{
   files?: readonly string[] | null;
 }>();
 
-const treeData = computed<TreeOption[]>(() => toTreeOptions(buildPackageFileTree(props.files ?? [])));
+const treeData = computed<TreeOption[]>(() =>
+  toTreeOptions(buildPackageFileTree(props.files ?? []))
+);
 
 function toTreeOptions(nodes: ReturnType<typeof buildPackageFileTree>): TreeOption[] {
   return nodes.map(node => ({

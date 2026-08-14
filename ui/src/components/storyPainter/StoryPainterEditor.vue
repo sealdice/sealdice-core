@@ -24,9 +24,19 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, shallowRef, watch } from 'vue';
 import { basicSetup } from 'codemirror';
-import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
+import {
+  Decoration,
+  EditorView,
+  ViewPlugin,
+  type DecorationSet,
+  type ViewUpdate,
+} from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
-import type { StoryPainterChar, StoryPainterLogItem, StoryPainterOptions } from '@/features/storyPainter/types';
+import type {
+  StoryPainterChar,
+  StoryPainterLogItem,
+  StoryPainterOptions,
+} from '@/features/storyPainter/types';
 import { storyPainterTime } from '@/features/storyPainter/formatters';
 
 const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
@@ -70,20 +80,28 @@ watch(
       internalUpdate.value = false;
     });
   },
-  { immediate: true },
+  { immediate: true }
 );
 
-watch(code, (value) => {
+watch(code, value => {
   if (internalUpdate.value) return;
   emit('updateItems', parseEditableText(value, props.items));
 });
 
 function exportEditableText(items: StoryPainterLogItem[]): string {
-  return items.map((item) => `${item.nickname}(${item.IMUserId}) ${storyPainterTime(item, { ...props.options, timeHide: false, yearHide: false })}\n${item.message.trimEnd()}\n`).join('\n');
+  return items
+    .map(
+      item =>
+        `${item.nickname}(${item.IMUserId}) ${storyPainterTime(item, { ...props.options, timeHide: false, yearHide: false })}\n${item.message.trimEnd()}\n`
+    )
+    .join('\n');
 }
 
-function parseEditableText(text: string, originalItems: StoryPainterLogItem[]): StoryPainterLogItem[] {
-  const blocks = text.split(/\n{2,}/).filter((block) => block.trim() !== '');
+function parseEditableText(
+  text: string,
+  originalItems: StoryPainterLogItem[]
+): StoryPainterLogItem[] {
+  const blocks = text.split(/\n{2,}/).filter(block => block.trim() !== '');
   return blocks.map((block, index) => {
     const [head = '', ...messageLines] = block.split(/\r?\n/);
     const matched = head.match(/^(.+?)\((.*?)\)\s+(.+)$/);
@@ -116,8 +134,13 @@ function blankItem(index: number): StoryPainterLogItem {
   };
 }
 
-function storyLogHighlightExtension(chars: StoryPainterChar[], options: StoryPainterOptions): Extension {
-  const nameColorMap = new Map(chars.map((char) => [char.name, char.role === '隐藏' ? '#6b7280' : char.color]));
+function storyLogHighlightExtension(
+  chars: StoryPainterChar[],
+  options: StoryPainterOptions
+): Extension {
+  const nameColorMap = new Map(
+    chars.map(char => [char.name, char.role === '隐藏' ? '#6b7280' : char.color])
+  );
   const buildDecorations = (view: EditorView) => {
     const decorations = [];
     for (const range of view.visibleRanges) {
@@ -127,7 +150,9 @@ function storyLogHighlightExtension(chars: StoryPainterChar[], options: StoryPai
         const matched = line.text.match(/^(.+?)\(.+?\)\s+\d{4}\//);
         const color = matched?.[1] ? nameColorMap.get(matched[1]) : undefined;
         if (color) {
-          decorations.push(Decoration.line({ attributes: { style: `color: ${color}` } }).range(line.from));
+          decorations.push(
+            Decoration.line({ attributes: { style: `color: ${color}` } }).range(line.from)
+          );
         }
         if (line.to + 1 <= pos) break;
         pos = line.to + 1;
@@ -138,21 +163,24 @@ function storyLogHighlightExtension(chars: StoryPainterChar[], options: StoryPai
   };
 
   type HighlightPlugin = { decorations: DecorationSet };
-  return ViewPlugin.fromClass(class implements HighlightPlugin {
-    decorations: DecorationSet;
+  return ViewPlugin.fromClass(
+    class implements HighlightPlugin {
+      decorations: DecorationSet;
 
-    constructor(view: EditorView) {
-      this.decorations = buildDecorations(view);
-    }
-
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
-        this.decorations = buildDecorations(update.view);
+      constructor(view: EditorView) {
+        this.decorations = buildDecorations(view);
       }
+
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = buildDecorations(update.view);
+        }
+      }
+    },
+    {
+      decorations: (plugin: HighlightPlugin) => plugin.decorations,
     }
-  }, {
-    decorations: (plugin: HighlightPlugin) => plugin.decorations,
-  });
+  );
 }
 </script>
 

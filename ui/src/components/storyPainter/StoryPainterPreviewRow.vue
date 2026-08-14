@@ -12,7 +12,11 @@ import type {
   StoryPainterOptions,
   StoryPainterPreviewDisplayMode,
 } from '@/features/storyPainter/types';
-import { renderForumText, renderPreviewHtml, renderTrgText } from '@/features/storyPainter/renderers';
+import {
+  renderForumText,
+  renderPreviewHtml,
+  renderTrgText,
+} from '@/features/storyPainter/renderers';
 
 const props = defineProps<{
   source: StoryPainterLogItem;
@@ -24,10 +28,14 @@ const props = defineProps<{
   addVoiceMark: boolean;
 }>();
 
-const html = computed(() => renderPreviewHtml(props.source, props.chars, props.options, props.color));
-const text = computed(() => props.mode === 'trg'
-  ? renderTrgText(props.source, props.chars, props.options, props.addVoiceMark)
-  : renderForumText(props.source, props.chars, props.options, props.forumOptions, props.color));
+const html = computed(() =>
+  renderPreviewHtml(props.source, props.chars, props.options, props.color)
+);
+const text = computed(() =>
+  props.mode === 'trg'
+    ? renderTrgText(props.source, props.chars, props.options, props.addVoiceMark)
+    : renderForumText(props.source, props.chars, props.options, props.forumOptions, props.color)
+);
 </script>
 
 <style scoped>

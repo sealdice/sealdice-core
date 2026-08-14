@@ -20,7 +20,9 @@ export const usePwaInstallStore = defineStore('pwa-install', () => {
 
   function getNavigatorStandalone(): boolean {
     if (typeof navigator === 'undefined') return false;
-    return 'standalone' in navigator ? Boolean((navigator as Navigator & { standalone?: boolean }).standalone) : false;
+    return 'standalone' in navigator
+      ? Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
+      : false;
   }
 
   function syncStandaloneState(): void {

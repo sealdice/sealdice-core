@@ -1,18 +1,14 @@
 <template>
   <div class="async-field-section">
-    <n-alert
-      v-if="props.error"
-      type="warning"
-      :show-icon="false"
-      class="section-alert"
-    >
+    <!-- 常驻错误块必须带重试，否则用户只能看着它停在页面上。 -->
+    <TipBox v-if="props.error" type="error" class="section-alert">
       <n-flex justify="space-between" align="center" :wrap="false">
         <span>{{ props.error }}</span>
         <n-button size="small" tertiary @click="emit('retry')">
           {{ props.retryText }}
         </n-button>
       </n-flex>
-    </n-alert>
+    </TipBox>
 
     <n-spin :show="props.loading">
       <div class="section-body">
@@ -26,6 +22,8 @@
 </template>
 
 <script setup lang="ts">
+import TipBox from '@/components/shared/TipBox.vue';
+
 const props = withDefaults(
   defineProps<{
     loading?: boolean;
@@ -38,7 +36,7 @@ const props = withDefaults(
     message: '',
     error: '',
     retryText: '重试',
-  },
+  }
 );
 
 const emit = defineEmits<{

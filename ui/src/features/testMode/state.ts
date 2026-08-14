@@ -39,7 +39,10 @@ export function isTestModeApiError(error: unknown): boolean {
   );
 }
 
-export function getTestModeBlockMessage(error: unknown, fallback = TEST_MODE_DEFAULT_REASON): string {
+export function getTestModeBlockMessage(
+  error: unknown,
+  fallback = TEST_MODE_DEFAULT_REASON
+): string {
   if (!isTestModeApiError(error) && !isTestModeResponse(error)) {
     return '';
   }

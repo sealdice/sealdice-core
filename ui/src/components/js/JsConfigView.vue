@@ -35,11 +35,7 @@
 
     <div v-if="deadConfigsQuery.data.value?.length" class="dead-configs-block">
       <n-flex size="small" align="center">
-        <n-alert type="warning" :show-icon="false">
-          <template #header>
-            以下是残留的死配置（插件已不存在但配置仍在），可安全删除
-          </template>
-        </n-alert>
+        <TipBox type="warning"> 以下是残留的死配置（插件已不存在但配置仍在），可安全删除。 </TipBox>
         <n-button
           type="error"
           size="small"
@@ -53,12 +49,7 @@
       <div v-for="dc in deadConfigsQuery.data.value" :key="dc.name" class="dead-config-row">
         <n-flex align="center" justify="space-between">
           <n-text>{{ dc.name }}</n-text>
-          <n-button
-            size="tiny"
-            type="error"
-            secondary
-            @click="deleteDeadConfigs([dc.name])"
-          >
+          <n-button size="tiny" type="error" secondary @click="deleteDeadConfigs([dc.name])">
             删除
           </n-button>
         </n-flex>
@@ -69,16 +60,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
-import {
-  NCollapse,
-  NCollapseItem,
-  NFlex,
-  NText,
-  NAlert,
-  NButton,
-  useDialog,
-  useMessage,
-} from 'naive-ui';
+import { NCollapse, NCollapseItem, NFlex, NText, NButton, useDialog, useMessage } from 'naive-ui';
 import { postSdApiV2JsCronCheck } from '@/api';
 import JsConfigItemEditor from '@/components/js/JsConfigItemEditor.vue';
 import {
@@ -91,6 +73,7 @@ import {
 } from '@/features/js/configModel';
 import { getErrorMessage } from '@/features/auth/error';
 import { useJsConfig } from '@/features/js/useJsConfig';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const emit = defineEmits<{
   dirtyChange: [value: boolean];
@@ -98,13 +81,8 @@ const emit = defineEmits<{
 
 const message = useMessage();
 const dialog = useDialog();
-const {
-  deadConfigsQuery,
-  configItems,
-  resetMutation,
-  deleteDeadMutation,
-  savePluginConfigs,
-} = useJsConfig();
+const { deadConfigsQuery, configItems, resetMutation, deleteDeadMutation, savePluginConfigs } =
+  useJsConfig();
 
 const editedValues = ref<Record<string, Record<string, unknown>>>({});
 const configErrors = reactive<JsConfigErrorMap>({});
@@ -112,7 +90,7 @@ const checkingKeys = ref<Record<string, boolean>>({});
 const saveAllLoading = ref(false);
 
 const hasEdits = computed(() =>
-  Object.values(editedValues.value).some(item => Object.keys(item).length > 0),
+  Object.values(editedValues.value).some(item => Object.keys(item).length > 0)
 );
 const hasConfigErrors = computed(() => shouldBlockConfigSave(configErrors));
 
@@ -121,7 +99,7 @@ watch(
   value => {
     emit('dirtyChange', value);
   },
-  { immediate: true },
+  { immediate: true }
 );
 
 function setEdited(pluginName: string, key: string, value: unknown) {
@@ -196,7 +174,7 @@ async function validateConfigValue(pluginName: string, key: string, value: strin
       configErrors,
       pluginName,
       key,
-      isDailyTaskExpressionValid(value) ? '' : '每日定时任务格式错误，应为 HH:mm',
+      isDailyTaskExpressionValid(value) ? '' : '每日定时任务格式错误，应为 HH:mm'
     );
     return;
   }

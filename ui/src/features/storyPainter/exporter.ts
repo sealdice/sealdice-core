@@ -20,14 +20,20 @@ export async function saveStoryPainterText(text: string, filename: string): Prom
   saveAs(new Blob([text], { type: 'text/plain;charset=utf-8' }), filename);
 }
 
-export async function exportStoryPainterRaw(items: StoryPainterLogItem[], filename = '跑团记录(未处理).txt'): Promise<void> {
+export async function exportStoryPainterRaw(
+  items: StoryPainterLogItem[],
+  filename = '跑团记录（未处理）.txt'
+): Promise<void> {
   const text = items
-    .map((item) => `${item.nickname}(${item.IMUserId}) ${item.time}\n${item.message}\n`)
+    .map(item => `${item.nickname}(${item.IMUserId}) ${item.time}\n${item.message}\n`)
     .join('\n');
   await saveStoryPainterText(text, filename);
 }
 
-export async function exportStoryPainterDoc(html: string, filename = '跑团记录.doc'): Promise<void> {
+export async function exportStoryPainterDoc(
+  html: string,
+  filename = '跑团记录.doc'
+): Promise<void> {
   const { saveAs } = await import('file-saver');
   const text = `MIME-Version: 1.0
 Content-Type: multipart/related; boundary="----=_NextPart_WritingBug"
@@ -47,15 +53,16 @@ ${html}
   saveAs(new Blob([text], { type: 'application/msword' }), filename);
 }
 
-export async function exportStoryPainterDocx(entries: StoryPainterDocxEntry[], filename = '跑团记录.docx'): Promise<void> {
-  const [docxApi, { saveAs }] = await Promise.all([
-    import('docx'),
-    import('file-saver'),
-  ]);
+export async function exportStoryPainterDocx(
+  entries: StoryPainterDocxEntry[],
+  filename = '跑团记录.docx'
+): Promise<void> {
+  const [docxApi, { saveAs }] = await Promise.all([import('docx'), import('file-saver')]);
   const { AlignmentType, Document, Packer, Paragraph, TextRun } = docxApi;
-  const children: FileChild[] = entries.length > 0
-    ? entries.flatMap((entry) => buildDocxParagraphs(entry, docxApi))
-    : [new Paragraph({ children: [new TextRun({ text: '' })], alignment: AlignmentType.LEFT })];
+  const children: FileChild[] =
+    entries.length > 0
+      ? entries.flatMap(entry => buildDocxParagraphs(entry, docxApi))
+      : [new Paragraph({ children: [new TextRun({ text: '' })], alignment: AlignmentType.LEFT })];
 
   const document = new Document({
     sections: [{ properties: {}, children }],
@@ -69,7 +76,7 @@ export function extractMessageLines(el: HTMLElement | null): string[] {
   const clone = el.cloneNode(true) as HTMLElement;
   const doc = el.ownerDocument || document;
 
-  clone.querySelectorAll('img').forEach((img) => {
+  clone.querySelectorAll('img').forEach(img => {
     const src = img.getAttribute('src') || '';
     img.replaceWith(doc.createTextNode(src ? `[图:${src}]` : '[图:无可用链接]'));
   });
@@ -92,7 +99,7 @@ export function supportsStoryPainterDocxExport(): boolean {
 
 function buildDocxParagraphs(
   entry: StoryPainterDocxEntry,
-  docxApi: typeof import('docx'),
+  docxApi: typeof import('docx')
 ): Paragraph[] {
   const { AlignmentType, Paragraph, TextRun } = docxApi;
   const lines = entry.messageLines.length > 0 ? [...entry.messageLines] : [''];
@@ -100,7 +107,8 @@ function buildDocxParagraphs(
   const timeText = (entry.time ?? '').trim();
   const nicknameText = (entry.nickname ?? '').trim();
   const timeColor = colorToDocx(entry.timeColor) ?? '666666';
-  const nicknameColor = colorToDocx(entry.nicknameColor) ?? colorToDocx(entry.messageColor) ?? '333333';
+  const nicknameColor =
+    colorToDocx(entry.nicknameColor) ?? colorToDocx(entry.messageColor) ?? '333333';
   const messageColor = colorToDocx(entry.messageColor) ?? nicknameColor;
 
   const runs: ParagraphChild[] = [];
@@ -119,13 +127,15 @@ function buildDocxParagraphs(
     }),
   ];
 
-  lines.forEach((line) => {
-    paragraphs.push(new Paragraph({
-      children: [new TextRun({ text: line, color: messageColor })],
-      indent: { left: 800 },
-      spacing: { after: 120 },
-      alignment: AlignmentType.LEFT,
-    }));
+  lines.forEach(line => {
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: line, color: messageColor })],
+        indent: { left: 800 },
+        spacing: { after: 120 },
+        alignment: AlignmentType.LEFT,
+      })
+    );
   });
 
   return paragraphs;
@@ -138,15 +148,22 @@ function colorToDocx(color?: string): string | undefined {
   if (value.startsWith('#')) {
     value = value.slice(1);
     if (value.length === 3) {
-      value = value.split('').map((char) => char + char).join('');
+      value = value
+        .split('')
+        .map(char => char + char)
+        .join('');
     }
     return value.toUpperCase();
   }
   const rgbMatch = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
   if (!rgbMatch) return undefined;
-  return rgbMatch.slice(1, 4).map((segment) => {
-    const n = Number(segment);
-    if (Number.isNaN(n) || n < 0) return '00';
-    return Math.min(255, n).toString(16).padStart(2, '0');
-  }).join('').toUpperCase();
+  return rgbMatch
+    .slice(1, 4)
+    .map(segment => {
+      const n = Number(segment);
+      if (Number.isNaN(n) || n < 0) return '00';
+      return Math.min(255, n).toString(16).padStart(2, '0');
+    })
+    .join('')
+    .toUpperCase();
 }

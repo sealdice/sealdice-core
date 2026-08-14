@@ -102,8 +102,10 @@ func (s *BaseService) Overview(_ context.Context, _ *request.Empty) (*response.I
 	}
 
 	data := OverviewData{
-		AppName:    dice.APPNAME,
-		AppChannel: dice.APP_CHANNEL,
+		AppName: dice.APPNAME,
+		// 发布渠道取自校验结论而非 APP_CHANNEL：自编译同样可以注入任意 APP_CHANNEL，
+		// 单看它无法区分官方构建。
+		AppChannel: string(dice.GetBuildChannel()),
 		ExtraTitle: extraTitle,
 		Version: VersionInfo{
 			Value:  dice.VERSION.String(),

@@ -56,7 +56,10 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   const hasCategory = computed(() => Boolean(texts.value[category.value]));
   const modified = computed(() => {
     if (!category.value || !texts.value[category.value]) return false;
-    return JSON.stringify(texts.value[category.value] ?? {}) !== JSON.stringify(initialTexts.value[category.value] ?? {});
+    return (
+      JSON.stringify(texts.value[category.value] ?? {}) !==
+      JSON.stringify(initialTexts.value[category.value] ?? {})
+    );
   });
   const filterGroups = computed(() => getCustomTextGroups(helpInfo.value[category.value]));
   const sortedCategory = computed(() =>
@@ -67,7 +70,7 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
       filterMode: filterMode.value,
       filterName: currentFilterName.value,
       filterGroup: currentFilterGroup.value,
-    }),
+    })
   );
 
   const saveMutation = useMutation({
@@ -108,17 +111,14 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   watch(
     () => customTextQuery.data.value?.item,
     () => syncLocalTexts(),
-    { immediate: true },
+    { immediate: true }
   );
 
-  watch(
-    category,
-    () => {
-      filterMode.value = 'all';
-      currentFilterGroup.value = '';
-      currentFilterName.value = '';
-    },
-  );
+  watch(category, () => {
+    filterMode.value = 'all';
+    currentFilterGroup.value = '';
+    currentFilterName.value = '';
+  });
 
   watch(
     () => dialogImportVisible.value,
@@ -126,7 +126,7 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
       if (newValue) {
         importRefresh();
       }
-    },
+    }
   );
 
   watch(
@@ -135,7 +135,7 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
       if (dialogImportVisible.value) {
         importRefresh();
       }
-    },
+    }
   );
 
   async function copied() {
@@ -219,7 +219,7 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   }
 
   useUnsavedChanges('custom-text', {
-    label: computed(() => category.value ? `自定义文案 / ${category.value}` : '自定义文案'),
+    label: computed(() => (category.value ? `自定义文案 / ${category.value}` : '自定义文案')),
     dirty: modified,
     save,
     saving: computed(() => saveMutation.isPending.value),

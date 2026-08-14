@@ -1,8 +1,5 @@
 import { getApiBaseUrl } from '@/api/config';
-import {
-  postSdApiV2HelpdocUploadComplete,
-  postSdApiV2HelpdocUploadInit,
-} from '@/api';
+import { postSdApiV2HelpdocUploadComplete, postSdApiV2HelpdocUploadInit } from '@/api';
 import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
 
 export const helpdocChunkSize = 4 * 1024 * 1024;

@@ -9,7 +9,7 @@
       </n-button>
     </PageHeader>
 
-    <n-alert v-if="connectionsErrorText" type="error" class="mb-4">
+    <TipBox v-if="connectionsErrorText" type="error">
       <div class="connect-alert-content">
         <span>{{ connectionsErrorText }}</span>
         <n-button size="small" secondary @click="retryConnections">
@@ -19,7 +19,7 @@
           重试
         </n-button>
       </div>
-    </n-alert>
+    </TipBox>
 
     <n-empty v-if="connections.length === 0 && connectionsReady" description="似乎还没有账号">
       <template #extra>
@@ -59,9 +59,9 @@
       @after-leave="resetWizard"
     >
       <div class="connect-dialog-content">
-        <n-alert v-if="createSubmitError" type="error" :show-icon="false">
+        <TipBox v-if="createSubmitError" type="error">
           {{ createSubmitError }}。请检查配置后重试。
-        </n-alert>
+        </TipBox>
         <ConnectCreateWizard
           v-model:form-model="formModel"
           v-model:wizard-step="wizardStep"
@@ -177,6 +177,7 @@ import { useConnectSignInfo } from '@/features/connect/signInfo';
 import { useRealtimeConnections } from '@/features/connect/realtime';
 import type { OfficialQQMode } from '@/features/connect/officialQQ';
 import { useTestMode } from '@/features/testMode/state';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const message = useMessage();
 const dialog = useDialog();

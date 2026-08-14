@@ -45,7 +45,8 @@ export function useJsConfig() {
   });
 
   const invalidateConfigs = () => queryClient.invalidateQueries({ queryKey: jsConfigsQueryKey() });
-  const invalidateDeadConfigs = () => queryClient.invalidateQueries({ queryKey: jsDeadConfigsQueryKey() });
+  const invalidateDeadConfigs = () =>
+    queryClient.invalidateQueries({ queryKey: jsDeadConfigsQueryKey() });
 
   const resetMutation = useMutation({
     mutationFn: async (payload: { name: string; keys: string[] }) => {

@@ -69,7 +69,7 @@ it('passes', async () => {
   assertEqual(summary.versionText, '1.5.0-dev+20260521');
   assertEqual(summary.latestVersionText, '1.5.1');
   assertEqual(summary.channelText, '开发版');
-  assertEqual(summary.runtimeText, 'linux - amd64');
+  assertEqual(summary.runtimeText, 'linux・amd64');
   assertEqual(summary.modeText, '容器模式');
   assertEqual(summary.uptimeText, '1 小时 1 分钟');
   assertEqual(summary.hasNewVersion, true);

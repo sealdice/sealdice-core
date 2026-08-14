@@ -59,6 +59,6 @@ watch(
       onEsc: () => swUpdateStore.dismiss(),
     });
   },
-  { immediate: true },
+  { immediate: true }
 );
 </script>

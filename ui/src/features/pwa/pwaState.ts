@@ -10,14 +10,14 @@ export interface PwaBeforeInstallPromptEvent extends Event {
 
 export function isStandaloneDisplayMode(
   displayModeStandalone: boolean,
-  navigatorStandalone?: boolean,
+  navigatorStandalone?: boolean
 ): boolean {
   return displayModeStandalone || navigatorStandalone === true;
 }
 
 export function shouldShowPwaInstallEntry(
   supportsBeforeInstallPrompt: boolean,
-  isInstalled: boolean,
+  isInstalled: boolean
 ): boolean {
   return supportsBeforeInstallPrompt && !isInstalled;
 }

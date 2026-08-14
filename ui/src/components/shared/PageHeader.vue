@@ -3,65 +3,63 @@
     <div class="sd-page-header__copy">
       <h1>{{ title }}</h1>
     </div>
-    <div v-if="$slots.default || unsavedScope" class="sd-page-header__actions">
-      <template v-if="unsavedScope">
-        <n-button v-if="dirty" secondary :disabled="!dirty || saving" @click="discard">
-          <template #icon>
-            <n-icon><i-tabler-arrow-back-up /></n-icon>
-          </template>
-          放弃改动
-        </n-button>
-        <n-button
-          v-if="dirty"
-          type="primary"
-          :loading="saving"
-          :disabled="!dirty || saving"
-          @click="save"
-        >
-          <template #icon>
-            <n-icon><i-tabler-device-floppy /></n-icon>
-          </template>
-          保存设置
-        </n-button>
-      </template>
+    <div v-if="$slots.default || pendingActions.length" class="sd-page-header__actions">
+      <div v-if="pendingActions.length" ref="anchorRef" class="sd-page-header__pending">
+        <PendingActionRow
+          v-for="action in pendingActions"
+          :key="action.scope"
+          :action="action"
+          @run="handleRun(action.scope)"
+          @discard="handleDiscard(action.scope)"
+        />
+      </div>
       <slot />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useMessage } from 'naive-ui';
-import { activeUnsavedChangesSource, saveActiveUnsavedChanges } from '@/features/unsavedChanges';
+import { computed, onBeforeUnmount, useTemplateRef, watch } from 'vue';
+import PendingActionRow from '@/components/shared/PendingActionRow.vue';
+import {
+  activePendingActions,
+  discardPendingAction,
+  runPendingAction,
+  setPendingActionAnchor,
+} from '@/features/unsavedChanges';
 
 const props = defineProps<{
   title: string;
-  unsavedScope?: string;
+  /**
+   * 声明本页承载待处理状态。传入后，标题右侧显示当前页的未保存/待重载状态与操作，
+   * 并作为悬浮面板的可见性锚点 —— 此处可见时悬浮面板不出现。
+   */
+  unsavedScope?: string | string[];
 }>();
 
-const message = useMessage();
-const activeSource = computed(() => (props.unsavedScope ? activeUnsavedChangesSource.value : null));
-const dirty = computed(() =>
-  Boolean(activeSource.value && activeSource.value.scope === props.unsavedScope)
-);
-const saving = computed(() =>
-  Boolean(
-    activeSource.value &&
-      activeSource.value.scope === props.unsavedScope &&
-      activeSource.value.saving
-  )
-);
+const anchorRef = useTemplateRef<HTMLElement>('anchorRef');
 
-async function save() {
-  if (!props.unsavedScope) return;
-  const saved = await saveActiveUnsavedChanges();
-  if (!saved) {
-    message.error('保存失败');
-  }
+const scopes = computed(() => {
+  if (!props.unsavedScope) return null;
+  return Array.isArray(props.unsavedScope) ? props.unsavedScope : [props.unsavedScope];
+});
+
+const pendingActions = computed(() => {
+  const allowed = scopes.value;
+  if (!allowed) return [];
+  return activePendingActions.value.filter(action => allowed.includes(action.scope));
+});
+
+// 状态区随脏态出现或消失，锚点要跟着登记与注销。
+watch(anchorRef, el => setPendingActionAnchor(el ?? null), { immediate: true });
+onBeforeUnmount(() => setPendingActionAnchor(null));
+
+async function handleRun(scope: string) {
+  await runPendingAction(scope);
 }
 
-async function discard() {
-  message.info('请使用页面内的“放弃改动”按钮');
+async function handleDiscard(scope: string) {
+  await discardPendingAction(scope);
 }
 </script>
 
@@ -97,6 +95,14 @@ async function discard() {
   flex-wrap: wrap;
 }
 
+.sd-page-header__pending {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--sd-space-md);
+  flex-wrap: wrap;
+}
+
 @media (max-width: 640px) {
   .sd-page-header {
     grid-template-columns: 1fr;
@@ -105,6 +111,10 @@ async function discard() {
 
   .sd-page-header__actions {
     justify-content: flex-start;
+  }
+
+  .sd-page-header__pending {
+    width: 100%;
   }
 }
 </style>

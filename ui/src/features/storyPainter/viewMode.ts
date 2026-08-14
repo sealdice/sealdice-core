@@ -3,7 +3,7 @@ export type StoryPainterPreviewMode = Exclude<StoryPainterViewMode, 'editor'>;
 
 export function toggleStoryPainterMode(
   current: StoryPainterViewMode,
-  requested: StoryPainterPreviewMode,
+  requested: StoryPainterPreviewMode
 ): StoryPainterViewMode {
   return current === requested ? 'editor' : requested;
 }

@@ -101,7 +101,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, toRaw, watch } from 'vue';
+import { cloneDeep } from 'es-toolkit';
 import type { BaseSettingExtDefaultSettingItem } from '@/api';
 import {
   buildExtDefaultSettingsView,
@@ -180,7 +181,8 @@ watch(
 function updateItem(name: string, updater: (item: BaseSettingExtDefaultSettingItem) => void) {
   const targetIndex = model.value.findIndex(item => item.name === name);
   if (targetIndex < 0) return;
-  const next = structuredClone(model.value);
+  // model 是响应式代理，structuredClone 会抛 DataCloneError。
+  const next = cloneDeep(toRaw(model.value));
   updater(next[targetIndex]!);
   model.value = next;
 }

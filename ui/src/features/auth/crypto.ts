@@ -16,7 +16,11 @@ function encodeBinaryText(text: string): string {
   return btoa(text);
 }
 
-function serializePasswordHash(keyBuffer: ArrayBuffer, saltBytes: Uint8Array, iterations: number): string {
+function serializePasswordHash(
+  keyBuffer: ArrayBuffer,
+  saltBytes: Uint8Array,
+  iterations: number
+): string {
   const payload = [
     ...Array.from(saltBytes),
     ...iterationsToBytes(iterations),
@@ -28,7 +32,7 @@ function serializePasswordHash(keyBuffer: ArrayBuffer, saltBytes: Uint8Array, it
 export async function passwordHash(
   salt: string,
   password: string,
-  iterations = defaultIterations,
+  iterations = defaultIterations
 ): Promise<string> {
   const cryptoApi = globalThis.crypto?.subtle;
   if (cryptoApi) {
@@ -38,7 +42,7 @@ export async function passwordHash(
       encoder.encode(password),
       'PBKDF2',
       false,
-      ['deriveBits'],
+      ['deriveBits']
     );
     const saltBytes = encoder.encode(salt);
     const keyBuffer = await cryptoApi.deriveBits(
@@ -49,7 +53,7 @@ export async function passwordHash(
         iterations,
       },
       passwordKey,
-      derivedBitsLength,
+      derivedBitsLength
     );
 
     return serializePasswordHash(keyBuffer, saltBytes, iterations);

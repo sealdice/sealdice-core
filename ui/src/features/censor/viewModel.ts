@@ -41,10 +41,22 @@ export function cloneCensorConfig(config: CensorConfigBody): CensorConfigBody {
     matchPinyin: config.matchPinyin,
     filterRegex: config.filterRegex,
     levelConfig: {
-      notice: { ...config.levelConfig.notice, handlers: [...(config.levelConfig.notice.handlers ?? [])] },
-      caution: { ...config.levelConfig.caution, handlers: [...(config.levelConfig.caution.handlers ?? [])] },
-      warning: { ...config.levelConfig.warning, handlers: [...(config.levelConfig.warning.handlers ?? [])] },
-      danger: { ...config.levelConfig.danger, handlers: [...(config.levelConfig.danger.handlers ?? [])] },
+      notice: {
+        ...config.levelConfig.notice,
+        handlers: [...(config.levelConfig.notice.handlers ?? [])],
+      },
+      caution: {
+        ...config.levelConfig.caution,
+        handlers: [...(config.levelConfig.caution.handlers ?? [])],
+      },
+      warning: {
+        ...config.levelConfig.warning,
+        handlers: [...(config.levelConfig.warning.handlers ?? [])],
+      },
+      danger: {
+        ...config.levelConfig.danger,
+        handlers: [...(config.levelConfig.danger.handlers ?? [])],
+      },
     },
   };
 }

@@ -40,12 +40,16 @@ export function useJsData(options: {
     (pluginListQuery.data.value ?? []).map((p: JsInfo) => ({
       label: `${p.name} (v${p.version})`,
       value: p.name,
-    })),
+    }))
   );
 
   const dataListQuery = useQuery({
     queryKey: computed(() =>
-      jsDataListQueryKey(options.selectedPlugin.value, options.dataPage.value, options.dataKeyword.value),
+      jsDataListQueryKey(
+        options.selectedPlugin.value,
+        options.dataPage.value,
+        options.dataKeyword.value
+      )
     ),
     enabled: computed(() => hasAccessToken.value && !!options.selectedPlugin.value),
     queryFn: async () => {

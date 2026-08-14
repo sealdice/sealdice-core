@@ -249,9 +249,9 @@
       </div>
 
       <n-modal v-model:show="showDiff" preset="card" title="牌堆内容对比" class="diff-dialog">
-        <n-alert v-if="diffErrorText" type="error" :show-icon="false" class="mb-3">
+        <TipBox v-if="diffErrorText" type="error">
           {{ diffErrorText }}
-        </n-alert>
+        </TipBox>
         <DiffViewer
           :lang="deckCheck.format ?? 'text'"
           :old="deckCheck.old ?? ''"
@@ -312,6 +312,7 @@ import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/
 import { hasAccessToken } from '@/features/auth/state';
 import { useAppTheme } from '@/features/theme';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 

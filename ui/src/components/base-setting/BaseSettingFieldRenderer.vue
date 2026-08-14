@@ -19,7 +19,10 @@
 </template>
 
 <script setup lang="ts">
-import type { BaseSettingFieldModel, BaseSettingValueModel } from '@/features/baseSetting/viewModel';
+import type {
+  BaseSettingFieldModel,
+  BaseSettingValueModel,
+} from '@/features/baseSetting/viewModel';
 import {
   getBaseSettingFieldFeedback,
   getBaseSettingFieldLayout,

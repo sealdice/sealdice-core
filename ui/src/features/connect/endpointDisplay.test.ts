@@ -71,6 +71,6 @@ it('builds the stable account metrics used by connection cards', () => {
   }
 });
 
-if (getEndpointTargetLabel(endpoint) !== 'QQ:10001（QQ，ID: ep-1）') {
+if (getEndpointTargetLabel(endpoint) !== 'QQ:10001（QQ，ID：ep-1）') {
   throw new Error(`unexpected endpoint target = ${getEndpointTargetLabel(endpoint)}`);
 }

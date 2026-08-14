@@ -1,10 +1,8 @@
 <template>
   <section class="backup-file-list">
-    <div class="backup-file-list__head backup-file-list__summary">
-      <n-text strong>已备份文件</n-text>
-      <n-text depth="3">{{ items.length }} 个备份文件</n-text>
-    </div>
+    <!-- 标题与标签页名重复，去掉；数量作为结果摘要与操作同行。 -->
     <div class="backup-file-list__head backup-file-list__toolbar">
+      <n-text depth="3" class="backup-file-list__count"> 共 {{ items.length }} 个备份文件 </n-text>
       <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
         立即备份
       </n-button>
@@ -178,20 +176,17 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
   gap: 12px;
 }
 
-.backup-file-list__summary,
 .backup-file-list__toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.backup-file-list__summary {
-  justify-content: space-between;
-}
-
-.backup-file-list__toolbar {
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+/* 数量摘要占据左侧，操作保持在右。 */
+.backup-file-list__count {
+  margin-right: auto;
 }
 
 :deep(.backup-file-list__file) {
@@ -247,11 +242,6 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
 }
 
 @media (max-width: 760px) {
-  .backup-file-list__summary {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .backup-file-list__toolbar {
     justify-content: flex-start;
   }

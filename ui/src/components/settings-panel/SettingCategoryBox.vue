@@ -25,11 +25,15 @@
     <div
       v-if="showPanel && (!collapsible || expanded)"
       :id="panelId"
-      class="setting-category-panel"
+      :class="['setting-category-panel', { 'setting-category-panel-padded': padded }]"
       role="region"
       :aria-labelledby="headingId"
     >
-      <slot name="notes" />
+      <!-- display: contents：容器不参与布局，间距由说明自身承担，
+           这样零条说明时不会留下空隙。 -->
+      <div v-if="$slots.notes" class="setting-category-notes">
+        <slot name="notes" />
+      </div>
       <SettingFieldLayout :columns="columns" :padded="padded">
         <slot />
       </SettingFieldLayout>
@@ -104,6 +108,29 @@ const emit = defineEmits<{
   background: var(--sd-bg-elevated);
 }
 
+/*
+ * 说明块的间距挂在说明自身上，容器不带内边距。
+ * 调用方常常无条件提供 #notes 插槽而内部按数据渲染零条（如基本设置），
+ * 若把内边距放在容器上，没有说明的设置组也会凭空多出顶部空隙，
+ * 造成上有间距、下紧贴的不对称。
+ *
+ * 纵向间距与面板底部同源，随 padded 变化：
+ * - 未 padded：字段由 SettingRow 自带 --sd-space-xs 纵向内边距，底部即 xs；
+ * - 已 padded：由 SettingFieldLayout 提供 --sd-space-md 四边内边距，底部即 md。
+ * 说明与字段之间的间隔由字段容器自身的顶部内边距提供，故只设 margin-top。
+ */
+.setting-category-notes {
+  display: contents;
+}
+
+.setting-category-notes > :deep(*) {
+  margin: var(--sd-space-xs) var(--sd-space-md) 0;
+}
+
+.setting-category-panel-padded .setting-category-notes > :deep(*) {
+  margin: var(--sd-space-md) var(--sd-space-md) 0;
+}
+
 @media (max-width: 639.9px) {
   .setting-category-box {
     padding-bottom: var(--sd-space-xs);
@@ -111,6 +138,15 @@ const emit = defineEmits<{
 
   .setting-category-thing {
     margin: 0 var(--sd-space-xs) var(--sd-space-2xs);
+  }
+
+  /* 窄屏下字段内边距收窄为 sm，说明块跟随。 */
+  .setting-category-notes > :deep(*) {
+    margin: var(--sd-space-xs) var(--sd-space-sm) 0;
+  }
+
+  .setting-category-panel-padded .setting-category-notes > :deep(*) {
+    margin: var(--sd-space-sm) var(--sd-space-sm) 0;
   }
 }
 </style>

@@ -1,32 +1,17 @@
 <template>
   <main class="advanced-page">
-    <PageHeader title="高级设置" unsaved-scope="advanced-setting">
-      <n-button secondary :disabled="!modified" @click="reload">
-        <template #icon>
-          <n-icon><i-tabler-arrow-back-up /></n-icon>
-        </template>
-        放弃改动
-      </n-button>
-      <n-button type="primary" :loading="saving" :disabled="saving || !modified" @click="save">
-        <template #icon>
-          <n-icon><i-tabler-device-floppy /></n-icon>
-        </template>
-        保存设置
-      </n-button>
-    </PageHeader>
-    <TipBox type="warning" class="my-4">
-      <n-text>
-        此处是面向开发者或进阶用户的隐藏设置页，下列的设置项可能会对海豹核心的功能造成重大影响。<br />
-        一些尚在测试的不稳定设置项，以及
-        <strong>普通骰主无需关注</strong> 的设置项会被放在此处。<br />
-        此处的设置项不保证稳定提供，在未来版本随时可能会被移除。<br /><br />
-        <strong>除非你知道自己在做什么，否则不要修改此处的任何设置项！</strong><br /><br />
-        <em>
-          如果你误操作修改了此处设置，希望恢复默认，请手动删除
-          <n-text code>data/default/advanced.yaml</n-text>
-          文件。
-        </em>
-      </n-text>
+    <PageHeader title="高级设置" unsaved-scope="advanced-setting" />
+    <TipBox type="warning">
+      <p>
+        <strong>除非你知道自己在做什么，否则不要修改此处的任何设置项。</strong>
+      </p>
+      <p>这些设置可能对海豹核心的功能造成重大影响，且不保证稳定提供，在未来版本随时可能被移除。</p>
+    </TipBox>
+
+    <TipBox type="info">
+      如需恢复默认，请手动删除
+      <n-text code class="sd-code-text">data/default/advanced.yaml</n-text>
+      文件。
     </TipBox>
 
     <n-spin :show="pageBusy">
@@ -247,6 +232,7 @@ useUnsavedChanges('advanced-setting', {
   dirty: modified,
   save,
   saving,
+  discard: reload,
   confirmMessage: '高级设置还有修改，确定要忽略？',
 });
 

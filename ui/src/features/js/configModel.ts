@@ -13,7 +13,8 @@ const dailyTaskPattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
 export function groupPluginConfigItems(items: ConfigItem[]): ConfigItemGroup[] {
   const groups = new Map<string, ConfigItem[]>();
   for (const item of items) {
-    const name = typeof item.group === 'string' && item.group.trim() ? item.group.trim() : DEFAULT_GROUP;
+    const name =
+      typeof item.group === 'string' && item.group.trim() ? item.group.trim() : DEFAULT_GROUP;
     groups.set(name, [...(groups.get(name) ?? []), item]);
   }
   return Array.from(groups.entries()).map(([name, groupItems]) => ({
@@ -45,7 +46,7 @@ export function setConfigError(
   errors: JsConfigErrorMap,
   pluginName: string,
   key: string,
-  message: string,
+  message: string
 ): void {
   const errorKey = buildConfigErrorKey(pluginName, key);
   if (!message) {

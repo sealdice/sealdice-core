@@ -4,7 +4,7 @@ import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 import { useRealtimeClientStore } from '@/features/realtime/store';
 import { applyLogAppend, applyLogSnapshot } from './logStreamState';
-import type { BaseLogItem } from './logStream';
+import type { BaseLogEntry, BaseLogItem } from './logStream';
 
 type LogSnapshotPayload = {
   items?: BaseLogItem[] | null;
@@ -18,7 +18,7 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
   const authStore = useAuthStore(appPinia);
   const realtimeStore = useRealtimeClientStore(appPinia);
 
-  const logs = ref<BaseLogItem[]>([]);
+  const logs = ref<BaseLogEntry[]>([]);
   let initialized = false;
 
   function applySnapshot(items?: BaseLogItem[] | null): void {
@@ -38,22 +38,22 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
     if (initialized) return;
     initialized = true;
 
-    realtimeStore.subscribeRealtimeEvent<LogSnapshotPayload>('logs/snapshot', (payload) => {
+    realtimeStore.subscribeRealtimeEvent<LogSnapshotPayload>('logs/snapshot', payload => {
       applySnapshot(payload?.items ?? null);
     });
 
-    realtimeStore.subscribeRealtimeEvent<LogAppendPayload>('logs/append', (payload) => {
+    realtimeStore.subscribeRealtimeEvent<LogAppendPayload>('logs/append', payload => {
       applyAppend(payload?.item ?? null, 500);
     });
 
     watch(
       () => authStore.hasAccessToken,
-      (canAccess) => {
+      canAccess => {
         if (!canAccess) {
           clearLogs();
         }
       },
-      { immediate: true },
+      { immediate: true }
     );
   }
 

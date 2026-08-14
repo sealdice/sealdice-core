@@ -1,16 +1,12 @@
 <template>
   <div class="test-mode-frame" :class="{ 'test-mode-frame--active': active }">
     <div v-if="active" class="test-mode-frame__banner">
-      <n-alert type="warning" :bordered="false" :show-icon="false">
+      <TipBox type="warning">
         {{ bannerText }}
-      </n-alert>
+      </TipBox>
     </div>
     <div v-if="active" class="test-mode-frame__watermark" aria-hidden="true">
-      <span
-        v-for="row in watermarkRows"
-        :key="row"
-        class="test-mode-frame__watermark-row"
-      >
+      <span v-for="row in watermarkRows" :key="row" class="test-mode-frame__watermark-row">
         {{ row }}
       </span>
     </div>
@@ -23,6 +19,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { getTestModeWatermarkRows } from './appTestModeFrame';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const props = defineProps<{
   active: boolean;

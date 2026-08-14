@@ -1,13 +1,11 @@
 <template>
   <OfficialQQModePanel v-if="protocolModule.formKind === 'officialqq'" v-model="officialQqMode" />
 
-  <n-alert v-if="protocol && !protocol.available" type="warning" :show-icon="false">
+  <TipBox v-if="protocol && !protocol.available" type="warning">
     {{ protocol.disabledReason }}
-  </n-alert>
+  </TipBox>
 
-  <n-alert v-if="schemasError" type="error" :show-icon="false">
-    配置项读取失败，请稍后重试。
-  </n-alert>
+  <TipBox v-if="schemasError" type="error"> 配置项读取失败，请稍后重试。 </TipBox>
 
   <DynamicForm
     :model-value="modelValue"
@@ -43,7 +41,7 @@
       />
       <n-input-number
         v-else-if="item.input_type === 1"
-        :value="value as number | null"
+        :value="asNumberValue(value)"
         :disabled="submitting || testModeDisabled"
         :min="1"
         :max="65535"
@@ -72,6 +70,7 @@ import LagrangeSignInfoField from './protocol/LagrangeSignInfoField.vue';
 import { getConnectProtocolModule } from '@/features/connect/protocols';
 import type { OfficialQQMode } from '@/features/connect/officialQQ';
 import type { SignInfoState } from '@/features/connect/signInfoState';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const props = defineProps<{
   protocol: ProtocolDefinition | null;
@@ -100,6 +99,10 @@ const officialQqMode = computed({
 });
 
 const protocolModule = computed(() => getConnectProtocolModule(props.protocol?.key ?? ''));
+
+// 模板里不能直接写 `value as number | null`：Prettier 会去掉外层括号，
+// 之后 vue-eslint-parser 会把顶层 `|` 当成 Vue 2 过滤器语法而报错。
+const asNumberValue = (value: unknown) => value as number | null;
 
 const visibleSchema = computed(() => {
   if (protocolModule.value.formKind !== 'officialqq') return props.schema;

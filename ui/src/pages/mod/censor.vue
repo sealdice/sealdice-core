@@ -1,6 +1,6 @@
 <template>
   <main class="censor-page">
-    <PageHeader title="拦截管理">
+    <PageHeader title="拦截管理" :unsaved-scope="['censor-config', 'censor-reload']">
       <n-flex align="center" size="small">
         <n-text depth="3">启用拦截</n-text>
         <n-switch
@@ -11,8 +11,9 @@
           @update:value="enableChange"
         />
       </n-flex>
+      <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
       <n-button
-        v-show="censorEnable"
+        v-show="censorEnable && !needReload"
         type="primary"
         :loading="restartMutation.isPending.value"
         :disabled="restartMutation.isPending.value"
@@ -25,18 +26,11 @@
       </n-button>
     </PageHeader>
 
-    <ReloadNotice :show="needReload" />
-
     <template v-if="censorEnable">
       <n-tabs v-model:value="tab">
         <n-tab-pane tab="拦截设置" name="setting">
           <n-spin :show="configQuery.isFetching.value">
-            <CensorConfigView
-              v-model:config="configDraft.currentConfig.value"
-              :saving="saveConfigMutation.isPending.value"
-              :modified="configDraft.dirty.value"
-              @save="saveConfig"
-            />
+            <CensorConfigView v-model:config="configDraft.currentConfig.value" />
           </n-spin>
         </n-tab-pane>
 
@@ -89,7 +83,6 @@ import CensorFilesView from '@/components/censor/CensorFilesView.vue';
 import CensorLogView from '@/components/censor/CensorLogView.vue';
 import CensorWordsView from '@/components/censor/CensorWordsView.vue';
 import CensorWordTip from '@/components/censor/CensorWordTip.vue';
-import ReloadNotice from '@/components/layout/ReloadNotice.vue';
 import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { useCensorConfigDraft } from '@/features/censor/configDraft';
@@ -102,7 +95,7 @@ import {
   useCensorWordsQuery,
 } from '@/features/censor/queries';
 import { createDefaultCensorLogQuery } from '@/features/censor/viewModel';
-import { useUnsavedChanges } from '@/features/unsavedChanges';
+import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
 const queryClient = useQueryClient();
@@ -182,7 +175,17 @@ useUnsavedChanges('censor-config', {
   save: saveConfig,
   saving: computed(() => saveConfigMutation.isPending.value),
   canSave: computed(() => enabledForContent.value && configDraft.dirty.value),
+  discard: () => configDraft.resetToRemote(),
   confirmMessage: '拦截设置还有修改，确定要忽略？',
+});
+
+usePendingReload('censor-reload', {
+  label: '拦截配置',
+  pending: computed(() => enabledForContent.value && needReload.value),
+  reload: restartCensor,
+  reloading: computed(() => restartMutation.isPending.value),
+  canReload: computed(() => !restartMutation.isPending.value),
+  actionText: '重载拦截',
 });
 
 watch(
@@ -195,7 +198,7 @@ watch(
 );
 
 async function restartCensor() {
-  await restartMutation.mutateAsync();
+  await restartMutation.mutateAsync('reload');
 }
 
 async function stopCensor() {
@@ -206,7 +209,7 @@ async function enableChange(value: boolean | number | string) {
   const next = value === true;
   try {
     if (next) {
-      await restartCensor();
+      await restartMutation.mutateAsync('enable');
     } else {
       await stopCensor();
     }

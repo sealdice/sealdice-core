@@ -1,6 +1,16 @@
-import type { StoryPainterChar, StoryPainterForumOptions, StoryPainterLogItem, StoryPainterOptions } from './types';
+import type {
+  StoryPainterChar,
+  StoryPainterForumOptions,
+  StoryPainterLogItem,
+  StoryPainterOptions,
+} from './types';
 import { storyPainterNickname } from './formatters';
-import { colorHexToForumName, normalizeStoryPainterPlainMessage, renderForumText, renderTrgText } from './renderers';
+import {
+  colorHexToForumName,
+  normalizeStoryPainterPlainMessage,
+  renderForumText,
+  renderTrgText,
+} from './renderers';
 
 export async function collectStoryPainterForumText(options: {
   chunks: AsyncIterable<StoryPainterLogItem[]>;
@@ -14,7 +24,7 @@ export async function collectStoryPainterForumText(options: {
   if (options.pineapple) {
     let current: PineappleBlock | null = null;
     for await (const chunk of options.chunks) {
-      chunk.forEach((item) => {
+      chunk.forEach(item => {
         current = pushPineappleItem(current, item, options, lines);
       });
     }
@@ -23,9 +33,17 @@ export async function collectStoryPainterForumText(options: {
   }
 
   for await (const chunk of options.chunks) {
-    lines.push(...chunk.map((item) =>
-      renderForumText(item, options.chars, options.exportOptions, options.forumOptions, options.colorByItem(item)),
-    ));
+    lines.push(
+      ...chunk.map(item =>
+        renderForumText(
+          item,
+          options.chars,
+          options.exportOptions,
+          options.forumOptions,
+          options.colorByItem(item)
+        )
+      )
+    );
   }
   return lines.join('\n');
 }
@@ -38,9 +56,11 @@ export async function collectStoryPainterTrgText(options: {
 }): Promise<string> {
   const lines: string[] = [];
   for await (const chunk of options.chunks) {
-    lines.push(...chunk.map((item) =>
-      renderTrgText(item, options.chars, options.exportOptions, options.addVoiceMark),
-    ));
+    lines.push(
+      ...chunk.map(item =>
+        renderTrgText(item, options.chars, options.exportOptions, options.addVoiceMark)
+      )
+    );
   }
   return lines.join('\n');
 }
@@ -61,9 +81,12 @@ function pushPineappleItem(
     forumOptions: StoryPainterForumOptions;
     colorByItem: (item: StoryPainterLogItem) => string;
   },
-  output: string[],
+  output: string[]
 ): PineappleBlock | null {
-  const text = normalizeStoryPainterPlainMessage(item, options.chars, { ...options.exportOptions, imageHide: true });
+  const text = normalizeStoryPainterPlainMessage(item, options.chars, {
+    ...options.exportOptions,
+    imageHide: true,
+  });
   if (!text) return current;
 
   const key = `${item.nickname}-${item.IMUserId}`;
@@ -76,7 +99,9 @@ function pushPineappleItem(
   return {
     key,
     name: storyPainterNickname(item, options.exportOptions, false),
-    color: options.forumOptions.bbsUseColorName ? colorHexToForumName(options.colorByItem(item)) : options.colorByItem(item),
+    color: options.forumOptions.bbsUseColorName
+      ? colorHexToForumName(options.colorByItem(item))
+      : options.colorByItem(item),
     lines: [text],
   };
 }

@@ -1,4 +1,5 @@
 import { formatAppChannel } from '@/features/base/appChannel';
+import { formatRuntimeMode, formatRuntimeSummary } from '@/features/base/runtimeSummary';
 
 export type AboutLinkIcon = 'website' | 'manual' | 'support' | 'source';
 
@@ -300,7 +301,7 @@ export const ABOUT_CREDIT_SECTIONS: AboutCreditSection[] = [
       { text: 'Raycel - 早期测试参与者，协助解决登录流程问题' },
       { text: 'kuma - 早期测试参与者，海豹的第一次全指令全流程测试' },
       { text: '卟啵 - 早期测试参与者，回报了中文路径和空格路径问题，协助解决了登录流程问题' },
-      { text: '蜜瓜包 - 早期测试参与者，默认文档中“怪物之锤查询”的编纂者之一' },
+      { text: '蜜瓜包 - 早期测试参与者，默认文档中「怪物之锤查询」的编纂者之一' },
       {
         text: '月森优姬 - 早期测试参与者，提出了大量各种各样建议和 BUG 反馈，纠正了一些与规则书不统一的问题，COC 同义词和默认技能点数的编纂者',
       },
@@ -375,20 +376,13 @@ export function getAboutOverviewSummary(
     latestVersionText: cleanText(version?.latest, '读取中'),
     latestNote: cleanText(version?.latestNote),
     channelText: formatAppChannel(overview?.appChannel),
-    runtimeText: runtime?.OS && runtime.arch ? `${runtime.OS} - ${runtime.arch}` : '读取中',
+    runtimeText: formatRuntimeSummary(runtime),
     modeText: formatRuntimeMode(runtime),
     uptimeText: formatUptime(runtime?.uptime),
     hasNewVersion: Number(version?.code ?? 0) < Number(version?.latestCode ?? 0),
     containerMode: runtime?.containerMode === true,
     justForTest: runtime?.justForTest === true,
   };
-}
-
-function formatRuntimeMode(runtime: AboutOverviewInput['runtime']): string {
-  if (!runtime) return '读取中';
-  if (runtime.justForTest) return '展示模式';
-  if (runtime.containerMode) return '容器模式';
-  return '本机运行';
 }
 
 function formatUptime(seconds: number | undefined): string {

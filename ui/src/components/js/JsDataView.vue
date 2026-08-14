@@ -65,7 +65,7 @@
           <n-text class="sd-code-text">{{ editKey }}</n-text>
         </n-flex>
         <n-flex align="center" v-if="editIsJson">
-          <n-text depth="3" class="w-16">格式:</n-text>
+          <n-text depth="3" class="w-16">格式：</n-text>
           <n-tag size="small" :bordered="false">JSON</n-tag>
         </n-flex>
         <n-flex vertical>
@@ -87,9 +87,9 @@
             "
           />
         </n-flex>
-        <n-alert v-if="jsonError" type="warning" :show-icon="true">
+        <TipBox v-if="jsonError" type="warning">
           {{ jsonError }}
-        </n-alert>
+        </TipBox>
       </n-flex>
       <template #footer>
         <n-flex justify="end">
@@ -115,13 +115,13 @@ import {
   NText,
   useDialog,
   useMessage,
-  NAlert,
 } from 'naive-ui';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import { useJsData } from '@/features/js/useJsData';
+import TipBox from '@/components/shared/TipBox.vue';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -236,7 +236,7 @@ function confirmSave() {
 function handleDeleteKey(key: string) {
   dialog.warning({
     title: '删除 Key',
-    content: `确认删除 "${key}"？`,
+    content: `确认删除「${key}」？`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: () => deleteKeys([key]),

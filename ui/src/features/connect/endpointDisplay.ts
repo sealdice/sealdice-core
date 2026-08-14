@@ -41,13 +41,14 @@ export function getEndpointStateMeta(state: number) {
 export function getEndpointProtocolLabel(endpoint: EndpointDisplaySource) {
   const adapter = endpoint.adapter ?? {};
   if (endpoint.protocolType === 'onebot' && adapter.builtinMode === 'lagrange')
-    return 'QQ(内置客户端)';
-  if (endpoint.protocolType === 'milky' && adapter.built_in_mode) return 'QQ(内置Milky)';
-  if (endpoint.protocolType === 'milky') return 'QQ(Milky)';
-  if (endpoint.protocolType === 'pureonebot' && adapter.reverseAddr) return 'QQ(onebot11反向WS)';
-  if (endpoint.protocolType === 'pureonebot') return 'QQ(onebot11正向WS)';
+    return 'QQ（内置客户端）';
+  if (endpoint.protocolType === 'milky' && adapter.built_in_mode) return 'QQ（内置 Milky）';
+  if (endpoint.protocolType === 'milky') return 'QQ（Milky）';
+  if (endpoint.protocolType === 'pureonebot' && adapter.reverseAddr)
+    return 'QQ（onebot11 反向 WS）';
+  if (endpoint.protocolType === 'pureonebot') return 'QQ（onebot11 正向 WS）';
   if (endpoint.protocolType === 'official')
-    return adapter.useWebhook ? 'QQ(官方机器人 Webhook)' : 'QQ(官方机器人)';
+    return adapter.useWebhook ? 'QQ（官方机器人 Webhook）' : 'QQ（官方机器人）';
   if (endpoint.protocolType === 'satori') return 'Satori';
   return endpoint.platform;
 }
@@ -59,7 +60,7 @@ export function getEndpointTargetLabel(endpoint: EndPointInfo) {
     protocolType: endpoint.protocolType,
     adapter: adapterOf(endpoint),
   });
-  return `${account}（${protocol}，ID: ${endpoint.id}）`;
+  return `${account}（${protocol}，ID：${endpoint.id}）`;
 }
 
 export function adapterOf(endpoint: EndPointInfo): EndpointDisplayAdapter {

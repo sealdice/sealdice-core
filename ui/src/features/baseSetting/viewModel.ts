@@ -1,3 +1,5 @@
+import { toRaw } from 'vue';
+import { cloneDeep } from 'es-toolkit';
 import { isArray, isEqual, isObject, transform } from 'es-toolkit/compat';
 import type {
   BaseSettingExtDefaultSettingItem,
@@ -86,8 +88,10 @@ export function normalizeBaseSettingValue(value: BaseSettingValueResp): BaseSett
   };
 }
 
+// 草稿存在 ref 里，读出来的是响应式代理，structuredClone 会抛 DataCloneError。
+// toRaw 只剥一层，updateField 的 spread 会把嵌套层留成代理，因此这里必须用深克隆。
 export function cloneBaseSettingValue(value: BaseSettingValueModel): BaseSettingValueModel {
-  return structuredClone(value);
+  return cloneDeep(toRaw(value));
 }
 
 export function normalizeBaseSettingSchema(schema: BaseSettingSchemaResp): BaseSettingSchemaModel {

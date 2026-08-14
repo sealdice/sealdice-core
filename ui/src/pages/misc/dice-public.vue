@@ -26,12 +26,17 @@
       </n-button>
     </PageHeader>
 
-    <n-alert v-if="queryErrorText" class="public-dice-alert" type="error">
+    <TipBox v-if="queryErrorText" type="error" class="public-dice-alert">
       {{ queryErrorText }}
-    </n-alert>
+    </TipBox>
 
     <n-spin :show="loadingInitial">
       <div v-if="draft" class="public-dice-groups">
+        <!-- 只读原因紧跟被禁用的表单，而不是放在页面底部。 -->
+        <TipBox v-if="!draft.config.publicDiceEnable" type="info">
+          公骰已关闭，配置保持只读；启用公骰后可继续编辑。
+        </TipBox>
+
         <SettingCategoryBox title="公骰资料" padded>
           <div class="public-dice-profile">
             <aside class="public-dice-profile__seal" aria-hidden="true">
@@ -53,15 +58,6 @@
             :loading="publicDiceQuery.isFetching.value && endpointRows.length === 0"
           />
         </SettingCategoryBox>
-
-        <n-alert
-          v-if="!draft.config.publicDiceEnable"
-          type="info"
-          :bordered="false"
-          class="public-dice-disabled-note"
-        >
-          公骰已关闭，配置保持只读；启用公骰后可继续编辑。
-        </n-alert>
       </div>
     </n-spin>
   </main>
@@ -84,6 +80,7 @@ import PublicDiceEndpointSelector from '@/components/public-dice/PublicDiceEndpo
 import PublicDiceProfileForm from '@/components/public-dice/PublicDiceProfileForm.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import TipBox from '@/components/shared/TipBox.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
@@ -237,10 +234,6 @@ useUnsavedChanges('public-dice', {
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
   gap: 28px;
   align-items: stretch;
-}
-
-.public-dice-disabled-note {
-  margin-top: var(--sd-space-xs);
 }
 
 .public-dice-profile__seal {

@@ -14,17 +14,15 @@ export function applyConnectionList(
   _currentConnections: EndPointInfo[],
   currentWorkflows: Record<string, WorkflowResp>,
   currentQrCodes: Record<string, string>,
-  nextConnections?: EndPointInfo[] | null,
+  nextConnections?: EndPointInfo[] | null
 ): ConnectionRealtimeState {
   const connections = nextConnections ? [...nextConnections] : [];
   const ids = new Set(connections.map(item => item.id));
 
   const workflows = Object.fromEntries(
-    Object.entries(currentWorkflows).filter(([id]) => ids.has(id)),
+    Object.entries(currentWorkflows).filter(([id]) => ids.has(id))
   );
-  const qrCodes = Object.fromEntries(
-    Object.entries(currentQrCodes).filter(([id]) => ids.has(id)),
-  );
+  const qrCodes = Object.fromEntries(Object.entries(currentQrCodes).filter(([id]) => ids.has(id)));
 
   return {
     connections,
@@ -37,7 +35,7 @@ export function applyConnectionSnapshot(
   currentConnections: EndPointInfo[],
   currentWorkflows: Record<string, WorkflowResp>,
   currentQrCodes: Record<string, string>,
-  nextConnections?: EndPointInfo[] | null,
+  nextConnections?: EndPointInfo[] | null
 ): ConnectionRealtimeSnapshotState {
   return {
     ...applyConnectionList(currentConnections, currentWorkflows, currentQrCodes, nextConnections),
@@ -47,7 +45,7 @@ export function applyConnectionSnapshot(
 
 export function applyConnectionUpdate(
   currentConnections: EndPointInfo[],
-  nextConnection?: EndPointInfo | null,
+  nextConnection?: EndPointInfo | null
 ): EndPointInfo[] {
   if (!nextConnection) return currentConnections;
 
@@ -64,7 +62,7 @@ export function applyConnectionUpdate(
 export function applyConnectionWorkflow(
   currentWorkflows: Record<string, WorkflowResp>,
   endpointId: string,
-  workflow?: WorkflowResp | null,
+  workflow?: WorkflowResp | null
 ): Record<string, WorkflowResp> {
   if (!endpointId || !workflow) return currentWorkflows;
   return {
@@ -76,7 +74,7 @@ export function applyConnectionWorkflow(
 export function applyConnectionQRCode(
   currentQrCodes: Record<string, string>,
   endpointId: string,
-  img?: string | null,
+  img?: string | null
 ): Record<string, string> {
   if (!endpointId) return currentQrCodes;
 

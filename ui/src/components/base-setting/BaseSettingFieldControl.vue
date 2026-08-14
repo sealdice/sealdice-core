@@ -43,7 +43,7 @@
 
     <n-input-number
       v-else-if="field.kind === 'number' && fieldKey"
-      :value="(fieldValue as number | null | undefined) ?? null"
+      :value="numberValueOf(fieldValue)"
       clearable
       @update:value="updateFieldValue(fieldKey, $event)"
     />
@@ -60,14 +60,14 @@
 
     <div v-else-if="field.kind === 'number-pair'" class="number-pair">
       <n-input-number
-        :value="(pairValues[0] as number | null | undefined) ?? null"
+        :value="numberValueOf(pairValues[0])"
         :min="0"
         :max="Number(pairValues[1] ?? 0)"
         @update:value="updatePair(0, $event)"
       />
       <span class="number-pair-sep">-</span>
       <n-input-number
-        :value="(pairValues[1] as number | null | undefined) ?? null"
+        :value="numberValueOf(pairValues[1])"
         :min="Number(pairValues[0] ?? 0)"
         @update:value="updatePair(1, $event)"
       />
@@ -75,7 +75,7 @@
 
     <BaseSettingExtDefaultsField
       v-else-if="field.kind === 'ext-default-settings' && fieldKey"
-      :model-value="(fieldValue as BaseSettingValueModel['extDefaultSettings']) ?? []"
+      :model-value="extDefaultsValueOf(fieldValue)"
       :initial-items="props.initialModel?.extDefaultSettings ?? []"
       @update:model-value="updateFieldValue(fieldKey, $event)"
     />
@@ -155,6 +155,13 @@ const fieldValue = computed(() => {
 const pairValues = computed(() =>
   props.field.keys.map(key => props.model[key as keyof BaseSettingValueModel])
 );
+
+// 模板里不写联合类型断言：Prettier 会剥掉外层括号，
+// 之后 vue-eslint-parser 会把顶层 `|` 当成 Vue 2 过滤器语法而报错。
+// 这里的写法目前靠外层 `?? null` 侥幸合规，统一收口到 script 避免后人踩坑。
+const numberValueOf = (value: unknown) => (value as number | null | undefined) ?? null;
+const extDefaultsValueOf = (value: unknown) =>
+  (value as BaseSettingValueModel['extDefaultSettings']) ?? [];
 
 function updateFieldValue(key: string, value: unknown) {
   emit('updateField', key, value);

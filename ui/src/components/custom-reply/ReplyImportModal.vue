@@ -10,7 +10,7 @@
   >
     <n-input
       v-model:value="content"
-      placeholder="支持格式: 关键字/回复语"
+      placeholder="支持格式：关键字/回复语"
       class="reply-text sd-code-text"
       type="textarea"
       :autosize="{ minRows: 4, maxRows: 10 }"

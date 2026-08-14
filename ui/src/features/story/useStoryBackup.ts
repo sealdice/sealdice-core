@@ -31,7 +31,7 @@ export function useStoryBackup() {
     return selectedBackups.value.length > 0 && selectedBackups.value.length < backups.value.length;
   });
   const selectedBytes = computed(() =>
-    selectedBackups.value.map(item => item.fileSize).reduce((sum, size) => sum + size, 0),
+    selectedBackups.value.map(item => item.fileSize).reduce((sum, size) => sum + size, 0)
   );
 
   const refreshList = () =>
@@ -71,7 +71,7 @@ export function useStoryBackup() {
         responseType: 'blob',
         throwOnError: true,
       }),
-      name,
+      name
     );
   }
 

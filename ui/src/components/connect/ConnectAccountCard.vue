@@ -47,14 +47,9 @@
         </n-descriptions-item>
       </n-descriptions>
 
-      <n-alert
-        v-if="actionError"
-        type="error"
-        :show-icon="false"
-        class="connect-account-card__error"
-      >
+      <TipBox v-if="actionError" type="error" class="connect-account-card__error">
         {{ actionError }}
-      </n-alert>
+      </TipBox>
 
       <template #footer>
         <div class="connect-account-card__footer">
@@ -116,6 +111,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { EndPointInfo, WorkflowResp } from '@/api';
+import TipBox from '@/components/shared/TipBox.vue';
 import {
   adapterOf,
   getEndpointDetailRows,

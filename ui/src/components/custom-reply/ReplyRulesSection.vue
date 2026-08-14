@@ -25,12 +25,7 @@
     </div>
 
     <div class="section-footer">
-      <n-pagination
-        v-model:page="pageModel"
-        :page-size="pageSize"
-        :item-count="total"
-        simple
-      />
+      <n-pagination v-model:page="pageModel" :page-size="pageSize" :item-count="total" simple />
     </div>
   </section>
 </template>

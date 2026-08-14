@@ -1,9 +1,9 @@
-import type { BaseLogItem } from './logStream';
+import type { BaseLogEntry } from './logStream';
 
 export function applyLogDisplayUpdate(
-  current: BaseLogItem[],
-  source: BaseLogItem[],
-  autoRefresh: boolean,
-): BaseLogItem[] {
+  current: BaseLogEntry[],
+  source: BaseLogEntry[],
+  autoRefresh: boolean
+): BaseLogEntry[] {
   return autoRefresh ? [...source] : current;
 }

@@ -1,11 +1,9 @@
 <template>
-  <div class="tip">
-    <n-text>
-      每次向染色器上传跑团日志之前，都会在本地先保留一份备份，再进行上传。<br />
-      确定不再需要时，你可以在此处删除这些备份文件。<br /><br />
-      <strong>删除此处的备份文件不会使日志丢失。</strong>
-    </n-text>
-  </div>
+  <TipBox type="info" class="backup-tip">
+    <p>每次向染色器上传跑团日志之前，都会在本地先保留一份备份，再进行上传。</p>
+    <p>确定不再需要时，你可以在此处删除这些备份文件。</p>
+    <p><strong>删除此处的备份文件不会使日志丢失。</strong></p>
+  </TipBox>
 
   <header class="backup-header">
     <n-flex size="large" align="center">
@@ -52,6 +50,7 @@
 <script setup lang="ts">
 import { filesize } from 'filesize';
 import { useDialog, useMessage } from 'naive-ui';
+import TipBox from '@/components/shared/TipBox.vue';
 import { useStoryBackup } from '@/features/story/useStoryBackup';
 
 const message = useMessage();
@@ -108,6 +107,10 @@ function bakDeleteConfirm(name: string) {
 </script>
 
 <style scoped>
+.backup-tip {
+  margin: 0 1rem;
+}
+
 .backup-header {
   display: flex;
   justify-content: space-between;
