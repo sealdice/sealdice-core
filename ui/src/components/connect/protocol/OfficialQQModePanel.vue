@@ -1,5 +1,5 @@
 <template>
-  <TipBox type="info" class="mb-4">
+  <TipBox type="info">
     <n-space vertical size="small">
       <n-radio-group v-model:value="mode">
         <n-radio-button value="manual">手动填写机器人 ID</n-radio-button>

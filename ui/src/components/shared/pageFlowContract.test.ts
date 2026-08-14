@@ -60,6 +60,11 @@ describe('page vertical rhythm contract', () => {
     expect(jsPage).not.toMatch(/pane-class="[^"]*mb-/);
     expect(baseSetting).not.toMatch(/\.setting-tabs\s*\{[^}]*margin-top/s);
   });
+
+  it('lets the account protocol form own spacing between its sections', () => {
+    expect(readSource('components/connect/ConnectProtocolForm.vue')).toMatch(/sd-section-flow/);
+    expect(readSource('components/connect/protocol/OfficialQQModePanel.vue')).not.toMatch(/\bmb-/);
+  });
 });
 
 describe('page list composition contract', () => {

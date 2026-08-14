@@ -1,62 +1,64 @@
 <template>
-  <OfficialQQModePanel v-if="protocolModule.formKind === 'officialqq'" v-model="officialQqMode" />
+  <div class="sd-section-flow">
+    <OfficialQQModePanel v-if="protocolModule.formKind === 'officialqq'" v-model="officialQqMode" />
 
-  <TipBox v-if="protocol && !protocol.available" type="warning">
-    {{ protocol.disabledReason }}
-  </TipBox>
+    <TipBox v-if="protocol && !protocol.available" type="warning">
+      {{ protocol.disabledReason }}
+    </TipBox>
 
-  <TipBox v-if="schemasError" type="error"> 配置项读取失败，请稍后重试。 </TipBox>
+    <TipBox v-if="schemasError" type="error"> 配置项读取失败，请稍后重试。 </TipBox>
 
-  <DynamicForm
-    :model-value="modelValue"
-    :schema="visibleSchema"
-    :disabled="submitting || testModeDisabled"
-    :label-placement="isMobile ? 'top' : 'left'"
-    :label-width="isMobile ? undefined : 108"
-    @update:model-value="emit('update:modelValue', $event)"
-  >
-    <template #field="{ item, fieldKey, value, setValue }">
-      <LagrangeSignInfoField
-        v-if="
-          protocolModule.formKind === 'sign-info' &&
-          (fieldKey === 'signServerVersion' || fieldKey === 'signServerName')
-        "
-        :field-key="fieldKey"
-        :value="value"
-        :sign-info-state="signInfoState"
-        :sign-info-error-message="signInfoErrorMessage"
-        :sign-version-options="signVersionOptions"
-        :sign-servers="signServers"
-        @retry="emit('retrySignInfo')"
-        @update:value="setValue"
-      />
-      <n-input
-        v-else-if="item.input_type === 0"
-        :value="value as string"
-        :type="item.sensitive ? 'password' : 'text'"
-        :disabled="submitting || testModeDisabled"
-        :placeholder="item.placeholder"
-        show-password-on="mousedown"
-        @update:value="setValue"
-      />
-      <n-input-number
-        v-else-if="item.input_type === 1"
-        :value="asNumberValue(value)"
-        :disabled="submitting || testModeDisabled"
-        :min="1"
-        :max="65535"
-        :placeholder="item.placeholder"
-        style="width: 100%"
-        @update:value="setValue"
-      />
-      <n-switch
-        v-else-if="item.input_type === 10"
-        :value="Boolean(value)"
-        :disabled="submitting || testModeDisabled"
-        @update:value="setValue"
-      />
-    </template>
-  </DynamicForm>
+    <DynamicForm
+      :model-value="modelValue"
+      :schema="visibleSchema"
+      :disabled="submitting || testModeDisabled"
+      :label-placement="isMobile ? 'top' : 'left'"
+      :label-width="isMobile ? undefined : 108"
+      @update:model-value="emit('update:modelValue', $event)"
+    >
+      <template #field="{ item, fieldKey, value, setValue }">
+        <LagrangeSignInfoField
+          v-if="
+            protocolModule.formKind === 'sign-info' &&
+            (fieldKey === 'signServerVersion' || fieldKey === 'signServerName')
+          "
+          :field-key="fieldKey"
+          :value="value"
+          :sign-info-state="signInfoState"
+          :sign-info-error-message="signInfoErrorMessage"
+          :sign-version-options="signVersionOptions"
+          :sign-servers="signServers"
+          @retry="emit('retrySignInfo')"
+          @update:value="setValue"
+        />
+        <n-input
+          v-else-if="item.input_type === 0"
+          :value="value as string"
+          :type="item.sensitive ? 'password' : 'text'"
+          :disabled="submitting || testModeDisabled"
+          :placeholder="item.placeholder"
+          show-password-on="mousedown"
+          @update:value="setValue"
+        />
+        <n-input-number
+          v-else-if="item.input_type === 1"
+          :value="asNumberValue(value)"
+          :disabled="submitting || testModeDisabled"
+          :min="1"
+          :max="65535"
+          :placeholder="item.placeholder"
+          style="width: 100%"
+          @update:value="setValue"
+        />
+        <n-switch
+          v-else-if="item.input_type === 10"
+          :value="Boolean(value)"
+          :disabled="submitting || testModeDisabled"
+          @update:value="setValue"
+        />
+      </template>
+    </DynamicForm>
+  </div>
 </template>
 
 <script setup lang="ts">
