@@ -12,21 +12,27 @@
       @remove="removeTarget(index)"
     >
       <div class="notice-target-fields">
-        <n-input
-          class="notice-target-id"
-          :value="target.id"
-          placeholder="平台:账号或群组 ID"
-          @update:value="updateTarget(index, { id: $event })"
-        />
-        <n-select
-          class="notice-target-types"
-          :value="target.noticeTypes"
-          :options="noticeTypeOptions"
-          multiple
-          clearable
-          max-tag-count="responsive"
-          @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
-        />
+        <label class="notice-target-field">
+          <n-text depth="3" class="notice-target-field__label">ID</n-text>
+          <n-input
+            class="notice-target-id"
+            :value="target.id"
+            placeholder="平台:账号或群组 ID"
+            @update:value="updateTarget(index, { id: $event })"
+          />
+        </label>
+        <label class="notice-target-field">
+          <n-text depth="3" class="notice-target-field__label">通知项</n-text>
+          <n-select
+            class="notice-target-types"
+            :value="target.noticeTypes"
+            :options="noticeTypeOptions"
+            multiple
+            clearable
+            max-tag-count="responsive"
+            @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
+          />
+        </label>
       </div>
     </RepeatableItem>
   </RepeatableList>
@@ -89,10 +95,21 @@ function removeTarget(index: number) {
 <style scoped>
 .notice-target-fields {
   display: grid;
-  grid-template-columns: minmax(12rem, 0.9fr) minmax(18rem, 1.4fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sd-space-sm);
   container-type: inline-size;
+}
+
+.notice-target-field {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sd-space-sm);
+}
+
+.notice-target-field__label {
+  font-size: 0.85rem;
 }
 
 .notice-target-id,
@@ -100,9 +117,10 @@ function removeTarget(index: number) {
   min-width: 0;
 }
 
-@container (max-width: 680px) {
-  .notice-target-fields {
+@container (max-width: 420px) {
+  .notice-target-field {
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--sd-space-xs);
   }
 }
 </style>

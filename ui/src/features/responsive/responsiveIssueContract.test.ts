@@ -11,11 +11,17 @@ function readSource(relativePath: string): string {
 }
 
 describe('reported responsive issue contracts', () => {
-  it('reflows notice target controls from their own 680px container', () => {
+  it('stacks notice target labels from their own 420px container', () => {
     const source = readSource('components/base-setting/BaseSettingNoticeTargetsField.vue');
 
     expect(source).toMatch(/container-type:\s*inline-size/);
-    expect(source).toMatch(/@container\s*\(max-width:\s*680px\)/);
+    expect(source).toMatch(/@container\s*\(max-width:\s*420px\)/);
+    expect(source.match(/class="notice-target-field"/g)).toHaveLength(2);
+    expect(source).toMatch(/>ID<\/n-text>/);
+    expect(source).toMatch(/>通知项<\/n-text>/);
+    expect(source).toMatch(
+      /\.notice-target-fields\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/s
+    );
     expect(source).not.toMatch(/@media screen and \(max-width: 767\.9px\)/);
   });
 
