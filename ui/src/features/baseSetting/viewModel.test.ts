@@ -56,7 +56,7 @@ it('passes', async () => {
         groups: [
           {
             id: 'qq-channel',
-            title: 'QQ 频道设置',
+            title: 'QQ平台配置',
             fields: [
               {
                 id: 'qq-enable-poke',

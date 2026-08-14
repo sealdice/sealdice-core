@@ -575,7 +575,6 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 							field("only-log-group", "onlyLogCommandInGroup", "日志仅记录指令（群聊）", "boolean", "日志仅记录指令", "群聊"),
 							field("only-log-private", "onlyLogCommandInPrivate", "日志仅记录指令（私聊）", "boolean", "日志仅记录指令", "私聊"),
 							{ID: "command-prefix", Key: "commandPrefix", Label: "指令前缀", Kind: "string-list", Keywords: []string{"前缀", "指令前导", "命令前缀"}},
-							{ID: "message-delay-range", Label: "QQ 回复延迟(秒)", Kind: "number-pair", Keys: []string{"messageDelayRangeStart", "messageDelayRangeEnd"}, Keywords: []string{"回复延迟", "消息延迟", "QQ回复"}},
 						},
 					},
 				},
@@ -633,7 +632,7 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 				Groups: []*BaseSettingGroupSchema{
 					{
 						ID:    "qq-channel",
-						Title: "QQ 频道设置",
+						Title: "QQ平台配置",
 						Fields: []*BaseSettingFieldSchema{
 							field("work-in-qq-channel", "workInQQChannel", "总开关", "boolean", "QQ频道", "频道消息"),
 							field("qq-channel-auto-on", "QQChannelAutoOn", "自动 bot on", "boolean", "自动开启", "频道自动开启"),
@@ -641,6 +640,7 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 							field("qq-enable-poke", "QQEnablePoke", "启用戳一戳", "boolean", "戳一戳", "QQ特性"),
 							field("officialqq-file-send-base64", "officialQQFileSendBase64", "以 Base64 发送文件", "boolean", "官方QQ", "Base64", "文件发送"),
 							field("officialqq-use-markdown", "officialQQUseMarkdown", "使用 Markdown", "boolean", "官方QQ", "Markdown", "消息格式"),
+							{ID: "message-delay-range", Label: "QQ 回复延迟(秒)", Kind: "number-pair", Keys: []string{"messageDelayRangeStart", "messageDelayRangeEnd"}, Keywords: []string{"回复延迟", "消息延迟", "QQ回复", "QQ平台"}},
 						},
 					},
 				},
