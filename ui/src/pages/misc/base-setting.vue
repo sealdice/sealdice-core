@@ -84,6 +84,7 @@ import {
   buildBaseSettingSearchIndex,
   isBaseSettingGroupWide,
   searchBaseSettingFields,
+  validateBaseSettingPatchFormats,
   type BaseSettingSearchEntry,
 } from '@/features/baseSetting/viewModel';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
@@ -167,6 +168,16 @@ async function saveChanges() {
   );
   if (Object.keys(payload).length === 0) {
     message.info('没有可保存的改动');
+    return;
+  }
+  const formatErrors = validateBaseSettingPatchFormats(payload);
+  if (formatErrors.length > 0) {
+    const error = formatErrors[0]!;
+    message.error(error.message);
+    const entry = searchIndex.value.find(item => item.fieldKey === error.key);
+    if (entry) {
+      jumpToField(entry);
+    }
     return;
   }
   await saveMutation.mutateAsync(payload);

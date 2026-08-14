@@ -67,6 +67,14 @@ function commit(items: string[]) {
 }
 
 function updateRow(index: number, value: string) {
+  const normalized = value.trim();
+  if (
+    normalized &&
+    rows.value.some((row, rowIndex) => rowIndex !== index && row.trim() === normalized)
+  ) {
+    message.warning('该 Master 已存在');
+    return;
+  }
   commit(rows.value.map((row, rowIndex) => (rowIndex === index ? value : row)));
 }
 

@@ -185,10 +185,173 @@ export function buildBaseSettingStringListOptions(values: string[]) {
   }, []);
 }
 
-// Master 列表在提交前统一走这里：去空白、去空项、去重复项。
-// 既防止编辑过程中产生重复条目，也兜底历史数据里可能存在的重复 Master。
-export function normalizeMasterListValues(values: string[]) {
+// 字符串列表在提交前统一走这里：去空白、去空项、去重复项。
+// 既防止编辑过程中产生重复条目，也兜底历史数据里可能存在的重复项。
+export function normalizeStringListValues(values: string[]) {
   return buildBaseSettingStringListOptions(values).map(option => option.value);
+}
+
+// Master 列表复用通用归一化逻辑，保留独立命名便于搜索与测试。
+export function normalizeMasterListValues(values: string[]) {
+  return normalizeStringListValues(values);
+}
+
+// ---- 文本字段格式校验（与后端 utils.ParseRate / robfig-cron 标准解析保持一致） ----
+
+// Go time.ParseDuration 的合法单元组合：数字(可带小数)+单位，可连续拼接（如 1h30m）。
+const goDurationPartRe = '\\d+(?:\\.\\d+)?(?:ns|us|µs|ms|s|m|h)';
+const goDurationRe = new RegExp('^(?:0|[+-]?(?:' + goDurationPartRe + ')+)$');
+
+export function isEveryDuration(value: string) {
+  const trimmed = value.trim();
+  const match = /^@every\s+(.+)$/.exec(trimmed);
+  return Boolean(match && goDurationRe.test(match[1]!));
+}
+
+// 速率：正整数，或 @every 时长。整数 0 与后端 ParseRate(0) 的拒绝语义一致，视为无效。
+export function isRateFormatValid(value: string) {
+  const trimmed = value.trim();
+  if (/^[1-9]\d*$/.test(trimmed)) return true;
+  return isEveryDuration(trimmed);
+}
+
+const cronDescriptorSet = new Set([
+  '@yearly',
+  '@annually',
+  '@monthly',
+  '@weekly',
+  '@daily',
+  '@midnight',
+  '@hourly',
+]);
+
+const cronMonthNames: Record<string, number> = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
+};
+
+const cronDayNames: Record<string, number> = {
+  sun: 0,
+  mon: 1,
+  tue: 2,
+  wed: 3,
+  thu: 4,
+  fri: 5,
+  sat: 6,
+};
+
+// 标准 cron 五个字段的范围：分 时 日 月 周（robfig-cron 为 0-6）。
+const cronFieldBounds: Array<[number, number]> = [
+  [0, 59],
+  [0, 23],
+  [1, 31],
+  [1, 12],
+  [0, 6],
+];
+
+function cronTokenValue(token: string, fieldIndex: number): number | null {
+  const trimmed = token.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+  if (fieldIndex === 3) return cronMonthNames[trimmed.toLowerCase()] ?? null;
+  if (fieldIndex === 4) return cronDayNames[trimmed.toLowerCase()] ?? null;
+  return null;
+}
+
+function isCronFieldPartValid(part: string, min: number, max: number, fieldIndex: number): boolean {
+  if (part === '*' || part === '?') return true;
+  const stepMatch = /^[*?]\/(\d+)$/.exec(part);
+  if (stepMatch) return Number(stepMatch[1]) >= 1;
+  const rangeStepMatch = /^(.+?)\/(\d+)$/.exec(part);
+  if (rangeStepMatch) {
+    if (Number(rangeStepMatch[2]) < 1) return false;
+    part = rangeStepMatch[1]!;
+  }
+  const rangeMatch = /^(.+)-(.+)$/.exec(part);
+  if (rangeMatch) {
+    const low = cronTokenValue(rangeMatch[1]!, fieldIndex);
+    const high = cronTokenValue(rangeMatch[2]!, fieldIndex);
+    return low !== null && high !== null && low >= min && high <= max && low <= high;
+  }
+  const single = cronTokenValue(part, fieldIndex);
+  return single !== null && single >= min && single <= max;
+}
+
+function splitCronTimezone(value: string): string | null {
+  const match = /^(?:TZ|CRON_TZ)=([^\s]+)\s+(.+)$/.exec(value);
+  if (!match) return value;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: match[1] }).format();
+  } catch {
+    return null;
+  }
+  return match[2]!;
+}
+
+// 与 robfig-cron ParseStandard（5 字段 + 描述符）对齐。
+export function isCronExpressionValid(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  const cronValue = splitCronTimezone(trimmed);
+  if (!cronValue) return false;
+  if (cronDescriptorSet.has(cronValue)) return true;
+  if (cronValue.startsWith('@every ')) return isEveryDuration(cronValue);
+  const fields = cronValue.split(/\s+/);
+  if (fields.length !== 5) return false;
+  return fields.every((field, index) => {
+    const [min, max] = cronFieldBounds[index]!;
+    return field.split(',').every(part => isCronFieldPartValid(part, min, max, index));
+  });
+}
+
+export type BaseSettingFormatError = {
+  key: string;
+  label: string;
+  message: string;
+};
+
+const rateFormatFields = [
+  { key: 'personalReplenishRate', label: '个人速率' },
+  { key: 'groupReplenishRate', label: '群组速率' },
+];
+
+const cronFormatFields = [{ key: 'aliveNoticeValue', label: '存活消息间隔' }];
+
+// 仅校验保存补丁中实际修改的文本字段，未修改的字段不受影响。
+export function validateBaseSettingPatchFormats(payload: Record<string, unknown>) {
+  const errors: BaseSettingFormatError[] = [];
+  for (const { key, label } of rateFormatFields) {
+    if (!(key in payload)) continue;
+    if (!isRateFormatValid(String(payload[key] ?? ''))) {
+      errors.push({
+        key,
+        label,
+        message: label + '格式无效，应为正整数或 @every 时长（如 3、@every 1s）',
+      });
+    }
+  }
+  for (const { key, label } of cronFormatFields) {
+    if (!(key in payload)) continue;
+    if (!isCronExpressionValid(String(payload[key] ?? ''))) {
+      errors.push({
+        key,
+        label,
+        message:
+          label + '格式无效，支持 @every 时长（如 @every 3h）或标准 cron 表达式（如 0 12 * * *）',
+      });
+    }
+  }
+  return errors;
 }
 
 function normalizeExtDefaultSearchText(item: BaseSettingExtDefaultSettingItem) {

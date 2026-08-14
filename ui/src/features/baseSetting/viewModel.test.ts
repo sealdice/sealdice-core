@@ -4,6 +4,10 @@ import {
   buildExtDefaultSettingsView,
   buildBaseSettingStringListOptions,
   filterExtDefaultSettingsView,
+  isCronExpressionValid,
+  isEveryDuration,
+  isRateFormatValid,
+  validateBaseSettingPatchFormats,
   getExtDefaultSettingPage,
   getBaseSettingFieldFeedback,
   getBaseSettingFieldLayout,
@@ -13,6 +17,7 @@ import {
   normalizeBaseSettingSchema,
   normalizeBaseSettingValue,
   normalizeMasterListValues,
+  normalizeStringListValues,
   searchBaseSettingFields,
   searchExtDefaultSettingsView,
   sortExtDefaultSettingsView,
@@ -142,6 +147,56 @@ it('passes', async () => {
     'QQ:1',
     'QQ:2',
   ]);
+  assertDeepEqual(normalizeStringListValues(['.', ' . ', '', '!', '.']), ['.', '!']);
+
+  assertEqual(isEveryDuration('@every 3h'), true);
+  assertEqual(isEveryDuration('@every 1h30m'), true);
+  assertEqual(isEveryDuration('@every abc'), false);
+  assertEqual(isEveryDuration('@EVERY 3h'), false);
+  assertEqual(isEveryDuration('every 3h'), false);
+  assertEqual(isEveryDuration('3h'), false);
+  assertEqual(isRateFormatValid('3'), true);
+  assertEqual(isRateFormatValid('0'), false);
+  assertEqual(isRateFormatValid('-1'), false);
+  assertEqual(isRateFormatValid('@every 1s'), true);
+  assertEqual(isRateFormatValid('abc'), false);
+  assertEqual(isRateFormatValid(''), false);
+  assertEqual(isCronExpressionValid('@every 3h'), true);
+  assertEqual(isCronExpressionValid('@daily'), true);
+  assertEqual(isCronExpressionValid('@weekly'), true);
+  assertEqual(isCronExpressionValid('0 12 * * *'), true);
+  assertEqual(isCronExpressionValid('*/5 * * * *'), true);
+  assertEqual(isCronExpressionValid('1,2,3 0 * * *'), true);
+  assertEqual(isCronExpressionValid('0-30/5 9 * JAN-MAR MON-FRI'), true);
+  assertEqual(isCronExpressionValid('0 0 * * ?'), true);
+  assertEqual(isCronExpressionValid('TZ=Asia/Shanghai 0 12 * * *'), true);
+  assertEqual(isCronExpressionValid('TZ=Not/AZone 0 12 * * *'), false);
+  assertEqual(isCronExpressionValid('0 12 * * 7'), false);
+  assertEqual(isCronExpressionValid('0 12 * *'), false);
+  assertEqual(isCronExpressionValid('0 60 * * *'), false);
+  assertEqual(isCronExpressionValid('0 12 * * 8'), false);
+  assertEqual(isCronExpressionValid('* * * * * *'), false);
+  assertEqual(isCronExpressionValid('0 0 32 * *'), false);
+  assertEqual(isCronExpressionValid('0 0 * 13 *'), false);
+  assertEqual(isCronExpressionValid('JAN 12 * * *'), false);
+  assertEqual(isCronExpressionValid(''), false);
+  assertDeepEqual(validateBaseSettingPatchFormats({}), []);
+  assertDeepEqual(validateBaseSettingPatchFormats({ mailEnable: true }), []);
+  assertDeepEqual(
+    validateBaseSettingPatchFormats({ personalReplenishRate: 'abc' }).map(error => error.key),
+    ['personalReplenishRate']
+  );
+  assertDeepEqual(
+    validateBaseSettingPatchFormats({ groupReplenishRate: '0', aliveNoticeValue: 'bad cron' }).map(
+      error => error.key
+    ),
+    ['groupReplenishRate', 'aliveNoticeValue']
+  );
+  assertEqual(
+    validateBaseSettingPatchFormats({ personalReplenishRate: '3', aliveNoticeValue: '@every 3h' })
+      .length,
+    0
+  );
 
   const extInitial: BaseSettingExtDefaultSettingItem[] = [
     {

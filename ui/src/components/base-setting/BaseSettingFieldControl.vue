@@ -193,8 +193,18 @@ function updateBoolean(value: boolean) {
 
 function updatePair(index: number, value: number | null) {
   const key = props.field.keys[index];
-  if (!key || value === null) return;
-  updateFieldValue(key, value);
+  if (!key) return;
+  // 清空输入时按 0 处理：否则输入框已清空但草稿仍是旧值，保存时"清不掉"。
+  const next = value ?? 0;
+  updateFieldValue(key, next);
+  // 保持 起点 <= 终点 的不变量（与后端钳制逻辑一致），
+  // 避免清空一端后另一端越界被后端静默忽略。
+  const otherIndex = index === 0 ? 1 : 0;
+  const otherKey = props.field.keys[otherIndex];
+  const otherValue = numberValueOf(pairValues.value[otherIndex]);
+  if (!otherKey || otherValue === null) return;
+  if (index === 0 && otherValue < next) updateFieldValue(otherKey, next);
+  if (index === 1 && otherValue > next) updateFieldValue(otherKey, next);
 }
 
 async function handleAction() {
