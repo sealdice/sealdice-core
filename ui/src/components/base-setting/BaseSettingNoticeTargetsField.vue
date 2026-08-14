@@ -100,7 +100,7 @@ function removeTarget(index: number) {
   min-width: 0;
 }
 
-@media (max-width: 680px) {
+@container (max-width: 680px) {
   .notice-target-fields {
     grid-template-columns: minmax(0, 1fr);
   }
