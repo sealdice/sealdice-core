@@ -1,6 +1,14 @@
 import axios, { AxiosHeaders, type AxiosError, type AxiosRequestConfig } from 'axios';
-import { createDiscreteApi } from 'naive-ui';
-import { h, type VNodeChild } from 'vue';
+import {
+  createDiscreteApi,
+  darkTheme,
+  dateZhCN,
+  lightTheme,
+  zhCN,
+  type DialogApi,
+  type MessageApi,
+} from 'naive-ui';
+import { computed, h, type VNodeChild } from 'vue';
 import {
   clearAccessToken,
   currentAccessToken,
@@ -8,12 +16,15 @@ import {
   setAccessToken,
 } from '@/features/auth/state';
 import { queryClient } from '@/queryClient';
+import { appPinia } from '@/pinia';
+import { useThemeStore } from '@/features/theme/store';
 import { TEST_MODE_ERROR_CODE, TEST_MODE_DEFAULT_REASON } from '@/features/testMode/state';
 import { client } from './generated/client.gen';
 import { getApiBaseUrl } from './config';
 
 let configured = false;
-const { dialog, message } = createDiscreteApi(['dialog', 'message']);
+let dialog: DialogApi;
+let message: MessageApi;
 const requestTokens = new WeakMap<object, string | undefined>();
 
 type ApiErrorInit = {
@@ -116,6 +127,17 @@ export function shouldClearSessionForRequest(
 export function setupApiClient(): void {
   if (configured) return;
   configured = true;
+
+  const themeStore = useThemeStore(appPinia);
+  const discreteConfigProviderProps = computed(() => ({
+    locale: zhCN,
+    dateLocale: dateZhCN,
+    theme: themeStore.resolvedTheme === 'dark' ? darkTheme : lightTheme,
+    themeOverrides: themeStore.themeOverrides,
+  }));
+  ({ dialog, message } = createDiscreteApi(['dialog', 'message'], {
+    configProviderProps: discreteConfigProviderProps,
+  }));
 
   client.setConfig({
     baseURL: getApiBaseUrl(),
