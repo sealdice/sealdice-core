@@ -37,8 +37,7 @@ const emit = defineEmits<{
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: var(--sd-space-md);
 }
 
 @media screen and (max-width: 767.9px) {

@@ -1,10 +1,10 @@
 <template>
-  <div>
+  <ListWorkspace>
     <QueryToolbar :form="searchForm" :columns="searchColumns" cols="1 s:2" />
 
     <template v-if="selectedPlugin">
       <!-- Info -->
-      <n-flex v-if="dataInfoQuery.data.value" size="medium" class="mb-4" wrap>
+      <n-flex v-if="dataInfoQuery.data.value" size="medium" wrap>
         <n-statistic label="Key 数量" :value="dataInfoQuery.data.value.keyCount" />
         <n-statistic label="文件大小" :value="formatFileSize(dataInfoQuery.data.value.fileSize)" />
         <n-button
@@ -100,7 +100,7 @@
         </n-flex>
       </template>
     </n-modal>
-  </div>
+  </ListWorkspace>
 </template>
 
 <script setup lang="ts">
@@ -120,6 +120,7 @@ import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { useJsData } from '@/features/js/useJsData';
 import TipBox from '@/components/shared/TipBox.vue';
 
@@ -292,8 +293,7 @@ function formatFileSize(bytes: number): string {
 }
 .js-data-pagination {
   display: flex;
-  justify-content: center;
-  margin-top: 1rem;
+  justify-content: flex-end;
 }
 .w-16 {
   width: 4rem;
@@ -304,10 +304,6 @@ function formatFileSize(bytes: number): string {
 .w-80 {
   width: min(100%, 20rem);
 }
-.mb-4 {
-  margin-bottom: 1rem;
-}
-
 @media screen and (max-width: 639.9px) {
   .w-60,
   .w-80 {

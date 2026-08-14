@@ -1,5 +1,5 @@
 <template>
-  <section class="resource-list-panel">
+  <ListWorkspace class="resource-list-panel">
     <QueryToolbar
       :form="searchForm"
       :columns="searchColumns"
@@ -66,6 +66,14 @@
 
     <n-spin :show="loading && isMobile">
       <ListPanel>
+        <template #toolbar>
+          <ResultToolbar>
+            <template #meta>
+              <n-text depth="3">共 {{ total }} 项，本页 {{ items.length }} 项</n-text>
+            </template>
+          </ResultToolbar>
+        </template>
+
         <div v-if="isMobile" class="resource-list-panel__cards">
           <article
             v-for="item in items"
@@ -144,7 +152,6 @@
     </n-spin>
 
     <footer class="resource-list-panel__footer">
-      <n-text depth="3">{{ summary }}</n-text>
       <n-pagination
         :page="query.page"
         :page-size="query.pageSize"
@@ -155,7 +162,7 @@
         @update:page-size="updatePageSize"
       />
     </footer>
-  </section>
+  </ListWorkspace>
 </template>
 
 <script setup lang="tsx">
@@ -176,8 +183,9 @@ import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import {
-  formatResourcePageSummary,
   formatResourceTypeLabel,
   getResourceKey,
   getResourceTypeTagType,
@@ -275,13 +283,6 @@ const searchColumns: ProSearchFormColumns<ResourceSearchFormValues> = [
   },
 ];
 
-const summary = computed(() =>
-  formatResourcePageSummary({
-    total: props.total,
-    page: props.query.page,
-    pageSize: props.query.pageSize,
-  })
-);
 const completedUploadCount = computed(
   () => uploadTasks.value.filter(task => task.status === 'success').length
 );
@@ -462,12 +463,6 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
 </script>
 
 <style scoped>
-.resource-list-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 .resource-upload-queue {
   display: grid;
   gap: 8px;

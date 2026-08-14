@@ -1,5 +1,5 @@
 <template>
-  <main class="custom-text-page">
+  <main class="custom-text-page sd-page-flow">
     <n-spin :show="editor.customTextQuery.isFetching.value && !editor.customTextQuery.data.value">
       <PageHeader :title="category" />
       <CustomTextHelp />
@@ -97,6 +97,13 @@ function isMultiValue(keyName: string): boolean {
 <style scoped>
 .custom-text-page {
   text-align: left;
+}
+
+.custom-text-page > :deep(.n-spin-container > .n-spin-content) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sd-page-section-gap);
 }
 
 .text-collapse {

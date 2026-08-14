@@ -1,61 +1,78 @@
 <template>
-  <div class="censor-log-container">
-    <header class="censor-log-header">
-      <n-button secondary @click="emit('refresh')">
-        <template #icon>
-          <n-icon><i-tabler-refresh /></n-icon>
-        </template>
-        刷新
-      </n-button>
+  <ListWorkspace class="censor-log-container">
+    <ListPanel>
+      <template #toolbar>
+        <ResultToolbar>
+          <template #meta>
+            <n-text depth="3">共 {{ total }} 项，本页 {{ logs.length }} 项</n-text>
+          </template>
+          <n-button secondary size="small" @click="emit('refresh')">
+            <template #icon>
+              <n-icon><i-tabler-refresh /></n-icon>
+            </template>
+            刷新
+          </n-button>
+        </ResultToolbar>
+      </template>
+      <n-spin :show="loading">
+        <ResponsiveDataView :compact-at="960" aria-label="拦截命中日志">
+          <template #table>
+            <n-data-table
+              :columns="columns"
+              :data="logs"
+              :scroll-x="940"
+              :bordered="false"
+              size="small"
+            />
+          </template>
+          <template #compact>
+            <ul class="censor-log-list">
+              <li v-for="log in logs" :key="log.id" class="censor-log-list__item">
+                <div class="censor-log-list__heading">
+                  <n-flex size="small" align="center" wrap>
+                    <CensorSensitiveTag :level="log.highestLevel" />
+                    <n-tag size="small" :bordered="false">
+                      {{ formatCensorMessageType(log.msgType) }}
+                    </n-tag>
+                  </n-flex>
+                  <time>{{ formatCensorLogTime(log.createdAt) }}</time>
+                </div>
+                <dl>
+                  <div>
+                    <dt>用户</dt>
+                    <dd>{{ log.userId || '-' }}</dd>
+                  </div>
+                  <div>
+                    <dt>群组</dt>
+                    <dd>{{ log.groupId || '-' }}</dd>
+                  </div>
+                </dl>
+                <p>{{ log.content }}</p>
+              </li>
+            </ul>
+          </template>
+        </ResponsiveDataView>
+      </n-spin>
+    </ListPanel>
+    <footer class="censor-log-footer">
       <n-pagination
-        size="small"
         v-model:page="query.pageNum"
         v-model:page-size="query.pageSize"
         :item-count="total"
         :page-slot="3"
         :default-page-size="20"
       />
-    </header>
-    <n-spin :show="loading">
-      <ResponsiveDataView class="mt-4" :compact-at="960" aria-label="审查命中日志">
-        <template #table>
-          <n-data-table :columns="columns" :data="logs" :scroll-x="940" />
-        </template>
-        <template #compact>
-          <ul class="censor-log-list">
-            <li v-for="log in logs" :key="log.id" class="censor-log-list__item">
-              <div class="censor-log-list__heading">
-                <n-flex size="small" align="center" wrap>
-                  <CensorSensitiveTag :level="log.highestLevel" />
-                  <n-tag size="small" :bordered="false">
-                    {{ formatCensorMessageType(log.msgType) }}
-                  </n-tag>
-                </n-flex>
-                <time>{{ formatCensorLogTime(log.createdAt) }}</time>
-              </div>
-              <dl>
-                <div>
-                  <dt>用户</dt>
-                  <dd>{{ log.userId || '-' }}</dd>
-                </div>
-                <div>
-                  <dt>群组</dt>
-                  <dd>{{ log.groupId || '-' }}</dd>
-                </div>
-              </dl>
-              <p>{{ log.content }}</p>
-            </li>
-          </ul>
-        </template>
-      </ResponsiveDataView>
-    </n-spin>
-  </div>
+    </footer>
+  </ListWorkspace>
 </template>
 
 <script setup lang="tsx">
 import type { DataTableColumns } from 'naive-ui';
 import type { CensorLog } from '@/api';
+import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import type { CensorLogQueryModel } from '@/features/censor/viewModel';
 import CensorSensitiveTag from './CensorSensitiveTag.vue';
 import { formatCensorLogTime, formatCensorMessageType } from '@/features/censor/viewModel';
@@ -98,20 +115,9 @@ const columns: DataTableColumns<CensorLog> = [
 </script>
 
 <style scoped>
-.censor-log-container {
+.censor-log-footer {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.censor-log-header {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  text-align: center;
-  flex-wrap: wrap;
-  gap: 1rem;
+  justify-content: flex-end;
 }
 
 .censor-log-list {

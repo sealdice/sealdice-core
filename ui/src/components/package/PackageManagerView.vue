@@ -1,5 +1,5 @@
 <template>
-  <main class="package-page">
+  <main class="package-page sd-page-flow">
     <PageHeader title="扩展包管理">
       <n-space>
         <n-button secondary @click="refreshAll" :loading="refreshing">刷新</n-button>
@@ -15,7 +15,7 @@
 
     <n-tabs :value="activeTab" type="line" animated @update:value="handleTabUpdate">
       <n-tab-pane name="installed" tab="已安装">
-        <n-space vertical size="large">
+        <ListWorkspace>
           <ListActions>
             <n-input
               v-model:value="installedKeyword"
@@ -35,38 +35,52 @@
             </template>
           </ListActions>
 
-          <PackageInstalledDataView
-            :rows="filteredInstalledPackages"
-            :loading="packagesLoading"
-            @detail="openDetail"
-            @toggle="changePackageState"
-            @reload="reloadPackage"
-            @uninstall="uninstallPackage"
-          />
-        </n-space>
+          <ListPanel>
+            <template #toolbar>
+              <ResultToolbar>
+                <template #meta>
+                  <n-text depth="3">共 {{ filteredInstalledPackages.length }} 项</n-text>
+                </template>
+              </ResultToolbar>
+            </template>
+            <PackageInstalledDataView
+              :rows="filteredInstalledPackages"
+              :loading="packagesLoading"
+              @detail="openDetail"
+              @toggle="changePackageState"
+              @reload="reloadPackage"
+              @uninstall="uninstallPackage"
+            />
+          </ListPanel>
+        </ListWorkspace>
       </n-tab-pane>
 
       <n-tab-pane name="store" tab="商店">
-        <n-space vertical size="large">
-          <n-space class="package-filter-row" wrap>
-            <n-input
-              v-model:value="storeKeyword"
-              clearable
-              placeholder="搜索扩展包名称"
-              style="width: min(100%, 280px)"
-              @keyup.enter="fetchStorePage"
-            />
-            <n-button secondary @click="fetchStorePage" :loading="storeLoading">搜索</n-button>
-          </n-space>
+        <ListWorkspace>
+          <ListActions>
+            <n-space class="package-filter-row" wrap>
+              <n-input
+                v-model:value="storeKeyword"
+                clearable
+                placeholder="搜索扩展包名称"
+                style="width: min(100%, 280px)"
+                @keyup.enter="fetchStorePage"
+              />
+              <n-button secondary @click="fetchStorePage" :loading="storeLoading">搜索</n-button>
+            </n-space>
+          </ListActions>
 
-          <PackageStoreDataView
-            :rows="storePackages"
-            :loading="storeLoading"
-            @preview-install="previewStoreInstall"
-          />
+          <ListPanel>
+            <PackageStoreDataView
+              :rows="storePackages"
+              :loading="storeLoading"
+              @preview-install="previewStoreInstall"
+            />
+          </ListPanel>
 
           <n-pagination
             v-if="storeTotal > 0"
+            class="package-pagination"
             v-model:page="storePage"
             v-model:page-size="storePageSize"
             :item-count="storeTotal"
@@ -75,7 +89,7 @@
             @update:page="fetchStorePage"
             @update:page-size="fetchStorePage"
           />
-        </n-space>
+        </ListWorkspace>
       </n-tab-pane>
 
       <n-tab-pane name="manage" tab="后端与安装">
@@ -269,9 +283,12 @@ import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.v
 import PackageInstalledDataView from '@/components/package/PackageInstalledDataView.vue';
 import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
 import ListActions from '@/components/shared/ListActions.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
 import TipBox from '@/components/shared/TipBox.vue';
 
@@ -817,6 +834,10 @@ function handleError(error: unknown, fallback: string) {
 
 .package-filter-row {
   max-width: 100%;
+}
+
+.package-pagination {
+  align-self: flex-end;
 }
 
 .package-backend-add {

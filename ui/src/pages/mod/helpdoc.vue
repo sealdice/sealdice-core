@@ -1,5 +1,5 @@
 <template>
-  <main class="helpdoc-page">
+  <main class="helpdoc-page sd-page-flow">
     <PageHeader title="帮助文档" :unsaved-scope="['helpdoc-config', 'helpdoc-reload']">
       <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
       <n-button
@@ -16,7 +16,7 @@
       </n-button>
     </PageHeader>
 
-    <n-tabs v-model:value="tab">
+    <n-tabs v-model:value="tab" class="helpdoc-tabs">
       <n-tab-pane tab="文件" name="file">
         <HelpdocFilePane
           v-model:checked-keys="checkedFileKeys"

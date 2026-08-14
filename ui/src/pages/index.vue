@@ -1,9 +1,6 @@
 <template>
-  <main class="home-page">
-    <header class="page-intro">
-      <div>
-        <h1>运行概览</h1>
-      </div>
+  <main class="home-page sd-page-flow">
+    <PageHeader title="运行概览">
       <n-tooltip v-if="hasNewVersion && isContainerMode">
         <template #trigger>
           <n-button type="primary" disabled>升级新版</n-button>
@@ -11,7 +8,7 @@
         容器模式下禁止直接更新，请手动拉取最新镜像
       </n-tooltip>
       <n-button v-else-if="hasNewVersion" type="primary" disabled>升级新版</n-button>
-    </header>
+    </PageHeader>
 
     <section class="overview-grid" aria-label="实例状态">
       <article class="status-card">
@@ -194,6 +191,7 @@ import {
 } from '@/features/base/networkHealth';
 import { formatRuntimeSummary } from '@/features/base/runtimeSummary';
 import { hasAccessToken } from '@/features/auth/state';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
@@ -410,32 +408,15 @@ const columns = computed<DataTableColumns<BaseLogEntry>>(() => {
   margin: 0 auto;
 }
 
-.page-intro {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-h1,
 h2,
 p {
   margin: 0;
-}
-
-h1 {
-  color: var(--sd-text-primary);
-  font-size: var(--sd-page-title-size);
-  font-weight: var(--sd-page-title-weight);
-  line-height: var(--sd-page-title-line-height);
 }
 
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
-  margin-bottom: 1rem;
 }
 
 .status-card {
@@ -726,7 +707,6 @@ h1 {
 }
 
 @media (max-width: 720px) {
-  .page-intro,
   .log-panel__header {
     align-items: flex-start;
     flex-direction: column;

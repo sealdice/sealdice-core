@@ -1,5 +1,5 @@
 <template>
-  <main class="resource-page">
+  <main class="resource-page sd-page-flow">
     <PageHeader title="资源管理" />
 
     <TipBox v-if="listErrorText" type="error">

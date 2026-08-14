@@ -1,67 +1,72 @@
 <template>
-  <n-flex justify="space-between" class="censor-words-header">
-    <h4>敏感词列表</h4>
-    <n-flex align="center" class="censor-words-filter">
-      <n-text v-if="filterCount > 0" type="info" class="text-xs">
-        已过滤 {{ filterCount }} 条
-      </n-text>
-      <label class="censor-words-filter__field" for="censor-word-filter">
-        <span>筛选敏感词</span>
-        <n-input
-          id="censor-word-filter"
-          v-model:value="filter"
-          size="small"
-          placeholder="输入敏感词或匹配词"
-          clearable
-          aria-label="筛选敏感词"
-        >
-          <template #prefix>
-            <n-icon><i-tabler-search /></n-icon>
-          </template>
-        </n-input>
-      </label>
-    </n-flex>
-  </n-flex>
-
-  <main class="mt-2 mb-8">
-    <ResponsiveDataView :compact-at="520" aria-label="敏感词列表">
-      <template #table>
-        <n-data-table
-          class="w-full"
-          :columns="columns"
-          :data="filteredWords"
-          :scroll-x="480"
-          virtual-scroll
-        />
-      </template>
-      <template #compact>
-        <ul class="censor-words-list">
-          <li
-            v-for="(word, index) in filteredWords"
-            :key="`${word.main}-${index}`"
-            class="censor-words-list__item"
+  <section class="censor-words-view sd-section-flow">
+    <n-flex justify="space-between" class="censor-words-header">
+      <h4>敏感词列表</h4>
+      <n-flex align="center" class="censor-words-filter">
+        <n-text depth="3" class="text-xs">
+          共 {{ words.length }} 项<span v-if="filterCount > 0">，已过滤 {{ filterCount }} 项</span>
+        </n-text>
+        <label class="censor-words-filter__field" for="censor-word-filter">
+          <span>筛选敏感词</span>
+          <n-input
+            id="censor-word-filter"
+            v-model:value="filter"
+            size="small"
+            placeholder="输入敏感词或匹配词"
+            clearable
+            aria-label="筛选敏感词"
           >
-            <CensorSensitiveTag :level="word.level" />
-            <div class="censor-words-list__tokens">
-              <n-text
-                v-for="related in word.related?.length ? word.related : [{ word: word.main }]"
-                :key="related.word"
-                class="censor-word-token"
-              >
-                {{ related.word }}
-              </n-text>
-            </div>
-          </li>
-        </ul>
-      </template>
-    </ResponsiveDataView>
-  </main>
+            <template #prefix>
+              <n-icon><i-tabler-search /></n-icon>
+            </template>
+          </n-input>
+        </label>
+      </n-flex>
+    </n-flex>
+
+    <ListPanel>
+      <ResponsiveDataView :compact-at="520" aria-label="敏感词列表">
+        <template #table>
+          <n-data-table
+            class="w-full"
+            :columns="columns"
+            :data="filteredWords"
+            :scroll-x="480"
+            :bordered="false"
+            size="small"
+            virtual-scroll
+          />
+        </template>
+        <template #compact>
+          <ul class="censor-words-list">
+            <li
+              v-for="(word, index) in filteredWords"
+              :key="`${word.main}-${index}`"
+              class="censor-words-list__item"
+            >
+              <CensorSensitiveTag :level="word.level" />
+              <div class="censor-words-list__tokens">
+                <n-text
+                  v-for="related in word.related?.length ? word.related : [{ word: word.main }]"
+                  :key="related.word"
+                  class="censor-word-token"
+                >
+                  {{ related.word }}
+                </n-text>
+              </div>
+            </li>
+          </ul>
+        </template>
+      </ResponsiveDataView>
+    </ListPanel>
+  </section>
 </template>
 
 <script setup lang="tsx">
 import { computed, ref } from 'vue';
 import type { DataTableColumns } from 'naive-ui';
 import type { CensorWordItem } from '@/api';
+import ListPanel from '@/components/shared/ListPanel.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import CensorSensitiveTag from './CensorSensitiveTag.vue';
 import { filterCensorWords } from '@/features/censor/viewModel';
@@ -108,6 +113,10 @@ const columns: DataTableColumns<CensorWordItem> = [
 </script>
 
 <style scoped>
+.censor-words-view h4 {
+  margin: 0;
+}
+
 :deep(.censor-word-token) {
   overflow-wrap: anywhere;
 }

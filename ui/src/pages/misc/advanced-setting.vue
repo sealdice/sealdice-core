@@ -1,5 +1,5 @@
 <template>
-  <main class="advanced-page">
+  <main class="advanced-page sd-page-flow">
     <PageHeader title="高级设置" unsaved-scope="advanced-setting" />
     <TipBox type="warning">
       <p>

@@ -64,7 +64,11 @@ const selectedOption = computed(
 
 .responsive-tabs__compact {
   display: grid;
-  gap: var(--sd-space-lg);
+  gap: var(--sd-page-section-gap);
+}
+
+.responsive-tabs :deep(.n-tab-pane) {
+  padding-top: var(--sd-page-section-gap);
 }
 
 .responsive-tabs__select {

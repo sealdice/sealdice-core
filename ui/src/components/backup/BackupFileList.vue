@@ -1,90 +1,93 @@
 <template>
-  <section class="backup-file-list">
-    <!-- 标题与标签页名重复，去掉；数量作为结果摘要与操作同行。 -->
-    <div class="backup-file-list__head backup-file-list__toolbar">
-      <n-text depth="3" class="backup-file-list__count"> 共 {{ items.length }} 个备份文件 </n-text>
-      <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
-        立即备份
-      </n-button>
-      <n-button
-        type="error"
-        secondary
-        :disabled="disabled || items.length === 0"
-        @click="emit('openBatchDelete')"
-      >
-        <template #icon>
-          <n-icon>
-            <i-tabler-trash />
-          </n-icon>
+  <ListWorkspace class="backup-file-list">
+    <ListPanel>
+      <template #toolbar>
+        <ResultToolbar>
+          <template #meta>
+            <n-text depth="3">共 {{ items.length }} 项</n-text>
+          </template>
+          <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
+            立即备份
+          </n-button>
+          <n-button
+            type="error"
+            secondary
+            :disabled="disabled || items.length === 0"
+            @click="emit('openBatchDelete')"
+          >
+            <template #icon>
+              <n-icon><i-tabler-trash /></n-icon>
+            </template>
+            批量删除
+          </n-button>
+        </ResultToolbar>
+      </template>
+
+      <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
+        <template #extra>
+          <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
+            立即备份
+          </n-button>
         </template>
-        批量删除
-      </n-button>
-    </div>
+      </n-empty>
 
-    <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
-      <template #extra>
-        <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
-          立即备份
-        </n-button>
-      </template>
-    </n-empty>
+      <ResponsiveDataView v-else :compact-at="680" aria-label="备份文件列表">
+        <template #table>
+          <n-data-table
+            :columns="columns"
+            :data="items"
+            :loading="loading"
+            :bordered="false"
+            :row-key="(row: FileItem) => row.name"
+            :scroll-x="680"
+            :max-height="520"
+            virtual-scroll
+            size="small"
+          />
+        </template>
 
-    <ResponsiveDataView v-else :compact-at="680" aria-label="备份文件列表">
-      <template #table>
-        <n-data-table
-          :columns="columns"
-          :data="items"
-          :loading="loading"
-          :bordered="false"
-          :row-key="(row: FileItem) => row.name"
-          :scroll-x="680"
-          :max-height="520"
-          virtual-scroll
-          size="small"
-        />
-      </template>
-
-      <template #compact>
-        <n-spin :show="loading">
-          <ul class="backup-file-list__compact-list">
-            <li v-for="item in items" :key="item.name" class="backup-file-list__compact-item">
-              <div class="backup-file-list__compact-heading">
-                <strong>{{ item.name }}</strong>
-                <n-tag size="small" :bordered="false">{{ filesize(item.fileSize) }}</n-tag>
-              </div>
-              <n-text depth="3" class="backup-file-list__compact-selection">
-                {{
-                  describeBackupSelection(item.selection).length
-                    ? `包含：${describeBackupSelection(item.selection).join('、')}`
-                    : '内容无法识别'
-                }}
-              </n-text>
-              <n-flex size="small" justify="end" wrap>
-                <n-button
-                  size="small"
-                  secondary
-                  :loading="downloadingName === item.name"
-                  @click="emit('download', item)"
-                >
-                  下载
-                </n-button>
-                <n-button
-                  size="small"
-                  type="error"
-                  secondary
-                  :loading="deletingName === item.name"
-                  :disabled="disabled"
-                  @click="emit('delete', item)"
-                >
-                  删除
-                </n-button>
-              </n-flex>
-            </li>
-          </ul>
-        </n-spin>
-      </template>
-    </ResponsiveDataView>
-  </section>
+        <template #compact>
+          <n-spin :show="loading">
+            <ul class="backup-file-list__compact-list">
+              <li v-for="item in items" :key="item.name" class="backup-file-list__compact-item">
+                <div class="backup-file-list__compact-heading">
+                  <strong>{{ item.name }}</strong>
+                  <n-tag size="small" :bordered="false">{{ filesize(item.fileSize) }}</n-tag>
+                </div>
+                <n-text depth="3" class="backup-file-list__compact-selection">
+                  {{
+                    describeBackupSelection(item.selection).length
+                      ? `包含：${describeBackupSelection(item.selection).join('、')}`
+                      : '内容无法识别'
+                  }}
+                </n-text>
+                <n-flex size="small" justify="end" wrap>
+                  <n-button
+                    size="small"
+                    secondary
+                    :loading="downloadingName === item.name"
+                    @click="emit('download', item)"
+                  >
+                    下载
+                  </n-button>
+                  <n-button
+                    size="small"
+                    type="error"
+                    secondary
+                    :loading="deletingName === item.name"
+                    :disabled="disabled"
+                    @click="emit('delete', item)"
+                  >
+                    删除
+                  </n-button>
+                </n-flex>
+              </li>
+            </ul>
+          </n-spin>
+        </template>
+      </ResponsiveDataView>
+    </ListPanel>
+  </ListWorkspace>
 </template>
 
 <script setup lang="tsx">
@@ -92,7 +95,10 @@ import { computed } from 'vue';
 import { filesize } from 'filesize';
 import { NButton, NTag, type DataTableColumns } from 'naive-ui';
 import type { FileItem } from '@/api';
+import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { describeBackupSelection } from '@/features/backup/viewModel';
 
 const props = defineProps<{
@@ -170,25 +176,6 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
 </script>
 
 <style scoped>
-.backup-file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.backup-file-list__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-/* 数量摘要占据左侧，操作保持在右。 */
-.backup-file-list__count {
-  margin-right: auto;
-}
-
 :deep(.backup-file-list__file) {
   display: flex;
   min-width: 0;
@@ -239,11 +226,5 @@ const columns = computed<DataTableColumns<FileItem>>(() => [
 .backup-file-list__compact-heading strong,
 .backup-file-list__compact-selection {
   overflow-wrap: anywhere;
-}
-
-@media (max-width: 760px) {
-  .backup-file-list__toolbar {
-    justify-content: flex-start;
-  }
 }
 </style>

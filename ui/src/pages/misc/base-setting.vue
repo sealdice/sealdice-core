@@ -1,5 +1,5 @@
 <template>
-  <main class="base-setting-page">
+  <main class="base-setting-page sd-page-flow">
     <PageHeader title="基本设置" unsaved-scope="base-setting" />
 
     <BaseSettingSearchBar
@@ -245,10 +245,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
   min-width: 0;
 }
 
-.setting-tabs {
-  margin-top: var(--sd-space-md);
-}
-
 .setting-groups {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -259,12 +255,6 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
 @media (max-width: 768px) {
   .setting-groups {
     gap: 0.15rem;
-  }
-}
-
-@media (max-width: 639.9px) {
-  .setting-tabs {
-    margin-top: var(--sd-space-xs);
   }
 }
 </style>

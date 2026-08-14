@@ -1,10 +1,10 @@
 <template>
-  <main class="story-page">
+  <main class="story-page sd-page-flow">
     <PageHeader title="跑团日志" />
-    <n-tabs v-model:value="tab">
+    <n-tabs v-model:value="tab" class="story-tabs">
       <n-tab-pane tab="跑团日志" name="list">
         <template v-if="mode === 'logs'">
-          <div class="story-tab-body">
+          <ListWorkspace class="story-tab-body">
             <!-- 统计是数据读出，不是说明，用文本行承载即可，不套卡片。 -->
             <n-flex class="story-summary" size="small" wrap>
               <n-text depth="3">
@@ -23,6 +23,9 @@
               <template #toolbar>
                 <ResultToolbar>
                   <template #meta>
+                    <n-text depth="3"
+                      >共 {{ queryLogPage.total }} 项，本页 {{ logs.length }} 项</n-text
+                    >
                     <n-checkbox
                       :checked="allLogsSelected"
                       aria-label="全选当前页日志"
@@ -139,7 +142,7 @@
                 @update:page-size="handlePageSizeChange"
               />
             </div>
-          </div>
+          </ListWorkspace>
         </template>
 
         <template v-else-if="mode === 'painter' && currentPainterLog">
@@ -299,6 +302,7 @@ import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import {
   getSdApiV2StoryCleanupPreview,
   getSdApiV2StoryInfoOptions,
@@ -850,13 +854,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 1rem;
 }
-/* 标签页内容自带纵向间距，避免筛选器与列表贴在一起。 */
-.story-tab-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sd-space-md);
-}
-
 .story-summary {
   column-gap: var(--sd-space-lg);
 }
@@ -882,13 +879,11 @@ onMounted(async () => {
 .story-pagination-block {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
 }
 
 .story-pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
 }
 
 .story-cleanup-page {

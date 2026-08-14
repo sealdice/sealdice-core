@@ -43,7 +43,6 @@ const emit = defineEmits<{
 <style scoped>
 .base-setting-search {
   position: relative;
-  margin-bottom: var(--sd-space-md);
 }
 
 .search-result-card {
@@ -74,10 +73,6 @@ const emit = defineEmits<{
 }
 
 @media (max-width: 639.9px) {
-  .base-setting-search {
-    margin-bottom: var(--sd-space-sm);
-  }
-
   .search-result-item {
     align-items: flex-start;
     flex-direction: column;

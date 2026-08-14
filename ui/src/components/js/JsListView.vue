@@ -1,5 +1,5 @@
 <template>
-  <main class="js-list-page">
+  <ListWorkspace class="js-list-page">
     <QueryToolbar
       :form="searchForm"
       :columns="searchColumns"
@@ -99,7 +99,7 @@
             <n-text depth="3" class="text-xs">
               {{
                 hasItems
-                  ? `本页 ${items.length} 项，已选 ${selectedCount} 项`
+                  ? `共 ${total} 项，本页 ${items.length} 项，已选 ${selectedCount} 项`
                   : '当前没有可操作的插件'
               }}
             </n-text>
@@ -119,7 +119,7 @@
         </ResultToolbar>
       </template>
 
-      <div class="js-panel-body">
+      <div>
         <section v-if="hasItems" class="js-list-main">
           <template v-for="item in items" :key="item.filename">
             <FoldableCard
@@ -275,18 +275,16 @@
       </div>
     </ListPanel>
 
-    <section v-if="showPagination" class="js-panel js-pagination-panel">
-      <div class="js-pagination-block">
-        <n-pagination
-          v-model:page="listQuery.page"
-          v-model:page-size="listQuery.pageSize"
-          show-size-picker
-          :page-sizes="[10, 20, 30, 50]"
-          :item-count="total"
-          :page-slot="3"
-        />
-      </div>
-    </section>
+    <div v-if="showPagination" class="js-pagination-block">
+      <n-pagination
+        v-model:page="listQuery.page"
+        v-model:page-size="listQuery.pageSize"
+        show-size-picker
+        :page-sizes="[10, 20, 30, 50]"
+        :item-count="total"
+        :page-slot="3"
+      />
+    </div>
 
     <n-modal
       v-model:show="showDiff"
@@ -315,7 +313,7 @@
         </n-flex>
       </template>
     </n-modal>
-  </main>
+  </ListWorkspace>
 </template>
 
 <script setup lang="tsx">
@@ -339,6 +337,7 @@ import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
@@ -616,12 +615,6 @@ function toggleSelectAll(checked: boolean) {
 </script>
 
 <style scoped>
-.js-list-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .js-panel {
   overflow: hidden;
   border: 1px solid var(--sd-border);
@@ -633,10 +626,6 @@ function toggleSelectAll(checked: boolean) {
   padding: 0.95rem 1rem;
   border-bottom: 1px solid var(--sd-border-soft);
   background: var(--sd-bg-elevated-soft);
-}
-
-.js-panel-body {
-  padding: 1rem;
 }
 
 .upload-panel {
@@ -739,13 +728,9 @@ function toggleSelectAll(checked: boolean) {
   padding: 1rem 0;
 }
 
-.js-pagination-panel {
-  padding: 0.85rem 1rem;
-}
-
 .js-pagination-block {
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
 }
 
 .max-h-150 {

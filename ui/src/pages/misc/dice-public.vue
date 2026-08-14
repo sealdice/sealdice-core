@@ -1,5 +1,5 @@
 <template>
-  <main class="public-dice-page">
+  <main class="public-dice-page sd-page-flow">
     <PageHeader title="公骰设置">
       <n-flex align="center" size="small">
         <n-text depth="3">启用公骰</n-text>
@@ -223,10 +223,6 @@ useUnsavedChanges('public-dice', {
 .public-dice-groups {
   display: grid;
   gap: var(--sd-space-2xs);
-}
-
-.public-dice-alert {
-  margin-bottom: var(--sd-space-md);
 }
 
 .public-dice-profile {

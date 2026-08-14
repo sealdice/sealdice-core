@@ -1,5 +1,5 @@
 <template>
-  <main class="ban-page">
+  <main class="ban-page sd-page-flow">
     <PageHeader title="黑白名单" unsaved-scope="ban-config" />
 
     <n-tabs v-model:value="tab" animated>

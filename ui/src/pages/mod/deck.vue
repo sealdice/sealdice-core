@@ -1,5 +1,5 @@
 <template>
-  <main class="deck-page">
+  <main class="deck-page sd-page-flow">
     <PageHeader title="牌堆管理">
       <n-button type="primary" :loading="reloadMutation.isPending.value" @click="doReload">
         <template #icon>
@@ -10,214 +10,189 @@
     </PageHeader>
 
     <n-spin :show="pageBusy">
-      <QueryToolbar
-        :form="deckSearchForm"
-        :columns="deckSearchColumns"
-        :loading="pageBusy"
-        cols="1 s:2 l:3"
-      />
-
-      <ListActions>
-        <PackageStoreLink>获取牌堆</PackageStoreLink>
-
-        <input
-          ref="fileInputRef"
-          type="file"
-          class="deck-file-input"
-          multiple
-          @change="onFileSelection"
+      <ListWorkspace>
+        <QueryToolbar
+          :form="deckSearchForm"
+          :columns="deckSearchColumns"
+          :loading="pageBusy"
+          cols="1 s:2 l:3"
         />
-        <n-button type="primary" secondary :loading="uploader.busy.value" @click="openFilePicker">
-          <template #icon>
-            <n-icon><i-tabler-upload /></n-icon>
-          </template>
-          上传牌堆
-        </n-button>
-      </ListActions>
 
-      <section v-if="activeUploadTasks.length" class="upload-panel">
-        <div class="upload-panel-head">
-          <h3>上传队列</h3>
-          <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
-        </div>
+        <ListActions>
+          <PackageStoreLink>获取牌堆</PackageStoreLink>
 
-        <div class="upload-list">
-          <article v-for="task in activeUploadTasks" :key="task.id" class="upload-item">
-            <div class="upload-item-head">
-              <div class="upload-title">
-                <span class="upload-name">{{ task.filename }}</span>
-                <span class="upload-meta">{{ Math.round(task.fileSize / 1024) }} KB</span>
-              </div>
-              <div class="upload-actions">
-                <n-tag
-                  size="small"
-                  :bordered="false"
-                  :type="
-                    task.status === 'error'
-                      ? 'error'
-                      : task.status === 'success'
-                        ? 'success'
-                        : 'warning'
-                  "
-                >
-                  {{ task.status }}
-                </n-tag>
-                <n-button
-                  v-if="task.status === 'error'"
-                  size="tiny"
-                  secondary
-                  @click="retryTask(task)"
-                >
-                  重试
-                </n-button>
-              </div>
-            </div>
-
-            <n-progress
-              type="line"
-              :percentage="task.progress"
-              :status="
-                task.status === 'error'
-                  ? 'error'
-                  : task.status === 'success'
-                    ? 'success'
-                    : 'default'
-              "
-              :show-indicator="true"
-            />
-
-            <div class="upload-detail">
-              <span
-                >分块 {{ Array.isArray(task.uploadedChunks) ? task.uploadedChunks.length : 0 }} /
-                {{ task.expectedChunks || '-' }}</span
-              >
-              <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <ListPanel>
-        <template #toolbar>
-          <n-text v-if="filterCount > 0" depth="3"> 已过滤 {{ filterCount }} 条 </n-text>
-          <n-text class="deck-format-note">支持 json、yaml、deck、toml 格式</n-text>
-          <n-tooltip>
-            <template #trigger>
-              <n-button text size="tiny" aria-label="查看牌堆格式说明">
-                <template #icon>
-                  <n-icon><i-tabler-help-circle /></n-icon>
-                </template>
-              </n-button>
+          <input
+            ref="fileInputRef"
+            type="file"
+            class="deck-file-input"
+            multiple
+            @change="onFileSelection"
+          />
+          <n-button type="primary" secondary :loading="uploader.busy.value" @click="openFilePicker">
+            <template #icon>
+              <n-icon><i-tabler-upload /></n-icon>
             </template>
-            deck 牌堆：一种单文件带图的牌堆格式。在牌堆文件中使用 ./images/xxx.png
-            的相对路径引用图片，并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作。<br /><br />
-            toml 牌堆：海豹支持的新牌堆格式，提供包括云牌组在内的更多功能支持。
-          </n-tooltip>
-        </template>
+            上传牌堆
+          </n-button>
+        </ListActions>
 
-        <main class="deck-data-block">
-          <FoldableCard
-            v-for="(item, index) in items"
-            :key="item.filename || index"
-            class="deck-item"
-            :default-fold="true"
-            :err-title="item.filename"
-            :err-text="item.errText"
-          >
-            <template #title>
-              <n-flex size="small" align="center">
-                <n-text class="text-base" tag="b">{{ item.name }}</n-text>
-                <n-text>{{ item.version }}</n-text>
-                <n-tag size="small" :bordered="false">
-                  {{ item.fileFormat }}
-                </n-tag>
-                <n-tag v-if="item.packageId" size="small" :bordered="false">
-                  来源包 {{ item.packageId }}
-                </n-tag>
-              </n-flex>
-            </template>
+        <section v-if="activeUploadTasks.length" class="upload-panel">
+          <div class="upload-panel-head">
+            <h3>上传队列</h3>
+            <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
+          </div>
 
-            <template #title-extra>
-              <n-flex>
-                <n-popconfirm
-                  v-if="item.updateUrls && item.updateUrls.length > 0"
-                  @positive-click="doCheckUpdate(item)"
+          <div class="upload-list">
+            <article v-for="task in activeUploadTasks" :key="task.id" class="upload-item">
+              <div class="upload-item-head">
+                <div class="upload-title">
+                  <span class="upload-name">{{ task.filename }}</span>
+                  <span class="upload-meta">{{ Math.round(task.fileSize / 1024) }} KB</span>
+                </div>
+                <div class="upload-actions">
+                  <n-tag
+                    size="small"
+                    :bordered="false"
+                    :type="
+                      task.status === 'error'
+                        ? 'error'
+                        : task.status === 'success'
+                          ? 'success'
+                          : 'warning'
+                    "
+                  >
+                    {{ task.status }}
+                  </n-tag>
+                  <n-button
+                    v-if="task.status === 'error'"
+                    size="tiny"
+                    secondary
+                    @click="retryTask(task)"
+                  >
+                    重试
+                  </n-button>
+                </div>
+              </div>
+
+              <n-progress
+                type="line"
+                :percentage="task.progress"
+                :status="
+                  task.status === 'error'
+                    ? 'error'
+                    : task.status === 'success'
+                      ? 'success'
+                      : 'default'
+                "
+                :show-indicator="true"
+              />
+
+              <div class="upload-detail">
+                <span
+                  >分块 {{ Array.isArray(task.uploadedChunks) ? task.uploadedChunks.length : 0 }} /
+                  {{ task.expectedChunks || '-' }}</span
                 >
-                  <template #trigger>
-                    <n-button type="primary" size="small" secondary :loading="diffLoading">
-                      <template #icon>
-                        <n-icon><i-tabler-download /></n-icon>
-                      </template>
-                      更新
-                    </n-button>
+                <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <ListPanel>
+          <template #toolbar>
+            <n-text depth="3">共 {{ total }} 项，本页 {{ items.length }} 项</n-text>
+            <n-text class="deck-format-note">支持 json、yaml、deck、toml 格式</n-text>
+            <n-tooltip>
+              <template #trigger>
+                <n-button text size="tiny" aria-label="查看牌堆格式说明">
+                  <template #icon>
+                    <n-icon><i-tabler-help-circle /></n-icon>
                   </template>
-                  更新地址由牌堆作者提供，是否确认要检查该牌堆更新？
-                </n-popconfirm>
+                </n-button>
+              </template>
+              deck 牌堆：一种单文件带图的牌堆格式。在牌堆文件中使用 ./images/xxx.png
+              的相对路径引用图片，并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作。<br /><br />
+              toml 牌堆：海豹支持的新牌堆格式，提供包括云牌组在内的更多功能支持。
+            </n-tooltip>
+          </template>
+
+          <main class="deck-data-block">
+            <FoldableCard
+              v-for="(item, index) in items"
+              :key="item.filename || index"
+              class="deck-item"
+              :default-fold="true"
+              :err-title="item.filename"
+              :err-text="item.errText"
+            >
+              <template #title>
+                <n-flex size="small" align="center">
+                  <n-text class="text-base" tag="b">{{ item.name }}</n-text>
+                  <n-text>{{ item.version }}</n-text>
+                  <n-tag size="small" :bordered="false">
+                    {{ item.fileFormat }}
+                  </n-tag>
+                  <n-tag v-if="item.packageId" size="small" :bordered="false">
+                    来源包 {{ item.packageId }}
+                  </n-tag>
+                </n-flex>
+              </template>
+
+              <template #title-extra>
+                <n-flex>
+                  <n-popconfirm
+                    v-if="item.updateUrls && item.updateUrls.length > 0"
+                    @positive-click="doCheckUpdate(item)"
+                  >
+                    <template #trigger>
+                      <n-button type="primary" size="small" secondary :loading="diffLoading">
+                        <template #icon>
+                          <n-icon><i-tabler-download /></n-icon>
+                        </template>
+                        更新
+                      </n-button>
+                    </template>
+                    更新地址由牌堆作者提供，是否确认要检查该牌堆更新？
+                  </n-popconfirm>
+                  <n-button type="error" size="small" secondary @click="doDelete(item)">
+                    <template #icon>
+                      <n-icon><i-tabler-trash /></n-icon>
+                    </template>
+                    删除
+                  </n-button>
+                </n-flex>
+              </template>
+
+              <template #title-extra-error>
                 <n-button type="error" size="small" secondary @click="doDelete(item)">
                   <template #icon>
                     <n-icon><i-tabler-trash /></n-icon>
                   </template>
                   删除
                 </n-button>
-              </n-flex>
-            </template>
+              </template>
 
-            <template #title-extra-error>
-              <n-button type="error" size="small" secondary @click="doDelete(item)">
-                <template #icon>
-                  <n-icon><i-tabler-trash /></n-icon>
-                </template>
-                删除
-              </n-button>
-            </template>
-
-            <template #description>
-              <n-flex size="small" vertical align="normal">
-                <n-text v-if="item.cloud" type="info" class="text-xs">
-                  <n-icon><i-tabler-cloud /></n-icon>
-                  作者提供云端内容，请自行鉴别安全性
-                </n-text>
-                <n-text v-if="item.fileFormat === 'jsonc'" type="warning" class="text-xs">
-                  <n-icon><i-tabler-alert-triangle-filled /></n-icon>
-                  注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
-                </n-text>
-              </n-flex>
-            </template>
-
-            <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
-              <n-descriptions-item :span="3" label="作者">
-                {{ item.author || '<佚名>' }}
-              </n-descriptions-item>
-              <n-descriptions-item v-if="item.desc" :span="3" label="简介">
-                {{ item.desc }}
-              </n-descriptions-item>
-              <n-descriptions-item :span="3" label="牌组列表">
-                <n-flex size="small">
-                  <n-tag
-                    v-for="(visible, command) of item.command"
-                    :key="command"
-                    size="small"
-                    :type="visible ? 'primary' : 'default'"
-                    :bordered="false"
-                  >
-                    {{ command }}
-                  </n-tag>
+              <template #description>
+                <n-flex size="small" vertical align="normal">
+                  <n-text v-if="item.cloud" type="info" class="text-xs">
+                    <n-icon><i-tabler-cloud /></n-icon>
+                    作者提供云端内容，请自行鉴别安全性
+                  </n-text>
+                  <n-text v-if="item.fileFormat === 'jsonc'" type="warning" class="text-xs">
+                    <n-icon><i-tabler-alert-triangle-filled /></n-icon>
+                    注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
+                  </n-text>
                 </n-flex>
-              </n-descriptions-item>
-              <n-descriptions-item v-if="item.license" label="许可协议">
-                {{ item.license }}
-              </n-descriptions-item>
-              <n-descriptions-item v-if="item.date" label="发布时间">
-                {{ item.date }}
-              </n-descriptions-item>
-              <n-descriptions-item v-if="item.updateDate" label="更新时间">
-                {{ item.updateDate }}
-              </n-descriptions-item>
-            </n-descriptions>
+              </template>
 
-            <template #unfolded-extra>
               <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
-                <n-descriptions-item :span="3" label="可见牌组列表">
+                <n-descriptions-item :span="3" label="作者">
+                  {{ item.author || '<佚名>' }}
+                </n-descriptions-item>
+                <n-descriptions-item v-if="item.desc" :span="3" label="简介">
+                  {{ item.desc }}
+                </n-descriptions-item>
+                <n-descriptions-item :span="3" label="牌组列表">
                   <n-flex size="small">
                     <n-tag
                       v-for="(visible, command) of item.command"
@@ -225,28 +200,55 @@
                       size="small"
                       :type="visible ? 'primary' : 'default'"
                       :bordered="false"
-                      :style="{ display: visible ? '' : 'none' }"
                     >
                       {{ command }}
                     </n-tag>
                   </n-flex>
                 </n-descriptions-item>
+                <n-descriptions-item v-if="item.license" label="许可协议">
+                  {{ item.license }}
+                </n-descriptions-item>
+                <n-descriptions-item v-if="item.date" label="发布时间">
+                  {{ item.date }}
+                </n-descriptions-item>
+                <n-descriptions-item v-if="item.updateDate" label="更新时间">
+                  {{ item.updateDate }}
+                </n-descriptions-item>
               </n-descriptions>
-            </template>
-          </FoldableCard>
 
-          <n-empty v-if="!items.length" description="暂无牌堆" class="deck-empty" />
-        </main>
-      </ListPanel>
+              <template #unfolded-extra>
+                <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
+                  <n-descriptions-item :span="3" label="可见牌组列表">
+                    <n-flex size="small">
+                      <n-tag
+                        v-for="(visible, command) of item.command"
+                        :key="command"
+                        size="small"
+                        :type="visible ? 'primary' : 'default'"
+                        :bordered="false"
+                        :style="{ display: visible ? '' : 'none' }"
+                      >
+                        {{ command }}
+                      </n-tag>
+                    </n-flex>
+                  </n-descriptions-item>
+                </n-descriptions>
+              </template>
+            </FoldableCard>
 
-      <div class="deck-pagination-block">
-        <n-pagination
-          v-model:page="listQuery.page"
-          :page-size="listQuery.pageSize"
-          :item-count="Number(total)"
-          simple
-        />
-      </div>
+            <n-empty v-if="!items.length" description="暂无牌堆" class="deck-empty" />
+          </main>
+        </ListPanel>
+
+        <div class="deck-pagination-block">
+          <n-pagination
+            v-model:page="listQuery.page"
+            :page-size="listQuery.pageSize"
+            :item-count="Number(total)"
+            simple
+          />
+        </div>
+      </ListWorkspace>
 
       <n-modal v-model:show="showDiff" preset="card" title="牌堆内容对比" class="diff-dialog">
         <TipBox v-if="diffErrorText" type="error">
@@ -301,6 +303,7 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import { getApiBaseUrl } from '@/api/config';
 import {
@@ -445,10 +448,6 @@ const items = computed<DeckItemExt[]>(() =>
   (deckListQuery.data.value?.list ?? []).map(item => item as DeckItemExt)
 );
 const total = computed(() => deckListQuery.data.value?.total ?? 0);
-const filterCount = computed(() => {
-  const count = Number(total.value) - items.value.length;
-  return count > 0 ? count : 0;
-});
 const pageBusy = computed(() => deckListQuery.isFetching.value);
 
 watch(
@@ -661,12 +660,6 @@ function deckUpdate() {
   gap: 1rem;
 }
 
-.deck-page > :deep(.n-spin-container > .n-spin-content) {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .deck-file-input {
   display: none;
 }
@@ -679,7 +672,6 @@ function deckUpdate() {
   border: 1px solid var(--sd-border);
   background: var(--sd-bg-elevated);
   padding: 0.85rem;
-  margin-bottom: 1rem;
 }
 
 .upload-panel-head {
@@ -766,7 +758,6 @@ function deckUpdate() {
 .deck-pagination-block {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
 }
 
 .deck-empty {

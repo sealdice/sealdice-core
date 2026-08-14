@@ -1,5 +1,5 @@
 <template>
-  <main class="pprof-page">
+  <main class="pprof-page sd-page-flow">
     <PageHeader title="性能分析" />
 
     <HelpCollapse>

@@ -1,5 +1,5 @@
 <template>
-  <main class="censor-page">
+  <main class="censor-page sd-page-flow">
     <PageHeader title="拦截管理" :unsaved-scope="['censor-config', 'censor-reload']">
       <n-flex align="center" size="small">
         <n-text depth="3">启用拦截</n-text>
@@ -27,7 +27,7 @@
     </PageHeader>
 
     <template v-if="censorEnable">
-      <n-tabs v-model:value="tab">
+      <n-tabs v-model:value="tab" class="censor-tabs">
         <n-tab-pane tab="拦截设置" name="setting">
           <n-spin :show="configQuery.isFetching.value">
             <CensorConfigView v-model:config="configDraft.currentConfig.value" />
@@ -42,14 +42,16 @@
               uploadFileMutation.isPending.value
             "
           >
-            <CensorWordTip />
-            <CensorFilesView
-              :files="files"
-              :upload-file="uploadFile"
-              :download-toml-template="downloadTomlTemplate"
-              :download-txt-template="downloadTxtTemplate"
-            />
-            <CensorWordsView :words="words" />
+            <div class="sd-section-flow">
+              <CensorWordTip />
+              <CensorFilesView
+                :files="files"
+                :upload-file="uploadFile"
+                :download-toml-template="downloadTomlTemplate"
+                :download-txt-template="downloadTxtTemplate"
+              />
+              <CensorWordsView :words="words" />
+            </div>
           </n-spin>
         </n-tab-pane>
 

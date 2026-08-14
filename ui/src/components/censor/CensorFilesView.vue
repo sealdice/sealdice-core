@@ -1,61 +1,80 @@
 <template>
-  <h4>词库列表</h4>
-  <header class="censor-files-header">
-    <n-upload
-      action=""
-      multiple
-      accept="application/text,.txt,application/toml,.toml"
-      :show-file-list="false"
-      :custom-request="handleUpload"
-    >
-      <n-button type="primary" secondary>
-        <template #icon>
-          <n-icon><i-tabler-upload /></n-icon>
-        </template>
-        导入
-      </n-button>
-    </n-upload>
-    <n-flex class="censor-files-template-actions" wrap>
-      <n-button type="primary" size="tiny" text @click="downloadTomlTemplate">
-        <template #icon>
-          <n-icon><i-tabler-download /></n-icon>
-        </template>
-        下载 toml 词库模板
-      </n-button>
-      <n-button type="primary" size="tiny" text @click="downloadTxtTemplate">
-        <template #icon>
-          <n-icon><i-tabler-file-download /></n-icon>
-        </template>
-        下载 txt 词库模板
-      </n-button>
-    </n-flex>
-  </header>
-  <main class="mt-4">
-    <ResponsiveDataView :compact-at="560" aria-label="审查词库文件">
-      <template #table>
-        <n-data-table :columns="columns" :data="files" :scroll-x="520" />
+  <section class="censor-files-view sd-section-flow">
+    <div>
+      <h4>词库列表</h4>
+    </div>
+    <header class="censor-files-header">
+      <n-upload
+        action=""
+        multiple
+        accept="application/text,.txt,application/toml,.toml"
+        :show-file-list="false"
+        :custom-request="handleUpload"
+      >
+        <n-button type="primary" secondary>
+          <template #icon>
+            <n-icon><i-tabler-upload /></n-icon>
+          </template>
+          导入
+        </n-button>
+      </n-upload>
+      <n-flex class="censor-files-template-actions" wrap>
+        <n-button type="primary" size="tiny" text @click="downloadTomlTemplate">
+          <template #icon>
+            <n-icon><i-tabler-download /></n-icon>
+          </template>
+          下载 toml 词库模板
+        </n-button>
+        <n-button type="primary" size="tiny" text @click="downloadTxtTemplate">
+          <template #icon>
+            <n-icon><i-tabler-file-download /></n-icon>
+          </template>
+          下载 txt 词库模板
+        </n-button>
+      </n-flex>
+    </header>
+    <ListPanel>
+      <template #toolbar>
+        <ResultToolbar>
+          <template #meta>
+            <n-text depth="3">共 {{ files.length }} 项</n-text>
+          </template>
+        </ResultToolbar>
       </template>
-      <template #compact>
-        <ul class="censor-files-list">
-          <li v-for="file in files" :key="file.key" class="censor-files-list__item">
-            <strong>{{ file.name }}</strong>
-            <div class="censor-files-list__counts">
-              <span v-for="level in sensitiveLevels" :key="level">
-                <CensorSensitiveTag :level="level" />
-                <b>{{ file.count?.[level] ?? 0 }}</b>
-              </span>
-            </div>
-          </li>
-        </ul>
-      </template>
-    </ResponsiveDataView>
-  </main>
+      <ResponsiveDataView :compact-at="560" aria-label="审查词库文件">
+        <template #table>
+          <n-data-table
+            :columns="columns"
+            :data="files"
+            :scroll-x="520"
+            :bordered="false"
+            size="small"
+          />
+        </template>
+        <template #compact>
+          <ul class="censor-files-list">
+            <li v-for="file in files" :key="file.key" class="censor-files-list__item">
+              <strong>{{ file.name }}</strong>
+              <div class="censor-files-list__counts">
+                <span v-for="level in sensitiveLevels" :key="level">
+                  <CensorSensitiveTag :level="level" />
+                  <b>{{ file.count?.[level] ?? 0 }}</b>
+                </span>
+              </div>
+            </li>
+          </ul>
+        </template>
+      </ResponsiveDataView>
+    </ListPanel>
+  </section>
 </template>
 
 <script setup lang="tsx">
 import type { DataTableColumns, UploadCustomRequestOptions } from 'naive-ui';
 import type { CensorFileInfo } from '@/api';
+import ListPanel from '@/components/shared/ListPanel.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import CensorSensitiveTag from './CensorSensitiveTag.vue';
 
 const props = defineProps<{
@@ -110,6 +129,10 @@ async function handleUpload(options: UploadCustomRequestOptions) {
 </script>
 
 <style scoped>
+.censor-files-view h4 {
+  margin: 0;
+}
+
 .censor-files-header {
   display: flex;
   align-items: center;

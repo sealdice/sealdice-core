@@ -1,5 +1,5 @@
 <template>
-  <main class="connect-page">
+  <main class="connect-page sd-page-flow">
     <PageHeader title="账号设置">
       <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
         <template #icon

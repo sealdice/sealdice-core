@@ -1,5 +1,5 @@
 <template>
-  <section class="ban-list-panel">
+  <ListWorkspace class="ban-list-panel">
     <QueryToolbar :form="searchForm" :columns="searchColumns" :loading="loading" cols="1 s:2 l:3" />
 
     <ListActions>
@@ -32,6 +32,14 @@
 
     <n-spin :show="loading">
       <ListPanel>
+        <template #toolbar>
+          <ResultToolbar>
+            <template #meta>
+              <n-text depth="3">共 {{ total }} 项，本页 {{ items.length }} 项</n-text>
+            </template>
+          </ResultToolbar>
+        </template>
+
         <n-list hoverable clickable class="ban-list-panel__list">
           <n-list-item v-for="item in items" :key="item.ID">
             <n-thing>
@@ -102,7 +110,7 @@
         @update:page-size="updatePageSize"
       />
     </footer>
-  </section>
+  </ListWorkspace>
 </template>
 
 <script setup lang="ts">
@@ -116,6 +124,8 @@ import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 
 const props = defineProps<{
   items: BanListInfoItem[];
@@ -244,12 +254,6 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
 </script>
 
 <style scoped>
-.ban-list-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .ban-list-panel__list {
   border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
@@ -272,6 +276,6 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
 
 .ban-list-panel__footer {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
 }
 </style>

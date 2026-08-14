@@ -1,10 +1,6 @@
 <template>
-  <main class="tool-test-page">
-    <header class="tool-test-page__header">
-      <div class="tool-test-page__heading">
-        <h1>指令测试</h1>
-      </div>
-
+  <main class="tool-test-page sd-page-flow">
+    <PageHeader title="指令测试">
       <div class="tool-test-page__controls">
         <NRadioGroup v-model:value="toolTest.mode.value" size="small">
           <NRadioButton value="private">私聊</NRadioButton>
@@ -64,7 +60,7 @@
           </div>
         </NPopover>
       </div>
-    </header>
+    </PageHeader>
 
     <TipBox v-if="toolTest.commandErrorText.value" type="warning" class="tool-test-page__alert">
       {{ toolTest.commandErrorText.value }}
@@ -137,6 +133,7 @@ import ToolTestCommandComposer from '@/components/tool-test/ToolTestCommandCompo
 import ToolTestMemberRail from '@/components/tool-test/ToolTestMemberRail.vue';
 import { useToolTest } from '@/features/toolTest/useToolTest';
 import type { ToolTestProfile } from '@/features/toolTest/model';
+import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 
 const toolTest = useToolTest();
@@ -191,25 +188,6 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   overflow: hidden;
 }
 
-.tool-test-page__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.tool-test-page__heading {
-  min-width: 0;
-}
-
-.tool-test-page h1 {
-  margin: 0;
-  color: var(--sd-text-primary);
-  font-size: var(--sd-page-title-size);
-  font-weight: var(--sd-page-title-weight);
-  line-height: var(--sd-page-title-line-height);
-}
-
 .tool-test-page__controls {
   display: flex;
   min-width: 0;
@@ -227,10 +205,6 @@ async function handleSelectProfile(profile: ToolTestProfile) {
   display: grid;
   min-width: 12rem;
   gap: 0.4rem;
-}
-
-.tool-test-page__alert {
-  margin-top: -0.25rem;
 }
 
 .tool-test-page__workspace {

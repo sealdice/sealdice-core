@@ -1,5 +1,5 @@
 <template>
-  <main class="js-page">
+  <main class="js-page sd-page-flow">
     <PageHeader title="JS 扩展" :unsaved-scope="['js-config', 'js-reload']">
       <n-flex align="center" justify="space-between" wrap>
         <n-flex align="center" size="small">
@@ -27,7 +27,7 @@
       </n-flex>
     </PageHeader>
 
-    <n-tabs v-model:value="tab" pane-class="mb-8" justify-content="space-evenly" class="js-tabs">
+    <n-tabs v-model:value="tab" justify-content="space-evenly" class="js-tabs">
       <n-tab-pane tab="控制台" name="console">
         <section class="js-console-grid">
           <section class="js-panel js-editor-panel">

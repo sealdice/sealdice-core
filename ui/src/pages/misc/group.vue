@@ -1,5 +1,5 @@
 <template>
-  <main class="group-page">
+  <main class="group-page sd-page-flow">
     <PageHeader title="群组管理" />
 
     <n-card :bordered="false" class="group-summary-card">
@@ -20,142 +20,145 @@
     </n-card>
 
     <n-spin :show="listLoading">
-      <QueryToolbar :form="groupSearchForm" :columns="groupSearchColumns" cols="1 s:2 l:3" />
+      <ListWorkspace>
+        <QueryToolbar :form="groupSearchForm" :columns="groupSearchColumns" cols="1 s:2 l:3" />
 
-      <ListPanel>
-        <template #toolbar>
-          <ResultToolbar>
-            <template #meta>
-              <n-checkbox
-                :checked="allGroupsSelected"
-                aria-label="全选当前页群组"
-                @update:checked="toggleSelectAllGroups"
-              >
-                {{ allGroupsSelected ? '全不选' : '全选' }}
-              </n-checkbox>
-              <n-text depth="3" class="group-selected-count"
-                >已选 {{ selectedGroupIDs.length }} 项</n-text
-              >
-            </template>
+        <ListPanel>
+          <template #toolbar>
+            <ResultToolbar>
+              <template #meta>
+                <n-text depth="3">共 {{ total }} 项，本页 {{ groups.length }} 项</n-text>
+                <n-checkbox
+                  :checked="allGroupsSelected"
+                  aria-label="全选当前页群组"
+                  @update:checked="toggleSelectAllGroups"
+                >
+                  {{ allGroupsSelected ? '全不选' : '全选' }}
+                </n-checkbox>
+                <n-text depth="3" class="group-selected-count"
+                  >已选 {{ selectedGroupIDs.length }} 项</n-text
+                >
+              </template>
 
-            <n-button
-              size="small"
-              secondary
-              :disabled="!selectedGroupIDs.length"
-              @click="openBatchNotify"
-            >
-              批量通知群
-            </n-button>
-            <n-button
-              size="small"
-              type="error"
-              secondary
-              :loading="quitSubmitting"
-              :disabled="quitSubmitting || !selectedGroupIDs.length"
-              @click="openBatchQuit"
-            >
-              批量退群
-            </n-button>
-          </ResultToolbar>
-        </template>
-
-        <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
-          <template #title>
-            <n-flex align="center" size="small" wrap>
-              <n-checkbox
-                v-model:checked="group.selected"
-                :aria-label="`选择群组 ${group.groupId}`"
-              />
-              <n-switch v-model:value="group.active" @update:value="markGroupChanged(group)" />
-              <n-text class="group-id" tag="strong">{{ group.groupId }}</n-text>
-              <n-text>「{{ group.groupName || '未获取到' }}」</n-text>
-            </n-flex>
-          </template>
-
-          <template #title-extra>
-            <n-button
-              v-if="group.changed"
-              type="primary"
-              size="small"
-              secondary
-              :loading="isSavingGroup(group.groupId)"
-              :disabled="isSavingGroup(group.groupId)"
-              @click="saveGroup(group)"
-            >
-              保存
-            </n-button>
-          </template>
-
-          <template #action>
-            <n-flex size="small" wrap justify="end">
               <n-button
-                v-for="diceId in groupDiceIDs(group)"
-                :key="diceId"
+                size="small"
+                secondary
+                :disabled="!selectedGroupIDs.length"
+                @click="openBatchNotify"
+              >
+                批量通知群
+              </n-button>
+              <n-button
                 size="small"
                 type="error"
                 secondary
-                @click="openSingleQuit(group, diceId)"
+                :loading="quitSubmitting"
+                :disabled="quitSubmitting || !selectedGroupIDs.length"
+                @click="openBatchQuit"
               >
-                退出 {{ diceId.slice(-4) }}
+                批量退群
               </n-button>
-            </n-flex>
+            </ResultToolbar>
           </template>
 
-          <n-descriptions label-placement="left" size="small" :column="isMobile ? 1 : 3" bordered>
-            <n-descriptions-item label="上次使用">{{
-              recentText(group.recentDiceSendTime)
-            }}</n-descriptions-item>
-            <n-descriptions-item label="入群时间">{{
-              group.enteredTime ? recentText(group.enteredTime) : '未知'
-            }}</n-descriptions-item>
-            <n-descriptions-item label="邀请人">{{
-              group.inviteUserId || '未知'
-            }}</n-descriptions-item>
-            <n-descriptions-item label="Log 状态">{{
-              group.logOn ? '开启' : '关闭'
-            }}</n-descriptions-item>
-            <n-descriptions-item label="迎新">{{
-              group.showGroupWelcome ? '开启' : '关闭'
-            }}</n-descriptions-item>
-            <n-descriptions-item label="群内账号">{{
-              groupDiceIDs(group).length || '未知'
-            }}</n-descriptions-item>
-            <n-descriptions-item label="启用扩展" :span="3">
-              <n-space v-if="activeExtNames(group).length" size="small" wrap>
-                <n-tag
-                  v-for="ext in activeExtNames(group)"
-                  :key="ext"
+          <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
+            <template #title>
+              <n-flex align="center" size="small" wrap>
+                <n-checkbox
+                  v-model:checked="group.selected"
+                  :aria-label="`选择群组 ${group.groupId}`"
+                />
+                <n-switch v-model:value="group.active" @update:value="markGroupChanged(group)" />
+                <n-text class="group-id" tag="strong">{{ group.groupId }}</n-text>
+                <n-text>「{{ group.groupName || '未获取到' }}」</n-text>
+              </n-flex>
+            </template>
+
+            <template #title-extra>
+              <n-button
+                v-if="group.changed"
+                type="primary"
+                size="small"
+                secondary
+                :loading="isSavingGroup(group.groupId)"
+                :disabled="isSavingGroup(group.groupId)"
+                @click="saveGroup(group)"
+              >
+                保存
+              </n-button>
+            </template>
+
+            <template #action>
+              <n-flex size="small" wrap justify="end">
+                <n-button
+                  v-for="diceId in groupDiceIDs(group)"
+                  :key="diceId"
                   size="small"
-                  :bordered="false"
-                  type="success"
+                  type="error"
+                  secondary
+                  @click="openSingleQuit(group, diceId)"
                 >
-                  {{ ext }}
-                </n-tag>
-              </n-space>
-              <n-text v-else depth="3">未知</n-text>
-            </n-descriptions-item>
-          </n-descriptions>
-        </FoldableCard>
+                  退出 {{ diceId.slice(-4) }}
+                </n-button>
+              </n-flex>
+            </template>
 
-        <n-empty
-          v-if="!groups.length && !listLoading"
-          description="暂无匹配的群组"
-          class="group-empty"
-        />
-      </ListPanel>
+            <n-descriptions label-placement="left" size="small" :column="isMobile ? 1 : 3" bordered>
+              <n-descriptions-item label="上次使用">{{
+                recentText(group.recentDiceSendTime)
+              }}</n-descriptions-item>
+              <n-descriptions-item label="入群时间">{{
+                group.enteredTime ? recentText(group.enteredTime) : '未知'
+              }}</n-descriptions-item>
+              <n-descriptions-item label="邀请人">{{
+                group.inviteUserId || '未知'
+              }}</n-descriptions-item>
+              <n-descriptions-item label="Log 状态">{{
+                group.logOn ? '开启' : '关闭'
+              }}</n-descriptions-item>
+              <n-descriptions-item label="迎新">{{
+                group.showGroupWelcome ? '开启' : '关闭'
+              }}</n-descriptions-item>
+              <n-descriptions-item label="群内账号">{{
+                groupDiceIDs(group).length || '未知'
+              }}</n-descriptions-item>
+              <n-descriptions-item label="启用扩展" :span="3">
+                <n-space v-if="activeExtNames(group).length" size="small" wrap>
+                  <n-tag
+                    v-for="ext in activeExtNames(group)"
+                    :key="ext"
+                    size="small"
+                    :bordered="false"
+                    type="success"
+                  >
+                    {{ ext }}
+                  </n-tag>
+                </n-space>
+                <n-text v-else depth="3">未知</n-text>
+              </n-descriptions-item>
+            </n-descriptions>
+          </FoldableCard>
 
-      <div class="group-pagination-block">
-        <n-pagination
-          v-model:page="listQuery.page"
-          v-model:page-size="listQuery.pageSize"
-          show-size-picker
-          :page-sizes="[10, 20, 30, 50]"
-          :page-slot="isMobile ? 3 : 5"
-          :item-count="total"
-          @update:page="handlePageChange"
-          @update:page-size="handlePageSizeChange"
-        />
-      </div>
+          <n-empty
+            v-if="!groups.length && !listLoading"
+            description="暂无匹配的群组"
+            class="group-empty"
+          />
+        </ListPanel>
+
+        <div class="group-pagination-block">
+          <n-pagination
+            v-model:page="listQuery.page"
+            v-model:page-size="listQuery.pageSize"
+            show-size-picker
+            :page-sizes="[10, 20, 30, 50]"
+            :page-slot="isMobile ? 3 : 5"
+            :item-count="total"
+            @update:page="handlePageChange"
+            @update:page-size="handlePageSizeChange"
+          />
+        </div>
+      </ListWorkspace>
     </n-spin>
 
     <n-modal
@@ -244,6 +247,7 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   readGroupQuitDefaultText,
@@ -616,10 +620,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.group-summary-card {
-  margin-bottom: 1rem;
-}
-
 .group-selected-count {
   font-size: 0.85rem;
 }
@@ -642,7 +642,6 @@ onMounted(async () => {
 .group-pagination-block {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
 }
 
 .group-empty {

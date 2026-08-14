@@ -378,6 +378,10 @@ select {
   gap: var(--sd-page-section-gap);
 }
 
+.sd-page-flow > .n-tabs .n-tab-pane {
+  padding-top: var(--sd-page-section-gap);
+}
+
 .the-dialog.n-card,
 .the-dialog .n-card,
 .feed-modal.n-card,

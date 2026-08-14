@@ -7,6 +7,7 @@
         :loading="loading"
         :row-key="rowKey"
         :scroll-x="1040"
+        :bordered="false"
         striped
         size="small"
       />
