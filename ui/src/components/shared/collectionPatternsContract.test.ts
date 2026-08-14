@@ -47,6 +47,17 @@ describe('repeatable setting migrations', () => {
     expect(source).not.toMatch(/i-tabler-circle-x(?!-filled)/);
   });
 
+  it('keeps custom text cards compact and labels their feedback clearly', () => {
+    const editor = readComponent('../custom-text/CustomTextEditor.vue');
+    const card = readComponent('../custom-text/CustomTextEntryCard.vue');
+
+    expect(editor).not.toMatch(/isMultiValue|:span=/);
+    expect(card).toMatch(/add-label="添加文案"/);
+    expect(card).toMatch(/i-tabler-circle-check/);
+    expect(card).toMatch(/color: var\(--sd-success\)/);
+    expect(card).toMatch(/可用变量：/);
+  });
+
   it('keeps nested reply conditions removable and reports edits', () => {
     const editor = readComponent('../custom-reply/NestedRuleEditor.vue');
     const builder = readComponent('../custom-reply/ConditionBuilder.vue');

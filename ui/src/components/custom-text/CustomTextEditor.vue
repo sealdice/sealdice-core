@@ -34,11 +34,7 @@
         >
           <template #values>
             <n-grid x-gap="24" y-gap="16" cols="1 m:2" responsive="screen">
-              <n-grid-item
-                v-for="[keyName] in values"
-                :key="keyName"
-                :span="isMultiValue(keyName) ? '1 m:2' : 1"
-              >
+              <n-grid-item v-for="[keyName] in values" :key="keyName">
                 <CustomTextEntryCard
                   v-model="editor.texts.value[editor.category.value][keyName]"
                   :category="editor.category.value"
@@ -88,10 +84,6 @@ const props = defineProps<{
 }>();
 
 const editor = useCustomTextEditor(() => props.category);
-
-function isMultiValue(keyName: string): boolean {
-  return (editor.texts.value[editor.category.value]?.[keyName]?.length ?? 0) > 1;
-}
 </script>
 
 <style scoped>

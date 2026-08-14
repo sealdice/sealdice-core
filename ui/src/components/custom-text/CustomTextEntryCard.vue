@@ -63,7 +63,7 @@
           连接方式支持该功能，若不支持请于「基本设置」中关闭戳一戳来避免日志中出现相关报错。
         </n-text>
 
-        <RepeatableList add-label="添加随机文案" @add="emit('addItem', keyName)">
+        <RepeatableList add-label="添加文案" @add="emit('addItem', keyName)">
           <RepeatableItem
             v-for="(item, index) in visibleItems"
             :key="textItemKeyOf(keyName, item)"
@@ -90,20 +90,9 @@
                     >
                       <n-icon><i-tabler-circle-x-filled /></n-icon>
                     </span>
-                    <n-flex v-else>
-                      <span
-                        v-if="getPreview(keyName, item[0])?.version === 'v2'"
-                        class="text-blue-500 preview-icon"
-                      >
-                        <n-icon><i-tabler-circle-check-filled /></n-icon>
-                      </span>
-                      <span
-                        v-if="getPreview(keyName, item[0])?.version === 'v1'"
-                        class="text-yellow-500 preview-icon"
-                      >
-                        <n-icon><i-tabler-circle-check-filled /></n-icon>
-                      </span>
-                    </n-flex>
+                    <span v-else class="preview-icon preview-icon--success">
+                      <n-icon><i-tabler-circle-check /></n-icon>
+                    </span>
                   </template>
 
                   <CustomTextPreviewInfo
@@ -125,8 +114,9 @@
         >
           {{ collapsed ? `展开其余 ${items.length - visibleItems.length} 条` : '收起多余条目' }}
         </n-button>
-        <n-flex size="small" wrap>
-          <n-tag v-for="item in help?.vars ?? []" :key="item" size="small" :bordered="false">
+        <n-flex v-if="help?.vars?.length" size="small" align="center" wrap>
+          <n-text depth="3" class="text-xs">可用变量：</n-text>
+          <n-tag v-for="item in help.vars" :key="item" size="small" :bordered="false">
             {{ item }}
           </n-tag>
         </n-flex>
@@ -185,5 +175,9 @@ const emit = defineEmits<{
 .preview-icon {
   margin-left: 0.1rem;
   margin-top: 0.1rem;
+}
+
+.preview-icon--success {
+  color: var(--sd-success);
 }
 </style>
