@@ -91,7 +91,7 @@
                       <n-icon><i-tabler-circle-x-filled /></n-icon>
                     </span>
                     <span v-else class="preview-icon preview-icon--success">
-                      <n-icon><i-tabler-circle-check /></n-icon>
+                      <n-icon><i-tabler-circle-check-filled /></n-icon>
                     </span>
                   </template>
 

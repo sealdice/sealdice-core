@@ -53,7 +53,7 @@ describe('repeatable setting migrations', () => {
 
     expect(editor).not.toMatch(/isMultiValue|:span=/);
     expect(card).toMatch(/add-label="添加文案"/);
-    expect(card).toMatch(/i-tabler-circle-check/);
+    expect(card).toMatch(/i-tabler-circle-check-filled/);
     expect(card).toMatch(/color: var\(--sd-success\)/);
     expect(card).toMatch(/可用变量：/);
   });
