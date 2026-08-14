@@ -245,9 +245,14 @@ func (s *Service) GetDeadConfigs(_ context.Context, _ *cmn.Empty) (*DeadConfigsI
 		return response.NewItemResponse(DeadConfigsResp{Configs: []DeadConfig{}}), nil
 	}
 
+	// JS 关闭、重载中、存在禁用或加载失败脚本时，注册表不完整，不能安全判断死配置。
+	if !s.canInspectDeadConfigs() {
+		return response.NewItemResponse(DeadConfigsResp{Configs: []DeadConfig{}}), nil
+	}
+
 	var dead []DeadConfig
 	for name := range cm.Plugins {
-		if s.findPluginByName(name) != nil {
+		if s.dice.JsExtRegistry.Exists(name) {
 			continue
 		}
 		dead = append(dead, DeadConfig{Name: name})
@@ -657,10 +662,18 @@ func (s *Service) DeleteDeadConfigs(_ context.Context, req *DeleteDeadConfigsReq
 		return response.NewItemResponse(JsSimpleResult{Success: false, TestMode: true}), nil
 	}
 	cm := s.dice.ConfigManager
+	// 与 GetDeadConfigs 一致：状态不完整时拒绝删除，防止误删仍在使用的插件配置。
+	if !s.canInspectDeadConfigs() {
+		return nil, huma.Error400BadRequest("JS 状态不完整，无法确认插件配置是否可删除，请先完成 JS 重载")
+	}
+	deadNames := make([]string, 0, len(req.Body.Names))
 	for _, name := range req.Body.Names {
-		if s.findPluginByName(name) == nil {
-			cm.UnregisterConfig(name)
+		if !s.dice.JsExtRegistry.Exists(name) {
+			deadNames = append(deadNames, name)
 		}
+	}
+	if err := cm.RemovePluginConfigs(deadNames); err != nil {
+		return nil, huma.Error500InternalServerError("删除插件配置并写入文件失败: " + err.Error())
 	}
 	return response.NewItemResponse(JsSimpleResult{Success: true}), nil
 }
@@ -732,13 +745,16 @@ func (s *Service) pluginHasConfig(name string) bool {
 	return ok
 }
 
-func (s *Service) findPluginByName(name string) *dice.JsScriptInfo {
-	for _, si := range s.dice.JsScriptList {
-		if si != nil && si.Name == name {
-			return si
+func (s *Service) canInspectDeadConfigs() bool {
+	if s.dice == nil || !s.dice.Config.JsEnable || s.dice.JsReloading || s.dice.JsExtRegistry == nil {
+		return false
+	}
+	for _, script := range s.dice.JsScriptList {
+		if script != nil && !script.Enable {
+			return false
 		}
 	}
-	return nil
+	return true
 }
 
 func matchJSKeyword(si *dice.JsScriptInfo, kw string) bool {

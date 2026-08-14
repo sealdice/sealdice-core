@@ -35,7 +35,9 @@
 
     <div v-if="deadConfigsQuery.data.value?.length" class="dead-configs-block">
       <n-flex size="small" align="center">
-        <TipBox type="warning"> 以下是残留的死配置（插件已不存在但配置仍在），可安全删除。 </TipBox>
+        <TipBox type="warning">
+          以下是残留的死配置：对应的插件当前未加载（可能已被删除、禁用或加载失败）。删除会清除该插件名下的全部配置且不可恢复，请确认无需保留。
+        </TipBox>
         <n-button
           type="error"
           size="small"
@@ -49,7 +51,7 @@
       <div v-for="dc in deadConfigsQuery.data.value" :key="dc.name" class="dead-config-row">
         <n-flex align="center" justify="space-between">
           <n-text>{{ dc.name }}</n-text>
-          <n-button size="tiny" type="error" secondary @click="deleteDeadConfigs([dc.name])">
+          <n-button size="tiny" type="error" secondary @click="handleDeleteDead([dc])">
             删除
           </n-button>
         </n-flex>
@@ -116,7 +118,10 @@ function getPluginGroups(items: Parameters<typeof groupPluginConfigItems>[0]) {
 function handleDeleteDead(deadList: { name: string }[]) {
   dialog.warning({
     title: '删除死配置',
-    content: `确认删除 ${deadList.length} 个死配置？`,
+    content:
+      deadList.length === 1
+        ? `确认删除插件「${deadList[0]!.name}」的全部配置？此操作不可恢复。`
+        : `确认删除 ${deadList.length} 个插件的全部配置？此操作不可恢复。`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
