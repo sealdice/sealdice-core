@@ -1,6 +1,6 @@
 import { nextTick } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setAccessToken, clearAccessToken } from '@/features/auth/state';
+import { clearAccessToken, finishAuthInitialization, setAccessToken } from '@/features/auth/state';
 import { appPinia } from '@/pinia';
 import { useRealtimeClientStore } from './store';
 
@@ -88,6 +88,11 @@ describe('realtime client store', () => {
 
     const store = useRealtimeClientStore(appPinia);
     store.ensureInitialized();
+    await nextTick();
+
+    expect(FakeEventSource.instances).toHaveLength(0);
+
+    finishAuthInitialization();
     await nextTick();
 
     expect(FakeWebSocket.urls).toEqual([]);

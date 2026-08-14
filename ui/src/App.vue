@@ -73,8 +73,8 @@ const authSession = useAuthSession();
 
 // 实时通道是全局单例：App 挂载后根据 token 自动连接，业务模块只订阅事件。
 // 这样首页日志、连接管理等页面可以共享同一条 SSE 连接。
-useRealtimeClient();
 void authSession.tryDefaultSignin();
+useRealtimeClient();
 </script>
 
 <style>

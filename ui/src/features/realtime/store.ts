@@ -79,7 +79,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   }
 
   function scheduleReconnect(): void {
-    if (manualDisconnect || !authStore.hasAccessToken) return;
+    if (manualDisconnect || !authStore.hasAccessToken || authStore.isInitializing) return;
     if (typeof window === 'undefined') return;
 
     clearReconnectTimer();
@@ -166,7 +166,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     initialized = true;
 
     watch(
-      () => authStore.hasAccessToken,
+      () => authStore.hasAccessToken && !authStore.isInitializing,
       canAccess => {
         if (canAccess) {
           reconnect();
@@ -180,7 +180,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   }
 
   function performReconnect(): void {
-    if (!authStore.hasAccessToken) return;
+    if (!authStore.hasAccessToken || authStore.isInitializing) return;
 
     manualDisconnect = false;
     connectGeneration += 1;

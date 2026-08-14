@@ -1,7 +1,12 @@
 import axios, { AxiosHeaders, type AxiosError, type AxiosRequestConfig } from 'axios';
 import { createDiscreteApi } from 'naive-ui';
 import { h, type VNodeChild } from 'vue';
-import { clearAccessToken, currentAccessToken, setAccessToken } from '@/features/auth/state';
+import {
+  clearAccessToken,
+  currentAccessToken,
+  isInitializing,
+  setAccessToken,
+} from '@/features/auth/state';
 import { queryClient } from '@/queryClient';
 import { TEST_MODE_ERROR_CODE, TEST_MODE_DEFAULT_REASON } from '@/features/testMode/state';
 import { client } from './generated/client.gen';
@@ -9,6 +14,7 @@ import { getApiBaseUrl } from './config';
 
 let configured = false;
 const { dialog, message } = createDiscreteApi(['dialog', 'message']);
+const requestTokens = new WeakMap<object, string | undefined>();
 
 type ApiErrorInit = {
   status: number;
@@ -97,6 +103,13 @@ export function isRequestCanceledError(error: unknown): boolean {
   return candidate.code === 'ERR_CANCELED' || candidate.name === 'CanceledError';
 }
 
+export function shouldClearSessionForRequest(
+  requestToken: string | undefined,
+  currentToken: string
+): boolean {
+  return requestToken !== undefined && requestToken === currentToken;
+}
+
 // 配置 hey-api 生成的全局 axios client。
 // 这里是所有 HTTP 请求的共同边界：baseURL、凭据、Bearer token、token 续期、
 // 网络/会话级错误提示和 401 会话清理都在这里完成。业务级 4xx 交给页面处理。
@@ -111,11 +124,16 @@ export function setupApiClient(): void {
 
   client.instance.interceptors.request.use(config => {
     const token = currentAccessToken();
-    if (!token) return config;
-
     // 后端 V2 统一使用 Authorization: Bearer。保留“已有 Authorization 不覆盖”
     // 是为了允许少数特殊请求自行控制认证头。
     const headers = AxiosHeaders.from(config.headers);
+    const requestToken = headers.has('Authorization')
+      ? readBearerToken(headers)
+      : token || undefined;
+    requestTokens.set(config, requestToken);
+
+    if (!token) return config;
+
     if (!headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${token}`);
       config.headers = headers;
@@ -143,8 +161,17 @@ export function setupApiClient(): void {
       }
 
       const axiosError = axios.isAxiosError(error) ? error : undefined;
+      const requestToken = axiosError?.config ? requestTokens.get(axiosError.config) : undefined;
+      const clearSessionForRequest = () => {
+        if (shouldClearSessionForRequest(requestToken, currentAccessToken())) {
+          clearApiSession();
+        }
+      };
+
       if (!axiosError?.response) {
-        showApiFeedback(createNetworkErrorFeedback(error), clearApiSession);
+        if (!isInitializing.value) {
+          showApiFeedback(createNetworkErrorFeedback(error), clearSessionForRequest);
+        }
         return Promise.reject(error);
       }
 
@@ -153,10 +180,21 @@ export function setupApiClient(): void {
 
       // 登录接口自身的 401 只代表密码错误，不应清空当前页面其它状态；
       // 其它接口 401 才视作会话失效。
-      if (apiError.status === 401 && pathname !== '/sd-api/v2/base/login') {
+      const isUnauthorized = apiError.status === 401 && pathname !== '/sd-api/v2/base/login';
+      const isCurrentSessionRequest = shouldClearSessionForRequest(
+        requestToken,
+        currentAccessToken()
+      );
+      if (isUnauthorized) {
+        // 旧请求晚到时不能清理已经建立的新会话，也不应再弹出误导性的 401 对话框。
+        if (!isCurrentSessionRequest) {
+          return Promise.reject(apiError);
+        }
         clearApiSession();
       }
-      showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearApiSession);
+      if (!isInitializing.value) {
+        showApiFeedback(createApiErrorFeedback(apiError, { pathname }), clearSessionForRequest);
+      }
 
       return Promise.reject(apiError);
     }
@@ -171,6 +209,14 @@ function clearApiSession(): void {
 
 function pickErrorMessage(error: ApiError): string {
   return error.message || error.detail || error.title || error.statusText || '请求失败';
+}
+
+function readBearerToken(headers: AxiosHeaders): string | undefined {
+  const authorization = headers.get('Authorization');
+  if (typeof authorization !== 'string') return undefined;
+
+  const match = /^Bearer\s+(.+)$/i.exec(authorization);
+  return match?.[1]?.trim() ?? '';
 }
 
 function isTestModeBlockedError(error: ApiError): boolean {

@@ -72,6 +72,9 @@ const canSkipSecurityDialog = ref(false);
 const hasCheckedSecurity = ref(false);
 
 const showDialog = computed(() => authSession.needsUnlock.value);
+const canCheckSecurity = computed(
+  () => authSession.hasAccessToken.value && !authSession.isInitializing.value
+);
 const errorText = computed(() =>
   authSession.signinMutation.isError.value
     ? getErrorMessage(authSession.signinMutation.error.value, '密码错误')
@@ -101,7 +104,7 @@ async function doUnlock() {
 }
 
 async function checkPasswordSecurity() {
-  if (hasCheckedSecurity.value || !authSession.hasAccessToken.value) return;
+  if (hasCheckedSecurity.value || !canCheckSecurity.value) return;
   hasCheckedSecurity.value = true;
   const result = await getSdApiV2BaseSecurityCheck({ throwOnError: true });
   if (!result.data.item) {
@@ -110,10 +113,10 @@ async function checkPasswordSecurity() {
   }
 }
 
-watch(authSession.hasAccessToken, canAccess => {
+watch(canCheckSecurity, canAccess => {
   if (canAccess) {
     void checkPasswordSecurity();
-  } else {
+  } else if (!authSession.hasAccessToken.value) {
     hasCheckedSecurity.value = false;
   }
 }, { immediate: true });

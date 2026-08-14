@@ -3,6 +3,7 @@ import {
   createApiErrorFeedback,
   createNetworkErrorFeedback,
   isRequestCanceledError,
+  shouldClearSessionForRequest,
 } from './client';
 import { it } from 'vitest';
 
@@ -159,4 +160,8 @@ it('passes', async () => {
     true
   );
   assertEqual(isRequestCanceledError(new Error('Failed to fetch')), false);
+
+  assertEqual(shouldClearSessionForRequest('token-1', 'token-1'), true);
+  assertEqual(shouldClearSessionForRequest('token-old', 'token-new'), false);
+  assertEqual(shouldClearSessionForRequest(undefined, 'token-new'), false);
 });

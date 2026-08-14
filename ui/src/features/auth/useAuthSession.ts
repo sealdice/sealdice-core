@@ -1,6 +1,7 @@
 import { computed } from 'vue';
 import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import {
+  getSdApiV2ConfigAdvanced,
   getSdApiV2BaseLoginSalt,
   getSdApiV2BaseHealthQueryKey,
   postSdApiV2BaseLoginMutation,
@@ -54,14 +55,29 @@ export function useAuthSession() {
 
   const tryDefaultSignin = async () => {
     // 首次启动未设置密码时，后端允许 defaultSignin 快速进入后台。
-    // 失败是正常路径，AppUnlockDialog 会继续展示密码输入。
+    // 已有 token 也要先用受保护接口验证，避免把旧核心/旧会话的 token 当成有效会话。
     try {
-      if (currentAccessToken()) {
-        return true;
+      const storedToken = currentAccessToken();
+      if (storedToken) {
+        // 校验期间先撤销全局会话，阻止页面查询和实时连接继续使用待验证的旧 token。
+        clearSession();
+        try {
+          await getSdApiV2ConfigAdvanced({
+            headers: { Authorization: `Bearer ${storedToken}` },
+            throwOnError: true,
+          });
+          // 保留响应拦截器可能返回的新 token；没有刷新时恢复已验证的 token。
+          setAccessToken(currentAccessToken() || storedToken);
+          return true;
+        } catch {
+          // token 无效或服务暂不可用时，继续尝试无密码默认登录。
+          clearSession();
+        }
       }
       await signinWithHash(defaultSigninPassword);
       return true;
     } catch {
+      clearSession();
       return false;
     } finally {
       finishAuthInitialization();
