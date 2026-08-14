@@ -33,6 +33,7 @@ import (
 	"github.com/sealdice/botgo/dto/keyboard"
 	qqapi "github.com/sealdice/botgo/openapi"
 	qqtoken "github.com/sealdice/botgo/token"
+	ds "github.com/sealdice/dicescript"
 	"golang.org/x/oauth2"
 
 	"sealdice-core/message"
@@ -42,6 +43,20 @@ import (
 // Official QQ 当前使用 qqbot-at-user 标签表示提及；解析端继续兼容旧的
 // <@userID> 格式，以便平滑处理旧事件和已持久化消息。
 var officialQQAtRegex = regexp.MustCompile(`(?:<qqbot-at-user\s+id="([^"]+)"\s*/>|<@!?(\S+?)>)`)
+
+// 被动消息限制
+const (
+	officialQQPassiveMsgLimit = 5
+	officialQQBatchPageSize   = 4
+)
+
+// officialQQMediaCodeRe 匹配富媒体 CQ 码(图片/语音)，用于消息单元化。
+var officialQQMediaCodeRe = regexp.MustCompile(`^\[CQ:(image|record)[,\]]`)
+
+type officialQQMsgUnit struct {
+	text  string
+	media bool
+}
 
 func officialQQMentionTarget(match []string) string {
 	if len(match) < 2 {
@@ -77,8 +92,9 @@ func rewriteOfficialQQGroupAtTags(text string, normalizeTarget func(string) stri
 }
 
 type PaginationItem struct {
-	Pages     []string
-	CreatedAt time.Time
+	Pages      []string
+	CreatedAt  time.Time
+	BatchPages [][]string // 批量模式(富媒体4+1分页)：每页的消息单元文本
 }
 
 type PlatformAdapterOfficialQQ struct {
@@ -669,6 +685,41 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 
 	text := item.Pages[pageIndex]
 
+	if len(item.BatchPages) == len(item.Pages) && len(item.BatchPages) > 0 {
+		// 富媒体批量分页：每页包含多条消息单元，通过交互事件被动窗口逐条续发
+		eventID := ""
+		if eventRaw != nil && eventRaw.EventID != "" {
+			eventID = eventRaw.EventID
+		} else {
+			eventID = data.ID
+		}
+
+		eventCtx := pa.newEventMsgContext(eventID)
+		keyboardObj := pa.buildPaginationKeyboard(cacheID, pageIndex, len(item.Pages))
+		tail := pa.buildBatchTail(pageIndex, len(item.BatchPages), item.BatchPages)
+
+		switch data.ChatType {
+		case 0: // 频道
+			pa.sendBatchPage(eventCtx, item.BatchPages[pageIndex], tail, keyboardObj, data.ChannelID, "", "", "group", "channel")
+		case 1: // 群
+			pa.sendBatchPage(eventCtx, item.BatchPages[pageIndex], tail, keyboardObj, "", data.GroupOpenID, formatDiceIDOfficialQQGroupOpenID(pa.UIN, data.GroupOpenID), "group", "group")
+		case 2: // C2C
+			pa.sendBatchPage(eventCtx, item.BatchPages[pageIndex], tail, keyboardObj, data.UserOpenID, "", "", "private", "c2c")
+		default:
+			switch data.Scene {
+			case "group":
+				pa.sendBatchPage(eventCtx, item.BatchPages[pageIndex], tail, keyboardObj, "", data.GroupOpenID, formatDiceIDOfficialQQGroupOpenID(pa.UIN, data.GroupOpenID), "group", "group")
+			case "c2c":
+				pa.sendBatchPage(eventCtx, item.BatchPages[pageIndex], tail, keyboardObj, data.UserOpenID, "", "", "private", "c2c")
+			default:
+				if data.ChannelID != "" {
+					pa.sendBatchPage(eventCtx, item.BatchPages[pageIndex], tail, keyboardObj, data.ChannelID, "", "", "group", "channel")
+				}
+			}
+		}
+		return nil
+	}
+
 	toCreate := &dto.MessageToCreate{
 		MsgSeq: rand.Uint32()%10000000 + 1,
 	}
@@ -818,6 +869,92 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 	}
 
 	return nil
+}
+
+// newEventMsgContext 构造携带交互事件 EventID 的上下文
+// 使后续被动消息通过 EventID 进入新的被动回复窗口。
+func (pa *PlatformAdapterOfficialQQ) newEventMsgContext(eventID string) *MsgContext {
+	ctx := &MsgContext{
+		EndPoint: pa.EndPoint,
+		Session:  pa.EndPoint.Session,
+		Dice:     pa.EndPoint.Session.Parent,
+	}
+	ctx.vm = ds.NewVM()
+	ctx.vm.Attrs.Store("$tEventID", ds.NewStrVal(eventID))
+	return ctx
+}
+
+// sendBatchPage 发送富媒体批量分页的一页：逐条发送内容消息
+// 再视情况以尾部纯文本消息承载“继续查看”按钮(占被动窗口第 5 条)。
+
+func (pa *PlatformAdapterOfficialQQ) sendBatchPage(ctx *MsgContext, page []string, tail string, keyboardObj *keyboard.MessageKeyboard, receiverID, groupID, targetGroupID, msgType, kind string) {
+	recordCtx := &MsgContext{
+		EndPoint: pa.EndPoint,
+		Session:  pa.EndPoint.Session,
+		Dice:     pa.EndPoint.Session.Parent,
+	}
+	record := func(msg *dto.Message, text string) {
+		recordCtx.MessageType = msgType
+		pa.EndPoint.Session.OnMessageSend(recordCtx, &Message{
+			Platform:    "QQ",
+			MessageType: msgType,
+			Message:     text,
+			GroupID:     targetGroupID,
+			Sender: SenderBase{
+				UserID:   pa.EndPoint.UserID,
+				Nickname: pa.EndPoint.Nickname,
+			},
+			RawID: msg.ID,
+		}, "")
+	}
+
+	send := func(text string, kb *keyboard.MessageKeyboard) {
+		var msg *dto.Message
+		var err error
+		switch kind {
+		case "c2c":
+			msg, err = pa.sendC2CMsgRaw(ctx, "", receiverID, text, kb)
+		case "group":
+			msg, err = pa.sendQQGroupMsgRaw(ctx, "", groupID, text, kb)
+		case "channel":
+			msg, err = pa.sendQQChannelMsgRaw(ctx, "", receiverID, text, kb)
+		case "guildDM":
+			if ctx == nil || ctx.Group == nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：无有效的上下文信息")
+				return
+			}
+			channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
+			rowID, ok := VarGetValueStr(ctx, "$tMsgID")
+			if !ok {
+				rowID, ok = VarGetValueStr(ctx, "$tEventID")
+			}
+			if !ok || ctx.MessageType == "group" {
+				g, c, err2 := pa.createQQGuildDirectChannel(ctx, guildID, receiverID)
+				if err2 != nil {
+					pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err2.Error())
+					return
+				}
+				guildID = g
+				channelID = c
+			}
+			msg, err = pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, text, kb)
+		default:
+			pa.EndPoint.Session.Parent.Logger.Errorf("official qq 批量发送失败：未知的通道类型 %s", kind)
+			return
+		}
+		if err != nil {
+			pa.EndPoint.Session.Parent.Logger.Errorf("official qq 批量发送失败：%v", err)
+		} else if msg != nil {
+			record(msg, text)
+		}
+	}
+
+	for _, unitText := range page {
+		send(unitText, nil)
+	}
+	if tail != "" {
+		send(tail, keyboardObj)
+	}
 }
 
 func (pa *PlatformAdapterOfficialQQ) ChannelAtMessageReceive(event *dto.WSPayload, data *dto.WSATMessageData) error {
@@ -1213,6 +1350,18 @@ func (pa *PlatformAdapterOfficialQQ) addToPaginationCache(id string, pages []str
 	}
 }
 
+func (pa *PlatformAdapterOfficialQQ) addToBatchPaginationCache(id string, batchPages [][]string) {
+	pageTexts := make([]string, len(batchPages))
+	for i, units := range batchPages {
+		pageTexts[i] = strings.Join(units, "")
+	}
+	pa.addToPaginationCache(id, pageTexts)
+	pa.paginationMu.Lock()
+	item := pa.paginationCache[id]
+	item.BatchPages = batchPages
+	pa.paginationMu.Unlock()
+}
+
 func generateCacheID() string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, 6)
@@ -1222,64 +1371,112 @@ func generateCacheID() string {
 	return string(b)
 }
 
+// officialQQSplitUnits 将一段文本拆分为消息单元。
+func officialQQSplitUnits(chunk string) []officialQQMsgUnit {
+	normalized := message.ImageRewrite(chunk, message.SealCodeToCqCode)
+	var units []officialQQMsgUnit
+	cur := officialQQMsgUnit{}
+	flush := func() {
+		if cur.text != "" {
+			units = append(units, cur)
+			cur = officialQQMsgUnit{}
+		}
+	}
+
+	pos := 0
+	for pos < len(normalized) {
+		idx := strings.Index(normalized[pos:], "[CQ:")
+		if idx < 0 {
+			cur.text += normalized[pos:]
+			break
+		}
+		idx += pos
+		cur.text += normalized[pos:idx]
+
+		end := strings.Index(normalized[idx:], "]")
+		if end < 0 {
+			cur.text += normalized[idx:]
+			break
+		}
+		end += idx + 1
+
+		code := normalized[idx:end]
+		if officialQQMediaCodeRe.MatchString(code) {
+			if cur.media {
+				flush()
+			}
+			cur.media = true
+		}
+		cur.text += code
+		pos = end
+	}
+	flush()
+	return units
+}
+
+// officialQQPackUnits 将消息单元打包为"页"：每页最多 size 个单元(即 size 条内容消息)。
+func officialQQPackUnits(units []officialQQMsgUnit, size int) [][]officialQQMsgUnit {
+	var pages [][]officialQQMsgUnit
+	for i := 0; i < len(units); i += size {
+		end := i + size
+		if end > len(units) {
+			end = len(units)
+		}
+		pages = append(pages, units[i:end])
+	}
+	return pages
+}
+
 func (pa *PlatformAdapterOfficialQQ) buildPaginationKeyboard(cacheID string, pageIndex int, totalPages int) *keyboard.MessageKeyboard {
-	if totalPages <= 1 {
+	if totalPages <= 1 || pageIndex >= totalPages-1 {
 		return nil
 	}
-
-	var buttons []*keyboard.Button
-
-	// 上一页
-	if pageIndex > 0 {
-		buttons = append(buttons, &keyboard.Button{
-			ID: fmt.Sprintf("prev_%s_%d", cacheID, pageIndex-1),
-			RenderData: &keyboard.RenderData{
-				Label:        fmt.Sprintf("上一页(%d/%d)", pageIndex+1, totalPages),
-				VisitedLabel: "跳转中……",
-				Style:        0, // 灰色线框
-			},
-			Action: &keyboard.Action{
-				Type: keyboard.ActionTypeCallback, // Callback
-				Data: fmt.Sprintf("pg:%s:%d", cacheID, pageIndex-1),
-				Permission: &keyboard.Permission{
-					Type: keyboard.PermissionTypAll, // 所有人可操作
-				},
-			},
-		})
-	}
-
-	// 下一页
-	if pageIndex < totalPages-1 {
-		buttons = append(buttons, &keyboard.Button{
-			ID: fmt.Sprintf("next_%s_%d", cacheID, pageIndex+1),
-			RenderData: &keyboard.RenderData{
-				Label:        fmt.Sprintf("下一页(%d/%d)", pageIndex+1, totalPages),
-				VisitedLabel: "跳转中……",
-				Style:        1, // 蓝色线框
-			},
-			Action: &keyboard.Action{
-				Type: keyboard.ActionTypeCallback, // Callback
-				Data: fmt.Sprintf("pg:%s:%d", cacheID, pageIndex+1),
-				Permission: &keyboard.Permission{
-					Type: keyboard.PermissionTypAll, // 所有人可操作
-				},
-			},
-		})
-	}
-
-	if len(buttons) == 0 {
-		return nil
-	}
-
 	return &keyboard.MessageKeyboard{
 		Content: &keyboard.CustomKeyboard{
 			Rows: []*keyboard.Row{
 				{
-					Buttons: buttons,
+					Buttons: []*keyboard.Button{
+						{
+							ID: fmt.Sprintf("next_%s_%d", cacheID, pageIndex+1),
+							RenderData: &keyboard.RenderData{
+								Label:        fmt.Sprintf("下一页(%d/%d)", pageIndex+1, totalPages),
+								VisitedLabel: "跳转中……",
+								Style:        1, // 蓝色线框
+							},
+							Action: &keyboard.Action{
+								Type: keyboard.ActionTypeCallback, // Callback
+								Data: fmt.Sprintf("pg:%s:%d", cacheID, pageIndex+1),
+								Permission: &keyboard.Permission{
+									Type: keyboard.PermissionTypAll, // 所有人可操作
+								},
+							},
+						},
+					},
 				},
 			},
 		},
 	}
+}
+
+// buildBatchTail 生成批量发送某一页的尾部提示文本。
+func (pa *PlatformAdapterOfficialQQ) buildBatchTail(pageIndex, totalPages int, batchPages [][]string) string {
+	if pageIndex >= totalPages-1 {
+		return ""
+	}
+	totalUnits := 0
+	for _, page := range batchPages {
+		totalUnits += len(page)
+	}
+	shown := 0
+	for _, page := range batchPages[:pageIndex] {
+		shown += len(page)
+	}
+	shown += len(batchPages[pageIndex])
+	remaining := totalUnits - shown
+	if remaining <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("已展示 %d/%d 条，还有 %d 条。", shown, totalUnits, remaining)
 }
 
 func (pa *PlatformAdapterOfficialQQ) shutdownWebhookServer() {
@@ -1357,8 +1554,20 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 	}
 	textList := utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
 	if !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown {
-		if len(textList) > 5 {
-			textList = textList[:5]
+		if len(textList) > officialQQPassiveMsgLimit {
+			textList = textList[:officialQQPassiveMsgLimit]
+		}
+	}
+
+	// 将文本块进一步拆分为消息单元，并统计是否包含富媒体
+	var units []officialQQMsgUnit
+	hasMedia := false
+	for _, chunk := range textList {
+		for _, u := range officialQQSplitUnits(chunk) {
+			if u.media {
+				hasMedia = true
+			}
+			units = append(units, u)
 		}
 	}
 
@@ -1374,7 +1583,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		}
 	}
 
-	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {
+	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 && !hasMedia {
 		cacheID := generateCacheID()
 		pa.addToPaginationCache(cacheID, textList)
 
@@ -1437,14 +1646,100 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 		return
 	}
 
-	for _, t := range textList {
+	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(units) > officialQQPassiveMsgLimit {
+		pages := officialQQPackUnits(units, officialQQBatchPageSize)
+		cacheID := generateCacheID()
+		batchPages := make([][]string, len(pages))
+		for i, pg := range pages {
+			batchPages[i] = make([]string, len(pg))
+			for j, u := range pg {
+				batchPages[i][j] = u.text
+			}
+		}
+		pa.addToBatchPaginationCache(cacheID, batchPages)
+
+		tail := pa.buildBatchTail(0, len(batchPages), batchPages)
+		keyboardObj := pa.buildPaginationKeyboard(cacheID, 0, len(batchPages))
 		if idType == OpenQQUserOpenid {
-			msg, err := pa.sendC2CMsgRaw(activeCtx, activeRowID, userID, t, nil)
+			pa.sendBatchPage(activeCtx, batchPages[0], tail, keyboardObj, userID, "", "", "private", "c2c")
+			return
+		}
+		if idType != OpenQQCHUser {
+			return
+		}
+		pa.sendBatchPage(ctx, batchPages[0], tail, keyboardObj, userID, "", "", "private", "guildDM")
+		return
+	}
+
+	if !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown {
+		for _, t := range textList {
+			if idType == OpenQQUserOpenid {
+				msg, err := pa.sendC2CMsgRaw(activeCtx, activeRowID, userID, t, nil)
+				if err == nil && msg != nil {
+					pa.EndPoint.Session.OnMessageSend(ctx, &Message{
+						Platform:    "QQ",
+						MessageType: "private",
+						Message:     t,
+						Sender: SenderBase{
+							UserID:   pa.EndPoint.UserID,
+							Nickname: pa.EndPoint.Nickname,
+						},
+						RawID: msg.ID,
+					}, flag)
+				}
+				continue
+			}
+
+			if idType != OpenQQCHUser {
+				// pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊消息失败：不支持该功能")
+				return
+			}
+
+			if ctx == nil || ctx.Group == nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：无有效的上下文信息")
+				return
+			}
+
+			channelID, guildID, _ := pa.mustExtractTwoID(ctx.Group.ChannelID)
+			rowID, ok := VarGetValueStr(ctx, "$tMsgID")
+			if !ok {
+				rowID, ok = VarGetValueStr(ctx, "$tEventID")
+			}
+			if !ok || ctx.MessageType == "group" {
+				// 需要主动发起私信
+				g, c, err := pa.createQQGuildDirectChannel(ctx, guildID, userID)
+				if err != nil {
+					pa.EndPoint.Session.Parent.Logger.Error("official qq 发送频道私信消息失败：", err.Error())
+					return
+				}
+				guildID = g
+				channelID = c
+			}
+			msg, err := pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, t, nil)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
 					MessageType: "private",
 					Message:     t,
+					Sender: SenderBase{
+						UserID:   pa.EndPoint.UserID,
+						Nickname: pa.EndPoint.Nickname,
+					},
+					RawID: msg.ID,
+				}, flag)
+			}
+		}
+		return
+	}
+
+	for _, u := range units {
+		if idType == OpenQQUserOpenid {
+			msg, err := pa.sendC2CMsgRaw(activeCtx, activeRowID, userID, u.text, nil)
+			if err == nil && msg != nil {
+				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
+					Platform:    "QQ",
+					MessageType: "private",
+					Message:     u.text,
 					Sender: SenderBase{
 						UserID:   pa.EndPoint.UserID,
 						Nickname: pa.EndPoint.Nickname,
@@ -1480,12 +1775,12 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 			guildID = g
 			channelID = c
 		}
-		msg, err := pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, t, nil)
+		msg, err := pa.sendQQGuildDirectMsgRaw(ctx, rowID, guildID, channelID, u.text, nil)
 		if err == nil && msg != nil {
 			pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 				Platform:    "QQ",
 				MessageType: "private",
-				Message:     t,
+				Message:     u.text,
 				Sender: SenderBase{
 					UserID:   pa.EndPoint.UserID,
 					Nickname: pa.EndPoint.Nickname,
@@ -1568,7 +1863,7 @@ func (pa *PlatformAdapterOfficialQQ) prepareMediaMessage(file *message.FileEleme
 	return url, nil, nil
 }
 
-func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgContext, rowMsgID string, guildID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
+func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw(ctx *MsgContext, rowMsgID string, guildID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
@@ -1593,7 +1888,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw( /* ctx */ _ *MsgCo
 		GuildID:   guildID,
 		ChannelID: channelID,
 	}
-	toCreate := pa.initMessageToCreate(nil, rowMsgID)
+	toCreate := pa.initMessageToCreate(ctx, rowMsgID)
 	toCreate.MessageReference = msgRef
 	pa.finalizeMessageToCreate(toCreate, content, keyboardObj, true)
 
@@ -1894,8 +2189,19 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	}
 	textList := utils.SplitLongText(text, maxLen, utils.DefaultSplitPaginationHint)
 	if !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown {
-		if len(textList) > 5 {
-			textList = textList[:5]
+		if len(textList) > officialQQPassiveMsgLimit {
+			textList = textList[:officialQQPassiveMsgLimit]
+		}
+	}
+
+	var units []officialQQMsgUnit
+	hasMedia := false
+	for _, chunk := range textList {
+		for _, u := range officialQQSplitUnits(chunk) {
+			if u.media {
+				hasMedia = true
+			}
+			units = append(units, u)
 		}
 	}
 
@@ -1911,7 +2217,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 		}
 	}
 
-	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 {
+	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(textList) > 1 && !hasMedia {
 		cacheID := generateCacheID()
 		pa.addToPaginationCache(cacheID, textList)
 
@@ -1954,15 +2260,81 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 		return
 	}
 
-	for _, t := range textList {
+	if pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && len(units) > officialQQPassiveMsgLimit {
+		pages := officialQQPackUnits(units, officialQQBatchPageSize)
+		cacheID := generateCacheID()
+		batchPages := make([][]string, len(pages))
+		for i, pg := range pages {
+			batchPages[i] = make([]string, len(pg))
+			for j, u := range pg {
+				batchPages[i][j] = u.text
+			}
+		}
+		pa.addToBatchPaginationCache(cacheID, batchPages)
+
+		tail := pa.buildBatchTail(0, len(batchPages), batchPages)
+		keyboardObj := pa.buildPaginationKeyboard(cacheID, 0, len(batchPages))
 		switch idType {
 		case OpenQQGroupOpenid:
-			msg, err := pa.sendQQGroupMsgRaw(activeCtx, activeRowID, groupId, t, nil)
+			pa.sendBatchPage(activeCtx, batchPages[0], tail, keyboardObj, "", groupId, uid, "group", "group")
+		case OpenQQCHChannel:
+			pa.sendBatchPage(activeCtx, batchPages[0], tail, keyboardObj, groupId, "", uid, "group", "channel")
+		default:
+			pa.EndPoint.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
+		}
+		return
+	}
+
+	if !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown {
+		for _, t := range textList {
+			switch idType {
+			case OpenQQGroupOpenid:
+				msg, err := pa.sendQQGroupMsgRaw(activeCtx, activeRowID, groupId, t, nil)
+				if err == nil && msg != nil {
+					pa.EndPoint.Session.OnMessageSend(ctx, &Message{
+						Platform:    "QQ",
+						MessageType: "group",
+						Message:     t,
+						GroupID:     uid,
+						Sender: SenderBase{
+							UserID:   pa.EndPoint.UserID,
+							Nickname: pa.EndPoint.Nickname,
+						},
+						RawID: msg.ID,
+					}, flag)
+				}
+			case OpenQQCHChannel:
+				msg, err := pa.sendQQChannelMsgRaw(activeCtx, activeRowID, groupId, t, nil)
+				if err == nil && msg != nil {
+					pa.EndPoint.Session.OnMessageSend(ctx, &Message{
+						Platform:    "QQ",
+						MessageType: "group",
+						Message:     t,
+						GroupID:     uid,
+						Sender: SenderBase{
+							UserID:   pa.EndPoint.UserID,
+							Nickname: pa.EndPoint.Nickname,
+						},
+						RawID: msg.ID,
+					}, flag)
+				}
+			default:
+				pa.EndPoint.Session.Parent.Logger.Errorf("official qq 发送群聊消息失败：错误的群聊id[%s]类型-%d", uid, idType)
+				return
+			}
+		}
+		return
+	}
+
+	for _, u := range units {
+		switch idType {
+		case OpenQQGroupOpenid:
+			msg, err := pa.sendQQGroupMsgRaw(activeCtx, activeRowID, groupId, u.text, nil)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
 					MessageType: "group",
-					Message:     t,
+					Message:     u.text,
 					GroupID:     uid,
 					Sender: SenderBase{
 						UserID:   pa.EndPoint.UserID,
@@ -1972,12 +2344,12 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 				}, flag)
 			}
 		case OpenQQCHChannel:
-			msg, err := pa.sendQQChannelMsgRaw(activeCtx, activeRowID, groupId, t, nil)
+			msg, err := pa.sendQQChannelMsgRaw(activeCtx, activeRowID, groupId, u.text, nil)
 			if err == nil && msg != nil {
 				pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
 					MessageType: "group",
-					Message:     t,
+					Message:     u.text,
 					GroupID:     uid,
 					Sender: SenderBase{
 						UserID:   pa.EndPoint.UserID,
@@ -2082,7 +2454,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	return lastRes, lastErr
 }
 
-func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContext, rowMsgID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
+func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw(ctx *MsgContext, rowMsgID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
 	var (
@@ -2111,7 +2483,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw( /* ctx */ _ *MsgContex
 		}
 	}
 
-	toCreate := pa.initMessageToCreate(nil, rowMsgID)
+	toCreate := pa.initMessageToCreate(ctx, rowMsgID)
 	toCreate.MessageReference = msgRef
 	pa.finalizeMessageToCreate(toCreate, content, keyboardObj, true)
 
