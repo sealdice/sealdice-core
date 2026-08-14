@@ -67,7 +67,7 @@ type OverviewData struct {
 	AppName string `json:"appName"`
 	// AppChannel 发布渠道，取值 stable/dev/self-built/unknown。
 	// 由构建声明的渠道与官方构建校验结果共同得出，不等于构建注入的 APP_CHANNEL。
-	AppChannel string `json:"appChannel" enum:"stable,dev,self-built,unknown" doc:"发布渠道"`
+	AppChannel string      `json:"appChannel" enum:"stable,dev,self-built,unknown" doc:"发布渠道"`
 	ExtraTitle string      `json:"extraTitle"`
 	Version    VersionInfo `json:"version"`
 	Runtime    RuntimeInfo `json:"runtime"`

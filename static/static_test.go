@@ -1,8 +1,10 @@
 package static_test
 
 import (
+	"errors"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,6 +16,10 @@ func TestV2UIEmbedIncludesLeadingUnderscoreAssets(t *testing.T) {
 	const diskAssetsDir = "v2ui/dist/assets"
 
 	entries, err := os.ReadDir(filepath.FromSlash(diskAssetsDir))
+	if errors.Is(err, fs.ErrNotExist) {
+		// dist 未纳入版本管理，只有本地构建过新 UI 才存在。
+		t.Skipf("v2ui dist not built: %s", diskAssetsDir)
+	}
 	if err != nil {
 		t.Fatalf("os.ReadDir(%q) error = %v", diskAssetsDir, err)
 	}
@@ -25,7 +31,7 @@ func TestV2UIEmbedIncludesLeadingUnderscoreAssets(t *testing.T) {
 		}
 
 		checked++
-		embeddedPath := pathJoinSlash(diskAssetsDir, entry.Name())
+		embeddedPath := path.Join(diskAssetsDir, entry.Name())
 		if _, err := fs.Stat(staticfs.V2UI, embeddedPath); err != nil {
 			t.Fatalf("fs.Stat(V2UI, %q) error = %v", embeddedPath, err)
 		}
@@ -34,8 +40,4 @@ func TestV2UIEmbedIncludesLeadingUnderscoreAssets(t *testing.T) {
 	if checked == 0 {
 		t.Skip("no leading-underscore assets in v2ui dist")
 	}
-}
-
-func pathJoinSlash(elem ...string) string {
-	return strings.Join(elem, "/")
 }
