@@ -1,6 +1,6 @@
 <template>
   <section class="sd-repeatable-list">
-    <div v-if="$slots.default" class="sd-repeatable-list__items" role="list">
+    <div v-if="$slots.default && !empty" class="sd-repeatable-list__items" role="list">
       <slot />
     </div>
     <n-empty v-else-if="emptyText" :description="emptyText" size="small" />
@@ -29,11 +29,13 @@ withDefaults(
   defineProps<{
     addLabel?: string;
     addDisabled?: boolean;
+    empty?: boolean;
     emptyText?: string;
   }>(),
   {
     addLabel: '添加一项',
     addDisabled: false,
+    empty: false,
     emptyText: '',
   }
 );

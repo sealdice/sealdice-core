@@ -16,24 +16,57 @@
     >
       <header class="rule-panel-head">
         <div class="rule-title">
-          <span class="rule-index">#{{ props.startIndex + index + 1 }}</span>
-          <n-checkbox v-model:checked="el.enable" @update:checked="emit('change')">开启</n-checkbox>
+          <span class="rule-index">规则 {{ props.startIndex + index + 1 }}</span>
           <span v-if="isFolded(index)" class="rule-summary">{{ summarizeRule(el) }}</span>
         </div>
 
         <div class="rule-actions">
-          <n-button class="rule-drag-handle" size="small" quaternary circle>
-            <template #icon>
-              <n-icon><i-tabler-grip-vertical /></n-icon>
+          <n-tooltip>
+            <template #trigger>
+              <n-button
+                class="rule-drag-handle"
+                size="small"
+                quaternary
+                circle
+                aria-label="拖动规则排序"
+              >
+                <template #icon>
+                  <n-icon><i-tabler-grip-vertical /></n-icon>
+                </template>
+              </n-button>
             </template>
-          </n-button>
-          <n-button type="error" size="small" secondary @click="deleteItem(index)">
-            <template #icon>
-              <n-icon><i-tabler-trash /></n-icon>
+            拖动规则排序
+          </n-tooltip>
+          <n-switch
+            v-model:value="el.enable"
+            size="small"
+            aria-label="启用规则"
+            @update:value="emit('change')"
+          />
+          <n-tooltip>
+            <template #trigger>
+              <n-button
+                type="error"
+                size="small"
+                quaternary
+                circle
+                aria-label="删除规则"
+                @click="deleteItem(index)"
+              >
+                <template #icon>
+                  <n-icon><i-tabler-trash /></n-icon>
+                </template>
+              </n-button>
             </template>
-            <template v-if="notMobile" #default>删除</template>
-          </n-button>
-          <n-button size="small" quaternary circle @click="toggleFold(index)">
+            删除规则
+          </n-tooltip>
+          <n-button
+            size="small"
+            quaternary
+            circle
+            aria-label="折叠或展开规则"
+            @click="toggleFold(index)"
+          >
             <template #icon>
               <n-icon>
                 <i-tabler-chevron-right v-if="isFolded(index)" />
@@ -51,17 +84,22 @@
               <h4>条件</h4>
               <p>需同时满足，即 and</p>
             </div>
-            <n-button type="primary" size="small" secondary @click="addCond(el.conditions)">
-              <template #icon>
-                <n-icon><i-tabler-plus /></n-icon>
-              </template>
-              增加
-            </n-button>
           </div>
 
           <div class="rule-block-body">
-            <ConditionBuilder v-if="el.conditions?.length" v-model="el.conditions" />
-            <n-empty v-else description="当前无条件" size="small" />
+            <RepeatableList
+              add-label="添加条件"
+              :empty="!el.conditions?.length"
+              empty-text="当前无条件"
+              @add="addCond(el.conditions)"
+            >
+              <ConditionBuilder
+                v-if="el.conditions?.length"
+                v-model="el.conditions"
+                @change="emit('change')"
+                @delete-condition="deleteAnyItem(el.conditions, $event)"
+              />
+            </RepeatableList>
           </div>
         </section>
 
@@ -71,18 +109,22 @@
               <h4>结果</h4>
               <p>顺序执行</p>
             </div>
-            <n-button type="primary" size="small" secondary @click="addResult(el.results)">
-              <template #icon>
-                <n-icon><i-tabler-plus /></n-icon>
-              </template>
-              增加
-            </n-button>
           </div>
 
           <div class="rule-block-body">
-            <n-empty v-if="!el.results?.length" description="当前无结果" size="small" />
-            <article v-for="(result, rIdx) in el.results || []" :key="rIdx" class="result-panel">
-              <div class="result-head">
+            <RepeatableList
+              add-label="添加结果"
+              :empty="!el.results?.length"
+              empty-text="当前无结果"
+              @add="addResult(el.results)"
+            >
+              <RepeatableItem
+                v-for="(result, rIdx) in el.results || []"
+                :key="rIdx"
+                :title="`结果 ${Number(rIdx) + 1}`"
+                remove-label="删除结果"
+                @remove="deleteAnyItem(el.results, Number(rIdx))"
+              >
                 <div class="result-fields">
                   <label class="result-field result-mode">
                     <span>模式</span>
@@ -112,71 +154,35 @@
                   </label>
                 </div>
 
-                <n-button
-                  type="error"
-                  size="small"
-                  secondary
-                  @click="deleteAnyItem(el.results, Number(rIdx))"
+                <div
+                  v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(result.resultType)"
+                  class="result-content"
                 >
-                  <template #icon>
-                    <n-icon><i-tabler-trash /></n-icon>
-                  </template>
-                  <template v-if="notMobile" #default>删除结果</template>
-                </n-button>
-              </div>
+                  <div class="result-options">
+                    <n-text>回复文本（随机选择）</n-text>
+                  </div>
 
-              <div
-                v-if="['replyToSender', 'replyPrivate', 'replyGroup'].includes(result.resultType)"
-                class="result-content"
-              >
-                <div class="result-options">
-                  <n-text>回复文本（随机选择）</n-text>
+                  <RepeatableList add-label="添加随机回复" @add="addMessageItem(result.message)">
+                    <RepeatableItem
+                      v-for="(msg, mIdx) in result.message"
+                      :key="mIdx"
+                      :title="`回复 ${Number(mIdx) + 1}`"
+                      :removable="result.message.length > 1"
+                      remove-label="删除随机回复"
+                      @remove="removeMessageItem(result.message, Number(mIdx))"
+                    >
+                      <n-input
+                        v-model:value="msg[0]"
+                        type="textarea"
+                        class="reply-text sd-code-text"
+                        :autosize="{ minRows: 1 }"
+                        @update:value="emit('change')"
+                      />
+                    </RepeatableItem>
+                  </RepeatableList>
                 </div>
-
-                <div v-for="(msg, mIdx) in result.message" :key="mIdx" class="message-row">
-                  <n-tooltip trigger="hover">
-                    <template #trigger>
-                      <n-button
-                        v-if="mIdx === 0"
-                        type="primary"
-                        size="tiny"
-                        quaternary
-                        circle
-                        @click="addMessageItem(result.message)"
-                      >
-                        <template #icon>
-                          <n-icon><i-tabler-circle-plus-filled /></n-icon>
-                        </template>
-                      </n-button>
-                      <n-button
-                        v-else
-                        type="error"
-                        size="tiny"
-                        quaternary
-                        circle
-                        @click="removeMessageItem(result.message, Number(mIdx))"
-                      >
-                        <template #icon>
-                          <n-icon><i-tabler-circle-x /></n-icon>
-                        </template>
-                      </n-button>
-                    </template>
-                    {{
-                      mIdx === 0
-                        ? '点击添加一个回复语，海豹将会随机抽取一个回复'
-                        : '点击删除你不想要的回复语'
-                    }}
-                  </n-tooltip>
-                  <n-input
-                    v-model:value="msg[0]"
-                    type="textarea"
-                    class="reply-text sd-code-text"
-                    :autosize="{ minRows: 1 }"
-                    @update:value="emit('change')"
-                  />
-                </div>
-              </div>
-            </article>
+              </RepeatableItem>
+            </RepeatableList>
           </div>
         </section>
       </div>
@@ -187,8 +193,9 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
 import { VueDraggableNext } from 'vue-draggable-next';
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import ConditionBuilder from './ConditionBuilder.vue';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import type { ReplyCondition, ReplyResult, ReplyTask } from '@/features/customReply/model';
 
 const props = withDefaults(
@@ -205,8 +212,6 @@ const emit = defineEmits<{
   deleteRule: [index: number];
 }>();
 
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const notMobile = breakpoints.greater('sm');
 const foldedRules = reactive<Record<number, boolean>>({});
 
 const resultTypeOptions = [
@@ -383,16 +388,13 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
 }
 
 .rule-block-head,
-.result-head,
 .result-options,
-.result-fields,
-.message-row {
+.result-fields {
   display: flex;
   min-width: 0;
 }
 
 .rule-block-head,
-.result-head,
 .result-options {
   align-items: center;
   justify-content: space-between;
@@ -416,17 +418,6 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
 
 .rule-block-body {
   min-width: 0;
-}
-
-.result-panel {
-  min-width: 0;
-  border: 1px solid var(--sd-border-soft);
-  background: var(--sd-bg-elevated);
-  padding: 0.7rem;
-}
-
-.result-panel + .result-panel {
-  margin-top: 0.65rem;
 }
 
 .result-content {
@@ -466,12 +457,6 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
   flex: 0 0 6rem;
 }
 
-.message-row {
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
 .reply-text {
   flex: 1 1 auto;
   min-width: 0;
@@ -484,7 +469,6 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
 
   .rule-panel-head,
   .rule-block-head,
-  .result-head,
   .result-options,
   .result-fields {
     align-items: flex-start;

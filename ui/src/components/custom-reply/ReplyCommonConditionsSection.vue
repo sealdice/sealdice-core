@@ -14,36 +14,31 @@
           :consistent-menu-width="false"
           @update:value="emit('updateVmVersion', $event as ReplyVMVersion)"
         />
-        <n-button
-          size="small"
-          :type="fileEnabled ? 'success' : 'warning'"
-          secondary
-          @click="emit('toggleFileEnabled')"
-        >
-          <template #icon>
-            <n-icon>
-              <i-tabler-circle-check-filled v-if="fileEnabled" />
-              <i-tabler-circle-x v-else />
-            </n-icon>
-          </template>
-          {{ fileEnabled ? '文件已启用' : '文件未启用' }}
-        </n-button>
-        <n-button size="small" secondary @click="emit('add')">
-          <template #icon>
-            <n-icon><i-tabler-plus /></n-icon>
-          </template>
-          添加条件
-        </n-button>
+        <n-flex align="center" size="small">
+          <n-text depth="3">启用文件</n-text>
+          <n-switch
+            :value="fileEnabled"
+            size="small"
+            aria-label="启用自定义回复文件"
+            @update:value="emit('toggleFileEnabled')"
+          />
+        </n-flex>
       </n-space>
     </div>
 
     <div class="section-body">
-      <ConditionBuilder
-        v-if="conditions.length"
-        v-model="conditions"
-        @delete-condition="emit('delete', $event)"
-      />
-      <n-empty v-else description="当前无前置条件" size="small" />
+      <RepeatableList
+        add-label="添加条件"
+        :empty="!conditions.length"
+        empty-text="当前无前置条件"
+        @add="emit('add')"
+      >
+        <ConditionBuilder
+          v-if="conditions.length"
+          v-model="conditions"
+          @delete-condition="emit('delete', $event)"
+        />
+      </RepeatableList>
     </div>
 
     <div class="section-footer">
@@ -55,6 +50,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ConditionBuilder from './ConditionBuilder.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import type { ReplyCondition, ReplyVMVersion } from '@/features/customReply/model';
 
 const conditions = defineModel<ReplyCondition[]>({ required: true });

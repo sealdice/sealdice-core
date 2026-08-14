@@ -1,6 +1,12 @@
 <template>
-  <div v-for="(cond, index) in listModel" :key="conditionKeyOf(cond)" class="condition-item">
-    <div class="condition-head">
+  <div class="condition-list">
+    <RepeatableItem
+      v-for="(cond, index) in listModel"
+      :key="conditionKeyOf(cond)"
+      :title="`条件 ${index + 1}`"
+      remove-label="删除条件"
+      @remove="deleteByIndex(index)"
+    >
       <div class="condition-fields">
         <label class="condition-field condition-mode">
           <span>模式</span>
@@ -83,21 +89,13 @@
           </label>
         </template>
       </div>
-
-      <n-button type="error" size="small" ghost @click="deleteByIndex(index)">
-        <template #icon>
-          <n-icon>
-            <i-tabler-trash />
-          </n-icon>
-        </template>
-        <template v-if="notMobile" #default> 删除条件 </template>
-      </n-button>
-    </div>
+    </RepeatableItem>
   </div>
 </template>
 
 <script setup lang="ts">
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
+import { watch } from 'vue';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 
 interface ReplyCondition {
   condType: string;
@@ -130,11 +128,12 @@ const matchOpOptions = [
 
 const listModel = defineModel<ReplyCondition[]>();
 const emit = defineEmits<{
+  change: [];
   deleteCondition: [index: number];
 }>();
 
-const breakpoints = useBreakpoints(breakpointsTailwind);
-const notMobile = breakpoints.greater('sm');
+watch(listModel, () => emit('change'), { deep: true });
+
 const conditionKeys = new WeakMap<ReplyCondition, string>();
 let nextConditionKey = 0;
 
@@ -153,31 +152,16 @@ const deleteByIndex = (index: number) => {
 </script>
 
 <style scoped>
-.condition-item {
+.condition-list {
+  display: flex;
   min-width: 0;
-  border: 1px solid var(--sd-border-soft);
-  border-radius: var(--sd-radius-md);
-  background: var(--sd-bg-elevated);
-  padding: 0.65rem;
+  flex-direction: column;
+  gap: var(--sd-item-stack-gap);
 }
 
-.condition-item + .condition-item {
-  margin-top: 0.75rem;
-}
-
-.condition-head,
 .condition-fields {
   display: flex;
   min-width: 0;
-}
-
-.condition-head {
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.condition-fields {
   flex: 1 1 auto;
   align-items: flex-end;
   gap: 0.6rem;
@@ -224,7 +208,6 @@ const deleteByIndex = (index: number) => {
     flex-direction: column;
   }
 
-  .condition-head,
   .condition-fields {
     align-items: stretch;
     flex-direction: column;

@@ -1,46 +1,48 @@
 <template>
-  <div class="master-list">
-    <div v-for="(master, index) in rows" :key="index" class="master-list-row">
+  <RepeatableList add-label="添加 Master">
+    <RepeatableItem
+      v-for="(master, index) in rows"
+      :key="index"
+      :title="`Master ${index + 1}`"
+      remove-label="删除该 Master"
+      @remove="removeRow(index)"
+    >
       <n-input
         class="master-list-input"
         :value="master"
         placeholder="平台:账号，如 QQ:12345"
         @update:value="updateRow(index, $event)"
       />
-      <n-tooltip>
-        <template #trigger>
-          <n-button
-            quaternary
-            circle
-            type="error"
-            aria-label="删除该 Master"
-            @click="removeRow(index)"
-          >
-            <template #icon><i-tabler-trash /></template>
-          </n-button>
-        </template>
-        删除该 Master
-      </n-tooltip>
-    </div>
+    </RepeatableItem>
 
-    <div class="master-list-add">
-      <n-input
-        v-model:value="pendingMaster"
-        class="master-list-input"
-        placeholder="输入新 Master 后回车或点击添加，如 QQ:12345"
-        clearable
-        @keydown.enter.prevent="addMaster"
-      />
-      <n-button dashed :disabled="!pendingMaster.trim()" @click="addMaster">
-        <template #icon><i-tabler-plus /></template>
-        添加 Master
-      </n-button>
-    </div>
-  </div>
+    <template #footer>
+      <div class="master-list-add">
+        <n-input
+          v-model:value="pendingMaster"
+          class="master-list-input"
+          placeholder="输入新 Master，如 QQ:12345"
+          clearable
+          @keydown.enter.prevent="addMaster"
+        />
+        <n-button
+          type="primary"
+          secondary
+          size="small"
+          :disabled="!pendingMaster.trim()"
+          @click="addMaster"
+        >
+          <template #icon><i-tabler-plus /></template>
+          添加 Master
+        </n-button>
+      </div>
+    </template>
+  </RepeatableList>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import { normalizeMasterListValues } from '@/features/baseSetting/viewModel';
 
 const message = useMessage();
@@ -96,23 +98,23 @@ function addMaster() {
 </script>
 
 <style scoped>
-.master-list {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 0.625rem;
-}
-
-.master-list-row,
 .master-list-add {
   display: flex;
+  width: min(100%, 36rem);
   align-items: center;
-  gap: 0.625rem;
+  gap: var(--sd-space-xs);
 }
 
 .master-list-input {
-  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
-  max-width: 24rem;
+  max-width: 30rem;
+}
+
+@media (max-width: 640px) {
+  .master-list-add {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>

@@ -32,6 +32,31 @@ describe('editable collection contract', () => {
   });
 });
 
+describe('repeatable setting migrations', () => {
+  it.each([
+    '../base-setting/BaseSettingMasterListField.vue',
+    '../base-setting/BaseSettingNoticeTargetsField.vue',
+    '../custom-text/CustomTextEntryCard.vue',
+    '../js/JsConfigItemEditor.vue',
+  ])('uses the shared repeatable structure in %s', componentPath => {
+    const source = readComponent(componentPath);
+
+    expect(source).toMatch(/<RepeatableList/);
+    expect(source).toMatch(/<RepeatableItem/);
+    expect(source).not.toMatch(/i-tabler-circle-plus-filled/);
+    expect(source).not.toMatch(/i-tabler-circle-x(?!-filled)/);
+  });
+
+  it('keeps nested reply conditions removable and reports edits', () => {
+    const editor = readComponent('../custom-reply/NestedRuleEditor.vue');
+    const builder = readComponent('../custom-reply/ConditionBuilder.vue');
+
+    expect(editor).toMatch(/@delete-condition="deleteAnyItem\(el\.conditions, \$event\)"/);
+    expect(editor).toMatch(/<n-switch/);
+    expect(builder).toMatch(/watch\(listModel, \(\) => emit\('change'\)/);
+  });
+});
+
 describe('list workspace contract', () => {
   it('provides one vertical rhythm for filters, result panels and pagination', () => {
     const source = readComponent('ListWorkspace.vue');

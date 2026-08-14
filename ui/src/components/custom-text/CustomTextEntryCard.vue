@@ -63,39 +63,16 @@
           连接方式支持该功能，若不支持请于「基本设置」中关闭戳一戳来避免日志中出现相关报错。
         </n-text>
 
-        <div
-          v-for="(item, index) in visibleItems"
-          :key="textItemKeyOf(keyName, item)"
-          class="entry-item"
-        >
-          <n-flex align="center">
-            <div>
-              <n-tooltip placement="bottom-start">
-                <template #trigger>
-                  <n-button
-                    quaternary
-                    circle
-                    size="tiny"
-                    :type="index === 0 ? 'primary' : 'error'"
-                    :aria-label="index === 0 ? '新增回复条目' : '删除回复条目'"
-                    @click="
-                      index === 0 ? emit('addItem', keyName) : emit('removeItem', items, index)
-                    "
-                  >
-                    <template #icon>
-                      <i-tabler-circle-plus-filled v-if="index === 0" />
-                      <i-tabler-circle-x v-else />
-                    </template>
-                  </n-button>
-                </template>
-                {{
-                  index === 0
-                    ? '点击添加一个回复语，SealDice 将会随机抽取一个回复'
-                    : '点击删除你不想要的回复语'
-                }}
-              </n-tooltip>
-            </div>
-            <div class="relative flex-auto">
+        <RepeatableList add-label="添加随机文案" @add="emit('addItem', keyName)">
+          <RepeatableItem
+            v-for="(item, index) in visibleItems"
+            :key="textItemKeyOf(keyName, item)"
+            :title="`文案 ${index + 1}`"
+            :removable="items.length > 1"
+            remove-label="删除随机文案"
+            @remove="emit('removeItem', items, index)"
+          >
+            <div class="relative">
               <n-input
                 v-model:value="item[0]"
                 class="w-full sd-code-text"
@@ -136,8 +113,8 @@
                 </n-popover>
               </div>
             </div>
-          </n-flex>
-        </div>
+          </RepeatableItem>
+        </RepeatableList>
         <n-button
           v-if="isLongList"
           text
@@ -162,6 +139,8 @@
 import { computed, ref } from 'vue';
 import type { TextItemCompatibleInfo, Value } from '@/api';
 import CustomTextPreviewInfo from './CustomTextPreviewInfo.vue';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import type { TextTemplateItem } from '@/features/customText/types';
 
 const items = defineModel<TextTemplateItem[]>({ required: true });
@@ -197,11 +176,6 @@ const emit = defineEmits<{
 .entry-action-button {
   float: right;
   margin-left: 1rem;
-}
-
-.entry-item {
-  width: 100%;
-  margin-bottom: 0.5rem;
 }
 
 .entry-expand-button {

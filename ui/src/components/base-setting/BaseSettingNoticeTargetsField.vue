@@ -1,51 +1,41 @@
 <template>
-  <div class="notice-targets">
-    <div v-for="(target, index) in targets" :key="index" class="notice-target-row">
-      <n-switch
-        :value="target.enabled"
-        size="small"
-        @update:value="updateTarget(index, { enabled: $event })"
-      />
-      <n-input
-        class="notice-target-id"
-        :value="target.id"
-        placeholder="平台:账号或群组 ID"
-        @update:value="updateTarget(index, { id: $event })"
-      />
-      <n-select
-        class="notice-target-types"
-        :value="target.noticeTypes"
-        :options="noticeTypeOptions"
-        multiple
-        clearable
-        max-tag-count="responsive"
-        @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
-      />
-      <n-tooltip>
-        <template #trigger>
-          <n-button
-            quaternary
-            circle
-            type="error"
-            aria-label="删除通知目标"
-            @click="removeTarget(index)"
-          >
-            <template #icon><i-tabler-trash /></template>
-          </n-button>
-        </template>
-        删除通知目标
-      </n-tooltip>
-    </div>
-
-    <n-button dashed class="notice-target-add" @click="addTarget">
-      <template #icon><i-tabler-plus /></template>
-      添加通知目标
-    </n-button>
-  </div>
+  <RepeatableList add-label="添加通知目标" @add="addTarget">
+    <RepeatableItem
+      v-for="(target, index) in targets"
+      :key="index"
+      :title="`通知目标 ${index + 1}`"
+      show-enabled
+      :enabled="target.enabled"
+      enabled-label="启用通知目标"
+      remove-label="删除通知目标"
+      @update:enabled="updateTarget(index, { enabled: $event })"
+      @remove="removeTarget(index)"
+    >
+      <div class="notice-target-fields">
+        <n-input
+          class="notice-target-id"
+          :value="target.id"
+          placeholder="平台:账号或群组 ID"
+          @update:value="updateTarget(index, { id: $event })"
+        />
+        <n-select
+          class="notice-target-types"
+          :value="target.noticeTypes"
+          :options="noticeTypeOptions"
+          multiple
+          clearable
+          max-tag-count="responsive"
+          @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
+        />
+      </div>
+    </RepeatableItem>
+  </RepeatableList>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import {
   noticeTypeOptions,
   parseNoticeTarget,
@@ -97,19 +87,12 @@ function removeTarget(index: number) {
 </script>
 
 <style scoped>
-.notice-targets {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 0.625rem;
-  container-type: inline-size;
-}
-
-.notice-target-row {
+.notice-target-fields {
   display: grid;
-  grid-template-columns: auto minmax(12rem, 0.9fr) minmax(18rem, 1.4fr) auto;
+  grid-template-columns: minmax(12rem, 0.9fr) minmax(18rem, 1.4fr);
   align-items: center;
-  gap: 0.625rem;
+  gap: var(--sd-space-sm);
+  container-type: inline-size;
 }
 
 .notice-target-id,
@@ -117,17 +100,9 @@ function removeTarget(index: number) {
   min-width: 0;
 }
 
-.notice-target-add {
-  align-self: flex-start;
-}
-
-@container (max-width: 680px) {
-  .notice-target-row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-
-  .notice-target-types {
-    grid-column: 2 / 4;
+@media (max-width: 680px) {
+  .notice-target-fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

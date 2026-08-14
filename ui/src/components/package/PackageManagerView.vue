@@ -81,53 +81,47 @@
       <n-tab-pane name="manage" tab="后端与安装">
         <div class="package-setting-groups">
           <SettingCategoryBox title="仓库后端" padded>
-            <n-space vertical>
-              <n-space wrap>
-                <n-input
-                  v-model:value="backendUrlInput"
-                  clearable
-                  placeholder="输入仓库 URL"
-                  style="width: min(100%, 420px)"
-                  @keyup.enter="addBackend"
-                />
-                <n-button type="primary" :loading="backendMutationPending" @click="addBackend"
-                  >添加</n-button
-                >
-              </n-space>
-              <n-list bordered>
-                <n-list-item v-for="backend in backends" :key="backend.url">
-                  <n-space justify="space-between" align="center" style="width: 100%">
-                    <div>
-                      <n-space align="center">
-                        <strong>{{ backend.name || backend.id || backend.url }}</strong>
-                        <n-tag size="small" :type="backend.enabled ? 'success' : 'default'">
-                          {{ backend.enabled ? '启用' : '禁用' }}
-                        </n-tag>
-                        <n-tag v-if="backend.official" size="small">官方</n-tag>
-                      </n-space>
-                      <n-text depth="3">{{ backend.url }}</n-text>
-                    </div>
-                    <n-space>
-                      <n-button
-                        secondary
-                        size="small"
-                        @click="toggleBackend(backend, !backend.enabled)"
-                      >
-                        {{ backend.enabled ? '禁用' : '启用' }}
-                      </n-button>
-                      <n-button
-                        v-if="!backend.builtin"
-                        size="small"
-                        tertiary
-                        type="error"
-                        @click="removeBackend(backend)"
-                        >删除</n-button
-                      >
-                    </n-space>
-                  </n-space>
-                </n-list-item>
-              </n-list>
-            </n-space>
+            <RepeatableList add-label="添加仓库后端">
+              <RepeatableItem
+                v-for="backend in backends"
+                :key="backend.url"
+                :title="backend.name || backend.id || backend.url"
+                :show-enabled="true"
+                :enabled="backend.enabled"
+                enabled-label="启用仓库后端"
+                :removable="!backend.builtin"
+                remove-label="删除仓库后端"
+                :disabled="backendMutationPending"
+                @update:enabled="toggleBackend(backend, $event)"
+                @remove="removeBackend(backend)"
+              >
+                <n-flex align="center" size="small" wrap>
+                  <n-text depth="3" class="package-backend-url">{{ backend.url }}</n-text>
+                  <n-tag v-if="backend.official" size="small" :bordered="false">官方</n-tag>
+                </n-flex>
+              </RepeatableItem>
+
+              <template #footer>
+                <div class="package-backend-add">
+                  <n-input
+                    v-model:value="backendUrlInput"
+                    clearable
+                    placeholder="输入仓库 URL"
+                    @keyup.enter="addBackend"
+                  />
+                  <n-button
+                    type="primary"
+                    secondary
+                    size="small"
+                    :loading="backendMutationPending"
+                    @click="addBackend"
+                  >
+                    <template #icon><i-tabler-plus /></template>
+                    添加仓库后端
+                  </n-button>
+                </div>
+              </template>
+            </RepeatableList>
           </SettingCategoryBox>
 
           <div class="package-install-groups">
@@ -276,6 +270,8 @@ import PackageInstalledDataView from '@/components/package/PackageInstalledDataV
 import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
 import TipBox from '@/components/shared/TipBox.vue';
 
@@ -630,19 +626,27 @@ async function toggleBackend(backend: StoreBackend, enabled: boolean) {
   }
 }
 
-async function removeBackend(backend: StoreBackend) {
-  backendMutationPending.value = true;
-  try {
-    await deleteSdApiV2ExtensionStoreBackends({
-      body: { id: backend.id || '', backendID: backend.id || '', url: backend.url || '' },
-      throwOnError: true,
-    });
-    await storeBackendsQuery.refetch();
-  } catch (error) {
-    handleError(error, '删除后端失败');
-  } finally {
-    backendMutationPending.value = false;
-  }
+function removeBackend(backend: StoreBackend) {
+  dialog.warning({
+    title: '删除仓库后端',
+    content: `确认删除仓库后端「${backend.name || backend.id || backend.url}」？`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      backendMutationPending.value = true;
+      try {
+        await deleteSdApiV2ExtensionStoreBackends({
+          body: { id: backend.id || '', backendID: backend.id || '', url: backend.url || '' },
+          throwOnError: true,
+        });
+        await storeBackendsQuery.refetch();
+      } catch (error) {
+        handleError(error, '删除后端失败');
+      } finally {
+        backendMutationPending.value = false;
+      }
+    },
+  });
 }
 
 function handleUploadInput(event: Event) {
@@ -815,6 +819,18 @@ function handleError(error: unknown, fallback: string) {
   max-width: 100%;
 }
 
+.package-backend-add {
+  display: flex;
+  width: min(100%, 42rem);
+  align-items: center;
+  gap: var(--sd-space-xs);
+}
+
+.package-backend-url {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .package-setting-groups {
   display: grid;
   gap: var(--sd-space-2xs);
@@ -827,6 +843,11 @@ function handleError(error: unknown, fallback: string) {
 }
 
 @media (max-width: 760px) {
+  .package-backend-add {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .package-install-groups {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--sd-space-2xs);

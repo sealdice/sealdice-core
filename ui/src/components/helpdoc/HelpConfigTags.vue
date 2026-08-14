@@ -1,35 +1,38 @@
 <template>
-  <n-flex align="center" wrap class="help-config-tags">
-    <n-tag size="small" :bordered="false">{{ props.group.value }}</n-tag>
-    <n-tag
-      v-for="alias in groupAliases"
-      :key="alias"
-      size="small"
-      closable
-      :bordered="false"
-      @close="emit('removeAlias', props.group.value, alias)"
-    >
-      {{ alias }}
-    </n-tag>
+  <div class="help-config-tags">
+    <n-flex align="center" wrap>
+      <n-tag size="small" :bordered="false">{{ props.group.value }}</n-tag>
+      <n-tag
+        v-for="alias in groupAliases"
+        :key="alias"
+        size="small"
+        closable
+        :bordered="false"
+        @close="emit('removeAlias', props.group.value, alias)"
+      >
+        {{ alias }}
+      </n-tag>
+    </n-flex>
 
-    <n-input
-      v-if="inputVisible"
-      ref="inputRef"
-      v-model:value="inputValue"
-      size="tiny"
-      autosize
-      class="alias-input"
-      @keyup.enter="confirmInput"
-      @blur="confirmInput"
-    />
-    <n-button v-if="inputVisible" size="tiny" tertiary @click="confirmInput"> 确定 </n-button>
-    <n-button v-else size="tiny" tertiary @click="showInput">
+    <n-flex v-if="inputVisible" align="center" size="small" wrap>
+      <n-input
+        ref="inputRef"
+        v-model:value="inputValue"
+        size="small"
+        class="alias-input"
+        placeholder="输入新别名"
+        @keyup.enter="confirmInput"
+      />
+      <n-button type="primary" size="small" @click="confirmInput">确定</n-button>
+      <n-button size="small" @click="cancelInput">取消</n-button>
+    </n-flex>
+    <n-button v-else type="primary" secondary size="small" class="alias-add" @click="showInput">
       <template #icon>
         <n-icon><i-tabler-plus /></n-icon>
       </template>
-      新别名
+      添加别名
     </n-button>
-  </n-flex>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -65,6 +68,10 @@ function confirmInput() {
   if (value) {
     emit('addAlias', props.group.value, value);
   }
+  cancelInput();
+}
+
+function cancelInput() {
   inputVisible.value = false;
   inputValue.value = '';
 }
@@ -72,10 +79,19 @@ function confirmInput() {
 
 <style scoped>
 .help-config-tags {
+  display: flex;
   min-height: 28px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sd-space-xs);
 }
 
 .alias-input {
-  min-width: 6rem;
+  width: min(100%, 16rem);
+  min-width: 8rem;
+}
+
+.alias-add {
+  align-self: flex-start;
 }
 </style>

@@ -41,11 +41,19 @@
       @update:value="updateValue"
     />
 
-    <div v-else-if="type === 'template'" class="js-config-item__template">
-      <div
+    <RepeatableList
+      v-else-if="type === 'template'"
+      class="js-config-item__template"
+      add-label="添加随机文案"
+      @add="addTemplateItem"
+    >
+      <RepeatableItem
         v-for="(templateValue, index) in templateValues"
         :key="`${item.key}-${index}`"
-        class="js-config-item__template-row"
+        :title="`文案 ${index + 1}`"
+        :removable="templateValues.length > 1"
+        remove-label="删除随机文案"
+        @remove="removeTemplateItem(index)"
       >
         <n-input
           type="textarea"
@@ -55,25 +63,8 @@
           :value="templateValue"
           @update:value="value => updateTemplateItem(index, value)"
         />
-        <n-button v-if="index === 0" size="small" secondary circle @click="addTemplateItem">
-          <template #icon>
-            <n-icon><i-tabler-plus /></n-icon>
-          </template>
-        </n-button>
-        <n-button
-          v-else
-          size="small"
-          secondary
-          circle
-          type="error"
-          @click="removeTemplateItem(index)"
-        >
-          <template #icon>
-            <n-icon><i-tabler-x /></n-icon>
-          </template>
-        </n-button>
-      </div>
-    </div>
+      </RepeatableItem>
+    </RepeatableList>
 
     <n-input
       v-else-if="type === 'task:cron' || type === 'task:daily'"
@@ -105,6 +96,8 @@
 import { computed, ref, watch } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import type { ConfigItem } from '@/api';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import { normalizeTemplateValue } from '@/features/js/configModel';
 
 const props = defineProps<{
@@ -208,16 +201,7 @@ function removeTemplateItem(index: number) {
 }
 
 .js-config-item__template {
-  display: grid;
   max-width: 640px;
-  gap: 8px;
-}
-
-.js-config-item__template-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: start;
 }
 
 .js-config-item__error {

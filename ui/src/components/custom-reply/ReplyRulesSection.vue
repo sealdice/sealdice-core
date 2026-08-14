@@ -5,23 +5,17 @@
         <h3>规则列表</h3>
         <p>从上到下匹配。当前页只显示部分规则，但保存会提交整份文件。</p>
       </div>
-      <n-space size="small" align="center">
-        <n-button size="small" secondary @click="emit('add')">
-          <template #icon>
-            <n-icon><i-tabler-plus /></n-icon>
-          </template>
-          添加规则
-        </n-button>
-      </n-space>
     </div>
 
     <div class="section-body">
-      <NestedRuleEditor
-        :tasks="rules"
-        :start-index="startIndex"
-        @change="emit('change')"
-        @delete-rule="emit('delete', $event)"
-      />
+      <RepeatableList add-label="添加规则" @add="emit('add')">
+        <NestedRuleEditor
+          :tasks="rules"
+          :start-index="startIndex"
+          @change="emit('change')"
+          @delete-rule="emit('delete', $event)"
+        />
+      </RepeatableList>
     </div>
 
     <div class="section-footer">
@@ -33,6 +27,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import NestedRuleEditor from './NestedRuleEditor.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import type { ReplyTask } from '@/features/customReply/model';
 
 const rules = defineModel<ReplyTask[]>({ required: true });
