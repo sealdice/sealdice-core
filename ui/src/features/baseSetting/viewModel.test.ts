@@ -12,6 +12,7 @@ import {
   isBaseSettingGroupWide,
   normalizeBaseSettingSchema,
   normalizeBaseSettingValue,
+  normalizeMasterListValues,
   searchBaseSettingFields,
   searchExtDefaultSettingsView,
   sortExtDefaultSettingsView,
@@ -112,6 +113,13 @@ it('passes', async () => {
     'stacked'
   );
   assertEqual(
+    getBaseSettingFieldLayout({ kind: 'master-list' } satisfies Pick<
+      BaseSettingFieldSchema,
+      'kind'
+    >),
+    'stacked'
+  );
+  assertEqual(
     getBaseSettingFieldFeedback({ key: 'QQEnablePoke' } satisfies Pick<
       BaseSettingFieldSchema,
       'key' | 'hint'
@@ -129,6 +137,10 @@ it('passes', async () => {
     { label: '.', value: '.' },
     { label: '!', value: '!' },
     { label: 'QQ:1', value: 'QQ:1' },
+  ]);
+  assertDeepEqual(normalizeMasterListValues(['QQ:1', ' QQ:1 ', '', 'QQ:2', 'QQ:1']), [
+    'QQ:1',
+    'QQ:2',
   ]);
 
   const extInitial: BaseSettingExtDefaultSettingItem[] = [

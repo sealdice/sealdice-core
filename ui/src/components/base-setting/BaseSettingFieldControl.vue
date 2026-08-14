@@ -11,6 +11,12 @@
       @update:model-value="updateFieldValue(fieldKey, $event)"
     />
 
+    <BaseSettingMasterListField
+      v-else-if="field.kind === 'master-list' && fieldKey"
+      :model-value="(fieldValue as string[]) ?? []"
+      @update:model-value="updateFieldValue(fieldKey, $event)"
+    />
+
     <BaseSettingNoticeTargetsField
       v-else-if="field.kind === 'notice-targets' && fieldKey"
       :model-value="(fieldValue as string[]) ?? []"
@@ -126,6 +132,7 @@ import type {
   BaseSettingValueModel,
 } from '@/features/baseSetting/viewModel';
 import BaseSettingExtDefaultsField from './BaseSettingExtDefaultsField.vue';
+import BaseSettingMasterListField from './BaseSettingMasterListField.vue';
 import BaseSettingNoticeTargetsField from './BaseSettingNoticeTargetsField.vue';
 import BaseSettingStringListField from './BaseSettingStringListField.vue';
 

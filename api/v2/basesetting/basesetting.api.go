@@ -525,7 +525,7 @@ func buildBaseSettingSchema() BaseSettingSchemaResp {
 						Title: "Master 管理",
 						Fields: []*BaseSettingFieldSchema{
 							{ID: "master-unlock-code", Key: "masterUnlockCode", Label: "Master 解锁码", Kind: "unlock-code", Readonly: true, Keywords: []string{"master", "解锁码", "抢占", "骰主"}},
-							{ID: "dice-masters", Key: "diceMasters", Label: "Master 列表", Kind: "string-list", Keywords: []string{"骰主", "master列表", "管理权限"}},
+							{ID: "dice-masters", Key: "diceMasters", Label: "Master 列表", Kind: "master-list", Keywords: []string{"骰主", "master列表", "管理权限"}},
 						},
 					},
 					{

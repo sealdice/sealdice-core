@@ -153,7 +153,11 @@ export function isBaseSettingGroupWide(groupId: string) {
 export function getBaseSettingFieldLayout(
   field: Pick<BaseSettingFieldModel, 'kind'>
 ): BaseSettingFieldLayout {
-  if (['ext-default-settings', 'string-list', 'notice-targets', 'upload'].includes(field.kind))
+  if (
+    ['ext-default-settings', 'string-list', 'notice-targets', 'upload', 'master-list'].includes(
+      field.kind
+    )
+  )
     return 'stacked';
   if (['boolean', 'action', 'unlock-code'].includes(field.kind)) return 'inline';
   return 'auto';
@@ -179,6 +183,12 @@ export function buildBaseSettingStringListOptions(values: string[]) {
     options.push({ label: normalized, value: normalized });
     return options;
   }, []);
+}
+
+// Master 列表在提交前统一走这里：去空白、去空项、去重复项。
+// 既防止编辑过程中产生重复条目，也兜底历史数据里可能存在的重复 Master。
+export function normalizeMasterListValues(values: string[]) {
+  return buildBaseSettingStringListOptions(values).map(option => option.value);
 }
 
 function normalizeExtDefaultSearchText(item: BaseSettingExtDefaultSettingItem) {
