@@ -69,7 +69,6 @@ async function handleDiscard(scope: string) {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--sd-space-md);
-  margin-bottom: var(--sd-space-lg);
   padding-bottom: var(--sd-space-md);
   border-bottom: 1px solid var(--sd-border-soft);
 }

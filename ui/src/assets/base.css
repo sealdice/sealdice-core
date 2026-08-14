@@ -74,6 +74,8 @@ body {
   --sd-space-lg: 1.25rem;
   --sd-space-xl: 1.5rem;
   --sd-space-2xl: 2rem;
+  --sd-page-section-gap: var(--sd-space-md);
+  --sd-item-stack-gap: var(--sd-space-sm);
   --sd-scrollbar-thumb: rgba(31, 41, 55, 0.34);
   --sd-scrollbar-thumb-hover: rgba(31, 41, 55, 0.45);
   --sd-bg-elevated-soft: #f7f9fb;
@@ -365,6 +367,15 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.sd-page-flow,
+.sd-section-flow {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--sd-page-section-gap);
 }
 
 .the-dialog.n-card,
