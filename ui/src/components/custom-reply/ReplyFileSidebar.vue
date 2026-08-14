@@ -129,7 +129,10 @@
       </button>
     </div>
 
-    <div class="panel-footer">
+    <div
+      v-if="shouldShowListPagination({ total, page: query.page, pageSize: query.pageSize })"
+      class="panel-footer"
+    >
       <n-pagination v-model:page="page" :page-size="query.pageSize" :item-count="total" simple />
     </div>
   </aside>
@@ -140,6 +143,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { UploadCustomRequestOptions } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import type { FileInfo } from '@/api';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import { overwriteSearchFormValues } from '@/features/searchForm/viewModel';
 import type { ReplyFileQuery } from '@/features/customReply/useCustomReplyEditor';
 

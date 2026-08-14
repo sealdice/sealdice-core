@@ -54,13 +54,18 @@
         </ResponsiveDataView>
       </n-spin>
     </ListPanel>
-    <footer class="censor-log-footer">
+    <footer
+      v-if="shouldShowListPagination({ total, page: query.pageNum, pageSize: query.pageSize })"
+      class="censor-log-footer"
+    >
       <n-pagination
         v-model:page="query.pageNum"
         v-model:page-size="query.pageSize"
         :item-count="total"
         :page-slot="3"
-        :default-page-size="20"
+        show-size-picker
+        :page-sizes="[10, 20, 30, 50]"
+        @update:page-size="query.pageNum = 1"
       />
     </footer>
   </ListWorkspace>
@@ -71,6 +76,7 @@ import type { DataTableColumns } from 'naive-ui';
 import type { CensorLog } from '@/api';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import type { CensorLogQueryModel } from '@/features/censor/viewModel';

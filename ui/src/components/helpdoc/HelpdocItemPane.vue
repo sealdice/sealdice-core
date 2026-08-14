@@ -4,6 +4,13 @@
       <QueryToolbar :form="searchForm" :columns="searchColumns" cols="1 s:2 l:4" />
 
       <ListPanel>
+        <template #toolbar>
+          <ResultToolbar>
+            <template #meta>
+              <n-text depth="3">共 {{ total }} 项，本页 {{ items.length }} 项</n-text>
+            </template>
+          </ResultToolbar>
+        </template>
         <ResponsiveDataView :compact-at="900" aria-label="帮助文档词条">
           <template #table>
             <n-data-table
@@ -36,9 +43,10 @@
         </ResponsiveDataView>
       </ListPanel>
 
-      <footer>
+      <footer
+        v-if="shouldShowListPagination({ total, page: query.pageNum, pageSize: query.pageSize })"
+      >
         <n-flex class="item-list-pagination" align="center" justify="end" wrap>
-          <n-text depth="3">共 {{ total }} 条</n-text>
           <n-pagination
             v-model:page="query.pageNum"
             v-model:page-size="query.pageSize"
@@ -47,6 +55,7 @@
             :page-sizes="[10, 20, 30, 50]"
             :page-slot="5"
             :item-count="total"
+            @update:page-size="query.pageNum = 1"
           />
         </n-flex>
       </footer>
@@ -61,6 +70,8 @@ import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import type { HelpTextVo } from '@/api';
 import {

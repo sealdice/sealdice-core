@@ -41,7 +41,7 @@
       </RepeatableList>
     </div>
 
-    <div class="section-footer">
+    <div v-if="shouldShowListPagination({ total, page, pageSize })" class="section-footer">
       <n-pagination v-model:page="pageModel" :page-size="pageSize" :item-count="total" simple />
     </div>
   </section>
@@ -51,6 +51,7 @@
 import { computed } from 'vue';
 import ConditionBuilder from './ConditionBuilder.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import type { ReplyCondition, ReplyVMVersion } from '@/features/customReply/model';
 
 const conditions = defineModel<ReplyCondition[]>({ required: true });

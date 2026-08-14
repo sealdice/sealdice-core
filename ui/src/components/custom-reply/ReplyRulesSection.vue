@@ -23,7 +23,7 @@
       </RepeatableList>
     </div>
 
-    <div class="section-footer">
+    <div v-if="shouldShowListPagination({ total, page, pageSize })" class="section-footer">
       <n-pagination v-model:page="pageModel" :page-size="pageSize" :item-count="total" simple />
     </div>
   </section>
@@ -33,6 +33,7 @@
 import { computed } from 'vue';
 import NestedRuleEditor from './NestedRuleEditor.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import type { ReplyTask } from '@/features/customReply/model';
 
 const rules = defineModel<ReplyTask[]>({ required: true });

@@ -240,12 +240,23 @@
           </main>
         </ListPanel>
 
-        <div class="deck-pagination-block">
+        <div
+          v-if="
+            shouldShowListPagination({
+              total: Number(total),
+              page: listQuery.page,
+              pageSize: listQuery.pageSize,
+            })
+          "
+          class="deck-pagination-block"
+        >
           <n-pagination
             v-model:page="listQuery.page"
-            :page-size="listQuery.pageSize"
+            v-model:page-size="listQuery.pageSize"
             :item-count="Number(total)"
-            simple
+            show-size-picker
+            :page-sizes="[10, 20, 30, 50]"
+            @update:page-size="listQuery.page = 1"
           />
         </div>
       </ListWorkspace>
@@ -304,6 +315,7 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import { getApiBaseUrl } from '@/api/config';
 import {

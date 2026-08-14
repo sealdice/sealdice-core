@@ -38,14 +38,23 @@
 
       <!-- Pagination -->
       <div
-        v-if="(dataListQuery.data.value?.total ?? 0) > dataPage.pageSize"
+        v-if="
+          shouldShowListPagination({
+            total: dataListQuery.data.value?.total ?? 0,
+            page: dataPage.page,
+            pageSize: dataPage.pageSize,
+          })
+        "
         class="js-data-pagination"
       >
         <n-pagination
           v-model:page="dataPage.page"
-          :page-size="dataPage.pageSize"
+          v-model:page-size="dataPage.pageSize"
           :item-count="dataListQuery.data.value?.total ?? 0"
           :page-slot="3"
+          show-size-picker
+          :page-sizes="[10, 20, 30, 50]"
+          @update:page-size="dataPage.page = 1"
         />
       </div>
     </template>
@@ -121,6 +130,7 @@ import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import { useJsData } from '@/features/js/useJsData';
 import TipBox from '@/components/shared/TipBox.vue';
 

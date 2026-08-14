@@ -61,6 +61,16 @@ describe('page vertical rhythm contract', () => {
     expect(baseSetting).not.toMatch(/\.setting-tabs\s*\{[^}]*margin-top/s);
   });
 
+  it('collapses only the current visual tail-row feedback in search toolbars', () => {
+    const source = readSource('components/shared/QueryToolbar.vue');
+
+    expect(source).toMatch(/sd-query-toolbar__last-row-item/);
+    expect(source).toMatch(/last-row-item \.n-form-item-feedback-wrapper:empty/);
+    expect(source).not.toMatch(
+      /\.sd-query-toolbar\s+:deep\(\.n-form-item-feedback-wrapper:empty\)/
+    );
+  });
+
   it('lets the account protocol form own spacing between its sections', () => {
     expect(readSource('components/connect/ConnectProtocolForm.vue')).toMatch(/sd-section-flow/);
     expect(readSource('components/connect/protocol/OfficialQQModePanel.vue')).not.toMatch(/\bmb-/);
@@ -73,6 +83,29 @@ describe('page list composition contract', () => {
 
     expect(source).toMatch(/<QueryToolbar/);
     expect(source).toMatch(/<ListWorkspace/);
+  });
+
+  it('uses standard query toolbars for both package result tabs', () => {
+    const source = readSource('components/package/PackageManagerView.vue');
+
+    expect(source.match(/<QueryToolbar/g)).toHaveLength(2);
+    expect(source).toMatch(/installedSearchForm/);
+    expect(source).toMatch(/storeSearchForm/);
+  });
+
+  it.each([
+    'pages/misc/group.vue',
+    'pages/mod/deck.vue',
+    'pages/mod/story.vue',
+    'components/ban/BanListPanel.vue',
+    'components/censor/CensorLogView.vue',
+    'components/helpdoc/HelpdocItemPane.vue',
+    'components/js/JsDataView.vue',
+    'components/js/JsListView.vue',
+    'components/package/PackageManagerView.vue',
+    'components/resource/ResourceListPanel.vue',
+  ])('uses the shared pagination visibility rule in %s', relativePath => {
+    expect(readSource(relativePath)).toMatch(/shouldShowListPagination/);
   });
 
   it.each([

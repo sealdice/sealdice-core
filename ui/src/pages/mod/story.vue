@@ -130,7 +130,16 @@
               </template>
             </ListPanel>
 
-            <div class="story-pagination-block">
+            <div
+              v-if="
+                shouldShowListPagination({
+                  total: queryLogPage.total,
+                  page: queryLogPage.pageNum,
+                  pageSize: queryLogPage.pageSize,
+                })
+              "
+              class="story-pagination-block"
+            >
               <n-pagination
                 v-model:page="queryLogPage.pageNum"
                 v-model:page-size="queryLogPage.pageSize"
@@ -200,7 +209,16 @@
             </template>
           </div>
 
-          <div class="story-pagination">
+          <div
+            v-if="
+              shouldShowListPagination({
+                total: logItemPage.size,
+                page: logItemPage.pageNum,
+                pageSize: logItemPage.pageSize,
+              })
+            "
+            class="story-pagination"
+          >
             <n-pagination
               v-model:page="logItemPage.pageNum"
               v-model:page-size="logItemPage.pageSize"
@@ -303,6 +321,7 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import {
   getSdApiV2StoryCleanupPreview,
   getSdApiV2StoryInfoOptions,

@@ -338,6 +338,7 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
@@ -479,7 +480,13 @@ const total = computed(() => listQueryResult.data.value?.total ?? 0);
 const hasItems = computed(() => items.value.length > 0);
 const selectedCount = computed(() => items.value.filter(item => item.pitch).length);
 const allSelected = computed(() => hasItems.value && items.value.every(item => item.pitch));
-const showPagination = computed(() => total.value > listQuery.pageSize);
+const showPagination = computed(() =>
+  shouldShowListPagination({
+    total: total.value,
+    page: listQuery.page,
+    pageSize: listQuery.pageSize,
+  })
+);
 
 const showDiff = ref(false);
 const diffLoading = ref(false);

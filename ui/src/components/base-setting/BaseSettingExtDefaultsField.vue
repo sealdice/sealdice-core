@@ -85,7 +85,10 @@
 
     <n-empty v-else :description="emptyDescription" size="small" class="ext-defaults-empty" />
 
-    <div v-if="viewItems.length > 0" class="ext-defaults-footer">
+    <div
+      v-if="shouldShowListPagination({ total: pagedItems.total, page, pageSize })"
+      class="ext-defaults-footer"
+    >
       <n-text depth="3">第 {{ pagedItems.page }} / {{ pagedItems.pageCount }} 页</n-text>
       <n-pagination
         v-model:page="page"
@@ -104,6 +107,7 @@
 import { computed, ref, toRaw, watch } from 'vue';
 import { cloneDeep } from 'es-toolkit';
 import type { BaseSettingExtDefaultSettingItem } from '@/api';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import {
   buildExtDefaultSettingsView,
   filterExtDefaultSettingsView,

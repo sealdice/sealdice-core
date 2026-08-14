@@ -146,7 +146,16 @@
           />
         </ListPanel>
 
-        <div class="group-pagination-block">
+        <div
+          v-if="
+            shouldShowListPagination({
+              total,
+              page: listQuery.page,
+              pageSize: listQuery.pageSize,
+            })
+          "
+          class="group-pagination-block"
+        >
           <n-pagination
             v-model:page="listQuery.page"
             v-model:page-size="listQuery.pageSize"
@@ -248,6 +257,7 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import { hasAccessToken } from '@/features/auth/state';
 import {
   readGroupQuitDefaultText,

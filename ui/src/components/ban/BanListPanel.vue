@@ -99,7 +99,10 @@
       </ListPanel>
     </n-spin>
 
-    <footer class="ban-list-panel__footer">
+    <footer
+      v-if="shouldShowListPagination({ total, page: query.page, pageSize: query.pageSize })"
+      class="ban-list-panel__footer"
+    >
       <n-pagination
         :page="query.page"
         :page-size="query.pageSize"
@@ -125,6 +128,7 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 
 const props = defineProps<{

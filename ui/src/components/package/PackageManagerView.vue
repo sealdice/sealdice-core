@@ -16,18 +16,14 @@
     <n-tabs :value="activeTab" type="line" animated @update:value="handleTabUpdate">
       <n-tab-pane name="installed" tab="已安装">
         <ListWorkspace>
+          <QueryToolbar
+            :form="installedSearchForm"
+            :columns="installedSearchColumns"
+            :loading="packagesLoading"
+            cols="1 s:2 l:3"
+          />
+
           <ListActions>
-            <n-input
-              v-model:value="installedKeyword"
-              clearable
-              placeholder="搜索名称 / ID / 关键词"
-              style="width: min(100%, 280px)"
-            />
-            <n-select
-              v-model:value="installedContent"
-              :options="contentOptions"
-              style="width: min(100%, 160px)"
-            />
             <template #end>
               <n-button secondary @click="refreshPackages" :loading="packagesLoading">
                 刷新磁盘
@@ -57,18 +53,12 @@
 
       <n-tab-pane name="store" tab="商店">
         <ListWorkspace>
-          <ListActions>
-            <n-space class="package-filter-row" wrap>
-              <n-input
-                v-model:value="storeKeyword"
-                clearable
-                placeholder="搜索扩展包名称"
-                style="width: min(100%, 280px)"
-                @keyup.enter="fetchStorePage"
-              />
-              <n-button secondary @click="fetchStorePage" :loading="storeLoading">搜索</n-button>
-            </n-space>
-          </ListActions>
+          <QueryToolbar
+            :form="storeSearchForm"
+            :columns="storeSearchColumns"
+            :loading="storeLoading || storePageQuery.isFetching.value"
+            cols="1 s:2"
+          />
 
           <ListPanel>
             <PackageStoreDataView
@@ -79,7 +69,7 @@
           </ListPanel>
 
           <n-pagination
-            v-if="storeTotal > 0"
+            v-if="showStorePagination"
             class="package-pagination"
             v-model:page="storePage"
             v-model:page-size="storePageSize"
@@ -87,7 +77,7 @@
             :page-sizes="[10, 20, 50]"
             show-size-picker
             @update:page="fetchStorePage"
-            @update:page-size="fetchStorePage"
+            @update:page-size="handleStorePageSizeChange"
           />
         </ListWorkspace>
       </n-tab-pane>
@@ -244,6 +234,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import { useQuery } from '@tanstack/vue-query';
 import { useRoute, useRouter } from 'vue-router';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   deleteSdApiV2ExtensionStoreBackends,
   getSdApiV2ExtensionConfig,
@@ -285,11 +276,17 @@ import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue'
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import {
+  getCursorPaginationItemCount,
+  shouldShowListPagination,
+} from '@/components/shared/listPagination';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
 
 type ConfigFieldSchema = {
@@ -307,6 +304,33 @@ const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const activeTab = computed(() => resolvePackageManagerTab(route.query.tab));
+
+type InstalledSearchFormValues = {
+  keyword: string;
+  content: 'all' | 'scripts' | 'decks' | 'reply' | 'helpdoc' | 'templates';
+};
+
+type StoreSearchFormValues = {
+  keyword: string;
+};
+
+const defaultInstalledSearchValues = (): InstalledSearchFormValues => ({
+  keyword: '',
+  content: 'all',
+});
+
+const defaultStoreSearchValues = (): StoreSearchFormValues => ({
+  keyword: '',
+});
+
+const contentOptions = [
+  { label: '全部内容', value: 'all' },
+  { label: '脚本', value: 'scripts' },
+  { label: '牌堆', value: 'decks' },
+  { label: '自定义回复', value: 'reply' },
+  { label: '帮助文档', value: 'helpdoc' },
+  { label: '模板', value: 'templates' },
+];
 
 function handleTabUpdate(value: string | number) {
   const tab = resolvePackageManagerTab(value);
@@ -341,6 +365,61 @@ const installUrlInput = ref('');
 const selectedUploadFile = ref<File | null>(null);
 const uploadFileName = ref('');
 const uploadInputRef = ref<HTMLInputElement | null>(null);
+
+const installedSearchForm = createProSearchForm<InstalledSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultInstalledSearchValues()),
+  onSubmit: values => {
+    installedKeyword.value = values.keyword;
+    installedContent.value = values.content;
+  },
+  onReset: () => {
+    const defaults = defaultInstalledSearchValues();
+    installedKeyword.value = defaults.keyword;
+    installedContent.value = defaults.content;
+  },
+});
+
+const installedSearchColumns: ProSearchFormColumns<InstalledSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索名称 / ID / 关键词',
+    },
+  },
+  {
+    label: '内容',
+    path: 'content',
+    field: 'select',
+    fieldProps: {
+      options: contentOptions,
+    },
+  },
+];
+
+const storeSearchForm = createProSearchForm<StoreSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultStoreSearchValues()),
+  onSubmit: async values => {
+    await updateStoreSearch(values.keyword);
+  },
+  onReset: async () => {
+    await updateStoreSearch(defaultStoreSearchValues().keyword);
+  },
+});
+
+const storeSearchColumns: ProSearchFormColumns<StoreSearchFormValues> = [
+  {
+    label: '名称',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索扩展包名称',
+    },
+  },
+];
 
 const detailVisible = ref(false);
 const currentPackage = ref<Instance | null>(null);
@@ -396,10 +475,21 @@ const storePageQuery = useQuery({
 const packages = computed(() => packagesQuery.data.value ?? []);
 const backends = computed(() => storeBackendsQuery.data.value ?? []);
 const storePackages = computed(() => storePageQuery.data.value?.items ?? []);
+const storeHasNext = computed(() => Boolean(storePageQuery.data.value?.next));
 const storeTotal = computed(() =>
-  storePageQuery.data.value?.next
-    ? storePage.value * storePageSize.value + 1
-    : storePackages.value.length
+  getCursorPaginationItemCount({
+    page: storePage.value,
+    pageSize: storePageSize.value,
+    itemCount: storePackages.value.length,
+    hasNext: storeHasNext.value,
+  })
+);
+const showStorePagination = computed(() =>
+  shouldShowListPagination({
+    page: storePage.value,
+    pageSize: storePageSize.value,
+    hasNext: storeHasNext.value,
+  })
 );
 
 const filteredInstalledPackages = computed(() =>
@@ -429,15 +519,6 @@ const loadErrorText = computed(() => {
     return getErrorMessage(storePageQuery.error.value, '商店列表读取失败');
   return '';
 });
-
-const contentOptions = [
-  { label: '全部内容', value: 'all' },
-  { label: '脚本', value: 'scripts' },
-  { label: '牌堆', value: 'decks' },
-  { label: '自定义回复', value: 'reply' },
-  { label: '帮助文档', value: 'helpdoc' },
-  { label: '模板', value: 'templates' },
-];
 
 const reloadMenuOptions = [
   { label: '重载全部', key: 'all' },
@@ -486,6 +567,19 @@ async function refreshPackages() {
   } finally {
     packagesLoading.value = false;
   }
+}
+
+async function updateStoreSearch(keyword: string) {
+  const normalizedKeyword = keyword.trim();
+  const queryChanged = storeKeyword.value !== normalizedKeyword || storePage.value !== 1;
+  storeKeyword.value = normalizedKeyword;
+  storePage.value = 1;
+  if (!queryChanged) await fetchStorePage();
+}
+
+async function handleStorePageSizeChange() {
+  storePage.value = 1;
+  await fetchStorePage();
 }
 
 async function fetchStorePage() {
@@ -830,10 +924,6 @@ function handleError(error: unknown, fallback: string) {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.package-filter-row {
-  max-width: 100%;
 }
 
 .package-pagination {
