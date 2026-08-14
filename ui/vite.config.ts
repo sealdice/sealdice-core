@@ -1,31 +1,31 @@
-import { fileURLToPath, URL } from 'node:url'
+import { fileURLToPath, URL } from 'node:url';
 
-import { defineConfig } from 'vite'
-import type { PluginOption } from 'vite'
-import VueRouter from 'vue-router/vite'
-import legacy from '@vitejs/plugin-legacy'
-import vue from '@vitejs/plugin-vue'
-import vueJsx from '@vitejs/plugin-vue-jsx'
-import vueDevTools from 'vite-plugin-vue-devtools'
-import { VitePWA } from 'vite-plugin-pwa'
-import AutoImport from 'unplugin-auto-import/vite'
-import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
-import { ProNaiveUIResolver } from 'pro-naive-ui-resolver'
-import Components from 'unplugin-vue-components/vite'
-import Icons from 'unplugin-icons/vite'
-import IconsResolver from 'unplugin-icons/resolver'
-import { visualizer } from 'rollup-plugin-visualizer'
-import { classifyVendorChunk } from './src/build/chunkPolicy'
-import { resolveViteBuildOptions, resolveVitePublicBase } from './src/build/embedConfig'
-import { shouldSuppressRollupWarning } from './src/build/warningPolicy'
+import { defineConfig } from 'vite';
+import type { PluginOption } from 'vite';
+import VueRouter from 'vue-router/vite';
+import legacy from '@vitejs/plugin-legacy';
+import vue from '@vitejs/plugin-vue';
+import vueJsx from '@vitejs/plugin-vue-jsx';
+import vueDevTools from 'vite-plugin-vue-devtools';
+import { VitePWA } from 'vite-plugin-pwa';
+import AutoImport from 'unplugin-auto-import/vite';
+import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
+import { ProNaiveUIResolver } from 'pro-naive-ui-resolver';
+import Components from 'unplugin-vue-components/vite';
+import Icons from 'unplugin-icons/vite';
+import IconsResolver from 'unplugin-icons/resolver';
+import { visualizer } from 'rollup-plugin-visualizer';
+import { classifyVendorChunk } from './src/build/chunkPolicy';
+import { resolveViteBuildOptions, resolveVitePublicBase } from './src/build/embedConfig';
+import { shouldSuppressRollupWarning } from './src/build/warningPolicy';
 
-const DEFAULT_PROXY_TARGET = 'http://localhost:3211'
+const DEFAULT_PROXY_TARGET = 'http://localhost:3211';
 const apiProxyTarget = (
   process.env.VITE_API_PROXY_TARGET ||
   process.env.DEV_PROXY_SERVER ||
   process.env.VITE_API_BASE_URL ||
   DEFAULT_PROXY_TARGET
-).trim()
+).trim();
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -40,12 +40,23 @@ export default defineConfig(({ mode }) => {
     mode === 'development' ? vueDevTools() : null,
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'pwa-192.svg', 'pwa-512.svg', 'pwa-maskable.svg'],
+      includeAssets: [
+        'favicon.ico',
+        'favicon.svg',
+        'apple-touch-icon.png',
+        'pwa-icon.svg',
+        'pwa-192.png',
+        'pwa-512.png',
+        'pwa-maskable.svg',
+        'pwa-maskable-512.png',
+      ],
       workbox: {
         globIgnores: ['**/stats.html'],
         navigateFallbackDenylist: [/^\/old-ui(?:\/|$)/],
       },
       manifest: {
+        id: './',
+        lang: 'zh-CN',
         name: 'SealDice 控制台',
         short_name: 'SealDice',
         description: 'SealDice 核心管理控制台',
@@ -56,20 +67,32 @@ export default defineConfig(({ mode }) => {
         scope: './',
         icons: [
           {
-            src: './pwa-192.svg',
+            src: './pwa-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: './pwa-512.svg',
+            src: './pwa-512.png',
             sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: './pwa-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: './pwa-icon.svg',
+            sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any',
           },
           {
             src: './pwa-maskable.svg',
-            sizes: '512x512',
+            sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'maskable',
           },
@@ -80,39 +103,36 @@ export default defineConfig(({ mode }) => {
       imports: [
         // 'vue', // 感觉vue自动引入有点乱，还是手动吧
         {
-          'naive-ui': [
-            'useDialog',
-            'useMessage',
-            'useNotification',
-            'useLoadingBar'
-          ]
-        }
+          'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar'],
+        },
       ],
-      resolvers: [IconsResolver()]
+      resolvers: [IconsResolver()],
     }),
     Components({
       // 补充Pro-naive-ui自动引入
-      resolvers: [NaiveUiResolver(), ProNaiveUIResolver(), IconsResolver()]
+      resolvers: [NaiveUiResolver(), ProNaiveUIResolver(), IconsResolver()],
     }),
     Icons({
       compiler: 'vue3',
-      autoInstall: true
+      autoInstall: true,
     }),
     legacy({
       // 用Chrome79测了一下好像问题不算特别大的样子，有些功能降级，但能用
       // 感觉这就很极端的场景了，现在连2345浏览器都上100+了
       targets: ['Chrome >= 78', 'Firefox >= 67', 'Safari >= 14'],
-      renderLegacyChunks: false // 这个已经是老古董级别的了，海豹啥的都不支持，别费心了还得打包一份额外文件
+      renderLegacyChunks: false, // 这个已经是老古董级别的了，海豹啥的都不支持，别费心了还得打包一份额外文件
     }),
-    mode === 'analyze' ? visualizer({
-      filename: 'stats.html',
-      emitFile: true,
-      title: 'SealDice UI Bundle',
-      gzipSize: true,
-      brotliSize: true,
-      template: 'treemap',
-    }) : null,
-  ]
+    mode === 'analyze'
+      ? visualizer({
+          filename: 'stats.html',
+          emitFile: true,
+          title: 'SealDice UI Bundle',
+          gzipSize: true,
+          brotliSize: true,
+          template: 'treemap',
+        })
+      : null,
+  ];
 
   return {
     base: resolveVitePublicBase(mode),
@@ -125,8 +145,8 @@ export default defineConfig(({ mode }) => {
             return; // Ignore circular dependency warnings
           }
           if (level === 'warn') {
-            if (shouldSuppressRollupWarning(log)) return
-            defaultHandler('error',log)
+            if (shouldSuppressRollupWarning(log)) return;
+            defaultHandler('error', log);
           } else {
             defaultHandler(level, log); // otherwise, just print the log
           }
@@ -136,7 +156,7 @@ export default defineConfig(({ mode }) => {
             groups: [
               {
                 name(moduleId) {
-                  classifyVendorChunk(moduleId)
+                  classifyVendorChunk(moduleId);
                 },
               },
             ],
@@ -147,7 +167,7 @@ export default defineConfig(({ mode }) => {
     plugins,
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url))
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
     server: {
@@ -191,5 +211,5 @@ export default defineConfig(({ mode }) => {
     test: {
       include: ['src/**/*.test.ts'],
     },
-  }
-})
+  };
+});

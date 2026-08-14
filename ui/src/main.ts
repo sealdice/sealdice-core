@@ -24,6 +24,7 @@ import { appPinia } from './pinia';
 
 import { setupApiClient } from './api';
 import { syncErudaFromStorage } from './features/debug/eruda';
+import { setupPwaInstallHandling } from './features/pwa/usePwaInstall';
 import { setupPwaUpdateHandling } from './features/pwa/swUpdate';
 import { queryClient } from './queryClient';
 
@@ -50,6 +51,7 @@ document.head.appendChild(meta);
 setupApiClient();
 
 // SW 换版监听 + 受控刷新：避免旧页面与新预缓存错配后异步 chunk 404。
+setupPwaInstallHandling();
 setupPwaUpdateHandling();
 void syncErudaFromStorage().catch(error => {
   console.error('[eruda] failed to restore debug console', error);

@@ -12,11 +12,9 @@ export const usePwaInstallStore = defineStore('pwa-install', () => {
   const isInstalled = shallowRef(false);
   const installing = shallowRef(false);
   const initialized = shallowRef(false);
-  const isSupported = shallowRef(false);
 
   let deferredPrompt: PwaBeforeInstallPromptEvent | null = null;
   let cleanup: (() => void) | null = null;
-  let consumerCount = 0;
 
   function getNavigatorStandalone(): boolean {
     if (typeof navigator === 'undefined') return false;
@@ -53,7 +51,6 @@ export const usePwaInstallStore = defineStore('pwa-install', () => {
     if (typeof window === 'undefined' || initialized.value) return;
     initialized.value = true;
     syncStandaloneState();
-    isSupported.value = 'onbeforeinstallprompt' in window;
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
     window.addEventListener('appinstalled', handleAppInstalled);
@@ -72,17 +69,6 @@ export const usePwaInstallStore = defineStore('pwa-install', () => {
     cleanup();
     cleanup = null;
     initialized.value = false;
-  }
-
-  function retainListeners(): void {
-    consumerCount += 1;
-    attachListeners();
-  }
-
-  function releaseListeners(): void {
-    consumerCount = Math.max(0, consumerCount - 1);
-    if (consumerCount > 0) return;
-    detachListeners();
   }
 
   const canInstall = computed(() => promptAvailable.value && !isInstalled.value);
@@ -112,11 +98,8 @@ export const usePwaInstallStore = defineStore('pwa-install', () => {
     canInstall,
     isInstalled,
     installing,
-    isSupported,
     attachListeners,
     detachListeners,
-    retainListeners,
-    releaseListeners,
     install,
   };
 });

@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SealDice">
   <defs>
-    <linearGradient id="background" x1="48" y1="24" x2="464" y2="488" gradientUnits="userSpaceOnUse">
+    <linearGradient id="background" x1="72" y1="48" x2="440" y2="464" gradientUnits="userSpaceOnUse">
       <stop stop-color="#4f7ff0" />
       <stop offset="1" stop-color="#234fae" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" fill="url(#background)" />
-  <g transform="translate(92 92) scale(.640625)">
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#background)" />
+  <g transform="translate(52 52) scale(.796875)">
     <polygon fill="#fff" points="130.65 58.2 31.9 269.01 183.55 462.82 365.95 427.73 480.24 237.52 336.41 52 130.65 58.2" />
     <path d="M488.44 230.71 346.28 44.41a10.57 10.57 0 0 0-8.87-4.18l-204.15 8.39a10.61 10.61 0 0 0-9.15 6L22.06 263a10.57 10.57 0 0 0 1.14 11.14l150.59 194.6a10.58 10.58 0 0 0 10.53 3.95L373.17 436l1.35-.46a10.59 10.59 0 0 0 5.72-4.71l108.92-188.39a10.6 10.6 0 0 0-.72-11.73ZM186 449.75l-24.1-187.3L385.9 376Zm178.21-342.54L159.67 244 140.55 72.87ZM149.65 248.53l-102.77 12L131.65 87.9Zm242.81 118.85L165.87 252.6l207-138.45 1.2 1.54 18.83 250.94ZM358.79 95.63 178.51 67.86 333 61.44ZM47.71 271.08l103.1-12 22.39 174.14ZM364.32 416l-120 23.36 135.29-49.82Zm38.14-65.88-16.62-219L467.21 238Z" />
     <polygon fill="#fff" points="157.03 220.4 160.14 249.69 178.19 258.84 374.4 120.32 373.55 108.64 358.48 106.33 157.03 220.4" />
