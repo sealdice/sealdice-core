@@ -61,6 +61,8 @@
             </ResultToolbar>
           </template>
 
+          <ListEmptyState v-if="!groups.length && !listLoading" description="暂无群组" />
+
           <FoldableCard v-for="group in groups" :key="group.groupId" class="group-card">
             <template #title>
               <n-flex align="center" size="small" wrap>
@@ -138,12 +140,6 @@
               </n-descriptions-item>
             </n-descriptions>
           </FoldableCard>
-
-          <n-empty
-            v-if="!groups.length && !listLoading"
-            description="暂无匹配的群组"
-            class="group-empty"
-          />
         </ListPanel>
 
         <div
@@ -256,6 +252,7 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import { hasAccessToken } from '@/features/auth/state';
@@ -652,10 +649,6 @@ onMounted(async () => {
 .group-pagination-block {
   display: flex;
   justify-content: flex-end;
-}
-
-.group-empty {
-  padding: 2rem 0;
 }
 
 .group-dialog {

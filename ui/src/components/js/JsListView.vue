@@ -265,13 +265,11 @@
           </template>
         </section>
 
-        <div v-else-if="!listQueryResult.isFetching.value" class="js-empty-state">
-          <n-empty description="暂无插件">
-            <template #icon>
-              <n-icon size="40"><i-tabler-package /></n-icon>
-            </template>
-          </n-empty>
-        </div>
+        <ListEmptyState v-else-if="!listQueryResult.isFetching.value" description="暂无 JS 扩展">
+          <template #icon>
+            <n-icon size="40"><i-tabler-package /></n-icon>
+          </template>
+        </ListEmptyState>
       </div>
     </ListPanel>
 
@@ -336,6 +334,7 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
@@ -725,14 +724,6 @@ function toggleSelectAll(checked: boolean) {
 
 .js-plugin-card {
   width: 100%;
-}
-
-.js-empty-state {
-  display: flex;
-  min-height: 17rem;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem 0;
 }
 
 .js-pagination-block {

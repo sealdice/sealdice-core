@@ -1,5 +1,6 @@
 <template>
-  <ResponsiveDataView :compact-at="760" aria-label="已安装扩展包">
+  <ListEmptyState v-if="!loading && rows.length === 0" description="暂无已安装扩展包" />
+  <ResponsiveDataView v-else :compact-at="760" aria-label="已安装扩展包">
     <template #table>
       <n-data-table
         :columns="columns"
@@ -15,8 +16,7 @@
 
     <template #compact>
       <n-spin :show="loading">
-        <n-empty v-if="!loading && rows.length === 0" description="暂无已安装扩展包" />
-        <ul v-else class="package-compact-list">
+        <ul class="package-compact-list">
           <li v-for="row in rows" :key="rowKey(row)" class="package-compact-item">
             <div class="package-compact-item__heading">
               <div class="package-compact-item__identity">
@@ -67,6 +67,7 @@
 <script setup lang="tsx">
 import { NButton, NFlex, NTag, type DataTableColumns } from 'naive-ui';
 import type { Instance } from '@/api';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 
 defineProps<{

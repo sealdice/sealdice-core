@@ -83,7 +83,7 @@
       </section>
     </div>
 
-    <n-empty v-else :description="emptyDescription" size="small" class="ext-defaults-empty" />
+    <ListEmptyState v-else :description="emptyDescription" />
 
     <div
       v-if="shouldShowListPagination({ total: pagedItems.total, page, pageSize })"
@@ -107,6 +107,7 @@
 import { computed, ref, toRaw, watch } from 'vue';
 import { cloneDeep } from 'es-toolkit';
 import type { BaseSettingExtDefaultSettingItem } from '@/api';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import {
   buildExtDefaultSettingsView,
@@ -354,10 +355,6 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
 .ext-default-command-chip-dirty {
   border-color: var(--sd-warning-border);
   background: var(--sd-warning-soft);
-}
-
-.ext-defaults-empty {
-  padding: 1rem 0;
 }
 
 @media (max-width: 860px) {

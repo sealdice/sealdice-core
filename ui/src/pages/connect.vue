@@ -21,13 +21,11 @@
       </div>
     </TipBox>
 
-    <n-empty v-if="connections.length === 0 && connectionsReady" description="似乎还没有账号">
-      <template #extra>
-        <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
-          添加账号
-        </n-button>
-      </template>
-    </n-empty>
+    <ListEmptyState v-if="connections.length === 0 && connectionsReady" description="暂无接入账号">
+      <n-button type="primary" :disabled="isTestMode" @click="openCreateDialog">
+        添加账号
+      </n-button>
+    </ListEmptyState>
 
     <ConnectAccountGrid
       v-else
@@ -156,6 +154,7 @@ import ConnectAccountGrid from '@/components/connect/ConnectAccountGrid.vue';
 import { updateEndpointOperationErrors } from '@/features/connect/endpointActionState';
 import { getEndpointTargetLabel } from '@/features/connect/endpointDisplay';
 import PageHeader from '@/components/shared/PageHeader.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import {
   advanceConnectWizard,
   buildConnectCreatePayload,

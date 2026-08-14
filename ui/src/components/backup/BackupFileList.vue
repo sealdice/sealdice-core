@@ -23,13 +23,11 @@
         </ResultToolbar>
       </template>
 
-      <n-empty v-if="!loading && items.length === 0" description="暂无备份文件">
-        <template #extra>
-          <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
-            立即备份
-          </n-button>
-        </template>
-      </n-empty>
+      <ListEmptyState v-if="!loading && items.length === 0" description="暂无备份文件">
+        <n-button type="primary" :disabled="disabled" @click="emit('openBackup')">
+          立即备份
+        </n-button>
+      </ListEmptyState>
 
       <ResponsiveDataView v-else :compact-at="680" aria-label="备份文件列表">
         <template #table>
@@ -95,6 +93,7 @@ import { computed } from 'vue';
 import { filesize } from 'filesize';
 import { NButton, NTag, type DataTableColumns } from 'naive-ui';
 import type { FileItem } from '@/api';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';

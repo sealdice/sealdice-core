@@ -4,7 +4,7 @@
       <span>已选择 {{ checkedRowKeys.length }} / {{ rows.length }}</span>
     </div>
 
-    <n-empty v-if="!loading && rows.length === 0" description="暂无可上报终端" />
+    <ListEmptyState v-if="!loading && rows.length === 0" description="暂无可上报终端" />
 
     <ResponsiveDataView v-else :compact-at="760" aria-label="可上报终端">
       <template #table>
@@ -51,6 +51,7 @@
 <script setup lang="ts">
 import { computed, h } from 'vue';
 import { NTag, type DataTableColumns, type DataTableRowKey } from 'naive-ui';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import type { PublicDiceEndpointRow } from '@/features/publicDice/viewModel';
 

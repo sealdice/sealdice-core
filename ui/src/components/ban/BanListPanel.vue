@@ -40,7 +40,7 @@
           </ResultToolbar>
         </template>
 
-        <n-list hoverable clickable class="ban-list-panel__list">
+        <n-list v-if="items.length" hoverable clickable class="ban-list-panel__list">
           <n-list-item v-for="item in items" :key="item.ID">
             <n-thing>
               <template #header>
@@ -91,11 +91,7 @@
           </n-list-item>
         </n-list>
 
-        <n-empty
-          v-if="!items.length"
-          description="暂无黑白名单条目"
-          class="ban-list-panel__empty"
-        />
+        <ListEmptyState v-else description="暂无黑白名单条目" />
       </ListPanel>
     </n-spin>
 
@@ -126,6 +122,7 @@ import { getBanRankMeta, type BanListQueryModel } from '@/features/ban/viewModel
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
@@ -272,10 +269,6 @@ async function uploadBanFile(options: UploadCustomRequestOptions) {
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-}
-
-.ban-list-panel__empty {
-  padding: 1.5rem 0;
 }
 
 .ban-list-panel__footer {

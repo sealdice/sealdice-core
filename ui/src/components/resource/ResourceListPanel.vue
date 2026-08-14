@@ -74,7 +74,15 @@
           </ResultToolbar>
         </template>
 
-        <div v-if="isMobile" class="resource-list-panel__cards">
+        <ListEmptyState v-if="!loading && items.length === 0" description="暂无图片资源">
+          <n-text depth="3">
+            上传图片后可在骰子消息中使用
+            <n-text code class="sd-code-text">[图:路径]</n-text>
+            引用。
+          </n-text>
+        </ListEmptyState>
+
+        <div v-else-if="isMobile" class="resource-list-panel__cards">
           <article
             v-for="item in items"
             :key="getResourceKey(item)"
@@ -134,20 +142,6 @@
           :scroll-x="900"
           size="small"
         />
-
-        <n-empty
-          v-if="!loading && items.length === 0"
-          description="暂无图片资源"
-          class="resource-list-panel__empty"
-        >
-          <template #extra>
-            <n-text depth="3">
-              上传图片后可在骰子消息中使用
-              <n-text code class="sd-code-text">[图:路径]</n-text>
-              引用。
-            </n-text>
-          </template>
-        </n-empty>
       </ListPanel>
     </n-spin>
 
@@ -185,6 +179,7 @@ import type { ResourceItem } from '@/api';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
@@ -565,10 +560,6 @@ function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
 
 .resource-list-panel__path {
   overflow-wrap: anywhere;
-}
-
-.resource-list-panel__empty {
-  padding: 40px 0;
 }
 
 .resource-list-panel__footer {

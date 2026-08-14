@@ -151,7 +151,9 @@
       </TipBox>
 
       <div ref="logsContainer" class="logs">
+        <ListEmptyState v-if="!logData.length" description="暂无运行日志" />
         <n-data-table
+          v-else
           ref="logTable"
           :data="logData"
           :columns="columns"
@@ -162,7 +164,6 @@
           :max-height="isMobile ? 420 : 620"
           :virtual-scroll="!isMobile"
         />
-        <n-empty v-if="!logData.length" description="暂无日志" class="empty-log" />
         <n-back-top :right="30" />
       </div>
     </section>
@@ -193,6 +194,7 @@ import { formatRuntimeSummary } from '@/features/base/runtimeSummary';
 import { hasAccessToken } from '@/features/auth/state';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
@@ -625,14 +627,6 @@ p {
 
 .log-alert {
   margin: 1rem 1.25rem 0;
-}
-
-.logs {
-  min-height: 300px;
-}
-
-.empty-log {
-  padding: 3rem 0;
 }
 
 :deep(.logs .n-data-table-th) {

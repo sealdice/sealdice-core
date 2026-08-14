@@ -62,7 +62,9 @@
         <n-text strong>文件名</n-text>
         <n-text strong>分组</n-text>
       </header>
+      <ListEmptyState v-if="!loading && docTree.length === 0" description="暂无帮助文档文件" />
       <n-tree
+        v-else
         v-model:checked-keys="checkedKeys"
         :data="docTree"
         label-field="label"
@@ -83,6 +85,7 @@
 import { h } from 'vue';
 import { NButton, NProgress, NTag, NText } from 'naive-ui';
 import ListActions from '@/components/shared/ListActions.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import type { HelpDocTreeOption } from '@/features/helpdoc/viewModel';
 import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
 

@@ -88,4 +88,45 @@ describe('list workspace contract', () => {
     expect(source).toMatch(/flex-direction: column/);
     expect(source).toMatch(/gap: var\(--sd-space-md\)/);
   });
+
+  it('uses one sized, page-specific empty state for result lists', () => {
+    const source = readComponent('ListEmptyState.vue');
+
+    expect(source).toMatch(/min-height: 12rem/);
+    expect(source).toMatch(/<n-empty :description="description"/);
+    expect(source).toMatch(/sd-list-empty-state__extra/);
+  });
+
+  it.each([
+    '../backup/BackupFileList.vue',
+    '../ban/BanListPanel.vue',
+    '../censor/CensorFilesView.vue',
+    '../censor/CensorLogView.vue',
+    '../censor/CensorWordsView.vue',
+    '../base-setting/BaseSettingExtDefaultsField.vue',
+    '../custom-reply/ReplyFileSidebar.vue',
+    '../helpdoc/HelpdocFilePane.vue',
+    '../helpdoc/HelpdocItemPane.vue',
+    '../js/JsDataView.vue',
+    '../js/JsListView.vue',
+    '../package/PackageInstalledDataView.vue',
+    '../package/PackageStoreDataView.vue',
+    '../package/PackageFileTree.vue',
+    '../public-dice/PublicDiceEndpointSelector.vue',
+    '../resource/ResourceListPanel.vue',
+    '../../pages/connect.vue',
+    '../../pages/index.vue',
+    '../../pages/misc/group.vue',
+    '../../pages/mod/deck.vue',
+    '../../pages/mod/story.vue',
+  ])('uses the shared result empty state in %s', componentPath => {
+    expect(readComponent(componentPath)).toMatch(/<ListEmptyState/);
+  });
+
+  it('distinguishes an empty source from an empty local filter result', () => {
+    const source = readComponent('../censor/CensorWordsView.vue');
+
+    expect(source).toMatch(/words\.length === 0 \? '暂无敏感词'/);
+    expect(source).toMatch(/'没有符合筛选条件的敏感词'/);
+  });
 });

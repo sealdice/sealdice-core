@@ -41,7 +41,8 @@
           </template>
         </ResultToolbar>
       </template>
-      <ResponsiveDataView :compact-at="560" aria-label="审查词库文件">
+      <ListEmptyState v-if="files.length === 0" description="暂无审查词库文件" />
+      <ResponsiveDataView v-else :compact-at="560" aria-label="审查词库文件">
         <template #table>
           <n-data-table
             :columns="columns"
@@ -72,6 +73,7 @@
 <script setup lang="tsx">
 import type { DataTableColumns, UploadCustomRequestOptions } from 'naive-ui';
 import type { CensorFileInfo } from '@/api';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';

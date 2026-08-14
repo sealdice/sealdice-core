@@ -19,6 +19,10 @@
 
       <!-- List -->
       <ListPanel>
+        <ListEmptyState
+          v-if="!dataListQuery.isFetching.value && !dataListQuery.data.value?.keys?.length"
+          description="当前插件暂无数据项"
+        />
         <div v-for="kv in dataListQuery.data.value?.keys ?? []" :key="kv.key" class="data-row">
           <n-flex align="center" justify="space-between" wrap>
             <n-flex align="center" size="small">
@@ -33,7 +37,6 @@
             </n-flex>
           </n-flex>
         </div>
-        <n-text v-if="!dataListQuery.data.value?.keys?.length" depth="3">无数据</n-text>
       </ListPanel>
 
       <!-- Pagination -->
@@ -128,6 +131,7 @@ import {
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';

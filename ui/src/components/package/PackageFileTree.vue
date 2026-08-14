@@ -1,5 +1,5 @@
 <template>
-  <n-empty v-if="treeData.length === 0" description="暂无文件" />
+  <ListEmptyState v-if="treeData.length === 0" description="暂无扩展包文件" />
   <n-tree
     v-else
     block-line
@@ -13,6 +13,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { TreeOption } from 'naive-ui';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import { buildPackageFileTree } from '@/features/extension/model';
 
 const props = defineProps<{

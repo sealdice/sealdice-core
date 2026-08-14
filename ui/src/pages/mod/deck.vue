@@ -117,6 +117,8 @@
           </template>
 
           <main class="deck-data-block">
+            <ListEmptyState v-if="!items.length" description="暂无牌堆" />
+
             <FoldableCard
               v-for="(item, index) in items"
               :key="item.filename || index"
@@ -235,8 +237,6 @@
                 </n-descriptions>
               </template>
             </FoldableCard>
-
-            <n-empty v-if="!items.length" description="暂无牌堆" class="deck-empty" />
           </main>
         </ListPanel>
 
@@ -313,6 +313,7 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
@@ -770,10 +771,6 @@ function deckUpdate() {
 .deck-pagination-block {
   display: flex;
   justify-content: flex-end;
-}
-
-.deck-empty {
-  padding: 2rem 0;
 }
 
 .diff-dialog {

@@ -15,7 +15,8 @@
         </ResultToolbar>
       </template>
       <n-spin :show="loading">
-        <ResponsiveDataView :compact-at="960" aria-label="拦截命中日志">
+        <ListEmptyState v-if="!loading && logs.length === 0" description="暂无拦截命中日志" />
+        <ResponsiveDataView v-else :compact-at="960" aria-label="拦截命中日志">
           <template #table>
             <n-data-table
               :columns="columns"
@@ -74,6 +75,7 @@
 <script setup lang="tsx">
 import type { DataTableColumns } from 'naive-ui';
 import type { CensorLog } from '@/api';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';

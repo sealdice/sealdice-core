@@ -25,7 +25,11 @@
     </n-flex>
 
     <ListPanel>
-      <ResponsiveDataView :compact-at="520" aria-label="敏感词列表">
+      <ListEmptyState
+        v-if="filteredWords.length === 0"
+        :description="words.length === 0 ? '暂无敏感词' : '没有符合筛选条件的敏感词'"
+      />
+      <ResponsiveDataView v-else :compact-at="520" aria-label="敏感词列表">
         <template #table>
           <n-data-table
             class="w-full"
@@ -66,6 +70,7 @@
 import { computed, ref } from 'vue';
 import type { DataTableColumns } from 'naive-ui';
 import type { CensorWordItem } from '@/api';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import CensorSensitiveTag from './CensorSensitiveTag.vue';

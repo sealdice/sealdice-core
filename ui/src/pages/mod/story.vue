@@ -59,6 +59,8 @@
                 </ResultToolbar>
               </template>
 
+              <ListEmptyState v-if="!logs.length" description="暂无跑团日志" />
+
               <template v-for="log in logs" :key="log.id">
                 <FoldableCard class="story-log-card">
                   <template #title>
@@ -319,6 +321,7 @@ import { NButton, NFlex, NText, useDialog, useMessage } from 'naive-ui';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';

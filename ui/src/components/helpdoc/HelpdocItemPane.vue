@@ -11,7 +11,8 @@
             </template>
           </ResultToolbar>
         </template>
-        <ResponsiveDataView :compact-at="900" aria-label="帮助文档词条">
+        <ListEmptyState v-if="!loading && items.length === 0" description="暂无帮助文档词条" />
+        <ResponsiveDataView v-else :compact-at="900" aria-label="帮助文档词条">
           <template #table>
             <n-data-table
               class="item-list"
@@ -79,6 +80,7 @@ import {
   type HelpdocItemQueryModel,
 } from '@/features/helpdoc/queries';
 import { cloneSearchFormValues, overwriteSearchFormValues } from '@/features/searchForm/viewModel';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 
 const query = defineModel<HelpdocItemQueryModel>('query', { required: true });
 

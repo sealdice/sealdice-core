@@ -97,7 +97,7 @@
     </div>
 
     <div class="panel-body">
-      <n-empty v-if="!files.length" description="暂无文件" />
+      <ListEmptyState v-if="!files.length" description="暂无回复文件" />
       <button
         v-for="item in files"
         :key="item.filename"
@@ -143,6 +143,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { UploadCustomRequestOptions } from 'naive-ui';
 import { createProSearchForm, ProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import type { FileInfo } from '@/api';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import { overwriteSearchFormValues } from '@/features/searchForm/viewModel';
 import type { ReplyFileQuery } from '@/features/customReply/useCustomReplyEditor';
