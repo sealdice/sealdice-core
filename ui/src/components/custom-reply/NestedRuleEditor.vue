@@ -162,13 +162,13 @@
                     <n-text>回复文本（随机选择）</n-text>
                   </div>
 
-                  <RepeatableList add-label="添加随机回复" @add="addMessageItem(result.message)">
+                  <RepeatableList add-label="添加回复" @add="addMessageItem(result.message)">
                     <RepeatableItem
                       v-for="(msg, mIdx) in result.message"
                       :key="mIdx"
                       :title="`回复 ${Number(mIdx) + 1}`"
                       :removable="result.message.length > 1"
-                      remove-label="删除随机回复"
+                      remove-label="删除回复"
                       @remove="removeMessageItem(result.message, Number(mIdx))"
                     >
                       <n-input

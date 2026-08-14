@@ -8,7 +8,12 @@
     </div>
 
     <div class="section-body">
-      <RepeatableList add-label="添加规则" @add="emit('add')">
+      <RepeatableList
+        add-label="添加规则"
+        :empty="!rules.length"
+        empty-text="当前无规则"
+        @add="emit('add')"
+      >
         <NestedRuleEditor
           :tasks="rules"
           :start-index="startIndex"

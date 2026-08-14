@@ -168,7 +168,9 @@ const editor = useCustomReplyEditor();
   min-width: 0;
   flex: 1 1 auto;
   min-height: 620px;
+  overflow: hidden;
   border: 1px solid var(--sd-border);
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
 }
 

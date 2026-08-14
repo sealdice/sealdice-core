@@ -58,12 +58,25 @@ describe('repeatable setting migrations', () => {
     expect(card).toMatch(/可用变量：/);
   });
 
+  it('keeps the custom reply workspace and empty rule state consistent', () => {
+    const workspace = readComponent('../custom-reply/CustomReplyEditor.vue');
+    const rules = readComponent('../custom-reply/ReplyRulesSection.vue');
+
+    expect(workspace).toMatch(/border-radius: var\(--sd-radius-md\)/);
+    expect(workspace).toMatch(/overflow: hidden/);
+    expect(rules).toMatch(/:empty="!rules\.length"/);
+    expect(rules).toMatch(/empty-text="当前无规则"/);
+  });
+
   it('keeps nested reply conditions removable and reports edits', () => {
     const editor = readComponent('../custom-reply/NestedRuleEditor.vue');
     const builder = readComponent('../custom-reply/ConditionBuilder.vue');
 
     expect(editor).toMatch(/@delete-condition="deleteAnyItem\(el\.conditions, \$event\)"/);
     expect(editor).toMatch(/<n-switch/);
+    expect(editor).toMatch(/i-tabler-trash/);
+    expect(editor).toMatch(/add-label="添加回复"/);
+    expect(editor).not.toMatch(/添加随机回复/);
     expect(builder).toMatch(/watch\(listModel, \(\) => emit\('change'\)/);
   });
 });
