@@ -58,7 +58,7 @@
           v-else-if="item.input_type === 6"
           :value="checkboxValueOf(item)"
           :disabled="isDisabled(item)"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
+          @update:value="setCheckboxGroupValue(item, $event)"
         >
           <n-space>
             <n-checkbox
@@ -75,7 +75,7 @@
           :value="dateValueOf(item)"
           :type="item.input_type === 11 ? 'datetimerange' : 'datetime'"
           :disabled="isDisabled(item)"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
+          @update:value="setDateValue(item, $event)"
         />
         <n-input
           v-else
@@ -173,6 +173,12 @@ const checkboxValueOf = (item: FormConfigItem) =>
   valueOf(fieldKeyOf(item)) as Array<string | number>;
 const dateValueOf = (item: FormConfigItem) =>
   valueOf(fieldKeyOf(item)) as number | [number, number] | null;
+// 用 $event 转发而非内联箭头函数：这两个控件可能不在自动导入声明里，
+// 内联参数会被推断成隐式 any 导致 type-check 失败。
+const setCheckboxGroupValue = (item: FormConfigItem, value: Array<string | number> | null) =>
+  updateValue(fieldKeyOf(item), value);
+const setDateValue = (item: FormConfigItem, value: number | [number, number] | null) =>
+  updateValue(fieldKeyOf(item), value);
 
 const getPayload = () => buildDynamicFormPayload(props.schema, props.modelValue);
 const isValid = () => validation.value.valid;
