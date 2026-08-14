@@ -20,13 +20,13 @@ body {
 }
 
 :root {
-  --sd-primary: #2563eb;
-  --sd-success: #15803d;
-  --sd-warning: #b45309;
-  --sd-error: #dc2626;
+  --sd-primary: #3069e5;
+  --sd-success: #218755;
+  --sd-warning: #a26b0c;
+  --sd-error: #dd2929;
   --sd-info: var(--sd-primary);
   --sd-accent: var(--sd-primary);
-  --sd-accent-strong: #1d4ed8;
+  --sd-accent-strong: #1f4cbf;
   --sd-primary-soft: color-mix(in srgb, var(--sd-primary) 9%, transparent);
   --sd-primary-soft-strong: color-mix(in srgb, var(--sd-primary) 16%, transparent);
   --sd-primary-border: color-mix(in srgb, var(--sd-primary) 22%, transparent);
@@ -42,7 +42,7 @@ body {
   --sd-bg-app: #f4f6f9;
   --sd-bg-page: #f4f6f9;
   --sd-bg-shell: #f4f6f9;
-  --sd-bg-sidebar: #111827;
+  --sd-bg-sidebar: #243247;
   --sd-bg-elevated: #ffffff;
   --sd-bg-control: #f1f4f8;
   --sd-bg-control-hover: #e8edf4;
@@ -131,6 +131,11 @@ body {
 }
 
 .dark {
+  --sd-primary: #6791f1;
+  --sd-success: #4cac73;
+  --sd-warning: #ca9438;
+  --sd-error: #ea6666;
+  --sd-accent-strong: #89a9ea;
   --sd-primary-soft: color-mix(in srgb, var(--sd-primary) 16%, transparent);
   --sd-primary-soft-strong: color-mix(in srgb, var(--sd-primary) 24%, transparent);
   --sd-primary-border: color-mix(in srgb, var(--sd-primary) 28%, transparent);

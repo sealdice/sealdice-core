@@ -11,10 +11,17 @@ export const THEME_COLOR_KEYS: ThemeColorKey[] = ['primary', 'success', 'warning
 
 // 应用仅维护四种有彩语义。info 是组件库兼容名称，始终映射到 primary。
 export const DEFAULT_THEME_PALETTE: ThemePalette = {
-  primary: '#2563eb',
-  success: '#15803d',
-  warning: '#b45309',
-  error: '#dc2626',
+  primary: '#3069e5',
+  success: '#218755',
+  warning: '#a26b0c',
+  error: '#dd2929',
+};
+
+const darkThemePalette: ThemePalette = {
+  primary: '#6791f1',
+  success: '#4cac73',
+  warning: '#ca9438',
+  error: '#ea6666',
 };
 
 const componentColorKeys: ComponentColorKey[] = ['primary', 'info', 'success', 'warning', 'error'];
@@ -61,8 +68,9 @@ const colorTokenNames: Record<
   },
 };
 
-function getPaletteColor(key: ComponentColorKey): string {
-  return key === 'info' ? DEFAULT_THEME_PALETTE.primary : DEFAULT_THEME_PALETTE[key];
+function getPaletteColor(key: ComponentColorKey, theme: ResolvedTheme): string {
+  const palette = theme === 'dark' ? darkThemePalette : DEFAULT_THEME_PALETTE;
+  return key === 'info' ? palette.primary : palette[key];
 }
 
 function getGeneratedColor(color: string, index: number, theme: ResolvedTheme): string {
@@ -134,7 +142,7 @@ function createStatusColorOverrides(
   key: ComponentColorKey,
   theme: ResolvedTheme
 ): NonNullable<GlobalThemeOverrides['common']> {
-  const color = getPaletteColor(key);
+  const color = getPaletteColor(key, theme);
   const tokenNames = colorTokenNames[key];
   const accessibleColor = getAccessibleSemanticColor(color, theme);
   const accessibleHoverColor = getAccessibleSemanticColor(
@@ -158,7 +166,7 @@ function createButtonColorOverrides(
   key: ComponentColorKey,
   theme: ResolvedTheme
 ): Record<string, string> {
-  const color = getPaletteColor(key);
+  const color = getPaletteColor(key, theme);
   const typeName = `${key[0].toUpperCase()}${key.slice(1)}`;
   const accessibleColor = getAccessibleSemanticColor(color, theme);
   const accessibleHoverColor = getAccessibleSemanticColor(
@@ -325,11 +333,9 @@ export function syncDocumentThemePalette(root: HTMLElement | undefined): void {
   if (!root) return;
 
   const theme = root.dataset?.theme === 'dark' ? 'dark' : 'light';
+  const palette = theme === 'dark' ? darkThemePalette : DEFAULT_THEME_PALETTE;
   const resolvedColors = Object.fromEntries(
-    THEME_COLOR_KEYS.map(key => [
-      key,
-      getAccessibleSemanticColor(DEFAULT_THEME_PALETTE[key], theme),
-    ])
+    THEME_COLOR_KEYS.map(key => [key, getAccessibleSemanticColor(palette[key], theme)])
   ) as ThemePalette;
 
   for (const key of THEME_COLOR_KEYS) {
@@ -341,6 +347,6 @@ export function syncDocumentThemePalette(root: HTMLElement | undefined): void {
   root.style.setProperty('--sd-accent', resolvedColors.primary);
   root.style.setProperty(
     '--sd-accent-strong',
-    getAccessibleSemanticColor(getGeneratedColor(DEFAULT_THEME_PALETTE.primary, 6, theme), theme)
+    getAccessibleSemanticColor(getGeneratedColor(palette.primary, 6, theme), theme)
   );
 }
