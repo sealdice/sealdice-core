@@ -20,6 +20,7 @@
           {{ addLabel }}
         </n-button>
       </slot>
+      <slot name="footer-extra" />
     </div>
   </section>
 </template>

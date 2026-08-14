@@ -33,8 +33,8 @@
           :group="group"
         >
           <template #values>
-            <n-grid x-gap="24" y-gap="16" cols="1 m:2" responsive="screen">
-              <n-grid-item v-for="[keyName] in values" :key="keyName">
+            <div class="entry-columns">
+              <div v-for="[keyName] in values" :key="keyName" class="entry-column-item">
                 <CustomTextEntryCard
                   v-model="editor.texts.value[editor.category.value][keyName]"
                   :category="editor.category.value"
@@ -49,8 +49,8 @@
                   @delete-key="editor.askDeleteValue"
                   @reset-key="editor.askResetValue"
                 />
-              </n-grid-item>
-            </n-grid>
+              </div>
+            </div>
           </template>
         </CustomTextBox>
       </n-collapse>
@@ -100,5 +100,23 @@ const editor = useCustomTextEditor(() => props.category);
 
 .text-collapse {
   width: 100%;
+}
+
+.entry-columns {
+  column-count: 1;
+  column-gap: var(--sd-space-xl);
+}
+
+.entry-column-item {
+  display: inline-block;
+  width: 100%;
+  margin-bottom: var(--sd-space-md);
+  break-inside: avoid;
+}
+
+@media (min-width: 1024px) {
+  .entry-columns {
+    column-count: 2;
+  }
 }
 </style>

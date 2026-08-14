@@ -63,7 +63,7 @@
           连接方式支持该功能，若不支持请于「基本设置」中关闭戳一戳来避免日志中出现相关报错。
         </n-text>
 
-        <RepeatableList add-label="添加文案" @add="emit('addItem', keyName)">
+        <RepeatableList add-label="添加文案" @add="handleAddItem">
           <RepeatableItem
             v-for="(item, index) in visibleItems"
             :key="textItemKeyOf(keyName, item)"
@@ -103,17 +103,27 @@
               </div>
             </div>
           </RepeatableItem>
+
+          <template #footer-extra>
+            <n-button
+              v-if="isLongList"
+              secondary
+              size="small"
+              :aria-expanded="!collapsed"
+              @click="collapsed = !collapsed"
+            >
+              <template #icon>
+                <i-tabler-chevron-down v-if="collapsed" />
+                <i-tabler-chevron-up v-else />
+              </template>
+              {{
+                collapsed
+                  ? `展开更多（其余 ${items.length - visibleItems.length} 条）`
+                  : '收起更多文案'
+              }}
+            </n-button>
+          </template>
         </RepeatableList>
-        <n-button
-          v-if="isLongList"
-          text
-          size="small"
-          class="entry-expand-button"
-          :aria-expanded="!collapsed"
-          @click="collapsed = !collapsed"
-        >
-          {{ collapsed ? `展开其余 ${items.length - visibleItems.length} 条` : '收起多余条目' }}
-        </n-button>
         <n-flex v-if="help?.vars?.length" size="small" align="center" wrap>
           <n-text depth="3" class="text-xs">可用变量：</n-text>
           <n-tag v-for="item in help.vars" :key="item" size="small" :bordered="false">
@@ -140,7 +150,7 @@ const visibleItems = computed(() =>
   isLongList.value && collapsed.value ? items.value.slice(0, 3) : items.value
 );
 
-defineProps<{
+const props = defineProps<{
   category: string;
   keyName: string;
   help?: Value;
@@ -156,6 +166,11 @@ const emit = defineEmits<{
   deleteKey: [category: string, keyName: string];
   resetKey: [category: string, keyName: string];
 }>();
+
+function handleAddItem() {
+  collapsed.value = false;
+  emit('addItem', props.keyName);
+}
 </script>
 
 <style scoped>
@@ -166,10 +181,6 @@ const emit = defineEmits<{
 .entry-action-button {
   float: right;
   margin-left: 1rem;
-}
-
-.entry-expand-button {
-  align-self: flex-start;
 }
 
 .preview-icon {
