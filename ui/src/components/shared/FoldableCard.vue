@@ -14,7 +14,7 @@
         "
       >
         <div class="foldable-card-title-row">
-          <div class="foldable-card-title">
+          <div :id="titleId" class="foldable-card-title">
             <slot name="title" />
           </div>
           <div class="foldable-card-title-actions">
@@ -48,7 +48,7 @@
       </header>
 
       <template v-if="!folded">
-        <div :id="panelId" class="w-full" role="region">
+        <div :id="panelId" :aria-labelledby="titleId" class="w-full" role="region">
           <div class="w-full">
             <slot name="default" />
           </div>
@@ -98,7 +98,7 @@
         "
       >
         <div class="foldable-card-title-row">
-          <div class="foldable-card-title">
+          <div :id="titleId" class="foldable-card-title">
             <slot name="title" />
           </div>
           <div class="foldable-card-title-actions">
@@ -132,7 +132,7 @@
       </header>
 
       <template v-if="!folded">
-        <div :id="panelId" class="w-full" role="region">
+        <div :id="panelId" :aria-labelledby="titleId" class="w-full" role="region">
           <div class="w-full">
             <slot name="default" />
           </div>
@@ -196,6 +196,7 @@ const props = withDefaults(
 
 const folded = ref<boolean | undefined>(undefined);
 const panelId = `foldable-panel-${useId()}`;
+const titleId = `foldable-title-${useId()}`;
 
 const open = () => {
   folded.value = false;

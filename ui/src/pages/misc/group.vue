@@ -464,6 +464,8 @@ async function searchGroups() {
       listQuery.page -= 1;
       await searchGroups();
     }
+  } catch (error) {
+    reportOperationError('加载群组失败', error);
   } finally {
     listLoading.value = false;
   }

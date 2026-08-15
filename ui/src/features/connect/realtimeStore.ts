@@ -53,9 +53,9 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
     ready.value = nextState.ready;
   }
 
-  function applyInitialSnapshot(nextConnections?: EndPointInfo[] | null): void {
-    // HTTP 首屏快照只在实时快照尚未到达时兜底，避免把后续实时增量状态覆盖回旧数据。
-    if (ready.value) return;
+  function applyInitialSnapshot(nextConnections?: EndPointInfo[] | null, force = false): void {
+    // HTTP 首屏快照只在实时快照尚未到达时兜底；force 用于 SSE 断开时回退到 HTTP 数据。
+    if (ready.value && !force) return;
     replaceSnapshot(nextConnections);
   }
 

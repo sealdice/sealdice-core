@@ -1,5 +1,5 @@
 <template>
-  <div class="condition-list">
+  <div class="condition-list" role="list">
     <RepeatableItem
       v-for="(cond, index) in listModel"
       :key="conditionKeyOf(cond)"

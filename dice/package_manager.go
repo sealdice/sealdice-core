@@ -266,7 +266,14 @@ func (pm *PackageManager) scanSourceArtifacts() (map[string][]*packageArtifactCa
 			pm.parent.Logger.Warnf("扫描扩展包目录时发生错误: %v", walkErr)
 			return nil
 		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), "staged-") && strings.HasSuffix(strings.ToLower(d.Name()), ".tmp") {
+			_ = os.Remove(pkgFilePath)
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {
 			return nil
 		}
 
@@ -933,6 +940,18 @@ func (pm *PackageManager) installFromSourceContext(ctx context.Context, pkgPath 
 		_ = os.RemoveAll(stagedCachePath)
 		return err
 	}
+
+	// 在移动源文件/切换安装目录前先创建用户数据目录，
+	// 失败时不会留下“源文件和安装缓存已就位但包未注册”的半安装状态。
+	userDataPath := pm.getUserDataPath(pkgID)
+	if err := os.MkdirAll(userDataPath, 0o755); err != nil {
+		if !sourceAlreadyStaged {
+			_ = os.Remove(stagedSourcePath)
+		}
+		_ = os.RemoveAll(stagedCachePath)
+		return err
+	}
+
 	if err := os.Rename(stagedSourcePath, destPkgPath); err != nil {
 		if !sourceAlreadyStaged {
 			_ = os.Remove(stagedSourcePath)
@@ -943,11 +962,6 @@ func (pm *PackageManager) installFromSourceContext(ctx context.Context, pkgPath 
 	if err := pm.swapInstallDir(stagedCachePath, pm.getPackageInstallPath(pkgID)); err != nil {
 		_ = os.Remove(destPkgPath)
 		pm.removeEmptyParents(filepath.Dir(destPkgPath), pm.getSourcePackagesPath())
-		return err
-	}
-
-	userDataPath := pm.getUserDataPath(pkgID)
-	if err := os.MkdirAll(userDataPath, 0o755); err != nil {
 		return err
 	}
 
@@ -1426,7 +1440,8 @@ func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, 
 }
 
 func (pm *PackageManager) stageSourceArtifact(srcPath, destDir string) (string, error) {
-	tempFile, err := os.CreateTemp(destDir, "staged-*.sealpack")
+	// 不用 .sealpack 后缀，避免崩溃残留被 scanSourceArtifacts 当成正式源包。
+	tempFile, err := os.CreateTemp(destDir, "staged-*.tmp")
 	if err != nil {
 		return "", err
 	}

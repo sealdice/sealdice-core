@@ -25,8 +25,22 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
     logs.value = applyLogSnapshot(logs.value, items ?? null);
   }
 
+  function isSameLogItem(left: BaseLogEntry | undefined, right: BaseLogItem): boolean {
+    return Boolean(
+      left &&
+        left.level === right.level &&
+        left.module === right.module &&
+        left.ts === right.ts &&
+        left.msg === right.msg
+    );
+  }
+
   function applyAppend(item?: BaseLogItem | null, limit = 500): void {
-    logs.value = applyLogAppend(logs.value, item ?? null, limit);
+    if (!item) return;
+    // SSE 建立瞬间快照与 append 存在竞态窗口，后端可能把同一条日志同时
+    // 放进 bootstrap 快照和追加事件，这里按相邻相同日志去重。
+    if (isSameLogItem(logs.value[logs.value.length - 1], item)) return;
+    logs.value = applyLogAppend(logs.value, item, limit);
   }
 
   function clearLogs(): void {

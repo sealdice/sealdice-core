@@ -306,7 +306,11 @@ watch(
 watch(
   () => connectionsQuery.data.value,
   data => {
-    if (data) realtimeConnections.applyInitialSnapshot(data.item.items ?? null);
+    if (!data) return;
+    realtimeConnections.applyInitialSnapshot(
+      data.item.items ?? null,
+      !realtimeConnections.connected.value
+    );
   },
   { immediate: true }
 );

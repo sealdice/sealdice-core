@@ -134,6 +134,15 @@ watch(
   }
 );
 
+watch(
+  [helpItems, itemTotal],
+  ([items, total]) => {
+    if (items.length === 0 && total > 0 && itemQuery.pageNum > 1) {
+      itemQuery.pageNum -= 1;
+    }
+  }
+);
+
 watch(uploadDialogVisible, visible => {
   if (visible) return;
   uploadFiles.value = [];
