@@ -14,8 +14,8 @@ func TestBuildRestartArgsPreservesDeploymentOptions(t *testing.T) {
 }
 
 func TestBuildRestartArgsRemovesSplitDelay(t *testing.T) {
-	input := []string{"--delay", "15", "--hide-ui-when-boot"}
-	want := []string{"--hide-ui-when-boot", "--delay=3"}
+	input := []string{"--delay", "15", "--hide-ui"}
+	want := []string{"--hide-ui", "--delay=3"}
 	if got := buildRestartArgs(input, "3"); !reflect.DeepEqual(got, want) {
 		t.Fatalf("buildRestartArgs() = %#v, want %#v", got, want)
 	}

@@ -179,6 +179,7 @@ func main() {
 	runtime.SetMutexProfileFraction(opts.MutexProfileRate)
 	runtime.SetBlockProfileRate(opts.BlockProfileRate)
 	if opts.Delay != 0 {
+		fmt.Fprintf(os.Stdout, "延迟启动 %d 秒\n", opts.Delay)
 		time.Sleep(time.Duration(opts.Delay) * time.Second)
 	}
 
@@ -241,8 +242,8 @@ func main() {
 			uiWriter:      uiWriter,
 		})
 		serveAddress := opts.Address
-		_, externalFrontendErr := os.Stat("./frontend_overwrite")
-		useBuiltinUI := externalFrontendErr != nil
+		externalFrontend, externalFrontendErr := os.Stat("./frontend_overwrite")
+		useBuiltinUI := externalFrontendErr != nil || !externalFrontend.IsDir()
 		if !opts.ShowConsole || opts.MultiInstanceOnWindows {
 			hideWindow()
 		}

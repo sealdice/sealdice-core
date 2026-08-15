@@ -127,7 +127,7 @@ func (dm *DiceManager) backupWithOptions(sel BackupSelection, fromAuto, strict b
 		bakFn += "_auto"
 	}
 	bakFn += "_r" + strconv.FormatUint(uint64(sel), 16)
-	fnHashed := crypto.CalculateSHA512Str([]byte(bakFn))[:8]
+	fnHashed := crypto.CalculateSHA512Str([]byte(bakFn + strconv.FormatInt(time.Now().UnixNano(), 16)))[:8]
 	bakFn += "_" + fnHashed + ".zip"
 	target := filepath.Join(BackupDir, bakFn)
 
@@ -639,7 +639,13 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 		if f.IsDir() {
 			continue
 		}
-		if fi, err := f.Info(); err == nil {
+		if strings.HasPrefix(f.Name(), ".bak-") || strings.HasSuffix(f.Name(), ".part") {
+			continue
+		}
+		if !strings.EqualFold(filepath.Ext(f.Name()), ".zip") {
+			continue
+		}
+		if fi, err := f.Info(); err == nil && fi.Mode().IsRegular() {
 			fileInfos = append(fileInfos, fi)
 		}
 	}
@@ -671,17 +677,30 @@ func (dm *DiceManager) BackupClean(fromAuto bool) (err error) {
 	_, _ = fmt.Fprintf(&logMsg, ", 有以下 %d 个将要被删除", len(fileInfoOld)) //nolint:gosec
 
 	errDel := []string{}
+	deletedCount := 0
+	skippedCount := 0
 	for i, fi := range fileInfoOld {
 		_, _ = fmt.Fprintf(&logMsg, "\n%d. %s", i+1, fi.Name()) //nolint:gosec
-		if BackupInUse(fi.Name()) {
+		inUse, useErr := backupInUseLocked(fi.Name())
+		if useErr != nil {
+			skippedCount++
+			_, _ = fmt.Fprintf(&logMsg, "（无法读取恢复事务元数据，已跳过）") //nolint:gosec
+			log.Warnf("清理备份时无法读取恢复事务元数据: %v", useErr)
+			continue
+		}
+		if inUse {
+			skippedCount++
 			_, _ = fmt.Fprintf(&logMsg, "（恢复事务正在使用，已跳过）") //nolint:gosec
 			continue
 		}
 		errDelete := os.Remove(filepath.Join(BackupDir, fi.Name())) //nolint:gosec
 		if errDelete != nil {
 			errDel = append(errDel, errDelete.Error())
+		} else {
+			deletedCount++
 		}
 	}
+	_, _ = fmt.Fprintf(&logMsg, "\n实际删除 %d 个，跳过 %d 个", deletedCount, skippedCount) //nolint:gosec
 
 	log.Info(logMsg.String())
 

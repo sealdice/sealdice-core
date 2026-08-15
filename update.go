@@ -77,35 +77,6 @@ func downloadUpdate(dm *dice.DiceManager, log *zap.SugaredLogger) (string, error
 	return packFn, nil
 }
 
-func RebootRequestListen(dm *dice.DiceManager) {
-	<-dm.RebootRequestChan
-	doReboot(dm)
-}
-
-func UpdateCheckRequestListen(dm *dice.DiceManager) {
-	for {
-		<-dm.UpdateCheckRequestChan
-		CheckVersion(dm)
-	}
-}
-
-func UpdateRequestListen(dm *dice.DiceManager) {
-	curDice := <-dm.UpdateRequestChan
-	log := curDice.Logger
-	updatePackFn, err := downloadUpdate(dm, log)
-	if err == nil {
-		dm.UpdateDownloadedChan <- ""
-		time.Sleep(2 * time.Second)
-		log.Info("进行升级准备工作")
-
-		dm.UpdateSealdiceByFile(updatePackFn)
-		// 旧版本行为: 将新升级包里的主程序复制到当前目录，命名为 auto_update.exe 或 auto_update
-		// 然后重启主程序
-	} else {
-		dm.UpdateDownloadedChan <- err.Error()
-	}
-}
-
 func doReboot(dm *dice.DiceManager) {
 	log := logger.M()
 	executablePath, err := os.Executable()
