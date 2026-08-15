@@ -24,6 +24,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/text/encoding/charmap"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/logger"
@@ -500,6 +501,17 @@ func managedSQLiteDatabaseFiles(dm *DiceManager, requireExisting bool) ([]manage
 	return result, nil
 }
 
+func decodeZipEntryName(name string, nonUTF8 bool) (string, error) {
+	if !nonUTF8 {
+		return name, nil
+	}
+	decoded, err := charmap.CodePage437.NewDecoder().Bytes([]byte(name))
+	if err != nil {
+		return "", fmt.Errorf("解码 CP437 压缩包路径失败: %w", err)
+	}
+	return string(decoded), nil
+}
+
 func isWindowsReservedName(segment string) bool {
 	base := strings.ToUpper(strings.TrimRight(strings.SplitN(segment, ".", 2)[0], " ."))
 	if base == "CON" || base == "PRN" || base == "AUX" || base == "NUL" || base == "CONIN$" || base == "CONOUT$" || base == "CLOCK$" {
@@ -788,7 +800,11 @@ func inspectBackupArchiveDetailedFile(file *os.File, stat os.FileInfo, filename 
 	var uncompressed uint64
 	var compressed uint64
 	for _, item := range reader.File {
-		clean, cleanErr := normalizeBackupEntryName(item.Name, item.FileInfo().IsDir())
+		decodedName, decodeErr := decodeZipEntryName(item.Name, item.NonUTF8)
+		if decodeErr != nil {
+			return nil, nil, emptyManifest, decodeErr
+		}
+		clean, cleanErr := normalizeBackupEntryName(decodedName, item.FileInfo().IsDir())
 		if cleanErr != nil {
 			return nil, nil, emptyManifest, cleanErr
 		}
@@ -988,7 +1004,11 @@ func validateBackupDataFile(file *os.File, stat os.FileInfo, filename string) er
 		if item.FileInfo().IsDir() {
 			continue
 		}
-		clean, cleanErr := normalizeBackupEntryName(item.Name, false)
+		decodedName, decodeErr := decodeZipEntryName(item.Name, item.NonUTF8)
+		if decodeErr != nil {
+			return decodeErr
+		}
+		clean, cleanErr := normalizeBackupEntryName(decodedName, false)
 		if cleanErr != nil {
 			return cleanErr
 		}
@@ -2088,7 +2108,11 @@ func extractBackupTo(source, destination string) error {
 	}
 	defer func() { _ = reader.Close() }()
 	for _, item := range reader.File {
-		clean, cleanErr := normalizeBackupEntryName(item.Name, item.FileInfo().IsDir())
+		decodedName, decodeErr := decodeZipEntryName(item.Name, item.NonUTF8)
+		if decodeErr != nil {
+			return decodeErr
+		}
+		clean, cleanErr := normalizeBackupEntryName(decodedName, item.FileInfo().IsDir())
 		if cleanErr != nil {
 			return cleanErr
 		}
