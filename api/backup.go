@@ -94,7 +94,8 @@ func backupDownload(c echo.Context) error {
 	name := c.QueryParam("name")
 	archive, archiveInfo, err := dice.OpenBackupArchive(name)
 	if err != nil {
-		return Error(&c, err.Error(), Response{})
+		// Preserve the legacy response shape for invalid names.
+		return c.JSON(http.StatusOK, nil)
 	}
 	defer archive.Close()
 	c.Response().Header().Set(
@@ -118,7 +119,11 @@ func backupDelete(c echo.Context) error {
 	name := c.QueryParam("name")
 	err := dice.DeleteBackup(name)
 	if err != nil {
-		return Error(&c, err.Error(), Response{})
+		return c.JSON(http.StatusOK, map[string]interface{}{
+			"success": false,
+			"result":  false,
+			"err":     err.Error(),
+		})
 	}
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"success": true,
@@ -143,6 +148,10 @@ func backupBatchDelete(c echo.Context) error {
 
 	fails := make([]string, 0, len(v.Names))
 	for _, name := range v.Names {
+		// Preserve the legacy skip behavior for empty or path-shaped names.
+		if name == "" || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+			continue
+		}
 		if deleteErr := dice.DeleteBackup(name); deleteErr != nil {
 			fails = append(fails, name)
 		}
@@ -167,6 +176,8 @@ func backupUpload(c echo.Context) error {
 	if err != nil {
 		return Error(&c, "无法读取上传内容: "+err.Error(), Response{})
 	}
+	partCount := 0
+	fileParts := 0
 	for {
 		part, nextErr := reader.NextPart()
 		if nextErr != nil {
@@ -175,9 +186,19 @@ func backupUpload(c echo.Context) error {
 			}
 			return Error(&c, nextErr.Error(), Response{})
 		}
+		partCount++
+		if partCount > 64 {
+			_ = part.Close()
+			return Error(&c, "上传包含过多表单字段", Response{})
+		}
 		if part.FormName() != "file" {
 			_ = part.Close()
 			continue
+		}
+		fileParts++
+		if fileParts > 1 {
+			_ = part.Close()
+			return Error(&c, "一次只能上传一个备份文件", Response{})
 		}
 		originalName := filepath.Base(part.FileName())
 		logger.M().Infow("[备份导入] 开始接收并校验备份", "file", originalName)
@@ -231,6 +252,20 @@ func backupRestore(c echo.Context) error {
 		"source", request.Name,
 		"reused", operation.Reused,
 	)
+	if operation.Reused {
+		status := dice.GetRestoreStatus()
+		if status.State == "succeeded" && status.OperationID == operation.OperationID {
+			return Success(&c, Response{
+				"safetyBackupName": operation.SafetyBackupName,
+				"operationId":      operation.OperationID,
+				"statusToken":      operation.StatusToken,
+				"expiresAt":        operation.ExpiresAt,
+				"reloading":        false,
+				"switchMode":       "runtime",
+				"status":           status,
+			})
+		}
+	}
 	if !runtimeRestoreFn(operation.OperationID) {
 		logger.M().Errorw(
 			"[备份恢复] Runtime 恢复任务未被调度器接收",

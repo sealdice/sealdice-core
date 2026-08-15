@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -135,7 +136,7 @@ type restoreJournalRecord struct {
 
 type restoreStatusAuth struct {
 	OperationID string `json:"operationId"`
-	Token       string `json:"token,omitempty"`
+	Token       string `json:"-"`
 	TokenHash   string `json:"tokenHash,omitempty"`
 	ExpiresAt   int64  `json:"expiresAt"`
 }
@@ -169,6 +170,7 @@ var (
 	restoreSyncMutationParents = syncRestoreMutationParents
 	probeRestoreDiskSpace      = platformPackageDiskSpace
 	errEmptyRestoreJournal     = errors.New("恢复日志不含完整 begin 记录")
+	restoreTokenMemory         sync.Map // operationID -> in-memory status token
 )
 
 func mustMarshalJSON(value any) json.RawMessage {
@@ -198,12 +200,14 @@ func newRestoreStatusAuth(operationID string) (*restoreStatusAuth, error) {
 		return nil, err
 	}
 	digest := sha256.Sum256([]byte(token))
-	return &restoreStatusAuth{
+	auth := &restoreStatusAuth{
 		OperationID: operationID,
 		Token:       token,
 		TokenHash:   hex.EncodeToString(digest[:]),
 		ExpiresAt:   time.Now().Add(restoreStatusTokenValidDuration).Unix(),
-	}, nil
+	}
+	restoreTokenMemory.Store(operationID, token)
+	return auth, nil
 }
 
 func restoreDir() string { return filepath.Join(BackupDir, restoreDirName) }
@@ -1510,6 +1514,13 @@ func readRestoreStatusAuth() (*restoreStatusAuth, error) {
 	if err = json.Unmarshal(data, &auth); err != nil {
 		return nil, err
 	}
+	if auth.Token == "" && auth.TokenHash != "" {
+		if cached, ok := restoreTokenMemory.Load(auth.OperationID); ok {
+			if token, ok := cached.(string); ok && restoreStatusTokenMatches(token, auth.TokenHash) {
+				auth.Token = token
+			}
+		}
+	}
 	return &auth, nil
 }
 
@@ -1545,7 +1556,7 @@ func refreshRestoreStatusAuth(pending *restorePending, auth *restoreStatusAuth) 
 		return nil, errors.New("恢复授权不完整")
 	}
 	now := time.Now().Unix()
-	if auth.ExpiresAt > now {
+	if auth.ExpiresAt > now && auth.Token != "" {
 		if !restoreStatusTokenMatches(auth.Token, auth.TokenHash) {
 			return nil, errors.New("恢复授权 token 与哈希不一致")
 		}
@@ -1678,6 +1689,22 @@ func restoreOperationFromExisting(name, requestID string) (*RestoreOperation, bo
 	}
 	if !errors.Is(pendingErr, os.ErrNotExist) {
 		return nil, false, fmt.Errorf("读取已有恢复任务失败: %w", pendingErr)
+	}
+	// A finished restore keeps its terminal status after metadata cleanup, so
+	// an idempotent replay can be answered without re-scheduling anything.
+	if status.State == "succeeded" && status.OperationID == requestID && status.SourceName == name {
+		auth, authErr := readRestoreStatusAuth()
+		if authErr == nil && auth.OperationID == requestID {
+			auth, authErr = refreshRestoreStatusAuth(nil, auth)
+			if authErr != nil {
+				return nil, false, fmt.Errorf("刷新终态恢复授权失败: %w", authErr)
+			}
+			return &RestoreOperation{OperationID: requestID, StatusToken: auth.Token, ExpiresAt: auth.ExpiresAt, Reused: true}, true, nil
+		}
+		if authErr != nil && !errors.Is(authErr, os.ErrNotExist) {
+			return nil, false, fmt.Errorf("读取终态恢复授权失败: %w", authErr)
+		}
+		return &RestoreOperation{OperationID: requestID, Reused: true}, true, nil
 	}
 	auth, authErr := readRestoreStatusAuth()
 	if errors.Is(authErr, os.ErrNotExist) || (authErr == nil && auth.OperationID != requestID) {
@@ -2996,6 +3023,11 @@ func cleanupCommittedArtifacts(removeMetadata bool) error {
 	if cleanupErr == nil {
 		if err := restoreRemove(restoreJournalPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
 			cleanupErr = fmt.Errorf("清理恢复日志: %w", err)
+		}
+	}
+	if cleanupErr == nil {
+		if err := restoreRemove(restoreStatusAuthPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
+			cleanupErr = fmt.Errorf("清理恢复授权: %w", err)
 		}
 	}
 	if cleanupErr == nil {

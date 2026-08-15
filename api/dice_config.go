@@ -377,6 +377,7 @@ func DiceConfigSet(c echo.Context) error {
 			myDice.Parent.UIPasswordHash = val.(string)
 			// 清空所有现有的访问令牌，强制重新登录
 			myDice.Parent.AccessTokens = dice.SyncMap[string, bool]{}
+			refreshRuntimeAuth()
 		}
 	}
 

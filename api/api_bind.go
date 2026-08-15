@@ -148,7 +148,18 @@ type runtimeAuthSnapshot struct {
 	PasswordRequired bool
 }
 
+func refreshRuntimeAuth() {
+	if dm == nil {
+		return
+	}
+	runtimeAuth.Store(&runtimeAuthSnapshot{
+		Salt:             dm.UIPasswordSalt,
+		PasswordRequired: dm.UIPasswordHash != "",
+	})
+}
+
 func runtimeUnavailableResponse(c echo.Context) error {
+	c.Response().Header().Set(echo.HeaderCacheControl, "no-store")
 	code := "RUNTIME_RELOADING"
 	message := "Runtime 正在重新加载，请稍后重试"
 	if runtimeState.Load() == runtimeStateUnavailable {
@@ -246,10 +257,7 @@ func ReplaceRuntime(manager *dice.DiceManager) {
 	}
 	dm = manager
 	myDice = manager.Dice[0]
-	runtimeAuth.Store(&runtimeAuthSnapshot{
-		Salt:             manager.UIPasswordSalt,
-		PasswordRequired: manager.UIPasswordHash != "",
-	})
+	refreshRuntimeAuth()
 	if runtimeState.Load() != runtimeStateReloading {
 		runtimeState.Store(runtimeStateRunning)
 	}
