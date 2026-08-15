@@ -30,47 +30,51 @@ func (phase *lifecyclePhase) run(ctx context.Context, work func(context.Context)
 		ctx = context.Background()
 	}
 
-	phase.mu.Lock()
-	if phase.done == nil {
-		phase.done = make(chan struct{})
-		go func(done chan struct{}) {
-			err := runLifecycleWork(ctx, work)
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				err = errors.Join(err, ctxErr)
-			}
-			phase.mu.Lock()
-			phase.err = err
-			close(done)
-			phase.mu.Unlock()
-		}(phase.done)
-	}
-	done := phase.done
-	phase.mu.Unlock()
-
-	select {
-	case <-done:
+	for {
 		phase.mu.Lock()
-		err := phase.err
+		if phase.done == nil {
+			attemptCtx := ctx
+			phase.done = make(chan struct{})
+			go func(done chan struct{}, attemptCtx context.Context) {
+				err := runLifecycleWork(attemptCtx, work)
+				phase.mu.Lock()
+				phase.err = err
+				close(done)
+				phase.mu.Unlock()
+			}(phase.done, attemptCtx)
+		}
+		done := phase.done
 		phase.mu.Unlock()
-		return err
-	default:
-	}
 
-	select {
-	case <-done:
-		phase.mu.Lock()
-		err := phase.err
-		phase.mu.Unlock()
-		return err
-	case <-ctx.Done():
 		select {
 		case <-done:
 			phase.mu.Lock()
 			err := phase.err
+			// A phase that failed only because the attempt context expired can
+			// be retried by a later caller with a fresh context. Genuine
+			// shutdown errors remain sticky.
+			retryable := err != nil &&
+				(errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) &&
+				ctx.Err() == nil
+			if retryable {
+				phase.done = nil
+				phase.err = nil
+			}
 			phase.mu.Unlock()
+			if retryable {
+				continue
+			}
 			return err
-		default:
-			return ctx.Err()
+		case <-ctx.Done():
+			select {
+			case <-done:
+				phase.mu.Lock()
+				err := phase.err
+				phase.mu.Unlock()
+				return err
+			default:
+				return ctx.Err()
+			}
 		}
 	}
 }

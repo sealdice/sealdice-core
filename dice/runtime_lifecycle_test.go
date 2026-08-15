@@ -17,7 +17,7 @@ type lifecycleTestOperator struct {
 	closed atomic.Bool
 }
 
-func TestDiceManagerStopSharesTimeoutFailure(t *testing.T) {
+func TestDiceManagerStopRetriesAfterSharedPhaseTimeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	operator := &lifecycleTestOperator{}
 	manager := &DiceManager{Operator: operator}
@@ -31,20 +31,22 @@ func TestDiceManagerStopSharesTimeoutFailure(t *testing.T) {
 	if !errors.Is(firstErr, context.DeadlineExceeded) {
 		t.Fatalf("first Stop() error = %v, want deadline exceeded", firstErr)
 	}
+	if operator.closed.Load() {
+		t.Fatal("Finalize ran before Quiesce completed")
+	}
 	close(release)
 
 	secondCtx, secondCancel := context.WithTimeout(context.Background(), time.Second)
 	defer secondCancel()
-	secondErr := manager.Stop(secondCtx)
-	if secondErr == nil {
-		t.Fatal("second Stop() reported false success after the shared phase timed out")
+	if err := manager.Stop(secondCtx); err != nil {
+		t.Fatalf("second Stop() should wait for the shared phase result, got: %v", err)
 	}
-	if operator.closed.Load() {
-		t.Fatal("Finalize ran after Quiesce failed")
+	if !operator.closed.Load() {
+		t.Fatal("Finalize did not run after the shared Quiesce completed")
 	}
 }
 
-func TestLifecyclePhaseRecordsDeadlineWhenWorkIgnoresCancellation(t *testing.T) {
+func TestLifecyclePhaseRetriesAfterCallerTimeout(t *testing.T) {
 	var phase lifecyclePhase
 	release := make(chan struct{})
 	firstCtx, firstCancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
@@ -62,8 +64,40 @@ func TestLifecyclePhaseRecordsDeadlineWhenWorkIgnoresCancellation(t *testing.T) 
 	if err := phase.run(secondCtx, func(context.Context) error {
 		t.Fatal("lifecycle work ran more than once")
 		return nil
+	}); err != nil {
+		t.Fatalf("shared phase result = %v, want nil after work completed", err)
+	}
+}
+
+func TestLifecyclePhaseKeepsReportingTimeoutWhileWorkIsStillRunning(t *testing.T) {
+	var phase lifecyclePhase
+	release := make(chan struct{})
+	firstCtx, firstCancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer firstCancel()
+	if err := phase.run(firstCtx, func(context.Context) error {
+		<-release
+		return nil
 	}); !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("shared phase error = %v, want deadline exceeded", err)
+		t.Fatalf("first run error = %v, want deadline exceeded", err)
+	}
+
+	secondCtx, secondCancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer secondCancel()
+	if err := phase.run(secondCtx, func(context.Context) error {
+		t.Fatal("lifecycle work ran more than once")
+		return nil
+	}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("second run error = %v, want deadline exceeded while work is unfinished", err)
+	}
+	close(release)
+
+	finalCtx, finalCancel := context.WithTimeout(context.Background(), time.Second)
+	defer finalCancel()
+	if err := phase.run(finalCtx, func(context.Context) error {
+		t.Fatal("lifecycle work ran more than once")
+		return nil
+	}); err != nil {
+		t.Fatalf("final run error = %v, want nil after work completed", err)
 	}
 }
 
