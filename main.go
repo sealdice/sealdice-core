@@ -469,7 +469,7 @@ func main() {
 	})
 	cleanUp := cleanupCreate(nil)
 	defer dice.CrashLog()
-	defer cleanUp()
+	defer func() { _ = cleanUp() }()
 
 	// 强制清理机制
 	go (func() {
@@ -477,7 +477,7 @@ func main() {
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 		<-interrupt
-		cleanUp()
+		_ = cleanUp()
 		log.Info("程序即将退出，再见")
 		os.Exit(0)
 	})()
@@ -527,13 +527,13 @@ func serveUnavailableControlPlane(
 	})
 	cleanUp := cleanupCreate(nil)
 	defer dice.CrashLog()
-	defer cleanUp()
+	defer func() { _ = cleanUp() }()
 	go func() {
 		interrupt := make(chan os.Signal, 1)
 		signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(interrupt)
 		<-interrupt
-		cleanUp()
+		_ = cleanUp()
 		os.Exit(0)
 	}()
 	controlPlaneReady := make(chan struct{})

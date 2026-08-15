@@ -661,15 +661,6 @@ func readZIPDirectoryMetadata(file *os.File, size int64) (zipDirectoryMetadata, 
 	return metadata, nil
 }
 
-func preflightZIPCentralDirectory(filename string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = file.Close() }()
-	return preflightZIPCentralDirectoryFile(file)
-}
-
 func preflightZIPCentralDirectoryFile(file *os.File) error {
 	info, err := file.Stat()
 	if err != nil {
@@ -1059,19 +1050,6 @@ func validateBackupDataFile(file *os.File, stat os.FileInfo, filename string) er
 		return fmt.Errorf("data/dice.yaml 包含不安全的骰子名称: %w", err)
 	}
 	return nil
-}
-
-func copyFileSynced(source, target string) error {
-	src, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = src.Close() }()
-	info, err := src.Stat()
-	if err != nil {
-		return err
-	}
-	return copyFileSyncedFile(src, info, target)
 }
 
 func copyFileSyncedFile(src *os.File, info os.FileInfo, target string) error {
@@ -2411,8 +2389,8 @@ func readRestoreJournal() (*restoreJournal, error) {
 			}
 			journal = &restoreJournal{OperationID: record.OperationID, State: "planned", Entries: record.Entries}
 			for index := range journal.Entries {
-				if err := validateRestoreJournalEntryPaths(&journal.Entries[index]); err != nil {
-					return nil, fmt.Errorf("恢复日志第 %d 条路径校验失败: %w", lineNumber, err)
+				if validateErr := validateRestoreJournalEntryPaths(&journal.Entries[index]); validateErr != nil {
+					return nil, fmt.Errorf("恢复日志第 %d 条路径校验失败: %w", lineNumber, validateErr)
 				}
 			}
 			continue
@@ -3087,7 +3065,7 @@ func cleanupRolledBackArtifactsWithoutPending(journal *restoreJournal) error {
 	}
 	if cleanupErr == nil {
 		if err := restoreRemove(restoreJournalPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
-			cleanupErr = errors.Join(cleanupErr, err)
+			cleanupErr = err
 		}
 	}
 	if cleanupErr == nil {
