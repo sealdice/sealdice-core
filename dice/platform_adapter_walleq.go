@@ -177,6 +177,29 @@ type OnebotV12UserInfo struct {
 	Card            string `json:"card"`
 }
 
+func (pa *PlatformAdapterWalleQ) bumpLoginIndexLocked() int {
+	pa.CurLoginIndex++
+	return pa.CurLoginIndex
+}
+
+func (pa *PlatformAdapterWalleQ) bumpLoginIndex() int {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.bumpLoginIndexLocked()
+}
+
+func (pa *PlatformAdapterWalleQ) currentLoginIndex() int {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.CurLoginIndex
+}
+
+func (pa *PlatformAdapterWalleQ) socketSnapshot() *gowebsocket.Socket {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.Socket
+}
+
 func (pa *PlatformAdapterWalleQ) Serve() int {
 	if pa.runtimeStopping.Load() {
 		return 0
@@ -766,17 +789,22 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 func (pa *PlatformAdapterWalleQ) DoRelogin() bool {
 	d := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
-	if pa.Socket != nil {
-		socket := pa.Socket
+	pa.runtimeMu.Lock()
+	socket := pa.Socket
+	pa.Socket = nil
+	pa.runtimeMu.Unlock()
+	if socket != nil {
 		runDiceRuntimeTask(d, socket.Close)
-		pa.Socket = nil
 	}
 	if pa.UseInPackWalleQ {
-		if pa.InPackWalleQDisconnectedCH != nil {
-			signalAdapterStop(pa.InPackWalleQDisconnectedCH, -1)
+		pa.runtimeMu.Lock()
+		disconnected := pa.InPackWalleQDisconnectedCH
+		pa.runtimeMu.Unlock()
+		if disconnected != nil {
+			signalAdapterStop(disconnected, -1)
 		}
 		d.Logger.Infof(fmt.Sprintf("重启 Walle-q，账号<%s>(%s)", ep.Nickname, ep.UserID))
-		pa.CurLoginIndex++
+		pa.bumpLoginIndex()
 		pa.WalleQState = WqStateCodeInit
 		WalleQServeProcessKill(d, ep)
 		if !waitRuntimeDelay(diceRuntimeContext(d), 10*time.Second) {
@@ -795,7 +823,9 @@ func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
 	c := pa.EndPoint
 	if enable {
 		c.Enable = true
+		pa.runtimeMu.Lock()
 		pa.DiceServing = false
+		pa.runtimeMu.Unlock()
 
 		if pa.UseInPackWalleQ {
 			WalleQServeProcessKill(d, c)
@@ -817,11 +847,13 @@ func (pa *PlatformAdapterWalleQ) SetEnable(enable bool) {
 		}
 	} else {
 		c.Enable = false
+		pa.runtimeMu.Lock()
 		pa.DiceServing = false
 		if pa.Socket != nil {
 			pa.Socket.Close()
 			pa.Socket = nil
 		}
+		pa.runtimeMu.Unlock()
 		if pa.UseInPackWalleQ {
 			WalleQServeProcessKill(d, c)
 		}
@@ -848,7 +880,7 @@ func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {
 		"get_group_info",
 	})
 
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 func (pa *PlatformAdapterWalleQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
@@ -964,7 +996,7 @@ func (pa *PlatformAdapterWalleQ) QuitGroup(_ *MsgContext, id string) {
 		},
 	})
 
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 func (pa *PlatformAdapterWalleQ) SetGroupCardName(_ *MsgContext, _ string) {
@@ -983,7 +1015,7 @@ func (pa *PlatformAdapterWalleQ) MemberBan(groupID string, userID string, last i
 			groupID, userID, last,
 		},
 	})
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 func (pa *PlatformAdapterWalleQ) MemberKick(groupID string, userID string) {
@@ -997,7 +1029,7 @@ func (pa *PlatformAdapterWalleQ) MemberKick(groupID string, userID string) {
 			groupID, userID,
 		},
 	})
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 func (pa *PlatformAdapterWalleQ) EditMessage(_ *MsgContext, _, _ string) {}
@@ -1070,7 +1102,7 @@ func (pa *PlatformAdapterWalleQ) SendMessage(text string, ty string, id string, 
 			Message:    pa.TextToMessageSegment(text),
 		},
 	})
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 // GetLoginInfo 获取登录号信息
@@ -1080,7 +1112,7 @@ func (pa *PlatformAdapterWalleQ) GetLoginInfo() {
 		Echo:   "get_self_info",
 		Params: &struct{}{},
 	})
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 // GetGroupMemberInfo 获取群成员信息
@@ -1101,7 +1133,7 @@ func (pa *PlatformAdapterWalleQ) GetGroupMemberInfo(groupID string, userID strin
 	})
 
 	d := pa.waitGroupMemberInfoEcho(echo, func() {
-		socketSendText(pa.Socket, string(a))
+		socketSendText(pa.socketSnapshot(), string(a))
 	})
 
 	return &OnebotV12UserInfo{
@@ -1127,7 +1159,7 @@ func (pa *PlatformAdapterWalleQ) SetGroupAddRequest(rid int64, gid string, accep
 		},
 	})
 
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 // SetFriendAddRequest 同意好友
@@ -1148,7 +1180,7 @@ func (pa *PlatformAdapterWalleQ) SetFriendAddRequest(reqID int64, userID string,
 		},
 	})
 
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 // DeleteFriend 删除好友
@@ -1168,7 +1200,7 @@ func (pa *PlatformAdapterWalleQ) DeleteFriend(_ *MsgContext, id string) {
 		},
 	})
 
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 func (pa *PlatformAdapterWalleQ) UpVoiceFile(path string) {
@@ -1182,7 +1214,7 @@ func (pa *PlatformAdapterWalleQ) UpVoiceFile(path string) {
 		Echo:   "upload_file_voice",
 		Params: P{"path", path, "voice"},
 	})
-	socketSendText(pa.Socket, string(a))
+	socketSendText(pa.socketSnapshot(), string(a))
 }
 
 /** 格式化与反格式化 */

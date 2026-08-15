@@ -363,12 +363,11 @@ func (dm *DiceManager) IsStopped() bool {
 func (*PlatformAdapterHTTP) RuntimeShutdown(context.Context) error { return nil }
 
 func (pa *PlatformAdapterDiscord) RuntimeShutdown(_ context.Context) error {
-	if pa.IntentSession == nil {
+	session := pa.IntentSession
+	if session == nil {
 		return nil
 	}
-	err := pa.IntentSession.Close()
-	pa.IntentSession = nil
-	return err
+	return session.Close()
 }
 
 func (pa *PlatformAdapterDingTalk) RuntimeShutdown(_ context.Context) error {
@@ -406,48 +405,52 @@ func (pa *PlatformAdapterDodo) RuntimeShutdown(ctx context.Context) error {
 }
 
 func (pa *PlatformAdapterKook) RuntimeShutdown(_ context.Context) error {
-	if pa.IntentSession == nil {
+	session := pa.IntentSession
+	if session == nil {
 		return nil
 	}
-	err := pa.IntentSession.Close()
-	pa.IntentSession = nil
-	return err
+	return session.Close()
 }
 
 func (pa *PlatformAdapterMinecraft) RuntimeShutdown(_ context.Context) error {
 	pa.runtimeStopping.Store(true)
-	pa.Reconnecting = true
-	if pa.Socket != nil {
-		pa.Socket.Close()
-		pa.Socket = nil
+	pa.Reconnecting.Store(true)
+	pa.runtimeMu.Lock()
+	socket := pa.Socket
+	pa.Socket = nil
+	pa.runtimeMu.Unlock()
+	if socket != nil {
+		socket.Close()
 	}
 	return nil
 }
 
 func (pa *PlatformAdapterSealChat) RuntimeShutdown(_ context.Context) error {
 	pa.runtimeStopping.Store(true)
-	pa.Reconnecting = true
+	pa.Reconnecting.Store(true)
 	pa.stopHeartbeat()
-	if pa.Socket != nil {
-		pa.Socket.Close()
-		pa.Socket = nil
+	pa.runtimeMu.Lock()
+	socket := pa.Socket
+	pa.Socket = nil
+	pa.runtimeMu.Unlock()
+	if socket != nil {
+		socket.Close()
 	}
 	return nil
 }
 
 func (pa *PlatformAdapterSlack) RuntimeShutdown(_ context.Context) error {
-	if pa.cancel != nil {
-		pa.cancel()
-		pa.cancel = nil
+	cancel := pa.cancel
+	if cancel != nil {
+		cancel()
 	}
-	pa.Client = nil
 	return nil
 }
 
 func (pa *PlatformAdapterTelegram) RuntimeShutdown(_ context.Context) error {
-	if pa.IntentSession != nil {
-		pa.IntentSession.StopReceivingUpdates()
-		pa.IntentSession = nil
+	session := pa.IntentSession
+	if session != nil {
+		session.StopReceivingUpdates()
 	}
 	return nil
 }
@@ -457,9 +460,7 @@ func (pa *PlatformAdapterSatori) RuntimeShutdown(_ context.Context) error {
 		pa.CancelFunc()
 	}
 	if pa.conn != nil {
-		err := pa.conn.Close()
-		pa.conn = nil
-		return err
+		return pa.conn.Close()
 	}
 	return nil
 }
@@ -471,7 +472,6 @@ func (pa *PlatformAdapterMilky) RuntimeShutdown(_ context.Context) error {
 	}
 	pa.runtimeMu.Lock()
 	session := pa.IntentSession
-	pa.IntentSession = nil
 	pa.runtimeMu.Unlock()
 	if session != nil {
 		if err := session.Close(); err != nil {
@@ -487,7 +487,7 @@ func (pa *PlatformAdapterGocq) RuntimeShutdown(ctx context.Context) error {
 		shutdownErrors = append(shutdownErrors, fmt.Errorf("停止内置 OneBot 进程: %w", err))
 	}
 	pa.runtimeMu.Lock()
-	pa.CurLoginIndex++
+	pa.bumpLoginIndexLocked()
 	pa.diceServing = false
 	disconnected := pa.InPackGoCqhttpDisconnectedCH
 	pa.InPackGoCqhttpDisconnectedCH = nil
@@ -514,7 +514,7 @@ func (pa *PlatformAdapterWalleQ) RuntimeShutdown(_ context.Context) error {
 		shutdownErrors = append(shutdownErrors, fmt.Errorf("停止内置 WalleQ 进程: %w", err))
 	}
 	pa.runtimeMu.Lock()
-	pa.CurLoginIndex++
+	pa.bumpLoginIndexLocked()
 	pa.DiceServing = false
 	disconnected := pa.InPackWalleQDisconnectedCH
 	pa.InPackWalleQDisconnectedCH = nil
@@ -594,7 +594,7 @@ func (pa *PlatformAdapterOfficialQQ) RuntimeShutdown(ctx context.Context) error 
 
 func (pa *PlatformAdapterOnebot) RuntimeShutdown(ctx context.Context) error {
 	pa.runtimeStopping.Store(true)
-	pa.isShuttingDown = true
+	pa.isShuttingDown.Store(true)
 	var shutdownErrors []error
 	if pa.echoServer != nil {
 		if err := shutdownRuntimeHTTPServer(ctx, pa.echoServer.Shutdown, pa.echoServer.Close); err != nil {
@@ -612,10 +612,7 @@ func (pa *PlatformAdapterOnebot) RuntimeShutdown(ctx context.Context) error {
 		}
 		pa.websocketManager = nil
 	}
-	if pa.antPool != nil {
-		pa.antPool.Release()
-		pa.antPool = nil
-	}
+	pa.releaseAntPool()
 	if pa.groupCache != nil {
 		pa.groupCache.Close()
 		pa.groupCache = nil

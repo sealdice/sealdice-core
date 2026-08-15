@@ -582,11 +582,7 @@ func (p *PlatformAdapterOnebot) submitAsync(task func()) error {
 		defer done()
 		task()
 	}
-	if p.antPool != nil {
-		if err := p.antPool.Submit(wrapped); err != nil {
-			done()
-			return err
-		}
+	if err := p.submitAntPoolTask(wrapped); err == nil {
 		return nil
 	}
 	if err := ants.Submit(wrapped); err != nil {

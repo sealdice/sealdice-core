@@ -418,6 +418,23 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 	return lo.Reverse(arr) //nolint:staticcheck // old code
 }
 
+func (pa *PlatformAdapterGocq) bumpLoginIndexLocked() int {
+	pa.CurLoginIndex++
+	return pa.CurLoginIndex
+}
+
+func (pa *PlatformAdapterGocq) bumpLoginIndex() int {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.bumpLoginIndexLocked()
+}
+
+func (pa *PlatformAdapterGocq) currentLoginIndex() int {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.CurLoginIndex
+}
+
 func (pa *PlatformAdapterGocq) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 }
 
@@ -1204,7 +1221,9 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			pa.runtimeMu.Unlock()
 			if err != nil {
 				log.Error("Onebot v11 反向WS服务关闭: ", err)
+				pa.runtimeMu.Lock()
 				pa.diceServing = false
+				pa.runtimeMu.Unlock()
 			}
 		})
 	} else {
@@ -1239,20 +1258,28 @@ func (pa *PlatformAdapterGocq) Serve() int {
 func (pa *PlatformAdapterGocq) DoRelogin() bool {
 	myDice := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
-	if pa.Socket != nil {
+	pa.runtimeMu.Lock()
+	socket := pa.Socket
+	pa.runtimeMu.Unlock()
+	if socket != nil {
 		runDiceRuntimeTask(myDice, func() {
 			defer func() {
 				_ = recover()
 			}()
-			pa.Socket.Close()
+			socket.Close()
+			pa.runtimeMu.Lock()
 			pa.diceServing = false
+			pa.runtimeMu.Unlock()
 		})
 	}
 
 	if pa.IsReverse {
-		if pa.reverseApp != nil {
-			_ = pa.reverseApp.Close()
-			pa.reverseApp = nil
+		pa.runtimeMu.Lock()
+		reverseApp := pa.reverseApp
+		pa.reverseApp = nil
+		pa.runtimeMu.Unlock()
+		if reverseApp != nil {
+			_ = reverseApp.Close()
 		}
 
 		runDiceRuntimeTaskWithContext(myDice, func(ctx context.Context) {
@@ -1264,12 +1291,15 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 	}
 
 	if pa.UseInPackClient {
-		if pa.InPackGoCqhttpDisconnectedCH != nil {
-			signalAdapterStop(pa.InPackGoCqhttpDisconnectedCH, -1)
+		pa.runtimeMu.Lock()
+		disconnected := pa.InPackGoCqhttpDisconnectedCH
+		pa.runtimeMu.Unlock()
+		if disconnected != nil {
+			signalAdapterStop(disconnected, -1)
 		}
 		if pa.BuiltinMode == "lagrange" {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-			pa.CurLoginIndex++
+			pa.bumpLoginIndex()
 			pa.GoCqhttpState = StateCodeInit
 			BuiltinQQServeProcessKill(myDice, ep)
 			if !waitRuntimeDelay(diceRuntimeContext(myDice), 10*time.Second) {
@@ -1285,7 +1315,7 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			return true
 		} else {
 			myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-			pa.CurLoginIndex++
+			pa.bumpLoginIndex()
 			pa.GoCqhttpState = StateCodeInit
 			BuiltinQQServeProcessKill(myDice, ep)
 			if !waitRuntimeDelay(diceRuntimeContext(myDice), 10*time.Second) {
@@ -1353,17 +1383,20 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		}
 	} else {
 		c.Enable = false
+		pa.runtimeMu.Lock()
 		if pa.Socket != nil {
 			pa.Socket.Close()
 			pa.Socket = nil
 		}
 		pa.diceServing = false
+		reverseApp := pa.reverseApp
+		pa.reverseApp = nil
+		pa.runtimeMu.Unlock()
 		if pa.UseInPackClient {
 			BuiltinQQServeProcessKill(d, c)
 		}
-		if pa.IsReverse && pa.reverseApp != nil {
-			_ = pa.reverseApp.Close()
-			pa.reverseApp = nil
+		if pa.IsReverse && reverseApp != nil {
+			_ = reverseApp.Close()
 		}
 	}
 

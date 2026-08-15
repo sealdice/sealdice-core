@@ -518,10 +518,12 @@ func (pa *PlatformAdapterRed) DoRelogin() bool {
 	pa.EndPoint.Session.Parent.Logger.Infof("正在启用 red 连接……")
 	pa.EndPoint.State = 0
 	pa.EndPoint.Enable = false
+	pa.runtimeMu.Lock()
 	if pa.conn != nil {
 		_ = pa.conn.Close()
 	}
 	pa.conn = nil
+	pa.runtimeMu.Unlock()
 	return pa.Serve() == 0
 }
 
@@ -530,18 +532,23 @@ func (pa *PlatformAdapterRed) SetEnable(enable bool) {
 	e := pa.EndPoint
 	if enable {
 		e.Enable = true
+		pa.runtimeMu.Lock()
 		pa.DiceServing = false
+		hasConn := pa.conn != nil
+		pa.runtimeMu.Unlock()
 
-		if pa.conn == nil {
+		if !hasConn {
 			runDiceRuntimeTask(d, func() { ServeQQ(d, e) })
 		}
 	} else {
 		e.State = 0
 		e.Enable = false
+		pa.runtimeMu.Lock()
 		if pa.conn != nil {
 			_ = pa.conn.Close()
 			pa.conn = nil
 		}
+		pa.runtimeMu.Unlock()
 	}
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
@@ -635,9 +642,11 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 func (pa *PlatformAdapterRed) sendRow(redMsg *RedMessageSend) {
 	pa.muxSend.Lock()
 	defer pa.muxSend.Unlock()
-	if pa.conn != nil {
+	pa.runtimeMu.Lock()
+	conn := pa.conn
+	pa.runtimeMu.Unlock()
+	if conn != nil {
 		log := pa.EndPoint.Session.Parent.Logger
-		conn := pa.conn
 
 		param := &RedPack[RedMessageSend]{
 			Type:    "message::send",

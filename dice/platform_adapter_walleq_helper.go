@@ -131,7 +131,9 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			conn.State = 0
 			pa.WalleQState = 0
 
+			pa.runtimeMu.Lock()
 			pa.DiceServing = false
+			pa.runtimeMu.Unlock()
 			pa.WalleQQrcodeData = nil
 			pa.WalleQLoginDeviceLockURL = ""
 
@@ -152,8 +154,7 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 
 func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
 	pa := conn.Adapter.(*PlatformAdapterWalleQ)
-	pa.CurLoginIndex++
-	loginIndex := pa.CurLoginIndex
+	loginIndex := pa.bumpLoginIndex()
 	pa.WalleQState = WqStateCodeInLogin
 	dice.Logger.Debug("WalleQServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
@@ -223,10 +224,10 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 			return ""
 		}
 		log.Debug(line)
-		if loginIndex != pa.CurLoginIndex {
+		if loginIndex != pa.currentLoginIndex() {
 			// 当前连接已经无用，进程自杀
 			if !isSeldKilling {
-				dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+				dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.currentLoginIndex(), loginIndex)
 				// 注: 这里不要调用kill
 				isSeldKilling = true
 				_ = pa.stopWalleQProcessInstance(p)
@@ -314,7 +315,7 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		if ctx.Err() != nil || pa.runtimeStopping.Load() {
 			return
 		}
-		if loginIndex != pa.CurLoginIndex {
+		if loginIndex != pa.currentLoginIndex() {
 			return
 		}
 

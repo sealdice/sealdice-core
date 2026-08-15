@@ -745,7 +745,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 		}
 
 		if pa.BuiltinMode == "gocq" || pa.BuiltinMode == "" {
-			pa.CurLoginIndex++
+			pa.bumpLoginIndex()
 			pa.GoCqhttpState = StateCodeInLogin
 			builtinGoCqhttpServe(dice, conn, loginInfo)
 		}
@@ -764,7 +764,7 @@ func GoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) 
 func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLoginInfo) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	pa := conn.Adapter.(*PlatformAdapterGocq)
-	loginIndex := pa.CurLoginIndex
+	loginIndex := pa.currentLoginIndex()
 
 	// 保留此if语句块，使历史可追溯，后续commit可移除if
 	if pa.UseInPackClient { //nolint:nestif
@@ -848,10 +848,10 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			if pa.runtimeStopping.Load() {
 				return ""
 			}
-			if loginIndex != pa.CurLoginIndex {
+			if loginIndex != pa.currentLoginIndex() {
 				// 当前连接已经无用，进程自杀
 				if !isSelfKilling {
-					dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+					dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.currentLoginIndex(), loginIndex)
 					// 注: 这里不要调用kill
 					isSelfKilling = true
 					_ = pa.stopGoCqhttpProcessInstance(p)
@@ -1176,7 +1176,7 @@ func builtinGoCqhttpServe(dice *Dice, conn *EndPointInfo, loginInfo GoCqhttpLogi
 			if ctx.Err() != nil || pa.runtimeStopping.Load() {
 				return
 			}
-			if loginIndex != pa.CurLoginIndex {
+			if loginIndex != pa.currentLoginIndex() {
 				return
 			}
 

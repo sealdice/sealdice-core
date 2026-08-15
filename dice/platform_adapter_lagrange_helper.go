@@ -56,8 +56,7 @@ func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
 func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 
-	pa.CurLoginIndex++
-	loginIndex := pa.CurLoginIndex
+	loginIndex := pa.bumpLoginIndex()
 	pa.GoCqhttpState = StateCodeInLogin
 	helper := zap.S().Named(logger.LogKeyAdapter)
 	if pa.UseInPackClient && (pa.BuiltinMode == "lagrange") { //nolint:nestif
@@ -169,10 +168,10 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			if pa.runtimeStopping.Load() {
 				return ""
 			}
-			if loginIndex != pa.CurLoginIndex {
+			if loginIndex != pa.currentLoginIndex() {
 				// 当前连接已经无用，进程自杀
 				if !isSelfKilling {
-					helper.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+					helper.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.currentLoginIndex(), loginIndex)
 					// 注: 这里不要调用kill
 					isSelfKilling = true
 					_ = pa.stopGoCqhttpProcessInstance(p)
@@ -284,7 +283,7 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			if ctx.Err() != nil || pa.runtimeStopping.Load() {
 				return
 			}
-			if loginIndex != pa.CurLoginIndex {
+			if loginIndex != pa.currentLoginIndex() {
 				return
 			}
 

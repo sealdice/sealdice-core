@@ -44,8 +44,18 @@ type GuildPermCacheItem struct {
 	time int64
 }
 
+func (pa *PlatformAdapterDodo) clientSnapshot() client.Client {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.Client
+}
+
 func (pa *PlatformAdapterDodo) GetGroupInfoAsync(groupID string) {
-	info, err := pa.Client.GetChannelInfo(context.Background(), &model.GetChannelInfoReq{
+	instance := pa.clientSnapshot()
+	if instance == nil {
+		return
+	}
+	info, err := instance.GetChannelInfo(context.Background(), &model.GetChannelInfoReq{
 		ChannelId: ExtractDodoGroupID(groupID),
 	})
 	if err != nil {
@@ -289,7 +299,11 @@ func (pa *PlatformAdapterDodo) checkGuildAdmin(guildID string, userID string) st
 
 func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (aperm int64) {
 	aperm = int64(0)
-	list, err := pa.Client.GetMemberRoleList(context.Background(), &model.GetMemberRoleListReq{
+	instance := pa.clientSnapshot()
+	if instance == nil {
+		return aperm
+	}
+	list, err := instance.GetMemberRoleList(context.Background(), &model.GetMemberRoleListReq{
 		IslandSourceId: guildID,
 		DodoSourceId:   userID,
 	})
@@ -313,7 +327,7 @@ func (pa *PlatformAdapterDodo) refreshPermCache(guildID string, userID string) (
 			time: time.Now().Unix(),
 		})
 	} else {
-		info, err := pa.Client.GetIslandInfo(context.Background(), &model.GetIslandInfoReq{
+		info, err := instance.GetIslandInfo(context.Background(), &model.GetIslandInfoReq{
 			IslandSourceId: guildID,
 		})
 		if err != nil {
@@ -345,6 +359,7 @@ func (pa *PlatformAdapterDodo) DoRelogin() bool {
 	if pa.runtimeStopping.Load() {
 		return false
 	}
+	pa.runtimeMu.Lock()
 	if pa.WebSocket != nil {
 		pa.WebSocket.Close()
 		pa.Client = nil
@@ -352,6 +367,7 @@ func (pa *PlatformAdapterDodo) DoRelogin() bool {
 		pa.EndPoint.State = 0
 		pa.EndPoint.Enable = false
 	}
+	pa.runtimeMu.Unlock()
 	logger.Infof("正在启用Dodo……")
 	pa.Serve()
 	return false
@@ -363,6 +379,7 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 	}()
 	logger := pa.EndPoint.Session.Parent.Logger
 	if enable {
+		pa.runtimeMu.Lock()
 		if pa.Client != nil && pa.WebSocket != nil {
 			pa.WebSocket.Close()
 			pa.Client = nil
@@ -370,14 +387,17 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 			pa.EndPoint.State = 0
 			pa.EndPoint.Enable = false
 		}
+		pa.runtimeMu.Unlock()
 		logger.Infof("正在启用Dodo……")
 		pa.Serve()
 	} else {
+		pa.runtimeMu.Lock()
 		if pa.WebSocket != nil {
 			pa.WebSocket.Close()
 		}
 		pa.Client = nil
 		pa.WebSocket = nil
+		pa.runtimeMu.Unlock()
 		pa.EndPoint.State = 0
 		pa.EndPoint.Enable = false
 	}
@@ -485,7 +505,10 @@ func convertLinksToMarkdown(text string) string {
 }
 
 func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
-	instance := pa.Client
+	instance := pa.clientSnapshot()
+	if instance == nil {
+		return nil
+	}
 	elem := message.ConvertStringMessage(text)
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
@@ -527,7 +550,10 @@ func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text
 
 func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
 	referenceMessageId := ""
-	instance := pa.Client
+	instance := pa.clientSnapshot()
+	if instance == nil {
+		return nil
+	}
 	elem := message.ConvertStringMessage(text)
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
@@ -616,9 +642,13 @@ func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text s
 }
 
 func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMessageBody, uid string, isPrivate bool, referenceMessageId string) error {
+	instance := pa.clientSnapshot()
+	if instance == nil {
+		return nil
+	}
 	if isPrivate {
 		rawID := ExtractDodoUserID(uid)
-		_, err := pa.Client.SendDirectMessage(context.Background(), &model.SendDirectMessageReq{
+		_, err := instance.SendDirectMessage(context.Background(), &model.SendDirectMessageReq{
 			IslandSourceId: ctx.Group.GuildID,
 			DodoSourceId:   rawID,
 			MessageBody:    msgBody,
@@ -626,7 +656,7 @@ func (pa *PlatformAdapterDodo) SendMessageRaw(ctx *MsgContext, msgBody model.IMe
 		return err
 	}
 	rawID := ExtractDodoGroupID(uid)
-	_, err := pa.Client.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
+	_, err := instance.SendChannelMessage(context.Background(), &model.SendChannelMessageReq{
 		ChannelId:           rawID,
 		MessageBody:         msgBody,
 		ReferencedMessageId: referenceMessageId,
@@ -660,7 +690,11 @@ func ExtractDodoGroupID(id string) string {
 	return id
 }
 func (pa *PlatformAdapterDodo) QuitGroup(ctx *MsgContext, groupId string) {
-	_, err := pa.Client.SetBotIslandLeave(context.Background(), &model.SetBotLeaveIslandReq{
+	instance := pa.clientSnapshot()
+	if instance == nil {
+		return
+	}
+	_, err := instance.SetBotIslandLeave(context.Background(), &model.SetBotLeaveIslandReq{
 		IslandSourceId: ctx.Group.GuildID,
 	})
 	if err != nil {
@@ -669,7 +703,11 @@ func (pa *PlatformAdapterDodo) QuitGroup(ctx *MsgContext, groupId string) {
 }
 
 func (pa *PlatformAdapterDodo) SetGroupCardName(ctx *MsgContext, name string) {
-	_, err := pa.Client.SetMemberNick(context.Background(), &model.SetMemberNickReq{
+	instance := pa.clientSnapshot()
+	if instance == nil {
+		return
+	}
+	_, err := instance.SetMemberNick(context.Background(), &model.SetMemberNickReq{
 		IslandSourceId: ctx.Group.GuildID,
 		DodoSourceId:   ExtractDodoUserID(ctx.Player.UserID),
 		NickName:       name,

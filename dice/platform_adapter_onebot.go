@@ -48,7 +48,8 @@ type PlatformAdapterOnebot struct {
 	once        sync.Once
 
 	// 执行用池
-	antPool *ants.Pool
+	antPool   *ants.Pool
+	antPoolMu sync.Mutex
 	// 群缓存
 	groupCache *otter.Cache[string, *GroupCache] // 群ID和群信息的缓存
 	// 好友申请去重缓存
@@ -59,7 +60,7 @@ type PlatformAdapterOnebot struct {
 	retryAttempts   uint         // 当前重试次数
 	isRetrying      bool         // 是否正在重试
 	retryMutex      sync.RWMutex // 重试状态锁
-	isShuttingDown  bool         // 是否正在主动关闭连接
+	isShuttingDown  atomic.Bool  // 是否正在主动关闭连接
 	runtimeStopping atomic.Bool  // 当前 Runtime generation 正在关闭
 
 	// 连接建立互斥锁，确保同时只有一个连接建立过程
@@ -442,8 +443,37 @@ func (p *PlatformAdapterOnebot) SendFileToGroup(ctx *MsgContext, groupID string,
 	p.SendSegmentToGroup(ctx, groupID, msg, flag)
 }
 
+func (p *PlatformAdapterOnebot) ensureAntPool() {
+	p.antPoolMu.Lock()
+	defer p.antPoolMu.Unlock()
+	if p.antPool == nil {
+		p.antPool, _ = ants.NewPool(500, ants.WithPanicHandler(func(re any) {
+			p.logger.Errorf("执行发送数据任务异常 %v", re)
+		}))
+	}
+}
+
+func (p *PlatformAdapterOnebot) submitAntPoolTask(task func()) error {
+	p.antPoolMu.Lock()
+	pool := p.antPool
+	p.antPoolMu.Unlock()
+	if pool == nil {
+		return errors.New("ant pool is not initialized")
+	}
+	return pool.Submit(task)
+}
+
+func (p *PlatformAdapterOnebot) releaseAntPool() {
+	p.antPoolMu.Lock()
+	defer p.antPoolMu.Unlock()
+	if p.antPool != nil {
+		p.antPool.Release()
+		p.antPool = nil
+	}
+}
+
 func (p *PlatformAdapterOnebot) GetGroupInfoAsync(groupID string) {
-	_ = p.antPool.Submit(func() {
+	_ = p.submitAntPoolTask(func() {
 		p.GetGroupInfoSync(groupID)
 	})
 }
@@ -623,11 +653,7 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
 	// 条件性初始化antPool
-	if p.antPool == nil {
-		p.antPool, _ = ants.NewPool(500, ants.WithPanicHandler(func(re any) {
-			p.logger.Errorf("执行发送数据任务异常 %v", re)
-		}))
-	}
+	p.ensureAntPool()
 
 	// 条件性初始化groupCache
 	if p.groupCache == nil {
@@ -669,7 +695,7 @@ func (p *PlatformAdapterOnebot) setupClientConnection() error {
 			var closeErr *websocket.CloseError
 			if errors.As(err, &closeErr) && closeErr.Code == 1002 {
 				p.logger.Info("连接正常关闭 (WebSocket 1002)")
-			} else if p.isShuttingDown || p.runtimeStopping.Load() {
+			} else if p.isShuttingDown.Load() || p.runtimeStopping.Load() {
 				p.logger.Infof("适配器关闭中，连接断开: %v", err)
 			} else {
 				p.logger.Errorf("连接异常断开: %v", err)
@@ -711,7 +737,7 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 	retryFn := p.loginInitRetry
 	if retryFn == nil {
 		retryFn = func() {
-			if !p.desiredEnabled || p.isShuttingDown || p.runtimeStopping.Load() || p.sendEmitter == nil || p.ctx == nil {
+			if !p.desiredEnabled || p.isShuttingDown.Load() || p.runtimeStopping.Load() || p.sendEmitter == nil || p.ctx == nil {
 				return
 			}
 			sleepFn := p.loginInitRetrySleep
@@ -719,7 +745,7 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 				sleepFn = time.Sleep
 			}
 			sleepFn(3 * time.Second)
-			if !p.desiredEnabled || p.isShuttingDown || p.runtimeStopping.Load() || p.sendEmitter == nil || p.ctx == nil {
+			if !p.desiredEnabled || p.isShuttingDown.Load() || p.runtimeStopping.Load() || p.sendEmitter == nil || p.ctx == nil {
 				return
 			}
 			info, err := p.sendEmitter.GetLoginInfo(p.ctx)
@@ -753,7 +779,7 @@ func (p *PlatformAdapterOnebot) setupServerConnection() error {
 // cleanupResources 清理资源
 func (p *PlatformAdapterOnebot) cleanupResources() {
 	// 设置主动关闭标志
-	p.isShuttingDown = true
+	p.isShuttingDown.Store(true)
 
 	// 1. 首先关闭服务器，停止接收新的请求（避免在清理过程中崩溃）
 	if p.isServer() && p.echoServer != nil {
@@ -781,10 +807,7 @@ func (p *PlatformAdapterOnebot) cleanupResources() {
 	}
 
 	// 4. 关闭资源池
-	if p.antPool != nil {
-		p.antPool.Release()
-		p.antPool = nil
-	}
+	p.releaseAntPool()
 
 	if p.friendRequestDedupeCache != nil {
 		p.friendRequestDedupeCache.Close()
@@ -798,7 +821,7 @@ func (p *PlatformAdapterOnebot) cleanupResources() {
 	p.connectionMutex.Unlock()
 
 	// 6. 重置主动关闭标志
-	p.isShuttingDown = false
+	p.isShuttingDown.Store(false)
 }
 
 func (p *PlatformAdapterOnebot) ensureFriendRequestDedupeCache() (*otter.Cache[string, struct{}], error) {
@@ -892,7 +915,7 @@ func (p *PlatformAdapterOnebot) startConnection() error {
 // retryConnect 重试连接方法
 func (p *PlatformAdapterOnebot) retryConnect() {
 	// 检查适配器是否已被禁用
-	if !p.desiredEnabled || p.isShuttingDown || p.runtimeStopping.Load() {
+	if !p.desiredEnabled || p.isShuttingDown.Load() || p.runtimeStopping.Load() {
 		p.logger.Info("适配器已被禁用，取消重连")
 		return
 	}
@@ -922,7 +945,7 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 	err := retry.Do(
 		func() error {
 			// 在每次重试前再次检查适配器是否已被禁用
-			if !p.desiredEnabled || p.isShuttingDown || p.runtimeStopping.Load() {
+			if !p.desiredEnabled || p.isShuttingDown.Load() || p.runtimeStopping.Load() {
 				return errors.New("适配器已被禁用，停止重连")
 			}
 
@@ -948,7 +971,7 @@ func (p *PlatformAdapterOnebot) retryConnect() {
 		retry.DelayType(retry.BackOffDelay),
 		retry.OnRetry(func(n uint, err error) {
 			// 在重试前再次检查适配器是否已被禁用
-			if !p.desiredEnabled || p.isShuttingDown || p.runtimeStopping.Load() {
+			if !p.desiredEnabled || p.isShuttingDown.Load() || p.runtimeStopping.Load() {
 				p.logger.Info("适配器已被禁用，停止重试")
 				return
 			}
@@ -1028,14 +1051,14 @@ func (p *PlatformAdapterOnebot) cbEnterFailed(_ context.Context, _ *loopfsm.Even
 	// 连接失败不等于用户禁用；保持 Enable 不变，避免持久化成“禁用”导致重启后不再自动连接。
 	p.EndPoint.Enable = p.desiredEnabled
 	p.updateAndSave()
-	if p.desiredEnabled && !p.isShuttingDown && !p.runtimeStopping.Load() {
+	if p.desiredEnabled && !p.isShuttingDown.Load() && !p.runtimeStopping.Load() {
 		runDiceRuntimeTask(p.EndPoint.Session.Parent, p.retryConnect)
 	}
 }
 
 func (p *PlatformAdapterOnebot) cbEnterDisconnected(_ context.Context, _ *loopfsm.Event) {
 	p.EndPoint.State = StateDisconnected
-	if !p.isShuttingDown && !p.runtimeStopping.Load() {
+	if !p.isShuttingDown.Load() && !p.runtimeStopping.Load() {
 		p.EndPoint.Enable = false
 	}
 	p.updateAndSave()
