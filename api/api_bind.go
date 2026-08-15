@@ -134,6 +134,7 @@ var (
 	runtimeState         atomic.Int32
 	runtimeAuth          atomic.Pointer[runtimeAuthSnapshot]
 	runtimeRestoreFn     func(operationID string) bool
+	runtimeForceStopFn   func()
 )
 
 const (
@@ -288,6 +289,12 @@ func SetRuntimeRestoreFunc(fn func(operationID string) bool) {
 	runtimeRestoreFn = fn
 }
 
+// SetRuntimeForceStopFunc injects the process-level Runtime stop path used by
+// the Android-only force_stop endpoint instead of its legacy inline cleanup.
+func SetRuntimeForceStopFunc(fn func()) {
+	runtimeForceStopFn = fn
+}
+
 type fStopEcho struct {
 	Key string `json:"key"`
 }
@@ -317,6 +324,15 @@ func forceStop(c echo.Context) error {
 	}
 	if !haskey {
 		return c.JSON(http.StatusForbidden, nil)
+	}
+	if runtimeForceStopFn != nil {
+		go func() {
+			// Let the handler release the runtime gate before stopping.
+			time.Sleep(100 * time.Millisecond)
+			runtimeForceStopFn()
+			os.Exit(0)
+		}()
+		return c.JSON(http.StatusOK, nil)
 	}
 	defer func() {
 		// Same with main.go `cleanUpCreate()` 由于无法导入 main.go 中的函数，所以这里直接复制过来了

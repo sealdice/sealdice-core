@@ -37,7 +37,7 @@ func showMsgBox(title string, message string) {
 	logger.M().Info(title, message)
 }
 
-func httpServe(e *echo.Echo, serveAddress string, hideUI bool) {
+func httpServe(e *echo.Echo, serveAddress string, hideUI bool, _ func(string)) {
 	log := logger.M()
 	portStr := "3211"
 	rePort := regexp.MustCompile(`:(\d+)$`)

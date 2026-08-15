@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -40,10 +41,25 @@ var windowsReservedDiceNames = map[string]struct{}{
 	"LPT6": {}, "LPT7": {}, "LPT8": {}, "LPT9": {},
 }
 
-// ValidateDiceConfigNames ensures every Dice name is a portable single path
-// segment before Dice.Init derives a data directory from it.
+// ValidateDiceConfigNames ensures every Dice name is a single path segment
+// before Dice.Init derives a data directory from it. Windows-specific
+// restrictions are only enforced on platforms that actually have those file
+// system rules, preserving legacy Linux/macOS installations.
 func ValidateDiceConfigNames(configs []BaseConfig) error {
+	return validateDiceConfigNames(configs, false)
+}
+
+// ValidateDiceConfigNamesPortable applies the strictest cross-platform rules
+// and is used when validating backup archives that may be restored on another
+// operating system.
+func ValidateDiceConfigNamesPortable(configs []BaseConfig) error {
+	return validateDiceConfigNames(configs, true)
+}
+
+func validateDiceConfigNames(configs []BaseConfig, portable bool) error {
 	names := make([]string, 0, len(configs))
+	enforceWindowsRules := portable || runtime.GOOS == "windows"
+	caseInsensitiveFS := portable || runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 	for index, config := range configs {
 		name := config.Name
 		if name == "" || strings.TrimSpace(name) != name {
@@ -52,10 +68,13 @@ func ValidateDiceConfigNames(configs []BaseConfig) error {
 		if name == "." || name == ".." || filepath.IsAbs(name) || filepath.VolumeName(name) != "" {
 			return fmt.Errorf("dice 名称 %q 不是安全的单一路径段", name)
 		}
-		if strings.ContainsAny(name, `/\\:<>"|?*`) {
-			return fmt.Errorf("dice 名称 %q 含路径分隔符或非法字符", name)
+		if strings.ContainsAny(name, `/\`) {
+			return fmt.Errorf("dice 名称 %q 含路径分隔符", name)
 		}
-		if strings.HasSuffix(name, ".") {
+		if enforceWindowsRules && strings.ContainsAny(name, `:<>"|?*`) {
+			return fmt.Errorf("dice 名称 %q 含 Windows 非法字符", name)
+		}
+		if enforceWindowsRules && strings.HasSuffix(name, ".") {
 			return fmt.Errorf("dice 名称 %q 不能以点结尾", name)
 		}
 		for _, current := range name {
@@ -63,16 +82,20 @@ func ValidateDiceConfigNames(configs []BaseConfig) error {
 				return fmt.Errorf("dice 名称 %q 含控制字符", name)
 			}
 		}
-		base := name
-		if dot := strings.IndexByte(base, '.'); dot >= 0 {
-			base = base[:dot]
+		if enforceWindowsRules {
+			base := name
+			if dot := strings.IndexByte(base, '.'); dot >= 0 {
+				base = base[:dot]
+			}
+			if _, reserved := windowsReservedDiceNames[strings.ToUpper(base)]; reserved {
+				return fmt.Errorf("dice 名称 %q 是 Windows 保留设备名", name)
+			}
 		}
-		if _, reserved := windowsReservedDiceNames[strings.ToUpper(base)]; reserved {
-			return fmt.Errorf("dice 名称 %q 是 Windows 保留设备名", name)
-		}
-		for _, previous := range names {
-			if strings.EqualFold(previous, name) {
-				return fmt.Errorf("dice 名称 %q 与 %q 仅大小写不同", name, previous)
+		if caseInsensitiveFS {
+			for _, previous := range names {
+				if strings.EqualFold(previous, name) {
+					return fmt.Errorf("dice 名称 %q 与 %q 仅大小写不同", name, previous)
+				}
 			}
 		}
 		names = append(names, name)

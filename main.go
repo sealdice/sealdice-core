@@ -73,8 +73,8 @@ func stopCurrentRuntime(ctx context.Context, fallback *dice.DiceManager) error {
 	return nil
 }
 
-func cleanupCreate(diceManager *dice.DiceManager) func() {
-	return func() {
+func cleanupCreate(diceManager *dice.DiceManager) func() error {
+	return func() error {
 		processCleanupMu.Lock()
 		defer processCleanupMu.Unlock()
 		log := logger.M()
@@ -91,12 +91,14 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if stopErr := stopCurrentRuntime(ctx, diceManager); stopErr != nil {
-			log.Errorf("停止 Runtime 失败: %v", stopErr)
+			log.Errorf("停止 Runtime 失败，保留进程文件锁: %v", stopErr)
+			return stopErr
 		}
-		err = sealLock.Unlock()
-		if err != nil {
-			log.Errorf("文件锁归还出现异常 %v", err)
+		if unlockErr := sealLock.Unlock(); unlockErr != nil {
+			log.Errorf("文件锁归还出现异常 %v", unlockErr)
+			return unlockErr
 		}
+		return nil
 	}
 }
 
@@ -459,6 +461,11 @@ func main() {
 		return
 	}
 	api.SetRuntimeRestoreFunc(supervisor.enqueueRestore)
+	api.SetRuntimeForceStopFunc(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = stopCurrentRuntime(ctx, nil)
+	})
 	cleanUp := cleanupCreate(nil)
 	defer dice.CrashLog()
 	defer cleanUp()
@@ -479,7 +486,10 @@ func main() {
 	}
 
 	controlPlaneReady := make(chan struct{})
-	go uiServe(runtimeManager, runtimeManager.ServeAddress, opts.HideUIWhenBoot, useBuiltinUI, controlPlaneReady)
+	go uiServe(runtimeManager, runtimeManager.ServeAddress, opts.HideUIWhenBoot, useBuiltinUI, controlPlaneReady, func(address string) {
+		supervisor.updateListenAddress(address)
+		runtimeManager.SetRuntimeServeAddress(address, address)
+	})
 	<-controlPlaneReady
 	if resumeErr := supervisor.enqueueRunnableScheduledRestore(); resumeErr != nil {
 		log.Errorf("启动时续跑恢复任务失败: %v", resumeErr)
@@ -492,7 +502,7 @@ func main() {
 	// }
 
 	// darwin 的托盘菜单似乎需要在主线程启动才能工作，调整到这里
-	trayInit(cleanUp)
+	trayInit(func() { _ = cleanUp() })
 }
 
 func serveUnavailableControlPlane(
@@ -509,6 +519,11 @@ func serveUnavailableControlPlane(
 	api.EndRuntimeMaintenance()
 	setRuntimeStopProvider(supervisor.stop)
 	api.SetRuntimeRestoreFunc(supervisor.enqueueRestore)
+	api.SetRuntimeForceStopFunc(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = stopCurrentRuntime(ctx, nil)
+	})
 	cleanUp := cleanupCreate(nil)
 	defer dice.CrashLog()
 	defer cleanUp()
@@ -521,9 +536,9 @@ func serveUnavailableControlPlane(
 		os.Exit(0)
 	}()
 	controlPlaneReady := make(chan struct{})
-	go uiServe(nil, serveAddress, hideUIWhenBoot, useBuiltinUI, controlPlaneReady)
+	go uiServe(nil, serveAddress, hideUIWhenBoot, useBuiltinUI, controlPlaneReady, nil)
 	<-controlPlaneReady
-	trayInit(cleanUp)
+	trayInit(func() { _ = cleanUp() })
 }
 
 func removeUpdateFiles() {
@@ -646,7 +661,14 @@ func diceServeEndpoint(ctx context.Context, d *dice.Dice, conn *dice.EndPointInf
 	}
 }
 
-func uiServe(dm *dice.DiceManager, serveAddress string, hideUI bool, useBuiltin bool, ready chan<- struct{}) {
+func uiServe(
+	dm *dice.DiceManager,
+	serveAddress string,
+	hideUI bool,
+	useBuiltin bool,
+	ready chan<- struct{},
+	onServeAddressChanged func(string),
+) {
 	log := logger.M()
 	log.Info("即将启动webui")
 	// Echo instance
@@ -699,7 +721,7 @@ func uiServe(dm *dice.DiceManager, serveAddress string, hideUI bool, useBuiltin 
 	}
 	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
 
-	httpServe(e, serveAddress, hideUI)
+	httpServe(e, serveAddress, hideUI, onServeAddressChanged)
 }
 
 //

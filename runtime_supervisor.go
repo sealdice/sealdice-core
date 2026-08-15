@@ -239,6 +239,11 @@ func (supervisor *runtimeSupervisor) build() (runtimeResult *applicationRuntime,
 	if listenAddress == "" {
 		listenAddress = configuredAddress
 	}
+	// A command-line --address keeps its historical persistence behavior:
+	// it becomes the configured address for the next process start too.
+	if supervisor.options.address != "" {
+		configuredAddress = listenAddress
+	}
 	manager.SetRuntimeServeAddress(listenAddress, configuredAddress)
 	manager.InitDice(supervisor.options.uiWriter)
 	manager.JustForTest = supervisor.options.justForTest
@@ -322,6 +327,14 @@ func (supervisor *runtimeSupervisor) publish(runtimeInstance *applicationRuntime
 	supervisor.current = runtimeInstance
 	api.ReplaceRuntime(runtimeInstance.manager)
 	runtimeInstance.start()
+}
+
+// updateListenAddress records a runtime-selected fallback port so future
+// Runtime generations and reboots keep using it.
+func (supervisor *runtimeSupervisor) updateListenAddress(address string) {
+	supervisor.mu.Lock()
+	supervisor.listenAddress = address
+	supervisor.mu.Unlock()
 }
 
 func (supervisor *runtimeSupervisor) start() (*dice.DiceManager, error) {

@@ -100,7 +100,7 @@ func onExit() {
 	// clean up hear
 }
 
-func httpServe(e *echo.Echo, serveAddress string, hideUI bool) {
+func httpServe(e *echo.Echo, serveAddress string, hideUI bool, _ func(string)) {
 	log := logger.M()
 	portStr := defaultTrayPort
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE

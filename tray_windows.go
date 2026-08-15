@@ -188,7 +188,7 @@ func onExit() {
 	// clean up here
 }
 
-func httpServe(e *echo.Echo, serveAddress string, hideUI bool) {
+func httpServe(e *echo.Echo, serveAddress string, hideUI bool, onServeAddressChanged func(string)) {
 	log := logger.M()
 	portStr := defaultTrayPort
 	// runtime.LockOSThread()
@@ -243,6 +243,9 @@ func httpServe(e *echo.Echo, serveAddress string, hideUI bool) {
 			if ret == win.IDYES {
 				newPort := 3000 + rand.Int()%4000
 				serveAddress = fmt.Sprintf("0.0.0.0:%d", newPort)
+				if onServeAddressChanged != nil {
+					onServeAddressChanged(serveAddress)
+				}
 				continue
 			} else {
 				log.Errorf("端口已被占用，即将自动退出: %s", serveAddress)

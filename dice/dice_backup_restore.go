@@ -1032,7 +1032,7 @@ func validateBackupDataFile(file *os.File, stat os.FileInfo, filename string) er
 	if err = yaml.Unmarshal(archivedDiceConfig, &config); err != nil {
 		return fmt.Errorf("解析 data/dice.yaml 失败: %w", err)
 	}
-	if err = ValidateDiceConfigNames(config.DiceConfigs); err != nil {
+	if err = ValidateDiceConfigNamesPortable(config.DiceConfigs); err != nil {
 		return fmt.Errorf("data/dice.yaml 包含不安全的骰子名称: %w", err)
 	}
 	return nil

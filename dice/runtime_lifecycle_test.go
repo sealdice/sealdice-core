@@ -128,12 +128,21 @@ func TestValidateDiceConfigNames(t *testing.T) {
 		t.Fatalf("valid Dice names rejected: %v", err)
 	}
 
-	invalid := [][]BaseConfig{
+	alwaysInvalid := [][]BaseConfig{
 		{{Name: ""}},
 		{{Name: "."}},
 		{{Name: ".."}},
 		{{Name: "../escape"}},
 		{{Name: `folder\\child`}},
+		{{Name: "bad\x00name"}},
+	}
+	for _, configs := range alwaysInvalid {
+		if err := ValidateDiceConfigNames(configs); err == nil {
+			t.Fatalf("unsafe Dice names accepted: %#v", configs)
+		}
+	}
+
+	portableInvalid := [][]BaseConfig{
 		{{Name: "C:drive"}},
 		{{Name: "trailing."}},
 		{{Name: "trailing "}},
@@ -143,9 +152,9 @@ func TestValidateDiceConfigNames(t *testing.T) {
 		{{Name: "bad?name"}},
 		{{Name: "Alpha"}, {Name: "alpha"}},
 	}
-	for _, configs := range invalid {
-		if err := ValidateDiceConfigNames(configs); err == nil {
-			t.Fatalf("unsafe Dice names accepted: %#v", configs)
+	for _, configs := range portableInvalid {
+		if err := ValidateDiceConfigNamesPortable(configs); err == nil {
+			t.Fatalf("portable-unsafe Dice names accepted: %#v", configs)
 		}
 	}
 }

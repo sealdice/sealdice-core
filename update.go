@@ -131,14 +131,20 @@ func doReboot(dm *dice.DiceManager) {
 		restartArgs = buildRestartArgs(os.Args[1:], "3")
 	}
 	if platform == "windows" {
-		cleanupCreate(dm)()
+		if cleanupErr := cleanupCreate(dm)(); cleanupErr != nil {
+			log.Errorf("清理失败，取消重启: %v", cleanupErr)
+			return
+		}
 		cmd := executeWin(binary, restartArgs...)
 		err := cmd.Start()
 		if err != nil {
 			log.Errorf("Restart error: %s %v", binary, err)
 		}
 	} else {
-		cleanupCreate(dm)()
+		if cleanupErr := cleanupCreate(dm)(); cleanupErr != nil {
+			log.Errorf("清理失败，取消重启: %v", cleanupErr)
+			return
+		}
 		execArgs := append([]string{os.Args[0]}, restartArgs...)
 		execErr := syscall.Exec(binary, execArgs, os.Environ()) //nolint:gosec
 		if execErr != nil {
