@@ -867,14 +867,17 @@ func inspectBackupArchiveDetailedFile(file *os.File, stat os.FileInfo, filename 
 	if err = checkCompressionRatio("整个压缩包", compressed, uncompressed); err != nil {
 		return nil, nil, emptyManifest, err
 	}
-	if !manifestFound || manifest.VersionCode <= 0 {
+	if !manifestFound {
 		return nil, nil, emptyManifest, errors.New("缺少有效的 backup_info.json")
+	}
+	if manifest.FormatVersion == backupManifestFormatVersion && manifest.VersionCode <= 0 {
+		return nil, nil, emptyManifest, errors.New("v2 备份缺少有效的 versionCode")
+	}
+	if manifest.VersionCode > 0 && manifest.VersionCode > VERSION_CODE {
+		return nil, nil, emptyManifest, fmt.Errorf("备份版本 %d 高于当前程序版本 %d", manifest.VersionCode, VERSION_CODE)
 	}
 	if !dataConfigFound {
 		return nil, nil, emptyManifest, errors.New("备份缺少 data/dice.yaml")
-	}
-	if manifest.VersionCode > VERSION_CODE {
-		return nil, nil, emptyManifest, fmt.Errorf("备份版本 %d 高于当前程序版本 %d", manifest.VersionCode, VERSION_CODE)
 	}
 	restorable := true
 	if manifest.FormatVersion > backupManifestFormatVersion {

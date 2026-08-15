@@ -302,6 +302,14 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 	return true
 }
 
+func (d *Dice) goRuntime(fn func(context.Context)) {
+	if d == nil || d.Parent == nil {
+		go fn(context.Background())
+		return
+	}
+	d.Parent.goRuntime(fn)
+}
+
 func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter) {
 	loggerInstance := logger.M()
 	d.Logger = loggerInstance
@@ -362,7 +370,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		d.NewCensorManager()
 	}
 
-	d.Parent.goRuntime(func(ctx context.Context) {
+	d.goRuntime(func(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
@@ -433,7 +441,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 			}
 		}
 	}
-	d.Parent.goRuntime(autoSave)
+	d.goRuntime(autoSave)
 
 	refreshGroupInfo := func(ctx context.Context) {
 		t := time.NewTicker(35 * time.Second)
@@ -477,7 +485,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 			}
 		}
 	}
-	d.Parent.goRuntime(refreshGroupInfo)
+	d.goRuntime(refreshGroupInfo)
 
 	d.ApplyAliveNotice()
 	if d.Config.JsEnable {
@@ -488,7 +496,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	}
 
 	if d.Config.UpgradeWindowID != "" {
-		d.Parent.goRuntime(func(ctx context.Context) {
+		d.goRuntime(func(ctx context.Context) {
 			defer ErrorLogAndContinue(d)
 
 			var ep *EndPointInfo
@@ -1160,7 +1168,7 @@ func (d *Dice) PublicDiceSetupTick() {
 		d.Cron.Remove(d.PublicDiceTimerId)
 	}
 
-	d.Parent.goRuntime(func(ctx context.Context) {
+	d.goRuntime(func(ctx context.Context) {
 		// 20s后进行第一次调用，此后3min进行一次更新
 		timer := time.NewTimer(20 * time.Second)
 		defer timer.Stop()

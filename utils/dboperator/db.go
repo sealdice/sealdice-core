@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"sync"
 
 	"go.uber.org/zap"
 
@@ -16,13 +15,6 @@ import (
 	"sealdice-core/utils/dboperator/engine/sqlite"
 )
 
-var (
-	engine            operator.DatabaseOperator
-	once              sync.Once
-	errEngineInstance error
-)
-
-// initEngine 初始化数据库引擎，仅执行一次
 func newEngine() operator.DatabaseOperator {
 	log := zap.S().Named(logger.LogKeyDatabase)
 
@@ -57,31 +49,14 @@ func NewDatabaseOperator(ctx context.Context) (operator.DatabaseOperator, error)
 	return engineInstance, nil
 }
 
-func initEngine() {
-	engine, errEngineInstance = NewDatabaseOperator(context.Background())
-	if errEngineInstance != nil {
-		zap.S().Named(logger.LogKeyDatabase).Error("数据库引擎初始化失败:", errEngineInstance)
-	}
-}
-
-// getEngine 获取数据库引擎，确保只初始化一次
-func getEngine() (operator.DatabaseOperator, error) {
-	once.Do(initEngine)
-	return engine, errEngineInstance
-}
-
-// GetDatabaseOperator 初始化数据和日志数据库
-func GetDatabaseOperator() (operator.DatabaseOperator, error) {
-	return getEngine()
-}
-
 // DBCheck 检查数据库状态
 func DBCheck() {
 	log := zap.S().Named(logger.LogKeyDatabase)
-	dbEngine, err := getEngine()
+	dbEngine, err := NewDatabaseOperator(context.Background())
 	if err != nil {
-		log.Error("数据库引擎获取失败:", err)
+		log.Error("数据库引擎初始化失败:", err)
 		return
 	}
+	defer dbEngine.Close()
 	dbEngine.DBCheck()
 }
