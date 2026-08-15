@@ -1,5 +1,9 @@
 <template>
-  <div class="tip-box" :class="`tip-box--${props.type}`">
+  <div
+    class="tip-box"
+    :class="`tip-box--${props.type}`"
+    :role="props.type === 'error' ? 'alert' : props.type === 'warning' ? 'status' : undefined"
+  >
     <n-icon v-if="iconVisible" class="tip-box__icon" :size="16" aria-hidden="true">
       <i-tabler-alert-triangle v-if="props.type === 'warning'" />
       <i-tabler-alert-circle v-else-if="props.type === 'error'" />

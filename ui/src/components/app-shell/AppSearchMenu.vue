@@ -36,7 +36,14 @@
               </n-icon>
             </template>
             <template #suffix>
-              <n-button circle quaternary size="small" @click="close">
+              <n-button
+                circle
+                quaternary
+                size="small"
+                aria-label="关闭搜索"
+                @click="close"
+                @keydown.enter.stop
+              >
                 <template #icon>
                   <n-icon>
                     <i-tabler-x />
@@ -66,6 +73,7 @@
               class="sd-search-item-main"
               :aria-label="`打开${item.label}`"
               @click="selectItem(item)"
+              @keydown.enter.stop="selectItem(item)"
             >
               <n-icon class="sd-search-item-icon">
                 <AppNavigationIcon :name="item.icon" />
@@ -223,6 +231,13 @@ function close() {
   keyword.value = '';
   selectedIndex.value = -1;
 }
+
+watch(show, visible => {
+  if (!visible) {
+    keyword.value = '';
+    selectedIndex.value = -1;
+  }
+});
 
 function resolvedHref(path: string) {
   return new URL(router.resolve(path).href, window.location.href).toString();

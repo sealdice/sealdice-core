@@ -9,6 +9,7 @@
           size="small"
           quaternary
           circle
+          :aria-label="props.collapsed && !isMobileMode ? '展开侧栏' : '收起侧栏'"
           :type="props.collapsed && !isMobileMode ? 'primary' : 'default'"
           @click="emit('toggleSidebar')"
         >
@@ -37,7 +38,7 @@
 
     <template #extra>
       <div class="sd-page-actions">
-        <button type="button" class="search-entry" @click="emit('openSearch')">
+        <button type="button" class="search-entry" aria-label="搜索" @click="emit('openSearch')">
           <span class="search-label">
             <n-icon size="1.1rem">
               <i-tabler-search />

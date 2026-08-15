@@ -8,7 +8,7 @@
 // 无未保存变更 → 提示条后自动刷新；有未保存变更 → 弹窗交用户决定。
 import { useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
-import { watch } from 'vue';
+import { onBeforeUnmount, watch } from 'vue';
 import { requestControlledReload } from '@/features/pwa/swUpdate';
 import { useSwUpdateStore } from '@/features/pwa/swUpdateStore';
 import { hasUnsavedChanges } from '@/features/unsavedChanges';
@@ -21,8 +21,48 @@ const { updateReady, updateReason, navigationTarget } = storeToRefs(swUpdateStor
 const dialog = useDialog();
 const message = useMessage();
 
+let autoReloadTimer: number | null = null;
+let updateDialogVisible = false;
+
+function clearAutoReloadTimer() {
+  if (autoReloadTimer !== null) {
+    window.clearTimeout(autoReloadTimer);
+    autoReloadTimer = null;
+  }
+}
+
+function dismissUpdateDialog() {
+  updateDialogVisible = false;
+  swUpdateStore.dismiss();
+}
+
+function showUpdateDialog() {
+  if (updateDialogVisible || !updateReady.value) return;
+  updateDialogVisible = true;
+
+  const isChunkError = updateReason.value === 'chunk-error';
+  dialog.warning({
+    title: isChunkError ? '页面资源已过期' : '发现新版本',
+    content: isChunkError
+      ? '当前页面版本过旧，部分功能无法正常加载，需要刷新页面。当前有未保存的更改，立即刷新会丢失这些更改。'
+      : '控制台已更新到新版本，需要刷新页面加载最新内容。当前有未保存的更改，立即刷新会丢失这些更改。',
+    positiveText: '立即刷新',
+    negativeText: '稍后',
+    onPositiveClick: applyUpdate,
+    onNegativeClick: dismissUpdateDialog,
+    onClose: dismissUpdateDialog,
+    onMaskClick: dismissUpdateDialog,
+    onEsc: dismissUpdateDialog,
+  });
+}
+
 function applyUpdate() {
+  clearAutoReloadTimer();
   if (swUpdateStore.applying) return;
+  if (hasUnsavedChanges.value) {
+    showUpdateDialog();
+    return;
+  }
 
   const reloaded = requestControlledReload(navigationTarget.value);
   if (!reloaded) {
@@ -36,29 +76,30 @@ function applyUpdate() {
 watch(
   updateReady,
   ready => {
-    if (!ready) return;
-
-    if (!hasUnsavedChanges.value) {
-      message.loading('检测到新版本，正在刷新页面…', { duration: AUTO_RELOAD_DELAY_MS });
-      window.setTimeout(applyUpdate, AUTO_RELOAD_DELAY_MS);
+    if (!ready) {
+      clearAutoReloadTimer();
       return;
     }
 
-    const isChunkError = updateReason.value === 'chunk-error';
-    dialog.warning({
-      title: isChunkError ? '页面资源已过期' : '发现新版本',
-      content: isChunkError
-        ? '当前页面版本过旧，部分功能无法正常加载，需要刷新页面。当前有未保存的更改，立即刷新会丢失这些更改。'
-        : '控制台已更新到新版本，需要刷新页面加载最新内容。当前有未保存的更改，立即刷新会丢失这些更改。',
-      positiveText: '立即刷新',
-      negativeText: '稍后',
-      onPositiveClick: applyUpdate,
-      onNegativeClick: () => swUpdateStore.dismiss(),
-      onClose: () => swUpdateStore.dismiss(),
-      onMaskClick: () => swUpdateStore.dismiss(),
-      onEsc: () => swUpdateStore.dismiss(),
-    });
+    if (!hasUnsavedChanges.value) {
+      message.loading('检测到新版本，正在刷新页面…', { duration: AUTO_RELOAD_DELAY_MS });
+      autoReloadTimer = window.setTimeout(applyUpdate, AUTO_RELOAD_DELAY_MS);
+      return;
+    }
+
+    showUpdateDialog();
   },
   { immediate: true }
 );
+
+// 自动刷新等待期间出现未保存修改时，取消自动刷新并转成交互确认。
+watch(hasUnsavedChanges, dirty => {
+  if (!dirty) return;
+  if (autoReloadTimer !== null) {
+    clearAutoReloadTimer();
+    showUpdateDialog();
+  }
+});
+
+onBeforeUnmount(clearAutoReloadTimer);
 </script>

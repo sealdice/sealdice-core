@@ -79,22 +79,30 @@ const errorText = computed(() =>
 async function doUnlock() {
   try {
     await authSession.signin({ password: password.value });
-    password.value = '';
-    message.success('登录成功，欢迎回来');
-    await checkPasswordSecurity();
   } catch {
     message.error(errorText.value || '密码错误');
     password.value = '';
+    return;
   }
+
+  password.value = '';
+  message.success('登录成功，欢迎回来');
+  void checkPasswordSecurity().catch(() => {
+    hasCheckedSecurity.value = false;
+  });
 }
 
 async function checkPasswordSecurity() {
   if (hasCheckedSecurity.value || !canCheckSecurity.value) return;
   hasCheckedSecurity.value = true;
-  const result = await getSdApiV2BaseSecurityCheck({ throwOnError: true });
-  if (!result.data.item) {
-    dialogCheckPassword.value = true;
-    canSkipSecurityDialog.value = false;
+  try {
+    const result = await getSdApiV2BaseSecurityCheck({ throwOnError: true });
+    if (!result.data.item) {
+      dialogCheckPassword.value = true;
+      canSkipSecurityDialog.value = false;
+    }
+  } catch {
+    hasCheckedSecurity.value = false;
   }
 }
 

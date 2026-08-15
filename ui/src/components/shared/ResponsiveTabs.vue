@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import ResponsiveDataView from './ResponsiveDataView.vue';
 
@@ -53,6 +53,14 @@ defineSlots<{
 
 const selectedOption = computed(
   () => props.options.find(option => option.value === model.value) ?? props.options[0]
+);
+
+watch(
+  () => props.options,
+  options => {
+    if (model.value && options.some(option => option.value === model.value)) return;
+    model.value = options[0]?.value ?? '';
+  }
 );
 </script>
 

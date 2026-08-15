@@ -34,6 +34,7 @@
         <div
           class="sd-floating-panel-layer"
           :class="{ 'sd-floating-panel-layer--active': hasPendingActions }"
+          :style="floatingPanelStyle"
         >
           <AppUnsavedChangesPanel />
         </div>
@@ -76,6 +77,7 @@
 import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
 import { useEventListener, useWindowSize } from '@vueuse/core';
 import { useDialog, useMessage } from 'naive-ui';
+import { useRoute } from 'vue-router';
 import {
   getAppShellContainerClass,
   getAppShellContentClass,
@@ -113,11 +115,21 @@ const props = withDefaults(
 const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
 const AppSearchMenu = defineAsyncComponent(loadAppSearchMenu);
 
+const route = useRoute();
 const { width: viewportWidth } = useWindowSize();
 const viewportMode = computed(() => getAppShellViewportMode(viewportWidth.value));
 
 const drawerMenu = ref(false);
 const collapsedMenu = ref(shouldCollapseAppShellSidebar(viewportMode.value));
+
+const floatingPanelStyle = computed(() => {
+  if (viewportMode.value === 'mobile') return undefined;
+  const sidebarWidth = collapsedMenu.value ? 64 : 224;
+  return {
+    left: `calc(${sidebarWidth}px + (100vw - ${sidebarWidth}px) / 2)`,
+    width: `min(100%, calc(100vw - ${sidebarWidth}px - 2rem))`,
+  };
+});
 const advancedConfigCounter = ref(0);
 const renderSearchMenu = ref(false);
 const searchMenuRef = ref<AppSearchMenuHandle | null>(null);
@@ -154,6 +166,13 @@ watch(viewportMode, mode => {
   collapsedMenu.value = shouldCollapseAppShellSidebar(mode);
   drawerMenu.value = false;
 });
+
+watch(
+  () => route.fullPath,
+  () => {
+    drawerMenu.value = false;
+  }
+);
 
 useEventListener(window, 'keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
