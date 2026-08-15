@@ -135,7 +135,7 @@ func (pa *PlatformAdapterSatori) Serve() int {
 	d.Save(false)
 	log.Infof("satori 连接成功，账号<%s>(%s)", pa.EndPoint.Nickname, pa.EndPoint.UserID)
 
-	go func() {
+	runDiceRuntimeTask(d, func() {
 		for {
 			select {
 			case <-pa.Ctx.Done():
@@ -180,12 +180,12 @@ func (pa *PlatformAdapterSatori) Serve() int {
 				}
 			}
 		}
-	}()
+	})
 
 	// 更新好友列表
-	go pa.refreshFriends()
+	runDiceRuntimeTask(d, pa.refreshFriends)
 	// 更新群列表
-	go pa.refreshGroups()
+	runDiceRuntimeTask(d, pa.refreshGroups)
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
@@ -319,7 +319,7 @@ func (pa *PlatformAdapterSatori) refreshGroups() {
 			}
 
 			// 触发群成员更新
-			go pa.refreshMembers(group)
+			runDiceRuntimeTask(d, func() { pa.refreshMembers(group) })
 		}
 		if next == "" {
 			break
@@ -407,7 +407,7 @@ func (pa *PlatformAdapterSatori) SetEnable(enable bool) {
 		e.Enable = true
 		pa.DiceServing = false
 		if pa.conn == nil {
-			go ServeQQ(d, e)
+			runDiceRuntimeTask(d, func() { ServeQQ(d, e) })
 		}
 	} else {
 		e.State = 0
@@ -531,7 +531,7 @@ func (pa *PlatformAdapterSatori) GetGroupInfoAsync(groupID string) {
 		return
 	}
 
-	go pa.refreshGroups()
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, pa.refreshGroups)
 }
 
 func (pa *PlatformAdapterSatori) EditMessage(ctx *MsgContext, msgID, message string) {

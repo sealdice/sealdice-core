@@ -9,6 +9,7 @@ import (
 
 	"github.com/fy0/systray"
 
+	"sealdice-core/api"
 	"sealdice-core/dice"
 )
 
@@ -41,14 +42,25 @@ type trayAccountMenu struct {
 }
 
 func formatTrayTooltip(dm *dice.DiceManager, version, port string) string {
-	text := dice.NormalizeTrayTooltipPrefix(dm.GetTrayTooltip())
+	text := ""
+	if dm != nil {
+		text = dice.NormalizeTrayTooltipPrefix(dm.GetTrayTooltip())
+	}
 	if text == "" {
 		text = defaultTrayTooltip
 	}
 	return fmt.Sprintf("%s %s #%s", text, version, port)
 }
 
-func startTrayAccountMenu(dm *dice.DiceManager, openAccountSettings func()) {
+func currentTrayTooltip(version, port string) string {
+	tooltip := formatTrayTooltip(nil, version, port)
+	api.WithCurrentRuntime(func(manager *dice.DiceManager) {
+		tooltip = formatTrayTooltip(manager, version, port)
+	})
+	return tooltip
+}
+
+func startTrayAccountMenu(openAccountSettings func()) {
 	root := systray.AddMenuItem("账号列表", "查看已配置的平台账号")
 	menu := &trayAccountMenu{
 		root:                root,
@@ -62,19 +74,25 @@ func startTrayAccountMenu(dm *dice.DiceManager, openAccountSettings func()) {
 		}
 	}()
 
-	menu.refresh(dm.DiceSnapshot())
+	menu.refresh(currentTrayAccountTitles())
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			menu.refresh(dm.DiceSnapshot())
+			menu.refresh(currentTrayAccountTitles())
 		}
 	}()
 }
 
-func (menu *trayAccountMenu) refresh(instances []*dice.Dice) {
-	titles := loadTrayAccountTitles(instances)
+func currentTrayAccountTitles() []string {
+	var titles []string
+	api.WithCurrentRuntime(func(manager *dice.DiceManager) {
+		titles = loadTrayAccountTitles(manager.DiceSnapshot())
+	})
+	return titles
+}
 
+func (menu *trayAccountMenu) refresh(titles []string) {
 	for len(menu.account) < len(titles) {
 		item := menu.root.AddSubMenuItem(titles[len(menu.account)], "")
 		go func(item *systray.MenuItem) {

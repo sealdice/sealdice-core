@@ -57,7 +57,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 		log.Errorf("Slack 账号 <%s> 连接断开：%v", pa.EndPoint.UserID, event.Data)
 	})
 	sh.HandleEvents(se.AppMention, func(event *sm.Event, client *sm.Client) {
-		go client.Ack(*event.Request)
+		runDiceRuntimeTask(s.Parent, func() { client.Ack(*event.Request) })
 		e := event.Data.(se.EventsAPIEvent)
 		m := e.InnerEvent.Data.(*se.AppMentionEvent)
 		u := pa.getUser(m.User)
@@ -93,7 +93,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	// Message
 	sh.HandleEvents(se.Message, func(event *sm.Event, client *sm.Client) {
-		go client.Ack(*event.Request)
+		runDiceRuntimeTask(s.Parent, func() { client.Ack(*event.Request) })
 		e := event.Data.(se.EventsAPIEvent)
 		m := e.InnerEvent.Data.(*se.MessageEvent)
 		u := pa.getUser(m.User)
@@ -183,18 +183,18 @@ func (pa *PlatformAdapterSlack) DoRelogin() bool {
 	pa.Client = nil
 	pa.EndPoint.Enable = false
 	pa.EndPoint.State = 0
-	go pa.Serve()
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() { pa.Serve() })
 	return true
 }
 
 func (pa *PlatformAdapterSlack) SetEnable(enable bool) {
 	if enable {
 		if pa.Client == nil {
-			go pa.Serve()
+			runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() { pa.Serve() })
 		} else {
 			pa.Client = nil
 			pa.cancel = nil
-			go pa.Serve()
+			runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() { pa.Serve() })
 		}
 	} else {
 		if pa.cancel != nil {

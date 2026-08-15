@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -30,24 +32,41 @@ type PlatformAdapterSealChat struct {
 	UserID     string                    `json:"-"          yaml:"-"`
 	assetCache SyncMap[string, struct{}] `json:"-"          yaml:"-"`
 
-	Reconnecting    bool `json:"-" yaml:"-"`
-	RetryTimes      int  `json:"-" yaml:"-"`
-	RetryTimesLimit int  `json:"-" yaml:"-"`
+	Reconnecting    atomic.Bool `json:"-" yaml:"-"`
+	RetryTimes      int         `json:"-" yaml:"-"`
+	RetryTimesLimit int         `json:"-" yaml:"-"`
 
 	// 心跳相关
 	heartbeatStop chan struct{}
+	heartbeatMu   sync.Mutex
 	lastPong      int64
+	runtimeMu     sync.Mutex
 
 	// 角色卡写入速率限制器 (60次/分钟)
 	characterSetLimiter *rate.Limiter
+	runtimeStopping     atomic.Bool
+}
+
+func (pa *PlatformAdapterSealChat) socketSnapshot() *gowebsocket.Socket {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.Socket
 }
 
 func (pa *PlatformAdapterSealChat) Serve() int {
+	pa.runtimeStopping.Store(false)
 	if !strings.HasPrefix(pa.ConnectURL, "ws://") && !strings.HasPrefix(pa.ConnectURL, "wss://") {
 		pa.ConnectURL = "ws://" + pa.ConnectURL
 	}
 	socket := gowebsocket.New(pa.ConnectURL)
+	pa.runtimeMu.Lock()
+	if pa.runtimeStopping.Load() {
+		pa.runtimeMu.Unlock()
+		socket.Close()
+		return 0
+	}
 	pa.Socket = &socket
+	pa.runtimeMu.Unlock()
 	pa.EndPoint.Nickname = "SealChat Bot"
 	pa.EndPoint.UserID = "SEALCHAT:BOT"
 	pa.RetryTimesLimit = 15
@@ -74,8 +93,18 @@ func (pa *PlatformAdapterSealChat) _sendJSON(socket *gowebsocket.Socket, data an
 func (pa *PlatformAdapterSealChat) socketSetup() {
 	ep := pa.EndPoint
 	log := pa.EndPoint.Session.Parent.Logger
-	socket := pa.Socket
+	socket := pa.socketSnapshot()
 	socket.OnConnected = func(socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			socket.Close()
+			return
+		}
+		defer done()
+		if pa.runtimeStopping.Load() {
+			socket.Close()
+			return
+		}
 		ep.State = 2
 		ep.Enable = true
 
@@ -91,9 +120,14 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		})
 
 		log.Info("SealChat 建立连接，正在发送身份验证信息")
-		pa.Reconnecting = false
+		pa.Reconnecting.Store(false)
 	}
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			return
+		}
+		defer done()
 		gatewayMsg := satori.GatewayPayloadStructure2{}
 		err := json.Unmarshal([]byte(message), &gatewayMsg)
 		if len(message) == 0 {
@@ -130,11 +164,17 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 						pa.RetryTimesLimit = 15
 					}
 
-					go func() {
+					runDiceRuntimeTaskContext(ep.Session.Parent, func(ctx context.Context) {
 						// 等一会再发，因为好像有的模块会在这个事件之后注册指令
-						time.Sleep(time.Duration(5) * time.Second)
-						pa.registerCommands()
-					}()
+						timer := time.NewTimer(5 * time.Second)
+						defer timer.Stop()
+						select {
+						case <-ctx.Done():
+							return
+						case <-timer.C:
+							pa.registerCommands()
+						}
+					})
 				}
 				// 启动心跳
 				pa.startHeartbeat()
@@ -177,53 +217,81 @@ func (pa *PlatformAdapterSealChat) socketSetup() {
 		}
 	}
 	socket.OnConnectError = func(err error, socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			return
+		}
+		defer done()
 		log.Errorf("SealChat websocket出现错误: %s", err)
 		pa.stopHeartbeat()
+		if pa.runtimeStopping.Load() {
+			return
+		}
 		if !socket.IsConnected {
-			pa.Reconnecting = false
+			pa.Reconnecting.Store(false)
 			time.Sleep(time.Duration(10) * time.Second)
-			if !pa.tryReconnect(*pa.Socket) {
+			if !pa.tryReconnect(socket) {
 				log.Errorf("短时间内连接失败次数过多，不再进行重连")
 				ep.State = 3
 			}
 		}
 	}
 	socket.OnDisconnected = func(err error, socket gowebsocket.Socket) {
+		done, ok := beginDiceRuntimeTask(ep.Session.Parent)
+		if !ok {
+			return
+		}
+		defer done()
+		if pa.runtimeStopping.Load() {
+			return
+		}
 		log.Info("与SealChat服务器断开连接，尝试进行重连")
 		pa.stopHeartbeat()
 		time.Sleep(time.Duration(2) * time.Second)
-		if !pa.tryReconnect(*pa.Socket) {
+		if !pa.tryReconnect(socket) {
 			ep.State = 3
 			log.Errorf("到达连接次数上限，不再进行重连")
 		}
 	}
+	pa.runtimeMu.Lock()
 	pa.Socket = socket
+	pa.runtimeMu.Unlock()
 }
 
 func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool {
 	log := pa.EndPoint.Session.Parent.Logger
+	if pa.runtimeStopping.Load() {
+		return false
+	}
 	if socket.IsConnected {
 		return true
 	}
-	if pa.Reconnecting {
+	if pa.Reconnecting.Load() {
 		return true
 	}
-	pa.Reconnecting = true
+	pa.Reconnecting.Store(true)
 
 	if !pa.EndPoint.Enable {
-		pa.Reconnecting = false
+		pa.Reconnecting.Store(false)
 		return true
 	}
 
 	if pa.RetryTimes >= pa.RetryTimesLimit {
-		pa.Reconnecting = false
+		pa.Reconnecting.Store(false)
 		return false
 	}
 
 	pa.RetryTimes++
 	log.Infof("尝试重新连接SealChat中[%d/%d]", pa.RetryTimes, pa.RetryTimesLimit)
 	socket = gowebsocket.New(pa.ConnectURL)
+	pa.runtimeMu.Lock()
+	if pa.runtimeStopping.Load() {
+		pa.runtimeMu.Unlock()
+		socket.Close()
+		return false
+	}
 	pa.Socket = &socket
+	pa.runtimeMu.Unlock()
 	pa.socketSetup()
 	socket.Connect()
 
@@ -233,48 +301,54 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 // startHeartbeat 启动心跳协程
 func (pa *PlatformAdapterSealChat) startHeartbeat() {
 	pa.stopHeartbeat()
-	pa.heartbeatStop = make(chan struct{})
+	stop := make(chan struct{})
+	pa.heartbeatMu.Lock()
+	pa.heartbeatStop = stop
+	pa.heartbeatMu.Unlock()
 	atomic.StoreInt64(&pa.lastPong, time.Now().Unix())
 	log := pa.EndPoint.Session.Parent.Logger
 
-	go func() {
+	runDiceRuntimeTaskContext(pa.EndPoint.Session.Parent, func(ctx context.Context) {
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-ticker.C:
-				if pa.Socket == nil || !pa.Socket.IsConnected {
+				if pa.runtimeStopping.Load() {
+					return
+				}
+				socket := pa.socketSnapshot()
+				if socket == nil || !socket.IsConnected {
 					return
 				}
 				// 发送 Ping
-				pa._sendJSON(pa.Socket, satori.GatewayPayloadStructure{
-					Op:   satori.OpPing,
+				pa._sendJSON(socket, satori.GatewayPayloadStructure{
 					Body: map[string]any{},
 				})
 				// 检查超时（45秒无响应则断开）
 				last := atomic.LoadInt64(&pa.lastPong)
 				if time.Now().Unix()-last > 45 {
 					log.Warn("SealChat 心跳超时，断开连接")
-					pa.Socket.Close()
+					socket.Close()
 					return
 				}
-			case <-pa.heartbeatStop:
+			case <-stop:
 				return
 			}
 		}
-	}()
+	})
 }
 
 // stopHeartbeat 停止心跳协程
 func (pa *PlatformAdapterSealChat) stopHeartbeat() {
-	if pa.heartbeatStop != nil {
-		select {
-		case <-pa.heartbeatStop:
-			// 已关闭
-		default:
-			close(pa.heartbeatStop)
-		}
-		pa.heartbeatStop = nil
+	pa.heartbeatMu.Lock()
+	stop := pa.heartbeatStop
+	pa.heartbeatStop = nil
+	pa.heartbeatMu.Unlock()
+	if stop != nil {
+		close(stop)
 	}
 }
 
@@ -466,17 +540,19 @@ func FormatDiceIDSealChatGroup(id string) string {
 
 func (pa *PlatformAdapterSealChat) DoRelogin() bool {
 	log := pa.EndPoint.Session.Parent.Logger
-	pa.Reconnecting = true
+	pa.Reconnecting.Store(true)
+	pa.runtimeMu.Lock()
 	if pa.Socket != nil {
 		pa.Socket.Close()
 	}
-
 	socket := gowebsocket.New(pa.ConnectURL)
-	log.Infof("SealChat 重新连接")
 	pa.Socket = &socket
+	pa.runtimeMu.Unlock()
+
+	log.Infof("SealChat 重新连接")
 	pa.socketSetup()
 	socket.Connect()
-	pa.Reconnecting = false
+	pa.Reconnecting.Store(false)
 	return true
 }
 
@@ -485,29 +561,34 @@ func (pa *PlatformAdapterSealChat) SetEnable(enable bool) {
 	if enable {
 		pa.EndPoint.Enable = true
 		log.Infof("Sealchat 连接中")
+		pa.runtimeMu.Lock()
 		if pa.Socket != nil && pa.Socket.IsConnected {
-			pa.Reconnecting = true
+			pa.Reconnecting.Store(true)
 			pa.Socket.Close()
 			socket := gowebsocket.New(pa.ConnectURL)
 			pa.Socket = &socket
+			pa.runtimeMu.Unlock()
 			pa.socketSetup()
 			socket.Connect()
-			pa.Reconnecting = false
+			pa.Reconnecting.Store(false)
 		} else {
-			pa.Reconnecting = true
+			pa.Reconnecting.Store(true)
 			socket := gowebsocket.New(pa.ConnectURL)
 			pa.Socket = &socket
+			pa.runtimeMu.Unlock()
 			pa.socketSetup()
 			socket.Connect()
-			pa.Reconnecting = false
+			pa.Reconnecting.Store(false)
 		}
 	} else {
 		pa.EndPoint.Enable = false
-		pa.Reconnecting = true
-		if pa.Socket != nil && pa.Socket.IsConnected {
+		pa.Reconnecting.Store(true)
+		pa.runtimeMu.Lock()
+		if pa.Socket != nil {
 			pa.Socket.Close()
 		}
-		pa.Reconnecting = false
+		pa.runtimeMu.Unlock()
+		pa.Reconnecting.Store(false)
 	}
 }
 
@@ -515,11 +596,13 @@ func (pa *PlatformAdapterSealChat) sendAPIWithEcho(api string, data any) (string
 	echo := gonanoid.Must()
 	ch := make(chan any, 1)
 	pa.EchoMap.Store(echo, ch)
-	pa._sendJSON(pa.Socket, &satori.ScApiMsgPayload{
-		Api:  api,
-		Echo: echo,
-		Data: data,
-	})
+	if socket := pa.socketSnapshot(); socket != nil {
+		pa._sendJSON(socket, &satori.ScApiMsgPayload{
+			Api:  api,
+			Echo: echo,
+			Data: data,
+		})
+	}
 	return echo, ch
 }
 
@@ -827,11 +910,13 @@ func (pa *PlatformAdapterSealChat) handleApiRequest(msg satori.ScApiMsgPayload) 
 
 // sendApiResponse 发送 API 响应
 func (pa *PlatformAdapterSealChat) sendApiResponse(echo string, data any) {
-	pa._sendJSON(pa.Socket, &satori.ScApiMsgPayload{
-		Api:  "",
-		Echo: echo,
-		Data: data,
-	})
+	if socket := pa.socketSnapshot(); socket != nil {
+		pa._sendJSON(socket, &satori.ScApiMsgPayload{
+			Api:  "",
+			Echo: echo,
+			Data: data,
+		})
+	}
 }
 
 func (pa *PlatformAdapterSealChat) registerCommands() {

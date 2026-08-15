@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -35,10 +36,10 @@ func showWindow() {
 	win.ShowWindow(win.GetConsoleWindow(), win.SW_SHOW)
 }
 
-var theDM *dice.DiceManager
+var trayCleanup func()
 
-func trayInit(dm *dice.DiceManager) {
-	theDM = dm
+func trayInit(cleanup func()) {
+	trayCleanup = cleanup
 	// 确保能收到系统消息，从而避免不能弹出菜单
 	runtime.LockOSThread()
 	systray.Run(onReady, onExit)
@@ -99,18 +100,18 @@ func getAutoStart() *autostart.App {
 	return nil
 }
 
-var systrayQuited bool = false
+var systrayQuited atomic.Bool
 
 func onReady() {
 	log := logger.M()
 	ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 	systray.SetIcon(icon.Data)
 	systray.SetTitle("海豹TRPG骰点核心")
-	systray.SetTooltip(formatTrayTooltip(theDM, ver, getTrayPort()))
+	systray.SetTooltip(currentTrayTooltip(ver, getTrayPort()))
 
 	mOpen := systray.AddMenuItem("打开界面", "开启WebUI")
 	mOpenExeDir := systray.AddMenuItem("打开海豹目录", "资源管理器访问程序所在目录")
-	startTrayAccountMenu(theDM, func() {
+	startTrayAccountMenu(func() {
 		_ = exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+getTrayPort()+`/#/connect`).Start()
 	})
 	mShowHide := systray.AddMenuItemCheckbox("显示终端窗口", "显示终端窗口", false)
@@ -147,8 +148,8 @@ func onReady() {
 			_ = exec.Command(`cmd`, `/c`, `explorer`, filepath.Dir(os.Args[0])).Start()
 		case <-mQuit.ClickedCh:
 			systray.Quit()
-			systrayQuited = true
-			cleanupCreate(theDM)()
+			systrayQuited.Store(true)
+			trayCleanup()
 			time.Sleep(3 * time.Second)
 			os.Exit(0)
 		case <-mAutoBoot.ClickedCh:
@@ -187,7 +188,7 @@ func onExit() {
 	// clean up here
 }
 
-func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
+func httpServe(e *echo.Echo, serveAddress string, hideUI bool, onServeAddressChanged func(string)) {
 	log := logger.M()
 	portStr := defaultTrayPort
 	// runtime.LockOSThread()
@@ -196,11 +197,11 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 		ver := dice.VERSION_MAIN + dice.VERSION_PRERELEASE
 		for {
 			time.Sleep(5 * time.Second)
-			if systrayQuited {
+			if systrayQuited.Load() {
 				break
 			}
 			runtime.LockOSThread()
-			systray.SetTooltip(formatTrayTooltip(dm, ver, getTrayPort()))
+			systray.SetTooltip(currentTrayTooltip(ver, getTrayPort()))
 			runtime.UnlockOSThread()
 		}
 	}()
@@ -226,14 +227,14 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 
 	for {
 		rePort := regexp.MustCompile(`:(\d+)$`)
-		m := rePort.FindStringSubmatch(dm.ServeAddress)
+		m := rePort.FindStringSubmatch(serveAddress)
 		if len(m) > 0 {
 			portStr = m[1]
 		}
 		// 同步托盘菜单使用的端口，确保自定义端口和自动换端口后链接正确。
 		setTrayPort(portStr)
 
-		err := e.Start(dm.ServeAddress)
+		err := e.Start(serveAddress)
 
 		if err != nil {
 			s1, _ := syscall.UTF16PtrFromString("海豹TRPG骰点核心")
@@ -241,10 +242,13 @@ func httpServe(e *echo.Echo, dm *dice.DiceManager, hideUI bool) {
 			ret := win.MessageBox(0, s2, s1, win.MB_YESNO|win.MB_ICONWARNING|win.MB_DEFBUTTON2)
 			if ret == win.IDYES {
 				newPort := 3000 + rand.Int()%4000
-				dm.ServeAddress = fmt.Sprintf("0.0.0.0:%d", newPort)
+				serveAddress = fmt.Sprintf("0.0.0.0:%d", newPort)
+				if onServeAddressChanged != nil {
+					onServeAddressChanged(serveAddress)
+				}
 				continue
 			} else {
-				log.Errorf("端口已被占用，即将自动退出: %s", dm.ServeAddress)
+				log.Errorf("端口已被占用，即将自动退出: %s", serveAddress)
 				os.Exit(0)
 			}
 		} else {

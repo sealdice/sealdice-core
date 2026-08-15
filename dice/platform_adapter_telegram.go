@@ -109,7 +109,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 	updates := bot.GetUpdatesChan(updateConfig)
 	pa.ActiveTime = time.Now()
 
-	go func() {
+	runDiceRuntimeTask(d, func() {
 		for update := range updates {
 			if pa.IntentSession == nil {
 				break
@@ -133,7 +133,7 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 						mctx.Player = p
 					}
 				}
-				go pa.EndPoint.Session.OnMessageEdit(mctx, msg)
+				runDiceRuntimeTask(d, func() { pa.EndPoint.Session.OnMessageEdit(mctx, msg) })
 				continue
 			}
 
@@ -156,22 +156,22 @@ func (pa *PlatformAdapterTelegram) Serve() int {
 				for _, member := range msgRaw.NewChatMembers {
 					// 骰子进群
 					if member.ID == bot.Self.ID {
-						go pa.groupAdded(msg, msgRaw)
+						runDiceRuntimeTask(d, func() { pa.groupAdded(msg, msgRaw) })
 					} else {
 						// 新人进群
 						copied := member
-						go pa.groupNewMember(msg, msgRaw, &copied)
+						runDiceRuntimeTask(d, func() { pa.groupNewMember(msg, msgRaw, &copied) })
 					}
 				}
 				continue
 			}
 			if msgRaw.IsCommand() && msgRaw.Text == "/start" && msg.MessageType == "private" {
-				go pa.friendAdded(msg)
+				runDiceRuntimeTask(d, func() { pa.friendAdded(msg) })
 				continue
 			}
-			go pa.EndPoint.Session.Execute(pa.EndPoint, msg, false)
+			runDiceRuntimeTask(d, func() { pa.EndPoint.Session.Execute(pa.EndPoint, msg, false) })
 		}
-	}()
+	})
 	return 0
 }
 
@@ -363,14 +363,14 @@ func (pa *PlatformAdapterTelegram) MemberKick(_ string, _ string) {}
 func (pa *PlatformAdapterTelegram) DoRelogin() bool {
 	pa.EndPoint.Session.Parent.Logger.Infof("正在启用Telegram服务……")
 	if pa.IntentSession == nil {
-		go pa.Serve()
+		runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() { pa.Serve() })
 		return true
 	}
 	if pa.IntentSession != nil {
 		pa.IntentSession.StopReceivingUpdates()
 		pa.IntentSession = nil
 	}
-	go pa.Serve()
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() { pa.Serve() })
 	return true
 }
 
@@ -379,14 +379,14 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 	if enable {
 		pa.EndPoint.Session.Parent.Logger.Infof("正在启用Telegram服务……")
 		if pa.IntentSession == nil {
-			go pa.Serve()
+			runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() { pa.Serve() })
 			return
 		}
 		if pa.IntentSession != nil {
 			pa.IntentSession.StopReceivingUpdates()
 			pa.IntentSession = nil
 		}
-		go pa.Serve()
+		runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() { pa.Serve() })
 	} else {
 		if pa.IntentSession != nil {
 			pa.IntentSession.StopReceivingUpdates()

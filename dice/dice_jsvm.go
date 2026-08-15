@@ -668,7 +668,12 @@ func (d *Dice) JsInit() {
 		// `)
 		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
 	})
+	loopDone := make(chan struct{})
+	d.jsLoopMu.Lock()
+	d.jsLoopDone = loopDone
+	d.jsLoopMu.Unlock()
 	go func() {
+		defer close(loopDone)
 		defer func() {
 			if r := recover(); r != nil {
 				d.Logger.Errorf("JS核心执行异常: %v 堆栈: %v", r, string(debug.Stack()))

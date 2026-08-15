@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -68,6 +71,11 @@ type PlatformAdapterGocq struct {
 	CurLoginIndex   int    `json:"curLoginIndex"     yaml:"-"`                 // 当前登录序号，如果正在进行的登录不是该Index，证明过时
 
 	GoCqhttpProcess           *procs.Process `json:"-"                    yaml:"-"`
+	processMu                 sync.Mutex     `json:"-"                    yaml:"-"`
+	processStarted            bool           `json:"-"                    yaml:"-"`
+	processDone               chan struct{}  `json:"-"                    yaml:"-"`
+	runtimeMu                 sync.Mutex     `json:"-"                    yaml:"-"`
+	runtimeStopping           atomic.Bool    `json:"-"                    yaml:"-"`
 	GocqhttpLoginFailedReason string         `json:"curLoginFailedReason" yaml:"-"` // 当前登录失败原因
 
 	GoCqhttpLoginCaptcha       string `json:"goCqHttpLoginCaptcha"       yaml:"-"`
@@ -410,6 +418,23 @@ func OneBot11CqMessageToArrayMessage(longText string) []interface{} {
 	return lo.Reverse(arr) //nolint:staticcheck // old code
 }
 
+func (pa *PlatformAdapterGocq) bumpLoginIndexLocked() int {
+	pa.CurLoginIndex++
+	return pa.CurLoginIndex
+}
+
+func (pa *PlatformAdapterGocq) bumpLoginIndex() int {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.bumpLoginIndexLocked()
+}
+
+func (pa *PlatformAdapterGocq) currentLoginIndex() int {
+	pa.runtimeMu.Lock()
+	defer pa.runtimeMu.Unlock()
+	return pa.CurLoginIndex
+}
+
 func (pa *PlatformAdapterGocq) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 }
 
@@ -417,6 +442,9 @@ func (pa *PlatformAdapterGocq) SendSegmentToPerson(ctx *MsgContext, userID strin
 }
 
 func (pa *PlatformAdapterGocq) Serve() int {
+	if pa.runtimeStopping.Load() {
+		return 0
+	}
 	if pa.BuiltinMode == "lagrange" {
 		pa.Implementation = "lagrange"
 	} else {
@@ -428,15 +456,37 @@ func (pa *PlatformAdapterGocq) Serve() int {
 	dm := s.Parent.Parent
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(interrupt)
 
-	pa.InPackGoCqhttpDisconnectedCH = make(chan int, 1)
+	pa.runtimeMu.Lock()
+	if pa.runtimeStopping.Load() {
+		pa.runtimeMu.Unlock()
+		return 0
+	}
+	disconnected := make(chan int, 1)
+	pa.InPackGoCqhttpDisconnectedCH = disconnected
+	pa.runtimeMu.Unlock()
+	defer func() {
+		pa.runtimeMu.Lock()
+		if pa.InPackGoCqhttpDisconnectedCH == disconnected {
+			pa.InPackGoCqhttpDisconnectedCH = nil
+		}
+		pa.runtimeMu.Unlock()
+	}()
 	session := s
 
 	socket := gowebsocket.New(pa.ConnectURL)
 	if pa.AccessToken != "" {
 		socket.RequestHeader.Add("Authorization", "Bearer "+pa.AccessToken)
 	}
+	pa.runtimeMu.Lock()
+	if pa.runtimeStopping.Load() {
+		pa.runtimeMu.Unlock()
+		socket.Close()
+		return 0
+	}
 	pa.Socket = &socket
+	pa.runtimeMu.Unlock()
 
 	ep.State = 2
 	socket.OnConnected = func(socket gowebsocket.Socket) {
@@ -460,7 +510,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		log.Error("onebot v11 connection error: ", err)
 		log.Info("onebot wss connection addr: ", socket.Url)
 		// }
-		pa.InPackGoCqhttpDisconnectedCH <- 2
+		signalAdapterStop(disconnected, 2)
 	}
 
 	// {"channel_id":"3574366","guild_id":"51541481646552899","message":"说句话试试","message_id":"BAC3HLRYvXdDAAAAAAA2il4AAAAAAAAABA==","message_type":"guild","post_type":"mes
@@ -513,7 +563,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		if !ep.Enable {
-			pa.InPackGoCqhttpDisconnectedCH <- 3
+			signalAdapterStop(disconnected, 3)
 		}
 
 		msg := msgQQ.toStdMessage()
@@ -807,7 +857,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 				log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
 
-				go func() {
+				runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
 					defer func() {
 						if r := recover(); r != nil {
 							log.Errorf("好友致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -831,7 +881,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 							return func() { ext.OnBecomeFriend(ctx, msg) }
 						})
 					}
-				}()
+				})
 			}()
 			return
 		}
@@ -872,7 +922,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 			time.Sleep(2 * time.Second)
 			groupName := dm.TryGetGroupName(msg.GroupID)
-			go func() {
+			runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
 				defer func() {
 					if r := recover(); r != nil {
 						log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -889,7 +939,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					doSleepQQ(ctx)
 					pa.SendToGroup(ctx, msg.GroupID, strings.TrimSpace(i), "")
 				}
-			}()
+			})
 			txt := fmt.Sprintf("加入QQ群组: <%s>(%s)", groupName, msgQQ.GroupID)
 			log.Info(txt)
 			ctx.Notice(txt, NoticeTypeGroup)
@@ -1046,7 +1096,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		// 戳一戳
 		if msgQQ.PostType == "notice" && msgQQ.SubType == "poke" {
 			// {"post_type":"notice","notice_type":"notify","time":1672489767,"self_id":2589922907,"sub_type":"poke","group_id":131687852,"user_id":303451945,"sender_id":303451945,"target_id":2589922907}
-			go func() {
+			runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
 				defer ErrorLogAndContinue(pa.EndPoint.Session.Parent)
 				isPrivate := msg.MessageType == "private"
 				pa.EndPoint.Session.OnPoke(pa.packTempCtx(msgQQ, msg), &events.PokeEvent{
@@ -1055,7 +1105,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 					TargetID:  FormatDiceIDQQ(string(msgQQ.TargetID)),
 					IsPrivate: isPrivate,
 				})
-			}()
+			})
 			return
 		}
 
@@ -1105,14 +1155,20 @@ func (pa *PlatformAdapterGocq) Serve() int {
 
 		log.Info("onebot 服务的连接被对方关闭")
 		_ = pa.EndPoint.Session.Parent.SendMail("", MailTypeConnectClose, NoticeTypeSystem)
-		pa.InPackGoCqhttpDisconnectedCH <- 1
+		signalAdapterStop(disconnected, 1)
 	}
 
 	if pa.IsReverse {
-		go func() {
-			if pa.IsReverse && pa.reverseApp != nil {
-				_ = pa.reverseApp.Close()
-				pa.reverseApp = nil
+		runDiceRuntimeTaskWithContext(s.Parent, func(ctx context.Context) {
+			if ctx.Err() != nil || pa.runtimeStopping.Load() {
+				return
+			}
+			pa.runtimeMu.Lock()
+			previousReverseApp := pa.reverseApp
+			pa.reverseApp = nil
+			pa.runtimeMu.Unlock()
+			if pa.IsReverse && previousReverseApp != nil {
+				_ = previousReverseApp.Close()
 			}
 
 			e := echo.New()
@@ -1134,49 +1190,66 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				socketClone.OnConnected = socket.OnConnected
 				socketClone.OnConnectError = socket.OnConnectError
 				// 注: 只能管一个socket，不过不管了
+				pa.runtimeMu.Lock()
+				if pa.runtimeStopping.Load() {
+					pa.runtimeMu.Unlock()
+					return nil
+				}
 				pa.Socket = &socketClone
+				pa.runtimeMu.Unlock()
 
 				pa.EndPoint.State = 1
 				socketClone.NewClient(ws)
 				return nil
 			})
 
+			pa.runtimeMu.Lock()
+			if pa.runtimeStopping.Load() {
+				pa.runtimeMu.Unlock()
+				_ = e.Close()
+				return
+			}
 			pa.reverseApp = e
+			pa.runtimeMu.Unlock()
 			log.Info("Onebot v11 反向WS服务启动，地址: ", pa.ReverseAddr)
 			e.HideBanner = true
 			err := e.Start(pa.ReverseAddr)
+			pa.runtimeMu.Lock()
+			if pa.reverseApp == e {
+				pa.reverseApp = nil
+			}
+			pa.runtimeMu.Unlock()
 			if err != nil {
 				log.Error("Onebot v11 反向WS服务关闭: ", err)
+				pa.runtimeMu.Lock()
 				pa.diceServing = false
+				pa.runtimeMu.Unlock()
 			}
-		}()
+		})
 	} else {
 		socket.Connect()
 	}
 
 	defer func() {
 		// fmt.Println("socket close")
-		go func() {
-			defer func() {
-				if r := recover(); r != nil { //nolint
-					// 太频繁了 不输出了
-					// fmt.Println("关闭连接时遭遇异常")
-					// core.GetLogger().Error(r)
-				}
-			}()
-
-			// 可能耗时好久
-			socket.Close()
+		defer func() {
+			_ = recover()
 		}()
+		socket.Close()
+		pa.runtimeMu.Lock()
+		if pa.Socket == &socket {
+			pa.Socket = nil
+		}
+		pa.runtimeMu.Unlock()
 	}()
 
 	for {
 		select {
 		case <-interrupt:
 			log.Info("interrupt")
-			pa.InPackGoCqhttpDisconnectedCH <- 0
+			signalAdapterStop(disconnected, 0)
 			return 0
-		case val := <-pa.InPackGoCqhttpDisconnectedCH:
+		case val := <-disconnected:
 			return val
 		}
 	}
@@ -1185,40 +1258,55 @@ func (pa *PlatformAdapterGocq) Serve() int {
 func (pa *PlatformAdapterGocq) DoRelogin() bool {
 	myDice := pa.EndPoint.Session.Parent
 	ep := pa.EndPoint
-	if pa.Socket != nil {
-		go func() {
+	pa.runtimeMu.Lock()
+	socket := pa.Socket
+	pa.runtimeMu.Unlock()
+	if socket != nil {
+		runDiceRuntimeTask(myDice, func() {
 			defer func() {
 				_ = recover()
 			}()
-			pa.Socket.Close()
+			socket.Close()
+			pa.runtimeMu.Lock()
 			pa.diceServing = false
-		}()
+			pa.runtimeMu.Unlock()
+		})
 	}
 
 	if pa.IsReverse {
-		if pa.reverseApp != nil {
-			_ = pa.reverseApp.Close()
-			pa.reverseApp = nil
+		pa.runtimeMu.Lock()
+		reverseApp := pa.reverseApp
+		pa.reverseApp = nil
+		pa.runtimeMu.Unlock()
+		if reverseApp != nil {
+			_ = reverseApp.Close()
 		}
 
-		go pa.Serve()
+		runDiceRuntimeTaskWithContext(myDice, func(ctx context.Context) {
+			if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+				pa.Serve()
+			}
+		})
 		return true
 	}
 
 	if pa.UseInPackClient {
-		if pa.InPackGoCqhttpDisconnectedCH != nil {
-			pa.InPackGoCqhttpDisconnectedCH <- -1
+		pa.runtimeMu.Lock()
+		disconnected := pa.InPackGoCqhttpDisconnectedCH
+		pa.runtimeMu.Unlock()
+		if disconnected != nil {
+			signalAdapterStop(disconnected, -1)
 		}
 		if pa.BuiltinMode == "lagrange" {
 			myDice.Logger.Infof("重新启动 lagrange 进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-			pa.CurLoginIndex++
+			pa.bumpLoginIndex()
 			pa.GoCqhttpState = StateCodeInit
-			ep.Enable = false // 拉格朗进程杀死前应先禁用账号，否则拉格朗会自动重启（该行为在LagrangeServe中）
-			go BuiltinQQServeProcessKill(myDice, ep)
-			time.Sleep(10 * time.Second)           // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
+			BuiltinQQServeProcessKill(myDice, ep)
+			if !waitRuntimeDelay(diceRuntimeContext(myDice), 10*time.Second) {
+				return false
+			}
 			LagrangeServeRemoveSession(myDice, ep) // 删除 keystore
 			pa.GoCqhttpLastRestrictedTime = 0      // 重置风控时间
-			ep.Enable = true
 			myDice.LastUpdatedTime = time.Now().Unix()
 			myDice.Save(false)
 			LagrangeServe(myDice, ep, LagrangeLoginInfo{
@@ -1227,10 +1315,12 @@ func (pa *PlatformAdapterGocq) DoRelogin() bool {
 			return true
 		} else {
 			myDice.Logger.Infof("重新启动go-cqhttp进程，对应账号: <%s>(%s)", ep.Nickname, ep.UserID)
-			pa.CurLoginIndex++
+			pa.bumpLoginIndex()
 			pa.GoCqhttpState = StateCodeInit
-			go BuiltinQQServeProcessKill(myDice, ep)
-			time.Sleep(10 * time.Second)                // 上面那个清理有概率卡住，具体不懂，改成等5s -> 10s 超过一次重试间隔
+			BuiltinQQServeProcessKill(myDice, ep)
+			if !waitRuntimeDelay(diceRuntimeContext(myDice), 10*time.Second) {
+				return false
+			}
 			GoCqhttpServeRemoveSessionToken(myDice, ep) // 删除session.token
 			pa.GoCqhttpLastRestrictedTime = 0           // 重置风控时间
 			myDice.LastUpdatedTime = time.Now().Unix()
@@ -1258,13 +1348,17 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 		if pa.UseInPackClient {
 			if pa.BuiltinMode == "lagrange" {
 				BuiltinQQServeProcessKill(d, c)
-				time.Sleep(1 * time.Second)
+				if !waitRuntimeDelay(diceRuntimeContext(d), time.Second) {
+					return
+				}
 				LagrangeServe(d, c, LagrangeLoginInfo{
 					IsAsyncRun: true,
 				})
 			} else {
 				BuiltinQQServeProcessKill(d, c)
-				time.Sleep(1 * time.Second)
+				if !waitRuntimeDelay(diceRuntimeContext(d), time.Second) {
+					return
+				}
 				GoCqhttpServe(d, c, GoCqhttpLoginInfo{
 					Password:         pa.InPackGoCqhttpPassword,
 					Protocol:         pa.InPackGoCqhttpProtocol,
@@ -1273,20 +1367,36 @@ func (pa *PlatformAdapterGocq) SetEnable(enable bool) {
 					UseSignServer:    pa.UseSignServer,
 					SignServerConfig: pa.SignServerConfig,
 				})
-				go ServeQQ(d, c)
+				runDiceRuntimeTaskWithContext(d, func(ctx context.Context) {
+					if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+						ServeQQ(d, c)
+					}
+				})
 			}
 		} else {
 			pa.GoCqhttpState = StateCodeLoginSuccessed
-			go ServeQQ(d, c)
+			runDiceRuntimeTaskWithContext(d, func(ctx context.Context) {
+				if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+					ServeQQ(d, c)
+				}
+			})
 		}
 	} else {
 		c.Enable = false
+		pa.runtimeMu.Lock()
+		if pa.Socket != nil {
+			pa.Socket.Close()
+			pa.Socket = nil
+		}
+		pa.diceServing = false
+		reverseApp := pa.reverseApp
+		pa.reverseApp = nil
+		pa.runtimeMu.Unlock()
 		if pa.UseInPackClient {
 			BuiltinQQServeProcessKill(d, c)
 		}
-		if pa.IsReverse && pa.reverseApp != nil {
-			_ = pa.reverseApp.Close()
-			pa.reverseApp = nil
+		if pa.IsReverse && reverseApp != nil {
+			_ = reverseApp.Close()
 		}
 	}
 

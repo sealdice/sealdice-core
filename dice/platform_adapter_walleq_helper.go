@@ -2,6 +2,7 @@ package dice
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -15,6 +16,32 @@ import (
 
 	"sealdice-core/utils/procs"
 )
+
+func (pa *PlatformAdapterWalleQ) startWalleQProcess(ctx context.Context, process *procs.Process) error {
+	if pa.runtimeStopping.Load() {
+		return context.Canceled
+	}
+	return startManagedProcess(ctx, &pa.processMu, &pa.WalleQProcess, &pa.processStarted, &pa.processDone, process)
+}
+
+func (pa *PlatformAdapterWalleQ) waitWalleQProcess(process *procs.Process) error {
+	return waitManagedProcess(&pa.processMu, &pa.WalleQProcess, &pa.processStarted, &pa.processDone, process)
+}
+
+func (pa *PlatformAdapterWalleQ) stopWalleQProcess() error {
+	return stopManagedProcess(&pa.processMu, &pa.WalleQProcess, &pa.processStarted, nil)
+}
+
+func (pa *PlatformAdapterWalleQ) stopWalleQRuntime() error {
+	pa.runtimeMu.Lock()
+	pa.runtimeStopping.Store(true)
+	pa.runtimeMu.Unlock()
+	return pa.stopWalleQProcess()
+}
+
+func (pa *PlatformAdapterWalleQ) stopWalleQProcessInstance(process *procs.Process) error {
+	return stopManagedProcess(&pa.processMu, &pa.WalleQProcess, &pa.processStarted, process)
+}
 
 const (
 	WqStateCodeInit              = 0
@@ -104,7 +131,9 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 			conn.State = 0
 			pa.WalleQState = 0
 
+			pa.runtimeMu.Lock()
 			pa.DiceServing = false
+			pa.runtimeMu.Unlock()
 			pa.WalleQQrcodeData = nil
 			pa.WalleQLoginDeviceLockURL = ""
 
@@ -116,13 +145,8 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 				dice.Logger.Info("onebot: 删除已存在的二维码文件")
 			}
 
-			// 注意这个会panic，因此recover捕获了
-			if pa.WalleQProcess != nil {
-				p := pa.WalleQProcess
-				pa.WalleQProcess = nil
-				// sigintwindows.SendCtrlBreak(p.Cmds[0].Process.Pid)
-				_ = p.Stop()
-				_ = p.Wait() // 等待进程退出，因为Stop内部是Kill，这是不等待的
+			if err := pa.stopWalleQProcess(); err != nil {
+				dice.Logger.Error("停止 Walle-Q 进程失败: ", err)
 			}
 		}
 	}()
@@ -130,8 +154,7 @@ func WalleQServeProcessKill(dice *Dice, conn *EndPointInfo) {
 
 func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, isAsyncRun bool) {
 	pa := conn.Adapter.(*PlatformAdapterWalleQ)
-	pa.CurLoginIndex++
-	loginIndex := pa.CurLoginIndex
+	loginIndex := pa.bumpLoginIndex()
 	pa.WalleQState = WqStateCodeInLogin
 	dice.Logger.Debug("WalleQServe begin")
 	workDir := filepath.Join(dice.BaseConfig.DataDir, conn.RelWorkDir)
@@ -197,21 +220,27 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	isSeldKilling := false
 
 	p.OutputHandler = func(line string, _type string) string {
+		if pa.runtimeStopping.Load() {
+			return ""
+		}
 		log.Debug(line)
-		if loginIndex != pa.CurLoginIndex {
+		if loginIndex != pa.currentLoginIndex() {
 			// 当前连接已经无用，进程自杀
 			if !isSeldKilling {
-				dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+				dice.Logger.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.currentLoginIndex(), loginIndex)
 				// 注: 这里不要调用kill
 				isSeldKilling = true
-				_ = p.Stop()
+				_ = pa.stopWalleQProcessInstance(p)
 			}
 			return ""
 		}
 
 		if pa.IsInLogin() {
 			if strings.Contains(line, "扫描二维码登录") {
-				chQrCode <- 1
+				select {
+				case chQrCode <- 1:
+				default:
+				}
 			}
 
 			if strings.Contains(line, "note: run with `RUST_BACKTRACE=1`") {
@@ -224,7 +253,11 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 			}
 
 			if strings.Contains(line, "Walle-Q Login success with") {
-				go ServeQQ(dice, conn)
+				runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+					if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+						ServeQQ(dice, conn)
+					}
+				})
 			}
 		}
 
@@ -234,8 +267,15 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 		return line
 	}
 
-	go func() {
-		<-chQrCode
+	runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-chQrCode:
+		}
+		if ctx.Err() != nil || pa.runtimeStopping.Load() {
+			return
+		}
 		if _, err := os.Stat(qrcodeFile); err == nil {
 			log.Info("如控制台二维码不好扫描，可以手动打开 ./data/default/extra/walle-q数字 目录下qrcode.png")
 			qrdata, err := os.ReadFile(qrcodeFile)
@@ -253,16 +293,15 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 				dice.Logger.Info("获取二维码失败，错误为: ", err.Error())
 			}
 		}
-	}()
+	})
 
-	run := func() {
+	run := func(ctx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				dice.Logger.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
 			}
 		}()
-		pa.WalleQProcess = p
-		err := p.Start()
+		err := pa.startWalleQProcess(ctx, p)
 
 		if err == nil {
 			if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
@@ -271,7 +310,13 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 					dice.Logger.Warn("添加到进程组失败，若主进程崩溃，walle-q 进程可能需要手动结束")
 				}
 			}
-			err = p.Wait()
+			err = pa.waitWalleQProcess(p)
+		}
+		if ctx.Err() != nil || pa.runtimeStopping.Load() {
+			return
+		}
+		if loginIndex != pa.currentLoginIndex() {
+			return
 		}
 
 		if err != nil {
@@ -282,9 +327,9 @@ func WalleQServe(dice *Dice, conn *EndPointInfo, password string, protocol int, 
 	}
 
 	if isAsyncRun {
-		go run()
+		runDiceRuntimeTaskWithContext(dice, run)
 	} else {
-		run()
+		run(diceRuntimeContext(dice))
 	}
 }
 

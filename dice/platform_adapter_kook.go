@@ -140,7 +140,7 @@ func (pa *PlatformAdapterKook) GetGroupInfoAsync(groupID string) {
 	}
 	logger := pa.EndPoint.Session.Parent.Logger
 	dm := pa.EndPoint.Session.Parent.Parent
-	go pa.updateChannelNum()
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, pa.updateChannelNum)
 	channel, err := pa.IntentSession.ChannelView(ExtractKookChannelID(groupID))
 	if err != nil {
 		logger.Errorf("获取Kook频道信息#%s时出错:%s", groupID, err.Error())
@@ -278,7 +278,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 
 		mctx := &MsgContext{Session: pa.EndPoint.Session, EndPoint: pa.EndPoint, Dice: pa.EndPoint.Session.Parent, MessageType: msg.MessageType}
 		pa.GetGroupInfoAsync(msg.GroupID)
-		go func() {
+		runDiceRuntimeTask(pa.EndPoint.Session.Parent, func() {
 			defer func() {
 				if r := recover(); r != nil {
 					log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -294,7 +294,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 			for _, i := range mctx.SplitText(text) {
 				pa.SendToGroup(mctx, msg.GroupID, strings.TrimSpace(i), "")
 			}
-		}()
+		})
 
 		// 此时 ServiceAtNew 中这个频道一般为空，照 im_session.go 中的方法处理
 		// Pinenutn: 不清楚此处的逻辑，修改为Exists检查
@@ -350,7 +350,7 @@ func (pa *PlatformAdapterKook) Serve() int {
 		return 1
 	}
 	pa.IntentSession = s
-	go pa.updateGameStatus()
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, pa.updateGameStatus)
 	pa.EndPoint.State = 1
 	pa.EndPoint.Enable = true
 	self, _ := s.UserMe()

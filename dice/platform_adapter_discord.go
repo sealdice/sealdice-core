@@ -33,7 +33,7 @@ func (pa *PlatformAdapterDiscord) GetGroupInfoAsync(groupID string) {
 	if pa.IntentSession == nil {
 		return
 	}
-	go pa.updateChannelNum()
+	runDiceRuntimeTask(pa.EndPoint.Session.Parent, pa.updateChannelNum)
 	logger := pa.EndPoint.Session.Parent.Logger
 	dm := pa.EndPoint.Session.Parent.Parent
 	channel, err := pa.IntentSession.Channel(ExtractDiscordChannelID(groupID))

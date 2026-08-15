@@ -2,7 +2,6 @@ package dice
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -21,6 +20,28 @@ import (
 	"sealdice-core/logger"
 	"sealdice-core/utils/procs"
 )
+
+func (pa *PlatformAdapterMilky) startMilkyProcess(ctx context.Context, process *procs.Process) error {
+	if pa.runtimeStopping.Load() {
+		return context.Canceled
+	}
+	return startManagedProcess(ctx, &pa.processMu, &pa.MilkyProcess, &pa.processStarted, &pa.processDone, process)
+}
+
+func (pa *PlatformAdapterMilky) waitMilkyProcess(process *procs.Process) error {
+	return waitManagedProcess(&pa.processMu, &pa.MilkyProcess, &pa.processStarted, &pa.processDone, process)
+}
+
+func (pa *PlatformAdapterMilky) stopMilkyProcess() error {
+	return stopManagedProcess(&pa.processMu, &pa.MilkyProcess, &pa.processStarted, nil)
+}
+
+func (pa *PlatformAdapterMilky) stopMilkyRuntime() error {
+	pa.runtimeMu.Lock()
+	pa.runtimeStopping.Store(true)
+	pa.runtimeMu.Unlock()
+	return pa.stopMilkyProcess()
+}
 
 var defaultLagrangeV2Config = `{
     "$schema": "https://raw.githubusercontent.com/LagrangeDev/LagrangeV2/refs/heads/main/Lagrange.Milky/Resources/appsettings_schema.json",
@@ -205,28 +226,17 @@ func BuiltinMilkyClientKill(dice *Dice, conn *EndPointInfo) {
 	if pa.BuiltInMode == "" {
 		return
 	}
-	defer func() {
-		pa.MilkyProcess = nil
-	}()
-	if pa.MilkyProcess != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		go func() {
-			<-ctx.Done()
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				dice.Logger.Error("Milky 进程未能在 5 秒内退出，可能需要手动结束")
-			}
-		}()
-		err := pa.MilkyProcess.Stop()
-		if err != nil {
-			dice.Logger.Error("停止 Milky 进程失败: ", err)
-		}
-		_ = pa.MilkyProcess.Wait()
+	if err := pa.stopMilkyProcess(); err != nil {
+		dice.Logger.Error("停止 Milky 进程失败: ", err)
 	}
 }
 
 func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	defer CrashLog()
+	conn := ep.Adapter.(*PlatformAdapterMilky)
+	if conn.runtimeStopping.Load() {
+		return
+	}
 	if d.ContainerMode {
 		d.Logger.Warnf("当前处于容器模式，Milky 内置版本不可用")
 		ep.State = 3
@@ -242,9 +252,8 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		d.Save(false)
 		return
 	}
-	conn := ep.Adapter.(*PlatformAdapterMilky)
 	doServe := func() {
-		if ep.Platform == "QQ" {
+		if ep.Platform == "QQ" && !conn.runtimeStopping.Load() {
 			d.Logger.Infof("Milky 尝试连接")
 			if conn.Serve() != 0 {
 				d.Logger.Errorf("连接Milky失败")
@@ -327,6 +336,9 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	qrSignalCalled.Store(false)
 	pa.BuiltInLoginState = MilkyLoginStateInit
 	p.OutputHandler = func(line string, _type string) string {
+		if pa.runtimeStopping.Load() {
+			return ""
+		}
 		// 登录中
 		if pa.BuiltInLoginState < MilkyLoginStateConnecting {
 			var qrcodeSignal string
@@ -346,7 +358,10 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 			// 读取二维码
 			if strings.Contains(line, qrcodeSignal) && !qrSignalCalled.Load() {
 				qrSignalCalled.Store(true)
-				chQrCode <- 1
+				select {
+				case chQrCode <- 1:
+				default:
+				}
 			}
 
 			// 登录成功
@@ -357,8 +372,11 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 				d.Save(false)
 
 				// 经测试，若不延时，登录成功的同一时刻进行ws正向连接有几率导致第一次连接失败
-				time.Sleep(1 * time.Second)
-				go doServe()
+				runDiceRuntimeTaskWithContext(d, func(ctx context.Context) {
+					if waitRuntimeDelay(ctx, time.Second) {
+						doServe()
+					}
+				})
 			}
 
 			if strings.Contains(line, qrcodeExpiredSignal) {
@@ -383,9 +401,15 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		return ""
 	}
 
-	go func() {
-		<-chQrCode
-		time.Sleep(3 * time.Second)
+	runDiceRuntimeTaskWithContext(d, func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-chQrCode:
+		}
+		if !waitRuntimeDelay(ctx, 3*time.Second) || pa.runtimeStopping.Load() {
+			return
+		}
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
 			log.Info("Milky 二维码已就绪")
 			qrdata, err := os.ReadFile(qrcodeFilePath)
@@ -403,35 +427,30 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 				log.Infof("Milky 读取二维码失败：%s", err)
 			}
 		}
-	}()
+	})
 
-	run := func() {
+	run := func(ctx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("MilkyInternal 异常: %v 堆栈: %v", r, string(debug.Stack()))
 			}
 		}()
 
-		errRun := p.Start()
-		if errRun != nil {
-			log.Info("Milky 进程启动失败: ", errRun)
-			ep.State = 3
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
+		// processStartTime := time.Now().Unix()
+		errRun := pa.startMilkyProcess(ctx, p)
+
+		if errRun == nil {
+			if d.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
+				errAdd := d.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
+				if errAdd != nil {
+					log.Warn("添加到进程组失败，若主进程崩溃，Milky 进程可能需要手动结束")
+				}
+			}
+			errRun = pa.waitMilkyProcess(p)
+		}
+		if ctx.Err() != nil || pa.runtimeStopping.Load() {
 			return
 		}
-
-		conn.MilkyProcess = p
-		close(processRegistered)
-		// processStartTime := time.Now().Unix()
-
-		if d.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
-			errAdd := d.Parent.progressExitGroupWin.AddProcess(p.Cmd.Process)
-			if errAdd != nil {
-				log.Warn("添加到进程组失败，若主进程崩溃，Milky 进程可能需要手动结束")
-			}
-		}
-		errRun = p.Wait() //nolint:ineffassign
 
 		if errRun != nil {
 			log.Info("Milky 进程异常退出: ", errRun)
@@ -440,7 +459,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		}
 	}
 
-	go run()
+	runDiceRuntimeTaskWithContext(d, run)
 }
 
 // GenerateMilkyConfig 似乎暂时不需要 APPInfo, 如果以后需要了再改成双返回值

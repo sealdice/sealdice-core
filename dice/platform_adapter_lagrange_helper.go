@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,8 +56,7 @@ func NewLagrangeConnectInfoItem(account string) *EndPointInfo {
 func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) {
 	pa := conn.Adapter.(*PlatformAdapterGocq)
 
-	pa.CurLoginIndex++
-	loginIndex := pa.CurLoginIndex
+	loginIndex := pa.bumpLoginIndex()
 	pa.GoCqhttpState = StateCodeInLogin
 	helper := zap.S().Named(logger.LogKeyAdapter)
 	if pa.UseInPackClient && (pa.BuiltinMode == "lagrange") { //nolint:nestif
@@ -129,9 +129,9 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			_ = os.WriteFile(configFilePath, c, 0o644)
 		}
 
-		if pa.GoCqhttpProcess != nil {
-			// 如果有正在运行的lagrange，先将其杀掉
-			BuiltinQQServeProcessKill(dice, conn)
+		// 如果有正在运行的 Lagrange，先请求其退出；Wait 由原运行任务负责。
+		if err := pa.stopGoCqhttpProcess(); err != nil {
+			helper.Errorf("停止旧 Lagrange 进程失败: %v", err)
 		}
 
 		// 启动客户端
@@ -165,13 +165,16 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		regFatal := regexp.MustCompile(`\s*\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\]\s+\[[^]]+\]\s+\[(FATAL)\]:`)
 
 		p.OutputHandler = func(line string, _type string) string {
-			if loginIndex != pa.CurLoginIndex {
+			if pa.runtimeStopping.Load() {
+				return ""
+			}
+			if loginIndex != pa.currentLoginIndex() {
 				// 当前连接已经无用，进程自杀
 				if !isSelfKilling {
-					helper.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.CurLoginIndex, loginIndex)
+					helper.Infof("检测到新的连接序号 %d，当前连接 %d 将自动退出", pa.currentLoginIndex(), loginIndex)
 					// 注: 这里不要调用kill
 					isSelfKilling = true
-					_ = p.Stop()
+					_ = pa.stopGoCqhttpProcessInstance(p)
 				}
 				return ""
 			}
@@ -183,7 +186,10 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 				qrcodeExpiredSignal := "QrCode Expired, Please Fetch QrCode Again"
 				// 读取二维码
 				if strings.Contains(line, qrcodeSignal) {
-					chQrCode <- 1
+					select {
+					case chQrCode <- 1:
+					default:
+					}
 				}
 
 				// 登录成功
@@ -196,8 +202,11 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 					isPrintLog = false
 
 					// 经测试，若不延时，登录成功的同一时刻进行ws正向连接有几率导致第一次连接失败
-					time.Sleep(1 * time.Second)
-					go ServeQQ(dice, conn)
+					runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+						if waitRuntimeDelay(ctx, time.Second) && !pa.runtimeStopping.Load() {
+							ServeQQ(dice, conn)
+						}
+					})
 				}
 
 				if strings.Contains(line, qrcodeExpiredSignal) {
@@ -223,9 +232,15 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 			return ""
 		}
 
-		go func() {
-			<-chQrCode
-			time.Sleep(3 * time.Second)
+		runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+			select {
+			case <-ctx.Done():
+				return
+			case <-chQrCode:
+			}
+			if !waitRuntimeDelay(ctx, 3*time.Second) || pa.runtimeStopping.Load() {
+				return
+			}
 			if _, err := os.Stat(qrcodeFilePath); err == nil {
 				helper.Info("onebot: 二维码已就绪")
 				qrdata, err := os.ReadFile(qrcodeFilePath)
@@ -244,18 +259,17 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 					helper.Infof("onebot: 读取二维码失败：%s", err)
 				}
 			}
-		}()
+		})
 
-		run := func() {
+		run := func(ctx context.Context) {
 			defer func() {
 				if r := recover(); r != nil {
 					helper.Errorf("onebot: 异常: %v 堆栈: %v", r, string(debug.Stack()))
 				}
 			}()
 
-			pa.GoCqhttpProcess = p
 			processStartTime := time.Now().Unix()
-			err := p.Start()
+			err := pa.startGoCqhttpProcess(ctx, p)
 
 			if err == nil {
 				if dice.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
@@ -264,7 +278,13 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 						dice.Logger.Warn("添加到进程组失败，若主进程崩溃，lagrange 进程可能需要手动结束")
 					}
 				}
-				err = p.Wait()
+				err = pa.waitGoCqhttpProcess(p)
+			}
+			if ctx.Err() != nil || pa.runtimeStopping.Load() {
+				return
+			}
+			if loginIndex != pa.currentLoginIndex() {
+				return
 			}
 
 			isInLogin := pa.IsInLogin()
@@ -300,11 +320,13 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 								helper.Info("自动重启次数达到上限，放弃")
 							} else {
 								pa.lagrangeRebootTimes++
-								if conn.Enable {
+								if conn.Enable && ctx.Err() == nil {
 									helper.Info("5秒后，尝试对其进行重启")
-									time.Sleep(5 * time.Second)
+									if !waitRuntimeDelay(ctx, 5*time.Second) {
+										return
+									}
 								}
-								if conn.Enable {
+								if conn.Enable && ctx.Err() == nil {
 									LagrangeServe(dice, conn, loginInfo)
 								}
 							}
@@ -317,15 +339,19 @@ func LagrangeServe(dice *Dice, conn *EndPointInfo, loginInfo LagrangeLoginInfo) 
 		}
 
 		if loginInfo.IsAsyncRun {
-			go run()
+			runDiceRuntimeTaskWithContext(dice, run)
 		} else {
-			run()
+			run(diceRuntimeContext(dice))
 		}
 	} else if !pa.UseInPackClient {
 		pa.GoCqhttpState = StateCodeLoginSuccessed
 		pa.GoCqhttpLoginSucceeded = true
 		dice.Save(false)
-		go ServeQQ(dice, conn)
+		runDiceRuntimeTaskWithContext(dice, func(ctx context.Context) {
+			if ctx.Err() == nil && !pa.runtimeStopping.Load() {
+				ServeQQ(dice, conn)
+			}
+		})
 	}
 }
 
