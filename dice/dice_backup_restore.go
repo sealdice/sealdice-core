@@ -1329,8 +1329,6 @@ func fileSHA256File(file *os.File) ([sha256.Size]byte, error) {
 }
 
 func ImportBackup(reader io.Reader) (*BackupArchiveInfo, error) {
-	backupOperationMu.Lock()
-	defer backupOperationMu.Unlock()
 	if err := ensureBackupDirectoryLocked(); err != nil {
 		return nil, err
 	}
@@ -1385,6 +1383,14 @@ func ImportBackup(reader io.Reader) (*BackupArchiveInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// The network upload itself must not hold the global backup lock; only
+	// validation, deduplication and the atomic publish step are serialized.
+	backupOperationMu.Lock()
+	defer backupOperationMu.Unlock()
+	if err = validateBackupDirectoryLocked(); err != nil {
+		return nil, err
+	}
 	info, _, err := inspectBackupArchive(tmpName)
 	if err != nil {
 		return nil, err
@@ -1414,6 +1420,7 @@ func ImportBackup(reader io.Reader) (*BackupArchiveInfo, error) {
 		return nil, err
 	}
 	if err = syncDirectory(BackupDir); err != nil {
+		_ = os.Remove(target)
 		return nil, err
 	}
 	info.Name = name

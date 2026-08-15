@@ -163,7 +163,8 @@ type runtimeSupervisor struct {
 	restoreRunFn     func(context.Context, string) error
 	restoreQueueMu   sync.Mutex
 	restoreWake      chan struct{}
-	restoreQueuedID  string
+	restoreQueue     []string
+	restoreQueued    map[string]struct{}
 	restoreActiveID  string
 	restoreCancel    context.CancelFunc
 	restoreDone      chan struct{}
@@ -172,7 +173,11 @@ type runtimeSupervisor struct {
 }
 
 func newRuntimeSupervisor(options runtimeBuildOptions) *runtimeSupervisor {
-	supervisor := &runtimeSupervisor{options: options, restoreWake: make(chan struct{}, 1)}
+	supervisor := &runtimeSupervisor{
+		options:       options,
+		restoreWake:   make(chan struct{}, 1),
+		restoreQueued: map[string]struct{}{},
+	}
 	supervisor.state.Store("stopped")
 	supervisor.buildFn = supervisor.build
 	supervisor.validateFn = validateApplicationRuntime
@@ -398,8 +403,11 @@ func (supervisor *runtimeSupervisor) restore(ctx context.Context, expectedOperat
 	operationID := runnableOperationID
 	sourceName := restoreStatus.SourceName
 	logger.M().Infow("[备份恢复] 开始执行 Runtime 恢复", "operationId", operationID, "source", sourceName)
-	if err := api.BeginRuntimeMaintenanceContext(ctx); err != nil {
-		return fmt.Errorf("等待 Runtime API 请求排空: %w", err)
+	maintenanceCtx, maintenanceCancel := context.WithTimeout(ctx, 30*time.Second)
+	maintenanceErr := api.BeginRuntimeMaintenanceContext(maintenanceCtx)
+	maintenanceCancel()
+	if maintenanceErr != nil {
+		return fmt.Errorf("等待 Runtime API 请求排空: %w", maintenanceErr)
 	}
 	defer api.EndRuntimeMaintenance()
 
@@ -522,11 +530,16 @@ func (supervisor *runtimeSupervisor) enqueueRestore(operationID string) bool {
 		supervisor.restoreQueueMu.Unlock()
 		return false
 	}
-	if supervisor.restoreActiveID == operationID || supervisor.restoreQueuedID == operationID {
+	if supervisor.restoreActiveID == operationID {
 		supervisor.restoreQueueMu.Unlock()
 		return true
 	}
-	supervisor.restoreQueuedID = operationID
+	if _, queued := supervisor.restoreQueued[operationID]; queued {
+		supervisor.restoreQueueMu.Unlock()
+		return true
+	}
+	supervisor.restoreQueued[operationID] = struct{}{}
+	supervisor.restoreQueue = append(supervisor.restoreQueue, operationID)
 	supervisor.restoreQueueMu.Unlock()
 	select {
 	case supervisor.restoreWake <- struct{}{}:
@@ -561,14 +574,19 @@ func (supervisor *runtimeSupervisor) restoreWorker(ctx context.Context, done cha
 		case <-supervisor.restoreWake:
 		}
 		for {
+			if ctx.Err() != nil {
+				return
+			}
 			supervisor.restoreQueueMu.Lock()
-			operationID := supervisor.restoreQueuedID
-			supervisor.restoreQueuedID = ""
-			supervisor.restoreActiveID = operationID
-			supervisor.restoreQueueMu.Unlock()
-			if operationID == "" {
+			if len(supervisor.restoreQueue) == 0 {
+				supervisor.restoreQueueMu.Unlock()
 				break
 			}
+			operationID := supervisor.restoreQueue[0]
+			supervisor.restoreQueue = supervisor.restoreQueue[1:]
+			delete(supervisor.restoreQueued, operationID)
+			supervisor.restoreActiveID = operationID
+			supervisor.restoreQueueMu.Unlock()
 
 			if err := supervisor.runRestoreQueueItem(ctx, operationID); err != nil {
 				logger.M().Errorw(
@@ -579,9 +597,9 @@ func (supervisor *runtimeSupervisor) restoreWorker(ctx context.Context, done cha
 			}
 			supervisor.restoreQueueMu.Lock()
 			supervisor.restoreActiveID = ""
-			hasQueued := supervisor.restoreQueuedID != ""
+			hasQueued := len(supervisor.restoreQueue) > 0
 			supervisor.restoreQueueMu.Unlock()
-			if !hasQueued {
+			if !hasQueued || ctx.Err() != nil {
 				break
 			}
 		}
@@ -709,6 +727,8 @@ func (supervisor *runtimeSupervisor) updateRestoreStatusSafely(state string, mes
 func (supervisor *runtimeSupervisor) stopRestoreWorker(ctx context.Context) error {
 	supervisor.restoreQueueMu.Lock()
 	supervisor.restoreStopped = true
+	supervisor.restoreQueue = nil
+	supervisor.restoreQueued = map[string]struct{}{}
 	cancel := supervisor.restoreCancel
 	done := supervisor.restoreDone
 	supervisor.restoreQueueMu.Unlock()

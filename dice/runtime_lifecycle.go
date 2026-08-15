@@ -272,12 +272,21 @@ func (d *Dice) shutdownAdapters(ctx context.Context) error {
 }
 
 func shutdownAdapter(ctx context.Context, shutdowner RuntimeShutdowner) (resultErr error) {
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			resultErr = fmt.Errorf("%v\n%s", recovered, debug.Stack())
-		}
+	done := make(chan error, 1)
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				done <- fmt.Errorf("%v\n%s", recovered, debug.Stack())
+			}
+		}()
+		done <- shutdowner.RuntimeShutdown(ctx)
 	}()
-	return shutdowner.RuntimeShutdown(ctx)
+	select {
+	case resultErr = <-done:
+		return resultErr
+	case <-ctx.Done():
+		return fmt.Errorf("关闭适配器超时: %w", ctx.Err())
+	}
 }
 
 // Finalize releases JS runtimes, extension storage, help indexes and the
