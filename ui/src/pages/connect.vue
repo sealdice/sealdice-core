@@ -352,7 +352,6 @@ const retryConnections = () => {
 const { createMutation, updateMutation, enableMutation, deleteMutation } = useConnectMutations({
   message,
   onCreated: ({ endpoint, platform, officialQQMode: mode }) => {
-    message.success('账号已添加');
     dialogVisible.value = false;
     if (platform === 'officialqq' && mode === 'qrcode') {
       qrDialogEndpointId.value = endpoint.id;
@@ -361,7 +360,6 @@ const { createMutation, updateMutation, enableMutation, deleteMutation } = useCo
     resetWizard();
   },
   onUpdated: () => {
-    message.success('账号配置已更新');
     editDialogVisible.value = false;
     editingEndpoint.value = null;
     editingConfig.value = null;

@@ -56,6 +56,44 @@
           :disabled="submitting || testModeDisabled"
           @update:value="setValue"
         />
+        <n-select
+          v-else-if="item.input_type === 12"
+          :value="asSelectValue(value)"
+          :options="optionList(item)"
+          :disabled="submitting || testModeDisabled"
+          :placeholder="item.placeholder"
+          @update:value="setValue"
+        />
+        <n-radio-group
+          v-else-if="item.input_type === 5"
+          :value="asRadioValue(value)"
+          :disabled="submitting || testModeDisabled"
+          @update:value="setValue"
+        >
+          <n-radio-button
+            v-for="option in optionList(item)"
+            :key="String(option.value)"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </n-radio-button>
+        </n-radio-group>
+        <n-checkbox-group
+          v-else-if="item.input_type === 6"
+          :value="asCheckboxValue(value)"
+          :disabled="submitting || testModeDisabled"
+          @update:value="setValue"
+        >
+          <n-space>
+            <n-checkbox
+              v-for="option in optionList(item)"
+              :key="String(option.value)"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </n-checkbox>
+          </n-space>
+        </n-checkbox-group>
       </template>
     </DynamicForm>
   </div>
@@ -105,6 +143,15 @@ const protocolModule = computed(() => getConnectProtocolModule(props.protocol?.k
 // 模板里不能直接写 `value as number | null`：Prettier 会去掉外层括号，
 // 之后 vue-eslint-parser 会把顶层 `|` 当成 Vue 2 过滤器语法而报错。
 const asNumberValue = (value: unknown) => value as number | null;
+const asSelectValue = (value: unknown) => value as string | null;
+const asRadioValue = (value: unknown) => value as string | number | null;
+const asCheckboxValue = (value: unknown) => value as Array<string | number>;
+
+const optionList = (item: FormConfigItem): SelectOption[] =>
+  (item.sub_option ?? []).map(option => ({
+    label: option.label,
+    value: option.value,
+  }));
 
 const visibleSchema = computed(() => {
   if (protocolModule.value.formKind !== 'officialqq') return props.schema;

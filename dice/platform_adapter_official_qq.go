@@ -2736,6 +2736,19 @@ func qqBotHttpPost(url string, body []byte) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
+func removeOfficialQQEndpoint(session *IMSession, target *EndPointInfo) {
+	if session == nil || target == nil {
+		return
+	}
+	next := make([]*EndPointInfo, 0, len(session.EndPoints))
+	for _, ep := range session.EndPoints {
+		if ep != target {
+			next = append(next, ep)
+		}
+	}
+	session.EndPoints = next
+}
+
 func (pa *PlatformAdapterOfficialQQ) failQrLogin(logMsg string, err error) {
 	ep := pa.EndPoint
 	d := ep.Session.Parent
@@ -2745,6 +2758,10 @@ func (pa *PlatformAdapterOfficialQQ) failQrLogin(logMsg string, err error) {
 	} else {
 		log.Error(logMsg)
 	}
+	// 扫码流程失败后必须清掉 Ctx，否则 SetEnable/Serve 会认为会话仍在运行，
+	// 导致后续点击“启用”只改状态而不真正启动连接。
+	pa.stopSessionContext()
+	pa.DiceServing = false
 	pa.markQrLoginFailed()
 	ep.State = 3
 	ep.Enable = false
@@ -2877,12 +2894,15 @@ func (pa *PlatformAdapterOfficialQQ) serveQrLogin(source string) {
 					pa.UIN = ""
 					ep.UserID = ""
 					ep.Nickname = ""
+					pa.stopSessionContext()
+					pa.DiceServing = false
 					pa.markQrLoginFailed()
 					ep.State = 3
 					ep.Enable = false
+					removeOfficialQQEndpoint(d.ImSession, ep)
 					d.LastUpdatedTime = time.Now().Unix()
 					d.Save(false)
-					log.Infof("official qq 临时扫码端点已禁用: UIN=%s temporaryID=%s", probe.UIN, ep.ID)
+					log.Infof("official qq 临时扫码端点已移除: UIN=%s temporaryID=%s", probe.UIN, ep.ID)
 					return
 				}
 
