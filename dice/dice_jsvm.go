@@ -697,7 +697,6 @@ func (d *Dice) JsShutdown() {
 }
 
 func (d *Dice) jsClear() {
-	sealws.GlobalConnManager.CloseAll()
 	// Wrapper 架构：不再调用 ExtRemove，只清空 JsExtRegistry
 	// 注意：不标记 wrapper 为 IsDeleted，否则重载期间消息到达会导致 wrapper 被移除
 	// IsDeleted 只在 JsDelete/ExtRemove（永久删除脚本）时设置

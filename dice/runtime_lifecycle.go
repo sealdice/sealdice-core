@@ -10,6 +10,7 @@ import (
 	"sealdice-core/dice/service"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/dboperator/engine"
+	sealws "sealdice-core/utils/plugin/websocket"
 )
 
 // RuntimeShutdowner is the optional, non-persistent shutdown contract for an
@@ -318,7 +319,12 @@ func (dm *DiceManager) finalize(ctx context.Context) error {
 			}
 		}
 		d.IsAlreadyLoadConfig = false
+		d.DBOperator = nil
 	}
+
+	// Close plugin WebSocket connections once for the whole Runtime instead
+	// of during each Dice's jsClear, which would disconnect sibling Dice.
+	sealws.GlobalConnManager.CloseAll()
 
 	if dm.Help != nil {
 		dm.Help.Close()
@@ -326,6 +332,9 @@ func (dm *DiceManager) finalize(ctx context.Context) error {
 	}
 	if err := errors.Join(finalizeErrors...); err != nil {
 		return err
+	}
+	if dm.progressExitGroupWin != 0 {
+		_ = dm.progressExitGroupWin.Dispose()
 	}
 	if dm.Operator != nil {
 		dm.Operator.Close()
