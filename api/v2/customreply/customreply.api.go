@@ -13,12 +13,15 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 	"sealdice-core/utils/paginate"
 	"sealdice-core/utils/paginate/slicep"
 )
+
+const maxReplyFileUploadBytes = 20 << 20
 
 type Service struct {
 	dice *dice.Dice
@@ -312,24 +315,34 @@ func (s *Service) SaveConfig(_ context.Context, req *SaveReq) (*response.ItemRes
 		rc.CreateTimestamp = rc.UpdateTimestamp
 	}
 	rc.Clean()
+	var target *dice.ReplyConfig
+	var backup *dice.ReplyConfig
 	for index, item := range s.dice.CustomReplyConfig {
 		if item != nil && item.Filename == filename {
-			s.dice.CustomReplyConfig[index].Enable = rc.Enable
-			s.dice.CustomReplyConfig[index].VMVersion = rc.VMVersion
-			s.dice.CustomReplyConfig[index].Conditions = rc.Conditions
-			s.dice.CustomReplyConfig[index].Items = rc.Items
-			s.dice.CustomReplyConfig[index].Interval = rc.Interval
-			s.dice.CustomReplyConfig[index].Name = rc.Name
-			s.dice.CustomReplyConfig[index].Author = rc.Author
-			s.dice.CustomReplyConfig[index].Version = rc.Version
-			s.dice.CustomReplyConfig[index].CreateTimestamp = rc.CreateTimestamp
-			s.dice.CustomReplyConfig[index].UpdateTimestamp = rc.UpdateTimestamp
-			s.dice.CustomReplyConfig[index].Desc = rc.Desc
-			s.dice.CustomReplyConfig[index].StoreID = rc.StoreID
+			target = s.dice.CustomReplyConfig[index]
+			old := *target
+			backup = &old
+			target.Enable = rc.Enable
+			target.VMVersion = rc.VMVersion
+			target.Conditions = rc.Conditions
+			target.Items = rc.Items
+			target.Interval = rc.Interval
+			target.Name = rc.Name
+			target.Author = rc.Author
+			target.Version = rc.Version
+			target.CreateTimestamp = rc.CreateTimestamp
+			target.UpdateTimestamp = rc.UpdateTimestamp
+			target.Desc = rc.Desc
+			target.StoreID = rc.StoreID
 			break
 		}
 	}
-	rc.Save(s.dice)
+	if err := rc.Save(s.dice); err != nil {
+		if target != nil && backup != nil {
+			*target = *backup
+		}
+		return nil, huma.Error500InternalServerError("保存自定义回复文件失败")
+	}
 	dice.ReplyReload(s.dice)
 	return response.NewItemResponse(response.SimpleOK{Success: true}), nil
 }
@@ -420,18 +433,38 @@ func (s *Service) Upload(_ context.Context, req *UploadReq) (*response.ItemRespo
 	if err != nil {
 		return nil, err
 	}
+	if data.File.Size > maxReplyFileUploadBytes {
+		return nil, huma.Error400BadRequest("自定义回复文件过大")
+	}
 	if dice.CustomReplyConfigCheckExists(s.dice, filename) {
 		return nil, huma.Error409Conflict("file already exists")
 	}
 	fp := s.dice.GetExtConfigFilePath("reply", filename)
-	dst, err := os.Create(fp)
+	staged, err := os.CreateTemp(filepath.Dir(fp), "."+filename+".upload-*")
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to create file")
 	}
-	defer func() { _ = dst.Close() }()
-	if _, err := io.Copy(dst, data.File); err != nil {
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+	if _, err = io.Copy(staged, data.File); err != nil {
 		return nil, huma.Error500InternalServerError("failed to write file")
 	}
+	if err = staged.Sync(); err != nil {
+		return nil, huma.Error500InternalServerError("failed to write file")
+	}
+	if err = staged.Close(); err != nil {
+		return nil, huma.Error500InternalServerError("failed to write file")
+	}
+	if err = uploadcore.ReplaceFileAtomic(stagedPath, fp); err != nil {
+		return nil, huma.Error500InternalServerError("failed to write file")
+	}
+	keepStaged = true
 	dice.ReplyReload(s.dice)
 	return response.NewItemResponse(response.SimpleOK{Success: true}), nil
 }
@@ -459,7 +492,7 @@ func sanitizeFilename(name string) (string, error) {
 		return "", huma.Error400BadRequest("invalid filename")
 	}
 	base := filepath.Base(name)
-	if base != name || base == "." {
+	if base != name || base == "." || base == ".." {
 		return "", huma.Error400BadRequest("invalid filename")
 	}
 	return name, nil

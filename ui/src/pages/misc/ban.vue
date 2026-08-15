@@ -191,6 +191,12 @@ useUnsavedChanges('ban-config', {
 const listItems = computed(() => listQueryResult.data.value?.list ?? []);
 const listTotal = computed(() => Number(listQueryResult.data.value?.total ?? 0));
 
+watch([listItems, listTotal], ([items, total]) => {
+  if (items.length === 0 && total > 0 && listQuery.page > 1) {
+    listQuery.page -= 1;
+  }
+});
+
 function updateListQuery(patch: Partial<typeof listQuery>) {
   Object.assign(listQuery, patch);
 }

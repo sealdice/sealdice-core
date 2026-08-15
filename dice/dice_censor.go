@@ -348,15 +348,22 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 	return hit, hitWords, needToTerminate, newContent
 }
 
-func (cm *CensorManager) DeleteCensorWordFiles(keys []string) {
+func (cm *CensorManager) DeleteCensorWordFiles(keys []string) error {
+	var errs []error
 	for _, key := range keys {
 		file, ok := cm.SensitiveWordsFiles[key]
-		if ok {
-			_, err := os.Stat(file.Path)
-			if !os.IsNotExist(err) {
-				_ = os.RemoveAll(file.Path)
-			}
-			delete(cm.SensitiveWordsFiles, key)
+		if !ok {
+			continue
 		}
+		if _, err := os.Stat(file.Path); err != nil {
+			if !os.IsNotExist(err) {
+				errs = append(errs, fmt.Errorf("查看词库文件失败 %s: %w", key, err))
+			}
+		} else if err := os.RemoveAll(file.Path); err != nil {
+			errs = append(errs, fmt.Errorf("删除词库文件失败 %s: %w", key, err))
+			continue
+		}
+		delete(cm.SensitiveWordsFiles, key)
 	}
+	return errors.Join(errs...)
 }

@@ -668,6 +668,13 @@ func (s *Service) installStorePackage(ctx context.Context, target *dice.StorePac
 			if !reinstallExactVersion {
 				return "skipped", nil
 			}
+			// 先下载并校验到 staging，成功后再卸载旧版本，避免下载失败导致已安装包丢失。
+			if _, err := pm.PreviewFromURLWithOptionsContext(ctx, target.Download.URL, dice.PackageDownloadOptions{
+				Hashes:       target.Download.Hash,
+				ExpectedSize: target.Download.Size,
+			}); err != nil {
+				return "", err
+			}
 			if err := pm.Uninstall(target.ID, sealpack.UninstallModeKeepData); err != nil {
 				return "", err
 			}

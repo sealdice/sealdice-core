@@ -517,16 +517,18 @@ func (i *BanListInfo) SaveChanged(d *Dice) {
 	})
 }
 
-func (i *BanListInfo) DeleteByID(d *Dice, id string) {
+func (i *BanListInfo) DeleteByID(d *Dice, id string) error {
+	if err := service.BanItemDel(d.DBOperator, id); err != nil {
+		return err
+	}
 	i.Map.Delete(id)
-	_ = service.BanItemDel(d.DBOperator, id)
+	return nil
 }
 
 func (i *BanListInfo) DeleteByIDWeb(d *Dice, id string) error {
-	err := service.BanItemDel(d.DBOperator, id)
-	// TODO: problem
-	if err != nil {
-		i.Map.Delete(id)
+	if err := service.BanItemDel(d.DBOperator, id); err != nil {
+		return err
 	}
-	return err
+	i.Map.Delete(id)
+	return nil
 }

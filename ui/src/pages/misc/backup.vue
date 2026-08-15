@@ -230,6 +230,8 @@ const batchDeleteMutation = useMutation({
     const fails = result.fails ?? [];
     if (fails.length > 0) {
       message.error(`有备份删除失败：${fails.join('、')}`);
+      batchDeleteNames.value = fails;
+      await listQuery.refetch();
       return;
     }
     batchDeleteVisible.value = false;

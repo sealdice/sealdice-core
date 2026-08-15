@@ -14,6 +14,7 @@ import {
   isTestModeResponse,
 } from '@/features/testMode/state';
 import { invalidateCensorQueries } from './queries';
+import { cloneCensorConfig } from './viewModel';
 
 export function useCensorMutations(options: {
   queryClient: QueryClient;
@@ -21,7 +22,7 @@ export function useCensorMutations(options: {
   getConfigPayload: () => CensorConfigBody;
   onReloaded: () => void;
   onStopped: () => void;
-  onConfigSaved: () => void;
+  onConfigSaved: (snapshot: CensorConfigBody) => void;
   onFilesChanged: () => void;
 }) {
   // 启用与重载走同一个接口，反馈文案需按调用意图区分，
@@ -66,15 +67,16 @@ export function useCensorMutations(options: {
 
   const saveConfigMutation = useMutation({
     mutationFn: async () => {
+      const snapshot = cloneCensorConfig(options.getConfigPayload());
       const { data } = await postSdApiV2CensorConfig({
-        body: options.getConfigPayload(),
+        body: snapshot,
         throwOnError: true,
       });
-      return data.item;
+      return { item: data.item, snapshot };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ snapshot }) => {
       options.message.success('保存设置成功');
-      options.onConfigSaved();
+      options.onConfigSaved(snapshot);
       await options.queryClient.invalidateQueries({ queryKey: ['censor-config'] });
     },
     onError: () => {

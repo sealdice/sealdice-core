@@ -93,26 +93,29 @@ func CustomReplyConfigNewWithVMVersion(dice *Dice, filename string, vmVersion st
 		Conditions:      []ReplyConditionBase{},
 	}
 	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
-	rc.Save(dice)
+	if err := rc.Save(dice); err != nil {
+		dice.Logger.Errorf("保存新自定义回复文件失败: %s: %v", filename, err)
+	}
 	return rc
 }
 
 func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
-	if _, err := os.Stat(attrConfigFn); err == nil {
-		err := os.Remove(attrConfigFn)
-		if err == nil {
-			var rcs []*ReplyConfig
-			for _, i := range dice.CustomReplyConfig {
-				if i.Filename != filename {
-					rcs = append(rcs, i)
-				}
-			}
-			dice.CustomReplyConfig = rcs
-		}
-		return true
+	if _, err := os.Stat(attrConfigFn); err != nil {
+		return false
 	}
-	return false
+	if err := os.Remove(attrConfigFn); err != nil {
+		dice.Logger.Errorf("删除自定义回复文件失败: %s: %v", filename, err)
+		return false
+	}
+	var rcs []*ReplyConfig
+	for _, i := range dice.CustomReplyConfig {
+		if i.Filename != filename {
+			rcs = append(rcs, i)
+		}
+	}
+	dice.CustomReplyConfig = rcs
+	return true
 }
 
 func ReplyReload(dice *Dice) {
@@ -156,7 +159,10 @@ func ReplyReload(dice *Dice) {
 		rc, err := CustomReplyConfigRead(dice, i)
 		if err == nil {
 			dice.Logger.Info("读取自定义回复配置:", i)
-			rc.Save(dice)
+			if err := rc.Save(dice); err != nil {
+				dice.Logger.Errorf("保存自定义回复配置失败: %s: %v", i, err)
+				continue
+			}
 			rcs = append(rcs, rc)
 		} else {
 			dice.Logger.Info("读取自定义回复配置 - 失败:", i)

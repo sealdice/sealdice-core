@@ -17,14 +17,16 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/sunshineplan/imgconv"
 
+	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 	"sealdice-core/model/common/response"
 )
 
 const (
-	defaultPageSize = 20
-	maxPageSize     = 100
-	imageRoot       = "data/images"
+	defaultPageSize     = 20
+	maxPageSize         = 100
+	maxImageUploadBytes = 50 << 20
+	imageRoot           = "data/images"
 )
 
 type Service struct {
@@ -122,21 +124,19 @@ func (s *Service) Upload(_ context.Context, req *UploadReq) (*response.ItemRespo
 
 	failed := make([]string, 0)
 	for _, file := range files {
+		if file.Size > maxImageUploadBytes {
+			failed = append(failed, file.Filename)
+			continue
+		}
 		filename := sanitizeUploadFilename(file.Filename)
 		if filename == "" || !isAllowedImageFile(filename) {
 			failed = append(failed, file.Filename)
 			continue
 		}
 
-		dst, createErr := os.Create(filepath.Join(imageRoot, filename))
-		if createErr != nil {
-			failed = append(failed, file.Filename)
-			continue
-		}
-		if _, copyErr := io.Copy(dst, file.File); copyErr != nil {
+		if uploadErr := writeUploadAtomic(imageRoot, filename, file.File); uploadErr != nil {
 			failed = append(failed, file.Filename)
 		}
-		_ = dst.Close()
 	}
 
 	if len(failed) > 0 {
@@ -144,6 +144,36 @@ func (s *Service) Upload(_ context.Context, req *UploadReq) (*response.ItemRespo
 	}
 
 	return response.NewItemResponse(ResourceUploadResp{Success: true}), nil
+}
+
+func writeUploadAtomic(dir string, filename string, src io.Reader) error {
+	staged, err := os.CreateTemp(dir, "."+filename+".upload-*")
+	if err != nil {
+		return err
+	}
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err = io.Copy(staged, src); err != nil {
+		return err
+	}
+	if err = staged.Sync(); err != nil {
+		return err
+	}
+	if err = staged.Close(); err != nil {
+		return err
+	}
+	if err = uploadcore.ReplaceFileAtomic(stagedPath, filepath.Join(dir, filename)); err != nil {
+		return err
+	}
+	keepStaged = true
+	return nil
 }
 
 func (s *Service) Delete(_ context.Context, req *DeleteReq) (*response.ItemResponse[response.SimpleOK], error) {

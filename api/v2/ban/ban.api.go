@@ -194,7 +194,10 @@ func (s *BanService) BatchDelete(_ context.Context, ol *BatchDeleteReq) (*respon
 			continue
 		}
 		_, existed := s.dice.Config.BanList.GetByID(id)
-		s.dice.Config.BanList.DeleteByID(s.dice, id)
+		if err := s.dice.Config.BanList.DeleteByID(s.dice, id); err != nil {
+			fails = append(fails, id)
+			continue
+		}
 		if !existed {
 			fails = append(fails, id)
 		}

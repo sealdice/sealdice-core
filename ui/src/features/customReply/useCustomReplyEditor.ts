@@ -209,21 +209,22 @@ export function useCustomReplyEditor() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!currentFileDraft.value) throw new Error('missing current file draft');
+      const filename = selectedFilename.value;
+      const submitted = cloneReplyFileDraft(currentFileDraft.value);
       const { data } = await putSdApiV2CustomReplyFilesByFilename({
-        path: { filename: selectedFilename.value },
-        body: toApiReplyConfig(currentFileDraft.value),
+        path: { filename },
+        body: toApiReplyConfig(submitted),
         throwOnError: true,
       });
-      return data;
+      return { data, filename, submitted };
     },
-    onSuccess: async () => {
-      if (currentFileDraft.value && selectedFilename.value) {
-        initialDrafts.value = {
-          ...initialDrafts.value,
-          [selectedFilename.value]: cloneReplyFileDraft(currentFileDraft.value),
-        };
-        modified.value = false;
-      }
+    onSuccess: async ({ filename, submitted }) => {
+      const current = drafts.value[filename];
+      initialDrafts.value = {
+        ...initialDrafts.value,
+        [filename]: cloneReplyFileDraft(submitted),
+      };
+      modified.value = Boolean(current) && JSON.stringify(current) !== JSON.stringify(submitted);
       await queryClient.invalidateQueries({ queryKey: ['custom-reply-file-detail'] });
       await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
       message.success('已保存');
@@ -269,6 +270,10 @@ export function useCustomReplyEditor() {
     fileItems,
     items => {
       if (!items.length) {
+        if (fileTotal.value > 0 && fileQuery.page > 1) {
+          fileQuery.page -= 1;
+          return;
+        }
         if (!fileQuery.keyword && fileTotal.value === 0) selectFile('');
         return;
       }

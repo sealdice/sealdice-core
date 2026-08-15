@@ -282,6 +282,12 @@ func expectedChunkSize(session *Session, index int) int64 {
 	return session.ChunkSize
 }
 
+// ReplaceFileAtomic 用同目录 staging 文件替换 dstPath：
+// 目标不存在时直接 rename；目标存在时先备份、rename 新文件、失败回滚。
+func ReplaceFileAtomic(stagedPath string, dstPath string) error {
+	return replaceStagedFile(stagedPath, dstPath)
+}
+
 func replaceStagedFile(stagedPath string, dstPath string) error {
 	if _, err := os.Stat(dstPath); errors.Is(err, os.ErrNotExist) {
 		return os.Rename(stagedPath, dstPath)

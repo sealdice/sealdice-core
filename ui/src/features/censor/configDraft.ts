@@ -16,8 +16,8 @@ export function useCensorConfigDraft() {
     ready.value = true;
   }
 
-  function commitSaved() {
-    initialConfig.value = cloneCensorConfig(currentConfig.value);
+  function commitSaved(snapshot: CensorConfigBody) {
+    initialConfig.value = cloneCensorConfig(snapshot);
   }
 
   function resetToRemote() {

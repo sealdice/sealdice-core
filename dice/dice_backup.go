@@ -126,6 +126,13 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 		return err == nil && stat.IsDir()
 	}
 
+	var firstBackupErr error
+	recordBackupErr := func(err error) {
+		if firstBackupErr == nil && err != nil {
+			firstBackupErr = err
+		}
+	}
+
 	backup := func(d *Dice, fn string) {
 		file, err := os.Open(fn)
 		if err != nil && !strings.Contains(fn, "session.token") {
@@ -134,6 +141,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			} else {
 				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
+			recordBackupErr(err)
 			return
 		}
 		defer file.Close()
@@ -146,6 +154,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			} else {
 				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
+			recordBackupErr(err)
 			return
 		}
 
@@ -156,6 +165,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			} else {
 				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
+			recordBackupErr(err)
 		}
 	}
 
@@ -326,15 +336,31 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	}
 
 	// 写入文件信息
-	data, _ := json.Marshal(map[string]interface{}{
+	data, err := json.Marshal(map[string]interface{}{
 		"config":      cfgGlb,
 		"version":     VERSION.String(),
 		"versionCode": VERSION_CODE,
 	})
+	if err != nil {
+		recordBackupErr(err)
+	} else {
+		h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
+		fileWriter, createErr := writer.CreateHeader(h)
+		if createErr != nil {
+			recordBackupErr(createErr)
+		} else if _, writeErr := fileWriter.Write(data); writeErr != nil {
+			recordBackupErr(writeErr)
+		}
+	}
 
-	h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
-	fileWriter, _ := writer.CreateHeader(h)
-	_, _ = fileWriter.Write(data)
+	if closeErr := writer.Close(); closeErr != nil {
+		recordBackupErr(closeErr)
+	}
+	if firstBackupErr != nil {
+		_ = fzip.Close()
+		_ = os.Remove(fzip.Name())
+		return "", firstBackupErr
+	}
 
 	return fzip.Name(), nil
 }

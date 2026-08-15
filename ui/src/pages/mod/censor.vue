@@ -162,8 +162,8 @@ const { restartMutation, stopMutation, saveConfigMutation, uploadFileMutation } 
       needReload.value = false;
       censorEnable.value = false;
     },
-    onConfigSaved: () => {
-      configDraft.commitSaved();
+    onConfigSaved: snapshot => {
+      configDraft.commitSaved(snapshot);
       needReload.value = true;
     },
     onFilesChanged: () => {

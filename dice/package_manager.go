@@ -760,7 +760,71 @@ func (pm *PackageManager) saveState() error {
 		return err
 	}
 
-	return os.WriteFile(pm.getStatePath(), data, 0644)
+	return writePackageStateFileAtomic(pm.getStatePath(), data)
+}
+
+func writePackageStateFileAtomic(statePath string, data []byte) error {
+	dir := filepath.Dir(statePath)
+	staged, err := os.CreateTemp(dir, "."+filepath.Base(statePath)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err = staged.Write(data); err != nil {
+		return err
+	}
+	if err = staged.Sync(); err != nil {
+		return err
+	}
+	if err = staged.Close(); err != nil {
+		return err
+	}
+
+	if _, statErr := os.Stat(statePath); errors.Is(statErr, os.ErrNotExist) {
+		if err = os.Rename(stagedPath, statePath); err != nil {
+			return err
+		}
+		keepStaged = true
+		return nil
+	} else if statErr != nil {
+		return statErr
+	}
+
+	backup, err := os.CreateTemp(dir, "."+filepath.Base(statePath)+".backup-*")
+	if err != nil {
+		return err
+	}
+	backupPath := backup.Name()
+	if err = backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return err
+	}
+	if err = os.Remove(backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(statePath, backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(stagedPath, statePath); err != nil {
+		if rollbackErr := os.Rename(backupPath, statePath); rollbackErr != nil {
+			return errors.Join(
+				fmt.Errorf("替换扩展包状态文件失败: %w", err),
+				fmt.Errorf("回滚扩展包状态文件失败: %w", rollbackErr),
+			)
+		}
+		return err
+	}
+	_ = os.Remove(backupPath)
+	keepStaged = true
+	return nil
 }
 
 func loadPackageConfigFromUserData(userDataPath string) (map[string]interface{}, error) {
@@ -1689,9 +1753,9 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 		return err
 	}
 
-	pkg.Config = config
+	oldConfig := pkg.Config
 
-	// 保存到用户数据目录
+	// 先持久化配置文件，成功后再更新内存，失败时内存保持旧值。
 	if err := os.MkdirAll(pkg.UserDataPath, 0o755); err != nil {
 		return err
 	}
@@ -1700,12 +1764,19 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 	if err != nil {
 		return err
 	}
-
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
 		return err
 	}
 
-	return pm.saveState()
+	pkg.Config = config
+	if err := pm.saveState(); err != nil {
+		pkg.Config = oldConfig
+		if oldData, marshalErr := json.MarshalIndent(oldConfig, "", "  "); marshalErr == nil {
+			_ = os.WriteFile(configPath, oldData, 0644)
+		}
+		return err
+	}
+	return nil
 }
 
 // List 列出所有已安装的包

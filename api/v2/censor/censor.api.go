@@ -13,12 +13,15 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/pelletier/go-toml/v2"
 
+	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 	censorcore "sealdice-core/dice/censor"
 	"sealdice-core/dice/service"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 )
+
+const maxWordFileUploadBytes = 20 << 20
 
 type Service struct {
 	dice *dice.Dice
@@ -234,27 +237,55 @@ func (s *Service) UploadFile(_ context.Context, req *CensorUploadReq) (*response
 	if !isAllowedWordFile(filename) {
 		return nil, huma.Error400BadRequest("仅支持 txt 和 toml 词库文件")
 	}
+	if form.File.Size > maxWordFileUploadBytes {
+		return nil, huma.Error400BadRequest("词库文件过大")
+	}
 	if mkdirErr := os.MkdirAll("./data/censor", 0o755); mkdirErr != nil {
 		return nil, huma.Error500InternalServerError("创建词库目录失败")
 	}
-	dst, err := os.Create(filepath.Join("./data/censor", filename))
-	if err != nil {
-		return nil, huma.Error500InternalServerError("创建词库文件失败")
-	}
-	defer func() {
-		_ = dst.Close()
-	}()
-	if _, err = io.Copy(dst, form.File); err != nil {
+	if err = writeUploadAtomic("./data/censor", filename, form.File); err != nil {
 		return nil, huma.Error500InternalServerError("写入词库文件失败")
 	}
 	return response.NewItemResponse(CensorSimpleResp{Success: true}), nil
+}
+
+func writeUploadAtomic(dir string, filename string, src io.Reader) error {
+	staged, err := os.CreateTemp(dir, "."+filename+".upload-*")
+	if err != nil {
+		return err
+	}
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err = io.Copy(staged, src); err != nil {
+		return err
+	}
+	if err = staged.Sync(); err != nil {
+		return err
+	}
+	if err = staged.Close(); err != nil {
+		return err
+	}
+	if err = uploadcore.ReplaceFileAtomic(stagedPath, filepath.Join(dir, filename)); err != nil {
+		return err
+	}
+	keepStaged = true
+	return nil
 }
 
 func (s *Service) DeleteFiles(_ context.Context, req *CensorDeleteFilesReq) (*response.ItemResponse[CensorSimpleResp], error) {
 	if err := s.checkReady(); err != nil {
 		return nil, err
 	}
-	s.dice.CensorManager.DeleteCensorWordFiles(req.Body.Keys)
+	if err := s.dice.CensorManager.DeleteCensorWordFiles(req.Body.Keys); err != nil {
+		return nil, huma.Error500InternalServerError("删除词库失败", err)
+	}
 	return response.NewItemResponse(CensorSimpleResp{Success: true}), nil
 }
 
