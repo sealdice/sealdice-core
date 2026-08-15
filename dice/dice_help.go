@@ -409,17 +409,81 @@ func (m *HelpManager) refreshHelpGroupAliases(config HelpConfig) {
 }
 
 func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
-	m.Config = config
-	m.refreshHelpGroupAliases(*config)
-
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filepath.Join("./data/helpdoc", HelpConfigFilename), data, 0644)
+	configPath := filepath.Join("./data/helpdoc", HelpConfigFilename)
+	if err := writeHelpConfigFileAtomic(configPath, data); err != nil {
+		return err
+	}
+
+	m.Config = config
+	m.refreshHelpGroupAliases(*config)
+	return nil
+}
+
+func writeHelpConfigFileAtomic(configPath string, data []byte) error {
+	dir := filepath.Dir(configPath)
+	staged, err := os.CreateTemp(dir, "."+filepath.Base(configPath)+".tmp-*")
 	if err != nil {
 		return err
 	}
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err = staged.Write(data); err != nil {
+		return err
+	}
+	if err = staged.Sync(); err != nil {
+		return err
+	}
+	if err = staged.Close(); err != nil {
+		return err
+	}
+
+	if _, statErr := os.Stat(configPath); errors.Is(statErr, os.ErrNotExist) {
+		if err = os.Rename(stagedPath, configPath); err != nil {
+			return err
+		}
+		keepStaged = true
+		return nil
+	} else if statErr != nil {
+		return statErr
+	}
+
+	backup, err := os.CreateTemp(dir, "."+filepath.Base(configPath)+".backup-*")
+	if err != nil {
+		return err
+	}
+	backupPath := backup.Name()
+	if err = backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return err
+	}
+	if err = os.Remove(backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(configPath, backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(stagedPath, configPath); err != nil {
+		if rollbackErr := os.Rename(backupPath, configPath); rollbackErr != nil {
+			return errors.Join(
+				fmt.Errorf("替换帮助文档配置失败: %w", err),
+				fmt.Errorf("回滚帮助文档配置失败: %w", rollbackErr),
+			)
+		}
+		return err
+	}
+	_ = os.Remove(backupPath)
+	keepStaged = true
 	return nil
 }
 
@@ -1102,37 +1166,45 @@ func (m *HelpManager) DeleteHelpDoc(keys []string) error {
 		keySet[key] = true
 	}
 
+	type target struct {
+		node  *HelpDoc
+		isDir bool
+	}
+	targets := make([]target, 0)
 	for _, node := range m.HelpDocTree {
 		err := traverseHelpDocTree(node, func(d *HelpDoc) error {
-			if !d.IsDir {
-				_, ok := keySet[d.Key]
-				if ok {
-					_, err := os.Stat(d.Path)
-					if !os.IsNotExist(err) {
-						err := os.Remove(d.Path)
-						if err != nil {
-							return err
-						}
-					}
-					d.Deleted = true
-				}
+			if !d.IsDir && keySet[d.Key] {
+				targets = append(targets, target{node: d, isDir: false})
 			}
 			return nil
 		})
 		if err != nil {
 			return err
 		}
-		_, ok := keySet[node.Key]
-		if ok {
-			_, err := os.Stat(node.Path)
-			if !os.IsNotExist(err) {
-				err := os.RemoveAll(node.Path)
-				if err != nil {
-					return err
-				}
-			}
-			node.Deleted = true
+		if keySet[node.Key] {
+			targets = append(targets, target{node: node, isDir: true})
 		}
+	}
+
+	// 先统一检查可删除性，避免“删到一半失败”导致内存标记与磁盘不一致。
+	for _, item := range targets {
+		if _, err := os.Stat(item.node.Path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	for _, item := range targets {
+		var err error
+		if item.isDir {
+			err = os.RemoveAll(item.node.Path)
+		} else {
+			err = os.Remove(item.node.Path)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	for _, item := range targets {
+		item.node.Deleted = true
 	}
 	return nil
 }

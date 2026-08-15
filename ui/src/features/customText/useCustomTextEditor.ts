@@ -75,12 +75,13 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
 
   const saveMutation = useMutation({
     mutationFn: async (targetCategory: string) => {
+      const snapshot = cloneDeep(texts.value[targetCategory] ?? {});
       const { data } = await putSdApiV2CustomTextByCategory({
         path: { category: targetCategory },
-        body: { data: texts.value[targetCategory] ?? {} },
+        body: { data: snapshot },
         throwOnError: true,
       });
-      return data;
+      return { data, snapshot };
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: getSdApiV2CustomTextQueryKey() });
@@ -171,8 +172,8 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
       if (!texts.value[targetCategory]) continue;
       texts.value[targetCategory] = value;
       try {
-        await saveMutation.mutateAsync(targetCategory);
-        initialTexts.value[targetCategory] = cloneDeep(value);
+        const result = await saveMutation.mutateAsync(targetCategory);
+        initialTexts.value[targetCategory] = cloneDeep(result.snapshot);
         savedCategories.push(targetCategory);
       } catch (error) {
         failedCategories.push(`${targetCategory}（${getErrorMessage(error, '保存失败')}）`);
@@ -212,9 +213,9 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   }
 
   async function save() {
-    await saveMutation.mutateAsync(category.value);
-    initialTexts.value[category.value] = cloneDeep(texts.value[category.value] ?? {});
-    syncLocalTexts(true);
+    const result = await saveMutation.mutateAsync(category.value);
+    initialTexts.value[category.value] = cloneDeep(result.snapshot);
+    syncLocalTexts();
     message.success('已保存');
   }
 

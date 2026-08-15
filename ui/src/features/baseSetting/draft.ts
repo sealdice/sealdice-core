@@ -23,9 +23,10 @@ export function useBaseSettingDraft() {
     initialValue.value = cloneBaseSettingValue(normalized);
   }
 
-  function commitSaved() {
-    if (!currentValue.value) return;
-    initialValue.value = cloneBaseSettingValue(currentValue.value);
+  function commitSaved(snapshot?: BaseSettingValueModel) {
+    const source = snapshot ?? currentValue.value;
+    if (!source) return;
+    initialValue.value = cloneBaseSettingValue(source);
   }
 
   function resetToRemote() {

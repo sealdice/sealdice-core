@@ -176,8 +176,8 @@ const { reloadMutation, deleteMutation, saveConfigMutation } = useHelpdocMutatio
     needReload.value = true;
     checkedFileKeys.value = [];
   },
-  onConfigSaved: () => {
-    configDraft.commitSaved();
+  onConfigSaved: snapshot => {
+    configDraft.commitSaved(snapshot);
     configDialogVisible.value = false;
   },
 });

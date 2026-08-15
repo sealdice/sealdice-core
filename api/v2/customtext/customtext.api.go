@@ -72,7 +72,9 @@ func (s *Service) SaveCategory(_ context.Context, req *SaveCategoryReq) (*respon
 	s.dice.TextMapRaw[category] = data
 	dice.SetupTextHelpInfo(s.dice, s.dice.TextMapHelpInfo, s.dice.TextMapRaw, "configs/text-template.yaml")
 	s.dice.GenerateTextMap()
-	s.saveText()
+	if err := s.saveText(); err != nil {
+		return nil, huma.Error500InternalServerError("保存文案失败")
+	}
 	for key, item := range s.dice.TextMapRaw[category] {
 		dice.TextMapCompatibleCheck(s.dice, category, key, item)
 	}
@@ -134,8 +136,9 @@ func previewInfoToMap(src *dice.TextTemplateCompatibleDict) map[string]map[strin
 	return out
 }
 
-func (s *Service) saveText() {
-	if s.autoSave {
-		s.dice.SaveText()
+func (s *Service) saveText() error {
+	if !s.autoSave {
+		return nil
 	}
+	return s.dice.SaveText()
 }

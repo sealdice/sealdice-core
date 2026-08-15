@@ -460,6 +460,10 @@ async function searchGroups() {
       originalActive: item.active,
     }));
     total.value = Number(data.item.total ?? 0);
+    if (groups.value.length === 0 && total.value > 0 && listQuery.page > 1) {
+      listQuery.page -= 1;
+      await searchGroups();
+    }
   } finally {
     listLoading.value = false;
   }
@@ -564,6 +568,7 @@ async function submitQuit() {
       }
       message.success('退群完成');
     } else {
+      const selectedCount = quitAction.value.targets.length;
       const { data } = await postSdApiV2GroupBatchQuit({
         body: {
           groupIds: quitAction.value.targets.map(target => target.groupId),
@@ -572,7 +577,13 @@ async function submitQuit() {
         },
         throwOnError: true,
       });
-      message.success(`批量退群完成，共处理 ${data.item} 个群组`);
+      if (data.item < selectedCount) {
+        message.warning(
+          `批量退群完成，成功 ${data.item} 个，${selectedCount - data.item} 个未处理`
+        );
+      } else {
+        message.success(`批量退群完成，共处理 ${data.item} 个群组`);
+      }
     }
 
     if (quitForm.saveAsDefault) {
@@ -603,6 +614,7 @@ async function submitNotify() {
     return;
   }
   notifySubmitting.value = true;
+  const selectedCount = selectedGroupIDs.value.length;
   try {
     const { data } = await postSdApiV2GroupBatchNotify({
       body: {
@@ -613,7 +625,11 @@ async function submitNotify() {
     });
     notifyDialogVisible.value = false;
     notifyText.value = '';
-    message.success(`已通知 ${data.item} 个群组`);
+    if (data.item < selectedCount) {
+      message.warning(`已通知 ${data.item} 个群组，${selectedCount - data.item} 个未处理`);
+    } else {
+      message.success(`已通知 ${data.item} 个群组`);
+    }
   } catch (error) {
     reportOperationError('批量通知失败', error);
   } finally {

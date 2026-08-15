@@ -18,7 +18,7 @@ export function useHelpdocMutations(options: {
   getConfigPayload: () => Record<string, string[]>;
   onReloaded: () => void;
   onDeleted: () => void;
-  onConfigSaved: () => void;
+  onConfigSaved: (snapshot: Record<string, string[]>) => void;
 }) {
   const reloadMutation = useMutation({
     mutationFn: async () => {
@@ -67,21 +67,20 @@ export function useHelpdocMutations(options: {
 
   const saveConfigMutation = useMutation({
     mutationFn: async () => {
+      const snapshot = options.getConfigPayload();
       const { data } = await postSdApiV2HelpdocConfig({
-        body: {
-          aliases: options.getConfigPayload(),
-        },
+        body: { aliases: snapshot },
         throwOnError: true,
       });
-      return data.item;
+      return { item: data.item, snapshot };
     },
-    onSuccess: async item => {
+    onSuccess: async ({ item, snapshot }) => {
       if (!item.success) {
         options.message.error(item.err || '保存设置失败');
         return;
       }
       options.message.success('保存设置成功');
-      options.onConfigSaved();
+      options.onConfigSaved(snapshot);
       await options.queryClient.invalidateQueries({ queryKey: ['helpdoc-config'] });
     },
     onError: () => {

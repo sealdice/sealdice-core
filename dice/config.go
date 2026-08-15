@@ -2455,17 +2455,19 @@ func (d *Dice) loadAdvanced() {
 	d.AdvancedConfig = advancedConfig
 }
 
-func (d *Dice) SaveText() {
+func (d *Dice) SaveText() error {
 	buf, err := marshalTextTemplate(d.TextMapRaw)
 	if err != nil {
 		d.Logger.Error("Dice.SaveText", err)
-		return
+		return err
 	}
 
 	newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 	if err := saveTextTemplateFile(newFn, buf); err != nil {
 		d.Logger.Error("Dice.SaveText", err)
+		return err
 	}
+	return nil
 }
 
 func marshalTextTemplate(texts TextTemplateWithWeightDict) (buf []byte, err error) {

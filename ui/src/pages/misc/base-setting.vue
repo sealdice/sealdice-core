@@ -82,6 +82,7 @@ import {
 import {
   buildBaseSettingPatch,
   buildBaseSettingSearchIndex,
+  cloneBaseSettingValue,
   isBaseSettingGroupWide,
   searchBaseSettingFields,
   validateBaseSettingPatchFormats,
@@ -180,10 +181,12 @@ async function saveChanges() {
     }
     return;
   }
+  const submittedSnapshot = cloneBaseSettingValue(draft.currentValue.value);
   await saveMutation.mutateAsync(payload);
+  draft.commitSaved(submittedSnapshot);
   const refreshed = await valueQuery.refetch();
   if (refreshed.data) {
-    draft.syncRemote(refreshed.data, true);
+    draft.syncRemote(refreshed.data);
   }
 }
 

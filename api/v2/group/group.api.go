@@ -264,6 +264,9 @@ func (b *GroupService) Dice() *dice.Dice {
 // - 遍历当前 dice[0] 的所有 EndPoint，在目标群逐个执行开启/关闭
 func (b *GroupService) ModifyGroup(_ context.Context, ol *ModifyGroupReq) (*response.MessageResponse, error) {
 	v := ol.Body
+	if _, exists := b.dice.ImSession.ServiceAtNew.Load(v.GroupID); !exists {
+		return nil, huma.Error404NotFound("群组不存在")
+	}
 	for _, ep := range b.dice.ImSession.EndPoints {
 		ctx := &dice.MsgContext{Dice: b.dice, EndPoint: ep, Session: b.dice.ImSession}
 		if v.Active {
@@ -320,11 +323,12 @@ func (b *GroupService) QuitGroup(_ context.Context, ol *QuitGroupReq) (*response
 		}
 		dice.ReplyGroup(ctx, &dice.Message{GroupID: v.GroupID}, txtPost)
 	}
-	// 从群的存在映射中删除所选端点
+	// 先发起平台退群，再更新内存状态；即使平台侧失败，
+	// 至少不会让 UI 误以为该骰已不在群内。
+	chosen.Adapter.QuitGroup(ctx, v.GroupID)
 	group.DiceIDExistsMap.Delete(chosen.UserID)
 	b.sleepBeforeQuit()
 	group.MarkDirty(b.dice)
-	chosen.Adapter.QuitGroup(ctx, v.GroupID)
 	return &response.MessageResponse{Body: struct {
 		Message string `json:"message"`
 	}{Message: "ok"}}, nil
@@ -355,10 +359,10 @@ func (b *GroupService) BatchQuitGroup(_ context.Context, ol *BatchQuitGroupReq) 
 			}
 			dice.ReplyGroup(ctx, &dice.Message{GroupID: gid}, txtPost)
 		}
+		chosen.Adapter.QuitGroup(ctx, gid)
 		group.DiceIDExistsMap.Delete(chosen.UserID)
 		b.sleepBeforeQuit()
 		group.MarkDirty(b.dice)
-		chosen.Adapter.QuitGroup(ctx, gid)
 		updated++
 	}
 	return response.NewItemResponse[int](updated), nil

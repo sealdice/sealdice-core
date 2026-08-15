@@ -42,8 +42,9 @@ export function useHelpdocConfigDraft() {
     currentAliases.value = next;
   }
 
-  function commitSaved() {
-    initialAliases.value = cloneHelpdocAliases(currentAliases.value);
+  function commitSaved(snapshot?: Record<string, string[]>) {
+    const next = snapshot ? normalizeHelpdocAliases(snapshot) : currentAliases.value;
+    initialAliases.value = cloneHelpdocAliases(next);
   }
 
   function resetToRemote() {

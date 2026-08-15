@@ -266,6 +266,12 @@ func (s *Service) CompleteUpload(_ context.Context, req *UploadCompleteReq) (*re
 	if err != nil {
 		return nil, huma.Error404NotFound("上传会话不存在")
 	}
+	sessionCleaned := false
+	defer func() {
+		if !sessionCleaned {
+			s.uploadManager.Cleanup(req.Body.SessionID)
+		}
+	}()
 	tmpPath := filepath.Join(sessionMeta.TempDir, "assembled")
 	session, err := s.uploadManager.CompleteWithoutCleanup(req.Body.SessionID, tmpPath)
 	if err != nil {
@@ -294,6 +300,7 @@ func (s *Service) CompleteUpload(_ context.Context, req *UploadCompleteReq) (*re
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
 	s.uploadManager.Cleanup(req.Body.SessionID)
+	sessionCleaned = true
 	return response.NewItemResponse(HelpDocUploadCompleteResp{
 		Success:  true,
 		Filename: session.Filename,
@@ -310,7 +317,11 @@ func sanitizeHelpFilename(name string) string {
 func sanitizeHelpGroup(group string) string {
 	group = strings.ReplaceAll(group, "/", "_")
 	group = strings.ReplaceAll(group, "\\", "_")
-	return strings.TrimSpace(group)
+	group = strings.TrimSpace(group)
+	if group == "." || group == ".." {
+		return ""
+	}
+	return group
 }
 
 func isAllowedHelpDocFile(filename string) bool {

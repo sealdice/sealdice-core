@@ -202,7 +202,99 @@ func (s *Service) buildValue() BaseSettingValueResp {
 	}
 }
 
+func validateBaseSettingPatch(jsonMap map[string]interface{}, config *dice.Config) error {
+	boolFields := []string{
+		"officialQQFileSendBase64", "officialQQUseMarkdown", "onlyLogCommandInGroup",
+		"onlyLogCommandInPrivate", "refuseGroupInvite", "workInQQChannel", "QQChannelLogMessage",
+		"QQChannelAutoOn", "botExtFreeSwitch", "rateLimitEnabled", "trustOnlyMode",
+		"aliveNoticeEnable", "logSizeNoticeEnable", "textCmdTrustOnly",
+		"ignoreUnaddressedBotCmd", "QQEnablePoke", "playerNameWrapEnable", "mailEnable",
+	}
+	for _, key := range boolFields {
+		if val, ok := jsonMap[key]; ok {
+			if _, valid := val.(bool); !valid {
+				return huma.Error400BadRequest("字段格式不正确: " + key)
+			}
+		}
+	}
+
+	if val, ok := jsonMap["maxExecuteTime"]; ok {
+		if _, valid := parsePositiveInt64String(val); !valid {
+			return huma.Error400BadRequest("字段格式不正确: maxExecuteTime")
+		}
+	}
+	if val, ok := jsonMap["maxCocCardGen"]; ok {
+		if _, valid := parsePositiveInt64String(val); !valid {
+			return huma.Error400BadRequest("字段格式不正确: maxCocCardGen")
+		}
+	}
+	for _, key := range []string{"personalBurst", "groupBurst", "quitInactiveBatchSize", "quitInactiveBatchWait"} {
+		if val, ok := jsonMap[key]; ok {
+			if _, valid := parsePositiveInt64(val); !valid {
+				return huma.Error400BadRequest("字段格式不正确: " + key)
+			}
+		}
+	}
+	if val, ok := jsonMap["logSizeNoticeCount"]; ok {
+		if _, valid := parseInt(val); !valid {
+			return huma.Error400BadRequest("字段格式不正确: logSizeNoticeCount")
+		}
+	}
+	if val, ok := jsonMap["defaultCocRuleIndex"]; ok {
+		text, valid := stringify(val)
+		if !valid {
+			return huma.Error400BadRequest("字段格式不正确: defaultCocRuleIndex")
+		}
+		text = strings.TrimSpace(text)
+		if !strings.EqualFold(text, "dg") {
+			parsed, err := strconv.ParseInt(text, 10, 64)
+			if err != nil || parsed < 0 || parsed > 5 {
+				return huma.Error400BadRequest("defaultCocRuleIndex 取值范围不正确")
+			}
+		}
+	}
+	for _, key := range []string{"personalReplenishRate", "groupReplenishRate"} {
+		if val, ok := jsonMap[key]; ok {
+			text, valid := stringify(val)
+			if !valid {
+				return huma.Error400BadRequest("字段格式不正确: " + key)
+			}
+			if parsed, err := utils.ParseRate(strings.TrimSpace(text)); err != nil || parsed == rate.Limit(0) {
+				return huma.Error400BadRequest("字段格式不正确: " + key)
+			}
+		}
+	}
+	for _, key := range []string{"messageDelayRangeStart", "messageDelayRangeEnd"} {
+		if val, ok := jsonMap[key]; ok {
+			if _, valid := parseNonNegativeFloat64(val); !valid {
+				return huma.Error400BadRequest("字段格式不正确: " + key)
+			}
+		}
+	}
+	if val, ok := jsonMap["messageDelayRangeEnd"]; ok {
+		if parsed, valid := parseNonNegativeFloat64(val); valid && parsed < config.MessageDelayRangeStart {
+			return huma.Error400BadRequest("messageDelayRangeEnd 不能小于 messageDelayRangeStart")
+		}
+	}
+	if val, ok := jsonMap["quitInactiveThreshold"]; ok {
+		parsed, valid := parseFloat64(val)
+		if !valid || parsed < 0 {
+			return huma.Error400BadRequest("字段格式不正确: quitInactiveThreshold")
+		}
+	}
+	if val, ok := jsonMap["extDefaultSettings"]; ok {
+		if _, err := json.Marshal(val); err != nil {
+			return huma.Error400BadRequest("字段格式不正确: extDefaultSettings")
+		}
+	}
+	return nil
+}
+
 func (s *Service) applyPatch(jsonMap map[string]interface{}) error {
+	if err := validateBaseSettingPatch(jsonMap, &s.dice.Config); err != nil {
+		return err
+	}
+
 	stringConvert := func(val interface{}) []string {
 		var list []string
 		switch items := val.(type) {

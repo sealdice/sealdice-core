@@ -162,6 +162,7 @@ watch(
   () => publicDiceQuery.data.value,
   value => {
     if (!value) return;
+    if (draft.value && initialDraft.value && dirty.value) return;
     syncDraft(value);
   },
   { immediate: true }
