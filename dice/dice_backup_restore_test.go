@@ -1136,6 +1136,25 @@ func TestOpenBackupArchiveReturnsVerifiedHandle(t *testing.T) {
 	}
 }
 
+func TestReleaseRetryablePendingRefusesLegacyArtifactsWithoutPending(t *testing.T) {
+	prepareRestoreTest(t)
+	legacyOldData := filepath.Join(restoreDir(), restoreLegacyOldDataName)
+	writeTestFile(t, filepath.Join(legacyOldData, "data.db"), "keep")
+	if err := releaseRetryablePendingRestore(); err == nil {
+		t.Fatal("releaseRetryablePendingRestore accepted legacy old-data without pending")
+	}
+	assertRestoreTestFile(t, filepath.Join(legacyOldData, "data.db"), "keep")
+
+	if err := restoreRemoveAll(restoreDir()); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, restoreLegacyJournalPath(), `{"legacy":true}`)
+	if err := releaseRetryablePendingRestore(); err == nil {
+		t.Fatal("releaseRetryablePendingRestore accepted legacy journal without pending")
+	}
+	assertRestoreTestFile(t, restoreLegacyJournalPath(), `{"legacy":true}`)
+}
+
 func TestScheduleRestoreRejectsLinkedBackupRootBeforeCleanup(t *testing.T) {
 	prepareRestoreTest(t)
 	dm := newRestoreSQLiteManager(t)

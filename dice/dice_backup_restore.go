@@ -1648,6 +1648,17 @@ func releaseRetryablePendingRestore() error {
 		} else if !errors.Is(journalErr, os.ErrNotExist) {
 			return journalErr
 		}
+		if _, legacyJournalErr := os.Stat(restoreLegacyJournalPath()); legacyJournalErr == nil {
+			return errors.New("检测到旧版恢复日志 journal.json 且 pending 缺失，拒绝自动清除")
+		} else if !errors.Is(legacyJournalErr, os.ErrNotExist) {
+			return legacyJournalErr
+		}
+		legacyOldData := filepath.Join(restoreDir(), restoreLegacyOldDataName)
+		if _, oldDataErr := os.Stat(legacyOldData); oldDataErr == nil {
+			return fmt.Errorf("检测到旧版恢复遗留目录 %s 且 pending 缺失，拒绝自动清除", restoreLegacyOldDataName)
+		} else if !errors.Is(oldDataErr, os.ErrNotExist) {
+			return oldDataErr
+		}
 		return nil
 	}
 	if err != nil {
