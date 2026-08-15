@@ -631,7 +631,7 @@ func NewGoCqhttpConnectInfoItem(account string) *EndPointInfo {
 	return conn
 }
 
-func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) {
+func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo) {
 	f := func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -681,12 +681,11 @@ func BuiltinQQServeProcessKillBase(dice *Dice, conn *EndPointInfo, isSync bool) 
 			}
 		}
 	}
-	_ = isSync
 	f()
 }
 
 func BuiltinQQServeProcessKill(dice *Dice, conn *EndPointInfo) {
-	BuiltinQQServeProcessKillBase(dice, conn, false)
+	BuiltinQQServeProcessKillBase(dice, conn)
 }
 
 func gocqGetWorkDir(dice *Dice, conn *EndPointInfo) string {

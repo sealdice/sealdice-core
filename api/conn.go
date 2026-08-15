@@ -194,7 +194,7 @@ func ImConnectionsDel(c echo.Context) error {
 					case "onebot":
 						pa := i.Adapter.(*dice.PlatformAdapterGocq)
 						if pa.BuiltinMode == "lagrange" || pa.BuiltinMode == "lagrange-gocq" {
-							dice.BuiltinQQServeProcessKillBase(myDice, i, true)
+							dice.BuiltinQQServeProcessKillBase(myDice, i)
 							// 经测试，若不延时，可能导致清理对应目录失败（原因：文件被占用）
 							time.Sleep(1 * time.Second)
 							dice.LagrangeServeRemoveConfig(myDice, i)

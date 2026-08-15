@@ -565,6 +565,8 @@ func (pa *PlatformAdapterOfficialQQ) RuntimeShutdown(ctx context.Context) error 
 	cancel := pa.CancelFunc
 	server := pa.webhookServer
 	qrDone := pa.qrDone
+	sessionDone := pa.sessionDone
+	webhookDone := pa.webhookDone
 	pa.runtimeMu.Unlock()
 	if cancel != nil {
 		cancel()
@@ -577,21 +579,6 @@ func (pa *PlatformAdapterOfficialQQ) RuntimeShutdown(ctx context.Context) error 
 	}
 	if err := waitRuntimeDone(ctx, "Official QQ 扫码任务", qrDone); err != nil {
 		shutdownErrors = append(shutdownErrors, err)
-	}
-
-	pa.runtimeMu.Lock()
-	cancel = pa.CancelFunc
-	server = pa.webhookServer
-	sessionDone := pa.sessionDone
-	webhookDone := pa.webhookDone
-	pa.runtimeMu.Unlock()
-	if cancel != nil {
-		cancel()
-	}
-	if server != nil {
-		if err := shutdownRuntimeHTTPServer(ctx, server.Shutdown, server.Close); err != nil {
-			shutdownErrors = append(shutdownErrors, fmt.Errorf("关闭 Official QQ webhook: %w", err))
-		}
 	}
 	if err := waitRuntimeDone(ctx, "Official QQ 会话", sessionDone); err != nil {
 		shutdownErrors = append(shutdownErrors, err)

@@ -1200,6 +1200,8 @@ func backupInUseLocked(name string) (bool, error) {
 }
 
 func BackupInUse(name string) bool {
+	backupOperationMu.Lock()
+	defer backupOperationMu.Unlock()
 	inUse, err := backupInUseLocked(name)
 	return err != nil || inUse
 }
@@ -1266,7 +1268,7 @@ func openBackupArchiveLocked(name string) (*os.File, os.FileInfo, error) {
 		_ = file.Close()
 		return nil, nil, err
 	}
-	if !actual.Mode().IsRegular() || !os.SameFile(expected, actual) {
+	if !actual.Mode().IsRegular() || !os.SameFile(expected, actual) || actual.Size() != expected.Size() || !actual.ModTime().Equal(expected.ModTime()) {
 		_ = file.Close()
 		return nil, nil, errors.New("打开的备份文件与已校验目标不一致")
 	}
@@ -1477,15 +1479,15 @@ func directorySize(root string) (uint64, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("目录包含符号链接: %s", filename)
-		}
-		if !entry.Type().IsRegular() {
-			return nil
-		}
 		info, infoErr := entry.Info()
 		if infoErr != nil {
 			return infoErr
+		}
+		if entry.Type()&os.ModeSymlink != 0 || isLinkedRestorePath(info) {
+			return fmt.Errorf("目录包含符号链接或重解析点: %s", filename)
+		}
+		if !info.Mode().IsRegular() {
+			return nil
 		}
 		if info.Size() < 0 || math.MaxUint64-total < uint64(info.Size()) {
 			return errors.New("目录大小计算溢出")
