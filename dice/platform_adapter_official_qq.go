@@ -687,11 +687,9 @@ func (pa *PlatformAdapterOfficialQQ) InteractionReceive(eventRaw *dto.WSPayload,
 
 	if len(item.BatchPages) == len(item.Pages) && len(item.BatchPages) > 0 {
 		// 富媒体批量分页：每页包含多条消息单元，通过交互事件被动窗口逐条续发
-		eventID := ""
+		eventID := data.ID
 		if eventRaw != nil && eventRaw.EventID != "" {
 			eventID = eventRaw.EventID
-		} else {
-			eventID = data.ID
 		}
 
 		eventCtx := pa.newEventMsgContext(eventID)
