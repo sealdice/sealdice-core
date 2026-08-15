@@ -129,4 +129,18 @@ const pageModel = computed({
     flex-direction: column;
   }
 }
+
+@media screen and (max-width: 700px) {
+  .section-head {
+    padding: 0.75rem;
+  }
+
+  .section-body {
+    padding: 0.75rem;
+  }
+
+  .section-footer {
+    padding: 0.6rem 0.75rem;
+  }
+}
 </style>

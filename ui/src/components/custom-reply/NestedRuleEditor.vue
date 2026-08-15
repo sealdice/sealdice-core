@@ -128,12 +128,19 @@
                 <div class="result-fields">
                   <label class="result-field result-mode">
                     <span>模式</span>
-                    <n-select
+                    <n-radio-group
                       v-model:value="result.resultType"
-                      :options="resultTypeOptions"
                       size="small"
                       @update:value="emit('change')"
-                    />
+                    >
+                      <n-radio-button
+                        v-for="option in resultTypeOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </n-radio-button>
+                    </n-radio-group>
                   </label>
 
                   <label class="result-field result-delay">
@@ -365,26 +372,34 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0;
   padding: 0.75rem;
 }
 
 .rule-block {
   min-width: 0;
-  border: 1px solid var(--sd-border-soft);
-  border-radius: var(--sd-radius-md);
-  background: var(--sd-bg-elevated-muted);
-  padding: 0.75rem;
 }
 
 @supports (color: color-mix(in srgb, white, black)) {
   .rule-panel-head {
     background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 62%);
   }
+}
 
-  .rule-block {
-    background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 34%);
-  }
+.condition-block {
+  border-left: 3px solid var(--sd-warning);
+  padding-left: 0.75rem;
+}
+
+.result-block {
+  border-left: 3px solid var(--sd-primary);
+  padding-left: 0.75rem;
+}
+
+.rule-block + .rule-block {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--sd-border-soft);
+  padding-top: 0.75rem;
 }
 
 .rule-block-head,
@@ -405,13 +420,22 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
   margin-bottom: 0.65rem;
 }
 
+.rule-block-head > div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+}
+
 .rule-block-head h4 {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .rule-block-head p {
-  margin: 0.12rem 0 0;
+  margin: 0;
   color: var(--sd-text-muted);
   font-size: 0.8rem;
 }
@@ -448,8 +472,8 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
 }
 
 .result-mode {
-  width: 9rem;
-  flex: 0 0 9rem;
+  width: auto;
+  flex: 1 1 auto;
 }
 
 .result-delay {
@@ -467,18 +491,57 @@ const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
     flex-direction: column;
   }
 
-  .rule-panel-head,
-  .rule-block-head,
-  .result-options,
+  .rule-panel {
+    border: 0;
+    border-radius: var(--sd-radius-sm);
+  }
+
+  .rule-panel-head {
+    padding: 0.45rem 0.5rem;
+  }
+
+  .rule-panel-body {
+    gap: 0;
+    padding: 0.5rem;
+  }
+
+  .condition-block,
+  .result-block {
+    padding-left: 0.5rem;
+  }
+
+  .rule-block + .rule-block {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+  }
+
+  .rule-block-head {
+    margin-bottom: 0.5rem;
+  }
+
   .result-fields {
-    align-items: flex-start;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 0.5rem;
   }
 
   .result-mode,
   .result-delay {
+    grid-column: 1 / -1;
     width: 100%;
     flex-basis: auto;
+  }
+
+  .rule-block :deep(.sd-repeatable-list),
+  .rule-block :deep(.sd-repeatable-item) {
+    gap: 0.5rem;
+  }
+
+  .rule-block :deep(.sd-repeatable-item) {
+    border: 0;
+    background: var(--sd-bg-elevated-muted);
+    padding: 0.5rem;
   }
 
   .rule-actions {

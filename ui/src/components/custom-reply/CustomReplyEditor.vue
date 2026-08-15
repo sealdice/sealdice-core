@@ -188,6 +188,8 @@ const editor = useCustomReplyEditor();
     height: auto;
     min-height: 0;
     flex-direction: column;
+    border: 0;
+    border-radius: 0;
   }
 }
 </style>

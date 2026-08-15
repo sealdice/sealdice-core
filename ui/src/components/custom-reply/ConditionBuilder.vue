@@ -208,17 +208,25 @@ const deleteByIndex = (index: number) => {
     flex-direction: column;
   }
 
+  .condition-list {
+    gap: 0.5rem;
+  }
+
   .condition-fields {
-    align-items: stretch;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 0.5rem;
+  }
+
+  .condition-value,
+  .condition-number {
+    grid-column: 1 / -1;
   }
 
   .condition-mode,
-  .condition-method {
-    width: 100%;
-    flex-basis: auto;
-  }
-
+  .condition-method,
+  .condition-value,
   .condition-number {
     width: 100%;
     flex-basis: auto;
