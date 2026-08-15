@@ -651,6 +651,10 @@ func preflightZIPCentralDirectory(filename string) error {
 		return err
 	}
 	defer func() { _ = file.Close() }()
+	return preflightZIPCentralDirectoryFile(file)
+}
+
+func preflightZIPCentralDirectoryFile(file *os.File) error {
 	info, err := file.Stat()
 	if err != nil {
 		return err
@@ -738,22 +742,33 @@ func inspectBackupArchive(filename string) (*BackupArchiveInfo, map[string]struc
 }
 
 func inspectBackupArchiveDetailed(filename string) (*BackupArchiveInfo, map[string]struct{}, backupManifest, error) {
-	var emptyManifest backupManifest
 	stat, err := os.Lstat(filename)
 	if err != nil {
-		return nil, nil, emptyManifest, err
+		var empty backupManifest
+		return nil, nil, empty, err
 	}
 	if !stat.Mode().IsRegular() {
-		return nil, nil, emptyManifest, errors.New("备份文件不是普通文件或为符号链接")
+		var empty backupManifest
+		return nil, nil, empty, errors.New("备份文件不是普通文件或为符号链接")
 	}
-	if err = preflightZIPCentralDirectory(filename); err != nil {
+	file, err := os.Open(filename)
+	if err != nil {
+		var empty backupManifest
+		return nil, nil, empty, err
+	}
+	defer func() { _ = file.Close() }()
+	return inspectBackupArchiveDetailedFile(file, stat, filename)
+}
+
+func inspectBackupArchiveDetailedFile(file *os.File, stat os.FileInfo, filename string) (*BackupArchiveInfo, map[string]struct{}, backupManifest, error) {
+	var emptyManifest backupManifest
+	if err := preflightZIPCentralDirectoryFile(file); err != nil {
 		return nil, nil, emptyManifest, fmt.Errorf("zip 中央目录预检失败: %w", err)
 	}
-	reader, err := zip.OpenReader(filename)
+	reader, err := zip.NewReader(file, stat.Size())
 	if err != nil {
 		return nil, nil, emptyManifest, fmt.Errorf("不是有效的 ZIP 文件: %w", err)
 	}
-	defer func() { _ = reader.Close() }()
 	if len(reader.File) > maxBackupEntries {
 		return nil, nil, emptyManifest, fmt.Errorf("压缩包条目超过 %d 个", maxBackupEntries)
 	}
@@ -930,7 +945,23 @@ func InspectBackupArchive(filename string) *BackupArchiveInfo {
 }
 
 func validateBackupData(filename string) error {
-	_, _, manifest, err := inspectBackupArchiveDetailed(filename)
+	stat, err := os.Lstat(filename)
+	if err != nil {
+		return err
+	}
+	if !stat.Mode().IsRegular() {
+		return errors.New("备份文件不是普通文件或为符号链接")
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+	return validateBackupDataFile(file, stat, filename)
+}
+
+func validateBackupDataFile(file *os.File, stat os.FileInfo, filename string) error {
+	_, _, manifest, err := inspectBackupArchiveDetailedFile(file, stat, filename)
 	if err != nil {
 		return err
 	}
@@ -940,11 +971,10 @@ func validateBackupData(filename string) error {
 			expected[file.Path] = file
 		}
 	}
-	reader, err := zip.OpenReader(filename)
+	reader, err := zip.NewReader(file, stat.Size())
 	if err != nil {
 		return err
 	}
-	defer func() { _ = reader.Close() }()
 	seen := make(map[string]struct{}, len(expected))
 	var archivedDiceConfig []byte
 	for _, item := range reader.File {
@@ -1010,6 +1040,17 @@ func copyFileSynced(source, target string) error {
 		return err
 	}
 	defer func() { _ = src.Close() }()
+	info, err := src.Stat()
+	if err != nil {
+		return err
+	}
+	return copyFileSyncedFile(src, info, target)
+}
+
+func copyFileSyncedFile(src *os.File, info os.FileInfo, target string) error {
+	if _, err := src.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
 	dst, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
@@ -1201,6 +1242,10 @@ func BackupArchivePath(name string) (string, error) {
 func OpenBackupArchive(name string) (*os.File, os.FileInfo, error) {
 	backupOperationMu.Lock()
 	defer backupOperationMu.Unlock()
+	return openBackupArchiveLocked(name)
+}
+
+func openBackupArchiveLocked(name string) (*os.File, os.FileInfo, error) {
 	target, expected, err := backupArchiveFileLocked(name)
 	if err != nil {
 		return nil, nil, err
@@ -1267,8 +1312,15 @@ func fileSHA256(filename string) ([sha256.Size]byte, error) {
 		return [sha256.Size]byte{}, err
 	}
 	defer func() { _ = file.Close() }()
+	return fileSHA256File(file)
+}
+
+func fileSHA256File(file *os.File) ([sha256.Size]byte, error) {
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return [sha256.Size]byte{}, err
+	}
 	hasher := sha256.New()
-	if _, err = io.Copy(hasher, file); err != nil {
+	if _, err := io.Copy(hasher, file); err != nil {
 		return [sha256.Size]byte{}, err
 	}
 	var digest [sha256.Size]byte
@@ -1342,8 +1394,11 @@ func ImportBackup(reader io.Reader) (*BackupArchiveInfo, error) {
 	}
 	var uploadedDigest [sha256.Size]byte
 	copy(uploadedDigest[:], hash.Sum(nil))
-	digest := hex.EncodeToString(uploadedDigest[:])[:8]
-	existing, _ := filepath.Glob(filepath.Join(BackupDir, "import_*_"+digest+".zip"))
+	digest := hex.EncodeToString(uploadedDigest[:])
+	existing, globErr := filepath.Glob(filepath.Join(BackupDir, "import_*_"+digest+".zip"))
+	if globErr != nil {
+		return nil, fmt.Errorf("查找同内容备份: %w", globErr)
+	}
 	for _, candidate := range existing {
 		candidateDigest, hashErr := fileSHA256(candidate)
 		if hashErr != nil || candidateDigest != uploadedDigest {
@@ -1627,6 +1682,9 @@ func restoreOperationFromExisting(name, requestID string) (*RestoreOperation, bo
 	if status.OperationID != requestID || status.SourceName != name {
 		return nil, false, errors.New("恢复授权存在但 pending/status 无法确认同一 requestId 和备份源")
 	}
+	if status.State != "succeeded" {
+		return nil, false, fmt.Errorf("pending 缺失且恢复状态为 %q，不能当作可复用操作", status.State)
+	}
 	auth, authErr = refreshRestoreStatusAuth(nil, auth)
 	if authErr != nil {
 		return nil, false, fmt.Errorf("刷新终态恢复授权失败: %w", authErr)
@@ -1766,11 +1824,12 @@ func (dm *DiceManager) ScheduleRestore(name, requestID string) (*RestoreOperatio
 	if err := ensureRestoreVolumesMatch(); err != nil {
 		return nil, err
 	}
-	source, err := backupArchivePathLocked(name)
+	sourceFile, sourceInfo, err := openBackupArchiveLocked(name)
 	if err != nil {
 		return nil, err
 	}
-	info, entries, err := inspectBackupArchive(source)
+	defer func() { _ = sourceFile.Close() }()
+	info, entries, _, err := inspectBackupArchiveDetailedFile(sourceFile, sourceInfo, filepath.Join(BackupDir, name))
 	if err != nil {
 		return nil, err
 	}
@@ -1786,7 +1845,7 @@ func (dm *DiceManager) ScheduleRestore(name, requestID string) (*RestoreOperatio
 	if processPath := firstProcessOwnedRestorePath(entries); processPath != "" {
 		return nil, fmt.Errorf("备份包含进程级占用文件 %s，不能安全恢复", processPath)
 	}
-	if err = validateBackupData(source); err != nil {
+	if err = validateBackupDataFile(sourceFile, sourceInfo, filepath.Join(BackupDir, name)); err != nil {
 		return nil, fmt.Errorf("备份内容校验失败: %w", err)
 	}
 	dataSize, err := directorySize("data")
@@ -1800,12 +1859,12 @@ func (dm *DiceManager) ScheduleRestore(name, requestID string) (*RestoreOperatio
 	if err = ensureDiskSpace(BackupDir, required); err != nil {
 		return nil, err
 	}
-	sourceDigest, err := fileSHA256(source)
+	sourceDigest, err := fileSHA256File(sourceFile)
 	if err != nil {
 		return nil, err
 	}
 	queuedSource := filepath.Join(restoreDir(), restoreSourceName)
-	if err = copyFileSynced(source, queuedSource); err != nil {
+	if err = copyFileSyncedFile(sourceFile, sourceInfo, queuedSource); err != nil {
 		return nil, err
 	}
 	queuedDigest, err := fileSHA256(queuedSource)
@@ -2288,6 +2347,11 @@ func readRestoreJournal() (*restoreJournal, error) {
 				return nil, errors.New("恢复日志缺少有效 begin 记录")
 			}
 			journal = &restoreJournal{OperationID: record.OperationID, State: "planned", Entries: record.Entries}
+			for index := range journal.Entries {
+				if err := validateRestoreJournalEntryPaths(&journal.Entries[index]); err != nil {
+					return nil, fmt.Errorf("恢复日志第 %d 条路径校验失败: %w", lineNumber, err)
+				}
+			}
 			continue
 		}
 		if record.OperationID != journal.OperationID {
@@ -2382,6 +2446,31 @@ func ensureRestorePrivatePath(root, target string) error {
 	return ensureNoLinkedPath(root, target, true)
 }
 
+func validateRestoreJournalEntryPaths(entry *restoreJournalEntry) error {
+	if entry == nil {
+		return errors.New("恢复日志包含空条目")
+	}
+	if err := ensureRestoreTargetSafe(entry.Target); err != nil {
+		return fmt.Errorf("恢复日志目标不安全: %w", err)
+	}
+	rollbackRoot := filepath.Join(restoreDir(), restoreRollbackName)
+	if err := ensureRestorePrivatePath(rollbackRoot, entry.Rollback); err != nil {
+		return fmt.Errorf("恢复日志回滚路径不安全: %w", err)
+	}
+	if entry.Staged != "" {
+		stagingRoot := filepath.Join(restoreDir(), restoreStagingName)
+		if err := ensureRestorePrivatePath(stagingRoot, entry.Staged); err != nil {
+			return fmt.Errorf("恢复日志暂存路径不安全: %w", err)
+		}
+		if info, statErr := os.Lstat(entry.Staged); statErr == nil && !info.Mode().IsRegular() {
+			return fmt.Errorf("恢复日志暂存路径不是普通文件: %s", entry.Staged)
+		} else if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+			return statErr
+		}
+	}
+	return nil
+}
+
 func buildRestoreJournal(operationID, staging string) (*restoreJournal, error) {
 	if operationID == "" {
 		return nil, errors.New("恢复事务缺少 operationID")
@@ -2447,6 +2536,10 @@ func buildRestoreJournal(operationID, staging string) (*restoreJournal, error) {
 			if err = ensureRestoreTargetSafe(sidecar); err != nil {
 				return nil, err
 			}
+			sidecarRollback := filepath.Join(restoreDir(), restoreRollbackName, sidecar)
+			if err = ensureRestorePrivatePath(filepath.Join(restoreDir(), restoreRollbackName), sidecarRollback); err != nil {
+				return nil, fmt.Errorf("sqlite sidecar 回滚路径不安全: %w", err)
+			}
 			hadOriginal := false
 			if info, statErr := os.Lstat(sidecar); statErr == nil {
 				if !info.Mode().IsRegular() {
@@ -2500,6 +2593,12 @@ func applyRestoreJournal(journal *restoreJournal) (resultErr error) {
 		entry := &journal.Entries[index]
 		if err := ensureRestoreTargetSafe(entry.Target); err != nil {
 			return err
+		}
+		if entry.Staged != "" {
+			stagingRoot := filepath.Join(restoreDir(), restoreStagingName)
+			if err := ensureRestorePrivatePath(stagingRoot, entry.Staged); err != nil {
+				return fmt.Errorf("恢复暂存路径不安全 %s: %w", entry.Staged, err)
+			}
 		}
 		if !entry.backupIntent {
 			if err := appendJournalStep(journal, index, "backup-original", "intent"); err != nil {
@@ -2769,13 +2868,13 @@ func rollbackRestoreJournal(journal *restoreJournal) error {
 				continue
 			}
 			switch {
-			case rollbackExists:
+			case rollbackExists && !targetExists:
 				if err := restoreSyncMutationParents("data", entry.Target, restoreDir(), entry.Rollback); err != nil {
 					rollbackErr = errors.Join(rollbackErr, err)
 					continue
 				}
 				backedUp = true
-			case targetExists && !installed:
+			case !rollbackExists && targetExists && !installed:
 				backedUp = false
 			default:
 				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("无法判断原文件 %s 是否已移入 rollback", entry.Target))
@@ -2898,6 +2997,37 @@ func cleanupCommittedArtifacts(removeMetadata bool) error {
 	return cleanupErr
 }
 
+func cleanupRolledBackArtifactsWithoutPending(journal *restoreJournal) error {
+	if err := setRestoreStatus(RestoreStatus{
+		State:       "rolled_back",
+		OperationID: journal.OperationID,
+		Message:     "检测到已回滚恢复但 pending 缺失，事务已清理",
+	}); err != nil {
+		return err
+	}
+	var cleanupErr error
+	for _, directory := range []string{restoreRollbackName, restoreStagingName} {
+		if err := restoreRemoveAll(filepath.Join(restoreDir(), directory)); err != nil {
+			cleanupErr = errors.Join(cleanupErr, err)
+		}
+	}
+	if err := restoreRemove(filepath.Join(restoreDir(), restoreSourceName)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		cleanupErr = errors.Join(cleanupErr, err)
+	}
+	if cleanupErr == nil {
+		cleanupErr = syncDirectory(restoreDir())
+	}
+	if cleanupErr == nil {
+		if err := restoreRemove(restoreJournalPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
+			cleanupErr = errors.Join(cleanupErr, err)
+		}
+	}
+	if cleanupErr == nil {
+		cleanupErr = syncDirectory(restoreDir())
+	}
+	return cleanupErr
+}
+
 func recoverInterruptedRestore() error {
 	journal, journalErr := readRestoreJournal()
 	journalEmpty := errors.Is(journalErr, errEmptyRestoreJournal)
@@ -2973,6 +3103,12 @@ func recoverInterruptedRestore() error {
 		return nil
 	}
 	if pendingErr != nil {
+		if journal.State == "rolled_back" {
+			if err := cleanupRolledBackArtifactsWithoutPending(journal); err != nil {
+				return err
+			}
+			return nil
+		}
 		rollbackErr := rollbackRestoreJournal(journal)
 		return errors.Join(errors.New("恢复日志存在但 pending 缺失，已尝试回滚，仍需进入 degraded"), rollbackErr)
 	}
@@ -3070,7 +3206,9 @@ func runnableScheduledRestoreOperationIDLocked() (string, error) {
 	if journal.OperationID != pending.OperationID {
 		return "", errors.New("可续跑恢复任务的 pending/journal operationID 不一致")
 	}
-	if journal.State != "rolled_back" {
+	// A fully rolled back transaction must only run again after an explicit
+	// user retry; never re-enqueue it automatically at startup.
+	if journal.State == "rolled_back" {
 		return "", nil
 	}
 	return pending.OperationID, nil
@@ -3162,9 +3300,16 @@ func ApplyScheduledRestore() (resultErr error) {
 	if err = prepareRolledBackRetry(pending.OperationID); err != nil {
 		return err
 	}
+	var journal *restoreJournal
 	defer func() {
 		if resultErr != nil {
-			_ = setRestoreStatus(RestoreStatus{State: "rolling_back", OperationID: pending.OperationID, SourceName: pending.SourceName, SafetyBackupName: pending.SafetyBackupName, Message: "应用备份失败，等待回滚: " + resultErr.Error()})
+			state := "rolling_back"
+			message := "应用备份失败，等待回滚: " + resultErr.Error()
+			if journal != nil && journal.State == "rolled_back" {
+				state = "rolled_back"
+				message = "应用备份失败，已回滚: " + resultErr.Error()
+			}
+			_ = setRestoreStatus(RestoreStatus{State: state, OperationID: pending.OperationID, SourceName: pending.SourceName, SafetyBackupName: pending.SafetyBackupName, Message: message})
 		}
 	}()
 	source := filepath.Join(restoreDir(), restoreSourceName)
@@ -3197,7 +3342,7 @@ func ApplyScheduledRestore() (resultErr error) {
 	if err = extractBackupTo(source, staging); err != nil {
 		return err
 	}
-	journal, err := buildRestoreJournal(pending.OperationID, staging)
+	journal, err = buildRestoreJournal(pending.OperationID, staging)
 	if err != nil {
 		return err
 	}

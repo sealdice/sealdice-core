@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build !windows && !linux
 
 package dice
 
@@ -12,6 +12,11 @@ func replaceFileAtomic(source, target string) error {
 }
 
 func renameRestorePath(source, target string) error {
+	if _, err := os.Lstat(target); err == nil {
+		return os.ErrExist
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	return os.Rename(source, target)
 }
 
