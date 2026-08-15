@@ -33,6 +33,12 @@ func InitV2Router(api huma.API, dm *dice.DiceManager) {
 	baseGroup.UseSimpleModifier(huma.OperationTags("base"))
 	baseService := base.NewBaseService(dm)
 	baseService.RegisterRoutes(baseGroup)
+
+	baseAuth := huma.NewGroup(api, "/sd-api/v2/base")
+	baseAuth.UseSimpleModifier(huma.OperationTags("base"))
+	baseAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
+	baseService.RegisterProtectedRoutes(baseAuth)
+
 	realtimeAuth := huma.NewGroup(api, "/sd-api/v2/realtime")
 	realtimeAuth.UseSimpleModifier(huma.OperationTags("realtime"))
 	realtimeAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
@@ -51,6 +57,7 @@ func InitV2Router(api huma.API, dm *dice.DiceManager) {
 
 	groupPublic := huma.NewGroup(api, "/sd-api/v2/group")
 	groupPublic.UseSimpleModifier(huma.OperationTags("group"))
+	groupPublic.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
 	groupService := group.NewGroupService(dm)
 	groupService.RegisterRoutes(groupPublic)
 

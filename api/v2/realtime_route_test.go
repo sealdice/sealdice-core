@@ -31,6 +31,40 @@ func TestInitV2RouterDoesNotExposeLegacyRealtimeWebSocketRoute(t *testing.T) {
 	}
 }
 
+func TestInitV2RouterRequiresAuthForGroupList(t *testing.T) {
+	app := echo.New()
+	api := humaecho.New(app, huma.DefaultConfig("Sealdice API", "2.0.0"))
+	dm := newRealtimeRouteDiceManager()
+
+	apiv2.InitV2Router(api, dm)
+
+	req := httptest.NewRequest(http.MethodPost, "/sd-api/v2/group/list", nil)
+	rec := httptest.NewRecorder()
+
+	app.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestInitV2RouterRequiresAuthForNetworkHealth(t *testing.T) {
+	app := echo.New()
+	api := humaecho.New(app, huma.DefaultConfig("Sealdice API", "2.0.0"))
+	dm := newRealtimeRouteDiceManager()
+
+	apiv2.InitV2Router(api, dm)
+
+	req := httptest.NewRequest(http.MethodGet, "/sd-api/v2/base/network-health", nil)
+	rec := httptest.NewRecorder()
+
+	app.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
 func newRealtimeRouteDiceManager() *dice.DiceManager {
 	d := &dice.Dice{
 		Logger:    logger.M(),

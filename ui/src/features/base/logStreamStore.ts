@@ -55,6 +55,9 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
       },
       { immediate: true }
     );
+
+    // 全局 SSE 可能早于首页日志模块启动；重连以重新获取 logs/snapshot 快照。
+    realtimeStore.reconnect();
   }
 
   const connected = computed(() => realtimeStore.connected);

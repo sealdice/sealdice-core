@@ -89,6 +89,32 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     }, delay);
   }
 
+  async function sessionStillValid(): Promise<boolean> {
+    try {
+      // EventSource 拿不到 HTTP 状态码。连续失败后主动探测一个受保护接口：
+      // 仅当明确收到 401 才清会话；网络不可达时继续按退避重连。
+      const response = await fetch(buildRealtimeURL('/sd-api/v2/config/reply'), {
+        cache: 'no-store',
+      });
+      return response.status !== 401;
+    } catch {
+      return true;
+    }
+  }
+
+  async function handleSSEError(generation: number): Promise<void> {
+    if (reconnectAttempt >= 2) {
+      const valid = await sessionStillValid();
+      if (generation !== connectGeneration) return;
+      if (!valid) {
+        authStore.clearAccessToken();
+        disconnect();
+        return;
+      }
+    }
+    scheduleReconnect();
+  }
+
   function closeSSE(): void {
     if (!eventSource) return;
     eventSource.onopen = null;
@@ -134,7 +160,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       lastError.value = '实时连接异常';
       notifyDisconnect();
       closeSSE();
-      scheduleReconnect();
+      void handleSSEError(generation);
     };
 
     for (const eventName of knownEventNames) {

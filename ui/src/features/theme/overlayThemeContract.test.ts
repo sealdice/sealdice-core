@@ -37,9 +37,11 @@ describe('overlay theme contract', () => {
       .map(sourcePath => ({ sourcePath, source: readFileSync(sourcePath, 'utf8') }))
       .filter(({ source }) => source.includes('createDiscreteApi('));
 
-    expect(discreteSources.map(({ sourcePath }) => path.relative(srcDir, sourcePath))).toEqual([
-      'api/client.ts',
-    ]);
+    expect(
+      discreteSources.map(({ sourcePath }) =>
+        path.relative(srcDir, sourcePath).split(path.sep).join('/')
+      )
+    ).toEqual(['api/client.ts']);
     expect(discreteSources[0]?.source).toMatch(/configProviderProps: discreteConfigProviderProps/);
     expect(discreteSources[0]?.source).toMatch(/themeStore\.resolvedTheme === 'dark'/);
     expect(discreteSources[0]?.source).toMatch(/themeOverrides: themeStore\.themeOverrides/);
