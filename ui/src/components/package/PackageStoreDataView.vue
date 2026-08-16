@@ -41,9 +41,21 @@
                 <dd>{{ formatUpdateTime(row) }}</dd>
               </div>
             </dl>
-            <n-button size="small" type="primary" secondary @click="emit('previewInstall', row)">
-              {{ row.installed ? '预览重装' : '预览安装' }}
-            </n-button>
+            <div class="store-compact-item__actions">
+              <n-button size="small" @click="emit('detail', row)">详情</n-button>
+              <n-button size="small" type="primary" secondary @click="emit('install', row)">
+                {{ row.installed ? '重装' : '安装' }}
+              </n-button>
+              <n-button
+                v-if="row.installed"
+                size="small"
+                type="error"
+                secondary
+                @click="emit('uninstall', row)"
+              >
+                卸载
+              </n-button>
+            </div>
           </li>
         </ul>
       </n-spin>
@@ -63,7 +75,9 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  previewInstall: [row: StorePackage];
+  detail: [row: StorePackage];
+  install: [row: StorePackage];
+  uninstall: [row: StorePackage];
 }>();
 
 const rowKey = (row: StorePackage) => `${row.id}@${row.version}`;
@@ -100,17 +114,43 @@ const columns: DataTableColumns<StorePackage> = [
   {
     title: '操作',
     key: 'actions',
-    width: 130,
+    width: 200,
     render: row => (
-      <NButton size="small" text type="primary" onClick={() => emit('previewInstall', row)}>
-        {row.installed ? '预览重装' : '预览安装'}
-      </NButton>
+      <div class="store-actions-cell">
+        <NButton size="small" text onClick={() => emit('detail', row)}>
+          详情
+        </NButton>
+        <NButton size="small" text type="primary" onClick={() => emit('install', row)}>
+          {row.installed ? '重装' : '安装'}
+        </NButton>
+        {row.installed ? (
+          <NButton size="small" text type="error" onClick={() => emit('uninstall', row)}>
+            卸载
+          </NButton>
+        ) : null}
+      </div>
     ),
   },
 ];
 </script>
 
 <style scoped>
+:deep(.store-actions-cell) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.store-compact-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  border-top: 1px solid var(--sd-border-soft);
+  padding-top: 0.75rem;
+}
+
 :deep(.store-name-cell),
 .store-compact-item__identity {
   display: flex;
