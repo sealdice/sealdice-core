@@ -24,9 +24,16 @@ configs/
 data/
 pegtest/
 temp/
+/docs/
 
 .goreleaser.yaml
 dist/
+ui/openapi.json
+ui/src/api/generated/
+static/v2ui/dist/
+static/frontend/*
+!static/frontend/index.html
+ui/dev-dist/
 go-cqhttp/
 lagrange/
 /frontend/
@@ -49,3 +56,4 @@ sealdice-lock.lock
 upgrade_metadata.json
 
 /signature/**/*
+ui/components.d.ts

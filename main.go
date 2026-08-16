@@ -17,14 +17,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humaecho"
 	"github.com/gofrs/flock"
 	"github.com/jessevdk/go-flags"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"go.uber.org/zap/zapcore"
 
 	"sealdice-core/api"
+	apiv2 "sealdice-core/api/v2"
 	"sealdice-core/dice"
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
@@ -171,6 +174,8 @@ func main() {
 		UpdateTest             bool   `description:"更新测试"                                                            long:"update-test"`
 		LogLevel               int8   `choice:"-1"                                                                   choice:"0"              choice:"1" choice:"2" choice:"3" choice:"4" choice:"5" default:"0" description:"设置日志等级"             long:"log-level"`
 		ContainerMode          bool   `description:"容器模式，该模式下禁用内置客户端"                                                long:"container-mode"`
+		GenOpenAPI             string `description:"生成 Huma v2 OpenAPI JSON 到指定路径并退出"                                      long:"gen-openapi"`
+		PProfWeb               bool   `description:"在当前 Web 服务挂载 pprof 调试页面，需要使用启动时生成的 token 访问"                          long:"pprof-web"`
 		MutexProfileRate       int    `description:"对互斥锁竞用的采样速率，小于等于0=关闭，1=所有，其他N=N分之1采样率" long:"mutex-profile" default:"5"`
 		BlockProfileRate       int    `description:"对阻塞事件的采样速率，小于等于0=关闭，1=所有，其他N=每N纳秒1次采样" long:"block-profile" default:"5000"`
 	}
@@ -188,6 +193,14 @@ func main() {
 	if opts.ShowEnv {
 		for i, e := range os.Environ() {
 			fmt.Fprintln(os.Stdout, i, e)
+		}
+		return
+	}
+	if opts.GenOpenAPI != "" {
+		err = apiv2.WriteOpenAPI(opts.GenOpenAPI)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "生成 OpenAPI 失败: %v\n", err)
+			os.Exit(1)
 		}
 		return
 	}
@@ -389,17 +402,17 @@ func main() {
 		return
 	}
 
-	useBuiltinUI := false
-	checkFrontendExists := func() bool {
+	useBuiltinOldUI := false
+	checkFrontendOverwriteExists := func() bool {
 		var stat os.FileInfo
 		stat, err = os.Stat("./frontend_overwrite")
 		return err == nil && stat.IsDir()
 	}
-	if !checkFrontendExists() {
-		log.Info("未检测到外置的UI资源文件，将使用内置资源启动UI")
-		useBuiltinUI = true
+	if !checkFrontendOverwriteExists() {
+		log.Info("未检测到 frontend_overwrite，将使用内置老 UI 作为 /old-ui/ 回退入口")
+		useBuiltinOldUI = true
 	} else {
-		log.Info("检测到外置的UI资源文件，将使用frontend_overwrite文件夹内的资源启动UI")
+		log.Info("检测到 frontend_overwrite，将使用外置老 UI 作为 /old-ui/ 回退入口")
 	}
 
 	// // 尝试进行升级
@@ -483,7 +496,7 @@ func main() {
 		go diceServe(d)
 	}
 
-	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinUI)
+	go uiServe(diceManager, opts.HideUIWhenBoot, useBuiltinOldUI, opts.PProfWeb)
 	// OOM分析工具
 	// err = nil
 	// err = http.ListenAndServe(":9090", nil)
@@ -608,56 +621,86 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
-func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltin bool) {
+func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePProfWeb bool) {
 	log := logger.M()
 	log.Info("即将启动webui")
-	// Echo instance
+
 	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+	pprofCfg := newPprofWebConfig(enablePProfWeb)
+	registerPprofWebRoutes(e, pprofCfg)
 
-	// 为UI添加日志，以echo方式输出
 	e.Use(logger.EchoLogMiddleware())
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		Skipper:      middleware.DefaultSkipper,
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, "token"},
+	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+			"token",
+		},
 		AllowOrigins: []string{"*"},
-		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodDelete,
+		},
 	}))
 
-	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{
-		Level: 5,
-	}))
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set(echo.HeaderServer, "Sealdice Echo")
+			return next(c)
+		}
+	})
+
 	mimePatch()
-	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
+	e.Use(echomiddleware.SecureWithConfig(echomiddleware.SecureConfig{
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
 		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
-		// XFrameOptions:         "ALLOW-FROM https://captcha.go-cqhttp.org/",
 	}))
-	// X-Content-Type-Options: nosniff
 
-	groupStatic := func(next echo.HandlerFunc) echo.HandlerFunc {
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if c.Request().URL.Path == "/" {
-				responseWriter := c.Response()
-				responseWriter.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-				responseWriter.Header().Set("Pragma", "no-cache")
-				responseWriter.Header().Set("Expires", "0")
+				c.Response().Header().Set(echo.HeaderCacheControl, "no-cache, no-store, must-revalidate")
+				c.Response().Header().Set("Pragma", "no-cache")
+				c.Response().Header().Set("Expires", "0")
 			}
 			return next(c)
 		}
+	})
+
+	apier := humaecho.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
+	apiv2.InitV2Router(apier, dm)
+
+	api.BindV1(e, dm)
+
+	if err := registerRemovedV2UIRoutes(e); err != nil {
+		log.Warnf("注册已移除的 /v2ui 路径失败: %v", err)
 	}
-	e.Use(groupStatic)
-	if useBuiltin {
+
+	v2UIRoot, err := fs.Sub(static.V2UI, "v2ui")
+	if err != nil {
+		log.Warnf("加载内置新 UI 资源失败: %v", err)
+	} else if err := registerRootUI(e, v2UIRoot); err != nil {
+		log.Warnf("注册根路径新 UI 资源失败: %v", err)
+	}
+
+	if useBuiltinOldUI {
 		frontend, _ := fs.Sub(static.Frontend, "frontend")
-		e.StaticFS("/", frontend)
+		registerLegacyUI(e, frontend)
 	} else {
-		e.Static("/", "./frontend_overwrite")
+		registerLegacyUI(e, os.DirFS("./frontend_overwrite"))
 	}
 
-	api.Bind(e, dm)
-	e.HideBanner = true // 关闭banner，原因是banner图案会改变终端光标位置
-
+	logPprofWebEnabled(pprofCfg, dm.ServeAddress)
 	httpServe(e, dm, hideUI)
 }
 

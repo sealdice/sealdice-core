@@ -4,13 +4,15 @@ on:
     types:
       - opened
       - edited
+      - reopened
+      - ready_for_review
       - synchronize
       - labeled
       - unlabeled
 
 jobs:
   check:
-    if: ${{ github.repository == 'sealdice/sealdice-core' }}
+    if: ${{ github.repository == 'sealdice/sealdice-core' && !github.event.pull_request.draft }}
     permissions:
       checks: write
       contents: read

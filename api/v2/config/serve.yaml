@@ -1,0 +1,93 @@
+imSession: null
+deckList: []
+commandPrefix: []
+diceMasters: []
+configVersion: 1
+commandCompatibleMode: true
+lastSavedTime: null
+noticeIds: []
+onlyLogCommandInGroup: false
+onlyLogCommandInPrivate: false
+versionCode: 10300
+messageDelayRangeStart: 0
+messageDelayRangeEnd: 0.4
+workInQQChannel: true
+QQChannelAutoOn: false
+QQChannelLogMessage: false
+QQEnablePoke: true
+textCmdTrustOnly: true
+ignoreUnaddressedBotCmd: false
+UILogLimit: 0
+friendAddComment: ""
+customReplyConfigEnable: true
+autoReloginEnable: false
+refuseGroupInvite: false
+upgradeWindowId: ""
+upgradeEndpointId: ""
+botExtFreeSwitch: false
+botExitWithoutAt: false
+trustOnlyMode: false
+aliveNoticeEnable: false
+aliveNoticeValue: '@every 3h'
+replyDebugMode: false
+playerNameWrapEnable: true
+VMVersionForReply: v1
+VMVersionForDeck: v2
+VMVersionForCustomText: v2
+VMVersionForMsg: v2
+name: default
+dataDir: data/default
+rateLimitEnabled: false
+personalReplenishRate: '@every 3s'
+groupReplenishRate: '@every 3s'
+personalBurst: 3
+groupBurst: 3
+quitInactiveThreshold: 0s
+quitInactiveNoticeSummaryMode: false
+quitInactiveBatchSize: 10
+quitInactiveBatchWait: 30
+defaultCocRuleIndex: 0
+maxExecuteTime: 12
+maxCocCardGen: 5
+cocCardMergeForward: false
+extDefaultSettings: []
+banList:
+    banBehaviorRefuseReply: true
+    banBehaviorRefuseInvite: true
+    banBehaviorQuitLastPlace: false
+    banBehaviorQuitPlaceImmediately: false
+    banBehaviorQuitIfAdmin: false
+    banBehaviorQuitIfAdminSilentIfNotAdmin: false
+    thresholdWarn: 100
+    thresholdBan: 200
+    autoBanMinutes: 720
+    scoreReducePerMinute: 1
+    scoreGroupMuted: 100
+    scoreGroupKicked: 200
+    scoreTooManyCommand: 100
+    jointScorePercentOfGroup: 0.5
+    jointScorePercentOfInviter: 0.3
+jsEnable: true
+disabledJsScripts: {}
+logSizeNoticeEnable: true
+LogSizeNoticeCount: 500
+mailEnable: false
+mailFrom: ""
+mailPassword: ""
+mailSmtp: ""
+newsMark: ""
+enableCensor: false
+censorMode: 0
+censorThresholds: {}
+censorHandlers: {}
+censorScores: {}
+censorCaseSensitive: false
+censorMatchPinyin: false
+censorFilterRegexStr: ""
+publicDiceEnable: false
+publicDiceId: ""
+publicDiceName: ""
+publicDiceBrief: ""
+publicDiceNote: ""
+publicDiceAvatar: ""
+backendUrls: []

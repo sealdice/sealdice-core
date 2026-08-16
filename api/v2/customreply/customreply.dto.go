@@ -1,0 +1,109 @@
+package customreply
+
+import (
+	"github.com/danielgtaylor/huma/v2"
+
+	"sealdice-core/dice"
+	"sealdice-core/model/common/response"
+)
+
+type FileInfo struct {
+	Enable          bool   `json:"enable"`
+	Filename        string `json:"filename"`
+	CreateTimestamp int64  `json:"createTimestamp"`
+	UpdateTimestamp int64  `json:"updateTimestamp"`
+	ItemCount       int    `json:"itemCount"`
+	PackageID       string `json:"packageId,omitempty"`
+}
+
+type ReplyFileListResp = response.HPageResult[*FileInfo]
+
+type FilenamePath struct {
+	Filename string `path:"filename"`
+}
+
+type FileListQuery struct {
+	Page      int    `query:"page"`
+	PageSize  int    `query:"pageSize"`
+	Keyword   string `query:"keyword"`
+	SortBy    string `query:"sortBy"`
+	SortOrder string `query:"sortOrder"`
+}
+
+type RulePageQuery struct {
+	Filename string `path:"filename"`
+	Page     int    `query:"page"`
+	PageSize int    `query:"pageSize"`
+}
+
+type ConditionPageQuery struct {
+	Filename string `path:"filename"`
+	Page     int    `query:"page"`
+	PageSize int    `query:"pageSize"`
+}
+
+type FileBody struct {
+	Filename  string `json:"filename"`
+	VMVersion string `json:"vmVersion,omitempty"`
+}
+
+type FileReq struct {
+	Body FileBody `json:"body"`
+}
+
+type SaveBody struct {
+	dice.ReplyConfig
+	VMVersion *string `json:"vmVersion,omitempty"`
+}
+
+type SaveReq struct {
+	Filename string   `path:"filename"`
+	Body     SaveBody `json:"body"`
+}
+
+type DebugModeResp struct {
+	Value bool `json:"value"`
+}
+
+type DebugModeReq struct {
+	Body DebugModeResp `json:"body"`
+}
+
+type UploadForm struct {
+	File huma.FormFile `form:"file" required:"true"`
+}
+
+type UploadReq struct {
+	RawBody huma.MultipartFormFiles[UploadForm]
+}
+
+type RuleInfo struct {
+	Index int             `json:"index"`
+	Item  *dice.ReplyItem `json:"item"`
+}
+
+type RulePageResp = response.HPageResult[*RuleInfo]
+
+type ConditionInfo struct {
+	Index int                     `json:"index"`
+	Item  dice.ReplyConditionBase `json:"item"`
+}
+
+type ConditionPageResp = response.HPageResult[*ConditionInfo]
+
+type ReplyFileDetail struct {
+	Enable          bool                 `json:"enable"`
+	VMVersion       string               `json:"vmVersion"`
+	Interval        float64              `json:"interval"`
+	Name            string               `json:"name"`
+	Author          []string             `json:"author"`
+	Version         string               `json:"version"`
+	CreateTimestamp int64                `json:"createTimestamp"`
+	UpdateTimestamp int64                `json:"updateTimestamp"`
+	Desc            string               `json:"desc"`
+	StoreID         string               `json:"storeID"`
+	PackageID       string               `json:"packageId,omitempty"`
+	Conditions      dice.ReplyConditions `json:"conditions"`
+	Filename        string               `json:"filename"`
+	ItemCount       int                  `json:"itemCount"`
+}

@@ -1,0 +1,195 @@
+<template>
+  <WorkspaceFrame mode="fixed-height">
+    <template #header>
+      <ReplyMetaSection
+        :reply-enabled="editor.replyEnabled.value"
+        :switch-loading="editor.replyConfigMutation.isPending.value"
+        :save-loading="editor.saveMutation.isPending.value"
+        :save-disabled="!editor.modified.value || !editor.currentFileDraft.value"
+        @toggle-reply-enabled="editor.handleReplySwitchUpdate"
+        @save="editor.saveCurrent"
+      />
+    </template>
+
+    <n-spin class="reply-editor-container" :show="editor.pageBusy.value">
+      <template v-if="!editor.replyEnabled.value">
+        <FeatureDisabledState
+          title="自定义回复已关闭"
+          description="启用后可管理回复文件、前置条件和回复规则。"
+        />
+      </template>
+
+      <template v-else>
+        <section class="reply-layout">
+          <ReplyFileSidebar
+            :files="editor.fileItems.value"
+            :total="editor.fileTotal.value"
+            :selected-filename="editor.selectedFilename.value"
+            :query="editor.fileQuery"
+            :get-file-enable-status="editor.getFileEnableStatus"
+            :format-update-time="editor.formatUpdateTime"
+            @select="editor.selectFile"
+            @create="editor.newFileDialogVisible.value = true"
+            @open-import="editor.importDialogVisible.value = true"
+            @delete="editor.deleteCurrentFile"
+            @download="editor.downloadCurrentFile"
+            @upload="editor.uploadFile"
+            @update-query="editor.updateFileQuery"
+          />
+
+          <section class="reply-content">
+            <n-empty
+              v-if="!editor.selectedFilename.value || !editor.currentFileDraft.value"
+              description="请选择一个文件"
+            />
+
+            <template v-else>
+              <ReplyCommonConditionsSection
+                v-model="editor.pagedCommonConditions.value"
+                :file-enabled="editor.currentFileDraft.value.enable"
+                :vm-version="editor.currentFileDraft.value.vmVersion"
+                :page="editor.commonConditionsPage.value"
+                :page-size="editor.commonConditionsPageSize.value"
+                :total="editor.commonConditionsTotal.value"
+                @add="editor.addCommonCondition"
+                @delete="editor.deleteCommonCondition"
+                @toggle-file-enabled="editor.toggleCurrentFileEnable"
+                @update-vm-version="editor.setCurrentVMVersion"
+                @update-page="editor.commonConditionsPage.value = $event"
+              />
+
+              <ReplyRulesSection
+                v-model="editor.rulePageItems.value"
+                :start-index="editor.rulePageStart.value"
+                :page="editor.rulesPage.value"
+                :page-size="editor.rulesPageSize.value"
+                :total="editor.rulesTotal.value"
+                @add="editor.addReplyItem"
+                @change="editor.markModified"
+                @delete="editor.deleteReplyItem"
+                @update-page="editor.rulesPage.value = $event"
+              />
+            </template>
+          </section>
+        </section>
+      </template>
+
+      <ReplyImportModal
+        v-model:show="editor.importDialogVisible.value"
+        v-model:content="editor.configForImport.value"
+        :disabled="!editor.currentFileDraft.value"
+        @import="editor.doImport"
+      />
+
+      <ReplyLicenseModal
+        v-model:show="editor.licenseDialogVisible.value"
+        :loading="editor.replyConfigMutation.isPending.value"
+        @accept="editor.acceptLicense"
+        @refuse="editor.refuseLicense"
+      />
+
+      <n-modal
+        v-model:show="editor.newFileDialogVisible.value"
+        preset="dialog"
+        title="创建一个新的回复文件"
+        positive-text="确定"
+        negative-text="取消"
+        @positive-click="editor.createNewFile"
+      >
+        <n-input v-model:value="editor.newFilename.value" placeholder="reply2.yaml" />
+      </n-modal>
+
+      <n-modal
+        v-model:show="editor.fileSwitchDialogVisible.value"
+        preset="dialog"
+        title="切换回复文件"
+        :show-icon="false"
+        :mask-closable="false"
+        :close-on-esc="false"
+        @close="editor.cancelFileSwitch"
+      >
+        <n-text>
+          当前文件 {{ editor.selectedFilename.value }} 有未保存的修改，是否保存后切换到
+          {{ editor.pendingFilename.value }}？
+        </n-text>
+
+        <template #action>
+          <n-space justify="end">
+            <n-button
+              :disabled="editor.saveMutation.isPending.value"
+              @click="editor.cancelFileSwitch"
+            >
+              取消
+            </n-button>
+            <n-button
+              :disabled="editor.saveMutation.isPending.value"
+              @click="editor.discardAndSwitchFile"
+            >
+              不保存
+            </n-button>
+            <n-button
+              type="primary"
+              :loading="editor.saveMutation.isPending.value"
+              @click="editor.saveAndSwitchFile"
+            >
+              保存并切换
+            </n-button>
+          </n-space>
+        </template>
+      </n-modal>
+    </n-spin>
+  </WorkspaceFrame>
+</template>
+
+<script setup lang="ts">
+import WorkspaceFrame from '@/components/layout/WorkspaceFrame.vue';
+import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
+import ReplyCommonConditionsSection from './ReplyCommonConditionsSection.vue';
+import ReplyFileSidebar from './ReplyFileSidebar.vue';
+import ReplyImportModal from './ReplyImportModal.vue';
+import ReplyLicenseModal from './ReplyLicenseModal.vue';
+import ReplyMetaSection from './ReplyMetaSection.vue';
+import ReplyRulesSection from './ReplyRulesSection.vue';
+import { useCustomReplyEditor } from '@/features/customReply/useCustomReplyEditor';
+
+const editor = useCustomReplyEditor();
+</script>
+
+<style scoped>
+.reply-editor-container {
+  flex: 1 1 auto;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: reply-editor;
+}
+
+.reply-layout {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border: 1px solid var(--sd-border);
+  border-radius: var(--sd-radius-md);
+  background: var(--sd-bg-elevated);
+}
+
+.reply-content {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: auto;
+  background: var(--sd-bg-page);
+}
+
+@container reply-editor (max-width: 720px) {
+  .reply-layout {
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
+    border: 0;
+    border-radius: 0;
+  }
+}
+</style>

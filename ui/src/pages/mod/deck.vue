@@ -1,0 +1,791 @@
+<template>
+  <main class="deck-page sd-page-flow">
+    <PageHeader title="牌堆管理">
+      <n-button type="primary" :loading="reloadMutation.isPending.value" @click="doReload">
+        <template #icon>
+          <n-icon><i-tabler-refresh /></n-icon>
+        </template>
+        重载牌堆
+      </n-button>
+    </PageHeader>
+
+    <n-spin :show="pageBusy">
+      <ListWorkspace>
+        <QueryToolbar
+          :form="deckSearchForm"
+          :columns="deckSearchColumns"
+          :loading="pageBusy"
+          cols="1 s:2 l:3"
+        />
+
+        <ListActions>
+          <PackageStoreLink>获取牌堆</PackageStoreLink>
+
+          <input
+            ref="fileInputRef"
+            type="file"
+            class="deck-file-input"
+            multiple
+            @change="onFileSelection"
+          />
+          <n-button type="primary" secondary :loading="uploader.busy.value" @click="openFilePicker">
+            <template #icon>
+              <n-icon><i-tabler-upload /></n-icon>
+            </template>
+            上传牌堆
+          </n-button>
+        </ListActions>
+
+        <section v-if="activeUploadTasks.length" class="upload-panel">
+          <div class="upload-panel-head">
+            <h3>上传队列</h3>
+            <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
+          </div>
+
+          <div class="upload-list">
+            <article v-for="task in activeUploadTasks" :key="task.id" class="upload-item">
+              <div class="upload-item-head">
+                <div class="upload-title">
+                  <span class="upload-name">{{ task.filename }}</span>
+                  <span class="upload-meta">{{ Math.round(task.fileSize / 1024) }} KB</span>
+                </div>
+                <div class="upload-actions">
+                  <n-tag
+                    size="small"
+                    :bordered="false"
+                    :type="
+                      task.status === 'error'
+                        ? 'error'
+                        : task.status === 'success'
+                          ? 'success'
+                          : 'warning'
+                    "
+                  >
+                    {{ task.status }}
+                  </n-tag>
+                  <n-button
+                    v-if="task.status === 'error'"
+                    size="tiny"
+                    secondary
+                    @click="retryTask(task)"
+                  >
+                    重试
+                  </n-button>
+                </div>
+              </div>
+
+              <n-progress
+                type="line"
+                :percentage="task.progress"
+                :status="
+                  task.status === 'error'
+                    ? 'error'
+                    : task.status === 'success'
+                      ? 'success'
+                      : 'default'
+                "
+                :show-indicator="true"
+              />
+
+              <div class="upload-detail">
+                <span
+                  >分块 {{ Array.isArray(task.uploadedChunks) ? task.uploadedChunks.length : 0 }} /
+                  {{ task.expectedChunks || '-' }}</span
+                >
+                <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <ListPanel>
+          <template #toolbar>
+            <n-text depth="3">共 {{ total }} 项，本页 {{ items.length }} 项</n-text>
+            <n-text class="deck-format-note">支持 json、yaml、deck、toml 格式</n-text>
+            <n-tooltip>
+              <template #trigger>
+                <n-button text size="tiny" aria-label="查看牌堆格式说明">
+                  <template #icon>
+                    <n-icon><i-tabler-help-circle /></n-icon>
+                  </template>
+                </n-button>
+              </template>
+              deck 牌堆：一种单文件带图的牌堆格式。在牌堆文件中使用 ./images/xxx.png
+              的相对路径引用图片，并连同图片目录一起打包成 zip，修改扩展名为 deck 即可制作。<br /><br />
+              toml 牌堆：海豹支持的新牌堆格式，提供包括云牌组在内的更多功能支持。
+            </n-tooltip>
+          </template>
+
+          <main class="deck-data-block">
+            <ListEmptyState v-if="!items.length" description="暂无牌堆" />
+
+            <FoldableCard
+              v-for="(item, index) in items"
+              :key="item.filename || index"
+              class="deck-item"
+              :default-fold="true"
+              :err-title="item.filename"
+              :err-text="item.errText"
+            >
+              <template #title>
+                <n-flex size="small" align="center">
+                  <n-text class="text-base" tag="b">{{ item.name }}</n-text>
+                  <n-text>{{ item.version }}</n-text>
+                  <n-tag size="small" :bordered="false">
+                    {{ item.fileFormat }}
+                  </n-tag>
+                  <n-tag v-if="item.packageId" size="small" :bordered="false">
+                    来源包 {{ item.packageId }}
+                  </n-tag>
+                </n-flex>
+              </template>
+
+              <template #title-extra>
+                <n-flex>
+                  <n-popconfirm
+                    v-if="item.updateUrls && item.updateUrls.length > 0"
+                    @positive-click="doCheckUpdate(item)"
+                  >
+                    <template #trigger>
+                      <n-button type="primary" size="small" secondary :loading="diffLoading">
+                        <template #icon>
+                          <n-icon><i-tabler-download /></n-icon>
+                        </template>
+                        更新
+                      </n-button>
+                    </template>
+                    更新地址由牌堆作者提供，是否确认要检查该牌堆更新？
+                  </n-popconfirm>
+                  <n-button type="error" size="small" secondary @click="doDelete(item)">
+                    <template #icon>
+                      <n-icon><i-tabler-trash /></n-icon>
+                    </template>
+                    删除
+                  </n-button>
+                </n-flex>
+              </template>
+
+              <template #title-extra-error>
+                <n-button type="error" size="small" secondary @click="doDelete(item)">
+                  <template #icon>
+                    <n-icon><i-tabler-trash /></n-icon>
+                  </template>
+                  删除
+                </n-button>
+              </template>
+
+              <template #description>
+                <n-flex size="small" vertical align="normal">
+                  <n-text v-if="item.cloud" type="info" class="text-xs">
+                    <n-icon><i-tabler-cloud /></n-icon>
+                    作者提供云端内容，请自行鉴别安全性
+                  </n-text>
+                  <n-text v-if="item.fileFormat === 'jsonc'" type="warning" class="text-xs">
+                    <n-icon><i-tabler-alert-triangle-filled /></n-icon>
+                    注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
+                  </n-text>
+                </n-flex>
+              </template>
+
+              <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
+                <n-descriptions-item :span="3" label="作者">
+                  {{ item.author || '<佚名>' }}
+                </n-descriptions-item>
+                <n-descriptions-item v-if="item.desc" :span="3" label="简介">
+                  {{ item.desc }}
+                </n-descriptions-item>
+                <n-descriptions-item :span="3" label="牌组列表">
+                  <n-flex size="small">
+                    <n-tag
+                      v-for="(visible, command) of item.command"
+                      :key="command"
+                      size="small"
+                      :type="visible ? 'primary' : 'default'"
+                      :bordered="false"
+                    >
+                      {{ command }}
+                    </n-tag>
+                  </n-flex>
+                </n-descriptions-item>
+                <n-descriptions-item v-if="item.license" label="许可协议">
+                  {{ item.license }}
+                </n-descriptions-item>
+                <n-descriptions-item v-if="item.date" label="发布时间">
+                  {{ item.date }}
+                </n-descriptions-item>
+                <n-descriptions-item v-if="item.updateDate" label="更新时间">
+                  {{ item.updateDate }}
+                </n-descriptions-item>
+              </n-descriptions>
+
+              <template #unfolded-extra>
+                <n-descriptions content-class="whitespace-pre-line" :column="isMobile ? 1 : 3">
+                  <n-descriptions-item :span="3" label="可见牌组列表">
+                    <n-flex size="small">
+                      <n-tag
+                        v-for="(visible, command) of item.command"
+                        :key="command"
+                        size="small"
+                        :type="visible ? 'primary' : 'default'"
+                        :bordered="false"
+                        :style="{ display: visible ? '' : 'none' }"
+                      >
+                        {{ command }}
+                      </n-tag>
+                    </n-flex>
+                  </n-descriptions-item>
+                </n-descriptions>
+              </template>
+            </FoldableCard>
+          </main>
+        </ListPanel>
+
+        <div
+          v-if="
+            shouldShowListPagination({
+              total: Number(total),
+              page: listQuery.page,
+              pageSize: listQuery.pageSize,
+            })
+          "
+          class="deck-pagination-block"
+        >
+          <n-pagination
+            v-model:page="listQuery.page"
+            v-model:page-size="listQuery.pageSize"
+            :item-count="Number(total)"
+            show-size-picker
+            :page-sizes="[10, 20, 30, 50]"
+            @update:page-size="listQuery.page = 1"
+          />
+        </div>
+      </ListWorkspace>
+
+      <n-modal v-model:show="showDiff" preset="card" title="牌堆内容对比" class="diff-dialog">
+        <TipBox v-if="diffErrorText" type="error">
+          {{ diffErrorText }}
+        </TipBox>
+        <DiffViewer
+          :lang="deckCheck.format ?? 'text'"
+          :old="deckCheck.old ?? ''"
+          :new="deckCheck.new ?? ''"
+          :theme="isDark ? 'dark' : 'light'"
+        />
+        <template #footer>
+          <n-flex wrap>
+            <n-button @click="showDiff = false">取消</n-button>
+            <n-button
+              v-if="deckCheck.old !== deckCheck.new"
+              type="primary"
+              :loading="updateMutation.isPending.value"
+              @click="deckUpdate"
+            >
+              <template #icon>
+                <n-icon><i-tabler-device-floppy /></n-icon>
+              </template>
+              {{ diffErrorText ? '重试更新' : '确认更新' }}
+            </n-button>
+          </n-flex>
+        </template>
+      </n-modal>
+    </n-spin>
+  </main>
+</template>
+
+<script setup lang="ts">
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { useDialog, useMessage } from 'naive-ui';
+import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
+import {
+  getSdApiV2DeckList,
+  postSdApiV2DeckCheckUpdate,
+  postSdApiV2DeckDelete,
+  postSdApiV2DeckReload,
+  postSdApiV2DeckUpdate,
+  postSdApiV2DeckUploadComplete,
+  postSdApiV2DeckUploadInit,
+  type DeckItem,
+  type UpdateCheckResult,
+} from '@/api';
+import FoldableCard from '@/components/shared/FoldableCard.vue';
+import PageHeader from '@/components/shared/PageHeader.vue';
+import QueryToolbar from '@/components/shared/QueryToolbar.vue';
+import ListActions from '@/components/shared/ListActions.vue';
+import ListEmptyState from '@/components/shared/ListEmptyState.vue';
+import ListPanel from '@/components/shared/ListPanel.vue';
+import ListWorkspace from '@/components/shared/ListWorkspace.vue';
+import { shouldShowListPagination } from '@/components/shared/listPagination';
+import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
+import { getApiBaseUrl } from '@/api/config';
+import {
+  getTestModeBlockMessage,
+  isTestModeApiError,
+  isTestModeResponse,
+} from '@/features/testMode/state';
+import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
+import { hasAccessToken } from '@/features/auth/state';
+import { useAppTheme } from '@/features/theme';
+import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
+import TipBox from '@/components/shared/TipBox.vue';
+
+const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
+
+const deckChunkSize = 4 * 1024 * 1024;
+
+// 牌堆页同时承载列表管理、diff 更新和大文件上传。
+// 列表数据用 Vue Query；更新检查按需打开 DiffViewer；上传复用通用断点续传控制器。
+const message = useMessage();
+const dialog = useDialog();
+const queryClient = useQueryClient();
+const { isDark } = useAppTheme();
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isMobile = breakpoints.smaller('md');
+
+const listQuery = reactive({
+  page: 1,
+  pageSize: 20,
+  keyword: '',
+  sortBy: 'name',
+  sortOrder: 'asc',
+});
+
+type DeckSearchFormValues = {
+  keyword: string;
+  sortBy: string;
+  sortOrder: string;
+};
+
+type DeckItemExt = DeckItem & { packageId?: string };
+
+const defaultDeckSearchFormValues = (): DeckSearchFormValues => ({
+  keyword: '',
+  sortBy: 'name',
+  sortOrder: 'asc',
+});
+
+const sortByOptions = [
+  { label: '按名称', value: 'name' },
+  { label: '按作者', value: 'author' },
+  { label: '按更新时间', value: 'updateDate' },
+];
+
+const sortOrderOptions = [
+  { label: '升序', value: 'asc' },
+  { label: '降序', value: 'desc' },
+];
+
+const deckSearchForm = createProSearchForm<DeckSearchFormValues>({
+  initialValues: cloneSearchFormValues(defaultDeckSearchFormValues()),
+  onSubmit: async values => {
+    Object.assign(listQuery, {
+      keyword: values.keyword,
+      sortBy: values.sortBy,
+      sortOrder: values.sortOrder,
+      page: 1,
+    });
+    await deckListQuery.refetch();
+  },
+  onReset: async () => {
+    Object.assign(listQuery, {
+      ...defaultDeckSearchFormValues(),
+      page: 1,
+    });
+    await deckListQuery.refetch();
+  },
+});
+
+const deckSearchColumns: ProSearchFormColumns<DeckSearchFormValues> = [
+  {
+    label: '关键字',
+    path: 'keyword',
+    field: 'input',
+    fieldProps: {
+      clearable: true,
+      placeholder: '搜索牌堆 / 作者 / 简介 / 牌组',
+    },
+  },
+  {
+    label: '排序字段',
+    path: 'sortBy',
+    field: 'select',
+    fieldProps: {
+      options: sortByOptions,
+    },
+  },
+  {
+    label: '排序方向',
+    path: 'sortOrder',
+    field: 'select',
+    fieldProps: {
+      options: sortOrderOptions,
+    },
+  },
+];
+
+const showDiff = ref(false);
+const diffLoading = ref(false);
+const diffErrorText = ref('');
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const deckCheck = ref<UpdateCheckResult>({
+  success: false,
+  old: '',
+  new: '',
+  format: 'json',
+  filename: '',
+  tempFileName: '',
+});
+
+const deckListParams = computed(() => ({
+  page: listQuery.page,
+  pageSize: listQuery.pageSize,
+  keyword: listQuery.keyword || undefined,
+  sortBy: listQuery.sortBy,
+  sortOrder: listQuery.sortOrder,
+}));
+
+const deckListQuery = useQuery({
+  queryKey: computed(() => ['deck-list', deckListParams.value]),
+  enabled: hasAccessToken,
+  queryFn: async () => {
+    const { data } = await getSdApiV2DeckList({
+      query: deckListParams.value,
+      throwOnError: true,
+    });
+    return data.item;
+  },
+});
+
+const items = computed<DeckItemExt[]>(() =>
+  (deckListQuery.data.value?.list ?? []).map(item => item as DeckItemExt)
+);
+const total = computed(() => deckListQuery.data.value?.total ?? 0);
+const pageBusy = computed(() => deckListQuery.isFetching.value);
+
+watch(
+  () => listQuery.keyword,
+  () => {
+    listQuery.page = 1;
+  }
+);
+
+watch(
+  () => [listQuery.sortBy, listQuery.sortOrder] as const,
+  () => {
+    listQuery.page = 1;
+  }
+);
+
+const invalidateDeckList = () =>
+  queryClient.invalidateQueries({
+    queryKey: ['deck-list'],
+  });
+
+const reloadMutation = useMutation({
+  mutationFn: async () => {
+    const { data } = await postSdApiV2DeckReload({
+      throwOnError: true,
+    });
+    return data.item;
+  },
+  onSuccess: async item => {
+    if (isTestModeResponse(item)) {
+      message.success('展示模式无法重载牌堆');
+      return;
+    }
+    message.success('已重载');
+    await invalidateDeckList();
+  },
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
+    message.error('重载失败');
+  },
+});
+
+const deleteMutation = useMutation({
+  mutationFn: async (filename: string) => {
+    const { data } = await postSdApiV2DeckDelete({
+      body: {
+        filename,
+      },
+      throwOnError: true,
+    });
+    return data.item;
+  },
+  onSuccess: async item => {
+    if (!item.success) {
+      message.error('删除失败');
+      return;
+    }
+    message.success('牌堆已删除');
+    await invalidateDeckList();
+  },
+  onError: () => {
+    message.error('删除失败');
+  },
+});
+
+const updateMutation = useMutation({
+  mutationFn: async () => {
+    const { data } = await postSdApiV2DeckUpdate({
+      body: {
+        filename: deckCheck.value.filename ?? '',
+        tempFileName: deckCheck.value.tempFileName ?? '',
+      },
+      throwOnError: true,
+    });
+    return data.item;
+  },
+  onSuccess: async item => {
+    if (!item.success) {
+      diffErrorText.value = '更新失败，请重试';
+      message.error(diffErrorText.value);
+      return;
+    }
+    diffErrorText.value = '';
+    showDiff.value = false;
+    message.success('更新成功，即将自动重载牌堆');
+    await invalidateDeckList();
+  },
+  onError: () => {
+    diffErrorText.value = '更新请求失败，请检查网络后重试';
+    message.error(diffErrorText.value);
+  },
+});
+
+const uploader = useResumableUpload('sd-deck-upload-state', {
+  chunkSize: deckChunkSize,
+  async init(task: ResumableUploadTask) {
+    const { data } = await postSdApiV2DeckUploadInit({
+      body: {
+        filename: task.filename,
+        fileSize: task.fileSize,
+        fileHash: task.fileHash,
+        chunkSize: deckChunkSize,
+      },
+      throwOnError: true,
+    });
+    return {
+      sessionId: data.item.sessionId,
+      chunkSize: data.item.chunkSize,
+      uploadedChunks: data.item.uploadedChunks ?? [],
+      uploadedBytes: data.item.uploadedBytes,
+      expectedChunks: data.item.expectedChunks,
+    };
+  },
+  async complete(task: ResumableUploadTask): Promise<boolean> {
+    const { data } = await postSdApiV2DeckUploadComplete({
+      body: {
+        sessionId: task.sessionId,
+      },
+      throwOnError: true,
+    });
+    return data.item.success;
+  },
+  buildChunkUrl(task: ResumableUploadTask, index: number): string {
+    return `${getApiBaseUrl()}/sd-api/v2/deck/upload/${encodeURIComponent(task.sessionId)}/${index}`;
+  },
+  async onTaskSuccess(task: ResumableUploadTask) {
+    message.success(`上传完成：${task.filename}`);
+    await invalidateDeckList();
+  },
+  async onTaskError(task: ResumableUploadTask) {
+    message.error(`上传失败：${task.filename}`);
+  },
+});
+
+const activeUploadTasks = computed(() =>
+  uploader.tasks.value.filter(task => task.status !== 'success')
+);
+
+onMounted(() => {
+  uploader.restore();
+});
+
+function openFilePicker() {
+  fileInputRef.value?.click();
+}
+
+function onFileSelection(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []);
+  void uploader.enqueueFiles(files);
+  input.value = '';
+}
+
+function doReload() {
+  void reloadMutation.mutateAsync();
+}
+
+function retryTask(task: ResumableUploadTask) {
+  void uploader.retry(task);
+}
+
+function doDelete(item: DeckItem) {
+  dialog.warning({
+    title: '确认删除',
+    content: `确认删除牌堆「${item.name}」，确定吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await deleteMutation.mutateAsync(item.filename);
+    },
+  });
+}
+
+async function doCheckUpdate(item: DeckItem) {
+  diffLoading.value = true;
+  try {
+    const { data } = await postSdApiV2DeckCheckUpdate({
+      body: {
+        filename: item.filename,
+      },
+      throwOnError: true,
+    });
+    if (!data.item.success) {
+      message.error(`检查更新失败！${data.item.err ?? ''}`);
+      return;
+    }
+    deckCheck.value = data.item;
+    diffErrorText.value = '';
+    showDiff.value = true;
+  } catch {
+    message.error('检查更新失败');
+  } finally {
+    diffLoading.value = false;
+  }
+}
+
+function deckUpdate() {
+  diffErrorText.value = '';
+  void updateMutation.mutateAsync();
+}
+</script>
+
+<style scoped>
+.deck-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.deck-file-input {
+  display: none;
+}
+
+.deck-format-note {
+  color: var(--sd-text-secondary);
+}
+
+.upload-panel {
+  border: 1px solid var(--sd-border);
+  background: var(--sd-bg-elevated);
+  padding: 0.85rem;
+}
+
+.upload-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.upload-panel-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.upload-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.upload-item {
+  border: 1px solid var(--sd-border-soft);
+  background: var(--sd-bg-elevated-soft);
+  padding: 0.75rem;
+}
+
+@supports (color: color-mix(in srgb, white, black)) {
+  .upload-item {
+    background: color-mix(in srgb, var(--sd-bg-elevated), var(--sd-bg-page) 20%);
+  }
+}
+
+.upload-item-head,
+.upload-title,
+.upload-actions,
+.upload-detail {
+  display: flex;
+  min-width: 0;
+}
+
+.upload-item-head,
+.upload-detail {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.upload-title {
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.upload-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-meta,
+.upload-detail {
+  color: var(--sd-text-muted);
+  font-size: 0.8rem;
+}
+
+.upload-error {
+  color: var(--n-error-color);
+}
+
+.deck-data-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-top: 1px solid var(--sd-border-soft);
+  padding-top: 0.25rem;
+}
+
+.deck-item {
+  width: 100%;
+}
+
+.deck-pagination-block {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.diff-dialog {
+  width: min(1000px, calc(100vw - 2rem));
+}
+
+@media screen and (max-width: 700px) {
+  .upload-item-head,
+  .upload-detail {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .deck-pagination-block {
+    justify-content: flex-start;
+  }
+}
+</style>

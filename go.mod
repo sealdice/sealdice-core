@@ -71,8 +71,8 @@ require (
 	github.com/sahilm/fuzzy v0.1.1
 	github.com/samber/lo v1.52.0
 	github.com/schollz/progressbar/v3 v3.19.1
-	github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6
 	github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b
+	github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/slack-go/slack v0.17.3
 	github.com/sunshineplan/imgconv v1.1.15

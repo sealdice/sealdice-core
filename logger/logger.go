@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -173,21 +174,44 @@ func (c *dynamicFileCore) Sync() error {
 	return err
 }
 
-func newLumberjackWriter(filepath string, important bool) io.Writer {
+func (c *dynamicFileCore) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var errs []error
+	for name, writer := range c.writerMap {
+		if closer, ok := writer.(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		delete(c.writerMap, name)
+	}
+	return errors.Join(errs...)
+}
+
+type lumberjackWriteSyncer struct {
+	*lumberjack.Logger
+}
+
+func (*lumberjackWriteSyncer) Sync() error {
+	return nil
+}
+
+func newLumberjackWriter(filepath string, important bool) zapcore.WriteSyncer {
 	if important {
-		return &lumberjack.Logger{
+		return &lumberjackWriteSyncer{Logger: &lumberjack.Logger{
 			Filename:   filepath,
 			MaxSize:    10, // 每个日志文件最大 10 MB
 			MaxBackups: 3,  // 最多保留 3 个旧日志文件
 			MaxAge:     7,  // 日志文件保存 7 天
-		}
+		}}
 	}
-	return &lumberjack.Logger{
+	return &lumberjackWriteSyncer{Logger: &lumberjack.Logger{
 		Filename:   filepath,
 		MaxSize:    5, // 每个日志文件最大 5 MB
 		MaxBackups: 3, // 最多保留 3 个旧日志文件
 		MaxAge:     3, // 日志文件保存 3 天
-	}
+	}}
 }
 
 func newEncoder(console bool) zapcore.Encoder {

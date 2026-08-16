@@ -311,6 +311,44 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	_ = cm.save()
 }
 
+// RemovePluginConfig 删除整个插件的配置，用于清理死配置（插件已不存在但配置仍在）。
+// 注意与 UnregisterConfig 的区别：UnregisterConfig 只按 keys 删除单个配置项，
+// 不传 keys 时不会删除任何内容；这里按插件名整体移除并停止其定时任务。
+func (cm *ConfigManager) RemovePluginConfig(pluginName string) error {
+	return cm.RemovePluginConfigs([]string{pluginName})
+}
+
+// RemovePluginConfigs 原子删除多个插件配置，写盘失败时恢复内存状态。
+func (cm *ConfigManager) RemovePluginConfigs(pluginNames []string) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+
+	removed := make(map[string]*PluginConfig, len(pluginNames))
+	for _, pluginName := range pluginNames {
+		if plugin, ok := cm.Plugins[pluginName]; ok {
+			removed[pluginName] = plugin
+			delete(cm.Plugins, pluginName)
+		}
+	}
+	if len(removed) == 0 {
+		return nil
+	}
+	if err := cm.save(); err != nil {
+		for pluginName, plugin := range removed {
+			cm.Plugins[pluginName] = plugin
+		}
+		return err
+	}
+	for _, plugin := range removed {
+		for _, config := range plugin.Configs {
+			if strings.HasPrefix(config.Type, "task:") && config.task != nil {
+				config.task.Off()
+			}
+		}
+	}
+	return nil
+}
+
 func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) error {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
@@ -2417,17 +2455,19 @@ func (d *Dice) loadAdvanced() {
 	d.AdvancedConfig = advancedConfig
 }
 
-func (d *Dice) SaveText() {
+func (d *Dice) SaveText() error {
 	buf, err := marshalTextTemplate(d.TextMapRaw)
 	if err != nil {
 		d.Logger.Error("Dice.SaveText", err)
-		return
+		return err
 	}
 
 	newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 	if err := saveTextTemplateFile(newFn, buf); err != nil {
 		d.Logger.Error("Dice.SaveText", err)
+		return err
 	}
+	return nil
 }
 
 func marshalTextTemplate(texts TextTemplateWithWeightDict) (buf []byte, err error) {

@@ -100,7 +100,9 @@ func customReplySave(c echo.Context) error {
 			break
 		}
 	}
-	v.Save(myDice)
+	if err := v.Save(myDice); err != nil {
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
 	return c.JSON(http.StatusOK, customReplySaveResponse{Success: true})
 }
 

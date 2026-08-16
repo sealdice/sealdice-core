@@ -1,0 +1,63 @@
+<template>
+  <div class="custom-text-toolbar">
+    <n-flex align="center" size="small" class="custom-text-search">
+      <n-text>搜索：</n-text>
+      <span class="custom-text-search-input">
+        <n-input v-model:value="keyword" size="small" clearable>
+          <template #prefix>
+            <n-icon><i-tabler-search /></n-icon>
+          </template>
+        </n-input>
+      </span>
+    </n-flex>
+    <n-flex align="center" size="small" class="custom-text-actions">
+      <n-button secondary :loading="previewLoading" @click="emit('refreshPreview')">
+        刷新预览
+      </n-button>
+      <n-button secondary @click="emit('openImport')">导入/导出</n-button>
+    </n-flex>
+  </div>
+</template>
+
+<script setup lang="ts">
+const keyword = defineModel<string>('keyword', { required: true });
+
+defineProps<{
+  previewLoading: boolean;
+}>();
+
+const emit = defineEmits<{
+  refreshPreview: [];
+  openImport: [];
+}>();
+</script>
+
+<style scoped>
+.custom-text-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sd-space-md);
+}
+
+@media screen and (max-width: 767.9px) {
+  .custom-text-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .custom-text-search,
+  .custom-text-actions,
+  .custom-text-search-input {
+    width: 100%;
+  }
+
+  .custom-text-actions {
+    justify-content: flex-start;
+  }
+
+  .custom-text-search-input :deep(.n-input) {
+    width: 100%;
+  }
+}
+</style>

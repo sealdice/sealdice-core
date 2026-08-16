@@ -16,6 +16,9 @@ import (
 	"sealdice-core/utils/dboperator/engine"
 )
 
+// MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
+const MaxTrayTooltipPrefixLength = 10
+
 type VersionInfo struct {
 	VersionLatest           string `json:"versionLatest"           yaml:"versionLatest"`
 	VersionLatestDetail     string `json:"versionLatestDetail"     yaml:"versionLatestDetail"`
@@ -25,9 +28,6 @@ type VersionInfo struct {
 	NewVersionURLPrefix     string `json:"newVersionUrlPrefix"     yaml:"newVersionUrlPrefix"`
 	UpdaterURLPrefix        string `json:"updaterUrlPrefix"        yaml:"updaterUrlPrefix"`
 }
-
-// MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
-const MaxTrayTooltipPrefixLength = 10
 
 type GroupNameCacheItem struct {
 	Name string
@@ -119,6 +119,10 @@ type Configs struct { //nolint:revive
 	ServiceName string `yaml:"serviceName"`
 
 	ConfigVersion int `yaml:"configVersion"`
+}
+
+func (dm *DiceManager) GetDice() *Dice {
+	return dm.Dice[0]
 }
 
 func (dm *DiceManager) InitHelp() {
