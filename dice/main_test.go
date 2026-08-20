@@ -13,7 +13,7 @@ func TestMain(m *testing.M) {
 		// brief moment to exit.
 		goleak.IgnoreTopFunction("github.com/panjf2000/ants/v2.(*poolCommon).purgeStaleWorkers"),
 		goleak.IgnoreTopFunction("github.com/panjf2000/ants/v2.(*poolCommon).ticktock"),
-		// otter cache workers are started by the mainline GORM cache plugin.
+		// 其它 otter 缓存（如 onebot 群缓存）会启动后台协程。
 		goleak.IgnoreTopFunction("github.com/maypok86/otter/internal/unixtime.startTimer.func1"),
 		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).cleanup"),
 		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).process"),
