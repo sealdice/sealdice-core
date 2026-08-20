@@ -25,13 +25,14 @@ import (
 	"sealdice-core/model"
 	"sealdice-core/utils/dboperator/engine"
 
+	"github.com/dop251/goja"
 	"github.com/golang-module/carbon"
 	ds "github.com/sealdice/dicescript"
 	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
-
-	"github.com/dop251/goja"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
+
+	"github.com/bytedance/sonic"
 )
 
 type SenderBase struct {
@@ -73,6 +74,24 @@ type Message struct {
 // }
 
 type GroupPlayerInfo model.GroupPlayerInfoBase
+
+// extJSONResolver 在 GroupInfo 反序列化时将扩展名解析为全局共享的 *ExtInfo。
+// json 解码无法传递 Dice 上下文，由 loadGroups 在加载期间临时设置。
+var extJSONResolver func(name string) *ExtInfo
+
+// extPlaceholderPool 未安装扩展（已删除/尚未装载）的共享占位池：name -> 占位 ExtInfo。
+// 所有群对同一名字复用同一指针，避免大量群引用已删除插件时逐群分配对象；
+// 条目保留在群激活列表中，插件重装后由 GetActivatedExtList 按名恢复为真实扩展。
+var extPlaceholderPool = new(SyncMap[string, *ExtInfo])
+
+// extNamePlaceholder 返回名字对应的共享占位对象
+func extNamePlaceholder(name string) *ExtInfo {
+	if p, ok := extPlaceholderPool.Load(name); ok && p != nil {
+		return p
+	}
+	p, _ := extPlaceholderPool.LoadOrStore(name, &ExtInfo{Name: name})
+	return p
+}
 
 type GroupInfo struct {
 	Active    bool                               `jsbind:"active" json:"active" yaml:"active"` // 是否在群内开启 - 过渡为象征意义
@@ -155,9 +174,15 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	var newList []*ExtInfo
 	activated := make(map[string]bool)
 	for _, item := range g.activatedExtList {
-		if item != nil && extMap[item.Name] != nil {
-			newList = append(newList, extMap[item.Name])
+		if item == nil || item.Name == "" {
+			continue
+		}
+		if live := extMap[item.Name]; live != nil {
+			newList = append(newList, live)
 			activated[item.Name] = true
+		} else {
+			// 未安装（已删除）的扩展：保留条目以维持群的开启状态，重装后自动恢复
+			newList = append(newList, item)
 		}
 	}
 
@@ -248,14 +273,26 @@ type groupInfoJSON struct {
 	ActivatedExtList []*ExtInfo `json:"activatedExtList"`
 }
 
+// groupInfoDecodeJSON 仅用于反序列化：activatedExtList 为私有字段，解码时自动跳过该键，
+// 由 GroupInfo.UnmarshalJSON 单独轻量解析，避免为每个群分配完整 ExtInfo 占位对象。
+type groupInfoDecodeJSON struct {
+	*groupInfoAlias
+}
+
+// extNameRefsJSON activatedExtList 的轻量解码结构，仅取出扩展名
+type extNameRefsJSON struct {
+	ActivatedExtList []struct {
+		Name string `json:"name"`
+	} `json:"activatedExtList"`
+}
+
 // MarshalJSON 自定义序列化，处理私有字段 activatedExtList
-// 同时过滤掉已删除的 wrapper（IsDeleted=true）
+// 已删除 wrapper（IsDeleted=true）的名字同样保留：群开启状态不因插件删除而丢失
 func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 	g.extInitMu.Lock()
-	// 过滤掉已删除的 wrapper
 	var filteredList []*ExtInfo
 	for _, ext := range g.activatedExtList {
-		if ext != nil && !ext.IsDeleted {
+		if ext != nil {
 			filteredList = append(filteredList, ext)
 		}
 	}
@@ -268,15 +305,33 @@ func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON 自定义反序列化，处理私有字段 activatedExtList
+// 扩展名通过 extJSONResolver 直接解析为全局共享的 *ExtInfo 指针（见 loadGroups），
+// 未注册的扩展保留名字占位，由 GetActivatedExtList 决定去留
 func (g *GroupInfo) UnmarshalJSON(data []byte) error {
-	temp := &groupInfoJSON{
-		groupInfoAlias: (*groupInfoAlias)(g),
-	}
-	if err := json.Unmarshal(data, temp); err != nil {
+	if err := sonic.Unmarshal(data, &groupInfoDecodeJSON{groupInfoAlias: (*groupInfoAlias)(g)}); err != nil {
 		return err
 	}
+	var refs extNameRefsJSON
+	if err := sonic.Unmarshal(data, &refs); err != nil {
+		return err
+	}
+
+	var list []*ExtInfo
+	for _, ref := range refs.ActivatedExtList {
+		if ref.Name == "" {
+			continue
+		}
+		if extJSONResolver != nil {
+			if ext := extJSONResolver(ref.Name); ext != nil {
+				list = append(list, ext)
+				continue
+			}
+		}
+		list = append(list, extNamePlaceholder(ref.Name))
+	}
+
 	g.extInitMu.Lock()
-	g.activatedExtList = temp.ActivatedExtList
+	g.activatedExtList = list
 	g.extInitMu.Unlock()
 	return nil
 }

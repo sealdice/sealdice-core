@@ -534,32 +534,17 @@ func (group *GroupInfo) SyncWrapperStatus(d *Dice) bool {
 		return false
 	}
 
-	// 过滤已删除的 wrapper（只检查 IsDeleted 标志，不检查 JsExtRegistry）
+	// 过滤无效条目；已删除（IsDeleted）的 wrapper 保留为墓碑：
+	// 群开启状态不因插件删除而丢失，重装后由 seal.ext.register 复用 wrapper 恢复
 	needsUpdate := false
 	newList := make([]*ExtInfo, 0, len(group.activatedExtList))
 
 	for _, wrapper := range group.activatedExtList {
 		if wrapper == nil {
-			continue
-		}
-
-		// 内置扩展（非 wrapper）直接保留
-		if !wrapper.IsWrapper {
-			newList = append(newList, wrapper)
-			continue
-		}
-
-		// 只检查 IsDeleted 标志（由 JsDelete/ExtRemove 明确设置）
-		if wrapper.IsDeleted {
 			needsUpdate = true
-			// 关闭 Storage（如果有的话）
-			if wrapper.Storage != nil {
-				_ = wrapper.StorageClose()
-			}
-			continue // 移除已删除的 wrapper
+			continue
 		}
-
-		newList = append(newList, wrapper) // 保留有效 wrapper
+		newList = append(newList, wrapper)
 	}
 
 	if needsUpdate {
@@ -740,6 +725,26 @@ func (group *GroupInfo) SyncExtensionsOnMessage(d *Dice) {
 	}
 
 	group.ensureInactivatedSet()
+	// 指针重解析：重装的插件（曾跨重启删除，条目为共享占位）换回真实扩展指针
+	extMap := make(map[string]*ExtInfo, len(d.ExtList))
+	for _, ext := range d.ExtList {
+		if ext != nil {
+			extMap[ext.Name] = ext
+		}
+	}
+	newList := make([]*ExtInfo, 0, len(group.activatedExtList))
+	for _, ext := range group.activatedExtList {
+		if ext == nil {
+			continue
+		}
+		if live := extMap[ext.Name]; live != nil && live != ext {
+			newList = append(newList, live)
+			continue
+		}
+		newList = append(newList, ext)
+	}
+	group.activatedExtList = newList
+
 	known := make(map[string]struct{}, len(group.activatedExtList)+len(group.InactivatedExtSet))
 	for _, ext := range group.activatedExtList {
 		if ext != nil {

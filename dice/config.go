@@ -16,6 +16,8 @@ import (
 	wr "github.com/mroth/weightedrand/v3"
 	"gopkg.in/yaml.v3"
 
+	"github.com/bytedance/sonic"
+
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
 	"sealdice-core/model"
@@ -2156,53 +2158,8 @@ func (d *Dice) loads() {
 			}
 		}
 		d.DiceMasters = newDiceMasters
-		// 装载ServiceAtNew
-		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
-		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
-		err = service.GroupInfoListGet(d.DBOperator, func(id string, updatedAt int64, data []byte) {
-			var groupInfo GroupInfo
-			err = json.Unmarshal(data, &groupInfo)
-			if err == nil {
-				groupInfo.GroupID = id
-				groupInfo.UpdatedAtTime = 0
-
-				// 初始化 nil 字段（加载时初始化，避免单独遍历）
-				if groupInfo.DiceIDActiveMap == nil {
-					groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
-				}
-				if groupInfo.DiceIDExistsMap == nil {
-					groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
-				}
-				if groupInfo.BotList == nil {
-					groupInfo.BotList = new(SyncMap[string, bool])
-				}
-				if groupInfo.InactivatedExtSet == nil {
-					groupInfo.InactivatedExtSet = StringSet{}
-				}
-
-				// 找出其中以群号开头的，这是1.2版本的bug
-				var toDelete []string
-				if groupInfo.DiceIDExistsMap != nil {
-					groupInfo.DiceIDExistsMap.Range(func(key string, value bool) bool {
-						if strings.HasPrefix(key, "QQ-Group:") {
-							toDelete = append(toDelete, key)
-						}
-						return true
-					})
-					for _, i := range toDelete {
-						groupInfo.DiceIDExistsMap.Delete(i)
-					}
-				}
-				d.ImSession.ServiceAtNew.Store(id, &groupInfo)
-			} else {
-				d.Logger.Errorf("加载群信息失败: %s", id)
-			}
-		})
-		if err != nil {
-			d.Logger.Errorf("加载群信息失败 %s", err)
-		}
-		// 延迟加载：不再遍历群组替换扩展对象，改为在 GetActivatedExtList 中延迟处理
-		// nil 字段初始化已移至 GroupInfoListGet 回调中，避免单独遍历
+		// 群组数据加载已移至 loadGroups：需等待内置扩展、JS 插件、扩展包全部注册后进行，
+		// 使 activatedExtList 在反序列化时即可解析为全局共享的 ExtInfo 指针
 
 		if config.VersionCode != 0 && config.VersionCode < 10005 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
@@ -2307,33 +2264,6 @@ func (d *Dice) loads() {
 		})
 
 		d.Config = config
-
-		// 1.4.5 版本 - 覆写lagrange配置
-		// for _, i := range d.ImSession.EndPoints {
-		// 	if i.ProtocolType == "onebot" {
-		// 		pa := i.Adapter.(*PlatformAdapterGocq)
-		// 		if pa.BuiltinMode == "lagrange" {
-		// 			signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "30366")
-		// 			if signServerUrl != "" {
-		// 				// 版本为空，覆写为 "30366"
-		// 				if signServerVersion == "" {
-		// 					RWLagrangeSignServerUrl(d, i, "sealdice", true, "30366")
-		// 				}
-		// 			}
-		// 		}
-		// 	}
-		// }
-
-		// 设置全局群名缓存和用户名缓存
-		dm := d.Parent
-		now := time.Now().Unix()
-		// Pinenutn: Range模板 ServiceAtNew重构代码
-		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-			// Pinenutn: ServiceAtNew重构
-			// Pinenutn: 这里曾经可能是个Lockfree.hashmap？ 函数有变动
-			dm.GroupNameCache.Store(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
-			return true
-		})
 		d.Logger.Info("serve.yaml loaded")
 	} else {
 		d.Logger.Info("serve.yaml not found")
@@ -2366,6 +2296,83 @@ func (d *Dice) loads() {
 	// 读取文本模板
 	setupTextTemplate(d)
 	d.MarkModified()
+}
+
+// loadGroups 加载群组数据。
+// 必须在内置扩展、JS 插件、扩展包全部注册完成后调用（见 Dice.Init）：
+// 此时 ExtRegistry 完整，反序列化 activatedExtList 可直接解析为全局共享的
+// ExtInfo 指针，避免每个群持有大量占位 ExtInfo 对象（约 416B/个）常驻内存。
+func (d *Dice) loadGroups() {
+	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
+
+	// 显式预热 sonic 编译缓存，避免首个群反序列化时 JIT 编译卡顿
+	_ = sonic.Pretouch(reflect.TypeOf(groupInfoDecodeJSON{}))
+	_ = sonic.Pretouch(reflect.TypeOf(extNameRefsJSON{}))
+
+	// json 解码无法传递 Dice 上下文，加载期间临时提供 name -> *ExtInfo 解析器
+	// 已删除（IsDeleted）的 wrapper 同样返回：它是共享对象，保留群的开启状态
+	prevResolver := extJSONResolver
+	extJSONResolver = func(name string) *ExtInfo {
+		if d.ExtRegistry == nil {
+			return nil
+		}
+		if ext, ok := d.ExtRegistry.Load(name); ok && ext != nil {
+			return ext
+		}
+		return nil
+	}
+	defer func() { extJSONResolver = prevResolver }()
+
+	err := service.GroupInfoListGet(d.DBOperator, func(id string, _ int64, data []byte) {
+		var groupInfo GroupInfo
+		if err := sonic.Unmarshal(data, &groupInfo); err != nil {
+			d.Logger.Errorf("加载群信息失败: %s", id)
+			return
+		}
+		groupInfo.GroupID = id
+		groupInfo.UpdatedAtTime = 0
+
+		// 初始化 nil 字段（加载时初始化，避免单独遍历）
+		if groupInfo.DiceIDActiveMap == nil {
+			groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
+		}
+		if groupInfo.DiceIDExistsMap == nil {
+			groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
+		}
+		if groupInfo.BotList == nil {
+			groupInfo.BotList = new(SyncMap[string, bool])
+		}
+		if groupInfo.InactivatedExtSet == nil {
+			groupInfo.InactivatedExtSet = StringSet{}
+		}
+
+		// 找出其中以群号开头的，这是1.2版本的bug
+		var toDelete []string
+		groupInfo.DiceIDExistsMap.Range(func(key string, _ bool) bool {
+			if strings.HasPrefix(key, "QQ-Group:") {
+				toDelete = append(toDelete, key)
+			}
+			return true
+		})
+		for _, i := range toDelete {
+			groupInfo.DiceIDExistsMap.Delete(i)
+		}
+		d.ImSession.ServiceAtNew.Store(id, &groupInfo)
+	})
+	if err != nil {
+		d.Logger.Errorf("加载群信息失败 %s", err)
+	}
+
+	// 设置全局群名缓存和用户名缓存
+	dm := d.Parent
+	now := time.Now().Unix()
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
+		// Pinenutn: 这里曾经可能是个Lockfree.hashmap？ 函数有变动
+		dm.GroupNameCache.Store(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
+		return true
+	})
 }
 
 func (d *Dice) loadIMSessionEndpoints(imSession *IMSession) bool {
