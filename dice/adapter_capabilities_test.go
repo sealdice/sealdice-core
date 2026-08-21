@@ -4,7 +4,7 @@ import "testing"
 
 func TestAdapterCapabilitiesRegistry(t *testing.T) {
 	set := AdapterCapabilitySet{
-		ProtocolType: "milky",
+		ProtocolType: "fake-caps-test",
 		Platform:     "QQ",
 		EmitEvents: map[string]AdapterEventSpec{
 			EventNamePoke: {Name: EventNamePoke, Description: "戳一戳"},
@@ -15,7 +15,7 @@ func TestAdapterCapabilitiesRegistry(t *testing.T) {
 	}
 	RegisterAdapterCapabilities(set)
 
-	got, ok := GetAdapterCapabilities("milky")
+	got, ok := GetAdapterCapabilities("fake-caps-test")
 	if !ok {
 		t.Fatal("按协议类型查询能力失败")
 	}

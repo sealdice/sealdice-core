@@ -60,3 +60,51 @@ func TestSealBusOnEventJS(t *testing.T) {
 		t.Fatal("JS 订阅者未被触发")
 	}
 }
+
+func TestSealBusSendRawJS(t *testing.T) {
+	RegisterAdapterCapabilities(AdapterCapabilitySet{
+		ProtocolType: "fakeproto2",
+		Platform:     "QQ",
+		RawActions: map[string]AdapterRawActionSpec{
+			"echo_action": {Name: "echo_action"},
+		},
+	})
+	d := &Dice{}
+	d.ImSession = &IMSession{Parent: d, EndPoints: []*EndPointInfo{
+		{
+			EndPointInfoBase: EndPointInfoBase{Platform: "QQ", ProtocolType: "fakeproto2", Enable: true, State: StateConnected},
+			Adapter:          &fakeRawAdapter{},
+		},
+	}}
+	d.EventBus = NewEventBus(d)
+	t.Cleanup(func() { _ = d.EventBus.Close(t.Context()) })
+	d.ExtLoopManager = NewJsLoopManager()
+
+	loop := eventloop.NewEventLoop()
+	version := d.ExtLoopManager.SetLoop(loop)
+
+	errCh := make(chan error, 1)
+	done := make(chan struct{})
+	loop.RunOnLoop(func(vm *goja.Runtime) {
+		defer close(done)
+		bus := vm.NewObject()
+		_ = registerBusObject(vm, bus, d, version)
+		_ = vm.Set("bus", bus)
+		_, err := vm.RunString(`
+			var r = bus.sendRaw("QQ", "echo_action", {user_id: 42});
+			if (!r || r.echo !== 42) { throw new Error("sendRaw 返回不符: " + JSON.stringify(r)); }
+		`)
+		errCh <- err
+	})
+	loop.Start()
+	defer loop.StopNoWait()
+	<-done
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("sendRaw JS 调用失败: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("sendRaw JS 调用超时")
+	}
+}

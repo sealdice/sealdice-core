@@ -23,13 +23,13 @@ const (
 // 请求类事件（friend.request / group.request）仅通知，不携带回复通道。
 type AdapterEvent struct {
 	ID         string         `jsbind:"id"          json:"id"`
-	Name       string         `jsbind:"name"        json:"name"`       // 事件名，见 EventNameXxx 常量
-	Platform   string         `jsbind:"platform"    json:"platform"`   // 如 "QQ"、"DISCORD"
+	Name       string         `jsbind:"name"        json:"name"`     // 事件名，见 EventNameXxx 常量
+	Platform   string         `jsbind:"platform"    json:"platform"` // 如 "QQ"、"DISCORD"
 	EndPointID string         `jsbind:"endPointId"  json:"endpoint_id"`
-	GroupID    string         `jsbind:"groupId"     json:"group_id"` // UNI-ID 格式，如 QQ:123456
-	UserID     string         `jsbind:"userId"      json:"user_id"`  // 事件主体（如被禁言者）
+	GroupID    string         `jsbind:"groupId"     json:"group_id"`  // UNI-ID 格式，如 QQ:123456
+	UserID     string         `jsbind:"userId"      json:"user_id"`   // 事件主体（如被禁言者）
 	SenderID   string         `jsbind:"senderId"    json:"sender_id"` // 操作发起者
-	Raw        map[string]any `jsbind:"raw"         json:"raw"` // 适配器原样透传的附加数据
+	Raw        map[string]any `jsbind:"raw"         json:"raw"`       // 适配器原样透传的附加数据
 	Time       time.Time      `jsbind:"time"        json:"time"`
 
 	// Ctx 携带构造事件时的消息上下文，供 JS/Go 订阅者回复等操作使用。不序列化。
