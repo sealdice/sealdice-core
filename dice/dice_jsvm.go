@@ -170,6 +170,12 @@ func (d *Dice) JsInit() {
 
 		ext := vm.NewObject()
 		_ = seal.Set("ext", ext)
+
+		bus := vm.NewObject()
+		_ = seal.Set("bus", bus)
+		if err := registerBusObject(vm, bus, d, versionID); err != nil {
+			d.Logger.Errorf("注册 seal.bus 失败: %v", err)
+		}
 		_ = ext.Set("newCmdItemInfo", func() *CmdItemInfo {
 			return &CmdItemInfo{IsJsSolveFunc: true, JSLoopVersion: versionID}
 		})
