@@ -1286,8 +1286,29 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	return ret
 }
 
-// OnGroupJoined 群组进群事件处理，其他 Adapter 应当尽快迁移至此方法实现
+// OnGroupJoined 群组进群事件入口。构造 AdapterEvent 经事件总线分发；
+// 旧逻辑（自动激活、入群致辞、旧回调字段调用）在兼容订阅器中执行。
 func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
+	if ctx == nil || msg == nil {
+		return
+	}
+	// EventBus 未装配（如部分测试直构 Dice）时退回直调旧逻辑
+	if s.Parent == nil || s.Parent.EventBus == nil {
+		s.legacyOnGroupJoined(ctx, msg)
+		return
+	}
+	s.EmitEvent(&AdapterEvent{
+		Name:     EventNameGroupJoined,
+		GroupID:  msg.GroupID,
+		SenderID: msg.Sender.UserID, // 邀请人，Adapter 已保证放入 Sender
+		Raw:      map[string]any{"message": msg.Message},
+		Ctx:      ctx,
+		Detail:   msg,
+	})
+}
+
+// legacyOnGroupJoined 旧 OnGroupJoined 逻辑（自动激活、入群致辞、旧回调），由兼容订阅器调用。
+func (s *IMSession) legacyOnGroupJoined(ctx *MsgContext, msg *Message) {
 	d := ctx.Dice
 	log := d.Logger
 	ep := ctx.EndPoint
@@ -1357,8 +1378,29 @@ func (s *IMSession) isDuplicateGroupMemberWelcome(msg *Message) bool {
 	return isDuplicate
 }
 
-// OnGroupMemberJoined 群成员进群事件处理，除了 bot 自己以外的群成员入群时调用。其他 Adapter 应当尽快迁移至此方法实现
+// OnGroupMemberJoined 群成员进群事件入口。构造 AdapterEvent 经事件总线分发；
+// 旧逻辑（迎新致辞）在兼容订阅器中执行。
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
+	if ctx == nil || msg == nil {
+		return
+	}
+	// EventBus 未装配（如部分测试直构 Dice）时退回直调旧逻辑
+	if s.Parent == nil || s.Parent.EventBus == nil {
+		s.legacyOnGroupMemberJoined(ctx, msg)
+		return
+	}
+	s.EmitEvent(&AdapterEvent{
+		Name:    EventNameGroupMemberJoined,
+		GroupID: msg.GroupID,
+		UserID:  msg.Sender.UserID,
+		Raw:     map[string]any{"message": msg.Message},
+		Ctx:     ctx,
+		Detail:  msg,
+	})
+}
+
+// legacyOnGroupMemberJoined 旧 OnGroupMemberJoined 逻辑（迎新致辞），由兼容订阅器调用。
+func (s *IMSession) legacyOnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	log := s.Parent.Logger
 
 	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
@@ -1992,7 +2034,30 @@ func (s *IMSession) OnMessageSend(ctx *MsgContext, msg *Message, flag string) {
 	}
 }
 
+// OnPoke 戳一戳事件入口。构造 AdapterEvent 经事件总线分发；
+// 旧逻辑（群激活检查 + 旧回调字段调用）在兼容订阅器中执行（dice/event_bus_compat.go）。
 func (s *IMSession) OnPoke(ctx *MsgContext, event *events.PokeEvent) {
+	if ctx == nil || event == nil {
+		return
+	}
+	// EventBus 未装配（如部分测试直构 Dice）时退回直调旧逻辑
+	if s.Parent == nil || s.Parent.EventBus == nil {
+		s.legacyOnPoke(ctx, event)
+		return
+	}
+	s.EmitEvent(&AdapterEvent{
+		Name:     EventNamePoke,
+		GroupID:  event.GroupID,
+		UserID:   event.TargetID,
+		SenderID: event.SenderID,
+		Raw:      map[string]any{"isPrivate": event.IsPrivate},
+		Ctx:      ctx,
+		Detail:   event,
+	})
+}
+
+// legacyOnPoke 旧 OnPoke 逻辑，由兼容订阅器调用。
+func (s *IMSession) legacyOnPoke(ctx *MsgContext, event *events.PokeEvent) {
 	if ctx == nil || event == nil {
 		return
 	}
@@ -2024,7 +2089,28 @@ func (s *IMSession) OnPoke(ctx *MsgContext, event *events.PokeEvent) {
 	}
 }
 
+// OnGroupLeave 群成员离开/被踢事件入口。旧逻辑在兼容订阅器中执行。
 func (s *IMSession) OnGroupLeave(ctx *MsgContext, event *events.GroupLeaveEvent) {
+	if ctx == nil || event == nil {
+		return
+	}
+	// EventBus 未装配（如部分测试直构 Dice）时退回直调旧逻辑
+	if s.Parent == nil || s.Parent.EventBus == nil {
+		s.legacyOnGroupLeave(ctx, event)
+		return
+	}
+	s.EmitEvent(&AdapterEvent{
+		Name:     EventNameGroupLeave,
+		GroupID:  event.GroupID,
+		UserID:   event.UserID,
+		SenderID: event.OperatorID,
+		Ctx:      ctx,
+		Detail:   event,
+	})
+}
+
+// legacyOnGroupLeave 旧 OnGroupLeave 逻辑，由兼容订阅器调用。
+func (s *IMSession) legacyOnGroupLeave(ctx *MsgContext, event *events.GroupLeaveEvent) {
 	for _, i := range s.Parent.ExtList {
 		i.CallOnGroupLeave(ctx.Dice, ctx, event)
 	}
