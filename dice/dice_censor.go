@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -35,15 +36,20 @@ const (
 	BanInviter
 	// AddScore 增加怒气值
 	AddScore
+	// SendEncodedDetails 向当前会话发送 Base64 编码的命中词和上下文片段
+	SendEncodedDetails
 )
 
+const maxCensorHitContextRunes = 80
+
 var CensorHandlerText = map[CensorHandler]string{
-	SendWarning: "SendWarning",
-	SendNotice:  "SendNotice",
-	BanUser:     "BanUser",
-	BanGroup:    "BanGroup",
-	BanInviter:  "BanInviter",
-	AddScore:    "AddScore",
+	SendWarning:        "SendWarning",
+	SendNotice:         "SendNotice",
+	BanUser:            "BanUser",
+	BanGroup:           "BanGroup",
+	BanInviter:         "BanInviter",
+	AddScore:           "AddScore",
+	SendEncodedDetails: "SendEncodedDetails",
 }
 
 type CensorHandler int
@@ -122,6 +128,7 @@ func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent strin
 	for word := range res.SensitiveWords {
 		words = append(words, word)
 	}
+	sort.Strings(words)
 	return &MsgCheckResult{
 		UserID:            msg.Sender.UserID,
 		Level:             res.HighestLevel,
@@ -135,6 +142,65 @@ type MsgCheckResult struct {
 	Level             censor.Level
 	HitCounts         map[censor.Level]int
 	CurSensitiveWords []string
+}
+
+func censorHitContext(content string, words []string) string {
+	contentRunes := []rune(content)
+	if len(contentRunes) <= maxCensorHitContextRunes {
+		return content
+	}
+
+	contentLower := strings.ToLower(content)
+	hitStart := -1
+	hitLen := 0
+	for _, word := range words {
+		if word == "" {
+			continue
+		}
+		byteIndex := strings.Index(contentLower, strings.ToLower(word))
+		if byteIndex < 0 {
+			continue
+		}
+		start := len([]rune(contentLower[:byteIndex]))
+		if hitStart < 0 || start < hitStart {
+			hitStart = start
+			hitLen = len([]rune(word))
+		}
+	}
+	if hitStart < 0 {
+		return "..."
+	}
+
+	start := hitStart
+	if hitLen < maxCensorHitContextRunes {
+		start -= (maxCensorHitContextRunes - hitLen) / 2
+	}
+	start = max(0, min(start, len(contentRunes)-maxCensorHitContextRunes))
+	end := start + maxCensorHitContextRunes
+
+	context := string(contentRunes[start:end])
+	if start > 0 {
+		context = "..." + context
+	}
+	if end < len(contentRunes) {
+		context += "..."
+	}
+	return context
+}
+
+func formatCensorHitDetails(levelText string, words []string, content string) string {
+	encodedWords := make([]string, 0, len(words))
+	for _, word := range words {
+		encodedWords = append(encodedWords, base64.StdEncoding.EncodeToString([]byte(word)))
+	}
+	context := censorHitContext(content, words)
+
+	return fmt.Sprintf(
+		"检测到<%s>级敏感词。\n命中词(Base64): %s\n上下文片段(Base64): %s",
+		levelText,
+		strings.Join(encodedWords, " | "),
+		base64.StdEncoding.EncodeToString([]byte(context)),
+	)
 }
 
 func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, sendContent string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
@@ -192,6 +258,9 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 				tmplText := fmt.Sprintf("核心:拦截_警告内容_%s级", censor.LevelText[level])
 				ReplyToSenderNoCheck(mctx, msg, DiceFormatTmpl(mctx, tmplText))
 			}
+			if handler&(1<<SendEncodedDetails) != 0 {
+				ReplyToSenderNoCheck(mctx, msg, formatCensorHitDetails(levelText, checkResult.CurSensitiveWords, checkContent))
+			}
 			if handler&(1<<SendNotice) != 0 {
 				// 向通知列表/邮件发送通知
 				var text string
@@ -212,7 +281,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 						levelText,
 					)
 				}
-				mctx.Notice(text)
+				mctx.Notice(text, NoticeTypeCensor)
 			}
 			if handler&(1<<BanUser) != 0 {
 				// 拉黑用户

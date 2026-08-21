@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"math/rand"
 	"net/http"
 	"os"
 	"path"
@@ -20,9 +19,10 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
-	wr "github.com/mroth/weightedrand"
+	wr "github.com/mroth/weightedrand/v3"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/sahilm/fuzzy"
+	ds "github.com/sealdice/dicescript"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
 )
@@ -950,37 +950,6 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	re = regexp.MustCompile(`\[.+?]`)
 	m = re.FindAllStringIndex(s, -1)
 
-	cqSolve := func(cq *CQCommand) {
-		fn, exists := cq.Args["file"]
-		if exists {
-			if strings.HasPrefix(fn, "./") {
-				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
-				if err == nil {
-					fn = filepath.Join(pathPrefix, fn[2:])
-					fn = strings.ReplaceAll(fn, `\`, "/")
-					cq.Args["file"] = fn
-				}
-			}
-		}
-	}
-
-	imgSolve := func(text string) string {
-		reImg := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
-		m := reImg.FindStringSubmatch(text)
-		if m != nil {
-			fn := m[2]
-			if strings.HasPrefix(fn, "./") {
-				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
-				if err == nil {
-					fn = filepath.Join(pathPrefix, fn[2:])
-					fn = strings.ReplaceAll(fn, `\`, "/")
-					return "[" + m[1] + ":" + fn + "]"
-				}
-			}
-		}
-		return text
-	}
-
 	for _i := len(m) - 1; _i >= 0; _i-- {
 		i := m[_i]
 
@@ -989,10 +958,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 			continue
 		}
 
-		if strings.HasPrefix(text, "[图:") ||
-			strings.HasPrefix(text, "[img:") ||
-			strings.HasPrefix(text, "[文本:") ||
-			strings.HasPrefix(text, "[语音:") {
+		if isResourceCode(text) {
 			continue
 		}
 
@@ -1007,8 +973,8 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 		// s = s[:i[0]] + text + s[i[1]:]
 	}
 
-	s = CQRewrite(s, cqSolve)
-	s = ImageRewrite(s, imgSolve)
+	// 在进入消息解析前，按牌堆文件位置固定 ./ 资源路径。
+	s = rewriteRelativeResourcePaths(deckInfo.Filename, s)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
 	if ctx.Dice.getTargetVmEngineVersion(VMVersionDeck) == "v1" {
@@ -1040,18 +1006,31 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 			return "", errors.New("牌组为空，请检查格式是否正确")
 		}
 		if ctx.DeckPools[deckInfo][deckName] == nil {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
-		if len(ctx.DeckPools[deckInfo][deckName].data) == 0 {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+		pool = ctx.DeckPools[deckInfo][deckName]
+		if pool == nil || len(pool.data) == 0 || pool.max < 1 {
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
 		pool = ctx.DeckPools[deckInfo][deckName]
 		if pool == nil {
-			return "", errors.New("牌组为空，可能尚未加载完成")
+			return "", errors.New("牌组无有效条目，请检查权重配置")
 		}
-		key = pool.Pick().(string)
+		var pickErr error
+		key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+		if errors.Is(pickErr, errShuffleRandomPoolExhausted) {
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+			pool = ctx.DeckPools[deckInfo][deckName]
+			if pool == nil {
+				return "", errors.New("牌组无有效条目，请检查权重配置")
+			}
+			key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+		}
+		if pickErr != nil {
+			return "", fmt.Errorf("牌组抽取失败: %w", pickErr)
+		}
 	} else {
 		deckGroup := getDeckGroup(deckInfo, deckName)
 		if len(deckGroup) == 0 {
@@ -1061,7 +1040,7 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
-		key = pool.PickSource(randSourceDrawAndTmplSelect).(string)
+		key = pickChooserWithRand(pool, ctx.getChooserRand())
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
@@ -1115,35 +1094,39 @@ func extractWeight(s string) (uint, string) {
 	return uint(weight), s
 }
 
-func DeckToRandomPool(deck []string) *wr.Chooser {
-	choices := []wr.Choice{}
+func DeckToRandomPool(deck []string) *wr.Chooser[string, uint] {
+	choices := []wr.Choice[string, uint]{}
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.Choice{Item: text, Weight: weight})
+		choices = append(choices, wr.NewChoice(text, weight))
 	}
 	randomPool, _ := wr.NewChooser(choices...)
 	return randomPool
 }
 
-// 临时乱写的
 type ShuffleRandomPool struct {
-	data   []wr.Choice
+	data   []wr.Choice[string, uint]
 	totals []int
 	max    int
 }
 
-func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
-	rand.Shuffle(len(choices), func(i, j int) {
-		choices[i], choices[j] = choices[j], choices[i]
+var errShuffleRandomPoolExhausted = errors.New("shuffle random pool exhausted")
+
+func NewChooser(choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
+	return NewChooserWithSource(globalRandSource, choices...)
+}
+
+func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
+	shuffled := append([]wr.Choice[string, uint](nil), choices...)
+
+	shuffleWithSource(src, len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
 
-	totals := make([]int, len(choices))
+	totals := make([]int, len(shuffled))
 	runningTotal := 0
-	for i, c := range choices {
+	for i, c := range shuffled {
 		weight := int(c.Weight)
-		// if (maxInt - runningTotal) <= weight {
-		// 	return nil, errWeightOverflow
-		// }
 		runningTotal += weight
 		totals[i] = runningTotal
 	}
@@ -1152,23 +1135,44 @@ func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
 		return nil, errors.New("zero Choices with Weight >= 1")
 	}
 
-	return &ShuffleRandomPool{data: choices, totals: totals, max: runningTotal}, nil
+	return &ShuffleRandomPool{data: shuffled, totals: totals, max: runningTotal}, nil
 }
-
-var randSourceDrawAndTmplSelect = rand.New(rand.NewSource(time.Now().UnixMilli()))
 
 // Pick returns a single weighted random Choice.Item from the Chooser.
 //
-// Utilizes global rand as the source of randomness.
+// Utilizes the provided dice source.
 func (c *ShuffleRandomPool) Pick() interface{} {
-	r := randSourceDrawAndTmplSelect.Intn(c.max) + 1
+	return c.PickWithSource(globalRandSource)
+}
+
+func (c *ShuffleRandomPool) TryPickWithSource(src ds.DiceSource) (string, error) {
+	if c == nil {
+		return "", errors.New("shuffle random pool unavailable")
+	}
+	if len(c.data) == 0 || c.max < 1 {
+		return "", errShuffleRandomPoolExhausted
+	}
+
+	r := randIntnFromSource(src, c.max) + 1
 	i := searchInts(c.totals, r)
 
 	theOne := c.data[i]
-	c.max -= int(theOne.Weight)
+	weight := int(theOne.Weight)
+	for j := i + 1; j < len(c.totals); j++ {
+		c.totals[j] -= weight
+	}
+	c.max -= weight
 	c.totals = append(c.totals[:i], c.totals[i+1:]...)
 	c.data = append(c.data[:i], c.data[i+1:]...)
-	return theOne.Item
+	return theOne.Item, nil
+}
+
+func (c *ShuffleRandomPool) PickWithSource(src ds.DiceSource) interface{} {
+	item, err := c.TryPickWithSource(src)
+	if err != nil {
+		panic(err.Error())
+	}
+	return item
 }
 
 func searchInts(a []int, x int) int {
@@ -1187,12 +1191,16 @@ func searchInts(a []int, x int) int {
 }
 
 func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
-	var choices []wr.Choice
+	return DeckToShuffleRandomPoolWithSource(globalRandSource, deck)
+}
+
+func DeckToShuffleRandomPoolWithSource(src ds.DiceSource, deck []string) *ShuffleRandomPool {
+	var choices []wr.Choice[string, uint]
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.Choice{Item: text, Weight: weight})
+		choices = append(choices, wr.NewChoice(text, weight))
 	}
-	randomPool, _ := NewChooser(choices...)
+	randomPool, _ := NewChooserWithSource(src, choices...)
 	return randomPool
 }
 

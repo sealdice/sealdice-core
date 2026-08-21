@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"os"
 	"path"
 	"regexp"
@@ -142,6 +141,9 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		return "context invalid", false
 	}
 
+	// Permission changes must be visible immediately; cached member data can retain a stale role.
+	const bypassCache = true
+
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
 		if pa.sendEmitter == nil {
@@ -151,7 +153,7 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		if !ok {
 			return "cannot resolve bot qq id", false
 		}
-		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, false)
+		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, bypassCache)
 		if err != nil || memberInfo == nil {
 			if err != nil {
 				return fmt.Sprintf("get_group_member_info failed: %v", err), false
@@ -169,7 +171,7 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		if botIDRaw == "" || groupIDRaw == "" {
 			return "cannot resolve bot/group id", false
 		}
-		memberInfo := pa.GetGroupMemberInfo(groupIDRaw, botIDRaw)
+		memberInfo := pa.getGroupMemberInfo(groupIDRaw, botIDRaw, bypassCache)
 		if memberInfo == nil {
 			return errGetGroupMemberInfoNil, false
 		}
@@ -179,7 +181,7 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		}
 		return role, true
 	case *PlatformAdapterMilky:
-		memberInfo, err := pa.GetGroupMemberInfo(groupID, ctx.EndPoint.UserID)
+		memberInfo, err := pa.getGroupMemberInfo(groupID, ctx.EndPoint.UserID, bypassCache)
 		if err != nil {
 			return fmt.Sprintf("get_group_member_info failed: %v", err), false
 		}
@@ -240,7 +242,7 @@ func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGrou
 	txt := fmt.Sprintf("指令退群: 于群组<%s>(%s)中告别，操作者:<%s>(%s)",
 		groupName, targetGroupID, userName, msg.Sender.UserID)
 	d.Logger.Info(txt)
-	ctx.Notice(txt)
+	ctx.Notice(txt, NoticeTypeGroup)
 
 	time.Sleep(3 * time.Second)
 	if targetGroup != nil {
@@ -558,7 +560,7 @@ func (d *Dice) registerCoreCommands() {
 			if cmdArgs.GetKwarg("rand") != nil || cmdArgs.GetKwarg("随机") != nil {
 				count := d.Parent.Help.GetNumericIDCount()
 				if count > 0 {
-					_id := rand.Intn(count) + 1
+					_id := ctx.RandIntn(count) + 1
 					id = strconv.Itoa(_id)
 				}
 			}
@@ -2133,6 +2135,65 @@ func (d *Dice) registerCoreCommands() {
 			}
 
 			ReplyToSender(ctx, msg, text)
+			return CmdExecuteResult{Matched: true, Solved: true}
+		},
+	}
+
+	randalgoHelp := formatDiceRandomModeHelpText()
+	d.CmdMap["randalgo"] = &CmdItemInfo{
+		Name:      "randalgo",
+		ShortHelp: ".randalgo // 查看当前随机算法与规范\n.randalgo get [面数] // 对全部随机源各掷一次并显示单次耗时\n.randalgo set <模式> // 设置随机模式，仅Master可用",
+		Help:      randalgoHelp,
+		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
+			if cmdArgs.IsArgEqual(1, "help") {
+				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+			}
+			if cmdArgs.IsArgEqual(1, "get") {
+				points := int64(100)
+				if rawPoints := cmdArgs.GetArgN(2); rawPoints != "" {
+					parsedPoints, err := strconv.ParseInt(rawPoints, 10, 64)
+					if err != nil || parsedPoints <= 0 {
+						ReplyToSender(ctx, msg, formatDiceRandomModeGetInvalidPointsText(rawPoints))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					}
+					points = parsedPoints
+				}
+
+				ReplyToSender(ctx, msg, globalRandSource.ReportGetText(points))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+			if cmdArgs.IsArgEqual(1, "set") {
+				if ctx.PrivilegeLevel < 100 {
+					ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:提示_无权限"))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				rawMode := cmdArgs.GetArgN(2)
+				if rawMode == "" {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetMissingModeText())
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				mode, ok := parseDiceRandomModeStrict(rawMode)
+				if !ok {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetInvalidModeText(rawMode))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+				if err := globalRandSource.InitError(mode); err != nil {
+					ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(mode, err))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
+				ctx.Dice.Config.DiceRandomMode = string(mode)
+				_ = ctx.Dice.ActivateDiceRandomMode()
+				ctx.Dice.MarkModified()
+				ctx.Dice.Save(false)
+				ReplyToSender(ctx, msg, formatDiceRandomModeSetSuccessText(mode))
+				return CmdExecuteResult{Matched: true, Solved: true}
+			}
+
+			mode := ctx.Dice.getDiceRandomMode()
+			ReplyToSender(ctx, msg, globalRandSource.ReportStatusText(mode))
 			return CmdExecuteResult{Matched: true, Solved: true}
 		},
 	}

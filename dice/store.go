@@ -38,7 +38,18 @@ const (
 )
 
 const storeBackendInfoCacheTTL = 5 * time.Minute
-const maxStoreManifestSize int64 = 1 << 20
+
+const (
+	maxStoreManifestSize     int64 = sealpack.MaxManifestSize
+	maxStoreJSONResponseSize int64 = 16 << 20
+	maxStorePageSize               = 100
+	maxStorePackageFiles           = 10_000
+	maxStorePackageCache           = 4_096
+)
+
+var storeHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
+var errStoreResponseTooLarge = errors.New("store response too large")
 
 type StoreBackend struct {
 	Url string `json:"url"`
@@ -134,12 +145,13 @@ type StorePackageFileEntry struct {
 }
 
 type StoreManager struct {
-	lock             *sync.RWMutex
-	parent           *Dice
-	backend          *StoreBackend
-	backendCacheKey  string
-	backendFetchedAt time.Time
-	packageCache     map[string]*StorePackage
+	lock              *sync.RWMutex
+	parent            *Dice
+	backend           *StoreBackend
+	backendCacheKey   string
+	backendFetchedAt  time.Time
+	packageCache      map[string]*StorePackage
+	packageCacheOrder []string
 
 	InstalledPlugins map[string]bool `json:"-" yaml:"-"`
 	InstalledDecks   map[string]bool `json:"-" yaml:"-"`
@@ -192,7 +204,11 @@ func ParseStorePackageFullID(fullID string) (string, string, error) {
 }
 
 func decodeJSONCompatible(data []byte, target interface{}) error {
-	decoder := json.NewDecoder(bytes.NewReader(data))
+	return decodeJSONCompatibleReader(bytes.NewReader(data), target)
+}
+
+func decodeJSONCompatibleReader(reader io.Reader, target interface{}) error {
+	decoder := json.NewDecoder(reader)
 	if err := decoder.Decode(target); err != nil {
 		return err
 	}
@@ -205,24 +221,48 @@ func decodeJSONCompatible(data []byte, target interface{}) error {
 	return nil
 }
 
+func decodeStoreJSONResponse(reader io.Reader, limit int64, target interface{}) error {
+	limited := &io.LimitedReader{R: reader, N: limit + 1}
+	if err := decodeJSONCompatibleReader(limited, target); err != nil {
+		if limited.N == 0 {
+			return errStoreResponseTooLarge
+		}
+		return err
+	}
+	if limited.N == 0 {
+		return errStoreResponseTooLarge
+	}
+	return nil
+}
+
 func fetchStoreJSON[T any](requestURL string) (*T, error) {
+	return fetchStoreJSONContext[T](context.Background(), requestURL)
+}
+
+func fetchStoreJSONContext[T any](ctx context.Context, requestURL string) (*T, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
 	// #nosec G107 -- store backend URLs are user/admin-configured extension repository endpoints.
-	resp, err := http.Get(requestURL)
+	resp, err := storeHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	respData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s", string(respData))
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		if len(message) == 0 {
+			message = []byte(http.StatusText(resp.StatusCode))
+		}
+		return nil, fmt.Errorf("%s", strings.TrimSpace(string(message)))
 	}
 
 	var result T
-	if err := decodeJSONCompatible(respData, &result); err != nil {
+	if err := decodeStoreJSONResponse(resp.Body, maxStoreJSONResponseSize, &result); err != nil {
+		if errors.Is(err, errStoreResponseTooLarge) {
+			return nil, fmt.Errorf("商店响应超过 %d MiB", maxStoreJSONResponseSize/(1024*1024))
+		}
 		return nil, fmt.Errorf("decode store response from %s: %w", requestURL, err)
 	}
 	return &result, nil
@@ -384,6 +424,8 @@ func (m *StoreManager) invalidateStoreBackendLocked() {
 	m.backend = nil
 	m.backendCacheKey = ""
 	m.backendFetchedAt = time.Time{}
+	clear(m.packageCache)
+	m.packageCacheOrder = nil
 }
 
 func (m *StoreManager) storeConfigSnapshot() (enabledUrls []string, disabledUrls []string) {
@@ -416,7 +458,7 @@ func (m *StoreManager) buildBackend(rawURL, id, name string, backendType StoreBa
 		return backend
 	}
 
-	info, err := fetchStoreJSON[storeBackendInfoResponse](backend.Url + "/info")
+	info, err := fetchStoreJSONContext[storeBackendInfoResponse](context.Background(), backend.Url+"/info")
 	if err != nil {
 		backend.Health = false
 		return backend
@@ -501,6 +543,10 @@ func (m *StoreManager) loadStoreBackend(force bool) (*StoreBackend, error) {
 	backend := m.buildBackend(target.rawURL, target.id, target.name, target.backendType, true)
 	fetchedAt := time.Now()
 	m.lock.Lock()
+	if m.backendCacheKey != "" && m.backendCacheKey != target.cacheKey {
+		clear(m.packageCache)
+		m.packageCacheOrder = nil
+	}
 	m.backend = backend
 	m.backendCacheKey = target.cacheKey
 	m.backendFetchedAt = fetchedAt
@@ -542,6 +588,11 @@ func NewStoreManager(parent *Dice) *StoreManager {
 }
 
 func (m *StoreManager) StoreQueryRecommend() ([]*StorePackage, error) {
+	return m.StoreQueryRecommendContext(context.Background())
+}
+
+// StoreQueryRecommendContext queries recommendations with cancellation support.
+func (m *StoreManager) StoreQueryRecommendContext(ctx context.Context) ([]*StorePackage, error) {
 	backend, err := m.currentBackend()
 	if err != nil {
 		return nil, err
@@ -557,7 +608,7 @@ func (m *StoreManager) StoreQueryRecommend() ([]*StorePackage, error) {
 		}
 	}
 
-	respResult, err := fetchStoreJSON[storeRecommendResponse](backend.Url + "/recommend")
+	respResult, err := fetchStoreJSONContext[storeRecommendResponse](ctx, backend.Url+"/recommend")
 	if err != nil {
 		m.refreshStoreBackend()
 		return nil, err
@@ -719,6 +770,17 @@ func (m *StoreManager) resolveStoreBackendActionURL(id, rawURL string, enabledUr
 }
 
 func (m *StoreManager) StoreQueryPage(params StoreQueryPageParams) (*StorePackagePage, error) {
+	return m.StoreQueryPageContext(context.Background(), params)
+}
+
+// StoreQueryPageContext queries a store page with cancellation support.
+func (m *StoreManager) StoreQueryPageContext(ctx context.Context, params StoreQueryPageParams) (*StorePackagePage, error) {
+	if params.PageNum < 0 {
+		return nil, errors.New("pageNum 不能小于 0")
+	}
+	if params.PageSize < 0 || params.PageSize > maxStorePageSize {
+		return nil, fmt.Errorf("pageSize 必须在 1 到 %d 之间，或为 0 使用默认值", maxStorePageSize)
+	}
 	backend, err := m.currentBackend()
 	if err != nil {
 		return nil, err
@@ -766,7 +828,7 @@ func (m *StoreManager) StoreQueryPage(params StoreQueryPageParams) (*StorePackag
 	}
 	requestURL.RawQuery = reqParams.Encode()
 
-	respResult, err := fetchStoreJSON[storePageResponse](requestURL.String())
+	respResult, err := fetchStoreJSONContext[storePageResponse](ctx, requestURL.String())
 	if err != nil {
 		m.refreshStoreBackend()
 		return nil, err
@@ -787,6 +849,11 @@ func (m *StoreManager) StoreQueryPage(params StoreQueryPageParams) (*StorePackag
 }
 
 func (m *StoreManager) StoreQueryPackageFiles(namespace, packageName, version string) ([]StorePackageFileEntry, error) {
+	return m.StoreQueryPackageFilesContext(context.Background(), namespace, packageName, version)
+}
+
+// StoreQueryPackageFilesContext queries package files with cancellation support.
+func (m *StoreManager) StoreQueryPackageFilesContext(ctx context.Context, namespace, packageName, version string) ([]StorePackageFileEntry, error) {
 	backend, err := m.currentBackend()
 	if err != nil {
 		return nil, err
@@ -811,13 +878,16 @@ func (m *StoreManager) StoreQueryPackageFiles(namespace, packageName, version st
 		return nil, err
 	}
 
-	respResult, err := fetchStoreJSON[storePackageFilesResponse](requestURL)
+	respResult, err := fetchStoreJSONContext[storePackageFilesResponse](ctx, requestURL)
 	if err != nil {
 		m.refreshStoreBackend()
 		return nil, err
 	}
 	if !respResult.Result {
 		return nil, fmt.Errorf("%s", respResult.Err)
+	}
+	if len(respResult.Data) > maxStorePackageFiles {
+		return nil, fmt.Errorf("扩展包文件列表不能超过 %d 项", maxStorePackageFiles)
 	}
 	return sanitizeStorePackageFileEntries(respResult.Data)
 }
@@ -943,9 +1013,23 @@ func (m *StoreManager) RefreshInstalled(packages []*StorePackage) {
 			pkg.FullID = BuildStorePackageFullID(pkg.ID, pkg.Version)
 		}
 		if pkg.FullID != "" {
-			m.packageCache[pkg.FullID] = pkg
+			m.cachePackageLocked(pkg.FullID, pkg)
 		}
 	}
+}
+
+func (m *StoreManager) cachePackageLocked(fullID string, pkg *StorePackage) {
+	if _, exists := m.packageCache[fullID]; exists {
+		m.packageCache[fullID] = pkg
+		return
+	}
+	for len(m.packageCacheOrder) >= maxStorePackageCache {
+		oldest := m.packageCacheOrder[0]
+		m.packageCacheOrder = m.packageCacheOrder[1:]
+		delete(m.packageCache, oldest)
+	}
+	m.packageCache[fullID] = pkg
+	m.packageCacheOrder = append(m.packageCacheOrder, fullID)
 }
 
 func (m *StoreManager) FindPackage(id, version string) (*StorePackage, bool) {
@@ -1046,7 +1130,7 @@ func (m *StoreManager) StoreQueryUploadInfo() (StoreUploadInfo, error) {
 			return StoreUploadInfo{}, fmt.Errorf("当前扩展商店后端不可用: %s", backend.Url)
 		}
 	}
-	result, err := fetchStoreJSON[StoreUploadInfo](backend.Url + "/upload/info")
+	result, err := fetchStoreJSONContext[StoreUploadInfo](context.Background(), backend.Url+"/upload/info")
 	if err != nil {
 		m.refreshStoreBackend()
 		return StoreUploadInfo{}, err

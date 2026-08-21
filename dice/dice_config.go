@@ -166,6 +166,7 @@ type BaseConfig struct {
 	AliveNoticeValue         string     `json:"aliveNoticeValue"        yaml:"aliveNoticeValue"`     // 定时通知间隔
 	ReplyDebugMode           bool       `json:"replyDebugMode"          yaml:"replyDebugMode"`       // 回复调试
 	PlayerNameWrapEnable     bool       `json:"playerNameWrapEnable"    yaml:"playerNameWrapEnable"` // 启用玩家名称外框
+	DiceRandomMode           string     `json:"diceRandomMode"          yaml:"diceRandomMode"`       // 骰点随机模式
 
 	VMVersionForReply      string `json:"VMVersionForReply"      yaml:"VMVersionForReply"`      // 自定义回复使用的vm版本
 	VMVersionForDeck       string `json:"VMVersionForDeck"       yaml:"VMVersionForDeck"`       // 牌堆使用的vm版本
@@ -175,6 +176,8 @@ type BaseConfig struct {
 	// TODO: 历史遗留问题，由于不输出DICE日志效果过差，已经抹除日志输出选项，剩余两个选项，私以为可以想办法也抹除掉。
 	Name    string `yaml:"name"`    // 名称，默认为default
 	DataDir string `yaml:"dataDir"` // 数据路径，为./data/{name}，例如data/default
+
+	OfficialQQMigrationEnable bool `json:"officialQQEnableIdentityMigration" yaml:"officialQQEnableIdentityMigration"` // 启动 QQ 官方旧身份数据迁移
 }
 
 type RateLimitConfig struct {

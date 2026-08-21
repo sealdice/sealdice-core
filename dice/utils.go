@@ -289,6 +289,18 @@ func ReadCardTypeEx(mctx *MsgContext, curType string) string {
 	return extra
 }
 
+// IsBot reports whether a user is manually marked as a bot or reported as one
+// by its platform adapter. Adapter matches are never persisted.
+func (group *GroupInfo) IsBot(userID string, detectedAsRobot bool) bool {
+	if detectedAsRobot {
+		return true
+	}
+	if group != nil && group.BotList != nil && group.BotList.Exists(userID) {
+		return true
+	}
+	return false
+}
+
 // GetCtxProxyFirst 第三个参数是否取消再观察一下
 func GetCtxProxyFirst(ctx *MsgContext, cmdArgs *CmdArgs) *MsgContext {
 	return GetCtxProxyAtPosRaw(ctx, cmdArgs, 0, true)
@@ -313,18 +325,8 @@ func GetCtxProxyAtPosRaw(ctx *MsgContext, cmdArgs *CmdArgs, pos int, setTempVar 
 		}
 
 		// 这个其实无用，因为有@其他bot的指令不会进入到solve阶段
-		if ctx.Group != nil {
-			isBot := false
-			ctx.Group.BotList.Range(func(botUid string, _ bool) bool {
-				if i.UserID == botUid {
-					isBot = true
-					return false
-				}
-				return true
-			})
-			if isBot {
-				continue
-			}
+		if ctx.Group != nil && ctx.Group.IsBot(i.UserID, i.IsRobot) {
+			continue
 		}
 
 		// theChoosen := i.UID
@@ -600,8 +602,7 @@ func UnpackGroupUserId(id string) (groupIdPart, userIdPart string, ok bool) {
 
 	// 遇到一个例子:
 	// QQ-CH-Group:33845581638279358-3047284-QQ-CH:144115218744389299
-	// OpenQQ-Group:102076784-89F06C35D4D418FE02BEFAEB8A6BAEB2-OpenQQ-Member:102076784-89F06C35D4D418FE02BEFAEB8A6BAEB2-FF4E7AAC8134661D05CF53E62F4037B4
-	// 应该是某一个测试版本，占比很少，这里忽略吧
+	// OpenQQ 的群内属性格式为 OpenQQ-Group:<UIN>-<GroupOpenID>-OpenQQ:<UIN>-<MemberOpenID>。
 
 	// 我们是否能做这样的假设：XX-Group:123 的用户ID形式是 XX:456 ？
 	// 但是 KOOK 就例外了
