@@ -241,6 +241,8 @@ func (p *PlatformAdapterOnebot) handleAddFriendAction(req gjson.Result, _ *evsoc
 	ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
 	welcomeStr := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 	p.logger.Infof("与 %s 成为好友，发送好友致辞: %s", req.Get("user_id").String(), welcomeStr)
+	// 通知类事件：成为好友
+	EmitFriendJoined(ctx, msg)
 	_ = p.submitAsync(func() {
 		// 与旧 onebot 链保持一致：上游可能先发 friend_add，再真正建立好友关系。
 		time.Sleep(5 * time.Second)
@@ -421,6 +423,8 @@ func (p *PlatformAdapterOnebot) handleReqFriendAction(req gjson.Result, _ *evsoc
 	txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", req.Get("user_id").String(), comment, passQuestion && result.Passed, extra)
 	p.logger.Info(txt)
 	ctx.Notice(txt, NoticeTypeInvite)
+	// 通知类事件：好友申请（仅通知，不携带同意/拒绝能力）
+	EmitFriendRequest(ctx, canonicalOnebotUserID(req.Get("user_id").String()), comment)
 	// 若忽略邀请，对操作不通过也不拒绝，哪怕他是黑名单里的
 	if !p.IgnoreFriendRequest {
 		err := p.sendEmitter.SetFriendAddRequest(p.ctx, req.Get("flag").String(), result.Passed && passQuestion, "")

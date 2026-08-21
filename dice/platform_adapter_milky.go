@@ -517,6 +517,9 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	log.Info(txt)
 	ctx.Notice(txt, NoticeTypeInvite)
 
+	// 通知类事件：好友申请（仅通知，不携带同意/拒绝能力）
+	EmitFriendRequest(ctx, uid, comment)
+
 	// 忽略邀请
 	if pa.IgnoreFriendRequest {
 		return
@@ -552,6 +555,9 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 			},
 		}
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+
+		// 通知类事件：成为好友
+		EmitFriendJoined(ctx, msg)
 
 		welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 		log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
