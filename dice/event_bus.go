@@ -157,6 +157,7 @@ func (b *EventBus) invokeJs(sub *eventBusSubscription, ev *AdapterEvent) error {
 	loop, err := b.dice.ExtLoopManager.GetLoop(sub.jsLoop)
 	if err != nil {
 		// 循环已过期（插件重载），静默丢弃而非报错
+		//nolint:nilerr // 过期订阅有意静默丢弃
 		return nil
 	}
 	waitRun := make(chan int, 1)

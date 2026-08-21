@@ -1082,8 +1082,8 @@ func ExtractQQGroupID(id string) string {
 	return id
 }
 
-// milky 能力声明。RawAction 直接包装 Milky SDK 的 REST 能力（标量参数动作）。
-func init() {
+// registerMilkyAdapterCapabilities milky 能力声明。RawAction 直接包装 Milky SDK 的 REST 能力（标量参数动作）。
+func registerMilkyAdapterCapabilities() {
 	RegisterAdapterCapabilities(AdapterCapabilitySet{
 		ProtocolType: "milky",
 		Platform:     "QQ",
@@ -1195,10 +1195,12 @@ func milkyRawResult(ret any, err error) (any, error) {
 	}
 	raw, mErr := sonic.Marshal(ret)
 	if mErr != nil {
+		//nolint:nilerr // 尽力而为的序列化，失败回退 ok 标记
 		return map[string]any{"ok": true}, nil
 	}
 	var out any
 	if uErr := sonic.Unmarshal(raw, &out); uErr != nil {
+		//nolint:nilerr // 尽力而为的序列化，失败回退 ok 标记
 		return map[string]any{"ok": true}, nil
 	}
 	return out, nil
@@ -1207,7 +1209,7 @@ func milkyRawResult(ret any, err error) (any, error) {
 // RawAction milky 动作透传（标量参数动作，直接包装 SDK）。
 func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
 	if pa.IntentSession == nil {
-		return nil, fmt.Errorf("milky 端点未连接")
+		return nil, errors.New("milky 端点未连接")
 	}
 	s := pa.IntentSession
 	switch action {

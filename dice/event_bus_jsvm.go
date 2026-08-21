@@ -19,9 +19,7 @@ func registerBusObject(vm *goja.Runtime, bus *goja.Object, d *Dice, versionID in
 	}); err != nil {
 		return err
 	}
-	if err := bus.Set("getCapabilities", func(platform string) []AdapterCapabilitySet {
-		return GetAdapterCapabilitiesByPlatform(platform)
-	}); err != nil {
+	if err := bus.Set("getCapabilities", GetAdapterCapabilitiesByPlatform); err != nil {
 		return err
 	}
 	if err := bus.Set("sendRaw", func(platform string, action string, params map[string]any) (any, error) {

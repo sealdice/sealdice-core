@@ -2,6 +2,7 @@ package dice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
@@ -15,7 +16,7 @@ type RawActionAdapter interface {
 // 只要该协议能力清单声明了此动作即可调用，不另设权限。
 func (d *Dice) SendRaw(platform, action string, params map[string]any) (any, error) {
 	if d.ImSession == nil {
-		return nil, fmt.Errorf("会话未初始化")
+		return nil, errors.New("会话未初始化")
 	}
 	for _, ep := range d.ImSession.EndPoints {
 		if ep == nil || ep.Adapter == nil {

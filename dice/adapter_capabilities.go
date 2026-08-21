@@ -29,9 +29,22 @@ type AdapterCapabilitySet struct {
 }
 
 var (
-	adapterCapabilityMu sync.RWMutex
-	adapterCapabilities = map[string]AdapterCapabilitySet{} // key: ProtocolType
+	adapterCapabilityMu   sync.RWMutex
+	adapterCapabilities   = map[string]AdapterCapabilitySet{} // key: ProtocolType
+	adapterCapabilityOnce sync.Once
 )
+
+// ensureAdapterCapabilitiesRegistered 惰性注册各适配器能力（替代 init()，规避 gochecknoinits）。
+func ensureAdapterCapabilitiesRegistered() {
+	adapterCapabilityOnce.Do(registerAllAdapterCapabilities)
+}
+
+func registerAllAdapterCapabilities() {
+	registerMilkyAdapterCapabilities()
+	registerOnebotAdapterCapabilities()
+	registerGocqAdapterCapabilities()
+	registerMiscAdapterCapabilities()
+}
 
 // RegisterAdapterCapabilities 注册适配器能力清单。适配器在各自文件的 init() 中调用。
 // 重复注册同一 ProtocolType 时以后注册者为准（测试中允许重复注册）。
@@ -43,6 +56,7 @@ func RegisterAdapterCapabilities(set AdapterCapabilitySet) {
 
 // GetAdapterCapabilities 按协议类型查询能力清单。
 func GetAdapterCapabilities(protocolType string) (AdapterCapabilitySet, bool) {
+	ensureAdapterCapabilitiesRegistered()
 	adapterCapabilityMu.RLock()
 	defer adapterCapabilityMu.RUnlock()
 	set, ok := adapterCapabilities[protocolType]
@@ -61,6 +75,7 @@ func adapterCapabilitiesFor(ep *EndPointInfo) (AdapterCapabilitySet, bool) {
 
 // GetAdapterCapabilitiesByPlatform 按平台聚合该平台下所有协议的能力清单（能力查询 UI/JS 用）。
 func GetAdapterCapabilitiesByPlatform(platform string) []AdapterCapabilitySet {
+	ensureAdapterCapabilitiesRegistered()
 	adapterCapabilityMu.RLock()
 	defer adapterCapabilityMu.RUnlock()
 	var out []AdapterCapabilitySet

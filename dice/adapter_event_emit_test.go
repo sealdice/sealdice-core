@@ -1,3 +1,4 @@
+//nolint:testpackage
 package dice
 
 import (
@@ -9,7 +10,7 @@ func TestNotifyOnlyEventEmission(t *testing.T) {
 	d := &Dice{}
 	d.ImSession = &IMSession{Parent: d, EndPoints: []*EndPointInfo{}}
 	d.EventBus = NewEventBus(d)
-	t.Cleanup(func() { _ = d.EventBus.Close(context.Background()) })
+	t.Cleanup(func() { _ = d.EventBus.Close(t.Context()) })
 
 	var names []string
 	_ = d.EventBus.OnEvent("*", func(ctx context.Context, ev *AdapterEvent) error {

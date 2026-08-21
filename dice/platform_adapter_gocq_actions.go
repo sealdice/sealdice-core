@@ -915,8 +915,8 @@ func EscapeComma(text string) string {
 	return text
 }
 
-// gocq（onebot11，含 lagrange）能力声明：EmitEvents/RawActions 与 onebot 系一致。
-func init() {
+// registerGocqAdapterCapabilities gocq（onebot11，含 lagrange）能力声明：EmitEvents/RawActions 与 onebot 系一致。
+func registerGocqAdapterCapabilities() {
 	RegisterAdapterCapabilities(AdapterCapabilitySet{
 		ProtocolType: "onebot",
 		Platform:     "QQ",
@@ -928,7 +928,7 @@ func init() {
 // RawAction gocq 动作透传：经 onebot 协议的 echo 机制发送并等待结果，带超时保护。
 func (pa *PlatformAdapterGocq) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
 	if pa.Socket == nil {
-		return nil, fmt.Errorf("gocq 端点未连接")
+		return nil, errors.New("gocq 端点未连接")
 	}
 	echo := pa.getCustomEcho()
 	a, err := json.Marshal(oneBotCommand{Action: action, Params: params, Echo: echo})
@@ -946,7 +946,7 @@ func (pa *PlatformAdapterGocq) RawAction(ctx context.Context, action string, par
 	select {
 	case msg := <-ch:
 		if msg == nil {
-			return nil, fmt.Errorf("gocq 响应异常")
+			return nil, errors.New("gocq 响应异常")
 		}
 		raw, _ := json.Marshal(msg)
 		var out any

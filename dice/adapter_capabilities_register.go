@@ -1,8 +1,8 @@
 package dice
 
-// 集中声明各平台（不含 milky/pureonebot/gocq —— 见各自文件）的事件能力。
+// registerMiscAdapterCapabilities 集中声明各平台（不含 milky/pureonebot/gocq —— 见各自文件）的事件能力。
 // 键优先匹配 ProtocolType，为空时 SendRaw 回退到平台小写名。
-func init() {
+func registerMiscAdapterCapabilities() {
 	// telegram：ProtocolType 为空，回退键 "tg"
 	RegisterAdapterCapabilities(AdapterCapabilitySet{
 		ProtocolType: "tg",

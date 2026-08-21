@@ -1,3 +1,4 @@
+//nolint:testpackage
 package dice
 
 import (
@@ -9,7 +10,7 @@ func TestDiceEventBusWiring(t *testing.T) {
 	d := &Dice{}
 	d.ImSession = &IMSession{Parent: d, EndPoints: []*EndPointInfo{}}
 	d.EventBus = NewEventBus(d)
-	t.Cleanup(func() { _ = d.EventBus.Close(context.Background()) })
+	t.Cleanup(func() { _ = d.EventBus.Close(t.Context()) })
 
 	var hits int
 	_ = d.EventBus.OnEvent(EventNamePoke, func(ctx context.Context, ev *AdapterEvent) error {
@@ -31,7 +32,7 @@ func TestIMSessionEmitEventNilSafe(t *testing.T) {
 	d := &Dice{}
 	d.ImSession = &IMSession{Parent: d}
 	d.EventBus = NewEventBus(d)
-	t.Cleanup(func() { _ = d.EventBus.Close(context.Background()) })
+	t.Cleanup(func() { _ = d.EventBus.Close(t.Context()) })
 	// 无 Ctx、无平台字段也不应 panic，且补齐 Platform/EndPointID
 	var gotPlatform string
 	_ = d.EventBus.OnEvent(EventNamePoke, func(ctx context.Context, ev *AdapterEvent) error {

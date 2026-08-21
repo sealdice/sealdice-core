@@ -1,3 +1,4 @@
+//nolint:testpackage
 package dice
 
 import (
@@ -13,7 +14,7 @@ func TestOnPokeEmitsAdapterEvent(t *testing.T) {
 	d := &Dice{}
 	d.ImSession = &IMSession{Parent: d, EndPoints: []*EndPointInfo{}}
 	d.EventBus = NewEventBus(d)
-	t.Cleanup(func() { _ = d.EventBus.Close(context.Background()) })
+	t.Cleanup(func() { _ = d.EventBus.Close(t.Context()) })
 	d.registerAdapterEventCompat()
 
 	var gotName, gotGroup string

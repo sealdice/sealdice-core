@@ -1062,8 +1062,8 @@ func onebot11SharedRawActions() map[string]AdapterRawActionSpec {
 	}
 }
 
-// onebot（纯 onebot v11）能力声明：协议动作天然全透传（emitter.Raw）。
-func init() {
+// registerOnebotAdapterCapabilities 纯 onebot v11 能力声明：协议动作天然全透传（emitter.Raw）。
+func registerOnebotAdapterCapabilities() {
 	RegisterAdapterCapabilities(AdapterCapabilitySet{
 		ProtocolType: "pureonebot",
 		Platform:     "QQ",
@@ -1075,15 +1075,16 @@ func init() {
 // RawAction onebot 动作全透传：直接转发 OneBot 协议 action。
 func (p *PlatformAdapterOnebot) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
 	if p.sendEmitter == nil {
-		return nil, fmt.Errorf("onebot 端点未连接")
+		return nil, errors.New("onebot 端点未连接")
 	}
-	raw, err := p.sendEmitter.Raw(ctx, emitter.Action(action), params)
+	raw, err := p.sendEmitter.Raw(ctx, action, params)
 	if err != nil {
 		return nil, err
 	}
 	var out any
 	if err := sonic.Unmarshal(raw, &out); err != nil {
 		// 无法结构化时返回原始报文
+		//nolint:nilerr // 尽力而为的反序列化，失败返回原始报文
 		return map[string]any{"raw": string(raw)}, nil
 	}
 	return out, nil

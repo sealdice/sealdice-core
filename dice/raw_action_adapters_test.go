@@ -1,7 +1,7 @@
+//nolint:testpackage
 package dice
 
 import (
-	"context"
 	"testing"
 )
 
@@ -11,12 +11,12 @@ func TestAdapterCapabilityDeclarations(t *testing.T) {
 		t.Fatal("onebot 能力未注册")
 	}
 	for _, name := range []string{"send_group_msg", "send_private_msg", "delete_msg", "set_group_ban", "set_group_kick", "get_group_member_info"} {
-		if _, ok := ob.RawActions[name]; !ok {
+		if _, declared := ob.RawActions[name]; !declared {
 			t.Fatalf("onebot RawActions 缺少 %s", name)
 		}
 	}
 	for _, name := range []string{EventNamePoke, EventNameGroupJoined, EventNameGroupMemberJoined, EventNameGroupLeave, EventNameFriendJoined, EventNameFriendRequest, EventNameGroupRequest} {
-		if _, ok := ob.EmitEvents[name]; !ok {
+		if _, declared := ob.EmitEvents[name]; !declared {
 			t.Fatalf("onebot EmitEvents 缺少 %s", name)
 		}
 	}
@@ -35,12 +35,12 @@ func TestAdapterCapabilityDeclarations(t *testing.T) {
 func TestMilkyRawActionParamValidation(t *testing.T) {
 	pa := &PlatformAdapterMilky{}
 	// 未连接（IntentSession 为 nil）时应返回错误而非 panic
-	_, err := pa.RawAction(context.Background(), "get_group_member_info", map[string]any{"group_id": 1, "user_id": 2})
+	_, err := pa.RawAction(t.Context(), "get_group_member_info", map[string]any{"group_id": 1, "user_id": 2})
 	if err == nil {
 		t.Fatal("未连接时应报错")
 	}
 	// 参数类型错误应报错而非 panic
-	_, err = pa.RawAction(context.Background(), "get_group_member_info", map[string]any{"group_id": "abc", "user_id": 2})
+	_, err = pa.RawAction(t.Context(), "get_group_member_info", map[string]any{"group_id": "abc", "user_id": 2})
 	if err == nil {
 		t.Fatal("非法参数应报错")
 	}

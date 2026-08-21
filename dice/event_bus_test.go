@@ -1,3 +1,4 @@
+//nolint:testpackage
 package dice
 
 import (
@@ -9,7 +10,7 @@ import (
 
 func newTestBus(t *testing.T) *EventBus {
 	b := NewEventBus(nil)
-	t.Cleanup(func() { _ = b.Close(context.Background()) })
+	t.Cleanup(func() { _ = b.Close(t.Context()) })
 	return b
 }
 
