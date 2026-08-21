@@ -467,6 +467,10 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 		loggerInstance.Info("js扩展支持已关闭，跳过js脚本的加载")
 	}
 
+	// 群组数据在扩展注册表就绪（内置/JS/扩展包）后加载，
+	// 反序列化时即将 activatedExtList 解析为全局共享 ExtInfo 指针
+	d.loadGroups()
+
 	if d.Config.UpgradeWindowID != "" {
 		go func() {
 			defer ErrorLogAndContinue(d)

@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/logger"
-	"sealdice-core/utils/cache"
 )
 
 // 警告：不要在一个事务（写事务）里使用读的DB！否则读的DB会发现有人在写而锁住，从而死锁。
@@ -22,11 +21,6 @@ func SQLiteDBInit(path string, useWAL bool) (*gorm.DB, error) {
 	open, err := gorm.Open(sqlite.Open(path), &gorm.Config{
 		Logger: logger.DefaultSealLogger,
 	})
-	if err != nil {
-		return nil, err
-	}
-	// Enable Cache Mode
-	open, err = cache.GetOtterCacheDB(open)
 	if err != nil {
 		return nil, err
 	}
@@ -89,19 +83,6 @@ func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
 		return nil, nil, err
 	}
 	writeDB, err := createWriteDB(path, gormConf)
-	if err != nil {
-		return nil, nil, err
-	}
-	// ----- 启用共享缓存插件 -----
-	plugin, err := cache.GetOtterCacheDBPluginInstance()
-	if err != nil {
-		return nil, nil, err
-	}
-	err = readDB.Use(plugin)
-	if err != nil {
-		return nil, nil, err
-	}
-	err = writeDB.Use(plugin)
 	if err != nil {
 		return nil, nil, err
 	}
