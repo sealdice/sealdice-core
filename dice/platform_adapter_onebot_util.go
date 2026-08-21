@@ -266,7 +266,7 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 	// 1. 如果发现进群的是自己，要和大家发入群致辞
 	// 2. 如果发现进群的不是自己，对他进行节流的迎新
 	session := p.EndPoint.Session
-	ctx := &MsgContext{EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
+	ctx := &MsgContext{MessageType: "group", EndPoint: p.EndPoint, Session: session, Dice: session.Parent}
 	msg, err := arrayByte2SealdiceMessage(p.logger, []byte(req.String()))
 	if err != nil {
 		return err
@@ -274,73 +274,26 @@ func (p *PlatformAdapterOnebot) handleJoinGroupAction(req gjson.Result, _ *evsoc
 	userId := canonicalOnebotUserID(req.Get("user_id").String())
 	selfId := canonicalOnebotUserID(req.Get("self_id").String())
 	groupId := canonicalOnebotGroupID(req.Get("group_id").String())
+	msg.MessageType = "group"
+	msg.Platform = "QQ"
+	msg.GroupID = groupId
+	msg.Sender.UserID = userId
 	// 迎新逻辑
 	// 发送入群致辞逻辑
 	if userId == selfId {
-		p.logger.Infof("收到自己的入群请求，准备发送入群致辞")
+		p.logger.Infof("收到自己的入群请求，准备转交统一入群处理")
 		ctx.Group = SetBotOnAtGroup(ctx, groupId)
-		ctx.Group.DiceIDExistsMap.Store(ctx.EndPoint.UserID, true)
 		operatorID := canonicalOnebotUserID(req.Get("operator_id").String())
 		if operatorID != "" && operatorID != selfId {
-			ctx.Group.InviteUserID = operatorID
+			msg.Sender.UserID = operatorID
 		}
-		// 入群时间
-		ctx.Group.EnteredTime = time.Now().Unix()
-		// 标记脏数据
-		ctx.Group.MarkDirty(ctx.Dice)
-		// 获取群信息 并发送入群致辞
 		_ = p.submitAsync(func() {
-			time.Sleep(1 * time.Second)
-			cache := p.GetGroupCacheInfo(groupId)
-			ctx.Player = &GroupPlayerInfo{}
-			p.logger.Infof("发送入群致辞，群: <%s>(%s)", cache.GroupName, groupId)
-			text := DiceFormatTmpl(ctx, "核心:骰子进群")
-			for _, i := range ctx.SplitText(text) {
-				doSleepQQ(ctx)
-				p.SendToGroup(ctx, groupId, strings.TrimSpace(i), "")
-			}
-			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId); ok {
-				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
-					if ext.OnGroupJoined == nil {
-						return nil
-					}
-					return func() { ext.OnGroupJoined(ctx, msg) }
-				})
-			}
+			session.OnGroupJoined(ctx, msg)
 		})
 	} else {
 		p.logger.Infof("收到非自己的入群通知: group_id=%s user_id=%s", groupId, userId)
 		_ = p.submitAsync(func() {
-			time.Sleep(1 * time.Second) // 避免是正在拉人进群的情况（此时会出现大量的迎新），先等一下再取数据
-			targetGroupID := groupId
-			group, ok := ctx.Session.ServiceAtNew.Load(targetGroupID)
-			needWelcome := false
-			reason := "group_not_loaded"
-			if ok && group.ShowGroupWelcome {
-				needWelcome = true
-				reason = "welcome_enabled"
-			} else if ok {
-				reason = "welcome_disabled"
-			}
-			p.logger.Infof("检查是否需要迎新: need_welcome=%t reason=%s group_id=%s user_id=%s", needWelcome, reason, targetGroupID, userId)
-			if !needWelcome {
-				return
-			}
-
-			ctx.Group = group
-			ctx.Player = &GroupPlayerInfo{}
-			uidRaw := req.Get("user_id").String()
-			VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
-			VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
-			stdID := userId
-			VarSetValueStr(ctx, "$t帐号ID", stdID)
-			VarSetValueStr(ctx, "$t账号ID", stdID)
-			text := DiceFormat(ctx, group.GroupWelcomeMessage)
-			p.logger.Infof("发送迎新消息: group_id=%s user_id=%s text=%q", targetGroupID, userId, text)
-			for _, i := range ctx.SplitText(text) {
-				doSleepQQ(ctx)
-				p.SendToGroup(ctx, targetGroupID, strings.TrimSpace(i), "")
-			}
+			session.OnGroupMemberJoined(ctx, msg)
 		})
 	}
 
@@ -970,9 +923,10 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if !ok {
 				continue
 			}
-			fileVal := res.File
+			// URL 保存可直接发送的完整资源引用；File 对本地文件通常只有文件名。
+			fileVal := res.URL
 			if fileVal == "" {
-				fileVal = res.URL
+				fileVal = res.File
 			}
 			if fileVal == "" {
 				continue

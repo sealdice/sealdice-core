@@ -800,7 +800,8 @@ func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string
 	if depth > 7 {
 		return "{递归层数过多，不予显示}"
 	}
-	txt := item.Content
+	// 帮助文档中的 ./ 资源路径始终相对于该条目的来源文件。
+	txt := rewriteRelativeResourcePaths(item.From, item.Content)
 	re := regexp.MustCompile(`\{[^}\n]+\}`)
 	matched := re.FindAllStringSubmatchIndex(txt, -1)
 	if len(matched) == 0 {

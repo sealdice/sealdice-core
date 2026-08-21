@@ -895,6 +895,13 @@ func TestOfficialQQIdentityMigration(t *testing.T) {
 		t.Fatalf("re-added endpoint command count = %d, want 12", endpoint.CmdExecutedNum)
 	}
 	assertOfficialQQMigrationRow(t, db, &model.LogInfo{}, "group_id = ?", newGroupID)
+	var migratedLogInfo model.LogInfo
+	if err := db.Where("group_id = ?", newGroupID).First(&migratedLogInfo).Error; err != nil {
+		t.Fatal(err)
+	}
+	if migratedLogInfo.UpdatedAt != timestamp {
+		t.Fatalf("migrated log updated_at = %d, want %d", migratedLogInfo.UpdatedAt, timestamp)
+	}
 	assertOfficialQQMigrationRow(t, db, &model.LogOneItem{}, "group_id = ? AND im_userid = ?", newGroupID, newUserID)
 	assertOfficialQQMigrationRow(t, db, &model.CensorLog{}, "group_id = ? AND user_id = ?", newGroupID, newUserID)
 	assertOfficialQQMigrationRow(t, db, &model.BanInfo{}, "id = ?", newUserID)

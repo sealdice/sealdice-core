@@ -15,13 +15,33 @@ import (
 )
 
 type ReplyConditionBase interface {
-	Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string) bool
+	Check(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cleanText string, vmVersion string) bool
 	Clean()
 }
 
 type ReplyResultBase interface {
-	Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs)
+	Execute(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, vmVersion string)
 	Clean()
+}
+
+const (
+	ReplyVMVersionV1       = "v1"
+	ReplyVMVersionV2       = "v2"
+	ReplyVMVersionV2Marker = "# sealdice: vm-version=v2"
+)
+
+func normalizeReplyVMVersion(version string) string {
+	if strings.EqualFold(strings.TrimSpace(version), ReplyVMVersionV2) {
+		return ReplyVMVersionV2
+	}
+	return ""
+}
+
+func replyVMFlags(vmVersion string) RollExtraFlags {
+	return RollExtraFlags{
+		V2Only: true,
+		V1Only: strings.EqualFold(vmVersion, ReplyVMVersionV1),
+	}
 }
 
 // ReplyConditionTextMatch 文本匹配 // textMatch
@@ -85,7 +105,7 @@ func (r *replyRegexCacheType) compile(expr string) *regexp.Regexp {
 
 var replyRegexCache replyRegexCacheType
 
-func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, cleanText string) bool {
+func (m *ReplyConditionTextMatch) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, cleanText string, _ string) bool {
 	var ret bool
 	switch m.MatchType {
 	case "matchExact":
@@ -135,7 +155,7 @@ func (m *ReplyConditionTextLenLimit) Clean() {
 	}
 }
 
-func (m *ReplyConditionTextLenLimit) Check(_ *MsgContext, _ *Message, _ *CmdArgs, cleanText string) bool {
+func (m *ReplyConditionTextLenLimit) Check(_ *MsgContext, _ *Message, _ *CmdArgs, cleanText string, _ string) bool {
 	textLen := len([]rune(cleanText))
 	if m.MatchOp == "le" {
 		return textLen <= m.Value
@@ -147,12 +167,9 @@ func (m *ReplyConditionExprTrue) Clean() {
 	m.Value = strings.TrimSpace(m.Value)
 }
 
-func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string) bool {
+func (m *ReplyConditionExprTrue) Check(ctx *MsgContext, _ *Message, _ *CmdArgs, _ string, vmVersion string) bool {
 	// r := ctx.Eval(m.Value, ds.RollConfig{})
-	flags := RollExtraFlags{
-		V2Only: true,
-		V1Only: ctx.Dice.getTargetVmEngineVersion(VMVersionReply) == "v1",
-	}
+	flags := replyVMFlags(vmVersion)
 
 	r, _, err := replyExprEvalFn(ctx, m.Value, flags)
 
@@ -201,11 +218,11 @@ func (m *ReplyResultReplyToSender) Clean() {
 	m.Message.Clean()
 }
 
-func formatExprForReply(ctx *MsgContext, expr string) string {
+func formatExprForReply(ctx *MsgContext, expr string, vmVersion string) string {
 	var text string
 	var err error
 
-	if ctx.Dice.getTargetVmEngineVersion(VMVersionReply) == "v1" {
+	if strings.EqualFold(vmVersion, ReplyVMVersionV1) {
 		text, err = DiceFormatV1(ctx, expr)
 		if err != nil {
 			// text = fmt.Sprintf("执行出错V1: %s", err.Error())
@@ -221,12 +238,12 @@ func formatExprForReply(ctx *MsgContext, expr string) string {
 	return text
 }
 
-func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
+func (m *ReplyResultReplyToSender) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs, vmVersion string) {
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 	expr := pickChooserWithRand(p, ctx.getChooserRand())
-	ReplyToSender(ctx, msg, formatExprForReply(ctx, expr))
+	ReplyToSender(ctx, msg, formatExprForReply(ctx, expr, vmVersion))
 	// }()
 }
 
@@ -241,12 +258,12 @@ func (m *ReplyResultReplyPrivate) Clean() {
 	m.Message.Clean()
 }
 
-func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
+func (m *ReplyResultReplyPrivate) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs, vmVersion string) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 
 	expr := pickChooserWithRand(p, ctx.getChooserRand())
-	ReplyPerson(ctx, msg, formatExprForReply(ctx, expr))
+	ReplyPerson(ctx, msg, formatExprForReply(ctx, expr, vmVersion))
 }
 
 // ReplyResultReplyGroup 回复到群组 replyGroup
@@ -260,13 +277,13 @@ func (m *ReplyResultReplyGroup) Clean() {
 	m.Message.Clean()
 }
 
-func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs) {
+func (m *ReplyResultReplyGroup) Execute(ctx *MsgContext, msg *Message, _ *CmdArgs, vmVersion string) {
 	// go func() {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
 	p := m.Message.toRandomPool()
 
 	expr := pickChooserWithRand(p, ctx.getChooserRand())
-	ReplyGroup(ctx, msg, formatExprForReply(ctx, expr))
+	ReplyGroup(ctx, msg, formatExprForReply(ctx, expr, vmVersion))
 	// }()
 }
 
@@ -277,12 +294,9 @@ type ReplyResultRunText struct {
 	Message    string  `json:"message"    yaml:"message"`
 }
 
-func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs) {
+func (m *ReplyResultRunText) Execute(ctx *MsgContext, _ *Message, _ *CmdArgs, vmVersion string) {
 	time.Sleep(time.Duration(m.Delay * float64(time.Second)))
-	flags := RollExtraFlags{
-		V2Only: true,
-		V1Only: ctx.Dice.getTargetVmEngineVersion(VMVersionReply) == "v1",
-	}
+	flags := replyVMFlags(vmVersion)
 	_, _, _ = DiceExprTextBase(ctx, m.Message, flags)
 }
 
@@ -301,9 +315,11 @@ var _ json.Unmarshaler = (*ReplyItem)(nil)
 var _ yaml.Unmarshaler = (*ReplyItem)(nil)
 
 type ReplyConfig struct {
-	Enable   bool         `json:"enable"   yaml:"enable"`
-	Interval float64      `json:"interval" yaml:"interval"` // 响应间隔，最少为5
-	Items    []*ReplyItem `json:"items"    yaml:"items"`
+	// VMVersion is only persisted for an explicit V2 file. An empty value follows VMVersionForReply.
+	VMVersion string       `json:"vmVersion,omitempty" yaml:"vmVersion,omitempty"`
+	Enable    bool         `json:"enable"   yaml:"enable"`
+	Interval  float64      `json:"interval" yaml:"interval"` // 响应间隔，最少为5
+	Items     []*ReplyItem `json:"items"    yaml:"items"`
 
 	// 作者信息
 	Name            string   `json:"name"            yaml:"name"`
@@ -338,9 +354,14 @@ func (c *ReplyConfig) Save(dice *Dice) {
 }
 
 func (c *ReplyConfig) SaveToPath(filePath string) error {
-	buf, err := yaml.Marshal(c)
+	fileConfig := *c
+	fileConfig.VMVersion = normalizeReplyVMVersion(c.VMVersion)
+	buf, err := yaml.Marshal(&fileConfig)
 	if err != nil {
 		return err
+	}
+	if fileConfig.VMVersion == ReplyVMVersionV2 {
+		buf = append([]byte(ReplyVMVersionV2Marker+"\n"), buf...)
 	}
 	return os.WriteFile(filePath, buf, 0644)
 }
