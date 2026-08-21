@@ -215,6 +215,8 @@ func (p *PlatformAdapterOnebot) handleGroupBanAction(req gjson.Result, _ *evsock
 	operatorID := canonicalOnebotUserID(req.Get("operator_id").String())
 	durationTime := int(req.Get("duration").Int())
 	duration := time.Duration(durationTime) * time.Second
+	// 通知类事件：群禁言（不论被禁言者是否为骰子自己，含 lift_ban 解禁）
+	EmitGroupMuted(ctx, groupId, userID, operatorID, int64(durationTime), subType)
 	switch subType {
 	case "ban":
 		if userID == selfID {

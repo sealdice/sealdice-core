@@ -1996,7 +1996,29 @@ func (s *IMSession) commandSolve(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs
 	return solved
 }
 
+// OnMessageDeleted 消息撤回/删除事件入口。构造 AdapterEvent 经事件总线分发；
+// 旧逻辑（权限判定 + 旧回调字段调用）在兼容订阅器中执行。
 func (s *IMSession) OnMessageDeleted(mctx *MsgContext, msg *Message) {
+	if mctx == nil || msg == nil {
+		return
+	}
+	// EventBus 未装配（如部分测试直构 Dice）时退回直调旧逻辑
+	if s.Parent == nil || s.Parent.EventBus == nil {
+		s.legacyOnMessageDeleted(mctx, msg)
+		return
+	}
+	s.EmitEvent(&AdapterEvent{
+		Name:    EventNameMessageDeleted,
+		GroupID: msg.GroupID,
+		UserID:  msg.Sender.UserID,
+		Raw:     map[string]any{"rawId": msg.RawID, "message": msg.Message},
+		Ctx:     mctx,
+		Detail:  msg,
+	})
+}
+
+// legacyOnMessageDeleted 旧 OnMessageDeleted 逻辑，由兼容订阅器调用。
+func (s *IMSession) legacyOnMessageDeleted(mctx *MsgContext, msg *Message) {
 	d := mctx.Dice
 	mctx.MessageType = msg.MessageType
 	mctx.IsPrivate = mctx.MessageType == "private"

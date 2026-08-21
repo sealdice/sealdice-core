@@ -1018,6 +1018,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_ban" && msgQQ.SubType == "ban" {
 			// 禁言
 			// {"duration":600,"group_id":111,"notice_type":"group_ban","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"ban","time":1646689567,"user_id":333}
+			// 通知类事件：群禁言（不论被禁言者是否为骰子自己）
+			EmitGroupMuted(ctx, msg.GroupID, FormatDiceIDQQ(string(msgQQ.UserID)), FormatDiceIDQQ(string(msgQQ.OperatorID)), msgQQ.Duration, "ban")
 			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				opUID := FormatDiceIDQQ(string(msgQQ.OperatorID))
 				groupName := dm.TryGetGroupName(msg.GroupID)

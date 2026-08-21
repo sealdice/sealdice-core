@@ -11,11 +11,12 @@ const (
 	EventNameGroupJoined       = "group.joined"        // 骰子自身加入群
 	EventNameGroupMemberJoined = "group.member_joined" // 其他群成员加入群
 	EventNameGroupLeave        = "group.leave"         // 群成员离开/被踢
-	EventNameGroupMuted        = "group.muted"         // 群禁言（预留，暂无适配器发射）
+	EventNameGroupMuted        = "group.muted"         // 群禁言（含被禁言/解禁）
 	EventNameFriendJoined      = "friend.joined"       // 成为好友
 	EventNameGuildJoined       = "guild.joined"        // 加入频道（KOOK 等）
 	EventNameFriendRequest     = "friend.request"      // 好友申请（仅通知）
 	EventNameGroupRequest      = "group.request"       // 加群申请/邀请（仅通知）
+	EventNameMessageDeleted    = "message.deleted"     // 消息撤回/删除
 )
 
 // AdapterEvent 适配器事件的统一封装。

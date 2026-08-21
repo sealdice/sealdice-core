@@ -24,7 +24,7 @@ func (d *Dice) SendRaw(platform, action string, params map[string]any) (any, err
 		if ep.Platform != platform || !ep.Enable {
 			continue
 		}
-		caps, ok := GetAdapterCapabilities(ep.ProtocolType)
+		caps, ok := adapterCapabilitiesFor(ep)
 		if !ok {
 			continue
 		}

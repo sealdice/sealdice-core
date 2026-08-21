@@ -45,4 +45,12 @@ func (d *Dice) registerAdapterEventCompat() {
 		d.ImSession.legacyOnGroupMemberJoined(ev.Ctx, msg)
 		return nil
 	})
+	_ = d.EventBus.OnEvent(EventNameMessageDeleted, func(ctx context.Context, ev *AdapterEvent) error {
+		msg, _ := ev.Detail.(*Message)
+		if msg == nil {
+			return nil
+		}
+		d.ImSession.legacyOnMessageDeleted(ev.Ctx, msg)
+		return nil
+	})
 }

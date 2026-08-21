@@ -2,6 +2,7 @@ package dice
 
 import (
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -46,6 +47,16 @@ func GetAdapterCapabilities(protocolType string) (AdapterCapabilitySet, bool) {
 	defer adapterCapabilityMu.RUnlock()
 	set, ok := adapterCapabilities[protocolType]
 	return set, ok
+}
+
+// adapterCapabilitiesFor 按端点查询能力清单：优先按 ProtocolType，为空时回退到平台小写名。
+func adapterCapabilitiesFor(ep *EndPointInfo) (AdapterCapabilitySet, bool) {
+	if ep.ProtocolType != "" {
+		if set, ok := GetAdapterCapabilities(ep.ProtocolType); ok {
+			return set, true
+		}
+	}
+	return GetAdapterCapabilities(strings.ToLower(ep.Platform))
 }
 
 // GetAdapterCapabilitiesByPlatform 按平台聚合该平台下所有协议的能力清单（能力查询 UI/JS 用）。

@@ -44,6 +44,21 @@ func EmitFriendJoined(ctx *MsgContext, msg *Message) {
 	})
 }
 
+// EmitGroupJoined 骰子自身加入群（适配器内联扩展循环的场景使用）。
+func EmitGroupJoined(ctx *MsgContext, msg *Message) {
+	if ctx == nil || ctx.Session == nil {
+		return
+	}
+	ctx.Session.EmitEvent(&AdapterEvent{
+		Name:     EventNameGroupJoined,
+		GroupID:  msg.GroupID,
+		SenderID: msg.Sender.UserID, // 邀请人
+		Raw:      map[string]any{"message": msg.Message},
+		Ctx:      ctx,
+		Detail:   msg,
+	})
+}
+
 // EmitGuildJoined 加入频道。
 func EmitGuildJoined(ctx *MsgContext, msg *Message) {
 	if ctx == nil || ctx.Session == nil {
@@ -56,5 +71,20 @@ func EmitGuildJoined(ctx *MsgContext, msg *Message) {
 		Raw:      map[string]any{"message": msg.Message},
 		Ctx:      ctx,
 		Detail:   msg,
+	})
+}
+
+// EmitGroupMuted 群禁言事件。duration 秒数（0 表示解禁），subType 为 "ban"/"lift_ban"。
+func EmitGroupMuted(ctx *MsgContext, groupID, userID, operatorID string, duration int64, subType string) {
+	if ctx == nil || ctx.Session == nil {
+		return
+	}
+	ctx.Session.EmitEvent(&AdapterEvent{
+		Name:     EventNameGroupMuted,
+		GroupID:  groupID,
+		UserID:   userID,
+		SenderID: operatorID,
+		Raw:      map[string]any{"duration": duration, "subType": subType},
+		Ctx:      ctx,
 	})
 }
