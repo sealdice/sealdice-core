@@ -85,7 +85,7 @@ require (
 	github.com/yuin/goldmark v1.8.4
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/oauth2 v0.27.0
