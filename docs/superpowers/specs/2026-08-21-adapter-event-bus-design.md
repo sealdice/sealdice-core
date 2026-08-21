@@ -205,9 +205,11 @@ bus.sendRaw("QQ", "set_ban", { groupId, userId, duration });
 - 适配器级测试：milky/onebot 上报能力 = 弱平台上报能力的差异断言。
 - JS 集成测试：`onEvent` 订阅、通配/前缀订阅、sendRaw 返回值与错误。
 
-## 开放问题（迁移时确认）
+## 边界界定
 
-- 旧字段的完整映射表（含 `onNotCommandReceived`、`onCommandReceived` 等非通知类字段是否
-  纳入总线，或维持命令管线处理）。
-- `store.Async` 的 worker 池大小与队列长度取值。
-- 前缀订阅（`group.*`）的实现粒度（字符串前缀匹配即可满足多数场景）。
+- 事件总线只覆盖**平台通知/请求类**事件。`onNotCommandReceived`、`onCommandReceived`
+  等命令管线回调**不**纳入总线，维持现有命令系统处理。
+- 适配器负责各自平台信号的协议检测与解析；总线只负责统一承载与分发。
+- 前缀订阅（`group.*`）实现为字符串前缀匹配，满足多数订阅场景，不做完整主题树。
+- `store.Async` worker 池大小默认 `runtime.NumCPU()`，队列长度按 CPU 数 × 1024 起步，
+  后续按 onebot 系实测调整。
