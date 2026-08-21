@@ -2030,6 +2030,33 @@ func (s *IMSession) OnGroupLeave(ctx *MsgContext, event *events.GroupLeaveEvent)
 	}
 }
 
+// EmitEvent 适配器事件统一入口。补齐事件的平台/端点信息后经总线分发。
+func (s *IMSession) EmitEvent(ev *AdapterEvent) {
+	if ev == nil {
+		return
+	}
+	d := s.Parent
+	if d == nil || d.EventBus == nil {
+		return
+	}
+	if ev.Ctx == nil {
+		ev.Ctx = &MsgContext{Session: s, Dice: d}
+	}
+	if ev.Ctx.Session == nil {
+		ev.Ctx.Session = s
+	}
+	if ev.Ctx.Dice == nil {
+		ev.Ctx.Dice = d
+	}
+	if ev.Platform == "" && ev.Ctx.EndPoint != nil {
+		ev.Platform = ev.Ctx.EndPoint.Platform
+	}
+	if ev.EndPointID == "" && ev.Ctx.EndPoint != nil {
+		ev.EndPointID = ev.Ctx.EndPoint.ID
+	}
+	_ = d.EventBus.Emit(ev)
+}
+
 // OnMessageEdit 消息编辑事件
 //
 // msg.Message 应为更新后的消息, msg.Time 应为更新时间而非发送时间，同时
