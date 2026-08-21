@@ -535,6 +535,8 @@ func CreateTempCtx(ep *EndPointInfo, msg *Message) *MsgContext {
 		panic("CreateTempCtx: message is nil")
 	}
 
+	NormalizeIncomingMessage(msg)
+
 	session := ep.Session
 	if session == nil {
 		panic(fmt.Sprintf("CreateTempCtx: endpoint %s (%s) has nil session", ep.ID, ep.UserID))

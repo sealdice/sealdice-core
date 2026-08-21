@@ -16,6 +16,8 @@ github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231 h1:t9hBFiDTf
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231/go.mod h1:wQTmPSYoaXtXfBysiJ9XiLwVnoCdlNHwuxYfxO4I4uo=
 github.com/PaienNate/pineutil v1.1.1 h1:Qt1OWuU2eXgRR/TryI9im9a2/Bl8kLzCdURn+Z6USvQ=
 github.com/PaienNate/pineutil v1.1.1/go.mod h1:8SL3Atzmso0aDXyCX1w7HDyEXT5LIG1MIPhHabtEWFE=
+github.com/Protocol-Lattice/GoEventBus v0.3.0 h1:Tnk89yQ0smKHZErH3amn2MpKAu2mla7IaeHOVKlyCXw=
+github.com/Protocol-Lattice/GoEventBus v0.3.0/go.mod h1:hvHFgz/VMjT8chfu1GppW0d9n0VXn8scjIh9q/1V48A=
 github.com/RoaringBitmap/roaring/v2 v2.14.5 h1:ckd0o545JqDPeVJDgeFoaM21eBixUnlWfYgjE5VnyWw=
 github.com/RoaringBitmap/roaring/v2 v2.14.5/go.mod h1:eq4wdNXxtJIS/oikeCzdX1rBzek7ANzbth041hrU8Q4=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=
@@ -496,10 +498,10 @@ github.com/samber/lo v1.52.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRo
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/schollz/progressbar/v3 v3.19.1 h1:iv8BgwOvdML/S3p84uBpy/IMigv4U9594vPZYa2EdrU=
 github.com/schollz/progressbar/v3 v3.19.1/go.mod h1:LFL7jqimKxfhero4K1eCkUr/6R39AgQeiPCJtlTWIW8=
-github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6 h1:Dlyo4ciDW5GUK7jBCgs8kIgEF8gdIxIx78YqqOvB/no=
-github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6/go.mod h1:cjBy9hhhUWy8A3LT8OOu9TkkLebx31hrkxv0KCbOve0=
 github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b h1:z+8xWdjgJ/ZO27U5klh3uQ3KbLhL+Yz6cjhst9871AY=
 github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b/go.mod h1:oQhXm1mfLdV+1/d27LhnUHVNfhtl5RYwdREQnb4cewI=
+github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6 h1:Dlyo4ciDW5GUK7jBCgs8kIgEF8gdIxIx78YqqOvB/no=
+github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6/go.mod h1:cjBy9hhhUWy8A3LT8OOu9TkkLebx31hrkxv0KCbOve0=
 github.com/sealdice/kook v0.0.3 h1:STMtiKRMFjhSFmUxi0BU5ktNkCQ8qi7Y5EEfrmYKvWY=
 github.com/sealdice/kook v0.0.3/go.mod h1:WjHC7AmbmNjInT/U/etBVOmAw7T6EqdCwApceRGs1sk=
 github.com/sergeymakinen/go-bmp v1.0.0 h1:SdGTzp9WvCV0A1V0mBeaS7kQAwNLdVJbmHlqNWq0R+M=

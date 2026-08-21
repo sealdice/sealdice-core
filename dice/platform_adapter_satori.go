@@ -868,6 +868,10 @@ func (pa *PlatformAdapterSatori) friendRequestHandle(e *SatoriEvent) {
 	userName := dm.TryGetUserName(uid)
 	log.Infof("satori: 收到平台 %s 好友请求: 申请人:<%s>(%s)", pa.Platform, userName, uid)
 
+	// 通知类事件：好友申请（仅通知）
+	ctx := &MsgContext{EndPoint: pa.EndPoint, Session: s, Dice: d}
+	EmitFriendRequest(ctx, uid, "")
+
 	eid := e.ID.String()
 	// 申请人在黑名单上
 	banInfo, ok := d.Config.BanList.GetByID(uid)

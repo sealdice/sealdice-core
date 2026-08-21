@@ -221,6 +221,8 @@ func (pa *PlatformAdapterTelegram) groupAdded(msg *Message, msgRaw *tgbotapi.Mes
 	}
 	// 触发扩展钩子
 	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+		// 通知类事件：加入群组
+		EmitGroupJoined(ctx, msg)
 		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 			if ext.OnGroupJoined == nil {
 				return nil
@@ -242,6 +244,8 @@ func (pa *PlatformAdapterTelegram) friendAdded(msg *Message) {
 		pa.SendToPerson(ctx, uid, strings.TrimSpace(i), "")
 	}
 	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+		// 通知类事件：成为好友
+		EmitFriendJoined(ctx, msg)
 		groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 			if ext.OnBecomeFriend == nil {
 				return nil

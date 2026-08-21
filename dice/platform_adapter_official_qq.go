@@ -1167,6 +1167,8 @@ func (pa *PlatformAdapterOfficialQQ) C2CFriendReceive(event *dto.WSPayload, data
 			for _, i := range ctx.SplitText(welcomeStr) {
 				pa.SendToPerson(ctx, userID, strings.TrimSpace(i), "")
 			}
+			// 通知类事件：成为好友
+			EmitFriendJoined(ctx, msg)
 			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
 				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 					if ext.OnBecomeFriend == nil {

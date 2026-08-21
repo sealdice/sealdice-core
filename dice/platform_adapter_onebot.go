@@ -1016,3 +1016,76 @@ func (p *PlatformAdapterOnebot) cbEnterDisconnected(_ context.Context, _ *loopfs
 func (p *PlatformAdapterOnebot) cbAfterDisable(_ context.Context, _ *loopfsm.Event) {
 	p.cleanupResources()
 }
+
+// onebot11SharedEmitEvents 返回 onebot11 协议/纯 onebot 协议通用的事件声明表。
+func onebot11SharedEmitEvents() map[string]AdapterEventSpec {
+	return map[string]AdapterEventSpec{
+		EventNamePoke:              {Name: EventNamePoke, Description: "戳一戳"},
+		EventNameGroupJoined:       {Name: EventNameGroupJoined, Description: "骰子加入群"},
+		EventNameGroupMemberJoined: {Name: EventNameGroupMemberJoined, Description: "群成员加入"},
+		EventNameGroupLeave:        {Name: EventNameGroupLeave, Description: "群成员离开/被踢"},
+		EventNameGroupMuted:        {Name: EventNameGroupMuted, Description: "群禁言"},
+		EventNameFriendJoined:      {Name: EventNameFriendJoined, Description: "成为好友"},
+		EventNameFriendRequest:     {Name: EventNameFriendRequest, Description: "好友申请（仅通知）", RequestOnly: true},
+		EventNameGroupRequest:      {Name: EventNameGroupRequest, Description: "加群申请/邀请（仅通知）", RequestOnly: true},
+		EventNameMessageDeleted:    {Name: EventNameMessageDeleted, Description: "消息撤回"},
+	}
+}
+
+// onebot11SharedRawActions 返回 onebot11 协议通用的动作声明表。
+func onebot11SharedRawActions() map[string]AdapterRawActionSpec {
+	return map[string]AdapterRawActionSpec{
+		"send_group_msg":          {Name: "send_group_msg", Description: "发送群消息", Params: map[string]string{"group_id": "int64", "message": "onebot消息段数组"}},
+		"send_private_msg":        {Name: "send_private_msg", Description: "发送私聊消息", Params: map[string]string{"user_id": "int64", "message": "onebot消息段数组"}},
+		"send_msg":                {Name: "send_msg", Description: "通用发送接口", Params: map[string]string{"message_type": "string", "user_id": "int64", "group_id": "int64", "message": "onebot消息段数组"}},
+		"delete_msg":              {Name: "delete_msg", Description: "撤回消息", Params: map[string]string{"message_id": "int32"}},
+		"get_msg":                 {Name: "get_msg", Description: "获取消息", Params: map[string]string{"message_id": "int32"}},
+		"get_login_info":          {Name: "get_login_info", Description: "获取登录号信息"},
+		"get_status":              {Name: "get_status", Description: "获取运行状态"},
+		"get_version_info":        {Name: "get_version_info", Description: "获取版本信息"},
+		"get_stranger_info":       {Name: "get_stranger_info", Description: "获取陌生人信息", Params: map[string]string{"user_id": "int64", "no_cache": "bool 可选"}},
+		"get_group_info":          {Name: "get_group_info", Description: "获取群信息", Params: map[string]string{"group_id": "int64", "no_cache": "bool 可选"}},
+		"get_group_list":          {Name: "get_group_list", Description: "获取群列表", Params: map[string]string{"no_cache": "bool 可选"}},
+		"get_group_member_list":   {Name: "get_group_member_list", Description: "获取群成员列表", Params: map[string]string{"group_id": "int64", "no_cache": "bool 可选"}},
+		"get_group_member_info":   {Name: "get_group_member_info", Description: "获取群成员信息", Params: map[string]string{"group_id": "int64", "user_id": "int64", "no_cache": "bool 可选"}},
+		"get_friend_list":         {Name: "get_friend_list", Description: "获取好友列表"},
+		"set_group_card":          {Name: "set_group_card", Description: "设置群名片", Params: map[string]string{"group_id": "int64", "user_id": "int64", "card": "string"}},
+		"set_group_special_title": {Name: "set_group_special_title", Description: "设置群头衔", Params: map[string]string{"group_id": "int64", "user_id": "int64", "special_title": "string", "duration": "int64"}},
+		"set_group_admin":         {Name: "set_group_admin", Description: "设置/取消群管理员", Params: map[string]string{"group_id": "int64", "user_id": "int64", "enable": "bool"}},
+		"set_group_leave":         {Name: "set_group_leave", Description: "退出群聊", Params: map[string]string{"group_id": "int64"}},
+		"set_group_ban":           {Name: "set_group_ban", Description: "群禁言", Params: map[string]string{"group_id": "int64", "user_id": "int64", "duration": "int64秒，0解禁"}},
+		"set_group_whole_ban":     {Name: "set_group_whole_ban", Description: "全员禁言", Params: map[string]string{"group_id": "int64", "enable": "bool"}},
+		"set_group_kick":          {Name: "set_group_kick", Description: "移出群聊", Params: map[string]string{"group_id": "int64", "user_id": "int64", "reject_add_request": "bool"}},
+		"set_group_essence_msg":   {Name: "set_group_essence_msg", Description: "设置/取消群精华消息", Params: map[string]string{"group_id": "int64", "message_id": "int32", "is_set": "bool"}},
+		"set_friend_add_request":  {Name: "set_friend_add_request", Description: "处理好友申请", Params: map[string]string{"flag": "string", "approve": "bool", "remark": "string"}},
+		"set_group_add_request":   {Name: "set_group_add_request", Description: "处理加群申请", Params: map[string]string{"flag": "string", "sub_type": "string", "approve": "bool", "reason": "string"}},
+	}
+}
+
+// registerOnebotAdapterCapabilities 纯 onebot v11 能力声明：协议动作天然全透传（emitter.Raw）。
+func registerOnebotAdapterCapabilities() {
+	RegisterAdapterCapabilities(AdapterCapabilitySet{
+		ProtocolType: "pureonebot",
+		Platform:     "QQ",
+		EmitEvents:   onebot11SharedEmitEvents(),
+		RawActions:   onebot11SharedRawActions(),
+	})
+}
+
+// RawAction onebot 动作全透传：直接转发 OneBot 协议 action。
+func (p *PlatformAdapterOnebot) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
+	if p.sendEmitter == nil {
+		return nil, errors.New("onebot 端点未连接")
+	}
+	raw, err := p.sendEmitter.Raw(ctx, action, params)
+	if err != nil {
+		return nil, err
+	}
+	var out any
+	if err := sonic.Unmarshal(raw, &out); err != nil {
+		// 无法结构化时返回原始报文
+		//nolint:nilerr // 尽力而为的反序列化，失败返回原始报文
+		return map[string]any{"raw": string(raw)}, nil
+	}
+	return out, nil
+}
