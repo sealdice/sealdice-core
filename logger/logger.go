@@ -63,6 +63,7 @@ type dynamicFileCore struct {
 	encoder        zapcore.Encoder
 	mu             sync.RWMutex
 	writerMap      map[string]zapcore.WriteSyncer
+	closerMap      map[string]io.Closer
 	levelEnablers  map[string]zapcore.LevelEnabler
 	defaultName    string
 	defaultEnabler zapcore.LevelEnabler
@@ -79,6 +80,7 @@ func newDynamicFileCore(rootDir string, encoder zapcore.Encoder, levelConfig map
 		rootDir:        rootDir,
 		encoder:        encoder,
 		writerMap:      make(map[string]zapcore.WriteSyncer),
+		closerMap:      make(map[string]io.Closer),
 		levelEnablers:  enablers,
 		defaultName:    LogKeyMain,
 		defaultEnabler: defaultEnabler,
@@ -139,6 +141,7 @@ func (c *dynamicFileCore) Write(entry zapcore.Entry, fields []zapcore.Field) err
 			logWriter := newLumberjackWriter(logFile, important)
 			writer = zapcore.AddSync(logWriter)
 			c.writerMap[fileLoggerName] = writer
+			c.closerMap[fileLoggerName] = logWriter
 		}
 		c.mu.Unlock()
 	}
@@ -173,7 +176,21 @@ func (c *dynamicFileCore) Sync() error {
 	return err
 }
 
-func newLumberjackWriter(filepath string, important bool) io.Writer {
+func (c *dynamicFileCore) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var err error
+	for name, closer := range c.closerMap {
+		if closeErr := closer.Close(); closeErr != nil {
+			err = closeErr
+		}
+		delete(c.closerMap, name)
+		delete(c.writerMap, name)
+	}
+	return err
+}
+
+func newLumberjackWriter(filepath string, important bool) io.WriteCloser {
 	if important {
 		return &lumberjack.Logger{
 			Filename:   filepath,
