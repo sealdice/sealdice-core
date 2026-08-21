@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -1078,4 +1079,76 @@ func ExtractQQGroupID(id string) string {
 		return id[len("QQ-Group:"):]
 	}
 	return id
+}
+
+// milky 能力声明。RawAction 首批仅暴露参数为标量的动作（避免消息段编解码进入 v1）。
+func init() {
+	RegisterAdapterCapabilities(AdapterCapabilitySet{
+		ProtocolType: "milky",
+		Platform:     "QQ",
+		EmitEvents: map[string]AdapterEventSpec{
+			EventNamePoke:              {Name: EventNamePoke, Description: "戳一戳"},
+			EventNameGroupJoined:       {Name: EventNameGroupJoined, Description: "骰子加入群"},
+			EventNameGroupMemberJoined: {Name: EventNameGroupMemberJoined, Description: "群成员加入"},
+			EventNameGroupLeave:        {Name: EventNameGroupLeave, Description: "群成员离开/被踢"},
+			EventNameFriendJoined:      {Name: EventNameFriendJoined, Description: "成为好友"},
+			EventNameFriendRequest:     {Name: EventNameFriendRequest, Description: "好友申请（仅通知）", RequestOnly: true},
+		},
+		RawActions: map[string]AdapterRawActionSpec{
+			"get_group_member_info": {Name: "get_group_member_info", Description: "获取群成员信息", Params: map[string]string{"group_id": "int64", "user_id": "int64"}},
+			"send_group_nudge":      {Name: "send_group_nudge", Description: "群内戳一戳", Params: map[string]string{"group_id": "int64", "user_id": "int64"}},
+		},
+	})
+}
+
+// rawActionParam 从 map 参数取 int64，缺失或类型不符时报错。
+func rawActionParam(params map[string]any, key string) (int64, error) {
+	v, ok := params[key]
+	if !ok {
+		return 0, fmt.Errorf("缺少参数 %s", key)
+	}
+	switch n := v.(type) {
+	case int64:
+		return n, nil
+	case int:
+		return int64(n), nil
+	case float64:
+		return int64(n), nil
+	default:
+		return 0, fmt.Errorf("参数 %s 类型不符: %T", key, v)
+	}
+}
+
+// RawAction milky 动作透传（首批：标量参数动作）。
+func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
+	if pa.IntentSession == nil {
+		return nil, fmt.Errorf("milky 端点未连接")
+	}
+	switch action {
+	case "get_group_member_info":
+		groupID, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		userID, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return pa.getGroupMemberInfo(strconv.FormatInt(groupID, 10), strconv.FormatInt(userID, 10), false)
+	case "send_group_nudge":
+		groupID, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		userID, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		if err := pa.IntentSession.SendGroupNudge(groupID, userID); err != nil {
+			return nil, err
+		}
+		return map[string]any{"ok": true}, nil
+	default:
+		return nil, fmt.Errorf("milky 不支持动作 %s", action)
+	}
 }

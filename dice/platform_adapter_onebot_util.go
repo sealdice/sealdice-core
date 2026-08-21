@@ -330,6 +330,8 @@ func (p *PlatformAdapterOnebot) handleReqGroupAction(req gjson.Result, _ *evsock
 		txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", res.GroupName, res.GroupId, userName, diceUserId)
 		p.logger.Info(txt)
 		ctx.Notice(txt, NoticeTypeInvite)
+		// 通知类事件：加群申请/邀请（仅通知）
+		EmitGroupRequest(ctx, diceGroupId, diceUserId, req.Get("sub_type").String())
 
 		ok, reason := checkPassBlackListGroup(diceUserId, diceGroupId, ctx)
 		if !ok {

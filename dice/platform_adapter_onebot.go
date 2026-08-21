@@ -1016,3 +1016,46 @@ func (p *PlatformAdapterOnebot) cbEnterDisconnected(_ context.Context, _ *loopfs
 func (p *PlatformAdapterOnebot) cbAfterDisable(_ context.Context, _ *loopfsm.Event) {
 	p.cleanupResources()
 }
+
+// onebot 能力声明：onebot 协议动作天然全透传（emitter.Raw），
+// 能力清单声明常用动作，作为插件可发现、可校验的动作面。
+func init() {
+	RegisterAdapterCapabilities(AdapterCapabilitySet{
+		ProtocolType: "onebot",
+		Platform:     "QQ",
+		EmitEvents: map[string]AdapterEventSpec{
+			EventNamePoke:              {Name: EventNamePoke, Description: "戳一戳"},
+			EventNameGroupJoined:       {Name: EventNameGroupJoined, Description: "骰子加入群"},
+			EventNameGroupMemberJoined: {Name: EventNameGroupMemberJoined, Description: "群成员加入"},
+			EventNameGroupLeave:        {Name: EventNameGroupLeave, Description: "群成员离开/被踢"},
+			EventNameFriendJoined:      {Name: EventNameFriendJoined, Description: "成为好友"},
+			EventNameFriendRequest:     {Name: EventNameFriendRequest, Description: "好友申请（仅通知）", RequestOnly: true},
+			EventNameGroupRequest:      {Name: EventNameGroupRequest, Description: "加群申请/邀请（仅通知）", RequestOnly: true},
+		},
+		RawActions: map[string]AdapterRawActionSpec{
+			"send_group_msg":        {Name: "send_group_msg", Description: "发送群消息", Params: map[string]string{"group_id": "int64", "message": "onebot消息段数组"}},
+			"send_private_msg":      {Name: "send_private_msg", Description: "发送私聊消息", Params: map[string]string{"user_id": "int64", "message": "onebot消息段数组"}},
+			"delete_msg":            {Name: "delete_msg", Description: "撤回消息", Params: map[string]string{"message_id": "int32"}},
+			"set_group_ban":         {Name: "set_group_ban", Description: "群禁言", Params: map[string]string{"group_id": "int64", "user_id": "int64", "duration": "int64秒，0解禁"}},
+			"set_group_kick":        {Name: "set_group_kick", Description: "移出群聊", Params: map[string]string{"group_id": "int64", "user_id": "int64", "reject_add_request": "bool"}},
+			"get_group_member_info": {Name: "get_group_member_info", Description: "获取群成员信息", Params: map[string]string{"group_id": "int64", "user_id": "int64", "no_cache": "bool"}},
+		},
+	})
+}
+
+// RawAction onebot 动作全透传：直接转发 OneBot 协议 action。
+func (p *PlatformAdapterOnebot) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
+	if p.sendEmitter == nil {
+		return nil, fmt.Errorf("onebot 端点未连接")
+	}
+	raw, err := p.sendEmitter.Raw(ctx, emitter.Action(action), params)
+	if err != nil {
+		return nil, err
+	}
+	var out any
+	if err := sonic.Unmarshal(raw, &out); err != nil {
+		// 无法结构化时返回原始报文
+		return map[string]any{"raw": string(raw)}, nil
+	}
+	return out, nil
+}
