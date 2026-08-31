@@ -16,6 +16,8 @@ github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231 h1:t9hBFiDTf
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231/go.mod h1:wQTmPSYoaXtXfBysiJ9XiLwVnoCdlNHwuxYfxO4I4uo=
 github.com/PaienNate/pineutil v1.1.1 h1:Qt1OWuU2eXgRR/TryI9im9a2/Bl8kLzCdURn+Z6USvQ=
 github.com/PaienNate/pineutil v1.1.1/go.mod h1:8SL3Atzmso0aDXyCX1w7HDyEXT5LIG1MIPhHabtEWFE=
+github.com/Protocol-Lattice/GoEventBus v0.3.0 h1:Tnk89yQ0smKHZErH3amn2MpKAu2mla7IaeHOVKlyCXw=
+github.com/Protocol-Lattice/GoEventBus v0.3.0/go.mod h1:hvHFgz/VMjT8chfu1GppW0d9n0VXn8scjIh9q/1V48A=
 github.com/RoaringBitmap/roaring/v2 v2.14.5 h1:ckd0o545JqDPeVJDgeFoaM21eBixUnlWfYgjE5VnyWw=
 github.com/RoaringBitmap/roaring/v2 v2.14.5/go.mod h1:eq4wdNXxtJIS/oikeCzdX1rBzek7ANzbth041hrU8Q4=
 github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a h1:NPnGVqpua4c1iEFVdxnBJA9viP5bo2Zp2jfflbcjdto=

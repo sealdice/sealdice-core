@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -912,4 +913,50 @@ func EscapeComma(text string) string {
 		return strings.ReplaceAll(text, ",", "%2C")
 	}
 	return text
+}
+
+// registerGocqAdapterCapabilities gocq（onebot11，含 lagrange）能力声明：EmitEvents/RawActions 与 onebot 系一致。
+func registerGocqAdapterCapabilities() {
+	RegisterAdapterCapabilities(AdapterCapabilitySet{
+		ProtocolType: "onebot",
+		Platform:     "QQ",
+		EmitEvents:   onebot11SharedEmitEvents(),
+		RawActions:   onebot11SharedRawActions(),
+	})
+}
+
+// RawAction gocq 动作透传：经 onebot 协议的 echo 机制发送并等待结果，带超时保护。
+func (pa *PlatformAdapterGocq) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
+	if pa.Socket == nil {
+		return nil, errors.New("gocq 端点未连接")
+	}
+	echo := pa.getCustomEcho()
+	a, err := json.Marshal(oneBotCommand{Action: action, Params: params, Echo: echo})
+	if err != nil {
+		return nil, err
+	}
+	ch := make(chan *MessageQQ, 1)
+	if pa.echoMap == nil {
+		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
+	}
+	key := lo.Must(json.Marshal(echo))
+	pa.echoMap.Store(string(key), ch)
+	socketSendText(pa.Socket, string(a))
+
+	select {
+	case msg := <-ch:
+		if msg == nil {
+			return nil, errors.New("gocq 响应异常")
+		}
+		raw, _ := json.Marshal(msg)
+		var out any
+		_ = json.Unmarshal(raw, &out)
+		return out, nil
+	case <-time.After(15 * time.Second):
+		pa.echoMap.Delete(string(key))
+		return nil, fmt.Errorf("gocq 动作 %s 超时", action)
+	case <-ctx.Done():
+		pa.echoMap.Delete(string(key))
+		return nil, ctx.Err()
+	}
 }
