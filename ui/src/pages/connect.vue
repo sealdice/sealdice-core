@@ -72,9 +72,25 @@
       :show-icon="false"
     >
       <n-space vertical align="center" size="large">
-        <n-image v-if="activeQRCode" :src="activeQRCode" width="280" preview-disabled />
+        <template v-if="activeQRCode">
+          <p>请使用对应的客户端扫码，并按客户端提示确认登录。</p>
+          <n-image :src="activeQRCode" alt="账号登录二维码" width="280" preview-disabled />
+        </template>
+        <p v-else-if="qrWorkflow?.state === 'pending'" role="status">
+          正在登录，请按客户端提示完成确认。
+        </p>
+        <n-alert v-else-if="qrWorkflow?.state === 'failed'" type="error">
+          {{ getWorkflowText(qrWorkflow) }}
+        </n-alert>
         <n-empty v-else description="当前没有可用二维码" />
-        <n-button size="small" secondary @click="realtime.reconnect"> 刷新连接 </n-button>
+        <n-button
+          size="small"
+          secondary
+          :loading="connectionsQuery.isFetching.value"
+          @click="refreshQRCode"
+        >
+          刷新登录状态
+        </n-button>
       </n-space>
     </n-modal>
   </main>
@@ -98,7 +114,7 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { getErrorMessage } from '@/features/auth/error';
-import { getEndpointTargetLabel } from '@/features/connect/endpointDisplay';
+import { getEndpointTargetLabel, getWorkflowText } from '@/features/connect/endpointDisplay';
 import { useRealtimeConnectionsStore } from '@/features/connect/realtimeStore';
 import { useRealtimeClientStore } from '@/features/realtime/store';
 import { useTestMode } from '@/features/testMode/state';
@@ -133,9 +149,10 @@ const connectionsLoading = computed(() => hasAccessToken.value && !connectionsRe
 const qrEndpoint = computed(() =>
   connections.value.find(item => item.id === qrDialogEndpointId.value)
 );
+const qrWorkflow = computed(() => qrEndpoint.value?.workflow);
 const activeQRCode = computed(() => qrEndpoint.value?.qrcode ?? '');
 watch(
-  () => qrEndpoint.value?.workflow?.state,
+  () => qrWorkflow.value?.state,
   state => {
     if (qrDialogVisible.value && state === 'success') {
       qrDialogVisible.value = false;
@@ -217,6 +234,11 @@ function openCreateDialog() {
 function openQRCode(endpoint: EndPointInfo) {
   qrDialogEndpointId.value = endpoint.id;
   qrDialogVisible.value = true;
+}
+function refreshQRCode() {
+  if (!hasAccessToken.value) return;
+  realtime.reconnect();
+  void connectionsQuery.refetch({ cancelRefetch: false });
 }
 function onCreated(endpoint: EndPointInfo, showQRCode: boolean) {
   if (showQRCode) openQRCode(endpoint);

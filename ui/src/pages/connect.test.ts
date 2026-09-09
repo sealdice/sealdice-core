@@ -4,7 +4,7 @@ import { nextTick, type Component } from 'vue';
 import { shallowMount, type VueWrapper } from '@vue/test-utils';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { NButton, NRadioGroup } from 'naive-ui';
+import { NButton, NModal, NRadioGroup } from 'naive-ui';
 import {
   client,
   getSdApiV2ImconnectionByIdConfigQueryKey,
@@ -307,4 +307,36 @@ it('SSE 断开时启停和删除仍刷新列表，失败与重试只影响对应
   await confirm.mock.calls.at(-1)![0].onPositiveClick();
   await vi.waitFor(() => expect(cards()).toHaveLength(1));
   expect(useRealtimeConnectionsStore(appPinia).connections[0]?.id).toBe('b');
+});
+
+it('二维码弹窗在 SSE 断开时通过 HTTP 刷新登录进度，并在登录成功后关闭', async () => {
+  let current: EndPointInfo = {
+    ...endpoint,
+    qrcode: 'data:image/png;base64,AA==',
+    workflow: { state: 'qrcode', loginState: 0, hasQRCode: true },
+  };
+  client.instance.defaults.adapter = async config =>
+    response(
+      config,
+      config.url?.endsWith('/imconnection/') ? { items: [current] } : { runtime: {} }
+    );
+  const page = mountPage(ConnectPage);
+  await vi.waitFor(() => expect(page.findComponent(ConnectAccountCard).exists()).toBe(true));
+  page.getComponent(ConnectAccountCard).vm.$emit('showQRCode', current);
+  await nextTick();
+  expect(page.getComponent(NModal).text()).toContain('扫码');
+
+  current = {
+    ...endpoint,
+    workflow: { state: 'pending', loginState: 0, hasQRCode: false },
+  };
+  await click('刷新登录状态');
+  await vi.waitFor(() => expect(page.getComponent(NModal).text()).toContain('正在登录'));
+
+  current = {
+    ...endpoint,
+    workflow: { state: 'success', loginState: 0, hasQRCode: false },
+  };
+  await click('刷新登录状态');
+  await vi.waitFor(() => expect(page.getComponent(NModal).props('show')).toBe(false));
 });
