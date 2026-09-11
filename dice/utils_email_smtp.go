@@ -12,7 +12,7 @@ import (
 )
 
 // newMailDialer accepts a hostname or host:port, defaulting to implicit TLS on 465.
-// Explicit ports (e.g. 587 or legacy 25) use STARTTLS when advertised by the server.
+// Port 587 requires STARTTLS; other explicit ports retain gomail's STARTTLS policy.
 func newMailDialer(address, username, password string) (*gomail.Dialer, error) {
 	address = strings.TrimSpace(address)
 	host, port := address, 465
@@ -43,6 +43,12 @@ func newMailDialer(address, username, password string) (*gomail.Dialer, error) {
 		// gomail concatenates Host and Port instead of using net.JoinHostPort.
 		dialer.Host = "[" + host + "]"
 		dialer.TLSConfig = &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}
+	}
+	if port == 587 {
+		// A non-nil Auth is always called by gomail, even without an AUTH capability.
+		// Its TLS check runs before any AUTH command or message can be sent, including
+		// when gomail reconnects. Do not allow its opportunistic STARTTLS fallback.
+		dialer.Auth = &requiredTLSAuth{host: dialer.Host, username: username, password: password}
 	}
 	return dialer, nil
 }

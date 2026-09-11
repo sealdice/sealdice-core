@@ -229,7 +229,7 @@ type MailConfig struct {
 	MailEnable   bool   `json:"mailEnable"   yaml:"mailEnable"`   // 是否启用
 	MailFrom     string `json:"mailFrom"     yaml:"mailFrom"`     // 邮箱来源
 	MailPassword string `json:"mailPassword" yaml:"mailPassword"` // 邮箱密钥/密码
-	MailSMTP     string `json:"mailSmtp"     yaml:"mailSmtp"`     // SMTP 主机名或主机名:端口，默认 465（TLS）；587 使用 STARTTLS
+	MailSMTP     string `json:"mailSmtp"     yaml:"mailSmtp"`     // SMTP 主机名或主机名:端口，默认 465（TLS）；587 强制 STARTTLS
 }
 
 type NewsConfig struct {

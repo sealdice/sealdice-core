@@ -40,6 +40,9 @@ func TestNewMailDialer(t *testing.T) {
 			if dialer.Username != "sender@example.com" || dialer.Password != "test-password" {
 				t.Error("SMTP credentials were not preserved")
 			}
+			if (dialer.Auth != nil) != (tt.port == 587) {
+				t.Error("port 587 must install the mandatory TLS authentication check")
+			}
 			if tt.host == "[::1]" && (dialer.TLSConfig == nil || dialer.TLSConfig.ServerName != "::1") {
 				t.Error("IPv6 TLS server name must not contain brackets")
 			}
