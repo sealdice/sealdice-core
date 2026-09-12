@@ -137,7 +137,12 @@ func uploadV105(env UploadEnv) (string, string, error) {
 	_ = os.MkdirAll(env.Dir, 0o755)
 
 	url, uploadTS, updateTS, _ := service.LogGetUploadInfo(env.Db, env.GroupID, env.LogName)
+	cachedURL := url
+	probeResult := cachedLogProbeMissing
 	if len(url) > 0 && uploadTS > updateTS {
+		probeResult = checkCachedLogURL(env, url)
+	}
+	if probeResult == cachedLogProbeAlive {
 		// 已有URL且上传时间晚于Log更新时间（最后录入时间），直接返回
 		env.Log.Infof(
 			"查询到之前上传的URL, 直接使用 Log:%s.%s 上传时间:%s 更新时间:%s URL:%s",
@@ -150,7 +155,7 @@ func uploadV105(env UploadEnv) (string, string, error) {
 	}
 	if len(url) == 0 {
 		env.Log.Infof("没有查询到之前上传的URL Log:%s.%s", env.GroupID, env.LogName)
-	} else {
+	} else if uploadTS <= updateTS {
 		env.Log.Infof(
 			"Log上传后又有更新, 重新上传 Log:%s.%s 上传时间:%s 更新时间:%s",
 			env.GroupID, env.LogName,
@@ -177,6 +182,9 @@ func uploadV105(env UploadEnv) (string, string, error) {
 		env.Log.Errorf("记录Log上传信息失败: %v", errDB)
 	}
 	if len(url) == 0 {
+		if fallbackURL, notice, ok := fallbackToCachedLogURL(&env, cachedURL, probeResult); ok {
+			return fallbackURL, notice, nil
+		}
 		return "", env.Notice, errors.New("上传 log 到服务器失败，未能获取染色器链接")
 	}
 	return url, env.Notice, nil
