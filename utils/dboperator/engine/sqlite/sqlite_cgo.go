@@ -108,7 +108,7 @@ func SetDefaultPragmas(db *sql.DB) error {
 		// 无论同步设置或日志模式如何，事务在应用程序崩溃时都是持久的。
 		// 对于在 WAL 模式下运行的大多数应用程序来说，synchronous=NORMAL 设置是一个不错的选择。
 		"synchronous": "1",       // NORMAL --> https://www.sqlite.org/pragma.html#pragma_synchronous
-		"cache_size":  "-524288", // Negative values are KiB, so this caps the page cache at 512 MiB.
+		"cache_size":  "-4096", // Negative values are KiB, so this caps the page cache at 4 MiB.
 	}
 
 	// set the pragmas
