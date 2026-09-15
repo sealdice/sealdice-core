@@ -2,7 +2,6 @@ package dice
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -205,23 +204,21 @@ func BuiltinMilkyClientKill(dice *Dice, conn *EndPointInfo) {
 	if pa.BuiltInMode == "" {
 		return
 	}
-	defer func() {
-		pa.MilkyProcess = nil
-	}()
-	if pa.MilkyProcess != nil {
+	process, done := pa.detachMilkyProcess()
+	pa.stopMilkySession()
+	if process != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		go func() {
-			<-ctx.Done()
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				dice.Logger.Error("Milky 进程未能在 5 秒内退出，可能需要手动结束")
-			}
-		}()
-		err := pa.MilkyProcess.Stop()
+		err := process.Stop()
 		if err != nil {
 			dice.Logger.Error("停止 Milky 进程失败: ", err)
 		}
-		_ = pa.MilkyProcess.Wait()
+		// Wait 由启动协程独占，避免两个协程同时回收同一个子进程。
+		select {
+		case <-done:
+		case <-ctx.Done():
+			dice.Logger.Error("Milky 进程未能在 5 秒内退出，可能需要手动结束")
+		}
 	}
 }
 
@@ -243,19 +240,20 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		return
 	}
 	conn := ep.Adapter.(*PlatformAdapterMilky)
+	pa := conn
+	BuiltinMilkyClientKill(d, ep)
+	generation, done := pa.beginMilkyProcess()
 	doServe := func() {
-		if ep.Platform == "QQ" {
+		if ep.Platform == "QQ" && pa.isCurrentMilkyProcess(generation) {
 			d.Logger.Infof("Milky 尝试连接")
-			if conn.Serve() != 0 {
+			if conn.serveMilky(generation) != 0 && pa.failMilkyProcessStart(generation) {
 				d.Logger.Errorf("连接Milky失败")
-				ep.State = 3
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
 				BuiltinMilkyClientKill(d, ep)
 			}
 		}
 	}
-	pa := conn
 	ep.BindRuntime(d.ImSession)
 	log := zap.S().Named(logger.LogKeyAdapter)
 
@@ -276,9 +274,6 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	}
 	_ = os.MkdirAll(workDir, 0o755)
 	_ = os.Chmod(milkyExePath, 0o755)
-	if pa.MilkyProcess != nil {
-		BuiltinMilkyClientKill(d, ep)
-	}
 	// The temporary listener is released before the child binds, so another
 	// process can still claim this port during the gap.
 	port, err := GetRandomFreePort()
@@ -325,10 +320,13 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	processRegistered := make(chan struct{})
 	qrSignalCalled := atomic.Bool{}
 	qrSignalCalled.Store(false)
-	pa.BuiltInLoginState = MilkyLoginStateInit
 	p.OutputHandler = func(line string, _type string) string {
+		loginState, current := pa.milkyProcessLoginState(generation)
+		if !current {
+			return ""
+		}
 		// 登录中
-		if pa.BuiltInLoginState < MilkyLoginStateConnecting {
+		if loginState < MilkyLoginStateConnecting {
 			var qrcodeSignal string
 			var onlineSignal string
 			var qrcodeExpiredSignal string
@@ -351,7 +349,9 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 
 			// 登录成功
 			if strings.Contains(line, onlineSignal) {
-				pa.BuiltInLoginState = MilkyLoginStateQRConnected
+				if !pa.setMilkyProcessLoginState(generation, MilkyLoginStateQRConnected) {
+					return ""
+				}
 				log.Infof("Milky 登录成功，账号：<%s>(%s)", ep.Nickname, ep.UserID)
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
@@ -363,7 +363,9 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 
 			if strings.Contains(line, qrcodeExpiredSignal) {
 				// 二维码过期，登录失败，杀掉进程
-				pa.BuiltInLoginState = MilkyLoginStateFailed
+				if !pa.setMilkyProcessLoginState(generation, MilkyLoginStateFailed) {
+					return ""
+				}
 				log.Infof("Milky 二维码过期，登录失败，账号：%s", ep.UserID)
 				<-processRegistered
 				BuiltinMilkyClientKill(d, ep)
@@ -384,20 +386,38 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	}
 
 	go func() {
-		<-chQrCode
-		time.Sleep(3 * time.Second)
+		select {
+		case <-chQrCode:
+		case <-done:
+			return
+		}
+		if !pa.isCurrentMilkyProcess(generation) {
+			return
+		}
+		timer := time.NewTimer(3 * time.Second)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-done:
+			return
+		}
+		if !pa.isCurrentMilkyProcess(generation) {
+			return
+		}
 		if _, err := os.Stat(qrcodeFilePath); err == nil {
 			log.Info("Milky 二维码已就绪")
 			qrdata, err := os.ReadFile(qrcodeFilePath)
 			if err == nil {
-				pa.BuiltInLoginState = MilkyLoginStateQRWaitingForScan
-				pa.QrCodeData = qrdata
+				if !pa.setMilkyProcessQRCode(generation, qrdata) {
+					return
+				}
 				log.Info("Milky 读取二维码成功")
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
 			} else {
-				pa.BuiltInLoginState = MilkyLoginStateFailed
-				pa.QrCodeData = nil
+				if !pa.setMilkyProcessQRCode(generation, nil) {
+					return
+				}
 				d.LastUpdatedTime = time.Now().Unix()
 				d.Save(false)
 				log.Infof("Milky 读取二维码失败：%s", err)
@@ -406,6 +426,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	}()
 
 	run := func() {
+		defer close(done)
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("MilkyInternal 异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -415,14 +436,22 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		errRun := p.Start()
 		if errRun != nil {
 			log.Info("Milky 进程启动失败: ", errRun)
-			ep.State = 3
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
+			if pa.failMilkyProcessStart(generation) {
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+			}
+			close(processRegistered)
 			return
 		}
 
-		conn.MilkyProcess = p
+		registered := pa.registerMilkyProcess(generation, p)
 		close(processRegistered)
+		if !registered {
+			_ = p.Stop()
+			_ = p.Wait()
+			return
+		}
+		defer pa.finishMilkyProcess(generation, p)
 		// processStartTime := time.Now().Unix()
 
 		if d.Parent.progressExitGroupWin != 0 && p.Cmd != nil {
