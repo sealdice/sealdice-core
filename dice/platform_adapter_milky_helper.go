@@ -243,6 +243,13 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	pa := conn
 	BuiltinMilkyClientKill(d, ep)
 	generation, done := pa.beginMilkyProcess()
+	runOwnsDone := false
+	defer func() {
+		if !runOwnsDone && pa.abortMilkyProcessSetup(generation, done) {
+			d.LastUpdatedTime = time.Now().Unix()
+			d.Save(false)
+		}
+	}()
 	doServe := func() {
 		if ep.Platform == "QQ" && pa.isCurrentMilkyProcess(generation) {
 			d.Logger.Infof("Milky 尝试连接")
@@ -272,16 +279,16 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	if runtime.GOOS == "windows" {
 		milkyExePath += ".exe" //nolint:ineffassign
 	}
-	_ = os.MkdirAll(workDir, 0o755)
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		log.Errorf("创建 Milky 工作目录失败: %s", err)
+		return
+	}
 	_ = os.Chmod(milkyExePath, 0o755)
 	// The temporary listener is released before the child binds, so another
 	// process can still claim this port during the gap.
 	port, err := GetRandomFreePort()
 	if err != nil {
 		log.Errorf("获取随机端口失败: %s", err)
-		ep.State = 3
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
 		return
 	}
 	wsGateway := fmt.Sprintf("ws://127.0.0.1:%d/event", port)
@@ -293,16 +300,10 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	config := GenerateMilkyConfig(port, SealSignV3Url, accessToken, ep)
 	if len(config) == 0 {
 		log.Errorf("不支持的内置 Milky 模式: %s", pa.BuiltInMode)
-		ep.State = 3
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
 		return
 	}
 	if err := os.WriteFile(configFilePath, config, 0o644); err != nil {
 		log.Errorf("写入 Milky 配置文件失败: %s", err)
-		ep.State = 3
-		d.LastUpdatedTime = time.Now().Unix()
-		d.Save(false)
 		return
 	}
 	pa.WsGateway = wsGateway
@@ -469,6 +470,7 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 		}
 	}
 
+	runOwnsDone = true // 后续由 run 的 defer 在进程启动失败或退出时关闭 done。
 	go run()
 }
 

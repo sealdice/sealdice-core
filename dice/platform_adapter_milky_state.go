@@ -211,6 +211,21 @@ func (pa *PlatformAdapterMilky) failMilkyProcessStart(generation uint64) bool {
 	return true
 }
 
+// 仅用于启动协程接管前的失败。调用方仍拥有 done，旧尝试只关闭自己的通道。
+func (pa *PlatformAdapterMilky) abortMilkyProcessSetup(generation uint64, done chan struct{}) bool {
+	defer close(done)
+	pa.lifecycleMu.Lock()
+	defer pa.lifecycleMu.Unlock()
+	if generation != pa.processGeneration || pa.processDone != done {
+		return false
+	}
+	pa.processGeneration++
+	pa.processDone = nil
+	pa.BuiltInLoginState = MilkyLoginStateFailed
+	pa.EndPoint.State = StateConnectionFailed
+	return true
+}
+
 func (pa *PlatformAdapterMilky) finishMilkyProcess(generation uint64, process *procs.Process) {
 	pa.lifecycleMu.Lock()
 	if generation != pa.processGeneration || pa.MilkyProcess != process {
