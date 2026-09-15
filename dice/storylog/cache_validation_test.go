@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests exercise the internal cache probe and its result states.
 package storylog
 
 import (

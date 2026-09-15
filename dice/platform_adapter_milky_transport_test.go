@@ -40,7 +40,7 @@ func newMilkyHealthFixture(t *testing.T, mode string) *milkyHealthFixture {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"status":"ok","retcode":0,"data":{"uin":10010,"nickname":"MilkyBot"}}`))
+			_, _ = w.Write([]byte(`{"status":"ok","retcode":0,"data":{"uin":10010,"nickname":"MilkyBot"}}`))
 			return
 		}
 		if !f.wsHealthy.Load() {
@@ -157,7 +157,7 @@ func TestMilkyHealthRejectsInvalidResponses(t *testing.T) {
 		`not JSON`,
 	} {
 		t.Run(body, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(body)) }))
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(body)) }))
 			defer server.Close()
 			if err := probeMilkyHealth(context.Background(), server.Client(), server.URL, "", "QQ:10010"); err == nil {
 				t.Fatal("invalid login response reported healthy")

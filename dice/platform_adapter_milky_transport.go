@@ -116,7 +116,7 @@ func probeMilkyHealth(ctx context.Context, client *http.Client, gateway, token, 
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("Milky health HTTP status %d", response.StatusCode)
+		return fmt.Errorf("milky health HTTP status %d", response.StatusCode)
 	}
 	var result struct {
 		Status  string `json:"status"`
@@ -129,10 +129,10 @@ func probeMilkyHealth(ctx context.Context, client *http.Client, gateway, token, 
 		return err
 	}
 	if result.Status != "ok" || result.RetCode != 0 || result.Data == nil || result.Data.UIN <= 0 {
-		return errors.New("Milky login info unavailable")
+		return errors.New("milky login info unavailable")
 	}
 	if fmt.Sprintf("QQ:%d", result.Data.UIN) != expectedUserID {
-		return errors.New("Milky account changed")
+		return errors.New("milky account changed")
 	}
 	return nil
 }

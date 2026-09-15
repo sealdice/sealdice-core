@@ -279,8 +279,8 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 	if runtime.GOOS == "windows" {
 		milkyExePath += ".exe" //nolint:ineffassign
 	}
-	if err := os.MkdirAll(workDir, 0o755); err != nil {
-		log.Errorf("创建 Milky 工作目录失败: %s", err)
+	if mkdirErr := os.MkdirAll(workDir, 0o755); mkdirErr != nil {
+		log.Errorf("创建 Milky 工作目录失败: %s", mkdirErr)
 		return
 	}
 	_ = os.Chmod(milkyExePath, 0o755)
