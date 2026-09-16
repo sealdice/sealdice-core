@@ -12,6 +12,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	qqconstant "github.com/sealdice/botgo/constant"
 	"github.com/sealdice/botgo/dto"
 	ds "github.com/sealdice/dicescript"
 	"gopkg.in/yaml.v3"
@@ -25,6 +26,40 @@ type officialQQTransportFunc func(ctx context.Context, method, url string, body 
 
 func (f officialQQTransportFunc) Transport(ctx context.Context, method, url string, body interface{}) ([]byte, error) {
 	return f(ctx, method, url, body)
+}
+
+func TestOfficialQQUsesUnifiedAPIDomain(t *testing.T) {
+	_ = newOfficialQQTokenSource("app-id", "app-secret")
+	const wantDomain = "https://api.bot.qq.com"
+	for name, domain := range map[string]string{
+		"token":   qqconstant.TokenDomain,
+		"openapi": qqconstant.APIDomain,
+		"sandbox": qqconstant.SandBoxAPIDomain,
+	} {
+		if domain != wantDomain {
+			t.Errorf("%s domain = %q, want %q", name, domain, wantDomain)
+		}
+	}
+
+	calls := 0
+	api := officialQQTransportFunc(func(_ context.Context, method, requestURL string, _ interface{}) ([]byte, error) {
+		calls++
+		switch {
+		case method == http.MethodGet && requestURL == wantDomain+"/users/@me":
+			return []byte(`{"id":"bot-open-id","username":"test bot"}`), nil
+		case method == http.MethodPost && requestURL == wantDomain+"/v2/generate_url_link":
+			return []byte(`{"url_link":"https://qun.qq.com/qunpro/robot/qunshare?robot_uin=123"}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", method, requestURL)
+			return nil, nil
+		}
+	})
+	if _, err := getOfficialQQBotInfo(t.Context(), api); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("API calls = %d, want 2", calls)
+	}
 }
 
 func TestServerOfficialQQSkipsRunningSessionBeforeStateChange(t *testing.T) {

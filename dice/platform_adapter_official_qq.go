@@ -48,6 +48,7 @@ var officialQQAtRegex = regexp.MustCompile(`(?:<qqbot-at-user\s+id="([^"]+)"\s*/
 const (
 	officialQQPassiveMsgLimit = 5
 	officialQQBatchPageSize   = 4
+	officialQQAPIDomain       = "https://api.bot.qq.com"
 )
 
 // officialQQMediaCodeRe 匹配富媒体 CQ 码(图片/语音)，用于消息单元化。
@@ -182,12 +183,14 @@ type officialQQTransport interface {
 	Transport(ctx context.Context, method, url string, body interface{}) ([]byte, error)
 }
 
-var officialQQTokenDomainOnce sync.Once
+var officialQQDomainOnce sync.Once
 
 func newOfficialQQTokenSource(appID, appSecret string) oauth2.TokenSource {
-	officialQQTokenDomainOnce.Do(func() {
-		// botgo reads this domain for initial tokens and subsequent refreshes.
-		qqconstant.TokenDomain = "https://api.bot.qq.com" //nolint:reassign // Override the SDK's configurable token host.
+	officialQQDomainOnce.Do(func() {
+		// botgo reads these domains when requesting tokens and OpenAPI endpoints.
+		qqconstant.TokenDomain = officialQQAPIDomain      //nolint:reassign // Override the SDK's configurable token host.
+		qqconstant.APIDomain = officialQQAPIDomain        //nolint:reassign // Override the SDK's configurable OpenAPI host.
+		qqconstant.SandBoxAPIDomain = officialQQAPIDomain //nolint:reassign // The official API now uses one host for both modes.
 	})
 	return qqtoken.NewQQBotTokenSource(&qqtoken.QQBotCredentials{
 		AppID:     appID,
