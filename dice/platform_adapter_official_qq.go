@@ -182,6 +182,19 @@ type officialQQTransport interface {
 	Transport(ctx context.Context, method, url string, body interface{}) ([]byte, error)
 }
 
+var officialQQTokenDomainOnce sync.Once
+
+func newOfficialQQTokenSource(appID, appSecret string) oauth2.TokenSource {
+	officialQQTokenDomainOnce.Do(func() {
+		// botgo reads this domain for initial tokens and subsequent refreshes.
+		qqconstant.TokenDomain = "https://api.bot.qq.com" //nolint:reassign // Override the SDK's configurable token host.
+	})
+	return qqtoken.NewQQBotTokenSource(&qqtoken.QQBotCredentials{
+		AppID:     appID,
+		AppSecret: appSecret,
+	})
+}
+
 func extractOfficialQQBotUIN(link string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(link))
 	if err != nil {
@@ -283,10 +296,7 @@ func ProbeOfficialQQAccount(ctx context.Context, appID, appSecret string) (*Offi
 	}
 	qqbot.SetLogger(NewDummyLogger())
 
-	tokenSource := qqtoken.NewQQBotTokenSource(&qqtoken.QQBotCredentials{
-		AppID:     appID,
-		AppSecret: appSecret,
-	})
+	tokenSource := newOfficialQQTokenSource(appID, appSecret)
 	if _, err := tokenSource.Token(); err != nil {
 		return nil, fmt.Errorf("获取 Access Token 失败: %w", err)
 	}
@@ -434,10 +444,7 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 	qqbot.SetLogger(NewDummyLogger())
 
 	// 初始化OAuth2 token source
-	pa.tokenSource = qqtoken.NewQQBotTokenSource(&qqtoken.QQBotCredentials{
-		AppID:     pa.AppID,
-		AppSecret: pa.AppSecret,
-	})
+	pa.tokenSource = newOfficialQQTokenSource(pa.AppID, pa.AppSecret)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	pa.Ctx, pa.CancelFunc = ctx, cancel
