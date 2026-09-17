@@ -67,10 +67,12 @@ func createReadDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 	if err = ensureIncrementalAutoVacuum(readPool); err != nil {
+		_ = readPool.Close()
 		return nil, err
 	}
 	err = SetDefaultPragmas(readPool)
 	if err != nil {
+		_ = readPool.Close()
 		return nil, err
 	}
 	configureReadPool(readPool)
@@ -90,6 +92,7 @@ func createWriteDB(path string, gormConf gorm.Config) (*gorm.DB, error) {
 	}
 	err = SetDefaultPragmas(writePool)
 	if err != nil {
+		_ = writePool.Close()
 		return nil, err
 	}
 	configureWritePool(writePool) // only use one active connection for writing
@@ -108,6 +111,7 @@ func SQLiteDBRWInit(path string) (*gorm.DB, *gorm.DB, error) {
 	}
 	writeDB, err := createWriteDB(path, gormConf)
 	if err != nil {
+		closeGormDB(readDB)
 		return nil, nil, err
 	}
 	return readDB, writeDB, nil

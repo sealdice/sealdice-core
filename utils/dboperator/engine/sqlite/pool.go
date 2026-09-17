@@ -5,7 +5,19 @@ import (
 	"fmt"
 	"runtime"
 	"time"
+
+	"gorm.io/gorm"
 )
+
+// closeGormDB 关闭 gorm DB 底层的连接池，用于初始化失败时的清理。
+func closeGormDB(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
+}
 
 // readMaxOpenConns 返回读连接池的最大连接数。
 // 使用 GOMAXPROCS 而非 NumCPU，以在容器中尊重 cgroup CPU 限制；

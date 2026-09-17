@@ -45,14 +45,16 @@ func connPragmaStatements() []string {
 func SetDefaultPragmas(db *sql.DB) error {
 	// journal_mode 是持久化设置，只需设置一次；连接级 pragma 由每个连接的钩子负责。
 	stmt := fmt.Sprintf("pragma %s = %s", "journal_mode", defaultPragmas["journal_mode"])
-	if _, err := db.Exec(stmt); err != nil {
+	// pragma 名/值均为本包常量，且 PRAGMA 语法不支持参数绑定，因此这里的拼接是安全的。
+	if _, err := db.Exec(stmt); err != nil { // nosemgrep: go.lang.security.audit.sqli.gosql-sqli
 		return err
 	}
 
 	// validate the pragmas
 	var val string
 	for k := range defaultPragmas {
-		row := db.QueryRow(fmt.Sprintf("pragma %s", k))
+		// pragma 名来自本包常量，且 PRAGMA 语法不支持参数绑定，因此这里的拼接是安全的。
+		row := db.QueryRow(fmt.Sprintf("pragma %s", k)) // nosemgrep: go.lang.security.audit.sqli.gosql-sqli
 		err := row.Scan(&val)
 		if err != nil {
 			return err
