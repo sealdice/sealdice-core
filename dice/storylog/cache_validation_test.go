@@ -1,3 +1,4 @@
+//nolint:testpackage // 测试需要访问包内的缓存探测函数和状态类型。
 package storylog
 
 import (

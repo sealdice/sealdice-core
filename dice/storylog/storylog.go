@@ -73,6 +73,8 @@ func Upload(env UploadEnv) (string, string, error) {
 func checkCachedLogURL(env UploadEnv, rawURL string) cachedLogProbeResult {
 	result := probeCachedLogURL(env, rawURL)
 	switch result {
+	case cachedLogProbeAlive:
+		return result
 	case cachedLogProbeMissing:
 		env.Log.Infof("之前上传的日志链接已失效，将重新上传 Log:%s.%s URL:%s", env.GroupID, env.LogName, rawURL)
 	case cachedLogProbeUnknown:

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -35,6 +36,7 @@ type PlatformAdapterSealChat struct {
 	RetryTimesLimit int  `json:"-" yaml:"-"`
 
 	// 心跳相关
+	heartbeatMu   sync.Mutex
 	heartbeatStop chan struct{}
 	lastPong      int64
 
@@ -232,12 +234,18 @@ func (pa *PlatformAdapterSealChat) tryReconnect(socket gowebsocket.Socket) bool 
 
 // startHeartbeat 启动心跳协程
 func (pa *PlatformAdapterSealChat) startHeartbeat() {
-	pa.stopHeartbeat()
-	pa.heartbeatStop = make(chan struct{})
+	pa.heartbeatMu.Lock()
+	if pa.heartbeatStop != nil {
+		close(pa.heartbeatStop)
+	}
+	heartbeatStop := make(chan struct{})
+	pa.heartbeatStop = heartbeatStop
+	pa.heartbeatMu.Unlock()
+
 	atomic.StoreInt64(&pa.lastPong, time.Now().Unix())
 	log := pa.EndPoint.Session.Parent.Logger
 
-	go func() {
+	go func(stop <-chan struct{}) {
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -258,22 +266,20 @@ func (pa *PlatformAdapterSealChat) startHeartbeat() {
 					pa.Socket.Close()
 					return
 				}
-			case <-pa.heartbeatStop:
+			case <-stop:
 				return
 			}
 		}
-	}()
+	}(heartbeatStop)
 }
 
 // stopHeartbeat 停止心跳协程
 func (pa *PlatformAdapterSealChat) stopHeartbeat() {
+	pa.heartbeatMu.Lock()
+	defer pa.heartbeatMu.Unlock()
+
 	if pa.heartbeatStop != nil {
-		select {
-		case <-pa.heartbeatStop:
-			// 已关闭
-		default:
-			close(pa.heartbeatStop)
-		}
+		close(pa.heartbeatStop)
 		pa.heartbeatStop = nil
 	}
 }
