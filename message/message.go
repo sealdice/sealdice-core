@@ -354,17 +354,31 @@ func CQToText(t string, d map[string]string) IMessageElement {
 
 // ExtractLocalTempFile 按路径提取临时文件，路径可以是 http/base64/本地路径
 func ExtractLocalTempFile(path string) (string, string, error) {
+	return ExtractLocalTempFileInDir(path, "")
+}
+
+// ExtractLocalTempFileInDir 将文件复制到指定临时目录；空目录仍使用系统临时目录。
+func ExtractLocalTempFileInDir(path string, dir string) (string, string, error) {
 	fileElement, err := FilepathToFileElement(path)
 	if err != nil {
 		return "", "", err
 	}
-	temp, err := os.CreateTemp("", "temp-")
-	defer func(temp *os.File) {
-		_ = temp.Close()
-	}(temp)
+	if dir != "" {
+		if mkdirErr := os.MkdirAll(dir, 0o755); mkdirErr != nil {
+			return "", "", mkdirErr
+		}
+	}
+	temp, err := os.CreateTemp(dir, "temp-")
 	if err != nil {
 		return "", "", err
 	}
+	keep := false
+	defer func() {
+		_ = temp.Close()
+		if !keep {
+			_ = os.Remove(temp.Name())
+		}
+	}()
 	data, err := io.ReadAll(fileElement.Stream)
 	if err != nil {
 		return "", "", err
@@ -373,6 +387,13 @@ func ExtractLocalTempFile(path string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	if dir != "" {
+		// OneBot 客户端可能运行在另一个容器，需能读取共享目录中的副本。
+		if err := temp.Chmod(0o644); err != nil {
+			return "", "", err
+		}
+	}
+	keep = true
 	return fileElement.File, temp.Name(), nil
 }
 
