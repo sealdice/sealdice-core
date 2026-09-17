@@ -49,9 +49,20 @@ func ReclaimIncrementalVacuum(db *gorm.DB) (int, error) {
 	if err := db.Raw("PRAGMA freelist_count").Row().Scan(&before); err != nil {
 		return 0, err
 	}
-	if err := db.Exec("PRAGMA incremental_vacuum;").Error; err != nil {
+
+	// PRAGMA incremental_vacuum 是逐行返回的语句，每一行代表回收一页。
+	// 必须遍历完整个结果集，否则只会回收第一页。
+	rows, err := db.Raw("PRAGMA incremental_vacuum;").Rows()
+	if err != nil {
 		return 0, err
 	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
 	var after int
 	if err := db.Raw("PRAGMA freelist_count").Row().Scan(&after); err != nil {
 		return 0, err

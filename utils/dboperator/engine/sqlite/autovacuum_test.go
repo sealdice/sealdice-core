@@ -151,8 +151,8 @@ func TestReclaimIncrementalVacuum(t *testing.T) {
 		t.Fatalf("ReclaimIncrementalVacuum: %v", err)
 	}
 	after := freelistCount(t, writeDB)
-	if after >= before {
-		t.Errorf("freelist_count = %d after reclaim, want < %d", after, before)
+	if after != 0 {
+		t.Errorf("freelist_count = %d after reclaim, want 0 (all free pages should be reclaimed)", after)
 	}
 	if reclaimed != before-after {
 		t.Errorf("reclaimed = %d, want before-after = %d", reclaimed, before-after)

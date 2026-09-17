@@ -92,7 +92,7 @@ func DBIncrementalVacuum(operator engine.DatabaseOperator) {
 			continue
 		}
 		if reclaimed > 0 {
-			log.Infof("数据库 %s 增量回收完成，回收 %d 页", name, reclaimed)
+			log.Debugf("数据库 %s 增量回收完成，回收 %d 页", name, reclaimed)
 		}
 	}
 }

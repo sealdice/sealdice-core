@@ -78,7 +78,7 @@ func TestDBIncrementalVacuumReclaims(t *testing.T) {
 
 	service.DBIncrementalVacuum(&fakeOperator{db: writeDB, typ: "sqlite"})
 
-	if after := freelistCount(t, writeDB); after >= before {
-		t.Errorf("freelist_count = %d after DBIncrementalVacuum, want < %d", after, before)
+	if after := freelistCount(t, writeDB); after != 0 {
+		t.Errorf("freelist_count = %d after DBIncrementalVacuum, want 0 (all free pages should be reclaimed)", after)
 	}
 }
