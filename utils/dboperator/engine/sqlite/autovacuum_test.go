@@ -38,6 +38,9 @@ func openEngine(t *testing.T, path string) (*gorm.DB, *gorm.DB) {
 		if db, e := readDB.DB(); e == nil {
 			_ = db.Close()
 		}
+		if db, e := writeDB.DB(); e == nil {
+			_ = db.Close()
+		}
 	})
 	return readDB, writeDB
 }
@@ -147,11 +150,12 @@ func TestReclaimIncrementalVacuum(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReclaimIncrementalVacuum: %v", err)
 	}
-	if reclaimed == 0 {
-		t.Errorf("reclaimed = 0, want > 0")
-	}
-	if after := freelistCount(t, writeDB); after >= before {
+	after := freelistCount(t, writeDB)
+	if after >= before {
 		t.Errorf("freelist_count = %d after reclaim, want < %d", after, before)
+	}
+	if reclaimed != before-after {
+		t.Errorf("reclaimed = %d, want before-after = %d", reclaimed, before-after)
 	}
 }
 

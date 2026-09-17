@@ -34,7 +34,8 @@ func ConvertToIncrementalAutoVacuum(db *gorm.DB) error {
 	})
 }
 
-// ReclaimIncrementalVacuum 在数据库为 INCREMENTAL 时回收空闲页，返回回收的页数。
+// ReclaimIncrementalVacuum 在数据库为 INCREMENTAL 时回收空闲页，
+// 返回本次实际回收（freelist 减少）的页数。
 func ReclaimIncrementalVacuum(db *gorm.DB) (int, error) {
 	var mode int
 	if err := db.Raw("PRAGMA auto_vacuum").Row().Scan(&mode); err != nil {
@@ -51,8 +52,12 @@ func ReclaimIncrementalVacuum(db *gorm.DB) (int, error) {
 	if err := db.Exec("PRAGMA incremental_vacuum;").Error; err != nil {
 		return 0, err
 	}
+	var after int
+	if err := db.Raw("PRAGMA freelist_count").Row().Scan(&after); err != nil {
+		return 0, err
+	}
 	if err := db.Exec("PRAGMA optimize;").Error; err != nil {
 		return 0, err
 	}
-	return before, nil
+	return before - after, nil
 }
