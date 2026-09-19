@@ -18,7 +18,10 @@ import (
 var (
 	engine            operator.DatabaseOperator
 	once              sync.Once
+	closeOnce         sync.Once
 	errEngineInstance error
+	// rootCtx 是数据库引擎的统一上下文，在 Close 时被取消。
+	rootCtx, cancelRoot = context.WithCancel(context.Background())
 )
 
 // initEngine 初始化数据库引擎，仅执行一次
@@ -40,8 +43,7 @@ func initEngine() {
 		log.Warn("未配置数据库类型，默认使用: SQLITE数据库")
 		engine = &sqlite.SQLiteEngine{}
 	}
-	// TODO: 使用统一管理的context，以确保在程序关闭时，可以正确销毁数据库的context从而优雅退出
-	errEngineInstance = engine.Init(context.Background())
+	errEngineInstance = engine.Init(rootCtx)
 	if errEngineInstance != nil {
 		log.Error("数据库引擎初始化失败:", errEngineInstance)
 	}
@@ -56,6 +58,23 @@ func getEngine() (operator.DatabaseOperator, error) {
 // GetDatabaseOperator 初始化数据和日志数据库
 func GetDatabaseOperator() (operator.DatabaseOperator, error) {
 	return getEngine()
+}
+
+// Context 返回数据库引擎的统一上下文，在 Close 时被取消。
+func Context() context.Context {
+	return rootCtx
+}
+
+// Close 取消数据库引擎上下文并关闭所有数据库连接，用于程序退出时优雅释放资源。
+func Close() {
+	closeOnce.Do(func() {
+		if cancelRoot != nil {
+			cancelRoot()
+		}
+		if engine != nil {
+			engine.Close()
+		}
+	})
 }
 
 // DBCheck 检查数据库状态
