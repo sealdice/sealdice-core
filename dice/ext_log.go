@@ -634,7 +634,17 @@ func RegisterBuiltinExtLog(self *Dice) {
 				} else {
 					uri = "files://" + logFile
 				}
-				SendFileToSenderRaw(ctx, msg, uri, "skip")
+				if pa, ok := ctx.EndPoint.Adapter.(*PlatformAdapterGocq); ok {
+					// OneBot 异步上传需要保留副本，并让客户端能从共享数据目录读取。
+					tempDir := filepath.Dir(logFile)
+					if msg.MessageType == "group" {
+						pa.sendFileToGroup(ctx, msg.GroupID, logFile, "skip", tempDir)
+					} else {
+						pa.sendFileToPerson(ctx, msg.Sender.UserID, logFile, tempDir)
+					}
+				} else {
+					SendFileToSenderRaw(ctx, msg, uri, "skip")
+				}
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
 				reply := DiceFormatTmpl(ctx, "日志:记录_导出_成功")
 				if notice != "" {
@@ -1162,7 +1172,14 @@ func LogEditByID(ctx *MsgContext, groupID, content string, messageID interface{}
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, string, error) {
 	// 创建临时文件
 	tempPattern, notice := storylog.BuildTempPattern(fileNamePrefix)
-	tempLog, err := os.CreateTemp("", tempPattern)
+	tempDir, err := filepath.Abs(filepath.Join(ctx.Dice.BaseConfig.DataDir, "temp"))
+	if err != nil {
+		return "", notice, fmt.Errorf("获取日志导出临时目录失败: %w", err)
+	}
+	if mkdirErr := os.MkdirAll(tempDir, 0o755); mkdirErr != nil {
+		return "", notice, fmt.Errorf("创建日志导出临时目录失败: %w", mkdirErr)
+	}
+	tempLog, err := os.CreateTemp(tempDir, tempPattern)
 	if err != nil {
 		return "", notice, errors.New("log导出出现未知错误")
 	}

@@ -441,6 +441,10 @@ func (pa *PlatformAdapterGocq) SendPrivateForwardMsg(ctx *MsgContext, userID str
 }
 
 func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, path string, _ string) {
+	pa.sendFileToPerson(ctx, userID, path, "")
+}
+
+func (pa *PlatformAdapterGocq) sendFileToPerson(ctx *MsgContext, userID string, path string, tempDir string) {
 	rawID, idType := pa.mustExtractID(userID)
 	if idType != QQUidPerson {
 		return
@@ -448,7 +452,7 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, 
 
 	dice := pa.EndPoint.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
-	fileName, temp, err := message.ExtractLocalTempFile(path)
+	fileName, temp, err := message.ExtractLocalTempFileInDir(path, tempDir)
 
 	// 删除文件后 lagrange 发送不出去，先注释掉
 	// defer func(name string) {
@@ -478,6 +482,10 @@ func (pa *PlatformAdapterGocq) SendFileToPerson(ctx *MsgContext, userID string, 
 }
 
 func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, path string, flag string) {
+	pa.sendFileToGroup(ctx, groupID, path, flag, "")
+}
+
+func (pa *PlatformAdapterGocq) sendFileToGroup(ctx *MsgContext, groupID string, path string, flag string, tempDir string) {
 	if groupID == "" {
 		return
 	}
@@ -490,7 +498,7 @@ func (pa *PlatformAdapterGocq) SendFileToGroup(ctx *MsgContext, groupID string, 
 
 	dice := pa.EndPoint.Session.Parent
 	// 路径可以是 http/base64/本地路径，但 gocq 的文件上传只支持本地文件，所以临时下载到本地
-	fileName, temp, err := message.ExtractLocalTempFile(path)
+	fileName, temp, err := message.ExtractLocalTempFileInDir(path, tempDir)
 
 	// 删除文件后 lagrange 发送不出去，先注释掉
 	// defer func(name string) {
