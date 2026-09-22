@@ -50,6 +50,10 @@ func (s *MYSQLEngine) GetCensorDB(_ constant.DBMode) *gorm.DB {
 	return s.censorDB
 }
 
+func (s *MYSQLEngine) GetBackupInfo() (string, map[string]string) {
+	return constant.MYSQL, nil
+}
+
 func (s *MYSQLEngine) Init(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("ctx is missing")
@@ -102,5 +106,5 @@ func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
 }
 
 func (s *MYSQLEngine) Type() string {
-	return "mysql"
+	return constant.MYSQL
 }

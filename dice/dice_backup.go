@@ -118,33 +118,44 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	}(writer)
 
 	fileOK := func(fn string) bool {
-		stat, err := os.Stat(fn)
-		return err == nil && !stat.IsDir()
+		stat, statErr := os.Stat(fn)
+		return statErr == nil && !stat.IsDir()
 	}
 	dirOK := func(fn string) bool {
-		stat, err := os.Stat(fn)
-		return err == nil && stat.IsDir()
+		stat, statErr := os.Stat(fn)
+		return statErr == nil && stat.IsDir()
 	}
 
 	backup := func(d *Dice, fn string) {
-		file, err := os.Open(fn)
-		if err != nil && !strings.Contains(fn, "session.token") {
+		file, openErr := os.Open(fn)
+		if openErr != nil && !strings.Contains(fn, "session.token") {
 			if d != nil {
-				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, openErr.Error())
 			} else {
-				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+				logger.Errorf("备份文件失败: %s, 原因: %s", fn, openErr.Error())
 			}
 			return
 		}
 		defer file.Close()
 
-		h := &zip.FileHeader{Name: fn, Method: zip.Deflate, Flags: 0x800}
-		fileWriter, err := writer.CreateHeader(h)
-		if err != nil {
+		zipName := filepath.ToSlash(fn)
+		if filepath.IsAbs(fn) {
+			if wd, wdErr := os.Getwd(); wdErr == nil {
+				if rel, relErr := filepath.Rel(wd, fn); relErr == nil {
+					zipName = filepath.ToSlash(rel)
+				}
+			} else if rel, relErr := filepath.Rel(".", fn); relErr == nil {
+				zipName = filepath.ToSlash(rel)
+			}
+		}
+
+		h := &zip.FileHeader{Name: zipName, Method: zip.Deflate, Flags: 0x800}
+		fileWriter, createErr := writer.CreateHeader(h)
+		if createErr != nil {
 			if d != nil {
-				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+				d.Logger.Errorf("备份文件失败: %s, 原因: %s", fn, createErr.Error())
 			} else {
-				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
+				logger.Errorf("备份文件失败: %s, 原因: %s", fn, createErr.Error())
 			}
 			return
 		}
@@ -224,6 +235,12 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 
 	withJS := sel&BackupSelectionJS != 0
 	cfgDice.JSScripts = withJS
+	databaseType := ""
+	databaseIncluded := false
+	var databaseFiles map[string]string
+	if dm.Operator != nil {
+		databaseType, databaseFiles = dm.Operator.GetBackupInfo()
+	}
 
 	for _, d := range dm.Dice {
 		cfgGlb.Dices[d.BaseConfig.Name] = &cfgDice
@@ -235,27 +252,6 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 		}
 		if fn := filepath.Join(dataDir, "configs", "plugin-configs.json"); fileOK(fn) {
 			backup(d, fn)
-		}
-
-		err := service.FlushWAL(d.DBOperator.GetDataDB(constant.WRITE))
-		if err != nil {
-			d.Logger.Errorf("备份时data数据库flush出错 错误为:%v", err.Error())
-		} else {
-			backup(d, filepath.Join(dataDir, "data.db"))
-		}
-		err = service.FlushWAL(d.DBOperator.GetLogDB(constant.WRITE))
-		if err != nil {
-			d.Logger.Errorf("备份时logs数据库flush出错 错误为:%v", err.Error())
-		} else {
-			backup(d, filepath.Join(dataDir, "data-logs.db"))
-		}
-		if d.CensorManager != nil && d.CensorManager.DB != nil {
-			err = service.FlushWAL(d.DBOperator.GetCensorDB(constant.WRITE))
-			if err != nil {
-				d.Logger.Errorf("备份时censor数据库flush出错 %v", err.Error())
-			} else {
-				backup(d, filepath.Join(dataDir, "data-censor.db"))
-			}
 		}
 
 		backup(d, filepath.Join(dataDir, "configs/text-template.yaml"))
@@ -325,11 +321,42 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 		}
 	}
 
+	if databaseType == constant.SQLITE && dm.Operator != nil {
+		databaseIncluded = true
+		if err = service.FlushWAL(dm.Operator.GetDataDB(constant.WRITE)); err != nil {
+			logger.Errorf("备份时data数据库flush出错 错误为:%v", err.Error())
+		} else if fn := databaseFiles["data"]; fn != "" {
+			backup(nil, fn)
+		}
+		if err = service.FlushWAL(dm.Operator.GetLogDB(constant.WRITE)); err != nil {
+			logger.Errorf("备份时logs数据库flush出错 错误为:%v", err.Error())
+		} else if fn := databaseFiles["logs"]; fn != "" {
+			backup(nil, fn)
+		}
+
+		needCensorBackup := false
+		for _, d := range dm.Dice {
+			if d.CensorManager != nil && d.CensorManager.DB != nil {
+				needCensorBackup = true
+				break
+			}
+		}
+		if needCensorBackup {
+			if err = service.FlushWAL(dm.Operator.GetCensorDB(constant.WRITE)); err != nil {
+				logger.Errorf("备份时censor数据库flush出错 %v", err.Error())
+			} else if fn := databaseFiles["censor"]; fn != "" {
+				backup(nil, fn)
+			}
+		}
+	}
+
 	// 写入文件信息
 	data, _ := json.Marshal(map[string]interface{}{
-		"config":      cfgGlb,
-		"version":     VERSION.String(),
-		"versionCode": VERSION_CODE,
+		"config":           cfgGlb,
+		"version":          VERSION.String(),
+		"versionCode":      VERSION_CODE,
+		"databaseType":     databaseType,
+		"databaseIncluded": databaseIncluded,
 	})
 
 	h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
