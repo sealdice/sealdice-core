@@ -54,8 +54,8 @@ require (
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/mroth/weightedrand/v3 v3.0.0
-	github.com/ncruces/go-sqlite3 v0.32.0
-	github.com/ncruces/go-sqlite3/gormlite v0.24.0
+	github.com/ncruces/go-sqlite3 v0.34.0
+	github.com/ncruces/go-sqlite3/gormlite v0.34.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/otiai10/copy v1.14.1
@@ -181,6 +181,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
+	github.com/ncruces/go-sqlite3-wasm/v2 v2.1.35300 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect
@@ -198,7 +199,6 @@ require (
 	github.com/sunshineplan/pdf v1.0.8 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.8.12 // indirect
-	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/tidwall/btree v1.8.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
