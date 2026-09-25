@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	milky "github.com/Szzrain/Milky-go-sdk"
+	"github.com/bytedance/sonic"
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
@@ -517,6 +519,9 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 	log.Info(txt)
 	ctx.Notice(txt, NoticeTypeInvite)
 
+	// 通知类事件：好友申请（仅通知，不携带同意/拒绝能力）
+	EmitFriendRequest(ctx, uid, comment)
+
 	// 忽略邀请
 	if pa.IgnoreFriendRequest {
 		return
@@ -552,6 +557,9 @@ func (pa *PlatformAdapterMilky) handelFriendRequest(ctx *MsgContext, event *milk
 			},
 		}
 		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+
+		// 通知类事件：成为好友
+		EmitFriendJoined(ctx, msg)
 
 		welcome := DiceFormatTmpl(ctx, "核心:骰子成为好友")
 		log.Infof("与 %s 成为好友，发送好友致辞: %s", uid, welcome)
@@ -1072,4 +1080,370 @@ func ExtractQQGroupID(id string) string {
 		return id[len("QQ-Group:"):]
 	}
 	return id
+}
+
+// registerMilkyAdapterCapabilities milky 能力声明。RawAction 直接包装 Milky SDK 的 REST 能力（标量参数动作）。
+func registerMilkyAdapterCapabilities() {
+	RegisterAdapterCapabilities(AdapterCapabilitySet{
+		ProtocolType: "milky",
+		Platform:     "QQ",
+		EmitEvents: map[string]AdapterEventSpec{
+			EventNamePoke:              {Name: EventNamePoke, Description: "戳一戳"},
+			EventNameGroupJoined:       {Name: EventNameGroupJoined, Description: "骰子加入群"},
+			EventNameGroupMemberJoined: {Name: EventNameGroupMemberJoined, Description: "群成员加入"},
+			EventNameGroupLeave:        {Name: EventNameGroupLeave, Description: "群成员离开/被踢"},
+			EventNameFriendJoined:      {Name: EventNameFriendJoined, Description: "成为好友"},
+			EventNameFriendRequest:     {Name: EventNameFriendRequest, Description: "好友申请（仅通知）", RequestOnly: true},
+			EventNameMessageDeleted:    {Name: EventNameMessageDeleted, Description: "消息撤回"},
+		},
+		RawActions: map[string]AdapterRawActionSpec{
+			"get_login_info":                 {Name: "get_login_info", Description: "获取登录号信息"},
+			"get_user_profile":               {Name: "get_user_profile", Description: "获取用户资料", Params: map[string]string{"user_id": "int64"}},
+			"get_friend_list":                {Name: "get_friend_list", Description: "获取好友列表", Params: map[string]string{"no_cache": "bool 可选"}},
+			"get_friend_info":                {Name: "get_friend_info", Description: "获取好友信息", Params: map[string]string{"user_id": "int64", "no_cache": "bool 可选"}},
+			"get_group_list":                 {Name: "get_group_list", Description: "获取群列表", Params: map[string]string{"no_cache": "bool 可选"}},
+			"get_group_info":                 {Name: "get_group_info", Description: "获取群信息", Params: map[string]string{"group_id": "int64", "no_cache": "bool 可选"}},
+			"get_group_member_list":          {Name: "get_group_member_list", Description: "获取群成员列表", Params: map[string]string{"group_id": "int64", "no_cache": "bool 可选"}},
+			"get_group_member_info":          {Name: "get_group_member_info", Description: "获取群成员信息", Params: map[string]string{"group_id": "int64", "user_id": "int64", "no_cache": "bool 可选"}},
+			"get_message":                    {Name: "get_message", Description: "获取消息", Params: map[string]string{"message_scene": "string group/private", "peer_id": "int64", "message_seq": "int64"}},
+			"get_history_messages":           {Name: "get_history_messages", Description: "获取历史消息", Params: map[string]string{"message_scene": "string", "peer_id": "int64", "start_message_seq": "int64", "limit": "int32"}},
+			"send_group_nudge":               {Name: "send_group_nudge", Description: "群内戳一戳", Params: map[string]string{"group_id": "int64", "user_id": "int64"}},
+			"send_friend_nudge":              {Name: "send_friend_nudge", Description: "好友戳一戳", Params: map[string]string{"user_id": "int64", "is_self": "bool 可选"}},
+			"set_group_member_mute":          {Name: "set_group_member_mute", Description: "禁言群成员", Params: map[string]string{"group_id": "int64", "user_id": "int64", "duration": "int32秒 0解禁"}},
+			"set_group_whole_mute":           {Name: "set_group_whole_mute", Description: "全员禁言", Params: map[string]string{"group_id": "int64", "is_mute": "bool"}},
+			"set_group_member_card":          {Name: "set_group_member_card", Description: "设置群名片", Params: map[string]string{"group_id": "int64", "user_id": "int64", "card": "string"}},
+			"set_group_member_special_title": {Name: "set_group_member_special_title", Description: "设置群头衔", Params: map[string]string{"group_id": "int64", "user_id": "int64", "special_title": "string"}},
+			"set_group_member_admin":         {Name: "set_group_member_admin", Description: "设置/取消群管理员", Params: map[string]string{"group_id": "int64", "user_id": "int64", "is_set": "bool"}},
+			"set_group_name":                 {Name: "set_group_name", Description: "设置群名", Params: map[string]string{"group_id": "int64", "new_group_name": "string"}},
+			"kick_group_member":              {Name: "kick_group_member", Description: "移出群聊", Params: map[string]string{"group_id": "int64", "user_id": "int64", "reject_add_request": "bool 可选"}},
+			"quit_group":                     {Name: "quit_group", Description: "退出群聊", Params: map[string]string{"group_id": "int64"}},
+			"recall_group_message":           {Name: "recall_group_message", Description: "撤回群消息", Params: map[string]string{"group_id": "int64", "message_seq": "int64"}},
+			"recall_private_message":         {Name: "recall_private_message", Description: "撤回私聊消息", Params: map[string]string{"user_id": "int64", "message_seq": "int64"}},
+			"set_group_essence_message":      {Name: "set_group_essence_message", Description: "设置/取消群精华消息", Params: map[string]string{"group_id": "int64", "message_seq": "int64", "is_set": "bool"}},
+			"send_group_message_reaction":    {Name: "send_group_message_reaction", Description: "群消息表情回应", Params: map[string]string{"group_id": "int64", "message_seq": "int64", "reaction": "string", "is_set": "bool"}},
+			"mark_message_as_read":           {Name: "mark_message_as_read", Description: "标记消息已读", Params: map[string]string{"message_scene": "string", "peer_id": "int64", "message_seq": "int64"}},
+			"accept_friend_request":          {Name: "accept_friend_request", Description: "同意好友申请", Params: map[string]string{"initiator_uid": "string", "is_filtered": "bool 可选"}},
+			"reject_friend_request":          {Name: "reject_friend_request", Description: "拒绝好友申请", Params: map[string]string{"initiator_uid": "string", "is_filtered": "bool 可选", "reason": "string 可选"}},
+			"accept_group_request":           {Name: "accept_group_request", Description: "同意加群请求/邀请", Params: map[string]string{"notification_seq": "int64", "notification_type": "string", "group_id": "int64", "is_filtered": "bool 可选"}},
+			"reject_group_invitation":        {Name: "reject_group_invitation", Description: "拒绝加群邀请", Params: map[string]string{"group_id": "int64", "invitation_seq": "int64"}},
+		},
+	})
+}
+
+// rawActionParam 从 map 参数取 int64，缺失或类型不符时报错。
+func rawActionParam(params map[string]any, key string) (int64, error) {
+	v, ok := params[key]
+	if !ok {
+		return 0, fmt.Errorf("缺少参数 %s", key)
+	}
+	switch n := v.(type) {
+	case int64:
+		return n, nil
+	case int:
+		return int64(n), nil
+	case float64:
+		return int64(n), nil
+	default:
+		return 0, fmt.Errorf("参数 %s 类型不符: %T", key, v)
+	}
+}
+
+// rawActionInt32 从 map 参数取 int32，缺省返回 def。
+func rawActionInt32(params map[string]any, key string, def int32) (int32, error) {
+	v, ok := params[key]
+	if !ok || v == nil {
+		return def, nil
+	}
+	n, err := rawActionParam(params, key)
+	if err != nil {
+		return 0, err
+	}
+	return int32(n), nil
+}
+
+// rawActionStr 从 map 参数取 string，缺省返回 def。
+func rawActionStr(params map[string]any, key string, def string) string {
+	v, ok := params[key]
+	if !ok || v == nil {
+		return def
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return def
+}
+
+// rawActionBool 从 map 参数取 bool，缺省返回 def。
+func rawActionBool(params map[string]any, key string, def bool) bool {
+	v, ok := params[key]
+	if !ok || v == nil {
+		return def
+	}
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	return def
+}
+
+// milkyRawResult 把 SDK 返回的结构体转为 map（sonic 往返），字段与 JSON 一致。
+func milkyRawResult(ret any, err error) (any, error) {
+	if err != nil {
+		return nil, err
+	}
+	if ret == nil {
+		return map[string]any{"ok": true}, nil
+	}
+	raw, mErr := sonic.Marshal(ret)
+	if mErr != nil {
+		//nolint:nilerr // 尽力而为的序列化，失败回退 ok 标记
+		return map[string]any{"ok": true}, nil
+	}
+	var out any
+	if uErr := sonic.Unmarshal(raw, &out); uErr != nil {
+		//nolint:nilerr // 尽力而为的序列化，失败回退 ok 标记
+		return map[string]any{"ok": true}, nil
+	}
+	return out, nil
+}
+
+// RawAction milky 动作透传（标量参数动作，直接包装 SDK）。
+func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, params map[string]any) (any, error) {
+	if pa.IntentSession == nil {
+		return nil, errors.New("milky 端点未连接")
+	}
+	s := pa.IntentSession
+	switch action {
+	case "get_login_info":
+		return milkyRawResult(s.GetLoginInfo())
+	case "get_user_profile":
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetUserProfile(uid))
+	case "get_friend_list":
+		return milkyRawResult(s.GetFriendList(rawActionBool(params, "no_cache", false)))
+	case "get_friend_info":
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetFriendInfo(uid, rawActionBool(params, "no_cache", false)))
+	case "get_group_list":
+		return milkyRawResult(s.GetGroupList(rawActionBool(params, "no_cache", false)))
+	case "get_group_info":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetGroupInfo(gid, rawActionBool(params, "no_cache", false)))
+	case "get_group_member_list":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetGroupMemberList(gid, rawActionBool(params, "no_cache", false)))
+	case "get_group_member_info":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetGroupMemberInfo(gid, uid, rawActionBool(params, "no_cache", false)))
+	case "get_message":
+		peerID, err := rawActionParam(params, "peer_id")
+		if err != nil {
+			return nil, err
+		}
+		seq, err := rawActionParam(params, "message_seq")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetMessage(rawActionStr(params, "message_scene", "group"), peerID, seq))
+	case "get_history_messages":
+		peerID, err := rawActionParam(params, "peer_id")
+		if err != nil {
+			return nil, err
+		}
+		startSeq, err := rawActionParam(params, "start_message_seq")
+		if err != nil {
+			return nil, err
+		}
+		limit, err := rawActionInt32(params, "limit", 10)
+		if err != nil {
+			return nil, err
+		}
+		msgs, nextSeq, err := s.GetHistoryMessages(rawActionStr(params, "message_scene", "group"), peerID, startSeq, limit)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"messages": msgs, "next_message_seq": nextSeq}, nil
+	case "send_group_nudge":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SendGroupNudge(gid, uid))
+	case "send_friend_nudge":
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SendFriendNudge(uid, rawActionBool(params, "is_self", false)))
+	case "set_group_member_mute":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		duration, err := rawActionInt32(params, "duration", 0)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupMemberMute(gid, uid, duration))
+	case "set_group_whole_mute":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupWholeMute(gid, rawActionBool(params, "is_mute", true)))
+	case "set_group_member_card":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupMemberCard(gid, uid, rawActionStr(params, "card", "")))
+	case "set_group_member_special_title":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupMemberSpecialTitle(gid, uid, rawActionStr(params, "special_title", "")))
+	case "set_group_member_admin":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupMemberAdmin(gid, uid, rawActionBool(params, "is_set", true)))
+	case "set_group_name":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupName(gid, rawActionStr(params, "new_group_name", "")))
+	case "kick_group_member":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.KickGroupMember(gid, uid, rawActionBool(params, "reject_add_request", false)))
+	case "quit_group":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.QuitGroup(gid))
+	case "recall_group_message":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		seq, err := rawActionParam(params, "message_seq")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.RecallGroupMessage(gid, seq))
+	case "recall_private_message":
+		uid, err := rawActionParam(params, "user_id")
+		if err != nil {
+			return nil, err
+		}
+		seq, err := rawActionParam(params, "message_seq")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.RecallPrivateMessage(uid, seq))
+	case "set_group_essence_message":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		seq, err := rawActionParam(params, "message_seq")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupEssenceMessage(gid, seq, rawActionBool(params, "is_set", true)))
+	case "send_group_message_reaction":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		seq, err := rawActionParam(params, "message_seq")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SendGroupMessageReaction(gid, seq, rawActionStr(params, "reaction", ""), rawActionBool(params, "is_set", true)))
+	case "mark_message_as_read":
+		peerID, err := rawActionParam(params, "peer_id")
+		if err != nil {
+			return nil, err
+		}
+		seq, err := rawActionParam(params, "message_seq")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.MarkMessageAsRead(rawActionStr(params, "message_scene", "group"), peerID, seq))
+	case "accept_friend_request":
+		return milkyRawResult(nil, s.AcceptFriendRequest(rawActionStr(params, "initiator_uid", ""), rawActionBool(params, "is_filtered", false)))
+	case "reject_friend_request":
+		return milkyRawResult(nil, s.RejectFriendRequest(rawActionStr(params, "initiator_uid", ""), rawActionBool(params, "is_filtered", false), rawActionStr(params, "reason", "")))
+	case "accept_group_request":
+		seq, err := rawActionParam(params, "notification_seq")
+		if err != nil {
+			return nil, err
+		}
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.AcceptGroupRequest(seq, rawActionStr(params, "notification_type", "group_request"), gid, rawActionBool(params, "is_filtered", false)))
+	case "reject_group_invitation":
+		gid, err := rawActionParam(params, "group_id")
+		if err != nil {
+			return nil, err
+		}
+		seq, err := rawActionParam(params, "invitation_seq")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.RejectGroupInvitation(gid, seq))
+	default:
+		return nil, fmt.Errorf("milky 不支持动作 %s", action)
+	}
 }

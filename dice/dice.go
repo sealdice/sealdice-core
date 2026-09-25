@@ -283,6 +283,9 @@ type Dice struct {
 
 	/* 保存优化 */
 	DirtyGroups *SyncMap[string, int64] `json:"-" yaml:"-"` // 脏群组列表：groupID -> UpdatedAtTime
+
+	/* 适配器事件总线 */
+	EventBus *EventBus `json:"-" yaml:"-"`
 }
 
 var globalRandSource = randcore.NewGlobalOwner(logger.M())
@@ -338,6 +341,10 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	// ActiveWithGraph 通过 activeWithGraph() 方法懒加载，无需在此初始化
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.DirtyGroups = new(SyncMap[string, int64]) // 脏群组列表
+	// 适配器事件总线：先装配总线与兼容订阅器，再进入后续 JS/端点加载，
+	// 保证旧逻辑订阅先于任何插件订阅注册（分发顺序与旧行为一致）。
+	d.EventBus = NewEventBus(d)
+	d.registerAdapterEventCompat()
 	d.ConfigManager = NewConfigManager(filepath.Join(d.BaseConfig.DataDir, "configs", "plugin-configs.json"))
 	err = d.ConfigManager.Load()
 	if err != nil {

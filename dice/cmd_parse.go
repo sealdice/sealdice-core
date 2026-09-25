@@ -9,7 +9,6 @@ import (
 	"unicode"
 
 	ds "github.com/sealdice/dicescript"
-	"github.com/tidwall/gjson"
 
 	"sealdice-core/message"
 )
@@ -94,6 +93,21 @@ func (i *AtInfo) CopyCtx(ctx *MsgContext) (*MsgContext, bool) {
 	return mctx, false
 }
 
+type ParsedCommand struct {
+	Command             string
+	Args                []string
+	Kwargs              []*Kwarg
+	At                  []*AtInfo
+	RawArgs             string
+	CleanArgs           string
+	RawText             string
+	Projection          message.SegmentText
+	Prefix              string
+	PlatformPrefix      string
+	SpecialExecuteTimes int
+	IsSpaceBeforeArgs   bool
+}
+
 type CmdArgs struct {
 	Command                    string    `jsbind:"command"                  json:"command"`
 	Args                       []string  `jsbind:"args"                     json:"args"`
@@ -110,9 +124,29 @@ type CmdArgs struct {
 	prefixStr                  string    // 命令前导符号，这几个用于基于当前cmdArgs信息重走解析流程，暂不对js开放
 	platformPrefix             string    // 平台前缀
 	uidForAtInfo               string    // 用于处理@的uid
+	parsed                     *ParsedCommand
 
 	MentionedOtherDice bool   // 似乎没有在用
 	CleanArgsChopRest  string // 未来可能移除
+}
+
+func (cmdArgs *CmdArgs) applyParsed(parsed *ParsedCommand) *CmdArgs {
+	if parsed == nil {
+		return nil
+	}
+	cmdArgs.parsed = parsed
+	cmdArgs.Command = parsed.Command
+	cmdArgs.Args = append(cmdArgs.Args[:0], parsed.Args...)
+	cmdArgs.Kwargs = append(cmdArgs.Kwargs[:0], parsed.Kwargs...)
+	cmdArgs.At = parsed.At
+	cmdArgs.RawArgs = parsed.RawArgs
+	cmdArgs.CleanArgs = parsed.CleanArgs
+	cmdArgs.RawText = parsed.RawText
+	cmdArgs.IsSpaceBeforeArgs = parsed.IsSpaceBeforeArgs
+	cmdArgs.SpecialExecuteTimes = parsed.SpecialExecuteTimes
+	cmdArgs.prefixStr = parsed.Prefix
+	cmdArgs.platformPrefix = parsed.PlatformPrefix
+	return cmdArgs
 }
 
 /** 检查第N项参数是否为某个字符串，n从1开始，若没有第n项参数也视为失败 */
@@ -204,16 +238,11 @@ func (cmdArgs *CmdArgs) GetRestArgsFrom(index int) string {
 	return strings.Join(txt, " ")
 }
 
-// RevokeExecuteTimesParse 因为次数解析进行的太早了，影响太大无法还原，这里干脆重新解析一遍
+// RevokeExecuteTimesParse 因为次数解析进行的太早了，影响太大无法还原，这里干脆重新解析一遍。
+// 以当前 canonical Segment 重新投影解析，避免用 RawText 覆盖消息段。
 func (cmdArgs *CmdArgs) RevokeExecuteTimesParse(ctx *MsgContext, msg *Message) {
-	// 对于使用消息段的信息，使用新的解析方式
-	if len(msg.Segment) > 0 {
-		cmdArgs.commandParseNew(ctx, msg, true)
-	} else {
-		cmdArgs.commandParse(cmdArgs.RawText, []string{cmdArgs.Command}, []string{cmdArgs.prefixStr}, cmdArgs.platformPrefix, true)
-		cmdArgs.applyMentionedInfo(msg)
-		cmdArgs.SetupAtInfo(cmdArgs.uidForAtInfo)
-	}
+	NormalizeIncomingMessage(msg)
+	cmdArgs.commandParseNew(ctx, msg, true)
 }
 
 func (cmdArgs *CmdArgs) applyMentionedInfo(msg *Message) {
@@ -376,173 +405,117 @@ func (cmdArgs *CmdArgs) commandParse(rawCmd string, currentCmdLst []string, pref
 	return nil
 }
 
+func projectCommandSegmentsToText(segments []message.IMessageElement) message.SegmentText {
+	firstTextIndex := -1
+	for idx, elem := range segments {
+		if _, ok := elem.(*message.TextElement); ok {
+			firstTextIndex = idx
+			break
+		}
+	}
+	if firstTextIndex < 0 {
+		return message.SegmentText{}
+	}
+
+	commandSegments := make([]message.IMessageElement, 0, len(segments)-firstTextIndex)
+	for _, elem := range segments[firstTextIndex:] {
+		if _, ok := elem.(*message.AtElement); ok {
+			continue
+		}
+		commandSegments = append(commandSegments, elem)
+	}
+	return message.ProjectSegmentsToText(commandSegments)
+}
+
 // commandParseNew 新版命令解析器，支持消息段解析，替代旧的字符串解析方式
-// 核心功能：从消息段中提取文本和@信息，检测命令前缀，匹配命令，解析参数
+// 核心功能：从消息段投影文本和非文本占位符，检测命令前缀，匹配命令，解析参数。
 func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseExecuteTimes bool) *CmdArgs {
 	d := ctx.Session.Parent
 
-	// === 第一步：从消息段提取文本内容 ===
-	// 消息混合，但如果是指令，从第一个文本消息开始后面的一定是参数。
-	textMsg := extractResultFromSegments(msg.Segment)
-	rawCmd := strings.ReplaceAll(textMsg, "\r\n", "\n") // 统一换行符格式
+	projection := projectCommandSegmentsToText(msg.Segment)
+	rawCmd := strings.ReplaceAll(projection.Text, "\r\n", "\n") // 统一换行符格式
 
-	// === 第二步：解析@信息 ===
-	// 分析消息段中的@元素，设置机器人被@状态
-	parseAtInfo(cmdArgs, msg, ctx.EndPoint.UserID)
-	cmdArgs.applyMentionedInfo(msg)
+	parseAtInfo(cmdArgs, msg, computeAtUID(ctx.EndPoint, msg))
 
-	// === 第三步：处理特殊执行次数和命令前缀 ===
 	restText := strings.TrimSpace(rawCmd)
 	specialExecuteTimes := 0
+	strippedRestText, parsedExecuteTimes := SpecialExecuteTimesParse(restText)
 	if isParseExecuteTimes {
-		restText, specialExecuteTimes = SpecialExecuteTimesParse(restText)
+		restText = strings.TrimSpace(strippedRestText)
+		specialExecuteTimes = parsedExecuteTimes
+	} else if detectCommandPrefix(restText, ctx.Session.Parent.CommandPrefix) == "" {
+		candidateText := strings.TrimSpace(strippedRestText)
+		if detectCommandPrefix(candidateText, ctx.Session.Parent.CommandPrefix) != "" {
+			restText = candidateText
+		}
 	}
 
-	// 检测命令前缀（如 . ! 等）
 	prefixStr := detectCommandPrefix(restText, ctx.Session.Parent.CommandPrefix)
 	if prefixStr == "" {
 		return nil // 没有有效前缀，不是命令
 	}
 
-	// 移除前缀并清理空格
 	restText = strings.TrimSpace(restText[len(prefixStr):])
 
-	// === 第四步：兼容性处理 ===
 	// 处理历史遗留的特殊情况，如"bot list"转换为"botlist"
 	if strings.HasPrefix(restText, "bot list") {
 		restText = "botlist" + restText[len("bot list"):]
 	}
 
-	// === 第五步：命令匹配和参数解析 ===
 	matched, isSpaceBeforeArgs := findMatchingCommand(restText, d, ctx.Group)
 	if matched == "" {
-		return nil // 没有匹配的命令
+		// 保留旧路语义：未知命令不返回 nil，提取首个 token 作为命令名。
+		// 这样 commandSolve 仍会触发 OnCommandReceived 等钩子（插件契约）。
+		// 与旧 commandParse 的正则兜底 `^\s*(\S+)\s*([\S\s]*)` 行为一致。
+		if fields := strings.Fields(restText); len(fields) > 0 {
+			matched = fields[0]
+		}
+		isSpaceBeforeArgs = false
+	}
+	if matched == "" {
+		return nil // restText 为空（如消息只有一个前缀 "."）
 	}
 
 	// 构建最终的命令参数对象
-	return buildCmdArgs(cmdArgs, matched, restText, rawCmd, specialExecuteTimes, prefixStr, msg.Platform, isSpaceBeforeArgs)
+	return buildCmdArgs(cmdArgs, matched, restText, rawCmd, projection, specialExecuteTimes, prefixStr, msg.Platform, isSpaceBeforeArgs)
 }
 
-// extractResultFromSegments 从消息段中提取纯文本内容 部分文本使用了CQ码。问题的原因在于，CmdArgs的参数可能是图片等其他数据，但CmdArgs缺乏对这个功能的支持。
-func extractResultFromSegments(segments []message.IMessageElement) string {
-	cqMessage := strings.Builder{}
-	var foundFirstText bool
-	for _, v := range segments {
-		// 警告，这个函数不要复用到其他地方，如果复用，请删掉下面这个代码
-		// 代码的意思是：从第一个有文本的元素开始，后面的全部认为是参数。
-		// 检查是否是文本元素
-		if v.Type() == message.Text {
-			foundFirstText = true
-		}
-		// 只有找到第一个文本元素后才开始将剩下的拼凑到结果中
-		if !foundFirstText {
-			continue
-		}
-		switch v.Type() {
-		case message.At:
-			// 跳过 @ 信息，因为已通过 parseAtInfo 单独处理
-			// 不要转换为 CQ 码，否则会污染 CleanArgs 导致表达式解析失败
-			continue
-		case message.Text:
-			res, ok := v.(*message.TextElement)
-			if !ok {
-				continue
-			}
-			cqMessage.WriteString(res.Content)
-		case message.Face:
-			res, ok := v.(*message.FaceElement)
-			if !ok {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:face,id=%v]", res.FaceID)
-		case message.File:
-			res, ok := v.(*message.FileElement)
-			if !ok {
-				continue
-			}
-			fileVal := res.File
-			if fileVal == "" {
-				fileVal = res.URL
-			}
-			if fileVal == "" {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:file,file=%v]", fileVal)
-		case message.Image:
-			res, ok := v.(*message.ImageElement)
-			if !ok {
-				continue
-			}
-			url := res.URL
-			if res.URL == "" {
-				url = res.File.URL
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", url)
-		case message.Record:
-			res, ok := v.(*message.RecordElement)
-			if !ok {
-				continue
-			}
-			var recordFile string
-			if res.File != nil {
-				recordFile = res.File.URL
-				if recordFile == "" {
-					recordFile = res.File.File
-				}
-			}
-			if recordFile == "" {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:record,file=%v]", recordFile)
-		case message.Reply:
-			res, ok := v.(*message.ReplyElement)
-			if !ok {
-				continue
-			}
-			parseInt, err := strconv.Atoi(res.ReplySeq)
-			if err != nil {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:reply,id=%v]", parseInt)
-		case message.TTS:
-			res, ok := v.(*message.TTSElement)
-			if !ok {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:tts,text=%v]", res.Content)
-		case message.Poke:
-			res, ok := v.(*message.PokeElement)
-			if !ok {
-				continue
-			}
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:poke,qq=%v]", res.Target)
-		default:
-			// 不是标准类型的情况
-			res, ok := v.(*message.DefaultElement)
-			if !ok {
-				continue
-			}
-			// 将其转换为CQ码
-			var (
-				cqParamParts []string
-			)
-			dMap := gjson.ParseBytes(res.Data).Map()
-			for paramStr, paramValue := range dMap {
-				cqParamParts = append(cqParamParts, fmt.Sprintf("%s=%s", paramStr, paramValue))
-			}
-			cqParam := strings.Join(cqParamParts, ",")
-			_, _ = fmt.Fprintf(&cqMessage, "[CQ:%s,%s]", res.RawType, cqParam)
+// isAtMe 判断 @ 的目标是否是当前机器人，兼容 OpenQQ/OpenQQCH 前缀互换（QQ 频道场景）。
+// platform 和 target 来自 AtElement，atUID 是经过 computeAtUID 处理后的 bot UID。
+func isAtMe(platform, target, atUID string) bool {
+	userID := platform + ":" + target
+	if userID == atUID {
+		return true
+	}
+	// OpenQQ 与 OpenQQCH 前缀互换：同一个 QQ 号在频道里可能是 OpenQQCH: 前缀
+	if strings.HasPrefix(userID, "OpenQQ:") || strings.HasPrefix(userID, "OpenQQCH:") {
+		uid := strings.TrimPrefix(strings.TrimPrefix(atUID, "OpenQQ:"), "OpenQQCH:")
+		if uid != atUID { // atUID 确实带有 OpenQQ/OpenQQCH 前缀
+			return userID == "OpenQQ:"+uid || userID == "OpenQQCH:"+uid
 		}
 	}
-	return cqMessage.String()
+	return false
 }
 
-// parseAtInfo 解析@信息，设置相关的@状态标志
-func parseAtInfo(cmdArgs *CmdArgs, msg *Message, botUserID string) {
+// computeAtUID 计算 @ 判定用的 bot UID，兼容 TmpUID 和 OpenQQ 频道前缀互换。
+func computeAtUID(ep *EndPointInfo, msg *Message) string {
+	atUID := ep.UserID
+	if msg.Platform == "OpenQQCH" {
+		atUID = "OpenQQCH:" + strings.TrimPrefix(ep.UserID, "OpenQQ:")
+	}
+	if msg.TmpUID != "" {
+		atUID = msg.TmpUID
+	}
+	return atUID
+}
+
+// parseAtInfo 解析@信息，设置相关的@状态标志。atUID 由 computeAtUID 计算。
+func parseAtInfo(cmdArgs *CmdArgs, msg *Message, atUID string) {
 	// 初始化@状态
 	cmdArgs.AmIBeMentioned = false
 	cmdArgs.AmIBeMentionedFirst = false
 	cmdArgs.SomeoneBeMentionedButNotMe = false
+	cmdArgs.uidForAtInfo = atUID
 
 	var atInfo []*AtInfo
 	for _, elem := range msg.Segment {
@@ -550,7 +523,7 @@ func parseAtInfo(cmdArgs *CmdArgs, msg *Message, botUserID string) {
 			userID := msg.Platform + ":" + e.Target
 
 			// 检查是否@了机器人
-			if userID == botUserID {
+			if isAtMe(msg.Platform, e.Target, atUID) {
 				cmdArgs.AmIBeMentioned = true
 				cmdArgs.SomeoneBeMentionedButNotMe = false
 				if len(atInfo) == 0 {
@@ -620,7 +593,7 @@ func findMatchingCommand(restText string, d *Dice, group *GroupInfo) (string, bo
 }
 
 // buildCmdArgs 构建最终的命令参数对象
-func buildCmdArgs(cmdArgs *CmdArgs, matched, restText, rawCmd string,
+func buildCmdArgs(cmdArgs *CmdArgs, matched, restText, rawCmd string, projection message.SegmentText,
 	specialExecuteTimes int, prefixStr, platform string, isSpaceBeforeArgs bool) *CmdArgs {
 	// 提取参数部分
 	runes := []rune(restText)
@@ -638,18 +611,21 @@ func buildCmdArgs(cmdArgs *CmdArgs, matched, restText, rawCmd string,
 	// 解析位置参数和关键字参数
 	a := ArgsParse(m[2])
 
-	// 填充命令参数对象
-	cmdArgs.Command = m[1]
-	cmdArgs.RawArgs = m[2]
-	cmdArgs.Args = a.Args
-	cmdArgs.Kwargs = a.Kwargs
-	cmdArgs.RawText = rawCmd
-	cmdArgs.CleanArgs = strings.TrimSpace(strings.Join(cmdArgs.Args, " "))
-	cmdArgs.IsSpaceBeforeArgs = isSpaceBeforeArgs
-	cmdArgs.SpecialExecuteTimes = specialExecuteTimes
-	cmdArgs.prefixStr = prefixStr
-	cmdArgs.platformPrefix = platform
-	return cmdArgs
+	parsed := &ParsedCommand{
+		Command:             m[1],
+		RawArgs:             m[2],
+		Args:                a.Args,
+		Kwargs:              a.Kwargs,
+		At:                  cmdArgs.At,
+		RawText:             rawCmd,
+		CleanArgs:           strings.TrimSpace(strings.Join(a.Args, " ")),
+		Projection:          projection,
+		IsSpaceBeforeArgs:   isSpaceBeforeArgs,
+		SpecialExecuteTimes: specialExecuteTimes,
+		Prefix:              prefixStr,
+		PlatformPrefix:      platform,
+	}
+	return cmdArgs.applyParsed(parsed)
 }
 
 func CommandParse(rawCmd string, currentCmdLst []string, prefix []string, platformPrefix string, isParseExecuteTimes bool) *CmdArgs {
