@@ -73,7 +73,7 @@ require (
 	github.com/sealdice/botgo v0.0.0-20260724133029-df949851f30b
 	github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
-	github.com/slack-go/slack v0.17.3
+	github.com/slack-go/slack v0.29.0
 	github.com/sunshineplan/imgconv v1.1.15
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
 	github.com/tdewolff/minify/v2 v2.24.13
