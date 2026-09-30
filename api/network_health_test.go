@@ -105,3 +105,59 @@ func TestRunNetworkHealthCheckReportsBotAPIs(t *testing.T) {
 		t.Fatalf("sent %d requests, want %d API probes without following redirects", count, result.Total)
 	}
 }
+
+func TestCheckHTTPConnectivityAcceptsRedirectsWithoutFollowingThem(t *testing.T) {
+	for _, location := range []string{"/redirected", "https://redirect.invalid", "unsupported://redirect", "http://[invalid"} {
+		t.Run(location, func(t *testing.T) {
+			requests := make(chan string, 12)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requests <- req.URL.Path
+				w.Header().Set("Location", location)
+				w.WriteHeader(http.StatusFound)
+			}))
+			defer server.Close()
+
+			client := server.Client()
+			client.Timeout = time.Second
+			client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+			ok, duration := checkHTTPConnectivity(client, server.URL)
+			if !ok || duration < 0 {
+				t.Fatalf("redirect to %q: ok=%v, duration=%v; the initial HTTP response proves reachability", location, ok, duration)
+			}
+			if len(requests) != 1 {
+				t.Fatalf("sent %d requests; a probe must not follow redirects", len(requests))
+			}
+			if requestedPath := <-requests; requestedPath != "/" {
+				t.Fatalf("requested %q; want the API endpoint", requestedPath)
+			}
+		})
+	}
+}
+
+type networkHealthResponseBody struct {
+	io.Reader
+	closed bool
+}
+
+func (body *networkHealthResponseBody) Close() error {
+	body.closed = true
+	return nil
+}
+
+func TestCheckHTTPConnectivityClosesResponseWithTransportError(t *testing.T) {
+	body := &networkHealthResponseBody{Reader: strings.NewReader("response")}
+	client := &http.Client{Transport: networkHealthRoundTripper(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Header:     make(http.Header),
+			Body:       body,
+			Request:    req,
+		}, errors.New("response accompanied by a transport error")
+	})}
+	ok, _ := checkHTTPConnectivity(client, "https://api.example.invalid")
+	if !ok || !body.closed {
+		t.Fatalf("ok=%v, body.closed=%v; an HTTP response must be counted and closed", ok, body.closed)
+	}
+}

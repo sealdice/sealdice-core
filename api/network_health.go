@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -23,27 +24,34 @@ type networkHealthResult struct {
 
 func checkHTTPConnectivity(client *http.Client, targetURL string) (bool, time.Duration) {
 	start := time.Now()
-	req, err := http.NewRequest(http.MethodGet, targetURL, nil)
+	ctx := context.Background()
+	if client.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, client.Timeout)
+		defer cancel()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
 		return false, 0
 	}
-	resp, err := client.Do(req) //nolint:gosec // Targets are fixed bot API endpoints.
-	if err != nil {
+	transport := client.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	// Probe one response without parsing or following its Location header.
+	resp, _ := transport.RoundTrip(req)
+	if resp == nil {
 		return false, 0
 	}
-	_ = resp.Body.Close()
+	if resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 	// An HTTP response, including an authentication error, proves network reachability.
 	return true, time.Since(start)
 }
 
 func runNetworkHealthCheck() networkHealthResult {
-	client := &http.Client{
-		Timeout: checkTimeout,
-		// Probe the API host itself, even if it redirects unauthenticated visitors to a website.
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := &http.Client{Timeout: checkTimeout}
 	return runNetworkHealthCheckWithClient(client)
 }
 
