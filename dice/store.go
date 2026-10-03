@@ -244,7 +244,7 @@ func fetchStoreJSONContext[T any](ctx context.Context, requestURL string) (*T, e
 	if err != nil {
 		return nil, err
 	}
-	// #nosec G107 -- store backend URLs are user/admin-configured extension repository endpoints.
+	// #nosec G107 G704 -- store backend URLs are user/admin-configured extension repository endpoints.
 	resp, err := storeHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -936,7 +936,7 @@ func (m *StoreManager) StorePreviewPackageFile(ctx context.Context, namespace, p
 	if err != nil {
 		return nil, err
 	}
-	// #nosec G107 -- store backend URLs are user/admin-configured extension repository endpoints.
+	// #nosec G107 G704 -- store backend URLs are user/admin-configured extension repository endpoints.
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		m.refreshStoreBackend()

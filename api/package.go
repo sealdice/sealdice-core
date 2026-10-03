@@ -116,7 +116,7 @@ func packageAsset(c echo.Context) error {
 	if err != nil {
 		return c.NoContent(http.StatusForbidden)
 	}
-	info, err := os.Stat(targetPath)
+	info, err := os.Stat(targetPath) // #nosec G703 -- resolvePackageAssetPath validates containment and symlinks.
 	if err != nil || info.IsDir() {
 		return c.NoContent(http.StatusNotFound)
 	}

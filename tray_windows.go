@@ -144,7 +144,7 @@ func onReady() {
 		case <-mOpen.ClickedCh:
 			_ = exec.Command(`cmd`, `/c`, `start`, `http://localhost:`+getTrayPort()).Start()
 		case <-mOpenExeDir.ClickedCh:
-			_ = exec.Command(`cmd`, `/c`, `explorer`, filepath.Dir(os.Args[0])).Start()
+			_ = exec.Command(`explorer.exe`, filepath.Dir(os.Args[0])).Start() // #nosec G702 -- the executable path is passed as an argument, not shell code.
 		case <-mQuit.ClickedCh:
 			systray.Quit()
 			systrayQuited = true
@@ -269,7 +269,7 @@ func showMsgBox(title string, message string) {
 }
 
 func executeWin(name string, arg ...string) *exec.Cmd {
-	cmd := exec.Command(name, arg...)
+	cmd := exec.Command(name, arg...) // #nosec G702 -- callers pass the controlled updater or current executable path.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		// CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
 		CreationFlags:    windows.CREATE_NEW_PROCESS_GROUP | windows.CREATE_NEW_CONSOLE,

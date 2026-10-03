@@ -31,6 +31,16 @@ func ReverseSlice(s interface{}) {
 	}
 }
 
+func resolveBackupFilePath(name string) (string, bool) {
+	if name == "" || name == "." || name == ".." ||
+		strings.ContainsAny(name, `/\`) ||
+		filepath.IsAbs(name) || filepath.VolumeName(name) != "" ||
+		filepath.Base(name) != name {
+		return "", false
+	}
+	return filepath.Join(dice.BackupDir, name), true
+}
+
 func backupGetList(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -79,8 +89,8 @@ func backupDownload(c echo.Context) error {
 	}
 
 	name := c.QueryParam("name")
-	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-		return c.Attachment(dice.BackupDir+"/"+name, name)
+	if path, ok := resolveBackupFilePath(name); ok {
+		return c.Attachment(path, name)
 	}
 	return c.JSON(http.StatusOK, nil)
 }
@@ -97,8 +107,8 @@ func backupDelete(c echo.Context) error {
 
 	var err error
 	name := c.QueryParam("name")
-	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-		err = os.Remove(dice.BackupDir + "/" + name)
+	if path, ok := resolveBackupFilePath(name); ok {
+		err = os.Remove(path) // #nosec G703 -- the filename is restricted to one path component.
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -124,8 +134,8 @@ func backupBatchDelete(c echo.Context) error {
 
 	fails := make([]string, 0, len(v.Names))
 	for _, name := range v.Names {
-		if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
-			err = os.Remove(dice.BackupDir + "/" + name)
+		if path, ok := resolveBackupFilePath(name); ok {
+			err = os.Remove(path) // #nosec G703 -- the filename is restricted to one path component.
 			if err != nil {
 				fails = append(fails, name)
 			}

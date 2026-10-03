@@ -2504,7 +2504,7 @@ func writeFileAtomically(filename string, data []byte, perm os.FileMode) error {
 		return err
 	}
 
-	return os.Rename(tmpName, filename)
+	return os.Rename(tmpName, filename) // #nosec G703 -- tmpName is created in the destination directory.
 }
 
 // ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
