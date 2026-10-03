@@ -1,7 +1,6 @@
 package api
 
 import (
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,6 +22,8 @@ type backupFileItem struct {
 	Selection int64  `json:"selection"`
 }
 
+var backupFileNamePattern = regexp.MustCompile(`^(bak_\d{6}_\d{6}(?:_auto)?_r([0-9a-f]+))_([0-9a-f]{8})\.zip$`)
+
 func ReverseSlice(s interface{}) {
 	size := reflect.ValueOf(s).Len()
 	swap := reflect.Swapper(s)
@@ -32,13 +33,27 @@ func ReverseSlice(s interface{}) {
 }
 
 func resolveBackupFilePath(name string) (string, bool) {
-	if name == "" || name == "." || name == ".." ||
+	if !backupFileNamePattern.MatchString(name) ||
 		strings.ContainsAny(name, `/\`) ||
 		filepath.IsAbs(name) || filepath.VolumeName(name) != "" ||
 		filepath.Base(name) != name {
 		return "", false
 	}
-	return filepath.Join(dice.BackupDir, name), true
+	root, err := filepath.Abs(dice.BackupDir)
+	if err != nil {
+		return "", false
+	}
+	target := filepath.Join(root, name)
+	relative, err := filepath.Rel(root, target)
+	if err != nil || relative != name {
+		return "", false
+	}
+	return target, true
+}
+
+func isRegularBackupFile(path string) bool {
+	info, err := os.Lstat(path) // #nosec G703 -- path comes from resolveBackupFilePath.
+	return err == nil && info.Mode().IsRegular()
 }
 
 func backupGetList(c echo.Context) error {
@@ -46,31 +61,36 @@ func backupGetList(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	reFn := regexp.MustCompile(`^(bak_\d{6}_\d{6}(?:_auto)?_r([0-9a-f]+))_([0-9a-f]{8})\.zip$`)
-
 	var items []*backupFileItem
-	_ = filepath.Walk(dice.BackupDir, func(path string, info fs.FileInfo, err error) error {
-		if !info.IsDir() {
-			fn := info.Name()
-			matches := reFn.FindStringSubmatch(fn)
-			selection := int64(0)
-			if len(matches) == 4 {
-				hashed := crypto.CalculateSHA512Str([]byte(matches[1]))
-				if hashed[:8] == matches[3] {
-					selection, _ = strconv.ParseInt(matches[2], 16, 64)
-				} else {
-					selection = -1
-				}
-			}
-
-			items = append(items, &backupFileItem{
-				Name:      fn,
-				FileSize:  info.Size(),
-				Selection: selection,
-			})
+	entries, _ := os.ReadDir(dice.BackupDir)
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() {
+			continue
 		}
-		return err
-	})
+		fn := entry.Name()
+		if !backupFileNamePattern.MatchString(fn) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		matches := backupFileNamePattern.FindStringSubmatch(fn)
+		selection := int64(0)
+		if len(matches) == 4 {
+			hashed := crypto.CalculateSHA512Str([]byte(matches[1]))
+			if hashed[:8] == matches[3] {
+				selection, _ = strconv.ParseInt(matches[2], 16, 64)
+			} else {
+				selection = -1
+			}
+		}
+		items = append(items, &backupFileItem{
+			Name:      fn,
+			FileSize:  info.Size(),
+			Selection: selection,
+		})
+	}
 
 	ReverseSlice(items)
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -90,9 +110,12 @@ func backupDownload(c echo.Context) error {
 
 	name := c.QueryParam("name")
 	if path, ok := resolveBackupFilePath(name); ok {
+		if !isRegularBackupFile(path) {
+			return c.NoContent(http.StatusNotFound)
+		}
 		return c.Attachment(path, name)
 	}
-	return c.JSON(http.StatusOK, nil)
+	return c.NoContent(http.StatusNotFound)
 }
 
 func backupDelete(c echo.Context) error {
@@ -105,10 +128,12 @@ func backupDelete(c echo.Context) error {
 		})
 	}
 
-	var err error
+	var err = os.ErrInvalid
 	name := c.QueryParam("name")
 	if path, ok := resolveBackupFilePath(name); ok {
-		err = os.Remove(path) // #nosec G703 -- the filename is restricted to one path component.
+		if isRegularBackupFile(path) {
+			err = os.Remove(path) // #nosec G703 -- the filename is restricted to generated backup names.
+		}
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
@@ -134,11 +159,14 @@ func backupBatchDelete(c echo.Context) error {
 
 	fails := make([]string, 0, len(v.Names))
 	for _, name := range v.Names {
-		if path, ok := resolveBackupFilePath(name); ok {
-			err = os.Remove(path) // #nosec G703 -- the filename is restricted to one path component.
-			if err != nil {
-				fails = append(fails, name)
-			}
+		path, ok := resolveBackupFilePath(name)
+		if !ok || !isRegularBackupFile(path) {
+			fails = append(fails, name)
+			continue
+		}
+		err = os.Remove(path) // #nosec G703 -- the filename is restricted to generated backup names.
+		if err != nil {
+			fails = append(fails, name)
 		}
 	}
 
