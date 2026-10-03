@@ -48,10 +48,12 @@ var officialQQAtRegex = regexp.MustCompile(`(?:<qqbot-at-user\s+id="([^"]+)"\s*/
 const (
 	officialQQPassiveMsgLimit = 5
 	officialQQBatchPageSize   = 4
+	// officialQQAPITimeout 定义 OpenAPI 请求超时时间。富媒体通过 URL 上传时需等待服务端拉取完整文件，官方文档建议放宽超时。
+	officialQQAPITimeout = 60 * time.Second
 )
 
-// officialQQMediaCodeRe 匹配富媒体 CQ 码(图片/语音)，用于消息单元化。
-var officialQQMediaCodeRe = regexp.MustCompile(`^\[CQ:(image|record)[,\]]`)
+// officialQQMediaCodeRe 匹配富媒体 CQ 码(图片/语音/文件)，用于消息单元化。
+var officialQQMediaCodeRe = regexp.MustCompile(`^\[CQ:(image|record|file)[,\]]`)
 
 type officialQQMsgUnit struct {
 	text  string
@@ -448,7 +450,7 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 		return pa.failConnect()
 	}
 
-	pa.Api = qqbot.NewOpenAPI(pa.AppID, pa.tokenSource).WithTimeout(3 * time.Second)
+	pa.Api = qqbot.NewOpenAPI(pa.AppID, pa.tokenSource).WithTimeout(officialQQAPITimeout)
 
 	botInfo := probe
 	if botInfo == nil {
@@ -2053,6 +2055,22 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 
 			toCreate.MsgType = 7
 			toCreate.Media = media
+		case *message.FileElement:
+			media, err := pa.uploadC2CMedia(qctx, userOpenID, e, 4)
+			if err != nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息时，准备文件信息失败：" + err.Error())
+				continue
+			}
+
+			if toCreate.Media != nil {
+				sendCurrent(false)
+				content = ""
+				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+				toCreate.MessageReference = msgRef
+			}
+
+			toCreate.MsgType = 7
+			toCreate.Media = media
 		}
 	}
 
@@ -2443,6 +2461,22 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 
 			toCreate.MsgType = 7
 			toCreate.Media = media
+		case *message.FileElement:
+			media, err := pa.uploadGroupMedia(qctx, groupID, elem, 4)
+			if err != nil {
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备文件信息失败：" + err.Error())
+				continue
+			}
+
+			if toCreate.Media != nil {
+				sendCurrent(false)
+				content = ""
+				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+				toCreate.MessageReference = msgRef
+			}
+
+			toCreate.MsgType = 7
+			toCreate.Media = media
 		}
 	}
 
@@ -2641,11 +2675,29 @@ func (pa *PlatformAdapterOfficialQQ) mustExtractTwoID(text string) (string, stri
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {
-	pa.SendToPerson(ctx, uid, fmt.Sprintf("[尝试发送文件 %s，但不支持]", filepath.Base(path)), flag)
+	if path == "" {
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送私聊文件失败：文件路径为空")
+		return
+	}
+	parsed, err := url.Parse(path)
+	if err == nil && (strings.EqualFold(parsed.Scheme, "http") || strings.EqualFold(parsed.Scheme, "https")) {
+		pa.SendToPerson(ctx, uid, fmt.Sprintf("[CQ:file,url=%s]", message.EscapeCQParam(path)), flag)
+	} else {
+		pa.SendToPerson(ctx, uid, fmt.Sprintf("[CQ:file,file=%s]", message.EscapeCQParam(path)), flag)
+	}
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendFileToGroup(ctx *MsgContext, uid string, path string, flag string) {
-	pa.SendToGroup(ctx, uid, fmt.Sprintf("[尝试发送文件 %s，但不支持]", filepath.Base(path)), flag)
+	if path == "" {
+		pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊文件失败：文件路径为空")
+		return
+	}
+	parsed, err := url.Parse(path)
+	if err == nil && (strings.EqualFold(parsed.Scheme, "http") || strings.EqualFold(parsed.Scheme, "https")) {
+		pa.SendToGroup(ctx, uid, fmt.Sprintf("[CQ:file,url=%s]", message.EscapeCQParam(path)), flag)
+	} else {
+		pa.SendToGroup(ctx, uid, fmt.Sprintf("[CQ:file,file=%s]", message.EscapeCQParam(path)), flag)
+	}
 }
 
 func (pa *PlatformAdapterOfficialQQ) QuitGroup(_ *MsgContext, _ string) {
@@ -2785,8 +2837,8 @@ func getElementBytes(elem *message.FileElement) ([]byte, error) {
 	if elem == nil {
 		return nil, errors.New("nil element")
 	}
-	// 限制文件大小在30MB以下
-	const maxLimit = 30 * 1024 * 1024
+	// 限制文件大小在50MB以下，与 message.maxFileSize 保持一致
+	const maxLimit = 50 * 1024 * 1024
 
 	readLimitBytes := func(r io.Reader) ([]byte, error) {
 		limitedReader := io.LimitReader(r, maxLimit+1)
@@ -2795,7 +2847,7 @@ func getElementBytes(elem *message.FileElement) ([]byte, error) {
 			return nil, err
 		}
 		if int64(len(data)) > maxLimit {
-			return nil, errors.New("file size exceeds the maximum limit of 30MB")
+			return nil, errors.New("file size exceeds the maximum limit of 50MB")
 		}
 		return data, nil
 	}
