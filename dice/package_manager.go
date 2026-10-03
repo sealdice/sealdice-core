@@ -1204,7 +1204,7 @@ func (w *guardedPackageWriter) Write(data []byte) (int, error) {
 }
 
 func (pm *PackageManager) writePackageStream(ctx context.Context, targetDir, pattern string, src io.Reader, expectedSize uint64, hashes map[string]string) (string, uint64, error) {
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G703 -- targetDir is selected from manager-controlled package directories.
 		return "", 0, err
 	}
 	expectedSHA256, err := packageSHA256Expectation(hashes)
