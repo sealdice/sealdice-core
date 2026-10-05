@@ -38,11 +38,18 @@ func Int64ToBytes(i int64) []byte {
 }
 
 func doAuth(c echo.Context) bool {
+	if myDice == nil || myDice.Parent == nil {
+		return false
+	}
 	token := c.Request().Header.Get("token") //nolint:canonicalheader // private header
 	if token == "" {
 		token = c.QueryParam("token")
 	}
-	return myDice.Parent.AccessTokens.Exists(token)
+	if token == "" {
+		return false
+	}
+	allowed, exists := myDice.Parent.AccessTokens.Load(token)
+	return exists && allowed
 }
 
 func GetHexData(c echo.Context, method string, name string) (value []byte, finished bool) {

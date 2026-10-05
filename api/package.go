@@ -38,6 +38,9 @@ import (
 // GET /package/list
 // 返回: { data: []PackageInstance, result: true }
 func packageList(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
 	packages := myDice.PackageManager.List()
 	return Success(&c, Response{
 		"data": packages,
@@ -81,6 +84,9 @@ func getPackageIDFromRequest(c echo.Context) string {
 // GET /package/:id 或 GET /package/_?id=xxx
 // 返回: { data: PackageInstance, result: true }
 func packageGet(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
 	pkgID := getPackageIDFromRequest(c)
 	pkg, exists := myDice.PackageManager.Get(pkgID)
 	if !exists {
@@ -455,6 +461,9 @@ func packageReloadAll(c echo.Context) error {
 // 返回: { data: map[string]interface{}, result: true }
 // 配置值由用户通过 UI 或 API 设置，JS 扩展可通过 ext.getPackageConfig() 读取
 func packageGetConfig(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
 	pkgID := getPackageIDFromRequest(c)
 
 	config, err := myDice.PackageManager.GetConfig(pkgID)
@@ -507,6 +516,9 @@ func packageSetConfig(c echo.Context) error {
 // ConfigItem 包含 type, title, description, default 等字段
 // UI 可根据此 schema 动态渲染配置表单
 func packageGetConfigSchema(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, "auth")
+	}
 	pkgID := getPackageIDFromRequest(c)
 
 	pkg, exists := myDice.PackageManager.Get(pkgID)
