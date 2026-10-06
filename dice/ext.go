@@ -121,6 +121,7 @@ func collectChainedNames(logger *zap.SugaredLogger, graph *SyncMap[string, []str
 // RegisterBuiltinExt 注册所有内置扩展。
 func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtCoc7(d)
+	RegisterBuiltinExtTrpg(d)
 	RegisterBuiltinExtLog(d)
 	RegisterBuiltinExtFun(d)
 	RegisterBuiltinExtDeck(d)

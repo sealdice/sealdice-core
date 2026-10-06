@@ -107,6 +107,11 @@ type ExtInfo struct {
 	IsLoaded            bool                                                  `jsbind:"isLoaded"            json:"-" yaml:"-"`
 	OnLoad              func()                                                `jsbind:"onLoad"              json:"-" yaml:"-"`
 
+	// TrpgStHooks is registered through seal.trpg.st.registerHooks. It stays
+	// on the real extension so JS wrapper refreshes naturally replace stale
+	// callbacks together with the extension runtime.
+	TrpgStHooks *TrpgStHooks `json:"-" yaml:"-"`
+
 	// Wrapper 相关字段
 	IsWrapper  bool   `json:"-" yaml:"-"` // 是否为 Wrapper ExtInfo (代理对象)
 	TargetName string `json:"-" yaml:"-"` // Wrapper 代理的真实扩展名

@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
+	ds "github.com/sealdice/dicescript"
 	"go.uber.org/zap"
 	"gopkg.in/elazarl/goproxy.v1"
 
@@ -531,6 +532,32 @@ func (d *Dice) JsInit() {
 		})
 		_ = seal.Set("coc", coc)
 
+		trpg := vm.NewObject()
+		trpgSt := vm.NewObject()
+		_ = trpgSt.Set("registerHooks", registerTrpgStHooks)
+		_ = trpgSt.Set("clearHooks", func(ei *ExtInfo) {
+			if ei != nil {
+				ei.TrpgStHooks = nil
+			}
+		})
+		_ = trpgSt.Set("newIntValue", func(value int64) *TrpgStValue {
+			return trpgStValueFromVM(ds.NewIntVal(ds.IntType(value)))
+		})
+		_ = trpgSt.Set("newFloatValue", func(value float64) *TrpgStValue {
+			return trpgStValueFromVM(ds.NewFloatVal(value))
+		})
+		_ = trpgSt.Set("newStringValue", func(value string) *TrpgStValue {
+			return trpgStValueFromVM(ds.NewStrVal(value))
+		})
+		_ = trpgSt.Set("newComputedValue", func(expression string) *TrpgStValue {
+			return trpgStValueFromVM(ds.NewComputedVal(expression))
+		})
+		_ = trpgSt.Set("newOperation", func(kind, name string) *TrpgStOperation {
+			return &TrpgStOperation{Kind: kind, Name: name}
+		})
+		_ = trpg.Set("st", trpgSt)
+		_ = seal.Set("trpg", trpg)
+
 		deck := vm.NewObject()
 		_ = deck.Set("draw", func(ctx *MsgContext, deckName string, isShuffle bool) map[string]interface{} {
 			exists, result, err := deckDraw(ctx, deckName, isShuffle)
@@ -666,7 +693,7 @@ func (d *Dice) JsInit() {
 		//  }
 		// }
 		// `)
-		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.vars);`)
+		_, _ = vm.RunString(`Object.freeze(seal);Object.freeze(seal.deck);Object.freeze(seal.coc);Object.freeze(seal.ext);Object.freeze(seal.trpg.st);Object.freeze(seal.trpg);Object.freeze(seal.vars);`)
 	})
 	go func() {
 		defer func() {
