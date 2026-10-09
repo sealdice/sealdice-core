@@ -58,29 +58,30 @@ func TestCheckHTTPConnectivityTimesOut(t *testing.T) {
 }
 
 func TestRunNetworkHealthCheckReportsBotAPIs(t *testing.T) {
-	previousTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = previousTransport })
 	requests := make(chan string, 12)
-	http.DefaultTransport = networkHealthRoundTripper(func(req *http.Request) (*http.Response, error) {
-		requests <- req.URL.String()
-		if req.URL.Host == "slack.com" {
-			return nil, errors.New("blocked API")
-		}
-		status := http.StatusUnauthorized
-		headers := make(http.Header)
-		if req.URL.Host == "api.telegram.org" {
-			status = http.StatusFound
-			headers.Set("Location", "https://core.telegram.org/bots")
-		}
-		return &http.Response{
-			StatusCode: status,
-			Header:     headers,
-			Body:       io.NopCloser(strings.NewReader("{}")),
-			Request:    req,
-		}, nil
-	})
+	client := &http.Client{
+		Timeout: checkTimeout,
+		Transport: networkHealthRoundTripper(func(req *http.Request) (*http.Response, error) {
+			requests <- req.URL.String()
+			if req.URL.Host == "slack.com" {
+				return nil, errors.New("blocked API")
+			}
+			status := http.StatusUnauthorized
+			headers := make(http.Header)
+			if req.URL.Host == "api.telegram.org" {
+				status = http.StatusFound
+				headers.Set("Location", "https://core.telegram.org/bots")
+			}
+			return &http.Response{
+				StatusCode: status,
+				Header:     headers,
+				Body:       io.NopCloser(strings.NewReader("{}")),
+				Request:    req,
+			}, nil
+		}),
+	}
 
-	result := runNetworkHealthCheck()
+	result := runNetworkHealthCheckWithClient(client)
 	if result.Total != 6 || len(result.Targets) != 6 || len(result.Ok) != 5 || result.Timestamp == 0 {
 		t.Fatalf("unexpected result: %+v", result)
 	}
