@@ -40,6 +40,7 @@ type PlatformAdapterMilky struct {
 	sessionActive      bool
 	sessionReady       bool
 	accountOffline     bool
+	offlineGeneration  uint64
 	transportConnected bool
 	sessionContext     context.Context
 	sessionCancel      context.CancelFunc
@@ -441,30 +442,20 @@ func (pa *PlatformAdapterMilky) serveMilky(generation uint64) int {
 		pa.EndPoint.Session.OnMessageDeleted(mctx, msg)
 	})
 	d := pa.EndPoint.Session.Parent
-	err = pa.openMilkyTransport(session)
+	client := newMilkyHealthClient(milkyHealthTimeout)
+	err = pa.refreshMilkyTransport(session, client)
 	if err != nil {
-		log.Errorf("Failed to open Milky session: %v", err)
-		if pa.failMilkySession(session) {
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
+		if errors.Is(err, errMilkyPermanentFailure) {
+			log.Errorf("Milky 连接配置或鉴权失败: %v", err)
+			if pa.failMilkySession(session) {
+				d.LastUpdatedTime = time.Now().Unix()
+				d.Save(false)
+			}
+			return 1
 		}
-		return 1
+		log.Warnf("Milky 初次连接暂时失败，将继续重试: %v", err)
 	}
-	info, err := session.GetLoginInfo()
-	if err != nil || info == nil {
-		// 获取登录信息失败，视为连接失败
-		log.Errorf("Failed to get login info: %v", err)
-		if pa.failMilkySession(session) {
-			d.LastUpdatedTime = time.Now().Unix()
-			d.Save(false)
-		}
-		return 1
-	}
-
-	log.Infof("Milky 服务连接成功，账号<%s>(%d)", info.Nickname, info.UIN)
-	if !pa.finishMilkySession(session, info) {
-		return 1
-	}
+	// 首次连接尚未成功也需要监测；返回 0 表示已接管重试，内置客户端不应被杀掉。
 	pa.startMilkyConnectionMonitor(session)
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)

@@ -199,3 +199,20 @@ func TestMilkyProcessExitAndOldProcessIsolation(t *testing.T) {
 		})
 	}
 }
+
+func TestMilkyOnlineProbeDoesNotOverrideNewOfflineEvent(t *testing.T) {
+	pa := &PlatformAdapterMilky{EndPoint: &EndPointInfo{}}
+	session := &milky.Session{}
+	pa.startMilkySession(session, 0)
+	pa.onMilkyConnectionChange(session, true)
+	pa.finishMilkySession(session, &milky.LoginInfo{UIN: 10010})
+	// 探测开始后才收到的离线事件，必须优先于该探测的成功响应。
+	pa.onMilkyBotOffline(session, "offline while checking login")
+	pa.onMilkyAccountOnline(session, 0)
+	assertMilkyState(t, pa, StateDisconnected)
+	pa.onMilkyAccountOnline(&milky.Session{}, 1)
+	assertMilkyState(t, pa, StateDisconnected)
+	// 新一轮登录探测成功后才可以恢复，且不需要收到消息。
+	pa.onMilkyAccountOnline(session, 1)
+	assertMilkyState(t, pa, StateConnected)
+}

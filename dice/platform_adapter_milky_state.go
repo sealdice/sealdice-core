@@ -24,6 +24,7 @@ func (pa *PlatformAdapterMilky) startMilkySession(session *milky.Session, genera
 	pa.sessionActive = true
 	pa.sessionReady = false
 	pa.accountOffline = false
+	pa.offlineGeneration = 0
 	pa.transportConnected = false
 	pa.EndPoint.State = StateConnecting
 	pa.EndPoint.Enable = true
@@ -79,9 +80,11 @@ func (pa *PlatformAdapterMilky) finishMilkySession(session *milky.Session, info 
 	if pa.IntentSession != session || !pa.sessionActive || info == nil {
 		return false
 	}
-	pa.sessionReady = true
-	pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
-	pa.EndPoint.Nickname = info.Nickname
+	if !pa.sessionReady {
+		pa.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UIN)
+		pa.EndPoint.Nickname = info.Nickname
+		pa.sessionReady = true
+	}
 	pa.updateMilkyConnectionState(pa.transportConnected)
 	return true
 }
@@ -115,8 +118,22 @@ func (pa *PlatformAdapterMilky) onMilkyBotOffline(session *milky.Session, reason
 		return
 	}
 	pa.accountOffline = true
+	pa.offlineGeneration++
 	pa.EndPoint.State = StateDisconnected
 	logger.M().Warnf("Milky QQ 账号离线，账号 %s，原因：%s", pa.EndPoint.UserID, reason)
+}
+
+func (pa *PlatformAdapterMilky) onMilkyAccountOnline(session *milky.Session, generation uint64) {
+	pa.lifecycleMu.Lock()
+	defer pa.lifecycleMu.Unlock()
+	if pa.IntentSession != session || !pa.sessionActive || !pa.sessionReady || !pa.transportConnected {
+		return
+	}
+	// API 探测期间收到的新离线事件不能被较早的成功响应覆盖。
+	if generation == pa.offlineGeneration {
+		pa.accountOffline = false
+	}
+	pa.updateMilkyConnectionState(pa.transportConnected)
 }
 
 func (pa *PlatformAdapterMilky) onMilkyMessage(session *milky.Session) {
