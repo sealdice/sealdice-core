@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	wr "github.com/mroth/weightedrand/v3"
@@ -88,4 +89,44 @@ func TestCensorMaskContent_UsesPlaceholderTemplate(t *testing.T) {
 	if got != "黑■■■来临" {
 		t.Fatalf("masked=%q want 黑■■■来临", got)
 	}
+}
+
+func TestDice_CensorManagerAtomicSwap(t *testing.T) {
+	d := &Dice{Logger: zap.NewNop().Sugar()}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 500 {
+			d.SetCensorManager(&CensorManager{})
+		}
+		d.SetCensorManager(nil)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 500 {
+			_ = d.CensorManager()
+		}
+	}()
+	wg.Wait()
+}
+
+func TestCensorManager_WordFilesSnapshotConcurrent(t *testing.T) {
+	cm := &CensorManager{wordFiles: map[string]*censor.WordFile{"a": {Key: "a"}}}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for range 300 {
+			_ = cm.WordFiles()
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for range 300 {
+			cm.DeleteCensorWordFiles([]string{"missing"})
+		}
+	}()
+	wg.Wait()
 }

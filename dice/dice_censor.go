@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"sealdice-core/dice/censor"
@@ -57,11 +58,30 @@ var CensorHandlerText = map[CensorHandler]string{
 type CensorHandler int
 
 type CensorManager struct {
-	IsLoading           atomic.Bool
-	Parent              *Dice
-	Censor              *censor.Censor
-	DB                  engine.DatabaseOperator
-	SensitiveWordsFiles map[string]*censor.WordFile
+	IsLoading atomic.Bool
+	Parent    *Dice
+	Censor    *censor.Censor
+	DB        engine.DatabaseOperator
+
+	filesMu   sync.RWMutex
+	wordFiles map[string]*censor.WordFile
+}
+
+// CensorManager 返回当前审查管理器；未启用或已停止时为 nil（并发安全）。
+func (d *Dice) CensorManager() *CensorManager { return d.censorManager.Load() }
+
+// SetCensorManager 原子替换审查管理器；传 nil 表示停止。
+func (d *Dice) SetCensorManager(cm *CensorManager) { d.censorManager.Store(cm) }
+
+// WordFiles 返回词库文件快照（并发安全）。
+func (cm *CensorManager) WordFiles() map[string]*censor.WordFile {
+	cm.filesMu.RLock()
+	defer cm.filesMu.RUnlock()
+	out := make(map[string]*censor.WordFile, len(cm.wordFiles))
+	for k, v := range cm.wordFiles {
+		out[k] = v
+	}
+	return out
 }
 
 func (d *Dice) NewCensorManager() {
@@ -85,7 +105,7 @@ func (d *Dice) NewCensorManager() {
 	}
 	cm.Load(d)
 	// 词表与匹配器就绪后才发布管理器，避免外部读到半初始化状态
-	d.CensorManager = &cm
+	d.SetCensorManager(&cm)
 }
 
 // Load 审查加载：在临时 Censor 上读取词库文件，随后原子替换词表，
@@ -119,7 +139,9 @@ func (cm *CensorManager) Load(d *Dice) {
 	if err := cm.Censor.LoadWords(scratch.SensitiveKeys); err != nil {
 		log.Errorf("censor: load fail, %v", err)
 	}
-	cm.SensitiveWordsFiles = files
+	cm.filesMu.Lock()
+	cm.wordFiles = files
+	cm.filesMu.Unlock()
 }
 
 // censorDropRegexes 是匹配前需要剥离的标记（海豹码/CQ码），span 仍映射回原文。
@@ -230,7 +252,11 @@ func formatCensorHitDetails(levelText string, words []string, content string) st
 func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, text string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
 	log := d.Logger
 	newContent = text
-	checkResult, err := d.CensorManager.Check(mctx, msg, text)
+	cm := d.CensorManager()
+	if cm == nil {
+		return false, nil, false, newContent
+	}
+	checkResult, err := cm.Check(mctx, msg, text)
 	if err != nil {
 		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
 		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserID)
@@ -274,7 +300,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, text string) (hit bool,
 			// 需要终止后续动作
 			needToTerminate = true
 			// 清空此用户该等级计数
-			service.CensorClearLevelCount(d.CensorManager.DB, msg.Sender.UserID, level)
+			service.CensorClearLevelCount(cm.DB, msg.Sender.UserID, level)
 			// 该等级敏感词超过阈值，执行操作
 			handler := d.Config.CensorHandlers[level]
 			levelText := censor.LevelText[level]
@@ -379,14 +405,16 @@ func censorMaskContent(mctx *MsgContext, text string, spans []censor.Span) strin
 }
 
 func (cm *CensorManager) DeleteCensorWordFiles(keys []string) {
+	cm.filesMu.Lock()
+	defer cm.filesMu.Unlock()
 	for _, key := range keys {
-		file, ok := cm.SensitiveWordsFiles[key]
+		file, ok := cm.wordFiles[key]
 		if ok {
 			_, err := os.Stat(file.Path)
 			if !os.IsNotExist(err) {
 				_ = os.RemoveAll(file.Path)
 			}
-			delete(cm.SensitiveWordsFiles, key)
+			delete(cm.wordFiles, key)
 		}
 	}
 }
