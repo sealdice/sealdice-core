@@ -41,6 +41,15 @@ func newTestCensor(words map[string]Level) *Censor {
 	return c
 }
 
+func hasWord(res CheckResult, word string) bool {
+	for _, h := range res.Hits {
+		if h.Word == word {
+			return true
+		}
+	}
+	return false
+}
+
 func TestCensor_Check_Hit(t *testing.T) {
 	c := newTestCensor(map[string]Level{
 		"badword": Danger,
@@ -51,8 +60,8 @@ func TestCensor_Check_Hit(t *testing.T) {
 	if result.HighestLevel != Danger {
 		t.Errorf("expected Danger, got %v", result.HighestLevel)
 	}
-	if _, ok := result.SensitiveWords["badword"]; !ok {
-		t.Errorf("expected 'badword' in SensitiveWords")
+	if !hasWord(result, "badword") {
+		t.Errorf("expected 'badword' in Hits")
 	}
 }
 
@@ -65,8 +74,8 @@ func TestCensor_Check_Miss(t *testing.T) {
 	if result.HighestLevel != Ignore {
 		t.Errorf("expected Ignore, got %v", result.HighestLevel)
 	}
-	if len(result.SensitiveWords) != 0 {
-		t.Errorf("expected no sensitive words, got %v", result.SensitiveWords)
+	if len(result.Hits) != 0 {
+		t.Errorf("expected no hits, got %v", result.Hits)
 	}
 }
 
@@ -114,14 +123,47 @@ func TestCensor_Check_CaseSensitive_Miss(t *testing.T) {
 		CaseSensitive: true,
 		SensitiveKeys: make(map[string]WordInfo),
 	}
-	// addWord lowercases, so uppercase version is not matched when CaseSensitive=true
-	// (the key stored is lowercase, so "BADWORD" never appears in trie)
+	// key is stored lowercase, and CaseSensitive keeps input case, so "BADWORD" never matches
 	c.SensitiveKeys["badword"] = WordInfo{Level: Danger, Origin: "badword"}
 	_ = c.Load()
 
 	result := c.Check("BADWORD")
 	if result.HighestLevel != Ignore {
 		t.Errorf("expected case-sensitive miss, got %v", result.HighestLevel)
+	}
+}
+
+func TestCensor_Check_CaseInsensitive(t *testing.T) {
+	c := newTestCensor(map[string]Level{"badword": Danger})
+	result := c.Check("contains BADWORD here")
+	if result.HighestLevel != Danger {
+		t.Errorf("expected case-insensitive hit, got %v", result.HighestLevel)
+	}
+}
+
+func TestCensor_Check_LongestMatch(t *testing.T) {
+	c := newTestCensor(map[string]Level{
+		"色情":  Warning,
+		"色情片": Danger,
+	})
+	res := c.Check("这里有色情片内容")
+	if res.HighestLevel != Danger {
+		t.Fatalf("want Danger, got %v (hits=%+v)", res.HighestLevel, res.Hits)
+	}
+	if !hasWord(res, "色情片") {
+		t.Fatalf("expected hit 色情片, got %+v", res.Hits)
+	}
+}
+
+func TestCensor_Check_SpanOffset(t *testing.T) {
+	c := newTestCensor(map[string]Level{"bad": Danger})
+	res := c.Check("xx bad yy")
+	if len(res.Hits) != 1 {
+		t.Fatalf("want 1 hit, got %+v", res.Hits)
+	}
+	h := res.Hits[0]
+	if h.Span.Start != 3 || h.Span.End != 6 {
+		t.Fatalf("span=%+v want {3 6}", h.Span)
 	}
 }
 
@@ -153,48 +195,6 @@ func TestCensor_addWord_CaseInsensitive(t *testing.T) {
 }
 
 // --- Benchmark tests ---
-
-func BenchmarkTrie_Insert(b *testing.B) {
-	words := []string{
-		"alpha", "beta", "gamma", "delta", "epsilon",
-		"zeta", "eta", "theta", "iota", "kappa",
-	}
-	b.ResetTimer()
-	for range b.N {
-		t := newTire()
-		for j, w := range words {
-			t.Insert(w, Level(j%5))
-		}
-	}
-}
-
-func BenchmarkTrie_Match_Hit(b *testing.B) {
-	t := newTire()
-	words := []string{
-		"sensitive", "badword", "forbidden", "blocked", "illegal",
-		"spam", "abuse", "toxic", "harmful", "dangerous",
-	}
-	for i, w := range words {
-		t.Insert(w, Level(i%5))
-	}
-	text := "this message contains a sensitive word that is forbidden and harmful in nature"
-	b.ResetTimer()
-	for range b.N {
-		_ = t.Match(text)
-	}
-}
-
-func BenchmarkTrie_Match_Miss(b *testing.B) {
-	t := newTire()
-	for i := range 20 {
-		t.Insert(strings.Repeat("x", i+3), Danger)
-	}
-	text := "a completely clean message without any matching keywords at all in this text"
-	b.ResetTimer()
-	for range b.N {
-		_ = t.Match(text)
-	}
-}
 
 func BenchmarkCensor_Check(b *testing.B) {
 	c := &Censor{SensitiveKeys: make(map[string]WordInfo)}

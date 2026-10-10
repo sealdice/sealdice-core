@@ -120,12 +120,12 @@ func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent strin
 	res := cm.Censor.Check(checkContent)
 	if !ctx.Censored && res.HighestLevel > censor.Ignore {
 		// 敏感词命中记录保存
-		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, res.SensitiveWords, int(res.HighestLevel))
+		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, res.Words(), int(res.HighestLevel))
 	}
 	count := service.CensorCount(cm.DB, msg.Sender.UserID)
 
 	var words []string
-	for word := range res.SensitiveWords {
+	for word := range res.Words() {
 		words = append(words, word)
 	}
 	sort.Strings(words)
