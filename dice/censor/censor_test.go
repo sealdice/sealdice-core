@@ -299,19 +299,16 @@ func TestCensor_LoadWords_InvalidRegexKeepsLastGood(t *testing.T) {
 	if err := c.Load(); err == nil {
 		t.Fatal("want error for invalid regex")
 	}
-	if !c.Ready() {
-		t.Fatal("old matcher should be kept after failed reload")
-	}
 	if c.Check("a bad b").HighestLevel != Danger {
-		t.Fatal("old matcher should still hit")
+		t.Fatal("old matcher should still hit after failed reload")
 	}
 
 	fresh := &Censor{SensitiveKeys: map[string]WordInfo{"bad": {Level: Danger, Origin: "bad"}}, FilterRegexStr: "("}
 	if err := fresh.Load(); err == nil {
 		t.Fatal("want error for invalid regex")
 	}
-	if fresh.Ready() {
-		t.Fatal("never-loaded censor must not be ready")
+	if fresh.Check("a bad b").HighestLevel != Ignore {
+		t.Fatal("never-loaded censor should report no hits")
 	}
 }
 

@@ -267,13 +267,6 @@ func (c *Censor) addWord(word string, level Level, counter *FileCounter) {
 	c.SensitiveKeys[key] = WordInfo{Level: level, Origin: key, Reason: IgnoreCase}
 }
 
-// Ready 表示匹配器已构建完成（从未成功加载过则返回 false）。
-func (c *Censor) Ready() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.matcher != nil
-}
-
 // Load 以当前 SensitiveKeys 重建匹配器，等价于 LoadWords(c.SensitiveKeys)。
 func (c *Censor) Load() error {
 	c.mu.RLock()

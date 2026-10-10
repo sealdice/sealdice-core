@@ -2,7 +2,6 @@ package dice
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -147,13 +146,9 @@ func (cm *CensorManager) Load(d *Dice) {
 // censorDropRegexes 是匹配前需要剥离的标记（海豹码/CQ码），span 仍映射回原文。
 var censorDropRegexes = []*regexp.Regexp{sealCodeRe, cqCodeRe}
 
-func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) (*MsgCheckResult, error) {
-	if cm.IsLoading.Load() {
-		return nil, errors.New("censor is loading")
-	}
-	if !cm.Censor.Ready() {
-		return nil, errors.New("censor not loaded")
-	}
+// Check 检测文本命中。词表采用原子替换（last-known-good），因此重载期间仍用旧词表继续检测；
+// 仅在从未成功加载时匹配器为空，此时等价于无命中（fail-open）。
+func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) *MsgCheckResult {
 	res := cm.Censor.CheckWithDrops(text, censorDropRegexes)
 
 	spans := make([]censor.Span, 0, len(res.Hits))
@@ -179,7 +174,7 @@ func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) (*Msg
 		HitCounts:         count,
 		CurSensitiveWords: wordList,
 		Spans:             spans,
-	}, nil
+	}
 }
 
 type MsgCheckResult struct {
@@ -250,18 +245,12 @@ func formatCensorHitDetails(levelText string, words []string, content string) st
 }
 
 func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, text string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
-	log := d.Logger
 	newContent = text
 	cm := d.CensorManager()
 	if cm == nil {
 		return false, nil, false, newContent
 	}
-	checkResult, err := cm.Check(mctx, msg, text)
-	if err != nil {
-		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
-		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserID)
-		return false, nil, false, newContent
-	}
+	checkResult := cm.Check(mctx, msg, text)
 
 	if checkResult.Level <= censor.Ignore {
 		return false, nil, false, newContent
