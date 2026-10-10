@@ -74,7 +74,7 @@ func (h *HTTPProvider) Check(ctx context.Context, req Request) (*Result, error) 
 		return h.onErr()
 	}
 	if out.Level <= int(censor.Ignore) {
-		return nil, nil
+		return nil, nil //nolint:nilnil // 低于忽略级即视为未命中
 	}
 	r := &Result{Level: censor.Level(out.Level), Reason: out.Reason}
 	if h.cfg.Capability == SpanCapable {
@@ -89,5 +89,5 @@ func (h *HTTPProvider) onErr() (*Result, error) {
 	if h.cfg.FailMode == FailClosed {
 		return &Result{Level: censor.Danger, Reason: "provider error"}, nil
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil // fail-open：跳过并视为未命中
 }

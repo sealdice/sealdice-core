@@ -1,7 +1,6 @@
 package provider_test
 
 import (
-	"context"
 	"sync"
 	"testing"
 
@@ -20,7 +19,7 @@ func TestEngine_ConcurrentCheckAndReload(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 200 {
-				_, _ = e.Check(context.Background(), provider.Request{Text: "a bad b"})
+				_, _ = e.Check(t.Context(), provider.Request{Text: "a bad b"})
 			}
 		}()
 	}

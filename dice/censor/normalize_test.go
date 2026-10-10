@@ -1,3 +1,4 @@
+//nolint:testpackage // tests access unexported normalize helpers
 package censor
 
 import (

@@ -19,7 +19,7 @@ func newCensor(words map[string]censor.Level) *censor.Censor {
 
 func TestLocalAC_SpanResult(t *testing.T) {
 	p := provider.NewLocalAC(newCensor(map[string]censor.Level{"bad": censor.Danger}))
-	r, err := p.Check(context.Background(), provider.Request{Text: "a bad b"})
+	r, err := p.Check(t.Context(), provider.Request{Text: "a bad b"})
 	if err != nil || r == nil {
 		t.Fatalf("r=%v err=%v", r, err)
 	}
@@ -30,7 +30,7 @@ func TestLocalAC_SpanResult(t *testing.T) {
 
 func TestLocalAC_NoHit(t *testing.T) {
 	p := provider.NewLocalAC(newCensor(map[string]censor.Level{"bad": censor.Danger}))
-	r, err := p.Check(context.Background(), provider.Request{Text: "clean"})
+	r, err := p.Check(t.Context(), provider.Request{Text: "clean"})
 	if err != nil || r != nil {
 		t.Fatalf("want nil,nil got r=%v err=%v", r, err)
 	}
@@ -40,7 +40,7 @@ func TestEngine_Merge(t *testing.T) {
 	local := provider.NewLocalAC(newCensor(map[string]censor.Level{"bad": censor.Warning}))
 	verdict := &fakeVerdict{}
 	e := provider.NewEngine(local, verdict)
-	m, err := e.Check(context.Background(), provider.Request{Text: "a bad b"})
+	m, err := e.Check(t.Context(), provider.Request{Text: "a bad b"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,3 +1,4 @@
+//nolint:testpackage // tests access unexported helpers
 package censor
 
 import "testing"

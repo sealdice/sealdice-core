@@ -1,7 +1,6 @@
 package provider_test
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -24,7 +23,7 @@ func TestHTTPProvider_Spans(t *testing.T) {
 	p := provider.NewHTTP(provider.HTTPConfig{
 		Name: "remote", URL: srv.URL, Capability: provider.SpanCapable, TimeoutMs: 1000, FailMode: provider.FailOpen,
 	})
-	r, err := p.Check(context.Background(), provider.Request{Text: "abcde"})
+	r, err := p.Check(t.Context(), provider.Request{Text: "abcde"})
 	if err != nil || r == nil {
 		t.Fatalf("r=%v err=%v", r, err)
 	}
@@ -44,7 +43,7 @@ func TestHTTPProvider_VerdictOnlyIgnoresSpans(t *testing.T) {
 	p := provider.NewHTTP(provider.HTTPConfig{
 		Name: "remote", URL: srv.URL, Capability: provider.VerdictOnly, TimeoutMs: 1000, FailMode: provider.FailOpen,
 	})
-	r, err := p.Check(context.Background(), provider.Request{Text: "abcde"})
+	r, err := p.Check(t.Context(), provider.Request{Text: "abcde"})
 	if err != nil || r == nil {
 		t.Fatalf("r=%v err=%v", r, err)
 	}
@@ -57,7 +56,7 @@ func TestHTTPProvider_FailOpen(t *testing.T) {
 	p := provider.NewHTTP(provider.HTTPConfig{
 		Name: "remote", URL: "http://127.0.0.1:1", Capability: provider.VerdictOnly, TimeoutMs: 100, FailMode: provider.FailOpen,
 	})
-	r, err := p.Check(context.Background(), provider.Request{Text: "x"})
+	r, err := p.Check(t.Context(), provider.Request{Text: "x"})
 	if err != nil || r != nil {
 		t.Fatalf("fail-open want nil,nil got r=%v err=%v", r, err)
 	}
@@ -67,7 +66,7 @@ func TestHTTPProvider_FailClosed(t *testing.T) {
 	p := provider.NewHTTP(provider.HTTPConfig{
 		Name: "remote", URL: "http://127.0.0.1:1", Capability: provider.VerdictOnly, TimeoutMs: 100, FailMode: provider.FailClosed,
 	})
-	r, err := p.Check(context.Background(), provider.Request{Text: "x"})
+	r, err := p.Check(t.Context(), provider.Request{Text: "x"})
 	if err != nil || r == nil {
 		t.Fatalf("fail-closed want result got r=%v err=%v", r, err)
 	}

@@ -49,7 +49,7 @@ func normalize(text string, caseSensitive bool, drop []bool) normalized {
 		if oi < len(drop) && drop[oi] {
 			continue
 		}
-		for _, nr := range []rune(norm.NFKC.String(string(r))) {
+		for _, nr := range norm.NFKC.String(string(r)) {
 			if !caseSensitive {
 				nr = unicode.ToLower(nr)
 			}

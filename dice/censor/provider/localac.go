@@ -21,7 +21,7 @@ func (l *LocalAC) Reload() error          { return l.c.Load() }
 func (l *LocalAC) Check(_ context.Context, req Request) (*Result, error) {
 	res := l.c.CheckWithDrops(req.Text, req.Drop)
 	if res.HighestLevel <= censor.Ignore || len(res.Hits) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // 无命中即返回空结果
 	}
 	spans := make([]censor.Span, 0, len(res.Hits))
 	seen := map[string]bool{}
