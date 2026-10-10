@@ -28,6 +28,7 @@ func TestResolveBackupFilePathLimitsBackupNames(t *testing.T) {
 
 	for _, name := range []string{
 		"secret.txt",
+		"bak_260101_010203_r1_deadbeef.zip",
 		"..",
 		"../" + validName,
 		`..\` + validName,

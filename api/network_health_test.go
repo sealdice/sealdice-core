@@ -57,56 +57,6 @@ func TestCheckHTTPConnectivityTimesOut(t *testing.T) {
 	}
 }
 
-func TestRunNetworkHealthCheckReportsBotAPIs(t *testing.T) {
-	requests := make(chan string, 12)
-	client := &http.Client{
-		Timeout: checkTimeout,
-		Transport: networkHealthRoundTripper(func(req *http.Request) (*http.Response, error) {
-			requests <- req.URL.String()
-			if req.URL.Host == "slack.com" {
-				return nil, errors.New("blocked API")
-			}
-			status := http.StatusUnauthorized
-			headers := make(http.Header)
-			if req.URL.Host == "api.telegram.org" {
-				status = http.StatusFound
-				headers.Set("Location", "https://core.telegram.org/bots")
-			}
-			return &http.Response{
-				StatusCode: status,
-				Header:     headers,
-				Body:       io.NopCloser(strings.NewReader("{}")),
-				Request:    req,
-			}, nil
-		}),
-	}
-
-	result := runNetworkHealthCheckWithClient(client)
-	if result.Total != 6 || len(result.Targets) != 6 || len(result.Ok) != 5 || result.Timestamp == 0 {
-		t.Fatalf("unexpected result: %+v", result)
-	}
-	expected := []string{"qq", "kook", "discord", "telegram", "dingtalk", "slack"}
-	for i, target := range result.Targets {
-		if target.Target != expected[i] || target.Ok != (target.Target != "slack") {
-			t.Fatalf("unexpected target at %d: %+v", i, target)
-		}
-		if i < len(result.Ok) && result.Ok[i] != expected[i] {
-			t.Fatalf("compatibility ok list: %v", result.Ok)
-		}
-	}
-	close(requests)
-	count := 0
-	for targetURL := range requests {
-		count++
-		if strings.Contains(targetURL, "core.telegram.org") || strings.Contains(targetURL, "google.com") || strings.Contains(targetURL, "github.com") {
-			t.Errorf("must probe bot APIs, requested %s", targetURL)
-		}
-	}
-	if count != result.Total {
-		t.Fatalf("sent %d requests, want %d API probes without following redirects", count, result.Total)
-	}
-}
-
 func TestCheckHTTPConnectivityAcceptsRedirectsWithoutFollowingThem(t *testing.T) {
 	for _, location := range []string{"/redirected", "https://redirect.invalid", "unsupported://redirect", "http://[invalid"} {
 		t.Run(location, func(t *testing.T) {

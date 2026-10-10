@@ -22,7 +22,7 @@ type backupFileItem struct {
 	Selection int64  `json:"selection"`
 }
 
-var backupFileNamePattern = regexp.MustCompile(`^(bak_\d{6}_\d{6}(?:_auto)?_r([0-9a-f]+))_([0-9a-f]{8})\.zip$`)
+var backupFileNamePattern = regexp.MustCompile(`^(bak_\d{6}_\d{6}(?:_auto)?_r([0-9a-f]{1,16}))_([0-9a-f]{8})\.zip$`)
 
 func ReverseSlice(s interface{}) {
 	size := reflect.ValueOf(s).Len()
@@ -33,10 +33,15 @@ func ReverseSlice(s interface{}) {
 }
 
 func resolveBackupFilePath(name string) (string, bool) {
-	if !backupFileNamePattern.MatchString(name) ||
+	matches := backupFileNamePattern.FindStringSubmatch(name)
+	if len(matches) != 4 ||
 		strings.ContainsAny(name, `/\`) ||
 		filepath.IsAbs(name) || filepath.VolumeName(name) != "" ||
 		filepath.Base(name) != name {
+		return "", false
+	}
+	if _, err := strconv.ParseUint(matches[2], 16, 64); err != nil ||
+		crypto.CalculateSHA512Str([]byte(matches[1]))[:8] != matches[3] {
 		return "", false
 	}
 	root, err := filepath.Abs(dice.BackupDir)
