@@ -192,3 +192,24 @@ type Provider interface {
 - 语义级脱敏（序列标注 / toxic span 模型）。
 - DB 热路径治理（内存计数 + 异步落库）。
 - log 脱敏（如后续需要）。
+
+## 变更记录
+
+### 2026-10-10 范围收缩：移除 Provider 层
+
+经代码审查与范围决策，本次**移除 Provider/Engine/HTTPProvider 抽象**，仅保留「敏感词检测重构 + 脱敏」，理由：
+
+- 外部 Provider 配置未对外开放、无任何调用方（YAGNI）。
+- Provider 层引入了合并语义、能力协商、fail-mode、令牌/传输安全等约 9 项审查问题，复杂度远超当前所需。
+- 本地敏感词路径已满足需求，删除该层使实现更简单、更易读。
+
+保留并修复的核心：
+
+- 纯 Go Aho-Corasick 匹配 + 命中 span（原文 rune 偏移）。
+- 归一化（NFKC/小写/去零宽/丢弃正则）+ `norm→orig` 偏移映射；**词表键同步归一化**。
+- 组合字符按簇跨 rune 合成，分解/预组合形式可互相匹配。
+- `Censor.LoadWords` 原子替换词表 + 匹配器，`Ready()` 表示可用；加载失败保留 last-known-good。
+- 对外发送按 span 脱敏，占位符模板 `核心:拦截_敏感词过滤_替换占位符`（默认 `■`）。
+- `VerdictOnly` 概念随 Provider 一并移除；命中必有 span，无 span 时调用方回退整条拦截模板。
+
+外部 Provider（语义/API）移入「后续」。
