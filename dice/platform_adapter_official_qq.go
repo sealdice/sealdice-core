@@ -3143,7 +3143,7 @@ func qqBotHttpPost(url string, body []byte) ([]byte, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- the URL is one of the fixed QQ bot endpoints.
 	if err != nil {
 		return nil, err
 	}

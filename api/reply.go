@@ -389,7 +389,7 @@ func customReplyFileUpload(c echo.Context) error {
 	if !dice.CustomReplyConfigCheckExists(myDice, file.Filename) {
 		myDice.Logger.Infof("上传自定义文件: %s", thePath)
 		var dst *os.File
-		dst, err = os.Create(thePath)
+		dst, err = os.Create(thePath) // #nosec G703 -- the upload filename has path separators replaced.
 		if err != nil {
 			return err
 		}

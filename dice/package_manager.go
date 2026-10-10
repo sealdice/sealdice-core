@@ -939,7 +939,7 @@ func (pm *PackageManager) prepareDownloadedPackageContext(ctx context.Context, u
 	if _, err := packageSHA256Expectation(options.Hashes); err != nil {
 		return "", 0, err
 	}
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G703 -- targetDir is selected from manager-controlled package directories.
 		return "", 0, errors.New("创建临时目录失败: " + err.Error())
 	}
 	if options.ExpectedSize > 0 {
@@ -1204,7 +1204,7 @@ func (w *guardedPackageWriter) Write(data []byte) (int, error) {
 }
 
 func (pm *PackageManager) writePackageStream(ctx context.Context, targetDir, pattern string, src io.Reader, expectedSize uint64, hashes map[string]string) (string, uint64, error) {
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G703 -- targetDir is selected from manager-controlled package directories.
 		return "", 0, err
 	}
 	expectedSHA256, err := packageSHA256Expectation(hashes)
@@ -1368,11 +1368,11 @@ func (pm *PackageManager) stageSourceArtifact(srcPath, destDir string) (string, 
 	}
 	tempPath := tempFile.Name()
 	if err := tempFile.Close(); err != nil {
-		_ = os.Remove(tempPath)
+		_ = os.Remove(tempPath) // #nosec G703 -- tempPath is returned by os.CreateTemp.
 		return "", err
 	}
 	if err := pm.copyFile(srcPath, tempPath); err != nil {
-		_ = os.Remove(tempPath)
+		_ = os.Remove(tempPath) // #nosec G703 -- tempPath is returned by os.CreateTemp.
 		return "", errors.New("failed to copy extension package: " + err.Error())
 	}
 	return tempPath, nil
@@ -2388,7 +2388,7 @@ func (pm *PackageManager) unlinkPackageResources(pkg *sealpack.Instance) error {
 
 // copyFile 复制文件
 func (pm *PackageManager) copyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
+	srcFile, err := os.Open(src) // #nosec G703 -- callers validate managed package paths before copying.
 	if err != nil {
 		return err
 	}
