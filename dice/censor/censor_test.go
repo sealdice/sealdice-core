@@ -236,3 +236,18 @@ func BenchmarkCensor_Check_LargeWordlist(b *testing.B) {
 		_ = c.Check(text)
 	}
 }
+
+func TestCheckAndMaskPipeline(t *testing.T) {
+	c := newTestCensor(map[string]Level{"夜总会": Danger})
+	res := c.Check("黑夜总会来临")
+	if len(res.Hits) != 1 {
+		t.Fatalf("want 1 hit, got %+v", res.Hits)
+	}
+	if res.Hits[0].Span != (Span{Start: 1, End: 4}) {
+		t.Fatalf("span=%+v want {1 4}", res.Hits[0].Span)
+	}
+	masked := MaskSpans("黑夜总会来临", []Span{res.Hits[0].Span}, "■")
+	if masked != "黑■■■来临" {
+		t.Fatalf("masked=%q", masked)
+	}
+}
