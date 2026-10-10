@@ -243,6 +243,9 @@ func (c *Censor) tryPreloadTomlFile(path string) (*WordFile, error) {
 }
 
 func (c *Censor) addWord(word string, level Level, counter *FileCounter) {
+	if c.SensitiveKeys == nil {
+		c.SensitiveKeys = make(map[string]WordInfo)
+	}
 	key := strings.TrimSpace(word)
 	counter[level]++
 	if c.CaseSensitive {

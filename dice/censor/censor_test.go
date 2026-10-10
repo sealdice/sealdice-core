@@ -2,6 +2,8 @@
 package censor
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -343,4 +345,38 @@ func TestCensor_ConcurrentCheckAndReload(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+}
+
+func TestCensor_PreloadFile_ZeroValueCensor(t *testing.T) {
+	dir := t.TempDir()
+
+	tomlPath := filepath.Join(dir, "w.toml")
+	if err := os.WriteFile(tomlPath, []byte("[meta]\nname = \"t\"\n[words]\ndanger = [\"坏词\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &Censor{} // SensitiveKeys 为 nil，addWord 必须自愈，不得 panic
+	if _, err := c.PreloadFile(tomlPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.LoadWords(c.SensitiveKeys); err != nil {
+		t.Fatal(err)
+	}
+	if c.Check("这里有坏词").HighestLevel != Danger {
+		t.Fatal("expected Danger hit from toml word file")
+	}
+
+	txtPath := filepath.Join(dir, "w.txt")
+	if err := os.WriteFile(txtPath, []byte("#danger\n坏词\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c2 := &Censor{}
+	if _, err := c2.PreloadFile(txtPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := c2.LoadWords(c2.SensitiveKeys); err != nil {
+		t.Fatal(err)
+	}
+	if c2.Check("坏词在此").HighestLevel != Danger {
+		t.Fatal("expected Danger hit from txt word file")
+	}
 }

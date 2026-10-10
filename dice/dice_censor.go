@@ -119,6 +119,7 @@ func (cm *CensorManager) Load(d *Dice) {
 		CaseSensitive:  cm.Censor.CaseSensitive,
 		MatchPinyin:    cm.Censor.MatchPinyin,
 		FilterRegexStr: cm.Censor.FilterRegexStr,
+		SensitiveKeys:  make(map[string]censor.WordInfo),
 	}
 	_ = os.MkdirAll(fileDir, 0o755)
 	files := make(map[string]*censor.WordFile)
