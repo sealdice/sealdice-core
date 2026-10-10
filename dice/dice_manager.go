@@ -12,6 +12,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
+	"sealdice-core/dice/service"
 	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
 )
@@ -69,6 +70,9 @@ type DiceManager struct { //nolint:revive
 	BackupCleanTrigger   BackupCleanTrigger  // 触发方式: cron触发 / 随自动备份触发 (多种方式按位OR)
 	BackupCleanCron      string              // 如果使用cron触发, 表达式
 	backupCleanCronID    cron.EntryID
+
+	// 数据库维护（增量页回收）定时任务
+	dbMaintenanceEntryID cron.EntryID
 
 	AppBootTime      int64
 	AppVersionCode   int64
@@ -345,6 +349,7 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 
 	dm.ResetAutoBackup()
 	dm.ResetBackupClean()
+	dm.ResetDBMaintenance()
 }
 
 func (dm *DiceManager) ResetAutoBackup() {
@@ -391,6 +396,26 @@ func (dm *DiceManager) ResetBackupClean() {
 			log.Errorf("设定的备份清理cron有误: %q %v", dm.BackupCleanCron, err)
 			return
 		}
+	}
+}
+
+// ResetDBMaintenance 注册每天凌晨 3 点的数据库维护任务：
+// 仅对 auto_vacuum=INCREMENTAL 的 SQLite 库执行增量页回收。
+func (dm *DiceManager) ResetDBMaintenance() {
+	log := logger.M()
+	if dm.dbMaintenanceEntryID != 0 {
+		dm.Cron.Remove(dm.dbMaintenanceEntryID)
+		dm.dbMaintenanceEntryID = 0
+	}
+	if dm.Operator == nil {
+		return
+	}
+	var err error
+	dm.dbMaintenanceEntryID, err = dm.Cron.AddFunc("0 3 * * *", func() {
+		service.DBIncrementalVacuum(dm.Operator)
+	})
+	if err != nil {
+		log.Errorf("注册数据库维护定时任务失败: %v", err)
 	}
 }
 
