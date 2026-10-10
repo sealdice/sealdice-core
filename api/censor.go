@@ -31,7 +31,7 @@ func check(c echo.Context) (bool, error) {
 	if !myDice.Config.EnableCensor {
 		return false, Error(&c, "未启用拦截引擎", Response{})
 	}
-	if myDice.CensorManager.IsLoading {
+	if myDice.CensorManager.IsLoading.Load() {
 		return false, Error(&c, "拦截引擎正在加载，请稍候", Response{})
 	}
 	return true, nil
@@ -51,7 +51,7 @@ func censorRestart(c echo.Context) error {
 
 	return Success(&c, Response{
 		"enable":    myDice.Config.EnableCensor,
-		"isLoading": myDice.CensorManager.IsLoading,
+		"isLoading": myDice.CensorManager.IsLoading.Load(),
 	})
 }
 
@@ -80,7 +80,7 @@ func censorStop(c echo.Context) error {
 func censorGetStatus(c echo.Context) error {
 	var isLoading bool
 	if myDice.CensorManager != nil {
-		isLoading = myDice.CensorManager.IsLoading
+		isLoading = myDice.CensorManager.IsLoading.Load()
 	}
 	return Success(&c, Response{
 		"enable":    myDice.Config.EnableCensor,
@@ -329,7 +329,7 @@ func censorGetWords(c echo.Context) error {
 	}
 
 	temp := map[string]*SensitiveWord{}
-	for word, info := range myDice.CensorManager.Censor.SensitiveKeys {
+	for word, info := range myDice.CensorManager.Censor.WordsSnapshot() {
 		switch info.Reason {
 		case censor.Origin:
 			_, ok := temp[word]

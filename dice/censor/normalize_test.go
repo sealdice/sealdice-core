@@ -68,3 +68,13 @@ func TestByteToRune(t *testing.T) {
 		t.Fatalf("byteToRune=%v", n.byteToRune)
 	}
 }
+
+func TestNormalize_CombiningCluster(t *testing.T) {
+	n := normalize("e\u0301", false, nil) // e + 组合尖音符
+	if n.text != "é" {
+		t.Fatalf("text=%q want é", n.text)
+	}
+	if len(n.runeToOrig) != 1 || n.runeToOrig[0] != 0 {
+		t.Fatalf("runeToOrig=%v want [0]", n.runeToOrig)
+	}
+}

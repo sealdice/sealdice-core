@@ -3,6 +3,7 @@ package censor
 
 import (
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -250,4 +251,99 @@ func TestCheckAndMaskPipeline(t *testing.T) {
 	if masked != "黑■■■来临" {
 		t.Fatalf("masked=%q", masked)
 	}
+}
+
+func TestCensor_Check_FullWidthDictionaryKey(t *testing.T) {
+	// 词表键为全角形式，正文为半角：键归一化后应可匹配
+	c := &Censor{SensitiveKeys: map[string]WordInfo{
+		"ｂａｄ": {Level: Danger, Origin: "ｂａｄ"},
+	}}
+	if err := c.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if res := c.Check("very bad word"); res.HighestLevel != Danger {
+		t.Fatalf("want Danger, got %v (hits=%+v)", res.HighestLevel, res.Hits)
+	}
+}
+
+func TestCensor_Check_CombiningFormMatches(t *testing.T) {
+	// 词表预组合 é，正文分解形式 e+◌́ 也应命中，且 span 覆盖两个原文 rune
+	c := &Censor{SensitiveKeys: map[string]WordInfo{
+		"café": {Level: Danger, Origin: "café"},
+	}}
+	if err := c.Load(); err != nil {
+		t.Fatal(err)
+	}
+	res := c.Check("x cafe\u0301 y")
+	if res.HighestLevel != Danger || len(res.Hits) != 1 {
+		t.Fatalf("want 1 Danger hit, got %+v", res.Hits)
+	}
+	if res.Hits[0].Span.Start != 2 || res.Hits[0].Span.End != 7 {
+		t.Fatalf("span=%+v want {2 7}", res.Hits[0].Span)
+	}
+}
+
+func TestCensor_addWord_CaseSensitive_SetsOrigin(t *testing.T) {
+	c := &Censor{CaseSensitive: true, SensitiveKeys: map[string]WordInfo{}}
+	var counter FileCounter
+	c.addWord("BadWord", Danger, &counter)
+	info, ok := c.SensitiveKeys["BadWord"]
+	if !ok || info.Origin != "BadWord" {
+		t.Fatalf("info=%+v ok=%v want Origin=BadWord", info, ok)
+	}
+}
+
+func TestCensor_LoadWords_InvalidRegexKeepsLastGood(t *testing.T) {
+	c := newTestCensor(map[string]Level{"bad": Danger})
+	c.FilterRegexStr = "("
+	if err := c.Load(); err == nil {
+		t.Fatal("want error for invalid regex")
+	}
+	if !c.Ready() {
+		t.Fatal("old matcher should be kept after failed reload")
+	}
+	if c.Check("a bad b").HighestLevel != Danger {
+		t.Fatal("old matcher should still hit")
+	}
+
+	fresh := &Censor{SensitiveKeys: map[string]WordInfo{"bad": {Level: Danger, Origin: "bad"}}, FilterRegexStr: "("}
+	if err := fresh.Load(); err == nil {
+		t.Fatal("want error for invalid regex")
+	}
+	if fresh.Ready() {
+		t.Fatal("never-loaded censor must not be ready")
+	}
+}
+
+func TestCensor_ConcurrentCheckAndReload(t *testing.T) {
+	words := map[string]WordInfo{"bad": {Level: Danger, Origin: "bad"}}
+	c := &Censor{}
+	if err := c.LoadWords(words); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 300 {
+				if c.Check("a bad b").HighestLevel != Danger {
+					t.Error("reload lost matches")
+					return
+				}
+			}
+		}()
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 100 {
+			if err := c.LoadWords(words); err != nil {
+				t.Error(err)
+				return
+			}
+		}
+	}()
+	wg.Wait()
 }

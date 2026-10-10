@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/service"
@@ -56,7 +57,7 @@ var CensorHandlerText = map[CensorHandler]string{
 type CensorHandler int
 
 type CensorManager struct {
-	IsLoading           bool
+	IsLoading           atomic.Bool
 	Parent              *Dice
 	Censor              *censor.Censor
 	DB                  engine.DatabaseOperator
@@ -73,7 +74,6 @@ func (d *Dice) NewCensorManager() {
 		DB: d.DBOperator,
 	}
 	cm.Parent = d
-	d.CensorManager = &cm
 	if d.Config.CensorThresholds == nil {
 		(&d.Config).CensorThresholds = make(map[censor.Level]int)
 	}
@@ -84,41 +84,49 @@ func (d *Dice) NewCensorManager() {
 		(&d.Config).CensorScores = make(map[censor.Level]int)
 	}
 	cm.Load(d)
+	// 词表与匹配器就绪后才发布管理器，避免外部读到半初始化状态
+	d.CensorManager = &cm
 }
 
-// Load 审查加载
+// Load 审查加载：在临时 Censor 上读取词库文件，随后原子替换词表，
+// 避免重载期间的读写竞争与短暂“词表为空”的窗口。
 func (cm *CensorManager) Load(d *Dice) {
 	log := d.Logger
 	fileDir := "./data/censor"
-	cm.IsLoading = true
-	cm.Censor.SensitiveKeys = make(map[string]censor.WordInfo)
+	cm.IsLoading.Store(true)
+	defer cm.IsLoading.Store(false)
+
+	scratch := &censor.Censor{
+		CaseSensitive:  cm.Censor.CaseSensitive,
+		MatchPinyin:    cm.Censor.MatchPinyin,
+		FilterRegexStr: cm.Censor.FilterRegexStr,
+	}
 	_ = os.MkdirAll(fileDir, 0o755)
+	files := make(map[string]*censor.WordFile)
 	_ = filepath.Walk(fileDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && (filepath.Ext(path) == ".txt" || filepath.Ext(path) == ".toml") {
 			cm.Parent.Logger.Infof("正在读取敏感词文件：%s\n", path)
-			fileInfo, e := cm.Censor.PreloadFile(path)
+			fileInfo, e := scratch.PreloadFile(path)
 			if e != nil {
 				log.Errorf("censor: unable to read %s, %v", path, e)
 			}
-			if cm.SensitiveWordsFiles == nil {
-				cm.SensitiveWordsFiles = make(map[string]*censor.WordFile)
+			if fileInfo != nil {
+				files[fileInfo.Key] = fileInfo
 			}
-			cm.SensitiveWordsFiles[fileInfo.Key] = fileInfo
 		}
 		return nil
 	})
-	err := cm.Censor.Load()
-	if err != nil {
+	if err := cm.Censor.LoadWords(scratch.SensitiveKeys); err != nil {
 		log.Errorf("censor: load fail, %v", err)
 	}
-	cm.IsLoading = false
+	cm.SensitiveWordsFiles = files
 }
 
 // censorDropRegexes 是匹配前需要剥离的标记（海豹码/CQ码），span 仍映射回原文。
 var censorDropRegexes = []*regexp.Regexp{sealCodeRe, cqCodeRe}
 
 func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) (*MsgCheckResult, error) {
-	if cm.IsLoading {
+	if cm.IsLoading.Load() {
 		return nil, errors.New("censor is loading")
 	}
 	if !cm.Censor.Ready() {

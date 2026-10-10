@@ -246,7 +246,7 @@ func (c *Censor) addWord(word string, level Level, counter *FileCounter) {
 	key := strings.TrimSpace(word)
 	counter[level]++
 	if c.CaseSensitive {
-		c.SensitiveKeys[key] = WordInfo{Level: level}
+		c.SensitiveKeys[key] = WordInfo{Level: level, Origin: key}
 		return
 	}
 	key = strings.ToLower(key)
@@ -274,28 +274,62 @@ func (c *Censor) Ready() bool {
 	return c.matcher != nil
 }
 
-func (c *Censor) Load() (err error) {
+// Load 以当前 SensitiveKeys 重建匹配器，等价于 LoadWords(c.SensitiveKeys)。
+func (c *Censor) Load() error {
+	c.mu.RLock()
+	keys := c.SensitiveKeys
+	c.mu.RUnlock()
+	return c.LoadWords(keys)
+}
+
+// LoadWords 原子地替换词表并重建匹配器（全程持写锁）。
+// 键在插入前做与正文一致的归一化（NFKC/小写/去零宽），保证全角等兼容形式可匹配；
+// 失败（如过滤正则非法）时保留旧词表与旧匹配器（last-known-good）。
+func (c *Censor) LoadWords(words map[string]WordInfo) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.FilterRegexStr != "" {
-		re, e := regexp.Compile(c.FilterRegexStr)
-		if e != nil {
-			return fmt.Errorf("censor: invalid filter regex: %w", e)
+		re, err := regexp.Compile(c.FilterRegexStr)
+		if err != nil {
+			return fmt.Errorf("censor: invalid filter regex: %w", err)
 		}
 		c.filterRegex = re
 	} else {
 		c.filterRegex = nil
 	}
 
-	builder := ahocorasick.NewTrieBuilder()
-	if c.SensitiveKeys != nil {
-		for key := range c.SensitiveKeys {
-			builder.AddString(key)
+	normalized := make(map[string]WordInfo, len(words))
+	for key, info := range words {
+		nk := normalizeKey(key, c.CaseSensitive)
+		if nk == "" {
+			continue
 		}
+		// 归一化后冲突时保留等级更高者
+		if old, ok := normalized[nk]; ok && old.Level >= info.Level {
+			continue
+		}
+		normalized[nk] = info
 	}
+
+	builder := ahocorasick.NewTrieBuilder()
+	for key := range normalized {
+		builder.AddString(key)
+	}
+	c.SensitiveKeys = normalized
 	c.matcher = builder.Build()
 	return nil
+}
+
+// WordsSnapshot 返回词表快照，供外部遍历，避免与重载竞争。
+func (c *Censor) WordsSnapshot() map[string]WordInfo {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	out := make(map[string]WordInfo, len(c.SensitiveKeys))
+	for k, v := range c.SensitiveKeys {
+		out[k] = v
+	}
+	return out
 }
 
 type CheckResult struct {
@@ -338,8 +372,12 @@ func (c *Censor) CheckWithDrops(content string, extra []*regexp.Regexp) CheckRes
 		}
 	}
 	n := normalize(content, c.CaseSensitive, drop)
-
-	for _, mt := range c.matcher.MatchString(n.text) {
+	matches := c.matcher.MatchString(n.text)
+	if len(matches) == 0 {
+		return res
+	}
+	origRunes := []rune(content)
+	for _, mt := range matches {
 		word := mt.MatchString()
 		info, ok := c.SensitiveKeys[word]
 		if !ok {
@@ -350,13 +388,17 @@ func (c *Censor) CheckWithDrops(content string, extra []*regexp.Regexp) CheckRes
 		if bpos < 0 || bpos+blen >= len(n.byteToRune) {
 			continue
 		}
-		rs := n.byteToRune[bpos]
-		re := n.byteToRune[bpos+blen]
-		if rs < 0 || re > len(n.runeToOrig) || rs >= re {
+		runeStart := n.byteToRune[bpos]
+		runeEnd := n.byteToRune[bpos+blen]
+		if runeStart < 0 || runeEnd > len(n.runeToOrig) || runeStart >= runeEnd {
 			continue
 		}
-		start := n.runeToOrig[rs]
-		end := n.runeToOrig[re-1] + 1
+		start := n.runeToOrig[runeStart]
+		end := n.runeToOrig[runeEnd-1] + 1
+		// 命中末字符若带组合标记（分解形式），一并纳入命中范围
+		for end < len(origRunes) && isCombining(origRunes[end]) {
+			end++
+		}
 		res.Hits = append(res.Hits, Hit{Span: Span{Start: start, End: end}, Word: info.Origin, Level: info.Level})
 		res.HighestLevel = HigherLevel(res.HighestLevel, info.Level)
 	}
