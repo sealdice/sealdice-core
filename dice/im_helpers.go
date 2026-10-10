@@ -424,6 +424,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 			}
 			if hit {
 				if masked != text {
+					ctx.censorOriginal = text // 日志仍记录原文
 					text = masked
 				} else {
 					text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
@@ -440,6 +441,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		}
 	}
 	replyGroupRawNoCheck(ctx, msg, text, flag)
+	ctx.censorOriginal = ""
 }
 
 func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
@@ -496,6 +498,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 			}
 			if hit {
 				if masked != text {
+					ctx.censorOriginal = text // 日志仍记录原文
 					text = masked
 				} else {
 					text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
@@ -511,6 +514,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		}
 	}
 	replyPersonRawNoCheck(ctx, msg, text, flag)
+	ctx.censorOriginal = ""
 }
 
 func replyPersonRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {

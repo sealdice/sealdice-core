@@ -881,7 +881,8 @@ type MsgContext struct {
 	DeckPools           map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 	diceExprOverwrite   string                                      // 默认骰表达式覆盖
 	SystemTemplate      *GameSystemTemplate
-	Censored            bool // 已检查过敏感词
+	Censored            bool   // 已检查过敏感词
+	censorOriginal      string // 对外发送被脱敏时的原文，供日志钩子记录；发送后清空
 	SpamCheckedGroup    bool
 	SpamCheckedPerson   bool
 	UITestReplySplitLen *int
