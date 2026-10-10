@@ -881,7 +881,8 @@ type MsgContext struct {
 	DeckPools           map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 	diceExprOverwrite   string                                      // 默认骰表达式覆盖
 	SystemTemplate      *GameSystemTemplate
-	Censored            bool // 已检查过敏感词
+	Censored            bool   // 已检查过敏感词
+	censorOriginal      string // 对外发送被脱敏时的原文，供日志钩子记录；发送后清空
 	SpamCheckedGroup    bool
 	SpamCheckedPerson   bool
 	UITestReplySplitLen *int
@@ -1131,7 +1132,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		// 敏感词拦截：全部输入
 		if mctx.IsCurGroupBotOn && d.Config.EnableCensor && d.Config.CensorMode == AllInput {
-			hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+			hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 			if needToTerminate {
 				return
 			}
@@ -1181,7 +1182,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 				// 敏感词拦截：命令输入
 				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.Config.EnableCensor && d.Config.CensorMode == OnlyInputCommand {
-					hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+					hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 					if needToTerminate {
 						return
 					}
@@ -1501,7 +1502,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 	// 敏感词拦截：全部输入
 	if mctx.IsCurGroupBotOn && d.Config.EnableCensor && d.Config.CensorMode == AllInput {
-		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 		if needToTerminate {
 			return
 		}
@@ -1602,7 +1603,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 
 	// 敏感词拦截：命令输入
 	if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.Config.EnableCensor && d.Config.CensorMode == OnlyInputCommand {
-		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 		if needToTerminate {
 			return
 		}

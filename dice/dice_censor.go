@@ -2,13 +2,15 @@ package dice
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"sealdice-core/dice/censor"
 	"sealdice-core/dice/service"
@@ -55,11 +57,30 @@ var CensorHandlerText = map[CensorHandler]string{
 type CensorHandler int
 
 type CensorManager struct {
-	IsLoading           bool
-	Parent              *Dice
-	Censor              *censor.Censor
-	DB                  engine.DatabaseOperator
-	SensitiveWordsFiles map[string]*censor.WordFile
+	IsLoading atomic.Bool
+	Parent    *Dice
+	Censor    *censor.Censor
+	DB        engine.DatabaseOperator
+
+	filesMu   sync.RWMutex
+	wordFiles map[string]*censor.WordFile
+}
+
+// CensorManager 返回当前审查管理器；未启用或已停止时为 nil（并发安全）。
+func (d *Dice) CensorManager() *CensorManager { return d.censorManager.Load() }
+
+// SetCensorManager 原子替换审查管理器；传 nil 表示停止。
+func (d *Dice) SetCensorManager(cm *CensorManager) { d.censorManager.Store(cm) }
+
+// WordFiles 返回词库文件快照（并发安全）。
+func (cm *CensorManager) WordFiles() map[string]*censor.WordFile {
+	cm.filesMu.RLock()
+	defer cm.filesMu.RUnlock()
+	out := make(map[string]*censor.WordFile, len(cm.wordFiles))
+	for k, v := range cm.wordFiles {
+		out[k] = v
+	}
+	return out
 }
 
 func (d *Dice) NewCensorManager() {
@@ -72,7 +93,6 @@ func (d *Dice) NewCensorManager() {
 		DB: d.DBOperator,
 	}
 	cm.Parent = d
-	d.CensorManager = &cm
 	if d.Config.CensorThresholds == nil {
 		(&d.Config).CensorThresholds = make(map[censor.Level]int)
 	}
@@ -83,58 +103,79 @@ func (d *Dice) NewCensorManager() {
 		(&d.Config).CensorScores = make(map[censor.Level]int)
 	}
 	cm.Load(d)
+	// 词表与匹配器就绪后才发布管理器，避免外部读到半初始化状态
+	d.SetCensorManager(&cm)
 }
 
-// Load 审查加载
+// Load 审查加载：在临时 Censor 上读取词库文件，随后原子替换词表，
+// 避免重载期间的读写竞争与短暂“词表为空”的窗口。
 func (cm *CensorManager) Load(d *Dice) {
 	log := d.Logger
 	fileDir := "./data/censor"
-	cm.IsLoading = true
-	cm.Censor.SensitiveKeys = make(map[string]censor.WordInfo)
+	cm.IsLoading.Store(true)
+	defer cm.IsLoading.Store(false)
+
+	scratch := &censor.Censor{
+		CaseSensitive:  cm.Censor.CaseSensitive,
+		MatchPinyin:    cm.Censor.MatchPinyin,
+		FilterRegexStr: cm.Censor.FilterRegexStr,
+		SensitiveKeys:  make(map[string]censor.WordInfo),
+	}
 	_ = os.MkdirAll(fileDir, 0o755)
+	files := make(map[string]*censor.WordFile)
 	_ = filepath.Walk(fileDir, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && (filepath.Ext(path) == ".txt" || filepath.Ext(path) == ".toml") {
 			cm.Parent.Logger.Infof("正在读取敏感词文件：%s\n", path)
-			fileInfo, e := cm.Censor.PreloadFile(path)
+			fileInfo, e := scratch.PreloadFile(path)
 			if e != nil {
 				log.Errorf("censor: unable to read %s, %v", path, e)
 			}
-			if cm.SensitiveWordsFiles == nil {
-				cm.SensitiveWordsFiles = make(map[string]*censor.WordFile)
+			if fileInfo != nil {
+				files[fileInfo.Key] = fileInfo
 			}
-			cm.SensitiveWordsFiles[fileInfo.Key] = fileInfo
 		}
 		return nil
 	})
-	err := cm.Censor.Load()
-	if err != nil {
+	if err := cm.Censor.LoadWords(scratch.SensitiveKeys); err != nil {
 		log.Errorf("censor: load fail, %v", err)
 	}
-	cm.IsLoading = false
+	cm.filesMu.Lock()
+	cm.wordFiles = files
+	cm.filesMu.Unlock()
 }
 
-func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent string) (*MsgCheckResult, error) {
-	if cm.IsLoading {
-		return nil, errors.New("censor is loading")
+// censorDropRegexes 是匹配前需要剥离的标记（海豹码/CQ码），span 仍映射回原文。
+var censorDropRegexes = []*regexp.Regexp{sealCodeRe, cqCodeRe}
+
+// Check 检测文本命中。词表采用原子替换（last-known-good），因此重载期间仍用旧词表继续检测；
+// 仅在从未成功加载时匹配器为空，此时等价于无命中（fail-open）。
+func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) *MsgCheckResult {
+	res := cm.Censor.CheckWithDrops(text, censorDropRegexes)
+
+	spans := make([]censor.Span, 0, len(res.Hits))
+	words := res.Words()
+	for _, h := range res.Hits {
+		spans = append(spans, h.Span)
 	}
-	res := cm.Censor.Check(checkContent)
+
 	if !ctx.Censored && res.HighestLevel > censor.Ignore {
 		// 敏感词命中记录保存
-		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, res.SensitiveWords, int(res.HighestLevel))
+		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, words, int(res.HighestLevel))
 	}
 	count := service.CensorCount(cm.DB, msg.Sender.UserID)
 
-	var words []string
-	for word := range res.SensitiveWords {
-		words = append(words, word)
+	var wordList []string
+	for word := range words {
+		wordList = append(wordList, word)
 	}
-	sort.Strings(words)
+	sort.Strings(wordList)
 	return &MsgCheckResult{
 		UserID:            msg.Sender.UserID,
 		Level:             res.HighestLevel,
 		HitCounts:         count,
-		CurSensitiveWords: words,
-	}, nil
+		CurSensitiveWords: wordList,
+		Spans:             spans,
+	}
 }
 
 type MsgCheckResult struct {
@@ -142,6 +183,7 @@ type MsgCheckResult struct {
 	Level             censor.Level
 	HitCounts         map[censor.Level]int
 	CurSensitiveWords []string
+	Spans             []censor.Span // 命中片段（原文 rune 偏移），用于脱敏
 }
 
 func censorHitContext(content string, words []string) string {
@@ -203,27 +245,25 @@ func formatCensorHitDetails(levelText string, words []string, content string) st
 	)
 }
 
-func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, sendContent string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
-	log := d.Logger
-	checkResult, err := d.CensorManager.Check(mctx, msg, checkContent)
-	if err != nil {
-		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
-		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserID)
-		return hit, hitWords, needToTerminate, newContent
+func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, text string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
+	newContent = text
+	cm := d.CensorManager()
+	if cm == nil {
+		return false, nil, false, newContent
 	}
-	newContent = sendContent
+	checkResult := cm.Check(mctx, msg, text)
 
 	if checkResult.Level <= censor.Ignore {
-		return hit, hitWords, needToTerminate, newContent
+		return false, nil, false, newContent
 	}
 
 	hit = true
 	hitWords = checkResult.CurSensitiveWords
-	// TODO: 替换掉敏感词（先暂时不提供）
-	// placeholder := DiceFormatTmpl(mctx, "核心:拦截_替换内容")
-	// for _, word := range checkResult.CurSensitiveWords {
-	// 	newContent = strings.ReplaceAll(newContent, word, placeholder)
-	// }
+
+	// 脱敏：仅当命中带有可用 span 时按 span 打码，否则由调用方回退为整条拦截模板
+	if len(checkResult.Spans) > 0 {
+		newContent = censorMaskContent(mctx, text, checkResult.Spans)
+	}
 
 	if mctx.Censored {
 		return hit, hitWords, needToTerminate, newContent
@@ -250,7 +290,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 			// 需要终止后续动作
 			needToTerminate = true
 			// 清空此用户该等级计数
-			service.CensorClearLevelCount(d.CensorManager.DB, msg.Sender.UserID, level)
+			service.CensorClearLevelCount(cm.DB, msg.Sender.UserID, level)
 			// 该等级敏感词超过阈值，执行操作
 			handler := d.Config.CensorHandlers[level]
 			levelText := censor.LevelText[level]
@@ -259,7 +299,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 				ReplyToSenderNoCheck(mctx, msg, DiceFormatTmpl(mctx, tmplText))
 			}
 			if handler&(1<<SendEncodedDetails) != 0 {
-				ReplyToSenderNoCheck(mctx, msg, formatCensorHitDetails(levelText, checkResult.CurSensitiveWords, checkContent))
+				ReplyToSenderNoCheck(mctx, msg, formatCensorHitDetails(levelText, checkResult.CurSensitiveWords, text))
 			}
 			if handler&(1<<SendNotice) != 0 {
 				// 向通知列表/邮件发送通知
@@ -348,15 +388,23 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 	return hit, hitWords, needToTerminate, newContent
 }
 
+// censorMaskContent 用配置的占位符模板，按 span 对原文打码。
+func censorMaskContent(mctx *MsgContext, text string, spans []censor.Span) string {
+	placeholder := DiceFormatTmpl(mctx, "核心:拦截_敏感词过滤_替换占位符")
+	return censor.MaskSpans(text, spans, placeholder)
+}
+
 func (cm *CensorManager) DeleteCensorWordFiles(keys []string) {
+	cm.filesMu.Lock()
+	defer cm.filesMu.Unlock()
 	for _, key := range keys {
-		file, ok := cm.SensitiveWordsFiles[key]
+		file, ok := cm.wordFiles[key]
 		if ok {
 			_, err := os.Stat(file.Path)
 			if !os.IsNotExist(err) {
 				_ = os.RemoveAll(file.Path)
 			}
-			delete(cm.SensitiveWordsFiles, key)
+			delete(cm.wordFiles, key)
 		}
 	}
 }

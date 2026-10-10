@@ -4,7 +4,13 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
+
+	wr "github.com/mroth/weightedrand/v3"
+	"go.uber.org/zap"
+
+	"sealdice-core/dice/censor"
 )
 
 func TestFormatCensorHitDetailsEncodesWordsAndContext(t *testing.T) {
@@ -66,4 +72,61 @@ func TestCensorHitContextOmitsLongContentWithoutDirectHit(t *testing.T) {
 	if got := censorHitContext(content, []string{"not-present"}); got != "..." {
 		t.Fatalf("context without a direct hit = %q, want omission marker", got)
 	}
+}
+
+func TestCensorMaskContent_UsesPlaceholderTemplate(t *testing.T) {
+	chooser, err := wr.NewChooser(wr.NewChoice("■", uint(1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := &Dice{Logger: zap.NewNop().Sugar()}
+	d.TextMap = map[string]*wr.Chooser[string, uint]{
+		"核心:拦截_敏感词过滤_替换占位符": chooser,
+	}
+	mctx := &MsgContext{Dice: d}
+
+	got := censorMaskContent(mctx, "黑夜总会来临", []censor.Span{{Start: 1, End: 4}})
+	if got != "黑■■■来临" {
+		t.Fatalf("masked=%q want 黑■■■来临", got)
+	}
+}
+
+func TestDice_CensorManagerAtomicSwap(t *testing.T) {
+	d := &Dice{Logger: zap.NewNop().Sugar()}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 500 {
+			d.SetCensorManager(&CensorManager{})
+		}
+		d.SetCensorManager(nil)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for range 500 {
+			_ = d.CensorManager()
+		}
+	}()
+	wg.Wait()
+}
+
+func TestCensorManager_WordFilesSnapshotConcurrent(t *testing.T) {
+	cm := &CensorManager{wordFiles: map[string]*censor.WordFile{"a": {Key: "a"}}}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for range 300 {
+			_ = cm.WordFiles()
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for range 300 {
+			cm.DeleteCensorWordFiles([]string{"missing"})
+		}
+	}()
+	wg.Wait()
 }

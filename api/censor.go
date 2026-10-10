@@ -31,7 +31,7 @@ func check(c echo.Context) (bool, error) {
 	if !myDice.Config.EnableCensor {
 		return false, Error(&c, "未启用拦截引擎", Response{})
 	}
-	if myDice.CensorManager.IsLoading {
+	if cm := myDice.CensorManager(); cm != nil && cm.IsLoading.Load() {
 		return false, Error(&c, "拦截引擎正在加载，请稍候", Response{})
 	}
 	return true, nil
@@ -49,9 +49,13 @@ func censorRestart(c echo.Context) error {
 	(&myDice.Config).EnableCensor = true
 	myDice.MarkModified()
 
+	isLoading := false
+	if cm := myDice.CensorManager(); cm != nil {
+		isLoading = cm.IsLoading.Load()
+	}
 	return Success(&c, Response{
 		"enable":    myDice.Config.EnableCensor,
-		"isLoading": myDice.CensorManager.IsLoading,
+		"isLoading": isLoading,
 	})
 }
 
@@ -72,15 +76,15 @@ func censorStop(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	myDice.CensorManager = nil
+	myDice.SetCensorManager(nil)
 
 	return Success(&c, Response{})
 }
 
 func censorGetStatus(c echo.Context) error {
 	var isLoading bool
-	if myDice.CensorManager != nil {
-		isLoading = myDice.CensorManager.IsLoading
+	if cm := myDice.CensorManager(); cm != nil {
+		isLoading = cm.IsLoading.Load()
 	}
 	return Success(&c, Response{
 		"enable":    myDice.Config.EnableCensor,
@@ -328,8 +332,12 @@ func censorGetWords(c echo.Context) error {
 		return err
 	}
 
+	cm := myDice.CensorManager()
+	if cm == nil {
+		return Error(&c, "拦截引擎未启用", Response{})
+	}
 	temp := map[string]*SensitiveWord{}
-	for word, info := range myDice.CensorManager.Censor.SensitiveKeys {
+	for word, info := range cm.Censor.WordsSnapshot() {
 		switch info.Reason {
 		case censor.Origin:
 			_, ok := temp[word]
@@ -374,7 +382,11 @@ func censorGetWordFiles(c echo.Context) error {
 		return err
 	}
 
-	files := myDice.CensorManager.SensitiveWordsFiles
+	cm := myDice.CensorManager()
+	if cm == nil {
+		return Error(&c, "拦截引擎未启用", Response{})
+	}
+	files := cm.WordFiles()
 
 	type file struct {
 		Key   string              `json:"key"`
@@ -456,7 +468,11 @@ func censorDeleteWordFiles(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	myDice.CensorManager.DeleteCensorWordFiles(v.Keys)
+	cm := myDice.CensorManager()
+	if cm == nil {
+		return Error(&c, "拦截引擎未启用", Response{})
+	}
+	cm.DeleteCensorWordFiles(v.Keys)
 
 	return Success(&c, Response{})
 }

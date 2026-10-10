@@ -249,7 +249,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 		} else {
 			backup(d, filepath.Join(dataDir, "data-logs.db"))
 		}
-		if d.CensorManager != nil && d.CensorManager.DB != nil {
+		if cm := d.CensorManager(); cm != nil && cm.DB != nil {
 			err = service.FlushWAL(d.DBOperator.GetCensorDB(constant.WRITE))
 			if err != nil {
 				d.Logger.Errorf("备份时censor数据库flush出错 %v", err.Error())

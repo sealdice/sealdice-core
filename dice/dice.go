@@ -251,7 +251,7 @@ type Dice struct {
 
 	UIEndpoint *EndPointInfo `json:"-" yaml:"-"` // UI Endpoint
 
-	CensorManager *CensorManager `json:"-" yaml:"-"`
+	censorManager atomic.Pointer[CensorManager] `json:"-" yaml:"-"`
 
 	AttrsManager *AttrsManager `json:"-" yaml:"-"`
 

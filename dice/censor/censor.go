@@ -2,13 +2,16 @@ package censor
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
+	ahocorasick "github.com/BobuSumisu/aho-corasick"
 	nanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/mozillazg/go-pinyin"
 	"github.com/pelletier/go-toml/v2"
@@ -53,8 +56,21 @@ type Censor struct {
 	FilterRegexStr string // 过滤字符正则
 
 	SensitiveKeys map[string]WordInfo
-	t             *trie
+	matcher       *ahocorasick.Trie
 	filterRegex   *regexp.Regexp
+	mu            sync.RWMutex
+}
+
+// Span 表示命中片段在原文中的 rune 偏移，半开区间 [Start, End)。
+type Span struct {
+	Start, End int
+}
+
+// Hit 表示一次命中。
+type Hit struct {
+	Span  Span
+	Word  string // 原始词（WordInfo.Origin）
+	Level Level
 }
 
 type Reason int
@@ -227,67 +243,162 @@ func (c *Censor) tryPreloadTomlFile(path string) (*WordFile, error) {
 }
 
 func (c *Censor) addWord(word string, level Level, counter *FileCounter) {
-	key := strings.ToLower(strings.TrimSpace(word))
+	if c.SensitiveKeys == nil {
+		c.SensitiveKeys = make(map[string]WordInfo)
+	}
+	key := strings.TrimSpace(word)
 	counter[level]++
 	if c.CaseSensitive {
-		c.SensitiveKeys[key] = WordInfo{Level: level}
-	} else {
-		if c.MatchPinyin {
-			// 拼音必须大小写不敏感
-			w := strings.ToLower(key)
-			c.SensitiveKeys[w] = WordInfo{Level: level, Origin: key, Reason: IgnoreCase}
-
-			pys := pinyin.LazyPinyin(w, pinyin.Args{
-				Style: pinyin.Normal,
-				Fallback: func(r rune, a pinyin.Args) []string {
-					return []string{string(r)}
-				},
-			})
-			pyStr := strings.Join(pys, "")
-			c.SensitiveKeys[strings.ToLower(pyStr)] = WordInfo{Level: level, Origin: key, Reason: PinYin}
-		} else {
-			c.SensitiveKeys[strings.ToLower(key)] = WordInfo{Level: level, Origin: key, Reason: IgnoreCase}
-		}
+		c.SensitiveKeys[key] = WordInfo{Level: level, Origin: key}
+		return
 	}
+	key = strings.ToLower(key)
+	if c.MatchPinyin {
+		// 拼音必须大小写不敏感
+		c.SensitiveKeys[key] = WordInfo{Level: level, Origin: key, Reason: IgnoreCase}
+
+		pys := pinyin.LazyPinyin(key, pinyin.Args{
+			Style: pinyin.Normal,
+			Fallback: func(r rune, a pinyin.Args) []string {
+				return []string{string(r)}
+			},
+		})
+		pyStr := strings.Join(pys, "")
+		c.SensitiveKeys[strings.ToLower(pyStr)] = WordInfo{Level: level, Origin: key, Reason: PinYin}
+		return
+	}
+	c.SensitiveKeys[key] = WordInfo{Level: level, Origin: key, Reason: IgnoreCase}
 }
 
-func (c *Censor) Load() (err error) {
+// Load 以当前 SensitiveKeys 重建匹配器，等价于 LoadWords(c.SensitiveKeys)。
+func (c *Censor) Load() error {
+	c.mu.RLock()
+	keys := c.SensitiveKeys
+	c.mu.RUnlock()
+	return c.LoadWords(keys)
+}
+
+// LoadWords 原子地替换词表并重建匹配器（全程持写锁）。
+// 键在插入前做与正文一致的归一化（NFKC/小写/去零宽），保证全角等兼容形式可匹配；
+// 失败（如过滤正则非法）时保留旧词表与旧匹配器（last-known-good）。
+func (c *Censor) LoadWords(words map[string]WordInfo) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.FilterRegexStr != "" {
-		c.filterRegex = regexp.MustCompile(c.FilterRegexStr)
+		re, err := regexp.Compile(c.FilterRegexStr)
+		if err != nil {
+			return fmt.Errorf("censor: invalid filter regex: %w", err)
+		}
+		c.filterRegex = re
 	} else {
 		c.filterRegex = nil
 	}
 
-	c.t = newTire()
-	if c.SensitiveKeys != nil {
-		for key, wordInfo := range c.SensitiveKeys {
-			c.t.Insert(key, wordInfo.Level)
+	normalized := make(map[string]WordInfo, len(words))
+	for key, info := range words {
+		nk := normalizeKey(key, c.CaseSensitive)
+		if nk == "" {
+			continue
 		}
+		// 归一化后冲突时保留等级更高者
+		if old, ok := normalized[nk]; ok && old.Level >= info.Level {
+			continue
+		}
+		normalized[nk] = info
 	}
+
+	builder := ahocorasick.NewTrieBuilder()
+	for key := range normalized {
+		builder.AddString(key)
+	}
+	c.SensitiveKeys = normalized
+	c.matcher = builder.Build()
 	return nil
 }
 
+// WordsSnapshot 返回词表快照，供外部遍历，避免与重载竞争。
+func (c *Censor) WordsSnapshot() map[string]WordInfo {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	out := make(map[string]WordInfo, len(c.SensitiveKeys))
+	for k, v := range c.SensitiveKeys {
+		out[k] = v
+	}
+	return out
+}
+
 type CheckResult struct {
-	HighestLevel   Level
-	SensitiveWords map[string]Level
+	HighestLevel Level
+	Hits         []Hit
+}
+
+// Words 返回 命中词(Origin) -> 最高等级。
+func (r CheckResult) Words() map[string]Level {
+	out := make(map[string]Level, len(r.Hits))
+	for _, h := range r.Hits {
+		if l, ok := out[h.Word]; !ok || h.Level > l {
+			out[h.Word] = h.Level
+		}
+	}
+	return out
 }
 
 func (c *Censor) Check(content string) CheckResult {
-	if c.filterRegex != nil {
-		content = c.filterRegex.ReplaceAllString(content, "")
+	return c.CheckWithDrops(content, nil)
+}
+
+// CheckWithDrops 在匹配前额外丢弃 extra 正则覆盖的片段，返回的 span 仍为原文 rune 偏移。
+func (c *Censor) CheckWithDrops(content string, extra []*regexp.Regexp) CheckResult {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	res := CheckResult{HighestLevel: Ignore}
+	if c.matcher == nil {
+		return res
 	}
-	sensitiveKeys := c.t.Match(content)
-	sensitiveWords := make(map[string]Level)
-	highestLevel := Ignore
-	for key, level := range sensitiveKeys {
-		highestLevel = HigherLevel(highestLevel, level)
-		wordInfo := c.SensitiveKeys[key]
-		sensitiveWords[wordInfo.Origin] = wordInfo.Level
+
+	drop := buildDropMask(content, c.filterRegex)
+	for _, re := range extra {
+		m := buildDropMask(content, re)
+		for i := range m {
+			if m[i] {
+				drop[i] = true
+			}
+		}
 	}
-	return CheckResult{
-		HighestLevel:   highestLevel,
-		SensitiveWords: sensitiveWords,
+	n := normalize(content, c.CaseSensitive, drop)
+	matches := c.matcher.MatchString(n.text)
+	if len(matches) == 0 {
+		return res
 	}
+	origRunes := []rune(content)
+	for _, mt := range matches {
+		word := mt.MatchString()
+		info, ok := c.SensitiveKeys[word]
+		if !ok {
+			continue
+		}
+		bpos := int(mt.Pos())
+		blen := len(word)
+		if bpos < 0 || bpos+blen >= len(n.byteToRune) {
+			continue
+		}
+		runeStart := n.byteToRune[bpos]
+		runeEnd := n.byteToRune[bpos+blen]
+		if runeStart < 0 || runeEnd > len(n.runeToOrig) || runeStart >= runeEnd {
+			continue
+		}
+		start := n.runeToOrig[runeStart]
+		end := n.runeToOrig[runeEnd-1] + 1
+		// 命中末字符若带组合标记（分解形式），一并纳入命中范围
+		for end < len(origRunes) && isCombining(origRunes[end]) {
+			end++
+		}
+		res.Hits = append(res.Hits, Hit{Span: Span{Start: start, End: end}, Word: info.Origin, Level: info.Level})
+		res.HighestLevel = HigherLevel(res.HighestLevel, info.Level)
+	}
+	return res
 }
 
 func generateFileKey() string {

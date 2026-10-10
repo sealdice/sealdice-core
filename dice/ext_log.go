@@ -968,6 +968,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if flag == "skip" {
 				return
 			}
+			// 外发内容若被脱敏，日志仍记录原文
+			content := msg.Message
+			if ctx.censorOriginal != "" {
+				content = ctx.censorOriginal
+			}
 			privateCommandListenCheck()
 			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
 				if privateCommandListenHas(ctx.CommandID) {
@@ -986,7 +991,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
 						UniformID:   ctx.EndPoint.UserID,
 						Time:        time.Now().Unix(),
-						Message:     msg.Message,
+						Message:     content,
 						IsDice:      true,
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
@@ -1017,7 +1022,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
 						UniformID:   ctx.EndPoint.UserID,
 						Time:        time.Now().Unix(),
-						Message:     msg.Message,
+						Message:     content,
 						IsDice:      true,
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
