@@ -1,7 +1,6 @@
 package dice
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"strings"
 
 	"sealdice-core/dice/censor"
-	"sealdice-core/dice/censor/provider"
 	"sealdice-core/dice/service"
 	"sealdice-core/utils/dboperator/engine"
 )
@@ -63,7 +61,6 @@ type CensorManager struct {
 	Censor              *censor.Censor
 	DB                  engine.DatabaseOperator
 	SensitiveWordsFiles map[string]*censor.WordFile
-	Engine              *provider.Engine
 }
 
 func (d *Dice) NewCensorManager() {
@@ -114,56 +111,45 @@ func (cm *CensorManager) Load(d *Dice) {
 	if err != nil {
 		log.Errorf("censor: load fail, %v", err)
 	}
-	cm.buildEngine()
 	cm.IsLoading = false
 }
 
-// buildEngine 依据配置装配检测管线：内置 localAC 必跑，追加已配置的外部 Provider。
-func (cm *CensorManager) buildEngine() {
-	ps := []provider.Provider{provider.NewLocalAC(cm.Censor)}
-	if cm.Parent != nil {
-		for _, pc := range cm.Parent.Config.CensorProviders {
-			ps = append(ps, provider.NewHTTP(provider.HTTPConfig{
-				Name:       pc.Name,
-				URL:        pc.URL,
-				Token:      pc.Token,
-				TimeoutMs:  pc.TimeoutMs,
-				FailMode:   provider.FailMode(pc.FailMode),
-				Capability: provider.Capability(pc.Capability),
-			}))
-		}
-	}
-	cm.Engine = provider.NewEngine(ps...)
-}
+// censorDropRegexes 是匹配前需要剥离的标记（海豹码/CQ码），span 仍映射回原文。
+var censorDropRegexes = []*regexp.Regexp{sealCodeRe, cqCodeRe}
 
-func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) (*MsgCheckResult, []censor.Span, bool, error) {
+func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) (*MsgCheckResult, error) {
 	if cm.IsLoading {
-		return nil, nil, false, errors.New("censor is loading")
+		return nil, errors.New("censor is loading")
 	}
-	drops := []*regexp.Regexp{sealCodeRe, cqCodeRe}
-	m, err := cm.Engine.Check(context.Background(), provider.Request{Text: text, Drop: drops})
-	if err != nil {
-		return nil, nil, false, err
+	if !cm.Censor.Ready() {
+		return nil, errors.New("censor not loaded")
 	}
-	// local 用于复用内置词库的词集合与等级语义（写库/日志）
-	local := cm.Censor.CheckWithDrops(text, drops)
-	if !ctx.Censored && m.Level > censor.Ignore {
+	res := cm.Censor.CheckWithDrops(text, censorDropRegexes)
+
+	spans := make([]censor.Span, 0, len(res.Hits))
+	words := res.Words()
+	for _, h := range res.Hits {
+		spans = append(spans, h.Span)
+	}
+
+	if !ctx.Censored && res.HighestLevel > censor.Ignore {
 		// 敏感词命中记录保存
-		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, local.Words(), int(m.Level))
+		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, words, int(res.HighestLevel))
 	}
 	count := service.CensorCount(cm.DB, msg.Sender.UserID)
 
-	var words []string
-	for word := range local.Words() {
-		words = append(words, word)
+	var wordList []string
+	for word := range words {
+		wordList = append(wordList, word)
 	}
-	sort.Strings(words)
+	sort.Strings(wordList)
 	return &MsgCheckResult{
 		UserID:            msg.Sender.UserID,
-		Level:             m.Level,
+		Level:             res.HighestLevel,
 		HitCounts:         count,
-		CurSensitiveWords: words,
-	}, m.Spans, m.SpanHit, nil
+		CurSensitiveWords: wordList,
+		Spans:             spans,
+	}, nil
 }
 
 type MsgCheckResult struct {
@@ -171,6 +157,7 @@ type MsgCheckResult struct {
 	Level             censor.Level
 	HitCounts         map[censor.Level]int
 	CurSensitiveWords []string
+	Spans             []censor.Span // 命中片段（原文 rune 偏移），用于脱敏
 }
 
 func censorHitContext(content string, words []string) string {
@@ -235,7 +222,7 @@ func formatCensorHitDetails(levelText string, words []string, content string) st
 func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, text string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
 	log := d.Logger
 	newContent = text
-	checkResult, spans, spanHit, err := d.CensorManager.Check(mctx, msg, text)
+	checkResult, err := d.CensorManager.Check(mctx, msg, text)
 	if err != nil {
 		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
 		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserID)
@@ -249,10 +236,9 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, text string) (hit bool,
 	hit = true
 	hitWords = checkResult.CurSensitiveWords
 
-	// 脱敏：仅当命中带有可用的 span（SpanCapable Provider）时，按 span 打码；
-	// 否则（VerdictOnly）保持内容不变，由调用方回退为整条拦截模板。
-	if spanHit && len(spans) > 0 {
-		newContent = censorMaskContent(mctx, text, spans)
+	// 脱敏：仅当命中带有可用 span 时按 span 打码，否则由调用方回退为整条拦截模板
+	if len(checkResult.Spans) > 0 {
+		newContent = censorMaskContent(mctx, text, checkResult.Spans)
 	}
 
 	if mctx.Censored {

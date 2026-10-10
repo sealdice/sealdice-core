@@ -254,17 +254,6 @@ type CensorConfig struct {
 	CensorCaseSensitive  bool                   `json:"censorCaseSensitive"  yaml:"censorCaseSensitive"`  // 敏感词大小写敏感
 	CensorMatchPinyin    bool                   `json:"censorMatchPinyin"    yaml:"censorMatchPinyin"`    // 敏感词匹配拼音
 	CensorFilterRegexStr string                 `json:"censorFilterRegexStr" yaml:"censorFilterRegexStr"` // 敏感词过滤字符正则
-	CensorProviders      []ProviderConfig       `json:"censorProviders"      yaml:"censorProviders"`      // 外部检测 Provider（v1 不开放编辑）
-}
-
-// ProviderConfig 描述一个外部检测 Provider。
-type ProviderConfig struct {
-	Name       string `json:"name"       yaml:"name"`
-	URL        string `json:"url"        yaml:"url"`
-	Token      string `json:"token"      yaml:"token"`
-	TimeoutMs  int    `json:"timeoutMs"  yaml:"timeoutMs"`
-	FailMode   int    `json:"failMode"   yaml:"failMode"`   // 0=open 1=closed
-	Capability int    `json:"capability" yaml:"capability"` // 0=verdict 1=span
 }
 
 type DirtyConfig struct {
