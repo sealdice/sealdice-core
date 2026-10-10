@@ -132,21 +132,22 @@ func TryReplyToSenderMergedForward(ctx *MsgContext, msg *Message, title string, 
 
 	if ctx.Dice.Config.EnableCensor && ctx.Dice.Config.CensorMode == OnlyOutputReply {
 		for i, content := range contents {
-			checkText := sealCodeRe.ReplaceAllString(content, "")
-			checkText = cqCodeRe.ReplaceAllString(checkText, "")
-
-			hit, words, needToTerminate, _ := ctx.Dice.CensorMsg(ctx, msg, checkText, content)
+			hit, words, needToTerminate, masked := ctx.Dice.CensorMsg(ctx, msg, content)
 			if needToTerminate {
 				return true
 			}
 			if hit {
+				if masked != content {
+					contents[i] = masked
+				} else {
+					contents[i] = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
+				}
 				ctx.Dice.Logger.Infof(
 					"拒绝回复命中敏感词「%s」的内容（合并转发）- 来自<%s>(%s)",
 					strings.Join(words, "|"),
 					msg.Sender.Nickname,
 					msg.Sender.UserID,
 				)
-				contents[i] = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
 		}
 	}
@@ -417,15 +418,16 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		d.Logger.Infof("发给(群%s): %s", msg.GroupID, text)
 		// 敏感词拦截：回复（群）
 		if d.Config.EnableCensor && d.Config.CensorMode == OnlyOutputReply {
-			// 先拿掉海豹码和CQ码再检查敏感词
-			checkText := sealCodeRe.ReplaceAllString(text, "")
-			checkText = cqCodeRe.ReplaceAllString(checkText, "")
-
-			hit, words, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
+			hit, words, needToTerminate, masked := d.CensorMsg(ctx, msg, text)
 			if needToTerminate {
 				return
 			}
 			if hit {
+				if masked != text {
+					text = masked
+				} else {
+					text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
+				}
 				d.Logger.Infof(
 					"拒绝回复命中敏感词「%s」的内容「%s」，原消息「%s」- 来自群(%s)内<%s>(%s)",
 					strings.Join(words, "|"),
@@ -434,7 +436,6 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 					msg.Sender.Nickname,
 					msg.Sender.UserID,
 				)
-				text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
 		}
 	}
@@ -489,15 +490,16 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		d.Logger.Infof("发给(帐号%s): %s", msg.Sender.UserID, text)
 		// 敏感词拦截：回复（个人）
 		if d.Config.EnableCensor && d.Config.CensorMode == OnlyOutputReply {
-			// 先拿掉海豹码和CQ码再检查敏感词
-			checkText := sealCodeRe.ReplaceAllString(text, "")
-			checkText = cqCodeRe.ReplaceAllString(checkText, "")
-
-			hit, words, needToTerminate, _ := d.CensorMsg(ctx, msg, checkText, text)
+			hit, words, needToTerminate, masked := d.CensorMsg(ctx, msg, text)
 			if needToTerminate {
 				return
 			}
 			if hit {
+				if masked != text {
+					text = masked
+				} else {
+					text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
+				}
 				d.Logger.Infof("拒绝回复命中敏感词「%s」的内容「%s」，原消息「%s」- 来自<%s>(%s)",
 					strings.Join(words, "|"),
 					text,
@@ -505,7 +507,6 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 					msg.Sender.Nickname,
 					msg.Sender.UserID,
 				)
-				text = DiceFormatTmpl(ctx, "核心:拦截_完全拦截_发出的消息")
 			}
 		}
 	}

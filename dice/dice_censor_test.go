@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	wr "github.com/mroth/weightedrand/v3"
+	"go.uber.org/zap"
+
+	"sealdice-core/dice/censor"
 )
 
 func TestFormatCensorHitDetailsEncodesWordsAndContext(t *testing.T) {
@@ -65,5 +70,22 @@ func TestCensorHitContextOmitsLongContentWithoutDirectHit(t *testing.T) {
 
 	if got := censorHitContext(content, []string{"not-present"}); got != "..." {
 		t.Fatalf("context without a direct hit = %q, want omission marker", got)
+	}
+}
+
+func TestCensorMaskContent_UsesPlaceholderTemplate(t *testing.T) {
+	chooser, err := wr.NewChooser(wr.NewChoice("■", uint(1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := &Dice{Logger: zap.NewNop().Sugar()}
+	d.TextMap = map[string]*wr.Chooser[string, uint]{
+		"核心:拦截_敏感词过滤_替换占位符": chooser,
+	}
+	mctx := &MsgContext{Dice: d}
+
+	got := censorMaskContent(mctx, "黑夜总会来临", []censor.Span{{Start: 1, End: 4}})
+	if got != "黑■■■来临" {
+		t.Fatalf("masked=%q want 黑■■■来临", got)
 	}
 }

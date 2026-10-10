@@ -1,16 +1,19 @@
 package dice
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
 	"sealdice-core/dice/censor"
+	"sealdice-core/dice/censor/provider"
 	"sealdice-core/dice/service"
 	"sealdice-core/utils/dboperator/engine"
 )
@@ -60,6 +63,7 @@ type CensorManager struct {
 	Censor              *censor.Censor
 	DB                  engine.DatabaseOperator
 	SensitiveWordsFiles map[string]*censor.WordFile
+	Engine              *provider.Engine
 }
 
 func (d *Dice) NewCensorManager() {
@@ -110,31 +114,56 @@ func (cm *CensorManager) Load(d *Dice) {
 	if err != nil {
 		log.Errorf("censor: load fail, %v", err)
 	}
+	cm.buildEngine()
 	cm.IsLoading = false
 }
 
-func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, checkContent string) (*MsgCheckResult, error) {
-	if cm.IsLoading {
-		return nil, errors.New("censor is loading")
+// buildEngine 依据配置装配检测管线：内置 localAC 必跑，追加已配置的外部 Provider。
+func (cm *CensorManager) buildEngine() {
+	ps := []provider.Provider{provider.NewLocalAC(cm.Censor)}
+	if cm.Parent != nil {
+		for _, pc := range cm.Parent.Config.CensorProviders {
+			ps = append(ps, provider.NewHTTP(provider.HTTPConfig{
+				Name:       pc.Name,
+				URL:        pc.URL,
+				Token:      pc.Token,
+				TimeoutMs:  pc.TimeoutMs,
+				FailMode:   provider.FailMode(pc.FailMode),
+				Capability: provider.Capability(pc.Capability),
+			}))
+		}
 	}
-	res := cm.Censor.Check(checkContent)
-	if !ctx.Censored && res.HighestLevel > censor.Ignore {
+	cm.Engine = provider.NewEngine(ps...)
+}
+
+func (cm *CensorManager) Check(ctx *MsgContext, msg *Message, text string) (*MsgCheckResult, []censor.Span, bool, error) {
+	if cm.IsLoading {
+		return nil, nil, false, errors.New("censor is loading")
+	}
+	drops := []*regexp.Regexp{sealCodeRe, cqCodeRe}
+	m, err := cm.Engine.Check(context.Background(), provider.Request{Text: text, Drop: drops})
+	if err != nil {
+		return nil, nil, false, err
+	}
+	// local 用于复用内置词库的词集合与等级语义（写库/日志）
+	local := cm.Censor.CheckWithDrops(text, drops)
+	if !ctx.Censored && m.Level > censor.Ignore {
 		// 敏感词命中记录保存
-		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, res.Words(), int(res.HighestLevel))
+		service.CensorAppend(cm.DB, ctx.MessageType, msg.Sender.UserID, msg.GroupID, msg.Message, local.Words(), int(m.Level))
 	}
 	count := service.CensorCount(cm.DB, msg.Sender.UserID)
 
 	var words []string
-	for word := range res.Words() {
+	for word := range local.Words() {
 		words = append(words, word)
 	}
 	sort.Strings(words)
 	return &MsgCheckResult{
 		UserID:            msg.Sender.UserID,
-		Level:             res.HighestLevel,
+		Level:             m.Level,
 		HitCounts:         count,
 		CurSensitiveWords: words,
-	}, nil
+	}, m.Spans, m.SpanHit, nil
 }
 
 type MsgCheckResult struct {
@@ -203,27 +232,28 @@ func formatCensorHitDetails(levelText string, words []string, content string) st
 	)
 }
 
-func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, sendContent string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
+func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, text string) (hit bool, hitWords []string, needToTerminate bool, newContent string) {
 	log := d.Logger
-	checkResult, err := d.CensorManager.Check(mctx, msg, checkContent)
+	newContent = text
+	checkResult, spans, spanHit, err := d.CensorManager.Check(mctx, msg, text)
 	if err != nil {
 		// FIXME: 尽管这种情况比较少，但是是否要提供一个配置项，用来控制默认是跳过还是拦截吗？
 		log.Warnf("拦截系统出错(%s)，来自<%s>(%s)的消息跳过了检查", err.Error(), msg.Sender.Nickname, msg.Sender.UserID)
-		return hit, hitWords, needToTerminate, newContent
+		return false, nil, false, newContent
 	}
-	newContent = sendContent
 
 	if checkResult.Level <= censor.Ignore {
-		return hit, hitWords, needToTerminate, newContent
+		return false, nil, false, newContent
 	}
 
 	hit = true
 	hitWords = checkResult.CurSensitiveWords
-	// TODO: 替换掉敏感词（先暂时不提供）
-	// placeholder := DiceFormatTmpl(mctx, "核心:拦截_替换内容")
-	// for _, word := range checkResult.CurSensitiveWords {
-	// 	newContent = strings.ReplaceAll(newContent, word, placeholder)
-	// }
+
+	// 脱敏：仅当命中带有可用的 span（SpanCapable Provider）时，按 span 打码；
+	// 否则（VerdictOnly）保持内容不变，由调用方回退为整条拦截模板。
+	if spanHit && len(spans) > 0 {
+		newContent = censorMaskContent(mctx, text, spans)
+	}
 
 	if mctx.Censored {
 		return hit, hitWords, needToTerminate, newContent
@@ -259,7 +289,7 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 				ReplyToSenderNoCheck(mctx, msg, DiceFormatTmpl(mctx, tmplText))
 			}
 			if handler&(1<<SendEncodedDetails) != 0 {
-				ReplyToSenderNoCheck(mctx, msg, formatCensorHitDetails(levelText, checkResult.CurSensitiveWords, checkContent))
+				ReplyToSenderNoCheck(mctx, msg, formatCensorHitDetails(levelText, checkResult.CurSensitiveWords, text))
 			}
 			if handler&(1<<SendNotice) != 0 {
 				// 向通知列表/邮件发送通知
@@ -346,6 +376,12 @@ func (d *Dice) CensorMsg(mctx *MsgContext, msg *Message, checkContent string, se
 		}
 	}
 	return hit, hitWords, needToTerminate, newContent
+}
+
+// censorMaskContent 用配置的占位符模板，按 span 对原文打码。
+func censorMaskContent(mctx *MsgContext, text string, spans []censor.Span) string {
+	placeholder := DiceFormatTmpl(mctx, "核心:拦截_敏感词过滤_替换占位符")
+	return censor.MaskSpans(text, spans, placeholder)
 }
 
 func (cm *CensorManager) DeleteCensorWordFiles(keys []string) {

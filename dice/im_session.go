@@ -1131,7 +1131,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 		// 敏感词拦截：全部输入
 		if mctx.IsCurGroupBotOn && d.Config.EnableCensor && d.Config.CensorMode == AllInput {
-			hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+			hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 			if needToTerminate {
 				return
 			}
@@ -1181,7 +1181,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 
 				// 敏感词拦截：命令输入
 				if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.Config.EnableCensor && d.Config.CensorMode == OnlyInputCommand {
-					hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+					hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 					if needToTerminate {
 						return
 					}
@@ -1501,7 +1501,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 
 	// 敏感词拦截：全部输入
 	if mctx.IsCurGroupBotOn && d.Config.EnableCensor && d.Config.CensorMode == AllInput {
-		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 		if needToTerminate {
 			return
 		}
@@ -1602,7 +1602,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 
 	// 敏感词拦截：命令输入
 	if (msg.MessageType == "private" || mctx.IsCurGroupBotOn) && d.Config.EnableCensor && d.Config.CensorMode == OnlyInputCommand {
-		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message, "")
+		hit, words, needToTerminate, _ := d.CensorMsg(mctx, msg, msg.Message)
 		if needToTerminate {
 			return
 		}
