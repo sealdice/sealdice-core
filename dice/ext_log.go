@@ -610,12 +610,15 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 						if len(rightEmails) > 0 {
 							emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
-							dice.SendMailRow(
+							if err := dice.SendMailRow(
 								fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
 								rightEmails,
 								emailMsg,
 								[]string{logFile},
-							)
+							); err != nil {
+								ReplyToSenderRaw(ctx, msg, "日志邮件发送失败，请联系骰主检查邮件配置和运行日志", "skip")
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
 							text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
 							ReplyToSenderRaw(ctx, msg, text, "skip")
 							return CmdExecuteResult{Matched: true, Solved: true}

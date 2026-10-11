@@ -425,7 +425,7 @@ func (h *SandboxedHTTP) Do(req *http.Request) (*http.Response, error) {
 	if err := h.sandbox.CheckNetworkPermission(req.URL.String()); err != nil {
 		return nil, err
 	}
-	return h.client.Do(func() *http.Request {
+	return h.client.Do(func() *http.Request { // #nosec G704 -- CheckNetworkPermission enforces the sandbox policy.
 		return req.Clone(req.Context())
 	}())
 }
