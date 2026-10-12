@@ -643,6 +643,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			txt := fmt.Sprintf("收到QQ加群邀请: 群组<%s>(%s) 邀请人:<%s>(%s)", groupName, msgQQ.GroupID, userName, msgQQ.UserID)
 			log.Info(txt)
 			ctx.Notice(txt, NoticeTypeInvite)
+			// 通知类事件：加群申请/邀请（仅通知）
+			EmitGroupRequest(ctx, msg.GroupID, uid, msgQQ.SubType)
 			tempInviteMap[msg.GroupID] = time.Now().Unix()
 			tempInviteMap2[msg.GroupID] = uid
 
@@ -758,6 +760,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			txt := fmt.Sprintf("收到QQ好友邀请: 邀请人:%s, 验证信息: %s, 是否自动同意: %t%s", msgQQ.UserID, comment, willAccept, extra)
 			log.Info(txt)
 			ctx.Notice(txt, NoticeTypeInvite)
+			// 通知类事件：好友申请（仅通知，不携带同意/拒绝能力）
+			EmitFriendRequest(ctx, FormatDiceIDQQ(string(msgQQ.UserID)), comment)
 
 			// 忽略邀请
 			if pa.IgnoreFriendRequest {
@@ -797,6 +801,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 				// 似乎这样会阻塞住，先不搞了
 				// d := pa.GetStrangerInfo(msgQQ.UserId) // 先获取个人信息，避免不存在id
 				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+				// 通知类事件：成为好友
+				EmitFriendJoined(ctx, msg)
 				// if ctx.Player.Name == "" {
 				//	ctx.Player.Name = d.Name
 				//	ctx.Player.UpdatedAtTime = time.Now().Unix()
@@ -1012,6 +1018,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		if msgQQ.PostType == "notice" && msgQQ.NoticeType == "group_ban" && msgQQ.SubType == "ban" {
 			// 禁言
 			// {"duration":600,"group_id":111,"notice_type":"group_ban","operator_id":222,"post_type":"notice","self_id":333,"sub_type":"ban","time":1646689567,"user_id":333}
+			// 通知类事件：群禁言（不论被禁言者是否为骰子自己）
+			EmitGroupMuted(ctx, msg.GroupID, FormatDiceIDQQ(string(msgQQ.UserID)), FormatDiceIDQQ(string(msgQQ.OperatorID)), msgQQ.Duration, "ban")
 			if string(msgQQ.UserID) == string(msgQQ.SelfID) {
 				opUID := FormatDiceIDQQ(string(msgQQ.OperatorID))
 				groupName := dm.TryGetGroupName(msg.GroupID)

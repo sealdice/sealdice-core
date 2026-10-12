@@ -1356,27 +1356,28 @@ func (d *Dice) registerCoreCommands() {
 				}
 
 				ReplyToSender(ctx, msg, "开始下载新版本，完成后将自动进行一次备份")
+				upgradeCtx := ctx.ShallowCopy()
 				go func() {
 					ret := <-dm.UpdateDownloadedChan
 
-					if ctx.IsPrivate {
-						ctx.Dice.Config.UpgradeWindowID = msg.Sender.UserID
+					if upgradeCtx.IsPrivate {
+						upgradeCtx.Dice.Config.UpgradeWindowID = msg.Sender.UserID
 					} else {
-						ctx.Dice.Config.UpgradeWindowID = ctx.Group.GroupID
+						upgradeCtx.Dice.Config.UpgradeWindowID = upgradeCtx.Group.GroupID
 					}
-					ctx.Dice.Config.UpgradeEndpointID = ctx.EndPoint.ID
-					ctx.Dice.Save(true)
+					upgradeCtx.Dice.Config.UpgradeEndpointID = upgradeCtx.EndPoint.ID
+					upgradeCtx.Dice.Save(true)
 
-					bakFn, _ := ctx.Dice.Parent.Backup(BackupSelectionAll, false)
+					bakFn, _ := upgradeCtx.Dice.Parent.Backup(BackupSelectionAll, false)
 					tmpPath := path.Join(os.TempDir(), bakFn)
 					_ = os.MkdirAll(tmpPath, 0755)
-					ctx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
+					upgradeCtx.Dice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 					_ = cp.Copy(path.Join(BackupDir, bakFn), tmpPath)
 
 					if ret == "" {
-						ReplyToSender(ctx, msg, "准备开始升级，服务即将离线")
+						ReplyToSender(upgradeCtx, msg, "准备开始升级，服务即将离线")
 					} else {
-						ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
+						ReplyToSender(upgradeCtx, msg, "升级失败，原因: "+ret)
 					}
 				}()
 				dm.UpdateRequestChan <- d

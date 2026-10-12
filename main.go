@@ -70,6 +70,8 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 			return
 		}
 
+		dice.CloseIMSendQueue()
+
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
