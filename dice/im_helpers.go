@@ -14,7 +14,6 @@ import (
 	ds "github.com/sealdice/dicescript"
 
 	"sealdice-core/logger"
-	"sealdice-core/utils/panicHandler"
 )
 
 var (
@@ -376,14 +375,13 @@ func replyToSenderRawNoCheck(ctx *MsgContext, msg *Message, text string, flag st
 		replyPersonRawNoCheck(ctx, msg, text, flag)
 	}
 }
+
 func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
 	if ctx == nil || msg == nil || ctx.Dice == nil {
 		logger.M().Errorf("ReplyToSender 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
 		return
 	}
-	panicHandler.Once(logger.M(), func() {
-		ReplyToSenderRaw(ctx, msg, text, "")
-	})
+	enqueueReply(ctx, msg, text, false)
 }
 
 func ReplyToSenderNoCheck(ctx *MsgContext, msg *Message, text string) {
@@ -391,20 +389,11 @@ func ReplyToSenderNoCheck(ctx *MsgContext, msg *Message, text string) {
 		logger.M().Errorf("ReplyToSenderNoCheck 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
 		return
 	}
-	panicHandler.Once(logger.M(), func() {
-		replyToSenderRawNoCheck(ctx, msg, text, "")
-	})
+	enqueueReply(ctx, msg, text, true)
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
-	if ctx.AliasPrefixText != "" {
-		text = ctx.AliasPrefixText + text
-		ctx.AliasPrefixText = ""
-	}
-	if ctx.DelegateText != "" {
-		text = ctx.DelegateText + text
-		ctx.DelegateText = ""
-	}
+	text = consumeReplyPrefix(ctx, text)
 
 	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
 		if !spamCheckPerson(ctx, msg) {
@@ -442,14 +431,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 }
 
 func replyGroupRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
-	if ctx.AliasPrefixText != "" {
-		text = ctx.AliasPrefixText + text
-		ctx.AliasPrefixText = ""
-	}
-	if ctx.DelegateText != "" {
-		text = ctx.DelegateText + text
-		ctx.DelegateText = ""
-	}
+	text = consumeReplyPrefix(ctx, text)
 	if lenWithoutBase64(text) > 15000 {
 		text = "要发送的文本过长"
 	}
@@ -471,14 +453,7 @@ func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
 }
 
 func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
-	if ctx.AliasPrefixText != "" {
-		text = ctx.AliasPrefixText + text
-		ctx.AliasPrefixText = ""
-	}
-	if ctx.DelegateText != "" {
-		text = ctx.DelegateText + text
-		ctx.DelegateText = ""
-	}
+	text = consumeReplyPrefix(ctx, text)
 
 	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
 		spamCheckPerson(ctx, msg)
@@ -513,14 +488,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 }
 
 func replyPersonRawNoCheck(ctx *MsgContext, msg *Message, text string, flag string) {
-	if ctx.AliasPrefixText != "" {
-		text = ctx.AliasPrefixText + text
-		ctx.AliasPrefixText = ""
-	}
-	if ctx.DelegateText != "" {
-		text = ctx.DelegateText + text
-		ctx.DelegateText = ""
-	}
+	text = consumeReplyPrefix(ctx, text)
 	if lenWithoutBase64(text) > 15000 {
 		text = "要发送的文本过长"
 	}

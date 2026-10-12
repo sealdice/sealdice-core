@@ -1382,6 +1382,7 @@ func (s *IMSession) legacyOnGroupJoined(ctx *MsgContext, msg *Message) {
 	}
 	time.Sleep(2 * time.Second)
 	groupName := dm.TryGetGroupName(msg.GroupID)
+	welcomeCtx := ctx.ShallowCopy()
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -1392,12 +1393,12 @@ func (s *IMSession) legacyOnGroupJoined(ctx *MsgContext, msg *Message) {
 		// 稍作等待后发送入群致词
 		time.Sleep(2 * time.Second)
 
-		ctx.Player = &GroupPlayerInfo{}
+		welcomeCtx.Player = &GroupPlayerInfo{}
 		log.Infof("发送入群致辞，群: <%s>(%s)", groupName, msg.GroupID)
-		text := DiceFormatTmpl(ctx, "核心:骰子进群")
-		for _, i := range ctx.SplitText(text) {
-			doSleepQQ(ctx)
-			ReplyGroup(ctx, msg, strings.TrimSpace(i))
+		text := DiceFormatTmpl(welcomeCtx, "核心:骰子进群")
+		for _, i := range welcomeCtx.SplitText(text) {
+			doSleepQQ(welcomeCtx)
+			ReplyGroup(welcomeCtx, msg, strings.TrimSpace(i))
 		}
 	}()
 	txt := fmt.Sprintf("加入群组: <%s>(%s)", groupName, msg.GroupID)

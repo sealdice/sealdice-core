@@ -17,5 +17,7 @@ func TestMain(m *testing.M) {
 		goleak.IgnoreTopFunction("github.com/maypok86/otter/internal/unixtime.startTimer.func1"),
 		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).cleanup"),
 		goleak.IgnoreAnyFunction("github.com/maypok86/otter/internal/core.(*Cache[...]).process"),
+		// 出站发送队列的每 EndPoint worker 会常驻到进程退出（与 worker pool 同类）。
+		goleak.IgnoreAnyFunction("sealdice-core/dice/sender.(*keyQueue).run"),
 	)
 }
