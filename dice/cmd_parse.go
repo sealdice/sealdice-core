@@ -427,13 +427,19 @@ func projectCommandSegmentsToText(segments []message.IMessageElement) message.Se
 	return message.ProjectSegmentsToText(commandSegments)
 }
 
+// commandSegmentCompatText 将单个消息段转换为兼容文本（非文本段如 CQ 码）。
+func commandSegmentCompatText(e message.IMessageElement) string {
+	return MessageSegmentsToCompatibilityText([]message.IMessageElement{e})
+}
+
 // commandParseNew 新版命令解析器，支持消息段解析，替代旧的字符串解析方式
 // 核心功能：从消息段投影文本和非文本占位符，检测命令前缀，匹配命令，解析参数。
 func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseExecuteTimes bool) *CmdArgs {
 	d := ctx.Session.Parent
 
 	projection := projectCommandSegmentsToText(msg.Segment)
-	rawCmd := strings.ReplaceAll(projection.Text, "\r\n", "\n") // 统一换行符格式
+	resolvedText := projection.ResolvePlaceholders(projection.Text, commandSegmentCompatText)
+	rawCmd := strings.ReplaceAll(resolvedText, "\r\n", "\n") // 统一换行符格式
 
 	parseAtInfo(cmdArgs, msg, computeAtUID(ctx.EndPoint, msg))
 

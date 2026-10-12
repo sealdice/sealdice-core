@@ -2,6 +2,7 @@
 package dice
 
 import (
+	"strings"
 	"testing"
 
 	"sealdice-core/message"
@@ -377,5 +378,36 @@ func TestCmdArgsChopPrefixToArgsWithMaintainsLegacyFields(t *testing.T) {
 	}
 	if cmdArgs.CleanArgsChopRest != "123 extra" {
 		t.Fatalf("CleanArgsChopRest = %q", cmdArgs.CleanArgsChopRest)
+	}
+}
+
+// 非文本段不应以内部占位符泄漏进命令参数/回调文本，应还原为兼容文本（CQ）。
+func TestCommandParseNewResolvesNonTextSegmentPlaceholders(t *testing.T) {
+	d := &Dice{CommandPrefix: DefaultConfig.CommandPrefix}
+	d.CmdMap = CmdMapCls{"img": &CmdItemInfo{}}
+	session := &IMSession{Parent: d}
+	ep := &EndPointInfo{EndPointInfoBase: EndPointInfoBase{UserID: "QQ:1000", Platform: "QQ"}}
+	image := &message.ImageElement{URL: "https://example.invalid/a.png"}
+	msg := &Message{
+		Platform: "QQ",
+		Segment: []message.IMessageElement{
+			&message.TextElement{Content: ".img "},
+			image,
+		},
+	}
+	ctx := &MsgContext{Session: session, EndPoint: ep, Dice: d}
+
+	cmdArgs := CommandParseNew(ctx, msg)
+	if cmdArgs == nil {
+		t.Fatal("CommandParseNew returned nil")
+	}
+	if strings.Contains(cmdArgs.CleanArgs, "\x1f") {
+		t.Fatalf("CleanArgs leaked placeholder: %q", cmdArgs.CleanArgs)
+	}
+	if !strings.Contains(cmdArgs.CleanArgs, "[CQ:image") {
+		t.Fatalf("CleanArgs missing compatibility text: %q", cmdArgs.CleanArgs)
+	}
+	if strings.Contains(cmdArgs.RawText, "\x1f") {
+		t.Fatalf("RawText leaked placeholder: %q", cmdArgs.RawText)
 	}
 }
