@@ -411,3 +411,29 @@ func TestCommandParseNewResolvesNonTextSegmentPlaceholders(t *testing.T) {
 		t.Fatalf("RawText leaked placeholder: %q", cmdArgs.RawText)
 	}
 }
+
+// 非 CQ 平台（如 TG）不设 Segment，@ 记在 msg.Message 里（平台专有语法），
+// 归一化后 Segment 无 AtElement，应回退到按平台的 AtParse。
+func TestCommandParseNewFallsBackToPlatformAtParse(t *testing.T) {
+	d := &Dice{CommandPrefix: DefaultConfig.CommandPrefix}
+	d.CmdMap = CmdMapCls{"r": &CmdItemInfo{}}
+	session := &IMSession{Parent: d}
+	ep := &EndPointInfo{EndPointInfoBase: EndPointInfoBase{UserID: "TG:1000", Platform: "TG"}}
+	msg := &Message{Platform: "TG", Message: "tg://user?id=1000 .r 1d100"}
+	NormalizeIncomingMessage(msg)
+	ctx := &MsgContext{Session: session, EndPoint: ep, Dice: d}
+
+	cmdArgs := CommandParseNew(ctx, msg)
+	if cmdArgs == nil {
+		t.Fatal("CommandParseNew returned nil")
+	}
+	if len(cmdArgs.At) != 1 {
+		t.Fatalf("At count = %d, want 1 (from platform AtParse fallback)", len(cmdArgs.At))
+	}
+	if !cmdArgs.AmIBeMentioned {
+		t.Fatal("AmIBeMentioned should be true")
+	}
+	if cmdArgs.Command != "r" {
+		t.Fatalf("Command = %q, want r", cmdArgs.Command)
+	}
+}

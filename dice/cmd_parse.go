@@ -437,11 +437,20 @@ func commandSegmentCompatText(e message.IMessageElement) string {
 func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseExecuteTimes bool) *CmdArgs {
 	d := ctx.Session.Parent
 
+	NormalizeIncomingMessage(msg)
 	projection := projectCommandSegmentsToText(msg.Segment)
 	resolvedText := projection.ResolvePlaceholders(projection.Text, commandSegmentCompatText)
 	rawCmd := strings.ReplaceAll(resolvedText, "\r\n", "\n") // 统一换行符格式
 
-	parseAtInfo(cmdArgs, msg, computeAtUID(ctx.EndPoint, msg))
+	atUID := computeAtUID(ctx.EndPoint, msg)
+	if msg.segmentSynthesized && !segmentsContainAt(msg.Segment) {
+		// 非消息段原生平台：@ 记在兼容字符串里，按平台语法回退解析并从命令文本中剥离。
+		strippedText, atInfo := AtParse(rawCmd, msg.Platform)
+		rawCmd = strippedText
+		applyAtInfo(cmdArgs, atInfo, msg.Platform, atUID)
+	} else {
+		parseAtInfo(cmdArgs, msg, atUID)
+	}
 
 	restText := strings.TrimSpace(rawCmd)
 	specialExecuteTimes := 0
@@ -505,9 +514,12 @@ func isAtMe(platform, target, atUID string) bool {
 
 // computeAtUID 计算 @ 判定用的 bot UID，兼容 TmpUID 和 OpenQQ 频道前缀互换。
 func computeAtUID(ep *EndPointInfo, msg *Message) string {
-	atUID := ep.UserID
-	if msg.Platform == "OpenQQCH" {
-		atUID = "OpenQQCH:" + strings.TrimPrefix(ep.UserID, "OpenQQ:")
+	atUID := ""
+	if ep != nil {
+		atUID = ep.UserID
+		if msg.Platform == "OpenQQCH" && !strings.HasPrefix(ep.UserID, "OpenQQCH:") {
+			atUID = "OpenQQCH:" + strings.TrimPrefix(ep.UserID, "OpenQQ:")
+		}
 	}
 	if msg.TmpUID != "" {
 		atUID = msg.TmpUID
@@ -515,35 +527,46 @@ func computeAtUID(ep *EndPointInfo, msg *Message) string {
 	return atUID
 }
 
-// parseAtInfo 解析@信息，设置相关的@状态标志。atUID 由 computeAtUID 计算。
+func segmentsContainAt(segments []message.IMessageElement) bool {
+	for _, elem := range segments {
+		if _, ok := elem.(*message.AtElement); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// parseAtInfo 从消息段解析 @ 信息并设置相关状态标志。
 func parseAtInfo(cmdArgs *CmdArgs, msg *Message, atUID string) {
-	// 初始化@状态
+	atInfo := make([]*AtInfo, 0, 2)
+	for _, elem := range msg.Segment {
+		if e, ok := elem.(*message.AtElement); ok {
+			atInfo = append(atInfo, &AtInfo{
+				UserID:  msg.Platform + ":" + e.Target,
+				IsRobot: e.IsRobot,
+			})
+		}
+	}
+	applyAtInfo(cmdArgs, atInfo, msg.Platform, atUID)
+}
+
+// applyAtInfo 依据 atInfo 设置 AmIBeMentioned 系列状态标志。
+func applyAtInfo(cmdArgs *CmdArgs, atInfo []*AtInfo, platform, atUID string) {
 	cmdArgs.AmIBeMentioned = false
 	cmdArgs.AmIBeMentionedFirst = false
 	cmdArgs.SomeoneBeMentionedButNotMe = false
 	cmdArgs.uidForAtInfo = atUID
 
-	var atInfo []*AtInfo
-	for _, elem := range msg.Segment {
-		if e, ok := elem.(*message.AtElement); ok {
-			userID := msg.Platform + ":" + e.Target
-
-			// 检查是否@了机器人
-			if isAtMe(msg.Platform, e.Target, atUID) {
-				cmdArgs.AmIBeMentioned = true
-				cmdArgs.SomeoneBeMentionedButNotMe = false
-				if len(atInfo) == 0 {
-					cmdArgs.AmIBeMentionedFirst = true
-				}
-			} else if !cmdArgs.AmIBeMentioned {
-				cmdArgs.SomeoneBeMentionedButNotMe = true
+	for i, at := range atInfo {
+		target := strings.TrimPrefix(at.UserID, platform+":")
+		if isAtMe(platform, target, atUID) {
+			cmdArgs.AmIBeMentioned = true
+			cmdArgs.SomeoneBeMentionedButNotMe = false
+			if i == 0 {
+				cmdArgs.AmIBeMentionedFirst = true
 			}
-
-			// 记录@信息
-			atInfo = append(atInfo, &AtInfo{
-				UserID:  userID,
-				IsRobot: e.IsRobot,
-			})
+		} else if !cmdArgs.AmIBeMentioned {
+			cmdArgs.SomeoneBeMentionedButNotMe = true
 		}
 	}
 	cmdArgs.At = atInfo

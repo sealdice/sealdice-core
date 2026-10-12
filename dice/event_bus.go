@@ -23,6 +23,10 @@ type EventBus struct {
 	dispatcher *goeventbus.Dispatcher
 	store      *goeventbus.EventStore
 
+	// emitMu 串行化底层 EventStore 的 Subscribe+Publish：该库的 Publish 非并发安全
+	// （非原子遍历 head/tail 与写 tail），并发 Emit 会重复派发/丢事件并触发 data race。
+	emitMu sync.Mutex
+
 	mu   sync.RWMutex
 	subs []*eventBusSubscription
 	next int64
@@ -70,6 +74,9 @@ func (b *EventBus) Emit(ev *AdapterEvent) error {
 		b.mu.Unlock()
 		ev.ID = fmt.Sprintf("aev-%d-%d", ev.Time.UnixNano(), seq)
 	}
+	// 订阅器不应在回调内再次 Emit（会自锁）；当前无此类调用。
+	b.emitMu.Lock()
+	defer b.emitMu.Unlock()
 	if err := b.store.Subscribe(context.Background(), goeventbus.Event{
 		ID:         ev.ID,
 		Projection: adapterEventProjection,

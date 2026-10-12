@@ -4,7 +4,9 @@ package dice
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -125,4 +127,28 @@ func TestEventBusSubscribeDuringDispatch(t *testing.T) {
 	})
 	_ = b.Emit(&AdapterEvent{Name: "d.y"})
 	<-done
+}
+
+func TestEventBusConcurrentEmit(t *testing.T) {
+	b := newTestBus(t)
+	var count atomic.Int64
+	_ = b.OnEvent("*", func(ctx context.Context, ev *AdapterEvent) error {
+		count.Add(1)
+		return nil
+	})
+
+	const n = 500
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_ = b.Emit(&AdapterEvent{Name: "concurrent.evt", ID: fmt.Sprintf("e-%d", i)})
+		}(i)
+	}
+	wg.Wait()
+
+	if got := count.Load(); got != n {
+		t.Fatalf("并发 Emit 处理数 = %d, want %d", got, n)
+	}
 }

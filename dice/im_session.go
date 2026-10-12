@@ -64,6 +64,9 @@ type Message struct {
 	MentionedInfo map[string]string `json:"-" yaml:"-"`
 	// Note(Szzrain): 这里是消息段，为了支持多种消息类型，目前只有 Milky 支持，其他平台也应该尽快迁移支持，并使用 Session.ExecuteNew 方法
 	Segment []message.IMessageElement `jsbind:"segment" json:"-" yaml:"-"`
+	// segmentSynthesized 标记 Segment 是否由兼容字符串（Message）兜底生成，
+	// 供非消息段原生平台在解析 @ 时回退到按平台的字符串解析。
+	segmentSynthesized bool
 }
 
 // GroupPlayerInfo 这是一个YamlWrapper，没有实际作用
@@ -1341,15 +1344,14 @@ func (ep *EndPointInfo) TriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *
 	return ret
 }
 
-// OnGroupJoined 群组进群事件入口。构造 AdapterEvent 经事件总线分发；
-// 旧逻辑（自动激活、入群致辞、旧回调字段调用）在兼容订阅器中执行。
+// OnGroupJoined 群组进群事件入口。先执行旧逻辑（自动激活、入群致辞、旧回调），
+// 再发射 group.joined 供 JS 订阅者使用。不使用兼容订阅器，避免与适配器内联旧逻辑重复执行。
 func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	if ctx == nil || msg == nil {
 		return
 	}
-	// EventBus 未装配（如部分测试直构 Dice）时退回直调旧逻辑
+	s.legacyOnGroupJoined(ctx, msg)
 	if s.Parent == nil || s.Parent.EventBus == nil {
-		s.legacyOnGroupJoined(ctx, msg)
 		return
 	}
 	s.EmitEvent(&AdapterEvent{
@@ -1362,7 +1364,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	})
 }
 
-// legacyOnGroupJoined 旧 OnGroupJoined 逻辑（自动激活、入群致辞、旧回调），由兼容订阅器调用。
+// legacyOnGroupJoined 旧 OnGroupJoined 逻辑（自动激活、入群致辞、旧回调）。
 func (s *IMSession) legacyOnGroupJoined(ctx *MsgContext, msg *Message) {
 	d := ctx.Dice
 	log := d.Logger

@@ -29,14 +29,6 @@ func (d *Dice) registerAdapterEventCompat() {
 		d.ImSession.legacyOnGroupLeave(ev.Ctx, leave)
 		return nil
 	})
-	_ = d.EventBus.OnEvent(EventNameGroupJoined, func(ctx context.Context, ev *AdapterEvent) error {
-		msg, _ := ev.Detail.(*Message)
-		if msg == nil {
-			return nil
-		}
-		d.ImSession.legacyOnGroupJoined(ev.Ctx, msg)
-		return nil
-	})
 	_ = d.EventBus.OnEvent(EventNameGroupMemberJoined, func(ctx context.Context, ev *AdapterEvent) error {
 		msg, _ := ev.Detail.(*Message)
 		if msg == nil {
