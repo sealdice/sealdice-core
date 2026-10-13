@@ -723,6 +723,10 @@ func (p *PlatformAdapterOnebot) scheduleLoginInfoRetry() {
 			_ = p.sm.Event(context.Background(), "connect_ok")
 		}
 	}
+	if p.EndPoint != nil && p.EndPoint.Session != nil {
+		p.EndPoint.Session.Parent.runMessageTask(retryFn)
+		return
+	}
 	go retryFn()
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -213,9 +214,11 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 
 	d, ep, _, cleanup := newExecuteNewTestDice(t)
 	d.ExtList = nil
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 	pa := &PlatformAdapterOnebot{
 		EndPoint: ep,
-		ctx:      t.Context(),
+		ctx:      ctx,
 		logger:   d.Logger,
 	}
 	pool, err := ants.NewPool(8)
@@ -243,16 +246,24 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	ep.Adapter = pa
 	ep.Session = d.ImSession
 
+	var cleanupOnce sync.Once
 	cleanupAll := func() {
-		if pa.groupCache != nil {
-			pa.groupCache.Close()
-		}
-		if pa.friendRequestDedupeCache != nil {
-			pa.friendRequestDedupeCache.Close()
-		}
-		pool.Release()
-		cleanup()
+		cleanupOnce.Do(func() {
+			cancel()
+			if err := pool.ReleaseTimeout(10 * time.Second); err != nil {
+				t.Fatalf("wait for OneBot test workers: %v", err)
+			}
+			waitForTestMessageTasks(t, d)
+			if pa.groupCache != nil {
+				pa.groupCache.Close()
+			}
+			if pa.friendRequestDedupeCache != nil {
+				pa.friendRequestDedupeCache.Close()
+			}
+			cleanup()
+		})
 	}
+	t.Cleanup(cleanupAll)
 
 	return d, pa, em, cleanupAll
 }
