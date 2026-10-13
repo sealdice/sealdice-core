@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestExtActivateCompanionDetection 测试扩展激活时伴随扩展的检测逻辑
@@ -163,6 +164,12 @@ func assertExtCommandCompanions(t *testing.T, extensions []*ExtInfo, userActivat
 	result := d.CmdMap["ext"].Solve(ctx, msg, &CmdArgs{Command: "ext", Args: args})
 	if !result.Matched || !result.Solved || result.ShowHelp {
 		t.Fatalf("ext command returned unexpected result: %#v", result)
+	}
+
+	// ReplyToSender dispatches asynchronously through panicHandler.Once.
+	// Wait for the adapter to record the reply before inspecting its buffers.
+	if _, ok := adapter.waitForMsg(3 * time.Second); !ok {
+		t.Fatal("timed out waiting for the ext command reply")
 	}
 
 	adapter.mu.Lock()
