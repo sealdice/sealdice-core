@@ -1240,7 +1240,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			if runInSync {
 				f()
 			} else {
-				go f()
+				d.runMessageTask(f)
 			}
 		} else {
 			if mctx.PrivilegeLevel == -30 {
@@ -1294,7 +1294,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 							if runInSync {
 								notCommandReceiveCall()
 							} else {
-								go notCommandReceiveCall()
+								d.runMessageTask(notCommandReceiveCall)
 							}
 						}
 					}
@@ -1302,6 +1302,20 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 	}
+}
+
+// runMessageTask tracks asynchronous commands, extension callbacks and notices.
+// Callers must stop submitting new work before waiting on messageTasks.
+func (d *Dice) runMessageTask(task func()) {
+	if d == nil {
+		go task()
+		return
+	}
+	d.messageTasks.Add(1)
+	go func() {
+		defer d.messageTasks.Done()
+		task()
+	}()
 }
 
 // ExecuteNew Note(Szzrain): 既不破坏兼容性还要支持新 feature 我真是草了，这里是 copy paste 的代码稍微改了一下，我知道这是在屎山上建房子，但是没办法
@@ -1531,7 +1545,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	// Note(Szzrain): 赋值临时变量，不然有些地方没法用
 	SetTempVars(mctx, msg.Sender.Nickname)
 	if cmdArgs != nil {
-		go s.PreTriggerCommand(mctx, msg, cmdArgs)
+		d.runMessageTask(func() { s.PreTriggerCommand(mctx, msg, cmdArgs) })
 	} else {
 		// if cmdArgs == nil will execute this block
 		if mctx.PrivilegeLevel == -30 {
@@ -1580,7 +1594,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 							}
 						}
 
-						go notCommandReceiveCall()
+						d.runMessageTask(notCommandReceiveCall)
 					}
 				}
 			}
@@ -1726,7 +1740,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	}
 	time.Sleep(2 * time.Second)
 	groupName := dm.TryGetGroupName(msg.GroupID)
-	go func() {
+	d.runMessageTask(func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -1743,7 +1757,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 			doSleepQQ(ctx)
 			ReplyGroup(ctx, msg, strings.TrimSpace(i))
 		}
-	}()
+	})
 	txt := fmt.Sprintf("加入群组: <%s>(%s)", groupName, msg.GroupID)
 	log.Info(txt)
 	ctx.Notice(txt, NoticeTypeGroup)
@@ -2707,7 +2721,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool, notic
 			}
 		}
 	}
-	go foo()
+	d.runMessageTask(foo)
 }
 
 // NoticeCrossPlatform 优先用当前账号发送，并为其他平台寻找第一个启用账号。
@@ -2748,7 +2762,7 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string, noticeTypes ...NoticeType
 			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", platform, txt)
 		}
 	}
-	go foo()
+	ctx.Dice.runMessageTask(foo)
 }
 
 // Notice 使用当前消息上下文的账号发送指定分类通知。
@@ -2795,7 +2809,7 @@ func (ctx *MsgContext) Notice(txt string, noticeTypes ...NoticeType) {
 			}
 		}
 	}
-	go foo()
+	ctx.Dice.runMessageTask(foo)
 }
 
 var randSourceSplitKey = rand2.NewSource(uint64(time.Now().Unix()))
