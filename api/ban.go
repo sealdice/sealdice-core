@@ -73,6 +73,9 @@ func banMapList(c echo.Context) error {
 }
 
 func banMapDeleteOne(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
 	v := dice.BanListInfoItem{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -83,6 +86,9 @@ func banMapDeleteOne(c echo.Context) error {
 }
 
 func banMapAddOne(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
 	if dm.JustForTest {
 		return c.JSON(200, map[string]interface{}{
 			"testMode": true,
@@ -140,6 +146,9 @@ func banMapAddOne(c echo.Context) error {
 //}
 
 func banExport(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
 	if dm.JustForTest {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
