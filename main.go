@@ -2,6 +2,7 @@ package main
 
 // _ "net/http/pprof"
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -71,6 +72,12 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 		}
 
 		dice.CloseIMSendQueue()
+
+		for _, i := range diceManager.Dice {
+			if i.EventBus != nil {
+				_ = i.EventBus.Close(context.Background())
+			}
+		}
 
 		for _, i := range diceManager.Dice {
 			if i.IsAlreadyLoadConfig {

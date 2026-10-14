@@ -537,10 +537,14 @@ func segmentsContainAt(segments []message.IMessageElement) bool {
 }
 
 // parseAtInfo 从消息段解析 @ 信息并设置相关状态标志。
+// @全体成员（target 为 "all"）不作为具体 @ 目标，与旧字符串解析行为一致。
 func parseAtInfo(cmdArgs *CmdArgs, msg *Message, atUID string) {
 	atInfo := make([]*AtInfo, 0, 2)
 	for _, elem := range msg.Segment {
 		if e, ok := elem.(*message.AtElement); ok {
+			if e.Target == "all" {
+				continue
+			}
 			atInfo = append(atInfo, &AtInfo{
 				UserID:  msg.Platform + ":" + e.Target,
 				IsRobot: e.IsRobot,

@@ -947,8 +947,11 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 				continue
 			}
 			url := res.URL
-			if res.URL == "" {
+			if url == "" && res.File != nil {
 				url = res.File.URL
+			}
+			if url == "" {
+				continue
 			}
 			rawMsg = rawMsg.Image(url)
 			_, _ = fmt.Fprintf(&cqMessage, "[CQ:image,file=%v]", url)

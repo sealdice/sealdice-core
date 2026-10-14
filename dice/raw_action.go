@@ -12,17 +12,38 @@ type RawActionAdapter interface {
 	RawAction(ctx context.Context, action string, params map[string]any) (any, error)
 }
 
+// rawActionEndpointKey 是 params 里的保留键，用于指定由哪个账号端点执行动作。
+// SendRaw 会把它从 params 中剥离，不会透传给适配器。
+const rawActionEndpointKey = "endpoint_id"
+
 // SendRaw 出站动作透传：按平台定位在线端点，校验能力清单后调用适配器。
 // 只要该协议能力清单声明了此动作即可调用，不另设权限。
+// 同平台存在多个在线端点时默认取第一个；可通过 params[endpoint_id] 指定账号（端点 UserID）。
 func (d *Dice) SendRaw(platform, action string, params map[string]any) (any, error) {
 	if d.ImSession == nil {
 		return nil, errors.New("会话未初始化")
 	}
-	for _, ep := range d.ImSession.EndPoints {
-		if ep == nil || ep.Adapter == nil {
-			continue
+	wantEndpoint := ""
+	if params != nil {
+		if v, ok := params[rawActionEndpointKey]; ok {
+			s, isStr := v.(string)
+			if !isStr {
+				return nil, fmt.Errorf("参数 %s 必须是字符串（端点 UserID）", rawActionEndpointKey)
+			}
+			wantEndpoint = s
+			filtered := make(map[string]any, len(params)-1)
+			for k, val := range params {
+				if k != rawActionEndpointKey {
+					filtered[k] = val
+				}
+			}
+			params = filtered
 		}
-		if ep.Platform != platform || !ep.Enable {
+	}
+
+	var fallback *EndPointInfo
+	for _, ep := range d.ImSession.EndPoints {
+		if ep == nil || ep.Adapter == nil || ep.Platform != platform || !ep.Enable {
 			continue
 		}
 		caps, ok := adapterCapabilitiesFor(ep)
@@ -32,10 +53,28 @@ func (d *Dice) SendRaw(platform, action string, params map[string]any) (any, err
 		if _, declared := caps.RawActions[action]; !declared {
 			continue // 该协议未声明此动作，尝试下一个同平台端点
 		}
-		ra, ok := ep.Adapter.(RawActionAdapter)
-		if !ok {
+		ra, isRaw := ep.Adapter.(RawActionAdapter)
+		if !isRaw {
 			continue
 		}
+		if wantEndpoint != "" {
+			if ep.UserID != wantEndpoint {
+				continue
+			}
+			if params == nil {
+				params = map[string]any{}
+			}
+			return ra.RawAction(context.Background(), action, params)
+		}
+		if fallback == nil {
+			fallback = ep
+		}
+	}
+	if wantEndpoint != "" {
+		return nil, fmt.Errorf("端点 %s 不存在、不可用或不支持动作 %s", wantEndpoint, action)
+	}
+	if fallback != nil {
+		ra, _ := fallback.Adapter.(RawActionAdapter)
 		if params == nil {
 			params = map[string]any{}
 		}

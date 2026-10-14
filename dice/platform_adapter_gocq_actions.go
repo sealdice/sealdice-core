@@ -543,6 +543,8 @@ func (pa *PlatformAdapterGocq) SetGroupAddRequest(flag string, subType string, a
 }
 
 func (pa *PlatformAdapterGocq) getCustomEcho() string {
+	pa.echoMu.Lock()
+	defer pa.echoMu.Unlock()
 	if pa.customEcho > -10 {
 		pa.customEcho = -10
 	}
@@ -550,17 +552,24 @@ func (pa *PlatformAdapterGocq) getCustomEcho() string {
 	return strconv.FormatInt(pa.customEcho, 10)
 }
 
+func (pa *PlatformAdapterGocq) ensureEchoMap() *SyncMap[any, chan *MessageQQ] {
+	pa.echoMu.Lock()
+	defer pa.echoMu.Unlock()
+	if pa.echoMap == nil {
+		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
+	}
+	return pa.echoMap
+}
+
 func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ {
 	// pa.echoList = append(pa.echoList, )
 	ch := make(chan *MessageQQ, 1)
 
-	if pa.echoMap == nil {
-		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
-	}
+	echoMap := pa.ensureEchoMap()
 
 	// 注: 之所以这样是因为echo是json.RawMessage
 	e := lo.Must(json.Marshal(echo))
-	pa.echoMap.Store(string(e), ch)
+	echoMap.Store(string(e), ch)
 
 	beforeWait()
 	return <-ch
@@ -936,15 +945,14 @@ func (pa *PlatformAdapterGocq) RawAction(ctx context.Context, action string, par
 		return nil, err
 	}
 	ch := make(chan *MessageQQ, 1)
-	if pa.echoMap == nil {
-		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
-	}
+	echoMap := pa.ensureEchoMap()
 	key := lo.Must(json.Marshal(echo))
-	pa.echoMap.Store(string(key), ch)
+	echoMap.Store(string(key), ch)
 	socketSendText(pa.Socket, string(a))
 
 	select {
 	case msg := <-ch:
+		echoMap.Delete(string(key))
 		if msg == nil {
 			return nil, errors.New("gocq 响应异常")
 		}
@@ -953,10 +961,10 @@ func (pa *PlatformAdapterGocq) RawAction(ctx context.Context, action string, par
 		_ = json.Unmarshal(raw, &out)
 		return out, nil
 	case <-time.After(15 * time.Second):
-		pa.echoMap.Delete(string(key))
+		echoMap.Delete(string(key))
 		return nil, fmt.Errorf("gocq 动作 %s 超时", action)
 	case <-ctx.Done():
-		pa.echoMap.Delete(string(key))
+		echoMap.Delete(string(key))
 		return nil, ctx.Err()
 	}
 }

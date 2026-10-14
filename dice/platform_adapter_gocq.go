@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -89,6 +90,7 @@ type PlatformAdapterGocq struct {
 	InPackGoCqhttpDisconnectedCH chan int `json:"-"                        yaml:"-"`                   // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `json:"ignoreFriendRequest"      yaml:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
+	echoMu         sync.Mutex                     `yaml:"-"` // 保护 echoMap 懒初始化与 customEcho 自增
 	customEcho     int64                          `yaml:"-"` // 自定义返回标记
 	echoMap        *SyncMap[any, chan *MessageQQ] `yaml:"-"`
 	echoMap2       *SyncMap[any, *echoMapInfo]    `yaml:"-"`
@@ -900,6 +902,7 @@ func (pa *PlatformAdapterGocq) Serve() int {
 			log.Info(txt)
 			ctx.Notice(txt, NoticeTypeGroup)
 			if groupInfo, ok := ctx.Session.ServiceAtNew.Load(msg.GroupID); ok {
+				EmitGroupJoined(ctx, msg)
 				groupInfo.TriggerExtHook(ctx.Dice, func(ext *ExtInfo) func() {
 					if ext.OnGroupJoined == nil {
 						return nil

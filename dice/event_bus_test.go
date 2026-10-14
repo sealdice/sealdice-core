@@ -152,3 +152,21 @@ func TestEventBusConcurrentEmit(t *testing.T) {
 		t.Fatalf("并发 Emit 处理数 = %d, want %d", got, n)
 	}
 }
+
+func TestEventBusReentrantEmit(t *testing.T) {
+	b := newTestBus(t)
+	var outer, inner atomic.Int64
+	_ = b.OnEvent("re.outer", func(ctx context.Context, ev *AdapterEvent) error {
+		outer.Add(1)
+		_ = b.Emit(&AdapterEvent{Name: "re.inner"})
+		return nil
+	})
+	_ = b.OnEvent("re.inner", func(ctx context.Context, ev *AdapterEvent) error {
+		inner.Add(1)
+		return nil
+	})
+	_ = b.Emit(&AdapterEvent{Name: "re.outer"})
+	if inner.Load() != 1 || outer.Load() != 1 {
+		t.Fatalf("嵌套 Emit 未完成派发: outer=%d inner=%d", outer.Load(), inner.Load())
+	}
+}

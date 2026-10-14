@@ -437,3 +437,25 @@ func TestCommandParseNewFallsBackToPlatformAtParse(t *testing.T) {
 		t.Fatalf("Command = %q, want r", cmdArgs.Command)
 	}
 }
+
+// @全体成员（[CQ:at,qq=all]）不作为具体 @ 目标，保持旧解析行为。
+func TestCommandParseNewAtAllIsNotAMention(t *testing.T) {
+	d := &Dice{CommandPrefix: DefaultConfig.CommandPrefix}
+	d.CmdMap = CmdMapCls{"r": &CmdItemInfo{}}
+	session := &IMSession{Parent: d}
+	ep := &EndPointInfo{EndPointInfoBase: EndPointInfoBase{UserID: "QQ:1000", Platform: "QQ"}}
+	msg := &Message{Platform: "QQ", Message: ".r [CQ:at,qq=all] 1d100"}
+	NormalizeIncomingMessage(msg)
+	ctx := &MsgContext{Session: session, EndPoint: ep, Dice: d}
+
+	cmdArgs := CommandParseNew(ctx, msg)
+	if cmdArgs == nil {
+		t.Fatal("CommandParseNew returned nil")
+	}
+	if len(cmdArgs.At) != 0 {
+		t.Fatalf("At count = %d, want 0 for qq=all", len(cmdArgs.At))
+	}
+	if cmdArgs.SomeoneBeMentionedButNotMe {
+		t.Fatal("@全体不应置 SomeoneBeMentionedButNotMe")
+	}
+}

@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	goeventbus "github.com/Protocol-Lattice/GoEventBus"
@@ -25,7 +28,11 @@ type EventBus struct {
 
 	// emitMu 串行化底层 EventStore 的 Subscribe+Publish：该库的 Publish 非并发安全
 	// （非原子遍历 head/tail 与写 tail），并发 Emit 会重复派发/丢事件并触发 data race。
-	emitMu sync.Mutex
+	// 派发期间同步执行订阅者，订阅者回调内再 Emit 属嵌套：进入 pendingEmit，
+	// 由外层派发循环统一处理，避免同协程重入 emitMu 自锁。
+	emitMu      sync.Mutex
+	dispatchGID atomic.Uint64
+	pendingEmit []*AdapterEvent
 
 	mu   sync.RWMutex
 	subs []*eventBusSubscription
@@ -74,18 +81,49 @@ func (b *EventBus) Emit(ev *AdapterEvent) error {
 		b.mu.Unlock()
 		ev.ID = fmt.Sprintf("aev-%d-%d", ev.Time.UnixNano(), seq)
 	}
-	// 订阅器不应在回调内再次 Emit（会自锁）；当前无此类调用。
+	if gid := currentGoroutineID(); gid != 0 && gid == b.dispatchGID.Load() {
+		b.pendingEmit = append(b.pendingEmit, ev)
+		return nil
+	}
 	b.emitMu.Lock()
 	defer b.emitMu.Unlock()
-	if err := b.store.Subscribe(context.Background(), goeventbus.Event{
-		ID:         ev.ID,
-		Projection: adapterEventProjection,
-		Data:       ev,
-	}); err != nil {
-		return err
+	b.dispatchGID.Store(currentGoroutineID())
+	defer b.dispatchGID.Store(0)
+
+	var firstErr error
+	queue := []*AdapterEvent{ev}
+	for len(queue) > 0 {
+		e := queue[0]
+		queue = queue[1:]
+		if err := b.store.Subscribe(context.Background(), goeventbus.Event{
+			ID:         e.ID,
+			Projection: adapterEventProjection,
+			Data:       e,
+		}); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		b.store.Publish() // 回调内的嵌套 Emit 只会进入 pendingEmit
+		if len(b.pendingEmit) > 0 {
+			queue = append(queue, b.pendingEmit...)
+			b.pendingEmit = nil
+		}
 	}
-	b.store.Publish()
-	return nil
+	return firstErr
+}
+
+// currentGoroutineID 返回当前 goroutine 的 ID，用于识别订阅者回调内的嵌套 Emit。
+func currentGoroutineID() uint64 {
+	buf := make([]byte, 64)
+	n := runtime.Stack(buf, false)
+	fields := strings.Fields(string(buf[:n]))
+	if len(fields) >= 2 && fields[0] == "goroutine" {
+		id, _ := strconv.ParseUint(fields[1], 10, 64)
+		return id
+	}
+	return 0
 }
 
 // OnEvent 注册 Go 侧订阅。pattern 为精确事件名、前缀（"group.*"）或 "*"。
@@ -169,7 +207,7 @@ func (b *EventBus) invokeJs(sub *eventBusSubscription, ev *AdapterEvent) error {
 	}
 	waitRun := make(chan int, 1)
 	var handlerErr error
-	loop.RunOnLoop(func(vm *goja.Runtime) {
+	if !loop.RunOnLoop(func(vm *goja.Runtime) {
 		defer func() {
 			if r := recover(); r != nil {
 				handlerErr = fmt.Errorf("JS 处理器异常: %v", r)
@@ -181,7 +219,9 @@ func (b *EventBus) invokeJs(sub *eventBusSubscription, ev *AdapterEvent) error {
 		}
 		fn := sub.jsFn
 		fn(ev.Ctx, ev)
-	})
+	}) {
+		return errors.New("事件循环已关闭，JS 处理器被丢弃")
+	}
 	<-waitRun
 	return handlerErr
 }

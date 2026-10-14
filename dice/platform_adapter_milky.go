@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"path/filepath"
 	"regexp"
@@ -752,7 +753,11 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 			elements = append(elements, &milky.TextElement{Text: e.Content})
 		case *message.ImageElement:
 			log.Debugf("Image: %s", e.URL)
-			elements = append(elements, &milky.ImageElement{URI: e.URL, Summary: e.File.File, SubType: "normal"})
+			summary := ""
+			if e.File != nil {
+				summary = e.File.File
+			}
+			elements = append(elements, &milky.ImageElement{URI: e.URL, Summary: summary, SubType: "normal"})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
 			if uid, err := strconv.ParseInt(e.Target, 10, 64); err == nil {
@@ -763,8 +768,16 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 				elements = append(elements, &milky.ReplyElement{MessageSeq: seq})
 			}
 		case *message.RecordElement:
-			log.Debugf("Record: %s", e.File.URL)
-			elements = append(elements, &milky.RecordElement{URI: e.File.URL})
+			uri := ""
+			if e.File != nil {
+				uri = e.File.URL
+			}
+			if uri == "" {
+				log.Warnf("Record: missing url, skipped")
+				continue
+			}
+			log.Debugf("Record: %s", uri)
+			elements = append(elements, &milky.RecordElement{URI: uri})
 		case *message.PokeElement:
 			continue
 		default:
@@ -1142,13 +1155,16 @@ func rawActionParam(params map[string]any, key string) (int64, error) {
 	case int:
 		return int64(n), nil
 	case float64:
+		if n != math.Trunc(n) {
+			return 0, fmt.Errorf("参数 %s 不是整数: %v", key, n)
+		}
 		return int64(n), nil
 	default:
 		return 0, fmt.Errorf("参数 %s 类型不符: %T", key, v)
 	}
 }
 
-// rawActionInt32 从 map 参数取 int32，缺省返回 def。
+// rawActionInt32 从 map 参数取 int32，缺省返回 def，超范围报错。
 func rawActionInt32(params map[string]any, key string, def int32) (int32, error) {
 	v, ok := params[key]
 	if !ok || v == nil {
@@ -1158,31 +1174,34 @@ func rawActionInt32(params map[string]any, key string, def int32) (int32, error)
 	if err != nil {
 		return 0, err
 	}
+	if n < math.MinInt32 || n > math.MaxInt32 {
+		return 0, fmt.Errorf("参数 %s 超出 int32 范围: %d", key, n)
+	}
 	return int32(n), nil
 }
 
-// rawActionStr 从 map 参数取 string，缺省返回 def。
-func rawActionStr(params map[string]any, key string, def string) string {
+// rawActionStr 从 map 参数取 string，缺省返回 def，类型不符报错。
+func rawActionStr(params map[string]any, key string, def string) (string, error) {
 	v, ok := params[key]
 	if !ok || v == nil {
-		return def
+		return def, nil
 	}
 	if s, ok := v.(string); ok {
-		return s
+		return s, nil
 	}
-	return def
+	return "", fmt.Errorf("参数 %s 类型不符: %T", key, v)
 }
 
-// rawActionBool 从 map 参数取 bool，缺省返回 def。
-func rawActionBool(params map[string]any, key string, def bool) bool {
+// rawActionBool 从 map 参数取 bool，缺省返回 def，类型不符报错。
+func rawActionBool(params map[string]any, key string, def bool) (bool, error) {
 	v, ok := params[key]
 	if !ok || v == nil {
-		return def
+		return def, nil
 	}
 	if b, ok := v.(bool); ok {
-		return b
+		return b, nil
 	}
-	return def
+	return false, fmt.Errorf("参数 %s 类型不符: %T", key, v)
 }
 
 // milkyRawResult 把 SDK 返回的结构体转为 map（sonic 往返），字段与 JSON 一致。
@@ -1222,27 +1241,47 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		}
 		return milkyRawResult(s.GetUserProfile(uid))
 	case "get_friend_list":
-		return milkyRawResult(s.GetFriendList(rawActionBool(params, "no_cache", false)))
+		noCache, err := rawActionBool(params, "no_cache", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetFriendList(noCache))
 	case "get_friend_info":
 		uid, err := rawActionParam(params, "user_id")
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(s.GetFriendInfo(uid, rawActionBool(params, "no_cache", false)))
+		noCache, err := rawActionBool(params, "no_cache", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetFriendInfo(uid, noCache))
 	case "get_group_list":
-		return milkyRawResult(s.GetGroupList(rawActionBool(params, "no_cache", false)))
+		noCache, err := rawActionBool(params, "no_cache", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetGroupList(noCache))
 	case "get_group_info":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(s.GetGroupInfo(gid, rawActionBool(params, "no_cache", false)))
+		noCache, err := rawActionBool(params, "no_cache", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetGroupInfo(gid, noCache))
 	case "get_group_member_list":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(s.GetGroupMemberList(gid, rawActionBool(params, "no_cache", false)))
+		noCache, err := rawActionBool(params, "no_cache", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetGroupMemberList(gid, noCache))
 	case "get_group_member_info":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1252,7 +1291,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(s.GetGroupMemberInfo(gid, uid, rawActionBool(params, "no_cache", false)))
+		noCache, err := rawActionBool(params, "no_cache", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetGroupMemberInfo(gid, uid, noCache))
 	case "get_message":
 		peerID, err := rawActionParam(params, "peer_id")
 		if err != nil {
@@ -1262,7 +1305,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(s.GetMessage(rawActionStr(params, "message_scene", "group"), peerID, seq))
+		scene, err := rawActionStr(params, "message_scene", "group")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(s.GetMessage(scene, peerID, seq))
 	case "get_history_messages":
 		peerID, err := rawActionParam(params, "peer_id")
 		if err != nil {
@@ -1276,7 +1323,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		msgs, nextSeq, err := s.GetHistoryMessages(rawActionStr(params, "message_scene", "group"), peerID, startSeq, limit)
+		scene, err := rawActionStr(params, "message_scene", "group")
+		if err != nil {
+			return nil, err
+		}
+		msgs, nextSeq, err := s.GetHistoryMessages(scene, peerID, startSeq, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -1296,7 +1347,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SendFriendNudge(uid, rawActionBool(params, "is_self", false)))
+		isSelf, err := rawActionBool(params, "is_self", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SendFriendNudge(uid, isSelf))
 	case "set_group_member_mute":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1316,7 +1371,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SetGroupWholeMute(gid, rawActionBool(params, "is_mute", true)))
+		isMute, err := rawActionBool(params, "is_mute", true)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupWholeMute(gid, isMute))
 	case "set_group_member_card":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1326,7 +1385,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SetGroupMemberCard(gid, uid, rawActionStr(params, "card", "")))
+		card, err := rawActionStr(params, "card", "")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupMemberCard(gid, uid, card))
 	case "set_group_member_special_title":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1336,7 +1399,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SetGroupMemberSpecialTitle(gid, uid, rawActionStr(params, "special_title", "")))
+		title, err := rawActionStr(params, "special_title", "")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupMemberSpecialTitle(gid, uid, title))
 	case "set_group_member_admin":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1346,13 +1413,21 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SetGroupMemberAdmin(gid, uid, rawActionBool(params, "is_set", true)))
+		isSet, err := rawActionBool(params, "is_set", true)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupMemberAdmin(gid, uid, isSet))
 	case "set_group_name":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SetGroupName(gid, rawActionStr(params, "new_group_name", "")))
+		name, err := rawActionStr(params, "new_group_name", "")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupName(gid, name))
 	case "kick_group_member":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1362,7 +1437,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.KickGroupMember(gid, uid, rawActionBool(params, "reject_add_request", false)))
+		reject, err := rawActionBool(params, "reject_add_request", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.KickGroupMember(gid, uid, reject))
 	case "quit_group":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1398,7 +1477,11 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SetGroupEssenceMessage(gid, seq, rawActionBool(params, "is_set", true)))
+		isSet, err := rawActionBool(params, "is_set", true)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SetGroupEssenceMessage(gid, seq, isSet))
 	case "send_group_message_reaction":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
@@ -1408,7 +1491,15 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.SendGroupMessageReaction(gid, seq, rawActionStr(params, "reaction", ""), rawActionBool(params, "is_set", true)))
+		reaction, err := rawActionStr(params, "reaction", "")
+		if err != nil {
+			return nil, err
+		}
+		isSet, err := rawActionBool(params, "is_set", true)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.SendGroupMessageReaction(gid, seq, reaction, isSet))
 	case "mark_message_as_read":
 		peerID, err := rawActionParam(params, "peer_id")
 		if err != nil {
@@ -1418,11 +1509,35 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.MarkMessageAsRead(rawActionStr(params, "message_scene", "group"), peerID, seq))
+		scene, err := rawActionStr(params, "message_scene", "group")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.MarkMessageAsRead(scene, peerID, seq))
 	case "accept_friend_request":
-		return milkyRawResult(nil, s.AcceptFriendRequest(rawActionStr(params, "initiator_uid", ""), rawActionBool(params, "is_filtered", false)))
+		initiatorUID, err := rawActionStr(params, "initiator_uid", "")
+		if err != nil {
+			return nil, err
+		}
+		isFiltered, err := rawActionBool(params, "is_filtered", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.AcceptFriendRequest(initiatorUID, isFiltered))
 	case "reject_friend_request":
-		return milkyRawResult(nil, s.RejectFriendRequest(rawActionStr(params, "initiator_uid", ""), rawActionBool(params, "is_filtered", false), rawActionStr(params, "reason", "")))
+		initiatorUID, err := rawActionStr(params, "initiator_uid", "")
+		if err != nil {
+			return nil, err
+		}
+		isFiltered, err := rawActionBool(params, "is_filtered", false)
+		if err != nil {
+			return nil, err
+		}
+		reason, err := rawActionStr(params, "reason", "")
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.RejectFriendRequest(initiatorUID, isFiltered, reason))
 	case "accept_group_request":
 		seq, err := rawActionParam(params, "notification_seq")
 		if err != nil {
@@ -1432,7 +1547,15 @@ func (pa *PlatformAdapterMilky) RawAction(ctx context.Context, action string, pa
 		if err != nil {
 			return nil, err
 		}
-		return milkyRawResult(nil, s.AcceptGroupRequest(seq, rawActionStr(params, "notification_type", "group_request"), gid, rawActionBool(params, "is_filtered", false)))
+		notifType, err := rawActionStr(params, "notification_type", "group_request")
+		if err != nil {
+			return nil, err
+		}
+		isFiltered, err := rawActionBool(params, "is_filtered", false)
+		if err != nil {
+			return nil, err
+		}
+		return milkyRawResult(nil, s.AcceptGroupRequest(seq, notifType, gid, isFiltered))
 	case "reject_group_invitation":
 		gid, err := rawActionParam(params, "group_id")
 		if err != nil {
