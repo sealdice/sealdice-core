@@ -66,13 +66,19 @@ func (pa *PlatformAdapterDingTalk) QuitGroup(ctx *MsgContext, id string) {
 }
 
 func (pa *PlatformAdapterDingTalk) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterDingTalk) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	msg := dingtalk.MessageSampleText{Content: text}
+	pa.sendPersonSegments(ctx, uid, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterDingTalk) sendPersonSegments(ctx *MsgContext, uid string, msg []message.IMessageElement, logText string, flag string) {
+	msgBody := dingtalk.MessageSampleText{Content: logText}
 	rawUserID := ExtractDingTalkUserID(uid)
 
 	pa.sessionMu.RLock()
@@ -83,7 +89,7 @@ func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, tex
 	}
 	session := pa.IntentSession
 
-	messageID, err := session.MessagePrivateSend(rawUserID, pa.RobotCode, &msg)
+	messageID, err := session.MessagePrivateSend(rawUserID, pa.RobotCode, &msgBody)
 	if err != nil {
 		pa.EndPoint.Session.Parent.Logger.Error("Dingtalk SendToPerson Error: ", err)
 		return
@@ -91,7 +97,8 @@ func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, tex
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DINGTALK",
 		MessageType: "private",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -101,7 +108,11 @@ func (pa *PlatformAdapterDingTalk) SendToPerson(ctx *MsgContext, uid string, tex
 }
 
 func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	msg := dingtalk.MessageSampleText{Content: text}
+	pa.sendGroupSegments(ctx, uid, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterDingTalk) sendGroupSegments(ctx *MsgContext, uid string, msg []message.IMessageElement, logText string, flag string) {
+	msgBody := dingtalk.MessageSampleText{Content: logText}
 	rawGroupID := ExtractDingTalkGroupID(uid)
 
 	pa.sessionMu.RLock()
@@ -111,7 +122,7 @@ func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text
 		return
 	}
 	session := pa.IntentSession
-	messageID, err := session.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msg)
+	messageID, err := session.MessageGroupSend(rawGroupID, pa.RobotCode, pa.CoolAppCode, &msgBody)
 	if err != nil {
 		pa.EndPoint.Session.Parent.Logger.Error("Dingtalk SendToGroup Error: ", err)
 		return
@@ -119,7 +130,8 @@ func (pa *PlatformAdapterDingTalk) SendToGroup(ctx *MsgContext, uid string, text
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DINGTALK",
 		MessageType: "group",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     uid,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,

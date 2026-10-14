@@ -317,27 +317,34 @@ func (pa *PlatformAdapterDiscord) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterDiscord) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterDiscord) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 // SendToPerson 这里发送的是私聊（dm）消息，私信对于discord来说也被视为一个频道
 func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	pa.sendPersonSegments(ctx, userID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterDiscord) sendPersonSegments(ctx *MsgContext, userID string, msg []message.IMessageElement, logText string, flag string) {
 	is := pa.IntentSession
 	ch, err := is.UserChannelCreate(ExtractDiscordUserID(userID))
 	if err != nil {
 		pa.EndPoint.Session.Parent.Logger.Errorf("创建Discord用户#%s的私聊频道时出错:%s", userID, err)
 		return
 	}
-	resp, err := pa.sendToChannelRaw(ch.ID, text)
+	resp, err := pa.sendToChannelRaw(ch.ID, msg)
 	if err != nil {
 		return
 	}
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DISCORD",
 		MessageType: "private",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -348,15 +355,19 @@ func (pa *PlatformAdapterDiscord) SendToPerson(ctx *MsgContext, userID string, t
 
 // SendToGroup 发送群聊（实际上是频道）消息
 func (pa *PlatformAdapterDiscord) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
-	// _, err := pa.IntentSession.ChannelMessageSend(ExtractDiscordChannelId(groupId), text)
-	resp, err := pa.sendToChannelRaw(groupID, text)
+	pa.sendGroupSegments(ctx, groupID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterDiscord) sendGroupSegments(ctx *MsgContext, groupID string, msg []message.IMessageElement, logText string, flag string) {
+	resp, err := pa.sendToChannelRaw(groupID, msg)
 	if err != nil {
 		return
 	}
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "DISCORD",
 		MessageType: "group",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
@@ -439,13 +450,12 @@ func (pa *PlatformAdapterDiscord) sendFileToChannelRaw(channelID string, path st
 	return resp, err
 }
 
-func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, text string) (*discordgo.Message, error) {
+func (pa *PlatformAdapterDiscord) sendToChannelRaw(channelID string, msg []message.IMessageElement) (*discordgo.Message, error) {
 	logger := pa.EndPoint.Session.Parent.Logger
-	elem := message.ConvertStringMessage(text)
 	id := ExtractDiscordChannelID(channelID)
 	var err error
 	msgSend := &discordgo.MessageSend{Content: ""}
-	for _, element := range elem {
+	for _, element := range msg {
 		switch e := element.(type) {
 		case *message.TextElement:
 			// msgSend.Content = msgSend.Content + antiMarkdownFormat(e.Content)

@@ -211,17 +211,24 @@ func (pa *PlatformAdapterSlack) QuitGroup(ctx *MsgContext, id string) {
 }
 
 func (pa *PlatformAdapterSlack) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterSlack) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
-	pa.send(ctx, ExtractSlackUserID(userID), text, flag)
+	pa.sendPersonSegments(ctx, userID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterSlack) sendPersonSegments(ctx *MsgContext, userID string, msg []message.IMessageElement, logText string, flag string) {
+	pa.send(ctx, ExtractSlackUserID(userID), logText, flag)
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "private",
 		Platform:    "SLACK",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -230,11 +237,16 @@ func (pa *PlatformAdapterSlack) SendToPerson(ctx *MsgContext, userID string, tex
 }
 
 func (pa *PlatformAdapterSlack) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
-	pa.send(ctx, ExtractSlackChannelID(groupID), text, flag)
+	pa.sendGroupSegments(ctx, groupID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterSlack) sendGroupSegments(ctx *MsgContext, groupID string, msg []message.IMessageElement, logText string, flag string) {
+	pa.send(ctx, ExtractSlackChannelID(groupID), logText, flag)
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "group",
 		Platform:    "SLACK",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,

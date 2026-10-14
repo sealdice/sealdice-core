@@ -532,12 +532,18 @@ func (pa *PlatformAdapterRed) QuitGroup(_ *MsgContext, id string) {
 }
 
 func (pa *PlatformAdapterRed) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterRed) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterRed) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	pa.sendPersonSegments(ctx, uid, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterRed) sendPersonSegments(ctx *MsgContext, uid string, msg []message.IMessageElement, logText string, flag string) {
 	rowId, chatType := pa.mustExtractId(uid)
 	if chatType != PersonChat {
 		return
@@ -547,9 +553,10 @@ func (pa *PlatformAdapterRed) SendToPerson(ctx *MsgContext, uid string, text str
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
 				i.OnMessageSend(ctx, &Message{
-					Message:     text,
+					Message:     logText,
 					MessageType: "private",
 					Platform:    pa.EndPoint.Platform,
+					Segment:     msg,
 					Sender: SenderBase{
 						Nickname: pa.EndPoint.Nickname,
 						UserID:   pa.EndPoint.UserID,
@@ -560,7 +567,7 @@ func (pa *PlatformAdapterRed) SendToPerson(ctx *MsgContext, uid string, text str
 		}
 	}
 
-	texts := textSplit(text)
+	texts := textSplit(MessageSegmentsToCompatibilityText(msg))
 	for _, subText := range texts {
 		doSleepQQ(ctx)
 		pa.sendRow(&RedMessageSend{
@@ -574,6 +581,10 @@ func (pa *PlatformAdapterRed) SendToPerson(ctx *MsgContext, uid string, text str
 }
 
 func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text string, flag string) {
+	pa.sendGroupSegments(ctx, groupId, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterRed) sendGroupSegments(ctx *MsgContext, groupId string, msg []message.IMessageElement, logText string, flag string) {
 	rowId, chatType := pa.mustExtractId(groupId)
 	if chatType != GroupChat {
 		return
@@ -581,10 +592,11 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 
 	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupId); ok {
 		msgToSend := &Message{
-			Message:     text,
+			Message:     logText,
 			MessageType: "group",
 			Platform:    pa.EndPoint.Platform,
 			GroupID:     groupId,
+			Segment:     msg,
 			Sender: SenderBase{
 				Nickname: pa.EndPoint.Nickname,
 				UserID:   pa.EndPoint.UserID,
@@ -598,7 +610,7 @@ func (pa *PlatformAdapterRed) SendToGroup(ctx *MsgContext, groupId string, text 
 		})
 	}
 
-	texts := textSplit(text)
+	texts := textSplit(MessageSegmentsToCompatibilityText(msg))
 	for _, subText := range texts {
 		doSleepQQ(ctx)
 		pa.sendRow(&RedMessageSend{
@@ -882,7 +894,7 @@ func (pa *PlatformAdapterRed) httpDo(method, action string, headers map[string]s
 
 // encodeMessage 将带 cq code 的内容转换为 red 所需的格式
 func (pa *PlatformAdapterRed) encodeMessage( /* ctx */ _ *MsgContext, content string) []*RedElement {
-	elems := message.ConvertStringMessage(content)
+	elems := parseOutboundText(content)
 	var redElems []*RedElement
 	for _, elem := range elems {
 		switch e := elem.(type) {

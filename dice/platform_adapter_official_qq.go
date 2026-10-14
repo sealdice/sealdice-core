@@ -1592,12 +1592,18 @@ func (pa *PlatformAdapterOfficialQQ) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupText(ctx, groupID, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonText(ctx, userID, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	pa.SendSegmentToPerson(ctx, uid, parseOutboundText(text), flag)
+}
+
+func (pa *PlatformAdapterOfficialQQ) sendPersonText(ctx *MsgContext, uid string, text string, flag string) {
 	userID, idType := pa.mustExtractID(uid)
 
 	maxLen := 900
@@ -1893,7 +1899,7 @@ func (pa *PlatformAdapterOfficialQQ) prepareMediaMessage(file *message.FileEleme
 
 func (pa *PlatformAdapterOfficialQQ) sendQQGuildDirectMsgRaw(ctx *MsgContext, rowMsgID string, guildID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
-	elems := message.ConvertStringMessage(text)
+	elems := parseOutboundText(text)
 	var (
 		content string
 		msgRef  *dto.MessageReference
@@ -1982,7 +1988,7 @@ func (pa *PlatformAdapterOfficialQQ) uploadGroupMedia(qctx context.Context, grou
 // sendC2CMsgRaw 发送单聊消息（使用msg_id被动回复）
 func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, userOpenID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
-	elems := message.ConvertStringMessage(text)
+	elems := parseOutboundText(text)
 	var (
 		content string
 		msgRef  *dto.MessageReference
@@ -2221,6 +2227,10 @@ func (pa *PlatformAdapterOfficialQQ) waitGroupActiveQuota(ctx context.Context, g
 }
 
 func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
+	pa.SendSegmentToGroup(ctx, uid, parseOutboundText(text), flag)
+}
+
+func (pa *PlatformAdapterOfficialQQ) sendGroupText(ctx *MsgContext, uid string, text string, flag string) {
 	groupId, idType := pa.mustExtractID(uid)
 
 	maxLen := 900
@@ -2383,7 +2393,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 
 func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID, groupID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
-	elems := message.ConvertStringMessage(text)
+	elems := parseOutboundText(text)
 	var (
 		content string
 		msgRef  *dto.MessageReference
@@ -2488,7 +2498,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 
 func (pa *PlatformAdapterOfficialQQ) sendQQChannelMsgRaw(ctx *MsgContext, rowMsgID, channelID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
-	elems := message.ConvertStringMessage(text)
+	elems := parseOutboundText(text)
 	var (
 		content string
 		msgRef  *dto.MessageReference

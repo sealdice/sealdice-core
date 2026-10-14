@@ -238,3 +238,22 @@ func TestPlatformAdapterMilkyPreservesGroupPoke(t *testing.T) {
 		t.Errorf("hook message = (%q, %q, %d), want (%q, %q, 0)", hookMessage.MessageType, hookMessage.GroupID, hookMessage.RawID, "group", "QQ-Group:20020")
 	}
 }
+
+func TestPlatformAdapterMilkySegmentPathPreservesGroupPoke(t *testing.T) {
+	session, harness, cleanup := newMilkyForwardHarness(t, "")
+	defer cleanup()
+
+	pa, ctx := newMilkyForwardTestContext(session, func(_ *MsgContext, _ *Message, _ string) {})
+
+	pa.SendSegmentToGroup(ctx, "QQ-Group:20020", []message.IMessageElement{
+		&message.PokeElement{Target: "30030"},
+	}, "")
+
+	request := harness.waitForEndpoint(t, milky.EndpointSendGroupNudge)
+	if got := harness.requestCount(); got != 1 {
+		t.Fatalf("Milky request count = %d, want 1", got)
+	}
+	if request.GroupID != int64(20020) || request.UserID != int64(30030) {
+		t.Errorf("nudge target = (%d, %d), want (20020, 30030)", request.GroupID, request.UserID)
+	}
+}

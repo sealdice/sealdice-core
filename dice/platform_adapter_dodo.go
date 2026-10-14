@@ -324,14 +324,20 @@ func (pa *PlatformAdapterDodo) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterDodo) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterDodo) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	pa.sendPersonSegments(ctx, uid, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterDodo) sendPersonSegments(ctx *MsgContext, uid string, msg []message.IMessageElement, logText string, flag string) {
 	// pa.EndPoint.Session.Parent.Logger.Infof("send to %s", ExtractDodoUserId(uid))
-	err := pa.SendToPersonRaw(ctx, uid, text, true)
+	err := pa.SendToPersonRaw(ctx, uid, msg, true)
 	if err != nil {
 		pa.EndPoint.Session.Parent.Logger.Errorf("DODO 发送私聊消息失败：%v\n", err)
 		return
@@ -339,7 +345,8 @@ func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text st
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "private",
 		Platform:    "DODO",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -348,7 +355,11 @@ func (pa *PlatformAdapterDodo) SendToPerson(ctx *MsgContext, uid string, text st
 }
 
 func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	err := pa.SendToChatRaw(ctx, uid, text, false)
+	pa.sendGroupSegments(ctx, uid, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterDodo) sendGroupSegments(ctx *MsgContext, uid string, msg []message.IMessageElement, logText string, flag string) {
+	err := pa.SendToChatRaw(ctx, uid, msg, false)
 	if err != nil {
 		pa.EndPoint.Session.Parent.Logger.Errorf("DODO 发送消息失败：%v\n", err)
 		return
@@ -356,7 +367,8 @@ func (pa *PlatformAdapterDodo) SendToGroup(ctx *MsgContext, uid string, text str
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		MessageType: "group",
 		Platform:    "DODO",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     uid,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
@@ -424,9 +436,9 @@ func convertLinksToMarkdown(text string) string {
 	return text
 }
 
-func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
+func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, msg []message.IMessageElement, isPrivate bool) error {
 	instance := pa.Client
-	elem := message.ConvertStringMessage(text)
+	elem := msg
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
 		_, err := buf.ReadFrom(stream)
@@ -465,10 +477,10 @@ func (pa *PlatformAdapterDodo) SendToPersonRaw(ctx *MsgContext, uid string, text
 	return nil
 }
 
-func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, text string, isPrivate bool) error {
+func (pa *PlatformAdapterDodo) SendToChatRaw(ctx *MsgContext, uid string, msg []message.IMessageElement, isPrivate bool) error {
 	referenceMessageId := ""
 	instance := pa.Client
-	elem := message.ConvertStringMessage(text)
+	elem := msg
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)
 		_, err := buf.ReadFrom(stream)

@@ -27,9 +27,40 @@ type PlatformAdapterHTTP struct {
 }
 
 func (pa *PlatformAdapterHTTP) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	logText := MessageSegmentsToCompatibilityText(msg)
+	sp := utils.SplitLongText(logText, getUITestReplySplitLen(ctx), utils.DefaultSplitPaginationHint)
+	for _, sub := range sp {
+		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{groupID, sub, "group"})
+	}
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
+		MessageType: "group",
+		Platform:    "UI",
+		Message:     logText,
+		Segment:     msg,
+		GroupID:     "UI-Group:2001",
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterHTTP) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	logText := MessageSegmentsToCompatibilityText(msg)
+	sp := utils.SplitLongText(logText, getUITestReplySplitLen(ctx), utils.DefaultSplitPaginationHint)
+	for _, sub := range sp {
+		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{userID, sub, "private"})
+	}
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
+		MessageType: "private",
+		Platform:    "UI",
+		Message:     logText,
+		Segment:     msg,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
 }
 
 func (pa *PlatformAdapterHTTP) GetGroupInfoAsync(_ string) {}
@@ -52,36 +83,11 @@ func getUITestReplySplitLen(ctx *MsgContext) int {
 }
 
 func (pa *PlatformAdapterHTTP) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	sp := utils.SplitLongText(text, getUITestReplySplitLen(ctx), utils.DefaultSplitPaginationHint)
-	for _, sub := range sp {
-		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "private"})
-	}
-	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
-		MessageType: "private",
-		Platform:    "UI",
-		Message:     text,
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-	}, flag)
+	pa.SendSegmentToPerson(ctx, uid, parseOutboundText(text), flag)
 }
 
 func (pa *PlatformAdapterHTTP) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	sp := utils.SplitLongText(text, getUITestReplySplitLen(ctx), utils.DefaultSplitPaginationHint)
-	for _, sub := range sp {
-		pa.RecentMessage = append(pa.RecentMessage, HTTPSimpleMessage{uid, sub, "group"})
-	}
-	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
-		MessageType: "group",
-		Platform:    "UI",
-		Message:     text,
-		GroupID:     "UI-Group:2001",
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-	}, flag)
+	pa.SendSegmentToGroup(ctx, uid, parseOutboundText(text), flag)
 }
 
 func (pa *PlatformAdapterHTTP) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {

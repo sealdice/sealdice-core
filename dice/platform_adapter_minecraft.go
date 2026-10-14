@@ -195,46 +195,52 @@ func (pa *PlatformAdapterMinecraft) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterMinecraft) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
-}
-
-func (pa *PlatformAdapterMinecraft) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
-}
-
-func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
-	id := ExtractMCUserID(uid)
-	msg := new(SendMessageMinecraft)
-	msg.UUID = id
-	msg.Content = text
-	msg.MessageType = "private"
-	parse, _ := json.Marshal(msg)
-	pa.Socket.SendText(string(parse))
-	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
-		Platform:    "MC",
-		MessageType: "private",
-		Message:     text,
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-	}, flag)
-}
-
-func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	msg := new(SendMessageMinecraft)
-	msg.Content = text
-	msg.MessageType = "group"
-	parse, _ := json.Marshal(msg)
+	logText := MessageSegmentsToCompatibilityText(msg)
+	m := new(SendMessageMinecraft)
+	m.Content = logText
+	m.MessageType = "group"
+	parse, _ := json.Marshal(m)
 	pa.Socket.SendText(string(parse))
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "MC",
 		MessageType: "group",
-		Message:     text,
-		GroupID:     uid,
+		Message:     logText,
+		Segment:     msg,
+		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
 		},
 	}, flag)
+}
+
+func (pa *PlatformAdapterMinecraft) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	logText := MessageSegmentsToCompatibilityText(msg)
+	id := ExtractMCUserID(userID)
+	m := new(SendMessageMinecraft)
+	m.UUID = id
+	m.Content = logText
+	m.MessageType = "private"
+	parse, _ := json.Marshal(m)
+	pa.Socket.SendText(string(parse))
+	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
+		Platform:    "MC",
+		MessageType: "private",
+		Message:     logText,
+		Segment:     msg,
+		Sender: SenderBase{
+			UserID:   pa.EndPoint.UserID,
+			Nickname: pa.EndPoint.Nickname,
+		},
+	}, flag)
+}
+
+func (pa *PlatformAdapterMinecraft) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	pa.SendSegmentToPerson(ctx, uid, parseOutboundText(text), flag)
+}
+
+func (pa *PlatformAdapterMinecraft) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
+	pa.SendSegmentToGroup(ctx, uid, parseOutboundText(text), flag)
 }
 
 func (pa *PlatformAdapterMinecraft) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {

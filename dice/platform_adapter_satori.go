@@ -426,24 +426,18 @@ func (pa *PlatformAdapterSatori) QuitGroup(ctx *MsgContext, _ string) {
 }
 
 func (pa *PlatformAdapterSatori) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
-	log := pa.EndPoint.Session.Parent.Logger
-	if pa.Platform == "QQ" {
-		id := UserIDExtract(userID)
-		pa.sendMsgRaw(ctx, "private:"+id, text, flag, "private")
-	} else {
-		log.Errorf("satori %s 平台暂不支持私聊消息发送", pa.Platform)
-	}
+	pa.SendSegmentToPerson(ctx, userID, parseOutboundText(text), flag)
 }
 
 func (pa *PlatformAdapterSatori) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
-	pa.sendMsgRaw(ctx, UserIDExtract(groupID), text, flag, "group")
+	pa.SendSegmentToGroup(ctx, groupID, parseOutboundText(text), flag)
 }
 
-func (pa *PlatformAdapterSatori) sendMsgRaw( /* ctx */ _ *MsgContext, channelID string, text string /* flag */, _ string, msgType string) {
+func (pa *PlatformAdapterSatori) sendMsgElements( /* ctx */ _ *MsgContext, channelID string, msg []message.IMessageElement /* flag */, _ string, msgType string) {
 	log := pa.EndPoint.Session.Parent.Logger
 	req, err := json.Marshal(map[string]interface{}{
 		"channel_id": channelID,
-		"content":    pa.encodeMessage(text),
+		"content":    pa.encodeElements(msg),
 	})
 	var msgTypeStr string
 	if msgType == "private" {
@@ -469,9 +463,17 @@ func (pa *PlatformAdapterSatori) sendMsgRaw( /* ctx */ _ *MsgContext, channelID 
 }
 
 func (pa *PlatformAdapterSatori) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendMsgElements(ctx, UserIDExtract(groupID), msg, flag, "group")
 }
 
 func (pa *PlatformAdapterSatori) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	log := pa.EndPoint.Session.Parent.Logger
+	if pa.Platform == "QQ" {
+		id := UserIDExtract(userID)
+		pa.sendMsgElements(ctx, "private:"+id, msg, flag, "private")
+	} else {
+		log.Errorf("satori %s 平台暂不支持私聊消息发送", pa.Platform)
+	}
 }
 
 func (pa *PlatformAdapterSatori) SetGroupCardName(ctx *MsgContext, name string) {
@@ -648,8 +650,7 @@ func decodeMessage(text string) string {
 	return content.String()
 }
 
-func (pa *PlatformAdapterSatori) encodeMessage(content string) string {
-	elems := message.ConvertStringMessage(content)
+func (pa *PlatformAdapterSatori) encodeElements(elems []message.IMessageElement) string {
 	var msg strings.Builder
 	for _, elem := range elems {
 		switch e := elem.(type) {

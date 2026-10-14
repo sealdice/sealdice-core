@@ -50,62 +50,11 @@ const (
 )
 
 func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
-	log := zap.S().Named(logger.LogKeyAdapter)
-	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
-	if err != nil {
-		log.Errorf("Invalid group ID %s: %v", groupID, err)
-		return
-	}
-	elements := ParseMessageToMilky(msg)
-	if len(elements) == 0 {
-		log.Warnf("Skipping Milky group message to %s: no supported message elements", groupID)
-		return
-	}
-	ret, err := pa.IntentSession.SendGroupMessage(id, &elements)
-	if err != nil {
-		log.Errorf("Failed to send group message to %s: %v", groupID, err)
-		return
-	}
-	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
-		Platform:    "QQ",
-		MessageType: "group",
-		Segment:     msg,
-		GroupID:     groupID,
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-		RawID: ret.MessageSeq,
-	}, flag)
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
-	log := zap.S().Named(logger.LogKeyAdapter)
-	id, err := strconv.ParseInt(ExtractQQUserID(userID), 10, 64)
-	if err != nil {
-		log.Errorf("Invalid user ID %s: %v", userID, err)
-		return
-	}
-	elements := ParseMessageToMilky(msg)
-	if len(elements) == 0 {
-		log.Warnf("Skipping Milky private message to %s: no supported message elements", userID)
-		return
-	}
-	ret, err := pa.IntentSession.SendPrivateMessage(id, &elements)
-	if err != nil {
-		log.Errorf("Failed to send private message to %s: %v", userID, err)
-		return
-	}
-	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
-		Platform:    "QQ",
-		MessageType: "private",
-		Segment:     msg,
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-		RawID: ret.MessageSeq,
-	}, flag)
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterMilky) GetGroupInfoAsync(groupID string) {
@@ -802,7 +751,7 @@ func buildMilkyForwardElement(nodes []forwardNode) (*milky.ForwardElement, error
 			return nil, fmt.Errorf("forward node %d has empty content", index)
 		}
 
-		segments := ParseMessageToMilky(message.ConvertStringMessage(node.Data.Content))
+		segments := ParseMessageToMilky(parseOutboundText(node.Data.Content))
 		if len(segments) == 0 {
 			return nil, fmt.Errorf("forward node %d has no supported message segments", index)
 		}
@@ -902,9 +851,16 @@ func (pa *PlatformAdapterMilky) SendPrivateForwardMsg(ctx *MsgContext, userID st
 }
 
 func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
+	pa.sendPersonSegments(ctx, uid, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	pa.sendGroupSegments(ctx, groupID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterMilky) sendPersonSegments(ctx *MsgContext, uid string, msg []message.IMessageElement, logText string, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	send := message.ConvertStringMessage(text)
-	elements := ParseMessageToMilky(send)
+	elements := ParseMessageToMilky(msg)
 	id, err := strconv.ParseInt(ExtractQQUserID(uid), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid user ID %s: %v", uid, err)
@@ -922,7 +878,8 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "private",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -931,17 +888,16 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 	}, flag)
 }
 
-func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+func (pa *PlatformAdapterMilky) sendGroupSegments(ctx *MsgContext, groupID string, msg []message.IMessageElement, logText string, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
-	send := message.ConvertStringMessage(text)
-	elements := ParseMessageToMilky(send)
+	elements := ParseMessageToMilky(msg)
 	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
 	nudgeTargets := make([]int64, 0)
-	for _, element := range send {
+	for _, element := range msg {
 		poke, ok := element.(*message.PokeElement)
 		if !ok {
 			continue
@@ -977,7 +933,8 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,

@@ -287,12 +287,6 @@ func (pa *PlatformAdapterSealChat) stopHeartbeat() {
 const sealChatAssetSrcPrefix = "sealchat://asset/"
 const sealChatAssetUploadTimeout = 5 * time.Second
 
-// encodeMessage 将消息文本转换为 Satori 格式（支持图片/文件 asset_id）
-func (pa *PlatformAdapterSealChat) encodeMessage(content string) string {
-	elems := message.ConvertStringMessage(content)
-	return pa.encodeMessageFromElements(elems)
-}
-
 func (pa *PlatformAdapterSealChat) ensureSealChatAsset(data []byte, contentType string, filename string) (string, bool) {
 	if len(data) == 0 {
 		return "", false
@@ -556,9 +550,8 @@ func ExtractSealChatUserID(id string) string {
 	return id
 }
 
-func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text string, flag string, msgType string) {
-	// 使用 encodeMessage 转换消息格式（支持图片等）
-	encodedContent := pa.encodeMessage(text)
+func (pa *PlatformAdapterSealChat) sendElements(ctx *MsgContext, chId string, msg []message.IMessageElement, logText string, flag string, msgType string) {
+	encodedContent := pa.encodeMessageFromElements(msg)
 
 	pa.sendAPI("message.create", map[string]any{
 		"channel_id": chId,
@@ -571,14 +564,11 @@ func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text st
 	} else {
 		groupID = FormatDiceIDSealChatGroup(chId)
 	}
-	text = strings.ReplaceAll(text, "&lt;", "<")
-	text = strings.ReplaceAll(text, "&gt;", ">")
-	text = strings.ReplaceAll(text, "&amp;", "&")
-	text = strings.ReplaceAll(text, "&quot;", "\"")
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "SEALCHAT",
 		MessageType: msgType,
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
@@ -589,48 +579,15 @@ func (pa *PlatformAdapterSealChat) _sendTo(ctx *MsgContext, chId string, text st
 
 func (pa *PlatformAdapterSealChat) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
 	chId := ExtractSealChatUserID(groupID)
-	encodedContent := pa.encodeMessageFromElements(msg)
-
-	pa.sendAPI("message.create", map[string]any{
-		"channel_id": chId,
-		"content":    encodedContent,
-	})
-
-	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
-		Platform:    "SEALCHAT",
-		MessageType: "group",
-		Message:     encodedContent,
-		GroupID:     FormatDiceIDSealChatGroup(chId),
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-	}, flag)
+	pa.sendElements(ctx, chId, msg, MessageSegmentsToCompatibilityText(msg), flag, "group")
 }
 
 func (pa *PlatformAdapterSealChat) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
 	<-pa.sendAPI("channel.private.create", map[string]string{
 		"user_id": ExtractSealChatUserID(userID),
 	})
-
 	chId := ExtractSealChatPrivateChatID(userID, pa.EndPoint.UserID)
-	encodedContent := pa.encodeMessageFromElements(msg)
-
-	pa.sendAPI("message.create", map[string]any{
-		"channel_id": chId,
-		"content":    encodedContent,
-	})
-
-	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
-		Platform:    "SEALCHAT",
-		MessageType: "private",
-		Message:     encodedContent,
-		GroupID:     FormatDiceIDSealChatPrivate(chId),
-		Sender: SenderBase{
-			UserID:   pa.EndPoint.UserID,
-			Nickname: pa.EndPoint.Nickname,
-		},
-	}, flag)
+	pa.sendElements(ctx, chId, msg, MessageSegmentsToCompatibilityText(msg), flag, "private")
 }
 
 func (pa *PlatformAdapterSealChat) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
@@ -638,15 +595,13 @@ func (pa *PlatformAdapterSealChat) SendToPerson(ctx *MsgContext, uid string, tex
 		"user_id": ExtractSealChatUserID(uid),
 	})
 
-	text = satori.ContentEscape(text)
 	gid := ExtractSealChatPrivateChatID(uid, pa.EndPoint.UserID)
-	pa._sendTo(ctx, gid, text, flag, "private")
+	pa.sendElements(ctx, gid, parseOutboundText(satori.ContentEscape(text)), text, flag, "private")
 }
 
 func (pa *PlatformAdapterSealChat) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
 	chId := ExtractSealChatUserID(uid)
-	text = satori.ContentEscape(text)
-	pa._sendTo(ctx, chId, text, flag, "group")
+	pa.sendElements(ctx, chId, parseOutboundText(satori.ContentEscape(text)), text, flag, "group")
 }
 
 func (pa *PlatformAdapterSealChat) SendFileToPerson(ctx *MsgContext, uid string, path string, flag string) {

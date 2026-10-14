@@ -411,12 +411,18 @@ func (pa *PlatformAdapterKook) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterKook) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterKook) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	pa.sendPersonSegments(ctx, userID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterKook) sendPersonSegments(ctx *MsgContext, userID string, msg []message.IMessageElement, logText string, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	if !pa.EndPoint.Enable || pa.IntentSession == nil || pa.EndPoint.State != 1 {
 		return
@@ -426,14 +432,15 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userID string, text
 		log.Errorf("创建Kook用户#%s的私聊频道时出错:%s", userID, err)
 		return
 	}
-	resp, err := pa.SendToChannelRaw(channel.Code, text, true)
+	resp, err := pa.SendToChannelRaw(channel.Code, msg, true)
 	if err != nil {
 		return
 	}
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "KOOK",
 		MessageType: "private",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -443,17 +450,22 @@ func (pa *PlatformAdapterKook) SendToPerson(ctx *MsgContext, userID string, text
 }
 
 func (pa *PlatformAdapterKook) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	pa.sendGroupSegments(ctx, groupID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterKook) sendGroupSegments(ctx *MsgContext, groupID string, msg []message.IMessageElement, logText string, flag string) {
 	if !pa.EndPoint.Enable || pa.IntentSession == nil || pa.EndPoint.State != 1 {
 		return
 	}
-	resp, err := pa.SendToChannelRaw(ExtractKookChannelID(groupID), text, false)
+	resp, err := pa.SendToChannelRaw(ExtractKookChannelID(groupID), msg, false)
 	if err != nil {
 		return
 	}
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "KOOK",
 		MessageType: "group",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
@@ -595,10 +607,10 @@ func (pa *PlatformAdapterKook) SendFileToChannelRaw(id string, path string, priv
 	return resp, err
 }
 
-func (pa *PlatformAdapterKook) SendToChannelRaw(id string, text string, private bool) (*kook.MessageResp, error) {
+func (pa *PlatformAdapterKook) SendToChannelRaw(id string, msg []message.IMessageElement, private bool) (*kook.MessageResp, error) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	bot := pa.IntentSession
-	elem := message.ConvertStringMessage(text)
+	elem := msg
 	// var err error
 	streamToByte := func(stream io.Reader) []byte {
 		buf := new(bytes.Buffer)

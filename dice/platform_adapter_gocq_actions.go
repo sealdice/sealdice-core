@@ -169,6 +169,10 @@ func doSleepQQ(ctx *MsgContext) {
 }
 
 func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	pa.sendPersonText(ctx, userID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterGocq) sendPersonText(ctx *MsgContext, userID string, msg []message.IMessageElement, logText string, flag string) {
 	rawID, idType := pa.mustExtractID(userID)
 
 	if idType != QQUidPerson {
@@ -179,9 +183,10 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text
 		if i.OnMessageSend != nil {
 			i.callWithJsCheck(ctx.Dice, func() {
 				i.OnMessageSend(ctx, &Message{
-					Message:     text,
+					Message:     logText,
 					MessageType: "private",
 					Platform:    pa.EndPoint.Platform,
+					Segment:     msg,
 					Sender: SenderBase{
 						Nickname: pa.EndPoint.Nickname,
 						UserID:   pa.EndPoint.UserID,
@@ -197,7 +202,7 @@ func (pa *PlatformAdapterGocq) SendToPerson(ctx *MsgContext, userID string, text
 		Message     string `json:"message"`
 	}
 
-	text = textAssetsConvert(text)
+	text := textAssetsConvert(MessageSegmentsToCompatibilityText(msg))
 	texts := textSplit(text)
 
 	for index, subText := range texts {
@@ -261,21 +266,26 @@ func (pa *PlatformAdapterGocq) GroupPoke(ctx *MsgContext, userId string) {
 }
 
 func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	pa.sendGroupText(ctx, groupID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterGocq) sendGroupText(ctx *MsgContext, groupID string, msg []message.IMessageElement, logText string, flag string) {
 	if groupID == "" {
 		return
 	}
 	rawID, idType := pa.mustExtractID(groupID)
 	if idType == 0 {
-		pa.SendToChannelGroup(ctx, groupID, text, flag)
+		pa.SendToChannelGroup(ctx, groupID, MessageSegmentsToCompatibilityText(msg), flag)
 		return
 	}
 
 	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
 		msgToSend := &Message{
-			Message:     text,
+			Message:     logText,
 			MessageType: "group",
 			Platform:    pa.EndPoint.Platform,
 			GroupID:     groupID,
+			Segment:     msg,
 			Sender: SenderBase{
 				Nickname: pa.EndPoint.Nickname,
 				UserID:   pa.EndPoint.UserID,
@@ -299,7 +309,7 @@ func (pa *PlatformAdapterGocq) SendToGroup(ctx *MsgContext, groupID string, text
 		Message []interface{} `json:"message"` // 消息内容，原则上是OneBotV11MsgItem但是实际很杂说不清
 	}
 
-	text = textAssetsConvert(text)
+	text := textAssetsConvert(MessageSegmentsToCompatibilityText(msg))
 	texts := textSplit(text)
 
 	for index, subText := range texts {

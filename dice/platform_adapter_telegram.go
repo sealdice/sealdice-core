@@ -402,20 +402,27 @@ func (pa *PlatformAdapterTelegram) SetEnable(enable bool) {
 }
 
 func (pa *PlatformAdapterTelegram) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupSegments(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterTelegram) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonSegments(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
-	resp, err := pa.SendToChatRaw(ExtractTelegramUserID(userID), text)
+	pa.sendPersonSegments(ctx, userID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterTelegram) sendPersonSegments(ctx *MsgContext, userID string, msg []message.IMessageElement, logText string, flag string) {
+	resp, err := pa.SendToChatRaw(ExtractTelegramUserID(userID), msg)
 	if err != nil {
 		return
 	}
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "private",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -425,14 +432,19 @@ func (pa *PlatformAdapterTelegram) SendToPerson(ctx *MsgContext, userID string, 
 }
 
 func (pa *PlatformAdapterTelegram) SendToGroup(ctx *MsgContext, uid string, text string, flag string) {
-	resp, err := pa.SendToChatRaw(ExtractTelegramGroupID(uid), text)
+	pa.sendGroupSegments(ctx, uid, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterTelegram) sendGroupSegments(ctx *MsgContext, uid string, msg []message.IMessageElement, logText string, flag string) {
+	resp, err := pa.SendToChatRaw(ExtractTelegramGroupID(uid), msg)
 	if err != nil {
 		return
 	}
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "TG",
 		MessageType: "group",
-		Message:     text,
+		Message:     logText,
+		Segment:     msg,
 		GroupID:     uid,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
@@ -529,10 +541,10 @@ func (r *RequestFileDataImpl) UploadData() (string, io.Reader, error) {
 func (r *RequestFileDataImpl) SendData() string {
 	return r.File
 }
-func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, text string) (*tgbotapi.Message, error) {
+func (pa *PlatformAdapterTelegram) SendToChatRaw(uid string, elements []message.IMessageElement) (*tgbotapi.Message, error) {
 	bot := pa.IntentSession
 	id, _ := strconv.ParseInt(uid, 10, 64)
-	elem := message.ConvertStringMessage(text)
+	elem := elements
 	msg := tgbotapi.NewMessage(id, "")
 	var err error
 	for _, element := range elem {

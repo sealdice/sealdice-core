@@ -119,7 +119,7 @@ func (p *PlatformAdapterOnebot) SendToPerson(ctx *MsgContext, userID string, tex
 		zap.S().Named(logger.LogKeyAdapter).Warnf("向用户发送消息失败: 当前 OneBot 账号未正确初始化，消息未发出。user=%s flag=%s text=%q", userID, flag, text)
 		return
 	}
-	msgElement := message.ConvertStringMessage(text)
+	msgElement := parseOutboundText(text)
 	p.SendSegmentToPerson(ctx, userID, msgElement, flag)
 }
 
@@ -129,7 +129,7 @@ func (p *PlatformAdapterOnebot) SendToGroup(ctx *MsgContext, groupID string, tex
 		zap.S().Named(logger.LogKeyAdapter).Warnf("向群发送消息失败: 当前 OneBot 账号未正确初始化，消息未发出。group=%s flag=%s text=%q", groupID, flag, text)
 		return
 	}
-	msgElement := message.ConvertStringMessage(text)
+	msgElement := parseOutboundText(text)
 	p.SendSegmentToGroup(ctx, groupID, msgElement, flag)
 }
 

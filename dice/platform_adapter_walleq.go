@@ -801,12 +801,18 @@ func (pa *PlatformAdapterWalleQ) GetGroupInfoAsync(id string) {
 }
 
 func (pa *PlatformAdapterWalleQ) SendSegmentToGroup(ctx *MsgContext, groupID string, msg []message.IMessageElement, flag string) {
+	pa.sendGroupText(ctx, groupID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterWalleQ) SendSegmentToPerson(ctx *MsgContext, userID string, msg []message.IMessageElement, flag string) {
+	pa.sendPersonText(ctx, userID, msg, MessageSegmentsToCompatibilityText(msg), flag)
 }
 
 func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userID string, text string, flag string) {
+	pa.sendPersonText(ctx, userID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterWalleQ) sendPersonText(ctx *MsgContext, userID string, msg []message.IMessageElement, logText string, flag string) {
 	rawID, idType := pa.mustExtractID(userID)
 	if idType != QQUidPerson {
 		return
@@ -817,8 +823,9 @@ func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userID string, te
 			i.callWithJsCheck(ctx.Dice, func() {
 				i.OnMessageSend(ctx, &Message{
 					Platform:    "QQ",
-					Message:     text,
+					Message:     logText,
 					MessageType: "private",
+					Segment:     msg,
 					Sender: SenderBase{
 						UserID:   pa.EndPoint.UserID,
 						Nickname: pa.EndPoint.Nickname,
@@ -828,7 +835,7 @@ func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userID string, te
 		}
 	}
 
-	text = textAssetsConvert(text)
+	text := textAssetsConvert(MessageSegmentsToCompatibilityText(msg))
 	texts := textSplit(text)
 	for _, subText := range texts {
 		pa.SendMessage(subText, "private", rawID, "")
@@ -837,6 +844,10 @@ func (pa *PlatformAdapterWalleQ) SendToPerson(ctx *MsgContext, userID string, te
 }
 
 func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
+	pa.sendGroupText(ctx, groupID, parseOutboundText(text), text, flag)
+}
+
+func (pa *PlatformAdapterWalleQ) sendGroupText(ctx *MsgContext, groupID string, msg []message.IMessageElement, logText string, flag string) {
 	if groupID == "" {
 		return
 	}
@@ -850,9 +861,10 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 	if groupInfo, ok := ctx.Session.ServiceAtNew.Load(groupID); ok {
 		msgToSend := &Message{
 			Platform:    "QQ",
-			Message:     text,
+			Message:     logText,
 			MessageType: "group",
 			GroupID:     groupID,
+			Segment:     msg,
 			Sender: SenderBase{
 				UserID:   pa.EndPoint.UserID,
 				Nickname: pa.EndPoint.Nickname,
@@ -866,7 +878,7 @@ func (pa *PlatformAdapterWalleQ) SendToGroup(ctx *MsgContext, groupID string, te
 		})
 	}
 
-	text = textAssetsConvert(text)
+	text := textAssetsConvert(MessageSegmentsToCompatibilityText(msg))
 	texts := textSplit(text)
 
 	for index, subText := range texts {

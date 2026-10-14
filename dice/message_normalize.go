@@ -26,3 +26,12 @@ func MessageSegmentsToCompatibilityText(segments []message.IMessageElement) stri
 	_, text := convertSealMsgToMessageChain(segments)
 	return text
 }
+
+// parseOutboundText 出站字符串的唯一解析点。
+// 之后只以消息段发送，适配器不再把字符串解析成段。
+func parseOutboundText(text string) []message.IMessageElement {
+	if text == "" {
+		return nil
+	}
+	return message.ConvertStringMessage(text)
+}
