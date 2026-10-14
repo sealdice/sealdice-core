@@ -64,6 +64,9 @@ type PlatformAdapterOnebot struct {
 	connectionMutex sync.Mutex
 	isConnecting    bool // 是否正在建立连接
 
+	reverseSessionMu       sync.Mutex
+	activeReverseSessionID string
+
 	echoServer *echo.Echo
 
 	sm                  *loopfsm.FSM
@@ -553,6 +556,11 @@ func (p *PlatformAdapterOnebot) onConnected(kws *socketio.WebsocketWrapper) {
 	p.logger.Infof("OneBot 连接成功，账号<%s>(%d)", info.NickName, info.UserId)
 	p.EndPoint.UserID = fmt.Sprintf("QQ:%d", info.UserId)
 	p.EndPoint.Nickname = info.NickName
+	if p.isServer() {
+		p.reverseSessionMu.Lock()
+		p.activeReverseSessionID = kws.GetUUID()
+		p.reverseSessionMu.Unlock()
+	}
 	_ = p.sm.Event(context.Background(), "connect_ok")
 }
 
@@ -596,6 +604,12 @@ func (p *PlatformAdapterOnebot) initializeCommonResources() {
 		p.websocketManager.On(socketio.EventDisconnect, func(payload *socketio.EventPayload) {
 			if p.isServer() {
 				p.logger.Infof("[反向WS] 连接断开，会话ID: %s", payload.SocketUUID)
+				p.reverseSessionMu.Lock()
+				if p.activeReverseSessionID == payload.SocketUUID {
+					p.activeReverseSessionID = ""
+					_ = p.sm.Event(context.Background(), "reverse_peer_lost")
+				}
+				p.reverseSessionMu.Unlock()
 			}
 		})
 		p.websocketManager.On(OnebotReceiveMessage, func(payload *socketio.EventPayload) {
@@ -970,16 +984,19 @@ func (p *PlatformAdapterOnebot) ensureFSM() {
 		"disconnected",
 		loopfsm.Events{
 			{Name: "enable", Src: []string{"disconnected", "failed"}, Dst: "connecting"},
-			{Name: "connect_ok", Src: []string{"connecting"}, Dst: "connected"},
+			{Name: "connect_ok", Src: []string{"connecting", "waiting"}, Dst: "connected"},
 			{Name: "connect_fail", Src: []string{"connecting"}, Dst: "failed"},
-			{Name: "disable", Src: []string{"connecting", "connected", "failed", "disconnected"}, Dst: "disconnected"},
+			{Name: "disable", Src: []string{"connecting", "connected", "failed", "disconnected", "waiting"}, Dst: "disconnected"},
 			{Name: "connection_lost", Src: []string{"connected"}, Dst: "connecting"},
+			// Keep the reverse listener alive while its peer reconnects.
+			{Name: "reverse_peer_lost", Src: []string{"connected"}, Dst: "waiting"},
 		},
 		loopfsm.Callbacks{
 			"enter_connecting":   p.cbEnterConnecting,
 			"enter_connected":    p.cbEnterConnected,
 			"enter_failed":       p.cbEnterFailed,
 			"enter_disconnected": p.cbEnterDisconnected,
+			"enter_waiting":      p.cbEnterWaiting,
 			"after_disable":      p.cbAfterDisable,
 		},
 	)
@@ -998,6 +1015,12 @@ func (p *PlatformAdapterOnebot) cbEnterConnecting(_ context.Context, _ *loopfsm.
 func (p *PlatformAdapterOnebot) cbEnterConnected(_ context.Context, _ *loopfsm.Event) {
 	p.EndPoint.State = StateConnected
 	p.EndPoint.Enable = true
+	p.updateAndSave()
+}
+
+func (p *PlatformAdapterOnebot) cbEnterWaiting(_ context.Context, _ *loopfsm.Event) {
+	p.EndPoint.State = StateConnecting
+	p.EndPoint.Enable = p.desiredEnabled
 	p.updateAndSave()
 }
 
