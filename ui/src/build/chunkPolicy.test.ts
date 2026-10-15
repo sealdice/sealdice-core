@@ -2,6 +2,8 @@ import { expect, it } from 'vitest';
 import { classifyVendorChunk } from './chunkPolicy';
 
 it.each([
+  ['@uppy+core@6.2.0/node_modules/@uppy/core/lib/Uppy.js', 'vendor-upload'],
+  ['tus-js-client@4.3.1/node_modules/tus-js-client/lib/upload.js', 'vendor-upload'],
   ['vue@3.5.34/node_modules/vue/dist/vue.runtime.esm-bundler.js', 'vendor-framework'],
   ['naive-ui@2.43.1/node_modules/naive-ui/es/button/index.mjs', undefined],
   ['pro-naive-ui@3.2.3/node_modules/pro-naive-ui/es/index.js', undefined],

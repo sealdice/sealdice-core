@@ -16,6 +16,7 @@ import Icons from 'unplugin-icons/vite';
 import IconsResolver from 'unplugin-icons/resolver';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { classifyVendorChunk } from './src/build/chunkPolicy';
+import { resourceBudget, enforcePrecacheBudget } from './src/build/resourceBudget';
 import { resolveViteBuildOptions, resolveVitePublicBase } from './src/build/embedConfig';
 import { shouldSuppressRollupWarning } from './src/build/warningPolicy';
 
@@ -30,6 +31,7 @@ const apiProxyTarget = (
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const plugins: PluginOption[] = [
+    resourceBudget(),
     VueRouter({
       routesFolder: 'src/pages',
       dts: 'typed-router.d.ts',
@@ -51,6 +53,7 @@ export default defineConfig(({ mode }) => {
         'pwa-maskable-512.png',
       ],
       workbox: {
+        manifestTransforms: [enforcePrecacheBudget],
         globIgnores: ['**/stats.html'],
         navigateFallbackDenylist: [/^\/old-ui(?:\/|$)/],
       },
@@ -137,6 +140,7 @@ export default defineConfig(({ mode }) => {
   return {
     base: resolveVitePublicBase(mode),
     build: {
+      manifest: true,
       chunkSizeWarningLimit: 650,
       ...resolveViteBuildOptions(mode),
       rolldownOptions: {

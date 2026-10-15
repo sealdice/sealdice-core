@@ -55,34 +55,27 @@
 
 这部分是本项目最重要的“不要放错地方”的约定。
 
-- HTTP 客户端统一在 `src/api/client.ts`。
-  - baseURL、凭据、Bearer token、token 滚动更新、网络/会话级错误提示、401 清理都在这里。
-  - 页面和 feature 不要重复写这些逻辑。
-  - 错误反馈分三类（见 `createApiErrorFeedback`）：
-    - `dialog`：401（非登录）、404、500、网络错误 → 全局弹窗。
-    - `business`：400/403/422、测试模式、登录 401 → **全局静默**，交页面处理。
-    - `message`：其余 → 全局 toast。
-  - 因此页面 mutation 的 `onError` 里写 `message.error` 主要是为覆盖 `business` 类（全局不报，否则用户无反馈）；对 `dialog` 类会与全局弹窗重复，属于已知冗余。未来若要精确去重，应抽公共 helper 先判定错误分类再决定是否提示，而不是直接删页面的 `message.error`。
-- 登录态统一在 `src/features/auth/state.ts`。
-  - 当前唯一 token 源是这里的 `token`。
-  - 不要直接在页面里读写 localStorage。
-  - 不要恢复旧版 `t` token。
-- Vue Query 全局配置在 `src/queryClient.ts`。
-  - 这里定义默认缓存、重试和错误策略。
-  - 业务层不要重复创建一套全局 query client。
-- 实时连接统一在 `src/features/realtime/client.ts`。
-  - SSE 的建连、重连、事件分发都在这里。
-  - 业务 feature 只负责订阅事件并把 payload 转成自己的状态。
+- HTTP 边界在 `src/api/client.ts`：只负责认证头、令牌续期、错误归一化和会话清理，不导入组件库、主题或页面模块。
+  - `src/api/errors.ts` 定义纯错误类型和展示归属；迟到的旧请求不能清理或覆盖新会话。
+  - `main.ts` 将 `features/feedback/apiFeedback.ts` 的全局展示回调注入客户端，应用卸载时释放两者。
+  - 网络故障、非登录 401、404 和 500 交给全局展示；参数错误、展示模式限制和其他业务错误由来源页面处理。
+  - 页面捕获接口错误后使用 `notifyError(error, message, fallback)`，已全局反馈或被取消的请求不再弹第二次 toast；本地校验可以直接提示。
+- 登录态直接通过 `features/auth/store.ts` 的 `useAuthStore()` 读取，响应式引用用 `storeToRefs()`。不新增转发型 `state.ts`，不在页面读写 localStorage。
+- Vue Query 全局缓存和重试策略在 `src/queryClient.ts`；查询继续使用生成客户端，禁止自行维护第二套服务端缓存。
+- 实时连接由 `features/realtime/store.ts` 持有；`client.ts` 只保留惰性的组合/订阅入口，不在导入时实例化 store。
+  - 日志、连接等业务 store 只订阅所需事件，释放时注销自己的监听器；全局传输 store 释放时停止 SSE、重连定时器和认证监听。
 - 路由语义统一在 `src/router/navigation.ts`、`src/router/routeMeta.ts`、`src/router/navigationModel.ts`。
   - 新页面一般只需要先补导航模型，标题、布局、面包屑等会一起派生。
 - 未保存提示统一在 `src/features/unsavedChanges/`。
   - 页面只注册 source，不自己实现全局拦截。
+  - 状态通过 `useUnsavedChangesStore()` 消费；注册 hook 负责生命周期，路由守卫每次导航独立确认，不保留跨导航跳过标志。
 - 上传统一通过 `useUploadStore()` 消费；响应式状态用 `storeToRefs()`，不再增加逐个转发的 `state.ts` 门面。
   - `enqueue()` 只等待文件完成入队准备，`upload()` 等待单文件安装完成；失败与取消都会结束后者的 Promise。
   - store 持有并释放 Uppy；queue 管理业务任务，engine 负责第三方身份和事件映射。
 - 扩展包安装用例在 `features/package/install.ts`，统一安装、启用、重载和刷新。展示组件选择上传／URL／商店来源并展示结果，不另写三套后置状态机。
 - 扩展包详情由 `features/package/usePackageDetail.ts` 管理，查询与保存回调都按包 ID 隔离；Vue Query 负责取消旧查询，页面不再维护另一份配置请求状态。
   - 详情抽屉保存期间阻止继续编辑；安装后的列表刷新失败单独反馈，不把已经完成的安装报成失败。
+- 扩展包目录查询由 `features/package/usePackageCatalog.ts` 持有：安装列表、仓库后端、商店页共享认证条件、取消信号和刷新逻辑。页面保留筛选、展示与用户确认。
 - App 壳布局宽度逻辑统一在 `src/components/app-shell/appShellLayout.ts`。
   - `default`/`wide` 的差异是内容区宽度，不是另一套页面体系。
 
@@ -98,7 +91,7 @@
 | **局部状态**（单页面/组件内）     | `ref` / `reactive`                                          | 随组件生命周期销毁。                                                                 |
 | **持久化偏好**                    | Pinia store + localStorage                                  | 只有主题、token 等需要跨刷新保留的才持久化。                                         |
 
-**范式参考**：`src/features/theme/store.ts`——setup 语法、feature 内、`storeToRefs` 兼容包装。
+**范式参考**：`src/features/theme/store.ts`——setup 语法、feature 内、消费者使用 `storeToRefs()`。
 
 页面层应该尽量只做三件事：
 
@@ -199,10 +192,20 @@
 - 不把老前端的大 store 模式搬进来。每个业务域维护自己的最小状态。
 - 不把公共能力散落到页面和组件里。能下沉就下沉到对应 feature / api / router / app-shell。
 
+## 构建与验证边界
+
+只使用 `package.json` 锁定的 pnpm。全新检出先 `pnpm install --frozen-lockfile`、`pnpm run generate-api`，再运行 `pnpm run check:prepared`；后者依次验证嵌入式构建、自动声明后的类型检查、真实 Vite 配置、实际产物引用及测试。
+
+`src/build/resourceBudget.ts` 对单个 JS 块、入口 gzip、首批静态依赖图 gzip 和 PWA 预缓存分别设置预算。预算依据构建产物，不代表浏览器首屏时间。可选在线调试面板不参与预缓存；业务路由和离线资源保留。超限应检查依赖及加载边界，而不是只提高警告阈值。
+
+后端的 Go 编译依赖嵌入式资源，不能与清空该输出目录的前端构建并行。前端构建完成后再执行 Go 测试、race 和静态检查。
+
+测试优先采用标准 `expect`、独立行为名称、真实 HTTP / 第三方适配器 / 挂载事件；不复制框架断言，也不通过源码字符串锁定 CSS 或内部变量。确有格式契约的 PNG 等资源直接校验文件内容，构建接线校验实际产物。
+
 ## 常见落点速查
 
 - API 客户端配置：`src/api/client.ts`
-- 认证 token：`src/features/auth/state.ts`
+- 认证 token：`src/features/auth/store.ts`
 - Vue Query 配置：`src/queryClient.ts`
 - 实时连接：`src/features/realtime/client.ts`
 - 路由菜单语义：`src/router/navigation.ts`

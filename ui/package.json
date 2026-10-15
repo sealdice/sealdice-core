@@ -15,7 +15,7 @@
     "build:prepared": "pnpm run build-only && pnpm run type-check",
     "build:embed:prepared": "vite build --mode embed && pnpm run type-check",
     "check:build-config": "node scripts/check-build-config.mjs",
-    "check:prepared": "pnpm run build:embed:prepared && pnpm run check:build-config && pnpm run test",
+    "check:prepared": "pnpm run build:embed:prepared && pnpm run check:build-config && node scripts/check-build-output.mjs && pnpm run test",
     "preview": "vite preview",
     "build-only": "vite build",
     "test": "vitest run --maxWorkers=4",

@@ -15,6 +15,11 @@ export function classifyVendorChunk(id: string): string | undefined {
     return 'vendor-framework';
   }
 
+  // 全局队列跨多个页面复用，上传协议库独立缓存，不混入应用入口。
+  if (id.includes('/@uppy/') || id.includes('/tus-js-client/')) {
+    return 'vendor-upload';
+  }
+
   if (id.includes('/lodash-es/')) {
     return 'vendor-lodash';
   }
