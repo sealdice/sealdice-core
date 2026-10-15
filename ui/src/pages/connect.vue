@@ -157,7 +157,6 @@ import PageHeader from '@/components/shared/PageHeader.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import {
   advanceConnectWizard,
-  buildConnectCreatePayload,
   createConnectWizardState,
   resetConnectWizard,
   selectConnectMethod,
@@ -521,10 +520,9 @@ const submit = () => {
     return;
   }
   if (!canSubmit.value) return;
-  const payload = buildConnectCreatePayload(wizardState);
   createMutation.mutate({
-    platform: payload.platform,
-    config: payload.config,
+    platform: wizardState.selectedProtocolKey,
+    config: wizardState.formModel,
     officialQQMode: officialQQMode.value,
   });
 };

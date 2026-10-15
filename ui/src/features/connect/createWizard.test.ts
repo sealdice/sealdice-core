@@ -2,7 +2,6 @@ import type { FormConfigItem, PlatformTreeNode, ProtocolDefinition } from '@/api
 import { it } from 'vitest';
 import {
   advanceConnectWizard,
-  buildConnectCreatePayload,
   createConnectWizardState,
   selectConnectMethod,
   selectConnectPlatform,
@@ -66,15 +65,11 @@ it('initializes protocol form and advances to the form step', () => {
     {
       check_type: 0,
       default: '',
-      err_msg: '',
       field_name: 'appID',
-      hint: '',
-      id: 1,
       input_type: 0,
       is_required: 0,
       name: '机器人 ID',
       placeholder: '',
-      size_range: { max: 0, min: 0 },
       sub_option: null,
     },
   ];
@@ -89,7 +84,7 @@ it('initializes protocol form and advances to the form step', () => {
   }
 });
 
-it('uses the protocol module to validate and prepare a create payload', () => {
+it('validates official QQ QR mode without requiring manual credentials', () => {
   const state = createConnectWizardState();
   state.protocol = protocol;
   state.selectedProtocolKey = protocol.key;
@@ -98,11 +93,4 @@ it('uses the protocol module to validate and prepare a create payload', () => {
 
   const validation = validateConnectWizardForm(state, []);
   if (!validation.valid) throw new Error(validation.message);
-  const payload = buildConnectCreatePayload(state);
-  if (JSON.stringify(payload) !== JSON.stringify({
-    platform: 'officialqq',
-    config: { appID: '', appSecret: '', useWebhook: false },
-  })) {
-    throw new Error(`unexpected create payload = ${JSON.stringify(payload)}`);
-  }
 });

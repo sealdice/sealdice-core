@@ -32,8 +32,7 @@ func GetAll() map[string][]*FormConfigItem {
 }
 
 // BuildParamsByConfig validates field-name keyed input and applies defaults.
-// Only declared fields reach the adapter; IDs are display metadata, not a second
-// submission protocol.
+// Only declared fields reach the adapter.
 func BuildParamsByConfig(items []*FormConfigItem, cfg map[string]interface{}) (map[string]interface{}, error) {
 	params := make(map[string]interface{}, len(items))
 	for _, item := range items {
@@ -92,6 +91,9 @@ func parseValue(item *FormConfigItem, value interface{}) (interface{}, error) {
 		n, err := strconv.Atoi(data)
 		if err != nil {
 			return nil, errors.New("need an integer")
+		}
+		if item.Minimum != nil && n < *item.Minimum || item.Maximum != nil && n > *item.Maximum {
+			return nil, errors.New("integer out of range")
 		}
 		return n, nil
 	case InputTypeBool:

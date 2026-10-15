@@ -52,13 +52,14 @@ func TestEmbeddedProtocolSchemas(t *testing.T) {
 }
 
 func TestBuildParamsByConfig(t *testing.T) {
+	minimum, maximum := 1, 65535
 	items := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "token", InputType: dynamicform.InputTypeText, IsRequired: dynamicform.RequiredTrue},
-		{ID: 2, FieldName: "port", InputType: dynamicform.InputTypeNum, Default: "8099"},
-		{ID: 3, FieldName: "enabled", InputType: dynamicform.InputTypeBool, Default: "true"},
-		{ID: 4, FieldName: "mode", InputType: dynamicform.InputTypeSelect, Default: "yogurt",
+		{FieldName: "token", InputType: dynamicform.InputTypeText, IsRequired: dynamicform.RequiredTrue},
+		{FieldName: "port", InputType: dynamicform.InputTypeNum, Default: "8099", Minimum: &minimum, Maximum: &maximum},
+		{FieldName: "enabled", InputType: dynamicform.InputTypeBool, Default: "true"},
+		{FieldName: "mode", InputType: dynamicform.InputTypeSelect, Default: "yogurt",
 			SubOption: []*dynamicform.Option{{Label: "Yogurt", Value: "yogurt"}}},
-		{ID: 5, FieldName: "account", InputType: dynamicform.InputTypeText, CheckType: dynamicform.CheckTypeNum},
+		{FieldName: "account", InputType: dynamicform.InputTypeText, CheckType: dynamicform.CheckTypeNum},
 	}
 	tests := []struct {
 		name string
@@ -78,6 +79,8 @@ func TestBuildParamsByConfig(t *testing.T) {
 		{"required empty", map[string]interface{}{"token": ""}, nil},
 		{"invalid option", map[string]interface{}{"token": "abc", "mode": "unknown"}, nil},
 		{"invalid default", map[string]interface{}{"token": "abc", "port": "not-a-number"}, nil},
+		{"zero port", map[string]interface{}{"token": "abc", "port": 0}, nil},
+		{"oversize port", map[string]interface{}{"token": "abc", "port": 65536}, nil},
 		{"fractional integer", map[string]interface{}{"token": "abc", "port": 5500.5}, nil},
 		{"fractional boolean", map[string]interface{}{"token": "abc", "enabled": 0.5}, nil},
 		{"invalid boolean", map[string]interface{}{"token": "abc", "enabled": 2}, nil},

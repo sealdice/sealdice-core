@@ -22,15 +22,18 @@
         <n-input-number
           v-if="item.input_type === 1"
           :value="numberValueOf(item)"
+          :min="item.minimum"
+          :max="item.maximum"
+          :precision="0"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
+          @update:value="value => setValue(fieldKeyOf(item), value)"
         />
         <n-switch
           v-else-if="item.input_type === 10"
           :value="Boolean(valueOf(fieldKeyOf(item)))"
           :disabled="isDisabled(item)"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
+          @update:value="value => setValue(fieldKeyOf(item), value)"
         />
         <n-select
           v-else-if="item.input_type === 12"
@@ -38,44 +41,7 @@
           :options="optionList(item)"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
-        />
-        <n-radio-group
-          v-else-if="item.input_type === 5"
-          :value="radioValueOf(item)"
-          :disabled="isDisabled(item)"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
-        >
-          <n-radio-button
-            v-for="option in optionList(item)"
-            :key="String(option.value)"
-            :value="option.value"
-          >
-            {{ option.label }}
-          </n-radio-button>
-        </n-radio-group>
-        <n-checkbox-group
-          v-else-if="item.input_type === 6"
-          :value="checkboxValueOf(item)"
-          :disabled="isDisabled(item)"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
-        >
-          <n-space>
-            <n-checkbox
-              v-for="option in optionList(item)"
-              :key="String(option.value)"
-              :value="option.value"
-            >
-              {{ option.label }}
-            </n-checkbox>
-          </n-space>
-        </n-checkbox-group>
-        <n-date-picker
-          v-else-if="item.input_type === 4 || item.input_type === 11"
-          :value="dateValueOf(item)"
-          :type="item.input_type === 11 ? 'datetimerange' : 'datetime'"
-          :disabled="isDisabled(item)"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
+          @update:value="value => setValue(fieldKeyOf(item), value)"
         />
         <n-input
           v-else
@@ -84,12 +50,9 @@
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
           show-password-on="click"
-          @update:value="value => updateValue(fieldKeyOf(item), value)"
+          @update:value="value => setValue(fieldKeyOf(item), value)"
         />
       </slot>
-      <template v-if="item.hint" #feedback>
-        {{ item.hint }}
-      </template>
     </n-form-item>
   </n-form>
 </template>
@@ -98,12 +61,7 @@
 import { computed } from 'vue';
 import type { FormProps, FormRules } from 'naive-ui';
 import type { FormConfigItem } from '@/api';
-import {
-  buildDynamicFormPayload,
-  fieldKeyOf,
-  validateDynamicFormModel,
-  type DynamicFormModel,
-} from './dynamicFormModel';
+import { fieldKeyOf, type DynamicFormModel } from './dynamicFormModel';
 
 type FieldSlotProps = {
   item: FormConfigItem;
@@ -122,14 +80,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: DynamicFormModel];
-  validChange: [valid: boolean];
 }>();
 
 defineSlots<{
   field?: (props: FieldSlotProps) => unknown;
 }>();
-
-const validation = computed(() => validateDynamicFormModel(props.schema, props.modelValue));
 
 const rules = computed<FormRules>(() => {
   return props.schema.reduce<FormRules>((acc, item) => {
@@ -137,7 +92,7 @@ const rules = computed<FormRules>(() => {
     if (item.is_required === 1) {
       acc[key] = {
         required: true,
-        message: item.err_msg || `请填写${item.name}`,
+        message: `请填写${item.name}`,
         trigger: ['blur', 'change'],
       };
     }
@@ -151,7 +106,6 @@ const setValue = (key: string, value: unknown) => {
     [key]: value,
   };
   emit('update:modelValue', next);
-  emit('validChange', validateDynamicFormModel(props.schema, next).valid);
 };
 
 const optionList = (item: FormConfigItem) =>
@@ -161,33 +115,13 @@ const optionList = (item: FormConfigItem) =>
   }));
 
 const valueOf = (key: string) => props.modelValue[key];
-const updateValue = (key: string, value: unknown) => setValue(key, value);
 
 // 模板里不能直接写 `x as A | B`：Prettier 会去掉外层括号，
 // 之后 vue-eslint-parser 会把顶层 `|` 当成 Vue 2 过滤器语法而报错。
 // 所以按控件类型在这里收口类型断言。
 const numberValueOf = (item: FormConfigItem) => valueOf(fieldKeyOf(item)) as number | null;
 const selectValueOf = (item: FormConfigItem) => valueOf(fieldKeyOf(item)) as string | null;
-const radioValueOf = (item: FormConfigItem) => valueOf(fieldKeyOf(item)) as string | number | null;
-const checkboxValueOf = (item: FormConfigItem) =>
-  valueOf(fieldKeyOf(item)) as Array<string | number>;
-const dateValueOf = (item: FormConfigItem) =>
-  valueOf(fieldKeyOf(item)) as number | [number, number] | null;
-// 用 $event 转发而非内联箭头函数：这两个控件可能不在自动导入声明里，
-// 内联参数会被推断成隐式 any 导致 type-check 失败。
-const setCheckboxGroupValue = (item: FormConfigItem, value: Array<string | number> | null) =>
-  updateValue(fieldKeyOf(item), value);
-const setDateValue = (item: FormConfigItem, value: number | [number, number] | null) =>
-  updateValue(fieldKeyOf(item), value);
-
-const getPayload = () => buildDynamicFormPayload(props.schema, props.modelValue);
-const isValid = () => validation.value.valid;
 const isDisabled = (item: FormConfigItem) => props.disabled || Boolean(item.readonly);
-
-defineExpose({
-  getPayload,
-  isValid,
-});
 </script>
 
 <style scoped>
@@ -196,10 +130,6 @@ defineExpose({
 }
 
 .dynamic-form :deep(.n-input-number) {
-  width: 100%;
-}
-
-.dynamic-form :deep(.n-date-picker) {
   width: 100%;
 }
 </style>

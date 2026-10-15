@@ -886,13 +886,10 @@ func buildUpdateParams(schema []*dynamicform.FormConfigItem, body map[string]int
 		return nil, err
 	}
 	for _, item := range schema {
-		if item == nil || item.Sensitive || item.IsRequired == dynamicform.RequiredTrue {
+		if item == nil || item.Sensitive || item.IsRequired == dynamicform.RequiredTrue || item.InputType != dynamicform.InputTypeText {
 			continue
 		}
 		key := item.FieldName
-		if key == "" {
-			key = strconv.FormatUint(item.ID, 10)
-		}
 		value, ok := body[key]
 		if !ok || value != "" {
 			continue

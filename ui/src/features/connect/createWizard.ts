@@ -4,8 +4,7 @@ import {
   validateDynamicFormModel,
   type DynamicFormModel,
 } from '@/components/shared/dynamicFormModel';
-import { getConnectProtocolModule } from './protocols';
-import type { OfficialQQMode } from './officialQQ';
+import { validateOfficialQQConfig, type OfficialQQMode } from './officialQQ';
 
 export type ConnectWizardState = {
   step: number;
@@ -85,24 +84,7 @@ export function validateConnectWizardForm(
   if (!formValidation.valid) {
     return { valid: false, message: `请填写必填项：${formValidation.missingFields.join('、')}` };
   }
-  const protocolValidation = getConnectProtocolModule(state.selectedProtocolKey).validateCreate?.(
-    state.formModel,
-    { officialQQMode: state.officialQQMode }
-  );
-  return protocolValidation ?? { valid: true, message: '' };
-}
-
-export function buildConnectCreatePayload(state: ConnectWizardState): {
-  platform: string;
-  config: DynamicFormModel;
-} {
-  const module = getConnectProtocolModule(state.selectedProtocolKey);
-  const config = module.prepareCreateConfig?.(
-    { ...state.formModel },
-    { officialQQMode: state.officialQQMode }
-  ) ?? { ...state.formModel };
-  return {
-    platform: state.selectedProtocolKey,
-    config,
-  };
+  return state.selectedProtocolKey === 'officialqq'
+    ? validateOfficialQQConfig(state.formModel, state.officialQQMode)
+    : { valid: true, message: '' };
 }

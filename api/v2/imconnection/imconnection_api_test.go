@@ -227,16 +227,16 @@ func TestProtocolSchemasUseSensitiveMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSchemas returned error: %v", err)
 	}
-	tokenID := uint64(0)
+	foundToken := false
 	for _, it := range resp.Body.Item["discord"] {
 		if it.FieldName == "token" {
-			tokenID = it.ID
+			foundToken = true
 			if !it.Sensitive {
 				t.Fatalf("discord token should be sensitive")
 			}
 		}
 	}
-	if tokenID == 0 {
+	if !foundToken {
 		t.Fatalf("discord token field missing")
 	}
 	if _, err := dynamicform.BuildParamsByConfig(resp.Body.Item["discord"], map[string]interface{}{}); err == nil {

@@ -10,31 +10,13 @@ export type DynamicFormValidation = {
   missingFields: string[];
 };
 
-export const fieldKeyOf = (item: FormConfigItem): string => item.field_name || String(item.id);
+export const fieldKeyOf = (item: FormConfigItem): string => item.field_name;
 
 // 构造初始值时尽量贴近后端 input_type 语义，避免 Naive UI 控件收到 undefined。
 export const buildDynamicFormInitialModel = (schema: FormConfigItem[]): DynamicFormModel => {
   return schema.reduce<DynamicFormModel>((model, item) => {
     model[fieldKeyOf(item)] = defaultValueOf(item);
     return model;
-  }, {});
-};
-
-export const buildDynamicFormPayload = (
-  schema: FormConfigItem[],
-  model: DynamicFormModel
-): Record<string, unknown> => {
-  // 空值默认不提交，防止编辑连接时把敏感字段的空占位覆盖掉后端旧值。
-  // 必填字段保留空值，让后端/前端校验能明确指出缺失。
-  return schema.reduce<Record<string, unknown>>((payload, item) => {
-    const key = fieldKeyOf(item);
-    const value = model[key];
-    if (value === undefined || value === null || value === '') {
-      if (item.is_required === 1) payload[key] = value;
-      return payload;
-    }
-    payload[key] = value;
-    return payload;
   }, {});
 };
 
@@ -53,13 +35,10 @@ export const validateDynamicFormModel = (
 };
 
 const defaultValueOf = (item: FormConfigItem): unknown => {
-  if (item.default_range) return item.default_range;
   if (item.default === '') {
     switch (item.input_type) {
       case 1:
         return null;
-      case 6:
-        return [];
       case 10:
         return false;
       default:
@@ -73,12 +52,6 @@ const defaultValueOf = (item: FormConfigItem): unknown => {
     }
     case 10:
       return item.default === 'true' || item.default === '1';
-    case 6:
-      try {
-        return JSON.parse(item.default) as unknown[];
-      } catch {
-        return [];
-      }
     default:
       return item.default;
   }
@@ -86,6 +59,5 @@ const defaultValueOf = (item: FormConfigItem): unknown => {
 
 const isEmptyValue = (value: unknown): boolean => {
   if (value === undefined || value === null || value === '') return true;
-  if (Array.isArray(value)) return value.length === 0;
   return false;
 };

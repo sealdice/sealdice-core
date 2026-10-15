@@ -20,39 +20,23 @@ const (
 	RequiredFalse int8 = 0
 )
 
-type SizeRange struct {
-	Min int64 `json:"min"`
-	Max int64 `json:"max"`
-}
-
 type Option struct {
 	Label string `json:"label"`
 	Value string `json:"value"`
 }
 
-type RangeValue struct {
-	Start int64 `json:"start"`
-	End   int64 `json:"end"`
-}
-
 // FormConfigItem 表单项定义
 type FormConfigItem struct {
-	ID           uint64      `json:"id"`
-	Name         string      `json:"name"`
-	InputType    int         `json:"input_type"`
-	IsRequired   int8        `json:"is_required"`
-	Default      string      `json:"default"`
-	Placeholder  string      `json:"placeholder"`
-	TableName    string      `json:"table_name,omitempty"`
-	FieldName    string      `json:"field_name,omitempty"`
-	Tag          string      `json:"tag,omitempty"`
-	CheckType    int         `json:"check_type"`
-	SizeRange    *SizeRange  `json:"size_range"`
-	Hint         string      `json:"hint"`
-	ErrMsg       string      `json:"err_msg"`
-	SubOption    []*Option   `json:"sub_option"`
-	OptionsURL   string      `json:"options_url,omitempty"`
-	DefaultRange *RangeValue `json:"default_range,omitempty"`
-	Sensitive    bool        `json:"sensitive,omitempty"`
-	Readonly     bool        `json:"readonly,omitempty"`
+	Minimum     *int      `json:"minimum,omitempty"`
+	Maximum     *int      `json:"maximum,omitempty"`
+	Name        string    `json:"name"`
+	InputType   int       `json:"input_type"`
+	IsRequired  int8      `json:"is_required"`
+	Default     string    `json:"default"`
+	Placeholder string    `json:"placeholder"`
+	FieldName   string    `json:"field_name"`
+	CheckType   int       `json:"check_type"`
+	SubOption   []*Option `json:"sub_option"`
+	Sensitive   bool      `json:"sensitive,omitempty"`
+	Readonly    bool      `json:"readonly,omitempty"`
 }

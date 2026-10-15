@@ -2,7 +2,6 @@ import { computed, watch, type Ref } from 'vue';
 import type { ProtocolDefinition } from '@/api';
 import type { SelectOption } from 'naive-ui';
 import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
-import { getConnectProtocolModule } from './protocols';
 import { useConnectSignInfoQuery } from './queries';
 import { buildSignInfoState } from './signInfoState';
 
@@ -10,9 +9,7 @@ export function useConnectSignInfo(
   protocol: Readonly<Ref<ProtocolDefinition | null>>,
   formModel: Ref<DynamicFormModel>
 ) {
-  const enabled = computed(
-    () => getConnectProtocolModule(protocol.value?.key ?? '').formKind === 'sign-info'
-  );
+  const enabled = computed(() => protocol.value?.key === 'lagrange');
   const query = useConnectSignInfoQuery(enabled);
 
   watch(query.data, data => {

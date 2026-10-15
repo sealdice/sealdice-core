@@ -10,8 +10,12 @@ import {
 } from '@/api';
 import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
 import { getTestModeBlockMessage, isTestModeApiError } from '@/features/testMode/state';
-import type { OfficialQQMode } from './officialQQ';
-import { getConnectProtocolModule } from './protocols';
+import {
+  buildOfficialQQCreateConfig,
+  buildOfficialQQDuplicateMessage,
+  validateOfficialQQConfig,
+  type OfficialQQMode,
+} from './officialQQ';
 import { notifyError } from '@/features/feedback/notifyError';
 
 export type ConnectCreateInput = {
@@ -39,13 +43,16 @@ export async function prepareConnectCreatePayload(
   input: ConnectCreateInput,
   testOfficialQQ: OfficialQQTest
 ): Promise<ConnectCreatePayload> {
-  const module = getConnectProtocolModule(input.platform);
-  const context = {
-    officialQQMode: input.officialQQMode,
-    testOfficialQQ,
-  };
-  const config = module.prepareCreateConfig?.({ ...input.config }, context) ?? { ...input.config };
-  await module.beforeCreate?.(config, context);
+  let config = { ...input.config };
+  if (input.platform === 'officialqq') {
+    config = buildOfficialQQCreateConfig(config, input.officialQQMode);
+    const validation = validateOfficialQQConfig(config, input.officialQQMode);
+    if (!validation.valid) throw new Error(validation.message);
+    if (input.officialQQMode === 'manual') {
+      const result = await testOfficialQQ(config);
+      if (result.exists) throw new Error(buildOfficialQQDuplicateMessage(result.userId));
+    }
+  }
   return { platform: input.platform, config };
 }
 
