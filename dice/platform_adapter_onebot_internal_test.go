@@ -1160,3 +1160,25 @@ func waitPureOnebotInfoLogCount(t *testing.T, observed *observer.ObservedLogs, s
 	}
 	t.Fatalf("timed out waiting for %d log entries containing %q", count, snippet)
 }
+
+// 协议端比骰子晚起来时，首次连接被拒、状态机进入 failed，retryConnect 随后直接重连成功。
+// 这里用真实的状态转换表，确认重连成功会回到 connected，之后断线也还能再触发重连。
+func TestPureOnebotReconnectAfterInitialFailureMarksConnected(t *testing.T) {
+	pa := &PlatformAdapterOnebot{EndPoint: &EndPointInfo{}}
+	pa.ensureFSM()
+	pa.sm.SetState("failed")
+	pa.EndPoint.State = StateConnectionFailed
+
+	if err := pa.sm.Event(context.Background(), "connect_ok"); err != nil {
+		t.Fatalf("expected connect_ok to be accepted from failed, got %v", err)
+	}
+	if got := pa.sm.Current(); got != "connected" {
+		t.Fatalf("expected FSM to transition to connected, got %q", got)
+	}
+	if pa.EndPoint.State != StateConnected {
+		t.Fatalf("expected EndPoint.State to be StateConnected, got %v", pa.EndPoint.State)
+	}
+	if !pa.sm.Can("connection_lost") {
+		t.Fatal("expected connection_lost to be possible after reconnecting")
+	}
+}
