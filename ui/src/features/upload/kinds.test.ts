@@ -41,4 +41,8 @@ describe('upload kinds', () => {
     expect(UPLOAD_KINDS.helpdoc.extraMeta?.({ group: 'g1' })).toEqual({ group: 'g1' });
     expect(UPLOAD_KINDS.js.extraMeta).toBeUndefined();
   });
+
+  it('does not queue the extension preview (it stays a direct huma call)', () => {
+    expect(Object.keys(UPLOAD_KINDS)).not.toContain('extension-preview');
+  });
 });
