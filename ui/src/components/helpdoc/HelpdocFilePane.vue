@@ -28,34 +28,6 @@
     </template>
   </ListActions>
 
-  <section v-if="activeUploadTasks.length" class="upload-panel">
-    <div class="upload-panel-head">
-      <h3>上传队列</h3>
-      <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
-    </div>
-    <article v-for="task in activeUploadTasks" :key="task.id" class="upload-item">
-      <div class="upload-item-head">
-        <div>
-          <strong>{{ task.filename }}</strong>
-          <span class="upload-meta">{{ Math.round(task.fileSize / 1024) }} KB</span>
-        </div>
-        <n-button
-          v-if="task.status === 'error'"
-          size="tiny"
-          secondary
-          @click="emit('retryTask', task)"
-        >
-          重试
-        </n-button>
-      </div>
-      <n-progress type="line" :percentage="task.progress" :status="getTaskStatusType(task)" />
-      <div class="upload-detail">
-        <span>分块 {{ task.uploadedChunks.length }} / {{ task.expectedChunks || '-' }}</span>
-        <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
-      </div>
-    </article>
-  </section>
-
   <n-spin :show="loading">
     <main class="helpdoc-file-block">
       <header class="file-tree-title">
@@ -83,11 +55,10 @@
 
 <script setup lang="tsx">
 import { h } from 'vue';
-import { NButton, NProgress, NTag, NText } from 'naive-ui';
+import { NTag, NText } from 'naive-ui';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import type { HelpDocTreeOption } from '@/features/helpdoc/viewModel';
-import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
 
 type TreeRenderContext = {
   option: Record<string, unknown>;
@@ -100,7 +71,6 @@ const checkedKeys = defineModel<Array<string | number>>('checkedKeys', { require
 defineProps<{
   docTree: HelpDocTreeOption[];
   loading: boolean;
-  activeUploadTasks: ResumableUploadTask[];
   deleting: boolean;
 }>();
 
@@ -108,7 +78,6 @@ const emit = defineEmits<{
   openUpload: [];
   openConfig: [];
   deleteFiles: [];
-  retryTask: [task: ResumableUploadTask];
 }>();
 
 function renderPrefix({ option }: TreeRenderContext) {
@@ -138,12 +107,6 @@ function renderSuffix({ option }: TreeRenderContext) {
     { size: 'small', type: raw.tag.type, bordered: false },
     { default: () => raw.tag?.label ?? '' }
   );
-}
-
-function getTaskStatusType(task: ResumableUploadTask) {
-  if (task.status === 'error') return 'error';
-  if (task.status === 'success') return 'success';
-  return 'default';
 }
 </script>
 
@@ -180,75 +143,10 @@ function getTaskStatusType(task: ResumableUploadTask) {
   text-decoration: line-through;
 }
 
-.upload-panel {
-  border: 1px solid var(--sd-border);
-  border-radius: var(--sd-radius-sm);
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
-  background: var(--sd-bg-elevated-soft);
-}
-
-.upload-panel-head,
-.upload-item-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.upload-panel-head h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.95rem;
-}
-
-.upload-item {
-  border: 1px solid var(--sd-border-soft);
-  border-radius: var(--sd-radius-sm);
-  padding: 0.625rem;
-  background: var(--sd-bg-elevated);
-}
-
-.upload-item + .upload-item {
-  margin-top: 0.5rem;
-}
-
-.upload-meta,
-.upload-detail {
-  color: var(--n-text-color-disabled);
-  font-size: 0.78rem;
-}
-
-.upload-meta {
-  margin-left: 0.5rem;
-}
-
-.upload-detail {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-}
-
-.upload-error {
-  color: var(--sd-error);
-}
-
 @media screen and (max-width: 639.9px) {
-  .upload-panel-head,
-  .upload-item-head,
-  .upload-detail {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .file-tree-title {
     gap: 0.75rem;
     padding-left: 0;
-  }
-
-  .upload-meta {
-    display: block;
-    margin-left: 0;
   }
 }
 </style>

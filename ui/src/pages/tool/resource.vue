@@ -76,6 +76,7 @@ import {
   type ResourceItem,
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
+import { isRequestCanceledError } from '@/api/client';
 import ResourceListPanel from '@/components/resource/ResourceListPanel.vue';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
@@ -138,10 +139,20 @@ const invalidateResourceList = () =>
   });
 
 const uploadMutation = useMutation({
-  mutationFn: async (file: File) => {
+  mutationFn: async (vars: {
+    file: File;
+    onProgress?: (percent: number) => void;
+    signal?: AbortSignal;
+  }) => {
     const { data } = await postSdApiV2ResourceUpload({
-      body: {
-        files: [file],
+      body: { files: [vars.file] },
+      signal: vars.signal,
+      onUploadProgress: event => {
+        if (!vars.onProgress) return;
+        const total = event.total ?? 0;
+        if (total > 0) {
+          vars.onProgress(Math.round((event.loaded / total) * 100));
+        }
       },
       throwOnError: true,
     });
@@ -160,6 +171,8 @@ const uploadMutation = useMutation({
     await invalidateResourceList();
   },
   onError: error => {
+    // 用户主动取消不算错误，交给调用方清理队列即可。
+    if (isRequestCanceledError(error)) return;
     if (isTestModeApiError(error)) {
       message.warning(getTestModeBlockMessage(error));
       return;
@@ -215,8 +228,15 @@ function updateListQuery(patch: Partial<typeof listQuery>) {
   Object.assign(listQuery, patch);
 }
 
-async function uploadResource(file: File) {
-  await uploadMutation.mutateAsync(file);
+async function uploadResource(
+  file: File,
+  options?: { onProgress?: (percent: number) => void; signal?: AbortSignal }
+) {
+  await uploadMutation.mutateAsync({
+    file,
+    onProgress: options?.onProgress,
+    signal: options?.signal,
+  });
 }
 
 function confirmDelete(item: ResourceItem) {

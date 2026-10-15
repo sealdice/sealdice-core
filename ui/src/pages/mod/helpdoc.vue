@@ -21,12 +21,10 @@
           v-model:checked-keys="checkedFileKeys"
           :doc-tree="docTree"
           :loading="treeQuery.isFetching.value"
-          :active-upload-tasks="activeUploadTasks"
           :deleting="deleteMutation.isPending.value"
           @open-upload="uploadDialogVisible = true"
           @open-config="configDialogVisible = true"
           @delete-files="deleteFiles"
-          @retry-task="retryTask"
         />
       </n-tab-pane>
 
@@ -49,7 +47,7 @@
       v-model:group="uploadGroup"
       v-model:file-list="uploadFiles"
       :groups="docGroups"
-      :busy="uploader.busy.value"
+      :busy="helpdocUploading"
       @submit="submitUpload"
     />
 
@@ -66,7 +64,7 @@
 </template>
 
 <script setup lang="tsx">
-import { computed, h, onMounted, reactive, ref, shallowRef, watch, type CSSProperties } from 'vue';
+import { computed, h, reactive, ref, shallowRef, watch, type CSSProperties } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
 import { NTag, NText, NTooltip, type DataTableColumns, type UploadFileInfo } from 'naive-ui';
 import type { HelpTextVo } from '@/api';
@@ -82,14 +80,13 @@ import {
   type HelpdocItemQueryModel,
   useHelpdocQueries,
 } from '@/features/helpdoc/queries';
-import { useHelpdocUpload } from '@/features/helpdoc/upload';
 import {
   getHelpdocTextPreview,
   getHelpdocTextTooltip,
   summarizeHelpdocDelete,
 } from '@/features/helpdoc/viewModel';
+import { enqueueUploads, uploadTasks } from '@/features/upload/state';
 import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
-import type { ResumableUploadTask } from '@/features/upload/resumableUpload';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -148,20 +145,12 @@ const helpContentTooltipStyle: CSSProperties = {
   maxWidth: '520px',
 };
 
-const uploader = useHelpdocUpload({
-  group: () => uploadGroup.value,
-  async onSuccess(task: ResumableUploadTask) {
-    message.success(`上传完成：${task.filename}`);
-    needReload.value = true;
-    await queryClient.invalidateQueries({ queryKey: ['helpdoc-tree'] });
-  },
-  onError(task: ResumableUploadTask) {
-    message.error(`上传失败：${task.filename}`);
-  },
-});
-
-const activeUploadTasks = computed(() =>
-  uploader.tasks.value.filter(task => task.status !== 'success')
+const helpdocUploading = computed(() =>
+  uploadTasks.value.some(
+    task =>
+      task.kind === 'helpdoc' &&
+      (task.status === 'queued' || task.status === 'hashing' || task.status === 'uploading')
+  )
 );
 
 const { reloadMutation, deleteMutation, saveConfigMutation } = useHelpdocMutations({
@@ -242,10 +231,6 @@ const columns: DataTableColumns<HelpTextVo> = [
   { title: '分类', key: 'packageName', width: 150, ellipsis: { tooltip: true } },
 ];
 
-onMounted(() => {
-  uploader.restore();
-});
-
 function queryItems() {
   itemQuery.pageNum = 1;
   appliedItemQuery.value = { ...itemQuery };
@@ -259,7 +244,17 @@ function resetItemQuery() {
 }
 
 async function submitUpload(files: File[]) {
-  await uploader.enqueueFiles(files);
+  await enqueueUploads(files, 'helpdoc', {
+    group: uploadGroup.value,
+    onComplete: async task => {
+      message.success(`上传完成：${task.filename}`);
+      needReload.value = true;
+      await queryClient.invalidateQueries({ queryKey: ['helpdoc-tree'] });
+    },
+    onError: task => {
+      message.error(`上传失败：${task.filename}`);
+    },
+  });
   uploadDialogVisible.value = false;
   uploadFiles.value = [];
 }
@@ -303,10 +298,6 @@ function removeAlias(groupKey: string, alias: string) {
 
 async function saveConfig() {
   await saveConfigMutation.mutateAsync();
-}
-
-function retryTask(task: ResumableUploadTask) {
-  void uploader.retry(task);
 }
 </script>
 

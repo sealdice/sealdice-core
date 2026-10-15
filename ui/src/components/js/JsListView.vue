@@ -15,7 +15,7 @@
         :show-file-list="false"
         :custom-request="uploadPlugin"
       >
-        <n-button type="primary" secondary :loading="uploader.busy.value">
+        <n-button type="primary" secondary :loading="jsUploading">
           <template #icon>
             <n-icon><i-tabler-upload /></n-icon>
           </template>
@@ -23,66 +23,6 @@
         </n-button>
       </n-upload>
     </ListActions>
-
-    <section v-if="activeUploadTasks.length" class="js-panel upload-panel">
-      <div class="upload-panel-head">
-        <h3>上传队列</h3>
-        <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
-      </div>
-
-      <div class="upload-list">
-        <article v-for="task in activeUploadTasks" :key="task.id" class="upload-item">
-          <div class="upload-item-head">
-            <div class="upload-title">
-              <span class="upload-name">{{ task.filename }}</span>
-              <span class="upload-meta">{{ Math.round(task.fileSize / 1024) }} KB</span>
-            </div>
-            <div class="upload-actions">
-              <n-tag
-                size="small"
-                :bordered="false"
-                :type="
-                  task.status === 'error'
-                    ? 'error'
-                    : task.status === 'success'
-                      ? 'success'
-                      : 'warning'
-                "
-              >
-                {{
-                  task.status === 'error' ? '失败' : task.status === 'success' ? '已完成' : '上传中'
-                }}
-              </n-tag>
-              <n-button
-                v-if="task.status === 'error'"
-                size="tiny"
-                secondary
-                @click="uploader.retry(task)"
-              >
-                重试
-              </n-button>
-            </div>
-          </div>
-
-          <n-progress
-            type="line"
-            :percentage="task.progress"
-            :status="
-              task.status === 'error' ? 'error' : task.status === 'success' ? 'success' : 'default'
-            "
-            :show-indicator="true"
-          />
-
-          <div class="upload-detail">
-            <span
-              >分块 {{ Array.isArray(task.uploadedChunks) ? task.uploadedChunks.length : 0 }} /
-              {{ task.expectedChunks || '-' }}</span
-            >
-            <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
-          </div>
-        </article>
-      </div>
-    </section>
 
     <ListPanel>
       <template #toolbar>
@@ -315,7 +255,7 @@
 </template>
 
 <script setup lang="tsx">
-import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue';
 import dayjs from 'dayjs';
 import {
   NButton,
@@ -339,7 +279,7 @@ import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
-import { type ResumableUploadTask } from '@/features/upload/resumableUpload';
+import { enqueueUploads, uploadTasks } from '@/features/upload/state';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
 import { useAppTheme } from '@/features/theme';
@@ -443,20 +383,17 @@ const {
   deleteMutation,
   enableMutation,
   disableMutation,
-  uploader,
   checkUpdate,
   applyUpdate,
-} = useJsList({
-  listParams,
-  async onUploadSuccess(task: ResumableUploadTask) {
-    message.success(`上传完成：${task.filename}`);
-    emit('markNeedReload');
-    await invalidateList();
-  },
-  onUploadError(task: ResumableUploadTask) {
-    message.error(`上传失败：${task.filename}`);
-  },
-});
+} = useJsList({ listParams });
+
+const jsUploading = computed(() =>
+  uploadTasks.value.some(
+    task =>
+      task.kind === 'js' &&
+      (task.status === 'queued' || task.status === 'hashing' || task.status === 'uploading')
+  )
+);
 
 watch(
   () => listQuery.keyword,
@@ -491,14 +428,6 @@ const showDiff = ref(false);
 const diffLoading = ref(false);
 const diffData = ref<JsUpdateDiff | null>(null);
 
-const activeUploadTasks = computed(() =>
-  uploader.tasks.value.filter(task => task.status !== 'success')
-);
-
-onMounted(() => {
-  uploader.restore();
-});
-
 async function uploadPlugin(options: UploadCustomRequestOptions) {
   const file = options.file.file as File;
   if (!file) {
@@ -511,13 +440,17 @@ async function uploadPlugin(options: UploadCustomRequestOptions) {
     options.onError();
     return;
   }
-  try {
-    await uploader.enqueueFiles([file]);
-    options.onFinish();
-  } catch {
-    message.error('上传失败');
-    options.onError();
-  }
+  await enqueueUploads([file], 'js', {
+    onComplete: async task => {
+      message.success(`上传完成：${task.filename}`);
+      emit('markNeedReload');
+      await invalidateList();
+    },
+    onError: task => {
+      message.error(`上传失败：${task.filename}`);
+    },
+  });
+  options.onFinish();
 }
 
 async function handleCheckUpdate(item: JsInfoExt) {

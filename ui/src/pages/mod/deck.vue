@@ -28,75 +28,13 @@
             multiple
             @change="onFileSelection"
           />
-          <n-button type="primary" secondary :loading="uploader.busy.value" @click="openFilePicker">
+          <n-button type="primary" secondary :loading="deckUploading" @click="openFilePicker">
             <template #icon>
               <n-icon><i-tabler-upload /></n-icon>
             </template>
             上传牌堆
           </n-button>
         </ListActions>
-
-        <section v-if="activeUploadTasks.length" class="upload-panel">
-          <div class="upload-panel-head">
-            <h3>上传队列</h3>
-            <n-tag size="small" :bordered="false"> {{ activeUploadTasks.length }} 项 </n-tag>
-          </div>
-
-          <div class="upload-list">
-            <article v-for="task in activeUploadTasks" :key="task.id" class="upload-item">
-              <div class="upload-item-head">
-                <div class="upload-title">
-                  <span class="upload-name">{{ task.filename }}</span>
-                  <span class="upload-meta">{{ Math.round(task.fileSize / 1024) }} KB</span>
-                </div>
-                <div class="upload-actions">
-                  <n-tag
-                    size="small"
-                    :bordered="false"
-                    :type="
-                      task.status === 'error'
-                        ? 'error'
-                        : task.status === 'success'
-                          ? 'success'
-                          : 'warning'
-                    "
-                  >
-                    {{ task.status }}
-                  </n-tag>
-                  <n-button
-                    v-if="task.status === 'error'"
-                    size="tiny"
-                    secondary
-                    @click="retryTask(task)"
-                  >
-                    重试
-                  </n-button>
-                </div>
-              </div>
-
-              <n-progress
-                type="line"
-                :percentage="task.progress"
-                :status="
-                  task.status === 'error'
-                    ? 'error'
-                    : task.status === 'success'
-                      ? 'success'
-                      : 'default'
-                "
-                :show-indicator="true"
-              />
-
-              <div class="upload-detail">
-                <span
-                  >分块 {{ Array.isArray(task.uploadedChunks) ? task.uploadedChunks.length : 0 }} /
-                  {{ task.expectedChunks || '-' }}</span
-                >
-                <span v-if="task.errorText" class="upload-error">{{ task.errorText }}</span>
-              </div>
-            </article>
-          </div>
-        </section>
 
         <ListPanel>
           <template #toolbar>
@@ -293,7 +231,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useDialog, useMessage } from 'naive-ui';
@@ -304,8 +242,6 @@ import {
   postSdApiV2DeckDelete,
   postSdApiV2DeckReload,
   postSdApiV2DeckUpdate,
-  postSdApiV2DeckUploadComplete,
-  postSdApiV2DeckUploadInit,
   type DeckItem,
   type UpdateCheckResult,
 } from '@/api';
@@ -318,13 +254,12 @@ import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
-import { getApiBaseUrl } from '@/api/config';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
   isTestModeResponse,
 } from '@/features/testMode/state';
-import { useResumableUpload, type ResumableUploadTask } from '@/features/upload/resumableUpload';
+import { enqueueUploads, uploadTasks } from '@/features/upload/state';
 import { hasAccessToken } from '@/features/auth/state';
 import { useAppTheme } from '@/features/theme';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
@@ -332,10 +267,8 @@ import TipBox from '@/components/shared/TipBox.vue';
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 
-const deckChunkSize = 4 * 1024 * 1024;
-
 // 牌堆页同时承载列表管理、diff 更新和大文件上传。
-// 列表数据用 Vue Query；更新检查按需打开 DiffViewer；上传复用通用断点续传控制器。
+// 列表数据用 Vue Query；更新检查按需打开 DiffViewer；上传走全局上传队列。
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
@@ -557,54 +490,13 @@ const updateMutation = useMutation({
   },
 });
 
-const uploader = useResumableUpload('sd-deck-upload-state', {
-  chunkSize: deckChunkSize,
-  async init(task: ResumableUploadTask) {
-    const { data } = await postSdApiV2DeckUploadInit({
-      body: {
-        filename: task.filename,
-        fileSize: task.fileSize,
-        fileHash: task.fileHash,
-        chunkSize: deckChunkSize,
-      },
-      throwOnError: true,
-    });
-    return {
-      sessionId: data.item.sessionId,
-      chunkSize: data.item.chunkSize,
-      uploadedChunks: data.item.uploadedChunks ?? [],
-      uploadedBytes: data.item.uploadedBytes,
-      expectedChunks: data.item.expectedChunks,
-    };
-  },
-  async complete(task: ResumableUploadTask): Promise<boolean> {
-    const { data } = await postSdApiV2DeckUploadComplete({
-      body: {
-        sessionId: task.sessionId,
-      },
-      throwOnError: true,
-    });
-    return data.item.success;
-  },
-  buildChunkUrl(task: ResumableUploadTask, index: number): string {
-    return `${getApiBaseUrl()}/sd-api/v2/deck/upload/${encodeURIComponent(task.sessionId)}/${index}`;
-  },
-  async onTaskSuccess(task: ResumableUploadTask) {
-    message.success(`上传完成：${task.filename}`);
-    await invalidateDeckList();
-  },
-  async onTaskError(task: ResumableUploadTask) {
-    message.error(`上传失败：${task.filename}`);
-  },
-});
-
-const activeUploadTasks = computed(() =>
-  uploader.tasks.value.filter(task => task.status !== 'success')
+const deckUploading = computed(() =>
+  uploadTasks.value.some(
+    task =>
+      task.kind === 'deck' &&
+      (task.status === 'queued' || task.status === 'hashing' || task.status === 'uploading')
+  )
 );
-
-onMounted(() => {
-  uploader.restore();
-});
 
 function openFilePicker() {
   fileInputRef.value?.click();
@@ -613,16 +505,20 @@ function openFilePicker() {
 function onFileSelection(event: Event) {
   const input = event.target as HTMLInputElement;
   const files = Array.from(input.files ?? []);
-  void uploader.enqueueFiles(files);
+  void enqueueUploads(files, 'deck', {
+    onComplete: async task => {
+      message.success(`上传完成：${task.filename}`);
+      await invalidateDeckList();
+    },
+    onError: task => {
+      message.error(`上传失败：${task.filename}`);
+    },
+  });
   input.value = '';
 }
 
 function doReload() {
   void reloadMutation.mutateAsync();
-}
-
-function retryTask(task: ResumableUploadTask) {
-  void uploader.retry(task);
 }
 
 function doDelete(item: DeckItem) {
