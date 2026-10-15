@@ -69,6 +69,9 @@
       v-model:show="showEditModal"
       title="编辑数据"
       preset="card"
+      :closable="!setMutation.isPending.value"
+      :mask-closable="!setMutation.isPending.value"
+      :close-on-esc="!setMutation.isPending.value"
       style="width: 90vw; max-width: 700px"
     >
       <n-flex vertical size="medium">
@@ -84,6 +87,7 @@
           <n-text depth="3">Value:</n-text>
           <n-input
             v-model:value="editValue"
+            :disabled="setMutation.isPending.value"
             class="sd-code-text"
             type="textarea"
             rows="10"
@@ -105,7 +109,9 @@
       </n-flex>
       <template #footer>
         <n-flex justify="end">
-          <n-button @click="showEditModal = false">取消</n-button>
+          <n-button :disabled="setMutation.isPending.value" @click="showEditModal = false"
+            >取消</n-button
+          >
           <n-button type="primary" :loading="setMutation.isPending.value" @click="confirmSave">
             保存
           </n-button>
@@ -214,12 +220,14 @@ const searchColumns = computed<ProSearchFormColumns<JsDataSearchFormValues>>(() 
 
 // Edit modal
 const showEditModal = ref(false);
+const editPlugin = ref('');
 const editKey = ref('');
 const editValue = ref('');
 const editIsJson = ref(false);
 const jsonError = ref('');
 
 function openEdit(key: string, value: string, isJson: boolean) {
+  editPlugin.value = selectedPlugin.value;
   editKey.value = key;
   editValue.value = value;
   editIsJson.value = isJson;
@@ -249,18 +257,23 @@ function confirmSave() {
 }
 
 function handleDeleteKey(key: string) {
+  const name = selectedPlugin.value;
   dialog.warning({
     title: '删除 Key',
     content: `确认删除「${key}」？`,
     positiveText: '确定',
     negativeText: '取消',
-    onPositiveClick: () => deleteKeys([key]),
+    onPositiveClick: () => deleteKeys(name, [key]),
   });
 }
 
 async function saveKey() {
+  if (setMutation.isPending.value) return;
   try {
-    await setMutation.mutateAsync({ key: editKey.value, value: editValue.value });
+    await setMutation.mutateAsync({
+      path: { name: editPlugin.value },
+      body: { key: editKey.value, value: editValue.value },
+    });
     message.success('已保存');
     showEditModal.value = false;
   } catch (error) {
@@ -268,9 +281,9 @@ async function saveKey() {
   }
 }
 
-async function deleteKeys(keys: string[]) {
+async function deleteKeys(name: string, keys: string[]) {
   try {
-    await deleteMutation.mutateAsync(keys);
+    await deleteMutation.mutateAsync({ path: { name }, body: { keys } });
     message.success('已删除');
   } catch (error) {
     notifyError(error, message, '删除失败');
@@ -279,7 +292,7 @@ async function deleteKeys(keys: string[]) {
 
 async function shrinkData() {
   try {
-    await shrinkMutation.mutateAsync();
+    await shrinkMutation.mutateAsync({ path: { name: selectedPlugin.value } });
     message.success('数据库已压缩');
   } catch (error) {
     notifyError(error, message, '压缩失败');

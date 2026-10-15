@@ -1,7 +1,10 @@
 import { computed, type ComputedRef } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
-  getSdApiV2JsList,
+  getSdApiV2JsListOptions,
+  getSdApiV2JsListQueryKey,
+  type GetSdApiV2JsListData,
+  type GetSdApiV2JsListResponse,
   postSdApiV2JsCheckUpdate,
   postSdApiV2JsDelete,
   postSdApiV2JsDisable,
@@ -9,7 +12,6 @@ import {
   postSdApiV2JsUpdate,
 } from '@/api';
 
-import { jsListQueryKey, type JsListParams } from './queryKeys';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/features/auth/store';
 
@@ -20,23 +22,22 @@ export type JsUpdateDiff = {
   tempFileName: string;
 };
 
-export function useJsList(options: { listParams: ComputedRef<JsListParams> }) {
+export function useJsList(options: {
+  listParams: ComputedRef<NonNullable<GetSdApiV2JsListData['query']>>;
+}) {
   const { hasAccessToken } = storeToRefs(useAuthStore());
   const queryClient = useQueryClient();
 
-  const listQueryResult = useQuery({
-    queryKey: computed(() => jsListQueryKey(options.listParams.value)),
-    enabled: hasAccessToken,
-    queryFn: async () => {
-      const { data } = await getSdApiV2JsList({
-        query: options.listParams.value,
-        throwOnError: true,
-      });
-      return data.item;
-    },
-  });
+  const listQueryResult = useQuery(
+    computed(() => ({
+      ...getSdApiV2JsListOptions({ query: options.listParams.value }),
+      enabled: hasAccessToken.value,
+      select: (data: GetSdApiV2JsListResponse) => data.item,
+    }))
+  );
 
-  const invalidateList = () => queryClient.invalidateQueries({ queryKey: ['js-list'] });
+  const invalidateList = () =>
+    queryClient.invalidateQueries({ queryKey: getSdApiV2JsListQueryKey() });
 
   const deleteMutation = useMutation({
     mutationFn: async (filename: string) => {

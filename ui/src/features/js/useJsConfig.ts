@@ -1,15 +1,15 @@
 import { computed } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
-  getSdApiV2JsConfigs,
-  getSdApiV2JsDeadConfigs,
+  getSdApiV2JsConfigsOptions,
+  getSdApiV2JsConfigsQueryKey,
+  getSdApiV2JsDeadConfigsOptions,
+  getSdApiV2JsDeadConfigsQueryKey,
   postSdApiV2JsConfigs,
   postSdApiV2JsConfigsReset,
   postSdApiV2JsDeadConfigsDelete,
-  type ApiPluginConfig,
 } from '@/api';
 
-import { jsConfigsQueryKey, jsDeadConfigsQueryKey } from './queryKeys';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/features/auth/store';
 
@@ -18,38 +18,28 @@ export function useJsConfig() {
   const queryClient = useQueryClient();
 
   const configsQuery = useQuery({
-    queryKey: jsConfigsQueryKey(),
+    ...getSdApiV2JsConfigsOptions(),
     enabled: hasAccessToken,
-    queryFn: async () => {
-      const { data } = await getSdApiV2JsConfigs({ throwOnError: true });
-      return data.item;
-    },
+    select: data => data.item,
   });
 
   const deadConfigsQuery = useQuery({
-    queryKey: jsDeadConfigsQueryKey(),
+    ...getSdApiV2JsDeadConfigsOptions(),
     enabled: hasAccessToken,
-    queryFn: async () => {
-      const { data } = await getSdApiV2JsDeadConfigs({ throwOnError: true });
-      return data.item.configs ?? [];
-    },
+    select: data => data.item.configs ?? [],
   });
 
-  const configEntries = computed<[string, ApiPluginConfig][]>(() => {
-    const map = (configsQuery.data.value ?? {}) as Record<string, ApiPluginConfig>;
-    return Object.entries(map);
-  });
-
-  const configItems = computed(() => {
-    return configEntries.value.map(([name, cfg]) => ({
+  const configItems = computed(() =>
+    Object.entries(configsQuery.data.value ?? {}).map(([name, cfg]) => ({
       pluginName: name,
-      items: cfg.configs ?? [],
-    }));
-  });
+      items: cfg?.configs ?? [],
+    }))
+  );
 
-  const invalidateConfigs = () => queryClient.invalidateQueries({ queryKey: jsConfigsQueryKey() });
+  const invalidateConfigs = () =>
+    queryClient.invalidateQueries({ queryKey: getSdApiV2JsConfigsQueryKey() });
   const invalidateDeadConfigs = () =>
-    queryClient.invalidateQueries({ queryKey: jsDeadConfigsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getSdApiV2JsDeadConfigsQueryKey() });
 
   const resetMutation = useMutation({
     mutationFn: async (payload: { name: string; keys: string[] }) => {

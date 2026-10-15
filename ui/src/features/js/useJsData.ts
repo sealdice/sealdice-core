@@ -1,127 +1,81 @@
 import { computed, type Ref } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
-  getSdApiV2JsByNameDataInfo,
-  getSdApiV2JsByNameDataList,
-  getSdApiV2JsList,
-  postSdApiV2JsByNameData,
-  postSdApiV2JsByNameDataDelete,
-  postSdApiV2JsByNameDataShrink,
-  type JsInfo,
+  getSdApiV2JsByNameDataInfoOptions,
+  getSdApiV2JsByNameDataInfoQueryKey,
+  getSdApiV2JsByNameDataListOptions,
+  getSdApiV2JsByNameDataListQueryKey,
+  getSdApiV2JsListOptions,
+  postSdApiV2JsByNameDataMutation,
+  postSdApiV2JsByNameDataDeleteMutation,
+  postSdApiV2JsByNameDataShrinkMutation,
+  type GetSdApiV2JsByNameDataListResponse,
+  type GetSdApiV2JsByNameDataInfoResponse,
 } from '@/api';
-
-import {
-  jsDataInfoQueryKey,
-  jsDataListQueryKey,
-  jsListForDataQueryKey,
-  type JsDataPage,
-} from './queryKeys';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/features/auth/store';
 
 export function useJsData(options: {
   selectedPlugin: Ref<string>;
-  dataPage: Ref<JsDataPage>;
+  dataPage: Ref<{ page: number; pageSize: number }>;
   dataKeyword: Ref<string>;
 }) {
   const { hasAccessToken } = storeToRefs(useAuthStore());
   const queryClient = useQueryClient();
 
   const pluginListQuery = useQuery({
-    queryKey: jsListForDataQueryKey(),
+    ...getSdApiV2JsListOptions({ query: { page: 1, pageSize: 200 } }),
     enabled: hasAccessToken,
-    queryFn: async () => {
-      const { data } = await getSdApiV2JsList({
-        query: { page: 1, pageSize: 200 },
-        throwOnError: true,
-      });
-      return data.item.data ?? [];
-    },
+    select: data => data.item.data ?? [],
   });
 
   const pluginOptions = computed(() =>
-    (pluginListQuery.data.value ?? []).map((p: JsInfo) => ({
-      label: `${p.name} (v${p.version})`,
-      value: p.name,
+    (pluginListQuery.data.value ?? []).map(plugin => ({
+      label: `${plugin.name} (v${plugin.version})`,
+      value: plugin.name,
     }))
   );
 
-  const dataListQuery = useQuery({
-    queryKey: computed(() =>
-      jsDataListQueryKey(
-        options.selectedPlugin.value,
-        options.dataPage.value,
-        options.dataKeyword.value
-      )
-    ),
-    enabled: computed(() => hasAccessToken.value && !!options.selectedPlugin.value),
-    queryFn: async () => {
-      const { data } = await getSdApiV2JsByNameDataList({
+  const dataListQuery = useQuery(
+    computed(() => ({
+      ...getSdApiV2JsByNameDataListOptions({
         path: { name: options.selectedPlugin.value },
-        query: {
-          page: options.dataPage.value.page,
-          pageSize: options.dataPage.value.pageSize,
-          keyword: options.dataKeyword.value || undefined,
-        },
-        throwOnError: true,
-      });
-      return data.item;
-    },
-  });
+        query: { ...options.dataPage.value, keyword: options.dataKeyword.value || undefined },
+      }),
+      enabled: hasAccessToken.value && !!options.selectedPlugin.value,
+      select: (data: GetSdApiV2JsByNameDataListResponse) => data.item,
+    }))
+  );
 
-  const dataInfoQuery = useQuery({
-    queryKey: computed(() => jsDataInfoQueryKey(options.selectedPlugin.value)),
-    enabled: computed(() => hasAccessToken.value && !!options.selectedPlugin.value),
-    queryFn: async () => {
-      const { data } = await getSdApiV2JsByNameDataInfo({
-        path: { name: options.selectedPlugin.value },
-        throwOnError: true,
-      });
-      return data.item;
-    },
-  });
+  const dataInfoQuery = useQuery(
+    computed(() => ({
+      ...getSdApiV2JsByNameDataInfoOptions({ path: { name: options.selectedPlugin.value } }),
+      enabled: hasAccessToken.value && !!options.selectedPlugin.value,
+      select: (data: GetSdApiV2JsByNameDataInfoResponse) => data.item,
+    }))
+  );
 
+  // 写入目标来自提交参数；完成回调不能重新读取可能已经切换的选中插件。
   const setMutation = useMutation({
-    mutationFn: async (payload: { key: string; value: string }) => {
-      await postSdApiV2JsByNameData({
-        path: { name: options.selectedPlugin.value },
-        body: payload,
-        throwOnError: true,
-      });
-    },
-    onSuccess: () => {
-      invalidateData();
-    },
+    ...postSdApiV2JsByNameDataMutation(),
+    onSuccess: (_data, { path }) => invalidateData(path.name),
   });
-
   const deleteMutation = useMutation({
-    mutationFn: async (keys: string[]) => {
-      await postSdApiV2JsByNameDataDelete({
-        path: { name: options.selectedPlugin.value },
-        body: { keys },
-        throwOnError: true,
-      });
-    },
-    onSuccess: () => {
-      invalidateData();
-    },
+    ...postSdApiV2JsByNameDataDeleteMutation(),
+    onSuccess: (_data, { path }) => invalidateData(path.name),
   });
-
   const shrinkMutation = useMutation({
-    mutationFn: async () => {
-      await postSdApiV2JsByNameDataShrink({
-        path: { name: options.selectedPlugin.value },
-        throwOnError: true,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: jsDataInfoQueryKey(options.selectedPlugin.value) });
-    },
+    ...postSdApiV2JsByNameDataShrinkMutation(),
+    onSuccess: (_data, { path }) =>
+      queryClient.invalidateQueries({ queryKey: getSdApiV2JsByNameDataInfoQueryKey({ path }) }),
   });
 
-  function invalidateData() {
-    queryClient.invalidateQueries({ queryKey: ['js-data-list'] });
-    queryClient.invalidateQueries({ queryKey: ['js-data-info'] });
+  function invalidateData(name = options.selectedPlugin.value) {
+    const path = { name };
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: getSdApiV2JsByNameDataListQueryKey({ path }) }),
+      queryClient.invalidateQueries({ queryKey: getSdApiV2JsByNameDataInfoQueryKey({ path }) }),
+    ]);
   }
 
   return {
