@@ -11,9 +11,10 @@ import { storeToRefs } from 'pinia';
 import { onBeforeUnmount, watch } from 'vue';
 import { requestControlledReload } from '@/features/pwa/swUpdate';
 import { useSwUpdateStore } from '@/features/pwa/swUpdateStore';
-import { hasUnsavedChanges } from '@/features/unsavedChanges';
+import { useUnsavedChangesStore } from '@/features/unsavedChanges/store';
 import { appPinia } from '@/pinia';
 
+const { hasUnsavedChanges } = storeToRefs(useUnsavedChangesStore());
 const AUTO_RELOAD_DELAY_MS = 1200;
 
 const swUpdateStore = useSwUpdateStore(appPinia);

@@ -24,6 +24,7 @@ export type ReplyTask = {
 };
 
 export type ReplyFileDraft = {
+  packageId?: string;
   enable: boolean;
   vmVersion: ReplyVMVersion;
   interval: number;
@@ -92,6 +93,7 @@ export function normalizeReplyFileDetail(detail: ReplyFileDetail): ReplyFileDraf
     updateTimestamp: Number(detail.updateTimestamp ?? 0),
     desc: String(detail.desc ?? ''),
     storeID: String(detail.storeID ?? ''),
+    packageId: detail.packageId,
     conditions: normalizeConditions(detail.conditions as unknown[] | null | undefined),
     items: [],
     filename: String(detail.filename ?? ''),
@@ -169,6 +171,7 @@ export function toApiReplyConfig(draft: ReplyFileDraft) {
     desc: draft.desc,
     storeID: draft.storeID,
     filename: draft.filename,
+    packageId: draft.packageId,
     conditions: draft.conditions.map(condition => {
       if (condition.condType === 'textLenLimit') {
         return {

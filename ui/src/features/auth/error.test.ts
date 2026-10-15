@@ -1,14 +1,8 @@
 import { getErrorMessage } from './error';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  function assertEqual(actual: unknown, expected: unknown): void {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  }
-
-  assertEqual(
+it('提取业务错误信息并忽略取消请求', async () => {
+  expect(
     getErrorMessage(
       {
         code: 'ERR_CANCELED',
@@ -16,8 +10,7 @@ it('passes', async () => {
         name: 'CanceledError',
       },
       '读取失败'
-    ),
-    ''
-  );
-  assertEqual(getErrorMessage(new Error('boom'), '读取失败'), 'boom');
+    )
+  ).toBe('');
+  expect(getErrorMessage(new Error('boom'), '读取失败')).toBe('boom');
 });

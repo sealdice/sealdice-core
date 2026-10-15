@@ -1,17 +1,17 @@
 import { expect, it } from 'vitest';
 import { appPinia } from '@/pinia';
 import { useUnsavedChangesStore } from './store';
-import {
-  activePendingActions,
-  activeUnsavedChangesSource,
-  confirmDiscardUnsavedChanges,
+import { storeToRefs } from 'pinia';
+const store = useUnsavedChangesStore(appPinia);
+const { activePendingActions, activeUnsavedChangesSource, hasPendingActions, hasUnsavedChanges } =
+  storeToRefs(store);
+const {
+  confirmDiscard: confirmDiscardUnsavedChanges,
   discardPendingAction,
-  hasPendingActions,
-  hasUnsavedChanges,
-  registerUnsavedChangesSource,
   runPendingAction,
-  setUnsavedChangesConfirmHandler,
-} from './state';
+  registerSource: registerUnsavedChangesSource,
+  setConfirmHandler: setUnsavedChangesConfirmHandler,
+} = store;
 
 function resetStore() {
   const store = useUnsavedChangesStore(appPinia);

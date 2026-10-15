@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { computed, shallowRef, watch } from 'vue';
-import { getApiBaseUrl, joinApiBasePath, showNetworkErrorDialog } from '@/api';
+import { computed, onScopeDispose, shallowRef, watch } from 'vue';
+import { getApiBaseUrl, joinApiBasePath, reportNetworkError } from '@/api';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 
@@ -183,15 +183,16 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   function notifyDisconnect(): void {
     if (disconnectDialogShown) return;
     disconnectDialogShown = true;
-    showNetworkErrorDialog();
+    reportNetworkError();
   }
 
+  let stopAuthWatch: (() => void) | undefined;
   function ensureInitialized(): void {
     // 连接生命周期完全跟随 token：有 token 自动连接，没 token 立即断开并清理状态。
     if (initialized) return;
     initialized = true;
 
-    watch(
+    stopAuthWatch = watch(
       () => authStore.hasAccessToken && !authStore.isInitializing,
       canAccess => {
         if (canAccess) {
@@ -260,6 +261,12 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       }
     };
   }
+
+  onScopeDispose(() => {
+    stopAuthWatch?.();
+    disconnect();
+    listeners.clear();
+  });
 
   return {
     connected,

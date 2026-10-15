@@ -1,5 +1,5 @@
-import { onBeforeUnmount, type MaybeRefOrGetter } from 'vue';
-import { clearUnsavedChangesSource, registerUnsavedChangesSource } from './state';
+import type { MaybeRefOrGetter } from 'vue';
+import { useUnsavedChanges } from './useUnsavedChanges';
 
 export interface PendingReloadOptions {
   label: MaybeRefOrGetter<string>;
@@ -17,7 +17,7 @@ export interface PendingReloadOptions {
  * 但不参与路由守卫 —— 离开页面不会丢失已保存的改动。
  */
 export function usePendingReload(scope: string, options: PendingReloadOptions) {
-  registerUnsavedChangesSource(scope, {
+  return useUnsavedChanges(scope, {
     kind: 'reload',
     label: options.label,
     dirty: options.pending,
@@ -27,14 +27,4 @@ export function usePendingReload(scope: string, options: PendingReloadOptions) {
     actionText: options.actionText,
     priority: options.priority,
   });
-
-  onBeforeUnmount(() => {
-    clearUnsavedChangesSource(scope);
-  });
-
-  return {
-    clear() {
-      clearUnsavedChangesSource(scope);
-    },
-  };
 }

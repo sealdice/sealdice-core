@@ -6,21 +6,9 @@ import type {
 } from './parquetDataset';
 import type { StoryPainterLogItem } from './types';
 import { useStoryPainter } from './useStoryPainter';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('日志阅读模型随数据和选择更新', async () => {
   const painter = useStoryPainter();
   await painter.setDataset(
     createMemoryParquetDataset([
@@ -45,19 +33,13 @@ it('passes', async () => {
     ])
   );
 
-  assertEqual(painter.fullItemsLoaded.value, false);
-  assertDeepEqual(
-    painter.items.value.map(item => item.message),
-    ['', '']
-  );
-  assertEqual((await painter.readPreviewItem(0))?.message, 'one');
+  expect(painter.fullItemsLoaded.value).toBe(false);
+  expect(painter.items.value.map(item => item.message)).toEqual(['', '']);
+  expect((await painter.readPreviewItem(0))?.message).toBe('one');
 
   await painter.ensureFullItems();
-  assertEqual(painter.fullItemsLoaded.value, true);
-  assertDeepEqual(
-    painter.items.value.map(item => item.message),
-    ['one', 'two']
-  );
+  expect(painter.fullItemsLoaded.value).toBe(true);
+  expect(painter.items.value.map(item => item.message)).toEqual(['one', 'two']);
 
   const datasetPainter = useStoryPainter();
   await datasetPainter.setDataset(
@@ -84,8 +66,8 @@ it('passes', async () => {
   );
 
   datasetPainter.renameChar(0, 'Alicia');
-  assertEqual((await datasetPainter.readPreviewItem(0))?.nickname, 'Alicia');
-  assertEqual((await datasetPainter.readPreviewItem(1))?.message, '<Alicia> roll');
+  expect((await datasetPainter.readPreviewItem(0))?.nickname).toBe('Alicia');
+  expect((await datasetPainter.readPreviewItem(1))?.message).toBe('<Alicia> roll');
 
   datasetPainter.deleteChar(0);
   await datasetPainter.refreshPreview();
@@ -93,7 +75,7 @@ it('passes', async () => {
   for await (const chunk of datasetPainter.iterPreviewChunks()) {
     visible.push(...chunk.map(item => [item.nickname, item.message] as [string, string]));
   }
-  assertDeepEqual(visible, [['Seal', '<Alicia> roll']]);
+  expect(visible).toEqual([['Seal', '<Alicia> roll']]);
 
   const manyRows: StoryPainterParquetRow[] = Array.from({ length: 260 }, (_, index) => ({
     id: index + 1,
@@ -108,19 +90,15 @@ it('passes', async () => {
   const batchPainter = useStoryPainter();
   await batchPainter.setDataset(counted.dataset);
   const rows = await batchPainter.readPreviewItems([124, 121, 123]);
-  assertDeepEqual(
-    rows.map(item => item.message),
-    ['message-124', 'message-121', 'message-123']
-  );
-  assertDeepEqual(
+  expect(rows.map(item => item.message)).toEqual(['message-124', 'message-121', 'message-123']);
+  expect(
     counted.calls
       .filter(call => call.columns.includes('message'))
-      .map(call => [call.start, call.end]),
-    [[120, 240]]
-  );
+      .map(call => [call.start, call.end])
+  ).toEqual([[120, 240]]);
 
   const far = await batchPainter.readPreviewItem(250);
-  assertEqual(far?.message, 'message-250');
+  expect(far?.message).toBe('message-250');
 
   const concurrentCounted = createCountingDataset(manyRows);
   const concurrentPainter = useStoryPainter();
@@ -129,12 +107,11 @@ it('passes', async () => {
     concurrentPainter.readPreviewItems([121]),
     concurrentPainter.readPreviewItems([124]),
   ]);
-  assertDeepEqual(
+  expect(
     concurrentCounted.calls
       .filter(call => call.columns.includes('message'))
-      .map(call => [call.start, call.end]),
-    [[120, 240]]
-  );
+      .map(call => [call.start, call.end])
+  ).toEqual([[120, 240]]);
 
   function createCountingDataset(rows: StoryPainterParquetRow[]): {
     dataset: StoryPainterParquetDataset;

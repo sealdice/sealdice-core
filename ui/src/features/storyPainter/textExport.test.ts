@@ -1,14 +1,8 @@
 import { defaultStoryPainterOptions, type StoryPainterLogItem } from './types';
 import { collectStoryPainterForumText, collectStoryPainterTrgText } from './textExport';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('日志导出文本保留内容与顺序', async () => {
   async function* chunks(items: StoryPainterLogItem[][]): AsyncGenerator<StoryPainterLogItem[]> {
     for (const chunk of items) yield chunk;
   }
@@ -56,8 +50,7 @@ it('passes', async () => {
     colorByItem: item => (item.nickname === 'Alice' ? '#db2777' : '#0284c7'),
   });
 
-  assertEqual(
-    pineapple,
+  expect(pineapple).toBe(
     '[color=silver]<Alice>[/color][color=#db2777] one\ntwo [/color]\n[color=silver]<Bob>[/color][color=#0284c7] three [/color]'
   );
 
@@ -68,5 +61,5 @@ it('passes', async () => {
     addVoiceMark: true,
   });
 
-  assertEqual(trg, '[Alice]:one{*}\n[Bob]:three{*}');
+  expect(trg).toBe('[Alice]:one{*}\n[Bob]:three{*}');
 });

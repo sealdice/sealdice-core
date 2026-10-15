@@ -1,14 +1,8 @@
 import { getDownloadFilename } from './download';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  function assertEqual(actual: unknown, expected: unknown): void {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  }
-
-  assertEqual(
+it('解析文件名并规范下载请求', async () => {
+  expect(
     getDownloadFilename(
       {
         headers: {
@@ -16,11 +10,10 @@ it('passes', async () => {
         },
       },
       ''
-    ),
-    '测试.json'
-  );
+    )
+  ).toBe('测试.json');
 
-  assertEqual(
+  expect(
     getDownloadFilename(
       {
         headers: {
@@ -28,17 +21,15 @@ it('passes', async () => {
         },
       },
       ''
-    ),
-    'backup.zip'
-  );
+    )
+  ).toBe('backup.zip');
 
-  assertEqual(
+  expect(
     getDownloadFilename(
       {
         headers: {},
       },
       'manual.txt'
-    ),
-    'manual.txt'
-  );
+    )
+  ).toBe('manual.txt');
 });

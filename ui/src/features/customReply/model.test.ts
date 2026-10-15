@@ -7,39 +7,27 @@ import {
   toApiReplyConfig,
   type ReplyFileDraft,
 } from './model';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('回复草稿规范化及 API 数据转换', async () => {
   const task = normalizeReplyTask({
     enable: false,
     conditions: [{ condType: 'textLenLimit', matchType: 'matchGreater', value: '12' }],
     results: [{ resultType: 'replyToSender', delay: '3', message: [['ok', '2']] }],
   });
 
-  assertEqual(task.enable, false);
-  assertDeepEqual(task.conditions, [
+  expect(task.enable).toBe(false);
+  expect(task.conditions).toEqual([
     { condType: 'textLenLimit', matchType: 'matchGreater', value: '12' },
   ]);
-  assertDeepEqual(task.results[0]?.message, [['ok', 2]]);
+  expect(task.results[0]?.message).toEqual([['ok', 2]]);
 
   const numericCondition = normalizeCondition({
     condType: 'textLenLimit',
     matchType: 'matchGreater',
     value: 5,
   });
-  assertEqual(numericCondition.value, 5);
+  expect(numericCondition.value).toBe(5);
 
   const draft = normalizeReplyFileDetail({
     enable: true,
@@ -51,30 +39,32 @@ it('passes', async () => {
     updateTimestamp: 2,
     desc: 'desc',
     storeID: 'store',
+    packageId: 'author/reply-pack',
     conditions: [{ condType: 'textMatch', matchType: 'matchExact', value: 'ping' }],
     filename: 'demo.yaml',
     itemCount: 1,
   } as never);
 
-  assertEqual(draft.filename, 'demo.yaml');
-  assertEqual(draft.items.length, 0);
+  expect(draft.filename).toBe('demo.yaml');
+  expect(draft.items.length).toBe(0);
 
   const clonedTask = cloneReplyTask(task);
   clonedTask.results[0]!.message[0]![0] = 'changed';
-  assertEqual(task.results[0]!.message[0]![0], 'ok');
+  expect(task.results[0]!.message[0]![0]).toBe('ok');
 
   const clonedDraft = cloneReplyFileDraft({
     ...draft,
     items: [task],
   } satisfies ReplyFileDraft);
   clonedDraft.author.push('b');
-  assertDeepEqual(draft.author, ['a']);
+  expect(draft.author).toEqual(['a']);
 
   const payload = toApiReplyConfig({
     ...draft,
     items: [task],
     conditions: [{ condType: 'textLenLimit', matchType: 'matchGreater', value: '7' }],
   });
-  assertEqual(payload.conditions[0]!.value, 7);
-  assertEqual(payload.items[0]!.results[0]!.delay, 3);
+  expect(payload.conditions[0]!.value).toBe(7);
+  expect(payload.packageId).toBe('author/reply-pack');
+  expect(payload.items[0]!.results[0]!.delay).toBe(3);
 });

@@ -6,42 +6,35 @@ import {
   getAboutOverviewSummary,
   resolveContributorUser,
 } from './viewModel.js';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('规范版本信息和关于页链接', async () => {
   const assertIncludes = (actual: string, expected: string) => {
     if (!actual.includes(expected)) throw new Error(`expected ${actual} to include ${expected}`);
   };
 
-  assertEqual(ABOUT_LINKS.length, 4);
-  assertEqual(ABOUT_LINKS[0]?.label, '官方网站');
-  assertEqual(ABOUT_LINKS[0]?.href, 'https://dice.weizaima.com/');
-  assertEqual(ABOUT_LINKS[0]?.description, 'SealDice 项目主页，提供下载、在线试用与社区服务入口。');
-  assertEqual(ABOUT_LINKS[1]?.href, 'https://docs.sealdice.com/');
-  assertEqual(ABOUT_LINKS[3]?.href, 'https://github.com/sealdice/sealdice-core');
+  expect(ABOUT_LINKS.length).toBe(4);
+  expect(ABOUT_LINKS[0]?.label).toBe('官方网站');
+  expect(ABOUT_LINKS[0]?.href).toBe('https://dice.weizaima.com/');
+  expect(ABOUT_LINKS[0]?.description).toBe('SealDice 项目主页，提供下载、在线试用与社区服务入口。');
+  expect(ABOUT_LINKS[1]?.href).toBe('https://docs.sealdice.com/');
+  expect(ABOUT_LINKS[3]?.href).toBe('https://github.com/sealdice/sealdice-core');
   assertIncludes(ABOUT_LINKS[3]?.description ?? '', 'Issue 反馈');
 
-  assertEqual(resolveContributorUser({ username: '木落' }), 'fy0');
-  assertEqual(
-    resolveContributorUser({ username: '希望潇洒的风：Ceeling', user: 'charyflys' }),
+  expect(resolveContributorUser({ username: '木落' })).toBe('fy0');
+  expect(resolveContributorUser({ username: '希望潇洒的风：Ceeling', user: 'charyflys' })).toBe(
     'charyflys'
   );
-  assertEqual(resolveContributorUser({ username: 'UnknownName' }), 'UnknownName');
+  expect(resolveContributorUser({ username: 'UnknownName' })).toBe('UnknownName');
 
-  assertEqual(buildContributorHref({ username: '[骰]Gaza(3658887052)', onlyName: true }), '');
-  assertEqual(
-    buildContributorHref({ username: '[骰]诺扣提', href: 'https://dice.weizaima.com/public-dice' }),
-    'https://dice.weizaima.com/public-dice'
-  );
-  assertEqual(buildContributorHref({ username: 'JohNSoN' }), 'https://github.com/Xiangze-Li');
+  expect(buildContributorHref({ username: '[骰]Gaza(3658887052)', onlyName: true })).toBe('');
+  expect(
+    buildContributorHref({ username: '[骰]诺扣提', href: 'https://dice.weizaima.com/public-dice' })
+  ).toBe('https://dice.weizaima.com/public-dice');
+  expect(buildContributorHref({ username: 'JohNSoN' })).toBe('https://github.com/Xiangze-Li');
 
   assertIncludes(buildAvatarUrl({ username: '暮星' }), '/sd-api/utils/ga/MX-fox');
-  assertEqual(
-    buildAvatarUrl({ username: '雪桃', src: 'https://example.com/a.png' }),
+  expect(buildAvatarUrl({ username: '雪桃', src: 'https://example.com/a.png' })).toBe(
     'https://example.com/a.png'
   );
 
@@ -65,52 +58,40 @@ it('passes', async () => {
     },
   });
 
-  assertEqual(summary.appName, 'SealDice-CE');
-  assertEqual(summary.versionText, '1.5.0-dev+20260521');
-  assertEqual(summary.latestVersionText, '1.5.1');
-  assertEqual(summary.channelText, '开发版');
-  assertEqual(summary.runtimeText, 'linux - amd64');
-  assertEqual(summary.modeText, '容器模式');
-  assertEqual(summary.uptimeText, '1 小时 1 分钟');
-  assertEqual(summary.hasNewVersion, true);
-  assertEqual(summary.containerMode, true);
+  expect(summary.appName).toBe('SealDice-CE');
+  expect(summary.versionText).toBe('1.5.0-dev+20260521');
+  expect(summary.latestVersionText).toBe('1.5.1');
+  expect(summary.channelText).toBe('开发版');
+  expect(summary.runtimeText).toBe('linux - amd64');
+  expect(summary.modeText).toBe('容器模式');
+  expect(summary.uptimeText).toBe('1 小时 1 分钟');
+  expect(summary.hasNewVersion).toBe(true);
+  expect(summary.containerMode).toBe(true);
 
   const fallbackSummary = getAboutOverviewSummary(undefined);
-  assertEqual(fallbackSummary.appName, 'SealDice');
-  assertEqual(fallbackSummary.versionText, '读取中');
-  assertEqual(fallbackSummary.latestVersionText, '读取中');
-  assertEqual(fallbackSummary.channelText, '未知');
-  assertEqual(fallbackSummary.modeText, '读取中');
-  assertEqual(fallbackSummary.uptimeText, '读取中');
+  expect(fallbackSummary.appName).toBe('SealDice');
+  expect(fallbackSummary.versionText).toBe('读取中');
+  expect(fallbackSummary.latestVersionText).toBe('读取中');
+  expect(fallbackSummary.channelText).toBe('未知');
+  expect(fallbackSummary.modeText).toBe('读取中');
+  expect(fallbackSummary.uptimeText).toBe('读取中');
 
-  assertEqual(ABOUT_CREDIT_SECTIONS[0]?.title, '社区协力');
+  expect(ABOUT_CREDIT_SECTIONS[0]?.title).toBe('社区协力');
   const v16Section = ABOUT_CREDIT_SECTIONS.find(section => section.title === 'V1.6 版本');
-  assertEqual(v16Section?.contributors?.length, 15);
-  assertEqual(
-    v16Section?.contributors?.some(contributor => contributor.user === 'Wesley-Young'),
+  expect(v16Section?.contributors?.length).toBe(15);
+  expect(v16Section?.contributors?.some(contributor => contributor.user === 'Wesley-Young')).toBe(
     true
   );
-  assertEqual(
-    v16Section?.contributors?.some(contributor => contributor.user === 'ShiaNyaa'),
-    true
-  );
+  expect(v16Section?.contributors?.some(contributor => contributor.user === 'ShiaNyaa')).toBe(true);
 
   const v15Section = ABOUT_CREDIT_SECTIONS.find(section => section.title === 'V1.5 版本');
-  assertEqual(v15Section?.contributors?.length, 19);
-  assertEqual(
-    v15Section?.contributors?.some(contributor => contributor.user === 'GUERdugujian'),
+  expect(v15Section?.contributors?.length).toBe(19);
+  expect(v15Section?.contributors?.some(contributor => contributor.user === 'GUERdugujian')).toBe(
     true
   );
-  assertEqual(
-    v15Section?.contributors?.some(contributor => contributor.user === 'conglinyizhi'),
+  expect(v15Section?.contributors?.some(contributor => contributor.user === 'conglinyizhi')).toBe(
     true
   );
-  assertEqual(
-    ABOUT_CREDIT_SECTIONS.some(section => section.title === 'V1.5 版本'),
-    true
-  );
-  assertEqual(
-    ABOUT_CREDIT_SECTIONS.some(section => section.title === '参考'),
-    true
-  );
+  expect(ABOUT_CREDIT_SECTIONS.some(section => section.title === 'V1.5 版本')).toBe(true);
+  expect(ABOUT_CREDIT_SECTIONS.some(section => section.title === '参考')).toBe(true);
 });

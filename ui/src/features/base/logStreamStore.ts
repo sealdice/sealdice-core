@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 import { useRealtimeClientStore } from '@/features/realtime/store';
@@ -20,6 +20,8 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
 
   const logs = ref<BaseLogEntry[]>([]);
   let initialized = false;
+  const disposers: Array<() => void> = [];
+  onScopeDispose(() => disposers.forEach(dispose => dispose()));
 
   function applySnapshot(items?: BaseLogItem[] | null): void {
     logs.value = applyLogSnapshot(logs.value, items ?? null);
@@ -52,22 +54,20 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
     if (initialized) return;
     initialized = true;
 
-    realtimeStore.subscribeRealtimeEvent<LogSnapshotPayload>('logs/snapshot', payload => {
-      applySnapshot(payload?.items ?? null);
-    });
-
-    realtimeStore.subscribeRealtimeEvent<LogAppendPayload>('logs/append', payload => {
-      applyAppend(payload?.item ?? null, 500);
-    });
-
-    watch(
-      () => authStore.hasAccessToken,
-      canAccess => {
-        if (!canAccess) {
-          clearLogs();
-        }
-      },
-      { immediate: true }
+    disposers.push(
+      realtimeStore.subscribeRealtimeEvent<LogSnapshotPayload>('logs/snapshot', payload => {
+        applySnapshot(payload?.items ?? null);
+      }),
+      realtimeStore.subscribeRealtimeEvent<LogAppendPayload>('logs/append', payload => {
+        applyAppend(payload?.item ?? null, 500);
+      }),
+      watch(
+        () => authStore.hasAccessToken,
+        canAccess => {
+          if (!canAccess) clearLogs();
+        },
+        { immediate: true }
+      )
     );
 
     // 全局 SSE 可能早于首页日志模块启动；重连以重新获取 logs/snapshot 快照。

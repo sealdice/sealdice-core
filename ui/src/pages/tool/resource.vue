@@ -78,7 +78,7 @@ import ResourceListPanel from '@/components/resource/ResourceListPanel.vue';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { copyText } from '@/features/clipboard';
 import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
 import TipBox from '@/components/shared/TipBox.vue';
@@ -89,6 +89,10 @@ import {
   createDefaultResourceListQuery,
   isResourceDetailAvailable,
 } from '@/features/resource/viewModel';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 const dialog = useDialog();
@@ -157,7 +161,7 @@ const deleteMutation = useMutation({
     await invalidateResourceList();
   },
   onError: error => {
-    message.error(getErrorMessage(error, '删除资源失败'));
+    notifyError(error, message, '删除资源失败');
   },
   onSettled: () => {
     deletingPath.value = '';
@@ -204,7 +208,7 @@ async function downloadResource(item: ResourceItem) {
       item.name
     );
   } catch (error) {
-    message.error(getErrorMessage(error, '下载资源失败'));
+    notifyError(error, message, '下载资源失败');
   } finally {
     downloadingPath.value = '';
   }
@@ -214,8 +218,8 @@ async function copySealCode(item: ResourceItem) {
   try {
     await copyText(buildSealImageCode(item.path));
     message.success('已复制海豹码');
-  } catch {
-    message.error('复制失败，请检查浏览器剪贴板权限');
+  } catch (error) {
+    notifyError(error, message, '复制失败，请检查浏览器剪贴板权限');
   }
 }
 

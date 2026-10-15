@@ -8,6 +8,7 @@ import {
 } from '@/api';
 import { passwordHash } from '@/features/auth/crypto';
 import type { BaseSettingValueModel } from './viewModel';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const uiPasswordMasked = '------';
 const mailPasswordMasked = '******';
@@ -37,8 +38,8 @@ export function useBaseSettingMutations(options: {
       options.onSaved();
       await options.queryClient.invalidateQueries({ queryKey: ['base-setting-value'] });
     },
-    onError: () => {
-      options.message.error('保存设置失败');
+    onError: error => {
+      notifyError(error, options.message, '保存设置失败');
     },
   });
 
@@ -50,8 +51,8 @@ export function useBaseSettingMutations(options: {
     onSuccess: () => {
       options.message.success('已尝试发送测试邮件');
     },
-    onError: () => {
-      options.message.error('发送测试邮件失败');
+    onError: error => {
+      notifyError(error, options.message, '发送测试邮件失败');
     },
   });
 
@@ -66,8 +67,8 @@ export function useBaseSettingMutations(options: {
     onSuccess: () => {
       options.message.info('开始上传固件包，更新时程序可能离线');
     },
-    onError: () => {
-      options.message.error('上传固件包失败');
+    onError: error => {
+      notifyError(error, options.message, '上传固件包失败');
     },
   });
 

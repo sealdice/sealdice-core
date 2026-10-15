@@ -8,15 +8,8 @@ import {
   getSdApiV2BaseOverviewQueryKey,
   getSdApiV2BaseSecurityCheckQueryKey,
 } from '@/api';
-import {
-  clearAccessToken,
-  currentAccessToken,
-  finishAuthInitialization,
-  hasAccessToken,
-  isInitializing,
-  needsUnlock,
-  setAccessToken,
-} from './state';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from './store';
 import { passwordHash } from './crypto';
 
 const defaultSigninPassword = 'defaultSignin';
@@ -24,6 +17,14 @@ const defaultSigninPassword = 'defaultSignin';
 // 认证会话 composable。它只管理 V2 token，不再兼容旧版 localStorage.t。
 // 登录流程：获取盐 -> 前端 PBKDF2 哈希 -> 调 V2 login -> 写入 token -> 刷新基础查询。
 export function useAuthSession() {
+  const auth = useAuthStore();
+  const { hasAccessToken, isInitializing, needsUnlock } = storeToRefs(auth);
+  const {
+    clearAccessToken,
+    currentAccessToken,
+    setAccessToken,
+    finishInitialization: finishAuthInitialization,
+  } = auth;
   const queryClient = useQueryClient();
   const signinMutation = useMutation(postSdApiV2BaseLoginMutation());
 

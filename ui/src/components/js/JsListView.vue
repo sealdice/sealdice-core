@@ -284,6 +284,7 @@ import { useUploadStore } from '@/features/upload/store';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
 import { useAppTheme } from '@/features/theme';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const uploadStore = useUploadStore();
 const { enqueue: enqueueUploads } = uploadStore;
@@ -464,7 +465,7 @@ async function handleCheckUpdate(item: JsInfoExt) {
     diffData.value = await checkUpdate(item.filename);
     showDiff.value = true;
   } catch (error) {
-    message.error(error instanceof Error ? error.message : '检查更新失败');
+    notifyError(error, message, error instanceof Error ? error.message : '检查更新失败');
   } finally {
     diffLoading.value = false;
   }
@@ -478,8 +479,8 @@ async function handleApplyUpdate() {
     showDiff.value = false;
     emit('markNeedReload');
     await invalidateList();
-  } catch {
-    message.error('更新失败');
+  } catch (error) {
+    notifyError(error, message, '更新失败');
   }
 }
 
@@ -497,8 +498,8 @@ async function handleDelete(item: JsInfoExt) {
         message.success('插件已删除，请手动重载后生效');
         emit('markNeedReload');
         await invalidateList();
-      } catch {
-        message.error('删除失败');
+      } catch (error) {
+        notifyError(error, message, '删除失败');
       }
     },
   });
@@ -515,8 +516,8 @@ async function toggleEnable(item: JsInfoExt, enable: boolean) {
     }
     emit('markNeedReload');
     await invalidateList();
-  } catch {
-    message.error('操作失败');
+  } catch (error) {
+    notifyError(error, message, '操作失败');
   }
 }
 

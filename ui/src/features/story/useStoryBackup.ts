@@ -7,10 +7,13 @@ import {
   type StoryLogBackup,
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { storyBackupListQueryKey } from './queryKeys';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useStoryBackup() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const queryClient = useQueryClient();
   const selectedBackups = ref<StoryLogBackup[]>([]);
   const checkAllBackups = ref(false);

@@ -9,7 +9,7 @@ import {
   putSdApiV2CustomTextByCategory,
   type TextItemCompatibleInfo,
 } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { copyText } from '@/features/clipboard';
 import { getErrorMessage } from '@/features/auth/error';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
@@ -27,8 +27,12 @@ import {
   sortCustomTextCategory,
   type CustomTextFilterMode,
 } from './viewModel';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const message = useMessage();
   const dialog = useDialog();
   const queryClient = useQueryClient();
@@ -143,8 +147,8 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
     try {
       await copyText(configForImport.value);
       message.success('进行了复制！');
-    } catch {
-      message.error('复制失败');
+    } catch (error) {
+      notifyError(error, message, '复制失败');
     }
   }
 
@@ -161,8 +165,8 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
     let normalized: TextTemplateWithWeightDict;
     try {
       normalized = parseCustomTextImportContent(configForImport.value);
-    } catch {
-      message.error('导入内容格式不正确，请检查 JSON 结构后重试');
+    } catch (error) {
+      notifyError(error, message, '导入内容格式不正确，请检查 JSON 结构后重试');
       return;
     }
 

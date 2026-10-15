@@ -161,7 +161,7 @@ import {
 import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 import {
   getTestModeBlockMessage,
@@ -172,6 +172,10 @@ import JsListView from '@/components/js/JsListView.vue';
 import JsConfigView from '@/components/js/JsConfigView.vue';
 import JsDataView from '@/components/js/JsDataView.vue';
 import { useAppTheme } from '@/features/theme';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
 
@@ -292,7 +296,7 @@ async function doExecute() {
       return;
     }
     appendLogLine('[Error] 执行失败');
-    message.error('执行失败');
+    notifyError(error, message, '执行失败');
   } finally {
     jsRunning.value = false;
   }
@@ -326,7 +330,7 @@ async function handleReload(): Promise<boolean> {
       message.warning(getTestModeBlockMessage(error));
       return false;
     }
-    message.error('重载失败');
+    notifyError(error, message, '重载失败');
     await statusQuery.refetch();
     return false;
   }
@@ -349,7 +353,7 @@ async function handleShutdown(): Promise<boolean> {
       message.warning(getTestModeBlockMessage(error));
       return false;
     }
-    message.error('关闭失败');
+    notifyError(error, message, '关闭失败');
     await statusQuery.refetch();
     return false;
   }

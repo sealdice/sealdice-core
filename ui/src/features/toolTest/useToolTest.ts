@@ -13,7 +13,7 @@ import {
   putSdApiV2ToolTestProfile,
 } from '@/api';
 import { getErrorMessage } from '@/features/auth/error';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { useRealtimeClient, subscribeRealtimeEvent } from '@/features/realtime/client';
 import {
   getTestModeBlockMessage,
@@ -36,6 +36,8 @@ import {
   type ToolTestRealtimeMessage,
   type ToolTestSplitOption,
 } from './model';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 const POLL_INTERVAL_MS = 1500;
 
@@ -90,6 +92,7 @@ function normalizeContext(
 }
 
 export function useToolTest() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const mode = shallowRef<ToolTestMode>('private');
   const input = shallowRef('');
   const commandList = ref<ToolTestCommand[]>([]);

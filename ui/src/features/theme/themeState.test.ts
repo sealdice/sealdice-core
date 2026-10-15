@@ -8,38 +8,34 @@ import {
   syncDocumentTheme,
   writeStoredThemeMode,
 } from './themeState';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('主题偏好解析、切换和持久化', async () => {
   const assertClass = (element: HTMLElement, className: string, expected: boolean) => {
-    assertEqual(element.classList.contains(className), expected);
+    expect(element.classList.contains(className)).toBe(expected);
   };
 
   const storage = createThemeStorage();
-  assertEqual(readStoredThemeMode(storage), 'system');
+  expect(readStoredThemeMode(storage)).toBe('system');
   writeStoredThemeMode(storage, 'dark');
-  assertEqual(readStoredThemeMode(storage), 'dark');
+  expect(readStoredThemeMode(storage)).toBe('dark');
   storage.setItem('sd-theme-mode', 'not-valid');
-  assertEqual(readStoredThemeMode(storage), 'system');
+  expect(readStoredThemeMode(storage)).toBe('system');
 
-  assertEqual(isThemeMode('system'), true);
-  assertEqual(isThemeMode('auto'), false);
+  expect(isThemeMode('system')).toBe(true);
+  expect(isThemeMode('auto')).toBe(false);
 
-  assertEqual(resolveThemeMode('light', true), 'light');
-  assertEqual(resolveThemeMode('dark', false), 'dark');
-  assertEqual(resolveThemeMode('system', true), 'dark');
-  assertEqual(resolveThemeMode('system', false), 'light');
-  assertEqual(nextThemeMode('light'), 'dark');
-  assertEqual(nextThemeMode('dark'), 'system');
-  assertEqual(nextThemeMode('system'), 'light');
-  assertEqual(shouldTransitionTheme('dark', 'system', true), false);
-  assertEqual(shouldTransitionTheme('dark', 'system', false), true);
-  assertEqual(shouldTransitionTheme('light', 'system', false), false);
-  assertEqual(shouldTransitionTheme('light', 'system', true), true);
+  expect(resolveThemeMode('light', true)).toBe('light');
+  expect(resolveThemeMode('dark', false)).toBe('dark');
+  expect(resolveThemeMode('system', true)).toBe('dark');
+  expect(resolveThemeMode('system', false)).toBe('light');
+  expect(nextThemeMode('light')).toBe('dark');
+  expect(nextThemeMode('dark')).toBe('system');
+  expect(nextThemeMode('system')).toBe('light');
+  expect(shouldTransitionTheme('dark', 'system', true)).toBe(false);
+  expect(shouldTransitionTheme('dark', 'system', false)).toBe(true);
+  expect(shouldTransitionTheme('light', 'system', false)).toBe(false);
+  expect(shouldTransitionTheme('light', 'system', true)).toBe(true);
 
   const classNames = new Set<string>();
   const root = {
@@ -62,11 +58,11 @@ it('passes', async () => {
   } as HTMLElement;
   syncDocumentTheme(root, 'dark');
   assertClass(root, 'dark', true);
-  assertEqual(root.dataset.theme, 'dark');
-  assertEqual(root.style.colorScheme, 'dark');
+  expect(root.dataset.theme).toBe('dark');
+  expect(root.style.colorScheme).toBe('dark');
 
   syncDocumentTheme(root, 'light');
   assertClass(root, 'dark', false);
-  assertEqual(root.dataset.theme, 'light');
-  assertEqual(root.style.colorScheme, 'light');
+  expect(root.dataset.theme).toBe('light');
+  expect(root.style.colorScheme).toBe('light');
 });

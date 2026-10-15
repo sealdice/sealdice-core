@@ -255,7 +255,7 @@ import ListPanel from '@/components/shared/ListPanel.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
-import { hasAccessToken } from '@/features/auth/state';
+
 import {
   readGroupQuitDefaultText,
   writeGroupQuitDefaultText,
@@ -263,6 +263,10 @@ import {
 import { formatGroupQuitTarget, type GroupQuitTarget } from '@/features/group/quitSummary';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 type GroupRow = GroupInfo & {
   selected?: boolean;
@@ -492,7 +496,7 @@ function isSavingGroup(groupId: string): boolean {
 
 function reportOperationError(fallback: string, error: unknown) {
   const detail = error instanceof Error && error.message ? `：${error.message}` : '';
-  message.error(`${fallback}${detail}`);
+  notifyError(error, message, `${fallback}${detail}`);
 }
 
 async function saveGroup(group: GroupRow) {

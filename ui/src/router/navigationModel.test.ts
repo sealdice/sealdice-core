@@ -12,17 +12,7 @@ import {
 import type { AppLayoutName, NavigationItem } from './types.ts';
 import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('从导航模型派生路由与动态菜单', async () => {
   const sourceItems: NavigationItem[] = [
     {
       label: '运行概览',
@@ -83,10 +73,13 @@ it('passes', async () => {
   });
 
   const lockedLeaves = flattenNavigationItems(lockedTree);
-  assertDeepEqual(
-    lockedLeaves.map(item => item.path),
-    ['/', '/custom-text/默认', '/custom-text/骰子核心', '/misc/base-setting', '/mod/reply']
-  );
+  expect(lockedLeaves.map(item => item.path)).toEqual([
+    '/',
+    '/custom-text/默认',
+    '/custom-text/骰子核心',
+    '/misc/base-setting',
+    '/mod/reply',
+  ]);
 
   const unlockedLeaves = flattenNavigationItems(
     buildNavigationTree(sourceItems, {
@@ -94,48 +87,51 @@ it('passes', async () => {
       customTextCategories: ['默认'],
     })
   );
-  assertDeepEqual(
-    unlockedLeaves.map(item => item.path),
-    ['/', '/custom-text/默认', '/misc/base-setting', '/misc/advanced-setting', '/mod/reply']
-  );
-  assertDeepEqual(getNavigationExpandedKeys(lockedTree, '/misc/base-setting'), ['综合设置']);
-  assertDeepEqual(getNavigationExpandedKeys(lockedTree, '/custom-text/默认'), ['自定义文案']);
-  assertDeepEqual(getNavigationExpandedKeys(lockedTree, '/'), []);
+  expect(unlockedLeaves.map(item => item.path)).toEqual([
+    '/',
+    '/custom-text/默认',
+    '/misc/base-setting',
+    '/misc/advanced-setting',
+    '/mod/reply',
+  ]);
+  expect(getNavigationExpandedKeys(lockedTree, '/misc/base-setting')).toEqual(['综合设置']);
+  expect(getNavigationExpandedKeys(lockedTree, '/custom-text/默认')).toEqual(['自定义文案']);
+  expect(getNavigationExpandedKeys(lockedTree, '/')).toEqual([]);
 
   const baseSetting = lockedLeaves.find(item => item.path === '/misc/base-setting');
   if (!baseSetting) throw new Error('expected base setting search item');
-  assertEqual(matchesNavigationSearch(baseSetting, '基本'), true);
-  assertEqual(matchesNavigationSearch(baseSetting, 'jbsz'), true);
-  assertEqual(matchesNavigationSearch(baseSetting, 'jibenshezhi'), true);
-  assertEqual(matchesNavigationSearch(baseSetting, 'does-not-exist'), false);
+  expect(matchesNavigationSearch(baseSetting, '基本')).toBe(true);
+  expect(matchesNavigationSearch(baseSetting, 'jbsz')).toBe(true);
+  expect(matchesNavigationSearch(baseSetting, 'jibenshezhi')).toBe(true);
+  expect(matchesNavigationSearch(baseSetting, 'does-not-exist')).toBe(false);
 
   const history = addSearchHistory([], baseSetting);
-  assertDeepEqual(history, [baseSetting]);
-  assertDeepEqual(addSearchHistory(history, baseSetting), [baseSetting]);
-  assertDeepEqual(removeSearchHistoryItem(history, baseSetting.path), []);
+  expect(history).toEqual([baseSetting]);
+  expect(addSearchHistory(history, baseSetting)).toEqual([baseSetting]);
+  expect(removeSearchHistoryItem(history, baseSetting.path)).toEqual([]);
 
   const routeMeta = buildRouteMeta(sourceItems);
-  assertDeepEqual(routeMeta['/'], { title: '运行概览', layout: 'default' satisfies AppLayoutName });
-  assertDeepEqual(routeMeta['/custom-text/:category'], {
+  expect(routeMeta['/']).toEqual({ title: '运行概览', layout: 'default' satisfies AppLayoutName });
+  expect(routeMeta['/custom-text/:category']).toEqual({
     title: '自定义文案',
     layout: 'default' satisfies AppLayoutName,
   });
-  assertDeepEqual(routeMeta['/misc/base-setting'], {
+  expect(routeMeta['/misc/base-setting']).toEqual({
     title: '基本设置',
     layout: 'default' satisfies AppLayoutName,
   });
-  assertDeepEqual(routeMeta['/mod/reply'], {
+  expect(routeMeta['/mod/reply']).toEqual({
     title: '自定义回复',
     layout: 'workspace' satisfies AppLayoutName,
   });
-  assertEqual(routeMeta['/hidden'], undefined);
+  expect(routeMeta['/hidden']).toBe(undefined);
 
-  assertDeepEqual(buildBreadcrumbItems(sourceItems, '/'), [{ label: '运行概览' }]);
-  assertDeepEqual(buildBreadcrumbItems(sourceItems, '/misc/base-setting'), [
+  expect(buildBreadcrumbItems(sourceItems, '/')).toEqual([{ label: '运行概览' }]);
+  expect(buildBreadcrumbItems(sourceItems, '/misc/base-setting')).toEqual([
     { label: '综合设置' },
     { label: '基本设置' },
   ]);
-  assertDeepEqual(buildBreadcrumbItems(sourceItems, '/custom-text/默认'), [
+  expect(buildBreadcrumbItems(sourceItems, '/custom-text/默认')).toEqual([
     { label: '自定义文案' },
     { label: '默认' },
   ]);

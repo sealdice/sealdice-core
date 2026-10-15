@@ -5,13 +5,9 @@ import {
   isNetworkHealthTargetOK,
   type NetworkHealthData,
 } from './networkHealth.js';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('网络状态汇总与失败目标展示', async () => {
   const health = (ok: string[], total = 5): NetworkHealthData => ({
     total,
     ok,
@@ -23,10 +19,10 @@ it('passes', async () => {
     timestamp: 1700000000,
   });
 
-  assertEqual(createEmptyNetworkHealth().timestamp, 0);
-  assertEqual(isNetworkHealthTargetOK(health(['seal']), 'seal'), true);
-  assertEqual(isNetworkHealthTargetOK(health(['seal']), 'sign'), false);
-  assertEqual(formatNetworkHealthTimestamp(0), '');
-  assertEqual(formatNetworkHealthTimestamp(1700000000).includes('2023'), true);
-  assertEqual(formatNetworkHealthRelativeTime(0), '');
+  expect(createEmptyNetworkHealth().timestamp).toBe(0);
+  expect(isNetworkHealthTargetOK(health(['seal']), 'seal')).toBe(true);
+  expect(isNetworkHealthTargetOK(health(['seal']), 'sign')).toBe(false);
+  expect(formatNetworkHealthTimestamp(0)).toBe('');
+  expect(formatNetworkHealthTimestamp(1700000000).includes('2023')).toBe(true);
+  expect(formatNetworkHealthRelativeTime(0)).toBe('');
 });

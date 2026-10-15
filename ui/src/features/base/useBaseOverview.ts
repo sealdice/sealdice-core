@@ -1,12 +1,15 @@
 import { computed } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
 import { getSdApiV2BaseOverviewOptions } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { formatAppChannel, getAppChannelHint, getAppChannelTagType } from './appChannel';
 import { formatRuntimeSummary } from './runtimeSummary';
 import { formatDisplayVersion } from './versionDisplay';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useBaseOverview() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const overviewQuery = useQuery({
     ...getSdApiV2BaseOverviewOptions(),
     enabled: hasAccessToken,

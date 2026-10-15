@@ -7,10 +7,13 @@ import {
   getSdApiV2CensorStatus,
   getSdApiV2CensorWords,
 } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import type { CensorLogQueryModel } from './viewModel';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useCensorStatusQuery() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: ['censor-status'],
     enabled: hasAccessToken,
@@ -22,6 +25,7 @@ export function useCensorStatusQuery() {
 }
 
 export function useCensorConfigQuery(enabled: MaybeRefOrGetter<boolean>) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: ['censor-config'],
     enabled: computed(() => hasAccessToken.value && toValue(enabled)),
@@ -33,6 +37,7 @@ export function useCensorConfigQuery(enabled: MaybeRefOrGetter<boolean>) {
 }
 
 export function useCensorFilesQuery(enabled: MaybeRefOrGetter<boolean>) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: ['censor-files'],
     enabled: computed(() => hasAccessToken.value && toValue(enabled)),
@@ -44,6 +49,7 @@ export function useCensorFilesQuery(enabled: MaybeRefOrGetter<boolean>) {
 }
 
 export function useCensorWordsQuery(enabled: MaybeRefOrGetter<boolean>) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: ['censor-words'],
     enabled: computed(() => hasAccessToken.value && toValue(enabled)),
@@ -58,6 +64,7 @@ export function useCensorLogsQuery(
   query: MaybeRefOrGetter<CensorLogQueryModel>,
   enabled: MaybeRefOrGetter<boolean>
 ) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const queryState = computed(() => ({ ...toValue(query) }));
   return useQuery({
     queryKey: computed(() => ['censor-logs', queryState.value]),

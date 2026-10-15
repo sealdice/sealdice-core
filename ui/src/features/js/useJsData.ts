@@ -9,19 +9,22 @@ import {
   postSdApiV2JsByNameDataShrink,
   type JsInfo,
 } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import {
   jsDataInfoQueryKey,
   jsDataListQueryKey,
   jsListForDataQueryKey,
   type JsDataPage,
 } from './queryKeys';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useJsData(options: {
   selectedPlugin: Ref<string>;
   dataPage: Ref<JsDataPage>;
   dataKeyword: Ref<string>;
 }) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const queryClient = useQueryClient();
 
   const pluginListQuery = useQuery({

@@ -1,167 +1,46 @@
+import { expect, it } from 'vitest';
 import {
   ApiError,
-  createApiErrorFeedback,
-  createNetworkErrorFeedback,
+  isApiErrorHandled,
+  markApiErrorHandled,
+  needsGlobalApiFeedback,
   isRequestCanceledError,
   shouldClearSessionForRequest,
-} from './client';
-import { it } from 'vitest';
+} from './errors';
 
-it('passes', async () => {
-  function assertEqual(actual: unknown, expected: unknown): void {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  }
+it.each([
+  [401, '', true],
+  [401, '/sd-api/v2/base/login', false],
+  [400, '', false],
+  [403, '', false],
+  [422, '', false],
+  [404, '', true],
+  [500, '', true],
+  [0, '', true],
+])('按状态 %i 和路径 %s 分配错误展示责任', (status, pathname, global) => {
+  const error = new ApiError({ status, statusText: '错误', data: { detail: '具体原因' } });
+  expect(needsGlobalApiFeedback(error, pathname)).toBe(global);
+  expect(error.message).toBe('具体原因');
+});
 
-  function assertNotEqual(actual: unknown, expected: unknown): void {
-    if (actual === expected) {
-      throw new Error(`expected ${String(actual)} to differ from ${String(expected)}`);
-    }
-  }
+it('测试模式错误交给业务层，不按普通 500 弹窗', () => {
+  expect(
+    needsGlobalApiFeedback(new ApiError({ status: 500, statusText: '', data: { testMode: true } }))
+  ).toBe(false);
+});
 
-  type TestVNode = {
-    type?: unknown;
-    props?: Record<string, unknown> | null;
-    children?: unknown;
-  };
+it('仅已反馈的错误和取消操作跳过局部提示', () => {
+  const error = new Error('失败');
+  expect(isApiErrorHandled(error)).toBe(false);
+  markApiErrorHandled(error);
+  expect(isApiErrorHandled(error)).toBe(true);
+  expect(isApiErrorHandled(new Error('失败'))).toBe(false);
+  expect(isRequestCanceledError({ code: 'ERR_CANCELED' })).toBe(true);
+  expect(isRequestCanceledError(new DOMException('取消', 'AbortError'))).toBe(true);
+});
 
-  function findStyledCodeNode(node: unknown, code: string): TestVNode | undefined {
-    if (!node || typeof node !== 'object') return undefined;
-
-    const vnode = node as TestVNode;
-    if (vnode.type === 'span' && vnode.children === ` ${code} `) {
-      const style = vnode.props?.style;
-      if (
-        style &&
-        typeof style === 'object' &&
-        (style as Record<string, unknown>).color === 'red'
-      ) {
-        return vnode;
-      }
-    }
-
-    if (Array.isArray(vnode.children)) {
-      for (const child of vnode.children) {
-        const matched = findStyledCodeNode(child, code);
-        if (matched) return matched;
-      }
-    }
-
-    return undefined;
-  }
-
-  function makeApiError(status: number, data: unknown = { detail: 'boom' }): ApiError {
-    return new ApiError({
-      status,
-      statusText: `status ${status}`,
-      data,
-    });
-  }
-
-  function assertHasParagraphs(node: unknown, expectedCount: number): void {
-    if (!node || typeof node !== 'object') {
-      throw new Error('expected vnode object');
-    }
-
-    const vnode = node as TestVNode;
-    const children = Array.isArray(vnode.children) ? vnode.children : [];
-    const paragraphCount = children.filter(child => {
-      return !!child && typeof child === 'object' && (child as TestVNode).type === 'p';
-    }).length;
-
-    assertEqual(paragraphCount, expectedCount);
-  }
-
-  const unauthorized = createApiErrorFeedback(makeApiError(401, { detail: 'unauthorized' }));
-  assertEqual(unauthorized.kind, 'dialog');
-  if (unauthorized.kind === 'dialog') {
-    assertEqual(unauthorized.title, '身份信息');
-    assertEqual(unauthorized.clearSession, true);
-    assertEqual(typeof unauthorized.content, 'function');
-    assertHasParagraphs(unauthorized.content(), 2);
-    assertNotEqual(
-      String(unauthorized.content()),
-      '无效的令牌。错误码：401 错误信息：ApiError: unauthorized'
-    );
-    if (!findStyledCodeNode(unauthorized.content(), '401')) {
-      throw new Error('expected 401 to be rendered as a red span vnode');
-    }
-  }
-
-  const notFound = createApiErrorFeedback(makeApiError(404));
-  assertEqual(notFound.kind, 'dialog');
-  if (notFound.kind === 'dialog') {
-    assertEqual(notFound.title, '接口报错');
-    assertEqual(notFound.clearSession, undefined);
-    assertEqual(typeof notFound.content, 'function');
-    assertHasParagraphs(notFound.content(), 2);
-  }
-
-  const serverError = createApiErrorFeedback(makeApiError(500));
-  assertEqual(serverError.kind, 'dialog');
-  if (serverError.kind === 'dialog') {
-    assertEqual(serverError.title, '接口报错');
-    assertEqual(serverError.clearSession, true);
-    assertEqual(typeof serverError.content, 'function');
-    assertHasParagraphs(serverError.content(), 2);
-    if (!findStyledCodeNode(serverError.content(), '500')) {
-      throw new Error('expected 500 to be rendered as a red span vnode');
-    }
-  }
-
-  const forbidden = createApiErrorFeedback(makeApiError(403, { detail: '展示模式不支持该操作' }));
-  assertEqual(forbidden.kind, 'business');
-  if (forbidden.kind === 'business') {
-    assertEqual(forbidden.content, '展示模式不支持该操作');
-  }
-
-  const loginUnauthorized = createApiErrorFeedback(makeApiError(401, { detail: '密码错误' }), {
-    pathname: '/sd-api/v2/base/login',
-  });
-  assertEqual(loginUnauthorized.kind, 'business');
-  if (loginUnauthorized.kind === 'business') {
-    assertEqual(loginUnauthorized.content, '密码错误');
-  }
-
-  const badRequest = createApiErrorFeedback(makeApiError(400, { detail: '参数错误' }));
-  assertEqual(badRequest.kind, 'business');
-  if (badRequest.kind === 'business') {
-    assertEqual(badRequest.content, '参数错误');
-  }
-
-  const validationError = createApiErrorFeedback(makeApiError(422, { detail: '字段格式不正确' }));
-  assertEqual(validationError.kind, 'business');
-  if (validationError.kind === 'business') {
-    assertEqual(validationError.content, '字段格式不正确');
-  }
-
-  const networkError = createNetworkErrorFeedback(new Error('Failed to fetch'));
-  assertEqual(networkError.kind, 'dialog');
-  if (networkError.kind === 'dialog') {
-    assertEqual(networkError.title, '请求报错');
-    assertEqual(typeof networkError.content, 'function');
-    assertHasParagraphs(networkError.content(), 1);
-  }
-
-  assertEqual(
-    isRequestCanceledError({
-      code: 'ERR_CANCELED',
-      message: 'canceled',
-      name: 'CanceledError',
-    }),
-    true
-  );
-  assertEqual(
-    isRequestCanceledError({
-      message: 'canceled',
-      name: 'CanceledError',
-    }),
-    true
-  );
-  assertEqual(isRequestCanceledError(new Error('Failed to fetch')), false);
-
-  assertEqual(shouldClearSessionForRequest('token-1', 'token-1'), true);
-  assertEqual(shouldClearSessionForRequest('token-old', 'token-new'), false);
-  assertEqual(shouldClearSessionForRequest(undefined, 'token-new'), false);
+it('旧请求的令牌不能清除新会话', () => {
+  expect(shouldClearSessionForRequest('old', 'new')).toBe(false);
+  expect(shouldClearSessionForRequest(undefined, '')).toBe(false);
+  expect(shouldClearSessionForRequest('current', 'current')).toBe(true);
 });

@@ -137,6 +137,7 @@ import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import { useJsData } from '@/features/js/useJsData';
 import TipBox from '@/components/shared/TipBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -263,8 +264,8 @@ async function saveKey() {
     await setMutation.mutateAsync({ key: editKey.value, value: editValue.value });
     message.success('已保存');
     showEditModal.value = false;
-  } catch {
-    message.error('保存失败');
+  } catch (error) {
+    notifyError(error, message, '保存失败');
   }
 }
 
@@ -272,8 +273,8 @@ async function deleteKeys(keys: string[]) {
   try {
     await deleteMutation.mutateAsync(keys);
     message.success('已删除');
-  } catch {
-    message.error('删除失败');
+  } catch (error) {
+    notifyError(error, message, '删除失败');
   }
 }
 
@@ -281,8 +282,8 @@ async function shrinkData() {
   try {
     await shrinkMutation.mutateAsync();
     message.success('数据库已压缩');
-  } catch {
-    message.error('压缩失败');
+  } catch (error) {
+    notifyError(error, message, '压缩失败');
   }
 }
 

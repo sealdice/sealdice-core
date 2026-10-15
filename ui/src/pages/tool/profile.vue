@@ -72,7 +72,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { getApiBaseUrl } from '@/api';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import { currentAccessToken } from '@/features/auth/state';
+import { useAuthStore } from '@/features/auth/store';
 import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
 import {
   buildPprofBinaryPath,
@@ -80,7 +80,9 @@ import {
   createPprofEntries,
   type PprofEntry,
 } from '@/features/pprof/model';
+import { notifyError } from '@/features/feedback/notifyError';
 
+const { currentAccessToken } = useAuthStore();
 const message = useMessage();
 const { width: drawerWidth } = useResponsiveOverlayWidth({ maxWidth: 880, gutter: 16 });
 
@@ -176,7 +178,7 @@ async function handleDownload(entry: PprofEntry) {
     triggerBlobDownload(blob, entry.filename);
   } catch (error) {
     clearPending(entry.key);
-    message.error(error instanceof Error ? error.message : String(error));
+    notifyError(error, message, error instanceof Error ? error.message : String(error));
   }
 }
 

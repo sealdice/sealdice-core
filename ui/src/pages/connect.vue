@@ -149,7 +149,7 @@ import {
   type DynamicFormModel,
 } from '@/components/shared/dynamicFormModel';
 import { getErrorMessage } from '@/features/auth/error';
-import { hasAccessToken } from '@/features/auth/state';
+
 import ConnectAccountGrid from '@/components/connect/ConnectAccountGrid.vue';
 import { updateEndpointOperationErrors } from '@/features/connect/endpointActionState';
 import { getEndpointTargetLabel } from '@/features/connect/endpointDisplay';
@@ -177,6 +177,10 @@ import { useRealtimeConnections } from '@/features/connect/realtime';
 import type { OfficialQQMode } from '@/features/connect/officialQQ';
 import { useTestMode } from '@/features/testMode/state';
 import TipBox from '@/components/shared/TipBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 const dialog = useDialog();
@@ -342,7 +346,7 @@ watch([editConfigQuery.data, editDialogVisible], ([data, visible]) => {
 
 watch(editConfigQuery.error, error => {
   if (!error || !editDialogVisible.value) return;
-  message.error('账号配置读取失败');
+  notifyError(error, message, '账号配置读取失败');
 });
 
 const retryEditConfig = () => {

@@ -8,8 +8,10 @@ import {
   postSdApiV2JsEnable,
   postSdApiV2JsUpdate,
 } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { jsListQueryKey, type JsListParams } from './queryKeys';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export type JsUpdateDiff = {
   old: string;
@@ -19,6 +21,7 @@ export type JsUpdateDiff = {
 };
 
 export function useJsList(options: { listParams: ComputedRef<JsListParams> }) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const queryClient = useQueryClient();
 
   const listQueryResult = useQuery({

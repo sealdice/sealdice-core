@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useEventListener, useWindowSize } from '@vueuse/core';
 import { useDialog, useMessage } from 'naive-ui';
 import { useRoute } from 'vue-router';
@@ -92,11 +92,7 @@ import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppUiBetaNotice from './AppUiBetaNotice.vue';
 import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
-import {
-  hasPendingActions,
-  hasUnsavedChanges,
-  setUnsavedChangesConfirmHandler,
-} from '@/features/unsavedChanges';
+import { useUnsavedChangesStore } from '@/features/unsavedChanges/store';
 import { isControlledReloadArmed } from '@/features/pwa/swUpdate';
 import { storeToRefs } from 'pinia';
 import { useUploadStore } from '@/features/upload/store';
@@ -117,6 +113,8 @@ const props = withDefaults(
   }
 );
 
+const unsaved = useUnsavedChangesStore();
+const { hasPendingActions, hasUnsavedChanges } = storeToRefs(unsaved);
 const { hasActive: hasActiveUploads } = storeToRefs(useUploadStore());
 
 const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
@@ -199,7 +197,7 @@ useEventListener(window, 'beforeunload', event => {
   event.returnValue = '';
 });
 
-setUnsavedChangesConfirmHandler(
+const releaseConfirmHandler = unsaved.setConfirmHandler(
   source =>
     new Promise(resolve => {
       dialog.warning({
@@ -215,6 +213,7 @@ setUnsavedChangesConfirmHandler(
       });
     })
 );
+onBeforeUnmount(releaseConfirmHandler);
 </script>
 
 <style scoped>

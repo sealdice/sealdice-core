@@ -149,8 +149,11 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
     emitChanged();
   }
 
-  function setConfirmHandler(handler: UnsavedConfirmHandler | null): void {
+  function setConfirmHandler(handler: UnsavedConfirmHandler | null): () => void {
     confirmHandler.value = handler;
+    return () => {
+      if (confirmHandler.value === handler) confirmHandler.value = null;
+    };
   }
 
   async function confirmDiscard(): Promise<boolean> {

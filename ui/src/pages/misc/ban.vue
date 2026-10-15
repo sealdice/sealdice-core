@@ -59,7 +59,7 @@ import BanConfigPanel from '@/components/ban/BanConfigPanel.vue';
 import BanListPanel from '@/components/ban/BanListPanel.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import {
   buildBanAddPayload,
@@ -70,6 +70,10 @@ import {
   isBanImportFileAccepted,
   normalizeBanConfig,
 } from '@/features/ban/viewModel';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 const dialog = useDialog();
@@ -239,7 +243,7 @@ async function importFile(file: File) {
   try {
     await importMutation.mutateAsync(file);
   } catch (error) {
-    message.error(getErrorMessage(error, '导入黑白名单失败'));
+    notifyError(error, message, '导入黑白名单失败');
   }
 }
 
@@ -253,7 +257,7 @@ async function exportFile() {
       '黑白名单.json'
     );
   } catch (error) {
-    message.error(getErrorMessage(error, '导出黑白名单失败'));
+    notifyError(error, message, '导出黑白名单失败');
   }
 }
 </script>

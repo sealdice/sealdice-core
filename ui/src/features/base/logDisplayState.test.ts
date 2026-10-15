@@ -1,14 +1,8 @@
 import type { BaseLogEntry } from './logStream';
 import { applyLogDisplayUpdate } from './logDisplayState';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('日志自动滚动与选择状态转换', async () => {
   const first: BaseLogEntry = {
     level: 'info',
     msg: 'first',
@@ -30,9 +24,9 @@ it('passes', async () => {
     id: 2,
   };
 
-  assertDeepEqual(applyLogDisplayUpdate([], [first, second], true), [first, second]);
-  assertDeepEqual(applyLogDisplayUpdate([first], [first, second], false), [first]);
-  assertDeepEqual(applyLogDisplayUpdate([first], [first, second, third], true), [
+  expect(applyLogDisplayUpdate([], [first, second], true)).toEqual([first, second]);
+  expect(applyLogDisplayUpdate([first], [first, second], false)).toEqual([first]);
+  expect(applyLogDisplayUpdate([first], [first, second, third], true)).toEqual([
     first,
     second,
     third,

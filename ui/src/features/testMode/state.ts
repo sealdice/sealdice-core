@@ -1,8 +1,8 @@
 import { computed, type ComputedRef, type Ref } from 'vue';
-import { ApiError } from '@/api';
+import { ApiError, TEST_MODE_ERROR_CODE } from '@/api/errors';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 
-export const TEST_MODE_ERROR_CODE = 'TEST_MODE_BLOCKED';
+export { TEST_MODE_ERROR_CODE };
 export const TEST_MODE_BANNER_TEXT = '展示模式，仅用于演示，修改不会生效';
 export const TEST_MODE_WATERMARK_TEXT = '仅用于展示，修改无效';
 export const TEST_MODE_DEFAULT_REASON = '展示模式不支持该操作';

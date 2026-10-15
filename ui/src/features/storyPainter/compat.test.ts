@@ -1,11 +1,7 @@
 import { detectStoryPainterAdvancedModeSupport } from './compat';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('日志阅读器兼容不同记录格式', async () => {
   const supported = detectStoryPainterAdvancedModeSupport({
     hasBlobArrayBuffer: true,
     hasFileReader: false,
@@ -13,7 +9,7 @@ it('passes', async () => {
     hasTextEncoder: true,
     hasTextDecoder: true,
   });
-  assertEqual(supported.supported, true);
+  expect(supported.supported).toBe(true);
 
   const missingBlobReader = detectStoryPainterAdvancedModeSupport({
     hasBlobArrayBuffer: false,
@@ -22,8 +18,8 @@ it('passes', async () => {
     hasTextEncoder: true,
     hasTextDecoder: true,
   });
-  assertEqual(missingBlobReader.supported, false);
-  assertEqual(missingBlobReader.reason?.includes('Blob'), true);
+  expect(missingBlobReader.supported).toBe(false);
+  expect(missingBlobReader.reason?.includes('Blob')).toBe(true);
 
   const missingResizeObserver = detectStoryPainterAdvancedModeSupport({
     hasBlobArrayBuffer: true,
@@ -32,6 +28,6 @@ it('passes', async () => {
     hasTextEncoder: true,
     hasTextDecoder: true,
   });
-  assertEqual(missingResizeObserver.supported, false);
-  assertEqual(missingResizeObserver.reason?.includes('ResizeObserver'), true);
+  expect(missingResizeObserver.supported).toBe(false);
+  expect(missingResizeObserver.reason?.includes('ResizeObserver')).toBe(true);
 });

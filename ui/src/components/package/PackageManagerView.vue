@@ -390,18 +390,14 @@
 import { computed, ref, watch } from 'vue';
 import { usePackageDetail } from '@/features/package/usePackageDetail';
 import { type DropdownDividerOption, type DropdownOption, useDialog, useMessage } from 'naive-ui';
-import { useQuery } from '@tanstack/vue-query';
+import { usePackageCatalog } from '@/features/package/usePackageCatalog';
 import { useRoute, useRouter } from 'vue-router';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   deleteSdApiV2ExtensionStoreBackends,
-  getSdApiV2ExtensionPackages,
-  getSdApiV2ExtensionStoreBackends,
-  getSdApiV2ExtensionStorePage,
   postSdApiV2ExtensionDisable,
   postSdApiV2ExtensionEnable,
   postSdApiV2ExtensionInstallUrl,
-  postSdApiV2ExtensionPackagesRefresh,
   postSdApiV2ExtensionPreviewUpload,
   postSdApiV2ExtensionPreviewUrl,
   postSdApiV2ExtensionReload,
@@ -420,6 +416,7 @@ import {
 } from '@/api';
 import { useAuthStore } from '@/features/auth/store';
 import { getErrorMessage } from '@/features/auth/error';
+import { isApiErrorHandled } from '@/api/errors';
 import { useUploadStore } from '@/features/upload/store';
 import {
   installPackage,
@@ -447,6 +444,7 @@ import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const uploads = useUploadStore();
 const message = useMessage();
@@ -491,9 +489,6 @@ function handleTabUpdate(value: string | number) {
   void router.replace({ query });
 }
 
-const packagesLoading = ref(false);
-const storeLoading = ref(false);
-const refreshing = ref(false);
 const reloading = ref(false);
 const detachedReloadPending = ref(false);
 const backendMutationPending = ref(false);
@@ -585,46 +580,23 @@ const previewSource = ref<'store' | 'upload' | 'url' | 'none'>('none');
 const previewStoreTarget = ref<StorePackage | null>(null);
 const previewUrlTarget = ref('');
 
-const packagesQuery = useQuery({
-  queryKey: ['extension-packages'],
-  queryFn: async () => {
-    const { data } = await getSdApiV2ExtensionPackages({ throwOnError: true });
-    return data.item.items ?? [];
-  },
-  enabled: computed(() => authStore.hasAccessToken),
-});
-
-const storeBackendsQuery = useQuery({
-  queryKey: ['extension-store-backends'],
-  queryFn: async () => {
-    const { data } = await getSdApiV2ExtensionStoreBackends({ throwOnError: true });
-    return data.item.items ?? [];
-  },
-  enabled: computed(() => authStore.hasAccessToken),
-});
-
-const storePageQuery = useQuery({
-  queryKey: computed(() => [
-    'extension-store-page',
-    storeKeyword.value,
-    storeCategory.value,
-    storePage.value,
-    storePageSize.value,
-  ]),
-  queryFn: async () => {
-    const { data } = await getSdApiV2ExtensionStorePage({
-      query: {
-        name: storeKeyword.value,
-        category: storeCategory.value || undefined,
-        pageNum: storePage.value,
-        pageSize: storePageSize.value,
-      },
-      throwOnError: true,
-    });
-    return data.item;
-  },
-  enabled: computed(() => authStore.hasAccessToken),
-});
+const {
+  packagesQuery,
+  storeBackendsQuery,
+  storePageQuery,
+  loadErrorText,
+  refreshing,
+  packagesLoading,
+  storeLoading,
+  refreshAll,
+  fetchStorePage,
+  refreshPackages: refreshPackageCatalog,
+} = usePackageCatalog(() => ({
+  name: storeKeyword.value,
+  category: storeCategory.value || undefined,
+  pageNum: storePage.value,
+  pageSize: storePageSize.value,
+}));
 
 const {
   visible: detailVisible,
@@ -714,16 +686,6 @@ const filteredInstalledPackages = computed(() =>
   })
 );
 
-const loadErrorText = computed(() => {
-  if (packagesQuery.isError.value)
-    return getErrorMessage(packagesQuery.error.value, '扩展包读取失败');
-  if (storeBackendsQuery.isError.value)
-    return getErrorMessage(storeBackendsQuery.error.value, '仓库后端读取失败');
-  if (storePageQuery.isError.value)
-    return getErrorMessage(storePageQuery.error.value, '商店列表读取失败');
-  return '';
-});
-
 type ReloadMenuOption = DropdownOption | DropdownDividerOption;
 
 const reloadMenuOptions = computed<ReloadMenuOption[]>(() => {
@@ -763,28 +725,11 @@ watch(installAutoEnable, enabled => {
   if (!enabled) installAutoReload.value = false;
 });
 
-async function refreshAll() {
-  refreshing.value = true;
-  try {
-    await Promise.all([
-      packagesQuery.refetch(),
-      storeBackendsQuery.refetch(),
-      storePageQuery.refetch(),
-    ]);
-  } finally {
-    refreshing.value = false;
-  }
-}
-
 async function refreshPackages() {
-  packagesLoading.value = true;
   try {
-    await postSdApiV2ExtensionPackagesRefresh({ throwOnError: true });
-    await packagesQuery.refetch();
+    await refreshPackageCatalog();
   } catch (error) {
     handleError(error, '刷新扩展包失败');
-  } finally {
-    packagesLoading.value = false;
   }
 }
 
@@ -805,15 +750,6 @@ async function handleStoreCategoryChange(category: string) {
 async function handleStorePageSizeChange() {
   storePage.value = 1;
   await fetchStorePage();
-}
-
-async function fetchStorePage() {
-  storeLoading.value = true;
-  try {
-    await storePageQuery.refetch();
-  } finally {
-    storeLoading.value = false;
-  }
 }
 
 async function changePackageState(pkg: Instance, enable: boolean) {
@@ -1080,7 +1016,7 @@ function reportInstallResult(action: string, options: InstallOptions, result: In
     if (result.error) {
       if (isTestModeApiError(result.error)) {
         handleError(result.error, fallback);
-      } else {
+      } else if (!isApiErrorHandled(result.error)) {
         message.error(`${action}成功，但${getErrorMessage(result.error, fallback)}，请稍后重试`);
       }
     } else {
@@ -1289,7 +1225,7 @@ function handleError(error: unknown, fallback: string) {
     message.warning(getTestModeBlockMessage(error));
     return;
   }
-  message.error(getErrorMessage(error, fallback));
+  notifyError(error, message, fallback);
 }
 </script>
 

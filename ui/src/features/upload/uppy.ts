@@ -1,7 +1,8 @@
 import Uppy from '@uppy/core';
 import Tus from '@uppy/tus';
 import { getApiBaseUrl } from '@/api/config';
-import { currentAccessToken } from '@/features/auth/state';
+import { appPinia } from '@/pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 // The Pinia upload store owns this instance; tests can create and dispose their own.
 export function createUppy(): Uppy {
@@ -22,7 +23,7 @@ export function createUppy(): Uppy {
     storeFingerprintForResuming: true,
     removeFingerprintOnSuccess: true,
     headers: (): Record<string, string> => {
-      const token = currentAccessToken();
+      const token = useAuthStore(appPinia).token;
       return token ? { Authorization: `Bearer ${token}` } : {};
     },
     onShouldRetry(error, _attempt, _options, next) {

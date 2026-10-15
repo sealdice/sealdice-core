@@ -1,20 +1,10 @@
 import { onBeforeUnmount } from 'vue';
-import {
-  clearUnsavedChangesSource,
-  registerUnsavedChangesSource,
-  type UnsavedChangesSourceOptions,
-} from './state';
+import { useUnsavedChangesStore, type UnsavedChangesSourceOptions } from './store';
 
 export function useUnsavedChanges(scope: string, options: UnsavedChangesSourceOptions) {
-  registerUnsavedChangesSource(scope, options);
-
-  onBeforeUnmount(() => {
-    clearUnsavedChangesSource(scope);
-  });
-
-  return {
-    clear() {
-      clearUnsavedChangesSource(scope);
-    },
-  };
+  const store = useUnsavedChangesStore();
+  store.registerSource(scope, options);
+  const clear = () => store.clearSource(scope);
+  onBeforeUnmount(clear);
+  return { clear };
 }

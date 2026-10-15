@@ -1,19 +1,7 @@
 import { cloneSearchFormValues, overwriteSearchFormValues } from './viewModel.js';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('搜索表单克隆不共享可变嵌套数据', async () => {
   const values = {
     keyword: 'story',
     platforms: ['QQ', 'Discord'],
@@ -24,7 +12,7 @@ it('passes', async () => {
   };
 
   const cloned = cloneSearchFormValues(values);
-  assertDeepEqual(cloned, values);
+  expect(cloned).toEqual(values);
   if (cloned === values) {
     throw new Error('cloneSearchFormValues should return a new object');
   }
@@ -46,8 +34,8 @@ it('passes', async () => {
     platforms: ['QQ'],
   });
 
-  assertEqual(overwritten, target);
-  assertDeepEqual(target, {
+  expect(overwritten).toBe(target);
+  expect(target).toEqual({
     keyword: 'new',
     platforms: ['QQ'],
   });
@@ -59,5 +47,5 @@ it('passes', async () => {
 
   overwriteSearchFormValues(target, nextSource);
   nextSource.platforms.push('Telegram');
-  assertDeepEqual(target.platforms, ['QQ']);
+  expect(target.platforms).toEqual(['QQ']);
 });

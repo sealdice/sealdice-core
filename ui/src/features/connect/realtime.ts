@@ -1,13 +1,11 @@
 import { storeToRefs } from 'pinia';
-import { appPinia } from '@/pinia';
 import { useRealtimeClient } from '@/features/realtime/client';
 import { useRealtimeConnectionsStore } from './realtimeStore';
 
-const realtimeConnectionsStore = useRealtimeConnectionsStore(appPinia);
-const realtimeConnectionRefs = storeToRefs(realtimeConnectionsStore);
-
-// 兼容层：旧代码继续用 useRealtimeConnections()，内部状态已经迁到 Pinia。
+// 在消费时组合业务状态与传输状态，模块加载不触发全局初始化。
 export function useRealtimeConnections() {
+  const realtimeConnectionsStore = useRealtimeConnectionsStore();
+  const realtimeConnectionRefs = storeToRefs(realtimeConnectionsStore);
   realtimeConnectionsStore.ensureInitialized();
   const realtime = useRealtimeClient();
 

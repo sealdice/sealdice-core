@@ -145,13 +145,17 @@ import {
 import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
-import { hasAccessToken } from '@/features/auth/state';
+
 import {
   normalizeAdvancedConfig,
   setAdvancedSettingsVisible,
 } from '@/features/config/advancedSettings';
 import { isErudaEnabled, setErudaEnabled } from '@/features/debug/eruda';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 const queryClient = useQueryClient();
@@ -311,9 +315,9 @@ async function handleErudaToggle(value: boolean) {
     await setErudaEnabled(value);
     erudaEnabled.value = value;
     message.success(value ? '已开启 Eruda 调试面板' : '已关闭 Eruda 调试面板');
-  } catch {
+  } catch (error) {
     erudaEnabled.value = isErudaEnabled();
-    message.error('Eruda 调试面板切换失败');
+    notifyError(error, message, 'Eruda 调试面板切换失败');
   } finally {
     erudaPending.value = false;
   }

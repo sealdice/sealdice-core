@@ -1,8 +1,10 @@
 import { nextTick } from 'vue';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAccessToken, finishAuthInitialization, setAccessToken } from '@/features/auth/state';
+import { useAuthStore } from '@/features/auth/store';
 import { appPinia } from '@/pinia';
 import { useRealtimeClientStore } from './store';
+const auth = useAuthStore(appPinia);
+const { clearAccessToken, setAccessToken, finishInitialization: finishAuthInitialization } = auth;
 
 class FakeEventSource {
   static instances: FakeEventSource[] = [];
@@ -22,7 +24,7 @@ class FakeEventSource {
     const callback =
       typeof listener === 'function'
         ? (listener as (event: MessageEvent<string>) => void)
-        : ((event: MessageEvent<string>) => listener.handleEvent(event));
+        : (event: MessageEvent<string>) => listener.handleEvent(event);
     const handlers = this.listeners.get(type) ?? new Set<(event: MessageEvent<string>) => void>();
     handlers.add(callback);
     this.listeners.set(type, handlers);
@@ -34,14 +36,14 @@ class FakeEventSource {
     const callback =
       typeof listener === 'function'
         ? (listener as (event: MessageEvent<string>) => void)
-        : ((event: MessageEvent<string>) => listener.handleEvent(event));
+        : (event: MessageEvent<string>) => listener.handleEvent(event);
     handlers.delete(callback);
     if (handlers.size === 0) {
       this.listeners.delete(type);
     }
   }
 
-  close(): void {}
+  close = vi.fn();
 
   emitOpen(): void {
     this.onopen?.call(this as unknown as EventSource, new Event('open'));
@@ -64,11 +66,12 @@ class FakeWebSocket {
     FakeWebSocket.urls.push(String(url));
   }
 
-  close(): void {}
+  close = vi.fn();
 }
 
 describe('realtime client store', () => {
   beforeEach(() => {
+    auth.isInitializing = true;
     FakeEventSource.instances = [];
     FakeWebSocket.urls = [];
     vi.stubGlobal('EventSource', FakeEventSource);
@@ -81,6 +84,20 @@ describe('realtime client store', () => {
     store.$dispose();
     clearAccessToken();
     vi.unstubAllGlobals();
+  });
+
+  it('释放 store 时关闭 SSE，之后的令牌变化不会重新连接', async () => {
+    auth.setAccessToken('token-realtime');
+    auth.finishInitialization();
+    const store = useRealtimeClientStore(appPinia);
+    store.ensureInitialized();
+    await nextTick();
+    const source = FakeEventSource.instances[0]!;
+    store.$dispose();
+    expect(source.close).toHaveBeenCalledOnce();
+    auth.setAccessToken('next-token');
+    await nextTick();
+    expect(FakeEventSource.instances).toHaveLength(1);
   });
 
   it('uses EventSource as the only realtime transport when a token is available', async () => {

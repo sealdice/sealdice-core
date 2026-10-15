@@ -5,15 +5,18 @@ import {
   getSdApiV2ConfigAdvancedQueryKey,
   getSdApiV2CustomTextOptions,
 } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import {
   normalizeAdvancedConfig,
   setAdvancedSettingsVisible,
 } from '@/features/config/advancedSettings';
 import { appNavigation } from './navigation';
 import { buildNavigationTree, flattenNavigationItems } from './navigationModel';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useAppNavigation(advancedConfigCounter: MaybeRefOrGetter<number>) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const customTextQuery = useQuery({
     ...getSdApiV2CustomTextOptions(),
     enabled: hasAccessToken,

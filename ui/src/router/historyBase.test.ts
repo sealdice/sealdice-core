@@ -1,12 +1,8 @@
 import { resolveHashHistoryBase } from './historyBase';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  assertEqual(resolveHashHistoryBase('./'), undefined);
-  assertEqual(resolveHashHistoryBase(''), undefined);
-  assertEqual(resolveHashHistoryBase('/fixed/'), '/fixed/');
+it('Hash 路由在相对部署路径下解析基址', async () => {
+  expect(resolveHashHistoryBase('./')).toBe(undefined);
+  expect(resolveHashHistoryBase('')).toBe(undefined);
+  expect(resolveHashHistoryBase('/fixed/')).toBe('/fixed/');
 });

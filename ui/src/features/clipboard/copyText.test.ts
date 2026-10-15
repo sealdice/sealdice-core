@@ -1,11 +1,7 @@
 import { copyText } from './copyText';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('剪贴板复制支持异常与降级路径', async () => {
   type FakeTextarea = {
     value: string;
     remove: () => void;
@@ -61,7 +57,7 @@ it('passes', async () => {
     } catch {
       rejected = true;
     }
-    assertEqual(rejected, true);
+    expect(rejected).toBe(true);
   }
 
   let nativeCopiedText = '';
@@ -69,13 +65,13 @@ it('passes', async () => {
     nativeCopiedText = text;
   });
   await copyText('native copy');
-  assertEqual(nativeCopiedText, 'native copy');
+  expect(nativeCopiedText).toBe('native copy');
 
   setClipboard(async () => {
     throw new Error('clipboard denied');
   });
   await copyText('fallback copy');
-  assertEqual(appendedTextareas.at(-1)?.value, 'fallback copy');
+  expect(appendedTextareas.at(-1)?.value).toBe('fallback copy');
 
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,

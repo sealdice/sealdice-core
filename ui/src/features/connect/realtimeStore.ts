@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue';
 import type { EndPointInfo, WorkflowResp } from '@/api';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
@@ -39,6 +39,8 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
   const ready = shallowRef(false);
 
   let initialized = false;
+  const disposers: Array<() => void> = [];
+  onScopeDispose(() => disposers.forEach(dispose => dispose()));
 
   function replaceSnapshot(nextConnections?: EndPointInfo[] | null): void {
     const nextState = applyConnectionSnapshot(
@@ -63,52 +65,50 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
     if (initialized) return;
     initialized = true;
 
-    realtimeStore.subscribeRealtimeEvent<ConnectionListPayload>('imconnection/list', payload => {
-      replaceSnapshot(payload?.items ?? null);
-    });
-
-    realtimeStore.subscribeRealtimeEvent<ConnectionUpdatedPayload>(
-      'imconnection/updated',
-      payload => {
-        connections.value = applyConnectionUpdate(connections.value, payload?.item ?? null);
-      }
-    );
-
-    realtimeStore.subscribeRealtimeEvent<ConnectionWorkflowPayload>(
-      'imconnection/workflow',
-      payload => {
-        if (!payload) return;
-        workflows.value = applyConnectionWorkflow(
-          workflows.value,
-          payload.endpointId,
-          payload.workflow ?? null
-        );
-      }
-    );
-
-    realtimeStore.subscribeRealtimeEvent<ConnectionQRCodePayload>(
-      'imconnection/qrcode',
-      payload => {
-        if (!payload) return;
-        qrCodes.value = applyConnectionQRCode(
-          qrCodes.value,
-          payload.endpointId,
-          payload.img ?? null
-        );
-      }
-    );
-
-    watch(
-      () => authStore.hasAccessToken,
-      canAccess => {
-        if (!canAccess) {
-          connections.value = [];
-          workflows.value = {};
-          qrCodes.value = {};
-          ready.value = false;
+    disposers.push(
+      realtimeStore.subscribeRealtimeEvent<ConnectionListPayload>('imconnection/list', payload => {
+        replaceSnapshot(payload?.items ?? null);
+      }),
+      realtimeStore.subscribeRealtimeEvent<ConnectionUpdatedPayload>(
+        'imconnection/updated',
+        payload => {
+          connections.value = applyConnectionUpdate(connections.value, payload?.item ?? null);
         }
-      },
-      { immediate: true }
+      ),
+      realtimeStore.subscribeRealtimeEvent<ConnectionWorkflowPayload>(
+        'imconnection/workflow',
+        payload => {
+          if (payload)
+            workflows.value = applyConnectionWorkflow(
+              workflows.value,
+              payload.endpointId,
+              payload.workflow ?? null
+            );
+        }
+      ),
+      realtimeStore.subscribeRealtimeEvent<ConnectionQRCodePayload>(
+        'imconnection/qrcode',
+        payload => {
+          if (payload)
+            qrCodes.value = applyConnectionQRCode(
+              qrCodes.value,
+              payload.endpointId,
+              payload.img ?? null
+            );
+        }
+      ),
+      watch(
+        () => authStore.hasAccessToken,
+        canAccess => {
+          if (!canAccess) {
+            connections.value = [];
+            workflows.value = {};
+            qrCodes.value = {};
+            ready.value = false;
+          }
+        },
+        { immediate: true }
+      )
     );
 
     // 全局 SSE 可能早于账号模块启动；重连以重新获取当前二维码和工作流快照。

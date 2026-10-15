@@ -1,18 +1,8 @@
 import { buildSignInfoState } from './signInfoState.ts';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
-  assertDeepEqual(
+it('签名服务选择保留合法选项', async () => {
+  expect(
     buildSignInfoState({
       enabled: false,
       isLoading: false,
@@ -20,19 +10,18 @@ it('passes', async () => {
       isError: false,
       hasData: false,
       signServerVersion: '',
-    }),
-    {
-      visible: false,
-      mode: 'hidden',
-      canSelectVersion: false,
-      canSelectServer: false,
-      showCustomServerInput: false,
-      showRetry: false,
-      message: '',
-    }
-  );
+    })
+  ).toEqual({
+    visible: false,
+    mode: 'hidden',
+    canSelectVersion: false,
+    canSelectServer: false,
+    showCustomServerInput: false,
+    showRetry: false,
+    message: '',
+  });
 
-  assertDeepEqual(
+  expect(
     buildSignInfoState({
       enabled: true,
       isLoading: true,
@@ -40,19 +29,18 @@ it('passes', async () => {
       isError: false,
       hasData: false,
       signServerVersion: '',
-    }),
-    {
-      visible: true,
-      mode: 'loading',
-      canSelectVersion: false,
-      canSelectServer: false,
-      showCustomServerInput: false,
-      showRetry: false,
-      message: '正在加载签名服务信息…',
-    }
-  );
+    })
+  ).toEqual({
+    visible: true,
+    mode: 'loading',
+    canSelectVersion: false,
+    canSelectServer: false,
+    showCustomServerInput: false,
+    showRetry: false,
+    message: '正在加载签名服务信息…',
+  });
 
-  assertDeepEqual(
+  expect(
     buildSignInfoState({
       enabled: true,
       isLoading: false,
@@ -60,17 +48,16 @@ it('passes', async () => {
       isError: true,
       hasData: false,
       signServerVersion: '',
-    }),
-    {
-      visible: true,
-      mode: 'manual-fallback',
-      canSelectVersion: true,
-      canSelectServer: false,
-      showCustomServerInput: true,
-      showRetry: true,
-      message: '签名服务信息读取失败，可重试或手动填写签名地址。',
-    }
-  );
+    })
+  ).toEqual({
+    visible: true,
+    mode: 'manual-fallback',
+    canSelectVersion: true,
+    canSelectServer: false,
+    showCustomServerInput: true,
+    showRetry: true,
+    message: '签名服务信息读取失败，可重试或手动填写签名地址。',
+  });
 
   const readyAuto = buildSignInfoState({
     enabled: true,
@@ -80,12 +67,12 @@ it('passes', async () => {
     hasData: true,
     signServerVersion: '30366',
   });
-  assertEqual(readyAuto.visible, true);
-  assertEqual(readyAuto.mode, 'ready');
-  assertEqual(readyAuto.canSelectVersion, true);
-  assertEqual(readyAuto.canSelectServer, true);
-  assertEqual(readyAuto.showCustomServerInput, false);
-  assertEqual(readyAuto.showRetry, false);
+  expect(readyAuto.visible).toBe(true);
+  expect(readyAuto.mode).toBe('ready');
+  expect(readyAuto.canSelectVersion).toBe(true);
+  expect(readyAuto.canSelectServer).toBe(true);
+  expect(readyAuto.showCustomServerInput).toBe(false);
+  expect(readyAuto.showRetry).toBe(false);
 
   const readyManual = buildSignInfoState({
     enabled: true,
@@ -95,9 +82,9 @@ it('passes', async () => {
     hasData: true,
     signServerVersion: '自定义',
   });
-  assertEqual(readyManual.visible, true);
-  assertEqual(readyManual.mode, 'ready');
-  assertEqual(readyManual.canSelectVersion, true);
-  assertEqual(readyManual.canSelectServer, false);
-  assertEqual(readyManual.showCustomServerInput, true);
+  expect(readyManual.visible).toBe(true);
+  expect(readyManual.mode).toBe('ready');
+  expect(readyManual.canSelectVersion).toBe(true);
+  expect(readyManual.canSelectServer).toBe(false);
+  expect(readyManual.showCustomServerInput).toBe(true);
 });

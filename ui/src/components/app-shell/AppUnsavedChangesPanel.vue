@@ -16,12 +16,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import PendingActionRow from '@/components/shared/PendingActionRow.vue';
-import {
-  activePendingActions,
-  isPendingActionAnchorVisible,
-  discardPendingAction,
-  runPendingAction,
-} from '@/features/unsavedChanges';
+import { storeToRefs } from 'pinia';
+import { isPendingActionAnchorVisible } from '@/features/unsavedChanges';
+import { useUnsavedChangesStore } from '@/features/unsavedChanges/store';
+const store = useUnsavedChangesStore();
+const { activePendingActions } = storeToRefs(store);
+const { discardPendingAction, runPendingAction } = store;
 
 const actions = computed(() => activePendingActions.value);
 

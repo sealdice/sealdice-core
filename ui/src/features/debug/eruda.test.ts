@@ -5,13 +5,9 @@ import {
   readStoredErudaEnabled,
   writeStoredErudaEnabled,
 } from './eruda';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('调试面板按持久化偏好启停', async () => {
   const createStorage = () => {
     const values = new Map<string, string>();
     return {
@@ -25,13 +21,13 @@ it('passes', async () => {
   };
 
   const storage = createStorage();
-  assertEqual(readStoredErudaEnabled(storage), false);
+  expect(readStoredErudaEnabled(storage)).toBe(false);
   writeStoredErudaEnabled(true, storage);
-  assertEqual(readStoredErudaEnabled(storage), true);
-  assertEqual(isErudaEnabled(storage), true);
+  expect(readStoredErudaEnabled(storage)).toBe(true);
+  expect(isErudaEnabled(storage)).toBe(true);
   writeStoredErudaEnabled(false, storage);
-  assertEqual(storage.getItem(ERUDA_STORAGE_KEY), '0');
-  assertEqual(readStoredErudaEnabled(storage), false);
+  expect(storage.getItem(ERUDA_STORAGE_KEY)).toBe('0');
+  expect(readStoredErudaEnabled(storage)).toBe(false);
 
   let initCount = 0;
   let destroyCount = 0;
@@ -44,18 +40,18 @@ it('passes', async () => {
     },
   }));
 
-  assertEqual(controller.isEnabled(), false);
+  expect(controller.isEnabled()).toBe(false);
   await controller.enable();
-  assertEqual(controller.isEnabled(), true);
-  assertEqual(initCount, 1);
+  expect(controller.isEnabled()).toBe(true);
+  expect(initCount).toBe(1);
 
   await controller.enable();
-  assertEqual(initCount, 1);
+  expect(initCount).toBe(1);
 
   controller.disable();
-  assertEqual(controller.isEnabled(), false);
-  assertEqual(destroyCount, 1);
+  expect(controller.isEnabled()).toBe(false);
+  expect(destroyCount).toBe(1);
 
   controller.disable();
-  assertEqual(destroyCount, 1);
+  expect(destroyCount).toBe(1);
 });

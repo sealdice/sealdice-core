@@ -4,19 +4,11 @@ import {
   setAdvancedSettingsVisible,
 } from './advancedSettings';
 import { useAdvancedSettingsStore } from './advancedSettingsStore';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 import { appPinia } from '@/pinia';
 
-it('passes', async () => {
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    const actualText = JSON.stringify(actual);
-    const expectedText = JSON.stringify(expected);
-    if (actualText !== expectedText) {
-      throw new Error(`expected ${expectedText}, got ${actualText}`);
-    }
-  };
-
-  assertDeepEqual(normalizeAdvancedConfig(), {
+it('高级设置字段转换与保存数据构造', async () => {
+  expect(normalizeAdvancedConfig()).toEqual({
     show: false,
     enable: false,
     storyLogBackendUrl: '',
@@ -24,28 +16,27 @@ it('passes', async () => {
     storyLogBackendToken: '',
   });
 
-  assertDeepEqual(
+  expect(
     normalizeAdvancedConfig({
       show: 1 as never,
       enable: 'yes' as never,
       storyLogBackendUrl: ' https://example.com ',
       storyLogApiVersion: ' v2 ',
       storyLogBackendToken: ' token ',
-    }),
-    {
-      show: true,
-      enable: true,
-      storyLogBackendUrl: 'https://example.com',
-      storyLogApiVersion: 'v2',
-      storyLogBackendToken: 'token',
-    }
-  );
+    })
+  ).toEqual({
+    show: true,
+    enable: true,
+    storyLogBackendUrl: 'https://example.com',
+    storyLogApiVersion: 'v2',
+    storyLogBackendToken: 'token',
+  });
 
   const store = useAdvancedSettingsStore(appPinia);
   store.setAdvancedSettingsVisible(false);
-  assertDeepEqual(hasAdvancedSettingsAccess.value, false);
+  expect(hasAdvancedSettingsAccess.value).toEqual(false);
 
   setAdvancedSettingsVisible(true);
-  assertDeepEqual(store.advancedSettingsVisible, true);
-  assertDeepEqual(hasAdvancedSettingsAccess.value, true);
+  expect(store.advancedSettingsVisible).toEqual(true);
+  expect(hasAdvancedSettingsAccess.value).toEqual(true);
 });

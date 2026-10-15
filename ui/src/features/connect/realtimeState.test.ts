@@ -6,15 +6,9 @@ import {
   applyConnectionUpdate,
   applyConnectionWorkflow,
 } from './realtimeState';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('连接变更清理关联工作流和二维码', async () => {
   const connA: EndPointInfo = {
     adapter: {},
     cmdExecutedLastTime: 0,
@@ -45,41 +39,39 @@ it('passes', async () => {
     loginState: 2,
   };
 
-  assertDeepEqual(
+  expect(
     applyConnectionList(
       [connA],
       { a: workflow, stale: { state: 'failed', hasQRCode: false, loginState: 11 } },
       { a: 'data:image/png;base64,abc', stale: 'old' },
       [connB]
-    ),
-    {
-      connections: [connB],
-      workflows: {},
-      qrCodes: {},
-    }
-  );
+    )
+  ).toEqual({
+    connections: [connB],
+    workflows: {},
+    qrCodes: {},
+  });
 
-  assertDeepEqual(
+  expect(
     applyConnectionSnapshot(
       [connA],
       { a: workflow, stale: { state: 'failed', hasQRCode: false, loginState: 11 } },
       { a: 'data:image/png;base64,abc', stale: 'old' },
       [connB]
-    ),
-    {
-      connections: [connB],
-      workflows: {},
-      qrCodes: {},
-      ready: true,
-    }
-  );
+    )
+  ).toEqual({
+    connections: [connB],
+    workflows: {},
+    qrCodes: {},
+    ready: true,
+  });
 
-  assertDeepEqual(applyConnectionUpdate([connA], connB), [connA, connB]);
-  assertDeepEqual(applyConnectionUpdate([connA], { ...connA, nickname: 'A2' })[0]?.nickname, 'A2');
+  expect(applyConnectionUpdate([connA], connB)).toEqual([connA, connB]);
+  expect(applyConnectionUpdate([connA], { ...connA, nickname: 'A2' })[0]?.nickname).toEqual('A2');
 
-  assertDeepEqual(applyConnectionWorkflow({}, 'a', workflow), { a: workflow });
-  assertDeepEqual(applyConnectionQRCode({}, 'a', 'data:image/png;base64,abc'), {
+  expect(applyConnectionWorkflow({}, 'a', workflow)).toEqual({ a: workflow });
+  expect(applyConnectionQRCode({}, 'a', 'data:image/png;base64,abc')).toEqual({
     a: 'data:image/png;base64,abc',
   });
-  assertDeepEqual(applyConnectionQRCode({ a: 'x' }, 'a', ''), {});
+  expect(applyConnectionQRCode({ a: 'x' }, 'a', '')).toEqual({});
 });

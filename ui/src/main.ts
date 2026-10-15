@@ -23,6 +23,7 @@ import router from './router';
 import { appPinia } from './pinia';
 
 import { setupApiClient } from './api';
+import { createApiFeedback } from './features/feedback/apiFeedback';
 import { syncErudaFromStorage } from './features/debug/eruda';
 import { setupPwaInstallHandling } from './features/pwa/usePwaInstall';
 import { setupPwaUpdateHandling } from './features/pwa/swUpdate';
@@ -48,7 +49,8 @@ meta.name = 'naive-ui-style';
 document.head.appendChild(meta);
 
 // 生成客户端本身不带业务态。这里集中注入 baseUrl、token、401 清理和错误反馈。
-setupApiClient();
+const apiFeedback = createApiFeedback();
+const disposeApiClient = setupApiClient(apiFeedback.report);
 
 // SW 换版监听 + 受控刷新：避免旧页面与新预缓存错配后异步 chunk 404。
 setupPwaInstallHandling();
@@ -58,6 +60,10 @@ void syncErudaFromStorage().catch(error => {
 });
 
 const app = createApp(App);
+app.onUnmount(() => {
+  disposeApiClient();
+  apiFeedback.dispose();
+});
 
 app.use(appPinia);
 

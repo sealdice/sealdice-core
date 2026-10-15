@@ -261,10 +261,13 @@ import {
 } from '@/features/testMode/state';
 import { storeToRefs } from 'pinia';
 import { useUploadStore } from '@/features/upload/store';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { useAppTheme } from '@/features/theme';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const uploadStore = useUploadStore();
 const { enqueue: enqueueUploads } = uploadStore;
@@ -440,7 +443,7 @@ const reloadMutation = useMutation({
       message.warning(getTestModeBlockMessage(error));
       return;
     }
-    message.error('重载失败');
+    notifyError(error, message, '重载失败');
   },
 });
 
@@ -462,8 +465,8 @@ const deleteMutation = useMutation({
     message.success('牌堆已删除');
     await invalidateDeckList();
   },
-  onError: () => {
-    message.error('删除失败');
+  onError: error => {
+    notifyError(error, message, '删除失败');
   },
 });
 
@@ -489,9 +492,9 @@ const updateMutation = useMutation({
     message.success('更新成功，即将自动重载牌堆');
     await invalidateDeckList();
   },
-  onError: () => {
+  onError: error => {
     diffErrorText.value = '更新请求失败，请检查网络后重试';
-    message.error(diffErrorText.value);
+    notifyError(error, message, diffErrorText.value);
   },
 });
 
@@ -554,8 +557,8 @@ async function doCheckUpdate(item: DeckItem) {
     deckCheck.value = data.item;
     diffErrorText.value = '';
     showDiff.value = true;
-  } catch {
-    message.error('检查更新失败');
+  } catch (error) {
+    notifyError(error, message, '检查更新失败');
   } finally {
     diffLoading.value = false;
   }

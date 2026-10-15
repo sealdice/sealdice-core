@@ -58,6 +58,7 @@ import { useMessage } from 'naive-ui';
 import { getSdApiV2BaseSecurityCheck } from '@/api';
 import { getErrorMessage } from '@/features/auth/error';
 import { useAuthSession } from '@/features/auth/useAuthSession';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const authSession = useAuthSession();
 const message = useMessage();
@@ -79,8 +80,8 @@ const errorText = computed(() =>
 async function doUnlock() {
   try {
     await authSession.signin({ password: password.value });
-  } catch {
-    message.error(errorText.value || '密码错误');
+  } catch (error) {
+    notifyError(error, message, errorText.value || '密码错误');
     password.value = '';
     return;
   }

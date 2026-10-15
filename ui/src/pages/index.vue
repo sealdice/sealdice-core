@@ -191,10 +191,13 @@ import {
   normalizeNetworkHealthData,
 } from '@/features/base/networkHealth';
 import { formatRuntimeSummary } from '@/features/base/runtimeSummary';
-import { hasAccessToken } from '@/features/auth/state';
+
 import PageHeader from '@/components/shared/PageHeader.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');

@@ -7,52 +7,30 @@ import {
   normalizeToolTestSplitOptions,
   avatarDataUrl,
 } from './model.js';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    const normalize = (value: unknown): string => {
-      if (Array.isArray(value)) {
-        return `[${value.map(normalize).join(',')}]`;
-      }
-      if (value && typeof value === 'object') {
-        const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-          a.localeCompare(b)
-        );
-        return `{${entries.map(([key, entry]) => `${key}:${normalize(entry)}`).join(',')}}`;
-      }
-      return JSON.stringify(value);
-    };
-    if (normalize(actual) !== normalize(expected)) {
-      throw new Error(`expected ${normalize(expected)}, got ${normalize(actual)}`);
-    }
-  };
-
+it('指令测试消息追加与上下文转换', async () => {
   const privateSeed = createInitialToolTestMessages('private');
-  assertEqual(privateSeed.length, 2);
-  assertEqual(privateSeed[0]?.kind, 'message');
-  assertEqual(privateSeed[0]?.mode, 'private');
-  assertEqual(privateSeed[0]?.senderName, '海豹核心');
-  assertEqual(privateSeed[0]?.isBot, true);
-  assertEqual(privateSeed[1]?.kind, 'tip');
+  expect(privateSeed.length).toBe(2);
+  expect(privateSeed[0]?.kind).toBe('message');
+  expect(privateSeed[0]?.mode).toBe('private');
+  expect(privateSeed[0]?.senderName).toBe('海豹核心');
+  expect(privateSeed[0]?.isBot).toBe(true);
+  expect(privateSeed[1]?.kind).toBe('tip');
 
   const groupSeed = createInitialToolTestMessages('group');
-  assertEqual(groupSeed.length, 2);
-  assertEqual(groupSeed[0]?.mode, 'group');
-  assertEqual(groupSeed[0]?.content.includes('群聊窗口'), true);
+  expect(groupSeed.length).toBe(2);
+  expect(groupSeed[0]?.mode).toBe('group');
+  expect(groupSeed[0]?.content.includes('群聊窗口')).toBe(true);
 
   const withSelf = appendSelfToolTestMessage(privateSeed, {
     text: ' .ping ',
     mode: 'private',
     timestamp: 123456,
   });
-  assertEqual(withSelf.length, 3);
-  assertEqual(withSelf[withSelf.length - 1]?.self, true);
-  assertEqual(withSelf[withSelf.length - 1]?.content, '.ping');
+  expect(withSelf.length).toBe(3);
+  expect(withSelf[withSelf.length - 1]?.self).toBe(true);
+  expect(withSelf[withSelf.length - 1]?.content).toBe('.ping');
 
   const withPending = appendPendingToolTestMessages(
     withSelf,
@@ -64,12 +42,12 @@ it('passes', async () => {
     'private',
     223344
   );
-  assertEqual(withPending.length, 5);
-  assertEqual(withPending[withPending.length - 1]?.self, false);
-  assertEqual(withPending[withPending.length - 1]?.isBot, true);
-  assertEqual(withPending[withPending.length - 1]?.content, '机器人回复');
+  expect(withPending.length).toBe(5);
+  expect(withPending[withPending.length - 1]?.self).toBe(false);
+  expect(withPending[withPending.length - 1]?.isBot).toBe(true);
+  expect(withPending[withPending.length - 1]?.content).toBe('机器人回复');
 
-  assertDeepEqual(normalizeToolTestSplitOptions(undefined), {
+  expect(normalizeToolTestSplitOptions(undefined)).toEqual({
     defaultKey: 'qq',
     options: [
       { key: 'short', label: '短分段 300', messageSplitLen: 300 },
@@ -78,22 +56,21 @@ it('passes', async () => {
     ],
   });
 
-  assertDeepEqual(
+  expect(
     normalizeToolTestSplitOptions({
       defaultKey: 'short',
       options: [
         { key: 'short', label: '短分段 300', messageSplitLen: 300 },
         { key: 'qq', label: 'QQ 分段 2000', messageSplitLen: 2000 },
       ],
-    }),
-    {
-      defaultKey: 'short',
-      options: [
-        { key: 'short', label: '短分段 300', messageSplitLen: 300 },
-        { key: 'qq', label: 'QQ 分段 2000', messageSplitLen: 2000 },
-      ],
-    }
-  );
+    })
+  ).toEqual({
+    defaultKey: 'short',
+    options: [
+      { key: 'short', label: '短分段 300', messageSplitLen: 300 },
+      { key: 'qq', label: 'QQ 分段 2000', messageSplitLen: 2000 },
+    ],
+  });
 
   const context = {
     mode: 'group' as const,
@@ -123,9 +100,9 @@ it('passes', async () => {
     },
     context
   );
-  assertEqual(withRealtime[0]?.self, true);
-  assertEqual(withRealtime[0]?.senderRole, 'owner');
-  assertEqual(avatarDataUrl('owner', '群主').startsWith('data:image/svg+xml'), true);
+  expect(withRealtime[0]?.self).toBe(true);
+  expect(withRealtime[0]?.senderRole).toBe('owner');
+  expect(avatarDataUrl('owner', '群主').startsWith('data:image/svg+xml')).toBe(true);
 });
 
 it('builds command options with optional description and source metadata', () => {

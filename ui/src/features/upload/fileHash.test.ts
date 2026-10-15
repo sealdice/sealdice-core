@@ -1,13 +1,9 @@
 import { blobToArrayBuffer, hashFile, sha256Hex } from './fileHash';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('文件内容计算 SHA-256 摘要', async () => {
   const nativeDigest = await sha256Hex(new TextEncoder().encode('hello compatibility').buffer);
-  assertEqual(nativeDigest, '64747d86a3ddfc265f70df068d330fcaa13b7c593ba7b49cf99692bdc7053ac6');
+  expect(nativeDigest).toBe('64747d86a3ddfc265f70df068d330fcaa13b7c593ba7b49cf99692bdc7053ac6');
 
   const originalCrypto = globalThis.crypto;
   Object.defineProperty(globalThis, 'crypto', {
@@ -16,7 +12,7 @@ it('passes', async () => {
   });
 
   const fallbackDigest = await sha256Hex(new TextEncoder().encode('hello compatibility').buffer);
-  assertEqual(fallbackDigest, nativeDigest);
+  expect(fallbackDigest).toBe(nativeDigest);
 
   const originalFileReader = globalThis.FileReader;
   const expectedBytes = Uint8Array.from([1, 2, 3, 4]);
@@ -38,8 +34,7 @@ it('passes', async () => {
   });
 
   const fallbackBytes = await blobToArrayBuffer({} as Blob);
-  assertEqual(
-    JSON.stringify(Array.from(new Uint8Array(fallbackBytes))),
+  expect(JSON.stringify(Array.from(new Uint8Array(fallbackBytes)))).toBe(
     JSON.stringify(Array.from(expectedBytes))
   );
 
@@ -54,5 +49,5 @@ it('passes', async () => {
   });
 
   const fileHash = await hashFile(new Blob(['story upload']));
-  assertEqual(fileHash, '57a8501edefe84ba3c84a188bef478874f10d25243e1be50b7bd9dc8e5892433');
+  expect(fileHash).toBe('57a8501edefe84ba3c84a188bef478874f10d25243e1be50b7bd9dc8e5892433');
 });

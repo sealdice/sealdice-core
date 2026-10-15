@@ -10,31 +10,9 @@ import {
   parseBackupSelection,
   parseCleanTriggers,
 } from './viewModel.js';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    const normalize = (value: unknown): string => {
-      if (Array.isArray(value)) {
-        return `[${value.map(normalize).join(',')}]`;
-      }
-      if (value && typeof value === 'object') {
-        const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-          a.localeCompare(b)
-        );
-        return `{${entries.map(([key, entry]) => `${key}:${normalize(entry)}`).join(',')}}`;
-      }
-      return JSON.stringify(value);
-    };
-    if (normalize(actual) !== normalize(expected)) {
-      throw new Error(`expected ${normalize(expected)}, got ${normalize(actual)}`);
-    }
-  };
-
+it('备份文件列表转换与删除选择', async () => {
   const config: Config = {
     autoBackupEnable: true,
     autoBackupTime: ' @every 12h ',
@@ -46,10 +24,10 @@ it('passes', async () => {
     backupCleanCron: ' 0 0 * * * ',
   };
 
-  assertDeepEqual(parseBackupSelection(0), ['base']);
-  assertDeepEqual(parseBackupSelection(0b100101), ['base', 'js', 'helpdoc', 'image']);
-  assertEqual(formatBackupSelection(['image', 'base', 'js', 'image']), 0b100001);
-  assertDeepEqual(describeBackupSelection(0b111111), [
+  expect(parseBackupSelection(0)).toEqual(['base']);
+  expect(parseBackupSelection(0b100101)).toEqual(['base', 'js', 'helpdoc', 'image']);
+  expect(formatBackupSelection(['image', 'base', 'js', 'image'])).toBe(0b100001);
+  expect(describeBackupSelection(0b111111)).toEqual([
     '基础',
     'JS 插件',
     '牌堆',
@@ -58,12 +36,12 @@ it('passes', async () => {
     '人名信息',
     '图片',
   ]);
-  assertDeepEqual(describeBackupSelection(-1), []);
+  expect(describeBackupSelection(-1)).toEqual([]);
 
-  assertDeepEqual(parseCleanTriggers(3), ['cron', 'afterAutoBackup']);
-  assertEqual(formatCleanTriggers(['afterAutoBackup']), 2);
+  expect(parseCleanTriggers(3)).toEqual(['cron', 'afterAutoBackup']);
+  expect(formatCleanTriggers(['afterAutoBackup'])).toBe(2);
 
-  assertDeepEqual(normalizeBackupConfig(config), {
+  expect(normalizeBackupConfig(config)).toEqual({
     autoBackupEnable: true,
     autoBackupTime: '@every 12h',
     autoBackupSelection: 0b100101,
@@ -76,30 +54,27 @@ it('passes', async () => {
     backupCleanCron: '0 0 * * *',
   });
 
-  assertDeepEqual(
+  expect(
     buildBackupConfigPayload({
       ...normalizeBackupConfig(config),
       autoBackupSelectionList: ['base', 'deck', 'censor'],
       backupCleanTriggers: ['afterAutoBackup'],
-    }),
-    {
-      autoBackupEnable: true,
-      autoBackupTime: '@every 12h',
-      autoBackupSelection: 0b001010,
-      backupCleanStrategy: 2,
-      backupCleanKeepCount: 1,
-      backupCleanKeepDur: '720h',
-      backupCleanTrigger: 2,
-      backupCleanCron: '0 0 * * *',
-    }
-  );
+    })
+  ).toEqual({
+    autoBackupEnable: true,
+    autoBackupTime: '@every 12h',
+    autoBackupSelection: 0b001010,
+    backupCleanStrategy: 2,
+    backupCleanKeepCount: 1,
+    backupCleanKeepDur: '720h',
+    backupCleanTrigger: 2,
+    backupCleanCron: '0 0 * * *',
+  });
 
-  assertEqual(
-    buildBackupFilenamePreview('260521_123456', 0b101, false),
+  expect(buildBackupFilenamePreview('260521_123456', 0b101, false)).toBe(
     'bak_260521_123456_r5_<随机值>.zip'
   );
-  assertEqual(
-    buildBackupFilenamePreview('260521_123456', 0b101, true),
+  expect(buildBackupFilenamePreview('260521_123456', 0b101, true)).toBe(
     'bak_260521_123456_auto_r5_<随机值>.zip'
   );
 
@@ -108,5 +83,5 @@ it('passes', async () => {
     fileSize: index * 100,
     selection: index,
   }));
-  assertDeepEqual(getDefaultBatchDeleteNames(files), ['bak-5', 'bak-6']);
+  expect(getDefaultBatchDeleteNames(files)).toEqual(['bak-5', 'bak-6']);
 });

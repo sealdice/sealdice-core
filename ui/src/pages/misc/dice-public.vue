@@ -86,7 +86,7 @@ import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.v
 import PageHeader from '@/components/shared/PageHeader.vue';
 import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import { getErrorMessage } from '@/features/auth/error';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import {
   buildPublicDicePayload,
@@ -95,6 +95,10 @@ import {
   isPublicDiceDirty,
   type PublicDiceDraft,
 } from '@/features/publicDice/viewModel';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 
@@ -198,7 +202,7 @@ async function handleEnableUpdate(value: boolean) {
     if (draft.value) {
       draft.value.config.publicDiceEnable = previous;
     }
-    message.error(getErrorMessage(error, '保存公骰设置失败'));
+    notifyError(error, message, '保存公骰设置失败');
   }
 }
 
@@ -206,7 +210,7 @@ async function saveDraft() {
   try {
     await submitCurrentDraft('已保存');
   } catch (error) {
-    message.error(getErrorMessage(error, '保存公骰设置失败'));
+    notifyError(error, message, '保存公骰设置失败');
   }
 }
 

@@ -4,6 +4,8 @@ import { defineComponent, nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { useCustomReplyEditor } from './useCustomReplyEditor';
+import { createPinia, disposePinia, type Pinia } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 const backend = vi.hoisted(() => ({
   desc: 'old',
@@ -14,7 +16,6 @@ vi.mock('naive-ui', () => ({
   useDialog: () => ({}),
 }));
 vi.mock('@/features/upload/store', () => ({ useUploadStore: () => ({ enqueue: vi.fn() }) }));
-vi.mock('@/features/auth/state', async () => ({ hasAccessToken: (await import('vue')).ref(true) }));
 vi.mock('@/features/unsavedChanges', () => ({ useUnsavedChanges: vi.fn() }));
 vi.mock('@/api/download', () => ({ downloadApiFile: vi.fn() }));
 vi.mock('@/api', () => ({
@@ -63,9 +64,11 @@ vi.mock('@/api', () => ({
 
 let wrapper: VueWrapper | undefined;
 let client: QueryClient;
+let pinia: Pinia;
 afterEach(() => {
   wrapper?.unmount();
   client?.clear();
+  if (pinia) disposePinia(pinia);
 });
 
 it.each([false, true])(
@@ -75,6 +78,8 @@ it.each([false, true])(
     backend.release = undefined;
     let editor!: ReturnType<typeof useCustomReplyEditor>;
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    pinia = createPinia();
+    useAuthStore(pinia).setAccessToken('test');
     wrapper = mount(
       defineComponent({
         setup() {
@@ -82,7 +87,7 @@ it.each([false, true])(
           return () => null;
         },
       }),
-      { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } }
+      { global: { plugins: [pinia, [VueQueryPlugin, { queryClient: client }]] } }
     );
     await vi.waitFor(() => expect(editor.currentFileDraft.value).not.toBeNull());
     await nextTick();

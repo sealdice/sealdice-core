@@ -1,45 +1,33 @@
 import { parseReplyImportLine, parseReplyImportText } from './importParser';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
-  assertDeepEqual(parseReplyImportLine('ping/pong'), {
+it('自定义回复导入解析合法内容与错误', async () => {
+  expect(parseReplyImportLine('ping/pong')).toEqual({
     conditions: ['ping'],
     replies: ['pong'],
     rest: '',
   });
 
-  assertDeepEqual(parseReplyImportLine('a|b/c|d'), {
+  expect(parseReplyImportLine('a|b/c|d')).toEqual({
     conditions: ['a', 'b'],
     replies: ['c', 'd'],
     rest: '',
   });
 
-  assertDeepEqual(parseReplyImportLine('a/|b/c'), {
+  expect(parseReplyImportLine('a/|b/c')).toEqual({
     conditions: ['a/', 'b'],
     replies: ['c'],
     rest: '',
   });
 
-  assertDeepEqual(parseReplyImportLine('a/line\\nnext\nrest'), {
+  expect(parseReplyImportLine('a/line\\nnext\nrest')).toEqual({
     conditions: ['a'],
     replies: ['line\nnext'],
     rest: 'rest',
   });
 
   const tasks = parseReplyImportText('a/b\nc/d');
-  assertEqual(tasks.length, 2);
-  assertEqual(tasks[0]!.conditions[0]!.value, 'a');
-  assertDeepEqual(tasks[1]!.results[0]!.message, [['d', 1]]);
+  expect(tasks.length).toBe(2);
+  expect(tasks[0]!.conditions[0]!.value).toBe('a');
+  expect(tasks[1]!.results[0]!.message).toEqual([['d', 1]]);
 });

@@ -2,7 +2,7 @@ import { defaultStoryPainterOptions, type StoryPainterLogItem } from './types';
 import { renderForumText, renderTrgText } from './renderers';
 import { it } from 'vitest';
 
-it('passes', async () => {
+it('日志渲染器输出符合记录类型', async () => {
   const assertIncludes = (actual: string, expected: string) => {
     if (!actual.includes(expected)) {
       throw new Error(`expected ${JSON.stringify(actual)} to include ${JSON.stringify(expected)}`);

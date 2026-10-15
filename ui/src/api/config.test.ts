@@ -3,83 +3,69 @@ import {
   resolveApiBaseUrlFromLocation,
   resolveOldUIUrlFromLocation,
 } from './config';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  assertEqual(
+it('API 地址与旧界面跳转按同源路径解析', async () => {
+  expect(
     resolveApiBaseUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/',
-    }),
-    'https://example.test'
-  );
+    })
+  ).toBe('https://example.test');
 
-  assertEqual(
+  expect(
     resolveApiBaseUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/dice/',
-    }),
-    'https://example.test'
-  );
+    })
+  ).toBe('https://example.test');
 
-  assertEqual(
+  expect(
     resolveApiBaseUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/dice',
-    }),
-    'https://example.test'
-  );
+    })
+  ).toBe('https://example.test');
 
-  assertEqual(
+  expect(
     resolveApiBaseUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/connect',
-    }),
-    'https://example.test'
-  );
+    })
+  ).toBe('https://example.test');
 
-  assertEqual(
+  expect(
     resolveApiBaseUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/dice/index.html',
-    }),
-    'https://example.test'
-  );
+    })
+  ).toBe('https://example.test');
 
-  assertEqual(
+  expect(
     resolveApiBaseUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/index.html',
-    }),
-    'https://example.test'
-  );
+    })
+  ).toBe('https://example.test');
 
-  assertEqual(
+  expect(
     resolveOldUIUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/',
-    }),
-    'https://example.test/old-ui/'
-  );
+    })
+  ).toBe('https://example.test/old-ui/');
 
-  assertEqual(
+  expect(
     resolveOldUIUrlFromLocation({
       origin: 'https://example.test',
       pathname: '/dice/',
-    }),
-    'https://example.test/old-ui/'
-  );
+    })
+  ).toBe('https://example.test/old-ui/');
 
-  assertEqual(
-    joinApiBasePath('https://example.test/dice', '/sd-api/v2/base/health'),
+  expect(joinApiBasePath('https://example.test/dice', '/sd-api/v2/base/health')).toBe(
     'https://example.test/dice/sd-api/v2/base/health'
   );
-  assertEqual(
-    joinApiBasePath('https://example.test/dice/', 'sd-api/v2/realtime/sse'),
+  expect(joinApiBasePath('https://example.test/dice/', 'sd-api/v2/realtime/sse')).toBe(
     'https://example.test/dice/sd-api/v2/realtime/sse'
   );
 });

@@ -1,17 +1,13 @@
 import { isStandaloneDisplayMode, shouldShowPwaInstallEntry } from './pwaState';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
+it('安装提示根据平台与应用状态派生', async () => {
+  expect(isStandaloneDisplayMode(false, false)).toBe(false);
+  expect(isStandaloneDisplayMode(true, false)).toBe(true);
+  expect(isStandaloneDisplayMode(false, true)).toBe(true);
+  expect(isStandaloneDisplayMode(true, true)).toBe(true);
 
-  assertEqual(isStandaloneDisplayMode(false, false), false);
-  assertEqual(isStandaloneDisplayMode(true, false), true);
-  assertEqual(isStandaloneDisplayMode(false, true), true);
-  assertEqual(isStandaloneDisplayMode(true, true), true);
-
-  assertEqual(shouldShowPwaInstallEntry(false, false), false);
-  assertEqual(shouldShowPwaInstallEntry(true, false), true);
-  assertEqual(shouldShowPwaInstallEntry(false, true), false);
+  expect(shouldShowPwaInstallEntry(false, false)).toBe(false);
+  expect(shouldShowPwaInstallEntry(true, false)).toBe(true);
+  expect(shouldShowPwaInstallEntry(false, true)).toBe(false);
 });

@@ -7,7 +7,7 @@ import {
   getSdApiV2ImconnectionSchemas,
   getSdApiV2ImconnectionSignInfo,
 } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import {
   connectEndpointConfigQueryKey,
   connectProtocolsQueryKey,
@@ -15,8 +15,11 @@ import {
   connectSignInfoQueryKey,
   connectionsQueryKey,
 } from './queryKeys';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useConnectConnectionsQuery() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: connectionsQueryKey(),
     enabled: hasAccessToken,
@@ -28,6 +31,7 @@ export function useConnectConnectionsQuery() {
 }
 
 export function useConnectProtocolsQuery() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: connectProtocolsQueryKey(),
     enabled: hasAccessToken,
@@ -39,6 +43,7 @@ export function useConnectProtocolsQuery() {
 }
 
 export function useConnectSchemasQuery() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: connectSchemasQueryKey(),
     enabled: hasAccessToken,
@@ -50,6 +55,7 @@ export function useConnectSchemasQuery() {
 }
 
 export function useConnectSignInfoQuery(enabled: MaybeRefOrGetter<boolean>) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: connectSignInfoQueryKey(),
     enabled: computed(() => hasAccessToken.value && toValue(enabled)),
@@ -64,6 +70,7 @@ export function useConnectEndpointConfigQuery(
   endpointId: MaybeRefOrGetter<string>,
   enabled: MaybeRefOrGetter<boolean>
 ) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const id = computed(() => toValue(endpointId));
   return useQuery({
     queryKey: computed(() => connectEndpointConfigQueryKey(id.value)),

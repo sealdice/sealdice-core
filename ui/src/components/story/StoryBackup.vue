@@ -55,6 +55,7 @@ import ListPanel from '@/components/shared/ListPanel.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useStoryBackup } from '@/features/story/useStoryBackup';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -79,8 +80,8 @@ async function deleteBackups(names: string[]) {
     } else {
       message.error('有备份删除失败！失败文件：\n' + (item.fails ?? []).join('\n'));
     }
-  } catch {
-    message.error('删除失败');
+  } catch (error) {
+    notifyError(error, message, '删除失败');
   }
 }
 

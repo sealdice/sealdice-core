@@ -1,5 +1,4 @@
 import { storeToRefs } from 'pinia';
-import { appPinia } from '@/pinia';
 import { useBaseLogStreamStore } from './logStreamStore';
 
 export type BaseLogItem = {
@@ -15,19 +14,8 @@ export type BaseLogItem = {
 // 写到别的行上，表现为总高度虚高和滚动回跳。
 export type BaseLogEntry = BaseLogItem & { id: number };
 
-const baseLogStreamStore = useBaseLogStreamStore(appPinia);
-const baseLogStreamRefs = storeToRefs(baseLogStreamStore);
-
 export function useBaseLogStream() {
-  baseLogStreamStore.ensureInitialized();
-
-  return {
-    // 兼容层：旧页面继续用 useBaseLogStream()，内部日志状态已经迁到 Pinia。
-    logs: baseLogStreamRefs.logs,
-    connected: baseLogStreamRefs.connected,
-    errorText: baseLogStreamRefs.errorText,
-    hasLogs: baseLogStreamRefs.hasLogs,
-    reconnect: baseLogStreamStore.reconnect,
-    close: baseLogStreamStore.close,
-  };
+  const store = useBaseLogStreamStore();
+  store.ensureInitialized();
+  return { ...storeToRefs(store), reconnect: store.reconnect, close: store.close };
 }

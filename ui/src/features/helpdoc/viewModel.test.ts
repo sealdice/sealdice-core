@@ -11,19 +11,9 @@ import {
   summarizeHelpdocDelete,
 } from './viewModel.js';
 import type { HelpDoc } from '@/api';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('帮助文档树与分页模型转换', async () => {
   const tree: HelpDoc[] = [
     {
       key: 'default',
@@ -50,32 +40,32 @@ it('passes', async () => {
     },
   ];
 
-  assertDeepEqual(buildHelpdocGroupOptions(tree), [
+  expect(buildHelpdocGroupOptions(tree)).toEqual([
     { label: '默认', value: 'default' },
     { label: 'default', value: 'default' },
   ]);
 
   const converted = convertHelpdocTree(tree[0]);
-  assertEqual(converted.icon, 'folder');
-  assertEqual(converted.children?.[0]?.icon, 'json');
-  assertDeepEqual(converted.children?.[0]?.tag, { type: 'success', label: 'default' });
-  assertDeepEqual(summarizeHelpdocDelete([converted], ['default/test.json']), {
+  expect(converted.icon).toBe('folder');
+  expect(converted.children?.[0]?.icon).toBe('json');
+  expect(converted.children?.[0]?.tag).toEqual({ type: 'success', label: 'default' });
+  expect(summarizeHelpdocDelete([converted], ['default/test.json'])).toEqual({
     count: 1,
     labels: ['test.json'],
   });
 
-  assertDeepEqual(getHelpdocTag(0, false, 'default'), { type: 'warning', label: '未加载' });
-  assertDeepEqual(getHelpdocTag(2, false, 'default'), { type: 'error', label: '格式有误' });
-  assertDeepEqual(getHelpdocTag(1, true, 'group-a'), { type: 'warning', label: 'group-a' });
+  expect(getHelpdocTag(0, false, 'default')).toEqual({ type: 'warning', label: '未加载' });
+  expect(getHelpdocTag(2, false, 'default')).toEqual({ type: 'error', label: '格式有误' });
+  expect(getHelpdocTag(1, true, 'group-a')).toEqual({ type: 'warning', label: 'group-a' });
 
-  assertEqual(getHelpdocTextPreview('  short text  '), 'short text');
-  assertEqual(getHelpdocTextPreview(` ${'a'.repeat(205)} `), `${'a'.repeat(151)}...`);
+  expect(getHelpdocTextPreview('  short text  ')).toBe('short text');
+  expect(getHelpdocTextPreview(` ${'a'.repeat(205)} `)).toBe(`${'a'.repeat(151)}...`);
 
-  assertEqual(isHelpdocUploadFileAccepted('a.json'), true);
-  assertEqual(isHelpdocUploadFileAccepted('a.xlsx'), true);
-  assertEqual(isHelpdocUploadFileAccepted('a.txt'), false);
+  expect(isHelpdocUploadFileAccepted('a.json')).toBe(true);
+  expect(isHelpdocUploadFileAccepted('a.xlsx')).toBe(true);
+  expect(isHelpdocUploadFileAccepted('a.txt')).toBe(false);
 
-  assertDeepEqual(
+  expect(
     buildHelpdocItemParams({
       pageNum: 2,
       pageSize: 30,
@@ -83,32 +73,30 @@ it('passes', async () => {
       group: 'builtin',
       from: 'foo',
       title: 'bar',
-    }),
-    {
-      pageNum: 2,
-      pageSize: 30,
-      id: '9',
-      group: 'builtin',
-      from: 'foo',
-      title: 'bar',
-    }
-  );
+    })
+  ).toEqual({
+    pageNum: 2,
+    pageSize: 30,
+    id: '9',
+    group: 'builtin',
+    from: 'foo',
+    title: 'bar',
+  });
 
   const aliases = normalizeHelpdocAliases({
     default: ['基础'],
     empty: null,
   });
-  assertDeepEqual(Array.from(aliases.entries()), [
+  expect(Array.from(aliases.entries())).toEqual([
     ['default', ['基础']],
     ['empty', []],
   ]);
 
   const cloned = cloneHelpdocAliases(aliases);
   cloned.get('default')?.push('同义词');
-  assertDeepEqual(aliases.get('default'), ['基础']);
-  assertEqual(
-    isHelpdocConfigDirty(aliases, normalizeHelpdocAliases({ default: ['基础'], empty: null })),
-    false
-  );
-  assertEqual(isHelpdocConfigDirty(cloned, aliases), true);
+  expect(aliases.get('default')).toEqual(['基础']);
+  expect(
+    isHelpdocConfigDirty(aliases, normalizeHelpdocAliases({ default: ['基础'], empty: null }))
+  ).toBe(false);
+  expect(isHelpdocConfigDirty(cloned, aliases)).toBe(true);
 });

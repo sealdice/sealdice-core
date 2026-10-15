@@ -12,6 +12,7 @@ import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
 import { getTestModeBlockMessage, isTestModeApiError } from '@/features/testMode/state';
 import type { OfficialQQMode } from './officialQQ';
 import { getConnectProtocolModule } from './protocols';
+import { notifyError } from '@/features/feedback/notifyError';
 
 export type ConnectCreateInput = {
   platform: string;
@@ -88,7 +89,7 @@ export function useConnectMutations(options: {
         options.message.warning(getTestModeBlockMessage(error));
         return;
       }
-      options.message.error('添加账号失败');
+      notifyError(error, options.message, '添加账号失败');
     },
   });
 
@@ -110,7 +111,7 @@ export function useConnectMutations(options: {
         options.message.warning(getTestModeBlockMessage(error));
         return;
       }
-      options.message.error('账号配置更新失败');
+      notifyError(error, options.message, '账号配置更新失败');
     },
   });
 
@@ -132,7 +133,7 @@ export function useConnectMutations(options: {
         options.message.warning(getTestModeBlockMessage(error));
         return;
       }
-      options.message.error('账号状态更新失败');
+      notifyError(error, options.message, '账号状态更新失败');
     },
   });
 
@@ -153,7 +154,7 @@ export function useConnectMutations(options: {
         options.message.warning(getTestModeBlockMessage(error));
         return;
       }
-      options.message.error('删除账号失败');
+      notifyError(error, options.message, '删除账号失败');
     },
   });
 

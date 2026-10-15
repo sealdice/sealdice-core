@@ -3,13 +3,9 @@ import {
   readGroupQuitDefaultText,
   writeGroupQuitDefaultText,
 } from './quitPreference';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('退出群组偏好在状态间保留', async () => {
   function createStorage() {
     const values = new Map<string, string>();
     return {
@@ -23,10 +19,10 @@ it('passes', async () => {
   }
 
   const storage = createStorage();
-  assertEqual(readGroupQuitDefaultText(storage), defaultGroupQuitText);
+  expect(readGroupQuitDefaultText(storage)).toBe(defaultGroupQuitText);
 
   writeGroupQuitDefaultText('测试退群文案', storage);
-  assertEqual(readGroupQuitDefaultText(storage), '测试退群文案');
+  expect(readGroupQuitDefaultText(storage)).toBe('测试退群文案');
 
   const brokenStorage = {
     getItem() {
@@ -36,6 +32,6 @@ it('passes', async () => {
       throw new Error('unavailable');
     },
   };
-  assertEqual(readGroupQuitDefaultText(brokenStorage), defaultGroupQuitText);
+  expect(readGroupQuitDefaultText(brokenStorage)).toBe(defaultGroupQuitText);
   writeGroupQuitDefaultText('不会抛出', brokenStorage);
 });

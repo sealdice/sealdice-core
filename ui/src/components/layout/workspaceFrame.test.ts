@@ -1,16 +1,11 @@
 import { getWorkspaceFrameClass, getWorkspaceSplitClass } from './workspaceFrame.ts';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  assertEqual(getWorkspaceFrameClass('fluid'), 'workspace-frame');
-  assertEqual(
-    getWorkspaceFrameClass('fixed-height'),
+it('工作区布局模式与内容高度匹配', async () => {
+  expect(getWorkspaceFrameClass('fluid')).toBe('workspace-frame');
+  expect(getWorkspaceFrameClass('fixed-height')).toBe(
     'workspace-frame workspace-frame--fixed-height'
   );
-  assertEqual(getWorkspaceSplitClass('row'), 'workspace-split');
-  assertEqual(getWorkspaceSplitClass('column'), 'workspace-split workspace-split--column');
+  expect(getWorkspaceSplitClass('row')).toBe('workspace-split');
+  expect(getWorkspaceSplitClass('column')).toBe('workspace-split workspace-split--column');
 });

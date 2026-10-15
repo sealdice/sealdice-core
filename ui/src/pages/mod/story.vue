@@ -339,7 +339,7 @@ import {
 import StoryBackup from '@/components/story/StoryBackup.vue';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { storyInfoQueryKey } from '@/features/story/queryKeys';
 import { summarizeStoryLogs } from '@/features/story/deleteSummary';
@@ -347,6 +347,10 @@ import { getStoryPageSizeChange } from '@/features/story/pagination';
 import { setStoryLogsSelected } from '@/features/story/selection';
 import TipBox from '@/components/shared/TipBox.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 const dialog = useDialog();
@@ -730,8 +734,8 @@ async function copyLink(url: string) {
   try {
     await navigator.clipboard.writeText(url);
     message.success('已复制链接到剪贴板');
-  } catch {
-    message.error('复制失败，请手动复制');
+  } catch (error) {
+    notifyError(error, message, '复制失败，请手动复制');
   }
 }
 

@@ -86,7 +86,7 @@ import BackupFileList from '@/components/backup/BackupFileList.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
-import { hasAccessToken } from '@/features/auth/state';
+
 import {
   buildBackupConfigPayload,
   formatBackupSelection,
@@ -102,6 +102,10 @@ import {
   useTestMode,
 } from '@/features/testMode/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 const dialog = useDialog();
@@ -185,7 +189,7 @@ const execMutation = useMutation({
       message.warning(getTestModeBlockMessage(error));
       return;
     }
-    message.error(getErrorMessage(error, '备份失败'));
+    notifyError(error, message, '备份失败');
   },
 });
 
@@ -211,7 +215,7 @@ const deleteMutation = useMutation({
       message.warning(getTestModeBlockMessage(error));
       return;
     }
-    message.error(getErrorMessage(error, '删除失败'));
+    notifyError(error, message, '删除失败');
   },
   onSettled: () => {
     deletingName.value = '';
@@ -244,7 +248,7 @@ const batchDeleteMutation = useMutation({
       message.warning(getTestModeBlockMessage(error));
       return;
     }
-    message.error(getErrorMessage(error, '删除备份失败'));
+    notifyError(error, message, '删除备份失败');
   },
 });
 
@@ -295,7 +299,7 @@ async function saveConfig() {
       message.warning(getTestModeBlockMessage(error));
       return;
     }
-    message.error(getErrorMessage(error, '保存备份设置失败'));
+    notifyError(error, message, '保存备份设置失败');
   }
 }
 
@@ -311,7 +315,7 @@ async function downloadBackup(item: FileItem) {
       item.name
     );
   } catch (error) {
-    message.error(getErrorMessage(error, '下载备份失败'));
+    notifyError(error, message, '下载备份失败');
   } finally {
     downloadingName.value = '';
   }

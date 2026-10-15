@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/vue-query';
 import { getSdApiV2BaseSettingSchema, getSdApiV2BaseSettingValue } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { normalizeBaseSettingSchema } from './viewModel';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useBaseSettingSchemaQuery() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: ['base-setting-schema'],
     enabled: hasAccessToken,
@@ -15,6 +18,7 @@ export function useBaseSettingSchemaQuery() {
 }
 
 export function useBaseSettingValueQuery() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   return useQuery({
     queryKey: ['base-setting-value'],
     enabled: hasAccessToken,

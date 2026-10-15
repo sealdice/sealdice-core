@@ -1,14 +1,8 @@
 import { getSdApiV2StoryBackupListQueryKey, getSdApiV2StoryInfoQueryKey } from '@/api';
 import { storyBackupListQueryKey, storyInfoQueryKey } from './queryKeys';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
-  assertDeepEqual(storyInfoQueryKey(), getSdApiV2StoryInfoQueryKey());
-  assertDeepEqual(storyBackupListQueryKey(), getSdApiV2StoryBackupListQueryKey());
+it('跑团日志查询键按日志和分页隔离', async () => {
+  expect(storyInfoQueryKey()).toEqual(getSdApiV2StoryInfoQueryKey());
+  expect(storyBackupListQueryKey()).toEqual(getSdApiV2StoryBackupListQueryKey());
 });

@@ -11,6 +11,7 @@ import {
   isTestModeResponse,
 } from '@/features/testMode/state';
 import { invalidateHelpdocQueries } from './queries';
+import { notifyError } from '@/features/feedback/notifyError';
 
 export function useHelpdocMutations(options: {
   queryClient: QueryClient;
@@ -39,7 +40,7 @@ export function useHelpdocMutations(options: {
         options.message.warning(getTestModeBlockMessage(error));
         return;
       }
-      options.message.error('重载帮助文件失败');
+      notifyError(error, options.message, '重载帮助文件失败');
     },
   });
 
@@ -60,8 +61,8 @@ export function useHelpdocMutations(options: {
       options.onDeleted();
       await options.queryClient.invalidateQueries({ queryKey: ['helpdoc-tree'] });
     },
-    onError: () => {
-      options.message.error('删除文件失败');
+    onError: error => {
+      notifyError(error, options.message, '删除文件失败');
     },
   });
 
@@ -83,8 +84,8 @@ export function useHelpdocMutations(options: {
       options.onConfigSaved(snapshot);
       await options.queryClient.invalidateQueries({ queryKey: ['helpdoc-config'] });
     },
-    onError: () => {
-      options.message.error('保存设置失败');
+    onError: error => {
+      notifyError(error, options.message, '保存设置失败');
     },
   });
 

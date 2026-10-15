@@ -1,13 +1,7 @@
 import { passwordHash } from './crypto';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  function assertEqual(actual: unknown, expected: unknown): void {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  }
-
+it('认证摘要与密码派生结果符合协议', async () => {
   function assertMatch(actual: string, expected: RegExp): void {
     if (!expected.test(actual)) {
       throw new Error(`expected ${actual} to match ${String(expected)}`);
@@ -18,9 +12,9 @@ it('passes', async () => {
   const second = await passwordHash('salt-value', 'password');
   const differentPassword = await passwordHash('salt-value', 'password-2');
 
-  assertEqual(first, second);
+  expect(first).toBe(second);
   assertMatch(first, /^djAx/);
-  assertEqual(first === differentPassword, false);
+  expect(first === differentPassword).toBe(false);
 
   const originalCrypto = globalThis.crypto;
   Object.defineProperty(globalThis, 'crypto', {
@@ -29,7 +23,7 @@ it('passes', async () => {
   });
 
   const fallback = await passwordHash('salt-value', 'password');
-  assertEqual(fallback, first);
+  expect(fallback).toBe(first);
 
   Object.defineProperty(globalThis, 'crypto', {
     configurable: true,

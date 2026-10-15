@@ -65,6 +65,7 @@ import {
 import { getErrorMessage } from '@/features/auth/error';
 import { useJsConfig } from '@/features/js/useJsConfig';
 import TipBox from '@/components/shared/TipBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const emit = defineEmits<{
   dirtyChange: [value: boolean];
@@ -119,8 +120,8 @@ async function resetConfigItem(payload: { name: string; keys: string[] }) {
   try {
     await resetMutation.mutateAsync(payload);
     message.success('已重置');
-  } catch {
-    message.error('重置失败');
+  } catch (error) {
+    notifyError(error, message, '重置失败');
   }
 }
 
@@ -132,8 +133,8 @@ async function deleteDeadConfigs(names: string[]) {
   try {
     await deleteDeadMutation.mutateAsync(names);
     message.success('已删除');
-  } catch {
-    message.error('删除失败');
+  } catch (error) {
+    notifyError(error, message, '删除失败');
   }
 }
 
@@ -151,8 +152,8 @@ async function saveAll() {
     await savePluginConfigs(editedValues.value);
     editedValues.value = {};
     message.success('已保存');
-  } catch {
-    message.error('保存失败');
+  } catch (error) {
+    notifyError(error, message, '保存失败');
   } finally {
     saveAllLoading.value = false;
   }

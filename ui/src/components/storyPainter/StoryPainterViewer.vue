@@ -13,7 +13,9 @@
         </div>
         <n-flex size="small" wrap>
           <n-button type="primary" secondary :loading="loading" @click="loadLog">
-            <template #icon><n-icon><i-tabler-refresh /></n-icon></template>
+            <template #icon
+              ><n-icon><i-tabler-refresh /></n-icon
+            ></template>
             重新加载
           </n-button>
           <n-button type="primary" text @click="painter.refreshSwatches"> 刷新色板 </n-button>
@@ -205,6 +207,7 @@ import StoryPainterEditor from './StoryPainterEditor.vue';
 import StoryPainterOptionsPanel from './StoryPainterOptions.vue';
 import StoryPainterPreview from './StoryPainterPreview.vue';
 import TipBox from '@/components/shared/TipBox.vue';
+import { notifyError } from '@/features/feedback/notifyError';
 
 const props = defineProps<{
   log: StoryLogView;
@@ -393,7 +396,9 @@ async function showEditor(): Promise<void> {
 function withBusy(key: keyof typeof exportBusy, action: () => void | Promise<void>): void {
   exportBusy[key] = true;
   Promise.resolve(action())
-    .catch(error => message.error(error instanceof Error ? error.message : '导出失败'))
+    .catch(error =>
+      notifyError(error, message, error instanceof Error ? error.message : '导出失败')
+    )
     .finally(() => {
       exportBusy[key] = false;
     });

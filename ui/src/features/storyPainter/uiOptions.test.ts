@@ -1,7 +1,7 @@
 import { storyPainterOptionList } from './uiOptions';
 import { it } from 'vitest';
 
-it('passes', async () => {
+it('日志阅读器选项及默认值一致', async () => {
   const assert = (condition: boolean, message: string) => {
     if (!condition) throw new Error(message);
   };

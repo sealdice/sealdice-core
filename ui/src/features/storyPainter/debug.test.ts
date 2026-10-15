@@ -3,13 +3,9 @@ import {
   createStoryPainterDebugLogger,
   isStoryPainterDebugEnabled,
 } from './debug';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
+it('日志阅读器调试参数转换', async () => {
   const createStorage = () => {
     const values = new Map<string, string>();
     return {
@@ -23,11 +19,11 @@ it('passes', async () => {
   };
 
   const storage = createStorage();
-  assertEqual(isStoryPainterDebugEnabled({ dev: false, storage }), false);
+  expect(isStoryPainterDebugEnabled({ dev: false, storage })).toBe(false);
   storage.setItem(STORY_PAINTER_DEBUG_STORAGE_KEY, '1');
-  assertEqual(isStoryPainterDebugEnabled({ dev: false, storage }), true);
+  expect(isStoryPainterDebugEnabled({ dev: false, storage })).toBe(true);
   storage.setItem(STORY_PAINTER_DEBUG_STORAGE_KEY, '0');
-  assertEqual(isStoryPainterDebugEnabled({ dev: true, storage }), true);
+  expect(isStoryPainterDebugEnabled({ dev: true, storage })).toBe(true);
 
   const messages: unknown[][] = [];
   const logger = createStoryPainterDebugLogger({
@@ -41,11 +37,11 @@ it('passes', async () => {
   });
 
   logger('hidden', { ok: false });
-  assertEqual(messages.length, 0);
+  expect(messages.length).toBe(0);
 
   storage.setItem(STORY_PAINTER_DEBUG_STORAGE_KEY, '1');
   logger('shown', { ok: true });
-  assertEqual(messages.length, 1);
-  assertEqual(messages[0]?.[0], '[StoryPainter]');
-  assertEqual(messages[0]?.[1], 'shown');
+  expect(messages.length).toBe(1);
+  expect(messages[0]?.[0]).toBe('[StoryPainter]');
+  expect(messages[0]?.[1]).toBe('shown');
 });

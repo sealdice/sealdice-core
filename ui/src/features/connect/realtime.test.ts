@@ -1,7 +1,9 @@
 import { nextTick } from 'vue';
-import { afterEach, beforeEach, it, vi } from 'vitest';
+import { expect, afterEach, beforeEach, it, vi } from 'vitest';
 import type { EndPointInfo } from '@/api';
-import { clearAccessToken, setAccessToken } from '@/features/auth/state';
+import { useAuthStore } from '@/features/auth/store';
+import { appPinia } from '@/pinia';
+const { clearAccessToken, setAccessToken } = useAuthStore(appPinia);
 import { useRealtimeConnections } from './realtime';
 
 class FakeEventSource {
@@ -26,13 +28,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
+it('连接快照初始化及退出后的状态清理', async () => {
   const connection: EndPointInfo = {
     adapter: {},
     cmdExecutedLastTime: 0,
@@ -52,17 +48,17 @@ it('passes', async () => {
 
   const realtimeConnections = useRealtimeConnections();
   realtimeConnections.applyInitialSnapshot([connection]);
-  assertEqual(realtimeConnections.connections.value.length, 1);
-  assertEqual(realtimeConnections.ready.value, true);
+  expect(realtimeConnections.connections.value.length).toBe(1);
+  expect(realtimeConnections.ready.value).toBe(true);
 
   realtimeConnections.applyInitialSnapshot([]);
-  assertEqual(realtimeConnections.connections.value.length, 1);
+  expect(realtimeConnections.connections.value.length).toBe(1);
 
   setAccessToken('token-connect');
   await nextTick();
   clearAccessToken();
   await nextTick();
 
-  assertEqual(realtimeConnections.connections.value.length, 0);
-  assertEqual(realtimeConnections.ready.value, false);
+  expect(realtimeConnections.connections.value.length).toBe(0);
+  expect(realtimeConnections.ready.value).toBe(false);
 });

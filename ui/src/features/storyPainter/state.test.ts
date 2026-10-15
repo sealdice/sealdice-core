@@ -8,21 +8,9 @@ import {
   renameStoryPainterChar,
 } from './state';
 import { normalizeStoryPainterMessage } from './formatters';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('日志阅读状态与选项更新', async () => {
   const items: StoryPainterLogItem[] = [
     {
       id: 1,
@@ -54,34 +42,25 @@ it('passes', async () => {
   ];
 
   const chars = buildStoryPainterChars(items, new Map([['Alice', '#123456']]));
-  assertEqual(chars.length, 3);
-  assertDeepEqual(
-    chars.map(item => item.role),
-    ['角色', '骰子', '隐藏']
-  );
-  assertEqual(chars[0]?.color, '#123456');
-  assertEqual(isStoryPainterHidden(items[2]!, chars), true);
+  expect(chars.length).toBe(3);
+  expect(chars.map(item => item.role)).toEqual(['角色', '骰子', '隐藏']);
+  expect(chars[0]?.color).toBe('#123456');
+  expect(isStoryPainterHidden(items[2]!, chars)).toBe(true);
 
   const options = defaultStoryPainterOptions();
   const normalized = normalizeStoryPainterMessage(items[0]!, chars, options, false);
-  assertEqual(normalized, 'hello @1002');
+  expect(normalized).toBe('hello @1002');
 
   const preview = buildStoryPainterPreviewItems(items, chars, options, item =>
     normalizeStoryPainterMessage(item, chars, options, false)
   );
-  assertEqual(preview.length, 2);
-  assertDeepEqual(
-    preview.map(item => item.index),
-    [0, 1]
-  );
+  expect(preview.length).toBe(2);
+  expect(preview.map(item => item.index)).toEqual([0, 1]);
 
   const renamed = renameStoryPainterChar(items, chars[0]!, 'Alicia');
-  assertEqual(renamed[0]?.nickname, 'Alicia');
-  assertEqual(renamed[1]?.message, '<Alicia>掷出了 D20=1');
+  expect(renamed[0]?.nickname).toBe('Alicia');
+  expect(renamed[1]?.message).toBe('<Alicia>掷出了 D20=1');
 
   const deleted = deleteStoryPainterChar(items, chars[0]!);
-  assertDeepEqual(
-    deleted.map(item => item.nickname),
-    ['Seal', 'obWatcher']
-  );
+  expect(deleted.map(item => item.nickname)).toEqual(['Seal', 'obWatcher']);
 });

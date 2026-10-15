@@ -1,18 +1,12 @@
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 import { appPinia } from '@/pinia';
 import { usePwaInstallStore } from './pwaInstallStore';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
+it('原生安装提示按可用状态处理', async () => {
   const store = usePwaInstallStore(appPinia);
   store.detachListeners();
 
-  assertEqual(store.canInstall, false);
-  assertEqual(store.isInstalled, false);
-  assertEqual(await store.install(), 'unavailable');
+  expect(store.canInstall).toBe(false);
+  expect(store.isInstalled).toBe(false);
+  expect(await store.install()).toBe('unavailable');
 });

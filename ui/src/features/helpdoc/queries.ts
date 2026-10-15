@@ -1,13 +1,15 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue';
 import { useQuery, type QueryClient } from '@tanstack/vue-query';
 import { getSdApiV2HelpdocConfig, getSdApiV2HelpdocItemsPage, getSdApiV2HelpdocTree } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import {
   buildHelpdocGroupOptions,
   buildHelpdocItemParams,
   convertHelpdocTree,
   getHelpdocItemGroupOptions,
 } from './viewModel';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export type HelpdocItemQueryModel = {
   pageNum: number;
@@ -30,6 +32,7 @@ export function createDefaultHelpdocItemQuery(): HelpdocItemQueryModel {
 }
 
 export function useHelpdocQueries(itemQuery: MaybeRefOrGetter<HelpdocItemQueryModel>) {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const treeQuery = useQuery({
     queryKey: ['helpdoc-tree'],
     enabled: hasAccessToken,

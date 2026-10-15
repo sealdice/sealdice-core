@@ -8,10 +8,13 @@ import {
   postSdApiV2JsDeadConfigsDelete,
   type ApiPluginConfig,
 } from '@/api';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { jsConfigsQueryKey, jsDeadConfigsQueryKey } from './queryKeys';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export function useJsConfig() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const queryClient = useQueryClient();
 
   const configsQuery = useQuery({

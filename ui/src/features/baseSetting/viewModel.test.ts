@@ -28,31 +28,9 @@ import type {
   BaseSettingSchemaResp,
   BaseSettingValueResp,
 } from '@/api';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    const normalize = (value: unknown): string => {
-      if (Array.isArray(value)) {
-        return `[${value.map(normalize).join(',')}]`;
-      }
-      if (value && typeof value === 'object') {
-        const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-          a.localeCompare(b)
-        );
-        return `{${entries.map(([key, entry]) => `${key}:${normalize(entry)}`).join(',')}}`;
-      }
-      return JSON.stringify(value);
-    };
-    if (normalize(actual) !== normalize(expected)) {
-      throw new Error(`expected ${normalize(expected)}, got ${normalize(actual)}`);
-    }
-  };
-
+it('规范化设置描述并按字段与分类搜索', () => {
   const schema = normalizeBaseSettingSchema({
     tabs: [
       {
@@ -78,126 +56,126 @@ it('passes', async () => {
   } satisfies BaseSettingSchemaResp);
 
   const index = buildBaseSettingSearchIndex(schema);
-  assertEqual(index.length, 1);
-  assertEqual(searchBaseSettingFields(index, '戳一戳')[0]?.fieldId, 'qq-enable-poke');
-  assertEqual(searchBaseSettingFields(index, '平台')[0]?.tabId, 'platform-special');
-  assertEqual(isBaseSettingGroupWide('ext-default-settings'), true);
-  assertEqual(isBaseSettingGroupWide('upgrade'), true);
-  assertEqual(isBaseSettingGroupWide('mail'), false);
-  assertEqual(
+  expect(index.length).toBe(1);
+  expect(searchBaseSettingFields(index, '戳一戳')[0]?.fieldId).toBe('qq-enable-poke');
+  expect(searchBaseSettingFields(index, '平台')[0]?.tabId).toBe('platform-special');
+});
+
+it('设置字段按类型派生布局与提示', () => {
+  expect(isBaseSettingGroupWide('ext-default-settings')).toBe(true);
+  expect(isBaseSettingGroupWide('upgrade')).toBe(true);
+  expect(isBaseSettingGroupWide('mail')).toBe(false);
+  expect(
     isBaseSettingFieldBottomMounted({ kind: 'string-list' } satisfies Pick<
       BaseSettingFieldSchema,
       'kind'
-    >),
-    true
-  );
-  assertEqual(
+    >)
+  ).toBe(true);
+  expect(
     isBaseSettingFieldBottomMounted({ kind: 'boolean' } satisfies Pick<
       BaseSettingFieldSchema,
       'kind'
-    >),
-    false
-  );
-  assertEqual(
-    getBaseSettingFieldLayout({ kind: 'boolean' } satisfies Pick<BaseSettingFieldSchema, 'kind'>),
-    'inline'
-  );
-  assertEqual(
-    getBaseSettingFieldLayout({ kind: 'text' } satisfies Pick<BaseSettingFieldSchema, 'kind'>),
-    'auto'
-  );
-  assertEqual(
+    >)
+  ).toBe(false);
+  expect(
+    getBaseSettingFieldLayout({ kind: 'boolean' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
+  ).toBe('inline');
+  expect(
+    getBaseSettingFieldLayout({ kind: 'text' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
+  ).toBe('auto');
+  expect(
     getBaseSettingFieldLayout({ kind: 'string-list' } satisfies Pick<
       BaseSettingFieldSchema,
       'kind'
-    >),
-    'stacked'
-  );
-  assertEqual(
-    getBaseSettingFieldLayout({ kind: 'upload' } satisfies Pick<BaseSettingFieldSchema, 'kind'>),
-    'stacked'
-  );
-  assertEqual(
+    >)
+  ).toBe('stacked');
+  expect(
+    getBaseSettingFieldLayout({ kind: 'upload' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
+  ).toBe('stacked');
+  expect(
     getBaseSettingFieldLayout({ kind: 'master-list' } satisfies Pick<
       BaseSettingFieldSchema,
       'kind'
-    >),
-    'stacked'
-  );
-  assertEqual(
+    >)
+  ).toBe('stacked');
+  expect(
     getBaseSettingFieldFeedback({ key: 'QQEnablePoke' } satisfies Pick<
       BaseSettingFieldSchema,
       'key' | 'hint'
-    >),
+    >)
+  ).toBe(
     '启用前请确认你使用的 QQ 连接方式支持该功能，若不支持请关闭该功能来避免日志中出现相关报错。'
   );
-  assertEqual(
+  expect(
     getBaseSettingFieldFeedback({ hint: '用于发送通知' } satisfies Pick<
       BaseSettingFieldSchema,
       'key' | 'hint'
-    >),
-    '用于发送通知'
-  );
-  assertDeepEqual(buildBaseSettingStringListOptions(['.', '!', '.', '', ' QQ:1 ']), [
+    >)
+  ).toBe('用于发送通知');
+});
+
+it('字符串与骰主列表清理空值并去重', () => {
+  expect(buildBaseSettingStringListOptions(['.', '!', '.', '', ' QQ:1 '])).toEqual([
     { label: '.', value: '.' },
     { label: '!', value: '!' },
     { label: 'QQ:1', value: 'QQ:1' },
   ]);
-  assertDeepEqual(normalizeMasterListValues(['QQ:1', ' QQ:1 ', '', 'QQ:2', 'QQ:1']), [
+  expect(normalizeMasterListValues(['QQ:1', ' QQ:1 ', '', 'QQ:2', 'QQ:1'])).toEqual([
     'QQ:1',
     'QQ:2',
   ]);
-  assertDeepEqual(normalizeStringListValues(['.', ' . ', '', '!', '.']), ['.', '!']);
+  expect(normalizeStringListValues(['.', ' . ', '', '!', '.'])).toEqual(['.', '!']);
+});
 
-  assertEqual(isEveryDuration('@every 3h'), true);
-  assertEqual(isEveryDuration('@every 1h30m'), true);
-  assertEqual(isEveryDuration('@every abc'), false);
-  assertEqual(isEveryDuration('@EVERY 3h'), false);
-  assertEqual(isEveryDuration('every 3h'), false);
-  assertEqual(isEveryDuration('3h'), false);
-  assertEqual(isRateFormatValid('3'), true);
-  assertEqual(isRateFormatValid('0'), false);
-  assertEqual(isRateFormatValid('-1'), false);
-  assertEqual(isRateFormatValid('@every 1s'), true);
-  assertEqual(isRateFormatValid('abc'), false);
-  assertEqual(isRateFormatValid(''), false);
-  assertEqual(isCronExpressionValid('@every 3h'), true);
-  assertEqual(isCronExpressionValid('@daily'), true);
-  assertEqual(isCronExpressionValid('@weekly'), true);
-  assertEqual(isCronExpressionValid('0 12 * * *'), true);
-  assertEqual(isCronExpressionValid('*/5 * * * *'), true);
-  assertEqual(isCronExpressionValid('1,2,3 0 * * *'), true);
-  assertEqual(isCronExpressionValid('0-30/5 9 * JAN-MAR MON-FRI'), true);
-  assertEqual(isCronExpressionValid('0 0 * * ?'), true);
-  assertEqual(isCronExpressionValid('TZ=Asia/Shanghai 0 12 * * *'), true);
-  assertEqual(isCronExpressionValid('TZ=Not/AZone 0 12 * * *'), false);
-  assertEqual(isCronExpressionValid('0 12 * * 7'), false);
-  assertEqual(isCronExpressionValid('0 12 * *'), false);
-  assertEqual(isCronExpressionValid('0 60 * * *'), false);
-  assertEqual(isCronExpressionValid('0 12 * * 8'), false);
-  assertEqual(isCronExpressionValid('* * * * * *'), false);
-  assertEqual(isCronExpressionValid('0 0 32 * *'), false);
-  assertEqual(isCronExpressionValid('0 0 * 13 *'), false);
-  assertEqual(isCronExpressionValid('JAN 12 * * *'), false);
-  assertEqual(isCronExpressionValid(''), false);
-  assertDeepEqual(validateBaseSettingPatchFormats({}), []);
-  assertDeepEqual(validateBaseSettingPatchFormats({ mailEnable: true }), []);
-  assertDeepEqual(
-    validateBaseSettingPatchFormats({ personalReplenishRate: 'abc' }).map(error => error.key),
-    ['personalReplenishRate']
-  );
-  assertDeepEqual(
+it('频率与定时格式拒绝非法值并标出补丁错误字段', () => {
+  expect(isEveryDuration('@every 3h')).toBe(true);
+  expect(isEveryDuration('@every 1h30m')).toBe(true);
+  expect(isEveryDuration('@every abc')).toBe(false);
+  expect(isEveryDuration('@EVERY 3h')).toBe(false);
+  expect(isEveryDuration('every 3h')).toBe(false);
+  expect(isEveryDuration('3h')).toBe(false);
+  expect(isRateFormatValid('3')).toBe(true);
+  expect(isRateFormatValid('0')).toBe(false);
+  expect(isRateFormatValid('-1')).toBe(false);
+  expect(isRateFormatValid('@every 1s')).toBe(true);
+  expect(isRateFormatValid('abc')).toBe(false);
+  expect(isRateFormatValid('')).toBe(false);
+  expect(isCronExpressionValid('@every 3h')).toBe(true);
+  expect(isCronExpressionValid('@daily')).toBe(true);
+  expect(isCronExpressionValid('@weekly')).toBe(true);
+  expect(isCronExpressionValid('0 12 * * *')).toBe(true);
+  expect(isCronExpressionValid('*/5 * * * *')).toBe(true);
+  expect(isCronExpressionValid('1,2,3 0 * * *')).toBe(true);
+  expect(isCronExpressionValid('0-30/5 9 * JAN-MAR MON-FRI')).toBe(true);
+  expect(isCronExpressionValid('0 0 * * ?')).toBe(true);
+  expect(isCronExpressionValid('TZ=Asia/Shanghai 0 12 * * *')).toBe(true);
+  expect(isCronExpressionValid('TZ=Not/AZone 0 12 * * *')).toBe(false);
+  expect(isCronExpressionValid('0 12 * * 7')).toBe(false);
+  expect(isCronExpressionValid('0 12 * *')).toBe(false);
+  expect(isCronExpressionValid('0 60 * * *')).toBe(false);
+  expect(isCronExpressionValid('0 12 * * 8')).toBe(false);
+  expect(isCronExpressionValid('* * * * * *')).toBe(false);
+  expect(isCronExpressionValid('0 0 32 * *')).toBe(false);
+  expect(isCronExpressionValid('0 0 * 13 *')).toBe(false);
+  expect(isCronExpressionValid('JAN 12 * * *')).toBe(false);
+  expect(isCronExpressionValid('')).toBe(false);
+  expect(validateBaseSettingPatchFormats({})).toEqual([]);
+  expect(validateBaseSettingPatchFormats({ mailEnable: true })).toEqual([]);
+  expect(
+    validateBaseSettingPatchFormats({ personalReplenishRate: 'abc' }).map(error => error.key)
+  ).toEqual(['personalReplenishRate']);
+  expect(
     validateBaseSettingPatchFormats({ groupReplenishRate: '0', aliveNoticeValue: 'bad cron' }).map(
       error => error.key
-    ),
-    ['groupReplenishRate', 'aliveNoticeValue']
-  );
-  assertEqual(
+    )
+  ).toEqual(['groupReplenishRate', 'aliveNoticeValue']);
+  expect(
     validateBaseSettingPatchFormats({ personalReplenishRate: '3', aliveNoticeValue: '@every 3h' })
-      .length,
-    0
-  );
+      .length
+  ).toBe(0);
+});
 
+it('扩展默认设置按变更筛选排序和分页', () => {
   const extInitial: BaseSettingExtDefaultSettingItem[] = [
     {
       name: 'coc7',
@@ -236,40 +214,42 @@ it('passes', async () => {
   ];
 
   const extView = buildExtDefaultSettingsView(extCurrent, extInitial);
-  assertEqual(extView.length, 3);
-  assertEqual(extView[0]?.dirty, false);
-  assertEqual(extView[1]?.dirty, true);
-  assertEqual(extView[1]?.autoActiveDirty, true);
-  assertEqual(extView[2]?.disabledCommandDirty, true);
-  assertDeepEqual(extView[2]?.changedCommands, ['note']);
-  assertEqual(getExtDefaultSettingModifiedCount(extView), 2);
-  assertDeepEqual(
-    filterExtDefaultSettingsView(extView, 'modified').map(item => item.item.name),
-    ['fun', 'story']
-  );
-  assertDeepEqual(
-    searchExtDefaultSettingsView(extView, 'note').map(item => item.item.name),
-    ['story']
-  );
-  assertDeepEqual(
-    sortExtDefaultSettingsView(extView, 'modified').map(item => item.item.name),
-    ['fun', 'story', 'coc7']
-  );
-  assertDeepEqual(
-    sortExtDefaultSettingsView(extView, 'name').map(item => item.item.name),
-    ['coc7', 'fun', 'story']
-  );
-  assertDeepEqual(
-    sortExtDefaultSettingsView(extView, 'disabled-count').map(item => item.item.name),
+  expect(extView.length).toBe(3);
+  expect(extView[0]?.dirty).toBe(false);
+  expect(extView[1]?.dirty).toBe(true);
+  expect(extView[1]?.autoActiveDirty).toBe(true);
+  expect(extView[2]?.disabledCommandDirty).toBe(true);
+  expect(extView[2]?.changedCommands).toEqual(['note']);
+  expect(getExtDefaultSettingModifiedCount(extView)).toBe(2);
+  expect(filterExtDefaultSettingsView(extView, 'modified').map(item => item.item.name)).toEqual([
+    'fun',
+    'story',
+  ]);
+  expect(searchExtDefaultSettingsView(extView, 'note').map(item => item.item.name)).toEqual([
+    'story',
+  ]);
+  expect(sortExtDefaultSettingsView(extView, 'modified').map(item => item.item.name)).toEqual([
+    'fun',
+    'story',
+    'coc7',
+  ]);
+  expect(sortExtDefaultSettingsView(extView, 'name').map(item => item.item.name)).toEqual([
+    'coc7',
+    'fun',
+    'story',
+  ]);
+  expect(sortExtDefaultSettingsView(extView, 'disabled-count').map(item => item.item.name)).toEqual(
     ['coc7', 'story', 'fun']
   );
-  assertDeepEqual(getExtDefaultSettingPage(extView, 3, 2), {
+  expect(getExtDefaultSettingPage(extView, 3, 2)).toEqual({
     page: 2,
     pageCount: 2,
     items: [extView[2]],
     total: 3,
   });
+});
 
+it('基础设置只提交实际变更的字段', () => {
   const initial = normalizeBaseSettingValue({
     commandPrefix: ['.'],
     diceMasters: ['QQ:1'],
@@ -322,7 +302,7 @@ it('passes', async () => {
   current.QQEnablePoke = true;
   current.commandPrefix = ['.', '!'];
 
-  assertDeepEqual(buildBaseSettingPatch(current, initial), {
+  expect(buildBaseSettingPatch(current, initial)).toEqual({
     QQEnablePoke: true,
     commandPrefix: ['.', '!'],
   });

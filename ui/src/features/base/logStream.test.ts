@@ -1,16 +1,10 @@
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 import { appPinia } from '@/pinia';
 import { useBaseLogStreamStore } from './logStreamStore';
 import { useBaseLogStream } from './logStream';
 import type { BaseLogItem } from './logStream';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
+it('快照、追加和清空更新可见日志', async () => {
   const first: BaseLogItem = {
     level: 'info',
     msg: 'first',
@@ -27,13 +21,13 @@ it('passes', async () => {
   store.clearLogs();
 
   store.applySnapshot([first]);
-  assertEqual(stream.logs.value.length, 1);
-  assertEqual(stream.hasLogs.value, true);
+  expect(stream.logs.value.length).toBe(1);
+  expect(stream.hasLogs.value).toBe(true);
 
   store.applyAppend(second);
-  assertEqual(stream.logs.value.length, 2);
+  expect(stream.logs.value.length).toBe(2);
 
   store.clearLogs();
-  assertEqual(stream.logs.value.length, 0);
-  assertEqual(stream.hasLogs.value, false);
+  expect(stream.logs.value.length).toBe(0);
+  expect(stream.hasLogs.value).toBe(false);
 });

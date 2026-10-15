@@ -6,21 +6,9 @@ import {
   sortCustomTextCategory,
 } from './viewModel';
 import type { TextTemplateHelpDict, TextTemplateItem, TextTemplateWithWeightDict } from './types';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('自定义文案的权重与分类转换', async () => {
   const assertOk = (actual: unknown) => {
     if (!actual) {
       throw new Error(`expected truthy value, got ${String(actual)}`);
@@ -76,21 +64,19 @@ it('passes', async () => {
     },
   };
 
-  assertDeepEqual(getCustomTextGroups(helpInfo.core), ['基础', '旧版']);
-  assertEqual(
+  expect(getCustomTextGroups(helpInfo.core)).toEqual(['基础', '旧版']);
+  expect(
     sortCustomTextCategory({ texts, helpInfo, category: 'core', filterMode: 'modified' })[0]![1]
-      .length,
-    1
-  );
-  assertEqual(
+      .length
+  ).toBe(1);
+  expect(
     sortCustomTextCategory({
       texts,
       helpInfo,
       category: 'core',
       filterMode: 'deprecated',
-    })[0]![1][0]![0],
-    'deprecated'
-  );
+    })[0]![1][0]![0]
+  ).toBe('deprecated');
 
   const compact = buildCustomTextExportContent({
     texts,
@@ -98,7 +84,7 @@ it('passes', async () => {
     onlyCurrent: true,
     compact: true,
   });
-  assertEqual(JSON.parse(compact).items.core.diceName[0][0], 'SealDice');
+  expect(JSON.parse(compact).items.core.diceName[0][0]).toBe('SealDice');
 
   const pretty = buildCustomTextExportContent({
     texts,
@@ -109,9 +95,9 @@ it('passes', async () => {
   assertOk(pretty.includes('\n  '));
 
   const parsed = parseCustomTextImportContent(JSON.stringify({ title: 'x', items: texts }));
-  assertDeepEqual(parsed.core.diceName, [['SealDice', 1]]);
+  expect(parsed.core.diceName).toEqual([['SealDice', 1]]);
 
   const keyStore = createTextItemKeyStore();
   const item: TextTemplateItem = ['text', 1];
-  assertEqual(keyStore.keyOf('diceName', item), keyStore.keyOf('diceName', item));
+  expect(keyStore.keyOf('diceName', item)).toBe(keyStore.keyOf('diceName', item));
 });

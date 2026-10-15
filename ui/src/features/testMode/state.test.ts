@@ -6,16 +6,12 @@ import {
   isTestModeResponse,
   useDerivedTestModeState,
 } from './state.ts';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  assertEqual(isTestModeResponse({ testMode: true }), true);
-  assertEqual(isTestModeResponse({ success: true }), false);
-  assertEqual(isTestModeResponse(null), false);
+it('展示模式限制与错误标识识别', async () => {
+  expect(isTestModeResponse({ testMode: true })).toBe(true);
+  expect(isTestModeResponse({ success: true })).toBe(false);
+  expect(isTestModeResponse(null)).toBe(false);
 
   const blockedError = new ApiError({
     status: 403,
@@ -26,8 +22,8 @@ it('passes', async () => {
       testMode: true,
     },
   });
-  assertEqual(isTestModeApiError(blockedError), true);
-  assertEqual(getTestModeBlockMessage(blockedError), '展示模式不支持该操作');
+  expect(isTestModeApiError(blockedError)).toBe(true);
+  expect(getTestModeBlockMessage(blockedError)).toBe('展示模式不支持该操作');
 
   const generic403 = new ApiError({
     status: 403,
@@ -36,16 +32,16 @@ it('passes', async () => {
       detail: '权限不足',
     },
   });
-  assertEqual(isTestModeApiError(generic403), false);
-  assertEqual(getTestModeBlockMessage(generic403), '');
+  expect(isTestModeApiError(generic403)).toBe(false);
+  expect(getTestModeBlockMessage(generic403)).toBe('');
 
   const overview = ref<{ runtime?: { justForTest?: boolean } } | undefined>(undefined);
   const derived = useDerivedTestModeState(computed(() => overview.value));
-  assertEqual(derived.isTestMode.value, false);
-  assertEqual(derived.bannerText.value, '展示模式，仅用于演示，修改不会生效');
-  assertEqual(derived.watermarkText.value, '');
+  expect(derived.isTestMode.value).toBe(false);
+  expect(derived.bannerText.value).toBe('展示模式，仅用于演示，修改不会生效');
+  expect(derived.watermarkText.value).toBe('');
 
   overview.value = { runtime: { justForTest: true } };
-  assertEqual(derived.isTestMode.value, true);
-  assertEqual(derived.watermarkText.value, '仅用于展示，修改无效');
+  expect(derived.isTestMode.value).toBe(true);
+  expect(derived.watermarkText.value).toBe('仅用于展示，修改无效');
 });

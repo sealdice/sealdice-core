@@ -1,23 +1,18 @@
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 import { appPinia } from '@/pinia';
 import { useUnsavedChangesStore } from './store';
-import {
-  activeUnsavedChangesSource,
-  clearUnsavedChangesSource,
-  confirmDiscardUnsavedChanges,
-  hasUnsavedChanges,
-  registerUnsavedChangesSource,
-  saveActiveUnsavedChanges,
-  setUnsavedChangesConfirmHandler,
-} from './state';
+import { storeToRefs } from 'pinia';
+const store = useUnsavedChangesStore(appPinia);
+const { activeUnsavedChangesSource, hasUnsavedChanges } = storeToRefs(store);
+const {
+  clearSource: clearUnsavedChangesSource,
+  confirmDiscard: confirmDiscardUnsavedChanges,
+  registerSource: registerUnsavedChangesSource,
+  saveActive: saveActiveUnsavedChanges,
+  setConfirmHandler: setUnsavedChangesConfirmHandler,
+} = store;
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) {
-      throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-    }
-  };
-
+it('未保存来源注册、保存与离开确认', async () => {
   const store = useUnsavedChangesStore(appPinia);
   store.clearAllSources();
   setUnsavedChangesConfirmHandler(null);
@@ -37,15 +32,15 @@ it('passes', async () => {
     },
   });
 
-  assertEqual(hasUnsavedChanges.value, true);
-  assertEqual(activeUnsavedChangesSource.value?.scope, 'test-high');
-  assertEqual(await saveActiveUnsavedChanges(), true);
-  assertEqual(saved, true);
+  expect(hasUnsavedChanges.value).toBe(true);
+  expect(activeUnsavedChangesSource.value?.scope).toBe('test-high');
+  expect(await saveActiveUnsavedChanges()).toBe(true);
+  expect(saved).toBe(true);
 
   setUnsavedChangesConfirmHandler(async source => source.scope === 'test-high');
-  assertEqual(await confirmDiscardUnsavedChanges(), true);
+  expect(await confirmDiscardUnsavedChanges()).toBe(true);
 
   clearUnsavedChangesSource('test-high');
   clearUnsavedChangesSource('test-low');
-  assertEqual(hasUnsavedChanges.value, false);
+  expect(hasUnsavedChanges.value).toBe(false);
 });

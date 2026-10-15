@@ -16,7 +16,7 @@ import {
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
 import { useUploadStore } from '@/features/upload/store';
-import { hasAccessToken } from '@/features/auth/state';
+
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import { parseReplyImportText } from './importParser';
 import {
@@ -30,6 +30,9 @@ import {
   type ReplyTask,
   type ReplyVMVersion,
 } from './model';
+import { notifyError } from '@/features/feedback/notifyError';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 
 export type ReplyFileQuery = {
   page: number;
@@ -40,6 +43,7 @@ export type ReplyFileQuery = {
 };
 
 export function useCustomReplyEditor() {
+  const { hasAccessToken } = storeToRefs(useAuthStore());
   const { enqueue: enqueueUploads } = useUploadStore();
   const message = useMessage();
   const dialog = useDialog();
@@ -219,8 +223,8 @@ export function useCustomReplyEditor() {
       await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
       message.success('已保存');
     },
-    onError: () => {
-      message.error('保存失败');
+    onError: error => {
+      notifyError(error, message, '保存失败');
     },
   });
 
@@ -389,8 +393,8 @@ export function useCustomReplyEditor() {
   async function toggleReplyEnabled(value: boolean) {
     try {
       await replyConfigMutation.mutateAsync(value);
-    } catch {
-      message.error('总开关更新失败');
+    } catch (error) {
+      notifyError(error, message, '总开关更新失败');
     }
   }
 
@@ -501,8 +505,8 @@ export function useCustomReplyEditor() {
       newFilename.value = `reply${Math.ceil(Math.random() * 10000)}.yaml`;
       selectFile(target);
       message.success('创建成功');
-    } catch {
-      message.error('创建失败');
+    } catch (error) {
+      notifyError(error, message, '创建失败');
     }
   }
 
@@ -532,8 +536,8 @@ export function useCustomReplyEditor() {
             fileItems.value.find(item => item.filename !== filename)?.filename ?? '';
           await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
           message.success('删除成功');
-        } catch {
-          message.error('删除失败');
+        } catch (error) {
+          notifyError(error, message, '删除失败');
         }
       },
     });

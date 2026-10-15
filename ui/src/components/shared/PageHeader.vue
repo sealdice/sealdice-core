@@ -32,7 +32,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useMessage } from 'naive-ui';
-import { activeUnsavedChangesSource, saveActiveUnsavedChanges } from '@/features/unsavedChanges';
+import { storeToRefs } from 'pinia';
+import { useUnsavedChangesStore } from '@/features/unsavedChanges/store';
+const unsaved = useUnsavedChangesStore();
+const { activeUnsavedChangesSource } = storeToRefs(unsaved);
 
 const props = defineProps<{
   title: string;
@@ -54,10 +57,8 @@ const saving = computed(() =>
 
 async function save() {
   if (!props.unsavedScope) return;
-  const saved = await saveActiveUnsavedChanges();
-  if (!saved) {
-    message.error('保存失败');
-  }
+  // 保存错误由来源 mutation 或全局 HTTP 边界反馈，避免第二次 toast。
+  await unsaved.saveActive();
 }
 
 async function discard() {

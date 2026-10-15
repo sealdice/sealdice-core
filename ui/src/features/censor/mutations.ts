@@ -15,6 +15,7 @@ import {
 } from '@/features/testMode/state';
 import { invalidateCensorQueries } from './queries';
 import { cloneCensorConfig } from './viewModel';
+import { notifyError } from '@/features/feedback/notifyError';
 
 export function useCensorMutations(options: {
   queryClient: QueryClient;
@@ -47,7 +48,7 @@ export function useCensorMutations(options: {
         options.message.warning(getTestModeBlockMessage(error));
         return;
       }
-      options.message.error('重载拦截失败');
+      notifyError(error, options.message, '重载拦截失败');
     },
   });
 
@@ -61,8 +62,8 @@ export function useCensorMutations(options: {
       options.onStopped();
       await invalidateCensorQueries(options.queryClient);
     },
-    onError: () => {
-      options.message.error('关闭拦截失败');
+    onError: error => {
+      notifyError(error, options.message, '关闭拦截失败');
     },
   });
 
@@ -80,8 +81,8 @@ export function useCensorMutations(options: {
       options.onConfigSaved(snapshot);
       await options.queryClient.invalidateQueries({ queryKey: ['censor-config'] });
     },
-    onError: () => {
-      options.message.error('保存设置失败');
+    onError: error => {
+      notifyError(error, options.message, '保存设置失败');
     },
   });
 
@@ -92,8 +93,8 @@ export function useCensorMutations(options: {
       options.onFilesChanged();
       await options.queryClient.invalidateQueries({ queryKey: ['censor-files'] });
     },
-    onError: () => {
-      options.message.error('上传失败');
+    onError: error => {
+      notifyError(error, options.message, '上传失败');
     },
   });
 
@@ -110,8 +111,8 @@ export function useCensorMutations(options: {
       options.onFilesChanged();
       await options.queryClient.invalidateQueries({ queryKey: ['censor-files'] });
     },
-    onError: () => {
-      options.message.error('删除词库失败');
+    onError: error => {
+      notifyError(error, options.message, '删除词库失败');
     },
   });
 

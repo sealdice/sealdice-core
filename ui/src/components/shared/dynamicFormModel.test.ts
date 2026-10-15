@@ -4,19 +4,9 @@ import {
   buildDynamicFormPayload,
   validateDynamicFormModel,
 } from './dynamicFormModel';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
-
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
+it('动态表单解析默认值并验证必填字段', async () => {
   const schema: FormConfigItem[] = [
     {
       id: 1,
@@ -64,16 +54,16 @@ it('passes', async () => {
   ];
 
   const model = buildDynamicFormInitialModel(schema);
-  assertEqual(model.token, '');
-  assertEqual(model.port, 5500);
-  assertEqual(model.enabled, true);
+  expect(model.token).toBe('');
+  expect(model.port).toBe(5500);
+  expect(model.enabled).toBe(true);
 
   const missing = validateDynamicFormModel(schema, model);
-  assertEqual(missing.valid, false);
-  assertDeepEqual(missing.missingFields, ['token']);
+  expect(missing.valid).toBe(false);
+  expect(missing.missingFields).toEqual(['token']);
 
   const payload = buildDynamicFormPayload(schema, { ...model, token: 'abc' });
-  assertDeepEqual(payload, {
+  expect(payload).toEqual({
     token: 'abc',
     port: 5500,
     enabled: true,
