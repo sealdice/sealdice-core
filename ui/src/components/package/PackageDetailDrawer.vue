@@ -6,7 +6,7 @@
     @update:show="emit('update:show', $event)"
   >
     <n-drawer-content :title="packageTitle" closable>
-      <n-spin :show="loading">
+      <n-spin :show="loading || saving">
         <n-space vertical size="large">
           <n-descriptions bordered label-placement="left" :column="1">
             <n-descriptions-item label="包 ID">{{
@@ -85,7 +85,7 @@
               <n-space justify="end">
                 <n-button
                   :loading="saving"
-                  :disabled="hasJsonErrors"
+                  :disabled="loading || saving || hasJsonErrors"
                   type="primary"
                   @click="emit('save-config', { ...draft })"
                 >

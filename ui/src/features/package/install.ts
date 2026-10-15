@@ -23,7 +23,11 @@ export async function installPackage(input: {
   await input.install(); // Installation/cancellation errors belong to the caller.
   const result: InstallResult = { enabled: false, reloaded: false };
   const refresh = async () => {
-    if (!(await input.refresh())) result.refreshFailed = true;
+    try {
+      if (!(await input.refresh())) result.refreshFailed = true;
+    } catch {
+      result.refreshFailed = true;
+    }
   };
   await refresh();
   if (!input.options.autoEnable) return result;

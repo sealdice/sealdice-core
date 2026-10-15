@@ -387,15 +387,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { usePackageDetail } from '@/features/package/usePackageDetail';
 import { type DropdownDividerOption, type DropdownOption, useDialog, useMessage } from 'naive-ui';
 import { useQuery } from '@tanstack/vue-query';
 import { useRoute, useRouter } from 'vue-router';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
   deleteSdApiV2ExtensionStoreBackends,
-  getSdApiV2ExtensionConfig,
-  getSdApiV2ExtensionConfigSchema,
   getSdApiV2ExtensionPackages,
   getSdApiV2ExtensionStoreBackends,
   getSdApiV2ExtensionStorePage,
@@ -413,7 +412,6 @@ import {
   postSdApiV2ExtensionStoreBackendsEnable,
   postSdApiV2ExtensionStoreDownload,
   postSdApiV2ExtensionUninstall,
-  putSdApiV2ExtensionConfig,
   type Instance,
   type Manifest,
   type PackageUploadPreview,
@@ -449,15 +447,6 @@ import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
-
-type ConfigFieldSchema = {
-  type?: string;
-  title?: string;
-  description?: string;
-  default?: unknown;
-  secret?: boolean;
-  enum?: unknown[] | null;
-};
 
 const uploads = useUploadStore();
 const message = useMessage();
@@ -508,8 +497,6 @@ const refreshing = ref(false);
 const reloading = ref(false);
 const detachedReloadPending = ref(false);
 const backendMutationPending = ref(false);
-const detailLoading = ref(false);
-const detailSaving = ref(false);
 const uploadPreviewLoading = ref(false);
 const uploadInstallLoading = ref(false);
 const installUrlLoading = ref(false);
@@ -588,11 +575,6 @@ const storeSearchColumns: ProSearchFormColumns<StoreSearchFormValues> = [
   },
 ];
 
-const detailVisible = ref(false);
-const currentPackage = ref<Instance | null>(null);
-const currentPackageConfig = ref<Record<string, unknown> | null>(null);
-const currentPackageSchema = ref<Record<string, ConfigFieldSchema> | null>(null);
-
 const storeDetailVisible = ref(false);
 const currentStorePackage = ref<StorePackage | null>(null);
 
@@ -609,7 +591,7 @@ const packagesQuery = useQuery({
     const { data } = await getSdApiV2ExtensionPackages({ throwOnError: true });
     return data.item.items ?? [];
   },
-  enabled: authStore.hasAccessToken,
+  enabled: computed(() => authStore.hasAccessToken),
 });
 
 const storeBackendsQuery = useQuery({
@@ -618,7 +600,7 @@ const storeBackendsQuery = useQuery({
     const { data } = await getSdApiV2ExtensionStoreBackends({ throwOnError: true });
     return data.item.items ?? [];
   },
-  enabled: authStore.hasAccessToken,
+  enabled: computed(() => authStore.hasAccessToken),
 });
 
 const storePageQuery = useQuery({
@@ -641,7 +623,24 @@ const storePageQuery = useQuery({
     });
     return data.item;
   },
-  enabled: authStore.hasAccessToken,
+  enabled: computed(() => authStore.hasAccessToken),
+});
+
+const {
+  visible: detailVisible,
+  pkg: currentPackage,
+  config: currentPackageConfig,
+  schema: currentPackageSchema,
+  loading: detailLoading,
+  saving: detailSaving,
+  open: openDetail,
+  saveConfig: savePackageConfig,
+} = usePackageDetail({
+  onSaved: async () => {
+    message.success('配置已保存');
+    await packagesQuery.refetch();
+  },
+  onError: handleError,
 });
 
 const packages = computed(() => packagesQuery.data.value ?? []);
@@ -753,7 +752,6 @@ watch(
     if (!hasToken) {
       previewVisible.value = false;
       previewStoreTarget.value = null;
-      detailVisible.value = false;
       storeDetailVisible.value = false;
       detachedReloadPending.value = false;
     }
@@ -763,10 +761,6 @@ watch(
 
 watch(installAutoEnable, enabled => {
   if (!enabled) installAutoReload.value = false;
-});
-
-onMounted(async () => {
-  await refreshAll();
 });
 
 async function refreshAll() {
@@ -819,49 +813,6 @@ async function fetchStorePage() {
     await storePageQuery.refetch();
   } finally {
     storeLoading.value = false;
-  }
-}
-
-async function openDetail(pkg: Instance) {
-  detailVisible.value = true;
-  currentPackage.value = pkg;
-  detailLoading.value = true;
-  currentPackageConfig.value = null;
-  currentPackageSchema.value = null;
-  try {
-    const [configResp, schemaResp] = await Promise.all([
-      getSdApiV2ExtensionConfig({ query: { id: pkg.manifest.package.id }, throwOnError: true }),
-      getSdApiV2ExtensionConfigSchema({
-        query: { id: pkg.manifest.package.id },
-        throwOnError: true,
-      }),
-    ]);
-    currentPackageConfig.value = configResp.data.item;
-    currentPackageSchema.value = schemaResp.data.item;
-  } catch (error) {
-    handleError(error, '读取扩展包详情失败');
-    detailVisible.value = false;
-  } finally {
-    detailLoading.value = false;
-  }
-}
-
-async function savePackageConfig(nextConfig: Record<string, unknown>) {
-  if (!currentPackage.value) return;
-  detailSaving.value = true;
-  try {
-    await putSdApiV2ExtensionConfig({
-      query: { id: currentPackage.value.manifest.package.id },
-      body: nextConfig,
-      throwOnError: true,
-    });
-    message.success('配置已保存');
-    await packagesQuery.refetch();
-    currentPackageConfig.value = nextConfig;
-  } catch (error) {
-    handleError(error, '保存配置失败');
-  } finally {
-    detailSaving.value = false;
   }
 }
 

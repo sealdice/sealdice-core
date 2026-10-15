@@ -81,6 +81,8 @@
   - `enqueue()` 只等待文件完成入队准备，`upload()` 等待单文件安装完成；失败与取消都会结束后者的 Promise。
   - store 持有并释放 Uppy；queue 管理业务任务，engine 负责第三方身份和事件映射。
 - 扩展包安装用例在 `features/package/install.ts`，统一安装、启用、重载和刷新。展示组件选择上传／URL／商店来源并展示结果，不另写三套后置状态机。
+- 扩展包详情由 `features/package/usePackageDetail.ts` 管理，查询与保存回调都按包 ID 隔离；Vue Query 负责取消旧查询，页面不再维护另一份配置请求状态。
+  - 详情抽屉保存期间阻止继续编辑；安装后的列表刷新失败单独反馈，不把已经完成的安装报成失败。
 - App 壳布局宽度逻辑统一在 `src/components/app-shell/appShellLayout.ts`。
   - `default`/`wide` 的差异是内容区宽度，不是另一套页面体系。
 

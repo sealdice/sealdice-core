@@ -69,10 +69,13 @@ it('does not run post-install actions after cancellation', async () => {
   expect(postSdApiV2ExtensionReload).not.toHaveBeenCalled();
 });
 
-it('honors disabled post-actions and distinguishes cache refresh failure', async () => {
+it.each([false, true])('保留安装成功状态并标记刷新失败（抛异常=%s）', async throws => {
   const { input } = fixture();
   input.options.autoEnable = false;
-  input.refresh = async () => false;
+  input.refresh = async () => {
+    if (throws) throw new Error('刷新请求失败');
+    return false;
+  };
   expect(await installPackage(input)).toEqual({
     enabled: false,
     reloaded: false,
