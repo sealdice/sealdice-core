@@ -984,7 +984,10 @@ func (p *PlatformAdapterOnebot) ensureFSM() {
 		"disconnected",
 		loopfsm.Events{
 			{Name: "enable", Src: []string{"disconnected", "failed"}, Dst: "connecting"},
-			{Name: "connect_ok", Src: []string{"connecting", "waiting"}, Dst: "connected"},
+			// 首次连接失败后，retryConnect 直接调用 startConnection 重连，不经过 enable，
+			// 重连成功时状态机仍停在 failed。不接受 failed 的话 connect_ok 会被拒：
+			// State 一直是「连接失败」，之后的 connection_lost 也被拒，断线不再重连。
+			{Name: "connect_ok", Src: []string{"connecting", "waiting", "failed"}, Dst: "connected"},
 			{Name: "connect_fail", Src: []string{"connecting"}, Dst: "failed"},
 			{Name: "disable", Src: []string{"connecting", "connected", "failed", "disconnected", "waiting"}, Dst: "disconnected"},
 			{Name: "connection_lost", Src: []string{"connected"}, Dst: "connecting"},
