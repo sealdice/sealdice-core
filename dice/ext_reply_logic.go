@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -365,7 +364,7 @@ func (c *ReplyConfig) SaveToPath(filePath string) error {
 	if fileConfig.VMVersion == ReplyVMVersionV2 {
 		buf = append([]byte(ReplyVMVersionV2Marker+"\n"), buf...)
 	}
-	return os.WriteFile(filePath, buf, 0644)
+	return writeFileAtomically(filePath, buf, 0o644)
 }
 
 func (c *ReplyConfig) Clean() {

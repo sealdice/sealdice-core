@@ -92,9 +92,9 @@ func CustomReplyConfigNewWithVMVersion(dice *Dice, filename string, vmVersion st
 		Author:          []string{"无名海豹"},
 		Conditions:      []ReplyConditionBase{},
 	}
-	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
-	if err := rc.Save(dice); err != nil {
+	if err := dice.SaveReplyConfig(rc, &vmVersion); err != nil {
 		dice.Logger.Errorf("保存新自定义回复文件失败: %s: %v", filename, err)
+		return nil
 	}
 	return rc
 }

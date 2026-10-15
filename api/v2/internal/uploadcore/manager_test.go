@@ -1,11 +1,12 @@
-//nolint:testpackage // Tests intentionally stay in-package for compact fixtures.
-package uploadcore
+package uploadcore_test
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"sealdice-core/api/v2/internal/uploadcore"
 )
 
 func TestReplaceFileAtomicCreatesNewFile(t *testing.T) {
@@ -15,7 +16,7 @@ func TestReplaceFileAtomicCreatesNewFile(t *testing.T) {
 	if err := os.WriteFile(staged, []byte("hello"), 0o644); err != nil {
 		t.Fatalf("write staged: %v", err)
 	}
-	if err := ReplaceFileAtomic(staged, dst); err != nil {
+	if err := uploadcore.ReplaceFileAtomic(staged, dst); err != nil {
 		t.Fatalf("ReplaceFileAtomic: %v", err)
 	}
 	got, err := os.ReadFile(dst)
@@ -40,7 +41,7 @@ func TestReplaceFileAtomicOverwritesExistingFileAndCleansBackup(t *testing.T) {
 	if err := os.WriteFile(staged, []byte("new-content"), 0o644); err != nil {
 		t.Fatalf("write staged: %v", err)
 	}
-	if err := ReplaceFileAtomic(staged, dst); err != nil {
+	if err := uploadcore.ReplaceFileAtomic(staged, dst); err != nil {
 		t.Fatalf("ReplaceFileAtomic: %v", err)
 	}
 	got, err := os.ReadFile(dst)

@@ -2,6 +2,7 @@ package customtext
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -11,27 +12,9 @@ import (
 	"sealdice-core/model/common/response"
 )
 
-type Service struct {
-	dice     *dice.Dice
-	dm       *dice.DiceManager
-	autoSave bool
-}
+type Service struct{ dice *dice.Dice }
 
-func NewService(dm *dice.DiceManager) *Service {
-	return newService(dm, true)
-}
-
-func NewServiceWithAutoSave(dm *dice.DiceManager, autoSave bool) *Service {
-	return newService(dm, autoSave)
-}
-
-func newService(dm *dice.DiceManager, autoSave bool) *Service {
-	return &Service{
-		dice:     dm.GetDice(),
-		dm:       dm,
-		autoSave: autoSave,
-	}
-}
+func NewService(dm *dice.DiceManager) *Service { return &Service{dice: dm.GetDice()} }
 
 func (s *Service) Dice() *dice.Dice {
 	return s.dice
@@ -61,22 +44,12 @@ func (s *Service) GetText(_ context.Context, _ *request.Empty) (*response.ItemRe
 }
 
 func (s *Service) SaveCategory(_ context.Context, req *SaveCategoryReq) (*response.ItemResponse[response.SimpleOK], error) {
-	category := strings.TrimSpace(req.Category)
-	if category == "" {
-		return nil, huma.Error400BadRequest("missing category")
-	}
-	data := normalizeTextTemplate(req.Body.Data)
-	if s.dice.TextMapRaw == nil {
-		s.dice.TextMapRaw = dice.TextTemplateWithWeightDict{}
-	}
-	s.dice.TextMapRaw[category] = data
-	dice.SetupTextHelpInfo(s.dice, s.dice.TextMapHelpInfo, s.dice.TextMapRaw, "configs/text-template.yaml")
-	s.dice.GenerateTextMap()
-	if err := s.saveText(); err != nil {
+	if err := s.dice.SaveTextCategory(req.Category, req.Body.Data); err != nil {
+		if errors.Is(err, dice.ErrInvalidConfig) {
+			return nil, huma.Error400BadRequest(err.Error())
+		}
+		s.dice.Logger.Errorf("保存文案失败: %v", err)
 		return nil, huma.Error500InternalServerError("保存文案失败")
-	}
-	for key, item := range s.dice.TextMapRaw[category] {
-		dice.TextMapCompatibleCheck(s.dice, category, key, item)
 	}
 	return response.NewItemResponse[response.SimpleOK](response.SimpleOK{Success: true}), nil
 }
@@ -90,31 +63,6 @@ func (s *Service) PreviewRefresh(_ context.Context, req *PreviewRefreshReq) (*re
 		dice.TextMapCompatibleCheck(s.dice, category, key, item)
 	}
 	return response.NewItemResponse[response.SimpleOK](response.SimpleOK{Success: true}), nil
-}
-
-func normalizeTextTemplate(data dice.TextTemplateWithWeight) dice.TextTemplateWithWeight {
-	for _, items := range data {
-		for _, item := range items {
-			if len(item) > 0 {
-				if text, ok := item[0].(string); ok {
-					item[0] = strings.TrimSpace(text)
-				}
-			}
-			if len(item) > 1 {
-				switch weight := item[1].(type) {
-				case int:
-					item[1] = weight
-				case int64:
-					item[1] = int(weight)
-				case float64:
-					item[1] = int(weight)
-				case float32:
-					item[1] = int(weight)
-				}
-			}
-		}
-	}
-	return data
 }
 
 func previewInfoToMap(src *dice.TextTemplateCompatibleDict) map[string]map[string]dice.TextItemCompatibleInfo {
@@ -134,11 +82,4 @@ func previewInfoToMap(src *dice.TextTemplateCompatibleDict) map[string]map[strin
 		return true
 	})
 	return out
-}
-
-func (s *Service) saveText() error {
-	if !s.autoSave {
-		return nil
-	}
-	return s.dice.SaveText()
 }

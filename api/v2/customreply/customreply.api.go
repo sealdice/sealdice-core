@@ -2,6 +2,7 @@ package customreply
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -210,7 +210,7 @@ func (s *Service) CreateFile(_ context.Context, req *FileReq) (*response.ItemRes
 	if vmVersion == "" {
 		vmVersion = dice.ReplyVMVersionV2
 	}
-	vmVersion, ok := normalizeReplyVMVersion(vmVersion)
+	vmVersion, ok := dice.ValidateReplyVMVersion(vmVersion)
 	if !ok {
 		return nil, huma.Error400BadRequest("不支持的自定义回复 VM 版本")
 	}
@@ -232,67 +232,19 @@ func (s *Service) DeleteFile(_ context.Context, req *FilenamePath) (*response.It
 }
 
 func (s *Service) SaveConfig(_ context.Context, req *SaveReq) (*response.ItemResponse[response.SimpleOK], error) {
-	filename, err := sanitizeFilename(req.Filename)
-	if err != nil {
-		return nil, err
-	}
 	rc := req.Body.ReplyConfig
-	if req.Body.VMVersion == nil {
-		rc.VMVersion = s.existingReplyVMVersion(filename)
-	} else {
-		vmVersion, ok := normalizeReplyVMVersion(*req.Body.VMVersion)
-		if !ok {
-			return nil, huma.Error400BadRequest("不支持的自定义回复 VM 版本")
+	rc.Filename = req.Filename
+	if err := s.dice.SaveReplyConfig(&rc, req.Body.VMVersion); err != nil {
+		if errors.Is(err, dice.ErrInvalidConfig) {
+			return nil, huma.Error400BadRequest(err.Error())
 		}
-		rc.VMVersion = vmVersion
-	}
-	rc.Filename = filename
-	rc.UpdateTimestamp = time.Now().Unix()
-	if rc.CreateTimestamp == 0 {
-		rc.CreateTimestamp = rc.UpdateTimestamp
-	}
-	rc.Clean()
-	var target *dice.ReplyConfig
-	var backup *dice.ReplyConfig
-	for index, item := range s.dice.CustomReplyConfig {
-		if item != nil && item.Filename == filename {
-			target = s.dice.CustomReplyConfig[index]
-			old := *target
-			backup = &old
-			target.Enable = rc.Enable
-			target.VMVersion = rc.VMVersion
-			target.Conditions = rc.Conditions
-			target.Items = rc.Items
-			target.Interval = rc.Interval
-			target.Name = rc.Name
-			target.Author = rc.Author
-			target.Version = rc.Version
-			target.CreateTimestamp = rc.CreateTimestamp
-			target.UpdateTimestamp = rc.UpdateTimestamp
-			target.Desc = rc.Desc
-			target.StoreID = rc.StoreID
-			break
+		if errors.Is(err, dice.ErrReplyPackageNotFound) {
+			return nil, huma.Error404NotFound(err.Error())
 		}
-	}
-	if err := rc.Save(s.dice); err != nil {
-		if target != nil && backup != nil {
-			*target = *backup
-		}
+		s.dice.Logger.Errorf("保存自定义回复文件失败: %v", err)
 		return nil, huma.Error500InternalServerError("保存自定义回复文件失败")
 	}
-	dice.ReplyReload(s.dice)
 	return response.NewItemResponse(response.SimpleOK{Success: true}), nil
-}
-
-func normalizeReplyVMVersion(version string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(version)) {
-	case "", dice.ReplyVMVersionV1:
-		return "", true
-	case dice.ReplyVMVersionV2:
-		return dice.ReplyVMVersionV2, true
-	default:
-		return "", false
-	}
 }
 
 func displayReplyVMVersion(version string) string {
@@ -300,15 +252,6 @@ func displayReplyVMVersion(version string) string {
 		return dice.ReplyVMVersionV2
 	}
 	return dice.ReplyVMVersionV1
-}
-
-func (s *Service) existingReplyVMVersion(filename string) string {
-	for _, item := range s.dice.CustomReplyConfig {
-		if item != nil && strings.EqualFold(item.Filename, filename) {
-			return item.VMVersion
-		}
-	}
-	return ""
 }
 
 func (s *Service) Download(_ context.Context, req *FilenamePath) (*huma.StreamResponse, error) {

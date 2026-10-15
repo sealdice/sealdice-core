@@ -75,9 +75,7 @@ func (s *Service) GetAdvancedConfig(_ context.Context, _ *request.Empty) (*respo
 }
 
 func (s *Service) SetAdvancedConfig(_ context.Context, req *AdvancedConfigReq) (*response.ItemResponse[dice.AdvancedConfig], error) {
-	s.dice.AdvancedConfig = req.Body
-	s.dice.MarkModified()
-	s.dm.Save()
+	s.dice.UpdateAdvancedConfig(req.Body)
 	return response.NewItemResponse(s.dice.AdvancedConfig), nil
 }
 

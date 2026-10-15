@@ -49,6 +49,7 @@ func newTestService(t *testing.T) (*Service, func()) {
 
 	db := newTestDatabaseOperator(t)
 	d := &dice.Dice{
+		BaseConfig:        dice.BaseConfig{DataDir: t.TempDir()},
 		Logger:            logger.M(),
 		DBOperator:        db,
 		ExtRegistry:       new(dice.SyncMap[string, *dice.ExtInfo]),
@@ -73,7 +74,7 @@ func newTestService(t *testing.T) (*Service, func()) {
 	d.UIEndpoint.Session = d.ImSession
 	dm := &dice.DiceManager{Dice: []*dice.Dice{d}}
 	d.Parent = dm
-	return NewServiceWithAutoSave(dm, false), func() {
+	return NewService(dm), func() {
 		d.AttrsManager.Stop()
 		db.Close()
 	}
