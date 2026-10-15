@@ -1,6 +1,7 @@
 package uploadgw
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
@@ -27,6 +28,12 @@ type Destination interface {
 	Validate(meta map[string]string, size int64) error
 	// Install 消费已通过校验的暂存文件，写入业务目录并触发相应重载。
 	Install(stagedPath string, meta map[string]string) error
+}
+
+// contextualDestination 是可选的扩展接口：需要 context 的 destination（如流式安装）
+// 实现它，网关在安装时优先调用 InstallContext。
+type contextualDestination interface {
+	InstallContext(ctx context.Context, stagedPath string, meta map[string]string) error
 }
 
 // ---------- js 脚本 ----------

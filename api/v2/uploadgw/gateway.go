@@ -6,6 +6,7 @@
 package uploadgw
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -65,12 +66,13 @@ func New(dm *dice.DiceManager, rootDir string) (*Gateway, error) {
 		base:  BasePath,
 		store: store,
 		dests: map[string]Destination{
-			ModuleJS:          &scriptDestination{dm: dm},
-			ModuleDeck:        &deckDestination{dm: dm},
-			ModuleHelpdoc:     &helpdocDestination{dm: dm},
-			ModuleResource:    &resourceDestination{},
-			ModuleCensor:      &censorDestination{},
-			ModuleCustomReply: &customReplyDestination{dm: dm},
+			ModuleJS:               &scriptDestination{dm: dm},
+			ModuleDeck:             &deckDestination{dm: dm},
+			ModuleHelpdoc:          &helpdocDestination{dm: dm},
+			ModuleResource:         &resourceDestination{},
+			ModuleCensor:           &censorDestination{},
+			ModuleCustomReply:      &customReplyDestination{dm: dm},
+			ModuleExtensionInstall: &extensionInstallDestination{dm: dm},
 		},
 	}
 
@@ -153,13 +155,22 @@ func (g *Gateway) preFinish(hook tusd.HookEvent) (tusd.HTTPResponse, error) {
 		g.terminate(hook)
 		return tusd.HTTPResponse{}, err
 	}
-	if err := dst.Install(staged, meta); err != nil {
+	if err := installDestination(dst, hook.Context, staged, meta); err != nil {
 		g.terminate(hook)
 		return tusd.HTTPResponse{}, err
 	}
 	// 安装完成后删除 tus 暂存文件，避免残留。
 	g.terminate(hook)
 	return tusd.HTTPResponse{}, nil
+}
+
+// installDestination 优先调用实现了 contextualDestination 的 destination，
+// 否则回退到无 context 的 Install。
+func installDestination(dst Destination, ctx context.Context, stagedPath string, meta map[string]string) error {
+	if cd, ok := dst.(contextualDestination); ok {
+		return cd.InstallContext(ctx, stagedPath, meta)
+	}
+	return dst.Install(stagedPath, meta)
 }
 
 func (g *Gateway) terminate(hook tusd.HookEvent) {
