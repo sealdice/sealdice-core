@@ -1,4 +1,4 @@
-package base
+package base //nolint:testpackage // 测试注入实例私有探测函数，不增加生产测试接口。
 
 import (
 	"testing"
@@ -9,6 +9,7 @@ import (
 )
 
 func TestNetworkHealthUsesInstanceProbes(t *testing.T) {
+	t.Parallel()
 	for _, withSign := range []bool{true, false} {
 		name := "without-sign-server"
 		if withSign {

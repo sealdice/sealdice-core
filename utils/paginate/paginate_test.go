@@ -1,9 +1,11 @@
-package paginate
+package paginate_test
 
 import (
 	"math"
 	"reflect"
 	"testing"
+
+	"sealdice-core/utils/paginate"
 )
 
 func TestSliceBoundaries(t *testing.T) {
@@ -22,7 +24,7 @@ func TestSliceBoundaries(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			items := []int{1, 2, 3}
-			got := Slice(items, tc.page, tc.size)
+			got := paginate.Slice(items, tc.page, tc.size)
 			if !reflect.DeepEqual(got.List, tc.want) || got.Total != 3 {
 				t.Fatalf("unexpected page: %+v", got)
 			}
@@ -37,7 +39,7 @@ func TestSliceBoundaries(t *testing.T) {
 			}
 		})
 	}
-	if got := Slice[int](nil, 1, 10); got.List == nil || got.Total != 0 {
+	if got := paginate.Slice[int](nil, 1, 10); got.List == nil || got.Total != 0 {
 		t.Fatalf("unexpected empty page: %+v", got)
 	}
 }

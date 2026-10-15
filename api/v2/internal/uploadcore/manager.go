@@ -22,7 +22,8 @@ func ReplaceFileAtomic(stagedPath string, dstPath string) error {
 		return fmt.Errorf("upload source is not a regular file: %s", stagedPath)
 	}
 	// Lstat also rejects symlinks: only regular files may be moved out of the way.
-	if target, err := os.Lstat(dstPath); errors.Is(err, os.ErrNotExist) {
+	target, err := os.Lstat(dstPath)
+	if errors.Is(err, os.ErrNotExist) {
 		return os.Rename(stagedPath, dstPath)
 	} else if err != nil {
 		return err

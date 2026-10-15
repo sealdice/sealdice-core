@@ -1,15 +1,16 @@
-package uploadgw
+package uploadgw //nolint:testpackage // 通过私有目标注册表注入可控落盘实现。
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -32,17 +33,17 @@ func (f *fakeDestination) Module() string { return f.module }
 func (f *fakeDestination) Validate(meta map[string]string, size int64) error {
 	f.gotSize = size
 	if strings.TrimSpace(meta[MetaFilename]) == "" {
-		return fmt.Errorf("filename required")
+		return errors.New("filename required")
 	}
 	if f.maxSize > 0 && size > f.maxSize {
-		return fmt.Errorf("file too large")
+		return errors.New("file too large")
 	}
 	return nil
 }
 
 func (f *fakeDestination) Install(stagedPath string, meta map[string]string) error {
 	if f.fail {
-		return fmt.Errorf("install failed")
+		return errors.New("install failed")
 	}
 	data, err := os.ReadFile(stagedPath)
 	if err != nil {
@@ -85,7 +86,7 @@ func createUpload(t *testing.T, srv *httptest.Server, content []byte, meta map[s
 		t.Fatalf("new create request: %v", err)
 	}
 	createReq.Header.Set("Tus-Resumable", "1.0.0")
-	createReq.Header.Set("Upload-Length", fmt.Sprintf("%d", len(content)))
+	createReq.Header.Set("Upload-Length", strconv.Itoa(len(content)))
 	createReq.Header.Set("Upload-Metadata", metadataHeader(meta))
 
 	createResp, err := http.DefaultClient.Do(createReq)
@@ -170,7 +171,7 @@ func TestGatewayRejectsUnknownModule(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 	createReq.Header.Set("Tus-Resumable", "1.0.0")
-	createReq.Header.Set("Upload-Length", fmt.Sprintf("%d", len(content)))
+	createReq.Header.Set("Upload-Length", strconv.Itoa(len(content)))
 	createReq.Header.Set("Upload-Metadata", metadataHeader(map[string]string{
 		MetaModule:   "nope",
 		MetaFilename: "x.js",
@@ -221,7 +222,7 @@ func TestGatewayRejectsOversizeAtCreation(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 	createReq.Header.Set("Tus-Resumable", "1.0.0")
-	createReq.Header.Set("Upload-Length", fmt.Sprintf("%d", len(content)))
+	createReq.Header.Set("Upload-Length", strconv.Itoa(len(content)))
 	createReq.Header.Set("Upload-Metadata", metadataHeader(map[string]string{
 		MetaModule:   "test",
 		MetaFilename: "a.bin",

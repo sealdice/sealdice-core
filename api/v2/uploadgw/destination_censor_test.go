@@ -1,4 +1,4 @@
-package uploadgw
+package uploadgw //nolint:testpackage // 复用包内网关夹具验证词库落盘。
 
 import (
 	"net/http"

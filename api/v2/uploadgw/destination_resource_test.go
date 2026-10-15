@@ -1,11 +1,11 @@
-package uploadgw
+package uploadgw //nolint:testpackage // 与包内网关夹具共享未导出的落盘实现。
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -34,7 +34,7 @@ func createOnly(t *testing.T, srv *httptest.Server, length int, meta map[string]
 		t.Fatalf("new create request: %v", err)
 	}
 	req.Header.Set("Tus-Resumable", "1.0.0")
-	req.Header.Set("Upload-Length", fmt.Sprintf("%d", length))
+	req.Header.Set("Upload-Length", strconv.Itoa(length))
 	req.Header.Set("Upload-Metadata", metadataHeader(meta))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

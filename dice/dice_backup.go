@@ -105,10 +105,10 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	fnHashed := crypto.CalculateSHA512Str([]byte(bakFn))[:8]
 	bakFn += "_" + fnHashed + ".zip"
 
-	fzip, err := os.OpenFile(filepath.Join(BackupDir, bakFn),
+	fzip, openErr := os.OpenFile(filepath.Join(BackupDir, bakFn),
 		os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
-	if err != nil {
-		return "", err
+	if openErr != nil {
+		return "", openErr
 	}
 	defer func() { _ = fzip.Close() }()
 

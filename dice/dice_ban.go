@@ -525,10 +525,7 @@ func (i *BanListInfo) DeleteByID(d *Dice, id string) error {
 	return nil
 }
 
+// DeleteByIDWeb 保留旧入口，与脚本和批量删除共享同一持久化规则。
 func (i *BanListInfo) DeleteByIDWeb(d *Dice, id string) error {
-	if err := service.BanItemDel(d.DBOperator, id); err != nil {
-		return err
-	}
-	i.Map.Delete(id)
-	return nil
+	return i.DeleteByID(d, id)
 }

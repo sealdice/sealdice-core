@@ -1,4 +1,4 @@
-package uploadgw
+package uploadgw //nolint:testpackage // 与包内网关夹具共享未导出的落盘实现。
 
 import (
 	"net/http"
@@ -53,13 +53,13 @@ func TestCustomReplyRejectsOverwriteAtInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create staged: %v", err)
 	}
-	if _, err := staged.WriteString("new"); err != nil {
+	if _, err = staged.WriteString("new"); err != nil {
 		t.Fatalf("write staged: %v", err)
 	}
 	_ = staged.Close()
 
 	dst := &customReplyDestination{dm: dm}
-	if err := dst.Install(staged.Name(), map[string]string{MetaFilename: "race.yaml"}); err == nil {
+	if err = dst.Install(staged.Name(), map[string]string{MetaFilename: "race.yaml"}); err == nil {
 		t.Fatal("Install overwrote an existing custom-reply file, want 409")
 	}
 	got, err := os.ReadFile(target)

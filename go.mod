@@ -107,6 +107,7 @@ require (
 require (
 	github.com/emmansun/gmsm v0.44.1
 	github.com/sixafter/aes-ctr-drbg v1.16.0
+	github.com/tus/tusd/v2 v2.10.1
 )
 
 require (
@@ -206,7 +207,6 @@ require (
 	github.com/tidwall/rtred v0.1.2 // indirect
 	github.com/tidwall/tinyqueue v0.1.1 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
-	github.com/tus/tusd/v2 v2.10.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect

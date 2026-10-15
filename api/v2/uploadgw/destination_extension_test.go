@@ -1,4 +1,4 @@
-package uploadgw
+package uploadgw //nolint:testpackage // 复用包内网关夹具验证扩展包安装边界。
 
 import (
 	"net/http"

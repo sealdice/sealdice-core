@@ -41,7 +41,9 @@ func customTextSave(c echo.Context) error {
 		myDice.TextMapRaw[v.Category] = v.Data
 		dice.SetupTextHelpInfo(myDice, myDice.TextMapHelpInfo, myDice.TextMapRaw, "configs/text-template.yaml")
 		myDice.GenerateTextMap()
-		myDice.SaveText()
+		if err := myDice.SaveText(); err != nil {
+			return c.String(http.StatusInternalServerError, "保存文案失败")
+		}
 
 		for k, v2 := range myDice.TextMapRaw[v.Category] {
 			dice.TextMapCompatibleCheck(myDice, v.Category, k, v2)

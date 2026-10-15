@@ -1,4 +1,4 @@
-package uploadgw
+package uploadgw //nolint:testpackage // 直接验证私有文件名校验，不新增导出门面。
 
 import "testing"
 

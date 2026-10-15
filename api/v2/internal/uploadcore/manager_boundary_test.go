@@ -1,9 +1,11 @@
-package uploadcore
+package uploadcore_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"sealdice-core/api/v2/internal/uploadcore"
 )
 
 func TestReplaceFileAtomicPreservesDirectoryTargets(t *testing.T) {
@@ -22,7 +24,7 @@ func TestReplaceFileAtomicPreservesDirectoryTargets(t *testing.T) {
 			if err := os.WriteFile(staged, []byte("upload"), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			if err := ReplaceFileAtomic(staged, target); err == nil {
+			if err := uploadcore.ReplaceFileAtomic(staged, target); err == nil {
 				t.Fatal("directory target accepted")
 			}
 			if data, err := os.ReadFile(marker); err != nil || string(data) != "keep" {
@@ -47,7 +49,7 @@ func TestReplaceFileAtomicRejectsSymlink(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if err := ReplaceFileAtomic(staged, link); err == nil {
+	if err := uploadcore.ReplaceFileAtomic(staged, link); err == nil {
 		t.Fatal("symlink target accepted")
 	}
 	if data, err := os.ReadFile(target); err != nil || string(data) != "keep" {

@@ -2096,7 +2096,7 @@ func setupTextTemplate(d *Dice) {
 	// 加载硬盘设置
 	loadTextTemplate(d, "configs/text-template.yaml")
 
-	d.SaveText()
+	_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 	d.GenerateTextMap()
 }
 
@@ -2217,7 +2217,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2248,7 +2248,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2264,7 +2264,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2283,7 +2283,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2298,7 +2298,7 @@ func (d *Dice) loads() {
 			}
 			SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 			d.GenerateTextMap()
-			d.SaveText()
+			_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 		})
 
 		d.Config = config

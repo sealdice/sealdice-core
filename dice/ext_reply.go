@@ -159,8 +159,8 @@ func ReplyReload(dice *Dice) {
 		rc, err := CustomReplyConfigRead(dice, i)
 		if err == nil {
 			dice.Logger.Info("读取自定义回复配置:", i)
-			if err := rc.Save(dice); err != nil {
-				dice.Logger.Errorf("保存自定义回复配置失败: %s: %v", i, err)
+			if saveErr := rc.Save(dice); saveErr != nil {
+				dice.Logger.Errorf("保存自定义回复配置失败: %s: %v", i, saveErr)
 				continue
 			}
 			rcs = append(rcs, rc)
