@@ -14,6 +14,7 @@ import (
 	"time"
 
 	wr "github.com/mroth/weightedrand/v3"
+	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
 	"github.com/bytedance/sonic"
@@ -382,6 +383,87 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) er
 	return cm.save()
 }
 
+var ErrInvalidPluginConfig = errors.New("插件配置无效")
+
+// SetConfigs validates a plugin patch before applying it and persists it once.
+func (cm *ConfigManager) SetConfigs(pluginName string, values map[string]interface{}) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	return cm.setConfigsLocked(pluginName, values)
+}
+
+// ResetConfigs uses the same validation and persistence boundary as a save.
+func (cm *ConfigManager) ResetConfigs(pluginName string, keys []string) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	plugin := cm.Plugins[pluginName]
+	if plugin == nil {
+		return fmt.Errorf("%w: 插件 %q 不存在", ErrInvalidPluginConfig, pluginName)
+	}
+	values := make(map[string]interface{}, len(keys))
+	for _, key := range keys {
+		item := plugin.Configs[key]
+		if item == nil {
+			return fmt.Errorf("%w: 配置项 %q 不存在", ErrInvalidPluginConfig, key)
+		}
+		values[key] = item.DefaultValue
+	}
+	return cm.setConfigsLocked(pluginName, values)
+}
+
+func (cm *ConfigManager) setConfigsLocked(pluginName string, values map[string]interface{}) error {
+	plugin := cm.Plugins[pluginName]
+	if plugin == nil {
+		return fmt.Errorf("%w: 插件 %q 不存在", ErrInvalidPluginConfig, pluginName)
+	}
+	previous := make(map[string]interface{}, len(values))
+	for key, value := range values {
+		item := plugin.Configs[key]
+		if item == nil {
+			return fmt.Errorf("%w: 配置项 %q 不存在", ErrInvalidPluginConfig, key)
+		}
+		if item.Type == "task:cron" || item.Type == "task:daily" {
+			expr, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("%w: %q 必须是字符串", ErrInvalidPluginConfig, key)
+			}
+			var err error
+			if item.Type == "task:daily" {
+				_, err = parseTaskTime(expr)
+			} else {
+				_, err = cron.ParseStandard(expr)
+			}
+			if err != nil {
+				return fmt.Errorf("%w: %q: %w", ErrInvalidPluginConfig, key, err)
+			}
+			if item.task != nil && item.task.taskType != strings.TrimPrefix(item.Type, "task:") {
+				return fmt.Errorf("%w: %q 定时任务类型不一致", ErrInvalidPluginConfig, key)
+			}
+		}
+		previous[key] = item.Value
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	for key, value := range values {
+		plugin.Configs[key].Value = value
+	}
+	if err := cm.save(); err != nil {
+		for key, value := range previous {
+			plugin.Configs[key].Value = value
+		}
+		return err
+	}
+	for key, value := range values {
+		item := plugin.Configs[key]
+		if (item.Type == "task:cron" || item.Type == "task:daily") && item.task != nil {
+			// Type and expression were validated before persistence; reset cannot fail now.
+			_ = item.task.reset(value.(string))
+		}
+	}
+	return nil
+}
+
 func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
 	cm.lock.RLock()
 	defer cm.lock.RUnlock()
@@ -426,22 +508,15 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 }
 
 func (cm *ConfigManager) save() error {
-	file, err := os.OpenFile(cm.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	data, err := json.MarshalIndent(cm.Plugins, "", "\t")
 	if err != nil {
 		return err
 	}
-	defer func(file *os.File) {
-		_ = file.Close()
-	}(file)
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "\t")
-	err = encoder.Encode(cm.Plugins)
-	if err != nil {
-		return err
+	perm := os.FileMode(0o644)
+	if info, statErr := os.Stat(cm.filename); statErr == nil {
+		perm = info.Mode().Perm()
 	}
-
-	return nil
+	return writeFileAtomically(cm.filename, append(data, '\n'), perm)
 }
 
 func (cm *ConfigManager) Load() error {

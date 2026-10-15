@@ -66,6 +66,10 @@
 - 登录态直接通过 `features/auth/store.ts` 的 `useAuthStore()` 读取，响应式引用用 `storeToRefs()`。不新增转发型 `state.ts`，不在页面读写 localStorage。
 - Vue Query 全局缓存和重试策略在 `src/queryClient.ts`；查询继续使用生成客户端，禁止自行维护第二套服务端缓存。
 - 基础设置的固定分组、字段布局和搜索文案在 `features/baseSetting/schema.ts`；后端仅提供当前值与类型化补丁，完整校验后才应用配置与副作用。
+- JS 配置由 `JsConfigView` 持有唯一编辑补丁并直接注册全局未保存提示；页面不复制脏标志或通过组件引用调用保存，字段编辑器不另存本地值。
+  - Vue Query 保存服务端基线，展示时叠加编辑补丁。按插件提交固定快照，成功后只清除与快照相同的编辑；部分失败或保存期间的新输入继续保留。
+  - Cron 校验按字段取消旧请求，等待校验期间禁止保存。重置和删除与保存互斥，配置标签切换保留草稿。
+  - V2 后端通过 `ConfigManager.SetConfigs` / `ResetConfigs` 在锁内预检整批配置、一次原子写盘；写盘失败恢复内存值，成功后更新已校验的定时任务。
 - 实时连接由 `features/realtime/store.ts` 持有，调用方直接使用 store；订阅自动初始化连接，不在模块导入时创建 store。
   - 连接列表、HTTP 首屏快照和 SSE 更新共用完整连接 DTO（含 workflow/qrcode）；业务 store 只保存连接列表，其余展示数据从列表派生。
   - 日志、连接等业务 store 只订阅所需事件，释放时注销自己的监听器；全局传输 store 释放时停止 SSE、重连定时器和认证监听。
@@ -78,6 +82,7 @@
 - 未保存提示统一在 `src/features/unsavedChanges/`。
   - 页面只注册 source，不自己实现全局拦截。
   - 状态通过 `useUnsavedChangesStore()` 消费；注册 hook 负责生命周期，路由守卫每次导航独立确认，不保留跨导航跳过标志。
+  - `canSave=false` 是明确禁止操作，不能作为“未提供”回退；执行入口同时检查是否可保存与是否正在保存。
   - 保存、放弃和重载操作由 `AppUnsavedChangesPanel` 展示；`PageHeader` 只负责标题和页面自己的操作插槽，不再复制全局待处理状态。
 - 上传统一通过 `useUploadStore()` 消费；响应式状态用 `storeToRefs()`，不再增加逐个转发的 `state.ts` 门面。
   - `enqueue()` 只等待文件完成入队准备，`upload()` 等待单文件安装完成；失败与取消都会结束后者的 Promise。

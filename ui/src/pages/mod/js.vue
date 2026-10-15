@@ -22,27 +22,6 @@
     </PageHeader>
 
     <template v-if="jsEnable">
-      <n-affix v-if="jsConfigEdited" :top="70">
-        <TipBox type="warning">
-          <n-flex wrap>
-            <n-text type="warning" tag="strong" class="text-base"
-              >配置内容已修改，不要忘记保存！</n-text
-            >
-            <n-button
-              type="primary"
-              secondary
-              :disabled="!jsConfigEdited || isTestMode"
-              @click="saveJsConfig"
-            >
-              <template #icon>
-                <n-icon><i-tabler-device-floppy /></n-icon>
-              </template>
-              点我保存
-            </n-button>
-          </n-flex>
-        </TipBox>
-      </n-affix>
-
       <n-tabs v-model:value="tab" justify-content="space-evenly" class="js-tabs">
         <n-tab-pane tab="控制台" name="console">
           <section class="js-console-grid">
@@ -109,8 +88,8 @@
           <JsListView @mark-need-reload="handleMarkNeedReload" />
         </n-tab-pane>
 
-        <n-tab-pane tab="插件设置" name="config">
-          <JsConfigView ref="jsConfigViewRef" @dirty-change="handleConfigDirtyChange" />
+        <n-tab-pane tab="插件设置" name="config" display-directive="show:lazy">
+          <JsConfigView />
         </n-tab-pane>
 
         <n-tab-pane tab="数据管理" name="data">
@@ -160,9 +139,9 @@ import {
 } from '@/api';
 import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import TipBox from '@/components/shared/TipBox.vue';
 
-import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
+import { usePendingReload } from '@/features/unsavedChanges';
+import { useUnsavedChangesStore } from '@/features/unsavedChanges/store';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
@@ -215,8 +194,7 @@ const jsRunning = ref(false);
 const jsEnable = ref(false);
 const jsSwitchBusy = ref(false);
 const needReload = ref(false);
-const jsConfigEdited = ref(false);
-const jsConfigViewRef = ref<InstanceType<typeof JsConfigView> | null>(null);
+const unsavedChanges = useUnsavedChangesStore();
 const logRef = ref<LogInst | null>(null);
 const editorBaseExtensions = shallowRef<unknown[]>([]);
 const editorDarkTheme = shallowRef<unknown | null>(null);
@@ -360,7 +338,8 @@ async function handleShutdown(): Promise<boolean> {
 }
 
 async function handleJsEnableToggle(value: boolean) {
-  if (value === jsEnable.value) return;
+  if (value === jsEnable.value || jsSwitchBusy.value) return;
+  if (!value && !(await unsavedChanges.confirmDiscard())) return;
   jsSwitchBusy.value = true;
   try {
     if (value) {
@@ -376,27 +355,6 @@ async function handleJsEnableToggle(value: boolean) {
 function handleMarkNeedReload() {
   needReload.value = true;
 }
-
-function handleConfigDirtyChange(value: boolean) {
-  jsConfigEdited.value = value;
-}
-
-async function saveJsConfig() {
-  if (!jsConfigViewRef.value) return;
-  if (isTestMode.value) {
-    message.warning('展示模式不支持该操作');
-    return;
-  }
-  await jsConfigViewRef.value.saveAll();
-}
-
-useUnsavedChanges('js-config', {
-  label: 'JS 配置',
-  dirty: jsConfigEdited,
-  save: saveJsConfig,
-  canSave: computed(() => jsConfigEdited.value && !isTestMode.value),
-  confirmMessage: 'JS 配置还有修改，确定要忽略？',
-});
 
 usePendingReload('js-reload', {
   label: 'JS 扩展',

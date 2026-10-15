@@ -25,6 +25,7 @@ it('脚本配置按类型归一化并构造更新数据', async () => {
   expect(isDailyTaskExpressionValid('00:00')).toBe(true);
   expect(isDailyTaskExpressionValid('23:59')).toBe(true);
   expect(isDailyTaskExpressionValid('24:00')).toBe(false);
+  expect(isDailyTaskExpressionValid(' 08:00 ')).toBe(false);
   expect(buildConfigErrorKey('plugin', 'cron')).toBe('plugin/cron');
 
   const errors: JsConfigErrorMap = {};

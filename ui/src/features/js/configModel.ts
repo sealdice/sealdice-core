@@ -35,7 +35,7 @@ export function normalizeTemplateValue(value: unknown): string[] {
 }
 
 export function isDailyTaskExpressionValid(expr: string): boolean {
-  return dailyTaskPattern.test(expr.trim());
+  return dailyTaskPattern.test(expr);
 }
 
 export function buildConfigErrorKey(pluginName: string, key: string): string {

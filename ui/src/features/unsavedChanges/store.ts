@@ -81,7 +81,8 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
       save: source.save,
       discard: source.discard,
       saving: source.saving ? Boolean(toValue(source.saving)) : false,
-      canSave: source.canSave ? Boolean(toValue(source.canSave)) : Boolean(source.save),
+      canSave:
+        source.canSave === undefined ? Boolean(source.save) : Boolean(toValue(source.canSave)),
       confirmMessage,
       priority: source.priority ?? 0,
     };
@@ -158,7 +159,7 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
 
   async function runPendingAction(scope: string): Promise<boolean> {
     const source = activePendingActions.value.find(item => item.scope === scope);
-    if (!source?.save) return false;
+    if (!source?.save || !source.canSave || source.saving) return false;
 
     try {
       await source.save();

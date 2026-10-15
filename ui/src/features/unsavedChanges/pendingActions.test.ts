@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { computed, ref } from 'vue';
 import { appPinia } from '@/pinia';
 import { useUnsavedChangesStore } from './store';
 import { storeToRefs } from 'pinia';
@@ -19,6 +20,28 @@ function resetStore() {
   setUnsavedChangesConfirmHandler(null);
   return store;
 }
+
+it('响应式 canSave=false 不回退成默认 true，执行中也不能重复提交', async () => {
+  resetStore();
+  const ready = ref(false);
+  const saving = ref(false);
+  const save = vi.fn();
+  registerUnsavedChangesSource('checking', {
+    label: '校验中',
+    dirty: true,
+    canSave: computed(() => ready.value),
+    saving,
+    save,
+  });
+  expect(activePendingActions.value[0]?.canSave).toBe(false);
+  expect(await runPendingAction('checking')).toBe(false);
+  expect(save).not.toHaveBeenCalled();
+  ready.value = true;
+  expect(await runPendingAction('checking')).toBe(true);
+  saving.value = true;
+  expect(await runPendingAction('checking')).toBe(false);
+  expect(save).toHaveBeenCalledOnce();
+});
 
 it('未保存与待重载可以同时成立并并列展示', () => {
   resetStore();

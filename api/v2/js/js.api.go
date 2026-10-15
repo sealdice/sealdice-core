@@ -2,6 +2,7 @@ package js
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -471,14 +472,11 @@ func (s *Service) SetConfigs(_ context.Context, req *SetConfigsReq) (*SimpleItem
 	}
 
 	cm := s.dice.ConfigManager
-	var errs []error
-	for key, val := range req.Body.Config {
-		if err := cm.SetConfig(req.Body.Name, key, val); err != nil {
-			errs = append(errs, err)
-		}
+	if cm == nil {
+		return nil, huma.Error503ServiceUnavailable("配置管理器未就绪")
 	}
-	if len(errs) > 0 {
-		return nil, huma.Error500InternalServerError("保存配置失败")
+	if err := cm.SetConfigs(req.Body.Name, req.Body.Config); err != nil {
+		return nil, configWriteError(err)
 	}
 	return response.NewItemResponse(JsSimpleResult{Success: true}), nil
 }
@@ -494,10 +492,20 @@ func (s *Service) ResetConfig(_ context.Context, req *ResetConfigReq) (*SimpleIt
 		return nil, huma.Error400BadRequest("name不能为空")
 	}
 	cm := s.dice.ConfigManager
-	for _, key := range req.Body.Keys {
-		cm.ResetConfigToDefault(req.Body.Name, key)
+	if cm == nil {
+		return nil, huma.Error503ServiceUnavailable("配置管理器未就绪")
+	}
+	if err := cm.ResetConfigs(req.Body.Name, req.Body.Keys); err != nil {
+		return nil, configWriteError(err)
 	}
 	return response.NewItemResponse(JsSimpleResult{Success: true}), nil
+}
+
+func configWriteError(err error) error {
+	if errors.Is(err, dice.ErrInvalidPluginConfig) {
+		return huma.Error400BadRequest(err.Error())
+	}
+	return huma.Error500InternalServerError("保存配置失败", err)
 }
 
 func (s *Service) DeleteDeadConfigs(_ context.Context, req *DeleteDeadConfigsReq) (*SimpleItemResponse, error) {

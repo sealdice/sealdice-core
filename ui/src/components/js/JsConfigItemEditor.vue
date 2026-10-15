@@ -11,13 +11,20 @@
           {{ item.description }}
         </n-text>
       </div>
-      <n-button v-if="isChanged" size="tiny" secondary @click="emit('reset', pluginName, item.key)">
+      <n-button
+        v-if="isChanged"
+        size="tiny"
+        secondary
+        :disabled="resetDisabled"
+        @click="emit('reset', pluginName, item.key)"
+      >
         重置
       </n-button>
     </header>
 
     <n-switch
       v-if="type === 'bool' || type === 'boolean'"
+      :disabled="disabled"
       size="small"
       :value="!!value"
       @update:value="updateValue"
@@ -25,6 +32,7 @@
 
     <n-input-number
       v-else-if="type === 'int' || type === 'float' || type === 'number'"
+      :disabled="disabled"
       size="small"
       :precision="type === 'int' ? 0 : undefined"
       :value="Number(value) || 0"
@@ -34,6 +42,7 @@
 
     <n-select
       v-else-if="type === 'option'"
+      :disabled="disabled"
       size="small"
       :value="String(value ?? '')"
       :options="optionItems"
@@ -43,6 +52,7 @@
 
     <RepeatableList
       v-else-if="type === 'template'"
+      :add-disabled="disabled"
       class="js-config-item__template"
       add-label="添加随机文案"
       @add="addTemplateItem"
@@ -51,11 +61,12 @@
         v-for="(templateValue, index) in templateValues"
         :key="`${item.key}-${index}`"
         :title="`文案 ${index + 1}`"
-        :removable="templateValues.length > 1"
+        :removable="!disabled && templateValues.length > 1"
         remove-label="删除随机文案"
         @remove="removeTemplateItem(index)"
       >
         <n-input
+          :disabled="disabled"
           type="textarea"
           class="sd-code-text"
           size="small"
@@ -68,6 +79,7 @@
 
     <n-input
       v-else-if="type === 'task:cron' || type === 'task:daily'"
+      :disabled="disabled"
       type="textarea"
       size="small"
       autosize
@@ -75,11 +87,12 @@
       :loading="checking"
       :value="String(value ?? '')"
       class="js-config-item__control sd-code-text"
-      @update:value="updateTaskValue"
+      @update:value="updateValue"
     />
 
     <n-input
       v-else
+      :disabled="disabled"
       size="small"
       :value="String(value ?? '')"
       class="js-config-item__control"
@@ -93,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import type { ConfigItem } from '@/api';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
@@ -105,17 +118,17 @@ const props = defineProps<{
   pluginName: string;
   errorText?: string;
   checking?: boolean;
+  disabled?: boolean;
+  resetDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{
   change: [pluginName: string, key: string, value: unknown];
   reset: [pluginName: string, key: string];
-  validate: [pluginName: string, key: string, value: string, type: string];
 }>();
 
-const localValue = ref<unknown>(props.item.value ?? props.item.defaultValue);
 const type = computed(() => props.item.type ?? 'string');
-const value = computed(() => localValue.value);
+const value = computed(() => props.item.value ?? props.item.defaultValue);
 const isChanged = computed(
   () => JSON.stringify(value.value) !== JSON.stringify(props.item.defaultValue)
 );
@@ -128,21 +141,9 @@ const optionItems = computed<SelectOption[]>(() => {
 });
 const templateValues = computed(() => normalizeTemplateValue(value.value));
 
-watch(
-  () => [props.item.value, props.item.defaultValue] as const,
-  ([nextValue, nextDefaultValue]) => {
-    localValue.value = nextValue ?? nextDefaultValue;
-  }
-);
-
 function updateValue(nextValue: unknown) {
-  localValue.value = nextValue;
+  if (props.disabled) return;
   emit('change', props.pluginName, props.item.key, nextValue);
-}
-
-function updateTaskValue(nextValue: string) {
-  updateValue(nextValue);
-  emit('validate', props.pluginName, props.item.key, nextValue, type.value);
 }
 
 function updateTemplateItem(index: number, nextValue: string) {

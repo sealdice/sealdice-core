@@ -1,9 +1,109 @@
 package dice //nolint:testpackage
 
 import (
+	"bytes"
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestConfigManagerSetConfigsRejectsInvalidBatchWithoutChanges(t *testing.T) {
+	cm := NewConfigManager(filepath.Join(t.TempDir(), "plugins.json"))
+	task := cm.NewConfigItem("schedule", "08:00", "")
+	task.Type = "task:daily"
+	cm.RegisterPluginConfig("p", strItem(cm, "name", "old", ""), task)
+	before, err := os.ReadFile(cm.filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []interface{}{123, "25:00", "not a time"} {
+		err = cm.SetConfigs("p", map[string]interface{}{"name": "new", "schedule": invalid})
+		if !errors.Is(err, ErrInvalidPluginConfig) {
+			t.Fatalf("expected validation error for %v, got %v", invalid, err)
+		}
+		if cm.Plugins["p"].Configs["name"].Value != "old" || task.Value != "08:00" {
+			t.Fatal("invalid batch changed in-memory values")
+		}
+		after, readErr := os.ReadFile(cm.filename)
+		if readErr != nil || !bytes.Equal(before, after) {
+			t.Fatalf("invalid batch changed persisted data: %v", readErr)
+		}
+	}
+	if err := cm.SetConfigs("p", map[string]interface{}{"unknown": true}); !errors.Is(err, ErrInvalidPluginConfig) {
+		t.Fatalf("unknown key accepted: %v", err)
+	}
+	if err := cm.SetConfigs("missing", map[string]interface{}{"name": "new"}); !errors.Is(err, ErrInvalidPluginConfig) {
+		t.Fatalf("unknown plugin accepted: %v", err)
+	}
+}
+
+func TestConfigManagerBatchSaveAndResetPersistTogether(t *testing.T) {
+	cm := NewConfigManager(filepath.Join(t.TempDir(), "plugins.json"))
+	task := cm.NewConfigItem("schedule", "08:00", "")
+	task.Type = "task:daily"
+	task.task = &JsScriptTask{taskType: "daily", rawValue: "08:00", cronExpr: "0 8 * * *"}
+	cm.RegisterPluginConfig("p", strItem(cm, "name", "old", ""), task)
+	if err := cm.SetConfigs("p", map[string]interface{}{"name": "new", "schedule": "09:30"}); err != nil {
+		t.Fatal(err)
+	}
+	reloaded := NewConfigManager(cm.filename)
+	if err := reloaded.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Plugins["p"].Configs["name"].Value != "new" || reloaded.Plugins["p"].Configs["schedule"].Value != "09:30" {
+		t.Fatal("batch was not persisted")
+	}
+	if task.task.cronExpr != "30 9 * * *" {
+		t.Fatal("persisted schedule was not applied")
+	}
+	if err := cm.ResetConfigs("p", []string{"name", "schedule"}); err != nil {
+		t.Fatal(err)
+	}
+	if task.Value != "08:00" || task.task.cronExpr != "0 8 * * *" || cm.Plugins["p"].Configs["name"].Value != "old" {
+		t.Fatal("reset did not restore defaults")
+	}
+	if err := reloaded.Load(); err != nil || reloaded.Plugins["p"].Configs["name"].Value != "old" {
+		t.Fatalf("reset not persisted: %v", err)
+	}
+}
+
+func TestConfigManagerBatchFailureKeepsValuesAndSchedule(t *testing.T) {
+	cm := NewConfigManager(filepath.Join(t.TempDir(), "plugins.json"))
+	task := cm.NewConfigItem("schedule", "08:00", "")
+	task.Type = "task:daily"
+	task.Value = "09:30"
+	task.task = &JsScriptTask{taskType: "daily", rawValue: "09:30", cronExpr: "30 9 * * *"}
+	cm.RegisterPluginConfig("p", strItem(cm, "name", "old", ""), task)
+	cm.filename = t.TempDir() // A directory cannot be replaced by the configuration file.
+	for _, operation := range []func() error{
+		func() error { return cm.SetConfigs("p", map[string]interface{}{"name": "new", "schedule": "10:45"}) },
+		func() error { return cm.ResetConfigs("p", []string{"name", "schedule"}) },
+	} {
+		if err := operation(); err == nil {
+			t.Fatal("expected persistence failure")
+		}
+		if cm.Plugins["p"].Configs["name"].Value != "old" || task.Value != "09:30" || task.task.cronExpr != "30 9 * * *" {
+			t.Fatal("failed persistence changed values or running schedule")
+		}
+	}
+}
+
+func TestConfigManagerSerializationFailureKeepsPreviousFile(t *testing.T) {
+	cm := NewConfigManager(filepath.Join(t.TempDir(), "plugins.json"))
+	cm.RegisterPluginConfig("p", strItem(cm, "name", "old", ""))
+	before, err := os.ReadFile(cm.filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saveErr := cm.SetConfigs("p", map[string]interface{}{"name": make(chan int)}); saveErr == nil {
+		t.Fatal("expected unsupported JSON value to fail")
+	}
+	after, err := os.ReadFile(cm.filename)
+	if err != nil || !bytes.Equal(before, after) || cm.Plugins["p"].Configs["name"].Value != "old" {
+		t.Fatalf("serialization failure damaged saved configuration: %v", err)
+	}
+}
 
 func strItem(cm *ConfigManager, key, value, desc string) *ConfigItem {
 	item := cm.NewConfigItem(key, value, desc)
