@@ -21,25 +21,6 @@ const (
 type networkHealthCheckFunc func(target string, urls []string) (bool, time.Duration)
 type networkHealthSignURLsFunc func(*dice.Dice) []string
 
-var (
-	networkHealthCheck    networkHealthCheckFunc    = checkNetworkTargetConnectivity
-	networkHealthSignURLs networkHealthSignURLsFunc = defaultSignServerPingURLs
-)
-
-func SetNetworkHealthTestHooks(check networkHealthCheckFunc, signURLs networkHealthSignURLsFunc) {
-	if check != nil {
-		networkHealthCheck = check
-	}
-	if signURLs != nil {
-		networkHealthSignURLs = signURLs
-	}
-}
-
-func ResetNetworkHealthTestHooks() {
-	networkHealthCheck = checkNetworkTargetConnectivity
-	networkHealthSignURLs = defaultSignServerPingURLs
-}
-
 func (s *BaseService) NetworkHealth(_ context.Context, _ *request.Empty) (*response.ItemResponse[NetworkHealthData], error) {
 	type targetSpec struct {
 		name string
@@ -49,7 +30,7 @@ func (s *BaseService) NetworkHealth(_ context.Context, _ *request.Empty) (*respo
 	specs := []targetSpec{
 		{name: "baidu", urls: []string{"https://baidu.com"}},
 		{name: "seal", urls: dice.BackendUrls},
-		{name: "sign", urls: networkHealthSignURLs(s.dice)},
+		{name: "sign", urls: s.signURLs(s.dice)},
 		{name: "google", urls: []string{"https://google.com"}},
 		{name: "github", urls: []string{"https://github.com"}},
 	}
@@ -62,7 +43,7 @@ func (s *BaseService) NetworkHealth(_ context.Context, _ *request.Empty) (*respo
 			defer wg.Done()
 			ok, duration := false, time.Duration(0)
 			if len(spec.urls) > 0 {
-				ok, duration = networkHealthCheck(spec.name, spec.urls)
+				ok, duration = s.checkNetwork(spec.name, spec.urls)
 			}
 			targets[index] = NetworkHealthTarget{
 				Target:     spec.name,

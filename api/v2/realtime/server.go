@@ -3,6 +3,7 @@ package realtime
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -24,7 +25,11 @@ type Server struct {
 	bus     *Bus
 	watcher *StateWatcher
 
-	unsubscribeLogs func()
+	mu      sync.Mutex
+	cancel  context.CancelFunc
+	done    chan struct{}
+	stopped chan struct{}
+	closed  bool
 }
 
 func RegisterRoutes(api huma.API, dm *dice.DiceManager) *Server {
@@ -37,11 +42,6 @@ func RegisterRoutes(api huma.API, dm *dice.DiceManager) *Server {
 	}
 
 	srv := NewServer(dm)
-	if srv == nil {
-		return nil
-	}
-
-	srv.Start()
 	sse.Register(api, huma.Operation{
 		OperationID: "realtime-sse",
 		Method:      http.MethodGet,
@@ -59,32 +59,65 @@ func RegisterRoutes(api huma.API, dm *dice.DiceManager) *Server {
 }
 
 func NewServer(dm *dice.DiceManager) *Server {
-	srv := &Server{
-		dm:      dm,
-		bus:     NewBus(),
-		watcher: NewStateWatcher(dm, NewBus()),
-	}
+	srv := &Server{dm: dm, bus: NewBus(), stopped: make(chan struct{})}
 	srv.watcher = NewStateWatcher(dm, srv.bus)
 	return srv
 }
 
-func (s *Server) Start() {
-	if s == nil || s.watcher == nil {
+// Start runs once, under the application's lifetime rather than route registration.
+func (s *Server) Start(ctx context.Context) {
+	if s == nil {
 		return
 	}
-
-	if s.unsubscribeLogs == nil {
-		s.unsubscribeLogs = s.watcher.BindLogs()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || s.cancel != nil {
+		return
 	}
-
+	ctx, s.cancel = context.WithCancel(ctx)
+	s.done = make(chan struct{})
+	unsubscribe := s.watcher.BindLogs()
 	go func() {
+		defer close(s.done)
+		defer unsubscribe()
+		defer s.stop()
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
-
-		for range ticker.C {
-			s.watcher.Scan()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.watcher.Scan()
+			}
 		}
 	}()
+}
+
+func (s *Server) stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.closed {
+		s.closed = true
+		close(s.stopped)
+	}
+	if s.cancel != nil {
+		s.cancel()
+	}
+}
+
+// Close is idempotent and waits for the scanner and log forwarding to finish.
+func (s *Server) Close() {
+	if s == nil {
+		return
+	}
+	s.stop()
+	s.mu.Lock()
+	done := s.done
+	s.mu.Unlock()
+	if done != nil {
+		<-done
+	}
 }
 
 func (s *Server) Publish(name string, payload any) {
@@ -124,6 +157,8 @@ func (s *Server) stream(ctx context.Context, _ *struct{}, send sse.Sender) {
 				return
 			}
 		case <-ctx.Done():
+			return
+		case <-s.stopped:
 			return
 		}
 	}
@@ -187,10 +222,6 @@ func buildBootstrapEvents(dm *dice.DiceManager) []Event {
 	}
 
 	return events
-}
-
-func BuildBootstrapEvents(dm *dice.DiceManager) []Event {
-	return buildBootstrapEvents(dm)
 }
 
 func realtimeEventTypeMap() map[string]any {

@@ -14,7 +14,6 @@ import (
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 	"sealdice-core/utils/paginate"
-	"sealdice-core/utils/paginate/slicep"
 )
 
 type Service struct {
@@ -92,31 +91,7 @@ func (s *Service) GetList(_ context.Context, req *ListQuery) (*response.ItemResp
 		return less
 	})
 
-	pageSize := req.PageSize
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-	page := req.Page
-	if page <= 0 {
-		page = 1
-	}
-
-	var paged []*DeckItem
-	pager := paginate.SimplePaginate(slicep.Adapter(items), int64(pageSize), int64(page))
-	total, err := pager.GetTotal()
-	if err != nil {
-		return nil, huma.Error500InternalServerError("获取牌堆列表失败")
-	}
-	if err := pager.Get(&paged); err != nil {
-		return nil, huma.Error500InternalServerError("获取牌堆列表失败")
-	}
-
-	return response.NewItemResponse(DeckListResp{
-		List:     paged,
-		Total:    total,
-		Page:     int(pager.GetCurrentPage()),
-		PageSize: int(pager.GetListRows()),
-	}), nil
+	return response.NewItemResponse(DeckListResp(paginate.Slice(items, req.Page, req.PageSize))), nil
 }
 
 func (s *Service) Reload(_ context.Context, _ *request.Empty) (*response.ItemResponse[ReloadResp], error) {

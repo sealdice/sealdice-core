@@ -17,7 +17,6 @@ import (
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 	"sealdice-core/utils/paginate"
-	"sealdice-core/utils/paginate/slicep"
 )
 
 type Service struct {
@@ -66,6 +65,8 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	})
 	huma.Put(grp, "/files/{filename}", s.SaveConfig, func(o *huma.Operation) {
 		o.Description = "保存自定义回复配置"
+		// 导入允许 20 MiB；完整 JSON 保存还需容纳字符串转义和字段开销。
+		o.MaxBodyBytes = 128 << 20
 	})
 	huma.Put(grp, "/debug-mode", s.SetDebugMode, func(o *huma.Operation) {
 		o.Description = "设置自定义回复调试模式"
@@ -119,25 +120,7 @@ func (s *Service) GetFileList(_ context.Context, req *FileListQuery) (*response.
 	if pageSize <= 0 {
 		pageSize = 30
 	}
-	page := req.Page
-	if page <= 0 {
-		page = 1
-	}
-	var paged []*FileInfo
-	pager := paginate.SimplePaginate(slicep.Adapter(items), int64(pageSize), int64(page))
-	total, err := pager.GetTotal()
-	if err != nil {
-		return nil, huma.Error500InternalServerError("获取文件列表失败")
-	}
-	if err := pager.Get(&paged); err != nil {
-		return nil, huma.Error500InternalServerError("获取文件列表失败")
-	}
-	return response.NewItemResponse(ReplyFileListResp{
-		List:     paged,
-		Total:    total,
-		Page:     int(pager.GetCurrentPage()),
-		PageSize: int(pager.GetListRows()),
-	}), nil
+	return response.NewItemResponse(ReplyFileListResp(paginate.Slice(items, req.Page, pageSize))), nil
 }
 
 func (s *Service) GetConfig(_ context.Context, req *FilenamePath) (*response.ItemResponse[ReplyFileDetail], error) {
@@ -182,14 +165,6 @@ func (s *Service) GetRules(_ context.Context, req *RulePageQuery) (*response.Ite
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
-	pageSize := req.PageSize
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-	page := req.Page
-	if page <= 0 {
-		page = 1
-	}
 	items := make([]*RuleInfo, 0, len(rc.Items))
 	for index, item := range rc.Items {
 		items = append(items, &RuleInfo{
@@ -197,21 +172,7 @@ func (s *Service) GetRules(_ context.Context, req *RulePageQuery) (*response.Ite
 			Item:  item,
 		})
 	}
-	var paged []*RuleInfo
-	pager := paginate.SimplePaginate(slicep.Adapter(items), int64(pageSize), int64(page))
-	total, err := pager.GetTotal()
-	if err != nil {
-		return nil, huma.Error500InternalServerError("获取规则列表失败")
-	}
-	if err := pager.Get(&paged); err != nil {
-		return nil, huma.Error500InternalServerError("获取规则列表失败")
-	}
-	return response.NewItemResponse(RulePageResp{
-		List:     paged,
-		Total:    total,
-		Page:     int(pager.GetCurrentPage()),
-		PageSize: int(pager.GetListRows()),
-	}), nil
+	return response.NewItemResponse(RulePageResp(paginate.Slice(items, req.Page, req.PageSize))), nil
 }
 
 func (s *Service) GetConditions(_ context.Context, req *ConditionPageQuery) (*response.ItemResponse[ConditionPageResp], error) {
@@ -227,10 +188,6 @@ func (s *Service) GetConditions(_ context.Context, req *ConditionPageQuery) (*re
 	if pageSize <= 0 {
 		pageSize = 10
 	}
-	page := req.Page
-	if page <= 0 {
-		page = 1
-	}
 	items := make([]*ConditionInfo, 0, len(rc.Conditions))
 	for index, item := range rc.Conditions {
 		items = append(items, &ConditionInfo{
@@ -238,21 +195,7 @@ func (s *Service) GetConditions(_ context.Context, req *ConditionPageQuery) (*re
 			Item:  item,
 		})
 	}
-	var paged []*ConditionInfo
-	pager := paginate.SimplePaginate(slicep.Adapter(items), int64(pageSize), int64(page))
-	total, err := pager.GetTotal()
-	if err != nil {
-		return nil, huma.Error500InternalServerError("获取前置条件列表失败")
-	}
-	if err := pager.Get(&paged); err != nil {
-		return nil, huma.Error500InternalServerError("获取前置条件列表失败")
-	}
-	return response.NewItemResponse(ConditionPageResp{
-		List:     paged,
-		Total:    total,
-		Page:     int(pager.GetCurrentPage()),
-		PageSize: int(pager.GetListRows()),
-	}), nil
+	return response.NewItemResponse(ConditionPageResp(paginate.Slice(items, req.Page, pageSize))), nil
 }
 
 func (s *Service) CreateFile(_ context.Context, req *FileReq) (*response.ItemResponse[response.SimpleOK], error) {

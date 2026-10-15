@@ -28,7 +28,8 @@ import (
 
 // InitV2Router 初始化v2版本的API路由
 // 使用依赖注入模式，将dice实例传递给各个模块
-func InitV2Router(api huma.API, dm *dice.DiceManager) {
+// The caller owns the returned runtime; OpenAPI generation only registers routes.
+func InitV2Router(api huma.API, dm *dice.DiceManager) *realtime.Server {
 	baseGroup := huma.NewGroup(api, "/sd-api/v2/base")
 	baseGroup.UseSimpleModifier(huma.OperationTags("base"))
 	baseService := base.NewBaseService(dm)
@@ -225,12 +226,5 @@ func InitV2Router(api huma.API, dm *dice.DiceManager) {
 	pprofAuth.UseMiddleware(middleware.AuthMiddleware(api, dm.GetDice()))
 	pprofService := pprof.NewService()
 	pprofService.RegisterRoutes(pprofAuth)
-	// TODO: 后续可以在这里添加其他模块
-	// configService := config.NewConfigService(dice)
-	// protected := huma.NewGroup(api, "/sd-api/v2")
-	// protected.UseMiddleware(middleware.AuthMiddleware(api, dice))
-	// configService.RegisterRoutes(protected)
-
-	// groupService := group.NewGroupService(dice)
-	// groupService.RegisterRoutes(protected)
+	return realtimeServer
 }

@@ -37,7 +37,9 @@ func (w *StateWatcher) BindLogs() func() {
 	}
 
 	ch, unsubscribe := d.LogWriter.Subscribe()
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for item := range ch {
 			w.bus.Publish(Event{
 				Name: EventLogsAppend,
@@ -48,7 +50,10 @@ func (w *StateWatcher) BindLogs() func() {
 		}
 	}()
 
-	return unsubscribe
+	return func() {
+		unsubscribe()
+		<-done
+	}
 }
 
 func (w *StateWatcher) Scan() {
@@ -159,10 +164,6 @@ func workflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
 	default:
 		return imconnm.WorkflowResp{State: "none"}
 	}
-}
-
-func WorkflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
-	return workflowOfEndpoint(ep)
 }
 
 func qrCodeOfEndpoint(ep *dice.EndPointInfo) string {

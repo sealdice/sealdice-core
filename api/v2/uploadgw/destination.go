@@ -157,7 +157,11 @@ func dataDirOf(dm *dice.DiceManager) string {
 func sanitizeFilename(name string) string {
 	name = strings.ReplaceAll(name, "/", "_")
 	name = strings.ReplaceAll(name, "\\", "_")
-	return strings.TrimSpace(name)
+	name = strings.TrimSpace(name)
+	if name == "." || name == ".." || !filepath.IsLocal(name) {
+		return ""
+	}
+	return name
 }
 
 func sanitizeHelpGroup(group string) string {

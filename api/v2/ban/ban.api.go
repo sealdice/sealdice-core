@@ -15,7 +15,6 @@ import (
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 	"sealdice-core/utils/paginate"
-	"sealdice-core/utils/paginate/slicep"
 )
 
 type BanService struct {
@@ -106,24 +105,8 @@ func (s *BanService) GetBanPage(_ context.Context, ol *BanPageReq) (*response.It
 		})
 	}
 
-	var rawResult []*dice.BanListInfoItem
-	adapt := slicep.Adapter(res)
-	myPage := paginate.SimplePaginate(adapt, int64(reqBody.PageSize), int64(reqBody.Page))
-	total, err := myPage.GetTotal()
-	if err != nil {
-		return nil, huma.Error500InternalServerError("分页统计失败")
-	}
-	err = myPage.Get(&rawResult)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("分页数据获取失败")
-	}
-	out := response.HPageResult[*dice.BanListInfoItem]{
-		List:     rawResult,
-		Total:    total,
-		Page:     int(myPage.GetCurrentPage()),
-		PageSize: int(myPage.GetListRows()),
-	}
-	return response.NewItemResponse[response.HPageResult[*dice.BanListInfoItem]](out), nil
+	page := paginate.Slice(res, reqBody.Page, reqBody.PageSize)
+	return response.NewItemResponse(response.HPageResult[*dice.BanListInfoItem](page)), nil
 }
 
 func (s *BanService) GetConfig(_ context.Context, _ *request.Empty) (*ConfigItemResponse, error) {

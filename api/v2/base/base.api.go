@@ -19,16 +19,20 @@ var startTime = time.Now()
 
 // BaseService 基础服务，封装dice依赖
 type BaseService struct {
-	dice *dice.Dice
-	dm   *dice.DiceManager
+	dice         *dice.Dice
+	dm           *dice.DiceManager
+	checkNetwork networkHealthCheckFunc
+	signURLs     networkHealthSignURLsFunc
 }
 
 // NewBaseService 创建新的基础服务实例
 // 特殊增加dm降低封装层 - 或许应该传入dm获取dice才是正道。
 func NewBaseService(dm *dice.DiceManager) *BaseService {
 	return &BaseService{
-		dice: dm.GetDice(),
-		dm:   dm,
+		dice:         dm.GetDice(),
+		dm:           dm,
+		checkNetwork: checkNetworkTargetConnectivity,
+		signURLs:     defaultSignServerPingURLs,
 	}
 }
 

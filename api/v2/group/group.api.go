@@ -14,7 +14,6 @@ import (
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 	"sealdice-core/utils/paginate"
-	"sealdice-core/utils/paginate/slicep"
 )
 
 // platformOfGroupID
@@ -201,27 +200,8 @@ func (b *GroupService) GetGroupPage(_ context.Context, ol *GroupPageReq) (*respo
 			return li < lj
 		})
 	}
-	// 最后使用page的输出
-	var rawResult []*dice.GroupInfo
-	var adapt = slicep.Adapter(res)
-	myPage := paginate.SimplePaginate(adapt, int64(ol.Body.PageSize), int64(ol.Body.Page))
-	total, err := myPage.GetTotal()
-	if err != nil {
-		return nil, err
-	}
-
-	err = myPage.Get(&rawResult)
-	res2 := response.HPageResult[*dice.GroupInfo]{
-		List:     rawResult,
-		Total:    total,
-		Page:     int(myPage.GetCurrentPage()),
-		PageSize: int(myPage.GetListRows()),
-	}
-	if err != nil {
-		return nil, huma.Error500InternalServerError("获取群列表失败")
-	}
-	result := response.NewItemResponse[response.HPageResult[*dice.GroupInfo]](res2)
-	return result, nil
+	page := paginate.Slice(res, ol.Body.Page, ol.Body.PageSize)
+	return response.NewItemResponse(response.HPageResult[*dice.GroupInfo](page)), nil
 }
 
 func (b *GroupService) RegisterRoutes(grp *huma.Group) {

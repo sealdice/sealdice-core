@@ -14,10 +14,20 @@ import (
 // ReplaceFileAtomic 用同目录 staging 文件替换 dstPath：
 // 目标不存在时直接 rename；目标存在时先备份、rename 新文件、失败回滚。
 func ReplaceFileAtomic(stagedPath string, dstPath string) error {
-	if _, err := os.Stat(dstPath); errors.Is(err, os.ErrNotExist) {
+	staged, err := os.Lstat(stagedPath)
+	if err != nil {
+		return err
+	}
+	if !staged.Mode().IsRegular() {
+		return fmt.Errorf("upload source is not a regular file: %s", stagedPath)
+	}
+	// Lstat also rejects symlinks: only regular files may be moved out of the way.
+	if target, err := os.Lstat(dstPath); errors.Is(err, os.ErrNotExist) {
 		return os.Rename(stagedPath, dstPath)
 	} else if err != nil {
 		return err
+	} else if !target.Mode().IsRegular() {
+		return fmt.Errorf("upload target is not a regular file: %s", dstPath)
 	}
 
 	backup, err := os.CreateTemp(filepath.Dir(dstPath), "."+filepath.Base(dstPath)+".backup-*")

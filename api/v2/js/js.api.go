@@ -17,7 +17,6 @@ import (
 	cmn "sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 	"sealdice-core/utils/paginate"
-	"sealdice-core/utils/paginate/slicep"
 )
 
 type Service struct {
@@ -146,32 +145,13 @@ func (s *Service) GetList(_ context.Context, req *ListQuery) (*ListItemResponse,
 
 	sortJS(items, req.SortBy, req.SortOrder)
 
-	page := req.Page
-	if page < 1 {
-		page = 1
-	}
-	pageSize := req.PageSize
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-
-	pager := paginate.SimplePaginate(slicep.Adapter(items), int64(pageSize), int64(page))
-	total, err := pager.GetTotal()
-	if err != nil {
-		return nil, huma.Error500InternalServerError("分页失败")
-	}
-
-	var paged []JsInfo
-	if err := pager.Get(&paged); err != nil {
-		return nil, huma.Error500InternalServerError("分页失败")
-	}
-
+	page := paginate.Slice(items, req.Page, req.PageSize)
 	return response.NewItemResponse(JsListResp{
 		Success:  true,
-		Data:     paged,
-		Total:    int(total),
-		Page:     int(pager.GetCurrentPage()),
-		PageSize: int(pager.GetListRows()),
+		Data:     page.List,
+		Total:    int(page.Total),
+		Page:     page.Page,
+		PageSize: page.PageSize,
 	}), nil
 }
 

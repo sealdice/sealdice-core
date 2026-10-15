@@ -3,6 +3,7 @@ package main
 // _ "net/http/pprof"
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -739,7 +740,12 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePPro
 	})
 
 	apier := humaecho.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
-	apiv2.InitV2Router(apier, dm)
+	realtimeServer := apiv2.InitV2Router(apier, dm)
+	if realtimeServer != nil {
+		realtimeServer.Start(context.Background())
+		defer realtimeServer.Close()
+		e.Server.RegisterOnShutdown(realtimeServer.Close)
+	}
 
 	if err := apiv2.MountUploadGateway(e, dm); err != nil {
 		log.Warnf("挂载 tus 上传网关失败: %v", err)
