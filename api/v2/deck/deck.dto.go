@@ -84,63 +84,6 @@ type UploadResp struct {
 	TestMode bool `json:"testMode"`
 }
 
-type UploadInitReqBody struct {
-	Filename  string `json:"filename"`
-	FileSize  int64  `json:"fileSize"`
-	FileHash  string `json:"fileHash"`
-	ChunkSize int64  `json:"chunkSize"`
-}
-
-type UploadInitReq struct {
-	Body UploadInitReqBody `json:"body"`
-}
-
-type UploadSessionResp struct {
-	Success         bool   `json:"success"`
-	SessionID       string `json:"sessionId"`
-	ChunkSize       int64  `json:"chunkSize"`
-	UploadedChunks  []int  `json:"uploadedChunks"`
-	UploadedBytes   int64  `json:"uploadedBytes"`
-	ExpectedChunks  int    `json:"expectedChunks"`
-	ResumeSupported bool   `json:"resumeSupported"`
-}
-
-type UploadChunkPath struct {
-	SessionID string `path:"sessionId"`
-	Index     int    `path:"index"`
-}
-
-type UploadChunkQuery struct {
-	SessionID string `path:"sessionId"`
-	Index     int    `path:"index"`
-}
-
-type UploadChunkReq struct {
-	SessionID string `path:"sessionId"`
-	Index     int    `path:"index"`
-	RawBody   []byte
-}
-
-type UploadChunkResp struct {
-	Success       bool  `json:"success"`
-	UploadedBytes int64 `json:"uploadedBytes"`
-	UploadedChunk int   `json:"uploadedChunk"`
-}
-
-type UploadCompleteReqBody struct {
-	SessionID string `json:"sessionId"`
-}
-
-type UploadCompleteReq struct {
-	Body UploadCompleteReqBody `json:"body"`
-}
-
-type UploadCompleteResp struct {
-	Success  bool   `json:"success"`
-	TestMode bool   `json:"testMode"`
-	Filename string `json:"filename"`
-}
-
 func FromDeckInfo(item *deckd.DeckInfo) *DeckItem {
 	if item == nil {
 		return nil

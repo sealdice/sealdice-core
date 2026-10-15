@@ -57,6 +57,22 @@ func IsAuthorized(d *dice.Dice, token string) bool {
 	return d != nil && d.Parent != nil && d.Parent.AccessTokens.Exists(token)
 }
 
+// EchoAuthMiddleware 是给非 huma 的原始 Echo 路由（如 tus 上传网关）用的鉴权中间件，
+// 复用与 huma 相同的 token 解析与校验逻辑。
+func EchoAuthMiddleware(d *dice.Dice) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if c.Request().Method == http.MethodOptions {
+				return next(c)
+			}
+			if IsAuthorized(d, TokenFromEchoContext(c)) {
+				return next(c)
+			}
+			return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+		}
+	}
+}
+
 func AuthMiddleware(api huma.API, d *dice.Dice) func(ctx huma.Context, next func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		if IsAuthorized(d, TokenFromHumaContext(ctx)) {

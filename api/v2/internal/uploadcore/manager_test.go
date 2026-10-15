@@ -1,24 +1,62 @@
 //nolint:testpackage // Tests intentionally stay in-package for compact fixtures.
 package uploadcore
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
-func TestInitWithScopeSeparatesIdenticalFilesAcrossBusinessScopes(t *testing.T) {
-	manager := NewManager(t.TempDir())
-
-	first, err := manager.InitWithScope("group-a", "same.json", 16, "abc123", 8)
+func TestReplaceFileAtomicCreatesNewFile(t *testing.T) {
+	dir := t.TempDir()
+	staged := filepath.Join(dir, ".staged")
+	dst := filepath.Join(dir, "target.json")
+	if err := os.WriteFile(staged, []byte("hello"), 0o644); err != nil {
+		t.Fatalf("write staged: %v", err)
+	}
+	if err := ReplaceFileAtomic(staged, dst); err != nil {
+		t.Fatalf("ReplaceFileAtomic: %v", err)
+	}
+	got, err := os.ReadFile(dst)
 	if err != nil {
-		t.Fatalf("InitWithScope(group-a) returned error: %v", err)
+		t.Fatalf("read dst: %v", err)
 	}
-	second, err := manager.InitWithScope("group-b", "same.json", 16, "abc123", 8)
-	if err != nil {
-		t.Fatalf("InitWithScope(group-b) returned error: %v", err)
+	if string(got) != "hello" {
+		t.Fatalf("dst content = %q, want %q", got, "hello")
 	}
+	if _, err := os.Stat(staged); !os.IsNotExist(err) {
+		t.Fatalf("staged file should be moved away, stat err = %v", err)
+	}
+}
 
-	if first.SessionID == second.SessionID {
-		t.Fatalf("session IDs are identical across scopes: %q", first.SessionID)
+func TestReplaceFileAtomicOverwritesExistingFileAndCleansBackup(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "target.json")
+	if err := os.WriteFile(dst, []byte("old"), 0o600); err != nil {
+		t.Fatalf("write dst: %v", err)
 	}
-	if first.Scope != "group-a" || second.Scope != "group-b" {
-		t.Fatalf("unexpected scopes: first=%q second=%q", first.Scope, second.Scope)
+	staged := filepath.Join(dir, ".staged")
+	if err := os.WriteFile(staged, []byte("new-content"), 0o644); err != nil {
+		t.Fatalf("write staged: %v", err)
+	}
+	if err := ReplaceFileAtomic(staged, dst); err != nil {
+		t.Fatalf("ReplaceFileAtomic: %v", err)
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read dst: %v", err)
+	}
+	if string(got) != "new-content" {
+		t.Fatalf("dst content = %q, want %q", got, "new-content")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read dir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".backup-") {
+			t.Fatalf("unexpected leftover backup: %s", e.Name())
+		}
 	}
 }

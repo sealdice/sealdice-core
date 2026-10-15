@@ -1,8 +1,6 @@
 package helpdoc_test
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
@@ -85,66 +83,5 @@ func TestSaveConfigPersistsAliases(t *testing.T) {
 	}
 	if string(data) == "" {
 		t.Fatal("saved config is empty")
-	}
-}
-
-func TestInitUploadRejectsBuiltinGroup(t *testing.T) {
-	svc := newTestHelpDocService(t)
-
-	_, err := svc.InitUpload(t.Context(), &UploadInitReq{
-		Body: HelpDocUploadInitReqBody{
-			Group:     "builtin",
-			Filename:  "sample.json",
-			FileSize:  2,
-			FileHash:  "abc",
-			ChunkSize: 1,
-		},
-	})
-	if err == nil {
-		t.Fatal("InitUpload returned nil error, want builtin group rejection")
-	}
-}
-
-func TestChunkUploadCompletesIntoSelectedGroup(t *testing.T) {
-	svc := newTestHelpDocService(t)
-	content := []byte(`{"mod":"demo","helpdoc":{"hello":"world"}}`)
-	hash := sha256.Sum256(content)
-
-	initResp, err := svc.InitUpload(t.Context(), &UploadInitReq{
-		Body: HelpDocUploadInitReqBody{
-			Group:     "team",
-			Filename:  "team.json",
-			FileSize:  int64(len(content)),
-			FileHash:  hex.EncodeToString(hash[:]),
-			ChunkSize: 16,
-		},
-	})
-	if err != nil {
-		t.Fatalf("InitUpload returned error: %v", err)
-	}
-	sessionID := initResp.Body.Item.SessionID
-
-	chunks := [][]byte{content[:16], content[16:32], content[32:]}
-	for index, chunk := range chunks {
-		if _, uploadErr := svc.UploadChunk(t.Context(), &UploadChunkReq{
-			SessionID: sessionID,
-			Index:     index,
-			RawBody:   chunk,
-		}); uploadErr != nil {
-			t.Fatalf("UploadChunk(%d) returned error: %v", index, uploadErr)
-		}
-	}
-
-	completeResp, err := svc.CompleteUpload(t.Context(), &UploadCompleteReq{
-		Body: HelpDocUploadCompleteReqBody{SessionID: sessionID},
-	})
-	if err != nil {
-		t.Fatalf("CompleteUpload returned error: %v", err)
-	}
-	if !completeResp.Body.Item.Success {
-		t.Fatalf("CompleteUpload success = false, want true")
-	}
-	if _, err := os.Stat(filepath.Join("data", "helpdoc", "team", "team.json")); err != nil {
-		t.Fatalf("uploaded helpdoc not found: %v", err)
 	}
 }

@@ -1,8 +1,6 @@
 package resource
 
 import (
-	"github.com/danielgtaylor/huma/v2"
-
 	"sealdice-core/model/common/response"
 )
 
@@ -47,18 +45,4 @@ type ResourcePathReqBody struct {
 
 type DeleteReq struct {
 	Body ResourcePathReqBody `json:"body"`
-}
-
-type UploadForm struct {
-	Files []huma.FormFile `form:"files" required:"true"`
-}
-
-type UploadReq struct {
-	RawBody huma.MultipartFormFiles[UploadForm]
-}
-
-type ResourceUploadResp struct {
-	Success  bool     `json:"success"`
-	TestMode bool     `json:"testMode,omitempty"`
-	Failed   []string `json:"failed,omitempty"`
 }

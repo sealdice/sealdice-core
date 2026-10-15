@@ -85,9 +85,6 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/helpdoc/config",
 		"/sd-api/v2/helpdoc/reload",
 		"/sd-api/v2/helpdoc/delete",
-		"/sd-api/v2/helpdoc/upload/init",
-		"/sd-api/v2/helpdoc/upload/{sessionId}/{index}",
-		"/sd-api/v2/helpdoc/upload/complete",
 		"/sd-api/v2/censor/status",
 		"/sd-api/v2/censor/config",
 		"/sd-api/v2/censor/words",
@@ -95,7 +92,6 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/censor/logs/page",
 		"/sd-api/v2/censor/restart",
 		"/sd-api/v2/censor/stop",
-		"/sd-api/v2/censor/files/upload",
 		"/sd-api/v2/censor/files/template/toml",
 		"/sd-api/v2/censor/files/template/txt",
 		"/sd-api/v2/custom-reply/files",
@@ -103,7 +99,6 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/custom-reply/files/{filename}/conditions",
 		"/sd-api/v2/custom-reply/files/{filename}/download",
 		"/sd-api/v2/custom-reply/files/{filename}/rules",
-		"/sd-api/v2/custom-reply/files/upload",
 		"/sd-api/v2/custom-reply/debug-mode",
 		"/sd-api/v2/custom-text/",
 		"/sd-api/v2/custom-text/{category}",
@@ -113,7 +108,6 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/extension/asset",
 		"/sd-api/v2/extension/config",
 		"/sd-api/v2/extension/config-schema",
-		"/sd-api/v2/extension/install-upload",
 		"/sd-api/v2/extension/install-url",
 		"/sd-api/v2/extension/preview-upload",
 		"/sd-api/v2/extension/uninstall",
@@ -138,7 +132,6 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/imconnection/officialqq/test",
 		"/sd-api/v2/imconnection/sign-info",
 		"/sd-api/v2/resource/list",
-		"/sd-api/v2/resource/upload",
 		"/sd-api/v2/resource/delete",
 		"/sd-api/v2/resource/download",
 		"/sd-api/v2/resource/data",
@@ -155,6 +148,17 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 	} {
 		if spec.Paths[path] == nil {
 			t.Fatalf("expected path %s in OpenAPI spec", path)
+		}
+	}
+
+	for _, removed := range []string{
+		"/sd-api/v2/resource/upload",
+		"/sd-api/v2/censor/files/upload",
+		"/sd-api/v2/custom-reply/files/upload",
+		"/sd-api/v2/extension/install-upload",
+	} {
+		if spec.Paths[removed] != nil {
+			t.Fatalf("expected removed upload path %s to be absent from OpenAPI spec", removed)
 		}
 	}
 

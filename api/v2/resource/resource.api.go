@@ -17,16 +17,14 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/sunshineplan/imgconv"
 
-	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 	"sealdice-core/model/common/response"
 )
 
 const (
-	defaultPageSize     = 20
-	maxPageSize         = 100
-	maxImageUploadBytes = 50 << 20
-	imageRoot           = "data/images"
+	defaultPageSize = 20
+	maxPageSize     = 100
+	imageRoot       = "data/images"
 )
 
 type Service struct {
@@ -57,10 +55,6 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 }
 
 func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
-	huma.Post(grp, "/upload", s.Upload, func(o *huma.Operation) {
-		o.Description = "上传资源文件"
-		o.Summary = "上传资源文件"
-	})
 	huma.Post(grp, "/delete", s.Delete, func(o *huma.Operation) {
 		o.Description = "删除资源文件"
 		o.Summary = "删除资源文件"
@@ -99,81 +93,6 @@ func (s *Service) GetList(_ context.Context, req *ListQuery) (*response.ItemResp
 		Page:     page,
 		PageSize: pageSize,
 	}), nil
-}
-
-func (s *Service) Upload(_ context.Context, req *UploadReq) (*response.ItemResponse[ResourceUploadResp], error) {
-	if s.dm.JustForTest {
-		return response.NewItemResponse(ResourceUploadResp{Success: false, TestMode: true}), nil
-	}
-
-	files, err := extractUploadFiles(req.RawBody)
-	if err != nil {
-		return nil, err
-	}
-	for _, file := range files {
-		if file.File != nil {
-			defer func(file huma.FormFile) {
-				_ = file.Close()
-			}(file)
-		}
-	}
-
-	if err = os.MkdirAll(imageRoot, 0o755); err != nil {
-		return nil, huma.Error500InternalServerError("创建资源目录失败")
-	}
-
-	failed := make([]string, 0)
-	for _, file := range files {
-		if file.Size > maxImageUploadBytes {
-			failed = append(failed, file.Filename)
-			continue
-		}
-		filename := sanitizeUploadFilename(file.Filename)
-		if filename == "" || !isAllowedImageFile(filename) {
-			failed = append(failed, file.Filename)
-			continue
-		}
-
-		if uploadErr := writeUploadAtomic(imageRoot, filename, file.File); uploadErr != nil {
-			failed = append(failed, file.Filename)
-		}
-	}
-
-	if len(failed) > 0 {
-		return nil, huma.Error400BadRequest("部分资源上传失败：" + strings.Join(failed, "、"))
-	}
-
-	return response.NewItemResponse(ResourceUploadResp{Success: true}), nil
-}
-
-func writeUploadAtomic(dir string, filename string, src io.Reader) error {
-	staged, err := os.CreateTemp(dir, "."+filename+".upload-*")
-	if err != nil {
-		return err
-	}
-	stagedPath := staged.Name()
-	keepStaged := false
-	defer func() {
-		_ = staged.Close()
-		if !keepStaged {
-			_ = os.Remove(stagedPath)
-		}
-	}()
-
-	if _, err = io.Copy(staged, src); err != nil {
-		return err
-	}
-	if err = staged.Sync(); err != nil {
-		return err
-	}
-	if err = staged.Close(); err != nil {
-		return err
-	}
-	if err = uploadcore.ReplaceFileAtomic(stagedPath, filepath.Join(dir, filename)); err != nil {
-		return err
-	}
-	keepStaged = true
-	return nil
 }
 
 func (s *Service) Delete(_ context.Context, req *DeleteReq) (*response.ItemResponse[response.SimpleOK], error) {
@@ -382,52 +301,6 @@ func normalizePageSize(pageSize int) int {
 		return maxPageSize
 	}
 	return pageSize
-}
-
-func extractUploadFiles(raw huma.MultipartFormFiles[UploadForm]) ([]huma.FormFile, error) {
-	data := raw.Data()
-	if data != nil && len(data.Files) > 0 {
-		return data.Files, nil
-	}
-	if raw.Form == nil {
-		return nil, huma.Error400BadRequest("missing files")
-	}
-
-	headers := raw.Form.File["files"]
-	if len(headers) == 0 {
-		headers = raw.Form.File["file"]
-	}
-	if len(headers) == 0 {
-		return nil, huma.Error400BadRequest("missing files")
-	}
-
-	files := make([]huma.FormFile, 0, len(headers))
-	for _, fh := range headers {
-		file, err := fh.Open()
-		if err != nil {
-			return nil, huma.Error400BadRequest("failed to open file")
-		}
-		files = append(files, huma.FormFile{
-			File:        file,
-			ContentType: fh.Header.Get("Content-Type"),
-			IsSet:       true,
-			Size:        fh.Size,
-			Filename:    fh.Filename,
-		})
-	}
-	return files, nil
-}
-
-func sanitizeUploadFilename(name string) string {
-	name = strings.ReplaceAll(name, "/", "_")
-	name = strings.ReplaceAll(name, "\\", "_")
-	name = strings.ReplaceAll(name, "\x00", "")
-	return strings.TrimSpace(name)
-}
-
-func isAllowedImageFile(filename string) bool {
-	resourceType, _ := getResourceType(filename)
-	return resourceType == ResourceTypeImage
 }
 
 func safeImagePath(path string) (string, error) {

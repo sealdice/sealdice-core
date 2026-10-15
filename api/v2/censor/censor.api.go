@@ -3,9 +3,6 @@ package censor
 import (
 	"bytes"
 	"context"
-	"io"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -13,15 +10,12 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/pelletier/go-toml/v2"
 
-	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 	censorcore "sealdice-core/dice/censor"
 	"sealdice-core/dice/service"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 )
-
-const maxWordFileUploadBytes = 20 << 20
 
 type Service struct {
 	dice *dice.Dice
@@ -68,9 +62,6 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	})
 	huma.Post(grp, "/config", s.SetConfig, func(o *huma.Operation) {
 		o.Description = "保存拦截配置"
-	})
-	huma.Post(grp, "/files/upload", s.UploadFile, func(o *huma.Operation) {
-		o.Description = "上传词库文件"
 	})
 	huma.Delete(grp, "/files", s.DeleteFiles, func(o *huma.Operation) {
 		o.Description = "删除词库文件"
@@ -217,66 +208,6 @@ func (s *Service) GetFiles(_ context.Context, _ *request.Empty) (*response.ItemR
 		return strings.ToLower(files[i].Name) < strings.ToLower(files[j].Name)
 	})
 	return response.NewItemResponse(CensorFilesResp{Data: files}), nil
-}
-
-func (s *Service) UploadFile(_ context.Context, req *CensorUploadReq) (*response.ItemResponse[CensorSimpleResp], error) {
-	if err := s.checkReady(); err != nil {
-		return nil, err
-	}
-	form, err := extractUploadForm(req.RawBody)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = form.File.Close()
-	}()
-	filename := sanitizeUploadFilename(form.File.Filename)
-	if filename == "" {
-		return nil, huma.Error400BadRequest("文件名不能为空")
-	}
-	if !isAllowedWordFile(filename) {
-		return nil, huma.Error400BadRequest("仅支持 txt 和 toml 词库文件")
-	}
-	if form.File.Size > maxWordFileUploadBytes {
-		return nil, huma.Error400BadRequest("词库文件过大")
-	}
-	if mkdirErr := os.MkdirAll("./data/censor", 0o755); mkdirErr != nil {
-		return nil, huma.Error500InternalServerError("创建词库目录失败")
-	}
-	if err = writeUploadAtomic("./data/censor", filename, form.File); err != nil {
-		return nil, huma.Error500InternalServerError("写入词库文件失败")
-	}
-	return response.NewItemResponse(CensorSimpleResp{Success: true}), nil
-}
-
-func writeUploadAtomic(dir string, filename string, src io.Reader) error {
-	staged, err := os.CreateTemp(dir, "."+filename+".upload-*")
-	if err != nil {
-		return err
-	}
-	stagedPath := staged.Name()
-	keepStaged := false
-	defer func() {
-		_ = staged.Close()
-		if !keepStaged {
-			_ = os.Remove(stagedPath)
-		}
-	}()
-
-	if _, err = io.Copy(staged, src); err != nil {
-		return err
-	}
-	if err = staged.Sync(); err != nil {
-		return err
-	}
-	if err = staged.Close(); err != nil {
-		return err
-	}
-	if err = uploadcore.ReplaceFileAtomic(stagedPath, filepath.Join(dir, filename)); err != nil {
-		return err
-	}
-	keepStaged = true
-	return nil
 }
 
 func (s *Service) DeleteFiles(_ context.Context, req *CensorDeleteFilesReq) (*response.ItemResponse[CensorSimpleResp], error) {
@@ -469,43 +400,4 @@ func nextHandlerValue(value uint8, handler dice.CensorHandler, newHandlers map[d
 	}
 	value &^= 1 << handler
 	return value
-}
-
-func sanitizeUploadFilename(name string) string {
-	name = strings.ReplaceAll(name, "/", "_")
-	name = strings.ReplaceAll(name, "\\", "_")
-	return strings.TrimSpace(name)
-}
-
-func isAllowedWordFile(filename string) bool {
-	switch strings.ToLower(filepath.Ext(filename)) {
-	case ".txt", ".toml":
-		return true
-	default:
-		return false
-	}
-}
-
-func extractUploadForm(raw huma.MultipartFormFiles[CensorUploadForm]) (*CensorUploadForm, error) {
-	data := raw.Data()
-	if data != nil && data.File.IsSet {
-		return data, nil
-	}
-	if raw.Form == nil || len(raw.Form.File["file"]) == 0 {
-		return nil, huma.Error400BadRequest("missing file")
-	}
-	fh := raw.Form.File["file"][0]
-	file, err := fh.Open()
-	if err != nil {
-		return nil, huma.Error400BadRequest("failed to open file")
-	}
-	return &CensorUploadForm{
-		File: huma.FormFile{
-			File:        file,
-			ContentType: fh.Header.Get("Content-Type"),
-			IsSet:       true,
-			Size:        fh.Size,
-			Filename:    fh.Filename,
-		},
-	}, nil
 }

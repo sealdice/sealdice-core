@@ -2,8 +2,6 @@ package deck_test
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -172,61 +170,6 @@ func TestCheckUpdateReturnsFailureForMissingDeck(t *testing.T) {
 	}
 	if resp.Body.Item.Success {
 		t.Fatalf("CheckUpdate success = true, want false")
-	}
-}
-
-func TestChunkUploadCompletesDeckFile(t *testing.T) {
-	svc := newTestService(t)
-	content := []byte(`{"_title":["Chunked"],"_author":["Alice"],"draw":["1","2"]}`)
-	hash := sha256.Sum256(content)
-
-	initResp, err := svc.InitUpload(t.Context(), &UploadInitReq{
-		Body: UploadInitReqBody{
-			Filename:  "codex-v2-deck-chunked.json",
-			FileSize:  int64(len(content)),
-			FileHash:  hex.EncodeToString(hash[:]),
-			ChunkSize: 16,
-		},
-	})
-	if err != nil {
-		t.Fatalf("InitUpload returned error: %v", err)
-	}
-	sessionID := initResp.Body.Item.SessionID
-	if sessionID == "" {
-		t.Fatal("empty sessionID")
-	}
-
-	chunks := [][]byte{
-		content[:16],
-		content[16:32],
-		content[32:48],
-		content[48:],
-	}
-	for index, chunk := range chunks {
-		resp, uploadErr := svc.UploadChunk(t.Context(), &UploadChunkReq{
-			SessionID: sessionID,
-			Index:     index,
-			RawBody:   chunk,
-		})
-		if uploadErr != nil {
-			t.Fatalf("UploadChunk(%d) returned error: %v", index, uploadErr)
-		}
-		if !resp.Body.Item.Success {
-			t.Fatalf("UploadChunk(%d) success = false", index)
-		}
-	}
-
-	completeResp, err := svc.CompleteUpload(t.Context(), &UploadCompleteReq{
-		Body: UploadCompleteReqBody{SessionID: sessionID},
-	})
-	if err != nil {
-		t.Fatalf("CompleteUpload returned error: %v", err)
-	}
-	if !completeResp.Body.Item.Success {
-		t.Fatal("CompleteUpload success = false")
-	}
-	if _, err := os.Stat(filepath.Join("data", "decks", "codex-v2-deck-chunked.json")); err != nil {
-		t.Fatalf("chunked upload file not found: %v", err)
 	}
 }
 

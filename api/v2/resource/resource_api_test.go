@@ -2,13 +2,9 @@ package resource_test
 
 import (
 	"bytes"
-	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/danielgtaylor/huma/v2"
 
 	. "sealdice-core/api/v2/resource"
 	"sealdice-core/dice"
@@ -93,75 +89,8 @@ func TestGetListSupportsKeywordSortingAndPagination(t *testing.T) {
 	}
 }
 
-func TestUploadWritesAllowedImagesAndSanitizesNames(t *testing.T) {
-	svc := newTestService(t)
-
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-	part, err := writer.CreateFormFile("files", "nested/seal.PNG")
-	if err != nil {
-		t.Fatalf("CreateFormFile: %v", err)
-	}
-	if _, err = part.Write([]byte("image data")); err != nil {
-		t.Fatalf("write multipart payload: %v", err)
-	}
-	if err = writer.Close(); err != nil {
-		t.Fatalf("writer.Close: %v", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, "/upload", &buf)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if err = req.ParseMultipartForm(1024 * 1024); err != nil {
-		t.Fatalf("ParseMultipartForm: %v", err)
-	}
-
-	raw := huma.MultipartFormFiles[UploadForm]{}
-	raw.Form = req.MultipartForm
-	resp, err := svc.Upload(t.Context(), &UploadReq{RawBody: raw})
-	if err != nil {
-		t.Fatalf("Upload returned error: %v", err)
-	}
-	if !resp.Body.Item.Success {
-		t.Fatal("Upload success = false, want true")
-	}
-	if _, err = os.Stat(filepath.Join("data", "images", "seal.PNG")); err != nil {
-		t.Fatalf("uploaded image not found: %v", err)
-	}
-}
-
-func TestUploadRejectsUnsupportedFiles(t *testing.T) {
-	svc := newTestService(t)
-
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-	part, err := writer.CreateFormFile("files", "bad.txt")
-	if err != nil {
-		t.Fatalf("CreateFormFile: %v", err)
-	}
-	if _, err = part.Write([]byte("not image")); err != nil {
-		t.Fatalf("write multipart payload: %v", err)
-	}
-	if err = writer.Close(); err != nil {
-		t.Fatalf("writer.Close: %v", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, "/upload", &buf)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if err = req.ParseMultipartForm(1024 * 1024); err != nil {
-		t.Fatalf("ParseMultipartForm: %v", err)
-	}
-
-	raw := huma.MultipartFormFiles[UploadForm]{}
-	raw.Form = req.MultipartForm
-	if _, err = svc.Upload(t.Context(), &UploadReq{RawBody: raw}); err == nil {
-		t.Fatal("Upload accepted unsupported file, want error")
-	}
+func TestUploadMovedToTusGateway(t *testing.T) {
+	t.Skip("资源上传已收敛到 tus 网关 /sd-api/v2/upload/，见 uploadgw")
 }
 
 func TestDeleteRemovesImageAndRejectsTraversal(t *testing.T) {

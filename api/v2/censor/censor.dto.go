@@ -1,8 +1,6 @@
 package censor
 
 import (
-	"github.com/danielgtaylor/huma/v2"
-
 	censorcore "sealdice-core/dice/censor"
 	"sealdice-core/model"
 )
@@ -68,14 +66,6 @@ type CensorFileInfo struct {
 
 type CensorFilesResp struct {
 	Data []*CensorFileInfo `json:"data"`
-}
-
-type CensorUploadForm struct {
-	File huma.FormFile `form:"file" required:"true"`
-}
-
-type CensorUploadReq struct {
-	RawBody huma.MultipartFormFiles[CensorUploadForm]
 }
 
 type CensorSimpleResp struct {

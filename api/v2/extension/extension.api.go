@@ -65,9 +65,6 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 		o.Middlewares = append(o.Middlewares, s.streamUploadMiddleware(grp, true))
 	})
 	huma.Post(grp, "/preview-url", s.PreviewURL)
-	huma.Post(grp, "/install-upload", s.InstallUpload, func(o *huma.Operation) {
-		o.Middlewares = append(o.Middlewares, s.streamUploadMiddleware(grp, false))
-	})
 	huma.Post(grp, "/install-url", s.InstallURL)
 	huma.Post(grp, "/uninstall", s.Uninstall)
 	huma.Post(grp, "/enable", s.Enable)
@@ -122,23 +119,6 @@ func (s *Service) PreviewUpload(ctx context.Context, req *UploadReq) (*response.
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	return response.NewItemResponse(preview), nil
-}
-
-func (s *Service) InstallUpload(ctx context.Context, req *UploadReq) (*response.ItemResponse[ExtensionActionResp], error) {
-	if streamed, ok := ctx.Value(uploadStreamContextKey{}).(uploadStreamResult); ok && streamed.done {
-		return response.NewItemResponse(ExtensionActionResp{Success: true, Message: "扩展包安装成功"}), nil
-	}
-	pm := s.packageManager()
-	if pm == nil {
-		return nil, huma.Error500InternalServerError("package manager unavailable")
-	}
-	if len(req.RawBody) == 0 {
-		return nil, huma.Error400BadRequest("未上传扩展包文件")
-	}
-	if err := pm.InstallFromStreamContext(ctx, bytes.NewReader(req.RawBody)); err != nil {
-		return nil, huma.Error400BadRequest(err.Error())
-	}
-	return response.NewItemResponse(ExtensionActionResp{Success: true, Message: "扩展包安装成功"}), nil
 }
 
 func (s *Service) InstallURL(ctx context.Context, req *InstallURLReq) (*response.ItemResponse[ExtensionActionResp], error) {

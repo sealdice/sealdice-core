@@ -2,7 +2,6 @@ package js
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/robfig/cron/v3"
 
-	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 	cmn "sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
@@ -23,16 +21,14 @@ import (
 )
 
 type Service struct {
-	dice          *dice.Dice
-	dm            *dice.DiceManager
-	uploadManager *uploadcore.Manager
+	dice *dice.Dice
+	dm   *dice.DiceManager
 }
 
 func NewService(dm *dice.DiceManager) *Service {
 	return &Service{
-		dice:          dm.GetDice(),
-		dm:            dm,
-		uploadManager: uploadcore.NewManager(filepath.Join(dm.GetDice().BaseConfig.DataDir, "scripts", ".uploads")),
+		dice: dm.GetDice(),
+		dm:   dm,
 	}
 }
 
@@ -68,9 +64,6 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 	huma.Get(grp, "/{name}/data/info", s.DataInfo, func(o *huma.Operation) {
 		o.Description = "获取插件数据库统计信息"
 	})
-	huma.Get(grp, "/upload/{sessionId}/{index}", s.GetUploadChunkStatus, func(o *huma.Operation) {
-		o.Description = "获取JS脚本上传分块状态"
-	})
 }
 
 func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
@@ -100,15 +93,6 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	})
 	huma.Post(grp, "/upload", s.Upload, func(o *huma.Operation) {
 		o.Description = "上传JS脚本文件"
-	})
-	huma.Post(grp, "/upload/init", s.InitUpload, func(o *huma.Operation) {
-		o.Description = "初始化JS脚本上传会话"
-	})
-	huma.Put(grp, "/upload/{sessionId}/{index}", s.UploadChunk, func(o *huma.Operation) {
-		o.Description = "上传JS脚本分块"
-	})
-	huma.Post(grp, "/upload/complete", s.CompleteUpload, func(o *huma.Operation) {
-		o.Description = "完成JS脚本上传"
 	})
 	huma.Post(grp, "/configs", s.SetConfigs, func(o *huma.Operation) {
 		o.Description = "保存插件配置"
@@ -493,127 +477,6 @@ func (s *Service) Upload(_ context.Context, req *UploadReq) (*SimpleItemResponse
 		return nil, huma.Error500InternalServerError("写入文件失败")
 	}
 	return response.NewItemResponse(JsSimpleResult{Success: true}), nil
-}
-
-func (s *Service) InitUpload(_ context.Context, req *UploadInitReq) (*response.ItemResponse[JsUploadSessionResp], error) {
-	if s.dm.JustForTest {
-		return response.NewItemResponse(JsUploadSessionResp{
-			Success:         false,
-			ResumeSupported: false,
-		}), nil
-	}
-
-	body := req.Body
-	filename := sanitizeFilename(body.Filename)
-	if filename == "" {
-		return nil, huma.Error400BadRequest("文件名非法")
-	}
-	if body.FileSize <= 0 {
-		return nil, huma.Error400BadRequest("fileSize必须大于0")
-	}
-	if strings.TrimSpace(body.FileHash) == "" {
-		return nil, huma.Error400BadRequest("fileHash不能为空")
-	}
-
-	chunkSize := body.ChunkSize
-	if chunkSize <= 0 {
-		chunkSize = uploadcore.DefaultChunkSize
-	}
-
-	session, err := s.uploadManager.Init(filename, body.FileSize, body.FileHash, chunkSize)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("创建上传目录失败")
-	}
-
-	return response.NewItemResponse(JsUploadSessionResp{
-		Success:         true,
-		SessionID:       session.SessionID,
-		ChunkSize:       session.ChunkSize,
-		UploadedChunks:  s.uploadManager.SortedUploadedChunks(session),
-		UploadedBytes:   s.uploadManager.UploadedBytes(session),
-		ExpectedChunks:  session.ExpectedChunks,
-		ResumeSupported: true,
-	}), nil
-}
-
-func (s *Service) GetUploadChunkStatus(_ context.Context, req *UploadChunkQuery) (*response.ItemResponse[JsUploadChunkResp], error) {
-	session, err := s.uploadManager.Get(req.SessionID)
-	if err != nil {
-		return nil, huma.Error404NotFound("上传会话不存在")
-	}
-	return response.NewItemResponse(JsUploadChunkResp{
-		Success:       s.uploadManager.IsChunkUploaded(session, req.Index),
-		UploadedBytes: s.uploadManager.UploadedBytes(session),
-		UploadedChunk: req.Index,
-	}), nil
-}
-
-func (s *Service) UploadChunk(_ context.Context, req *UploadChunkReq) (*response.ItemResponse[JsUploadChunkResp], error) {
-	if s.dm.JustForTest {
-		return response.NewItemResponse(JsUploadChunkResp{
-			Success:       false,
-			UploadedChunk: req.Index,
-		}), nil
-	}
-
-	session, err := s.uploadManager.SaveChunk(req.SessionID, req.Index, req.RawBody)
-	if err != nil {
-		switch {
-		case errors.Is(err, uploadcore.ErrSessionNotFound):
-			return nil, huma.Error404NotFound("上传会话不存在")
-		case errors.Is(err, uploadcore.ErrChunkOutOfRange):
-			return nil, huma.Error400BadRequest("chunk index超出范围")
-		case errors.Is(err, uploadcore.ErrChunkEmpty):
-			return nil, huma.Error400BadRequest("分块内容不能为空")
-		case errors.Is(err, uploadcore.ErrChunkSize):
-			return nil, huma.Error400BadRequest("分块大小与上传会话不一致")
-		default:
-			return nil, huma.Error500InternalServerError("写入分块失败")
-		}
-	}
-
-	return response.NewItemResponse(JsUploadChunkResp{
-		Success:       true,
-		UploadedBytes: s.uploadManager.UploadedBytes(session),
-		UploadedChunk: req.Index,
-	}), nil
-}
-
-func (s *Service) CompleteUpload(_ context.Context, req *UploadCompleteReq) (*response.ItemResponse[JsUploadCompleteResp], error) {
-	if s.dm.JustForTest {
-		return response.NewItemResponse(JsUploadCompleteResp{
-			Success:  false,
-			TestMode: true,
-		}), nil
-	}
-
-	sessionMeta, err := s.uploadManager.Get(req.Body.SessionID)
-	if err != nil {
-		return nil, huma.Error404NotFound("上传会话不存在")
-	}
-	session, err := s.uploadManager.Complete(
-		req.Body.SessionID,
-		filepath.Join(s.dice.BaseConfig.DataDir, "scripts", sessionMeta.Filename),
-	)
-	if err != nil {
-		switch {
-		case errors.Is(err, uploadcore.ErrSessionNotFound):
-			return nil, huma.Error404NotFound("上传会话不存在")
-		case errors.Is(err, uploadcore.ErrIncomplete):
-			return nil, huma.Error400BadRequest("上传分块不完整")
-		case errors.Is(err, uploadcore.ErrHashMismatch):
-			return nil, huma.Error400BadRequest("文件校验失败")
-		case errors.Is(err, uploadcore.ErrFileSize):
-			return nil, huma.Error400BadRequest("文件大小校验失败")
-		default:
-			return nil, huma.Error500InternalServerError("完成上传失败")
-		}
-	}
-	s.dice.MarkModified()
-	return response.NewItemResponse(JsUploadCompleteResp{
-		Success:  true,
-		Filename: session.Filename,
-	}), nil
 }
 
 func (s *Service) SetConfigs(_ context.Context, req *SetConfigsReq) (*SimpleItemResponse, error) {

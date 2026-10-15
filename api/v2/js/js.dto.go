@@ -225,58 +225,6 @@ type JsUploadResp struct {
 	TestMode bool `json:"testMode,omitempty"`
 }
 
-type JsUploadInitReqBody struct {
-	Filename  string `json:"filename"`
-	FileSize  int64  `json:"fileSize"`
-	FileHash  string `json:"fileHash"`
-	ChunkSize int64  `json:"chunkSize"`
-}
-
-type UploadInitReq struct {
-	Body JsUploadInitReqBody `json:"body"`
-}
-
-type JsUploadSessionResp struct {
-	Success         bool   `json:"success"`
-	SessionID       string `json:"sessionId"`
-	ChunkSize       int64  `json:"chunkSize"`
-	UploadedChunks  []int  `json:"uploadedChunks"`
-	UploadedBytes   int64  `json:"uploadedBytes"`
-	ExpectedChunks  int    `json:"expectedChunks"`
-	ResumeSupported bool   `json:"resumeSupported"`
-}
-
-type UploadChunkQuery struct {
-	SessionID string `path:"sessionId"`
-	Index     int    `path:"index"`
-}
-
-type UploadChunkReq struct {
-	SessionID string `path:"sessionId"`
-	Index     int    `path:"index"`
-	RawBody   []byte
-}
-
-type JsUploadChunkResp struct {
-	Success       bool  `json:"success"`
-	UploadedBytes int64 `json:"uploadedBytes"`
-	UploadedChunk int   `json:"uploadedChunk"`
-}
-
-type JsUploadCompleteReqBody struct {
-	SessionID string `json:"sessionId"`
-}
-
-type UploadCompleteReq struct {
-	Body JsUploadCompleteReqBody `json:"body"`
-}
-
-type JsUploadCompleteResp struct {
-	Success  bool   `json:"success"`
-	TestMode bool   `json:"testMode,omitempty"`
-	Filename string `json:"filename"`
-}
-
 // --- config map types ---
 
 type PluginConfigMap map[string]*APIPluginConfig

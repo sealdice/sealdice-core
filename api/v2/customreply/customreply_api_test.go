@@ -1,14 +1,9 @@
 package customreply_test
 
 import (
-	"bytes"
-	"mime/multipart"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/danielgtaylor/huma/v2"
 
 	. "sealdice-core/api/v2/customreply"
 	"sealdice-core/dice"
@@ -351,50 +346,5 @@ func TestDebugModeRoundTrip(t *testing.T) {
 }
 
 func TestUploadFileSavesMultipartPayload(t *testing.T) {
-	svc := newTestService(t)
-
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-	part, err := writer.CreateFormFile("file", "reply3.yaml")
-	if err != nil {
-		t.Fatalf("CreateFormFile: %v", err)
-	}
-	if _, writeErr := part.Write([]byte("enable: true\nitems: []\nconditions: []\n")); writeErr != nil {
-		t.Fatalf("write multipart payload: %v", writeErr)
-	}
-	if closeErr := writer.Close(); closeErr != nil {
-		t.Fatalf("close multipart writer: %v", closeErr)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, "/upload", &buf)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	if parseErr := req.ParseMultipartForm(1024 * 1024); parseErr != nil {
-		t.Fatalf("ParseMultipartForm: %v", parseErr)
-	}
-
-	raw := huma.MultipartFormFiles[UploadForm]{}
-	raw.Form = req.MultipartForm
-
-	_, err = svc.Upload(t.Context(), &UploadReq{RawBody: raw})
-	if err != nil {
-		t.Fatalf("Upload returned error: %v", err)
-	}
-
-	itemsResp, err := svc.GetFileList(t.Context(), &FileListQuery{})
-	if err != nil {
-		t.Fatalf("GetFileList returned error: %v", err)
-	}
-	found := false
-	for _, item := range itemsResp.Body.Item.List {
-		if item.Filename == "reply3.yaml" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("uploaded file not found in file list")
-	}
+	t.Skip("上传已收敛到 tus 网关 /sd-api/v2/upload/，见 uploadgw")
 }

@@ -13,15 +13,12 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
 	"sealdice-core/utils/paginate"
 	"sealdice-core/utils/paginate/slicep"
 )
-
-const maxReplyFileUploadBytes = 20 << 20
 
 type Service struct {
 	dice *dice.Dice
@@ -69,9 +66,6 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	})
 	huma.Put(grp, "/files/{filename}", s.SaveConfig, func(o *huma.Operation) {
 		o.Description = "保存自定义回复配置"
-	})
-	huma.Post(grp, "/files/upload", s.Upload, func(o *huma.Operation) {
-		o.Description = "上传自定义回复文件"
 	})
 	huma.Put(grp, "/debug-mode", s.SetDebugMode, func(o *huma.Operation) {
 		o.Description = "设置自定义回复调试模式"
@@ -401,72 +395,6 @@ func (s *Service) Download(_ context.Context, req *FilenamePath) (*huma.StreamRe
 			}
 		},
 	}, nil
-}
-
-func (s *Service) Upload(_ context.Context, req *UploadReq) (*response.ItemResponse[response.SimpleOK], error) {
-	data := req.RawBody.Data()
-	if data == nil || !data.File.IsSet {
-		if req.RawBody.Form == nil || len(req.RawBody.Form.File["file"]) == 0 {
-			return nil, huma.Error400BadRequest("missing file")
-		}
-		fh := req.RawBody.Form.File["file"][0]
-		file, openErr := fh.Open()
-		if openErr != nil {
-			return nil, huma.Error400BadRequest("failed to open file")
-		}
-		defer func() { _ = file.Close() }()
-		data = &UploadForm{
-			File: huma.FormFile{
-				File:        file,
-				ContentType: fh.Header.Get("Content-Type"),
-				IsSet:       true,
-				Size:        fh.Size,
-				Filename:    fh.Filename,
-			},
-		}
-	}
-	if s.dm.JustForTest {
-		return response.NewItemResponse(response.SimpleOK{Success: true}), nil
-	}
-
-	filename, err := sanitizeFilename(data.File.Filename)
-	if err != nil {
-		return nil, err
-	}
-	if data.File.Size > maxReplyFileUploadBytes {
-		return nil, huma.Error400BadRequest("自定义回复文件过大")
-	}
-	if dice.CustomReplyConfigCheckExists(s.dice, filename) {
-		return nil, huma.Error409Conflict("file already exists")
-	}
-	fp := s.dice.GetExtConfigFilePath("reply", filename)
-	staged, err := os.CreateTemp(filepath.Dir(fp), "."+filename+".upload-*")
-	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to create file")
-	}
-	stagedPath := staged.Name()
-	keepStaged := false
-	defer func() {
-		_ = staged.Close()
-		if !keepStaged {
-			_ = os.Remove(stagedPath)
-		}
-	}()
-	if _, err = io.Copy(staged, data.File); err != nil {
-		return nil, huma.Error500InternalServerError("failed to write file")
-	}
-	if err = staged.Sync(); err != nil {
-		return nil, huma.Error500InternalServerError("failed to write file")
-	}
-	if err = staged.Close(); err != nil {
-		return nil, huma.Error500InternalServerError("failed to write file")
-	}
-	if err = uploadcore.ReplaceFileAtomic(stagedPath, fp); err != nil {
-		return nil, huma.Error500InternalServerError("failed to write file")
-	}
-	keepStaged = true
-	dice.ReplyReload(s.dice)
-	return response.NewItemResponse(response.SimpleOK{Success: true}), nil
 }
 
 func (s *Service) GetDebugMode(_ context.Context, _ *request.Empty) (*response.ItemResponse[DebugModeResp], error) {

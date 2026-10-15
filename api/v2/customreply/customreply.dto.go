@@ -1,8 +1,6 @@
 package customreply
 
 import (
-	"github.com/danielgtaylor/huma/v2"
-
 	"sealdice-core/dice"
 	"sealdice-core/model/common/response"
 )
@@ -67,14 +65,6 @@ type DebugModeResp struct {
 
 type DebugModeReq struct {
 	Body DebugModeResp `json:"body"`
-}
-
-type UploadForm struct {
-	File huma.FormFile `form:"file" required:"true"`
-}
-
-type UploadReq struct {
-	RawBody huma.MultipartFormFiles[UploadForm]
 }
 
 type RuleInfo struct {
