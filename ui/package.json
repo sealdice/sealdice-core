@@ -62,7 +62,6 @@
     "hyparquet-compressors": "^1.1.1",
     "hyperparam": "^0.2.49",
     "js-sha256": "^0.11.1",
-    "mitt": "^3.0.1",
     "naive-ui": "^2.43.1",
     "nprogress": "^0.2.0",
     "pinia": "^4.0.2",

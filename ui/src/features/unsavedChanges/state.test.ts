@@ -8,7 +8,7 @@ const {
   clearSource: clearUnsavedChangesSource,
   confirmDiscard: confirmDiscardUnsavedChanges,
   registerSource: registerUnsavedChangesSource,
-  saveActive: saveActiveUnsavedChanges,
+  runPendingAction,
   setConfirmHandler: setUnsavedChangesConfirmHandler,
 } = store;
 
@@ -34,7 +34,7 @@ it('未保存来源注册、保存与离开确认', async () => {
 
   expect(hasUnsavedChanges.value).toBe(true);
   expect(activeUnsavedChangesSource.value?.scope).toBe('test-high');
-  expect(await saveActiveUnsavedChanges()).toBe(true);
+  expect(await runPendingAction('test-high')).toBe(true);
   expect(saved).toBe(true);
 
   setUnsavedChangesConfirmHandler(async source => source.scope === 'test-high');

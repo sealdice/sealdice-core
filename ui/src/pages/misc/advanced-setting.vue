@@ -1,6 +1,6 @@
 <template>
   <main class="advanced-page sd-page-flow">
-    <PageHeader title="高级设置" unsaved-scope="advanced-setting">
+    <PageHeader title="高级设置">
       <n-button secondary :disabled="!modified" @click="reload">
         <template #icon>
           <n-icon><i-tabler-arrow-back-up /></n-icon>

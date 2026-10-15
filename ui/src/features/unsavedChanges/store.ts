@@ -1,6 +1,5 @@
-import mitt from 'mitt';
 import { defineStore } from 'pinia';
-import { computed, markRaw, ref, shallowRef, toValue, type MaybeRefOrGetter } from 'vue';
+import { computed, ref, shallowRef, toValue, type MaybeRefOrGetter } from 'vue';
 
 /**
  * 待处理状态分两类，视觉载体相同，语义不同：
@@ -48,9 +47,6 @@ export interface ActiveUnsavedChangesSource {
 }
 
 export type UnsavedConfirmHandler = (source: ActiveUnsavedChangesSource) => Promise<boolean>;
-export type UnsavedChangesEvents = {
-  changed: void;
-};
 
 const DEFAULT_ACTION_TEXT: Record<PendingActionKind, string> = {
   unsaved: '保存设置',
@@ -60,7 +56,6 @@ const DEFAULT_ACTION_TEXT: Record<PendingActionKind, string> = {
 export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
   const registeredSources = ref<Record<string, RegisteredUnsavedChangesSource>>({});
   const confirmHandler = shallowRef<UnsavedConfirmHandler | null>(null);
-  const unsavedChangesEmitter = markRaw(mitt<UnsavedChangesEvents>());
 
   let registerOrder = 0;
 
@@ -118,10 +113,6 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
   const hasUnsavedChanges = computed(() => activeUnsavedChangesSource.value !== null);
   const hasPendingActions = computed(() => activePendingActions.value.length > 0);
 
-  function emitChanged(): void {
-    unsavedChangesEmitter.emit('changed');
-  }
-
   function registerSource(scope: string, options: UnsavedChangesSourceOptions): void {
     // 每个业务区用 scope 注册自己的脏状态，Pinia 只负责选择当前最高优先级来源。
     registeredSources.value = {
@@ -132,7 +123,6 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
         order: registerOrder++,
       },
     };
-    emitChanged();
   }
 
   function clearSource(scope: string): void {
@@ -141,12 +131,10 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
     const nextSources = { ...registeredSources.value };
     delete nextSources[scope];
     registeredSources.value = nextSources;
-    emitChanged();
   }
 
   function clearAllSources(): void {
     registeredSources.value = {};
-    emitChanged();
   }
 
   function setConfirmHandler(handler: UnsavedConfirmHandler | null): () => void {
@@ -180,12 +168,6 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
     }
   }
 
-  async function saveActive(): Promise<boolean> {
-    const source = activeUnsavedChangesSource.value;
-    if (!source) return false;
-    return runPendingAction(source.scope);
-  }
-
   async function discardPendingAction(scope: string): Promise<boolean> {
     const source = activePendingActions.value.find(item => item.scope === scope);
     if (!source?.discard) return false;
@@ -203,7 +185,6 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
     activeUnsavedChangesSource,
     hasUnsavedChanges,
     hasPendingActions,
-    unsavedChangesEmitter,
     registerSource,
     clearSource,
     clearAllSources,
@@ -211,6 +192,5 @@ export const useUnsavedChangesStore = defineStore('unsaved-changes', () => {
     confirmDiscard,
     runPendingAction,
     discardPendingAction,
-    saveActive,
   };
 });

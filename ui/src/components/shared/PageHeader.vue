@@ -3,67 +3,14 @@
     <div class="sd-page-header__copy">
       <h1>{{ title }}</h1>
     </div>
-    <div v-if="$slots.default || unsavedScope" class="sd-page-header__actions">
-      <template v-if="unsavedScope">
-        <n-button v-if="dirty" secondary :disabled="!dirty || saving" @click="discard">
-          <template #icon>
-            <n-icon><i-tabler-arrow-back-up /></n-icon>
-          </template>
-          放弃改动
-        </n-button>
-        <n-button
-          v-if="dirty"
-          type="primary"
-          :loading="saving"
-          :disabled="!dirty || saving"
-          @click="save"
-        >
-          <template #icon>
-            <n-icon><i-tabler-device-floppy /></n-icon>
-          </template>
-          保存设置
-        </n-button>
-      </template>
+    <div v-if="$slots.default" class="sd-page-header__actions">
       <slot />
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useMessage } from 'naive-ui';
-import { storeToRefs } from 'pinia';
-import { useUnsavedChangesStore } from '@/features/unsavedChanges/store';
-const unsaved = useUnsavedChangesStore();
-const { activeUnsavedChangesSource } = storeToRefs(unsaved);
-
-const props = defineProps<{
-  title: string;
-  unsavedScope?: string;
-}>();
-
-const message = useMessage();
-const activeSource = computed(() => (props.unsavedScope ? activeUnsavedChangesSource.value : null));
-const dirty = computed(() =>
-  Boolean(activeSource.value && activeSource.value.scope === props.unsavedScope)
-);
-const saving = computed(() =>
-  Boolean(
-    activeSource.value &&
-      activeSource.value.scope === props.unsavedScope &&
-      activeSource.value.saving
-  )
-);
-
-async function save() {
-  if (!props.unsavedScope) return;
-  // 保存错误由来源 mutation 或全局 HTTP 边界反馈，避免第二次 toast。
-  await unsaved.saveActive();
-}
-
-async function discard() {
-  message.info('请使用页面内的“放弃改动”按钮');
-}
+defineProps<{ title: string }>();
 </script>
 
 <style scoped>

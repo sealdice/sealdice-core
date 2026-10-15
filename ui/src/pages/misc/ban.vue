@@ -1,6 +1,6 @@
 <template>
   <main class="ban-page sd-page-flow">
-    <PageHeader title="黑白名单" unsaved-scope="ban-config" />
+    <PageHeader title="黑白名单" />
 
     <n-tabs v-model:value="tab" class="sd-scrollable-tabs" animated>
       <n-tab-pane name="list" tab="黑白名单">
@@ -58,7 +58,6 @@ import BanAddDialog from '@/components/ban/BanAddDialog.vue';
 import BanConfigPanel from '@/components/ban/BanConfigPanel.vue';
 import BanListPanel from '@/components/ban/BanListPanel.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import { getErrorMessage } from '@/features/auth/error';
 
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import {

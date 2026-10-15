@@ -1,6 +1,6 @@
 <template>
   <main class="backup-page sd-page-flow">
-    <PageHeader title="备份" unsaved-scope="backup-config" />
+    <PageHeader title="备份" />
 
     <TipBox v-if="configErrorText" type="error">
       {{ configErrorText }}

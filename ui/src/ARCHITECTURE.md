@@ -73,6 +73,7 @@
 - 未保存提示统一在 `src/features/unsavedChanges/`。
   - 页面只注册 source，不自己实现全局拦截。
   - 状态通过 `useUnsavedChangesStore()` 消费；注册 hook 负责生命周期，路由守卫每次导航独立确认，不保留跨导航跳过标志。
+  - 保存、放弃和重载操作由 `AppUnsavedChangesPanel` 展示；`PageHeader` 只负责标题和页面自己的操作插槽，不再复制全局待处理状态。
 - 上传统一通过 `useUploadStore()` 消费；响应式状态用 `storeToRefs()`，不再增加逐个转发的 `state.ts` 门面。
   - `enqueue()` 只等待文件完成入队准备，`upload()` 等待单文件安装完成；失败与取消都会结束后者的 Promise。
   - store 持有并释放 Uppy；queue 管理业务任务，engine 负责第三方身份和事件映射。
