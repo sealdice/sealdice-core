@@ -1,7 +1,11 @@
 <template>
   <main class="base-setting-page sd-page-flow">
     <PageHeader title="基本设置">
-      <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
+      <n-button
+        secondary
+        :disabled="!draft.dirty.value || saveMutation.isPending.value"
+        @click="resetChanges"
+      >
         <template #icon>
           <n-icon><i-tabler-arrow-back-up /></n-icon>
         </template>
@@ -10,7 +14,7 @@
       <n-button
         type="primary"
         :loading="saveMutation.isPending.value"
-        :disabled="!draft.dirty.value"
+        :disabled="!draft.dirty.value || saveMutation.isPending.value"
         @click="saveChanges"
       >
         <template #icon>
@@ -80,7 +84,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
-import { useQuery, useQueryClient } from '@tanstack/vue-query';
+import { useQuery } from '@tanstack/vue-query';
 import { getSdApiV2BaseSettingValueOptions } from '@/api';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/features/auth/store';
@@ -92,10 +96,7 @@ import ResponsiveTabs from '@/components/shared/ResponsiveTabs.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { useBaseSettingDraft } from '@/features/baseSetting/draft';
-import {
-  prepareBaseSettingSavePayload,
-  useBaseSettingMutations,
-} from '@/features/baseSetting/mutations';
+import { useBaseSettingMutations } from '@/features/baseSetting/mutations';
 import {
   buildBaseSettingPatch,
   buildBaseSettingSearchIndex,
@@ -110,7 +111,6 @@ import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
 const { hasAccessToken } = storeToRefs(useAuthStore());
-const queryClient = useQueryClient();
 const { overview } = useBaseOverview();
 
 const activeTab = ref('master-notice');
@@ -158,28 +158,24 @@ const initialValue = computed(() => draft.initialValue.value);
 const pageBusy = computed(() => valueQuery.isFetching.value);
 const isContainerMode = computed(() => overview.value?.runtime.containerMode === true);
 
-const { saveMutation, mailTestMutation, upgradeMutation } = useBaseSettingMutations({
-  queryClient,
-  message,
-});
+const { saveMutation, mailTestMutation, upgradeMutation } = useBaseSettingMutations(message);
 
 useUnsavedChanges('base-setting', {
   label: '基本设置',
-  dirty: computed(() => draft.dirty.value),
+  dirty: draft.dirty,
   save: saveChanges,
   saving: computed(() => saveMutation.isPending.value),
-  canSave: computed(() => draft.dirty.value),
+  canSave: draft.dirty,
   discard: resetChanges,
   confirmMessage: '基本设置还有修改，确定要忽略？',
 });
 
 async function saveChanges() {
-  if (!draft.currentValue.value || !draft.initialValue.value) return;
-  const payload = await prepareBaseSettingSavePayload(
-    draft.currentValue.value,
-    draft.initialValue.value,
-    buildBaseSettingPatch
-  );
+  if (saveMutation.isPending.value || !draft.currentValue.value || !draft.initialValue.value)
+    return;
+  // 在任何异步工作之前固定请求和基线，保存期间的后续编辑继续保持未保存状态。
+  const submittedSnapshot = cloneBaseSettingValue(draft.currentValue.value);
+  const payload = buildBaseSettingPatch(submittedSnapshot, draft.initialValue.value);
   if (Object.keys(payload).length === 0) {
     message.info('没有可保存的改动');
     return;
@@ -194,7 +190,6 @@ async function saveChanges() {
     }
     return;
   }
-  const submittedSnapshot = cloneBaseSettingValue(draft.currentValue.value);
   await saveMutation.mutateAsync(payload);
   draft.commitSaved(submittedSnapshot);
   const refreshed = await valueQuery.refetch();
