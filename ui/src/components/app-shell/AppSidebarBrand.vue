@@ -129,10 +129,9 @@ const { overview, appName } = useBaseOverview();
   color: var(--sd-text-inverse);
   cursor: pointer;
   font: inherit;
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.25;
   padding: 0;
   text-align: left;
   text-overflow: ellipsis;
@@ -143,6 +142,15 @@ const { overview, appName } = useBaseOverview();
   color: var(--sd-text-inverse-soft);
 }
 
+.runtime-text {
+  overflow: hidden;
+  color: var(--sd-text-inverse-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  margin-top: 0.18rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 @supports (color: color-mix(in srgb, white, black)) {
   .container-indicator {
     color: color-mix(in srgb, var(--sd-text-inverse), transparent 14%);

@@ -2,14 +2,16 @@
   <main class="pprof-page sd-page-flow">
     <PageHeader title="性能分析" />
 
-    <HelpCollapse>
-      <n-space vertical size="small">
-        <n-text>本页调用 Go 标准库 `net/http/pprof` 相关端点。</n-text>
-        <n-text>CPU profile 和 trace 会持续采样，排障完成后应尽快停止，不建议长时间运行。</n-text>
-        <n-text>文本视图适合快速浏览，二进制文件更适合交给本地工具深入分析。</n-text>
-        <n-text>下载后可使用 `go tool pprof` 或 `go tool trace` 进行离线分析。</n-text>
-      </n-space>
-    </HelpCollapse>
+    <n-collapse arrow-placement="right" class="pprof-page__help">
+      <n-collapse-item title="查看帮助" name="help">
+        <n-space vertical size="small">
+          <n-text>本页调用 Go 标准库 `net/http/pprof` 相关端点。</n-text>
+          <n-text>CPU profile 和 trace 会持续采样，排障完成后应尽快停止，不建议长时间运行。</n-text>
+          <n-text>文本视图适合快速浏览，二进制文件更适合交给本地工具深入分析。</n-text>
+          <n-text>下载后可使用 `go tool pprof` 或 `go tool trace` 进行离线分析。</n-text>
+        </n-space>
+      </n-collapse-item>
+    </n-collapse>
 
     <n-grid cols="1 s:2 m:3" responsive="screen" :x-gap="16" :y-gap="16">
       <n-grid-item v-for="entry in entries" :key="entry.key">
@@ -69,7 +71,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { getApiBaseUrl } from '@/api';
-import HelpCollapse from '@/components/shared/HelpCollapse.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { currentAccessToken } from '@/features/auth/state';
 import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
@@ -222,12 +223,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.pprof-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .pprof-page__card {
   height: 100%;
 }
@@ -241,5 +236,9 @@ onMounted(() => {
   line-height: 1.5;
 }
 
-/* 帮助折叠容器由 HelpCollapse 统一承载，不再在页面内自行拼装边框与背景。 */
+.pprof-page__help {
+  border: 1px solid var(--sd-border-soft);
+  border-radius: var(--sd-radius-md);
+  background: var(--sd-bg-elevated-soft);
+}
 </style>

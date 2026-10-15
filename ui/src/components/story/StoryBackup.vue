@@ -5,32 +5,33 @@
     <p><strong>删除此处的备份文件不会使日志丢失。</strong></p>
   </TipBox>
 
-  <header class="backup-header">
-    <n-flex size="large" align="center">
-      <n-checkbox
-        v-model:checked="checkAllBackups"
-        :indeterminate="isIndeterminate"
-        :disabled="!(backups && backups.length > 0)"
-        @update:checked="handleCheckAllChange"
-      >
-        {{ checkAllBackups ? '取消全选' : '全选' }}
-      </n-checkbox>
-      <n-text depth="3" class="text-xs">
-        已勾选 {{ selectedBackups.length }} 个备份，共 {{ filesize(selectedBytes) }}
-      </n-text>
-    </n-flex>
+  <ListPanel>
+    <template #toolbar>
+      <ResultToolbar>
+        <template #meta>
+          <n-checkbox
+            v-model:checked="checkAllBackups"
+            :indeterminate="isIndeterminate"
+            :disabled="!(backups && backups.length > 0)"
+            @update:checked="handleCheckAllChange"
+          >
+            {{ checkAllBackups ? '取消全选' : '全选' }}
+          </n-checkbox>
+          <n-text depth="3" class="text-xs">
+            已勾选 {{ selectedBackups.length }} 个备份，共 {{ filesize(selectedBytes) }}
+          </n-text>
+        </template>
+        <n-button
+          type="error"
+          :disabled="!(selectedBackups && selectedBackups.length > 0)"
+          :loading="deleteMutation.isPending.value"
+          @click="backupBatchDeleteConfirm"
+        >
+          删除所选
+        </n-button>
+      </ResultToolbar>
+    </template>
 
-    <n-button
-      type="error"
-      :disabled="!(selectedBackups && selectedBackups.length > 0)"
-      :loading="deleteMutation.isPending.value"
-      @click="backupBatchDeleteConfirm"
-    >
-      删除所选
-    </n-button>
-  </header>
-
-  <main class="backup-list">
     <n-checkbox-group v-model:value="selectedBackupNames" @update:value="handleCheckedBackupChange">
       <div v-for="backup in backups" :key="backup.name" class="backup-line">
         <n-checkbox :value="backup.name" :label="backup.name" />
@@ -44,12 +45,14 @@
         </n-flex>
       </div>
     </n-checkbox-group>
-  </main>
+  </ListPanel>
 </template>
 
 <script setup lang="ts">
 import { filesize } from 'filesize';
 import { useDialog, useMessage } from 'naive-ui';
+import ListPanel from '@/components/shared/ListPanel.vue';
+import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useStoryBackup } from '@/features/story/useStoryBackup';
 
@@ -130,7 +133,6 @@ function bakDeleteConfirm(name: string) {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem;
-  padding: 0.4rem 1rem;
 }
 
 .backup-line:not(:first-child) {
@@ -142,11 +144,6 @@ function bakDeleteConfirm(name: string) {
 }
 
 @media screen and (max-width: 700px) {
-  .backup-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .backup-actions {
     margin-left: 0;
   }

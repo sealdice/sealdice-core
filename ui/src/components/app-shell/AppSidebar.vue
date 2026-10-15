@@ -19,7 +19,6 @@
       @update:value="handleMenuSelect"
     />
     <footer class="sd-sidebar-footer" :class="{ 'sd-sidebar-footer--collapsed': props.collapsed }">
-      <AppInstallButton :collapsed="props.collapsed" />
       <n-tooltip :disabled="!props.collapsed" placement="right">
         <template #trigger>
           <n-button
@@ -46,7 +45,6 @@ import { computed, h, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import type { MenuOption } from 'naive-ui';
 import { resolveOldUIUrlFromLocation } from '@/api/config';
-import AppInstallButton from './AppInstallButton.vue';
 import AppNavigationIcon from './AppNavigationIcon.vue';
 import AppSidebarBrand from './AppSidebarBrand.vue';
 import { getNavigationExpandedKeys, resolveMenuNavigationTarget } from '@/router/navigationModel';

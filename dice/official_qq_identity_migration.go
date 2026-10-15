@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/model"
-	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
 	"sealdice-core/utils/dboperator/engine"
 )
@@ -39,7 +38,7 @@ func officialQQIdentityMigrationFindInBatches[T any](query *gorm.DB, process fun
 }
 
 func officialQQIdentityMigrationWithoutCache(db *gorm.DB) *gorm.DB {
-	return db.WithContext(cache.WithDatabaseCacheDisabled(db.Statement.Context))
+	return db
 }
 
 func officialQQIdentityMigrationForEachChunk[T any](items []T, process func([]T) error) error {

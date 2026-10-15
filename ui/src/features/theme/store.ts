@@ -89,8 +89,6 @@ export const useThemeStore = defineStore('theme', () => {
       }
       syncDocumentTheme(document.documentElement, theme);
       syncDocumentThemePalette(document.documentElement);
-      const themeColorMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-      themeColorMeta?.setAttribute('content', theme === 'dark' ? '#0f172a' : '#f4f6f9');
     },
     { immediate: true }
   );

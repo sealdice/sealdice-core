@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 
@@ -128,6 +129,48 @@ func TestRegisterLegacyUIRewritesLegacyAPIPath(t *testing.T) {
 
 	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/old-ui/sd-api/signin/salt", nil))
 	assertBodyContains(t, resp, "salt")
+}
+
+func TestRootUIEtagForRevalidatedEntries(t *testing.T) {
+	rootUIEtagCache = sync.Map{}
+
+	app := echo.New()
+	source := fstest.MapFS{
+		"dist/index.html":           {Data: []byte("<!doctype html>v2 ui")},
+		"dist/sw.js":                {Data: []byte("/* service worker */")},
+		"dist/manifest.webmanifest": {Data: []byte("{}")},
+		"dist/workbox-test.js":      {Data: []byte("workbox")},
+		"dist/assets/app-abc.js":    {Data: []byte("console.log(1)")},
+	}
+	if err := registerRootUI(app, source); err != nil {
+		t.Fatalf("registerRootUI() error = %v", err)
+	}
+
+	// Revalidated entry files carry a weak, content-derived ETag.
+	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/", nil))
+	etag := resp.Header.Get("ETag")
+	if etag == "" || !strings.HasPrefix(etag, `W/"`) {
+		t.Fatalf("index ETag = %q, want weak ETag with W/ prefix", etag)
+	}
+
+	// Revalidation with a matching ETag returns 304 without a body.
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("If-None-Match", etag)
+	resp = performRequest(app, req)
+	if resp.StatusCode != http.StatusNotModified {
+		t.Fatalf("revalidation status = %d, want %d", resp.StatusCode, http.StatusNotModified)
+	}
+
+	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/sw.js", nil))
+	if got := resp.Header.Get("ETag"); got == "" {
+		t.Fatal("sw.js should carry an ETag for revalidation")
+	}
+
+	// Immutable, content-hashed assets do not need an ETag.
+	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/assets/app-abc.js", nil))
+	if got := resp.Header.Get("ETag"); got != "" {
+		t.Fatalf("asset ETag = %q, want empty", got)
+	}
 }
 
 func assertBodyContains(t *testing.T, resp *http.Response, want string) {

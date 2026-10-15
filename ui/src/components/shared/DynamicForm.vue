@@ -58,7 +58,7 @@
           v-else-if="item.input_type === 6"
           :value="checkboxValueOf(item)"
           :disabled="isDisabled(item)"
-          @update:value="setCheckboxGroupValue(item, $event)"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         >
           <n-space>
             <n-checkbox
@@ -75,7 +75,7 @@
           :value="dateValueOf(item)"
           :type="item.input_type === 11 ? 'datetimerange' : 'datetime'"
           :disabled="isDisabled(item)"
-          @update:value="setDateValue(item, $event)"
+          @update:value="value => updateValue(fieldKeyOf(item), value)"
         />
         <n-input
           v-else

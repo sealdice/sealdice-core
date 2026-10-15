@@ -73,7 +73,6 @@
               class="sd-search-item-main"
               :aria-label="`打开${item.label}`"
               @click="selectItem(item)"
-              @keydown.enter.stop="selectItem(item)"
             >
               <n-icon class="sd-search-item-icon">
                 <AppNavigationIcon :name="item.icon" />
@@ -151,7 +150,7 @@
           </n-icon>
           <n-text depth="3">
             <template v-if="trimmedKeyword">
-              没有找到 <strong>「{{ trimmedKeyword }}」</strong> 的结果
+              没有找到 <strong>“{{ trimmedKeyword }}”</strong> 的结果
             </template>
             <template v-else> 输入搜索关键字开始搜索吧~ </template>
           </n-text>

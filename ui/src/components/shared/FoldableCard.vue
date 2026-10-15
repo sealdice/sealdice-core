@@ -48,7 +48,7 @@
       </header>
 
       <template v-if="!folded">
-        <div :id="panelId" :aria-labelledby="titleId" class="w-full" role="region">
+        <div :id="panelId" class="w-full" role="region">
           <div class="w-full">
             <slot name="default" />
           </div>
@@ -132,7 +132,7 @@
       </header>
 
       <template v-if="!folded">
-        <div :id="panelId" :aria-labelledby="titleId" class="w-full" role="region">
+        <div :id="panelId" class="w-full" role="region">
           <div class="w-full">
             <slot name="default" />
           </div>

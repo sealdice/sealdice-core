@@ -68,6 +68,59 @@
           <n-tag size="small" type="default" :bordered="false">#等级</n-tag>
           以下的词汇为该等级的敏感词，每一行代表一个词汇，直到遇到新的等级标记。
         </n-text>
+
+        <n-collapse accordion>
+          <n-collapse-item>
+            <template #header>
+              <n-text>toml 格式的词库</n-text>
+            </template>
+            <n-text tag="p">
+              使用 toml
+              格式作为词库，支持填写便于分享的信息，如作者、版本、更新日期等。可以下载模板查看具体的属性（内含注释）。<br />
+              toml 格式支持注释、尾逗号等语法，可查看
+              <n-button
+                type="default"
+                size="tiny"
+                text
+                style="text-decoration: none"
+                tag="a"
+                target="_blank"
+                href="https://toml.io/cn/v1.0.0"
+              >
+                <template #icon>
+                  <n-icon><i-tabler-search /></n-icon>
+                </template>
+                了解 toml 格式
+              </n-button>
+              或自行搜索。
+            </n-text>
+          </n-collapse-item>
+          <n-collapse-item>
+            <template #header>
+              <n-text>txt 格式的词库</n-text>
+            </template>
+            <n-text tag="p">
+              格式示例如下：<br />
+              <br />
+              <n-text code class="sd-code-text">
+                #notice<br />
+                提醒级词汇 1<br />
+                提醒级词汇 2<br />
+                #caution<br />
+                注意级词汇 1<br />
+                注意级词汇 2<br />
+                #warning<br />
+                警告级词汇<br />
+                #danger<br />
+                危险级词汇<br />
+              </n-text>
+              <br />
+              <br />
+              <n-tag size="small" type="default" :bordered="false">#等级</n-tag>
+              以下的词汇为该等级的敏感词，每一行代表一个词汇，直到遇到新的等级标记。
+            </n-text>
+          </n-collapse-item>
+        </n-collapse>
       </n-collapse-item>
     </n-collapse>
   </HelpCollapse>

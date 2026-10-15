@@ -274,8 +274,6 @@ function showDetail(item: ResourceItem) {
 
 <style scoped>
 .resource-page {
-  display: grid;
-  gap: 16px;
   min-width: 0;
 }
 

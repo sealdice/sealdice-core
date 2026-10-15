@@ -60,7 +60,7 @@ export function getEndpointTargetLabel(endpoint: EndPointInfo) {
     protocolType: endpoint.protocolType,
     adapter: adapterOf(endpoint),
   });
-  return `${account}（${protocol}，ID：${endpoint.id}）`;
+  return `${account}（${protocol}，ID: ${endpoint.id}）`;
 }
 
 export function adapterOf(endpoint: EndPointInfo): EndpointDisplayAdapter {

@@ -1,11 +1,15 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/labstack/echo/v4"
 )
@@ -47,7 +51,7 @@ func registerRootUI(router *echo.Echo, source fs.FS) error {
 	}
 
 	group := router.Group("")
-	group.Use(redirectRootHashRouteFallback(), rootUICacheHeaders())
+	group.Use(redirectRootHashRouteFallback(), rootUICacheHeaders(), rootUIEtagMiddleware(root))
 	fileServer := http.FileServer(http.FS(root))
 	group.Match([]string{http.MethodGet, http.MethodHead}, "/", echo.WrapHandler(fileServer))
 	group.Match([]string{http.MethodGet, http.MethodHead}, "/*", echo.WrapHandler(fileServer))
@@ -166,4 +170,77 @@ func cacheControlForRootUIPath(requestPath string) string {
 	default:
 		return rootUICacheControlNoCache
 	}
+}
+
+// isRootUINoCachedRevalidatePath reports whether a path is served with
+// "no-cache" (revalidated on every request) and thus needs a content-based ETag.
+func isRootUINoCachedRevalidatePath(requestPath string) bool {
+	cleanPath := strings.TrimSuffix(requestPath, "/")
+	switch {
+	case requestPath == "/" || cleanPath == "/index.html":
+		return true
+	case cleanPath == "/registerSW.js" ||
+		cleanPath == "/sw.js" ||
+		cleanPath == "/manifest.webmanifest" ||
+		strings.HasPrefix(cleanPath, "/workbox-"):
+		return true
+	default:
+		return false
+	}
+}
+
+var rootUIEtagCache sync.Map // path -> etag
+
+// rootUIEtagMiddleware sets a weak, content-derived ETag on the revalidated
+// entry files and short-circuits unchanged revalidations with 304. Embedded
+// files all share an epoch modtime, so Last-Modified alone cannot detect an
+// updated fixed-name file (e.g. sw.js); a content hash can.
+func rootUIEtagMiddleware(root fs.FS) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			if req.Method != http.MethodGet && req.Method != http.MethodHead {
+				return next(c)
+			}
+			if !isRootUINoCachedRevalidatePath(req.URL.Path) {
+				return next(c)
+			}
+
+			relPath := strings.TrimPrefix(req.URL.Path, "/")
+			if relPath == "" {
+				relPath = "index.html"
+			}
+			etag, ok := cachedRootUIEtag(root, relPath)
+			if !ok {
+				return next(c)
+			}
+
+			c.Response().Header().Set("ETag", etag)
+			if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" && strings.Contains(ifNoneMatch, etag) {
+				c.Response().WriteHeader(http.StatusNotModified)
+				return nil
+			}
+			return next(c)
+		}
+	}
+}
+
+func cachedRootUIEtag(root fs.FS, relPath string) (string, bool) {
+	if value, ok := rootUIEtagCache.Load(relPath); ok {
+		return value.(string), true
+	}
+
+	file, err := root.Open(relPath)
+	if err != nil {
+		return "", false
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", false
+	}
+	etag := `W/"` + hex.EncodeToString(hash.Sum(nil)) + `"`
+	rootUIEtagCache.Store(relPath, etag)
+	return etag, true
 }

@@ -25,15 +25,11 @@
     <div
       v-if="showPanel && (!collapsible || expanded)"
       :id="panelId"
-      :class="['setting-category-panel', { 'setting-category-panel-padded': padded }]"
+      class="setting-category-panel"
       role="region"
       :aria-labelledby="headingId"
     >
-      <!-- display: contents：容器不参与布局，间距由说明自身承担，
-           这样零条说明时不会留下空隙。 -->
-      <div v-if="$slots.notes" class="setting-category-notes">
-        <slot name="notes" />
-      </div>
+      <slot name="notes" />
       <SettingFieldLayout :columns="columns" :padded="padded">
         <slot />
       </SettingFieldLayout>
@@ -138,15 +134,6 @@ const emit = defineEmits<{
 
   .setting-category-thing {
     margin: 0 var(--sd-space-xs) var(--sd-space-2xs);
-  }
-
-  /* 窄屏下字段内边距收窄为 sm，说明块跟随。 */
-  .setting-category-notes > :deep(*) {
-    margin: var(--sd-space-xs) var(--sd-space-sm) 0;
-  }
-
-  .setting-category-panel-padded .setting-category-notes > :deep(*) {
-    margin: var(--sd-space-sm) var(--sd-space-sm) 0;
   }
 }
 </style>

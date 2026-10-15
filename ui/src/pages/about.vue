@@ -1,5 +1,5 @@
 <template>
-  <main class="about-page">
+  <main class="about-page sd-page">
     <AboutHero :summary="summary" :links="ABOUT_LINKS" :loading="loading" />
     <AboutCredits :sections="ABOUT_CREDIT_SECTIONS" />
   </main>

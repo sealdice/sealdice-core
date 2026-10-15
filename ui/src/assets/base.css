@@ -400,6 +400,34 @@ select {
   justify-content: center;
 }
 
+/*
+ * Page-level vertical rhythm: every page root uses this stack so the gap
+ * between the page header and each top-level section is a single token.
+ */
+.sd-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sd-space-lg);
+  min-width: 0;
+}
+
+/* When a page wraps its top-level sections in a single <n-spin>, make the
+ * spin content a stack with the same page-level gap so spacing stays uniform. */
+.sd-page > .n-spin-container > .n-spin-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sd-space-lg);
+}
+
+/* Tab panes on regular pages are also page-level stacks: keep the same
+ * vertical rhythm between every block they contain (filter, panel, etc.). */
+.sd-page .n-tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sd-space-lg);
+  min-width: 0;
+}
+
 .sd-page-flow,
 .sd-section-flow {
   display: flex;

@@ -2,6 +2,7 @@ package main
 
 // _ "net/http/pprof"
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -621,6 +622,39 @@ func diceServe(d *dice.Dice) {
 	}
 }
 
+// gzipMinLength is the response body size (bytes) below which responses are not
+// compressed. gzip has fixed overhead, so compressing tiny bodies wastes memory
+// and CPU without a bandwidth win.
+const gzipMinLength = 1024
+
+// Paths that must not be gzip-compressed. The realtime channel is a long-lived
+// SSE stream; compressing it defeats streaming and forces the middleware to
+// buffer/flush continuously.
+var gzipSkipPrefixes = []string{"/sd-api/v2/realtime/sse"}
+
+// Static assets that are either already compressed or effectively incompressible.
+// Leaving them uncompressed avoids the memory/CPU cost of gzip on large bodies
+// that gain nothing from it.
+var gzipSkipExtensions = map[string]struct{}{
+	".png": {}, ".jpg": {}, ".jpeg": {}, ".gif": {}, ".webp": {}, ".avif": {},
+	".svg": {}, ".ico": {}, ".woff": {}, ".woff2": {}, ".ttf": {}, ".otf": {}, ".eot": {},
+	".wasm": {}, ".gz": {}, ".br": {}, ".zip": {}, ".7z": {},
+	".mp3": {}, ".ogg": {}, ".mp4": {}, ".webm": {}, ".pdf": {},
+}
+
+// gzipSkipper reports whether a request's response should be served uncompressed.
+func gzipSkipper(c echo.Context) bool {
+	requestPath := c.Request().URL.Path
+	for _, prefix := range gzipSkipPrefixes {
+		if requestPath == prefix || strings.HasPrefix(requestPath, prefix+"/") {
+			return true
+		}
+	}
+	if _, skip := gzipSkipExtensions[strings.ToLower(filepath.Ext(requestPath))]; skip {
+		return true
+	}
+	return false
+}
 func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePProfWeb bool) {
 	log := logger.M()
 	log.Info("即将启动webui")
@@ -664,6 +698,12 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePPro
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
 		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
+	}))
+
+	e.Use(echomiddleware.GzipWithConfig(echomiddleware.GzipConfig{
+		Level:     gzip.DefaultCompression,
+		MinLength: gzipMinLength,
+		Skipper:   gzipSkipper,
 	}))
 
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {

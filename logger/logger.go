@@ -64,6 +64,7 @@ type dynamicFileCore struct {
 	encoder        zapcore.Encoder
 	mu             sync.RWMutex
 	writerMap      map[string]zapcore.WriteSyncer
+	closerMap      map[string]io.Closer
 	levelEnablers  map[string]zapcore.LevelEnabler
 	defaultName    string
 	defaultEnabler zapcore.LevelEnabler
@@ -80,6 +81,7 @@ func newDynamicFileCore(rootDir string, encoder zapcore.Encoder, levelConfig map
 		rootDir:        rootDir,
 		encoder:        encoder,
 		writerMap:      make(map[string]zapcore.WriteSyncer),
+		closerMap:      make(map[string]io.Closer),
 		levelEnablers:  enablers,
 		defaultName:    LogKeyMain,
 		defaultEnabler: defaultEnabler,

@@ -5,6 +5,14 @@
         <h3>规则列表</h3>
         <p>从上到下匹配。当前页只显示部分规则，但保存会提交整份文件。</p>
       </div>
+      <n-space size="small" align="center">
+        <n-button size="small" secondary @click="emit('add')">
+          <template #icon>
+            <n-icon><i-tabler-plus /></n-icon>
+          </template>
+          添加规则
+        </n-button>
+      </n-space>
     </div>
 
     <div class="section-body">

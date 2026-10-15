@@ -115,10 +115,7 @@
 
         <template #action>
           <n-space justify="end">
-            <n-button
-              :disabled="editor.saveMutation.isPending.value"
-              @click="editor.cancelFileSwitch"
-            >
+            <n-button :disabled="editor.saveMutation.isPending.value" @click="editor.cancelFileSwitch">
               取消
             </n-button>
             <n-button

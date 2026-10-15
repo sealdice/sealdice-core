@@ -1,6 +1,24 @@
 <template>
   <main class="base-setting-page sd-page-flow">
-    <PageHeader title="基本设置" unsaved-scope="base-setting" />
+    <PageHeader title="基本设置">
+      <n-button secondary :disabled="!draft.dirty.value" @click="resetChanges">
+        <template #icon>
+          <n-icon><i-tabler-arrow-back-up /></n-icon>
+        </template>
+        放弃改动
+      </n-button>
+      <n-button
+        type="primary"
+        :loading="saveMutation.isPending.value"
+        :disabled="!draft.dirty.value"
+        @click="saveChanges"
+      >
+        <template #icon>
+          <n-icon><i-tabler-device-floppy /></n-icon>
+        </template>
+        保存设置
+      </n-button>
+    </PageHeader>
 
     <BaseSettingSearchBar
       v-model:keyword="searchKeyword"
@@ -255,9 +273,19 @@ async function jumpToField(entry: BaseSettingSearchEntry) {
   padding-bottom: var(--sd-space-xl);
 }
 
+.group-note {
+  margin: var(--sd-space-sm) var(--sd-space-md) 0.35rem;
+}
+
 @media (max-width: 768px) {
   .setting-groups {
     gap: 0.15rem;
+  }
+}
+
+@media (max-width: 639.9px) {
+  .group-note {
+    margin: var(--sd-space-xs) var(--sd-space-sm) 0.3rem;
   }
 }
 </style>

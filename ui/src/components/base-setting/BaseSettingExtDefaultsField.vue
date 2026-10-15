@@ -357,6 +357,10 @@ function getCommandEntries(item: BaseSettingExtDefaultSettingItem) {
   background: var(--sd-warning-soft);
 }
 
+.ext-defaults-empty {
+  padding: 1rem 0;
+}
+
 @media (max-width: 860px) {
   .ext-defaults-toolbar {
     grid-template-columns: minmax(0, 1fr);

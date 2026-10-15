@@ -154,7 +154,7 @@ function getTaskStatusType(task: ResumableUploadTask) {
 
 .helpdoc-file-block {
   border: 1px solid var(--sd-border);
-  border-radius: var(--sd-radius-sm);
+  border-radius: var(--sd-radius-md);
   background: var(--sd-bg-elevated);
   color: var(--sd-text-primary);
   padding: 0.75rem;

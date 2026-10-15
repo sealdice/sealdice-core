@@ -6,9 +6,9 @@
     class="backup-dialog"
     :mask-closable="false"
   >
-    <TipBox type="warning">
+    <n-alert type="warning" :bordered="false" class="backup-dialog__alert">
       默认勾选最近的 5 个备份之前的历史备份，可自行调整。删除后无法找回。
-    </TipBox>
+    </n-alert>
 
     <n-space vertical>
       <div class="backup-dialog__toolbar">
@@ -51,7 +51,6 @@
 import { computed } from 'vue';
 import { filesize } from 'filesize';
 import type { FileItem } from '@/api';
-import TipBox from '@/components/shared/TipBox.vue';
 
 type CheckboxOption = {
   label: string;

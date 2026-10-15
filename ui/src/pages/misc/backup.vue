@@ -368,8 +368,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .backup-page {
-  display: grid;
-  gap: 16px;
   min-width: 0;
 }
 

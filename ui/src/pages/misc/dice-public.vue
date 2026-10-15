@@ -26,39 +26,43 @@
       </n-button>
     </PageHeader>
 
-    <TipBox v-if="queryErrorText" type="error" class="public-dice-alert">
+    <n-alert v-if="queryErrorText" class="public-dice-alert" type="error">
       {{ queryErrorText }}
-    </TipBox>
+    </n-alert>
 
     <n-spin :show="loadingInitial">
-      <div v-if="draft" class="public-dice-groups">
-        <!-- 只读原因紧跟被禁用的表单，而不是放在页面底部。 -->
-        <TipBox v-if="!draft.config.publicDiceEnable" type="info">
-          公骰已关闭，配置保持只读；启用公骰后可继续编辑。
-        </TipBox>
+      <template v-if="draft">
+        <template v-if="draft.config.publicDiceEnable">
+          <div class="public-dice-groups">
+            <SettingCategoryBox title="公骰资料" padded>
+              <div class="public-dice-profile">
+                <aside class="public-dice-profile__seal" aria-hidden="true">
+                  <img :src="imgSeal" alt="" />
+                </aside>
+                <PublicDiceProfileForm
+                  v-model:config="draft.config"
+                  class="public-dice-profile__form"
+                  :disabled="contentDisabled"
+                />
+              </div>
+            </SettingCategoryBox>
 
-        <SettingCategoryBox title="公骰资料" padded>
-          <div class="public-dice-profile">
-            <aside class="public-dice-profile__seal" aria-hidden="true">
-              <img :src="imgSeal" alt="" />
-            </aside>
-            <PublicDiceProfileForm
-              v-model:config="draft.config"
-              class="public-dice-profile__form"
-              :disabled="contentDisabled"
-            />
+            <SettingCategoryBox title="上报终端" padded>
+              <PublicDiceEndpointSelector
+                v-model:checked-row-keys="checkedRowKeys"
+                :rows="endpointRows"
+                :disabled="contentDisabled"
+                :loading="publicDiceQuery.isFetching.value && endpointRows.length === 0"
+              />
+            </SettingCategoryBox>
           </div>
-        </SettingCategoryBox>
-
-        <SettingCategoryBox title="上报终端" padded>
-          <PublicDiceEndpointSelector
-            v-model:checked-row-keys="checkedRowKeys"
-            :rows="endpointRows"
-            :disabled="contentDisabled"
-            :loading="publicDiceQuery.isFetching.value && endpointRows.length === 0"
-          />
-        </SettingCategoryBox>
-      </div>
+        </template>
+        <FeatureDisabledState
+          v-else
+          title="公骰已关闭"
+          description="启用后可管理公骰资料和上报终端。"
+        />
+      </template>
     </n-spin>
   </main>
 </template>
@@ -80,7 +84,7 @@ import PublicDiceEndpointSelector from '@/components/public-dice/PublicDiceEndpo
 import PublicDiceProfileForm from '@/components/public-dice/PublicDiceProfileForm.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import TipBox from '@/components/shared/TipBox.vue';
+import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import { getErrorMessage } from '@/features/auth/error';
 import { hasAccessToken } from '@/features/auth/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';

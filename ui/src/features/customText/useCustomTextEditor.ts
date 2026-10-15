@@ -172,8 +172,8 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
       if (!texts.value[targetCategory]) continue;
       texts.value[targetCategory] = value;
       try {
-        const result = await saveMutation.mutateAsync(targetCategory);
-        initialTexts.value[targetCategory] = cloneDeep(result.snapshot);
+        await saveMutation.mutateAsync(targetCategory);
+        initialTexts.value[targetCategory] = cloneDeep(value);
         savedCategories.push(targetCategory);
       } catch (error) {
         failedCategories.push(`${targetCategory}（${getErrorMessage(error, '保存失败')}）`);

@@ -1,6 +1,6 @@
 <template>
   <main class="js-page sd-page-flow">
-    <PageHeader title="JS 扩展" :unsaved-scope="['js-config', 'js-reload']">
+    <PageHeader title="JS 扩展">
       <n-flex align="center" justify="space-between" wrap>
         <n-flex align="center" size="small">
           <n-text depth="3">启用 JS 扩展</n-text>
@@ -12,13 +12,7 @@
             @update:value="handleJsEnableToggle"
           />
         </n-flex>
-        <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
-        <n-button
-          v-show="jsEnable && !needReload"
-          type="primary"
-          :disabled="isTestMode"
-          @click="handleReload"
-        >
+        <n-button v-show="jsEnable" type="primary" :disabled="isTestMode" @click="handleReload">
           <template #icon>
             <n-icon><i-tabler-refresh /></n-icon>
           </template>
@@ -27,78 +21,109 @@
       </n-flex>
     </PageHeader>
 
-    <ResponsiveTabs v-model:value="tab" class="js-tabs" :options="jsTabOptions">
-      <template #panel="{ option }">
-        <section v-if="option.value === 'console'" class="js-console-grid">
-          <section class="js-panel js-editor-panel">
-            <header class="js-panel-header">
-              <n-flex align="center" justify="space-between" wrap>
-                <n-text class="js-panel-title">JS 扩展执行环境</n-text>
-                <n-button
-                  type="primary"
-                  secondary
-                  :disabled="!jsEnable || jsRunning || isTestMode"
-                  @click="doExecute"
-                >
-                  <template #icon
-                    ><n-icon><i-tabler-player-play /></n-icon
-                  ></template>
-                  执行代码
-                </n-button>
-              </n-flex>
-            </header>
+    <template v-if="jsEnable">
+      <n-affix v-if="jsConfigEdited" :top="70">
+        <TipBox type="warning">
+          <n-flex wrap>
+            <n-text type="warning" tag="strong" class="text-base"
+              >配置内容已修改，不要忘记保存！</n-text
+            >
+            <n-button
+              type="primary"
+              secondary
+              :disabled="!jsConfigEdited || isTestMode"
+              @click="saveJsConfig"
+            >
+              <template #icon>
+                <n-icon><i-tabler-device-floppy /></n-icon>
+              </template>
+              点我保存
+            </n-button>
+          </n-flex>
+        </TipBox>
+      </n-affix>
 
-            <div class="js-panel-body js-editor-body">
-              <CodeMirror
-                v-if="editorReady"
-                v-model="code"
-                class="js-editor"
-                :extensions="editorExtensions as never[]"
-                :dark="editorDark"
-                :wrap="true"
-              />
-              <n-skeleton v-else text :repeat="8" />
-            </div>
+      <n-tabs v-model:value="tab" justify-content="space-evenly" class="js-tabs">
+        <n-tab-pane tab="控制台" name="console">
+          <section class="js-console-grid">
+            <section class="js-panel js-editor-panel">
+              <header class="js-panel-header">
+                <n-flex align="center" justify="space-between" wrap>
+                  <n-text class="js-panel-title">JS 扩展执行环境</n-text>
+                  <n-button
+                    type="primary"
+                    secondary
+                    :disabled="!jsEnable || jsRunning || isTestMode"
+                    @click="doExecute"
+                  >
+                    <template #icon
+                      ><n-icon><i-tabler-player-play /></n-icon
+                    ></template>
+                    执行代码
+                  </n-button>
+                </n-flex>
+              </header>
 
-            <footer class="js-panel-footer">
-              <n-text type="warning" tag="p" class="js-console-tip">
-                注意：延迟执行的代码，其输出不会立即出现
-              </n-text>
-            </footer>
+              <div class="js-panel-body js-editor-body">
+                <CodeMirror
+                  v-if="editorReady"
+                  v-model="code"
+                  class="js-editor"
+                  :extensions="editorExtensions as never[]"
+                  :dark="editorDark"
+                  :wrap="true"
+                />
+                <n-skeleton v-else text :repeat="8" />
+              </div>
+
+              <footer class="js-panel-footer">
+                <n-text type="warning" tag="p" class="js-console-tip">
+                  注意：延迟执行的代码，其输出不会立即出现
+                </n-text>
+              </footer>
+            </section>
+
+            <section class="js-panel js-output-panel">
+              <header class="js-panel-header">
+                <n-flex align="center" justify="space-between" wrap>
+                  <div class="js-panel-heading">
+                    <n-text class="js-panel-title">运行日志</n-text>
+                  </div>
+                  <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
+                    <template #icon
+                      ><n-icon><i-tabler-trash /></n-icon
+                    ></template>
+                    清空日志
+                  </n-button>
+                </n-flex>
+              </header>
+
+              <div class="js-panel-body js-output-body">
+                <n-log ref="logRef" class="js-output-log" :lines="jsLines" :rows="24" trim />
+              </div>
+            </section>
           </section>
+        </n-tab-pane>
 
-          <section class="js-panel js-output-panel">
-            <header class="js-panel-header">
-              <n-flex align="center" justify="space-between" wrap>
-                <div class="js-panel-heading">
-                  <n-text class="js-panel-title">运行日志</n-text>
-                </div>
-                <n-button secondary :disabled="!jsLines.length" @click="clearLogs">
-                  <template #icon
-                    ><n-icon><i-tabler-trash /></n-icon
-                  ></template>
-                  清空日志
-                </n-button>
-              </n-flex>
-            </header>
+        <n-tab-pane tab="插件列表" name="list">
+          <JsListView @mark-need-reload="handleMarkNeedReload" />
+        </n-tab-pane>
 
-            <div class="js-panel-body js-output-body">
-              <n-log ref="logRef" class="js-output-log" :lines="jsLines" :rows="24" trim />
-            </div>
-          </section>
-        </section>
+        <n-tab-pane tab="插件设置" name="config">
+          <JsConfigView ref="jsConfigViewRef" @dirty-change="handleConfigDirtyChange" />
+        </n-tab-pane>
 
-        <JsListView v-if="option.value === 'list'" @mark-need-reload="handleMarkNeedReload" />
-
-        <JsConfigView
-          v-if="option.value === 'config'"
-          ref="jsConfigViewRef"
-          @dirty-change="handleConfigDirtyChange"
-        />
-
-        <JsDataView v-if="option.value === 'data'" />
-      </template>
-    </ResponsiveTabs>
+        <n-tab-pane tab="数据管理" name="data">
+          <JsDataView />
+        </n-tab-pane>
+      </n-tabs>
+    </template>
+    <template v-else>
+      <FeatureDisabledState
+        title="JS 扩展已关闭"
+        description="启用后可管理 JS 扩展环境，以及插件列表、插件设置和数据。"
+      />
+    </template>
   </main>
 </template>
 
@@ -114,7 +139,18 @@ import {
   watch,
 } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
-import { NButton, NFlex, NIcon, NLog, NText, NSwitch, useMessage, type LogInst } from 'naive-ui';
+import {
+  NButton,
+  NFlex,
+  NIcon,
+  NLog,
+  NTabs,
+  NTabPane,
+  NText,
+  NSwitch,
+  useMessage,
+  type LogInst,
+} from 'naive-ui';
 import {
   getSdApiV2JsRecord,
   getSdApiV2JsStatusOptions,
@@ -122,8 +158,9 @@ import {
   postSdApiV2JsReload,
   postSdApiV2JsShutdown,
 } from '@/api';
+import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import ResponsiveTabs from '@/components/shared/ResponsiveTabs.vue';
+import TipBox from '@/components/shared/TipBox.vue';
 import { hasAccessToken } from '@/features/auth/state';
 import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 import {
@@ -144,12 +181,6 @@ const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
 const message = useMessage();
 const { isTestMode } = useTestMode();
 const tab = ref<string>('list');
-const jsTabOptions = [
-  { label: '控制台', value: 'console' },
-  { label: '插件列表', value: 'list' },
-  { label: '插件设置', value: 'config' },
-  { label: '数据管理', value: 'data' },
-];
 
 const defaultText = [
   '// 学习制作可以看这里：https://github.com/sealdice/javascript/tree/main/examples',
@@ -411,12 +442,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.js-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .js-console-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);

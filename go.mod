@@ -30,7 +30,6 @@ require (
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/gen2brain/beeep v0.11.2
 	github.com/glebarez/sqlite v1.11.0
-	github.com/go-gorm/caches/v4 v4.0.5
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/gofrs/flock v0.13.0
 	github.com/golang-module/carbon v1.7.3

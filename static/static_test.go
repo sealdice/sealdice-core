@@ -1,8 +1,8 @@
 package static_test
 
 import (
-	"errors"
 	"io/fs"
+	"errors"
 	"os"
 	"path"
 	"path/filepath"

@@ -13,12 +13,17 @@
     :mask-closable="false"
     @update:show="emit('update:visible', $event)"
   >
-    <TipBox v-if="errorMessage" type="error">
+    <n-alert v-if="errorMessage" type="error" :show-icon="false">
       {{ errorMessage }}
-    </TipBox>
-    <TipBox v-if="submitError" type="error" class="connect-edit-dialog__submit-error">
+    </n-alert>
+    <n-alert
+      v-if="submitError"
+      type="error"
+      :show-icon="false"
+      class="connect-edit-dialog__submit-error"
+    >
       {{ submitError }}。请检查配置后重试。
-    </TipBox>
+    </n-alert>
     <n-spin :show="loading && !config">
       <n-space vertical size="large">
         <TipBox v-if="config?.restartRequired" type="warning">

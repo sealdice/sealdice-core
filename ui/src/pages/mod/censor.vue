@@ -1,6 +1,6 @@
 <template>
   <main class="censor-page sd-page-flow">
-    <PageHeader title="拦截管理" :unsaved-scope="['censor-config', 'censor-reload']">
+    <PageHeader title="拦截管理">
       <n-flex align="center" size="small">
         <n-text depth="3">启用拦截</n-text>
         <n-switch
@@ -11,7 +11,6 @@
           @update:value="enableChange"
         />
       </n-flex>
-      <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
       <n-button
         v-show="censorEnable && !needReload"
         type="primary"
@@ -25,12 +24,16 @@
         重载拦截
       </n-button>
     </PageHeader>
-
     <template v-if="censorEnable">
       <n-tabs v-model:value="tab" class="censor-tabs sd-scrollable-tabs">
         <n-tab-pane tab="拦截设置" name="setting">
           <n-spin :show="configQuery.isFetching.value">
-            <CensorConfigView v-model:config="configDraft.currentConfig.value" />
+            <CensorConfigView
+              v-model:config="configDraft.currentConfig.value"
+              :saving="saveConfigMutation.isPending.value"
+              :modified="configDraft.dirty.value"
+              @save="saveConfig"
+            />
           </n-spin>
         </n-tab-pane>
 
@@ -42,16 +45,14 @@
               uploadFileMutation.isPending.value
             "
           >
-            <div class="sd-section-flow">
-              <CensorWordTip />
-              <CensorFilesView
-                :files="files"
-                :upload-file="uploadFile"
-                :download-toml-template="downloadTomlTemplate"
-                :download-txt-template="downloadTxtTemplate"
-              />
-              <CensorWordsView :words="words" />
-            </div>
+            <CensorWordTip />
+            <CensorFilesView
+              :files="files"
+              :upload-file="uploadFile"
+              :download-toml-template="downloadTomlTemplate"
+              :download-txt-template="downloadTxtTemplate"
+            />
+            <CensorWordsView :words="words" />
           </n-spin>
         </n-tab-pane>
 
@@ -254,9 +255,13 @@ function refreshLogs() {
 </script>
 
 <style scoped>
-.censor-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.censor-tabs :deep(.n-tabs-nav-scroll-content) {
+  min-width: max-content;
+}
+
+@media screen and (max-width: 639.9px) {
+  .censor-tabs :deep(.n-tabs-nav-scroll-content) {
+    justify-content: flex-start !important;
+  }
 }
 </style>

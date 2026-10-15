@@ -121,7 +121,6 @@ const viewportMode = computed(() => getAppShellViewportMode(viewportWidth.value)
 
 const drawerMenu = ref(false);
 const collapsedMenu = ref(shouldCollapseAppShellSidebar(viewportMode.value));
-
 const floatingPanelStyle = computed(() => {
   if (viewportMode.value === 'mobile') return undefined;
   const sidebarWidth = collapsedMenu.value ? 64 : 224;

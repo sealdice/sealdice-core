@@ -22,7 +22,7 @@ class FakeEventSource {
     const callback =
       typeof listener === 'function'
         ? (listener as (event: MessageEvent<string>) => void)
-        : (event: MessageEvent<string>) => listener.handleEvent(event);
+        : ((event: MessageEvent<string>) => listener.handleEvent(event));
     const handlers = this.listeners.get(type) ?? new Set<(event: MessageEvent<string>) => void>();
     handlers.add(callback);
     this.listeners.set(type, handlers);
@@ -34,7 +34,7 @@ class FakeEventSource {
     const callback =
       typeof listener === 'function'
         ? (listener as (event: MessageEvent<string>) => void)
-        : (event: MessageEvent<string>) => listener.handleEvent(event);
+        : ((event: MessageEvent<string>) => listener.handleEvent(event));
     handlers.delete(callback);
     if (handlers.size === 0) {
       this.listeners.delete(type);

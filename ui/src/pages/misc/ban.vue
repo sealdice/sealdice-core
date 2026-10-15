@@ -19,7 +19,13 @@
         />
       </n-tab-pane>
       <n-tab-pane name="config" tab="拉黑设置">
-        <BanConfigPanel v-if="configDraft" v-model:config="configDraft" />
+        <BanConfigPanel
+          v-if="configDraft"
+          v-model:config="configDraft"
+          :dirty="configDirty"
+          :saving="saveConfigMutation.isPending.value"
+          @save="saveConfig"
+        />
       </n-tab-pane>
     </n-tabs>
 
@@ -188,6 +194,11 @@ useUnsavedChanges('ban-config', {
   confirmMessage: '拉黑设置还有修改，确定要忽略？',
 });
 
+async function saveConfig() {
+  if (!configDraft.value) return;
+  await saveConfigMutation.mutateAsync(configDraft.value);
+}
+
 const listItems = computed(() => listQueryResult.data.value?.list ?? []);
 const listTotal = computed(() => Number(listQueryResult.data.value?.total ?? 0));
 
@@ -211,7 +222,7 @@ function confirmDelete(item: BanListInfoItem) {
   const targetName = item.name ? `「${item.name}」` : '未命名条目';
   dialog.warning({
     title: '删除',
-    content: `确认删除 ${targetName}（ID：${item.ID}，级别：${rankLabel}，怒气值：${item.score}）吗？`,
+    content: `确认删除 ${targetName}（ID: ${item.ID}，级别：${rankLabel}，怒气值：${item.score}）吗？`,
     positiveText: '确定',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -246,11 +257,3 @@ async function exportFile() {
   }
 }
 </script>
-
-<style scoped>
-.ban-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-</style>

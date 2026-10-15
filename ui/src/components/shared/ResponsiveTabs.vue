@@ -1,35 +1,36 @@
 <template>
-  <div class="responsive-tabs">
-    <ResponsiveDataView class="responsive-tabs__navigation" :compact-at="props.compactAt">
-      <template #table>
-        <n-tabs v-model:value="model" class="sd-scrollable-tabs" type="line">
-          <n-tab
-            v-for="option in props.options"
-            :key="option.value"
-            :name="option.value"
-            :tab="option.label"
-          />
-        </n-tabs>
-      </template>
+  <ResponsiveDataView class="responsive-tabs" :compact-at="props.compactAt">
+    <template #table>
+      <n-tabs v-model:value="model" type="line" animated>
+        <n-tab-pane
+          v-for="option in props.options"
+          :key="option.value"
+          :name="option.value"
+          :tab="option.label"
+        >
+          <slot name="panel" :option="option" />
+        </n-tab-pane>
+      </n-tabs>
+    </template>
 
-      <template #compact>
+    <template #compact>
+      <div class="responsive-tabs__compact">
         <n-select
           v-model:value="model"
           class="responsive-tabs__select"
           :options="props.options"
           aria-label="选择设置分类"
         />
-      </template>
-    </ResponsiveDataView>
-
-    <section v-if="selectedOption" class="responsive-tabs__panel">
-      <slot name="panel" :option="selectedOption" />
-    </section>
-  </div>
+        <section v-if="selectedOption" class="responsive-tabs__panel">
+          <slot name="panel" :option="selectedOption" />
+        </section>
+      </div>
+    </template>
+  </ResponsiveDataView>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import type { SelectOption } from 'naive-ui';
 import ResponsiveDataView from './ResponsiveDataView.vue';
 
@@ -54,25 +55,16 @@ defineSlots<{
 const selectedOption = computed(
   () => props.options.find(option => option.value === model.value) ?? props.options[0]
 );
-
-watch(
-  () => props.options,
-  options => {
-    if (model.value && options.some(option => option.value === model.value)) return;
-    model.value = options[0]?.value ?? '';
-  }
-);
 </script>
 
 <style scoped>
 .responsive-tabs {
-  display: grid;
-  gap: var(--sd-page-section-gap);
-  min-width: 0;
+  container-type: inline-size;
 }
 
-.responsive-tabs__navigation {
-  container-type: inline-size;
+.responsive-tabs__compact {
+  display: grid;
+  gap: var(--sd-space-lg);
 }
 
 .responsive-tabs__select {

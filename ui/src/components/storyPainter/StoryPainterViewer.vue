@@ -13,9 +13,7 @@
         </div>
         <n-flex size="small" wrap>
           <n-button type="primary" secondary :loading="loading" @click="loadLog">
-            <template #icon
-              ><n-icon><i-tabler-refresh /></n-icon
-            ></template>
+            <template #icon><n-icon><i-tabler-refresh /></n-icon></template>
             重新加载
           </n-button>
           <n-button type="primary" text @click="painter.refreshSwatches"> 刷新色板 </n-button>

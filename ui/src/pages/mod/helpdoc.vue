@@ -1,7 +1,6 @@
 <template>
   <main class="helpdoc-page sd-page-flow">
-    <PageHeader title="帮助文档" :unsaved-scope="['helpdoc-config', 'helpdoc-reload']">
-      <!-- 待重载时由待处理状态条承载重载操作，此处不再重复。 -->
+    <PageHeader title="帮助文档">
       <n-button
         v-if="!needReload"
         type="primary"
@@ -131,15 +130,6 @@ watch(
   () => [itemQuery.pageNum, itemQuery.pageSize] as const,
   () => {
     appliedItemQuery.value = { ...itemQuery };
-  }
-);
-
-watch(
-  [helpItems, itemTotal],
-  ([items, total]) => {
-    if (items.length === 0 && total > 0 && itemQuery.pageNum > 1) {
-      itemQuery.pageNum -= 1;
-    }
   }
 );
 
@@ -321,12 +311,6 @@ function retryTask(task: ResumableUploadTask) {
 </script>
 
 <style scoped>
-.helpdoc-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .helpdoc-tabs {
   padding-bottom: 2rem;
 }
@@ -340,5 +324,11 @@ function retryTask(task: ResumableUploadTask) {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
+}
+
+@media screen and (max-width: 639.9px) {
+  .helpdoc-tabs :deep(.n-tabs-nav-scroll-content) {
+    justify-content: flex-start !important;
+  }
 }
 </style>

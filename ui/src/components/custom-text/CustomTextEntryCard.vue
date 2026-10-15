@@ -81,11 +81,11 @@
                 @update:value="emit('change', category, keyName)"
               />
 
-              <div v-if="getPreview(keyName, item[0])" class="absolute bottom-0 right-1">
+              <div v-if="getPreview(keyName, items[index][0])" class="absolute bottom-0 right-1">
                 <n-popover placement="bottom-start">
                   <template #trigger>
                     <span
-                      v-if="getPreviewCheckErr(keyName, item[0])"
+                      v-if="getPreviewCheckErr(keyName, items[index][0])"
                       class="text-red-500 preview-icon"
                     >
                       <n-icon><i-tabler-circle-x-filled /></n-icon>
