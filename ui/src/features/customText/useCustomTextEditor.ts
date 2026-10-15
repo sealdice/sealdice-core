@@ -7,7 +7,6 @@ import {
   getSdApiV2CustomTextQueryKey,
   postSdApiV2CustomTextByCategoryPreviewRefresh,
   putSdApiV2CustomTextByCategory,
-  type TextItemCompatibleInfo,
 } from '@/api';
 
 import { copyText } from '@/features/clipboard/copyText';
@@ -16,12 +15,11 @@ import { useUnsavedChanges } from '@/features/unsavedChanges';
 import {
   normalizeCustomTextData,
   normalizeTextDict,
-  type TextTemplateItem,
   type TextTemplateWithWeightDict,
 } from './types';
 import {
   buildCustomTextExportContent,
-  createTextItemKeyStore,
+  deriveCustomTextHelp,
   getCustomTextGroups,
   parseCustomTextImportContent,
   sortCustomTextCategory,
@@ -47,7 +45,6 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   const filterMode = ref<CustomTextFilterMode>('all');
   const currentFilterGroup = ref('');
   const currentFilterName = ref('');
-  const textItemKeys = createTextItemKeyStore();
 
   const customTextQuery = useQuery({
     ...getSdApiV2CustomTextOptions(),
@@ -55,7 +52,9 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   });
 
   const remoteData = computed(() => normalizeCustomTextData(customTextQuery.data.value?.item));
-  const helpInfo = computed(() => remoteData.value.helpInfo);
+  const helpInfo = computed(() =>
+    deriveCustomTextHelp(texts.value, remoteData.value.helpInfo, remoteData.value.texts)
+  );
   const previewInfo = computed(() => remoteData.value.previewInfo);
   const hasCategory = computed(() => Boolean(texts.value[category.value]));
   const modified = computed(() => {
@@ -176,8 +175,8 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
       if (!texts.value[targetCategory]) continue;
       texts.value[targetCategory] = value;
       try {
-        await saveMutation.mutateAsync(targetCategory);
-        initialTexts.value[targetCategory] = cloneDeep(value);
+        const result = await saveMutation.mutateAsync(targetCategory);
+        initialTexts.value[targetCategory] = cloneDeep(result.snapshot);
         savedCategories.push(targetCategory);
       } catch (error) {
         failedCategories.push(`${targetCategory}（${getErrorMessage(error, '保存失败')}）`);
@@ -205,20 +204,20 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
     texts.value[category.value][keyName].push(['', 1]);
   }
 
-  function doChanged(targetCategory: string, keyName: string) {
-    const itemHelpInfo = helpInfo.value[targetCategory]?.[keyName];
-    if (itemHelpInfo) {
-      itemHelpInfo.modified = true;
-    }
+  function updateItem(keyName: string, index: number, text: string) {
+    const item = texts.value[category.value]?.[keyName]?.[index];
+    if (item) item[0] = text;
   }
 
-  function removeItem(items: TextTemplateItem[], index: number) {
-    items.splice(index, 1);
+  function removeItem(keyName: string, index: number) {
+    const items = texts.value[category.value]?.[keyName];
+    if (items && items.length > 1) items.splice(index, 1);
   }
 
   async function save() {
-    const result = await saveMutation.mutateAsync(category.value);
-    initialTexts.value[category.value] = cloneDeep(result.snapshot);
+    const targetCategory = category.value;
+    const result = await saveMutation.mutateAsync(targetCategory);
+    initialTexts.value[targetCategory] = cloneDeep(result.snapshot);
     syncLocalTexts();
     message.success('已保存');
   }
@@ -237,19 +236,6 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
   async function refreshPreview() {
     await previewRefreshMutation.mutateAsync(category.value);
     message.success('预览已刷新');
-  }
-
-  function getPreview(keyName: string, text: string): TextItemCompatibleInfo | undefined {
-    return previewInfo.value[`${category.value}:${keyName}`]?.[text];
-  }
-
-  function getPreviewCheckErr(keyName: string, text: string) {
-    const info = getPreview(keyName, text);
-    if (info) {
-      if (info.version === 'v2') return Boolean(info.errV2);
-      if (info.version === 'v1') return Boolean(info.errV1);
-    }
-    return false;
   }
 
   function deleteValue(targetCategory: string, keyName: string) {
@@ -277,9 +263,6 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
         [keyName]: itemHelpInfo?.origin ?? [],
       },
     })[targetCategory][keyName];
-    if (itemHelpInfo) {
-      itemHelpInfo.modified = false;
-    }
   }
 
   function askResetValue(targetCategory: string, keyName: string) {
@@ -331,16 +314,14 @@ export function useCustomTextEditor(categorySource: MaybeRefOrGetter<string>) {
     sortedCategory,
     saveMutation,
     previewRefreshMutation,
-    textItemKeyOf: textItemKeys.keyOf,
     copied,
     importRefresh,
     doImport,
     addItem,
-    doChanged,
+    updateItem,
     removeItem,
     refreshPreview,
-    getPreview,
-    getPreviewCheckErr,
+    previewInfo,
     askDeleteValue,
     askResetValue,
     handleFilterModeChange,

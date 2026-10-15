@@ -33,14 +33,22 @@
             不为空时会发送拦截提示。
           </n-tooltip>
         </template>
-        <n-radio-group v-model:value="config.mode" size="small">
+        <n-radio-group
+          :value="config.mode"
+          size="small"
+          @update:value="updateConfig({ mode: Number($event) })"
+        >
           <n-radio :value="CENSOR_MODES.replyOutput">发出的消息</n-radio>
           <n-radio :value="CENSOR_MODES.commandInput">收到的指令</n-radio>
           <n-radio :value="CENSOR_MODES.allInput">收到的所有消息(慎用)</n-radio>
         </n-radio-group>
       </n-form-item>
       <n-form-item label="大小写敏感">
-        <n-checkbox v-model:checked="config.caseSensitive">开启</n-checkbox>
+        <n-checkbox
+          :checked="config.caseSensitive"
+          @update:checked="updateConfig({ caseSensitive: $event })"
+          >开启</n-checkbox
+        >
       </n-form-item>
       <n-form-item>
         <template #label>
@@ -54,7 +62,11 @@
             匹配敏感词拼音，勾选大小写敏感时该项无效。
           </n-tooltip>
         </template>
-        <n-checkbox v-model:checked="config.matchPinyin">开启</n-checkbox>
+        <n-checkbox
+          :checked="config.matchPinyin"
+          @update:checked="updateConfig({ matchPinyin: $event })"
+          >开启</n-checkbox
+        >
       </n-form-item>
       <n-form-item>
         <template #label>
@@ -69,7 +81,12 @@
             "114&nbsp;&nbsp;&nbsp;514" 也会命中敏感词。
           </n-tooltip>
         </template>
-        <n-input v-model:value="config.filterRegex" placeholder="" class="censor-regex-input" />
+        <n-input
+          :value="config.filterRegex"
+          placeholder=""
+          class="censor-regex-input"
+          @update:value="updateConfig({ filterRegex: $event })"
+        />
       </n-form-item>
     </n-form>
   </SettingCategoryBox>
@@ -95,25 +112,37 @@
         <template #label>
           <CensorSensitiveTag :level="1" />
         </template>
-        <LevelConfigEditor v-model:level="config.levelConfig.notice" />
+        <LevelConfigEditor
+          :level="config.levelConfig.notice"
+          @update:level="updateLevel('notice', $event)"
+        />
       </n-form-item>
       <n-form-item>
         <template #label>
           <CensorSensitiveTag :level="2" />
         </template>
-        <LevelConfigEditor v-model:level="config.levelConfig.caution" />
+        <LevelConfigEditor
+          :level="config.levelConfig.caution"
+          @update:level="updateLevel('caution', $event)"
+        />
       </n-form-item>
       <n-form-item>
         <template #label>
           <CensorSensitiveTag :level="3" />
         </template>
-        <LevelConfigEditor v-model:level="config.levelConfig.warning" />
+        <LevelConfigEditor
+          :level="config.levelConfig.warning"
+          @update:level="updateLevel('warning', $event)"
+        />
       </n-form-item>
       <n-form-item>
         <template #label>
           <CensorSensitiveTag :level="4" />
         </template>
-        <LevelConfigEditor v-model:level="config.levelConfig.danger" />
+        <LevelConfigEditor
+          :level="config.levelConfig.danger"
+          @update:level="updateLevel('danger', $event)"
+        />
       </n-form-item>
     </n-form>
   </SettingCategoryBox>
@@ -138,8 +167,14 @@ const emit = defineEmits<{
   save: [];
 }>();
 
-// 内层编辑器的 prop 名与外层 defineModel 同名会让 lint 把模板里的 config
-// 误判为 prop，因此这里改用 level。
+function updateConfig(patch: Partial<CensorConfigBody>) {
+  config.value = { ...config.value, ...patch };
+}
+
+function updateLevel(key: keyof CensorConfigBody['levelConfig'], level: CensorLevelConfig) {
+  updateConfig({ levelConfig: { ...config.value.levelConfig, [key]: level } });
+}
+
 const LevelConfigEditor = defineComponent({
   name: 'LevelConfigEditor',
   props: {
@@ -149,13 +184,16 @@ const LevelConfigEditor = defineComponent({
     },
   },
   emits: ['update:level'],
-  setup(props) {
+  setup(props, { emit }) {
     return () => (
       <n-flex align="start" class="level-config-editor">
         <n-flex align="center" class="level-config-threshold">
           <n-text>用户触发超过</n-text>
           <n-input-number
-            v-model:value={props.level.threshold}
+            value={props.level.threshold}
+            onUpdate:value={(value: number | null) =>
+              emit('update:level', { ...props.level, threshold: value ?? 0 })
+            }
             class="w-28"
             size="small"
             step={1}
@@ -165,7 +203,13 @@ const LevelConfigEditor = defineComponent({
           <n-text>次时：</n-text>
         </n-flex>
         <n-flex vertical class="level-config-actions">
-          <n-checkbox-group v-model:value={props.level.handlers} class="level-config-handlers">
+          <n-checkbox-group
+            value={props.level.handlers}
+            onUpdate:value={(value: Array<string | number>) =>
+              emit('update:level', { ...props.level, handlers: value.map(String) })
+            }
+            class="level-config-handlers"
+          >
             {CENSOR_HANDLERS.map(handle => (
               <n-checkbox key={handle.key} value={handle.key}>
                 {handle.name}
@@ -175,7 +219,10 @@ const LevelConfigEditor = defineComponent({
           <n-flex align="center" class="level-config-score">
             <n-text>怒气值</n-text>
             <n-input-number
-              v-model:value={props.level.score}
+              value={props.level.score}
+              onUpdate:value={(value: number | null) =>
+                emit('update:level', { ...props.level, score: value ?? 0 })
+              }
               class="w-28"
               size="small"
               step={1}

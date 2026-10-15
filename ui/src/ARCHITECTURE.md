@@ -10,8 +10,8 @@
   -> openapi.json
   -> src/api/generated/*
   -> src/api/client.ts 注入 baseUrl / token / 错误处理 / 会话清理
-  -> feature/composable 组织业务状态
-  -> page 组装页面
+  -> page / 独立 composable 持有页面草稿与操作
+  -> page 组装页面，共享关键状态由 Pinia 持有
   -> 组件负责展示
 ```
 
@@ -23,6 +23,8 @@
 - 页面可以直接使用生成的 API、query 和 store；只有可复用的业务规则或需要独立管理的生命周期才抽成 composable。
 - 不为单一调用方增加逐项转发 props、refs 或 actions 的兼容层，也不复制查询缓存到另一份全局状态。
 - 真正跨页面复用的 UI 才进入 `components/shared/`。
+- 路由页面直接承载整页界面，不再套一个只被它引用的“整页组件”。页内工具栏和静态说明不必单独建文件；较大的独立交互区可以保留组件。
+- 单页查询、保存和草稿状态由页面闭环管理，不拆成互相传递 `getConfigPayload` / `onConfigSaved` 的固定层次。拦截和帮助文档页面是这类流程的示例。
 
 ## 目录职责
 
@@ -97,6 +99,10 @@
 | **持久化偏好**                    | Pinia store + localStorage                                  | 只有主题、token 等需要跨刷新保留的才持久化。                                         |
 
 **范式参考**：`src/features/theme/store.ts`——setup 语法、feature 内、消费者使用 `storeToRefs()`。
+
+每份状态都应有明确的写入方。子组件接收展示数据、发出操作意图，避免原地修改父级数组或传入可变对象后让多处共同写入；自定义文案条目通过索引和新文本通知编辑器，由编辑器更新草稿。预览和帮助信息来自 Vue Query，“是否自定义”等本地标记从草稿派生，不能回写查询缓存。认证、实时连接、上传队列、全局未保存提示继续由 Pinia 持有。
+
+自定义回复只持有一份完整文件草稿，分页列表与修改状态直接派生。条件、结果和排序通过事件交给编辑器写入，不复制分页草稿再用深度监听同步。拦截设置及查询表单通过模型更新事件提交新值，不原地修改传入的嵌套对象。
 
 页面层应该尽量只做三件事：
 
@@ -185,7 +191,7 @@
 2. 在 `pages/` 新建路由入口。
 3. 在 `router/navigation.ts` 增加导航语义。
 4. 由 `buildRouteMeta` 从导航模型派生页面标题和 layout。
-5. 将复杂业务状态抽到 `features/<domain>/`，不要堆进页面。
+5. 单页流程先在页面内保持完整；有复用规则或独立生命周期时再提取到 `features/<domain>/`，共享关键状态进入 Pinia。
 6. 跨页面复用组件才放 `components/shared/`。
 7. 运行 `pnpm run type-check` 和 `pnpm run build-only`。
 

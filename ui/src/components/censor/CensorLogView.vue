@@ -60,13 +60,14 @@
       class="censor-log-footer"
     >
       <n-pagination
-        v-model:page="query.pageNum"
-        v-model:page-size="query.pageSize"
+        :page="query.pageNum"
+        :page-size="query.pageSize"
+        @update:page="query = { ...query, pageNum: $event }"
         :item-count="total"
         :page-slot="3"
         show-size-picker
         :page-sizes="[10, 20, 30, 50]"
-        @update:page-size="query.pageNum = 1"
+        @update:page-size="query = { ...query, pageSize: $event, pageNum: 1 }"
       />
     </footer>
   </section>

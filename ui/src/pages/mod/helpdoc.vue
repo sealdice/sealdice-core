@@ -64,28 +64,50 @@
 </template>
 
 <script setup lang="tsx">
-import { computed, h, reactive, ref, shallowRef, watch, type CSSProperties } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
+import { computed, h, ref, shallowRef, watch, type CSSProperties } from 'vue';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { NTag, NText, NTooltip, type DataTableColumns, type UploadFileInfo } from 'naive-ui';
-import type { HelpTextVo } from '@/api';
+import {
+  getSdApiV2HelpdocTreeOptions,
+  getSdApiV2HelpdocTreeQueryKey,
+  getSdApiV2HelpdocConfigOptions,
+  getSdApiV2HelpdocConfigQueryKey,
+  getSdApiV2HelpdocItemsPageOptions,
+  getSdApiV2HelpdocItemsPageQueryKey,
+  postSdApiV2HelpdocConfig,
+  postSdApiV2HelpdocDelete,
+  postSdApiV2HelpdocReload,
+  type HelpTextVo,
+  type GetSdApiV2HelpdocItemsPageResponse,
+} from '@/api';
 import HelpdocConfigDialog from '@/components/helpdoc/HelpdocConfigDialog.vue';
 import HelpdocFilePane from '@/components/helpdoc/HelpdocFilePane.vue';
 import HelpdocItemPane from '@/components/helpdoc/HelpdocItemPane.vue';
 import HelpdocUploadDialog from '@/components/helpdoc/HelpdocUploadDialog.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
-import { useHelpdocConfigDraft } from '@/features/helpdoc/configDraft';
-import { useHelpdocMutations } from '@/features/helpdoc/mutations';
 import {
   createDefaultHelpdocItemQuery,
   type HelpdocItemQueryModel,
-  useHelpdocQueries,
-} from '@/features/helpdoc/queries';
-import {
+  buildHelpdocGroupOptions,
+  buildHelpdocItemParams,
+  convertHelpdocTree,
+  getHelpdocItemGroupOptions,
+  buildHelpdocConfigPayload,
+  cloneHelpdocAliases,
+  isHelpdocConfigDirty,
+  normalizeHelpdocAliases,
   getHelpdocTextPreview,
   getHelpdocTextTooltip,
   summarizeHelpdocDelete,
 } from '@/features/helpdoc/viewModel';
 import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
+import {
+  getTestModeBlockMessage,
+  isTestModeApiError,
+  isTestModeResponse,
+} from '@/features/testMode/state';
+import { notifyError } from '@/features/feedback/notifyError';
 import { useUploadStore } from '@/features/upload/store';
 import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
 
@@ -96,6 +118,7 @@ const { tasks: uploadTasks } = storeToRefs(uploadStore);
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
+const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const tab = shallowRef<'file' | 'item'>('file');
 const needReload = ref(false);
@@ -104,34 +127,56 @@ const configDialogVisible = ref(false);
 const checkedFileKeys = ref<Array<string | number>>([]);
 const uploadFiles = ref<UploadFileInfo[]>([]);
 const uploadGroup = ref('');
-const itemQuery = reactive(createDefaultHelpdocItemQuery());
-const appliedItemQuery = ref<HelpdocItemQueryModel>({ ...itemQuery });
+const itemQuery = ref(createDefaultHelpdocItemQuery());
+const appliedItemQuery = ref<HelpdocItemQueryModel>({ ...itemQuery.value });
 
-const {
-  treeQuery,
-  configQuery,
-  itemsQuery,
-  docTree,
-  docGroups,
-  itemGroupOptions,
-  helpItems,
-  itemTotal,
-} = useHelpdocQueries(appliedItemQuery);
+const treeQuery = useQuery({
+  ...getSdApiV2HelpdocTreeOptions(),
+  enabled: hasAccessToken,
+  select: data => data.item.data ?? [],
+});
+const configQuery = useQuery({
+  ...getSdApiV2HelpdocConfigOptions(),
+  enabled: hasAccessToken,
+  select: data => data.item.aliases ?? {},
+});
+const itemsQuery = useQuery(
+  computed(() => ({
+    ...getSdApiV2HelpdocItemsPageOptions({ query: buildHelpdocItemParams(appliedItemQuery.value) }),
+    enabled: hasAccessToken.value,
+    select: (data: GetSdApiV2HelpdocItemsPageResponse) => data.item,
+  }))
+);
 
-const configDraft = useHelpdocConfigDraft();
+const rawTree = computed(() => treeQuery.data.value ?? []);
+const docTree = computed(() => rawTree.value.map(convertHelpdocTree));
+const docGroups = computed(() => buildHelpdocGroupOptions(rawTree.value));
+const itemGroupOptions = computed(() => getHelpdocItemGroupOptions(rawTree.value));
+const helpItems = computed(() => itemsQuery.data.value?.data ?? []);
+const itemTotal = computed(() => itemsQuery.data.value?.total ?? 0);
 
+const currentAliases = ref(new Map<string, string[]>());
+const initialAliases = ref(new Map<string, string[]>());
+const configDirty = computed(() =>
+  isHelpdocConfigDirty(currentAliases.value, initialAliases.value)
+);
+let configReady = false;
 watch(
-  () => configQuery.data.value,
+  configQuery.data,
   aliases => {
-    configDraft.syncRemote(aliases ?? {});
+    if (configReady && configDirty.value) return;
+    const normalized = normalizeHelpdocAliases(aliases ?? {});
+    currentAliases.value = cloneHelpdocAliases(normalized);
+    initialAliases.value = cloneHelpdocAliases(normalized);
+    configReady = true;
   },
   { immediate: true }
 );
 
 watch(
-  () => [itemQuery.pageNum, itemQuery.pageSize] as const,
+  () => [itemQuery.value.pageNum, itemQuery.value.pageSize] as const,
   () => {
-    appliedItemQuery.value = { ...itemQuery };
+    appliedItemQuery.value = { ...itemQuery.value };
   }
 );
 
@@ -142,7 +187,6 @@ watch(uploadDialogVisible, visible => {
 });
 
 const pageBusy = computed(() => treeQuery.isFetching.value || itemsQuery.isFetching.value);
-const currentAliases = computed(() => configDraft.currentAliases.value);
 const helpContentTooltipStyle: CSSProperties = {
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
@@ -158,36 +202,88 @@ const helpdocUploading = computed(() =>
   )
 );
 
-const { reloadMutation, deleteMutation, saveConfigMutation } = useHelpdocMutations({
-  queryClient,
-  message,
-  getConfigPayload: () => configDraft.payload.value,
-  onReloaded: () => {
-    needReload.value = false;
+const reloadMutation = useMutation({
+  mutationFn: async () => {
+    const { data } = await postSdApiV2HelpdocReload({ throwOnError: true });
+    return data.item;
   },
-  onDeleted: () => {
+  onSuccess: async item => {
+    if (isTestModeResponse(item)) {
+      message.warning('展示模式无法重载帮助文档');
+      return;
+    }
+    message.success('重载帮助文件成功');
+    needReload.value = false;
+    await Promise.all(
+      [
+        getSdApiV2HelpdocTreeQueryKey(),
+        getSdApiV2HelpdocItemsPageQueryKey(),
+        getSdApiV2HelpdocConfigQueryKey(),
+      ].map(queryKey => queryClient.invalidateQueries({ queryKey }))
+    );
+  },
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
+    notifyError(error, message, '重载帮助文件失败');
+  },
+});
+const deleteMutation = useMutation({
+  mutationFn: async (keys: string[]) => {
+    const { data } = await postSdApiV2HelpdocDelete({ body: { keys }, throwOnError: true });
+    return data.item;
+  },
+  onSuccess: async item => {
+    if (!item.success) {
+      message.error(item.err || '删除文件失败');
+      return;
+    }
+    message.success('删除文件成功');
     needReload.value = true;
     checkedFileKeys.value = [];
+    await queryClient.invalidateQueries({ queryKey: getSdApiV2HelpdocTreeQueryKey() });
   },
-  onConfigSaved: snapshot => {
-    configDraft.commitSaved(snapshot);
+  onError: error => notifyError(error, message, '删除文件失败'),
+});
+const saveConfigMutation = useMutation({
+  mutationFn: async () => {
+    const snapshot = buildHelpdocConfigPayload(cloneHelpdocAliases(currentAliases.value));
+    const { data } = await postSdApiV2HelpdocConfig({
+      body: { aliases: snapshot },
+      throwOnError: true,
+    });
+    return { item: data.item, snapshot };
+  },
+  onSuccess: async ({ item, snapshot }) => {
+    if (!item.success) {
+      message.error(item.err || '保存设置失败');
+      return;
+    }
+    message.success('保存设置成功');
+    initialAliases.value = normalizeHelpdocAliases(snapshot);
     configDialogVisible.value = false;
+    await queryClient.invalidateQueries({ queryKey: getSdApiV2HelpdocConfigQueryKey() });
   },
+  onError: error => notifyError(error, message, '保存设置失败'),
 });
 
 useUnsavedChanges('helpdoc-config', {
   label: '帮助文档设置',
-  dirty: computed(() => configDraft.dirty.value),
+  dirty: configDirty,
   save: saveConfig,
   saving: computed(() => saveConfigMutation.isPending.value),
-  canSave: computed(() => configDraft.dirty.value),
-  discard: () => configDraft.resetToRemote(),
+  canSave: configDirty,
+  discard: () => {
+    currentAliases.value = cloneHelpdocAliases(initialAliases.value);
+  },
   confirmMessage: '帮助文档设置还有修改，确定要忽略？',
 });
 
 usePendingReload('helpdoc-reload', {
   label: '帮助文档',
-  pending: computed(() => needReload.value),
+  pending: needReload,
   reload: () => reloadMutation.mutateAsync(),
   reloading: computed(() => reloadMutation.isPending.value),
   canReload: computed(() => !reloadMutation.isPending.value),
@@ -237,14 +333,14 @@ const columns: DataTableColumns<HelpTextVo> = [
 ];
 
 function queryItems() {
-  itemQuery.pageNum = 1;
-  appliedItemQuery.value = { ...itemQuery };
+  itemQuery.value.pageNum = 1;
+  appliedItemQuery.value = { ...itemQuery.value };
   void itemsQuery.refetch();
 }
 
 function resetItemQuery() {
-  Object.assign(itemQuery, createDefaultHelpdocItemQuery());
-  appliedItemQuery.value = { ...itemQuery };
+  itemQuery.value = createDefaultHelpdocItemQuery();
+  appliedItemQuery.value = { ...itemQuery.value };
   void itemsQuery.refetch();
 }
 
@@ -254,7 +350,7 @@ async function submitUpload(files: File[]) {
     onComplete: async task => {
       message.success(`上传完成：${task.filename}`);
       needReload.value = true;
-      await queryClient.invalidateQueries({ queryKey: ['helpdoc-tree'] });
+      await queryClient.invalidateQueries({ queryKey: getSdApiV2HelpdocTreeQueryKey() });
     },
     onError: task => {
       message.error(`上传失败：${task.filename}`);
@@ -291,14 +387,24 @@ function deleteFiles() {
 }
 
 function addAlias(groupKey: string, alias: string) {
-  if (configDraft.addAlias(groupKey, alias)) return;
-  if (alias.trim()) {
-    message.error(`别名 ${alias.trim()} 已被使用`);
+  const value = alias.trim();
+  if (!value) return;
+  if (Array.from(currentAliases.value.values()).some(aliases => aliases.includes(value))) {
+    message.error(`别名 ${value} 已被使用`);
+    return;
   }
+  const next = cloneHelpdocAliases(currentAliases.value);
+  next.set(groupKey, [...(next.get(groupKey) ?? []), value]);
+  currentAliases.value = next;
 }
 
 function removeAlias(groupKey: string, alias: string) {
-  configDraft.removeAlias(groupKey, alias);
+  const next = cloneHelpdocAliases(currentAliases.value);
+  next.set(
+    groupKey,
+    (next.get(groupKey) ?? []).filter(item => item !== alias)
+  );
+  currentAliases.value = next;
 }
 
 async function saveConfig() {

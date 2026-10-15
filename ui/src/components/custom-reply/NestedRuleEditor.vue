@@ -2,11 +2,10 @@
   <VueDraggableNext
     class="drag-area"
     tag="div"
-    :list="tasks"
+    :model-value="tasks"
     handle=".rule-drag-handle"
-    :group="{ name: 'g1' }"
     :item-key="getTaskKey"
-    @end="emit('change')"
+    @update:model-value="emit('reorder', $event)"
   >
     <article
       v-for="(el, index) in tasks"
@@ -38,10 +37,10 @@
             拖动规则排序
           </n-tooltip>
           <n-switch
-            v-model:value="el.enable"
+            :value="el.enable"
             size="small"
             aria-label="启用规则"
-            @update:value="emit('change')"
+            @update:value="emit('updateRule', index, { enable: $event })"
           />
           <n-tooltip>
             <template #trigger>
@@ -91,13 +90,15 @@
               add-label="添加条件"
               :empty="!el.conditions?.length"
               empty-text="当前无条件"
-              @add="addCond(el.conditions)"
+              @add="emit('addCondition', index)"
             >
               <ConditionBuilder
                 v-if="el.conditions?.length"
-                v-model="el.conditions"
-                @change="emit('change')"
-                @delete-condition="deleteAnyItem(el.conditions, $event)"
+                :conditions="el.conditions"
+                @update-condition="
+                  (conditionIndex, patch) => emit('updateCondition', index, conditionIndex, patch)
+                "
+                @delete-condition="emit('deleteCondition', index, $event)"
               />
             </RepeatableList>
           </div>
@@ -116,22 +117,24 @@
               add-label="添加结果"
               :empty="!el.results?.length"
               empty-text="当前无结果"
-              @add="addResult(el.results)"
+              @add="emit('addResult', index)"
             >
               <RepeatableItem
                 v-for="(result, rIdx) in el.results || []"
                 :key="rIdx"
                 :title="`结果 ${Number(rIdx) + 1}`"
                 remove-label="删除结果"
-                @remove="deleteAnyItem(el.results, Number(rIdx))"
+                @remove="emit('deleteResult', index, rIdx)"
               >
                 <div class="result-fields">
                   <label class="result-field result-mode">
                     <span>模式</span>
                     <n-radio-group
-                      v-model:value="result.resultType"
+                      :value="result.resultType"
                       size="small"
-                      @update:value="emit('change')"
+                      @update:value="
+                        emit('updateResult', index, rIdx, { resultType: String($event) })
+                      "
                     >
                       <n-radio-button
                         v-for="option in resultTypeOptions"
@@ -154,9 +157,9 @@
                       </n-tooltip>
                     </span>
                     <n-input-number
-                      v-model:value="result.delay"
+                      :value="result.delay"
                       size="small"
-                      @update:value="emit('change')"
+                      @update:value="emit('updateResult', index, rIdx, { delay: $event ?? 0 })"
                     />
                   </label>
                 </div>
@@ -169,21 +172,32 @@
                     <n-text>回复文本（随机选择）</n-text>
                   </div>
 
-                  <RepeatableList add-label="添加回复" @add="addMessageItem(result.message)">
+                  <RepeatableList
+                    add-label="添加回复"
+                    @add="
+                      emit('updateResult', index, rIdx, {
+                        message: [...result.message, ['怎么辉石呢', 1]],
+                      })
+                    "
+                  >
                     <RepeatableItem
                       v-for="(msg, mIdx) in result.message"
                       :key="mIdx"
                       :title="`回复 ${Number(mIdx) + 1}`"
                       :removable="result.message.length > 1"
                       remove-label="删除回复"
-                      @remove="removeMessageItem(result.message, Number(mIdx))"
+                      @remove="
+                        emit('updateResult', index, rIdx, {
+                          message: result.message.filter((_, i) => i !== mIdx),
+                        })
+                      "
                     >
                       <n-input
-                        v-model:value="msg[0]"
+                        :value="msg[0]"
                         type="textarea"
                         class="reply-text sd-code-text"
                         :autosize="{ minRows: 1 }"
-                        @update:value="emit('change')"
+                        @update:value="updateMessage(index, rIdx, mIdx, $event)"
                       />
                     </RepeatableItem>
                   </RepeatableList>
@@ -215,8 +229,15 @@ const props = withDefaults(
   }
 );
 const emit = defineEmits<{
-  change: [];
+  reorder: [tasks: ReplyTask[]];
+  updateRule: [index: number, patch: Partial<ReplyTask>];
   deleteRule: [index: number];
+  addCondition: [index: number];
+  updateCondition: [index: number, conditionIndex: number, patch: Partial<ReplyCondition>];
+  deleteCondition: [index: number, conditionIndex: number];
+  addResult: [index: number];
+  updateResult: [index: number, resultIndex: number, patch: Partial<ReplyResult>];
+  deleteResult: [index: number, resultIndex: number];
 }>();
 
 const foldedRules = reactive<Record<number, boolean>>({});
@@ -270,34 +291,15 @@ const deleteItem = (index: number) => {
   emit('deleteRule', index);
 };
 
-const deleteAnyItem = <T,>(lst: T[], index: number) => {
-  lst.splice(index, 1);
-  emit('change');
-};
-
-const addCond = (condList: ReplyCondition[]) => {
-  condList.push({
-    condType: 'textMatch',
-    matchType: 'matchExact',
-    value: '要匹配的文本',
-  });
-  emit('change');
-};
-
-const addResult = (results: ReplyResult[]) => {
-  results.push({ resultType: 'replyToSender', delay: 0, message: [['说点什么', 1]] });
-  emit('change');
-};
-
-const addMessageItem = (messages: ReplyResult['message']) => {
-  messages.push(['怎么辉石呢', 1]);
-  emit('change');
-};
-
-const removeMessageItem = (messages: ReplyResult['message'], index: number) => {
-  messages.splice(index, 1);
-  emit('change');
-};
+function updateMessage(index: number, resultIndex: number, messageIndex: number, text: string) {
+  const result = props.tasks[index]?.results[resultIndex];
+  if (!result) return;
+  const message = result.message.map(([value, weight], i): [string, number] => [
+    i === messageIndex ? text : value,
+    weight,
+  ]);
+  emit('updateResult', index, resultIndex, { message });
+}
 </script>
 
 <style scoped>

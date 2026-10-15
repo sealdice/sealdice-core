@@ -1,7 +1,7 @@
 <template>
   <div class="condition-list" role="list">
     <RepeatableItem
-      v-for="(cond, index) in listModel"
+      v-for="(cond, index) in conditions"
       :key="conditionKeyOf(cond)"
       :title="`条件 ${index + 1}`"
       remove-label="删除条件"
@@ -10,7 +10,12 @@
       <div class="condition-fields">
         <label class="condition-field condition-mode">
           <span>模式</span>
-          <n-select v-model:value="cond.condType" :options="condTypeOptions" size="small" />
+          <n-select
+            :value="cond.condType"
+            :options="condTypeOptions"
+            size="small"
+            @update:value="emit('updateCondition', index, { condType: $event })"
+          />
         </label>
 
         <template v-if="cond.condType === 'textMatch'">
@@ -29,7 +34,8 @@
               </n-tooltip>
             </span>
             <n-select
-              v-model:value="cond.matchType"
+              :value="cond.matchType"
+              @update:value="emit('updateCondition', index, { matchType: $event })"
               :options="matchTypeOptions"
               size="small"
               placeholder="选择方式"
@@ -39,7 +45,8 @@
           <label class="condition-field condition-value">
             <span>内容</span>
             <n-input
-              v-model:value="cond.value as string"
+              :value="cond.value as string"
+              @update:value="emit('updateCondition', index, { value: $event })"
               size="small"
               :class="{ 'sd-code-text': cond.matchType === 'matchRegex' }"
             />
@@ -63,7 +70,8 @@
               </n-tooltip>
             </span>
             <n-input
-              v-model:value="cond.value as string"
+              :value="cond.value as string"
+              @update:value="emit('updateCondition', index, { value: $event })"
               type="textarea"
               size="small"
               class="sd-code-text"
@@ -76,7 +84,8 @@
           <label class="condition-field condition-method">
             <span>方式</span>
             <n-select
-              v-model:value="cond.matchOp"
+              :value="cond.matchOp"
+              @update:value="emit('updateCondition', index, { matchOp: $event })"
               :options="matchOpOptions"
               size="small"
               placeholder="选择方式"
@@ -85,7 +94,12 @@
 
           <label class="condition-field condition-number">
             <span>长度</span>
-            <n-input-number v-model:value="cond.value as number" :min="0" size="small" />
+            <n-input-number
+              :value="cond.value as number"
+              :min="0"
+              size="small"
+              @update:value="emit('updateCondition', index, { value: $event ?? 0 })"
+            />
           </label>
         </template>
       </div>
@@ -94,15 +108,8 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
-
-interface ReplyCondition {
-  condType: string;
-  value: string | number | undefined;
-  matchType: string;
-  matchOp?: string;
-}
+import type { ReplyCondition } from '@/features/customReply/model';
 
 const matchTypeOptions = [
   { label: '精确匹配', value: 'matchExact' },
@@ -126,13 +133,11 @@ const matchOpOptions = [
   { label: '小于等于', value: 'le' },
 ];
 
-const listModel = defineModel<ReplyCondition[]>();
+defineProps<{ conditions: ReplyCondition[] }>();
 const emit = defineEmits<{
-  change: [];
+  updateCondition: [index: number, patch: Partial<ReplyCondition>];
   deleteCondition: [index: number];
 }>();
-
-watch(listModel, () => emit('change'), { deep: true });
 
 const conditionKeys = new WeakMap<ReplyCondition, string>();
 let nextConditionKey = 0;

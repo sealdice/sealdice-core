@@ -1,4 +1,4 @@
-import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import dayjs from 'dayjs';
 import { useDialog, useMessage, type UploadCustomRequestOptions } from 'naive-ui';
@@ -21,12 +21,12 @@ import { useUnsavedChanges } from '@/features/unsavedChanges';
 import { parseReplyImportText } from './importParser';
 import {
   cloneReplyFileDraft,
-  cloneReplyTask,
   normalizeReplyFileDetail,
   normalizeReplyTask,
   toApiReplyConfig,
   type ReplyCondition,
   type ReplyFileDraft,
+  type ReplyResult,
   type ReplyTask,
   type ReplyVMVersion,
 } from './model';
@@ -54,10 +54,6 @@ export function useCustomReplyEditor() {
   const commonConditionsPageSize = ref(10);
   const rulesPage = ref(1);
   const rulesPageSize = ref(20);
-  const rulePageItems = ref<ReplyTask[]>([]);
-  const modified = ref(false);
-  const syncingRemote = ref(false);
-  let remoteSyncCount = 0;
   const importDialogVisible = ref(false);
   const licenseDialogVisible = ref(false);
   const pendingReplyEnable = ref<boolean | null>(null);
@@ -158,6 +154,11 @@ export function useCustomReplyEditor() {
     if (!selectedFilename.value) return null;
     return initialDrafts.value[selectedFilename.value] ?? null;
   });
+  const modified = computed(() => {
+    const current = currentFileDraft.value;
+    const initial = currentInitialDraft.value;
+    return !!current && !!initial && JSON.stringify(current) !== JSON.stringify(initial);
+  });
   const rulesTotal = computed(
     () => currentFileDraft.value?.itemCount ?? currentFileDraft.value?.items.length ?? 0
   );
@@ -166,24 +167,20 @@ export function useCustomReplyEditor() {
   const commonConditionsPageStart = computed(
     () => (commonConditionsPage.value - 1) * commonConditionsPageSize.value
   );
-  const pagedCommonConditions = computed<ReplyCondition[]>({
-    get: () => {
-      if (!currentFileDraft.value) return [];
-      return currentFileDraft.value.conditions.slice(
+  const pagedCommonConditions = computed(
+    () =>
+      currentFileDraft.value?.conditions.slice(
         commonConditionsPageStart.value,
         commonConditionsPageStart.value + commonConditionsPageSize.value
-      );
-    },
-    set: value => {
-      if (!currentFileDraft.value || syncingRemote.value) return;
-      currentFileDraft.value.conditions.splice(
-        commonConditionsPageStart.value,
-        value.length,
-        ...value
-      );
-      markModified();
-    },
-  });
+      ) ?? []
+  );
+  const rulePageItems = computed(
+    () =>
+      currentFileDraft.value?.items.slice(
+        rulePageStart.value,
+        rulePageStart.value + rulesPageSize.value
+      ) ?? []
+  );
 
   const replyConfigMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -216,9 +213,6 @@ export function useCustomReplyEditor() {
         ...initialDrafts.value,
         [filename]: cloneReplyFileDraft(submitted),
       };
-      if (selectedFilename.value === filename) {
-        modified.value = JSON.stringify(currentFileDraft.value) !== JSON.stringify(submitted);
-      }
       await queryClient.invalidateQueries({ queryKey: ['custom-reply-file-detail', filename] });
       await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
       message.success('已保存');
@@ -228,27 +222,12 @@ export function useCustomReplyEditor() {
     },
   });
 
-  watch(
-    [currentFileDraft, currentInitialDraft],
-    () => {
-      if (syncingRemote.value) return;
-      const current = currentFileDraft.value;
-      const initial = currentInitialDraft.value;
-      if (!current || !initial) {
-        modified.value = false;
-        return;
-      }
-      modified.value = JSON.stringify(current) !== JSON.stringify(initial);
-    },
-    { deep: true, immediate: true }
-  );
-
   useUnsavedChanges('custom-reply', {
     label: computed(() => {
       const filename = selectedFilename.value || currentFileDraft.value?.filename;
       return filename ? `自定义回复 / ${filename}` : '自定义回复';
     }),
-    dirty: computed(() => modified.value),
+    dirty: modified,
     save: saveCurrent,
     saving: computed(() => saveMutation.isPending.value),
     canSave: computed(() => Boolean(currentFileDraft.value) && modified.value),
@@ -278,7 +257,6 @@ export function useCustomReplyEditor() {
     () => currentFileQuery.data.value,
     fileData => {
       if (!fileData) return;
-      beginRemoteSync();
       const { detail, rules } = fileData;
       const normalized = normalizeReplyFileDetail(detail);
       normalized.items = [...(rules.list ?? [])]
@@ -300,8 +278,6 @@ export function useCustomReplyEditor() {
         ...initialDrafts.value,
         [detail.filename]: locallyModified ? existingInitial! : cloneReplyFileDraft(nextDraft),
       };
-      modified.value = locallyModified;
-      void nextTick(finishRemoteSync);
     },
     { immediate: true }
   );
@@ -309,26 +285,7 @@ export function useCustomReplyEditor() {
   watch(selectedFilename, () => {
     commonConditionsPage.value = 1;
     rulesPage.value = 1;
-    syncRulePageItemsFromDraft(true);
   });
-
-  watch([rulesPage, rulesPageSize, currentFileDraft], () => {
-    syncRulePageItemsFromDraft(true);
-  });
-
-  watch(
-    rulePageItems,
-    value => {
-      if (!currentFileDraft.value || syncingRemote.value) return;
-      const start = rulePageStart.value;
-      value.forEach((item, index) => {
-        currentFileDraft.value!.items[start + index] = cloneReplyTask(item);
-      });
-      currentFileDraft.value.itemCount = currentFileDraft.value.items.filter(Boolean).length;
-      markModified();
-    },
-    { deep: true }
-  );
 
   function updateFileQuery(nextQuery: ReplyFileQuery) {
     Object.assign(fileQuery, nextQuery);
@@ -359,7 +316,6 @@ export function useCustomReplyEditor() {
         [filename]: cloneReplyFileDraft(initial),
       };
     }
-    modified.value = false;
     completeFileSwitch();
   }
 
@@ -424,7 +380,11 @@ export function useCustomReplyEditor() {
       Math.ceil(commonConditionsTotal.value / commonConditionsPageSize.value)
     );
     commonConditionsPage.value = lastPage;
-    markModified();
+  }
+
+  function updateCommonCondition(index: number, patch: Partial<ReplyCondition>) {
+    const condition = currentFileDraft.value?.conditions[commonConditionsPageStart.value + index];
+    if (condition) Object.assign(condition, patch);
   }
 
   function deleteCommonCondition(index: number) {
@@ -438,19 +398,16 @@ export function useCustomReplyEditor() {
     if (commonConditionsPage.value > lastPage) {
       commonConditionsPage.value = lastPage;
     }
-    markModified();
   }
 
   function toggleCurrentFileEnable() {
     if (!currentFileDraft.value) return;
     currentFileDraft.value.enable = !currentFileDraft.value.enable;
-    markModified();
   }
 
   function setCurrentVMVersion(value: ReplyVMVersion) {
     if (!currentFileDraft.value || currentFileDraft.value.vmVersion === value) return;
     currentFileDraft.value.vmVersion = value;
-    markModified();
   }
 
   function getFileEnableStatus(filename: string, fallback: boolean) {
@@ -468,8 +425,6 @@ export function useCustomReplyEditor() {
     }
     const lastPage = Math.max(1, Math.ceil(rulesTotal.value / rulesPageSize.value));
     rulesPage.value = lastPage;
-    syncRulePageItemsFromDraft(false);
-    markModified();
   }
 
   function deleteReplyItem(index: number) {
@@ -481,8 +436,53 @@ export function useCustomReplyEditor() {
     if (rulesPage.value > lastPage) {
       rulesPage.value = lastPage;
     }
-    syncRulePageItemsFromDraft(false);
-    markModified();
+  }
+
+  function reorderRules(items: ReplyTask[]) {
+    currentFileDraft.value?.items.splice(rulePageStart.value, rulePageItems.value.length, ...items);
+  }
+
+  function updateRule(index: number, patch: Partial<ReplyTask>) {
+    const rule = rulePageItems.value[index];
+    if (rule) Object.assign(rule, patch);
+  }
+
+  function addRuleCondition(index: number) {
+    rulePageItems.value[index]?.conditions.push({
+      condType: 'textMatch',
+      matchType: 'matchExact',
+      value: '要匹配的文本',
+    });
+  }
+
+  function updateRuleCondition(
+    index: number,
+    conditionIndex: number,
+    patch: Partial<ReplyCondition>
+  ) {
+    const condition = rulePageItems.value[index]?.conditions[conditionIndex];
+    if (condition) Object.assign(condition, patch);
+  }
+
+  function deleteRuleCondition(index: number, conditionIndex: number) {
+    rulePageItems.value[index]?.conditions.splice(conditionIndex, 1);
+  }
+
+  function addRuleResult(index: number) {
+    rulePageItems.value[index]?.results.push({
+      resultType: 'replyToSender',
+      delay: 0,
+      message: [['说点什么', 1]],
+    });
+  }
+
+  function updateRuleResult(index: number, resultIndex: number, patch: Partial<ReplyResult>) {
+    const result = rulePageItems.value[index]?.results[resultIndex];
+    if (result) Object.assign(result, patch);
+  }
+
+  function deleteRuleResult(index: number, resultIndex: number) {
+    rulePageItems.value[index]?.results.splice(resultIndex, 1);
   }
 
   async function saveCurrent() {
@@ -583,42 +583,7 @@ export function useCustomReplyEditor() {
     currentFileDraft.value.itemCount = currentFileDraft.value.items.filter(Boolean).length;
     const lastPage = Math.max(1, Math.ceil(rulesTotal.value / rulesPageSize.value));
     rulesPage.value = lastPage;
-    syncRulePageItemsFromDraft(false);
-    markModified();
     message.success('导入成功！');
-  }
-
-  function markModified() {
-    if (syncingRemote.value) return;
-    const current = currentFileDraft.value;
-    const initial = currentInitialDraft.value;
-    modified.value = !!current && !!initial && JSON.stringify(current) !== JSON.stringify(initial);
-  }
-
-  function beginRemoteSync() {
-    remoteSyncCount += 1;
-    syncingRemote.value = true;
-  }
-
-  function finishRemoteSync() {
-    remoteSyncCount = Math.max(0, remoteSyncCount - 1);
-    syncingRemote.value = remoteSyncCount > 0;
-    if (!syncingRemote.value) markModified();
-  }
-
-  function syncRulePageItemsFromDraft(remote = true) {
-    if (!currentFileDraft.value) {
-      rulePageItems.value = [];
-      return;
-    }
-    if (remote) beginRemoteSync();
-    rulePageItems.value = currentFileDraft.value.items
-      .slice(rulePageStart.value, rulePageStart.value + rulesPageSize.value)
-      .filter(Boolean)
-      .map(item => cloneReplyTask(item));
-    if (remote) {
-      void nextTick(finishRemoteSync);
-    }
   }
 
   return {
@@ -657,12 +622,21 @@ export function useCustomReplyEditor() {
     acceptLicense,
     refuseLicense,
     addCommonCondition,
+    updateCommonCondition,
     deleteCommonCondition,
     toggleCurrentFileEnable,
     setCurrentVMVersion,
     getFileEnableStatus,
     addReplyItem,
     deleteReplyItem,
+    reorderRules,
+    updateRule,
+    addRuleCondition,
+    updateRuleCondition,
+    deleteRuleCondition,
+    addRuleResult,
+    updateRuleResult,
+    deleteRuleResult,
     saveCurrent,
     createNewFile,
     deleteCurrentFile,
@@ -670,6 +644,5 @@ export function useCustomReplyEditor() {
     uploadFile,
     formatUpdateTime,
     doImport,
-    markModified,
   };
 }

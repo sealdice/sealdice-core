@@ -49,14 +49,15 @@
       >
         <n-flex class="item-list-pagination" align="center" justify="end" wrap>
           <n-pagination
-            v-model:page="query.pageNum"
-            v-model:page-size="query.pageSize"
+            :page="query.pageNum"
+            :page-size="query.pageSize"
+            @update:page="query = { ...query, pageNum: $event }"
             show-size-picker
             show-quick-jumper
             :page-sizes="[10, 20, 30, 50]"
             :page-slot="5"
             :item-count="total"
-            @update:page-size="query.pageNum = 1"
+            @update:page-size="query = { ...query, pageSize: $event, pageNum: 1 }"
           />
         </n-flex>
       </footer>
@@ -77,7 +78,7 @@ import type { HelpTextVo } from '@/api';
 import {
   createDefaultHelpdocItemQuery,
   type HelpdocItemQueryModel,
-} from '@/features/helpdoc/queries';
+} from '@/features/helpdoc/viewModel';
 import { cloneSearchFormValues, overwriteSearchFormValues } from '@/features/searchForm/viewModel';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 
@@ -111,7 +112,7 @@ const defaultHelpdocSearchFormValues = (): HelpdocSearchFormValues => {
 const searchForm = createProSearchForm<HelpdocSearchFormValues>({
   initialValues: cloneSearchFormValues(defaultHelpdocSearchFormValues()),
   onSubmit: values => {
-    Object.assign(query.value, values, { pageNum: 1 });
+    query.value = { ...query.value, ...values, pageNum: 1 };
     emit('search');
   },
   onReset: () => {

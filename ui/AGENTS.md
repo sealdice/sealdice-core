@@ -18,7 +18,7 @@ Do not edit `src/api/generated/` or `openapi.json` by hand. Regenerate them with
 
 ## Coding Style & Naming Conventions
 
-Use Vue Composition API with `<script setup lang="ts">`. Follow existing directory boundaries and keep pages focused on composition; move reusable or stateful domain logic to `features/` or domain components. Use PascalCase for Vue component filenames (`ConnectEditDialog.vue`), camelCase for TypeScript modules (`queryKeys.ts`), and colocate tests as `*.test.ts`. Prettier requires two spaces, single quotes, semicolons, trailing commas, and a 100-character print width. Vue blocks must be ordered `template`, `script`, then `style`.
+Use Vue Composition API with `<script setup lang="ts">`. Keep single-page queries, drafts, and mutations together in their owning page; extract reusable business rules or independently managed lifecycles into `features/`. Do not add a page wrapper around a component that already owns the entire page. Shared critical state belongs in Pinia and server data in Vue Query. Child components receive display data and emit edit intents; they must not mutate parent-owned arrays or query cache objects. Use PascalCase for Vue component filenames (`ConnectEditDialog.vue`), camelCase for TypeScript modules, and colocate tests as `*.test.ts`. Prettier requires two spaces, single quotes, semicolons, trailing commas, and a 100-character print width. Vue blocks must be ordered `template`, `script`, then `style`.
 
 ## Testing Guidelines
 

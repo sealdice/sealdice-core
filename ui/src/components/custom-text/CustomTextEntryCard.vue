@@ -66,28 +66,25 @@
         <RepeatableList add-label="添加文案" @add="handleAddItem">
           <RepeatableItem
             v-for="(item, index) in visibleItems"
-            :key="textItemKeyOf(keyName, item)"
+            :key="textItemKeys.keyOf(keyName, item)"
             :title="`文案 ${index + 1}`"
             :removable="items.length > 1"
             remove-label="删除随机文案"
-            @remove="emit('removeItem', items, index)"
+            @remove="emit('removeItem', keyName, index)"
           >
             <div class="relative">
               <n-input
-                v-model:value="item[0]"
+                :value="item[0]"
                 class="w-full sd-code-text"
                 type="textarea"
                 :autosize="{ minRows: 1, maxRows: 4 }"
-                @update:value="emit('change', category, keyName)"
+                @update:value="emit('updateItem', keyName, index, $event)"
               />
 
-              <div v-if="getPreview(keyName, items[index][0])" class="absolute bottom-0 right-1">
+              <div v-if="preview(item[0])" class="absolute bottom-0 right-1">
                 <n-popover placement="bottom-start">
                   <template #trigger>
-                    <span
-                      v-if="getPreviewCheckErr(keyName, items[index][0])"
-                      class="text-red-500 preview-icon"
-                    >
+                    <span v-if="previewHasError(item[0])" class="text-red-500 preview-icon">
                       <n-icon><i-tabler-circle-x-filled /></n-icon>
                     </span>
                     <span v-else class="preview-icon preview-icon--success">
@@ -95,10 +92,7 @@
                     </span>
                   </template>
 
-                  <CustomTextPreviewInfo
-                    v-if="getPreview(keyName, item[0])"
-                    :info="getPreview(keyName, item[0])!"
-                  />
+                  <CustomTextPreviewInfo v-if="preview(item[0])" :info="preview(item[0])!" />
                 </n-popover>
               </div>
             </div>
@@ -142,30 +136,41 @@ import CustomTextPreviewInfo from './CustomTextPreviewInfo.vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
 import type { TextTemplateItem } from '@/features/customText/types';
+import { createTextItemKeyStore } from '@/features/customText/viewModel';
 
-const items = defineModel<TextTemplateItem[]>({ required: true });
+const textItemKeys = createTextItemKeyStore();
 const collapsed = ref(true);
-const isLongList = computed(() => items.value.length > 3);
+const isLongList = computed(() => props.items.length > 3);
 const visibleItems = computed(() =>
-  isLongList.value && collapsed.value ? items.value.slice(0, 3) : items.value
+  isLongList.value && collapsed.value ? props.items.slice(0, 3) : props.items
 );
 
 const props = defineProps<{
   category: string;
   keyName: string;
   help?: Value;
-  getPreview: (keyName: string, text: string) => TextItemCompatibleInfo | undefined;
-  getPreviewCheckErr: (keyName: string, text: string) => boolean;
-  textItemKeyOf: (keyName: string, item: TextTemplateItem) => string;
+  items: TextTemplateItem[];
+  previews?: Record<string, TextItemCompatibleInfo>;
 }>();
 
 const emit = defineEmits<{
   addItem: [keyName: string];
-  removeItem: [items: TextTemplateItem[], index: number];
-  change: [category: string, keyName: string];
+  removeItem: [keyName: string, index: number];
+  updateItem: [keyName: string, index: number, text: string];
   deleteKey: [category: string, keyName: string];
   resetKey: [category: string, keyName: string];
 }>();
+
+function preview(text: string) {
+  return props.previews?.[text];
+}
+
+function previewHasError(text: string) {
+  const info = preview(text);
+  return info?.version === 'v2'
+    ? Boolean(info.errV2)
+    : info?.version === 'v1' && Boolean(info.errV1);
+}
 
 function handleAddItem() {
   collapsed.value = false;

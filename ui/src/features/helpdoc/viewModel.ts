@@ -1,6 +1,26 @@
 import { trim } from 'es-toolkit/compat';
 import type { HelpDoc, HelpTextVo } from '@/api';
 
+export type HelpdocItemQueryModel = {
+  pageNum: number;
+  pageSize: number;
+  id: number | null;
+  group: string | null;
+  from: string;
+  title: string;
+};
+
+export function createDefaultHelpdocItemQuery(): HelpdocItemQueryModel {
+  return {
+    pageNum: 1,
+    pageSize: 20,
+    id: null,
+    group: null,
+    from: '',
+    title: '',
+  };
+}
+
 export type GroupOption = {
   label: string;
   value: string;
@@ -93,14 +113,7 @@ export function getHelpdocTextTooltip(row: string) {
   return trim(row);
 }
 
-export function buildHelpdocItemParams(query: {
-  pageNum: number;
-  pageSize: number;
-  id: number | null;
-  group: string | null;
-  from: string;
-  title: string;
-}) {
+export function buildHelpdocItemParams(query: HelpdocItemQueryModel) {
   return {
     pageNum: query.pageNum,
     pageSize: query.pageSize,

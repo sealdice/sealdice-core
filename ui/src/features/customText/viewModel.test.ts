@@ -1,12 +1,41 @@
 import {
   buildCustomTextExportContent,
   createTextItemKeyStore,
+  deriveCustomTextHelp,
   getCustomTextGroups,
   parseCustomTextImportContent,
   sortCustomTextCategory,
 } from './viewModel';
 import type { TextTemplateHelpDict, TextTemplateItem, TextTemplateWithWeightDict } from './types';
 import { expect, it } from 'vitest';
+
+it('自定义标记从草稿派生，恢复默认值后清除标记且不修改查询缓存', () => {
+  const help: TextTemplateHelpDict = {
+    core: {
+      reply: Object.freeze({
+        commands: null,
+        exampleCommands: null,
+        extraText: '',
+        filename: null,
+        modified: true,
+        notBuiltin: false,
+        origin: [['default', 1]],
+        subType: '',
+        topOrder: 0,
+        vars: [],
+      }),
+    },
+  };
+  const saved: TextTemplateWithWeightDict = { core: { reply: [['custom', 1]] } };
+  expect(deriveCustomTextHelp(saved, help, saved).core.reply.modified).toBe(true);
+  expect(
+    deriveCustomTextHelp({ core: { reply: [['default', 1]] } }, help, saved).core.reply.modified
+  ).toBe(false);
+  expect(
+    deriveCustomTextHelp({ core: { reply: [['edited', 1]] } }, help, saved).core.reply.modified
+  ).toBe(true);
+  expect(help.core.reply.modified).toBe(true);
+});
 
 it('自定义文案的权重与分类转换', async () => {
   const assertOk = (actual: unknown) => {

@@ -6,6 +6,29 @@ import {
   type TextTemplateWithWeightDict,
 } from './types';
 
+// 帮助信息来自查询缓存；自定义标记按当前草稿派生，不把本地编辑写入缓存。
+export function deriveCustomTextHelp(
+  texts: TextTemplateWithWeightDict,
+  helpInfo: TextTemplateHelpDict,
+  savedTexts: TextTemplateWithWeightDict
+): TextTemplateHelpDict {
+  return Object.fromEntries(
+    Object.entries(helpInfo).map(([category, entries]) => [
+      category,
+      Object.fromEntries(
+        Object.entries(entries).map(([key, info]) => {
+          const baseline = info.origin
+            ? normalizeTextDict({ [category]: { [key]: info.origin } })[category][key]
+            : (savedTexts[category]?.[key] ?? []);
+          const changed =
+            JSON.stringify(texts[category]?.[key] ?? baseline) !== JSON.stringify(baseline);
+          return [key, { ...info, modified: info.origin ? changed : info.modified || changed }];
+        })
+      ),
+    ])
+  );
+}
+
 export type CustomTextFilterMode = 'all' | 'unmodified' | 'modified' | 'group' | 'deprecated';
 
 export type SortCustomTextCategoryInput = {
