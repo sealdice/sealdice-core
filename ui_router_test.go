@@ -13,76 +13,134 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func TestRegisterRootUIServesEmbeddedAssetsAnd404sRemovedV2UI(t *testing.T) {
+func TestRootRedirectsToOldUIByDefault(t *testing.T) {
+	app := echo.New()
+	registerRootDefaultUI(app)
+
+	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/", nil))
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("root status = %d, want %d", resp.StatusCode, http.StatusFound)
+	}
+	if got := resp.Header.Get("Location"); got != oldUIPathPrefix+"/" {
+		t.Fatalf("root Location = %q, want %q", got, oldUIPathPrefix+"/")
+	}
+}
+
+func TestRootDefaultUISwitchByQueryAndCookie(t *testing.T) {
+	newApp := func() *echo.Echo {
+		app := echo.New()
+		registerRootDefaultUI(app)
+		return app
+	}
+
+	// ?ui=new：记住新版并跳 /v2ui/。
+	resp := performRequest(newApp(), httptest.NewRequest(http.MethodGet, "/?ui=new", nil))
+	if resp.StatusCode != http.StatusFound || resp.Header.Get("Location") != v2UIPathPrefix+"/" {
+		t.Fatalf("?ui=new => %d %q, want 302 %q", resp.StatusCode, resp.Header.Get("Location"), v2UIPathPrefix+"/")
+	}
+	if got := cookieValue(resp, defaultUICookieName); got != defaultUICookieValueNew {
+		t.Fatalf("?ui=new cookie = %q, want %q", got, defaultUICookieValueNew)
+	}
+
+	// ?ui=old：记住旧版并跳 /old-ui/。
+	resp = performRequest(newApp(), httptest.NewRequest(http.MethodGet, "/?ui=old", nil))
+	if resp.StatusCode != http.StatusFound || resp.Header.Get("Location") != oldUIPathPrefix+"/" {
+		t.Fatalf("?ui=old => %d %q, want 302 %q", resp.StatusCode, resp.Header.Get("Location"), oldUIPathPrefix+"/")
+	}
+	if got := cookieValue(resp, defaultUICookieName); got != defaultUICookieValueOld {
+		t.Fatalf("?ui=old cookie = %q, want %q", got, defaultUICookieValueOld)
+	}
+
+	// cookie=new：默认跳到新版。
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: defaultUICookieName, Value: defaultUICookieValueNew})
+	resp = performRequest(newApp(), req)
+	if resp.Header.Get("Location") != v2UIPathPrefix+"/" {
+		t.Fatalf("cookie=new Location = %q, want %q", resp.Header.Get("Location"), v2UIPathPrefix+"/")
+	}
+}
+
+func TestRegisterV2UIServesIndexAndAssetsUnderPrefix(t *testing.T) {
 	app := echo.New()
 	source := fstest.MapFS{
 		"dist/index.html": {
 			Data: []byte("<!doctype html><title>v2 ui</title>"),
 		},
 		"dist/assets/app-abc123.js": {
-			Data: []byte("console.log('v2-root')"),
-		},
-		"placeholder/index.html": {
-			Data: []byte("<!doctype html><title>placeholder</title>"),
+			Data: []byte("console.log('v2')"),
 		},
 	}
-
-	if err := registerRemovedV2UIRoutes(app); err != nil {
-		t.Fatalf("registerRemovedV2UIRoutes() error = %v", err)
-	}
-	if err := registerRootUI(app, source); err != nil {
-		t.Fatalf("registerRootUI() error = %v", err)
+	if err := registerV2UI(app, source); err != nil {
+		t.Fatalf("registerV2UI() error = %v", err)
 	}
 
-	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/", nil))
+	// 裸 /v2ui 跳带斜杠形式。
+	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/v2ui", nil))
+	if resp.StatusCode != http.StatusPermanentRedirect || resp.Header.Get("Location") != v2UIPathPrefix+"/" {
+		t.Fatalf("/v2ui => %d %q, want 308 %q", resp.StatusCode, resp.Header.Get("Location"), v2UIPathPrefix+"/")
+	}
+
+	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/v2ui/", nil))
 	assertBodyContains(t, resp, "v2 ui")
 	if got := resp.Header.Get("Cache-Control"); got != "no-cache" {
 		t.Fatalf("index Cache-Control = %q, want no-cache", got)
 	}
 
-	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/assets/app-abc123.js", nil))
-	assertBodyContains(t, resp, "v2-root")
-	if got := resp.Header.Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/v2ui/assets/app-abc123.js", nil))
+	assertBodyContains(t, resp, "console.log('v2')")
+	if got := resp.Header.Get("Cache-Control"); got != rootUICacheControlAssets {
 		t.Fatalf("asset Cache-Control = %q, want immutable asset cache", got)
-	}
-
-	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/mod/story?tab=detail", nil))
-	if resp.StatusCode != http.StatusPermanentRedirect {
-		t.Fatalf("history route status = %d, want %d", resp.StatusCode, http.StatusPermanentRedirect)
-	}
-	if got := resp.Header.Get("Location"); got != "/#/mod/story?tab=detail" {
-		t.Fatalf("history route Location = %q, want /#/mod/story?tab=detail", got)
-	}
-
-	for _, path := range []string{"/v2ui", "/v2ui/", "/v2ui/assets/app-abc123.js", "/v2ui/mod/story"} {
-		resp = performRequest(app, httptest.NewRequest(http.MethodGet, path, nil))
-		if resp.StatusCode != http.StatusNotFound {
-			t.Fatalf("%s status = %d, want %d", path, resp.StatusCode, http.StatusNotFound)
-		}
 	}
 }
 
-func TestRegisterRootUIFallsBackToPlaceholderWhenDistMissing(t *testing.T) {
+func TestRegisterV2UIEtagForRevalidatedEntries(t *testing.T) {
+	rootUIEtagCache = sync.Map{}
+
 	app := echo.New()
 	source := fstest.MapFS{
-		"placeholder/index.html": {
-			Data: []byte("<!doctype html><title>placeholder</title>"),
-		},
+		"dist/index.html":        {Data: []byte("<!doctype html>v2 ui")},
+		"dist/sw.js":             {Data: []byte("/* service worker */")},
+		"dist/assets/app-abc.js": {Data: []byte("console.log(1)")},
+	}
+	if err := registerV2UI(app, source); err != nil {
+		t.Fatalf("registerV2UI() error = %v", err)
 	}
 
-	if err := registerRootUI(app, source); err != nil {
-		t.Fatalf("registerRootUI() error = %v", err)
+	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/v2ui/", nil))
+	etag := resp.Header.Get("ETag")
+	if etag == "" || !strings.HasPrefix(etag, `W/"`) {
+		t.Fatalf("index ETag = %q, want weak ETag", etag)
 	}
 
-	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/", nil))
+	req := httptest.NewRequest(http.MethodGet, "/v2ui/", nil)
+	req.Header.Set("If-None-Match", etag)
+	resp = performRequest(app, req)
+	if resp.StatusCode != http.StatusNotModified {
+		t.Fatalf("revalidation status = %d, want %d", resp.StatusCode, http.StatusNotModified)
+	}
+
+	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/v2ui/assets/app-abc.js", nil))
+	if got := resp.Header.Get("ETag"); got != "" {
+		t.Fatalf("asset ETag = %q, want empty", got)
+	}
+}
+
+func TestRegisterV2UIFallsBackToPlaceholderWhenDistMissing(t *testing.T) {
+	app := echo.New()
+	if err := registerV2UI(app, fstest.MapFS{
+		"placeholder/index.html": {Data: []byte("<!doctype html><title>placeholder</title>")},
+	}); err != nil {
+		t.Fatalf("registerV2UI() error = %v", err)
+	}
+
+	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/v2ui/", nil))
 	assertBodyContains(t, resp, "placeholder")
 }
 
-func TestRegisterRootUIReturnsErrorWithoutDistOrPlaceholder(t *testing.T) {
-	app := echo.New()
-	err := registerRootUI(app, fstest.MapFS{})
+func TestRegisterV2UIReturnsErrorWithoutDistOrPlaceholder(t *testing.T) {
+	err := registerV2UI(echo.New(), fstest.MapFS{})
 	if err == nil {
-		t.Fatal("registerRootUI() error = nil, want missing asset error")
+		t.Fatal("registerV2UI() error = nil, want missing asset error")
 	}
 	if !strings.Contains(err.Error(), "embedded root ui") {
 		t.Fatalf("error = %q, want embedded root ui context", err.Error())
@@ -93,7 +151,7 @@ func TestRegisterLegacyUIServesFilesUnderOldUI(t *testing.T) {
 	app := echo.New()
 	source := fstest.MapFS{
 		"index.html": {
-			Data: []byte("<!doctype html><title>legacy ui</title>"),
+			Data: []byte("<!doctype html><html><body><title>legacy ui</title></body></html>"),
 		},
 		"assets/legacy.js": {
 			Data: []byte("console.log('legacy')"),
@@ -111,10 +169,23 @@ func TestRegisterLegacyUIServesFilesUnderOldUI(t *testing.T) {
 	}
 
 	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/old-ui/", nil))
-	assertBodyContains(t, resp, "legacy ui")
+	body := readBody(t, resp)
+	if !strings.Contains(body, legacyUIBackLinkMarker) || !strings.Contains(body, "切换到新版 UI") {
+		t.Fatalf("old ui index missing injected switch entry: %q", body)
+	}
+	if !strings.Contains(body, "legacy ui") {
+		t.Fatalf("old ui index lost original content: %q", body)
+	}
+
+	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/old-ui/index.html", nil))
+	if got := readBody(t, resp); !strings.Contains(got, legacyUIBackLinkMarker) {
+		t.Fatalf("old ui index.html missing injected switch entry: %q", got)
+	}
 
 	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/old-ui/assets/legacy.js", nil))
-	assertBodyContains(t, resp, "legacy")
+	if body := readBody(t, resp); strings.Contains(body, legacyUIBackLinkMarker) {
+		t.Fatal("static asset should not be injected with the switch entry")
+	}
 }
 
 func TestRegisterLegacyUIRewritesLegacyAPIPath(t *testing.T) {
@@ -131,46 +202,50 @@ func TestRegisterLegacyUIRewritesLegacyAPIPath(t *testing.T) {
 	assertBodyContains(t, resp, "salt")
 }
 
-func TestRootUIEtagForRevalidatedEntries(t *testing.T) {
-	rootUIEtagCache = sync.Map{}
+func TestInjectLegacyBackLinkIsIdempotentAndPreservesContent(t *testing.T) {
+	html := "<!doctype html><html><body><div>legacy</div></body></html>"
+	once := injectLegacyBackLink(html)
+	if !strings.Contains(once, legacyUIBackLinkMarker) {
+		t.Fatal("injected html missing switch marker")
+	}
+	if !strings.Contains(once, `href="/?ui=new"`) {
+		t.Fatal("switch entry should target /?ui=new")
+	}
+	if !strings.Contains(once, "<div>legacy</div>") {
+		t.Fatal("injected html dropped original content")
+	}
+	if strings.Count(once, legacyUIBackLinkMarker) != 1 {
+		t.Fatalf("marker count = %d, want 1", strings.Count(once, legacyUIBackLinkMarker))
+	}
+	twice := injectLegacyBackLink(once)
+	if strings.Count(twice, legacyUIBackLinkMarker) != 1 {
+		t.Fatalf("second injection duplicated marker: count = %d", strings.Count(twice, legacyUIBackLinkMarker))
+	}
+}
 
-	app := echo.New()
-	source := fstest.MapFS{
-		"dist/index.html":           {Data: []byte("<!doctype html>v2 ui")},
-		"dist/sw.js":                {Data: []byte("/* service worker */")},
-		"dist/manifest.webmanifest": {Data: []byte("{}")},
-		"dist/workbox-test.js":      {Data: []byte("workbox")},
-		"dist/assets/app-abc.js":    {Data: []byte("console.log(1)")},
+func TestInjectLegacyBackLinkAppendsWithoutBodyTag(t *testing.T) {
+	out := injectLegacyBackLink("<div>legacy</div>")
+	if !strings.HasSuffix(out, "切换到新版 UI</a>") {
+		t.Fatalf("html without </body> should append snippet, got %q", out)
 	}
-	if err := registerRootUI(app, source); err != nil {
-		t.Fatalf("registerRootUI() error = %v", err)
-	}
+}
 
-	// Revalidated entry files carry a weak, content-derived ETag.
-	resp := performRequest(app, httptest.NewRequest(http.MethodGet, "/", nil))
-	etag := resp.Header.Get("ETag")
-	if etag == "" || !strings.HasPrefix(etag, `W/"`) {
-		t.Fatalf("index ETag = %q, want weak ETag with W/ prefix", etag)
+func cookieValue(resp *http.Response, name string) string {
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == name {
+			return cookie.Value
+		}
 	}
+	return ""
+}
 
-	// Revalidation with a matching ETag returns 304 without a body.
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("If-None-Match", etag)
-	resp = performRequest(app, req)
-	if resp.StatusCode != http.StatusNotModified {
-		t.Fatalf("revalidation status = %d, want %d", resp.StatusCode, http.StatusNotModified)
+func readBody(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("io.ReadAll() error = %v", err)
 	}
-
-	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/sw.js", nil))
-	if got := resp.Header.Get("ETag"); got == "" {
-		t.Fatal("sw.js should carry an ETag for revalidation")
-	}
-
-	// Immutable, content-hashed assets do not need an ETag.
-	resp = performRequest(app, httptest.NewRequest(http.MethodGet, "/assets/app-abc.js", nil))
-	if got := resp.Header.Get("ETag"); got != "" {
-		t.Fatalf("asset ETag = %q, want empty", got)
-	}
+	return string(body)
 }
 
 func assertBodyContains(t *testing.T, resp *http.Response, want string) {

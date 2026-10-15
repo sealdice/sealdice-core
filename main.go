@@ -631,7 +631,7 @@ const gzipMinLength = 1024
 // Paths that must not be gzip-compressed. The realtime channel is a long-lived
 // SSE stream; compressing it defeats streaming and forces the middleware to
 // buffer/flush continuously.
-var gzipSkipPrefixes = []string{"/sd-api/v2/realtime/sse"}
+var gzipSkipPrefixes = []string{"/sd-api/v2/realtime/sse", "/sd-api/v2/upload"}
 
 // Static assets that are either already compressed or effectively incompressible.
 // Leaving them uncompressed avoids the memory/CPU cost of gzip on large bodies
@@ -674,6 +674,14 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePPro
 			echo.HeaderAccept,
 			echo.HeaderAuthorization,
 			"token",
+			// tus 协议头（分片上传网关）
+			"Tus-Resumable",
+			"Upload-Length",
+			"Upload-Offset",
+			"Upload-Metadata",
+			"Upload-Defer-Length",
+			"Upload-Concat",
+			"X-HTTP-Method-Override",
 		},
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{
@@ -683,6 +691,18 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePPro
 			http.MethodPatch,
 			http.MethodPost,
 			http.MethodDelete,
+		},
+		ExposeHeaders: []string{
+			"Upload-Offset",
+			"Location",
+			"Upload-Length",
+			"Tus-Version",
+			"Tus-Resumable",
+			"Tus-Max-Size",
+			"Tus-Extension",
+			"Upload-Metadata",
+			"Upload-Defer-Length",
+			"Upload-Concat",
 		},
 	}))
 
@@ -721,17 +741,19 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePPro
 	apier := humaecho.New(e, huma.DefaultConfig("Sealdice API", "2.0.0"))
 	apiv2.InitV2Router(apier, dm)
 
+	if err := apiv2.MountUploadGateway(e, dm); err != nil {
+		log.Warnf("挂载 tus 上传网关失败: %v", err)
+	}
+
 	api.BindV1(e, dm)
 
-	if err := registerRemovedV2UIRoutes(e); err != nil {
-		log.Warnf("注册已移除的 /v2ui 路径失败: %v", err)
-	}
+	registerRootDefaultUI(e)
 
 	v2UIRoot, err := fs.Sub(static.V2UI, "v2ui")
 	if err != nil {
 		log.Warnf("加载内置新 UI 资源失败: %v", err)
-	} else if err := registerRootUI(e, v2UIRoot); err != nil {
-		log.Warnf("注册根路径新 UI 资源失败: %v", err)
+	} else if err := registerV2UI(e, v2UIRoot); err != nil {
+		log.Warnf("注册 /v2ui 新 UI 资源失败: %v", err)
 	}
 
 	if useBuiltinOldUI {

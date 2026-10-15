@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"path"
 	"strings"
 	"sync"
 
@@ -15,46 +14,69 @@ import (
 )
 
 const (
-	removedV2UIPathPrefix      = "/v2ui"
+	// 新版 UI 挂在 /v2ui/ 下；旧版 UI 挂在 /old-ui/ 下并作为默认入口。
+	v2UIPathPrefix             = "/v2ui"
 	oldUIPathPrefix            = "/old-ui"
 	oldUIAPIPathPrefix         = oldUIPathPrefix + "/sd-api"
 	rootUICacheControlNoCache  = "no-cache"
 	rootUICacheControlAssets   = "public, max-age=31536000, immutable"
 	rootUIDistIndexPath        = "dist/index.html"
 	rootUIPlaceholderIndexPath = "placeholder/index.html"
+
+	// 默认 UI 偏好按浏览器持久化：默认旧版 UI，?ui=new / cookie 可切到新版。
+	defaultUICookieName     = "sd_default_ui"
+	defaultUICookieValueNew = "new"
+	defaultUICookieValueOld = "old"
+	defaultUICookieMaxAge   = 31536000 // 1 年
 )
 
-var rootUIReservedPrefixes = []string{
-	removedV2UIPathPrefix,
-	oldUIPathPrefix,
-	"/api",
-	"/sd-api",
-	"/debug/pprof",
-	"/docs",
-	"/schemas",
+// registerRootDefaultUI 处理入口 `/`：默认落旧版 UI，可通过 ?ui=new（并记住）
+// 或之前的 cookie 切到新版 UI。旧版 UI 在 /old-ui/，新版 UI 在 /v2ui/。
+func registerRootDefaultUI(router *echo.Echo) {
+	router.Match([]string{http.MethodGet, http.MethodHead}, "/", redirectDefaultUI)
 }
 
-func registerRemovedV2UIRoutes(router *echo.Echo) error {
-	notFound := func(c echo.Context) error {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+func redirectDefaultUI(c echo.Context) error {
+	switch c.QueryParam("ui") {
+	case defaultUICookieValueNew:
+		setDefaultUICookie(c, defaultUICookieValueNew)
+		return c.Redirect(http.StatusFound, v2UIPathPrefix+"/")
+	case defaultUICookieValueOld:
+		setDefaultUICookie(c, defaultUICookieValueOld)
+		return c.Redirect(http.StatusFound, oldUIPathPrefix+"/")
 	}
-
-	router.Any(removedV2UIPathPrefix, notFound)
-	router.Any(removedV2UIPathPrefix+"/*", notFound)
-	return nil
+	if cookie, err := c.Cookie(defaultUICookieName); err == nil && cookie.Value == defaultUICookieValueNew {
+		return c.Redirect(http.StatusFound, v2UIPathPrefix+"/")
+	}
+	return c.Redirect(http.StatusFound, oldUIPathPrefix+"/")
 }
 
-func registerRootUI(router *echo.Echo, source fs.FS) error {
+func setDefaultUICookie(c echo.Context, value string) {
+	c.SetCookie(&http.Cookie{
+		Name:     defaultUICookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   defaultUICookieMaxAge,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+// registerV2UI 在 /v2ui/ 下提供新版 UI。
+func registerV2UI(router *echo.Echo, source fs.FS) error {
 	root, err := selectRootUIRoot(source)
 	if err != nil {
 		return err
 	}
 
-	group := router.Group("")
-	group.Use(redirectRootHashRouteFallback(), rootUICacheHeaders(), rootUIEtagMiddleware(root))
-	fileServer := http.FileServer(http.FS(root))
-	group.Match([]string{http.MethodGet, http.MethodHead}, "/", echo.WrapHandler(fileServer))
-	group.Match([]string{http.MethodGet, http.MethodHead}, "/*", echo.WrapHandler(fileServer))
+	group := router.Group(v2UIPathPrefix)
+	group.Use(v2UICacheHeaders(), v2UIEtagMiddleware(root))
+	handler := echo.WrapHandler(http.StripPrefix(v2UIPathPrefix, http.FileServer(http.FS(root))))
+	group.Match([]string{http.MethodGet, http.MethodHead}, "/", handler)
+	group.Match([]string{http.MethodGet, http.MethodHead}, "/*", handler)
+
+	router.GET(v2UIPathPrefix, func(c echo.Context) error {
+		return c.Redirect(http.StatusPermanentRedirect, v2UIPathPrefix+"/")
+	})
 	return nil
 }
 
@@ -85,10 +107,60 @@ func registerLegacyUI(router *echo.Echo, filesystem fs.FS) {
 			return next(c)
 		}
 	})
+	group.Use(legacyUIBackLinkMiddleware(filesystem))
 	group.StaticFS("/", filesystem)
 	router.GET(oldUIPathPrefix, func(c echo.Context) error {
 		return c.Redirect(http.StatusPermanentRedirect, strings.TrimPrefix(oldUIPathPrefix, "/")+"/")
 	})
+}
+
+// legacyUIBackLinkMarker 标记注入到旧 UI 首页的「切换到新版 UI」入口，避免重复注入。
+const legacyUIBackLinkMarker = `id="sd-legacy-switch-to-new-ui"`
+
+// injectLegacyBackLink 在旧 UI 的 index.html 末尾注入一个固定的「切换到新版 UI」入口。
+//
+// 旧 UI 是构建产物（由 static/gen/download-fe.go 从 sealdice-ui release 下载），
+// 仓库没有其源码、无法重新构建，所以在服务端渲染时注入，而不是改源码。
+// 目标用 `/?ui=new`：显式 ui=new 会记住偏好并跳到 /v2ui/。
+func injectLegacyBackLink(html string) string {
+	if strings.Contains(html, legacyUIBackLinkMarker) {
+		return html
+	}
+	snippet := `<a ` + legacyUIBackLinkMarker +
+		` href="/?ui=new" style="position:fixed;right:16px;bottom:16px;z-index:2147483647;` +
+		`display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;` +
+		`background:#3478f6;color:#fff;font:600 13px/1.4 system-ui,-apple-system,'Segoe UI',sans-serif;` +
+		`text-decoration:none;box-shadow:0 6px 18px rgba(0,0,0,.28)">切换到新版 UI</a>`
+	if idx := strings.LastIndex(html, "</body>"); idx >= 0 {
+		return html[:idx] + snippet + html[idx:]
+	}
+	return html + snippet
+}
+
+// legacyUIBackLinkMiddleware 拦截旧 UI 首页，注入「切换到新版 UI」入口。
+// 其它静态资源原样交给 StaticFS。
+func legacyUIBackLinkMiddleware(filesystem fs.FS) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if c.Request().Method != http.MethodGet && c.Request().Method != http.MethodHead {
+				return next(c)
+			}
+			requestPath := c.Request().URL.Path
+			if requestPath != oldUIPathPrefix+"/" && requestPath != oldUIPathPrefix+"/index.html" {
+				return next(c)
+			}
+			raw, err := fs.ReadFile(filesystem, "index.html")
+			if err != nil {
+				return next(c)
+			}
+			c.Response().Header().Set(echo.HeaderContentType, "text/html; charset=utf-8")
+			if c.Request().Method == http.MethodHead {
+				c.Response().WriteHeader(http.StatusOK)
+				return nil
+			}
+			return c.HTMLBlob(http.StatusOK, []byte(injectLegacyBackLink(string(raw))))
+		}
+	}
 }
 
 func selectRootUIRoot(source fs.FS) (fs.FS, error) {
@@ -101,55 +173,42 @@ func selectRootUIRoot(source fs.FS) (fs.FS, error) {
 	return nil, fmt.Errorf("embedded root ui: missing %s and %s", rootUIDistIndexPath, rootUIPlaceholderIndexPath)
 }
 
-func redirectRootHashRouteFallback() echo.MiddlewareFunc {
+// v2UICacheHeaders 按 /v2ui 前缀剥离后再按路径设置缓存策略。
+func v2UICacheHeaders() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			method := c.Request().Method
-			if method != http.MethodGet && method != http.MethodHead {
-				return next(c)
-			}
-
-			requestPath := c.Request().URL.Path
-			if shouldBypassRootUI(requestPath) {
-				return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-			}
-			if requestPath == "/" || path.Ext(requestPath) != "" {
-				return next(c)
-			}
-
-			return c.Redirect(http.StatusPermanentRedirect, rootHashRouteFallbackLocation(requestPath, c.Request().URL.RawQuery))
+			rel := strings.TrimPrefix(c.Request().URL.Path, v2UIPathPrefix)
+			c.Response().Header().Set(echo.HeaderCacheControl, cacheControlForRootUIPath(rel))
+			return next(c)
 		}
 	}
 }
 
-func rootHashRouteFallbackLocation(requestPath string, query string) string {
-	cleanPath := strings.Trim(requestPath, "/")
-	location := "/"
-	if cleanPath != "" {
-		location = "/#/" + cleanPath
-		if strings.HasSuffix(requestPath, "/") {
-			location += "/"
-		}
-	}
-	if query != "" {
-		location += "?" + query
-	}
-	return location
-}
-
-func shouldBypassRootUI(requestPath string) bool {
-	for _, prefix := range rootUIReservedPrefixes {
-		if requestPath == prefix || strings.HasPrefix(requestPath, prefix+"/") {
-			return true
-		}
-	}
-	return false
-}
-
-func rootUICacheHeaders() echo.MiddlewareFunc {
+// v2UIEtagMiddleware 为 /v2ui 下的可重验证入口文件设置内容派生的弱 ETag。
+func v2UIEtagMiddleware(root fs.FS) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			c.Response().Header().Set(echo.HeaderCacheControl, cacheControlForRootUIPath(c.Request().URL.Path))
+			req := c.Request()
+			if req.Method != http.MethodGet && req.Method != http.MethodHead {
+				return next(c)
+			}
+			rel := strings.TrimPrefix(req.URL.Path, v2UIPathPrefix)
+			if !isRootUINoCachedRevalidatePath(rel) {
+				return next(c)
+			}
+			filePath := strings.TrimPrefix(rel, "/")
+			if filePath == "" {
+				filePath = "index.html"
+			}
+			etag, ok := cachedRootUIEtag(root, filePath)
+			if !ok {
+				return next(c)
+			}
+			c.Response().Header().Set("ETag", etag)
+			if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" && strings.Contains(ifNoneMatch, etag) {
+				c.Response().WriteHeader(http.StatusNotModified)
+				return nil
+			}
 			return next(c)
 		}
 	}
@@ -191,40 +250,10 @@ func isRootUINoCachedRevalidatePath(requestPath string) bool {
 
 var rootUIEtagCache sync.Map // path -> etag
 
-// rootUIEtagMiddleware sets a weak, content-derived ETag on the revalidated
+// cachedRootUIEtag sets a weak, content-derived ETag on the revalidated
 // entry files and short-circuits unchanged revalidations with 304. Embedded
 // files all share an epoch modtime, so Last-Modified alone cannot detect an
 // updated fixed-name file (e.g. sw.js); a content hash can.
-func rootUIEtagMiddleware(root fs.FS) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			req := c.Request()
-			if req.Method != http.MethodGet && req.Method != http.MethodHead {
-				return next(c)
-			}
-			if !isRootUINoCachedRevalidatePath(req.URL.Path) {
-				return next(c)
-			}
-
-			relPath := strings.TrimPrefix(req.URL.Path, "/")
-			if relPath == "" {
-				relPath = "index.html"
-			}
-			etag, ok := cachedRootUIEtag(root, relPath)
-			if !ok {
-				return next(c)
-			}
-
-			c.Response().Header().Set("ETag", etag)
-			if ifNoneMatch := req.Header.Get("If-None-Match"); ifNoneMatch != "" && strings.Contains(ifNoneMatch, etag) {
-				c.Response().WriteHeader(http.StatusNotModified)
-				return nil
-			}
-			return next(c)
-		}
-	}
-}
-
 func cachedRootUIEtag(root fs.FS, relPath string) (string, bool) {
 	if value, ok := rootUIEtagCache.Load(relPath); ok {
 		return value.(string), true
