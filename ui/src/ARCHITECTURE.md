@@ -62,7 +62,9 @@
   - 页面捕获接口错误后使用 `notifyError(error, message, fallback)`，已全局反馈或被取消的请求不再弹第二次 toast；本地校验可以直接提示。
 - 登录态直接通过 `features/auth/store.ts` 的 `useAuthStore()` 读取，响应式引用用 `storeToRefs()`。不新增转发型 `state.ts`，不在页面读写 localStorage。
 - Vue Query 全局缓存和重试策略在 `src/queryClient.ts`；查询继续使用生成客户端，禁止自行维护第二套服务端缓存。
+- 基础设置的固定分组、字段布局和搜索文案在 `features/baseSetting/schema.ts`；后端仅提供当前值与类型化补丁，完整校验后才应用配置与副作用。
 - 实时连接由 `features/realtime/store.ts` 持有；`client.ts` 只保留惰性的组合/订阅入口，不在导入时实例化 store。
+  - 连接列表、HTTP 首屏快照和 SSE 更新共用完整连接 DTO（含 workflow/qrcode）；业务 store 只保存连接列表，其余展示数据从列表派生。
   - 日志、连接等业务 store 只订阅所需事件，释放时注销自己的监听器；全局传输 store 释放时停止 SSE、重连定时器和认证监听。
 - 路由语义统一在 `src/router/navigation.ts`、`src/router/routeMeta.ts`、`src/router/navigationModel.ts`。
   - 新页面一般只需要先补导航模型，标题、布局、面包屑等会一起派生。

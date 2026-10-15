@@ -3,62 +3,102 @@ import { expect, afterEach, beforeEach, it, vi } from 'vitest';
 import type { EndPointInfo } from '@/api';
 import { useAuthStore } from '@/features/auth/store';
 import { appPinia } from '@/pinia';
-const { clearAccessToken, setAccessToken } = useAuthStore(appPinia);
 import { useRealtimeConnections } from './realtime';
+
+const { clearAccessToken, setAccessToken, finishInitialization } = useAuthStore(appPinia);
+const sources: FakeEventSource[] = [];
 
 class FakeEventSource {
   onopen: ((this: EventSource, ev: Event) => unknown) | null = null;
   onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
-
+  listeners = new Map<string, (event: MessageEvent) => void>();
   constructor(_url: string | URL) {
     void _url;
+    sources.push(this);
   }
-
-  addEventListener(): void {}
-
-  close(): void {}
+  addEventListener(name: string, handler: (event: MessageEvent) => void) {
+    this.listeners.set(name, handler);
+  }
+  emit(name: string, payload: unknown) {
+    this.listeners.get(name)?.(new MessageEvent(name, { data: JSON.stringify(payload) }));
+  }
+  close() {}
 }
 
+const connection: EndPointInfo = {
+  adapter: {},
+  cmdExecutedLastTime: 0,
+  cmdExecutedNum: 0,
+  enable: true,
+  groupNum: 0,
+  id: 'conn-1',
+  isPublic: false,
+  nickname: '测试连接',
+  onlineTotalTime: 0,
+  platform: 'QQ',
+  protocolType: 'milky',
+  relWorkDir: '',
+  state: 2,
+  userId: 'QQ:10001',
+  workflow: { state: 'qrcode', hasQRCode: true, loginState: 2 },
+  qrcode: 'data:image/png;base64,abc',
+};
+
 beforeEach(() => {
+  sources.length = 0;
   vi.stubGlobal('EventSource', FakeEventSource);
+  finishInitialization();
 });
 
-afterEach(() => {
+afterEach(async () => {
   clearAccessToken();
+  await nextTick();
   vi.unstubAllGlobals();
 });
 
-it('连接快照初始化及退出后的状态清理', async () => {
-  const connection: EndPointInfo = {
-    adapter: {},
-    cmdExecutedLastTime: 0,
-    cmdExecutedNum: 0,
-    enable: true,
-    groupNum: 0,
-    id: 'conn-1',
-    isPublic: false,
-    nickname: '测试连接',
-    onlineTotalTime: 0,
-    platform: 'QQ',
-    protocolType: 'milky',
-    relWorkDir: '',
-    state: 2,
-    userId: 'QQ:10001',
-  };
+it('HTTP 快照包含登录状态，迟到的初始快照不覆盖实时状态，退出后清空', async () => {
+  const realtime = useRealtimeConnections();
+  realtime.applyInitialSnapshot([connection]);
+  expect(realtime.connections.value).toHaveLength(1);
+  expect(realtime.ready.value).toBe(true);
+  expect(realtime.workflows.value['conn-1']?.state).toBe('qrcode');
+  expect(realtime.qrCodes.value['conn-1']).toBe(connection.qrcode);
 
-  const realtimeConnections = useRealtimeConnections();
-  realtimeConnections.applyInitialSnapshot([connection]);
-  expect(realtimeConnections.connections.value.length).toBe(1);
-  expect(realtimeConnections.ready.value).toBe(true);
-
-  realtimeConnections.applyInitialSnapshot([]);
-  expect(realtimeConnections.connections.value.length).toBe(1);
+  realtime.applyInitialSnapshot([]);
+  expect(realtime.connections.value).toHaveLength(1);
 
   setAccessToken('token-connect');
   await nextTick();
   clearAccessToken();
   await nextTick();
+  expect(realtime.connections.value).toEqual([]);
+  expect(realtime.workflows.value).toEqual({});
+  expect(realtime.qrCodes.value).toEqual({});
+  expect(realtime.ready.value).toBe(false);
+});
 
-  expect(realtimeConnections.connections.value.length).toBe(0);
-  expect(realtimeConnections.ready.value).toBe(false);
+it('一条 SSE 更新同时更新连接和登录状态，列表删除同时清除二维码', async () => {
+  setAccessToken('token-connect');
+  const realtime = useRealtimeConnections();
+  await nextTick();
+  const source = sources.at(-1)!;
+
+  source.emit('imconnection/list', { items: [connection] });
+  expect(realtime.qrCodes.value['conn-1']).toBe(connection.qrcode);
+
+  source.emit('imconnection/updated', {
+    item: {
+      ...connection,
+      state: 1,
+      qrcode: '',
+      workflow: { state: 'success', hasQRCode: false, loginState: 3 },
+    },
+  });
+  expect(realtime.connections.value[0]?.state).toBe(1);
+  expect(realtime.workflows.value['conn-1']?.state).toBe('success');
+  expect(realtime.qrCodes.value).toEqual({});
+
+  source.emit('imconnection/list', { items: [] });
+  expect(realtime.connections.value).toEqual([]);
+  expect(realtime.workflows.value).toEqual({});
 });

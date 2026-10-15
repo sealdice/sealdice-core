@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	imconnm "sealdice-core/api/v2/imconnection"
 	realtime "sealdice-core/api/v2/realtime"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
@@ -33,11 +32,10 @@ func TestStateWatcherPublishesLogAppendEvents(t *testing.T) {
 	}
 }
 
-func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T) {
+func TestStateWatcherPublishesCompleteSnapshotsAndOnlyChangedItems(t *testing.T) {
 	dm := newTestDiceManager()
 	bus := realtime.NewBus()
 	watcher := realtime.NewStateWatcher(dm, bus)
-
 	ep := dice.NewMilkyConnItem(dice.AddMilkyEcho{BuiltInMode: "yogurt"})
 	ep.Enable = true
 	ep.State = dice.StateConnecting
@@ -45,88 +43,49 @@ func TestStateWatcherPublishesConnectionSnapshotsAndWorkflowChanges(t *testing.T
 	pa := ep.Adapter.(*dice.PlatformAdapterMilky)
 	pa.BuiltInLoginState = dice.MilkyLoginStateQRWaitingForScan
 	pa.QrCodeData = []byte("fake-png")
-	dm.GetDice().ImSession.EndPoints = append(dm.GetDice().ImSession.EndPoints, ep)
-
+	dm.GetDice().ImSession.EndPoints = []*dice.EndPointInfo{ep}
 	ch, unsubscribe := bus.Subscribe(8)
 	defer unsubscribe()
 
 	watcher.Scan()
-
-	listEvt := waitForEvent(t, ch, realtime.EventIMConnectionList)
-	listPayload, ok := listEvt.Payload.(realtime.IMConnectionListPayload)
-	if !ok {
-		t.Fatalf("payload type = %T, want IMConnectionListPayload", listEvt.Payload)
+	list := waitForEvent(t, ch, realtime.EventIMConnectionList).Payload.(realtime.IMConnectionListPayload)
+	if len(list.Items) != 1 || list.Items[0].Workflow.State != "qrcode" || list.Items[0].QRCode == "" {
+		t.Fatalf("incomplete snapshot: %#v", list.Items)
 	}
-	if len(listPayload.Items) != 1 || listPayload.Items[0].ID != ep.ID {
-		t.Fatalf("list payload = %#v, want endpoint %s", listPayload.Items, ep.ID)
-	}
-
-	updatedEvt := waitForEvent(t, ch, realtime.EventIMConnectionUpdated)
-	updatedPayload, ok := updatedEvt.Payload.(realtime.IMConnectionUpdatedPayload)
-	if !ok {
-		t.Fatalf("payload type = %T, want IMConnectionUpdatedPayload", updatedEvt.Payload)
-	}
-	if updatedPayload.Item == nil || updatedPayload.Item.ID != ep.ID {
-		t.Fatalf("updated payload = %#v, want endpoint %s", updatedPayload.Item, ep.ID)
-	}
-
-	workflowEvt := waitForEvent(t, ch, realtime.EventIMConnectionWorkflow)
-	workflowPayload, ok := workflowEvt.Payload.(realtime.IMConnectionWorkflowPayload)
-	if !ok {
-		t.Fatalf("payload type = %T, want IMConnectionWorkflowPayload", workflowEvt.Payload)
-	}
-	if workflowPayload.EndpointID != ep.ID {
-		t.Fatalf("workflow endpoint = %q, want %q", workflowPayload.EndpointID, ep.ID)
-	}
-	if workflowPayload.Workflow.State != "qrcode" || !workflowPayload.Workflow.HasQRCode {
-		t.Fatalf("workflow = %#v, want qrcode state with QR code", workflowPayload.Workflow)
-	}
-
-	qrEvt := waitForEvent(t, ch, realtime.EventIMConnectionQRCode)
-	qrPayload, ok := qrEvt.Payload.(realtime.IMConnectionQRCodePayload)
-	if !ok {
-		t.Fatalf("payload type = %T, want IMConnectionQRCodePayload", qrEvt.Payload)
-	}
-	if qrPayload.EndpointID != ep.ID {
-		t.Fatalf("qrcode endpoint = %q, want %q", qrPayload.EndpointID, ep.ID)
-	}
-	if qrPayload.Img == "" {
-		t.Fatal("qrcode image should not be empty")
-	}
+	assertNoEvents(t, ch) // The list already includes the changed item and login state.
+	watcher.Scan()
+	assertNoEvents(t, ch)
 
 	pa.BuiltInLoginState = dice.MilkyLoginStateQRConnected
 	pa.QrCodeData = nil
 	ep.State = dice.StateConnected
-
 	watcher.Scan()
-
-	updatedEvt = waitForEvent(t, ch, realtime.EventIMConnectionUpdated)
-	updatedPayload = updatedEvt.Payload.(realtime.IMConnectionUpdatedPayload)
-	if updatedPayload.Item == nil || updatedPayload.Item.State != dice.StateConnected {
-		t.Fatalf("updated payload state = %#v, want connected", updatedPayload.Item)
+	update := waitForEvent(t, ch, realtime.EventIMConnectionUpdated).Payload.(realtime.IMConnectionUpdatedPayload)
+	if update.Item.State != dice.StateConnected || update.Item.Workflow.State != "success" || update.Item.QRCode != "" {
+		t.Fatalf("incomplete update: %#v", update.Item)
 	}
+	assertNoEvents(t, ch)
 
-	workflowEvt = waitForEvent(t, ch, realtime.EventIMConnectionWorkflow)
-	workflowPayload = workflowEvt.Payload.(realtime.IMConnectionWorkflowPayload)
-	if workflowPayload.Workflow.State != "success" {
-		t.Fatalf("workflow state = %q, want success", workflowPayload.Workflow.State)
-	}
+	// A retained, non-scannable image is private adapter state, not a UI change.
+	pa.QrCodeData = []byte("old-image")
+	watcher.Scan()
+	assertNoEvents(t, ch)
 
-	qrEvt = waitForEvent(t, ch, realtime.EventIMConnectionQRCode)
-	qrPayload = qrEvt.Payload.(realtime.IMConnectionQRCodePayload)
-	if qrPayload.Img != "" {
-		t.Fatalf("qrcode image = %q, want empty after success", qrPayload.Img)
+	dm.GetDice().ImSession.EndPoints = nil
+	watcher.Scan()
+	list = waitForEvent(t, ch, realtime.EventIMConnectionList).Payload.(realtime.IMConnectionListPayload)
+	if len(list.Items) != 0 {
+		t.Fatalf("deleted connection remained: %#v", list.Items)
 	}
+	assertNoEvents(t, ch)
 }
 
-func TestBuildConnectionWorkflowMatchesIMConnectionContract(t *testing.T) {
-	ep := dice.NewMilkyConnItem(dice.AddMilkyEcho{BuiltInMode: "yogurt"})
-	pa := ep.Adapter.(*dice.PlatformAdapterMilky)
-	pa.BuiltInLoginState = dice.MilkyLoginStateFailed
-
-	workflow := imconnm.WorkflowOfEndpoint(ep)
-	if workflow != (imconnm.WorkflowResp{State: "failed", LoginState: int64(dice.MilkyLoginStateFailed)}) {
-		t.Fatalf("workflow = %#v", workflow)
+func assertNoEvents(t *testing.T, ch <-chan realtime.Event) {
+	t.Helper()
+	select {
+	case evt := <-ch:
+		t.Fatalf("unexpected event: %s", evt.Name)
+	default:
 	}
 }
 

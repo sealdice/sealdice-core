@@ -1,11 +1,6 @@
 package realtime
 
-import (
-	"sync"
-	"time"
-)
-
-const publishTimeout = 2 * time.Second
+import "sync"
 
 type Event struct {
 	Name    string
@@ -13,75 +8,49 @@ type Event struct {
 }
 
 type Bus struct {
-	mu          sync.RWMutex
+	mu          sync.Mutex
 	nextID      uint64
 	subscribers map[uint64]chan Event
 }
 
 func NewBus() *Bus {
-	return &Bus{
-		subscribers: map[uint64]chan Event{},
-	}
+	return &Bus{subscribers: map[uint64]chan Event{}}
 }
 
 func (b *Bus) Subscribe(buffer int) (<-chan Event, func()) {
 	if buffer <= 0 {
 		buffer = 1
 	}
-
 	ch := make(chan Event, buffer)
-
 	b.mu.Lock()
 	id := b.nextID
 	b.nextID++
 	b.subscribers[id] = ch
 	b.mu.Unlock()
-
-	var once sync.Once
-	unsubscribe := func() {
-		once.Do(func() {
-			b.mu.Lock()
+	return ch, func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		if _, exists := b.subscribers[id]; exists {
 			delete(b.subscribers, id)
 			close(ch)
-			b.mu.Unlock()
-		})
+		}
 	}
-
-	return ch, unsubscribe
 }
 
 func (b *Bus) Publish(evt Event) {
-	b.mu.RLock()
-	subscribers := make([]chan Event, 0, len(b.subscribers))
-	for _, ch := range b.subscribers {
-		subscribers = append(subscribers, ch)
-	}
-	b.mu.RUnlock()
-
-	for _, ch := range subscribers {
-		if evt.Name == EventLogsAppend {
-			// 日志高频，允许背压丢帧，避免拖慢连接状态事件。
-			trySend(ch, evt)
-			continue
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for id, ch := range b.subscribers {
+		select {
+		case ch <- evt:
+		default:
+			// Logs may drop under load. A missed state update instead closes
+			// the slow stream so SSE reconnects and bootstraps a fresh snapshot.
+			// Never block other subscribers or send concurrently with close.
+			if evt.Name != EventLogsAppend {
+				delete(b.subscribers, id)
+				close(ch)
+			}
 		}
-
-		// 连接状态事件不应因日志刷屏被丢弃；等待一个短超时。
-		sendWithTimeout(ch, evt, publishTimeout)
-	}
-}
-
-func trySend(ch chan Event, evt Event) {
-	defer func() { _ = recover() }()
-	select {
-	case ch <- evt:
-	default:
-	}
-}
-
-func sendWithTimeout(ch chan Event, evt Event, timeout time.Duration) {
-	defer func() { _ = recover() }()
-	select {
-	case ch <- evt:
-	case <-time.After(timeout):
 	}
 }

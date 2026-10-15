@@ -4,12 +4,6 @@ import type { EndPointInfo, WorkflowResp } from '@/api';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 import { useRealtimeClientStore } from '@/features/realtime/store';
-import {
-  applyConnectionQRCode,
-  applyConnectionSnapshot,
-  applyConnectionUpdate,
-  applyConnectionWorkflow,
-} from './realtimeState';
 
 type ConnectionListPayload = {
   items?: EndPointInfo[] | null;
@@ -19,23 +13,21 @@ type ConnectionUpdatedPayload = {
   item?: EndPointInfo | null;
 };
 
-type ConnectionWorkflowPayload = {
-  endpointId: string;
-  workflow?: WorkflowResp | null;
-};
-
-type ConnectionQRCodePayload = {
-  endpointId: string;
-  img?: string | null;
-};
-
 export const useRealtimeConnectionsStore = defineStore('connect-realtime', () => {
   const authStore = useAuthStore(appPinia);
   const realtimeStore = useRealtimeClientStore(appPinia);
 
   const connections = ref<EndPointInfo[]>([]);
-  const workflows = ref<Record<string, WorkflowResp>>({});
-  const qrCodes = ref<Record<string, string>>({});
+  const workflows = computed<Record<string, WorkflowResp>>(() =>
+    Object.fromEntries(
+      connections.value.flatMap(item => (item.workflow ? [[item.id, item.workflow]] : []))
+    )
+  );
+  const qrCodes = computed<Record<string, string>>(() =>
+    Object.fromEntries(
+      connections.value.flatMap(item => (item.qrcode ? [[item.id, item.qrcode]] : []))
+    )
+  );
   const ready = shallowRef(false);
 
   let initialized = false;
@@ -43,16 +35,8 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
   onScopeDispose(() => disposers.forEach(dispose => dispose()));
 
   function replaceSnapshot(nextConnections?: EndPointInfo[] | null): void {
-    const nextState = applyConnectionSnapshot(
-      connections.value,
-      workflows.value,
-      qrCodes.value,
-      nextConnections ?? null
-    );
-    connections.value = nextState.connections;
-    workflows.value = nextState.workflows;
-    qrCodes.value = nextState.qrCodes;
-    ready.value = nextState.ready;
+    connections.value = nextConnections ? [...nextConnections] : [];
+    ready.value = true;
   }
 
   function applyInitialSnapshot(nextConnections?: EndPointInfo[] | null, force = false): void {
@@ -72,29 +56,11 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
       realtimeStore.subscribeRealtimeEvent<ConnectionUpdatedPayload>(
         'imconnection/updated',
         payload => {
-          connections.value = applyConnectionUpdate(connections.value, payload?.item ?? null);
-        }
-      ),
-      realtimeStore.subscribeRealtimeEvent<ConnectionWorkflowPayload>(
-        'imconnection/workflow',
-        payload => {
-          if (payload)
-            workflows.value = applyConnectionWorkflow(
-              workflows.value,
-              payload.endpointId,
-              payload.workflow ?? null
-            );
-        }
-      ),
-      realtimeStore.subscribeRealtimeEvent<ConnectionQRCodePayload>(
-        'imconnection/qrcode',
-        payload => {
-          if (payload)
-            qrCodes.value = applyConnectionQRCode(
-              qrCodes.value,
-              payload.endpointId,
-              payload.img ?? null
-            );
+          const item = payload?.item;
+          if (!item) return;
+          const index = connections.value.findIndex(connection => connection.id === item.id);
+          if (index < 0) connections.value.push(item);
+          else connections.value[index] = item;
         }
       ),
       watch(
@@ -102,8 +68,6 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
         canAccess => {
           if (!canAccess) {
             connections.value = [];
-            workflows.value = {};
-            qrCodes.value = {};
             ready.value = false;
           }
         },
@@ -111,20 +75,15 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
       )
     );
 
-    // 全局 SSE 可能早于账号模块启动；重连以重新获取当前二维码和工作流快照。
+    // 业务订阅可能晚于全局 SSE；重连以接收完整快照。
     realtimeStore.reconnect();
   }
-
-  const workflowOf = computed(() => (endpointId: string) => workflows.value[endpointId] ?? null);
-  const qrCodeOf = computed(() => (endpointId: string) => qrCodes.value[endpointId] ?? '');
 
   return {
     connections,
     workflows,
     qrCodes,
     ready,
-    workflowOf,
-    qrCodeOf,
     applyInitialSnapshot,
     ensureInitialized,
   };

@@ -6,15 +6,13 @@ import (
 )
 
 const (
-	EventSystemReady          = "system/ready"
-	EventSystemHeartbeat      = "system/heartbeat"
-	EventLogsSnapshot         = "logs/snapshot"
-	EventLogsAppend           = "logs/append"
-	EventIMConnectionList     = "imconnection/list"
-	EventIMConnectionUpdated  = "imconnection/updated"
-	EventIMConnectionWorkflow = "imconnection/workflow"
-	EventIMConnectionQRCode   = "imconnection/qrcode"
-	EventToolTestMessage      = "tooltest/message"
+	EventSystemReady         = "system/ready"
+	EventSystemHeartbeat     = "system/heartbeat"
+	EventLogsSnapshot        = "logs/snapshot"
+	EventLogsAppend          = "logs/append"
+	EventIMConnectionList    = "imconnection/list"
+	EventIMConnectionUpdated = "imconnection/updated"
+	EventToolTestMessage     = "tooltest/message"
 )
 
 type SystemReadyPayload struct{}
@@ -35,14 +33,4 @@ type IMConnectionListPayload struct {
 
 type IMConnectionUpdatedPayload struct {
 	Item *imconnection.EndPointInfo `json:"item"`
-}
-
-type IMConnectionWorkflowPayload struct {
-	EndpointID string                    `json:"endpointId"`
-	Workflow   imconnection.WorkflowResp `json:"workflow"`
-}
-
-type IMConnectionQRCodePayload struct {
-	EndpointID string `json:"endpointId"`
-	Img        string `json:"img"`
 }

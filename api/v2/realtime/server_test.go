@@ -20,8 +20,8 @@ func TestBuildBootstrapEventsIncludesCurrentSnapshots(t *testing.T) {
 	dm.GetDice().ImSession.EndPoints = append(dm.GetDice().ImSession.EndPoints, ep)
 
 	events := realtime.BuildBootstrapEvents(dm)
-	if len(events) < 5 {
-		t.Fatalf("bootstrap event count = %d, want at least 5", len(events))
+	if len(events) != 3 {
+		t.Fatalf("bootstrap event count = %d, want 3", len(events))
 	}
 
 	assertHasEvent(t, events, realtime.EventSystemReady)
@@ -41,16 +41,8 @@ func TestBuildBootstrapEventsIncludesCurrentSnapshots(t *testing.T) {
 		t.Fatalf("list payload = %#v", listPayload.Items)
 	}
 
-	workflowEvt := findEvent(events, realtime.EventIMConnectionWorkflow)
-	workflowPayload := workflowEvt.Payload.(realtime.IMConnectionWorkflowPayload)
-	if workflowPayload.EndpointID != ep.ID || workflowPayload.Workflow.State != "qrcode" {
-		t.Fatalf("workflow payload = %#v", workflowPayload)
-	}
-
-	qrEvt := findEvent(events, realtime.EventIMConnectionQRCode)
-	qrPayload := qrEvt.Payload.(realtime.IMConnectionQRCodePayload)
-	if qrPayload.EndpointID != ep.ID || qrPayload.Img == "" {
-		t.Fatalf("qr payload = %#v", qrPayload)
+	if listPayload.Items[0].Workflow.State != "qrcode" || listPayload.Items[0].QRCode == "" {
+		t.Fatalf("snapshot missing login state: %#v", listPayload.Items[0])
 	}
 }
 

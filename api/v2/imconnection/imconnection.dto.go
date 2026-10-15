@@ -45,6 +45,8 @@ type EndpointListResp struct {
 }
 
 type EndPointInfo struct {
+	Workflow            WorkflowResp           `json:"workflow,omitempty"`
+	QRCode              string                 `json:"qrcode,omitempty"`
 	ID                  string                 `json:"id"`
 	Nickname            string                 `json:"nickname"`
 	State               dice.EndpointState     `json:"state"`
@@ -66,6 +68,8 @@ func NewEndPointInfo(ep *dice.EndPointInfo) *EndPointInfo {
 		return nil
 	}
 	return &EndPointInfo{
+		Workflow:            WorkflowOfEndpoint(ep),
+		QRCode:              QRCodeOfEndpoint(ep),
 		ID:                  ep.ID,
 		Nickname:            ep.Nickname,
 		State:               ep.State,

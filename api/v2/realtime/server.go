@@ -135,7 +135,7 @@ func (s *Server) stream(ctx context.Context, _ *struct{}, send sse.Sender) {
 	defer unsubscribe()
 
 	for _, evt := range bootstrapEvents {
-		if err := sendRealtimeEvent(send, evt); err != nil {
+		if err := send.Data(evt.Payload); err != nil {
 			return
 		}
 	}
@@ -149,7 +149,7 @@ func (s *Server) stream(ctx context.Context, _ *struct{}, send sse.Sender) {
 			if !ok {
 				return
 			}
-			if err := sendRealtimeEvent(send, evt); err != nil {
+			if err := send.Data(evt.Payload); err != nil {
 				return
 			}
 		case <-heartbeat.C:
@@ -197,69 +197,18 @@ func buildBootstrapEvents(dm *dice.DiceManager) []Event {
 		},
 	})
 
-	for _, ep := range d.ImSession.EndPoints {
-		if ep == nil {
-			continue
-		}
-
-		events = append(events, Event{
-			Name: EventIMConnectionWorkflow,
-			Payload: IMConnectionWorkflowPayload{
-				EndpointID: ep.ID,
-				Workflow:   imconnection.WorkflowOfEndpoint(ep),
-			},
-		})
-
-		if qr := imconnection.QRCodeOfEndpoint(ep); qr != "" {
-			events = append(events, Event{
-				Name: EventIMConnectionQRCode,
-				Payload: IMConnectionQRCodePayload{
-					EndpointID: ep.ID,
-					Img:        qr,
-				},
-			})
-		}
-	}
-
 	return events
 }
 
 func realtimeEventTypeMap() map[string]any {
 	return map[string]any{
-		EventSystemReady:          SystemReadyPayload{},
-		EventSystemHeartbeat:      SystemHeartbeatPayload{},
-		EventLogsSnapshot:         LogSnapshotPayload{},
-		EventLogsAppend:           LogAppendPayload{},
-		EventIMConnectionList:     IMConnectionListPayload{},
-		EventIMConnectionUpdated:  IMConnectionUpdatedPayload{},
-		EventIMConnectionWorkflow: IMConnectionWorkflowPayload{},
-		EventIMConnectionQRCode:   IMConnectionQRCodePayload{},
-		EventToolTestMessage:      dice.HTTPTestMessage{},
-	}
-}
-
-func sendRealtimeEvent(send sse.Sender, evt Event) error {
-	switch payload := evt.Payload.(type) {
-	case SystemReadyPayload:
-		return send.Data(payload)
-	case SystemHeartbeatPayload:
-		return send.Data(payload)
-	case LogSnapshotPayload:
-		return send.Data(payload)
-	case LogAppendPayload:
-		return send.Data(payload)
-	case IMConnectionListPayload:
-		return send.Data(payload)
-	case IMConnectionUpdatedPayload:
-		return send.Data(payload)
-	case IMConnectionWorkflowPayload:
-		return send.Data(payload)
-	case IMConnectionQRCodePayload:
-		return send.Data(payload)
-	case dice.HTTPTestMessage:
-		return send.Data(payload)
-	default:
-		return nil
+		EventSystemReady:         SystemReadyPayload{},
+		EventSystemHeartbeat:     SystemHeartbeatPayload{},
+		EventLogsSnapshot:        LogSnapshotPayload{},
+		EventLogsAppend:          LogAppendPayload{},
+		EventIMConnectionList:    IMConnectionListPayload{},
+		EventIMConnectionUpdated: IMConnectionUpdatedPayload{},
+		EventToolTestMessage:     dice.HTTPTestMessage{},
 	}
 }
 

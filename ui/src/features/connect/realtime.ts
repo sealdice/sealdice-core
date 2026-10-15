@@ -19,7 +19,5 @@ export function useRealtimeConnections() {
     lastError: realtime.lastError,
     reconnect: realtime.reconnect,
     applyInitialSnapshot: realtimeConnectionsStore.applyInitialSnapshot,
-    workflowOf: realtimeConnectionRefs.workflowOf,
-    qrCodeOf: realtimeConnectionRefs.qrCodeOf,
   };
 }

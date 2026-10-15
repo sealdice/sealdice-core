@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"encoding/json"
+	"slices"
 	"sync"
 
 	imconnm "sealdice-core/api/v2/imconnection"
@@ -12,20 +13,15 @@ type StateWatcher struct {
 	dm  *dice.DiceManager
 	bus *Bus
 
-	mu          sync.Mutex
-	listHash    string
-	itemHashes  map[string]string
-	workflows   map[string]imconnm.WorkflowResp
-	qrcodeImage map[string]string
+	mu         sync.Mutex
+	ids        []string
+	itemHashes map[string]string
 }
 
 func NewStateWatcher(dm *dice.DiceManager, bus *Bus) *StateWatcher {
 	return &StateWatcher{
-		dm:          dm,
-		bus:         bus,
-		itemHashes:  map[string]string{},
-		workflows:   map[string]imconnm.WorkflowResp{},
-		qrcodeImage: map[string]string{},
+		dm:  dm,
+		bus: bus,
 	}
 }
 
@@ -64,69 +60,24 @@ func (w *StateWatcher) Scan() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	endpoints := d.ImSession.EndPoints
-	currentListHash := marshalString(endpoints)
-	if currentListHash != w.listHash {
-		w.listHash = currentListHash
-		w.bus.Publish(Event{
-			Name: EventIMConnectionList,
-			Payload: IMConnectionListPayload{
-				Items: imconnm.NewEndPointInfoList(endpoints),
-			},
-		})
+	items := imconnm.NewEndPointInfoList(d.ImSession.EndPoints)
+	ids := make([]string, 0, len(items))
+	nextHashes := make(map[string]string, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+		nextHashes[item.ID] = marshalString(item)
 	}
-
-	currentIDs := map[string]struct{}{}
-	for _, ep := range endpoints {
-		if ep == nil {
-			continue
-		}
-		currentIDs[ep.ID] = struct{}{}
-
-		itemHash := marshalString(ep)
-		if itemHash != w.itemHashes[ep.ID] {
-			w.itemHashes[ep.ID] = itemHash
-			w.bus.Publish(Event{
-				Name: EventIMConnectionUpdated,
-				Payload: IMConnectionUpdatedPayload{
-					Item: imconnm.NewEndPointInfo(ep),
-				},
-			})
-		}
-
-		workflow := imconnm.WorkflowOfEndpoint(ep)
-		if workflow != w.workflows[ep.ID] {
-			w.workflows[ep.ID] = workflow
-			w.bus.Publish(Event{
-				Name: EventIMConnectionWorkflow,
-				Payload: IMConnectionWorkflowPayload{
-					EndpointID: ep.ID,
-					Workflow:   workflow,
-				},
-			})
-		}
-
-		qr := imconnm.QRCodeOfEndpoint(ep)
-		if qr != w.qrcodeImage[ep.ID] {
-			w.qrcodeImage[ep.ID] = qr
-			w.bus.Publish(Event{
-				Name: EventIMConnectionQRCode,
-				Payload: IMConnectionQRCodePayload{
-					EndpointID: ep.ID,
-					Img:        qr,
-				},
-			})
+	listChanged := w.itemHashes == nil || !slices.Equal(ids, w.ids)
+	if listChanged {
+		w.bus.Publish(Event{Name: EventIMConnectionList, Payload: IMConnectionListPayload{Items: items}})
+	} else {
+		for _, item := range items {
+			if nextHashes[item.ID] != w.itemHashes[item.ID] {
+				w.bus.Publish(Event{Name: EventIMConnectionUpdated, Payload: IMConnectionUpdatedPayload{Item: item}})
+			}
 		}
 	}
-
-	for id := range w.itemHashes {
-		if _, ok := currentIDs[id]; ok {
-			continue
-		}
-		delete(w.itemHashes, id)
-		delete(w.workflows, id)
-		delete(w.qrcodeImage, id)
-	}
+	w.ids, w.itemHashes = ids, nextHashes
 }
 
 func (w *StateWatcher) dice() *dice.Dice {

@@ -12,8 +12,6 @@ const knownEventNames = [
   'logs/append',
   'imconnection/list',
   'imconnection/updated',
-  'imconnection/workflow',
-  'imconnection/qrcode',
   'tooltest/message',
 ] as const;
 
