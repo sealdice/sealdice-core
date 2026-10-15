@@ -4,54 +4,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-type BaseSettingOption struct {
-	Label string `json:"label"`
-	Value string `json:"value"`
-}
-
-type BaseSettingNote struct {
-	Tone  string   `json:"tone"`
-	Lines []string `json:"lines"`
-}
-
-type BaseSettingFieldSchema struct {
-	ID               string               `json:"id"`
-	Key              string               `json:"key,omitempty"`
-	Keys             []string             `json:"keys,omitempty"`
-	Label            string               `json:"label"`
-	Kind             string               `json:"kind"`
-	Hint             string               `json:"hint,omitempty"`
-	Keywords         []string             `json:"keywords,omitempty"`
-	Placeholder      string               `json:"placeholder,omitempty"`
-	Sensitive        bool                 `json:"sensitive,omitempty"`
-	Readonly         bool                 `json:"readonly,omitempty"`
-	Options          []*BaseSettingOption `json:"options,omitempty"`
-	ConfirmMessage   string               `json:"confirmMessage,omitempty"`
-	AllowCustomValue bool                 `json:"allowCustomValue,omitempty"`
-	MaxLength        int                  `json:"maxLength,omitempty"`
-}
-
-type BaseSettingGroupSchema struct {
-	ID              string                    `json:"id"`
-	Title           string                    `json:"title"`
-	Description     string                    `json:"description,omitempty"`
-	Collapsible     bool                      `json:"collapsible,omitempty"`
-	DefaultExpanded bool                      `json:"defaultExpanded,omitempty"`
-	Notes           []*BaseSettingNote        `json:"notes,omitempty"`
-	Fields          []*BaseSettingFieldSchema `json:"fields"`
-}
-
-type BaseSettingTabSchema struct {
-	ID          string                    `json:"id"`
-	Title       string                    `json:"title"`
-	Description string                    `json:"description,omitempty"`
-	Groups      []*BaseSettingGroupSchema `json:"groups"`
-}
-
-type BaseSettingSchemaResp struct {
-	Tabs []*BaseSettingTabSchema `json:"tabs"`
-}
-
 type BaseSettingExtDefaultSettingItem struct {
 	Name            string          `json:"name"`
 	AutoActive      bool            `json:"autoActive"`
@@ -107,8 +59,56 @@ type BaseSettingValueResp struct {
 	ExtDefaultSettings       []*BaseSettingExtDefaultSettingItem `json:"extDefaultSettings"`
 }
 
+// BaseSettingPatch distinguishes omitted fields from explicit false, zero and empty lists.
+type BaseSettingPatch struct {
+	CommandPrefix            *[]string                            `json:"commandPrefix,omitempty"`
+	DiceMasters              *[]string                            `json:"diceMasters,omitempty"`
+	NoticeIds                *[]string                            `json:"noticeIds,omitempty"`
+	UIPassword               *string                              `json:"uiPassword,omitempty"`
+	MailEnable               *bool                                `json:"mailEnable,omitempty"`
+	MailFrom                 *string                              `json:"mailFrom,omitempty"`
+	MailPassword             *string                              `json:"mailPassword,omitempty"`
+	MailSmtp                 *string                              `json:"mailSmtp,omitempty"`
+	TrustOnlyMode            *bool                                `json:"trustOnlyMode,omitempty"`
+	BotExtFreeSwitch         *bool                                `json:"botExtFreeSwitch,omitempty"`
+	QQEnablePoke             *bool                                `json:"QQEnablePoke,omitempty"`
+	OfficialQQFileSendBase64 *bool                                `json:"officialQQFileSendBase64,omitempty"`
+	OfficialQQUseMarkdown    *bool                                `json:"officialQQUseMarkdown,omitempty"`
+	TextCmdTrustOnly         *bool                                `json:"textCmdTrustOnly,omitempty"`
+	IgnoreUnaddressedBotCmd  *bool                                `json:"ignoreUnaddressedBotCmd,omitempty"`
+	AliveNoticeEnable        *bool                                `json:"aliveNoticeEnable,omitempty"`
+	AliveNoticeValue         *string                              `json:"aliveNoticeValue,omitempty"`
+	LogSizeNoticeEnable      *bool                                `json:"logSizeNoticeEnable,omitempty"`
+	LogSizeNoticeCount       *int                                 `json:"logSizeNoticeCount,omitempty"`
+	PlayerNameWrapEnable     *bool                                `json:"playerNameWrapEnable,omitempty"`
+	DiceRandomMode           *string                              `json:"diceRandomMode,omitempty"`
+	OnlyLogCommandInGroup    *bool                                `json:"onlyLogCommandInGroup,omitempty"`
+	OnlyLogCommandInPrivate  *bool                                `json:"onlyLogCommandInPrivate,omitempty"`
+	RateLimitEnabled         *bool                                `json:"rateLimitEnabled,omitempty"`
+	PersonalReplenishRate    *string                              `json:"personalReplenishRate,omitempty"`
+	PersonalBurst            *int64                               `json:"personalBurst,omitempty"`
+	GroupReplenishRate       *string                              `json:"groupReplenishRate,omitempty"`
+	GroupBurst               *int64                               `json:"groupBurst,omitempty"`
+	ServeAddress             *string                              `json:"serveAddress,omitempty"`
+	TrayTooltip              *string                              `json:"trayTooltip,omitempty"`
+	RefuseGroupInvite        *bool                                `json:"refuseGroupInvite,omitempty"`
+	FriendAddComment         *string                              `json:"friendAddComment,omitempty"`
+	WorkInQQChannel          *bool                                `json:"workInQQChannel,omitempty"`
+	QQChannelAutoOn          *bool                                `json:"QQChannelAutoOn,omitempty"`
+	QQChannelLogMessage      *bool                                `json:"QQChannelLogMessage,omitempty"`
+	DefaultCocRuleIndex      *string                              `json:"defaultCocRuleIndex,omitempty"`
+	MaxCocCardGen            *string                              `json:"maxCocCardGen,omitempty"`
+	MaxExecuteTime           *string                              `json:"maxExecuteTime,omitempty"`
+	MessageDelayRangeStart   *float64                             `json:"messageDelayRangeStart,omitempty"`
+	MessageDelayRangeEnd     *float64                             `json:"messageDelayRangeEnd,omitempty"`
+	QuitInactiveThreshold    *float64                             `json:"quitInactiveThreshold,omitempty"`
+	QuitInactiveBatchSize    *int64                               `json:"quitInactiveBatchSize,omitempty"`
+	QuitInactiveBatchWait    *int64                               `json:"quitInactiveBatchWait,omitempty"`
+	ExtDefaultSettings       *[]*BaseSettingExtDefaultSettingItem `json:"extDefaultSettings,omitempty"`
+}
+
 type BaseSettingUpdateReq struct {
-	Body map[string]interface{} `json:"body"`
+	Body BaseSettingPatch `json:"body"`
 }
 
 type BaseSettingActionResp struct {

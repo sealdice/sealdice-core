@@ -22,12 +22,8 @@ import {
   searchExtDefaultSettingsView,
   sortExtDefaultSettingsView,
 } from './viewModel.js';
-import type {
-  BaseSettingExtDefaultSettingItem,
-  BaseSettingFieldSchema,
-  BaseSettingSchemaResp,
-  BaseSettingValueResp,
-} from '@/api';
+import type { BaseSettingExtDefaultSettingItem, BaseSettingValueResp } from '@/api';
+import type { BaseSettingFieldSchema, BaseSettingSchema } from './viewModel';
 import { expect, it } from 'vitest';
 
 it('规范化设置描述并按字段与分类搜索', () => {
@@ -53,7 +49,7 @@ it('规范化设置描述并按字段与分类搜索', () => {
         ],
       },
     ],
-  } satisfies BaseSettingSchemaResp);
+  } satisfies BaseSettingSchema);
 
   const index = buildBaseSettingSearchIndex(schema);
   expect(index.length).toBe(1);
@@ -299,6 +295,7 @@ it('基础设置只提交实际变更的字段', () => {
   } satisfies BaseSettingValueResp);
 
   const current = structuredClone(initial);
+  current.masterUnlockCode = 'refreshed-readonly-code';
   current.QQEnablePoke = true;
   current.commandPrefix = ['.', '!'];
 

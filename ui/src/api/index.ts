@@ -4,7 +4,6 @@ export { getApiBaseUrl, joinApiBasePath } from './config';
 // Generated API (hey-api / openapi-ts output)
 export * from './generated';
 export {
-  getSdApiV2BaseSettingSchema,
   getSdApiV2BaseSettingValue,
   putSdApiV2BaseSettingValue,
   postSdApiV2BaseSettingMailTest,

@@ -1,11 +1,19 @@
 package basesetting_test
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+
 	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humaecho"
+	"github.com/labstack/echo/v4"
 
 	"gorm.io/gorm"
 
@@ -48,6 +56,7 @@ func (o *testDatabaseOperator) Close() {
 
 func newTestBaseSettingService(t *testing.T) (*Service, *dice.Dice) {
 	t.Helper()
+	t.Chdir(t.TempDir())
 
 	dataDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dataDir, "configs"), 0o755); err != nil {
@@ -110,10 +119,10 @@ func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
 	svc, _ := newTestBaseSettingService(t)
 
 	if _, err := svc.SetValue(t.Context(), &BaseSettingUpdateReq{
-		Body: map[string]any{
-			"officialQQFileSendBase64": true,
-			"officialQQUseMarkdown":    true,
-			"trayTooltip":              "海豹提示",
+		Body: BaseSettingPatch{
+			OfficialQQFileSendBase64: ptr(true),
+			OfficialQQUseMarkdown:    ptr(true),
+			TrayTooltip:              ptr("海豹提示"),
 		},
 	}); err != nil {
 		t.Fatalf("SetValue returned error: %v", err)
@@ -141,5 +150,87 @@ func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
 	}
 	if value, ok := got["trayTooltip"].(string); !ok || value != "海豹提示" {
 		t.Fatalf("trayTooltip = %#v, want 海豹提示", got["trayTooltip"])
+	}
+}
+
+func ptr[T any](value T) *T { return &value }
+
+func putSettings(t *testing.T, svc *Service, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	app := echo.New()
+	api := humaecho.New(app, huma.DefaultConfig("settings test", "1"))
+	svc.RegisterProtectedRoutes(huma.NewGroup(api, "/settings"))
+	req := httptest.NewRequest(http.MethodPut, "/settings/value", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestInvalidPatchLeavesSettingsUnchanged(t *testing.T) {
+	for _, body := range []string{
+		`{"commandPrefix":["!"],"trayTooltip":"` + strings.Repeat("x", dice.MaxTrayTooltipPrefixLength+1) + `"}`,
+		`{"trustOnlyMode":"yes"}`,
+		`{"body":{"trustOnlyMode":true}}`,
+		`{"personalBurst":1.5}`,
+		`{"trustOnlyMode":true,"messageDelayRangeStart":4,"messageDelayRangeEnd":2}`,
+		`{"trustOnlyMode":true,"aliveNoticeValue":"bad cron"}`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			svc, d := newTestBaseSettingService(t)
+			d.CommandPrefix = []string{"."}
+			d.Config.TrustOnlyMode = false
+			d.Config.MessageDelayRangeStart, d.Config.MessageDelayRangeEnd = 1, 3
+			rec := putSettings(t, svc, body)
+			if rec.Code < 400 || rec.Code >= 500 {
+				t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+			}
+			if len(d.CommandPrefix) != 1 || d.CommandPrefix[0] != "." || d.Config.TrustOnlyMode ||
+				d.Config.MessageDelayRangeStart != 1 || d.Config.MessageDelayRangeEnd != 3 {
+				t.Fatal("rejected patch changed running settings")
+			}
+		})
+	}
+}
+
+func TestPatchValidatesNewDelayPair(t *testing.T) {
+	t.Chdir(t.TempDir())
+	svc, d := newTestBaseSettingService(t)
+	d.Config.MessageDelayRangeStart, d.Config.MessageDelayRangeEnd = 5, 6
+	rec := putSettings(t, svc, `{"messageDelayRangeStart":1,"messageDelayRangeEnd":2}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if d.Config.MessageDelayRangeStart != 1 || d.Config.MessageDelayRangeEnd != 2 {
+		t.Fatal("new interval was not applied")
+	}
+}
+
+func TestPatchDistinguishesMissingFalseAndEmptyAndPreservesPasswords(t *testing.T) {
+	t.Chdir(t.TempDir())
+	svc, d := newTestBaseSettingService(t)
+	d.Config.TrustOnlyMode, d.Config.BotExtFreeSwitch = true, true
+	d.Config.MailPassword = "existing-mail-secret"
+	d.Parent.UIPasswordHash = "existing-ui-hash"
+	d.Parent.AccessTokens.Store("existing-token", true)
+	d.CommandPrefix = []string{"."}
+	rec := putSettings(t, svc, `{"trustOnlyMode":false,"commandPrefix":[],"mailPassword":"******","uiPassword":"------"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if d.Config.TrustOnlyMode || !d.Config.BotExtFreeSwitch || len(d.CommandPrefix) != 0 {
+		t.Fatal("false, empty and omitted fields were not distinguished")
+	}
+	if d.Config.MailPassword != "existing-mail-secret" || d.Parent.UIPasswordHash != "existing-ui-hash" || !d.Parent.AccessTokens.Exists("existing-token") {
+		t.Fatal("masked passwords changed credentials or sessions")
+	}
+}
+
+func TestPatchRejectsNullExtensionBeforeApplyingAnyFields(t *testing.T) {
+	svc, d := newTestBaseSettingService(t)
+	d.Config.TrustOnlyMode = false
+	rec := putSettings(t, svc, `{"trustOnlyMode":true,"extDefaultSettings":[null]}`)
+	if rec.Code < 400 || rec.Code >= 500 || d.Config.TrustOnlyMode {
+		t.Fatalf("invalid extension update: status=%d trustOnly=%v", rec.Code, d.Config.TrustOnlyMode)
 	}
 }

@@ -1,14 +1,45 @@
 import { toRaw } from 'vue';
 import { cloneDeep } from 'es-toolkit';
-import { isArray, isEqual, isObject, transform } from 'es-toolkit/compat';
+import { isEqual } from 'es-toolkit/compat';
 import type {
   BaseSettingExtDefaultSettingItem,
-  BaseSettingFieldSchema,
-  BaseSettingGroupSchema,
-  BaseSettingSchemaResp,
-  BaseSettingTabSchema,
   BaseSettingValueResp,
+  BaseSettingPatch,
 } from '@/api';
+
+// Fixed page layout belongs to the UI; API types describe values and patches.
+export type BaseSettingFieldSchema = {
+  id: string;
+  key?: keyof BaseSettingValueResp;
+  keys?: Array<keyof BaseSettingValueResp>;
+  label: string;
+  kind: string;
+  hint?: string;
+  keywords?: string[];
+  placeholder?: string;
+  sensitive?: boolean;
+  readonly?: boolean;
+  options?: Array<{ label: string; value: string }>;
+  confirmMessage?: string;
+  allowCustomValue?: boolean;
+  maxLength?: number;
+};
+export type BaseSettingGroupSchema = {
+  id: string;
+  title: string;
+  description?: string;
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
+  notes?: Array<{ tone: string; lines: string[] }>;
+  fields: BaseSettingFieldSchema[];
+};
+export type BaseSettingTabSchema = {
+  id: string;
+  title: string;
+  description?: string;
+  groups: BaseSettingGroupSchema[];
+};
+export type BaseSettingSchema = { tabs: BaseSettingTabSchema[] };
 
 export type BaseSettingValueModel = Omit<
   BaseSettingValueResp,
@@ -94,7 +125,7 @@ export function cloneBaseSettingValue(value: BaseSettingValueModel): BaseSetting
   return cloneDeep(toRaw(value));
 }
 
-export function normalizeBaseSettingSchema(schema: BaseSettingSchemaResp): BaseSettingSchemaModel {
+export function normalizeBaseSettingSchema(schema: BaseSettingSchema): BaseSettingSchemaModel {
   return {
     tabs: (schema.tabs ?? []).map<BaseSettingTabModel>(tab => ({
       ...tab,
@@ -473,29 +504,15 @@ export function isBaseSettingDirty(current: BaseSettingValueModel, initial: Base
   return JSON.stringify(current) !== JSON.stringify(initial);
 }
 
+// The API patches top-level settings; array/object values are replaced as a unit.
 export function buildBaseSettingPatch(
   current: BaseSettingValueModel,
   initial: BaseSettingValueModel
-) {
-  const changes = (object: Record<string, unknown>, base: Record<string, unknown>) =>
-    transform(
-      object,
-      (result: Record<string, unknown>, value, key) => {
-        if (isArray(value)) {
-          if (!isEqual(value, base[key])) {
-            result[key] = value;
-          }
-          return;
-        }
-        if (!isEqual(value, base[key])) {
-          result[key] =
-            isObject(value) && isObject(base[key])
-              ? changes(value as Record<string, unknown>, base[key] as Record<string, unknown>)
-              : value;
-        }
-      },
-      {}
-    );
-
-  return changes(current as Record<string, unknown>, initial as Record<string, unknown>);
+): BaseSettingPatch {
+  return Object.fromEntries(
+    Object.entries(current).filter(
+      ([key, value]) =>
+        key !== 'masterUnlockCode' && !isEqual(value, initial[key as keyof BaseSettingValueModel])
+    )
+  ) as BaseSettingPatch;
 }

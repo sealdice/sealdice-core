@@ -93,10 +93,7 @@ import {
   prepareBaseSettingSavePayload,
   useBaseSettingMutations,
 } from '@/features/baseSetting/mutations';
-import {
-  useBaseSettingSchemaQuery,
-  useBaseSettingValueQuery,
-} from '@/features/baseSetting/queries';
+import { useBaseSettingValueQuery } from '@/features/baseSetting/queries';
 import {
   buildBaseSettingPatch,
   buildBaseSettingSearchIndex,
@@ -106,6 +103,7 @@ import {
   validateBaseSettingPatchFormats,
   type BaseSettingSearchEntry,
 } from '@/features/baseSetting/viewModel';
+import { baseSettingSchema } from '@/features/baseSetting/schema';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
@@ -118,22 +116,15 @@ const expandedGroups = reactive<Record<string, boolean>>({});
 const highlightedFieldId = ref('');
 const busyActionId = ref<string | null>(null);
 
-const schemaQuery = useBaseSettingSchemaQuery();
+const schema = baseSettingSchema;
 const valueQuery = useBaseSettingValueQuery();
 const draft = useBaseSettingDraft();
 
-watch(
-  () => schemaQuery.data.value,
-  schema => {
-    if (!schema) return;
-    for (const tab of schema.tabs) {
-      for (const group of tab.groups) {
-        expandedGroups[group.id] = group.collapsible ? Boolean(group.defaultExpanded) : true;
-      }
-    }
-  },
-  { immediate: true }
-);
+for (const tab of schema.tabs) {
+  for (const group of tab.groups) {
+    expandedGroups[group.id] = group.collapsible ? Boolean(group.defaultExpanded) : true;
+  }
+}
 
 watch(
   () => valueQuery.data.value,
@@ -144,22 +135,20 @@ watch(
   { immediate: true }
 );
 
-const tabs = computed(() => schemaQuery.data.value?.tabs ?? []);
+const tabs = computed(() => schema.tabs);
 const tabOptions = computed(() =>
   tabs.value.map(tab => ({
     label: tab.title,
     value: tab.id,
   }))
 );
-const searchIndex = computed(() =>
-  schemaQuery.data.value ? buildBaseSettingSearchIndex(schemaQuery.data.value) : []
-);
+const searchIndex = computed(() => buildBaseSettingSearchIndex(schema));
 const searchResults = computed(() =>
   searchBaseSettingFields(searchIndex.value, searchKeyword.value)
 );
 const currentValue = computed(() => draft.currentValue.value);
 const initialValue = computed(() => draft.initialValue.value);
-const pageBusy = computed(() => schemaQuery.isFetching.value || valueQuery.isFetching.value);
+const pageBusy = computed(() => valueQuery.isFetching.value);
 const isContainerMode = computed(() => overview.value?.runtime.containerMode === true);
 
 const { saveMutation, mailTestMutation, upgradeMutation } = useBaseSettingMutations({

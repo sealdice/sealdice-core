@@ -30,7 +30,6 @@ func TestBuildOpenAPIIncludesCurrentV2Routes(t *testing.T) {
 		"/sd-api/v2/base/login",
 		"/sd-api/v2/base/network-health",
 		"/sd-api/v2/realtime/sse",
-		"/sd-api/v2/base-setting/schema",
 		"/sd-api/v2/base-setting/value",
 		"/sd-api/v2/base-setting/mail-test",
 		"/sd-api/v2/base-setting/upgrade",
