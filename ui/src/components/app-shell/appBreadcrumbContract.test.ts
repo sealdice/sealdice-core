@@ -46,7 +46,7 @@ it('renders the old UI fallback in the sidebar footer', async () => {
     [/<i-tabler-history\s*\/>/, 'the Tabler history icon'],
     [/>旧版 UI</, 'the old UI label'],
     [/:href="oldUIUrl"/, 'the resolved old UI URL'],
-    [/resolveOldUIUrlFromLocation/, 'the shared old UI URL resolver'],
+    [/resolveSwitchToOldUIUrl/, 'the shared switch-to-old-UI URL resolver'],
   ];
 
   for (const [pattern, label] of expectedPatterns) {

@@ -31,6 +31,7 @@
           @toggle-sidebar="toggleSidebar"
           @open-search="openSearch"
         />
+        <AppUiBetaNotice />
         <div
           class="sd-floating-panel-layer"
           :class="{ 'sd-floating-panel-layer--active': hasPendingActions }"
@@ -89,6 +90,7 @@ import {
 } from './appShellLayout';
 import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
+import AppUiBetaNotice from './AppUiBetaNotice.vue';
 import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
 import {
   hasPendingActions,

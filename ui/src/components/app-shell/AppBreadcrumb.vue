@@ -37,6 +37,7 @@
 
     <template #extra>
       <div class="sd-page-actions">
+        <AppUploadIndicator />
         <AppThemeSwitch />
         <AppInstallButton v-if="!isCompactMode" />
 
@@ -79,6 +80,7 @@ import { buildBreadcrumbItems } from '@/router/navigationModel';
 import AppInstallButton from './AppInstallButton.vue';
 import AppHeaderOverflowMenu from './AppHeaderOverflowMenu.vue';
 import AppThemeSwitch from './AppThemeSwitch.vue';
+import AppUploadIndicator from './AppUploadIndicator.vue';
 import type { AppShellViewportMode } from './appShellLayout';
 
 const props = defineProps<{

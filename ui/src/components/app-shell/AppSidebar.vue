@@ -44,7 +44,7 @@
 import { computed, h, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import type { MenuOption } from 'naive-ui';
-import { resolveOldUIUrlFromLocation } from '@/api/config';
+import { resolveSwitchToOldUIUrl } from '@/api/config';
 import AppNavigationIcon from './AppNavigationIcon.vue';
 import AppSidebarBrand from './AppSidebarBrand.vue';
 import { getNavigationExpandedKeys, resolveMenuNavigationTarget } from '@/router/navigationModel';
@@ -69,7 +69,7 @@ const emit = defineEmits<{
 const route = useRoute();
 const router = useRouter();
 const oldUIUrl =
-  typeof window !== 'undefined' ? resolveOldUIUrlFromLocation(window.location) : '/old-ui/';
+  typeof window !== 'undefined' ? resolveSwitchToOldUIUrl(window.location) : '/?ui=old';
 const { navigationTree } = useAppNavigation(() => props.advancedConfigCounter);
 const expandedKeys = ref<string[]>([]);
 
