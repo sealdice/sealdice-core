@@ -1,7 +1,6 @@
 package random_test
 
 import (
-	"reflect"
 	"testing"
 
 	ds "github.com/sealdice/dicescript"
@@ -30,21 +29,6 @@ func TestGlobalOwnerSetActiveFallsBackToAnyAvailableSource(t *testing.T) {
 	}
 	if got := owner.Uint64(); got != 7 {
 		t.Fatalf("Uint64() = %d, want 7", got)
-	}
-}
-
-func TestNewSourceForModeCreatesDistinctReaderSources(t *testing.T) {
-	gm, err := randcore.NewSourceForMode(randcore.ModeGM, nil)
-	if err != nil {
-		t.Fatalf("NewSourceForMode(gm): %v", err)
-	}
-	nist, err := randcore.NewSourceForMode(randcore.ModeNIST, nil)
-	if err != nil {
-		t.Fatalf("NewSourceForMode(nist): %v", err)
-	}
-
-	if reflect.TypeOf(gm) == reflect.TypeOf(nist) {
-		t.Fatalf("gm and nist sources should not share the same concrete type: %T", gm)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -213,9 +214,11 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 
 	d, ep, _, cleanup := newExecuteNewTestDice(t)
 	d.ExtList = nil
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 	pa := &PlatformAdapterOnebot{
 		EndPoint: ep,
-		ctx:      t.Context(),
+		ctx:      ctx,
 		logger:   d.Logger,
 	}
 	pool, err := ants.NewPool(8)
@@ -243,16 +246,24 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	ep.Adapter = pa
 	ep.Session = d.ImSession
 
+	var cleanupOnce sync.Once
 	cleanupAll := func() {
-		if pa.groupCache != nil {
-			pa.groupCache.Close()
-		}
-		if pa.friendRequestDedupeCache != nil {
-			pa.friendRequestDedupeCache.Close()
-		}
-		pool.Release()
-		cleanup()
+		cleanupOnce.Do(func() {
+			cancel()
+			if err := pool.ReleaseTimeout(10 * time.Second); err != nil {
+				t.Fatalf("wait for OneBot test workers: %v", err)
+			}
+			waitForTestMessageTasks(t, d)
+			if pa.groupCache != nil {
+				pa.groupCache.Close()
+			}
+			if pa.friendRequestDedupeCache != nil {
+				pa.friendRequestDedupeCache.Close()
+			}
+			cleanup()
+		})
 	}
+	t.Cleanup(cleanupAll)
 
 	return d, pa, em, cleanupAll
 }
@@ -1148,4 +1159,26 @@ func waitPureOnebotInfoLogCount(t *testing.T, observed *observer.ObservedLogs, s
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %d log entries containing %q", count, snippet)
+}
+
+// 协议端比骰子晚起来时，首次连接被拒、状态机进入 failed，retryConnect 随后直接重连成功。
+// 这里用真实的状态转换表，确认重连成功会回到 connected，之后断线也还能再触发重连。
+func TestPureOnebotReconnectAfterInitialFailureMarksConnected(t *testing.T) {
+	pa := &PlatformAdapterOnebot{EndPoint: &EndPointInfo{}}
+	pa.ensureFSM()
+	pa.sm.SetState("failed")
+	pa.EndPoint.State = StateConnectionFailed
+
+	if err := pa.sm.Event(context.Background(), "connect_ok"); err != nil {
+		t.Fatalf("expected connect_ok to be accepted from failed, got %v", err)
+	}
+	if got := pa.sm.Current(); got != "connected" {
+		t.Fatalf("expected FSM to transition to connected, got %q", got)
+	}
+	if pa.EndPoint.State != StateConnected {
+		t.Fatalf("expected EndPoint.State to be StateConnected, got %v", pa.EndPoint.State)
+	}
+	if !pa.sm.Can("connection_lost") {
+		t.Fatal("expected connection_lost to be possible after reconnecting")
+	}
 }

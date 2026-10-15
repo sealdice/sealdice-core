@@ -9,8 +9,16 @@ import (
 
 // --- Smoke tests ---
 
+func testThrottleID(t *testing.T, suffix string) string {
+	t.Helper()
+	id := t.Name() + suffix
+	lastExec.Delete(id)
+	t.Cleanup(func() { lastExec.Delete(id) })
+	return id
+}
+
 func TestDo_ExecutesOnFirstCall(t *testing.T) {
-	id := "test_first_call_" + t.Name()
+	id := testThrottleID(t, "")
 	var called int32
 	Do(id, time.Second, func() { atomic.AddInt32(&called, 1) })
 	if atomic.LoadInt32(&called) != 1 {
@@ -19,7 +27,7 @@ func TestDo_ExecutesOnFirstCall(t *testing.T) {
 }
 
 func TestDo_ThrottledWithinInterval(t *testing.T) {
-	id := "test_throttled_" + t.Name()
+	id := testThrottleID(t, "")
 	var called int32
 
 	Do(id, time.Hour, func() { atomic.AddInt32(&called, 1) })
@@ -32,7 +40,7 @@ func TestDo_ThrottledWithinInterval(t *testing.T) {
 }
 
 func TestDo_AllowsCallAfterInterval(t *testing.T) {
-	id := "test_after_interval_" + t.Name()
+	id := testThrottleID(t, "")
 	var called int32
 
 	Do(id, time.Millisecond, func() { atomic.AddInt32(&called, 1) })
@@ -45,8 +53,8 @@ func TestDo_AllowsCallAfterInterval(t *testing.T) {
 }
 
 func TestDo_DifferentIDsAreIndependent(t *testing.T) {
-	idA := "test_id_a_" + t.Name()
-	idB := "test_id_b_" + t.Name()
+	idA := testThrottleID(t, "/a")
+	idB := testThrottleID(t, "/b")
 	var calledA, calledB int32
 
 	Do(idA, time.Hour, func() { atomic.AddInt32(&calledA, 1) })
@@ -61,7 +69,7 @@ func TestDo_DifferentIDsAreIndependent(t *testing.T) {
 }
 
 func TestDo_ZeroIntervalAlwaysExecutes(t *testing.T) {
-	id := "test_zero_interval_" + t.Name()
+	id := testThrottleID(t, "")
 	var called int32
 	for range 5 {
 		Do(id, 0, func() { atomic.AddInt32(&called, 1) })

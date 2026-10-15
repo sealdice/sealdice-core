@@ -189,6 +189,8 @@ type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
 	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
 
+	messageTasks sync.WaitGroup
+
 	CmdMap      CmdMapCls                  `json:"-" yaml:"-"`
 	ExtList     []*ExtInfo                 `yaml:"-"`
 	ExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`

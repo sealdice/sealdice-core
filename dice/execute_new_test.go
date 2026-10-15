@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/panjf2000/ants/v2"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -150,8 +149,8 @@ func (m *mockDatabaseOperator) Close() {
 // loaded, the ban list is initialised, and the AttrsManager goroutine is
 // started.
 //
-// The returned cleanup function must be deferred by every caller to stop the
-// AttrsManager background goroutine and close the database.
+// Cleanup is registered with t.Cleanup. The returned function also allows
+// callers to drain message tasks and release resources before the test returns.
 func newExecuteNewTestDice(t *testing.T) (*Dice, *EndPointInfo, *mockPlatformAdapter, func()) {
 	t.Helper()
 
@@ -209,6 +208,21 @@ func newExecuteNewTestDice(t *testing.T) (*Dice, *EndPointInfo, *mockPlatformAda
 	d.AttrsManager = &AttrsManager{}
 	d.AttrsManager.Init(d)
 
+	var cleanupOnce sync.Once
+	cleanup := func() {
+		cleanupOnce.Do(func() {
+			// Replies can arrive before their command goroutine has returned.
+			// Drain commands and notices before saving attrs or closing the DB.
+			waitForTestMessageTasks(t, d)
+			d.AttrsManager.Stop()
+			if d.Parent != nil && d.Parent.Help != nil {
+				d.Parent.Help.Close()
+			}
+			mockDB.Close()
+		})
+	}
+	t.Cleanup(cleanup)
+
 	// ConfigManager
 	d.ConfigManager = NewConfigManager(filepath.Join(tmpDir, "configs", "plugin-configs.json"))
 	_ = d.ConfigManager.Load()
@@ -242,24 +256,23 @@ func newExecuteNewTestDice(t *testing.T) (*Dice, *EndPointInfo, *mockPlatformAda
 	ep.Session = d.ImSession
 	d.ImSession.EndPoints = []*EndPointInfo{ep}
 
-	cleanup := func() {
-		// Stop package-owned workers first.
-		d.AttrsManager.Stop()
-
-		// Close the help search engine and its background workers.
-		if d.Parent != nil && d.Parent.Help != nil {
-			d.Parent.Help.Close()
-		}
-
-		// Release ants default pool (stops purge/ticktock goroutines).
-		ants.Release()
-
-		mockDB.Close()
-
-		// Give async workers a short window to observe cancellation and exit.
-		time.Sleep(2 * time.Second)
-	}
 	return d, ep, adapter, cleanup
+}
+
+func waitForTestMessageTasks(t *testing.T, d *Dice) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		d.messageTasks.Wait()
+		close(done)
+	}()
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+		t.Fatal("timed out waiting for message tasks before test cleanup")
+	}
 }
 
 // ---------------------------------------------------------------------------
