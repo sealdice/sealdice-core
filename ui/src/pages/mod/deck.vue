@@ -10,7 +10,7 @@
     </PageHeader>
 
     <n-spin :show="pageBusy">
-      <ListWorkspace>
+      <section class="sd-list-workspace">
         <QueryToolbar
           :form="deckSearchForm"
           :columns="deckSearchColumns"
@@ -197,7 +197,7 @@
             @update:page-size="listQuery.page = 1"
           />
         </div>
-      </ListWorkspace>
+      </section>
 
       <n-modal v-model:show="showDiff" preset="card" title="牌堆内容对比" class="diff-dialog">
         <TipBox v-if="diffErrorText" type="error">
@@ -251,7 +251,6 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import PackageStoreLink from '@/components/package/PackageStoreLink.vue';
 import {

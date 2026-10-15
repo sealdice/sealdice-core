@@ -429,12 +429,17 @@ select {
 }
 
 .sd-page-flow,
-.sd-section-flow {
+.sd-section-flow,
+.sd-list-workspace {
   display: flex;
   width: 100%;
   min-width: 0;
   flex-direction: column;
   gap: var(--sd-page-section-gap);
+}
+
+.sd-list-workspace {
+  gap: var(--sd-space-md);
 }
 
 .sd-page-flow > .n-tabs .n-tab-pane {

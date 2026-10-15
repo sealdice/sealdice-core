@@ -33,7 +33,7 @@
       @update:value="handleTabUpdate"
     >
       <n-tab-pane name="installed" tab="已安装">
-        <ListWorkspace>
+        <section class="sd-list-workspace">
           <QueryToolbar
             :form="installedSearchForm"
             :columns="installedSearchColumns"
@@ -66,11 +66,11 @@
               @uninstall="uninstallPackage"
             />
           </ListPanel>
-        </ListWorkspace>
+        </section>
       </n-tab-pane>
 
       <n-tab-pane name="store" tab="商店">
-        <ListWorkspace>
+        <section class="sd-list-workspace">
           <QueryToolbar
             :form="storeSearchForm"
             :columns="storeSearchColumns"
@@ -117,7 +117,7 @@
             @update:page="fetchStorePage"
             @update:page-size="handleStorePageSizeChange"
           />
-        </ListWorkspace>
+        </section>
       </n-tab-pane>
 
       <n-tab-pane name="manage" tab="后端与安装">
@@ -429,7 +429,6 @@ import PackageInstalledDataView from '@/components/package/PackageInstalledDataV
 import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import {
   getCursorPaginationItemCount,
   shouldShowListPagination,

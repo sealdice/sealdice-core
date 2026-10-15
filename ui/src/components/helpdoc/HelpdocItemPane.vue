@@ -1,6 +1,6 @@
 <template>
   <n-spin :show="loading">
-    <ListWorkspace class="item-list-container">
+    <section class="sd-list-workspace item-list-container">
       <QueryToolbar :form="searchForm" :columns="searchColumns" cols="1 s:2 l:4" />
 
       <ListPanel>
@@ -60,7 +60,7 @@
           />
         </n-flex>
       </footer>
-    </ListWorkspace>
+    </section>
   </n-spin>
 </template>
 
@@ -70,7 +70,6 @@ import { NFlex, NText, type DataTableColumns } from 'naive-ui';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';

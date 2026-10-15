@@ -1,5 +1,5 @@
 <template>
-  <ListWorkspace>
+  <section class="sd-list-workspace">
     <QueryToolbar :form="searchForm" :columns="searchColumns" cols="1 s:2" />
 
     <template v-if="selectedPlugin">
@@ -112,7 +112,7 @@
         </n-flex>
       </template>
     </n-modal>
-  </ListWorkspace>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -133,7 +133,6 @@ import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import { useJsData } from '@/features/js/useJsData';
 import TipBox from '@/components/shared/TipBox.vue';

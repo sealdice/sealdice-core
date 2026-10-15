@@ -30,16 +30,21 @@
       :aria-labelledby="headingId"
     >
       <slot name="notes" />
-      <SettingFieldLayout :columns="columns" :padded="padded">
+      <div
+        :class="[
+          'setting-field-layout',
+          `setting-field-layout-columns-${columns}`,
+          { 'setting-field-layout-padded': padded },
+        ]"
+      >
         <slot />
-      </SettingFieldLayout>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { useId } from 'vue';
-import SettingFieldLayout from './SettingFieldLayout.vue';
 
 const panelId = `setting-category-panel-${useId()}`;
 const headingId = `setting-category-heading-${useId()}`;
@@ -56,6 +61,8 @@ withDefaults(
   }>(),
   {
     showPanel: true,
+    columns: 1,
+    padded: false,
   }
 );
 
@@ -104,29 +111,6 @@ const emit = defineEmits<{
   background: var(--sd-bg-elevated);
 }
 
-/*
- * 说明块的间距挂在说明自身上，容器不带内边距。
- * 调用方常常无条件提供 #notes 插槽而内部按数据渲染零条（如基本设置），
- * 若把内边距放在容器上，没有说明的设置组也会凭空多出顶部空隙，
- * 造成上有间距、下紧贴的不对称。
- *
- * 纵向间距与面板底部同源，随 padded 变化：
- * - 未 padded：字段由 SettingRow 自带 --sd-space-xs 纵向内边距，底部即 xs；
- * - 已 padded：由 SettingFieldLayout 提供 --sd-space-md 四边内边距，底部即 md。
- * 说明与字段之间的间隔由字段容器自身的顶部内边距提供，故只设 margin-top。
- */
-.setting-category-notes {
-  display: contents;
-}
-
-.setting-category-notes > :deep(*) {
-  margin: var(--sd-space-xs) var(--sd-space-md) 0;
-}
-
-.setting-category-panel-padded .setting-category-notes > :deep(*) {
-  margin: var(--sd-space-md) var(--sd-space-md) 0;
-}
-
 @media (max-width: 639.9px) {
   .setting-category-box {
     padding-bottom: var(--sd-space-xs);
@@ -134,6 +118,54 @@ const emit = defineEmits<{
 
   .setting-category-thing {
     margin: 0 var(--sd-space-xs) var(--sd-space-2xs);
+  }
+}
+
+.setting-field-layout {
+  display: grid;
+  min-width: 0;
+}
+
+.setting-field-layout-padded {
+  gap: var(--sd-space-sm);
+  padding: var(--sd-space-md);
+}
+
+.setting-field-layout :deep(.n-form-item) {
+  min-width: 0;
+}
+
+/*
+ * Intermediate rows keep Naive UI's reserved feedback height, so validation
+ * does not move later rows. Only an empty feedback wrapper in the visual final
+ * row collapses. Real feedback stays in flow and expands the panel downward.
+ */
+.setting-field-layout
+  :deep(.n-form > .n-form-item:last-child > .n-form-item-feedback-wrapper:empty),
+.setting-field-layout > :deep(.n-form-item:last-child > .n-form-item-feedback-wrapper:empty) {
+  min-height: 0;
+}
+
+@media (min-width: 760.1px) {
+  .setting-field-layout-columns-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--sd-space-lg);
+  }
+
+  .setting-field-layout-columns-2 > :deep(.n-form-item:last-child:nth-child(odd)),
+  .setting-field-layout-columns-2 > :deep(.setting-field-span-full) {
+    grid-column: 1 / -1;
+  }
+
+  .setting-field-layout-columns-2
+    > :deep(.n-form-item:nth-last-child(2):nth-child(odd) > .n-form-item-feedback-wrapper:empty) {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 639.9px) {
+  .setting-field-layout-padded {
+    padding: var(--sd-space-sm);
   }
 }
 </style>

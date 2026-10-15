@@ -4,7 +4,7 @@
     <n-tabs v-model:value="tab" class="story-tabs sd-scrollable-tabs">
       <n-tab-pane tab="跑团日志" name="list">
         <template v-if="mode === 'logs'">
-          <ListWorkspace class="story-tab-body">
+          <section class="sd-list-workspace story-tab-body">
             <!-- 统计是数据读出，不是说明，用文本行承载即可，不套卡片。 -->
             <n-flex class="story-summary" size="small" wrap>
               <n-text depth="3">
@@ -153,7 +153,7 @@
                 @update:page-size="handlePageSizeChange"
               />
             </div>
-          </ListWorkspace>
+          </section>
         </template>
 
         <template v-else-if="mode === 'painter' && currentPainterLog">
@@ -323,7 +323,6 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import {
   getSdApiV2StoryCleanupPreview,

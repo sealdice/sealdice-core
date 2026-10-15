@@ -12,8 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { useTemplateRef } from 'vue';
-import { useResponsiveContainerMode } from '@/features/responsive/useResponsiveContainerMode';
+import { computed, useTemplateRef } from 'vue';
+import { useElementSize } from '@vueuse/core';
+import { resolveCompactContainerMode } from '@/features/responsive/layout';
 
 const props = withDefaults(
   defineProps<{
@@ -32,7 +33,8 @@ defineSlots<{
 }>();
 
 const root = useTemplateRef<HTMLElement>('root');
-const { mode } = useResponsiveContainerMode(root, { compactAt: () => props.compactAt });
+const { width } = useElementSize(root);
+const mode = computed(() => resolveCompactContainerMode(width.value, props.compactAt));
 </script>
 
 <style scoped>

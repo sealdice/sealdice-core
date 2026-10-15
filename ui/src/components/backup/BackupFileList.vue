@@ -1,5 +1,5 @@
 <template>
-  <ListWorkspace class="backup-file-list">
+  <section class="sd-list-workspace backup-file-list">
     <ListPanel>
       <template #toolbar>
         <ResultToolbar>
@@ -85,7 +85,7 @@
         </template>
       </ResponsiveDataView>
     </ListPanel>
-  </ListWorkspace>
+  </section>
 </template>
 
 <script setup lang="tsx">
@@ -95,7 +95,6 @@ import { NButton, NTag, type DataTableColumns } from 'naive-ui';
 import type { FileItem } from '@/api';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { describeBackupSelection } from '@/features/backup/viewModel';

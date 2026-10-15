@@ -20,7 +20,7 @@
     </n-card>
 
     <n-spin :show="listLoading">
-      <ListWorkspace>
+      <section class="sd-list-workspace">
         <QueryToolbar :form="groupSearchForm" :columns="groupSearchColumns" cols="1 s:2 l:3" />
 
         <ListPanel>
@@ -163,7 +163,7 @@
             @update:page-size="handlePageSizeChange"
           />
         </div>
-      </ListWorkspace>
+      </section>
     </n-spin>
 
     <n-modal
@@ -253,7 +253,6 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 
 import { readGroupQuitDefaultText, writeGroupQuitDefaultText } from '@/features/group/model';

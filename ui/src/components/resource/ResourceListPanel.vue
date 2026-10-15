@@ -1,5 +1,5 @@
 <template>
-  <ListWorkspace class="resource-list-panel">
+  <section class="sd-list-workspace resource-list-panel">
     <QueryToolbar
       :form="searchForm"
       :columns="searchColumns"
@@ -128,7 +128,7 @@
         @update:page-size="updatePageSize"
       />
     </footer>
-  </ListWorkspace>
+  </section>
 </template>
 
 <script setup lang="tsx">
@@ -152,7 +152,6 @@ import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import {

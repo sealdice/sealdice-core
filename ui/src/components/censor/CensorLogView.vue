@@ -1,5 +1,5 @@
 <template>
-  <ListWorkspace class="censor-log-container">
+  <section class="sd-list-workspace censor-log-container">
     <ListPanel>
       <template #toolbar>
         <ResultToolbar>
@@ -69,7 +69,7 @@
         @update:page-size="query.pageNum = 1"
       />
     </footer>
-  </ListWorkspace>
+  </section>
 </template>
 
 <script setup lang="tsx">
@@ -77,7 +77,6 @@ import type { DataTableColumns } from 'naive-ui';
 import type { CensorLog } from '@/api';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListPanel from '@/components/shared/ListPanel.vue';
-import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';

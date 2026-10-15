@@ -27,32 +27,35 @@
       </n-empty>
 
       <n-collapse v-else class="text-collapse" :default-expanded-names="['__others__']">
-        <CustomTextBox
+        <n-collapse-item
           v-for="[group, values] in editor.sortedCategory.value"
           :key="group"
-          :group="group"
+          :title="group === '__others__' ? '无分组' : group"
+          :name="group"
         >
-          <template #values>
-            <div class="entry-columns">
-              <div v-for="[keyName] in values" :key="keyName" class="entry-column-item">
-                <CustomTextEntryCard
-                  v-model="editor.texts.value[editor.category.value][keyName]"
-                  :category="editor.category.value"
-                  :key-name="keyName"
-                  :help="editor.helpInfo.value[editor.category.value]?.[keyName]"
-                  :get-preview="editor.getPreview"
-                  :get-preview-check-err="editor.getPreviewCheckErr"
-                  :text-item-key-of="editor.textItemKeyOf"
-                  @add-item="editor.addItem"
-                  @remove-item="editor.removeItem"
-                  @change="editor.doChanged"
-                  @delete-key="editor.askDeleteValue"
-                  @reset-key="editor.askResetValue"
-                />
+          <n-grid :cols="1" :x-gap="20">
+            <n-grid-item>
+              <div class="entry-columns">
+                <div v-for="[keyName] in values" :key="keyName" class="entry-column-item">
+                  <CustomTextEntryCard
+                    v-model="editor.texts.value[editor.category.value][keyName]"
+                    :category="editor.category.value"
+                    :key-name="keyName"
+                    :help="editor.helpInfo.value[editor.category.value]?.[keyName]"
+                    :get-preview="editor.getPreview"
+                    :get-preview-check-err="editor.getPreviewCheckErr"
+                    :text-item-key-of="editor.textItemKeyOf"
+                    @add-item="editor.addItem"
+                    @remove-item="editor.removeItem"
+                    @change="editor.doChanged"
+                    @delete-key="editor.askDeleteValue"
+                    @reset-key="editor.askResetValue"
+                  />
+                </div>
               </div>
-            </div>
-          </template>
-        </CustomTextBox>
+            </n-grid-item>
+          </n-grid>
+        </n-collapse-item>
       </n-collapse>
 
       <CustomTextImportModal
@@ -70,7 +73,6 @@
 </template>
 
 <script setup lang="ts">
-import CustomTextBox from './CustomTextBox.vue';
 import CustomTextEntryCard from './CustomTextEntryCard.vue';
 import CustomTextFilterBar from './CustomTextFilterBar.vue';
 import CustomTextHelp from './CustomTextHelp.vue';
