@@ -98,6 +98,8 @@ import {
   setUnsavedChangesConfirmHandler,
 } from '@/features/unsavedChanges';
 import { isControlledReloadArmed } from '@/features/pwa/swUpdate';
+import { hasActiveUploads } from '@/features/upload/state';
+import { shouldBlockUnload } from '@/features/upload/closeGuard';
 
 interface AppSearchMenuHandle {
   open: () => void;
@@ -183,9 +185,13 @@ useEventListener(window, 'keydown', event => {
 });
 
 useEventListener(window, 'beforeunload', event => {
-  // 升级提示的受控刷新已征得用户同意，不再弹浏览器原生离开确认。
-  if (isControlledReloadArmed()) return;
-  if (!hasUnsavedChanges.value) return;
+  // 升级提示的受控刷新、关闭确认都走同一判定：有未保存改动或有进行中上传时提示。
+  const block = shouldBlockUnload({
+    controlledReloadArmed: isControlledReloadArmed(),
+    hasUnsavedChanges: hasUnsavedChanges.value,
+    hasActiveUploads: hasActiveUploads.value,
+  });
+  if (!block) return;
   event.preventDefault();
   event.returnValue = '';
 });
