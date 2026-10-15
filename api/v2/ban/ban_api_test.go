@@ -1,5 +1,4 @@
-//nolint:testpackage // Tests intentionally exercise package-internal wiring.
-package ban
+package ban_test
 
 import (
 	"bytes"
@@ -12,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/robfig/cron/v3"
 
+	"sealdice-core/api/v2/ban"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 	"sealdice-core/model"
@@ -20,7 +20,7 @@ import (
 	sqliteengine "sealdice-core/utils/dboperator/engine/sqlite"
 )
 
-func newTestBanService(t *testing.T) *BanService {
+func newTestBanService(t *testing.T) *ban.BanService {
 	t.Helper()
 
 	tempDir := t.TempDir()
@@ -74,7 +74,7 @@ func newTestBanService(t *testing.T) *BanService {
 	d.ImSession.EndPoints = []*dice.EndPointInfo{ep}
 	d.UIEndpoint = ep
 
-	return NewBanService(dm)
+	return ban.NewBanService(dm)
 }
 
 func TestGetAndSetConfigRoundTrip(t *testing.T) {
@@ -88,8 +88,8 @@ func TestGetAndSetConfigRoundTrip(t *testing.T) {
 		t.Fatalf("default BanBehaviorRefuseReply = false, want true")
 	}
 
-	_, err = svc.SetConfig(t.Context(), &ConfigReq{
-		Body: BanConfig{
+	_, err = svc.SetConfig(t.Context(), &ban.ConfigReq{
+		Body: ban.BanConfig{
 			BanBehaviorRefuseReply:                 false,
 			BanBehaviorRefuseInvite:                false,
 			BanBehaviorQuitLastPlace:               true,
@@ -129,7 +129,7 @@ func TestGetAndSetConfigRoundTrip(t *testing.T) {
 func TestSetConfigAcceptsBanNotifyIntervalMinutesFromJSON(t *testing.T) {
 	svc := newTestBanService(t)
 
-	var req ConfigReq
+	var req ban.ConfigReq
 	if err := json.Unmarshal([]byte(`{
 		"body": {
 			"banBehaviorRefuseReply": true,
@@ -179,8 +179,8 @@ func TestSetConfigAcceptsBanNotifyIntervalMinutesFromJSON(t *testing.T) {
 func TestAddEntryStoresBannedAndTrustedItems(t *testing.T) {
 	svc := newTestBanService(t)
 
-	_, err := svc.AddEntry(t.Context(), &AddReq{
-		Body: AddReqBody{
+	_, err := svc.AddEntry(t.Context(), &ban.AddReq{
+		Body: ban.AddReqBody{
 			ID:     "UI:1001",
 			Rank:   int(dice.BanRankBanned),
 			Name:   "测试用户",
@@ -191,8 +191,8 @@ func TestAddEntryStoresBannedAndTrustedItems(t *testing.T) {
 		t.Fatalf("AddEntry(banned) returned error: %v", err)
 	}
 
-	_, err = svc.AddEntry(t.Context(), &AddReq{
-		Body: AddReqBody{
+	_, err = svc.AddEntry(t.Context(), &ban.AddReq{
+		Body: ban.AddReqBody{
 			ID:     "UI-Group:2001",
 			Rank:   int(dice.BanRankTrusted),
 			Name:   "信任群",
@@ -203,8 +203,8 @@ func TestAddEntryStoresBannedAndTrustedItems(t *testing.T) {
 		t.Fatalf("AddEntry(trusted) returned error: %v", err)
 	}
 
-	listResp, err := svc.GetBanPage(t.Context(), &BanPageReq{
-		Body: BanPageRequest{
+	listResp, err := svc.GetBanPage(t.Context(), &ban.BanPageReq{
+		Body: ban.BanPageRequest{
 			PageInfo: request.PageInfo{Page: 1, PageSize: 20},
 		},
 	})
@@ -270,18 +270,18 @@ func TestImportAddsSuffixAndPersistsItems(t *testing.T) {
 		t.Fatalf("ParseMultipartForm: %v", parseErr)
 	}
 
-	raw := huma.MultipartFormFiles[ImportForm]{}
+	raw := huma.MultipartFormFiles[ban.ImportForm]{}
 	raw.Form = req.MultipartForm
 
-	_, err = svc.Import(t.Context(), &ImportReq{
+	_, err = svc.Import(t.Context(), &ban.ImportReq{
 		RawBody: raw,
 	})
 	if err != nil {
 		t.Fatalf("Import returned error: %v", err)
 	}
 
-	listResp, err := svc.GetBanPage(t.Context(), &BanPageReq{
-		Body: BanPageRequest{
+	listResp, err := svc.GetBanPage(t.Context(), &ban.BanPageReq{
+		Body: ban.BanPageRequest{
 			PageInfo: request.PageInfo{Page: 1, PageSize: 20},
 		},
 	})
