@@ -69,6 +69,7 @@ func New(dm *dice.DiceManager, rootDir string) (*Gateway, error) {
 			ModuleDeck:     &deckDestination{dm: dm},
 			ModuleHelpdoc:  &helpdocDestination{dm: dm},
 			ModuleResource: &resourceDestination{},
+			ModuleCensor:   &censorDestination{},
 		},
 	}
 
