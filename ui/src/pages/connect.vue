@@ -162,12 +162,13 @@ import {
   selectConnectProtocol,
   validateConnectWizardForm,
 } from '@/features/connect/createWizard';
+import { useQuery } from '@tanstack/vue-query';
 import {
-  useConnectEndpointConfigQuery,
-  useConnectConnectionsQuery,
-  useConnectProtocolsQuery,
-  useConnectSchemasQuery,
-} from '@/features/connect/queries';
+  getSdApiV2ImconnectionByIdConfigOptions,
+  getSdApiV2ImconnectionOptions,
+  getSdApiV2ImconnectionProtocolsOptions,
+  getSdApiV2ImconnectionSchemasOptions,
+} from '@/api';
 import { useConnectMutations } from '@/features/connect/mutations';
 import { useConnectSignInfo } from '@/features/connect/signInfo';
 import { useRealtimeConnectionsStore } from '@/features/connect/realtimeStore';
@@ -238,9 +239,18 @@ const officialQQMode = computed<OfficialQQMode>({
   },
 });
 
-const connectionsQuery = useConnectConnectionsQuery();
-const protocolsQuery = useConnectProtocolsQuery();
-const schemasQuery = useConnectSchemasQuery();
+const connectionsQuery = useQuery({
+  ...getSdApiV2ImconnectionOptions(),
+  enabled: hasAccessToken,
+});
+const protocolsQuery = useQuery({
+  ...getSdApiV2ImconnectionProtocolsOptions(),
+  enabled: hasAccessToken,
+});
+const schemasQuery = useQuery({
+  ...getSdApiV2ImconnectionSchemasOptions(),
+  enabled: hasAccessToken,
+});
 const protocols = computed<PlatformTreeNode[]>(() => protocolsQuery.data.value?.item.items ?? []);
 const schemas = computed<Record<string, FormConfigItem[]>>(() => {
   const raw = schemasQuery.data.value?.item ?? {};
@@ -312,9 +322,13 @@ watch(
   { immediate: true }
 );
 
-const editConfigQuery = useConnectEndpointConfigQuery(
-  computed(() => editingEndpoint.value?.id ?? ''),
-  editDialogVisible
+const editConfigQuery = useQuery(
+  computed(() => ({
+    ...getSdApiV2ImconnectionByIdConfigOptions({
+      path: { id: editingEndpoint.value?.id ?? '' },
+    }),
+    enabled: hasAccessToken.value && editDialogVisible.value && !!editingEndpoint.value?.id,
+  }))
 );
 
 const editConfigErrorText = computed(() =>
@@ -334,7 +348,7 @@ const applyEditConfig = (data: EditableConfigResp | undefined) => {
 
 watch([editConfigQuery.data, editDialogVisible], ([data, visible]) => {
   if (!visible) return;
-  applyEditConfig(data);
+  applyEditConfig(data?.item);
 });
 
 watch(editConfigQuery.error, error => {

@@ -3,6 +3,7 @@ import type { MessageApi } from 'naive-ui';
 import type { BaseSettingPatch } from '@/api';
 import {
   getSdApiV2BaseLoginSalt,
+  getSdApiV2BaseSettingValueQueryKey,
   postSdApiV2BaseSettingMailTest,
   postSdApiV2BaseSettingUpgrade,
   putSdApiV2BaseSettingValue,
@@ -25,14 +26,14 @@ export async function saveBaseSettingValue(payload: BaseSettingPatch) {
 export function useBaseSettingMutations(options: {
   queryClient: QueryClient;
   message: MessageApi;
-  onSaved: () => void;
 }) {
   const saveMutation = useMutation({
     mutationFn: saveBaseSettingValue,
     onSuccess: async () => {
       options.message.success('保存设置成功');
-      options.onSaved();
-      await options.queryClient.invalidateQueries({ queryKey: ['base-setting-value'] });
+      await options.queryClient.invalidateQueries({
+        queryKey: getSdApiV2BaseSettingValueQueryKey(),
+      });
     },
     onError: error => {
       notifyError(error, options.message, '保存设置失败');

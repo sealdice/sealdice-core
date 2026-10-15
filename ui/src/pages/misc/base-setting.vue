@@ -80,7 +80,10 @@
 
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
+import { getSdApiV2BaseSettingValueOptions } from '@/api';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 import BaseSettingFieldRenderer from '@/components/base-setting/BaseSettingFieldRenderer.vue';
 import BaseSettingSearchBar from '@/components/base-setting/BaseSettingSearchBar.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
@@ -93,7 +96,6 @@ import {
   prepareBaseSettingSavePayload,
   useBaseSettingMutations,
 } from '@/features/baseSetting/mutations';
-import { useBaseSettingValueQuery } from '@/features/baseSetting/queries';
 import {
   buildBaseSettingPatch,
   buildBaseSettingSearchIndex,
@@ -107,6 +109,7 @@ import { baseSettingSchema } from '@/features/baseSetting/schema';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
+const { hasAccessToken } = storeToRefs(useAuthStore());
 const queryClient = useQueryClient();
 const { overview } = useBaseOverview();
 
@@ -117,7 +120,11 @@ const highlightedFieldId = ref('');
 const busyActionId = ref<string | null>(null);
 
 const schema = baseSettingSchema;
-const valueQuery = useBaseSettingValueQuery();
+const valueQuery = useQuery({
+  ...getSdApiV2BaseSettingValueOptions(),
+  enabled: hasAccessToken,
+  select: data => data.item,
+});
 const draft = useBaseSettingDraft();
 
 for (const tab of schema.tabs) {
@@ -154,7 +161,6 @@ const isContainerMode = computed(() => overview.value?.runtime.containerMode ===
 const { saveMutation, mailTestMutation, upgradeMutation } = useBaseSettingMutations({
   queryClient,
   message,
-  onSaved: () => {},
 });
 
 useUnsavedChanges('base-setting', {

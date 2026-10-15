@@ -1,8 +1,10 @@
 import { computed, watch, type Ref } from 'vue';
-import type { ProtocolDefinition } from '@/api';
+import { getSdApiV2ImconnectionSignInfoOptions, type ProtocolDefinition } from '@/api';
+import { useQuery } from '@tanstack/vue-query';
+import { storeToRefs } from 'pinia';
+import { useAuthStore } from '@/features/auth/store';
 import type { SelectOption } from 'naive-ui';
 import type { DynamicFormModel } from '@/components/shared/dynamicFormModel';
-import { useConnectSignInfoQuery } from './queries';
 import { buildSignInfoState } from './signInfoState';
 
 export function useConnectSignInfo(
@@ -10,7 +12,11 @@ export function useConnectSignInfo(
   formModel: Ref<DynamicFormModel>
 ) {
   const enabled = computed(() => protocol.value?.key === 'lagrange');
-  const query = useConnectSignInfoQuery(enabled);
+  const { hasAccessToken } = storeToRefs(useAuthStore());
+  const query = useQuery({
+    ...getSdApiV2ImconnectionSignInfoOptions(),
+    enabled: computed(() => hasAccessToken.value && enabled.value),
+  });
 
   watch(query.data, data => {
     if (!enabled.value) return;
