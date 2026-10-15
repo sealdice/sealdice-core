@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -142,6 +141,7 @@ func (c *dynamicFileCore) Write(entry zapcore.Entry, fields []zapcore.Field) err
 			logWriter := newLumberjackWriter(logFile, important)
 			writer = zapcore.AddSync(logWriter)
 			c.writerMap[fileLoggerName] = writer
+			c.closerMap[fileLoggerName] = logWriter
 		}
 		c.mu.Unlock()
 	}
@@ -179,41 +179,32 @@ func (c *dynamicFileCore) Sync() error {
 func (c *dynamicFileCore) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var errs []error
-	for name, writer := range c.writerMap {
-		if closer, ok := writer.(io.Closer); ok {
-			if err := closer.Close(); err != nil {
-				errs = append(errs, err)
-			}
+	var err error
+	for name, closer := range c.closerMap {
+		if closeErr := closer.Close(); closeErr != nil {
+			err = closeErr
 		}
+		delete(c.closerMap, name)
 		delete(c.writerMap, name)
 	}
-	return errors.Join(errs...)
+	return err
 }
 
-type lumberjackWriteSyncer struct {
-	*lumberjack.Logger
-}
-
-func (*lumberjackWriteSyncer) Sync() error {
-	return nil
-}
-
-func newLumberjackWriter(filepath string, important bool) zapcore.WriteSyncer {
+func newLumberjackWriter(filepath string, important bool) io.WriteCloser {
 	if important {
-		return &lumberjackWriteSyncer{Logger: &lumberjack.Logger{
+		return &lumberjack.Logger{
 			Filename:   filepath,
 			MaxSize:    10, // 每个日志文件最大 10 MB
 			MaxBackups: 3,  // 最多保留 3 个旧日志文件
 			MaxAge:     7,  // 日志文件保存 7 天
-		}}
+		}
 	}
-	return &lumberjackWriteSyncer{Logger: &lumberjack.Logger{
+	return &lumberjack.Logger{
 		Filename:   filepath,
 		MaxSize:    5, // 每个日志文件最大 5 MB
 		MaxBackups: 3, // 最多保留 3 个旧日志文件
 		MaxAge:     3, // 日志文件保存 3 天
-	}}
+	}
 }
 
 func newEncoder(console bool) zapcore.Encoder {

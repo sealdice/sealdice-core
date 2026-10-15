@@ -426,7 +426,7 @@ func censorUploadWordFiles(c echo.Context) error {
 
 	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
 	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
-	dst, err := os.Create(filepath.Join("./data/censor", file.Filename))
+	dst, err := os.Create(filepath.Join("./data/censor", file.Filename)) // #nosec G703 -- path separators are replaced before joining.
 	if err != nil {
 		return err
 	}

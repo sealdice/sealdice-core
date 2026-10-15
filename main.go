@@ -485,6 +485,7 @@ func main() {
 
 		<-interrupt
 		cleanUp()
+		dboperator.Close()
 		log.Info("程序即将退出，再见")
 		os.Exit(0)
 	})()

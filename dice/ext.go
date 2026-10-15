@@ -38,12 +38,6 @@ const (
 // ActiveWithGraph 描述扩展伴随关系：A -> [B,C] 表示激活 A 时需要附带 B、C。
 type ActiveWithGraph map[string][]string
 
-func (d *Dice) rebuildActiveWithGraph() {
-	d.ActiveWithGraphMu.Lock()
-	defer d.ActiveWithGraphMu.Unlock()
-	d.rebuildActiveWithGraphLocked()
-}
-
 func (d *Dice) rebuildActiveWithGraphLocked() {
 	d.ActiveWithGraph = BuildActiveWithGraph(d.ExtList)
 }
