@@ -65,11 +65,12 @@ func New(dm *dice.DiceManager, rootDir string) (*Gateway, error) {
 		base:  BasePath,
 		store: store,
 		dests: map[string]Destination{
-			ModuleJS:       &scriptDestination{dm: dm},
-			ModuleDeck:     &deckDestination{dm: dm},
-			ModuleHelpdoc:  &helpdocDestination{dm: dm},
-			ModuleResource: &resourceDestination{},
-			ModuleCensor:   &censorDestination{},
+			ModuleJS:          &scriptDestination{dm: dm},
+			ModuleDeck:        &deckDestination{dm: dm},
+			ModuleHelpdoc:     &helpdocDestination{dm: dm},
+			ModuleResource:    &resourceDestination{},
+			ModuleCensor:      &censorDestination{},
+			ModuleCustomReply: &customReplyDestination{dm: dm},
 		},
 	}
 
