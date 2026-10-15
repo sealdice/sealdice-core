@@ -29,6 +29,7 @@ function fakeEngine(): FakeEngine {
     },
     retry(id) {
       engine.retried.push(id);
+      return engine.added.some(item => item.meta.taskId === id);
     },
     emitProgress(id, sent, total) {
       handlers?.onProgress(id, sent, total);

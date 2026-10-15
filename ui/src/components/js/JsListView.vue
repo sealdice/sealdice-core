@@ -279,10 +279,15 @@ import ListPanel from '@/components/shared/ListPanel.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
-import { enqueueUploads, uploadTasks } from '@/features/upload/state';
+import { storeToRefs } from 'pinia';
+import { useUploadStore } from '@/features/upload/store';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
 import { useAppTheme } from '@/features/theme';
+
+const uploadStore = useUploadStore();
+const { enqueue: enqueueUploads } = uploadStore;
+const { tasks: uploadTasks } = storeToRefs(uploadStore);
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 

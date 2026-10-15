@@ -1,5 +1,5 @@
-allowBuilds:
-  '@tailwindcss/oxide': true
-  core-js: true
-  esbuild: true
-  vue-demi: true
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - core-js
+  - esbuild
+  - vue-demi

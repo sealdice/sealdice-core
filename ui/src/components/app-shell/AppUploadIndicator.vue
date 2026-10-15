@@ -41,7 +41,7 @@
         <div class="sd-upload-panel__row">
           <span v-if="task.errorText" class="sd-upload-panel__error">{{ task.errorText }}</span>
           <n-button
-            v-if="task.status === 'error'"
+            v-if="task.status === 'error' && task.retryable"
             size="tiny"
             secondary
             @click="retryUpload(task.id)"
@@ -49,7 +49,7 @@
             重试
           </n-button>
           <n-button
-            v-if="isActiveStatus(task.status)"
+            v-if="task.status !== 'success'"
             size="tiny"
             secondary
             @click="cancelUpload(task.id)"
@@ -64,14 +64,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { cancelAllUploads, cancelUpload, retryUpload, uploadTasks } from '@/features/upload/state';
-import type { UploadTaskStatus } from '@/features/upload/queue';
+import { storeToRefs } from 'pinia';
+import { useUploadStore } from '@/features/upload/store';
+import { isActiveUpload as isActiveStatus, type UploadTaskStatus } from '@/features/upload/queue';
 
-const ACTIVE_STATUSES: UploadTaskStatus[] = ['queued', 'hashing', 'uploading'];
-
-function isActiveStatus(status: UploadTaskStatus): boolean {
-  return ACTIVE_STATUSES.includes(status);
-}
+const uploadStore = useUploadStore();
+const { tasks: uploadTasks } = storeToRefs(uploadStore);
+const { cancelAll: cancelAllUploads, cancel: cancelUpload, retry: retryUpload } = uploadStore;
 
 const activeCount = computed(
   () => uploadTasks.value.filter(task => isActiveStatus(task.status)).length

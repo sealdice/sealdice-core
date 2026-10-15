@@ -422,7 +422,12 @@ import {
 } from '@/api';
 import { useAuthStore } from '@/features/auth/store';
 import { getErrorMessage } from '@/features/auth/error';
-import { enqueueUploads } from '@/features/upload/state';
+import { useUploadStore } from '@/features/upload/store';
+import {
+  installPackage,
+  type InstallOptions,
+  type InstallResult,
+} from '@/features/package/install';
 import { isTestModeApiError, getTestModeBlockMessage } from '@/features/testMode/state';
 import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
@@ -454,11 +459,7 @@ type ConfigFieldSchema = {
   enum?: unknown[] | null;
 };
 
-type InstallOptions = {
-  autoEnable: boolean;
-  autoReload: boolean;
-};
-
+const uploads = useUploadStore();
 const message = useMessage();
 const dialog = useDialog();
 const authStore = useAuthStore();
@@ -1098,16 +1099,6 @@ async function previewUpload() {
   }
 }
 
-type InstallPostActionResult = {
-  enabled: boolean;
-  reloaded: boolean;
-  reloadNeeded?: boolean;
-  refreshFailed?: boolean;
-  failedStage?: 'enable' | 'reload';
-  error?: unknown;
-  message?: string;
-};
-
 async function refreshInstallState(includeStore = false): Promise<boolean> {
   const results = await Promise.allSettled([
     packagesQuery.refetch({ throwOnError: true }),
@@ -1117,55 +1108,22 @@ async function refreshInstallState(includeStore = false): Promise<boolean> {
   return !failed;
 }
 
-async function applyInstallOptions(
-  id: string,
-  options: InstallOptions
-): Promise<InstallPostActionResult> {
-  const result: InstallPostActionResult = { enabled: false, reloaded: false };
-  if (!options.autoEnable) return result;
-
-  try {
-    const { data } = await postSdApiV2ExtensionEnable({
-      body: { id },
-      throwOnError: true,
-    });
-    if (!data.item.success) {
-      return { ...result, failedStage: 'enable', message: data.item.message };
-    }
-    result.enabled = true;
-    result.reloadNeeded = data.item.reloadNeeded;
-  } catch (error) {
-    return { ...result, failedStage: 'enable', error };
-  }
-
-  if (!(await refreshInstallState())) result.refreshFailed = true;
-  result.reloadNeeded =
-    result.reloadNeeded ||
-    Boolean(packages.value.find(pkg => pkg.manifest.package.id === id)?.pendingReload?.length);
-  if (!options.autoReload) return result;
-
-  try {
-    const { data } = await postSdApiV2ExtensionReload({
-      body: { id },
-      throwOnError: true,
-    });
-    if (!data.item.success) {
-      return { ...result, failedStage: 'reload', message: data.item.message };
-    }
-    result.reloaded = true;
-  } catch (error) {
-    return { ...result, failedStage: 'reload', error };
-  }
-
-  if (!(await refreshInstallState())) result.refreshFailed = true;
-  return result;
-}
-
-function reportInstallResult(
-  action: string,
+async function runInstall(
+  install: () => Promise<unknown>,
+  id: string | undefined,
   options: InstallOptions,
-  result: InstallPostActionResult
+  includeStore = false
 ) {
+  return installPackage({
+    install,
+    id,
+    options,
+    refresh: () => refreshInstallState(includeStore),
+    pendingReload: () =>
+      Boolean(packages.value.find(pkg => pkg.manifest.package.id === id)?.pendingReload?.length),
+  });
+}
+function reportInstallResult(action: string, options: InstallOptions, result: InstallResult) {
   if (result.failedStage) {
     const fallback = result.failedStage === 'enable' ? '安装后自动启用失败' : '安装后自动重载失败';
     if (result.error) {
@@ -1202,17 +1160,8 @@ async function installUpload(options: InstallOptions): Promise<boolean> {
   const id = previewData.value?.manifest.package.id;
   uploadInstallLoading.value = true;
   try {
-    await new Promise<void>((resolve, reject) => {
-      void enqueueUploads([selectedUploadFile.value as File], 'extension-install', {
-        onComplete: () => resolve(),
-        onError: (_task, error) => reject(error),
-      });
-    });
-    const refreshFailed = !(await refreshInstallState());
-    const result = id
-      ? await applyInstallOptions(id, options)
-      : { enabled: false, reloaded: false, failedStage: 'enable' as const, message: '未找到包 ID' };
-    result.refreshFailed ||= refreshFailed;
+    const file = selectedUploadFile.value;
+    const result = await runInstall(() => uploads.upload(file, 'extension-install'), id, options);
     reportInstallResult('安装', options, result);
     return true;
   } catch (error) {
@@ -1228,16 +1177,16 @@ async function installByUrl(url: string, options: InstallOptions): Promise<boole
   const id = previewData.value?.manifest.package.id;
   installUrlLoading.value = true;
   try {
-    await postSdApiV2ExtensionInstallUrl({
-      body: { url },
-      throwOnError: true,
-    });
+    const result = await runInstall(
+      () =>
+        postSdApiV2ExtensionInstallUrl({
+          body: { url },
+          throwOnError: true,
+        }),
+      id,
+      options
+    );
     installUrlInput.value = '';
-    const refreshFailed = !(await refreshInstallState());
-    const result = id
-      ? await applyInstallOptions(id, options)
-      : { enabled: false, reloaded: false, failedStage: 'enable' as const, message: '未找到包 ID' };
-    result.refreshFailed ||= refreshFailed;
     reportInstallResult('安装', options, result);
     return true;
   } catch (error) {
@@ -1312,14 +1261,16 @@ function confirmStoreUninstall(pkg: StorePackage) {
 
 async function installStorePackage(pkg: StorePackage, options: InstallOptions): Promise<boolean> {
   try {
-    await postSdApiV2ExtensionStoreDownload({
-      body: { id: pkg.id, version: pkg.version },
-      throwOnError: true,
-    });
-    const refreshFailed = !(await refreshInstallState(true));
-    const result = await applyInstallOptions(pkg.id, options);
-    result.refreshFailed ||= refreshFailed;
-    if (!(await refreshInstallState(true))) result.refreshFailed = true;
+    const result = await runInstall(
+      () =>
+        postSdApiV2ExtensionStoreDownload({
+          body: { id: pkg.id, version: pkg.version },
+          throwOnError: true,
+        }),
+      pkg.id,
+      options,
+      true
+    );
     reportInstallResult(pkg.installed ? '重装' : '安装', options, result);
     return true;
   } catch (error) {
@@ -1379,6 +1330,10 @@ function matchesContentFilter(manifest: Manifest, filter: string) {
 }
 
 function handleError(error: unknown, fallback: string) {
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    message.info(error.message);
+    return;
+  }
   if (isTestModeApiError(error)) {
     message.warning(getTestModeBlockMessage(error));
     return;

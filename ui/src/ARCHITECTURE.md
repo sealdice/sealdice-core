@@ -77,6 +77,10 @@
   - 新页面一般只需要先补导航模型，标题、布局、面包屑等会一起派生。
 - 未保存提示统一在 `src/features/unsavedChanges/`。
   - 页面只注册 source，不自己实现全局拦截。
+- 上传统一通过 `useUploadStore()` 消费；响应式状态用 `storeToRefs()`，不再增加逐个转发的 `state.ts` 门面。
+  - `enqueue()` 只等待文件完成入队准备，`upload()` 等待单文件安装完成；失败与取消都会结束后者的 Promise。
+  - store 持有并释放 Uppy；queue 管理业务任务，engine 负责第三方身份和事件映射。
+- 扩展包安装用例在 `features/package/install.ts`，统一安装、启用、重载和刷新。展示组件选择上传／URL／商店来源并展示结果，不另写三套后置状态机。
 - App 壳布局宽度逻辑统一在 `src/components/app-shell/appShellLayout.ts`。
   - `default`/`wide` 的差异是内容区宽度，不是另一套页面体系。
 

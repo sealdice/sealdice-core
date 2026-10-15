@@ -1,4 +1,4 @@
-import { getUppy } from './uppy';
+import { createUppy } from './uppy';
 
 // 队列与具体上传引擎之间的窄接口：真实实现是 Uppy，测试用假引擎注入。
 export type UploadErrorDetails = {
@@ -17,12 +17,12 @@ export interface UploadEngine {
   add(file: File, meta: Record<string, string>): void;
   start(): void;
   cancel(taskId: string): void;
-  retry(taskId: string): void;
+  // False means the task never reached the engine and must be prepared again.
+  retry(taskId: string): boolean;
 }
 
-// createUppyEngine 把单例 Uppy 适配成 UploadEngine；用 meta.taskId 把事件映射回任务。
-export function createUppyEngine(): UploadEngine {
-  const uppy = getUppy();
+// The adapter is the only place that translates Uppy identities/events to business tasks.
+export function createUppyEngine(uppy = createUppy()): UploadEngine {
   let handlers: UploadEngineHandlers | null = null;
 
   const taskIdOf = (file: { meta?: Record<string, unknown> } | undefined): string =>
@@ -35,6 +35,14 @@ export function createUppyEngine(): UploadEngine {
   uppy.on('upload-success', file => {
     const id = taskIdOf(file);
     if (id) handlers?.onSuccess(id);
+    // Do not retain completed blobs, and allow this destination to be uploaded again.
+    if (file)
+      queueMicrotask(() => {
+        const current = uppy.getFile(file.id);
+        if (current?.meta.taskId === file.meta.taskId && current.progress.uploadComplete) {
+          uppy.removeFile(file.id);
+        }
+      });
   });
   uppy.on('upload-error', (file, error, response) => {
     const id = taskIdOf(file);
@@ -68,7 +76,11 @@ export function createUppyEngine(): UploadEngine {
     },
     retry(taskId) {
       const target = uppy.getFiles().find(file => file.meta?.taskId === taskId);
-      if (target) uppy.retryUpload(target.id);
+      if (!target) return false;
+      void uppy.retryUpload(target.id).catch(error => {
+        handlers?.onError(taskId, error instanceof Error ? error : new Error(String(error)));
+      });
+      return true;
     },
   };
 }

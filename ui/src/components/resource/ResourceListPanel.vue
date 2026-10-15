@@ -145,7 +145,8 @@ import {
   useMessage,
 } from 'naive-ui';
 import type { ResourceItem } from '@/api';
-import { enqueueUploads, uploadTasks } from '@/features/upload/state';
+import { storeToRefs } from 'pinia';
+import { useUploadStore } from '@/features/upload/store';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
@@ -163,6 +164,10 @@ import {
   type ResourceListQueryModel,
 } from '@/features/resource/viewModel';
 import { cloneSearchFormValues, overwriteSearchFormValues } from '@/features/searchForm/viewModel';
+
+const uploadStore = useUploadStore();
+const { enqueue: enqueueUploads } = uploadStore;
+const { tasks: uploadTasks } = storeToRefs(uploadStore);
 
 const props = defineProps<{
   items: ResourceItem[];

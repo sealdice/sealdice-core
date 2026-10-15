@@ -85,8 +85,13 @@ import {
   getHelpdocTextTooltip,
   summarizeHelpdocDelete,
 } from '@/features/helpdoc/viewModel';
-import { enqueueUploads, uploadTasks } from '@/features/upload/state';
+import { storeToRefs } from 'pinia';
+import { useUploadStore } from '@/features/upload/store';
 import { usePendingReload, useUnsavedChanges } from '@/features/unsavedChanges';
+
+const uploadStore = useUploadStore();
+const { enqueue: enqueueUploads } = uploadStore;
+const { tasks: uploadTasks } = storeToRefs(uploadStore);
 
 const message = useMessage();
 const dialog = useDialog();

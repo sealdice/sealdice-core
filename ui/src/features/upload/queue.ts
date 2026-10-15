@@ -1,4 +1,4 @@
-import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { computed, ref } from 'vue';
 import { isFileAllowed, UPLOAD_KINDS, type UploadKindContext, type UploadKindID } from './kinds';
 import type { UploadEngine } from './engine';
 
@@ -9,7 +9,6 @@ export type UploadTaskStatus =
   | 'success'
   | 'error'
   | 'canceled';
-
 export type UploadTask = {
   id: string;
   kind: UploadKindID;
@@ -20,48 +19,45 @@ export type UploadTask = {
   progress: number;
   uploadedBytes: number;
   errorText: string;
+  retryable: boolean;
 };
-
 export type EnqueueContext = UploadKindContext & {
   onComplete?: (task: UploadTask) => void;
   onError?: (task: UploadTask, error: Error) => void;
+  onCancel?: (task: UploadTask) => void;
 };
+export type UploadQueue = ReturnType<typeof createUploadQueue>;
+export const isActiveUpload = (status: UploadTaskStatus) =>
+  status === 'queued' || status === 'hashing' || status === 'uploading';
 
-export type UploadQueue = {
-  tasks: Ref<UploadTask[]>;
-  hasActive: ComputedRef<boolean>;
-  enqueue: (files: File[], kind: UploadKindID, ctx?: EnqueueContext) => Promise<void>;
-  cancel: (id: string) => void;
-  retry: (id: string) => void;
-  cancelAll: () => void;
-  clearCompleted: () => void;
-};
-
-const ACTIVE_STATUSES: UploadTaskStatus[] = ['queued', 'hashing', 'uploading'];
-
-// createUploadQueue 是队列的纯逻辑（依赖注入的引擎 + 哈希），便于无 DOM 测试。
-// Pinia store 只是它的薄包装。
 export function createUploadQueue(deps: {
   engine: UploadEngine;
   hashFile: (file: File) => Promise<string>;
   newId?: () => string;
-}): UploadQueue {
+}) {
   const tasks = ref<UploadTask[]>([]);
-  const contexts = new Map<string, EnqueueContext>();
+  // Retain inputs until completion/cancellation so preparation failures can be retried.
+  const inputs = new Map<string, { file: File; context: EnqueueContext }>();
   let seq = 0;
   const newId = deps.newId ?? (() => `up-${Date.now()}-${(seq += 1)}`);
   const find = (id: string) => tasks.value.find(task => task.id === id);
-
-  // push 后返回数组里的响应式代理：直接改 push 进去的原对象不触发视图更新。
-  function push(task: UploadTask): UploadTask {
-    tasks.value.push(task);
-    return tasks.value[tasks.value.length - 1]!;
+  const remove = (id: string) => {
+    tasks.value = tasks.value.filter(task => task.id !== id);
+    inputs.delete(id);
+  };
+  function fail(id: string, error: unknown, body?: string) {
+    const task = find(id);
+    if (!task) return;
+    const reason = error instanceof Error ? error : new Error(String(error));
+    task.status = 'error';
+    task.errorText = body?.trim() || reason.message || '上传失败';
+    inputs.get(id)?.context.onError?.(task, reason);
   }
 
   deps.engine.setHandlers({
     onProgress(id, bytesSent, bytesTotal) {
       const task = find(id);
-      if (!task) return;
+      if (!task || !isActiveUpload(task.status)) return;
       task.status = 'uploading';
       task.uploadedBytes = bytesSent;
       task.progress =
@@ -73,105 +69,109 @@ export function createUploadQueue(deps: {
       task.status = 'success';
       task.progress = 100;
       task.uploadedBytes = task.size;
-      const ctx = contexts.get(id);
-      tasks.value = tasks.value.filter(item => item.id !== id);
-      contexts.delete(id);
-      ctx?.onComplete?.(task);
+      const context = inputs.get(id)?.context;
+      remove(id);
+      context?.onComplete?.(task);
     },
-    onError(id, error, details) {
-      const task = find(id);
-      if (!task || task.status === 'canceled') return;
-      task.status = 'error';
-      // 后端失败原因在响应体里（tus 的 error.message 只是通用文案）。
-      const backendText = details?.body?.trim();
-      task.errorText = backendText || error.message || '上传失败';
-      contexts.get(id)?.onError?.(task, error);
-    },
+    onError: (id, error, details) => fail(id, error, details?.body),
   });
 
-  async function enqueue(files: File[], kind: UploadKindID, ctx: EnqueueContext = {}) {
-    const def = UPLOAD_KINDS[kind];
-    for (const file of files) {
-      if (!isFileAllowed(kind, file.name)) {
-        push({
-          id: newId(),
-          kind,
-          filename: file.name,
-          size: file.size,
-          sha256: '',
-          status: 'error',
-          progress: 0,
-          uploadedBytes: 0,
-          errorText: `${def.label}不支持该文件类型`,
-        });
-        continue;
-      }
-      const task = push({
+  async function prepare(id: string) {
+    const task = find(id);
+    const input = inputs.get(id);
+    if (!task || !input) return;
+    task.status = 'hashing';
+    task.errorText = '';
+    task.progress = 0;
+    try {
+      const sha256 = task.sha256 || (await deps.hashFile(input.file));
+      if (!find(id)) return; // Cancelled while reading the file.
+      task.sha256 = sha256;
+      const def = UPLOAD_KINDS[task.kind];
+      deps.engine.add(input.file, {
+        taskId: id,
+        module: def.module,
+        filename: task.filename,
+        sha256,
+        ...def.extraMeta?.(input.context),
+      });
+      task.status = 'queued';
+    } catch (error) {
+      fail(id, error);
+    }
+  }
+
+  async function enqueue(files: File[], kind: UploadKindID, context: EnqueueContext = {}) {
+    // Register the entire batch first: cancelAll must include files not yet hashed.
+    const pending = files.map(file => {
+      const task: UploadTask = {
         id: newId(),
         kind,
         filename: file.name,
         size: file.size,
         sha256: '',
-        status: 'hashing',
+        status: 'queued',
         progress: 0,
         uploadedBytes: 0,
         errorText: '',
-      });
-      contexts.set(task.id, ctx);
-      try {
-        const sha256 = await deps.hashFile(file);
-        const current = find(task.id);
-        if (!current) continue; // 计算哈希期间被取消
-        current.sha256 = sha256;
-        current.status = 'queued';
-        deps.engine.add(file, {
-          taskId: task.id,
-          module: def.module,
-          filename: file.name,
-          sha256,
-          ...(def.extraMeta ? def.extraMeta(ctx) : {}),
-        });
-      } catch (error) {
-        // 单个文件入队失败不能中断整批，也不能让调用方的 Promise 永久挂起。
-        const current = find(task.id);
-        if (!current) continue;
-        current.status = 'error';
-        const text = error instanceof Error ? error.message : '上传失败';
-        current.errorText = text;
-        ctx.onError?.(current, error instanceof Error ? error : new Error(text));
-      }
+        retryable: isFileAllowed(kind, file.name),
+      };
+      tasks.value.push(task);
+      inputs.set(task.id, { file, context });
+      if (!task.retryable) fail(task.id, new Error(`${UPLOAD_KINDS[kind].label}不支持该文件类型`));
+      return task;
+    });
+    for (const task of pending) {
+      if (task.retryable) await prepare(task.id);
     }
     deps.engine.start();
   }
 
   function cancel(id: string) {
     const task = find(id);
-    if (task) task.status = 'canceled';
+    if (!task) return;
+    task.status = 'canceled';
+    const context = inputs.get(id)?.context;
+    // Remove first so any late engine events cannot resurrect the task.
+    remove(id);
     deps.engine.cancel(id);
-    tasks.value = tasks.value.filter(item => item.id !== id);
-    contexts.delete(id);
+    context?.onCancel?.(task);
   }
 
-  function retry(id: string) {
+  async function retry(id: string) {
     const task = find(id);
-    if (!task || task.status !== 'error') return;
+    if (!task || task.status !== 'error' || !task.retryable) return;
     task.status = 'queued';
     task.errorText = '';
     task.progress = 0;
-    deps.engine.retry(id);
+    try {
+      if (!deps.engine.retry(id)) {
+        await prepare(id);
+        deps.engine.start();
+      }
+    } catch (error) {
+      fail(id, error);
+    }
   }
 
   function cancelAll() {
     for (const task of [...tasks.value]) {
-      if (ACTIVE_STATUSES.includes(task.status)) cancel(task.id);
+      if (isActiveUpload(task.status)) cancel(task.id);
     }
   }
 
-  function clearCompleted() {
-    tasks.value = tasks.value.filter(task => task.status !== 'success');
+  // Unlike enqueue(), this resolves only after installation; cancellation always settles it.
+  function upload(file: File, kind: UploadKindID, context: UploadKindContext = {}): Promise<void> {
+    return new Promise((resolve, reject) => {
+      void enqueue([file], kind, {
+        ...context,
+        onComplete: () => resolve(),
+        onError: (_task, error) => reject(error),
+        onCancel: () => reject(new DOMException('已取消上传', 'AbortError')),
+      }).catch(reject);
+    });
   }
 
-  const hasActive = computed(() => tasks.value.some(task => ACTIVE_STATUSES.includes(task.status)));
-
-  return { tasks, hasActive, enqueue, cancel, retry, cancelAll, clearCompleted };
+  const hasActive = computed(() => tasks.value.some(task => isActiveUpload(task.status)));
+  return { tasks, hasActive, enqueue, upload, cancel, retry, cancelAll };
 }

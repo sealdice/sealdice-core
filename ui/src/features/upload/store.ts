@@ -1,9 +1,16 @@
 import { defineStore } from 'pinia';
+import { onScopeDispose } from 'vue';
+import { createUppy } from './uppy';
 import { createUppyEngine } from './engine';
 import { createUploadQueue } from './queue';
 import { hashFile } from './fileHash';
 
-// 全应用唯一的上传队列 store（沿用项目 defineStore + appPinia 约定）。
-export const useUploadStore = defineStore('upload', () =>
-  createUploadQueue({ engine: createUppyEngine(), hashFile })
-);
+export const useUploadStore = defineStore('upload', () => {
+  const uppy = createUppy();
+  const queue = createUploadQueue({ engine: createUppyEngine(uppy), hashFile });
+  onScopeDispose(() => {
+    for (const task of [...queue.tasks.value]) queue.cancel(task.id);
+    uppy.destroy();
+  });
+  return queue;
+});

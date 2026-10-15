@@ -1,44 +1,39 @@
-import { routeMeta } from './routeMeta.ts';
-import { appNavigation } from './navigation.ts';
-import { buildRouteMeta } from './navigationModel.ts';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
+import { routeMeta } from './routeMeta';
+import { appNavigation } from './navigation';
 
-it('passes', async () => {
-  const assertEqual = (actual: unknown, expected: unknown) => {
-    if (actual !== expected) throw new Error(`expected ${String(expected)}, got ${String(actual)}`);
-  };
+it.each([
+  ['/mod/reply', 'workspace'],
+  ['/mod/deck', 'wide'],
+  ['/mod/story', 'wide'],
+  ['/mod/js', 'wide'],
+  ['/mod/package', 'wide'],
+  ['/mod/helpdoc', 'wide'],
+  ['/mod/censor', 'wide'],
+  ['/misc/base-setting', 'default'],
+  ['/misc/group', 'wide'],
+  ['/misc/ban', 'default'],
+  ['/misc/backup', 'default'],
+  ['/misc/advanced-setting', 'default'],
+  ['/misc/dice-public', 'wide'],
+  ['/tool/test', 'workspace'],
+  ['/', 'default'],
+  ['/connect', 'default'],
+  ['/about', 'wide'],
+])('uses the product layout for %s', (path, layout) => {
+  expect(routeMeta[path!]?.layout).toBe(layout);
+});
 
-  assertEqual(routeMeta['/mod/reply']?.layout, 'workspace');
-  assertEqual(routeMeta['/mod/deck']?.layout, 'wide');
-  assertEqual(routeMeta['/mod/story']?.layout, 'wide');
-  assertEqual(routeMeta['/mod/js']?.layout, 'wide');
-  assertEqual(routeMeta['/mod/package']?.layout, 'wide');
-  assertEqual(routeMeta['/mod/helpdoc']?.layout, 'wide');
-  assertEqual(routeMeta['/mod/censor']?.layout, 'wide');
-  assertEqual(routeMeta['/misc/base-setting']?.layout, 'default');
-  assertEqual(routeMeta['/misc/group']?.layout, 'wide');
-  assertEqual(routeMeta['/misc/ban']?.layout, 'default');
-  assertEqual(routeMeta['/misc/backup']?.layout, 'default');
-  assertEqual(routeMeta['/misc/advanced-setting']?.layout, 'default');
-  assertEqual(routeMeta['/misc/dice-public']?.layout, 'wide');
-  assertEqual(routeMeta['/tool/test']?.layout, 'workspace');
-
-  assertEqual(routeMeta['/']?.layout, 'default');
-  assertEqual(routeMeta['/connect']?.layout, 'default');
-  assertEqual(routeMeta['/about']?.layout, 'wide');
-
-  const extensionNavigation = appNavigation.find(item => item.label === '扩展功能');
-  assertEqual(
-    extensionNavigation?.children?.map(item => item.label).join(','),
-    '自定义回复,扩展包管理,JS 扩展,牌堆管理,跑团日志,帮助文档,拦截管理'
-  );
-
-  const expectedRouteMeta = buildRouteMeta(appNavigation);
-  const assertDeepEqual = (actual: unknown, expected: unknown) => {
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
-    }
-  };
-
-  assertDeepEqual(routeMeta, expectedRouteMeta);
+it('keeps extension navigation in the intended display order', () => {
+  expect(
+    appNavigation.find(item => item.label === '扩展功能')?.children?.map(item => item.label)
+  ).toEqual([
+    '自定义回复',
+    '扩展包管理',
+    'JS 扩展',
+    '牌堆管理',
+    '跑团日志',
+    '帮助文档',
+    '拦截管理',
+  ]);
 });

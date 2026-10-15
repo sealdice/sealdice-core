@@ -98,7 +98,8 @@ import {
   setUnsavedChangesConfirmHandler,
 } from '@/features/unsavedChanges';
 import { isControlledReloadArmed } from '@/features/pwa/swUpdate';
-import { hasActiveUploads } from '@/features/upload/state';
+import { storeToRefs } from 'pinia';
+import { useUploadStore } from '@/features/upload/store';
 import { shouldBlockUnload } from '@/features/upload/closeGuard';
 
 interface AppSearchMenuHandle {
@@ -115,6 +116,8 @@ const props = withDefaults(
     containerMode: 'default',
   }
 );
+
+const { hasActive: hasActiveUploads } = storeToRefs(useUploadStore());
 
 const loadAppSearchMenu = () => import('./AppSearchMenu.vue');
 const AppSearchMenu = defineAsyncComponent(loadAppSearchMenu);

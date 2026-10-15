@@ -7,7 +7,7 @@ import {
   postSdApiV2CensorStop,
   type CensorConfigBody,
 } from '@/api';
-import { enqueueUploads } from '@/features/upload/state';
+import { useUploadStore } from '@/features/upload/store';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
@@ -25,6 +25,7 @@ export function useCensorMutations(options: {
   onConfigSaved: (snapshot: CensorConfigBody) => void;
   onFilesChanged: () => void;
 }) {
+  const uploads = useUploadStore();
   // 启用与重载走同一个接口，反馈文案需按调用意图区分，
   // 否则首次开启拦截会提示「重载成功」。
   const restartMutation = useMutation({
@@ -85,13 +86,7 @@ export function useCensorMutations(options: {
   });
 
   const uploadFileMutation = useMutation({
-    mutationFn: (file: File) =>
-      new Promise<void>((resolve, reject) => {
-        void enqueueUploads([file], 'censor', {
-          onComplete: () => resolve(),
-          onError: (_task, error) => reject(error),
-        });
-      }),
+    mutationFn: (file: File) => uploads.upload(file, 'censor'),
     onSuccess: async () => {
       options.message.success('上传完成，请在全部操作完成后，手动重载拦截');
       options.onFilesChanged();

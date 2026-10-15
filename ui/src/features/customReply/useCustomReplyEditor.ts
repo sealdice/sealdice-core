@@ -15,7 +15,7 @@ import {
   putSdApiV2CustomReplyFilesByFilename,
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
-import { enqueueUploads } from '@/features/upload/state';
+import { useUploadStore } from '@/features/upload/store';
 import { hasAccessToken } from '@/features/auth/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import { parseReplyImportText } from './importParser';
@@ -40,6 +40,7 @@ export type ReplyFileQuery = {
 };
 
 export function useCustomReplyEditor() {
+  const { enqueue: enqueueUploads } = useUploadStore();
   const message = useMessage();
   const dialog = useDialog();
   const queryClient = useQueryClient();
@@ -205,15 +206,16 @@ export function useCustomReplyEditor() {
       });
       return { data, filename, submitted };
     },
-    onSuccess: async () => {
-      if (currentFileDraft.value && selectedFilename.value) {
-        initialDrafts.value = {
-          ...initialDrafts.value,
-          [selectedFilename.value]: cloneReplyFileDraft(currentFileDraft.value),
-        };
-        modified.value = false;
+    onSuccess: async ({ filename, submitted }) => {
+      // Only the submitted snapshot was persisted; edits made in flight remain dirty.
+      initialDrafts.value = {
+        ...initialDrafts.value,
+        [filename]: cloneReplyFileDraft(submitted),
+      };
+      if (selectedFilename.value === filename) {
+        modified.value = JSON.stringify(currentFileDraft.value) !== JSON.stringify(submitted);
       }
-      await queryClient.invalidateQueries({ queryKey: ['custom-reply-file-detail'] });
+      await queryClient.invalidateQueries({ queryKey: ['custom-reply-file-detail', filename] });
       await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
       message.success('已保存');
     },

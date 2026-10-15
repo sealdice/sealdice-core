@@ -259,11 +259,16 @@ import {
   isTestModeApiError,
   isTestModeResponse,
 } from '@/features/testMode/state';
-import { enqueueUploads, uploadTasks } from '@/features/upload/state';
+import { storeToRefs } from 'pinia';
+import { useUploadStore } from '@/features/upload/store';
 import { hasAccessToken } from '@/features/auth/state';
 import { useAppTheme } from '@/features/theme';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
+
+const uploadStore = useUploadStore();
+const { enqueue: enqueueUploads } = uploadStore;
+const { tasks: uploadTasks } = storeToRefs(uploadStore);
 
 const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffViewer.vue'));
 

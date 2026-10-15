@@ -155,9 +155,7 @@ export default defineConfig(({ mode }) => {
           codeSplitting: {
             groups: [
               {
-                name(moduleId) {
-                  classifyVendorChunk(moduleId);
-                },
+                name: classifyVendorChunk,
               },
             ],
           },
