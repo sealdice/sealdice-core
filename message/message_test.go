@@ -1,10 +1,15 @@
 package message_test
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -85,5 +90,234 @@ func TestConvertStringMessageCQParamUnescape(t *testing.T) {
 	}
 	if want := "a&b[x]"; tts.Content != want {
 		t.Fatalf("tts content = %q, want %q", tts.Content, want)
+	}
+}
+
+func localPathFromFileURL(t *testing.T, raw string) string {
+	t.Helper()
+
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		t.Fatalf("parse file URL %q: %v", raw, err)
+	}
+	if parsed.Scheme != "file" {
+		t.Fatalf("resource URL scheme = %q, want file", parsed.Scheme)
+	}
+	localPath := filepath.FromSlash(parsed.Path)
+	if runtime.GOOS == "windows" && len(localPath) >= 3 && localPath[0] == filepath.Separator && localPath[2] == ':' {
+		localPath = localPath[1:]
+	}
+	return filepath.Clean(localPath)
+}
+
+func writeResourceFile(t *testing.T, name string) string {
+	t.Helper()
+
+	filename := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(filename, []byte("resource"), 0o600); err != nil {
+		t.Fatalf("write resource file: %v", err)
+	}
+	return filename
+}
+
+func defaultElementData(t *testing.T, element message.IMessageElement) map[string]string {
+	t.Helper()
+
+	defaultElement, ok := element.(*message.DefaultElement)
+	if !ok {
+		t.Fatalf("element type = %T, want *message.DefaultElement", element)
+	}
+	data := map[string]string{}
+	if err := json.Unmarshal(defaultElement.Data, &data); err != nil {
+		t.Fatalf("unmarshal default element data: %v", err)
+	}
+	return data
+}
+
+func TestNormalizeLocalResourcePath(t *testing.T) {
+	filename := writeResourceFile(t, "card with space.png")
+	wantPath, err := filepath.Abs(filename)
+	if err != nil {
+		t.Fatalf("resolve expected absolute path: %v", err)
+	}
+
+	normalized, err := message.NormalizeLocalResourcePath(filename)
+	if err != nil {
+		t.Fatalf("NormalizeLocalResourcePath() error = %v", err)
+	}
+	if got := localPathFromFileURL(t, normalized); got != filepath.Clean(wantPath) {
+		t.Fatalf("normalized local path = %q, want %q", got, filepath.Clean(wantPath))
+	}
+
+	normalizedAgain, err := message.NormalizeLocalResourcePath(normalized)
+	if err != nil {
+		t.Fatalf("normalize canonical file URL: %v", err)
+	}
+	if normalizedAgain != normalized {
+		t.Fatalf("canonical file URL changed: got %q, want %q", normalizedAgain, normalized)
+	}
+
+	passthrough := []string{
+		"https://example.com/card.png",
+		"base64://cmVzb3VyY2U=",
+		"opaque-onebot-resource-id",
+		"adapter/cache/resource-id",
+		"0123456789abcdef0123456789abcdef.image",
+		"mxc://server/resource",
+	}
+	for _, input := range passthrough {
+		got, normalizeErr := message.NormalizeLocalResourcePath(input)
+		if normalizeErr != nil {
+			t.Fatalf("NormalizeLocalResourcePath(%q) error = %v", input, normalizeErr)
+		}
+		if got != input {
+			t.Fatalf("NormalizeLocalResourcePath(%q) = %q, want unchanged", input, got)
+		}
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	outside := filepath.Dir(cwd)
+	_, err = message.NormalizeLocalResourcePath(outside)
+	var fileErr *message.CQFileError
+	if !errors.As(err, &fileErr) || fileErr.Kind != message.CQFileErrRestricted {
+		t.Fatalf("outside path error = %v, want CQFileErrRestricted", err)
+	}
+}
+
+func TestConvertStringMessageNormalizesAllLocalResourceKinds(t *testing.T) {
+	imagePath := writeResourceFile(t, "image.png")
+	recordPath := writeResourceFile(t, "record.wav")
+	videoPath := writeResourceFile(t, "video.mp4")
+	filePath := writeResourceFile(t, "document.txt")
+
+	expectedImage, err := message.NormalizeLocalResourcePath(imagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedRecord, err := message.NormalizeLocalResourcePath(recordPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedVideo, err := message.NormalizeLocalResourcePath(videoPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedFile, err := message.NormalizeLocalResourcePath(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name  string
+		input string
+		check func(t *testing.T, element message.IMessageElement)
+	}{
+		{
+			name:  "explicit CQ image",
+			input: "[CQ:image,file=" + message.EscapeCQParam(imagePath) + "]",
+			check: func(t *testing.T, element message.IMessageElement) {
+				imageElement, ok := element.(*message.ImageElement)
+				if !ok || imageElement.URL != expectedImage {
+					t.Fatalf("image element = %#v, want URL %q", element, expectedImage)
+				}
+			},
+		},
+		{
+			name:  "explicit CQ record",
+			input: "[CQ:record,file=" + message.EscapeCQParam(recordPath) + "]",
+			check: func(t *testing.T, element message.IMessageElement) {
+				recordElement, ok := element.(*message.RecordElement)
+				if !ok || recordElement.File == nil || recordElement.File.URL != expectedRecord {
+					t.Fatalf("record element = %#v, want URL %q", element, expectedRecord)
+				}
+			},
+		},
+		{
+			name:  "explicit CQ video",
+			input: "[CQ:video,file=" + message.EscapeCQParam(videoPath) + ",cache=0]",
+			check: func(t *testing.T, element message.IMessageElement) {
+				data := defaultElementData(t, element)
+				if data["file"] != expectedVideo || data["cache"] != "0" {
+					t.Fatalf("video data = %#v, want file=%q and cache=0", data, expectedVideo)
+				}
+			},
+		},
+		{
+			name:  "explicit CQ file",
+			input: "[CQ:file,file=" + message.EscapeCQParam(filePath) + "]",
+			check: func(t *testing.T, element message.IMessageElement) {
+				fileElement, ok := element.(*message.FileElement)
+				if !ok || fileElement.URL != expectedFile {
+					t.Fatalf("file element = %#v, want URL %q", element, expectedFile)
+				}
+			},
+		},
+		{
+			name:  "Seal image",
+			input: "[图:" + imagePath + "]",
+			check: func(t *testing.T, element message.IMessageElement) {
+				imageElement, ok := element.(*message.ImageElement)
+				if !ok || imageElement.URL != expectedImage {
+					t.Fatalf("image element = %#v, want URL %q", element, expectedImage)
+				}
+			},
+		},
+		{
+			name:  "Seal voice",
+			input: "[voice:" + recordPath + "]",
+			check: func(t *testing.T, element message.IMessageElement) {
+				recordElement, ok := element.(*message.RecordElement)
+				if !ok || recordElement.File == nil || recordElement.File.URL != expectedRecord {
+					t.Fatalf("record element = %#v, want URL %q", element, expectedRecord)
+				}
+			},
+		},
+		{
+			name:  "Seal video",
+			input: "[视频:" + videoPath + "]",
+			check: func(t *testing.T, element message.IMessageElement) {
+				data := defaultElementData(t, element)
+				if data["file"] != expectedVideo {
+					t.Fatalf("video data = %#v, want file=%q", data, expectedVideo)
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			elements := message.ConvertStringMessage(test.input)
+			if len(elements) != 1 {
+				t.Fatalf("element count = %d, want 1 (%#v)", len(elements), elements)
+			}
+			test.check(t, elements[0])
+		})
+	}
+}
+
+func TestConvertStringMessageLeavesNonLocalVideoReferencesUnchanged(t *testing.T) {
+	tests := []string{
+		"https://example.com/video.mp4",
+		"base64://dmlkZW8=",
+		"opaque-onebot-video-id",
+	}
+	for _, resource := range tests {
+		elements := message.ConvertStringMessage("[CQ:video,file=" + message.EscapeCQParam(resource) + ",cache=0]")
+		if len(elements) != 1 {
+			t.Fatalf("resource %q produced %d elements, want 1", resource, len(elements))
+		}
+		data := defaultElementData(t, elements[0])
+		if data["file"] != resource || data["cache"] != "0" {
+			t.Fatalf("resource %q converted to %#v", resource, data)
+		}
+	}
+
+	elements := message.ConvertStringMessage("[CQ:video,file=adapter-cache-id,url=https://example.com/video.mp4]")
+	data := defaultElementData(t, elements[0])
+	if data["file"] != "adapter-cache-id" || data["url"] != "https://example.com/video.mp4" {
+		t.Fatalf("video with URL converted to %#v", data)
 	}
 }

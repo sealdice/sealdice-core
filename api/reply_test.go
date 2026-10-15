@@ -133,6 +133,109 @@ func TestCustomReplyNewAllowsLocalFileWithPackageSameName(t *testing.T) {
 	}
 }
 
+func TestCustomReplyNewVMVersion(t *testing.T) {
+	testDice, _, token := newReplyAPITestPackageManager(t)
+
+	tests := []struct {
+		name        string
+		filename    string
+		body        string
+		wantVersion string
+		wantMarker  bool
+	}{
+		{
+			name:        "default is V2",
+			filename:    "default-v2.yaml",
+			body:        `{"filename":"default-v2.yaml"}`,
+			wantVersion: dice.ReplyVMVersionV2,
+			wantMarker:  true,
+		},
+		{
+			name:        "explicit V1 stays unmarked",
+			filename:    "legacy-v1.yaml",
+			body:        `{"filename":"legacy-v1.yaml","vmVersion":"v1"}`,
+			wantVersion: "",
+			wantMarker:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := performReplyAPIRequest(t, http.MethodPost, "/sd-api/configs/custom_reply/file_new", tt.body, token, customReplyFileNew)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+
+			config, err := dice.CustomReplyConfigRead(testDice, tt.filename)
+			if err != nil {
+				t.Fatalf("CustomReplyConfigRead() error = %v", err)
+			}
+			if config.VMVersion != tt.wantVersion {
+				t.Fatalf("VMVersion = %q, want %q", config.VMVersion, tt.wantVersion)
+			}
+
+			data, err := os.ReadFile(testDice.GetExtConfigFilePath("reply", tt.filename))
+			if err != nil {
+				t.Fatal(err)
+			}
+			hasMarker := strings.HasPrefix(string(data), dice.ReplyVMVersionV2Marker+"\n")
+			if hasMarker != tt.wantMarker {
+				t.Fatalf("has V2 marker = %v, want %v; file=%s", hasMarker, tt.wantMarker, string(data))
+			}
+		})
+	}
+}
+
+func TestCustomReplySaveConvertsLegacyFileToV2(t *testing.T) {
+	testDice, _, token := newReplyAPITestPackageManager(t)
+	config := dice.CustomReplyConfigNewWithVMVersion(testDice, "legacy.yaml", dice.ReplyVMVersionV1)
+	if config == nil {
+		t.Fatal("expected legacy reply file to be created")
+	}
+
+	body := `{"filename":"legacy.yaml","vmVersion":"v2","enable":true,"items":[],"conditions":[]}`
+	rec := performReplyAPIRequest(t, http.MethodPost, "/sd-api/configs/custom_reply/save", body, token, customReplySave)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	if got := testDice.CustomReplyConfig[0].VMVersion; got != dice.ReplyVMVersionV2 {
+		t.Fatalf("in-memory VMVersion = %q, want v2", got)
+	}
+	data, err := os.ReadFile(testDice.GetExtConfigFilePath("reply", "legacy.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(data), dice.ReplyVMVersionV2Marker+"\n") {
+		t.Fatalf("converted file does not start with V2 marker: %s", string(data))
+	}
+}
+
+func TestCustomReplySaveWithoutVersionPreservesV2(t *testing.T) {
+	testDice, _, token := newReplyAPITestPackageManager(t)
+	config := dice.CustomReplyConfigNew(testDice, "v2.yaml")
+	if config == nil {
+		t.Fatal("expected V2 reply file to be created")
+	}
+
+	body := `{"filename":"v2.yaml","enable":true,"items":[],"conditions":[]}`
+	rec := performReplyAPIRequest(t, http.MethodPost, "/sd-api/configs/custom_reply/save", body, token, customReplySave)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	if got := testDice.CustomReplyConfig[0].VMVersion; got != dice.ReplyVMVersionV2 {
+		t.Fatalf("in-memory VMVersion = %q, want v2", got)
+	}
+	data, err := os.ReadFile(testDice.GetExtConfigFilePath("reply", "v2.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(data), dice.ReplyVMVersionV2Marker+"\n") {
+		t.Fatalf("saving without vmVersion removed the V2 marker: %s", string(data))
+	}
+}
+
 func newReplyAPITestPackageManager(t *testing.T) (*dice.Dice, *dice.PackageManager, string) {
 	t.Helper()
 	tmpDir := t.TempDir()

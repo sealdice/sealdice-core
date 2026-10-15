@@ -148,8 +148,8 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	pa.Client = client
 	ctx, cancel := context.WithCancel(context.Background())
 	pa.cancel = cancel
-	err := sh.RunEventLoopContext(ctx)
-	if err != nil {
+	//nolint:staticcheck // golangci-lint 2.13+ 将该 error 的 nil 检查误报为恒真（外部库调用，staticcheck 回归）
+	if err := sh.RunEventLoopContext(ctx); err != nil {
 		log.Error("SlackEventLoopErr：", err.Error())
 		return 1
 	}

@@ -194,6 +194,8 @@ type Dice struct {
 	// 由于被导出的原因，暂时不迁移至 config
 	ImSession *IMSession `jsbind:"imSession" json:"-" yaml:"imSession"`
 
+	messageTasks sync.WaitGroup
+
 	CmdMap      CmdMapCls                  `json:"-" yaml:"-"`
 	ExtList     []*ExtInfo                 `yaml:"-"`
 	ExtRegistry *SyncMap[string, *ExtInfo] `json:"-" yaml:"-"`
@@ -368,9 +370,6 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 
 	go d.StoreSetup()
 
-	// 初始化扩展包管理器
-	d.PackageSetup()
-
 	// 创建js运行时
 	if d.Config.JsEnable {
 		loggerInstance.Info("js扩展支持：开启")
@@ -379,6 +378,9 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	} else {
 		loggerInstance.Info("js扩展支持：关闭")
 	}
+
+	// 在 JS 初始化重建规则模板注册表后恢复扩展包及其模板。
+	d.PackageSetup()
 
 	for _, i := range d.ExtList {
 		if i.OnLoad != nil {
@@ -471,6 +473,10 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	} else {
 		loggerInstance.Info("js扩展支持已关闭，跳过js脚本的加载")
 	}
+
+	// 群组数据在扩展注册表就绪（内置/JS/扩展包）后加载，
+	// 反序列化时即将 activatedExtList 解析为全局共享 ExtInfo 指针
+	d.loadGroups()
 
 	if d.Config.UpgradeWindowID != "" {
 		go func() {
@@ -931,9 +937,15 @@ func (d *Dice) GameSystemTemplateReloadFiles(packageFiles []string) error {
 	return d.reloadGameSystemTemplates(files)
 }
 
-func (d *Dice) reloadGameSystemTemplates(files []string) error {
+// resetGameSystemTemplates 将规则模板注册表替换为仅包含内置模板的状态。
+// 调用方如需保留用户或 sealpack 模板，必须随后重新加载对应来源。
+func (d *Dice) resetGameSystemTemplates() {
 	d.GameSystemMap = new(SyncMap[string, *GameSystemTemplate])
 	d.RegisterBuiltinSystemTemplate()
+}
+
+func (d *Dice) reloadGameSystemTemplates(files []string) error {
+	d.resetGameSystemTemplates()
 
 	seen := make(map[string]struct{}, len(files))
 	count := 0
@@ -1174,5 +1186,9 @@ func (d *Dice) PackageSetup() {
 	d.PackageManager = NewPackageManager(d)
 	if err := d.PackageManager.Init(); err != nil {
 		d.Logger.Errorf("初始化扩展包管理器失败: %v", err)
+		return
+	}
+	if err := d.PackageManager.reloadTemplates(); err != nil {
+		d.Logger.Warnf("恢复扩展包规则模板失败: %v", err)
 	}
 }

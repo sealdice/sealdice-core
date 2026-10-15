@@ -25,13 +25,14 @@ import (
 	"sealdice-core/model"
 	"sealdice-core/utils/dboperator/engine"
 
+	"github.com/dop251/goja"
 	"github.com/golang-module/carbon"
 	ds "github.com/sealdice/dicescript"
 	rand2 "golang.org/x/exp/rand" //nolint:staticcheck // against my better judgment, but this was mandated due to a strongly held opinion from you know who
-
-	"github.com/dop251/goja"
 	"golang.org/x/time/rate"
 	"gopkg.in/yaml.v3"
+
+	"github.com/bytedance/sonic"
 )
 
 type SenderBase struct {
@@ -73,6 +74,24 @@ type Message struct {
 // }
 
 type GroupPlayerInfo model.GroupPlayerInfoBase
+
+// extJSONResolver 在 GroupInfo 反序列化时将扩展名解析为全局共享的 *ExtInfo。
+// json 解码无法传递 Dice 上下文，由 loadGroups 在加载期间临时设置。
+var extJSONResolver func(name string) *ExtInfo
+
+// extPlaceholderPool 未安装扩展（已删除/尚未装载）的共享占位池：name -> 占位 ExtInfo。
+// 所有群对同一名字复用同一指针，避免大量群引用已删除插件时逐群分配对象；
+// 条目保留在群激活列表中，插件重装后由 GetActivatedExtList 按名恢复为真实扩展。
+var extPlaceholderPool = new(SyncMap[string, *ExtInfo])
+
+// extNamePlaceholder 返回名字对应的共享占位对象
+func extNamePlaceholder(name string) *ExtInfo {
+	if p, ok := extPlaceholderPool.Load(name); ok && p != nil {
+		return p
+	}
+	p, _ := extPlaceholderPool.LoadOrStore(name, &ExtInfo{Name: name})
+	return p
+}
 
 type GroupInfo struct {
 	Active    bool                               `jsbind:"active" json:"active" yaml:"active"` // 是否在群内开启 - 过渡为象征意义
@@ -155,9 +174,15 @@ func (g *GroupInfo) GetActivatedExtList(d *Dice) []*ExtInfo {
 	var newList []*ExtInfo
 	activated := make(map[string]bool)
 	for _, item := range g.activatedExtList {
-		if item != nil && extMap[item.Name] != nil {
-			newList = append(newList, extMap[item.Name])
+		if item == nil || item.Name == "" {
+			continue
+		}
+		if live := extMap[item.Name]; live != nil {
+			newList = append(newList, live)
 			activated[item.Name] = true
+		} else {
+			// 未安装（已删除）的扩展：保留条目以维持群的开启状态，重装后自动恢复
+			newList = append(newList, item)
 		}
 	}
 
@@ -248,14 +273,26 @@ type groupInfoJSON struct {
 	ActivatedExtList []*ExtInfo `json:"activatedExtList"`
 }
 
+// groupInfoDecodeJSON 仅用于反序列化：activatedExtList 为私有字段，解码时自动跳过该键，
+// 由 GroupInfo.UnmarshalJSON 单独轻量解析，避免为每个群分配完整 ExtInfo 占位对象。
+type groupInfoDecodeJSON struct {
+	*groupInfoAlias
+}
+
+// extNameRefsJSON activatedExtList 的轻量解码结构，仅取出扩展名
+type extNameRefsJSON struct {
+	ActivatedExtList []struct {
+		Name string `json:"name"`
+	} `json:"activatedExtList"`
+}
+
 // MarshalJSON 自定义序列化，处理私有字段 activatedExtList
-// 同时过滤掉已删除的 wrapper（IsDeleted=true）
+// 已删除 wrapper（IsDeleted=true）的名字同样保留：群开启状态不因插件删除而丢失
 func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 	g.extInitMu.Lock()
-	// 过滤掉已删除的 wrapper
 	var filteredList []*ExtInfo
 	for _, ext := range g.activatedExtList {
-		if ext != nil && !ext.IsDeleted {
+		if ext != nil {
 			filteredList = append(filteredList, ext)
 		}
 	}
@@ -268,15 +305,33 @@ func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON 自定义反序列化，处理私有字段 activatedExtList
+// 扩展名通过 extJSONResolver 直接解析为全局共享的 *ExtInfo 指针（见 loadGroups），
+// 未注册的扩展保留名字占位，由 GetActivatedExtList 决定去留
 func (g *GroupInfo) UnmarshalJSON(data []byte) error {
-	temp := &groupInfoJSON{
-		groupInfoAlias: (*groupInfoAlias)(g),
-	}
-	if err := json.Unmarshal(data, temp); err != nil {
+	if err := sonic.Unmarshal(data, &groupInfoDecodeJSON{groupInfoAlias: (*groupInfoAlias)(g)}); err != nil {
 		return err
 	}
+	var refs extNameRefsJSON
+	if err := sonic.Unmarshal(data, &refs); err != nil {
+		return err
+	}
+
+	var list []*ExtInfo
+	for _, ref := range refs.ActivatedExtList {
+		if ref.Name == "" {
+			continue
+		}
+		if extJSONResolver != nil {
+			if ext := extJSONResolver(ref.Name); ext != nil {
+				list = append(list, ext)
+				continue
+			}
+		}
+		list = append(list, extNamePlaceholder(ref.Name))
+	}
+
 	g.extInitMu.Lock()
-	g.activatedExtList = temp.ActivatedExtList
+	g.activatedExtList = list
 	g.extInitMu.Unlock()
 	return nil
 }
@@ -660,7 +715,9 @@ type IMSession struct {
 	ServiceAtNew *SyncMap[string, *GroupInfo]       `json:"servicesAt" yaml:"-"`
 	PendingQuits *SyncMap[string, *PendingQuitInfo] `json:"-" yaml:"-"`
 
-	endPointsSnapshot atomic.Pointer[[]*EndPointInfo]
+	endPointsSnapshot      atomic.Pointer[[]*EndPointInfo]
+	groupMemberWelcomeMu   sync.Mutex
+	lastGroupMemberWelcome *LastWelcomeInfo
 }
 
 // EndPointDisplaySnapshot 是托盘菜单所需的端点展示值快照。
@@ -1183,7 +1240,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			if runInSync {
 				f()
 			} else {
-				go f()
+				d.runMessageTask(f)
 			}
 		} else {
 			if mctx.PrivilegeLevel == -30 {
@@ -1237,7 +1294,7 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 							if runInSync {
 								notCommandReceiveCall()
 							} else {
-								go notCommandReceiveCall()
+								d.runMessageTask(notCommandReceiveCall)
 							}
 						}
 					}
@@ -1245,6 +1302,20 @@ func (s *IMSession) Execute(ep *EndPointInfo, msg *Message, runInSync bool) {
 			}
 		}
 	}
+}
+
+// runMessageTask tracks asynchronous commands, extension callbacks and notices.
+// Callers must stop submitting new work before waiting on messageTasks.
+func (d *Dice) runMessageTask(task func()) {
+	if d == nil {
+		go task()
+		return
+	}
+	d.messageTasks.Add(1)
+	go func() {
+		defer d.messageTasks.Done()
+		task()
+	}()
 }
 
 // ExecuteNew Note(Szzrain): 既不破坏兼容性还要支持新 feature 我真是草了，这里是 copy paste 的代码稍微改了一下，我知道这是在屎山上建房子，但是没办法
@@ -1474,7 +1545,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 	// Note(Szzrain): 赋值临时变量，不然有些地方没法用
 	SetTempVars(mctx, msg.Sender.Nickname)
 	if cmdArgs != nil {
-		go s.PreTriggerCommand(mctx, msg, cmdArgs)
+		d.runMessageTask(func() { s.PreTriggerCommand(mctx, msg, cmdArgs) })
 	} else {
 		// if cmdArgs == nil will execute this block
 		if mctx.PrivilegeLevel == -30 {
@@ -1523,7 +1594,7 @@ func (s *IMSession) ExecuteNew(ep *EndPointInfo, msg *Message) {
 							}
 						}
 
-						go notCommandReceiveCall()
+						d.runMessageTask(notCommandReceiveCall)
 					}
 				}
 			}
@@ -1669,7 +1740,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	}
 	time.Sleep(2 * time.Second)
 	groupName := dm.TryGetGroupName(msg.GroupID)
-	go func() {
+	d.runMessageTask(func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("入群致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
@@ -1686,7 +1757,7 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 			doSleepQQ(ctx)
 			ReplyGroup(ctx, msg, strings.TrimSpace(i))
 		}
-	}()
+	})
 	txt := fmt.Sprintf("加入群组: <%s>(%s)", groupName, msg.GroupID)
 	log.Info(txt)
 	ctx.Notice(txt, NoticeTypeGroup)
@@ -1703,54 +1774,74 @@ func (s *IMSession) OnGroupJoined(ctx *MsgContext, msg *Message) {
 	}
 }
 
-var lastWelcome *LastWelcomeInfo
+func (s *IMSession) isDuplicateGroupMemberWelcome(msg *Message) bool {
+	s.groupMemberWelcomeMu.Lock()
+	defer s.groupMemberWelcomeMu.Unlock()
+
+	last := s.lastGroupMemberWelcome
+	isDuplicate := last != nil &&
+		msg.GroupID == last.GroupID &&
+		msg.Sender.UserID == last.UserID &&
+		msg.Time == last.Time
+	s.lastGroupMemberWelcome = &LastWelcomeInfo{
+		GroupID: msg.GroupID,
+		UserID:  msg.Sender.UserID,
+		Time:    msg.Time,
+	}
+	return isDuplicate
+}
 
 // OnGroupMemberJoined 群成员进群事件处理，除了 bot 自己以外的群成员入群时调用。其他 Adapter 应当尽快迁移至此方法实现
 func (s *IMSession) OnGroupMemberJoined(ctx *MsgContext, msg *Message) {
 	log := s.Parent.Logger
 
 	groupInfo, ok := s.ServiceAtNew.Load(msg.GroupID)
+	needWelcome := false
+	reason := "group_not_loaded"
+	if ok {
+		if groupInfo.ShowGroupWelcome {
+			needWelcome = true
+			reason = "welcome_enabled"
+		} else {
+			reason = "welcome_disabled"
+		}
+	}
+	if !needWelcome {
+		log.Infof("检查是否需要迎新: need_welcome=%t reason=%s group_id=%s user_id=%s", needWelcome, reason, msg.GroupID, msg.Sender.UserID)
+		return
+	}
+
 	// 进群的是别人，是否迎新？
 	// 这里很诡异，当手机QQ客户端审批进群时，入群后会有一句默认发言
 	// 此时会收到两次完全一样的某用户入群信息，导致发两次欢迎词
-	if ok && groupInfo.ShowGroupWelcome {
-		isDouble := false
-		if lastWelcome != nil {
-			isDouble = msg.GroupID == lastWelcome.GroupID &&
-				msg.Sender.UserID == lastWelcome.UserID &&
-				msg.Time == lastWelcome.Time
-		}
-		lastWelcome = &LastWelcomeInfo{
-			GroupID: msg.GroupID,
-			UserID:  msg.Sender.UserID,
-			Time:    msg.Time,
-		}
-
-		if !isDouble {
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
-					}
-				}()
-
-				// Ensure context has group set for formatting and attrs access
-				ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
-				// VarSetValueStr(ctx, "$t新人昵称", "<"+msgQQ.Sender.Nickname+">")
-				uidRaw := UserIDExtract(msg.Sender.UserID)
-				VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
-				VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
-				stdID := msg.Sender.UserID
-				VarSetValueStr(ctx, "$t帐号ID", stdID)
-				VarSetValueStr(ctx, "$t账号ID", stdID)
-				text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
-				for _, i := range ctx.SplitText(text) {
-					doSleepQQ(ctx)
-					ReplyGroup(ctx, msg, strings.TrimSpace(i))
-				}
-			}()
-		}
+	if s.isDuplicateGroupMemberWelcome(msg) {
+		log.Infof("检查是否需要迎新: need_welcome=false reason=duplicate_event group_id=%s user_id=%s", msg.GroupID, msg.Sender.UserID)
+		return
 	}
+
+	log.Infof("检查是否需要迎新: need_welcome=true reason=%s group_id=%s user_id=%s", reason, msg.GroupID, msg.Sender.UserID)
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("迎新致辞异常: %v 堆栈: %v", r, string(debug.Stack()))
+			}
+		}()
+
+		// Ensure context has group set for formatting and attrs access
+		ctx.Group, ctx.Player = GetPlayerInfoBySender(ctx, msg)
+		uidRaw := UserIDExtract(msg.Sender.UserID)
+		VarSetValueStr(ctx, "$t帐号ID_RAW", uidRaw)
+		VarSetValueStr(ctx, "$t账号ID_RAW", uidRaw)
+		stdID := msg.Sender.UserID
+		VarSetValueStr(ctx, "$t帐号ID", stdID)
+		VarSetValueStr(ctx, "$t账号ID", stdID)
+		text := DiceFormat(ctx, groupInfo.GroupWelcomeMessage)
+		log.Infof("发送迎新消息: group_id=%s user_id=%s text=%q", msg.GroupID, msg.Sender.UserID, text)
+		for _, i := range ctx.SplitText(text) {
+			doSleepQQ(ctx)
+			ReplyGroup(ctx, msg, strings.TrimSpace(i))
+		}
+	}()
 }
 
 var platformRE = regexp.MustCompile(`^(.*)-Group:`)
@@ -2630,7 +2721,7 @@ func (d *Dice) NoticeForEveryEndpoint(txt string, allowCrossPlatform bool, notic
 			}
 		}
 	}
-	go foo()
+	d.runMessageTask(foo)
 }
 
 // NoticeCrossPlatform 优先用当前账号发送，并为其他平台寻找第一个启用账号。
@@ -2671,7 +2762,7 @@ func (ctx *MsgContext) NoticeCrossPlatform(txt string, noticeTypes ...NoticeType
 			ctx.Dice.Logger.Errorf("未能发送来自%s的通知：%s", platform, txt)
 		}
 	}
-	go foo()
+	ctx.Dice.runMessageTask(foo)
 }
 
 // Notice 使用当前消息上下文的账号发送指定分类通知。
@@ -2718,7 +2809,7 @@ func (ctx *MsgContext) Notice(txt string, noticeTypes ...NoticeType) {
 			}
 		}
 	}
-	go foo()
+	ctx.Dice.runMessageTask(foo)
 }
 
 var randSourceSplitKey = rand2.NewSource(uint64(time.Now().Unix()))

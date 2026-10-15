@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"sealdice-core/dice/docengine"
@@ -69,10 +70,50 @@ func TestHelpManagerSaveHelpIndexMetaWritesToConfiguredPath(t *testing.T) {
 	}
 }
 
+//nolint:usetesting // This test changes cwd explicitly so Windows can restore it before TempDir cleanup.
+func TestHelpManagerLoadHelpIndexMetaRejectsPreviousVersion(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+
+	tempDir := t.TempDir()
+	if err = os.Chdir(tempDir); err != nil {
+		t.Fatalf("Chdir(%q) error = %v", tempDir, err)
+	}
+	defer func() {
+		_ = os.Chdir(cwd)
+	}()
+
+	if err = os.MkdirAll(filepath.Dir(helpIndexMetaPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", filepath.Dir(helpIndexMetaPath), err)
+	}
+	data, err := json.Marshal(&HelpIndexMeta{
+		ContentParserVersion: helpContentParserVersion - 1,
+		Files:                map[string]HelpFileMeta{},
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if err := os.WriteFile(helpIndexMetaPath, data, 0o644); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", helpIndexMetaPath, err)
+	}
+
+	manager := &HelpManager{}
+	meta, trusted := manager.loadHelpIndexMeta()
+	if trusted {
+		t.Fatal("loadHelpIndexMeta() trusted previous parser version")
+	}
+	if meta.ContentParserVersion != helpContentParserVersion {
+		t.Fatalf("reset parser version = %d, want %d", meta.ContentParserVersion, helpContentParserVersion)
+	}
+}
+
 type fakeHelpSearchEngine struct {
-	docs     map[string]*docengine.HelpTextItem
-	pageDocs []*docengine.HelpTextItem
-	added    []docengine.HelpTextItem
+	docs         map[string]*docengine.HelpTextItem
+	pageDocs     []*docengine.HelpTextItem
+	paginateFrom string
+	added        []docengine.HelpTextItem
 }
 
 func (f *fakeHelpSearchEngine) GetSuffixText() string { return "" }
@@ -108,7 +149,8 @@ func (f *fakeHelpSearchEngine) GetItemByInternalID(id string) (*docengine.HelpTe
 	return item, nil
 }
 
-func (f *fakeHelpSearchEngine) PaginateDocuments(int, int, string, string, string) (uint64, []*docengine.HelpTextItem, error) {
+func (f *fakeHelpSearchEngine) PaginateDocuments(_, _ int, _, from, _ string) (uint64, []*docengine.HelpTextItem, error) {
+	f.paginateFrom = from
 	return uint64(len(f.pageDocs)), f.pageDocs, nil
 }
 
@@ -187,6 +229,42 @@ func TestHelpManagerLoadHelpDocUnescapesXlsxContent(t *testing.T) {
 	}
 	if got, want := searchEngine.added[0].Content, "first\nsecond"; got != want {
 		t.Fatalf("loaded XLSX content = %q, want %q", got, want)
+	}
+	if got, want := searchEngine.added[0].From, helpFromPath(filePath); got != want {
+		t.Fatalf("loaded XLSX from = %q, want %q", got, want)
+	}
+}
+
+func TestHelpFromPathUsesCanonicalSeparators(t *testing.T) {
+	pathWithPlatformSeparators := filepath.Join("data", "helpdoc", "example.json")
+	if got, want := helpFromPath(pathWithPlatformSeparators), filepath.ToSlash(filepath.Clean(pathWithPlatformSeparators)); got != want {
+		t.Fatalf("helpFromPath(%q) = %q, want %q", pathWithPlatformSeparators, got, want)
+	}
+}
+
+func TestHelpManagerGetContentResolvesResourcesRelativeToSource(t *testing.T) {
+	packageRoot := filepath.Join(t.TempDir(), "cache", "packages", "author", "help-package")
+	source := filepath.Join(packageRoot, "helpdoc", "rules.xlsx")
+	item := &docengine.HelpTextItem{
+		From: source,
+		Content: "entry [图:./../assets/card.png] " +
+			"[CQ:video,file=./../assets/video.mp4,cache=0]",
+	}
+
+	got := (&HelpManager{}).GetContent(item, 0)
+	wantImage, err := filepath.Abs(filepath.Join(packageRoot, "assets", "card.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantVideo, err := filepath.Abs(filepath.Join(packageRoot, "assets", "video.mp4"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "[图:"+filepath.ToSlash(wantImage)+"]") {
+		t.Fatalf("help content image path was not resolved: %q", got)
+	}
+	if !strings.Contains(got, "file="+filepath.ToSlash(wantVideo)) || !strings.Contains(got, "cache=0") {
+		t.Fatalf("help content CQ video path or parameters were not preserved: %q", got)
 	}
 }
 
@@ -291,6 +369,23 @@ func TestHelpManagerGetHelpItemPageMapsPaginationInternalIDs(t *testing.T) {
 	}
 	if items[0].ID != 2 || items[1].ID != 1 {
 		t.Fatalf("GetHelpItemPage() IDs = %d/%d, want 2/1", items[0].ID, items[1].ID)
+	}
+}
+
+func TestHelpManagerGetHelpItemPageNormalizesFromFilter(t *testing.T) {
+	const internalID = "internal-1"
+	searchEngine := &fakeHelpSearchEngine{
+		pageDocs: []*docengine.HelpTextItem{{InternalID: internalID, Title: "example"}},
+	}
+	manager := &HelpManager{
+		docIDs:       []string{internalID},
+		searchEngine: searchEngine,
+	}
+
+	from := `data\helpdoc\example.json`
+	manager.GetHelpItemPage(1, 20, "", "", from, "")
+	if got, want := searchEngine.paginateFrom, filepath.ToSlash(from); got != want {
+		t.Fatalf("pagination from = %q, want %q", got, want)
 	}
 }
 

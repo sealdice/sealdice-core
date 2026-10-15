@@ -2,8 +2,10 @@
 package dice //nolint:testpackage // tests rely on unexported helpers
 
 import (
+	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestExtActivateCompanionDetection 测试扩展激活时伴随扩展的检测逻辑
@@ -96,68 +98,7 @@ func TestExtActivateCompanionDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// 创建测试环境
-			dice := newTestDice(tt.extensions)
-			dice.rebuildActiveWithGraph() // 构建伴随激活图
-			group := newTestGroupInfo()
-
-			// 记录激活前的扩展列表（模拟 builtin_commands.go 中的逻辑）
-			beforeActivate := make(map[string]bool)
-			for _, ext := range group.GetActivatedExtListRaw() {
-				beforeActivate[ext.Name] = true
-			}
-			userActivatedNames := make(map[string]bool)
-
-			// 激活用户指定的扩展（模拟循环激活）
-			var activatedExtNames []string
-			for _, extName := range tt.userActivateNames {
-				extName = strings.ToLower(extName)
-				if ext := dice.ExtFind(extName, false); ext != nil {
-					activatedExtNames = append(activatedExtNames, ext.Name)
-					userActivatedNames[ext.Name] = true
-					group.RemoveFromInactivated(ext.Name)
-					group.ExtActive(ext)
-				}
-			}
-
-			// 检查新激活的伴随扩展（模拟 builtin_commands.go 中的检测逻辑）
-			var companionExtNames []string
-			for _, ext := range group.GetActivatedExtListRaw() {
-				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
-					companionExtNames = append(companionExtNames, ext.Name)
-				}
-			}
-
-			// 验证结果
-			if len(companionExtNames) != len(tt.expectedCompanion) {
-				t.Errorf("伴随扩展数量不匹配: 期望 %d 个 %v, 实际 %d 个 %v",
-					len(tt.expectedCompanion), tt.expectedCompanion,
-					len(companionExtNames), companionExtNames)
-				return
-			}
-
-			// 验证所有期望的伴随扩展都被检测到
-			expectedSet := make(map[string]bool)
-			for _, name := range tt.expectedCompanion {
-				expectedSet[name] = true
-			}
-
-			for _, name := range companionExtNames {
-				if !expectedSet[name] {
-					t.Errorf("意外的伴随扩展: %s (期望: %v, 实际: %v)",
-						name, tt.expectedCompanion, companionExtNames)
-				}
-				delete(expectedSet, name)
-			}
-
-			// 检查是否有遗漏的伴随扩展
-			for name := range expectedSet {
-				t.Errorf("遗漏的伴随扩展: %s (期望: %v, 实际: %v)",
-					name, tt.expectedCompanion, companionExtNames)
-			}
-
-			t.Logf("✓ 用户激活: %v, 检测到的伴随扩展: %v",
-				activatedExtNames, companionExtNames)
+			assertExtCommandCompanions(t, tt.extensions, tt.userActivateNames, tt.expectedCompanion)
 		})
 	}
 }
@@ -205,53 +146,66 @@ func TestExtActivateChainedCompanions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dice := newTestDice(tt.extensions)
-			dice.rebuildActiveWithGraph() // 构建伴随激活图
-			group := newTestGroupInfo()
-
-			beforeActivate := make(map[string]bool)
-			for _, ext := range group.GetActivatedExtListRaw() {
-				beforeActivate[ext.Name] = true
-			}
-			userActivatedNames := make(map[string]bool)
-
-			for _, extName := range tt.userActivateNames {
-				extName = strings.ToLower(extName)
-				if ext := dice.ExtFind(extName, false); ext != nil {
-					userActivatedNames[ext.Name] = true
-					group.RemoveFromInactivated(ext.Name)
-					group.ExtActive(ext)
-				}
-			}
-
-			var companionExtNames []string
-			for _, ext := range group.GetActivatedExtListRaw() {
-				if !beforeActivate[ext.Name] && !userActivatedNames[ext.Name] {
-					companionExtNames = append(companionExtNames, ext.Name)
-				}
-			}
-
-			// 验证伴随扩展数量
-			if len(companionExtNames) != len(tt.expectedCompanion) {
-				t.Errorf("伴随扩展数量不匹配: 期望 %v, 实际 %v",
-					tt.expectedCompanion, companionExtNames)
-				return
-			}
-
-			// 验证所有期望的伴随扩展都被检测到
-			expectedSet := make(map[string]bool)
-			for _, name := range tt.expectedCompanion {
-				expectedSet[name] = true
-			}
-
-			for _, name := range companionExtNames {
-				if !expectedSet[name] {
-					t.Errorf("意外的伴随扩展: %s", name)
-				}
-			}
-
-			t.Logf("✓ 激活链: %v -> 伴随扩展: %v",
-				tt.userActivateNames, companionExtNames)
+			assertExtCommandCompanions(t, tt.extensions, tt.userActivateNames, tt.expectedCompanion)
 		})
+	}
+}
+
+func assertExtCommandCompanions(t *testing.T, extensions []*ExtInfo, userActivateNames, expectedCompanion []string) {
+	t.Helper()
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+	for _, ext := range extensions {
+		d.RegisterExtension(ext)
+	}
+	ctx, msg := newQuitCommandTestContext(t, d, ep, "QQ:9001", "QQ-Group:2001", "ExtTestGroup")
+	ctx.Group.SetActivatedExtList(nil, nil)
+	args := append(slices.Clone(userActivateNames), "on")
+	result := d.CmdMap["ext"].Solve(ctx, msg, &CmdArgs{Command: "ext", Args: args})
+	if !result.Matched || !result.Solved || result.ShowHelp {
+		t.Fatalf("ext command returned unexpected result: %#v", result)
+	}
+
+	// ReplyToSender dispatches asynchronously through panicHandler.Once.
+	// Wait for the adapter to record the reply before inspecting its buffers.
+	if _, ok := adapter.waitForMsg(3 * time.Second); !ok {
+		t.Fatal("timed out waiting for the ext command reply")
+	}
+
+	adapter.mu.Lock()
+	replies := slices.Clone(adapter.groupMsgs)
+	privateReplies := len(adapter.personMsgs)
+	adapter.mu.Unlock()
+	if len(replies) != 1 || privateReplies != 0 {
+		t.Fatalf("expected one group reply, got group=%v private=%d", replies, privateReplies)
+	}
+	if !strings.HasPrefix(replies[0], "打开扩展 ") {
+		t.Fatalf("expected extension activation reply, got %q", replies[0])
+	}
+
+	var gotCompanion []string
+	for _, line := range strings.Split(replies[0], "\n") {
+		if names, ok := strings.CutPrefix(line, "自动启用伴随扩展: "); ok {
+			gotCompanion = append(gotCompanion, strings.Split(names, ", ")...)
+		}
+	}
+	wantCompanion := slices.Clone(expectedCompanion)
+	slices.Sort(gotCompanion)
+	slices.Sort(wantCompanion)
+	if !slices.Equal(gotCompanion, wantCompanion) {
+		t.Fatalf("companion extensions in reply = %v, want %v; reply=%q", gotCompanion, wantCompanion, replies[0])
+	}
+
+	var gotActive, wantActive []string
+	for _, ext := range ctx.Group.GetActivatedExtList(d) {
+		gotActive = append(gotActive, ext.Name)
+	}
+	for _, ext := range extensions {
+		wantActive = append(wantActive, ext.Name)
+	}
+	slices.Sort(gotActive)
+	slices.Sort(wantActive)
+	if !slices.Equal(gotActive, wantActive) {
+		t.Fatalf("active extensions = %v, want %v", gotActive, wantActive)
 	}
 }

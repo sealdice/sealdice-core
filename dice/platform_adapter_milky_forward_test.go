@@ -18,7 +18,10 @@ type milkyForwardRequest struct {
 	Message []struct {
 		Type string `json:"type"`
 		Data struct {
-			Messages []struct {
+			Text       string `json:"text"`
+			UserID     int64  `json:"user_id"`
+			MessageSeq int64  `json:"message_seq"`
+			Messages   []struct {
 				UserID     int64  `json:"user_id"`
 				SenderName string `json:"sender_name"`
 				LegacyName string `json:"name"`
@@ -40,11 +43,13 @@ type milkyForwardHarness struct {
 	mu       sync.Mutex
 	endpoint string
 	request  milkyForwardRequest
+	count    int
+	signal   chan struct{}
 }
 
 func newMilkyForwardHarness(t *testing.T, apiError string) (*milky.Session, *milkyForwardHarness, func()) {
 	t.Helper()
-	h := &milkyForwardHarness{t: t, apiError: apiError}
+	h := &milkyForwardHarness{t: t, apiError: apiError, signal: make(chan struct{}, 1)}
 	server := httptest.NewServer(http.HandlerFunc(h.handle))
 	session, err := milky.New("ws://127.0.0.1", server.URL, "", noopMilkyLogger{})
 	if err != nil {
@@ -66,7 +71,12 @@ func (h *milkyForwardHarness) handle(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	h.endpoint = strings.TrimPrefix(r.URL.Path, "/")
 	h.request = request
+	h.count++
 	h.mu.Unlock()
+	select {
+	case h.signal <- struct{}{}:
+	default:
+	}
 
 	if h.apiError != "" {
 		_ = json.NewEncoder(w).Encode(map[string]any{

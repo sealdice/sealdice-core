@@ -3,6 +3,7 @@
 package service_test
 
 import (
+	_ "github.com/ncruces/go-sqlite3/embed"
 	sqlite "github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"

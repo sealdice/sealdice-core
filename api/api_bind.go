@@ -137,26 +137,8 @@ func forceStop(c echo.Context) error {
 	if runtime.GOOS != "android" {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-	// this is a dangerous api, so we need to check the key
-	haskey := false
-	for _, s := range os.Environ() {
-		if strings.HasPrefix(s, "FSTOP_KEY=") {
-			key := strings.Split(s, "=")[1]
-			v := fStopEcho{}
-			err := c.Bind(&v)
-			if err != nil {
-				return c.JSON(http.StatusBadRequest, nil)
-			}
-			if v.Key == key {
-				haskey = true
-				break
-			} else {
-				return c.JSON(http.StatusForbidden, nil)
-			}
-		}
-	}
-	if !haskey {
-		return c.JSON(http.StatusForbidden, nil)
+	if err := requireForceStopKey(c); err != nil {
+		return err
 	}
 	defer func() {
 		// Same with main.go `cleanUpCreate()` 由于无法导入 main.go 中的函数，所以这里直接复制过来了
@@ -581,6 +563,10 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	myDice = _myDice.Dice[0]
 
 	prefix := "/sd-api"
+
+	// Protect all management routes before handlers can bind input or perform
+	// side effects; individual handler checks remain as defense in depth.
+	e.Use(managementAuthMiddleware)
 
 	// 挂载 humaecho 到 echo 实例
 	_ = humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))

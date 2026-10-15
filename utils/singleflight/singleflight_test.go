@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sync/atomic"
 	"testing"
-	"time"
+	"testing/synctest"
 
 	sharedflight "sealdice-core/utils/singleflight"
 )
@@ -17,50 +17,45 @@ type testResult struct {
 }
 
 func TestGroupSharesInFlightResult(t *testing.T) {
-	var calls atomic.Int32
-	started := make(chan struct{})
-	release := make(chan struct{})
-	t.Cleanup(func() {
-		select {
-		case <-release:
-		default:
-			close(release)
+	synctest.Test(t, func(t *testing.T) {
+		var calls atomic.Int32
+		release := make(chan struct{})
+		want := testResult{Value: "shared", Timestamp: 123}
+		var group sharedflight.Group[testResult]
+		run := func() (testResult, error) {
+			calls.Add(1)
+			<-release
+			return want, nil
+		}
+
+		type outcome struct {
+			result testResult
+			err    error
+		}
+		results := make(chan outcome, 2)
+		for range 2 {
+			go func() {
+				result, err := group.Do(t.Context(), "key", run)
+				results <- outcome{result: result, err: err}
+			}()
+		}
+
+		// Both callers must be waiting on the in-flight call before it finishes.
+		synctest.Wait()
+		close(release)
+		for range 2 {
+			got := <-results
+			if got.err != nil {
+				t.Errorf("shared call returned error: %v", got.err)
+			}
+			if !reflect.DeepEqual(got.result, want) {
+				t.Errorf("shared result = %#v, want %#v", got.result, want)
+			}
+		}
+		if got := calls.Load(); got != 1 {
+			t.Fatalf("function called %d times, want 1", got)
 		}
 	})
-
-	want := testResult{Value: "shared", Timestamp: 123}
-	var group sharedflight.Group[testResult]
-	run := func() (testResult, error) {
-		calls.Add(1)
-		close(started)
-		<-release
-		return want, nil
-	}
-
-	first := make(chan testResult, 1)
-	go func() {
-		result, _ := group.Do(t.Context(), "key", run)
-		first <- result
-	}()
-	<-started
-
-	timer := time.AfterFunc(20*time.Millisecond, func() { close(release) })
-	defer timer.Stop()
-	second, err := group.Do(t.Context(), "key", run)
-	if err != nil {
-		t.Fatalf("second call returned error: %v", err)
-	}
-	firstResult := <-first
-
-	if got := calls.Load(); got != 1 {
-		t.Fatalf("function called %d times, want 1", got)
-	}
-	if !reflect.DeepEqual(firstResult, want) {
-		t.Fatalf("first result = %#v, want %#v", firstResult, want)
-	}
-	if !reflect.DeepEqual(second, want) {
-		t.Fatalf("second result = %#v, want %#v", second, want)
-	}
 }
 
 func TestGroupCanceledWaiterDoesNotCancelSharedCall(t *testing.T) {

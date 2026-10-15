@@ -950,37 +950,6 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	re = regexp.MustCompile(`\[.+?]`)
 	m = re.FindAllStringIndex(s, -1)
 
-	cqSolve := func(cq *CQCommand) {
-		fn, exists := cq.Args["file"]
-		if exists {
-			if strings.HasPrefix(fn, "./") {
-				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
-				if err == nil {
-					fn = filepath.Join(pathPrefix, fn[2:])
-					fn = strings.ReplaceAll(fn, `\`, "/")
-					cq.Args["file"] = fn
-				}
-			}
-		}
-	}
-
-	imgSolve := func(text string) string {
-		reImg := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
-		m := reImg.FindStringSubmatch(text)
-		if m != nil {
-			fn := m[2]
-			if strings.HasPrefix(fn, "./") {
-				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
-				if err == nil {
-					fn = filepath.Join(pathPrefix, fn[2:])
-					fn = strings.ReplaceAll(fn, `\`, "/")
-					return "[" + m[1] + ":" + fn + "]"
-				}
-			}
-		}
-		return text
-	}
-
 	for _i := len(m) - 1; _i >= 0; _i-- {
 		i := m[_i]
 
@@ -989,10 +958,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 			continue
 		}
 
-		if strings.HasPrefix(text, "[图:") ||
-			strings.HasPrefix(text, "[img:") ||
-			strings.HasPrefix(text, "[文本:") ||
-			strings.HasPrefix(text, "[语音:") {
+		if isResourceCode(text) {
 			continue
 		}
 
@@ -1007,8 +973,8 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 		// s = s[:i[0]] + text + s[i[1]:]
 	}
 
-	s = CQRewrite(s, cqSolve)
-	s = ImageRewrite(s, imgSolve)
+	// 在进入消息解析前，按牌堆文件位置固定 ./ 资源路径。
+	s = rewriteRelativeResourcePaths(deckInfo.Filename, s)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
 	if ctx.Dice.getTargetVmEngineVersion(VMVersionDeck) == "v1" {

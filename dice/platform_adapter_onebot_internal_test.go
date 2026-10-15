@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ type onebotTestEmitter struct {
 	loginInfoErr         error
 	sendPvtCh            chan time.Time
 	sendGrCh             chan time.Time
+	lastGrID             int64
 }
 
 type friendReqCall struct {
@@ -70,7 +72,8 @@ func (m *onebotTestEmitter) SendPvtMsg(context.Context, int64, schema.MessageCha
 	return &emitterTypes.SendMsgRes{}, nil
 }
 
-func (m *onebotTestEmitter) SendGrMsg(context.Context, int64, schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+func (m *onebotTestEmitter) SendGrMsg(_ context.Context, groupID int64, _ schema.MessageChain) (*emitterTypes.SendMsgRes, error) {
+	m.lastGrID = groupID
 	if m.sendGrCh != nil {
 		select {
 		case m.sendGrCh <- time.Now():
@@ -211,9 +214,11 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 
 	d, ep, _, cleanup := newExecuteNewTestDice(t)
 	d.ExtList = nil
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 	pa := &PlatformAdapterOnebot{
 		EndPoint: ep,
-		ctx:      t.Context(),
+		ctx:      ctx,
 		logger:   d.Logger,
 	}
 	pool, err := ants.NewPool(8)
@@ -241,16 +246,24 @@ func newPureOnebotTestAdapter(t *testing.T) (*Dice, *PlatformAdapterOnebot, *one
 	ep.Adapter = pa
 	ep.Session = d.ImSession
 
+	var cleanupOnce sync.Once
 	cleanupAll := func() {
-		if pa.groupCache != nil {
-			pa.groupCache.Close()
-		}
-		if pa.friendRequestDedupeCache != nil {
-			pa.friendRequestDedupeCache.Close()
-		}
-		pool.Release()
-		cleanup()
+		cleanupOnce.Do(func() {
+			cancel()
+			if err := pool.ReleaseTimeout(10 * time.Second); err != nil {
+				t.Fatalf("wait for OneBot test workers: %v", err)
+			}
+			waitForTestMessageTasks(t, d)
+			if pa.groupCache != nil {
+				pa.groupCache.Close()
+			}
+			if pa.friendRequestDedupeCache != nil {
+				pa.friendRequestDedupeCache.Close()
+			}
+			cleanup()
+		})
 	}
+	t.Cleanup(cleanupAll)
 
 	return d, pa, em, cleanupAll
 }
@@ -854,8 +867,50 @@ func TestPureOnebotScheduleLoginInfoRetryRechecksGuardsAfterSleeping(t *testing.
 }
 
 func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
-	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=group"}
+
+	req := gjson.Parse(`{
+		"post_type":"notice",
+		"notice_type":"group_increase",
+		"group_id":"66666",
+		"user_id":"54321",
+		"self_id":"54321",
+		"operator_id":"12345",
+		"time": 1,
+		"message": []
+	}`)
+
+	if err := pa.handleJoinGroupAction(req, nil); err != nil {
+		t.Fatalf("handleJoinGroupAction returned error: %v", err)
+	}
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected self join processing to complete")
+	}
+
+	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
+	if !ok {
+		t.Fatalf("expected group to be initialized")
+	}
+	if group.InviteUserID != "QQ:12345" {
+		t.Fatalf("expected inviter to be preserved, got %q", group.InviteUserID)
+	}
+}
+
+func TestPureOnebotHandleJoinGroupSelfJoinUsesIMSessionNoticeFlow(t *testing.T) {
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	core, observed := observer.New(zapcore.InfoLevel)
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
+	d.Config.NoticeIDs = []string{pa.EndPoint.UserID + ":only=group"}
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
 	req := gjson.Parse(`{
 		"post_type":"notice",
@@ -872,21 +927,23 @@ func TestPureOnebotHandleJoinGroupStoresInviterForSelfJoin(t *testing.T) {
 		t.Fatalf("handleJoinGroupAction returned error: %v", err)
 	}
 
-	group, ok := pa.EndPoint.Session.ServiceAtNew.Load("QQ-Group:66666")
-	if !ok {
-		t.Fatalf("expected group to be initialized")
+	select {
+	case <-em.sendPvtCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected self join to send group notice via IMSession flow")
 	}
-	if group.InviteUserID != "QQ:12345" {
-		t.Fatalf("expected inviter to be preserved, got %q", group.InviteUserID)
-	}
+
+	waitPureOnebotInfoLog(t, observed, "加入群组:")
 }
 
 func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
-	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, _, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
 	core, observed := observer.New(zapcore.InfoLevel)
-	pa.logger = zap.New(core).Sugar()
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -921,11 +978,13 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenGroupMissing(t *testing.T) {
 }
 
 func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenDisabled(t *testing.T) {
-	_, pa, _, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, _, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
 	core, observed := observer.New(zapcore.InfoLevel)
-	pa.logger = zap.New(core).Sugar()
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -964,11 +1023,13 @@ func TestPureOnebotHandleJoinGroupLogsNoWelcomeWhenDisabled(t *testing.T) {
 }
 
 func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
-	_, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
 	defer cleanup()
 
 	core, observed := observer.New(zapcore.InfoLevel)
-	pa.logger = zap.New(core).Sugar()
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
 	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
 
@@ -999,6 +1060,10 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatal("expected welcome message to be sent")
 	}
 
+	if em.lastGrID != 77777 {
+		t.Fatalf("expected welcome sent to normalized group 77777, got %d", em.lastGrID)
+	}
+
 	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
 		t.Fatalf("expected need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
 	}
@@ -1017,15 +1082,103 @@ func TestPureOnebotHandleJoinGroupLogsWelcomeDecisionAndSend(t *testing.T) {
 		t.Fatalf("unexpected welcome send log: %q", sendLog)
 	}
 }
+
+func TestPureOnebotHandleJoinGroupDeduplicatesRepeatedEvent(t *testing.T) {
+	d, pa, em, cleanup := newPureOnebotTestAdapter(t)
+	defer cleanup()
+
+	core, observed := observer.New(zapcore.InfoLevel)
+	d.Logger = zap.New(core).Sugar()
+	pa.logger = d.Logger
+	pa.EndPoint.Session.Parent.Logger = d.Logger
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeStart = 0
+	pa.EndPoint.Session.Parent.Config.MessageDelayRangeEnd = 0
+
+	pa.EndPoint.Session.ServiceAtNew.Store("QQ-Group:88888", &GroupInfo{
+		GroupID:             "QQ-Group:88888",
+		ShowGroupWelcome:    true,
+		GroupWelcomeMessage: "欢迎新人",
+		DiceIDExistsMap:     new(SyncMap[string, bool]),
+	})
+
+	req := gjson.Parse(`{
+		"post_type":"notice",
+		"notice_type":"group_increase",
+		"group_id":88888,
+		"user_id":22222,
+		"self_id":54321,
+		"time": 2,
+		"message": []
+	}`)
+
+	const eventCount = 8
+	for i := range eventCount {
+		if err := pa.handleJoinGroupAction(req, nil); err != nil {
+			t.Fatalf("handleJoinGroupAction returned error for event %d: %v", i+1, err)
+		}
+	}
+
+	select {
+	case <-em.sendGrCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected one welcome message to be sent")
+	}
+
+	waitPureOnebotInfoLogCount(t, observed, "检查是否需要迎新", eventCount)
+
+	select {
+	case <-em.sendGrCh:
+		t.Fatal("expected repeated concurrent events to be deduplicated")
+	default:
+	}
+
+	if len(observed.FilterMessageSnippet("need_welcome=true").All()) != 1 {
+		t.Fatalf("expected exactly one need_welcome=true log, got %d", len(observed.FilterMessageSnippet("need_welcome=true").All()))
+	}
+	if len(observed.FilterMessageSnippet("reason=duplicate_event").All()) != eventCount-1 {
+		t.Fatalf("expected %d duplicate_event logs, got %d", eventCount-1, len(observed.FilterMessageSnippet("reason=duplicate_event").All()))
+	}
+	if len(observed.FilterMessageSnippet("发送迎新消息").All()) != 1 {
+		t.Fatalf("expected exactly one welcome send log, got %d", len(observed.FilterMessageSnippet("发送迎新消息").All()))
+	}
+}
+
 func waitPureOnebotInfoLog(t *testing.T, observed *observer.ObservedLogs, snippet string) {
+	t.Helper()
+	waitPureOnebotInfoLogCount(t, observed, snippet, 1)
+}
+
+func waitPureOnebotInfoLogCount(t *testing.T, observed *observer.ObservedLogs, snippet string, count int) {
 	t.Helper()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if len(observed.FilterMessageSnippet(snippet).All()) > 0 {
+		if len(observed.FilterMessageSnippet(snippet).All()) >= count {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("timed out waiting for log snippet %q", snippet)
+	t.Fatalf("timed out waiting for %d log entries containing %q", count, snippet)
+}
+
+// 协议端比骰子晚起来时，首次连接被拒、状态机进入 failed，retryConnect 随后直接重连成功。
+// 这里用真实的状态转换表，确认重连成功会回到 connected，之后断线也还能再触发重连。
+func TestPureOnebotReconnectAfterInitialFailureMarksConnected(t *testing.T) {
+	pa := &PlatformAdapterOnebot{EndPoint: &EndPointInfo{}}
+	pa.ensureFSM()
+	pa.sm.SetState("failed")
+	pa.EndPoint.State = StateConnectionFailed
+
+	if err := pa.sm.Event(context.Background(), "connect_ok"); err != nil {
+		t.Fatalf("expected connect_ok to be accepted from failed, got %v", err)
+	}
+	if got := pa.sm.Current(); got != "connected" {
+		t.Fatalf("expected FSM to transition to connected, got %q", got)
+	}
+	if pa.EndPoint.State != StateConnected {
+		t.Fatalf("expected EndPoint.State to be StateConnected, got %v", pa.EndPoint.State)
+	}
+	if !pa.sm.Can("connection_lost") {
+		t.Fatal("expected connection_lost to be possible after reconnecting")
+	}
 }

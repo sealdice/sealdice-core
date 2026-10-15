@@ -99,3 +99,38 @@ func TestV160LogIDZeroClean_NothingToDoIsNoOp(t *testing.T) {
 		t.Fatalf("log 1 的 size 应保持不变为 1，实际 %d", sizes[1])
 	}
 }
+
+func TestV160LogIDZeroClean_RecountDoesNotChangeUpdatedAt(t *testing.T) {
+	op, _ := v2test.NewTestSQLiteEngine(t)
+	logDB := op.GetLogDB(constant.WRITE)
+
+	v2test.MustExec(t, logDB, `CREATE TABLE logs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT,
+		group_id TEXT,
+		created_at INTEGER,
+		updated_at INTEGER,
+		size INTEGER
+	)`)
+	v2test.MustExec(t, logDB, `CREATE TABLE log_items (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		log_id INTEGER,
+		group_id TEXT,
+		time INTEGER,
+		removed INTEGER
+	)`)
+	v2test.MustExec(t, logDB, `INSERT INTO logs (id, name, created_at, updated_at, size) VALUES (1, 'a', 100, 222, 99), (0, NULL, 0, 0, 0)`)
+	v2test.MustExec(t, logDB, `INSERT INTO log_items (log_id, time, removed) VALUES (1, 101, NULL), (1, 102, NULL), (0, 0, NULL)`)
+
+	if err := v160.V160LogIDZeroCleanMigrate(op, v2test.SilentLogf); err != nil {
+		t.Fatalf("V160LogIDZeroCleanMigrate 失败: %v", err)
+	}
+
+	var updatedAt int64
+	if err := logDB.Raw("SELECT updated_at FROM logs WHERE id = 1").Scan(&updatedAt).Error; err != nil {
+		t.Fatalf("查询 updated_at 失败: %v", err)
+	}
+	if updatedAt != 222 {
+		t.Fatalf("重算 size 后不应改写 updated_at: got %d want 222", updatedAt)
+	}
+}
