@@ -110,6 +110,23 @@ it('保存旧包期间切换到新包，不覆盖新包配置', async () => {
   expect(detail.config.value).toEqual({ value: 'b' });
 });
 
+it('HTTP 200 内业务保存失败时不显示保存成功', async () => {
+  vi.mocked(putSdApiV2ExtensionConfig).mockResolvedValue({
+    data: { item: { success: false, message: '写入失败' } },
+  } as never);
+  const { detail, open, resolve, onSaved, onError } = fixture();
+  await open('a');
+  await resolve('a');
+  detail.saveConfig({ value: 'bad' });
+  await vi.waitFor(() =>
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: '写入失败' }),
+      '保存配置失败'
+    )
+  );
+  expect(onSaved).not.toHaveBeenCalled();
+});
+
 it('登录后才读取配置，退出登录关闭并清空当前详情', async () => {
   const { detail, resolve } = fixture('');
   detail.open({ manifest: { package: { id: 'a' } } } as Instance);

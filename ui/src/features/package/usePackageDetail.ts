@@ -7,6 +7,7 @@ import {
   type Instance,
 } from '@/api';
 import { useAuthStore } from '@/features/auth/store';
+import { requirePackageActionSuccess } from './operations';
 
 const detailKey = (id: string) => ['extension-package-detail', id] as const;
 
@@ -33,8 +34,14 @@ export function usePackageDetail(options: {
     },
   });
   const save = useMutation({
-    mutationFn: ({ id, config }: { id: string; config: Record<string, unknown> }) =>
-      putSdApiV2ExtensionConfig({ query: { id }, body: config, throwOnError: true }),
+    mutationFn: async ({ id, config }: { id: string; config: Record<string, unknown> }) => {
+      const { data } = await putSdApiV2ExtensionConfig({
+        query: { id },
+        body: config,
+        throwOnError: true,
+      });
+      return requirePackageActionSuccess(data.item, '保存配置失败');
+    },
     onSuccess: async (_result, submitted) => {
       // 只刷新真正保存的包；不把提交时的明文配置塞进其他包的状态。
       await client.invalidateQueries({ queryKey: detailKey(submitted.id), exact: true });

@@ -72,7 +72,7 @@
 - 上传统一通过 `useUploadStore()` 消费；响应式状态用 `storeToRefs()`，不再增加逐个转发的 `state.ts` 门面。
   - `enqueue()` 只等待文件完成入队准备，`upload()` 等待单文件安装完成；失败与取消都会结束后者的 Promise。
   - store 持有并释放 Uppy；queue 管理业务任务，engine 负责第三方身份和事件映射。
-- 扩展包安装用例在 `features/package/install.ts`，统一安装、启用、重载和刷新。展示组件选择上传／URL／商店来源并展示结果，不另写三套后置状态机。
+- 扩展包安装用例在 `features/package/operations.ts`，统一安装、启用、重载和刷新。展示组件选择上传／URL／商店来源并展示结果，不另写三套后置状态机。
 - 扩展包详情由 `features/package/usePackageDetail.ts` 管理，查询与保存回调都按包 ID 隔离；Vue Query 负责取消旧查询，页面不再维护另一份配置请求状态。
   - 详情抽屉保存期间阻止继续编辑；安装后的列表刷新失败单独反馈，不把已经完成的安装报成失败。
 - 扩展包目录查询由 `features/package/usePackageCatalog.ts` 持有：安装列表、仓库后端、商店页共享认证条件、取消信号和刷新逻辑。页面保留筛选、展示与用户确认。

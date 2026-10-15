@@ -394,23 +394,10 @@ import { usePackageCatalog } from '@/features/package/usePackageCatalog';
 import { useRoute, useRouter } from 'vue-router';
 import { createProSearchForm, type ProSearchFormColumns } from 'pro-naive-ui';
 import {
-  deleteSdApiV2ExtensionStoreBackends,
-  postSdApiV2ExtensionDisable,
-  postSdApiV2ExtensionEnable,
-  postSdApiV2ExtensionInstallUrl,
   postSdApiV2ExtensionPreviewUpload,
   postSdApiV2ExtensionPreviewUrl,
-  postSdApiV2ExtensionReload,
-  postSdApiV2ExtensionReloadAll,
-  postSdApiV2ExtensionReloadContent,
-  postSdApiV2ExtensionStoreBackends,
-  postSdApiV2ExtensionStoreBackendsDisable,
-  postSdApiV2ExtensionStoreBackendsEnable,
-  postSdApiV2ExtensionStoreDownload,
-  postSdApiV2ExtensionUninstall,
   type Instance,
   type Manifest,
-  type PackageUploadPreview,
   type StoreBackend,
   type StorePackage,
 } from '@/api';
@@ -419,10 +406,21 @@ import { getErrorMessage } from '@/features/auth/error';
 import { isApiErrorHandled } from '@/api/errors';
 import { useUploadStore } from '@/features/upload/store';
 import {
+  addPackageBackend,
   installPackage,
+  installPackageFromUrl,
+  installStorePackageById,
+  reloadAllPackages,
+  reloadPackageById,
+  reloadPackageContent,
+  removePackageBackend,
+  setPackageBackendEnabled,
+  setPackageEnabled,
+  uninstallPackageById,
+  useInstallPreview,
   type InstallOptions,
   type InstallResult,
-} from '@/features/package/install';
+} from '@/features/package/operations';
 import { isTestModeApiError, getTestModeBlockMessage } from '@/features/testMode/state';
 import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
@@ -573,12 +571,27 @@ const storeSearchColumns: ProSearchFormColumns<StoreSearchFormValues> = [
 const storeDetailVisible = ref(false);
 const currentStorePackage = ref<StorePackage | null>(null);
 
-const previewVisible = ref(false);
-const previewTitle = ref('安装预览');
-const previewData = ref<PackageUploadPreview | null>(null);
-const previewSource = ref<'store' | 'upload' | 'url' | 'none'>('none');
-const previewStoreTarget = ref<StorePackage | null>(null);
-const previewUrlTarget = ref('');
+const {
+  current: preview,
+  visible: previewVisible,
+  openAsync: openPreviewAsync,
+  openStore: openStorePreview,
+  close: closePreview,
+} = useInstallPreview();
+const previewData = computed(() => {
+  const target = preview.value;
+  return target && target.kind !== 'store' ? target.data : null;
+});
+const previewStoreTarget = computed(() =>
+  preview.value?.kind === 'store' ? preview.value.pkg : null
+);
+const previewTitle = computed(() => {
+  const target = preview.value;
+  if (!target) return '安装预览';
+  if (target.kind === 'upload') return '上传预览';
+  if (target.kind === 'url') return 'URL 安装预览';
+  return (target.pkg.installed ? '重装' : '安装') + '扩展包';
+});
 
 const {
   packagesQuery,
@@ -609,8 +622,8 @@ const {
   saveConfig: savePackageConfig,
 } = usePackageDetail({
   onSaved: async () => {
-    message.success('配置已保存');
-    await packagesQuery.refetch();
+    if (await refreshPackageList()) message.success('配置已保存');
+    else message.warning('配置已保存，但列表刷新失败，请手动刷新');
   },
   onError: handleError,
 });
@@ -712,8 +725,7 @@ watch(
   () => authStore.hasAccessToken,
   hasToken => {
     if (!hasToken) {
-      previewVisible.value = false;
-      previewStoreTarget.value = null;
+      closePreview();
       storeDetailVisible.value = false;
       detachedReloadPending.value = false;
     }
@@ -752,21 +764,30 @@ async function handleStorePageSizeChange() {
   await fetchStorePage();
 }
 
+// 操作成功之后再刷新列表；刷新失败不能把已经完成的操作误报为失败。
+async function refreshPackageList(): Promise<boolean> {
+  try {
+    await packagesQuery.refetch({ throwOnError: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function refreshBackendList(): Promise<boolean> {
+  try {
+    await storeBackendsQuery.refetch({ throwOnError: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function changePackageState(pkg: Instance, enable: boolean) {
   try {
-    if (enable) {
-      await postSdApiV2ExtensionEnable({
-        body: { id: pkg.manifest.package.id },
-        throwOnError: true,
-      });
-    } else {
-      await postSdApiV2ExtensionDisable({
-        body: { id: pkg.manifest.package.id },
-        throwOnError: true,
-      });
-    }
-    message.success('状态已更新');
-    await packagesQuery.refetch();
+    await setPackageEnabled(pkg.manifest.package.id, enable);
+    if (await refreshPackageList()) message.success('状态已更新');
+    else message.warning('状态已更新，但列表刷新失败，请手动刷新');
   } catch (error) {
     handleError(error, enable ? '启用失败' : '禁用失败');
   }
@@ -791,9 +812,9 @@ function notifyUninstallResult(reloadNeeded: boolean, refreshSucceeded: boolean)
 
 async function reloadPackage(pkg: Instance) {
   try {
-    await postSdApiV2ExtensionReload({ body: { id: pkg.manifest.package.id }, throwOnError: true });
-    message.success('已重载');
-    await packagesQuery.refetch();
+    await reloadPackageById(pkg.manifest.package.id);
+    if (await refreshPackageList()) message.success('已重载');
+    else message.warning('已重载，但列表刷新失败，请手动刷新');
   } catch (error) {
     handleError(error, '重载失败');
   }
@@ -807,48 +828,47 @@ async function reloadPendingPackages() {
   try {
     let failedCount = 0;
     if (reloadAll) {
-      const { data } = await postSdApiV2ExtensionReloadAll({ throwOnError: true });
-      failedCount = data.item.success ? 0 : 1;
+      try {
+        await reloadAllPackages();
+      } catch {
+        failedCount = 1;
+      }
     } else {
       const results = await Promise.allSettled(
-        pending.map(pkg =>
-          postSdApiV2ExtensionReload({
-            body: { id: pkg.manifest.package.id },
-            throwOnError: true,
-          })
-        )
+        pending.map(pkg => reloadPackageById(pkg.manifest.package.id))
       );
       failedCount = results.filter(result => result.status === 'rejected').length;
     }
-    await packagesQuery.refetch();
+    const refreshed = await refreshPackageList();
     if (failedCount) {
-      message.warning(`${failedCount} 个扩展包重载失败，请稍后重试`);
+      message.warning(String(failedCount) + ' 个扩展包重载失败，请稍后重试');
     } else {
       detachedReloadPending.value = false;
-      message.success('扩展包已重载');
+      if (refreshed) message.success('扩展包已重载');
+      else message.warning('扩展包已重载，但列表刷新失败，请手动刷新');
     }
-  } catch (error) {
-    handleError(error, '重载扩展包失败');
   } finally {
     reloading.value = false;
   }
 }
 
-async function uninstallPackage(pkg: Instance) {
+async function uninstallById(id: string, onSuccess?: () => void) {
+  const reloadNeeded = packageNeedsReload(id);
+  await uninstallPackageById(id);
+  onSuccess?.();
+  const refreshed = await refreshInstallState(true);
+  notifyUninstallResult(reloadNeeded, refreshed);
+}
+
+function uninstallPackage(pkg: Instance) {
   dialog.warning({
     title: '卸载扩展包',
-    content: `确认卸载 ${pkg.manifest.package.name} 吗？`,
+    content: '确认卸载 ' + pkg.manifest.package.name + ' 吗？',
     positiveText: '确认',
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const reloadNeeded = packageNeedsReload(pkg.manifest.package.id);
-        await postSdApiV2ExtensionUninstall({
-          body: { id: pkg.manifest.package.id, mode: 'full' },
-          throwOnError: true,
-        });
-        const refreshSucceeded = await refreshInstallState(true);
-        notifyUninstallResult(reloadNeeded, refreshSucceeded);
+        await uninstallById(pkg.manifest.package.id);
       } catch (error) {
         handleError(error, '卸载失败');
       }
@@ -863,24 +883,11 @@ async function handleReloadSelect(key: string) {
   }
   try {
     reloading.value = true;
-    let success = true;
-    if (key === 'all') {
-      const { data } = await postSdApiV2ExtensionReloadAll({ throwOnError: true });
-      success = data.item.success;
-    } else {
-      const { data } = await postSdApiV2ExtensionReloadContent({
-        body: { content: key },
-        throwOnError: true,
-      });
-      success = data.item.success;
-    }
-    if (!success) {
-      message.warning('重载未完成，请稍后重试');
-      return;
-    }
+    if (key === 'all') await reloadAllPackages();
+    else await reloadPackageContent(key);
     if (key === 'all') detachedReloadPending.value = false;
-    message.success('已重载');
-    await packagesQuery.refetch();
+    if (await refreshPackageList()) message.success('已重载');
+    else message.warning('已重载，但列表刷新失败，请手动刷新');
   } catch (error) {
     handleError(error, '重载失败');
   } finally {
@@ -889,16 +896,14 @@ async function handleReloadSelect(key: string) {
 }
 
 async function addBackend() {
-  if (!backendUrlInput.value.trim()) return;
+  const url = backendUrlInput.value.trim();
+  if (!url) return;
   backendMutationPending.value = true;
   try {
-    await postSdApiV2ExtensionStoreBackends({
-      body: { url: backendUrlInput.value.trim() },
-      throwOnError: true,
-    });
+    await addPackageBackend(url);
     backendUrlInput.value = '';
-    message.success('后端已添加');
-    await storeBackendsQuery.refetch();
+    if (await refreshBackendList()) message.success('后端已添加');
+    else message.warning('后端已添加，但列表刷新失败，请手动刷新');
   } catch (error) {
     handleError(error, '添加后端失败');
   } finally {
@@ -909,13 +914,10 @@ async function addBackend() {
 async function toggleBackend(backend: StoreBackend, enabled: boolean) {
   backendMutationPending.value = true;
   try {
-    const body = { id: backend.id || '', backendID: backend.id || '', url: backend.url || '' };
-    if (enabled) {
-      await postSdApiV2ExtensionStoreBackendsEnable({ body, throwOnError: true });
-    } else {
-      await postSdApiV2ExtensionStoreBackendsDisable({ body, throwOnError: true });
+    await setPackageBackendEnabled(backend, enabled);
+    if (!(await refreshBackendList())) {
+      message.warning('仓库后端状态已更新，但列表刷新失败，请手动刷新');
     }
-    await storeBackendsQuery.refetch();
   } catch (error) {
     handleError(error, '修改后端失败');
   } finally {
@@ -926,17 +928,16 @@ async function toggleBackend(backend: StoreBackend, enabled: boolean) {
 function removeBackend(backend: StoreBackend) {
   dialog.warning({
     title: '删除仓库后端',
-    content: `确认删除仓库后端「${backend.name || backend.id || backend.url}」？`,
+    content: '确认删除仓库后端「' + (backend.name || backend.id || backend.url) + '」？',
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
       backendMutationPending.value = true;
       try {
-        await deleteSdApiV2ExtensionStoreBackends({
-          body: { id: backend.id || '', backendID: backend.id || '', url: backend.url || '' },
-          throwOnError: true,
-        });
-        await storeBackendsQuery.refetch();
+        await removePackageBackend(backend);
+        if (!(await refreshBackendList())) {
+          message.warning('后端已删除，但列表刷新失败，请手动刷新');
+        }
       } catch (error) {
         handleError(error, '删除后端失败');
       } finally {
@@ -966,19 +967,18 @@ function getInstallOptions(): InstallOptions {
 }
 
 async function previewUpload() {
-  if (!selectedUploadFile.value) return;
+  const file = selectedUploadFile.value;
+  if (!file) return;
   uploadPreviewLoading.value = true;
   try {
-    const { data } = await postSdApiV2ExtensionPreviewUpload({
-      body: selectedUploadFile.value,
-      throwOnError: true,
+    const opened = await openPreviewAsync(async () => {
+      const { data } = await postSdApiV2ExtensionPreviewUpload({
+        body: file,
+        throwOnError: true,
+      });
+      return { kind: 'upload', file, data: data.item };
     });
-    resetInstallOptions();
-    previewSource.value = 'upload';
-    previewStoreTarget.value = null;
-    previewTitle.value = '上传预览';
-    previewData.value = data.item;
-    previewVisible.value = true;
+    if (opened) resetInstallOptions();
   } catch (error) {
     handleError(error, '预览失败');
   } finally {
@@ -1042,12 +1042,9 @@ function reportInstallResult(action: string, options: InstallOptions, result: In
   }
 }
 
-async function installUpload(options: InstallOptions): Promise<boolean> {
-  if (!selectedUploadFile.value) return false;
-  const id = previewData.value?.manifest.package.id;
+async function installUpload(file: File, id: string, options: InstallOptions): Promise<boolean> {
   uploadInstallLoading.value = true;
   try {
-    const file = selectedUploadFile.value;
     const result = await runInstall(() => uploads.upload(file, 'extension-install'), id, options);
     reportInstallResult('安装', options, result);
     return true;
@@ -1059,20 +1056,10 @@ async function installUpload(options: InstallOptions): Promise<boolean> {
   }
 }
 
-async function installByUrl(url: string, options: InstallOptions): Promise<boolean> {
-  if (!url) return false;
-  const id = previewData.value?.manifest.package.id;
+async function installByUrl(url: string, id: string, options: InstallOptions): Promise<boolean> {
   installUrlLoading.value = true;
   try {
-    const result = await runInstall(
-      () =>
-        postSdApiV2ExtensionInstallUrl({
-          body: { url },
-          throwOnError: true,
-        }),
-      id,
-      options
-    );
+    const result = await runInstall(() => installPackageFromUrl(url), id, options);
     installUrlInput.value = '';
     reportInstallResult('安装', options, result);
     return true;
@@ -1089,17 +1076,14 @@ async function previewUrl() {
   if (!url) return;
   installUrlLoading.value = true;
   try {
-    const { data } = await postSdApiV2ExtensionPreviewUrl({
-      body: { url },
-      throwOnError: true,
+    const opened = await openPreviewAsync(async () => {
+      const { data } = await postSdApiV2ExtensionPreviewUrl({
+        body: { url },
+        throwOnError: true,
+      });
+      return { kind: 'url', url, data: data.item };
     });
-    resetInstallOptions();
-    previewSource.value = 'url';
-    previewStoreTarget.value = null;
-    previewUrlTarget.value = url;
-    previewTitle.value = 'URL 安装预览';
-    previewData.value = data.item;
-    previewVisible.value = true;
+    if (opened) resetInstallOptions();
   } catch (error) {
     handleError(error, 'URL 预览失败');
   } finally {
@@ -1114,31 +1098,21 @@ function openStoreDetail(pkg: StorePackage) {
 
 function openStoreInstall(pkg: StorePackage) {
   resetInstallOptions();
-  previewSource.value = 'store';
-  previewStoreTarget.value = pkg;
-  previewUrlTarget.value = '';
-  previewTitle.value = `${pkg.installed ? '重装' : '安装'}扩展包`;
-  previewData.value = null;
+  openStorePreview(pkg);
   storeDetailVisible.value = false;
-  previewVisible.value = true;
 }
 
 function confirmStoreUninstall(pkg: StorePackage) {
   dialog.warning({
     title: '卸载扩展包',
-    content: `确认卸载「${pkg.name}」吗？卸载后扩展包文件将被删除。`,
+    content: '确认卸载「' + pkg.name + '」吗？卸载后扩展包文件将被删除。',
     positiveText: '卸载',
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        const reloadNeeded = packageNeedsReload(pkg.id);
-        await postSdApiV2ExtensionUninstall({
-          body: { id: pkg.id, mode: 'full' },
-          throwOnError: true,
+        await uninstallById(pkg.id, () => {
+          storeDetailVisible.value = false;
         });
-        storeDetailVisible.value = false;
-        const refreshSucceeded = await refreshInstallState(true);
-        notifyUninstallResult(reloadNeeded, refreshSucceeded);
       } catch (error) {
         handleError(error, '卸载失败');
       }
@@ -1149,11 +1123,7 @@ function confirmStoreUninstall(pkg: StorePackage) {
 async function installStorePackage(pkg: StorePackage, options: InstallOptions): Promise<boolean> {
   try {
     const result = await runInstall(
-      () =>
-        postSdApiV2ExtensionStoreDownload({
-          body: { id: pkg.id, version: pkg.version },
-          throwOnError: true,
-        }),
+      () => installStorePackageById(pkg.id, pkg.version),
       pkg.id,
       options,
       true
@@ -1167,24 +1137,20 @@ async function installStorePackage(pkg: StorePackage, options: InstallOptions): 
 }
 
 async function confirmPreviewInstall() {
-  if (!previewData.value && !previewStoreTarget.value) return;
+  const target = preview.value;
+  if (!target || installPreviewConfirmLoading.value) return;
   installPreviewConfirmLoading.value = true;
   try {
     const options = getInstallOptions();
     let installed = false;
-    if (previewSource.value === 'store' && previewStoreTarget.value) {
-      installed = await installStorePackage(previewStoreTarget.value, options);
-    } else if (previewSource.value === 'upload' && selectedUploadFile.value) {
-      installed = await installUpload(options);
-    } else if (previewSource.value === 'url' && previewUrlTarget.value) {
-      installed = await installByUrl(previewUrlTarget.value, options);
+    if (target.kind === 'store') {
+      installed = await installStorePackage(target.pkg, options);
+    } else if (target.kind === 'upload') {
+      installed = await installUpload(target.file, target.data.manifest.package.id, options);
+    } else {
+      installed = await installByUrl(target.url, target.data.manifest.package.id, options);
     }
-    if (installed) {
-      previewVisible.value = false;
-      previewData.value = null;
-      previewStoreTarget.value = null;
-      previewSource.value = 'none';
-    }
+    if (installed && preview.value === target) closePreview();
   } finally {
     installPreviewConfirmLoading.value = false;
   }
