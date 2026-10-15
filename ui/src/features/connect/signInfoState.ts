@@ -42,7 +42,7 @@ export function buildSignInfoState(input: BuildSignInfoStateInput): SignInfoStat
     };
   }
 
-  if (input.isError && !input.hasData) {
+  if (!input.hasData) {
     return {
       visible: true,
       mode: 'manual-fallback',
@@ -50,7 +50,9 @@ export function buildSignInfoState(input: BuildSignInfoStateInput): SignInfoStat
       canSelectServer: false,
       showCustomServerInput: true,
       showRetry: true,
-      message: '签名服务信息读取失败，可重试或手动填写签名地址。',
+      message: input.isError
+        ? '签名服务信息读取失败，可重试或手动填写签名地址。'
+        : '暂无可用的签名服务，可重试或手动填写签名地址。',
     };
   }
 

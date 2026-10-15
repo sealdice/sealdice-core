@@ -62,8 +62,8 @@ it('HTTP 快照包含登录状态，迟到的初始快照不覆盖实时状态�
   realtime.applyInitialSnapshot([connection]);
   expect(realtime.connections).toHaveLength(1);
   expect(realtime.ready).toBe(true);
-  expect(realtime.workflows['conn-1']?.state).toBe('qrcode');
-  expect(realtime.qrCodes['conn-1']).toBe(connection.qrcode);
+  expect(realtime.connections[0]?.workflow?.state).toBe('qrcode');
+  expect(realtime.connections[0]?.qrcode).toBe(connection.qrcode);
 
   realtime.applyInitialSnapshot([]);
   expect(realtime.connections).toHaveLength(1);
@@ -73,8 +73,6 @@ it('HTTP 快照包含登录状态，迟到的初始快照不覆盖实时状态�
   clearAccessToken();
   await nextTick();
   expect(realtime.connections).toEqual([]);
-  expect(realtime.workflows).toEqual({});
-  expect(realtime.qrCodes).toEqual({});
   expect(realtime.ready).toBe(false);
 });
 
@@ -86,7 +84,7 @@ it('一条 SSE 更新同时更新连接和登录状态，列表删除同时清�
   const source = sources.at(-1)!;
 
   source.emit('imconnection/list', { items: [connection] });
-  expect(realtime.qrCodes['conn-1']).toBe(connection.qrcode);
+  expect(realtime.connections[0]?.qrcode).toBe(connection.qrcode);
 
   source.emit('imconnection/updated', {
     item: {
@@ -97,10 +95,9 @@ it('一条 SSE 更新同时更新连接和登录状态，列表删除同时清�
     },
   });
   expect(realtime.connections[0]?.state).toBe(1);
-  expect(realtime.workflows['conn-1']?.state).toBe('success');
-  expect(realtime.qrCodes).toEqual({});
+  expect(realtime.connections[0]?.workflow?.state).toBe('success');
+  expect(realtime.connections[0]?.qrcode).toBe('');
 
   source.emit('imconnection/list', { items: [] });
   expect(realtime.connections).toEqual([]);
-  expect(realtime.workflows).toEqual({});
 });

@@ -11,10 +11,6 @@ export function buildOfficialQQCreateConfig(config: Record<string, unknown>, mod
   return { ...next, webhookPath, webhookPort };
 }
 
-export function validateOfficialQQManualConfig(config: Record<string, unknown>) {
-  return validateOfficialQQConfig(config, 'manual');
-}
-
 export function validateOfficialQQConfig(config: Record<string, unknown>, mode: OfficialQQMode) {
   if (config.useWebhook) {
     const webhookPath = String(config.webhookPath ?? '').trim();
@@ -46,8 +42,4 @@ export function validateOfficialQQConfig(config: Record<string, unknown>, mode: 
     valid: true,
     message: '',
   };
-}
-
-export function buildOfficialQQDuplicateMessage(userId: string) {
-  return `该 QQ 官方机器人账号已存在：${userId}`;
 }

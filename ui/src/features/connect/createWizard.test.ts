@@ -38,22 +38,20 @@ it('clears dependent selections when the wizard parent selection changes', () =>
   const state = createConnectWizardState();
   state.method = { id: 'default', name: '默认', description: '', protocols: [protocol] };
   state.protocol = protocol;
-  state.selectedProtocolKey = protocol.key;
 
   selectConnectPlatform(state, platform);
-  if (state.method !== null || state.protocol !== null || state.selectedProtocolKey !== '') {
+  if (state.method !== null || state.protocol !== null) {
     throw new Error(`platform selection did not clear children: ${JSON.stringify(state)}`);
   }
 
   state.protocol = protocol;
-  state.selectedProtocolKey = protocol.key;
   selectConnectMethod(state, {
     id: 'default',
     name: '默认',
     description: '',
     protocols: [protocol],
   });
-  if (state.protocol !== null || state.selectedProtocolKey !== '') {
+  if (state.protocol !== null) {
     throw new Error(`method selection did not clear protocol: ${JSON.stringify(state)}`);
   }
 });
@@ -73,13 +71,9 @@ it('initializes protocol form and advances to the form step', () => {
       sub_option: null,
     },
   ];
-  selectConnectProtocol(state, protocol, schema);
+  selectConnectProtocol(state, protocol);
   advanceConnectWizard(state, schema);
-  if (
-    state.step !== 4 ||
-    state.selectedProtocolKey !== 'officialqq' ||
-    state.formModel.appID !== ''
-  ) {
+  if (state.step !== 4 || state.protocol?.key !== 'officialqq' || state.formModel.appID !== '') {
     throw new Error(`unexpected wizard state = ${JSON.stringify(state)}`);
   }
 });
@@ -87,7 +81,6 @@ it('initializes protocol form and advances to the form step', () => {
 it('validates official QQ QR mode without requiring manual credentials', () => {
   const state = createConnectWizardState();
   state.protocol = protocol;
-  state.selectedProtocolKey = protocol.key;
   state.formModel = { appID: '10001', appSecret: 'secret' };
   state.officialQQMode = 'qrcode';
 

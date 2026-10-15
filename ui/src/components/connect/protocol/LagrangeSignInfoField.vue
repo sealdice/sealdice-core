@@ -3,7 +3,7 @@
     <TipBox v-if="signInfoErrorMessage" type="error" class="section-alert">
       <n-flex justify="space-between" align="center" :wrap="false">
         <span>{{ signInfoErrorMessage }}</span>
-        <n-button size="small" tertiary @click="emit('retry')">重试</n-button>
+        <n-button size="small" tertiary :disabled="disabled" @click="emit('retry')">重试</n-button>
       </n-flex>
     </TipBox>
     <n-spin :show="signInfoState.mode === 'loading'">
@@ -22,7 +22,7 @@
           v-if="fieldKey === 'signServerVersion'"
           :value="value as string"
           :options="signVersionOptions"
-          :disabled="!signInfoState.canSelectVersion"
+          :disabled="disabled || !signInfoState.canSelectVersion"
           placeholder="请选择签名版本"
           @update:value="emit('update:value', $event)"
         />
@@ -30,12 +30,13 @@
           v-else-if="!signInfoState.showCustomServerInput"
           :value="value as string"
           :options="signServers"
-          :disabled="!signInfoState.canSelectServer"
+          :disabled="disabled || !signInfoState.canSelectServer"
           placeholder="请选择签名服务"
           @update:value="emit('update:value', $event)"
         />
         <n-input
           v-else
+          :disabled="disabled"
           :value="value as string"
           placeholder="请输入自定义签名地址"
           @update:value="emit('update:value', $event)"
@@ -52,6 +53,7 @@ import type { SignInfoState } from '@/features/connect/signInfoState';
 
 defineProps<{
   fieldKey: string;
+  disabled: boolean;
   value: unknown;
   signInfoState: SignInfoState;
   signInfoErrorMessage: string;

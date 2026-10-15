@@ -11,7 +11,6 @@ export type ConnectWizardState = {
   platform: PlatformTreeNode | null;
   method: MethodTreeNode | null;
   protocol: ProtocolDefinition | null;
-  selectedProtocolKey: string;
   formModel: DynamicFormModel;
   officialQQMode: OfficialQQMode;
 };
@@ -27,7 +26,6 @@ export function createConnectWizardState(): ConnectWizardState {
     platform: null,
     method: null,
     protocol: null,
-    selectedProtocolKey: '',
     formModel: {},
     officialQQMode: 'manual',
   };
@@ -37,24 +35,20 @@ export function selectConnectPlatform(state: ConnectWizardState, platform: Platf
   state.platform = platform;
   state.method = null;
   state.protocol = null;
-  state.selectedProtocolKey = '';
   state.formModel = {};
 }
 
 export function selectConnectMethod(state: ConnectWizardState, method: MethodTreeNode): void {
   state.method = method;
   state.protocol = null;
-  state.selectedProtocolKey = '';
   state.formModel = {};
 }
 
 export function selectConnectProtocol(
   state: ConnectWizardState,
-  protocol: ProtocolDefinition,
-  _schema: FormConfigItem[]
+  protocol: ProtocolDefinition
 ): void {
   state.protocol = protocol;
-  state.selectedProtocolKey = protocol.key;
 }
 
 export function advanceConnectWizard(
@@ -62,7 +56,6 @@ export function advanceConnectWizard(
   selectedSchema: FormConfigItem[]
 ): void {
   if (state.step === 3 && state.protocol) {
-    state.selectedProtocolKey = state.protocol.key;
     state.formModel = buildDynamicFormInitialModel(selectedSchema);
     state.officialQQMode = 'manual';
   }
@@ -84,7 +77,7 @@ export function validateConnectWizardForm(
   if (!formValidation.valid) {
     return { valid: false, message: `请填写必填项：${formValidation.missingFields.join('、')}` };
   }
-  return state.selectedProtocolKey === 'officialqq'
+  return state.protocol.key === 'officialqq'
     ? validateOfficialQQConfig(state.formModel, state.officialQQMode)
     : { valid: true, message: '' };
 }

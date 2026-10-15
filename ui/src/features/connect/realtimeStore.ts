@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue';
-import type { EndPointInfo, WorkflowResp } from '@/api';
+import { onScopeDispose, ref, shallowRef, watch } from 'vue';
+import type { EndPointInfo } from '@/api';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 import { useRealtimeClientStore } from '@/features/realtime/store';
@@ -18,16 +18,6 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
   const realtimeStore = useRealtimeClientStore(appPinia);
 
   const connections = ref<EndPointInfo[]>([]);
-  const workflows = computed<Record<string, WorkflowResp>>(() =>
-    Object.fromEntries(
-      connections.value.flatMap(item => (item.workflow ? [[item.id, item.workflow]] : []))
-    )
-  );
-  const qrCodes = computed<Record<string, string>>(() =>
-    Object.fromEntries(
-      connections.value.flatMap(item => (item.qrcode ? [[item.id, item.qrcode]] : []))
-    )
-  );
   const ready = shallowRef(false);
 
   let initialized = false;
@@ -81,8 +71,6 @@ export const useRealtimeConnectionsStore = defineStore('connect-realtime', () =>
 
   return {
     connections,
-    workflows,
-    qrCodes,
     ready,
     applyInitialSnapshot,
     ensureInitialized,

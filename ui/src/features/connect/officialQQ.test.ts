@@ -1,11 +1,7 @@
-import {
-  buildOfficialQQCreateConfig,
-  buildOfficialQQDuplicateMessage,
-  validateOfficialQQManualConfig,
-} from './officialQQ.js';
+import { buildOfficialQQCreateConfig, validateOfficialQQConfig } from './officialQQ.js';
 import { expect, it } from 'vitest';
 
-it('官方 QQ 配置与探测结果转换', async () => {
+it('官方 QQ 扫码配置清除手动凭据，手动配置校验必填项', async () => {
   expect(
     buildOfficialQQCreateConfig(
       {
@@ -41,26 +37,28 @@ it('官方 QQ 配置与探测结果转换', async () => {
   });
 
   expect(
-    validateOfficialQQManualConfig({
-      appID: '',
-      appSecret: 'secret',
-    })
+    validateOfficialQQConfig(
+      {
+        appID: '',
+        appSecret: 'secret',
+      },
+      'manual'
+    )
   ).toEqual({
     valid: false,
     message: '请填写机器人 ID 和机器人密钥，或切换到扫码登录。',
   });
 
   expect(
-    validateOfficialQQManualConfig({
-      appID: '10001',
-      appSecret: 'secret',
-    })
+    validateOfficialQQConfig(
+      {
+        appID: '10001',
+        appSecret: 'secret',
+      },
+      'manual'
+    )
   ).toEqual({
     valid: true,
     message: '',
   });
-
-  expect(buildOfficialQQDuplicateMessage('OpenQQ:202401')).toBe(
-    '该 QQ 官方机器人账号已存在：OpenQQ:202401'
-  );
 });

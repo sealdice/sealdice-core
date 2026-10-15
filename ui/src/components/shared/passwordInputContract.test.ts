@@ -3,7 +3,6 @@ import { mount } from '@vue/test-utils';
 import { expect, it } from 'vitest';
 import type { FormConfigItem } from '@/api';
 import DynamicForm from './DynamicForm.vue';
-import ConnectProtocolForm from '../connect/ConnectProtocolForm.vue';
 import { NInputNumber, NSwitch, NSelect } from 'naive-ui';
 
 it('敏感字段默认隐藏，点击显隐后仍能提交输入的真实值', async () => {
@@ -35,9 +34,8 @@ it('敏感字段默认隐藏，点击显隐后仍能提交输入的真实值', a
   }
 });
 
-// ConnectProtocolForm only customizes Lagrange fields; ordinary fields must
-// still render through DynamicForm's fallback slot, including readonly/bounds.
-it('协议表单复用普通控件，保留敏感输入、整数边界和只读状态', async () => {
+// 没有被专用插槽接管的字段仍需保留普通控件的约束。
+it('动态表单保留敏感输入、整数边界和只读状态', async () => {
   const field = (field_name: string, input_type: number): FormConfigItem => ({
     name: field_name,
     field_name,
@@ -48,9 +46,8 @@ it('协议表单复用普通控件，保留敏感输入、整数边界和只读�
     check_type: 0,
     sub_option: null,
   });
-  const wrapper = mount(ConnectProtocolForm, {
+  const wrapper = mount(DynamicForm, {
     props: {
-      protocol: null,
       schema: [
         { ...field('token', 0), sensitive: true, readonly: true },
         { ...field('port', 1), minimum: 1, maximum: 65535 },
@@ -58,23 +55,6 @@ it('协议表单复用普通控件，保留敏感输入、整数边界和只读�
         { ...field('mode', 12), sub_option: [{ label: 'QQ', value: 'QQ' }] },
       ],
       modelValue: { token: 'secret', port: 5500, enabled: false, mode: 'QQ' },
-      schemasError: false,
-      signInfoState: {
-        visible: false,
-        mode: 'hidden',
-        canSelectVersion: false,
-        canSelectServer: false,
-        showCustomServerInput: false,
-        showRetry: false,
-        message: '',
-      },
-      signInfoErrorMessage: '',
-      signVersionOptions: [],
-      signServers: [],
-      isMobile: false,
-      submitting: false,
-      officialQqMode: 'manual',
-      testModeDisabled: false,
     },
   });
   try {

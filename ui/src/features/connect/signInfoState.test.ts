@@ -1,6 +1,20 @@
 import { buildSignInfoState } from './signInfoState.ts';
 import { expect, it } from 'vitest';
 
+it('签名服务返回空列表时允许手动输入', () => {
+  const state = buildSignInfoState({
+    enabled: true,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    hasData: false,
+    signServerVersion: '',
+  });
+  expect(state.mode).toBe('manual-fallback');
+  expect(state.showCustomServerInput).toBe(true);
+  expect(state.showRetry).toBe(true);
+});
+
 it('签名服务选择保留合法选项', async () => {
   expect(
     buildSignInfoState({

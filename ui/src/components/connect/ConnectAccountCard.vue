@@ -60,7 +60,12 @@
         <div class="connect-account-card__footer">
           <n-text depth="3" class="connect-account-card__id">ID: {{ endpoint.id }}</n-text>
           <div class="connect-account-card__actions">
-            <n-button v-if="qrCode" size="small" tertiary @click="emit('showQRCode', endpoint)">
+            <n-button
+              v-if="endpoint.qrcode"
+              size="small"
+              tertiary
+              @click="emit('showQRCode', endpoint)"
+            >
               <template #icon
                 ><n-icon><i-tabler-photo /></n-icon
               ></template>
@@ -115,7 +120,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { EndPointInfo, WorkflowResp } from '@/api';
+import type { EndPointInfo } from '@/api';
 import {
   adapterOf,
   getEndpointDetailRows,
@@ -128,15 +133,12 @@ import {
 const props = withDefaults(
   defineProps<{
     endpoint: EndPointInfo;
-    workflow: WorkflowResp | null;
-    qrCode?: string;
     isTestMode: boolean;
     pendingAction?: 'enable' | 'delete' | null;
     hasPendingOperation: boolean;
     actionError?: string;
   }>(),
   {
-    qrCode: '',
     pendingAction: null,
     actionError: '',
   }
@@ -153,9 +155,11 @@ const displayName = computed(
   () => props.endpoint.nickname || props.endpoint.userId || props.endpoint.id
 );
 const stateMeta = computed(() => getEndpointStateMeta(props.endpoint.state));
-const workflowTag = computed(() => getWorkflowTag(props.workflow));
+const workflowTag = computed(() => getWorkflowTag(props.endpoint.workflow ?? null));
 const metrics = computed(() => getEndpointMetricRows(props.endpoint));
-const details = computed(() => getEndpointDetailRows(props.endpoint, props.workflow));
+const details = computed(() =>
+  getEndpointDetailRows(props.endpoint, props.endpoint.workflow ?? null)
+);
 const protocolLabel = computed(() =>
   getEndpointProtocolLabel({
     platform: props.endpoint.platform,
