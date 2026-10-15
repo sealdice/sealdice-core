@@ -252,7 +252,7 @@ func newReplyAPITestPackageManager(t *testing.T) (*dice.Dice, *dice.PackageManag
 	}
 
 	token := "test-token"
-	manager := &dice.DiceManager{Dice: []*dice.Dice{testDice}}
+	manager := &dice.DiceManager{Dice: testDice}
 	manager.AccessTokens.Store(token, true)
 	testDice.Parent = manager
 	myDice = testDice

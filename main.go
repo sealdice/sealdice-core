@@ -70,7 +70,7 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 			return
 		}
 
-		for _, i := range diceManager.Dice {
+		if i := diceManager.GetDice(); i != nil {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
 				i.Save(true)
@@ -93,13 +93,12 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 			}
 		}
 
-		for _, i := range diceManager.Dice {
-			d := i
+		if d := diceManager.GetDice(); d != nil {
 			d.DBOperator.Close()
 		}
 
 		// 清理gocqhttp
-		for _, i := range diceManager.Dice {
+		if i := diceManager.GetDice(); i != nil {
 			if i.ImSession != nil && i.ImSession.EndPoints != nil {
 				for _, j := range i.ImSession.EndPoints {
 					dice.BuiltinQQServeProcessKill(i, j)
@@ -480,7 +479,7 @@ func main() {
 		log.Infof("由参数输入了服务地址: %s", opts.Address)
 	}
 
-	for _, d := range diceManager.Dice {
+	if d := diceManager.GetDice(); d != nil {
 		go diceServe(d)
 	}
 

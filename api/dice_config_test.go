@@ -28,7 +28,7 @@ func TestDiceConfigSetAcceptsCRNGRandomMode(t *testing.T) {
 		Logger:     zap.NewNop().Sugar(),
 	}
 	manager := &dice.DiceManager{
-		Dice:        []*dice.Dice{testDice},
+		Dice:        testDice,
 		JustForTest: true,
 	}
 	token := "test-token"

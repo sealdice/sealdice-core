@@ -187,7 +187,7 @@ func newExecuteNewTestDice(t *testing.T) (*Dice, *EndPointInfo, *mockPlatformAda
 		Cron:   cron.New(),
 		Parent: dm,
 	}
-	dm.Dice = []*Dice{d}
+	dm.Dice = d
 
 	// Config – use defaults so CommandCompatibleMode, BanList, rate-limit
 	// settings, and other fields are properly initialised.
