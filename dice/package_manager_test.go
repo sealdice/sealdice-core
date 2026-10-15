@@ -840,7 +840,7 @@ func TestJsClearRestoresEnabledPackageTemplates(t *testing.T) {
 func TestPackageManagerReloadHelpdocUsesReloadHelp(t *testing.T) {
 	testDice, pm := newTestPackageManager(t)
 	manager := &DiceManager{
-		Dice: [](*Dice){testDice},
+		Dice: testDice,
 	}
 	testDice.Parent = manager
 	if err := pm.Init(); err != nil {

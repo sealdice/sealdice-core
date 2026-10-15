@@ -146,7 +146,7 @@ func forceStop(c echo.Context) error {
 		log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
 		diceManager := dm
 
-		for _, i := range diceManager.Dice {
+		if i := diceManager.GetDice(); i != nil {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
 				err = i.AttrsManager.CheckForSave()
@@ -166,14 +166,13 @@ func forceStop(c echo.Context) error {
 			}
 		}
 
-		for _, i := range diceManager.Dice {
-			d := i
+		if d := diceManager.GetDice(); d != nil {
 			d.CloseDecks()
 			d.DBOperator.Close()
 		}
 
 		// 清理gocqhttp
-		for _, i := range diceManager.Dice {
+		if i := diceManager.GetDice(); i != nil {
 			if i.ImSession != nil && i.ImSession.EndPoints != nil {
 				for _, j := range i.ImSession.EndPoints {
 					dice.BuiltinQQServeProcessKill(i, j)
@@ -563,7 +562,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 func BindV1(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
-	myDice = _myDice.Dice[0]
+	myDice = _myDice.GetDice()
 
 	prefix := "/sd-api"
 
