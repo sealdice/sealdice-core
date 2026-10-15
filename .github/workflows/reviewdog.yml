@@ -7,6 +7,7 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/reviewdog.yml'
+      - '.github/scripts/lint.sh'
 
 permissions:
   contents: read
@@ -26,8 +27,10 @@ jobs:
           go-version: '1.25'
       - run: go mod download
       - run: go generate ./...
-      - name: GolangCI-Lint
+      - name: Install GolangCI-Lint
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.4.0
-          args: '--timeout 10m'
+          install-only: true
+      - name: Verify configuration and lint
+        run: bash .github/scripts/lint.sh
