@@ -1,6 +1,7 @@
 package uploadgw
 
 import (
+	"context"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -18,8 +19,6 @@ const (
 // resourceDestination 收养原 /sd-api/v2/resource/upload 的图片落盘语义。
 type resourceDestination struct{}
 
-func (d *resourceDestination) Module() string { return ModuleResource }
-
 func (d *resourceDestination) Validate(meta map[string]string, size int64) error {
 	filename := sanitizeFilename(meta[MetaFilename])
 	if filename == "" {
@@ -34,7 +33,7 @@ func (d *resourceDestination) Validate(meta map[string]string, size int64) error
 	return nil
 }
 
-func (d *resourceDestination) Install(stagedPath string, meta map[string]string) error {
+func (d *resourceDestination) Install(_ context.Context, stagedPath string, meta map[string]string) error {
 	filename := sanitizeFilename(meta[MetaFilename])
 	if filename == "" {
 		return tusd.NewError("ERR_INVALID_FILENAME", "文件名不能为空", http.StatusBadRequest)

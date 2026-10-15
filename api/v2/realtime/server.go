@@ -206,11 +206,11 @@ func buildBootstrapEvents(dm *dice.DiceManager) []Event {
 			Name: EventIMConnectionWorkflow,
 			Payload: IMConnectionWorkflowPayload{
 				EndpointID: ep.ID,
-				Workflow:   workflowOfEndpoint(ep),
+				Workflow:   imconnection.WorkflowOfEndpoint(ep),
 			},
 		})
 
-		if qr := qrCodeOfEndpoint(ep); qr != "" {
+		if qr := imconnection.QRCodeOfEndpoint(ep); qr != "" {
 			events = append(events, Event{
 				Name: EventIMConnectionQRCode,
 				Payload: IMConnectionQRCodePayload{

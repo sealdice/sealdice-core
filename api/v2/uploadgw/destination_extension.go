@@ -13,12 +13,10 @@ import (
 const ModuleExtensionInstall = "extension-install"
 
 // extensionInstallDestination 收养原 /sd-api/v2/extension/install-upload 的语义：
-// 把暂存的扩展包 zip 流式安装。安装需要 context，故同时实现 contextualDestination。
+// 把暂存的扩展包 zip 按请求 context 流式安装。
 type extensionInstallDestination struct {
 	dm *dice.DiceManager
 }
-
-func (d *extensionInstallDestination) Module() string { return ModuleExtensionInstall }
 
 func (d *extensionInstallDestination) Validate(meta map[string]string, _ int64) error {
 	if sanitizeFilename(meta[MetaFilename]) == "" {
@@ -27,11 +25,7 @@ func (d *extensionInstallDestination) Validate(meta map[string]string, _ int64) 
 	return nil
 }
 
-func (d *extensionInstallDestination) Install(stagedPath string, meta map[string]string) error {
-	return d.InstallContext(context.Background(), stagedPath, meta)
-}
-
-func (d *extensionInstallDestination) InstallContext(ctx context.Context, stagedPath string, _ map[string]string) error {
+func (d *extensionInstallDestination) Install(ctx context.Context, stagedPath string, _ map[string]string) error {
 	inst := d.dm.GetDice()
 	if inst == nil || inst.PackageManager == nil {
 		return tusd.NewError("ERR_PACKAGE_MANAGER", "package manager unavailable", http.StatusInternalServerError)

@@ -40,17 +40,7 @@ func TokenFromHumaContext(ctx huma.Context) string {
 }
 
 func TokenFromEchoContext(c echo.Context) string {
-	token := c.Request().Header.Get("Authorization")
-	if token != "" && strings.HasPrefix(token, "Bearer ") {
-		token = token[7:]
-	}
-	if token == "" {
-		token = c.Request().Header.Get("Token")
-	}
-	if token == "" {
-		token = c.QueryParam("token")
-	}
-	return token
+	return TokenFromHTTPRequest(c.Request())
 }
 
 func IsAuthorized(d *dice.Dice, token string) bool {

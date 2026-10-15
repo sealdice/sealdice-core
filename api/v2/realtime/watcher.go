@@ -1,7 +1,6 @@
 package realtime
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"sync"
 
@@ -95,7 +94,7 @@ func (w *StateWatcher) Scan() {
 			})
 		}
 
-		workflow := workflowOfEndpoint(ep)
+		workflow := imconnm.WorkflowOfEndpoint(ep)
 		if workflow != w.workflows[ep.ID] {
 			w.workflows[ep.ID] = workflow
 			w.bus.Publish(Event{
@@ -107,7 +106,7 @@ func (w *StateWatcher) Scan() {
 			})
 		}
 
-		qr := qrCodeOfEndpoint(ep)
+		qr := imconnm.QRCodeOfEndpoint(ep)
 		if qr != w.qrcodeImage[ep.ID] {
 			w.qrcodeImage[ep.ID] = qr
 			w.bus.Publish(Event{
@@ -135,105 +134,6 @@ func (w *StateWatcher) dice() *dice.Dice {
 		return nil
 	}
 	return w.dm.GetDice()
-}
-
-func workflowOfEndpoint(ep *dice.EndPointInfo) imconnm.WorkflowResp {
-	switch pa := ep.Adapter.(type) {
-	case *dice.PlatformAdapterGocq:
-		state, hasQR := mapGocqWorkflow(pa.GoCqhttpState, len(pa.GoCqhttpQrcodeData) > 0)
-		return imconnm.WorkflowResp{
-			State:        state,
-			HasQRCode:    hasQR,
-			LoginState:   int64(pa.GoCqhttpState),
-			FailedReason: pa.GocqhttpLoginFailedReason,
-		}
-	case *dice.PlatformAdapterMilky:
-		state, hasQR := mapMilkyWorkflow(pa.BuiltInLoginState, len(pa.QrCodeData) > 0)
-		return imconnm.WorkflowResp{
-			State:      state,
-			HasQRCode:  hasQR,
-			LoginState: int64(pa.BuiltInLoginState),
-		}
-	case *dice.PlatformAdapterOfficialQQ:
-		state, hasQR := mapOfficialQQWorkflow(pa.QrLoginState, len(pa.QrCodeData) > 0, ep.State)
-		return imconnm.WorkflowResp{
-			State:      state,
-			HasQRCode:  hasQR,
-			LoginState: int64(pa.QrLoginState),
-		}
-	default:
-		return imconnm.WorkflowResp{State: "none"}
-	}
-}
-
-func qrCodeOfEndpoint(ep *dice.EndPointInfo) string {
-	switch pa := ep.Adapter.(type) {
-	case *dice.PlatformAdapterGocq:
-		if pa.GoCqhttpState == dice.StateCodeInLoginQrCode && len(pa.GoCqhttpQrcodeData) > 0 {
-			return "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.GoCqhttpQrcodeData)
-		}
-	case *dice.PlatformAdapterMilky:
-		if pa.BuiltInLoginState == dice.MilkyLoginStateQRWaitingForScan && len(pa.QrCodeData) > 0 {
-			return "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData)
-		}
-	case *dice.PlatformAdapterOfficialQQ:
-		if pa.QrLoginState == dice.OfficialQQLoginStateQRWaitingForScan && len(pa.QrCodeData) > 0 {
-			return "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData)
-		}
-	}
-	return ""
-}
-
-func mapGocqWorkflow(state int, hasQR bool) (string, bool) {
-	switch state {
-	case dice.StateCodeInLoginQrCode:
-		return "qrcode", hasQR
-	case dice.StateCodeInLogin:
-		return "pending", false
-	case dice.StateCodeLoginSuccessed:
-		return "success", false
-	case dice.StateCodeLoginFailed:
-		return "failed", false
-	default:
-		return "idle", false
-	}
-}
-
-func mapMilkyWorkflow(state dice.MilkyLoginState, hasQR bool) (string, bool) {
-	switch state {
-	case dice.MilkyLoginStateQRWaitingForScan:
-		return "qrcode", hasQR
-	case dice.MilkyLoginStateConnecting:
-		return "pending", false
-	case dice.MilkyLoginStateQRConnected:
-		return "success", false
-	case dice.MilkyLoginStateFailed:
-		return "failed", false
-	default:
-		return "idle", false
-	}
-}
-
-func mapOfficialQQWorkflow(state dice.OfficialQQLoginState, hasQR bool, endpointState dice.EndpointState) (string, bool) {
-	switch state {
-	case dice.OfficialQQLoginStateQRWaitingForScan:
-		return "qrcode", hasQR
-	case dice.OfficialQQLoginStateQRScanned, dice.OfficialQQLoginStateConnecting:
-		return "pending", false
-	case dice.OfficialQQLoginStateFailed:
-		return "failed", false
-	default:
-		switch endpointState {
-		case dice.StateConnected:
-			return "success", false
-		case dice.StateConnecting:
-			return "pending", false
-		case dice.StateConnectionFailed:
-			return "failed", false
-		default:
-			return "idle", false
-		}
-	}
 }
 
 func marshalString(value any) string {

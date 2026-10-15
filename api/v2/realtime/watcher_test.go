@@ -124,7 +124,7 @@ func TestBuildConnectionWorkflowMatchesIMConnectionContract(t *testing.T) {
 	pa := ep.Adapter.(*dice.PlatformAdapterMilky)
 	pa.BuiltInLoginState = dice.MilkyLoginStateFailed
 
-	workflow := realtime.WorkflowOfEndpoint(ep)
+	workflow := imconnm.WorkflowOfEndpoint(ep)
 	if workflow != (imconnm.WorkflowResp{State: "failed", LoginState: int64(dice.MilkyLoginStateFailed)}) {
 		t.Fatalf("workflow = %#v", workflow)
 	}

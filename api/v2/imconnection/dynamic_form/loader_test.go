@@ -1,286 +1,104 @@
 package dynamicform_test
 
 import (
+	"reflect"
 	"testing"
 
 	dynamicform "sealdice-core/api/v2/imconnection/dynamic_form"
 )
 
-func mustLoad(t *testing.T) {
-	t.Helper()
-	if err := dynamicform.LoadFromFile("forms.json"); err != nil {
-		t.Fatalf("dynamicform.LoadFromFile failed: %v", err)
-	}
-}
-
-func idByField(items []*dynamicform.FormConfigItem, field string) uint64 {
-	for _, it := range items {
-		if it.FieldName == field {
-			return it.ID
-		}
-	}
-	return 0
-}
-
-func TestLoadAndGetFormsDiscord(t *testing.T) {
-	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
-	if len(items) == 0 {
-		t.Fatalf("discord form empty")
-	}
-	tokenID := idByField(items, "token")
-	if tokenID == 0 {
-		t.Fatalf("discord token id not found")
-	}
-}
-
-func TestBuildParamsBySubmitDiscord(t *testing.T) {
-	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: idByField(items, "token"), Data: "TKN"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "proxyURL"), Data: "http://127.0.0.1:7890"},
-	}
-	params, err := dynamicform.BuildParamsBySubmit(items, sub)
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsBySubmit error: %v", err)
-	}
-	if params["token"] != "TKN" {
-		t.Fatalf("token mismatch")
-	}
-	if params["proxyURL"] != "http://127.0.0.1:7890" {
-		t.Fatalf("proxyURL mismatch")
-	}
-}
-
-func TestBuildParamsNumericSatoriPort(t *testing.T) {
-	mustLoad(t)
-	items := dynamicform.GetFormConfig("satori")
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: idByField(items, "platform"), Data: "QQ"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "host"), Data: "localhost"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "port"), Data: "3100"},
-		&dynamicform.SubmitFormItem{ID: idByField(items, "token"), Data: "abc"},
-	}
-	params, err := dynamicform.BuildParamsBySubmit(items, sub)
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsBySubmit error: %v", err)
-	}
-	if params["port"] != 3100 {
-		t.Fatalf("port expected 3100 got %v", params["port"])
-	}
-}
-
-func TestRequiredMissing(t *testing.T) {
-	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
-	sub := dynamicform.SubmitFormItems{
-		// omit token (required)
-	}
-	_, err := dynamicform.BuildParamsBySubmit(items, sub)
-	if err == nil {
-		t.Fatalf("expected error for missing required")
-	}
-}
-
-func TestKeysAndGetAll(t *testing.T) {
-	mustLoad(t)
-	ks := dynamicform.Keys()
-	if len(ks) == 0 {
-		t.Fatalf("dynamicform.Keys empty")
-	}
+func TestEmbeddedProtocolSchemas(t *testing.T) {
+	t.Chdir(t.TempDir())
 	all := dynamicform.GetAll()
 	if len(all) == 0 {
-		t.Fatalf("dynamicform.GetAll empty")
+		t.Fatal("protocol schemas must be available without source files")
 	}
-	// consistency: each key in dynamicform.Keys must exist in dynamicform.GetAll and dynamicform.GetFormConfig
-	for _, k := range ks {
-		if _, ok := all[k]; !ok {
-			t.Fatalf("key %s missing in dynamicform.GetAll", k)
-		}
-		if len(dynamicform.GetFormConfig(k)) == 0 {
-			t.Fatalf("dynamicform.GetFormConfig(%s) empty", k)
-		}
-	}
-}
-
-func TestSelectTypesSupport(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "p1", InputType: dynamicform.InputTypeSin, IsRequired: dynamicform.RequiredTrue},
-		{ID: 2, FieldName: "p2", InputType: dynamicform.InputTypeMul, IsRequired: dynamicform.RequiredFalse},
-	}
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "5"},
-		&dynamicform.SubmitFormItem{ID: 2, Data: "[1,2,3]"},
-	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsBySubmit error: %v", err)
-	}
-	if params["p1"] != 5 {
-		t.Fatalf("p1 expected 5 got %v", params["p1"])
-	}
-	if arr, ok := params["p2"].([]int); !ok || len(arr) != 3 || arr[0] != 1 || arr[2] != 3 {
-		t.Fatalf("p2 mismatch")
-	}
-}
-
-func TestDefaultsApplied(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "t1", InputType: dynamicform.InputTypeText, IsRequired: dynamicform.RequiredFalse, Default: "DEF"},
-		{ID: 2, FieldName: "n1", InputType: dynamicform.InputTypeNum, IsRequired: dynamicform.RequiredFalse, Default: "42"},
-		{ID: 3, FieldName: "d1", InputType: dynamicform.InputTypeDate, IsRequired: dynamicform.RequiredFalse, Default: "1700000000"},
-		{ID: 4, FieldName: "r1", InputType: dynamicform.InputTypeDateRange, IsRequired: dynamicform.RequiredFalse, DefaultRange: &dynamicform.RangeValue{Start: 1, End: 2}},
-		{ID: 5, FieldName: "b1", InputType: dynamicform.InputTypeBool, IsRequired: dynamicform.RequiredFalse, Default: "true"},
-	}
-	sub := dynamicform.SubmitFormItems{
-		// empty submit, all should use defaults
-	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsBySubmit error: %v", err)
-	}
-	if params["t1"] != "DEF" {
-		t.Fatalf("t1 default mismatch")
-	}
-	if params["n1"] != 42 {
-		t.Fatalf("n1 default mismatch")
-	}
-	if params["d1"] != int64(1700000000) {
-		t.Fatalf("d1 default mismatch got %v", params["d1"])
-	}
-	if r, ok := params["r1"].(*dynamicform.RangeValue); !ok || r.Start != 1 || r.End != 2 {
-		t.Fatalf("r1 default mismatch")
-	}
-	if params["b1"] != true {
-		t.Fatalf("b1 default mismatch")
-	}
-}
-
-func TestSelectWithOptions(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "color", InputType: dynamicform.InputTypeSelect, IsRequired: dynamicform.RequiredTrue, SubOption: []*dynamicform.Option{
-			{Label: "Red", Value: "red"},
-			{Label: "Blue", Value: "blue"},
-		}},
-	}
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "red"},
-	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsBySubmit error: %v", err)
-	}
-	if params["color"] != "red" {
-		t.Fatalf("select value mismatch")
-	}
-	// invalid value
-	subBad := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "green"},
-	}
-	_, err = dynamicform.BuildParamsBySubmit(forms, subBad)
-	if err == nil {
-		t.Fatalf("expected error for invalid option")
-	}
-}
-
-func TestRadioCheckboxWithOptions(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "radio", InputType: dynamicform.InputTypeSin, IsRequired: dynamicform.RequiredTrue, SubOption: []*dynamicform.Option{
-			{Label: "A", Value: "a"},
-			{Label: "B", Value: "b"},
-		}},
-		{ID: 2, FieldName: "checks", InputType: dynamicform.InputTypeMul, IsRequired: dynamicform.RequiredFalse, SubOption: []*dynamicform.Option{
-			{Label: "A", Value: "a"},
-			{Label: "B", Value: "b"},
-			{Label: "C", Value: "c"},
-		}},
-	}
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "a"},
-		&dynamicform.SubmitFormItem{ID: 2, Data: "[\"a\",\"c\"]"},
-	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsBySubmit error: %v", err)
-	}
-	if params["radio"] != "a" {
-		t.Fatalf("radio mismatch")
-	}
-	values, ok := params["checks"].([]string)
-	if !ok || len(values) != 2 || values[0] != "a" || values[1] != "c" {
-		t.Fatalf("checkbox mismatch")
-	}
-}
-
-func TestDynamicOptionsProvider(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "dyn", InputType: dynamicform.InputTypeSelect, IsRequired: dynamicform.RequiredTrue, OptionsURL: "mock://colors"},
-	}
-	dynamicform.RegisterOptionsProvider(func(item *dynamicform.FormConfigItem) ([]*dynamicform.Option, error) {
-		if item.OptionsURL == "mock://colors" {
-			return []*dynamicform.Option{
-				{Label: "Red", Value: "red"},
-				{Label: "Blue", Value: "blue"},
-			}, nil
-		}
-		return nil, nil
-	})
-	sub := dynamicform.SubmitFormItems{
-		&dynamicform.SubmitFormItem{ID: 1, Data: "blue"},
-	}
-	params, err := dynamicform.BuildParamsBySubmit(forms, sub)
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsBySubmit error: %v", err)
-	}
-	if params["dyn"] != "blue" {
-		t.Fatalf("dynamic select mismatch")
-	}
-}
-
-func TestBuildParamsByConfigUsesFieldNamesAndNativeValues(t *testing.T) {
-	forms := []*dynamicform.FormConfigItem{
-		{ID: 1, FieldName: "token", InputType: dynamicform.InputTypeText, IsRequired: dynamicform.RequiredTrue},
-		{ID: 2, FieldName: "port", InputType: dynamicform.InputTypeNum, IsRequired: dynamicform.RequiredTrue},
-		{ID: 3, FieldName: "enabled", InputType: dynamicform.InputTypeBool, IsRequired: dynamicform.RequiredFalse, Default: "true"},
-		{ID: 4, FieldName: "mode", InputType: dynamicform.InputTypeSelect, IsRequired: dynamicform.RequiredTrue, SubOption: []*dynamicform.Option{
-			{Label: "Yogurt", Value: "yogurt"},
-			{Label: "LagrangeV2", Value: "lagrangeV2"},
-		}},
-	}
-
-	params, err := dynamicform.BuildParamsByConfig(forms, map[string]interface{}{
-		"token": "abc",
-		"port":  5500,
-		"mode":  "yogurt",
-	})
-	if err != nil {
-		t.Fatalf("dynamicform.BuildParamsByConfig error: %v", err)
-	}
-	if params["token"] != "abc" {
-		t.Fatalf("token mismatch")
-	}
-	if params["port"] != 5500 {
-		t.Fatalf("port expected 5500 got %v", params["port"])
-	}
-	if params["enabled"] != true {
-		t.Fatalf("enabled default expected true got %v", params["enabled"])
-	}
-	if params["mode"] != "yogurt" {
-		t.Fatalf("mode mismatch")
-	}
-}
-
-func TestFormConfigItemSensitiveMetadataLoads(t *testing.T) {
-	mustLoad(t)
-	items := dynamicform.GetFormConfig("discord")
-	for _, it := range items {
-		if it.FieldName == "token" {
-			if !it.Sensitive {
-				t.Fatalf("discord token should be marked sensitive")
+	for protocol, items := range all {
+		t.Run(protocol, func(t *testing.T) {
+			if len(items) == 0 {
+				t.Fatal("empty protocol schema")
 			}
-			return
-		}
+			// Exercise every shipped field and its default through the same entry
+			// point as the HTTP create/edit handlers.
+			cfg := map[string]interface{}{}
+			for _, item := range items {
+				if item.FieldName == "" {
+					t.Fatal("schema field has no name")
+				}
+				if item.Default != "" {
+					continue
+				}
+				switch item.InputType {
+				case dynamicform.InputTypeText:
+					cfg[item.FieldName] = "12345"
+				case dynamicform.InputTypeNum:
+					cfg[item.FieldName] = 5500
+				case dynamicform.InputTypeBool:
+					cfg[item.FieldName] = false
+				case dynamicform.InputTypeSelect:
+					if len(item.SubOption) == 0 {
+						t.Fatal("select field has no options")
+					}
+					cfg[item.FieldName] = item.SubOption[0].Value
+				default:
+					t.Fatalf("unused field type %d", item.InputType)
+				}
+			}
+			if _, err := dynamicform.BuildParamsByConfig(items, cfg); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
-	t.Fatalf("discord token field not found")
+}
+
+func TestBuildParamsByConfig(t *testing.T) {
+	items := []*dynamicform.FormConfigItem{
+		{ID: 1, FieldName: "token", InputType: dynamicform.InputTypeText, IsRequired: dynamicform.RequiredTrue},
+		{ID: 2, FieldName: "port", InputType: dynamicform.InputTypeNum, Default: "8099"},
+		{ID: 3, FieldName: "enabled", InputType: dynamicform.InputTypeBool, Default: "true"},
+		{ID: 4, FieldName: "mode", InputType: dynamicform.InputTypeSelect, Default: "yogurt",
+			SubOption: []*dynamicform.Option{{Label: "Yogurt", Value: "yogurt"}}},
+		{ID: 5, FieldName: "account", InputType: dynamicform.InputTypeText, CheckType: dynamicform.CheckTypeNum},
+	}
+	tests := []struct {
+		name string
+		cfg  map[string]interface{}
+		want map[string]interface{}
+	}{
+		{"defaults", map[string]interface{}{"token": "abc", "ignored": "value"}, map[string]interface{}{
+			"token": "abc", "port": 8099, "enabled": true, "mode": "yogurt",
+		}},
+		{"native values", map[string]interface{}{"token": "abc", "port": float64(5500), "enabled": false, "account": "00123"}, map[string]interface{}{
+			"token": "abc", "port": 5500, "enabled": false, "mode": "yogurt", "account": "00123",
+		}},
+		{"string values", map[string]interface{}{"token": "abc", "port": "5500", "enabled": "0"}, map[string]interface{}{
+			"token": "abc", "port": 5500, "enabled": false, "mode": "yogurt",
+		}},
+		{"required missing", map[string]interface{}{}, nil},
+		{"required empty", map[string]interface{}{"token": ""}, nil},
+		{"invalid option", map[string]interface{}{"token": "abc", "mode": "unknown"}, nil},
+		{"invalid default", map[string]interface{}{"token": "abc", "port": "not-a-number"}, nil},
+		{"fractional integer", map[string]interface{}{"token": "abc", "port": 5500.5}, nil},
+		{"fractional boolean", map[string]interface{}{"token": "abc", "enabled": 0.5}, nil},
+		{"invalid boolean", map[string]interface{}{"token": "abc", "enabled": 2}, nil},
+		{"invalid numeric text", map[string]interface{}{"token": "abc", "account": "x"}, nil},
+		{"compound text", map[string]interface{}{"token": []string{"abc"}}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := dynamicform.BuildParamsByConfig(items, tt.cfg)
+			if tt.want == nil {
+				if err == nil {
+					t.Fatalf("invalid input accepted: %#v", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("got %#v, want %#v", got, tt.want)
+			}
+		})
+	}
 }

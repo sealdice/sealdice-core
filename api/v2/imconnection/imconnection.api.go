@@ -3,7 +3,6 @@ package imconnection
 import (
 	"context"
 	"encoding/base64"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -48,7 +47,6 @@ func NewServiceWithOfficialProbe(
 }
 
 func newService(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
-	_ = loadForms()
 	s := &Service{
 		dice:       dm.GetDice(),
 		dm:         dm,
@@ -70,19 +68,6 @@ func newService(dm *dice.DiceManager, autoServe bool, autoSave bool) *Service {
 		}
 	}
 	return s
-}
-
-func loadForms() error {
-	paths := []string{
-		"api/v2/imconnection/dynamic_form/forms.json",
-		"dynamic_form/forms.json",
-	}
-	for _, path := range paths {
-		if _, err := os.Stat(path); err == nil {
-			return dynamicform.LoadFromFile(path)
-		}
-	}
-	return dynamicform.LoadFromFile(paths[0])
 }
 
 func (s *Service) RegisterRoutes(grp *huma.Group) {
@@ -1087,11 +1072,12 @@ func (s *Service) GetWorkflow(_ context.Context, p *IDPath) (*response.ItemRespo
 	if ep == nil {
 		return nil, huma.Error404NotFound("not found")
 	}
-	item := workflowOf(ep)
+	item := WorkflowOfEndpoint(ep)
 	return response.NewItemResponse[WorkflowResp](item), nil
 }
 
-func workflowOf(ep *dice.EndPointInfo) WorkflowResp {
+// WorkflowOfEndpoint is shared by HTTP queries and realtime snapshots.
+func WorkflowOfEndpoint(ep *dice.EndPointInfo) WorkflowResp {
 	switch pa := ep.Adapter.(type) {
 	case *dice.PlatformAdapterGocq:
 		state, hasQR := mapGocqWorkflow(pa.GoCqhttpState, len(pa.GoCqhttpQrcodeData) > 0)
@@ -1177,6 +1163,15 @@ func (s *Service) GetQRCode(_ context.Context, p *IDPath) (*response.ItemRespons
 	if ep == nil {
 		return nil, huma.Error404NotFound("not found")
 	}
+	img := QRCodeOfEndpoint(ep)
+	if img == "" {
+		return nil, huma.Error404NotFound("qrcode not found")
+	}
+	return response.NewItemResponse[QRCodeResp](QRCodeResp{Img: img}), nil
+}
+
+// QRCodeOfEndpoint returns the currently scannable code, or an empty string.
+func QRCodeOfEndpoint(ep *dice.EndPointInfo) string {
 	img := ""
 	switch pa := ep.Adapter.(type) {
 	case *dice.PlatformAdapterGocq:
@@ -1192,10 +1187,7 @@ func (s *Service) GetQRCode(_ context.Context, p *IDPath) (*response.ItemRespons
 			img = "data:image/png;base64," + base64.StdEncoding.EncodeToString(pa.QrCodeData)
 		}
 	}
-	if img == "" {
-		return nil, huma.Error404NotFound("qrcode not found")
-	}
-	return response.NewItemResponse[QRCodeResp](QRCodeResp{Img: img}), nil
+	return img
 }
 
 func (s *Service) findEndpoint(id string) *dice.EndPointInfo {

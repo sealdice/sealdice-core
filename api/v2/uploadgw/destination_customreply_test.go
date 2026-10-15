@@ -59,7 +59,7 @@ func TestCustomReplyRejectsOverwriteAtInstall(t *testing.T) {
 	_ = staged.Close()
 
 	dst := &customReplyDestination{dm: dm}
-	if err = dst.Install(staged.Name(), map[string]string{MetaFilename: "race.yaml"}); err == nil {
+	if err = dst.Install(t.Context(), staged.Name(), map[string]string{MetaFilename: "race.yaml"}); err == nil {
 		t.Fatal("Install overwrote an existing custom-reply file, want 409")
 	}
 	got, err := os.ReadFile(target)

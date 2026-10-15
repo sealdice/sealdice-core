@@ -2,6 +2,7 @@ package uploadgw //nolint:testpackage // 通过私有目标注册表注入可控
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -28,8 +29,6 @@ type fakeDestination struct {
 	maxSize   int64
 }
 
-func (f *fakeDestination) Module() string { return f.module }
-
 func (f *fakeDestination) Validate(meta map[string]string, size int64) error {
 	f.gotSize = size
 	if strings.TrimSpace(meta[MetaFilename]) == "" {
@@ -41,7 +40,7 @@ func (f *fakeDestination) Validate(meta map[string]string, size int64) error {
 	return nil
 }
 
-func (f *fakeDestination) Install(stagedPath string, meta map[string]string) error {
+func (f *fakeDestination) Install(_ context.Context, stagedPath string, meta map[string]string) error {
 	if f.fail {
 		return errors.New("install failed")
 	}

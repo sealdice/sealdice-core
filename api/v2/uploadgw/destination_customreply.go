@@ -1,6 +1,7 @@
 package uploadgw
 
 import (
+	"context"
 	"net/http"
 
 	tusd "github.com/tus/tusd/v2/pkg/handler"
@@ -21,8 +22,6 @@ type customReplyDestination struct {
 	dm *dice.DiceManager
 }
 
-func (d *customReplyDestination) Module() string { return ModuleCustomReply }
-
 func (d *customReplyDestination) Validate(meta map[string]string, size int64) error {
 	filename := sanitizeFilename(meta[MetaFilename])
 	if filename == "" {
@@ -38,7 +37,7 @@ func (d *customReplyDestination) Validate(meta map[string]string, size int64) er
 	return nil
 }
 
-func (d *customReplyDestination) Install(stagedPath string, meta map[string]string) error {
+func (d *customReplyDestination) Install(_ context.Context, stagedPath string, meta map[string]string) error {
 	inst := d.dm.GetDice()
 	if inst == nil {
 		return tusd.NewError("ERR_DICE_NOT_READY", "骰子未初始化", http.StatusInternalServerError)

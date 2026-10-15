@@ -2,6 +2,8 @@ package uploadgw
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -10,7 +12,6 @@ import (
 
 	tusd "github.com/tus/tusd/v2/pkg/handler"
 
-	"sealdice-core/api/v2/internal/uploadcore"
 	"sealdice-core/dice"
 )
 
@@ -23,17 +24,10 @@ const (
 
 // Destination 描述一类上传目标的业务差异：创建前校验 + 完成后落盘。
 type Destination interface {
-	Module() string
 	// Validate 在创建上传会话时校验元数据（文件名、分组、扩展名等）与文件大小。
 	Validate(meta map[string]string, size int64) error
 	// Install 消费已通过校验的暂存文件，写入业务目录并触发相应重载。
-	Install(stagedPath string, meta map[string]string) error
-}
-
-// contextualDestination 是可选的扩展接口：需要 context 的 destination（如流式安装）
-// 实现它，网关在安装时优先调用 InstallContext。
-type contextualDestination interface {
-	InstallContext(ctx context.Context, stagedPath string, meta map[string]string) error
+	Install(ctx context.Context, stagedPath string, meta map[string]string) error
 }
 
 // ---------- js 脚本 ----------
@@ -42,8 +36,6 @@ type scriptDestination struct {
 	dm *dice.DiceManager
 }
 
-func (d *scriptDestination) Module() string { return ModuleJS }
-
 func (d *scriptDestination) Validate(meta map[string]string, _ int64) error {
 	if sanitizeFilename(meta[MetaFilename]) == "" {
 		return tusd.NewError("ERR_INVALID_FILENAME", "文件名非法", http.StatusBadRequest)
@@ -51,7 +43,7 @@ func (d *scriptDestination) Validate(meta map[string]string, _ int64) error {
 	return nil
 }
 
-func (d *scriptDestination) Install(stagedPath string, meta map[string]string) error {
+func (d *scriptDestination) Install(_ context.Context, stagedPath string, meta map[string]string) error {
 	filename := sanitizeFilename(meta[MetaFilename])
 	if filename == "" {
 		return tusd.NewError("ERR_INVALID_FILENAME", "文件名非法", http.StatusBadRequest)
@@ -72,8 +64,6 @@ type deckDestination struct {
 	dm *dice.DiceManager
 }
 
-func (d *deckDestination) Module() string { return ModuleDeck }
-
 func (d *deckDestination) Validate(meta map[string]string, _ int64) error {
 	if sanitizeFilename(meta[MetaFilename]) == "" {
 		return tusd.NewError("ERR_INVALID_FILENAME", "文件名非法", http.StatusBadRequest)
@@ -81,7 +71,7 @@ func (d *deckDestination) Validate(meta map[string]string, _ int64) error {
 	return nil
 }
 
-func (d *deckDestination) Install(stagedPath string, meta map[string]string) error {
+func (d *deckDestination) Install(_ context.Context, stagedPath string, meta map[string]string) error {
 	filename := sanitizeFilename(meta[MetaFilename])
 	if filename == "" {
 		return tusd.NewError("ERR_INVALID_FILENAME", "文件名非法", http.StatusBadRequest)
@@ -103,8 +93,6 @@ type helpdocDestination struct {
 	dm *dice.DiceManager
 }
 
-func (d *helpdocDestination) Module() string { return ModuleHelpdoc }
-
 func (d *helpdocDestination) Validate(meta map[string]string, _ int64) error {
 	group := sanitizeHelpGroup(meta[MetaGroup])
 	if group == "" {
@@ -123,7 +111,7 @@ func (d *helpdocDestination) Validate(meta map[string]string, _ int64) error {
 	return nil
 }
 
-func (d *helpdocDestination) Install(stagedPath string, meta map[string]string) error {
+func (d *helpdocDestination) Install(_ context.Context, stagedPath string, meta map[string]string) error {
 	help := d.dm.Help
 	if help == nil {
 		return tusd.NewError("ERR_HELPDOC_NOT_READY", "帮助文档未初始化", http.StatusBadRequest)
@@ -220,9 +208,57 @@ func installFileAtomic(stagedPath, dstPath string) error {
 	if err := os.Chmod(tmpPath, 0o644); err != nil {
 		return err
 	}
-	if err := uploadcore.ReplaceFileAtomic(tmpPath, dstPath); err != nil {
+	if err := replaceFileAtomic(tmpPath, dstPath); err != nil {
 		return err
 	}
 	keepTmp = true
+	return nil
+}
+
+// replaceFileAtomic 用同目录 staging 文件替换 dstPath：
+// 目标不存在时直接 rename；目标存在时先备份、rename 新文件、失败回滚。
+func replaceFileAtomic(stagedPath string, dstPath string) error {
+	staged, err := os.Lstat(stagedPath)
+	if err != nil {
+		return err
+	}
+	if !staged.Mode().IsRegular() {
+		return fmt.Errorf("upload source is not a regular file: %s", stagedPath)
+	}
+	// Lstat also rejects symlinks: only regular files may be moved out of the way.
+	target, err := os.Lstat(dstPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return os.Rename(stagedPath, dstPath)
+	} else if err != nil {
+		return err
+	} else if !target.Mode().IsRegular() {
+		return fmt.Errorf("upload target is not a regular file: %s", dstPath)
+	}
+
+	backup, err := os.CreateTemp(filepath.Dir(dstPath), "."+filepath.Base(dstPath)+".backup-*")
+	if err != nil {
+		return err
+	}
+	backupPath := backup.Name()
+	if err := backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return err
+	}
+	if err := os.Remove(backupPath); err != nil {
+		return err
+	}
+	if err := os.Rename(dstPath, backupPath); err != nil {
+		return err
+	}
+	if err := os.Rename(stagedPath, dstPath); err != nil {
+		if rollbackErr := os.Rename(backupPath, dstPath); rollbackErr != nil {
+			return errors.Join(
+				fmt.Errorf("replace upload target: %w", err),
+				fmt.Errorf("rollback upload target: %w", rollbackErr),
+			)
+		}
+		return err
+	}
+	_ = os.Remove(backupPath)
 	return nil
 }

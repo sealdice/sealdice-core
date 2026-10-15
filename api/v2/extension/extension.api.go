@@ -29,7 +29,6 @@ type uploadStreamContextKey struct{}
 
 type uploadStreamResult struct {
 	preview *dice.PackageUploadPreview
-	done    bool
 }
 
 type Service struct {
@@ -62,7 +61,7 @@ func (s *Service) RegisterRoutes(grp *huma.Group) {
 func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	huma.Post(grp, "/packages/refresh", s.RefreshPackages)
 	huma.Post(grp, "/preview-upload", s.PreviewUpload, func(o *huma.Operation) {
-		o.Middlewares = append(o.Middlewares, s.streamUploadMiddleware(grp, true))
+		o.Middlewares = append(o.Middlewares, s.previewUploadMiddleware(grp))
 	})
 	huma.Post(grp, "/preview-url", s.PreviewURL)
 	huma.Post(grp, "/install-url", s.InstallURL)
@@ -104,7 +103,7 @@ func (s *Service) RefreshPackages(_ context.Context, _ *request.Empty) (*respons
 }
 
 func (s *Service) PreviewUpload(ctx context.Context, req *UploadReq) (*response.ItemResponse[*dice.PackageUploadPreview], error) {
-	if streamed, ok := ctx.Value(uploadStreamContextKey{}).(uploadStreamResult); ok && streamed.done {
+	if streamed, ok := ctx.Value(uploadStreamContextKey{}).(uploadStreamResult); ok {
 		return response.NewItemResponse(streamed.preview), nil
 	}
 	pm := s.packageManager()
@@ -671,7 +670,7 @@ func (s *Service) installStorePackage(ctx context.Context, target *dice.StorePac
 	return "installed", nil
 }
 
-func (s *Service) streamUploadMiddleware(api huma.API, preview bool) func(huma.Context, func(huma.Context)) {
+func (s *Service) previewUploadMiddleware(api huma.API) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		pm := s.packageManager()
 		if pm == nil {
@@ -679,18 +678,12 @@ func (s *Service) streamUploadMiddleware(api huma.API, preview bool) func(huma.C
 			return
 		}
 
-		result := uploadStreamResult{done: true}
-		var err error
-		if preview {
-			result.preview, err = pm.PreviewFromStreamContext(ctx.Context(), ctx.BodyReader())
-		} else {
-			err = pm.InstallFromStreamContext(ctx.Context(), ctx.BodyReader())
-		}
+		preview, err := pm.PreviewFromStreamContext(ctx.Context(), ctx.BodyReader())
 		if err != nil {
 			_ = huma.WriteErr(api, ctx, http.StatusBadRequest, err.Error())
 			return
 		}
-		next(huma.WithValue(ctx, uploadStreamContextKey{}, result))
+		next(huma.WithValue(ctx, uploadStreamContextKey{}, uploadStreamResult{preview: preview}))
 	}
 }
 

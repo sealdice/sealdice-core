@@ -8,14 +8,10 @@ const (
 
 // 输入类型：用于描述表单项的数据类型与前端交互方式
 const (
-	InputTypeText      = 0
-	InputTypeNum       = 1
-	InputTypeDate      = 4
-	InputTypeSin       = 5
-	InputTypeMul       = 6
-	InputTypeBool      = 10
-	InputTypeDateRange = 11
-	InputTypeSelect    = 12
+	InputTypeText   = 0
+	InputTypeNum    = 1
+	InputTypeBool   = 10
+	InputTypeSelect = 12
 )
 
 // 是否必填
@@ -60,13 +56,3 @@ type FormConfigItem struct {
 	Sensitive    bool        `json:"sensitive,omitempty"`
 	Readonly     bool        `json:"readonly,omitempty"`
 }
-
-type FormConfigItems []*FormConfigItem
-
-// SubmitFormItem 提交项（id 来自表单定义；data 为用户输入）
-type SubmitFormItem struct {
-	ID   uint64 `json:"id"`
-	Data string `json:"data"`
-}
-
-type SubmitFormItems []*SubmitFormItem

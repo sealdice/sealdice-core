@@ -1,6 +1,7 @@
 package uploadgw
 
 import (
+	"context"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -18,8 +19,6 @@ const (
 // censorDestination 收养原 /sd-api/v2/censor/files/upload 的词库文件落盘语义。
 type censorDestination struct{}
 
-func (d *censorDestination) Module() string { return ModuleCensor }
-
 func (d *censorDestination) Validate(meta map[string]string, size int64) error {
 	filename := sanitizeFilename(meta[MetaFilename])
 	if filename == "" {
@@ -34,7 +33,7 @@ func (d *censorDestination) Validate(meta map[string]string, size int64) error {
 	return nil
 }
 
-func (d *censorDestination) Install(stagedPath string, meta map[string]string) error {
+func (d *censorDestination) Install(_ context.Context, stagedPath string, meta map[string]string) error {
 	filename := sanitizeFilename(meta[MetaFilename])
 	if filename == "" {
 		return tusd.NewError("ERR_INVALID_FILENAME", "文件名不能为空", http.StatusBadRequest)

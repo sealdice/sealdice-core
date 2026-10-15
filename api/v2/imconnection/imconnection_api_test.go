@@ -221,6 +221,7 @@ func TestEnableWorkflowAndQRCode(t *testing.T) {
 }
 
 func TestProtocolSchemasUseSensitiveMetadata(t *testing.T) {
+	t.Chdir(t.TempDir()) // A release installation has no source-tree forms.json.
 	svc, _ := newTestService(t, false)
 	resp, err := svc.GetSchemas(t.Context(), &request.Empty{})
 	if err != nil {
