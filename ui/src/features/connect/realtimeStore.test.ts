@@ -3,7 +3,7 @@ import { expect, afterEach, beforeEach, it, vi } from 'vitest';
 import type { EndPointInfo } from '@/api';
 import { useAuthStore } from '@/features/auth/store';
 import { appPinia } from '@/pinia';
-import { useRealtimeConnections } from './realtime';
+import { useRealtimeConnectionsStore } from './realtimeStore';
 
 const { clearAccessToken, setAccessToken, finishInitialization } = useAuthStore(appPinia);
 const sources: FakeEventSource[] = [];
@@ -57,34 +57,36 @@ afterEach(async () => {
 });
 
 it('HTTP 快照包含登录状态，迟到的初始快照不覆盖实时状态，退出后清空', async () => {
-  const realtime = useRealtimeConnections();
+  const realtime = useRealtimeConnectionsStore(appPinia);
+  realtime.ensureInitialized();
   realtime.applyInitialSnapshot([connection]);
-  expect(realtime.connections.value).toHaveLength(1);
-  expect(realtime.ready.value).toBe(true);
-  expect(realtime.workflows.value['conn-1']?.state).toBe('qrcode');
-  expect(realtime.qrCodes.value['conn-1']).toBe(connection.qrcode);
+  expect(realtime.connections).toHaveLength(1);
+  expect(realtime.ready).toBe(true);
+  expect(realtime.workflows['conn-1']?.state).toBe('qrcode');
+  expect(realtime.qrCodes['conn-1']).toBe(connection.qrcode);
 
   realtime.applyInitialSnapshot([]);
-  expect(realtime.connections.value).toHaveLength(1);
+  expect(realtime.connections).toHaveLength(1);
 
   setAccessToken('token-connect');
   await nextTick();
   clearAccessToken();
   await nextTick();
-  expect(realtime.connections.value).toEqual([]);
-  expect(realtime.workflows.value).toEqual({});
-  expect(realtime.qrCodes.value).toEqual({});
-  expect(realtime.ready.value).toBe(false);
+  expect(realtime.connections).toEqual([]);
+  expect(realtime.workflows).toEqual({});
+  expect(realtime.qrCodes).toEqual({});
+  expect(realtime.ready).toBe(false);
 });
 
 it('一条 SSE 更新同时更新连接和登录状态，列表删除同时清除二维码', async () => {
   setAccessToken('token-connect');
-  const realtime = useRealtimeConnections();
+  const realtime = useRealtimeConnectionsStore(appPinia);
+  realtime.ensureInitialized();
   await nextTick();
   const source = sources.at(-1)!;
 
   source.emit('imconnection/list', { items: [connection] });
-  expect(realtime.qrCodes.value['conn-1']).toBe(connection.qrcode);
+  expect(realtime.qrCodes['conn-1']).toBe(connection.qrcode);
 
   source.emit('imconnection/updated', {
     item: {
@@ -94,11 +96,11 @@ it('一条 SSE 更新同时更新连接和登录状态，列表删除同时清�
       workflow: { state: 'success', hasQRCode: false, loginState: 3 },
     },
   });
-  expect(realtime.connections.value[0]?.state).toBe(1);
-  expect(realtime.workflows.value['conn-1']?.state).toBe('success');
-  expect(realtime.qrCodes.value).toEqual({});
+  expect(realtime.connections[0]?.state).toBe(1);
+  expect(realtime.workflows['conn-1']?.state).toBe('success');
+  expect(realtime.qrCodes).toEqual({});
 
   source.emit('imconnection/list', { items: [] });
-  expect(realtime.connections.value).toEqual([]);
-  expect(realtime.workflows.value).toEqual({});
+  expect(realtime.connections).toEqual([]);
+  expect(realtime.workflows).toEqual({});
 });

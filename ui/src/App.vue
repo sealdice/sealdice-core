@@ -57,10 +57,11 @@ import {
 import { useAuthSession } from './features/auth/useAuthSession';
 import { useRealtimeClientStore } from './features/realtime/store';
 import { useTestMode } from './features/testMode/state';
-import { useAppTheme } from './features/theme';
+import { storeToRefs } from 'pinia';
+import { useThemeStore } from './features/theme/store';
 // App 是全局 provider 和 layout 分发层。页面不要直接挂全局 provider，
 // 否则会出现消息、弹窗、QueryClient 或主题状态多实例的问题。
-const { resolvedTheme, themeOverrides } = useAppTheme();
+const { resolvedTheme, themeOverrides } = storeToRefs(useThemeStore());
 
 const activeTheme = computed(() => (resolvedTheme.value === 'dark' ? darkTheme : lightTheme));
 const testMode = useTestMode();

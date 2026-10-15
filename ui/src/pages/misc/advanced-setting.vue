@@ -146,10 +146,7 @@ import TipBox from '@/components/shared/TipBox.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 
-import {
-  normalizeAdvancedConfig,
-  setAdvancedSettingsVisible,
-} from '@/features/config/advancedSettings';
+import { normalizeAdvancedConfig } from '@/features/config/advancedSettings';
 import { isErudaEnabled, setErudaEnabled } from '@/features/debug/eruda';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import { notifyError } from '@/features/feedback/notifyError';
@@ -285,7 +282,6 @@ async function save() {
 
   if (succeeded.has('advanced')) {
     await queryClient.invalidateQueries({ queryKey: getSdApiV2ConfigAdvancedQueryKey() });
-    setAdvancedSettingsVisible(config.value.show);
     initialConfig.value = normalizeAdvancedConfig(config.value);
   }
   if (succeeded.has('debug')) {

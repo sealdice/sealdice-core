@@ -8,7 +8,7 @@
           class="theme-switch"
           :color="switchIconColor"
           :aria-label="tooltipText"
-          @click="toggle"
+          @click="themeStore.toggleTheme"
         >
           <template #icon>
             <n-icon size="1.25rem">
@@ -26,9 +26,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useAppTheme } from '@/features/theme';
+import { storeToRefs } from 'pinia';
+import { useThemeStore } from '@/features/theme/store';
 
-const { isDark, themeMode, toggleTheme } = useAppTheme();
+const themeStore = useThemeStore();
+const { isDark, themeMode } = storeToRefs(themeStore);
 const switchIconColor = computed(() =>
   themeMode.value === 'dark' ? 'var(--sd-accent)' : 'var(--sd-text-primary)'
 );
@@ -37,10 +39,6 @@ const tooltipText = computed(() => {
   if (themeMode.value === 'dark') return '深色模式 · 点击切换为跟随系统';
   return `跟随系统（当前${isDark.value ? '深色' : '亮色'}）· 点击切换到亮色模式`;
 });
-
-function toggle() {
-  toggleTheme();
-}
 </script>
 
 <style scoped>

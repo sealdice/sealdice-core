@@ -25,7 +25,7 @@ import { appPinia } from './pinia';
 import { setupApiClient } from './api';
 import { createApiFeedback } from './features/feedback/apiFeedback';
 import { syncErudaFromStorage } from './features/debug/eruda';
-import { setupPwaInstallHandling } from './features/pwa/usePwaInstall';
+import { usePwaInstallStore } from './features/pwa/pwaInstallStore';
 import { setupPwaUpdateHandling } from './features/pwa/swUpdate';
 import { queryClient } from './queryClient';
 
@@ -52,8 +52,10 @@ document.head.appendChild(meta);
 const apiFeedback = createApiFeedback();
 const disposeApiClient = setupApiClient(apiFeedback.report);
 
+// 安装事件可能早于侧边栏挂载；启动时监听，避免丢失浏览器的一次性 prompt。
+const pwaInstallStore = usePwaInstallStore(appPinia);
+pwaInstallStore.attachListeners();
 // SW 换版监听 + 受控刷新：避免旧页面与新预缓存错配后异步 chunk 404。
-setupPwaInstallHandling();
 setupPwaUpdateHandling();
 void syncErudaFromStorage().catch(error => {
   console.error('[eruda] failed to restore debug console', error);
@@ -61,6 +63,7 @@ void syncErudaFromStorage().catch(error => {
 
 const app = createApp(App);
 app.onUnmount(() => {
+  pwaInstallStore.detachListeners();
   disposeApiClient();
   apiFeedback.dispose();
 });

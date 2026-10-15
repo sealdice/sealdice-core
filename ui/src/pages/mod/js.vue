@@ -171,7 +171,7 @@ import {
 import JsListView from '@/components/js/JsListView.vue';
 import JsConfigView from '@/components/js/JsConfigView.vue';
 import JsDataView from '@/components/js/JsDataView.vue';
-import { useAppTheme } from '@/features/theme';
+import { useThemeStore } from '@/features/theme/store';
 import { notifyError } from '@/features/feedback/notifyError';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/features/auth/store';
@@ -220,7 +220,7 @@ const jsConfigViewRef = ref<InstanceType<typeof JsConfigView> | null>(null);
 const logRef = ref<LogInst | null>(null);
 const editorBaseExtensions = shallowRef<unknown[]>([]);
 const editorDarkTheme = shallowRef<unknown | null>(null);
-const { resolvedTheme } = useAppTheme();
+const { resolvedTheme } = storeToRefs(useThemeStore());
 const editorReady = computed(() => editorBaseExtensions.value.length > 0);
 const editorDark = computed(() => resolvedTheme.value === 'dark');
 const editorExtensions = computed(() => {

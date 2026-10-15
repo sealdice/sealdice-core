@@ -14,7 +14,7 @@ import {
 } from '@/api';
 import { getErrorMessage } from '@/features/auth/error';
 
-import { useRealtimeClient, subscribeRealtimeEvent } from '@/features/realtime/client';
+import { useRealtimeClientStore } from '@/features/realtime/store';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
@@ -112,8 +112,8 @@ export function useToolTest() {
     group: createInitialToolTestMessages('group'),
   });
 
-  const realtime = useRealtimeClient();
-  const realtimeActive = computed(() => realtime.connected.value);
+  const realtime = useRealtimeClientStore();
+  const { connected: realtimeActive } = storeToRefs(realtime);
   const currentContext = computed(() => contexts[mode.value] ?? fallbackContext(mode.value));
   const commandOptions = computed(() =>
     buildToolTestCommandOptions(commandList.value, input.value, currentContext.value.commandPrefix)
@@ -458,7 +458,7 @@ export function useToolTest() {
     }
   }
 
-  unsubscribeRealtime = subscribeRealtimeEvent<ToolTestRealtimeMessage>(
+  unsubscribeRealtime = realtime.subscribeRealtimeEvent<ToolTestRealtimeMessage>(
     'tooltest/message',
     handleRealtimeMessage
   );

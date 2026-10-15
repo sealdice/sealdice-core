@@ -30,8 +30,8 @@
     <ConnectAccountGrid
       v-else
       :connections="connections"
-      :workflows="realtimeConnections.workflows.value"
-      :qr-codes="realtimeConnections.qrCodes.value"
+      :workflows="realtimeConnections.workflows"
+      :qr-codes="realtimeConnections.qrCodes"
       :loading="connectionsLoading"
       :is-test-mode="isTestMode"
       :pending-action="pendingEndpointAction"
@@ -120,9 +120,7 @@
       <n-space vertical align="center" size="large">
         <n-image v-if="activeQRCode" :src="activeQRCode" width="280" preview-disabled />
         <n-empty v-else description="当前没有可用二维码" />
-        <n-button size="small" secondary @click="realtimeConnections.reconnect">
-          刷新连接
-        </n-button>
+        <n-button size="small" secondary @click="realtime.reconnect"> 刷新连接 </n-button>
       </n-space>
     </n-modal>
   </main>
@@ -172,7 +170,8 @@ import {
 } from '@/features/connect/queries';
 import { useConnectMutations } from '@/features/connect/mutations';
 import { useConnectSignInfo } from '@/features/connect/signInfo';
-import { useRealtimeConnections } from '@/features/connect/realtime';
+import { useRealtimeConnectionsStore } from '@/features/connect/realtimeStore';
+import { useRealtimeClientStore } from '@/features/realtime/store';
 import type { OfficialQQMode } from '@/features/connect/officialQQ';
 import { useTestMode } from '@/features/testMode/state';
 import TipBox from '@/components/shared/TipBox.vue';
@@ -183,7 +182,10 @@ const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const message = useMessage();
 const dialog = useDialog();
-const realtimeConnections = useRealtimeConnections();
+const realtimeConnections = useRealtimeConnectionsStore();
+realtimeConnections.ensureInitialized();
+const realtime = useRealtimeClientStore();
+const { connections } = storeToRefs(realtimeConnections);
 const { isTestMode } = useTestMode();
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
@@ -246,7 +248,6 @@ const schemas = computed<Record<string, FormConfigItem[]>>(() => {
     Object.entries(raw).map(([key, value]) => [key, value ?? []])
   ) as Record<string, FormConfigItem[]>;
 });
-const connections = realtimeConnections.connections;
 
 const selectedProtocol = computed(() => wizardState.protocol);
 const selectedSchema = computed<FormConfigItem[]>(() => {
@@ -277,20 +278,16 @@ const canSubmit = computed(
 const canSubmitEdit = computed(
   () => validateDynamicFormModel(editSchema.value, editFormModel.value).valid
 );
-const activeQRCode = computed(
-  () => realtimeConnections.qrCodes.value[qrDialogEndpointId.value] ?? ''
-);
+const activeQRCode = computed(() => realtimeConnections.qrCodes[qrDialogEndpointId.value] ?? '');
 const activeQRWorkflow = computed(
-  () => realtimeConnections.workflows.value[qrDialogEndpointId.value] ?? null
+  () => realtimeConnections.workflows[qrDialogEndpointId.value] ?? null
 );
 const connectionsReady = computed(
   () =>
-    realtimeConnections.ready.value ||
-    connectionsQuery.isSuccess.value ||
-    connectionsQuery.isError.value
+    realtimeConnections.ready || connectionsQuery.isSuccess.value || connectionsQuery.isError.value
 );
 const connectionsErrorText = computed(() =>
-  connectionsQuery.isError.value && !realtimeConnections.ready.value
+  connectionsQuery.isError.value && !realtimeConnections.ready
     ? getErrorMessage(connectionsQuery.error.value, '账号列表读取失败')
     : ''
 );
@@ -310,10 +307,7 @@ watch(
   () => connectionsQuery.data.value,
   data => {
     if (!data) return;
-    realtimeConnections.applyInitialSnapshot(
-      data.item.items ?? null,
-      !realtimeConnections.connected.value
-    );
+    realtimeConnections.applyInitialSnapshot(data.item.items ?? null, !realtime.connected);
   },
   { immediate: true }
 );

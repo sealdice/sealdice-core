@@ -17,10 +17,11 @@
 
 `openapi.json` 和 `src/api/generated` 是构建期产物，不提交到仓库。正式构建会先生成它们；本地开发如果缺失或 API 变化，先运行 `pnpm run generate-api`。
 
-这个项目的核心思路是“公共能力集中，业务逻辑分层，页面保持薄”：
+这个项目按实际职责组织代码，不要求每个功能都经过固定的封装层：
 
 - 公共能力放在 `api/`、`features/`、`router/`、`components/app-shell/` 和少量全局 `layouts/` 中。
-- 业务页面只负责把这些能力拼起来。
+- 页面可以直接使用生成的 API、query 和 store；只有可复用的业务规则或需要独立管理的生命周期才抽成 composable。
+- 不为单一调用方增加逐项转发 props、refs 或 actions 的兼容层，也不复制查询缓存到另一份全局状态。
 - 真正跨页面复用的 UI 才进入 `components/shared/`。
 
 ## 目录职责
@@ -63,7 +64,8 @@
 - 登录态直接通过 `features/auth/store.ts` 的 `useAuthStore()` 读取，响应式引用用 `storeToRefs()`。不新增转发型 `state.ts`，不在页面读写 localStorage。
 - Vue Query 全局缓存和重试策略在 `src/queryClient.ts`；查询继续使用生成客户端，禁止自行维护第二套服务端缓存。
 - 基础设置的固定分组、字段布局和搜索文案在 `features/baseSetting/schema.ts`；后端仅提供当前值与类型化补丁，完整校验后才应用配置与副作用。
-- 实时连接由 `features/realtime/store.ts` 持有；`client.ts` 只保留惰性的组合/订阅入口，不在导入时实例化 store。
+- 实时连接由 `features/realtime/store.ts` 持有，调用方直接使用 store；订阅自动初始化连接，不在模块导入时创建 store。
+- 主题和 PWA 安装直接使用各自的 store；PWA 安装事件在应用启动时监听，卸载时释放。
   - 连接列表、HTTP 首屏快照和 SSE 更新共用完整连接 DTO（含 workflow/qrcode）；业务 store 只保存连接列表，其余展示数据从列表派生。
   - 日志、连接等业务 store 只订阅所需事件，释放时注销自己的监听器；全局传输 store 释放时停止 SSE、重连定时器和认证监听。
 - 路由语义统一在 `src/router/navigation.ts`、`src/router/routeMeta.ts`、`src/router/navigationModel.ts`。
@@ -190,9 +192,9 @@
 
 - 不手改或提交 `src/api/generated/`。需要变更 API 类型时改后端 OpenAPI，再重新生成本地产物。
 - 不在页面里实现全局错误处理、token 注入、401 清理，这些属于 `src/api/client.ts`。
-- 不在页面里直接创建 SSE，这些属于 `src/features/realtime/client.ts`。
+- 不在页面里直接创建 SSE，这些属于 `src/features/realtime/store.ts`。
 - 不把老前端的大 store 模式搬进来。每个业务域维护自己的最小状态。
-- 不把公共能力散落到页面和组件里。能下沉就下沉到对应 feature / api / router / app-shell。
+- 公共能力放在对应 feature / api / router / app-shell；只服务一个页面的简单派生状态和布局保留在使用处。
 
 ## 构建与验证边界
 
@@ -209,7 +211,7 @@
 - API 客户端配置：`src/api/client.ts`
 - 认证 token：`src/features/auth/store.ts`
 - Vue Query 配置：`src/queryClient.ts`
-- 实时连接：`src/features/realtime/client.ts`
+- 实时连接：`src/features/realtime/store.ts`
 - 路由菜单语义：`src/router/navigation.ts`
 - 路由派生元信息：`src/router/routeMeta.ts`
 - App 壳宽度逻辑：`src/components/app-shell/appShellLayout.ts`

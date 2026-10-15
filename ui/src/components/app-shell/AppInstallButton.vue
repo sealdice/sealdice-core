@@ -28,13 +28,15 @@
 import { computed, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { buildPwaInstallGuide, getPwaInstallEnvironment } from '@/features/pwa/pwaInstallGuide';
-import { usePwaInstall } from '@/features/pwa/usePwaInstall';
+import { storeToRefs } from 'pinia';
+import { usePwaInstallStore } from '@/features/pwa/pwaInstallStore';
 import PwaInstallGuideModal from './PwaInstallGuideModal.vue';
 
 const props = withDefaults(defineProps<{ collapsed?: boolean }>(), { collapsed: false });
 
 const message = useMessage();
-const { canInstall, isInstalled, installing, install } = usePwaInstall();
+const pwaInstallStore = usePwaInstallStore();
+const { canInstall, isInstalled, installing } = storeToRefs(pwaInstallStore);
 const guideVisible = ref(false);
 const installGuide = buildPwaInstallGuide(getPwaInstallEnvironment());
 
@@ -56,7 +58,7 @@ async function handleClick() {
     return;
   }
 
-  const outcome = await install();
+  const outcome = await pwaInstallStore.install();
   if (outcome === 'installed') {
     message.success('已安装到设备');
     return;

@@ -283,7 +283,7 @@ import { storeToRefs } from 'pinia';
 import { useUploadStore } from '@/features/upload/store';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
-import { useAppTheme } from '@/features/theme';
+import { useThemeStore } from '@/features/theme/store';
 import { notifyError } from '@/features/feedback/notifyError';
 
 const uploadStore = useUploadStore();
@@ -298,7 +298,7 @@ const emit = defineEmits<{
 
 const message = useMessage();
 const dialog = useDialog();
-const { isDark } = useAppTheme();
+const { isDark } = storeToRefs(useThemeStore());
 
 interface JsInfoExt extends JsInfoType {
   pitch?: boolean;

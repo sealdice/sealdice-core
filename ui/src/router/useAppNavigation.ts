@@ -1,4 +1,4 @@
-import { computed, type MaybeRefOrGetter, toValue, watchEffect } from 'vue';
+import { computed, type MaybeRefOrGetter, toValue } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
 import {
   getSdApiV2ConfigAdvanced,
@@ -6,10 +6,7 @@ import {
   getSdApiV2CustomTextOptions,
 } from '@/api';
 
-import {
-  normalizeAdvancedConfig,
-  setAdvancedSettingsVisible,
-} from '@/features/config/advancedSettings';
+import { normalizeAdvancedConfig } from '@/features/config/advancedSettings';
 import { appNavigation } from './navigation';
 import { buildNavigationTree, flattenNavigationItems } from './navigationModel';
 import { storeToRefs } from 'pinia';
@@ -37,10 +34,6 @@ export function useAppNavigation(advancedConfigCounter: MaybeRefOrGetter<number>
   );
   const advancedConfigEnabled = computed(() => {
     return toValue(advancedConfigCounter) >= 8 || advancedConfigQuery.data.value?.show === true;
-  });
-
-  watchEffect(() => {
-    setAdvancedSettingsVisible(advancedConfigQuery.data.value?.show === true);
   });
 
   const navigationTree = computed(() =>

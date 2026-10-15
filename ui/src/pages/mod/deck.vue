@@ -262,7 +262,7 @@ import {
 import { storeToRefs } from 'pinia';
 import { useUploadStore } from '@/features/upload/store';
 
-import { useAppTheme } from '@/features/theme';
+import { useThemeStore } from '@/features/theme/store';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
 import { notifyError } from '@/features/feedback/notifyError';
@@ -280,7 +280,7 @@ const DiffViewer = defineAsyncComponent(() => import('@/components/shared/DiffVi
 const message = useMessage();
 const dialog = useDialog();
 const queryClient = useQueryClient();
-const { isDark } = useAppTheme();
+const { isDark } = storeToRefs(useThemeStore());
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 
