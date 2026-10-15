@@ -50,15 +50,17 @@ func (s *extStorage) listKeys(page, pageSize int, keyword string) (*DataListResp
 		keyword = "*"
 	}
 
-	type kv struct {
-		Key   string
-		Value string
-	}
-
-	var all []kv
+	result := &DataListResp{Keys: []DataKV{}, Page: page, PageSize: pageSize}
 	err := s.ext.Storage.View(func(tx *buntdb.Tx) error {
 		return tx.AscendKeys(keyword, func(key, value string) bool {
-			all = append(all, kv{Key: key, Value: value})
+			// Count all matches, but retain only the requested page. Division
+			// avoids overflowing an offset when the client sends a huge page.
+			if result.Total/pageSize == page-1 {
+				result.Keys = append(result.Keys, DataKV{
+					Key: key, Value: value, IsJSON: json.Valid([]byte(value)),
+				})
+			}
+			result.Total++
 			return true
 		})
 	})
@@ -66,26 +68,7 @@ func (s *extStorage) listKeys(page, pageSize int, keyword string) (*DataListResp
 		return nil, err
 	}
 
-	total := len(all)
-	start := (page - 1) * pageSize
-	if start >= total {
-		return &DataListResp{Keys: []DataKV{}, Total: total, Page: page, PageSize: pageSize}, nil
-	}
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
-
-	keys := make([]DataKV, 0, end-start)
-	for _, item := range all[start:end] {
-		keys = append(keys, DataKV{
-			Key:    item.Key,
-			Value:  item.Value,
-			IsJSON: json.Valid([]byte(item.Value)),
-		})
-	}
-
-	return &DataListResp{Keys: keys, Total: total, Page: page, PageSize: pageSize}, nil
+	return result, nil
 }
 
 // getValue returns a single key-value pair.
