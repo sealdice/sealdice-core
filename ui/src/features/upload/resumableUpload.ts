@@ -1,5 +1,6 @@
 import { ref } from 'vue';
-import { ApiError } from '@/api';
+import * as tus from 'tus-js-client';
+import { getApiBaseUrl } from '@/api/config';
 import { currentAccessToken } from '@/features/auth/state';
 import { hashFile } from './fileHash';
 
@@ -18,137 +19,106 @@ export type ResumableUploadTask = {
   filename: string;
   fileSize: number;
   fileHash: string;
-  sessionId: string;
   status: UploadTaskStatus;
   progress: number;
-  uploadedChunks: number[];
   uploadedBytes: number;
-  expectedChunks: number;
   errorText: string;
-};
-
-export type PersistedUploadTask = {
-  filename: string;
-  fileSize: number;
-  fileHash: string;
-  sessionId: string;
-  uploadedChunks: number[];
-  uploadedBytes: number;
-  expectedChunks: number;
-};
-
-export type UploadSession = {
-  sessionId: string;
-  chunkSize: number;
-  uploadedChunks: number[];
-  uploadedBytes: number;
-  expectedChunks: number;
+  // 内部取消标记，不参与渲染。
+  canceled?: boolean;
 };
 
 export type ResumableUploadAdapter = {
-  chunkSize: number;
-  init(task: ResumableUploadTask): Promise<UploadSession>;
-  complete(task: ResumableUploadTask): Promise<boolean>;
-  buildChunkUrl(task: ResumableUploadTask, index: number): string;
-  onTaskSuccess(task: ResumableUploadTask): Promise<void> | void;
-  onTaskError?(task: ResumableUploadTask, error: unknown): Promise<void> | void;
+  // 业务模块标识，作为 tus Upload-Metadata 的 module 字段。
+  module: string;
+  chunkSize?: number;
+  // 额外的 tus 元数据（如帮助文档的 group）。
+  metadata?: (task: ResumableUploadTask) => Record<string, string>;
+  onTaskSuccess: (task: ResumableUploadTask) => Promise<void> | void;
+  onTaskError?: (task: ResumableUploadTask, error: unknown) => Promise<void> | void;
 };
 
-// 通用分片上传控制器。业务页只实现 adapter，把“初始化会话、上传分片、
-// 完成合并、成功刷新”这几个后端差异注入进来。
-// 控制器负责文件哈希、断点恢复、本地持久化、串行上传和错误展示文案。
+// 是否处于可取消的进行中状态（排队/哈希/续传/上传/收尾）。
+export function isResumableUploadActive(task: ResumableUploadTask): boolean {
+  return task.status !== 'error' && task.status !== 'success';
+}
+
+type TusUploadOptions = ConstructorParameters<typeof tus.Upload>[1];
+type TusPreviousUpload = {
+  size: number | null;
+  metadata: Record<string, string>;
+  creationTime: string;
+  urlStorageKey: string;
+  uploadUrl: string | null;
+  parallelUploadUrls: string[] | null;
+};
+
+const DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024;
+const UPLOAD_PATH = '/sd-api/v2/upload/';
+
+// 通用分片上传控制器，底层使用 tus 协议（tus-js-client）。
+// 断点续传由 tus-js-client + localStorage urlStorage 负责：刷新页面后只要用户
+// 重新选择同一文件，就会按 fingerprint 找到之前的 upload URL 并从中断处续传。
 export function useResumableUpload(storageKey: string, adapter: ResumableUploadAdapter) {
   const tasks = ref<ResumableUploadTask[]>([]);
   const busy = ref(false);
+  const urlStorage = createLocalStorageUrlStorage(storageKey);
+  // 记录进行中的 tus 上传，供取消使用。
+  const activeUploads = new Map<string, { upload: tus.Upload; settle: () => void }>();
 
-  function restore() {
-    // 只能持久化上传进度，不能持久化 File 对象。刷新页面后需要用户重新选择同一文件，
-    // 再根据 filename/size/hash 继续已有 session。
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        localStorage.removeItem(storageKey);
-        return;
-      }
-      const items = parsed.filter(isPersistedUploadTask) as PersistedUploadTask[];
-      tasks.value = items.map(item => ({
-        id: `${item.filename}:${item.fileSize}:${item.fileHash}`,
-        file: null,
-        filename: item.filename,
-        fileSize: item.fileSize,
-        fileHash: item.fileHash,
-        sessionId: item.sessionId,
-        status: 'error',
-        progress: calcProgress(item.uploadedBytes, item.fileSize),
-        uploadedChunks: item.uploadedChunks,
-        uploadedBytes: item.uploadedBytes,
-        expectedChunks: item.expectedChunks,
-        errorText: '等待重新选择原文件以继续上传',
-      }));
-    } catch {
-      safeRemove(storageKey);
-    }
+  function taskID(filename: string, fileSize: number, fileHash: string): string {
+    return `${filename}:${fileSize}:${fileHash}`;
   }
 
-  function persist() {
-    const items = tasks.value
-      .filter(task => task.status !== 'success')
-      .map<PersistedUploadTask>(task => ({
-        filename: task.filename,
-        fileSize: task.fileSize,
-        fileHash: task.fileHash,
-        sessionId: task.sessionId,
-        uploadedChunks: task.uploadedChunks,
-        uploadedBytes: task.uploadedBytes,
-        expectedChunks: task.expectedChunks,
-      }));
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(items));
-    } catch {
-      // ignore storage errors
-    }
+  async function restore() {
+    const previous = await urlStorage.findAllUploads();
+    tasks.value = previous
+      .filter(upload => upload.uploadUrl)
+      .map(upload => {
+        const filename = upload.metadata?.filename ?? '未命名文件';
+        const fileSize = upload.size ?? 0;
+        const fileHash = upload.metadata?.sha256 ?? '';
+        return {
+          id: taskID(filename, fileSize, fileHash),
+          file: null,
+          filename,
+          fileSize,
+          fileHash,
+          status: 'error' as UploadTaskStatus,
+          progress: 0,
+          uploadedBytes: 0,
+          errorText: '等待重新选择原文件以继续上传',
+        };
+      });
   }
 
-  function removeTask(taskID: string) {
-    tasks.value = tasks.value.filter(task => task.id !== taskID);
-    persist();
+  function removeTask(taskIDValue: string) {
+    tasks.value = tasks.value.filter(task => task.id !== taskIDValue);
   }
 
   async function enqueueFiles(files: File[]) {
     for (const file of files) {
       // 先算内容 hash，再决定是否复用已有任务，避免同名不同内容误续传。
       const fileHash = await hashFile(file);
-      const existing = tasks.value.find(
-        task =>
-          task.filename === file.name &&
-          task.fileSize === file.size &&
-          task.fileHash === fileHash &&
-          task.status !== 'success'
-      );
+      const id = taskID(file.name, file.size, fileHash);
+      const existing = tasks.value.find(task => task.id === id && task.status !== 'success');
       if (existing) {
         existing.file = file;
-        existing.status = existing.uploadedChunks.length > 0 ? 'resuming' : 'queued';
+        existing.status = existing.uploadedBytes > 0 ? 'resuming' : 'queued';
         existing.errorText = '';
         continue;
       }
       tasks.value.unshift({
-        id: `${file.name}:${file.size}:${file.lastModified}`,
+        id,
         file,
         filename: file.name,
         fileSize: file.size,
         fileHash,
-        sessionId: '',
         status: 'queued',
         progress: 0,
-        uploadedChunks: [],
         uploadedBytes: 0,
-        expectedChunks: 0,
         errorText: '',
       });
     }
-    persist();
     await start();
   }
 
@@ -169,7 +139,7 @@ export function useResumableUpload(storageKey: string, adapter: ResumableUploadA
     if (task.status !== 'error') return;
     task.status = 'queued';
     task.errorText = '';
-    persist();
+    task.canceled = false;
     await start();
   }
 
@@ -178,59 +148,82 @@ export function useResumableUpload(storageKey: string, adapter: ResumableUploadA
       if (!task.file) {
         task.status = 'error';
         task.errorText = '等待重新选择原文件以继续上传';
-        persist();
         return;
       }
 
-      task.status = 'resuming';
-      task.errorText = '';
-      const session = await adapter.init(task);
-      task.sessionId = session.sessionId;
-      task.expectedChunks = session.expectedChunks;
-      task.uploadedChunks = [...(session.uploadedChunks ?? [])];
-      task.uploadedBytes = session.uploadedBytes;
-      task.progress = calcProgress(task.uploadedBytes, task.fileSize);
-      persist();
-
       task.status = 'uploading';
-      for (let index = 0; index < task.expectedChunks; index++) {
-        // 后端返回 uploadedChunks 时跳过已存在分片，实现真正的断点续传。
-        if (task.uploadedChunks.includes(index)) continue;
-        const start = index * session.chunkSize;
-        const end = Math.min(task.fileSize, start + session.chunkSize);
-        const chunk = task.file.slice(start, end);
-        const chunkBytes = chunk.size;
-        await uploadChunk(
-          task,
-          index,
-          chunk,
-          session.chunkSize,
-          adapter.buildChunkUrl(task, index)
-        );
-        task.uploadedChunks.push(index);
-        task.uploadedBytes += chunkBytes;
-        task.progress = calcProgress(task.uploadedBytes, task.fileSize);
-        persist();
-      }
+      task.errorText = '';
+      const metadata: Record<string, string> = {
+        filename: task.filename,
+        module: adapter.module,
+        sha256: task.fileHash,
+        ...(adapter.metadata ? adapter.metadata(task) : {}),
+      };
 
-      task.status = 'completing';
-      const success = await adapter.complete(task);
-      if (!success) {
-        throw new Error('上传完成失败');
-      }
+      await new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(task.file as File, {
+          endpoint: `${getApiBaseUrl()}${UPLOAD_PATH}`,
+          chunkSize: adapter.chunkSize ?? DEFAULT_CHUNK_SIZE,
+          retryDelays: [0, 1000, 3000, 5000, 10000],
+          metadata,
+          headers: authHeaders(),
+          fingerprint: () => Promise.resolve(task.id),
+          storeFingerprintForResuming: true,
+          removeFingerprintOnSuccess: true,
+          urlStorage: urlStorage as unknown as NonNullable<TusUploadOptions['urlStorage']>,
+          onProgress: (bytesSent, bytesTotal) => {
+            task.uploadedBytes = bytesSent;
+            task.progress = bytesTotal
+              ? Math.min(100, Math.floor((bytesSent / bytesTotal) * 100))
+              : 0;
+          },
+          onSuccess: () => resolve(),
+          onError: error => reject(error),
+        });
+        activeUploads.set(task.id, { upload, settle: resolve });
 
+        void upload
+          .findPreviousUploads()
+          .then(previous => {
+            if (previous.length > 0) {
+              upload.resumeFromPreviousUpload(previous[0]);
+            }
+            upload.start();
+          })
+          .catch(reject);
+      });
+
+      if (task.canceled) return;
       task.status = 'success';
       task.progress = 100;
+      task.uploadedBytes = task.fileSize;
       task.errorText = '';
-      persist();
       await adapter.onTaskSuccess(task);
       removeTask(task.id);
     } catch (error) {
+      if (task.canceled) return;
       task.status = 'error';
       task.errorText = getUploadErrorText(error);
-      persist();
       await adapter.onTaskError?.(task, error);
+    } finally {
+      activeUploads.delete(task.id);
     }
+  }
+
+  async function cancelTask(task: ResumableUploadTask) {
+    task.canceled = true;
+    const active = activeUploads.get(task.id);
+    if (active) {
+      // 终止服务端上传，并释放挂起的 Promise。
+      try {
+        await active.upload.abort(true);
+      } catch {
+        // 忽略取消过程中的网络错误
+      }
+      active.settle();
+    }
+    activeUploads.delete(task.id);
+    removeTask(task.id);
   }
 
   return {
@@ -239,90 +232,69 @@ export function useResumableUpload(storageKey: string, adapter: ResumableUploadA
     restore,
     enqueueFiles,
     retry,
+    cancelTask,
     removeTask,
-    persist,
     start,
   };
 }
 
-async function uploadChunk(
-  task: ResumableUploadTask,
-  index: number,
-  chunk: Blob,
-  chunkSize: number,
-  url: string
-) {
-  await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', url, true);
-    xhr.responseType = 'json';
-    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-    const token = currentAccessToken();
-    if (token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    }
-    xhr.upload.onprogress = event => {
-      if (!event.lengthComputable) return;
-      const baseBytes = task.uploadedChunks.reduce((sum, chunkIndex) => {
-        const start = chunkIndex * chunkSize;
-        const end = Math.min(task.fileSize, start + chunkSize);
-        return sum + (end - start);
-      }, 0);
-      task.progress = calcProgress(baseBytes + event.loaded, task.fileSize);
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-        return;
+function authHeaders(): Record<string, string> {
+  const token = currentAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function createLocalStorageUrlStorage(namespace: string) {
+  const prefix = `${namespace}::upload::`;
+  const keyFor = (fingerprint: string) => `${prefix}${fingerprint}`;
+
+  return {
+    async findAllUploads(): Promise<TusPreviousUpload[]> {
+      if (typeof localStorage === 'undefined') return [];
+      const result: TusPreviousUpload[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith(prefix)) continue;
+        const value = readStoredUpload(key);
+        if (value) result.push(value);
       }
-      reject(
-        new ApiError({
-          status: xhr.status,
-          statusText: xhr.statusText,
-          data: xhr.response ?? xhr.responseText,
-        })
-      );
-    };
-    xhr.onerror = () => reject(new Error('网络错误'));
-    xhr.send(chunk);
-  });
-
-  void index;
+      return result;
+    },
+    async findUploadsByFingerprint(fingerprint: string): Promise<TusPreviousUpload[]> {
+      const value = readStoredUpload(keyFor(fingerprint));
+      return value ? [value] : [];
+    },
+    async removeUpload(urlStorageKey: string): Promise<void> {
+      try {
+        localStorage.removeItem(urlStorageKey);
+      } catch {
+        // ignore storage errors
+      }
+    },
+    async addUpload(fingerprint: string, upload: TusPreviousUpload): Promise<string> {
+      const key = keyFor(fingerprint);
+      try {
+        localStorage.setItem(key, JSON.stringify({ ...upload, urlStorageKey: key }));
+      } catch {
+        // ignore storage errors
+      }
+      return key;
+    },
+  };
 }
 
-function calcProgress(uploadedBytes: number, totalBytes: number): number {
-  if (!totalBytes) return 0;
-  return Math.min(100, Math.floor((uploadedBytes / totalBytes) * 100));
-}
-
-function isPersistedUploadTask(value: unknown): value is PersistedUploadTask {
-  if (!value || typeof value !== 'object') return false;
-  const item = value as Record<string, unknown>;
-  return (
-    typeof item.filename === 'string' &&
-    typeof item.fileSize === 'number' &&
-    typeof item.fileHash === 'string' &&
-    typeof item.sessionId === 'string' &&
-    Array.isArray(item.uploadedChunks) &&
-    typeof item.uploadedBytes === 'number' &&
-    typeof item.expectedChunks === 'number'
-  );
+function readStoredUpload(key: string): TusPreviousUpload | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as TusPreviousUpload;
+  } catch {
+    return null;
+  }
 }
 
 function getUploadErrorText(error: unknown): string {
-  if (error instanceof ApiError) {
-    return error.message || error.statusText || `HTTP ${error.status}`;
-  }
   if (error instanceof Error) {
-    return error.message;
+    return error.message || '上传失败';
   }
   return '上传失败';
-}
-
-function safeRemove(key: string) {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // ignore storage errors
-  }
 }

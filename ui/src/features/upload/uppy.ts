@@ -11,7 +11,7 @@ let instance: Uppy | null = null;
 // getUppy 返回惰性创建的单例。全应用共享同一个队列/引擎。
 export function getUppy(): Uppy {
   if (!instance) {
-    instance = new Uppy({ autoProceed: true, allowMultipleUploadBatches: true });
+    instance = new Uppy({ autoProceed: false, allowMultipleUploadBatches: true });
     instance.use(Tus, {
       endpoint: uploadEndpoint(),
       retryDelays: [0, 1000, 3000, 5000, 10000],
