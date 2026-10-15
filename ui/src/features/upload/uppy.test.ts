@@ -24,5 +24,11 @@ describe('upload uppy singleton', () => {
       });
     expect(addOnce).not.toThrow();
     expect(addOnce).not.toThrow();
+
+    // 单例隔离：清理本用例塞进去的文件，避免污染后续用例。
+    for (const file of uppy.getFiles()) {
+      uppy.removeFile(file.id);
+    }
+    expect(uppy.getFiles()).toHaveLength(0);
   });
 });

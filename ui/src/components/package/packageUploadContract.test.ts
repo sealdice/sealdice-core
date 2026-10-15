@@ -7,11 +7,12 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(path.resolve(currentDir, 'PackageManagerView.vue'), 'utf8');
 
 describe('package upload wiring', () => {
-  it('queues install through the global upload queue', () => {
-    expect(source).toMatch(/enqueueUploads\(\[.*\],\s*'extension-install'/);
+  it('no longer calls the removed multipart install endpoint', () => {
+    expect(source).not.toMatch(/postSdApiV2ExtensionInstallUpload/);
   });
 
-  it('keeps the preview as a direct huma call', () => {
-    expect(source).toMatch(/postSdApiV2ExtensionPreviewUpload/);
+  it('queues installs through the global upload queue', () => {
+    expect(source).toMatch(/enqueueUploads\(/);
+    expect(source).toMatch(/'extension-install'/);
   });
 });

@@ -344,7 +344,3 @@ func TestDebugModeRoundTrip(t *testing.T) {
 		t.Fatalf("debug mode should be true")
 	}
 }
-
-func TestUploadFileSavesMultipartPayload(t *testing.T) {
-	t.Skip("上传已收敛到 tus 网关 /sd-api/v2/upload/，见 uploadgw")
-}

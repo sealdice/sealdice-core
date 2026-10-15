@@ -89,10 +89,6 @@ func TestGetListSupportsKeywordSortingAndPagination(t *testing.T) {
 	}
 }
 
-func TestUploadMovedToTusGateway(t *testing.T) {
-	t.Skip("资源上传已收敛到 tus 网关 /sd-api/v2/upload/，见 uploadgw")
-}
-
 func TestDeleteRemovesImageAndRejectsTraversal(t *testing.T) {
 	svc := newTestService(t)
 	writeResourceFile(t, "to-delete.jpg", 12)
