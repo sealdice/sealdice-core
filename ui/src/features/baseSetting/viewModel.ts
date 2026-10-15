@@ -194,10 +194,6 @@ export function getBaseSettingFieldLayout(
   return 'auto';
 }
 
-export function isBaseSettingFieldBottomMounted(field: Pick<BaseSettingFieldModel, 'kind'>) {
-  return getBaseSettingFieldLayout(field) === 'stacked';
-}
-
 export function getBaseSettingFieldFeedback(field: Pick<BaseSettingFieldModel, 'key' | 'hint'>) {
   if (field.key === 'QQEnablePoke') {
     return '启用前请确认你使用的 QQ 连接方式支持该功能，若不支持请关闭该功能来避免日志中出现相关报错。';

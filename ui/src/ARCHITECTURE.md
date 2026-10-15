@@ -65,10 +65,10 @@
 - Vue Query 全局缓存和重试策略在 `src/queryClient.ts`；查询继续使用生成客户端，禁止自行维护第二套服务端缓存。
 - 基础设置的固定分组、字段布局和搜索文案在 `features/baseSetting/schema.ts`；后端仅提供当前值与类型化补丁，完整校验后才应用配置与副作用。
 - 实时连接由 `features/realtime/store.ts` 持有，调用方直接使用 store；订阅自动初始化连接，不在模块导入时创建 store。
-- 主题和 PWA 安装直接使用各自的 store；PWA 安装事件在应用启动时监听，卸载时释放。
   - 连接列表、HTTP 首屏快照和 SSE 更新共用完整连接 DTO（含 workflow/qrcode）；业务 store 只保存连接列表，其余展示数据从列表派生。
   - 日志、连接等业务 store 只订阅所需事件，释放时注销自己的监听器；全局传输 store 释放时停止 SSE、重连定时器和认证监听。
-- 路由语义统一在 `src/router/navigation.ts`、`src/router/routeMeta.ts`、`src/router/navigationModel.ts`。
+- 主题和 PWA 安装直接使用各自的 store；PWA 安装事件在应用启动时监听，卸载时释放。
+- 路由语义统一在 `src/router/navigation.ts`、`src/router/navigationModel.ts`。
   - 新页面一般只需要先补导航模型，标题、布局、面包屑等会一起派生。
 - 未保存提示统一在 `src/features/unsavedChanges/`。
   - 页面只注册 source，不自己实现全局拦截。
@@ -120,7 +120,7 @@
 
 - 用户访问 `/tool/test`。
 - 页面文件是 `src/pages/tool/test.vue`。
-- 页面标题、布局等由 `src/router/navigation.ts` 和 `src/router/routeMeta.ts` 派生。
+- 页面标题、布局等由 `src/router/navigation.ts` 和 `src/router/navigationModel.ts` 派生。
 
 ### 2. 页面初始化
 
@@ -184,7 +184,7 @@
 1. 确认后端 V2 OpenAPI 已覆盖接口，运行 `pnpm run generate-api` 更新本地 `openapi.json` 和 `src/api/generated`。
 2. 在 `pages/` 新建路由入口。
 3. 在 `router/navigation.ts` 增加导航语义。
-4. 由 `routeMeta` 派生页面标题和 layout。
+4. 由 `buildRouteMeta` 从导航模型派生页面标题和 layout。
 5. 将复杂业务状态抽到 `features/<domain>/`，不要堆进页面。
 6. 跨页面复用组件才放 `components/shared/`。
 7. 运行 `pnpm run type-check` 和 `pnpm run build-only`。
@@ -214,7 +214,7 @@
 - Vue Query 配置：`src/queryClient.ts`
 - 实时连接：`src/features/realtime/store.ts`
 - 路由菜单语义：`src/router/navigation.ts`
-- 路由派生元信息：`src/router/routeMeta.ts`
+- 路由派生元信息：`src/router/navigationModel.ts`
 - App 壳宽度逻辑：`src/components/app-shell/appShellLayout.ts`
 - 未保存拦截：`src/features/unsavedChanges/`
 - PWA 升级与受控刷新：`src/features/pwa/swUpdate.ts`（SW 换版/异步 chunk 404 时统一走升级提示，见 `AppUpdatePrompt.vue`）

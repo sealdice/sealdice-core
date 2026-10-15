@@ -12,7 +12,6 @@ import {
   getBaseSettingFieldFeedback,
   getBaseSettingFieldLayout,
   getExtDefaultSettingModifiedCount,
-  isBaseSettingFieldBottomMounted,
   isBaseSettingGroupWide,
   normalizeBaseSettingSchema,
   normalizeBaseSettingValue,
@@ -61,18 +60,6 @@ it('设置字段按类型派生布局与提示', () => {
   expect(isBaseSettingGroupWide('ext-default-settings')).toBe(true);
   expect(isBaseSettingGroupWide('upgrade')).toBe(true);
   expect(isBaseSettingGroupWide('mail')).toBe(false);
-  expect(
-    isBaseSettingFieldBottomMounted({ kind: 'string-list' } satisfies Pick<
-      BaseSettingFieldSchema,
-      'kind'
-    >)
-  ).toBe(true);
-  expect(
-    isBaseSettingFieldBottomMounted({ kind: 'boolean' } satisfies Pick<
-      BaseSettingFieldSchema,
-      'kind'
-    >)
-  ).toBe(false);
   expect(
     getBaseSettingFieldLayout({ kind: 'boolean' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
   ).toBe('inline');

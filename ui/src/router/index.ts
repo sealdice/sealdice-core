@@ -3,12 +3,13 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes';
 import { setupChunkLoadRecovery } from './chunkRecovery';
 import { resolveHashHistoryBase } from './historyBase';
 import { setupRouterProgress } from './progress';
-import { routeMeta } from './routeMeta';
+import { appNavigation } from './navigation';
+import { buildRouteMeta } from './navigationModel';
 import { withRouteMeta } from './routeRecords';
 import { setupUnsavedChangesGuard } from '@/features/unsavedChanges';
 import './types';
 
-const appRoutes = withRouteMeta(routes, routeMeta);
+const appRoutes = withRouteMeta(routes, buildRouteMeta(appNavigation));
 
 const router = createRouter({
   // 后端以内嵌静态资源形式分发 UI，Hash history 不要求后端为每个前端路由配 fallback。

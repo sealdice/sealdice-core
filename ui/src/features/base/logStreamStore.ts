@@ -1,4 +1,4 @@
-import { defineStore, storeToRefs } from 'pinia';
+import { defineStore } from 'pinia';
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
@@ -80,33 +80,15 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
 
   const connected = computed(() => realtimeStore.connected);
   const errorText = computed(() => (realtimeStore.hasError ? '日志连接异常' : ''));
-  const hasLogs = computed(() => logs.value.length > 0);
-
-  function reconnect(): void {
-    realtimeStore.reconnect();
-  }
-
-  function close(): void {
-    realtimeStore.disconnect();
-  }
 
   return {
     logs,
     connected,
     errorText,
-    hasLogs,
     applySnapshot,
     applyAppend,
     clearLogs,
     ensureInitialized,
-    reconnect,
-    close,
+    reconnect: realtimeStore.reconnect,
   };
 });
-
-// 同一领域的单例 store 和消费入口放在一起，避免产生循环引用。
-export function useBaseLogStream() {
-  const store = useBaseLogStreamStore();
-  store.ensureInitialized();
-  return { ...storeToRefs(store), reconnect: store.reconnect, close: store.close };
-}

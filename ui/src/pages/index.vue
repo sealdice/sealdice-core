@@ -126,8 +126,8 @@
       <div class="log-panel__header">
         <div class="log-title">
           <h2>运行日志</h2>
-          <n-tag :type="logStream.connected.value ? 'success' : 'warning'" size="small" round>
-            {{ logStream.connected.value ? '实时连接中' : '未连接' }}
+          <n-tag :type="logStream.connected ? 'success' : 'warning'" size="small" round>
+            {{ logStream.connected ? '实时连接中' : '未连接' }}
           </n-tag>
         </div>
         <div class="log-controls">
@@ -146,8 +146,8 @@
         </div>
       </div>
 
-      <TipBox v-if="logStream.errorText.value" type="error" class="log-alert">
-        {{ logStream.errorText.value }}
+      <TipBox v-if="logStream.errorText" type="error" class="log-alert">
+        {{ logStream.errorText }}
       </TipBox>
 
       <div ref="logsContainer" class="logs">
@@ -182,7 +182,7 @@ import {
   getSdApiV2BaseOverviewOptions,
   postSdApiV2GroupList,
 } from '@/api';
-import { useBaseLogStream } from '@/features/base/logStreamStore';
+import { useBaseLogStreamStore } from '@/features/base/logStreamStore';
 import { applyLogDisplayUpdate, type BaseLogEntry } from '@/features/base/logStreamState';
 import {
   formatNetworkHealthRelativeTime,
@@ -248,29 +248,20 @@ const networkTargets = [
 ];
 const logsContainer = useTemplateRef<HTMLElement>('logsContainer');
 const logTable = useTemplateRef<DataTableInst>('logTable');
-const logStream = useBaseLogStream();
+const logStream = useBaseLogStreamStore();
+logStream.ensureInitialized();
 const networkHealth = computed(() =>
   normalizeNetworkHealthData(networkHealthQuery.data.value?.item)
 );
 const networkHealthRefreshing = computed(() => networkHealthQuery.isFetching.value);
 
 watch(
-  [logStream.logs, autoRefresh],
+  [() => logStream.logs, autoRefresh],
   () => {
-    visibleLogs.value = applyLogDisplayUpdate(
-      visibleLogs.value,
-      logStream.logs.value,
-      autoRefresh.value
-    );
+    visibleLogs.value = applyLogDisplayUpdate(visibleLogs.value, logStream.logs, autoRefresh.value);
   },
   { immediate: true }
 );
-
-// 日志一些情况下因为ws连接建立早于页面初始化
-// 导致日志数据不能传给logStream
-// 建议给logStream做一个状态管理让他能保持
-// 现在先通过加载页面默认重连解决
-logStream.reconnect();
 
 // 日志源保持 append 顺序，展示顺序只在 computed 中转换，避免切换“倒序显示”
 // 时破坏原始缓冲和后续 append 逻辑。

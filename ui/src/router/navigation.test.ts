@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest';
-import { routeMeta } from './routeMeta';
+import { buildRouteMeta } from './navigationModel';
 import { appNavigation } from './navigation';
+
+const routeMeta = buildRouteMeta(appNavigation);
 
 it.each([
   ['/mod/reply', 'workspace'],

@@ -1,12 +1,14 @@
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { ApiError } from '@/api';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
   isTestModeResponse,
-  useDerivedTestModeState,
+  useTestMode,
 } from './state.ts';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+const overview = ref<{ runtime?: { justForTest?: boolean } } | undefined>(undefined);
+vi.mock('@/features/base/useBaseOverview', () => ({ useBaseOverview: () => ({ overview }) }));
 
 it('展示模式限制与错误标识识别', async () => {
   expect(isTestModeResponse({ testMode: true })).toBe(true);
@@ -35,8 +37,7 @@ it('展示模式限制与错误标识识别', async () => {
   expect(isTestModeApiError(generic403)).toBe(false);
   expect(getTestModeBlockMessage(generic403)).toBe('');
 
-  const overview = ref<{ runtime?: { justForTest?: boolean } } | undefined>(undefined);
-  const derived = useDerivedTestModeState(computed(() => overview.value));
+  const derived = useTestMode();
   expect(derived.isTestMode.value).toBe(false);
   expect(derived.bannerText.value).toBe('展示模式，仅用于演示，修改不会生效');
   expect(derived.watermarkText.value).toBe('');

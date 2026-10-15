@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { appPinia } from '@/pinia';
-import { useBaseLogStreamStore, useBaseLogStream } from './logStreamStore';
+import { useBaseLogStreamStore } from './logStreamStore';
 import type { BaseLogItem } from './logStreamState';
 
 it('快照、追加和清空更新可见日志', async () => {
@@ -16,17 +16,14 @@ it('快照、追加和清空更新可见日志', async () => {
   };
 
   const store = useBaseLogStreamStore(appPinia);
-  const stream = useBaseLogStream();
   store.clearLogs();
 
   store.applySnapshot([first]);
-  expect(stream.logs.value.length).toBe(1);
-  expect(stream.hasLogs.value).toBe(true);
+  expect(store.logs.length).toBe(1);
 
   store.applyAppend(second);
-  expect(stream.logs.value.length).toBe(2);
+  expect(store.logs.length).toBe(2);
 
   store.clearLogs();
-  expect(stream.logs.value.length).toBe(0);
-  expect(stream.hasLogs.value).toBe(false);
+  expect(store.logs.length).toBe(0);
 });

@@ -1,4 +1,4 @@
-import { computed, type ComputedRef, type Ref } from 'vue';
+import { computed } from 'vue';
 import { ApiError, TEST_MODE_ERROR_CODE } from '@/api/errors';
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 
@@ -6,12 +6,6 @@ export { TEST_MODE_ERROR_CODE };
 export const TEST_MODE_BANNER_TEXT = '展示模式，仅用于演示，修改不会生效';
 export const TEST_MODE_WATERMARK_TEXT = '仅用于展示，修改无效';
 export const TEST_MODE_DEFAULT_REASON = '展示模式不支持该操作';
-
-type TestModeLike = {
-  runtime?: {
-    justForTest?: boolean;
-  };
-};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -64,7 +58,8 @@ export function getTestModeBlockMessage(
   return '';
 }
 
-export function useDerivedTestModeState(overview: ComputedRef<TestModeLike | undefined>) {
+export function useTestMode() {
+  const { overview } = useBaseOverview();
   const isTestMode = computed(() => overview.value?.runtime?.justForTest === true);
   const bannerText = computed(() => TEST_MODE_BANNER_TEXT);
   const watermarkText = computed(() => (isTestMode.value ? TEST_MODE_WATERMARK_TEXT : ''));
@@ -73,31 +68,5 @@ export function useDerivedTestModeState(overview: ComputedRef<TestModeLike | und
     isTestMode,
     bannerText,
     watermarkText,
-  };
-}
-
-export function useTestMode() {
-  const { overview } = useBaseOverview();
-  return useDerivedTestModeState(overview);
-}
-
-export function useTestModeGuard(options: {
-  disabledWhen?: Ref<boolean> | ComputedRef<boolean>;
-  reason?: string;
-}) {
-  const { isTestMode } = useTestMode();
-  const reason = options.reason ?? TEST_MODE_DEFAULT_REASON;
-  const disabled = computed(() => {
-    if (options.disabledWhen?.value) return true;
-    return isTestMode.value;
-  });
-  const disabledReason = computed(() => {
-    if (options.disabledWhen?.value) return reason;
-    return isTestMode.value ? reason : '';
-  });
-  return {
-    isTestMode,
-    disabled,
-    disabledReason,
   };
 }
