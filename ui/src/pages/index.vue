@@ -182,8 +182,8 @@ import {
   getSdApiV2BaseOverviewOptions,
   postSdApiV2GroupList,
 } from '@/api';
-import { useBaseLogStream, type BaseLogEntry } from '@/features/base/logStream';
-import { applyLogDisplayUpdate } from '@/features/base/logDisplayState';
+import { useBaseLogStream } from '@/features/base/logStreamStore';
+import { applyLogDisplayUpdate, type BaseLogEntry } from '@/features/base/logStreamState';
 import {
   formatNetworkHealthRelativeTime,
   formatNetworkHealthTimestamp,

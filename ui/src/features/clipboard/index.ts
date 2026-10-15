@@ -1,1 +1,0 @@
-export { copyText } from './copyText';

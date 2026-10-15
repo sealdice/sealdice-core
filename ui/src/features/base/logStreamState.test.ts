@@ -1,5 +1,11 @@
-import type { BaseLogItem } from './logStream';
-import { applyLogAppend, applyLogSnapshot, resetLogIdSequence } from './logStreamState';
+import {
+  applyLogAppend,
+  applyLogSnapshot,
+  applyLogDisplayUpdate,
+  resetLogIdSequence,
+  type BaseLogEntry,
+  type BaseLogItem,
+} from './logStreamState';
 import { expect, it } from 'vitest';
 
 it('日志快照与追加保持标识唯一和容量限制', async () => {
@@ -31,4 +37,11 @@ it('日志快照与追加保持标识唯一和容量限制', async () => {
   const duplicated = applyLogSnapshot([], [first, { ...first }]);
   expect(duplicated.length).toBe(2);
   expect(duplicated[0].id === duplicated[1].id).toBe(false);
+});
+it('日志展示尊重自动刷新偏好', () => {
+  const first: BaseLogEntry = { level: 'info', msg: 'one', ts: 1, id: 0 };
+  const second: BaseLogEntry = { level: 'warn', msg: 'two', ts: 2, id: 1 };
+  expect(applyLogDisplayUpdate([], [first, second], true)).toEqual([first, second]);
+  expect(applyLogDisplayUpdate([first], [first, second], false)).toEqual([first]);
+  expect(applyLogDisplayUpdate([first], [first, second], true)).toEqual([first, second]);
 });

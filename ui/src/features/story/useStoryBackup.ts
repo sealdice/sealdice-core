@@ -8,7 +8,7 @@ import {
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
 
-import { storyBackupListQueryKey } from './queryKeys';
+import { storyBackupListQueryKey } from './model';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/features/auth/store';
 

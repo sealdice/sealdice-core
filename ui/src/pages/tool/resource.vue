@@ -79,7 +79,7 @@ import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import { getErrorMessage } from '@/features/auth/error';
 
-import { copyText } from '@/features/clipboard';
+import { copyText } from '@/features/clipboard/copyText';
 import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useTestMode } from '@/features/testMode/state';

@@ -256,11 +256,8 @@ import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ListWorkspace from '@/components/shared/ListWorkspace.vue';
 import { shouldShowListPagination } from '@/components/shared/listPagination';
 
-import {
-  readGroupQuitDefaultText,
-  writeGroupQuitDefaultText,
-} from '@/features/group/quitPreference';
-import { formatGroupQuitTarget, type GroupQuitTarget } from '@/features/group/quitSummary';
+import { readGroupQuitDefaultText, writeGroupQuitDefaultText } from '@/features/group/model';
+import { formatGroupQuitTarget, type GroupQuitTarget } from '@/features/group/model';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
 import { notifyError } from '@/features/feedback/notifyError';

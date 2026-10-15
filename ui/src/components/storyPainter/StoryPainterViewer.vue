@@ -177,7 +177,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, shallowRef } from 'vue';
 import type { StoryLogView } from '@/api';
-import { copyText } from '@/features/clipboard';
+import { copyText } from '@/features/clipboard/copyText';
 import { getStoryPainterAdvancedModeSupport } from '@/features/storyPainter/compat';
 import { fetchStoryLogParquet } from '@/features/storyPainter/api';
 import { createStoryPainterParquetDataset } from '@/features/storyPainter/parquetDataset';

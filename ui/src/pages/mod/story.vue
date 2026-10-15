@@ -341,10 +341,10 @@ import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
-import { storyInfoQueryKey } from '@/features/story/queryKeys';
-import { summarizeStoryLogs } from '@/features/story/deleteSummary';
-import { getStoryPageSizeChange } from '@/features/story/pagination';
-import { setStoryLogsSelected } from '@/features/story/selection';
+import { storyInfoQueryKey } from '@/features/story/model';
+import { summarizeStoryLogs } from '@/features/story/model';
+import { getStoryPageSizeChange } from '@/features/story/model';
+import { setStoryLogsSelected } from '@/features/story/model';
 import TipBox from '@/components/shared/TipBox.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import { notifyError } from '@/features/feedback/notifyError';

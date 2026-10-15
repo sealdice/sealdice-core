@@ -1,8 +1,7 @@
 import { expect, it } from 'vitest';
 import { appPinia } from '@/pinia';
-import { useBaseLogStreamStore } from './logStreamStore';
-import { useBaseLogStream } from './logStream';
-import type { BaseLogItem } from './logStream';
+import { useBaseLogStreamStore, useBaseLogStream } from './logStreamStore';
+import type { BaseLogItem } from './logStreamState';
 
 it('快照、追加和清空更新可见日志', async () => {
   const first: BaseLogItem = {

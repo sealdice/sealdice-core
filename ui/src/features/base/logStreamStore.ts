@@ -1,10 +1,14 @@
-import { defineStore } from 'pinia';
+import { defineStore, storeToRefs } from 'pinia';
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 import { useRealtimeClientStore } from '@/features/realtime/store';
-import { applyLogAppend, applyLogSnapshot } from './logStreamState';
-import type { BaseLogEntry, BaseLogItem } from './logStream';
+import {
+  applyLogAppend,
+  applyLogSnapshot,
+  type BaseLogEntry,
+  type BaseLogItem,
+} from './logStreamState';
 
 type LogSnapshotPayload = {
   items?: BaseLogItem[] | null;
@@ -99,3 +103,10 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
     close,
   };
 });
+
+// 同一领域的单例 store 和消费入口放在一起，避免产生循环引用。
+export function useBaseLogStream() {
+  const store = useBaseLogStreamStore();
+  store.ensureInitialized();
+  return { ...storeToRefs(store), reconnect: store.reconnect, close: store.close };
+}

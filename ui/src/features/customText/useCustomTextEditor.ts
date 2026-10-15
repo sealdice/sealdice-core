@@ -10,7 +10,7 @@ import {
   type TextItemCompatibleInfo,
 } from '@/api';
 
-import { copyText } from '@/features/clipboard';
+import { copyText } from '@/features/clipboard/copyText';
 import { getErrorMessage } from '@/features/auth/error';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import {
