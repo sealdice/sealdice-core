@@ -3,11 +3,11 @@ import type { MessageApi } from 'naive-ui';
 import {
   deleteSdApiV2CensorFiles,
   postSdApiV2CensorConfig,
-  postSdApiV2CensorFilesUpload,
   postSdApiV2CensorRestart,
   postSdApiV2CensorStop,
   type CensorConfigBody,
 } from '@/api';
+import { enqueueUploads } from '@/features/upload/state';
 import {
   getTestModeBlockMessage,
   isTestModeApiError,
@@ -85,13 +85,13 @@ export function useCensorMutations(options: {
   });
 
   const uploadFileMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const { data } = await postSdApiV2CensorFilesUpload({
-        body: { file },
-        throwOnError: true,
-      });
-      return data.item;
-    },
+    mutationFn: (file: File) =>
+      new Promise<void>((resolve, reject) => {
+        void enqueueUploads([file], 'censor', {
+          onComplete: () => resolve(),
+          onError: (_task, error) => reject(error),
+        });
+      }),
     onSuccess: async () => {
       options.message.success('上传完成，请在全部操作完成后，手动重载拦截');
       options.onFilesChanged();

@@ -12,7 +12,6 @@
       :total="total"
       :loading="resourceListQuery.isFetching.value"
       :query="listQuery"
-      :upload-resource="uploadResource"
       :deleting-path="deletingPath"
       :downloading-path="downloadingPath"
       :disabled="isTestMode"
@@ -72,11 +71,9 @@ import {
   getSdApiV2ResourceDownload,
   getSdApiV2ResourceList,
   postSdApiV2ResourceDelete,
-  postSdApiV2ResourceUpload,
   type ResourceItem,
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
-import { isRequestCanceledError } from '@/api/client';
 import ResourceListPanel from '@/components/resource/ResourceListPanel.vue';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
@@ -85,12 +82,7 @@ import { hasAccessToken } from '@/features/auth/state';
 import { copyText } from '@/features/clipboard';
 import { useResponsiveOverlayWidth } from '@/features/responsive/useResponsiveOverlayWidth';
 import TipBox from '@/components/shared/TipBox.vue';
-import {
-  getTestModeBlockMessage,
-  isTestModeApiError,
-  isTestModeResponse,
-  useTestMode,
-} from '@/features/testMode/state';
+import { useTestMode } from '@/features/testMode/state';
 import {
   buildResourceListQuery,
   buildSealImageCode,
@@ -138,49 +130,6 @@ const invalidateResourceList = () =>
     queryKey: ['resource-list'],
   });
 
-const uploadMutation = useMutation({
-  mutationFn: async (vars: {
-    file: File;
-    onProgress?: (percent: number) => void;
-    signal?: AbortSignal;
-  }) => {
-    const { data } = await postSdApiV2ResourceUpload({
-      body: { files: [vars.file] },
-      signal: vars.signal,
-      onUploadProgress: event => {
-        if (!vars.onProgress) return;
-        const total = event.total ?? 0;
-        if (total > 0) {
-          vars.onProgress(Math.round((event.loaded / total) * 100));
-        }
-      },
-      throwOnError: true,
-    });
-    return data.item;
-  },
-  onSuccess: async item => {
-    if (isTestModeResponse(item)) {
-      message.warning('展示模式无法上传资源');
-      return;
-    }
-    if (!item.success) {
-      message.error('上传失败');
-      return;
-    }
-    message.success('图片已上传');
-    await invalidateResourceList();
-  },
-  onError: error => {
-    // 用户主动取消不算错误，交给调用方清理队列即可。
-    if (isRequestCanceledError(error)) return;
-    if (isTestModeApiError(error)) {
-      message.warning(getTestModeBlockMessage(error));
-      return;
-    }
-    message.error(getErrorMessage(error, '上传图片失败'));
-  },
-});
-
 const deleteMutation = useMutation({
   mutationFn: async (item: ResourceItem) => {
     deletingPath.value = item.path;
@@ -226,17 +175,6 @@ watch(
 
 function updateListQuery(patch: Partial<typeof listQuery>) {
   Object.assign(listQuery, patch);
-}
-
-async function uploadResource(
-  file: File,
-  options?: { onProgress?: (percent: number) => void; signal?: AbortSignal }
-) {
-  await uploadMutation.mutateAsync({
-    file,
-    onProgress: options?.onProgress,
-    signal: options?.signal,
-  });
 }
 
 function confirmDelete(item: ResourceItem) {

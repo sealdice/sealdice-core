@@ -11,11 +11,11 @@ import {
   getSdApiV2CustomReplyFilesByFilenameDownload,
   getSdApiV2CustomReplyFilesByFilenameRules,
   postSdApiV2CustomReplyFiles,
-  postSdApiV2CustomReplyFilesUpload,
   putSdApiV2ConfigReply,
   putSdApiV2CustomReplyFilesByFilename,
 } from '@/api';
 import { downloadApiFile } from '@/api/download';
+import { enqueueUploads } from '@/features/upload/state';
 import { hasAccessToken } from '@/features/auth/state';
 import { useUnsavedChanges } from '@/features/unsavedChanges';
 import { parseReplyImportText } from './importParser';
@@ -285,11 +285,7 @@ export function useCustomReplyEditor() {
         existing !== undefined &&
         existingInitial !== undefined &&
         JSON.stringify(existing) !== JSON.stringify(existingInitial);
-      const nextDraft = existing
-        ? locallyModified
-          ? existing
-          : normalized
-        : normalized;
+      const nextDraft = existing ? (locallyModified ? existing : normalized) : normalized;
       drafts.value = {
         ...drafts.value,
         [detail.filename]: nextDraft,
@@ -554,18 +550,17 @@ export function useCustomReplyEditor() {
   }
 
   async function uploadFile(options: UploadCustomRequestOptions) {
-    try {
-      await postSdApiV2CustomReplyFilesUpload({
-        body: { file: options.file.file as File },
-        throwOnError: true,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
-      message.success('上传完成');
-      options.onFinish();
-    } catch {
-      message.error('上传失败，可能有同名文件');
-      options.onError();
-    }
+    await enqueueUploads([options.file.file as File], 'custom-reply', {
+      onComplete: async () => {
+        await queryClient.invalidateQueries({ queryKey: ['custom-reply-files'] });
+        message.success('上传完成');
+        options.onFinish();
+      },
+      onError: () => {
+        message.error('上传失败，可能有同名文件');
+        options.onError();
+      },
+    });
   }
 
   function formatUpdateTime(ts: number): string {

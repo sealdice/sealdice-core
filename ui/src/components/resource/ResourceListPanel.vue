@@ -33,51 +33,6 @@
       </template>
     </ListActions>
 
-    <section v-if="uploadTasks.length" class="resource-upload-queue" aria-live="polite">
-      <header class="resource-upload-queue__header">
-        <div>
-          <strong>上传队列</strong>
-          <n-text depth="3">{{ uploadQueueSummary }}</n-text>
-        </div>
-      </header>
-      <div v-for="task in uploadTasks" :key="task.id" class="resource-upload-queue__item">
-        <div class="resource-upload-queue__file">
-          <strong>{{ task.file.name }}</strong>
-          <div class="resource-upload-queue__file-actions">
-            <n-tag size="small" :type="getUploadTaskTagType(task.status)" :bordered="false">
-              {{ getUploadTaskLabel(task.status) }}
-            </n-tag>
-            <n-button
-              v-if="task.status === 'uploading'"
-              size="small"
-              secondary
-              @click="cancelUploadTask(task)"
-            >
-              取消
-            </n-button>
-            <n-button
-              v-if="task.status === 'error'"
-              size="small"
-              secondary
-              @click="retryUploadTask(task)"
-            >
-              重试
-            </n-button>
-          </div>
-        </div>
-        <n-progress
-          v-if="task.status === 'uploading'"
-          type="line"
-          :percentage="task.progress"
-          :height="6"
-          :border-radius="3"
-        />
-        <n-text v-if="task.errorText" type="error" class="resource-upload-queue__error">
-          {{ task.errorText }}
-        </n-text>
-      </div>
-    </section>
-
     <n-spin :show="loading && isMobile">
       <ListPanel>
         <template #toolbar>
@@ -190,7 +145,7 @@ import {
   useMessage,
 } from 'naive-ui';
 import type { ResourceItem } from '@/api';
-import { isRequestCanceledError } from '@/api/client';
+import { enqueueUploads, uploadTasks } from '@/features/upload/state';
 import ResourcePreview from '@/components/resource/ResourcePreview.vue';
 import QueryToolbar from '@/components/shared/QueryToolbar.vue';
 import ListActions from '@/components/shared/ListActions.vue';
@@ -214,10 +169,6 @@ const props = defineProps<{
   total: number;
   loading: boolean;
   query: ResourceListQueryModel;
-  uploadResource: (
-    file: File,
-    options?: { onProgress?: (percent: number) => void; signal?: AbortSignal }
-  ) => Promise<void>;
   deletingPath: string;
   downloadingPath: string;
   disabled?: boolean;
@@ -239,18 +190,14 @@ const breakpoints = useBreakpoints(breakpointsTailwind);
 const isMobile = breakpoints.smaller('md');
 const pageSizeOptions = [...RESOURCE_PAGE_SIZE_OPTIONS];
 const syncingFromProps = ref(false);
-type ResourceUploadTaskStatus = 'uploading' | 'success' | 'error';
-type ResourceUploadTask = {
-  id: number;
-  file: File;
-  status: ResourceUploadTaskStatus;
-  errorText: string;
-  progress: number;
-};
 
-const uploadTasks = ref<ResourceUploadTask[]>([]);
-const uploadAborters = new Map<number, AbortController>();
-let nextUploadTaskId = 1;
+const uploadPending = computed(() =>
+  uploadTasks.value.some(
+    task =>
+      task.kind === 'resource' &&
+      (task.status === 'queued' || task.status === 'hashing' || task.status === 'uploading')
+  )
+);
 
 const defaultResourceSearchFormValues = (): ResourceSearchFormValues => ({
   keyword: '',
@@ -301,34 +248,6 @@ const searchColumns: ProSearchFormColumns<ResourceSearchFormValues> = [
     },
   },
 ];
-
-const uploadPending = computed(() => uploadTasks.value.some(task => task.status === 'uploading'));
-const uploadQueueSummary = computed(() => {
-  const uploading = uploadTasks.value.filter(task => task.status === 'uploading').length;
-  const failed = uploadTasks.value.filter(task => task.status === 'error').length;
-  return `${uploading ? `${uploading} 个上传中` : ''}${uploading && failed ? '，' : ''}${failed ? `${failed} 个失败` : uploading ? '' : '已完成'}`;
-});
-
-// push 之后必须拿数组里的响应式代理再改；直接改 push 进去的原对象不会触发视图更新。
-function addUploadTask(file: File): ResourceUploadTask {
-  uploadTasks.value.push({
-    id: nextUploadTaskId++,
-    file,
-    status: 'uploading',
-    errorText: '',
-    progress: 0,
-  });
-  return uploadTasks.value[uploadTasks.value.length - 1]!;
-}
-
-function removeUploadTask(id: number) {
-  uploadAborters.delete(id);
-  uploadTasks.value = uploadTasks.value.filter(task => task.id !== id);
-}
-
-function cancelUploadTask(task: ResourceUploadTask) {
-  uploadAborters.get(task.id)?.abort();
-}
 
 const columns = computed<DataTableColumns<ResourceItem>>(() => [
   {
@@ -451,70 +370,16 @@ async function uploadResourceFile(options: UploadCustomRequestOptions) {
     options.onError?.();
     return;
   }
-
-  const task = addUploadTask(file);
-  const controller = new AbortController();
-  uploadAborters.set(task.id, controller);
-  try {
-    await props.uploadResource(file, {
-      onProgress: percent => {
-        task.progress = percent;
-      },
-      signal: controller.signal,
-    });
-    task.status = 'success';
-    options.onFinish?.();
-    removeUploadTask(task.id);
-  } catch (error) {
-    if (isRequestCanceledError(error)) {
-      removeUploadTask(task.id);
-      return;
-    }
-    task.status = 'error';
-    task.errorText = error instanceof Error ? error.message : '上传失败';
-    options.onError?.();
-  } finally {
-    uploadAborters.delete(task.id);
-  }
-}
-
-async function retryUploadTask(task: ResourceUploadTask) {
-  task.status = 'uploading';
-  task.errorText = '';
-  task.progress = 0;
-  const controller = new AbortController();
-  uploadAborters.set(task.id, controller);
-  try {
-    await props.uploadResource(task.file, {
-      onProgress: percent => {
-        task.progress = percent;
-      },
-      signal: controller.signal,
-    });
-    task.status = 'success';
-    removeUploadTask(task.id);
-  } catch (error) {
-    if (isRequestCanceledError(error)) {
-      removeUploadTask(task.id);
-      return;
-    }
-    task.status = 'error';
-    task.errorText = error instanceof Error ? error.message : '上传失败';
-  } finally {
-    uploadAborters.delete(task.id);
-  }
-}
-
-function getUploadTaskTagType(status: ResourceUploadTaskStatus) {
-  if (status === 'success') return 'success' as const;
-  if (status === 'error') return 'error' as const;
-  return 'info' as const;
-}
-
-function getUploadTaskLabel(status: ResourceUploadTaskStatus) {
-  if (status === 'success') return '已完成';
-  if (status === 'error') return '失败';
-  return '上传中';
+  await enqueueUploads([file], 'resource', {
+    onComplete: task => {
+      message.success(`上传完成：${task.filename}`);
+      emit('refresh');
+    },
+    onError: task => {
+      message.error(`上传失败：${task.filename}`);
+    },
+  });
+  options.onFinish?.();
 }
 </script>
 

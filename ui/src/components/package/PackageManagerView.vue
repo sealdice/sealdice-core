@@ -401,7 +401,6 @@ import {
   getSdApiV2ExtensionStorePage,
   postSdApiV2ExtensionDisable,
   postSdApiV2ExtensionEnable,
-  postSdApiV2ExtensionInstallUpload,
   postSdApiV2ExtensionInstallUrl,
   postSdApiV2ExtensionPackagesRefresh,
   postSdApiV2ExtensionPreviewUpload,
@@ -423,6 +422,7 @@ import {
 } from '@/api';
 import { useAuthStore } from '@/features/auth/store';
 import { getErrorMessage } from '@/features/auth/error';
+import { enqueueUploads } from '@/features/upload/state';
 import { isTestModeApiError, getTestModeBlockMessage } from '@/features/testMode/state';
 import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
@@ -1202,9 +1202,11 @@ async function installUpload(options: InstallOptions): Promise<boolean> {
   const id = previewData.value?.manifest.package.id;
   uploadInstallLoading.value = true;
   try {
-    await postSdApiV2ExtensionInstallUpload({
-      body: selectedUploadFile.value,
-      throwOnError: true,
+    await new Promise<void>((resolve, reject) => {
+      void enqueueUploads([selectedUploadFile.value as File], 'extension-install', {
+        onComplete: () => resolve(),
+        onError: (_task, error) => reject(error),
+      });
     });
     const refreshFailed = !(await refreshInstallState());
     const result = id
