@@ -8,7 +8,7 @@ type FakeEngine = UploadEngine & {
   retried: string[];
   emitProgress: (id: string, sent: number, total: number) => void;
   emitSuccess: (id: string) => void;
-  emitError: (id: string, message: string) => void;
+  emitError: (id: string, message: string, body?: string) => void;
 };
 
 function fakeEngine(): FakeEngine {
@@ -36,8 +36,8 @@ function fakeEngine(): FakeEngine {
     emitSuccess(id) {
       handlers?.onSuccess(id);
     },
-    emitError(id, message) {
-      handlers?.onError(id, new Error(message));
+    emitError(id, message, body) {
+      handlers?.onError(id, new Error(message), body ? { body } : undefined);
     },
   };
   return engine;
@@ -117,5 +117,44 @@ describe('upload queue', () => {
     await queue.enqueue([fileOf('a.txt')], 'resource');
     expect(engine.added).toHaveLength(0);
     expect(queue.tasks.value[0]!.status).toBe('error');
+  });
+
+  it('surfaces the backend error body instead of the generic tus message', async () => {
+    const { engine, queue } = makeQueue();
+    await queue.enqueue([fileOf('a.png')], 'resource');
+    engine.emitError(
+      't1',
+      'tus: unexpected response while uploading chunk',
+      'ERR_FILE_EXISTS: 文件已存在\n'
+    );
+    expect(queue.tasks.value[0]!.errorText).toBe('ERR_FILE_EXISTS: 文件已存在');
+  });
+
+  it('does not hang the batch when the engine rejects a file', async () => {
+    const engine = fakeEngine();
+    let startCalls = 0;
+    engine.start = () => {
+      startCalls += 1;
+    };
+    let addCalls = 0;
+    engine.add = () => {
+      addCalls += 1;
+      if (addCalls === 2) throw new Error('duplicate file');
+    };
+    const errors: string[] = [];
+    let counter = 0;
+    const queue = createUploadQueue({
+      engine,
+      hashFile: async () => 'h'.repeat(64),
+      newId: () => `t${(counter += 1)}`,
+    });
+
+    await queue.enqueue([fileOf('a.png'), fileOf('a.png')], 'resource', {
+      onError: task => errors.push(task.errorText),
+    });
+
+    expect(queue.tasks.value[1]!.status).toBe('error');
+    expect(errors).toEqual(['duplicate file']);
+    expect(startCalls).toBeGreaterThan(0);
   });
 });

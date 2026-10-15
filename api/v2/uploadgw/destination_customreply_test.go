@@ -43,6 +43,34 @@ func TestCustomReplyRejectsExistingFile(t *testing.T) {
 	}
 }
 
+func TestCustomReplyRejectsOverwriteAtInstall(t *testing.T) {
+	dm := minimalDM(t)
+	target := filepath.Join(dm.GetDice().GetExtDataDir("reply"), "race.yaml")
+	if err := os.WriteFile(target, []byte("old"), 0o644); err != nil {
+		t.Fatalf("seed existing file: %v", err)
+	}
+	staged, err := os.CreateTemp(t.TempDir(), "staged-*")
+	if err != nil {
+		t.Fatalf("create staged: %v", err)
+	}
+	if _, err := staged.WriteString("new"); err != nil {
+		t.Fatalf("write staged: %v", err)
+	}
+	_ = staged.Close()
+
+	dst := &customReplyDestination{dm: dm}
+	if err := dst.Install(staged.Name(), map[string]string{MetaFilename: "race.yaml"}); err == nil {
+		t.Fatal("Install overwrote an existing custom-reply file, want 409")
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(got) != "old" {
+		t.Fatalf("existing file was overwritten: %q", got)
+	}
+}
+
 func TestCustomReplyInstallsFile(t *testing.T) {
 	dm := minimalDM(t)
 	_, srv := newRealGateway(t, dm)

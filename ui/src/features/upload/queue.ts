@@ -2,7 +2,13 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { isFileAllowed, UPLOAD_KINDS, type UploadKindContext, type UploadKindID } from './kinds';
 import type { UploadEngine } from './engine';
 
-export type UploadTaskStatus = 'queued' | 'hashing' | 'uploading' | 'success' | 'error' | 'canceled';
+export type UploadTaskStatus =
+  | 'queued'
+  | 'hashing'
+  | 'uploading'
+  | 'success'
+  | 'error'
+  | 'canceled';
 
 export type UploadTask = {
   id: string;
@@ -58,7 +64,8 @@ export function createUploadQueue(deps: {
       if (!task) return;
       task.status = 'uploading';
       task.uploadedBytes = bytesSent;
-      task.progress = bytesTotal > 0 ? Math.min(100, Math.floor((bytesSent / bytesTotal) * 100)) : 0;
+      task.progress =
+        bytesTotal > 0 ? Math.min(100, Math.floor((bytesSent / bytesTotal) * 100)) : 0;
     },
     onSuccess(id) {
       const task = find(id);
@@ -71,11 +78,13 @@ export function createUploadQueue(deps: {
       contexts.delete(id);
       ctx?.onComplete?.(task);
     },
-    onError(id, error) {
+    onError(id, error, details) {
       const task = find(id);
       if (!task || task.status === 'canceled') return;
       task.status = 'error';
-      task.errorText = error.message || '上传失败';
+      // 后端失败原因在响应体里（tus 的 error.message 只是通用文案）。
+      const backendText = details?.body?.trim();
+      task.errorText = backendText || error.message || '上传失败';
       contexts.get(id)?.onError?.(task, error);
     },
   });
@@ -109,18 +118,28 @@ export function createUploadQueue(deps: {
         errorText: '',
       });
       contexts.set(task.id, ctx);
-      const sha256 = await deps.hashFile(file);
-      const current = find(task.id);
-      if (!current) continue; // 计算哈希期间被取消
-      current.sha256 = sha256;
-      current.status = 'queued';
-      deps.engine.add(file, {
-        taskId: task.id,
-        module: def.module,
-        filename: file.name,
-        sha256,
-        ...(def.extraMeta ? def.extraMeta(ctx) : {}),
-      });
+      try {
+        const sha256 = await deps.hashFile(file);
+        const current = find(task.id);
+        if (!current) continue; // 计算哈希期间被取消
+        current.sha256 = sha256;
+        current.status = 'queued';
+        deps.engine.add(file, {
+          taskId: task.id,
+          module: def.module,
+          filename: file.name,
+          sha256,
+          ...(def.extraMeta ? def.extraMeta(ctx) : {}),
+        });
+      } catch (error) {
+        // 单个文件入队失败不能中断整批，也不能让调用方的 Promise 永久挂起。
+        const current = find(task.id);
+        if (!current) continue;
+        current.status = 'error';
+        const text = error instanceof Error ? error.message : '上传失败';
+        current.errorText = text;
+        ctx.onError?.(current, error instanceof Error ? error : new Error(text));
+      }
     }
     deps.engine.start();
   }

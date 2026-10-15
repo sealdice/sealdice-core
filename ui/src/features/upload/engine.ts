@@ -1,10 +1,15 @@
 import { getUppy } from './uppy';
 
 // 队列与具体上传引擎之间的窄接口：真实实现是 Uppy，测试用假引擎注入。
+export type UploadErrorDetails = {
+  status?: number;
+  body?: string;
+};
+
 export type UploadEngineHandlers = {
   onProgress(taskId: string, bytesSent: number, bytesTotal: number): void;
   onSuccess(taskId: string): void;
-  onError(taskId: string, error: Error): void;
+  onError(taskId: string, error: Error, details?: UploadErrorDetails): void;
 };
 
 export interface UploadEngine {
@@ -31,9 +36,18 @@ export function createUppyEngine(): UploadEngine {
     const id = taskIdOf(file);
     if (id) handlers?.onSuccess(id);
   });
-  uppy.on('upload-error', (file, error) => {
+  uppy.on('upload-error', (file, error, response) => {
     const id = taskIdOf(file);
-    if (id) handlers?.onError(id, error instanceof Error ? error : new Error(String(error)));
+    if (!id) return;
+    const resp = response as
+      | { status?: number; body?: { xhr?: { responseText?: string } } }
+      | undefined;
+    const status = typeof resp?.status === 'number' ? resp.status : undefined;
+    const rawBody = resp?.body?.xhr?.responseText;
+    handlers?.onError(id, error instanceof Error ? error : new Error(String(error)), {
+      status,
+      body: typeof rawBody === 'string' ? rawBody : undefined,
+    });
   });
 
   return {

@@ -47,6 +47,11 @@ func (d *customReplyDestination) Install(stagedPath string, meta map[string]stri
 	if filename == "" {
 		return tusd.NewError("ERR_INVALID_FILENAME", "文件名不能为空", http.StatusBadRequest)
 	}
+	// Validate 与 Install 之间可能被别的会话/端点抢先建了同名文件；
+	// 这里再查一次，兑现"同名必须 409、绝不覆盖"。
+	if dice.CustomReplyConfigCheckExists(inst, filename) {
+		return tusd.NewError("ERR_FILE_EXISTS", "文件已存在", http.StatusConflict)
+	}
 	if err := installFileAtomic(stagedPath, inst.GetExtConfigFilePath("reply", filename)); err != nil {
 		return tusd.NewError("ERR_INSTALL_FAILED", "写入自定义回复文件失败", http.StatusInternalServerError)
 	}
