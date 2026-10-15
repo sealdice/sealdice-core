@@ -37,7 +37,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it.each([false, true])('密码准备期间的编辑只在下一次保存提交（继续编辑=%s）', async edits => {
+it.each([
+  [false, false],
+  [true, false],
+  [false, true],
+  [true, true],
+])('保存保留对应快照（继续编辑=%s，刷新失败=%s）', async (edits, refreshFails) => {
   const remote = {
     uiPassword: '------',
     trayTooltip: '旧提示',
@@ -46,7 +51,10 @@ it.each([false, true])('密码准备期间的编辑只在下一次保存提交�
     noticeIds: [],
     extDefaultSettings: [],
   };
-  api.read.mockImplementation(async () => ({ item: structuredClone(remote) }));
+  api.read.mockImplementation(async () => {
+    if (refreshFails && api.read.mock.calls.length > 1) throw new Error('刷新失败');
+    return { item: structuredClone(remote) };
+  });
   let releaseSalt!: (value: unknown) => void;
   api.salt.mockImplementation(
     () =>

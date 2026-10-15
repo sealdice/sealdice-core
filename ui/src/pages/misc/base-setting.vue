@@ -193,7 +193,7 @@ async function saveChanges() {
   await saveMutation.mutateAsync(payload);
   draft.commitSaved(submittedSnapshot);
   const refreshed = await valueQuery.refetch();
-  if (refreshed.data) {
+  if (refreshed.isSuccess && refreshed.data) {
     draft.syncRemote(refreshed.data);
   }
 }
