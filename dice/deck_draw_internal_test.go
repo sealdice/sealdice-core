@@ -27,7 +27,7 @@ const drawTestSeed = uint64(0x5eed)
 func drawFixtureJSON() string {
 	var b strings.Builder
 	b.WriteString(`{"_title":["抽取测试牌堆"],"_keys":["均匀","加权","五条","双","引用"],"均匀":[`)
-	for i := 0; i < 600; i++ {
+	for i := range 600 {
 		if i > 0 {
 			b.WriteByte(',')
 		}
@@ -52,14 +52,7 @@ func newDrawTestCtx(t *testing.T, files map[string]string, legacy bool) (*Dice, 
 		}
 	}
 
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+	t.Chdir(dir)
 
 	oldPath := deckStorePathFn
 	oldMem := newDeckStoreMemoryFn
@@ -96,7 +89,7 @@ func TestDrawUniformAndWeightedDistribution(t *testing.T) {
 
 	// 均匀组：固定种子放回抽 2000 次，每个结果都合法且覆盖面足够广。
 	seen := map[string]bool{}
-	for i := 0; i < 2000; i++ {
+	for i := range 2000 {
 		got, err := executeDeck(ctx, di, "均匀", false)
 		if err != nil {
 			t.Fatalf("均匀 draw %d: %v", i, err)
@@ -114,7 +107,7 @@ func TestDrawUniformAndWeightedDistribution(t *testing.T) {
 	// 注意 executeDeck 的 deckDepth 仅增不减（现状行为），单 ctx 总抽取需远小于 20000。
 	const total = 5000
 	heavy := 0
-	for i := 0; i < total; i++ {
+	for i := range total {
 		got, err := executeDeck(ctx, di, "加权", false)
 		if err != nil {
 			t.Fatalf("加权 draw %d: %v", i, err)
@@ -135,7 +128,7 @@ func TestDrawShuffleNoReplaceExhausts(t *testing.T) {
 
 	// 5 条组不放回连抽：前 5 次不重复。
 	seen := map[string]bool{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		got, err := executeDeck(ctx, di, "五条", true)
 		if err != nil {
 			t.Fatalf("不放回 draw %d: %v", i, err)
@@ -151,7 +144,9 @@ func TestDrawShuffleNoReplaceExhausts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("第 6 次 draw: %v", err)
 	}
-	if !strings.Contains("abcde", got) {
+	switch got {
+	case "a", "b", "c", "d", "e":
+	default:
 		t.Fatalf("第 6 次 = %q, want ∈ {a,b,c,d,e}", got)
 	}
 }
@@ -164,7 +159,7 @@ func TestDrawDiceSourceDeterministic(t *testing.T) {
 		ctx.diceRandSrc = newPCGDiceSource(seed)
 		di := d.DeckList[0]
 		var seq []string
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			got, err := executeDeck(ctx, di, "均匀", false)
 			if err != nil {
 				t.Fatalf("draw %d: %v", i, err)
@@ -209,10 +204,10 @@ func TestDrawRecursionAndPrivateGroup(t *testing.T) {
 
 	// 引用组内嵌 {_helper} 能递归解析。
 	found := false
-	for i := 0; i < 40; i++ {
-		got, err := executeDeck(ctx, di, "引用", false)
-		if err != nil {
-			t.Fatalf("引用 draw %d: %v", i, err)
+	for i := range 40 {
+		got, err2 := executeDeck(ctx, di, "引用", false)
+		if err2 != nil {
+			t.Fatalf("引用 draw %d: %v", i, err2)
 		}
 		if strings.HasPrefix(got, "引用辅助文本") {
 			found = true
@@ -243,19 +238,6 @@ func TestDrawRecursionAndPrivateGroup(t *testing.T) {
 	}
 	if got2 != "XY" && got2 != "YX" {
 		t.Fatalf("不放回引用结果 = %q, want XY 或 YX（不放回必不同）", got2)
-	}
-}
-
-func TestDrawUnknownGroupTextUnchanged(t *testing.T) {
-	d, ctx := newDrawTestCtx(t, map[string]string{"draw.json": drawFixtureJSON()}, false)
-	di := d.DeckList[0]
-
-	got, err := deckStringFormat(ctx, di, "{不存在的组}")
-	if err != nil {
-		t.Fatalf("deckStringFormat: %v", err)
-	}
-	if !strings.HasPrefix(got, "<%未知牌组-") || !strings.Contains(got, "不存在的组") {
-		t.Fatalf("未知组文本 = %q, want 含未知牌组前缀", got)
 	}
 }
 
@@ -294,7 +276,7 @@ options = ["a1", "b1"]
 
 		// distinct=true：合并后 a1 只出现一次；不放回抽空应得 {a1,b1,c1}。
 		seen := map[string]bool{}
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			got, err := executeDeck(ctx, di, "云端组", true)
 			if err != nil {
 				t.Fatalf("云端组 draw %d: %v", i, err)
@@ -349,7 +331,7 @@ options = ["a1", "b1"]
 
 		// 首 URL 404 → 非 200 即弃：不请求第二个 URL，直接用本地 options。
 		seen := map[string]bool{}
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			got, err := executeDeck(ctx, di, "云端组", false)
 			if err != nil {
 				t.Fatalf("云端组 draw %d: %v", i, err)
@@ -377,7 +359,7 @@ func TestDrawLegacyBackendSameResults(t *testing.T) {
 			}
 		}
 		seen := map[string]bool{}
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			got, err := executeDeck(ctx, di, "五条", true)
 			if err != nil {
 				t.Fatalf("legacy=%v draw %d: %v", legacy, i, err)

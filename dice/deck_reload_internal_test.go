@@ -34,10 +34,7 @@ func setupReloadFixture(t *testing.T, names ...string) string {
 			t.Fatalf("写夹具 %s: %v", name, err)
 		}
 	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+	t.Chdir(dir)
 	return dir
 }
 
@@ -164,8 +161,8 @@ func TestDeckReloadPicksUpChangesAndDeletes(t *testing.T) {
 	b = bytes.TrimRight(b, "\r\n\t ")
 	b = bytes.TrimSuffix(b, []byte("}"))
 	b = append(b, []byte(",\n  \"新组\": [\"新条目1\", \"新条目2\"]\n}")...)
-	if err := os.WriteFile(jsonPath, b, 0o644); err != nil {
-		t.Fatalf("write sample.json: %v", err)
+	if err2 := os.WriteFile(jsonPath, b, 0o644); err2 != nil {
+		t.Fatalf("write sample.json: %v", err2)
 	}
 
 	DeckReload(d)
@@ -178,8 +175,8 @@ func TestDeckReloadPicksUpChangesAndDeletes(t *testing.T) {
 	}
 
 	// 删除 sample.toml。
-	if err := os.Remove(filepath.Join("data", "decks", "sample.toml")); err != nil {
-		t.Fatalf("remove sample.toml: %v", err)
+	if err2 := os.Remove(filepath.Join("data", "decks", "sample.toml")); err2 != nil {
+		t.Fatalf("remove sample.toml: %v", err2)
 	}
 
 	DeckReload(d)

@@ -38,7 +38,7 @@ func NewIndexPool(count int, weights []uint32, rand Rand) *IndexPool {
 		weights:  make([]int64, count),
 		tree:     make([]int64, count+1),
 	}
-	for i := 0; i < count; i++ {
+	for i := range count {
 		var w int64
 		if i < len(weights) {
 			w = int64(weights[i])

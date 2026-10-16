@@ -37,7 +37,7 @@ func TestUniformPoolNoReplaceExhausts(t *testing.T) {
 	p := deckstore.NewIndexPool(5, nil, &fixedRand{vals: []int64{7, 13, 42, 99, 1000, 3, 17}})
 
 	seen := make([]bool, 5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		idx, ok := p.Pick(&fixedRand{})
 		if !ok {
 			t.Fatalf("第 %d 次 Pick 返回 false，期望 true", i)
@@ -62,7 +62,7 @@ func TestWeightedPoolDistribution(t *testing.T) {
 
 	r := &countingRand{}
 	heavy := 0 // 权重 99 的下标（idx==3）
-	for i := 0; i < draws; i++ {
+	for i := range draws {
 		p := deckstore.NewIndexPool(4, weights, r)
 		idx, ok := p.Pick(r)
 		if !ok {
@@ -123,7 +123,7 @@ func TestWeightedPoolExhausts(t *testing.T) {
 	p := deckstore.NewIndexPool(3, []uint32{2, 1, 1}, r)
 
 	seen := make([]bool, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		idx, ok := p.Pick(r)
 		if !ok {
 			t.Fatalf("第 %d 次 Pick 返回 false", i)

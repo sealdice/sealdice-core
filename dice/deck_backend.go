@@ -51,9 +51,7 @@ func (b *deckStoreBackend) Store() deckstore.Store {
 // 测试钩子：文件库路径与内存库构造器，测试通过替换它们强制降级。
 var deckStorePathFn = func() string { return filepath.Join("data", "_deck_cache", "decks.db") }
 
-var newDeckStoreMemoryFn = func(log deckstore.Logger) (deckstore.Store, error) {
-	return deckstore.OpenMemory(log)
-}
+var newDeckStoreMemoryFn = deckstore.OpenMemory
 
 // deckMemoryBackend 是 legacy 兜底：直接基于 DeckInfo.DeckItems。
 type deckMemoryBackend struct {

@@ -91,7 +91,7 @@ func writeSyntheticDiceE(tb testing.TB, path string, groups, itemsPerGroup, item
 		ws(",")
 		ws(strconv.Quote(g))
 		ws(":[")
-		for i := 0; i < itemsPerGroup; i++ {
+		for i := range itemsPerGroup {
 			if i > 0 {
 				ws(",")
 			}
@@ -197,7 +197,7 @@ func linkOrCopyDeckFiles(t *testing.T, srcDir, dstDir string) int64 {
 		}
 		if err := os.Link(path, dst); err != nil {
 			if cerr := copyDeckFile(path, dst); cerr != nil {
-				return fmt.Errorf("硬链失败(%v)且复制失败(%v): %s", err, cerr, path)
+				return fmt.Errorf("硬链失败(%w)且复制失败(%w): %s", err, cerr, path)
 			}
 		}
 		if isDeck {
@@ -261,7 +261,7 @@ func deckDrawAcrossGroups(t *testing.T, st deckstore.Store, d *Dice, ctx *MsgCon
 	if len(targets) == 0 {
 		t.Fatal("没有任何可抽取的牌组")
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		tg := targets[i%len(targets)]
 		ctx.deckDepth = 0
 		if _, err := executeDeck(ctx, tg.di, tg.group, false); err != nil {
@@ -294,7 +294,7 @@ func BenchmarkDeckReloadLarge(b *testing.B) {
 	b.SetBytes(totalBytes)
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		iter = i
 		d := &Dice{Logger: zap.NewNop().Sugar()}
 		DeckReload(d)
@@ -369,7 +369,7 @@ func BenchmarkDeckDraw(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		ctx.deckDepth = 0
 		got, err := executeDeck(ctx, di, group, false)
 		if err != nil {
@@ -444,8 +444,8 @@ func TestDeckMemoryAcceptance(t *testing.T) {
 	}
 
 	// 关闭库：触发 WAL checkpoint 合并进主库文件，再测量持久化后的大小。
-	if err := d.DeckStore.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
+	if err2 := d.DeckStore.Close(); err2 != nil {
+		t.Fatalf("Close: %v", err2)
 	}
 	closed = true
 	d.DeckStore = nil

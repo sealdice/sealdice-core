@@ -30,14 +30,7 @@ func TestDeckConcurrentDrawAndReload(t *testing.T) {
 	if err := os.MkdirAll(decksDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+	t.Chdir(dir)
 
 	oldPath := deckStorePathFn
 	deckStorePathFn = func() string { return filepath.Join(dir, "data", "_deck_cache", "decks.db") }
@@ -78,7 +71,7 @@ func TestDeckConcurrentDrawAndReload(t *testing.T) {
 	}
 
 	wg.Add(readers)
-	for i := 0; i < readers; i++ {
+	for i := range readers {
 		go func(seed int) {
 			defer wg.Done()
 			defer func() {
@@ -91,7 +84,7 @@ func TestDeckConcurrentDrawAndReload(t *testing.T) {
 			// 预置 splitKey，跳过 InitSplitKey 的进程级 randSourceSplitKey 全局源
 			// （那是消息管线的既有并发缺陷，与牌堆存储无关，测试不触发它）。
 			ctx.SetSplitKey("concurrency")
-			for j := 0; j < iterations; j++ {
+			for range iterations {
 				got, err := executeDeck(ctx, di, "组", false)
 				if err != nil {
 					continue // 接受瞬时窗口错误（ErrNotFound/牌组为空/抽取失败）
@@ -108,7 +101,7 @@ func TestDeckConcurrentDrawAndReload(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := 0; i < iterations; i++ {
+		for i := range iterations {
 			if err := os.WriteFile(fixturePath, []byte(concurrencyFixture(i+1)), 0o644); err != nil {
 				report("改写夹具: %v", err)
 				return

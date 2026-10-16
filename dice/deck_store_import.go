@@ -81,6 +81,7 @@ type deckSource struct {
 
 // deckFileKey 生成牌堆库键：sha1(packageID+"\x00"+ToSlash(filename)) 十六进制。
 func deckFileKey(filename, packageID string) string {
+	//nolint:gosec // 内容指纹，非安全用途
 	sum := sha1.Sum([]byte(packageID + "\x00" + filepath.ToSlash(filename)))
 	return hex.EncodeToString(sum[:])
 }
@@ -88,6 +89,7 @@ func deckFileKey(filename, packageID string) string {
 // deckImportSource 解析一个来源并写入库。成功返回仅含元数据的 DeckInfo（DeckItems 为 nil）；
 // 解析失败返回 DeckInfo{Enable:false, ErrText:err} 与 error，不写库。
 func deckImportSource(d *Dice, st deckstore.Store, src deckSource, content []byte) (*DeckInfo, error) {
+	//nolint:gosec // 内容指纹，非安全用途
 	contentHash := sha1.Sum(content)
 	if isPrefixWithUtf8Bom(content) {
 		content = content[3:]

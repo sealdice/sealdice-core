@@ -34,7 +34,7 @@ func TestChunkRoundtrip(t *testing.T) {
 	// 700 条（跨 256 条边界），其中 i%7==0 的条目 weight=3；文本含中文与换行。
 	want := make([]string, 700)
 	var wantTotal int64
-	for i := 0; i < 700; i++ {
+	for i := range 700 {
 		want[i] = fmt.Sprintf("第%d条\n内容😀", i)
 		w := uint32(1)
 		if i%7 == 0 {
@@ -66,7 +66,7 @@ func TestChunkRoundtrip(t *testing.T) {
 		t.Fatalf("Commit: %v", err)
 	}
 
-	for i := 0; i < 700; i++ {
+	for i := range 700 {
 		got, err := s.Item("k", "g1", i)
 		if err != nil {
 			t.Fatalf("Item(%d): %v", i, err)
@@ -115,7 +115,7 @@ func TestChunkBoundaryByBytes(t *testing.T) {
 		t.Fatalf("Commit: %v", err)
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		got, err := s.Item("k", "g1", i)
 		if err != nil {
 			t.Fatalf("Item(%d): %v", i, err)
@@ -134,7 +134,7 @@ func TestUniformWeightsNull(t *testing.T) {
 		t.Fatalf("BeginImport: %v", err)
 	}
 	g := im.BeginGroup("g1")
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		g.Add(fmt.Sprintf("item%d", i), 0)
 	}
 
@@ -145,8 +145,8 @@ func TestUniformWeightsNull(t *testing.T) {
 	if m.Weighted {
 		t.Fatal("Weighted = true, want false（全默认权重）")
 	}
-	if err := im.Commit(); err != nil {
-		t.Fatalf("Commit: %v", err)
+	if err2 := im.Commit(); err2 != nil {
+		t.Fatalf("Commit: %v", err2)
 	}
 
 	w, err := s.Weights("k", "g1")
@@ -173,11 +173,11 @@ func TestUserVersionMismatchRebuilds(t *testing.T) {
 	}
 	g := im.BeginGroup("g1")
 	g.Add("hello", 0)
-	if _, err := g.Finish(); err != nil {
-		t.Fatalf("Finish: %v", err)
+	if _, err2 := g.Finish(); err2 != nil {
+		t.Fatalf("Finish: %v", err2)
 	}
-	if err := im.Commit(); err != nil {
-		t.Fatalf("Commit: %v", err)
+	if err2 := im.Commit(); err2 != nil {
+		t.Fatalf("Commit: %v", err2)
 	}
 	_ = s.Close()
 
@@ -186,8 +186,8 @@ func TestUserVersionMismatchRebuilds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SQLiteDBInit: %v", err)
 	}
-	if err := db.Exec("PRAGMA user_version = 99").Error; err != nil {
-		t.Fatalf("set user_version: %v", err)
+	if err2 := db.Exec("PRAGMA user_version = 99").Error; err2 != nil {
+		t.Fatalf("set user_version: %v", err2)
 	}
 	if pool, e := db.DB(); e == nil {
 		_ = pool.Close()
@@ -218,11 +218,11 @@ func TestUserVersionMismatchRebuilds(t *testing.T) {
 	}
 	g2 := im2.BeginGroup("g1")
 	g2.Add("world", 0)
-	if _, err := g2.Finish(); err != nil {
-		t.Fatalf("re-Finish: %v", err)
+	if _, err2 := g2.Finish(); err2 != nil {
+		t.Fatalf("re-Finish: %v", err2)
 	}
-	if err := im2.Commit(); err != nil {
-		t.Fatalf("re-Commit: %v", err)
+	if err2 := im2.Commit(); err2 != nil {
+		t.Fatalf("re-Commit: %v", err2)
 	}
 	got, err := s2.Item("k", "g1", 0)
 	if err != nil {
@@ -246,7 +246,7 @@ func TestOpenMemoryWriteThenRead(t *testing.T) {
 	}
 	g := im.BeginGroup("g1")
 	want := make([]string, 300)
-	for i := 0; i < 300; i++ {
+	for i := range 300 {
 		want[i] = fmt.Sprintf("item%d", i)
 		g.Add(want[i], 0)
 	}
@@ -258,7 +258,7 @@ func TestOpenMemoryWriteThenRead(t *testing.T) {
 	}
 
 	// 写后立即可读（钉住 :memory: 单连接）。
-	for i := 0; i < 300; i++ {
+	for i := range 300 {
 		got, err := s.Item("k", "g1", i)
 		if err != nil {
 			t.Fatalf("Item(%d): %v", i, err)
@@ -295,8 +295,8 @@ func TestDeckIDsAndDeleteDeck(t *testing.T) {
 		t.Fatalf("DeckIDs = %v, want [d1 d2]", ids)
 	}
 
-	if err := s.DeleteDeck("d1"); err != nil {
-		t.Fatalf("DeleteDeck: %v", err)
+	if err2 := s.DeleteDeck("d1"); err2 != nil {
+		t.Fatalf("DeleteDeck: %v", err2)
 	}
 
 	ids, err = s.DeckIDs()
@@ -324,7 +324,7 @@ func TestReimportSameDeckInvalidatesCache(t *testing.T) {
 			t.Fatalf("BeginImport: %v", err)
 		}
 		g := im.BeginGroup("g1")
-		for i := 0; i < n; i++ {
+		for i := range n {
 			g.Add(fmt.Sprintf("%s%d", prefix, i), weightFn(i))
 		}
 		if _, err := g.Finish(); err != nil {
@@ -355,9 +355,9 @@ func TestReimportSameDeckInvalidatesCache(t *testing.T) {
 	importGroup("B", func(i int) uint32 { return uint32(i%3) + 1 })
 
 	for _, idx := range []int{0, 299} {
-		got, err := s.Item("k", "g1", idx)
-		if err != nil || got != fmt.Sprintf("B%d", idx) {
-			t.Fatalf("B Item(%d) = %q, %v，读到旧内容 A%d", idx, got, err, idx)
+		got, err2 := s.Item("k", "g1", idx)
+		if err2 != nil || got != fmt.Sprintf("B%d", idx) {
+			t.Fatalf("B Item(%d) = %q, %v，读到旧内容 A%d", idx, got, err2, idx)
 		}
 	}
 	wB, err := s.Weights("k", "g1")
@@ -367,7 +367,7 @@ func TestReimportSameDeckInvalidatesCache(t *testing.T) {
 	if len(wB) != n {
 		t.Fatalf("B Weights len = %d, want %d", len(wB), n)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		want := uint32(i%3) + 1
 		if wB[i] != want {
 			t.Fatalf("B weight[%d] = %d, want %d（读到旧权重）", i, wB[i], want)
@@ -385,12 +385,12 @@ func TestGroups(t *testing.T) {
 	for _, name := range []string{"g1", "g2", "g3"} {
 		g := im.BeginGroup(name)
 		g.Add("item", 0)
-		if _, err := g.Finish(); err != nil {
-			t.Fatalf("Finish(%s): %v", name, err)
+		if _, err2 := g.Finish(); err2 != nil {
+			t.Fatalf("Finish(%s): %v", name, err2)
 		}
 	}
-	if err := im.Commit(); err != nil {
-		t.Fatalf("Commit: %v", err)
+	if err2 := im.Commit(); err2 != nil {
+		t.Fatalf("Commit: %v", err2)
 	}
 
 	names, err := s.Groups("k")
@@ -436,23 +436,23 @@ func TestReopenStoreReloadsGroupMeta(t *testing.T) {
 		t.Fatalf("BeginImport: %v", err)
 	}
 	g := im.BeginGroup("g1")
-	for i := 0; i < 300; i++ {
+	for i := range 300 {
 		g.Add(fmt.Sprintf("item%d", i), 0)
 	}
-	if _, err := g.Finish(); err != nil {
-		t.Fatalf("Finish(g1): %v", err)
+	if _, err2 := g.Finish(); err2 != nil {
+		t.Fatalf("Finish(g1): %v", err2)
 	}
 	gw := im.BeginGroup("g2")
 	gw.Add("::3::a", 3)
 	gw.Add("b", 1)
-	if _, err := gw.Finish(); err != nil {
-		t.Fatalf("Finish(g2): %v", err)
+	if _, err2 := gw.Finish(); err2 != nil {
+		t.Fatalf("Finish(g2): %v", err2)
 	}
-	if err := im.Commit(); err != nil {
-		t.Fatalf("Commit: %v", err)
+	if err2 := im.Commit(); err2 != nil {
+		t.Fatalf("Commit: %v", err2)
 	}
-	if err := s.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
+	if err2 := s.Close(); err2 != nil {
+		t.Fatalf("Close: %v", err2)
 	}
 
 	// 重新打开同一路径：全新 store，内存索引为空。
@@ -475,9 +475,9 @@ func TestReopenStoreReloadsGroupMeta(t *testing.T) {
 
 	// 跨块边界读取，证明 chunk_starts 还原正确。
 	for _, idx := range []int{0, 255, 256, 299} {
-		got, err := s2.Item("k", "g1", idx)
-		if err != nil || got != fmt.Sprintf("item%d", idx) {
-			t.Fatalf("Item(%d) = %q, %v, want item%d", idx, got, err, idx)
+		got, err2 := s2.Item("k", "g1", idx)
+		if err2 != nil || got != fmt.Sprintf("item%d", idx) {
+			t.Fatalf("Item(%d) = %q, %v, want item%d", idx, got, err2, idx)
 		}
 	}
 

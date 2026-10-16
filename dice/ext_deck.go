@@ -475,6 +475,7 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 func DecksDetect(d *Dice) []deckSource {
 	// 先进行zip解压
 	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		//nolint:nilerr // 忽略遍历错误，跳过该项
 		if err != nil || info == nil {
 			return nil
 		}
@@ -504,6 +505,7 @@ func DecksDetect(d *Dice) []deckSource {
 
 	var sources []deckSource
 	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		//nolint:nilerr // 忽略遍历错误，跳过该项
 		if err != nil || info == nil {
 			return nil
 		}
@@ -673,6 +675,7 @@ func reloadDeckStore(d *Dice, st deckstore.Store, sources []deckSource) {
 			d.Logger.Infof("牌堆文件“%s”加载失败", src.Filename)
 			continue
 		}
+		//nolint:gosec // 内容指纹，非安全用途
 		hash := sha1.Sum(content)
 
 		if di, storedHash, ok := deckLoadMetaRow(st, deckKey); ok && bytes.Equal(storedHash, hash[:]) {
@@ -1099,56 +1102,10 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 
 	if deckInfo.Cloud {
 		// 云牌组：保持现状（每次抽取联网合并、全量物化），仅本地基底改由后端物化。
-		if shufflePool {
-			var pool *ShuffleRandomPool
-			if ctx.DeckPools == nil {
-				ctx.DeckPools = map[string]*deckPoolEntry{}
-			}
-			pkey := deckstore.Key(deckKey, deckName)
-			if ctx.DeckPools[pkey] == nil {
-				ctx.DeckPools[pkey] = &deckPoolEntry{}
-			}
-
-			deckGroup := getDeckGroup(d, deckInfo, deckName)
-			if len(deckGroup) == 0 {
-				return "", errors.New("牌组为空，请检查格式是否正确")
-			}
-			if ctx.DeckPools[pkey].shuffle == nil {
-				ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
-			}
-
-			pool = ctx.DeckPools[pkey].shuffle
-			if pool == nil || len(pool.data) == 0 || pool.max < 1 {
-				ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
-			}
-
-			pool = ctx.DeckPools[pkey].shuffle
-			if pool == nil {
-				return "", errors.New("牌组无有效条目，请检查权重配置")
-			}
-			var pickErr error
-			key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
-			if errors.Is(pickErr, errShuffleRandomPoolExhausted) {
-				ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
-				pool = ctx.DeckPools[pkey].shuffle
-				if pool == nil {
-					return "", errors.New("牌组无有效条目，请检查权重配置")
-				}
-				key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
-			}
-			if pickErr != nil {
-				return "", fmt.Errorf("牌组抽取失败: %w", pickErr)
-			}
-		} else {
-			deckGroup := getDeckGroup(d, deckInfo, deckName)
-			if len(deckGroup) == 0 {
-				return "", errors.New("牌组为空，请检查格式是否正确")
-			}
-			pool := DeckToRandomPool(deckGroup)
-			if pool == nil {
-				return "", errors.New("牌组为空，可能尚未加载完成")
-			}
-			key = pickChooserWithRand(pool, ctx.getChooserRand())
+		var err error
+		key, err = executeDeckCloud(ctx, deckInfo, deckName, shufflePool)
+		if err != nil {
+			return "", err
 		}
 	} else {
 		// 非云路径：基于 store 单块读取 + 下标池，不物化整组。
@@ -1183,6 +1140,66 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
+}
+
+// executeDeckCloud 处理云牌组的抽取：保持现状（每次抽取联网合并、全量物化），
+// 仅本地基底改由后端物化。返回抽取出的文本 key 与可能的错误。
+func executeDeckCloud(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePool bool) (string, error) {
+	d := ctx.Dice
+	deckKey := deckInfo.DeckKey
+
+	if shufflePool {
+		var pool *ShuffleRandomPool
+		if ctx.DeckPools == nil {
+			ctx.DeckPools = map[string]*deckPoolEntry{}
+		}
+		pkey := deckstore.Key(deckKey, deckName)
+		if ctx.DeckPools[pkey] == nil {
+			ctx.DeckPools[pkey] = &deckPoolEntry{}
+		}
+
+		deckGroup := getDeckGroup(d, deckInfo, deckName)
+		if len(deckGroup) == 0 {
+			return "", errors.New("牌组为空，请检查格式是否正确")
+		}
+		if ctx.DeckPools[pkey].shuffle == nil {
+			ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+		}
+
+		pool = ctx.DeckPools[pkey].shuffle
+		if pool == nil || len(pool.data) == 0 || pool.max < 1 {
+			ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+		}
+
+		pool = ctx.DeckPools[pkey].shuffle
+		if pool == nil {
+			return "", errors.New("牌组无有效条目，请检查权重配置")
+		}
+		var pickErr error
+		key, pickErr := pool.TryPickWithSource(ctx.getDiceSource())
+		if errors.Is(pickErr, errShuffleRandomPoolExhausted) {
+			ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+			pool = ctx.DeckPools[pkey].shuffle
+			if pool == nil {
+				return "", errors.New("牌组无有效条目，请检查权重配置")
+			}
+			key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+		}
+		if pickErr != nil {
+			return "", fmt.Errorf("牌组抽取失败: %w", pickErr)
+		}
+		return key, nil
+	}
+
+	deckGroup := getDeckGroup(d, deckInfo, deckName)
+	if len(deckGroup) == 0 {
+		return "", errors.New("牌组为空，请检查格式是否正确")
+	}
+	pool := DeckToRandomPool(deckGroup)
+	if pool == nil {
+		return "", errors.New("牌组为空，可能尚未加载完成")
+	}
+	return pickChooserWithRand(pool, ctx.getChooserRand()), nil
 }
 
 // drawIndexFromPool 从 ctx.DeckPools 中取/建不放回下标池并抽取一个下标；耗尽即重建（复刻现有"抽空重建"）。

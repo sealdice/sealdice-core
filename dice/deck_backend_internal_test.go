@@ -85,11 +85,11 @@ func TestOpenDeckBackendFallsBackToMemorySQL(t *testing.T) {
 	}
 	g := im.BeginGroup("g")
 	g.Add("hello", 0)
-	if _, err := g.Finish(); err != nil {
-		t.Fatalf("Finish: %v", err)
+	if _, err2 := g.Finish(); err2 != nil {
+		t.Fatalf("Finish: %v", err2)
 	}
-	if err := im.Commit(); err != nil {
-		t.Fatalf("Commit: %v", err)
+	if err2 := im.Commit(); err2 != nil {
+		t.Fatalf("Commit: %v", err2)
 	}
 	got, err := st.Item("k", "g", 0)
 	if err != nil {

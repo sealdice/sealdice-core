@@ -303,7 +303,7 @@ func (s *sqliteStore) GroupItems(deckID, group string) []string {
 		return nil
 	}
 	out := make([]string, 0, gm.ItemCount)
-	for i := 0; i < gm.ItemCount; i++ {
+	for i := range gm.ItemCount {
 		it, err := s.Item(deckID, group, i)
 		if err != nil {
 			s.logf("deckstore: GroupItems(%s, %s) at %d: %v", deckID, group, i, err)

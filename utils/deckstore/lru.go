@@ -61,12 +61,6 @@ func (c *byteLRU[V]) put(key string, value V, size int64) {
 	}
 }
 
-func (c *byteLRU[V]) remove(key string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.removeLocked(key)
-}
-
 func (c *byteLRU[V]) removePrefix(prefix string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
