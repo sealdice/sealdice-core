@@ -375,6 +375,42 @@ func TestReimportSameDeckInvalidatesCache(t *testing.T) {
 	}
 }
 
+func TestGroups(t *testing.T) {
+	s := OpenForTest(t, t.TempDir())
+
+	im, err := s.BeginImport("k")
+	if err != nil {
+		t.Fatalf("BeginImport: %v", err)
+	}
+	for _, name := range []string{"g1", "g2", "g3"} {
+		g := im.BeginGroup(name)
+		g.Add("item", 0)
+		if _, err := g.Finish(); err != nil {
+			t.Fatalf("Finish(%s): %v", name, err)
+		}
+	}
+	if err := im.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	names, err := s.Groups("k")
+	if err != nil {
+		t.Fatalf("Groups: %v", err)
+	}
+	if len(names) != 3 || !containsStr(names, "g1") || !containsStr(names, "g2") || !containsStr(names, "g3") {
+		t.Fatalf("Groups = %v, want 包含 [g1 g2 g3]", names)
+	}
+
+	// 不存在的 deck 返回空列表而非 error。
+	names, err = s.Groups("missing")
+	if err != nil {
+		t.Fatalf("Groups(missing): %v", err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("Groups(missing) = %v, want 空", names)
+	}
+}
+
 func containsStr(s []string, v string) bool {
 	for _, x := range s {
 		if x == v {

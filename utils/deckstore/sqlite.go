@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vmihailenco/msgpack"
 	"gorm.io/gorm"
 
 	"sealdice-core/utils/dboperator/engine/sqlite"
@@ -158,7 +159,51 @@ func (s *sqliteStore) GroupMeta(deckID, group string) (GroupMeta, bool) {
 	s.mu.RLock()
 	gm, ok := s.index[Key(deckID, group)]
 	s.mu.RUnlock()
-	return gm, ok
+	if ok {
+		return gm, true
+	}
+
+	// 索引未命中时回退读库（reload 打开既有库文件时索引尚未预载），并缓存进索引。
+	gm, ok = s.loadGroupMeta(deckID, group)
+	if !ok {
+		return GroupMeta{}, false
+	}
+	s.mu.Lock()
+	s.index[Key(deckID, group)] = gm
+	s.mu.Unlock()
+	return gm, true
+}
+
+// loadGroupMeta 从 deck_group 表读取一个组的元数据并还原 GroupMeta。
+func (s *sqliteStore) loadGroupMeta(deckID, group string) (GroupMeta, bool) {
+	row := s.reader.Raw(
+		"SELECT item_count, total_weight, weighted, chunk_starts FROM deck_group WHERE deck_key = ? AND group_name = ?",
+		deckID, group,
+	).Row()
+	var (
+		itemCount   int
+		totalWeight int64
+		weighted    int
+		startsBlob  []byte
+	)
+	if err := row.Scan(&itemCount, &totalWeight, &weighted, &startsBlob); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return GroupMeta{}, false
+		}
+		s.logf("deckstore: load group meta(%s, %s): %v", deckID, group, err)
+		return GroupMeta{}, false
+	}
+	var starts []int
+	if err := msgpack.Unmarshal(startsBlob, &starts); err != nil {
+		s.logf("deckstore: decode chunk_starts(%s, %s): %v", deckID, group, err)
+		return GroupMeta{}, false
+	}
+	return GroupMeta{
+		ItemCount:   itemCount,
+		TotalWeight: totalWeight,
+		Weighted:    weighted != 0,
+		ChunkStarts: starts,
+	}, true
 }
 
 func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
@@ -272,6 +317,27 @@ func (s *sqliteStore) Meta(deckID, key string) ([]byte, bool) {
 		return nil, false
 	}
 	return v, true
+}
+
+func (s *sqliteStore) Groups(deckID string) ([]string, error) {
+	rows, err := s.reader.Raw(
+		"SELECT group_name FROM deck_group WHERE deck_key = ?",
+		deckID,
+	).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
 }
 
 func (s *sqliteStore) DeckIDs() ([]string, error) {

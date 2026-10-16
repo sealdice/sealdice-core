@@ -57,6 +57,8 @@ type Store interface {
 	GroupItems(deckID, group string) []string
 	// Meta 读取通用 KV 元数据；未命中返回 false。
 	Meta(deckID, key string) ([]byte, bool)
+	// Groups 返回 deck 的全部组名（未变牌堆重建内存索引用）。
+	Groups(deckID string) ([]string, error)
 	// DeckIDs 返回所有已存在 deck 的标识。
 	DeckIDs() ([]string, error)
 	// DeleteDeck 删除一个 deck 的全部行。

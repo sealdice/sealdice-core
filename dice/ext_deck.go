@@ -5,6 +5,7 @@ package dice
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,8 @@ import (
 	ds "github.com/sealdice/dicescript"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
+
+	"sealdice-core/utils/deckstore"
 )
 
 type DeckDiceEFormat struct {
@@ -412,34 +415,28 @@ func isPrefixWithUtf8Bom(buf []byte) bool {
 	return len(buf) >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF
 }
 
-func DeckTryParse(d *Dice, fn string) {
-	content, err := os.ReadFile(fn)
+// deckParseLegacy 走旧路径解析一个来源，填充 DeckItems（legacy 回退分支用）。
+// 读文件失败返回 nil。
+func deckParseLegacy(d *Dice, src deckSource) *DeckInfo {
+	content, err := os.ReadFile(src.Filename)
 	if err != nil {
-		d.Logger.Infof("牌堆文件“%s”加载失败", fn)
-		return
+		d.Logger.Infof("牌堆文件“%s”加载失败", src.Filename)
+		return nil
 	}
-	deckInfo := new(DeckInfo)
-	if deckInfo.DeckItems == nil {
-		deckInfo.DeckItems = map[string][]string{}
+	deckInfo := &DeckInfo{
+		Filename:           src.Filename,
+		PackageID:          src.PackageID,
+		DeckKey:            deckFileKey(src.Filename, src.PackageID),
+		DeckItems:          map[string][]string{},
+		Command:            map[string]bool{},
+		CloudDeckItemInfos: map[string]*CloudDeckItemInfo{},
 	}
-	if deckInfo.Command == nil {
-		deckInfo.Command = map[string]bool{}
-	}
-	if deckInfo.CloudDeckItemInfos == nil {
-		deckInfo.CloudDeckItemInfos = map[string]*CloudDeckItemInfo{}
-	}
-	_ = parseDeck(d, fn, content, deckInfo)
-	deckInfo.Filename = fn
+	_ = parseDeck(d, src.Filename, content, deckInfo)
 
 	if deckInfo.Name == "" {
-		deckInfo.Name = filepath.Base(fn)
+		deckInfo.Name = filepath.Base(src.Filename)
 	}
-
-	d.DeckList = append(d.DeckList, deckInfo)
-	if len(deckInfo.StoreID) > 0 {
-		d.StoreManager.InstalledDecks[deckInfo.StoreID] = true
-	}
-	d.MarkModified()
+	return deckInfo
 }
 
 func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
@@ -474,10 +471,13 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 	return true
 }
 
-// DecksDetect 检查牌堆
-func DecksDetect(d *Dice) {
+// DecksDetect 扫描 data/decks 与扩展包内牌堆，返回来源列表（不解析内容）。
+func DecksDetect(d *Dice) []deckSource {
 	// 先进行zip解压
 	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -502,7 +502,11 @@ func DecksDetect(d *Dice) {
 		return nil
 	})
 
+	var sources []deckSource
 	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		if err != nil || info == nil {
+			return nil
+		}
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -519,7 +523,7 @@ func DecksDetect(d *Dice) {
 		if !info.IsDir() {
 			ext := filepath.Ext(path)
 			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" || ext == "" {
-				DeckTryParse(d, path)
+				sources = append(sources, deckSource{Filename: path})
 			}
 		}
 		return nil
@@ -531,39 +535,11 @@ func DecksDetect(d *Dice) {
 			ext := filepath.Ext(deckFile.Path)
 			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" {
 				d.Logger.Infof("正在加载扩展包 %s 的牌堆: %s", deckFile.PackageID, deckFile.Path)
-				DeckTryParseWithPackage(d, deckFile.Path, deckFile.PackageID)
+				sources = append(sources, deckSource{Filename: deckFile.Path, PackageID: deckFile.PackageID})
 			}
 		}
 	}
-}
-
-// DeckTryParseWithPackage 解析牌堆并设置所属扩展包ID
-func DeckTryParseWithPackage(d *Dice, fn string, packageID string) {
-	content, err := os.ReadFile(fn)
-	if err != nil {
-		d.Logger.Infof("牌堆文件 %s 加载失败", fn)
-		return
-	}
-	deckInfo := new(DeckInfo)
-	if deckInfo.DeckItems == nil {
-		deckInfo.DeckItems = map[string][]string{}
-	}
-	if deckInfo.Command == nil {
-		deckInfo.Command = map[string]bool{}
-	}
-	if deckInfo.CloudDeckItemInfos == nil {
-		deckInfo.CloudDeckItemInfos = map[string]*CloudDeckItemInfo{}
-	}
-	_ = parseDeck(d, fn, content, deckInfo)
-	deckInfo.Filename = fn
-	deckInfo.PackageID = packageID
-
-	if deckInfo.Name == "" {
-		deckInfo.Name = filepath.Base(fn)
-	}
-
-	d.DeckList = append(d.DeckList, deckInfo)
-	d.MarkModified()
+	return sources
 }
 
 func DeckDelete(_ *Dice, deck *DeckInfo) {
@@ -608,23 +584,63 @@ func (e DeckCommandListItems) Len() int {
 	return len(e)
 }
 
+// deckImportHook 在每次真正执行 deckImportSource 前调用（nil 跳过）。
+// 测试替换为计数包装以验证"未变文件跳过解析"。
+var deckImportHook func()
+
 func DeckReload(d *Dice) {
 	if d.IsDeckLoading {
 		return
 	}
 	d.IsDeckLoading = true
+	defer func() { d.IsDeckLoading = false }()
+
 	d.DeckList = d.DeckList[:0]
 	if d.StoreManager != nil {
 		d.StoreManager.InstalledDecks = map[string]bool{}
 	}
 	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
-	DecksDetect(d)
-	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
-	d.IsDeckLoading = false
-	d.MarkModified()
+	sources := DecksDetect(d)
 
+	if len(sources) == 0 {
+		// 无来源：不打开库（避免污染 CWD），仅清空列表并重建命令项。
+		d.deckCommandItemsList = buildDeckCommandItemsList(d.DeckList)
+		d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
+		d.MarkModified()
+		return
+	}
+
+	if d.DeckStore == nil {
+		d.DeckStore, _ = openDeckBackend(d.Logger)
+	}
+
+	switch backend := d.DeckStore.(type) {
+	case *deckMemoryBackend:
+		// legacy：按旧路径填充 DeckItems 并注册，跳过增量/删除。
+		for _, src := range sources {
+			di := deckParseLegacy(d, src)
+			if di == nil {
+				continue
+			}
+			d.DeckList = append(d.DeckList, di)
+			registerInstalledDeck(d, di, src.PackageID)
+			backend.Register(di)
+		}
+	case *deckStoreBackend:
+		reloadDeckStore(d, backend.Store(), sources)
+	default:
+		d.Logger.Errorf("deckstore: 未知后端类型 %T", d.DeckStore)
+	}
+
+	d.deckCommandItemsList = buildDeckCommandItemsList(d.DeckList)
+	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
+	d.MarkModified()
+}
+
+// buildDeckCommandItemsList 由 DeckList 重建模糊搜索用的命令项列表。
+func buildDeckCommandItemsList(deckList []*DeckInfo) DeckCommandListItems {
 	lst := DeckCommandListItems{}
-	for _, i := range d.DeckList {
+	for _, i := range deckList {
 		for k, v := range i.Command {
 			lst = append(lst, &DeckCommandListItem{
 				command: k,
@@ -633,7 +649,91 @@ func DeckReload(d *Dice) {
 			})
 		}
 	}
-	d.deckCommandItemsList = lst
+	return lst
+}
+
+// registerInstalledDeck 记录已安装牌堆的 StoreID（仅本地来源，与现状一致）。
+func registerInstalledDeck(d *Dice, di *DeckInfo, packageID string) {
+	if len(di.StoreID) == 0 || packageID != "" || d.StoreManager == nil {
+		return
+	}
+	d.StoreManager.InstalledDecks[di.StoreID] = true
+}
+
+// reloadDeckStore 非 legacy 的增量重建 + 删除清理 + 索引原子替换。
+func reloadDeckStore(d *Dice, st deckstore.Store, sources []deckSource) {
+	seen := make(map[string]bool, len(sources))
+
+	for _, src := range sources {
+		deckKey := deckFileKey(src.Filename, src.PackageID)
+		seen[deckKey] = true
+
+		content, err := os.ReadFile(src.Filename)
+		if err != nil {
+			d.Logger.Infof("牌堆文件“%s”加载失败", src.Filename)
+			continue
+		}
+		hash := sha1.Sum(content)
+
+		if di, storedHash, ok := deckLoadMetaRow(st, deckKey); ok && bytes.Equal(storedHash, hash[:]) {
+			// 未变：复用行内 DeckInfo，回填 deckLoadMetaRow 不恢复的字段。
+			di.Filename = src.Filename
+			di.PackageID = src.PackageID
+			di.DeckKey = deckKey
+			d.DeckList = append(d.DeckList, di)
+			registerInstalledDeck(d, di, src.PackageID)
+			continue
+		}
+
+		if deckImportHook != nil {
+			deckImportHook()
+		}
+		di, err := deckImportSource(d, st, src, content)
+		if err != nil {
+			d.Logger.Errorf("牌堆文件“%s”解析失败 %v", src.Filename, err)
+		}
+		d.DeckList = append(d.DeckList, di)
+		registerInstalledDeck(d, di, src.PackageID)
+	}
+
+	// 删除清理：库中已有但本轮来源未出现的 key。
+	if ids, err := st.DeckIDs(); err != nil {
+		d.Logger.Errorf("deckstore: 读取 DeckIDs 失败：%v", err)
+	} else {
+		for _, id := range ids {
+			if !seen[id] {
+				if err := st.DeleteDeck(id); err != nil {
+					d.Logger.Errorf("deckstore: 删除牌堆 %s 失败：%v", id, err)
+				}
+			}
+		}
+	}
+
+	// 索引原子替换：从库重建全量索引（变更牌堆已由 Commit 提交，未变牌堆行仍在库中）。
+	rebuildDeckIndex(d, st)
+}
+
+// rebuildDeckIndex 从 deck_group 表重建内存索引并一次性替换。
+func rebuildDeckIndex(d *Dice, st deckstore.Store) {
+	ids, err := st.DeckIDs()
+	if err != nil {
+		d.Logger.Errorf("deckstore: 读取 DeckIDs 失败：%v", err)
+		return
+	}
+	index := make(map[string]deckstore.GroupMeta)
+	for _, deckKey := range ids {
+		groups, err := st.Groups(deckKey)
+		if err != nil {
+			d.Logger.Errorf("deckstore: 读取牌堆 %s 组名失败：%v", deckKey, err)
+			continue
+		}
+		for _, group := range groups {
+			if gm, ok := st.GroupMeta(deckKey, group); ok {
+				index[deckstore.Key(deckKey, group)] = gm
+			}
+		}
+	}
+	st.ReplaceIndex(index)
 }
 
 func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string, error) {
