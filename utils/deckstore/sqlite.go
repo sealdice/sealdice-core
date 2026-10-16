@@ -317,9 +317,16 @@ func (s *sqliteStore) DeleteDeck(deckID string) error {
 		}
 	}
 	s.mu.Unlock()
+	s.purgeDeckCaches(deckID)
+	return nil
+}
+
+// purgeDeckCaches 清除该 deck 的块与权重缓存（导入提交 / 删除时调用）。
+// 否则重导同一 deck 后，chunk 键不变的旧条目会滞留在 LRU，Item 命中过期内容。
+func (s *sqliteStore) purgeDeckCaches(deckID string) {
+	prefix := deckID + "\x00"
 	s.chunkLRU.removePrefix(prefix)
 	s.weightLRU.removePrefix(prefix)
-	return nil
 }
 
 func (s *sqliteStore) ReplaceIndex(m map[string]GroupMeta) {
@@ -402,6 +409,7 @@ func (im *sqliteImport) Commit() error {
 		return err
 	}
 	im.s.indexReplace(im.deckID, im.groups)
+	im.s.purgeDeckCaches(im.deckID)
 	return nil
 }
 

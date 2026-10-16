@@ -314,6 +314,67 @@ func TestDeckIDsAndDeleteDeck(t *testing.T) {
 	}
 }
 
+func TestReimportSameDeckInvalidatesCache(t *testing.T) {
+	s := OpenForTest(t, t.TempDir())
+
+	const n = 300 // 跨 256 块边界，产生多块
+	importGroup := func(prefix string, weightFn func(i int) uint32) {
+		im, err := s.BeginImport("k")
+		if err != nil {
+			t.Fatalf("BeginImport: %v", err)
+		}
+		g := im.BeginGroup("g1")
+		for i := 0; i < n; i++ {
+			g.Add(fmt.Sprintf("%s%d", prefix, i), weightFn(i))
+		}
+		if _, err := g.Finish(); err != nil {
+			t.Fatalf("Finish: %v", err)
+		}
+		if err := im.Commit(); err != nil {
+			t.Fatalf("Commit: %v", err)
+		}
+	}
+
+	// 内容 A：加权，权重全 5。读取若干 idx 预热块缓存，再读权重预热权重缓存。
+	importGroup("A", func(i int) uint32 { return 5 })
+	for _, idx := range []int{0, 299} {
+		got, err := s.Item("k", "g1", idx)
+		if err != nil || got != fmt.Sprintf("A%d", idx) {
+			t.Fatalf("A Item(%d) = %q, %v", idx, got, err)
+		}
+	}
+	wA, err := s.Weights("k", "g1")
+	if err != nil {
+		t.Fatalf("A Weights: %v", err)
+	}
+	if len(wA) != n || wA[0] != 5 || wA[n-1] != 5 {
+		t.Fatalf("A Weights 应全为 5，got len=%d first=%d last=%d", len(wA), wA[0], wA[n-1])
+	}
+
+	// 重导同一 deck，内容 B：文本与权重都不同。
+	importGroup("B", func(i int) uint32 { return uint32(i%3) + 1 })
+
+	for _, idx := range []int{0, 299} {
+		got, err := s.Item("k", "g1", idx)
+		if err != nil || got != fmt.Sprintf("B%d", idx) {
+			t.Fatalf("B Item(%d) = %q, %v，读到旧内容 A%d", idx, got, err, idx)
+		}
+	}
+	wB, err := s.Weights("k", "g1")
+	if err != nil {
+		t.Fatalf("B Weights: %v", err)
+	}
+	if len(wB) != n {
+		t.Fatalf("B Weights len = %d, want %d", len(wB), n)
+	}
+	for i := 0; i < n; i++ {
+		want := uint32(i%3) + 1
+		if wB[i] != want {
+			t.Fatalf("B weight[%d] = %d, want %d（读到旧权重）", i, wB[i], want)
+		}
+	}
+}
+
 func containsStr(s []string, v string) bool {
 	for _, x := range s {
 		if x == v {
