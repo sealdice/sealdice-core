@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -55,6 +57,12 @@ type sqliteStore struct {
 }
 
 func openSQLite(path string, log Logger) (Store, error) {
+	// 派生缓存库：确保父目录存在，否则文件库打不开会静默降级为内存库。
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
+		}
+	}
 	reader, writer, err := sqlite.SQLiteDBRWInit(path)
 	if err != nil {
 		return nil, err
