@@ -1,11 +1,5 @@
-import type {
-  StoryPainterChar,
-  StoryPainterLogItem,
-  StoryPainterOptions,
-  StoryPainterRole,
-} from './types';
+import type { StoryPainterChar, StoryPainterLogItem, StoryPainterRole } from './types';
 import { packStoryPainterNameId } from './types';
-import { replaceAllText } from './string';
 
 export const storyPainterPalette = [
   '#db2777',
@@ -74,7 +68,6 @@ export function isStoryPainterHidden(
 export function buildStoryPainterPreviewItems(
   items: StoryPainterLogItem[],
   chars: StoryPainterChar[],
-  options: StoryPainterOptions,
   normalizeMessage: (item: StoryPainterLogItem) => string
 ): StoryPainterLogItem[] {
   const previewItems: StoryPainterLogItem[] = [];
@@ -85,7 +78,6 @@ export function buildStoryPainterPreviewItems(
     if (msg.trim() === '') return;
     previewItems.push({ ...item, index: item.index ?? previewItems.length });
   });
-  void options;
   return previewItems;
 }
 
@@ -95,7 +87,7 @@ export function renameStoryPainterChar(
   nextName: string
 ): StoryPainterLogItem[] {
   return items.map(item => {
-    const message = replaceAllText(item.message, `<${target.name}>`, `<${nextName}>`);
+    const message = item.message.split(`<${target.name}>`).join(`<${nextName}>`);
     if (item.IMUserId === target.IMUserId && item.nickname === target.name) {
       return { ...item, nickname: nextName, message };
     }

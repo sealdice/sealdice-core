@@ -14,12 +14,6 @@ export interface StoryPainterVirtualItemLike {
   lane?: number;
 }
 
-export function isStoryPainterVirtualRange(value: unknown): value is StoryPainterVirtualRange {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<StoryPainterVirtualRange>;
-  return typeof candidate.start === 'number' && typeof candidate.end === 'number';
-}
-
 export function virtualItemsToStoryPainterRange(
   virtualItems: StoryPainterVirtualItemLike[]
 ): StoryPainterVirtualRange | undefined {

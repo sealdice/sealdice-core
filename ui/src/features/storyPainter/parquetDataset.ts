@@ -1,4 +1,4 @@
-import type { AsyncBuffer, FileMetaData } from 'hyparquet';
+import type { AsyncBuffer } from 'hyparquet';
 import type { StoryPainterLogItem } from './types';
 
 export type StoryPainterParquetColumn =
@@ -21,14 +21,12 @@ export interface StoryPainterRowReadOptions {
 
 export interface StoryPainterParquetDataset {
   numRows: number;
-  blob?: Blob;
   readRows(
     start: number,
     end: number,
     columns?: StoryPainterParquetColumn[]
   ): Promise<StoryPainterLogItem[]>;
   iterRows(options?: StoryPainterRowReadOptions): AsyncGenerator<StoryPainterLogItem[]>;
-  readAll(columns?: StoryPainterParquetColumn[]): Promise<StoryPainterLogItem[]>;
 }
 
 const defaultColumns: StoryPainterParquetColumn[] = [
@@ -46,7 +44,7 @@ const defaultColumns: StoryPainterParquetColumn[] = [
 export async function createStoryPainterParquetDataset(
   blob: Blob
 ): Promise<StoryPainterParquetDataset> {
-  const [{ parquetMetadataAsync, parquetRead }, { compressors }] = await Promise.all([
+  const [{ parquetMetadataAsync, parquetReadObjects }, { compressors }] = await Promise.all([
     import('hyparquet'),
     import('hyparquet-compressors'),
   ]);
@@ -62,8 +60,7 @@ export async function createStoryPainterParquetDataset(
     const rowStart = clampRow(start, numRows);
     const rowEnd = clampRow(end, numRows);
     if (rowEnd <= rowStart) return [];
-    const rows = await readParquetRows({
-      parquetRead,
+    const rows = await parquetReadObjects({
       file: asyncBuffer,
       metadata,
       compressors,
@@ -85,51 +82,12 @@ export async function createStoryPainterParquetDataset(
 
   return {
     numRows,
-    blob,
     readRows,
     iterRows,
-    readAll(columns?: StoryPainterParquetColumn[]) {
-      return readRows(0, numRows, columns);
-    },
   };
 }
 
-export function createMemoryParquetDataset(
-  rows: StoryPainterParquetRow[]
-): StoryPainterParquetDataset {
-  const copy = [...rows];
-  const numRows = copy.length;
-
-  async function readRows(
-    start: number,
-    end: number,
-    columns: StoryPainterParquetColumn[] = defaultColumns
-  ): Promise<StoryPainterLogItem[]> {
-    const rowStart = clampRow(start, numRows);
-    const rowEnd = clampRow(end, numRows);
-    return bufferToStoryPainterRows(copy.slice(rowStart, rowEnd), columns, rowStart);
-  }
-
-  async function* iterRows(
-    options: StoryPainterRowReadOptions = {}
-  ): AsyncGenerator<StoryPainterLogItem[]> {
-    const chunkSize = Math.max(1, options.chunkSize ?? 2000);
-    for (let start = 0; start < numRows; start += chunkSize) {
-      yield await readRows(start, Math.min(start + chunkSize, numRows), options.columns);
-    }
-  }
-
-  return {
-    numRows,
-    readRows,
-    iterRows,
-    readAll(columns?: StoryPainterParquetColumn[]) {
-      return readRows(0, numRows, columns);
-    },
-  };
-}
-
-export function bufferToStoryPainterRows(
+function bufferToStoryPainterRows(
   rows: StoryPainterParquetRow[],
   columns: StoryPainterParquetColumn[] = defaultColumns,
   startIndex = 0
@@ -140,7 +98,7 @@ export function bufferToStoryPainterRows(
   );
 }
 
-export function mapParquetRowToStoryPainterItem(
+function mapParquetRowToStoryPainterItem(
   row: StoryPainterParquetRow,
   index: number,
   columns = new Set<StoryPainterParquetColumn>(defaultColumns)
@@ -169,31 +127,6 @@ function readColumn(
   column: StoryPainterParquetColumn
 ): boolean {
   return columns.has(column) && column in row;
-}
-
-async function readParquetRows(options: {
-  parquetRead: (typeof import('hyparquet'))['parquetRead'];
-  file: AsyncBuffer;
-  metadata: FileMetaData;
-  compressors: unknown;
-  rowStart: number;
-  rowEnd: number;
-  columns: StoryPainterParquetColumn[];
-}): Promise<StoryPainterParquetRow[]> {
-  return await new Promise((resolve, reject) => {
-    options
-      .parquetRead({
-        file: options.file,
-        metadata: options.metadata,
-        compressors: options.compressors as never,
-        rowStart: options.rowStart,
-        rowEnd: options.rowEnd,
-        columns: options.columns,
-        rowFormat: 'object',
-        onComplete: rows => resolve(rows as StoryPainterParquetRow[]),
-      })
-      .catch(reject);
-  });
 }
 
 function blobAsyncBuffer(blob: Blob): AsyncBuffer {

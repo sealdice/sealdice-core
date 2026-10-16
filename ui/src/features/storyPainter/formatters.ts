@@ -1,6 +1,5 @@
 import dayjs from 'dayjs';
 import type { StoryPainterChar, StoryPainterLogItem, StoryPainterOptions } from './types';
-import { replaceAllText } from './string';
 
 const imageStyle = 'max-width: 300px';
 
@@ -89,14 +88,10 @@ export function formatStoryPainterCommands(message: string, options: StoryPainte
   return message.replace(/^[.。/](?![.。/])(.|\n)*$/g, '');
 }
 
-export function finishStoryPainterMessage(
-  message: string,
-  options: StoryPainterOptions,
-  isDice = false
-): string {
+export function finishStoryPainterMessage(message: string, isDice = false): string {
   let msg = message;
   if (isDice) {
-    msg = replaceAllText(replaceAllText(msg, '<', ''), '>', '');
+    msg = msg.replace(/[<>]/g, '');
   }
   msg = msg.replace(/\[CQ:(?!image|at).+?,[^\]]+\]/g, '');
   msg = msg.replace(/\[mirai:(?!image).+?:[^\]]+\]/g, '');
@@ -163,7 +158,7 @@ export function normalizeStoryPainterMessage(
   msg = formatStoryPainterAt(msg, pcList);
   msg = formatStoryPainterOffTopic(msg, options, item.isDice);
   msg = formatStoryPainterCommands(msg, options);
-  msg = finishStoryPainterMessage(msg, options, item.isDice);
+  msg = finishStoryPainterMessage(msg, item.isDice);
   return formatStoryPainterOffTopic(msg, options, item.isDice);
 }
 

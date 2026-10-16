@@ -5,7 +5,6 @@ import {
   buildStoryPainterPcMap,
   buildStoryPainterPreviewItems,
   deleteStoryPainterChar,
-  isStoryPainterHidden,
   renameStoryPainterChar,
   storyPainterPalette,
 } from './state';
@@ -15,26 +14,14 @@ import {
   type StoryPainterChar,
   type StoryPainterLogItem,
   type StoryPainterOptions,
+  type StoryPainterPreviewDisplayMode,
 } from './types';
 import type { StoryPainterParquetDataset } from './parquetDataset';
 import { storyPainterDebug } from './debug';
 import { normalizeStoryPainterMessage } from './formatters';
-import { replaceAllText } from './string';
-import type { StoryPainterViewMode } from './viewMode';
 
 const storageKey = 'storyPainterPcNameColorMap';
 const indexColumns = ['id', 'nickname', 'IMUserId', 'time', 'isDice'] as const;
-const previewColumns = [
-  'id',
-  'nickname',
-  'IMUserId',
-  'time',
-  'message',
-  'isDice',
-  'commandId',
-  'commandInfo',
-  'uniformId',
-] as const;
 const previewReadChunkSize = 120;
 const rowCacheLimit = 3000;
 
@@ -46,7 +33,7 @@ export function useStoryPainter() {
   const visibleIndexes = shallowRef<number[]>([]);
   const chars = shallowRef<StoryPainterChar[]>([]);
   const swatches = shallowRef<string[]>(randomColor({ count: 16 }) as string[]);
-  const mode = shallowRef<StoryPainterViewMode>('editor');
+  const mode = shallowRef<'editor' | StoryPainterPreviewDisplayMode>('editor');
   const editorHighlight = shallowRef(false);
   const trgIsAddVoiceMark = shallowRef(false);
   const forumOptions = reactive({
@@ -62,21 +49,6 @@ export function useStoryPainter() {
   const deletedOriginalCharKeys = new Set<string>();
 
   const pcMap = computed(() => buildStoryPainterPcMap(chars.value));
-  const previewCount = computed(() => visibleIndexes.value.length || previewItems.value.length);
-
-  function setItems(nextItems: StoryPainterLogItem[]): void {
-    dataset.value = null;
-    fullItemsLoaded.value = true;
-    rowSourceVersion += 1;
-    rowCache.clear();
-    rowChunkInflight.clear();
-    items.value = nextItems.map(item => ({
-      ...item,
-      message: replaceAllText(item.message, '\r\n', '\n'),
-    }));
-    chars.value = buildStoryPainterChars(items.value, pcNameColorMap);
-    refreshPreviewFromItems();
-  }
 
   function setAllItemsFromEditor(nextItems: StoryPainterLogItem[]): void {
     dataset.value = null;
@@ -161,40 +133,23 @@ export function useStoryPainter() {
     return pcMap.value.get(packStoryPainterNameId(item))?.color || '#4b5563';
   }
 
-  function hidden(item: StoryPainterLogItem): boolean {
-    return isStoryPainterHidden(item, chars.value);
-  }
-
   function refreshPreviewFromItems(): void {
-    previewItems.value = buildStoryPainterPreviewItems(
-      items.value,
-      chars.value,
-      exportOptions,
-      item => normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
+    previewItems.value = buildStoryPainterPreviewItems(items.value, chars.value, item =>
+      normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
     );
     visibleIndexes.value = previewItems.value.map(item => item.index ?? item.id - 1);
   }
 
   async function refreshPreviewFromDataset(): Promise<void> {
-    const source = dataset.value;
-    if (!source) return;
+    if (!dataset.value) return;
     const indexes: number[] = [];
-    for await (const chunk of source.iterRows({ columns: [...previewColumns], chunkSize: 2000 })) {
-      const overridden = chunk.filter(item => !isDeletedOriginalItem(item)).map(applyCharOverrides);
-      const visible = buildStoryPainterPreviewItems(overridden, chars.value, exportOptions, item =>
-        normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
-      );
-      visible.forEach(item => {
+    for await (const chunk of iterPreviewChunks()) {
+      chunk.forEach(item => {
         indexes.push(item.index ?? 0);
       });
     }
     visibleIndexes.value = indexes;
     previewItems.value = [];
-  }
-
-  async function readPreviewItem(index: number): Promise<StoryPainterLogItem | undefined> {
-    const rows = await readPreviewItems([index]);
-    return rows[0];
   }
 
   async function readPreviewItems(indexes: number[]): Promise<StoryPainterLogItem[]> {
@@ -244,7 +199,7 @@ export function useStoryPainter() {
       return;
     }
     if (fullItemsLoaded.value) return;
-    const rows = await source.readAll([...previewColumns]);
+    const rows = await source.readRows(0, source.numRows);
     items.value = rows.filter(item => !isDeletedOriginalItem(item)).map(applyCharOverrides);
     fullItemsLoaded.value = true;
   }
@@ -255,9 +210,9 @@ export function useStoryPainter() {
       yield previewItems.value;
       return;
     }
-    for await (const chunk of source.iterRows({ columns: [...previewColumns], chunkSize })) {
+    for await (const chunk of source.iterRows({ chunkSize })) {
       const overridden = chunk.filter(item => !isDeletedOriginalItem(item)).map(applyCharOverrides);
-      yield buildStoryPainterPreviewItems(overridden, chars.value, exportOptions, item =>
+      yield buildStoryPainterPreviewItems(overridden, chars.value, item =>
         normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
       );
     }
@@ -282,7 +237,7 @@ export function useStoryPainter() {
       const { name: oldName, IMUserId } = unpackStoryPainterNameId(packed);
       next =
         renameStoryPainterChar(
-          next === item ? [item] : [next],
+          [next],
           { name: oldName, IMUserId, role: '角色', color: '' },
           nextName
         )[0] ?? next;
@@ -321,11 +276,7 @@ export function useStoryPainter() {
         sourceVersion,
         currentSourceVersion: rowSourceVersion,
       });
-      const rows = await source.readRows(
-        start,
-        Math.min(start + previewReadChunkSize, source.numRows),
-        [...previewColumns]
-      );
+      const rows = await source.readRows(start, end);
       if (sourceVersion !== rowSourceVersion) {
         storyPainterDebug('painter:read-preview-chunk-skip', {
           start,
@@ -375,13 +326,9 @@ export function useStoryPainter() {
     trgIsAddVoiceMark,
     forumOptions,
     exportOptions,
-    pcMap,
-    previewCount,
-    setItems,
     setDataset,
     setAllItemsFromEditor,
     refreshPreview,
-    readPreviewItem,
     readPreviewItems,
     ensureFullItems,
     iterPreviewChunks,
@@ -390,7 +337,6 @@ export function useStoryPainter() {
     deleteChar,
     refreshSwatches,
     colorByItem,
-    hidden,
   };
 }
 

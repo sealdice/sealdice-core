@@ -1,7 +1,6 @@
 import {
   buildStoryPainterPreviewSources,
   collectMissingVisibleIndexes,
-  isStoryPainterVirtualRange,
   virtualItemsToStoryPainterRange,
 } from './virtualRange';
 import { expect, it } from 'vitest';
@@ -54,12 +53,6 @@ it('虚拟列表范围计算覆盖边界位置', async () => {
   expect(buildStoryPainterPreviewSources([], [loadedItem])).toEqual([
     { key: 42, index: 42, item: loadedItem },
   ]);
-
-  expect([
-    isStoryPainterVirtualRange(undefined),
-    isStoryPainterVirtualRange({ start: 1 }),
-    isStoryPainterVirtualRange({ start: 1, end: 2 }),
-  ]).toEqual([false, false, true]);
 
   expect(
     virtualItemsToStoryPainterRange([

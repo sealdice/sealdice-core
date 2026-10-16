@@ -1,141 +1,119 @@
-import { createMemoryParquetDataset } from './parquetDataset';
-import type {
-  StoryPainterParquetColumn,
-  StoryPainterParquetDataset,
-  StoryPainterParquetRow,
-} from './parquetDataset';
-import type { StoryPainterLogItem } from './types';
+import { parquetMetadataAsync, parquetReadObjects, type FileMetaData } from 'hyparquet';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { createStoryPainterParquetDataset, type StoryPainterParquetRow } from './parquetDataset';
 import { useStoryPainter } from './useStoryPainter';
-import { expect, it } from 'vitest';
 
-it('日志阅读模型随数据和选择更新', async () => {
-  const painter = useStoryPainter();
-  await painter.setDataset(
-    createMemoryParquetDataset([
-      {
-        id: 1,
-        nickname: 'Alice',
-        IMUserId: '1001',
-        time: 10,
-        message: 'one',
-        isDice: false,
-        commandId: 0,
-      },
-      {
-        id: 2,
-        nickname: 'Bob',
-        IMUserId: '1002',
-        time: 11,
-        message: 'two',
-        isDice: false,
-        commandId: 0,
-      },
-    ])
+vi.mock('hyparquet', () => ({
+  parquetMetadataAsync: vi.fn(),
+  parquetReadObjects: vi.fn(),
+}));
+
+beforeEach(() => vi.clearAllMocks());
+
+async function createDataset(rows: StoryPainterParquetRow[]) {
+  vi.mocked(parquetMetadataAsync).mockResolvedValue({
+    num_rows: BigInt(rows.length),
+  } as FileMetaData);
+  vi.mocked(parquetReadObjects).mockImplementation(async options =>
+    rows.slice(options.rowStart, options.rowEnd)
   );
+  return createStoryPainterParquetDataset(new Blob());
+}
 
+const alice = {
+  id: 1,
+  nickname: 'Alice',
+  IMUserId: '1001',
+  time: 10,
+  message: 'one',
+  isDice: false,
+  commandId: 0,
+};
+const seal = {
+  ...alice,
+  id: 2,
+  nickname: 'Seal',
+  IMUserId: 'bot',
+  message: '<Alice> roll',
+  isDice: true,
+  commandId: 5n,
+  commandInfo: '{"ok":true}',
+};
+
+it('Parquet 按范围和列读取，保留原始行索引与指令数据', async () => {
+  const dataset = await createDataset([alice, seal]);
+  expect(dataset.numRows).toBe(2);
+  const rows = await dataset.readRows(1, 20);
+  expect(rows[0]).toMatchObject({ index: 1, commandId: 5, commandInfo: { ok: true } });
+  expect(await dataset.readRows(2, 1)).toEqual([]);
+  expect((await dataset.readRows(-10, 1, ['nickname']))[0]).toMatchObject({
+    index: 0,
+    nickname: 'Alice',
+    message: '',
+  });
+
+  const collected: string[][] = [];
+  for await (const chunk of dataset.iterRows({ chunkSize: 1, columns: ['nickname'] })) {
+    collected.push(chunk.map(item => item.nickname));
+  }
+  expect(collected).toEqual([['Alice'], ['Seal']]);
+});
+
+it('编辑器按需加载全文，预览与导出沿用角色改名和删除', async () => {
+  const painter = useStoryPainter();
+  await painter.setDataset(await createDataset([alice, seal]));
   expect(painter.fullItemsLoaded.value).toBe(false);
   expect(painter.items.value.map(item => item.message)).toEqual(['', '']);
-  expect((await painter.readPreviewItem(0))?.message).toBe('one');
+  expect((await painter.readPreviewItems([0]))[0]?.message).toBe('one');
 
   await painter.ensureFullItems();
   expect(painter.fullItemsLoaded.value).toBe(true);
-  expect(painter.items.value.map(item => item.message)).toEqual(['one', 'two']);
+  expect(painter.items.value.map(item => item.message)).toEqual(['one', '<Alice> roll']);
 
-  const datasetPainter = useStoryPainter();
-  await datasetPainter.setDataset(
-    createMemoryParquetDataset([
-      {
-        id: 1,
-        nickname: 'Alice',
-        IMUserId: '1001',
-        time: 10,
-        message: 'one',
-        isDice: false,
-        commandId: 0,
-      },
-      {
-        id: 2,
-        nickname: 'Seal',
-        IMUserId: 'bot',
-        time: 11,
-        message: '<Alice> roll',
-        isDice: true,
-        commandId: 1,
-      },
-    ])
-  );
-
-  datasetPainter.renameChar(0, 'Alicia');
-  expect((await datasetPainter.readPreviewItem(0))?.nickname).toBe('Alicia');
-  expect((await datasetPainter.readPreviewItem(1))?.message).toBe('<Alicia> roll');
-
-  datasetPainter.deleteChar(0);
-  await datasetPainter.refreshPreview();
-  const visible: Array<[string, string]> = [];
-  for await (const chunk of datasetPainter.iterPreviewChunks()) {
-    visible.push(...chunk.map(item => [item.nickname, item.message] as [string, string]));
+  painter.renameChar(0, 'Alicia');
+  expect(
+    (await painter.readPreviewItems([0, 1])).map(item => [item.nickname, item.message])
+  ).toEqual([
+    ['Alicia', 'one'],
+    ['Seal', '<Alicia> roll'],
+  ]);
+  painter.deleteChar(0);
+  await painter.refreshPreview();
+  const visible: string[][] = [];
+  for await (const chunk of painter.iterPreviewChunks()) {
+    visible.push(...chunk.map(item => [item.nickname, item.message]));
   }
   expect(visible).toEqual([['Seal', '<Alicia> roll']]);
+});
 
-  const manyRows: StoryPainterParquetRow[] = Array.from({ length: 260 }, (_, index) => ({
-    id: index + 1,
-    nickname: `P${index % 3}`,
-    IMUserId: `u${index % 3}`,
-    time: index,
-    message: `message-${index}`,
-    isDice: false,
-    commandId: 0,
-  }));
-  const counted = createCountingDataset(manyRows);
-  const batchPainter = useStoryPainter();
-  await batchPainter.setDataset(counted.dataset);
-  const rows = await batchPainter.readPreviewItems([124, 121, 123]);
-  expect(rows.map(item => item.message)).toEqual(['message-124', 'message-121', 'message-123']);
-  expect(
-    counted.calls
-      .filter(call => call.columns.includes('message'))
-      .map(call => [call.start, call.end])
-  ).toEqual([[120, 240]]);
+it('预览批量读取复用并发请求和缓存，并按请求顺序返回跨块记录', async () => {
+  const painter = useStoryPainter();
+  await painter.setDataset(
+    await createDataset(
+      Array.from({ length: 260 }, (_, index) => ({
+        ...alice,
+        id: index + 1,
+        message: `message-${index}`,
+      }))
+    )
+  );
+  vi.mocked(parquetReadObjects).mockClear();
 
-  const far = await batchPainter.readPreviewItem(250);
-  expect(far?.message).toBe('message-250');
-
-  const concurrentCounted = createCountingDataset(manyRows);
-  const concurrentPainter = useStoryPainter();
-  await concurrentPainter.setDataset(concurrentCounted.dataset);
-  await Promise.all([
-    concurrentPainter.readPreviewItems([121]),
-    concurrentPainter.readPreviewItems([124]),
+  const [rows] = await Promise.all([
+    painter.readPreviewItems([124, 121, 123]),
+    painter.readPreviewItems([124]),
   ]);
-  expect(
-    concurrentCounted.calls
-      .filter(call => call.columns.includes('message'))
-      .map(call => [call.start, call.end])
-  ).toEqual([[120, 240]]);
+  expect(rows.map(item => item.message)).toEqual(['message-124', 'message-121', 'message-123']);
+  expect(parquetReadObjects).toHaveBeenCalledTimes(1);
 
-  function createCountingDataset(rows: StoryPainterParquetRow[]): {
-    dataset: StoryPainterParquetDataset;
-    calls: Array<{ start: number; end: number; columns: string[] }>;
-  } {
-    const base = createMemoryParquetDataset(rows);
-    const calls: Array<{ start: number; end: number; columns: string[] }> = [];
-    const dataset: StoryPainterParquetDataset = {
-      numRows: base.numRows,
-      async readRows(
-        start: number,
-        end: number,
-        columns?: StoryPainterParquetColumn[]
-      ): Promise<StoryPainterLogItem[]> {
-        calls.push({ start, end, columns: columns ?? [] });
-        return await base.readRows(start, end, columns);
-      },
-      iterRows(options) {
-        return base.iterRows(options);
-      },
-      readAll(columns?: StoryPainterParquetColumn[]) {
-        return base.readAll(columns);
-      },
-    };
-    return { dataset, calls };
-  }
+  expect((await painter.readPreviewItems([123, 124])).map(item => item.message)).toEqual([
+    'message-123',
+    'message-124',
+  ]);
+  expect(parquetReadObjects).toHaveBeenCalledTimes(1);
+  expect((await painter.readPreviewItems([250, 121])).map(item => item.message)).toEqual([
+    'message-250',
+    'message-121',
+  ]);
+  expect(parquetReadObjects).toHaveBeenCalledTimes(2);
 });

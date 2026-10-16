@@ -97,11 +97,7 @@ import type {
   StoryPainterPreviewDisplayMode,
 } from '@/features/storyPainter/types';
 import { packStoryPainterNameId } from '@/features/storyPainter/types';
-import {
-  renderForumText,
-  renderPineappleForumBlocks,
-  renderTrgText,
-} from '@/features/storyPainter/renderers';
+import { renderPineappleForumBlocks } from '@/features/storyPainter/renderers';
 import {
   buildStoryPainterPreviewSources,
   collectMissingVisibleIndexes,
@@ -115,13 +111,12 @@ const props = defineProps<{
   mode: StoryPainterPreviewDisplayMode;
   items: StoryPainterLogItem[];
   itemIndexes: number[];
-  readItem?: (index: number) => Promise<StoryPainterLogItem | undefined>;
-  readItems?: (indexes: number[]) => Promise<StoryPainterLogItem[]>;
+  readItems: (indexes: number[]) => Promise<StoryPainterLogItem[]>;
   chars: StoryPainterChar[];
   options: StoryPainterOptions;
   forumOptions: StoryPainterForumOptions;
   addVoiceMark: boolean;
-  copyText?: () => Promise<string>;
+  copyText: () => Promise<string>;
 }>();
 
 const emit = defineEmits<{
@@ -188,33 +183,15 @@ const measureVirtualRow: VNodeRef = node => {
   }
 };
 
-const textItems = computed(() => {
-  if (props.mode === 'bbspineapple') {
-    const items = props.itemIndexes.length > 0 ? props.items : materializedItems.value;
-    return renderPineappleForumBlocks(
-      items,
-      props.chars,
-      props.options,
-      props.forumOptions,
-      colorByItem
-    ).map((text, index) => ({ index, text }));
-  }
-  return materializedItems.value.map(item => ({
-    index: item.index ?? item.id,
-    text: renderText(item),
-  }));
-});
-
-const materializedItems = computed(() => {
-  if (props.itemIndexes.length > 0) {
-    return props.itemIndexes
-      .map(index => loadedItems.value.get(index))
-      .filter((item): item is StoryPainterLogItem => Boolean(item));
-  }
-  return previewSources.value
-    .map(source => source.item)
-    .filter((item): item is StoryPainterLogItem => Boolean(item));
-});
+const textItems = computed(() =>
+  renderPineappleForumBlocks(
+    props.items,
+    props.chars,
+    props.options,
+    props.forumOptions,
+    colorByItem
+  ).map((text, index) => ({ index, text }))
+);
 
 watch(
   () => props.items,
@@ -267,25 +244,14 @@ function colorByItem(item: StoryPainterLogItem): string {
   return pcMap.value.get(packStoryPainterNameId(item))?.color || '#4b5563';
 }
 
-function renderText(item: StoryPainterLogItem): string {
-  if (props.mode === 'trg') {
-    return renderTrgText(item, props.chars, props.options, props.addVoiceMark);
-  }
-  return renderForumText(item, props.chars, props.options, props.forumOptions, colorByItem(item));
-}
-
 async function copyPreviewText(): Promise<void> {
-  if (props.copyText) {
-    emit('copy', await props.copyText());
-    return;
-  }
-  emit('copy', textItems.value.map(item => item.text).join('\n'));
+  emit('copy', await props.copyText());
 }
 
 async function loadVisibleItems(range: StoryPainterVirtualRange): Promise<void> {
-  if ((!props.readItem && !props.readItems) || props.itemIndexes.length === 0) {
+  if (props.itemIndexes.length === 0) {
     storyPainterDebug('preview:load-skip', {
-      reason: props.itemIndexes.length === 0 ? 'empty-item-indexes' : 'missing-reader',
+      reason: 'empty-item-indexes',
       range: compactRange(range),
       itemIndexCount: props.itemIndexes.length,
     });
@@ -317,11 +283,7 @@ async function loadVisibleItems(range: StoryPainterVirtualRange): Promise<void> 
   });
   indexes.forEach(index => pendingIndexes.add(index));
   try {
-    const rows = props.readItems
-      ? await props.readItems(indexes)
-      : (await Promise.all(indexes.map(index => props.readItem?.(index)))).filter(
-          (item): item is StoryPainterLogItem => Boolean(item)
-        );
+    const rows = await props.readItems(indexes);
     const visibleSet = new Set(props.itemIndexes);
     const next = new Map(loadedItems.value);
     let insertedCount = 0;

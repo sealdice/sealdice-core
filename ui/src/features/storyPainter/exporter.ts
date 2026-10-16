@@ -1,5 +1,4 @@
 import type { FileChild, Paragraph, ParagraphChild } from 'docx';
-import type { StoryPainterLogItem } from './types';
 
 export interface StoryPainterDocxEntry {
   time?: string;
@@ -18,16 +17,6 @@ export async function saveStoryPainterBlob(blob: Blob, filename: string): Promis
 export async function saveStoryPainterText(text: string, filename: string): Promise<void> {
   const { saveAs } = await import('file-saver');
   saveAs(new Blob([text], { type: 'text/plain;charset=utf-8' }), filename);
-}
-
-export async function exportStoryPainterRaw(
-  items: StoryPainterLogItem[],
-  filename = '跑团记录（未处理）.txt'
-): Promise<void> {
-  const text = items
-    .map(item => `${item.nickname}(${item.IMUserId}) ${item.time}\n${item.message}\n`)
-    .join('\n');
-  await saveStoryPainterText(text, filename);
 }
 
 export async function exportStoryPainterDoc(
@@ -91,10 +80,6 @@ export function extractMessageLines(el: HTMLElement | null): string[] {
 export function readElementColor(el: HTMLElement | null): string | undefined {
   if (!el) return undefined;
   return el.style.color || window.getComputedStyle(el).color || undefined;
-}
-
-export function supportsStoryPainterDocxExport(): boolean {
-  return true;
 }
 
 function buildDocxParagraphs(

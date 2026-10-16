@@ -1,22 +1,8 @@
 import { defaultStoryPainterOptions, type StoryPainterLogItem } from './types';
 import { renderForumText, renderTrgText } from './renderers';
-import { it } from 'vitest';
+import { expect, it } from 'vitest';
 
-it('日志渲染器输出符合记录类型', async () => {
-  const assertIncludes = (actual: string, expected: string) => {
-    if (!actual.includes(expected)) {
-      throw new Error(`expected ${JSON.stringify(actual)} to include ${JSON.stringify(expected)}`);
-    }
-  };
-
-  const assertNotIncludes = (actual: string, expected: string) => {
-    if (actual.includes(expected)) {
-      throw new Error(
-        `expected ${JSON.stringify(actual)} not to include ${JSON.stringify(expected)}`
-      );
-    }
-  };
-
+it('论坛代码保留换行与纯文本，回声工坊输出掷骰指令', () => {
   const options = defaultStoryPainterOptions();
   options.timeHide = true;
 
@@ -43,10 +29,10 @@ it('日志渲染器输出符合记录类型', async () => {
     '#db2777'
   );
 
-  assertIncludes(forum, '\n\u2002<Alice>second <tag>');
-  assertNotIncludes(forum, '<span');
-  assertNotIncludes(forum, '<br');
-  assertNotIncludes(forum, '&lt;tag&gt;');
+  expect(forum).toContain('\n\u2002<Alice>second <tag>');
+  expect(forum).not.toContain('<span');
+  expect(forum).not.toContain('<br');
+  expect(forum).not.toContain('&lt;tag&gt;');
 
   const trg = renderTrgText(
     {
@@ -64,6 +50,6 @@ it('日志渲染器输出符合记录类型', async () => {
     true
   );
 
-  assertIncludes(trg, '# [Alice]:roll');
-  assertIncludes(trg, '\n<dice>:(Alice的D100,100,NA,30)');
+  expect(trg).toContain('# [Alice]:roll');
+  expect(trg).toContain('\n<dice>:(Alice的D100,100,NA,30)');
 });

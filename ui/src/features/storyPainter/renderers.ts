@@ -11,7 +11,6 @@ import {
   storyPainterNickname,
   storyPainterTime,
 } from './formatters';
-import { replaceAllText } from './string';
 
 const timeColor = '#9ca3af';
 const fallbackColor = '#4b5563';
@@ -51,7 +50,7 @@ export function renderPreviewHtml(
       ? `<span class="_time" style="color:${timeColor}">${escapeStoryPainterHtml(time)}</span>`
       : '',
     `<span class="_nickname" style="color:${color}">${escapeStoryPainterHtml(nickname)}</span>`,
-    `<span class="_message" style="color:${color}">${replaceAllText(message, '\n', '<br />')}</span>`,
+    `<span class="_message" style="color:${color}">${message.replace(/\n/g, '<br />')}</span>`,
   ]
     .filter(Boolean)
     .join(' ');
@@ -143,7 +142,7 @@ export function renderTrgText(
   addVoiceMark: boolean
 ): string {
   let message = normalizeStoryPainterPlainMessage(item, chars, options);
-  message = replaceAllText(replaceAllText(message.trim(), '"', ''), '\\', '');
+  message = message.trim().replace(/["\\]/g, '');
   const pc = chars.find(char => char.name === item.nickname);
   const kpFlag = pc?.role === '主持人' ? ',KP' : '';
   const speaker = `[${item.nickname}${kpFlag}]:`;
@@ -205,12 +204,11 @@ function spaceLike(text: string): string {
 function replaceCharacterBrackets(message: string, chars: StoryPainterChar[]): string {
   let next = message;
   chars.forEach(char => {
-    next = replaceAllText(
-      next,
-      `&lt;${escapeStoryPainterHtml(char.name)}&gt;`,
-      escapeStoryPainterHtml(char.name)
-    );
-    next = replaceAllText(next, `<${char.name}>`, char.name);
+    next = next
+      .split(`&lt;${escapeStoryPainterHtml(char.name)}&gt;`)
+      .join(escapeStoryPainterHtml(char.name))
+      .split(`<${char.name}>`)
+      .join(char.name);
   });
   return next;
 }

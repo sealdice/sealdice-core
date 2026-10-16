@@ -51,7 +51,7 @@ it('日志阅读状态与选项更新', async () => {
   const normalized = normalizeStoryPainterMessage(items[0]!, chars, options, false);
   expect(normalized).toBe('hello @1002');
 
-  const preview = buildStoryPainterPreviewItems(items, chars, options, item =>
+  const preview = buildStoryPainterPreviewItems(items, chars, item =>
     normalizeStoryPainterMessage(item, chars, options, false)
   );
   expect(preview.length).toBe(2);

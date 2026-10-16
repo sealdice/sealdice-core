@@ -110,7 +110,6 @@
                   type="primary"
                   secondary
                   :loading="exportBusy.docx"
-                  :disabled="!docxSupported"
                   @click="withBusy('docx', exportDocx)"
                 >
                   下载 docx
@@ -149,7 +148,6 @@
             :mode="painter.mode.value"
             :items="painter.previewItems.value"
             :item-indexes="painter.visibleIndexes.value"
-            :read-item="painter.readPreviewItem"
             :read-items="painter.readPreviewItems"
             :chars="painter.chars.value"
             :options="painter.exportOptions"
@@ -176,10 +174,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, shallowRef } from 'vue';
-import type { StoryLogView } from '@/api';
+import { getSdApiV2StoryLogExportParquet, type StoryLogView } from '@/api';
 import { copyText } from '@/features/clipboard/copyText';
 import { getStoryPainterAdvancedModeSupport } from '@/features/storyPainter/compat';
-import { fetchStoryLogParquet } from '@/features/storyPainter/api';
 import { createStoryPainterParquetDataset } from '@/features/storyPainter/parquetDataset';
 import { useStoryPainter } from '@/features/storyPainter/useStoryPainter';
 import { renderPreviewHtml, renderRawText } from '@/features/storyPainter/renderers';
@@ -194,14 +191,12 @@ import {
   readElementColor,
   saveStoryPainterBlob,
   saveStoryPainterText,
-  supportsStoryPainterDocxExport,
   type StoryPainterDocxEntry,
 } from '@/features/storyPainter/exporter';
 import type {
   StoryPainterOptions as StoryPainterOptionsModel,
   StoryPainterPreviewDisplayMode,
 } from '@/features/storyPainter/types';
-import { toggleStoryPainterMode } from '@/features/storyPainter/viewMode';
 import StoryPainterCharacterPanel from './StoryPainterCharacterPanel.vue';
 import StoryPainterEditor from './StoryPainterEditor.vue';
 import StoryPainterOptionsPanel from './StoryPainterOptions.vue';
@@ -241,7 +236,6 @@ const exportBusy = reactive({
   forum: false,
   trg: false,
 });
-const docxSupported = supportsStoryPainterDocxExport();
 
 const modeOptions: Array<{ label: string; value: StoryPainterPreviewDisplayMode }> = [
   { label: '预览', value: 'preview' },
@@ -262,7 +256,12 @@ async function loadLog(): Promise<void> {
       throw new Error(support.reason ?? '当前浏览器不支持高级日志模式');
     }
     painter.mode.value = 'editor';
-    const blob = await fetchStoryLogParquet(props.log.id);
+    const { data: blob } = await getSdApiV2StoryLogExportParquet({
+      query: { logId: props.log.id },
+      responseType: 'blob',
+      throwOnError: true,
+    });
+    if (!(blob instanceof Blob)) throw new Error('日志导出响应不是文件');
     sourceBlob.value = blob;
     const dataset = await createStoryPainterParquetDataset(blob);
     await painter.setDataset(dataset);
@@ -374,7 +373,7 @@ async function exportDocx(): Promise<void> {
 }
 
 async function openMode(mode: StoryPainterPreviewDisplayMode): Promise<void> {
-  painter.mode.value = toggleStoryPainterMode(painter.mode.value, mode);
+  painter.mode.value = painter.mode.value === mode ? 'editor' : mode;
   if (painter.mode.value !== 'editor') {
     if (mode === 'bbs' || mode === 'bbspineapple' || mode === 'trg') {
       painter.exportOptions.imageHide = true;
