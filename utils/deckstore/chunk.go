@@ -60,8 +60,10 @@ func msgpackArrayHeaderLen(n int) int {
 }
 
 var (
-	zstdEnc, _ = zstd.NewWriter(nil) // 默认 SpeedDefault
-	zstdDec, _ = zstd.NewReader(nil)
+	// 并发=1：zstd 默认按 GOMAXPROCS 预分配并发缓冲（12 核 ≈ 21.8MB），直接吃掉内存预算。
+	// EncodeAll/DecodeAll 在并发=1 下仍可被并发调用，只是单次调用单 goroutine 执行。
+	zstdEnc, _ = zstd.NewWriter(nil, zstd.WithEncoderConcurrency(1)) // 默认 SpeedDefault
+	zstdDec, _ = zstd.NewReader(nil, zstd.WithDecoderConcurrency(1))
 )
 
 func zstdEncode(b []byte) []byte {
