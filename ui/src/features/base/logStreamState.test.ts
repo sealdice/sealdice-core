@@ -2,7 +2,6 @@ import {
   applyLogAppend,
   applyLogSnapshot,
   applyLogDisplayUpdate,
-  resetLogIdSequence,
   type BaseLogEntry,
   type BaseLogItem,
 } from './logStreamState';
@@ -21,19 +20,19 @@ it('日志快照与追加保持标识唯一和容量限制', async () => {
     ts: 2,
   };
 
-  resetLogIdSequence();
-
-  expect(applyLogSnapshot([], [first])).toEqual([{ ...first, id: 0 }]);
+  const snapshot = applyLogSnapshot([], [first]);
+  expect(snapshot).toEqual([{ ...first, id: expect.any(Number) }]);
   expect(applyLogSnapshot([{ ...second, id: 0 }], null)).toEqual([]);
 
-  const appended = applyLogAppend([{ ...first, id: 0 }], second, 500);
+  const appended = applyLogAppend(snapshot, second, 500);
   expect(appended.length).toBe(2);
-  expect(appended[1]).toEqual({ ...second, id: 1 });
+  expect(appended[1]).toMatchObject(second);
+  expect(appended[1].id).not.toBe(snapshot[0].id);
+  expect(applyLogAppend(appended, second, 2).map(item => item.msg)).toEqual(['second', 'second']);
 
   expect(applyLogAppend([{ ...first, id: 0 }], null, 500)).toEqual([{ ...first, id: 0 }]);
 
   // 同一秒内的重复行也必须拿到不同的 key，否则虚拟滚动的行高缓存会互相覆盖。
-  resetLogIdSequence();
   const duplicated = applyLogSnapshot([], [first, { ...first }]);
   expect(duplicated.length).toBe(2);
   expect(duplicated[0].id === duplicated[1].id).toBe(false);

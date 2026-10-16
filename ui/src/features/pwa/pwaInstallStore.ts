@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
 import { computed, shallowRef } from 'vue';
-import {
-  isStandaloneDisplayMode,
-  shouldShowPwaInstallEntry,
-  type PwaBeforeInstallPromptEvent,
-  type PwaInstallOutcome,
-} from './pwaState';
+type PwaInstallOutcome = 'installed' | 'dismissed' | 'unavailable';
+
+interface PwaBeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void> | void;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform?: string }>;
+}
 
 export const usePwaInstallStore = defineStore('pwa-install', () => {
   const promptAvailable = shallowRef(false);
@@ -26,7 +26,7 @@ export const usePwaInstallStore = defineStore('pwa-install', () => {
   function syncStandaloneState(): void {
     if (typeof window === 'undefined') return;
     const standaloneMatches = window.matchMedia?.('(display-mode: standalone)').matches ?? false;
-    isInstalled.value = isStandaloneDisplayMode(standaloneMatches, getNavigatorStandalone());
+    isInstalled.value = standaloneMatches || getNavigatorStandalone();
     if (isInstalled.value) {
       promptAvailable.value = false;
       deferredPrompt = null;
@@ -37,7 +37,7 @@ export const usePwaInstallStore = defineStore('pwa-install', () => {
     const promptEvent = event as PwaBeforeInstallPromptEvent;
     event.preventDefault();
     deferredPrompt = promptEvent;
-    promptAvailable.value = shouldShowPwaInstallEntry(true, isInstalled.value);
+    promptAvailable.value = !isInstalled.value;
   }
 
   function handleAppInstalled(): void {

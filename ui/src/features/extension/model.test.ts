@@ -1,11 +1,7 @@
-import {
-  buildExtensionAssetUrl,
-  buildPackageFileTree,
-  summarizeStoreInstallResult,
-} from './model.js';
+import { buildPackageFileTree } from './model';
 import { expect, it } from 'vitest';
 
-it('扩展列表模型和配置转换', async () => {
+it('扩展包文件按目录组织并排序', () => {
   expect(
     buildPackageFileTree(['reply/main.yaml', 'reply/assets/icon.png', 'scripts/index.js'])
   ).toEqual([
@@ -42,23 +38,4 @@ it('扩展列表模型和配置转换', async () => {
       ],
     },
   ]);
-
-  expect(
-    summarizeStoreInstallResult({
-      items: [
-        { id: 'alice/a', status: 'installed' },
-        { id: 'alice/b', status: 'failed' },
-        { id: 'alice/c', status: 'skipped' },
-      ],
-    })
-  ).toEqual({
-    installed: 1,
-    skipped: 1,
-    failed: 1,
-    failedItems: ['alice/b'],
-  });
-
-  expect(buildExtensionAssetUrl('alice/demo', 'assets/icon.png', 'abc 123')).toBe(
-    '/sd-api/v2/extension/asset?id=alice%2Fdemo&path=assets%2Ficon.png&token=abc+123'
-  );
 });

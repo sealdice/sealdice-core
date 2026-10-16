@@ -6,16 +6,6 @@ export type PackageFileTreeNode = {
   children?: PackageFileTreeNode[];
 };
 
-export type StoreInstallResultLike = {
-  items?: Array<{
-    id?: string;
-    status?: 'installed' | 'skipped' | 'failed' | string;
-  }>;
-  installed?: number;
-  skipped?: number;
-  failed?: number;
-};
-
 export function buildPackageFileTree(paths: readonly string[]): PackageFileTreeNode[] {
   const root: PackageFileTreeNode[] = [];
   for (const rawPath of paths) {
@@ -24,27 +14,6 @@ export function buildPackageFileTree(paths: readonly string[]): PackageFileTreeN
     insertTreePath(root, normalized.split('/').filter(Boolean), '');
   }
   return sortNodes(root);
-}
-
-export function summarizeStoreInstallResult(result?: StoreInstallResultLike) {
-  const items = result?.items ?? [];
-  return {
-    installed: result?.installed ?? items.filter(item => item.status === 'installed').length,
-    skipped: result?.skipped ?? items.filter(item => item.status === 'skipped').length,
-    failed: result?.failed ?? items.filter(item => item.status === 'failed').length,
-    failedItems: items
-      .filter(item => item.status === 'failed' && item.id)
-      .map(item => item.id as string),
-  };
-}
-
-export function buildExtensionAssetUrl(packageId: string, assetPath: string, token = ''): string {
-  const params = new URLSearchParams({
-    id: packageId,
-    path: assetPath,
-  });
-  if (token) params.set('token', token);
-  return `/sd-api/v2/extension/asset?${params.toString()}`;
 }
 
 function insertTreePath(nodes: PackageFileTreeNode[], segments: string[], prefix: string): void {

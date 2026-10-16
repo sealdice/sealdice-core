@@ -67,7 +67,7 @@
             <div class="resource-list-panel__card-main">
               <div class="resource-list-panel__card-title">
                 <strong>{{ item.name }}</strong>
-                <n-tag size="small" :bordered="false" :type="getResourceTypeTagType(item.type)">
+                <n-tag size="small" :bordered="false">
                   {{ formatResourceTypeLabel(item.type) }}
                 </n-tag>
               </div>
@@ -157,7 +157,6 @@ import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import {
   formatResourceTypeLabel,
   getResourceKey,
-  getResourceTypeTagType,
   isResourceUploadFileAccepted,
   RESOURCE_PAGE_SIZE_OPTIONS,
   type ResourceListQueryModel,
@@ -276,7 +275,7 @@ const columns = computed<DataTableColumns<ResourceItem>>(() => [
     key: 'type',
     width: 96,
     render: row => (
-      <NTag size="small" bordered={false} type={getResourceTypeTagType(row.type)}>
+      <NTag size="small" bordered={false}>
         {formatResourceTypeLabel(row.type)}
       </NTag>
     ),

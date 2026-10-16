@@ -13,19 +13,6 @@ export function isThemeMode(value: unknown): value is ThemeMode {
   return value === 'light' || value === 'dark' || value === 'system';
 }
 
-export function createThemeStorage(): ThemeStorage {
-  const values = new Map<string, string>();
-
-  return {
-    getItem(key: string) {
-      return values.get(key) ?? null;
-    },
-    setItem(key: string, value: string) {
-      values.set(key, value);
-    },
-  };
-}
-
 export function readStoredThemeMode(storage: ThemeStorage | undefined): ThemeMode {
   if (!storage) return DEFAULT_THEME_MODE;
 

@@ -155,7 +155,7 @@ export function createUploadQueue(deps: {
   }
 
   function cancelAll() {
-    for (const task of [...tasks.value]) {
+    for (const task of tasks.value) {
       if (isActiveUpload(task.status)) cancel(task.id);
     }
   }

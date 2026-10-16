@@ -1,7 +1,4 @@
 import {
-  APP_SHELL_DESKTOP_MIN_WIDTH,
-  APP_SHELL_MOBILE_MAX_WIDTH,
-  APP_SHELL_TABLET_MIN_WIDTH,
   getAppShellContainerClass,
   getAppShellContentClass,
   getAppShellDrawerWidth,
@@ -20,9 +17,6 @@ describe('app shell layout', () => {
   });
 
   it('uses mobile, tablet and desktop modes at the exact boundaries', () => {
-    expect(APP_SHELL_MOBILE_MAX_WIDTH).toBe(767.9);
-    expect(APP_SHELL_TABLET_MIN_WIDTH).toBe(768);
-    expect(APP_SHELL_DESKTOP_MIN_WIDTH).toBe(1024);
     expect(getAppShellViewportMode(320)).toBe('mobile');
     expect(getAppShellViewportMode(767)).toBe('mobile');
     expect(getAppShellViewportMode(768)).toBe('tablet');

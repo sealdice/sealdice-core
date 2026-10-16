@@ -17,7 +17,6 @@ import IconsResolver from 'unplugin-icons/resolver';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { classifyVendorChunk } from './src/build/chunkPolicy';
 import { resourceBudget, enforcePrecacheBudget } from './src/build/resourceBudget';
-import { resolveViteBuildOptions, resolveVitePublicBase } from './src/build/embedConfig';
 import { shouldSuppressRollupWarning } from './src/build/warningPolicy';
 
 const DEFAULT_PROXY_TARGET = 'http://localhost:3211';
@@ -28,7 +27,6 @@ const apiProxyTarget = (
   DEFAULT_PROXY_TARGET
 ).trim();
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const plugins: PluginOption[] = [
     resourceBudget(),
@@ -104,7 +102,6 @@ export default defineConfig(({ mode }) => {
     }),
     AutoImport({
       imports: [
-        // 'vue', // 感觉vue自动引入有点乱，还是手动吧
         {
           'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar'],
         },
@@ -112,7 +109,6 @@ export default defineConfig(({ mode }) => {
       resolvers: [IconsResolver()],
     }),
     Components({
-      // 补充Pro-naive-ui自动引入
       resolvers: [NaiveUiResolver(), ProNaiveUIResolver(), IconsResolver()],
     }),
     Icons({
@@ -138,21 +134,21 @@ export default defineConfig(({ mode }) => {
   ];
 
   return {
-    base: resolveVitePublicBase(mode),
+    base: './',
     build: {
       manifest: true,
       chunkSizeWarningLimit: 650,
-      ...resolveViteBuildOptions(mode),
+      ...(mode === 'embed' ? { outDir: '../static/v2ui/dist', emptyOutDir: true } : {}),
       rolldownOptions: {
         onLog(level, log, defaultHandler) {
           if (log.code === 'CIRCULAR_DEPENDENCY') {
-            return; // Ignore circular dependency warnings
+            return;
           }
           if (level === 'warn') {
             if (shouldSuppressRollupWarning(log)) return;
             defaultHandler('error', log);
           } else {
-            defaultHandler(level, log); // otherwise, just print the log
+            defaultHandler(level, log);
           }
         },
         output: {

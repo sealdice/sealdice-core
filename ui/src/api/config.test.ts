@@ -1,67 +1,10 @@
-import {
-  joinApiBasePath,
-  resolveApiBaseUrlFromLocation,
-  resolveOldUIUrlFromLocation,
-} from './config';
+import { joinApiBasePath, resolveApiBaseUrlFromLocation, resolveSwitchToOldUIUrl } from './config';
 import { expect, it } from 'vitest';
 
-it('API 地址与旧界面跳转按同源路径解析', async () => {
-  expect(
-    resolveApiBaseUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/',
-    })
-  ).toBe('https://example.test');
-
-  expect(
-    resolveApiBaseUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/dice/',
-    })
-  ).toBe('https://example.test');
-
-  expect(
-    resolveApiBaseUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/dice',
-    })
-  ).toBe('https://example.test');
-
-  expect(
-    resolveApiBaseUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/connect',
-    })
-  ).toBe('https://example.test');
-
-  expect(
-    resolveApiBaseUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/dice/index.html',
-    })
-  ).toBe('https://example.test');
-
-  expect(
-    resolveApiBaseUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/index.html',
-    })
-  ).toBe('https://example.test');
-
-  expect(
-    resolveOldUIUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/',
-    })
-  ).toBe('https://example.test/old-ui/');
-
-  expect(
-    resolveOldUIUrlFromLocation({
-      origin: 'https://example.test',
-      pathname: '/dice/',
-    })
-  ).toBe('https://example.test/old-ui/');
-
+it('API 与旧界面切换使用同源地址，保留服务端偏好切换入口', () => {
+  const location = { origin: 'https://example.test/', pathname: '/dice/connect' };
+  expect(resolveApiBaseUrlFromLocation(location)).toBe('https://example.test');
+  expect(resolveSwitchToOldUIUrl(location)).toBe('https://example.test/?ui=old');
   expect(joinApiBasePath('https://example.test/dice', '/sd-api/v2/base/health')).toBe(
     'https://example.test/dice/sd-api/v2/base/health'
   );

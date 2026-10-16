@@ -18,7 +18,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { getTestModeWatermarkRows } from './appTestModeFrame';
 import TipBox from '@/components/shared/TipBox.vue';
 
 const props = defineProps<{
@@ -27,7 +26,12 @@ const props = defineProps<{
   watermarkText: string;
 }>();
 
-const watermarkRows = computed(() => getTestModeWatermarkRows(props.watermarkText));
+const watermarkRows = computed(() => {
+  const text = props.watermarkText.trim();
+  return text
+    ? Array.from({ length: 7 }, (_, index) => `${text} · ${text} · ${text} · ${index + 1}`)
+    : [];
+});
 </script>
 
 <style scoped>

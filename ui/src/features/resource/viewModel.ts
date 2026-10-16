@@ -62,17 +62,6 @@ export function formatResourceTypeLabel(type: string): string {
   return '未知';
 }
 
-export function getResourceTypeTagType(type: string) {
-  if (type === 'image' || type === 'audio' || type === 'video') return 'default' as const;
-  return 'default' as const;
-}
-
-export function formatResourcePageSummary(
-  page: Pick<ResourceListQueryModel, 'page' | 'pageSize'> & { total: number }
-): string {
-  return `第 ${normalizePage(page.page)} 页，每页 ${normalizePageSize(page.pageSize)} 个，共 ${Math.max(0, page.total)} 个资源`;
-}
-
 export function getResourceKey(item: ResourceItem): string {
   return item.path || item.name;
 }

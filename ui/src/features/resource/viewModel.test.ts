@@ -2,7 +2,6 @@ import {
   buildResourceListQuery,
   buildSealImageCode,
   createDefaultResourceListQuery,
-  formatResourcePageSummary,
   formatResourceTypeLabel,
   isResourceDetailAvailable,
   isResourceUploadFileAccepted,
@@ -45,9 +44,6 @@ it('资源列表数据与筛选项转换', async () => {
   expect(buildSealImageCode(' data/images/seal.png ')).toBe('[图:data/images/seal.png]');
   expect(formatResourceTypeLabel('image')).toBe('图片');
   expect(formatResourceTypeLabel('unknown')).toBe('未知');
-  expect(formatResourcePageSummary({ total: 42, page: 2, pageSize: 20 })).toBe(
-    '第 2 页，每页 20 个，共 42 个资源'
-  );
   expect(isResourceDetailAvailable({ path: 'data/images/seal.png' })).toBe(true);
   expect(isResourceDetailAvailable({ path: '' })).toBe(false);
 });

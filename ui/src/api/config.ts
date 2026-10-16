@@ -18,10 +18,6 @@ export function joinApiBasePath(baseUrl: string, path: string): string {
   return `${normalizedBase}/${normalizedPath}`;
 }
 
-export function resolveOldUIUrlFromLocation(location: ApiLocationLike): string {
-  return joinApiBasePath(resolveApiBaseUrlFromLocation(location), '/old-ui/');
-}
-
 // 切换到旧版 UI：走 /?ui=old，服务端会记住偏好并跳到 /old-ui/。
 export function resolveSwitchToOldUIUrl(location: ApiLocationLike): string {
   return `${trimTrailingSlash(location.origin)}/?ui=old`;
