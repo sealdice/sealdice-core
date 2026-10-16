@@ -120,7 +120,6 @@ type DeckInfo struct {
 	UpdateDate         string                        `json:"updateDate"    yaml:"-"`
 	Desc               string                        `json:"desc"          yaml:"-"`
 	Info               []string                      `json:"-"             yaml:"-"`
-	RawData            *map[string][]string          `json:"-"             yaml:"-"`
 	UpdateUrls         []string                      `json:"updateUrls"    yaml:"updateUrls"`
 	Etag               string                        `json:"etag"          yaml:"etag"`
 	Cloud              bool                          `json:"cloud"         yaml:"cloud"` // 含有云端内容
@@ -236,7 +235,6 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error
 	if len(jsonData2.Etag) > 0 {
 		deckInfo.Etag = jsonData2.Etag[0]
 	}
-	deckInfo.RawData = &jsonData
 	return nil
 }
 
@@ -296,7 +294,6 @@ func tryParseSinaNya(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.License = yamlData2.License
 	deckInfo.Desc = yamlData2.Desc
 	deckInfo.Info = yamlData2.Info
-	deckInfo.RawData = &yamlDataFix
 	deckInfo.Format = "SinaNya"
 	deckInfo.FormatVersion = 1
 	deckInfo.FileFormat = "yaml"
@@ -408,7 +405,6 @@ func tryParseSeal(content []byte, deckInfo *DeckInfo) error {
 	deckInfo.StoreID = meta.StoreID
 	deckInfo.UpdateUrls = meta.UpdateUrls
 	deckInfo.Etag = meta.Etag
-	deckInfo.RawData = &tomlDataFix
 	return nil
 }
 

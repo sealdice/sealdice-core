@@ -1,0 +1,27 @@
+[meta]
+title = "TOML牌堆"
+author = "作者丙"
+version = "2.0"
+license = "cc-by-sa"
+desc = "TOML描述"
+format_version = 1
+date = 2026-10-16
+update_date = 2026-10-17
+
+[decks]
+"普通组" = ["甲", "乙"]
+"_私有组" = ["丙", "丁"]
+
+["复杂组"]
+export = true
+visible = false
+aliases = ["别名甲", "别名乙"]
+options = ["选项1", "选项2"]
+
+["云端组"]
+export = true
+visible = true
+cloud_extra = true
+distinct = true
+options_urls = ["https://example.com/cloud.json"]
+options = ["本地1", "本地2"]
