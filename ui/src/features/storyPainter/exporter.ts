@@ -63,14 +63,15 @@ export async function exportStoryPainterDocx(
 export function extractMessageLines(el: HTMLElement | null): string[] {
   if (!el) return [''];
   const clone = el.cloneNode(true) as HTMLElement;
-  const doc = el.ownerDocument || document;
+  const doc = el.ownerDocument;
 
   clone.querySelectorAll('img').forEach(img => {
     const src = img.getAttribute('src') || '';
     img.replaceWith(doc.createTextNode(src ? `[图:${src}]` : '[图:无可用链接]'));
   });
 
-  const lines = (clone.innerText || clone.textContent || '').replace(/\u00A0/g, ' ').split(/\r?\n/);
+  clone.querySelectorAll('br').forEach(br => br.replaceWith(doc.createTextNode('\n')));
+  const lines = (clone.textContent || '').replace(/\u00A0/g, ' ').split(/\r?\n/);
   while (lines.length > 1 && lines[lines.length - 1]?.trim() === '') {
     lines.pop();
   }
