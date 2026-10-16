@@ -99,40 +99,24 @@ export function normalizeStoryPainterPlainMessage(
   return decodeStoryPainterHtml(message).replace(/<br\s*\/?>/gi, '\n');
 }
 
-export function renderPineappleForumBlocks(
-  items: StoryPainterLogItem[],
+export function renderPineappleForumText(
+  item: StoryPainterLogItem,
   chars: StoryPainterChar[],
   options: StoryPainterOptions,
   forumOptions: StoryPainterForumOptions,
-  colorByItem: (item: StoryPainterLogItem) => string
-): string[] {
-  const blocks: Array<{ key: string; name: string; color: string; lines: string[] }> = [];
-  let current: { key: string; name: string; color: string; lines: string[] } | null = null;
-
-  items.forEach(item => {
-    const text = normalizeStoryPainterPlainMessage(item, chars, { ...options, imageHide: true });
-    if (!text) return;
-    const key = `${item.nickname}-${item.IMUserId}`;
-    if (current && current.key === key) {
-      current.lines.push(text);
-      return;
-    }
-    if (current) blocks.push(current);
-    current = {
-      key,
-      name: storyPainterNickname(item, options, false),
-      color: forumOptions.bbsUseColorName
-        ? colorHexToForumName(colorByItem(item))
-        : colorByItem(item),
-      lines: [text],
-    };
-  });
-  if (current) blocks.push(current);
-
-  return blocks.map(
-    block =>
-      `[color=silver]${block.name}[/color][color=${block.color}] ${block.lines.join('\n')} [/color]`
-  );
+  color: string,
+  previous?: StoryPainterLogItem,
+  next?: StoryPainterLogItem
+): string {
+  const sameSpeaker = (other?: StoryPainterLogItem) =>
+    other?.nickname === item.nickname && other.IMUserId === item.IMUserId;
+  const name = storyPainterNickname(item, options, false);
+  const displayColor = forumOptions.bbsUseColorName ? colorHexToForumName(color) : color;
+  const text = normalizeStoryPainterPlainMessage(item, chars, { ...options, imageHide: true });
+  const prefix = sameSpeaker(previous)
+    ? ''
+    : `[color=silver]${name}[/color][color=${displayColor}] `;
+  return `${prefix}${text}${sameSpeaker(next) ? '' : ' [/color]'}`;
 }
 
 export function renderTrgText(

@@ -142,14 +142,14 @@ export function useStoryPainter() {
 
   async function refreshPreviewFromDataset(): Promise<void> {
     if (!dataset.value) return;
-    const indexes: number[] = [];
+    const metadata: StoryPainterLogItem[] = [];
     for await (const chunk of iterPreviewChunks()) {
       chunk.forEach(item => {
-        indexes.push(item.index ?? 0);
+        metadata.push({ ...item, message: '', commandInfo: undefined });
       });
     }
-    visibleIndexes.value = indexes;
-    previewItems.value = [];
+    visibleIndexes.value = metadata.map(item => item.index!);
+    previewItems.value = metadata;
   }
 
   async function readPreviewItems(indexes: number[]): Promise<StoryPainterLogItem[]> {

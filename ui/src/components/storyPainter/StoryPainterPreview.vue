@@ -38,11 +38,7 @@
       <n-empty description="没有可展示的日志条目" />
     </div>
 
-    <div
-      v-else-if="mode === 'preview' || mode === 'bbs' || mode === 'trg'"
-      ref="previewList"
-      class="preview-list"
-    >
+    <div v-else ref="previewList" class="preview-list">
       <div class="preview-virtual-spacer" :style="{ height: `${virtualTotalSize}px` }">
         <div
           v-for="{ virtualRow, item } in renderedRows"
@@ -55,6 +51,8 @@
           <StoryPainterPreviewRow
             v-if="item"
             :source="item"
+            :previous="items[virtualRow.index - 1]"
+            :next="items[virtualRow.index + 1]"
             :mode="mode"
             :chars="chars"
             :options="options"
@@ -65,13 +63,6 @@
           <div v-else class="preview-row-loading">...</div>
         </div>
       </div>
-    </div>
-
-    <div v-else class="preview-list">
-      <div v-if="props.itemIndexes.length > 0" class="copy-note">
-        长文本复制/导出会分块读取完整内容。
-      </div>
-      <pre v-for="item in textItems" :key="item.index" class="text-row">{{ item.text }}</pre>
     </div>
   </section>
 </template>
@@ -97,7 +88,6 @@ import type {
   StoryPainterPreviewDisplayMode,
 } from '@/features/storyPainter/types';
 import { packStoryPainterNameId } from '@/features/storyPainter/types';
-import { renderPineappleForumBlocks } from '@/features/storyPainter/renderers';
 import {
   buildStoryPainterPreviewSources,
   collectMissingVisibleIndexes,
@@ -182,16 +172,6 @@ const measureVirtualRow: VNodeRef = node => {
     rowVirtualizer.value.measureElement(node);
   }
 };
-
-const textItems = computed(() =>
-  renderPineappleForumBlocks(
-    props.items,
-    props.chars,
-    props.options,
-    props.forumOptions,
-    colorByItem
-  ).map((text, index) => ({ index, text }))
-);
 
 watch(
   () => props.items,
@@ -428,19 +408,5 @@ function trimLoadedItems(
 .preview-row-loading {
   padding: 0.32rem 0;
   color: var(--sd-text-muted);
-}
-
-.copy-note {
-  color: var(--sd-text-muted);
-  font-size: 0.82rem;
-  padding-bottom: 0.5rem;
-}
-
-.text-row {
-  margin: 0;
-  padding: 0.28rem 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: inherit;
 }
 </style>

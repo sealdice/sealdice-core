@@ -4,11 +4,10 @@ import type {
   StoryPainterLogItem,
   StoryPainterOptions,
 } from './types';
-import { storyPainterNickname } from './formatters';
 import {
-  colorHexToForumName,
   normalizeStoryPainterPlainMessage,
   renderForumText,
+  renderPineappleForumText,
   renderTrgText,
 } from './renderers';
 
@@ -22,13 +21,33 @@ export async function collectStoryPainterForumText(options: {
 }): Promise<string> {
   const lines: string[] = [];
   if (options.pineapple) {
-    let current: PineappleBlock | null = null;
+    let previous: StoryPainterLogItem | undefined;
+    let current: StoryPainterLogItem | undefined;
+    const render = (next?: StoryPainterLogItem) =>
+      renderPineappleForumText(
+        current!,
+        options.chars,
+        options.exportOptions,
+        options.forumOptions,
+        options.colorByItem(current!),
+        previous,
+        next
+      );
     for await (const chunk of options.chunks) {
-      chunk.forEach(item => {
-        current = pushPineappleItem(current, item, options, lines);
-      });
+      for (const item of chunk) {
+        if (
+          !normalizeStoryPainterPlainMessage(item, options.chars, {
+            ...options.exportOptions,
+            imageHide: true,
+          }).trim()
+        )
+          continue;
+        if (current) lines.push(render(item));
+        previous = current;
+        current = item;
+      }
     }
-    if (current) lines.push(formatPineappleBlock(current));
+    if (current) lines.push(render());
     return lines.join('\n');
   }
 
@@ -63,49 +82,4 @@ export async function collectStoryPainterTrgText(options: {
     );
   }
   return lines.join('\n');
-}
-
-type PineappleBlock = {
-  key: string;
-  name: string;
-  color: string;
-  lines: string[];
-};
-
-function pushPineappleItem(
-  current: PineappleBlock | null,
-  item: StoryPainterLogItem,
-  options: {
-    chars: StoryPainterChar[];
-    exportOptions: StoryPainterOptions;
-    forumOptions: StoryPainterForumOptions;
-    colorByItem: (item: StoryPainterLogItem) => string;
-  },
-  output: string[]
-): PineappleBlock | null {
-  const text = normalizeStoryPainterPlainMessage(item, options.chars, {
-    ...options.exportOptions,
-    imageHide: true,
-  });
-  if (!text) return current;
-
-  const key = `${item.nickname}-${item.IMUserId}`;
-  if (current && current.key === key) {
-    current.lines.push(text);
-    return current;
-  }
-
-  if (current) output.push(formatPineappleBlock(current));
-  return {
-    key,
-    name: storyPainterNickname(item, options.exportOptions, false),
-    color: options.forumOptions.bbsUseColorName
-      ? colorHexToForumName(options.colorByItem(item))
-      : options.colorByItem(item),
-    lines: [text],
-  };
-}
-
-function formatPineappleBlock(block: PineappleBlock): string {
-  return `[color=silver]${block.name}[/color][color=${block.color}] ${block.lines.join('\n')} [/color]`;
 }
