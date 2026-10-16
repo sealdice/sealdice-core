@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,32 +15,60 @@ import (
 )
 
 const (
-	milkyHealthInterval = 3 * time.Second
-	milkyHealthTimeout  = 3 * time.Second
-	milkyRetryMaxDelay  = 30 * time.Second
+	milkyLoginRetryInterval = 3 * time.Second
+	milkyLoginTimeout       = 3 * time.Second
+	milkyRetryMaxDelay      = 30 * time.Second
 )
 
 var errMilkyPermanentFailure = errors.New("milky configuration or authentication failure")
 
-// 原版 SDK 没有断开通知。临时由核心检查 API 并管理重连，避免两套重连并行。
-// 与 SDK 通知方案共用状态和进程管理；上游支持通知后，只需替换本文件。
+// SDK 管理 WebSocket 连接和重连，核心仅在启动或收到状态事件后验证 QQ 登录信息。
 func (pa *PlatformAdapterMilky) prepareMilkyTransport(session *milky.Session) {
-	session.ShouldReconnectOnError = false
-	pa.lifecycleMu.Lock()
-	ctx := pa.sessionContext
-	pa.lifecycleMu.Unlock()
 	dialer := *session.Dialer
-	dialer.HandshakeTimeout = milkyHealthTimeout
-	dialer.NetDialContext = func(_ context.Context, network, address string) (net.Conn, error) {
-		return (&net.Dialer{Timeout: milkyHealthTimeout}).DialContext(ctx, network, address)
-	}
+	dialer.HandshakeTimeout = milkyLoginTimeout
 	session.Dialer = &dialer
+	session.OnConnectionChange = pa.onMilkyTransportChange
+}
+
+func (pa *PlatformAdapterMilky) onMilkyTransportChange(session *milky.Session, connected bool) {
+	currentConnected := session.IsConnected()
+	pa.lifecycleMu.Lock()
+	defer pa.lifecycleMu.Unlock()
+	if pa.IntentSession != session || !pa.sessionActive {
+		return
+	}
+	if connected {
+		pa.sessionOpened = true
+	}
+	if currentConnected != connected {
+		return // 过期通知仍可证明 SDK 已接管重连，但不能覆盖当前状态。
+	}
+	// WS 重连后也需要验证 QQ 登录，不能仅凭握手恢复账号状态。
+	pa.transportConnected = false
+	pa.updateMilkyConnectionState(false)
+	pa.signalMilkyRecoveryLocked()
+}
+
+// 必须持有 lifecycleMu；合并重复的恢复请求，回调中不执行网络请求。
+func (pa *PlatformAdapterMilky) signalMilkyRecoveryLocked() {
+	select {
+	case pa.sessionWake <- struct{}{}:
+	default:
+	}
 }
 
 func (pa *PlatformAdapterMilky) openMilkyTransport(session *milky.Session) error {
+	if session.IsConnected() {
+		return nil
+	}
+	pa.lifecycleMu.Lock()
+	opened := pa.IntentSession == session && pa.sessionOpened
+	pa.lifecycleMu.Unlock()
+	if opened {
+		return errors.New("waiting for SDK websocket reconnect")
+	}
 	err := session.Open()
 	if err == nil || errors.Is(err, milky.ErrWSAlreadyOpen) {
-		pa.onMilkyConnectionChange(session, true)
 		return nil
 	}
 	pa.onMilkyConnectionChange(session, false)
@@ -49,35 +76,58 @@ func (pa *PlatformAdapterMilky) openMilkyTransport(session *milky.Session) error
 }
 
 func (pa *PlatformAdapterMilky) closeMilkyTransport(session *milky.Session) error {
-	return session.Close()
+	return session.Shutdown()
 }
 
 func (pa *PlatformAdapterMilky) isMilkyTransportConnected(session *milky.Session) bool {
-	pa.lifecycleMu.Lock()
-	defer pa.lifecycleMu.Unlock()
-	return pa.IntentSession == session && pa.sessionActive && pa.transportConnected
+	return session.IsConnected()
 }
 
-func (pa *PlatformAdapterMilky) startMilkyConnectionMonitor(session *milky.Session) {
+func (pa *PlatformAdapterMilky) startMilkyRecovery(session *milky.Session) {
 	pa.lifecycleMu.Lock()
 	ctx := pa.sessionContext
 	active := pa.IntentSession == session && pa.sessionActive
 	pa.lifecycleMu.Unlock()
 	if active {
-		go pa.watchMilkyHealth(ctx, session, milkyHealthInterval, milkyHealthTimeout)
+		go pa.watchMilkyRecovery(ctx, session, milkyLoginRetryInterval, milkyLoginTimeout)
 	}
 }
 
-func (pa *PlatformAdapterMilky) watchMilkyHealth(ctx context.Context, session *milky.Session, interval, timeout time.Duration) {
-	client := newMilkyHealthClient(timeout)
+func (pa *PlatformAdapterMilky) needsMilkyRecovery(session *milky.Session) (bool, bool) {
+	pa.lifecycleMu.Lock()
+	active := pa.IntentSession == session && pa.sessionActive
+	needed := !pa.sessionReady || pa.accountOffline || !pa.transportConnected
+	opened := pa.sessionOpened
+	pa.lifecycleMu.Unlock()
+	// 已建立过的 WS 由 SDK 重连；等待 SDK 通知，不轮询 API 或争抢 Open。
+	return active && needed && (!opened || session.IsConnected()), active
+}
+
+func (pa *PlatformAdapterMilky) watchMilkyRecovery(ctx context.Context, session *milky.Session, interval, timeout time.Duration) {
+	client := newMilkyLoginClient(timeout)
+	pa.lifecycleMu.Lock()
+	wake := pa.sessionWake
+	pa.lifecycleMu.Unlock()
 	delay := interval
 	timer := time.NewTimer(delay)
 	defer timer.Stop()
 	for {
+		needed, active := pa.needsMilkyRecovery(session)
+		if !active {
+			return
+		}
+		var retry <-chan time.Time
+		if needed {
+			retry = timer.C
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-timer.C:
+		case <-wake:
+		case <-retry:
+		}
+		if needed, _ := pa.needsMilkyRecovery(session); !needed {
+			continue
 		}
 		err := pa.refreshMilkyTransport(session, client)
 		if ctx.Err() != nil {
@@ -101,7 +151,7 @@ func (pa *PlatformAdapterMilky) watchMilkyHealth(ctx context.Context, session *m
 	}
 }
 
-func newMilkyHealthClient(timeout time.Duration) *http.Client {
+func newMilkyLoginClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout:       timeout,
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
@@ -125,16 +175,15 @@ func (pa *PlatformAdapterMilky) refreshMilkyTransport(session *milky.Session, cl
 	if err := validateMilkyGateway(session.RestGateway, "http", "https"); err != nil {
 		return err
 	}
-	info, err := probeMilkyHealth(ctx, client, session.RestGateway, session.Token, expectedUserID)
+	info, err := probeMilkyLogin(ctx, client, session.RestGateway, session.Token, expectedUserID)
 	if err != nil {
 		pa.onMilkyConnectionChange(session, false)
-		// API 不可用时关闭事件连接，恢复后重新建立，避免显示虚假的已连接。
-		_ = pa.closeMilkyTransport(session)
 		return err
 	}
 	if err := pa.openMilkyTransport(session); err != nil {
 		return err
 	}
+	pa.onMilkyConnectionChange(session, session.IsConnected())
 	if !pa.finishMilkySession(session, info) {
 		return context.Canceled
 	}
@@ -155,7 +204,7 @@ func validateMilkyGateway(gateway string, scheme, secureScheme string) error {
 }
 
 // 使用标准 HTTP 检查登录信息，不依赖 SDK 新接口或内部连接字段。
-func probeMilkyHealth(ctx context.Context, client *http.Client, gateway, token, expectedUserID string) (*milky.LoginInfo, error) {
+func probeMilkyLogin(ctx context.Context, client *http.Client, gateway, token, expectedUserID string) (*milky.LoginInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(gateway, "/")+"/get_login_info", strings.NewReader("{}"))
 	if err != nil {
 		return nil, err

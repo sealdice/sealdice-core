@@ -26,6 +26,8 @@ func (pa *PlatformAdapterMilky) startMilkySession(session *milky.Session, genera
 	pa.accountOffline = false
 	pa.offlineGeneration = 0
 	pa.transportConnected = false
+	pa.sessionOpened = false
+	pa.sessionWake = make(chan struct{}, 1)
 	pa.EndPoint.State = StateConnecting
 	pa.EndPoint.Enable = true
 	pa.lifecycleMu.Unlock()
@@ -120,6 +122,7 @@ func (pa *PlatformAdapterMilky) onMilkyBotOffline(session *milky.Session, reason
 	pa.accountOffline = true
 	pa.offlineGeneration++
 	pa.EndPoint.State = StateDisconnected
+	pa.signalMilkyRecoveryLocked()
 	logger.M().Warnf("Milky QQ 账号离线，账号 %s，原因：%s", pa.EndPoint.UserID, reason)
 }
 

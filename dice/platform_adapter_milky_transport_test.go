@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type milkyHealthFixture struct {
+type milkyRecoveryFixture struct {
 	pa         *PlatformAdapterMilky
 	session    *milky.Session
 	apiHealthy atomic.Bool
@@ -28,10 +28,10 @@ type milkyHealthFixture struct {
 	done       chan struct{}
 }
 
-func newMilkyGatewayFixture(t *testing.T, mode string) *milkyHealthFixture {
+func newMilkyGatewayFixture(t *testing.T, mode string) *milkyRecoveryFixture {
 	t.Helper()
 	_, pa := newMilkyStartupTestAdapter(t, mode)
-	f := &milkyHealthFixture{pa: pa, peers: make(chan *websocket.Conn, 16)}
+	f := &milkyRecoveryFixture{pa: pa, peers: make(chan *websocket.Conn, 16)}
 	f.apiHealthy.Store(true)
 	f.loggedIn.Store(true)
 	f.apiStatus.Store(http.StatusOK)
@@ -89,7 +89,7 @@ func newMilkyGatewayFixture(t *testing.T, mode string) *milkyHealthFixture {
 			select {
 			case <-f.done:
 			case <-time.After(3 * time.Second):
-				t.Error("health monitor did not stop")
+				t.Error("recovery worker did not stop")
 			}
 		}
 		server.Close()
@@ -97,34 +97,38 @@ func newMilkyGatewayFixture(t *testing.T, mode string) *milkyHealthFixture {
 	return f
 }
 
-func newMilkyHealthFixture(t *testing.T, mode string) *milkyHealthFixture {
+func newMilkyRecoveryFixture(t *testing.T, mode string) *milkyRecoveryFixture {
 	t.Helper()
 	f := newMilkyGatewayFixture(t, mode)
 	session := f.session
 	f.pa.startMilkySession(session, 0)
 	f.pa.prepareMilkyTransport(session)
-	if session.ShouldReconnectOnError {
-		t.Fatal("SDK auto reconnect must be disabled")
+	if !session.ShouldReconnectOnError {
+		t.Fatal("SDK must own automatic websocket reconnects")
 	}
-	if err := f.pa.openMilkyTransport(session); err != nil {
+	if err := f.pa.refreshMilkyTransport(session, newMilkyLoginClient(100*time.Millisecond)); err != nil {
 		t.Fatal(err)
 	}
-	assertMilkyState(t, f.pa, StateConnecting)
-	f.pa.finishMilkySession(session, &milky.LoginInfo{UIN: 10010, Nickname: "MilkyBot"})
+	assertMilkyState(t, f.pa, StateConnected)
 	f.done = make(chan struct{})
+	f.pa.lifecycleMu.Lock()
+	ctx := f.pa.sessionContext
+	f.pa.lifecycleMu.Unlock()
 	go func() {
 		defer close(f.done)
-		f.pa.watchMilkyHealth(f.pa.sessionContext, session, 20*time.Millisecond, 100*time.Millisecond)
+		f.pa.watchMilkyRecovery(ctx, session, 20*time.Millisecond, 100*time.Millisecond)
 	}()
 	return f
 }
 
-func TestMilkyHealthDisconnectAndRecovery(t *testing.T) {
+func TestMilkySDKDisconnectAndRecovery(t *testing.T) {
 	for _, mode := range []string{"", "yogurt", "lagrangeV2"} {
 		t.Run(mode, func(t *testing.T) {
-			f := newMilkyHealthFixture(t, mode)
+			f := newMilkyRecoveryFixture(t, mode)
 			assertMilkyState(t, f.pa, StateConnected)
+			f.wsHealthy.Store(false)
 			f.apiHealthy.Store(false)
+			_ = (<-f.peers).Close()
 			assertMilkyState(t, f.pa, StateDisconnected)
 			f.pa.lifecycleMu.Lock()
 			enabled := f.pa.EndPoint.Enable
@@ -133,9 +137,7 @@ func TestMilkyHealthDisconnectAndRecovery(t *testing.T) {
 				t.Fatal("temporary outage disabled the account")
 			}
 			// REST 恢复但 WS 握手失败时仍须显示断开。
-			f.wsHealthy.Store(false)
 			f.apiHealthy.Store(true)
-			_ = (<-f.peers).Close()
 			time.Sleep(1100 * time.Millisecond)
 			assertMilkyState(t, f.pa, StateDisconnected)
 			f.wsHealthy.Store(true)
@@ -144,8 +146,8 @@ func TestMilkyHealthDisconnectAndRecovery(t *testing.T) {
 	}
 }
 
-func TestMilkyHealthDetectsEventGatewayFailure(t *testing.T) {
-	f := newMilkyHealthFixture(t, "")
+func TestMilkySDKDetectsEventGatewayFailure(t *testing.T) {
+	f := newMilkyRecoveryFixture(t, "")
 	f.wsHealthy.Store(false)
 	_ = (<-f.peers).Close()
 	assertMilkyState(t, f.pa, StateDisconnected)
@@ -153,14 +155,87 @@ func TestMilkyHealthDetectsEventGatewayFailure(t *testing.T) {
 	assertMilkyState(t, f.pa, StateConnected)
 }
 
-func TestMilkyHealthRecoversBotOfflineAndIgnoresStoppedSessions(t *testing.T) {
-	f := newMilkyHealthFixture(t, "")
+func TestMilkySDKDoesNotPollWhileConnected(t *testing.T) {
+	f := newMilkyRecoveryFixture(t, "")
+	calls := f.apiCalls.Load()
+	// 恢复间隔为 20ms；正常连接跨过多个间隔也不应再次请求登录 API。
+	time.Sleep(200 * time.Millisecond)
+	if got := f.apiCalls.Load(); got != calls {
+		t.Fatalf("healthy session polled login API: calls changed from %d to %d", calls, got)
+	}
+}
+
+func TestMilkySDKDoesNotPollWhileReconnecting(t *testing.T) {
+	f := newMilkyRecoveryFixture(t, "")
+	f.wsHealthy.Store(false)
+	_ = (<-f.peers).Close()
+	assertMilkyState(t, f.pa, StateDisconnected)
+	calls := f.apiCalls.Load()
+	time.Sleep(200 * time.Millisecond)
+	if got := f.apiCalls.Load(); got != calls {
+		t.Fatalf("core polled login API while SDK was reconnecting: %d -> %d", calls, got)
+	}
+}
+
+func TestMilkySDKStaleConnectKeepsReconnectOwnership(t *testing.T) {
+	f := newMilkyGatewayFixture(t, "")
+	f.pa.startMilkySession(f.session, 0)
+	f.pa.prepareMilkyTransport(f.session)
+	// 模拟握手通知执行前，连接已断开；成功握手仍意味着 SDK 已接管重连。
+	f.session.OnConnectionChange(f.session, true)
+	f.pa.lifecycleMu.Lock()
+	opened := f.pa.sessionOpened
+	f.pa.lifecycleMu.Unlock()
+	if !opened {
+		t.Fatal("stale handshake notification lost SDK reconnect ownership")
+	}
+	if err := f.pa.openMilkyTransport(f.session); err == nil {
+		t.Fatal("core competed with SDK by opening a replacement websocket")
+	}
+}
+
+func TestMilkySDKReconnectWaitsForAccountRecovery(t *testing.T) {
+	f := newMilkyRecoveryFixture(t, "")
+	f.loggedIn.Store(false)
+	_ = (<-f.peers).Close()
+	assertMilkyState(t, f.pa, StateDisconnected)
+	select {
+	case <-f.peers:
+	case <-time.After(5 * time.Second):
+		t.Fatal("SDK did not reconnect")
+	}
+	assertMilkyState(t, f.pa, StateDisconnected)
+	f.loggedIn.Store(true)
+	// 不发送 QQ 消息，恢复流程仍应在账号上线后更新状态。
+	assertMilkyState(t, f.pa, StateConnected)
+}
+
+func TestMilkySDKIgnoresReplacedSession(t *testing.T) {
+	f := newMilkyRecoveryFixture(t, "")
+	current, err := milky.New(f.session.WSGateway, f.session.RestGateway, f.session.Token, noopMilkyLogger{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.pa.startMilkySession(current, 0)
+	f.pa.prepareMilkyTransport(current)
+	if err := f.pa.refreshMilkyTransport(current, newMilkyLoginClient(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	f.session.OnConnectionChange(f.session, false)
+	f.pa.onMilkyBotOffline(f.session, "old session")
+	f.pa.onMilkyMessage(f.session)
+	assertMilkyState(t, f.pa, StateConnected)
+}
+
+func TestMilkySDKRecoversBotOfflineAndIgnoresStoppedSessions(t *testing.T) {
+	f := newMilkyRecoveryFixture(t, "")
 	f.loggedIn.Store(false)
 	f.pa.onMilkyBotOffline(f.session, "kicked offline")
 	time.Sleep(100 * time.Millisecond)
 	assertMilkyState(t, f.pa, StateDisconnected)
 	// QQ 登录恢复但 WS 仍不可用时，不能显示已连接。
 	f.wsHealthy.Store(false)
+	_ = (<-f.peers).Close()
 	f.loggedIn.Store(true)
 	time.Sleep(1100 * time.Millisecond)
 	assertMilkyState(t, f.pa, StateDisconnected)
@@ -168,6 +243,9 @@ func TestMilkyHealthRecoversBotOfflineAndIgnoresStoppedSessions(t *testing.T) {
 	// 不发送任何 QQ 消息，成功的登录探测与 WS 连接应足以恢复状态。
 	assertMilkyState(t, f.pa, StateConnected)
 	f.pa.stopMilkySession()
+	if err := f.session.Open(); err == nil {
+		t.Fatal("stopped session could reopen")
+	}
 	f.pa.lifecycleMu.Lock()
 	f.pa.EndPoint.State = StateDisconnected
 	f.pa.EndPoint.Enable = false
@@ -179,11 +257,11 @@ func TestMilkyHealthRecoversBotOfflineAndIgnoresStoppedSessions(t *testing.T) {
 	select {
 	case <-f.done:
 	case <-time.After(time.Second):
-		t.Fatal("disabled account retained health monitor")
+		t.Fatal("disabled account retained recovery worker")
 	}
 }
 
-func TestMilkyHealthRejectsInvalidResponses(t *testing.T) {
+func TestMilkySDKRejectsInvalidResponses(t *testing.T) {
 	for _, body := range []string{
 		`{"status":"failed","retcode":0,"data":{"uin":10010}}`,
 		`{"status":"ok","retcode":1,"data":{"uin":10010}}`,
@@ -195,14 +273,14 @@ func TestMilkyHealthRejectsInvalidResponses(t *testing.T) {
 		t.Run(body, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(body)) }))
 			defer server.Close()
-			if _, err := probeMilkyHealth(context.Background(), server.Client(), server.URL, "", "QQ:10010"); err == nil {
+			if _, err := probeMilkyLogin(context.Background(), server.Client(), server.URL, "", "QQ:10010"); err == nil {
 				t.Fatal("invalid login response reported healthy")
 			}
 		})
 	}
 }
 
-func TestMilkyHealthRequestCancellation(t *testing.T) {
+func TestMilkySDKRequestCancellation(t *testing.T) {
 	started := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
@@ -214,7 +292,7 @@ func TestMilkyHealthRequestCancellation(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
-		_, err := probeMilkyHealth(ctx, server.Client(), server.URL, "", "QQ:10010")
+		_, err := probeMilkyLogin(ctx, server.Client(), server.URL, "", "QQ:10010")
 		done <- err
 	}()
 	<-started
@@ -282,9 +360,10 @@ func TestMilkyInitialAuthenticationFailureDoesNotRetry(t *testing.T) {
 	}
 }
 
-func TestMilkyHealthPermanentFailureStopsMonitor(t *testing.T) {
-	f := newMilkyHealthFixture(t, "yogurt")
+func TestMilkySDKPermanentFailureStopsMonitor(t *testing.T) {
+	f := newMilkyRecoveryFixture(t, "yogurt")
 	f.apiStatus.Store(http.StatusUnauthorized)
+	f.pa.onMilkyBotOffline(f.session, "session expired")
 	assertMilkyState(t, f.pa, StateConnectionFailed)
 	select {
 	case <-f.done:
@@ -293,12 +372,12 @@ func TestMilkyHealthPermanentFailureStopsMonitor(t *testing.T) {
 	}
 }
 
-func TestMilkyHealthFailureClassification(t *testing.T) {
+func TestMilkySDKFailureClassification(t *testing.T) {
 	for _, status := range []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusMethodNotAllowed, http.StatusUnsupportedMediaType, http.StatusTooManyRequests, http.StatusServiceUnavailable} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) }))
 			defer server.Close()
-			_, err := probeMilkyHealth(context.Background(), server.Client(), server.URL, "", "QQ:10010")
+			_, err := probeMilkyLogin(context.Background(), server.Client(), server.URL, "", "QQ:10010")
 			wantPermanent := status != http.StatusTooManyRequests && status != http.StatusServiceUnavailable
 			if err == nil || errors.Is(err, errMilkyPermanentFailure) != wantPermanent {
 				t.Fatalf("unexpected failure classification for HTTP %d: %v", status, err)
@@ -307,16 +386,16 @@ func TestMilkyHealthFailureClassification(t *testing.T) {
 	}
 }
 
-func TestMilkyHealthInitialUnknownAccount(t *testing.T) {
+func TestMilkySDKInitialUnknownAccount(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"status":"ok","retcode":0,"data":{"uin":10010,"nickname":"MilkyBot"}}`))
 	}))
 	defer server.Close()
-	info, err := probeMilkyHealth(context.Background(), server.Client(), server.URL, "", "")
+	info, err := probeMilkyLogin(context.Background(), server.Client(), server.URL, "", "")
 	if err != nil || info == nil || info.UIN != 10010 || info.Nickname != "MilkyBot" {
 		t.Fatalf("new account login information was rejected: %v", err)
 	}
-	if _, err := probeMilkyHealth(context.Background(), server.Client(), server.URL, "", "QQ:20020"); !errors.Is(err, errMilkyPermanentFailure) {
+	if _, err := probeMilkyLogin(context.Background(), server.Client(), server.URL, "", "QQ:20020"); !errors.Is(err, errMilkyPermanentFailure) {
 		t.Fatal("changed account was not rejected as a permanent failure")
 	}
 }

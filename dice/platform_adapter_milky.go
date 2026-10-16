@@ -42,6 +42,8 @@ type PlatformAdapterMilky struct {
 	accountOffline     bool
 	offlineGeneration  uint64
 	transportConnected bool
+	sessionOpened      bool
+	sessionWake        chan struct{}
 	sessionContext     context.Context
 	sessionCancel      context.CancelFunc
 	processGeneration  uint64
@@ -442,7 +444,7 @@ func (pa *PlatformAdapterMilky) serveMilky(generation uint64) int {
 		pa.EndPoint.Session.OnMessageDeleted(mctx, msg)
 	})
 	d := pa.EndPoint.Session.Parent
-	client := newMilkyHealthClient(milkyHealthTimeout)
+	client := newMilkyLoginClient(milkyLoginTimeout)
 	err = pa.refreshMilkyTransport(session, client)
 	if err != nil {
 		if errors.Is(err, errMilkyPermanentFailure) {
@@ -455,8 +457,8 @@ func (pa *PlatformAdapterMilky) serveMilky(generation uint64) int {
 		}
 		log.Warnf("Milky 初次连接暂时失败，将继续重试: %v", err)
 	}
-	// 首次连接尚未成功也需要监测；返回 0 表示已接管重试，内置客户端不应被杀掉。
-	pa.startMilkyConnectionMonitor(session)
+	// 首次临时失败也启动恢复流程；返回 0 表示已接管重试，内置客户端不应被杀掉。
+	pa.startMilkyRecovery(session)
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
 	return 0
