@@ -137,6 +137,26 @@ func weightByteSize(w []uint32) int64 {
 	return int64(len(w)) * 4
 }
 
+// chunkCacheCost 是块缓存的 otter 成本函数：估算一块解压后条目占用的字节数。
+// 与旧 byteLRU 的 chunkByteSize 记账一致（Σ(len(s)+16)）。
+// otter 要求成本 ≥1（0 会破坏 S3-FIFO 的代价记账），空块也返回 1。
+func chunkCacheCost(_ string, items []string) uint32 {
+	n := chunkByteSize(items)
+	if n <= 0 {
+		return 1
+	}
+	return uint32(n)
+}
+
+// weightCacheCost 是权重缓存的 otter 成本函数：len(w)*4 字节；空数组返回 1。
+func weightCacheCost(_ string, w []uint32) uint32 {
+	n := weightByteSize(w)
+	if n <= 0 {
+		return 1
+	}
+	return uint32(n)
+}
+
 // normalizeWeight 把 weight==0 归一为默认权重 1。
 func normalizeWeight(w uint32) uint32 {
 	if w == 0 {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/maypok86/otter"
 	"github.com/vmihailenco/msgpack"
 	"gorm.io/gorm"
 
@@ -52,8 +53,26 @@ type sqliteStore struct {
 	mu    sync.RWMutex
 	index map[string]GroupMeta // 键 = Key(deckID, group)
 
-	chunkLRU  *byteLRU[[]string]
-	weightLRU *byteLRU[[]uint32]
+	chunkCache  *otter.Cache[string, []string]
+	weightCache *otter.Cache[string, []uint32]
+}
+
+// newDeckCaches 构建块/权重两个按字节记账的 otter 缓存。
+// 容量沿用字节上限（ChunkCacheCap / WeightCacheCap），成本函数见 chunkCacheCost / weightCacheCost。
+func newDeckCaches() (*otter.Cache[string, []string], *otter.Cache[string, []uint32], error) {
+	chunkCache, err := otter.MustBuilder[string, []string](ChunkCacheCap).
+		Cost(chunkCacheCost).
+		Build()
+	if err != nil {
+		return nil, nil, err
+	}
+	weightCache, err := otter.MustBuilder[string, []uint32](WeightCacheCap).
+		Cost(weightCacheCost).
+		Build()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &chunkCache, &weightCache, nil
 }
 
 func openSQLite(path string, log Logger) (Store, error) {
@@ -67,13 +86,17 @@ func openSQLite(path string, log Logger) (Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	chunkCache, weightCache, err := newDeckCaches()
+	if err != nil {
+		return nil, err
+	}
 	s := &sqliteStore{
-		reader:    reader,
-		writer:    writer,
-		log:       log,
-		index:     make(map[string]GroupMeta),
-		chunkLRU:  newByteLRU[[]string](ChunkCacheCap),
-		weightLRU: newByteLRU[[]uint32](WeightCacheCap),
+		reader:      reader,
+		writer:      writer,
+		log:         log,
+		index:       make(map[string]GroupMeta),
+		chunkCache:  chunkCache,
+		weightCache: weightCache,
 	}
 	if err := s.ensureSchema(); err != nil {
 		_ = s.Close()
@@ -95,13 +118,17 @@ func openSQLiteMemory(log Logger) (Store, error) {
 	pool.SetMaxOpenConns(1)
 	pool.SetMaxIdleConns(1)
 
+	chunkCache, weightCache, err := newDeckCaches()
+	if err != nil {
+		return nil, err
+	}
 	s := &sqliteStore{
-		reader:    db,
-		writer:    db,
-		log:       log,
-		index:     make(map[string]GroupMeta),
-		chunkLRU:  newByteLRU[[]string](ChunkCacheCap),
-		weightLRU: newByteLRU[[]uint32](WeightCacheCap),
+		reader:      db,
+		writer:      db,
+		log:         log,
+		index:       make(map[string]GroupMeta),
+		chunkCache:  chunkCache,
+		weightCache: weightCache,
 	}
 	if err := s.ensureSchema(); err != nil {
 		_ = s.Close()
@@ -227,7 +254,7 @@ func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
 	local := idx - start
 
 	key := chunkCacheKey(deckID, group, chunkNo)
-	if items, hit := s.chunkLRU.get(key); hit {
+	if items, hit := s.chunkCache.Get(key); hit {
 		if local >= len(items) {
 			return "", ErrNotFound
 		}
@@ -242,7 +269,7 @@ func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s.chunkLRU.put(key, items, chunkByteSize(items))
+	s.chunkCache.Set(key, items)
 	if local >= len(items) {
 		return "", ErrNotFound
 	}
@@ -274,7 +301,7 @@ func (s *sqliteStore) Weights(deckID, group string) ([]uint32, error) {
 	}
 
 	key := Key(deckID, group)
-	if w, hit := s.weightLRU.get(key); hit {
+	if w, hit := s.weightCache.Get(key); hit {
 		return w, nil
 	}
 
@@ -293,7 +320,7 @@ func (s *sqliteStore) Weights(deckID, group string) ([]uint32, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.weightLRU.put(key, w, weightByteSize(w))
+	s.weightCache.Set(key, w)
 	return w, nil
 }
 
@@ -396,11 +423,16 @@ func (s *sqliteStore) DeleteDeck(deckID string) error {
 }
 
 // purgeDeckCaches 清除该 deck 的块与权重缓存（导入提交 / 删除时调用）。
-// 否则重导同一 deck 后，chunk 键不变的旧条目会滞留在 LRU，Item 命中过期内容。
+// 否则重导同一 deck 后，chunk 键不变的旧条目会滞留在缓存，Item 命中过期内容。
+//
+// 语义差异：旧 byteLRU 支持按前缀删除（removePrefix），otter 无前缀删除能力，
+// 这里改为整体 InvalidateAll（即 Clear()）。重导/删除是低频事件，整体清空可接受：
+// 代价只是后续首次读取需要重新读库解压，换取缓存失效的正确性。
+// 注意 otter 的 Clear() 在并发请求下语义未定义（见库注释），本实现仅保证「之后读到的必是新值」，
+// 与旧实现一致的「瞬时旧值/ErrNotFound 窄窗口」仍由上层容忍（见 deck_concurrency_internal_test）。
 func (s *sqliteStore) purgeDeckCaches(deckID string) {
-	prefix := deckID + "\x00"
-	s.chunkLRU.removePrefix(prefix)
-	s.weightLRU.removePrefix(prefix)
+	s.chunkCache.Clear()
+	s.weightCache.Clear()
 }
 
 func (s *sqliteStore) ReplaceIndex(m map[string]GroupMeta) {
@@ -428,6 +460,13 @@ func (s *sqliteStore) indexReplace(deckID string, groups map[string]GroupMeta) {
 }
 
 func (s *sqliteStore) Close() error {
+	// otter 后台有维护协程（writeBuffer 消费 process），不 Close 会泄漏，必须在关库前停掉。
+	if s.chunkCache != nil {
+		s.chunkCache.Close()
+	}
+	if s.weightCache != nil {
+		s.weightCache.Close()
+	}
 	var firstErr error
 	if s.reader != nil {
 		if db, err := s.reader.DB(); err == nil {
