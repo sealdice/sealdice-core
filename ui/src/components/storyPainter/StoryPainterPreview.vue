@@ -34,7 +34,8 @@
       </n-flex>
     </div>
 
-    <div v-if="previewSources.length === 0" class="preview-empty">
+    <div v-if="readError" role="alert" class="preview-empty">{{ readError }}</div>
+    <div v-if="items.length === 0" class="preview-empty">
       <n-empty description="没有可展示的日志条目" />
     </div>
 
@@ -68,18 +69,8 @@
 </template>
 
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  shallowRef,
-  useTemplateRef,
-  watch,
-} from 'vue';
-import { useVirtualizer, type VirtualItem, type Virtualizer } from '@tanstack/vue-virtual';
-import type { VNodeRef } from 'vue';
-import { storyPainterDebug } from '@/features/storyPainter/debug';
+import { computed, shallowRef, useTemplateRef, watch, type VNodeRef } from 'vue';
+import { useVirtualizer } from '@tanstack/vue-virtual';
 import type {
   StoryPainterChar,
   StoryPainterForumOptions,
@@ -88,19 +79,12 @@ import type {
   StoryPainterPreviewDisplayMode,
 } from '@/features/storyPainter/types';
 import { packStoryPainterNameId } from '@/features/storyPainter/types';
-import {
-  buildStoryPainterPreviewSources,
-  collectMissingVisibleIndexes,
-  virtualItemsToStoryPainterRange,
-  type StoryPainterPreviewSource,
-  type StoryPainterVirtualRange,
-} from '@/features/storyPainter/virtualRange';
+import { buildStoryPainterPcMap } from '@/features/storyPainter/state';
 import StoryPainterPreviewRow from './StoryPainterPreviewRow.vue';
 
 const props = defineProps<{
   mode: StoryPainterPreviewDisplayMode;
   items: StoryPainterLogItem[];
-  itemIndexes: number[];
   readItems: (indexes: number[]) => Promise<StoryPainterLogItem[]>;
   chars: StoryPainterChar[];
   options: StoryPainterOptions;
@@ -115,110 +99,75 @@ const emit = defineEmits<{
   updateForumOptions: [value: Partial<StoryPainterForumOptions>];
 }>();
 
-type PreviewSource = StoryPainterPreviewSource<StoryPainterLogItem>;
-type PreviewRenderedRow = {
-  virtualRow: VirtualItem;
-  item?: StoryPainterLogItem;
-};
-
 const previewListRef = useTemplateRef<HTMLDivElement>('previewList');
-const loadedItems = shallowRef(new Map<number, StoryPainterLogItem>());
-const loadedItemsLimit = 2000;
-const rangeOverscan = 20;
-const virtualRenderOverscan = 20;
-const scrollLoadDelayMs = 20;
-const pendingIndexes = new Set<number>();
-let scheduledRange: StoryPainterVirtualRange | null = null;
-let scrollLoadTimer: ReturnType<typeof setTimeout> | undefined;
-
-const pcMap = computed(() => {
-  const map = new Map<string, StoryPainterChar>();
-  props.chars.forEach(char => map.set(packStoryPainterNameId(char), char));
-  return map;
-});
-
-const previewSources = computed<PreviewSource[]>(() =>
-  buildStoryPainterPreviewSources(props.itemIndexes, props.items)
-);
-
+// 只持有当前渲染窗口；正文缓存和并发读取由 useStoryPainter 管理。
+const windowItems = shallowRef(new Map<number, StoryPainterLogItem>());
+const readError = shallowRef('');
+const pcMap = computed(() => buildStoryPainterPcMap(props.chars));
 const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>(
   computed(() => ({
-    count: previewSources.value.length,
+    count: props.items.length,
     getScrollElement: () => previewListRef.value,
     estimateSize: () => 28,
-    overscan: virtualRenderOverscan,
-    getItemKey: index => previewSources.value[index]?.key ?? index,
-    onChange: handleVirtualizerChange,
+    overscan: 20,
+    getItemKey: index => props.items[index]?.index ?? index,
     useAnimationFrameWithResizeObserver: true,
   }))
 );
 
 const virtualItems = computed(() => rowVirtualizer.value.getVirtualItems());
 const virtualTotalSize = computed(() => rowVirtualizer.value.getTotalSize());
-const renderedRows = computed<PreviewRenderedRow[]>(() =>
+const renderedRows = computed(() =>
   virtualItems.value.flatMap(virtualRow => {
-    const source = previewSources.value[virtualRow.index];
-    if (!source) return [];
-    return [
-      {
-        virtualRow,
-        item: source.item ?? loadedItems.value.get(source.index),
-      },
-    ];
+    const source = props.items[virtualRow.index];
+    return source ? [{ virtualRow, item: windowItems.value.get(source.index!) }] : [];
   })
 );
 const measureVirtualRow: VNodeRef = node => {
-  if (node === null || node instanceof HTMLDivElement) {
-    rowVirtualizer.value.measureElement(node);
-  }
+  if (node === null || node instanceof HTMLDivElement) rowVirtualizer.value.measureElement(node);
 };
 
 watch(
-  () => props.items,
-  () => {
-    if (props.itemIndexes.length === 0) {
-      loadedItems.value = new Map(props.items.map((item, index) => [item.index ?? index, item]));
-      storyPainterDebug('preview:items-loaded', {
-        itemCount: props.items.length,
-        loadedCount: loadedItems.value.size,
-      });
-    }
+  [() => props.items, () => virtualItems.value.map(row => row.index).join(',')],
+  ([items], [previousItems], onCleanup) => {
+    let cancelled = false;
+    const indexes = virtualItems.value
+      .map(row => props.items[row.index]?.index)
+      .filter((index): index is number => index !== undefined);
+    const visible = new Set(indexes);
+    windowItems.value =
+      items === previousItems
+        ? new Map([...windowItems.value].filter(([index]) => visible.has(index)))
+        : new Map();
+    readError.value = '';
+    const timer = setTimeout(async () => {
+      if (!indexes.length) return;
+      try {
+        const rows = await props.readItems(indexes);
+        if (!cancelled) windowItems.value = new Map(rows.map(item => [item.index!, item]));
+      } catch (error) {
+        if (!cancelled) readError.value = error instanceof Error ? error.message : '日志读取失败';
+      }
+    }, 20);
+    onCleanup(() => {
+      cancelled = true;
+      clearTimeout(timer);
+    });
   },
   { immediate: true }
 );
 
 watch(
-  () => props.itemIndexes,
-  () => {
-    clearScheduledScrollLoad();
-    pendingIndexes.clear();
-    const visibleSet = new Set(props.itemIndexes);
-    loadedItems.value = new Map([...loadedItems.value].filter(([index]) => visibleSet.has(index)));
-    storyPainterDebug('preview:item-indexes', {
-      itemIndexCount: props.itemIndexes.length,
-      firstIndex: props.itemIndexes[0],
-      lastIndex: props.itemIndexes.at(-1),
-      keptLoadedCount: loadedItems.value.size,
-    });
-    rowVirtualizer.value.measure();
-    void loadVisibleItems({ start: 0, end: 79 });
-  },
-  { immediate: true }
+  [
+    () => props.items,
+    () => props.mode,
+    () => props.options,
+    () => props.forumOptions,
+    () => props.addVoiceMark,
+  ],
+  () => rowVirtualizer.value.measure(),
+  { deep: true, flush: 'post' }
 );
-
-onMounted(() => {
-  void loadVisibleItems({ start: 0, end: 79 });
-  void nextTick(() => {
-    scheduleVisibleLoad(virtualItemsToStoryPainterRange(rowVirtualizer.value.getVirtualItems()), {
-      source: 'mounted',
-      sync: false,
-    });
-  });
-});
-
-onBeforeUnmount(() => {
-  clearScheduledScrollLoad();
-});
 
 function colorByItem(item: StoryPainterLogItem): string {
   return pcMap.value.get(packStoryPainterNameId(item))?.color || '#4b5563';
@@ -226,148 +175,6 @@ function colorByItem(item: StoryPainterLogItem): string {
 
 async function copyPreviewText(): Promise<void> {
   emit('copy', await props.copyText());
-}
-
-async function loadVisibleItems(range: StoryPainterVirtualRange): Promise<void> {
-  if (props.itemIndexes.length === 0) {
-    storyPainterDebug('preview:load-skip', {
-      reason: 'empty-item-indexes',
-      range: compactRange(range),
-      itemIndexCount: props.itemIndexes.length,
-    });
-    return;
-  }
-  const indexes = collectMissingVisibleIndexes({
-    visibleIndexes: props.itemIndexes,
-    loadedIndexes: new Set(loadedItems.value.keys()),
-    pendingIndexes,
-    range,
-    overscan: rangeOverscan,
-  });
-  if (indexes.length === 0) {
-    storyPainterDebug('preview:load-skip', {
-      reason: 'no-missing-indexes',
-      range: compactRange(range),
-      loadedCount: loadedItems.value.size,
-      pendingCount: pendingIndexes.size,
-    });
-    return;
-  }
-  storyPainterDebug('preview:load-start', {
-    range: compactRange(range),
-    missingCount: indexes.length,
-    firstMissingIndex: indexes[0],
-    lastMissingIndex: indexes.at(-1),
-    loadedCount: loadedItems.value.size,
-    pendingCount: pendingIndexes.size,
-  });
-  indexes.forEach(index => pendingIndexes.add(index));
-  try {
-    const rows = await props.readItems(indexes);
-    const visibleSet = new Set(props.itemIndexes);
-    const next = new Map(loadedItems.value);
-    let insertedCount = 0;
-    rows.forEach(item => {
-      if (item.index === undefined) return;
-      if (!visibleSet.has(item.index)) return;
-      if (next.has(item.index)) next.delete(item.index);
-      next.set(item.index, item);
-      insertedCount += 1;
-    });
-    loadedItems.value = trimLoadedItems(next, indexes);
-    storyPainterDebug('preview:load-done', {
-      range: compactRange(range),
-      requestedCount: indexes.length,
-      rowCount: rows.length,
-      insertedCount,
-      loadedCount: loadedItems.value.size,
-      firstRowIndex: rows[0]?.index,
-      lastRowIndex: rows.at(-1)?.index,
-    });
-  } finally {
-    indexes.forEach(index => pendingIndexes.delete(index));
-  }
-}
-
-function handleVirtualizerChange(
-  instance: Virtualizer<HTMLDivElement, HTMLDivElement>,
-  sync: boolean
-): void {
-  const range = virtualItemsToStoryPainterRange(instance.getVirtualItems());
-  scheduleVisibleLoad(range, {
-    source: 'tanstack',
-    sync,
-    totalSize: Math.round(instance.getTotalSize()),
-    virtualCount: instance.getVirtualItems().length,
-  });
-}
-
-function scheduleVisibleLoad(
-  range: StoryPainterVirtualRange | undefined,
-  context: Record<string, number | boolean | string | undefined>
-): void {
-  if (!range) {
-    storyPainterDebug('preview:scroll-skip', {
-      reason: 'empty-virtual-range',
-      ...context,
-      itemIndexCount: props.itemIndexes.length,
-      loadedCount: loadedItems.value.size,
-      pendingCount: pendingIndexes.size,
-    });
-    return;
-  }
-  clearScheduledScrollLoad();
-  scheduledRange = range;
-  const target = previewListRef.value;
-  storyPainterDebug('preview:scroll', {
-    ...context,
-    range: compactRange(range),
-    itemIndexCount: props.itemIndexes.length,
-    loadedCount: loadedItems.value.size,
-    pendingCount: pendingIndexes.size,
-    scrollTop: target?.scrollTop,
-    clientHeight: target?.clientHeight,
-    scrollHeight: target?.scrollHeight,
-  });
-  storyPainterDebug('preview:schedule-load', {
-    delayMs: scrollLoadDelayMs,
-    range: compactRange(range),
-  });
-  scrollLoadTimer = setTimeout(() => {
-    const rangeToLoad = scheduledRange;
-    scheduledRange = null;
-    scrollLoadTimer = undefined;
-    if (rangeToLoad) void loadVisibleItems(rangeToLoad);
-  }, scrollLoadDelayMs);
-}
-
-function clearScheduledScrollLoad(): void {
-  if (scrollLoadTimer) clearTimeout(scrollLoadTimer);
-  scrollLoadTimer = undefined;
-  scheduledRange = null;
-}
-
-function compactRange(range: StoryPainterVirtualRange): Record<string, number | undefined> {
-  return {
-    start: range.start,
-    end: range.end,
-    padFront: range.padFront,
-    padBehind: range.padBehind,
-  };
-}
-
-function trimLoadedItems(
-  source: Map<number, StoryPainterLogItem>,
-  protectedIndexes: number[]
-): Map<number, StoryPainterLogItem> {
-  const protectedSet = new Set(protectedIndexes);
-  const next = new Map(source);
-  for (const index of source.keys()) {
-    if (next.size <= loadedItemsLimit) break;
-    if (protectedSet.has(index)) continue;
-    next.delete(index);
-  }
-  return next;
 }
 </script>
 

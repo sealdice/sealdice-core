@@ -53,30 +53,21 @@ export function buildStoryPainterPcMap(chars: StoryPainterChar[]): Map<string, S
   return pcMap;
 }
 
-export function isStoryPainterHidden(
-  item: StoryPainterLogItem,
-  chars: StoryPainterChar[]
-): boolean {
-  if (item.role === '隐藏') return true;
-  const pc = buildStoryPainterPcMap(chars).get(packStoryPainterNameId(item));
-  if (pc?.role === '隐藏') return true;
-  return chars.some(
-    char => char.role === '隐藏' && char.IMUserId === item.IMUserId && char.name === item.nickname
-  );
-}
-
 export function buildStoryPainterPreviewItems(
   items: StoryPainterLogItem[],
   chars: StoryPainterChar[],
   normalizeMessage: (item: StoryPainterLogItem) => string
 ): StoryPainterLogItem[] {
   const previewItems: StoryPainterLogItem[] = [];
-  items.forEach(item => {
+  const hiddenKeys = new Set(
+    chars.filter(char => char.role === '隐藏').map(packStoryPainterNameId)
+  );
+  items.forEach((item, index) => {
     if (item.isRaw) return;
-    if (isStoryPainterHidden(item, chars)) return;
+    if (item.role === '隐藏' || hiddenKeys.has(packStoryPainterNameId(item))) return;
     const msg = normalizeMessage(item);
     if (msg.trim() === '') return;
-    previewItems.push({ ...item, index: item.index ?? previewItems.length });
+    previewItems.push(item.index === undefined ? { ...item, index } : item);
   });
   return previewItems;
 }

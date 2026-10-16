@@ -1,4 +1,4 @@
-import { computed, reactive, shallowRef } from 'vue';
+import { computed, reactive, shallowRef, watch } from 'vue';
 import randomColor from 'randomcolor';
 import {
   buildStoryPainterChars,
@@ -19,6 +19,7 @@ import {
 import type { StoryPainterParquetDataset } from './parquetDataset';
 import { storyPainterDebug } from './debug';
 import { normalizeStoryPainterMessage } from './formatters';
+import { normalizeStoryPainterPlainMessage } from './renderers';
 
 const storageKey = 'storyPainterPcNameColorMap';
 const indexColumns = ['id', 'nickname', 'IMUserId', 'time', 'isDice'] as const;
@@ -27,10 +28,9 @@ const rowCacheLimit = 3000;
 
 export function useStoryPainter() {
   const items = shallowRef<StoryPainterLogItem[]>([]);
-  const previewItems = shallowRef<StoryPainterLogItem[]>([]);
+  const datasetPreviewItems = shallowRef<StoryPainterLogItem[]>([]);
   const dataset = shallowRef<StoryPainterParquetDataset | null>(null);
   const fullItemsLoaded = shallowRef(false);
-  const visibleIndexes = shallowRef<number[]>([]);
   const chars = shallowRef<StoryPainterChar[]>([]);
   const swatches = shallowRef<string[]>(randomColor({ count: 16 }) as string[]);
   const mode = shallowRef<'editor' | StoryPainterPreviewDisplayMode>('editor');
@@ -45,42 +45,79 @@ export function useStoryPainter() {
   const rowCache = new Map<number, StoryPainterLogItem>();
   const rowChunkInflight = new Map<number, Promise<void>>();
   let rowSourceVersion = 0;
-  const charNameOverrides = new Map<string, string>();
-  const deletedOriginalCharKeys = new Set<string>();
+  const charRenames: Array<{ char: StoryPainterChar; name: string }> = [];
+  const deletedRowIndexes = new Set<number>();
+  let previewVersion = 0;
 
   const pcMap = computed(() => buildStoryPainterPcMap(chars.value));
+  const itemsByIndex = computed(() => new Map(items.value.map(item => [item.index!, item])));
+  const previewOptions = computed(() => ({
+    ...exportOptions,
+    imageHide: exportOptions.imageHide || mode.value === 'bbs' || mode.value === 'bbspineapple',
+  }));
+  const previewItems = computed(() =>
+    fullItemsLoaded.value
+      ? filterPreviewItems(items.value, chars.value, previewOptions.value)
+      : datasetPreviewItems.value
+  );
+
+  watch([items, chars, previewOptions, mode], () => {
+    if (!fullItemsLoaded.value && mode.value !== 'editor') return refreshPreview();
+  });
+
+  function filterPreviewItems(
+    rows: StoryPainterLogItem[],
+    currentChars: StoryPainterChar[],
+    options: StoryPainterOptions,
+    pineapple = mode.value === 'bbspineapple'
+  ): StoryPainterLogItem[] {
+    return buildStoryPainterPreviewItems(rows, currentChars, item =>
+      pineapple
+        ? normalizeStoryPainterPlainMessage(item, currentChars, options)
+        : normalizeStoryPainterMessage(item, currentChars, options, false)
+    );
+  }
+
+  function resetReadState(): void {
+    rowSourceVersion += 1;
+    rowCache.clear();
+    rowChunkInflight.clear();
+    charRenames.length = 0;
+    deletedRowIndexes.clear();
+    datasetPreviewItems.value = [];
+  }
 
   function setAllItemsFromEditor(nextItems: StoryPainterLogItem[]): void {
     dataset.value = null;
     fullItemsLoaded.value = true;
-    rowSourceVersion += 1;
-    rowCache.clear();
-    rowChunkInflight.clear();
-    items.value = nextItems;
+    resetReadState();
+    items.value = nextItems.map((item, index) => ({ ...item, index }));
     chars.value = syncChars(chars.value, buildStoryPainterChars(nextItems, pcNameColorMap));
-    refreshPreviewFromItems();
   }
 
   async function setDataset(nextDataset: StoryPainterParquetDataset): Promise<void> {
     dataset.value = nextDataset;
     fullItemsLoaded.value = false;
-    rowSourceVersion += 1;
+    resetReadState();
+    const version = rowSourceVersion;
     const indexRows = await nextDataset.readRows(0, nextDataset.numRows, [...indexColumns]);
+    if (version !== rowSourceVersion) return;
     items.value = indexRows;
     chars.value = buildStoryPainterChars(indexRows, pcNameColorMap);
-    rowCache.clear();
-    rowChunkInflight.clear();
-    charNameOverrides.clear();
-    deletedOriginalCharKeys.clear();
-    await refreshPreviewFromDataset();
+    await refreshPreview();
   }
 
   async function refreshPreview(): Promise<void> {
-    if (dataset.value) {
-      await refreshPreviewFromDataset();
-      return;
+    const version = ++previewVersion;
+    const sourceVersion = rowSourceVersion;
+    if (fullItemsLoaded.value || !dataset.value) return;
+    const metadata: StoryPainterLogItem[] = [];
+    for await (const chunk of iterPreviewChunks()) {
+      if (version !== previewVersion || sourceVersion !== rowSourceVersion) return;
+      chunk.forEach(item => metadata.push({ ...item, message: '', commandInfo: undefined }));
     }
-    refreshPreviewFromItems();
+    if (version === previewVersion && sourceVersion === rowSourceVersion)
+      datasetPreviewItems.value = metadata;
   }
 
   function updateChar(index: number, patch: Partial<StoryPainterChar>): void {
@@ -100,28 +137,21 @@ export function useStoryPainter() {
     const current = chars.value[index];
     if (!current || !nextName.trim() || current.name === nextName) return;
     const trimmedName = nextName.trim();
-    const overrideKey = packStoryPainterNameId(current);
     items.value = renameStoryPainterChar(items.value, current, trimmedName);
-    previewItems.value = renameStoryPainterChar(previewItems.value, current, trimmedName);
-    for (const [rowIndex, row] of rowCache) {
-      rowCache.set(rowIndex, renameStoryPainterChar([row], current, trimmedName)[0] ?? row);
-    }
-    charNameOverrides.set(overrideKey, trimmedName);
+    if (!fullItemsLoaded.value) charRenames.push({ char: current, name: trimmedName });
     updateChar(index, { name: trimmedName });
   }
 
   function deleteChar(index: number): void {
     const current = chars.value[index];
     if (!current) return;
-    deletedOriginalCharKeys.add(originalCharKey(current));
-    const removed = new Set(
-      items.value
-        .filter(item => item.IMUserId === current.IMUserId && item.nickname === current.name)
-        .map(item => item.index ?? 0)
-    );
+    if (!fullItemsLoaded.value) {
+      items.value.forEach(item => {
+        if (item.IMUserId === current.IMUserId && item.nickname === current.name)
+          deletedRowIndexes.add(item.index!);
+      });
+    }
     items.value = deleteStoryPainterChar(items.value, current);
-    previewItems.value = deleteStoryPainterChar(previewItems.value, current);
-    visibleIndexes.value = visibleIndexes.value.filter(itemIndex => !removed.has(itemIndex));
     chars.value = chars.value.filter((_, itemIndex) => itemIndex !== index);
   }
 
@@ -133,32 +163,13 @@ export function useStoryPainter() {
     return pcMap.value.get(packStoryPainterNameId(item))?.color || '#4b5563';
   }
 
-  function refreshPreviewFromItems(): void {
-    previewItems.value = buildStoryPainterPreviewItems(items.value, chars.value, item =>
-      normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
-    );
-    visibleIndexes.value = previewItems.value.map(item => item.index ?? item.id - 1);
-  }
-
-  async function refreshPreviewFromDataset(): Promise<void> {
-    if (!dataset.value) return;
-    const metadata: StoryPainterLogItem[] = [];
-    for await (const chunk of iterPreviewChunks()) {
-      chunk.forEach(item => {
-        metadata.push({ ...item, message: '', commandInfo: undefined });
-      });
-    }
-    visibleIndexes.value = metadata.map(item => item.index!);
-    previewItems.value = metadata;
-  }
-
   async function readPreviewItems(indexes: number[]): Promise<StoryPainterLogItem[]> {
     const uniqueIndexes = [...new Set(indexes)].filter(index => Number.isFinite(index));
     if (uniqueIndexes.length === 0) return [];
     const source = dataset.value;
-    if (!source) {
+    if (fullItemsLoaded.value || !source) {
       return indexes
-        .map(index => previewItems.value.find(item => item.index === index))
+        .map(index => itemsByIndex.value.get(index))
         .filter((item): item is StoryPainterLogItem => Boolean(item));
     }
     const missing = uniqueIndexes.filter(index => !rowCache.has(index));
@@ -179,9 +190,12 @@ export function useStoryPainter() {
       cacheSize: rowCache.size,
     });
     await Promise.all(chunkStarts.map(start => readPreviewChunk(source, start, sourceVersion)));
-    const rows = indexes
-      .map(index => rowCache.get(index))
-      .filter((item): item is StoryPainterLogItem => Boolean(item));
+    if (sourceVersion !== rowSourceVersion) return [];
+    const rows = applyEdits(
+      indexes
+        .map(index => rowCache.get(index))
+        .filter((item): item is StoryPainterLogItem => Boolean(item))
+    );
     storyPainterDebug('painter:read-preview-items-done', {
       requestedCount: indexes.length,
       returnedCount: rows.length,
@@ -199,48 +213,43 @@ export function useStoryPainter() {
       return;
     }
     if (fullItemsLoaded.value) return;
+    const version = rowSourceVersion;
     const rows = await source.readRows(0, source.numRows);
-    items.value = rows.filter(item => !isDeletedOriginalItem(item)).map(applyCharOverrides);
+    if (version !== rowSourceVersion) return;
+    items.value = applyEdits(rows);
     fullItemsLoaded.value = true;
+    resetReadState();
   }
 
   async function* iterPreviewChunks(chunkSize = 2000): AsyncGenerator<StoryPainterLogItem[]> {
     const source = dataset.value;
-    if (!source) {
+    if (fullItemsLoaded.value || !source) {
       yield previewItems.value;
       return;
     }
+    const currentChars = chars.value;
+    const options = previewOptions.value;
+    const pineapple = mode.value === 'bbspineapple';
+    const renames = [...charRenames];
+    const deleted = new Set(deletedRowIndexes);
     for await (const chunk of source.iterRows({ chunkSize })) {
-      const overridden = chunk.filter(item => !isDeletedOriginalItem(item)).map(applyCharOverrides);
-      yield buildStoryPainterPreviewItems(overridden, chars.value, item =>
-        normalizeStoryPainterMessage(item, chars.value, exportOptions, false)
+      yield filterPreviewItems(
+        applyEdits(chunk, renames, deleted),
+        currentChars,
+        options,
+        pineapple
       );
     }
   }
 
-  function originalCharKey(char: StoryPainterChar): string {
-    for (const [packed, nextName] of charNameOverrides) {
-      const original = unpackStoryPainterNameId(packed);
-      if (original.IMUserId === char.IMUserId && nextName === char.name) return packed;
-    }
-    return packStoryPainterNameId(char);
-  }
-
-  function isDeletedOriginalItem(item: StoryPainterLogItem): boolean {
-    return deletedOriginalCharKeys.has(packStoryPainterNameId(item));
-  }
-
-  function applyCharOverrides(item: StoryPainterLogItem): StoryPainterLogItem {
-    if (charNameOverrides.size === 0) return item;
-    let next = item;
-    for (const [packed, nextName] of charNameOverrides) {
-      const { name: oldName, IMUserId } = unpackStoryPainterNameId(packed);
-      next =
-        renameStoryPainterChar(
-          [next],
-          { name: oldName, IMUserId, role: '角色', color: '' },
-          nextName
-        )[0] ?? next;
+  function applyEdits(
+    rows: StoryPainterLogItem[],
+    renames = charRenames,
+    deleted = deletedRowIndexes
+  ): StoryPainterLogItem[] {
+    let next = rows.filter(item => !deleted.has(item.index!));
+    for (const { char, name } of renames) {
+      next = renameStoryPainterChar(next, char, name);
     }
     return next;
   }
@@ -290,10 +299,8 @@ export function useStoryPainter() {
       }
       let cachedCount = 0;
       rows.forEach(item => {
-        if (isDeletedOriginalItem(item)) return;
-        const overridden = applyCharOverrides(item);
-        if (overridden.index !== undefined) {
-          setCachedRow(overridden.index, overridden);
+        if (item.index !== undefined) {
+          setCachedRow(item.index, item);
           cachedCount += 1;
         }
       });
@@ -318,7 +325,6 @@ export function useStoryPainter() {
     previewItems,
     dataset,
     fullItemsLoaded,
-    visibleIndexes,
     chars,
     swatches,
     mode,
@@ -328,7 +334,6 @@ export function useStoryPainter() {
     exportOptions,
     setDataset,
     setAllItemsFromEditor,
-    refreshPreview,
     readPreviewItems,
     ensureFullItems,
     iterPreviewChunks,
@@ -366,13 +371,4 @@ function saveColorMap(value: Map<string, string>): void {
   } catch {
     // 忽略本地存储异常，颜色仍在当前会话生效。
   }
-}
-
-function unpackStoryPainterNameId(value: string): { name: string; IMUserId: string } {
-  const separatorIndex = value.lastIndexOf('-');
-  if (separatorIndex < 0) return { name: value, IMUserId: '' };
-  return {
-    name: value.slice(0, separatorIndex),
-    IMUserId: value.slice(separatorIndex + 1),
-  };
 }

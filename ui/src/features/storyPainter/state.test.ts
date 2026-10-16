@@ -4,7 +4,6 @@ import {
   buildStoryPainterChars,
   buildStoryPainterPreviewItems,
   deleteStoryPainterChar,
-  isStoryPainterHidden,
   renameStoryPainterChar,
 } from './state';
 import { normalizeStoryPainterMessage } from './formatters';
@@ -45,7 +44,6 @@ it('日志阅读状态与选项更新', async () => {
   expect(chars.length).toBe(3);
   expect(chars.map(item => item.role)).toEqual(['角色', '骰子', '隐藏']);
   expect(chars[0]?.color).toBe('#123456');
-  expect(isStoryPainterHidden(items[2]!, chars)).toBe(true);
 
   const options = defaultStoryPainterOptions();
   const normalized = normalizeStoryPainterMessage(items[0]!, chars, options, false);

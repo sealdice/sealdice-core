@@ -147,7 +147,6 @@
             v-else
             :mode="painter.mode.value"
             :items="painter.previewItems.value"
-            :item-indexes="painter.visibleIndexes.value"
             :read-items="painter.readPreviewItems"
             :chars="painter.chars.value"
             :options="painter.exportOptions"
@@ -372,13 +371,12 @@ async function exportDocx(): Promise<void> {
   await exportStoryPainterDocx(entries);
 }
 
-async function openMode(mode: StoryPainterPreviewDisplayMode): Promise<void> {
+function openMode(mode: StoryPainterPreviewDisplayMode): void {
   painter.mode.value = painter.mode.value === mode ? 'editor' : mode;
   if (painter.mode.value !== 'editor') {
     if (mode === 'bbs' || mode === 'bbspineapple' || mode === 'trg') {
       painter.exportOptions.imageHide = true;
     }
-    await painter.refreshPreview();
   }
 }
 
