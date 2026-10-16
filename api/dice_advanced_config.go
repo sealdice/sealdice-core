@@ -24,10 +24,6 @@ func DiceAdvancedConfigSet(c echo.Context) error {
 		return Error(&c, err.Error(), nil)
 	}
 
-	myDice.AdvancedConfig = advancedConfig
-
-	// 统一标记为修改
-	myDice.MarkModified()
-	myDice.Parent.Save()
+	myDice.UpdateAdvancedConfig(advancedConfig)
 	return Success(&c, Response{})
 }

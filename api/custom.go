@@ -1,8 +1,8 @@
 package api
 
 import (
+	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -30,26 +30,17 @@ func customTextSave(c echo.Context) error {
 		Category string                      `form:"category" json:"category"`
 		Data     dice.TextTemplateWithWeight `form:"data"     json:"data"`
 	}{}
-	err := c.Bind(&v)
-	if err == nil {
-		for _, v1 := range v.Data {
-			for _, v2 := range v1 {
-				v2[0] = strings.TrimSpace(v2[0].(string))
-				v2[1] = int(v2[1].(float64))
-			}
-		}
-		myDice.TextMapRaw[v.Category] = v.Data
-		dice.SetupTextHelpInfo(myDice, myDice.TextMapHelpInfo, myDice.TextMapRaw, "configs/text-template.yaml")
-		myDice.GenerateTextMap()
-		myDice.SaveText()
-
-		for k, v2 := range myDice.TextMapRaw[v.Category] {
-			dice.TextMapCompatibleCheck(myDice, v.Category, k, v2)
-		}
-
-		return c.String(http.StatusOK, "")
+	if err := c.Bind(&v); err != nil {
+		return c.String(430, "")
 	}
-	return c.String(430, "")
+	if err := myDice.SaveTextCategory(v.Category, v.Data); err != nil {
+		if errors.Is(err, dice.ErrInvalidConfig) {
+			return c.String(http.StatusBadRequest, err.Error())
+		}
+		myDice.Logger.Errorf("保存文案失败: %v", err)
+		return c.String(http.StatusInternalServerError, "保存文案失败")
+	}
+	return c.String(http.StatusOK, "")
 }
 
 func customTextPreviewRefresh(c echo.Context) error {

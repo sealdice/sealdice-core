@@ -266,7 +266,14 @@ func (pm *PackageManager) scanSourceArtifacts() (map[string][]*packageArtifactCa
 			pm.parent.Logger.Warnf("扫描扩展包目录时发生错误: %v", walkErr)
 			return nil
 		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), "staged-") && strings.HasSuffix(strings.ToLower(d.Name()), ".tmp") {
+			_ = os.Remove(pkgFilePath)
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {
 			return nil
 		}
 
@@ -760,7 +767,71 @@ func (pm *PackageManager) saveState() error {
 		return err
 	}
 
-	return os.WriteFile(pm.getStatePath(), data, 0644)
+	return writePackageStateFileAtomic(pm.getStatePath(), data)
+}
+
+func writePackageStateFileAtomic(statePath string, data []byte) error {
+	dir := filepath.Dir(statePath)
+	staged, err := os.CreateTemp(dir, "."+filepath.Base(statePath)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err = staged.Write(data); err != nil {
+		return err
+	}
+	if err = staged.Sync(); err != nil {
+		return err
+	}
+	if err = staged.Close(); err != nil {
+		return err
+	}
+
+	if _, statErr := os.Stat(statePath); errors.Is(statErr, os.ErrNotExist) {
+		if err = os.Rename(stagedPath, statePath); err != nil {
+			return err
+		}
+		keepStaged = true
+		return nil
+	} else if statErr != nil {
+		return statErr
+	}
+
+	backup, err := os.CreateTemp(dir, "."+filepath.Base(statePath)+".backup-*")
+	if err != nil {
+		return err
+	}
+	backupPath := backup.Name()
+	if err = backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return err
+	}
+	if err = os.Remove(backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(statePath, backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(stagedPath, statePath); err != nil {
+		if rollbackErr := os.Rename(backupPath, statePath); rollbackErr != nil {
+			return errors.Join(
+				fmt.Errorf("替换扩展包状态文件失败: %w", err),
+				fmt.Errorf("回滚扩展包状态文件失败: %w", rollbackErr),
+			)
+		}
+		return err
+	}
+	_ = os.Remove(backupPath)
+	keepStaged = true
+	return nil
 }
 
 func loadPackageConfigFromUserData(userDataPath string) (map[string]interface{}, error) {
@@ -869,6 +940,18 @@ func (pm *PackageManager) installFromSourceContext(ctx context.Context, pkgPath 
 		_ = os.RemoveAll(stagedCachePath)
 		return err
 	}
+
+	// 在移动源文件/切换安装目录前先创建用户数据目录，
+	// 失败时不会留下“源文件和安装缓存已就位但包未注册”的半安装状态。
+	userDataPath := pm.getUserDataPath(pkgID)
+	if err := os.MkdirAll(userDataPath, 0o755); err != nil {
+		if !sourceAlreadyStaged {
+			_ = os.Remove(stagedSourcePath)
+		}
+		_ = os.RemoveAll(stagedCachePath)
+		return err
+	}
+
 	if err := os.Rename(stagedSourcePath, destPkgPath); err != nil {
 		if !sourceAlreadyStaged {
 			_ = os.Remove(stagedSourcePath)
@@ -879,11 +962,6 @@ func (pm *PackageManager) installFromSourceContext(ctx context.Context, pkgPath 
 	if err := pm.swapInstallDir(stagedCachePath, pm.getPackageInstallPath(pkgID)); err != nil {
 		_ = os.Remove(destPkgPath)
 		pm.removeEmptyParents(filepath.Dir(destPkgPath), pm.getSourcePackagesPath())
-		return err
-	}
-
-	userDataPath := pm.getUserDataPath(pkgID)
-	if err := os.MkdirAll(userDataPath, 0o755); err != nil {
 		return err
 	}
 
@@ -1362,7 +1440,8 @@ func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, 
 }
 
 func (pm *PackageManager) stageSourceArtifact(srcPath, destDir string) (string, error) {
-	tempFile, err := os.CreateTemp(destDir, "staged-*.sealpack")
+	// 不用 .sealpack 后缀，避免崩溃残留被 scanSourceArtifacts 当成正式源包。
+	tempFile, err := os.CreateTemp(destDir, "staged-*.tmp")
 	if err != nil {
 		return "", err
 	}
@@ -1689,9 +1768,9 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 		return err
 	}
 
-	pkg.Config = config
+	oldConfig := pkg.Config
 
-	// 保存到用户数据目录
+	// 先持久化配置文件，成功后再更新内存，失败时内存保持旧值。
 	if err := os.MkdirAll(pkg.UserDataPath, 0o755); err != nil {
 		return err
 	}
@@ -1700,12 +1779,19 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 	if err != nil {
 		return err
 	}
-
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
 		return err
 	}
 
-	return pm.saveState()
+	pkg.Config = config
+	if err := pm.saveState(); err != nil {
+		pkg.Config = oldConfig
+		if oldData, marshalErr := json.MarshalIndent(oldConfig, "", "  "); marshalErr == nil {
+			_ = os.WriteFile(configPath, oldData, 0644)
+		}
+		return err
+	}
+	return nil
 }
 
 // List 列出所有已安装的包
@@ -2461,6 +2547,24 @@ func (pm *PackageManager) InstallFromURLWithOptionsContext(ctx context.Context, 
 	}
 	defer os.Remove(stagedPath)
 	return pm.installFromSourceContext(ctx, stagedPath, true)
+}
+
+// PreviewFromURLWithOptionsContext downloads a package into staging and inspects it without installing it.
+func (pm *PackageManager) PreviewFromURLWithOptionsContext(ctx context.Context, url string, options PackageDownloadOptions) (*PackageUploadPreview, error) {
+	release, err := acquirePackageOperation(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	if dirErr := pm.ensurePackageDirs(); dirErr != nil {
+		return nil, dirErr
+	}
+	stagedPath, _, err := pm.prepareDownloadedPackageContext(ctx, url, options, pm.getPackageStagingDir(), "package_preview_download_*.part")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(stagedPath)
+	return pm.previewFromSourceContext(ctx, stagedPath)
 }
 
 func acquirePackageOperation(ctx context.Context) (func(), error) {
