@@ -20,6 +20,10 @@ const (
 	ChunkCacheCap = 4 << 20
 	// WeightCacheCap 是权重缓存（解压后的 []uint32）的字节上限。
 	WeightCacheCap = 2 << 20
+	// MetaKeyContentHash 是 deck_meta 表中存放牌堆内容指纹的 KV 键。
+	// L1 导入器写入该键；L0 用其值（hex）派生缓存代号。双方必须引用同一常量，
+	// 避免键名漂移导致 L0 读到空代号、重导后缓存失效静默失效并返回过期内容。
+	MetaKeyContentHash = "content_hash"
 )
 
 // ErrNotFound 表示请求的条目 / 组 / 元数据不存在。
@@ -44,6 +48,11 @@ type GroupMeta struct {
 }
 
 // Store 是牌堆分块存储的只读接口 + 导入 / 生命周期入口。
+//
+// 内存缓存提示：实现用 github.com/maypok86/otter 按字节记账缓存解压后的块与权重。
+// otter 的单条成本上限约为容量的 1/10（ChunkCacheCap/10≈410KB、WeightCacheCap/10≈205KB）；
+// 超过上限的条目会被丢弃、每次读取都回源读库+解压（性能退化，非正确性错误，被丢弃的次数会被计数并限频告警）。
+// 常规块目标 ≤128KB（msgpack 载荷）不受影响；仅当存在超大单条（>≈410KB）或超大权重数组（>≈5.2 万条/组）时退化。
 type Store interface {
 	// BeginImport 开启一个写事务，先 DELETE 该 deck 的全部旧行。
 	BeginImport(deckID string) (Import, error)

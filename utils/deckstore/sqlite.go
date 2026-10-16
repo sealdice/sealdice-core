@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/maypok86/otter"
 	"github.com/vmihailenco/msgpack"
@@ -59,11 +60,14 @@ type sqliteStore struct {
 
 	chunkCache  *otter.Cache[string, []string]
 	weightCache *otter.Cache[string, []uint32]
+
+	// cacheRejects 统计被 otter 拒绝写入（单条成本 > 容量/10）的缓存条目数，
+	// 仅用于限频告警；被拒条目每次读取都会回源读库+解压（性能退化，非正确性错误）。
+	cacheRejects atomic.Uint64
 }
 
-// genMetaKey 是 deck_meta 表中存放内容指纹的 KV 键（由 L1 导入时写入）。
-// L0 用它派生缓存代号；不导入 dice 包，仅以字符串字面量引用该键名。
-const genMetaKey = "content_hash"
+// cacheRejectLogEvery 是缓存拒绝告警的限频间隔（每累计这么多次记一条，第 1 次必记）。
+const cacheRejectLogEvery = 1024
 
 // newDeckCaches 构建块/权重两个按字节记账的 otter 缓存。
 // 容量沿用字节上限（ChunkCacheCap / WeightCacheCap），成本函数见 chunkCacheCost / weightCacheCost。
@@ -201,22 +205,36 @@ func (s *sqliteStore) BeginImport(deckID string) (Import, error) {
 }
 
 func (s *sqliteStore) GroupMeta(deckID, group string) (GroupMeta, bool) {
+	gm, _, ok := s.groupMetaAndGen(deckID, group)
+	return gm, ok
+}
+
+// groupMetaAndGen 在同一把锁内取出组的元数据与该 deck 的缓存代号，供 Item/Weights 构造缓存键。
+// 两者必须来自同一版本：若分两次取，并发重导可能构造「旧 ChunkStarts + 新 gen」，
+// 按旧布局算出的 chunkNo/local 配新 gen 去读库，会命中新内容里的错误条目（或 ErrNotFound）。
+func (s *sqliteStore) groupMetaAndGen(deckID, group string) (GroupMeta, string, bool) {
+	key := Key(deckID, group)
 	s.mu.RLock()
-	gm, ok := s.index[Key(deckID, group)]
+	gm, ok := s.index[key]
+	gen := s.deckGen[deckID]
 	s.mu.RUnlock()
 	if ok {
-		return gm, true
+		return gm, gen, true
 	}
 
-	// 索引未命中时回退读库（reload 打开既有库文件时索引尚未预载），并缓存进索引。
+	// 索引未命中时回退读库（reopen 时索引尚未预载），并在同一把锁内写索引、读代号。
 	gm, ok = s.loadGroupMeta(deckID, group)
 	if !ok {
-		return GroupMeta{}, false
+		return GroupMeta{}, "", false
 	}
 	s.mu.Lock()
-	s.index[Key(deckID, group)] = gm
-	s.mu.Unlock()
-	return gm, true
+	defer s.mu.Unlock()
+	// 期间可能已被并发 Commit/ReplaceIndex 写入更新的一致性版本；优先用它，避免旧 gm 覆盖新索引。
+	if cur, exists := s.index[key]; exists {
+		return cur, s.deckGen[deckID], true
+	}
+	s.index[key] = gm
+	return gm, s.deckGen[deckID], true
 }
 
 // loadGroupMeta 从 deck_group 表读取一个组的元数据并还原 GroupMeta。
@@ -251,21 +269,22 @@ func (s *sqliteStore) loadGroupMeta(deckID, group string) (GroupMeta, bool) {
 	}, true
 }
 
-// genFor 返回 deck 当前的缓存代号（内容指纹的 hex）；未登记时返回空串（零值稳定）。
-func (s *sqliteStore) genFor(deckID string) string {
-	s.mu.RLock()
-	g := s.deckGen[deckID]
-	s.mu.RUnlock()
-	return g
-}
-
 // deckGenHash 从 deck_meta 读取 deck 的内容指纹并 hex 编码为代号；无指纹返回空串。
 func (s *sqliteStore) deckGenHash(deckID string) string {
-	v, ok := s.Meta(deckID, genMetaKey)
+	v, ok := s.Meta(deckID, MetaKeyContentHash)
 	if !ok {
 		return ""
 	}
 	return hex.EncodeToString(v)
+}
+
+// noteCacheReject 记录一次「条目成本超过 otter 单条上限」的缓存写入被拒；限频告警，避免刷屏。
+func (s *sqliteStore) noteCacheReject(kind string) {
+	n := s.cacheRejects.Add(1)
+	if n == 1 || n%cacheRejectLogEvery == 0 {
+		s.logf("deckstore: %s缓存写入被拒（单条成本超过 otter 上限 cap/10），累计 %d 次；"+
+			"该条目每次读取都将回源读库+解压（性能退化，非正确性错误）", kind, n)
+	}
 }
 
 // rebuildDeckGen 从库中重建全部 deck 的代号映射（reload 打开既有库时，未变牌堆不经过 Commit）。
@@ -283,7 +302,7 @@ func (s *sqliteStore) rebuildDeckGen() map[string]string {
 }
 
 func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
-	gm, ok := s.GroupMeta(deckID, group)
+	gm, gen, ok := s.groupMetaAndGen(deckID, group)
 	if !ok {
 		return "", ErrNotFound
 	}
@@ -294,7 +313,7 @@ func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
 	start := gm.ChunkStarts[chunkNo]
 	local := idx - start
 
-	key := genChunkCacheKey(s.genFor(deckID), deckID, group, chunkNo)
+	key := genChunkCacheKey(gen, deckID, group, chunkNo)
 	if items, hit := s.chunkCache.Get(key); hit {
 		if local >= len(items) {
 			return "", ErrNotFound
@@ -310,7 +329,10 @@ func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s.chunkCache.Set(key, items)
+	// Set 在单条成本 > ChunkCacheCap/10（≈410KB）时返回 false：不静默，计数并限频告警。
+	if !s.chunkCache.Set(key, items) {
+		s.noteCacheReject("块")
+	}
 	if local >= len(items) {
 		return "", ErrNotFound
 	}
@@ -333,7 +355,7 @@ func (s *sqliteStore) readChunkBlob(deckID, group string, chunkNo int) ([]byte, 
 }
 
 func (s *sqliteStore) Weights(deckID, group string) ([]uint32, error) {
-	gm, ok := s.GroupMeta(deckID, group)
+	gm, gen, ok := s.groupMetaAndGen(deckID, group)
 	if !ok {
 		return nil, ErrNotFound
 	}
@@ -341,7 +363,7 @@ func (s *sqliteStore) Weights(deckID, group string) ([]uint32, error) {
 		return nil, nil
 	}
 
-	key := genWeightCacheKey(s.genFor(deckID), deckID, group)
+	key := genWeightCacheKey(gen, deckID, group)
 	if w, hit := s.weightCache.Get(key); hit {
 		return w, nil
 	}
@@ -361,7 +383,10 @@ func (s *sqliteStore) Weights(deckID, group string) ([]uint32, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.weightCache.Set(key, w)
+	// Set 在单条成本 > WeightCacheCap/10（≈205KB，约 5.2 万条/组）时返回 false：计数并限频告警。
+	if !s.weightCache.Set(key, w) {
+		s.noteCacheReject("权重")
+	}
 	return w, nil
 }
 

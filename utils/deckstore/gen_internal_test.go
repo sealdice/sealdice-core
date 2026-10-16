@@ -19,7 +19,7 @@ func TestDeckGenInvalidatesOldCacheKeys(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BeginImport: %v", err)
 		}
-		im.SetMeta(genMetaKey, []byte(hash))
+		im.SetMeta(MetaKeyContentHash, []byte(hash))
 		g := im.BeginGroup("g1")
 		g.Add(text, 0)
 		if _, err := g.Finish(); err != nil {
@@ -35,14 +35,14 @@ func TestDeckGenInvalidatesOldCacheKeys(t *testing.T) {
 	if got, err := s.Item("k", "g1", 0); err != nil || got != "item-A" {
 		t.Fatalf("A Item = %q, %v", got, err)
 	}
-	genA := s.genFor("k")
+	_, genA, _ := s.groupMetaAndGen("k", "g1")
 	if genA == "" {
 		t.Fatal("导入写入 content_hash 后，代号不应为空")
 	}
 
 	// 重导同 deck，内容指纹变化。
 	importDeck("hash-B", "item-B")
-	genB := s.genFor("k")
+	_, genB, _ := s.groupMetaAndGen("k", "g1")
 	if genB == genA {
 		t.Fatalf("重导后代号应变化，got 前后均为 %q", genA)
 	}

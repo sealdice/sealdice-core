@@ -15,6 +15,18 @@ import (
 
 const deckFixtureDir = "testdata/decks"
 
+// TestContentHashMetaKeyContract 钉住 L0/L1 共享的 content_hash 键名。
+// L0 用它派生缓存代号、L1 用它写/读指纹；若任一侧改名会在此失败，
+// 避免「L0 读到空代号 → 重导后缓存失效静默失效并返回过期内容」。
+func TestContentHashMetaKeyContract(t *testing.T) {
+	if got := deckstore.MetaKeyContentHash; got != "content_hash" {
+		t.Fatalf("deckstore.MetaKeyContentHash = %q, want %q（改键名会破坏既有库的缓存失效契约）", got, "content_hash")
+	}
+	if metaContentHash != deckstore.MetaKeyContentHash {
+		t.Fatalf("L1 metaContentHash(%q) 与 L0 deckstore.MetaKeyContentHash(%q) 不一致", metaContentHash, deckstore.MetaKeyContentHash)
+	}
+}
+
 func newImportTestDice() *Dice {
 	return &Dice{Logger: zap.NewNop().Sugar()}
 }
