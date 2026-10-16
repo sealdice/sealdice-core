@@ -1,0 +1,595 @@
+package deckstore
+
+import (
+	"database/sql"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"sync/atomic"
+
+	"github.com/maypok86/otter"
+	"github.com/vmihailenco/msgpack"
+	"gorm.io/gorm"
+
+	"sealdice-core/utils/dboperator/engine/sqlite"
+)
+
+// schemaDDL 是三张表的建表语句（照规格 §4）。
+var schemaDDL = []string{
+	`CREATE TABLE IF NOT EXISTS deck_meta (
+		deck_key TEXT NOT NULL,
+		k        TEXT NOT NULL,
+		v        BLOB NOT NULL,
+		PRIMARY KEY (deck_key, k)
+	)`,
+	`CREATE TABLE IF NOT EXISTS deck_group (
+		deck_key     TEXT NOT NULL,
+		group_name   TEXT NOT NULL,
+		item_count   INTEGER NOT NULL,
+		total_weight INTEGER NOT NULL,
+		weighted     INTEGER NOT NULL,
+		chunk_count  INTEGER NOT NULL,
+		chunk_starts BLOB NOT NULL,
+		weight_blob  BLOB,
+		PRIMARY KEY (deck_key, group_name)
+	)`,
+	`CREATE TABLE IF NOT EXISTS deck_chunk (
+		deck_key   TEXT NOT NULL,
+		group_name TEXT NOT NULL,
+		chunk_no   INTEGER NOT NULL,
+		blob       BLOB NOT NULL,
+		PRIMARY KEY (deck_key, group_name, chunk_no)
+	)`,
+}
+
+// sqliteStore 是 Store 的 SQLite 实现。
+type sqliteStore struct {
+	reader *gorm.DB
+	writer *gorm.DB
+	log    Logger
+
+	mu    sync.RWMutex
+	index map[string]GroupMeta // 键 = Key(deckID, group)
+	// deckGen 是 deckID → 内容指纹（hex）的代号，用于给缓存键加代号：
+	// 重导后指纹变化，旧代号的缓存键自然不可达并随逐出淘汰，避免并发 Clear（otter 未定义行为）。
+	deckGen map[string]string
+
+	chunkCache  *otter.Cache[string, []string]
+	weightCache *otter.Cache[string, []uint32]
+
+	// cacheRejects 统计被 otter 拒绝写入（单条成本 > 容量/10）的缓存条目数，
+	// 仅用于限频告警；被拒条目每次读取都会回源读库+解压（性能退化，非正确性错误）。
+	cacheRejects atomic.Uint64
+}
+
+// cacheRejectLogEvery 是缓存拒绝告警的限频间隔（每累计这么多次记一条，第 1 次必记）。
+const cacheRejectLogEvery = 1024
+
+// newDeckCaches 构建块/权重两个按字节记账的 otter 缓存。
+// 容量沿用字节上限（ChunkCacheCap / WeightCacheCap），成本函数见 chunkCacheCost / weightCacheCost。
+func newDeckCaches() (*otter.Cache[string, []string], *otter.Cache[string, []uint32], error) {
+	chunkCache, err := otter.MustBuilder[string, []string](ChunkCacheCap).
+		Cost(chunkCacheCost).
+		Build()
+	if err != nil {
+		return nil, nil, err
+	}
+	weightCache, err := otter.MustBuilder[string, []uint32](WeightCacheCap).
+		Cost(weightCacheCost).
+		Build()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &chunkCache, &weightCache, nil
+}
+
+func openSQLite(path string, log Logger) (Store, error) {
+	// 派生缓存库：确保父目录存在，否则文件库打不开会静默降级为内存库。
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
+		}
+	}
+	reader, writer, err := sqlite.SQLiteDBRWInit(path)
+	if err != nil {
+		return nil, err
+	}
+	chunkCache, weightCache, err := newDeckCaches()
+	if err != nil {
+		return nil, err
+	}
+	s := &sqliteStore{
+		reader:      reader,
+		writer:      writer,
+		log:         log,
+		index:       make(map[string]GroupMeta),
+		deckGen:     make(map[string]string),
+		chunkCache:  chunkCache,
+		weightCache: weightCache,
+	}
+	if err := s.ensureSchema(); err != nil {
+		_ = s.Close()
+		return nil, err
+	}
+	return s, nil
+}
+
+func openSQLiteMemory(log Logger) (Store, error) {
+	db, err := sqlite.SQLiteDBInit(":memory:", false)
+	if err != nil {
+		return nil, err
+	}
+	// :memory: 下每个连接各自为库，必须钉在单连接上。
+	pool, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+	pool.SetMaxOpenConns(1)
+	pool.SetMaxIdleConns(1)
+
+	chunkCache, weightCache, err := newDeckCaches()
+	if err != nil {
+		return nil, err
+	}
+	s := &sqliteStore{
+		reader:      db,
+		writer:      db,
+		log:         log,
+		index:       make(map[string]GroupMeta),
+		deckGen:     make(map[string]string),
+		chunkCache:  chunkCache,
+		weightCache: weightCache,
+	}
+	if err := s.ensureSchema(); err != nil {
+		_ = s.Close()
+		return nil, err
+	}
+	return s, nil
+}
+
+// ensureSchema 建表 + 关闭 mmap + 校验 user_version（不匹配则重建），最后置版本号。
+func (s *sqliteStore) ensureSchema() error {
+	if err := s.writer.Exec("PRAGMA mmap_size=0").Error; err != nil {
+		return err
+	}
+
+	var ver int
+	if err := s.writer.Raw("PRAGMA user_version").Row().Scan(&ver); err != nil {
+		return err
+	}
+	if ver > 0 && ver != SchemaVersion {
+		for _, t := range []string{"deck_chunk", "deck_group", "deck_meta"} {
+			if err := s.writer.Exec("DROP TABLE IF EXISTS " + t).Error; err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, ddl := range schemaDDL {
+		if err := s.writer.Exec(ddl).Error; err != nil {
+			return err
+		}
+	}
+
+	// PRAGMA 不支持参数绑定，版本号来自常量 SchemaVersion。
+	return s.writer.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion)).Error
+}
+
+func (s *sqliteStore) logf(format string, args ...any) {
+	if s.log != nil {
+		s.log.Errorf(format, args...)
+	}
+}
+
+func (s *sqliteStore) BeginImport(deckID string) (Import, error) {
+	tx := s.writer.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	for _, table := range []string{"deck_meta", "deck_group", "deck_chunk"} {
+		if err := tx.Exec("DELETE FROM "+table+" WHERE deck_key = ?", deckID).Error; err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+	return &sqliteImport{
+		s:      s,
+		tx:     tx,
+		deckID: deckID,
+		groups: make(map[string]GroupMeta),
+	}, nil
+}
+
+func (s *sqliteStore) GroupMeta(deckID, group string) (GroupMeta, bool) {
+	gm, _, ok := s.groupMetaAndGen(deckID, group)
+	return gm, ok
+}
+
+// groupMetaAndGen 在同一把锁内取出组的元数据与该 deck 的缓存代号，供 Item/Weights 构造缓存键。
+// 两者必须来自同一版本：若分两次取，并发重导可能构造「旧 ChunkStarts + 新 gen」，
+// 按旧布局算出的 chunkNo/local 配新 gen 去读库，会命中新内容里的错误条目（或 ErrNotFound）。
+func (s *sqliteStore) groupMetaAndGen(deckID, group string) (GroupMeta, string, bool) {
+	key := Key(deckID, group)
+	s.mu.RLock()
+	gm, ok := s.index[key]
+	gen := s.deckGen[deckID]
+	s.mu.RUnlock()
+	if ok {
+		return gm, gen, true
+	}
+
+	// 索引未命中时回退读库（reopen 时索引尚未预载），并在同一把锁内写索引、读代号。
+	gm, ok = s.loadGroupMeta(deckID, group)
+	if !ok {
+		return GroupMeta{}, "", false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// 期间可能已被并发 Commit/ReplaceIndex 写入更新的一致性版本；优先用它，避免旧 gm 覆盖新索引。
+	if cur, exists := s.index[key]; exists {
+		return cur, s.deckGen[deckID], true
+	}
+	s.index[key] = gm
+	return gm, s.deckGen[deckID], true
+}
+
+// loadGroupMeta 从 deck_group 表读取一个组的元数据并还原 GroupMeta。
+func (s *sqliteStore) loadGroupMeta(deckID, group string) (GroupMeta, bool) {
+	row := s.reader.Raw(
+		"SELECT item_count, total_weight, weighted, chunk_starts FROM deck_group WHERE deck_key = ? AND group_name = ?",
+		deckID, group,
+	).Row()
+	var (
+		itemCount   int
+		totalWeight int64
+		weighted    int
+		startsBlob  []byte
+	)
+	if err := row.Scan(&itemCount, &totalWeight, &weighted, &startsBlob); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return GroupMeta{}, false
+		}
+		s.logf("deckstore: load group meta(%s, %s): %v", deckID, group, err)
+		return GroupMeta{}, false
+	}
+	var starts []int
+	if err := msgpack.Unmarshal(startsBlob, &starts); err != nil {
+		s.logf("deckstore: decode chunk_starts(%s, %s): %v", deckID, group, err)
+		return GroupMeta{}, false
+	}
+	return GroupMeta{
+		ItemCount:   itemCount,
+		TotalWeight: totalWeight,
+		Weighted:    weighted != 0,
+		ChunkStarts: starts,
+	}, true
+}
+
+// deckGenHash 从 deck_meta 读取 deck 的内容指纹并 hex 编码为代号；无指纹返回空串。
+func (s *sqliteStore) deckGenHash(deckID string) string {
+	v, ok := s.Meta(deckID, MetaKeyContentHash)
+	if !ok {
+		return ""
+	}
+	return hex.EncodeToString(v)
+}
+
+// noteCacheReject 记录一次「条目成本超过 otter 单条上限」的缓存写入被拒；限频告警，避免刷屏。
+func (s *sqliteStore) noteCacheReject(kind string) {
+	n := s.cacheRejects.Add(1)
+	if n == 1 || n%cacheRejectLogEvery == 0 {
+		s.logf("deckstore: %s缓存写入被拒（单条成本超过 otter 上限 cap/10），累计 %d 次；"+
+			"该条目每次读取都将回源读库+解压（性能退化，非正确性错误）", kind, n)
+	}
+}
+
+// rebuildDeckGen 从库中重建全部 deck 的代号映射（reload 打开既有库时，未变牌堆不经过 Commit）。
+func (s *sqliteStore) rebuildDeckGen() map[string]string {
+	ids, err := s.DeckIDs()
+	if err != nil {
+		s.logf("deckstore: rebuild deck gen: %v", err)
+		return map[string]string{}
+	}
+	gen := make(map[string]string, len(ids))
+	for _, id := range ids {
+		gen[id] = s.deckGenHash(id)
+	}
+	return gen
+}
+
+func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
+	gm, gen, ok := s.groupMetaAndGen(deckID, group)
+	if !ok {
+		return "", ErrNotFound
+	}
+	chunkNo := ChunkForIndex(gm.ChunkStarts, idx)
+	if chunkNo < 0 {
+		return "", ErrNotFound
+	}
+	start := gm.ChunkStarts[chunkNo]
+	local := idx - start
+
+	key := genChunkCacheKey(gen, deckID, group, chunkNo)
+	if items, hit := s.chunkCache.Get(key); hit {
+		if local >= len(items) {
+			return "", ErrNotFound
+		}
+		return items[local], nil
+	}
+
+	blob, err := s.readChunkBlob(deckID, group, chunkNo)
+	if err != nil {
+		return "", err
+	}
+	items, err := decodeChunk(blob)
+	if err != nil {
+		return "", err
+	}
+	// Set 在单条成本 > ChunkCacheCap/10（≈410KB）时返回 false：不静默，计数并限频告警。
+	if !s.chunkCache.Set(key, items) {
+		s.noteCacheReject("块")
+	}
+	if local >= len(items) {
+		return "", ErrNotFound
+	}
+	return items[local], nil
+}
+
+func (s *sqliteStore) readChunkBlob(deckID, group string, chunkNo int) ([]byte, error) {
+	row := s.reader.Raw(
+		"SELECT blob FROM deck_chunk WHERE deck_key = ? AND group_name = ? AND chunk_no = ?",
+		deckID, group, chunkNo,
+	).Row()
+	var blob []byte
+	if err := row.Scan(&blob); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return blob, nil
+}
+
+func (s *sqliteStore) Weights(deckID, group string) ([]uint32, error) {
+	gm, gen, ok := s.groupMetaAndGen(deckID, group)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	if !gm.Weighted {
+		return nil, nil
+	}
+
+	key := genWeightCacheKey(gen, deckID, group)
+	if w, hit := s.weightCache.Get(key); hit {
+		return w, nil
+	}
+
+	row := s.reader.Raw(
+		"SELECT weight_blob FROM deck_group WHERE deck_key = ? AND group_name = ?",
+		deckID, group,
+	).Row()
+	var blob []byte
+	if err := row.Scan(&blob); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	w, err := decodeWeights(blob)
+	if err != nil {
+		return nil, err
+	}
+	// Set 在单条成本 > WeightCacheCap/10（≈205KB，约 5.2 万条/组）时返回 false：计数并限频告警。
+	if !s.weightCache.Set(key, w) {
+		s.noteCacheReject("权重")
+	}
+	return w, nil
+}
+
+func (s *sqliteStore) GroupItems(deckID, group string) []string {
+	gm, ok := s.GroupMeta(deckID, group)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, gm.ItemCount)
+	for i := range gm.ItemCount {
+		it, err := s.Item(deckID, group, i)
+		if err != nil {
+			s.logf("deckstore: GroupItems(%s, %s) at %d: %v", deckID, group, i, err)
+			return nil
+		}
+		out = append(out, it)
+	}
+	return out
+}
+
+func (s *sqliteStore) Meta(deckID, key string) ([]byte, bool) {
+	row := s.reader.Raw("SELECT v FROM deck_meta WHERE deck_key = ? AND k = ?", deckID, key).Row()
+	var v []byte
+	if err := row.Scan(&v); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, false
+		}
+		s.logf("deckstore: read meta(%s, %s): %v", deckID, key, err)
+		return nil, false
+	}
+	return v, true
+}
+
+func (s *sqliteStore) Groups(deckID string) ([]string, error) {
+	rows, err := s.reader.Raw(
+		"SELECT group_name FROM deck_group WHERE deck_key = ?",
+		deckID,
+	).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}
+
+func (s *sqliteStore) DeckIDs() ([]string, error) {
+	rows, err := s.reader.Raw(
+		"SELECT deck_key FROM deck_meta UNION SELECT deck_key FROM deck_group",
+	).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (s *sqliteStore) DeleteDeck(deckID string) error {
+	tx := s.writer.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	for _, table := range []string{"deck_meta", "deck_group", "deck_chunk"} {
+		if err := tx.Exec("DELETE FROM "+table+" WHERE deck_key = ?", deckID).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+
+	prefix := deckID + "\x00"
+	s.mu.Lock()
+	for k := range s.index {
+		if strings.HasPrefix(k, prefix) {
+			delete(s.index, k)
+		}
+	}
+	delete(s.deckGen, deckID)
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *sqliteStore) ReplaceIndex(m map[string]GroupMeta) {
+	// 重建代号映射：reload 打开既有库时未变牌堆不经过 Commit，需从 deck_meta 读回指纹，
+	// 否则它们会退化为空代号。读库在锁外完成，索引与代号在锁内原子替换。
+	gen := s.rebuildDeckGen()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.index = make(map[string]GroupMeta, len(m))
+	for k, v := range m {
+		s.index[k] = v
+	}
+	s.deckGen = gen
+}
+
+// indexReplace 在提交后更新索引：先移除该 deck 的旧键，再写入新组，并更新该 deck 的代号。
+// 索引与代号在同一把锁内原子更新，保证读者拿到的 chunk 布局与代号一致。
+func (s *sqliteStore) indexReplace(deckID string, groups map[string]GroupMeta) {
+	gen := s.deckGenHash(deckID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prefix := deckID + "\x00"
+	for k := range s.index {
+		if strings.HasPrefix(k, prefix) {
+			delete(s.index, k)
+		}
+	}
+	for k, v := range groups {
+		s.index[k] = v
+	}
+	s.deckGen[deckID] = gen
+}
+
+func (s *sqliteStore) Close() error {
+	// otter 后台有维护协程（writeBuffer 消费 process），不 Close 会泄漏，必须在关库前停掉。
+	// Close 内部会先清空再停协程；此时已无并发请求，Clear 语义安全。
+	if s.chunkCache != nil {
+		s.chunkCache.Close()
+	}
+	if s.weightCache != nil {
+		s.weightCache.Close()
+	}
+	var firstErr error
+	if s.reader != nil {
+		if db, err := s.reader.DB(); err == nil {
+			firstErr = db.Close()
+		}
+	}
+	if s.writer != nil && s.writer != s.reader {
+		if db, err := s.writer.DB(); err == nil {
+			if cerr := db.Close(); cerr != nil && firstErr == nil {
+				firstErr = cerr
+			}
+		}
+	}
+	return firstErr
+}
+
+// sqliteImport 是一次导入写事务。
+type sqliteImport struct {
+	s      *sqliteStore
+	tx     *gorm.DB
+	deckID string
+	groups map[string]GroupMeta
+	err    error
+	done   bool
+}
+
+func (im *sqliteImport) BeginGroup(name string) GroupWriter {
+	return newGroupWriter(im, name)
+}
+
+func (im *sqliteImport) SetMeta(key string, value []byte) {
+	if im.err != nil || im.done {
+		return
+	}
+	if err := im.tx.Exec(
+		"INSERT OR REPLACE INTO deck_meta (deck_key, k, v) VALUES (?, ?, ?)",
+		im.deckID, key, value,
+	).Error; err != nil {
+		im.err = err
+	}
+}
+
+func (im *sqliteImport) Commit() error {
+	if im.done {
+		return nil
+	}
+	im.done = true
+	if im.err != nil {
+		im.tx.Rollback()
+		return im.err
+	}
+	if err := im.tx.Commit().Error; err != nil {
+		return err
+	}
+	im.s.indexReplace(im.deckID, im.groups)
+	return nil
+}
+
+func (im *sqliteImport) Abort() {
+	if im.done {
+		return
+	}
+	im.done = true
+	im.tx.Rollback()
+}

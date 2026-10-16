@@ -1,0 +1,15 @@
+name: YAML牌堆
+author: 作者乙
+version: 3
+command: 抽卡
+desc: YAML描述
+license: mit
+info:
+  - 信息1
+  - 信息2
+default:
+  - 结果A
+  - 结果B
+其它组:
+  - 项1
+  - 项2

@@ -330,6 +330,11 @@ func newDisableDeckTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
 	}
 	pm := NewPackageManager(testDice)
 	testDice.PackageManager = pm
+	t.Cleanup(func() {
+		if testDice.DeckStore != nil {
+			_ = testDice.DeckStore.Close()
+		}
+	})
 	return testDice, pm
 }
 
