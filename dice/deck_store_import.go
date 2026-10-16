@@ -341,14 +341,17 @@ func importDiceEJSON(data []byte, di *DeckInfo, im deckstore.Import) error {
 }
 
 // readJSONStrings 从解码器当前位置（数组开始）读取一个字符串数组。
+// 数组内非字符串元素静默跳过，与 tryParseDiceE 对数组内元素的处理一致。
 func readJSONStrings(dec *json.Decoder) ([]string, error) {
 	var out []string
 	for dec.More() {
-		var s string
-		if err := dec.Decode(&s); err != nil {
+		var v any
+		if err := dec.Decode(&v); err != nil {
 			return nil, err
 		}
-		out = append(out, s)
+		if s, ok := v.(string); ok {
+			out = append(out, s)
+		}
 	}
 	if _, err := dec.Token(); err != nil { // 消费 ']'
 		return nil, err

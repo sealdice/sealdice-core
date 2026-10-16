@@ -341,6 +341,50 @@ func TestDeckLoadMetaRowRoundtrip(t *testing.T) {
 	}
 }
 
+func TestDeckImportDiceESkipsNonStringElements(t *testing.T) {
+	d := newImportTestDice()
+	st := openImportTestStore(t)
+	content := readDeckFixture(t, "sample.mixed.json")
+
+	di, err := deckImportSource(d, st, deckSource{Filename: "sample.mixed.json"}, content)
+	if err != nil {
+		t.Fatalf("deckImportSource: %v", err)
+	}
+	if !di.Enable {
+		t.Fatalf("Enable = false, ErrText = %q", di.ErrText)
+	}
+	// 数组内非字符串元素静默跳过，有序保留字符串。
+	if items := st.GroupItems(di.DeckKey, "混合组"); !reflect.DeepEqual(items, []string{"a", "b"}) {
+		t.Fatalf("混合组 = %v, want [a b]（跳过非字符串）", items)
+	}
+
+	// 与 legacy parseDeck 等价。
+	legacy := &DeckInfo{
+		Filename:           "sample.mixed.json",
+		DeckKey:            di.DeckKey,
+		DeckItems:          map[string][]string{},
+		Command:            map[string]bool{},
+		CloudDeckItemInfos: map[string]*CloudDeckItemInfo{},
+	}
+	if !parseDeck(d, "sample.mixed.json", content, legacy) {
+		t.Fatalf("parseDeck 失败: %s", legacy.ErrText)
+	}
+	if !reflect.DeepEqual(legacy.DeckItems["混合组"], []string{"a", "b"}) {
+		t.Fatalf("legacy 混合组 = %v, want [a b]", legacy.DeckItems["混合组"])
+	}
+	if !reflect.DeepEqual(di.Command, legacy.Command) {
+		t.Fatalf("Command 不一致:\n new=%v\nlegacy=%v", di.Command, legacy.Command)
+	}
+	gm, ok := st.GroupMeta(di.DeckKey, "混合组")
+	if !ok {
+		t.Fatal("混合组 未命中")
+	}
+	wantMeta := computeDeckGroupMeta(legacy.DeckItems["混合组"])
+	if gm.ItemCount != wantMeta.ItemCount || gm.TotalWeight != wantMeta.TotalWeight || gm.Weighted != wantMeta.Weighted {
+		t.Fatalf("混合组 元数据不一致: store=%+v legacy=%+v", gm, wantMeta)
+	}
+}
+
 func TestDeckLoadMetaRowCloudRoundtrip(t *testing.T) {
 	d := newImportTestDice()
 	st := openImportTestStore(t)
