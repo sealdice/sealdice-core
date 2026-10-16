@@ -877,9 +877,9 @@ type MsgContext struct {
 	DelegateText    string      `jsbind:"delegateText"`  // 代骰附加文本
 	AliasPrefixText string      `json:"aliasPrefixText"` // 快捷指令回复前缀文本
 
-	deckDepth           int                                         // 抽牌递归深度
-	DeckPools           map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
-	diceExprOverwrite   string                                      // 默认骰表达式覆盖
+	deckDepth           int                       // 抽牌递归深度
+	DeckPools           map[string]*deckPoolEntry // 不放回抽取的缓存（键 deckstore.Key(deckKey, group)）
+	diceExprOverwrite   string                    // 默认骰表达式覆盖
 	SystemTemplate      *GameSystemTemplate
 	Censored            bool // 已检查过敏感词
 	SpamCheckedGroup    bool

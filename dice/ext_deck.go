@@ -1016,9 +1016,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 
 		deckName = deckName[1+signLength : len(deckName)-1]
 
-		deck := deckInfo.DeckItems[deckName]
-
-		if deck == nil {
+		if _, ok := ctx.Dice.DeckStore.GroupMeta(deckInfo.DeckKey, deckName); !ok {
 			text = "<%未知牌组-" + deckName + "%>"
 		} else {
 			useShufflePool := sign != '%'
@@ -1081,6 +1079,14 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	}
 }
 
+// deckPoolEntry 是一个牌组在 MsgContext 上缓存的抽取池。
+//   - 非云组：idx 存下标池（不放回，不物化文本）。
+//   - 云组：shuffle 存物化后建的 ShuffleRandomPool（沿用现状）。
+type deckPoolEntry struct {
+	idx     *deckstore.IndexPool
+	shuffle *ShuffleRandomPool
+}
+
 func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePool bool) (string, error) {
 	var key string
 	ctx.deckDepth++
@@ -1088,63 +1094,154 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		return "", errors.New("超出遍历次数")
 	}
 
-	if shufflePool {
-		var pool *ShuffleRandomPool
-		if ctx.DeckPools == nil {
-			ctx.DeckPools = map[*DeckInfo]map[string]*ShuffleRandomPool{}
-		}
+	d := ctx.Dice
+	deckKey := deckInfo.DeckKey
 
-		if ctx.DeckPools[deckInfo] == nil {
-			ctx.DeckPools[deckInfo] = map[string]*ShuffleRandomPool{}
-		}
+	if deckInfo.Cloud {
+		// 云牌组：保持现状（每次抽取联网合并、全量物化），仅本地基底改由后端物化。
+		if shufflePool {
+			var pool *ShuffleRandomPool
+			if ctx.DeckPools == nil {
+				ctx.DeckPools = map[string]*deckPoolEntry{}
+			}
+			pkey := deckstore.Key(deckKey, deckName)
+			if ctx.DeckPools[pkey] == nil {
+				ctx.DeckPools[pkey] = &deckPoolEntry{}
+			}
 
-		deckGroup := getDeckGroup(deckInfo, deckName)
-		if len(deckGroup) == 0 {
-			return "", errors.New("牌组为空，请检查格式是否正确")
-		}
-		if ctx.DeckPools[deckInfo][deckName] == nil {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
-		}
+			deckGroup := getDeckGroup(d, deckInfo, deckName)
+			if len(deckGroup) == 0 {
+				return "", errors.New("牌组为空，请检查格式是否正确")
+			}
+			if ctx.DeckPools[pkey].shuffle == nil {
+				ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+			}
 
-		pool = ctx.DeckPools[deckInfo][deckName]
-		if pool == nil || len(pool.data) == 0 || pool.max < 1 {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
-		}
+			pool = ctx.DeckPools[pkey].shuffle
+			if pool == nil || len(pool.data) == 0 || pool.max < 1 {
+				ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+			}
 
-		pool = ctx.DeckPools[deckInfo][deckName]
-		if pool == nil {
-			return "", errors.New("牌组无有效条目，请检查权重配置")
-		}
-		var pickErr error
-		key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
-		if errors.Is(pickErr, errShuffleRandomPoolExhausted) {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
-			pool = ctx.DeckPools[deckInfo][deckName]
+			pool = ctx.DeckPools[pkey].shuffle
 			if pool == nil {
 				return "", errors.New("牌组无有效条目，请检查权重配置")
 			}
+			var pickErr error
 			key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
-		}
-		if pickErr != nil {
-			return "", fmt.Errorf("牌组抽取失败: %w", pickErr)
+			if errors.Is(pickErr, errShuffleRandomPoolExhausted) {
+				ctx.DeckPools[pkey].shuffle = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+				pool = ctx.DeckPools[pkey].shuffle
+				if pool == nil {
+					return "", errors.New("牌组无有效条目，请检查权重配置")
+				}
+				key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+			}
+			if pickErr != nil {
+				return "", fmt.Errorf("牌组抽取失败: %w", pickErr)
+			}
+		} else {
+			deckGroup := getDeckGroup(d, deckInfo, deckName)
+			if len(deckGroup) == 0 {
+				return "", errors.New("牌组为空，请检查格式是否正确")
+			}
+			pool := DeckToRandomPool(deckGroup)
+			if pool == nil {
+				return "", errors.New("牌组为空，可能尚未加载完成")
+			}
+			key = pickChooserWithRand(pool, ctx.getChooserRand())
 		}
 	} else {
-		deckGroup := getDeckGroup(deckInfo, deckName)
-		if len(deckGroup) == 0 {
+		// 非云路径：基于 store 单块读取 + 下标池，不物化整组。
+		meta, ok := d.DeckStore.GroupMeta(deckKey, deckName)
+		if !ok || meta.ItemCount == 0 {
 			return "", errors.New("牌组为空，请检查格式是否正确")
 		}
-		pool := DeckToRandomPool(deckGroup)
-		if pool == nil {
-			return "", errors.New("牌组为空，可能尚未加载完成")
+
+		src := ctx.getDiceSource()
+		var idx int
+		if shufflePool {
+			var err error
+			idx, err = drawIndexFromPool(ctx, deckKey, deckName, meta)
+			if err != nil {
+				return "", err
+			}
+		} else if meta.Weighted {
+			weights, err := d.DeckStore.Weights(deckKey, deckName)
+			if err != nil {
+				return "", fmt.Errorf("牌组抽取失败: %w", err)
+			}
+			idx = pickWeightedIndex(src, weights)
+		} else {
+			idx = randIntnFromSource(src, meta.ItemCount)
 		}
-		key = pickChooserWithRand(pool, ctx.getChooserRand())
+
+		raw, err := d.DeckStore.Item(deckKey, deckName, idx)
+		if err != nil {
+			return "", fmt.Errorf("牌组抽取失败: %w", err)
+		}
+		_, key = extractWeight(raw)
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
 }
 
-func getDeckGroup(deckInfo *DeckInfo, deckName string) (deckGroup []string) {
-	deckGroup = deckInfo.DeckItems[deckName]
+// drawIndexFromPool 从 ctx.DeckPools 中取/建不放回下标池并抽取一个下标；耗尽即重建（复刻现有"抽空重建"）。
+func drawIndexFromPool(ctx *MsgContext, deckKey, deckName string, meta deckstore.GroupMeta) (int, error) {
+	if ctx.DeckPools == nil {
+		ctx.DeckPools = map[string]*deckPoolEntry{}
+	}
+	pkey := deckstore.Key(deckKey, deckName)
+	entry := ctx.DeckPools[pkey]
+	if entry == nil {
+		entry = &deckPoolEntry{}
+		ctx.DeckPools[pkey] = entry
+	}
+
+	src := ctx.getDiceSource()
+	buildPool := func() (*deckstore.IndexPool, error) {
+		weights, err := ctx.Dice.DeckStore.Weights(deckKey, deckName)
+		if err != nil && !errors.Is(err, deckstore.ErrNotFound) {
+			return nil, fmt.Errorf("牌组抽取失败: %w", err)
+		}
+		return deckstore.NewIndexPool(meta.ItemCount, weights, diceSourceRand{src}), nil
+	}
+
+	if entry.idx == nil {
+		var err error
+		if entry.idx, err = buildPool(); err != nil {
+			return 0, err
+		}
+	}
+	idx, ok := entry.idx.Pick(diceSourceRand{src})
+	if !ok {
+		var err error
+		if entry.idx, err = buildPool(); err != nil {
+			return 0, err
+		}
+		idx, ok = entry.idx.Pick(diceSourceRand{src})
+		if !ok {
+			return 0, errors.New("牌组无有效条目，请检查权重配置")
+		}
+	}
+	return idx, nil
+}
+
+// pickWeightedIndex 按权重放回抽取一个下标：前缀和 + 二分。weights 非空且总和 > 0。
+func pickWeightedIndex(src ds.DiceSource, weights []uint32) int {
+	totals := make([]int, len(weights))
+	running := 0
+	for i, w := range weights {
+		running += int(w)
+		totals[i] = running
+	}
+	if running <= 0 {
+		return 0
+	}
+	return searchInts(totals, randIntnFromSource(src, running)+1)
+}
+
+func getDeckGroup(d *Dice, deckInfo *DeckInfo, deckName string) (deckGroup []string) {
+	deckGroup = d.DeckStore.GroupItems(deckInfo.DeckKey, deckName)
 	if !deckInfo.Cloud {
 		return deckGroup
 	}
