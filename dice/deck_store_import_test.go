@@ -341,6 +341,43 @@ func TestDeckLoadMetaRowRoundtrip(t *testing.T) {
 	}
 }
 
+func TestDeckLoadMetaRowCloudRoundtrip(t *testing.T) {
+	d := newImportTestDice()
+	st := openImportTestStore(t)
+	content := readDeckFixture(t, "sample.toml")
+
+	di, err := deckImportSource(d, st, deckSource{Filename: "sample.toml"}, content)
+	if err != nil {
+		t.Fatalf("deckImportSource: %v", err)
+	}
+	if !di.Cloud {
+		t.Fatal("导入后 Cloud = false, want true")
+	}
+
+	rec, _, ok := deckLoadMetaRow(st, di.DeckKey)
+	if !ok {
+		t.Fatal("deckLoadMetaRow 未命中")
+	}
+	if !rec.Cloud {
+		t.Fatal("恢复后 Cloud = false, want true")
+	}
+	if !cloudInfosEqual(di.CloudDeckItemInfos, rec.CloudDeckItemInfos) {
+		t.Fatalf("CloudDeckItemInfos 不一致:\n import=%+v\nroundtrip=%+v", di.CloudDeckItemInfos, rec.CloudDeckItemInfos)
+	}
+	info := rec.CloudDeckItemInfos["云端组"]
+	if info == nil || !info.Distinct || !reflect.DeepEqual(info.OptionsUrls, []string{"https://example.com/cloud.json"}) {
+		t.Fatalf("CloudDeckItemInfos[云端组] = %+v, want Distinct=true OptionsUrls=[https://example.com/cloud.json]", info)
+	}
+
+	// 恢复出的 Command 与普通组文本亦一致。
+	if !reflect.DeepEqual(di.Command, rec.Command) {
+		t.Fatalf("Command 不一致:\n import=%v\nroundtrip=%v", di.Command, rec.Command)
+	}
+	if items := st.GroupItems(di.DeckKey, "普通组"); !reflect.DeepEqual(items, []string{"甲", "乙"}) {
+		t.Fatalf("普通组 文本 = %v, want [甲 乙]", items)
+	}
+}
+
 func TestDeckImportParseErrorNotStored(t *testing.T) {
 	d := newImportTestDice()
 	st := openImportTestStore(t)

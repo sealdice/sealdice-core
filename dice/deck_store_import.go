@@ -36,7 +36,42 @@ const (
 	metaInfo        = "info"
 	metaCommand     = "command"
 	metaContentHash = "content_hash"
+	metaCloud       = "cloud"
+	metaCloudItems  = "cloud_items"
 )
+
+// cloudDeckItemInfoWire 是 CloudDeckItemInfo 的可序列化中间结构。
+// msgpack 仅编码导出字段，因此用带导出字段的结构体承载 Distinct/OptionsUrls。
+type cloudDeckItemInfoWire struct {
+	Distinct    bool     `msgpack:"distinct"`
+	OptionsUrls []string `msgpack:"options_urls"`
+}
+
+func cloudInfosToWire(m map[string]*CloudDeckItemInfo) map[string]cloudDeckItemInfoWire {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]cloudDeckItemInfoWire, len(m))
+	for k, v := range m {
+		if v == nil {
+			out[k] = cloudDeckItemInfoWire{}
+			continue
+		}
+		out[k] = cloudDeckItemInfoWire{Distinct: v.Distinct, OptionsUrls: v.OptionsUrls}
+	}
+	return out
+}
+
+func cloudInfosFromWire(w map[string]cloudDeckItemInfoWire) map[string]*CloudDeckItemInfo {
+	if w == nil {
+		return nil
+	}
+	out := make(map[string]*CloudDeckItemInfo, len(w))
+	for k, v := range w {
+		out[k] = &CloudDeckItemInfo{Distinct: v.Distinct, OptionsUrls: v.OptionsUrls}
+	}
+	return out
+}
 
 // deckSource 是一个牌堆来源文件（含扩展包归属）。
 type deckSource struct {
@@ -370,6 +405,14 @@ func setDeckMeta(im deckstore.Import, di *DeckInfo, contentHash []byte) {
 	if b, err := msgpack.Marshal(di.Command); err == nil {
 		im.SetMeta(metaCommand, b)
 	}
+	if di.Cloud {
+		im.SetMeta(metaCloud, []byte("1"))
+	} else {
+		im.SetMeta(metaCloud, []byte("0"))
+	}
+	if b, err := msgpack.Marshal(cloudInfosToWire(di.CloudDeckItemInfos)); err == nil {
+		im.SetMeta(metaCloudItems, b)
+	}
 	im.SetMeta(metaContentHash, contentHash)
 }
 
@@ -412,6 +455,13 @@ func deckLoadMetaRow(st deckstore.Store, deckKey string) (di *DeckInfo, hash []b
 	}
 	if b, found := st.Meta(deckKey, metaCommand); found {
 		_ = msgpack.Unmarshal(b, &di.Command)
+	}
+	di.Cloud, _ = strconv.ParseBool(metaStr(metaCloud))
+	if b, found := st.Meta(deckKey, metaCloudItems); found {
+		var wire map[string]cloudDeckItemInfoWire
+		if err := msgpack.Unmarshal(b, &wire); err == nil {
+			di.CloudDeckItemInfos = cloudInfosFromWire(wire)
+		}
 	}
 	return di, hash, true
 }
