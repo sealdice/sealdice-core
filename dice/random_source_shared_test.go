@@ -141,7 +141,7 @@ func TestGlobalRandSourceReportGetText(t *testing.T) {
 	))
 
 	got := globalRandSource.ReportGetText(20)
-	for _, tc := range []struct {
+	for _, item := range []struct {
 		mode DiceRandomMode
 		raw  uint64
 	}{
@@ -149,8 +149,8 @@ func TestGlobalRandSourceReportGetText(t *testing.T) {
 		{mode: DiceRandomModeNIST, raw: 2},
 		{mode: DiceRandomModeCRNG, raw: 3},
 	} {
-		expected := ds.Roll(&countingDiceSource{values: []uint64{tc.raw}}, ds.IntType(20), 0)
-		line := fmt.Sprintf("%s: 出目=%d", tc.mode, expected)
+		expected := ds.Roll(&countingDiceSource{values: []uint64{item.raw}}, ds.IntType(20), 0)
+		line := fmt.Sprintf("%s: 出目=%d", item.mode, expected)
 		if !strings.Contains(got, line) {
 			t.Fatalf("expected %q in get text, got %q", line, got)
 		}

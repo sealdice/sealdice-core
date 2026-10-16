@@ -5,8 +5,11 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"sealdice-core/logger"
+	"sealdice-core/utils/constant"
+	"sealdice-core/utils/dboperator/engine"
 	"sealdice-core/utils/dboperator/engine/sqlite"
 	"sealdice-core/utils/spinner"
 )
@@ -53,7 +56,7 @@ func DBVacuum() {
 			log.Errorf("清理 %q 时出现错误：%v", path, err)
 			return
 		}
-		err = vacuumDB.Exec("VACUUM;").Error
+		err = sqlite.ConvertToIncrementalAutoVacuum(vacuumDB)
 		if err != nil {
 			log.Errorf("清理 %q 时出现错误：%v", path, err)
 		}
@@ -66,4 +69,30 @@ func DBVacuum() {
 	wg.Wait()
 
 	log.Info("数据库整理完成")
+}
+
+// DBIncrementalVacuum 对 SQLite 数据库执行增量页回收。
+// 只有数据库处于 auto_vacuum=INCREMENTAL 时才会真正回收，否则跳过。
+func DBIncrementalVacuum(operator engine.DatabaseOperator) {
+	if operator == nil || operator.Type() != "sqlite" {
+		return
+	}
+	dbs := map[string]*gorm.DB{
+		"data":   operator.GetDataDB(constant.WRITE),
+		"logs":   operator.GetLogDB(constant.WRITE),
+		"censor": operator.GetCensorDB(constant.WRITE),
+	}
+	for name, db := range dbs {
+		if db == nil {
+			continue
+		}
+		reclaimed, err := sqlite.ReclaimIncrementalVacuum(db)
+		if err != nil {
+			log.Errorf("数据库 %s 增量回收失败：%v", name, err)
+			continue
+		}
+		if reclaimed > 0 {
+			log.Debugf("数据库 %s 增量回收完成，回收 %d 页", name, reclaimed)
+		}
+	}
 }
