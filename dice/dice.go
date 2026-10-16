@@ -207,9 +207,10 @@ type Dice struct {
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
 	DBOperator    engine.DatabaseOperator
-	Logger        *zap.SugaredLogger `yaml:"-"` // 日志
-	LogWriter     *logger.UIWriter   `yaml:"-"` // 用于api的log对象
-	IsDeckLoading bool               `yaml:"-"` // 正在加载中
+	Logger        *zap.SugaredLogger `yaml:"-"`          // 日志
+	LogWriter     *logger.UIWriter   `yaml:"-"`          // 用于api的log对象
+	IsDeckLoading bool               `yaml:"-"`          // 正在加载中
+	DeckStore     deckBackend        `json:"-" yaml:"-"` // 牌堆内容后端（文件/内存 SQLite/全内存）
 
 	// 由于被导出的原因，暂时不迁移至 config
 	DeckList      []*DeckInfo `jsbind:"deckList"      yaml:"deckList"`      // 牌堆信息

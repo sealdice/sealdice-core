@@ -126,6 +126,7 @@ type DeckInfo struct {
 	Cloud              bool                          `json:"cloud"         yaml:"cloud"` // 含有云端内容
 	CloudDeckItemInfos map[string]*CloudDeckItemInfo `json:"-"             yaml:"-"`
 	StoreID            string                        `json:"storeID"       yaml:"storeID"`
+	DeckKey            string                        `json:"-"             yaml:"-"` // 牌堆库键（sha1(packageID+"\x00"+ToSlash(filename))）
 	/** 所属扩展包ID，空表示独立安装 */
 	PackageID string `json:"packageId"     yaml:"-"`
 }
