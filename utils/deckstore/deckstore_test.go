@@ -323,6 +323,9 @@ func TestReimportSameDeckInvalidatesCache(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BeginImport: %v", err)
 		}
+		// 真实导入器（dice 的 setDeckMeta）总会写 content_hash；L0 缓存以其 hex 作为代号。
+		// 这里用 prefix 作内容指纹，模拟「内容变了 → 指纹变了 → 代号变了 → 旧缓存键不可达」。
+		im.SetMeta("content_hash", []byte(prefix))
 		g := im.BeginGroup("g1")
 		for i := range n {
 			g.Add(fmt.Sprintf("%s%d", prefix, i), weightFn(i))

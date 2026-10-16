@@ -17,6 +17,17 @@ func chunkCacheKey(deckID, group string, chunkNo int) string {
 	return Key(deckID, group) + "\x00" + strconv.Itoa(chunkNo)
 }
 
+// genChunkCacheKey 生成带代号的块缓存键：gen 是该 deck 当前的内容指纹（十六进制）。
+// 重导后 gen 变化，旧代号的键自然不可达，随逐出淘汰，无需（也不能）并发 Clear。
+func genChunkCacheKey(gen, deckID, group string, chunkNo int) string {
+	return gen + "\x00" + chunkCacheKey(deckID, group, chunkNo)
+}
+
+// genWeightCacheKey 生成带代号的权重缓存键。
+func genWeightCacheKey(gen, deckID, group string) string {
+	return gen + "\x00" + Key(deckID, group)
+}
+
 // ChunkForIndex 在升序的块首下标里二分，返回包含 idx 的块号；越界返回 -1。
 func ChunkForIndex(starts []int, idx int) int {
 	lo, hi := 0, len(starts)-1

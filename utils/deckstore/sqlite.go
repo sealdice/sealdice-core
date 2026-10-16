@@ -2,6 +2,7 @@ package deckstore
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -52,10 +53,17 @@ type sqliteStore struct {
 
 	mu    sync.RWMutex
 	index map[string]GroupMeta // 键 = Key(deckID, group)
+	// deckGen 是 deckID → 内容指纹（hex）的代号，用于给缓存键加代号：
+	// 重导后指纹变化，旧代号的缓存键自然不可达并随逐出淘汰，避免并发 Clear（otter 未定义行为）。
+	deckGen map[string]string
 
 	chunkCache  *otter.Cache[string, []string]
 	weightCache *otter.Cache[string, []uint32]
 }
+
+// genMetaKey 是 deck_meta 表中存放内容指纹的 KV 键（由 L1 导入时写入）。
+// L0 用它派生缓存代号；不导入 dice 包，仅以字符串字面量引用该键名。
+const genMetaKey = "content_hash"
 
 // newDeckCaches 构建块/权重两个按字节记账的 otter 缓存。
 // 容量沿用字节上限（ChunkCacheCap / WeightCacheCap），成本函数见 chunkCacheCost / weightCacheCost。
@@ -95,6 +103,7 @@ func openSQLite(path string, log Logger) (Store, error) {
 		writer:      writer,
 		log:         log,
 		index:       make(map[string]GroupMeta),
+		deckGen:     make(map[string]string),
 		chunkCache:  chunkCache,
 		weightCache: weightCache,
 	}
@@ -127,6 +136,7 @@ func openSQLiteMemory(log Logger) (Store, error) {
 		writer:      db,
 		log:         log,
 		index:       make(map[string]GroupMeta),
+		deckGen:     make(map[string]string),
 		chunkCache:  chunkCache,
 		weightCache: weightCache,
 	}
@@ -241,6 +251,37 @@ func (s *sqliteStore) loadGroupMeta(deckID, group string) (GroupMeta, bool) {
 	}, true
 }
 
+// genFor 返回 deck 当前的缓存代号（内容指纹的 hex）；未登记时返回空串（零值稳定）。
+func (s *sqliteStore) genFor(deckID string) string {
+	s.mu.RLock()
+	g := s.deckGen[deckID]
+	s.mu.RUnlock()
+	return g
+}
+
+// deckGenHash 从 deck_meta 读取 deck 的内容指纹并 hex 编码为代号；无指纹返回空串。
+func (s *sqliteStore) deckGenHash(deckID string) string {
+	v, ok := s.Meta(deckID, genMetaKey)
+	if !ok {
+		return ""
+	}
+	return hex.EncodeToString(v)
+}
+
+// rebuildDeckGen 从库中重建全部 deck 的代号映射（reload 打开既有库时，未变牌堆不经过 Commit）。
+func (s *sqliteStore) rebuildDeckGen() map[string]string {
+	ids, err := s.DeckIDs()
+	if err != nil {
+		s.logf("deckstore: rebuild deck gen: %v", err)
+		return map[string]string{}
+	}
+	gen := make(map[string]string, len(ids))
+	for _, id := range ids {
+		gen[id] = s.deckGenHash(id)
+	}
+	return gen
+}
+
 func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
 	gm, ok := s.GroupMeta(deckID, group)
 	if !ok {
@@ -253,7 +294,7 @@ func (s *sqliteStore) Item(deckID, group string, idx int) (string, error) {
 	start := gm.ChunkStarts[chunkNo]
 	local := idx - start
 
-	key := chunkCacheKey(deckID, group, chunkNo)
+	key := genChunkCacheKey(s.genFor(deckID), deckID, group, chunkNo)
 	if items, hit := s.chunkCache.Get(key); hit {
 		if local >= len(items) {
 			return "", ErrNotFound
@@ -300,7 +341,7 @@ func (s *sqliteStore) Weights(deckID, group string) ([]uint32, error) {
 		return nil, nil
 	}
 
-	key := Key(deckID, group)
+	key := genWeightCacheKey(s.genFor(deckID), deckID, group)
 	if w, hit := s.weightCache.Get(key); hit {
 		return w, nil
 	}
@@ -417,35 +458,28 @@ func (s *sqliteStore) DeleteDeck(deckID string) error {
 			delete(s.index, k)
 		}
 	}
+	delete(s.deckGen, deckID)
 	s.mu.Unlock()
-	s.purgeDeckCaches(deckID)
 	return nil
 }
 
-// purgeDeckCaches 清除该 deck 的块与权重缓存（导入提交 / 删除时调用）。
-// 否则重导同一 deck 后，chunk 键不变的旧条目会滞留在缓存，Item 命中过期内容。
-//
-// 语义差异：旧 byteLRU 支持按前缀删除（removePrefix），otter 无前缀删除能力，
-// 这里改为整体 InvalidateAll（即 Clear()）。重导/删除是低频事件，整体清空可接受：
-// 代价只是后续首次读取需要重新读库解压，换取缓存失效的正确性。
-// 注意 otter 的 Clear() 在并发请求下语义未定义（见库注释），本实现仅保证「之后读到的必是新值」，
-// 与旧实现一致的「瞬时旧值/ErrNotFound 窄窗口」仍由上层容忍（见 deck_concurrency_internal_test）。
-func (s *sqliteStore) purgeDeckCaches(deckID string) {
-	s.chunkCache.Clear()
-	s.weightCache.Clear()
-}
-
 func (s *sqliteStore) ReplaceIndex(m map[string]GroupMeta) {
+	// 重建代号映射：reload 打开既有库时未变牌堆不经过 Commit，需从 deck_meta 读回指纹，
+	// 否则它们会退化为空代号。读库在锁外完成，索引与代号在锁内原子替换。
+	gen := s.rebuildDeckGen()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.index = make(map[string]GroupMeta, len(m))
 	for k, v := range m {
 		s.index[k] = v
 	}
+	s.deckGen = gen
 }
 
-// indexReplace 在提交后更新索引：先移除该 deck 的旧键，再写入新组。
+// indexReplace 在提交后更新索引：先移除该 deck 的旧键，再写入新组，并更新该 deck 的代号。
+// 索引与代号在同一把锁内原子更新，保证读者拿到的 chunk 布局与代号一致。
 func (s *sqliteStore) indexReplace(deckID string, groups map[string]GroupMeta) {
+	gen := s.deckGenHash(deckID)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	prefix := deckID + "\x00"
@@ -457,10 +491,12 @@ func (s *sqliteStore) indexReplace(deckID string, groups map[string]GroupMeta) {
 	for k, v := range groups {
 		s.index[k] = v
 	}
+	s.deckGen[deckID] = gen
 }
 
 func (s *sqliteStore) Close() error {
 	// otter 后台有维护协程（writeBuffer 消费 process），不 Close 会泄漏，必须在关库前停掉。
+	// Close 内部会先清空再停协程；此时已无并发请求，Clear 语义安全。
 	if s.chunkCache != nil {
 		s.chunkCache.Close()
 	}
@@ -522,7 +558,6 @@ func (im *sqliteImport) Commit() error {
 		return err
 	}
 	im.s.indexReplace(im.deckID, im.groups)
-	im.s.purgeDeckCaches(im.deckID)
 	return nil
 }
 
