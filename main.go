@@ -494,6 +494,14 @@ func main() {
 
 	// darwin 的托盘菜单似乎需要在主线程启动才能工作，调整到这里
 	trayInit(diceManager)
+
+	// 初始化完毕、托盘通知已弹：把启动阶段（尤其是解析牌堆/安装包）产生的临时内存显式归还 OS，
+	// 避免 Go 堆高水位使 RSS 长期居高。异步执行，不阻塞启动。
+	go func() {
+		time.Sleep(time.Second)
+		runtime.GC()
+		debug.FreeOSMemory()
+	}()
 }
 
 func removeUpdateFiles() {
