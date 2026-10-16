@@ -310,8 +310,10 @@ func BenchmarkDeckReloadLarge(b *testing.B) {
 	}
 }
 
-// BenchmarkDeckDraw 测 reload 后连续抽取单条的 ns/op（读索引 → 命中块缓存/读单块）。
-func BenchmarkDeckDraw(b *testing.B) {
+// setupDeckDrawBench 准备抽取基准的共享状态：建合成牌堆、reload、选出条目最多的组。
+// 返回绑定了 store 的 Dice、首个 DeckInfo 与目标组名。
+func setupDeckDrawBench(b *testing.B) (*Dice, *DeckInfo, string) {
+	b.Helper()
 	root := b.TempDir()
 	decksDir := setupDeckBenchDir(b, root)
 	writeSyntheticDiceE(
@@ -363,6 +365,12 @@ func BenchmarkDeckDraw(b *testing.B) {
 		b.Fatalf("组 %q 只有 %d 块，合成数据未跨块（期望每组件数 > %d）",
 			group, len(meta.ChunkStarts), deckstore.ChunkMaxItems)
 	}
+	return d, di, group
+}
+
+// BenchmarkDeckDraw 测 reload 后连续抽取单条的 ns/op（读索引 → 命中块缓存/读单块）。
+func BenchmarkDeckDraw(b *testing.B) {
+	d, di, group := setupDeckDrawBench(b)
 
 	ctx := &MsgContext{Dice: d}
 	ctx.diceRandSrc = newPCGDiceSource(drawTestSeed)
@@ -377,6 +385,32 @@ func BenchmarkDeckDraw(b *testing.B) {
 		}
 		benchDeckDrawSink = got
 	}
+}
+
+// BenchmarkDeckDrawParallel 测 reload 后多 goroutine 并发抽单条的吞吐（命中块缓存 / otter 并发读）。
+func BenchmarkDeckDrawParallel(b *testing.B) {
+	d, di, group := setupDeckDrawBench(b)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		// 每个并行 worker 用独立 MsgContext（避免共享 deckDepth / DeckPools / 随机源），
+		// 并预置 splitKey，跳过 InitSplitKey 的进程级全局随机源（消息管线既有并发缺陷，与本基准无关）。
+		ctx := &MsgContext{Dice: d}
+		ctx.diceRandSrc = newPCGDiceSource(drawTestSeed)
+		ctx.SetSplitKey("bench-parallel")
+		var sink string
+		for pb.Next() {
+			ctx.deckDepth = 0
+			got, err := executeDeck(ctx, di, group, false)
+			if err != nil {
+				b.Fatalf("executeDeck: %v", err)
+			}
+			sink = got
+		}
+		// 本地 sink 避免并行写包级 benchDeckDrawSink 的数据竞争；读一次确保结果不被优化掉。
+		_ = sink
+	})
 }
 
 // TestDeckMemoryAcceptance 是真实牌堆的内存/磁盘验收探针，仅当 DECK_ACCEPTANCE_DIR
