@@ -419,3 +419,81 @@ func containsStr(s []string, v string) bool {
 	}
 	return false
 }
+
+// TestReopenStoreReloadsGroupMeta 直接钉住 loadGroupMeta 兜底：重开既有文件库（新 store、索引为空）
+// 后，GroupMeta 必须从 deck_group 表还原出多块 ChunkStarts，且 Item 跨块边界仍可读。
+func TestReopenStoreReloadsGroupMeta(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "decks.db")
+
+	// 建立库：300 条（跨 256 条块边界，产生多块）+ 一个加权组。
+	s, err := deckstore.Open(path, nil)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	im, err := s.BeginImport("k")
+	if err != nil {
+		t.Fatalf("BeginImport: %v", err)
+	}
+	g := im.BeginGroup("g1")
+	for i := 0; i < 300; i++ {
+		g.Add(fmt.Sprintf("item%d", i), 0)
+	}
+	if _, err := g.Finish(); err != nil {
+		t.Fatalf("Finish(g1): %v", err)
+	}
+	gw := im.BeginGroup("g2")
+	gw.Add("::3::a", 3)
+	gw.Add("b", 1)
+	if _, err := gw.Finish(); err != nil {
+		t.Fatalf("Finish(g2): %v", err)
+	}
+	if err := im.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	// 重新打开同一路径：全新 store，内存索引为空。
+	s2, err := deckstore.Open(path, nil)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer func() { _ = s2.Close() }()
+
+	gm, ok := s2.GroupMeta("k", "g1")
+	if !ok {
+		t.Fatal("重开后 GroupMeta(k, g1) 未命中（loadGroupMeta 兜底未生效）")
+	}
+	if gm.ItemCount != 300 {
+		t.Fatalf("ItemCount = %d, want 300", gm.ItemCount)
+	}
+	if len(gm.ChunkStarts) < 2 {
+		t.Fatalf("ChunkStarts = %v, want >= 2 块（跨 256 边界）", gm.ChunkStarts)
+	}
+
+	// 跨块边界读取，证明 chunk_starts 还原正确。
+	for _, idx := range []int{0, 255, 256, 299} {
+		got, err := s2.Item("k", "g1", idx)
+		if err != nil || got != fmt.Sprintf("item%d", idx) {
+			t.Fatalf("Item(%d) = %q, %v, want item%d", idx, got, err, idx)
+		}
+	}
+
+	// 加权组权重可用（Weighted 标志 + weight_blob 还原）。
+	gm2, ok := s2.GroupMeta("k", "g2")
+	if !ok {
+		t.Fatal("重开后 GroupMeta(k, g2) 未命中")
+	}
+	if !gm2.Weighted || gm2.TotalWeight != 4 {
+		t.Fatalf("GroupMeta(k, g2) = %+v, want Weighted=true TotalWeight=4", gm2)
+	}
+	w, err := s2.Weights("k", "g2")
+	if err != nil {
+		t.Fatalf("Weights(k, g2): %v", err)
+	}
+	if len(w) != 2 || w[0] != 3 || w[1] != 1 {
+		t.Fatalf("Weights = %v, want [3 1]", w)
+	}
+}

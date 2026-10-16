@@ -223,6 +223,62 @@ func TestDeckReloadNoSourcesDoesNotOpenStore(t *testing.T) {
 	}
 }
 
+// TestDeckReloadRebuildsIndexFromExistingStore 模拟「进程重启」：先建立库并关闭后端，
+// 再用全新 Dice（DeckStore==nil）指向同一目录 reload，文件未变 → 复用行内 DeckInfo 并由
+// loadGroupMeta 兜底重建内存索引（新 store 索引为空、无 Commit 预载）。
+func TestDeckReloadRebuildsIndexFromExistingStore(t *testing.T) {
+	dir := setupReloadFixture(t, "sample.json")
+
+	// 第一轮：建立库。
+	d1 := newReloadTestDice(t, dir)
+	DeckReload(d1)
+	if len(d1.DeckList) != 1 {
+		t.Fatalf("第一轮 DeckList len = %d, want 1", len(d1.DeckList))
+	}
+	key := d1.DeckList[0].DeckKey
+	// 模拟进程退出：关闭后端（释放连接与内存索引）。
+	if err := d1.DeckStore.Close(); err != nil {
+		t.Fatalf("close d1 store: %v", err)
+	}
+
+	// 模拟重启：全新 Dice，DeckStore==nil，deckStorePathFn 指向同一目录。
+	var count int
+	oldHook := deckImportHook
+	deckImportHook = func() { count++ }
+	defer func() { deckImportHook = oldHook }()
+
+	d2 := newReloadTestDice(t, dir)
+	if d2.DeckStore != nil {
+		t.Fatal("新 Dice 的 DeckStore 应为 nil（尚未打开）")
+	}
+	DeckReload(d2)
+
+	if count != 0 {
+		t.Fatalf("重启 reload 导入计数 = %d, want 0（文件未变应复用，不走导入）", count)
+	}
+	if len(d2.DeckList) != 1 {
+		t.Fatalf("重启后 DeckList len = %d, want 1", len(d2.DeckList))
+	}
+
+	// ① 未变牌堆仍在内存索引中（loadGroupMeta 兜底重建）。
+	if _, ok := d2.DeckStore.GroupMeta(key, "角色"); !ok {
+		t.Fatal("重启后 GroupMeta(角色) 未命中（loadGroupMeta 兜底未生效）")
+	}
+	// ② Item 读原文。
+	got, err := d2.DeckStore.Item(key, "道具", 0)
+	if err != nil || got != "::3::长剑" {
+		t.Fatalf("Item(道具, 0) = %q, %v, want ::3::长剑", got, err)
+	}
+	// ③ 加权组 Weights 可用。
+	w, err := d2.DeckStore.Weights(key, "道具")
+	if err != nil {
+		t.Fatalf("Weights(道具): %v", err)
+	}
+	if len(w) != 3 || w[0] != 3 || w[1] != 1 || w[2] != 2 {
+		t.Fatalf("Weights(道具) = %v, want [3 1 2]", w)
+	}
+}
+
 func TestDeckReloadLegacyFallbackFillsDeckItems(t *testing.T) {
 	dir := setupReloadFixture(t, "sample.json")
 	d := newReloadTestDice(t, dir)
