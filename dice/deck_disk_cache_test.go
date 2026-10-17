@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
 func cacheTestDice(t *testing.T) *Dice {
@@ -41,6 +42,89 @@ func cacheTestWriteMeta(t *testing.T, path string, meta *deckCacheManifest) {
 		t.Fatal(err)
 	}
 	mmapWrite(t, path, string(body))
+}
+
+func TestDeckDiskCacheClosePreservesConfiguration(t *testing.T) {
+	d := mmapTestDice(t)
+	d.BaseConfig.DataDir = t.TempDir()
+	d.ImSession = &IMSession{Parent: d}
+	db, err := newMockDatabaseOperator(filepath.Join(d.BaseConfig.DataDir, "save.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(db.Close)
+	d.AttrsManager = &AttrsManager{db: db}
+	d.StoreManager = &StoreManager{InstalledDecks: map[string]bool{}}
+	mmapWrite(t, "data/decks/a.json", `{"_storeID":["installed-deck"],"g":["A"]}`)
+	DeckReload(d)
+	old := d.DeckListSnapshot()[0].storage
+	readSavedDecks := func() []*DeckInfo {
+		t.Helper()
+		body, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var saved struct {
+			DeckList []*DeckInfo `yaml:"deckList"`
+		}
+		if err := yaml.Unmarshal(body, &saved); err != nil {
+			t.Fatal(err)
+		}
+		return saved.DeckList
+	}
+	d.Save(true)
+	want := readSavedDecks()
+	if len(want) != 1 || want[0].StoreID != "installed-deck" {
+		t.Fatalf("invalid saved fixture: %+v", want)
+	}
+	d.CloseDecks()
+	d.CloseDecks() // Runtime cleanup must be idempotent.
+	if d.LastUpdatedTime != 0 {
+		t.Error("closing runtime storage marked the configuration as modified")
+	}
+	if !d.StoreManager.InstalledDecks["installed-deck"] {
+		t.Error("closing runtime storage cleared the installed state")
+	}
+	if !old.closed || len(d.deckCommandsSnapshot()) != 0 {
+		t.Error("runtime resources were not closed")
+	}
+	// A later save, including one triggered by an unrelated configuration edit,
+	// must still serialize the deck metadata.
+	d.MarkModified()
+	d.Save(true)
+	if got := readSavedDecks(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("shutdown changed saved deck metadata: got %+v, want %+v", got, want)
+	}
+	if ok, _, err := deckDraw(&MsgContext{Dice: d}, "g", false); err != nil || ok {
+		t.Fatalf("closed catalog was reactivated: exists=%v err=%v", ok, err)
+	}
+	DeckReload(d)
+	if !d.DeckListSnapshot()[0].cacheHit || mmapDraw(t, &MsgContext{Dice: d}, "g", false) != "A" {
+		t.Fatal("reload after close did not restore the reusable cache")
+	}
+}
+
+func TestDeckDiskCacheInvalidReloadAfterClose(t *testing.T) {
+	d := mmapTestDice(t)
+	filename := "data/decks/a.json"
+	mmapWrite(t, filename, `{"g":["A"]}`)
+	DeckReload(d)
+	old := d.DeckListSnapshot()[0].storage
+	d.CloseDecks()
+	mmapWrite(t, filename, `{"g":`)
+	DeckReload(d)
+	deck := d.DeckListSnapshot()[0]
+	if !old.closed || deck.Enable || deck.ErrText == "" || deck.storage != nil {
+		t.Fatal("invalid reload revived a closed mapping from saved metadata")
+	}
+	if ok, text, err := deckDraw(&MsgContext{Dice: d}, "g", false); ok || err != nil {
+		t.Fatalf("invalid deck is drawable: exists=%v text=%q err=%v", ok, text, err)
+	}
+	mmapWrite(t, filename, `{"g":["B"]}`)
+	DeckReload(d)
+	if got := mmapDraw(t, &MsgContext{Dice: d}, "g", false); got != "B" {
+		t.Fatalf("valid reload failed: %q", got)
+	}
 }
 
 func TestDeckDiskCacheRestartAndInvalidation(t *testing.T) {
@@ -228,8 +312,8 @@ func TestDeckDiskCacheRetirementDeletionAndLock(t *testing.T) {
 	mmapWrite(t, "data/decks/a.json", `{"g":["A"]}`)
 	mmapWrite(t, "data/decks/b.json", `{"h":["H"]}`)
 	DeckReload(d)
-	lease := d.acquireDeckCatalog()
-	oldFile := lease.decks[0].storage.filename
+	lease := d.acquireDeckScope(nil)
+	oldFile := lease.catalog.decks[0].storage.filename
 	cacheDir := d.deckDiskCache.dir
 	mmapWrite(t, "data/decks/a.json", `{"g":["B"]}`)
 	DeckReload(d)
@@ -247,7 +331,7 @@ func TestDeckDiskCacheRetirementDeletionAndLock(t *testing.T) {
 		t.Fatal("cache lock not held by old reader / fallback failed")
 	}
 	other.CloseDecks()
-	d.releaseDeckCatalog(lease)
+	d.releaseDeckScope(lease)
 	if _, err := os.Stat(oldFile); !os.IsNotExist(err) {
 		t.Fatal("retired data not removed", err)
 	}

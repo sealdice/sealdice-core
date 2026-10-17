@@ -13,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	ds "github.com/sealdice/dicescript"
 	"go.uber.org/zap"
 )
 
@@ -266,6 +267,111 @@ func TestMappedDeckReloadWhileRecursiveCloudRequest(t *testing.T) {
 	}
 	if got := mmapDraw(t, &MsgContext{Dice: d}, "root", false); got != "NEW" {
 		t.Fatalf("new snapshot: %q", got)
+	}
+}
+
+func TestMappedDeckShallowCopyAfterDraw(t *testing.T) {
+	d := mmapTestDice(t)
+	d.Config.VMVersionForDeck = "v2"
+	filename := "data/decks/copy.json"
+	mmapWrite(t, filename, `{"root":["[capture()]"],"g":["A","A"]}`)
+	DeckReload(d)
+	old := d.DeckListSnapshot()[0].storage
+	ctx := &MsgContext{Dice: d}
+	ctx.CreateVmIfNotExists()
+	var copied *MsgContext
+	ctx.vm.Attrs.Store("capture", ds.NewNativeFunctionVal(&ds.NativeFunctionData{
+		Name: "capture",
+		NativeFunc: func(_ *ds.Context, _ *ds.VMValue, _ []*ds.VMValue) *ds.VMValue {
+			copied = ctx.ShallowCopy()
+			// The copied context may outlive this VM invocation.
+			copied.vm = nil
+			return ds.NewStrVal("captured")
+		},
+	}))
+	if got := mmapDraw(t, ctx, "g", true); got != "A" {
+		t.Fatal(got)
+	}
+	if got := mmapDraw(t, ctx, "root", false); got != "captured" || copied == nil {
+		t.Fatalf("context was not copied during draw: %q", got)
+	}
+	mmapWrite(t, filename, `{"root":["B"],"g":["::0::BAD","::9::B"]}`)
+	DeckReload(d)
+	if !old.closed {
+		t.Fatal("an idle context copy must not retain the old mapping")
+	}
+	for range 4 {
+		if got := mmapDraw(t, copied, "g", true); got != "B" {
+			t.Fatalf("copied context used a retired version or pool: %q", got)
+		}
+	}
+}
+
+func TestMappedDeckShallowCopyInFlight(t *testing.T) {
+	d := mmapTestDice(t)
+	d.Config.VMVersionForDeck = "v2"
+	entered, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		close(entered)
+		<-release
+		_, _ = w.Write([]byte(`["#{DRAW-leaf}"]`))
+	}))
+	defer server.Close()
+	defer unblock()
+	filename := "data/decks/copy.toml"
+	mmapWrite(t, filename, fmt.Sprintf("[decks]\nroot=['[capture()]']\n[cloud]\nexport=true\nvisible=true\ncloud_extra=true\noptions_urls=[%q]\n", server.URL))
+	mmapWrite(t, "data/decks/leaf.json", `{"leaf":["OLD"]}`)
+	DeckReload(d)
+	old := d.DeckListSnapshot()[0].storage
+	ctx := &MsgContext{Dice: d}
+	ctx.SetSplitKey("###deck-copy-test###")
+	ctx.CreateVmIfNotExists()
+	type drawResult struct {
+		exists bool
+		text   string
+		err    error
+	}
+	result := make(chan drawResult, 1)
+	ctx.vm.Attrs.Store("capture", ds.NewNativeFunctionVal(&ds.NativeFunctionData{
+		Name: "capture",
+		NativeFunc: func(_ *ds.Context, _ *ds.VMValue, _ []*ds.VMValue) *ds.VMValue {
+			copied := ctx.ShallowCopy()
+			copied.vm = nil
+			mmapWrite(t, filename, "[decks]\nroot=['NEW']\n")
+			mmapWrite(t, "data/decks/leaf.json", `{"leaf":["NEW"]}`)
+			DeckReload(d)
+			go func() {
+				ok, text, err := deckDraw(copied, "cloud", false)
+				result <- drawResult{ok, text, err}
+			}()
+			select {
+			case <-entered:
+				return ds.NewStrVal("captured")
+			case got := <-result:
+				t.Fatalf("active copy failed to inherit the parent version: %+v", got)
+				return nil
+			}
+		},
+	}))
+	if got := mmapDraw(t, ctx, "root", false); got != "captured" {
+		t.Fatal(got)
+	}
+	// The parent has returned, but the child still owns the old version. Its
+	// subsequent cross-deck recursive draw must use OLD, not the published NEW.
+	if old.closed {
+		t.Fatal("parent released the child's mapping")
+	}
+	if got := mmapDraw(t, &MsgContext{Dice: d}, "leaf", false); got != "NEW" {
+		t.Fatal(got)
+	}
+	unblock()
+	if got := <-result; !got.exists || got.err != nil || got.text != "OLD" {
+		t.Fatalf("child mixed versions after its parent returned: %+v", got)
+	}
+	if !old.closed {
+		t.Fatal("child did not release the retired mapping")
 	}
 }
 

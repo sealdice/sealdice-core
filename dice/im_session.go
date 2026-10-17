@@ -879,7 +879,7 @@ type MsgContext struct {
 
 	deckDepth           int                                         // 抽牌递归深度
 	DeckPools           map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
-	deckSnapshot        *deckCatalog
+	deckSnapshot        *deckDrawScope
 	deckPoolCatalog     uint64
 	deckIndexPools      map[string]*deckIndexPool
 	diceExprOverwrite   string // 默认骰表达式覆盖

@@ -9,14 +9,23 @@ import (
 	"sync/atomic"
 )
 
-// A top-level draw pins a catalog until formatting and all recursive draws end.
-// Writers build off to the side, publish once, and retire the old catalog. No
-// reader holds deckMu while fetching cloud data or evaluating a template.
+// Each draw leases a catalog until formatting ends. Recursive draws, including
+// shallow context copies, inherit the version of their active parent draw.
+// Writers publish once and retire the old catalog. No reader holds deckMu while
+// fetching cloud data or evaluating a template.
 type deckCatalog struct {
 	version  uint64
 	decks    []*DeckInfo
 	commands DeckCommandListItems
 	refs     int // guarded by Dice.deckMu
+}
+
+// Context copies may keep a scope after its draw returns. The scope then becomes
+// inactive and cannot lease its retired catalog again. Each child draw owns its
+// own scope so it can finish (and recurse) even after the parent returns. The
+// owner can read catalog until release; inheritance and invalidation use deckMu.
+type deckDrawScope struct {
+	catalog *deckCatalog // nil after the draw returns
 }
 
 var deckContentSequence atomic.Uint64
@@ -141,18 +150,26 @@ func (d *Dice) publishDecks(decks []*DeckInfo) {
 	d.MarkModified()
 }
 
-func (d *Dice) acquireDeckCatalog() *deckCatalog {
+func (d *Dice) acquireDeckScope(parent *deckDrawScope) *deckDrawScope {
 	d.deckMu.Lock()
 	defer d.deckMu.Unlock()
-	if d.deckCatalog == nil {
-		d.deckCatalog = &deckCatalog{decks: d.DeckList, refs: 1, version: deckContentSequence.Add(1)}
+	var catalog *deckCatalog
+	if parent != nil && parent.catalog != nil {
+		catalog = parent.catalog
+	} else {
+		if d.deckCatalog == nil {
+			d.deckCatalog = &deckCatalog{decks: d.DeckList, refs: 1, version: deckContentSequence.Add(1)}
+		}
+		catalog = d.deckCatalog
 	}
-	d.deckCatalog.refs++
-	return d.deckCatalog
+	catalog.refs++
+	return &deckDrawScope{catalog: catalog}
 }
 
-func (d *Dice) releaseDeckCatalog(c *deckCatalog) {
+func (d *Dice) releaseDeckScope(scope *deckDrawScope) {
 	d.deckMu.Lock()
+	c := scope.catalog
+	scope.catalog = nil
 	c.refs--
 	retired := c.refs == 0
 	d.deckMu.Unlock()
@@ -168,6 +185,17 @@ func (d *Dice) DeckListSnapshot() []*DeckInfo {
 	return append([]*DeckInfo(nil), d.DeckList...)
 }
 
+// Writers hold deckLoadMu while copying/retaining the current runtime decks.
+// After CloseDecks the saved metadata remains, but its mappings cannot be reused.
+func (d *Dice) activeDecksSnapshot() []*DeckInfo {
+	d.deckMu.RLock()
+	defer d.deckMu.RUnlock()
+	if d.deckCatalog != nil {
+		return append([]*DeckInfo(nil), d.deckCatalog.decks...)
+	}
+	return append([]*DeckInfo(nil), d.DeckList...)
+}
+
 func (d *Dice) deckCommandsSnapshot() DeckCommandListItems {
 	d.deckMu.RLock()
 	defer d.deckMu.RUnlock()
@@ -177,7 +205,7 @@ func (d *Dice) deckCommandsSnapshot() DeckCommandListItems {
 func (d *Dice) SetDeckEnabled(filename string, enabled bool) {
 	d.deckLoadMu.Lock()
 	defer d.deckLoadMu.Unlock()
-	decks := d.DeckListSnapshot()
+	decks := d.activeDecksSnapshot()
 	for i, deck := range decks {
 		if deck.Filename == filename {
 			copyDeck := *deck
@@ -189,11 +217,26 @@ func (d *Dice) SetDeckEnabled(filename string, enabled bool) {
 	d.publishDecks(decks)
 }
 
-// CloseDecks retires the catalog; in-flight draws release their mappings on exit.
+// CloseDecks retires runtime resources without changing saved deck metadata or
+// installed state. In-flight draws release their mappings on exit.
 func (d *Dice) CloseDecks() {
 	d.deckLoadMu.Lock()
 	defer d.deckLoadMu.Unlock()
-	d.publishDecks(nil)
+	d.deckMu.Lock()
+	old := d.deckCatalog
+	// Keep an empty runtime catalog so subsequent draws cannot lazily reopen the
+	// closed mappings still referenced by the saved metadata.
+	d.deckCatalog = &deckCatalog{refs: 1, version: deckContentSequence.Add(1)}
+	d.deckCommandItemsList = nil
+	var retired []*DeckInfo
+	if old != nil {
+		old.refs--
+		if old.refs == 0 {
+			retired = old.decks
+		}
+	}
+	d.deckMu.Unlock()
+	closeDecks(d, retired)
 	d.closeDeckDiskCache()
 }
 

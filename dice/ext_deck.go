@@ -547,7 +547,7 @@ func DeckTryParseWithPackage(d *Dice, fn string, packageID string) {
 	if deck == nil {
 		return
 	}
-	decks := d.DeckListSnapshot()
+	decks := d.activeDecksSnapshot()
 	retainDecks(decks)
 	d.publishDecks(append(decks, deck))
 }
@@ -601,7 +601,7 @@ func DeckReload(d *Dice) {
 	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
 	decks := detectDecks(d)
 	previous := map[string]*DeckInfo{}
-	for _, deck := range d.DeckListSnapshot() {
+	for _, deck := range d.activeDecksSnapshot() {
 		previous[deck.Filename] = deck
 	}
 	for i, deck := range decks {
@@ -619,17 +619,19 @@ func DeckReload(d *Dice) {
 }
 
 func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string, error) {
-	if ctx.deckSnapshot == nil {
-		snapshot := ctx.Dice.acquireDeckCatalog()
-		ctx.deckSnapshot = snapshot
-		if ctx.deckPoolCatalog != snapshot.version {
-			ctx.DeckPools = nil
-			ctx.deckIndexPools = nil
-			ctx.deckPoolCatalog = snapshot.version
-		}
-		defer func() { ctx.deckSnapshot = nil; ctx.Dice.releaseDeckCatalog(snapshot) }()
+	parent := ctx.deckSnapshot
+	scope := ctx.Dice.acquireDeckScope(parent)
+	ctx.deckSnapshot = scope
+	defer func() {
+		ctx.deckSnapshot = parent
+		ctx.Dice.releaseDeckScope(scope)
+	}()
+	if ctx.deckPoolCatalog != scope.catalog.version {
+		ctx.DeckPools = nil
+		ctx.deckIndexPools = nil
+		ctx.deckPoolCatalog = scope.catalog.version
 	}
-	for _, i := range ctx.deckSnapshot.decks {
+	for _, i := range scope.catalog.decks {
 		if i.Enable {
 			_, deckExists := i.Command[deckName]
 			if deckExists {
@@ -1330,7 +1332,7 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return err
 	}
 	d.saveDeckDiskCache(next)
-	decks := d.DeckListSnapshot()
+	decks := d.activeDecksSnapshot()
 	found := false
 	for i, old := range decks {
 		if old.Filename == deckInfo.Filename {
