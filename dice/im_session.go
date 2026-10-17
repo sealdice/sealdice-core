@@ -879,7 +879,10 @@ type MsgContext struct {
 
 	deckDepth           int                                         // 抽牌递归深度
 	DeckPools           map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
-	diceExprOverwrite   string                                      // 默认骰表达式覆盖
+	deckSnapshot        *deckCatalog
+	deckPoolCatalog     uint64
+	deckIndexPools      map[string]*deckIndexPool
+	diceExprOverwrite   string // 默认骰表达式覆盖
 	SystemTemplate      *GameSystemTemplate
 	Censored            bool // 已检查过敏感词
 	SpamCheckedGroup    bool
@@ -2872,6 +2875,9 @@ func (ctx *MsgContext) ShallowCopy() *MsgContext {
 		AliasPrefixText:     ctx.AliasPrefixText,
 		deckDepth:           ctx.deckDepth,
 		DeckPools:           ctx.DeckPools,
+		deckSnapshot:        ctx.deckSnapshot,
+		deckPoolCatalog:     ctx.deckPoolCatalog,
+		deckIndexPools:      ctx.deckIndexPools,
 		diceExprOverwrite:   ctx.diceExprOverwrite,
 		SystemTemplate:      ctx.SystemTemplate,
 		Censored:            ctx.Censored,

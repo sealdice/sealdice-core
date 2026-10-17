@@ -170,6 +170,7 @@ func forceStop(c echo.Context) error {
 
 		for _, i := range diceManager.Dice {
 			d := i
+			d.CloseDecks()
 			d.DBOperator.Close()
 		}
 
