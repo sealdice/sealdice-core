@@ -64,7 +64,7 @@ func (d *Dice) readDeck(fn, packageID string) *DeckInfo {
 		}
 		d.Logger.Debugf("牌堆 %s: %s", fn, cacheMissDiagnostic(err))
 	}
-	content, err := os.ReadFile(fn)
+	content, err := os.ReadFile(fn) // #nosec G703 -- fn is selected by deck discovery or the explicit deck loader.
 	if err != nil {
 		d.Logger.Warnf("读取牌堆 %s: %v", fn, err)
 		return nil

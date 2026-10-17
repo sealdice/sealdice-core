@@ -77,7 +77,7 @@ func deckSourceIdentity(filename, packageID string) (id, source string, err erro
 }
 
 func deckFileFingerprint(filename string) (string, int64, error) {
-	f, err := os.Open(filename)
+	f, err := os.Open(filename) // #nosec G703 -- the loader selects the source path; cache metadata does not supply it.
 	if err != nil {
 		return "", 0, err
 	}
