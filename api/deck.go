@@ -18,7 +18,7 @@ func deckList(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, nil)
 	}
 
-	return c.JSON(http.StatusOK, myDice.DeckList)
+	return c.JSON(http.StatusOK, myDice.DeckListSnapshot())
 }
 
 func deckReload(c echo.Context) error {
@@ -98,13 +98,7 @@ func deckEnable(c echo.Context) error {
 	err := c.Bind(&v)
 
 	if err == nil {
-		for _, deck := range myDice.DeckList {
-			if deck.Filename == v.Filename {
-				deck.Enable = v.Enable
-				myDice.MarkModified()
-				break
-			}
-		}
+		myDice.SetDeckEnabled(v.Filename, v.Enable)
 	}
 
 	return c.JSON(http.StatusOK, myDice.Config.BanList)
@@ -126,7 +120,7 @@ func deckDelete(c echo.Context) error {
 	err := c.Bind(&v)
 
 	if err == nil && v.Filename != "" {
-		for _, deck := range myDice.DeckList {
+		for _, deck := range myDice.DeckListSnapshot() {
 			if deck.Filename == v.Filename {
 				dice.DeckDelete(myDice, deck)
 				myDice.MarkModified()
@@ -151,7 +145,7 @@ func deckCheckUpdate(c echo.Context) error {
 	err := c.Bind(&v)
 
 	if err == nil && v.Filename != "" {
-		for _, deck := range myDice.DeckList {
+		for _, deck := range myDice.DeckListSnapshot() {
 			if deck.Filename == v.Filename {
 				oldDeck, newDeck, tempFileName, err := myDice.DeckCheckUpdate(deck)
 				if err != nil {
@@ -184,7 +178,7 @@ func deckUpdate(c echo.Context) error {
 	err := c.Bind(&v)
 
 	if err == nil && v.Filename != "" {
-		for _, deck := range myDice.DeckList {
+		for _, deck := range myDice.DeckListSnapshot() {
 			if deck.Filename == v.Filename {
 				err := myDice.DeckUpdate(deck, v.TempFileName)
 				if err != nil {

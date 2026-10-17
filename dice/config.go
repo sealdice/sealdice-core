@@ -2593,7 +2593,7 @@ func (d *Dice) Save(isAuto bool) {
 		}{
 			// 这些都是由于导出到 goja 无法拆分的字段
 			d.ImSession,
-			d.DeckList,
+			d.DeckListSnapshot(),
 			d.CommandPrefix,
 			d.DiceMasters,
 

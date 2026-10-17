@@ -212,9 +212,14 @@ type Dice struct {
 	IsDeckLoading bool               `yaml:"-"` // 正在加载中
 
 	// 由于被导出的原因，暂时不迁移至 config
-	DeckList      []*DeckInfo `jsbind:"deckList"      yaml:"deckList"`      // 牌堆信息
-	CommandPrefix []string    `jsbind:"commandPrefix" yaml:"commandPrefix"` // 指令前导
-	DiceMasters   []string    `jsbind:"diceMasters"   yaml:"diceMasters"`   // 骰主设置，需要格式: 平台:帐号
+	DeckList           []*DeckInfo `jsbind:"deckList"      yaml:"deckList"` // 牌堆信息
+	deckMu             sync.RWMutex
+	deckLoadMu         sync.Mutex
+	deckCatalog        *deckCatalog
+	deckDiskCache      *deckDiskCache
+	deckCacheAttempted bool     // guarded by deckLoadMu
+	CommandPrefix      []string `jsbind:"commandPrefix" yaml:"commandPrefix"` // 指令前导
+	DiceMasters        []string `jsbind:"diceMasters"   yaml:"diceMasters"`   // 骰主设置，需要格式: 平台:帐号
 
 	MasterUnlockCode     string         `json:"masterUnlockCode"     yaml:"-"` // 解锁码，每20分钟变化一次，使用后立即变化
 	MasterUnlockCodeTime int64          `json:"masterUnlockCodeTime" yaml:"-"`
