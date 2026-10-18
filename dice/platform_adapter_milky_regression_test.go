@@ -22,7 +22,7 @@ import (
 func TestMilkyReconnectMessageStillValidatesAccount(t *testing.T) {
 	for _, uin := range []int64{10010, 20020} {
 		t.Run(strconv.FormatInt(uin, 10), func(t *testing.T) {
-			f := newMilkyGatewayFixture(t, "")
+			f := newMilkyGatewayFixture(t)
 			f.pa.startMilkySession(f.session, 0)
 			f.pa.prepareMilkyTransport(f.session)
 			connected := make(chan struct{}, 2)
@@ -83,22 +83,6 @@ func TestMilkyReconnectMessageStillValidatesAccount(t *testing.T) {
 	}
 }
 
-func TestMilkyLateMessageDoesNotClearOffline(t *testing.T) {
-	f := newMilkyGatewayFixture(t, "")
-	f.pa.startMilkySession(f.session, 0)
-	f.pa.prepareMilkyTransport(f.session)
-	if err := f.pa.refreshMilkyTransport(f.session, newMilkyLoginClient(time.Second)); err != nil {
-		t.Fatal(err)
-	}
-	f.pa.onMilkyBotOffline(f.session, "kicked offline")
-	if f.pa.onMilkyMessage(f.session) {
-		t.Fatal("late message cleared the offline event")
-	}
-	assertMilkyState(t, f.pa, StateDisconnected)
-	f.startRecovery()
-	assertMilkyState(t, f.pa, StateConnected)
-}
-
 func newMilkyPersistenceDB(t *testing.T) *mockDatabaseOperator {
 	t.Helper()
 	db, err := newMockDatabaseOperator(filepath.Join(t.TempDir(), "endpoints.db"))
@@ -132,7 +116,7 @@ func readMilkySavedEndpoint(t *testing.T, d *Dice) *EndPointInfo {
 
 func TestMilkyInitialRecoveryPersistsIdentity(t *testing.T) {
 	db := newMilkyPersistenceDB(t)
-	f := newMilkyGatewayFixture(t, "")
+	f := newMilkyGatewayFixture(t)
 	d := f.pa.EndPoint.Session.Parent
 	d.DBOperator = db
 	d.ImSession.EndPoints = []*EndPointInfo{f.pa.EndPoint}

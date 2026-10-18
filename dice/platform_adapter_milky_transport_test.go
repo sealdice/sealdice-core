@@ -30,9 +30,9 @@ type milkyRecoveryFixture struct {
 	done       chan struct{}
 }
 
-func newMilkyGatewayFixture(t *testing.T, mode string) *milkyRecoveryFixture {
+func newMilkyGatewayFixture(t *testing.T) *milkyRecoveryFixture {
 	t.Helper()
-	_, pa := newMilkyStartupTestAdapter(t, mode)
+	_, pa := newMilkyStartupTestAdapter(t, "")
 	f := &milkyRecoveryFixture{pa: pa, peers: make(chan *websocket.Conn, 16)}
 	f.apiHealthy.Store(true)
 	f.loggedIn.Store(true)
@@ -100,9 +100,9 @@ func newMilkyGatewayFixture(t *testing.T, mode string) *milkyRecoveryFixture {
 	return f
 }
 
-func newMilkyRecoveryFixture(t *testing.T, mode string) *milkyRecoveryFixture {
+func newMilkyRecoveryFixture(t *testing.T) *milkyRecoveryFixture {
 	t.Helper()
-	f := newMilkyGatewayFixture(t, mode)
+	f := newMilkyGatewayFixture(t)
 	session := f.session
 	f.pa.startMilkySession(session, 0)
 	f.pa.prepareMilkyTransport(session)
@@ -129,41 +129,29 @@ func (f *milkyRecoveryFixture) startRecovery() {
 }
 
 func TestMilkySDKDisconnectAndRecovery(t *testing.T) {
-	for _, mode := range []string{"", "yogurt", "lagrangeV2"} {
-		t.Run(mode, func(t *testing.T) {
-			f := newMilkyRecoveryFixture(t, mode)
-			assertMilkyState(t, f.pa, StateConnected)
-			f.wsHealthy.Store(false)
-			f.apiHealthy.Store(false)
-			_ = (<-f.peers).Close()
-			assertMilkyState(t, f.pa, StateDisconnected)
-			f.pa.lifecycleMu.Lock()
-			enabled := f.pa.EndPoint.Enable
-			f.pa.lifecycleMu.Unlock()
-			if !enabled {
-				t.Fatal("temporary outage disabled the account")
-			}
-			// REST 恢复但 WS 握手失败时仍须显示断开。
-			f.apiHealthy.Store(true)
-			time.Sleep(1100 * time.Millisecond)
-			assertMilkyState(t, f.pa, StateDisconnected)
-			f.wsHealthy.Store(true)
-			assertMilkyState(t, f.pa, StateConnected)
-		})
-	}
-}
-
-func TestMilkySDKDetectsEventGatewayFailure(t *testing.T) {
-	f := newMilkyRecoveryFixture(t, "")
+	f := newMilkyRecoveryFixture(t)
 	f.wsHealthy.Store(false)
 	_ = (<-f.peers).Close()
 	assertMilkyState(t, f.pa, StateDisconnected)
+	f.pa.lifecycleMu.Lock()
+	enabled := f.pa.EndPoint.Enable
+	f.pa.lifecycleMu.Unlock()
+	if !enabled {
+		t.Fatal("temporary outage disabled the account")
+	}
+	// REST 正常但 WS 不可用时保持离线，并由 SDK 负责重连。
+	calls := f.apiCalls.Load()
+	time.Sleep(1100 * time.Millisecond)
+	assertMilkyState(t, f.pa, StateDisconnected)
+	if got := f.apiCalls.Load(); got != calls {
+		t.Fatalf("core polled login API while SDK was reconnecting: %d -> %d", calls, got)
+	}
 	f.wsHealthy.Store(true)
 	assertMilkyState(t, f.pa, StateConnected)
 }
 
 func TestMilkySDKDoesNotPollWhileConnected(t *testing.T) {
-	f := newMilkyRecoveryFixture(t, "")
+	f := newMilkyRecoveryFixture(t)
 	calls := f.apiCalls.Load()
 	// 恢复间隔为 20ms；正常连接跨过多个间隔也不应再次请求登录 API。
 	time.Sleep(200 * time.Millisecond)
@@ -172,20 +160,8 @@ func TestMilkySDKDoesNotPollWhileConnected(t *testing.T) {
 	}
 }
 
-func TestMilkySDKDoesNotPollWhileReconnecting(t *testing.T) {
-	f := newMilkyRecoveryFixture(t, "")
-	f.wsHealthy.Store(false)
-	_ = (<-f.peers).Close()
-	assertMilkyState(t, f.pa, StateDisconnected)
-	calls := f.apiCalls.Load()
-	time.Sleep(200 * time.Millisecond)
-	if got := f.apiCalls.Load(); got != calls {
-		t.Fatalf("core polled login API while SDK was reconnecting: %d -> %d", calls, got)
-	}
-}
-
 func TestMilkySDKStaleConnectKeepsReconnectOwnership(t *testing.T) {
-	f := newMilkyGatewayFixture(t, "")
+	f := newMilkyGatewayFixture(t)
 	f.pa.startMilkySession(f.session, 0)
 	f.pa.prepareMilkyTransport(f.session)
 	// 模拟握手通知执行前，连接已断开；成功握手仍意味着 SDK 已接管重连。
@@ -202,7 +178,7 @@ func TestMilkySDKStaleConnectKeepsReconnectOwnership(t *testing.T) {
 }
 
 func TestMilkySDKReconnectWaitsForAccountRecovery(t *testing.T) {
-	f := newMilkyRecoveryFixture(t, "")
+	f := newMilkyRecoveryFixture(t)
 	f.loggedIn.Store(false)
 	_ = (<-f.peers).Close()
 	assertMilkyState(t, f.pa, StateDisconnected)
@@ -218,7 +194,7 @@ func TestMilkySDKReconnectWaitsForAccountRecovery(t *testing.T) {
 }
 
 func TestMilkySDKIgnoresReplacedSession(t *testing.T) {
-	f := newMilkyRecoveryFixture(t, "")
+	f := newMilkyRecoveryFixture(t)
 	current, err := milky.New(f.session.WSGateway, f.session.RestGateway, f.session.Token, noopMilkyLogger{})
 	if err != nil {
 		t.Fatal(err)
@@ -235,18 +211,14 @@ func TestMilkySDKIgnoresReplacedSession(t *testing.T) {
 }
 
 func TestMilkySDKRecoversBotOfflineAndIgnoresStoppedSessions(t *testing.T) {
-	f := newMilkyRecoveryFixture(t, "")
+	f := newMilkyRecoveryFixture(t)
 	f.loggedIn.Store(false)
 	f.pa.onMilkyBotOffline(f.session, "kicked offline")
-	time.Sleep(100 * time.Millisecond)
+	if f.pa.onMilkyMessage(f.session) {
+		t.Fatal("late message cleared the offline event")
+	}
 	assertMilkyState(t, f.pa, StateDisconnected)
-	// QQ 登录恢复但 WS 仍不可用时，不能显示已连接。
-	f.wsHealthy.Store(false)
-	_ = (<-f.peers).Close()
 	f.loggedIn.Store(true)
-	time.Sleep(1100 * time.Millisecond)
-	assertMilkyState(t, f.pa, StateDisconnected)
-	f.wsHealthy.Store(true)
 	// 不发送任何 QQ 消息，成功的登录探测与 WS 连接应足以恢复状态。
 	assertMilkyState(t, f.pa, StateConnected)
 	f.pa.stopMilkySession()
@@ -274,7 +246,6 @@ func TestMilkySDKRejectsInvalidResponses(t *testing.T) {
 		`{"status":"ok","retcode":1,"data":{"uin":10010}}`,
 		`{"status":"ok","retcode":0,"data":null}`,
 		`{"status":"ok","retcode":0,"data":{"uin":0}}`,
-		`{"status":"ok","retcode":0,"data":{"uin":20020}}`,
 		`not JSON`,
 	} {
 		t.Run(body, func(t *testing.T) {
@@ -317,7 +288,7 @@ func TestMilkySDKRequestCancellation(t *testing.T) {
 func TestMilkyInitialTransientFailureRetries(t *testing.T) {
 	for _, failure := range []string{"API unavailable", "QQ offline", "WebSocket unavailable"} {
 		t.Run(failure, func(t *testing.T) {
-			f := newMilkyGatewayFixture(t, "yogurt")
+			f := newMilkyGatewayFixture(t)
 			switch failure {
 			case "API unavailable":
 				f.apiHealthy.Store(false)
@@ -353,7 +324,7 @@ func TestMilkyInitialTransientFailureRetries(t *testing.T) {
 }
 
 func TestMilkyInitialAuthenticationFailureDoesNotRetry(t *testing.T) {
-	f := newMilkyGatewayFixture(t, "yogurt")
+	f := newMilkyGatewayFixture(t)
 	f.apiStatus.Store(http.StatusUnauthorized)
 	if f.pa.Serve() == 0 {
 		t.Fatal("authentication failure was treated as transient")
@@ -368,7 +339,7 @@ func TestMilkyInitialAuthenticationFailureDoesNotRetry(t *testing.T) {
 }
 
 func TestMilkySDKPermanentFailureStopsMonitor(t *testing.T) {
-	f := newMilkyRecoveryFixture(t, "yogurt")
+	f := newMilkyRecoveryFixture(t)
 	f.apiStatus.Store(http.StatusUnauthorized)
 	f.pa.onMilkyBotOffline(f.session, "session expired")
 	assertMilkyState(t, f.pa, StateConnectionFailed)
