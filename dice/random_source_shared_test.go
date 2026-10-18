@@ -3,9 +3,11 @@ package dice //nolint:testpackage
 import (
 	"errors"
 	"fmt"
+	randv2 "math/rand/v2"
 	"strings"
 	"testing"
 
+	"github.com/dop251/goja"
 	ds "github.com/sealdice/dicescript"
 
 	randcore "sealdice-core/utils/random"
@@ -112,6 +114,69 @@ func TestGlobalRandSourceUsesSingleSharedOwner(t *testing.T) {
 	}
 	if current := globalRandSource.CurrentMode(); current != DiceRandomModeGM {
 		t.Fatalf("CurrentMode() = %s, want gm", current)
+	}
+}
+
+func TestWeightedBusinessCompatibility(t *testing.T) {
+	// Golden sequences were recorded through the original business entry points
+	// before replacing weightedrand. Also detect any extra random consumption.
+	for _, name := range []string{"template", "reply", "deck", "names", "js"} {
+		t.Run(name, func(t *testing.T) {
+			src := newPCGDiceSource(41)
+			var text strings.Builder
+			want := "ccacabbaccacbcaaacca"
+			switch name {
+			case "template":
+				d := &Dice{TextMapRaw: TextTemplateWithWeightDict{"test": {"g": {{"zero", 0}, {"a", 3}, {"b", 1}, {"c", 3}}}}}
+				d.GenerateTextMap()
+				for range 20 {
+					text.WriteString(pickChooserWithSource(d.TextMap["test:g"], src))
+				}
+			case "reply":
+				items := TextTemplateItemList{{"zero", 0}, {"a", float64(3)}, {"b", 1}, {"c", 3}}
+				pool := items.toRandomPool()
+				for range 20 {
+					text.WriteString(pickChooserWithSource(pool, src))
+				}
+			case "deck":
+				pool := DeckToRandomPool([]string{"::0::zero", "::3::a", "b", "::3::c"})
+				for range 20 {
+					text.WriteString(pickChooserWithSource(pool, src))
+				}
+			case "names":
+				installGlobalDiceSourceState(t, completeSourceMap(sourceOverride{mode: DiceRandomModePCG, src: src}), nil)
+				ng := &NamesGenerator{NamesInfo: map[string]map[string][]string{"s": {"name": {"zero", "a", "b", "c"}, "weight": {"0", "3", "1", "3"}, "alias": {"Z", "A", "B", "C"}}}}
+				for range 20 {
+					text.WriteString(ng.NameGenerate("{s:name@s:weight}{s:alias#s:name.index}"))
+				}
+				want = "cCcCaAcCaAbBbBaAcCcCaAcCbBcCaAaAaAcCcCaA"
+			case "js":
+				vm := goja.New()
+				if err := vm.Set("pool", DeckToRandomPool([]string{"::0::zero", "::3::a", "b", "::3::c"})); err != nil {
+					t.Fatal(err)
+				}
+				if err := vm.Set("random", randv2.New(src)); err != nil {
+					t.Fatal(err)
+				}
+				value, err := vm.RunString(`Array.from({length: 20}, () => pool.PickWith(random)).join("")`)
+				if err != nil {
+					t.Fatal(err)
+				}
+				text.WriteString(value.String())
+				if err := vm.Set("single", DeckToRandomPool([]string{"only"})); err != nil {
+					t.Fatal(err)
+				}
+				if value, err := vm.RunString(`single.Pick()`); err != nil || value.String() != "only" {
+					t.Fatalf("JS Pick: %v, %v", value, err)
+				}
+			}
+			if got := text.String(); got != want {
+				t.Fatalf("draw sequence changed: %q != %q", got, want)
+			}
+			if got := src.Uint64(); got != 6450427785793706784 {
+				t.Fatalf("random consumption changed: next = %d", got)
+			}
+		})
 	}
 }
 

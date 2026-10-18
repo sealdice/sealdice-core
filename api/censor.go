@@ -456,7 +456,10 @@ func censorDeleteWordFiles(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	myDice.CensorManager.DeleteCensorWordFiles(v.Keys)
+	if err := myDice.CensorManager.DeleteCensorWordFiles(v.Keys); err != nil {
+		myDice.Logger.Error("censorDeleteWordFiles", err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
 
 	return Success(&c, Response{})
 }

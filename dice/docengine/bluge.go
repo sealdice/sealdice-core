@@ -38,7 +38,7 @@ const (
 	DefaultCacheDir = "./cache/_help_cache"
 	DefaultIndexDir = DefaultCacheDir + "/_index"
 	indexSchemaFile = "schema_version"
-	indexSchema     = "2"
+	indexSchema     = "3" // Bluge v0.8.0 requires rebuilding indexes with zapx-bluge v2 segments.
 	groupExactField = "_group_exact"
 )
 
