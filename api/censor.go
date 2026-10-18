@@ -248,7 +248,7 @@ func censorSetConfig(c echo.Context) error {
 }
 
 func setLevelHandlers(level censor.Level, handlers []string) {
-	newHandlers := map[dice.CensorHandler]bool{}
+	newHandlers := make(map[dice.CensorHandler]bool)
 	for _, newH := range handlers {
 		switch newH {
 		case "SendWarning":

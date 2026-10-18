@@ -20,8 +20,8 @@ type GlobalRand struct {
 
 func NewEmptyGlobalOwner() *GlobalRand {
 	return &GlobalRand{
-		sources:    map[Mode]ds.DiceSource{},
-		errs:       map[Mode]error{},
+		sources:    make(map[Mode]ds.DiceSource),
+		errs:       make(map[Mode]error),
 		activeMode: ModePCG,
 	}
 }
@@ -61,10 +61,10 @@ func (g *GlobalRand) RegisterSourceError(mode Mode, err error) {
 
 func (g *GlobalRand) registerSourceLocked(mode Mode, src ds.DiceSource) {
 	if g.sources == nil {
-		g.sources = map[Mode]ds.DiceSource{}
+		g.sources = make(map[Mode]ds.DiceSource)
 	}
 	if g.errs == nil {
-		g.errs = map[Mode]error{}
+		g.errs = make(map[Mode]error)
 	}
 	if src == nil {
 		delete(g.sources, mode)
@@ -77,7 +77,7 @@ func (g *GlobalRand) registerSourceLocked(mode Mode, src ds.DiceSource) {
 
 func (g *GlobalRand) registerSourceErrorLocked(mode Mode, err error) {
 	if g.errs == nil {
-		g.errs = map[Mode]error{}
+		g.errs = make(map[Mode]error)
 	}
 	if err == nil {
 		delete(g.errs, mode)
@@ -161,14 +161,14 @@ func (g *GlobalRand) RegisterHybridSource() error {
 	defer g.mu.Unlock()
 	if err != nil {
 		if g.errs == nil {
-			g.errs = map[Mode]error{}
+			g.errs = make(map[Mode]error)
 		}
 		g.errs[ModeHybrid] = err
 		delete(g.sources, ModeHybrid)
 		return err
 	}
 	if g.sources == nil {
-		g.sources = map[Mode]ds.DiceSource{}
+		g.sources = make(map[Mode]ds.DiceSource)
 	}
 	g.sources[ModeHybrid] = hybrid
 	delete(g.errs, ModeHybrid)

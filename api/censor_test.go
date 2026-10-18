@@ -15,7 +15,7 @@ func TestCensorEncodedDetailsHandlerConfigRoundTrip(t *testing.T) {
 	})
 
 	myDice = &dice.Dice{}
-	myDice.Config.CensorHandlers = map[censor.Level]uint8{}
+	myDice.Config.CensorHandlers = make(map[censor.Level]uint8)
 	setLevelHandlers(censor.Warning, []string{"SendWarning", "SendEncodedDetails"})
 
 	got := getLevelConfig(
