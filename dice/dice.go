@@ -15,7 +15,6 @@ import (
 
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/lascape/sat"
-	wr "github.com/mroth/weightedrand/v3"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tidwall/buntdb"
@@ -26,6 +25,7 @@ import (
 	"sealdice-core/utils/dboperator/engine"
 	"sealdice-core/utils/public_dice"
 	randcore "sealdice-core/utils/random"
+	"sealdice-core/utils/weighted"
 )
 
 type CmdExecuteResult struct {
@@ -202,7 +202,7 @@ type Dice struct {
 	ExtRegistryVersion int64                                `json:"-" yaml:"-"`
 	RollParser         *DiceRollParser                      `yaml:"-"`
 	LastUpdatedTime    int64                                `yaml:"-"`
-	TextMap            map[string]*wr.Chooser[string, uint] `yaml:"-"`
+	TextMap            map[string]*weighted.Chooser[string] `yaml:"-"`
 	BaseConfig         BaseConfig                           `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象

@@ -20,7 +20,8 @@ import (
 	mmap "github.com/blevesearch/mmap-go"
 	"github.com/cespare/xxhash/v2"
 	"github.com/klauspost/compress/zstd"
-	wr "github.com/mroth/weightedrand/v3"
+
+	"sealdice-core/utils/weighted"
 )
 
 const (
@@ -146,17 +147,17 @@ func encodeDeckBlocks(s *deckBlockStore, groups map[string][]string, appendBlock
 		if err = write(key); err != nil {
 			return err
 		}
-		weighted := false
+		hasWeights := false
 		for _, text := range items {
 			w, _ := deckEntryWeight(text)
 			if w != 1 {
-				weighted = true
+				hasWeights = true
 				break
 			}
 		}
-		if weighted {
+		if hasWeights {
 			g.weightsOffset, g.total = pos, 0
-			choices := make([]wr.Choice[int, uint], len(items))
+			choices := make([]weighted.Choice[int], len(items))
 			weights := make([]byte, 0, len(items)*8)
 			for i, text := range items {
 				w, _ := deckEntryWeight(text)
@@ -164,14 +165,14 @@ func encodeDeckBlocks(s *deckBlockStore, groups map[string][]string, appendBlock
 				if uint64(w) >= ^uint64(0)-g.total {
 					return fmt.Errorf("牌组 %q 权重总和溢出", name)
 				}
-				choices[i] = wr.NewChoice(i, w)
+				choices[i] = weighted.Choice[int]{Item: i, Weight: w}
 				g.total += uint64(w)
 				weights = binary.LittleEndian.AppendUint64(weights, g.total)
 			}
 			if err = write(weights); err != nil {
 				return err
 			}
-			slices.SortFunc(choices, func(a, b wr.Choice[int, uint]) int { return cmp.Compare(a.Weight, b.Weight) })
+			slices.SortFunc(choices, func(a, b weighted.Choice[int]) int { return cmp.Compare(a.Weight, b.Weight) })
 			g.replaceOffset = pos
 			weights = make([]byte, 0, len(items)*16)
 			var total uint64

@@ -19,12 +19,13 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
-	wr "github.com/mroth/weightedrand/v3"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/sahilm/fuzzy"
 	ds "github.com/sealdice/dicescript"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
+
+	"sealdice-core/utils/weighted"
 )
 
 type DeckDiceEFormat struct {
@@ -1104,30 +1105,30 @@ func extractWeight(s string) (uint, string) {
 	return uint(weight), s
 }
 
-func DeckToRandomPool(deck []string) *wr.Chooser[string, uint] {
-	choices := []wr.Choice[string, uint]{}
+func DeckToRandomPool(deck []string) *weighted.Chooser[string] {
+	choices := []weighted.Choice[string]{}
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.NewChoice(text, weight))
+		choices = append(choices, weighted.Choice[string]{Item: text, Weight: weight})
 	}
-	randomPool, _ := wr.NewChooser(choices...)
+	randomPool, _ := weighted.NewChooser(choices...)
 	return randomPool
 }
 
 type ShuffleRandomPool struct {
-	data   []wr.Choice[string, uint]
+	data   []weighted.Choice[string]
 	totals []int
 	max    int
 }
 
 var errShuffleRandomPoolExhausted = errors.New("shuffle random pool exhausted")
 
-func NewChooser(choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
+func NewChooser(choices ...weighted.Choice[string]) (*ShuffleRandomPool, error) {
 	return NewChooserWithSource(globalRandSource, choices...)
 }
 
-func NewChooserWithSource(src ds.DiceSource, choices ...wr.Choice[string, uint]) (*ShuffleRandomPool, error) {
-	shuffled := append([]wr.Choice[string, uint](nil), choices...)
+func NewChooserWithSource(src ds.DiceSource, choices ...weighted.Choice[string]) (*ShuffleRandomPool, error) {
+	shuffled := append([]weighted.Choice[string](nil), choices...)
 
 	shuffleWithSource(src, len(shuffled), func(i, j int) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
@@ -1205,10 +1206,10 @@ func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
 }
 
 func DeckToShuffleRandomPoolWithSource(src ds.DiceSource, deck []string) *ShuffleRandomPool {
-	var choices []wr.Choice[string, uint]
+	var choices []weighted.Choice[string]
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.NewChoice(text, weight))
+		choices = append(choices, weighted.Choice[string]{Item: text, Weight: weight})
 	}
 	randomPool, _ := NewChooserWithSource(src, choices...)
 	return randomPool
