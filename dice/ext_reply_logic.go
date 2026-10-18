@@ -3,7 +3,6 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -342,15 +341,17 @@ type ReplyConfig struct {
 	Warning     string `json:"warning,omitempty" yaml:"-"`
 }
 
-func (c *ReplyConfig) Save(dice *Dice) {
+func (c *ReplyConfig) Save(dice *Dice) error {
 	if c.PackageID != "" {
 		dice.Logger.Warnf("跳过保存扩展包自定义回复到普通目录: package=%s file=%s", c.PackageID, c.Filename)
-		return
+		return nil
 	}
 	attrConfigFn := dice.GetExtConfigFilePath("reply", c.Filename)
 	if err := c.SaveToPath(attrConfigFn); err != nil {
 		dice.Logger.Error("ReplyConfig.Save", err)
+		return err
 	}
+	return nil
 }
 
 func (c *ReplyConfig) SaveToPath(filePath string) error {
@@ -363,7 +364,7 @@ func (c *ReplyConfig) SaveToPath(filePath string) error {
 	if fileConfig.VMVersion == ReplyVMVersionV2 {
 		buf = append([]byte(ReplyVMVersionV2Marker+"\n"), buf...)
 	}
-	return os.WriteFile(filePath, buf, 0644)
+	return writeFileAtomically(filePath, buf, 0o644)
 }
 
 func (c *ReplyConfig) Clean() {
