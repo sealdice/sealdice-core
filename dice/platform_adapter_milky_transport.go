@@ -129,6 +129,9 @@ func (pa *PlatformAdapterMilky) watchMilkyRecovery(ctx context.Context, session 
 		if needed, _ := pa.needsMilkyRecovery(session); !needed {
 			continue
 		}
+		pa.lifecycleMu.Lock()
+		wasReady := pa.sessionReady
+		pa.lifecycleMu.Unlock()
 		err := pa.refreshMilkyTransport(session, client)
 		if ctx.Err() != nil {
 			return
@@ -145,6 +148,12 @@ func (pa *PlatformAdapterMilky) watchMilkyRecovery(ctx context.Context, session 
 		if err != nil {
 			delay = min(delay*2, milkyRetryMaxDelay)
 		} else {
+			if !wasReady {
+				// Serve 已保存过首次失败的配置；后台首次登录成功后保存账号信息。
+				d := pa.EndPoint.Session.Parent
+				d.MarkModified()
+				d.Save(false)
+			}
 			delay = interval
 		}
 		timer.Reset(delay)

@@ -175,10 +175,9 @@ func (pa *PlatformAdapterMilky) serveMilky(generation uint64) int {
 		}
 	})
 	session.AddHandler(func(session2 *milky.Session, m *milky.ReceiveMessage) {
-		if m == nil {
+		if m == nil || !pa.onMilkyMessage(session2) {
 			return
 		}
-		pa.onMilkyMessage(session2)
 		log.Debugf("Received message: Sender %d", m.SenderId)
 		msg := &Message{
 			Platform: "QQ",

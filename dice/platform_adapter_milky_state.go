@@ -139,16 +139,16 @@ func (pa *PlatformAdapterMilky) onMilkyAccountOnline(session *milky.Session, gen
 	pa.updateMilkyConnectionState(pa.transportConnected)
 }
 
-func (pa *PlatformAdapterMilky) onMilkyMessage(session *milky.Session) {
+func (pa *PlatformAdapterMilky) onMilkyMessage(session *milky.Session) bool {
 	connected := pa.isMilkyTransportConnected(session)
 	pa.lifecycleMu.Lock()
 	defer pa.lifecycleMu.Unlock()
-	if pa.IntentSession == session && pa.sessionActive && pa.sessionReady && connected {
-		// 收到实际 QQ 消息证明账号已经恢复；不能只凭本地 WS 握手清除离线状态。
-		pa.accountOffline = false
-		pa.transportConnected = true
-		pa.EndPoint.State = StateConnected
+	if pa.IntentSession != session || !pa.sessionActive || !connected {
+		return false
 	}
+	// 消息不能证明仍是同一 QQ 账号，也可能比离线事件更早产生。
+	// 只有登录验证成功才能恢复在线状态并处理消息。
+	return pa.sessionReady && pa.transportConnected && !pa.accountOffline
 }
 
 func (pa *PlatformAdapterMilky) beginMilkyProcess() (uint64, chan struct{}) {

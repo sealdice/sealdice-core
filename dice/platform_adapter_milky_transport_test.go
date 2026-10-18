@@ -4,6 +4,7 @@ package dice
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,7 @@ type milkyRecoveryFixture struct {
 	loggedIn   atomic.Bool
 	apiStatus  atomic.Int32
 	apiCalls   atomic.Int32
+	uin        atomic.Int64
 	wsHealthy  atomic.Bool
 	peers      chan *websocket.Conn
 	done       chan struct{}
@@ -35,6 +37,7 @@ func newMilkyGatewayFixture(t *testing.T, mode string) *milkyRecoveryFixture {
 	f.apiHealthy.Store(true)
 	f.loggedIn.Store(true)
 	f.apiStatus.Store(http.StatusOK)
+	f.uin.Store(10010)
 	f.wsHealthy.Store(true)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/get_login_info" {
@@ -56,7 +59,7 @@ func newMilkyGatewayFixture(t *testing.T, mode string) *milkyRecoveryFixture {
 				_, _ = w.Write([]byte(`{"status":"failed","retcode":-403,"message":"Bot is not logged in"}`))
 				return
 			}
-			_, _ = w.Write([]byte(`{"status":"ok","retcode":0,"data":{"uin":10010,"nickname":"MilkyBot"}}`))
+			_, _ = fmt.Fprintf(w, `{"status":"ok","retcode":0,"data":{"uin":%d,"nickname":"MilkyBot"}}`, f.uin.Load())
 			return
 		}
 		if !f.wsHealthy.Load() {
@@ -110,15 +113,19 @@ func newMilkyRecoveryFixture(t *testing.T, mode string) *milkyRecoveryFixture {
 		t.Fatal(err)
 	}
 	assertMilkyState(t, f.pa, StateConnected)
+	f.startRecovery()
+	return f
+}
+
+func (f *milkyRecoveryFixture) startRecovery() {
 	f.done = make(chan struct{})
 	f.pa.lifecycleMu.Lock()
 	ctx := f.pa.sessionContext
 	f.pa.lifecycleMu.Unlock()
 	go func() {
 		defer close(f.done)
-		f.pa.watchMilkyRecovery(ctx, session, 20*time.Millisecond, 100*time.Millisecond)
+		f.pa.watchMilkyRecovery(ctx, f.session, 20*time.Millisecond, 100*time.Millisecond)
 	}()
-	return f
 }
 
 func TestMilkySDKDisconnectAndRecovery(t *testing.T) {

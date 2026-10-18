@@ -364,12 +364,18 @@ func ServeMilkyBuiltIn(d *Dice, ep *EndPointInfo) {
 
 			if strings.Contains(line, qrcodeExpiredSignal) {
 				// 二维码过期，登录失败，杀掉进程
-				if !pa.setMilkyProcessLoginState(generation, MilkyLoginStateFailed) {
+				if !pa.failMilkyProcessStart(generation) {
 					return ""
 				}
 				log.Infof("Milky 二维码过期，登录失败，账号：%s", ep.UserID)
+				d.MarkModified()
+				d.Save(false)
 				<-processRegistered
-				BuiltinMilkyClientKill(d, ep)
+				// 仅停止产生过期通知的进程；旧回调不能清理后来启动的进程。
+				// 由启动协程回收进程并保留 StateConnectionFailed。
+				if err := p.Stop(); err != nil {
+					log.Errorf("停止二维码过期的 Milky 进程失败: %v", err)
+				}
 			}
 		}
 

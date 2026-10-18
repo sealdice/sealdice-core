@@ -9,7 +9,7 @@ require (
 	github.com/PaienNate/pineutil v1.1.1
 	github.com/ShiraazMoollatjie/goluhn v0.0.0-20211017190329-0d86158c056a
 	github.com/Szzrain/DingTalk-go v0.0.8-alpha
-	github.com/Szzrain/Milky-go-sdk v1.1.0
+	github.com/Szzrain/Milky-go-sdk v1.2.0
 	github.com/Szzrain/dodo-open-go v0.2.8
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/alexmullins/zip v0.0.0-20180717182244-4affb64b04d0
@@ -232,8 +232,6 @@ require (
 )
 
 replace (
-	// Temporary: https://github.com/Szzrain/Milky-go-sdk/pull/3; use the upstream release after merge.
-	github.com/Szzrain/Milky-go-sdk => github.com/ShiaNyaa/Milky-go-sdk v1.1.1-0.20261016190858-8b076719a243
 	github.com/Szzrain/dodo-open-go v0.2.7 => github.com/sealdice/dodo-open-go v0.2.8
 	// Try to fix sqlite in cgofree
 	// github.com/glebarez/sqlite v1.11.0 => github.com/PaienNate/sqlite v0.0.0-20241102151933-067d82f14685
