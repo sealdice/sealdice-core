@@ -44,6 +44,26 @@ func cacheTestWriteMeta(t *testing.T, path string, meta *deckCacheManifest) {
 	mmapWrite(t, path, string(body))
 }
 
+func cacheTestFileExists(t *testing.T, path string) bool {
+	t.Helper()
+	_, err := os.Stat(path)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	return err == nil
+}
+
+func cacheTestAssertUnlocked(t *testing.T, dir string) {
+	t.Helper()
+	cache, err := openDeckDiskCache(dir)
+	if err != nil {
+		t.Fatal("closed mapping still holds the cache lock", err)
+	}
+	if err := cache.releaseFile(""); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDeckDiskCacheClosePreservesConfiguration(t *testing.T) {
 	d := mmapTestDice(t)
 	d.BaseConfig.DataDir = t.TempDir()
@@ -58,6 +78,7 @@ func TestDeckDiskCacheClosePreservesConfiguration(t *testing.T) {
 	mmapWrite(t, "data/decks/a.json", `{"_storeID":["installed-deck"],"g":["A"]}`)
 	DeckReload(d)
 	old := d.DeckListSnapshot()[0].storage
+	cacheDir := d.deckDiskCache.dir
 	readSavedDecks := func() []*DeckInfo {
 		t.Helper()
 		body, err := os.ReadFile(filepath.Join(d.BaseConfig.DataDir, "serve.yaml"))
@@ -88,6 +109,7 @@ func TestDeckDiskCacheClosePreservesConfiguration(t *testing.T) {
 	if !old.closed || len(d.deckCommandsSnapshot()) != 0 {
 		t.Error("runtime resources were not closed")
 	}
+	cacheTestAssertUnlocked(t, cacheDir)
 	// A later save, including one triggered by an unrelated configuration edit,
 	// must still serialize the deck metadata.
 	d.MarkModified()
@@ -110,7 +132,9 @@ func TestDeckDiskCacheInvalidReloadAfterClose(t *testing.T) {
 	mmapWrite(t, filename, `{"g":["A"]}`)
 	DeckReload(d)
 	old := d.DeckListSnapshot()[0].storage
+	cacheDir := d.deckDiskCache.dir
 	d.CloseDecks()
+	cacheTestAssertUnlocked(t, cacheDir)
 	mmapWrite(t, filename, `{"g":`)
 	DeckReload(d)
 	deck := d.DeckListSnapshot()[0]
@@ -175,12 +199,16 @@ func TestDeckDiskCacheRestartAndInvalidation(t *testing.T) {
 		t.Fatal("stale fingerprint/pool")
 	}
 	owner := t
-	for _, field := range []string{"parser", "format", "checksum", "bounds", "json"} {
+	for _, field := range []string{"parser", "format", "checksum", "bounds", "json", "disabled", "missing-commands"} {
 		t.Run(field, func(t *testing.T) {
 			deck := d.DeckListSnapshot()[0]
 			path, meta = cacheTestManifest(t, d, deck)
 			d.CloseDecks()
 			switch field {
+			case "disabled":
+				meta.Metadata.Enable = false
+			case "missing-commands":
+				meta.Metadata.Command = nil
 			case "parser":
 				meta.Parser = "older-parser"
 			case "format":
@@ -330,7 +358,22 @@ func TestDeckDiskCacheRetirementDeletionAndLock(t *testing.T) {
 	if other.deckDiskCache != nil || other.DeckListSnapshot()[0].storage == nil || other.DeckListSnapshot()[0].storage.persistent {
 		t.Fatal("cache lock not held by old reader / fallback failed")
 	}
+	var temporary []string
+	for _, deck := range other.DeckListSnapshot() {
+		if deck.storage == nil || deck.storage.persistent || !cacheTestFileExists(t, deck.storage.filename) {
+			t.Fatal("temporary fallback mapping missing")
+		}
+		temporary = append(temporary, deck.storage.filename)
+	}
+	if len(temporary) != 2 {
+		t.Fatalf("expected two temporary mappings, got %d", len(temporary))
+	}
 	other.CloseDecks()
+	for _, path := range temporary {
+		if cacheTestFileExists(t, path) {
+			t.Fatal("temporary fallback mapping leaked")
+		}
+	}
 	d.releaseDeckScope(lease)
 	if _, err := os.Stat(oldFile); !os.IsNotExist(err) {
 		t.Fatal("retired data not removed", err)

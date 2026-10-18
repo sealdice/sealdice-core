@@ -20,6 +20,10 @@ import (
 func mmapTestDice(t *testing.T) *Dice {
 	t.Helper()
 	t.Chdir(t.TempDir())
+	temporary := t.TempDir()
+	for _, key := range []string{"TMP", "TEMP", "TMPDIR"} {
+		t.Setenv(key, temporary)
+	}
 	if err := os.MkdirAll("data/decks", 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +258,7 @@ func TestMappedDeckReloadWhileRecursiveCloudRequest(t *testing.T) {
 	old := d.DeckListSnapshot()[0].storage
 	mmapWrite(t, filename, "[decks]\nroot=['NEW']\n_leaf=['NEW']\n")
 	DeckReload(d) // Must finish while the old network request is blocked.
-	if old.closed {
+	if old.closed || !cacheTestFileExists(t, old.filename) {
 		t.Fatal("in-flight mapping closed")
 	}
 	close(release)
@@ -262,7 +266,7 @@ func TestMappedDeckReloadWhileRecursiveCloudRequest(t *testing.T) {
 	if got.err != nil || got.text != "OLD" {
 		t.Fatalf("mixed snapshot: %+v", got)
 	}
-	if !old.closed {
+	if !old.closed || cacheTestFileExists(t, old.filename) {
 		t.Fatal("retired mapping not released")
 	}
 	if got := mmapDraw(t, &MsgContext{Dice: d}, "root", false); got != "NEW" {
@@ -297,7 +301,7 @@ func TestMappedDeckShallowCopyAfterDraw(t *testing.T) {
 	}
 	mmapWrite(t, filename, `{"root":["B"],"g":["::0::BAD","::9::B"]}`)
 	DeckReload(d)
-	if !old.closed {
+	if !old.closed || cacheTestFileExists(t, old.filename) {
 		t.Fatal("an idle context copy must not retain the old mapping")
 	}
 	for range 4 {
@@ -360,7 +364,7 @@ func TestMappedDeckShallowCopyInFlight(t *testing.T) {
 	}
 	// The parent has returned, but the child still owns the old version. Its
 	// subsequent cross-deck recursive draw must use OLD, not the published NEW.
-	if old.closed {
+	if old.closed || !cacheTestFileExists(t, old.filename) {
 		t.Fatal("parent released the child's mapping")
 	}
 	if got := mmapDraw(t, &MsgContext{Dice: d}, "leaf", false); got != "NEW" {
@@ -370,7 +374,7 @@ func TestMappedDeckShallowCopyInFlight(t *testing.T) {
 	if got := <-result; !got.exists || got.err != nil || got.text != "OLD" {
 		t.Fatalf("child mixed versions after its parent returned: %+v", got)
 	}
-	if !old.closed {
+	if !old.closed || cacheTestFileExists(t, old.filename) {
 		t.Fatal("child did not release the retired mapping")
 	}
 }
