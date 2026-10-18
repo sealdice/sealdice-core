@@ -40,11 +40,6 @@ func mmapWrite(t *testing.T, filename, text string) {
 	}
 }
 
-func buildTestDeck(t *testing.T, dir string, groups map[string][]string) (*deckBlockStore, error) {
-	t.Helper()
-	return buildMappedDeck(dir, groups)
-}
-
 func mmapDraw(t *testing.T, ctx *MsgContext, name string, shuffle bool) string {
 	t.Helper()
 	ctx.deckDepth = 0
@@ -78,6 +73,9 @@ func TestMappedDeckRecursiveReloadUpdateDelete(t *testing.T) {
 			t.Fatalf("updated result %q", got)
 		}
 	}
+	if got := mmapDraw(t, &MsgContext{Dice: d}, "root", false); got != "B" {
+		t.Fatalf("new context after update: %q", got)
+	}
 	mmapWrite(t, "bad.tmp", `{"root":`)
 	if err := d.DeckUpdate(d.DeckListSnapshot()[0], "bad.tmp"); err == nil {
 		t.Fatal("invalid update succeeded")
@@ -97,6 +95,22 @@ func TestMappedDeckRecursiveReloadUpdateDelete(t *testing.T) {
 	DeckDelete(d, d.DeckListSnapshot()[0])
 	if len(d.DeckListSnapshot()) != 0 {
 		t.Fatal("last deletion")
+	}
+}
+
+func TestMappedDeckReloadResetsContextPool(t *testing.T) {
+	d := mmapTestDice(t)
+	filename := "data/decks/pool.json"
+	mmapWrite(t, filename, `{"g":["o0","o1","o2","o3","o4","o5","o6","o7"]}`)
+	DeckReload(d)
+	ctx := &MsgContext{Dice: d, diceRandSrc: newPCGDiceSource(41)}
+	_ = mmapDraw(t, ctx, "g", true)
+	mmapWrite(t, filename, `{"g":["new"]}`)
+	DeckReload(d)
+	for i := range 8 {
+		if got := mmapDraw(t, ctx, "g", true); got != "new" {
+			t.Fatalf("draw %d used a stale pool: %q", i, got)
+		}
 	}
 }
 
@@ -125,6 +139,38 @@ func TestMappedDeckSixteenKiBBlocks(t *testing.T) {
 				t.Fatalf("boundary item %d: %q, %v", index, got, err)
 			}
 		}
+	}
+}
+
+func TestMappedDeckHashCollision(t *testing.T) {
+	s, err := buildMappedDeck(t.TempDir(), map[string][]string{"alpha": {"A"}, "beta": {"B"}, "nil": nil, "empty": {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.close()
+	for name, want := range map[string][]string{"alpha": {"A"}, "beta": {"B"}, "nil": nil, "empty": {}} {
+		got, err := s.materialize(name)
+		if err != nil || !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: %v %v", name, got, err)
+		}
+	}
+	// Force all directory entries into one hash bucket. Lookup must still
+	// compare each original key, including a missing key in that bucket.
+	for i := range s.hashes {
+		s.hashes[i].hash = 42
+	}
+	for _, name := range []string{"alpha", "beta"} {
+		g, ok := s.groupWithHash(name, 42)
+		if !ok {
+			t.Fatal("collision hid key", name)
+		}
+		got, err := s.item(&g, 0)
+		if err != nil || got != strings.ToUpper(name[:1]) {
+			t.Fatal("collision returned wrong value", got, err)
+		}
+	}
+	if _, ok := s.groupWithHash("missing", 42); ok {
+		t.Fatal("hash equality accepted without key equality")
 	}
 }
 
@@ -161,6 +207,31 @@ func TestMappedDeckParserAndWeightCompatibility(t *testing.T) {
 			}
 		})
 	}
+	for _, tt := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{"object-extension", `{"extension":{"normal":1},"g":["ok"]}`, "ok"},
+		{"mixed-array", `{"g":[1,null,{},"ok",[2]]}`, "ok"},
+		{"zero-and-default", `{"g":["::0::BAD","ok"]}`, "ok"},
+		{"wide-weight", `{"g":["::4294967296::WIDE","::1::small"]}`, "WIDE"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fixtureDice := mmapTestDice(t)
+			mmapWrite(t, "data/decks/compat.json", tt.body)
+			DeckReload(fixtureDice)
+			if decks := fixtureDice.DeckListSnapshot(); len(decks) != 1 || !decks[0].Enable {
+				t.Fatalf("load rejected: %+v", decks)
+			}
+			ctx := &MsgContext{Dice: fixtureDice, diceRandSrc: newPCGDiceSource(41)}
+			for i := range 32 {
+				if got := mmapDraw(t, ctx, "g", false); got != tt.want {
+					t.Fatalf("draw %d: got %q, want %q", i, got, tt.want)
+				}
+			}
+		})
+	}
 	for _, text := range []string{"plain", "::0::zero", "::1::one", "::4294967296::large", "::9223372036854775808::overflow", "::x::bad", "::::", "::12:x"} {
 		w, s := extractWeight(text)
 		w2, s2 := deckEntryWeight(text)
@@ -169,7 +240,7 @@ func TestMappedDeckParserAndWeightCompatibility(t *testing.T) {
 		}
 	}
 	items := []string{"::0::BAD", "default", "::3::heavy"}
-	s, err := buildTestDeck(t, t.TempDir(), map[string][]string{"g": items})
+	s, err := buildMappedDeck(t.TempDir(), map[string][]string{"g": items})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +274,7 @@ func TestMappedDeckBlocksOversizeEviction(t *testing.T) {
 		items[i] = fmt.Sprintf("entry-%d-%s", i, strings.Repeat("abcdefgh", 1024))
 	}
 	items[900] = strings.Repeat("long合法文本", 700000)
-	s, err := buildTestDeck(t, t.TempDir(), map[string][]string{"g": items})
+	s, err := buildMappedDeck(t.TempDir(), map[string][]string{"g": items})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,12 +305,15 @@ func TestMappedDeckBlocksOversizeEviction(t *testing.T) {
 func TestMappedDeckReloadWhileRecursiveCloudRequest(t *testing.T) {
 	d := mmapTestDice(t)
 	entered, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		close(entered)
 		<-release
 		_, _ = w.Write([]byte(`["{_leaf}"]`))
 	}))
 	defer server.Close()
+	defer unblock()
 	filename := "data/decks/cloud.toml"
 	mmapWrite(t, filename, fmt.Sprintf("[decks]\n_leaf=['OLD']\n[root]\nexport=true\nvisible=true\ncloud_extra=true\noptions_urls=[%q]\n", server.URL))
 	DeckReload(d)
@@ -254,14 +328,18 @@ func TestMappedDeckReloadWhileRecursiveCloudRequest(t *testing.T) {
 			err  error
 		}{text, err}
 	}()
-	<-entered
+	select {
+	case <-entered:
+	case got := <-result:
+		t.Fatalf("draw returned before entering the cloud request: %+v", got)
+	}
 	old := d.DeckListSnapshot()[0].storage
 	mmapWrite(t, filename, "[decks]\nroot=['NEW']\n_leaf=['NEW']\n")
 	DeckReload(d) // Must finish while the old network request is blocked.
 	if old.closed || !cacheTestFileExists(t, old.filename) {
 		t.Fatal("in-flight mapping closed")
 	}
-	close(release)
+	unblock()
 	got := <-result
 	if got.err != nil || got.text != "OLD" {
 		t.Fatalf("mixed snapshot: %+v", got)
@@ -428,10 +506,10 @@ func TestMappedDeckBuildFailureIsClean(t *testing.T) {
 	dir := t.TempDir()
 	blocker := filepath.Join(dir, "regular-file")
 	mmapWrite(t, blocker, "block")
-	if _, err := buildTestDeck(t, blocker, map[string][]string{"g": {"old"}}); err == nil {
+	if _, err := buildMappedDeck(blocker, map[string][]string{"g": {"old"}}); err == nil {
 		t.Fatal("expected deterministic failure")
 	}
-	if _, err := buildTestDeck(t, dir, map[string][]string{"g": {"::9223372036854775807::a", "::9223372036854775807::b", "::2::c"}}); err == nil {
+	if _, err := buildMappedDeck(dir, map[string][]string{"g": {"::9223372036854775807::a", "::9223372036854775807::b", "::2::c"}}); err == nil {
 		t.Fatal("overflow silently narrowed")
 	}
 	files, err := filepath.Glob(filepath.Join(dir, "*.blocks"))
@@ -446,10 +524,15 @@ func TestMappedDeckMatchesLegacyDrawSequence(t *testing.T) {
 		{"a", "b", "c"},
 		{"::0::never", "::3::a", "default", "::9::b", "::4294967296::wide"},
 	} {
-		s, err := buildTestDeck(t, t.TempDir(), map[string][]string{"g": items})
+		s, err := buildMappedDeck(t.TempDir(), map[string][]string{"g": items})
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() {
+			if err := s.close(); err != nil {
+				t.Error(err)
+			}
+		})
 		for _, shuffle := range []bool{false, true} {
 			legacy := &DeckInfo{DeckItems: map[string][]string{"g": items}}
 			mapped := &DeckInfo{storage: s, contentVersion: 1}
@@ -463,13 +546,10 @@ func TestMappedDeckMatchesLegacyDrawSequence(t *testing.T) {
 				}
 			}
 		}
-		if err := s.close(); err != nil {
-			t.Fatal(err)
-		}
 	}
 	// The legacy replacement chooser accepts totals wider than a signed int.
 	items := []string{"::9223372036854775807::a", "::1::b"}
-	s, err := buildTestDeck(t, t.TempDir(), map[string][]string{"g": items})
+	s, err := buildMappedDeck(t.TempDir(), map[string][]string{"g": items})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,7 +601,7 @@ func TestMappedDeckDownloadedCorpus(t *testing.T) {
 				t.Logf("both reject invalid fixture: %s", old.ErrText)
 				return
 			}
-			s, err := buildTestDeck(t, t.TempDir(), old.DeckItems)
+			s, err := buildMappedDeck(t.TempDir(), old.DeckItems)
 			if err != nil {
 				t.Fatal(err)
 			}

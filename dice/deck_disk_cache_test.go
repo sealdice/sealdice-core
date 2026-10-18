@@ -341,6 +341,11 @@ func TestDeckDiskCacheRetirementDeletionAndLock(t *testing.T) {
 	mmapWrite(t, "data/decks/b.json", `{"h":["H"]}`)
 	DeckReload(d)
 	lease := d.acquireDeckScope(nil)
+	defer func() {
+		if lease.catalog != nil {
+			d.releaseDeckScope(lease)
+		}
+	}()
 	oldFile := lease.catalog.decks[0].storage.filename
 	cacheDir := d.deckDiskCache.dir
 	mmapWrite(t, "data/decks/a.json", `{"g":["B"]}`)
@@ -455,37 +460,5 @@ func TestDeckDiskCacheFailedReloadPreservesVersionAndPrunesOrphans(t *testing.T)
 		if !deck.cacheHit {
 			t.Fatal("empty or restored deck missed", deck.Filename)
 		}
-	}
-}
-
-func TestMappedDeckHashCollision(t *testing.T) {
-	s, err := buildMappedDeck(t.TempDir(), map[string][]string{"alpha": {"A"}, "beta": {"B"}, "nil": nil, "empty": {}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.close()
-	for name, want := range map[string][]string{"alpha": {"A"}, "beta": {"B"}, "nil": nil, "empty": {}} {
-		got, err := s.materialize(name)
-		if err != nil || !reflect.DeepEqual(got, want) {
-			t.Fatalf("%s: %v %v", name, got, err)
-		}
-	}
-	// Force all directory entries into one hash bucket. Lookup must still
-	// compare each original key, including a missing key in that bucket.
-	for i := range s.hashes {
-		s.hashes[i].hash = 42
-	}
-	for _, name := range []string{"alpha", "beta"} {
-		g, ok := s.groupWithHash(name, 42)
-		if !ok {
-			t.Fatal("collision hid key", name)
-		}
-		got, err := s.item(&g, 0)
-		if err != nil || got != strings.ToUpper(name[:1]) {
-			t.Fatal("collision returned wrong value", got, err)
-		}
-	}
-	if _, ok := s.groupWithHash("missing", 42); ok {
-		t.Fatal("hash equality accepted without key equality")
 	}
 }
