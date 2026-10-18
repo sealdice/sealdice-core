@@ -261,7 +261,15 @@ func (pm *PackageManager) refreshFromDiskLocked(markPendingReload bool) (*Packag
 
 func (pm *PackageManager) scanSourceArtifacts() (map[string][]*packageArtifactCandidate, error) {
 	candidates := make(map[string][]*packageArtifactCandidate)
-	err := filepath.WalkDir(pm.getSourcePackagesPath(), func(pkgFilePath string, d fs.DirEntry, walkErr error) error {
+	sourceRootPath := pm.getSourcePackagesPath()
+	sourceRoot, openRootErr := os.OpenRoot(sourceRootPath)
+	if openRootErr != nil {
+		pm.parent.Logger.Warnf("打开扩展包源目录失败: %v", openRootErr)
+		return candidates, nil
+	}
+	defer sourceRoot.Close()
+
+	err := filepath.WalkDir(sourceRootPath, func(pkgFilePath string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			pm.parent.Logger.Warnf("扫描扩展包目录时发生错误: %v", walkErr)
 			return nil
@@ -270,7 +278,12 @@ func (pm *PackageManager) scanSourceArtifacts() (map[string][]*packageArtifactCa
 			return nil
 		}
 		if strings.HasPrefix(d.Name(), "staged-") && strings.HasSuffix(strings.ToLower(d.Name()), ".tmp") {
-			_ = os.Remove(pkgFilePath)
+			relPath, relErr := filepath.Rel(sourceRootPath, pkgFilePath)
+			if relErr != nil {
+				pm.parent.Logger.Warnf("计算扩展包临时文件相对路径失败 %s: %v", pkgFilePath, relErr)
+				return nil
+			}
+			_ = sourceRoot.Remove(relPath)
 			return nil
 		}
 		if !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {

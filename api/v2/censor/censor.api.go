@@ -366,7 +366,7 @@ func applyLevelConfig(config *dice.Config, level censorcore.Level, input CensorL
 }
 
 func setLevelHandlers(config *dice.Config, level censorcore.Level, handlers []string) {
-	newHandlers := map[dice.CensorHandler]bool{}
+	newHandlers := make(map[dice.CensorHandler]bool)
 	for _, item := range handlers {
 		switch item {
 		case "SendWarning":

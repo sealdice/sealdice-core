@@ -6,6 +6,7 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.golangci.toml'
       - '.github/workflows/reviewdog.yml'
       - '.github/scripts/lint.sh'
 
@@ -30,7 +31,7 @@ jobs:
       - name: Install GolangCI-Lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.4.0
+          version: v2.15.0
           install-only: true
       - name: Verify configuration and lint
         run: bash .github/scripts/lint.sh

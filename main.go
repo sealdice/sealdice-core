@@ -100,6 +100,7 @@ func cleanupCreate(diceManager *dice.DiceManager) func() {
 
 		for _, i := range diceManager.Dice {
 			d := i
+			d.CloseDecks()
 			d.DBOperator.Close()
 		}
 

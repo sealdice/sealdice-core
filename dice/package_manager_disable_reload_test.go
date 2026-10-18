@@ -330,6 +330,7 @@ func newDisableDeckTestPackageManager(t *testing.T) (*Dice, *PackageManager) {
 	}
 	pm := NewPackageManager(testDice)
 	testDice.PackageManager = pm
+	t.Cleanup(testDice.CloseDecks)
 	return testDice, pm
 }
 

@@ -23,7 +23,7 @@ require (
 	github.com/dop251/goja v0.0.0-20260216154549-8b74ce4618c5
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/evanw/esbuild v0.27.1
-	github.com/fy0/bluge v0.0.0-20260713113642-38c63a5ebb28
+	github.com/fy0/bluge v0.8.0
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
 	github.com/fy0/systray v1.2.2
@@ -54,7 +54,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.21.0
-	github.com/mroth/weightedrand/v3 v3.0.0
 	github.com/ncruces/go-sqlite3 v0.32.0
 	github.com/ncruces/go-sqlite3/gormlite v0.24.0
 	github.com/oklog/ulid/v2 v2.1.2
@@ -105,7 +104,9 @@ require (
 )
 
 require (
+	github.com/blevesearch/mmap-go v1.2.0
 	github.com/emmansun/gmsm v0.44.1
+	github.com/klauspost/compress v1.18.0
 	github.com/sixafter/aes-ctr-drbg v1.16.0
 	github.com/tus/tusd/v2 v2.10.1
 )
@@ -121,7 +122,6 @@ require (
 	github.com/bits-and-blooms/bloom/v3 v3.7.0 // indirect
 	github.com/blevesearch/bleve_index_api v1.4.0 // indirect
 	github.com/blevesearch/go-porterstemmer v1.0.3 // indirect
-	github.com/blevesearch/mmap-go v1.2.0 // indirect
 	github.com/blevesearch/scorch_segment_api/v2 v2.4.8 // indirect
 	github.com/blevesearch/segment v0.9.1 // indirect
 	github.com/blevesearch/snowballstem v0.9.0 // indirect
@@ -134,6 +134,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/elazarl/goproxy/ext v0.0.0-20230808193330-2592e75ae04a // indirect
 	github.com/esiqveland/notify v0.13.3 // indirect
@@ -170,7 +171,6 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kamstrup/intmap v0.5.2 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect

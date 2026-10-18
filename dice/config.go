@@ -13,15 +13,14 @@ import (
 	"sync"
 	"time"
 
-	wr "github.com/mroth/weightedrand/v3"
+	"github.com/bytedance/sonic"
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
-
-	"github.com/bytedance/sonic"
 
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
 	"sealdice-core/model"
+	"sealdice-core/utils/weighted"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -546,8 +545,8 @@ func (cm *ConfigManager) Load() error {
 	return nil
 }
 
-func (i *TextTemplateItemList) toRandomPool() *wr.Chooser[string, uint] {
-	var choices []wr.Choice[string, uint]
+func (i *TextTemplateItemList) toRandomPool() *weighted.Chooser[string] {
+	var choices []weighted.Choice[string]
 	for _, i := range *i {
 		// weight, text := extractWeight(i)
 		if len(i) == 1 {
@@ -556,14 +555,14 @@ func (i *TextTemplateItemList) toRandomPool() *wr.Chooser[string, uint] {
 		}
 
 		if w, ok := i[1].(int); ok {
-			choices = append(choices, wr.NewChoice(i[0].(string), uint(w)))
+			choices = append(choices, weighted.Choice[string]{Item: i[0].(string), Weight: uint(w)})
 		}
 
 		if w, ok := i[1].(float64); ok {
-			choices = append(choices, wr.NewChoice(i[0].(string), uint(w)))
+			choices = append(choices, weighted.Choice[string]{Item: i[0].(string), Weight: uint(w)})
 		}
 	}
-	randomPool, _ := wr.NewChooser(choices...)
+	randomPool, _ := weighted.NewChooser(choices...)
 	return randomPool
 }
 
@@ -2177,24 +2176,24 @@ func setupTextTemplate(d *Dice) {
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	newTextMap := map[string]*wr.Chooser[string, uint]{}
+	newTextMap := map[string]*weighted.Chooser[string]{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
-			var choices []wr.Choice[string, uint]
+			var choices []weighted.Choice[string]
 			for _, textItem := range v {
-				choices = append(choices, wr.NewChoice(textItem[0].(string), getNumVal(textItem[1])))
+				choices = append(choices, weighted.Choice[string]{Item: textItem[0].(string), Weight: getNumVal(textItem[1])})
 			}
 
-			pool, _ := wr.NewChooser(choices...)
+			pool, _ := weighted.NewChooser(choices...)
 			newTextMap[fmt.Sprintf("%s:%s", category, k)] = pool
 		}
 	}
 
-	picker, _ := wr.NewChooser(wr.NewChoice(APPNAME, uint(1)))
+	picker, _ := weighted.NewChooser(weighted.Choice[string]{Item: APPNAME, Weight: 1})
 	newTextMap["常量:APPNAME"] = picker
 
-	picker, _ = wr.NewChooser(wr.NewChoice(VERSION.String(), uint(1)))
+	picker, _ = weighted.NewChooser(weighted.Choice[string]{Item: VERSION.String(), Weight: 1})
 	newTextMap["常量:VERSION"] = picker
 
 	d.TextMap = newTextMap
@@ -2708,7 +2707,7 @@ func (d *Dice) Save(isAuto bool) {
 		}{
 			// 这些都是由于导出到 goja 无法拆分的字段
 			d.ImSession,
-			d.DeckList,
+			d.DeckListSnapshot(),
 			d.CommandPrefix,
 			d.DiceMasters,
 

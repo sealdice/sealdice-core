@@ -52,11 +52,14 @@ func redirectDefaultUI(c echo.Context) error {
 }
 
 func setDefaultUICookie(c echo.Context, value string) {
+	// #nosec G124 -- This non-sensitive UI preference must also work over local HTTP.
 	c.SetCookie(&http.Cookie{
 		Name:     defaultUICookieName,
 		Value:    value,
 		Path:     "/",
 		MaxAge:   defaultUICookieMaxAge,
+		Secure:   c.Scheme() == "https",
+		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
