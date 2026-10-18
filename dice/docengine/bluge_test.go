@@ -261,7 +261,7 @@ func TestBlugeSearchEngineRebuildsOldSchema(t *testing.T) {
 		t.Fatal(applyErr)
 	}
 	first.Close()
-	if writeErr := os.WriteFile(filepath.Join(indexDir, indexSchemaFile), []byte("2"), 0o600); writeErr != nil {
+	if writeErr := os.WriteFile(filepath.Join(indexDir, indexSchemaFile), []byte("1"), 0o600); writeErr != nil {
 		t.Fatal(writeErr)
 	}
 
