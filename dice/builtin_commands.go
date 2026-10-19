@@ -2218,45 +2218,8 @@ func (d *Dice) registerCoreCommands() {
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
-				confirmArg := cmdArgs.GetArgN(3)
-				if mode == DiceRandomModeGM {
-					if strings.EqualFold(confirmArg, "off") {
-						if !globalRandSource.GMEnabled() {
-							ReplyToSender(ctx, msg, formatDiceRandomModeGMAlreadyDisabledText())
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						if err := ctx.Dice.DisableDiceRandomGM(); err != nil {
-							ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(mode, err))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						ctx.Dice.MarkModified()
-						ctx.Dice.Save(false)
-						ReplyToSender(ctx, msg, formatDiceRandomModeGMDisabledText())
-						return CmdExecuteResult{Matched: true, Solved: true}
-					}
-
-					if !globalRandSource.GMEnabled() {
-						operatorID := ""
-						if ctx.Player != nil {
-							operatorID = ctx.Player.UserID
-						}
-						if operatorID == "" {
-							operatorID = msg.Sender.UserID
-						}
-						if confirmArg == "" {
-							code := issueGMEnableConfirmCode(operatorID)
-							ReplyToSender(ctx, msg, formatDiceRandomModeGMEnableConfirmText(code))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						if !consumeGMEnableConfirmCode(operatorID, confirmArg) {
-							ReplyToSender(ctx, msg, formatDiceRandomModeGMConfirmInvalidText())
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-						if err := ctx.Dice.EnableDiceRandomGM(); err != nil {
-							ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(mode, err))
-							return CmdExecuteResult{Matched: true, Solved: true}
-						}
-					}
+				if mode == DiceRandomModeGM && handleGMSetCommand(ctx, msg, cmdArgs.GetArgN(3)) {
+					return CmdExecuteResult{Matched: true, Solved: true}
 				}
 
 				if err := globalRandSource.InitError(mode); err != nil {

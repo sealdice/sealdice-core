@@ -45,6 +45,7 @@ func formatSupportedDiceRandomModesText() string {
 			desc += "（默认禁用，启用后约 +32MB 内存）"
 		case randcore.ModeHybrid:
 			desc += "（国密源启用后才加入）"
+		default:
 		}
 		lines = append(lines, fmt.Sprintf("%s // %s", mode, desc))
 	}
@@ -89,6 +90,51 @@ func formatDiceRandomModeGMDisabledText() string {
 
 func formatDiceRandomModeGMAlreadyDisabledText() string {
 	return "国密源当前已经是禁用状态。"
+}
+
+// handleGMSetCommand 处理 .randalgo set gm 的启用确认和关闭流程。
+// 返回 true 表示命令已处理并回复；返回 false 表示继续执行普通模式切换。
+func handleGMSetCommand(ctx *MsgContext, msg *Message, confirmArg string) bool {
+	if globalRandSource.GMEnabled() {
+		if !strings.EqualFold(confirmArg, "off") {
+			return false
+		}
+		if err := ctx.Dice.DisableDiceRandomGM(); err != nil {
+			ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(DiceRandomModeGM, err))
+			return true
+		}
+		ctx.Dice.MarkModified()
+		ctx.Dice.Save(false)
+		ReplyToSender(ctx, msg, formatDiceRandomModeGMDisabledText())
+		return true
+	}
+
+	if strings.EqualFold(confirmArg, "off") {
+		ReplyToSender(ctx, msg, formatDiceRandomModeGMAlreadyDisabledText())
+		return true
+	}
+
+	operatorID := ""
+	if ctx.Player != nil {
+		operatorID = ctx.Player.UserID
+	}
+	if operatorID == "" {
+		operatorID = msg.Sender.UserID
+	}
+	if confirmArg == "" {
+		code := issueGMEnableConfirmCode(operatorID)
+		ReplyToSender(ctx, msg, formatDiceRandomModeGMEnableConfirmText(code))
+		return true
+	}
+	if !consumeGMEnableConfirmCode(operatorID, confirmArg) {
+		ReplyToSender(ctx, msg, formatDiceRandomModeGMConfirmInvalidText())
+		return true
+	}
+	if err := ctx.Dice.EnableDiceRandomGM(); err != nil {
+		ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(DiceRandomModeGM, err))
+		return true
+	}
+	return false
 }
 
 func formatDiceRandomModeSetSuccessText(mode DiceRandomMode) string {
