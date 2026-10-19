@@ -45,7 +45,7 @@ func TestSetConfigsRejectsInvalidTaskWithoutSavingOtherFields(t *testing.T) {
 func TestCheckCronExpressionAcceptsStandardCron(t *testing.T) {
 	dm := &dice.DiceManager{}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice = []*dice.Dice{d}
+	dm.Dice = d
 
 	svc := NewService(dm)
 	resp, err := svc.CheckCron(t.Context(), &CheckCronReq{
@@ -62,7 +62,7 @@ func TestCheckCronExpressionAcceptsStandardCron(t *testing.T) {
 func TestCheckCronExpressionRejectsInvalidCron(t *testing.T) {
 	dm := &dice.DiceManager{}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice = []*dice.Dice{d}
+	dm.Dice = d
 
 	svc := NewService(dm)
 	if _, err := svc.CheckCron(t.Context(), &CheckCronReq{
@@ -75,7 +75,7 @@ func TestCheckCronExpressionRejectsInvalidCron(t *testing.T) {
 func TestCheckCronExpressionRejectsBlankCron(t *testing.T) {
 	dm := &dice.DiceManager{}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice = []*dice.Dice{d}
+	dm.Dice = d
 
 	svc := NewService(dm)
 	if _, err := svc.CheckCron(t.Context(), &CheckCronReq{

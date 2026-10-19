@@ -14,10 +14,10 @@ func TestOverviewIncludesSplitBaseInfoFields(t *testing.T) {
 		UIPasswordSalt: "salt-value",
 		JustForTest:    true,
 		ContainerMode:  true,
-		Dice:           []*dice.Dice{{Parent: nil}},
+		Dice:           &dice.Dice{Parent: nil},
 	}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice[0] = d
+	dm.Dice = d
 
 	svc := base.NewBaseService(dm)
 	resp, err := svc.Overview(t.Context(), &request.Empty{})
@@ -52,10 +52,10 @@ func TestOverviewIncludesSplitBaseInfoFields(t *testing.T) {
 func TestLoginSaltReturnsManagerSalt(t *testing.T) {
 	dm := &dice.DiceManager{
 		UIPasswordSalt: "salt-value",
-		Dice:           []*dice.Dice{{Parent: nil}},
+		Dice:           &dice.Dice{Parent: nil},
 	}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice[0] = d
+	dm.Dice = d
 
 	svc := base.NewBaseService(dm)
 	resp, err := svc.LoginSalt(t.Context(), &request.Empty{})
@@ -70,7 +70,7 @@ func TestLoginSaltReturnsManagerSalt(t *testing.T) {
 func TestHealthIncludesInitializedFlag(t *testing.T) {
 	dm := &dice.DiceManager{JustForTest: true}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice = []*dice.Dice{d}
+	dm.Dice = d
 
 	svc := base.NewBaseService(dm)
 	resp, err := svc.Health(t.Context(), &request.Empty{})

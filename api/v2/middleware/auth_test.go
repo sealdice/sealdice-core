@@ -85,7 +85,7 @@ func TestTokenFromEchoContextFallsBackToTokenHeaderAndQuery(t *testing.T) {
 func TestWriteProtectedMiddlewareReturnsTestModePayload(t *testing.T) {
 	dm := &dice.DiceManager{JustForTest: true}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice = []*dice.Dice{d}
+	dm.Dice = d
 	d.Parent.AccessTokens.Store("token-1", true)
 	req := httptest.NewRequest(http.MethodPost, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer token-1")

@@ -27,7 +27,7 @@ func newTestHelpDocService(t *testing.T) *Service {
 	d.BaseConfig.DataDir = tempDir
 	d.Config = dice.NewConfig(d)
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 		Help: &dice.HelpManager{
 			HelpDocTree: []*dice.HelpDoc{
 				{

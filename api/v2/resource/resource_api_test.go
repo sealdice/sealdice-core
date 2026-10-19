@@ -27,7 +27,7 @@ func newTestService(t *testing.T) *Service {
 	d.BaseConfig.DataDir = tempDir
 	d.Config = dice.NewConfig(d)
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 	}
 	d.Parent = dm
 	return NewService(dm)

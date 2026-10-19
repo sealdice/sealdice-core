@@ -82,7 +82,7 @@ func newTestService(t *testing.T) *Service {
 	d.AttrsManager = &dice.AttrsManager{}
 	d.AttrsManager.Init(d)
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 	}
 	d.Parent = dm
 	return NewService(dm)

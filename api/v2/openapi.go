@@ -47,7 +47,7 @@ func newOpenAPIDiceManager() *dice.DiceManager {
 	}
 	d.ImSession.Parent = d
 	dm := &dice.DiceManager{
-		Dice:         []*dice.Dice{d},
+		Dice:         d,
 		ServeAddress: "127.0.0.1:3211",
 	}
 	d.Parent = dm

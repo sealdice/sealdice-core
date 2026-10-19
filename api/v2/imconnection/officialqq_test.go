@@ -74,7 +74,7 @@ func TestTestOfficialQQReturnsProbeMetadataAndDuplicateState(t *testing.T) {
 		ServiceAtNew: new(dice.SyncMap[string, *dice.GroupInfo]),
 		PendingQuits: new(dice.SyncMap[string, *dice.PendingQuitInfo]),
 	}
-	dm := &dice.DiceManager{Dice: []*dice.Dice{d}}
+	dm := &dice.DiceManager{Dice: d}
 	d.Parent = dm
 
 	svc := NewServiceWithOfficialProbe(dm, false, false, func(_ string, _ string) (*dice.OfficialQQAccountProbeResult, error) {

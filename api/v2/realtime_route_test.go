@@ -112,7 +112,7 @@ func newRealtimeRouteDiceManager() *dice.DiceManager {
 		PendingQuits: new(dice.SyncMap[string, *dice.PendingQuitInfo]),
 	}
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 	}
 	d.Parent = dm
 	dm.AccessTokens.Store("token-1", true)

@@ -27,7 +27,7 @@ func newTestService(t *testing.T) (*Service, *dice.PlatformAdapterHTTP) {
 	}
 
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 	}
 	d.Parent = dm
 	d.Config = dice.NewConfig(d)

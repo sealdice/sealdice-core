@@ -46,7 +46,7 @@ func newTestBanService(t *testing.T) *ban.BanService {
 	d.BaseConfig.DataDir = tempDir
 
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 		Cron: cron.New(),
 	}
 	d.Parent = dm

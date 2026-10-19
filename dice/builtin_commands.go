@@ -1379,7 +1379,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
 					}
 				}()
-				dm.UpdateRequestChan <- d
+				dm.UpdateRequestChan <- struct{}{}
 			case "reboot":
 				var dm = ctx.Dice.Parent
 				if dm.JustForTest {

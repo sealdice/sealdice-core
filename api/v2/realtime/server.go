@@ -213,8 +213,8 @@ func realtimeEventTypeMap() map[string]any {
 }
 
 func primaryDice(dm *dice.DiceManager) *dice.Dice {
-	if dm == nil || len(dm.Dice) == 0 {
+	if dm == nil {
 		return nil
 	}
-	return dm.Dice[0]
+	return dm.GetDice()
 }

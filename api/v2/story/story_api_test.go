@@ -44,7 +44,7 @@ func newTestStoryService(t *testing.T) *Service {
 	d.UIEndpoint = &dice.EndPointInfo{EndPointInfoBase: dice.EndPointInfoBase{UserID: "UI:1000"}}
 
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 	}
 	d.Parent = dm
 
