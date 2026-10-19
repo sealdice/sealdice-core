@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"runtime/debug"
@@ -981,6 +982,10 @@ func (pa *PlatformAdapterMilky) SendFileToGroup(_ *MsgContext, groupID string, p
 	filename := filepath.Base(path)
 	if strings.HasPrefix(path, "files://") {
 		path = "file://" + path[len("files://"):]
+	}
+	// 文件名使用解码后的 URI 路径，file_uri 保留转义以正确定位文件。
+	if fileURL, parseErr := url.Parse(path); parseErr == nil && fileURL.Scheme != "" && fileURL.Path != "" {
+		filename = filepath.Base(fileURL.Path)
 	}
 	_, err = pa.IntentSession.UploadGroupFile(rawID, path, filename, "")
 	if err != nil {

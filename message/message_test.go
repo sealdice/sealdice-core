@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -120,6 +121,19 @@ func writeResourceFile(t *testing.T, name string) string {
 	return filename
 }
 
+func sharedFileURL(t *testing.T, filename string) string {
+	t.Helper()
+	path, err := filepath.Abs(filename)
+	if err != nil {
+		t.Fatalf("resolve shared file path: %v", err)
+	}
+	urlPath := filepath.ToSlash(path)
+	if runtime.GOOS == "windows" && !strings.HasPrefix(urlPath, "/") {
+		urlPath = "/" + urlPath
+	}
+	return (&url.URL{Scheme: "files", Path: urlPath}).String()
+}
+
 func defaultElementData(t *testing.T, element message.IMessageElement) map[string]string {
 	t.Helper()
 
@@ -184,6 +198,41 @@ func TestNormalizeLocalResourcePath(t *testing.T) {
 	var fileErr *message.CQFileError
 	if !errors.As(err, &fileErr) || fileErr.Kind != message.CQFileErrRestricted {
 		t.Fatalf("outside path error = %v, want CQFileErrRestricted", err)
+	}
+}
+
+func TestExtractLocalTempFileKeepsSharedFilesPath(t *testing.T) {
+	filename := writeResourceFile(t, "shared-log.txt")
+	uri := sharedFileURL(t, filename)
+
+	name, gotPath, err := message.ExtractLocalTempFile(uri)
+	if err != nil {
+		t.Fatalf("ExtractLocalTempFile() error = %v", err)
+	}
+	if name != filepath.Base(filename) {
+		t.Fatalf("file name = %q, want %q", name, filepath.Base(filename))
+	}
+	wantPath, err := filepath.Abs(filename)
+	if err != nil {
+		t.Fatalf("resolve expected path: %v", err)
+	}
+	if filepath.Clean(gotPath) != filepath.Clean(wantPath) {
+		t.Fatalf("shared path = %q, want %q", gotPath, wantPath)
+	}
+	if _, statErr := os.Stat(gotPath); statErr != nil {
+		t.Fatalf("shared source file disappeared: %v", statErr)
+	}
+
+	element, err := message.FilepathToFileElement(uri)
+	if err != nil {
+		t.Fatalf("FilepathToFileElement() error = %v", err)
+	}
+	data, err := io.ReadAll(element.Stream)
+	if err != nil {
+		t.Fatalf("read shared file element: %v", err)
+	}
+	if string(data) != "resource" {
+		t.Fatalf("shared file content = %q, want %q", data, "resource")
 	}
 }
 

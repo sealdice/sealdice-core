@@ -354,17 +354,35 @@ func CQToText(t string, d map[string]string) IMessageElement {
 
 // ExtractLocalTempFile 按路径提取临时文件，路径可以是 http/base64/本地路径
 func ExtractLocalTempFile(path string) (string, string, error) {
+	path = strings.TrimSpace(path)
+	// files:// 表示调用方已经把文件放在共享文件系统中。直接返回原文件路径，
+	// 避免再次复制到系统临时目录后让跨容器的 OneBot 客户端无法读取。
+	if isSharedFileResourceReference(path) {
+		_, absolutePath, info, err := normalizeLocalFileReference(path)
+		if err != nil {
+			return "", "", err
+		}
+		if info.Size() == 0 || info.Size() >= maxFileSize {
+			return "", "", &CQFileError{Kind: CQFileErrInvalidSize, Raw: path, Normalized: absolutePath}
+		}
+		return info.Name(), absolutePath, nil
+	}
+
 	fileElement, err := FilepathToFileElement(path)
 	if err != nil {
 		return "", "", err
 	}
 	temp, err := os.CreateTemp("", "temp-")
-	defer func(temp *os.File) {
-		_ = temp.Close()
-	}(temp)
 	if err != nil {
 		return "", "", err
 	}
+	keep := false
+	defer func() {
+		_ = temp.Close()
+		if !keep {
+			_ = os.Remove(temp.Name()) //nolint:gosec
+		}
+	}()
 	data, err := io.ReadAll(fileElement.Stream)
 	if err != nil {
 		return "", "", err
@@ -373,6 +391,7 @@ func ExtractLocalTempFile(path string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	keep = true
 	return fileElement.File, temp.Name(), nil
 }
 
@@ -402,6 +421,15 @@ func normalizeRemoteURL(raw string) (string, error) {
 	return parsed.String(), nil
 }
 
+func isFileResourceReference(raw string) bool {
+	lower := strings.ToLower(raw)
+	return strings.HasPrefix(lower, "file://") || strings.HasPrefix(lower, "files://")
+}
+
+func isSharedFileResourceReference(raw string) bool {
+	return strings.HasPrefix(strings.ToLower(raw), "files://")
+}
+
 func isPassthroughResourceReference(raw string) bool {
 	lower := strings.ToLower(raw)
 	return strings.HasPrefix(lower, "http://") ||
@@ -410,12 +438,12 @@ func isPassthroughResourceReference(raw string) bool {
 }
 
 func localPathFromResourceReference(raw string) (string, error) {
-	if !strings.HasPrefix(strings.ToLower(raw), "file://") {
+	if !isFileResourceReference(raw) {
 		return raw, nil
 	}
 
 	parsed, err := url.Parse(raw)
-	if err != nil || !strings.EqualFold(parsed.Scheme, "file") {
+	if err != nil || (!strings.EqualFold(parsed.Scheme, "file") && !strings.EqualFold(parsed.Scheme, "files")) {
 		return "", &CQFileError{Kind: CQFileErrInvalidURL, Raw: raw, Cause: err}
 	}
 	if parsed.RawQuery != "" || parsed.Fragment != "" {
@@ -424,7 +452,12 @@ func localPathFromResourceReference(raw string) (string, error) {
 
 	localPath := parsed.Path
 	if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
-		localPath = "//" + parsed.Host + parsed.Path
+		// 兼容 file://C:/path 这类 Windows 盘符写法；其它 host 按 UNC 路径处理。
+		if runtime.GOOS == "windows" && len(parsed.Host) == 2 && parsed.Host[1] == ':' {
+			localPath = parsed.Host + parsed.Path
+		} else {
+			localPath = "//" + parsed.Host + parsed.Path
+		}
 	}
 	// net/url 已完成路径解码；Windows 盘符还需要去掉 URL 路径的前导斜杠。
 	if runtime.GOOS == "windows" && len(localPath) >= 3 && localPath[0] == '/' && localPath[2] == ':' {
@@ -487,11 +520,11 @@ func NormalizeLocalResourcePath(raw string) (string, error) {
 	if raw == "" || isPassthroughResourceReference(raw) {
 		return raw, nil
 	}
-	if strings.Contains(raw, "://") && !strings.HasPrefix(strings.ToLower(raw), "file://") {
+	if strings.Contains(raw, "://") && !isFileResourceReference(raw) {
 		return raw, nil
 	}
 
-	isLocal := strings.HasPrefix(strings.ToLower(raw), "file://")
+	isLocal := isFileResourceReference(raw)
 	if !isLocal {
 		_, err := os.Stat(raw)
 		isLocal = err == nil
