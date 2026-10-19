@@ -2245,6 +2245,11 @@ func (d *Dice) loads() {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err3)
 		}
+		var gmField struct {
+			DiceRandomGMEnabled *bool `yaml:"diceRandomGMEnabled"`
+		}
+		_ = yaml.Unmarshal(data, &gmField)
+		hasGMField := gmField.DiceRandomGMEnabled != nil
 
 		// 有一些配置项被用 jsbind 导出了，只能先留在 Dice 不迁移了
 		dNew := Dice{}
@@ -2376,6 +2381,9 @@ func (d *Dice) loads() {
 		})
 
 		d.Config = config
+		if d.migrateDiceRandomGMConfig(hasGMField) {
+			d.MarkModified()
+		}
 		d.Logger.Info("serve.yaml loaded")
 	} else {
 		d.Logger.Info("serve.yaml not found")

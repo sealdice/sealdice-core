@@ -354,9 +354,6 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
-	if d.migrateDiceRandomGMConfig() {
-		d.MarkModified()
-	}
 	if d.Config.DiceRandomGMEnabled {
 		if err := d.EnableDiceRandomGM(); err != nil && d.Logger != nil {
 			d.Logger.Warnf("[随机源] 启用国密随机源失败: %v", err)

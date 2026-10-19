@@ -95,9 +95,10 @@ func formatDiceRandomModeGMAlreadyDisabledText() string {
 // handleGMSetCommand 处理 .randalgo set gm 的启用确认和关闭流程。
 // 返回 true 表示命令已处理并回复；返回 false 表示继续执行普通模式切换。
 func handleGMSetCommand(ctx *MsgContext, msg *Message, confirmArg string) bool {
-	if globalRandSource.GMEnabled() {
-		if !strings.EqualFold(confirmArg, "off") {
-			return false
+	if strings.EqualFold(confirmArg, "off") {
+		if !ctx.Dice.Config.DiceRandomGMEnabled && !globalRandSource.GMEnabled() {
+			ReplyToSender(ctx, msg, formatDiceRandomModeGMAlreadyDisabledText())
+			return true
 		}
 		if err := ctx.Dice.DisableDiceRandomGM(); err != nil {
 			ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(DiceRandomModeGM, err))
@@ -108,10 +109,8 @@ func handleGMSetCommand(ctx *MsgContext, msg *Message, confirmArg string) bool {
 		ReplyToSender(ctx, msg, formatDiceRandomModeGMDisabledText())
 		return true
 	}
-
-	if strings.EqualFold(confirmArg, "off") {
-		ReplyToSender(ctx, msg, formatDiceRandomModeGMAlreadyDisabledText())
-		return true
+	if globalRandSource.GMEnabled() {
+		return false
 	}
 
 	operatorID := ""

@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -27,6 +28,7 @@ const (
 )
 
 type Service struct {
+	mu   sync.RWMutex
 	dice *dice.Dice
 	dm   *dice.DiceManager
 }
@@ -57,10 +59,14 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 }
 
 func (s *Service) GetValue(_ context.Context, _ *request.Empty) (*response.ItemResponse[BaseSettingValueResp], error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return response.NewItemResponse(s.buildValue()), nil
 }
 
 func (s *Service) SetValue(_ context.Context, req *BaseSettingUpdateReq) (*response.ItemResponse[BaseSettingActionResp], error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if err := s.applyPatch(req.Body); err != nil {
 		return nil, err
 	}

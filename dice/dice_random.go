@@ -13,10 +13,16 @@ func (d *Dice) getDiceRandomMode() DiceRandomMode {
 }
 
 // migrateDiceRandomGMConfig 保持旧 gm/hybrid 配置的原有行为：升级后自动启用国密源。
-func (d *Dice) migrateDiceRandomGMConfig() bool {
-	if d.Config.VersionCode >= ConfigVersionCode {
-		return false
+// hasGMField 用于识别配置中是否真的写入了新字段，避免旧版程序回写时丢弃字段却保留新版本号。
+func (d *Dice) migrateDiceRandomGMConfig(hasGMField bool) bool {
+	if hasGMField {
+		if d.Config.VersionCode >= ConfigVersionCode {
+			return false
+		}
+		d.Config.VersionCode = ConfigVersionCode
+		return true
 	}
+
 	mode := d.getDiceRandomMode()
 	if mode == DiceRandomModeGM || mode == DiceRandomModeHybrid {
 		d.Config.DiceRandomGMEnabled = true
