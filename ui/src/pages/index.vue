@@ -92,12 +92,6 @@
             <strong class="network-result__value is-success">良好</strong>
             <span>所有服务均可正常访问</span>
           </template>
-          <template
-            v-else-if="networkHealth.ok.includes('sign') && networkHealth.ok.includes('seal')"
-          >
-            <strong class="network-result__value is-primary">一般</strong>
-            <span>核心服务当前可用</span>
-          </template>
           <template v-else-if="networkHealth.total !== 0 && networkHealth.ok.length === 0">
             <strong class="network-result__value is-error">中断</strong>
             <span>外部服务暂时不可访问</span>
@@ -109,11 +103,9 @@
         </div>
 
         <div v-if="networkHealth.timestamp !== 0" class="network-health-targets">
-          <span v-for="target in networkTargets" :key="target.key" class="network-target">
-            <n-icon
-              :color="getWebsiteHealthOK(target.key) ? 'var(--sd-success)' : 'var(--sd-error)'"
-            >
-              <i-tabler-circle-check-filled v-if="getWebsiteHealthOK(target.key)" />
+          <span v-for="target in networkHealth.targets" :key="target.target" class="network-target">
+            <n-icon :color="target.ok ? 'var(--sd-success)' : 'var(--sd-error)'">
+              <i-tabler-circle-check-filled v-if="target.ok" />
               <i-tabler-circle-x-filled v-else />
             </n-icon>
             {{ target.label }}
@@ -187,7 +179,6 @@ import { applyLogDisplayUpdate, type BaseLogEntry } from '@/features/base/logStr
 import {
   formatNetworkHealthRelativeTime,
   formatNetworkHealthTimestamp,
-  isNetworkHealthTargetOK,
   normalizeNetworkHealthData,
 } from '@/features/base/networkHealth';
 import { formatRuntimeSummary } from '@/features/base/runtimeSummary';
@@ -240,12 +231,6 @@ const isContainerMode = computed(() => overview.value?.runtime.containerMode ===
 const displayReverse = ref(true);
 const autoRefresh = ref(true);
 const visibleLogs = ref<BaseLogEntry[]>([]);
-const networkTargets = [
-  { key: 'seal', label: '官网' },
-  { key: 'sign', label: 'Lagrange Sign' },
-  { key: 'google', label: 'Google' },
-  { key: 'github', label: 'GitHub' },
-];
 const logsContainer = useTemplateRef<HTMLElement>('logsContainer');
 const logTable = useTemplateRef<DataTableInst>('logTable');
 const logStream = useBaseLogStreamStore();
@@ -310,10 +295,6 @@ async function fetchGroupSummary() {
 
 function refreshNetworkHealth() {
   void networkHealthQuery.refetch();
-}
-
-function getWebsiteHealthOK(target: string): boolean {
-  return isNetworkHealthTargetOK(networkHealth.value, target);
 }
 
 // 「最新日志」始终跳到最新那一条：倒序显示时它在顶部，正序显示时在尾部。
