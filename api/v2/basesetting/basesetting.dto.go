@@ -34,6 +34,7 @@ type BaseSettingValueResp struct {
 	LogSizeNoticeCount       int                                 `json:"logSizeNoticeCount"`
 	PlayerNameWrapEnable     bool                                `json:"playerNameWrapEnable"`
 	DiceRandomMode           string                              `json:"diceRandomMode"`
+	DiceRandomGMEnabled      bool                                `json:"diceRandomGMEnabled"`
 	OnlyLogCommandInGroup    bool                                `json:"onlyLogCommandInGroup"`
 	OnlyLogCommandInPrivate  bool                                `json:"onlyLogCommandInPrivate"`
 	RateLimitEnabled         bool                                `json:"rateLimitEnabled"`
@@ -82,6 +83,7 @@ type BaseSettingPatch struct {
 	LogSizeNoticeCount       *int                                 `json:"logSizeNoticeCount,omitempty"`
 	PlayerNameWrapEnable     *bool                                `json:"playerNameWrapEnable,omitempty"`
 	DiceRandomMode           *string                              `json:"diceRandomMode,omitempty"`
+	DiceRandomGMEnabled      *bool                                `json:"diceRandomGMEnabled,omitempty"`
 	OnlyLogCommandInGroup    *bool                                `json:"onlyLogCommandInGroup,omitempty"`
 	OnlyLogCommandInPrivate  *bool                                `json:"onlyLogCommandInPrivate,omitempty"`
 	RateLimitEnabled         *bool                                `json:"rateLimitEnabled,omitempty"`

@@ -84,7 +84,8 @@ func ModeSpecFor(mode Mode) ModeSpec {
 			Description: "符合国内商用密码行业标准 GM/T 0105-2021 的随机数生成方案，核心采用国家密码管理局发布的 SM3 杂凑算法构建 Hash DRBG。" +
 				"SM3 广泛部署于二代居民身份证、电子护照、金融 IC 卡、电子发票等国密基础设施，是国产密码体系的基础组件。" +
 				"结合多源熵输入、已知答案自检（KAT）与 SP 800-90B 连续健康检测机制，在生成质量、规范一致性与安全设计方面表现突出，" +
-				"代价是计算与初始化开销相对较高。适合对合规性与国产密码体系有要求的场景。",
+				"代价是计算与初始化开销相对较高。该源默认禁用；启用后需要约 32MB 常驻内存用于熵采集，只有重启进程才会释放。" +
+				"适合对合规性与国产密码体系有要求的场景。",
 		}
 	case ModeNIST:
 		return ModeSpec{
@@ -113,7 +114,7 @@ func ModeSpecFor(mode Mode) ModeSpec {
 		return ModeSpec{
 			Label:     "混合模式 (Hybrid)",
 			Algorithm: "多源输出按位异或（XOR）混合",
-			Standard:  "组合模式：混合 PCG、国密 SM3、AES-CTR-DRBG、操作系统 CRNG 等全部可用来源",
+			Standard:  "组合模式：混合 PCG、AES-CTR-DRBG、操作系统 CRNG 等已启用来源；国密 SM3 仅在显式启用后加入",
 			ShortDesc: "多源异或混合，安全冗余最高、性能最低",
 			Description: "将上述多个高质量随机源的输出按位异或（XOR）混合。依据概率论基本结论：若各随机源相互独立，" +
 				"且其中至少一个为真随机（均匀分布），则其异或结果必为真随机——无论其余源的分布如何。" +

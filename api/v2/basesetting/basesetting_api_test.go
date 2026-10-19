@@ -113,6 +113,9 @@ func TestGetValueIncludesOfficialQQAndTrayTooltipFields(t *testing.T) {
 	if value, ok := got["trayTooltip"].(string); !ok || value != "" {
 		t.Fatalf("trayTooltip = %#v, want empty string", got["trayTooltip"])
 	}
+	if value, ok := got["diceRandomGMEnabled"].(bool); !ok || value {
+		t.Fatalf("diceRandomGMEnabled = %#v, want false", got["diceRandomGMEnabled"])
+	}
 }
 
 func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
@@ -150,6 +153,33 @@ func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
 	}
 	if value, ok := got["trayTooltip"].(string); !ok || value != "海豹提示" {
 		t.Fatalf("trayTooltip = %#v, want 海豹提示", got["trayTooltip"])
+	}
+}
+
+func TestPatchRejectsGMModeWithoutEnable(t *testing.T) {
+	svc, d := newTestBaseSettingService(t)
+	d.Config.DiceRandomMode = string(dice.DiceRandomModePCG)
+	d.Config.DiceRandomGMEnabled = false
+
+	rec := putSettings(t, svc, `{"diceRandomMode":"gm"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if d.Config.DiceRandomMode != string(dice.DiceRandomModePCG) {
+		t.Fatalf("DiceRandomMode = %q, want pcg", d.Config.DiceRandomMode)
+	}
+}
+
+func TestPatchRejectsDisablingGM(t *testing.T) {
+	svc, d := newTestBaseSettingService(t)
+	d.Config.DiceRandomGMEnabled = true
+
+	rec := putSettings(t, svc, `{"diceRandomGMEnabled":false}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if !d.Config.DiceRandomGMEnabled {
+		t.Fatal("rejected patch disabled GM source")
 	}
 }
 
